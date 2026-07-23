@@ -2,11 +2,11 @@
 # F-03 v2：std.fs 去 C 门禁（无 fs.c + posix/win32 + F-01）。
 #
 # 用法：./tests/run-f03-std-fs-gate.sh
-# 环境：SHUX_F03_FS_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F03_FS_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F03_FS_FAIL:-0}
+FAIL=${XLANG_F03_FS_FAIL:-0}
 DOC="analysis/phase-f-f03-v2-fs.md"
 
 die() {
@@ -48,7 +48,7 @@ done
 if [ -f tests/run-std-c-inventory-gate.sh ]; then
   echo "=== F-03 v2: delegate run-std-c-inventory-gate (F-01) ==="
   chmod +x tests/run-std-c-inventory-gate.sh
-  if ! SHUX_STD_C_INVENTORY_FAIL="$FAIL" tests/run-std-c-inventory-gate.sh; then
+  if ! XLANG_STD_C_INVENTORY_FAIL="$FAIL" tests/run-std-c-inventory-gate.sh; then
     die "std-c-inventory sub-gate failed"
   fi
 fi

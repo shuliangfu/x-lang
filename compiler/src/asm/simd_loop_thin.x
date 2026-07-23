@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // See implementation.
-// PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_SIMD_LOOP_THIN_FROM_X）ld -r → simd_loop.o
+// PREFER_X_O：thin.o + seed-rest（-DXLANG_L2_SIMD_LOOP_THIN_FROM_X）ld -r → simd_loop.o
 // See implementation.
 // See implementation.
 // See implementation.

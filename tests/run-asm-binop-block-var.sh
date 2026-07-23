@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/wpo-main-disasm.sh
 . tests/lib/wpo-main-disasm.sh
 make -C compiler -q 2>/dev/null || make -C compiler
-SHUX=${SHUX:-./compiler/shux}
+XLANG=${XLANG:-./compiler/xlang}
 
 # x10/x11 spill 与 ldur 门禁：仅非 Darwin 的 arm64（Darwin 产品 -o 走 C，见 wpo_asm_disasm_gate_host）。
 asm_disasm_gate_host() {
@@ -24,7 +24,7 @@ run_one() {
   local tag="$4"
   local max_b_ldur="$5"
   local max_a_ldur="${6:-99}"
-  $SHUX "$src" -o "$out" 2>&1
+  $XLANG build "$src" -o "$out" 2>&1
   local exitcode=0
   "$out" >/dev/null 2>&1 || exitcode=$?
   if [ "$exitcode" -ne "$want" ]; then
@@ -172,41 +172,41 @@ check_x12_spill() {
   fi
 }
 
-run_one tests/asm/binop_block_repeat_add.x /tmp/shux_asm_binop_block_repeat_add 60 "repeat add" 1 2
-run_one tests/asm/binop_block_repeat_mul.x /tmp/shux_asm_binop_block_repeat_mul 12 "repeat mul" 1 2
-run_one tests/asm/binop_block_prune_dead_b.x /tmp/shux_asm_binop_block_prune_b 10 "prune dead b" 1
-run_one tests/asm/binop_block_shared_right.x /tmp/shux_asm_binop_block_shared_right 90 "shared right var" 3 4
-run_one tests/asm/binop_block_swap_add.x /tmp/shux_asm_binop_block_swap_add 60 "swap add" 1 2
-run_one tests/asm/binop_block_three_var.x /tmp/shux_asm_binop_block_three 6 "three var linear chain" 99 99
-run_one tests/asm/binop_block_four_var.x /tmp/shux_asm_binop_block_four 10 "four var linear |live|>2" 99 99
-run_one tests/asm/binop_block_five_var.x /tmp/shux_asm_binop_block_five 231 "five var |live|>3 pressure" 99 99
-run_one tests/asm/binop_block_six_var.x /tmp/shux_asm_binop_block_six 21 "six var next-use eviction" 99 99
-run_one tests/asm/binop_return_four_add.x /tmp/shux_asm_binop_ret_four 10 "return four-var add chain" 99 99
-check_x10_spill /tmp/shux_asm_binop_ret_four "return four add"
-run_one tests/asm/binop_return_four_mul.x /tmp/shux_asm_binop_ret_four_mul 24 "return four-var mul chain" 99 99
-check_x10_spill /tmp/shux_asm_binop_ret_four_mul "return four mul"
-run_one tests/asm/binop_return_four_and.x /tmp/shux_asm_binop_ret_four_and 1 "return four-var and chain" 99 99
-check_x10_spill /tmp/shux_asm_binop_ret_four_and "return four and"
-run_one tests/asm/binop_return_four_or.x /tmp/shux_asm_binop_ret_four_or 15 "return four-var or chain" 99 99
-check_x10_spill /tmp/shux_asm_binop_ret_four_or "return four or"
-run_one tests/asm/binop_return_four_xor.x /tmp/shux_asm_binop_ret_four_xor 15 "return four-var xor chain" 99 99
-check_x10_spill /tmp/shux_asm_binop_ret_four_xor "return four xor"
-run_one tests/asm/binop_return_five_add.x /tmp/shux_asm_binop_ret_five 15 "return five-var add chain" 99 99
-check_spill_x10_or_x11 /tmp/shux_asm_binop_ret_five "return five add"
-run_one tests/asm/binop_return_six_add.x /tmp/shux_asm_binop_ret_six 21 "return six-var add chain" 99 99
-check_x11_spill /tmp/shux_asm_binop_ret_six "return six add"
-run_one tests/asm/binop_return_seven_add.x /tmp/shux_asm_binop_ret_seven 28 "return seven-var add chain" 99 99
-check_x12_spill /tmp/shux_asm_binop_ret_seven "return seven add"
-run_one tests/asm/binop_return_eight_add.x /tmp/shux_asm_binop_ret_eight 36 "return eight-var add chain" 99 99
-check_x13_spill /tmp/shux_asm_binop_ret_eight "return eight add"
-run_one tests/asm/binop_return_nine_add.x /tmp/shux_asm_binop_ret_nine 45 "return nine-var add chain" 99 99
-check_x14_spill /tmp/shux_asm_binop_ret_nine "return nine add"
-check_no_spill_roundtrip_mov /tmp/shux_asm_binop_ret_nine "return nine add"
-run_one tests/asm/binop_return_thirteen_add.x /tmp/shux_asm_binop_ret_thirteen 91 "return thirteen-var add chain" 99 99
-check_x15_spill /tmp/shux_asm_binop_ret_thirteen "return thirteen add"
-check_no_spill_roundtrip_mov /tmp/shux_asm_binop_ret_thirteen "return thirteen add"
-run_one tests/asm/binop_return_fourteen_add.x /tmp/shux_asm_binop_ret_fourteen 105 "return fourteen-var add chain" 99 99
-check_x15_spill /tmp/shux_asm_binop_ret_fourteen "return fourteen add"
-run_one tests/asm/binop_block_two_phase_add.x /tmp/shux_asm_binop_two_phase 36 "two-phase four-var chaitin share" 99 99
+run_one tests/asm/binop_block_repeat_add.x /tmp/xlang_asm_binop_block_repeat_add 60 "repeat add" 1 2
+run_one tests/asm/binop_block_repeat_mul.x /tmp/xlang_asm_binop_block_repeat_mul 12 "repeat mul" 1 2
+run_one tests/asm/binop_block_prune_dead_b.x /tmp/xlang_asm_binop_block_prune_b 10 "prune dead b" 1
+run_one tests/asm/binop_block_shared_right.x /tmp/xlang_asm_binop_block_shared_right 90 "shared right var" 3 4
+run_one tests/asm/binop_block_swap_add.x /tmp/xlang_asm_binop_block_swap_add 60 "swap add" 1 2
+run_one tests/asm/binop_block_three_var.x /tmp/xlang_asm_binop_block_three 6 "three var linear chain" 99 99
+run_one tests/asm/binop_block_four_var.x /tmp/xlang_asm_binop_block_four 10 "four var linear |live|>2" 99 99
+run_one tests/asm/binop_block_five_var.x /tmp/xlang_asm_binop_block_five 231 "five var |live|>3 pressure" 99 99
+run_one tests/asm/binop_block_six_var.x /tmp/xlang_asm_binop_block_six 21 "six var next-use eviction" 99 99
+run_one tests/asm/binop_return_four_add.x /tmp/xlang_asm_binop_ret_four 10 "return four-var add chain" 99 99
+check_x10_spill /tmp/xlang_asm_binop_ret_four "return four add"
+run_one tests/asm/binop_return_four_mul.x /tmp/xlang_asm_binop_ret_four_mul 24 "return four-var mul chain" 99 99
+check_x10_spill /tmp/xlang_asm_binop_ret_four_mul "return four mul"
+run_one tests/asm/binop_return_four_and.x /tmp/xlang_asm_binop_ret_four_and 1 "return four-var and chain" 99 99
+check_x10_spill /tmp/xlang_asm_binop_ret_four_and "return four and"
+run_one tests/asm/binop_return_four_or.x /tmp/xlang_asm_binop_ret_four_or 15 "return four-var or chain" 99 99
+check_x10_spill /tmp/xlang_asm_binop_ret_four_or "return four or"
+run_one tests/asm/binop_return_four_xor.x /tmp/xlang_asm_binop_ret_four_xor 15 "return four-var xor chain" 99 99
+check_x10_spill /tmp/xlang_asm_binop_ret_four_xor "return four xor"
+run_one tests/asm/binop_return_five_add.x /tmp/xlang_asm_binop_ret_five 15 "return five-var add chain" 99 99
+check_spill_x10_or_x11 /tmp/xlang_asm_binop_ret_five "return five add"
+run_one tests/asm/binop_return_six_add.x /tmp/xlang_asm_binop_ret_six 21 "return six-var add chain" 99 99
+check_x11_spill /tmp/xlang_asm_binop_ret_six "return six add"
+run_one tests/asm/binop_return_seven_add.x /tmp/xlang_asm_binop_ret_seven 28 "return seven-var add chain" 99 99
+check_x12_spill /tmp/xlang_asm_binop_ret_seven "return seven add"
+run_one tests/asm/binop_return_eight_add.x /tmp/xlang_asm_binop_ret_eight 36 "return eight-var add chain" 99 99
+check_x13_spill /tmp/xlang_asm_binop_ret_eight "return eight add"
+run_one tests/asm/binop_return_nine_add.x /tmp/xlang_asm_binop_ret_nine 45 "return nine-var add chain" 99 99
+check_x14_spill /tmp/xlang_asm_binop_ret_nine "return nine add"
+check_no_spill_roundtrip_mov /tmp/xlang_asm_binop_ret_nine "return nine add"
+run_one tests/asm/binop_return_thirteen_add.x /tmp/xlang_asm_binop_ret_thirteen 91 "return thirteen-var add chain" 99 99
+check_x15_spill /tmp/xlang_asm_binop_ret_thirteen "return thirteen add"
+check_no_spill_roundtrip_mov /tmp/xlang_asm_binop_ret_thirteen "return thirteen add"
+run_one tests/asm/binop_return_fourteen_add.x /tmp/xlang_asm_binop_ret_fourteen 105 "return fourteen-var add chain" 99 99
+check_x15_spill /tmp/xlang_asm_binop_ret_fourteen "return fourteen add"
+run_one tests/asm/binop_block_two_phase_add.x /tmp/xlang_asm_binop_two_phase 36 "two-phase four-var chaitin share" 99 99
 
 echo "asm binop block var OK"

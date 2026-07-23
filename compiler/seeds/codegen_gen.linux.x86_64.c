@@ -7,37 +7,37 @@
 #include <unistd.h>
 #include <sys/uio.h>
 #include <poll.h>
-static inline ssize_t shux_sys_read(int32_t fd, uint8_t *buf, size_t count) {
+static inline ssize_t xlang_sys_read(int32_t fd, uint8_t *buf, size_t count) {
   return read((int)fd, (void *)buf, count);
 }
-static inline ssize_t shux_sys_write(int32_t fd, uint8_t *buf, size_t count) {
+static inline ssize_t xlang_sys_write(int32_t fd, uint8_t *buf, size_t count) {
   return write((int)fd, (const void *)buf, count);
 }
-static inline ssize_t shux_sys_readv(int32_t fd, uint8_t *iov, int32_t iovcnt) {
+static inline ssize_t xlang_sys_readv(int32_t fd, uint8_t *iov, int32_t iovcnt) {
   return readv((int)fd, (const struct iovec *)(const void *)iov, (int)iovcnt);
 }
-static inline ssize_t shux_sys_writev(int32_t fd, uint8_t *iov, int32_t iovcnt) {
+static inline ssize_t xlang_sys_writev(int32_t fd, uint8_t *iov, int32_t iovcnt) {
   return writev((int)fd, (const struct iovec *)(const void *)iov, (int)iovcnt);
 }
-static inline int32_t shux_sys_poll(uint8_t *fds, int32_t nfds, int32_t timeout) {
+static inline int32_t xlang_sys_poll(uint8_t *fds, int32_t nfds, int32_t timeout) {
   return (int32_t)poll((struct pollfd *)(void *)fds, (nfds_t)nfds, (int)timeout);
 }
-static inline ssize_t shux_sys_pread(int32_t fd, uint8_t *buf, size_t count, int64_t offset) {
+static inline ssize_t xlang_sys_pread(int32_t fd, uint8_t *buf, size_t count, int64_t offset) {
   return pread((int)fd, (void *)buf, count, (off_t)offset);
 }
-static inline ssize_t shux_sys_pwrite(int32_t fd, uint8_t *buf, size_t count, int64_t offset) {
+static inline ssize_t xlang_sys_pwrite(int32_t fd, uint8_t *buf, size_t count, int64_t offset) {
   return pwrite((int)fd, (const void *)buf, count, (off_t)offset);
 }
-static inline int32_t shux_fs_unlink(uint8_t *path) {
+static inline int32_t xlang_fs_unlink(uint8_t *path) {
   return (int32_t)unlink((const char *)path);
 }
-static inline int32_t shux_fs_rmdir(uint8_t *path) {
+static inline int32_t xlang_fs_rmdir(uint8_t *path) {
   return (int32_t)rmdir((const char *)path);
 }
-struct shux_slice_uint8_t { uint8_t *data; size_t length; };
-struct shux_slice_int32_t { int32_t *data; size_t length; };
-struct shux_slice_uint64_t { uint64_t *data; size_t length; };
-struct shux_slice_size_t { size_t *data; size_t length; };
+struct xlang_slice_uint8_t { uint8_t *data; size_t length; };
+struct xlang_slice_int32_t { int32_t *data; size_t length; };
+struct xlang_slice_uint64_t { uint64_t *data; size_t length; };
+struct xlang_slice_size_t { size_t *data; size_t length; };
 #if defined(__GNUC__) || defined(__clang__)
 typedef int32_t i32x4_t __attribute__((vector_size(16)));
 typedef int32_t i32x8_t __attribute__((vector_size(32)));
@@ -53,11 +53,11 @@ typedef struct { uint32_t e[4]; } u32x4_t;
 typedef struct { uint32_t e[8]; } u32x8_t;
 typedef struct { uint32_t e[16]; } u32x16_t;
 #endif
-typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;
+typedef struct { uint8_t *ptr; size_t len; size_t handle; } xlang_batch_buf_t;
 extern int io_register_buffer(uint8_t *ptr, size_t len);
 extern int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr);
-__attribute__((weak)) int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }
-static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }
+__attribute__((weak)) int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }
+static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const xlang_batch_buf_t *)(uintptr_t)bufs, nr); }
 #define io_register_buffers_buf(bufs, nr) io_register_buffers_buf_i32((intptr_t)(void *)(bufs), (nr))
 extern void io_unregister_buffers(void);
 extern ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms);
@@ -69,34 +69,34 @@ extern ptrdiff_t io_write_fixed(int fd, unsigned buf_index, size_t offset, size_
 extern int io_wait_readable(int32_t *fds, int n, unsigned timeout_ms);
 extern uint8_t *io_read_ptr(size_t handle, unsigned timeout_ms);
 extern int io_read_ptr_len(void);
-extern int32_t shux_io_register(uint8_t *ptr, size_t len, size_t handle);
-extern int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);
-extern int32_t shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);
-extern int32_t shux_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);
-extern int32_t shux_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);
-extern uint8_t *shux_io_read_ptr(size_t handle, unsigned timeout_ms);
-extern int32_t shux_io_read_ptr_len(void);
-typedef struct { void *ptr; size_t len; size_t handle; } shu_buffer_abi_t;
-static inline int32_t shux_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_register((uint8_t *)b->ptr, b->len, b->handle); }
-static inline int32_t shux_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return (shux_io_submit_read)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
-static inline int32_t shux_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return (shux_io_submit_write)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
-static inline int32_t std_io_driver_submit_read_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return shux_io_submit_read_buf((intptr_t)buf, (int32_t)timeout_ms); }
-static inline int32_t std_io_driver_submit_write_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return shux_io_submit_write_buf((intptr_t)buf, (int32_t)timeout_ms); }
-#define shux_io_register(buf) shux_io_register_buf(buf)
-#define shux_io_submit_read(buf, timeout_m) shux_io_submit_read_buf(buf, timeout_m)
-#define shux_io_submit_write(buf, timeout_m) shux_io_submit_write_buf(buf, timeout_m)
-/* 撤销宏：X codegen 会生成同名函数定义(shux_io_register/submit_read/submit_write)，宏与多参签名冲突，在函数体前必须 undef。 */
-#undef shux_io_register
-#undef shux_io_submit_read
-#undef shux_io_submit_write
+extern int32_t xlang_io_register(uint8_t *ptr, size_t len, size_t handle);
+extern int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);
+extern int32_t xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);
+extern int32_t xlang_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);
+extern int32_t xlang_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);
+extern uint8_t *xlang_io_read_ptr(size_t handle, unsigned timeout_ms);
+extern int32_t xlang_io_read_ptr_len(void);
+typedef struct { void *ptr; size_t len; size_t handle; } xlang_buffer_abi_t;
+static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }
+static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_read)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
+static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_write)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
+static inline int32_t std_io_driver_submit_read_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return xlang_io_submit_read_buf((intptr_t)buf, (int32_t)timeout_ms); }
+static inline int32_t std_io_driver_submit_write_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return xlang_io_submit_write_buf((intptr_t)buf, (int32_t)timeout_ms); }
+#define xlang_io_register(buf) xlang_io_register_buf(buf)
+#define xlang_io_submit_read(buf, timeout_m) xlang_io_submit_read_buf(buf, timeout_m)
+#define xlang_io_submit_write(buf, timeout_m) xlang_io_submit_write_buf(buf, timeout_m)
+/* 撤销宏：X codegen 会生成同名函数定义(xlang_io_register/submit_read/submit_write)，宏与多参签名冲突，在函数体前必须 undef。 */
+#undef xlang_io_register
+#undef xlang_io_submit_read
+#undef xlang_io_submit_write
 struct std_io_driver_Buffer { void *ptr; size_t len; size_t handle; };
 typedef struct std_io_driver_Buffer std_io_Buffer;
 #define std_io_Buffer std_io_driver_Buffer
 extern ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);
 extern ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);
 extern int32_t std_io_driver_submit_register_fixed_buffers_buf(struct std_io_driver_Buffer * bufs, uint32_t nr);
-#define std_io_driver_driver_read_ptr_len shux_io_read_ptr_len
-#define std_io_driver_driver_read_ptr shux_io_read_ptr
+#define std_io_driver_driver_read_ptr_len xlang_io_read_ptr_len
+#define std_io_driver_driver_read_ptr xlang_io_read_ptr
 #define driver_read_ptr_len std_io_driver_driver_read_ptr_len
 #define driver_read_ptr std_io_driver_driver_read_ptr
 #define submit_register_fixed_buffers_buf std_io_driver_submit_register_fixed_buffers_buf
@@ -122,56 +122,56 @@ extern int32_t std_io_write_stdout(uint8_t *ptr, size_t len);
 #define std_io_core_io_write_batch io_write_batch
 #define std_io_core_io_read_fixed io_read_fixed
 #define std_io_core_io_write_fixed io_write_fixed
-#define std_io_core_shux_io_register shux_io_register
-#define std_io_core_shux_io_register_buffers shux_io_register_buffers
-#define std_io_core_shux_io_unregister_buffers shux_io_unregister_buffers
-#define std_io_core_shux_io_submit_read shux_io_submit_read
-#define std_io_core_shux_io_read_ptr shux_io_read_ptr
-#define std_io_core_shux_io_read_ptr_len shux_io_read_ptr_len
-#define std_io_core_shux_io_submit_write shux_io_submit_write
-#define std_io_core_shux_io_submit_read_batch shux_io_submit_read_batch
-#define std_io_core_shux_io_submit_write_batch shux_io_submit_write_batch
-#define std_io_core_shux_io_read_fixed shux_io_read_fixed
-#define std_io_core_shux_io_write_fixed shux_io_write_fixed
-#define std_io_core_shux_io_register_buffers_buf io_register_buffers_buf
-#define std_io_core_shux_io_read_ptr_gen shux_io_read_ptr_gen
-#define std_io_core_shux_io_read_ptr_gen_valid shux_io_read_ptr_gen_valid
-#define std_io_core_shux_io_read_ptr_backend shux_io_read_ptr_backend
-#define std_io_core_shux_io_read_ptr_slice shux_io_read_ptr_slice
-#define std_io_core_shux_io_read_batch_buf(fd, bufs, n, t) io_read_batch_buf((fd), (const struct std_io_driver_Buffer *)(const void *)(bufs), (n), (t))
-#define std_io_core_shux_io_write_batch_buf(fd, bufs, n, t) io_write_batch_buf((fd), (const struct std_io_driver_Buffer *)(const void *)(bufs), (n), (t))
-#define std_io_core_shux_io_register_provided_buffers shux_io_register_provided_buffers
-#define std_io_core_shux_io_unregister_provided_buffers shux_io_unregister_provided_buffers
-#define std_io_core_shux_io_provided_buffer_ptr shux_io_provided_buffer_ptr
-#define std_io_core_shux_io_provided_buffer_size shux_io_provided_buffer_size
-#define std_io_core_shux_io_read_provided shux_io_read_provided
-#define std_io_core_shux_io_read_batch_provided shux_io_read_batch_provided
-#define std_io_core_shux_io_submit_read_async shux_io_submit_read_async
-#define std_io_core_shux_io_complete_read_async shux_io_complete_read_async
-#define std_io_core_shux_io_complete_read_async_slot shux_io_complete_read_async_slot
-#define std_io_core_shux_io_submit_write_async shux_io_submit_write_async
-#define std_io_core_shux_io_complete_write_async shux_io_complete_write_async
-#define std_io_core_shux_io_complete_write_async_slot shux_io_complete_write_async_slot
-#define std_io_core_shux_io_poll_async_completions shux_io_poll_async_completions
-#define std_io_core_shux_io_uring_is_available_c shux_io_uring_is_available_c
-extern int32_t shux_io_read_ptr_gen_valid(uint64_t saved);
-extern int32_t shux_io_read_ptr_backend(void);
-extern uint64_t shux_io_read_ptr_gen(void);
-extern struct shux_slice_uint8_t shux_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);
-extern int32_t shux_io_register_provided_buffers(uint32_t nr, uint32_t bufsz);
-extern void shux_io_unregister_provided_buffers(void);
-extern uint8_t *shux_io_provided_buffer_ptr(uint32_t bid);
-extern uint32_t shux_io_provided_buffer_size(void);
-extern int32_t shux_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t *out_bid, uint32_t *out_len);
-extern int32_t shux_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t *out_bids, uint32_t *out_lens);
-extern int32_t shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);
-extern int32_t shux_io_complete_read_async(void);
-extern int32_t shux_io_complete_read_async_slot(int32_t slot);
-extern int32_t shux_io_submit_write_async(uint8_t *ptr, size_t len, size_t handle);
-extern int32_t shux_io_complete_write_async(void);
-extern int32_t shux_io_complete_write_async_slot(int32_t slot);
-extern uint32_t shux_io_poll_async_completions(uint32_t timeout_ms);
-extern int32_t shux_io_uring_is_available_c(void);
+#define std_io_core_xlang_io_register xlang_io_register
+#define std_io_core_xlang_io_register_buffers xlang_io_register_buffers
+#define std_io_core_xlang_io_unregister_buffers xlang_io_unregister_buffers
+#define std_io_core_xlang_io_submit_read xlang_io_submit_read
+#define std_io_core_xlang_io_read_ptr xlang_io_read_ptr
+#define std_io_core_xlang_io_read_ptr_len xlang_io_read_ptr_len
+#define std_io_core_xlang_io_submit_write xlang_io_submit_write
+#define std_io_core_xlang_io_submit_read_batch xlang_io_submit_read_batch
+#define std_io_core_xlang_io_submit_write_batch xlang_io_submit_write_batch
+#define std_io_core_xlang_io_read_fixed xlang_io_read_fixed
+#define std_io_core_xlang_io_write_fixed xlang_io_write_fixed
+#define std_io_core_xlang_io_register_buffers_buf io_register_buffers_buf
+#define std_io_core_xlang_io_read_ptr_gen xlang_io_read_ptr_gen
+#define std_io_core_xlang_io_read_ptr_gen_valid xlang_io_read_ptr_gen_valid
+#define std_io_core_xlang_io_read_ptr_backend xlang_io_read_ptr_backend
+#define std_io_core_xlang_io_read_ptr_slice xlang_io_read_ptr_slice
+#define std_io_core_xlang_io_read_batch_buf(fd, bufs, n, t) io_read_batch_buf((fd), (const struct std_io_driver_Buffer *)(const void *)(bufs), (n), (t))
+#define std_io_core_xlang_io_write_batch_buf(fd, bufs, n, t) io_write_batch_buf((fd), (const struct std_io_driver_Buffer *)(const void *)(bufs), (n), (t))
+#define std_io_core_xlang_io_register_provided_buffers xlang_io_register_provided_buffers
+#define std_io_core_xlang_io_unregister_provided_buffers xlang_io_unregister_provided_buffers
+#define std_io_core_xlang_io_provided_buffer_ptr xlang_io_provided_buffer_ptr
+#define std_io_core_xlang_io_provided_buffer_size xlang_io_provided_buffer_size
+#define std_io_core_xlang_io_read_provided xlang_io_read_provided
+#define std_io_core_xlang_io_read_batch_provided xlang_io_read_batch_provided
+#define std_io_core_xlang_io_submit_read_async xlang_io_submit_read_async
+#define std_io_core_xlang_io_complete_read_async xlang_io_complete_read_async
+#define std_io_core_xlang_io_complete_read_async_slot xlang_io_complete_read_async_slot
+#define std_io_core_xlang_io_submit_write_async xlang_io_submit_write_async
+#define std_io_core_xlang_io_complete_write_async xlang_io_complete_write_async
+#define std_io_core_xlang_io_complete_write_async_slot xlang_io_complete_write_async_slot
+#define std_io_core_xlang_io_poll_async_completions xlang_io_poll_async_completions
+#define std_io_core_xlang_io_uring_is_available_c xlang_io_uring_is_available_c
+extern int32_t xlang_io_read_ptr_gen_valid(uint64_t saved);
+extern int32_t xlang_io_read_ptr_backend(void);
+extern uint64_t xlang_io_read_ptr_gen(void);
+extern struct xlang_slice_uint8_t xlang_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);
+extern int32_t xlang_io_register_provided_buffers(uint32_t nr, uint32_t bufsz);
+extern void xlang_io_unregister_provided_buffers(void);
+extern uint8_t *xlang_io_provided_buffer_ptr(uint32_t bid);
+extern uint32_t xlang_io_provided_buffer_size(void);
+extern int32_t xlang_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t *out_bid, uint32_t *out_len);
+extern int32_t xlang_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t *out_bids, uint32_t *out_lens);
+extern int32_t xlang_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);
+extern int32_t xlang_io_complete_read_async(void);
+extern int32_t xlang_io_complete_read_async_slot(int32_t slot);
+extern int32_t xlang_io_submit_write_async(uint8_t *ptr, size_t len, size_t handle);
+extern int32_t xlang_io_complete_write_async(void);
+extern int32_t xlang_io_complete_write_async_slot(int32_t slot);
+extern uint32_t xlang_io_poll_async_completions(uint32_t timeout_ms);
+extern int32_t xlang_io_uring_is_available_c(void);
 #define std_io_driver_io_register_buffers_buf(bufs, nr) io_register_buffers_buf((intptr_t)(void *)(bufs), (int)(nr))
 extern int32_t std_io_driver_submit_read_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);
 extern int32_t std_io_driver_submit_write_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);
@@ -184,50 +184,51 @@ struct std_net_TcpStream { int32_t fd; };
 struct std_net_TcpListener { int32_t fd; };
 struct std_net_UdpSocket { int32_t fd; };
 #if defined(__clang__)
-#define shux_io_net_fd(x) _Generic((x), struct std_net_TcpStream: (x).fd, struct std_net_TcpListener: (x).fd, struct std_net_UdpSocket: (x).fd, default: (int32_t)(x))
+#define xlang_io_net_fd(x) _Generic((x), struct std_net_TcpStream: (x).fd, struct std_net_TcpListener: (x).fd, struct std_net_UdpSocket: (x).fd, default: (int32_t)(x))
 #elif defined(__GNUC__)
 /* 仅用 *(int32_t*)&(x)：int32_t 与仅含 .fd 的 struct 首字节相同，且避免 __builtin_types_compatible_p 在部分环境报错、三元分支被全量类型检查。调用方须传 lvalue。 */
-#define shux_io_net_fd(x) (*(int32_t*)(void*)&(x))
+#define xlang_io_net_fd(x) (*(int32_t*)(void*)&(x))
 #else
-#define shux_io_net_fd(x) _Generic((x), struct std_net_TcpStream: (x).fd, struct std_net_TcpListener: (x).fd, struct std_net_UdpSocket: (x).fd, default: (int32_t)(x))
+#define xlang_io_net_fd(x) _Generic((x), struct std_net_TcpStream: (x).fd, struct std_net_TcpListener: (x).fd, struct std_net_UdpSocket: (x).fd, default: (int32_t)(x))
 #endif
-#define std_io_read_fixed_fd(x, a, b, c, d) std_io_read_fixed_fd_impl(shux_io_net_fd(x), a, b, c, d)
-#define std_io_write_fixed_fd(x, a, b, c, d) std_io_write_fixed_fd_impl(shux_io_net_fd(x), a, b, c, d)
+#define std_io_read_fixed_fd(x, a, b, c, d) std_io_read_fixed_fd_impl(xlang_io_net_fd(x), a, b, c, d)
+#define std_io_write_fixed_fd(x, a, b, c, d) std_io_write_fixed_fd_impl(xlang_io_net_fd(x), a, b, c, d)
 /* X 内联 std.io 会生成函数定义；撤销与定义/extern 冲突的宏，并补齐 batch 注册符号映射。 */
 #undef std_io_driver_io_register_buffers_buf
 #undef std_io_read_fixed_fd
 #undef std_io_write_fixed_fd
-#undef std_io_core_shux_io_register_buffers
-#undef std_io_core_shux_io_unregister_buffers
-#undef std_io_core_shux_io_read_fixed
-#undef std_io_core_shux_io_write_fixed
-#undef std_io_core_shux_io_wait_readable
-#define std_io_core_shux_io_register_buffers io_register_buffers_4
-#define std_io_core_shux_io_unregister_buffers io_unregister_buffers
-#define std_io_core_shux_io_read_fixed shux_io_read_fixed
-#define std_io_core_shux_io_write_fixed shux_io_write_fixed
-#define std_io_core_shux_io_wait_readable io_wait_readable
+#undef std_io_core_xlang_io_register_buffers
+#undef std_io_core_xlang_io_unregister_buffers
+#undef std_io_core_xlang_io_read_fixed
+#undef std_io_core_xlang_io_write_fixed
+#undef std_io_core_xlang_io_wait_readable
+#define std_io_core_xlang_io_register_buffers io_register_buffers_4
+#define std_io_core_xlang_io_unregister_buffers io_unregister_buffers
+#define std_io_core_xlang_io_read_fixed xlang_io_read_fixed
+#define std_io_core_xlang_io_write_fixed xlang_io_write_fixed
+#define std_io_core_xlang_io_wait_readable io_wait_readable
 /* codegen 体内调 std_io_driver_io_*；#undef 后重绑到 preamble/io.o 的 io_*。 */
 #define std_io_driver_io_read_batch_buf io_read_batch_buf
 #define std_io_driver_io_write_batch_buf io_write_batch_buf
 #define std_io_driver_io_register_buffers_buf(bufs, nr) io_register_buffers_buf((intptr_t)(void *)(bufs), (int)(nr))
 #include <stdio.h>
+#include <stdlib.h>
 #ifndef __cplusplus
-/* 仅补 co-emit 未定义的符号；勿桩 shux_io_submit_write / submit_read_batch_buf（同 TU 强定义）。 */
-__attribute__((weak)) int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {
+/* 仅补 co-emit 未定义的符号；勿桩 xlang_io_submit_write / submit_read_batch_buf（同 TU 强定义）。 */
+__attribute__((weak)) int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {
   size_t r; (void)timeout_m; if (!ptr) return 0; if (handle != 0) return -1;
   r = fread(ptr, 1, len, stdin); if (r == 0 && ferror(stdin)) return -1; return (int32_t)r;
 }
-__attribute__((weak)) int32_t shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {
+__attribute__((weak)) int32_t xlang_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {
   (void)ptr; (void)len; (void)handle; return -1;
 }
-__attribute__((weak)) int32_t shux_io_read_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {
+__attribute__((weak)) int32_t xlang_io_read_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {
   (void)h;(void)bi;(void)o;(void)l;(void)t; return -1;
 }
-__attribute__((weak)) int32_t shux_io_write_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {
+__attribute__((weak)) int32_t xlang_io_write_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {
   (void)h;(void)bi;(void)o;(void)l;(void)t; return -1;
 }
-__attribute__((weak)) int32_t shux_io_read_ptr_backend(void) { return 0; }
+__attribute__((weak)) int32_t xlang_io_read_ptr_backend(void) { return 0; }
 __attribute__((weak)) int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr) {
   (void)p0;(void)l0;(void)p1;(void)l1;(void)p2;(void)l2;(void)p3;(void)l3;(void)nr; return -1;
 }
@@ -240,10 +241,10 @@ __attribute__((weak)) ptrdiff_t io_read_batch_buf(int fd, const struct std_io_dr
 __attribute__((weak)) ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms) {
   (void)fd;(void)bufs;(void)n;(void)timeout_ms; return (ptrdiff_t)-1;
 }
-extern int32_t process_shux_argc_get(void);
-extern uint8_t *process_shux_argv_get(int32_t i);
-__attribute__((weak)) int32_t process_args_count_c(void) { return process_shux_argc_get(); }
-__attribute__((weak)) uint8_t *process_arg_c(int32_t i) { return process_shux_argv_get(i); }
+extern int32_t process_xlang_argc_get(void);
+extern uint8_t *process_xlang_argv_get(int32_t i);
+__attribute__((weak)) int32_t process_args_count_c(void) { return process_xlang_argc_get(); }
+__attribute__((weak)) uint8_t *process_arg_c(int32_t i) { return process_xlang_argv_get(i); }
 __attribute__((weak)) int32_t args_iter_count_c(void) { return process_args_count_c(); }
 __attribute__((weak)) uint8_t *args_iter_at_c(int32_t i) { return process_arg_c(i); }
 __attribute__((weak)) uint64_t std_io_driver_driver_read_ptr_gen(void) { return 0; }
@@ -268,8 +269,8 @@ struct std_net_Ipv6Addr { uint8_t b0,b1,b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13,
 #define handle_from_fd std_io_handle_from_fd
 #define submit_read_batch_buf std_io_submit_read_batch_buf
 #define submit_write_batch_buf std_io_submit_write_batch_buf
-#define read_fixed_fd(x, a, b, c, d) std_io_read_fixed_fd_impl(shux_io_net_fd(x), a, b, c, d)
-#define write_fixed_fd(x, a, b, c, d) std_io_write_fixed_fd_impl(shux_io_net_fd(x), a, b, c, d)
+#define read_fixed_fd(x, a, b, c, d) std_io_read_fixed_fd_impl(xlang_io_net_fd(x), a, b, c, d)
+#define write_fixed_fd(x, a, b, c, d) std_io_write_fixed_fd_impl(xlang_io_net_fd(x), a, b, c, d)
 /* 实际符号用 _real；仅定义 std_net_net_* 宏。
  * 【Why 勿 #define net_close_socket_c / net_run_accept_workers_c】
  * link_only 路径会 emit `extern int32_t net_close_socket_c(...)`；
@@ -278,8 +279,8 @@ extern int32_t net_close_socket_c_real(int32_t fd);
 extern int32_t net_run_accept_workers_c_real(int32_t listener_fd, int32_t n_workers, uint32_t timeout_ms);
 extern int32_t net_close_socket_c(int32_t fd);
 extern int32_t net_run_accept_workers_c(int32_t listener_fd, int32_t n_workers, uint32_t timeout_ms);
-#define std_net_net_close_socket_c(x) net_close_socket_c_real(shux_io_net_fd(x))
-#define std_net_net_run_accept_workers_c(x, n, t) net_run_accept_workers_c_real(shux_io_net_fd(x), n, t)
+#define std_net_net_close_socket_c(x) net_close_socket_c_real(xlang_io_net_fd(x))
+#define std_net_net_run_accept_workers_c(x, n, t) net_run_accept_workers_c_real(xlang_io_net_fd(x), n, t)
 #define STD_FS_FS_IOVEC_BUF_DEFINED
 struct std_fs_FsIovecBuf { void *ptr; size_t len; size_t handle; };
 #define std_fs_posix_FsIovecBuf std_fs_FsIovecBuf
@@ -301,7 +302,7 @@ struct core_option_Option_u64 { int is_some; int32_t _pad; uint64_t value; };
 struct core_option_Option_ptr_u8 { int is_some; int32_t _pad; uint8_t *value; };
 struct core_result_Result_i32 { int32_t value; int32_t _pad1; int32_t err; int32_t _pad2; };
 struct core_result_Result_u8 { uint8_t value; uint8_t _pad1; uint8_t _pad2; uint8_t _pad3; int32_t err; int32_t _pad4; };
-extern void shux_panic_(int, int);
+extern void xlang_panic_(int, int);
 extern int32_t core_types_placeholder(void);
 extern int32_t std_heap_alloc_size_zero(void);
 extern int32_t std_runtime_runtime_ready(void);
@@ -1528,6 +1529,9 @@ extern int32_t codegen_func_param_sig_equal(struct ast_ASTArena * arena, struct 
 extern int32_t codegen_module_overload_param_sig_count(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi);
 extern int32_t codegen_func_c_symbol_prefix_len(struct ast_Module * module, int32_t fi, int32_t prefix_len);
 extern int32_t codegen_emit_func_link_name(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi);
+/* wave101 soft residual: fn-as-value mangle (G.7 link name + module prefix). */
+extern int32_t codegen_name_is_local_binding(struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, uint8_t * name, int32_t name_len);
+extern int32_t codegen_try_emit_fn_as_value(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, uint8_t * name, int32_t name_len);
 extern struct ast_ASTArena * codegen_arena_for_module(struct ast_PipelineDepCtx * ctx, struct ast_Module * module, struct ast_ASTArena * fallback);
 extern int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, int32_t expr_ref, struct ast_Module * current_module, uint8_t * fallback_name, int32_t fallback_len);
 extern void codegen_copy_func_name64_from_module(struct ast_Module * module, int32_t fi, uint8_t * dst);
@@ -1760,6 +1764,18 @@ int32_t codegen_find_dep_index_by_path(struct ast_PipelineDepCtx * ctx, uint8_t 
     if ((((ctx ==((struct ast_PipelineDepCtx *)(0))) || (path ==((uint8_t *)(0)))) || (path_len <=0))) {
       return -(1);
     }
+    if (getenv("XLANG_DEBUG_DEP_LIST")) {
+      fprintf(stderr, "xlang: [DBG_DEP_LIST] find_dep_index_by_path lookup='%.*s' len=%d nd=%d\n",
+              (int)path_len, (char*)path, (int)path_len, (int)nd);
+      for (di = 0; di < nd; di++) {
+        uint8_t dp[64] = {};
+        int32_t dl = codegen_dep_import_path_len_at(ctx, di, &dp[0]);
+        struct ast_Module * dm = pipeline_dep_ctx_module_at(ctx, di);
+        fprintf(stderr, "xlang: [DBG_DEP_LIST]   [%d] path='%.*s' len=%d mod=%p funcs=%d\n",
+                (int)di, (int)dl, (char*)dp, (int)dl, (void*)dm, dm ? (int)dm->num_funcs : -1);
+      }
+      di = 0;
+    }
     while ((di < nd)) {
       uint8_t dep_path[64] = {};
       int32_t dep_len = codegen_dep_import_path_len_at(ctx, di, &((dep_path)[0]));
@@ -1862,30 +1878,30 @@ int32_t codegen_emit_prefix_len_from_ctx(struct ast_PipelineDepCtx * ctx, uint8_
 }
 int32_t codegen_emit_async_run_seed_push_name(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, int32_t type_ref) {
   {
-    uint8_t push_i32[28] = {115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 105, 51, 50};
-    uint8_t push_u32[28] = {115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 117, 51, 50};
-    uint8_t push_i64[28] = {115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 105, 54, 52};
-    uint8_t push_usize[30] = {115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 117, 115, 105, 122, 101};
+    uint8_t push_i32[29] = {120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 105, 51, 50};
+    uint8_t push_u32[29] = {120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 117, 51, 50};
+    uint8_t push_i64[29] = {120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 105, 54, 52};
+    uint8_t push_usize[31] = {120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 117, 115, 105, 122, 101};
     int32_t kind_ord = ((int32_t)(0));
     if (((arena !=((struct ast_ASTArena *)(0))) && !(ast_ref_is_null(type_ref)))) {
       (void)((kind_ord = pipeline_type_kind_ord_at(arena, type_ref)));
     }
     if ((kind_ord ==((int32_t)(3)))) {
-      return codegen_emit_bytes_from_ptr(out, &((push_u32)[0]), 28);
+      return codegen_emit_bytes_from_ptr(out, &((push_u32)[0]), 29);
     }
     if ((kind_ord ==((int32_t)(5)))) {
-      return codegen_emit_bytes_from_ptr(out, &((push_i64)[0]), 28);
+      return codegen_emit_bytes_from_ptr(out, &((push_i64)[0]), 29);
     }
     if ((kind_ord ==((int32_t)(6)))) {
-      return codegen_emit_bytes_from_ptr(out, &((push_usize)[0]), 30);
+      return codegen_emit_bytes_from_ptr(out, &((push_usize)[0]), 31);
     }
-    return codegen_emit_bytes_from_ptr(out, &((push_i32)[0]), 28);
+    return codegen_emit_bytes_from_ptr(out, &((push_i32)[0]), 29);
   }
   return 0;
 }
 int32_t codegen_emit_async_sched_call(struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t func_index) {
   {
-    uint8_t sched_prefix[17] = {115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 115, 99, 104, 101, 100, 95};
+    uint8_t sched_prefix[18] = {120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 115, 99, 104, 101, 100, 95};
     uint8_t fn_name[64] = {};
     int32_t fn_len = 0;
     if ((((module ==((struct ast_Module *)(0))) || (func_index < 0)) || (func_index >=(module->num_funcs)))) {
@@ -1896,7 +1912,7 @@ int32_t codegen_emit_async_sched_call(struct codegen_CodegenOutBuf * out, struct
       return -(1);
     }
     (void)(pipeline_module_func_name_copy64(module, func_index, &((fn_name)[0])));
-    if ((codegen_emit_bytes_from_ptr(out, &((sched_prefix)[0]), 17) !=0)) {
+    if ((codegen_emit_bytes_from_ptr(out, &((sched_prefix)[0]), 18) !=0)) {
       return -(1);
     }
     if ((codegen_emit_bytes_from_ptr(out, &((fn_name)[0]), fn_len) !=0)) {
@@ -1910,11 +1926,11 @@ int32_t codegen_emit_async_sched_call(struct codegen_CodegenOutBuf * out, struct
   return 0;
 }
 int32_t codegen_emit_async_sched_call_by_name(struct codegen_CodegenOutBuf * out, uint8_t * fn_name, int32_t fn_len) {
-  uint8_t sched_prefix[17] = {115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 115, 99, 104, 101, 100, 95};
+  uint8_t sched_prefix[18] = {120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 115, 99, 104, 101, 100, 95};
   if ((((out ==((struct codegen_CodegenOutBuf *)(0))) || (fn_name ==((uint8_t *)(0)))) || (fn_len <=0))) {
     return -(1);
   }
-  if ((codegen_emit_bytes_from_ptr(out, &((sched_prefix)[0]), 17) !=0)) {
+  if ((codegen_emit_bytes_from_ptr(out, &((sched_prefix)[0]), 18) !=0)) {
     return -(1);
   }
   if ((codegen_emit_bytes_from_ptr(out, fn_name, fn_len) !=0)) {
@@ -1927,7 +1943,7 @@ int32_t codegen_emit_async_sched_call_by_name(struct codegen_CodegenOutBuf * out
 }
 int32_t codegen_emit_async_task_submit_call(struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t func_index) {
   {
-    uint8_t submit_name[22] = {115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 116, 97, 115, 107, 95, 115, 117, 98, 109, 105, 116};
+    uint8_t submit_name[23] = {120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 116, 97, 115, 107, 95, 115, 117, 98, 109, 105, 116};
     uint8_t cast_prefix[19] = {40, 105, 110, 116, 51, 50, 95, 116, 32, 40, 42, 41, 40, 118, 111, 105, 100, 41, 41};
     uint8_t fn_name[64] = {};
     int32_t fn_len = 0;
@@ -1939,7 +1955,7 @@ int32_t codegen_emit_async_task_submit_call(struct codegen_CodegenOutBuf * out, 
       return -(1);
     }
     (void)(pipeline_module_func_name_copy64(module, func_index, &((fn_name)[0])));
-    if ((codegen_emit_bytes_from_ptr(out, &((submit_name)[0]), 22) !=0)) {
+    if ((codegen_emit_bytes_from_ptr(out, &((submit_name)[0]), 23) !=0)) {
       return -(1);
     }
     if ((codegen_append_byte(out, 40) !=0)) {
@@ -1959,12 +1975,12 @@ int32_t codegen_emit_async_task_submit_call(struct codegen_CodegenOutBuf * out, 
   return 0;
 }
 int32_t codegen_emit_async_task_submit_call_by_symbol(struct codegen_CodegenOutBuf * out, uint8_t * prefix, int32_t prefix_len, uint8_t * fn_name, int32_t fn_len) {
-  uint8_t submit_name[22] = {115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 116, 97, 115, 107, 95, 115, 117, 98, 109, 105, 116};
+  uint8_t submit_name[23] = {120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 116, 97, 115, 107, 95, 115, 117, 98, 109, 105, 116};
   uint8_t cast_prefix[19] = {40, 105, 110, 116, 51, 50, 95, 116, 32, 40, 42, 41, 40, 118, 111, 105, 100, 41, 41};
   if ((((out ==((struct codegen_CodegenOutBuf *)(0))) || (fn_name ==((uint8_t *)(0)))) || (fn_len <=0))) {
     return -(1);
   }
-  if ((codegen_emit_bytes_from_ptr(out, &((submit_name)[0]), 22) !=0)) {
+  if ((codegen_emit_bytes_from_ptr(out, &((submit_name)[0]), 23) !=0)) {
     return -(1);
   }
   if ((codegen_append_byte(out, 40) !=0)) {
@@ -1986,7 +2002,7 @@ int32_t codegen_emit_async_task_submit_call_by_symbol(struct codegen_CodegenOutB
 }
 int32_t codegen_emit_async_binding_import_call(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t call_expr_ref, struct ast_PipelineDepCtx * ctx, int32_t is_spawn) {
   {
-    uint8_t reset_name[25] = {115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 114, 101, 115, 101, 116};
+    uint8_t reset_name[26] = {120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 114, 101, 115, 101, 116};
     uint8_t comma[3] = {44, 32, 0};
     uint8_t dep_path[64] = {};
     uint8_t prefix_buf[128] = {};
@@ -2017,7 +2033,7 @@ int32_t codegen_emit_async_binding_import_call(struct ast_ASTArena * arena, stru
         if ((codegen_append_byte(out, 40) !=0)) {
           return -(1);
         }
-        if ((codegen_emit_bytes_from_ptr(out, &((reset_name)[0]), 25) !=0)) {
+        if ((codegen_emit_bytes_from_ptr(out, &((reset_name)[0]), 26) !=0)) {
           return -(1);
         }
         if ((codegen_append_byte(out, 40) !=0)) {
@@ -2111,7 +2127,7 @@ int32_t codegen_emit_async_binding_import_call(struct ast_ASTArena * arena, stru
 }
 int32_t codegen_emit_async_method_call_run(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t method_expr_ref, struct ast_PipelineDepCtx * ctx) {
   {
-    uint8_t reset_name[25] = {115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 114, 101, 115, 101, 116};
+    uint8_t reset_name[26] = {120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 114, 101, 115, 101, 116};
     uint8_t comma[3] = {44, 32, 0};
     int32_t ai = 0;
     if ((((arena ==((struct ast_ASTArena *)(0))) || (out ==((struct codegen_CodegenOutBuf *)(0)))) || (ctx ==((struct ast_PipelineDepCtx *)(0))))) {
@@ -2128,7 +2144,7 @@ int32_t codegen_emit_async_method_call_run(struct ast_ASTArena * arena, struct c
       if ((codegen_append_byte(out, 40) !=0)) {
         return -(1);
       }
-      if ((codegen_emit_bytes_from_ptr(out, &((reset_name)[0]), 25) !=0)) {
+      if ((codegen_emit_bytes_from_ptr(out, &((reset_name)[0]), 26) !=0)) {
         return -(1);
       }
       if ((codegen_append_byte(out, 40) !=0)) {
@@ -2253,6 +2269,92 @@ int32_t codegen_resolve_binding_import_dep_index(struct ast_PipelineDepCtx * ctx
   }
   return 0;
 }
+extern int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena * arena, int32_t a, int32_t b);
+int32_t codegen_find_module_func_index_by_name_overload(struct ast_ASTArena * arena, struct ast_Module * module,
+int32_t call_expr_ref, uint8_t * nm, int32_t nm_len) {
+  {
+    int32_t fi = 0;
+    int32_t first_idx = -1;
+    int32_t best_idx = -1;
+    int32_t best_score = -1;
+    int32_t num_args = 0;
+    if (((module ==0) || (nm ==0)) || (nm_len <=0)) {
+      return -(1);
+    }
+    if (((call_expr_ref >0) && (call_expr_ref <= (arena->num_exprs)))) {
+      (void)((num_args = pipeline_expr_call_num_args_at(arena, call_expr_ref)));
+    }
+    while ((fi < (module->num_funcs))) {
+      int32_t fn_len = pipeline_module_func_name_len_at(module, fi);
+      if (((fn_len ==nm_len) && (fn_len > 0))) {
+        uint8_t fn_name[64] = {};
+        int32_t matched = 1;
+        int32_t bi = 0;
+        pipeline_module_func_name_copy64(module, fi, &((fn_name)[0]));
+        while ((bi < fn_len)) {
+          if (((fn_name)[bi] != (nm)[bi])) {
+            matched = 0;
+            bi = fn_len;
+          } else {
+            bi = (bi + 1);
+          }
+        }
+        if ((matched !=0)) {
+          if ((first_idx < 0)) {
+            first_idx = fi;
+          }
+          if ((num_args > 0)) {
+            int32_t np = pipeline_module_func_num_params_at(module, fi);
+            if ((np ==num_args)) {
+              int32_t ai = 0;
+              int32_t score = 0;
+              int32_t ok = 1;
+              while ((ai < num_args)) {
+                int32_t arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, ai);
+                int32_t param_ty = pipeline_module_func_param_type_ref_at(module, fi, ai);
+                int32_t arg_ty = 0;
+                int32_t sc = 0;
+                if ((arg_ref <=0)) {
+                  ok = 0;
+                  break;
+                }
+                (void)((arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref)));
+                if (((arg_ty > 0) && (param_ty > 0)) && (pipeline_typeck_type_refs_equal_c(arena, arg_ty, param_ty) !=0)) {
+                  sc = 1000;
+                } else if (((arg_ty > 0) && (param_ty > 0))) {
+                  int32_t ak = pipeline_type_kind_ord_at(arena, arg_ty);
+                  int32_t pk = pipeline_type_kind_ord_at(arena, param_ty);
+                  if (((ak ==pk) && (ak !=0))) {
+                    sc = 1;
+                  } else {
+                    sc = -(1);
+                  }
+                } else {
+                  sc = 0;
+                }
+                if ((sc < 0)) {
+                  ok = 0;
+                  break;
+                }
+                score = (score + sc);
+                ai = (ai + 1);
+              }
+              if (((ok !=0) && (score > best_score))) {
+                best_score = score;
+                best_idx = fi;
+              }
+            }
+          }
+        }
+      }
+      fi = (fi + 1);
+    }
+    if ((best_idx >=0)) {
+        return best_idx;
+    }
+    return first_idx;
+  }
+}
 int32_t codegen_resolve_call_target_func_index(struct ast_ASTArena * arena, struct ast_Module * module, int32_t call_expr_ref) {
   {
     int32_t func_ix = -(1);
@@ -2273,15 +2375,15 @@ int32_t codegen_resolve_call_target_func_index(struct ast_ASTArena * arena, stru
         return -(1);
       }
       if ((((callee_e.kind) ==3) && ((callee_e.var_name_len) > 0))) {
-        return codegen_find_module_func_index_by_name(module, &(((callee_e.var_name))[0]), (callee_e.var_name_len));
+        return codegen_find_module_func_index_by_name_overload(arena, module, call_expr_ref, &(((callee_e.var_name))[0]), (callee_e.var_name_len));
       }
       if ((((callee_e.kind) ==44) && ((callee_e.field_access_field_len) > 0))) {
-        return codegen_find_module_func_index_by_name(module, &(((callee_e.field_access_field_name))[0]), (callee_e.field_access_field_len));
+        return codegen_find_module_func_index_by_name_overload(arena, module, call_expr_ref, &(((callee_e.field_access_field_name))[0]), (callee_e.field_access_field_len));
       }
       return -(1);
     }
     if ((((call_e.kind) ==49) && ((call_e.method_call_name_len) > 0))) {
-      return codegen_find_module_func_index_by_name(module, &(((call_e.method_call_name))[0]), (call_e.method_call_name_len));
+      return codegen_find_module_func_index_by_name_overload(arena, module, call_expr_ref, &(((call_e.method_call_name))[0]), (call_e.method_call_name_len));
     }
     return -(1);
   }
@@ -2541,8 +2643,8 @@ int32_t codegen_should_skip_emit_std_io_core_io_dup(uint8_t * dep_path, uint8_t 
   /* PLATFORM: SHARED — only skip fixed read/write (preamble weak); do NOT skip
    * submit_read / submit_*_batch: co-emit core → backend is authority; old skip left
    * weak stubs that call bare io_write_batch (UNDEF without runtime_asm_io_stubs). */
-  uint8_t n_rf[18] = {115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 97, 100, 95, 102, 105, 120, 101, 100};
-  uint8_t n_wf[19] = {115, 104, 117, 120, 95, 105, 111, 95, 119, 114, 105, 116, 101, 95, 102, 105, 120, 101, 100};
+  uint8_t n_rf[19] = {120, 108, 97, 110, 103, 95, 105, 111, 95, 114, 101, 97, 100, 95, 102, 105, 120, 101, 100};
+  uint8_t n_wf[20] = {120, 108, 97, 110, 103, 95, 105, 111, 95, 119, 114, 105, 116, 101, 95, 102, 105, 120, 101, 100};
   int32_t di = 0;
   if (((dep_path ==((uint8_t *)(0))) || (name ==((uint8_t *)(0))))) {
     return 0;
@@ -2553,10 +2655,10 @@ int32_t codegen_should_skip_emit_std_io_core_io_dup(uint8_t * dep_path, uint8_t 
     }
     (void)((di = (di + 1)));
   }
-  if ((((name_len ==18) || (name_len ==19)) && (codegen_name_bytes_prefix_eq(name, name_len, &((n_rf)[0]), 18) !=0))) {
+  if ((((name_len ==18) || (name_len ==19)) && (codegen_name_bytes_prefix_eq(name, name_len, &((n_rf)[0]), 19) !=0))) {
     return 1;
   }
-  if ((((name_len ==19) || (name_len ==20)) && (codegen_name_bytes_prefix_eq(name, name_len, &((n_wf)[0]), 19) !=0))) {
+  if ((((name_len ==19) || (name_len ==20)) && (codegen_name_bytes_prefix_eq(name, name_len, &((n_wf)[0]), 20) !=0))) {
     return 1;
   }
   return 0;
@@ -2887,26 +2989,26 @@ int32_t codegen_emit_io_driver_buf_call_name(struct codegen_CodegenOutBuf * out,
   uint8_t reg8[8] = {114, 101, 103, 105, 115, 116, 101, 114};
   uint8_t rd11[11] = {115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100};
   uint8_t wr12[12] = {115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101};
-  uint8_t sym_reg[20] = {115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 103, 105, 115, 116, 101, 114, 95, 98, 117, 102};
-  uint8_t sym_rd[23] = {115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 98, 117, 102};
-  uint8_t sym_wr[24] = {115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101, 95, 98, 117, 102};
+  uint8_t sym_reg[21] = {120, 108, 97, 110, 103, 95, 105, 111, 95, 114, 101, 103, 105, 115, 116, 101, 114, 95, 98, 117, 102};
+  uint8_t sym_rd[24] = {120, 108, 97, 110, 103, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 98, 117, 102};
+  uint8_t sym_wr[25] = {120, 108, 97, 110, 103, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101, 95, 98, 117, 102};
   if (((name ==((uint8_t *)(0))) || (name_len <=0))) {
     return 0;
   }
   if ((((num_args ==1) && (name_len ==8)) && (codegen_name_bytes_prefix_eq(name, name_len, &((reg8)[0]), 8) !=0))) {
-    if ((codegen_emit_bytes_from_ptr(out, &((sym_reg)[0]), 20) !=0)) {
+    if ((codegen_emit_bytes_from_ptr(out, &((sym_reg)[0]), 21) !=0)) {
       return -(1);
     }
     return 1;
   }
   if ((((num_args ==2) && (name_len ==11)) && (codegen_name_bytes_prefix_eq(name, name_len, &((rd11)[0]), 11) !=0))) {
-    if ((codegen_emit_bytes_from_ptr(out, &((sym_rd)[0]), 23) !=0)) {
+    if ((codegen_emit_bytes_from_ptr(out, &((sym_rd)[0]), 24) !=0)) {
       return -(1);
     }
     return 1;
   }
   if ((((num_args ==2) && (name_len ==12)) && (codegen_name_bytes_prefix_eq(name, name_len, &((wr12)[0]), 12) !=0))) {
-    if ((codegen_emit_bytes_from_ptr(out, &((sym_wr)[0]), 24) !=0)) {
+    if ((codegen_emit_bytes_from_ptr(out, &((sym_wr)[0]), 25) !=0)) {
       return -(1);
     }
     return 1;
@@ -2923,9 +3025,9 @@ int32_t codegen_try_emit_std_io_driver_buf_body(struct codegen_CodegenOutBuf * o
     uint8_t reg8[8] = {114, 101, 103, 105, 115, 116, 101, 114};
     uint8_t rd11[11] = {115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100};
     uint8_t wr12[12] = {115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101};
-    uint8_t sym_reg[20] = {115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 103, 105, 115, 116, 101, 114, 95, 98, 117, 102};
-    uint8_t sym_rd[23] = {115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 98, 117, 102};
-    uint8_t sym_wr[24] = {115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101, 95, 98, 117, 102};
+    uint8_t sym_reg[21] = {120, 108, 97, 110, 103, 95, 105, 111, 95, 114, 101, 103, 105, 115, 116, 101, 114, 95, 98, 117, 102};
+    uint8_t sym_rd[24] = {120, 108, 97, 110, 103, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 98, 117, 102};
+    uint8_t sym_wr[25] = {120, 108, 97, 110, 103, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101, 95, 98, 117, 102};
     uint8_t ret_kw[8] = {32, 32, 114, 101, 116, 117, 114, 110};
     uint8_t close_b[3] = {10, 125, 0};
     if ((codegen_force_param_std_io_driver_prefix_ok(prefix, prefix_len) ==0)) {
@@ -2951,7 +3053,7 @@ int32_t codegen_try_emit_std_io_driver_buf_body(struct codegen_CodegenOutBuf * o
       if ((codegen_emit_bytes_from_ptr(out, &((ret_kw)[0]), 8) !=0)) {
         return -(1);
       }
-      if ((codegen_emit_bytes_from_ptr(out, &((sym_reg)[0]), 20) !=0)) {
+      if ((codegen_emit_bytes_from_ptr(out, &((sym_reg)[0]), 21) !=0)) {
         return -(1);
       }
       if ((codegen_append_byte(out, 40) !=0)) {
@@ -2979,7 +3081,7 @@ int32_t codegen_try_emit_std_io_driver_buf_body(struct codegen_CodegenOutBuf * o
       if ((codegen_emit_bytes_from_ptr(out, &((ret_kw)[0]), 8) !=0)) {
         return -(1);
       }
-      if ((codegen_emit_bytes_from_ptr(out, &((sym_rd)[0]), 23) !=0)) {
+      if ((codegen_emit_bytes_from_ptr(out, &((sym_rd)[0]), 24) !=0)) {
         return -(1);
       }
       if ((codegen_append_byte(out, 40) !=0)) {
@@ -3013,7 +3115,7 @@ int32_t codegen_try_emit_std_io_driver_buf_body(struct codegen_CodegenOutBuf * o
       if ((codegen_emit_bytes_from_ptr(out, &((ret_kw)[0]), 8) !=0)) {
         return -(1);
       }
-      if ((codegen_emit_bytes_from_ptr(out, &((sym_wr)[0]), 24) !=0)) {
+      if ((codegen_emit_bytes_from_ptr(out, &((sym_wr)[0]), 25) !=0)) {
         return -(1);
       }
       if ((codegen_append_byte(out, 40) !=0)) {
@@ -3944,6 +4046,24 @@ int32_t codegen_emit_vector_c_type_out(struct codegen_CodegenOutBuf * out, int32
     }
     if ((lanes ==16)) {
       uint8_t sa[9] = {117, 51, 50, 120, 49, 54, 95, 116, 0};
+      return codegen_emit_bytes_from_ptr(out, &((sa)[0]), 8);
+    }
+  }
+  /* F32 vector: "f32x4_t" / "f32x8_t" / "f32x16_t". elem_kind_ord==14 == TYPE_F32.
+   * Without this branch, Vec4f falls through to the int32_t default and
+   * collides with Vec8i (i32x8_t) overloads. Mirrors codegen.x emit_vector_c_type_out.
+   * PLATFORM: SHARED. Manually mirrored because xlang-c -E-extern hangs on macOS. */
+  if ((elem_kind_ord ==((int32_t)(14)))) {
+    if ((lanes ==4)) {
+      uint8_t s[8] = {102, 51, 50, 120, 52, 95, 116, 0};
+      return codegen_emit_bytes_from_ptr(out, &((s)[0]), 7);
+    }
+    if ((lanes ==8)) {
+      uint8_t s[8] = {102, 51, 50, 120, 56, 95, 116, 0};
+      return codegen_emit_bytes_from_ptr(out, &((s)[0]), 7);
+    }
+    if ((lanes ==16)) {
+      uint8_t sa[9] = {102, 51, 50, 120, 49, 54, 95, 116, 0};
       return codegen_emit_bytes_from_ptr(out, &((sa)[0]), 8);
     }
   }
@@ -5625,6 +5745,16 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
             return codegen_emit_bytes_4(out, l0, 3);
           }
         }
+        /* wave101: same-module fn-as-value → G.7 prefix + link name (not bare source). */
+        {
+          int32_t fn_val = codegen_try_emit_fn_as_value(out, arena, ctx, &(((e.var_name))[0]), (e.var_name_len));
+          if ((fn_val == 0)) {
+            return 0;
+          }
+          if ((fn_val < 0)) {
+            return -(1);
+          }
+        }
         return codegen_emit_bytes_64(out, &(((e.var_name))[0]), (e.var_name_len));
       }
       if (((ctx !=((struct ast_PipelineDepCtx *)(0))) && ((ctx->emit_expr_as_callee) !=0))) {
@@ -5855,10 +5985,10 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
       int32_t op_ref = (e.unary_operand_ref);
       int32_t op_ty_ref = 0;
       uint8_t open[4] = {40, 123, 32, 0};
-      uint8_t tmp_name[15] = {95, 95, 115, 104, 117, 120, 95, 116, 114, 121, 95, 116, 109, 112, 0};
+      uint8_t tmp_name[16] = {95, 95, 120, 108, 97, 110, 103, 95, 116, 114, 121, 95, 116, 109, 112, 0};
       uint8_t assign_mid[5] = {32, 61, 32, 0, 0};
-      uint8_t if_open[37] = {59, 32, 105, 102, 32, 40, 40, 95, 95, 115, 104, 117, 120, 95, 116, 114, 121, 95, 116, 109, 112, 41, 46, 101, 114, 114, 32, 33, 61, 32, 48, 41, 32, 123, 32, 114, 101};
-      uint8_t turn_mid[39] = {116, 117, 114, 110, 32, 95, 95, 115, 104, 117, 120, 95, 116, 114, 121, 95, 116, 109, 112, 59, 32, 125, 32, 40, 95, 95, 115, 104, 117, 120, 95, 116, 114, 121, 95, 116, 109, 112, 0};
+      uint8_t if_open[38] = {59, 32, 105, 102, 32, 40, 40, 95, 95, 120, 108, 97, 110, 103, 95, 116, 114, 121, 95, 116, 109, 112, 41, 46, 101, 114, 114, 32, 33, 61, 32, 48, 41, 32, 123, 32, 114, 101};
+      uint8_t turn_mid[41] = {116, 117, 114, 110, 32, 95, 95, 120, 108, 97, 110, 103, 95, 116, 114, 121, 95, 116, 109, 112, 59, 32, 125, 32, 40, 95, 95, 120, 108, 97, 110, 103, 95, 116, 114, 121, 95, 116, 109, 112, 0};
       uint8_t value_tail[7] = {41, 46, 118, 97, 108, 117, 101};
       uint8_t close_tail[4] = {59, 32, 125, 41};
       if (((ast_ref_is_null(op_ref) || (op_ref <=0)) || (op_ref > (arena->num_exprs)))) {
@@ -5915,7 +6045,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
       int32_t num_params = 0;
       int32_t ai = 0;
       int32_t op_is_call = 0;
-      uint8_t reset_name[25] = {115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 114, 101, 115, 101, 116};
+      uint8_t reset_name[26] = {120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 114, 101, 115, 101, 116};
       uint8_t comma[3] = {44, 32, 0};
       if (((ctx ==((struct ast_PipelineDepCtx *)(0))) || ((ctx->current_codegen_module) ==((struct ast_Module *)(0))))) {
         return -(1);
@@ -5982,7 +6112,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
           if ((codegen_append_byte(out, 40) !=0)) {
             return -(1);
           }
-          if ((codegen_emit_bytes_from_ptr(out, &((reset_name)[0]), 25) !=0)) {
+          if ((codegen_emit_bytes_from_ptr(out, &((reset_name)[0]), 26) !=0)) {
             return -(1);
           }
           if ((codegen_append_byte(out, 40) !=0)) {
@@ -7319,8 +7449,8 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
       return codegen_append_byte(out, 41);
     }
     if (((e.kind) ==42)) {
-      uint8_t p[22] = {115, 104, 117, 120, 95, 112, 97, 110, 105, 99, 95, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-      if ((codegen_emit_bytes_22(out, p, 12) !=0)) {
+      uint8_t p[23] = {120, 108, 97, 110, 103, 95, 112, 97, 110, 105, 99, 95, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+      if ((codegen_emit_bytes_22(out, p, 13) !=0)) {
         return -(1);
       }
       if (ast_ref_is_null((e.unary_operand_ref))) {
@@ -9267,6 +9397,52 @@ int32_t codegen_type_ref_to_suffix(struct ast_ASTArena * arena, int32_t type_ref
       uint8_t s[4] = {102, 54, 52, 0};
       return codegen_emit_suffix_bytes(buf, &((s)[0]), 3);
     }
+    /* TYPE_VECTOR: mangle suffix <elem>x<lanes> (i32x4/f32x4/i32x8) so same-name vector
+     * overloads get distinct C link symbols. Mirrors codegen.x codegen_type_ref_to_suffix.
+     * PLATFORM: SHARED. */
+    if ((tk ==((int32_t)(13)))) {
+      int32_t elem_ref = pipeline_type_elem_ref_at(arena, type_ref);
+      int32_t lanes = pipeline_type_array_size_at(arena, type_ref);
+      int32_t ek = 0;
+      int32_t pos = 0;
+      if ((elem_ref <= 0) || (lanes <= 0)) {
+        return 0;
+      }
+      ek = pipeline_type_kind_ord_at(arena, elem_ref);
+      if ((ek ==((int32_t)(0)))) {
+        uint8_t pre[4] = {105, 51, 50, 0};
+        pos = codegen_emit_suffix_bytes(buf, &((pre)[0]), 3);
+      } else if ((ek ==((int32_t)(3)))) {
+        uint8_t pre[4] = {117, 51, 50, 0};
+        pos = codegen_emit_suffix_bytes(buf, &((pre)[0]), 3);
+      } else if ((ek ==((int32_t)(14)))) {
+        uint8_t pre[4] = {102, 51, 50, 0};
+        pos = codegen_emit_suffix_bytes(buf, &((pre)[0]), 3);
+      } else {
+        return 0;
+      }
+      if ((pos <= 0)) {
+        return 0;
+      }
+      if ((pos < buf_cap)) {
+        (buf)[pos] = 120;
+        pos = (pos + 1);
+      } else {
+        return pos;
+      }
+      if ((lanes ==4) && (pos < buf_cap)) {
+        (buf)[pos] = 52;
+        return (pos + 1);
+      } else if ((lanes ==8) && (pos < buf_cap)) {
+        (buf)[pos] = 56;
+        return (pos + 1);
+      } else if ((lanes ==16) && ((pos + 1) < buf_cap)) {
+        (buf)[pos] = 49;
+        (buf)[(pos + 1)] = 54;
+        return (pos + 2);
+      }
+      return pos;
+    }
     if ((tk ==((int32_t)(1)))) {
       uint8_t s[5] = {98, 111, 111, 108, 0};
       return codegen_emit_suffix_bytes(buf, &((s)[0]), 4);
@@ -9454,6 +9630,133 @@ int32_t codegen_emit_func_link_name(struct codegen_CodegenOutBuf * out, struct a
   }
   return 0;
 }
+/* PLATFORM: SHARED — wave101: local binding shadow check for fn-as-value emit. */
+int32_t codegen_name_is_local_binding(struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, uint8_t * name, int32_t name_len) {
+  {
+    if (((((arena == ((struct ast_ASTArena *)(0))) || (ctx == ((struct ast_PipelineDepCtx *)(0)))) || (name == ((uint8_t *)(0)))) || (name_len <= 0))) {
+      return 0;
+    }
+    {
+      struct ast_Module * mod = (ctx->current_codegen_module);
+      if ((((mod != ((struct ast_Module *)(0))) && ((ctx->current_func_index) >= 0)) && ((ctx->current_func_index) < (mod->num_funcs)))) {
+        int32_t fi = (ctx->current_func_index);
+        int32_t np = pipeline_module_func_num_params_at(mod, fi);
+        int32_t pi = 0;
+        while ((pi < np)) {
+          int32_t pl = pipeline_module_func_param_name_len_at(mod, fi, pi);
+          if (((pl == name_len) && (pl > 0))) {
+            uint8_t pb[32] = {};
+            int32_t ok = 1;
+            int32_t j = 0;
+            (void)(pipeline_module_func_param_name_copy32(mod, fi, pi, &((pb)[0])));
+            while ((j < pl)) {
+              if ((((pb)[j]) != (name[j]))) {
+                (void)((ok = 0));
+                (void)((j = pl));
+              } else {
+                (void)((j = (j + 1)));
+              }
+            }
+            if ((ok != 0)) {
+              return 1;
+            }
+          }
+          (void)((pi = (pi + 1)));
+        }
+      }
+      if ((((ctx->current_block_ref) > 0) && ((ctx->current_block_ref) <= (arena->num_blocks)))) {
+        int32_t br = (ctx->current_block_ref);
+        int32_t li = 0;
+        int32_t nlets = ast_ast_block_num_lets(arena, br);
+        while ((li < nlets)) {
+          int32_t nl = pipeline_block_let_name_len(arena, br, li);
+          if (((nl == name_len) && (nl > 0))) {
+            uint8_t nb[64] = {};
+            int32_t ok2 = 1;
+            int32_t j2 = 0;
+            (void)(pipeline_block_let_name_copy64(arena, br, li, &((nb)[0])));
+            while ((j2 < nl)) {
+              if ((((nb)[j2]) != (name[j2]))) {
+                (void)((ok2 = 0));
+                (void)((j2 = nl));
+              } else {
+                (void)((j2 = (j2 + 1)));
+              }
+            }
+            if ((ok2 != 0)) {
+              return 1;
+            }
+          }
+          (void)((li = (li + 1)));
+        }
+        {
+          int32_t ci = 0;
+          int32_t nconsts = ast_ast_block_num_consts(arena, br);
+          while ((ci < nconsts)) {
+            int32_t cl = pipeline_block_const_name_len(arena, br, ci);
+            if (((cl == name_len) && (cl > 0))) {
+              uint8_t cb[64] = {};
+              int32_t ok3 = 1;
+              int32_t j3 = 0;
+              (void)(pipeline_block_const_name_copy64(arena, br, ci, &((cb)[0])));
+              while ((j3 < cl)) {
+                if ((((cb)[j3]) != (name[j3]))) {
+                  (void)((ok3 = 0));
+                  (void)((j3 = cl));
+                } else {
+                  (void)((j3 = (j3 + 1)));
+                }
+              }
+              if ((ok3 != 0)) {
+                return 1;
+              }
+            }
+            (void)((ci = (ci + 1)));
+          }
+        }
+      }
+    }
+    return 0;
+  }
+  return 0;
+}
+/* PLATFORM: SHARED — wave101: emit same-module fn-as-value with G.7 link name. */
+int32_t codegen_try_emit_fn_as_value(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, uint8_t * name, int32_t name_len) {
+  {
+    if (((((out == ((struct codegen_CodegenOutBuf *)(0))) || (name == ((uint8_t *)(0)))) || (name_len <= 0)))) {
+      return 1;
+    }
+    if (((ctx == ((struct ast_PipelineDepCtx *)(0))) || ((ctx->current_codegen_module) == ((struct ast_Module *)(0))))) {
+      return 1;
+    }
+    if ((codegen_name_is_local_binding(arena, ctx, name, name_len) != 0)) {
+      return 1;
+    }
+    {
+      struct ast_Module * mod = (ctx->current_codegen_module);
+      int32_t fi = codegen_find_module_func_index_by_name(mod, name, name_len);
+      int32_t pre_len = 0;
+      int32_t sym_pre = 0;
+      if ((fi < 0)) {
+        return 1;
+      }
+      (void)((pre_len = (ctx->current_codegen_prefix_len)));
+      (void)((sym_pre = codegen_func_c_symbol_prefix_len(mod, fi, pre_len)));
+      if ((sym_pre > 0)) {
+        if ((codegen_c_prefix_redundant_with_name(&(((ctx->current_codegen_prefix_mirror))[0]), sym_pre, name, name_len) == 0)) {
+          if ((codegen_emit_bytes_from_ptr(out, &(((ctx->current_codegen_prefix_mirror))[0]), sym_pre) != 0)) {
+            return -(1);
+          }
+        }
+      }
+      if ((codegen_emit_func_link_name(out, arena, mod, fi) != 0)) {
+        return -(1);
+      }
+      return 0;
+    }
+  }
+  return 0;
+}
 struct ast_ASTArena * codegen_arena_for_module(struct ast_PipelineDepCtx * ctx, struct ast_Module * module, struct ast_ASTArena * fallback) {
   {
     int32_t di = 0;
@@ -9586,7 +9889,26 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
                 if (ast_ref_is_null(arg_ref)) {
                   (void)((types_match = 0));
                 } else {
+                  extern int32_t pipeline_expr_var_name_len(struct ast_ASTArena * a, int32_t expr_ref);
+                  extern void pipeline_expr_var_name_into(struct ast_ASTArena * a, int32_t expr_ref, uint8_t * out);
+                  extern int32_t pipeline_module_func_param_type_ref_for_name(struct ast_Module * m, int32_t func_index, uint8_t * vname, int32_t vname_len);
                   int32_t arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+                  /* PLATFORM: SHARED — dep module bodies not typeck'd: param VAR args have
+                   * resolved_type=0. When arg is a VAR naming a param of the CURRENTLY emitted
+                   * function, use that param's declared type. Mirrors codegen.x. */
+                  if (((arg_ty <=0) && (ctx !=0)) && ((ctx->current_codegen_module !=0) && (ctx->current_func_index >=0))) {
+                    if (pipeline_expr_kind_ord_at(arena, arg_ref) ==3) {
+                      int32_t av_len = pipeline_expr_var_name_len(arena, arg_ref);
+                      if (((av_len > 0) && (av_len <= 63))) {
+                        uint8_t av_buf[64] = {};
+                        pipeline_expr_var_name_into(arena, arg_ref, &((av_buf)[0]));
+                        int32_t apt = pipeline_module_func_param_type_ref_for_name(ctx->current_codegen_module, ctx->current_func_index, &((av_buf)[0]), av_len);
+                        if ((apt > 0)) {
+                          (void)((arg_ty = apt));
+                        }
+                      }
+                    }
+                  }
                   if (((arg_ty <=0) && (pipeline_expr_kind_ord_at(arena, arg_ref) ==54))) {
                     int32_t as_tgt = pipeline_expr_as_target_type_ref_at(arena, arg_ref);
                     if ((as_tgt > 0)) {
@@ -9622,6 +9944,7 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
                       (void)((nb = codegen_type_ref_to_suffix(search_arena, param_ty, &((sb)[0]), 64)));
                     }
                   }
+                  { extern char *getenv(const char *); if (getenv("XLANG_CGFCN")) fprintf(stderr, "XLANG_CGFCN: fi_s=%d pi=%d arg_ty=%d param_ty=%d na=%d nb=%d\n", (int)fi_s, (int)pi, (int)arg_ty, (int)param_ty, (int)na, (int)nb); }
                   if ((na !=nb)) {
                     (void)((types_match = 0));
                   } else {
@@ -10209,14 +10532,164 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
   }
   return 0;
 }
+/* PLATFORM: SHARED — skip re-declaring libc symbols that conflict with system
+ * headers when XLANG types (*u8→uint8_t*, i32→int32_t) differ from C. Must match
+ * codegen.x codegen_is_libc_conflicting_extern_name (same names). */
 int32_t codegen_is_libc_conflicting_extern_name(uint8_t * name, int32_t name_len) {
   if (((name ==((uint8_t *)(0))) || (name_len <=0))) {
     return 0;
   }
+  /* read 4 */
   if ((((((name_len ==4) && ((name)[0] ==114)) && ((name)[1] ==101)) && ((name)[2] ==97)) && ((name)[3] ==100))) {
     return 1;
   }
+  /* write 5 */
   if (((((((name_len ==5) && ((name)[0] ==119)) && ((name)[1] ==114)) && ((name)[2] ==105)) && ((name)[3] ==116)) && ((name)[4] ==101))) {
+    return 1;
+  }
+  /* open 4 */
+  if ((((((name_len ==4) && ((name)[0] ==111)) && ((name)[1] ==112)) && ((name)[2] ==101)) && ((name)[3] ==110))) {
+    return 1;
+  }
+  /* close 5 */
+  if (((((((name_len ==5) && ((name)[0] ==99)) && ((name)[1] ==108)) && ((name)[2] ==111)) && ((name)[3] ==115)) && ((name)[4] ==101))) {
+    return 1;
+  }
+  /* fcntl 5 */
+  if (((((((name_len ==5) && ((name)[0] ==102)) && ((name)[1] ==99)) && ((name)[2] ==110)) && ((name)[3] ==116)) && ((name)[4] ==108))) {
+    return 1;
+  }
+  /* free 4 */
+  if ((((((name_len ==4) && ((name)[0] ==102)) && ((name)[1] ==114)) && ((name)[2] ==101)) && ((name)[3] ==101))) {
+    return 1;
+  }
+  /* malloc 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==109)) && ((name)[1] ==97)) && ((name)[2] ==108)) && ((name)[3] ==108)) && ((name)[4] ==111)) && ((name)[5] ==99))) {
+    return 1;
+  }
+  /* calloc 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==99)) && ((name)[1] ==97)) && ((name)[2] ==108)) && ((name)[3] ==108)) && ((name)[4] ==111)) && ((name)[5] ==99))) {
+    return 1;
+  }
+  /* realloc 7 — void* vs uint8_t* clash with stdlib.h (sync with codegen.x) */
+  if (((((((((name_len ==7) && ((name)[0] ==114)) && ((name)[1] ==101)) && ((name)[2] ==97)) && ((name)[3] ==108)) && ((name)[4] ==108)) && ((name)[5] ==111)) && ((name)[6] ==99))) {
+    return 1;
+  }
+  /* posix_memalign 14 — stdlib/POSIX prototype; skip XLANG redecl */
+  if ((((((((((((((((name_len ==14) && ((name)[0] ==112)) && ((name)[1] ==111)) && ((name)[2] ==115)) && ((name)[3] ==105)) && ((name)[4] ==120)) && ((name)[5] ==95)) && ((name)[6] ==109)) && ((name)[7] ==101)) && ((name)[8] ==109)) && ((name)[9] ==97)) && ((name)[10] ==108)) && ((name)[11] ==105)) && ((name)[12] ==103)) && ((name)[13] ==110))) {
+    return 1;
+  }
+  /* strtoul 7 — *u8 vs char* / u32 vs unsigned long (std/test) */
+  if (((((((((name_len ==7) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==116)) && ((name)[4] ==111)) && ((name)[5] ==117)) && ((name)[6] ==108))) {
+    return 1;
+  }
+  /* strtol 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==116)) && ((name)[4] ==111)) && ((name)[5] ==108))) {
+    return 1;
+  }
+  /* strtoull 8 */
+  if ((((((((((name_len ==8) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==116)) && ((name)[4] ==111)) && ((name)[5] ==117)) && ((name)[6] ==108)) && ((name)[7] ==108))) {
+    return 1;
+  }
+  /* strtoll 7 */
+  if (((((((((name_len ==7) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==116)) && ((name)[4] ==111)) && ((name)[5] ==108)) && ((name)[6] ==108))) {
+    return 1;
+  }
+  /* memcpy 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==109)) && ((name)[1] ==101)) && ((name)[2] ==109)) && ((name)[3] ==99)) && ((name)[4] ==112)) && ((name)[5] ==121))) {
+    return 1;
+  }
+  /* memcmp 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==109)) && ((name)[1] ==101)) && ((name)[2] ==109)) && ((name)[3] ==99)) && ((name)[4] ==109)) && ((name)[5] ==112))) {
+    return 1;
+  }
+  /* memset 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==109)) && ((name)[1] ==101)) && ((name)[2] ==109)) && ((name)[3] ==115)) && ((name)[4] ==101)) && ((name)[5] ==116))) {
+    return 1;
+  }
+  /* memchr 6 — glibc string.h may macro to _Generic; *u8 clash */
+  if ((((((((name_len ==6) && ((name)[0] ==109)) && ((name)[1] ==101)) && ((name)[2] ==109)) && ((name)[3] ==99)) && ((name)[4] ==104)) && ((name)[5] ==114))) {
+    return 1;
+  }
+  /* memrchr 7 */
+  if (((((((((name_len ==7) && ((name)[0] ==109)) && ((name)[1] ==101)) && ((name)[2] ==109)) && ((name)[3] ==114)) && ((name)[4] ==99)) && ((name)[5] ==104)) && ((name)[6] ==114))) {
+    return 1;
+  }
+  /* memmem 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==109)) && ((name)[1] ==101)) && ((name)[2] ==109)) && ((name)[3] ==109)) && ((name)[4] ==101)) && ((name)[5] ==109))) {
+    return 1;
+  }
+  /* strchr 6 — string.h macro / char* clash (std/path) */
+  if ((((((((name_len ==6) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==99)) && ((name)[4] ==104)) && ((name)[5] ==114))) {
+    return 1;
+  }
+  /* strrchr 7 */
+  if (((((((((name_len ==7) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==114)) && ((name)[4] ==99)) && ((name)[5] ==104)) && ((name)[6] ==114))) {
+    return 1;
+  }
+  /* strcpy 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==99)) && ((name)[4] ==112)) && ((name)[5] ==121))) {
+    return 1;
+  }
+  /* strncpy 7 */
+  if (((((((((name_len ==7) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==110)) && ((name)[4] ==99)) && ((name)[5] ==112)) && ((name)[6] ==121))) {
+    return 1;
+  }
+  /* getenv 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==103)) && ((name)[1] ==101)) && ((name)[2] ==116)) && ((name)[3] ==101)) && ((name)[4] ==110)) && ((name)[5] ==118))) {
+    return 1;
+  }
+  /* getcwd 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==103)) && ((name)[1] ==101)) && ((name)[2] ==116)) && ((name)[3] ==99)) && ((name)[4] ==119)) && ((name)[5] ==100))) {
+    return 1;
+  }
+  /* unlink 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==117)) && ((name)[1] ==110)) && ((name)[2] ==108)) && ((name)[3] ==105)) && ((name)[4] ==110)) && ((name)[5] ==107))) {
+    return 1;
+  }
+  /* strlen 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==108)) && ((name)[4] ==101)) && ((name)[5] ==110))) {
+    return 1;
+  }
+  /* strcmp 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==99)) && ((name)[4] ==109)) && ((name)[5] ==112))) {
+    return 1;
+  }
+  /* strncmp 7 */
+  if (((((((((name_len ==7) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==110)) && ((name)[4] ==99)) && ((name)[5] ==109)) && ((name)[6] ==112))) {
+    return 1;
+  }
+  /* strstr 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==115)) && ((name)[4] ==116)) && ((name)[5] ==114))) {
+    return 1;
+  }
+  /* setenv 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==115)) && ((name)[1] ==101)) && ((name)[2] ==116)) && ((name)[3] ==101)) && ((name)[4] ==110)) && ((name)[5] ==118))) {
+    return 1;
+  }
+  /* system 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==115)) && ((name)[1] ==121)) && ((name)[2] ==115)) && ((name)[3] ==116)) && ((name)[4] ==101)) && ((name)[5] ==109))) {
+    return 1;
+  }
+  /* fputs 5 */
+  if (((((((name_len ==5) && ((name)[0] ==102)) && ((name)[1] ==112)) && ((name)[2] ==117)) && ((name)[3] ==116)) && ((name)[4] ==115))) {
+    return 1;
+  }
+  /* strerror 8 */
+  if ((((((((((name_len ==8) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==101)) && ((name)[4] ==114)) && ((name)[5] ==114)) && ((name)[6] ==111)) && ((name)[7] ==114))) {
+    return 1;
+  }
+  /* opendir/closedir: not skipped — DIR* modeled as *u8 (sync codegen.x) */
+  /* access 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==97)) && ((name)[1] ==99)) && ((name)[2] ==99)) && ((name)[3] ==101)) && ((name)[4] ==115)) && ((name)[5] ==115))) {
+    return 1;
+  }
+  /* mkstemp 7 — wave30: root skip (was g05-sed-only); sync codegen.x */
+  if (((((((((name_len ==7) && ((name)[0] ==109)) && ((name)[1] ==107)) && ((name)[2] ==115)) && ((name)[3] ==116)) && ((name)[4] ==101)) && ((name)[5] ==109)) && ((name)[6] ==112))) {
+    return 1;
+  }
+  /* rename 6 — wave30: root skip (was g05-sed-only); sync codegen.x */
+  if ((((((((name_len ==6) && ((name)[0] ==114)) && ((name)[1] ==101)) && ((name)[2] ==110)) && ((name)[3] ==97)) && ((name)[4] ==109)) && ((name)[5] ==101))) {
     return 1;
   }
   return 0;
@@ -10611,9 +11084,15 @@ int32_t codegen_emit_import_dep_function_declarations(struct ast_Module * module
           struct ast_Module * dep_mod = ((struct ast_Module *)(0));
           struct ast_ASTArena * dep_arena = ((struct ast_ASTArena *)(0));
           int32_t dep_ctx_ix = dep_ix;
+          if (getenv("XLANG_DEBUG_PREFIX"))
+            fprintf(stderr, "xlang: [DBG_PREFIX] emit_import_dep_decl module=%p n_imp=%d imp_i=%d dep_path=%.*s dep_ix=%d\n",
+                    (void*)module, (int)n_imp, (int)imp_i, (int)dep_path_len, (char*)dep_path, (int)dep_ix);
           if (((dep_ix >=0) && (dep_ix < pipeline_dep_ctx_ndep(ctx)))) {
             (void)((dep_mod = pipeline_dep_ctx_module_at(ctx, dep_ix)));
             (void)((dep_arena = pipeline_dep_ctx_arena_at(ctx, dep_ix)));
+            if (getenv("XLANG_DEBUG_PREFIX"))
+              fprintf(stderr, "xlang: [DBG_PREFIX]   -> dep_ix=%d dep_mod=%p num_funcs=%d\n",
+                      (int)dep_ix, (void*)dep_mod, dep_mod ? (int)dep_mod->num_funcs : -1);
           }
           if ((((dep_mod ==((struct ast_Module *)(0))) || (dep_arena ==((struct ast_ASTArena *)(0)))) && (dep_path_len > 0))) {
             int32_t global_slot = codegen_find_seeded_global_dep_slot_by_path(&((dep_path)[0]), dep_path_len);
@@ -10855,7 +11334,7 @@ int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, s
             /* PLATFORM: SHARED — decl-site init for fixed arrays, const, and mutable lets
              * whose init is a C static constant (pipeline_expr_is_c_static_const_init).
              * Library/dep .o has no main → init_globals never runs; BSS must not wipe -1
-             * sentinels (e.g. shu_heap_trace_on). VAR-dependent inits (a+2) stay init_globals.
+             * sentinels (e.g. xlang_heap_trace_on). VAR-dependent inits (a+2) stay init_globals.
              * Keep in sync with codegen.x. */
             if (((is_fixed_arr !=0) && !(ast_ref_is_null(tl_init)))) {
               if ((pipeline_expr_kind_ord_at(arena, tl_init) ==((int32_t)(46)))) {
@@ -11187,25 +11666,25 @@ int32_t codegen_force_param_i32(uint8_t * prefix, int32_t prefix_len, uint8_t * 
 }
 int32_t codegen_should_skip_emit_func_core_read_ptr(uint8_t * name, int32_t name_len) {
   /* PLATFORM: SHARED — skip only read_ptr* / async with preamble weak.
-   * Do NOT skip shux_io_register*: product C does not hard-link runtime_asm_io_stubs;
-   * co-emit core → backend is authority (run-io-driver UNDEF _shux_io_register). */
-  uint8_t shux_rpl20[20] = {115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114, 95, 108, 101, 110};
-  uint8_t shux_rp16[16] = {115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114};
+   * Do NOT skip xlang_io_register*: product C does not hard-link runtime_asm_io_stubs;
+   * co-emit core → backend is authority (run-io-driver UNDEF _xlang_io_register). */
+  uint8_t xlang_rpl20[21] = {120, 108, 97, 110, 103, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114, 95, 108, 101, 110};
+  uint8_t xlang_rp16[17] = {120, 108, 97, 110, 103, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114};
   if ((name ==((uint8_t *)(0)))) {
     return 0;
   }
-  if (((name_len >=20) && (codegen_name_bytes_prefix_eq(name, name_len, &((shux_rpl20)[0]), 20) !=0))) {
+  if (((name_len >=20) && (codegen_name_bytes_prefix_eq(name, name_len, &((xlang_rpl20)[0]), 21) !=0))) {
     return 1;
   }
-  if (((name_len ==16) && (codegen_name_bytes_prefix_eq(name, name_len, &((shux_rp16)[0]), 16) !=0))) {
+  if (((name_len ==16) && (codegen_name_bytes_prefix_eq(name, name_len, &((xlang_rp16)[0]), 17) !=0))) {
     return 1;
   }
-  uint8_t shux_rpb24[24] = {115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114, 95, 98, 97, 99, 107, 101, 110, 100};
-  if ((((name_len ==24) || (name_len ==25)) && (codegen_name_bytes_prefix_eq(name, name_len, &((shux_rpb24)[0]), 24) !=0))) {
+  uint8_t xlang_rpb24[25] = {120, 108, 97, 110, 103, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114, 95, 98, 97, 99, 107, 101, 110, 100};
+  if ((((name_len ==24) || (name_len ==25)) && (codegen_name_bytes_prefix_eq(name, name_len, &((xlang_rpb24)[0]), 25) !=0))) {
     return 1;
   }
-  uint8_t shux_sra25[25] = {115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 97, 115, 121, 110, 99};
-  if ((((name_len ==25) || (name_len ==26)) && (codegen_name_bytes_prefix_eq(name, name_len, &((shux_sra25)[0]), 25) !=0))) {
+  uint8_t xlang_sra25[26] = {120, 108, 97, 110, 103, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 97, 115, 121, 110, 99};
+  if ((((name_len ==25) || (name_len ==26)) && (codegen_name_bytes_prefix_eq(name, name_len, &((xlang_sra25)[0]), 26) !=0))) {
     return 1;
   }
   return 0;

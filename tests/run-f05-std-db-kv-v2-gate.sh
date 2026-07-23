@@ -2,11 +2,11 @@
 # F-05 v2：std.db.kv 去 C 门禁。
 #
 # 用法：./tests/run-f05-std-db-kv-v2-gate.sh
-# 环境：SHUX_F05_DB_KV_V2_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F05_DB_KV_V2_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F05_DB_KV_V2_FAIL:-0}
+FAIL=${XLANG_F05_DB_KV_V2_FAIL:-0}
 DOC="analysis/phase-f-f05-v2.md"
 
 die() {
@@ -24,7 +24,7 @@ grep -q 'F-05 v2' "$DOC" || die "doc missing F-05 v2 marker"
 grep -q 'db_kv_open_c' std/db/kv/kv.x || die "kv.x missing db_kv_open_c"
 grep -q 'db_kv_smoke_c' std/db/kv/kv.x || die "kv.x missing smoke"
 [ ! -f std/db/kv/kv_mmap_glue.c ] || die "kv_mmap_glue.c should be deleted (F-ZC)"
-grep -q 'shu_kv_mmap_file_c' compiler/seeds/runtime_kv_mmap_glue.from_x.c || die "glue missing mmap"
+grep -q 'xlang_kv_mmap_file_c' compiler/seeds/runtime_kv_mmap_glue.from_x.c || die "glue missing mmap"
 grep -q 'runtime_kv_mmap_glue' compiler/Makefile || die "Makefile missing runtime_kv_mmap_glue"
 grep -q 'kv.x' compiler/Makefile || die "Makefile missing kv.x build"
 if grep -q 'std/db/kv/kv\.c' compiler/Makefile 2>/dev/null; then
@@ -51,7 +51,7 @@ EOF
   "$TMP/kv_smoke" || die "kv smoke run failed"
   echo "f05 kv smoke OK"
 else
-  echo "f05 kv smoke SKIP (kv.o missing .x symbols; need shux-c)"
+  echo "f05 kv smoke SKIP (kv.o missing .x symbols; need xlang-c)"
 fi
 
 if [ -f tests/run-std-db-kv-arrow-gate.sh ]; then

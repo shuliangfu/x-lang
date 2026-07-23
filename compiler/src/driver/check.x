@@ -24,7 +24,7 @@
 export extern function driver_run_compiler_check(argc: i32, argv: *u8): i32;
 
 /**
- * shux check [flags] [path...]
+ * xlang check [flags] [path...]
  * See implementation.
  */
 export function cmd_check(argc: i32, argv: *u8): i32 {

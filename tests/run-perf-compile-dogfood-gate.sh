@@ -3,19 +3,19 @@
 #
 # 检查：
 #   1) manifest：compile-dogfood.tsv + 8 个源路径
-#   2) Shu median ≤ tests/baseline/compile-dogfood.tsv（默认 SHUX_PERF_FAIL_ON_COMPILE_REGRESSION=1）
+#   2) Xlang median ≤ tests/baseline/compile-dogfood.tsv（默认 XLANG_PERF_FAIL_ON_COMPILE_REGRESSION=1）
 #
 # 用法：./tests/run-perf-compile-dogfood-gate.sh
-# 烟测（不硬失败）：SHUX_PERF_FAIL_ON_COMPILE_REGRESSION=0 ./tests/run-perf-compile-dogfood-gate.sh
+# 烟测（不硬失败）：XLANG_PERF_FAIL_ON_COMPILE_REGRESSION=0 ./tests/run-perf-compile-dogfood-gate.sh
 # CI：run-ci-full-suite.sh 在 native Linux x86_64 调用本脚本（硬失败）
 set -e
 cd "$(dirname "$0")/.."
 
-BASELINE="${SHUX_PERF_COMPILE_BASELINE:-tests/baseline/compile-dogfood.tsv}"
-FAIL_REG="${SHUX_PERF_FAIL_ON_COMPILE_REGRESSION:-1}"
+BASELINE="${XLANG_PERF_COMPILE_BASELINE:-tests/baseline/compile-dogfood.tsv}"
+FAIL_REG="${XLANG_PERF_FAIL_ON_COMPILE_REGRESSION:-1}"
 
-# 判断 shux/shux-c 是否可在本机 exec（与 perf-io-zig gate 一致）。
-native_shu() {
+# 判断 xlang/xlang-c 是否可在本机 exec（与 perf-io-zig gate 一致）。
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -70,25 +70,25 @@ done
 [ "$missing" -eq 0 ] || exit 1
 echo "compile-dogfood manifest OK (8 cases)"
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
-    if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
+    if native_xlang "$cand"; then
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHUX_BIN" ]; then
-  echo "perf-compile-dogfood gate SKIP bench (no native shux; run in Docker/Linux)" >&2
+if [ -z "$XLANG_BIN" ]; then
+  echo "perf-compile-dogfood gate SKIP bench (no native xlang; run in Docker/Linux)" >&2
   exit 0
 fi
 
-echo "=== PERF-004: compile dogfood vs baseline (SHUX=$SHUX_BIN FAIL_REG=$FAIL_REG) ==="
+echo "=== PERF-004: compile dogfood vs baseline (XLANG=$XLANG_BIN FAIL_REG=$FAIL_REG) ==="
 chmod +x tests/run-perf-compile-dogfood.sh
-SHUX="$SHUX_BIN" \
-  SHUX_PERF_FAIL_ON_COMPILE_REGRESSION="$FAIL_REG" \
+XLANG="$XLANG_BIN" \
+  XLANG_PERF_FAIL_ON_COMPILE_REGRESSION="$FAIL_REG" \
   ./tests/run-perf-compile-dogfood.sh
 
 echo "perf-compile-dogfood gate OK"

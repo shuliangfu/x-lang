@@ -2,7 +2,7 @@
  * G-02f rt_diag_errno R2 full surface — isomorphic with src/runtime/rt_diag_errno.x
  * Product PREFER_X_O: g05_try_x_to_o(rt_diag_errno.x) + rest seed empty under FROM_X
  * Prove: full.x vs this seed → nm IDENTICAL (code_for_kind + errno family + cli_usage)
- * Regen: ./shux -E ... src/runtime/rt_diag_errno.x | filter DBG + polish prologue
+ * Regen: ./xlang -E ... src/runtime/rt_diag_errno.x | filter DBG + polish prologue
  * Track-L (2026-07-16): helpers rt_diag_get_errno / rt_diag_ensure_codes / rt_diag_append
  * keep short names; .x has #[no_mangle] (was module-prefix mangle).
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
@@ -284,7 +284,7 @@ void runtime_diag_cli_usage_note(uint8_t * argv0) {
   if ((argv0 !=((uint8_t *)(0)))) {
     (void)((name = argv0));
   } else {
-    (void)((name = (uint8_t[]){115, 104, 117, 120, 0 }));
+    (void)((name = (uint8_t[]){120, 108, 97, 110, 103, 0 }));
   }
   (void)((note_kind = (uint8_t[]){110, 111, 116, 101, 0 }));
   (void)(((msg)[0] = 0));

@@ -33,13 +33,13 @@ export const SSL_VERIFY_NONE: i32 = 0;
 export const SSL_TLSEXT_ERR_OK: i32 = 0;
 
 /* See implementation. */
-let shu_tls_last_error: i32 = 0;
+let xlang_tls_last_error: i32 = 0;
 
 /* See implementation. */
 let TLS_BACKEND_NAME: u8[8] = [111, 112, 101, 110, 115, 115, 108, 0];
 
 /* See implementation. */
-let shu_net_tls_openssl_marker: u8[8] = [111, 112, 101, 110, 115, 115, 108, 0];
+let xlang_net_tls_openssl_marker: u8[8] = [111, 112, 101, 110, 115, 115, 108, 0];
 
 /* See implementation. */
 allow(padding) struct TlsOpensslSess {
@@ -118,7 +118,7 @@ export function net_tls_backend_name_c(): *u8 {
  * See implementation.
  */
 export function net_tls_last_error_c(): i32 {
-  return shu_tls_last_error;
+  return xlang_tls_last_error;
 }
 
 /**
@@ -130,27 +130,27 @@ export function net_tls_server_ctx_create_mem_c(cert_pem: *u8, cert_len: i32, ke
   let key_bio: *u8 = 0 as *u8;
   let cert: *u8 = 0 as *u8;
   let pkey: *u8 = 0 as *u8;
-  shu_tls_last_error = 0;
+  xlang_tls_last_error = 0;
   if (cert_pem == 0 || cert_len <= 0 || key_pem == 0 || key_len <= 0) {
-    shu_tls_last_error = -2;
+    xlang_tls_last_error = -2;
     return 0 as i64;
   }
   let _u_rc_0: i32 = 0;
   unsafe { _u_rc_0 = OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS,
       0 as *u8); }
   if (_u_rc_0 == 0) {
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   unsafe { srv = calloc(1, 8) as *TlsOpensslServerCtx; }
   if (srv == 0) {
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   unsafe { srv.ctx = SSL_CTX_new(TLS_server_method()); }
   if (srv.ctx == 0) {
     unsafe { free(srv as *u8); }
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   unsafe { SSL_CTX_set_verify(srv.ctx, SSL_VERIFY_NONE, 0 as *u8); }
@@ -161,7 +161,7 @@ export function net_tls_server_ctx_create_mem_c(cert_pem: *u8, cert_len: i32, ke
     if (key_bio != 0) { unsafe { BIO_free(key_bio); } }
     unsafe { SSL_CTX_free(srv.ctx); }
     unsafe { free(srv as *u8); }
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   unsafe { cert = PEM_read_bio_X509(cert_bio, 0 as * *u8, 0 as *u8, 0 as *u8); }
@@ -179,7 +179,7 @@ export function net_tls_server_ctx_create_mem_c(cert_pem: *u8, cert_len: i32, ke
     if (pkey != 0) { unsafe { EVP_PKEY_free(pkey); } }
     unsafe { SSL_CTX_free(srv.ctx); }
     unsafe { free(srv as *u8); }
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   unsafe { X509_free(cert); }
@@ -209,20 +209,20 @@ export function net_tls_accept_server_c(srv_ctx_h: i64, fd: i32): i64 {
   let sess: *TlsOpensslSess = 0 as *TlsOpensslSess;
   let ssl: *u8 = 0 as *u8;
   let rc: i32 = 0;
-  shu_tls_last_error = 0;
+  xlang_tls_last_error = 0;
   if (srv == 0 || srv.ctx == 0 || fd < 0) {
-    shu_tls_last_error = -2;
+    xlang_tls_last_error = -2;
     return 0 as i64;
   }
   unsafe { sess = calloc(1, 24) as *TlsOpensslSess; }
   if (sess == 0) {
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   unsafe { ssl = SSL_new(srv.ctx); }
   if (ssl == 0) {
     unsafe { free(sess as *u8); }
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   unsafe { SSL_set_fd(ssl, fd); }
@@ -231,7 +231,7 @@ export function net_tls_accept_server_c(srv_ctx_h: i64, fd: i32): i64 {
   if (rc != 1) {
     unsafe { SSL_free(ssl); }
     unsafe { free(sess as *u8); }
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   sess.fd = fd;
@@ -248,31 +248,31 @@ export function net_tls_connect_client_c(fd: i32, sni: *u8): i64 {
   let ctx: *u8 = 0 as *u8;
   let ssl: *u8 = 0 as *u8;
   let rc: i32 = 0;
-  shu_tls_last_error = 0;
+  xlang_tls_last_error = 0;
   if (fd < 0) {
-    shu_tls_last_error = -2;
+    xlang_tls_last_error = -2;
     return 0 as i64;
   }
   if (sni == 0 || sni[0] == 0) {
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   let _u_rc_1: i32 = 0;
   unsafe { _u_rc_1 = OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS,
       0 as *u8); }
   if (_u_rc_1 == 0) {
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   unsafe { sess = calloc(1, 24) as *TlsOpensslSess; }
   if (sess == 0) {
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   unsafe { ctx = SSL_CTX_new(TLS_client_method()); }
   if (ctx == 0) {
     unsafe { free(sess as *u8); }
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   unsafe { SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0 as *u8); }
@@ -280,7 +280,7 @@ export function net_tls_connect_client_c(fd: i32, sni: *u8): i64 {
   if (ssl == 0) {
     unsafe { SSL_CTX_free(ctx); }
     unsafe { free(sess as *u8); }
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   unsafe { SSL_set_fd(ssl, fd); }
@@ -290,7 +290,7 @@ export function net_tls_connect_client_c(fd: i32, sni: *u8): i64 {
     unsafe { SSL_free(ssl); }
     unsafe { SSL_CTX_free(ctx); }
     unsafe { free(sess as *u8); }
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   unsafe { net_set_blocking_c(fd, 1); }
@@ -299,13 +299,13 @@ export function net_tls_connect_client_c(fd: i32, sni: *u8): i64 {
     unsafe { SSL_free(ssl); }
     unsafe { SSL_CTX_free(ctx); }
     unsafe { free(sess as *u8); }
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   sess.fd = fd;
   sess.ssl = ssl;
   sess.ctx = ctx;
-  shu_tls_last_error = 0;
+  xlang_tls_last_error = 0;
   return sess as usize as i64;
 }
 
@@ -317,31 +317,31 @@ export function net_tls_connect_client_alpn_c(fd: i32, sni: *u8, alpn_wire: *u8,
   let ctx: *u8 = 0 as *u8;
   let ssl: *u8 = 0 as *u8;
   let rc: i32 = 0;
-  shu_tls_last_error = 0;
+  xlang_tls_last_error = 0;
   if (fd < 0 || alpn_wire == 0 || alpn_wire_len <= 0) {
-    shu_tls_last_error = -2;
+    xlang_tls_last_error = -2;
     return 0 as i64;
   }
   if (sni == 0 || sni[0] == 0) {
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   let _u_rc_3: i32 = 0;
   unsafe { _u_rc_3 = OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS,
       0 as *u8); }
   if (_u_rc_3 == 0) {
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   unsafe { sess = calloc(1, 24) as *TlsOpensslSess; }
   if (sess == 0) {
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   unsafe { ctx = SSL_CTX_new(TLS_client_method()); }
   if (ctx == 0) {
     unsafe { free(sess as *u8); }
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   unsafe { SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0 as *u8); }
@@ -350,14 +350,14 @@ export function net_tls_connect_client_alpn_c(fd: i32, sni: *u8, alpn_wire: *u8,
   if (_u_rc_4 != 0) {
     unsafe { SSL_CTX_free(ctx); }
     unsafe { free(sess as *u8); }
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   unsafe { ssl = SSL_new(ctx); }
   if (ssl == 0) {
     unsafe { SSL_CTX_free(ctx); }
     unsafe { free(sess as *u8); }
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   unsafe { SSL_set_fd(ssl, fd); }
@@ -367,7 +367,7 @@ export function net_tls_connect_client_alpn_c(fd: i32, sni: *u8, alpn_wire: *u8,
     unsafe { SSL_free(ssl); }
     unsafe { SSL_CTX_free(ctx); }
     unsafe { free(sess as *u8); }
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   unsafe { net_set_blocking_c(fd, 1); }
@@ -376,13 +376,13 @@ export function net_tls_connect_client_alpn_c(fd: i32, sni: *u8, alpn_wire: *u8,
     unsafe { SSL_free(ssl); }
     unsafe { SSL_CTX_free(ctx); }
     unsafe { free(sess as *u8); }
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   sess.fd = fd;
   sess.ssl = ssl;
   sess.ctx = ctx;
-  shu_tls_last_error = 0;
+  xlang_tls_last_error = 0;
   return sess as usize as i64;
 }
 
@@ -395,7 +395,7 @@ export function net_tls_alpn_selected_c(ctx_handle: i64, out: *u8, out_cap: i32)
   let len: u32 = 0;
   let n: i32 = 0;
   if (sess == 0 || sess.ssl == 0) {
-    shu_tls_last_error = -2;
+    xlang_tls_last_error = -2;
     return -1;
   }
   unsafe { SSL_get0_alpn_selected(sess.ssl, &sel, &len); }
@@ -440,7 +440,7 @@ export function net_tls_close_c(ctx_handle: i64): i32 {
     unsafe { SSL_CTX_free(sess.ctx); }
   }
   unsafe { free(sess as *u8); }
-  shu_tls_last_error = 0;
+  xlang_tls_last_error = 0;
   return 0;
 }
 
@@ -451,19 +451,19 @@ export function net_tls_read_c(ctx_handle: i64, buf: *u8, cap: i32): i32 {
   let sess: *TlsOpensslSess = tls_openssl_sess_ptr(ctx_handle);
   let n: i32 = 0;
   if (sess == 0 || sess.ssl == 0) {
-    shu_tls_last_error = -2;
+    xlang_tls_last_error = -2;
     return -2;
   }
   if (buf == 0 || cap <= 0) {
-    shu_tls_last_error = -2;
+    xlang_tls_last_error = -2;
     return -2;
   }
   unsafe { n = SSL_read(sess.ssl, buf, cap); }
   if (n <= 0) {
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return -1;
   }
-  shu_tls_last_error = 0;
+  xlang_tls_last_error = 0;
   return n;
 }
 
@@ -474,19 +474,19 @@ export function net_tls_write_c(ctx_handle: i64, buf: *u8, len: i32): i32 {
   let sess: *TlsOpensslSess = tls_openssl_sess_ptr(ctx_handle);
   let n: i32 = 0;
   if (sess == 0 || sess.ssl == 0) {
-    shu_tls_last_error = -2;
+    xlang_tls_last_error = -2;
     return -2;
   }
   if (buf == 0 || len <= 0) {
-    shu_tls_last_error = -2;
+    xlang_tls_last_error = -2;
     return -2;
   }
   unsafe { n = SSL_write(sess.ssl, buf, len); }
   if (n <= 0) {
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return -1;
   }
-  shu_tls_last_error = 0;
+  xlang_tls_last_error = 0;
   return n;
 }
 
@@ -498,7 +498,7 @@ let LOCALHOST: u8[10] = [108, 111, 99, 97, 108, 104, 111, 115, 116, 0];
 let HTTP_TAG: u8[5] = [72, 84, 84, 80, 0];
 let HTML_TAG: u8[5] = [104, 116, 109, 108, 0];
 let HTML_TAG_U: u8[5] = [72, 84, 77, 76, 0];
-let ENV_SHUX_TLS_PORT: u8[20] = [83, 72, 85, 88, 95, 84, 76, 83, 95, 83, 77, 79, 75, 69, 95, 80, 79, 82, 84, 0];
+let ENV_XLANG_TLS_PORT: u8[21] = [88, 76, 65, 78, 71, 95, 84, 76, 83, 95, 83, 77, 79, 75, 69, 95, 80, 79, 82, 84, 0];
 
 /**
  * See implementation.
@@ -518,7 +518,7 @@ export function net_tls_openssl_smoke_c(): i32 {
   if (name == 0 || name[0] != 111) {
     return 1;
   }
-  unsafe { port_env = getenv(&ENV_SHUX_TLS_PORT[0]); }
+  unsafe { port_env = getenv(&ENV_XLANG_TLS_PORT[0]); }
   port = 0;
   if (port_env != 0) {
     unsafe { port = atoi(port_env); }

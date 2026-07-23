@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # M3-c：CI / 本地统一的 B-strict 验收入口。
 # 1) make bootstrap-driver-bstrict（链接审计：无 cc -c pipeline_gen.c）
-# 2) run-shux-asm-gate（用户 import / option 等）
+# 2) run-xlang-asm-gate（用户 import / option 等）
 # 3) run-asm-73-gate（binop + vector-var + call-inline）
-# 4) run-all-bstrict（M7：bootstrap-driver-bstrict 已默认 shux_asm -> shux，白名单 107 项）
-# 语义自举主路径：make bootstrap-verify（check-7.2-bstrict / shux_asm）；seed 链：make bootstrap-verify-seed。
+# 4) run-all-bstrict（M7：bootstrap-driver-bstrict 已默认 xlang_asm -> xlang，白名单 107 项）
+# 语义自举主路径：make bootstrap-verify（check-7.2-bstrict / xlang_asm）；seed 链：make bootstrap-verify-seed。
 # 用法：仓库根目录 ./tests/run-bootstrap-bstrict-ci.sh
 
 set -e
@@ -14,20 +14,20 @@ ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || ulimit -s 16384 2>/
 
 # Docker 容器探测（与 run-ci-full-suite.sh ci_is_docker 一致）。
 bootstrap_ci_is_docker() {
-  [ -f /.dockerenv ] || [ -n "${SHUX_CI_DOCKER:-}" ]
+  [ -f /.dockerenv ] || [ -n "${XLANG_CI_DOCKER:-}" ]
 }
 
-if [ ! -f compiler/shux ] || [ ! -x compiler/shux ]; then
-  echo "bootstrap-bstrict-ci: seed shux missing; run: make -C compiler OPT=1 all" >&2
+if [ ! -f compiler/xlang ] || [ ! -x compiler/xlang ]; then
+  echo "bootstrap-bstrict-ci: seed xlang missing; run: make -C compiler OPT=1 all" >&2
   exit 127
 fi
 
-echo "bootstrap-bstrict-ci: B-01 cfg attribute lex skip (shux-c) ..."
+echo "bootstrap-bstrict-ci: B-01 cfg attribute lex skip (xlang-c) ..."
 chmod +x tests/run-cfg-attribute-skip-gate.sh tests/run-repr-c-attribute-skip-gate.sh tests/run-cfg-target-triple-gate.sh
-SHUX_CFG_ATTR_SKIP_FAIL=1 ./tests/run-cfg-attribute-skip-gate.sh
-SHUX_CFG_TARGET_TRIPLE_FAIL=1 ./tests/run-cfg-target-triple-gate.sh
-SHUX_REPR_C_ATTR_SKIP_FAIL=1 ./tests/run-repr-c-attribute-skip-gate.sh
-SHUX_REPR_C_LAYOUT_FAIL=1 ./tests/run-repr-c-layout-gate.sh
+XLANG_CFG_ATTR_SKIP_FAIL=1 ./tests/run-cfg-attribute-skip-gate.sh
+XLANG_CFG_TARGET_TRIPLE_FAIL=1 ./tests/run-cfg-target-triple-gate.sh
+XLANG_REPR_C_ATTR_SKIP_FAIL=1 ./tests/run-repr-c-attribute-skip-gate.sh
+XLANG_REPR_C_LAYOUT_FAIL=1 ./tests/run-repr-c-layout-gate.sh
 
 echo "bootstrap-bstrict-ci: B-15/B-18/B-19/B-30/B-32/B-17 phase-B manifest gates ..."
 chmod +x tests/run-b15-io-uring-sys-gate.sh tests/run-b18-win32-net-gate.sh tests/run-b19-sys-mod-facade-gate.sh
@@ -35,67 +35,67 @@ chmod +x tests/run-b30-stubs-runtime-os-inventory-gate.sh tests/run-b32-no-cc-st
 chmod +x tests/run-macos-read-file-gate.sh
 ./tests/run-b15-io-uring-sys-gate.sh
 ./tests/run-b18-win32-net-gate.sh
-SHUX_B19_FAIL=1 ./tests/run-b19-sys-mod-facade-gate.sh
+XLANG_B19_FAIL=1 ./tests/run-b19-sys-mod-facade-gate.sh
 ./tests/run-b30-stubs-runtime-os-inventory-gate.sh
 ./tests/run-b32-no-cc-std-gate.sh
 ./tests/run-b17-exit-process-gate.sh
 
-echo "bootstrap-bstrict-ci: B-19 std.sys platform write (shux-c) ..."
+echo "bootstrap-bstrict-ci: B-19 std.sys platform write (xlang-c) ..."
 chmod +x tests/run-sys-platform-write-gate.sh tests/run-sys-mod-cfg-import-gate.sh tests/run-sys-read-file-gate.sh
-SHUX_SYS_PLATFORM_WRITE_FAIL=1 ./tests/run-sys-platform-write-gate.sh
-SHUX_SYS_MOD_CFG_IMPORT_FAIL=1 ./tests/run-sys-mod-cfg-import-gate.sh
-SHUX_SYS_READ_FILE_FAIL=1 ./tests/run-sys-read-file-gate.sh
+XLANG_SYS_PLATFORM_WRITE_FAIL=1 ./tests/run-sys-platform-write-gate.sh
+XLANG_SYS_MOD_CFG_IMPORT_FAIL=1 ./tests/run-sys-mod-cfg-import-gate.sh
+XLANG_SYS_READ_FILE_FAIL=1 ./tests/run-sys-read-file-gate.sh
 
 echo "bootstrap-bstrict-ci: B-20 generated_c scan (no fopen) ..."
 chmod +x tests/run-b20-generated-c-scan-gate.sh
-SHUX_B20_GENERATED_C_SCAN_FAIL=1 ./tests/run-b20-generated-c-scan-gate.sh
+XLANG_B20_GENERATED_C_SCAN_FAIL=1 ./tests/run-b20-generated-c-scan-gate.sh
 
 echo "bootstrap-bstrict-ci: C-03 no pipeline_gen.cc audit (manifest) ..."
 chmod +x tests/run-c03-no-pipeline-gen-gate.sh
-SHUX_C03_FAIL=1 ./tests/run-c03-no-pipeline-gen-gate.sh
+XLANG_C03_FAIL=1 ./tests/run-c03-no-pipeline-gen-gate.sh
 
 echo "bootstrap-bstrict-ci: C-04 -E-extern aggregate (v1) ..."
 chmod +x tests/run-c04-e-extern-gate.sh tests/run-e-extern-import-gate.sh \
   tests/run-lexer-e-extern-gate.sh tests/run-pipeline-e-extern-gate.sh \
   tests/run-parser-e-extern-gate.sh tests/run-c04-no-perl-fallback-gate.sh
-SHUX_C04_FAIL=1 ./tests/run-c04-e-extern-gate.sh
+XLANG_C04_FAIL=1 ./tests/run-c04-e-extern-gate.sh
 
 echo "bootstrap-bstrict-ci: E-soft compiler C/H soft-retire (v1) ..."
 chmod +x tests/run-e-soft-retire-gate.sh tests/run-e01-extern-h-soft-gate.sh \
   tests/run-e02-lsp-diag-soft-gate.sh tests/lib/phase-e-soft-audit.sh
-SHUX_E_SOFT_FAIL=1 ./tests/run-e-soft-retire-gate.sh
+XLANG_E_SOFT_FAIL=1 ./tests/run-e-soft-retire-gate.sh
 
 echo "bootstrap-bstrict-ci: C-06 x frontend default (no C parser.o in seed link) ..."
 chmod +x tests/run-c06-x-frontend-default-gate.sh
-SHUX_C06_FAIL=1 ./tests/run-c06-x-frontend-default-gate.sh
+XLANG_C06_FAIL=1 ./tests/run-c06-x-frontend-default-gate.sh
 
 echo "bootstrap-bstrict-ci: B-16 macOS mmap (Darwin only) ..."
 chmod +x tests/run-macos-mmap-gate.sh tests/run-macos-mmap-file-gate.sh
-SHUX_MACOS_MMAP_FAIL=1 ./tests/run-macos-mmap-gate.sh
-SHUX_MACOS_MMAP_FILE_FAIL=1 ./tests/run-macos-mmap-file-gate.sh
+XLANG_MACOS_MMAP_FAIL=1 ./tests/run-macos-mmap-gate.sh
+XLANG_MACOS_MMAP_FILE_FAIL=1 ./tests/run-macos-mmap-file-gate.sh
 
 echo "bootstrap-bstrict-ci: B-14 Linux freestanding syscall (Linux only) ..."
 chmod +x tests/run-linux-syscall-invoke-gate.sh tests/run-linux-open-read-gate.sh tests/run-linux-mmap-invoke-gate.sh tests/run-linux-openat-read-gate.sh
-SHUX_LINUX_SYSCALL_INVOKE_FAIL=1 ./tests/run-linux-syscall-invoke-gate.sh
-SHUX_LINUX_OPEN_READ_FAIL=1 ./tests/run-linux-open-read-gate.sh
-SHUX_LINUX_MMAP_INVOKE_FAIL=1 ./tests/run-linux-mmap-invoke-gate.sh
-SHUX_LINUX_OPENAT_READ_FAIL=1 ./tests/run-linux-openat-read-gate.sh
+XLANG_LINUX_SYSCALL_INVOKE_FAIL=1 ./tests/run-linux-syscall-invoke-gate.sh
+XLANG_LINUX_OPEN_READ_FAIL=1 ./tests/run-linux-open-read-gate.sh
+XLANG_LINUX_MMAP_INVOKE_FAIL=1 ./tests/run-linux-mmap-invoke-gate.sh
+XLANG_LINUX_OPENAT_READ_FAIL=1 ./tests/run-linux-openat-read-gate.sh
 
-echo "bootstrap-bstrict-ci: bootstrap-driver-bstrict (build shux_asm) ..."
-# strict 重链会覆盖 shux；cfg-merge 在 GHA 上对 strict shux_asm 偶发 SIGSEGV，保留 seed 作 -o 回退。
-if [ -x compiler/shux-x ]; then
-  cp -f compiler/shux-x compiler/shux_asm73_seed
-elif [ -x compiler/shux ]; then
-  cp -f compiler/shux compiler/shux_asm73_seed
+echo "bootstrap-bstrict-ci: bootstrap-driver-bstrict (build xlang_asm) ..."
+# strict 重链会覆盖 xlang；cfg-merge 在 GHA 上对 strict xlang_asm 偶发 SIGSEGV，保留 seed 作 -o 回退。
+if [ -x compiler/xlang-x ]; then
+  cp -f compiler/xlang-x compiler/xlang_asm73_seed
+elif [ -x compiler/xlang ]; then
+  cp -f compiler/xlang compiler/xlang_asm73_seed
 fi
-export ASM73_FALLBACK_SHUX=./compiler/shux_asm73_seed
+export ASM73_FALLBACK_XLANG=./compiler/xlang_asm73_seed
 # CI fast 仅保留 asm_only_experimental（pipeline_x partial），cfg-merge 编译会 SIGSEGV；
 # bstrict 验收须 strict 第二遍重链（asm_only_strict）。
 if [ -n "${CI:-}" ] && [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
-  export SHUX_ASM_CI_SKIP_FAST=1
-  # strict 链 smoke 与 ci-full-suite 前段 run_shux_asm_smoke 重复；asm-73 cfg-merge 为实质验收。
-  export SHUX_ASM_SKIP_STRICT_SMOKE=1
-  echo "bootstrap-bstrict-ci: SHUX_ASM_CI_SKIP_FAST=1 (strict relink for asm-73 cfg-merge)"
+  export XLANG_ASM_CI_SKIP_FAST=1
+  # strict 链 smoke 与 ci-full-suite 前段 run_xlang_asm_smoke 重复；asm-73 cfg-merge 为实质验收。
+  export XLANG_ASM_SKIP_STRICT_SMOKE=1
+  echo "bootstrap-bstrict-ci: XLANG_ASM_CI_SKIP_FAST=1 (strict relink for asm-73 cfg-merge)"
 fi
 make -C compiler bootstrap-driver-bstrict 2>&1 | tee /tmp/build_bstrict.log
 
@@ -114,24 +114,24 @@ if grep -qE '(^|[[:space:]])cc -c (\\.\\./)?pipeline_gen\\.c([[:space:]]|$)' /tm
 fi
 
 echo "bootstrap-bstrict-ci: C-03 post-build log audit ..."
-SHUX_C03_FAIL=1 SHUX_C03_BUILD_LOG=/tmp/build_bstrict.log ./tests/run-c03-no-pipeline-gen-gate.sh
+XLANG_C03_FAIL=1 XLANG_C03_BUILD_LOG=/tmp/build_bstrict.log ./tests/run-c03-no-pipeline-gen-gate.sh
 
-echo "bootstrap-bstrict-ci: E-06 post-build audit — no compiler frontend cc -c (build_shux_asm segment) ..."
+echo "bootstrap-bstrict-ci: E-06 post-build audit — no compiler frontend cc -c (build_xlang_asm segment) ..."
 chmod +x tests/run-e06-no-compiler-frontend-cc-gate.sh
-SHUX_E06_FAIL=1 SHUX_E06_BUILD_LOG=/tmp/build_bstrict.log ./tests/run-e06-no-compiler-frontend-cc-gate.sh
+XLANG_E06_FAIL=1 XLANG_E06_BUILD_LOG=/tmp/build_bstrict.log ./tests/run-e06-no-compiler-frontend-cc-gate.sh
 
-echo "bootstrap-bstrict-ci: D-01 Stage0 seed → Stage1 shux_asm ..."
+echo "bootstrap-bstrict-ci: D-01 Stage0 seed → Stage1 xlang_asm ..."
 chmod +x tests/run-d01-stage0-to-stage1-gate.sh
-SHUX_D01_FAIL=1 SHUX_D01_BUILD_LOG=/tmp/build_bstrict.log ./tests/run-d01-stage0-to-stage1-gate.sh
+XLANG_D01_FAIL=1 XLANG_D01_BUILD_LOG=/tmp/build_bstrict.log ./tests/run-d01-stage0-to-stage1-gate.sh
 
-echo "bootstrap-bstrict-ci: D-05 single shux release (shux = shux_asm) ..."
-chmod +x tests/run-d05-single-shux-release-gate.sh
-SHUX_D05_FAIL=1 SHUX=./compiler/shux ./tests/run-d05-single-shux-release-gate.sh
+echo "bootstrap-bstrict-ci: D-05 single xlang release (xlang = xlang_asm) ..."
+chmod +x tests/run-d05-single-xlang-release-gate.sh
+XLANG_D05_FAIL=1 XLANG=./compiler/xlang ./tests/run-d05-single-xlang-release-gate.sh
 
 echo "bootstrap-bstrict-ci: C-05 LSP lsp_diag.x (--lsp smoke) ..."
 chmod +x tests/run-c05-lsp-x-gate.sh tests/lib/d04-stage2-portable-diff.sh
-SHUX_C05_FAIL=1 ./tests/run-c05-lsp-x-gate.sh
-if grep -q 'installed shux_asm.experimental as shux_asm (fallback OK)' /tmp/build_bstrict.log; then
+XLANG_C05_FAIL=1 ./tests/run-c05-lsp-x-gate.sh
+if grep -q 'installed xlang_asm.experimental as xlang_asm (fallback OK)' /tmp/build_bstrict.log; then
   echo "bootstrap-bstrict-ci: experimental fallback in build log — strict smoke must pass natively" >&2
   exit 1
 fi
@@ -145,53 +145,53 @@ if grep -qE 'cc -c .*pipeline_x\.(c|o)' /tmp/build_bstrict.log; then
   exit 1
 fi
 
-if [ ! -x compiler/shux_asm ]; then
-  echo "bootstrap-bstrict-ci: compiler/shux_asm not built" >&2
+if [ ! -x compiler/xlang_asm ]; then
+  echo "bootstrap-bstrict-ci: compiler/xlang_asm not built" >&2
   exit 1
 fi
 
 echo "bootstrap-bstrict-ci: phase-B compile gates (B-04/B-05/B-06/B-31) ..."
 chmod +x tests/run-b04-freestanding-syscall-gate.sh tests/run-b05-codegen-mvp-gate.sh tests/run-b06-ast-pool-gate.sh tests/run-b31-freestanding-io-gate.sh
-SHUX=./compiler/shux_asm SHUX_LINUX_SYSCALL_INVOKE_FAIL=1 ./tests/run-b04-freestanding-syscall-gate.sh
-SHUX=./compiler/shux_asm ./tests/run-b05-codegen-mvp-gate.sh
-SHUX=./compiler/shux_asm ./tests/run-b06-ast-pool-gate.sh
+XLANG=./compiler/xlang_asm XLANG_LINUX_SYSCALL_INVOKE_FAIL=1 ./tests/run-b04-freestanding-syscall-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-b05-codegen-mvp-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-b06-ast-pool-gate.sh
 ./tests/run-b31-freestanding-io-gate.sh
-SHUX_MACOS_READ_FILE_FAIL=1 SHUX=./compiler/shux_asm ./tests/run-macos-read-file-gate.sh
+XLANG_MACOS_READ_FILE_FAIL=1 XLANG=./compiler/xlang_asm ./tests/run-macos-read-file-gate.sh
 
-echo "bootstrap-bstrict-ci: C-07 frontend parity (shux-c vs shux_asm, -backend c) ..."
+echo "bootstrap-bstrict-ci: C-07 frontend parity (xlang-c vs xlang_asm, -backend c) ..."
 chmod +x tests/run-c07-frontend-parity-gate.sh tests/lib/c07-frontend-parity.sh
-C07_CAND=./compiler/shux_asm SHUX_C07_FAIL=1 ./tests/run-c07-frontend-parity-gate.sh
+C07_CAND=./compiler/xlang_asm XLANG_C07_FAIL=1 ./tests/run-c07-frontend-parity-gate.sh
 
 echo "bootstrap-bstrict-ci: C-08 runtime/driver.x + build.x (v1 inventory) ..."
 chmod +x tests/run-c08-runtime-driver-gate.sh tests/run-c08-main-entry-gate.sh tests/run-c08-driver-x-gate.sh tests/run-c08-build-x-gate.sh tests/run-c08-runtime-inventory-gate.sh
-SHUX_C08_FAIL=1 ./tests/run-c08-runtime-driver-gate.sh
+XLANG_C08_FAIL=1 ./tests/run-c08-runtime-driver-gate.sh
 
 echo "bootstrap-bstrict-ci: C-09 parser no C fallback (v1 manifest + C-06 delegate) ..."
 chmod +x tests/run-c09-parser-no-c-fallback-gate.sh
-SHUX_C09_FAIL=1 ./tests/run-c09-parser-no-c-fallback-gate.sh
+XLANG_C09_FAIL=1 ./tests/run-c09-parser-no-c-fallback-gate.sh
 
 echo "bootstrap-bstrict-ci: strict smoke gate (no experimental fallback) ..."
 chmod +x tests/run-strict-smoke-gate.sh
 BUILD_LOG=/tmp/build_bstrict.log ./tests/run-strict-smoke-gate.sh
 
-echo "bootstrap-bstrict-ci: run-shux-asm-gate ..."
-SHUX=./compiler/shux_asm ./tests/run-shux-asm-gate.sh
+echo "bootstrap-bstrict-ci: run-xlang-asm-gate ..."
+XLANG=./compiler/xlang_asm ./tests/run-xlang-asm-gate.sh
 
 echo "bootstrap-bstrict-ci: asm compute gate (binop + vector + call-inline) ..."
-# asm-73 须 strict shux_asm；experimental 为 bootstrap 中间产物（pipeline_x partial），cfg-merge 会 SIGSEGV。
-ASM_COMPUTE_SHUX="./compiler/shux_asm"
-if [ ! -x "$ASM_COMPUTE_SHUX" ] && [ -x ./compiler/shux_asm.experimental ]; then
-  ASM_COMPUTE_SHUX="./compiler/shux_asm.experimental"
+# asm-73 须 strict xlang_asm；experimental 为 bootstrap 中间产物（pipeline_x partial），cfg-merge 会 SIGSEGV。
+ASM_COMPUTE_XLANG="./compiler/xlang_asm"
+if [ ! -x "$ASM_COMPUTE_XLANG" ] && [ -x ./compiler/xlang_asm.experimental ]; then
+  ASM_COMPUTE_XLANG="./compiler/xlang_asm.experimental"
 fi
 if bootstrap_ci_is_docker; then
   echo "bootstrap-bstrict-ci: Docker — asm-73 compute gate N/A (native linux GHA job covers; experimental SIGSEGV in container)"
 else
-  export ASM73_FALLBACK_SHUX="${ASM73_FALLBACK_SHU:-./compiler/shux_asm73_seed}"
-  SHUX="$ASM_COMPUTE_SHUX" ./tests/run-asm-73-gate.sh
+  export ASM73_FALLBACK_XLANG="${ASM73_FALLBACK_SHU:-./compiler/xlang_asm73_seed}"
+  XLANG="$ASM_COMPUTE_XLANG" ./tests/run-asm-73-gate.sh
 fi
 
 echo "bootstrap-bstrict-ci: L5 run-all parity (A-10 whitelist sync + bstrict) ..."
-export SHUX_BSTRICT_SKIP_BUILD=1
+export XLANG_BSTRICT_SKIP_BUILD=1
 chmod +x tests/run-l5-run-all-parity-gate.sh
 ./tests/run-l5-run-all-parity-gate.sh
 
@@ -207,27 +207,27 @@ echo "bootstrap-bstrict-ci: BOOT-029 std.sys freestanding write ..."
 chmod +x tests/run-std-sys-gate.sh
 ./tests/run-std-sys-gate.sh
 
-echo "bootstrap-bstrict-ci: M5 B-strict Stage2 (shux_asm -> shux_asm2) ..."
+echo "bootstrap-bstrict-ci: M5 B-strict Stage2 (xlang_asm -> xlang_asm2) ..."
 # gen2 round2 对齐 gen1 链拓扑（driver_compile_x、无 typeck/backend WPO）；Linux 硬门禁。
 if [ "$(uname -s 2>/dev/null)" != "Linux" ]; then
   echo "bootstrap-bstrict-ci: skip stage2 (non-Linux)"
-elif [ -n "${SHUX_CI_SKIP_STAGE2:-}" ]; then
-  echo "bootstrap-bstrict-ci: skip stage2 (SHUX_CI_SKIP_STAGE2=1)"
+elif [ -n "${XLANG_CI_SKIP_STAGE2:-}" ]; then
+  echo "bootstrap-bstrict-ci: skip stage2 (XLANG_CI_SKIP_STAGE2=1)"
 else
   chmod +x tests/run-d02-stage1-to-stage2-gate.sh tests/run-stage2-bstrict-gate.sh \
     compiler/verify-selfhost-stage2-bstrict.sh tests/run-d03-stage2-hash-gate.sh
   echo "bootstrap-bstrict-ci: D-02 Stage1 → Stage2 self-host ..."
-  SHUX_D02_FAIL=1 SHUX_STAGE2_SKIP_BOOTSTRAP=1 ./tests/run-d02-stage1-to-stage2-gate.sh
+  XLANG_D02_FAIL=1 XLANG_STAGE2_SKIP_BOOTSTRAP=1 ./tests/run-d02-stage1-to-stage2-gate.sh
   echo "bootstrap-bstrict-ci: D-03 Stage2 SHA256 golden standard ..."
-  SHUX_D03_FAIL=1 SHUX_STAGE2_HASH_STRICT=1 ./tests/run-d03-stage2-hash-gate.sh
+  XLANG_D03_FAIL=1 XLANG_STAGE2_HASH_STRICT=1 ./tests/run-d03-stage2-hash-gate.sh
   echo "bootstrap-bstrict-ci: D-04 Stage2 portable two-gen diff ..."
   chmod +x tests/run-d04-stage2-portable-diff-gate.sh tests/lib/d04-stage2-portable-diff.sh
-  SHUX_D04_FAIL=1 ./tests/run-d04-stage2-portable-diff-gate.sh
+  XLANG_D04_FAIL=1 ./tests/run-d04-stage2-portable-diff-gate.sh
 fi
 
 echo "bootstrap-bstrict-ci: ensure WPO build_asm artifacts (五模块) ..."
-chmod +x tests/ensure-wpo-build-asm-artifacts.sh compiler/scripts/build_shux_asm.sh
-SHUX_WPO_ENSURE_FAIL=1 ./tests/ensure-wpo-build-asm-artifacts.sh
+chmod +x tests/ensure-wpo-build-asm-artifacts.sh compiler/scripts/build_xlang_asm.sh
+XLANG_WPO_ENSURE_FAIL=1 ./tests/ensure-wpo-build-asm-artifacts.sh
 
 echo "bootstrap-bstrict-ci: wpo build_asm chain gate (post-stage2) ..."
 chmod +x tests/run-wpo-main-o-gate.sh tests/run-wpo-driver-o-gate.sh tests/run-wpo-pipeline-o-gate.sh tests/run-wpo-typeck-o-gate.sh tests/run-wpo-backend-o-gate.sh tests/run-wpo-build-asm-chain-gate.sh
@@ -236,55 +236,55 @@ chmod +x tests/run-wpo-main-o-gate.sh tests/run-wpo-driver-o-gate.sh tests/run-w
 echo "bootstrap-bstrict-ci: wpo strict link gate (pipeline+typeck+backend WPO in strict_glue) ..."
 chmod +x tests/run-wpo-strict-link-gate.sh tests/run-wpo-pipeline-reach-gate.sh \
   tests/run-wpo-typeck-reach-gate.sh tests/run-wpo-backend-reach-gate.sh \
-  compiler/scripts/relink_shux_asm_strict_glue.sh
-SHUX_WPO_STRICT_LINK_FAIL=1 ./tests/run-wpo-strict-link-gate.sh
+  compiler/scripts/relink_xlang_asm_strict_glue.sh
+XLANG_WPO_STRICT_LINK_FAIL=1 ./tests/run-wpo-strict-link-gate.sh
 
 echo "bootstrap-bstrict-ci: strict_glue measured .text A/B (pipeline WPO helpers) ..."
 chmod +x tests/run-wpo-strict-glue-text-gate.sh tests/lib/wpo-ab-proxy.sh
-SHUX_WPO_STRICT_GLUE_TEXT_FAIL=1 ./tests/run-wpo-strict-glue-text-gate.sh
+XLANG_WPO_STRICT_GLUE_TEXT_FAIL=1 ./tests/run-wpo-strict-glue-text-gate.sh
 
 echo "bootstrap-bstrict-ci: parser x strict gate ..."
 chmod +x tests/run-parser-x-strict-gate.sh tests/run-parser-experimental-emit-gate.sh
-SHUX_PARSER_X_STRICT_FAIL=1 ./tests/run-parser-x-strict-gate.sh
+XLANG_PARSER_X_STRICT_FAIL=1 ./tests/run-parser-x-strict-gate.sh
 ./tests/run-parser-experimental-emit-gate.sh
 
 echo "bootstrap-bstrict-ci: parser second pass gate ..."
 chmod +x tests/run-parser-second-pass-gate.sh tests/run-parser-thin-glue-symbol-integrity-gate.sh
-SHUX_PARSER_SECOND_PASS_FAIL=1 ./tests/run-parser-second-pass-gate.sh
-SHUX_PARSER_SECOND_PASS_COMPILER=compiler/shux_asm \
-  SHUX_PARSER_SECOND_PASS_EMIT_HEAVY=1 \
-  SHUX_PARSER_SECOND_PASS_FAIL=1 \
-  SHUX_PARSER_THIN_GLUE_SYMBOL_INTEGRITY_FAIL=1 \
+XLANG_PARSER_SECOND_PASS_FAIL=1 ./tests/run-parser-second-pass-gate.sh
+XLANG_PARSER_SECOND_PASS_COMPILER=compiler/xlang_asm \
+  XLANG_PARSER_SECOND_PASS_EMIT_HEAVY=1 \
+  XLANG_PARSER_SECOND_PASS_FAIL=1 \
+  XLANG_PARSER_THIN_GLUE_SYMBOL_INTEGRITY_FAIL=1 \
   ./tests/run-parser-second-pass-gate.sh
-SHUX_PARSER_SECOND_PASS_COMPILER=compiler/shux_asm \
-  SHUX_PARSER_SECOND_PASS_EMIT_HEAVY=1 \
-  SHUX_PARSER_SECOND_PASS_WPO_DCE=1 \
-  SHUX_PARSER_SECOND_PASS_FAIL=1 \
-  SHUX_PARSER_THIN_GLUE_SYMBOL_INTEGRITY_FAIL=1 \
+XLANG_PARSER_SECOND_PASS_COMPILER=compiler/xlang_asm \
+  XLANG_PARSER_SECOND_PASS_EMIT_HEAVY=1 \
+  XLANG_PARSER_SECOND_PASS_WPO_DCE=1 \
+  XLANG_PARSER_SECOND_PASS_FAIL=1 \
+  XLANG_PARSER_THIN_GLUE_SYMBOL_INTEGRITY_FAIL=1 \
   ./tests/run-parser-second-pass-gate.sh
 
 echo "bootstrap-bstrict-ci: typeck parse count baseline ..."
 chmod +x tests/run-typeck-parse-count-gate.sh tests/run-typeck-parse-bisect-gate.sh
-SHUX_TYPECK_PARSE_COUNT_FAIL=1 SHUX=./compiler/shux_asm \
+XLANG_TYPECK_PARSE_COUNT_FAIL=1 XLANG=./compiler/xlang_asm \
   ./tests/run-typeck-parse-count-gate.sh
 ./tests/run-typeck-parse-bisect-gate.sh || true
 
 echo "bootstrap-bstrict-ci: A-12 cross-module symbols (track-only) ..."
 chmod +x tests/run-a12-cross-module-symbols-gate.sh
-SHUX_A12_CROSS_MODULE_FAIL=0 SHUX_A12_COMPILER=./compiler/shux_asm \
+XLANG_A12_CROSS_MODULE_FAIL=0 XLANG_A12_COMPILER=./compiler/xlang_asm \
   ./tests/run-a12-cross-module-symbols-gate.sh
 
 echo "bootstrap-bstrict-ci: F-01 std/core .c inventory ..."
 chmod +x tests/run-std-c-inventory-gate.sh
-SHUX_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
 
 echo "bootstrap-bstrict-ci: parser parse bootstrap gate ..."
 chmod +x tests/run-parser-parse-bootstrap-gate.sh tests/run-parser-parse-bootstrap-link-smoke.sh \
   tests/run-parser-parse-bootstrap-x-emit-gate.sh tests/run-parser-parse-bootstrap-bisect-gate.sh \
   tests/run-parser-mega-bisect-gate.sh
-SHUX_PARSER_PARSE_BOOTSTRAP_FAIL=1 ./tests/run-parser-parse-bootstrap-gate.sh
-SHUX_PARSER_PARSE_BOOTSTRAP_LINK_FAIL=1 ./tests/run-parser-parse-bootstrap-link-smoke.sh
-SHUX_PARSER_PARSE_BOOTSTRAP_BISECT_FAIL=1 ./tests/run-parser-parse-bootstrap-bisect-gate.sh
+XLANG_PARSER_PARSE_BOOTSTRAP_FAIL=1 ./tests/run-parser-parse-bootstrap-gate.sh
+XLANG_PARSER_PARSE_BOOTSTRAP_LINK_FAIL=1 ./tests/run-parser-parse-bootstrap-link-smoke.sh
+XLANG_PARSER_PARSE_BOOTSTRAP_BISECT_FAIL=1 ./tests/run-parser-parse-bootstrap-bisect-gate.sh
 ./tests/run-parser-mega-bisect-gate.sh || true
 chmod +x tests/run-parser-mega-bisect-sweep-gate.sh
 ./tests/run-parser-mega-bisect-sweep-gate.sh || true
@@ -292,12 +292,12 @@ chmod +x tests/run-parser-mega-bisect-sweep-gate.sh
 
 echo "bootstrap-bstrict-ci: parser parse count baseline ..."
 chmod +x tests/run-parser-parse-count-gate.sh
-SHUX_PARSER_PARSE_COUNT_FAIL=1 SHUX_PARSER_PARSE_COUNT_TARGET=466 SHUX=./compiler/shux_asm \
+XLANG_PARSER_PARSE_COUNT_FAIL=1 XLANG_PARSER_PARSE_COUNT_TARGET=466 XLANG=./compiler/xlang_asm \
   ./tests/run-parser-parse-count-gate.sh
 
 echo "bootstrap-bstrict-ci: DOD-CL-S1 struct layout smoke ..."
 chmod +x tests/run-dod-cl-s1-gate.sh
-SHUX=./compiler/shux_asm ./tests/run-dod-cl-s1-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-dod-cl-s1-gate.sh
 
 echo "bootstrap-bstrict-ci: pipeline WPO full link smoke (track-only) ..."
 chmod +x tests/run-pipeline-wpo-full-link-smoke.sh
@@ -313,6 +313,6 @@ chmod +x tests/run-typeck-wpo-optin-smoke.sh
 
 echo "bootstrap-bstrict-ci: D-06 SELFHOST golden Stage2 doc ..."
 chmod +x tests/run-d06-selfhost-doc-gate.sh
-SHUX_D06_FAIL=1 ./tests/run-d06-selfhost-doc-gate.sh
+XLANG_D06_FAIL=1 ./tests/run-d06-selfhost-doc-gate.sh
 
 echo "bootstrap-bstrict-ci OK (B-strict audited + gate + asm-73 + L5 parity + linux crt0 + freestanding + stage2 + wpo gates + strict link + strict_glue text A/B)"

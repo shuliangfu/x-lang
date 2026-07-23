@@ -2,11 +2,11 @@
 # F 阶段 std 去 C 聚合门禁：…/cache/url v2。
 #
 # 用法：./tests/run-f-std-de-c-batch-gate.sh
-# 环境：SHUX_F_STD_DE_C_BATCH_FAIL=1 — 任一子 gate 失败时硬退出
+# 环境：XLANG_F_STD_DE_C_BATCH_FAIL=1 — 任一子 gate 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F_STD_DE_C_BATCH_FAIL:-0}
+FAIL=${XLANG_F_STD_DE_C_BATCH_FAIL:-0}
 GATES=(
   run-f-path-v1-gate.sh
   run-f-uuid-v1-gate.sh

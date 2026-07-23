@@ -17,12 +17,12 @@
 |----|------|
 | 线程入口 | 仍为 C 函数指针（同 tls_mbedtls_bio / thread 模块约定） |
 | 链接 | `run_accept_workers` 需链 `thread.o`（`-lpthread`）才有真绑核 |
-| 无 shux | `net.o` 无法构建（须 shux 合并 `.x`）；runtime 胶层单独 `cc -c` |
+| 无 xlang | `net.o` 无法构建（须 xlang 合并 `.x`）；runtime 胶层单独 `cc -c` |
 
 ## 复现
 
 ```bash
-SHUX_F04_NET_SLICE_V14_FAIL=1 ./tests/run-f04-std-net-slice-v14-gate.sh
-SHUX_F04_NET_SLICE_V13B_FAIL=1 ./tests/run-f04-std-net-slice-v13b-gate.sh
+XLANG_F04_NET_SLICE_V14_FAIL=1 ./tests/run-f04-std-net-slice-v14-gate.sh
+XLANG_F04_NET_SLICE_V13B_FAIL=1 ./tests/run-f04-std-net-slice-v13b-gate.sh
 ./tests/run-net.sh
 ```

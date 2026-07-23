@@ -1,8 +1,8 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <sys/types.h>
-void shux_panic_(int has_msg, int msg_val);
-struct shux_slice_uint8_t { uint8_t *data; size_t length; };
+void xlang_panic_(int has_msg, int msg_val);
+struct xlang_slice_uint8_t { uint8_t *data; size_t length; };
 struct ParseDirectiveResult {
   int32_t kind;
   int32_t sym_len;
@@ -31,7 +31,7 @@ extern int32_t preprocess_apply_directive_kind(int32_t kind, int32_t cond_val);
 extern int preprocess_line_keeping(void);
 extern int32_t parse_copy_cond_from_line(uint8_t * cond, uint8_t * line_buf, int32_t pos, int32_t line_len);
 extern void parse_directive_into(uint8_t * line_buf, int32_t line_len, uint8_t * cond);
-extern int32_t preprocess_x(struct shux_slice_uint8_t source, struct shux_slice_uint8_t out_buf);
+extern int32_t preprocess_x(struct xlang_slice_uint8_t source, struct xlang_slice_uint8_t out_buf);
 extern int32_t preprocess_x_buf(uint8_t * source_buf, ssize_t source_len, uint8_t * out_buf, int32_t out_cap);
 static int32_t g_pp_kind;
 static int32_t g_pp_sym_len;
@@ -438,7 +438,7 @@ void parse_directive_into(uint8_t * line_buf, int32_t line_len, uint8_t * cond) 
     return;
   }
 }
-int32_t preprocess_x(struct shux_slice_uint8_t source, struct shux_slice_uint8_t out_buf) {
+int32_t preprocess_x(struct xlang_slice_uint8_t source, struct xlang_slice_uint8_t out_buf) {
   if (((out_buf.length) <=0)) {
     return -(1);
   }

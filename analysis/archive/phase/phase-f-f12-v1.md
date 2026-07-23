@@ -14,5 +14,5 @@
 ## 门禁
 
 ```bash
-SHUX_F12_SELFHOST_DOC_UNIFIED_FAIL=1 ./tests/run-f12-selfhost-doc-unified-gate.sh
+XLANG_F12_SELFHOST_DOC_UNIFIED_FAIL=1 ./tests/run-f12-selfhost-doc-unified-gate.sh
 ```

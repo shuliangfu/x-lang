@@ -7,7 +7,7 @@
 | 项 | 说明 |
 |----|------|
 | `tls_openssl.x` | OpenSSL 客户端/服务端握手、读写、ALPN、烟测、marker |
-| `net.c` | 移除 `SHUX_NET_USE_OPENSSL` + `tls_openssl.inc.c` |
+| `net.c` | 移除 `XLANG_NET_USE_OPENSSL` + `tls_openssl.inc.c` |
 | `Makefile` | `net-o-openssl` 编译 `tls_openssl.x` + `net-o-stub` |
 | `runtime_link_abi.c` | `invoke_cc_append_net_tls_ld` 识别 `std/net/tls_openssl.o` |
 | 删除 | `std/net/tls_openssl.inc.c` |
@@ -25,7 +25,7 @@
 ## 复现
 
 ```bash
-SHUX_F04_NET_TLS_OPENSSL_FAIL=1 ./tests/run-f04-std-net-tls-openssl-gate.sh
-SHUX_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=96
+XLANG_F04_NET_TLS_OPENSSL_FAIL=1 ./tests/run-f04-std-net-tls-openssl-gate.sh
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=96
 ./tests/run-std-net-tls-gate.sh
 ```

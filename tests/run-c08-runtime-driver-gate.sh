@@ -2,11 +2,11 @@
 # C-08：main 薄入口 + driver/*.x + build.x + runtime 盘点（聚合门禁）。
 #
 # 用法：./tests/run-c08-runtime-driver-gate.sh
-# 环境：SHUX_C08_FAIL=1 失败时硬退出
+# 环境：XLANG_C08_FAIL=1 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_C08_FAIL:-0}
+FAIL=${XLANG_C08_FAIL:-0}
 run_gate() {
   local script="$1"
   chmod +x "$script"

@@ -8,7 +8,7 @@
 |----|------|------|
 | NL-07 专文档 | 本文件 | `analysis/phase-f-n07-v1.md` |
 | 准备 manifest | bootstrap 链入 / 阻塞项登记 | `tests/baseline/nolibc-n07-bootstrap-prep.tsv` |
-| -lc 基线 | `build_shux_asm.sh` 链接行计数 | `tests/baseline/nolibc-n07-bootstrap-lc-track.tsv` |
+| -lc 基线 | `build_xlang_asm.sh` 链接行计数 | `tests/baseline/nolibc-n07-bootstrap-lc-track.tsv` |
 | 审计库 | marker / lc 计数 / std cc 审计 | `tests/lib/nolibc-n07-bootstrap-audit.sh` |
 | NL-07 专 gate | manifest + marker + 基线 + B-32 委托 | `tests/run-nolibc-n07-bootstrap-prep-gate.sh` |
 | 聚合 gate | NL-07 委托 | `tests/run-no-libc-gate.sh` |
@@ -17,7 +17,7 @@
 
 | 层 | 路径 | 说明 |
 |----|------|------|
-| 链接 | `compiler/scripts/build_shux_asm.sh` | crt0 / experimental / strict 链仍 `-lm -lc` |
+| 链接 | `compiler/scripts/build_xlang_asm.sh` | crt0 / experimental / strict 链仍 `-lm -lc` |
 | std C 编译 | `ensure_std_fs_io_heap_objs` | **F-06 v1 ✅** 空实现；不再 `cc -c std/*.c` |
 | Makefile seed | `bootstrap-driver-seed` | **F-06 v1 ✅** 无 `../std/fs/fs.o` 等；改链 shim + runtime_io_abi |
 | 浮点 | `typeck_f64_bits.o` + `-lm` | 消除 libm 为 NL-07 v2 |
@@ -25,16 +25,16 @@
 
 ## NL-07 marker（track）
 
-`build_shux_asm.sh` 中 **F-no-libc NL-07 BEGIN/END** 块记录目标 nostdlib 链命令与前置条件；gate 审计该块存在且含 `-nostdlib` 目标描述。
+`build_xlang_asm.sh` 中 **F-no-libc NL-07 BEGIN/END** 块记录目标 nostdlib 链命令与前置条件；gate 审计该块存在且含 `-nostdlib` 目标描述。
 
 ## 复现
 
 ```bash
 # NL-07 专 gate（任意平台 manifest OK）
-SHUX_NOLIBC_N07_FAIL=1 ./tests/run-nolibc-n07-bootstrap-prep-gate.sh
+XLANG_NOLIBC_N07_FAIL=1 ./tests/run-nolibc-n07-bootstrap-prep-gate.sh
 
 # 全链聚合（含 NL-07 track）
-SHUX_NOLIBC_FAIL=1 ./tests/run-no-libc-gate.sh
+XLANG_NOLIBC_FAIL=1 ./tests/run-no-libc-gate.sh
 ```
 
 ## 延后（NL-07 v2+）

@@ -1,6 +1,6 @@
 # UB 收窄测试（除零、越界）
 
-与 `analysis/UB与未定义行为.md` 对应：编译器对整数除零、取模零及数组/切片越界插入运行时检查，触发时 `shux_panic_`（abort），将 UB 收窄为定义行为。
+与 `analysis/UB与未定义行为.md` 对应：编译器对整数除零、取模零及数组/切片越界插入运行时检查，触发时 `xlang_panic_`（abort），将 UB 收窄为定义行为。
 
 - **div_zero.x**：`42 / x`，x=0 → panic
 - **bounds_array.x**：`a[3]`，a 长度为 2 → panic

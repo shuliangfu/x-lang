@@ -312,7 +312,7 @@ int32_t http2_hpack_decode_get_request_c(const uint8_t *block, int32_t block_len
             uint32_t name_idx = 0;
             int32_t vlen = 0;
             int32_t n;
-            uint8_t vbuf[SHUX_HTTP_PATH_MAX];
+            uint8_t vbuf[XLANG_HTTP_PATH_MAX];
             const char *name;
             n = hpack_decode_int(block + pos, block_len - pos, 4, &name_idx);
             if (n < 0)

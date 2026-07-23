@@ -2,15 +2,15 @@
 # MEM-D1：小 struct call SROA — main 内 make_pair 替换为栈复合字面量，运行正确。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
-SHUX="${SHUX:-./compiler/shux-c}"
+make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+XLANG="${XLANG:-./compiler/xlang-c}"
 SRC="tests/mem/sroa_struct_call.x"
-OUT="/tmp/shux_sroa_struct_call"
-C_OUT="/tmp/shux_sroa_struct_call.c"
+OUT="/tmp/xlang_sroa_struct_call"
+C_OUT="/tmp/xlang_sroa_struct_call.c"
 rm -f "$OUT" "$C_OUT"
-if ! "$SHUX" build -E "$SRC" >"$C_OUT" 2>/tmp/shux_sroa_emit.log; then
+if ! "$XLANG" build -E "$SRC" >"$C_OUT" 2>/tmp/xlang_sroa_emit.log; then
   echo "sroa-gate FAIL: emit failed" >&2
-  tail -8 /tmp/shux_sroa_emit.log 2>/dev/null || true
+  tail -8 /tmp/xlang_sroa_emit.log 2>/dev/null || true
   exit 1
 fi
 MAIN_BODY=$(sed -n '/int main/,/^}/p' "$C_OUT")
@@ -32,14 +32,14 @@ if ! echo "$MAIN_BODY" | grep -qE '\.a.*\+.*\.b'; then
     exit 1
   fi
 fi
-if SHUX_NO_SROA=1 "$SHUX" build -E "$SRC" >"${C_OUT}.scalar" 2>/dev/null; then
+if XLANG_NO_SROA=1 "$XLANG" build -E "$SRC" >"${C_OUT}.scalar" 2>/dev/null; then
   if ! grep -q 'make_pair(' "${C_OUT}.scalar"; then
-    echo "sroa-gate WARN: SHUX_NO_SROA=1 did not preserve make_pair call" >&2
+    echo "sroa-gate WARN: XLANG_NO_SROA=1 did not preserve make_pair call" >&2
   fi
 fi
-SHUX_KEEP_C=1 "$SHUX" "$SRC" -o "$OUT" 2>/tmp/shux_sroa_run.log || {
+XLANG_KEEP_C=1 "$XLANG" build "$SRC" -o "$OUT" 2>/tmp/xlang_sroa_run.log || {
   echo "sroa-gate FAIL: compile/run failed" >&2
-  tail -8 /tmp/shux_sroa_run.log 2>/dev/null || true
+  tail -8 /tmp/xlang_sroa_run.log 2>/dev/null || true
   exit 1
 }
 rc=0
@@ -52,10 +52,10 @@ echo "sroa-gate OK (MEM-D1 struct call SROA stack promotion)"
 
 echo "=== MEM-D1.2: cross-module sroa_struct_cross ==="
 CROSS_SRC="tests/mem/sroa_struct_cross.x"
-CROSS_OUT="/tmp/shux_sroa_struct_cross"
-CROSS_C="/tmp/shux_sroa_struct_cross.c"
+CROSS_OUT="/tmp/xlang_sroa_struct_cross"
+CROSS_C="/tmp/xlang_sroa_struct_cross.c"
 rm -f "$CROSS_OUT" "$CROSS_C"
-if ! "$SHUX" build -E "$CROSS_SRC" >"$CROSS_C" 2>/tmp/shux_sroa_cross_emit.log; then
+if ! "$XLANG" build -E "$CROSS_SRC" >"$CROSS_C" 2>/tmp/xlang_sroa_cross_emit.log; then
   echo "sroa-cross-gate FAIL: emit failed" >&2
   exit 1
 fi
@@ -68,7 +68,7 @@ if echo "$CROSS_MAIN" | grep -qE 'sum_pair\(|stack_promote_lib_sum_pair\('; then
   echo "sroa-cross-gate FAIL: sum_pair call still in main" >&2
   exit 1
 fi
-SHUX_KEEP_C=1 "$SHUX" "$CROSS_SRC" -o "$CROSS_OUT" 2>/dev/null || {
+XLANG_KEEP_C=1 "$XLANG" build "$CROSS_SRC" -o "$CROSS_OUT" 2>/dev/null || {
   echo "sroa-cross-gate FAIL: compile/run failed" >&2
   exit 1
 }

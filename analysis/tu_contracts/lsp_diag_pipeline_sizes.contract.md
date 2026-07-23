@@ -23,7 +23,7 @@
 
 ## 4. ABI Manifest
 - _impl 残余列表：无（DIRECT 模式无 _impl）
-- thin+rest 宏边界：`SHUX_LSP_DIAG_PIPELINE_SIZES_FROM_X`
+- thin+rest 宏边界：`XLANG_LSP_DIAG_PIPELINE_SIZES_FROM_X`
 - 前向声明：无（DIRECT 模式不需要）
 - 内部调用更新：无（纯常量返回函数）
 

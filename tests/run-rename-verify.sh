@@ -2,14 +2,14 @@
 # 标准库文件名去目录前缀重构 — 验证脚本（本地或 Docker 内运行）
 #
 # 用法：./tests/run-rename-verify.sh
-# Docker：SHUX_DOCKER_TIMEOUT_SEC=600 ./tests/lib/docker-linux-run.sh './tests/run-rename-verify.sh'
+# Docker：XLANG_DOCKER_TIMEOUT_SEC=600 ./tests/lib/docker-linux-run.sh './tests/run-rename-verify.sh'
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-chmod +x compiler/shux-c compiler/shux_asm_stage1 2>/dev/null || true
-export SHUX="${SHUX:-./compiler/shux-c}"
-export SHUX_MINIMAL_CC_LINK=1
-export SHUX_S7_TYPECK_TIMEOUT="${SHUX_S7_TYPECK_TIMEOUT:-120}"
+chmod +x compiler/xlang-c compiler/xlang_asm_stage1 2>/dev/null || true
+export XLANG="${XLANG:-./compiler/xlang-c}"
+export XLANG_MINIMAL_CC_LINK=1
+export XLANG_S7_TYPECK_TIMEOUT="${XLANG_S7_TYPECK_TIMEOUT:-120}"
 
 # shellcheck source=tests/lib/gate-progress.sh
 source tests/lib/gate-progress.sh
@@ -49,7 +49,7 @@ for f in "${OLD_FILES[@]}"; do
 done
 gate_progress "OK: renamed files present, old files gone"
 
-gate_progress "rename-verify: 3/6 shux-c typeck（重命名核心模块 fs/heap/io/crypto）"
+gate_progress "rename-verify: 3/6 xlang-c typeck（重命名核心模块 fs/heap/io/crypto）"
 CORE_MODULES=(
   std/fs/posix.x
   std/fs/mod.x
@@ -63,7 +63,7 @@ CORE_MODULES=(
 TYPECK_FAIL=0
 for m in "${CORE_MODULES[@]}"; do
   gate_progress "typeck $m ..."
-  if ! timeout "$SHUX_S7_TYPECK_TIMEOUT" "$SHUX" check "$m"; then
+  if ! timeout "$XLANG_S7_TYPECK_TIMEOUT" "$XLANG" check "$m"; then
     gate_progress "FAIL typeck $m"
     TYPECK_FAIL=$((TYPECK_FAIL + 1))
   else

@@ -59,7 +59,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-tar-extended manifest OK"
 
-stdlib_cm_native_shu() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -74,10 +74,10 @@ stdlib_cm_native_shu() {
 C_OK=0
 X_OK=0
 SKIP=0
-SHUX_BIN=""
-if stdlib_cm_native_shu ./compiler/shux-c; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if stdlib_cm_native_xlang ./compiler/xlang-c; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ]; then
+if [ -n "$XLANG_BIN" ]; then
   if std_tar_extended_run_c_smoke; then
     C_OK=1
   else
@@ -88,14 +88,14 @@ if [ -n "$SHUX_BIN" ]; then
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/tar/tar.o
   TAR_O="$(cd compiler && pwd)/../std/tar/tar.o"
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-tar-extended gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_tar_extended_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_tar_extended_run_x_smoke "$SHUX_BIN" "$SMOKE_X" "$TAR_O"; then
+  if std_tar_extended_run_x_smoke "$XLANG_BIN" "$SMOKE_X" "$TAR_O"; then
     X_OK=1
   else
     std_tar_extended_emit_report "fail" "$C_OK" 0 0
@@ -103,7 +103,7 @@ if [ -n "$SHUX_BIN" ]; then
   fi
 else
   SKIP=1
-  echo "std-tar-extended gate SKIP c/su smoke (no native shux-c)" >&2
+  echo "std-tar-extended gate SKIP c/su smoke (no native xlang-c)" >&2
 fi
 
 std_tar_extended_emit_report "ok" "$C_OK" "$X_OK" "$SKIP"

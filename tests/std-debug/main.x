@@ -6,7 +6,7 @@ const dbg = import("std.debug");
  * @return i32
  */
 function main(): i32 {
-  let a: i32 = dbg.println("debug line");
+  let a: i32 = dbg.println("debug line", 11);
   let b: i32 = dbg.assert(true);
   return if (a == 0 && b == 0) { 0 } else { 1 };
 }

@@ -98,15 +98,15 @@ POOL_EXT
   }
   # ast 辅助与 heap：parser -E 生成体直接调用，单 TU 须 extern（链 ast_gen2 weak / x_seed_bridge）。
   if (index($src, 'ast_ref_is_null(') >= 0 && index($src, 'extern int ast_ref_is_null') < 0) {
-    $src =~ s/(struct shux_slice_uint8_t \{[^\}]+\};\n)/$1extern int ast_ref_is_null(int32_t ref);\n/s
+    $src =~ s/(struct xlang_slice_uint8_t \{[^\}]+\};\n)/$1extern int ast_ref_is_null(int32_t ref);\n/s
       or warn "fix_parser_pool_access_gen_c: ast_ref_is_null anchor not found\n";
   }
   if (index($src, 'std_heap_alloc_zeroed(') >= 0 && index($src, 'extern void *std_heap_alloc_zeroed') < 0) {
-    $src =~ s/(struct shux_slice_uint8_t \{[^\}]+\};\n)/$1extern void *std_heap_alloc_zeroed(size_t size);\n/s
+    $src =~ s/(struct xlang_slice_uint8_t \{[^\}]+\};\n)/$1extern void *std_heap_alloc_zeroed(size_t size);\n/s
       or warn "fix_parser_pool_access_gen_c: std_heap_alloc_zeroed anchor not found\n";
   }
   if (index($src, 'std_heap_free(') >= 0 && index($src, 'extern void std_heap_free') < 0) {
-    $src =~ s/(struct shux_slice_uint8_t \{[^\}]+\};\n)/$1extern void std_heap_free(void *ptr);\n/s
+    $src =~ s/(struct xlang_slice_uint8_t \{[^\}]+\};\n)/$1extern void std_heap_free(void *ptr);\n/s
       or warn "fix_parser_pool_access_gen_c: std_heap_free anchor not found\n";
   }
 }

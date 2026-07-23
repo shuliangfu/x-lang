@@ -14,8 +14,8 @@
  *   - name/return_type 等字符串由 Parser 侧 strdup，由 ast_module_free 统一释放，调用方不得单独 free。
  */
 
-#ifndef SHUX_AST_H
-#define SHUX_AST_H
+#ifndef XLANG_AST_H
+#define XLANG_AST_H
 
 #include <stdint.h>
 
@@ -108,8 +108,8 @@ typedef enum ASTExprKind {
     AST_EXPR_DEREF,        /**< 解引用 *expr（一元 *，操作数须为 *T，结果类型为 T）；value.unary.operand 为子表达式 */
     AST_EXPR_AS,           /**< 类型转换 expr as type；value.as_type.operand 为子表达式，value.as_type.type 为目标类型 */
     AST_EXPR_AWAIT,        /**< await expr（仅 async function 内；A3 同步 stub，复用 value.unary.operand） */
-    AST_EXPR_RUN,          /**< run async_fn()（sync 上下文经 shux_async_sched_* drain；复用 value.unary.operand） */
-    AST_EXPR_SPAWN,        /**< spawn async_fn()（非阻塞 submit；须 shux_async_run_drain_until_idle，IO-A5 v4） */
+    AST_EXPR_RUN,          /**< run async_fn()（sync 上下文经 xlang_async_sched_* drain；复用 value.unary.operand） */
+    AST_EXPR_SPAWN,        /**< spawn async_fn()（非阻塞 submit；须 xlang_async_run_drain_until_idle，IO-A5 v4） */
     AST_EXPR_TRY_PROPAGATE,/**< ERR-01：Result `?` 传播；operand 为 Result 表达式，desugar 为 err 早退并 unwrap value */
     AST_EXPR_STRING_LIT,   /**< 字符串字面量 "..."；value.string_lit.bytes/len，编译期静态存储 */
     AST_EXPR_ASM          /**< 内联汇编 asm!("template")；K1：仅模板字符串；in/out/clobber 操作数见 L8。value.asm_tmpl.bytes/len */
@@ -637,4 +637,4 @@ void ast_type_free(ASTType *t);
  * ast_ast_arena_{type,expr,block}_get 由 X 编译产物按值返回大结构体，在 ARM64 macOS 上
  * 与其它 TU 交错调用时 ABI 不可靠；下列 *_into 由宿主 C 编译器编译，写入调用方缓冲区。
  * 完整定义见 pipeline_gen.c；此处仅为 ast.c 实现的调用约定前置声明。 */
-#endif /* SHUX_AST_H */
+#endif /* XLANG_AST_H */

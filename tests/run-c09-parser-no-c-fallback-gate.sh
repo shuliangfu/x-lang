@@ -4,15 +4,15 @@
 # v1 不要求 mega7 七函数全部 X emit；生产仍 C glue 见 analysis/boot-mega7-gap.md。
 #
 # 用法：./tests/run-c09-parser-no-c-fallback-gate.sh
-# 环境：SHUX_C09_FAIL=1 失败时硬退出（CI 默认）
+# 环境：XLANG_C09_FAIL=1 失败时硬退出（CI 默认）
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_C09_FAIL:-0}
+FAIL=${XLANG_C09_FAIL:-0}
 DOC="analysis/phase-c-c09-v1.md"
 MANIFEST="tests/baseline/c09-parser-no-c-fallback.tsv"
 MF="compiler/Makefile"
-BUILD_ASM="compiler/scripts/build_shux_asm.sh"
+BUILD_ASM="compiler/scripts/build_xlang_asm.sh"
 FORCE_STUB_TSV="tests/baseline/boot-force-stub-matrix.tsv"
 MEGA7_TSV="tests/baseline/comp-parser-mega7-matrix.tsv"
 BOOT023_TSV="tests/baseline/boot-023-mega7-full-emit.tsv"
@@ -34,12 +34,12 @@ grep -q 'C-09 v1' "$DOC" || die "doc missing C-09 v1 marker"
 # ── 委托 C-06：默认 seed 不链 C parser.o ──
 echo "=== C-09: delegate C-06 x frontend default ==="
 chmod +x tests/run-c06-x-frontend-default-gate.sh
-SHUX_C06_FAIL="$FAIL" ./tests/run-c06-x-frontend-default-gate.sh || die "C-06 sub-gate failed"
+XLANG_C06_FAIL="$FAIL" ./tests/run-c06-x-frontend-default-gate.sh || die "C-06 sub-gate failed"
 
-# ── strict 链：build_shux_asm 强制 parser_x.o 覆盖 seed parser.o ──
+# ── strict 链：build_xlang_asm 强制 parser_x.o 覆盖 seed parser.o ──
 echo "=== C-09: strict link ensure_parser_x_o ==="
-grep -q 'ensure_parser_x_o_for_strict_link()' "$BUILD_ASM" || die "build_shux_asm missing ensure_parser_x_o_for_strict_link"
-grep -q 'ensure_parser_x_o_for_strict_link' "$BUILD_ASM" || die "build_shux_asm never calls ensure_parser_x_o_for_strict_link"
+grep -q 'ensure_parser_x_o_for_strict_link()' "$BUILD_ASM" || die "build_xlang_asm missing ensure_parser_x_o_for_strict_link"
+grep -q 'ensure_parser_x_o_for_strict_link' "$BUILD_ASM" || die "build_xlang_asm never calls ensure_parser_x_o_for_strict_link"
 
 # ── pipeline_x：LINK_OBJS 以 parser_x.o 为 parser TU ──
 echo "=== C-09: PIPELINE_X_LINK_OBJS uses parser_x.o ==="
@@ -92,7 +92,7 @@ done
 
 # ── track-only：OBJS_CORE 仍含 C parser（文档化，非失败）──
 if grep -q 'src/parser/parser\.o' "$MF" && grep -q '^OBJS_CORE' "$MF"; then
-  echo "c09 track: OBJS_CORE still lists src/parser/parser.o (shux-c cold start; defer C-09 v2)"
+  echo "c09 track: OBJS_CORE still lists src/parser/parser.o (xlang-c cold start; defer C-09 v2)"
 fi
 
 # ── manifest 锚点文件存在性 ──

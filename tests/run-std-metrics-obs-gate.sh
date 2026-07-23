@@ -42,8 +42,8 @@ sym_miss="$(std_metrics_obs_symbols_ok "$MOD_X" "$MANIFEST" || true)"
 
 X_OK=0
 SKIP=0
-if [ -x ./compiler/shux-c ]; then
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+if [ -x ./compiler/xlang-c ]; then
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
   if ! grep -q 'metrics.counter(' "$SMOKE_X" 2>/dev/null; then
     echo "std-metrics-obs gate FAIL: obs smoke missing metrics.counter" >&2
     exit 1

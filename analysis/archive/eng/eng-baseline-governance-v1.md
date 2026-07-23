@@ -56,9 +56,9 @@
 | manifest | RFC + registry + 7 个 baseline 文件存在 |
 | gate 存在 | registry 中每个 `gate_script` 可执行 |
 | version 格式 | `v1.YYYY-MM-DD` |
-| **diff 联动**（`SHUX_ENG_BASELINE_DIFF_CHECK=1`） | baseline TSV 有 diff → registry 对应 `version` 须变化 |
+| **diff 联动**（`XLANG_ENG_BASELINE_DIFF_CHECK=1`） | baseline TSV 有 diff → registry 对应 `version` 须变化 |
 
-CI PR 可设：`SHUX_ENG_BASELINE_DIFF_CHECK=1 SHUX_ENG_BASELINE_BASE_REF=origin/main`
+CI PR 可设：`XLANG_ENG_BASELINE_DIFF_CHECK=1 XLANG_ENG_BASELINE_BASE_REF=origin/main`
 
 ---
 

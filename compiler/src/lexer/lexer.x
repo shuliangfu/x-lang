@@ -1412,35 +1412,143 @@ export function lexer_try_sync_attr_into(out: *LexerResult, l: Lexer, data: u8[]
   out.token_start = (0 as usize); return 1;
 }
 
-/** Exported function `skip_whitespace_and_comments`.
- * Implements `skip_whitespace_and_comments`.
- * @param lex Lexer
- * @param data u8[]
- * @return Lexer
+/**
+ * Whether `prev` continues a path/ident so an interior `/`+`*` is a path glob
+ * (e.g. `src/*.x`, `arrow}/*.o`), not a nested block-comment opener.
+ * @param prev u8 — byte immediately before a candidate `/` of `/*`
+ * @return i32 — 1 if path/ident continuum (suppress nest-open), else 0
+ * PLATFORM: SHARED
+ */
+function lexer_block_comment_prev_is_path_like(prev: u8): i32 {
+  // A-Z
+  if (prev >= 65) {
+    if (prev <= 90) {
+      return 1;
+    }
+  }
+  // a-z
+  if (prev >= 97) {
+    if (prev <= 122) {
+      return 1;
+    }
+  }
+  // 0-9
+  if (prev >= 48) {
+    if (prev <= 57) {
+      return 1;
+    }
+  }
+  // _ . } ) ] > " '
+  if (prev == 95) {
+    return 1;
+  }
+  if (prev == 46) {
+    return 1;
+  }
+  if (prev == 125) {
+    return 1;
+  }
+  if (prev == 41) {
+    return 1;
+  }
+  if (prev == 93) {
+    return 1;
+  }
+  if (prev == 62) {
+    return 1;
+  }
+  if (prev == 34) {
+    return 1;
+  }
+  if (prev == 39) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Skip whitespace and comments from the current lexer position.
+ *
+ * Line comments: `//` to end of line, and bare `#` lines (not `#[` attrs).
+ * Block comments (single-line and multi-line — one algorithm): nested `/* ... */`
+ * by head/tail depth balance (not C first-close):
+ *   - outer `/*` sets depth=1; each true nest-open `/*` does depth+1;
+ *   - each `*/` does depth-1; the block ends only when depth returns to 0.
+ * Examples (all valid on one line):
+ *   `/* xxx /* xxx */ xxx */`, `/* /* */ */`, `/**/`, dense `/*/*inner*/*/`.
+ * Unbalanced `/* /* */` alone leaves depth>0 (unclosed) — need a second `*/`.
+ *
+ * Nest-open is path-safe (wave138 root fix):
+ * - Intentional nests still open: space/`*` before `/*`, prose `/**/`, dense nests.
+ * - Path globs do NOT open: `src/*.x`, `std/*.o`, `std/db/{kv,arrow}/*.o`,
+ *   line-start `/*.o` (prev path-like, or next byte after `/*` is `.`).
+ * Unmatched bare `*/` with no nested open still closes the outer block (depth 1 → 0).
+ *
+ * PLATFORM: SHARED — language lexical semantics; dual-host product matrix.
+ *
+ * @param lex Lexer — current position / line / col
+ * @param data u8[] — full source buffer (not required to be NUL-terminated)
+ * @return Lexer — advanced past whitespace and comments; unchanged on EOF
  */
 export function skip_whitespace_and_comments(lex: Lexer, data: u8[]): Lexer {
   let l: Lexer = lex;
+  // Nesting depth for block comments; 0 means not inside a block comment.
+  let depth: i32 = 0;
   while (l.pos < data.length) {
     let c: u8 = data[l.pos];
     if (c == 32 || c == 9 || c == 10 || c == 13) {
       l = advance_one(l, c);
     } else if (c == 47 && l.pos + 1 < data.length && data[l.pos + 1] == 47) {
+      // Line comment // ...
       while (l.pos < data.length && data[l.pos] != 10) {
         l = advance_one(l, data[l.pos]);
       }
     } else if (c == 47 && l.pos + 1 < data.length && data[l.pos + 1] == 42) {
+      // Block comment /* ... */ with nesting (depth counter).
       l = advance_one(l, 47);
       l = advance_one(l, 42);
-      while (l.pos + 1 < data.length) {
-        if (data[l.pos] == 42 && data[l.pos + 1] == 47) {
+      depth = 1;
+      while (l.pos < data.length && depth > 0) {
+        // Prefer path-safe /* nest-open before */ nest-close when both could match.
+        if (l.pos + 1 < data.length && data[l.pos] == 47 && data[l.pos + 1] == 42) {
+          // Decide whether this interior /* is a true nest or a path glob.
+          let nest_ok: i32 = 1;
+          if (l.pos > (0 as usize)) {
+            let prev: u8 = data[l.pos - (1 as usize)];
+            if (lexer_block_comment_prev_is_path_like(prev) != 0) {
+              nest_ok = 0;
+            }
+          }
+          // /*.ext path globs after newline / outer open (prev not path-like).
+          if (nest_ok != 0) {
+            if (l.pos + 2 < data.length) {
+              if (data[l.pos + 2] == 46) {
+                nest_ok = 0;
+              }
+            }
+          }
+          if (nest_ok != 0) {
+            l = advance_one(l, 47);
+            l = advance_one(l, 42);
+            depth = depth + 1;
+          } else {
+            // Path glob or non-nest: consume only '/' so '*' is ordinary body text.
+            l = advance_one(l, data[l.pos]);
+          }
+        } else if (l.pos + 1 < data.length && data[l.pos] == 42 && data[l.pos + 1] == 47) {
           l = advance_one(l, 42);
           l = advance_one(l, 47);
-          break;
+          depth = depth - 1;
+        } else {
+          l = advance_one(l, data[l.pos]);
         }
-        l = advance_one(l, data[l.pos]);
       }
+      // EOF with depth > 0: unclosed block comment; body already swallowed to EOF.
+      // Parser sees missing following decls (fail). Prefer path-safe nest so this
+      // is rare; dedicated unclosed diag is a follow-up if needed.
+      depth = 0;
     } else if (c == 35) {
-      /* See implementation. */
+      // Bare # line comment; leave #[cfg]/attrs to the token scanner.
       if (l.pos + 1 < data.length && data[l.pos + 1] == 91) {
         return l;
       } else {

@@ -13,7 +13,7 @@
 | 1 | 读本文 §2 契约 D1–D6 |
 | 2 | 打开 `tests/baseline/tool-debug-symbols.tsv` |
 | 3 | `./tests/run-tool-debug-symbols-gate.sh` |
-| 4 | 本地：`./tests/run-debug-symbols.sh`（须 native `shux`） |
+| 4 | 本地：`./tests/run-debug-symbols.sh`（须 native `xlang`） |
 
 ---
 
@@ -33,7 +33,7 @@
 **调试构建推荐**（v1 文档化，非强制改 driver）：
 
 ```bash
-shux -O 0 -L . app.x -o app.debug    # 保留 symtab，无 strip
+xlang -O 0 -L . app.x -o app.debug    # 保留 symtab，无 strip
 # Linux 符号化增强（手工链接场景）：cc ... -g -rdynamic
 ```
 

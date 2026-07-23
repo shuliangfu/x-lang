@@ -35,12 +35,12 @@ jobs:
       - name: G-FFI-5 release CI (LANG-007 + business)
         run: |
           chmod +x tests/run-g-ffi-5-release-ci-gate.sh
-          SHUX_G_FFI5_FAIL=1 ./tests/run-g-ffi-5-release-ci-gate.sh
+          XLANG_G_FFI5_FAIL=1 ./tests/run-g-ffi-5-release-ci-gate.sh
         timeout-minutes: 30
       - name: D-03 Stage2 hash (if stage products exist)
         run: |
           chmod +x tests/run-d03-stage2-hash-gate.sh
-          SHUX_D03_FAIL=0 ./tests/run-d03-stage2-hash-gate.sh
+          XLANG_D03_FAIL=0 ./tests/run-d03-stage2-hash-gate.sh
         timeout-minutes: 15
       - name: G-05 c08 policy
         run: |
@@ -49,20 +49,20 @@ jobs:
       - name: SAFE-005 leak nightly (Linux ASAN)
         run: |
           chmod +x tests/run-safe-leak-nightly.sh tests/lib/safe-leak.sh
-          SHUX_LEAK_PROBE=1 ./tests/run-safe-leak-nightly.sh | tee /tmp/safe_leak_nightly.log
-          grep -q 'SHUX_LEAK_NIGHTLY' /tmp/safe_leak_nightly.log
+          XLANG_LEAK_PROBE=1 ./tests/run-safe-leak-nightly.sh | tee /tmp/safe_leak_nightly.log
+          grep -q 'XLANG_LEAK_NIGHTLY' /tmp/safe_leak_nightly.log
         timeout-minutes: 15
       - name: SAFE-006 race detect experimental (Linux TSAN)
         run: |
           chmod +x tests/run-safe-race-detect.sh tests/lib/safe-race.sh
-          SHUX_RACE_PROBE=1 ./tests/run-safe-race-detect.sh | tee /tmp/safe_race_detect.log
-          grep -q 'SHUX_RACE_DETECT' /tmp/safe_race_detect.log
+          XLANG_RACE_PROBE=1 ./tests/run-safe-race-detect.sh | tee /tmp/safe_race_detect.log
+          grep -q 'XLANG_RACE_DETECT' /tmp/safe_race_detect.log
         timeout-minutes: 10
       - name: ENG-007 security audit (Linux periodic)
         run: |
           chmod +x tests/run-eng-security-audit.sh tests/lib/eng-security-audit.sh
-          SHUX_SEC_AUDIT_PROBE=1 ./tests/run-eng-security-audit.sh | tee /tmp/eng_security_audit.log
-          grep -q 'SHUX_SECURITY_AUDIT' /tmp/eng_security_audit.log
+          XLANG_SEC_AUDIT_PROBE=1 ./tests/run-eng-security-audit.sh | tee /tmp/eng_security_audit.log
+          grep -q 'XLANG_SECURITY_AUDIT' /tmp/eng_security_audit.log
         timeout-minutes: 10
       - name: PERF-169 weekly perf baseline (Linux)
         run: |

@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_SORT_STABLE_CMP_DOC:-analysis/std-sort-stable-cmp-v1.md}"
-MANIFEST="${SHUX_STD_SORT_STABLE_CMP_TSV:-tests/baseline/std-sort-stable-cmp.tsv}"
-VECTORS="${SHUX_STD_SORT_STABLE_CMP_VECTORS:-tests/baseline/std-sort-stable-cmp-vectors.tsv}"
+DOC="${XLANG_STD_SORT_STABLE_CMP_DOC:-analysis/std-sort-stable-cmp-v1.md}"
+MANIFEST="${XLANG_STD_SORT_STABLE_CMP_TSV:-tests/baseline/std-sort-stable-cmp.tsv}"
+VECTORS="${XLANG_STD_SORT_STABLE_CMP_VECTORS:-tests/baseline/std-sort-stable-cmp-vectors.tsv}"
 MOD_X="std/sort/mod.x"
 SORT_X="std/sort/sort.x"
 LIB="tests/lib/std-sort-stable-cmp.sh"
@@ -82,7 +82,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-sort-stable-cmp manifest OK"
 
-if [ "${SHUX_STD_SORT_STABLE_CMP_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_STD_SORT_STABLE_CMP_MANIFEST_ONLY:-0}" = "1" ]; then
   std_sort_stable_cmp_emit_report "ok" 0 0 1
   echo "std-sort-stable-cmp gate OK (manifest only)"
   exit 0
@@ -90,7 +90,7 @@ fi
 
 # shellcheck source=tests/lib/build-std-c-o.sh
 . tests/lib/build-std-c-o.sh
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   ensure_std_c_o ../std/sort/sort.o
 fi
 
@@ -103,13 +103,13 @@ if [ -f std/sort/sort.o ] && strings std/sort/sort.o 2>/dev/null | grep -q 'sort
     exit 1
   fi
 else
-  echo "std-sort-stable-cmp SKIP c smoke (sort.o missing .x symbols; need shux-c)" >&2
+  echo "std-sort-stable-cmp SKIP c smoke (sort.o missing .x symbols; need xlang-c)" >&2
 fi
 
 X_OK=0
 SKIP=0
-SHUX_BIN=""
-stdlib_cm_native_shu() {
+XLANG_BIN=""
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -120,29 +120,29 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-060: .x smoke (SHUX=$SHUX_BIN) ==="
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-060: .x smoke (XLANG=$XLANG_BIN) ==="
   for x in "$SMOKE_STABLE" "$SMOKE_CMP"; do
-    if ! "$SHUX_BIN" check -L . "$x" >/dev/null 2>&1; then
+    if ! "$XLANG_BIN" check -L . "$x" >/dev/null 2>&1; then
       echo "std-sort-stable-cmp gate FAIL: typeck $x" >&2
-      "$SHUX_BIN" check -L . "$x" 2>&1 | tail -10 >&2 || true
+      "$XLANG_BIN" check -L . "$x" 2>&1 | tail -10 >&2 || true
       std_sort_stable_cmp_emit_report "fail" "$C_OK" 0 0
       exit 1
     fi
-    if ! std_sort_stable_cmp_run_smoke "$SHUX_BIN" "$x" "$(basename "$x" .x)"; then
+    if ! std_sort_stable_cmp_run_smoke "$XLANG_BIN" "$x" "$(basename "$x" .x)"; then
       std_sort_stable_cmp_emit_report "fail" "$C_OK" 0 0
       exit 1
     fi
   done
   X_OK=1
 else
-  echo "std-sort-stable-cmp gate SKIP .x smoke (no native shux)" >&2
+  echo "std-sort-stable-cmp gate SKIP .x smoke (no native xlang)" >&2
   SKIP=1
 fi
 

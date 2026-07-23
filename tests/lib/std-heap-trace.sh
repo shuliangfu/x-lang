@@ -5,7 +5,7 @@
 #   std_heap_trace_symbols_ok HEAP_X HEAP_LIBC TSV
 #   std_heap_trace_emit_report status check_ok run_ok skip
 
-STD_HEAP_TRACE_PREFIX="${SHUX_STD_HEAP_TRACE_PREFIX:-shux: [SHUX_STD_HEAP_TRACE]}"
+STD_HEAP_TRACE_PREFIX="${XLANG_STD_HEAP_TRACE_PREFIX:-xlang: [XLANG_STD_HEAP_TRACE]}"
 
 # 校验 manifest symbol 锚点；echo 缺失数。
 std_heap_trace_symbols_ok() {

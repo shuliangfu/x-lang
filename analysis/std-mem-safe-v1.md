@@ -34,4 +34,4 @@
 
 烟测：`tests/mem/mem_safe_boundary.x`
 
-报告：`shux: [SHUX_STD144_MEM_SAFE]`
+报告：`xlang: [XLANG_STD144_MEM_SAFE]`

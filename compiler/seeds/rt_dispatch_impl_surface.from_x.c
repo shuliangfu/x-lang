@@ -3,8 +3,8 @@
  * Product PREFER_X_O: full .x + hybrid rest seed (FROM_X 仅 marker)
  * Cap residual: driver_dispatch_* in driver_abi
  * Prove: full.x vs this seed → nm IDENTICAL
- * Regen: ./shux -E ... | filter DBG + polish libc redecls
- * Track-L (2026-07-16): helpers rt_di_env_shux_lto / rt_di_argv_has_e_extern /
+ * Regen: ./xlang -E ... | filter DBG + polish libc redecls
+ * Track-L (2026-07-16): helpers rt_di_env_xlang_lto / rt_di_argv_has_e_extern /
  * rt_di_effective_use_lto keep short names; .x has #[no_mangle] export
  * (was module-prefix mangle on non-export functions).
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
@@ -45,9 +45,11 @@ struct RtDispatchState {
   int32_t parse_saw_target_cpu;
 };
 
-extern uint8_t * rt_di_env_shux_lto(void);
+extern uint8_t * rt_di_env_xlang_lto(void);
 extern int32_t rt_di_argv_has_e_extern(int32_t argc, uint8_t * argv);
 extern int32_t rt_di_effective_use_lto(int32_t use_lto);
+/* wave227 G.7: env via public pure thin link_abi_getenv (wave222 → _impl). */
+extern uint8_t * link_abi_getenv(uint8_t * name);
 extern int32_t driver_run_asm_backend_impl_c(uint8_t * input_path, uint8_t * out_path, uint8_t * lib_key, uint8_t * target, int32_t argc, uint8_t * argv);
 extern int32_t driver_run_emit_c_path_impl_c(uint8_t * input_path, uint8_t * out_path, uint8_t * lib_key, uint8_t * target, uint8_t * opt_level, int32_t use_lto, int32_t argc, uint8_t * argv);
 extern int32_t driver_run_x_emit_c_from_compile_state(struct RtDispatchState * state, int32_t argc, uint8_t * argv);
@@ -76,13 +78,13 @@ extern void driver_bump_stack_limit(void);
 extern struct RtDispatchState * driver_compile_state_alloc_c(void);
 extern void driver_compile_state_free_c(struct RtDispatchState * state);
 extern int32_t driver_compile_parse_argv_impl_c(int32_t argc, uint8_t * argv, struct RtDispatchState * state);
-extern void shu_target_cpu_print(uint8_t * out, uint32_t features);
+extern void xlang_target_cpu_print(uint8_t * out, uint32_t features);
 extern uint8_t * driver_stdio_stdout(void);
 extern uint8_t * driver_dispatch_lib_roots_from_key(uint8_t * lib_key, int32_t * n_out);
 extern uint8_t * driver_dispatch_lib_root_at(uint8_t * roots, int32_t i);
 extern int32_t driver_dispatch_run_compiler_parsed(uint8_t * input_path, uint8_t * out_path, uint8_t * lib_roots, int32_t n_lib, uint8_t * target, uint8_t * opt_level, int32_t use_lto, int32_t argc, uint8_t * argv);
 extern uint8_t * driver_dispatch_opt_default(void);
-uint8_t * rt_di_env_shux_lto(void) {
+uint8_t * rt_di_env_xlang_lto(void) {
   uint8_t * p = ((uint8_t *)(0));
   {
     (void)((p = malloc(((size_t)(16)))));
@@ -136,12 +138,13 @@ int32_t rt_di_effective_use_lto(int32_t use_lto) {
   if ((use_lto !=0)) {
     return 1;
   }
-  (void)((env_name = rt_di_env_shux_lto()));
+  (void)((env_name = rt_di_env_xlang_lto()));
   if ((env_name ==((uint8_t *)(0)))) {
     return 0;
   }
   {
-    (void)((env_val = getenv(env_name)));
+    /* wave227 G.7: public pure thin link_abi_getenv (not raw libc getenv). */
+    (void)((env_val = link_abi_getenv(env_name)));
     (void)(free(env_name));
   }
   if ((env_val ==((uint8_t *)(0)))) {
@@ -387,7 +390,7 @@ int32_t driver_run_compiler_full_x_impl_c(int32_t argc, uint8_t * argv) {
   if (((state->print_target_cpu) !=0)) {
     {
       (void)((out = driver_stdio_stdout()));
-      (void)(shu_target_cpu_print(out, ((uint32_t)((state->target_cpu_features)))));
+      (void)(xlang_target_cpu_print(out, ((uint32_t)((state->target_cpu_features)))));
       (void)(driver_compile_state_free_c(state));
     }
     return 0;

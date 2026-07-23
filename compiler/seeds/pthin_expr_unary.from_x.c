@@ -1,6 +1,6 @@
 /* seeds/pthin_expr_unary.from_x.c — G-02f-283 P2 parser thin P4 unary
  * Logic source: src/asm/pthin_expr_unary.x
- * Hybrid: SHUX_PTHIN_EXPR_UNARY_FROM_X + ld -r into parser_asm_thin_glue.o
+ * Hybrid: XLANG_PTHIN_EXPR_UNARY_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_unary_slice.inc
  * Types must match parser_asm_thin_c.from_x.c (layout-locked).

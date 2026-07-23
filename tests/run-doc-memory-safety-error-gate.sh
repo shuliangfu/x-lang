@@ -3,23 +3,23 @@
 #
 # 1) doc-memory-safety-error-v1.md 必需章节
 # 2) 交叉引用 RFC 存在
-# 3) 示例 .x 存在；hook 脚本存在（native shux 时可选跑 hook）
+# 3) 示例 .x 存在；hook 脚本存在（native xlang 时可选跑 hook）
 #
 # 用法：./tests/run-doc-memory-safety-error-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_DOC_MEM_SAFE_ERR:-analysis/doc-memory-safety-error-v1.md}"
-MANIFEST="${SHUX_DOC_MEM_SAFE_MANIFEST:-tests/baseline/doc-memory-safety-error.tsv}"
+DOC="${XLANG_DOC_MEM_SAFE_ERR:-analysis/doc-memory-safety-error-v1.md}"
+MANIFEST="${XLANG_DOC_MEM_SAFE_MANIFEST:-tests/baseline/doc-memory-safety-error.tsv}"
 MIN_SEC=8
 MIN_XREF=6
 RUN_HOOKS=0
-[ "${SHUX_DOC_MEM_SAFE_RUN_HOOKS:-0}" = "1" ] && RUN_HOOKS=1
+[ "${XLANG_DOC_MEM_SAFE_RUN_HOOKS:-0}" = "1" ] && RUN_HOOKS=1
 
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -125,16 +125,16 @@ done
 echo "doc-memory-safety-error manifest OK (sections=${SEC}, cross_refs=${XREF})"
 
 if [ "$RUN_HOOKS" -eq 0 ]; then
-  SHUX_BIN="${SHUX:-}"
-  if [ -z "$SHUX_BIN" ]; then
-    for cand in ./compiler/shux-c ./compiler/shux; do
-      if native_shu "$cand"; then
-        SHUX_BIN="$cand"
+  XLANG_BIN="${XLANG:-}"
+  if [ -z "$XLANG_BIN" ]; then
+    for cand in ./compiler/xlang-c ./compiler/xlang; do
+      if native_xlang "$cand"; then
+        XLANG_BIN="$cand"
         break
       fi
     done
   fi
-  if [ -n "$SHUX_BIN" ]; then
+  if [ -n "$XLANG_BIN" ]; then
     RUN_HOOKS=1
   fi
 fi
@@ -145,7 +145,7 @@ if [ "$RUN_HOOKS" -eq 1 ]; then
   for hook in $HOOKS; do
     echo "── hook: $hook ──"
     chmod +x "$hook" 2>/dev/null || true
-    if SHUX="${SHUX:-}" "$hook"; then
+    if XLANG="${XLANG:-}" "$hook"; then
       echo "doc-memory-safety-error hook OK $(basename "$hook")"
     else
       echo "doc-memory-safety-error hook FAIL $(basename "$hook")" >&2
@@ -157,7 +157,7 @@ if [ "$RUN_HOOKS" -eq 1 ]; then
     exit 1
   fi
 else
-  echo "doc-memory-safety-error gate SKIP hooks (no native shux, set SHUX_DOC_MEM_SAFE_RUN_HOOKS=1 to force manifest-only)" >&2
+  echo "doc-memory-safety-error gate SKIP hooks (no native xlang, set XLANG_DOC_MEM_SAFE_RUN_HOOKS=1 to force manifest-only)" >&2
 fi
 
 echo "doc-memory-safety-error gate OK"

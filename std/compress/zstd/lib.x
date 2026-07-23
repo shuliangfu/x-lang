@@ -45,7 +45,7 @@ export function zstd_stream_hdr_bytes(): i32 {
 }
 
 /* See implementation. */
-export const SHU_ZSTD_STREAM_MAGIC: u32 = 0x5a535452;
+export const XLANG_ZSTD_STREAM_MAGIC: u32 = 0x5a535452;
 
 /* See implementation. */
 export const ZSTD_CLEVEL_DEFAULT: i32 = 3;
@@ -111,18 +111,18 @@ extern function ZSTD_compressStream2(cctx: *u8, output: *ZstdOutBuffer, input: *
 extern function ZSTD_decompressStream(dctx: *u8, output: *ZstdOutBuffer, input: *ZstdInBuffer): usize;
 
 /* See implementation. */
-let shu_compress_zstd_marker: u8 = 1;
+let xlang_compress_zstd_marker: u8 = 1;
 
 /**
  * See implementation.
  */
-export function shu_zstd_stream_cast(state: *u8, state_cap: i32): *ZstdStream {
+export function xlang_zstd_stream_cast(state: *u8, state_cap: i32): *ZstdStream {
   let need: i32 = zstd_stream_state_bytes();
   if (state == 0 || state_cap < need) {
     return 0 as *ZstdStream;
   }
   let s: *ZstdStream = state as *ZstdStream;
-  if (s.hdr.magic != SHU_ZSTD_STREAM_MAGIC || s.hdr.inited == 0) {
+  if (s.hdr.magic != XLANG_ZSTD_STREAM_MAGIC || s.hdr.inited == 0) {
     return 0 as *ZstdStream;
   }
   return s;
@@ -186,7 +186,7 @@ export function compress_zstd_stream_init_compress_c(state: *u8, state_cap: i32)
   }
   mem.mem_zero(state, need);
   let s: *ZstdStream = state as *ZstdStream;
-  s.hdr.magic = SHU_ZSTD_STREAM_MAGIC;
+  s.hdr.magic = XLANG_ZSTD_STREAM_MAGIC;
   s.hdr.mode = 0;
   unsafe { s.cctx = ZSTD_createCCtx(); }
   if (s.cctx == 0) {
@@ -215,7 +215,7 @@ export function compress_zstd_stream_init_decompress_c(state: *u8, state_cap: i3
   }
   mem.mem_zero(state, need);
   let s: *ZstdStream = state as *ZstdStream;
-  s.hdr.magic = SHU_ZSTD_STREAM_MAGIC;
+  s.hdr.magic = XLANG_ZSTD_STREAM_MAGIC;
   s.hdr.mode = 1;
   unsafe { s.dctx = ZSTD_createDCtx(); }
   if (s.dctx == 0) {
@@ -233,7 +233,7 @@ export function compress_zstd_stream_compress_c(state: *u8, state_cap: i32, in: 
   if (in_consumed != 0) {
     in_consumed[0] = 0;
   }
-  let s: *ZstdStream = shu_zstd_stream_cast(state, state_cap);
+  let s: *ZstdStream = xlang_zstd_stream_cast(state, state_cap);
   if (s == 0 || s.hdr.mode != 0 || out == 0 || out_cap <= 0) {
     return -1;
   }
@@ -280,7 +280,7 @@ export function compress_zstd_stream_decompress_c(state: *u8, state_cap: i32, in
   if (in_consumed != 0) {
     in_consumed[0] = 0;
   }
-  let s: *ZstdStream = shu_zstd_stream_cast(state, state_cap);
+  let s: *ZstdStream = xlang_zstd_stream_cast(state, state_cap);
   if (s == 0 || s.hdr.mode != 1 || out == 0 || out_cap <= 0) {
     return -1;
   }
@@ -324,7 +324,7 @@ export function compress_zstd_stream_end_c(state: *u8, state_cap: i32): i32 {
     return 0;
   }
   let s: *ZstdStream = state as *ZstdStream;
-  if (s.hdr.magic != SHU_ZSTD_STREAM_MAGIC || s.hdr.inited == 0) {
+  if (s.hdr.magic != XLANG_ZSTD_STREAM_MAGIC || s.hdr.inited == 0) {
     return 0;
   }
   if (s.cctx != 0) {

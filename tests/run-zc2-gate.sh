@@ -2,15 +2,15 @@
 # ZC-2 门禁：read_ptr_gen 校验 + 常规文件 mmap 绝对视图 smoke + M-5 read_ptr_slice 回归。
 # 用法：
 #   ./tests/run-zc2-gate.sh
-#   SHUX=./compiler/shux_asm ./tests/run-zc2-gate.sh
+#   XLANG=./compiler/xlang_asm ./tests/run-zc2-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-SHUX_BIN="${SHUX:-}"
-case "$SHUX_BIN" in
-  /*) SHUX_ABS="$SHUX_BIN" ;;
-  "") SHUX_ABS="" ;;
-  *) SHUX_ABS="$(pwd)/$SHUX_BIN" ;;
+XLANG_BIN="${XLANG:-}"
+case "$XLANG_BIN" in
+  /*) XLANG_ABS="$XLANG_BIN" ;;
+  "") XLANG_ABS="" ;;
+  *) XLANG_ABS="$(pwd)/$XLANG_BIN" ;;
 esac
 
 zc2_native_exe() {
@@ -25,39 +25,39 @@ zc2_native_exe() {
   esac
 }
 
-if [ -z "$SHUX_ABS" ] || ! zc2_native_exe "$SHUX_ABS"; then
-  SHUX_ABS=""
-  for cand in ./compiler/shux ./compiler/shux_asm ./compiler/shux-c; do
+if [ -z "$XLANG_ABS" ] || ! zc2_native_exe "$XLANG_ABS"; then
+  XLANG_ABS=""
+  for cand in ./compiler/xlang ./compiler/xlang_asm ./compiler/xlang-c; do
     case "$cand" in /*) abs="$cand" ;; *) abs="$(pwd)/$cand" ;; esac
     if zc2_native_exe "$abs"; then
-      SHUX_ABS="$abs"
+      XLANG_ABS="$abs"
       break
     fi
   done
 fi
 
-CHECK_SHUX="$SHUX_ABS"
-if [ -z "$CHECK_SHUX" ] && [ -x ./compiler/shux-c ]; then
-  CHECK_SHUX=./compiler/shux-c
+CHECK_XLANG="$XLANG_ABS"
+if [ -z "$CHECK_XLANG" ] && [ -x ./compiler/xlang-c ]; then
+  CHECK_XLANG=./compiler/xlang-c
 fi
 
 OUT_DIR="${TESTS_OUT_DIR:-tests/.out}"
 mkdir -p "$OUT_DIR"
-GEN_OUT="$OUT_DIR/shux_zc2_read_ptr_gen"
-MMAP_OUT="$OUT_DIR/shux_zc2_read_ptr_mmap"
-VIEW_OUT="$OUT_DIR/shux_zc2_read_ptr_view"
+GEN_OUT="$OUT_DIR/xlang_zc2_read_ptr_gen"
+MMAP_OUT="$OUT_DIR/xlang_zc2_read_ptr_mmap"
+VIEW_OUT="$OUT_DIR/xlang_zc2_read_ptr_view"
 rm -f "$GEN_OUT" "$MMAP_OUT" "$VIEW_OUT"
 
 echo "=== ZC-2: read_ptr gen + mmap absolute view ==="
 
-if [ -z "$CHECK_SHUX" ]; then
-  if make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null; then
-    [ -x ./compiler/shux-c ] && CHECK_SHUX=./compiler/shux-c
+if [ -z "$CHECK_XLANG" ]; then
+  if make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null; then
+    [ -x ./compiler/xlang-c ] && CHECK_XLANG=./compiler/xlang-c
   fi
 fi
 
-if [ -z "$CHECK_SHUX" ]; then
-  echo "zc2 gate SKIP (no working shux-c/shux)"
+if [ -z "$CHECK_XLANG" ]; then
+  echo "zc2 gate SKIP (no working xlang-c/xlang)"
   exit 0
 fi
 
@@ -68,56 +68,56 @@ GEN_SRC="tests/io/read_ptr_gen_smoke.x"
 MMAP_SRC="tests/io/read_ptr_mmap_smoke.x"
 VIEW_SRC="tests/io/read_ptr_view_smoke.x"
 
-if ! "$CHECK_SHUX" check -L . "$GEN_SRC" >/dev/null 2>&1; then
+if ! "$CHECK_XLANG" check -L . "$GEN_SRC" >/dev/null 2>&1; then
   echo "zc2 FAIL: typeck $GEN_SRC" >&2
-  "$CHECK_SHUX" check -L . "$GEN_SRC" 2>&1 || true
+  "$CHECK_XLANG" check -L . "$GEN_SRC" 2>&1 || true
   exit 1
 fi
-if ! "$CHECK_SHUX" check -L . "$MMAP_SRC" >/dev/null 2>&1; then
+if ! "$CHECK_XLANG" check -L . "$MMAP_SRC" >/dev/null 2>&1; then
   echo "zc2 FAIL: typeck $MMAP_SRC" >&2
-  "$CHECK_SHUX" check -L . "$MMAP_SRC" 2>&1 || true
+  "$CHECK_XLANG" check -L . "$MMAP_SRC" 2>&1 || true
   exit 1
 fi
-if ! "$CHECK_SHUX" check -L . "$VIEW_SRC" >/dev/null 2>&1; then
+if ! "$CHECK_XLANG" check -L . "$VIEW_SRC" >/dev/null 2>&1; then
   echo "zc2 FAIL: typeck $VIEW_SRC" >&2
-  "$CHECK_SHUX" check -L . "$VIEW_SRC" 2>&1 || true
+  "$CHECK_XLANG" check -L . "$VIEW_SRC" 2>&1 || true
   exit 1
 fi
 echo "zc2: read_ptr_gen/mmap/view typeck OK"
 
 chmod +x tests/run-io-read-ptr-slice.sh
-SHUX="$CHECK_SHUX" ./tests/run-io-read-ptr-slice.sh
+XLANG="$CHECK_XLANG" ./tests/run-io-read-ptr-slice.sh
 echo "zc2: read_ptr_slice regression OK"
 
-RUN_SHUX="$CHECK_SHUX"
-# -o 链接依赖 std/io 内 read_ptr_*；shux_asm 实验链可能缺这些符号，编译/链接优先 shux-c/shux。
-LINK_SHUX=""
-for cand in ./compiler/shux-c ./compiler/shux; do
+RUN_XLANG="$CHECK_XLANG"
+# -o 链接依赖 std/io 内 read_ptr_*；xlang_asm 实验链可能缺这些符号，编译/链接优先 xlang-c/xlang。
+LINK_XLANG=""
+for cand in ./compiler/xlang-c ./compiler/xlang; do
   case "$cand" in /*) abs="$cand" ;; *) abs="$(pwd)/$cand" ;; esac
   if zc2_native_exe "$abs"; then
-    LINK_SHUX="$abs"
+    LINK_XLANG="$abs"
     break
   fi
 done
-if [ -n "$LINK_SHUX" ]; then
-  RUN_SHUX="$LINK_SHUX"
-elif [ -n "$SHUX_ABS" ] && zc2_native_exe "$SHUX_ABS"; then
-  RUN_SHUX="$SHUX_ABS"
+if [ -n "$LINK_XLANG" ]; then
+  RUN_XLANG="$LINK_XLANG"
+elif [ -n "$XLANG_ABS" ] && zc2_native_exe "$XLANG_ABS"; then
+  RUN_XLANG="$XLANG_ABS"
 fi
 
-if ! SHUX="$RUN_SHUX" "$RUN_SHUX" -L . "$GEN_SRC" -o "$GEN_OUT" 2>/tmp/shux_zc2_gen_build.log; then
+if ! XLANG="$RUN_XLANG" "$RUN_XLANG" -L . "$GEN_SRC" -o "$GEN_OUT" 2>/tmp/xlang_zc2_gen_build.log; then
   echo "zc2 FAIL: compile $GEN_SRC" >&2
-  tail -8 /tmp/shux_zc2_gen_build.log 2>/dev/null || true
+  tail -8 /tmp/xlang_zc2_gen_build.log 2>/dev/null || true
   exit 1
 fi
-if ! SHUX="$RUN_SHUX" "$RUN_SHUX" -L . "$MMAP_SRC" -o "$MMAP_OUT" 2>/tmp/shux_zc2_mmap_build.log; then
+if ! XLANG="$RUN_XLANG" "$RUN_XLANG" -L . "$MMAP_SRC" -o "$MMAP_OUT" 2>/tmp/xlang_zc2_mmap_build.log; then
   echo "zc2 FAIL: compile $MMAP_SRC" >&2
-  tail -8 /tmp/shux_zc2_mmap_build.log 2>/dev/null || true
+  tail -8 /tmp/xlang_zc2_mmap_build.log 2>/dev/null || true
   exit 1
 fi
-if ! SHUX="$RUN_SHUX" "$RUN_SHUX" -L . "$VIEW_SRC" -o "$VIEW_OUT" 2>/tmp/shux_zc2_view_build.log; then
+if ! XLANG="$RUN_XLANG" "$RUN_XLANG" -L . "$VIEW_SRC" -o "$VIEW_OUT" 2>/tmp/xlang_zc2_view_build.log; then
   echo "zc2 FAIL: compile $VIEW_SRC" >&2
-  tail -8 /tmp/shux_zc2_view_build.log 2>/dev/null || true
+  tail -8 /tmp/xlang_zc2_view_build.log 2>/dev/null || true
   exit 1
 fi
 

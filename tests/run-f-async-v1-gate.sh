@@ -2,7 +2,7 @@
 # F-async v1：std.async 去 C（scheduler/future.c → .x + *_glue.c）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_ASYNC_V1_FAIL:-0}
+FAIL=${XLANG_F_ASYNC_V1_FAIL:-0}
 DOC="analysis/phase-f-async-v1.md"
 MANIFEST="tests/baseline/f-async-v1-closure.tsv"
 die() { echo "f-async-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -28,11 +28,11 @@ grep -q 'scheduler.x' compiler/Makefile || die "Makefile missing scheduler.x"
 grep -q 'runtime_scheduler_glue' compiler/Makefile || die "Makefile missing runtime_scheduler_glue"
 make -C compiler -q runtime_scheduler_glue.o 2>/dev/null || make -C compiler runtime_scheduler_glue.o >/dev/null 2>&1 || die "runtime_scheduler_glue.o build failed"
 grep -q 'future.x' compiler/Makefile || die "Makefile missing future.x"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/async/scheduler.o >/dev/null 2>&1 || die "make scheduler.o failed"
   make -C compiler ../std/async/future.o >/dev/null 2>&1 || die "make future.o failed"
 else
-  echo "f-async-v1 SKIP scheduler/future.o build (no shux-c)" >&2
+  echo "f-async-v1 SKIP scheduler/future.o build (no xlang-c)" >&2
 fi
 for sub in run-std-async-future-gate.sh run-std-async-io-cps-gate.sh \
   run-std-async-context-gate.sh run-std-async-language-gate.sh; do

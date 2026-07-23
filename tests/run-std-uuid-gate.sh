@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_UUID_DOC:-analysis/std-uuid-v1.md}"
-MANIFEST="${SHUX_STD_UUID_MANIFEST:-tests/baseline/std-uuid-manifest.tsv}"
-VECTORS="${SHUX_STD_UUID_VECTORS:-tests/baseline/std-uuid-vectors.tsv}"
+DOC="${XLANG_STD_UUID_DOC:-analysis/std-uuid-v1.md}"
+MANIFEST="${XLANG_STD_UUID_MANIFEST:-tests/baseline/std-uuid-manifest.tsv}"
+VECTORS="${XLANG_STD_UUID_VECTORS:-tests/baseline/std-uuid-vectors.tsv}"
 MOD_X="std/uuid/mod.x"
 UUID_X="std/uuid/uuid.x"
 LIB="tests/lib/std-uuid.sh"
@@ -66,7 +66,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-uuid manifest OK"
 
-if [ "${SHUX_STD_UUID_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_STD_UUID_MANIFEST_ONLY:-0}" = "1" ]; then
   std_uuid_emit_report "ok" 0 0 1
   echo "std-uuid gate OK (manifest only)"
   exit 0
@@ -78,47 +78,47 @@ SKIP=0
 
 echo "=== STD-075: uuid smoke ==="
 make -C compiler ../std/random/random.o ../std/time/time.o runtime_time_os.o runtime_random_fill.o >/dev/null 2>&1 || true
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/uuid/uuid.o >/dev/null 2>&1 || true
 fi
 if [ -f std/uuid/uuid.o ] && strings std/uuid/uuid.o 2>/dev/null | grep -q 'uuid_smoke'; then
-  if cc -std=c11 -O1 -o /tmp/shux_uuid_smoke \
+  if cc -std=c11 -O1 -o /tmp/xlang_uuid_smoke \
     "$SMOKE_C" std/uuid/uuid.o std/random/random.o std/time/time.o compiler/runtime_time_os.o compiler/runtime_random_fill.o 2>/dev/null; then
-    if /tmp/shux_uuid_smoke >/dev/null 2>&1; then
+    if /tmp/xlang_uuid_smoke >/dev/null 2>&1; then
       C_OK=1
     fi
-    rm -f /tmp/shux_uuid_smoke
+    rm -f /tmp/xlang_uuid_smoke
   fi
 fi
 if [ "$C_OK" -eq 0 ]; then
-  if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+  if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
     std_uuid_emit_report "fail" 0 0 0
     echo "std-uuid gate FAIL: smoke" >&2
     exit 1
   fi
-  echo "std-uuid SKIP smoke (uuid.o missing .x symbols; need shux-c)" >&2
+  echo "std-uuid SKIP smoke (uuid.o missing .x symbols; need xlang-c)" >&2
   C_OK=0
 fi
 
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-075: .x smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-075: .x smoke (XLANG=$XLANG_BIN) ==="
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-uuid gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_uuid_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_uuid_run_smoke "$SHUX_BIN" "$SMOKE_X" "roundtrip"; then
+  if std_uuid_run_smoke "$XLANG_BIN" "$SMOKE_X" "roundtrip"; then
     X_OK=1
   else
     std_uuid_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
 else
-  echo "std-uuid gate SKIP .x smoke (no shux)" >&2
+  echo "std-uuid gate SKIP .x smoke (no xlang)" >&2
   SKIP=1
 fi
 

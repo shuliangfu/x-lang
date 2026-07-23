@@ -51,7 +51,7 @@ if ! std_sort_key_cmp_vectors_ok "$VECTORS" 3; then
 fi
 echo "std-sort-key-cmp registry OK"
 
-if [ "${SHUX_STD_SORT_KEY_CMP_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_STD_SORT_KEY_CMP_MANIFEST_ONLY:-0}" = "1" ]; then
   std_sort_key_cmp_emit_report "ok" 0 0 1
   echo "std-sort-key-cmp gate OK (manifest only)"
   exit 0
@@ -59,7 +59,7 @@ fi
 
 # shellcheck source=tests/lib/build-std-c-o.sh
 . tests/lib/build-std-c-o.sh
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   ensure_std_c_o ../std/sort/sort.o
 fi
 SORT_O="$(cd compiler && pwd)/../std/sort/sort.o"
@@ -73,22 +73,22 @@ if [ -f "$SORT_O" ] && strings "$SORT_O" 2>/dev/null | grep -q 'sort_key_cmp_smo
     exit 1
   fi
 else
-  echo "std-sort-key-cmp SKIP c smoke (sort.o missing .x symbols; need shux-c)" >&2
+  echo "std-sort-key-cmp SKIP c smoke (sort.o missing .x symbols; need xlang-c)" >&2
 fi
 
 X_OK=0
 SKIP=0
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ]; then
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-sort-key-cmp gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_sort_key_cmp_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_sort_key_cmp_run_x_smoke "$SHUX_BIN" "$SMOKE_X" "$SORT_O"; then
+  if std_sort_key_cmp_run_x_smoke "$XLANG_BIN" "$SMOKE_X" "$SORT_O"; then
     X_OK=1
   else
     std_sort_key_cmp_emit_report "fail" "$C_OK" 0 0

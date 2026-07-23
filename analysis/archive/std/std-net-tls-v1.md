@@ -45,10 +45,10 @@
 
 | 目标 | 命令 |
 |------|------|
-| 桩（默认） | `make net-o-stub` 或 `SHUX_NET_TLS=stub` |
+| 桩（默认） | `make net-o-stub` 或 `XLANG_NET_TLS=stub` |
 | OpenSSL | `make net-o-openssl`（`-lssl -lcrypto`） |
 | mbedTLS | `make net-o-mbedtls`（`-lmbedtls -lmbedx509 -lmbedcrypto`） |
-| **runtime 自动** | `invoke_cc` 检测 `net.o` marker 并追加 TLS 库；`SHUX_NET_TLS=auto` 在无 marker 时尝试 `net-o-openssl`；默认不改动现有 `net.o` |
+| **runtime 自动** | `invoke_cc` 检测 `net.o` marker 并追加 TLS 库；`XLANG_NET_TLS=auto` 在无 marker 时尝试 `net-o-openssl`；默认不改动现有 `net.o` |
 
 C 实现：**`std/net/tls_mbedtls.x`** + 胶层 `tls_mbedtls_bio.c`（F-04 v9）、**`std/net/tls_openssl.x`**（F-04 v8）；桩 **`std/net/tls_stub.x`**（F-04 v1，已删 `tls_stub.inc.c`）。
 
@@ -61,10 +61,10 @@ C 实现：**`std/net/tls_mbedtls.x`** + 胶层 `tls_mbedtls_bio.c`（F-04 v9）
 ```
 
 ```
-shux: [SHUX_STD_NET_TLS] status=ok stub=1 typeck=1 skip=0 openssl=1 mbedtls=1 runtime_link=1
+xlang: [XLANG_STD_NET_TLS] status=ok stub=1 typeck=1 skip=0 openssl=1 mbedtls=1 runtime_link=1
 ```
 
-OpenSSL 烟测：完整握手 + HTTP 读；mbedTLS 烟测：握手成功即可；runtime_link：shux-c 链 OpenSSL net.o 并运行 `tls_runtime_link_smoke.x`。
+OpenSSL 烟测：完整握手 + HTTP 读；mbedTLS 烟测：握手成功即可；runtime_link：xlang-c 链 OpenSSL net.o 并运行 `tls_runtime_link_smoke.x`。
 
 ---
 

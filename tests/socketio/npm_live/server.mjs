@@ -39,7 +39,7 @@ chat.on('connection', (socket) => {
     chat.to('lobby').emit('room_pong', 'ok');
   });
   socket.on('auth', (tok) => {
-    if (tok === 'shux') {
+    if (tok === 'xlang') {
       socket.data.authed = true;
       socket.emit('auth_ok', '1');
     }

@@ -9,8 +9,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-API_TSV="${SHUX_SAFE_UNSAFE_API_TSV:-tests/baseline/safe-unsafe-api.tsv}"
-EXT_TSV="${SHUX_SAFE_UNSAFE_EXTERN_TSV:-tests/baseline/safe-unsafe-extern.tsv}"
+API_TSV="${XLANG_SAFE_UNSAFE_API_TSV:-tests/baseline/safe-unsafe-api.tsv}"
+EXT_TSV="${XLANG_SAFE_UNSAFE_EXTERN_TSV:-tests/baseline/safe-unsafe-extern.tsv}"
 
 echo "=== SAFE-002: unsafe API manifest ==="
 for f in \
@@ -132,8 +132,8 @@ if [ "$drift_fail" -ne 0 ]; then
 fi
 
 echo "=== SAFE-002: LANG-007 unsafe boundary (hook) ==="
-if [ "${SHUX_SAFE_SKIP_LANG_UNSAFE:-0}" = "1" ]; then
-  echo "safe-unsafe-api: skip lang-unsafe hook (SHUX_SAFE_SKIP_LANG_UNSAFE=1)"
+if [ "${XLANG_SAFE_SKIP_LANG_UNSAFE:-0}" = "1" ]; then
+  echo "safe-unsafe-api: skip lang-unsafe hook (XLANG_SAFE_SKIP_LANG_UNSAFE=1)"
 else
   chmod +x tests/run-lang-unsafe-gate.sh
   ./tests/run-lang-unsafe-gate.sh

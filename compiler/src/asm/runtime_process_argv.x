@@ -6,7 +6,7 @@
 // See implementation.
 // See implementation.
 
-export extern "C" function shux_process_argv_bind_from_crt_impl(): void;
+export extern "C" function xlang_process_argv_bind_from_crt_impl(): void;
 
 /** Exported function `runtime_process_argv_x_doc_anchor`.
  * Implements `runtime_process_argv_x_doc_anchor`.
@@ -19,8 +19,8 @@ export function runtime_process_argv_x_doc_anchor(): i32 {
 /* See implementation. */
 
 #[no_mangle]
-export function shux_process_argv_bind_from_crt(): void {
+export function xlang_process_argv_bind_from_crt(): void {
   unsafe {
-    shux_process_argv_bind_from_crt_impl();
+    xlang_process_argv_bind_from_crt_impl();
   }
 }

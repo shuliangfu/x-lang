@@ -18,9 +18,9 @@ sym_miss="$(std_time_bench_timer_symbols_ok "$MOD_X" "$MANIFEST" || true)"
 ensure_std_c_o ../std/time/time.o
 X_OK=0
 SKIP=0
-if [ -x ./compiler/shux-c ]; then
-  ./compiler/shux-c check -L . "$SMOKE_X" >/dev/null
-  std_time_bench_timer_run_smoke ./compiler/shux-c "$SMOKE_X" && X_OK=1 || exit 1
+if [ -x ./compiler/xlang-c ]; then
+  ./compiler/xlang-c check -L . "$SMOKE_X" >/dev/null
+  std_time_bench_timer_run_smoke ./compiler/xlang-c "$SMOKE_X" && X_OK=1 || exit 1
 else
   SKIP=1
 fi

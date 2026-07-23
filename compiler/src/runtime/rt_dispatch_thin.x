@@ -1,11 +1,11 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Dispatch thin gates + full entry + shux-c sibling (G.9 English; body is authoritative).
-// Dispatch thin gates + full entry + shux-c sibling (G.9 English; body is authoritative).
-// Dispatch thin gates + full entry + shux-c sibling (G.9 English; body is authoritative).
-// Dispatch thin gates + full entry + shux-c sibling (G.9 English; body is authoritative).
-// Dispatch thin gates + full entry + shux-c sibling (G.9 English; body is authoritative).
+// Dispatch thin gates + full entry + xlang-c sibling (G.9 English; body is authoritative).
+// Dispatch thin gates + full entry + xlang-c sibling (G.9 English; body is authoritative).
+// Dispatch thin gates + full entry + xlang-c sibling (G.9 English; body is authoritative).
+// Dispatch thin gates + full entry + xlang-c sibling (G.9 English; body is authoritative).
+// Dispatch thin gates + full entry + xlang-c sibling (G.9 English; body is authoritative).
 
 export extern "C" function driver_run_asm_backend_impl_c(
   input_path: *u8, out_path: *u8, lib_key: *u8, target: *u8, argc: i32, argv: *u8

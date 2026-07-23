@@ -4,14 +4,14 @@
 # 用法：
 #   ./tests/run-zc-dashboard.sh
 #   ./tests/run-zc-dashboard.sh --record
-#   SHUX_ZC_DASHBOARD_RECORD=1 ./tests/run-zc-dashboard.sh --record
+#   XLANG_ZC_DASHBOARD_RECORD=1 ./tests/run-zc-dashboard.sh --record
 set -e
 cd "$(dirname "$0")/.."
 
-METRICS="${SHUX_ZC_DASHBOARD_METRICS:-tests/baseline/zc-dashboard-metrics.tsv}"
-HISTORY="${SHUX_ZC_DASHBOARD_HISTORY:-tests/baseline/zc-dashboard-history.tsv}"
+METRICS="${XLANG_ZC_DASHBOARD_METRICS:-tests/baseline/zc-dashboard-metrics.tsv}"
+HISTORY="${XLANG_ZC_DASHBOARD_HISTORY:-tests/baseline/zc-dashboard-history.tsv}"
 RECORD=0
-[ "${SHUX_ZC_DASHBOARD_RECORD:-0}" = "1" ] && RECORD=1
+[ "${XLANG_ZC_DASHBOARD_RECORD:-0}" = "1" ] && RECORD=1
 [ "${1:-}" = "--record" ] && RECORD=1
 
 # shellcheck source=tests/lib/zc-dashboard.sh

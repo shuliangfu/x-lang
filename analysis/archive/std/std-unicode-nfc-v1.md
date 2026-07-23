@@ -54,7 +54,7 @@ v1 **不**实现全量 Unicode 15 NFC 表；仅覆盖 gate 金样与常见拉丁
 ```
 
 ```
-shux: [SHUX_STD_UNICODE_NFC] status=ok nfc=1 main=1 skip=0
+xlang: [XLANG_STD_UNICODE_NFC] status=ok nfc=1 main=1 skip=0
 ```
 
 ---

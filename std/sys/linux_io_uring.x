@@ -20,13 +20,13 @@
 // See implementation.
 
 /* See implementation. */
-extern function shux_io_uring_is_available_c(): i32;
+extern function xlang_io_uring_is_available_c(): i32;
 
 /**
  * See implementation.
  */
 export function io_uring_available(): i32 {
   let _rc: i32 = 0;
-  unsafe { _rc = shux_io_uring_is_available_c(); }
+  unsafe { _rc = xlang_io_uring_is_available_c(); }
   return _rc;
 }

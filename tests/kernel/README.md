@@ -1,4 +1,4 @@
-# Shux Kernel Test Suite
+# Xlang Kernel Test Suite
 
 30 QEMU-verified kernel tests + 14 gate scripts = 83 total checks, all passing.
 
@@ -6,7 +6,7 @@
 
 ```sh
 make kernel           # Run all QEMU kernel gate tests
-make kernel-build X=tests/kernel/shuxos_v2.x  # Build single kernel
+make kernel-build X=tests/kernel/xlangos_v2.x  # Build single kernel
 make kernel-check      # Static ELF + purity gate
 make kernel64-check    # 64-bit code model gate
 make kernel-smp        # SMP safety gate (-smp 2)
@@ -21,7 +21,7 @@ make kernel-uefi       # UEFI firmware gate
 ## Build Chain
 
 ```
-kernel.x → shux-c -E → kernel.c → zig cc -target x86-linux-gnu -ffreestanding → kernel.o → zig cc -nostdlib -T kernel.ld → kernel.elf → qemu-system-x86_64 -kernel
+kernel.x → xlang-c -E → kernel.c → zig cc -target x86-linux-gnu -ffreestanding → kernel.o → zig cc -nostdlib -T kernel.ld → kernel.elf → qemu-system-x86_64 -kernel
 ```
 
 ## Test Catalog
@@ -31,7 +31,7 @@ kernel.x → shux-c -E → kernel.c → zig cc -target x86-linux-gnu -ffreestand
 | # | Test | Feature | Output |
 |---|------|---------|--------|
 | 1 | atomics.x | `lock xadd` / `lock cmpxchg` | A:0,5 / C:5,10 |
-| 2 | timer_isr.x | `#[naked]` + IDT/PIC/PIT | Shux OS / T:1 |
+| 2 | timer_isr.x | `#[naked]` + IDT/PIC/PIT | Xlang OS / T:1 |
 | 3 | context_switch.x | `switch_to` naked+asm | S/A/B/a |
 | 4 | panic_serial.x | `kpanic` serial output | S/PANIC: 42 |
 | 5 | bump_alloc.x | Bump allocator + K8 .data init | K:2097152,2097168 |
@@ -50,14 +50,14 @@ kernel.x → shux-c -E → kernel.c → zig cc -target x86-linux-gnu -ffreestand
 
 | # | Test | Feature | Output |
 |---|------|---------|--------|
-| 16 | shuxos.x | VGA + serial + IDT + keyboard | ShuxOS/T:1/DONE |
+| 16 | xlangos.x | VGA + serial + IDT + keyboard | XlangOS/T:1/DONE |
 | 17 | paging.x | 32-bit paging (4MB identity) | P:80000011,80 |
 | 18 | scheduler.x | Cooperative 2-task scheduler | S12a! |
 | 19 | gdt_syscall.x | GDT + syscall (int 0x80) | G:H30 |
 | 20 | usermode.x | Ring 0→3 via IRET + user syscalls | K:GISUU42 |
-| 21 | shuxos_v2.x | Comprehensive integration | ShuxOS2/T:1,5,5/A:.../P:.../DONE |
+| 21 | xlangos_v2.x | Comprehensive integration | XlangOS2/T:1,5,5/A:.../P:.../DONE |
 | 22 | ramfs.x | In-memory filesystem | F:0,1,2,hello(2) test(4) [2] |
-| 23 | keyboard.x | Set 1 scancode → ASCII | K:hello/shux |
+| 23 | keyboard.x | Set 1 scancode → ASCII | K:hello/xlang |
 | 24 | preempt.x | Preemptive timer scheduler | S/GP:20,10,0 |
 | 25 | pmm.x | Bitmap page frame allocator | M:768,1048576,... |
 | 26 | vmm.x | Virtual memory map/unmap | V:00100000,0,12345 |
@@ -115,7 +115,7 @@ tests/kernel/
 | Entry point | `#[entry]` | All kernels |
 | Used (no DCE) | `#[used]` | ISR handlers, task functions |
 | Link section | `#[link_section(".boot")]` | Multiboot header |
-| Interrupt | `#[interrupt]` | interrupt_handler, shuxos |
+| Interrupt | `#[interrupt]` | interrupt_handler, xlangos |
 | No mangle | `#[no_mangle]` | no_mangle_kernel |
 | Link name | `#[link_name("...")]` | no_mangle_kernel |
 | Max stack | `#[max_stack(N)]` | stack_check |

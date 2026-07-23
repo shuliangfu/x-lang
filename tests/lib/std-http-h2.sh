@@ -3,10 +3,10 @@
 #
 # 用法（source 后）：
 #   std_http_h2_symbols_ok MOD_X HTTP_C TSV
-#   std_http_h2_run_smoke SHUX_BIN X TAG
+#   std_http_h2_run_smoke XLANG_BIN X TAG
 #   std_http_h2_emit_report status wire_ok client_ok network_ok flow_ok skip
 
-STD_HTTP_H2_PREFIX="${SHUX_STD_HTTP_H2_PREFIX:-shux: [SHUX_STD_HTTP_H2]}"
+STD_HTTP_H2_PREFIX="${XLANG_STD_HTTP_H2_PREFIX:-xlang: [XLANG_STD_HTTP_H2]}"
 
 # 校验 manifest symbol/file；echo 缺失数。
 std_http_h2_symbols_ok() {
@@ -60,17 +60,17 @@ std_http_h2_symbols_ok() {
 
 # 编译并运行烟测 .x。
 std_http_h2_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shux_std_http_h2_${tag}_$$"
+  local exe="/tmp/xlang_std_http_h2_${tag}_$$"
   if [ ! -f "$src" ]; then
     echo "std-http-h2 FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-http-h2 FAIL: compile $src" >&2
-    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi

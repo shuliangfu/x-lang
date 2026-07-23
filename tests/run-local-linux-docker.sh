@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 MODE="${1:-both}"
-LOG_DIR="${SHUX_LOCAL_TEST_LOG_DIR:-/tmp/shux-local-test}"
+LOG_DIR="${XLANG_LOCAL_TEST_LOG_DIR:-/tmp/xlang-local-test}"
 mkdir -p "$LOG_DIR"
 
 if ! command -v docker >/dev/null 2>&1; then
@@ -14,7 +14,7 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 
 # Apple Silicon / Linux ARM 宿主默认拉 aarch64 镜像，会误用 aarch64 汇编器编 x86_64 crt0；A-09～A-12 须 linux/amd64。
-DOCKER_PLATFORM="${SHUX_DOCKER_PLATFORM:-}"
+DOCKER_PLATFORM="${XLANG_DOCKER_PLATFORM:-}"
 if [ -z "$DOCKER_PLATFORM" ]; then
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
     Darwin-arm64|Linux-aarch64|Linux-arm64)
@@ -29,15 +29,15 @@ fi
 
 run_in_container() {
   local inner="$1"
-  local image="${SHUX_LINUX_DEV_IMAGE:-shux-linux-dev:22.04-amd64}"
+  local image="${XLANG_LINUX_DEV_IMAGE:-xlang-linux-dev:22.04-amd64}"
   if docker image inspect "$image" >/dev/null 2>&1; then
     # shellcheck disable=SC2086
     docker run --rm $DOCKER_PLATFORM_ARGS \
       -v "$(pwd):/src" \
       -w /src \
       -e CI=1 \
-      -e SHUX_CI_DOCKER=1 \
-      -e SHUX_CI_NO_SKIP=1 \
+      -e XLANG_CI_DOCKER=1 \
+      -e XLANG_CI_NO_SKIP=1 \
       "$image" \
       bash -lc "$inner"
     return
@@ -48,8 +48,8 @@ run_in_container() {
     -v "$(pwd):/src" \
     -w /src \
     -e CI=1 \
-    -e SHUX_CI_DOCKER=1 \
-    -e SHUX_CI_NO_SKIP=1 \
+    -e XLANG_CI_DOCKER=1 \
+    -e XLANG_CI_NO_SKIP=1 \
     ubuntu:22.04 \
     bash -lc "$inner"
 }
@@ -73,7 +73,7 @@ case "$MODE" in
     ;;
   ci-full)
     echo "=== Docker local: run-ci-full-suite.sh ===" | tee "$LOG_DIR/ci-full.log"
-    run_in_container "$DEPS && $BUILD && chmod +x tests/run-ci-full-suite.sh tests/run-portable-suite.sh tests/run-portable-c.sh tests/run-*.sh tests/lib/*.sh 2>/dev/null || true && CI=1 SHUX_CI_NO_SKIP=1 ./tests/run-ci-full-suite.sh" 2>&1 | tee -a "$LOG_DIR/ci-full.log"
+    run_in_container "$DEPS && $BUILD && chmod +x tests/run-ci-full-suite.sh tests/run-portable-suite.sh tests/run-portable-c.sh tests/run-*.sh tests/lib/*.sh 2>/dev/null || true && CI=1 XLANG_CI_NO_SKIP=1 ./tests/run-ci-full-suite.sh" 2>&1 | tee -a "$LOG_DIR/ci-full.log"
     grep -q 'ci-full-suite OK' "$LOG_DIR/ci-full.log"
     echo "ci-full-suite OK (log: $LOG_DIR/ci-full.log)"
     ;;

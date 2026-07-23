@@ -3,14 +3,14 @@
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-SHUX=${SHUX:-./compiler/shux}
+XLANG=${XLANG:-./compiler/xlang}
 
-$SHUX build tests/asm/assign_index_binop_fast.x -o /tmp/shux_asm_assign_index_binop 2>&1
+$XLANG build tests/asm/assign_index_binop_fast.x -o /tmp/xlang_asm_assign_index_binop 2>&1
 exitcode=0
-/tmp/shux_asm_assign_index_binop >/dev/null 2>&1 || exitcode=$?
+/tmp/xlang_asm_assign_index_binop >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 42 ] && { echo "run-asm-assign-index-binop FAIL: expected exit 42, got $exitcode"; exit 1; }
 
-if otool -tv /tmp/shux_asm_assign_index_binop 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'sub.*sp, sp, #0x10'; then
+if otool -tv /tmp/xlang_asm_assign_index_binop 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'sub.*sp, sp, #0x10'; then
   echo "run-asm-assign-index-binop FAIL: main still uses stack push for index assign+binop"
   exit 1
 fi

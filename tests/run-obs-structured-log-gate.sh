@@ -9,8 +9,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_OBS_STRUCT_LOG_DOC:-analysis/obs-structured-log-v1.md}"
-MANIFEST="${SHUX_OBS_STRUCT_LOG_TSV:-tests/baseline/obs-structured-log.tsv}"
+DOC="${XLANG_OBS_STRUCT_LOG_DOC:-analysis/obs-structured-log-v1.md}"
+MANIFEST="${XLANG_OBS_STRUCT_LOG_TSV:-tests/baseline/obs-structured-log.tsv}"
 LOG_X="std/log/log.x"
 LOG_RUNTIME="compiler/seeds/runtime_log_os.from_x.c"
 LOG_X="std/log/mod.x"
@@ -63,7 +63,7 @@ while IFS=$'\t' read -r item_id kind anchor notes; do
       ;;
     bracket_component)
       COMP=$((COMP + 1))
-      if ! grep -rqF "shux: [$anchor]" . \
+      if ! grep -rqF "xlang: [$anchor]" . \
         --include='*.c' --include='*.sh' --include='*.x' 2>/dev/null; then
         echo "obs-structured-log FAIL: bracket component $anchor not found in tree" >&2
         MISS=$((MISS + 1))
@@ -114,10 +114,10 @@ done
 echo "obs-structured-log manifest OK (components=${COMP})"
 
 echo "=== OBS-003: structured log smoke ==="
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/log/log.o runtime_log_os.o -q 2>/dev/null || make -C compiler ../std/log/log.o runtime_log_os.o
 else
-  echo "obs-structured-log gate SKIP smoke (no shux-c)" >&2
+  echo "obs-structured-log gate SKIP smoke (no xlang-c)" >&2
   echo "obs-structured-log gate OK"
   exit 0
 fi
@@ -125,7 +125,7 @@ if [ ! -f "$LOG_O" ]; then
   echo "obs-structured-log gate FAIL: missing $LOG_O" >&2
   exit 1
 fi
-SMOKE_BIN="/tmp/shux_obs_struct_log_smoke_$$"
+SMOKE_BIN="/tmp/xlang_obs_struct_log_smoke_$$"
 cc -std=gnu11 -Wall -Wextra -o "$SMOKE_BIN" "$SMOKE" "$LOG_O" compiler/runtime_log_os.o 2>/tmp/obs_struct_log_build.log || {
   cat /tmp/obs_struct_log_build.log >&2
   echo "obs-structured-log gate FAIL: smoke compile" >&2

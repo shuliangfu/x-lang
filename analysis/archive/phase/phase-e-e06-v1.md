@@ -1,8 +1,8 @@
 # 阶段 E-06 v1（bootstrap 禁 cc -c 编译器前端 `.c`）
 
-> **E-06 v1**：默认 **B-strict / bootstrap-driver-seed** 路径不得 `cc -c` E-03 软退役的前端 C TU；**链接 ld/clang 除外**。`build_shux_asm` 内 `asm_driver_seed/` 考古与 `shux-c`（`OBJS_CORE`）仍 track-only（见 E-03 v3）。
+> **E-06 v1**：默认 **B-strict / bootstrap-driver-seed** 路径不得 `cc -c` E-03 软退役的前端 C TU；**链接 ld/clang 除外**。`build_xlang_asm` 内 `asm_driver_seed/` 考古与 `xlang-c`（`OBJS_CORE`）仍 track-only（见 E-03 v3）。
 
-## v1 完成（✅ manifest + build_shux_asm 日志审计）
+## v1 完成（✅ manifest + build_xlang_asm 日志审计）
 
 | 禁止 `cc -c`（strict 段） | 替代 |
 |---------------------------|------|
@@ -22,13 +22,13 @@
 | `runtime.c` / `main.c` | E-04 active |
 | bridge / stub / `*_gen.c` | 编排与 -E 产物 |
 | `asm_driver_seed/*.o` | E-03 v3 考古 |
-| `shux-c` / `OBJS_CORE` | 冷启动（日志段外） |
+| `xlang-c` / `OBJS_CORE` | 冷启动（日志段外） |
 
 ## 复现
 
 ```bash
 make -C compiler bootstrap-driver-bstrict 2>&1 | tee /tmp/build_bstrict.log
-SHUX_E06_FAIL=1 SHUX_E06_BUILD_LOG=/tmp/build_bstrict.log ./tests/run-e06-no-compiler-frontend-cc-gate.sh
+XLANG_E06_FAIL=1 XLANG_E06_BUILD_LOG=/tmp/build_bstrict.log ./tests/run-e06-no-compiler-frontend-cc-gate.sh
 ```
 
 ## 延后（E-06 v1）

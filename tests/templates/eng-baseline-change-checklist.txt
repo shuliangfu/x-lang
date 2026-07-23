@@ -4,4 +4,4 @@
 - [ ] 已 bump tests/baseline/perf-baseline-registry.tsv 对应 version（v1.YYYY-MM-DD）
 - [ ] 已跑对应 gate_script（见 registry）
 - [ ] 已跑 ./tests/run-eng-baseline-governance-gate.sh
-- [ ] PR 说明：变更原因、host、Shu/Zig 版本、median 前后对比
+- [ ] PR 说明：变更原因、host、Xlang/Zig 版本、median 前后对比

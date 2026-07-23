@@ -480,6 +480,217 @@ export function println(x: f64): i32 {
 }
 
 /** Exported function `format`.
+ * Implements `format` (2-arg i32+i32 variant).
+ * @param buf *u8
+ * @param cap i32
+ * @param a i32
+ * @param b i32
+ * @return i32
+ */
+export function format(buf: *u8, cap: i32, a: i32, b: i32): i32 {
+  let n1: i32 = fmt.fmt_i32_to_buf(buf, cap, a);
+  if (n1 < 0) { return -1; }
+  let n2: i32 = fmt.fmt_i32_to_buf(&buf[n1], cap - n1, b);
+  if (n2 < 0) { return -1; }
+  return n1 + n2;
+}
+/** Exported function `format`.
+ * Implements `format` (2-arg i32+u32 variant).
+ * @param buf *u8
+ * @param cap i32
+ * @param a i32
+ * @param b u32
+ * @return i32
+ */
+export function format(buf: *u8, cap: i32, a: i32, b: u32): i32 {
+  let n1: i32 = fmt.fmt_i32_to_buf(buf, cap, a);
+  if (n1 < 0) { return -1; }
+  let n2: i32 = fmt.fmt_u32_to_buf(&buf[n1], cap - n1, b);
+  if (n2 < 0) { return -1; }
+  return n1 + n2;
+}
+/** Exported function `format`.
+ * Implements `format` (2-arg u32+i32 variant).
+ * @param buf *u8
+ * @param cap i32
+ * @param a u32
+ * @param b i32
+ * @return i32
+ */
+export function format(buf: *u8, cap: i32, a: u32, b: i32): i32 {
+  let n1: i32 = fmt.fmt_u32_to_buf(buf, cap, a);
+  if (n1 < 0) { return -1; }
+  let n2: i32 = fmt.fmt_i32_to_buf(&buf[n1], cap - n1, b);
+  if (n2 < 0) { return -1; }
+  return n1 + n2;
+}
+/** Exported function `format`.
+ * Implements `format` (2-arg u32+u32 variant).
+ * @param buf *u8
+ * @param cap i32
+ * @param a u32
+ * @param b u32
+ * @return i32
+ */
+export function format(buf: *u8, cap: i32, a: u32, b: u32): i32 {
+  let n1: i32 = fmt.fmt_u32_to_buf(buf, cap, a);
+  if (n1 < 0) { return -1; }
+  let n2: i32 = fmt.fmt_u32_to_buf(&buf[n1], cap - n1, b);
+  if (n2 < 0) { return -1; }
+  return n1 + n2;
+}
+/** Exported function `format`.
+ * Implements `format` (2-arg i64+i32 variant).
+ * @param buf *u8
+ * @param cap i32
+ * @param a i64
+ * @param b i32
+ * @return i32
+ */
+export function format(buf: *u8, cap: i32, a: i64, b: i32): i32 {
+  let n1: i32 = fmt.fmt_i64_to_buf(buf, cap, a);
+  if (n1 < 0) { return -1; }
+  let n2: i32 = fmt.fmt_i32_to_buf(&buf[n1], cap - n1, b);
+  if (n2 < 0) { return -1; }
+  return n1 + n2;
+}
+/** Exported function `format`.
+ * Implements `format` (2-arg i32+i64 variant).
+ * @param buf *u8
+ * @param cap i32
+ * @param a i32
+ * @param b i64
+ * @return i32
+ */
+export function format(buf: *u8, cap: i32, a: i32, b: i64): i32 {
+  let n1: i32 = fmt.fmt_i32_to_buf(buf, cap, a);
+  if (n1 < 0) { return -1; }
+  let n2: i32 = fmt.fmt_i64_to_buf(&buf[n1], cap - n1, b);
+  if (n2 < 0) { return -1; }
+  return n1 + n2;
+}
+/** Exported function `format`.
+ * Implements `format` (2-arg i64+i64 variant).
+ * @param buf *u8
+ * @param cap i32
+ * @param a i64
+ * @param b i64
+ * @return i32
+ */
+export function format(buf: *u8, cap: i32, a: i64, b: i64): i32 {
+  let n1: i32 = fmt.fmt_i64_to_buf(buf, cap, a);
+  if (n1 < 0) { return -1; }
+  let n2: i32 = fmt.fmt_i64_to_buf(&buf[n1], cap - n1, b);
+  if (n2 < 0) { return -1; }
+  return n1 + n2;
+}
+/** Exported function `format`.
+ * Implements `format` (2-arg u64+u64 variant).
+ * @param buf *u8
+ * @param cap i32
+ * @param a u64
+ * @param b u64
+ * @return i32
+ */
+export function format(buf: *u8, cap: i32, a: u64, b: u64): i32 {
+  let n1: i32 = fmt.fmt_u64_to_buf(buf, cap, a);
+  if (n1 < 0) { return -1; }
+  let n2: i32 = fmt.fmt_u64_to_buf(&buf[n1], cap - n1, b);
+  if (n2 < 0) { return -1; }
+  return n1 + n2;
+}
+/** Exported function `format`.
+ * Implements `format` (2-arg usize+usize variant).
+ * @param buf *u8
+ * @param cap i32
+ * @param a usize
+ * @param b usize
+ * @return i32
+ */
+export function format(buf: *u8, cap: i32, a: usize, b: usize): i32 {
+  let n1: i32 = fmt.fmt_usize_to_buf(buf, cap, a);
+  if (n1 < 0) { return -1; }
+  let n2: i32 = fmt.fmt_usize_to_buf(&buf[n1], cap - n1, b);
+  if (n2 < 0) { return -1; }
+  return n1 + n2;
+}
+/** Exported function `format`.
+ * Implements `format` (2-arg isize+i32 variant).
+ * @param buf *u8
+ * @param cap i32
+ * @param a isize
+ * @param b i32
+ * @return i32
+ */
+export function format(buf: *u8, cap: i32, a: isize, b: i32): i32 {
+  let n1: i32 = fmt.fmt_isize_to_buf(buf, cap, a);
+  if (n1 < 0) { return -1; }
+  let n2: i32 = fmt.fmt_i32_to_buf(&buf[n1], cap - n1, b);
+  if (n2 < 0) { return -1; }
+  return n1 + n2;
+}
+/** Exported function `format`.
+ * Implements `format` (2-arg i32+usize variant).
+ * @param buf *u8
+ * @param cap i32
+ * @param a i32
+ * @param b usize
+ * @return i32
+ */
+export function format(buf: *u8, cap: i32, a: i32, b: usize): i32 {
+  let n1: i32 = fmt.fmt_i32_to_buf(buf, cap, a);
+  if (n1 < 0) { return -1; }
+  let n2: i32 = fmt.fmt_usize_to_buf(&buf[n1], cap - n1, b);
+  if (n2 < 0) { return -1; }
+  return n1 + n2;
+}
+/** Exported function `format`.
+ * Implements `format` (2-arg ptr+i32 variant).
+ * @param buf *u8
+ * @param cap i32
+ * @param p *u8
+ * @param v i32
+ * @return i32
+ */
+export function format(buf: *u8, cap: i32, p: *u8, v: i32): i32 {
+  let n1: i32 = fmt.fmt_ptr_to_buf(buf, cap, p);
+  if (n1 < 0) { return -1; }
+  let n2: i32 = fmt.fmt_i32_to_buf(&buf[n1], cap - n1, v);
+  if (n2 < 0) { return -1; }
+  return n1 + n2;
+}
+/** Exported function `format`.
+ * Implements `format` (2-arg bool+bool variant).
+ * @param buf *u8
+ * @param cap i32
+ * @param a bool
+ * @param b bool
+ * @return i32
+ */
+export function format(buf: *u8, cap: i32, a: bool, b: bool): i32 {
+  let n1: i32 = fmt.fmt_bool_to_buf(buf, cap, a);
+  if (n1 < 0) { return -1; }
+  let n2: i32 = fmt.fmt_bool_to_buf(&buf[n1], cap - n1, b);
+  if (n2 < 0) { return -1; }
+  return n1 + n2;
+}
+/** Exported function `format`.
+ * Implements `format` (2-arg f64+i32 variant).
+ * @param buf *u8
+ * @param cap i32
+ * @param x f64
+ * @param v i32
+ * @return i32
+ */
+export function format(buf: *u8, cap: i32, x: f64, v: i32): i32 {
+  let n1: i32 = fmt.fmt_f64_to_buf(buf, cap, x);
+  if (n1 < 0) { return -1; }
+  let n2: i32 = fmt.fmt_i32_to_buf(&buf[n1], cap - n1, v);
+  if (n2 < 0) { return -1; }
+  return n1 + n2;
+}
+
+/** Exported function `format`.
  * Implements `format`.
  * @param buf *u8
  * @param cap i32

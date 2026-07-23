@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-security.sh — STD-079 manifest 与烟测辅助（F-security v1 + F-ZC：纯 security.x）
 
-STD_SECURITY_PREFIX="${SHUX_STD_SECURITY_PREFIX:-shux: [SHUX_STD_SECURITY]}"
+STD_SECURITY_PREFIX="${XLANG_STD_SECURITY_PREFIX:-xlang: [XLANG_STD_SECURITY]}"
 
 # 遍历 manifest；symbol 在 security.x。
 std_security_symbols_ok() {
@@ -46,7 +46,7 @@ std_security_symbols_ok() {
 std_security_run_c_smoke() {
   local sec_x="$1"
   local src="tests/std-security/security_smoke_ok.c"
-  local out="/tmp/shux_std_security_$$"
+  local out="/tmp/xlang_std_security_$$"
   local sec_o crypto_o
   sec_o="$(dirname "$sec_x")/security.o"
   crypto_o="std/crypto/crypto.o"
@@ -74,13 +74,13 @@ std_security_run_c_smoke() {
 }
 
 std_security_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-security}"
-  local exe="/tmp/shux_std_security_${tag}_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std_security_${tag}_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-security FAIL: compile $src" >&2
-    "$shux" -L . "$src" 2>&1 | tail -12 >&2 || true
+    "$xlang" -L . "$src" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi

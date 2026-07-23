@@ -5,7 +5,7 @@
 #   safe_crash_emit_report status bundle_path frames
 #   safe_crash_grep_evidence logfile
 
-SAFE_CRASH_PREFIX="${SHUX_CRASH_EVIDENCE_PREFIX:-shux: [SHUX_CRASH_EVIDENCE]}"
+SAFE_CRASH_PREFIX="${XLANG_CRASH_EVIDENCE_PREFIX:-xlang: [XLANG_CRASH_EVIDENCE]}"
 
 # 输出结构化证据报告行。
 safe_crash_emit_report() {
@@ -15,8 +15,8 @@ safe_crash_emit_report() {
   echo "${SAFE_CRASH_PREFIX} gate_status=${status} bundle=${bundle} frames=${frames}"
 }
 
-# 日志中须含 SHUX_CRASH_EVIDENCE 摘要行。
+# 日志中须含 XLANG_CRASH_EVIDENCE 摘要行。
 safe_crash_grep_evidence() {
   local log="$1"
-  grep -qF 'shux: [SHUX_CRASH_EVIDENCE]' "$log" 2>/dev/null
+  grep -qF 'xlang: [XLANG_CRASH_EVIDENCE]' "$log" 2>/dev/null
 }

@@ -49,9 +49,9 @@
 ## 4. 验收
 
 - manifest：`tests/baseline/core-slice-api.tsv`
-- typeck：`shux check tests/slice/subslice_split_chunks.x`
+- typeck：`xlang check tests/slice/subslice_split_chunks.x`
 - runnable：`tests/run-slice.sh` 扩展子集
-- 报告：`shux: [SHUX_CORE_SLICE_API] status=ok`
+- 报告：`xlang: [XLANG_CORE_SLICE_API] status=ok`
 
 ---
 

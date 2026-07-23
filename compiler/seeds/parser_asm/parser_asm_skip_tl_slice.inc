@@ -960,6 +960,8 @@ void parser_asm_extern_parse_set_fail_c(struct parser_asm_extern_parse_result *o
   out->return_ty_ref = 0;
   out->num_params = 0;
   out->abi_kind = 0;
+  out->is_variadic = 0;
+  out->has_body = 0;
 }
 
 
@@ -994,6 +996,7 @@ void parser_asm_parse_one_extern_skip_into_slice_c(struct parser_asm_extern_pars
   ast_pool_onefunc_reset((uint8_t *)out);
   out->abi_kind = 0; /* 默认 X ABI；extern "C" 时在下方设为 1 */
   out->is_variadic = 0; /* 默认定参；遇到 `...` 时在参数循环中设为 1 */
+  out->has_body = 0;   /* 默认纯声明；遇到 `{` 时在下方设为 1 */
   lexer_next_into(&r, lex, source);
   if (r.tok.kind != (int32_t)TOKEN_EXTERN) {
     parser_asm_extern_parse_set_fail_c(out, lex);
@@ -1123,11 +1126,25 @@ void parser_asm_parse_one_extern_skip_into_slice_c(struct parser_asm_extern_pars
     return;
   }
   lexer_next_into(&r, lex, source);
+  if (r.tok.kind == (int32_t)TOKEN_LBRACE) {
+    /* Body-bearing extern: `extern "C" function ... { body }`.
+     * Set has_body=1 and leave next_lex BEFORE '{' so caller can parse body
+     * via parse_block_into (parser.x). Caller sets is_extern=0 + body_ref. */
+    out->has_body = 1;
+    out->next_lex = lex;
+    out->name_len = name_len;
+    out->return_ty_ref = ret_ty;
+    out->num_params = n_ex;
+    for (nk = 0; nk < 64; nk++)
+      out->name[nk] = name_buf[nk];
+    return;
+  }
   if (r.tok.kind != (int32_t)TOKEN_SEMICOLON) {
     parser_asm_extern_parse_set_fail_c(out, lex);
     return;
   }
   parser_asm_lex_from_result_val_into(&lex, r);
+  out->has_body = 0;
   out->next_lex = lex;
   out->name_len = name_len;
   out->return_ty_ref = ret_ty;
@@ -1187,7 +1204,10 @@ void parser_asm_parse_one_extern_and_add_into_slice_c(void *arena, void *module,
   f.return_type_ref = type_ref;
   f.body_ref = 0;
   f.body_expr_ref = 0;
-  f.is_extern = 1;
+  /* Body-bearing extern (`extern "C" function ... { body }`): is_extern=0 so codegen
+   * emits the body. Caller (.x TOKEN_EXTERN dispatch) parses body via parse_block_into
+   * and sets body_ref. Pure declaration: is_extern=1 (codegen skips body). */
+  f.is_extern = (res.has_body == 1) ? 0 : 1;
   f.is_async = 0;
   f.abi_kind = res.abi_kind;
   f.is_variadic = res.is_variadic;
@@ -1202,6 +1222,8 @@ void parser_asm_parse_one_extern_and_add_into_slice_c(void *arena, void *module,
     return;
   }
   parser_asm_write_extern_params_to_pools_c(arena, module, func_ref, fi_ex, &res);
+  /* For has_body=1: next_lex is BEFORE '{' — caller (.x) reads '{' then calls parse_block_into.
+   * For pure decl: next_lex is after ';'. */
   lex_out->pos = res.next_lex.pos;
   lex_out->line = res.next_lex.line;
   lex_out->col = res.next_lex.col;

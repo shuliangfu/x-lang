@@ -2,11 +2,11 @@
 # F-05 v1：std.db.arrow 去 C 门禁。
 #
 # 用法：./tests/run-f05-std-db-arrow-v1-gate.sh
-# 环境：SHUX_F05_DB_ARROW_V1_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F05_DB_ARROW_V1_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F05_DB_ARROW_V1_FAIL:-0}
+FAIL=${XLANG_F05_DB_ARROW_V1_FAIL:-0}
 DOC="analysis/phase-f-f05-v1.md"
 
 die() {
@@ -47,7 +47,7 @@ EOF
   "$TMP/arrow_smoke" || die "arrow smoke run failed"
   echo "f05 arrow smoke OK"
 else
-  echo "f05 arrow smoke SKIP (arrow.o missing .x symbols; need shux-c)"
+  echo "f05 arrow smoke SKIP (arrow.o missing .x symbols; need xlang-c)"
 fi
 
 if [ -f tests/run-std-db-kv-arrow-gate.sh ]; then

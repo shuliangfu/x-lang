@@ -6,7 +6,7 @@
 # NL-07 v7: keep SysV 16B stack alignment before C calls (do not extra sub $8).
 #
 # Exit path (2026-07-16, Stage2 + g05 dual topology):
-#   Freestanding (build_shux_asm / Stage2 gen2): links bootstrap_nostdlib_stubs — call
+#   Freestanding (build_xlang_asm / Stage2 gen2): links bootstrap_nostdlib_stubs — call
 #   bootstrap_flush_stdio_and_exit (skips fflush on stub FILE*{fd}; static glibc _IO_fflush
 #   on that stub SIGSEGVs).
 #   Hosted/dynamic g05 product: does NOT link bootstrap_nostdlib_stubs (would hijack

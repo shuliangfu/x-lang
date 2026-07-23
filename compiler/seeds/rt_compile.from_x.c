@@ -1,6 +1,6 @@
 /* seeds/rt_compile.from_x.c — G-02f-291～296 P2 runtime R6 compile helpers
  * Logic source: src/runtime/rt_compile.x
- * Hybrid: SHUX_RT_COMPILE_FROM_X + ld -r into runtime_driver_no_c.o
+ * Hybrid: XLANG_RT_COMPILE_FROM_X + ld -r into runtime_driver_no_c.o
  *
  * R2 full（2026-07-14）：25 公共业务符号均由 .x 提供；
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务符号 H=0）。
@@ -64,8 +64,8 @@ extern int drv_eq_asm_word(const char *buf, int len);
 extern int drv_eq_c_word(const char *buf, int len);
 extern int drv_path_ends_x(const char *buf, int len);
 extern int drv_target_has_arm(const char *buf, int len);
-extern int shu_target_cpu_resolve(const char *spec, size_t spec_len, uint32_t *out);
-extern uint32_t shu_target_cpu_generic_for_host(void);
+extern int xlang_target_cpu_resolve(const char *spec, size_t spec_len, uint32_t *out);
+extern uint32_t xlang_target_cpu_generic_for_host(void);
 extern void diag_reportf(const char *file, int line, int col, const char *kind, const char *detail, const char *fmt,
                          ...);
 extern void diag_report_with_code(const char *file, int line, int col, const char *kind, const char *code,
@@ -73,7 +73,7 @@ extern void diag_report_with_code(const char *file, int line, int col, const cha
 extern void cfg_apply_compile_target_from_triple(const char *triple, int32_t len);
 extern int32_t driver_resolve_target_arch(int32_t parsed_target, int32_t saw_target_flag);
 
-#ifndef SHUX_RT_COMPILE_FROM_X
+#ifndef XLANG_RT_COMPILE_FROM_X
 
 /**
  * dep 列表是否全为 std./core. 闭包（符号由预编 .o / preamble 提供，勿 dep_prerun 全量 typeck）。
@@ -153,9 +153,9 @@ void driver_compile_argv_set_use_freestanding_c(DriverCompileStateSU *state) {
   cfg_set_freestanding(1);
 }
 
-/** `-legacy-f32-abi`：等价 SHUX_ABI_F32_XMM=0。 */
+/** `-legacy-f32-abi`：等价 XLANG_ABI_F32_XMM=0。 */
 void driver_compile_argv_set_legacy_f32_abi_c(void) {
-  setenv("SHUX_ABI_F32_XMM", "0", 1);
+  setenv("XLANG_ABI_F32_XMM", "0", 1);
 }
 
 /** `-fsanitize=address`：M-6 debug 边界插桩。 */
@@ -436,9 +436,9 @@ void driver_compile_resolve_target_cpu_c(DriverCompileStateSU *state) {
     spec = (const char *)state->target_cpu_buf;
     spec_len = (size_t)state->target_cpu_len;
   }
-  if (shu_target_cpu_resolve(spec, spec_len, &feats) != 0) {
+  if (xlang_target_cpu_resolve(spec, spec_len, &feats) != 0) {
     diag_report_with_code(NULL, 0, 0, "note", NULL, "unknown -target-cpu; using generic baseline", NULL);
-    feats = shu_target_cpu_generic_for_host();
+    feats = xlang_target_cpu_generic_for_host();
   }
   state->target_cpu_features = (int32_t)feats;
 }
@@ -489,7 +489,7 @@ void driver_compile_state_free_c(DriverCompileStateSU *state) {
     free(state);
 }
 
-#else /* SHUX_RT_COMPILE_FROM_X：产品 rest 仅前向声明；业务体在 .x */
+#else /* XLANG_RT_COMPILE_FROM_X：产品 rest 仅前向声明；业务体在 .x */
 
 int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps);
 int driver_x_emit_asm_dep_parse_only_ok(const char *input_path, const char *dep_path);
@@ -524,7 +524,7 @@ int32_t driver_compile_parse_argv_impl_c(int32_t argc, uint8_t *argv_opaque, Dri
 DriverCompileStateSU *driver_compile_state_alloc_c(void);
 void driver_compile_state_free_c(DriverCompileStateSU *state);
 
-#endif /* SHUX_RT_COMPILE_FROM_X */
+#endif /* XLANG_RT_COMPILE_FROM_X */
 
 int labi_rt_compile_slice_marker(void) {
   return 1;

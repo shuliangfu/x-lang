@@ -21,7 +21,7 @@
 // Phase: Phase 0+
 // Responsibility:
 //   - Three-oracle comparison (§9.2): C backend / IR interpreter / IR codegen
-//   - Pre-self-host: verify shux vs clang on the same source
+//   - Pre-self-host: verify xlang vs clang on the same source
 // Depends: ./interp / ../../codegen
 // Design constraints:
 //   - Mismatch = compiler bug; fail-fast; cover all 22 opcodes

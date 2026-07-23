@@ -23,7 +23,7 @@ golden_unsafe	golden	tests/vscode-grammar/unsafe_ptr.x	tests/vscode-grammar/unsa
 pkg	file	editors/vscode/package.json	editors/vscode/package.json	-	0.2.0
 grammar	file	editors/vscode/grammars/x.tmLanguage.json	editors/vscode/grammars/x.tmLanguage.json	-	tm
 version_file	file	VERSION	VERSION	-	sync
-vsix_pattern	artifact	vscode-shux-0.2.0.vsix	editors/vscode	-	release
+vsix_pattern	artifact	vscode-xlang-0.2.0.vsix	editors/vscode	-	release
 lib	script	lib/tool-vscode-020.sh	tests/lib/tool-vscode-020.sh	-	helper
 gate	script	run-tool-vscode-020-gate.sh	tests/run-tool-vscode-020-gate.sh	-	manifest
 hook_pack	hook_script	run-tool-vscode-pack.sh	run-tool-vscode-pack.sh	-	vsix

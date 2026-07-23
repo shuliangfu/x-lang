@@ -12,7 +12,7 @@ DOC="analysis/std-math-fenv-capability-v1.md"
 MANIFEST="tests/baseline/std-math-fenv-capability-manifest.tsv"
 VECTORS="tests/baseline/std-math-fenv-capability.tsv"
 MOD_X="std/math/mod.x"
-MATH_RUNTIME="${SHUX_STD_MATH_IMPL:-compiler/seeds/runtime_math_libm.from_x.c}"
+MATH_RUNTIME="${XLANG_STD_MATH_IMPL:-compiler/seeds/runtime_math_libm.from_x.c}"
 LIB="tests/lib/std-math-fenv-capability.sh"
 SMOKE_X="tests/std-math/fenv_capability.x"
 SMOKE_C="tests/std-math/fenv_capability_ok.c"
@@ -28,7 +28,7 @@ for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$MATH_RUNTIME" "$SMOKE_X
   fi
 done
 
-for kw in STD-149 fenv_available SHUX_MATH_FENV_CAP FENV_NOT_IMPL; do
+for kw in STD-149 fenv_available XLANG_MATH_FENV_CAP FENV_NOT_IMPL; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-math-fenv-cap gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -63,17 +63,17 @@ fi
 
 X_OK=0
 SKIP=0
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ]; then
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-math-fenv-cap gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_math_fenv_cap_emit_report "fail" "$C_OK" 0 0 "$(ci_host_summary)"
     exit 1
   fi
-  if std_math_fenv_cap_run_x_smoke "$SHUX_BIN" "$SMOKE_X"; then
+  if std_math_fenv_cap_run_x_smoke "$XLANG_BIN" "$SMOKE_X"; then
     X_OK=1
   else
     std_math_fenv_cap_emit_report "fail" "$C_OK" 0 0 "$(ci_host_summary)"

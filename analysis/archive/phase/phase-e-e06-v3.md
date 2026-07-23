@@ -22,7 +22,7 @@
 ## 复现
 
 ```bash
-SHUX_E06_FAIL=1 ./tests/run-e06-no-compiler-frontend-cc-gate.sh
+XLANG_E06_FAIL=1 ./tests/run-e06-no-compiler-frontend-cc-gate.sh
 make -C compiler bootstrap-driver-bstrict 2>&1 | tee /tmp/build_bstrict.log
-SHUX_E06_BUILD_LOG=/tmp/build_bstrict.log SHUX_E06_FAIL=1 ./tests/run-e06-no-compiler-frontend-cc-gate.sh
+XLANG_E06_BUILD_LOG=/tmp/build_bstrict.log XLANG_E06_FAIL=1 ./tests/run-e06-no-compiler-frontend-cc-gate.sh
 ```

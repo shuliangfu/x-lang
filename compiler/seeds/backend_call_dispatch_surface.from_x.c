@@ -1,10 +1,10 @@
 /* seeds/backend_call_dispatch_surface.from_x.c
  * R2 full surface — isomorphic with src/asm/backend_call_dispatch.x
  * Product PREFER_X_O: g05_try_x_to_o(backend_call_dispatch.x) + hybrid rest
- *   seeds/backend_call_dispatch.from_x.c (-DSHUX_BACKEND_CALL_DISPATCH_FROM_X) ld -r
+ *   seeds/backend_call_dispatch.from_x.c (-DXLANG_BACKEND_CALL_DISPATCH_FROM_X) ld -r
  * R2: full.x 吃满 CALL/emit/import 公共业务；FROM_X rest 仅 slice_marker（业务 H=0）
  * Prove: full.x vs this seed → nm IDENTICAL
- * Regen: ./shux -E ... src/asm/backend_call_dispatch.x | filter DBG + polish prologue
+ * Regen: ./xlang -E ... src/asm/backend_call_dispatch.x | filter DBG + polish prologue
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -20,6 +20,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+/* wave231 G.7: env via public pure thin link_abi_getenv (not raw libc getenv). */
+extern char *link_abi_getenv(const char *name);
 extern int32_t backend_call_dispatch_x_doc_anchor(void);
 extern int32_t pipeline_asm_abi_f32_xmm_enabled_c(void);
 extern void pipeline_asm_emit_set_call_f32_xmm(int32_t on);
@@ -64,7 +66,7 @@ extern int32_t glue_sysv_x86_call_n_stack_c(uint8_t * arena, int32_t call, int32
 extern int32_t glue_asm_string_lit_len(uint8_t * arena, int32_t er);
 extern int32_t glue_asm_build_import_binding_call_sym(uint8_t * pre, int32_t plen, uint8_t * field, int32_t flen, uint8_t * out);
 extern int32_t glue_call_param_type_ref_at(uint8_t * arena, int32_t call, int32_t pix);
-extern int32_t glue_try_std_string_shux_redirect_sym_local(uint8_t * name, int32_t nlen, uint8_t * out, int32_t cap);
+extern int32_t glue_try_std_string_xlang_redirect_sym_local(uint8_t * name, int32_t nlen, uint8_t * out, int32_t cap);
 extern int32_t glue_try_std_encoding_redirect_sym_local(uint8_t * name, int32_t nlen, uint8_t * out, int32_t cap);
 extern int32_t glue_try_std_heap_redirect_sym_local(uint8_t * name, int32_t nlen, uint8_t * out, int32_t cap);
 static int32_t g_pipeline_asm_emit_call_f32_xmm;
@@ -76,7 +78,8 @@ int32_t backend_call_dispatch_x_doc_anchor(void) {
 }
 int32_t pipeline_asm_abi_f32_xmm_enabled_c(void) {
   {
-    uint8_t * env = getenv((uint8_t[]){83, 72, 85, 88, 95, 65, 66, 73, 95, 70, 51, 50, 95, 88, 77, 77, 0 });
+    /* wave231 G.7: XLANG_ABI_F32_XMM via link_abi_getenv (not raw getenv). */
+    uint8_t * env = (uint8_t *)link_abi_getenv((const char *)(uint8_t[]){83, 72, 85, 88, 95, 65, 66, 73, 95, 70, 51, 50, 95, 88, 77, 77, 0 });
     if ((env !=0)) {
       if (((env)[0] ==48)) {
         if (((env)[1] ==0)) {
@@ -1035,7 +1038,7 @@ int32_t glue_asm_enc_call_redirected(uint8_t * elf_ctx, uint8_t * name, int32_t 
     uint8_t redir[64] = {};
     int32_t rlen = glue_try_std_heap_redirect_sym_local(name, name_len, &((redir)[0]), 64);
     if ((rlen <=0)) {
-      (void)((rlen = glue_try_std_string_shux_redirect_sym_local(name, name_len, &((redir)[0]), 64)));
+      (void)((rlen = glue_try_std_string_xlang_redirect_sym_local(name, name_len, &((redir)[0]), 64)));
     }
     if ((rlen <=0)) {
       (void)((rlen = glue_try_std_encoding_redirect_sym_local(name, name_len, &((redir)[0]), 64)));
@@ -1857,8 +1860,9 @@ int32_t pipeline_asm_emit_call_elf_c(uint8_t * arena, uint8_t * elf_ctx, int32_t
     (void)(((knofold)[14] = 76));
     (void)(((knofold)[15] = 68));
     (void)(((knofold)[16] = 0));
-    if ((getenv(&((kmono)[0])) ==0)) {
-      if ((getenv(&((knofold)[0])) ==0)) {
+    /* wave231 G.7: XLANG_WPO_MONO / XLANG_WPO_NO_FOLD via link_abi_getenv (not raw getenv). */
+    if ((link_abi_getenv((const char *)&((kmono)[0])) ==0)) {
+      if ((link_abi_getenv((const char *)&((knofold)[0])) ==0)) {
         (void)((inline_rc = try_inline_wpo_const_vector_lane_of_binop_call_elf(arena, elf_ctx, expr_ref, ctx, ta)));
         if ((inline_rc !=0)) {
           if ((inline_rc < 0)) {
@@ -2258,7 +2262,7 @@ int32_t glue_call_param_type_ref_at(uint8_t * arena, int32_t call, int32_t pix) 
   }
   return 0;
 }
-int32_t glue_try_std_string_shux_redirect_sym_local(uint8_t * name, int32_t nlen, uint8_t * out, int32_t cap) {
+int32_t glue_try_std_string_xlang_redirect_sym_local(uint8_t * name, int32_t nlen, uint8_t * out, int32_t cap) {
   if ((name ==0)) {
     return 0;
   }

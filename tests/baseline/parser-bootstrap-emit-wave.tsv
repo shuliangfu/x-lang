@@ -1,8 +1,8 @@
 # BOOT-024 parser bootstrap emit 波次矩阵
 # 列：boot_id	phase	hook	role	notes
 # min_rows	4
-# env_full	SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT
-# env_minimal	SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT_MINIMAL
+# env_full	XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT
+# env_minimal	XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT_MINIMAL
 boot_c1	C1	run-parser-parse-bootstrap-gate.sh	seed	C TU parse_into_buf
 boot_c2	C2	run-parser-parse-bootstrap-link-smoke.sh	link	experimental 链
 boot_bisect	C2	run-parser-parse-bootstrap-bisect-gate.sh	bisect	MINIMAL+FULL

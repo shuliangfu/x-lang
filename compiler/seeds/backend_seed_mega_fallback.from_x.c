@@ -4,7 +4,7 @@
  * Promoted from compiler/src/asm/backend_seed_mega_fallback.inc (stub/bridge; retired .inc).
  * Compile: cc -c / cc_inc_tu seeds/backend_seed_mega_fallback.from_x.c
  */
-#include <shux_weak.h>
+#include <xlang_weak.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -78,9 +78,9 @@ extern int32_t pipeline_backend_asm_codegen_ast_to_elf_c(struct ast_Module *modu
 
 /* thin+rest 切割：thin 部分（pipeline_seed_mega_ctx_reset / pipeline_dep_ctx_target_arch_local）由 .x 提供,
  * rest 模式下跳过编译避免重复定义; rest 部分（backend_asm_codegen / backend_emit 14 函数）始终编译.
- * 宏边界：SHUX_BACKEND_SEED_MEGA_FALLBACK_FROM_X
+ * 宏边界：XLANG_BACKEND_SEED_MEGA_FALLBACK_FROM_X
  * rest 跨调用依赖：backend_asm_codegen_ast_seed_mega 调用 pipeline_seed_mega_ctx_reset + pipeline_dep_ctx_target_arch_local（thin 提供） */
-#ifndef SHUX_BACKEND_SEED_MEGA_FALLBACK_FROM_X
+#ifndef XLANG_BACKEND_SEED_MEGA_FALLBACK_FROM_X
 /* G-02f-150：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void pipeline_seed_mega_ctx_reset(pipeline_glue_AsmFuncCtxLayout *ctx, struct ast_Module *mod) {
   int32_t label_counter;
@@ -102,7 +102,7 @@ int32_t pipeline_dep_ctx_target_arch_local(struct ast_PipelineDepCtx *ctx) {
 /* rest 模式：thin 函数由 .x 提供，extern 声明供 rest 部分调用 */
 extern void pipeline_seed_mega_ctx_reset(pipeline_glue_AsmFuncCtxLayout *ctx, struct ast_Module *mod);
 extern int32_t pipeline_dep_ctx_target_arch_local(struct ast_PipelineDepCtx *ctx);
-#endif /* SHUX_BACKEND_SEED_MEGA_FALLBACK_FROM_X */
+#endif /* XLANG_BACKEND_SEED_MEGA_FALLBACK_FROM_X */
 
 
 int32_t backend_asm_codegen_ast_seed_mega(struct ast_Module *module, struct ast_ASTArena *arena,
@@ -228,7 +228,7 @@ int32_t backend_asm_codegen_ast_to_elf(struct ast_Module *module, struct ast_AST
  * fallback partial 只保证 seed 链可链接并保留强 seed_mega；
  * 与本地已存在的 asm_backend_partial.o 一致，补齐 phase1 仍会引用的 backend_emit_* 弱占位符。
  */
-SHUX_WEAK int32_t backend_emit_block_body(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+XLANG_WEAK int32_t backend_emit_block_body(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
                                                       int32_t block_ref, struct backend_AsmFuncCtx *ctx,
                                                       int32_t target_arch) {
   (void)arena;
@@ -239,7 +239,7 @@ SHUX_WEAK int32_t backend_emit_block_body(struct ast_ASTArena *arena, struct cod
   return 0;
 }
 
-SHUX_WEAK int32_t backend_emit_block_inits(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+XLANG_WEAK int32_t backend_emit_block_inits(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
                                                        int32_t block_ref, struct backend_AsmFuncCtx *ctx,
                                                        int32_t target_arch, int32_t slot_base) {
   (void)arena;
@@ -251,7 +251,7 @@ SHUX_WEAK int32_t backend_emit_block_inits(struct ast_ASTArena *arena, struct co
   return 0;
 }
 
-SHUX_WEAK int32_t backend_emit_expr(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+XLANG_WEAK int32_t backend_emit_expr(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
                                                 int32_t expr_ref, struct backend_AsmFuncCtx *ctx,
                                                 int32_t target_arch) {
   (void)arena;
@@ -262,7 +262,7 @@ SHUX_WEAK int32_t backend_emit_expr(struct ast_ASTArena *arena, struct codegen_C
   return 0;
 }
 
-SHUX_WEAK int32_t backend_emit_expr_call(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+XLANG_WEAK int32_t backend_emit_expr_call(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
                                                      int32_t expr_ref, void *expr_copy,
                                                      struct backend_AsmFuncCtx *ctx, int32_t target_arch) {
   (void)arena;
@@ -274,7 +274,7 @@ SHUX_WEAK int32_t backend_emit_expr_call(struct ast_ASTArena *arena, struct code
   return 0;
 }
 
-SHUX_WEAK int32_t backend_emit_expr_elf(struct ast_ASTArena *arena,
+XLANG_WEAK int32_t backend_emit_expr_elf(struct ast_ASTArena *arena,
                                                     struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
                                                     struct backend_AsmFuncCtx *ctx, int32_t ta) {
   (void)arena;
@@ -285,7 +285,7 @@ SHUX_WEAK int32_t backend_emit_expr_elf(struct ast_ASTArena *arena,
   return 0;
 }
 
-SHUX_WEAK int32_t backend_emit_expr_method_call(struct ast_ASTArena *arena,
+XLANG_WEAK int32_t backend_emit_expr_method_call(struct ast_ASTArena *arena,
                                                             struct codegen_CodegenOutBuf *out, int32_t expr_ref,
                                                             void *expr_copy, struct backend_AsmFuncCtx *ctx,
                                                             int32_t target_arch) {
@@ -298,7 +298,7 @@ SHUX_WEAK int32_t backend_emit_expr_method_call(struct ast_ASTArena *arena,
   return 0;
 }
 
-SHUX_WEAK int32_t backend_emit_for_loop(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+XLANG_WEAK int32_t backend_emit_for_loop(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
                                                     int32_t block_ref, int32_t for_idx,
                                                     struct backend_AsmFuncCtx *ctx, int32_t target_arch) {
   (void)arena;
@@ -310,7 +310,7 @@ SHUX_WEAK int32_t backend_emit_for_loop(struct ast_ASTArena *arena, struct codeg
   return 0;
 }
 
-SHUX_WEAK int32_t backend_emit_if_then_block_body_text(struct ast_ASTArena *arena,
+XLANG_WEAK int32_t backend_emit_if_then_block_body_text(struct ast_ASTArena *arena,
                                                                    struct codegen_CodegenOutBuf *out,
                                                                    int32_t then_block_ref,
                                                                    struct backend_AsmFuncCtx *ctx,
@@ -323,7 +323,7 @@ SHUX_WEAK int32_t backend_emit_if_then_block_body_text(struct ast_ASTArena *aren
   return 0;
 }
 
-SHUX_WEAK int32_t backend_emit_loop_body_content(struct ast_ASTArena *arena,
+XLANG_WEAK int32_t backend_emit_loop_body_content(struct ast_ASTArena *arena,
                                                              struct codegen_CodegenOutBuf *out, int32_t body_ref,
                                                              struct backend_AsmFuncCtx *ctx, int32_t target_arch) {
   (void)arena;
@@ -334,7 +334,7 @@ SHUX_WEAK int32_t backend_emit_loop_body_content(struct ast_ASTArena *arena,
   return 0;
 }
 
-SHUX_WEAK int32_t backend_emit_while_loop(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+XLANG_WEAK int32_t backend_emit_while_loop(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
                                                       int32_t block_ref, int32_t loop_idx,
                                                       struct backend_AsmFuncCtx *ctx, int32_t target_arch) {
   (void)arena;

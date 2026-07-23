@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD064_DOC:-analysis/std-elf-phdr-v1.md}"
-MANIFEST="${SHUX_STD064_TSV:-tests/baseline/std-elf-phdr.tsv}"
-VECTORS="${SHUX_STD064_VECTORS:-tests/baseline/std-elf-phdr-vectors.tsv}"
+DOC="${XLANG_STD064_DOC:-analysis/std-elf-phdr-v1.md}"
+MANIFEST="${XLANG_STD064_TSV:-tests/baseline/std-elf-phdr.tsv}"
+VECTORS="${XLANG_STD064_VECTORS:-tests/baseline/std-elf-phdr-vectors.tsv}"
 MOD_X="std/elf/mod.x"
 ELF_X="std/elf/elf.x"
 LIB="tests/lib/std-elf-phdr.sh"
@@ -80,16 +80,16 @@ echo "std-elf-phdr manifest OK"
 
 echo "=== STD-064: parent STD-058 manifest ==="
 chmod +x tests/run-std-elf-parse-gate.sh
-SHUX_STD_ELF_PARSE_MANIFEST_ONLY=1 ./tests/run-std-elf-parse-gate.sh
+XLANG_STD_ELF_PARSE_MANIFEST_ONLY=1 ./tests/run-std-elf-parse-gate.sh
 
 # shellcheck source=tests/lib/build-std-c-o.sh
 . tests/lib/build-std-c-o.sh
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   ensure_std_c_o ../std/elf/elf.o
 else
-  echo "std-elf-phdr gate SKIP c/x smoke (need shux-c for elf.x merge)" >&2
+  echo "std-elf-phdr gate SKIP c/x smoke (need xlang-c for elf.x merge)" >&2
   std_elf_phdr_emit_report "ok" 0 0 1
-  echo "std-elf-phdr gate OK (manifest only; no shux-c)"
+  echo "std-elf-phdr gate OK (manifest only; no xlang-c)"
   exit 0
 fi
 
@@ -103,8 +103,8 @@ fi
 
 PHDR_X=0
 SKIP=1
-SHUX_BIN=""
-stdlib_cm_native_shu() {
+XLANG_BIN=""
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -115,15 +115,15 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if stdlib_cm_native_shu ./compiler/shux-c; then
-  SHUX_BIN=./compiler/shux-c
-elif stdlib_cm_native_shu ./compiler/shux; then
-  SHUX_BIN=./compiler/shux
+if stdlib_cm_native_xlang ./compiler/xlang-c; then
+  XLANG_BIN=./compiler/xlang-c
+elif stdlib_cm_native_xlang ./compiler/xlang; then
+  XLANG_BIN=./compiler/xlang
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-064: .x phdr smoke (SHUX=$SHUX_BIN) ==="
-  if std_elf_parse_run_smoke "$SHUX_BIN" "$SMOKE_X" "phdr"; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-064: .x phdr smoke (XLANG=$XLANG_BIN) ==="
+  if std_elf_parse_run_smoke "$XLANG_BIN" "$SMOKE_X" "phdr"; then
     PHDR_X=1
     SKIP=0
   else
@@ -131,7 +131,7 @@ if [ -n "$SHUX_BIN" ]; then
     SKIP=1
   fi
 else
-  echo "std-elf-phdr gate SKIP .x smoke (no native shux)" >&2
+  echo "std-elf-phdr gate SKIP .x smoke (no native xlang)" >&2
 fi
 
 std_elf_phdr_emit_report "ok" "$PHDR_C" "$PHDR_X" "$SKIP"

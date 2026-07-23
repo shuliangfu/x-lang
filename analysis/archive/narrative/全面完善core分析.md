@@ -1,6 +1,6 @@
 # 全面完善 core 分析
 
-> 本文档说明如何系统性地完善 Shux 的 **core** 标准库（无 OS 依赖层），使其成为 std 与自举的稳固基础。  
+> 本文档说明如何系统性地完善 Xlang 的 **core** 标准库（无 OS 依赖层），使其成为 std 与自举的稳固基础。  
 > 与 `.cursor/rules/00-项目目标与宗旨.mdc`、`问题排查与重构重写分析.md` 配套使用。
 
 ---
@@ -197,7 +197,7 @@
 
 - **结构体布局**：使用 `allow(padding)` 等显式约定，避免为「友好」而增加隐藏字段或多余填充；与 `analysis/ABI与布局.md` 及 `tests/abi/layout_abi.c` 一致。
 - **core.mem.copy**：语义与 C `memcpy` 一致（不重叠、按字节）；实现上应可被编译器识别为 `memcpy` 或内建 intrinsic，便于后端做向量化、内联、甚至消除常量长度拷贝。**不**在 core 内实现「逐字节循环」的 fallback 而牺牲优化空间；若当前无内建，可用 `extern` 声明并文档约定「编译器可识别并优化」。
-- **core.slice**：切片类型与 ABI 已约定（如 `struct shux_slice_u8` 16 字节、data 偏移 0、length 偏移 8）；`get`/索引的边界检查若无法被编译器证明可消除，可提供 **get_unchecked** 供热路径使用，或文档约定「在 release 下可选的边界检查策略」。
+- **core.slice**：切片类型与 ABI 已约定（如 `struct xlang_slice_u8` 16 字节、data 偏移 0、length 偏移 8）；`get`/索引的边界检查若无法被编译器证明可消除，可提供 **get_unchecked** 供热路径使用，或文档约定「在 release 下可选的边界检查策略」。
 
 ### 7.3 内联与调用开销
 

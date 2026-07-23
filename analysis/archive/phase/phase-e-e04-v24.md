@@ -6,16 +6,16 @@
 
 | 符号 | 说明 |
 |------|------|
-| `shux_import_path_to_file_path` | 逻辑 import → `lib_root/.../*.x` |
-| `shux_get_entry_dir` | 入口 `.x` 所在目录 |
-| `shux_import_path_is_file_path` | 是否为文件路径 import |
-| `shux_resolve_file_import_path` | 相对/绝对路径 → 可读 `.x` |
-| `shux_resolve_import_file_path_multi` | `-L` + entry_dir 多规则 resolve |
+| `xlang_import_path_to_file_path` | 逻辑 import → `lib_root/.../*.x` |
+| `xlang_get_entry_dir` | 入口 `.x` 所在目录 |
+| `xlang_import_path_is_file_path` | 是否为文件路径 import |
+| `xlang_resolve_file_import_path` | 相对/绝对路径 → 可读 `.x` |
+| `xlang_resolve_import_file_path_multi` | `-L` + entry_dir 多规则 resolve |
 
 ## 复现
 
 ```bash
-SHUX_E04_FAIL=1 ./tests/run-e04-runtime-soft-gate.sh
+XLANG_E04_FAIL=1 ./tests/run-e04-runtime-soft-gate.sh
 make -C compiler src/runtime_pipeline_abi.o src/runtime_driver_no_c.o
 ```
 

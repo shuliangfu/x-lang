@@ -154,8 +154,8 @@ export extern function driver_get_argv_i(argc: i32, argv: *u8, i: i32, buf: *u8,
  * See implementation.
  */
 export extern function driver_argv_drop_subcommand(argc: i32, argv: *u8): *u8;
-/* See implementation (seed runtime_link_abi.from_x.c). For `shux run` / bare
-   `shux file.x`: append `-o <temp>` when no -o given so the product is built
+/* See implementation (seed runtime_link_abi.from_x.c). For `xlang run` / bare
+   `xlang file.x`: append `-o <temp>` when no -o given so the product is built
    in /tmp and exec'd, with no a.out and no generated C to stdout. */
 export extern function driver_argv_ensure_run_o(argc: i32, argv: *u8, out_argc: *i32): *u8;
 /* See implementation. */
@@ -735,7 +735,7 @@ export function main_cmd_build(argc: i32, argv: *u8): i32 {
 }
 
 /**
- * `shux run file.x` (and bare `shux file.x` via entry): compile in memory and
+ * `xlang run file.x` (and bare `xlang file.x` via entry): compile in memory and
  * run the product directly. No a.out in the cwd and no generated C to stdout.
  * When no -o is given, driver_argv_ensure_run_o injects a temp /tmp path as
  * -o so the C/asm backend links a real executable (instead of the no-`-o`
@@ -752,19 +752,19 @@ export function main_cmd_run(argc: i32, argv: *u8): i32 {
    * Why: driver_argv_ensure_run_o silently injects a temp -o when none is
    * present, so run_argv alone cannot tell whether the user asked for
    * compile-only. When -o is explicit, skip the exec path so the compiled
-   * program's exit code does not leak through shux's own exit status. */
+   * program's exit code does not leak through xlang's own exit status. */
   let has_explicit_o: i32 = main_argv_has_o_flag(argc, argv);
   let run_argc: i32 = argc;
   let run_argv: *u8 = driver_argv_ensure_run_o(argc, argv, &run_argc);
   if (has_explicit_o != 0) {
-    /* Compile-only: do not set SHUX_RUN_QUIET (let cc warnings surface, since
+    /* Compile-only: do not set XLANG_RUN_QUIET (let cc warnings surface, since
      * the user explicitly requested an output path) and do not exec. */
     return main_run_compiler_x_path_impl(run_argc, run_argv);
   }
   /* mute generated-C warning noise so only program output is printed; cc
-     errors still surface (SHUX_RUN_QUIET only adds -w / -Wl,-w in invoke_cc). */
-  /* "SHUX_RUN_QUIET" (14 bytes) + NUL terminator; setenv needs a C string. */
-  let _q: u8[15] = [83, 72, 85, 88, 95, 82, 85, 78, 95, 81, 85, 73, 69, 84, 0];
+     errors still surface (XLANG_RUN_QUIET only adds -w / -Wl,-w in invoke_cc). */
+  /* "XLANG_RUN_QUIET" (14 bytes) + NUL terminator; setenv needs a C string. */
+  let _q: u8[16] = [88, 76, 65, 78, 71, 95, 82, 85, 78, 95, 81, 85, 73, 69, 84, 0];
   let _one: u8[2] = [49, 0];
   unsafe { setenv(&_q[0], &_one[0], 1); }
   let rc: i32 = main_run_compiler_x_path_impl(run_argc, run_argv);
@@ -792,14 +792,44 @@ function main_argv_has_o_flag(argc: i32, argv: *u8): i32 {
   return 0;
 }
 
+/**
+ * Return 1 if argv[1] looks like a source path rather than a named subcommand.
+ * Heuristic (PLATFORM: SHARED): ends with ".x", or contains '/' or '\\'.
+ * Used by entry() so bare `xlang file.x [-o out]` is not rejected as an unknown
+ * command (historical product UX; many gates still invoke this form).
+ * Contract: path may be truncated to path_cap-1 bytes by the caller; scan only
+ * the provided len bytes. Null path or len <= 0 → 0.
+ */
+function main_arg_looks_like_source_path(path: *u8, len: i32): i32 {
+  if (path == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  /* Ends with ".x" (46 = '.', 120 = 'x'). */
+  if (len >= 2 && path[len - 2] == 46 && path[len - 1] == 120) {
+    return 1;
+  }
+  let i: i32 = 0;
+  while (i < len) {
+    /* '/' = 47, '\\' = 92 */
+    if (path[i] == 47 || path[i] == 92) {
+      return 1;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
 /* See implementation. */
 export extern function typeck_lsp_main(): i32;
 
 /**
- * See implementation.
- * See implementation.
- * See implementation.
- * See implementation.
+ * Product CLI entry (linked as main_entry via driver_gen).
+ * Named subcommands: build | run | fmt | check | test.
+ * Bare source path (ends with .x or contains a path separator): treat as
+ * `run` semantics without requiring the word "run" — with explicit -o this is
+ * compile-only (main_cmd_run); without -o compile-and-exec.
+ * Unknown non-flag argv[1] that is not a path → usage and exit 1.
+ * PLATFORM: SHARED — mac + Ubuntu product binary must accept the same bare form.
  */
 export function entry(argc: i32, argv: *u8): i32 {
   let arg_buf: u8[64] = [];
@@ -811,7 +841,7 @@ export function entry(argc: i32, argv: *u8): i32 {
     }
     i = i + 1;
   }
-  /* See implementation. */
+  /* Dispatch named subcommands; bare .x path falls through to main_cmd_run. */
   if (argc >= 2) {
     let alen: i32 = driver_get_argv_i(argc, argv, 1, arg_buf, 64);
     if (alen > 0 && arg_buf[0] != 45) {
@@ -834,6 +864,10 @@ export function entry(argc: i32, argv: *u8): i32 {
       }
       if (str_eq(&arg_buf[0], alen, &w_test[0], 4) != 0) {
         return driver_cmd_test(argc - 1, driver_argv_drop_subcommand(argc, argv));
+      }
+      /* Bare path: do not drop argv[1]; it is the input file. */
+      if (main_arg_looks_like_source_path(&arg_buf[0], alen) != 0) {
+        return main_cmd_run(argc, argv);
       }
       driver_print_usage_write();
       return 1;

@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# S2 EMIT_HEAVY 烟测：用 shux_asm 第二遍重编 typeck.o，统计非 ret0 桩的真机码函数数。
-# 依赖：compiler/shux_asm 已重链含最新 ast_pool.c（make bootstrap-driver-bstrict）。
+# S2 EMIT_HEAVY 烟测：用 xlang_asm 第二遍重编 typeck.o，统计非 ret0 桩的真机码函数数。
+# 依赖：compiler/xlang_asm 已重链含最新 ast_pool.c（make bootstrap-driver-bstrict）。
 # 用法：./tests/run-s2-typeck-emit-heavy.sh
-# 门禁：SHUX_S2_FAIL_ON_EMIT_HEAVY=1 — real_funcs < baseline min_real_funcs 或 __text < min_text_emit_heavy 时失败
+# 门禁：XLANG_S2_FAIL_ON_EMIT_HEAVY=1 — real_funcs < baseline min_real_funcs 或 __text < min_text_emit_heavy 时失败
 set -e
 cd "$(dirname "$0")/.."
-COMP="${SHUX_S2_EMIT_HEAVY_COMPILER:-}"
+COMP="${XLANG_S2_EMIT_HEAVY_COMPILER:-}"
 if [ -z "$COMP" ]; then
-  # strict 重链 shux_asm 可用；优先 experimental bootstrap（全 X 链），再 strict_glue / shux_asm。
-  for cand in ./compiler/shux_asm.experimental ./compiler/shux_asm ./compiler/shux_asm.strict_glue; do
+  # strict 重链 xlang_asm 可用；优先 experimental bootstrap（全 X 链），再 strict_glue / xlang_asm。
+  for cand in ./compiler/xlang_asm.experimental ./compiler/xlang_asm ./compiler/xlang_asm.strict_glue; do
     if [ -x "$cand" ]; then
       COMP="$cand"
       break
@@ -16,8 +16,8 @@ if [ -z "$COMP" ]; then
   done
 fi
 TYPECK_X="compiler/src/typeck/typeck.x"
-OUT="/tmp/shux_s2_typeck_emit_heavy.o"
-BASELINE="${SHUX_S2_TYPECK_BASELINE:-tests/baseline/s2-typeck-o.tsv}"
+OUT="/tmp/xlang_s2_typeck_emit_heavy.o"
+BASELINE="${XLANG_S2_TYPECK_BASELINE:-tests/baseline/s2-typeck-o.tsv}"
 LIBROOT="-L compiler/asm_libroot -L compiler/.. -L compiler/src -L compiler/src/lexer -L compiler/src/ast -L compiler/src/parser -L compiler/src/typeck -L compiler/src/codegen -L compiler/src/preprocess -L compiler/src/pipeline -L compiler/src/lsp -L compiler/src/asm"
 
 MIN_REAL=$(awk -F'\t' '$1=="min_real_funcs" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
@@ -26,7 +26,7 @@ MIN_TEXT_EH=$(awk -F'\t' '$1=="min_text_emit_heavy" && $1 !~ /^#/ { print $2; ex
 MIN_TEXT_EH=${MIN_TEXT_EH:-8192}
 
 if [ ! -x "$COMP" ]; then
-  echo "s2 emit-heavy: no executable compiler (tried shux_asm.experimental / shux_asm; set SHUX_S2_EMIT_HEAVY_COMPILER=)" >&2
+  echo "s2 emit-heavy: no executable compiler (tried xlang_asm.experimental / xlang_asm; set XLANG_S2_EMIT_HEAVY_COMPILER=)" >&2
   exit 127
 fi
 echo "s2 emit-heavy: compiler=$COMP"
@@ -60,7 +60,7 @@ PY
 }
 
 rm -f "$OUT"
-if ! env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 \
+if ! env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 XLANG_ASM_ENTRY_EMIT_HEAVY=1 \
   "$COMP" -backend asm -o "$OUT" $LIBROOT "$TYPECK_X" 2>/dev/null; then
   echo "s2 emit-heavy: compile failed" >&2
   exit 1
@@ -71,10 +71,10 @@ sz=$(text_section_size "$OUT")
 real=$(count_real_asm_funcs "$OUT")
 echo "s2 emit-heavy: __text=${sz} real_funcs=${real} (min_real=${MIN_REAL}, min_text_emit_heavy=${MIN_TEXT_EH})"
 
-if [ "${SHUX_S2_FAIL_ON_EMIT_HEAVY:-0}" = "1" ]; then
+if [ "${XLANG_S2_FAIL_ON_EMIT_HEAVY:-0}" = "1" ]; then
   if [ "${real:-0}" -lt "${MIN_REAL}" ] 2>/dev/null; then
     echo "s2 emit-heavy FAIL: real_funcs ${real} < min_real_funcs ${MIN_REAL}" >&2
-    echo "s2 emit-heavy hint: ast_pool.c 变更后须 make bootstrap-driver-bstrict 重链 shux_asm" >&2
+    echo "s2 emit-heavy hint: ast_pool.c 变更后须 make bootstrap-driver-bstrict 重链 xlang_asm" >&2
     exit 1
   fi
   if ! awk -v s="$sz" -v m="$MIN_TEXT_EH" 'BEGIN { exit (s > m) ? 0 : 1 }'; then

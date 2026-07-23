@@ -3,19 +3,19 @@
 #
 # 用法：./tests/run-nolibc-n07-v5-gate.sh
 # 环境：
-#   SHUX_NOLIBC_N07_V5_FAIL=1           — 失败时硬退出
-#   SHUX_NOLIBC_N07_V5_MANIFEST_ONLY=1  — 仅 manifest
-#   SHUX_NOLIBC_N07_V5_TRY_BUILD=1      — shux_asm 存在时试跑并 ldd 审计
+#   XLANG_NOLIBC_N07_V5_FAIL=1           — 失败时硬退出
+#   XLANG_NOLIBC_N07_V5_MANIFEST_ONLY=1  — 仅 manifest
+#   XLANG_NOLIBC_N07_V5_TRY_BUILD=1      — xlang_asm 存在时试跑并 ldd 审计
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_NOLIBC_N07_V5_FAIL:-0}
+FAIL=${XLANG_NOLIBC_N07_V5_FAIL:-0}
 DOC="analysis/phase-f-n07-v5.md"
 MANIFEST="tests/baseline/nolibc-n07-v5.tsv"
-BUILD_ASM="compiler/scripts/build_shux_asm.sh"
+BUILD_ASM="compiler/scripts/build_xlang_asm.sh"
 # G.7 / NL-07 L10: wants_nostdlib + ALLOW_LIBC live in shared authority (g05 + crt0).
 NOSTDLIB_SHARED="compiler/scripts/bootstrap_nostdlib_shared.sh"
-SHUX_ASM="compiler/shux_asm"
+XLANG_ASM="compiler/xlang_asm"
 
 die() {
   echo "nolibc-n07-v5 gate FAIL: $*" >&2
@@ -29,9 +29,9 @@ grep -q 'NL-07 v5' "$DOC" || die "doc missing NL-07 v5 marker"
 [ -f "$MANIFEST" ] || die "missing $MANIFEST"
 [ -f "$BUILD_ASM" ] || die "missing $BUILD_ASM"
 [ -f "$NOSTDLIB_SHARED" ] || die "missing $NOSTDLIB_SHARED"
-grep -q 'NL-07 v5' "$BUILD_ASM" || die "build_shux_asm missing NL-07 v5 marker"
-grep -q 'bootstrap_nostdlib_shared.sh' "$BUILD_ASM" || die "build_shux_asm must source shared nostdlib authority"
-grep -q 'SHUX_BOOTSTRAP_ALLOW_LIBC' "$NOSTDLIB_SHARED" || die "missing SHUX_BOOTSTRAP_ALLOW_LIBC escape in shared"
+grep -q 'NL-07 v5' "$BUILD_ASM" || die "build_xlang_asm missing NL-07 v5 marker"
+grep -q 'bootstrap_nostdlib_shared.sh' "$BUILD_ASM" || die "build_xlang_asm must source shared nostdlib authority"
+grep -q 'XLANG_BOOTSTRAP_ALLOW_LIBC' "$NOSTDLIB_SHARED" || die "missing XLANG_BOOTSTRAP_ALLOW_LIBC escape in shared"
 grep -q 'NL-07 v5: Linux x86_64 defaults to nostdlib' "$NOSTDLIB_SHARED" || die "shared missing default-nostdlib v5 policy"
 
 while IFS=$'\t' read -r item_id category anchor check_type notes; do
@@ -52,13 +52,13 @@ while IFS=$'\t' read -r item_id category anchor check_type notes; do
   esac
 done < "$MANIFEST"
 
-if [ "${SHUX_NOLIBC_N07_V5_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_NOLIBC_N07_V5_MANIFEST_ONLY:-0}" = "1" ]; then
   echo "nolibc-n07-v5 gate OK (manifest only)"
   exit 0
 fi
 
-if [ "${SHUX_NOLIBC_N07_V5_TRY_BUILD:-0}" != "1" ]; then
-  echo "nolibc-n07-v5 gate OK (manifest; set SHUX_NOLIBC_N07_V5_TRY_BUILD=1 + shux_asm for ldd audit)"
+if [ "${XLANG_NOLIBC_N07_V5_TRY_BUILD:-0}" != "1" ]; then
+  echo "nolibc-n07-v5 gate OK (manifest; set XLANG_NOLIBC_N07_V5_TRY_BUILD=1 + xlang_asm for ldd audit)"
   exit 0
 fi
 
@@ -68,21 +68,21 @@ if [ "$(uname -s 2>/dev/null)" != "Linux" ] || [ "$(uname -m 2>/dev/null)" != "x
   exit 0
 fi
 
-if [ ! -x "$SHUX_ASM" ]; then
-  echo "nolibc-n07-v5 SKIP build try (no $SHUX_ASM)" >&2
-  echo "nolibc-n07-v5 gate OK (manifest; no shux_asm)"
+if [ ! -x "$XLANG_ASM" ]; then
+  echo "nolibc-n07-v5 SKIP build try (no $XLANG_ASM)" >&2
+  echo "nolibc-n07-v5 gate OK (manifest; no xlang_asm)"
   exit 0
 fi
 
-echo "=== NL-07 v5: default nostdlib build_shux_asm + ldd audit ==="
-LOG="/tmp/shux_n07_v5_build.log"
+echo "=== NL-07 v5: default nostdlib build_xlang_asm + ldd audit ==="
+LOG="/tmp/xlang_n07_v5_build.log"
 rm -f "$LOG" 2>/dev/null || true
 set +e
-( cd compiler && unset SHUX_BOOTSTRAP_ALLOW_LIBC SHUX_BOOTSTRAP_NOSTDLIB; ./scripts/build_shux_asm.sh ) 2>&1 | tee "$LOG"
+( cd compiler && unset XLANG_BOOTSTRAP_ALLOW_LIBC XLANG_BOOTSTRAP_NOSTDLIB; ./scripts/build_xlang_asm.sh ) 2>&1 | tee "$LOG"
 RC=${PIPESTATUS[0]}
 set -e
 
-if [ "$RC" -ne 0 ] || [ ! -x "$SHUX_ASM" ]; then
+if [ "$RC" -ne 0 ] || [ ! -x "$XLANG_ASM" ]; then
   echo "nolibc-n07-v5: build failed rc=$RC" >&2
   grep "undefined reference" "$LOG" 2>/dev/null | sed 's/.*undefined reference to /  /' | sort -u | head -30 >&2 || true
   die "nostdlib default build failed"
@@ -90,13 +90,13 @@ fi
 
 if ! grep -q 'bootstrap nostdlib crt0 link OK' "$LOG" 2>/dev/null \
   && ! grep -q 'bootstrap nostdlib.*link OK' "$LOG" 2>/dev/null; then
-  die "build succeeded but nostdlib path not taken (check SHUX_BOOTSTRAP_ALLOW_LIBC or fallback -lc)"
+  die "build succeeded but nostdlib path not taken (check XLANG_BOOTSTRAP_ALLOW_LIBC or fallback -lc)"
 fi
 
 if command -v ldd >/dev/null 2>&1; then
-  if ldd "$SHUX_ASM" 2>/dev/null | grep -q 'libc\.so'; then
-    ldd "$SHUX_ASM" 2>&1 | head -20 >&2 || true
-    die "ldd shows libc.so on shux_asm (nostdlib hard green violated)"
+  if ldd "$XLANG_ASM" 2>/dev/null | grep -q 'libc\.so'; then
+    ldd "$XLANG_ASM" 2>&1 | head -20 >&2 || true
+    die "ldd shows libc.so on xlang_asm (nostdlib hard green violated)"
   fi
   echo "nolibc-n07-v5: ldd OK (no libc.so)"
 else

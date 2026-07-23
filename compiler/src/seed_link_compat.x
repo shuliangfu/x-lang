@@ -225,9 +225,9 @@ export function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32
 
 /* See implementation. */
 
-// shux_expr_is_func_param_at: see function docblock below.
-/** Exported function `shux_expr_is_func_param_at`.
- * Implements `shux_expr_is_func_param_at`.
+// xlang_expr_is_func_param_at: see function docblock below.
+/** Exported function `xlang_expr_is_func_param_at`.
+ * Implements `xlang_expr_is_func_param_at`.
  * @param arena *u8
  * @param mod *u8
  * @param func_idx i32
@@ -236,7 +236,7 @@ export function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32
  * @return i32
  */
 #[no_mangle]
-export function shux_expr_is_func_param_at(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32, param_ix: i32): i32 {
+export function xlang_expr_is_func_param_at(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32, param_ix: i32): i32 {
   if (arena == 0) { return 0; }
   if (mod == 0) { return 0; }
   if (expr_ref <= 0) { return 0; }
@@ -262,9 +262,9 @@ export function shux_expr_is_func_param_at(arena: *u8, mod: *u8, func_idx: i32, 
   return 0;
 }
 
-// shux_expr_is_param0_field_access: see function docblock below.
-/** Exported function `shux_expr_is_param0_field_access`.
- * Implements `shux_expr_is_param0_field_access`.
+// xlang_expr_is_param0_field_access: see function docblock below.
+/** Exported function `xlang_expr_is_param0_field_access`.
+ * Implements `xlang_expr_is_param0_field_access`.
  * @param arena *u8
  * @param mod *u8
  * @param func_idx i32
@@ -272,7 +272,7 @@ export function shux_expr_is_func_param_at(arena: *u8, mod: *u8, func_idx: i32, 
  * @return i32
  */
 #[no_mangle]
-export function shux_expr_is_param0_field_access(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32): i32 {
+export function xlang_expr_is_param0_field_access(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32): i32 {
   if (arena == 0) { return 0; }
   if (mod == 0) { return 0; }
   if (func_idx < 0) { return 0; }
@@ -280,21 +280,21 @@ export function shux_expr_is_param0_field_access(arena: *u8, mod: *u8, func_idx:
   unsafe {
     if (pipeline_expr_kind_ord_at(arena, expr_ref) != 44) { return 0; }
     let base_ref: i32 = pipeline_expr_field_access_base_ref(arena, expr_ref);
-    return shux_expr_is_func_param_at(arena, mod, func_idx, base_ref, 0);
+    return xlang_expr_is_func_param_at(arena, mod, func_idx, base_ref, 0);
   }
   return 0;
 }
 
-// shux_module_func_index_by_name: see function docblock below.
-/** Exported function `shux_module_func_index_by_name`.
- * Implements `shux_module_func_index_by_name`.
+// xlang_module_func_index_by_name: see function docblock below.
+/** Exported function `xlang_module_func_index_by_name`.
+ * Implements `xlang_module_func_index_by_name`.
  * @param mod *u8
  * @param name *u8
  * @param name_len i32
  * @return i32
  */
 #[no_mangle]
-export function shux_module_func_index_by_name(mod: *u8, name: *u8, name_len: i32): i32 {
+export function xlang_module_func_index_by_name(mod: *u8, name: *u8, name_len: i32): i32 {
   if (mod == 0) { return 0 - 1; }
   if (name == 0) { return 0 - 1; }
   if (name_len <= 0) { return 0 - 1; }

@@ -6,22 +6,22 @@
 #
 # 用法：
 #   ./tests/run-perf-flamegraph.sh
-#   SHUX=./compiler/shux-c SHUX_PERF_FLAMEGRAPH_CASE=check_typeck ./tests/run-perf-flamegraph.sh
-#   SHUX_PERF_FLAMEGRAPH_OUT_DIR=/tmp/fg ./tests/run-perf-flamegraph.sh
+#   XLANG=./compiler/xlang-c XLANG_PERF_FLAMEGRAPH_CASE=check_typeck ./tests/run-perf-flamegraph.sh
+#   XLANG_PERF_FLAMEGRAPH_OUT_DIR=/tmp/fg ./tests/run-perf-flamegraph.sh
 set -e
 cd "$(dirname "$0")/.."
 
-MANIFEST="${SHUX_PERF_FLAMEGRAPH_TSV:-tests/baseline/perf-flamegraph.tsv}"
-OUT_DIR="${SHUX_PERF_FLAMEGRAPH_OUT_DIR:-/tmp/shux-perf-flamegraph}"
-ONLY_CASE="${SHUX_PERF_FLAMEGRAPH_CASE:-}"
-TOPN="${SHUX_PERF_FLAMEGRAPH_TOPN:-20}"
-PREFIX="${SHUX_PERF_FLAMEGRAPH_PREFIX:-shux: [SHUX_PERF_FLAMEGRAPH]}"
+MANIFEST="${XLANG_PERF_FLAMEGRAPH_TSV:-tests/baseline/perf-flamegraph.tsv}"
+OUT_DIR="${XLANG_PERF_FLAMEGRAPH_OUT_DIR:-/tmp/xlang-perf-flamegraph}"
+ONLY_CASE="${XLANG_PERF_FLAMEGRAPH_CASE:-}"
+TOPN="${XLANG_PERF_FLAMEGRAPH_TOPN:-20}"
+PREFIX="${XLANG_PERF_FLAMEGRAPH_PREFIX:-xlang: [XLANG_PERF_FLAMEGRAPH]}"
 
 # shellcheck source=tests/lib/perf-flamegraph.sh
 . tests/lib/perf-flamegraph.sh
 
-# 判断 shux 是否可在本机 exec。
-native_shu() {
+# 判断 xlang 是否可在本机 exec。
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -33,7 +33,7 @@ native_shu() {
   esac
 }
 
-# 解析 manifest anchor 为 perf 采样的 shux 子命令（不含 perf 本身）。
+# 解析 manifest anchor 为 perf 采样的 xlang 子命令（不含 perf 本身）。
 # check：anchor 形如 "check path/to.x"
 # compile：anchor 形如 "compile path/to.x -o /tmp/out"
 fg_run_profile_case() {
@@ -46,12 +46,12 @@ fg_run_profile_case() {
   rest="${anchor#* }"
   case "$action" in
     check)
-      perf_fg_top_symbols "$item_id" "$SHUX_BIN" check "$rest" >>"$out_case" 2>>"$log_file"
+      perf_fg_top_symbols "$item_id" "$XLANG_BIN" check "$rest" >>"$out_case" 2>>"$log_file"
       ;;
     compile)
       src=$(echo "$rest" | awk '{print $1}')
       outpath=$(echo "$rest" | awk '{for(i=1;i<=NF;i++) if($i=="-o") print $(i+1)}')
-      perf_fg_top_symbols "$item_id" "$SHUX_BIN" "$src" -o "$outpath" >>"$out_case" 2>>"$log_file"
+      perf_fg_top_symbols "$item_id" "$XLANG_BIN" "$src" -o "$outpath" >>"$out_case" 2>>"$log_file"
       ;;
     *)
       return 1
@@ -59,11 +59,11 @@ fg_run_profile_case() {
   esac
 }
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
-    if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
+    if native_xlang "$cand"; then
+      XLANG_BIN="$cand"
       break
     fi
   done
@@ -79,15 +79,15 @@ if ! perf_fg_probe_ok; then
   exit 0
 fi
 
-if [ -z "$SHUX_BIN" ]; then
-  echo "${PREFIX} SKIP (no native shux)" >&2
+if [ -z "$XLANG_BIN" ]; then
+  echo "${PREFIX} SKIP (no native xlang)" >&2
   exit 0
 fi
 
 mkdir -p "$OUT_DIR"
 SUMMARY="${OUT_DIR}/top${TOPN}-summary.tsv"
 : >"$SUMMARY"
-echo "${PREFIX} shux=${SHUX_BIN} out=${OUT_DIR} topn=${TOPN}" >&2
+echo "${PREFIX} xlang=${XLANG_BIN} out=${OUT_DIR} topn=${TOPN}" >&2
 
 FAIL=0
 while IFS=$'\t' read -r item_id kind anchor notes; do

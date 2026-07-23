@@ -3,14 +3,14 @@
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-SHUX=${SHUX:-./compiler/shux}
+XLANG=${XLANG:-./compiler/xlang}
 
-$SHUX build tests/asm/index_var_fast.x -o /tmp/shux_asm_index_var 2>&1
+$XLANG build tests/asm/index_var_fast.x -o /tmp/xlang_asm_index_var 2>&1
 exitcode=0
-/tmp/shux_asm_index_var >/dev/null 2>&1 || exitcode=$?
+/tmp/xlang_asm_index_var >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 10 ] && { echo "run-asm-index-var FAIL: expected exit 10, got $exitcode"; exit 1; }
 
-if otool -tv /tmp/shux_asm_index_var 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'sub.*sp, sp, #0x10'; then
+if otool -tv /tmp/xlang_asm_index_var 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'sub.*sp, sp, #0x10'; then
   echo "run-asm-index-var FAIL: main still uses stack push for INDEX (expected direct ldr)"
   exit 1
 fi

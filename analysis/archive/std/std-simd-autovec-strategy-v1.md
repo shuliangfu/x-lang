@@ -23,18 +23,18 @@
 |------|-----|------|
 | 探测 HW | `hw_available()` | arm64/x86_64/riscv64 v1 返回 1 |
 | 默认推荐 | `recommend_simd_path()` | auto：有 HW → `SIMD_PATH_HW`，否则标量 |
-| 强制标量 | 环境 `SHUX_SIMD_HW=0` 或 `SHUX_SIMD_AUTovec=scalar` | 始终 `SIMD_PATH_SCALAR` |
-| 强制 HW | `SHUX_SIMD_AUTovec=hw` | 有 HW 则 HW，否则标量 |
+| 强制标量 | 环境 `XLANG_SIMD_HW=0` 或 `XLANG_SIMD_AUTovec=scalar` | 始终 `SIMD_PATH_SCALAR` |
+| 强制 HW | `XLANG_SIMD_AUTovec=hw` | 有 HW 则 HW，否则标量 |
 
 常量：`SIMD_PATH_SCALAR`（0）、`SIMD_PATH_HW`（1）。
 
-编译器 emit 仍由 `SHUX_SIMD_HW` / 内联 pass 控制；本模块提供**运行时策略查询**与 gate 验收锚点。
+编译器 emit 仍由 `XLANG_SIMD_HW` / 内联 pass 控制；本模块提供**运行时策略查询**与 gate 验收锚点。
 
 ---
 
 ## 3. 跨平台性能验收
 
-gate 在具备 native `shux_asm` 时运行：
+gate 在具备 native `xlang_asm` 时运行：
 
 | Bench | 脚本 | 默认阈值 |
 |-------|------|----------|
@@ -52,7 +52,7 @@ gate 在具备 native `shux_asm` 时运行：
 ./tests/run-std-simd-autovec-strategy-gate.sh
 ```
 
-报告：`shux: [SHUX_STD153_SIMD_AUTovec]`
+报告：`xlang: [XLANG_STD153_SIMD_AUTovec]`
 
 回归：保留 `run-std-simd-shuffle-select-gate.sh`、`run-std-simd-prod-gate.sh`。
 

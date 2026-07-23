@@ -7,12 +7,12 @@
 | 项 | 前 | 后 |
 |----|----|-----|
 | 实现 | `hash.c`（440 行） | `hash.x`（v2 纯 .x） |
-| `hash.o` | `cc -c` | 纯 shux（v2） |
+| `hash.o` | `cc -c` | 纯 xlang（v2） |
 
 ## 门禁
 
 ```bash
-SHUX_F_HASH_V1_FAIL=1 ./tests/run-f-hash-v1-gate.sh
+XLANG_F_HASH_V1_FAIL=1 ./tests/run-f-hash-v1-gate.sh
 ./tests/run-std-hash-hasher-trait-gate.sh
 ./tests/run-std-hash-xxhash-gate.sh
 ./tests/run-std-hash-default-strategy-gate.sh

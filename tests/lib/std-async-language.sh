@@ -4,9 +4,9 @@
 # 用法（source 后）：
 #   std_alang_symbols_ok MOD_X TSV
 #   std_alang_emit_report status run_ok mod_ok skip_1m
-#   std_alang_run_smoke SHUX_BIN X OUT
+#   std_alang_run_smoke XLANG_BIN X OUT
 
-STD_ALANG_PREFIX="${SHUX_STD_ASYNC_LANGUAGE_PREFIX:-shux: [SHUX_STD_ASYNC_LANGUAGE]}"
+STD_ALANG_PREFIX="${XLANG_STD_ASYNC_LANGUAGE_PREFIX:-xlang: [XLANG_STD_ASYNC_LANGUAGE]}"
 
 # 校验 manifest symbol/file；echo 缺失数，成功返回 0。
 std_alang_symbols_ok() {
@@ -38,11 +38,11 @@ std_alang_symbols_ok() {
 
 # 编译并运行烟测；成功返回 0。
 std_alang_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local x="$2"
   local out="$3"
   rm -f "$out"
-  if ! "$shux" -L . "$x" -o "$out" >/tmp/std_alang_smoke.log 2>&1; then
+  if ! "$xlang" -L . "$x" -o "$out" >/tmp/std_alang_smoke.log 2>&1; then
     cat /tmp/std_alang_smoke.log >&2
     return 1
   fi

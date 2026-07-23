@@ -1,9 +1,9 @@
 /**
- * Shux CodeLensProvider — 行内代码提示
+ * Xlang CodeLensProvider — 行内代码提示
  *
  * 在定义行上方插入 CodeLens：
  * - "▶ Run" — main 函数运行入口
- * - "fn" / "extern fn" — 可选（shux.features.codeLensFunctionLabels，默认关）
+ * - "fn" / "extern fn" — 可选（xlang.features.codeLensFunctionLabels，默认关）
  * - struct / enum 字段与变体计数
  */
 
@@ -13,25 +13,25 @@ import { t } from './i18n';
 /** 是否显示 function / extern function 上方的 fn 标签。 */
 function showFunctionLabels(): boolean {
   return vscode.workspace
-    .getConfiguration('shux')
+    .getConfiguration('xlang')
     .get<boolean>('features.codeLensFunctionLabels', false);
 }
 
 /** 是否显示 ▶ Run 按钮（受 features.codeLensRunButton 控制） */
 function showRunButton(): boolean {
   return vscode.workspace
-    .getConfiguration('shux')
+    .getConfiguration('xlang')
     .get<boolean>('features.codeLensRunButton', true);
 }
 
 /** 是否显示 struct/enum/trait/impl/type 信息（受 features.codeLensStructInfo 控制） */
 function showStructInfo(): boolean {
   return vscode.workspace
-    .getConfiguration('shux')
+    .getConfiguration('xlang')
     .get<boolean>('features.codeLensStructInfo', true);
 }
 
-export class ShuxCodeLensProvider implements vscode.CodeLensProvider {
+export class XlangCodeLensProvider implements vscode.CodeLensProvider {
   private _onDidChangeCodeLenses = new vscode.EventEmitter<void>();
   public readonly onDidChangeCodeLenses = this._onDidChangeCodeLenses.event;
 
@@ -62,13 +62,13 @@ export class ShuxCodeLensProvider implements vscode.CodeLensProvider {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
 
-      // main 函数 — "▶ Run"（受 shux.features.codeLensRunButton 控制）
+      // main 函数 — "▶ Run"（受 xlang.features.codeLensRunButton 控制）
       if (runButton && mainRegex.test(line)) {
         const range = new vscode.Range(i, 0, i, 0);
         const lens = new vscode.CodeLens(range, {
           title: '▶ Run',
-          command: 'shux.runFile',
-          tooltip: t('Run this file (shux <file>)'),
+          command: 'xlang.runFile',
+          tooltip: t('Run this file (xlang <file>)'),
           arguments: [document.uri],
         });
         lenses.push(lens);
@@ -76,7 +76,7 @@ export class ShuxCodeLensProvider implements vscode.CodeLensProvider {
         continue;
       }
 
-      // 普通函数定义（fn 标签默认关，见 shux.features.codeLensFunctionLabels）
+      // 普通函数定义（fn 标签默认关，见 xlang.features.codeLensFunctionLabels）
       const fm = funcRegex.exec(line);
       if (fm && fnLabels) {
         const range = new vscode.Range(i, 0, i, 0);
@@ -103,7 +103,7 @@ export class ShuxCodeLensProvider implements vscode.CodeLensProvider {
         continue;
       }
 
-      // struct（受 shux.features.codeLensStructInfo 控制）
+      // struct（受 xlang.features.codeLensStructInfo 控制）
       const sm = structRegex.exec(line);
       if (structInfo && sm) {
         const range = new vscode.Range(i, 0, i, 0);
@@ -117,7 +117,7 @@ export class ShuxCodeLensProvider implements vscode.CodeLensProvider {
         continue;
       }
 
-      // enum（受 shux.features.codeLensStructInfo 控制）
+      // enum（受 xlang.features.codeLensStructInfo 控制）
       const em = enumRegex.exec(line);
       if (structInfo && em) {
         const range = new vscode.Range(i, 0, i, 0);
@@ -131,7 +131,7 @@ export class ShuxCodeLensProvider implements vscode.CodeLensProvider {
         continue;
       }
 
-      // trait（受 shux.features.codeLensStructInfo 控制）
+      // trait（受 xlang.features.codeLensStructInfo 控制）
       const tm = traitRegex.exec(line);
       if (structInfo && tm) {
         const range = new vscode.Range(i, 0, i, 0);
@@ -145,7 +145,7 @@ export class ShuxCodeLensProvider implements vscode.CodeLensProvider {
         continue;
       }
 
-      // impl（受 shux.features.codeLensStructInfo 控制）
+      // impl（受 xlang.features.codeLensStructInfo 控制）
       const im = implRegex.exec(line);
       if (structInfo && im) {
         const range = new vscode.Range(i, 0, i, 0);
@@ -159,7 +159,7 @@ export class ShuxCodeLensProvider implements vscode.CodeLensProvider {
         continue;
       }
 
-      // type alias（受 shux.features.codeLensStructInfo 控制）
+      // type alias（受 xlang.features.codeLensStructInfo 控制）
       const tp = typeRegex.exec(line);
       if (structInfo && tp) {
         const range = new vscode.Range(i, 0, i, 0);

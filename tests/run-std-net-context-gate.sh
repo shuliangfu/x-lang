@@ -8,9 +8,9 @@ cd "$(dirname "$0")/.."
 
 MOD_X="std/net/mod.x"
 SMOKE="tests/net/context_connect.x"
-PREFIX="shux: [SHUX_STD092_NET_CTX]"
+PREFIX="xlang: [XLANG_STD092_NET_CTX]"
 
-stdlib_cm_native_shu() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -50,24 +50,29 @@ echo "net-context manifest OK"
 ensure_std_c_o ../std/context/context.o
 ensure_std_c_o ../std/time/time.o
 ensure_std_c_o ../std/net/net.o
+# context.x declares raw `extern function atomic_*_c` / `time_now_monotonic_ns_c`
+# (not `import std.atomic`/`std.time`), so xlang -o cannot auto-discover these
+# runtime glue providers. Build them and pass explicitly on the -o link line.
+ensure_runtime_atomic_glue_o
+ensure_runtime_time_os_o
 
-SHUX_BIN=""
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+XLANG_BIN=""
+if XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 fi
 
 X_OK=0
 SKIP=0
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-092: smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-092: smoke (XLANG=$XLANG_BIN) ==="
+  if ! "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
     echo "net-context gate FAIL: typeck $SMOKE" >&2
     exit 1
   fi
-  exe="/tmp/shux_std092_net_ctx_$$"
-  if ! "$SHUX_BIN" -L . "$SMOKE" -o "$exe" >/dev/null 2>&1; then
+  exe="/tmp/xlang_std092_net_ctx_$$"
+  if ! "$XLANG_BIN" -L . "$SMOKE" -o "$exe" compiler/runtime_atomic_glue.o compiler/runtime_time_os.o >/dev/null 2>&1; then
     echo "net-context gate FAIL: compile $SMOKE" >&2
     exit 1
   fi
@@ -82,7 +87,7 @@ if [ -n "$SHUX_BIN" ]; then
   fi
   X_OK=1
 else
-  echo "net-context gate SKIP .x (no native shux)" >&2
+  echo "net-context gate SKIP .x (no native xlang)" >&2
   SKIP=1
 fi
 

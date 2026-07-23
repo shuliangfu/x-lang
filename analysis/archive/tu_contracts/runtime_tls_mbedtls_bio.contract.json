@@ -38,7 +38,7 @@
       "shu_mbedtls_ssl_bind_fd_c"
     ]
   },
-  "rest_macro": "SHUX_RUNTIME_TLS_MBEDTLS_BIO_FROM_X",
+  "rest_macro": "XLANG_RUNTIME_TLS_MBEDTLS_BIO_FROM_X",
   "impl_residuals": ["shu_mbedtls_bio_send_impl", "shu_mbedtls_bio_recv_impl"],
   "forward_decls": [
     "shu_mbedtls_bio_send",

@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 
 BENCH_MMAP_FILE="tests/bench/.io_mmap_bench_tmp"
-BENCH_MB="${SHUX_IO_BENCH_MB:-16}"
+BENCH_MB="${XLANG_IO_BENCH_MB:-16}"
 RUNS=3
 
 extract_real_sec() {
@@ -48,8 +48,8 @@ bench_one() {
   local x="$2"
   local ring="$3"
   local out="/tmp/bench_io_ring_ab_${label}"
-  export SHUX_IO_URING_RING_ENTRIES="$ring"
-  ./compiler/shux build -L . "$x" -o "$out" 2>&1
+  export XLANG_IO_URING_RING_ENTRIES="$ring"
+  ./compiler/xlang build -L . "$x" -o "$out" 2>&1
   if [ ! -x "$out" ]; then
     echo "nan"
     return

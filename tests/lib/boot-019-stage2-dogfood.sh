@@ -2,24 +2,24 @@
 # boot-019-stage2-dogfood.sh — BOOT-019：Stage2 parser/typeck dogfood 辅助
 #
 # 用法（source 后）：
-#   boot019_check_one SHU tests/parser/two_functions.x
-#   boot019_link_run_one SHU tests/option/main.x OUT_PATH [EXPECTED_EXIT]
+#   boot019_check_one XLANG tests/parser/two_functions.x
+#   boot019_link_run_one XLANG tests/option/main.x OUT_PATH [EXPECTED_EXIT]
 #   boot019_expected_exit tests/option/main.x  # 烟测约定退出码
 #   boot019_emit_report status check_ok link_ok skip
 
-BOOT019_PREFIX="${SHUX_BOOT019_PREFIX:-shux: [SHUX_BOOT019]}"
+BOOT019_PREFIX="${XLANG_BOOT019_PREFIX:-xlang: [XLANG_BOOT019]}"
 
-# 对单个 .x 跑 shux check；失败返回 1。
+# 对单个 .x 跑 xlang check；失败返回 1。
 boot019_check_one() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   if [ ! -f "$src" ]; then
     return 1
   fi
-  if "$shux" check -L . "$src" >/dev/null 2>&1; then
+  if "$xlang" check -L . "$src" >/dev/null 2>&1; then
     return 0
   fi
-  "$shux" check -L . "$src" 2>&1 | tail -5 >&2 || true
+  "$xlang" check -L . "$src" 2>&1 | tail -5 >&2 || true
   return 1
 }
 
@@ -36,14 +36,14 @@ boot019_expected_exit() {
 
 # 尝试 -o 链接并运行；成功返回 0，链接失败返回 2，运行 exit 不符返回 1。
 boot019_link_run_one() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local out="$3"
   local expect="${4:-0}"
   if [ ! -f "$src" ]; then
     return 1
   fi
-  if ! "$shux" -L . "$src" -o "$out" >/dev/null 2>&1; then
+  if ! "$xlang" -L . "$src" -o "$out" >/dev/null 2>&1; then
     return 2
   fi
   local ex=0

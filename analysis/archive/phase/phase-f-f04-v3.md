@@ -23,7 +23,7 @@
 ## 复现
 
 ```bash
-SHUX_F04_NET_WS_FAIL=1 ./tests/run-f04-std-net-ws-gate.sh
-SHUX_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=101
+XLANG_F04_NET_WS_FAIL=1 ./tests/run-f04-std-net-ws-gate.sh
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=101
 ./tests/run-std-net-ws-gate.sh
 ```

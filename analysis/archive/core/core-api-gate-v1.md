@@ -47,7 +47,7 @@
 ```
 
 ```
-shux: [SHUX_CORE_API] status=ok covered=11 sym_miss=0 gate_miss=0
+xlang: [XLANG_CORE_API] status=ok covered=11 sym_miss=0 gate_miss=0
 ```
 
 便携回归：`tests/run-portable-suite.sh`

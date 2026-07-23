@@ -3,14 +3,14 @@
 #
 # 1) boot-015-semantic-smoke-v1.md 必需章节
 # 2) 三模块烟测存在且文档引用
-# 3) native shux 时跑 bootstrap 子集 runner（check 必绿；link 可选）
+# 3) native xlang 时跑 bootstrap 子集 runner（check 必绿；link 可选）
 #
 # 用法：./tests/run-boot-015-semantic-smoke-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_BOOT015_DOC:-analysis/boot-015-semantic-smoke-v1.md}"
-MANIFEST="${SHUX_BOOT015_TSV:-tests/baseline/boot-015-semantic-smoke.tsv}"
+DOC="${XLANG_BOOT015_DOC:-analysis/boot-015-semantic-smoke-v1.md}"
+MANIFEST="${XLANG_BOOT015_TSV:-tests/baseline/boot-015-semantic-smoke.tsv}"
 RUNNER="tests/run-bootstrap-semantic-smoke-vec-map-heap.sh"
 LIB="tests/lib/boot-015-semantic-smoke.sh"
 MIN_SMOKE=3
@@ -18,7 +18,7 @@ MIN_SMOKE=3
 # shellcheck source=tests/lib/boot-015-semantic-smoke.sh
 . tests/lib/boot-015-semantic-smoke.sh
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -106,11 +106,11 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "boot-015-semantic-smoke manifest OK (smokes=${SMOKE})"
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
-    if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
+    if native_xlang "$cand"; then
+      XLANG_BIN="$cand"
       break
     fi
   done
@@ -119,11 +119,11 @@ fi
 CHECK_OK=0
 LINK_OK=0
 SKIP=1
-if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
-  echo "=== BOOT-015: bootstrap subset runner (SHUX=$SHUX_BIN) ==="
+if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
+  echo "=== BOOT-015: bootstrap subset runner (XLANG=$XLANG_BIN) ==="
   make -C compiler -q 2>/dev/null || make -C compiler
   chmod +x "$RUNNER"
-  if SHUX="$SHUX_BIN" BOOT015_SKIP_LINK="${BOOT015_SKIP_LINK:-}" "$RUNNER" >/tmp/boot015_subset.log 2>&1; then
+  if XLANG="$XLANG_BIN" BOOT015_SKIP_LINK="${BOOT015_SKIP_LINK:-}" "$RUNNER" >/tmp/boot015_subset.log 2>&1; then
     grep -q 'bootstrap-semantic-smoke vec/map/heap OK' /tmp/boot015_subset.log
     CHECK_OK=3
     if grep -q 'link+run OK' /tmp/boot015_subset.log; then
@@ -136,7 +136,7 @@ if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
     exit 1
   fi
 else
-  echo "boot-015-semantic-smoke gate SKIP runner (no native shux)" >&2
+  echo "boot-015-semantic-smoke gate SKIP runner (no native xlang)" >&2
 fi
 
 boot015_emit_report "ok" "$CHECK_OK" "$LINK_OK" "$SKIP"

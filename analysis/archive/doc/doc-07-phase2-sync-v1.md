@@ -47,4 +47,4 @@
 ./tests/run-doc-07-phase2-sync-gate.sh
 ```
 
-报告：`shux: [SHUX_STD141_DOC07_PHASE2_SYNC]`
+报告：`xlang: [XLANG_STD141_DOC07_PHASE2_SYNC]`

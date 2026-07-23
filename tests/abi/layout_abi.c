@@ -6,8 +6,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* 切片 T[] 的 C 侧布局：与 codegen 生成的 struct shux_slice_<elem> 一致 */
-struct shux_slice_u8 {
+/* 切片 T[] 的 C 侧布局：与 codegen 生成的 struct xlang_slice_<elem> 一致 */
+struct xlang_slice_u8 {
     uint8_t *data;
     size_t length;
 };
@@ -28,9 +28,9 @@ struct std_mem_Buffer {
 int main(void) {
     /* 切片：64 位下 8+8=16 字节，data 偏移 0，length 偏移 8 */
     if (sizeof(size_t) == 8) {
-        if (sizeof(struct shux_slice_u8) != 16) return 1;
-        if (offsetof(struct shux_slice_u8, data) != 0) return 2;
-        if (offsetof(struct shux_slice_u8, length) != 8) return 3;
+        if (sizeof(struct xlang_slice_u8) != 16) return 1;
+        if (offsetof(struct xlang_slice_u8, data) != 0) return 2;
+        if (offsetof(struct xlang_slice_u8, length) != 8) return 3;
     }
     /* packed Header：1+4=5 */
     if (sizeof(struct Header_packed) != 5) return 4;

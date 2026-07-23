@@ -9,9 +9,9 @@
 
 ## 1. 目标
 
-在 BOOT-022 **≥1 emit** 基础上推进 **7/7 全量 emit**：`SHUX_ASM_PARSER_MEGA_BISECT=<fn>` 对 B1–B7 逐项探测，`delta ≥ 8192` 计为 `emit`；**全部 7** 项须达标。
+在 BOOT-022 **≥1 emit** 基础上推进 **7/7 全量 emit**：`XLANG_ASM_PARSER_MEGA_BISECT=<fn>` 对 B1–B7 逐项探测，`delta ≥ 8192` 计为 `emit`；**全部 7** 项须达标。
 
-验收：`tests/run-boot-023-mega7-full-emit-gate.sh` 绿；`min_promote_emit=7`（Linux + `shux_asm`）。
+验收：`tests/run-boot-023-mega7-full-emit-gate.sh` 绿；`min_promote_emit=7`（Linux + `xlang_asm`）。
 
 ---
 
@@ -39,7 +39,7 @@
 ./tests/run-parser-mega7-emit-wave.sh
 ```
 
-Linux 上须 **promote_emit=7**；Darwin / 无 `shux_asm` 时 manifest 绿 + wave **SKIP**。
+Linux 上须 **promote_emit=7**；Darwin / 无 `xlang_asm` 时 manifest 绿 + wave **SKIP**。
 
 ---
 
@@ -50,12 +50,12 @@ Linux 上须 **promote_emit=7**；Darwin / 无 `shux_asm` 时 manifest 绿 + wav
 ```
 
 ```
-shux: [SHUX_BOOT023] status=ok promote_emit=7 emit_full=7 skip=1
+xlang: [XLANG_BOOT023] status=ok promote_emit=7 emit_full=7 skip=1
 ```
 
 - **promote_emit**：`status=emit` 计数；Linux 须 **=7**
 - **emit_full**：与 `promote_emit` 同义，强调 7/7 闭环
-- Darwin / 无 `shux_asm`：manifest 绿 + wave **SKIP**
+- Darwin / 无 `xlang_asm`：manifest 绿 + wave **SKIP**
 
 ---
 

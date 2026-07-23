@@ -24,11 +24,11 @@ extern void io_unregister_buffers(void);
 extern uint8_t *io_read_ptr(size_t handle, uint32_t timeout_ms);
 extern int32_t io_read_ptr_len(void);
 
-/* ---- shux io core wrappers ---- */
-int32_t std_io_core_shux_io_register(uint8_t *ptr, size_t len, size_t handle);
-int32_t std_io_core_shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_ms);
-int32_t std_io_core_shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_ms);
-void std_io_core_shux_io_unregister_buffers(void);
+/* ---- xlang io core wrappers ---- */
+int32_t std_io_core_xlang_io_register(uint8_t *ptr, size_t len, size_t handle);
+int32_t std_io_core_xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_ms);
+int32_t std_io_core_xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_ms);
+void std_io_core_xlang_io_unregister_buffers(void);
 
 /* ---- fs ----
  * 与 .x extern isize 经 -E 生成的 ptrdiff_t 声明一致；链接时 std/fs/fs.c 的 int64_t 在 LP64 等价。 */
@@ -44,7 +44,7 @@ extern int32_t fs_posix_close_c(int32_t fd);
  *      same .c file also includes <unistd.h> (which includes the same
  *      header), there's no duplicate static inline definition.
  * PLATFORM: WINDOWS | MSYS | MINGW (no-op on POSIX via _WIN32 guard). */
-#include <shux_posix_env.h>
+#include <xlang_posix_env.h>
 
 #ifdef __cplusplus
 }

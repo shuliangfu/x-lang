@@ -23,11 +23,11 @@
   },
   "symbols": {
     "x": ["driver_get_pending_target_cpu_features", "driver_set_pending_target_cpu_features", "tcp_eq5", "tcp_eq6", "tcp_tolower"],
-    "seed": ["append_feat_name", "flags_has_token", "shu_simd_is_vector_type_spelling", "shu_simd_vector_lanes_esz_from_spelling", "shu_target_cpu_detect_arm64", "shu_target_cpu_detect_host", "shu_target_cpu_generic_for_host", "shu_target_cpu_print", "shu_target_cpu_resolve", "tcp_eq_at", "tcp_parse_named"],
+    "seed": ["append_feat_name", "flags_has_token", "xlang_simd_is_vector_type_spelling", "xlang_simd_vector_lanes_esz_from_spelling", "xlang_target_cpu_detect_arm64", "xlang_target_cpu_detect_host", "xlang_target_cpu_generic_for_host", "xlang_target_cpu_print", "xlang_target_cpu_resolve", "tcp_eq_at", "tcp_parse_named"],
     "only_x": [],
-    "only_seed": ["append_feat_name", "flags_has_token", "shu_simd_is_vector_type_spelling", "shu_simd_vector_lanes_esz_from_spelling", "shu_target_cpu_detect_arm64", "shu_target_cpu_detect_host", "shu_target_cpu_generic_for_host", "shu_target_cpu_print", "shu_target_cpu_resolve", "tcp_eq_at", "tcp_parse_named"]
+    "only_seed": ["append_feat_name", "flags_has_token", "xlang_simd_is_vector_type_spelling", "xlang_simd_vector_lanes_esz_from_spelling", "xlang_target_cpu_detect_arm64", "xlang_target_cpu_detect_host", "xlang_target_cpu_generic_for_host", "xlang_target_cpu_print", "xlang_target_cpu_resolve", "tcp_eq_at", "tcp_parse_named"]
   },
-  "rest_macro": "SHUX_L2_TARGET_CPU_FLAGS_FROM_X",
+  "rest_macro": "XLANG_L2_TARGET_CPU_FLAGS_FROM_X",
   "delete_seed_gate": {
     "allowed_now": false,
     "requirements": [

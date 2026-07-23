@@ -8,20 +8,20 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/comp-win-backend.sh
 . tests/lib/comp-win-backend.sh
 
-MATRIX="${SHUX_WIN_BACKEND_MATRIX:-tests/baseline/comp-win-backend-matrix.tsv}"
+MATRIX="${XLANG_WIN_BACKEND_MATRIX:-tests/baseline/comp-win-backend-matrix.tsv}"
 SAMPLE="tests/asm/windows_min.x"
-COFF_OUT="/tmp/shux_comp_win_backend.$$.obj"
-trap 'rm -f "$COFF_OUT" /tmp/shux_comp_win_exe.$$.exe 2>/dev/null || true' EXIT
+COFF_OUT="/tmp/xlang_comp_win_backend.$$.obj"
+trap 'rm -f "$COFF_OUT" /tmp/xlang_comp_win_exe.$$.exe 2>/dev/null || true' EXIT
 
 echo "=== COMP-011: Windows backend smoke ==="
 
-SHUX_BIN=""
-if SHUX_BIN="$(comp_win_backend_pick_shux 2>/dev/null || true)"; then
+XLANG_BIN=""
+if XLANG_BIN="$(comp_win_backend_pick_xlang 2>/dev/null || true)"; then
   :
 fi
 
-if [ -z "$SHUX_BIN" ]; then
-  echo "comp-win-backend SKIP (no asm-capable shux; seed/C-only build)"
+if [ -z "$XLANG_BIN" ]; then
+  echo "comp-win-backend SKIP (no asm-capable xlang; seed/C-only build)"
   echo "comp-win-backend OK"
   exit 0
 fi
@@ -33,7 +33,7 @@ if [ ! -f "$SAMPLE" ]; then
   exit 1
 fi
 
-if ! comp_win_backend_emit_coff "$SHUX_BIN" "$SAMPLE" "$COFF_OUT" >/dev/null; then
+if ! comp_win_backend_emit_coff "$XLANG_BIN" "$SAMPLE" "$COFF_OUT" >/dev/null; then
   echo "comp-win-backend FAIL: COFF emit $SAMPLE" >&2
   exit 1
 fi
@@ -42,7 +42,7 @@ echo "comp-win-backend OK coff_emit sample=$SAMPLE bytes=$SZ"
 
 # MSYS：尝试 lld-link/link 全链（optional）。
 if comp_win_backend_is_msys; then
-  EXE="/tmp/shux_comp_win_exe.$$.exe"
+  EXE="/tmp/xlang_comp_win_exe.$$.exe"
   rm -f "$EXE" 2>/dev/null || true
   if command -v lld-link >/dev/null 2>&1; then
   if lld-link "/entry:_main" "/out:$EXE" "$COFF_OUT" 2>/dev/null && [ -x "$EXE" ]; then

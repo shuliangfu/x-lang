@@ -1,6 +1,6 @@
 /* seeds/rt_run_x_emit.from_x.c — G-02f-314 P2 runtime rest (-x -E emit)
  * Logic source: src/runtime/rt_run_x_emit.x
- * Hybrid: SHUX_RT_RUN_X_EMIT_FROM_X + ld -r into runtime_driver_no_c.o
+ * Hybrid: XLANG_RT_RUN_X_EMIT_FROM_X + ld -r into runtime_driver_no_c.o
  *
  * R2 full（2026-07-14）：公共业务符号 driver_run_x_emit_c 由 full .x 提供；
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务符号 H=0）。
@@ -34,7 +34,7 @@
 #define PATH_MAX 4096
 #endif
 
-#ifndef SHUX_RT_RUN_X_EMIT_FROM_X
+#ifndef XLANG_RT_RUN_X_EMIT_FROM_X
 
 #define X_CODEGEN_OUTBUF_CAP (9 * 1024 * 1024)
 struct codegen_CodegenOutBuf {
@@ -53,8 +53,8 @@ extern int driver_x_emit_c_want_extern;
 extern int driver_x_emit_n_lib_roots;
 extern const char *driver_x_emit_lib_roots[X_EMIT_MAX_LIB_ROOTS];
 
-extern char *shux_preprocess_with_path(const char *data, size_t len, const char *path, const char **defines, int n_defines, size_t *out_len);
-extern char *shux_preprocess(const char *data, size_t len, const char **defines, int n_defines, size_t *out_len);
+extern char *xlang_preprocess_with_path(const char *data, size_t len, const char *path, const char **defines, int n_defines, size_t *out_len);
+extern char *xlang_preprocess(const char *data, size_t len, const char **defines, int n_defines, size_t *out_len);
 extern void pipeline_diag_emitted_reset(void);
 extern int pipeline_diag_emitted_get(void);
 extern void diag_set_file(const char *path, const char *src, size_t len);
@@ -64,21 +64,22 @@ extern void parser_parse_into_init(void *arena, void *module);
 extern struct parser_ParseIntoResult parser_parse_into_buf(void *arena, void *module, uint8_t *data, int32_t len);
 extern void parser_parse_into_set_main_index(void *module, int32_t main_idx);
 extern int driver_get_module_num_funcs(void *m);
-extern int32_t parser_diag_fail_at_token_kind(struct shux_slice_uint8_t *source);
+extern int32_t parser_diag_fail_at_token_kind(struct xlang_slice_uint8_t *source);
 extern int32_t parser_get_module_num_imports(void *module);
-extern void shux_get_entry_dir(const char *path, char *out, size_t out_sz);
+extern void xlang_get_entry_dir(const char *path, char *out, size_t out_sz);
 extern void pipeline_set_entry_dir(const char *dir);
 extern int driver_x_emit_asm_direct_import_only(const char *input_path);
 extern int driver_x_emit_asm_dep_parse_only_ok(const char *input_path, const char *dep_path);
 extern int driver_x_emit_asm_dep_parse_skip_typeck_ok(const char *input_path, const char *dep_path);
-extern int typeck_ndep;
-extern void *typeck_dep_module_ptrs[];
-extern void *typeck_dep_arena_ptrs[];
+/* wave77: G.7 accessors only — pure owns typeck_dep BSS under hybrid; no naked C globals. */
+extern void typeck_ndep_store(int32_t n);
+extern void typeck_dep_module_set(int32_t i, void *mod);
+extern void typeck_dep_arena_set(int32_t i, void *arena);
 extern void driver_dep_seeded_clear_all(void);
 extern void driver_set_current_dep_path_for_codegen(const char *path);
-extern int shux_pipeline_dep_prerun_parse_skip_typeck(void *mod, void *arena, const uint8_t *src, size_t len, void *out, void *ctx);
-extern int shux_pipeline_dep_prerun_parse_only(void *mod, void *arena, const uint8_t *src, size_t len);
-extern int shux_pipeline_dep_prerun_typeck_only(void *mod, void *arena, const uint8_t *src, size_t len, void *out, void *ctx);
+extern int xlang_pipeline_dep_prerun_parse_skip_typeck(void *mod, void *arena, const uint8_t *src, size_t len, void *out, void *ctx);
+extern int xlang_pipeline_dep_prerun_parse_only(void *mod, void *arena, const uint8_t *src, size_t len);
+extern int xlang_pipeline_dep_prerun_typeck_only(void *mod, void *arena, const uint8_t *src, size_t len, void *out, void *ctx);
 extern void driver_dep_publish_slot(int j, void *arena, void *module, const char *path);
 extern void pipeline_set_dep_slots(void **arenas, void **modules);
 extern void driver_dep_seed_slots(void **arenas, void **modules, int n);
@@ -87,8 +88,17 @@ extern int runtime_report_precise_parse_failure_if_known(const char *input_path,
 extern int driver_run_x_emit_c_extern_via_cparser(const char *input_path);
 extern void pipeline_dep_ctx_heap_destroy(struct ast_PipelineDepCtx *ctx);
 extern int typeck_set_allow_legacy_extern_calls(int allow);
+/**
+ * Release GrowVec data buffers backing the arena/module sidecar pools.
+ * Declared with `void *` params to avoid pulling struct definitions here;
+ * ast_pool.c defines them with `struct ast_ASTArena *` / `struct ast_Module *`
+ * which are pointer-compatible. Safe no-op if no sidecar slot matches.
+ * PLATFORM: SHARED — see ast_pool.c `arena_sidecar_free` / `module_sidecar_free`.
+ */
+extern void ast_pool_arena_release(void *arena);
+extern void ast_pool_module_release(void *module);
 
-/** 执行刚解析的 -x -E（读文件、.x pipeline、写 stdout）；成功 0，失败 1。无 SHUX_USE_X_PIPELINE 时返回 1。 */
+/** 执行刚解析的 -x -E（读文件、.x pipeline、写 stdout）；成功 0，失败 1。无 XLANG_USE_X_PIPELINE 时返回 1。 */
 int driver_run_x_emit_c(void) {
     const char *input_path = driver_x_emit_c_path;
     int old_allow_legacy_extern = 0;
@@ -96,23 +106,23 @@ int driver_run_x_emit_c(void) {
     if (!input_path) return 1;
     /* LANG-007：-E 路径允许裸 extern（与 mega runtime 同意图） */
     old_allow_legacy_extern = typeck_set_allow_legacy_extern_calls(1);
-#ifdef SHUX_USE_X_PIPELINE
+#ifdef XLANG_USE_X_PIPELINE
     {
         (void)setvbuf(stdout, NULL, _IONBF, 0);
-#if defined(SHUX_USE_X_DRIVER) && defined(SHUX_USE_X_PIPELINE)
+#if defined(XLANG_USE_X_DRIVER) && defined(XLANG_USE_X_PIPELINE)
         {
             const int want_extern = driver_x_emit_c_want_extern;
             driver_x_emit_c_want_extern = 0;
             if (want_extern) {
-#if !defined(SHUX_NO_C_FRONTEND)
+#if !defined(XLANG_NO_C_FRONTEND)
                 {
                     int r = driver_run_x_emit_c_extern_via_cparser(input_path);
                     typeck_set_allow_legacy_extern_calls(old_allow_legacy_extern);
                     return r;
                 }
 #else
-                diag_report_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001,
-                            "-x -E -E-extern requires C parser/codegen (rebuild without -DSHUX_NO_C_FRONTEND)",
+                diag_report_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001,
+                            "-x -E -E-extern requires C parser/codegen (rebuild without -DXLANG_NO_C_FRONTEND)",
                             NULL);
                 typeck_set_allow_legacy_extern_calls(old_allow_legacy_extern);
                 return 1;
@@ -120,18 +130,18 @@ int driver_run_x_emit_c(void) {
             }
         }
 #endif
-        ShuxRuntimeFileView raw_src_view;
+        XlangRuntimeFileView raw_src_view;
         if (runtime_read_file_view(input_path, &raw_src_view) != 0) {
-            diag_reportf_with_code(input_path, 0, 0, "io error", SHUX_DIAG_CODE_IO_IO001, NULL,
+            diag_reportf_with_code(input_path, 0, 0, "io error", XLANG_DIAG_CODE_IO_IO001, NULL,
                                    "cannot read file '%s'", input_path ? input_path : "?");
             return 1;
         }
         size_t src_len = 0;
         pipeline_diag_emitted_reset();
-        char *src = shux_preprocess_with_path(raw_src_view.data, raw_src_view.length, input_path, NULL, 0, &src_len);
+        char *src = xlang_preprocess_with_path(raw_src_view.data, raw_src_view.length, input_path, NULL, 0, &src_len);
         runtime_release_file_view(&raw_src_view);
         if (!src && !pipeline_diag_emitted_get()) {
-            diag_reportf_with_code(input_path, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,
+            diag_reportf_with_code(input_path, 0, 0, "preprocess error", XLANG_DIAG_CODE_PREPROCESS_PP002, NULL,
                          "preprocess failed for '%s'", input_path);
             return 1;
         }
@@ -143,9 +153,9 @@ int driver_run_x_emit_c(void) {
         void *arena = malloc(arena_sz);
         void *module = malloc(module_sz);
         if (!arena || !module) {
-            diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP005,
+            diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP005,
                                   ".x pipeline allocation failed", NULL);
-            free(arena);
+            ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena);
             free(module);
             free(src);
             return 1;
@@ -153,10 +163,10 @@ int driver_run_x_emit_c(void) {
         memset(arena, 0, arena_sz);
         memset(module, 0, module_sz);
         if (src_len > (size_t)INT32_MAX) {
-            diag_reportf_with_code(input_path, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP007, NULL,
+            diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP007, NULL,
                                    ".x -E source too large for parser (>%d bytes): '%s'",
                                    INT32_MAX, input_path ? input_path : "?");
-            free(arena);
+            ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena);
             free(module);
             free(src);
             return 1;
@@ -166,28 +176,28 @@ int driver_run_x_emit_c(void) {
             parser_parse_into_buf(arena, module, (uint8_t *)src, (int32_t)src_len);
         if (pr.ok != 0) {
             if (runtime_report_precise_parse_failure_if_known(input_path, src, src_len)) {
-                free(arena);
+                ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena);
                 free(module);
                 free(src);
                 return 1;
             }
-            diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+            diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
                          ".x -E parse_into failed for '%s'",
                          input_path ? input_path : "?");
-            free(arena);
+            ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena);
             free(module);
             free(src);
             return 1;
         }
         parser_parse_into_set_main_index(module, pr.main_idx);
         if (driver_get_module_num_funcs(module) <= 0) {
-            struct shux_slice_uint8_t diag_src_slice = {(uint8_t *)src, src_len};
+            struct xlang_slice_uint8_t diag_src_slice = {(uint8_t *)src, src_len};
             int32_t fail_tok = parser_diag_fail_at_token_kind(&diag_src_slice);
             if (fail_tok == TOKEN_STRING) {
-                diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+                diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
                                        "expected integer literal, float literal, identifier, 'true', 'false', 'if', "
                                        "'break', 'continue', 'return', 'panic', 'match', or '('");
-                free(arena);
+                ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena);
                 free(module);
                 free(src);
                 return 1;
@@ -195,7 +205,7 @@ int driver_run_x_emit_c(void) {
         }
         int32_t n_imports = parser_get_module_num_imports(module);
         char entry_dir_buf[512];
-        shux_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
+        xlang_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
         const char *entry_dir = entry_dir_buf;
         if (n_imports > 0)
             pipeline_set_entry_dir(entry_dir_buf);
@@ -219,9 +229,9 @@ int driver_run_x_emit_c(void) {
         }
         if (n_imports > 0 && n_imports <= 32) {
             if (asm_direct_import_only) {
-                if (shux_load_direct_imports_for_asm_layout(module, lib_roots_arr, n_lib_roots, entry_dir, NULL, 0,
+                if (xlang_load_direct_imports_for_asm_layout(module, lib_roots_arr, n_lib_roots, entry_dir, NULL, 0,
                         dep_sources, dep_lens, dep_paths, &n_deps) != 0) {
-                    free(arena);
+                    ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena);
                     free(module);
                     free(src);
                     return 1;
@@ -231,37 +241,37 @@ int driver_run_x_emit_c(void) {
                 int n_closure = 0;
                 for (int i = 0; i < MAX_ALL_DEPS; i++)
                     cpaths[i] = NULL;
-                if (shux_collect_dep_paths_transitive(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir,
+                if (xlang_collect_dep_paths_transitive(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir,
                         NULL, 0, cpaths, &n_closure) != 0) {
-                    free(arena);
+                    ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena);
                     free(module);
                     free(src);
                     return 1;
                 }
-                if (shux_merge_direct_then_transitive_dep_paths(module, n_imports, cpaths, n_closure, dep_paths, &n_deps) != 0) {
+                if (xlang_merge_direct_then_transitive_dep_paths(module, n_imports, cpaths, n_closure, dep_paths, &n_deps) != 0) {
                     while (n_closure > 0) {
                         n_closure--;
                         free(cpaths[n_closure]);
                     }
-                    free(arena);
+                    ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena);
                     free(module);
                     free(src);
                     return 1;
                 }
             }
         }
-        typeck_ndep = 0;
+        typeck_ndep_store((int32_t)(0));
         void *dep_arenas[32];
         void *dep_modules[32];
         for (int i = 0; i < n_deps; i++) {
             dep_arenas[i] = malloc(arena_sz);
             dep_modules[i] = malloc(module_sz);
             if (!dep_arenas[i] || !dep_modules[i]) {
-                diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP005,
+                diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP005,
                                       ".x pipeline dependency allocation failed", NULL);
-                while (i > 0) { i--; free(dep_arenas[i]); free(dep_modules[i]); }
+                while (i > 0) { i--; ast_pool_arena_release(dep_arenas[i]); ast_pool_module_release(dep_modules[i]); free(dep_arenas[i]); free(dep_modules[i]); }
                 while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
-                free(arena); free(module); free(src);
+                ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena); free(module); free(src);
                 return 1;
             }
             memset(dep_arenas[i], 0, arena_sz);
@@ -270,20 +280,20 @@ int driver_run_x_emit_c(void) {
         struct codegen_CodegenOutBuf *out_buf = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*out_buf));
         struct ast_PipelineDepCtx *pctx_e = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*pctx_e));
         if (!out_buf || !pctx_e) {
-            diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP006,
+            diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP006,
                                   ".x -E output/context allocation failed", NULL);
-            for (int di = 0; di < n_deps; di++) { free(dep_arenas[di]); free(dep_modules[di]); }
+            for (int di = 0; di < n_deps; di++) { ast_pool_arena_release(dep_arenas[di]); ast_pool_module_release(dep_modules[di]); free(dep_arenas[di]); free(dep_modules[di]); }
             while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
-            free(arena); free(module); free(src);
+            ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena); free(module); free(src);
             if (out_buf) free(out_buf);
             if (pctx_e) pipeline_dep_ctx_heap_destroy(pctx_e);
             return 1;
         }
-        shux_pipeline_fill_ctx_path_buffers(pctx_e, entry_dir_buf, lib_roots_arr, n_lib_roots);
+        xlang_pipeline_fill_ctx_path_buffers(pctx_e, entry_dir_buf, lib_roots_arr, n_lib_roots);
         if (asm_direct_import_only)
-            shux_pipeline_pctx_seed_dep_import_paths_only(pctx_e, dep_paths, n_deps);
+            xlang_pipeline_pctx_seed_dep_import_paths_only(pctx_e, dep_paths, n_deps);
         else
-            shux_pipeline_pctx_seed_dep_slots(pctx_e, dep_modules, dep_arenas, dep_paths, n_deps);
+            xlang_pipeline_pctx_seed_dep_slots(pctx_e, dep_modules, dep_arenas, dep_paths, n_deps);
         pctx_e->use_asm_backend = 0;
         driver_dep_seeded_clear_all();
         for (int j = n_deps - 1; j >= 0; j--) {
@@ -293,18 +303,18 @@ int driver_run_x_emit_c(void) {
             size_t dep_len = 0;
             int ec_dep;
             if (!one_ctx || !dep_out) {
-                diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP006,
+                diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP006,
                                       ".x -E dependency context/output allocation failed", NULL);
                 pipeline_dep_ctx_heap_destroy(one_ctx);
                 free(dep_out);
-                for (int di = 0; di < n_deps; di++) { free(dep_arenas[di]); free(dep_modules[di]); }
+                for (int di = 0; di < n_deps; di++) { ast_pool_arena_release(dep_arenas[di]); ast_pool_module_release(dep_modules[di]); free(dep_arenas[di]); free(dep_modules[di]); }
                 while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
                 free(out_buf);
                 pipeline_dep_ctx_heap_destroy(pctx_e);
-                free(arena); free(module); free(src);
+                ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena); free(module); free(src);
                 return 1;
             }
-            shux_pipeline_fill_ctx_path_buffers(one_ctx, shux_dep_prerun_entry_dir(entry_dir_buf, lib_roots_arr, n_lib_roots),
+            xlang_pipeline_fill_ctx_path_buffers(one_ctx, xlang_dep_prerun_entry_dir(entry_dir_buf, lib_roots_arr, n_lib_roots),
                                                 lib_roots_arr, n_lib_roots);
             char resolved[PATH_MAX];
             resolved[0] = '\0';
@@ -312,13 +322,13 @@ int driver_run_x_emit_c(void) {
                 dep_src = dep_sources[j];
                 dep_len = dep_lens[j];
             } else {
-                ShuxRuntimeFileView raw_view;
-                shux_resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir, dep_paths[j], resolved, sizeof(resolved));
+                XlangRuntimeFileView raw_view;
+                xlang_resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir, dep_paths[j], resolved, sizeof(resolved));
                 if (runtime_read_file_view(resolved, &raw_view) != 0) {
                     pipeline_diag_import_open_fail_once(dep_paths[j], resolved);
                     pipeline_dep_ctx_heap_destroy(one_ctx);
                     free(dep_out);
-                    for (int di = 0; di < n_deps; di++) { free(dep_arenas[di]); free(dep_modules[di]); }
+                    for (int di = 0; di < n_deps; di++) { ast_pool_arena_release(dep_arenas[di]); ast_pool_module_release(dep_modules[di]); free(dep_arenas[di]); free(dep_modules[di]); }
                     while (n_deps > 0) {
                         n_deps--;
                         if (dep_sources[n_deps]) free(dep_sources[n_deps]);
@@ -326,17 +336,17 @@ int driver_run_x_emit_c(void) {
                     }
                     free(out_buf);
                     pipeline_dep_ctx_heap_destroy(pctx_e);
-                    free(arena); free(module); free(src);
+                    ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena); free(module); free(src);
                     return 1;
                 }
-                dep_src = shux_preprocess(raw_view.data, raw_view.length, NULL, 0, &dep_len);
+                dep_src = xlang_preprocess(raw_view.data, raw_view.length, NULL, 0, &dep_len);
                 runtime_release_file_view(&raw_view);
                 if (!dep_src) {
-                    diag_reportf_with_code(resolved, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,
+                    diag_reportf_with_code(resolved, 0, 0, "preprocess error", XLANG_DIAG_CODE_PREPROCESS_PP002, NULL,
                                  "preprocess failed for import '%s'", dep_paths[j]);
                     pipeline_dep_ctx_heap_destroy(one_ctx);
                     free(dep_out);
-                    for (int di = 0; di < n_deps; di++) { free(dep_arenas[di]); free(dep_modules[di]); }
+                    for (int di = 0; di < n_deps; di++) { ast_pool_arena_release(dep_arenas[di]); ast_pool_module_release(dep_modules[di]); free(dep_arenas[di]); free(dep_modules[di]); }
                     while (n_deps > 0) {
                         n_deps--;
                         if (dep_sources[n_deps]) free(dep_sources[n_deps]);
@@ -344,11 +354,11 @@ int driver_run_x_emit_c(void) {
                     }
                     free(out_buf);
                     pipeline_dep_ctx_heap_destroy(pctx_e);
-                    free(arena); free(module); free(src);
+                    ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena); free(module); free(src);
                     return 1;
                 }
             }
-            shux_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
+            xlang_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
             (const uint8_t *)dep_src, dep_len);
             driver_set_current_dep_path_for_codegen(dep_paths[j]);
             DiagContextSnapshot dep_diag_snapshot;
@@ -357,14 +367,14 @@ int driver_run_x_emit_c(void) {
                 dep_diag_file = resolved;
             diag_push_file(&dep_diag_snapshot, dep_diag_file, dep_src, dep_len);
             if (driver_x_emit_asm_dep_parse_skip_typeck_ok(input_path, dep_paths[j])) {
-                ec_dep = shux_pipeline_dep_prerun_parse_skip_typeck(dep_modules[j], dep_arenas[j],
+                ec_dep = xlang_pipeline_dep_prerun_parse_skip_typeck(dep_modules[j], dep_arenas[j],
                                                                     (const uint8_t *)dep_src, dep_len,
                                                                     (void *)dep_out, (void *)one_ctx);
             } else if (asm_direct_import_only || driver_x_emit_asm_dep_parse_only_ok(input_path, dep_paths[j])) {
-                ec_dep = shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
+                ec_dep = xlang_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                                                              (const uint8_t *)dep_src, dep_len);
             } else {
-                ec_dep = shux_pipeline_dep_prerun_typeck_only(dep_modules[j], dep_arenas[j],
+                ec_dep = xlang_pipeline_dep_prerun_typeck_only(dep_modules[j], dep_arenas[j],
                                                               (const uint8_t *)dep_src, dep_len,
                                                               (void *)dep_out, (void *)one_ctx);
             }
@@ -375,10 +385,10 @@ int driver_run_x_emit_c(void) {
             if (!asm_direct_import_only)
                 free(dep_src);
             if (ec_dep != 0) {
-                diag_reportf_with_code(dep_diag_file, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP008, NULL,
+                diag_reportf_with_code(dep_diag_file, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP008, NULL,
                                        "pipeline failed for import '%s' (dep prerun rc=%d)",
                                        dep_paths[j] ? dep_paths[j] : "?", ec_dep);
-                for (int di = 0; di < n_deps; di++) { free(dep_arenas[di]); free(dep_modules[di]); }
+                for (int di = 0; di < n_deps; di++) { ast_pool_arena_release(dep_arenas[di]); ast_pool_module_release(dep_modules[di]); free(dep_arenas[di]); free(dep_modules[di]); }
                 while (n_deps > 0) {
                     n_deps--;
                     if (dep_sources[n_deps]) free(dep_sources[n_deps]);
@@ -386,15 +396,18 @@ int driver_run_x_emit_c(void) {
                 }
                 free(out_buf);
                 pipeline_dep_ctx_heap_destroy(pctx_e);
-                free(arena); free(module); free(src);
+                ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena); free(module); free(src);
                 return 1;
             }
             driver_dep_publish_slot(j, dep_arenas[j], dep_modules[j], dep_paths[j]);
         }
-        typeck_ndep = asm_direct_import_only ? 0 : n_deps;
-        for (int j = 0; j < typeck_ndep; j++) {
-            typeck_dep_module_ptrs[j] = dep_modules[j];
-            typeck_dep_arena_ptrs[j] = dep_arenas[j];
+        {
+            int32_t tc_ndep = asm_direct_import_only ? 0 : n_deps;
+            typeck_ndep_store(tc_ndep);
+            for (int j = 0; j < tc_ndep; j++) {
+                typeck_dep_module_set((int32_t)(j), dep_modules[j]);
+                typeck_dep_arena_set((int32_t)(j), dep_arenas[j]);
+            }
         }
         if (asm_direct_import_only) {
             pipeline_set_dep_slots(dep_arenas, dep_modules);
@@ -404,43 +417,43 @@ int driver_run_x_emit_c(void) {
             pipeline_set_dep_slots(dep_arenas, dep_modules);
             driver_dep_seed_slots(dep_arenas, dep_modules, n_deps);
             /* PLATFORM: SHARED — re-seed pctx after dep pre-parse (NL-07 L8; G.7 pctx_seed). */
-            shux_pipeline_pctx_seed_dep_slots(pctx_e, dep_modules, dep_arenas, dep_paths, n_deps);
+            xlang_pipeline_pctx_seed_dep_slots(pctx_e, dep_modules, dep_arenas, dep_paths, n_deps);
             codegen_set_dep_slots_for_x_pipeline((struct ASTModule **)dep_modules, (const char **)dep_paths, n_deps);
             pipeline_set_dep_slots(dep_arenas, dep_modules);
         }
         memset(arena, 0, arena_sz);
         memset(module, 0, module_sz);
-        int ec = shux_pipeline_run_x_pipeline_large_stack(module, arena, (uint8_t *)src, src_len, (void *)out_buf, (void *)pctx_e);
+        int ec = xlang_pipeline_run_x_pipeline_large_stack(module, arena, (uint8_t *)src, src_len, (void *)out_buf, (void *)pctx_e);
         if (ec == 0 && out_buf->len > 0) {
             fwrite(out_buf->data, 1, (size_t)out_buf->len, stdout);
             fflush(stdout);
-            for (int j = n_deps - 1; j >= 0; j--) { free(dep_arenas[j]); free(dep_modules[j]); }
+            for (int j = n_deps - 1; j >= 0; j--) { ast_pool_arena_release(dep_arenas[j]); ast_pool_module_release(dep_modules[j]); free(dep_arenas[j]); free(dep_modules[j]); }
             while (n_deps > 0) {
                 n_deps--;
                 if (dep_sources[n_deps]) free(dep_sources[n_deps]);
                 free(dep_paths[n_deps]);
             }
         } else {
-            for (int j = n_deps - 1; j >= 0; j--) { free(dep_arenas[j]); free(dep_modules[j]); }
+            for (int j = n_deps - 1; j >= 0; j--) { ast_pool_arena_release(dep_arenas[j]); ast_pool_module_release(dep_modules[j]); free(dep_arenas[j]); free(dep_modules[j]); }
             while (n_deps > 0) {
                 n_deps--;
                 if (dep_sources[n_deps]) free(dep_sources[n_deps]);
                 free(dep_paths[n_deps]);
             }
             if (ec != 0) {
-                diag_reportf_with_code(input_path, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP003, NULL,
+                diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP003, NULL,
                              ".x pipeline failed for '%s'",
                              input_path ? input_path : "?");
             } else if (out_buf->len <= 0) {
                 if (driver_get_module_num_funcs(module) <= 0) {
                     if (!runtime_report_precise_parse_failure_if_known(input_path, src, src_len)) {
-                        diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+                        diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
                                                "parse produced no functions in '%s'",
                                                input_path ? input_path : "?");
                     }
                     goto x_emit_c_done;
                 }
-                diag_reportf_with_code(input_path, 0, 0, "codegen error", SHUX_DIAG_CODE_CODEGEN_CG004, NULL,
+                diag_reportf_with_code(input_path, 0, 0, "codegen error", XLANG_DIAG_CODE_CODEGEN_CG004, NULL,
                              "-x -E pipeline succeeded but codegen buffer is empty (ec=0 out_buf.len=%d); "
                              "check typeck/codegen/pipeline CodegenOutBuf",
                              (int)out_buf->len);
@@ -452,7 +465,7 @@ x_emit_c_done:
             emit_ret = 1;
         free(out_buf);
         pipeline_dep_ctx_heap_destroy(pctx_e);
-        free(arena);
+        ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena);
         free(module);
         free(src);
         typeck_set_allow_legacy_extern_calls(old_allow_legacy_extern);
@@ -465,9 +478,9 @@ x_emit_c_done:
 #endif
 }
 
-#else /* SHUX_RT_RUN_X_EMIT_FROM_X：产品 rest 仅 marker；业务体在 full .x */
+#else /* XLANG_RT_RUN_X_EMIT_FROM_X：产品 rest 仅 marker；业务体在 full .x */
 int driver_run_x_emit_c(void);
-#endif /* SHUX_RT_RUN_X_EMIT_FROM_X */
+#endif /* XLANG_RT_RUN_X_EMIT_FROM_X */
 
 int labi_rt_run_x_emit_slice_marker(void) {
   return 1;

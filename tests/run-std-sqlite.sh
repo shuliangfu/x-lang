@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-MANIFEST="${SHUX_STD_SQLITE_MANIFEST:-tests/baseline/std-sqlite-manifest.tsv}"
-MOD_X="${SHUX_STD_SQLITE_MOD:-std/db/sqlite/mod.x}"
+MANIFEST="${XLANG_STD_SQLITE_MANIFEST:-tests/baseline/std-sqlite-manifest.tsv}"
+MOD_X="${XLANG_STD_SQLITE_MOD:-std/db/sqlite/mod.x}"
 
 # shellcheck source=tests/lib/std-sqlite.sh
 . tests/lib/std-sqlite.sh
@@ -35,17 +35,17 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
   esac
 done < "$MANIFEST"
 
-SHUX_BIN=""
-if SHUX_BIN="$(std_sqlite_resolve_shu 2>/dev/null)"; then
+XLANG_BIN=""
+if XLANG_BIN="$(std_sqlite_resolve_shu 2>/dev/null)"; then
   make -C compiler -q 2>/dev/null || make -C compiler
-  if std_sqlite_run_typeck "$SHUX_BIN" tests/std-sqlite/draft_typeck.x draft_typeck; then
+  if std_sqlite_run_typeck "$XLANG_BIN" tests/std-sqlite/draft_typeck.x draft_typeck; then
     TYPECK_STATUS="ok"
   else
     TYPECK_STATUS="fail"
     FAIL=$((FAIL + 1))
   fi
 else
-  echo "std-sqlite SKIP typeck (no native shux)" >&2
+  echo "std-sqlite SKIP typeck (no native xlang)" >&2
 fi
 
 if [ "$FAIL" -gt 0 ]; then

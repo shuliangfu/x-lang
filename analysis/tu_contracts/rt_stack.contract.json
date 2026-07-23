@@ -27,7 +27,7 @@
     "only_x": [],
     "only_seed": ["driver_stack_esc_gate_large_stack_impl", "driver_stack_esc_gate_thread_fn", "labi_rt_stack_slice_marker"]
   },
-  "rest_macro": "SHUX_RT_STACK_FROM_X",
+  "rest_macro": "XLANG_RT_STACK_FROM_X",
   "delete_seed_gate": {
     "allowed_now": false,
     "requirements": [

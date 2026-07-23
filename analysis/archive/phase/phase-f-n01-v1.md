@@ -36,18 +36,18 @@
 
 ```bash
 # NL-01 专 gate（任意平台 manifest OK）
-SHUX_NOLIBC_N01_FAIL=1 ./tests/run-nolibc-n01-preparation-gate.sh
+XLANG_NOLIBC_N01_FAIL=1 ./tests/run-nolibc-n01-preparation-gate.sh
 
 # 仅 manifest（不跑子 gate）
-SHUX_NOLIBC_N01_MANIFEST_ONLY=1 ./tests/run-nolibc-n01-preparation-gate.sh
+XLANG_NOLIBC_N01_MANIFEST_ONLY=1 ./tests/run-nolibc-n01-preparation-gate.sh
 
 # 全链聚合（Linux x86_64 硬绿）
-SHUX_NOLIBC_FAIL=1 ./tests/run-no-libc-gate.sh
+XLANG_NOLIBC_FAIL=1 ./tests/run-no-libc-gate.sh
 ```
 
 ## track-only（不阻塞 NL-01 ✅）
 
-- 编译器 bootstrap（`build_shux_asm.sh`）仍 `-lc/-lm` → F-07
+- 编译器 bootstrap（`build_xlang_asm.sh`）仍 `-lc/-lm` → F-07
 - hosted 程序仍链 libc → 与 freestanding 路径正交
 
 ## 后续（NL-07 起）

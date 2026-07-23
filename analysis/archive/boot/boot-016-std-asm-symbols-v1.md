@@ -1,4 +1,4 @@
-# BOOT-016 shux_asm std 符号完整性 v1
+# BOOT-016 xlang_asm std 符号完整性 v1
 
 > 更新时间：2026-06-18  
 > 状态：**定版（v1）**  
@@ -8,7 +8,7 @@
 
 ## 1. 目标
 
-扩展 **shux_asm** 用户程序链接路径（`asm_ld_append_std_objs`）的 **Top-N std `.o` 符号完整性** gate：每个关键模块 `.o` 须可构建且 `nm` 可见锚点 C 符号，防止链入空壳或截断对象。
+扩展 **xlang_asm** 用户程序链接路径（`asm_ld_append_std_objs`）的 **Top-N std `.o` 符号完整性** gate：每个关键模块 `.o` 须可构建且 `nm` 可见锚点 C 符号，防止链入空壳或截断对象。
 
 验收：`tests/run-boot-016-std-asm-symbols-gate.sh` 绿；`min_top_n=12`。
 
@@ -16,7 +16,7 @@
 
 ## 2. runtime.c 路径
 
-与 BOOT-014 一致：`runtime.c` 中 `get_std_*_o_path` + `shux_asm_ld_try_under_lib_roots("std/…/….o")` 须覆盖 manifest 各行 `obj_rel`。
+与 BOOT-014 一致：`runtime.c` 中 `get_std_*_o_path` + `xlang_asm_ld_try_under_lib_roots("std/…/….o")` 须覆盖 manifest 各行 `obj_rel`。
 
 ---
 
@@ -28,7 +28,7 @@
 | std.fs | `std/fs/fs.o` | `fs_open_read_c` |
 | std.heap | `std/heap/heap.o` | `heap_alloc_c` |
 | std.process | `std/process/process.o` | `process_getpid_c` |
-| std.string | `std/string/string.o` | `shux_string_memcmp_c` |
+| std.string | `std/string/string.o` | `xlang_string_memcmp_c` |
 | std.path | `std/path/path.o` | `path_sep_c` |
 | std.runtime | `std/runtime/runtime.o` | `runtime_panic` |
 | std.env | `std/env/env.o` | `env_iter_count_c` |
@@ -50,7 +50,7 @@
 manifest：`tests/baseline/boot-016-std-asm-symbols.tsv`
 
 ```
-shux: [SHUX_BOOT016] status=ok obj_ok=12 sym_miss=0 runtime_miss=0 skip=0
+xlang: [XLANG_BOOT016] status=ok obj_ok=12 sym_miss=0 runtime_miss=0 skip=0
 ```
 
 ---

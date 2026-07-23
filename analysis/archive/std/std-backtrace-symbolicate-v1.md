@@ -60,7 +60,7 @@
 ```
 
 ```
-shux: [SHUX_STD_BACKTRACE_SYM] status=ok c_gold=1 x=1 skip=0 host=Darwin/arm64
+xlang: [XLANG_STD_BACKTRACE_SYM] status=ok c_gold=1 x=1 skip=0 host=Darwin/arm64
 ```
 
 ---

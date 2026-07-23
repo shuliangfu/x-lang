@@ -32,7 +32,9 @@ export struct RtDispatchState {
   parse_saw_target_cpu: i32;
 }
 
-export extern "C" function getenv(name: *u8): *u8;
+/* wave227 G.7: env lookup via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl. */
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 export extern "C" function strlen(s: *u8): usize;
 export extern "C" function strcmp(a: *u8, b: *u8): i32;
 export extern "C" function driver_get_argv_i(argc: i32, argv: *u8, i: i32, buf: *u8, max: i32): i32;
@@ -64,7 +66,7 @@ export extern "C" function driver_compile_state_alloc_c(): *RtDispatchState;
 export extern "C" function driver_compile_state_free_c(state: *RtDispatchState): void;
 export extern "C" function driver_compile_parse_argv_impl_c(
   argc: i32, argv: *u8, state: *RtDispatchState): i32;
-export extern "C" function shu_target_cpu_print(out: *u8, features: u32): void;
+export extern "C" function xlang_target_cpu_print(out: *u8, features: u32): void;
 export extern "C" function driver_stdio_stdout(): *u8;
 
 export extern "C" function driver_dispatch_lib_roots_from_key(lib_key: *u8, n_out: *i32): *u8;
@@ -74,12 +76,12 @@ export extern "C" function driver_dispatch_run_compiler_parsed(
   target: *u8, opt_level: *u8, use_lto: i32, argc: i32, argv: *u8): i32;
 export extern "C" function driver_dispatch_opt_default(): *u8;
 
-/** Allocate a heap C string "SHUX_LTO\0" (byte-built; no string-literal dependency).
+/** Allocate a heap C string "XLANG_LTO\0" (byte-built; no string-literal dependency).
  * Returns malloc'd pointer or null on OOM. Caller must free when done.
- * Track-L: #[no_mangle] keeps surface short name (not rt_dispatch_impl_rt_di_env_shux_lto).
+ * Track-L: #[no_mangle] keeps surface short name (not rt_dispatch_impl_rt_di_env_xlang_lto).
  * PLATFORM: SHARED — link-name contract; dual-host prove. */
 #[no_mangle]
-export function rt_di_env_shux_lto(): *u8 {
+export function rt_di_env_xlang_lto(): *u8 {
   let p: *u8 = 0 as *u8;
   unsafe {
     p = malloc(16 as usize);
@@ -138,10 +140,15 @@ export function rt_di_argv_has_e_extern(argc: i32, argv: *u8): i32 {
   return 0;
 }
 
-/** Effective LTO enable: explicit use_lto, or getenv("SHUX_LTO") equal to "1".
- * Frees the temporary env-name buffer from rt_di_env_shux_lto after getenv.
+/**
+ * Effective LTO enable: explicit use_lto, or XLANG_LTO equal to "1".
+ * Frees the temporary env-name buffer from rt_di_env_xlang_lto after lookup.
+ * @param use_lto i32 — explicit CLI/driver LTO flag; non-zero forces enable
+ * @return i32 — 1 LTO on, 0 off
  * Track-L: #[no_mangle] keeps surface short name (not rt_dispatch_impl_rt_di_effective_use_lto).
- * PLATFORM: SHARED — link-name contract; env semantics via host getenv. */
+ * wave227 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
+ * PLATFORM: SHARED — link-name contract; host residual only link_abi_getenv_impl.
+ */
 #[no_mangle]
 export function rt_di_effective_use_lto(use_lto: i32): i32 {
   let env_name: *u8 = 0 as *u8;
@@ -149,12 +156,12 @@ export function rt_di_effective_use_lto(use_lto: i32): i32 {
   if (use_lto != 0) {
     return 1;
   }
-  env_name = rt_di_env_shux_lto();
+  env_name = rt_di_env_xlang_lto();
   if (env_name == 0 as *u8) {
     return 0;
   }
   unsafe {
-    env_val = getenv(env_name);
+    env_val = link_abi_getenv(env_name);
     free(env_name);
   }
   if (env_val == 0 as *u8) {
@@ -438,7 +445,7 @@ export function driver_run_compiler_full_x_impl_c(argc: i32, argv: *u8): i32 {
   if (state.print_target_cpu != 0) {
     unsafe {
       out = driver_stdio_stdout();
-      shu_target_cpu_print(out, state.target_cpu_features as u32);
+      xlang_target_cpu_print(out, state.target_cpu_features as u32);
       driver_compile_state_free_c(state);
     }
     return 0;

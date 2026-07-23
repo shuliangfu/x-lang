@@ -2,15 +2,15 @@
 # MEM-C1 AL-01/02：default_alloc 块内 scope / 块外 heap 注入烟测。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
-SHUX="${SHUX:-./compiler/shux-c}"
-FAIL="${SHUX_ALLOC_INJECT_GATE_FAIL:-0}"
+make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+XLANG="${XLANG:-./compiler/xlang-c}"
+FAIL="${XLANG_ALLOC_INJECT_GATE_FAIL:-0}"
 SRC="tests/mem/default_alloc.x"
-OUT="/tmp/shux_default_alloc_$$"
+OUT="/tmp/xlang_default_alloc_$$"
 
-if ! SHUX_KEEP_C=1 "$SHUX" "$SRC" -o "$OUT" >/tmp/shux_alloc_inject_run.log 2>&1; then
+if ! XLANG_KEEP_C=1 "$XLANG" "$SRC" -o "$OUT" >/tmp/xlang_alloc_inject_run.log 2>&1; then
   echo "alloc-inject-gate FAIL: build $SRC" >&2
-  tail -8 /tmp/shux_alloc_inject_run.log 2>/dev/null || true
+  tail -8 /tmp/xlang_alloc_inject_run.log 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1
   exit 0
 fi
@@ -21,14 +21,14 @@ if [ "$rc" != "0" ]; then
   [ "$FAIL" = "1" ] && exit 1
   exit 0
 fi
-gen="$(grep -oE '/tmp/shux_[A-Za-z0-9]+\.c' /tmp/shux_alloc_inject_run.log | tail -1)"
+gen="$(grep -oE '/tmp/xlang_[A-Za-z0-9]+\.c' /tmp/xlang_alloc_inject_run.log | tail -1)"
 if [ -z "$gen" ] || [ ! -f "$gen" ]; then
   echo "alloc-inject-gate FAIL: missing kept generated C" >&2
   [ "$FAIL" = "1" ] && exit 1
   exit 0
 fi
-if ! grep -q '__shux_scope_al_' "$gen"; then
-  echo "alloc-inject-gate FAIL: missing __shux_scope_al_ in with_arena path" >&2
+if ! grep -q '__xlang_scope_al_' "$gen"; then
+  echo "alloc-inject-gate FAIL: missing __xlang_scope_al_ in with_arena path" >&2
   rm -f "$gen"
   [ "$FAIL" = "1" ] && exit 1
   exit 0

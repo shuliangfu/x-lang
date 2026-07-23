@@ -37,7 +37,7 @@ int log_write_fd_impl(int fd, const void *buf, size_t len) { return (int)_write(
 int log_write_fd_impl(int fd, const void *buf, size_t len) { return (int)write(fd, buf, len); }
 #endif
 
-#ifndef SHUX_RUNTIME_LOG_OS_FROM_X
+#ifndef XLANG_RUNTIME_LOG_OS_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int log_write_fd(int fd, const void *buf, size_t len) { return log_write_fd_impl(fd, buf, len); }
 #endif
@@ -81,20 +81,20 @@ int32_t log_async_enqueue(const void *buf, size_t len);
 void log_apply_env_once(void);
 int32_t log_emit_bytes(const void *buf, size_t len);
 
-/** 首次写日志时读取 SHUX_LOG_MIN_LEVEL（0–3）。 */
+/** 首次写日志时读取 XLANG_LOG_MIN_LEVEL（0–3）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_log_os.x）提供 public wrapper */
 void log_apply_env_once_impl(void) {
   if (s_env_applied) return;
   s_env_applied = 1;
-  const char *v = getenv("SHUX_LOG_MIN_LEVEL");
+  const char *v = getenv("XLANG_LOG_MIN_LEVEL");
   if (v && v[0]) {
     int l = atoi(v);
     if (l >= 0 && l <= 3) s_min_level = (int32_t)l;
   }
 }
 
-#ifndef SHUX_RUNTIME_LOG_OS_FROM_X
+#ifndef XLANG_RUNTIME_LOG_OS_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 void log_apply_env_once(void) {
   log_apply_env_once_impl();
@@ -192,7 +192,7 @@ int32_t log_do_rotate_impl(void) {
   return (s_file_fd >= 0) ? 0 : -1;
 }
 
-#ifndef SHUX_RUNTIME_LOG_OS_FROM_X
+#ifndef XLANG_RUNTIME_LOG_OS_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t log_do_rotate(void) {
   return log_do_rotate_impl();
@@ -214,7 +214,7 @@ int32_t log_write_file_sync_impl(const void *buf, size_t len) {
   return 0;
 }
 
-#ifndef SHUX_RUNTIME_LOG_OS_FROM_X
+#ifndef XLANG_RUNTIME_LOG_OS_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t log_write_file_sync(const void *buf, size_t len) {
   return log_write_file_sync_impl(buf, len);
@@ -234,7 +234,7 @@ int32_t log_write_sync_impl(const void *buf, size_t len) {
   return 0;
 }
 
-#ifndef SHUX_RUNTIME_LOG_OS_FROM_X
+#ifndef XLANG_RUNTIME_LOG_OS_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t log_write_sync(const void *buf, size_t len) {
   return log_write_sync_impl(buf, len);
@@ -258,7 +258,7 @@ int32_t log_async_enqueue_impl(const void *buf, size_t len) {
   return 0;
 }
 
-#ifndef SHUX_RUNTIME_LOG_OS_FROM_X
+#ifndef XLANG_RUNTIME_LOG_OS_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t log_async_enqueue(const void *buf, size_t len) {
   return log_async_enqueue_impl(buf, len);
@@ -275,7 +275,7 @@ int32_t log_emit_bytes_impl(const void *buf, size_t len) {
   return log_write_sync(buf, len);
 }
 
-#ifndef SHUX_RUNTIME_LOG_OS_FROM_X
+#ifndef XLANG_RUNTIME_LOG_OS_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t log_emit_bytes(const void *buf, size_t len) {
   return log_emit_bytes_impl(buf, len);
@@ -359,7 +359,7 @@ int32_t log_multi_sink_smoke_c(const char *path) {
   buf[total] = 0;
   fclose(fp);
   if (!strstr(buf, "[INFO] sink_ok")) return 6;
-  if (!strstr(buf, "shux: level=info component=std_log_smoke")) return 7;
+  if (!strstr(buf, "xlang: level=info component=std_log_smoke")) return 7;
 
   /* 级别过滤：min=WARN 时 INFO "filtered" 不落盘 */
 #if !defined(_WIN32) && !defined(_WIN64)

@@ -3,14 +3,14 @@
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-SHUX=${SHUX:-./compiler/shux}
+XLANG=${XLANG:-./compiler/xlang}
 
-$SHUX build tests/vector/vec_add_check.x -o /tmp/shux_asm_vector_var 2>&1
+$XLANG build tests/vector/vec_add_check.x -o /tmp/xlang_asm_vector_var 2>&1
 exitcode=0
-/tmp/shux_asm_vector_var >/dev/null 2>&1 || exitcode=$?
+/tmp/xlang_asm_vector_var >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "run-asm-vector-var FAIL: expected exit 0, got $exitcode"; exit 1; }
 
-if otool -tv /tmp/shux_asm_vector_var 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'sub.*sp, sp, #0x10'; then
+if otool -tv /tmp/xlang_asm_vector_var 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'sub.*sp, sp, #0x10'; then
   echo "run-asm-vector-var FAIL: main still uses stack push for vector lane binop"
   exit 1
 fi

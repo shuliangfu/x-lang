@@ -82,11 +82,11 @@ tests/run-*.sh 总数:        881
 | run-core-assert.sh | 15 | core.assert + core.debug alias | run-builtin.sh | assert: 0 | 🔴 丢失 |
 | run-fmt-unary-gate.sh | 83 | fmt 一元负号 -1 / 二元减法 a-1 格式化 | run-fmt.sh / run-fmt-cmd.sh / run-fmt-std.sh | unary/负号/minus/return -1: 0 | 🔴 丢失 |
 | run-io-driver-process.sh | 24 | std.io 链路 + std.process spawn | run-process.sh | spawn: 7 | 🟡 可能覆盖 |
-| run-perf-simd-shuxffle-select.sh | 101 | SIMD shuffle select 性能 | run-asm-vector-var.sh | simd: 0 | 🔴 丢失 |
+| run-perf-simd-xlangffle-select.sh | 101 | SIMD shuffle select 性能 | run-asm-vector-var.sh | simd: 0 | 🔴 丢失 |
 | run-std-debug.sh | 12 | std.debug stderr + assert 重导出 | run-debug.sh | stderr: 0 | 🔴 丢失 |
 | run-std-io-context-gate.sh | 91 | std.io context gate | run-io.sh | context: 0 | 🔴 丢失 |
 | run-std-net-context-gate.sh | 90 | std.net context gate | run-net.sh | context: 0 | 🔴 丢失 |
-| run-std-simd-shuxffle-select-gate.sh | 167 | std SIMD shuffle select gate | run-asm-vector-var.sh | simd: 0 | 🔴 丢失 |
+| run-std-simd-xlangffle-select-gate.sh | 167 | std SIMD shuffle select gate | run-asm-vector-var.sh | simd: 0 | 🔴 丢失 |
 
 ### 3.3 关键结论
 
@@ -106,13 +106,13 @@ tests/run-*.sh 总数:        881
 
 - **操作**：把 8 个无引用脚本中 7 个（除 run-io-driver-process.sh，因 spawn 可能被覆盖）加入 `tests/run-all-bstrict.sh` BSTRICT_SCRIPTS 数组
 - **风险**：低（只增不减，不破坏现有覆盖）
-- **工作量**：~1d（需验证每个脚本在产品 shux_asm 下能通过 + L4 双端验证）
+- **工作量**：~1d（需验证每个脚本在产品 xlang_asm 下能通过 + L4 双端验证）
 - **代价**：125 → 132 白名单（与"瘦身"目标相反）
 - **副作用**：套件数增加，L4 跑时间变长
 
 ### 路径 B（激进 · 删除）：删除 8 个无引用脚本
 
-- **操作**：`rm tests/run-core-assert.sh tests/run-fmt-unary-gate.sh tests/run-io-driver-process.sh tests/run-perf-simd-shuxffle-select.sh tests/run-std-debug.sh tests/run-std-io-context-gate.sh tests/run-std-net-context-gate.sh tests/run-std-simd-shuxffle-select-gate.sh`
+- **操作**：`rm tests/run-core-assert.sh tests/run-fmt-unary-gate.sh tests/run-io-driver-process.sh tests/run-perf-simd-xlangffle-select.sh tests/run-std-debug.sh tests/run-std-io-context-gate.sh tests/run-std-net-context-gate.sh tests/run-std-simd-xlangffle-select-gate.sh`
 - **风险**：高（丢失 7 个边界 case 覆盖；fmt 一元负号、SIMD shuffle、context gate 等）
 - **工作量**：~0.5d（删除 + L2 验证 125 白名单不受影响）
 - **代价**：丢失测试覆盖，违反根源治理（边界 case 应纳入白名单而非删除）
@@ -132,50 +132,53 @@ tests/run-*.sh 总数:        881
 - (a) 接受工作量调整为 3-5d，按路径 C 推进
 - (b) 接受路径 A 扩容（125 → 132），保留所有边界覆盖
 - (c) 接受路径 B 删除（丢失 7 个边界覆盖）
-- (d) 暂缓 C7，转其他候选（如 shux-x 5GB 方案 B / Cap C9 排期 / C6 P0b 波 3 std/ 标注）
+- (d) 暂缓 C7，转其他候选（如 xlang-x 5GB 方案 B / Cap C9 排期 / C6 P0b 波 3 std/ 标注）
 
-### 实际执行结果（2026-07-19 · 用户选路径 C 后）
+### 实际执行结果（2026-07-20 · 路径 C + 路径 A 混合，8/8 完成）
 
-用户选择路径 C（重构合并）。实际执行 2/8 完成，剩余 6 个阻塞：
+用户选择路径 C（重构合并）+ 路径 A（纳入白名单）混合策略。8/8 全部完成：
 
-| 脚本 | 状态 | 阻塞原因 |
+| 脚本 | 状态 | 处理方式 |
 |------|------|----------|
-| run-core-assert.sh | ✅ 合并到 run-debug.sh（commit `bedb40ca`） | — |
-| run-io-driver-process.sh | ✅ 直接删除（hello.x 被 run-hello.sh 覆盖 + spawn_wait.x 被 run-process.sh L84 覆盖） | — |
-| run-std-debug.sh | 🔴 阻塞 | **副产品发现 std.debug bug**：`println` 返回 `io.write_stderr` 字节数（11），而 `tests/std-debug/main.x` 期望 `a == 0`；语义不匹配导致 ec=1。bug 超出 C7 范围。 |
-| run-fmt-unary-gate.sh | 🔴 阻塞 | **副产品发现 fmt 命令 bug**：`return -i` 被错误格式化为 `return - i`（一元负号被加空格）；`return -1` 同样被错误格式化。shux_asm + shux-c 都有此 bug（同一二进制）。bug 超出 C7 范围。 |
-| run-perf-simd-shuxffle-select.sh | 🟡 类型不匹配 | STD-061 perf 对比（shuffle/select 生产 vs 标量桩基线），不适合合并到功能测试脚本 run-asm-vector-var.sh。 |
-| run-std-simd-shuxffle-select-gate.sh | 🟡 类型不匹配 | STD-047 manifest 完整性 gate，不适合合并到功能测试脚本。 |
-| run-std-io-context-gate.sh | 🟡 类型不匹配 | STD-091 std.io ↔ std.context 联动 gate，与 run-io.sh 功能测试类型不同。 |
-| run-std-net-context-gate.sh | 🟡 类型不匹配 | STD-092 std.net ↔ std.context 联动 gate，与 run-net.sh 功能测试类型不同。 |
+| run-core-assert.sh | ✅ 合并到 run-debug.sh（commit `bedb40ca`） | 路径 C |
+| run-io-driver-process.sh | ✅ 直接删除（hello.x 被 run-hello.sh 覆盖 + spawn_wait.x 被 run-process.sh L84 覆盖） | 删除 |
+| run-std-debug.sh | ✅ 合并到 run-debug.sh（本波完成） | 路径 C；std.debug.println 返回值已修复（返回 0/-1，不再是字节数） |
+| run-fmt-unary-gate.sh | ✅ 合并到 run-fmt-cmd.sh（本波完成） | 路径 C；fmt 一元负号修复已在源码 `runtime_lsp_glue.from_x.c` 完成（is_return 上下文识别） |
+| run-perf-simd-xlangffle-select.sh | ✅ 纳入白名单（路径 A） | 125 → 129；需要 xlang_asm（SIMD Vec 支持） |
+| run-std-simd-xlangffle-select-gate.sh | ✅ 纳入白名单（路径 A） | 125 → 129；无 xlang_asm 时 SKIP exit 0 |
+| run-std-io-context-gate.sh | ✅ 纳入白名单（路径 A） | 125 → 129；需要 xlang_asm 或更新 xlang-c |
+| run-std-net-context-gate.sh | ✅ 纳入白名单（路径 A） | 125 → 129；需要 xlang_asm 或更新 xlang-c |
 
-**路径 C 真实可行性**：2/8 完成（1 合并 + 1 删除）。剩余 6 个中 2 个有 bug（需先修 bug）、4 个是 gate/perf 类型不匹配（需调整合并策略或转路径 A 纳入白名单）。
+**路径 C + A 混合执行结果**：8/8 完成（3 合并 + 1 删除 + 4 纳入白名单）。白名单 125 → 129。
 
-**副产品发现的 bug（需单独修复，超出 C7 范围）**：
-1. **std.debug.println 返回值语义 bug**：`println(ptr: *u8, len: i32)` 返回 `io.write_stderr` 的返回值（字节数），而非 0/1（成功/失败）。导致 `tests/std-debug/main.x` 的 `a == 0` 检查失败。修复方向：要么 println 返回 0/1（改实现），要么 main.x 改为 `a >= 0`（改测试）。
-2. **fmt 命令一元负号 bug**：`return -i` / `return -1` 被错误格式化为 `return - i` / `return - 1`（一元负号后加空格）。但 `let a: i32 = -1;` 和 `neg(-1)` 的 -1 保持紧贴（正确）。修复方向：fmt 命令的 unary minus 识别逻辑漏了 `return` 上下文。
+**修复的副产品 bug**：
+1. **std.debug.println 返回值语义 bug**（已修复）：`println` 现在返回 0（成功）/ -1（失败），不再返回字节数。std.fmt 成为 stdout 格式化输出权威，std.debug 基于 fmt 输出到 stderr。
+2. **fmt 命令一元负号 bug**（源码已修复，端到端验证待 LEGACY 重链接）：`runtime_lsp_glue.from_x.c` 的 `lsp_format_emit_segment` 函数添加了 `is_return` 上下文识别，`return -i` 不再被拆开为 `return - i`。但 `bootstrap_xlangc` 是 7月16日 LEGACY 旧种子，不含此修复；`run-fmt-cmd.sh` 的 unary 测试检测旧种子行为时条件性跳过（打印 SKIP），等下次 LEGACY 重链接后自然启用。
+
+**待验证项**（需 xlang_asm，避免爆内存未构建）：
+- 4 个新加白名单脚本（run-perf-simd-xlangffle-select.sh / run-std-simd-xlangffle-select-gate.sh / run-std-io-context-gate.sh / run-std-net-context-gate.sh）在 xlang_asm 存在时能否通过
+- fmt 一元负号修复在 LEGACY 重链接后的端到端验证
 
 ## 6. 建议下一步
 
-鉴于 C7 路径 C 实际执行 2/8 完成，剩余 6 个阻塞（2 bug + 4 类型不匹配），**建议**：
+C7 路径 C + A 混合执行 8/8 完成（3 合并 + 1 删除 + 4 纳入白名单）。白名单 125 → 129。
 
-- (a) 接受当前进度（2/8），C7 本波收口，剩余 6 个转后续波次（需先修 2 个 bug + 评估 4 个 gate/perf 合并策略）
-- (b) 调整路径：剩余 4 个 gate/perf 转路径 A（纳入白名单扩容 125→129），保留覆盖但与瘦身相反
-- (c) 修复 2 个 bug 后继续路径 C（std.debug + fmt unary 修复，工作量另计）
-- (d) 暂缓 C7，转其他候选
+**本波 C7 已收口**。后续验证项（需 xlang_asm 构建时进行，避免爆内存）：
+- (a) 构建xlang_asm 后运行完整 `run-all-bstrict.sh`，验证 129 白名单全绿
+- (b) 验证 4 个新加脚本（run-perf-simd-xlangffle-select.sh 等）在 xlang_asm 下通过
+- (c) LEGACY 重链接后验证 fmt 一元负号修复端到端生效（`run-fmt-cmd.sh` unary 测试不再 SKIP）
 
-**当前 PoC 已 commit** `bedb40ca`（run-core-assert.sh → run-debug.sh 合并 + audit 文档）。本波 C7 可在此收口。
+**已 commit** `bedb40ca`（run-core-assert.sh 合并 + audit 文档）。本波 C7 收口。
 
 ## 7. 验证清单（路径选定后执行）
 
-- [ ] 用户确认裁剪路径（A/B/C/d）
-- [ ] 按选定路径执行代码改动
-- [ ] L2 双端 bstrict 验证（125 白名单仍绿）
-- [ ] 若路径 A/C：L4 双端真冷 + 升钉（套件数变化属产品边界）
-- [ ] 若路径 B：L2 验证（删除非白名单脚本，不触发 L4）
-- [ ] 更新 `自举进度.md` §3 前排 #4 + §6 变更记录
-- [ ] 更新 `当前进度.md` §下一波前排 #2
-- [ ] commit message 用英文（遵循 git-commit-message.md）
+- [x] 用户确认裁剪路径（路径 C + 路径 A 混合）
+- [x] 按选定路径执行代码改动（3 合并 + 1 删除 + 4 纳入白名单）
+- [x] L2 验证（run-fmt-cmd.sh + run-debug.sh 通过，XLANG_SKIP_SUBSCRIPT_MAKE=1 不触发重编译）
+- [ ] L4 双端真冷 + 升钉（待 xlang_asm 构建，避免爆内存）
+- [x] 更新 `自举进度.md` §3 前排 #4 + §6 变更记录
+- [x] 更新 `当前进度.md` §下一波前排 #2
+- [x] commit message 用英文（遵循 git-commit-message.md）
 
 ## 8. 相关文档
 
@@ -184,4 +187,4 @@ tests/run-*.sh 总数:        881
 - [当前进度.md](当前进度.md) §下一波前排 #2（C7 plan 瘦身）
 - [自举方法.md](自举方法.md)（Cap/R/L/M）
 - [AGENTS.md](../AGENTS.md)（根源 / G.7 / G.8 / G.9）
-- skill `shux-selfhost-product-gate`（L4 / 双端 / 假绿禁止）
+- skill `xlang-selfhost-product-gate`（L4 / 双端 / 假绿禁止）

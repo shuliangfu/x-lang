@@ -23,15 +23,15 @@ SKIP=0
 if std_crypto_o_has_x_symbols "$CRYPTO_O"; then
   std_crypto_chacha_run_c_smoke "$CRYPTO_O" && C_OK=1 || exit 1
 else
-  echo "std-crypto-chacha SKIP c smoke (crypto.o missing .x symbols; need shux-c)" >&2
+  echo "std-crypto-chacha SKIP c smoke (crypto.o missing .x symbols; need xlang-c)" >&2
   SKIP=1
 fi
 X_OK=0
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
-  SHUX_BIN=./compiler/shux-c
-  [ -x "$SHUX_BIN" ] || SHUX_BIN=./compiler/shux
-  "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null
-  std_crypto_chacha_run_smoke "$SHUX_BIN" "$SMOKE_X" && X_OK=1 || exit 1
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
+  XLANG_BIN=./compiler/xlang-c
+  [ -x "$XLANG_BIN" ] || XLANG_BIN=./compiler/xlang
+  "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null
+  std_crypto_chacha_run_smoke "$XLANG_BIN" "$SMOKE_X" && X_OK=1 || exit 1
 else
   SKIP=1
 fi

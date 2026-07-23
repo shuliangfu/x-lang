@@ -2,7 +2,7 @@
 # F-socketio v2：std.socketio 逻辑下沉（EIO/SIO → socketio.x；删除 socketio_glue.c）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_SOCKETIO_V2_FAIL:-0}
+FAIL=${XLANG_F_SOCKETIO_V2_FAIL:-0}
 DOC="analysis/phase-f-socketio-v2.md"
 MANIFEST="tests/baseline/f-socketio-v2-closure.tsv"
 die() { echo "f-socketio-v2 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -26,10 +26,10 @@ grep -q 'sio_p3_complete_smoke_c' std/socketio/socketio.x || die "socketio.x mis
 grep -q 'socketio_f_socketio_v2_marker_c' std/socketio/socketio.x || die "socketio.x missing v2 marker"
 grep -q 'socketio.x' compiler/Makefile || die "Makefile missing socketio.x"
 grep -q 'socketio_glue.c' compiler/Makefile && die "Makefile still references socketio_glue.c"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/socketio/socketio.o >/dev/null 2>&1 || die "make socketio.o failed"
 else
-  echo "f-socketio-v2 SKIP socketio.o build (no shux-c)" >&2
+  echo "f-socketio-v2 SKIP socketio.o build (no xlang-c)" >&2
 fi
 chmod +x tests/run-std-socketio-gate.sh
 tests/run-std-socketio-gate.sh || die "run-std-socketio-gate failed"

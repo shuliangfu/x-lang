@@ -23,7 +23,7 @@
 ## 复现
 
 ```bash
-SHUX_F04_NET_TLS_STUB_FAIL=1 ./tests/run-f04-std-net-tls-stub-gate.sh
-SHUX_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=103
+XLANG_F04_NET_TLS_STUB_FAIL=1 ./tests/run-f04-std-net-tls-stub-gate.sh
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=103
 ./tests/run-std-net-tls-gate.sh
 ```

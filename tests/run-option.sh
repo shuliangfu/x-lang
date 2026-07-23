@@ -7,8 +7,8 @@ make -C compiler -q 2>/dev/null || make -C compiler
 # Alpine/Docker 等环境默认栈较小，typeck/codegen 处理 option 时可能栈溢出；提高栈限制（16MB）
 ulimit -s 16384 2>/dev/null || true
 
-# 本机可执行 shux 探测（Docker 优先 shux-c，避免 bind-mount Mach-O shux SIGSEGV）
-_option_native_shu() {
+# 本机可执行 xlang 探测（Docker 优先 xlang-c，避免 bind-mount Mach-O xlang SIGSEGV）
+_option_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -20,43 +20,43 @@ _option_native_shu() {
   esac
 }
 
-SHUX="${SHUX:-}"
-if [ -z "$SHUX" ] || ! _option_native_shu "$SHUX"; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
-    if _option_native_shu "$cand"; then
-      SHUX="$cand"
+XLANG="${XLANG:-}"
+if [ -z "$XLANG" ] || ! _option_native_xlang "$XLANG"; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
+    if _option_native_xlang "$cand"; then
+      XLANG="$cand"
       break
     fi
   done
 fi
-if [ -z "$SHUX" ] || ! _option_native_shu "$SHUX"; then
-  echo "option: no native shux" >&2
+if [ -z "$XLANG" ] || ! _option_native_xlang "$XLANG"; then
+  echo "option: no native xlang" >&2
   exit 1
 fi
 
-# shellcheck source=lib/bootstrap-link-shux.sh
-. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+# shellcheck source=lib/bootstrap-link-xlang.sh
+. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 
-# 产品路径：必须用 $SHUX（或 RUN_SHUX）真 -o + 运行；禁止 check-only 假绿。
-LINK_SHUX="${RUN_SHUX:-$SHUX}"
+# 产品路径：必须用 $XLANG（或 RUN_XLANG）真 -o + 运行；禁止 check-only 假绿。
+LINK_XLANG="${RUN_XLANG:-$XLANG}"
 
 _option_try_compile() {
   local comp="$1"
   [ -x "$comp" ] || return 1
-  "$comp" -backend c -L . tests/option/main.x -o /tmp/shux_option 2>&1
+  "$comp" -backend c -L . tests/option/main.x -o /tmp/xlang_option 2>&1
 }
 
 set +e
-_option_try_compile "$LINK_SHUX"
+_option_try_compile "$LINK_XLANG"
 _compile_ec=$?
 set -e
 _OPTION_NOTE=""
 if [ "$_compile_ec" -ne 0 ]; then
-  echo "option: product -o failed on $LINK_SHUX (exit $_compile_ec)" >&2
+  echo "option: product -o failed on $LINK_XLANG build (exit $_compile_ec)" >&2
   exit "$_compile_ec"
 fi
 
-exitcode=0; /tmp/shux_option >/dev/null 2>&1 || exitcode=$?
+exitcode=0; /tmp/xlang_option >/dev/null 2>&1 || exitcode=$?
 # 10+42+7 + unwrap_or_u8(some_u8(3),0)=3 + unwrap_or_u8(none_u8(),5)=5 + map/and_then/generic/ptr extra=35 → 102
 [ "$exitcode" -ne 102 ] && { echo "expected exit 102, got $exitcode"; exit 1; }
 

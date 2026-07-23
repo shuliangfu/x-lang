@@ -1,10 +1,16 @@
 /* seeds/async_liveness.from_x.c — G-02f-18 product TU
  * G-02f-169～171 refs/analyze true .x; G-02f-166～168 await AST true .x; G-02f-132 true .x pure helpers.
- * G-02f-127 true .x pure helpers.
- * G-02f-119 true .x pure helpers.
- * G-02f-110 helper gates.
- * G-02f-108 helper gates.
- * Product: src/async/async_liveness.o; logic still C until full .x port.
+ *
+ * R2 pure surface + Cap residual pure（2026-07-21）：await walk / live frame / mangle /
+ *   frame_build_tag + lookup/type/size/layout/has_await/needs_cps/analyze/module_struct
+ *   + FILE* emit_*（typedef/local/codegen_comment via shared driver_preamble_fputs）
+ *   由 src/async/async_liveness.x 提供；FROM_X 下 pure C 体省略（仅 slice_marker）。
+ * Cap residual（G.7 单一权威）：driver_preamble_fputs（runtime_driver_abi；opaque FILE*）。
+ * 冷启动/无 PREFER：完整 pure C 体 + FILE* emit 用原生 fputs；-c 本文件。
+ * 产品 PREFER（2026-07-21）：g05/Makefile full .x + rest (-DXLANG_ASYNC_LIVENESS_FROM_X)
+ *   ld -r → src/async/async_liveness.o（独立 TU，非 pipeline_glue #include）。
+ * Prove：seeds/async_liveness_surface.from_x.c nm IDENTICAL（pure surface）。
+ * PLATFORM: SHARED — pure helper 面跨平台；Ubuntu 金标 prove。
  */
 /**
  * async_liveness.c — async 跨 await liveness 分析与协程帧 struct emit（A3）
@@ -31,7 +37,7 @@ void frame_build_tag(const struct ASTFunc *f, char *buf, size_t n);
 void frame_mangle_ident(const char *fn, char *out, size_t n);
 int live_name_cmp(const void *a, const void *b);
 
-#ifndef SHUX_ASYNC_LIVENESS_FROM_X
+#ifndef XLANG_ASYNC_LIVENESS_FROM_X
 /* G-02f-20 thin+rest：DIRECT 模式，thin（src/async/async_liveness.x）提供完整实现 */
 /** 表达式是否含 await（递归）。 */
 /* G-02f-166：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -567,20 +573,25 @@ void frame_mangle_ident(const char *fn, char *out, size_t n) {
     }
     out[j] = '\0';
 }
-#endif /* SHUX_ASYNC_LIVENESS_FROM_X */
 
-
-/** 构造协程帧 C 类型名 __shux_async_frame_<mangled>。
- * frame_build_tag 为 rest 函数：.x 编译器静默跳过使用字符串字面量的函数
- *（frame_build_tag 使用 "fn" 和 "__shux_async_frame_"），故始终由 seed 提供。 */
+/** 构造协程帧 C 类型名 __xlang_async_frame_<mangled>。
+ * R2：.x 已真迁 frame_build_tag（字面量路径可用）；FROM_X 时由 .x 提供。 */
 /* G-02f-161：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void frame_build_tag(const struct ASTFunc *f, char *buf, size_t n) {
     char m[64];
     frame_mangle_ident(f && f->name ? f->name : "fn", m, sizeof(m));
-    (void)snprintf(buf, n, "__shux_async_frame_%s", m);
+    (void)snprintf(buf, n, "__xlang_async_frame_%s", m);
 }
+#else /* XLANG_ASYNC_LIVENESS_FROM_X — pure helpers + Cap residual pure + emit from .x */
+/* R2 pure surface + Cap residual pure + FILE* emit marker：业务 pure 不在此 TU 定义。 */
+int async_liveness_slice_marker(void) {
+    return 1;
+}
+#endif /* XLANG_ASYNC_LIVENESS_FROM_X */
 
 
+#ifndef XLANG_ASYNC_LIVENESS_FROM_X
+/* Cap residual pure + FILE* emit：.x 真迁；冷路径仍 seed C；FROM_X 时由 .x 提供 */
 /** 在函数体/形参中查找变量类型。 */
 const struct ASTType *async_liveness_lookup_var_type(const struct ASTFunc *f, const char *name) {
     if (!f || !name || !name[0]) return NULL;
@@ -785,37 +796,38 @@ int async_liveness_analyze_func(const struct ASTFunc *f, AsyncFrameLive *out) {
     return 0;
 }
 
+/* Cap residual pure FILE* emit：.x 真迁；冷路径仍 seed C；FROM_X 时由 .x 提供 */
 void async_liveness_emit_frame_typedef(const struct ASTFunc *f,
     const AsyncFrameLayout *layout, FILE *out) {
     if (!f || !layout || !out || layout->num_awaits <= 0) return;
-    const char *tag = layout->frame_tag[0] ? layout->frame_tag : "__shux_async_frame_fn";
-    fprintf(out, "#ifndef SHUX_ASYNC_CPS_RT_DECL\n");
-    fprintf(out, "#define SHUX_ASYNC_CPS_RT_DECL\n");
-    fprintf(out, "extern int shux_async_cps_suspend(int32_t *phase, int32_t next_phase);\n");
-    fprintf(out, "extern int shux_async_cps_suspend_io(int32_t *phase, int32_t next_phase);\n");
-    fprintf(out, "extern int shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);\n");
-    fprintf(out, "extern int32_t shux_io_complete_read_async(void);\n");
-    fprintf(out, "extern int32_t shux_io_complete_read_async_slot(int slot);\n");
-    fprintf(out, "extern int shux_io_submit_write_async(const uint8_t *ptr, size_t len, size_t handle);\n");
-    fprintf(out, "extern int32_t shux_io_complete_write_async(void);\n");
-    fprintf(out, "extern int32_t shux_io_complete_write_async_slot(int slot);\n");
-    fprintf(out, "extern void shux_async_run_seed_reset(void);\n");
-    fprintf(out, "extern void shux_async_run_seed_push_i32(int32_t v);\n");
-    fprintf(out, "extern void shux_async_run_seed_push_u32(uint32_t v);\n");
-    fprintf(out, "extern void shux_async_run_seed_push_i64(int64_t v);\n");
-    fprintf(out, "extern void shux_async_run_seed_push_usize(size_t v);\n");
-    fprintf(out, "extern void shux_async_run_seed_set_i32(int32_t v);\n");
-    fprintf(out, "extern int shux_async_run_seed_valid(void);\n");
-    fprintf(out, "extern int32_t shux_async_run_seed_take_i32(void);\n");
-    fprintf(out, "extern uint32_t shux_async_run_seed_take_u32(void);\n");
-    fprintf(out, "extern int64_t shux_async_run_seed_take_i64(void);\n");
-    fprintf(out, "extern size_t shux_async_run_seed_take_usize(void);\n");
-    fprintf(out, "extern int shux_async_task_submit(int32_t (*fn)(void));\n");
-    fprintf(out, "extern int32_t shux_async_run_drain_until_idle(void);\n");
-    fprintf(out, "extern void shux_async_queue_reset(void);\n");
-    fprintf(out, "extern unsigned shux_io_poll_async_completions(unsigned timeout_ms);\n");
-    fprintf(out, "#define SHUX_ASYNC_SUSPENDED ((int32_t)0x41535700)\n");
-    fprintf(out, "#define SHUX_IO_ASYNC_NOT_READY ((int32_t)-2)\n");
+    const char *tag = layout->frame_tag[0] ? layout->frame_tag : "__xlang_async_frame_fn";
+    fprintf(out, "#ifndef XLANG_ASYNC_CPS_RT_DECL\n");
+    fprintf(out, "#define XLANG_ASYNC_CPS_RT_DECL\n");
+    fprintf(out, "extern int xlang_async_cps_suspend(int32_t *phase, int32_t next_phase);\n");
+    fprintf(out, "extern int xlang_async_cps_suspend_io(int32_t *phase, int32_t next_phase);\n");
+    fprintf(out, "extern int xlang_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);\n");
+    fprintf(out, "extern int32_t xlang_io_complete_read_async(void);\n");
+    fprintf(out, "extern int32_t xlang_io_complete_read_async_slot(int slot);\n");
+    fprintf(out, "extern int xlang_io_submit_write_async(const uint8_t *ptr, size_t len, size_t handle);\n");
+    fprintf(out, "extern int32_t xlang_io_complete_write_async(void);\n");
+    fprintf(out, "extern int32_t xlang_io_complete_write_async_slot(int slot);\n");
+    fprintf(out, "extern void xlang_async_run_seed_reset(void);\n");
+    fprintf(out, "extern void xlang_async_run_seed_push_i32(int32_t v);\n");
+    fprintf(out, "extern void xlang_async_run_seed_push_u32(uint32_t v);\n");
+    fprintf(out, "extern void xlang_async_run_seed_push_i64(int64_t v);\n");
+    fprintf(out, "extern void xlang_async_run_seed_push_usize(size_t v);\n");
+    fprintf(out, "extern void xlang_async_run_seed_set_i32(int32_t v);\n");
+    fprintf(out, "extern int xlang_async_run_seed_valid(void);\n");
+    fprintf(out, "extern int32_t xlang_async_run_seed_take_i32(void);\n");
+    fprintf(out, "extern uint32_t xlang_async_run_seed_take_u32(void);\n");
+    fprintf(out, "extern int64_t xlang_async_run_seed_take_i64(void);\n");
+    fprintf(out, "extern size_t xlang_async_run_seed_take_usize(void);\n");
+    fprintf(out, "extern int xlang_async_task_submit(int32_t (*fn)(void));\n");
+    fprintf(out, "extern int32_t xlang_async_run_drain_until_idle(void);\n");
+    fprintf(out, "extern void xlang_async_queue_reset(void);\n");
+    fprintf(out, "extern unsigned xlang_io_poll_async_completions(unsigned timeout_ms);\n");
+    fprintf(out, "#define XLANG_ASYNC_SUSPENDED ((int32_t)0x41535700)\n");
+    fprintf(out, "#define XLANG_IO_ASYNC_NOT_READY ((int32_t)-2)\n");
     fprintf(out, "#endif\n");
     fprintf(out, "typedef struct %s {\n", tag);
     fprintf(out, "  int32_t __phase;\n");
@@ -835,15 +847,15 @@ void async_liveness_emit_frame_typedef(const struct ASTFunc *f,
 void async_liveness_emit_frame_local(const struct ASTFunc *f,
     const AsyncFrameLayout *layout, FILE *out) {
     if (!f || !layout || !out || layout->num_awaits <= 0) return;
-    const char *tag = layout->frame_tag[0] ? layout->frame_tag : "__shux_async_frame_fn";
-    fprintf(out, "  static %s __shux_frame;\n", tag);
+    const char *tag = layout->frame_tag[0] ? layout->frame_tag : "__xlang_async_frame_fn";
+    fprintf(out, "  static %s __xlang_frame;\n", tag);
 }
 
 void async_liveness_emit_codegen_comment(const struct ASTFunc *f,
     const AsyncFrameLayout *layout, FILE *out) {
     if (!f || !layout || !out) return;
     const char *fn = (f->name && f->name[0]) ? f->name : "?";
-    fprintf(out, "  /* SHUX_ASYNC_FRAME func=%s slots=%d bytes=%d awaits=%d",
+    fprintf(out, "  /* XLANG_ASYNC_FRAME func=%s slots=%d bytes=%d awaits=%d",
         fn, layout->live.n, layout->frame_bytes, layout->num_awaits);
     if (layout->has_io_rd_slot || layout->has_io_wr_slot) {
         fprintf(out, " io_slots=");
@@ -865,3 +877,9 @@ void async_liveness_emit_codegen_comment(const struct ASTFunc *f,
     fprintf(out, " tag=%s", layout->frame_tag[0] ? layout->frame_tag : "?");
     fputs(" */\n", out);
 }
+#endif /* !XLANG_ASYNC_LIVENESS_FROM_X */
+
+/* G.7 Cap residual：module-local async_liveness_fputs removed.
+ * .x emit pure calls driver_preamble_fputs (authority in runtime_driver_abi seed).
+ * Cold full C path (no FROM_X) uses FILE* fputs directly in emit_* above.
+ * PLATFORM: SHARED — single opaque FILE* fputs authority. */

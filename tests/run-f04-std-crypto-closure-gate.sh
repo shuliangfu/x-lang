@@ -2,11 +2,11 @@
 # F-04 v21：std.crypto 模块闭合门禁（v16～v19 聚合 + manifest）。
 #
 # 用法：./tests/run-f04-std-crypto-closure-gate.sh
-# 环境：SHUX_F04_CRYPTO_CLOSURE_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F04_CRYPTO_CLOSURE_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F04_CRYPTO_CLOSURE_FAIL:-0}
+FAIL=${XLANG_F04_CRYPTO_CLOSURE_FAIL:-0}
 DOC="analysis/phase-f-f04-v21-closure.md"
 MANIFEST="tests/baseline/f04-std-crypto-closure.tsv"
 
@@ -51,11 +51,11 @@ for sub in run-f04-std-crypto-v16-gate.sh run-f04-std-crypto-v17-gate.sh \
     echo "=== F-04 v21: delegate $sub ==="
     chmod +x "tests/$sub"
     case "$sub" in
-      *v16*) env_var=SHUX_F04_CRYPTO_V16_FAIL ;;
-      *v17*) env_var=SHUX_F04_CRYPTO_V17_FAIL ;;
-      *v18*) env_var=SHUX_F04_CRYPTO_V18_FAIL ;;
-      *v19*) env_var=SHUX_F04_CRYPTO_V19_FAIL ;;
-      *) env_var=SHUX_F04_CRYPTO_CLOSURE_FAIL ;;
+      *v16*) env_var=XLANG_F04_CRYPTO_V16_FAIL ;;
+      *v17*) env_var=XLANG_F04_CRYPTO_V17_FAIL ;;
+      *v18*) env_var=XLANG_F04_CRYPTO_V18_FAIL ;;
+      *v19*) env_var=XLANG_F04_CRYPTO_V19_FAIL ;;
+      *) env_var=XLANG_F04_CRYPTO_CLOSURE_FAIL ;;
     esac
     if ! env "$env_var=$FAIL" "tests/$sub"; then
       die "$sub failed"
@@ -66,7 +66,7 @@ done
 if [ -f tests/run-std-crypto-gate.sh ]; then
   echo "=== F-04 v21: delegate run-std-crypto-gate (manifest) ==="
   chmod +x tests/run-std-crypto-gate.sh
-  if ! SHUX_STD_CRYPTO_MANIFEST_ONLY=1 tests/run-std-crypto-gate.sh; then
+  if ! XLANG_STD_CRYPTO_MANIFEST_ONLY=1 tests/run-std-crypto-gate.sh; then
     die "run-std-crypto-gate failed"
   fi
 fi

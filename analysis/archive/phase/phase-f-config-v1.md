@@ -12,7 +12,7 @@
 ## 门禁
 
 ```bash
-SHUX_F_CONFIG_V1_FAIL=1 ./tests/run-f-config-v1-gate.sh
+XLANG_F_CONFIG_V1_FAIL=1 ./tests/run-f-config-v1-gate.sh
 ./tests/run-std-config-gate.sh
 ./tests/run-std-config-yaml-gate.sh
 ```

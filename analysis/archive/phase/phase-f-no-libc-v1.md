@@ -37,38 +37,38 @@
 | socket/connect/bind/listen/accept | ✅ `.s` + `linux.x` + `std/net/freestanding_linux.x` |
 | futex/clone/brk | ⬜ 后期 |
 
-Gate：`SHUX_NOLIBC_SOCKET_FAIL=1 ./tests/run-no-libc-socket-gate.sh`
+Gate：`XLANG_NOLIBC_SOCKET_FAIL=1 ./tests/run-no-libc-socket-gate.sh`
 
 ### NL-03 堆（✅ v1）
 
 - `std/heap/page_mmap.x`：`PageMmapHeap` 64KiB 匿名 mmap bump
-- Gate：`SHUX_NOLIBC_HEAP_FAIL=1 ./tests/run-no-libc-heap-gate.sh`
+- Gate：`XLANG_NOLIBC_HEAP_FAIL=1 ./tests/run-no-libc-heap-gate.sh`
 
 ### NL-04 文件 IO（✅ v1）
 
 - `std/fs/freestanding_linux.x`：read/open/close/write 经 `std.sys` syscall
-- Gate：`SHUX_NOLIBC_FS_FAIL=1 ./tests/run-no-libc-fs-gate.sh`
+- Gate：`XLANG_NOLIBC_FS_FAIL=1 ./tests/run-no-libc-fs-gate.sh`
 - freestanding 程序用 `import("std.fs.freestanding_linux")`，勿拉完整 `std.fs`（含 fs.c extern）
 
 ### NL-05 链接策略（✅ v1 用户路径）
 
 - `runtime.c` NL-05 标记块：`ld -nostdlib -static --gc-sections`，**禁止 `-lc`**
-- Gate：`SHUX_NOLIBC_LINK_FAIL=1 ./tests/run-no-libc-link-gate.sh`
-- **编译器 bootstrap**（`build_shux_asm.sh`）仍 `-lc/-lm` → 延后 **F-07 / NL-06**
+- Gate：`XLANG_NOLIBC_LINK_FAIL=1 ./tests/run-no-libc-link-gate.sh`
+- **编译器 bootstrap**（`build_xlang_asm.sh`）仍 `-lc/-lm` → 延后 **F-07 / NL-06**
 
 ### NL-06 freestanding std 首批发（v1 ✅）
 
 - 专文档：`analysis/phase-f-n06-v1.md`
 - Manifest：`tests/baseline/nolibc-n06-freestanding-replacements.tsv`（heap/fs/net `.x` ↔ legacy `.c`）
-- Gate：`SHUX_NOLIBC_N06_FAIL=1 ./tests/run-nolibc-n06-std-track-gate.sh`
+- Gate：`XLANG_NOLIBC_N06_FAIL=1 ./tests/run-nolibc-n06-std-track-gate.sh`
 - v1 **不删** `std/*.c`；编译器 bootstrap 仍链 `fs.o`/`io.o`/`heap.o` → **F-07 / NL-06 v2**
 
 ### NL-07 编译器 bootstrap 去 libc 准备（v1 ✅）
 
 - 专文档：`analysis/phase-f-n07-v1.md`
 - Manifest：`tests/baseline/nolibc-n07-bootstrap-prep.tsv` + `nolibc-n07-bootstrap-lc-track.tsv`
-- Gate：`SHUX_NOLIBC_N07_FAIL=1 ./tests/run-nolibc-n07-bootstrap-prep-gate.sh`
-- `build_shux_asm.sh` **NL-07 BEGIN/END** marker 记录目标 nostdlib 链；v1 **不启用**
+- Gate：`XLANG_NOLIBC_N07_FAIL=1 ./tests/run-nolibc-n07-bootstrap-prep-gate.sh`
+- `build_xlang_asm.sh` **NL-07 BEGIN/END** marker 记录目标 nostdlib 链；v1 **不启用**
 
 ### NL-06 v2+ / NL-07 v2 全 std 迁移（待做）
 
@@ -92,7 +92,7 @@ Gate：`SHUX_NOLIBC_SOCKET_FAIL=1 ./tests/run-no-libc-socket-gate.sh`
 
 ```bash
 # 准备阶段 gate（manifest + 委托既有 freestanding 烟测）
-SHUX_NOLIBC_FAIL=1 ./tests/run-no-libc-gate.sh
+XLANG_NOLIBC_FAIL=1 ./tests/run-no-libc-gate.sh
 
 # 已有 freestanding 子集
 ./tests/run-freestanding-hello.sh

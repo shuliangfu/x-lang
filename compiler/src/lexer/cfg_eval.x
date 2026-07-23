@@ -22,135 +22,26 @@ let g_cfg_has_target_override: i32 = 0;
 
 let g_cfg_freestanding: i32 = 0;
 
-#[cfg(target_os = "linux")]
-let CFG_HOST_OS_LINUX: u8[6] = [108, 105, 110, 117, 120, 0];
-#[cfg(target_os = "macos")]
-let CFG_HOST_OS_MACOS: u8[7] = [109, 97, 99, 111, 115, 0, 0];
-#[cfg(target_os = "windows")]
-let CFG_HOST_OS_WINDOWS: u8[8] = [119, 105, 110, 100, 111, 119, 115, 0];
-#[cfg(target_os = "freebsd")]
-let CFG_HOST_OS_FREEBSD: u8[8] = [102, 114, 101, 101, 98, 115, 100, 0];
-#[cfg(not(target_os = "linux"))]
-#[cfg(not(target_os = "macos"))]
-#[cfg(not(target_os = "windows"))]
-#[cfg(not(target_os = "freebsd"))]
-let CFG_HOST_OS_UNKNOWN: u8[8] = [117, 110, 107, 110, 111, 119, 110, 0];
-
-#[cfg(target_arch = "aarch64")]
-let CFG_HOST_ARCH_A64: u8[8] = [97, 97, 114, 99, 104, 54, 52, 0];
-#[cfg(target_arch = "x86_64")]
-let CFG_HOST_ARCH_X64: u8[7] = [120, 56, 54, 95, 54, 52, 0];
-#[cfg(target_arch = "riscv64")]
-let CFG_HOST_ARCH_RV64: u8[8] = [114, 105, 115, 99, 118, 54, 52, 0];
-#[cfg(not(target_arch = "aarch64"))]
-#[cfg(not(target_arch = "x86_64"))]
-#[cfg(not(target_arch = "riscv64"))]
-let CFG_HOST_ARCH_UNKNOWN: u8[8] = [117, 110, 107, 110, 111, 119, 110, 0];
-
-/** Exported function `cfg_host_os_lit_non_linux`.
- * Implements `cfg_host_os_lit_non_linux`.
- * @return *u8
+// wave98 Cap residual pure (product complex #if): host OS/arch string lits are
+// compile-time residual in seeds/cfg_eval_link_alias.from_x.c (C #if, same values as
+// bootstrap stub). Multi-#[cfg] same-name export overloads dual-emitted under
+// -E-extern (illegal C: redefinition / retu8_ptr mangle / missing bare callee) and
+// forced product to pin bootstrap stub forever — dual authority vs cfg_eval.x body.
+// G.7: eval/all/not/target_os/arch authority stays in this file; host lit only here as
+// export-extern surface; link_alias provides strong bodies when merged into cfg_eval.o.
+// PLATFORM: SHARED — mac + Ubuntu both take -E-extern+alias when pure-asm CG002 fails.
+/**
+ * Host target_os literal ("linux" / "macos" / "windows" / "freebsd" / "unknown").
+ * @return *u8 — NUL-terminated static string; never null
+ * wave98: body in cfg_eval_link_alias (C #if); not multi-cfg .x overload.
  */
-#[cfg(not(target_os = "linux"))]
-#[cfg(target_os = "macos")]
-export function cfg_host_os_lit_non_linux(): *u8 {
-  return &CFG_HOST_OS_MACOS[0];
-}
-/** Exported function `cfg_host_os_lit_non_linux`.
- * Implements `cfg_host_os_lit_non_linux`.
- * @return *u8
+export extern "C" function cfg_host_os_lit(): *u8;
+/**
+ * Host target_arch literal ("x86_64" / "aarch64" / "riscv64" / "unknown").
+ * @return *u8 — NUL-terminated static string; never null
+ * wave98: body in cfg_eval_link_alias (C #if); not multi-cfg .x overload.
  */
-#[cfg(not(target_os = "linux"))]
-#[cfg(not(target_os = "macos"))]
-#[cfg(target_os = "freebsd")]
-export function cfg_host_os_lit_non_linux(): *u8 {
-  return &CFG_HOST_OS_FREEBSD[0];
-}
-/** Exported function `cfg_host_os_lit_non_linux`.
- * Implements `cfg_host_os_lit_non_linux`.
- * @return *u8
- */
-#[cfg(not(target_os = "linux"))]
-#[cfg(not(target_os = "macos"))]
-#[cfg(not(target_os = "freebsd"))]
-#[cfg(target_os = "windows")]
-export function cfg_host_os_lit_non_linux(): *u8 {
-  return &CFG_HOST_OS_WINDOWS[0];
-}
-/** Exported function `cfg_host_os_lit_non_linux`.
- * Implements `cfg_host_os_lit_non_linux`.
- * @return *u8
- */
-#[cfg(not(target_os = "linux"))]
-#[cfg(not(target_os = "macos"))]
-#[cfg(not(target_os = "freebsd"))]
-#[cfg(not(target_os = "windows"))]
-export function cfg_host_os_lit_non_linux(): *u8 {
-  return &CFG_HOST_OS_UNKNOWN[0];
-}
-
-/** Exported function `cfg_host_arch_lit_non_x64`.
- * Implements `cfg_host_arch_lit_non_x64`.
- * @return *u8
- */
-#[cfg(not(target_arch = "x86_64"))]
-#[cfg(target_arch = "aarch64")]
-export function cfg_host_arch_lit_non_x64(): *u8 {
-  return &CFG_HOST_ARCH_A64[0];
-}
-/** Exported function `cfg_host_arch_lit_non_x64`.
- * Implements `cfg_host_arch_lit_non_x64`.
- * @return *u8
- */
-#[cfg(not(target_arch = "x86_64"))]
-#[cfg(target_arch = "riscv64")]
-export function cfg_host_arch_lit_non_x64(): *u8 {
-  return &CFG_HOST_ARCH_RV64[0];
-}
-/** Exported function `cfg_host_arch_lit_non_x64`.
- * Implements `cfg_host_arch_lit_non_x64`.
- * @return *u8
- */
-#[cfg(not(target_arch = "x86_64"))]
-#[cfg(not(target_arch = "aarch64"))]
-#[cfg(not(target_arch = "riscv64"))]
-export function cfg_host_arch_lit_non_x64(): *u8 {
-  return &CFG_HOST_ARCH_UNKNOWN[0];
-}
-
-/** Exported function `cfg_host_os_lit`.
- * Implements `cfg_host_os_lit`.
- * @return *u8
- */
-#[cfg(target_os = "linux")]
-export function cfg_host_os_lit(): *u8 {
-  return &CFG_HOST_OS_LINUX[0];
-}
-/** Exported function `cfg_host_os_lit`.
- * Implements `cfg_host_os_lit`.
- * @return *u8
- */
-#[cfg(not(target_os = "linux"))]
-export function cfg_host_os_lit(): *u8 {
-  return cfg_host_os_lit_non_linux();
-}
-
-/** Exported function `cfg_host_arch_lit`.
- * Implements `cfg_host_arch_lit`.
- * @return *u8
- */
-#[cfg(target_arch = "x86_64")]
-export function cfg_host_arch_lit(): *u8 {
-  return &CFG_HOST_ARCH_X64[0];
-}
-/** Exported function `cfg_host_arch_lit`.
- * Implements `cfg_host_arch_lit`.
- * @return *u8
- */
-#[cfg(not(target_arch = "x86_64"))]
-export function cfg_host_arch_lit(): *u8 {
-  return cfg_host_arch_lit_non_x64();
-}
+export extern "C" function cfg_host_arch_lit(): *u8;
 
 /** Exported function `cfg_strlen`.
  * Implements `cfg_strlen`.
@@ -300,8 +191,11 @@ export function cfg_parse_triple_literals(triple: *u8, tlen: i32, os_out: *u8, o
   if (os_sz <= 0) { return; }
   if (arch_out == 0) { return; }
   if (arch_sz <= 0) { return; }
-  cfg_copy_cstr(os_out, os_sz, cfg_host_os_lit());
-  cfg_copy_cstr(arch_out, arch_sz, cfg_host_arch_lit());
+  // wave98: host lit is export-extern (link_alias C #if) — T001 requires unsafe FFI.
+  unsafe {
+    cfg_copy_cstr(os_out, os_sz, cfg_host_os_lit());
+    cfg_copy_cstr(arch_out, arch_sz, cfg_host_arch_lit());
+  }
   if (triple == 0) { return; }
   if (tlen <= 0) { return; }
   if (cfg_triple_contains_ci(triple, 0, tlen, &lit_linux[0]) != 0) {
@@ -327,8 +221,13 @@ export function cfg_parse_triple_literals(triple: *u8, tlen: i32, os_out: *u8, o
  * @return *u8
  */
 export function cfg_effective_os_lit(): *u8 {
-  if (g_cfg_has_target_override == 0) { return cfg_host_os_lit(); }
-  if (g_cfg_os_override[0] == 0) { return cfg_host_os_lit(); }
+  // wave98: host lit export-extern — T001 unsafe FFI gate.
+  if (g_cfg_has_target_override == 0) {
+    unsafe { return cfg_host_os_lit(); }
+  }
+  if (g_cfg_os_override[0] == 0) {
+    unsafe { return cfg_host_os_lit(); }
+  }
   return &g_cfg_os_override[0];
 }
 
@@ -337,8 +236,13 @@ export function cfg_effective_os_lit(): *u8 {
  * @return *u8
  */
 export function cfg_effective_arch_lit(): *u8 {
-  if (g_cfg_has_target_override == 0) { return cfg_host_arch_lit(); }
-  if (g_cfg_arch_override[0] == 0) { return cfg_host_arch_lit(); }
+  // wave98: host lit export-extern — T001 unsafe FFI gate.
+  if (g_cfg_has_target_override == 0) {
+    unsafe { return cfg_host_arch_lit(); }
+  }
+  if (g_cfg_arch_override[0] == 0) {
+    unsafe { return cfg_host_arch_lit(); }
+  }
   return &g_cfg_arch_override[0];
 }
 

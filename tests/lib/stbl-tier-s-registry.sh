@@ -7,7 +7,7 @@
 #   stbl_tier_s_validate_module MOD MANIFEST KIND
 #   stbl_tier_s_emit_report status covered sym_miss
 
-STBL_TIER_S_PREFIX="${SHUX_STBL_TIER_S_PREFIX:-shux: [SHUX_STBL_TIER_S]}"
+STBL_TIER_S_PREFIX="${XLANG_STBL_TIER_S_PREFIX:-xlang: [XLANG_STBL_TIER_S]}"
 
 # api 型 manifest：每行一个符号，须在 mod.x 存在 function 定义。
 stbl_tier_s_validate_api_manifest() {

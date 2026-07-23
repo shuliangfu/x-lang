@@ -13,37 +13,37 @@ extern int32_t ast_pipeline_onefunc_const_type_ref(uint8_t * restrict out, int32
 #include <unistd.h>
 #include <sys/uio.h>
 #include <poll.h>
-static inline ssize_t shux_sys_read(int32_t fd, uint8_t *buf, size_t count) {
+static inline ssize_t xlang_sys_read(int32_t fd, uint8_t *buf, size_t count) {
   return read((int)fd, (void *)buf, count);
 }
-static inline ssize_t shux_sys_write(int32_t fd, uint8_t *buf, size_t count) {
+static inline ssize_t xlang_sys_write(int32_t fd, uint8_t *buf, size_t count) {
   return write((int)fd, (const void *)buf, count);
 }
-static inline ssize_t shux_sys_readv(int32_t fd, uint8_t *iov, int32_t iovcnt) {
+static inline ssize_t xlang_sys_readv(int32_t fd, uint8_t *iov, int32_t iovcnt) {
   return readv((int)fd, (const struct iovec *)(const void *)iov, (int)iovcnt);
 }
-static inline ssize_t shux_sys_writev(int32_t fd, uint8_t *iov, int32_t iovcnt) {
+static inline ssize_t xlang_sys_writev(int32_t fd, uint8_t *iov, int32_t iovcnt) {
   return writev((int)fd, (const struct iovec *)(const void *)iov, (int)iovcnt);
 }
-static inline int32_t shux_sys_poll(uint8_t *fds, int32_t nfds, int32_t timeout) {
+static inline int32_t xlang_sys_poll(uint8_t *fds, int32_t nfds, int32_t timeout) {
   return (int32_t)poll((struct pollfd *)(void *)fds, (nfds_t)nfds, (int)timeout);
 }
-static inline ssize_t shux_sys_pread(int32_t fd, uint8_t *buf, size_t count, int64_t offset) {
+static inline ssize_t xlang_sys_pread(int32_t fd, uint8_t *buf, size_t count, int64_t offset) {
   return pread((int)fd, (void *)buf, count, (off_t)offset);
 }
-static inline ssize_t shux_sys_pwrite(int32_t fd, uint8_t *buf, size_t count, int64_t offset) {
+static inline ssize_t xlang_sys_pwrite(int32_t fd, uint8_t *buf, size_t count, int64_t offset) {
   return pwrite((int)fd, (const void *)buf, count, (off_t)offset);
 }
-static inline int32_t shux_fs_unlink(uint8_t *path) {
+static inline int32_t xlang_fs_unlink(uint8_t *path) {
   return (int32_t)unlink((const char *)path);
 }
-static inline int32_t shux_fs_rmdir(uint8_t *path) {
+static inline int32_t xlang_fs_rmdir(uint8_t *path) {
   return (int32_t)rmdir((const char *)path);
 }
-struct shux_slice_uint8_t { uint8_t *data; size_t length; };
-struct shux_slice_int32_t { int32_t *data; size_t length; };
-struct shux_slice_uint64_t { uint64_t *data; size_t length; };
-struct shux_slice_size_t { size_t *data; size_t length; };
+struct xlang_slice_uint8_t { uint8_t *data; size_t length; };
+struct xlang_slice_int32_t { int32_t *data; size_t length; };
+struct xlang_slice_uint64_t { uint64_t *data; size_t length; };
+struct xlang_slice_size_t { size_t *data; size_t length; };
 #if defined(__GNUC__) || defined(__clang__)
 typedef int32_t i32x4_t __attribute__((vector_size(16)));
 typedef int32_t i32x8_t __attribute__((vector_size(32)));
@@ -59,11 +59,11 @@ typedef struct { uint32_t e[4]; } u32x4_t;
 typedef struct { uint32_t e[8]; } u32x8_t;
 typedef struct { uint32_t e[16]; } u32x16_t;
 #endif
-typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;
+typedef struct { uint8_t *ptr; size_t len; size_t handle; } xlang_batch_buf_t;
 extern int io_register_buffer(uint8_t *ptr, size_t len);
 extern int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr);
-__attribute__((weak)) int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }
-static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }
+__attribute__((weak)) int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }
+static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const xlang_batch_buf_t *)(uintptr_t)bufs, nr); }
 #define io_register_buffers_buf(bufs, nr) io_register_buffers_buf_i32((intptr_t)(void *)(bufs), (nr))
 extern void io_unregister_buffers(void);
 extern ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms);
@@ -75,34 +75,34 @@ extern ptrdiff_t io_write_fixed(int fd, unsigned buf_index, size_t offset, size_
 extern int io_wait_readable(int32_t *fds, int n, unsigned timeout_ms);
 extern uint8_t *io_read_ptr(size_t handle, unsigned timeout_ms);
 extern int io_read_ptr_len(void);
-extern int32_t shux_io_register(uint8_t *ptr, size_t len, size_t handle);
-extern int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);
-extern int32_t shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);
-extern int32_t shux_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);
-extern int32_t shux_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);
-extern uint8_t *shux_io_read_ptr(size_t handle, unsigned timeout_ms);
-extern int32_t shux_io_read_ptr_len(void);
-typedef struct { void *ptr; size_t len; size_t handle; } shu_buffer_abi_t;
-static inline int32_t shux_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_register((uint8_t *)b->ptr, b->len, b->handle); }
-static inline int32_t shux_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return (shux_io_submit_read)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
-static inline int32_t shux_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return (shux_io_submit_write)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
-static inline int32_t std_io_driver_submit_read_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return shux_io_submit_read_buf((intptr_t)buf, (int32_t)timeout_ms); }
-static inline int32_t std_io_driver_submit_write_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return shux_io_submit_write_buf((intptr_t)buf, (int32_t)timeout_ms); }
-#define shux_io_register(buf) shux_io_register_buf(buf)
-#define shux_io_submit_read(buf, timeout_m) shux_io_submit_read_buf(buf, timeout_m)
-#define shux_io_submit_write(buf, timeout_m) shux_io_submit_write_buf(buf, timeout_m)
-/* 撤销宏：X codegen 会生成同名函数定义(shux_io_register/submit_read/submit_write)，宏与多参签名冲突，在函数体前必须 undef。 */
-#undef shux_io_register
-#undef shux_io_submit_read
-#undef shux_io_submit_write
+extern int32_t xlang_io_register(uint8_t *ptr, size_t len, size_t handle);
+extern int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);
+extern int32_t xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);
+extern int32_t xlang_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);
+extern int32_t xlang_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);
+extern uint8_t *xlang_io_read_ptr(size_t handle, unsigned timeout_ms);
+extern int32_t xlang_io_read_ptr_len(void);
+typedef struct { void *ptr; size_t len; size_t handle; } xlang_buffer_abi_t;
+static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }
+static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_read)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
+static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_write)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
+static inline int32_t std_io_driver_submit_read_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return xlang_io_submit_read_buf((intptr_t)buf, (int32_t)timeout_ms); }
+static inline int32_t std_io_driver_submit_write_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return xlang_io_submit_write_buf((intptr_t)buf, (int32_t)timeout_ms); }
+#define xlang_io_register(buf) xlang_io_register_buf(buf)
+#define xlang_io_submit_read(buf, timeout_m) xlang_io_submit_read_buf(buf, timeout_m)
+#define xlang_io_submit_write(buf, timeout_m) xlang_io_submit_write_buf(buf, timeout_m)
+/* 撤销宏：X codegen 会生成同名函数定义(xlang_io_register/submit_read/submit_write)，宏与多参签名冲突，在函数体前必须 undef。 */
+#undef xlang_io_register
+#undef xlang_io_submit_read
+#undef xlang_io_submit_write
 struct std_io_driver_Buffer { void *ptr; size_t len; size_t handle; };
 typedef struct std_io_driver_Buffer std_io_Buffer;
 #define std_io_Buffer std_io_driver_Buffer
 extern ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);
 extern ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);
 extern int32_t std_io_driver_submit_register_fixed_buffers_buf(struct std_io_driver_Buffer * bufs, uint32_t nr);
-#define std_io_driver_driver_read_ptr_len shux_io_read_ptr_len
-#define std_io_driver_driver_read_ptr shux_io_read_ptr
+#define std_io_driver_driver_read_ptr_len xlang_io_read_ptr_len
+#define std_io_driver_driver_read_ptr xlang_io_read_ptr
 #define driver_read_ptr_len std_io_driver_driver_read_ptr_len
 #define driver_read_ptr std_io_driver_driver_read_ptr
 #define submit_register_fixed_buffers_buf std_io_driver_submit_register_fixed_buffers_buf
@@ -128,56 +128,56 @@ extern int32_t std_io_write_stdout(uint8_t *ptr, size_t len);
 #define std_io_core_io_write_batch io_write_batch
 #define std_io_core_io_read_fixed io_read_fixed
 #define std_io_core_io_write_fixed io_write_fixed
-#define std_io_core_shux_io_register shux_io_register
-#define std_io_core_shux_io_register_buffers shux_io_register_buffers
-#define std_io_core_shux_io_unregister_buffers shux_io_unregister_buffers
-#define std_io_core_shux_io_submit_read shux_io_submit_read
-#define std_io_core_shux_io_read_ptr shux_io_read_ptr
-#define std_io_core_shux_io_read_ptr_len shux_io_read_ptr_len
-#define std_io_core_shux_io_submit_write shux_io_submit_write
-#define std_io_core_shux_io_submit_read_batch shux_io_submit_read_batch
-#define std_io_core_shux_io_submit_write_batch shux_io_submit_write_batch
-#define std_io_core_shux_io_read_fixed shux_io_read_fixed
-#define std_io_core_shux_io_write_fixed shux_io_write_fixed
-#define std_io_core_shux_io_register_buffers_buf io_register_buffers_buf
-#define std_io_core_shux_io_read_ptr_gen shux_io_read_ptr_gen
-#define std_io_core_shux_io_read_ptr_gen_valid shux_io_read_ptr_gen_valid
-#define std_io_core_shux_io_read_ptr_backend shux_io_read_ptr_backend
-#define std_io_core_shux_io_read_ptr_slice shux_io_read_ptr_slice
-#define std_io_core_shux_io_read_batch_buf(fd, bufs, n, t) io_read_batch_buf((fd), (const struct std_io_driver_Buffer *)(const void *)(bufs), (n), (t))
-#define std_io_core_shux_io_write_batch_buf(fd, bufs, n, t) io_write_batch_buf((fd), (const struct std_io_driver_Buffer *)(const void *)(bufs), (n), (t))
-#define std_io_core_shux_io_register_provided_buffers shux_io_register_provided_buffers
-#define std_io_core_shux_io_unregister_provided_buffers shux_io_unregister_provided_buffers
-#define std_io_core_shux_io_provided_buffer_ptr shux_io_provided_buffer_ptr
-#define std_io_core_shux_io_provided_buffer_size shux_io_provided_buffer_size
-#define std_io_core_shux_io_read_provided shux_io_read_provided
-#define std_io_core_shux_io_read_batch_provided shux_io_read_batch_provided
-#define std_io_core_shux_io_submit_read_async shux_io_submit_read_async
-#define std_io_core_shux_io_complete_read_async shux_io_complete_read_async
-#define std_io_core_shux_io_complete_read_async_slot shux_io_complete_read_async_slot
-#define std_io_core_shux_io_submit_write_async shux_io_submit_write_async
-#define std_io_core_shux_io_complete_write_async shux_io_complete_write_async
-#define std_io_core_shux_io_complete_write_async_slot shux_io_complete_write_async_slot
-#define std_io_core_shux_io_poll_async_completions shux_io_poll_async_completions
-#define std_io_core_shux_io_uring_is_available_c shux_io_uring_is_available_c
-extern int32_t shux_io_read_ptr_gen_valid(uint64_t saved);
-extern int32_t shux_io_read_ptr_backend(void);
-extern uint64_t shux_io_read_ptr_gen(void);
-extern struct shux_slice_uint8_t shux_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);
-extern int32_t shux_io_register_provided_buffers(uint32_t nr, uint32_t bufsz);
-extern void shux_io_unregister_provided_buffers(void);
-extern uint8_t *shux_io_provided_buffer_ptr(uint32_t bid);
-extern uint32_t shux_io_provided_buffer_size(void);
-extern int32_t shux_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t *out_bid, uint32_t *out_len);
-extern int32_t shux_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t *out_bids, uint32_t *out_lens);
-extern int32_t shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);
-extern int32_t shux_io_complete_read_async(void);
-extern int32_t shux_io_complete_read_async_slot(int32_t slot);
-extern int32_t shux_io_submit_write_async(uint8_t *ptr, size_t len, size_t handle);
-extern int32_t shux_io_complete_write_async(void);
-extern int32_t shux_io_complete_write_async_slot(int32_t slot);
-extern uint32_t shux_io_poll_async_completions(uint32_t timeout_ms);
-extern int32_t shux_io_uring_is_available_c(void);
+#define std_io_core_xlang_io_register xlang_io_register
+#define std_io_core_xlang_io_register_buffers xlang_io_register_buffers
+#define std_io_core_xlang_io_unregister_buffers xlang_io_unregister_buffers
+#define std_io_core_xlang_io_submit_read xlang_io_submit_read
+#define std_io_core_xlang_io_read_ptr xlang_io_read_ptr
+#define std_io_core_xlang_io_read_ptr_len xlang_io_read_ptr_len
+#define std_io_core_xlang_io_submit_write xlang_io_submit_write
+#define std_io_core_xlang_io_submit_read_batch xlang_io_submit_read_batch
+#define std_io_core_xlang_io_submit_write_batch xlang_io_submit_write_batch
+#define std_io_core_xlang_io_read_fixed xlang_io_read_fixed
+#define std_io_core_xlang_io_write_fixed xlang_io_write_fixed
+#define std_io_core_xlang_io_register_buffers_buf io_register_buffers_buf
+#define std_io_core_xlang_io_read_ptr_gen xlang_io_read_ptr_gen
+#define std_io_core_xlang_io_read_ptr_gen_valid xlang_io_read_ptr_gen_valid
+#define std_io_core_xlang_io_read_ptr_backend xlang_io_read_ptr_backend
+#define std_io_core_xlang_io_read_ptr_slice xlang_io_read_ptr_slice
+#define std_io_core_xlang_io_read_batch_buf(fd, bufs, n, t) io_read_batch_buf((fd), (const struct std_io_driver_Buffer *)(const void *)(bufs), (n), (t))
+#define std_io_core_xlang_io_write_batch_buf(fd, bufs, n, t) io_write_batch_buf((fd), (const struct std_io_driver_Buffer *)(const void *)(bufs), (n), (t))
+#define std_io_core_xlang_io_register_provided_buffers xlang_io_register_provided_buffers
+#define std_io_core_xlang_io_unregister_provided_buffers xlang_io_unregister_provided_buffers
+#define std_io_core_xlang_io_provided_buffer_ptr xlang_io_provided_buffer_ptr
+#define std_io_core_xlang_io_provided_buffer_size xlang_io_provided_buffer_size
+#define std_io_core_xlang_io_read_provided xlang_io_read_provided
+#define std_io_core_xlang_io_read_batch_provided xlang_io_read_batch_provided
+#define std_io_core_xlang_io_submit_read_async xlang_io_submit_read_async
+#define std_io_core_xlang_io_complete_read_async xlang_io_complete_read_async
+#define std_io_core_xlang_io_complete_read_async_slot xlang_io_complete_read_async_slot
+#define std_io_core_xlang_io_submit_write_async xlang_io_submit_write_async
+#define std_io_core_xlang_io_complete_write_async xlang_io_complete_write_async
+#define std_io_core_xlang_io_complete_write_async_slot xlang_io_complete_write_async_slot
+#define std_io_core_xlang_io_poll_async_completions xlang_io_poll_async_completions
+#define std_io_core_xlang_io_uring_is_available_c xlang_io_uring_is_available_c
+extern int32_t xlang_io_read_ptr_gen_valid(uint64_t saved);
+extern int32_t xlang_io_read_ptr_backend(void);
+extern uint64_t xlang_io_read_ptr_gen(void);
+extern struct xlang_slice_uint8_t xlang_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);
+extern int32_t xlang_io_register_provided_buffers(uint32_t nr, uint32_t bufsz);
+extern void xlang_io_unregister_provided_buffers(void);
+extern uint8_t *xlang_io_provided_buffer_ptr(uint32_t bid);
+extern uint32_t xlang_io_provided_buffer_size(void);
+extern int32_t xlang_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t *out_bid, uint32_t *out_len);
+extern int32_t xlang_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t *out_bids, uint32_t *out_lens);
+extern int32_t xlang_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);
+extern int32_t xlang_io_complete_read_async(void);
+extern int32_t xlang_io_complete_read_async_slot(int32_t slot);
+extern int32_t xlang_io_submit_write_async(uint8_t *ptr, size_t len, size_t handle);
+extern int32_t xlang_io_complete_write_async(void);
+extern int32_t xlang_io_complete_write_async_slot(int32_t slot);
+extern uint32_t xlang_io_poll_async_completions(uint32_t timeout_ms);
+extern int32_t xlang_io_uring_is_available_c(void);
 #define std_io_driver_io_register_buffers_buf(bufs, nr) io_register_buffers_buf((intptr_t)(void *)(bufs), (int)(nr))
 extern int32_t std_io_driver_submit_read_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);
 extern int32_t std_io_driver_submit_write_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);
@@ -190,50 +190,50 @@ struct std_net_TcpStream { int32_t fd; };
 struct std_net_TcpListener { int32_t fd; };
 struct std_net_UdpSocket { int32_t fd; };
 #if defined(__clang__)
-#define shux_io_net_fd(x) _Generic((x), struct std_net_TcpStream: (x).fd, struct std_net_TcpListener: (x).fd, struct std_net_UdpSocket: (x).fd, default: (int32_t)(x))
+#define xlang_io_net_fd(x) _Generic((x), struct std_net_TcpStream: (x).fd, struct std_net_TcpListener: (x).fd, struct std_net_UdpSocket: (x).fd, default: (int32_t)(x))
 #elif defined(__GNUC__)
 /* 仅用 *(int32_t*)&(x)：int32_t 与仅含 .fd 的 struct 首字节相同，且避免 __builtin_types_compatible_p 在部分环境报错、三元分支被全量类型检查。调用方须传 lvalue。 */
-#define shux_io_net_fd(x) (*(int32_t*)(void*)&(x))
+#define xlang_io_net_fd(x) (*(int32_t*)(void*)&(x))
 #else
-#define shux_io_net_fd(x) _Generic((x), struct std_net_TcpStream: (x).fd, struct std_net_TcpListener: (x).fd, struct std_net_UdpSocket: (x).fd, default: (int32_t)(x))
+#define xlang_io_net_fd(x) _Generic((x), struct std_net_TcpStream: (x).fd, struct std_net_TcpListener: (x).fd, struct std_net_UdpSocket: (x).fd, default: (int32_t)(x))
 #endif
-#define std_io_read_fixed_fd(x, a, b, c, d) std_io_read_fixed_fd_impl(shux_io_net_fd(x), a, b, c, d)
-#define std_io_write_fixed_fd(x, a, b, c, d) std_io_write_fixed_fd_impl(shux_io_net_fd(x), a, b, c, d)
+#define std_io_read_fixed_fd(x, a, b, c, d) std_io_read_fixed_fd_impl(xlang_io_net_fd(x), a, b, c, d)
+#define std_io_write_fixed_fd(x, a, b, c, d) std_io_write_fixed_fd_impl(xlang_io_net_fd(x), a, b, c, d)
 /* X 内联 std.io 会生成函数定义；撤销与定义/extern 冲突的宏，并补齐 batch 注册符号映射。 */
 #undef std_io_driver_io_register_buffers_buf
 #undef std_io_read_fixed_fd
 #undef std_io_write_fixed_fd
-#undef std_io_core_shux_io_register_buffers
-#undef std_io_core_shux_io_unregister_buffers
-#undef std_io_core_shux_io_read_fixed
-#undef std_io_core_shux_io_write_fixed
-#undef std_io_core_shux_io_wait_readable
-#define std_io_core_shux_io_register_buffers io_register_buffers_4
-#define std_io_core_shux_io_unregister_buffers io_unregister_buffers
-#define std_io_core_shux_io_read_fixed shux_io_read_fixed
-#define std_io_core_shux_io_write_fixed shux_io_write_fixed
-#define std_io_core_shux_io_wait_readable io_wait_readable
+#undef std_io_core_xlang_io_register_buffers
+#undef std_io_core_xlang_io_unregister_buffers
+#undef std_io_core_xlang_io_read_fixed
+#undef std_io_core_xlang_io_write_fixed
+#undef std_io_core_xlang_io_wait_readable
+#define std_io_core_xlang_io_register_buffers io_register_buffers_4
+#define std_io_core_xlang_io_unregister_buffers io_unregister_buffers
+#define std_io_core_xlang_io_read_fixed xlang_io_read_fixed
+#define std_io_core_xlang_io_write_fixed xlang_io_write_fixed
+#define std_io_core_xlang_io_wait_readable io_wait_readable
 /* codegen 体内调 std_io_driver_io_*；#undef 后重绑到 preamble/io.o 的 io_*。 */
 #define std_io_driver_io_read_batch_buf io_read_batch_buf
 #define std_io_driver_io_write_batch_buf io_write_batch_buf
 #define std_io_driver_io_register_buffers_buf(bufs, nr) io_register_buffers_buf((intptr_t)(void *)(bufs), (int)(nr))
 #include <stdio.h>
 #ifndef __cplusplus
-/* 仅补 co-emit 未定义的符号；勿桩 shux_io_submit_write / submit_read_batch_buf（同 TU 强定义）。 */
-__attribute__((weak)) int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {
+/* 仅补 co-emit 未定义的符号；勿桩 xlang_io_submit_write / submit_read_batch_buf（同 TU 强定义）。 */
+__attribute__((weak)) int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {
   size_t r; (void)timeout_m; if (!ptr) return 0; if (handle != 0) return -1;
   r = fread(ptr, 1, len, stdin); if (r == 0 && ferror(stdin)) return -1; return (int32_t)r;
 }
-__attribute__((weak)) int32_t shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {
+__attribute__((weak)) int32_t xlang_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {
   (void)ptr; (void)len; (void)handle; return -1;
 }
-__attribute__((weak)) int32_t shux_io_read_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {
+__attribute__((weak)) int32_t xlang_io_read_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {
   (void)h;(void)bi;(void)o;(void)l;(void)t; return -1;
 }
-__attribute__((weak)) int32_t shux_io_write_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {
+__attribute__((weak)) int32_t xlang_io_write_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {
   (void)h;(void)bi;(void)o;(void)l;(void)t; return -1;
 }
-__attribute__((weak)) int32_t shux_io_read_ptr_backend(void) { return 0; }
+__attribute__((weak)) int32_t xlang_io_read_ptr_backend(void) { return 0; }
 __attribute__((weak)) int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr) {
   (void)p0;(void)l0;(void)p1;(void)l1;(void)p2;(void)l2;(void)p3;(void)l3;(void)nr; return -1;
 }
@@ -246,10 +246,10 @@ __attribute__((weak)) ptrdiff_t io_read_batch_buf(int fd, const struct std_io_dr
 __attribute__((weak)) ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms) {
   (void)fd;(void)bufs;(void)n;(void)timeout_ms; return (ptrdiff_t)-1;
 }
-extern int32_t process_shux_argc_get(void);
-extern uint8_t *process_shux_argv_get(int32_t i);
-__attribute__((weak)) int32_t process_args_count_c(void) { return process_shux_argc_get(); }
-__attribute__((weak)) uint8_t *process_arg_c(int32_t i) { return process_shux_argv_get(i); }
+extern int32_t process_xlang_argc_get(void);
+extern uint8_t *process_xlang_argv_get(int32_t i);
+__attribute__((weak)) int32_t process_args_count_c(void) { return process_xlang_argc_get(); }
+__attribute__((weak)) uint8_t *process_arg_c(int32_t i) { return process_xlang_argv_get(i); }
 __attribute__((weak)) int32_t args_iter_count_c(void) { return process_args_count_c(); }
 __attribute__((weak)) uint8_t *args_iter_at_c(int32_t i) { return process_arg_c(i); }
 __attribute__((weak)) uint64_t std_io_driver_driver_read_ptr_gen(void) { return 0; }
@@ -274,8 +274,8 @@ struct std_net_Ipv6Addr { uint8_t b0,b1,b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13,
 #define handle_from_fd std_io_handle_from_fd
 #define submit_read_batch_buf std_io_submit_read_batch_buf
 #define submit_write_batch_buf std_io_submit_write_batch_buf
-#define read_fixed_fd(x, a, b, c, d) std_io_read_fixed_fd_impl(shux_io_net_fd(x), a, b, c, d)
-#define write_fixed_fd(x, a, b, c, d) std_io_write_fixed_fd_impl(shux_io_net_fd(x), a, b, c, d)
+#define read_fixed_fd(x, a, b, c, d) std_io_read_fixed_fd_impl(xlang_io_net_fd(x), a, b, c, d)
+#define write_fixed_fd(x, a, b, c, d) std_io_write_fixed_fd_impl(xlang_io_net_fd(x), a, b, c, d)
 /* 实际符号用 _real；仅定义 std_net_net_* 宏。
  * 【Why 勿 #define net_close_socket_c / net_run_accept_workers_c】
  * link_only 路径会 emit `extern int32_t net_close_socket_c(...)`；
@@ -284,8 +284,8 @@ extern int32_t net_close_socket_c_real(int32_t fd);
 extern int32_t net_run_accept_workers_c_real(int32_t listener_fd, int32_t n_workers, uint32_t timeout_ms);
 extern int32_t net_close_socket_c(int32_t fd);
 extern int32_t net_run_accept_workers_c(int32_t listener_fd, int32_t n_workers, uint32_t timeout_ms);
-#define std_net_net_close_socket_c(x) net_close_socket_c_real(shux_io_net_fd(x))
-#define std_net_net_run_accept_workers_c(x, n, t) net_run_accept_workers_c_real(shux_io_net_fd(x), n, t)
+#define std_net_net_close_socket_c(x) net_close_socket_c_real(xlang_io_net_fd(x))
+#define std_net_net_run_accept_workers_c(x, n, t) net_run_accept_workers_c_real(xlang_io_net_fd(x), n, t)
 #define STD_FS_FS_IOVEC_BUF_DEFINED
 struct std_fs_FsIovecBuf { void *ptr; size_t len; size_t handle; };
 #define std_fs_posix_FsIovecBuf std_fs_FsIovecBuf
@@ -307,7 +307,7 @@ struct core_option_Option_u64 { int is_some; int32_t _pad; uint64_t value; };
 struct core_option_Option_ptr_u8 { int is_some; int32_t _pad; uint8_t *value; };
 struct core_result_Result_i32 { int32_t value; int32_t _pad1; int32_t err; int32_t _pad2; };
 struct core_result_Result_u8 { uint8_t value; uint8_t _pad1; uint8_t _pad2; uint8_t _pad3; int32_t err; int32_t _pad4; };
-extern void shux_panic_(int, int);
+extern void xlang_panic_(int, int);
 extern int32_t core_types_placeholder(void);
 extern int32_t std_heap_alloc_size_zero(void);
 extern int32_t std_runtime_runtime_ready(void);
@@ -640,7 +640,7 @@ int token_is_eof(struct token_Token t) {
   return 0;
 }
 extern int32_t cfg_eval_expr_c(uint8_t * start, int32_t len);
-extern struct shux_slice_uint8_t lexer_parser_slice_from_buf(uint8_t * data, int32_t len);
+extern struct xlang_slice_uint8_t lexer_parser_slice_from_buf(uint8_t * data, int32_t len);
 extern struct lexer_Lexer lexer_init(void);
 extern struct lexer_Lexer lexer_advance_one(struct lexer_Lexer lex, uint8_t c);
 extern int lexer_is_alpha(uint8_t c);
@@ -648,34 +648,34 @@ extern int lexer_is_hex_digit(uint8_t c);
 extern int32_t lexer_hex_digit_value(uint8_t c);
 extern int lexer_is_digit(uint8_t c);
 extern int lexer_is_alnum_underscore(uint8_t c);
-extern int lexer_match_keyword(struct shux_slice_uint8_t * data, size_t start, int32_t len, struct shux_slice_uint8_t * keyword);
-extern int lexer_match_keyword_buf(uint8_t * data, int32_t data_len, size_t start, int32_t len, struct shux_slice_uint8_t * keyword);
-extern struct token_Token lexer_try_keyword(struct shux_slice_uint8_t * data, size_t start, size_t len, int32_t line0, int32_t col0);
+extern int lexer_match_keyword(struct xlang_slice_uint8_t * data, size_t start, int32_t len, struct xlang_slice_uint8_t * keyword);
+extern int lexer_match_keyword_buf(uint8_t * data, int32_t data_len, size_t start, int32_t len, struct xlang_slice_uint8_t * keyword);
+extern struct token_Token lexer_try_keyword(struct xlang_slice_uint8_t * data, size_t start, size_t len, int32_t line0, int32_t col0);
 extern struct token_Token lexer_try_keyword_buf(uint8_t * data, int32_t data_len, size_t start, size_t len, int32_t line0, int32_t col0);
-extern struct lexer_Lexer lexer_skip_repr_c_attr_if_present(struct lexer_Lexer lex, struct shux_slice_uint8_t * data);
-extern struct lexer_Lexer lexer_skip_cfg_attr_if_present(struct lexer_Lexer lex, struct shux_slice_uint8_t * data);
-extern int32_t lexer_try_cfg_attr_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
-extern int32_t lexer_try_repr_c_attr_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
-extern int32_t lexer_try_repr_compatible_attr_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
-extern int32_t lexer_try_soa_attr_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
-extern int32_t lexer_try_alloc_attr_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
-extern int32_t lexer_try_used_attr_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
-extern int32_t lexer_try_naked_attr_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
-extern int32_t lexer_try_entry_attr_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
-extern int32_t lexer_try_no_mangle_attr_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
-extern int32_t lexer_try_interrupt_attr_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
-extern int32_t lexer_try_send_attr_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
-extern int32_t lexer_try_sync_attr_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
-extern struct lexer_Lexer lexer_skip_whitespace_and_comments(struct lexer_Lexer lex, struct shux_slice_uint8_t * data);
+extern struct lexer_Lexer lexer_skip_repr_c_attr_if_present(struct lexer_Lexer lex, struct xlang_slice_uint8_t * data);
+extern struct lexer_Lexer lexer_skip_cfg_attr_if_present(struct lexer_Lexer lex, struct xlang_slice_uint8_t * data);
+extern int32_t lexer_try_cfg_attr_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
+extern int32_t lexer_try_repr_c_attr_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
+extern int32_t lexer_try_repr_compatible_attr_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
+extern int32_t lexer_try_soa_attr_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
+extern int32_t lexer_try_alloc_attr_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
+extern int32_t lexer_try_used_attr_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
+extern int32_t lexer_try_naked_attr_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
+extern int32_t lexer_try_entry_attr_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
+extern int32_t lexer_try_no_mangle_attr_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
+extern int32_t lexer_try_interrupt_attr_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
+extern int32_t lexer_try_send_attr_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
+extern int32_t lexer_try_sync_attr_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
+extern struct lexer_Lexer lexer_skip_whitespace_and_comments(struct lexer_Lexer lex, struct xlang_slice_uint8_t * data);
 extern struct lexer_Lexer lexer_skip_whitespace_and_comments_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len);
-extern struct lexer_LexerResult lexer_next(struct lexer_Lexer lex, struct shux_slice_uint8_t * data);
-extern void lexer_apply_optional_exponent(struct lexer_Lexer l, struct shux_slice_uint8_t * data, double fval, struct lexer_Lexer * out_l, double * out_f);
-extern void lexer_next_body_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
-extern void lexer_next_punct_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct shux_slice_uint8_t * data, uint8_t c);
+extern struct lexer_LexerResult lexer_next(struct lexer_Lexer lex, struct xlang_slice_uint8_t * data);
+extern void lexer_apply_optional_exponent(struct lexer_Lexer l, struct xlang_slice_uint8_t * data, double fval, struct lexer_Lexer * out_l, double * out_f);
+extern void lexer_next_body_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
+extern void lexer_next_punct_into(struct lexer_LexerResult * out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data, uint8_t c);
 extern void lexer_write_next_lex_into(struct lexer_LexerResult * out, struct lexer_Lexer l);
 extern void lexer_write_tok_into(struct lexer_LexerResult * out, struct token_Token t);
-extern void lexer_next_impl(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * data);
-extern void lexer_next_into(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * data);
+extern void lexer_next_impl(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * data);
+extern void lexer_next_into(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * data);
 extern void lexer_next_buf_into(struct lexer_LexerResult * out, struct lexer_Lexer lex, uint8_t * data, int32_t len);
 extern struct lexer_LexerResult lexer_next_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len);
 extern int32_t lexer_main(void);
@@ -1042,18 +1042,18 @@ extern size_t parser_lexer_pos_before_run(size_t end_pos, int32_t run_len);
 extern int32_t parser_lexer_token_run_len(enum token_TokenKind kind);
 extern struct lexer_Lexer parser_lex_at_token_from_result(struct lexer_LexerResult r);
 extern struct lexer_Lexer parser_rewind_lex_for_following_stmt(struct lexer_Lexer lex_in, struct lexer_LexerResult r);
-extern struct lexer_Lexer parser_realign_lex_after_compound_stmt(struct lexer_Lexer lex_in, struct lexer_LexerResult r_in, struct shux_slice_uint8_t * source);
-extern struct lexer_Lexer parser_rewind_lex_for_lparen_control_stmt(struct lexer_Lexer lex_in, struct lexer_LexerResult r_in, struct shux_slice_uint8_t * source);
-extern int parser_match_kw_immediately_before(struct shux_slice_uint8_t * source, size_t ident_start);
-extern int parser_return_kw_immediately_before(struct shux_slice_uint8_t * source, size_t ident_start);
+extern struct lexer_Lexer parser_realign_lex_after_compound_stmt(struct lexer_Lexer lex_in, struct lexer_LexerResult r_in, struct xlang_slice_uint8_t * source);
+extern struct lexer_Lexer parser_rewind_lex_for_lparen_control_stmt(struct lexer_Lexer lex_in, struct lexer_LexerResult r_in, struct xlang_slice_uint8_t * source);
+extern int parser_match_kw_immediately_before(struct xlang_slice_uint8_t * source, size_t ident_start);
+extern int parser_return_kw_immediately_before(struct xlang_slice_uint8_t * source, size_t ident_start);
 extern int parser_match_kw_immediately_before_buf(uint8_t * data, int32_t len, size_t ident_start);
-extern int32_t parser_advance_past_stmt_semicolon_into(struct lexer_LexerResult * r_out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
+extern int32_t parser_advance_past_stmt_semicolon_into(struct lexer_LexerResult * r_out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern int32_t parser_advance_past_stmt_semicolon_into_buf(struct lexer_LexerResult * r_out, struct lexer_Lexer lex, uint8_t * data, int32_t len);
-extern int32_t parser_advance_past_cond_rparen_into(struct lexer_LexerResult * r_out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
+extern int32_t parser_advance_past_cond_rparen_into(struct lexer_LexerResult * r_out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern int32_t parser_advance_past_cond_rparen_into_buf(struct lexer_LexerResult * r_out, struct lexer_Lexer lex, uint8_t * data, int32_t len);
 extern void parser_onefunc_result_layout_prime(void);
 extern void parser_set_onefunc_fail(struct parser_OneFuncResult * out, struct lexer_Lexer next_lex);
-extern int parser_onefunc_finish_after_return_lex(struct parser_OneFuncResult * out, struct parser_OneFuncResult * impl_snap, struct shux_slice_uint8_t * source, struct lexer_Lexer lex_after_expr, uint8_t * func_name, int32_t func_name_len, int32_t return_expr_ref);
+extern int parser_onefunc_finish_after_return_lex(struct parser_OneFuncResult * out, struct parser_OneFuncResult * impl_snap, struct xlang_slice_uint8_t * source, struct lexer_Lexer lex_after_expr, uint8_t * func_name, int32_t func_name_len, int32_t return_expr_ref);
 extern void parser_onefunc_result_layout_prime_b(void);
 extern void parser_onefunc_result_layout_prime_c(void);
 extern void parser_onefunc_result_layout_prime_d(void);
@@ -1078,137 +1078,137 @@ extern int32_t parser_alloc_true_bool_lit(struct ast_ASTArena * arena);
 extern int32_t parser_alloc_float_lit(struct ast_ASTArena * arena, double fval);
 extern int32_t parser_expr_wrap_in_return(struct ast_ASTArena * arena, int32_t type_ref, int32_t inner_ref);
 extern int parser_should_wrap_func_tail_in_return(struct ast_ASTArena * arena, struct parser_OneFuncResult * res, int32_t type_ref);
-extern void parser_parse_match_subject_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-extern void parser_parse_match_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-extern void parser_parse_at_simd_builtin_into(struct ast_ASTArena * arena, struct lexer_LexerResult r0, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-extern void parser_parse_primary_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-extern void parser_parse_as_suffix_into(struct ast_ASTArena * arena, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-extern void parser_parse_unary_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-extern void parser_parse_cast_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-extern void parser_parse_term_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-extern void parser_parse_addsub_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-extern void parser_parse_shift_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-extern void parser_parse_relcompare_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-extern void parser_parse_compare_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-extern void parser_parse_bitand_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-extern void parser_parse_bitxor_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-extern void parser_parse_bitor_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-extern void parser_parse_logand_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-extern void parser_parse_logor_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-extern void parser_parse_ternary_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
+extern void parser_parse_match_subject_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+extern void parser_parse_match_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+extern void parser_parse_at_simd_builtin_into(struct ast_ASTArena * arena, struct lexer_LexerResult r0, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+extern void parser_parse_primary_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+extern void parser_parse_as_suffix_into(struct ast_ASTArena * arena, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+extern void parser_parse_unary_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+extern void parser_parse_cast_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+extern void parser_parse_term_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+extern void parser_parse_addsub_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+extern void parser_parse_shift_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+extern void parser_parse_relcompare_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+extern void parser_parse_compare_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+extern void parser_parse_bitand_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+extern void parser_parse_bitxor_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+extern void parser_parse_bitor_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+extern void parser_parse_logand_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+extern void parser_parse_logor_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+extern void parser_parse_ternary_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
 extern int parser_is_compound_assign_token(enum token_TokenKind kind);
 extern enum ast_ExprKind parser_compound_assign_token_to_expr_kind(enum token_TokenKind kind);
 extern int parser_expr_ref_is_assign_lvalue(struct ast_ASTArena * arena, int32_t expr_ref);
-extern void parser_parse_assign_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-extern void parser_parse_expr_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-extern void parser_finish_struct_lit_from_type_ident_into(struct ast_ASTArena * arena, int32_t lit_ref, struct lexer_Lexer lex_in_brace, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-extern void parser_parse_cond_expr_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_start, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-extern void parser_parse_expr_with_leading_int_as_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_start, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
+extern void parser_parse_assign_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+extern void parser_parse_expr_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+extern void parser_finish_struct_lit_from_type_ident_into(struct ast_ASTArena * arena, int32_t lit_ref, struct lexer_Lexer lex_in_brace, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+extern void parser_parse_cond_expr_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_start, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+extern void parser_parse_expr_with_leading_int_as_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_start, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
 extern void parser_parse_expr_with_leading_int_as_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex_start, uint8_t * data, int32_t len, struct parser_ParseExprResult * out);
 extern int parser_fill_block_const_let_from_res(struct ast_ASTArena * arena, int32_t block_ref, struct parser_OneFuncResult * res, int32_t type_ref);
 extern int parser_append_block_lets_from_res(struct ast_ASTArena * arena, int32_t block_ref, struct parser_OneFuncResult * res, int32_t let_base, int32_t type_ref);
-extern int parser_parse_if_stmt_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_at_if, struct shux_slice_uint8_t * source, int32_t type_ref, int32_t * out_cond, int32_t * out_then, int32_t * out_else, struct lexer_Lexer * lex_out);
-extern void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_after_lbrace, struct shux_slice_uint8_t * source, int32_t type_ref, struct parser_ParseBlockResult * out);
+extern int parser_parse_if_stmt_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_at_if, struct xlang_slice_uint8_t * source, int32_t type_ref, int32_t * out_cond, int32_t * out_then, int32_t * out_else, struct lexer_Lexer * lex_out);
+extern void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_after_lbrace, struct xlang_slice_uint8_t * source, int32_t type_ref, struct parser_ParseBlockResult * out);
 extern int32_t parser_wrap_block_ref_as_expr(struct ast_ASTArena * arena, int32_t block_ref, int32_t type_ref);
-extern void parser_parse_if_expr_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_at_if, struct shux_slice_uint8_t * source, int32_t type_ref, struct parser_ParseExprResult * out);
-extern struct parser_ParseResult parser_parse(struct shux_slice_uint8_t * source);
-extern int32_t parser_first_token_kind(struct shux_slice_uint8_t * source);
+extern void parser_parse_if_expr_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_at_if, struct xlang_slice_uint8_t * source, int32_t type_ref, struct parser_ParseExprResult * out);
+extern struct parser_ParseResult parser_parse(struct xlang_slice_uint8_t * source);
+extern int32_t parser_first_token_kind(struct xlang_slice_uint8_t * source);
 extern int32_t parser_first_token_kind_buf(uint8_t * data, int32_t len);
-extern int32_t parser_diag_first_ident_len(struct shux_slice_uint8_t * source);
+extern int32_t parser_diag_first_ident_len(struct xlang_slice_uint8_t * source);
 extern int32_t parser_diag_first_ident_len_buf(uint8_t * data, int32_t len);
-extern void parser_diag_skip_let_const_into(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-extern struct lexer_LexerResult parser_diag_skip_let_const(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
+extern void parser_diag_skip_let_const_into(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+extern struct lexer_LexerResult parser_diag_skip_let_const(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern struct lexer_LexerResult parser_diag_skip_let_const_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len);
 extern void parser_diag_skip_let_const_into_buf(struct lexer_LexerResult * out, struct lexer_Lexer lex, uint8_t * data, int32_t len);
-extern void parser_body_skip_let_const_then_if_into(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-extern int32_t parser_parse_body_let_bracket_compound_init_ref(struct ast_ASTArena * arena, size_t bracket_start, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct lexer_Lexer * lex_out, struct lexer_LexerResult * r_out);
-extern int32_t parser_parse_type_ref_for_arena_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct lexer_Lexer * out_lex);
-extern int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_OneFuncResult * out, struct lexer_Lexer * lex_out);
-extern struct lexer_LexerResult parser_body_skip_let_const_then_if(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
+extern void parser_body_skip_let_const_then_if_into(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+extern int32_t parser_parse_body_let_bracket_compound_init_ref(struct ast_ASTArena * arena, size_t bracket_start, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct lexer_Lexer * lex_out, struct lexer_LexerResult * r_out);
+extern int32_t parser_parse_type_ref_for_arena_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct lexer_Lexer * out_lex);
+extern int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_OneFuncResult * out, struct lexer_Lexer * lex_out);
+extern struct lexer_LexerResult parser_body_skip_let_const_then_if(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern struct lexer_LexerResult parser_body_skip_let_const_then_if_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len);
 extern void parser_body_skip_let_const_then_if_into_buf(struct lexer_LexerResult * out, struct lexer_Lexer lex, uint8_t * data, int32_t len);
-extern struct lexer_Lexer parser_skip_balanced_parens(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-extern void parser_skip_balanced_parens_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
+extern struct lexer_Lexer parser_skip_balanced_parens(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+extern void parser_skip_balanced_parens_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern void parser_skip_balanced_parens_into_buf(struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len);
 extern struct lexer_Lexer parser_skip_balanced_parens_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len);
-extern struct lexer_Lexer parser_skip_balanced_braces(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-extern void parser_skip_balanced_braces_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
+extern struct lexer_Lexer parser_skip_balanced_braces(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+extern void parser_skip_balanced_braces_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern void parser_skip_balanced_braces_into_buf(struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len);
 extern struct lexer_Lexer parser_skip_balanced_braces_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len);
-extern void parser_skip_one_function_full_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-extern void parser_skip_one_top_level_const_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
+extern void parser_skip_one_function_full_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+extern void parser_skip_one_top_level_const_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern void parser_skip_one_top_level_const_into_buf(struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len);
-extern void parser_skip_one_top_level_let_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
+extern void parser_skip_one_top_level_let_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern void parser_skip_one_top_level_let_into_buf(struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len);
-extern struct lexer_Lexer parser_skip_one_function_full(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
+extern struct lexer_Lexer parser_skip_one_function_full(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern void parser_skip_one_function_full_into_buf(struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len);
 extern struct lexer_Lexer parser_skip_one_function_full_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len);
-extern struct lexer_LexerResult parser_skip_one_if_core(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-extern struct lexer_LexerResult parser_skip_one_if_statement(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-extern void parser_skip_one_if_statement_into(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-extern void parser_skip_one_if_core_into(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
+extern struct lexer_LexerResult parser_skip_one_if_core(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+extern struct lexer_LexerResult parser_skip_one_if_statement(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+extern void parser_skip_one_if_statement_into(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+extern void parser_skip_one_if_core_into(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern struct lexer_LexerResult parser_skip_one_if_core_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len);
 extern struct lexer_LexerResult parser_skip_one_if_statement_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len);
 extern void parser_skip_one_if_core_into_buf(struct lexer_LexerResult * out, struct lexer_Lexer lex, uint8_t * data, int32_t len);
 extern void parser_skip_one_if_statement_into_buf(struct lexer_LexerResult * out, struct lexer_Lexer lex, uint8_t * data, int32_t len);
-extern struct lexer_Lexer parser_diag_lex_after_imports(struct shux_slice_uint8_t * source);
+extern struct lexer_Lexer parser_diag_lex_after_imports(struct xlang_slice_uint8_t * source);
 extern struct lexer_Lexer parser_diag_lex_after_imports_buf(uint8_t * data, int32_t len);
-extern struct lexer_LexerResult parser_diag_after_imports_then_structs(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
+extern struct lexer_LexerResult parser_diag_after_imports_then_structs(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern struct lexer_LexerResult parser_diag_after_imports_then_structs_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len);
-extern int32_t parser_diag_fail_at_token_kind(struct shux_slice_uint8_t * source);
+extern int32_t parser_diag_fail_at_token_kind(struct xlang_slice_uint8_t * source);
 extern int32_t parser_diag_fail_at_token_kind_buf(uint8_t * data, int32_t len);
 extern struct parser_ParseIntoResult parser_parse_into_result_empty_module_or_fail_tok(int32_t fail_tok);
-extern void parser_copy_slice_to_name64(struct shux_slice_uint8_t * source, size_t start, int32_t nlen, uint8_t * out);
-extern void parser_copy_slice_to_name64_at_end(struct shux_slice_uint8_t * source, size_t end_pos, int32_t nlen, uint8_t * out);
-extern int32_t parser_struct_field_name_from_tok(struct lexer_LexerResult r, struct shux_slice_uint8_t * source, uint8_t * out);
+extern void parser_copy_slice_to_name64(struct xlang_slice_uint8_t * source, size_t start, int32_t nlen, uint8_t * out);
+extern void parser_copy_slice_to_name64_at_end(struct xlang_slice_uint8_t * source, size_t end_pos, int32_t nlen, uint8_t * out);
+extern int32_t parser_struct_field_name_from_tok(struct lexer_LexerResult r, struct xlang_slice_uint8_t * source, uint8_t * out);
 extern int32_t parser_struct_field_name_from_tok_buf(struct lexer_LexerResult r, uint8_t * data, int32_t len, uint8_t * out);
 extern int parser_struct_field_name_tok_kind(enum token_TokenKind k);
 extern int parser_struct_field_continues_tok_kind(enum token_TokenKind k);
-extern int parser_token_is_label_start(struct lexer_LexerResult r, struct shux_slice_uint8_t * source);
-extern void parser_copy_slice_to_param32(struct shux_slice_uint8_t * source, size_t start, int32_t nlen, uint8_t * out);
-extern void parser_copy_slice_to_param32_at_end(struct shux_slice_uint8_t * source, size_t end_pos, int32_t nlen, uint8_t * out);
+extern int parser_token_is_label_start(struct lexer_LexerResult r, struct xlang_slice_uint8_t * source);
+extern void parser_copy_slice_to_param32(struct xlang_slice_uint8_t * source, size_t start, int32_t nlen, uint8_t * out);
+extern void parser_copy_slice_to_param32_at_end(struct xlang_slice_uint8_t * source, size_t end_pos, int32_t nlen, uint8_t * out);
 extern void parser_copy_slice_to_name64_buf(uint8_t * source, int32_t source_len, size_t start, int32_t nlen, uint8_t * out);
 extern void parser_copy_slice_to_name64_at_end_buf(uint8_t * source, int32_t source_len, size_t end_pos, int32_t nlen, uint8_t * out);
 extern void parser_copy_slice_to_param32_at_end_buf(uint8_t * source, int32_t source_len, size_t end_pos, int32_t nlen, uint8_t * out);
 extern void parser_copy_slice_to_param32_buf(uint8_t * source, int32_t source_len, size_t start, int32_t nlen, uint8_t * out);
-extern void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
+extern void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern int32_t parser_import_path_dot_segment_len(enum token_TokenKind kind, int32_t ident_len);
-extern void parser_import_path_dot_segment_copy(struct shux_slice_uint8_t * source, size_t token_start, int32_t seg_len, uint8_t * path_buf, int32_t path_len);
+extern void parser_import_path_dot_segment_copy(struct xlang_slice_uint8_t * source, size_t token_start, int32_t seg_len, uint8_t * path_buf, int32_t path_len);
 extern void parser_import_path_dot_segment_copy_buf(uint8_t * data, int32_t len, size_t token_start, int32_t seg_len, uint8_t * path_buf, int32_t path_len);
 extern void parser_parse_into_init(struct ast_Module * module, struct ast_ASTArena * arena);
-extern struct lexer_Lexer parser_skip_imports(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
+extern struct lexer_Lexer parser_skip_imports(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern struct lexer_Lexer parser_skip_imports_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len);
-extern void parser_collect_imports(struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct ast_Module * module, struct parser_CollectImportsResult * out);
+extern void parser_collect_imports(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct ast_Module * module, struct parser_CollectImportsResult * out);
 extern void parser_collect_imports_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len, struct ast_Module * module, struct parser_CollectImportsResult * out);
-extern void parser_skip_one_struct_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-extern struct lexer_Lexer parser_skip_one_struct(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
+extern void parser_skip_one_struct_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+extern struct lexer_Lexer parser_skip_one_struct(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern int32_t parser_module_try_register_enum_name(struct ast_Module * module, uint8_t * name, int32_t name_len);
-extern void parser_module_append_enum_variants_and_skip_body_into(struct ast_Module * module, int32_t enum_idx, struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
+extern void parser_module_append_enum_variants_and_skip_body_into(struct ast_Module * module, int32_t enum_idx, struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern void parser_module_append_enum_variants_and_skip_body_into_buf(struct ast_Module * module, int32_t enum_idx, struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len);
-extern void parser_skip_one_enum_register_into(struct ast_Module * module, struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
+extern void parser_skip_one_enum_register_into(struct ast_Module * module, struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern void parser_skip_one_enum_register_into_buf(struct ast_Module * module, struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len);
 extern void parser_skip_one_enum_register_buf(struct ast_Module * module, struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len);
-extern void parser_skip_one_enum_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-extern struct lexer_Lexer parser_skip_one_enum(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-extern void parser_skip_one_trait_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-extern struct lexer_Lexer parser_skip_one_trait(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-extern void parser_skip_one_impl_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-extern struct lexer_Lexer parser_skip_one_impl(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
+extern void parser_skip_one_enum_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+extern struct lexer_Lexer parser_skip_one_enum(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+extern void parser_skip_one_trait_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+extern struct lexer_Lexer parser_skip_one_trait(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+extern void parser_skip_one_impl_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+extern struct lexer_Lexer parser_skip_one_impl(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern void parser_skip_one_enum_into_buf(struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len);
 extern struct lexer_Lexer parser_skip_one_enum_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len);
 extern void parser_skip_one_trait_into_buf(struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len);
 extern struct lexer_Lexer parser_skip_one_trait_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len);
 extern void parser_skip_one_impl_into_buf(struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len);
 extern struct lexer_Lexer parser_skip_one_impl_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len);
-extern void parser_skip_one_extern_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-extern struct lexer_Lexer parser_skip_one_extern(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
+extern void parser_skip_one_extern_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+extern struct lexer_Lexer parser_skip_one_extern(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern uint8_t * parser_extern_parse_pool_ptr(struct parser_ExternParseResult * res);
 extern void parser_write_extern_params_to_pools(struct ast_ASTArena * arena, struct ast_Module * module, int32_t func_ref, int32_t fi, struct parser_ExternParseResult * res);
 extern void parser_extern_parse_set_fail(struct parser_ExternParseResult * out, struct lexer_Lexer lex);
-extern void parser_parse_one_extern_skip_into(struct parser_ExternParseResult * out, struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
+extern void parser_parse_one_extern_skip_into(struct parser_ExternParseResult * out, struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern void parser_parse_one_extern_skip_into_buf(struct parser_ExternParseResult * out, struct ast_ASTArena * arena, struct lexer_Lexer lex, uint8_t * data, int32_t len);
 extern int32_t parser_module_register_arena_func(struct ast_Module * module, int32_t func_ref, struct ast_Func f);
-extern void parser_parse_one_extern_and_add_into(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct lexer_Lexer * lex_out);
+extern void parser_parse_one_extern_and_add_into(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct lexer_Lexer * lex_out);
 extern void parser_skip_one_extern_into_buf(struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len);
 extern struct lexer_Lexer parser_skip_one_extern_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len);
 extern void parser_parse_one_extern_and_add_into_buf(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, uint8_t * data, int32_t len, struct lexer_Lexer * lex_out);
@@ -1216,33 +1216,33 @@ extern void parser_lex_from_try_skip_into(struct lexer_Lexer * out, struct parse
 extern void parser_lex_from_library_into(struct lexer_Lexer * out, struct parser_LibraryParseResult lib);
 extern struct lexer_Lexer parser_lex_from_try_skip(struct parser_TrySkipAllowResult t);
 extern struct lexer_Lexer parser_lex_from_library(struct parser_LibraryParseResult lib);
-extern int parser_parse_one_function_library_scan(struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_LibraryParseScanResult * result);
+extern int parser_parse_one_function_library_scan(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_LibraryParseScanResult * result);
 extern int parser_struct_layout_name_exists_arr(struct ast_Module * module, uint8_t * nm, int32_t nlen);
 extern int32_t parser_struct_layout_first_name_match_idx(struct ast_Module * module, uint8_t * nm, int32_t nlen);
 extern int32_t parser_struct_layout_placeholder_idx(struct ast_Module * module, uint8_t * nm, int32_t nlen);
-extern struct parser_LibraryParseResult parser_parse_one_function_library(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
+extern struct parser_LibraryParseResult parser_parse_one_function_library(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern struct parser_LibraryParseResult parser_parse_one_function_library_buf(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, uint8_t * data, int32_t len);
-extern struct parser_TrySkipAllowResult parser_parse_into_try_skip_allow(struct lexer_Lexer lex, struct lexer_LexerResult r, struct shux_slice_uint8_t * source);
+extern struct parser_TrySkipAllowResult parser_parse_into_try_skip_allow(struct lexer_Lexer lex, struct lexer_LexerResult r, struct xlang_slice_uint8_t * source);
 extern struct parser_TrySkipAllowResult parser_parse_into_try_skip_allow_buf(struct lexer_Lexer lex, struct lexer_LexerResult r, uint8_t * data, int32_t len);
-extern struct parser_TrySkipAllowResult parser_try_skip_allow_padding_struct(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
+extern struct parser_TrySkipAllowResult parser_try_skip_allow_padding_struct(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern struct parser_TrySkipAllowResult parser_try_skip_allow_padding_struct_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len);
 extern void parser_skip_one_struct_into_buf(struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len);
 extern struct lexer_Lexer parser_skip_one_struct_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len);
-extern int32_t parser_consume_qualified_type_ident_name(struct shux_slice_uint8_t * source, struct lexer_LexerResult * r, uint8_t * out, int32_t * out_len);
+extern int32_t parser_consume_qualified_type_ident_name(struct xlang_slice_uint8_t * source, struct lexer_LexerResult * r, uint8_t * out, int32_t * out_len);
 extern int32_t parser_consume_qualified_type_ident_name_buf(uint8_t * data, int32_t len, struct lexer_LexerResult * r, uint8_t * out, int32_t * out_len);
 extern int parser_is_pointee_type_token(enum token_TokenKind kind);
-extern int32_t parser_alloc_pointee_type_ref_from_tok(struct ast_ASTArena * arena, struct shux_slice_uint8_t * source, struct lexer_LexerResult * r);
+extern int32_t parser_alloc_pointee_type_ref_from_tok(struct ast_ASTArena * arena, struct xlang_slice_uint8_t * source, struct lexer_LexerResult * r);
 extern int32_t parser_alloc_vector_type_ref(struct ast_ASTArena * arena, int32_t elem_ord, int32_t lanes);
-extern int32_t parser_vector_type_ref_from_ident_spelling(struct ast_ASTArena * arena, struct shux_slice_uint8_t * source, struct lexer_LexerResult r);
-extern int32_t parser_parse_struct_record_layout_into(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct lexer_Lexer * out_lex, int32_t allow_pad, int32_t force_soa, int32_t repr_compat);
+extern int32_t parser_vector_type_ref_from_ident_spelling(struct ast_ASTArena * arena, struct xlang_slice_uint8_t * source, struct lexer_LexerResult r);
+extern int32_t parser_parse_struct_record_layout_into(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct lexer_Lexer * out_lex, int32_t allow_pad, int32_t force_soa, int32_t repr_compat);
 extern void parser_parse_one_function_buf_into(struct parser_OneFuncResult * out, struct ast_ASTArena * arena, struct lexer_Lexer lex, uint8_t * data, int32_t len);
-extern void parser_parse_one_function_library_into(struct parser_LibraryParseResult * out, struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
+extern void parser_parse_one_function_library_into(struct parser_LibraryParseResult * out, struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern void parser_parse_one_function_library_into_buf(struct parser_LibraryParseResult * out, struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, uint8_t * data, int32_t len);
-extern void parser_parse_into_try_skip_allow_into(struct parser_TrySkipAllowResult * out, struct lexer_Lexer lex, struct lexer_LexerResult r, struct shux_slice_uint8_t * source);
+extern void parser_parse_into_try_skip_allow_into(struct parser_TrySkipAllowResult * out, struct lexer_Lexer lex, struct lexer_LexerResult r, struct xlang_slice_uint8_t * source);
 extern void parser_parse_into_try_skip_allow_into_buf(struct parser_TrySkipAllowResult * out, struct lexer_Lexer lex, struct lexer_LexerResult r, uint8_t * data, int32_t len);
-extern struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, struct ast_Module * module, struct shux_slice_uint8_t * source);
-extern void parser_parse_one_top_level_let_into(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, int is_const, struct parser_TopLevelLetResult * out);
-extern void parser_parse_one_type_alias_into(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_TypeAliasResult * out);
+extern struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, struct ast_Module * module, struct xlang_slice_uint8_t * source);
+extern void parser_parse_one_top_level_let_into(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, int is_const, struct parser_TopLevelLetResult * out);
+extern void parser_parse_one_type_alias_into(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_TypeAliasResult * out);
 extern void parser_parse_primary_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex, uint8_t * data, int32_t len, struct parser_ParseExprResult * out);
 extern void parser_parse_unary_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex, uint8_t * data, int32_t len, struct parser_ParseExprResult * out);
 extern void parser_parse_cast_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex, uint8_t * data, int32_t len, struct parser_ParseExprResult * out);
@@ -1285,9 +1285,9 @@ extern struct parser_LibraryParseResult parser_parse_one_function_library_from_b
 extern struct parser_TrySkipAllowResult parser_parse_into_try_skip_allow_from_buf(struct lexer_Lexer lex, struct lexer_LexerResult r, uint8_t * data, int32_t len);
 extern struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena, struct ast_Module * module, uint8_t * data, int32_t len);
 extern void parser_parse_into_set_main_index(struct ast_Module * module, int32_t main_idx);
-extern int32_t parser_diag_token_after_collect_imports(struct shux_slice_uint8_t * source, struct ast_Module * module);
-extern int32_t parser_diag_parse_one_after_collect_imports(struct shux_slice_uint8_t * source, struct ast_Module * module, struct ast_ASTArena * arena);
-extern int32_t parser_parse_one_function_ok_for_pipeline(struct ast_ASTArena * arena, struct shux_slice_uint8_t * source);
+extern int32_t parser_diag_token_after_collect_imports(struct xlang_slice_uint8_t * source, struct ast_Module * module);
+extern int32_t parser_diag_parse_one_after_collect_imports(struct xlang_slice_uint8_t * source, struct ast_Module * module, struct ast_ASTArena * arena);
+extern int32_t parser_parse_one_function_ok_for_pipeline(struct ast_ASTArena * arena, struct xlang_slice_uint8_t * source);
 extern int32_t parser_get_module_num_imports(struct ast_Module * module);
 extern void parser_get_module_import_path(struct ast_Module * module, int32_t i, uint8_t * out);
 extern int32_t parser_copy_module_import_path64(struct ast_Module * module, int32_t i, uint8_t * out);
@@ -1302,10 +1302,10 @@ int32_t parser_parse_peek_function_name_buf(struct lexer_Lexer lex, uint8_t * da
   return parser_parse_peek_function_name_buf_glue(lex, data, len, out);
   return 0;
 }
-extern struct shux_slice_uint8_t parser_slice_from_buf(uint8_t * data, int32_t len);
+extern struct xlang_slice_uint8_t parser_slice_from_buf(uint8_t * data, int32_t len);
 extern void parser_diagnostic_parse_skip(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len, uint8_t * name);
-extern void parser_skip_generic_angle_list_into_glue(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-extern void parser_skip_generic_angle_list_count_into_glue(struct lexer_Lexer * out, int32_t * count, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
+extern void parser_skip_generic_angle_list_into_glue(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+extern void parser_skip_generic_angle_list_count_into_glue(struct lexer_Lexer * out, int32_t * count, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
 extern void parser_diagnostic_parse_commit_fail(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len, uint8_t * name);
 extern void parser_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so_far, uint8_t * name, int32_t name_len, int32_t num_generic_params, int32_t is_main);
 extern void parser_diagnostic_parse_commit_pre(struct ast_ASTArena * arena, uint8_t * name, int32_t name_len, int32_t block_ref, uint8_t * pool, int32_t final_expr_ref);
@@ -1567,18 +1567,18 @@ struct lexer_Lexer parser_lex_at_token_from_result(struct lexer_LexerResult r) {
   return parser_lex_at_token_from_result_glue(r);
 }
 extern struct lexer_Lexer parser_parser_rewind_lex_for_following_stmt_glue(struct lexer_Lexer lex_in, struct lexer_LexerResult r);
-extern void parser_asm_parse_block_return_end_tail_glue(struct lexer_LexerResult * r, struct lexer_Lexer * lex_cur, struct shux_slice_uint8_t * source, int * stmt_tok_ready, int32_t * block_break);
+extern void parser_asm_parse_block_return_end_tail_glue(struct lexer_LexerResult * r, struct lexer_Lexer * lex_cur, struct xlang_slice_uint8_t * source, int * stmt_tok_ready, int32_t * block_break);
 struct lexer_Lexer parser_rewind_lex_for_following_stmt(struct lexer_Lexer lex_in, struct lexer_LexerResult r) {
   return parser_parser_rewind_lex_for_following_stmt_glue(lex_in, r);
 }
-struct lexer_Lexer parser_realign_lex_after_compound_stmt(struct lexer_Lexer lex_in, struct lexer_LexerResult r_in, struct shux_slice_uint8_t * source) {
+struct lexer_Lexer parser_realign_lex_after_compound_stmt(struct lexer_Lexer lex_in, struct lexer_LexerResult r_in, struct xlang_slice_uint8_t * source) {
   {
     struct lexer_Lexer lex_out = parser_rewind_lex_for_following_stmt(lex_in, r_in);
     (void)((lex_out = parser_rewind_lex_for_lparen_control_stmt(lex_out, r_in, source)));
     return lex_out;
   }
 }
-struct lexer_Lexer parser_rewind_lex_for_lparen_control_stmt(struct lexer_Lexer lex_in, struct lexer_LexerResult r_in, struct shux_slice_uint8_t * source) {
+struct lexer_Lexer parser_rewind_lex_for_lparen_control_stmt(struct lexer_Lexer lex_in, struct lexer_LexerResult r_in, struct xlang_slice_uint8_t * source) {
   if ((((r_in.tok).kind) ==82)) {
     struct lexer_Lexer lp_base = parser_lex_at_token_from_result(r_in);
     int32_t back_lp = 2;
@@ -1594,7 +1594,7 @@ struct lexer_Lexer parser_rewind_lex_for_lparen_control_stmt(struct lexer_Lexer 
   }
   return lex_in;
 }
-int parser_match_kw_immediately_before(struct shux_slice_uint8_t * source, size_t ident_start) {
+int parser_match_kw_immediately_before(struct xlang_slice_uint8_t * source, size_t ident_start) {
   {
     if ((ident_start < 6)) {
       return 0;
@@ -1603,7 +1603,7 @@ int parser_match_kw_immediately_before(struct shux_slice_uint8_t * source, size_
     return (((((((source)->data[p] ==109) && ((source)->data[(p + 1)] ==97)) && ((source)->data[(p + 2)] ==116)) && ((source)->data[(p + 3)] ==99)) && ((source)->data[(p + 4)] ==104)) && ((source)->data[(p + 5)] ==32));
   }
 }
-int parser_return_kw_immediately_before(struct shux_slice_uint8_t * source, size_t ident_start) {
+int parser_return_kw_immediately_before(struct xlang_slice_uint8_t * source, size_t ident_start) {
   {
     if ((ident_start < 7)) {
       return 0;
@@ -1618,31 +1618,31 @@ int parser_return_kw_immediately_before(struct shux_slice_uint8_t * source, size
 }
 int parser_match_kw_immediately_before_buf(uint8_t * data, int32_t len, size_t ident_start) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_match_kw_immediately_before(&(slice), ident_start);
   }
   return 0;
 }
-extern int32_t parser_advance_past_stmt_semicolon_into_glue(struct lexer_LexerResult * r_out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-int32_t parser_advance_past_stmt_semicolon_into(struct lexer_LexerResult * r_out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern int32_t parser_advance_past_stmt_semicolon_into_glue(struct lexer_LexerResult * r_out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+int32_t parser_advance_past_stmt_semicolon_into(struct lexer_LexerResult * r_out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   return parser_advance_past_stmt_semicolon_into_glue(r_out, lex, source);
   return 0;
 }
 int32_t parser_advance_past_stmt_semicolon_into_buf(struct lexer_LexerResult * r_out, struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_advance_past_stmt_semicolon_into(r_out, lex, &(slice));
   }
   return 0;
 }
-extern int32_t parser_advance_past_cond_rparen_into_glue(struct lexer_LexerResult * r_out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-int32_t parser_advance_past_cond_rparen_into(struct lexer_LexerResult * r_out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern int32_t parser_advance_past_cond_rparen_into_glue(struct lexer_LexerResult * r_out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+int32_t parser_advance_past_cond_rparen_into(struct lexer_LexerResult * r_out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   return parser_advance_past_cond_rparen_into_glue(r_out, lex, source);
   return 0;
 }
 int32_t parser_advance_past_cond_rparen_into_buf(struct lexer_LexerResult * r_out, struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_advance_past_cond_rparen_into(r_out, lex, &(slice));
   }
   return 0;
@@ -1659,7 +1659,7 @@ void parser_set_onefunc_fail(struct parser_OneFuncResult * out, struct lexer_Lex
   (void)(((out->ok) = 0));
   (void)(((out->next_lex) = next_lex));
 }
-int parser_onefunc_finish_after_return_lex(struct parser_OneFuncResult * out, struct parser_OneFuncResult * impl_snap, struct shux_slice_uint8_t * source, struct lexer_Lexer lex_after_expr, uint8_t * func_name, int32_t func_name_len, int32_t return_expr_ref) {
+int parser_onefunc_finish_after_return_lex(struct parser_OneFuncResult * out, struct parser_OneFuncResult * impl_snap, struct xlang_slice_uint8_t * source, struct lexer_Lexer lex_after_expr, uint8_t * func_name, int32_t func_name_len, int32_t return_expr_ref) {
   {
     struct lexer_LexerResult r_tail = (struct lexer_LexerResult){ .next_lex = lex_after_expr, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
     struct lexer_Lexer lex_tail = lex_after_expr;
@@ -1962,76 +1962,76 @@ int parser_should_wrap_func_tail_in_return(struct ast_ASTArena * arena, struct p
     return (res->has_explicit_return_kw);
   }
 }
-extern void parser_parse_match_subject_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-void parser_parse_match_subject_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out) {
+extern void parser_parse_match_subject_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+void parser_parse_match_subject_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out) {
   (void)(parser_parse_match_subject_into_glue(arena, lex, source, out));
 }
-extern void parser_parse_match_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-void parser_parse_match_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out) {
+extern void parser_parse_match_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+void parser_parse_match_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out) {
   (void)(parser_parse_match_into_glue(arena, lex, source, out));
 }
-extern void parser_parse_at_simd_builtin_into_glue(struct ast_ASTArena * arena, struct lexer_LexerResult r0, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-void parser_parse_at_simd_builtin_into(struct ast_ASTArena * arena, struct lexer_LexerResult r0, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out) {
+extern void parser_parse_at_simd_builtin_into_glue(struct ast_ASTArena * arena, struct lexer_LexerResult r0, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+void parser_parse_at_simd_builtin_into(struct ast_ASTArena * arena, struct lexer_LexerResult r0, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out) {
   (void)(parser_parse_at_simd_builtin_into_glue(arena, r0, source, out));
 }
-extern void parser_parse_primary_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-void parser_parse_primary_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out) {
+extern void parser_parse_primary_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+void parser_parse_primary_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out) {
   (void)(parser_parse_primary_into_glue(arena, lex, source, out));
 }
-extern void parser_parse_as_suffix_into_glue(struct ast_ASTArena * arena, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-void parser_parse_as_suffix_into(struct ast_ASTArena * arena, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out) {
+extern void parser_parse_as_suffix_into_glue(struct ast_ASTArena * arena, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+void parser_parse_as_suffix_into(struct ast_ASTArena * arena, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out) {
   (void)(parser_parse_as_suffix_into_glue(arena, source, out));
 }
-extern void parser_parse_unary_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-void parser_parse_unary_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out) {
+extern void parser_parse_unary_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+void parser_parse_unary_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out) {
   (void)(parser_parse_unary_into_glue(arena, lex, source, out));
 }
-extern void parser_parse_cast_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-void parser_parse_cast_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out) {
+extern void parser_parse_cast_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+void parser_parse_cast_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out) {
   (void)(parser_parse_cast_into_glue(arena, lex, source, out));
 }
-extern void parser_parse_term_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-void parser_parse_term_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out) {
+extern void parser_parse_term_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+void parser_parse_term_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out) {
   (void)(parser_parse_term_into_glue(arena, lex, source, out));
 }
-extern void parser_parse_addsub_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-void parser_parse_addsub_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out) {
+extern void parser_parse_addsub_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+void parser_parse_addsub_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out) {
   (void)(parser_parse_addsub_into_glue(arena, lex, source, out));
 }
-extern void parser_parse_shift_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-void parser_parse_shift_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out) {
+extern void parser_parse_shift_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+void parser_parse_shift_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out) {
   (void)(parser_parse_shift_into_glue(arena, lex, source, out));
 }
-extern void parser_parse_relcompare_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-void parser_parse_relcompare_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out) {
+extern void parser_parse_relcompare_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+void parser_parse_relcompare_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out) {
   (void)(parser_parse_relcompare_into_glue(arena, lex, source, out));
 }
-extern void parser_parse_compare_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-void parser_parse_compare_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out) {
+extern void parser_parse_compare_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+void parser_parse_compare_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out) {
   (void)(parser_parse_compare_into_glue(arena, lex, source, out));
 }
-extern void parser_parse_bitand_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-void parser_parse_bitand_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out) {
+extern void parser_parse_bitand_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+void parser_parse_bitand_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out) {
   (void)(parser_parse_bitand_into_glue(arena, lex, source, out));
 }
-extern void parser_parse_bitxor_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-void parser_parse_bitxor_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out) {
+extern void parser_parse_bitxor_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+void parser_parse_bitxor_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out) {
   (void)(parser_parse_bitxor_into_glue(arena, lex, source, out));
 }
-extern void parser_parse_bitor_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-void parser_parse_bitor_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out) {
+extern void parser_parse_bitor_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+void parser_parse_bitor_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out) {
   (void)(parser_parse_bitor_into_glue(arena, lex, source, out));
 }
-extern void parser_parse_logand_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-void parser_parse_logand_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out) {
+extern void parser_parse_logand_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+void parser_parse_logand_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out) {
   (void)(parser_parse_logand_into_glue(arena, lex, source, out));
 }
-extern void parser_parse_logor_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-void parser_parse_logor_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out) {
+extern void parser_parse_logor_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+void parser_parse_logor_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out) {
   (void)(parser_parse_logor_into_glue(arena, lex, source, out));
 }
-extern void parser_parse_ternary_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-void parser_parse_ternary_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out) {
+extern void parser_parse_ternary_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+void parser_parse_ternary_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out) {
   (void)(parser_parse_ternary_into_glue(arena, lex, source, out));
 }
 int parser_is_compound_assign_token(enum token_TokenKind kind) {
@@ -2076,27 +2076,27 @@ int parser_expr_ref_is_assign_lvalue(struct ast_ASTArena * arena, int32_t expr_r
   return pipeline_expr_ref_is_assign_lvalue(arena, expr_ref);
   return 0;
 }
-extern void parser_parse_assign_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-void parser_parse_assign_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out) {
+extern void parser_parse_assign_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+void parser_parse_assign_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out) {
   (void)(parser_parse_assign_into_glue(arena, lex, source, out));
 }
-void parser_parse_expr_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out) {
+void parser_parse_expr_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out) {
   (void)(parser_parse_assign_into(arena, lex, source, out));
 }
-extern void parser_finish_struct_lit_from_type_ident_into_glue(struct ast_ASTArena * arena, int32_t lit_ref, struct lexer_Lexer lex_in_brace, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-void parser_finish_struct_lit_from_type_ident_into(struct ast_ASTArena * arena, int32_t lit_ref, struct lexer_Lexer lex_in_brace, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out) {
+extern void parser_finish_struct_lit_from_type_ident_into_glue(struct ast_ASTArena * arena, int32_t lit_ref, struct lexer_Lexer lex_in_brace, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+void parser_finish_struct_lit_from_type_ident_into(struct ast_ASTArena * arena, int32_t lit_ref, struct lexer_Lexer lex_in_brace, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out) {
   (void)(parser_finish_struct_lit_from_type_ident_into_glue(arena, lit_ref, lex_in_brace, source, out));
 }
-extern void parser_parse_cond_expr_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex_start, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out);
-void parser_parse_cond_expr_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_start, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out) {
+extern void parser_parse_cond_expr_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex_start, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
+void parser_parse_cond_expr_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_start, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out) {
   (void)(parser_parse_cond_expr_into_glue(arena, lex_start, source, out));
 }
-void parser_parse_expr_with_leading_int_as_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_start, struct shux_slice_uint8_t * source, struct parser_ParseExprResult * out) {
+void parser_parse_expr_with_leading_int_as_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_start, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out) {
   (void)(parser_parse_cond_expr_into(arena, lex_start, source, out));
 }
 void parser_parse_expr_with_leading_int_as_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex_start, uint8_t * data, int32_t len, struct parser_ParseExprResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_expr_with_leading_int_as_into(arena, lex_start, &(slice), out));
   }
 }
@@ -2110,13 +2110,13 @@ int parser_append_block_lets_from_res(struct ast_ASTArena * arena, int32_t block
   return parser_append_block_lets_from_res_glue(arena, block_ref, res, let_base, type_ref);
   return 0;
 }
-extern int parser_parse_if_stmt_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex_at_if, struct shux_slice_uint8_t * source, int32_t type_ref, int32_t * out_cond, int32_t * out_then, int32_t * out_else, struct lexer_Lexer * lex_out);
-extern void parser_realign_lex_after_if_stmt_onefunc_glue(struct lexer_Lexer * lex, struct shux_slice_uint8_t * source);
-int parser_parse_if_stmt_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_at_if, struct shux_slice_uint8_t * source, int32_t type_ref, int32_t * out_cond, int32_t * out_then, int32_t * out_else, struct lexer_Lexer * lex_out) {
+extern int parser_parse_if_stmt_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex_at_if, struct xlang_slice_uint8_t * source, int32_t type_ref, int32_t * out_cond, int32_t * out_then, int32_t * out_else, struct lexer_Lexer * lex_out);
+extern void parser_realign_lex_after_if_stmt_onefunc_glue(struct lexer_Lexer * lex, struct xlang_slice_uint8_t * source);
+int parser_parse_if_stmt_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_at_if, struct xlang_slice_uint8_t * source, int32_t type_ref, int32_t * out_cond, int32_t * out_then, int32_t * out_else, struct lexer_Lexer * lex_out) {
   return parser_parse_if_stmt_into_glue(arena, lex_at_if, source, type_ref, out_cond, out_then, out_else, lex_out);
   return 0;
 }
-void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_after_lbrace, struct shux_slice_uint8_t * source, int32_t type_ref, struct parser_ParseBlockResult * out) {
+void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_after_lbrace, struct xlang_slice_uint8_t * source, int32_t type_ref, struct parser_ParseBlockResult * out) {
   {
     size_t scratch_sz = pipeline_sizeof_onefunc_result();
     uint8_t * scratch_raw = calloc(1, scratch_sz);
@@ -2867,11 +2867,11 @@ int32_t parser_wrap_block_ref_as_expr(struct ast_ASTArena * arena, int32_t block
     return ref;
   }
 }
-extern void parser_parse_if_expr_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex_at_if, struct shux_slice_uint8_t * source, int32_t type_ref, struct parser_ParseExprResult * out);
-void parser_parse_if_expr_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_at_if, struct shux_slice_uint8_t * source, int32_t type_ref, struct parser_ParseExprResult * out) {
+extern void parser_parse_if_expr_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex_at_if, struct xlang_slice_uint8_t * source, int32_t type_ref, struct parser_ParseExprResult * out);
+void parser_parse_if_expr_into(struct ast_ASTArena * arena, struct lexer_Lexer lex_at_if, struct xlang_slice_uint8_t * source, int32_t type_ref, struct parser_ParseExprResult * out) {
   (void)(parser_parse_if_expr_into_glue(arena, lex_at_if, source, type_ref, out));
 }
-struct parser_ParseResult parser_parse(struct shux_slice_uint8_t * source) {
+struct parser_ParseResult parser_parse(struct xlang_slice_uint8_t * source) {
   {
     size_t arena_heap_bytes = pipeline_sizeof_arena();
     struct lexer_Lexer lex = lexer_init();
@@ -2959,65 +2959,65 @@ struct parser_ParseResult parser_parse(struct shux_slice_uint8_t * source) {
     return (struct parser_ParseResult){ .ok = 1, .return_val = ret_val };
   }
 }
-extern int32_t parser_first_token_kind_glue(struct shux_slice_uint8_t * source);
-int32_t parser_first_token_kind(struct shux_slice_uint8_t * source) {
+extern int32_t parser_first_token_kind_glue(struct xlang_slice_uint8_t * source);
+int32_t parser_first_token_kind(struct xlang_slice_uint8_t * source) {
   return parser_first_token_kind_glue(source);
   return 0;
 }
 int32_t parser_first_token_kind_buf(uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_first_token_kind(&(slice));
   }
   return 0;
 }
-extern int32_t parser_diag_first_ident_len_glue(struct shux_slice_uint8_t * source);
-int32_t parser_diag_first_ident_len(struct shux_slice_uint8_t * source) {
+extern int32_t parser_diag_first_ident_len_glue(struct xlang_slice_uint8_t * source);
+int32_t parser_diag_first_ident_len(struct xlang_slice_uint8_t * source) {
   return parser_diag_first_ident_len_glue(source);
   return 0;
 }
 int32_t parser_diag_first_ident_len_buf(uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_diag_first_ident_len(&(slice));
   }
   return 0;
 }
-extern void parser_diag_skip_let_const_into_glue(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-void parser_diag_skip_let_const_into(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern void parser_diag_skip_let_const_into_glue(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+void parser_diag_skip_let_const_into(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   (void)(parser_diag_skip_let_const_into_glue(out, lex, source));
 }
-extern struct lexer_LexerResult parser_diag_skip_let_const_glue(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-struct lexer_LexerResult parser_diag_skip_let_const(struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern struct lexer_LexerResult parser_diag_skip_let_const_glue(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+struct lexer_LexerResult parser_diag_skip_let_const(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   return parser_diag_skip_let_const_glue(lex, source);
 }
 struct lexer_LexerResult parser_diag_skip_let_const_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_diag_skip_let_const(lex, &(slice));
   }
 }
 void parser_diag_skip_let_const_into_buf(struct lexer_LexerResult * out, struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_diag_skip_let_const_into(out, lex, &(slice)));
   }
 }
-extern void parser_body_skip_let_const_then_if_into_glue(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-void parser_body_skip_let_const_then_if_into(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern void parser_body_skip_let_const_then_if_into_glue(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+void parser_body_skip_let_const_then_if_into(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   (void)(parser_body_skip_let_const_then_if_into_glue(out, lex, source));
 }
-extern int32_t parser_parse_body_let_bracket_compound_init_ref_glue(struct ast_ASTArena * arena, size_t bracket_start, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct lexer_Lexer * lex_out, struct lexer_LexerResult * r_out);
-int32_t parser_parse_body_let_bracket_compound_init_ref(struct ast_ASTArena * arena, size_t bracket_start, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct lexer_Lexer * lex_out, struct lexer_LexerResult * r_out) {
+extern int32_t parser_parse_body_let_bracket_compound_init_ref_glue(struct ast_ASTArena * arena, size_t bracket_start, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct lexer_Lexer * lex_out, struct lexer_LexerResult * r_out);
+int32_t parser_parse_body_let_bracket_compound_init_ref(struct ast_ASTArena * arena, size_t bracket_start, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct lexer_Lexer * lex_out, struct lexer_LexerResult * r_out) {
   return parser_parse_body_let_bracket_compound_init_ref_glue(arena, bracket_start, lex, source, lex_out, r_out);
   return 0;
 }
-extern int32_t parser_parse_type_ref_for_arena_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct lexer_Lexer * out_lex);
-int32_t parser_parse_type_ref_for_arena_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct lexer_Lexer * out_lex) {
+extern int32_t parser_parse_type_ref_for_arena_into_glue(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct lexer_Lexer * out_lex);
+int32_t parser_parse_type_ref_for_arena_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct lexer_Lexer * out_lex) {
   return parser_parse_type_ref_for_arena_into_glue(arena, lex, source, out_lex);
   return 0;
 }
-int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_OneFuncResult * out, struct lexer_Lexer * lex_out) {
+int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_OneFuncResult * out, struct lexer_Lexer * lex_out) {
   {
     uint8_t * pool = parser_onefunc_result_pool_ptr(out);
     struct lexer_LexerResult r = (struct lexer_LexerResult){ .next_lex = lex, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
@@ -3049,7 +3049,8 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
       if ((((r.tok).kind) ==52)) {
         (void)((is_discard_name = 1));
       } else {
-        if ((((r.tok).kind) !=59)) {
+        /* 59=IDENT, 51=SELF: let self is a valid binding (TOKEN_SELF keyword spelling). */
+        if (((((r.tok).kind) !=59) && (((r.tok).kind) !=51))) {
           (void)(((lex_out->pos) = (lex.pos)));
           (void)(((lex_out->line) = (lex.line)));
           (void)(((lex_out->col) = (lex.col)));
@@ -3059,6 +3060,10 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
       (void)((name_len = ((r.tok).ident_len)));
       if ((is_discard_name !=0)) {
         (void)((name_len = 1));
+      } else {
+        if ((((r.tok).kind) ==51)) {
+          (void)((name_len = 4));
+        }
       }
       if (((name_len <=0) || (name_len > 63))) {
         (void)(((lex_out->pos) = (lex.pos)));
@@ -3573,28 +3578,28 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
   }
   return 0;
 }
-extern struct lexer_LexerResult parser_body_skip_let_const_then_if_glue(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-struct lexer_LexerResult parser_body_skip_let_const_then_if(struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern struct lexer_LexerResult parser_body_skip_let_const_then_if_glue(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+struct lexer_LexerResult parser_body_skip_let_const_then_if(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   return parser_body_skip_let_const_then_if_glue(lex, source);
 }
 struct lexer_LexerResult parser_body_skip_let_const_then_if_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_body_skip_let_const_then_if(lex, &(slice));
   }
 }
 void parser_body_skip_let_const_then_if_into_buf(struct lexer_LexerResult * out, struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_body_skip_let_const_then_if_into(out, lex, &(slice)));
   }
 }
-extern struct lexer_Lexer parser_skip_balanced_parens_glue(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-struct lexer_Lexer parser_skip_balanced_parens(struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern struct lexer_Lexer parser_skip_balanced_parens_glue(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+struct lexer_Lexer parser_skip_balanced_parens(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   return parser_skip_balanced_parens_glue(lex, source);
 }
-extern void parser_skip_balanced_parens_into_glue(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-void parser_skip_balanced_parens_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern void parser_skip_balanced_parens_into_glue(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+void parser_skip_balanced_parens_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   (void)(parser_skip_balanced_parens_into_glue(out, lex, source));
 }
 void parser_skip_balanced_parens_into_buf(struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len) {
@@ -3630,16 +3635,16 @@ void parser_skip_balanced_parens_into_buf(struct lexer_Lexer * out, struct lexer
 }
 struct lexer_Lexer parser_skip_balanced_parens_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_skip_balanced_parens(lex, &(slice));
   }
 }
-extern struct lexer_Lexer parser_skip_balanced_braces_glue(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-struct lexer_Lexer parser_skip_balanced_braces(struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern struct lexer_Lexer parser_skip_balanced_braces_glue(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+struct lexer_Lexer parser_skip_balanced_braces(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   return parser_skip_balanced_braces_glue(lex, source);
 }
-extern void parser_skip_balanced_braces_into_glue(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-void parser_skip_balanced_braces_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern void parser_skip_balanced_braces_into_glue(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+void parser_skip_balanced_braces_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   (void)(parser_skip_balanced_braces_into_glue(out, lex, source));
 }
 void parser_skip_balanced_braces_into_buf(struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len) {
@@ -3675,114 +3680,114 @@ void parser_skip_balanced_braces_into_buf(struct lexer_Lexer * out, struct lexer
 }
 struct lexer_Lexer parser_skip_balanced_braces_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_skip_balanced_braces(lex, &(slice));
   }
 }
-extern void parser_skip_one_function_full_into_glue(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-void parser_skip_one_function_full_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern void parser_skip_one_function_full_into_glue(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+void parser_skip_one_function_full_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   (void)(parser_skip_one_function_full_into_glue(out, lex, source));
 }
-extern void parser_skip_one_top_level_const_into_glue(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-void parser_skip_one_top_level_const_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern void parser_skip_one_top_level_const_into_glue(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+void parser_skip_one_top_level_const_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   (void)(parser_skip_one_top_level_const_into_glue(out, lex, source));
 }
 extern void parser_skip_one_top_level_const_into_buf_glue(struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len);
 void parser_skip_one_top_level_const_into_buf(struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   (void)(parser_skip_one_top_level_const_into_buf_glue(out, lex, data, len));
 }
-extern void parser_skip_one_top_level_let_into_glue(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-void parser_skip_one_top_level_let_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern void parser_skip_one_top_level_let_into_glue(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+void parser_skip_one_top_level_let_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   (void)(parser_skip_one_top_level_let_into_glue(out, lex, source));
 }
 extern void parser_skip_one_top_level_let_into_buf_glue(struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len);
 void parser_skip_one_top_level_let_into_buf(struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   (void)(parser_skip_one_top_level_let_into_buf_glue(out, lex, data, len));
 }
-extern struct lexer_Lexer parser_skip_one_function_full_glue(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-struct lexer_Lexer parser_skip_one_function_full(struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern struct lexer_Lexer parser_skip_one_function_full_glue(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+struct lexer_Lexer parser_skip_one_function_full(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   return parser_skip_one_function_full_glue(lex, source);
 }
 void parser_skip_one_function_full_into_buf(struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_skip_one_function_full_into(out, lex, &(slice)));
   }
 }
 struct lexer_Lexer parser_skip_one_function_full_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_skip_one_function_full(lex, &(slice));
   }
 }
-extern struct lexer_LexerResult parser_skip_one_if_core_glue(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-struct lexer_LexerResult parser_skip_one_if_core(struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern struct lexer_LexerResult parser_skip_one_if_core_glue(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+struct lexer_LexerResult parser_skip_one_if_core(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   return parser_skip_one_if_core_glue(lex, source);
 }
-extern struct lexer_LexerResult parser_skip_one_if_statement_glue(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-struct lexer_LexerResult parser_skip_one_if_statement(struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern struct lexer_LexerResult parser_skip_one_if_statement_glue(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+struct lexer_LexerResult parser_skip_one_if_statement(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   return parser_skip_one_if_statement_glue(lex, source);
 }
-extern void parser_skip_one_if_statement_into_glue(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-void parser_skip_one_if_statement_into(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern void parser_skip_one_if_statement_into_glue(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+void parser_skip_one_if_statement_into(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   (void)(parser_skip_one_if_statement_into_glue(out, lex, source));
 }
-extern void parser_skip_one_if_core_into_glue(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-void parser_skip_one_if_core_into(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern void parser_skip_one_if_core_into_glue(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+void parser_skip_one_if_core_into(struct lexer_LexerResult * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   (void)(parser_skip_one_if_core_into_glue(out, lex, source));
 }
 struct lexer_LexerResult parser_skip_one_if_core_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_skip_one_if_core(lex, &(slice));
   }
 }
 struct lexer_LexerResult parser_skip_one_if_statement_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_skip_one_if_statement(lex, &(slice));
   }
 }
 void parser_skip_one_if_core_into_buf(struct lexer_LexerResult * out, struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_skip_one_if_core_into(out, lex, &(slice)));
   }
 }
 void parser_skip_one_if_statement_into_buf(struct lexer_LexerResult * out, struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_skip_one_if_statement_into(out, lex, &(slice)));
   }
 }
-extern struct lexer_Lexer parser_diag_lex_after_imports_glue(struct shux_slice_uint8_t * source);
-struct lexer_Lexer parser_diag_lex_after_imports(struct shux_slice_uint8_t * source) {
+extern struct lexer_Lexer parser_diag_lex_after_imports_glue(struct xlang_slice_uint8_t * source);
+struct lexer_Lexer parser_diag_lex_after_imports(struct xlang_slice_uint8_t * source) {
   return parser_diag_lex_after_imports_glue(source);
 }
 struct lexer_Lexer parser_diag_lex_after_imports_buf(uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_diag_lex_after_imports(&(slice));
   }
 }
-extern struct lexer_LexerResult parser_diag_after_imports_then_structs_glue(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-struct lexer_LexerResult parser_diag_after_imports_then_structs(struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern struct lexer_LexerResult parser_diag_after_imports_then_structs_glue(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+struct lexer_LexerResult parser_diag_after_imports_then_structs(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   return parser_diag_after_imports_then_structs_glue(lex, source);
 }
 struct lexer_LexerResult parser_diag_after_imports_then_structs_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_diag_after_imports_then_structs(lex, &(slice));
   }
 }
-extern int32_t parser_diag_fail_at_token_kind_glue(struct shux_slice_uint8_t * source);
-int32_t parser_diag_fail_at_token_kind(struct shux_slice_uint8_t * source) {
+extern int32_t parser_diag_fail_at_token_kind_glue(struct xlang_slice_uint8_t * source);
+int32_t parser_diag_fail_at_token_kind(struct xlang_slice_uint8_t * source) {
   return parser_diag_fail_at_token_kind_glue(source);
   return 0;
 }
 int32_t parser_diag_fail_at_token_kind_buf(uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_diag_fail_at_token_kind(&(slice));
   }
   return 0;
@@ -3793,7 +3798,7 @@ struct parser_ParseIntoResult parser_parse_into_result_empty_module_or_fail_tok(
   }
   return (struct parser_ParseIntoResult){ .ok = 0, .main_idx = -(1) };
 }
-void parser_copy_slice_to_name64(struct shux_slice_uint8_t * source, size_t start, int32_t nlen, uint8_t * out) {
+void parser_copy_slice_to_name64(struct xlang_slice_uint8_t * source, size_t start, int32_t nlen, uint8_t * out) {
   {
     int32_t i = 0;
     while ((i < nlen)) {
@@ -3804,20 +3809,20 @@ void parser_copy_slice_to_name64(struct shux_slice_uint8_t * source, size_t star
     }
   }
 }
-void parser_copy_slice_to_name64_at_end(struct shux_slice_uint8_t * source, size_t end_pos, int32_t nlen, uint8_t * out) {
+void parser_copy_slice_to_name64_at_end(struct xlang_slice_uint8_t * source, size_t end_pos, int32_t nlen, uint8_t * out) {
   {
     size_t start = (end_pos - ((size_t)(nlen)));
     (void)(parser_copy_slice_to_name64(source, start, nlen, out));
   }
 }
-extern int32_t parser_struct_field_name_from_tok_glue(struct lexer_LexerResult r, struct shux_slice_uint8_t * source, uint8_t * out);
-int32_t parser_struct_field_name_from_tok(struct lexer_LexerResult r, struct shux_slice_uint8_t * source, uint8_t * out) {
+extern int32_t parser_struct_field_name_from_tok_glue(struct lexer_LexerResult r, struct xlang_slice_uint8_t * source, uint8_t * out);
+int32_t parser_struct_field_name_from_tok(struct lexer_LexerResult r, struct xlang_slice_uint8_t * source, uint8_t * out) {
   return parser_struct_field_name_from_tok_glue(r, source, out);
   return 0;
 }
 int32_t parser_struct_field_name_from_tok_buf(struct lexer_LexerResult r, uint8_t * data, int32_t len, uint8_t * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_struct_field_name_from_tok(r, &(slice), out);
   }
   return 0;
@@ -3849,7 +3854,7 @@ int parser_struct_field_continues_tok_kind(enum token_TokenKind k) {
     return 0;
   }
 }
-int parser_token_is_label_start(struct lexer_LexerResult r, struct shux_slice_uint8_t * source) {
+int parser_token_is_label_start(struct lexer_LexerResult r, struct xlang_slice_uint8_t * source) {
   {
     if ((((r.tok).kind) !=59)) {
       return 0;
@@ -3859,7 +3864,7 @@ int parser_token_is_label_start(struct lexer_LexerResult r, struct shux_slice_ui
     return (((nx.tok).kind) ==91);
   }
 }
-void parser_copy_slice_to_param32(struct shux_slice_uint8_t * source, size_t start, int32_t nlen, uint8_t * out) {
+void parser_copy_slice_to_param32(struct xlang_slice_uint8_t * source, size_t start, int32_t nlen, uint8_t * out) {
   {
     int32_t i = 0;
     while ((i < 32)) {
@@ -3872,7 +3877,7 @@ void parser_copy_slice_to_param32(struct shux_slice_uint8_t * source, size_t sta
     }
   }
 }
-void parser_copy_slice_to_param32_at_end(struct shux_slice_uint8_t * source, size_t end_pos, int32_t nlen, uint8_t * out) {
+void parser_copy_slice_to_param32_at_end(struct xlang_slice_uint8_t * source, size_t end_pos, int32_t nlen, uint8_t * out) {
   {
     size_t start = (end_pos - ((size_t)(nlen)));
     (void)(parser_copy_slice_to_param32(source, start, nlen, out));
@@ -3922,7 +3927,7 @@ void parser_copy_slice_to_param32_buf(uint8_t * source, int32_t source_len, size
     }
   }
 }
-void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   {
     (void)(ast_pool_onefunc_reset(parser_onefunc_result_pool_ptr(out)));
     struct parser_OneFuncResult out_clean = parser_onefunc_alloc_wired_for_parse(lex);
@@ -4025,11 +4030,18 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
       (void)(parser_lex_from_next_into(&(lex), r));
     } else {
       while ((1 ==1)) {
-        if ((((r.tok).kind) !=59)) {
+        /* 59=TOKEN_IDENT, 51=TOKEN_SELF: accept self as param binding name.
+         * Lexer keywords self as TOKEN_SELF with ident_len=0; IDENT-only check
+         * silent set_onefunc_fail → function dropped from multi-fn AST (wave43). */
+        if (((((r.tok).kind) !=59) && (((r.tok).kind) !=51))) {
           (void)(parser_set_onefunc_fail(out_ref, lex));
           return;
         }
-        (void)((plen_param = ((r.tok).ident_len)));
+        if ((((r.tok).kind) ==51)) {
+          (void)((plen_param = 4));
+        } else {
+          (void)((plen_param = ((r.tok).ident_len)));
+        }
         if (((plen_param <=0) || (plen_param > 31))) {
           (void)(parser_set_onefunc_fail(out_ref, lex));
           return;
@@ -5148,8 +5160,8 @@ int32_t parser_import_path_dot_segment_len(enum token_TokenKind kind, int32_t id
     return -(1);
   }
 }
-extern void parser_import_path_dot_segment_copy_glue(struct shux_slice_uint8_t * source, size_t token_start, int32_t seg_len, uint8_t * path_buf, int32_t path_len);
-void parser_import_path_dot_segment_copy(struct shux_slice_uint8_t * source, size_t token_start, int32_t seg_len, uint8_t * path_buf, int32_t path_len) {
+extern void parser_import_path_dot_segment_copy_glue(struct xlang_slice_uint8_t * source, size_t token_start, int32_t seg_len, uint8_t * path_buf, int32_t path_len);
+void parser_import_path_dot_segment_copy(struct xlang_slice_uint8_t * source, size_t token_start, int32_t seg_len, uint8_t * path_buf, int32_t path_len) {
   {
     int32_t i = 0;
     while ((i < seg_len)) {
@@ -5162,7 +5174,7 @@ void parser_import_path_dot_segment_copy(struct shux_slice_uint8_t * source, siz
 }
 void parser_import_path_dot_segment_copy_buf(uint8_t * data, int32_t len, size_t token_start, int32_t seg_len, uint8_t * path_buf, int32_t path_len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_import_path_dot_segment_copy(&(slice), token_start, seg_len, path_buf, path_len));
   }
 }
@@ -5180,32 +5192,32 @@ void parser_parse_into_init(struct ast_Module * module, struct ast_ASTArena * ar
   (void)(parser_pipeline_module_reset_parse_counters(module));
   (void)(pipeline_parser_set_match_module(module));
 }
-extern struct lexer_Lexer parser_skip_imports_glue(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-struct lexer_Lexer parser_skip_imports(struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern struct lexer_Lexer parser_skip_imports_glue(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+struct lexer_Lexer parser_skip_imports(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   return parser_skip_imports_glue(lex, source);
 }
 struct lexer_Lexer parser_skip_imports_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_skip_imports(lex, &(slice));
   }
 }
-extern void parser_collect_imports_glue(struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct ast_Module * module, struct parser_CollectImportsResult * out);
-void parser_collect_imports(struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct ast_Module * module, struct parser_CollectImportsResult * out) {
+extern void parser_collect_imports_glue(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct ast_Module * module, struct parser_CollectImportsResult * out);
+void parser_collect_imports(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct ast_Module * module, struct parser_CollectImportsResult * out) {
   (void)(parser_collect_imports_glue(lex, source, module, out));
 }
 void parser_collect_imports_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len, struct ast_Module * module, struct parser_CollectImportsResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_collect_imports(lex, &(slice), module, out));
   }
 }
-extern void parser_skip_one_struct_into_glue(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-void parser_skip_one_struct_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern void parser_skip_one_struct_into_glue(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+void parser_skip_one_struct_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   (void)(parser_skip_one_struct_into_glue(out, lex, source));
 }
-extern struct lexer_Lexer parser_skip_one_struct_glue(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-struct lexer_Lexer parser_skip_one_struct(struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern struct lexer_Lexer parser_skip_one_struct_glue(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+struct lexer_Lexer parser_skip_one_struct(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   return parser_skip_one_struct_glue(lex, source);
 }
 extern int32_t parser_module_try_register_enum_name_glue(struct ast_Module * module, uint8_t * name, int32_t name_len);
@@ -5241,8 +5253,8 @@ int32_t parser_module_try_register_enum_name(struct ast_Module * module, uint8_t
   }
   return 0;
 }
-extern void parser_module_append_enum_variants_and_skip_body_into_glue(struct ast_Module * module, int32_t enum_idx, struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-void parser_module_append_enum_variants_and_skip_body_into(struct ast_Module * module, int32_t enum_idx, struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern void parser_module_append_enum_variants_and_skip_body_into_glue(struct ast_Module * module, int32_t enum_idx, struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+void parser_module_append_enum_variants_and_skip_body_into(struct ast_Module * module, int32_t enum_idx, struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   (void)(parser_module_append_enum_variants_and_skip_body_into_glue(module, enum_idx, out, lex, source));
 }
 void parser_module_append_enum_variants_and_skip_body_into_buf(struct ast_Module * module, int32_t enum_idx, struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len) {
@@ -5290,85 +5302,85 @@ void parser_module_append_enum_variants_and_skip_body_into_buf(struct ast_Module
     (void)(((out->col) = (lex.col)));
   }
 }
-extern void parser_skip_one_enum_register_into_glue(struct ast_Module * module, struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-void parser_skip_one_enum_register_into(struct ast_Module * module, struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern void parser_skip_one_enum_register_into_glue(struct ast_Module * module, struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+void parser_skip_one_enum_register_into(struct ast_Module * module, struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   (void)(parser_skip_one_enum_register_into_glue(module, out, lex, source));
 }
 void parser_skip_one_enum_register_into_buf(struct ast_Module * module, struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_skip_one_enum_register_into(module, out, lex, &(slice)));
   }
 }
 void parser_skip_one_enum_register_buf(struct ast_Module * module, struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   (void)(parser_skip_one_enum_register_into_buf(module, out, lex, data, len));
 }
-extern void parser_skip_one_enum_into_glue(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-void parser_skip_one_enum_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern void parser_skip_one_enum_into_glue(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+void parser_skip_one_enum_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   (void)(parser_skip_one_enum_into_glue(out, lex, source));
 }
-extern struct lexer_Lexer parser_skip_one_enum_glue(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-struct lexer_Lexer parser_skip_one_enum(struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern struct lexer_Lexer parser_skip_one_enum_glue(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+struct lexer_Lexer parser_skip_one_enum(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   return parser_skip_one_enum_glue(lex, source);
 }
-extern void parser_skip_one_trait_into_glue(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-void parser_skip_one_trait_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern void parser_skip_one_trait_into_glue(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+void parser_skip_one_trait_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   (void)(parser_skip_one_trait_into_glue(out, lex, source));
 }
-extern struct lexer_Lexer parser_skip_one_trait_glue(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-struct lexer_Lexer parser_skip_one_trait(struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern struct lexer_Lexer parser_skip_one_trait_glue(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+struct lexer_Lexer parser_skip_one_trait(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   return parser_skip_one_trait_glue(lex, source);
 }
-extern void parser_skip_one_impl_into_glue(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-void parser_skip_one_impl_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern void parser_skip_one_impl_into_glue(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+void parser_skip_one_impl_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   (void)(parser_skip_one_impl_into_glue(out, lex, source));
 }
-extern struct lexer_Lexer parser_skip_one_impl_glue(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-struct lexer_Lexer parser_skip_one_impl(struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern struct lexer_Lexer parser_skip_one_impl_glue(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+struct lexer_Lexer parser_skip_one_impl(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   return parser_skip_one_impl_glue(lex, source);
 }
 void parser_skip_one_enum_into_buf(struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_skip_one_enum_into(out, lex, &(slice)));
   }
 }
 struct lexer_Lexer parser_skip_one_enum_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_skip_one_enum(lex, &(slice));
   }
 }
 void parser_skip_one_trait_into_buf(struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_skip_one_trait_into(out, lex, &(slice)));
   }
 }
 struct lexer_Lexer parser_skip_one_trait_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_skip_one_trait(lex, &(slice));
   }
 }
 void parser_skip_one_impl_into_buf(struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_skip_one_impl_into(out, lex, &(slice)));
   }
 }
 struct lexer_Lexer parser_skip_one_impl_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_skip_one_impl(lex, &(slice));
   }
 }
-extern void parser_skip_one_extern_into_glue(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-void parser_skip_one_extern_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern void parser_skip_one_extern_into_glue(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+void parser_skip_one_extern_into(struct lexer_Lexer * out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   (void)(parser_skip_one_extern_into_glue(out, lex, source));
 }
-extern struct lexer_Lexer parser_skip_one_extern_glue(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-struct lexer_Lexer parser_skip_one_extern(struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern struct lexer_Lexer parser_skip_one_extern_glue(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+struct lexer_Lexer parser_skip_one_extern(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   return parser_skip_one_extern_glue(lex, source);
 }
 uint8_t * parser_extern_parse_pool_ptr(struct parser_ExternParseResult * res) {
@@ -5404,13 +5416,13 @@ void parser_extern_parse_set_fail(struct parser_ExternParseResult * out, struct 
     }
   }
 }
-extern void parser_parse_one_extern_skip_into_glue(struct parser_ExternParseResult * out, struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-void parser_parse_one_extern_skip_into(struct parser_ExternParseResult * out, struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern void parser_parse_one_extern_skip_into_glue(struct parser_ExternParseResult * out, struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+void parser_parse_one_extern_skip_into(struct parser_ExternParseResult * out, struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   (void)(parser_parse_one_extern_skip_into_glue(out, arena, lex, source));
 }
 void parser_parse_one_extern_skip_into_buf(struct parser_ExternParseResult * out, struct ast_ASTArena * arena, struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_one_extern_skip_into(out, arena, lex, &(slice)));
   }
 }
@@ -5445,19 +5457,19 @@ int32_t parser_module_register_arena_func(struct ast_Module * module, int32_t fu
   }
   return 0;
 }
-extern void parser_parse_one_extern_and_add_into_glue(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct lexer_Lexer * lex_out);
-void parser_parse_one_extern_and_add_into(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct lexer_Lexer * lex_out) {
+extern void parser_parse_one_extern_and_add_into_glue(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct lexer_Lexer * lex_out);
+void parser_parse_one_extern_and_add_into(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct lexer_Lexer * lex_out) {
   (void)(parser_parse_one_extern_and_add_into_glue(arena, module, lex, source, lex_out));
 }
 void parser_skip_one_extern_into_buf(struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_skip_one_extern_into(out, lex, &(slice)));
   }
 }
 struct lexer_Lexer parser_skip_one_extern_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_skip_one_extern(lex, &(slice));
   }
 }
@@ -5481,8 +5493,8 @@ extern struct lexer_Lexer parser_lex_from_library_glue(struct parser_LibraryPars
 struct lexer_Lexer parser_lex_from_library(struct parser_LibraryParseResult lib) {
   return parser_lex_from_library_glue(lib);
 }
-extern int parser_parse_one_function_library_scan_glue(struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_LibraryParseScanResult * result);
-int parser_parse_one_function_library_scan(struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_LibraryParseScanResult * result) {
+extern int parser_parse_one_function_library_scan_glue(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_LibraryParseScanResult * result);
+int parser_parse_one_function_library_scan(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_LibraryParseScanResult * result) {
   return parser_parse_one_function_library_scan_glue(lex, source, result);
   return 0;
 }
@@ -5567,56 +5579,56 @@ int32_t parser_struct_layout_placeholder_idx(struct ast_Module * module, uint8_t
   }
   return 0;
 }
-extern struct parser_LibraryParseResult parser_parse_one_function_library_glue(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-struct parser_LibraryParseResult parser_parse_one_function_library(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern struct parser_LibraryParseResult parser_parse_one_function_library_glue(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+struct parser_LibraryParseResult parser_parse_one_function_library(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   return parser_parse_one_function_library_glue(arena, module, lex, source);
 }
 struct parser_LibraryParseResult parser_parse_one_function_library_buf(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_parse_one_function_library(arena, module, lex, &(slice));
   }
 }
-extern struct parser_TrySkipAllowResult parser_parse_into_try_skip_allow_glue(struct lexer_Lexer lex, struct lexer_LexerResult r, struct shux_slice_uint8_t * source);
-struct parser_TrySkipAllowResult parser_parse_into_try_skip_allow(struct lexer_Lexer lex, struct lexer_LexerResult r, struct shux_slice_uint8_t * source) {
+extern struct parser_TrySkipAllowResult parser_parse_into_try_skip_allow_glue(struct lexer_Lexer lex, struct lexer_LexerResult r, struct xlang_slice_uint8_t * source);
+struct parser_TrySkipAllowResult parser_parse_into_try_skip_allow(struct lexer_Lexer lex, struct lexer_LexerResult r, struct xlang_slice_uint8_t * source) {
   return parser_parse_into_try_skip_allow_glue(lex, r, source);
 }
 struct parser_TrySkipAllowResult parser_parse_into_try_skip_allow_buf(struct lexer_Lexer lex, struct lexer_LexerResult r, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_parse_into_try_skip_allow(lex, r, &(slice));
   }
 }
-extern struct parser_TrySkipAllowResult parser_try_skip_allow_padding_struct_glue(struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-struct parser_TrySkipAllowResult parser_try_skip_allow_padding_struct(struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern struct parser_TrySkipAllowResult parser_try_skip_allow_padding_struct_glue(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+struct parser_TrySkipAllowResult parser_try_skip_allow_padding_struct(struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   return parser_try_skip_allow_padding_struct_glue(lex, source);
 }
 struct parser_TrySkipAllowResult parser_try_skip_allow_padding_struct_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_try_skip_allow_padding_struct(lex, &(slice));
   }
 }
 void parser_skip_one_struct_into_buf(struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_skip_one_struct_into(out, lex, &(slice)));
   }
 }
 struct lexer_Lexer parser_skip_one_struct_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_skip_one_struct(lex, &(slice));
   }
 }
-extern int32_t parser_consume_qualified_type_ident_name_glue(struct shux_slice_uint8_t * source, struct lexer_LexerResult * r, uint8_t * out, int32_t * out_len);
-int32_t parser_consume_qualified_type_ident_name(struct shux_slice_uint8_t * source, struct lexer_LexerResult * r, uint8_t * out, int32_t * out_len) {
+extern int32_t parser_consume_qualified_type_ident_name_glue(struct xlang_slice_uint8_t * source, struct lexer_LexerResult * r, uint8_t * out, int32_t * out_len);
+int32_t parser_consume_qualified_type_ident_name(struct xlang_slice_uint8_t * source, struct lexer_LexerResult * r, uint8_t * out, int32_t * out_len) {
   return parser_consume_qualified_type_ident_name_glue(source, r, out, out_len);
   return 0;
 }
 int32_t parser_consume_qualified_type_ident_name_buf(uint8_t * data, int32_t len, struct lexer_LexerResult * r, uint8_t * out, int32_t * out_len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_consume_qualified_type_ident_name(&(slice), r, out, out_len);
   }
   return 0;
@@ -5639,8 +5651,8 @@ int parser_is_pointee_type_token(enum token_TokenKind kind) {
   }
   return 0;
 }
-extern int32_t parser_alloc_pointee_type_ref_from_tok_glue(struct ast_ASTArena * arena, struct shux_slice_uint8_t * source, struct lexer_LexerResult * r);
-int32_t parser_alloc_pointee_type_ref_from_tok(struct ast_ASTArena * arena, struct shux_slice_uint8_t * source, struct lexer_LexerResult * r) {
+extern int32_t parser_alloc_pointee_type_ref_from_tok_glue(struct ast_ASTArena * arena, struct xlang_slice_uint8_t * source, struct lexer_LexerResult * r);
+int32_t parser_alloc_pointee_type_ref_from_tok(struct ast_ASTArena * arena, struct xlang_slice_uint8_t * source, struct lexer_LexerResult * r) {
   return parser_alloc_pointee_type_ref_from_tok_glue(arena, source, r);
   return 0;
 }
@@ -5665,13 +5677,13 @@ int32_t parser_alloc_vector_type_ref(struct ast_ASTArena * arena, int32_t elem_o
   }
   return 0;
 }
-extern int32_t parser_parser_vector_type_ref_from_ident_spelling_glue(struct ast_ASTArena * arena, struct shux_slice_uint8_t * source, struct lexer_LexerResult r);
-int32_t parser_vector_type_ref_from_ident_spelling(struct ast_ASTArena * arena, struct shux_slice_uint8_t * source, struct lexer_LexerResult r) {
+extern int32_t parser_parser_vector_type_ref_from_ident_spelling_glue(struct ast_ASTArena * arena, struct xlang_slice_uint8_t * source, struct lexer_LexerResult r);
+int32_t parser_vector_type_ref_from_ident_spelling(struct ast_ASTArena * arena, struct xlang_slice_uint8_t * source, struct lexer_LexerResult r) {
   return parser_parser_vector_type_ref_from_ident_spelling_glue(arena, source, r);
   return 0;
 }
-extern int32_t parser_parse_struct_record_layout_into_glue(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct lexer_Lexer * out_lex, int32_t allow_pad, int32_t force_soa, int32_t repr_compat);
-int32_t parser_parse_struct_record_layout_into(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct lexer_Lexer * out_lex, int32_t allow_pad, int32_t force_soa, int32_t repr_compat) {
+extern int32_t parser_parse_struct_record_layout_into_glue(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct lexer_Lexer * out_lex, int32_t allow_pad, int32_t force_soa, int32_t repr_compat);
+int32_t parser_parse_struct_record_layout_into(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct lexer_Lexer * out_lex, int32_t allow_pad, int32_t force_soa, int32_t repr_compat) {
   return parser_parse_struct_record_layout_into_glue(arena, module, lex, source, out_lex, allow_pad, force_soa, repr_compat);
   return 0;
 }
@@ -5679,27 +5691,27 @@ extern void parser_parse_one_function_buf_into_glue(struct parser_OneFuncResult 
 void parser_parse_one_function_buf_into(struct parser_OneFuncResult * out, struct ast_ASTArena * arena, struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   (void)(parser_parse_one_function_buf_into_glue(out, arena, lex, data, len));
 }
-extern void parser_parse_one_function_library_into_glue(struct parser_LibraryParseResult * out, struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct shux_slice_uint8_t * source);
-void parser_parse_one_function_library_into(struct parser_LibraryParseResult * out, struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct shux_slice_uint8_t * source) {
+extern void parser_parse_one_function_library_into_glue(struct parser_LibraryParseResult * out, struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source);
+void parser_parse_one_function_library_into(struct parser_LibraryParseResult * out, struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source) {
   (void)(parser_parse_one_function_library_into_glue(out, arena, module, lex, source));
 }
 void parser_parse_one_function_library_into_buf(struct parser_LibraryParseResult * out, struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_one_function_library_into(out, arena, module, lex, &(slice)));
   }
 }
-extern void parser_parse_into_try_skip_allow_into_glue(struct parser_TrySkipAllowResult * out, struct lexer_Lexer lex, struct lexer_LexerResult r, struct shux_slice_uint8_t * source);
-void parser_parse_into_try_skip_allow_into(struct parser_TrySkipAllowResult * out, struct lexer_Lexer lex, struct lexer_LexerResult r, struct shux_slice_uint8_t * source) {
+extern void parser_parse_into_try_skip_allow_into_glue(struct parser_TrySkipAllowResult * out, struct lexer_Lexer lex, struct lexer_LexerResult r, struct xlang_slice_uint8_t * source);
+void parser_parse_into_try_skip_allow_into(struct parser_TrySkipAllowResult * out, struct lexer_Lexer lex, struct lexer_LexerResult r, struct xlang_slice_uint8_t * source) {
   (void)(parser_parse_into_try_skip_allow_into_glue(out, lex, r, source));
 }
 void parser_parse_into_try_skip_allow_into_buf(struct parser_TrySkipAllowResult * out, struct lexer_Lexer lex, struct lexer_LexerResult r, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_into_try_skip_allow_into(out, lex, r, &(slice)));
   }
 }
-struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, struct ast_Module * module, struct shux_slice_uint8_t * source) {
+struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, struct ast_Module * module, struct xlang_slice_uint8_t * source) {
   {
     struct lexer_Lexer lex = lexer_init();
     int32_t main_idx = -(1);
@@ -6952,234 +6964,234 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
     return (struct parser_ParseIntoResult){ .ok = 0, .main_idx = (out_idx_storage)[0] };
   }
 }
-extern void parser_parse_one_top_level_let_into_glue(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, int is_const, struct parser_TopLevelLetResult * out);
-void parser_parse_one_top_level_let_into(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, int is_const, struct parser_TopLevelLetResult * out) {
+extern void parser_parse_one_top_level_let_into_glue(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, int is_const, struct parser_TopLevelLetResult * out);
+void parser_parse_one_top_level_let_into(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, int is_const, struct parser_TopLevelLetResult * out) {
   (void)(parser_parse_one_top_level_let_into_glue(arena, module, lex, source, is_const, out));
 }
-extern void parser_parse_one_type_alias_into_glue(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_TypeAliasResult * out);
-void parser_parse_one_type_alias_into(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_TypeAliasResult * out) {
+extern void parser_parse_one_type_alias_into_glue(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_TypeAliasResult * out);
+void parser_parse_one_type_alias_into(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_TypeAliasResult * out) {
   (void)(parser_parse_one_type_alias_into_glue(arena, module, lex, source, out));
 }
 void parser_parse_primary_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex, uint8_t * data, int32_t len, struct parser_ParseExprResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_primary_into(arena, lex, &(slice), out));
   }
 }
 void parser_parse_unary_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex, uint8_t * data, int32_t len, struct parser_ParseExprResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_unary_into(arena, lex, &(slice), out));
   }
 }
 void parser_parse_cast_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex, uint8_t * data, int32_t len, struct parser_ParseExprResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_cast_into(arena, lex, &(slice), out));
   }
 }
 void parser_parse_term_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex, uint8_t * data, int32_t len, struct parser_ParseExprResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_term_into(arena, lex, &(slice), out));
   }
 }
 void parser_parse_addsub_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex, uint8_t * data, int32_t len, struct parser_ParseExprResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_addsub_into(arena, lex, &(slice), out));
   }
 }
 void parser_parse_shift_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex, uint8_t * data, int32_t len, struct parser_ParseExprResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_shift_into(arena, lex, &(slice), out));
   }
 }
 void parser_parse_relcompare_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex, uint8_t * data, int32_t len, struct parser_ParseExprResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_relcompare_into(arena, lex, &(slice), out));
   }
 }
 void parser_parse_compare_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex, uint8_t * data, int32_t len, struct parser_ParseExprResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_compare_into(arena, lex, &(slice), out));
   }
 }
 void parser_parse_bitand_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex, uint8_t * data, int32_t len, struct parser_ParseExprResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_bitand_into(arena, lex, &(slice), out));
   }
 }
 void parser_parse_bitxor_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex, uint8_t * data, int32_t len, struct parser_ParseExprResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_bitxor_into(arena, lex, &(slice), out));
   }
 }
 void parser_parse_bitor_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex, uint8_t * data, int32_t len, struct parser_ParseExprResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_bitor_into(arena, lex, &(slice), out));
   }
 }
 void parser_parse_logand_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex, uint8_t * data, int32_t len, struct parser_ParseExprResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_logand_into(arena, lex, &(slice), out));
   }
 }
 void parser_parse_logor_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex, uint8_t * data, int32_t len, struct parser_ParseExprResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_logor_into(arena, lex, &(slice), out));
   }
 }
 void parser_parse_ternary_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex, uint8_t * data, int32_t len, struct parser_ParseExprResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_ternary_into(arena, lex, &(slice), out));
   }
 }
 void parser_parse_assign_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex, uint8_t * data, int32_t len, struct parser_ParseExprResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_assign_into(arena, lex, &(slice), out));
   }
 }
 void parser_parse_expr_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex, uint8_t * data, int32_t len, struct parser_ParseExprResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_expr_into(arena, lex, &(slice), out));
   }
 }
 void parser_finish_struct_lit_from_type_ident_into_buf(struct ast_ASTArena * arena, int32_t lit_ref, struct lexer_Lexer lex_in_brace, uint8_t * data, int32_t len, struct parser_ParseExprResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_finish_struct_lit_from_type_ident_into(arena, lit_ref, lex_in_brace, &(slice), out));
   }
 }
 void parser_parse_cond_expr_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex_start, uint8_t * data, int32_t len, struct parser_ParseExprResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_cond_expr_into(arena, lex_start, &(slice), out));
   }
 }
 int parser_parse_if_stmt_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex_at_if, uint8_t * data, int32_t len, int32_t type_ref, int32_t * out_cond, int32_t * out_then, int32_t * out_else, struct lexer_Lexer * lex_out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_parse_if_stmt_into(arena, lex_at_if, &(slice), type_ref, out_cond, out_then, out_else, lex_out);
   }
   return 0;
 }
 void parser_parse_block_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex_after_lbrace, uint8_t * data, int32_t len, int32_t type_ref, struct parser_ParseBlockResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_block_into(arena, lex_after_lbrace, &(slice), type_ref, out));
   }
 }
 void parser_parse_if_expr_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex_at_if, uint8_t * data, int32_t len, int32_t type_ref, struct parser_ParseExprResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_if_expr_into(arena, lex_at_if, &(slice), type_ref, out));
   }
 }
 void parser_parse_match_subject_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex, uint8_t * data, int32_t len, struct parser_ParseExprResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_match_subject_into(arena, lex, &(slice), out));
   }
 }
 void parser_parse_match_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex, uint8_t * data, int32_t len, struct parser_ParseExprResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_match_into(arena, lex, &(slice), out));
   }
 }
 void parser_parse_at_simd_builtin_into_buf(struct ast_ASTArena * arena, struct lexer_LexerResult r0, uint8_t * data, int32_t len, struct parser_ParseExprResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_at_simd_builtin_into(arena, r0, &(slice), out));
   }
 }
 void parser_parse_as_suffix_into_buf(struct ast_ASTArena * arena, uint8_t * data, int32_t len, struct parser_ParseExprResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_as_suffix_into(arena, &(slice), out));
   }
 }
 int32_t parser_parse_type_ref_for_arena_into_buf(struct ast_ASTArena * arena, struct lexer_Lexer lex, uint8_t * data, int32_t len, struct lexer_Lexer * out_lex) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_parse_type_ref_for_arena_into(arena, lex, &(slice), out_lex);
   }
   return 0;
 }
 int32_t parser_parse_body_let_bracket_compound_init_ref_buf(struct ast_ASTArena * arena, size_t bracket_start, struct lexer_Lexer lex, uint8_t * data, int32_t len, struct lexer_Lexer * lex_out, struct lexer_LexerResult * r_out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_parse_body_let_bracket_compound_init_ref(arena, bracket_start, lex, &(slice), lex_out, r_out);
   }
   return 0;
 }
 int32_t parser_parse_struct_record_layout_into_buf(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, uint8_t * data, int32_t len, struct lexer_Lexer * out_lex, int32_t allow_pad, int32_t force_soa, int32_t repr_compat) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_parse_struct_record_layout_into(arena, module, lex, &(slice), out_lex, allow_pad, force_soa, repr_compat);
   }
   return 0;
 }
 int parser_parse_one_function_library_scan_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len, struct parser_LibraryParseScanResult * result) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_parse_one_function_library_scan(lex, &(slice), result);
   }
   return 0;
 }
 int32_t parser_alloc_pointee_type_ref_from_tok_buf(struct ast_ASTArena * arena, uint8_t * data, int32_t len, struct lexer_LexerResult * r) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_alloc_pointee_type_ref_from_tok(arena, &(slice), r);
   }
   return 0;
 }
 int32_t parser_vector_type_ref_from_ident_spelling_buf(struct ast_ASTArena * arena, uint8_t * data, int32_t len, struct lexer_LexerResult r) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     return parser_vector_type_ref_from_ident_spelling(arena, &(slice), r);
   }
   return 0;
 }
 void parser_parse_one_top_level_let_into_buf(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, uint8_t * data, int32_t len, int is_const, struct parser_TopLevelLetResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_one_top_level_let_into(arena, module, lex, &(slice), is_const, out));
   }
 }
 void parser_parse_one_type_alias_into_buf(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, uint8_t * data, int32_t len, struct parser_TypeAliasResult * out) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_parse_one_type_alias_into(arena, module, lex, &(slice), out));
   }
 }
 void parser_skip_balanced_parens_slice_into_buf(struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_skip_balanced_parens_into(out, lex, &(slice)));
   }
 }
 void parser_skip_balanced_braces_slice_into_buf(struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_skip_balanced_braces_into(out, lex, &(slice)));
   }
 }
 void parser_module_append_enum_variants_and_skip_body_slice_into_buf(struct ast_Module * module, int32_t enum_idx, struct lexer_Lexer * out, struct lexer_Lexer lex, uint8_t * data, int32_t len) {
   {
-    struct shux_slice_uint8_t slice = parser_slice_from_buf(data, len);
+    struct xlang_slice_uint8_t slice = parser_slice_from_buf(data, len);
     (void)(parser_module_append_enum_variants_and_skip_body_into(module, enum_idx, out, lex, &(slice)));
   }
 }
@@ -7488,7 +7500,7 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
       (void)(parser_onefunc_res_wire_dummy_call_binop(&(res), empty64_buf));
       (void)(parser_onefunc_res_wire_dummy_loop_call(&(res)));
       (void)(parser_onefunc_res_wire_dummy_for_if(&(res)));
-      struct shux_slice_uint8_t slice_for_impl = parser_slice_from_buf(data, len);
+      struct xlang_slice_uint8_t slice_for_impl = parser_slice_from_buf(data, len);
       (void)((slice_for_impl = parser_slice_from_buf(data, len)));
       uint8_t empty64_lib_buf_first[64] = {};
       struct parser_LibraryParseResult lib_buf_first = (struct parser_LibraryParseResult){ .ok = 0, ._pad = { 0 }, .next_lex = lex_at_function_buf, .name = {empty64_lib_buf_first[0], empty64_lib_buf_first[1], empty64_lib_buf_first[2], empty64_lib_buf_first[3], empty64_lib_buf_first[4], empty64_lib_buf_first[5], empty64_lib_buf_first[6], empty64_lib_buf_first[7], empty64_lib_buf_first[8], empty64_lib_buf_first[9], empty64_lib_buf_first[10], empty64_lib_buf_first[11], empty64_lib_buf_first[12], empty64_lib_buf_first[13], empty64_lib_buf_first[14], empty64_lib_buf_first[15], empty64_lib_buf_first[16], empty64_lib_buf_first[17], empty64_lib_buf_first[18], empty64_lib_buf_first[19], empty64_lib_buf_first[20], empty64_lib_buf_first[21], empty64_lib_buf_first[22], empty64_lib_buf_first[23], empty64_lib_buf_first[24], empty64_lib_buf_first[25], empty64_lib_buf_first[26], empty64_lib_buf_first[27], empty64_lib_buf_first[28], empty64_lib_buf_first[29], empty64_lib_buf_first[30], empty64_lib_buf_first[31], empty64_lib_buf_first[32], empty64_lib_buf_first[33], empty64_lib_buf_first[34], empty64_lib_buf_first[35], empty64_lib_buf_first[36], empty64_lib_buf_first[37], empty64_lib_buf_first[38], empty64_lib_buf_first[39], empty64_lib_buf_first[40], empty64_lib_buf_first[41], empty64_lib_buf_first[42], empty64_lib_buf_first[43], empty64_lib_buf_first[44], empty64_lib_buf_first[45], empty64_lib_buf_first[46], empty64_lib_buf_first[47], empty64_lib_buf_first[48], empty64_lib_buf_first[49], empty64_lib_buf_first[50], empty64_lib_buf_first[51], empty64_lib_buf_first[52], empty64_lib_buf_first[53], empty64_lib_buf_first[54], empty64_lib_buf_first[55], empty64_lib_buf_first[56], empty64_lib_buf_first[57], empty64_lib_buf_first[58], empty64_lib_buf_first[59], empty64_lib_buf_first[60], empty64_lib_buf_first[61], empty64_lib_buf_first[62], empty64_lib_buf_first[63]}, .name_len = 0, ._pad_tail = { 0 } };
@@ -8332,18 +8344,18 @@ extern void parser_parse_into_set_main_index_glue(struct ast_Module * module, in
 void parser_parse_into_set_main_index(struct ast_Module * module, int32_t main_idx) {
   (void)(parser_parse_into_set_main_index_glue(module, main_idx));
 }
-extern int32_t parser_diag_token_after_collect_imports_glue(struct shux_slice_uint8_t * source, struct ast_Module * module);
-int32_t parser_diag_token_after_collect_imports(struct shux_slice_uint8_t * source, struct ast_Module * module) {
+extern int32_t parser_diag_token_after_collect_imports_glue(struct xlang_slice_uint8_t * source, struct ast_Module * module);
+int32_t parser_diag_token_after_collect_imports(struct xlang_slice_uint8_t * source, struct ast_Module * module) {
   return parser_diag_token_after_collect_imports_glue(source, module);
   return 0;
 }
-extern int32_t parser_diag_parse_one_after_collect_imports_glue(struct shux_slice_uint8_t * source, struct ast_Module * module, struct ast_ASTArena * arena);
-int32_t parser_diag_parse_one_after_collect_imports(struct shux_slice_uint8_t * source, struct ast_Module * module, struct ast_ASTArena * arena) {
+extern int32_t parser_diag_parse_one_after_collect_imports_glue(struct xlang_slice_uint8_t * source, struct ast_Module * module, struct ast_ASTArena * arena);
+int32_t parser_diag_parse_one_after_collect_imports(struct xlang_slice_uint8_t * source, struct ast_Module * module, struct ast_ASTArena * arena) {
   return parser_diag_parse_one_after_collect_imports_glue(source, module, arena);
   return 0;
 }
-extern int32_t parser_parse_one_function_ok_for_pipeline_glue(struct ast_ASTArena * arena, struct shux_slice_uint8_t * source);
-int32_t parser_parse_one_function_ok_for_pipeline(struct ast_ASTArena * arena, struct shux_slice_uint8_t * source) {
+extern int32_t parser_parse_one_function_ok_for_pipeline_glue(struct ast_ASTArena * arena, struct xlang_slice_uint8_t * source);
+int32_t parser_parse_one_function_ok_for_pipeline(struct ast_ASTArena * arena, struct xlang_slice_uint8_t * source) {
   return parser_parse_one_function_ok_for_pipeline_glue(arena, source);
   return 0;
 }
@@ -8358,7 +8370,10 @@ void parser_get_module_import_path(struct ast_Module * module, int32_t i, uint8_
   }
   (void)(pipeline_module_import_path_copy(module, i, &((out)[0]), 64));
 }
-int32_t parser_copy_module_import_path64(struct ast_Module * module, int32_t i, uint8_t * out) {
+/* wave99: product pure owns parser_copy_module_import_path64 (runtime_pipeline_abi.x).
+ * Keep body as XLANG_WEAK cold twin so hybrid PREFER pure wins; cold/non-PREFER still works.
+ * PLATFORM: SHARED — semantics ≡ pure (get_path + NUL scan). */
+__attribute__((weak)) int32_t parser_copy_module_import_path64(struct ast_Module * module, int32_t i, uint8_t * out) {
   {
     (void)(parser_get_module_import_path(module, i, out));
     int32_t path_len = 0;

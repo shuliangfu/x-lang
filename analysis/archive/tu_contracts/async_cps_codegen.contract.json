@@ -55,7 +55,7 @@
     ],
     "only_x": ["async_cps_codegen_x_doc_anchor"]
   },
-  "rest_macro": "SHUX_ASYNC_CPS_CODEGEN_FROM_X",
+  "rest_macro": "XLANG_ASYNC_CPS_CODEGEN_FROM_X",
   "impl_residuals": [
     "expr_references_run_async_impl",
     "block_has_run_async_ref_impl",

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-http-server-pool.sh — STD-107 manifest 与烟测辅助
 
-STD_HTTP_SERVER_POOL_PREFIX="${SHUX_STD107_HTTP_SERVER_POOL_PREFIX:-shux: [SHUX_STD107_HTTP_SERVER_POOL]}"
+STD_HTTP_SERVER_POOL_PREFIX="${XLANG_STD107_HTTP_SERVER_POOL_PREFIX:-xlang: [XLANG_STD107_HTTP_SERVER_POOL]}"
 
 # 校验 manifest 中 api/symbol/file。
 std_http_server_pool_symbols_ok() {
@@ -44,13 +44,13 @@ std_http_server_pool_symbols_ok() {
 
 # 编译并运行 .x 烟测。
 std_http_server_pool_run_x_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-pool}"
-  local exe="/tmp/shux_std_http_sp_${tag}_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std_http_sp_${tag}_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-http-server-pool FAIL: compile $src" >&2
-    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -70,7 +70,7 @@ std_http_server_pool_run_x_smoke() {
 std_http_server_pool_run_c_smoke() {
   local _http_c="$1"
   local src="tests/http/server_pool_smoke_ok.c"
-  local out="/tmp/shux_std_http_server_pool_$$"
+  local out="/tmp/xlang_std_http_server_pool_$$"
   local glue_o="compiler/runtime_http_glue.o"
   if [ ! -f "$glue_o" ]; then
     echo "std-http-server-pool FAIL: missing $glue_o" >&2

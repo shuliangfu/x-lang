@@ -4,18 +4,18 @@
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-SHUX=${SHUX:-./compiler/shux}
-# shellcheck source=lib/bootstrap-link-shux.sh
-. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
-# -o 链接：bootstrap/shux_asm gate 经 SHUX_LINK_SHUX 走 shux-c（asm 大模块 fn259 等易 ld 失败）。
-COMPILE_SHUX="$RUN_SHUX"
+XLANG=${XLANG:-./compiler/xlang}
+# shellcheck source=lib/bootstrap-link-xlang.sh
+. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
+# -o 链接：bootstrap/xlang_asm gate 经 XLANG_LINK_XLANG 走 xlang-c（asm 大模块 fn259 等易 ld 失败）。
+COMPILE_XLANG="$RUN_XLANG"
 TMPDIR=${TMPDIR:-/tmp}
-GEN_DIR="$TMPDIR/shux_pool_limits_gen"
+GEN_DIR="$TMPDIR/xlang_pool_limits_gen"
 mkdir -p "$GEN_DIR"
 
 run_expect_exit() {
   local src="$1" expect="$2" label="$3"
-  $COMPILE_SHUX "$src" -o "$GEN_DIR/out_${label}" 2>&1
+  $COMPILE_XLANG "$src" -o "$GEN_DIR/out_${label}" 2>&1
   local ec=0
   "$GEN_DIR/out_${label}" >/dev/null 2>&1 || ec=$?
   if [ "$ec" -ne "$expect" ]; then
@@ -101,7 +101,7 @@ while [ "$i" -le "$DEPTH" ]; do
   i=$((i + 1))
 done
 # shellcheck disable=SC2086
-$COMPILE_SHUX $DEFS "$GEN_DIR/deep_if_nest.x" -o "$GEN_DIR/out_deep_if" 2>&1
+$COMPILE_XLANG $DEFS "$GEN_DIR/deep_if_nest.x" -o "$GEN_DIR/out_deep_if" 2>&1
 ec=0
 "$GEN_DIR/out_deep_if" >/dev/null 2>&1 || ec=$?
 if [ "$ec" -ne 40 ]; then

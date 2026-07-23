@@ -32,7 +32,7 @@
       "lsp_diag_pipeline_sizeof_dep_ctx"
     ]
   },
-  "rest_macro": "SHUX_LSP_DIAG_PIPELINE_SIZES_FROM_X",
+  "rest_macro": "XLANG_LSP_DIAG_PIPELINE_SIZES_FROM_X",
   "impl_residuals": [],
   "forward_decls": [],
   "internal_call_rewrites": [],

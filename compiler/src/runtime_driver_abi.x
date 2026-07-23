@@ -15,7 +15,10 @@
 // See implementation.
 // See implementation.
 
-export extern "C" function getenv(name: *u8): *u8;
+/* wave228 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * Note: product hybrid authority is runtime_driver_abi_thin.x; this file stays aligned. */
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 export extern "C" function free(p: *u8): void;
 export extern "C" function driver_check_only_flag_slot(): *i32;
 export extern "C" function driver_check_diag_emitted_flag_slot(): *i32;
@@ -34,14 +37,14 @@ export extern "C" function driver_compile_phase_timing_begin_impl(phase: i32): v
 export extern "C" function driver_compile_phase_timing_end_impl(phase: i32): void;
 export extern "C" function driver_compile_phase_timing_flush_impl(): void;
 /** Permanent OS wall-clock surface (seed rest). PLATFORM: POSIX/WINDOWS. */
-export extern "C" function shux_driver_wall_clock_sec(): f64;
-export extern "C" function shux_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32;
+export extern "C" function xlang_driver_wall_clock_sec(): f64;
+export extern "C" function xlang_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32;
 export extern "C" function driver_pipeline_fail_code_rc_impl(rc: i32): void;
 export extern "C" function driver_pipeline_fail_code_path_impl(path: *u8): void;
 /* See implementation. */
-export extern "C" function shux_driver_run_thread_on_large_stack_pthread(fn: *u8, arg: *u8): void;
+export extern "C" function xlang_driver_run_thread_on_large_stack_pthread(fn: *u8, arg: *u8): void;
 /** Permanent OS indirect call surface (.x cannot safely call through fn pointers). */
-export extern "C" function shux_driver_call_fn_void_arg(fn: *u8, arg: *u8): void;
+export extern "C" function xlang_driver_call_fn_void_arg(fn: *u8, arg: *u8): void;
 export extern "C" function bootstrap_nostdlib_pthread_is_stub(): i32;
 export extern "C" function driver_get_module_num_funcs(m: *u8): i32;
 export extern "C" function driver_get_module_main_func_index(m: *u8): i32;
@@ -50,21 +53,21 @@ export extern "C" function driver_print_x_smoke_parse_empty_impl(): void;
 export extern "C" function driver_print_x_smoke_typeck_ok_impl(): void;
 /* See implementation. */
 /** Permanent OS path-read + preprocess surface (seed rest under hybrid).
- * PLATFORM: SHARED — file view + shux_preprocess; hides IO layout from .x pure orch. */
-export extern "C" function shux_driver_path_read_preprocess_malloc(path: *u8): *u8;
+ * PLATFORM: SHARED — file view + xlang_preprocess; hides IO layout from .x pure orch. */
+export extern "C" function xlang_driver_path_read_preprocess_malloc(path: *u8): *u8;
 export extern "C" function driver_path_last_preprocess_len(): i64;
 export extern "C" function driver_pipeline_entry_source_len_store(len: i64): void;
 export extern "C" function driver_pipeline_entry_source_len_load_and_maybe_debug(): i64;
 /* bump：G-02f-244 / wave9 want pure → permanent OS setrlimit surface */
-export extern "C" function shux_driver_bump_stack_limit(want_bytes: i64): void;
+export extern "C" function xlang_driver_bump_stack_limit(want_bytes: i64): void;
 /* See implementation. */
 export extern "C" function driver_argv_at(argv: *u8, i: i32): *u8;
 export extern "C" function driver_defines_set_at(defines: *u8, i: i32, s: *u8): void;
-export extern "C" function shux_cstr_offset(s: *u8, off: i32): *u8;
+export extern "C" function xlang_cstr_offset(s: *u8, off: i32): *u8;
 export extern "C" function driver_os_define_lit(kind: i32): *u8;
 /** Permanent OS uname host-define surface.
  * PLATFORM: POSIX uname — hides struct utsname from .x. */
-export extern "C" function shux_driver_argv_append_uname(defines: *u8, ndefines: i32, max_defines: i32): i32;
+export extern "C" function xlang_driver_argv_append_uname(defines: *u8, ndefines: i32, max_defines: i32): i32;
 export extern "C" function driver_large_stack_thread_trampoline_impl(v: *u8): *u8;
 /* See implementation. */
 
@@ -80,7 +83,7 @@ export function driver_check_quiet_ok_get(): i32 {
 #[no_mangle]
 export function driver_typeck_force_c_enabled(): i32 {
   unsafe {
-    let e: *u8 = getenv("SHUX_TYPECK_FORCE_C");
+    let e: *u8 = link_abi_getenv("XLANG_TYPECK_FORCE_C");
     if (e == 0 as *u8) {
       return 0;
     }
@@ -102,7 +105,7 @@ export function driver_typeck_force_c_enabled(): i32 {
 #[no_mangle]
 export function driver_asm_build_skip_typeck(): i32 {
   unsafe {
-    let e: *u8 = getenv("SHUX_ASM_BUILD_SKIP_TYPECK");
+    let e: *u8 = link_abi_getenv("XLANG_ASM_BUILD_SKIP_TYPECK");
     if (e == 0 as *u8) {
       return 0;
     }
@@ -124,7 +127,7 @@ export function driver_asm_build_skip_typeck(): i32 {
 #[no_mangle]
 export function driver_asm_entry_emit_heavy(): i32 {
   unsafe {
-    let e: *u8 = getenv("SHUX_ASM_ENTRY_EMIT_HEAVY");
+    let e: *u8 = link_abi_getenv("XLANG_ASM_ENTRY_EMIT_HEAVY");
     if (e == 0 as *u8) {
       return 0;
     }
@@ -146,7 +149,7 @@ export function driver_asm_entry_emit_heavy(): i32 {
 #[no_mangle]
 export function driver_asm_entry_module_only_from_env(): i32 {
   unsafe {
-    let e: *u8 = getenv("SHUX_ASM_ENTRY_MODULE_ONLY");
+    let e: *u8 = link_abi_getenv("XLANG_ASM_ENTRY_MODULE_ONLY");
     if (e == 0 as *u8) {
       return 0;
     }
@@ -168,7 +171,7 @@ export function driver_asm_entry_module_only_from_env(): i32 {
 #[no_mangle]
 export function driver_asm_parse_metric_only_from_env(): i32 {
   unsafe {
-    let e: *u8 = getenv("SHUX_ASM_PARSE_METRIC_ONLY");
+    let e: *u8 = link_abi_getenv("XLANG_ASM_PARSE_METRIC_ONLY");
     if (e == 0 as *u8) {
       return 0;
     }
@@ -305,7 +308,7 @@ export function driver_sanitize_address_get(): i32 {
     if (p[0] != 0) {
       return 1;
     }
-    let e: *u8 = getenv("SHUX_SANITIZE_ADDRESS");
+    let e: *u8 = link_abi_getenv("XLANG_SANITIZE_ADDRESS");
     if (e == 0 as *u8) {
       return 0;
     }
@@ -521,7 +524,7 @@ export function driver_print_check_ok(input_path: *u8): void {
 #[no_mangle]
 export function driver_compile_phase_timing_enabled(): i32 {
   unsafe {
-    let e: *u8 = getenv("SHUX_COMPILE_PHASE_TIMING");
+    let e: *u8 = link_abi_getenv("XLANG_COMPILE_PHASE_TIMING");
     if (e == 0 as *u8) {
       return 0;
     }
@@ -611,7 +614,7 @@ export function driver_peek_source_file(path: *u8, content: *u8, cap: i64): i32 
     return -1;
   }
   unsafe {
-    let n: i32 = shux_read_file_into_path(path, content, cap - 1);
+    let n: i32 = xlang_read_file_into_path(path, content, cap - 1);
     return n;
   }
   return -1;
@@ -645,7 +648,7 @@ export function driver_pipeline_fail_code(rc: i32, path: *u8): void {
 #[no_mangle]
 export function driver_pipeline_no_large_stack_env(): i32 {
   unsafe {
-    let e: *u8 = getenv("SHUX_PIPELINE_NO_LARGE_STACK");
+    let e: *u8 = link_abi_getenv("XLANG_PIPELINE_NO_LARGE_STACK");
     if (e == 0 as *u8) {
       return 0;
     }
@@ -661,7 +664,7 @@ export function driver_pipeline_no_large_stack_env(): i32 {
 }
 
 /** Run fn(arg) on current thread under large-stack mark + bump.
- * Wave8 pure orch: indirect call via shux_driver_call_fn_void_arg permanent OS surface. */
+ * Wave8 pure orch: indirect call via xlang_driver_call_fn_void_arg permanent OS surface. */
 #[no_mangle]
 export function driver_run_fn_on_current_large_stack(fn: *u8, arg: *u8): void {
   if (fn == 0 as *u8) {
@@ -670,14 +673,14 @@ export function driver_run_fn_on_current_large_stack(fn: *u8, arg: *u8): void {
   driver_large_stack_thread_mark(1);
   driver_bump_stack_limit();
   unsafe {
-    shux_driver_call_fn_void_arg(fn, arg);
+    xlang_driver_call_fn_void_arg(fn, arg);
   }
   driver_large_stack_thread_mark(0);
 }
 
 /** Large-stack orchestrator: pure early exits; pthread create via permanent OS surface.
  * Wave8: already-on-large-stack path uses permanent OS call surface (no call_fn _impl).
- * Wave12 pure: pthread body via shux_driver_run_thread_on_large_stack_pthread (no pthread _impl residual). */
+ * Wave12 pure: pthread body via xlang_driver_run_thread_on_large_stack_pthread (no pthread _impl residual). */
 #[no_mangle]
 export function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void {
   if (fn == 0 as *u8) {
@@ -685,7 +688,7 @@ export function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void {
   }
   if (driver_is_large_stack_thread() != 0) {
     unsafe {
-      shux_driver_call_fn_void_arg(fn, arg);
+      xlang_driver_call_fn_void_arg(fn, arg);
     }
     return;
   }
@@ -701,7 +704,7 @@ export function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void {
     return;
   }
   unsafe {
-    shux_driver_run_thread_on_large_stack_pthread(fn, arg);
+    xlang_driver_run_thread_on_large_stack_pthread(fn, arg);
   }
 }
 
@@ -759,7 +762,7 @@ export function driver_source_has_top_level_import(src: *u8, src_len: i64): i32 
 }
 
 /** Top-level import probe for a path: read+preprocess → scan → free.
- * Wave11 pure orch: IO via permanent OS surface shux_driver_path_read_preprocess_malloc.
+ * Wave11 pure orch: IO via permanent OS surface xlang_driver_path_read_preprocess_malloc.
  * PLATFORM: SHARED pure orch; file view + preprocess stay in seed rest. */
 #[no_mangle]
 export function driver_source_has_top_level_import_path(path: *u8): i32 {
@@ -767,7 +770,7 @@ export function driver_source_has_top_level_import_path(path: *u8): i32 {
     return 0;
   }
   unsafe {
-    let src: *u8 = shux_driver_path_read_preprocess_malloc(path);
+    let src: *u8 = xlang_driver_path_read_preprocess_malloc(path);
     if (src == 0 as *u8) {
       return 0;
     }
@@ -853,7 +856,7 @@ export function driver_parse_u32_cstr(s: *u8): i64 {
 export function driver_stack_limit_want_bytes(): i64 {
   let def: i64 = 536870912;
   unsafe {
-    let e: *u8 = getenv("SHUX_STACK_LIMIT_MB");
+    let e: *u8 = link_abi_getenv("XLANG_STACK_LIMIT_MB");
     if (e == 0 as *u8) {
       return def;
     }
@@ -873,14 +876,14 @@ export function driver_stack_limit_want_bytes(): i64 {
 }
 
 /** Raise RLIMIT_STACK soft limit using env-derived want bytes.
- * Wave9 pure: want pure; setrlimit via permanent OS surface shux_driver_bump_stack_limit
+ * Wave9 pure: want pure; setrlimit via permanent OS surface xlang_driver_bump_stack_limit
  * (no struct rlimit layout in .x).
  * PLATFORM: SHARED pure orch; OS body stays in seed rest. */
 #[no_mangle]
 export function driver_bump_stack_limit(): void {
   let want: i64 = driver_stack_limit_want_bytes();
   unsafe {
-    shux_driver_bump_stack_limit(want);
+    xlang_driver_bump_stack_limit(want);
   }
 }
 
@@ -1166,7 +1169,7 @@ export function driver_argv_collect_defines(argc: i32, argv: *u8, defines: *u8, 
           }
         } else {
           if (driver_argv_is_D_inline(arg) != 0) {
-            let def: *u8 = shux_cstr_offset(arg, 2);
+            let def: *u8 = xlang_cstr_offset(arg, 2);
             if (def != 0 as *u8) {
               if (ndefines < max_defines) {
                 driver_defines_set_at(defines, ndefines, def);
@@ -1214,7 +1217,7 @@ export function driver_argv_collect_defines(argc: i32, argv: *u8, defines: *u8, 
   }
   if (ndefines + 2 <= max_defines) {
     unsafe {
-      ndefines = shux_driver_argv_append_uname(defines, ndefines, max_defines);
+      ndefines = xlang_driver_argv_append_uname(defines, ndefines, max_defines);
     }
   }
   return ndefines;
@@ -1314,12 +1317,12 @@ export function driver_source_scan_top_level_import(src: *u8, src_len: i64): i32
 /* ---- G-02f-104 / wave7：phase clock pure via permanent OS wall_clock surface ---- */
 
 /** Wall-clock seconds for compile-phase timing.
- * Wave7 pure: shux_driver_wall_clock_sec (no timeval layout in .x).
+ * Wave7 pure: xlang_driver_wall_clock_sec (no timeval layout in .x).
  * PLATFORM: SHARED pure; OS surface in seed rest. */
 #[no_mangle]
 export function compile_phase_now_sec(): f64 {
   unsafe {
-    return shux_driver_wall_clock_sec();
+    return xlang_driver_wall_clock_sec();
   }
   return 0.0;
 }
@@ -1349,7 +1352,7 @@ export function driver_large_stack_thread_trampoline(v: *u8): *u8 {
 #[no_mangle]
 export function compile_phase_timing_enabled(): i32 {
   unsafe {
-    let e: *u8 = getenv("SHUX_COMPILE_PHASE_TIMING");
+    let e: *u8 = link_abi_getenv("XLANG_COMPILE_PHASE_TIMING");
     if (e != 0) { return 1; }
   }
   return 0;

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-elf-deep.sh — STD-063 manifest 与深化烟测辅助
 
-STD_ELF_DEEP_PREFIX="${SHUX_STD063_PREFIX:-shux: [SHUX_STD063_ELF_DEEP]}"
+STD_ELF_DEEP_PREFIX="${XLANG_STD063_PREFIX:-xlang: [XLANG_STD063_ELF_DEEP]}"
 
 # 校验深化 manifest 中 api/const/symbol。
 std_elf_deep_symbols_ok() {
@@ -51,7 +51,7 @@ std_elf_deep_symbols_ok() {
 std_elf_deep_run_c_smoke() {
   local elf_o_dir="$1"
   local src="tests/std-elf/parse_sections_smoke_ok.c"
-  local out="/tmp/shux_std_elf_deep_$$"
+  local out="/tmp/xlang_std_elf_deep_$$"
   local elf_o
   elf_o="${elf_o_dir}/elf.o"
   if [ ! -f "$elf_o" ]; then
@@ -76,10 +76,10 @@ std_elf_deep_run_c_smoke() {
 
 # .x 深化烟测（复用 STD-058 辅助）。
 std_elf_deep_run_x_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
-  local exe="/tmp/shux_std_elf_deep_x_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std_elf_deep_x_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-elf-deep SKIP: compile $src" >&2
     rm -f "$exe"
     return 2

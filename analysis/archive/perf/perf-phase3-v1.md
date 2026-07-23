@@ -23,10 +23,10 @@
 ```
 
 ```
-shux: [SHUX_PERF_PHASE3] status=ok check=1 run=1 skip=0
+xlang: [XLANG_PERF_PHASE3] status=ok check=1 run=1 skip=0
 ```
 
-无 native shux 时 typeck SKIP；manifest 仍须全绿。
+无 native xlang 时 typeck SKIP；manifest 仍须全绿。
 
 ---
 
@@ -34,7 +34,7 @@ shux: [SHUX_PERF_PHASE3] status=ok check=1 run=1 skip=0
 
 `tests/baseline/perf-phase3.tsv` — 中位数 real 秒上限。
 
-更新：`SHUX_PERF_UPDATE_PHASE3_BASELINE=1 ./tests/run-perf-phase3-gate.sh`
+更新：`XLANG_PERF_UPDATE_PHASE3_BASELINE=1 ./tests/run-perf-phase3-gate.sh`
 
 ---
 

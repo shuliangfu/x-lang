@@ -43,25 +43,25 @@ echo "std-mem-safe registry OK"
 
 X_OK=0
 SKIP=0
-# shellcheck source=tests/lib/bootstrap-link-shux.sh
-. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
-SHUX_BIN="${RUN_SHUX:-}"
-if [ -z "$SHUX_BIN" ] || [ ! -x "$SHUX_BIN" ]; then
-  if [ -x ./compiler/shux-c ]; then
-    SHUX_BIN=./compiler/shux-c
-  elif [ -n "${SHUX:-}" ] && [ -x "${SHUX}" ]; then
-    SHUX_BIN="${SHUX}"
+# shellcheck source=tests/lib/bootstrap-link-xlang.sh
+. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
+XLANG_BIN="${RUN_XLANG:-}"
+if [ -z "$XLANG_BIN" ] || [ ! -x "$XLANG_BIN" ]; then
+  if [ -x ./compiler/xlang-c ]; then
+    XLANG_BIN=./compiler/xlang-c
+  elif [ -n "${XLANG:-}" ] && [ -x "${XLANG}" ]; then
+    XLANG_BIN="${XLANG}"
   fi
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-mem-safe gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_mem_safe_emit_report "fail" 0 0
     exit 1
   fi
-  if std_mem_safe_run_smoke "$SHUX_BIN" "$SMOKE_X"; then
+  if std_mem_safe_run_smoke "$XLANG_BIN" "$SMOKE_X"; then
     X_OK=1
   else
     std_mem_safe_emit_report "fail" 0 0

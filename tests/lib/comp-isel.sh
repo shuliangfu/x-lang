@@ -2,8 +2,8 @@
 # comp-isel.sh — COMP-006 指令选择共享辅助
 
 # 判断本机能否执行 asm 后端二进制。
-comp_isel_native_shu() {
-  local f="${1:-./compiler/shux_asm}"
+comp_isel_native_xlang() {
+  local f="${1:-./compiler/xlang_asm}"
   [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
     Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;

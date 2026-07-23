@@ -65,7 +65,7 @@ C 烟测 `regex_min_smoke_c` 覆盖 literal/dot/class/star/question；`.x` 烟�
 ```
 
 ```
-shux: [SHUX_STD_REGEX] status=ok c_smoke=1 x=1 skip=0 host=Darwin-arm64
+xlang: [XLANG_STD_REGEX] status=ok c_smoke=1 x=1 skip=0 host=Darwin-arm64
 ```
 
 ---

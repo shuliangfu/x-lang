@@ -29,8 +29,8 @@ cat > seeds/lsp_io_gen.linux.x86_64.c <<'HDR'
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));
-static inline void shux_panic_(int has_msg, int msg_val) {
+static inline void xlang_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));
+static inline void xlang_panic_(int has_msg, int msg_val) {
   if (has_msg) (void)fprintf(stderr, "%d\n", msg_val);
   abort();
 }

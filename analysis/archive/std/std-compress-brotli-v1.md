@@ -22,8 +22,8 @@
 
 | Make 目标 | 宏 | 链接库 | 用途 |
 |-----------|-----|--------|------|
-| `compress-o-zlib-zstd` | `SHUX_USE_ZLIB` + `SHUX_USE_ZSTD` | `-lz` `-lzstd` | STD-007 默认推荐 |
-| `compress-o-brotli` | `SHUX_USE_BROTLI` | `-lbrotlienc` `-lbrotlidec` | 仅 Brotli |
+| `compress-o-zlib-zstd` | `XLANG_USE_ZLIB` + `XLANG_USE_ZSTD` | `-lz` `-lzstd` | STD-007 默认推荐 |
+| `compress-o-brotli` | `XLANG_USE_BROTLI` | `-lbrotlienc` `-lbrotlidec` | 仅 Brotli |
 | `compress-o-zlib-zstd-brotli` | 三者 | 上述全部 | 全格式 CI/本地 |
 
 | API | 说明 |
@@ -44,7 +44,7 @@ make -C compiler compress-o-brotli   # 需系统 libbrotli
 ```
 
 ```
-shux: [SHUX_STD125_COMPRESS_BROTLI] status=ok brotli=1 skip=0
+xlang: [XLANG_STD125_COMPRESS_BROTLI] status=ok brotli=1 skip=0
 std-compress-brotli gate OK
 ```
 

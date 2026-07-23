@@ -2,7 +2,7 @@
 # F-08 v1：core/ 手写 C 存量确认（4 文件 + mod.x + 专 gate）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F08_CORE_INVENTORY_FAIL:-0}
+FAIL=${XLANG_F08_CORE_INVENTORY_FAIL:-0}
 DOC="analysis/phase-f-f08-v1.md"
 MANIFEST="tests/baseline/f08-core-inventory.tsv"
 die() { echo "f08-core-inventory gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }

@@ -16,7 +16,7 @@ export extern "C" function strlen(s: *u8): usize;
 export extern "C" function getenv(name: *u8): *u8;
 export extern "C" function unlink(path: *u8): i32;
 export extern "C" function runtime_read_file_malloc(path: *u8, out_len: *usize): *u8;
-export extern "C" function shux_preprocess_with_path(
+export extern "C" function xlang_preprocess_with_path(
   data: *u8, len: usize, path: *u8, defines: *u8, n_defines: i32, out_len: *usize): *u8;
 export extern "C" function pipeline_diag_emitted_reset(): void;
 export extern "C" function pipeline_diag_emitted_get(): i32;
@@ -27,7 +27,7 @@ export extern "C" function parser_parse_into_init(module: *u8, arena: *u8): void
 export extern "C" function parser_parse_into_set_main_index(module: *u8, main_idx: i32): void;
 export extern "C" function driver_get_module_num_funcs(m: *u8): i32;
 export extern "C" function parser_get_module_num_imports(module: *u8): i32;
-export extern "C" function shux_get_entry_dir(path: *u8, out: *u8, out_sz: usize): void;
+export extern "C" function xlang_get_entry_dir(path: *u8, out: *u8, out_sz: usize): void;
 export extern "C" function pipeline_set_entry_dir(dir: *u8): void;
 export extern "C" function driver_dep_seeded_clear_all(): void;
 export extern "C" function driver_set_current_dep_path_for_codegen(path: *u8): void;
@@ -44,27 +44,27 @@ export extern "C" function runtime_report_precise_parse_failure_if_known(
 export extern "C" function runtime_report_parse_recovery_diagnostics(
   input_path: *u8, src: *u8, src_len: usize): i32;
 export extern "C" function pipeline_dep_ctx_heap_destroy(ctx: *u8): void;
-export extern "C" function shux_pipeline_run_x_pipeline_large_stack(
+export extern "C" function xlang_pipeline_run_x_pipeline_large_stack(
   module: *u8, arena: *u8, src: *u8, src_len: usize, out_buf: *u8, pctx: *u8): i32;
-export extern "C" function shux_pipeline_fill_ctx_path_buffers(
+export extern "C" function xlang_pipeline_fill_ctx_path_buffers(
   ctx: *u8, entry_dir: *u8, lib_roots: *u8, n_lib: i32): void;
-export extern "C" function shux_pipeline_pctx_seed_dep_slots(
+export extern "C" function xlang_pipeline_pctx_seed_dep_slots(
   ctx: *u8, dep_mods: *u8, dep_ar: *u8, dep_paths: *u8, n: i32): void;
-export extern "C" function shux_pipeline_one_ctx_for_dep_prerun(
+export extern "C" function xlang_pipeline_one_ctx_for_dep_prerun(
   ctx: *u8, j: i32, dep_mods: *u8, dep_ar: *u8, dep_paths: *u8, n: i32,
   dep_src: *u8, dep_len: usize): void;
-export extern "C" function shux_collect_deps_transitive(
+export extern "C" function xlang_collect_deps_transitive(
   module: *u8, arena_sz: usize, module_sz: usize, lib_roots: *u8, n_lib: i32,
   entry_dir: *u8, defines: *u8, n_defines: i32,
   cls: *u8, clens: *u8, cpaths: *u8, n_closure: *i32): i32;
-export extern "C" function shux_dep_prerun_entry_dir(
+export extern "C" function xlang_dep_prerun_entry_dir(
   entry_dir: *u8, lib_roots: *u8, n_lib: i32): *u8;
-export extern "C" function shux_pipeline_dep_prerun_parse_only(
+export extern "C" function xlang_pipeline_dep_prerun_parse_only(
   mod: *u8, arena: *u8, src: *u8, len: usize): i32;
-export extern "C" function shux_pipeline_dep_prerun_typeck_only(
+export extern "C" function xlang_pipeline_dep_prerun_typeck_only(
   mod: *u8, arena: *u8, src: *u8, len: usize, out: *u8, ctx: *u8): i32;
-export extern "C" function shux_asm_user_std_dep_skip_x_typeck(dep_path: *u8): i32;
-export extern "C" function shux_output_want_exe(path: *u8): i32;
+export extern "C" function xlang_asm_user_std_dep_skip_x_typeck(dep_path: *u8): i32;
+export extern "C" function xlang_output_want_exe(path: *u8): i32;
 export extern "C" function driver_source_has_generic_syntax(path: *u8, path_len: i32): i32;
 export extern "C" function driver_bump_stack_limit(): void;
 export extern "C" function driver_check_only_get(): i32;
@@ -117,7 +117,8 @@ export extern "C" function driver_parsed_fclose(fp: *u8): void;
 export extern "C" function driver_parsed_fclose_rc(fp: *u8): i32;
 export extern "C" function driver_parsed_write_out(fp: *u8, data: *u8, len: i32): i32;
 export extern "C" function driver_parsed_invoke_cc(
-  tmp_c: *u8, out_path: *u8, opt_level: *u8, use_lto: i32, argv0: *u8): i32;
+  tmp_c: *u8, out_path: *u8, opt_level: *u8, use_lto: i32, argv0: *u8,
+  argc: i32, argv: *u8): i32;
 export extern "C" function driver_parsed_maybe_dump_prep(
   input_path: *u8, src: *u8, src_len: usize): void;
 export extern "C" function driver_parsed_apply_preamble_skip(dep_paths: *u8, n_deps: i32): void;
@@ -567,7 +568,7 @@ export function rt_cp_step_read_pp(): i32 {
   unsafe {
     pipeline_diag_emitted_reset();
     /* See signature and body for contracts. */
-    src = shux_preprocess_with_path(raw, raw_len, path, defs, ndef, &src_len);
+    src = xlang_preprocess_with_path(raw, raw_len, path, defs, ndef, &src_len);
     free(raw);
   }
   if (src == 0 as *u8) {
@@ -704,7 +705,7 @@ export function rt_cp_step_parse(): i32 {
     parser_parse_into_set_main_index(module, main_idx);
     nimp = parser_get_module_num_imports(module);
     entry = driver_entry_dir_slot();
-    shux_get_entry_dir(path, entry, 512 as usize);
+    xlang_get_entry_dir(path, entry, 512 as usize);
     if (nimp > 0) {
       pipeline_set_entry_dir(entry);
     }
@@ -776,7 +777,7 @@ export function rt_cp_step_load_deps(): i32 {
         return 1;
       }
       unsafe {
-        rc = shux_collect_deps_transitive(
+        rc = xlang_collect_deps_transitive(
           module, asz, msz, lib, nlib, entry, defs, ndef, dsrc, dlens, dpath, &n_deps);
       }
       if (rc != 0) {
@@ -868,12 +869,12 @@ export function rt_cp_step_load_deps(): i32 {
     return 1;
   }
   unsafe {
-    shux_pipeline_fill_ctx_path_buffers(pctx, entry, lib, nlib);
+    xlang_pipeline_fill_ctx_path_buffers(pctx, entry, lib, nlib);
     dmod = driver_parsed_work_p_get(pp_dmod());
     dar = driver_parsed_work_p_get(pp_dar());
     dpath = driver_parsed_work_p_get(pp_dpath());
     n_deps = driver_parsed_work_i_get(pi_ndeps());
-    shux_pipeline_pctx_seed_dep_slots(pctx, dmod, dar, dpath, n_deps);
+    xlang_pipeline_pctx_seed_dep_slots(pctx, dmod, dar, dpath, n_deps);
     driver_pipeline_dep_ctx_set_skip_codegen_dep_0(pctx, 0);
     driver_parsed_work_p_set(pp_out(), out_buf);
     driver_parsed_work_p_set(pp_pctx(), pctx);
@@ -891,7 +892,7 @@ export function rt_cp_step_open_out(): i32 {
   let cf: *u8 = 0 as *u8;
   let emit_stdout: i32 = 0;
   /* PLATFORM: SHARED — 256 bytes accommodates Windows long TEMP paths
-   * (e.g. C:\shux_tmp\shux_shux_x.YZXDC4.c = 32 chars) with safety margin.
+   * (e.g. C:\xlang_tmp\xlang_xlang_x.YZXDC4.c = 32 chars) with safety margin.
    * Must match g_driver_parsed_tmp_c[256] in runtime_driver_abi.from_x.c. */
   unsafe {
     outp = driver_parsed_work_p_get(pp_out_path());
@@ -974,18 +975,18 @@ export function rt_cp_step_prerun(): i32 {
       return 1;
     }
     unsafe {
-      p = shux_dep_prerun_entry_dir(entry, lib, nlib);
-      shux_pipeline_fill_ctx_path_buffers(one, p, lib, nlib);
+      p = xlang_dep_prerun_entry_dir(entry, lib, nlib);
+      xlang_pipeline_fill_ctx_path_buffers(one, p, lib, nlib);
       dep_src = driver_ptr_table_get(dsrc, j);
       dep_len = driver_size_table_get(dlens, j);
-      shux_pipeline_one_ctx_for_dep_prerun(one, j, dmod, dar, dpath, n_deps, dep_src, dep_len);
+      xlang_pipeline_one_ctx_for_dep_prerun(one, j, dmod, dar, dpath, n_deps, dep_src, dep_len);
       p = driver_ptr_table_get(dpath, j);
       driver_set_current_dep_path_for_codegen(p);
       skip = 0;
       if (check != 0) {
         skip = 1;
       }
-      if (shux_asm_user_std_dep_skip_x_typeck(p) != 0) {
+      if (xlang_asm_user_std_dep_skip_x_typeck(p) != 0) {
         skip = 1;
       }
       if (driver_deps_are_std_core_closure_only(dpath, n_deps) != 0) {
@@ -994,12 +995,12 @@ export function rt_cp_step_prerun(): i32 {
     }
     if (skip != 0) {
       unsafe {
-        ec = shux_pipeline_dep_prerun_parse_only(
+        ec = xlang_pipeline_dep_prerun_parse_only(
           driver_ptr_table_get(dmod, j), driver_ptr_table_get(dar, j), dep_src, dep_len);
       }
     } else {
       unsafe {
-        ec = shux_pipeline_dep_prerun_typeck_only(
+        ec = xlang_pipeline_dep_prerun_typeck_only(
           driver_ptr_table_get(dmod, j), driver_ptr_table_get(dar, j),
           dep_src, dep_len, dep_out, one);
       }
@@ -1119,7 +1120,7 @@ export function rt_cp_step_pipeline(): i32 {
     }
   }
   unsafe {
-    ec = shux_pipeline_run_x_pipeline_large_stack(
+    ec = xlang_pipeline_run_x_pipeline_large_stack(
       module, arena, src, src_len, out_buf, pctx);
     driver_x_pipeline_skip_typeck_set(0);
     driver_dep_seeded_clear_all();
@@ -1176,6 +1177,7 @@ export function rt_cp_step_finish(): i32 {
   let opt: *u8 = 0 as *u8;
   let argv: *u8 = 0 as *u8;
   let argv0: *u8 = 0 as *u8;
+  let argc: i32 = 0;
   let use_lto: i32 = 0;
   let emit_stdout: i32 = 0;
   let rc: i32 = 0;
@@ -1190,6 +1192,7 @@ export function rt_cp_step_finish(): i32 {
     outp = driver_parsed_work_p_get(pp_out_path());
     opt = driver_parsed_work_p_get(pp_opt());
     argv = driver_parsed_work_p_get(pp_argv());
+    argc = driver_parsed_work_i_get(pi_argc());
     use_lto = driver_parsed_work_i_get(pi_use_lto());
     emit_stdout = driver_parsed_work_i_get(pi_emit_stdout());
   }
@@ -1226,7 +1229,7 @@ export function rt_cp_step_finish(): i32 {
   }
   unsafe {
     argv0 = driver_asm_argv0(argv);
-    rc = driver_parsed_invoke_cc(tmpc, outp, opt, use_lto, argv0);
+    rc = driver_parsed_invoke_cc(tmpc, outp, opt, use_lto, argv0, argc, argv);
     /* invoke_cc unlinks tmp_c on success; clear so cleanup won't double-unlink */
     if (rc == 0) {
       driver_parsed_work_p_set(pp_tmpc(), 0 as *u8);
@@ -1284,7 +1287,7 @@ export function driver_run_compiler_parsed(p: *u8, argc: i32, argv: *u8): i32 {
     want_exe = 1;
     if (outp != 0 as *u8) {
       unsafe {
-        want_exe = shux_output_want_exe(outp);
+        want_exe = xlang_output_want_exe(outp);
       }
     }
     if (want_exe != 0) {

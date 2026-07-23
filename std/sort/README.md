@@ -22,5 +22,5 @@
 ```bash
 ./tests/run-std-sort-stable-cmp-gate.sh
 ./tests/run-std-sort-key-cmp-gate.sh
-SHUX_F_SORT_V1_FAIL=1 ./tests/run-f-sort-v1-gate.sh
+XLANG_F_SORT_V1_FAIL=1 ./tests/run-f-sort-v1-gate.sh
 ```

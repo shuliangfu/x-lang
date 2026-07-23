@@ -18,7 +18,7 @@
 ## 门禁
 
 ```bash
-SHUX_F_TIME_V1_FAIL=1 ./tests/run-f-time-v1-gate.sh
+XLANG_F_TIME_V1_FAIL=1 ./tests/run-f-time-v1-gate.sh
 ./tests/run-std-time-gate.sh
 ./tests/run-std-time-format-timezone-gate.sh
 ```

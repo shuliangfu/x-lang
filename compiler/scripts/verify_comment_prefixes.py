@@ -16,6 +16,7 @@ import sys
 PAT_PREV = re.compile(r"^\s*//(?![/!])")
 CODE_START = re.compile(
     r"^(import|function|struct|enum|let|const|extern|return|if|while|for|match|"
+    r"continue|break|else|unsafe|export|type|module|use|"
     r"defer|trait|impl|#|@|pub\s)"
 )
 

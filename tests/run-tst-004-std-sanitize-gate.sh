@@ -7,8 +7,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_TST004_DOC:-analysis/tst-004-std-sanitize-v1.md}"
-MANIFEST="${SHUX_TST004_TSV:-tests/baseline/tst-004-std-sanitize.tsv}"
+DOC="${XLANG_TST004_DOC:-analysis/tst-004-std-sanitize-v1.md}"
+MANIFEST="${XLANG_TST004_TSV:-tests/baseline/tst-004-std-sanitize.tsv}"
 LIB="tests/lib/tst-004-std-sanitize.sh"
 MIN_CASES=2
 

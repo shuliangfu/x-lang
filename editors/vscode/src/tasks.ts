@@ -1,30 +1,30 @@
 /**
- * Shux TaskProvider — 构建任务
+ * Xlang TaskProvider — 构建任务
  *
- * 提供 Ctrl+Shift+B / 任务面板的 Shux 构建任务：
- * - shux build       (项目级构建)
- * - shux build <file> (单文件构建)
- * - shux run <file>   (运行当前文件)
- * - shux --lsp        (启动语言服务器)
+ * 提供 Ctrl+Shift+B / 任务面板的 Xlang 构建任务：
+ * - xlang build       (项目级构建)
+ * - xlang build <file> (单文件构建)
+ * - xlang run <file>   (运行当前文件)
+ * - xlang --lsp        (启动语言服务器)
  *
  * 同时提供 file-watch 任务（保存 .x 时自动 check/lint）。
  */
 
 import * as vscode from 'vscode';
-import { DEFAULT_SERVER_PATH, resolveServerCommand } from './shuxPath';
+import { DEFAULT_SERVER_PATH, resolveServerCommand } from './xlangPath';
 import { t } from './i18n';
 
 /**
- * 读取 `shux.build.*` 配置，生成 build/run 子命令的额外参数。
+ * 读取 `xlang.build.*` 配置，生成 build/run 子命令的额外参数。
  *
- * - `shux.build.optimizationLevel` → `-O<level>`（仅 >0 时追加）
- * - `shux.build.debugInfo` → `-g`
- * - `shux.build.outputName` → `-o <name>`（非空时追加）
+ * - `xlang.build.optimizationLevel` → `-O<level>`（仅 >0 时追加）
+ * - `xlang.build.debugInfo` → `-g`
+ * - `xlang.build.outputName` → `-o <name>`（非空时追加）
  *
  * run 任务仅追加 `-O` / `-g`（不传 `-o`，避免覆盖 run 的临时输出路径）。
  */
 function buildExtraArgs(forRun: boolean): string[] {
-  const config = vscode.workspace.getConfiguration('shux');
+  const config = vscode.workspace.getConfiguration('xlang');
   const args: string[] = [];
   const opt = config.get<string>('build.optimizationLevel', '0');
   if (opt !== '0') {
@@ -42,27 +42,27 @@ function buildExtraArgs(forRun: boolean): string[] {
   return args;
 }
 
-export class ShuxTaskProvider implements vscode.TaskProvider {
-  static ShuxType = 'shux';
+export class XlangTaskProvider implements vscode.TaskProvider {
+  static XlangType = 'xlang';
 
   public provideTasks(
     _token: vscode.CancellationToken
   ): vscode.ProviderResult<vscode.Task[]> {
-    const config = vscode.workspace.getConfiguration('shux');
+    const config = vscode.workspace.getConfiguration('xlang');
     const serverPath = config.get<string>('serverPath', DEFAULT_SERVER_PATH);
     const command = resolveServerCommand(serverPath);
     const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
     const tasks: vscode.Task[] = [];
-    const kind: vscode.TaskDefinition = { type: ShuxTaskProvider.ShuxType };
+    const kind: vscode.TaskDefinition = { type: XlangTaskProvider.XlangType };
 
-    // ── 任务 1: shux build（项目级） ──
+    // ── 任务 1: xlang build（项目级） ──
     const buildArgs = ['build', ...buildExtraArgs(false)];
     const buildTask = new vscode.Task(
-      { type: ShuxTaskProvider.ShuxType, task: 'build' },
+      { type: XlangTaskProvider.XlangType, task: 'build' },
       vscode.TaskScope.Workspace,
-      'shux build',
-      'Shux',
+      'xlang build',
+      'Xlang',
       new vscode.ProcessExecution(command, buildArgs, { cwd })
     );
     buildTask.group = vscode.TaskGroup.Build;
@@ -75,16 +75,16 @@ export class ShuxTaskProvider implements vscode.TaskProvider {
       showReuseMessage: false,
     };
     // 匹配三种编译器报错格式
-    buildTask.problemMatchers = ['$shux-parse', '$shux-typeck'];
+    buildTask.problemMatchers = ['$xlang-parse', '$xlang-typeck'];
     tasks.push(buildTask);
 
-    // ── 任务 2: shux build <当前文件> ──
+    // ── 任务 2: xlang build <当前文件> ──
     const buildFileArgs = ['build', '${file}', ...buildExtraArgs(false)];
     const buildFileTask = new vscode.Task(
-      { type: ShuxTaskProvider.ShuxType, task: 'build-file' },
+      { type: XlangTaskProvider.XlangType, task: 'build-file' },
       vscode.TaskScope.Workspace,
-      t('shux build (current file)'),
-      'Shux',
+      t('xlang build (current file)'),
+      'Xlang',
       new vscode.ProcessExecution(command, buildFileArgs, { cwd })
     );
     buildFileTask.group = vscode.TaskGroup.Build;
@@ -95,16 +95,16 @@ export class ShuxTaskProvider implements vscode.TaskProvider {
       echo: true,
       showReuseMessage: false,
     };
-    buildFileTask.problemMatchers = ['$shux-parse', '$shux-typeck'];
+    buildFileTask.problemMatchers = ['$xlang-parse', '$xlang-typeck'];
     tasks.push(buildFileTask);
 
-    // ── 任务 3: shux run <当前文件> ──
+    // ── 任务 3: xlang run <当前文件> ──
     const runArgs = ['run', '${file}', ...buildExtraArgs(true)];
     const runTask = new vscode.Task(
-      { type: ShuxTaskProvider.ShuxType, task: 'run' },
+      { type: XlangTaskProvider.XlangType, task: 'run' },
       vscode.TaskScope.Workspace,
-      t('shux run (current file)'),
-      'Shux',
+      t('xlang run (current file)'),
+      'Xlang',
       new vscode.ProcessExecution(command, runArgs, { cwd })
     );
     runTask.group = vscode.TaskGroup.Test;
@@ -115,12 +115,12 @@ export class ShuxTaskProvider implements vscode.TaskProvider {
     };
     tasks.push(runTask);
 
-    // ── 任务 4: shux check <当前文件>（自动 watch） ──
+    // ── 任务 4: xlang check <当前文件>（自动 watch） ──
     const checkTask = new vscode.Task(
-      { type: ShuxTaskProvider.ShuxType, task: 'check' },
+      { type: XlangTaskProvider.XlangType, task: 'check' },
       vscode.TaskScope.Workspace,
-      t('shux check (current file)'),
-      'Shux',
+      t('xlang check (current file)'),
+      'Xlang',
       new vscode.ProcessExecution(command, ['check', '${file}'], { cwd })
     );
     checkTask.group = vscode.TaskGroup.Test;
@@ -129,7 +129,7 @@ export class ShuxTaskProvider implements vscode.TaskProvider {
       panel: vscode.TaskPanelKind.Shared,
       clear: true,
     };
-    checkTask.problemMatchers = ['$shux-parse', '$shux-typeck'];
+    checkTask.problemMatchers = ['$xlang-parse', '$xlang-typeck'];
     tasks.push(checkTask);
 
     return tasks;

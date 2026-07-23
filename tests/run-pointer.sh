@@ -3,10 +3,10 @@
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-SHUX=${SHUX:-./compiler/shux}
+XLANG=${XLANG:-./compiler/xlang}
 
-$SHUX build tests/pointer/main.x -o /tmp/shux_ptr 2>&1
-exitcode=0; /tmp/shux_ptr >/dev/null 2>&1 || exitcode=$?
+$XLANG build tests/pointer/main.x -o /tmp/xlang_ptr 2>&1
+exitcode=0; /tmp/xlang_ptr >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected 0 (pointer main), got $exitcode"; exit 1; }
 
 echo "pointer test OK"

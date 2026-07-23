@@ -72,7 +72,7 @@ extern "C" function fcntl(fd: i32, cmd: i32, arg: i32): i32;
 
 /* See implementation. */
 #[cfg(not(target_os = "windows"))]
-extern "C" function shux_sys_poll(fds: *u8, nfds: i32, timeout: i32): i32;
+extern "C" function xlang_sys_poll(fds: *u8, nfds: i32, timeout: i32): i32;
 
 #[cfg(target_os = "linux")]
 extern "C" function __errno_location(): *i32;
@@ -198,7 +198,7 @@ export function net_ipv6_poll_writable_c(fd: i32, timeout_ms: u32): i32 {
   p_fd[0] = fd;
   p_events[0] = 4 as i16; /* POLLOUT */
   p_revents[0] = 0 as i16;
-  unsafe { n = shux_sys_poll(pfd_ptr, 1, timeout_ms as i32); }
+  unsafe { n = xlang_sys_poll(pfd_ptr, 1, timeout_ms as i32); }
   if (n <= 0 || (p_revents[0] & (24 as i16)) != 0) { /* POLLERR|POLLHUP */
     return -1;
   }

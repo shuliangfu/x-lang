@@ -13,7 +13,7 @@ type FileReport = {
   }>;
 };
 
-const root = Deno.args[0] ?? "/home/shu/shux/std";
+const root = Deno.args[0] ?? "/home/shuliangfu/worker/xlang/x-lang/std";
 
 async function* walk(dir: string): AsyncGenerator<string> {
   for await (const entry of Deno.readDir(dir)) {

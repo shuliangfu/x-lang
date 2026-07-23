@@ -14,11 +14,11 @@ grep -q 'ast_pool' compiler/src/parser/parser.x || grep -q 'ast_pool' compiler/s
   exit 1
 }
 chmod +x tests/run-pool-limits.sh
-SHUX="${SHUX:-./compiler/shux-c}"
-[ -x "$SHUX" ] || SHUX=./compiler/shux
-if [ -x "$SHUX" ] && "$SHUX" --version >/dev/null 2>&1; then
-  SHUX="$SHUX" build tests/run-pool-limits.sh
+XLANG="${XLANG:-./compiler/xlang-c}"
+[ -x "$XLANG" ] || XLANG=./compiler/xlang
+if [ -x "$XLANG" ] && "$XLANG" --version >/dev/null 2>&1; then
+  XLANG="$XLANG" build tests/run-pool-limits.sh
 else
-  echo "b06 gate SKIP pool-limits (no runnable shux on this host)"
+  echo "b06 gate SKIP pool-limits (no runnable xlang on this host)"
 fi
 echo "b06 ast-pool gate OK"

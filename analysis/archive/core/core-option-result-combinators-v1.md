@@ -61,9 +61,9 @@ function unwrap_or<T>(is_some: bool, value: T, default_val: T): T
 ## 4. 验收
 
 - manifest：`tests/baseline/core-option-result.tsv`
-- typeck：`shux check tests/option/main.x`、`tests/result/main.x`
+- typeck：`xlang check tests/option/main.x`、`tests/result/main.x`
 - runnable：`tests/run-option.sh`、`tests/run-result.sh`（本机可链接时）
-- 报告：`shux: [SHUX_CORE_OPTION_RESULT] status=ok`
+- 报告：`xlang: [XLANG_CORE_OPTION_RESULT] status=ok`
 
 ---
 

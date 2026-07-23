@@ -5,10 +5,10 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_PPS_DOC:-analysis/std-process-pipe-spawn-v1.md}"
-MANIFEST="${SHUX_STD_PPS_TSV:-tests/baseline/std-process-pipe-spawn.tsv}"
+DOC="${XLANG_STD_PPS_DOC:-analysis/std-process-pipe-spawn-v1.md}"
+MANIFEST="${XLANG_STD_PPS_TSV:-tests/baseline/std-process-pipe-spawn.tsv}"
 PROC_X="std/process/mod.x"
-PROC_C="${SHUX_STD_PROCESS_IMPL:-compiler/seeds/runtime_process_os_glue.from_x.c}"
+PROC_C="${XLANG_STD_PROCESS_IMPL:-compiler/seeds/runtime_process_os_glue.from_x.c}"
 LIB="tests/lib/std-process-pipe-spawn.sh"
 PIPE_X="tests/process/spawn_pipe_echo.x"
 WIN_X="tests/process/spawn_wait_win.x"
@@ -47,7 +47,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-process-pipe-spawn manifest OK"
 
-stdlib_cm_native_shu() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -65,8 +65,8 @@ WIN_OK=0
 SKIP=1
 resolve_shu() {
   local cand
-  for cand in ./compiler/shux-c ./compiler/shux; do
-    if stdlib_cm_native_shu "$cand"; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
+    if stdlib_cm_native_xlang "$cand"; then
       echo "$cand"
       return 0
     fi
@@ -74,23 +74,23 @@ resolve_shu() {
   return 1
 }
 
-if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== STD-023/024: typeck (SHUX=$SHUX_BIN) ==="
+if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
+  echo "=== STD-023/024: typeck (XLANG=$XLANG_BIN) ==="
   make -C compiler -q ../std/process/process.o 2>/dev/null || make -C compiler ../std/process/process.o 2>/dev/null || true
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if "$SHUX_BIN" check -L . "$PIPE_X" >/dev/null 2>&1; then
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  if "$XLANG_BIN" check -L . "$PIPE_X" >/dev/null 2>&1; then
     PIPE_OK=1
   else
     echo "std-process-pipe-spawn gate FAIL: spawn_pipe_echo typeck" >&2
-    "$SHUX_BIN" check -L . "$PIPE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$PIPE_X" 2>&1 | tail -10 >&2 || true
     std_pps_emit_report "fail" 0 0 0
     exit 1
   fi
-  if "$SHUX_BIN" check -L . "$WIN_X" >/dev/null 2>&1; then
+  if "$XLANG_BIN" check -L . "$WIN_X" >/dev/null 2>&1; then
     WIN_OK=1
   else
     echo "std-process-pipe-spawn gate FAIL: spawn_wait_win typeck" >&2
-    "$SHUX_BIN" check -L . "$WIN_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$WIN_X" 2>&1 | tail -10 >&2 || true
     std_pps_emit_report "fail" "$PIPE_OK" 0 0
     exit 1
   fi
@@ -98,7 +98,7 @@ if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
   if [ -x tests/run-process.sh ]; then
     echo "=== STD-023/024: delegate run-process (runnable subset) ==="
     chmod +x tests/run-process.sh
-    if SHUX="$SHUX_BIN" ./tests/run-process.sh >/tmp/std_pps_process.log 2>&1; then
+    if XLANG="$XLANG_BIN" ./tests/run-process.sh >/tmp/std_pps_process.log 2>&1; then
       grep -qF 'process test OK' /tmp/std_pps_process.log || true
     else
       if ci_is_windows_msys; then
@@ -110,7 +110,7 @@ if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
     fi
   fi
 else
-  echo "std-process-pipe-spawn gate SKIP typeck (no native shux-c)" >&2
+  echo "std-process-pipe-spawn gate SKIP typeck (no native xlang-c)" >&2
 fi
 
 std_pps_emit_report "ok" "$PIPE_OK" "$WIN_OK" "$SKIP"

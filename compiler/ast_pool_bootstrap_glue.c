@@ -1,5 +1,5 @@
 /**
- * ast_pool_bootstrap_glue.c — 恢复 bootstrap ./shux 链接所需的 pipeline / asm / typeck glue
+ * ast_pool_bootstrap_glue.c — 恢复 bootstrap ./xlang 链接所需的 pipeline / asm / typeck glue
  *
  * 误 revert 后 ast_pool.c 缺失的符号在此补全；由 ast_pool.c 末尾 #include 编入 pipeline_x.o。
  * 逻辑与 HEAD pipeline.x 中 run_x_pipeline_impl / pipeline_load_and_sync 一致。
@@ -244,7 +244,7 @@ int32_t asm_type_is_simd_vector(struct ast_ASTArena *arena, int32_t type_ref) {
 }
 
 /**
- * TYPE_VECTOR 或误落 TYPE_NAMED 的 i32x4/u32x8 等拼写（shux_asm lex 偶发 TOKEN_IDENT）。
+ * TYPE_VECTOR 或误落 TYPE_NAMED 的 i32x4/u32x8 等拼写（xlang_asm lex 偶发 TOKEN_IDENT）。
  */
 int32_t asm_type_is_simd_vector_spelling(struct ast_ASTArena *arena, int32_t type_ref) {
   struct ast_Type *t;
@@ -585,14 +585,14 @@ int32_t pipeline_asm_redirect_std_c_wrapper_sym(uint8_t *name, int32_t name_len,
     return out_len;
   }
   /**
-   * co-emit std.string/mod.x 时 extern shux_string_* 带 std_string_ 前缀；
-   * 链 string.o 中无模块前缀的 shux_string_* 快路径。
+   * co-emit std.string/mod.x 时 extern xlang_string_* 带 std_string_ 前缀；
+   * 链 string.o 中无模块前缀的 xlang_string_* 快路径。
    */
   if (name_len > 11 && memcmp(name, "std_string_", 11) == 0) {
     const int32_t suffix_len = name_len - 11;
     if (suffix_len + 1 > out_cap)
       return 0;
-    if (suffix_len >= 12 && memcmp(name + 11, "shux_string_", 12) == 0) {
+    if (suffix_len >= 12 && memcmp(name + 11, "xlang_string_", 12) == 0) {
       memcpy(sym_out, name + 11, (size_t)suffix_len);
       return suffix_len;
     }

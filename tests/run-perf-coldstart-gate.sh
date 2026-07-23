@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_PERF_COLDSTART_DOC:-analysis/perf-coldstart-v1.md}"
-MANIFEST="${SHUX_PERF_COLDSTART_MANIFEST:-tests/baseline/perf-coldstart.tsv}"
-CAP="${SHUX_PERF_COLDSTART_CAP:-tests/baseline/coldstart-perf.tsv}"
+DOC="${XLANG_PERF_COLDSTART_DOC:-analysis/perf-coldstart-v1.md}"
+MANIFEST="${XLANG_PERF_COLDSTART_MANIFEST:-tests/baseline/perf-coldstart.tsv}"
+CAP="${XLANG_PERF_COLDSTART_CAP:-tests/baseline/coldstart-perf.tsv}"
 MIN_LAYERS=6
 MIN_METRICS=5
 
@@ -120,21 +120,21 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "perf-coldstart manifest OK (layers=${LAYER_N} metrics=${METRIC_N})"
 
-# 烟测：少量 runs、不硬失败回归（portable）；无 native shux 时 SKIP。
+# 烟测：少量 runs、不硬失败回归（portable）；无 native xlang 时 SKIP。
 chmod +x tests/run-perf-coldstart.sh
-SHUX_GATE=""
-for cand in ./compiler/shux ./compiler/shux-c; do
-  if perf_coldstart_native_shu "$cand"; then
-    SHUX_GATE="$cand"
+XLANG_GATE=""
+for cand in ./compiler/xlang ./compiler/xlang-c; do
+  if perf_coldstart_native_xlang "$cand"; then
+    XLANG_GATE="$cand"
     break
   fi
 done
-if [ -n "$SHUX_GATE" ]; then
-  SHUX="$SHUX_GATE" SHUX_COLDSTART_RUNS="${SHUX_COLDSTART_GATE_RUNS:-3}" \
-    SHUX_PERF_FAIL_ON_COLDSTART_REGRESSION=0 \
+if [ -n "$XLANG_GATE" ]; then
+  XLANG="$XLANG_GATE" XLANG_COLDSTART_RUNS="${XLANG_COLDSTART_GATE_RUNS:-3}" \
+    XLANG_PERF_FAIL_ON_COLDSTART_REGRESSION=0 \
     ./tests/run-perf-coldstart.sh
 else
-  echo "perf-coldstart SKIP smoke (no native shux on $(uname -s)/$(uname -m 2>/dev/null))"
+  echo "perf-coldstart SKIP smoke (no native xlang on $(uname -s)/$(uname -m 2>/dev/null))"
 fi
 
 echo "perf-coldstart gate OK"

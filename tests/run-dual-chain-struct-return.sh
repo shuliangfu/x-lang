@@ -1,36 +1,36 @@
 #!/usr/bin/env bash
-# struct/packed/return 双链回归：同一用例 seed（shux）与 B-strict（shux_asm）均须通过。
+# struct/packed/return 双链回归：同一用例 seed（xlang）与 B-strict（xlang_asm）均须通过。
 # 用法：./tests/run-dual-chain-struct-return.sh
 # 要求：make -C compiler bootstrap-driver-seed && make -C compiler bootstrap-driver-bstrict
 
 set -e
 cd "$(dirname "$0")/.."
 
-export SHUX_SKIP_SUBSCRIPT_MAKE=1
+export XLANG_SKIP_SUBSCRIPT_MAKE=1
 ulimit -s 16384 2>/dev/null || true
 
 SCRIPTS=(run-struct.sh run-return-value.sh run-return-expr.sh)
 
-for chain in seed shux_asm; do
+for chain in seed xlang_asm; do
   if [ "$chain" = "seed" ]; then
-    if [ ! -x ./compiler/shux ]; then
-      echo "run-dual-chain-struct-return: ./compiler/shux missing (make -C compiler bootstrap-driver-seed)" >&2
+    if [ ! -x ./compiler/xlang ]; then
+      echo "run-dual-chain-struct-return: ./compiler/xlang missing (make -C compiler bootstrap-driver-seed)" >&2
       exit 127
     fi
-    SHUX=./compiler/shux
-    echo "run-dual-chain-struct-return: seed ($SHUX) ..."
+    XLANG=./compiler/xlang
+    echo "run-dual-chain-struct-return: seed ($XLANG) ..."
   else
-    if [ ! -x ./compiler/shux_asm ]; then
-      echo "run-dual-chain-struct-return: ./compiler/shux_asm missing (make -C compiler bootstrap-driver-bstrict)" >&2
+    if [ ! -x ./compiler/xlang_asm ]; then
+      echo "run-dual-chain-struct-return: ./compiler/xlang_asm missing (make -C compiler bootstrap-driver-bstrict)" >&2
       exit 127
     fi
-    SHUX=./compiler/shux_asm
-    export SHUX_SKIP_PARSE_SMOKE=1
-    echo "run-dual-chain-struct-return: shux_asm ($SHUX) ..."
+    XLANG=./compiler/xlang_asm
+    export XLANG_SKIP_PARSE_SMOKE=1
+    echo "run-dual-chain-struct-return: xlang_asm ($XLANG) ..."
   fi
   for script in "${SCRIPTS[@]}"; do
-    SHUX="$SHUX" ./tests/"$script"
+    XLANG="$XLANG" ./tests/"$script"
   done
 done
 
-echo "dual-chain struct/packed/return OK (seed + shux_asm)"
+echo "dual-chain struct/packed/return OK (seed + xlang_asm)"

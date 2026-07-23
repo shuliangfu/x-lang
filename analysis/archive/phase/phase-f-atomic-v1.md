@@ -13,7 +13,7 @@
 ## 门禁
 
 ```bash
-SHUX_F_ATOMIC_V1_FAIL=1 ./tests/run-f-atomic-v1-gate.sh
+XLANG_F_ATOMIC_V1_FAIL=1 ./tests/run-f-atomic-v1-gate.sh
 ./tests/run-std-atomic-ordering-gate.sh
 ./tests/run-std-atomic-widen-gate.sh
 ```

@@ -9,8 +9,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_DOC_SELFHOST_ARCH:-analysis/doc-selfhost-architecture-v1.md}"
-MANIFEST="${SHUX_DOC_SELFHOST_MANIFEST:-tests/baseline/doc-selfhost-architecture.tsv}"
+DOC="${XLANG_DOC_SELFHOST_ARCH:-analysis/doc-selfhost-architecture-v1.md}"
+MANIFEST="${XLANG_DOC_SELFHOST_MANIFEST:-tests/baseline/doc-selfhost-architecture.tsv}"
 MIN_SEC=8
 
 echo "=== DOC-002: selfhost architecture manifest ==="

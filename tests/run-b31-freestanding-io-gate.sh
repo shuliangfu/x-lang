@@ -6,14 +6,14 @@ set -e
 cd "$(dirname "$0")/.."
 
 ASM="compiler/src/asm/freestanding_io_x86_64.s"
-FAIL=${SHUX_B31_FAIL:-0}
+FAIL=${XLANG_B31_FAIL:-0}
 
 echo "=== B-31: freestanding_io .s baseline ==="
 for f in "$ASM" tests/run-freestanding-hello.sh analysis/phase-b-completion-v1.md; do
   [ -f "$f" ] || { echo "b31 gate FAIL: missing $f" >&2; exit 1; }
 done
-grep -q 'shux_sys_write' "$ASM" || { echo "b31 gate FAIL: .s missing shux_sys_write" >&2; exit 1; }
-grep -q 'shux_sys_read' "$ASM" || { echo "b31 gate FAIL: .s missing shux_sys_read" >&2; exit 1; }
+grep -q 'xlang_sys_write' "$ASM" || { echo "b31 gate FAIL: .s missing xlang_sys_write" >&2; exit 1; }
+grep -q 'xlang_sys_read' "$ASM" || { echo "b31 gate FAIL: .s missing xlang_sys_read" >&2; exit 1; }
 
 if [ "$(uname -s)" = "Linux" ]; then
   chmod +x tests/run-freestanding-hello.sh

@@ -19,7 +19,7 @@
 
 ## 2. LANG 内存模型对齐（v1）
 
-Shux **v1 原子语义**与 **C11 / LLVM `__ATOMIC_*`** 一致：
+Xlang **v1 原子语义**与 **C11 / LLVM `__ATOMIC_*`** 一致：
 
 | 层级 | 约定 |
 |------|------|
@@ -80,7 +80,7 @@ v1 烟测验证 fence 可链接、常量与文档一致；`tests/atomic/main.x` 
 ```
 
 ```
-shux: [SHUX_STD_ATOMIC_ORDERING] status=ok fence=1 main=1 skip=0
+xlang: [XLANG_STD_ATOMIC_ORDERING] status=ok fence=1 main=1 skip=0
 ```
 
 ---

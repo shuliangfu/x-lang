@@ -26,22 +26,22 @@ crt0_x86_64.o + freestanding_io_x86_64.o + bootstrap_nostdlib_stubs.o
 
 ```bash
 # 任意平台 manifest
-SHUX_NOLIBC_N07_V3_FAIL=1 ./tests/run-nolibc-n07-v3-link-gate.sh
+XLANG_NOLIBC_N07_V3_FAIL=1 ./tests/run-nolibc-n07-v3-link-gate.sh
 
 # Linux x86_64 烟测硬绿
-SHUX_NOLIBC_N07_V3_FAIL=1 SHUX_NOLIBC_N07_V3_MANIFEST_ONLY=0 ./tests/run-nolibc-n07-v3-link-gate.sh
+XLANG_NOLIBC_N07_V3_FAIL=1 XLANG_NOLIBC_N07_V3_MANIFEST_ONLY=0 ./tests/run-nolibc-n07-v3-link-gate.sh
 
 # macOS 宿主 → Docker amd64
-SHUX_DOCKER_PLATFORM=linux/amd64 docker run --rm --platform linux/amd64 \
+XLANG_DOCKER_PLATFORM=linux/amd64 docker run --rm --platform linux/amd64 \
   -v "$(pwd):/src" -w /src ubuntu:22.04 bash -lc \
   'apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq gcc make binutils file >/dev/null && \
-   SHUX_NOLIBC_N07_V3_FAIL=1 ./tests/run-nolibc-n07-v3-link-gate.sh'
+   XLANG_NOLIBC_N07_V3_FAIL=1 ./tests/run-nolibc-n07-v3-link-gate.sh'
 
-# 全量 bootstrap nostdlib（需 shux + build_asm 就绪）
-cd compiler && SHUX_BOOTSTRAP_NOSTDLIB=1 ./scripts/build_shux_asm.sh
+# 全量 bootstrap nostdlib（需 xlang + build_asm 就绪）
+cd compiler && XLANG_BOOTSTRAP_NOSTDLIB=1 ./scripts/build_xlang_asm.sh
 ```
 
 ## 延后（NL-07 v4+）
 
 - ~~Linux x86_64 烟测硬绿~~ → 见 `analysis/phase-f-n07-v3.md` ✅
-- **NL-07 v4 track**：全链 `SHUX_BOOTSTRAP_NOSTDLIB=1 build_shux_asm` → `run-nolibc-n07-v4-build-gate.sh`
+- **NL-07 v4 track**：全链 `XLANG_BOOTSTRAP_NOSTDLIB=1 build_xlang_asm` → `run-nolibc-n07-v4-build-gate.sh`

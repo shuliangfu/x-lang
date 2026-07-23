@@ -5,12 +5,12 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STDLIB_CHECK_DOC:-analysis/boot-stdlib-check-matrix-v1.md}"
-MANIFEST="${SHUX_STDLIB_CHECK_TSV:-tests/baseline/stdlib-check-matrix.tsv}"
+DOC="${XLANG_STDLIB_CHECK_DOC:-analysis/boot-stdlib-check-matrix-v1.md}"
+MANIFEST="${XLANG_STDLIB_CHECK_TSV:-tests/baseline/stdlib-check-matrix.tsv}"
 LIB="tests/lib/stdlib-check-matrix.sh"
 RUNNER="tests/run-stdlib-check-matrix.sh"
 MIN_MOD=55
-PREFIX="shux: [SHUX_STDLIB_CHECK]"
+PREFIX="xlang: [XLANG_STDLIB_CHECK]"
 
 # shellcheck source=tests/lib/stdlib-check-matrix.sh
 . tests/lib/stdlib-check-matrix.sh
@@ -23,7 +23,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$RUNNER"; do
   fi
 done
 
-for kw in runnable SHUX_STDLIB_CHECK 模块矩阵 shux check; do
+for kw in runnable XLANG_STDLIB_CHECK 模块矩阵 xlang check; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "stdlib-check-matrix gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -87,10 +87,10 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "stdlib-check-matrix manifest OK (modules=${MOD_N}, core=${CORE_N}, std=${STD_N})"
 
-if SHUX_BIN="$(stdlib_cm_resolve_shu 2>/dev/null)"; then
-  echo "=== BOOT-013: runnable matrix (SHUX=$SHUX_BIN) ==="
+if XLANG_BIN="$(stdlib_cm_resolve_shu 2>/dev/null)"; then
+  echo "=== BOOT-013: runnable matrix (XLANG=$XLANG_BIN) ==="
   chmod +x "$RUNNER" "$LIB"
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
   set -o pipefail
   if ! ./"$RUNNER" 2>&1 | tee /tmp/stdlib_check_matrix.log; then
     set +o pipefail
@@ -103,7 +103,7 @@ if SHUX_BIN="$(stdlib_cm_resolve_shu 2>/dev/null)"; then
     exit 1
   }
 else
-  echo "stdlib-check-matrix gate SKIP runnable (no shux)" >&2
+  echo "stdlib-check-matrix gate SKIP runnable (no xlang)" >&2
 fi
 
 echo "stdlib-check-matrix gate OK"

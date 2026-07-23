@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <sys/types.h>
-void shux_panic_(int has_msg, int msg_val);
+void xlang_panic_(int has_msg, int msg_val);
 enum token_TokenKind { token_TokenKind_TOKEN_EOF, token_TokenKind_TOKEN_FUNCTION, token_TokenKind_TOKEN_LET, token_TokenKind_TOKEN_CONST, token_TokenKind_TOKEN_IF, token_TokenKind_TOKEN_ELSE, token_TokenKind_TOKEN_WHILE, token_TokenKind_TOKEN_LOOP, token_TokenKind_TOKEN_FOR, token_TokenKind_TOKEN_BREAK, token_TokenKind_TOKEN_CONTINUE, token_TokenKind_TOKEN_RETURN, token_TokenKind_TOKEN_PANIC, token_TokenKind_TOKEN_DEFER, token_TokenKind_TOKEN_TRY, token_TokenKind_TOKEN_CATCH, token_TokenKind_TOKEN_REGION, token_TokenKind_TOKEN_WITH_ARENA, token_TokenKind_TOKEN_MATCH, token_TokenKind_TOKEN_STRUCT, token_TokenKind_TOKEN_TYPE, token_TokenKind_TOKEN_PACKED, token_TokenKind_TOKEN_SOA, token_TokenKind_TOKEN_ATTR_SOA, token_TokenKind_TOKEN_ATTR_CFG, token_TokenKind_TOKEN_ATTR_REPR_C, token_TokenKind_TOKEN_ATTR_REPR_COMPATIBLE, token_TokenKind_TOKEN_ATTR_ALLOC, token_TokenKind_TOKEN_ATTR_LINK_SECTION, token_TokenKind_TOKEN_ATTR_NAKED, token_TokenKind_TOKEN_ATTR_ENTRY, token_TokenKind_TOKEN_ATTR_USED, token_TokenKind_TOKEN_ATTR_NO_MANGLE, token_TokenKind_TOKEN_ATTR_LINK_NAME, token_TokenKind_TOKEN_ATTR_MAX_STACK, token_TokenKind_TOKEN_ATTR_INTERRUPT, token_TokenKind_TOKEN_ATTR_SEND, token_TokenKind_TOKEN_ATTR_SYNC, token_TokenKind_TOKEN_ATTR_GLOBAL_ALLOCATOR, token_TokenKind_TOKEN_ATTR_COLD, token_TokenKind_TOKEN_ATTR_INLINE_NEVER, token_TokenKind_TOKEN_ATTR_INLINE_ALWAYS, token_TokenKind_TOKEN_ATTR_EXPORT_NAME, token_TokenKind_TOKEN_ATTR_PANIC_HANDLER, token_TokenKind_TOKEN_ATTR_THREAD_LOCAL, token_TokenKind_TOKEN_ATTR_PERCPU, token_TokenKind_TOKEN_ALIGN, token_TokenKind_TOKEN_ENUM, token_TokenKind_TOKEN_GOTO, token_TokenKind_TOKEN_TRAIT, token_TokenKind_TOKEN_IMPL, token_TokenKind_TOKEN_SELF, token_TokenKind_TOKEN_UNDERSCORE, token_TokenKind_TOKEN_IMPORT, token_TokenKind_TOKEN_EXTERN, token_TokenKind_TOKEN_ASYNC, token_TokenKind_TOKEN_AWAIT, token_TokenKind_TOKEN_RUN, token_TokenKind_TOKEN_SPAWN, token_TokenKind_TOKEN_IDENT, token_TokenKind_TOKEN_I32, token_TokenKind_TOKEN_BOOL, token_TokenKind_TOKEN_U8, token_TokenKind_TOKEN_U32, token_TokenKind_TOKEN_U64, token_TokenKind_TOKEN_I64, token_TokenKind_TOKEN_USIZE, token_TokenKind_TOKEN_ISIZE, token_TokenKind_TOKEN_I32X4, token_TokenKind_TOKEN_I32X8, token_TokenKind_TOKEN_I32X16, token_TokenKind_TOKEN_U32X4, token_TokenKind_TOKEN_U32X8, token_TokenKind_TOKEN_U32X16, token_TokenKind_TOKEN_F32X4, token_TokenKind_TOKEN_TRUE, token_TokenKind_TOKEN_FALSE, token_TokenKind_TOKEN_F32, token_TokenKind_TOKEN_F64, token_TokenKind_TOKEN_VOID, token_TokenKind_TOKEN_INT, token_TokenKind_TOKEN_FLOAT, token_TokenKind_TOKEN_LPAREN, token_TokenKind_TOKEN_RPAREN, token_TokenKind_TOKEN_LBRACE, token_TokenKind_TOKEN_RBRACE, token_TokenKind_TOKEN_LBRACKET, token_TokenKind_TOKEN_RBRACKET, token_TokenKind_TOKEN_ARROW, token_TokenKind_TOKEN_FATARROW, token_TokenKind_TOKEN_COMMA, token_TokenKind_TOKEN_COLON, token_TokenKind_TOKEN_DOT, token_TokenKind_TOKEN_DOTDOT, token_TokenKind_TOKEN_ELLIPSIS, token_TokenKind_TOKEN_SEMICOLON, token_TokenKind_TOKEN_PLUS, token_TokenKind_TOKEN_MINUS, token_TokenKind_TOKEN_STAR, token_TokenKind_TOKEN_SLASH, token_TokenKind_TOKEN_PERCENT, token_TokenKind_TOKEN_AMP, token_TokenKind_TOKEN_PIPE, token_TokenKind_TOKEN_CARET, token_TokenKind_TOKEN_LSHIFT, token_TokenKind_TOKEN_RSHIFT, token_TokenKind_TOKEN_PLUS_EQ, token_TokenKind_TOKEN_MINUS_EQ, token_TokenKind_TOKEN_STAR_EQ, token_TokenKind_TOKEN_SLASH_EQ, token_TokenKind_TOKEN_PERCENT_EQ, token_TokenKind_TOKEN_AMP_EQ, token_TokenKind_TOKEN_PIPE_EQ, token_TokenKind_TOKEN_CARET_EQ, token_TokenKind_TOKEN_LSHIFT_EQ, token_TokenKind_TOKEN_RSHIFT_EQ, token_TokenKind_TOKEN_TILDE, token_TokenKind_TOKEN_ASSIGN, token_TokenKind_TOKEN_EQ, token_TokenKind_TOKEN_NE, token_TokenKind_TOKEN_LT, token_TokenKind_TOKEN_GT, token_TokenKind_TOKEN_LE, token_TokenKind_TOKEN_GE, token_TokenKind_TOKEN_AMPAMP, token_TokenKind_TOKEN_PIPEPIPE, token_TokenKind_TOKEN_BANG, token_TokenKind_TOKEN_QUESTION, token_TokenKind_TOKEN_AS, token_TokenKind_TOKEN_AT, token_TokenKind_TOKEN_STRING, token_TokenKind_TOKEN_EXPORT };
 struct token_Token {
   int32_t kind;
@@ -48,34 +48,34 @@ extern int is_hex_digit(uint8_t c);
 extern int32_t hex_digit_value(uint8_t c);
 extern int is_digit(uint8_t c);
 extern int is_alnum_underscore(uint8_t c);
-extern int match_keyword(struct shux_slice_uint8_t data, size_t start, int32_t len, struct shux_slice_uint8_t keyword);
-extern int match_keyword_buf(uint8_t * data, int32_t data_len, size_t start, int32_t len, struct shux_slice_uint8_t keyword);
-extern struct token_Token try_keyword(struct shux_slice_uint8_t data, size_t start, size_t len, int32_t line0, int32_t col0);
+extern int match_keyword(struct xlang_slice_uint8_t data, size_t start, int32_t len, struct xlang_slice_uint8_t keyword);
+extern int match_keyword_buf(uint8_t * data, int32_t data_len, size_t start, int32_t len, struct xlang_slice_uint8_t keyword);
+extern struct token_Token try_keyword(struct xlang_slice_uint8_t data, size_t start, size_t len, int32_t line0, int32_t col0);
 extern struct token_Token try_keyword_buf(uint8_t * data, int32_t data_len, size_t start, size_t len, int32_t line0, int32_t col0);
-extern struct Lexer skip_repr_c_attr_if_present(struct Lexer lex, struct shux_slice_uint8_t data);
-extern struct Lexer skip_cfg_attr_if_present(struct Lexer lex, struct shux_slice_uint8_t data);
-extern int32_t lexer_try_cfg_attr_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data);
-extern int32_t lexer_try_repr_c_attr_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data);
-extern int32_t lexer_try_repr_compatible_attr_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data);
-extern int32_t lexer_try_soa_attr_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data);
-extern int32_t lexer_try_alloc_attr_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data);
-extern int32_t lexer_try_used_attr_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data);
-extern int32_t lexer_try_naked_attr_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data);
-extern int32_t lexer_try_entry_attr_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data);
-extern int32_t lexer_try_no_mangle_attr_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data);
-extern int32_t lexer_try_interrupt_attr_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data);
-extern int32_t lexer_try_send_attr_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data);
-extern int32_t lexer_try_sync_attr_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data);
-extern struct Lexer skip_whitespace_and_comments(struct Lexer lex, struct shux_slice_uint8_t data);
+extern struct Lexer skip_repr_c_attr_if_present(struct Lexer lex, struct xlang_slice_uint8_t data);
+extern struct Lexer skip_cfg_attr_if_present(struct Lexer lex, struct xlang_slice_uint8_t data);
+extern int32_t lexer_try_cfg_attr_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data);
+extern int32_t lexer_try_repr_c_attr_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data);
+extern int32_t lexer_try_repr_compatible_attr_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data);
+extern int32_t lexer_try_soa_attr_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data);
+extern int32_t lexer_try_alloc_attr_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data);
+extern int32_t lexer_try_used_attr_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data);
+extern int32_t lexer_try_naked_attr_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data);
+extern int32_t lexer_try_entry_attr_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data);
+extern int32_t lexer_try_no_mangle_attr_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data);
+extern int32_t lexer_try_interrupt_attr_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data);
+extern int32_t lexer_try_send_attr_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data);
+extern int32_t lexer_try_sync_attr_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data);
+extern struct Lexer skip_whitespace_and_comments(struct Lexer lex, struct xlang_slice_uint8_t data);
 extern struct Lexer skip_whitespace_and_comments_buf(struct Lexer lex, uint8_t * data, int32_t len);
-extern struct LexerResult lexer_next(struct Lexer lex, struct shux_slice_uint8_t data);
-extern void lexer_apply_optional_exponent(struct Lexer l, struct shux_slice_uint8_t data, double fval, struct Lexer * out_l, double * out_f);
-extern void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data);
-extern void lexer_next_punct_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data, uint8_t c);
+extern struct LexerResult lexer_next(struct Lexer lex, struct xlang_slice_uint8_t data);
+extern void lexer_apply_optional_exponent(struct Lexer l, struct xlang_slice_uint8_t data, double fval, struct Lexer * out_l, double * out_f);
+extern void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data);
+extern void lexer_next_punct_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data, uint8_t c);
 extern void write_next_lex_into(struct LexerResult * out, struct Lexer l);
 extern void write_tok_into(struct LexerResult * out, struct token_Token t);
-extern void lexer_next_impl(struct LexerResult * out, struct Lexer lex, struct shux_slice_uint8_t data);
-extern void lexer_next_into(struct LexerResult * out, struct Lexer lex, struct shux_slice_uint8_t data);
+extern void lexer_next_impl(struct LexerResult * out, struct Lexer lex, struct xlang_slice_uint8_t data);
+extern void lexer_next_into(struct LexerResult * out, struct Lexer lex, struct xlang_slice_uint8_t data);
 extern void lexer_next_buf_into(struct LexerResult * out, struct Lexer lex, uint8_t * data, int32_t len);
 extern struct LexerResult lexer_next_buf(struct Lexer lex, uint8_t * data, int32_t len);
 extern int32_t main(void);
@@ -144,7 +144,7 @@ static void init_globals(void) {
   col0 = (l.col);
 }
 extern int32_t cfg_eval_expr_c(uint8_t * start, int32_t len);
-extern struct shux_slice_uint8_t lexer_parser_slice_from_buf(uint8_t * data, int32_t len);
+extern struct xlang_slice_uint8_t lexer_parser_slice_from_buf(uint8_t * data, int32_t len);
 struct Lexer lexer_init(void) {
   return (struct Lexer){ .pos = 0, .line = 1, .col = 1 };
 }
@@ -193,7 +193,7 @@ int is_digit(uint8_t c) {
 int is_alnum_underscore(uint8_t c) {
   return (is_alpha(c) || is_digit(c));
 }
-int match_keyword(struct shux_slice_uint8_t data, size_t start, int32_t len, struct shux_slice_uint8_t keyword) {
+int match_keyword(struct xlang_slice_uint8_t data, size_t start, int32_t len, struct xlang_slice_uint8_t keyword) {
   int32_t i = 0;
   while ((i < len)) {
     if (((data).data[(start + i)] !=(keyword).data[i])) {
@@ -203,7 +203,7 @@ int match_keyword(struct shux_slice_uint8_t data, size_t start, int32_t len, str
   }
   return 1;
 }
-int match_keyword_buf(uint8_t * data, int32_t data_len, size_t start, int32_t len, struct shux_slice_uint8_t keyword) {
+int match_keyword_buf(uint8_t * data, int32_t data_len, size_t start, int32_t len, struct xlang_slice_uint8_t keyword) {
   int32_t i = 0;
   while ((i < len)) {
     if (((((int32_t)(start)) + i) >=data_len)) {
@@ -216,7 +216,7 @@ int match_keyword_buf(uint8_t * data, int32_t data_len, size_t start, int32_t le
   }
   return 1;
 }
-struct token_Token try_keyword(struct shux_slice_uint8_t data, size_t start, size_t len, int32_t line0, int32_t col0) {
+struct token_Token try_keyword(struct xlang_slice_uint8_t data, size_t start, size_t len, int32_t line0, int32_t col0) {
   if (((len ==8) && match_keyword(data, start, 8, (uint8_t[]){102, 117, 110, 99, 116, 105, 111, 110 }))) {
     struct token_Token t = (struct Token){ .kind = 1, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
     return t;
@@ -552,7 +552,7 @@ struct token_Token try_keyword_buf(uint8_t * data, int32_t data_len, size_t star
   struct token_Token t = (struct Token){ .kind = 59, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = len };
   return t;
 }
-struct Lexer skip_repr_c_attr_if_present(struct Lexer lex, struct shux_slice_uint8_t data) {
+struct Lexer skip_repr_c_attr_if_present(struct Lexer lex, struct xlang_slice_uint8_t data) {
   struct Lexer l = lex;
   if ((((l.pos) + 10) > (data.length))) {
     return l;
@@ -568,7 +568,7 @@ struct Lexer skip_repr_c_attr_if_present(struct Lexer lex, struct shux_slice_uin
   }
   return (struct Lexer){ .pos = ((l.pos) + 10), .line = (l.line), .col = (l.col) };
 }
-struct Lexer skip_cfg_attr_if_present(struct Lexer lex, struct shux_slice_uint8_t data) {
+struct Lexer skip_cfg_attr_if_present(struct Lexer lex, struct xlang_slice_uint8_t data) {
   struct Lexer l = lex;
   size_t p = 0;
   int32_t depth = 0;
@@ -602,7 +602,7 @@ struct Lexer skip_cfg_attr_if_present(struct Lexer lex, struct shux_slice_uint8_
   (void)((p = (p + ((size_t)(1)))));
   return (struct Lexer){ .pos = p, .line = (l.line), .col = (l.col) };
 }
-int32_t lexer_try_cfg_attr_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data) {
+int32_t lexer_try_cfg_attr_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data) {
   int32_t line0 = (l.line);
   int32_t col0 = (l.col);
   size_t p = 0;
@@ -656,7 +656,7 @@ int32_t lexer_try_cfg_attr_into(struct LexerResult * out, struct Lexer l, struct
   (void)(((out->token_start) = ((size_t)(0))));
   return 1;
 }
-int32_t lexer_try_repr_c_attr_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data) {
+int32_t lexer_try_repr_c_attr_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data) {
   if ((((l.pos) + 10) > (data.length))) {
     return 0;
   }
@@ -679,7 +679,7 @@ int32_t lexer_try_repr_c_attr_into(struct LexerResult * out, struct Lexer l, str
   (void)(((out->token_start) = ((size_t)(0))));
   return 1;
 }
-int32_t lexer_try_repr_compatible_attr_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data) {
+int32_t lexer_try_repr_compatible_attr_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data) {
   if ((((l.pos) + 19) > (data.length))) {
     return 0;
   }
@@ -708,7 +708,7 @@ int32_t lexer_try_repr_compatible_attr_into(struct LexerResult * out, struct Lex
   (void)(((out->token_start) = ((size_t)(0))));
   return 1;
 }
-int32_t lexer_try_soa_attr_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data) {
+int32_t lexer_try_soa_attr_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data) {
   if ((((l.pos) + 6) > (data.length))) {
     return 0;
   }
@@ -733,7 +733,7 @@ int32_t lexer_try_soa_attr_into(struct LexerResult * out, struct Lexer l, struct
   (void)(((out->token_start) = ((size_t)(0))));
   return 1;
 }
-int32_t lexer_try_alloc_attr_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data) {
+int32_t lexer_try_alloc_attr_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data) {
   if ((((l.pos) + 8) > (data.length))) {
     return 0;
   }
@@ -760,7 +760,7 @@ int32_t lexer_try_alloc_attr_into(struct LexerResult * out, struct Lexer l, stru
   (void)(((out->token_start) = ((size_t)(0))));
   return 1;
 }
-int32_t lexer_try_used_attr_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data) {
+int32_t lexer_try_used_attr_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data) {
   if ((((l.pos) + 7) > (data.length))) {
     return 0;
   }
@@ -786,7 +786,7 @@ int32_t lexer_try_used_attr_into(struct LexerResult * out, struct Lexer l, struc
   (void)(((out->token_start) = ((size_t)(0))));
   return 1;
 }
-int32_t lexer_try_naked_attr_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data) {
+int32_t lexer_try_naked_attr_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data) {
   if ((((l.pos) + 8) > (data.length))) {
     return 0;
   }
@@ -812,7 +812,7 @@ int32_t lexer_try_naked_attr_into(struct LexerResult * out, struct Lexer l, stru
   (void)(((out->token_start) = ((size_t)(0))));
   return 1;
 }
-int32_t lexer_try_entry_attr_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data) {
+int32_t lexer_try_entry_attr_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data) {
   if ((((l.pos) + 8) > (data.length))) {
     return 0;
   }
@@ -838,7 +838,7 @@ int32_t lexer_try_entry_attr_into(struct LexerResult * out, struct Lexer l, stru
   (void)(((out->token_start) = ((size_t)(0))));
   return 1;
 }
-int32_t lexer_try_no_mangle_attr_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data) {
+int32_t lexer_try_no_mangle_attr_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data) {
   if ((((l.pos) + 12) > (data.length))) {
     return 0;
   }
@@ -868,7 +868,7 @@ int32_t lexer_try_no_mangle_attr_into(struct LexerResult * out, struct Lexer l, 
   (void)(((out->token_start) = ((size_t)(0))));
   return 1;
 }
-int32_t lexer_try_interrupt_attr_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data) {
+int32_t lexer_try_interrupt_attr_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data) {
   if ((((l.pos) + 13) > (data.length))) {
     return 0;
   }
@@ -898,7 +898,7 @@ int32_t lexer_try_interrupt_attr_into(struct LexerResult * out, struct Lexer l, 
   (void)(((out->token_start) = ((size_t)(0))));
   return 1;
 }
-int32_t lexer_try_send_attr_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data) {
+int32_t lexer_try_send_attr_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data) {
   if ((((l.pos) + 8) > (data.length))) {
     return 0;
   }
@@ -923,7 +923,7 @@ int32_t lexer_try_send_attr_into(struct LexerResult * out, struct Lexer l, struc
   (void)(((out->token_start) = ((size_t)(0))));
   return 1;
 }
-int32_t lexer_try_sync_attr_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data) {
+int32_t lexer_try_sync_attr_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data) {
   if ((((l.pos) + 8) > (data.length))) {
     return 0;
   }
@@ -948,8 +948,22 @@ int32_t lexer_try_sync_attr_into(struct LexerResult * out, struct Lexer l, struc
   (void)(((out->token_start) = ((size_t)(0))));
   return 1;
 }
-struct Lexer skip_whitespace_and_comments(struct Lexer lex, struct shux_slice_uint8_t data) {
+/* PLATFORM: SHARED — nested block comments; path-safe nest-open; lockstep with lexer.x. */
+static int lexer_block_comment_prev_is_path_like(uint8_t prev) {
+  if (prev >= 65 && prev <= 90)
+    return 1;
+  if (prev >= 97 && prev <= 122)
+    return 1;
+  if (prev >= 48 && prev <= 57)
+    return 1;
+  if (prev == 95 || prev == 46 || prev == 125 || prev == 41 || prev == 93 || prev == 62
+      || prev == 34 || prev == 39)
+    return 1;
+  return 0;
+}
+struct Lexer skip_whitespace_and_comments(struct Lexer lex, struct xlang_slice_uint8_t data) {
   struct Lexer l = lex;
+  int32_t depth = 0;
   while (((l.pos) < (data.length))) {
     uint8_t c = (data).data[(l.pos)];
     if (((((c ==32) || (c ==9)) || (c ==10)) || (c ==13))) {
@@ -963,14 +977,33 @@ struct Lexer skip_whitespace_and_comments(struct Lexer lex, struct shux_slice_ui
         if ((((c ==47) && (((l.pos) + 1) < (data.length))) && ((data).data[((l.pos) + 1)] ==42))) {
           (void)((l = advance_one(l, 47)));
           (void)((l = advance_one(l, 42)));
-          while ((((l.pos) + 1) < (data.length))) {
-            if ((((data).data[(l.pos)] ==42) && ((data).data[((l.pos) + 1)] ==47))) {
+          depth = 1;
+          while ((((l.pos) < (data.length)) && (depth > 0))) {
+            if (((((l.pos) + 1) < (data.length)) && ((data).data[(l.pos)] ==47) && ((data).data[((l.pos) + 1)] ==42))) {
+              int nest_ok = 1;
+              if ((l.pos) > 0) {
+                uint8_t prev = (data).data[((l.pos) - 1)];
+                if (lexer_block_comment_prev_is_path_like(prev))
+                  nest_ok = 0;
+              }
+              if (nest_ok && (((l.pos) + 2) < (data.length)) && ((data).data[((l.pos) + 2)] ==46))
+                nest_ok = 0;
+              if (nest_ok) {
+                (void)((l = advance_one(l, 47)));
+                (void)((l = advance_one(l, 42)));
+                depth = depth + 1;
+              } else {
+                (void)((l = advance_one(l, (data).data[(l.pos)])));
+              }
+            } else if (((((l.pos) + 1) < (data.length)) && ((data).data[(l.pos)] ==42) && ((data).data[((l.pos) + 1)] ==47))) {
               (void)((l = advance_one(l, 42)));
               (void)((l = advance_one(l, 47)));
-              break;
+              depth = depth - 1;
+            } else {
+              (void)((l = advance_one(l, (data).data[(l.pos)])));
             }
-            (void)((l = advance_one(l, (data).data[(l.pos)])));
           }
+          depth = 0;
         } else {
           if ((c ==35)) {
             if (((((l.pos) + 1) < (data.length)) && ((data).data[((l.pos) + 1)] ==91))) {
@@ -993,7 +1026,7 @@ struct Lexer skip_whitespace_and_comments_buf(struct Lexer lex, uint8_t * data, 
   return skip_whitespace_and_comments(lex, lexer_parser_slice_from_buf(data, len));
   return lex;
 }
-struct LexerResult lexer_next(struct Lexer lex, struct shux_slice_uint8_t data) {
+struct LexerResult lexer_next(struct Lexer lex, struct xlang_slice_uint8_t data) {
   struct Lexer l = skip_whitespace_and_comments(lex, data);
   if (((l.pos) >=(data.length))) {
     struct token_Token t = (struct Token){ .kind = 0, .line = (l.line), .col = (l.col), .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
@@ -1043,7 +1076,7 @@ struct LexerResult lexer_next(struct Lexer lex, struct shux_slice_uint8_t data) 
   (void)(lexer_next_body_into(&(attr_out), l, data));
   return attr_out;
 }
-void lexer_apply_optional_exponent(struct Lexer l, struct shux_slice_uint8_t data, double fval, struct Lexer * out_l, double * out_f) {
+void lexer_apply_optional_exponent(struct Lexer l, struct xlang_slice_uint8_t data, double fval, struct Lexer * out_l, double * out_f) {
   struct Lexer lex = l;
   double cur = fval;
   if ((((lex.pos) < (data.length)) && (((data).data[(lex.pos)] ==101) || ((data).data[(lex.pos)] ==69)))) {
@@ -1082,7 +1115,7 @@ void lexer_apply_optional_exponent(struct Lexer l, struct shux_slice_uint8_t dat
   (void)(((out_l)[0] = lex));
   (void)(((out_f)[0] = cur));
 }
-void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data) {
+void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data) {
   uint8_t c = (data).data[(l.pos)];
   if ((lexer_try_cfg_attr_into(out, l, data) !=0)) {
     return;
@@ -1272,7 +1305,7 @@ void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct shux_
   }
   (void)(lexer_next_punct_into(out, l, data, c));
 }
-void lexer_next_punct_into(struct LexerResult * out, struct Lexer l, struct shux_slice_uint8_t data, uint8_t c) {
+void lexer_next_punct_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data, uint8_t c) {
   size_t start = (l.pos);
   int32_t line0 = (l.line);
   int32_t col0 = (l.col);
@@ -1618,7 +1651,7 @@ void write_tok_into(struct LexerResult * out, struct token_Token t) {
   (void)((((out->tok).ident) = (t.ident)));
   (void)((((out->tok).ident_len) = (t.ident_len)));
 }
-void lexer_next_impl(struct LexerResult * out, struct Lexer lex, struct shux_slice_uint8_t data) {
+void lexer_next_impl(struct LexerResult * out, struct Lexer lex, struct xlang_slice_uint8_t data) {
   struct Lexer l = skip_whitespace_and_comments(lex, data);
   if (((l.pos) >=(data.length))) {
     struct token_Token t = (struct Token){ .kind = 0, .line = (l.line), .col = (l.col), .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
@@ -1634,7 +1667,7 @@ void lexer_next_impl(struct LexerResult * out, struct Lexer lex, struct shux_sli
   }
   (void)(lexer_next_body_into(out, l, data));
 }
-void lexer_next_into(struct LexerResult * out, struct Lexer lex, struct shux_slice_uint8_t data) {
+void lexer_next_into(struct LexerResult * out, struct Lexer lex, struct xlang_slice_uint8_t data) {
   (void)(lexer_next_impl(out, lex, data));
 }
 void lexer_next_buf_into(struct LexerResult * out, struct Lexer lex, uint8_t * data, int32_t len) {
@@ -1649,7 +1682,7 @@ struct LexerResult lexer_next_buf(struct Lexer lex, uint8_t * data, int32_t len)
 int32_t main(void) {
   init_globals();
   uint8_t src[32] = {108, 101, 116, 32, 120, 32, 61, 32, 49, 59, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-  struct shux_slice_uint8_t sl = (uint8_t[]){ };
+  struct xlang_slice_uint8_t sl = (uint8_t[]){ };
   (void)((sl = lexer_parser_slice_from_buf(&((src)[0]), 11)));
   struct Lexer lex = lexer_init();
   struct LexerResult r = lexer_next(lex, sl);

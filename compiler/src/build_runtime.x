@@ -41,7 +41,7 @@ export function build_runtime_warn(msg: *u8): void {
 
 export extern "C" function build_patch_pipeline_gen_c_impl(): i32;
 export extern "C" function build_patch_driver_gen_c_impl(): i32;
-export extern "C" function build_run_legacy_steps_impl(shu_path: *u8): i32;
+export extern "C" function build_run_legacy_steps_impl(xlang_path: *u8): i32;
 
 /* See implementation. */
 
@@ -56,8 +56,8 @@ export function build_patch_pipeline_gen_c(): i32 { unsafe { return build_patch_
 export function build_patch_driver_gen_c(): i32 { unsafe { return build_patch_driver_gen_c_impl(); } return 0; }
 /** Exported function `build_run_legacy_steps`.
  * Implements `build_run_legacy_steps`.
- * @param shu_path *u8): i32 { unsafe { return build_run_legacy_steps_impl(shu_path
+ * @param xlang_path *u8): i32 { unsafe { return build_run_legacy_steps_impl(xlang_path
  * @return void
  */
 #[no_mangle]
-export function build_run_legacy_steps(shu_path: *u8): i32 { unsafe { return build_run_legacy_steps_impl(shu_path); } return 0; }
+export function build_run_legacy_steps(xlang_path: *u8): i32 { unsafe { return build_run_legacy_steps_impl(xlang_path); } return 0; }

@@ -3,17 +3,17 @@
 #
 # 用法：./tests/run-nolibc-n07-v4-build-gate.sh
 # 环境：
-#   SHUX_NOLIBC_N07_V4_FAIL=1           — 失败时硬退出
-#   SHUX_NOLIBC_N07_V4_MANIFEST_ONLY=1  — 仅 manifest
-#   SHUX_NOLIBC_N07_V4_TRY_BUILD=1      — shux_asm 存在时试跑 SHUX_BOOTSTRAP_NOSTDLIB=1 build_shux_asm
+#   XLANG_NOLIBC_N07_V4_FAIL=1           — 失败时硬退出
+#   XLANG_NOLIBC_N07_V4_MANIFEST_ONLY=1  — 仅 manifest
+#   XLANG_NOLIBC_N07_V4_TRY_BUILD=1      — xlang_asm 存在时试跑 XLANG_BOOTSTRAP_NOSTDLIB=1 build_xlang_asm
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_NOLIBC_N07_V4_FAIL:-0}
+FAIL=${XLANG_NOLIBC_N07_V4_FAIL:-0}
 DOC="analysis/phase-f-n07-v4.md"
 MANIFEST="tests/baseline/nolibc-n07-v4-build.tsv"
-BUILD_ASM="compiler/scripts/build_shux_asm.sh"
-SHUX_ASM="compiler/shux_asm"
+BUILD_ASM="compiler/scripts/build_xlang_asm.sh"
+XLANG_ASM="compiler/xlang_asm"
 
 die() {
   echo "nolibc-n07-v4 gate FAIL: $*" >&2
@@ -26,7 +26,7 @@ echo "=== NL-07 v4: bootstrap nostdlib full-chain try (track) ==="
 grep -q 'NL-07 v4' "$DOC" || die "doc missing NL-07 v4 marker"
 [ -f "$MANIFEST" ] || die "missing $MANIFEST"
 [ -f "$BUILD_ASM" ] || die "missing $BUILD_ASM"
-grep -q 'bootstrap_link_tail_driver' "$BUILD_ASM" || die "build_shux_asm missing bootstrap_link_tail_driver"
+grep -q 'bootstrap_link_tail_driver' "$BUILD_ASM" || die "build_xlang_asm missing bootstrap_link_tail_driver"
 [ -f compiler/seeds/runtime_driver_strict_glue_stubs.from_x.c ] || die "missing runtime_driver_strict_glue_stubs.inc"
 
 while IFS=$'\t' read -r item_id category anchor check_type notes; do
@@ -47,13 +47,13 @@ while IFS=$'\t' read -r item_id category anchor check_type notes; do
   esac
 done < "$MANIFEST"
 
-if [ "${SHUX_NOLIBC_N07_V4_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_NOLIBC_N07_V4_MANIFEST_ONLY:-0}" = "1" ]; then
   echo "nolibc-n07-v4 gate OK (manifest only)"
   exit 0
 fi
 
-if [ "${SHUX_NOLIBC_N07_V4_TRY_BUILD:-0}" != "1" ]; then
-  echo "nolibc-n07-v4 gate OK (manifest; set SHUX_NOLIBC_N07_V4_TRY_BUILD=1 + shux_asm for full try)"
+if [ "${XLANG_NOLIBC_N07_V4_TRY_BUILD:-0}" != "1" ]; then
+  echo "nolibc-n07-v4 gate OK (manifest; set XLANG_NOLIBC_N07_V4_TRY_BUILD=1 + xlang_asm for full try)"
   exit 0
 fi
 
@@ -63,25 +63,25 @@ if [ "$(uname -s 2>/dev/null)" != "Linux" ] || [ "$(uname -m 2>/dev/null)" != "x
   exit 0
 fi
 
-if [ ! -x "$SHUX_ASM" ]; then
-  echo "nolibc-n07-v4 SKIP build try (no $SHUX_ASM; run bootstrap-driver-bstrict first)" >&2
-  echo "nolibc-n07-v4 gate OK (manifest; no shux_asm)"
+if [ ! -x "$XLANG_ASM" ]; then
+  echo "nolibc-n07-v4 SKIP build try (no $XLANG_ASM; run bootstrap-driver-bstrict first)" >&2
+  echo "nolibc-n07-v4 gate OK (manifest; no xlang_asm)"
   exit 0
 fi
 
-echo "=== NL-07 v4: SHUX_BOOTSTRAP_NOSTDLIB=1 build_shux_asm ==="
-LOG="/tmp/shux_n07_v4_build.log"
+echo "=== NL-07 v4: XLANG_BOOTSTRAP_NOSTDLIB=1 build_xlang_asm ==="
+LOG="/tmp/xlang_n07_v4_build.log"
 rm -f "$LOG" 2>/dev/null || true
 set +e
-( cd compiler && SHUX_BOOTSTRAP_NOSTDLIB=1 ./scripts/build_shux_asm.sh ) 2>&1 | tee "$LOG"
+( cd compiler && XLANG_BOOTSTRAP_NOSTDLIB=1 ./scripts/build_xlang_asm.sh ) 2>&1 | tee "$LOG"
 RC=${PIPESTATUS[0]}
 set -e
 
 if grep -q 'bootstrap nostdlib crt0 link OK' "$LOG" 2>/dev/null || \
    grep -q 'bootstrap nostdlib.*link OK' "$LOG" 2>/dev/null; then
   echo "nolibc-n07-v4: nostdlib link OK (crt0 path)"
-elif [ "$RC" -eq 0 ] && [ -x "$SHUX_ASM" ]; then
-  echo "nolibc-n07-v4: build_shux_asm exit 0 (check log for nostdlib vs fallback)"
+elif [ "$RC" -eq 0 ] && [ -x "$XLANG_ASM" ]; then
+  echo "nolibc-n07-v4: build_xlang_asm exit 0 (check log for nostdlib vs fallback)"
 else
   echo "nolibc-n07-v4: build failed rc=$RC" >&2
   grep "undefined reference" "$LOG" 2>/dev/null | sed 's/.*undefined reference to /  /' | sort -u | head -30 >&2 || true

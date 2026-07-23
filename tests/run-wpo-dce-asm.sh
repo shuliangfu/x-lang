@@ -7,26 +7,26 @@ cd "$(dirname "$0")/.."
 ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || true
 
 if wpo_host_asm_run_na; then
-  echo "WPO asm DCE: N/A on $(uname -s)-$(uname -m) (refresh shux_asm asm stub; x86_64 covers)"
+  echo "WPO asm DCE: N/A on $(uname -s)-$(uname -m) (refresh xlang_asm asm stub; x86_64 covers)"
   echo "wpo asm dce OK"
   exit 0
 fi
 
-SHUX_BIN="${SHUX:-./compiler/shux_asm}"
-if [ ! -x "$SHUX_BIN" ]; then
-  make -C compiler shux-c -q 2>/dev/null || make -C compiler shux-c
-  SHUX_BIN="./compiler/shux-c"
+XLANG_BIN="${XLANG:-./compiler/xlang_asm}"
+if [ ! -x "$XLANG_BIN" ]; then
+  make -C compiler xlang-c -q 2>/dev/null || make -C compiler xlang-c
+  XLANG_BIN="./compiler/xlang-c"
 fi
 
-TMP_O="/tmp/shux_wpo_dead_user_asm.o"
-TMP_EXE="/tmp/shux_wpo_dead_user_asm"
+TMP_O="/tmp/xlang_wpo_dead_user_asm.o"
+TMP_EXE="/tmp/xlang_wpo_dead_user_asm"
 
 rm -f "$TMP_O" "$TMP_EXE"
 
 # -backend asm -o .o：dead_export 不应出现在符号表
-if ! "$SHUX_BIN" -backend asm -o "$TMP_O" tests/wpo/dead_user.x >/tmp/shux_wpo_dce_asm_build.log 2>&1; then
-  echo "WPO asm DCE SKIP: shux asm compile failed (need shux_asm on Linux CI)"
-  tail -5 /tmp/shux_wpo_dce_asm_build.log 2>/dev/null || true
+if ! "$XLANG_BIN" -backend asm -o "$TMP_O" tests/wpo/dead_user.x >/tmp/xlang_wpo_dce_asm_build.log 2>&1; then
+  echo "WPO asm DCE SKIP: xlang asm compile failed (need xlang_asm on Linux CI)"
+  tail -5 /tmp/xlang_wpo_dce_asm_build.log 2>/dev/null || true
   exit 0
 fi
 
@@ -51,7 +51,7 @@ case "$(uname -s 2>/dev/null)" in
     echo "WPO asm DCE: exe run N/A on Darwin (.o symbol gate OK)"
     ;;
   *)
-    if "$SHUX_BIN" -backend asm -o "$TMP_EXE" tests/wpo/dead_user.x >/dev/null 2>&1 && [ -x "$TMP_EXE" ]; then
+    if "$XLANG_BIN" -backend asm -o "$TMP_EXE" tests/wpo/dead_user.x >/dev/null 2>&1 && [ -x "$TMP_EXE" ]; then
       rc=$("$TMP_EXE"; echo $?)
       [ "$rc" = "7" ] || { echo "dead_user asm exit=$rc want 7"; exit 1; }
     fi

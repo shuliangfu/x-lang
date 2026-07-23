@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-random-rng.sh — STD-130 manifest 与烟测辅助
 
-STD_RANDOM_RNG_PREFIX="${SHUX_STD130_RANDOM_RNG_PREFIX:-shux: [SHUX_STD130_RANDOM_RNG]}"
+STD_RANDOM_RNG_PREFIX="${XLANG_STD130_RANDOM_RNG_PREFIX:-xlang: [XLANG_STD130_RANDOM_RNG]}"
 
 # 校验 manifest 条目。
 std_random_rng_symbols_ok() {
@@ -44,11 +44,11 @@ std_random_rng_symbols_ok() {
 
 # 编译并运行 .x 烟测；失败时打印 build.log 尾部。
 std_random_rng_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
-  local exe="/tmp/shux_std_random_rng_$$"
-  local log="/tmp/shux_std_random_rng_build_$$.log"
-  if ! "$shux" -L . "$src" -o "$exe" >"$log" 2>&1; then
+  local exe="/tmp/xlang_std_random_rng_$$"
+  local log="/tmp/xlang_std_random_rng_build_$$.log"
+  if ! "$xlang" -L . "$src" -o "$exe" >"$log" 2>&1; then
     echo "std-random-rng FAIL: compile $src" >&2
     tail -12 "$log" 2>/dev/null >&2 || true
     rm -f "$exe" "$log"
@@ -70,7 +70,7 @@ std_random_rng_run_smoke() {
 std_random_rng_run_c_smoke() {
   local random_o="$1"
   local src="tests/random/rng_smoke_ok.c"
-  local out="/tmp/shux_std_random_rng_c_$$"
+  local out="/tmp/xlang_std_random_rng_c_$$"
   local fill_o=""
   if [ -f compiler/runtime_random_fill.o ]; then
     fill_o="compiler/runtime_random_fill.o"

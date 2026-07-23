@@ -41,7 +41,7 @@
 - 便携回归：`tests/run-portable-suite.sh`
 
 ```
-shux: [SHUX_CORE_README] status=ok forbidden=0 readme_miss=0 doc_miss=0
+xlang: [XLANG_CORE_README] status=ok forbidden=0 readme_miss=0 doc_miss=0
 ```
 
 ---

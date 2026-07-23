@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-csv-stream.sh — STD-128 manifest 与烟测辅助（F-csv v1：csv.x）
 
-STD_CSV_STREAM_PREFIX="${SHUX_STD_CSV_STREAM_PREFIX:-shux: [SHUX_STD_CSV_STREAM]}"
+STD_CSV_STREAM_PREFIX="${XLANG_STD_CSV_STREAM_PREFIX:-xlang: [XLANG_STD_CSV_STREAM]}"
 
 std_csv_stream_symbols_ok() {
   local mod_x="$1"
@@ -42,12 +42,12 @@ std_csv_stream_symbols_ok() {
 }
 
 std_csv_stream_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
-  local exe="/tmp/shux_std_csv_stream_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std_csv_stream_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-csv-stream FAIL: compile $src" >&2
-    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -67,7 +67,7 @@ std_csv_stream_run_smoke() {
 std_csv_stream_run_c_smoke() {
   local csv_o="$1"
   local src="tests/csv/stream_smoke_ok.c"
-  local out="/tmp/shux_std_csv_stream_c_$$"
+  local out="/tmp/xlang_std_csv_stream_c_$$"
   if [ ! -f "$csv_o" ]; then
     echo "std-csv-stream FAIL: missing $csv_o" >&2
     return 1

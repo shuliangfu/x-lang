@@ -21,7 +21,7 @@
 | API | 说明 |
 |-----|------|
 | `bench_run(fn, iters): i64` | 调用无参 `fn` 共 `iters` 次，返回纳秒耗时 |
-| `bench_report(name, len, ns): i32` | 写 `shux: [SHUX_BENCH] name=… ns=…` 到 stderr |
+| `bench_report(name, len, ns): i32` | 写 `xlang: [XLANG_BENCH] name=… ns=…` 到 stderr |
 
 v1 **不**集成采样统计 / CSV；后续可接 `tests/run-perf-*.sh`。
 
@@ -31,7 +31,7 @@ v1 **不**集成采样统计 / CSV；后续可接 `tests/run-perf-*.sh`。
 
 | API | 说明 |
 |-----|------|
-| `fuzz_seed(): u32` | `SHUX_FUZZ_SEED` 环境变量或默认 `0xABCDEF01` |
+| `fuzz_seed(): u32` | `XLANG_FUZZ_SEED` 环境变量或默认 `0xABCDEF01` |
 | `fuzz_next(state: *u32): u32` | LCG 单步 |
 | `fuzz_run(fn, iters): i32` | 每轮推进 PRNG 后调用 `fn` |
 
@@ -43,7 +43,7 @@ v1 **不**做覆盖率反馈；仅提供可复现种子与 runner 钩子。
 
 | ID | 验证 |
 |----|------|
-| `bench_report_line` | stderr 含 `shux: [SHUX_BENCH] name=smoke` |
+| `bench_report_line` | stderr 含 `xlang: [XLANG_BENCH] name=smoke` |
 | `fuzz_next_nz` | `fuzz_next` 非零 |
 | `expect_regress` | 既有 `tests/stdtest/main.x` 仍通过 |
 
@@ -56,7 +56,7 @@ v1 **不**做覆盖率反馈；仅提供可复现种子与 runner 钩子。
 ```
 
 ```
-shux: [SHUX_STD_TEST_BENCH_FUZZ] status=ok c_smoke=1 bench_x=1 fuzz_x=1 skip=0
+xlang: [XLANG_STD_TEST_BENCH_FUZZ] status=ok c_smoke=1 bench_x=1 fuzz_x=1 skip=0
 ```
 
 ---

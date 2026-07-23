@@ -1,19 +1,19 @@
 #!/bin/sh
-# UEFI application gate — compile shux to PE32+ EFI skeleton with efi_main entry.
-# Verifies: shux-c generates EFI protocol headers, zig cc produces PE32+ binary.
+# UEFI application gate — compile xlang to PE32+ EFI skeleton with efi_main entry.
+# Verifies: xlang-c generates EFI protocol headers, zig cc produces PE32+ binary.
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WORKDIR="${TMPDIR:-/tmp}"
-SHUX_C="$SCRIPT_DIR/../../compiler/shux-c"
+XLANG_C="$SCRIPT_DIR/../../compiler/xlang-c"
 PASS=0
 FAIL=0
 
 echo "=== UEFI application gate ==="
 
-# 1. shux-c -E: generate C with EFI structs + efi_main
-echo "  Check: shux-c generates EFI protocol headers"
+# 1. xlang-c -E: generate C with EFI structs + efi_main
+echo "  Check: xlang-c generates EFI protocol headers"
 if XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" \
-    "$SHUX_C" -E "$SCRIPT_DIR/uefi_app.x" > "$WORKDIR/uefi_app_gate.c" 2>&1; then
+    "$XLANG_C" -E "$SCRIPT_DIR/uefi_app.x" > "$WORKDIR/uefi_app_gate.c" 2>&1; then
     if grep -q "EFI_SYSTEM_TABLE" "$WORKDIR/uefi_app_gate.c" && \
        grep -q "EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL" "$WORKDIR/uefi_app_gate.c"; then
         echo "    PASS"
@@ -23,7 +23,7 @@ if XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" \
         FAIL=$((FAIL + 1))
     fi
 else
-    echo "    FAIL: shux-c failed"
+    echo "    FAIL: xlang-c failed"
     FAIL=$((FAIL + 1))
 fi
 

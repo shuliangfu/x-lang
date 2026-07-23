@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-扫描 shux fmt 折行造成的损坏：
+扫描 xlang fmt 折行造成的损坏：
   A) // 续行缺少 //
   B) 块注释续行缺少 *
   C) 代码行被拦腰切断（行首 refix[/fix[/ 等）

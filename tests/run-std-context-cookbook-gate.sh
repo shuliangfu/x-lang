@@ -56,28 +56,28 @@ echo "std-context-cookbook manifest OK"
 
 X_OK=0
 SKIP=0
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-156: cookbook typeck (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$RECIPE" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-156: cookbook typeck (XLANG=$XLANG_BIN) ==="
+  if ! "$XLANG_BIN" check -L . "$RECIPE" >/dev/null 2>&1; then
     echo "std-context-cookbook gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$RECIPE" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$RECIPE" 2>&1 | tail -10 >&2 || true
     std_context_cookbook_emit_report "fail" 0 0
     exit 1
   fi
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
-  # shellcheck source=tests/lib/bootstrap-link-shux.sh
-  . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
-  if std_context_cookbook_run_smoke "$RUN_SHUX" "$RECIPE"; then
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
+  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
+  if std_context_cookbook_run_smoke "$RUN_XLANG" "$RECIPE"; then
     X_OK=1
   else
     std_context_cookbook_emit_report "fail" 0 0
     exit 1
   fi
 else
-  echo "std-context-cookbook gate SKIP runnable (no shux)" >&2
+  echo "std-context-cookbook gate SKIP runnable (no xlang)" >&2
   SKIP=1
 fi
 

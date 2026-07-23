@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # doc-07-phase3-sync.sh — STD-171 manifest 与食谱 typeck 辅助
 
-STD171_PREFIX="${SHUX_STD171_DOC07_PHASE3_SYNC_PREFIX:-shux: [SHUX_STD171_DOC07_PHASE3_SYNC]}"
+STD171_PREFIX="${XLANG_STD171_DOC07_PHASE3_SYNC_PREFIX:-xlang: [XLANG_STD171_DOC07_PHASE3_SYNC]}"
 
 # 校验 manifest 条目；echo 缺失数。
 doc07_phase3_symbols_ok() {

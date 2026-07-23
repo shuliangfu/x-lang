@@ -2,11 +2,11 @@
 # F-uuid v1：std.uuid 去 C（uuid.c → uuid.x）。
 #
 # 用法：./tests/run-f-uuid-v1-gate.sh
-# 环境：SHUX_F_UUID_V1_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F_UUID_V1_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F_UUID_V1_FAIL:-0}
+FAIL=${XLANG_F_UUID_V1_FAIL:-0}
 DOC="analysis/phase-f-uuid-v1.md"
 MANIFEST="tests/baseline/f-uuid-v1-closure.tsv"
 
@@ -41,20 +41,20 @@ if grep -q 'std/uuid/uuid\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references std/uuid/uuid.c"
 fi
 
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/uuid/uuid.o >/dev/null 2>&1 || die "make uuid.o failed"
 else
-  echo "f-uuid-v1 SKIP uuid.o build (no shux-c)" >&2
+  echo "f-uuid-v1 SKIP uuid.o build (no xlang-c)" >&2
 fi
 
 if [ -f tests/run-std-uuid-gate.sh ]; then
   echo "=== F-uuid v1: delegate run-std-uuid-gate ==="
   chmod +x tests/run-std-uuid-gate.sh
-  if ! SHUX_STD_UUID_MANIFEST_ONLY=1 tests/run-std-uuid-gate.sh; then
+  if ! XLANG_STD_UUID_MANIFEST_ONLY=1 tests/run-std-uuid-gate.sh; then
     die "std-uuid manifest sub-gate failed"
   fi
-  if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
-    if ! SHUX_F_UUID_V1_FAIL="$FAIL" tests/run-std-uuid-gate.sh; then
+  if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
+    if ! XLANG_F_UUID_V1_FAIL="$FAIL" tests/run-std-uuid-gate.sh; then
       die "std-uuid full sub-gate failed"
     fi
   fi

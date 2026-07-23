@@ -20,7 +20,7 @@
 | 字面量 | EXPR_LIT / EXPR_BOOL_LIT | ✅ | ✅ | 立即数返回 |
 | | EXPR_FLOAT_LIT | ✅ | ✅ | 位模式：typeck 填 float_bits_lo/hi，asm 用 movq/movz+movk 入 rax/x0 |
 | 控制 | EXPR_RETURN | ✅ | ✅ | 子表达式求值到 rax/x0 |
-| | EXPR_PANIC | ✅ | ✅ | call shux_panic_（由 runtime_panic.o 提供；Linux 用 syscall exit 不链 libc） |
+| | EXPR_PANIC | ✅ | ✅ | call xlang_panic_（由 runtime_panic.o 提供；Linux 用 syscall exit 不链 libc） |
 | | EXPR_BREAK / EXPR_CONTINUE | ✅ | ✅ | 循环内 jmp 到标签 |
 | 算术 | ADD / SUB / MUL / DIV / MOD | ✅ | ✅ | 含立即数优化（左或右操作数为字面量时免 push/pop） |
 | 比较 | EQ / NE / LT / LE / GT / GE | ✅ | ✅ | cmp + setcc / cset |
@@ -67,7 +67,7 @@
 | 项 | 状态 | 说明 |
 |----|------|------|
 | 7.3 寄存器分配 | ✅ | **线性 scan**（x10–**x15**）+ **Chaitin（K=6）** + **栈帧 spill** + **if/loop 最小 φ**；`run-asm-73-gate.sh` |
-| CALL 内联（P3） | ✅ | `backend_try_inline_*`；`run-asm-call-inline.sh`（**11 例**；\_main 无用户 `bl`，vec div 允许 `bl _shux_panic_`） |
+| CALL 内联（P3） | ✅ | `backend_try_inline_*`；`run-asm-call-inline.sh`（**11 例**；\_main 无用户 `bl`，vec div 允许 `bl _xlang_panic_`） |
 | 窥孔优化 | ✅ | peephole_elf：冗余 push/pop、**x2↔x0/x1 对**、**7.3 spill x10–x15↔x0/x1 往返 mov 对**；文本路径 no-op mov |
 | EXPR_FIELD_ACCESS 真实偏移 | ✅ | backend 已用；**C 与 .x typeck 均已填写**（.x 从 STRUCT_LIT 推导布局 + VAR 的 resolved_type_ref） |
 | EXPR_INDEX base 为表达式/切片 | ✅ | base 可为任意表达式；slice 已支持（从 (ptr,len) 取 ptr 再下标） |
@@ -90,11 +90,11 @@
 - **crt0_x86_64.s**：提供 `_start` 与 `driver_get_argv_i`，用于「无 C」构建时替代 main.o / runtime_asm_build.o。
 - **_start**：从栈取 argc、argv，对齐栈后调用 `entry`，再以返回值做 exit(60) 系统调用。
 - **crt0_user_x86_64.s**（S4）：用户程序 freestanding 入口，`_start` → `_main` → exit(60)；**`-freestanding`** 时 `runtime.c` 自动 `ld -nostdlib -static`。
-- **freestanding_io_x86_64.s**（S4）：`shux_sys_write` → write(2) syscall；**仅当**用户 `.o` 引用 `shux_sys_write` 时链入。
-- **runtime_panic_x86_64.s**（S4）：`shux_panic_` 经 syscall exit(134)，不链 libc；**仅当**用户 `.o` 引用 `shux_panic_` 时链入（`return42` 等无 panic 路径可省略）。
-- **WPO-S2 vec 特化**（`backend_try_inline_dispatch.c`）：`laneK(vec_binop([const…],[const…]))` — 默认 **fold** 为标量 imm；`SHUX_WPO_MONO=1` 时生成单态 thunk（如 `lane0__wpo_1_2_3_4_10_20_30_40`）；`SHUX_WPO_NO_FOLD=1` 对照 bench。
+- **freestanding_io_x86_64.s**（S4）：`xlang_sys_write` → write(2) syscall；**仅当**用户 `.o` 引用 `xlang_sys_write` 时链入。
+- **runtime_panic_x86_64.s**（S4）：`xlang_panic_` 经 syscall exit(134)，不链 libc；**仅当**用户 `.o` 引用 `xlang_panic_` 时链入（`return42` 等无 panic 路径可省略）。
+- **WPO-S2 vec 特化**（`backend_try_inline_dispatch.c`）：`laneK(vec_binop([const…],[const…]))` — 默认 **fold** 为标量 imm；`XLANG_WPO_MONO=1` 时生成单态 thunk（如 `lane0__wpo_1_2_3_4_10_20_30_40`）；`XLANG_WPO_NO_FOLD=1` 对照 bench。
 - **driver_get_argv_i**：ABI 为 rdi=argc, rsi=argv, rdx=i, rcx=buf, r8=max；从 argv[i] 拷贝到 buf 并 NUL 结尾，返回长度，越界/失败返回 -1。
-- Makefile 中已增加 `src/asm/crt0_x86_64.o` / `crt0_user_x86_64.o` 目标（仅 Linux）；链接 asm 版 shux 时可将 crt0 + asm .o + runtime_panic.o、-lc 一起链接。
+- Makefile 中已增加 `src/asm/crt0_x86_64.o` / `crt0_user_x86_64.o` 目标（仅 Linux）；链接 asm 版 xlang 时可将 crt0 + asm .o + runtime_panic.o、-lc 一起链接。
 
 ---
 
@@ -162,12 +162,12 @@ AST (typeck 后) --[asm_codegen_ast]--> 汇编文本 (.s) --[as]--> .o --[ld]-->
 ## 六、多平台（target_arch）
 
 - **ctx.target_arch**：0=x86_64，1=arm64（aarch64），2=riscv64。
-- **x86_64**：文本 asm 与直接 .o 均支持；GAS AT&T，System V ABI。**f32 xmm 实/形参默认开启**（`SHUX_ABI_F32_XMM=0` 为 legacy）；见 `compiler/docs/F32_XMM_ABI.md`。
+- **x86_64**：文本 asm 与直接 .o 均支持；GAS AT&T，System V ABI。**f32 xmm 实/形参默认开启**（`XLANG_ABI_F32_XMM=0` 为 legacy）；见 `compiler/docs/F32_XMM_ABI.md`。
 - **arm64**：文本 asm 与直接 .o 均支持（arm64_enc 已实现，ELF e_machine 等按 AArch64 设置）。
 - **riscv64**：文本 asm 与直接 .o 均支持（riscv64.x / riscv64_enc.x 已实现，ELF e_machine=243，B/J 型 patch）。
 - **用法**：  
-  - 出 .s：`shux -backend asm -target aarch64-linux-gnu -o out.s file.x` 或 `-target riscv64`  
-  - 出 .o：`shux -backend asm -o out.o file.x`（x86_64）；`-target aarch64-linux-gnu` / `-target riscv64` 出对应 .o；再 `ld -e _main -o out out.o`。
+  - 出 .s：`xlang -backend asm -target aarch64-linux-gnu -o out.s file.x` 或 `-target riscv64`  
+  - 出 .o：`xlang -backend asm -o out.o file.x`（x86_64）；`-target aarch64-linux-gnu` / `-target riscv64` 出对应 .o；再 `ld -e _main -o out out.o`。
 
 ## 七、依赖
 
@@ -177,8 +177,8 @@ AST (typeck 后) --[asm_codegen_ast]--> 汇编文本 (.s) --[as]--> .o --[ld]-->
 
 ## 八、用法小结
 
-- 出汇编：`shux -backend asm file.x` 或 `shux -backend asm -o out.s file.x`。
-- 出 .o（x86_64 或 arm64）：`shux -backend asm -o out.o file.x`（或 `-target aarch64-linux-gnu` 出 arm64 .o）；再 `ld -e _main -o out out.o`。
+- 出汇编：`xlang -backend asm file.x` 或 `xlang -backend asm -o out.s file.x`。
+- 出 .o（x86_64 或 arm64）：`xlang -backend asm -o out.o file.x`（或 `-target aarch64-linux-gnu` 出 arm64 .o）；再 `ld -e _main -o out out.o`。
 - **macOS**：`-o out.o` 自动写出 Mach-O；链接用 `ld -e _main -o out out.o -lSystem` 或 `clang -o out out.o`。
 - **Windows**：`-target x86_64-pc-windows-msvc`（或含 `windows` 的 triple）且 `-o out.o`/`-o out.obj` 时写出 COFF .obj；链接用 `link /entry:_main out.obj` 或 `lld-link /entry:_main out.obj`。
 - 测试：`./tests/run-asm.sh`（含 x86_64 与 arm64 的 .s、.o；macOS 下会检测 Mach-O 并用 ld/clang 链接）。
@@ -186,7 +186,7 @@ AST (typeck 后) --[asm_codegen_ast]--> 汇编文本 (.s) --[as]--> .o --[ld]-->
 ## 九、构建
 
 - Makefile 的 bootstrap-pipeline 已加 `-L src/asm`；pipeline import asm、backend；backend import arch.x86_64、arch.arm64。新架构在 arch/ 新增 .x 并分派即可。
-- **asm_build_list.x**：asm 自举时各模块的编译顺序与 `-L` 库根（LIBROOT）的唯一定义；`scripts/build_shux_asm.sh` 通过 `// LIBROOT:` 与 `// BUILD:` 行读取，后续可将「逐条编译」逻辑迁入 .x（如 driver 调 spawn 执行 shux -backend asm）。
+- **asm_build_list.x**：asm 自举时各模块的编译顺序与 `-L` 库根（LIBROOT）的唯一定义；`scripts/build_xlang_asm.sh` 通过 `// LIBROOT:` 与 `// BUILD:` 行读取，后续可将「逐条编译」逻辑迁入 .x（如 driver 调 spawn 执行 xlang -backend asm）。
 
 ## 十、如何添加新架构（以 riscv64 为例）
 
@@ -203,51 +203,51 @@ AST (typeck 后) --[asm_codegen_ast]--> 汇编文本 (.s) --[as]--> .o --[ld]-->
 
 ## 十一、完全脱离 C 依赖：当前状态与路线图
 
-asm 后端已经实现「AST → 汇编 / .o」，**不经过 C 或 LLVM**。但要达到「完全脱离 C」的目标，需要区分三层：**① 谁在编译 shux 自己**、**② 用户用 shux 编译 .x 时是否还用 C**、**③ 生成的可执行程序运行时是否还用 C 库**。
+asm 后端已经实现「AST → 汇编 / .o」，**不经过 C 或 LLVM**。但要达到「完全脱离 C」的目标，需要区分三层：**① 谁在编译 xlang 自己**、**② 用户用 xlang 编译 .x 时是否还用 C**、**③ 生成的可执行程序运行时是否还用 C 库**。
 
 ### 当前状态（简要）
 
 | 层次 | 是否还依赖 C | 说明 |
 |------|----------------|------|
-| **① 构建 shux** | ✅ 仍依赖 | 当前用 `cc` 编译 main.c、runtime.c、parser.c、codegen.c 等得到 shux；自举时 pipeline 产出 C（pipeline_gen.c）再与 C 对象链接。 |
-| **② 用户 `shux -o out file.x`（默认）** | ✅ 仍依赖 | 默认走 codegen 出 C → 调 `cc` 得到可执行文件。 |
-| **② 用户 `shux -backend asm -o out.o file.x`** | ❌ 不依赖 C 编译器 | 直接出 .s 或 .o，**不生成 C、不调用 cc**；若要可执行文件需**手动** `ld -e _main -o out out.o`（或 macOS/Windows 下对应链接命令）。 |
-| **③ 生成程序的运行时** | ✅ 可脱离 libc（Linux） | asm 后端改为 `call shux_panic_`，链接时加 `runtime_panic.o`（Linux 为 .s 仅 syscall exit，不链 libc；macOS 等用 .c 调 abort 链 -lSystem）。 |
+| **① 构建 xlang** | ✅ 仍依赖 | 当前用 `cc` 编译 main.c、runtime.c、parser.c、codegen.c 等得到 xlang；自举时 pipeline 产出 C（pipeline_gen.c）再与 C 对象链接。 |
+| **② 用户 `xlang -o out file.x`（默认）** | ✅ 仍依赖 | 默认走 codegen 出 C → 调 `cc` 得到可执行文件。 |
+| **② 用户 `xlang -backend asm -o out.o file.x`** | ❌ 不依赖 C 编译器 | 直接出 .s 或 .o，**不生成 C、不调用 cc**；若要可执行文件需**手动** `ld -e _main -o out out.o`（或 macOS/Windows 下对应链接命令）。 |
+| **③ 生成程序的运行时** | ✅ 可脱离 libc（Linux） | asm 后端改为 `call xlang_panic_`，链接时加 `runtime_panic.o`（Linux 为 .s 仅 syscall exit，不链 libc；macOS 等用 .c 调 abort 链 -lSystem）。 |
 
-因此：**只要使用 `-backend asm` 且只产出 .o/.s，编译用户代码这一步已经可以不依赖 C 编译器**；尚未脱离的是「构建 shux 自己」和「生成程序对 libc 的依赖」。
+因此：**只要使用 `-backend asm` 且只产出 .o/.s，编译用户代码这一步已经可以不依赖 C 编译器**；尚未脱离的是「构建 xlang 自己」和「生成程序对 libc 的依赖」。
 
 ### 完全脱离 C 需要满足的条件（按目标拆分）
 
-- **目标 A：用户用 shux 编译 .x 时不再调用 C 编译器**
-  - **已满足**：使用 `shux -backend asm -o out.o file.x`，不再生成 C、不调用 cc。
+- **目标 A：用户用 xlang 编译 .x 时不再调用 C 编译器**
+  - **已满足**：使用 `xlang -backend asm -o out.o file.x`，不再生成 C、不调用 cc。
   - **未满足**：若希望「一条命令直接得到可执行文件」且不用 cc，需要 driver 在 asm 产出 .o 后**自动调用系统链接器 `ld`**（或提供 `-o out` 且 `-backend asm` 时内部调 ld），并约定是否链接 libc（见目标 C）。
 
-- **目标 B：构建 shux 本身不再依赖 C 编译器**
-  - **未满足**：当前 shux 由 C 源码（main.c、runtime.c、parser.c、typeck.c、codegen.c 等）编译而成；自举路径仍通过 .x → -E 展开成 C（pipeline_gen.c 等）再与 C 对象文件链接。
+- **目标 B：构建 xlang 本身不再依赖 C 编译器**
+  - **未满足**：当前 xlang 由 C 源码（main.c、runtime.c、parser.c、typeck.c、codegen.c 等）编译而成；自举路径仍通过 .x → -E 展开成 C（pipeline_gen.c 等）再与 C 对象文件链接。
   - **条件**：  
-    1. 编译器前端（lexer/parser/typeck）与 pipeline 已用 .x 实现并可被当前 shux 编译（✅ 已有）；  
-    2. **用 asm 后端编译「编译器 .x 源码」**：即用 `shux -backend asm` 为 compiler 的 .x 模块产出 .o，而不是先展开成 C 再交给 cc；  
-    3. 用**系统 ld**（或自研链接器）把上述 .o 与**仅含启动/运行时的最小 C 桩**（或将来用 .x 写的 crt0）链接成 shux 可执行文件；  
-    4. 若进一步去掉「用 C 写 shux 的 main/runtime 等」，则需在 .x 中实现 driver（读文件、解析 argv、调 pipeline、写 -o、调 ld 等），并由 asm 产出该可执行文件，此时**构建 shux 仅需：已有 shux + 系统 ld**，不再需要 cc。
+    1. 编译器前端（lexer/parser/typeck）与 pipeline 已用 .x 实现并可被当前 xlang 编译（✅ 已有）；  
+    2. **用 asm 后端编译「编译器 .x 源码」**：即用 `xlang -backend asm` 为 compiler 的 .x 模块产出 .o，而不是先展开成 C 再交给 cc；  
+    3. 用**系统 ld**（或自研链接器）把上述 .o 与**仅含启动/运行时的最小 C 桩**（或将来用 .x 写的 crt0）链接成 xlang 可执行文件；  
+    4. 若进一步去掉「用 C 写 xlang 的 main/runtime 等」，则需在 .x 中实现 driver（读文件、解析 argv、调 pipeline、写 -o、调 ld 等），并由 asm 产出该可执行文件，此时**构建 xlang 仅需：已有 xlang + 系统 ld**，不再需要 cc。
 
 - **目标 C：生成的可执行程序不再依赖 libc（freestanding）**  
-  - **已部分满足**：asm 中 `EXPR_PANIC` 已改为 `call shux_panic_`；链接时加 `runtime_panic.o`（Linux 为 .s 仅 syscall exit，可不链 libc）。  
+  - **已部分满足**：asm 中 `EXPR_PANIC` 已改为 `call xlang_panic_`；链接时加 `runtime_panic.o`（Linux 为 .s 仅 syscall exit，可不链 libc）。  
   - **可进一步**：若需 print/alloc 等，用 .x 实现并随程序编成 .o；入口、栈、crt0 等由自有 runtime 提供。
 
 ### 建议达成顺序（与「完全脱离 C」直接相关）
 
 1. **可选、体验改进**：在 driver 中为 `-backend asm -o out`（out 为可执行文件名）增加「产出 .o 后自动调用 ld」的逻辑，这样用户一条命令得到可执行文件，且仍可不依赖 cc。  
-2. **构建 shux 脱离 cc（核心）**：用 `-backend asm` 为 pipeline、parser、typeck、codegen、driver 等 .x 产出 .o，用 ld 与最少 C 桩（或后续 .x crt0）链接成 shux；去掉「pipeline_gen.c + cc」的构建路径。  
+2. **构建 xlang 脱离 cc（核心）**：用 `-backend asm` 为 pipeline、parser、typeck、codegen、driver 等 .x 产出 .o，用 ld 与最少 C 桩（或后续 .x crt0）链接成 xlang；去掉「pipeline_gen.c + cc」的构建路径。  
 3. **运行时脱离 libc（可选）**：asm 中 panic 改为调自有 runtime；提供最小 .x runtime（或 crt0），链接时不依赖 libc，达成 freestanding 可执行文件。
 
-总结：**已经自己写汇编后端且用 `-backend asm` 时，编译用户代码可以完全不依赖 C 编译器**；要「完全脱离 C」还需要：**用 asm 后端构建 shux 自身**（替代当前 C 编译 + -E 生成 C 再 cc 的链路），以及可选地**去掉生成程序对 libc 的依赖**（panic/runtime 自实现）。
+总结：**已经自己写汇编后端且用 `-backend asm` 时，编译用户代码可以完全不依赖 C 编译器**；要「完全脱离 C」还需要：**用 asm 后端构建 xlang 自身**（替代当前 C 编译 + -E 生成 C 再 cc 的链路），以及可选地**去掉生成程序对 libc 的依赖**（panic/runtime 自实现）。
 
-### Goal 2 实现计划（用 asm 后端构建 shux，脱离 cc）
+### Goal 2 实现计划（用 asm 后端构建 xlang，脱离 cc）
 
-**验收命令、Target B（partial / hybrid / strict）与 `SHUX_ASM_LINK_TOPOLOGY` 以 [docs/SELFHOST.md](../../docs/SELFHOST.md) 为准**（避免与 `scripts/build_shux_asm.sh` 行为漂移）。
+**验收命令、Target B（partial / hybrid / strict）与 `XLANG_ASM_LINK_TOPOLOGY` 以 [docs/SELFHOST.md](../../docs/SELFHOST.md) 为准**（避免与 `scripts/build_xlang_asm.sh` 行为漂移）。
 
-1. **准备宿主 shux**：`make bootstrap-driver` 已可产出带 `-backend asm` 的 shux。pipeline_gen.c 由 `-E` 生成，胶水由 runtime.c 在生成时追加到 stdout，无 Makefile/脚本补丁，问题已从根源修。
-2. **用 asm 产出编译器 .o**：`scripts/build_shux_asm.sh` 按依赖顺序对 token、ast、codegen、typeck、lexer、preprocess、std.fs、asm 子树、parser、pipeline、main 执行 `shux -backend asm -o build_asm/xxx.o xxx.x`；若全部成功则链接 `runtime_asm_build.o + runtime_driver.o + build_asm/*.o` 得到 shux_asm。
-3. **最小 C 桩**：已提供 `src/asm/runtime_asm_build.c`，仅含 `main()` 转调 `entry(argc, argv)`。`make bootstrap-asm` 会生成 `runtime_asm_build.o` 与依赖的 `runtime_driver.o`；完整 asm 自举：`make bootstrap-asm-full`（内部调 build_shux_asm.sh）。
+1. **准备宿主 xlang**：`make bootstrap-driver` 已可产出带 `-backend asm` 的 xlang。pipeline_gen.c 由 `-E` 生成，胶水由 runtime.c 在生成时追加到 stdout，无 Makefile/脚本补丁，问题已从根源修。
+2. **用 asm 产出编译器 .o**：`scripts/build_xlang_asm.sh` 按依赖顺序对 token、ast、codegen、typeck、lexer、preprocess、std.fs、asm 子树、parser、pipeline、main 执行 `xlang -backend asm -o build_asm/xxx.o xxx.x`；若全部成功则链接 `runtime_asm_build.o + runtime_driver.o + build_asm/*.o` 得到 xlang_asm。
+3. **最小 C 桩**：已提供 `src/asm/runtime_asm_build.c`，仅含 `main()` 转调 `entry(argc, argv)`。`make bootstrap-asm` 会生成 `runtime_asm_build.o` 与依赖的 `runtime_driver.o`；完整 asm 自举：`make bootstrap-asm-full`（内部调 build_xlang_asm.sh）。
 4. **替换构建链路**：当前仍以「-E 生成 pipeline_gen.c + cc 编 pipeline_x.o」为主；asm 路径为可选，通过 `bootstrap-asm-full` 尝试。
-5. **验收**：新 shux（或 shux_asm）能通过 `../tests/run-all.sh`，且可再次用 `-backend asm` 编自身 .x 即自举闭环。
+5. **验收**：新 xlang（或 xlang_asm）能通过 `../tests/run-all.sh`，且可再次用 `-backend asm` 编自身 .x 即自举闭环。

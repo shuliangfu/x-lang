@@ -10,8 +10,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-MATRIX="${SHUX_COMP_PARSER_MEGA7_TSV:-tests/baseline/comp-parser-mega7-matrix.tsv}"
-MEGA_BISECT="${SHUX_PARSER_MEGA_BISECT_BASELINE:-tests/baseline/parser-mega-bisect.tsv}"
+MATRIX="${XLANG_COMP_PARSER_MEGA7_TSV:-tests/baseline/comp-parser-mega7-matrix.tsv}"
+MEGA_BISECT="${XLANG_PARSER_MEGA_BISECT_BASELINE:-tests/baseline/parser-mega-bisect.tsv}"
 PARSER_X="compiler/src/parser/parser.x"
 MIN_PHASE_A=2
 MIN_MEGA7=7

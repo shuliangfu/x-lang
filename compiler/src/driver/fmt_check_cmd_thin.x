@@ -10,7 +10,7 @@
 //   try_walk_if_product_subdir + path_resolve_abs +
 // See implementation.
 // See implementation.
-//     check_init_user_lib_flags pure（G.7 shux_ptr_slot_get + lib_bufs_reset Cap）；
+//     check_init_user_lib_flags pure（G.7 xlang_ptr_slot_get + lib_bufs_reset Cap）；
 // See implementation.
 // See implementation.
 // See implementation.
@@ -57,7 +57,7 @@
 //     walk_dir_collect_impl（ALWAYS residual 1→0；fmt_check Cap residual pure done）。
 //   + wave rest C leaf：path_bss_slot pure（2×512 flat BSS + slot accessor）；
 // See implementation.
-// PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
+// PREFER_X_O：thin.o + seed-rest（-DXLANG_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // Prove IDENTICAL：seeds/fmt_check_cmd_thin_surface.from_x.c
 // Cap residual pure：fmt_check ALWAYS residual 0 + path_bss pure（hybrid rest T=0）
@@ -72,7 +72,10 @@
 //
 
 export extern "C" function strstr(hay: *u8, needle: *u8): *u8;
-export extern "C" function getenv(name: *u8): *u8;
+/* wave234 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED — product hybrid fmt_check thin → seed rest uses same face. */
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 export extern "C" function getcwd(buf: *u8, size: i32): *u8;
 export extern "C" function strcmp(a: *u8, b: *u8): i32;
 export extern "C" function strncmp(a: *u8, b: *u8, n: i32): i32;
@@ -97,8 +100,8 @@ export extern "C" function driver_fmt_one_file(path: *u8, path_len: i32): i32;
 export extern "C" function driver_fmt_check_only_set(v: i32): void;
 export extern "C" function driver_fmt_check_only_get(): i32;
 // G.7: load/store argv[i] / char** slot (pipeline authority pair).
-export extern "C" function shux_ptr_slot_get(arr: *u8, i: i32): *u8;
-export extern "C" function shux_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
+export extern "C" function xlang_ptr_slot_get(arr: *u8, i: i32): *u8;
+export extern "C" function xlang_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
 
 // ---- Cap residual pure: collect_mode + user_passed_L + file_list/ignore/lib_bufs n ----
 // DRIVER_COLLECT_MODE_FMT=1, DRIVER_COLLECT_MODE_CHECK=2 (match seed enum).
@@ -149,8 +152,8 @@ let g_fmt_lit_note: u8[5] = [110, 111, 116, 101, 0];
 let g_fmt_lit_info: u8[5] = [105, 110, 102, 111, 0];
 let g_fmt_lit_needs_formatting: u8[18] = [110, 101, 101, 100, 115, 32, 102, 111, 114, 109, 97, 116, 116, 105, 110, 103, 0];
 let g_fmt_lit_found_not_formatted: u8[26] = [102, 111, 117, 110, 100, 32, 110, 111, 116, 32, 102, 111, 114, 109, 97, 116, 116, 101, 100, 32, 102, 105, 108, 101, 115, 0];
-let g_fmt_lit_run_shux_fmt: u8[37] = [114, 117, 110, 32, 96, 115, 104, 117, 120, 32, 102, 109, 116, 96, 32, 116, 111, 32, 102, 111, 114, 109, 97, 116, 32, 116, 104, 101, 115, 101, 32, 102, 105, 108, 101, 115, 0];
-let g_fmt_lit_fmt_verbose_env: u8[17] = [83, 72, 85, 88, 95, 70, 77, 84, 95, 86, 69, 82, 66, 79, 83, 69, 0];
+let g_fmt_lit_run_xlang_fmt: u8[38] = [114, 117, 110, 32, 96, 120, 108, 97, 110, 103, 32, 102, 109, 116, 96, 32, 116, 111, 32, 102, 111, 114, 109, 97, 116, 32, 116, 104, 101, 115, 101, 32, 102, 105, 108, 101, 115, 0];
+let g_fmt_lit_fmt_verbose_env: u8[18] = [88, 76, 65, 78, 71, 95, 70, 77, 84, 95, 86, 69, 82, 66, 79, 83, 69, 0];
 let g_fmt_lit_formatted_files: u8[17] = [70, 111, 114, 109, 97, 116, 116, 101, 100, 32, 102, 105, 108, 101, 115, 0];
 
 let g_fmt_builtin_ignore_0: u8[8] = [47, 46, 103, 105, 116, 47, 0, 0];
@@ -231,14 +234,14 @@ export function check_one_need_fallback_diag(rc: i32, nd: i32, nd_errors: i32, n
   return 1;
 }
 
-// shux_path_is_absolute: see function docblock below.
-/** Exported function `shux_path_is_absolute`.
- * Implements `shux_path_is_absolute`.
+// xlang_path_is_absolute: see function docblock below.
+/** Exported function `xlang_path_is_absolute`.
+ * Implements `xlang_path_is_absolute`.
  * @param path *u8
  * @return i32
  */
 #[no_mangle]
-export function shux_path_is_absolute(path: *u8): i32 {
+export function xlang_path_is_absolute(path: *u8): i32 {
   if (path == 0 as *u8) {
     return 0;
   }
@@ -439,7 +442,7 @@ export function fmt_path_resolve_abs(path: *u8): *u8 {
     if (buf == 0 as *u8) {
       return 0 as *u8;
     }
-    if (shux_path_is_absolute(path) != 0) {
+    if (xlang_path_is_absolute(path) != 0) {
       let i: i32 = 0;
       while (i < 511) {
         let c: u8 = path[i];
@@ -764,20 +767,23 @@ export function fmt_check_lib_buf_store(i: i32, path: *u8): i32 {
 // G.7: *u8 FFI wrappers (static inline in g05/prove prologue + surface pin) avoid
 // DIR* vs uint8_t* redecl errors under Ubuntu -Wall (do not call libc opendir bare).
 // readdir_name returns d_name only (valid until next readdir/closedir; no dirent layout).
-export extern "C" function shux_fmt_opendir(name: *u8): *u8;
-export extern "C" function shux_fmt_closedir(dirp: *u8): i32;
-export extern "C" function shux_fmt_access(path: *u8, mode: i32): i32;
-export extern "C" function shux_fmt_readdir_name(dirp: *u8): *u8;
+export extern "C" function xlang_fmt_opendir(name: *u8): *u8;
+export extern "C" function xlang_fmt_closedir(dirp: *u8): i32;
+export extern "C" function xlang_fmt_access(path: *u8, mode: i32): i32;
+export extern "C" function xlang_fmt_readdir_name(dirp: *u8): *u8;
 
-// pure：SHUX_LINT_CI_FAIL_ON=warn|warning
-/** Exported function `check_lint_fail_on_warnings`.
- * Implements `check_lint_fail_on_warnings`.
- * @return i32
+/**
+ * Whether `xlang check` should fail on warning-level diagnostics.
+ * Truthy when XLANG_LINT_CI_FAIL_ON is "warn" or "warning".
+ * wave234 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
+ * @return i32 — 1 if warnings are fatal, 0 otherwise
+ * PLATFORM: SHARED — host residual only link_abi_getenv_impl
  */
 #[no_mangle]
 export function check_lint_fail_on_warnings(): i32 {
   unsafe {
-    let v: *u8 = getenv("SHUX_LINT_CI_FAIL_ON");
+    // wave234 G.7: XLANG_LINT_CI_FAIL_ON via link_abi_getenv (not raw getenv).
+    let v: *u8 = link_abi_getenv("XLANG_LINT_CI_FAIL_ON");
     if (v == 0 as *u8) {
       return 0;
     }
@@ -847,13 +853,13 @@ export function fmt_path_stat_kind(path: *u8): i32 {
     return 0 - 1;
   }
   unsafe {
-    let d: *u8 = shux_fmt_opendir(path);
+    let d: *u8 = xlang_fmt_opendir(path);
     if (d != 0 as *u8) {
-      shux_fmt_closedir(d);
+      xlang_fmt_closedir(d);
       return 1;
     }
     // F_OK = 0: existence only (no read bit required).
-    if (shux_fmt_access(path, 0) == 0) {
+    if (xlang_fmt_access(path, 0) == 0) {
       return 0;
     }
   }
@@ -864,7 +870,7 @@ export function fmt_path_stat_kind(path: *u8): i32 {
 
 /** If dir has both core/ and std/ subdirs, inject -L dir into check_argv (deduped).
  * Pure under PREFER hybrid: early gates + byte-build core/std paths + public
- * fmt_path_stat_kind (pure POSIX probe) + pure lib path slots + G.7 shux_ptr_slot_set.
+ * fmt_path_stat_kind (pure POSIX probe) + pure lib path slots + G.7 xlang_ptr_slot_set.
  * No try_append_impl under hybrid (ALWAYS residual 9→8). PLATFORM: SHARED. */
 #[no_mangle]
 export function check_try_append_lib_root(check_argv: *u8, n: *i32, dir: *u8): void {
@@ -959,15 +965,15 @@ export function check_try_append_lib_root(check_argv: *u8, n: *i32, dir: *u8): v
       return;
     }
     let ni: i32 = n[0];
-    shux_ptr_slot_set(check_argv, ni, &g_fmt_lit_dash_L[0]);
-    shux_ptr_slot_set(check_argv, ni + 1, slot2);
+    xlang_ptr_slot_set(check_argv, ni, &g_fmt_lit_dash_L[0]);
+    xlang_ptr_slot_set(check_argv, ni + 1, slot2);
     n[0] = ni + 2;
     fmt_check_lib_bufs_n_set(nb + 1);
   }
 }
 
 /** Scan argv[path_start..) for "-L"; set user_passed_L and reset lib-buf count.
- * Pure under PREFER hybrid: G.7 shux_ptr_slot_get for argv[i]; byte-eq "-L" (45,76,0).
+ * Pure under PREFER hybrid: G.7 xlang_ptr_slot_get for argv[i]; byte-eq "-L" (45,76,0).
  * lib_bufs n pure (fmt_check_lib_bufs_reset); Cap residual keeps path slots. PLATFORM: SHARED. */
 #[no_mangle]
 export function check_init_user_lib_flags(argc: i32, argv: *u8, path_start: i32): void {
@@ -982,7 +988,7 @@ export function check_init_user_lib_flags(argc: i32, argv: *u8, path_start: i32)
   unsafe {
     let i: i32 = path_start;
     while (i < argc) {
-      let a: *u8 = shux_ptr_slot_get(argv, i);
+      let a: *u8 = xlang_ptr_slot_get(argv, i);
       if (a != 0 as *u8) {
         // ASCII "-L"
         if (a[0] == 45) {
@@ -1052,11 +1058,11 @@ export function driver_check_print_collected_diagnostics(path: *u8): i32 {
 
 /** Run check on one .x path (deno check single-file body).
  * Pure under PREFER hybrid:
- *   1) runtime_read_file_view into 32B stack ABI (ShuxRuntimeFileView layout) +
+ *   1) runtime_read_file_view into 32B stack ABI (XlangRuntimeFileView layout) +
  *      diag_set_file from view data/len (or null/0 on read fail);
  *   2) lsp_diag_collect_begin + driver_check_diag_emitted_reset +
  *      driver_check_set_current_file (pure BSS) + fmt_check_lib_bufs_reset;
- *   3) build check_argv[64] via G.7 shux_ptr_slot_* on 512B stack:
+ *   3) build check_argv[64] via G.7 xlang_ptr_slot_* on 512B stack:
  *      argv[0], inject lit "check" (product X pipeline; cold seed keeps #ifdef),
  *      copy flags from argv[2..] (-L|-I|-o|-backend|-O take value; --fail-fast),
  *      check_argv_append_default_libs_for_path (pure) + path;
@@ -1079,7 +1085,7 @@ export function check_one_file(path: *u8, argc: i32, argv: *u8): i32 {
     return 0 - 1;
   }
   unsafe {
-    // ShuxRuntimeFileView ABI: data@0 length@8 needs_free@16 needs_munmap@20 (24B; pad 32).
+    // XlangRuntimeFileView ABI: data@0 length@8 needs_free@16 needs_munmap@20 (24B; pad 32).
     let view: u8[32] = [];
     let z: i32 = 0;
     while (z < 32) {
@@ -1091,8 +1097,8 @@ export function check_one_file(path: *u8, argc: i32, argv: *u8): i32 {
     let view_len: i64 = 0;
     if (runtime_read_file_view(path, &view[0]) == 0) {
       // Slot 0 = data (*u8); slot 1 = length bit-pattern as size_t on LP64.
-      view_data = shux_ptr_slot_get(&view[0], 0);
-      let len_bits: *u8 = shux_ptr_slot_get(&view[0], 1);
+      view_data = xlang_ptr_slot_get(&view[0], 0);
+      let len_bits: *u8 = xlang_ptr_slot_get(&view[0], 1);
       view_len = len_bits as i64;
       diag_set_file(path, view_data, view_len);
       have_diag_view = 1;
@@ -1107,21 +1113,21 @@ export function check_one_file(path: *u8, argc: i32, argv: *u8): i32 {
     // char* check_argv[64] as 64×8 pointer slots on stack.
     let check_argv: u8[512] = [];
     let n: i32 = 0;
-    let a0: *u8 = shux_ptr_slot_get(argv, 0);
-    shux_ptr_slot_set(&check_argv[0], 0, a0);
+    let a0: *u8 = xlang_ptr_slot_get(argv, 0);
+    xlang_ptr_slot_set(&check_argv[0], 0, a0);
     n = 1;
     // Product path always X pipeline: inject subcommand "check".
-    shux_ptr_slot_set(&check_argv[0], n, &g_fmt_lit_cmd_check[0]);
+    xlang_ptr_slot_set(&check_argv[0], n, &g_fmt_lit_cmd_check[0]);
     n = n + 1;
     let i: i32 = 2;
     while (i < argc) {
       if (n >= 60) {
         break;
       }
-      let ai: *u8 = shux_ptr_slot_get(argv, i);
+      let ai: *u8 = xlang_ptr_slot_get(argv, i);
       if (ai != 0 as *u8) {
         if (ai[0] == 45) {
-          shux_ptr_slot_set(&check_argv[0], n, ai);
+          xlang_ptr_slot_set(&check_argv[0], n, ai);
           n = n + 1;
           // -L / -I / -o / -backend / -O take a following value.
           let take_val: i32 = 0;
@@ -1148,15 +1154,15 @@ export function check_one_file(path: *u8, argc: i32, argv: *u8): i32 {
             if ((i + 1) < argc) {
               if (n < 60) {
                 i = i + 1;
-                let av: *u8 = shux_ptr_slot_get(argv, i);
-                shux_ptr_slot_set(&check_argv[0], n, av);
+                let av: *u8 = xlang_ptr_slot_get(argv, i);
+                xlang_ptr_slot_set(&check_argv[0], n, av);
                 n = n + 1;
               }
             }
           }
         } else {
           if (strcmp(ai, &g_fmt_lit_fail_fast[0]) == 0) {
-            shux_ptr_slot_set(&check_argv[0], n, ai);
+            xlang_ptr_slot_set(&check_argv[0], n, ai);
             n = n + 1;
           }
         }
@@ -1165,7 +1171,7 @@ export function check_one_file(path: *u8, argc: i32, argv: *u8): i32 {
     }
     check_argv_append_default_libs_for_path(path, &check_argv[0], &n);
     if (n < 64) {
-      shux_ptr_slot_set(&check_argv[0], n, path);
+      xlang_ptr_slot_set(&check_argv[0], n, path);
       n = n + 1;
     }
 
@@ -1333,8 +1339,8 @@ export function walk_dir_collect_process_child(child: *u8, is_dir: i32, is_reg: 
  *   1) null dir → return;
  *   2) copy dir into stack dir_buf[512] (alias isolation: resolve_abs may
  *      overwrite caller static/BSS path buffers that pointed at the same bytes);
- *   3) shux_fmt_opendir(dir_buf); if null → return;
- *   4) bounded readdir loop via shux_fmt_readdir_name (d_name only):
+ *   3) xlang_fmt_opendir(dir_buf); if null → return;
+ *   4) bounded readdir loop via xlang_fmt_readdir_name (d_name only):
  *      skip dots → join child path on stack → classify with fmt_path_stat_kind
  *      (1=dir, 0=file/other) → walk_dir_collect_process_child public;
  *   5) closedir.
@@ -1360,7 +1366,7 @@ export function walk_dir_collect(dir: *u8): void {
     }
     dir_buf[511] = 0;
 
-    let d: *u8 = shux_fmt_opendir(&dir_buf[0]);
+    let d: *u8 = xlang_fmt_opendir(&dir_buf[0]);
     if (d == 0 as *u8) {
       return;
     }
@@ -1371,7 +1377,7 @@ export function walk_dir_collect(dir: *u8): void {
     let guard: i32 = 0;
     while (guard < 100000) {
       guard = guard + 1;
-      let name: *u8 = shux_fmt_readdir_name(d);
+      let name: *u8 = xlang_fmt_readdir_name(d);
       if (name == 0 as *u8) {
         break;
       }
@@ -1421,7 +1427,7 @@ export function walk_dir_collect(dir: *u8): void {
       }
       walk_dir_collect_process_child(&child[0], is_dir, is_reg);
     }
-    shux_fmt_closedir(d);
+    xlang_fmt_closedir(d);
   }
 }
 
@@ -1854,7 +1860,7 @@ export function check_append_repo_lib_roots(path: *u8, check_argv: *u8, n: *i32)
  *   4) if path contains "compiler/src/", byte-build cwd+"/compiler/src"
  *      (+ "/asm" when path also has "compiler/src/asm/"), then public
  *      fmt_path_stat_kind (pure POSIX probe) + pure lib path slots +
- *      G.7 shux_ptr_slot_set for "-L" injection (no snprintf / no _impl).
+ *      G.7 xlang_ptr_slot_set for "-L" injection (no snprintf / no _impl).
  * No check_argv_append_default_libs_for_path_impl under hybrid
  * (ALWAYS residual 8→7). PLATFORM: SHARED. */
 #[no_mangle]
@@ -1927,8 +1933,8 @@ export function check_argv_append_default_libs_for_path(path: *u8, check_argv: *
           let slot: *u8 = fmt_check_lib_buf_at(nb);
           if (slot != 0 as *u8) {
             let ni: i32 = n[0];
-            shux_ptr_slot_set(check_argv, ni, &g_fmt_lit_dash_L[0]);
-            shux_ptr_slot_set(check_argv, ni + 1, slot);
+            xlang_ptr_slot_set(check_argv, ni, &g_fmt_lit_dash_L[0]);
+            xlang_ptr_slot_set(check_argv, ni + 1, slot);
             n[0] = ni + 2;
             fmt_check_lib_bufs_n_set(nb + 1);
           }
@@ -1982,8 +1988,8 @@ export function check_argv_append_default_libs_for_path(path: *u8, check_argv: *
           let slot2: *u8 = fmt_check_lib_buf_at(nb2);
           if (slot2 != 0 as *u8) {
             let ni2: i32 = n[0];
-            shux_ptr_slot_set(check_argv, ni2, &g_fmt_lit_dash_L[0]);
-            shux_ptr_slot_set(check_argv, ni2 + 1, slot2);
+            xlang_ptr_slot_set(check_argv, ni2, &g_fmt_lit_dash_L[0]);
+            xlang_ptr_slot_set(check_argv, ni2 + 1, slot2);
             n[0] = ni2 + 2;
             fmt_check_lib_bufs_n_set(nb2 + 1);
           }
@@ -1995,7 +2001,7 @@ export function check_argv_append_default_libs_for_path(path: *u8, check_argv: *
 
 // ---- G-02f-410：fmt + check entry pure under hybrid ----
 
-/** Run `shux fmt` (deno fmt: multi-file/dir; optional --check lists unformatted).
+/** Run `xlang fmt` (deno fmt: multi-file/dir; optional --check lists unformatted).
  * Pure under PREFER hybrid:
  *   1) ignore n=0 + collect mode FMT + file_list_clear (pure);
  *   2) argv scan from 1: --check (set check_only) / --fail-fast / --ignore= /
@@ -2005,7 +2011,7 @@ export function check_argv_append_default_libs_for_path(path: *u8, check_argv: *
  *   5) each path → driver_fmt_one_file (Cap residual one-file body);
  *      on fail in --check: per-file note "needs formatting" (path as diag file);
  *   6) clear check_only + file_list; on --check failures: summary "found not
- *      formatted files" + note "run `shux fmt`…"; optional SHUX_FMT_VERBOSE lit.
+ *      formatted files" + note "run `xlang fmt`…"; optional XLANG_FMT_VERBOSE lit.
  * No varargs diag_reportf; fixed lits satisfy run-fmt-check-cmd greps.
  * No driver_run_fmt_impl under hybrid (ALWAYS residual 4→3).
  * PLATFORM: SHARED — dual-host prove + fmt matrix. */
@@ -2024,7 +2030,7 @@ export function driver_run_fmt(argc: i32, argv: *u8): i32 {
     let i: i32 = 1;
     while (i < argc) {
       if (argv != 0 as *u8) {
-        let a: *u8 = shux_ptr_slot_get(argv, i);
+        let a: *u8 = xlang_ptr_slot_get(argv, i);
         if (a != 0 as *u8) {
           if (strcmp(a, &g_fmt_lit_dash_check[0]) == 0) {
             driver_fmt_check_only_set(1);
@@ -2109,7 +2115,7 @@ export function driver_run_fmt(argc: i32, argv: *u8): i32 {
     if (check_mode != 0) {
       unsafe {
         diag_report_with_code(0 as *u8, 0, 0, &g_fmt_lit_fmt_error[0], &g_fmt_lit_fmt001[0], &g_fmt_lit_found_not_formatted[0], 0 as *u8);
-        diag_report(0 as *u8, 0, 0, &g_fmt_lit_note[0], &g_fmt_lit_run_shux_fmt[0], 0 as *u8);
+        diag_report(0 as *u8, 0, 0, &g_fmt_lit_note[0], &g_fmt_lit_run_xlang_fmt[0], 0 as *u8);
       }
       return 1;
     }
@@ -2118,7 +2124,8 @@ export function driver_run_fmt(argc: i32, argv: *u8): i32 {
   if (check_mode == 0) {
     if (formatted > 0) {
       unsafe {
-        let ev: *u8 = getenv(&g_fmt_lit_fmt_verbose_env[0]);
+        // wave234 G.7: XLANG_FMT_VERBOSE via link_abi_getenv (not raw getenv).
+        let ev: *u8 = link_abi_getenv(&g_fmt_lit_fmt_verbose_env[0]);
         if (ev != 0 as *u8) {
           diag_report(0 as *u8, 0, 0, &g_fmt_lit_info[0], &g_fmt_lit_formatted_files[0], 0 as *u8);
         }
@@ -2128,10 +2135,10 @@ export function driver_run_fmt(argc: i32, argv: *u8): i32 {
   return 0;
 }
 
-/** Run `shux check` (deno check: multi-file/dir; failures print diagnostics).
+/** Run `xlang check` (deno check: multi-file/dir; failures print diagnostics).
  * Pure under PREFER hybrid:
  *   1) collect mode CHECK + file_list_clear (pure);
- *   2) path_start: argv[1]=="check" → 2 else 1 (main.x vs shux-c drop subcmd);
+ *   2) path_start: argv[1]=="check" → 2 else 1 (main.x vs xlang-c drop subcmd);
  *   3) check_init_user_lib_flags (pure) then argv scan:
  *      --fail-fast / --ignore= / -L|-I|-o|-backend|-O (skip value) / other -flags /
  *      path → collect_paths_from_arg (pure orch; Cap residual walk/stat);
@@ -2153,7 +2160,7 @@ export function driver_run_compiler_check(argc: i32, argv: *u8): i32 {
   unsafe {
     if (argc >= 2) {
       if (argv != 0 as *u8) {
-        let a1: *u8 = shux_ptr_slot_get(argv, 1);
+        let a1: *u8 = xlang_ptr_slot_get(argv, 1);
         if (a1 != 0 as *u8) {
           if (strcmp(a1, &g_fmt_lit_cmd_check[0]) == 0) {
             path_start = 2;
@@ -2168,7 +2175,7 @@ export function driver_run_compiler_check(argc: i32, argv: *u8): i32 {
     while (i < argc) {
       let step: i32 = 1;
       if (argv != 0 as *u8) {
-        let a: *u8 = shux_ptr_slot_get(argv, i);
+        let a: *u8 = xlang_ptr_slot_get(argv, i);
         if (a != 0 as *u8) {
           if (strcmp(a, &g_fmt_lit_fail_fast[0]) == 0) {
             fail_fast = 1;

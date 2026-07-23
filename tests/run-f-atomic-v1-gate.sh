@@ -2,7 +2,7 @@
 # F-atomic v1：std.atomic 去 C（atomic.c → atomic.x + seeds/runtime_atomic_glue.from_x.c）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_ATOMIC_V1_FAIL:-0}
+FAIL=${XLANG_F_ATOMIC_V1_FAIL:-0}
 DOC="analysis/phase-f-atomic-v1.md"
 MANIFEST="tests/baseline/f-atomic-v1-closure.tsv"
 die() { echo "f-atomic-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -23,10 +23,10 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
   esac
 done < "$MANIFEST"
 grep -q 'runtime_atomic_glue' compiler/Makefile || die "Makefile missing runtime_atomic_glue"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/atomic/atomic.o >/dev/null 2>&1 || die "make atomic.o failed"
 else
-  echo "f-atomic-v1 SKIP atomic.o build (no shux-c)" >&2
+  echo "f-atomic-v1 SKIP atomic.o build (no xlang-c)" >&2
 fi
 make -C compiler -q runtime_atomic_glue.o 2>/dev/null || make -C compiler runtime_atomic_glue.o >/dev/null 2>&1 || die "runtime_atomic_glue.o build failed"
 for sub in run-std-atomic-ordering-gate.sh run-std-atomic-widen-gate.sh; do

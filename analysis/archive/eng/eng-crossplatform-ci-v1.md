@@ -35,7 +35,7 @@
 |------|------|------|
 | **P** | `run-portable-suite.sh`（同一套 .x） | **全平台** |
 | **B** | IO unified perf、DOD、ZC-2..5、async、dogfood | 全平台（硬门禁强度因平台而异） |
-| **A** | `build_shux_asm` / `bootstrap-bstrict-ci` | Linux x86_64 全量；ARM64/Windows lite |
+| **A** | `build_xlang_asm` / `bootstrap-bstrict-ci` | Linux x86_64 全量；ARM64/Windows lite |
 
 lite 平台（ARM64 / Windows MSYS2）：Tier P + Tier B 实跑；Tier A 由 `ubuntu-latest` 承担。
 
@@ -65,7 +65,7 @@ lite 平台（ARM64 / Windows MSYS2）：Tier P + Tier B 实跑；Tier A 由 `ub
 CI=1 ./tests/run-ci-full-suite.sh
 
 # Docker 本地
-SHUX_CI_DOCKER=1 ./scripts/docker-ci-local.sh
+XLANG_CI_DOCKER=1 ./scripts/docker-ci-local.sh
 ```
 
 ---

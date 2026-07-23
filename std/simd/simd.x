@@ -29,8 +29,8 @@ export const SIMD_PATH_SCALAR: i32 = 0;
 export const SIMD_PATH_HW: i32 = 1;
 
 /* See implementation. */
-export const SIM_LIT_SHUX_SIMD_AUTOVEC: u8[18] = [83, 72, 85, 88, 95, 83, 73, 77, 68, 95, 65, 85, 84, 111, 118, 101, 99, 0];
-export const SIM_LIT_SHUX_SIMD_HW: u8[13] = [83, 72, 85, 88, 95, 83, 73, 77, 68, 95, 72, 87, 0];
+export const SIM_LIT_XLANG_SIMD_AUTOVEC: u8[19] = [88, 76, 65, 78, 71, 95, 83, 73, 77, 68, 95, 65, 85, 84, 111, 118, 101, 99, 0];
+export const SIM_LIT_XLANG_SIMD_HW: u8[14] = [88, 76, 65, 78, 71, 95, 83, 73, 77, 68, 95, 72, 87, 0];
 
 /** Exported function `simd_str_eq`.
  * Implements `simd_str_eq`.
@@ -63,9 +63,9 @@ export function simd_env_force_scalar(): i32 {
   let aut: *u8 = 0;
   let lit0: u8[2] = [48, 0];
   let lit_scalar: u8[7] = [115, 99, 97, 108, 97, 114, 0];
-  unsafe { hw = getenv(&SIM_LIT_SHUX_SIMD_HW[0]); }
+  unsafe { hw = getenv(&SIM_LIT_XLANG_SIMD_HW[0]); }
   if (hw != 0 && hw[0] == 48 && hw[1] == 0) { return 1; }
-  unsafe { aut = getenv(&SIM_LIT_SHUX_SIMD_AUTOVEC[0]); }
+  unsafe { aut = getenv(&SIM_LIT_XLANG_SIMD_AUTOVEC[0]); }
   if (aut == 0) { return 0; }
   if (simd_str_eq(aut, &lit_scalar[0]) != 0) { return 1; }
   if (simd_str_eq(aut, &lit0[0]) != 0) { return 1; }
@@ -80,7 +80,7 @@ export function simd_env_force_hw(): i32 {
   let aut: *u8 = 0;
   let lit_hw: u8[3] = [104, 119, 0];
   let lit1: u8[2] = [49, 0];
-  unsafe { aut = getenv(&SIM_LIT_SHUX_SIMD_AUTOVEC[0]); }
+  unsafe { aut = getenv(&SIM_LIT_XLANG_SIMD_AUTOVEC[0]); }
   if (aut == 0) { return 0; }
   if (simd_str_eq(aut, &lit_hw[0]) != 0) { return 1; }
   if (simd_str_eq(aut, &lit1[0]) != 0) { return 1; }
@@ -128,8 +128,8 @@ export function simd_autovec_smoke_c(): i32 {
   hw = simd_hw_available_c();
   path = simd_recommend_path_c();
   if (hw != 0 && path == SIMD_PATH_SCALAR && simd_env_force_scalar() == 0) {
-    unsafe { hw_env = getenv(&SIM_LIT_SHUX_SIMD_HW[0]); }
-    unsafe { aut_env = getenv(&SIM_LIT_SHUX_SIMD_AUTOVEC[0]); }
+    unsafe { hw_env = getenv(&SIM_LIT_XLANG_SIMD_HW[0]); }
+    unsafe { aut_env = getenv(&SIM_LIT_XLANG_SIMD_AUTOVEC[0]); }
     if (hw_env == 0 && aut_env == 0) { return 1; }
   }
   if (hw == 0 && path != SIMD_PATH_SCALAR) { return 2; }

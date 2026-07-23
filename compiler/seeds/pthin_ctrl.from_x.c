@@ -1,6 +1,6 @@
 /* seeds/pthin_ctrl.from_x.c — G-02f-286 P2 parser thin P5 ctrl
  * Logic source: src/asm/pthin_ctrl.x
- * Hybrid: SHUX_PTHIN_CTRL_FROM_X + ld -r into parser_asm_thin_glue.o
+ * Hybrid: XLANG_PTHIN_CTRL_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Bodies: if_stmt + match_subject + if_expr slice.inc（顺序同 mega）
  */

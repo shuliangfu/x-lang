@@ -1,31 +1,31 @@
 #!/usr/bin/env bash
 # C-04 v0/v1：-E-extern 入口按 import 自动生成 extern（lsp_io / lsp_gen 烟测）。
 # 用法：./tests/run-e-extern-import-gate.sh
-# 环境：SHUX_E_EXTERN_IMPORT_FAIL=1 失败时硬退出
+# 环境：XLANG_E_EXTERN_IMPORT_FAIL=1 失败时硬退出
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT/compiler"
 
-FAIL=${SHUX_E_EXTERN_IMPORT_FAIL:-0}
-SHUX="${SHUX:-./shux-c}"
+FAIL=${XLANG_E_EXTERN_IMPORT_FAIL:-0}
+XLANG="${XLANG:-./xlang-c}"
 LSP_DIRS="-L .. -L src/lsp -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen"
 
-if [ ! -x "$SHUX" ]; then
-  SHUX="./shux"
+if [ ! -x "$XLANG" ]; then
+  XLANG="./xlang"
 fi
-if [ ! -x "$SHUX" ]; then
-  echo "e-extern-import-gate: SKIP (no shux/shux-c)"
+if [ ! -x "$XLANG" ]; then
+  echo "e-extern-import-gate: SKIP (no xlang/xlang-c)"
   exit 0
 fi
 
 # --- lsp_io.x ---
-GEN_IO="/tmp/shux_lsp_io_gen_$$.c"
-OBJ_IO="/tmp/shux_lsp_io_gen_$$.o"
+GEN_IO="/tmp/xlang_lsp_io_gen_$$.c"
+OBJ_IO="/tmp/xlang_lsp_io_gen_$$.o"
 rm -f "$GEN_IO" "$OBJ_IO" 2>/dev/null || true
 
-if ! "$SHUX" $LSP_DIRS src/lsp/lsp_io.x -E -E-extern >"$GEN_IO" 2>/tmp/shux_e_extern_io.log; then
+if ! "$XLANG" $LSP_DIRS src/lsp/lsp_io.x -E -E-extern >"$GEN_IO" 2>/tmp/xlang_e_extern_io.log; then
   echo "e-extern-import-gate FAIL: -E-extern lsp_io.x" >&2
-  tail -n 10 /tmp/shux_e_extern_io.log 2>/dev/null || true
+  tail -n 10 /tmp/xlang_e_extern_io.log 2>/dev/null || true
   rm -f "$GEN_IO" 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1
   exit 0
@@ -49,9 +49,9 @@ if grep -q '^extern void std_heap_free' "$GEN_IO"; then
   [ "$FAIL" = "1" ] && exit 1
   exit 0
 fi
-if ! cc -c -I. -Dstd_io_read=io_read -Dstd_io_write=io_write -o "$OBJ_IO" "$GEN_IO" 2>/tmp/shux_e_extern_io_cc.log; then
+if ! cc -c -I. -Dstd_io_read=io_read -Dstd_io_write=io_write -o "$OBJ_IO" "$GEN_IO" 2>/tmp/xlang_e_extern_io_cc.log; then
   echo "e-extern-import-gate FAIL: cc -c lsp_io_gen" >&2
-  tail -n 10 /tmp/shux_e_extern_io_cc.log 2>/dev/null || true
+  tail -n 10 /tmp/xlang_e_extern_io_cc.log 2>/dev/null || true
   rm -f "$GEN_IO" "$OBJ_IO" 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1
   exit 0
@@ -59,13 +59,13 @@ fi
 rm -f "$GEN_IO" "$OBJ_IO" 2>/dev/null || true
 
 # --- lsp.x (C-04 v1：lsp_io import 自动 typeck extern + inline wrapper) ---
-GEN_LSP="/tmp/shux_lsp_gen_$$.c"
-OBJ_LSP="/tmp/shux_lsp_gen_$$.o"
+GEN_LSP="/tmp/xlang_lsp_gen_$$.c"
+OBJ_LSP="/tmp/xlang_lsp_gen_$$.o"
 rm -f "$GEN_LSP" "$OBJ_LSP" 2>/dev/null || true
 
-if ! "$SHUX" $LSP_DIRS src/lsp/lsp.x -E -E-extern >"$GEN_LSP" 2>/tmp/shux_e_extern_lsp.log; then
+if ! "$XLANG" $LSP_DIRS src/lsp/lsp.x -E -E-extern >"$GEN_LSP" 2>/tmp/xlang_e_extern_lsp.log; then
   echo "e-extern-import-gate FAIL: -E-extern lsp.x" >&2
-  tail -n 10 /tmp/shux_e_extern_lsp.log 2>/dev/null || true
+  tail -n 10 /tmp/xlang_e_extern_lsp.log 2>/dev/null || true
   rm -f "$GEN_LSP" 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1
   exit 0
@@ -95,9 +95,9 @@ if grep -q '^extern ptrdiff_t lsp_io_read_message' "$GEN_LSP"; then
   [ "$FAIL" = "1" ] && exit 1
   exit 0
 fi
-if ! cc -c -I. -o "$OBJ_LSP" "$GEN_LSP" 2>/tmp/shux_e_extern_lsp_cc.log; then
+if ! cc -c -I. -o "$OBJ_LSP" "$GEN_LSP" 2>/tmp/xlang_e_extern_lsp_cc.log; then
   echo "e-extern-import-gate FAIL: cc -c lsp_gen" >&2
-  tail -n 10 /tmp/shux_e_extern_lsp_cc.log 2>/dev/null || true
+  tail -n 10 /tmp/xlang_e_extern_lsp_cc.log 2>/dev/null || true
   rm -f "$GEN_LSP" "$OBJ_LSP" 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1
   exit 0

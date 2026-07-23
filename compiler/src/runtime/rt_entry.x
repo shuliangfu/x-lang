@@ -9,8 +9,12 @@
 // Runtime entry helpers (explain/smoke/fmt/build); G.9 English; body authoritative.
 
 export extern "C" function diag_json_enabled(): i32;
-export extern "C" function getenv(name: *u8): *u8;
-export extern "C" function system(cmd: *u8): i32;
+/* wave227 G.7: env lookup via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl. */
+export extern "C" function link_abi_getenv(name: *u8): *u8;
+/* wave226 G.7: shell make via public pure thin link_abi_system (wave224 → _impl host system);
+ * not raw libc system. Cap residual host system stays only link_abi_system_impl. */
+export extern "C" function link_abi_system(cmd: *u8): i32;
 export extern "C" function strcmp(a: *u8, b: *u8): i32;
 export extern "C" function write(fd: i32, buf: *u8, n: usize): isize;
 export extern "C" function driver_get_argv_i(argc: i32, argv: **u8, i: i32, buf: *u8, max: i32): i32;
@@ -289,7 +293,7 @@ function rt_entry_explain_usage_err(): i32 {
   kind = "usage error";
   dcode = "ARG001";
   msg[0] = 0;
-  rt_entry_append(msg, 256, "--explain requires a diagnostic code (example: shux --explain P001; use --list to see all)");
+  rt_entry_append(msg, 256, "--explain requires a diagnostic code (example: xlang --explain P001; use --list to see all)");
   unsafe {
     diag_report_with_code(0 as *u8, 0, 0, kind, dcode, msg, 0 as *u8);
   }
@@ -355,7 +359,7 @@ function rt_entry_explain_unknown(code: *u8): i32 {
     }
   }
   msg[0] = 0;
-  rt_entry_append(msg, 256, "use `shux --explain P001` or `shux explain P001`; use `--list` to see all codes");
+  rt_entry_append(msg, 256, "use `xlang --explain P001` or `xlang explain P001`; use `--list` to see all codes");
   kind = "note";
   unsafe {
     diag_report_with_code(0 as *u8, 0, 0, kind, 0 as *u8, msg, 0 as *u8);
@@ -472,18 +476,22 @@ export function runtime_try_handle_explain_cli(argc: i32, argv: **u8): i32 {
   return rt_entry_explain_known(code);
 }
 
-/** Exported function `shux_smoke_diag_enabled`.
- * Implements `shux_smoke_diag_enabled`.
- * @return i32
+/**
+ * Whether smoke diagnostic emission is enabled.
+ * True when diag JSON mode is on, or XLANG_SMOKE_DIAG is set to a non-empty value
+ * other than ASCII "0".
+ * @return i32 — 1 enabled, 0 disabled
+ * wave227 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
+ * PLATFORM: SHARED — process env; host residual only link_abi_getenv_impl.
  */
 #[no_mangle]
-export function shux_smoke_diag_enabled(): i32 {
+export function xlang_smoke_diag_enabled(): i32 {
   let e: *u8 = 0 as *u8;
   unsafe {
     if (diag_json_enabled() != 0) {
       return 1;
     }
-    e = getenv("SHUX_SMOKE_DIAG");
+    e = link_abi_getenv("XLANG_SMOKE_DIAG");
   }
   if (e == 0 as *u8) {
     return 0;
@@ -593,7 +601,7 @@ export function driver_emit_legacy_smoke_summary_stdout(
     name = "?";
   }
   rt_entry_smoke_write_body(name, main_final_lit, has_main_body);
-  if (shux_smoke_diag_enabled() == 0) {
+  if (xlang_smoke_diag_enabled() == 0) {
     return;
   }
   rt_entry_smoke_diag_body(name, main_final_lit, has_main_body);
@@ -638,7 +646,8 @@ export function driver_build_build_x(): i32 {
   let dcode: *u8 = 0 as *u8;
   unsafe {
     msg = driver_entry_msg_slot();
-    rc = system("cd compiler && make -s build-tool 2>&1");
+    // wave226 G.7: public pure thin link_abi_system (not raw libc system).
+    rc = link_abi_system("cd compiler && make -s build-tool 2>&1");
   }
   if (rc != 0) {
     kind = "build error";
@@ -655,7 +664,8 @@ export function driver_build_build_x(): i32 {
     return 1;
   }
   unsafe {
-    rc = system("cd compiler && ./build_tool ./shux 2>&1");
+    // wave226 G.7: public pure thin link_abi_system (not raw libc system).
+    rc = link_abi_system("cd compiler && ./build_tool ./xlang 2>&1");
   }
   if (rc != 0) {
     kind = "build error";

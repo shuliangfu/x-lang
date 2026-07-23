@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_DOC08_DOC:-analysis/doc-phase2-close-v1.md}"
-MANIFEST="${SHUX_DOC08_TSV:-tests/baseline/doc-phase2-close.tsv}"
+DOC="${XLANG_DOC08_DOC:-analysis/doc-phase2-close-v1.md}"
+MANIFEST="${XLANG_DOC08_TSV:-tests/baseline/doc-phase2-close.tsv}"
 COOKBOOK="examples/cookbook/http_chunked_decode.x"
 MIN_ANCHORS=6
 
@@ -46,7 +46,7 @@ ANCHORS_OK=1
 COOKBOOK_OK=0
 SKIP=0
 
-stdlib_cm_native_shu() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -58,26 +58,26 @@ stdlib_cm_native_shu() {
   esac
 }
 
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 else
-  SHUX_BIN=""
+  XLANG_BIN=""
 fi
 
-if [ -n "$SHUX_BIN" ]; then
+if [ -n "$XLANG_BIN" ]; then
   echo "=== DOC-008: cookbook HTTP-02 typeck ==="
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$COOKBOOK" >/dev/null 2>&1; then
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  if ! "$XLANG_BIN" check -L . "$COOKBOOK" >/dev/null 2>&1; then
     echo "doc-phase2-close gate FAIL: typeck $COOKBOOK" >&2
-    "$SHUX_BIN" check -L . "$COOKBOOK" 2>&1 | tail -8 >&2 || true
+    "$XLANG_BIN" check -L . "$COOKBOOK" 2>&1 | tail -8 >&2 || true
     doc_phase2_close_emit_report "fail" "$ANCHORS_OK" 0 0
     exit 1
   fi
   COOKBOOK_OK=1
 else
-  echo "doc-phase2-close gate SKIP typeck (no native shux)" >&2
+  echo "doc-phase2-close gate SKIP typeck (no native xlang)" >&2
   SKIP=1
 fi
 

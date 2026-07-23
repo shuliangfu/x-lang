@@ -61,7 +61,7 @@
 - manifest：`tests/baseline/std-env-iter.tsv`
 - 烟测：`tests/env/env_iter.x`
 - 回归：`tests/run-env.sh`
-- 报告：`shux: [SHUX_STD_ENV_ITER] status=ok`
+- 报告：`xlang: [XLANG_STD_ENV_ITER] status=ok`
 
 ---
 

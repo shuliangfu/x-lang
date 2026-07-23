@@ -1,4 +1,4 @@
-# C-07 前端 parity 矩阵（shux-c REF vs shux/shux_asm CAND）
+# C-07 前端 parity 矩阵（xlang-c REF vs xlang/xlang_asm CAND）
 # 列：case_id<TAB>src<TAB>policy<TAB>expect_run_exit<TAB>notes
 # policy: typeck_ok | compile_fail | run（run 需完整链接环境，默认 CI 用 typeck_ok）
 minimal_ret42	tests/c07/minimal_return42.x	typeck_ok	42	return 42

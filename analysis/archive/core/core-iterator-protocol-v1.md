@@ -48,9 +48,9 @@
 ## 5. 验收
 
 - manifest：`tests/baseline/core-iterator-protocol.tsv`
-- typeck：`shux check tests/iterator/main.x`
+- typeck：`xlang check tests/iterator/main.x`
 - Cookbook typeck：gate 内校验 `iter_slice_sum.x`
-- 报告：`shux: [SHUX_CORE_ITERATOR] status=ok`
+- 报告：`xlang: [XLANG_CORE_ITERATOR] status=ok`
 
 ---
 

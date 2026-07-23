@@ -22,11 +22,11 @@
   },
   "symbols": {
     "x": ["runtime_backtrace_platform_x_doc_anchor", "backtrace_u8_hex2", "backtrace_capture_and_check_gold_c", "name_has_gold_anchor"],
-    "seed": ["backtrace_u8_hex2_impl", "backtrace_capture_and_check_gold_c_impl", "backtrace_read_frame_addr_c", "backtrace_write_frame_addr_c", "backtrace_copy_sym_name_c", "backtrace_format_hex_addr_c", "backtrace_name_has_gold_anchor_c", "backtrace_capture_c", "backtrace_symbolicate_c", "backtrace_gold_anchor_addr_c", "backtrace_gold_anchor_c", "backtrace_gold_anchor_smoke_enter_c", "backtrace_symbolicate_smoke_c", "backtrace_xplat_platform_name_c", "backtrace_xplat_quality_c", "shux_crash_evidence_collect_c"],
+    "seed": ["backtrace_u8_hex2_impl", "backtrace_capture_and_check_gold_c_impl", "backtrace_read_frame_addr_c", "backtrace_write_frame_addr_c", "backtrace_copy_sym_name_c", "backtrace_format_hex_addr_c", "backtrace_name_has_gold_anchor_c", "backtrace_capture_c", "backtrace_symbolicate_c", "backtrace_gold_anchor_addr_c", "backtrace_gold_anchor_c", "backtrace_gold_anchor_smoke_enter_c", "backtrace_symbolicate_smoke_c", "backtrace_xplat_platform_name_c", "backtrace_xplat_quality_c", "xlang_crash_evidence_collect_c"],
     "only_x": ["runtime_backtrace_platform_x_doc_anchor"],
-    "only_seed": ["backtrace_u8_hex2_impl", "backtrace_capture_and_check_gold_c_impl", "backtrace_read_frame_addr_c", "backtrace_write_frame_addr_c", "backtrace_copy_sym_name_c", "backtrace_format_hex_addr_c", "backtrace_name_has_gold_anchor_c", "backtrace_capture_c", "backtrace_symbolicate_c", "backtrace_gold_anchor_addr_c", "backtrace_gold_anchor_c", "backtrace_gold_anchor_smoke_enter_c", "backtrace_symbolicate_smoke_c", "backtrace_xplat_platform_name_c", "backtrace_xplat_quality_c", "shux_crash_evidence_collect_c"]
+    "only_seed": ["backtrace_u8_hex2_impl", "backtrace_capture_and_check_gold_c_impl", "backtrace_read_frame_addr_c", "backtrace_write_frame_addr_c", "backtrace_copy_sym_name_c", "backtrace_format_hex_addr_c", "backtrace_name_has_gold_anchor_c", "backtrace_capture_c", "backtrace_symbolicate_c", "backtrace_gold_anchor_addr_c", "backtrace_gold_anchor_c", "backtrace_gold_anchor_smoke_enter_c", "backtrace_symbolicate_smoke_c", "backtrace_xplat_platform_name_c", "backtrace_xplat_quality_c", "xlang_crash_evidence_collect_c"]
   },
-  "rest_macro": "SHUX_RUNTIME_BACKTRACE_PLATFORM_FROM_X",
+  "rest_macro": "XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X",
   "delete_seed_gate": {
     "allowed_now": false,
     "requirements": ["provider boundary stabilized", "ld -r validated", "smoke or probe matched", "no seed fallback on repeated builds"]

@@ -1,6 +1,6 @@
 # F-09 no-handwritten-C whitelist (终局目标：summary_total_c=0)
 # scope: std/**/*.c + core/**/*.c + compiler/src/**/*.c
-# 更新：SHUX_NO_HANDWRITTEN_C_UPDATE=1 ./tests/run-no-handwritten-c-gate.sh
+# 更新：XLANG_NO_HANDWRITTEN_C_UPDATE=1 ./tests/run-no-handwritten-c-gate.sh
 summary_std_c	0
 summary_core_c	0
 summary_compiler_src_c	0

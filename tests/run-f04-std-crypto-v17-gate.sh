@@ -2,11 +2,11 @@
 # F-04 v17：std.crypto aes_gcm.inc.c → aes_gcm.x 门禁。
 #
 # 用法：./tests/run-f04-std-crypto-v17-gate.sh
-# 环境：SHUX_F04_CRYPTO_V17_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F04_CRYPTO_V17_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F04_CRYPTO_V17_FAIL:-0}
+FAIL=${XLANG_F04_CRYPTO_V17_FAIL:-0}
 DOC="analysis/phase-f-f04-v17.md"
 AES_GCM="std/crypto/aes_gcm.x"
 GLUE="compiler/seeds/runtime_crypto_inc_glue.from_x.c"
@@ -87,13 +87,13 @@ EOF
     echo "f04 crypto aes_gcm smoke SKIP (crypto.o missing aes_gcm symbols)"
   fi
 else
-  echo "f04 crypto aes_gcm smoke SKIP (crypto.o missing .x symbols; need shux-c)"
+  echo "f04 crypto aes_gcm smoke SKIP (crypto.o missing .x symbols; need xlang-c)"
 fi
 
 if [ -f tests/run-std-crypto-gate.sh ]; then
   echo "=== F-04 v17: delegate run-std-crypto-gate (manifest) ==="
   chmod +x tests/run-std-crypto-gate.sh
-  if ! SHUX_STD_CRYPTO_MANIFEST_ONLY=1 tests/run-std-crypto-gate.sh; then
+  if ! XLANG_STD_CRYPTO_MANIFEST_ONLY=1 tests/run-std-crypto-gate.sh; then
     die "run-std-crypto-gate failed"
   fi
 fi

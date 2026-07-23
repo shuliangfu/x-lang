@@ -5,12 +5,12 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD111_DOC:-analysis/std-sync-lock-diag-v1.md}"
-MANIFEST="${SHUX_STD111_TSV:-tests/baseline/std-sync-lock-diag.tsv}"
+DOC="${XLANG_STD111_DOC:-analysis/std-sync-lock-diag-v1.md}"
+MANIFEST="${XLANG_STD111_TSV:-tests/baseline/std-sync-lock-diag.tsv}"
 MOD_X="std/sync/mod.x"
 SYNC_DIAG_X="std/sync/sync.x"
-SYNC_TLS_RUNTIME="${SHUX_STD_SYNC_TLS_IMPL:-compiler/seeds/runtime_sync_lock_diag_tls.from_x.c}"
-SYNC_OS_RUNTIME="${SHUX_STD_SYNC_OS_IMPL:-compiler/seeds/runtime_sync_os.from_x.c}"
+SYNC_TLS_RUNTIME="${XLANG_STD_SYNC_TLS_IMPL:-compiler/seeds/runtime_sync_lock_diag_tls.from_x.c}"
+SYNC_OS_RUNTIME="${XLANG_STD_SYNC_OS_IMPL:-compiler/seeds/runtime_sync_os.from_x.c}"
 SYNC_X="std/sync/sync.x"
 LIB="tests/lib/std-sync-lock-diag.sh"
 SMOKE_X="tests/sync/lock_diag.x"
@@ -71,7 +71,7 @@ X_OK=0
 SKIP=0
 
 echo "=== STD-111: sync lock diag c smoke ==="
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   if ensure_std_c_o ../std/sync/sync.o 2>/dev/null && std_sync_lock_diag_run_c_smoke "$SYNC_TLS_RUNTIME"; then
@@ -80,22 +80,22 @@ if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
     echo "std-sync-lock-diag gate SKIP c smoke (no full sync.o)" >&2
   fi
 else
-  echo "std-sync-lock-diag gate SKIP c smoke (no shux-c)" >&2
+  echo "std-sync-lock-diag gate SKIP c smoke (no xlang-c)" >&2
 fi
 
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-111: .x smoke (SHUX=$SHUX_BIN) ==="
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-111: .x smoke (XLANG=$XLANG_BIN) ==="
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-sync-lock-diag gate FAIL: typeck $SMOKE_X" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_sync_lock_diag_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_sync_lock_diag_run_x_smoke "$SHUX_BIN" "$SMOKE_X" "diag"; then
+  if std_sync_lock_diag_run_x_smoke "$XLANG_BIN" "$SMOKE_X" "diag"; then
     X_OK=1
   else
     std_sync_lock_diag_emit_report "fail" "$C_OK" 0 0

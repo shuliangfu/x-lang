@@ -38,7 +38,7 @@
       "runtime_abort"
     ]
   },
-  "rest_macro": "SHUX_RUNTIME_STD_RUNTIME_FAST_FROM_X",
+  "rest_macro": "XLANG_RUNTIME_STD_RUNTIME_FAST_FROM_X",
   "impl_residuals": [],
   "forward_decls": [],
   "internal_call_rewrites": [],
@@ -46,7 +46,7 @@
     "预存行为（非本次切割引入）：Linux 上 thin.o 的 6 个函数为 W（weak）符号——prove_x_o.sh 默认 G05_X_O_WEAK=1 给函数加 __attribute__((weak))，Linux 产生 W 符号；macOS Mach-O 忽略 weak 属性，均为 T 符号",
     "DIRECT 模式（G-02f-23 真迁 .x）：.x 包含完整实现，seed 是 .x 的 C 翻译，rest 模式下 seed 为空"
   ],
-  "platform_notes": "所有 6 个函数体调用外部 TU 符号 shux_panic_ / shux_crash_evidence_collect_c，merged 后为 U 符号由其他 TU 提供。无 libc 依赖",
+  "platform_notes": "所有 6 个函数体调用外部 TU 符号 xlang_panic_ / xlang_crash_evidence_collect_c，merged 后为 U 符号由其他 TU 提供。无 libc 依赖",
   "delete_seed_gate": {
     "allowed_now": false,
     "requirements": [

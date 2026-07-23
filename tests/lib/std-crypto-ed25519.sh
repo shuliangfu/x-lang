@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-crypto-ed25519.sh — STD-126 manifest 与烟测辅助
 
-STD_CRYPTO_ED25519_PREFIX="${SHUX_STD126_CRYPTO_ED25519_PREFIX:-shux: [SHUX_STD126_CRYPTO_ED25519]}"
+STD_CRYPTO_ED25519_PREFIX="${XLANG_STD126_CRYPTO_ED25519_PREFIX:-xlang: [XLANG_STD126_CRYPTO_ED25519]}"
 # shellcheck source=tests/lib/std-crypto.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/std-crypto.sh"
 
@@ -44,10 +44,10 @@ std_crypto_ed25519_symbols_ok() {
 
 # 编译并运行 .x 烟测；成功返回 0。
 std_crypto_ed25519_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
-  local exe="/tmp/shux_std_crypto_ed25519_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std_crypto_ed25519_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-crypto-ed25519 FAIL: compile $src" >&2
     rm -f "$exe"
     return 1
@@ -64,12 +64,12 @@ std_crypto_ed25519_run_smoke() {
 std_crypto_ed25519_run_c_smoke() {
   local crypto_o="$1"
   local src="tests/std-crypto/ed25519_smoke_ok.c"
-  local out="/tmp/shux_std_crypto_ed25519_c_$$"
+  local out="/tmp/xlang_std_crypto_ed25519_c_$$"
   if [ ! -f "$crypto_o" ]; then
     return 1
   fi
   if ! std_crypto_o_has_x_symbols "$crypto_o"; then
-    echo "std-crypto-ed25519 SKIP c smoke (crypto.o missing .x symbols; need shux-c)" >&2
+    echo "std-crypto-ed25519 SKIP c smoke (crypto.o missing .x symbols; need xlang-c)" >&2
     return 2
   fi
   std_crypto_ensure_runtime_glue_o

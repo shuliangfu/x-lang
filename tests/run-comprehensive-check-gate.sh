@@ -26,5 +26,5 @@ chmod +x tests/run-perf-weekly-gate.sh tests/run-perf-sqlite-gate.sh tests/lib/p
 chmod +x tests/run-perf-phase3-gate.sh tests/lib/perf-phase3.sh
 ./tests/run-perf-weekly-gate.sh
 
-echo "shux: [SHUX_COMPREHENSIVE_CHECK] status=ok"
+echo "xlang: [XLANG_COMPREHENSIVE_CHECK] status=ok"
 echo "comprehensive-check gate OK"

@@ -2,7 +2,7 @@
 
 > **日期**：2026-07-17（产品决议重写）  
 > **旧名**：`无libc基础与-libc开关分析.md`（已废止；**不再**讨论 `--libc` 兼容开关）  
-> **范围**：产品路径 `shux` / `shux_asm`、标准库 `std/`、链接 ABI、自举终局（F-no-libc / 阶段 G）  
+> **范围**：产品路径 `xlang` / `xlang_asm`、标准库 `std/`、链接 ABI、自举终局（F-no-libc / 阶段 G）  
 > **产品决议（强制）**：  
 > 1. **目标就是零 libc 依赖**——不是「默认有 libc、加参数才 freestanding」的终局叙事。  
 > 2. **不提供、不实现、不规划 `--libc` / `--hosted` 兼容开关**——不需要。  
@@ -15,9 +15,9 @@
 
 | 层级 | 含义 | 状态（2026-07-17） |
 |------|------|--------------------|
-| **L0 语义自举** | 产品 `shux_asm` 冷编译自己 + 全量 bstrict | 双端 tip 已绿（钉盘见 `自举进度.md`） |
+| **L0 语义自举** | 产品 `xlang_asm` 冷编译自己 + 全量 bstrict | 双端 tip 已绿（钉盘见 `自举进度.md`） |
 | **L1 用户零 libc** | 用户 `.x` 经产品路径出 **nostdlib、无 `-lc`** 的静态可执行文件（Linux x86_64） | **NL-05 等 gate ✅**；std 首批发 NL-06 🟡 |
-| **L2 编译器 / bootstrap 零 libc** | `shux_asm` 自身无动态 `libc.so`、crt0 bag nostdlib **无 UNDEF** | **crt0 + 产品 g05 ✅** NL-07 **L1–L10** @ `4c736d57`（static · ldd 无 libc · 矩阵绿；G.7 权威 `bootstrap_nostdlib_shared.sh`） |
+| **L2 编译器 / bootstrap 零 libc** | `xlang_asm` 自身无动态 `libc.so`、crt0 bag nostdlib **无 UNDEF** | **crt0 + 产品 g05 ✅** NL-07 **L1–L10** @ `4c736d57`（static · ldd 无 libc · 矩阵绿；G.7 权威 `bootstrap_nostdlib_shared.sh`） |
 
 「实现无 libc」= **L1 + L2 都硬绿**。L0 绿 **不能** 单独写成「无 libc 已完成」。
 
@@ -30,12 +30,12 @@
 ### 1.1 OS 门面与 syscall（权威：`std.sys`）
 
 - `std/sys/mod.x`：上层只 `import("std.sys")`，按 `target_os` 分流。
-- Linux：`os_write` → `shux_sys_write` 等 freestanding 桩；**拒绝 libc 脐带**。
+- Linux：`os_write` → `xlang_sys_write` 等 freestanding 桩；**拒绝 libc 脐带**。
 - Gate：`run-linux-syscall-invoke-gate.sh`、`run-b04-freestanding-syscall-gate.sh` 等。
 
 ### 1.2 无 malloc 的堆（权威：`std.heap.page_mmap`）
 
-- `std/heap/page_mmap.x`：Linux **匿名 mmap bump**，extern `shux_sys_mmap` / `munmap`，**不链 `heap.c`、不调 `malloc`**。
+- `std/heap/page_mmap.x`：Linux **匿名 mmap bump**，extern `xlang_sys_mmap` / `munmap`，**不链 `heap.c`、不调 `malloc`**。
 - v1 限制：单块映射、free 为 no-op——最小可用，不是通用分配器终局。
 
 ### 1.3 用户链接：`-freestanding`（唯一用户侧无 libc 入口）
@@ -50,7 +50,7 @@
 | 项 | 说明 |
 |----|------|
 | F-ZC | `std/` 下 **0** 个 `.c`/`.h`（无 C **源码** ≠ 运行时已无 libc） |
-| freestanding_io | `freestanding_io_x86_64.s`：`shux_sys_*` syscall 薄层 |
+| freestanding_io | `freestanding_io_x86_64.s`：`xlang_sys_*` syscall 薄层 |
 | bootstrap stubs | `bootstrap_nostdlib_stubs`：nostdlib 链 stdio/string 等最小桩（**仅** bootstrap 入链；含 NL-07 L2 `fflush`） |
 | crt0 | `crt0_x86_64.s`：`_start` → main_entry；exit 路径经 `bootstrap_flush_stdio_and_exit` |
 
@@ -58,7 +58,7 @@
 
 | 区域 | 现状 |
 |------|------|
-| 产品编译器二进制 | Ubuntu **产品 g05 + crt0** @ `4c736d57` 已 **static / 无 `libc.so`**（NL-07 L10）；逃生舱仅 `SHUX_BOOTSTRAP_ALLOW_LIBC=1` |
+| 产品编译器二进制 | Ubuntu **产品 g05 + crt0** @ `4c736d57` 已 **static / 无 `libc.so`**（NL-07 L10）；逃生舱仅 `XLANG_BOOTSTRAP_ALLOW_LIBC=1` |
 | compiler runtime / seed | 大量 `malloc` / `stdio` / `snprintf` / 读文件缓冲等 **契约债** → 须迁门面或 nostdlib 桩，**禁止**新增裸 libc 脐带 |
 | `labi_invoke_ld` 等 | 链接参数表仍可能出现 `-lc` 的 hosted 遗留 → 按需审计，默认产品向零 libc 收敛 |
 | std 默认入口叙事 | 部分模块仍有 `heap.libc` / `fs.posix` **实现**；产品策略上 Linux 金标 **优先** page_mmap / freestanding_linux / `std.sys`，**不**再规划「开 `--libc` 选 libc 后端」 |
@@ -85,7 +85,7 @@
 ### 2.2 纪律（现在就必须守）
 
 1. **单一权威门面**：堆/文件/写 fd 只经 `std.heap` / `std.fs` / `std.sys`（及已登记的 freestanding 后端），禁止业务/compiler 新代码裸 `extern malloc`/`write`。  
-2. **链接审计常青**：用户 NL-05；bootstrap NL-07 track；**禁止** `SHUX_BOOTSTRAP_ALLOW_LIBC` 当验收绿。  
+2. **链接审计常青**：用户 NL-05；bootstrap NL-07 track；**禁止** `XLANG_BOOTSTRAP_ALLOW_LIBC` 当验收绿。  
 3. **新代码禁增 libc 脐带**：compiler `.x` 新逻辑不得新增 stdio/malloc 依赖而不走门面或 nostdlib 桩。  
 4. **一条债一层**：NL-07 硬绿按拓扑 → stdio → backend_enc → backend_emit → typeck/driver companion（见 `phase-f-n07-v4.md`）。  
 5. **G.7**：同一能力一个权威实现；**不**为 libc 兼容再开平行函数树。
@@ -125,8 +125,8 @@ L0 语义自举（已绿） ──并行──► L1 用户零 libc 扩 std（NL
 |----|------|------|------|
 | 用户程序 | `.x` + import std | `.o` / 可执行文件 | OS；是否依赖 libc.so |
 | std 门面 | `std.sys` / heap / fs | 符号与 cfg | 用户与 dogfood |
-| 编译器 runtime | seed + `.x` glue | `shux` / `shux_asm` | 解析 / typeck / codegen / 链接 |
-| 链接 ABI | `runtime_link_abi` / g05 / `build_shux_asm` | 链接命令行 | ld；是否出现 `-lc` |
+| 编译器 runtime | seed + `.x` glue | `xlang` / `xlang_asm` | 解析 / typeck / codegen / 链接 |
+| 链接 ABI | `runtime_link_abi` / g05 / `build_xlang_asm` | 链接命令行 | ld；是否出现 `-lc` |
 | bootstrap 桩 | freestanding_io + nostdlib stubs | `src/asm/*.o` | nostdlib crt0 bag |
 | 验收 | NL-* / bstrict | CI 日志 | 是否假绿 |
 
@@ -164,11 +164,11 @@ L0 语义自举（已绿） ──并行──► L1 用户零 libc 扩 std（NL
 
 ```bash
 # 产品二进制无动态 libc.so（Linux）
-ldd compiler/shux_asm | tee /tmp/ldd_shux.txt
-! grep -q libc.so /tmp/ldd_shux.txt
+ldd compiler/xlang_asm | tee /tmp/ldd_xlang.txt
+! grep -q libc.so /tmp/ldd_xlang.txt
 
 # NL-07 分层（见 phase-f-n07-v4.md）
-SHUX_NOLIBC_N07_V4_TRY_BUILD=1 SHUX_NOLIBC_N07_V4_FAIL=1 \
+XLANG_NOLIBC_N07_V4_TRY_BUILD=1 XLANG_NOLIBC_N07_V4_FAIL=1 \
   ./tests/run-nolibc-n07-v4-build-gate.sh
 # 硬绿信号：bootstrap nostdlib crt0 link OK + unique UNDEF=0
 ```
@@ -219,7 +219,7 @@ SHUX_NOLIBC_N07_V4_TRY_BUILD=1 SHUX_NOLIBC_N07_V4_FAIL=1 \
 | `compiler/src/runtime_link_abi.x` | freestanding / nostdlib 链接 |
 | `compiler/seeds/bootstrap_nostdlib_stubs.from_x.c` | bootstrap 最小桩（含 fflush） |
 | `tests/run-no-libc-*.sh` / `run-nolibc-n07-*.sh` | 验收 |
-| `Agents.md` / skill `shux-selfhost-product-gate` | 根源治理、G.7、平台标注 |
+| `Agents.md` / skill `xlang-selfhost-product-gate` | 根源治理、G.7、平台标注 |
 
 ---
 

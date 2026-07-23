@@ -23,7 +23,7 @@
 ## 复现
 
 ```bash
-SHUX_F04_NET_SLICE_V12_FAIL=1 ./tests/run-f04-std-net-slice-v12-gate.sh
-SHUX_F04_NET_SLICE_V11_FAIL=1 ./tests/run-f04-std-net-slice-v11-gate.sh
+XLANG_F04_NET_SLICE_V12_FAIL=1 ./tests/run-f04-std-net-slice-v12-gate.sh
+XLANG_F04_NET_SLICE_V11_FAIL=1 ./tests/run-f04-std-net-slice-v11-gate.sh
 ./tests/run-net.sh
 ```

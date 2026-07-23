@@ -1,6 +1,6 @@
 /* seeds/pthin_seed_parse.from_x.c — G-02f-289 P2 parser thin P8 seed_parse
  * Logic source: src/asm/pthin_seed_parse.x
- * Hybrid: SHUX_PTHIN_SEED_PARSE_FROM_X (only when not NO_SEED_PARSE)
+ * Hybrid: XLANG_PTHIN_SEED_PARSE_FROM_X (only when not NO_SEED_PARSE)
  *         + ld -r into thin glue for seed-bootstrap paths.
  *
  * Body: seeds/parser_asm/parser_asm_seed_parse_into_buf_slice.inc

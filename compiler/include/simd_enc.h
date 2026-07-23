@@ -3,8 +3,8 @@
  *
  * 供 pipeline_glue 在向量 let 初值 binop 路径调用；lane-scalar 回退仍保留。
  */
-#ifndef SHUX_SIMD_ENC_H
-#define SHUX_SIMD_ENC_H
+#ifndef XLANG_SIMD_ENC_H
+#define XLANG_SIMD_ENC_H
 
 #include <stdint.h>
 
@@ -104,4 +104,4 @@ int32_t simd_enc_x86_movss_xmm0_rbp_disp(struct platform_elf_ElfCodegenCtx *elf_
 int32_t simd_enc_f32_soa_col_movups_xmm1_at_idx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_col0,
                                                 int32_t off_i, int32_t ta);
 
-#endif /* SHUX_SIMD_ENC_H */
+#endif /* XLANG_SIMD_ENC_H */

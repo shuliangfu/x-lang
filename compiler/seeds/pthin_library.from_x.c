@@ -1,6 +1,6 @@
 /* seeds/pthin_library.from_x.c — G-02f-324 P2 parser thin library parse
  * Logic source: src/asm/pthin_library.x
- * Hybrid: SHUX_PTHIN_LIBRARY_FROM_X + ld -r into parser_asm_thin_glue.o
+ * Hybrid: XLANG_PTHIN_LIBRARY_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_library_wrap_slice.inc (~1.8k)
  * (not library_slice.inc — that is P6 core parse_one_function_library_slice_c)

@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_DOC07_DOC:-analysis/doc-07-stdlib-fulltable-v1.md}"
-MANIFEST="${SHUX_DOC07_TSV:-tests/baseline/doc-07-stdlib-fulltable.tsv}"
+DOC="${XLANG_DOC07_DOC:-analysis/doc-07-stdlib-fulltable-v1.md}"
+MANIFEST="${XLANG_DOC07_TSV:-tests/baseline/doc-07-stdlib-fulltable.tsv}"
 README="std/README.md"
 DOC07="docs/07-内置与标准库.md"
 MIN_README=43

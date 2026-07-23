@@ -21,11 +21,11 @@
 
 | 项 | 说明 |
 |----|------|
-| 编译 | `shux -fsanitize=address -L . <case>.x -o exe` |
+| 编译 | `xlang -fsanitize=address -L . <case>.x -o exe` |
 | 运行 | `ASAN_OPTIONS=detect_leaks=1:exitcode=23:halt_on_error=1` |
 | 探测器 | 复用 `tests/lib/safe-leak.sh`（与 SAFE-005 一致） |
 | 与 M-6 | `tests/run-sanitize-gate.sh` 管 **INDEX 边界插桩**；本任务管 **std 模块运行时泄漏** |
-| SKIP | cc 不支持 ASAN 或无 native `shux-c` 时 gate 仅验 manifest |
+| SKIP | cc 不支持 ASAN 或无 native `xlang-c` 时 gate 仅验 manifest |
 
 v1 聚焦 **std.heap**、**std.channel**；后续可追加 `std.string` / `std.ffi` 等行。
 
@@ -46,14 +46,14 @@ v1 聚焦 **std.heap**、**std.channel**；后续可追加 `std.string` / `std.f
 ## 4. 报告格式
 
 ```
-shux: [SHUX_TST004_SANITIZE] status=ok cases_ok=2 cases_fail=0 skip=0
+xlang: [XLANG_TST004_SANITIZE] status=ok cases_ok=2 cases_fail=0 skip=0
 ```
 
 | status | 含义 |
 |--------|------|
 | `ok` | 全部 case 通过 |
 | `fail` | 编译失败、ASAN 泄漏或崩溃 |
-| `skip` | 无 ASAN / 无 shux |
+| `skip` | 无 ASAN / 无 xlang |
 
 ---
 

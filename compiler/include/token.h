@@ -7,8 +7,8 @@
  * 重要约定：与 compiler/docs/语法子集-阶段1与2.md 词法一致；value.ident 指向源码片段不拷贝，生命周期由调用方保证；IDENT/I32 须配合 ident_len 使用。阶段 7 将增加 TOKEN_LANGLE/TOKEN_RANGLE。
  */
 
-#ifndef SHUX_TOKEN_H
-#define SHUX_TOKEN_H
+#ifndef XLANG_TOKEN_H
+#define XLANG_TOKEN_H
 
 #include <stdint.h>
 
@@ -65,7 +65,7 @@ typedef enum TokenKind {
     TOKEN_GOTO,     /**< 关键字 goto（跳转） */
     TOKEN_TRAIT,    /**< 关键字 trait（接口定义，阶段 7.2） */
     TOKEN_IMPL,     /**< 关键字 impl（trait 实现，阶段 7.2） */
-    TOKEN_SELF,     /**< 关键字 self（方法接收者，阶段 7.2） */
+    TOKEN_SELF,     /**< 关键字 self（方法接收者，阶段 7.2；也允许作形参/let/EXPR_VAR 绑定名 "self"） */
     TOKEN_UNDERSCORE, /**< _（match 通配模式） */
     TOKEN_IMPORT,   /**< 关键字 import（阶段 5） */
     TOKEN_EXTERN,   /**< 关键字 extern（FFI：声明 C 函数，无体） */
@@ -163,4 +163,4 @@ typedef struct Token {
     int ident_len;
 } Token;
 
-#endif /* SHUX_TOKEN_H */
+#endif /* XLANG_TOKEN_H */

@@ -2,7 +2,7 @@
  * G-02f rt_compile R2 full surface — isomorphic with src/runtime/rt_compile.x
  * Product PREFER_X_O: g05_try_x_to_o(rt_compile.x) + rest seed marker under FROM_X
  * Prove: full.x vs this seed → nm IDENTICAL (25 public + helpers)
- * Regen: ./shux -E ... src/runtime/rt_compile.x | filter DBG + polish prologue
+ * Regen: ./xlang -E ... src/runtime/rt_compile.x | filter DBG + polish prologue
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -94,8 +94,8 @@ extern int32_t drv_eq_asm_word(uint8_t * buf, int32_t len);
 extern int32_t drv_eq_c_word(uint8_t * buf, int32_t len);
 extern int32_t drv_path_ends_x(uint8_t * buf, int32_t len);
 extern int32_t drv_target_has_arm(uint8_t * buf, int32_t len);
-extern int32_t shu_target_cpu_resolve(uint8_t * spec, size_t spec_len, uint32_t * out);
-extern uint32_t shu_target_cpu_generic_for_host(void);
+extern int32_t xlang_target_cpu_resolve(uint8_t * spec, size_t spec_len, uint32_t * out);
+extern uint32_t xlang_target_cpu_generic_for_host(void);
 extern void diag_report_with_code(uint8_t * file, int32_t line, int32_t col, uint8_t * kind, uint8_t * code, uint8_t * msg, uint8_t * detail);
 extern void cfg_apply_compile_target_from_triple(uint8_t * triple, int32_t len);
 extern int32_t driver_resolve_target_arch(int32_t parsed_target, int32_t saw_target_flag);
@@ -739,14 +739,14 @@ void driver_compile_resolve_target_cpu_c(struct RtCompileState * state) {
     (void)((spec_len = ((size_t)((state->target_cpu_len)))));
   }
   {
-    (void)((rc = shu_target_cpu_resolve(spec, spec_len, &(feats))));
+    (void)((rc = xlang_target_cpu_resolve(spec, spec_len, &(feats))));
   }
   if ((rc !=0)) {
     {
       (void)((kind = ((uint8_t *)((uint8_t[]){110, 111, 116, 101, 0 }))));
       (void)((msg = ((uint8_t *)((uint8_t[]){117, 110, 107, 110, 111, 119, 110, 32, 45, 116, 97, 114, 103, 101, 116, 45, 99, 112, 117, 59, 32, 117, 115, 105, 110, 103, 32, 103, 101, 110, 101, 114, 105, 99, 32, 98, 97, 115, 101, 108, 105, 110, 101, 0 }))));
       (void)(diag_report_with_code(((uint8_t *)(0)), 0, 0, kind, ((uint8_t *)(0)), msg, ((uint8_t *)(0))));
-      (void)((feats = shu_target_cpu_generic_for_host()));
+      (void)((feats = xlang_target_cpu_generic_for_host()));
     }
   }
   (void)(((state->target_cpu_features) = ((int32_t)(feats))));

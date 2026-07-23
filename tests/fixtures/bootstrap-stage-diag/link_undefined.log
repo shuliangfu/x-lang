@@ -1,2 +1,2 @@
-ld: undefined symbol: shux_missing_symbol_c
+ld: undefined symbol: xlang_missing_symbol_c
 linker command failed

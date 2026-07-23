@@ -13,7 +13,7 @@
 | 1 | 读本文 §2 实验轨 T1–T4 |
 | 2 | 打开 `tests/baseline/safe-race-detect.tsv` |
 | 3 | `./tests/run-safe-race-detect-gate.sh` |
-| 4 | Linux：`SHUX_RACE_PROBE=1 ./tests/run-safe-race-detect.sh` |
+| 4 | Linux：`XLANG_RACE_PROBE=1 ./tests/run-safe-race-detect.sh` |
 
 ---
 
@@ -26,14 +26,14 @@
 | **T1-tsan-probe** | `cc -fsanitize=thread` + `race_probe.c` | ✅ 探测器 |
 | **T2-mutex-safe** | `std.sync` 互斥保护共享状态 | ✅ 烟测 |
 | **T3-atomic-safe** | `std.atomic` `fetch_add` 无数据竞争 | ✅ 烟测 |
-| **T4-report** | `SHUX_RACE_DETECT` 结构化报告 | ✅ runner |
+| **T4-report** | `XLANG_RACE_DETECT` 结构化报告 | ✅ runner |
 
-**TSAN 策略**（实验，未接入 `shux` 主链）：
+**TSAN 策略**（实验，未接入 `xlang` 主链）：
 
 | 项 | v1 约定 |
 |----|---------|
 | 工具链 | `cc -fsanitize=thread -pthread` |
-| 探测器 | `SHUX_RACE_PROBE=1` 时运行 `race_probe.c`（故意 pthread 竞争） |
+| 探测器 | `XLANG_RACE_PROBE=1` 时运行 `race_probe.c`（故意 pthread 竞争） |
 | 平台 | **Linux** 主路径；macOS/Windows gate manifest only |
 | 正例 | `.x` 用例普通编译运行（mutex/atomic 单线程烟测） |
 
@@ -54,7 +54,7 @@
 ## 4. 报告格式（race report）
 
 ```
-shux: [SHUX_RACE_DETECT] status=ok cases_ok=2 cases_fail=0 probe=ok
+xlang: [XLANG_RACE_DETECT] status=ok cases_ok=2 cases_fail=0 probe=ok
 ```
 
 | 字段 | 含义 |
@@ -69,7 +69,7 @@ shux: [SHUX_RACE_DETECT] status=ok cases_ok=2 cases_fail=0 probe=ok
 
 | 入口 | 角色 |
 |------|------|
-| `.github/workflows/ci-nightly.yml` | Linux 实验 job（`SHUX_RACE_PROBE=1`） |
+| `.github/workflows/ci-nightly.yml` | Linux 实验 job（`XLANG_RACE_PROBE=1`） |
 | 库 | `tests/lib/safe-race.sh` |
 | runner | `tests/run-safe-race-detect.sh` |
 | 门禁 | `tests/run-safe-race-detect-gate.sh` |

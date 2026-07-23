@@ -1,5 +1,5 @@
 /**
- * Shux 状态栏 — 在右下角显示「Shux」及对当前 `.x` 源的符号粗略统计。
+ * Xlang 状态栏 — 在右下角显示「Xlang」及对当前 `.x` 源的符号粗略统计。
  *
  * 统计范围：function / struct / enum / trait / impl / type
  * 识别前缀：export、packed、soa、align(N)、allow(padding)
@@ -16,9 +16,9 @@ import {
 import { t } from './i18n';
 
 /** VSCode StatusBar：扩展侧持有单例，防止重复条目。 */
-let shuxStatusItem: StatusBarItem | undefined;
+let xlangStatusItem: StatusBarItem | undefined;
 
-/** LSP 连接状态：由 lspClient.ts 状态变更时调用 setShuxLspStatus 更新 */
+/** LSP 连接状态：由 lspClient.ts 状态变更时调用 setXlangLspStatus 更新 */
 let lspConnected = false;
 
 /** 【Why】所有正则统一识别 export/packed/soa/align/allow(padding) 前缀 */
@@ -137,35 +137,35 @@ function countXSymbolsPerLinePrefix(sanitized: string): {
 }
 
 /**
- * 创建右下角 Shux 状态项并完成首次刷新（若当前有活动编辑器）。
+ * 创建右下角 Xlang 状态项并完成首次刷新（若当前有活动编辑器）。
  */
-export function registerShuxStatusBar(context: ExtensionContext): void {
-  if (shuxStatusItem) {
-    shuxStatusItem.dispose();
+export function registerXlangStatusBar(context: ExtensionContext): void {
+  if (xlangStatusItem) {
+    xlangStatusItem.dispose();
   }
   const item = window.createStatusBarItem(StatusBarAlignment.Right, 100);
-  shuxStatusItem = item;
-  item.name = 'Shux';
-  item.text = ' Shux';
-  item.tooltip = 'Shux (.x)';
+  xlangStatusItem = item;
+  item.name = 'Xlang';
+  item.text = ' Xlang';
+  item.tooltip = 'Xlang (.x)';
   item.show();
   context.subscriptions.push(item);
   /** 诊断变更时刷新状态栏（更新错误/警告计数） */
   context.subscriptions.push(
     vscode.languages.onDidChangeDiagnostics(() => {
-      refreshShuxStatusBar(window.activeTextEditor);
+      refreshXlangStatusBar(window.activeTextEditor);
     })
   );
-  refreshShuxStatusBar(window.activeTextEditor);
+  refreshXlangStatusBar(window.activeTextEditor);
 }
 
 /**
  * 设置 LSP 连接状态，由 lspClient.ts 在 onDidChangeState 时调用。
  * @param connected true=LSP 已连接，false=未连接/已停止
  */
-export function setShuxLspStatus(connected: boolean): void {
+export function setXlangLspStatus(connected: boolean): void {
   lspConnected = connected;
-  refreshShuxStatusBar(window.activeTextEditor);
+  refreshXlangStatusBar(window.activeTextEditor);
 }
 
 /**
@@ -174,17 +174,17 @@ export function setShuxLspStatus(connected: boolean): void {
  * - 若为 `.x`：统计 function/struct/enum/trait/impl/type（排除注释）
  * - 否则回退占位文本
  *
- * 子开关（受 `shux.features.statusBar` 总开关约束）：
- * - `shux.features.statusBarDiagnostics`：是否显示错误/警告计数
- * - `shux.features.statusBarLspStatus`：是否显示 LSP 连接指示器
+ * 子开关（受 `xlang.features.statusBar` 总开关约束）：
+ * - `xlang.features.statusBarDiagnostics`：是否显示错误/警告计数
+ * - `xlang.features.statusBarLspStatus`：是否显示 LSP 连接指示器
  */
-export function refreshShuxStatusBar(editor: TextEditor | undefined): void {
-  const item = shuxStatusItem;
+export function refreshXlangStatusBar(editor: TextEditor | undefined): void {
+  const item = xlangStatusItem;
   if (!item) {
     return;
   }
 
-  const config = vscode.workspace.getConfiguration('shux');
+  const config = vscode.workspace.getConfiguration('xlang');
   const showLspStatus = config.get<boolean>('features.statusBarLspStatus', true);
   const showDiagnostics = config.get<boolean>('features.statusBarDiagnostics', true);
 
@@ -192,8 +192,8 @@ export function refreshShuxStatusBar(editor: TextEditor | undefined): void {
   const lspBadge = showLspStatus && !lspConnected ? '$(circle-slash) ' : '';
 
   if (!editor || editor.document.languageId !== 'x') {
-    item.text = ` ${lspBadge}Shux`;
-    item.tooltip = lspConnected ? 'Shux (.x)' : `Shux (.x)\n${t('LSP not connected')}`;
+    item.text = ` ${lspBadge}Xlang`;
+    item.tooltip = lspConnected ? 'Xlang (.x)' : `Xlang (.x)\n${t('LSP not connected')}`;
     return;
   }
 
@@ -214,6 +214,6 @@ export function refreshShuxStatusBar(editor: TextEditor | undefined): void {
     (errCount > 0 ? ` · $(error) ${errCount}` : '') +
     (warnCount > 0 ? ` · $(warning) ${warnCount}` : '');
 
-  item.text = ` ${lspBadge}$(symbol-namespace) Shux · fn ${funcs} · st ${structs} · en ${enums} · tr ${traits} · im ${impls} · ty ${types}${diagBadge}`;
-  item.tooltip = `Shux (.x)\n${t('Functions: {0}', funcs)}\n${t('Structs: {0}', structs)}\n${t('Enums: {0}', enums)}\n${t('Traits: {0}', traits)}\n${t('Impls: {0}', impls)}\n${t('Types: {0}', types)}${errCount > 0 ? `\n${t('Errors: {0}', errCount)}` : ''}${warnCount > 0 ? `\n${t('Warnings: {0}', warnCount)}` : ''}${!lspConnected ? `\n${t('LSP not connected')}` : ''}`;
+  item.text = ` ${lspBadge}$(symbol-namespace) Xlang · fn ${funcs} · st ${structs} · en ${enums} · tr ${traits} · im ${impls} · ty ${types}${diagBadge}`;
+  item.tooltip = `Xlang (.x)\n${t('Functions: {0}', funcs)}\n${t('Structs: {0}', structs)}\n${t('Enums: {0}', enums)}\n${t('Traits: {0}', traits)}\n${t('Impls: {0}', impls)}\n${t('Types: {0}', types)}${errCount > 0 ? `\n${t('Errors: {0}', errCount)}` : ''}${warnCount > 0 ? `\n${t('Warnings: {0}', warnCount)}` : ''}${!lspConnected ? `\n${t('LSP not connected')}` : ''}`;
 }

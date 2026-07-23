@@ -2,11 +2,11 @@
 # F-04 v10：std.net DNS/ALPN 去 C 门禁（dns.x + alpn.x，net.c 无 resolve/alpn）。
 #
 # 用法：./tests/run-f04-std-net-dns-alpn-gate.sh
-# 环境：SHUX_F04_NET_DNS_ALPN_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F04_NET_DNS_ALPN_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F04_NET_DNS_ALPN_FAIL:-0}
+FAIL=${XLANG_F04_NET_DNS_ALPN_FAIL:-0}
 DOC="analysis/phase-f-f04-v10.md"
 ALPN_X="std/net/alpn.x"
 DNS_X="std/net/dns.x"
@@ -59,7 +59,7 @@ fi
 if [ -f tests/run-std-net-dns-gate.sh ]; then
   echo "=== F-04 v10: delegate run-std-net-dns-gate ==="
   chmod +x tests/run-std-net-dns-gate.sh
-  if ! SHUX_STD_NET_DNS_FAIL="$FAIL" tests/run-std-net-dns-gate.sh; then
+  if ! XLANG_STD_NET_DNS_FAIL="$FAIL" tests/run-std-net-dns-gate.sh; then
     die "std-net-dns sub-gate failed"
   fi
 fi

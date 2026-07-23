@@ -7,7 +7,7 @@
  *
  * mmsghdr/iovec 批量 syscall 暂由 C 提供；主逻辑与回退路径见 udp_batch.x。
  * 仅 __linux__ && __GLIBC__ 编译有效符号；其它平台为空 TU。与 net.o 一并链入 exe。
- * runtime_asm_io_stubs.c 可 weak-include 本 TU，供旧 shux_asm 未链 runtime_net_udp_batch.o 时解析符号。
+ * runtime_asm_io_stubs.c 可 weak-include 本 TU，供旧 xlang_asm 未链 runtime_net_udp_batch.o 时解析符号。
  */
 
 #if defined(__linux__) && defined(__GLIBC__)
@@ -23,46 +23,46 @@
 #include <arpa/inet.h>
 #include <poll.h>
 
-#ifndef SHUX_NET_UDP_GLUE_WEAK
-#define SHUX_NET_UDP_GLUE_WEAK
+#ifndef XLANG_NET_UDP_GLUE_WEAK
+#define XLANG_NET_UDP_GLUE_WEAK
 #endif
 
-#define SHUX_NET_UDP_GLUE_API SHUX_NET_UDP_GLUE_WEAK
+#define XLANG_NET_UDP_GLUE_API XLANG_NET_UDP_GLUE_WEAK
 
-#define SHU_UDP_BATCH_MAX 2
-#define SHU_UDP_BATCH_BUF_MAX 8
+#define XLANG_UDP_BATCH_MAX 2
+#define XLANG_UDP_BATCH_BUF_MAX 8
 
-/** 与 std.io.driver Buffer / net.c shu_net_buf_t ABI 一致。 */
+/** 与 std.io.driver Buffer / net.c xlang_net_buf_t ABI 一致。 */
 typedef struct {
     uint8_t *ptr;
     size_t len;
     size_t handle;
-} shu_net_buf_t;
+} xlang_net_buf_t;
 
 /* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
-void shu_udp_batch_set_addr_port(struct sockaddr_in *sin, uint32_t addr_u32, uint32_t port_u32);
-int shu_udp_batch_poll_readable(int fd, uint32_t timeout_ms);
+void xlang_udp_batch_set_addr_port(struct sockaddr_in *sin, uint32_t addr_u32, uint32_t port_u32);
+int xlang_udp_batch_poll_readable(int fd, uint32_t timeout_ms);
 
 /** 填充 IPv4 sockaddr_in。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_net_udp_batch.x）提供 public wrapper */
-void shu_udp_batch_set_addr_port_impl(struct sockaddr_in *sin, uint32_t addr_u32, uint32_t port_u32) {
+void xlang_udp_batch_set_addr_port_impl(struct sockaddr_in *sin, uint32_t addr_u32, uint32_t port_u32) {
     sin->sin_family = AF_INET;
     sin->sin_addr.s_addr = htonl(addr_u32);
     sin->sin_port = htons((uint16_t)(port_u32 & 0xFFFFu));
 }
 
-#ifndef SHUX_RUNTIME_NET_UDP_BATCH_FROM_X
+#ifndef XLANG_RUNTIME_NET_UDP_BATCH_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-void shu_udp_batch_set_addr_port(struct sockaddr_in *sin, uint32_t addr_u32, uint32_t port_u32) {
-    shu_udp_batch_set_addr_port_impl(sin, addr_u32, port_u32);
+void xlang_udp_batch_set_addr_port(struct sockaddr_in *sin, uint32_t addr_u32, uint32_t port_u32) {
+    xlang_udp_batch_set_addr_port_impl(sin, addr_u32, port_u32);
 }
 #endif
 
 /** poll 可读；失败 -1。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_net_udp_batch.x）提供 public wrapper */
-int shu_udp_batch_poll_readable_impl(int fd, uint32_t timeout_ms) {
+int xlang_udp_batch_poll_readable_impl(int fd, uint32_t timeout_ms) {
     struct pollfd pfd = { fd, POLLIN, 0 };
     int n = poll(&pfd, 1, (int)(timeout_ms ? timeout_ms : (-1)));
     if (n <= 0 || (pfd.revents & (POLLERR | POLLHUP)))
@@ -70,10 +70,10 @@ int shu_udp_batch_poll_readable_impl(int fd, uint32_t timeout_ms) {
     return 0;
 }
 
-#ifndef SHUX_RUNTIME_NET_UDP_BATCH_FROM_X
+#ifndef XLANG_RUNTIME_NET_UDP_BATCH_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-int shu_udp_batch_poll_readable(int fd, uint32_t timeout_ms) {
-    return shu_udp_batch_poll_readable_impl(fd, timeout_ms);
+int xlang_udp_batch_poll_readable(int fd, uint32_t timeout_ms) {
+    return xlang_udp_batch_poll_readable_impl(fd, timeout_ms);
 }
 #endif
 
@@ -84,15 +84,15 @@ int shu_udp_batch_poll_readable(int fd, uint32_t timeout_ms) {
  * Linux recvmmsg：最多 2 段；timeout_ms 非 0 时先 poll。
  * 返回收到报文数；EAGAIN 返回 0；其它错误 -1。
  */
-SHUX_NET_UDP_GLUE_API int shu_net_udp_recvmmsg2_c(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, int n,
+XLANG_NET_UDP_GLUE_API int xlang_net_udp_recvmmsg2_c(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, int n,
     uint32_t timeout_ms, int32_t *out_sizes, uint32_t *out_addrs, uint32_t *out_ports) {
-    struct iovec iov[SHU_UDP_BATCH_MAX];
-    struct sockaddr_in addrs[SHU_UDP_BATCH_MAX];
-    struct mmsghdr msgvec[SHU_UDP_BATCH_MAX];
+    struct iovec iov[XLANG_UDP_BATCH_MAX];
+    struct sockaddr_in addrs[XLANG_UDP_BATCH_MAX];
+    struct mmsghdr msgvec[XLANG_UDP_BATCH_MAX];
     unsigned int i;
     int r;
 
-    if (n <= 0 || n > SHU_UDP_BATCH_MAX || !out_sizes || !out_addrs || !out_ports)
+    if (n <= 0 || n > XLANG_UDP_BATCH_MAX || !out_sizes || !out_addrs || !out_ports)
         return -1;
     for (i = 0; i < (unsigned int)n; i++) {
         socklen_t addrlen = sizeof(addrs[0]);
@@ -107,7 +107,7 @@ SHUX_NET_UDP_GLUE_API int shu_net_udp_recvmmsg2_c(int32_t fd, uint8_t *p0, size_
         msgvec[i].msg_hdr.msg_flags = 0;
     }
     if (timeout_ms != 0) {
-        if (shu_udp_batch_poll_readable((int)fd, timeout_ms) != 0)
+        if (xlang_udp_batch_poll_readable((int)fd, timeout_ms) != 0)
             return -1;
     }
     r = recvmmsg((int)fd, msgvec, (unsigned int)n, 0, NULL);
@@ -126,18 +126,18 @@ SHUX_NET_UDP_GLUE_API int shu_net_udp_recvmmsg2_c(int32_t fd, uint8_t *p0, size_
 /**
  * Linux sendmmsg：最多 2 条目标报文。
  */
-SHUX_NET_UDP_GLUE_API int shu_net_udp_sendmmsg2_c(int32_t fd, uint32_t a0, uint32_t port0, const uint8_t *p0, size_t l0,
+XLANG_NET_UDP_GLUE_API int xlang_net_udp_sendmmsg2_c(int32_t fd, uint32_t a0, uint32_t port0, const uint8_t *p0, size_t l0,
     uint32_t a1, uint32_t port1, const uint8_t *p1, size_t l1, int n) {
-    struct sockaddr_in addrs[SHU_UDP_BATCH_MAX];
-    struct iovec iov[SHU_UDP_BATCH_MAX];
-    struct mmsghdr msgvec[SHU_UDP_BATCH_MAX];
+    struct sockaddr_in addrs[XLANG_UDP_BATCH_MAX];
+    struct iovec iov[XLANG_UDP_BATCH_MAX];
+    struct mmsghdr msgvec[XLANG_UDP_BATCH_MAX];
     unsigned int i;
     int r;
 
-    if (n <= 0 || n > SHU_UDP_BATCH_MAX)
+    if (n <= 0 || n > XLANG_UDP_BATCH_MAX)
         return -1;
     for (i = 0; i < (unsigned int)n; i++) {
-        shu_udp_batch_set_addr_port(&addrs[i], (i == 0) ? a0 : a1, (i == 0) ? port0 : port1);
+        xlang_udp_batch_set_addr_port(&addrs[i], (i == 0) ? a0 : a1, (i == 0) ? port0 : port1);
         iov[i].iov_base = (void *)((i == 0) ? p0 : p1);
         iov[i].iov_len  = (i == 0) ? l0 : l1;
         msgvec[i].msg_hdr.msg_name = &addrs[i];
@@ -155,15 +155,15 @@ SHUX_NET_UDP_GLUE_API int shu_net_udp_sendmmsg2_c(int32_t fd, uint32_t a0, uint3
 /**
  * Linux recvmmsg：Buffer 切片，n 为 1..8。
  */
-SHUX_NET_UDP_GLUE_API int shu_net_udp_recvmmsg_buf_c(int32_t fd, shu_net_buf_t *bufs, int n, uint32_t timeout_ms,
+XLANG_NET_UDP_GLUE_API int xlang_net_udp_recvmmsg_buf_c(int32_t fd, xlang_net_buf_t *bufs, int n, uint32_t timeout_ms,
     int32_t *out_sizes, uint32_t *out_addrs, uint32_t *out_ports) {
-    struct iovec iov[SHU_UDP_BATCH_BUF_MAX];
-    struct sockaddr_in addrs[SHU_UDP_BATCH_BUF_MAX];
-    struct mmsghdr msgvec[SHU_UDP_BATCH_BUF_MAX];
+    struct iovec iov[XLANG_UDP_BATCH_BUF_MAX];
+    struct sockaddr_in addrs[XLANG_UDP_BATCH_BUF_MAX];
+    struct mmsghdr msgvec[XLANG_UDP_BATCH_BUF_MAX];
     unsigned int i;
     int r;
 
-    if (n <= 0 || n > SHU_UDP_BATCH_BUF_MAX || !bufs || !out_sizes || !out_addrs || !out_ports)
+    if (n <= 0 || n > XLANG_UDP_BATCH_BUF_MAX || !bufs || !out_sizes || !out_addrs || !out_ports)
         return -1;
     for (i = 0; i < (unsigned int)n; i++) {
         socklen_t addrlen = sizeof(addrs[0]);
@@ -178,7 +178,7 @@ SHUX_NET_UDP_GLUE_API int shu_net_udp_recvmmsg_buf_c(int32_t fd, shu_net_buf_t *
         msgvec[i].msg_hdr.msg_flags = 0;
     }
     if (timeout_ms != 0) {
-        if (shu_udp_batch_poll_readable((int)fd, timeout_ms) != 0)
+        if (xlang_udp_batch_poll_readable((int)fd, timeout_ms) != 0)
             return -1;
     }
     r = recvmmsg((int)fd, msgvec, (unsigned int)n, 0, NULL);
@@ -197,18 +197,18 @@ SHUX_NET_UDP_GLUE_API int shu_net_udp_recvmmsg_buf_c(int32_t fd, shu_net_buf_t *
 /**
  * Linux sendmmsg：Buffer 切片，n 为 1..8。
  */
-SHUX_NET_UDP_GLUE_API int shu_net_udp_sendmmsg_buf_c(int32_t fd, const uint32_t *addrs_u32, const uint32_t *ports,
-    const shu_net_buf_t *bufs, int n) {
-    struct sockaddr_in sa[SHU_UDP_BATCH_BUF_MAX];
-    struct iovec iov[SHU_UDP_BATCH_BUF_MAX];
-    struct mmsghdr msgvec[SHU_UDP_BATCH_BUF_MAX];
+XLANG_NET_UDP_GLUE_API int xlang_net_udp_sendmmsg_buf_c(int32_t fd, const uint32_t *addrs_u32, const uint32_t *ports,
+    const xlang_net_buf_t *bufs, int n) {
+    struct sockaddr_in sa[XLANG_UDP_BATCH_BUF_MAX];
+    struct iovec iov[XLANG_UDP_BATCH_BUF_MAX];
+    struct mmsghdr msgvec[XLANG_UDP_BATCH_BUF_MAX];
     unsigned int i;
     int r;
 
-    if (n <= 0 || n > SHU_UDP_BATCH_BUF_MAX || !addrs_u32 || !ports || !bufs)
+    if (n <= 0 || n > XLANG_UDP_BATCH_BUF_MAX || !addrs_u32 || !ports || !bufs)
         return -1;
     for (i = 0; i < (unsigned int)n; i++) {
-        shu_udp_batch_set_addr_port(&sa[i], addrs_u32[i], ports[i]);
+        xlang_udp_batch_set_addr_port(&sa[i], addrs_u32[i], ports[i]);
         iov[i].iov_base = (void *)bufs[i].ptr;
         iov[i].iov_len  = bufs[i].len;
         msgvec[i].msg_hdr.msg_name = &sa[i];

@@ -5,19 +5,19 @@
 # 复制冒充 fresh 产物，导致 Stage0→1→2 循环实际未发生。
 #
 # 典型塌陷路径：
-#   1. make bootstrap-driver-seed 烟测失败 → cp seeds/bootstrap_shuxc.* 覆盖 ./shux
-#   2. build_shux_asm postlink 失败 → cp ./shux / shux_asm.experimental 覆盖 ./shux_asm
+#   1. make bootstrap-driver-seed 烟测失败 → cp seeds/bootstrap_xlangc.* 覆盖 ./xlang
+#   2. build_xlang_asm postlink 失败 → cp ./xlang / xlang_asm.experimental 覆盖 ./xlang_asm
 #   3. stage1==stage2==pinned 同 SHA256 → 哈希金标准绿但无真二遍编译
 #
 # 用法（仓库根，source 后调用）：
 #   source tests/lib/bootstrap-anti-collapse.sh
 #   bootstrap_anti_collapse_reset_audit
-#   bootstrap_anti_collapse_check compiler/shux_asm_stage1 compiler/shux_asm2
+#   bootstrap_anti_collapse_check compiler/xlang_asm_stage1 compiler/xlang_asm2
 
 # 审计标记目录（compiler 内脚本写 ../logs；gate 在仓库根用 logs/）。
 bootstrap_anti_collapse_audit_dir() {
-  if [ -n "${SHUX_BOOTSTRAP_AUDIT_DIR:-}" ]; then
-    echo "$SHUX_BOOTSTRAP_AUDIT_DIR"
+  if [ -n "${XLANG_BOOTSTRAP_AUDIT_DIR:-}" ]; then
+    echo "$XLANG_BOOTSTRAP_AUDIT_DIR"
     return 0
   fi
   local root
@@ -64,7 +64,7 @@ bootstrap_hash_file() {
   fi
 }
 
-# bootstrap_host_pinned_seed — 按宿主 OS/arch 返回 seeds/bootstrap_shuxc 路径。
+# bootstrap_host_pinned_seed — 按宿主 OS/arch 返回 seeds/bootstrap_xlangc 路径。
 bootstrap_host_pinned_seed() {
   local os arch root
   root="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
@@ -80,22 +80,22 @@ bootstrap_host_pinned_seed() {
     freebsd) os=freebsd ;;
     *) return 1 ;;
   esac
-  echo "$root/compiler/seeds/bootstrap_shuxc.${os}.${arch}"
+  echo "$root/compiler/seeds/bootstrap_xlangc.${os}.${arch}"
 }
 
 # bootstrap_anti_collapse_check — 在 gen1/gen2 后断言无塌陷；失败 exit 1。
 # 参数：
-#   stage1 — gen1 产物路径（默认 compiler/shux_asm_stage1）
-#   stage2 — gen2 产物路径（默认 compiler/shux_asm2）
-#   seed   — Stage0 ./shux 路径（默认 compiler/shux）
+#   stage1 — gen1 产物路径（默认 compiler/xlang_asm_stage1）
+#   stage2 — gen2 产物路径（默认 compiler/xlang_asm2）
+#   seed   — Stage0 ./xlang 路径（默认 compiler/xlang）
 # 环境：
-#   SHUX_BOOTSTRAP_ANTI_COLLAPSE_FAIL=1 — 硬失败（W3 gold 默认）
-#   SHUX_BOOTSTRAP_ALLOW_PINNED_FALLBACK=1 — 允许 seed 回退 pinned（本地调试）
-#   SHUX_BOOTSTRAP_ALLOW_POSTLINK_FALLBACK=1 — 允许 postlink 回退（本地调试）
+#   XLANG_BOOTSTRAP_ANTI_COLLAPSE_FAIL=1 — 硬失败（W3 gold 默认）
+#   XLANG_BOOTSTRAP_ALLOW_PINNED_FALLBACK=1 — 允许 seed 回退 pinned（本地调试）
+#   XLANG_BOOTSTRAP_ALLOW_POSTLINK_FALLBACK=1 — 允许 postlink 回退（本地调试）
 bootstrap_anti_collapse_check() {
-  local stage1="${1:-compiler/shux_asm_stage1}"
-  local stage2="${2:-compiler/shux_asm2}"
-  local seed="${3:-compiler/shux}"
+  local stage1="${1:-compiler/xlang_asm_stage1}"
+  local stage2="${2:-compiler/xlang_asm2}"
+  local seed="${3:-compiler/xlang}"
   local dir pinned h1 h2 hs hp fail=0
 
   dir="$(bootstrap_anti_collapse_audit_dir)"
@@ -107,29 +107,29 @@ bootstrap_anti_collapse_check() {
 
   # --- 审计标记：本轮是否发生 silent fallback ---
   if [ -f "$dir/bootstrap-seed.pinned-fallback" ] \
-    && [ "${SHUX_BOOTSTRAP_ALLOW_PINNED_FALLBACK:-0}" != "1" ] \
-    && [ "${SHUX_BOOTSTRAP_COLD_START_PINNED:-0}" != "1" ]; then
+    && [ "${XLANG_BOOTSTRAP_ALLOW_PINNED_FALLBACK:-0}" != "1" ] \
+    && [ "${XLANG_BOOTSTRAP_COLD_START_PINNED:-0}" != "1" ]; then
     echo "bootstrap-anti-collapse FAIL: seed smoke used pinned fallback (鸡生蛋链断裂风险)" >&2
-    echo "  hint: 若 intentional 冷启动，设 SHUX_BOOTSTRAP_COLD_START_PINNED=1 并确保 gen1!=pinned" >&2
+    echo "  hint: 若 intentional 冷启动，设 XLANG_BOOTSTRAP_COLD_START_PINNED=1 并确保 gen1!=pinned" >&2
     bootstrap_audit_log "FAIL seed pinned fallback"
     fail=1
   fi
 
   if [ -f "$dir/bootstrap-seed.pinned-fallback" ] \
-    && [ "${SHUX_BOOTSTRAP_COLD_START_PINNED:-0}" = "1" ]; then
+    && [ "${XLANG_BOOTSTRAP_COLD_START_PINNED:-0}" = "1" ]; then
     echo "bootstrap-anti-collapse: explicit cold-start pinned seed (须 gen1!=pinned 证真编译)"
     bootstrap_audit_log "INFO cold-start pinned allowed"
   fi
 
   if [ -f "$dir/bootstrap-postlink.compiler-fallback" ] \
-    && [ "${SHUX_BOOTSTRAP_ALLOW_POSTLINK_FALLBACK:-0}" != "1" ]; then
-    echo "bootstrap-anti-collapse FAIL: postlink copied compiler over shux_asm" >&2
+    && [ "${XLANG_BOOTSTRAP_ALLOW_POSTLINK_FALLBACK:-0}" != "1" ]; then
+    echo "bootstrap-anti-collapse FAIL: postlink copied compiler over xlang_asm" >&2
     bootstrap_audit_log "FAIL postlink compiler fallback"
     fail=1
   fi
 
   if [ -f "$dir/bootstrap-postlink.experimental-fallback" ] \
-    && [ "${SHUX_BOOTSTRAP_ALLOW_POSTLINK_FALLBACK:-0}" != "1" ]; then
+    && [ "${XLANG_BOOTSTRAP_ALLOW_POSTLINK_FALLBACK:-0}" != "1" ]; then
     echo "bootstrap-anti-collapse FAIL: postlink used experimental snapshot (非 strict 链产物)" >&2
     bootstrap_audit_log "FAIL postlink experimental fallback"
     fail=1
@@ -170,10 +170,10 @@ bootstrap_anti_collapse_check() {
   fi
 
   if [ "$fail" -ne 0 ]; then
-    if [ "${SHUX_BOOTSTRAP_ANTI_COLLAPSE_FAIL:-1}" = "1" ]; then
+    if [ "${XLANG_BOOTSTRAP_ANTI_COLLAPSE_FAIL:-1}" = "1" ]; then
       return 1
     fi
-    echo "bootstrap-anti-collapse WARN (SHUX_BOOTSTRAP_ANTI_COLLAPSE_FAIL=0)" >&2
+    echo "bootstrap-anti-collapse WARN (XLANG_BOOTSTRAP_ANTI_COLLAPSE_FAIL=0)" >&2
     return 0
   fi
 

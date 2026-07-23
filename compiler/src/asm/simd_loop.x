@@ -9,7 +9,7 @@
 // See implementation.
 
 export extern "C" function driver_get_pending_target_cpu_features(): u32;
-export extern "C" function shu_target_cpu_detect_host(): u32;
+export extern "C" function xlang_target_cpu_detect_host(): u32;
 export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_index_index_ref(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_var_name_len(arena: *u8, expr_ref: i32): i32;
@@ -113,7 +113,7 @@ export function glue_simd_loop_cpu_features_c(): u32 {
   unsafe {
     let feats: u32 = driver_get_pending_target_cpu_features();
     if (feats != 0) { return feats; }
-    return shu_target_cpu_detect_host();
+    return xlang_target_cpu_detect_host();
   }
   return 0;
 }
@@ -146,7 +146,10 @@ export extern "C" function ast_ast_block_while_cond_ref(arena: *u8, block_ref: i
 export extern "C" function ast_ast_block_while_body_ref(arena: *u8, block_ref: i32, loop_idx: i32): i32;
 export extern "C" function ast_ast_block_num_expr_stmts(arena: *u8, body: i32): i32;
 export extern "C" function ast_ast_block_expr_stmt_ref(arena: *u8, body: i32, ei: i32): i32;
-export extern "C" function getenv(name: *u8): *u8;
+/* wave229 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED — product hybrid full.x path owns peel/env gates. */
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 
 // glue_block_let_init_lit_c: see function docblock below.
 /** Exported function `glue_block_let_init_lit_c`.
@@ -452,13 +455,14 @@ export function glue_emit_full_const_peel_c(elf_ctx: *u8, binop_ko: i32, off_a: 
     let chunk_off_d: i32 = off_d - start * esz;
     if (glue_simd_loop_emit_chunk_binop_c(elf_ctx, binop_ko, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta, feats) != 0) {
       let name: u8[24] = [];
-      // SHUX_SIMD_HW_STRICT name[0] = 83; name[1] = 72; name[2] = 85; name[3] = 88;
+      // XLANG_SIMD_HW_STRICT name[0] = 83; name[1] = 72; name[2] = 85; name[3] = 88;
       name[4] = 95; name[5] = 83; name[6] = 73; name[7] = 77;
       name[8] = 68; name[9] = 95; name[10] = 72; name[11] = 87;
       name[12] = 95; name[13] = 83; name[14] = 84; name[15] = 82;
       name[16] = 73; name[17] = 67; name[18] = 84; name[19] = 0;
       unsafe {
-        let p: *u8 = getenv(&name[0]);
+        // wave229 G.7: XLANG_SIMD_HW_STRICT via link_abi_getenv (not raw getenv).
+        let p: *u8 = link_abi_getenv(&name[0]);
         if (p != 0) { if (p[0] != 48) { return 0 - 1; }
         }
       }
@@ -470,22 +474,23 @@ export function glue_emit_full_const_peel_c(elf_ctx: *u8, binop_ko: i32, off_a: 
 }
 
 /** Return 1 if SIMD hardware peel/emit should be disabled via env.
- * Looks up getenv("SHUX_SIMD_HW"); if the value starts with ASCII '0', treat HW SIMD as off.
+ * Looks up link_abi_getenv("XLANG_SIMD_HW"); if the value starts with ASCII '0', treat HW SIMD as off.
  * Missing env or other values leave HW SIMD enabled (return 0).
  * Env name is built as byte array (no string-literal dependency in this TU):
  *   S H U X _ S I M D _ H W \0  →  83 72 85 88 95 83 73 77 68 95 72 87 0
  * Track-L: #[no_mangle] keeps surface short name (not simd_loop_glue_simd_hw_env_disabled).
- * PLATFORM: SHARED — link-name contract; dual-host prove. Env semantics are host getenv. */
+ * wave229 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. Host residual = link_abi_getenv_impl. */
 #[no_mangle]
 export function glue_simd_hw_env_disabled(): i32 {
   unsafe {
     let name: u8[16] = [];
-    // Build "SHUX_SIMD_HW" without a string lit (stable -E / seed parity).
+    // Build "XLANG_SIMD_HW" without a string lit (stable -E / seed parity).
     name[0] = 83; name[1] = 72; name[2] = 85; name[3] = 88;
     name[4] = 95; name[5] = 83; name[6] = 73; name[7] = 77;
     name[8] = 68; name[9] = 95; name[10] = 72; name[11] = 87;
     name[12] = 0;
-    let p: *u8 = getenv(&name[0]);
+    let p: *u8 = link_abi_getenv(&name[0]);
     if (p == 0) { return 0; }
     // First byte '0' (ASCII 48) → explicitly disable HW SIMD.
     if (p[0] == 48) { return 1; }
@@ -941,7 +946,8 @@ export function glue_emit_f32_soa_sum_strip_c(arena: *u8, elf_ctx: *u8, ctx: *u8
     name[12] = 95; name[13] = 83; name[14] = 84; name[15] = 82;
     name[16] = 73; name[17] = 67; name[18] = 84; name[19] = 0;
     unsafe {
-      let p: *u8 = getenv(&name[0]);
+      // wave229 G.7: XLANG_SIMD_HW_STRICT via link_abi_getenv (not raw getenv).
+      let p: *u8 = link_abi_getenv(&name[0]);
       if (p != 0) { if (p[0] != 48) { return 0 - 1; }
       }
     }

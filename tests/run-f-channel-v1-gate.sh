@@ -2,7 +2,7 @@
 # F-channel v1：std.channel 去 C（channel.c → channel.x + seeds/runtime_channel_glue.from_x.c）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_CHANNEL_V1_FAIL:-0}
+FAIL=${XLANG_F_CHANNEL_V1_FAIL:-0}
 DOC="analysis/phase-f-channel-v1.md"
 MANIFEST="tests/baseline/f-channel-v1-closure.tsv"
 die() { echo "f-channel-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -23,10 +23,10 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
   esac
 done < "$MANIFEST"
 grep -q 'runtime_channel_glue' compiler/Makefile || die "Makefile missing runtime_channel_glue"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/channel/channel.o >/dev/null 2>&1 || die "make channel.o failed"
 else
-  echo "f-channel-v1 SKIP channel.o build (no shux-c)" >&2
+  echo "f-channel-v1 SKIP channel.o build (no xlang-c)" >&2
 fi
 make -C compiler -q runtime_channel_glue.o 2>/dev/null || make -C compiler runtime_channel_glue.o >/dev/null 2>&1 || die "runtime_channel_glue.o build failed"
 for sub in run-std-channel-select-gate.sh run-std-channel-unbounded-gate.sh; do

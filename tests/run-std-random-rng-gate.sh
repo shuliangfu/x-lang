@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 DOC="analysis/std-random-rng-v1.md"
 MANIFEST="tests/baseline/std-random-rng-manifest.tsv"
 MOD_X="std/random/mod.x"
-RANDOM_X="${SHUX_STD_RANDOM_IMPL:-std/random/random.x}"
+RANDOM_X="${XLANG_STD_RANDOM_IMPL:-std/random/random.x}"
 RUNTIME_FILL="compiler/seeds/runtime_random_fill.from_x.c"
 LIB="tests/lib/std-random-rng.sh"
 SMOKE_X="tests/random/rng_roundtrip.x"
@@ -20,7 +20,7 @@ C_OK=0
 CHECK_OK=0
 X_OK=0
 SKIP=0
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/random/random.o
   RANDOM_O="$(cd compiler && pwd)/../std/random/random.o"
@@ -31,19 +31,19 @@ if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
     SKIP=1
   fi
 else
-  echo "std-random-rng gate SKIP c/su smoke (no shux-c; manifest OK)" >&2
+  echo "std-random-rng gate SKIP c/su smoke (no xlang-c; manifest OK)" >&2
   SKIP=1
 fi
-if [ -x ./compiler/shux-c ]; then
-  if ./compiler/shux-c check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -x ./compiler/xlang-c ]; then
+  if ./compiler/xlang-c check -L . "$SMOKE_X" >/dev/null 2>&1; then
     CHECK_OK=1
   else
     echo "std-random-rng gate FAIL: typeck" >&2
-    ./compiler/shux-c check -L . "$SMOKE_X" 2>&1 | tail -8 >&2 || true
+    ./compiler/xlang-c check -L . "$SMOKE_X" 2>&1 | tail -8 >&2 || true
     std_random_rng_emit_report fail 1 0 0
     exit 1
   fi
-  if ! ./compiler/shux-c check -L . tests/random/main.x >/dev/null 2>&1; then
+  if ! ./compiler/xlang-c check -L . tests/random/main.x >/dev/null 2>&1; then
     echo "std-random-rng gate FAIL: typeck main.x" >&2
     std_random_rng_emit_report fail 1 0 0
     exit 1
@@ -62,11 +62,11 @@ if [ -x ./compiler/shux-c ]; then
       exit 1
     fi
   done
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
-  # shellcheck source=tests/lib/bootstrap-link-shux.sh
-  . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
+  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
   # x pipeline compile/run 待 random co-emit 闭合；typeck + manifest + grep 通过即 OK。
-  if std_random_rng_run_smoke "$RUN_SHUX" "$SMOKE_X"; then
+  if std_random_rng_run_smoke "$RUN_XLANG" "$SMOKE_X"; then
     X_OK=1
   else
     echo "std-random-rng gate SKIP x runnable (typeck OK; co-emit debt)" >&2

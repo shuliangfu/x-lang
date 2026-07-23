@@ -43,13 +43,13 @@ sym_miss="$(std_elf_write_symbols_ok "$MOD_X" "$ELF_X" "$MANIFEST" || true)"
 [ "${sym_miss:-0}" -eq 0 ] || exit 1
 
 . tests/lib/build-std-c-o.sh
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   ensure_std_c_o ../std/elf/elf.o
   ELF_O="$(cd compiler && pwd)/../std/elf/elf.o"
 else
-  echo "std-elf-write gate SKIP c/x smoke (need shux-c for elf.x merge)" >&2
+  echo "std-elf-write gate SKIP c/x smoke (need xlang-c for elf.x merge)" >&2
   std_elf_write_emit_report ok 0 0 1
-  echo "std-elf-write gate OK (manifest only; no shux-c)"
+  echo "std-elf-write gate OK (manifest only; no xlang-c)"
   exit 0
 fi
 
@@ -58,10 +58,10 @@ std_elf_write_run_c_smoke "$ELF_O" && C_OK=1 || exit 1
 
 X_OK=0
 SKIP=0
-if [ -x ./compiler/shux-c ]; then
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  ./compiler/shux-c check -L . "$SMOKE_X" >/dev/null
-  std_elf_write_run_x_smoke ./compiler/shux-c "$SMOKE_X" && X_OK=1 || exit 1
+if [ -x ./compiler/xlang-c ]; then
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  ./compiler/xlang-c check -L . "$SMOKE_X" >/dev/null
+  std_elf_write_run_x_smoke ./compiler/xlang-c "$SMOKE_X" && X_OK=1 || exit 1
 else
   SKIP=1
 fi

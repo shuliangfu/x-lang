@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-uuid.sh — STD-075 manifest 与烟测辅助
 
-STD_UUID_PREFIX="${SHUX_STD_UUID_PREFIX:-shux: [SHUX_STD_UUID]}"
+STD_UUID_PREFIX="${XLANG_STD_UUID_PREFIX:-xlang: [XLANG_STD_UUID]}"
 
 # 遍历 manifest 校验 symbol/file/smoke。
 std_uuid_symbols_ok() {
@@ -50,13 +50,13 @@ std_uuid_symbols_ok() {
 
 # 编译并运行 .x 烟测。
 std_uuid_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-uuid}"
-  local exe="/tmp/shux_std_uuid_${tag}_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std_uuid_${tag}_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-uuid FAIL: compile $src" >&2
-    "$shux" -L . "$src" 2>&1 | tail -12 >&2 || true
+    "$xlang" -L . "$src" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi

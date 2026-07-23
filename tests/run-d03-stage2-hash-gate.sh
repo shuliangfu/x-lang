@@ -5,21 +5,21 @@
 #
 # 用法：./tests/run-d03-stage2-hash-gate.sh
 # 环境：
-#   SHUX_D03_FAIL=1           — 失败时硬退出（CI 默认）
-#   SHUX_STAGE2_HASH_STRICT=1 — 哈希不等时 exit 1（默认 1）
-#   SHUX_STAGE2_HASH_SKIP=1   — 完全跳过
+#   XLANG_D03_FAIL=1           — 失败时硬退出（CI 默认）
+#   XLANG_STAGE2_HASH_STRICT=1 — 哈希不等时 exit 1（默认 1）
+#   XLANG_STAGE2_HASH_SKIP=1   — 完全跳过
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_D03_FAIL:-0}
-STRICT=${SHUX_STAGE2_HASH_STRICT:-1}
+FAIL=${XLANG_D03_FAIL:-0}
+STRICT=${XLANG_STAGE2_HASH_STRICT:-1}
 DOC="analysis/phase-d-d03-v1.md"
 MANIFEST="tests/baseline/d03-stage2-hash.tsv"
 HASH_GATE="tests/run-stage2-hash-gate.sh"
 VERIFY="compiler/verify-selfhost-stage2-bstrict.sh"
-if [ "$(uname)" = "Darwin" ]; then echo "SKIP (macOS): shux_asm_stage1 OOM"; exit 0; fi
-STAGE1="${SHUX_D03_STAGE1:-compiler/shux_asm_stage1}"
-STAGE2="${SHUX_D03_STAGE2:-compiler/shux_asm2}"
+if [ "$(uname)" = "Darwin" ]; then echo "SKIP (macOS): xlang_asm_stage1 OOM"; exit 0; fi
+STAGE1="${XLANG_D03_STAGE1:-compiler/xlang_asm_stage1}"
+STAGE2="${XLANG_D03_STAGE2:-compiler/xlang_asm2}"
 
 die() {
   echo "d03 gate FAIL: $*" >&2
@@ -28,8 +28,8 @@ die() {
 }
 
 echo "=== D-03: Stage2 SHA256 golden standard (v1) ==="
-if [ "${SHUX_STAGE2_HASH_SKIP:-0}" = "1" ]; then
-  echo "d03 stage2-hash gate: SKIP (SHUX_STAGE2_HASH_SKIP=1)"
+if [ "${XLANG_STAGE2_HASH_SKIP:-0}" = "1" ]; then
+  echo "d03 stage2-hash gate: SKIP (XLANG_STAGE2_HASH_SKIP=1)"
   exit 0
 fi
 
@@ -72,6 +72,6 @@ fi
 
 echo "=== D-03: delegate run-stage2-hash-gate (STRICT=$STRICT) ==="
 chmod +x "$HASH_GATE"
-SHUX_STAGE2_HASH_STRICT="$STRICT" "$HASH_GATE" "$STAGE1" "$STAGE2" || die "hash gate failed"
+XLANG_STAGE2_HASH_STRICT="$STRICT" "$HASH_GATE" "$STAGE1" "$STAGE2" || die "hash gate failed"
 
 echo "d03 stage2-hash gate OK (SHA256 match: $STAGE1 vs $STAGE2)"

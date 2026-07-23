@@ -12,13 +12,13 @@ make -C compiler -q ../std/heap/page_mmap.o 2>/dev/null \
   || make -C compiler ../std/heap/page_mmap.o
 ensure_runtime_panic_o
 ensure_runtime_process_argv_o
-# shellcheck source=lib/bootstrap-link-shux.sh
-. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+# shellcheck source=lib/bootstrap-link-xlang.sh
+. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 # shellcheck source=lib/collection-asm-gcc-link.sh
 . "$(dirname "$0")/lib/collection-asm-gcc-link.sh"
-SHUX=${SHUX:-./compiler/shux}
-LINK_SHUX="${SHUX_LINK_SHUX:-${RUN_SHUX:-$SHUX}}"
-if ! "$SHUX" check -L . tests/map/main.x 2>&1; then
+XLANG=${XLANG:-./compiler/xlang}
+LINK_XLANG="${XLANG_LINK_XLANG:-${RUN_XLANG:-$XLANG}}"
+if ! "$XLANG" check -L . tests/map/main.x 2>&1; then
   echo "map test: typeck failed"
   exit 1
 fi
@@ -26,8 +26,8 @@ if ! nm std/map/map.o 2>/dev/null | grep -q 'std_map_empty_size'; then
   echo "map test: missing std_map_empty_size in map.o"
   exit 1
 fi
-exe="/tmp/shux_map_$$"
-if ! collection_link_exe "$LINK_SHUX" tests/map/main.x "$exe" map 2>&1; then
+exe="/tmp/xlang_map_$$"
+if ! collection_link_exe "$LINK_XLANG" tests/map/main.x "$exe" map 2>&1; then
   echo "map test: link failed"
   rm -f "$exe"
   exit 1

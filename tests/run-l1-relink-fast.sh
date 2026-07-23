@@ -7,9 +7,9 @@
 # ./tests/run-l1-relink-fast.sh --relink-only
 #
 # 环境：
-# SHUX_DOCKER_PERSIST=1 默认开启（常驻容器，二次 ~1min）
-# SHUX_DOCKER_MEMORY=16g 默认 16g
-# SHUX_FORCE_FULL_BOOTSTRAP=1 无 shux 时跑完整 bootstrap-driver-seed（慢，仅首次）
+# XLANG_DOCKER_PERSIST=1 默认开启（常驻容器，二次 ~1min）
+# XLANG_DOCKER_MEMORY=16g 默认 16g
+# XLANG_FORCE_FULL_BOOTSTRAP=1 无 xlang 时跑完整 bootstrap-driver-seed（慢，仅首次）
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -28,9 +28,9 @@ for arg in "$@"; do
   esac
 done
 
-export SHUX_DOCKER_PERSIST="${SHUX_DOCKER_PERSIST:-1}"
-export SHUX_DOCKER_MEMORY="${SHUX_DOCKER_MEMORY:-16g}"
-export SHUX_DOCKER_SHM="${SHUX_DOCKER_SHM:-4g}"
+export XLANG_DOCKER_PERSIST="${XLANG_DOCKER_PERSIST:-1}"
+export XLANG_DOCKER_MEMORY="${XLANG_DOCKER_MEMORY:-16g}"
+export XLANG_DOCKER_SHM="${XLANG_DOCKER_SHM:-4g}"
 
 DOCKER="./tests/lib/docker-linux-run.sh"
 chmod +x "$DOCKER" 2>/dev/null || true
@@ -42,7 +42,7 @@ progress(){ echo "[$(date +%H:%M:%S)] l1-fast $*"; }
 cd /src/compiler
 chmod +x scripts/*.sh 2>/dev/null || true
 
-# 恢复 pinned gen（免 shux-c -E 再生）
+# 恢复 pinned gen（免 xlang-c -E 再生）
 copy_seed() { [ -f "$1" ] && cat "$1" > "$2"; }
 for f in lexer_gen parser_gen typeck_gen codegen_gen pipeline_gen driver_gen preprocess_gen \
   lsp_io_gen lsp_gen lsp_diag_gen lsp_io_std_heap_gen \
@@ -62,22 +62,22 @@ progress "rebuild pipeline_x.o + typeck_x.o (region parent link + assign final_e
 touch ast_pool.c pipeline_glue.c typeck_gen.c
 make -j"$(nproc 2>/dev/null || echo 4)" pipeline_x.o typeck_x.o 2>&1 | tail -8 || true
 
-final_link_shux() {
+final_link_xlang() {
   local line
-  line=$(make -n bootstrap-driver-seed 2>/dev/null | grep " -o shux " | grep -v shux-seed-phase1 | tail -1)
+  line=$(make -n bootstrap-driver-seed 2>/dev/null | grep " -o xlang " | grep -v xlang-seed-phase1 | tail -1)
   if [ -z "$line" ]; then
   echo "l1-fast FAIL: cannot extract final link line from make -n" >&2
   exit 1
   fi
-  progress "final link shux (skip asm.x -E)"
+  progress "final link xlang (skip asm.x -E)"
   eval "$line"
-  cp -f shux shux-c
-  cp -f shux bootstrap_shuxc
+  cp -f xlang xlang-c
+  cp -f xlang bootstrap_xlangc
 }
 
-if [ -x ./shux ] && [ "${SHUX_FORCE_FULL_BOOTSTRAP:-}" != "1" ]; then
-  progress "incremental: existing shux -> relink final only"
-  final_link_shux
+if [ -x ./xlang ] && [ "${XLANG_FORCE_FULL_BOOTSTRAP:-}" != "1" ]; then
+  progress "incremental: existing xlang -> relink final only"
+  final_link_xlang
 else
   progress "cold: build DRIVER_SEED prereqs (parallel, no asm -E yet)"
   # cfg_eval.x 的 asm 编译极慢；冷启动直接用 stub
@@ -99,7 +99,7 @@ else
   2>&1 | while IFS= read -r line; do echo "$line"; done
   progress "gen phase1 stub partial (avoid long asm -E)"
   ./scripts/gen_g06_phase1_backend_stub.sh
-  final_link_shux
+  final_link_xlang
 fi
 
 progress "smoke: i32[] parse (expect num_funcs=2)"
@@ -107,7 +107,7 @@ cat >/tmp/l1_slice_smoke.x <<EOF
 function f(): i32[] { return 0; }
 function main(): i32 { return 0; }
 EOF
-out=$(SHUX_DEBUG_PIPE=1 ./shux-c check /tmp/l1_slice_smoke.x 2>&1) || true
+out=$(XLANG_DEBUG_PIPE=1 ./xlang-c check /tmp/l1_slice_smoke.x 2>&1) || true
 echo "$out" | grep num_funcs || true
 echo "$out" | grep -q "num_funcs=2" || {
   echo "l1-fast FAIL: i32[] still not parsed (want num_funcs=2)" >&2
@@ -126,15 +126,15 @@ if [ "${RELINK_ONLY:-0}" = "1" ]; then
 fi
 
 cd /src
-SHUX=./compiler/shux-c
+XLANG=./compiler/xlang-c
 progress "run-typeck-region.sh"
-"$SHUX" >/dev/null 2>&1 || true
+"$XLANG" >/dev/null 2>&1 || true
 chmod +x tests/run-typeck-region.sh tests/run-typeck-linear.sh \
   tests/run-type-borrow-conflict-gate.sh tests/run-scope-borrow-gate.sh
-SHUX="$SHUX" ./tests/run-typeck-region.sh
-SHUX="$SHUX" ./tests/run-typeck-linear.sh
-SHUX="$SHUX" SHUX_TYPE_BORROW_FAIL=1 ./tests/run-type-borrow-conflict-gate.sh
-SHUX="$SHUX" ./tests/run-scope-borrow-gate.sh
+XLANG="$XLANG" ./tests/run-typeck-region.sh
+XLANG="$XLANG" ./tests/run-typeck-linear.sh
+XLANG="$XLANG" XLANG_TYPE_BORROW_FAIL=1 ./tests/run-type-borrow-conflict-gate.sh
+XLANG="$XLANG" ./tests/run-scope-borrow-gate.sh
 progress "OK L1 gates"
 '
 

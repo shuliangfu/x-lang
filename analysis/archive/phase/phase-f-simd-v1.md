@@ -13,9 +13,9 @@
 ## 门禁
 
 ```bash
-SHUX_F_SIMD_V1_FAIL=1 ./tests/run-f-simd-v1-gate.sh
+XLANG_F_SIMD_V1_FAIL=1 ./tests/run-f-simd-v1-gate.sh
 ./tests/run-std-simd-autovec-strategy-gate.sh
-SHUX_F_STD_ZERO_C_FAIL=1 ./tests/run-f-std-zero-c-track-gate.sh
+XLANG_F_STD_ZERO_C_FAIL=1 ./tests/run-f-std-zero-c-track-gate.sh
 ```
 
 ## 下一项

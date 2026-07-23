@@ -7,19 +7,19 @@
 | 符号 | 说明 |
 |------|------|
 | `runtime_read_file_malloc` | 整文件读入堆缓冲（原 static read_file） |
-| `shux_read_file_into_path` | ast_pool / pipeline 读文件前缀 |
-| `shux_write_path_bytes` | fmt / 调试写文件 |
+| `xlang_read_file_into_path` | ast_pool / pipeline 读文件前缀 |
+| `xlang_write_path_bytes` | fmt / 调试写文件 |
 
 | 链接 | 说明 |
 |------|------|
 | `DRIVER_SEED_OBJS` | 含 `src/runtime_io_abi.o` |
-| `OBJS_CORE`（shux-c） | 含 `src/runtime_io_abi.o`（供 ast_pool 符号） |
+| `OBJS_CORE`（xlang-c） | 含 `src/runtime_io_abi.o`（供 ast_pool 符号） |
 | B-strict | `ensure_runtime_io_abi_obj` |
 
 ## 复现
 
 ```bash
-SHUX_E04_FAIL=1 ./tests/run-e04-runtime-soft-gate.sh
+XLANG_E04_FAIL=1 ./tests/run-e04-runtime-soft-gate.sh
 make -C compiler src/runtime_io_abi.o src/runtime_driver_no_c.o
 ```
 

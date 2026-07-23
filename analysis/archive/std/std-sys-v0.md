@@ -18,7 +18,7 @@
 
 | API | Linux freestanding |
 |-----|-------------------|
-| `os_write` | `shux_sys_write` 按需链入 |
+| `os_write` | `xlang_sys_write` 按需链入 |
 | `os_write_stdout` | fd=1 |
 | `freestanding_write_available` | 文档化探测 |
 
@@ -30,7 +30,7 @@
 ./tests/run-std-sys-gate.sh
 ```
 
-Linux x86_64 + `shux -freestanding -backend asm`：编译运行 stdout 烟测。  
+Linux x86_64 + `xlang -freestanding -backend asm`：编译运行 stdout 烟测。  
 Darwin + 常规 `-o exe`：`macos_write_stdout` 烟测。  
 其他宿主：manifest + typeck OK，runtime SKIP。
 

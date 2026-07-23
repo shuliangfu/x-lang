@@ -1,6 +1,6 @@
 /* seeds/pthin_foundation.from_x.c — G-02f-329 P2 parser thin foundation
  * Logic source: src/asm/pthin_foundation.x
- * Hybrid: SHUX_PTHIN_FOUNDATION_FROM_X + ld -r into parser_asm_thin_glue.o
+ * Hybrid: XLANG_PTHIN_FOUNDATION_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * lexer_init + parser_asm_foundation_slice.inc (arena_expr_get/set + expr_set_common_zeros)
  */

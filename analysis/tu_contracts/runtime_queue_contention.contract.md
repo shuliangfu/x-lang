@@ -33,7 +33,7 @@
 
 ## 4. ABI Manifest
 - _impl 残余列表：`queue_smoke_at_impl`、`queue_smoke_push_back_impl`、`queue_os_worker_trampoline_impl`
-- thin+rest 宏边界：`SHUX_RUNTIME_QUEUE_CONTENTION_FROM_X`
+- thin+rest 宏边界：`XLANG_RUNTIME_QUEUE_CONTENTION_FROM_X`
 - 前向声明：3 个 thin wrapper（`queue_smoke_at` / `queue_smoke_push_back` / `queue_os_worker_trampoline`），rest 模式下供 rest 函数调用
 - 内部调用更新：无（rest 函数调用 thin wrapper 符号，rest 模式下为 U 由 thin.o 解析）
 
@@ -48,5 +48,5 @@
 - `queue_contention_worker_push_c` 调用 `queue_smoke_push_back`（thin wrapper），rest 模式下为 U 由 thin.o 提供
 - `queue_os_run_two_workers_c` 取 `queue_os_worker_trampoline`（thin wrapper）地址传给 pthread_create/_beginthreadex，rest 模式下为 U 由 thin.o 提供
 - 平台条件：`queue_os_worker_trampoline` Windows 版本为 `static unsigned __stdcall`（不导出，不切割）；Unix 版本为 `void *`（导出，切割为 `_impl` + thin wrapper）。thin wrapper 在 `#else`（非 Windows）块内
-- 已知预存行为：所有 4 个 thin wrapper 在 Linux 上为 W（weak）符号——shux-c 编译器对 `#[no_mangle]` 属性处理不完整（3 个 wrapper 有 `#[no_mangle]` 但 gen.c 仍标记 weak；doc_anchor 无 `#[no_mangle]` 故 weak 正确）。macOS Mach-O 不支持 weak，均为 T 符号。非本次切割引入
+- 已知预存行为：所有 4 个 thin wrapper 在 Linux 上为 W（weak）符号——xlang-c 编译器对 `#[no_mangle]` 属性处理不完整（3 个 wrapper 有 `#[no_mangle]` 但 gen.c 仍标记 weak；doc_anchor 无 `#[no_mangle]` 故 weak 正确）。macOS Mach-O 不支持 weak，均为 T 符号。非本次切割引入
 - 依赖：pthread（Unix）/ Win32（Windows）；malloc/free/memset（libc）

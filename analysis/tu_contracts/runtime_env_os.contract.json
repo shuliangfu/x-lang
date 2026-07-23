@@ -27,7 +27,7 @@
     "only_x": [],
     "only_seed": ["env_getenv_c", "env_getenv_ptr_c", "env_getenv_z_c", "env_getenv_exists_c", "env_setenv_c", "env_unsetenv_c", "env_temp_dir_c", "env_iter_count_c", "env_iter_at_c"]
   },
-  "rest_macro": "SHUX_RUNTIME_ENV_OS_FROM_X",
+  "rest_macro": "XLANG_RUNTIME_ENV_OS_FROM_X",
   "delete_seed_gate": {
     "allowed_now": false,
     "requirements": [

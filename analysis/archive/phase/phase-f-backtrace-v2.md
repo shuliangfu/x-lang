@@ -8,13 +8,13 @@
 |----|----|-----|
 | 帧辅助/烟测 | `backtrace_glue.c` | **`backtrace.x`** |
 | 平台 capture | `backtrace_platform_glue.c`（std） | **`runtime_backtrace_platform.c`**（compiler） |
-| `backtrace.o` | `ld -r` x + glue | 纯 **`shux -backend asm backtrace.x`** |
+| `backtrace.o` | `ld -r` x + glue | 纯 **`xlang -backend asm backtrace.x`** |
 
 ## runtime 导出
 
 - `backtrace_capture_c` / `backtrace_symbolicate_c` / `backtrace_gold_anchor_c`
 - `backtrace_gold_anchor_addr_c` / `backtrace_xplat_quality_c`
-- `shux_crash_evidence_collect_c`（强符号覆盖 `runtime_panic.c` 弱默认）
+- `xlang_crash_evidence_collect_c`（强符号覆盖 `runtime_panic.c` 弱默认）
 
 ## backtrace.x 导出
 
@@ -24,7 +24,7 @@
 ## 门禁
 
 ```bash
-SHUX_F_BACKTRACE_V2_FAIL=1 ./tests/run-f-backtrace-v2-gate.sh
+XLANG_F_BACKTRACE_V2_FAIL=1 ./tests/run-f-backtrace-v2-gate.sh
 ./tests/run-std-backtrace-symbolicate-gate.sh
-SHUX_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
+XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
 ```

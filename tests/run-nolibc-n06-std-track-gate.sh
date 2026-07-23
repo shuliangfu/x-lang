@@ -3,12 +3,12 @@
 #
 # 用法：./tests/run-nolibc-n06-std-track-gate.sh
 # 环境：
-#   SHUX_NOLIBC_N06_FAIL=1              — 失败时硬退出
-#   SHUX_NOLIBC_N06_MANIFEST_ONLY=1     — 仅 manifest（跳过 F-01 委托）
+#   XLANG_NOLIBC_N06_FAIL=1              — 失败时硬退出
+#   XLANG_NOLIBC_N06_MANIFEST_ONLY=1     — 仅 manifest（跳过 F-01 委托）
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_NOLIBC_N06_FAIL:-0}
+FAIL=${XLANG_NOLIBC_N06_FAIL:-0}
 DOC="analysis/phase-f-n06-v1.md"
 MANIFEST="tests/baseline/nolibc-n06-freestanding-replacements.tsv"
 STD_C_GATE="tests/run-std-c-inventory-gate.sh"
@@ -37,7 +37,7 @@ f01_total=$(awk -F'\t' '$1=="summary_total_c" { print $2; exit }' tests/baseline
 f01_total=${f01_total:-97}
 echo "nolibc-n06: x_replacements=${x_n} legacy_c=${leg_n} (F-01 total=${f01_total})"
 
-if [ "${SHUX_NOLIBC_N06_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_NOLIBC_N06_MANIFEST_ONLY:-0}" = "1" ]; then
   echo "nolibc-n06 gate OK (manifest only; x=${x_n} legacy=${leg_n})"
   exit 0
 fi
@@ -46,7 +46,7 @@ fi
 if [ -f "$STD_C_GATE" ]; then
   echo "=== NL-06: delegate run-std-c-inventory-gate (F-01) ==="
   chmod +x "$STD_C_GATE"
-  if ! SHUX_STD_C_INVENTORY_FAIL="$FAIL" "$STD_C_GATE"; then
+  if ! XLANG_STD_C_INVENTORY_FAIL="$FAIL" "$STD_C_GATE"; then
     die "F-01 std-c-inventory sub-gate failed"
   fi
 fi

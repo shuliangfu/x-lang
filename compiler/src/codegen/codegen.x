@@ -455,10 +455,10 @@ export function codegen_emit_async_run_seed_push_name(out: *CodegenOutBuf, arena
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    let push_i32: u8[28] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 105, 51, 50];
-    let push_u32: u8[28] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 117, 51, 50];
-    let push_i64: u8[28] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 105, 54, 52];
-    let push_usize: u8[30] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 117, 115, 105, 122, 101];
+    let push_i32: u8[29] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 105, 51, 50];
+    let push_u32: u8[29] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 117, 51, 50];
+    let push_i64: u8[29] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 105, 54, 52];
+    let push_usize: u8[31] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 117, 115, 105, 122, 101];
     let kind_ord: i32 = TypeKind.TYPE_I32 as i32;
     if (arena != 0 as *ASTArena && !ast.ref_is_null(type_ref)) {
       kind_ord = pipeline_type_kind_ord_at(arena, type_ref);
@@ -487,7 +487,7 @@ export function codegen_emit_async_sched_call(out: *CodegenOutBuf, module: *Modu
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    let sched_prefix: u8[17] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 115, 99, 104, 101, 100, 95];
+    let sched_prefix: u8[18] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 115, 99, 104, 101, 100, 95];
     let fn_name: u8[64] = [];
     let fn_len: i32 = 0;
     if (module == 0 as *Module || func_index < 0 || func_index >= module.num_funcs) {
@@ -519,7 +519,7 @@ export function codegen_emit_async_sched_call(out: *CodegenOutBuf, module: *Modu
  * @return i32
  */
 export function codegen_emit_async_sched_call_by_name(out: *CodegenOutBuf, fn_name: *u8, fn_len: i32): i32 {
-  let sched_prefix: u8[17] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 115, 99, 104, 101, 100, 95];
+  let sched_prefix: u8[18] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 115, 99, 104, 101, 100, 95];
   if (out == 0 as *CodegenOutBuf || fn_name == 0 as *u8 || fn_len <= 0) {
     return -1;
   }
@@ -546,7 +546,7 @@ export function codegen_emit_async_task_submit_call(out: *CodegenOutBuf, module:
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    let submit_name: u8[22] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 116, 97, 115, 107, 95, 115, 117, 98, 109, 105, 116];
+    let submit_name: u8[23] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 116, 97, 115, 107, 95, 115, 117, 98, 109, 105, 116];
     let cast_prefix: u8[19] = [40, 105, 110, 116, 51, 50, 95, 116, 32, 40, 42, 41, 40, 118, 111, 105, 100, 41, 41];
     let fn_name: u8[64] = [];
     let fn_len: i32 = 0;
@@ -587,7 +587,7 @@ export function codegen_emit_async_task_submit_call(out: *CodegenOutBuf, module:
  * @return i32
  */
 export function codegen_emit_async_task_submit_call_by_symbol(out: *CodegenOutBuf, prefix: *u8, prefix_len: i32, fn_name: *u8, fn_len: i32): i32 {
-  let submit_name: u8[22] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 116, 97, 115, 107, 95, 115, 117, 98, 109, 105, 116];
+  let submit_name: u8[23] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 116, 97, 115, 107, 95, 115, 117, 98, 109, 105, 116];
   let cast_prefix: u8[19] = [40, 105, 110, 116, 51, 50, 95, 116, 32, 40, 42, 41, 40, 118, 111, 105, 100, 41, 41];
   if (out == 0 as *CodegenOutBuf || fn_name == 0 as *u8 || fn_len <= 0) {
     return -1;
@@ -626,7 +626,7 @@ export function codegen_emit_async_binding_import_call(arena: *ASTArena, out: *C
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    let reset_name: u8[25] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 114, 101, 115, 101, 116];
+    let reset_name: u8[26] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 114, 101, 115, 101, 116];
     let comma: u8[3] = [44, 32, 0];
     let dep_path: u8[64] = [];
     let prefix_buf: u8[128] = [];
@@ -761,7 +761,7 @@ export function codegen_emit_async_method_call_run(arena: *ASTArena, out: *Codeg
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    let reset_name: u8[25] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 114, 101, 115, 101, 116];
+    let reset_name: u8[26] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 114, 101, 115, 101, 116];
     let comma: u8[3] = [44, 32, 0];
     let ai: i32 = 0;
     if (arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
@@ -921,6 +921,109 @@ export function codegen_resolve_binding_import_dep_index(ctx: *PipelineDepCtx, a
   }
 }
 
+/** Exported function `codegen_find_module_func_index_by_name_overload`.
+ * Implements `codegen_find_module_func_index_by_name_overload`.
+ * Overload-aware fallback: when typeck did not set call_resolved_func_index (e.g. dep
+ * module body not typeck'd), score same-name funcs by arg resolved_type vs param type
+ * and pick the best. Falls back to first-match when no args or all scores tie.
+ * Why: codegen_find_module_func_index_by_name returns the FIRST match by name, which is
+ * wrong when a module has same-name overloads (std_simd mul Vec8i vs Vec4f). Without this,
+ * dot(a:Vec4f,b:Vec4f) { return hsum(mul(a,b)); } emits the Vec8i mul (first) -> cc
+ * "conflicting types". PLATFORM: SHARED.
+ * @param arena *ASTArena
+ * @param module *Module
+ * @param call_expr_ref i32
+ * @param nm *u8
+ * @param nm_len i32
+ * @return i32
+ */
+export function codegen_find_module_func_index_by_name_overload(arena: *ASTArena, module: *Module,
+call_expr_ref: i32, nm: *u8, nm_len: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let fi: i32 = 0;
+    let first_idx: i32 = -1;
+    let best_idx: i32 = -1;
+    let best_score: i32 = -1;
+    let num_args: i32 = 0;
+    if (module == 0 as *Module || nm == 0 as *u8 || nm_len <= 0) {
+      return -1;
+    }
+    if (call_expr_ref > 0 && call_expr_ref <= arena.num_exprs) {
+      num_args = pipeline_expr_call_num_args_at(arena, call_expr_ref);
+    }
+    while (fi < module.num_funcs) {
+      let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
+      if (fn_len == nm_len && fn_len > 0) {
+        let fn_name: u8[64] = [];
+        let matched: i32 = 1;
+        let bi: i32 = 0;
+        pipeline_module_func_name_copy64(module, fi, &fn_name[0]);
+        while (bi < fn_len) {
+          if (fn_name[bi] != nm[bi]) {
+            matched = 0;
+            bi = fn_len;
+          } else {
+            bi = bi + 1;
+          }
+        }
+        if (matched != 0) {
+          if (first_idx < 0) {
+            first_idx = fi;
+          }
+          if (num_args > 0) {
+            let np: i32 = pipeline_module_func_num_params_at(module, fi);
+            if (np == num_args) {
+              let ai: i32 = 0;
+              let score: i32 = 0;
+              let ok: i32 = 1;
+              while (ai < num_args) {
+                let arg_ref: i32 = pipeline_expr_call_arg_ref(arena, call_expr_ref, ai);
+                let param_ty: i32 = pipeline_module_func_param_type_ref_at(module, fi, ai);
+                let arg_ty: i32 = 0;
+                let sc: i32 = 0;
+                if (arg_ref <= 0) {
+                  ok = 0;
+                  break;
+                }
+                arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+                if (arg_ty > 0 && param_ty > 0 && pipeline_typeck_type_refs_equal_c(arena, arg_ty, param_ty) != 0) {
+                  sc = 1000;
+                } else if (arg_ty > 0 && param_ty > 0) {
+                  let ak: i32 = pipeline_type_kind_ord_at(arena, arg_ty);
+                  let pk: i32 = pipeline_type_kind_ord_at(arena, param_ty);
+                  if (ak == pk && ak != 0) {
+                    sc = 1;
+                  } else {
+                    sc = -1;
+                  }
+                } else {
+                  sc = 0;
+                }
+                if (sc < 0) {
+                  ok = 0;
+                  break;
+                }
+                score = score + sc;
+                ai = ai + 1;
+              }
+              if (ok != 0 && score > best_score) {
+                best_score = score;
+                best_idx = fi;
+              }
+            }
+          }
+        }
+      }
+      fi = fi + 1;
+    }
+    if (best_idx >= 0) {
+      return best_idx;
+    }
+    return first_idx;
+  }
+}
+
 /** Exported function `codegen_resolve_call_target_func_index`.
  * Implements `codegen_resolve_call_target_func_index`.
  * @param arena *ASTArena
@@ -950,15 +1053,15 @@ export function codegen_resolve_call_target_func_index(arena: *ASTArena, module:
       }
       let callee_e: Expr = ast.ast_arena_expr_get(arena, call_e.call_callee_ref);
       if (callee_e.kind == ExprKind.EXPR_VAR && callee_e.var_name_len > 0) {
-        return codegen_find_module_func_index_by_name(module, &callee_e.var_name[0], callee_e.var_name_len);
+        return codegen_find_module_func_index_by_name_overload(arena, module, call_expr_ref, &callee_e.var_name[0], callee_e.var_name_len);
       }
       if (callee_e.kind == ExprKind.EXPR_FIELD_ACCESS && callee_e.field_access_field_len > 0) {
-        return codegen_find_module_func_index_by_name(module, &callee_e.field_access_field_name[0], callee_e.field_access_field_len);
+        return codegen_find_module_func_index_by_name_overload(arena, module, call_expr_ref, &callee_e.field_access_field_name[0], callee_e.field_access_field_len);
       }
       return -1;
     }
     if (call_e.kind == ExprKind.EXPR_METHOD_CALL && call_e.method_call_name_len > 0) {
-      return codegen_find_module_func_index_by_name(module, &call_e.method_call_name[0], call_e.method_call_name_len);
+      return codegen_find_module_func_index_by_name_overload(arena, module, call_expr_ref, &call_e.method_call_name[0], call_e.method_call_name_len);
     }
     return -1;
   }
@@ -1253,7 +1356,7 @@ export function codegen_is_std_io_driver_bridge_name(name: *u8, name_len: i32): 
 /**
  * Skip emitting std.io.core bodies that duplicate runtime/io.o strong symbols.
  *
- * Purpose: when product C co-emits std.io.core, do not redefine shux_io_read_fixed
+ * Purpose: when product C co-emits std.io.core, do not redefine xlang_io_read_fixed
  * (and siblings) that product preamble already provides as weak stubs / io.o.
  *
  * Parameters:
@@ -1263,23 +1366,23 @@ export function codegen_is_std_io_driver_bridge_name(name: *u8, name_len: i32): 
  *
  * Returns 1 to skip emit, 0 to emit.
  *
- * Contract: match tables use full "shux_io_*" (with 'x'), never historic "shu_io_*".
+ * Contract: match tables use full "xlang_io_*" (with 'x'), never historic "shu_io_*" brand.
  * Batch names are checked before short submit_read/write prefixes.
  * PLATFORM: SHARED — link-name contract; Cap force + pin product matrix.
  */
 export function codegen_should_skip_emit_std_io_core_io_dup(dep_path: *u8, name: *u8, name_len: i32): i32 {
   let path_core: u8[11] = [115, 116, 100, 46, 105, 111, 46, 99, 111, 114, 101];
-  /* shux_io_read_fixed — 18 (preamble weak returns -1; avoid redef with weak). */
-  let n_rf: u8[18] = [115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 97, 100, 95, 102, 105, 120, 101, 100];
-  /* shux_io_write_fixed — 19 */
-  let n_wf: u8[19] = [115, 104, 117, 120, 95, 105, 111, 95, 119, 114, 105, 116, 101, 95, 102, 105, 120, 101, 100];
+  /* xlang_io_read_fixed — 18 (preamble weak returns -1; avoid redef with weak). */
+  let n_rf: u8[19] = [120, 108, 97, 110, 103, 95, 105, 111, 95, 114, 101, 97, 100, 95, 102, 105, 120, 101, 100];
+  /* xlang_io_write_fixed — 19 */
+  let n_wf: u8[20] = [120, 108, 97, 110, 103, 95, 105, 111, 95, 119, 114, 105, 116, 101, 95, 102, 105, 120, 101, 100];
   /*
    * See implementation.
    * See implementation.
    * See implementation.
    * See implementation.
    * See implementation.
-   * Do NOT skip shux_io_submit_write either (no weak; Cap force hello residual).
+   * Do NOT skip xlang_io_submit_write either (no weak; Cap force hello residual).
    * PLATFORM: SHARED — product C path; Cap force + pin seed.
    */
   let di: i32 = 0;
@@ -1680,9 +1783,9 @@ export function codegen_emit_io_driver_buf_call_name(out: *CodegenOutBuf, name: 
   let rd11: u8[11] = [115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100];
   let wr12: u8[12] = [115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101];
   /* See implementation. */
-  let sym_reg: u8[20] = [115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 103, 105, 115, 116, 101, 114, 95, 98, 117, 102];
-  let sym_rd: u8[23] = [115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 98, 117, 102];
-  let sym_wr: u8[24] = [115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101, 95, 98, 117, 102];
+  let sym_reg: u8[21] = [120, 108, 97, 110, 103, 95, 105, 111, 95, 114, 101, 103, 105, 115, 116, 101, 114, 95, 98, 117, 102];
+  let sym_rd: u8[24] = [120, 108, 97, 110, 103, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 98, 117, 102];
+  let sym_wr: u8[25] = [120, 108, 97, 110, 103, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101, 95, 98, 117, 102];
   if (name == 0 as *u8 || name_len <= 0) {
     return 0;
   }
@@ -1723,9 +1826,9 @@ export function codegen_try_emit_std_io_driver_buf_body(out: *CodegenOutBuf, mod
     let reg8: u8[8] = [114, 101, 103, 105, 115, 116, 101, 114];
     let rd11: u8[11] = [115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100];
     let wr12: u8[12] = [115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101];
-    let sym_reg: u8[20] = [115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 103, 105, 115, 116, 101, 114, 95, 98, 117, 102];
-    let sym_rd: u8[23] = [115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 98, 117, 102];
-    let sym_wr: u8[24] = [115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101, 95, 98, 117, 102];
+    let sym_reg: u8[21] = [120, 108, 97, 110, 103, 95, 105, 111, 95, 114, 101, 103, 105, 115, 116, 101, 114, 95, 98, 117, 102];
+    let sym_rd: u8[24] = [120, 108, 97, 110, 103, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 98, 117, 102];
+    let sym_wr: u8[25] = [120, 108, 97, 110, 103, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101, 95, 98, 117, 102];
     let ret_kw: u8[8] = [32, 32, 114, 101, 116, 117, 114, 110];
     let close_b: u8[3] = [10, 125, 0];
     if (codegen_force_param_std_io_driver_prefix_ok(prefix, prefix_len) == 0) {
@@ -1958,7 +2061,8 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
     if (append_byte(out, 41) != 0) {
       return -1;
     }
-    (void)is_method;
+    /* is_method is assigned but not read; XLANG has no unused-warning, so no
+     * `(void)is_method;` C-style cast needed (such syntax hangs the parser). */
     return 1;
   }
 }
@@ -1966,7 +2070,7 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
 /**
  * Emit one call argument under seed/glue slice ABI (PLATFORM: SHARED).
  *
- * Why: TYPE_SLICE params lower as `struct shux_slice_* *`. Locals stay by-value
+ * Why: TYPE_SLICE params lower as `struct xlang_slice_* *`. Locals stay by-value
  * structs, so call sites must pass `&local` (seed: `&(slice)`). Slice params are
  * already pointers — pass through. ADDR_OF is left unchanged.
  *
@@ -2125,7 +2229,7 @@ export function field_access_base_is_pointer_param(arena: *ASTArena, base_ref: i
           if (!ast.ref_is_null(param_ty_ref) && param_ty_ref > 0 && param_ty_ref <= arena.num_types) {
             let pty: Type = ast.ast_arena_type_get(arena, param_ty_ref);
             /* PLATFORM: SHARED — C ABI: *T and u8[] (TYPE_SLICE) params are pointers.
-             * Seed/glue pass slices as struct shux_slice_* *; field access must use ->. */
+             * Seed/glue pass slices as struct xlang_slice_* *; field access must use ->. */
             if (pty.kind == TypeKind.TYPE_PTR || pty.kind == TypeKind.TYPE_SLICE) {
               return 1;
             }
@@ -2913,9 +3017,13 @@ export function type_kind_append_to_scratch(scratch: *u8, cap: i32, w: i32, kind
 
 /** Exported function `emit_vector_c_type_out`.
  * Implements `emit_vector_c_type_out`.
+ * Emits the C type name (i32x4_t / u32x8_t / f32x4_t ...) for a VECTOR type
+ * given its element TypeKind ord and lane count. The emitted names must match
+ * the typedefs in seeds/rt_preamble.from_x.c (§10 vector block).
+ * PLATFORM: SHARED — used by both C and asm codegen paths.
  * @param out *CodegenOutBuf
- * @param elem_kind_ord i32
- * @param lanes i32
+ * @param elem_kind_ord i32 — TypeKind ord of the vector element (I32/U32/F32)
+ * @param lanes i32 — 4 / 8 / 16
  * @return i32
  */
 export function emit_vector_c_type_out(out: *CodegenOutBuf, elem_kind_ord: i32, lanes: i32): i32 {
@@ -2944,6 +3052,22 @@ export function emit_vector_c_type_out(out: *CodegenOutBuf, elem_kind_ord: i32, 
     }
     if (lanes == 16) {
       let sa: u8[9] = [117, 51, 50, 120, 49, 54, 95, 116, 0];
+      return emit_bytes_from_ptr(out, &sa[0], 8);
+    }
+  }
+  /* F32 vector: "f32x4_t" / "f32x8_t" / "f32x16_t". Without this branch, Vec4f
+   * falls through to the int32_t default and collides with Vec8i overloads. */
+  if (elem_kind_ord == (TypeKind.TYPE_F32 as i32)) {
+    if (lanes == 4) {
+      let s: u8[8] = [102, 51, 50, 120, 52, 95, 116, 0];
+      return emit_bytes_from_ptr(out, &s[0], 7);
+    }
+    if (lanes == 8) {
+      let s: u8[8] = [102, 51, 50, 120, 56, 95, 116, 0];
+      return emit_bytes_from_ptr(out, &s[0], 7);
+    }
+    if (lanes == 16) {
+      let sa: u8[9] = [102, 51, 50, 120, 49, 54, 95, 116, 0];
       return emit_bytes_from_ptr(out, &sa[0], 8);
     }
   }
@@ -3615,7 +3739,8 @@ export function codegen_lookup_struct_field_type_ref(
 ): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-    (void)(arena);
+    /* arena unused (layout lives on Module); XLANG has no unused-warning, so no
+     * `(void)(arena);` C-style cast needed (such syntax hangs the parser). */
     if (struct_name == 0 as *u8 || struct_name_len <= 0 || field_name == 0 as *u8 || field_name_len <= 0) {
       return 0;
     }
@@ -4993,6 +5118,19 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             return emit_bytes_4(out, l0, 3);
           }
         }
+        /*
+         * wave101 soft residual: same-module bare function used as value (e.g. cast
+         * `(f as *u8)`) must emit G.7 link symbol (module prefix + overload mangle),
+         * not the bare source name. Locals keep bare emit via name_is_local_binding.
+         * PLATFORM: SHARED — def/call/extern already use codegen_emit_func_link_name.
+         */
+        let fn_val: i32 = codegen_try_emit_fn_as_value(out, arena, ctx, &e.var_name[0], e.var_name_len);
+        if (fn_val == 0) {
+          return 0;
+        }
+        if (fn_val < 0) {
+          return 0 - 1;
+        }
         return emit_bytes_64(out, &e.var_name[0], e.var_name_len);
       }
       if (ctx != 0 as *PipelineDepCtx && ctx.emit_expr_as_callee != 0) {
@@ -5233,10 +5371,10 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       let op_ref: i32 = e.unary_operand_ref;
       let op_ty_ref: i32 = 0;
       let open: u8[4] = [40, 123, 32, 0];
-      let tmp_name: u8[15] = [95, 95, 115, 104, 117, 120, 95, 116, 114, 121, 95, 116, 109, 112, 0];
+      let tmp_name: u8[16] = [95, 95, 120, 108, 97, 110, 103, 95, 116, 114, 121, 95, 116, 109, 112, 0];
       let assign_mid: u8[5] = [32, 61, 32, 0, 0];
-      let if_open: u8[37] = [59, 32, 105, 102, 32, 40, 40, 95, 95, 115, 104, 117, 120, 95, 116, 114, 121, 95, 116, 109, 112, 41, 46, 101, 114, 114, 32, 33, 61, 32, 48, 41, 32, 123, 32, 114, 101];
-      let turn_mid: u8[39] = [116, 117, 114, 110, 32, 95, 95, 115, 104, 117, 120, 95, 116, 114, 121, 95, 116, 109, 112, 59, 32, 125, 32, 40, 95, 95, 115, 104, 117, 120, 95, 116, 114, 121, 95, 116, 109, 112, 0];
+      let if_open: u8[38] = [59, 32, 105, 102, 32, 40, 40, 95, 95, 120, 108, 97, 110, 103, 95, 116, 114, 121, 95, 116, 109, 112, 41, 46, 101, 114, 114, 32, 33, 61, 32, 48, 41, 32, 123, 32, 114, 101];
+      let turn_mid: u8[41] = [116, 117, 114, 110, 32, 95, 95, 120, 108, 97, 110, 103, 95, 116, 114, 121, 95, 116, 109, 112, 59, 32, 125, 32, 40, 95, 95, 120, 108, 97, 110, 103, 95, 116, 114, 121, 95, 116, 109, 112, 0];
       let value_tail: u8[7] = [41, 46, 118, 97, 108, 117, 101];
       let close_tail: u8[4] = [59, 32, 125, 41];
       if (ast.ref_is_null(op_ref) || op_ref <= 0 || op_ref > arena.num_exprs) {
@@ -5293,7 +5431,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       let num_params: i32 = 0;
       let ai: i32 = 0;
       let op_is_call: i32 = 0;
-      let reset_name: u8[25] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 114, 101, 115, 101, 116];
+      let reset_name: u8[26] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 114, 101, 115, 101, 116];
       let comma: u8[3] = [44, 32, 0];
       if (ctx == 0 as *PipelineDepCtx || ctx.current_codegen_module == 0 as *Module) {
         return -1;
@@ -6745,8 +6883,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
     }
     /* See implementation. */
     if (e.kind == ExprKind.EXPR_PANIC) {
-      let p: u8[22] = [115, 104, 117, 120, 95, 112, 97, 110, 105, 99, 95, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-      if (emit_bytes_22(out, p, 12) != 0) {
+      let p: u8[23] = [120, 108, 97, 110, 103, 95, 112, 97, 110, 105, 99, 95, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      if (emit_bytes_22(out, p, 13) != 0) {
         return -1;
       }
       if (ast.ref_is_null(e.unary_operand_ref)) {
@@ -8707,6 +8845,56 @@ export function codegen_type_ref_to_suffix(arena: *ASTArena, type_ref: i32, buf:
       let s: u8[4] = [102, 54, 52, 0];
       return emit_suffix_bytes(buf, &s[0], 3);
     }
+    /* TYPE_VECTOR: mangle suffix as <elem>x<lanes> (e.g. i32x4 / f32x4 / i32x8) so
+     * same-name vector overloads (std_simd_add Vec8i vs Vec4f) get distinct C link
+     * symbols. Without this, two vector overloads both emit a bare name and cc reports
+     * "conflicting types". PLATFORM: SHARED — mirrors emit_vector_c_type_out spelling. */
+    if (tk == (TypeKind.TYPE_VECTOR as i32)) {
+      let elem_ref: i32 = pipeline_type_elem_ref_at(arena, type_ref);
+      let lanes: i32 = pipeline_type_array_size_at(arena, type_ref);
+      let ek: i32 = 0;
+      let pos: i32 = 0;
+      if (elem_ref <= 0 || lanes <= 0) {
+        return 0;
+      }
+      ek = pipeline_type_kind_ord_at(arena, elem_ref);
+      /* element prefix: i32->"i32", u32->"u32", f32->"f32" */
+      if (ek == (TypeKind.TYPE_I32 as i32)) {
+        let pre: u8[4] = [105, 51, 50, 0];
+        pos = emit_suffix_bytes(buf, &pre[0], 3);
+      } else if (ek == (TypeKind.TYPE_U32 as i32)) {
+        let pre: u8[4] = [117, 51, 50, 0];
+        pos = emit_suffix_bytes(buf, &pre[0], 3);
+      } else if (ek == (TypeKind.TYPE_F32 as i32)) {
+        let pre: u8[4] = [102, 51, 50, 0];
+        pos = emit_suffix_bytes(buf, &pre[0], 3);
+      } else {
+        return 0;
+      }
+      if (pos <= 0) {
+        return 0;
+      }
+      /* 'x' separator */
+      if (pos < buf_cap) {
+        buf[pos] = 120;
+        pos = pos + 1;
+      } else {
+        return pos;
+      }
+      /* lanes decimal: 4 / 8 / 16 */
+      if (lanes == 4 && pos < buf_cap) {
+        buf[pos] = 52;
+        return pos + 1;
+      } else if (lanes == 8 && pos < buf_cap) {
+        buf[pos] = 56;
+        return pos + 1;
+      } else if (lanes == 16 && pos + 1 < buf_cap) {
+        buf[pos] = 49;
+        buf[pos + 1] = 54;
+        return pos + 2;
+      }
+      return pos;
+    }
     if (tk == (TypeKind.TYPE_BOOL as i32)) {
       let s: u8[5] = [98, 111, 111, 108, 0];
       return emit_suffix_bytes(buf, &s[0], 4);
@@ -8950,6 +9138,155 @@ export function codegen_emit_func_link_name(out: *CodegenOutBuf, arena: *ASTAren
 }
 
 /**
+ * True when `name` is a local binding that must stay bare in C (param / let / const).
+ * Used so EXPR_VAR fn-as-value only mangles real function values, not locals that
+ * happen to share a name with a module function.
+ * @param arena *ASTArena — active emit arena (block let/const pool)
+ * @param ctx *PipelineDepCtx — current_func_index + current_block_ref + module
+ * @param name *u8 — identifier bytes
+ * @param name_len i32 — byte length; <=0 → not local
+ * @return i32 — 1 if param/let/const matches; 0 otherwise
+ * PLATFORM: SHARED — scope scan for emit; not a second typeck.
+ */
+export function codegen_name_is_local_binding(arena: *ASTArena, ctx: *PipelineDepCtx, name: *u8, name_len: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx || name == 0 as *u8 || name_len <= 0) {
+      return 0;
+    }
+    let mod: *Module = ctx.current_codegen_module;
+    // Current function params shadow free functions for bare identifiers.
+    if (mod != 0 as *Module && ctx.current_func_index >= 0 && ctx.current_func_index < mod.num_funcs) {
+      let fi: i32 = ctx.current_func_index;
+      let np: i32 = pipeline_module_func_num_params_at(mod, fi);
+      let pi: i32 = 0;
+      while (pi < np) {
+        let pl: i32 = pipeline_module_func_param_name_len_at(mod, fi, pi);
+        if (pl == name_len && pl > 0) {
+          let pb: u8[32] = [];
+          let ok: i32 = 1;
+          let j: i32 = 0;
+          pipeline_module_func_param_name_copy32(mod, fi, pi, &pb[0]);
+          while (j < pl) {
+            if (pb[j] != name[j]) {
+              ok = 0;
+              j = pl;
+            } else {
+              j = j + 1;
+            }
+          }
+          if (ok != 0) {
+            return 1;
+          }
+        }
+        pi = pi + 1;
+      }
+    }
+    // Current block lets / consts (shallow: emit uses current_block_ref).
+    if (ctx.current_block_ref > 0 && ctx.current_block_ref <= arena.num_blocks) {
+      let br: i32 = ctx.current_block_ref;
+      let li: i32 = 0;
+      let nlets: i32 = ast.ast_block_num_lets(arena, br);
+      while (li < nlets) {
+        let nl: i32 = pipeline_block_let_name_len(arena, br, li);
+        if (nl == name_len && nl > 0) {
+          let nb: u8[64] = [];
+          let ok2: i32 = 1;
+          let j2: i32 = 0;
+          pipeline_block_let_name_copy64(arena, br, li, &nb[0]);
+          while (j2 < nl) {
+            if (nb[j2] != name[j2]) {
+              ok2 = 0;
+              j2 = nl;
+            } else {
+              j2 = j2 + 1;
+            }
+          }
+          if (ok2 != 0) {
+            return 1;
+          }
+        }
+        li = li + 1;
+      }
+      let ci: i32 = 0;
+      let nconsts: i32 = ast.ast_block_num_consts(arena, br);
+      while (ci < nconsts) {
+        let cl: i32 = pipeline_block_const_name_len(arena, br, ci);
+        if (cl == name_len && cl > 0) {
+          let cb: u8[64] = [];
+          let ok3: i32 = 1;
+          let j3: i32 = 0;
+          pipeline_block_const_name_copy64(arena, br, ci, &cb[0]);
+          while (j3 < cl) {
+            if (cb[j3] != name[j3]) {
+              ok3 = 0;
+              j3 = cl;
+            } else {
+              j3 = j3 + 1;
+            }
+          }
+          if (ok3 != 0) {
+            return 1;
+          }
+        }
+        ci = ci + 1;
+      }
+    }
+    return 0;
+  }
+}
+
+/**
+ * Emit C symbol for EXPR_VAR that names a same-module function value (fn-as-value).
+ * G.7 single path: same module prefix + codegen_emit_func_link_name as def/call/extern.
+ * wave101 soft residual: non-#[no_mangle] `(f as *u8)` must not emit bare source name
+ * (def is prefix_f / overload-mangled → undeclared C identifier).
+ * @param out *CodegenOutBuf — C text sink
+ * @param arena *ASTArena — module arena for overload suffixes
+ * @param ctx *PipelineDepCtx — current_codegen_module + prefix mirror
+ * @param name *u8 — bare source identifier
+ * @param name_len i32 — length
+ * @return i32 — 0 emitted function link; 1 not a free function (caller emits bare);
+ *               -1 emit error
+ * PLATFORM: SHARED — link-name contract; verify mac + Ubuntu.
+ */
+export function codegen_try_emit_fn_as_value(out: *CodegenOutBuf, arena: *ASTArena, ctx: *PipelineDepCtx, name: *u8, name_len: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (out == 0 as *CodegenOutBuf || name == 0 as *u8 || name_len <= 0) {
+      return 1;
+    }
+    if (ctx == 0 as *PipelineDepCtx || ctx.current_codegen_module == 0 as *Module) {
+      return 1;
+    }
+    if (codegen_name_is_local_binding(arena, ctx, name, name_len) != 0) {
+      return 1;
+    }
+    let mod: *Module = ctx.current_codegen_module;
+    let fi: i32 = codegen_find_module_func_index_by_name(mod, name, name_len);
+    if (fi < 0) {
+      return 1;
+    }
+    // Same-module value: emit arena is the function module arena (no forward dep on
+    // codegen_arena_for_module — defined later in this TU).
+    // Module C prefix (entry stem / import path) unless #[no_mangle].
+    let pre_len: i32 = ctx.current_codegen_prefix_len;
+    let sym_pre: i32 = codegen_func_c_symbol_prefix_len(mod, fi, pre_len);
+    if (sym_pre > 0) {
+      if (codegen_c_prefix_redundant_with_name(&ctx.current_codegen_prefix_mirror[0], sym_pre, name, name_len) == 0) {
+        if (emit_bytes_from_ptr(out, &ctx.current_codegen_prefix_mirror[0], sym_pre) != 0) {
+          return 0 - 1;
+        }
+      }
+    }
+    if (codegen_emit_func_link_name(out, arena, mod, fi) != 0) {
+      return 0 - 1;
+    }
+    return 0;
+  }
+}
+
+/**
  * See implementation.
  * See implementation.
  * See implementation.
@@ -9115,6 +9452,27 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
                     types_match = 0;
                   } else {
                     let arg_ty: i32 = pipeline_expr_resolved_type_ref(arena, arg_ref);
+                    /*
+                     * PLATFORM: SHARED — dep module bodies are not typeck'd, so param VAR
+                     * args have resolved_type=0. When the arg is a VAR that names a param of
+                     * the CURRENTLY emitted function, use that param's declared type as arg_ty.
+                     * Without this, dot(a:Vec4f) { hsum(mul(a,b)); } emits Vec8i mul (first
+                     * arity match) instead of Vec4f mul → cc "conflicting types".
+                     */
+                    if (arg_ty <= 0 && ctx != 0 as *PipelineDepCtx
+                        && ctx.current_codegen_module != 0 as *Module && ctx.current_func_index >= 0
+                        && pipeline_expr_kind_ord_at(arena, arg_ref) == 3) {
+                      let av_len: i32 = pipeline_expr_var_name_len(arena, arg_ref);
+                      if (av_len > 0 && av_len <= 63) {
+                        let av_buf: u8[64] = [];
+                        pipeline_expr_var_name_into(arena, arg_ref, &av_buf[0]);
+                        let apt: i32 = pipeline_module_func_param_type_ref_for_name(
+                            ctx.current_codegen_module, ctx.current_func_index, &av_buf[0], av_len);
+                        if (apt > 0) {
+                          arg_ty = apt;
+                        }
+                      }
+                    }
                     /* See implementation. */
                     if (arg_ty <= 0 && pipeline_expr_kind_ord_at(arena, arg_ref) == 54) {
                       let as_tgt: i32 = pipeline_expr_as_target_type_ref_at(arena, arg_ref);
@@ -9572,7 +9930,7 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
         }
         /* PLATFORM: SHARED — lower TYPE_SLICE params as pointers (seed/glue ABI).
          * Why: Cap by-value slice + pointer glue → SIGSEGV (string bytes as ptr).
-         * Emit: `struct shux_slice_T * name` so field access uses -> and calls pass &local. */
+         * Emit: `struct xlang_slice_T * name` so field access uses -> and calls pass &local. */
         if (pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == (TypeKind.TYPE_SLICE as i32)) {
           if (append_byte(out, 32) != 0) {
             return -1;
@@ -9797,12 +10155,21 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
 }
 
 /**
- * See implementation.
- * See implementation.
- */
-/**
- * See implementation.
- * See implementation.
+ * Return 1 if `name` is a libc symbol that must NOT be re-declared by
+ * `emit_func_extern_declaration`.
+ *
+ * Why: XLANG maps `*u8` → `uint8_t *` (and integers → `int32_t`), while system
+ * headers use `char *` / `void *` / `int` / `size_t`. Re-emitting those externs
+ * conflicts with `#include <stdlib.h>` / `<string.h>` / unistd (g05 historically
+ * sed-deleted the bad redecls). Authority for "skip emit" is this single
+ * predicate; seed must stay in sync.
+ *
+ * Covered (historical g05 sed + read/write + wave30 mkstemp/rename): libc I/O,
+ * alloc (incl. realloc / posix_memalign), string, env, path (unlink/mkstemp/
+ * rename/access). g05 sed remains a defense layer for harness helpers and
+ * #include strip; libc name authority is this predicate only (G.7).
+ * PLATFORM: SHARED — product C prologue MUST include stdlib.h + string.h
+ * (rt_preamble io_net lines). Skipping without those headers → implicit int.
  */
 export function codegen_is_libc_conflicting_extern_name(name: *u8, name_len: i32): i32 {
   if (name == 0 as *u8 || name_len <= 0) {
@@ -9814,6 +10181,155 @@ export function codegen_is_libc_conflicting_extern_name(name: *u8, name_len: i32
   }
   /* write 5 */
   if (name_len == 5 && name[0] == 119 && name[1] == 114 && name[2] == 105 && name[3] == 116 && name[4] == 101) {
+    return 1;
+  }
+  /* open 4 */
+  if (name_len == 4 && name[0] == 111 && name[1] == 112 && name[2] == 101 && name[3] == 110) {
+    return 1;
+  }
+  /* close 5 */
+  if (name_len == 5 && name[0] == 99 && name[1] == 108 && name[2] == 111 && name[3] == 115 && name[4] == 101) {
+    return 1;
+  }
+  /* fcntl 5 */
+  if (name_len == 5 && name[0] == 102 && name[1] == 99 && name[2] == 110 && name[3] == 116 && name[4] == 108) {
+    return 1;
+  }
+  /* free 4 */
+  if (name_len == 4 && name[0] == 102 && name[1] == 114 && name[2] == 101 && name[3] == 101) {
+    return 1;
+  }
+  /* malloc 6 */
+  if (name_len == 6 && name[0] == 109 && name[1] == 97 && name[2] == 108 && name[3] == 108 && name[4] == 111 && name[5] == 99) {
+    return 1;
+  }
+  /* calloc 6 */
+  if (name_len == 6 && name[0] == 99 && name[1] == 97 && name[2] == 108 && name[3] == 108 && name[4] == 111 && name[5] == 99) {
+    return 1;
+  }
+  /* realloc 7 — void* vs uint8_t* clash with stdlib.h */
+  if (name_len == 7 && name[0] == 114 && name[1] == 101 && name[2] == 97 && name[3] == 108 && name[4] == 108 && name[5] == 111 && name[6] == 99) {
+    return 1;
+  }
+  /* posix_memalign 14 — stdlib/POSIX prototype; skip XLANG redecl */
+  if (name_len == 14 && name[0] == 112 && name[1] == 111 && name[2] == 115 && name[3] == 105 && name[4] == 120 && name[5] == 95 && name[6] == 109 && name[7] == 101 && name[8] == 109 && name[9] == 97 && name[10] == 108 && name[11] == 105 && name[12] == 103 && name[13] == 110) {
+    return 1;
+  }
+  /* strtoul 7 — *u8 vs char* / u32 vs unsigned long (std/test) */
+  if (name_len == 7 && name[0] == 115 && name[1] == 116 && name[2] == 114 && name[3] == 116 && name[4] == 111 && name[5] == 117 && name[6] == 108) {
+    return 1;
+  }
+  /* strtol 6 */
+  if (name_len == 6 && name[0] == 115 && name[1] == 116 && name[2] == 114 && name[3] == 116 && name[4] == 111 && name[5] == 108) {
+    return 1;
+  }
+  /* strtoull 8 */
+  if (name_len == 8 && name[0] == 115 && name[1] == 116 && name[2] == 114 && name[3] == 116 && name[4] == 111 && name[5] == 117 && name[6] == 108 && name[7] == 108) {
+    return 1;
+  }
+  /* strtoll 7 */
+  if (name_len == 7 && name[0] == 115 && name[1] == 116 && name[2] == 114 && name[3] == 116 && name[4] == 111 && name[5] == 108 && name[6] == 108) {
+    return 1;
+  }
+  /* memcpy 6 */
+  if (name_len == 6 && name[0] == 109 && name[1] == 101 && name[2] == 109 && name[3] == 99 && name[4] == 112 && name[5] == 121) {
+    return 1;
+  }
+  /* memcmp 6 */
+  if (name_len == 6 && name[0] == 109 && name[1] == 101 && name[2] == 109 && name[3] == 99 && name[4] == 109 && name[5] == 112) {
+    return 1;
+  }
+  /* memset 6 */
+  if (name_len == 6 && name[0] == 109 && name[1] == 101 && name[2] == 109 && name[3] == 115 && name[4] == 101 && name[5] == 116) {
+    return 1;
+  }
+  /* memchr 6 — glibc string.h may macro to _Generic; *u8 clash */
+  if (name_len == 6 && name[0] == 109 && name[1] == 101 && name[2] == 109 && name[3] == 99 && name[4] == 104 && name[5] == 114) {
+    return 1;
+  }
+  /* memrchr 7 */
+  if (name_len == 7 && name[0] == 109 && name[1] == 101 && name[2] == 109 && name[3] == 114 && name[4] == 99 && name[5] == 104 && name[6] == 114) {
+    return 1;
+  }
+  /* memmem 6 */
+  if (name_len == 6 && name[0] == 109 && name[1] == 101 && name[2] == 109 && name[3] == 109 && name[4] == 101 && name[5] == 109) {
+    return 1;
+  }
+  /* strchr 6 — string.h macro / char* clash (std/path) */
+  if (name_len == 6 && name[0] == 115 && name[1] == 116 && name[2] == 114 && name[3] == 99 && name[4] == 104 && name[5] == 114) {
+    return 1;
+  }
+  /* strrchr 7 */
+  if (name_len == 7 && name[0] == 115 && name[1] == 116 && name[2] == 114 && name[3] == 114 && name[4] == 99 && name[5] == 104 && name[6] == 114) {
+    return 1;
+  }
+  /* strcpy 6 */
+  if (name_len == 6 && name[0] == 115 && name[1] == 116 && name[2] == 114 && name[3] == 99 && name[4] == 112 && name[5] == 121) {
+    return 1;
+  }
+  /* strncpy 7 */
+  if (name_len == 7 && name[0] == 115 && name[1] == 116 && name[2] == 114 && name[3] == 110 && name[4] == 99 && name[5] == 112 && name[6] == 121) {
+    return 1;
+  }
+  /* getenv 6 — *u8 → uint8_t* conflicts with char *getenv(const char *) */
+  if (name_len == 6 && name[0] == 103 && name[1] == 101 && name[2] == 116 && name[3] == 101 && name[4] == 110 && name[5] == 118) {
+    return 1;
+  }
+  /* getcwd 6 */
+  if (name_len == 6 && name[0] == 103 && name[1] == 101 && name[2] == 116 && name[3] == 99 && name[4] == 119 && name[5] == 100) {
+    return 1;
+  }
+  /* unlink 6 */
+  if (name_len == 6 && name[0] == 117 && name[1] == 110 && name[2] == 108 && name[3] == 105 && name[4] == 110 && name[5] == 107) {
+    return 1;
+  }
+  /* strlen 6 */
+  if (name_len == 6 && name[0] == 115 && name[1] == 116 && name[2] == 114 && name[3] == 108 && name[4] == 101 && name[5] == 110) {
+    return 1;
+  }
+  /* strcmp 6 */
+  if (name_len == 6 && name[0] == 115 && name[1] == 116 && name[2] == 114 && name[3] == 99 && name[4] == 109 && name[5] == 112) {
+    return 1;
+  }
+  /* strncmp 7 */
+  if (name_len == 7 && name[0] == 115 && name[1] == 116 && name[2] == 114 && name[3] == 110 && name[4] == 99 && name[5] == 109 && name[6] == 112) {
+    return 1;
+  }
+  /* strstr 6 */
+  if (name_len == 6 && name[0] == 115 && name[1] == 116 && name[2] == 114 && name[3] == 115 && name[4] == 116 && name[5] == 114) {
+    return 1;
+  }
+  /* setenv 6 */
+  if (name_len == 6 && name[0] == 115 && name[1] == 101 && name[2] == 116 && name[3] == 101 && name[4] == 110 && name[5] == 118) {
+    return 1;
+  }
+  /* system 6 */
+  if (name_len == 6 && name[0] == 115 && name[1] == 121 && name[2] == 115 && name[3] == 116 && name[4] == 101 && name[5] == 109) {
+    return 1;
+  }
+  /* fputs 5 */
+  if (name_len == 5 && name[0] == 102 && name[1] == 112 && name[2] == 117 && name[3] == 116 && name[4] == 115) {
+    return 1;
+  }
+  /* strerror 8 */
+  if (name_len == 8 && name[0] == 115 && name[1] == 116 && name[2] == 114 && name[3] == 101 && name[4] == 114 && name[5] == 114 && name[6] == 111 && name[7] == 114) {
+    return 1;
+  }
+  /* opendir/closedir/readdir: DO NOT skip — std.fs models DIR* as *u8 opaque;
+   * system dirent.h DIR* prototypes are incompatible (return/arg type). Emit
+   * XLANG extern uint8_t *opendir(...) instead of including dirent.h.
+   * PLATFORM: POSIX opaque DIR. */
+  /* access 6 */
+  if (name_len == 6 && name[0] == 97 && name[1] == 99 && name[2] == 99 && name[3] == 101 && name[4] == 115 && name[5] == 115) {
+    return 1;
+  }
+  /* mkstemp 7 — i32 vs int; *u8 path vs char* (runtime_driver_abi_thin.x).
+   * wave30: was g05-sed-only dual-auth; product -E must skip redecl at source. */
+  if (name_len == 7 && name[0] == 109 && name[1] == 107 && name[2] == 115 && name[3] == 116 && name[4] == 101 && name[5] == 109 && name[6] == 112) {
+    return 1;
+  }
+  /* rename 6 — i32 vs int; *u8 paths vs char* (open_out close-before-rename). */
+  if (name_len == 6 && name[0] == 114 && name[1] == 101 && name[2] == 110 && name[3] == 97 && name[4] == 109 && name[5] == 101) {
     return 1;
   }
   return 0;
@@ -10060,8 +10576,8 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
     if (append_byte(out, 32) != 0) {
       return -1;
     }
-    /* Why extern: external-link symbols need bare names (shux_sys_mmap), not dep-prefixed
-       (std_sys_linux_shux_sys_mmap fails to link). Type emit still uses prefix_len for dep
+    /* Why extern: external-link symbols need bare names (xlang_sys_mmap), not dep-prefixed
+       (std_sys_linux_xlang_sys_mmap fails to link). Type emit still uses prefix_len for dep
        custom type params. Invariant: name_prefix_len only affects function-name emit. */
     let name_prefix_len: i32 = prefix_len;
     if (pipeline_module_func_is_extern_at(module, fi) != 0) {
@@ -10556,7 +11072,7 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
              * - Non-array mutable let: decl-site ONLY when init is C static-const
              *   (pipeline_expr_is_c_static_const_init: pure lit trees, e.g. -1).
              *   Why: library/dep TUs have no main, so init_globals never runs; BSS zero-init
-             *   would wipe sentinels like shu_heap_trace_on = -1 (heap_trace never enables).
+             *   would wipe sentinels like xlang_heap_trace_on = -1 (heap_trace never enables).
              *   VAR-dependent inits (e.g. let b = a + 2) are illegal as C static initializers
              *   and must remain init_globals-only (two_lets / run-toplevel-let).
              *   init_globals may still re-assign pure lits on entry co-emit (idempotent).
@@ -10929,7 +11445,7 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
     return 0;
   }
   // PLATFORM: SHARED — Cap-T001 whole-body unsafe close. Extra matching `}` required so
-  // product parser does not parse-skip this mega function (SHUX_DEBUG_PARSE: skip at
+  // product parser does not parse-skip this mega function (XLANG_DEBUG_PARSE: skip at
   // codegen_x_ast entry → residual body mis-ingested as top-level lets / fake init_globals).
   }
 }
@@ -10949,7 +11465,7 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
  *   Cap still skipped bare "placeholder" so multi-dep co-emit of core.types
  *   emitted every size_of body but dropped placeholder → si -o UNDEF.
  * Invariant: only asm_codegen_ast_seed_mega / to_elf mega remain name-skips
- *   unless SHUX_EMIT_SEED_MEGA is set; do not re-add placeholder skip.
+ *   unless XLANG_EMIT_SEED_MEGA is set; do not re-add placeholder skip.
  * PLATFORM: SHARED — Cap force stdlib-import / core.* co-emit link.
  * Note: never write star-slash inside this block comment (truncates C emit).
  */
@@ -10962,7 +11478,7 @@ function codegen_should_skip_emit_func_by_name(name: *u8, name_len: i32): i32 {
       return 0;
     }
     // placeholder and string_new skip removed (seed-aligned; real core/std exports).
-    // bootstrap -E: seed_mega bodies are huge; SHUX_EMIT_SEED_MEGA=1 still tries emit.
+    // bootstrap -E: seed_mega bodies are huge; XLANG_EMIT_SEED_MEGA=1 still tries emit.
     if (pipeline_codegen_emit_seed_mega_enabled() == 0) {
       if (name_len == 25 && codegen_name_bytes_prefix_eq(name, name_len, &asm_seed_mega[0], 25) != 0) {
         return 1;
@@ -11004,21 +11520,21 @@ function codegen_force_param_i32(prefix: *u8, prefix_len: i32, name: *u8, name_l
 /**
  * Skip std.io.core ABI bridge names supplied by runtime preamble / io backend.
  *
- * Purpose: do not emit C bodies for shux_io_read_ptr(_len), register*, wait_readable
+ * Purpose: do not emit C bodies for xlang_io_read_ptr(_len), register*, wait_readable
  * when the C backend already maps them via preamble macros/weak stubs.
  *
  * Parameters:
- *   name / name_len — bare identifier; must use full "shux_io_*" spelling (with 'x').
+ *   name / name_len — bare identifier; must use full "xlang_io_*" spelling (with 'x').
  *
  * Returns 1 to skip, 0 to emit.
  * read_ptr_len allows name_len >= 20 (prefix match); others require exact length.
  * PLATFORM: SHARED — Cap force hello co-emit must not redefine preamble bridges.
  */
 function codegen_should_skip_emit_func_core_read_ptr(name: *u8, name_len: i32): i32 {
-  /* shux_io_read_ptr_len — 20 */
-  let shux_rpl20: u8[20] = [115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114, 95, 108, 101, 110];
-  /* shux_io_read_ptr — 16 */
-  let shux_rp16: u8[16] = [115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114];
+  /* xlang_io_read_ptr_len — 20 */
+  let xlang_rpl20: u8[21] = [120, 108, 97, 110, 103, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114, 95, 108, 101, 110];
+  /* xlang_io_read_ptr — 16 */
+  let xlang_rp16: u8[17] = [120, 108, 97, 110, 103, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114];
   /*
    * See implementation.
    * See implementation.
@@ -11030,20 +11546,20 @@ function codegen_should_skip_emit_func_core_read_ptr(name: *u8, name_len: i32): 
   if (name == 0 as *u8) {
     return 0;
   }
-  if (name_len >= 20 && codegen_name_bytes_prefix_eq(name, name_len, &shux_rpl20[0], 20) != 0) {
+  if (name_len >= 20 && codegen_name_bytes_prefix_eq(name, name_len, &xlang_rpl20[0], 20) != 0) {
     return 1;
   }
-  if (name_len == 16 && codegen_name_bytes_prefix_eq(name, name_len, &shux_rp16[0], 16) != 0) {
+  if (name_len == 16 && codegen_name_bytes_prefix_eq(name, name_len, &xlang_rp16[0], 16) != 0) {
     return 1;
   }
-  /* shux_io_read_ptr_backend — 24 (preamble weak stub) */
-  let shux_rpb24: u8[24] = [115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114, 95, 98, 97, 99, 107, 101, 110, 100];
-  if ((name_len == 24 || name_len == 25) && codegen_name_bytes_prefix_eq(name, name_len, &shux_rpb24[0], 24) != 0) {
+  /* xlang_io_read_ptr_backend — 24 (preamble weak stub) */
+  let xlang_rpb24: u8[25] = [120, 108, 97, 110, 103, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114, 95, 98, 97, 99, 107, 101, 110, 100];
+  if ((name_len == 24 || name_len == 25) && codegen_name_bytes_prefix_eq(name, name_len, &xlang_rpb24[0], 24) != 0) {
     return 1;
   }
-  /* shux_io_submit_read_async — 25 (preamble weak stub) */
-  let shux_sra25: u8[25] = [115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 97, 115, 121, 110, 99];
-  if ((name_len == 25 || name_len == 26) && codegen_name_bytes_prefix_eq(name, name_len, &shux_sra25[0], 25) != 0) {
+  /* xlang_io_submit_read_async — 25 (preamble weak stub) */
+  let xlang_sra25: u8[26] = [120, 108, 97, 110, 103, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 97, 115, 121, 110, 99];
+  if ((name_len == 25 || name_len == 26) && codegen_name_bytes_prefix_eq(name, name_len, &xlang_sra25[0], 25) != 0) {
     return 1;
   }
   return 0;

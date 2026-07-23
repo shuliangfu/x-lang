@@ -3,14 +3,14 @@
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-SHUX=${SHUX:-./compiler/shux}
+XLANG=${XLANG:-./compiler/xlang}
 
-$SHUX build tests/asm/binop_index_lit_fast.x -o /tmp/shux_asm_binop_index_lit 2>&1
+$XLANG build tests/asm/binop_index_lit_fast.x -o /tmp/xlang_asm_binop_index_lit 2>&1
 exitcode=0
-/tmp/shux_asm_binop_index_lit >/dev/null 2>&1 || exitcode=$?
+/tmp/xlang_asm_binop_index_lit >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 75 ] && { echo "run-asm-binop-index-lit FAIL: expected exit 75, got $exitcode"; exit 1; }
 
-if otool -tv /tmp/shux_asm_binop_index_lit 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
+if otool -tv /tmp/xlang_asm_binop_index_lit 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
   echo "run-asm-binop-index-lit FAIL: main still uses x2 scratch for literal-index binop"
   exit 1
 fi

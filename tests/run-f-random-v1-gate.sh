@@ -2,11 +2,11 @@
 # F-random v1：std.random 去 C（random.c → random.x + OS 胶层）。
 #
 # 用法：./tests/run-f-random-v1-gate.sh
-# 环境：SHUX_F_RANDOM_V1_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F_RANDOM_V1_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F_RANDOM_V1_FAIL:-0}
+FAIL=${XLANG_F_RANDOM_V1_FAIL:-0}
 DOC="analysis/phase-f-random-v1.md"
 MANIFEST="tests/baseline/f-random-v1-closure.tsv"
 
@@ -44,10 +44,10 @@ if grep -q 'std/random/random\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references std/random/random.c"
 fi
 
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/random/random.o >/dev/null 2>&1 || die "make random.o failed"
 else
-  echo "f-random-v1 SKIP random.o build (no shux-c)" >&2
+  echo "f-random-v1 SKIP random.o build (no xlang-c)" >&2
 fi
 
 if [ -f tests/run-std-random-rng-gate.sh ]; then

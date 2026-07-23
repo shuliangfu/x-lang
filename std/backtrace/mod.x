@@ -54,7 +54,7 @@ export function symbolicate(buf: *u8, len: i32, out_ptrs: *u8, out_names: *u8, m
 }
 
 /* See implementation. */
-extern function shux_crash_evidence_collect_c(has_msg: i32, msg_val: i32): void;
+extern function xlang_crash_evidence_collect_c(has_msg: i32, msg_val: i32): void;
 
 /** Exported function `collect_crash_evidence`.
  * Implements `collect_crash_evidence`.
@@ -63,7 +63,7 @@ extern function shux_crash_evidence_collect_c(has_msg: i32, msg_val: i32): void;
  * @return void
  */
 export function collect_crash_evidence(has_msg: i32, msg_val: i32): void {
-  unsafe { shux_crash_evidence_collect_c(has_msg, msg_val); }
+  unsafe { xlang_crash_evidence_collect_c(has_msg, msg_val); }
 }
 
 /** Exported function `backtrace_module_anchor`.

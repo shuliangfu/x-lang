@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_COMP_FEB_CONTRACT_DOC:-analysis/comp-feb-contract-v1.md}"
-MANIFEST="${SHUX_COMP_FEB_CONTRACT_MANIFEST:-tests/baseline/comp-feb-contract.tsv}"
-BOUNDARY="${SHUX_FEB_CONTRACT_BOUNDARY:-tests/baseline/comp-feb-contract-boundary.tsv}"
+DOC="${XLANG_COMP_FEB_CONTRACT_DOC:-analysis/comp-feb-contract-v1.md}"
+MANIFEST="${XLANG_COMP_FEB_CONTRACT_MANIFEST:-tests/baseline/comp-feb-contract.tsv}"
+BOUNDARY="${XLANG_FEB_CONTRACT_BOUNDARY:-tests/baseline/comp-feb-contract-boundary.tsv}"
 MIN_LAYERS=6
 MIN_BOUNDARIES=8
 MIN_CASES=6

@@ -7,8 +7,8 @@ n07_gate	gate	tests/run-nolibc-n07-bootstrap-prep-gate.sh	gate_ref	NL-07 专 gat
 n07_audit_lib	lib	tests/lib/nolibc-n07-bootstrap-audit.sh	gate_ref	审计函数
 n06_prereq	gate_ref	tests/run-nolibc-n06-std-track-gate.sh	gate_ref	NL-06 前置
 n05_prereq	gate_ref	tests/run-no-libc-link-gate.sh	gate_ref	NL-05 用户链策略
-build_shux_asm	build	compiler/scripts/build_shux_asm.sh	grep_marker	F-no-libc NL-07 BEGIN/END
-ensure_std_c	build	compiler/scripts/build_shux_asm.sh	grep	ensure_std_fs_io_heap_objs
+build_xlang_asm	build	compiler/scripts/build_xlang_asm.sh	grep_marker	F-no-libc NL-07 BEGIN/END
+ensure_std_c	build	compiler/scripts/build_xlang_asm.sh	grep	ensure_std_fs_io_heap_objs
 makefile_seed	make	compiler/Makefile	grep	bootstrap-driver-seed
 makefile_std_fs_o_absent	make	compiler/Makefile	absent_grep	../std/fs/fs.o	F-06 v1 已不链
 b32_gate	gate_ref	tests/run-b32-no-cc-std-gate.sh	gate_ref	B-32 cc -c std track

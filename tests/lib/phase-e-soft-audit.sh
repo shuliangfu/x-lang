@@ -97,7 +97,7 @@ phase_e_soft_audit_makefile_no_c_frontend() {
 phase_e_soft_audit_no_extern_h_include() {
   local miss=0
   local f
-  for f in compiler/Makefile compiler/scripts/build_shux_asm.sh; do
+  for f in compiler/Makefile compiler/scripts/build_xlang_asm.sh; do
     [ -f "$f" ] || continue
     if grep -qE 'lsp_io_extern\.h|lsp_gen_extern\.h' "$f" 2>/dev/null; then
       echo "phase-e-soft: $f still references lsp_*_extern.h" >&2

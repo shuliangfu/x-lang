@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
 # F-02 v1：Linux std.sys 文件 MAP_SHARED mmap 烟测（hosted -o exe，无 mmap.inc.c）。
 # 用法：./tests/run-linux-mmap-file-gate.sh
-# 环境：SHUX_LINUX_MMAP_FILE_FAIL=1 失败时硬退出
+# 环境：XLANG_LINUX_MMAP_FILE_FAIL=1 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_LINUX_MMAP_FILE_FAIL:-0}
+FAIL=${XLANG_LINUX_MMAP_FILE_FAIL:-0}
 X="tests/sys/linux_mmap_file_smoke.x"
-OUT="/tmp/shux_linux_mmap_file.$$.out"
-GATE_FILE="/tmp/shux_linux_mmap_file_gate.dat"
-SHUX="${SHUX:-./compiler/shux-c}"
+OUT="/tmp/xlang_linux_mmap_file.$$.out"
+GATE_FILE="/tmp/xlang_linux_mmap_file_gate.dat"
+XLANG="${XLANG:-./compiler/xlang-c}"
 
 if [ "$(uname -s 2>/dev/null)" != "Linux" ]; then
   echo "linux-mmap-file-gate: N/A (Linux only)"
   exit 0
 fi
 
-if [ ! -x "$SHUX" ]; then
-  SHUX="./compiler/shux"
+if [ ! -x "$XLANG" ]; then
+  XLANG="./compiler/xlang"
 fi
-if [ ! -x "$SHUX" ]; then
-  echo "linux-mmap-file-gate: SKIP (no shux/shux-c)"
+if [ ! -x "$XLANG" ]; then
+  echo "linux-mmap-file-gate: SKIP (no xlang/xlang-c)"
   exit 0
 fi
 
@@ -33,9 +33,9 @@ fi
 : >"$GATE_FILE"
 rm -f "$OUT" 2>/dev/null || true
 
-if ! "$SHUX" build -o "$OUT" "$X" 2>/tmp/shux_linux_mmap_file.log; then
+if ! "$XLANG" build -o "$OUT" "$X" 2>/tmp/xlang_linux_mmap_file.log; then
   echo "linux-mmap-file-gate FAIL: compile $X" >&2
-  tail -n 10 /tmp/shux_linux_mmap_file.log 2>/dev/null || true
+  tail -n 10 /tmp/xlang_linux_mmap_file.log 2>/dev/null || true
   rm -f "$OUT" "$GATE_FILE" 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1
   exit 0

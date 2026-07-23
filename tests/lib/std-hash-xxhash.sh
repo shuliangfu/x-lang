@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-hash-xxhash.sh — STD-105 manifest 与 xxHash64 烟测辅助
 
-STD_HASH_XXHASH_PREFIX="${SHUX_STD_HASH_XXHASH_PREFIX:-shux: [SHUX_STD105_HASH_XXHASH]}"
+STD_HASH_XXHASH_PREFIX="${XLANG_STD_HASH_XXHASH_PREFIX:-xlang: [XLANG_STD105_HASH_XXHASH]}"
 
 # 校验 manifest 中 api/const/symbol/file。
 std_hash_xxhash_symbols_ok() {
@@ -49,13 +49,13 @@ std_hash_xxhash_symbols_ok() {
 
 # 编译并运行 .x 烟测。
 std_hash_xxhash_run_x_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-xxhash}"
-  local exe="/tmp/shux_std_hash_xx_${tag}_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std_hash_xx_${tag}_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-hash-xxhash FAIL: compile $src" >&2
-    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -75,7 +75,7 @@ std_hash_xxhash_run_x_smoke() {
 std_hash_xxhash_run_c_smoke() {
   local hash_x="$1"
   local src="tests/std-hash/xxhash64_smoke_ok.c"
-  local out="/tmp/shux_std_hash_xxhash_$$"
+  local out="/tmp/xlang_std_hash_xxhash_$$"
   local hash_o
   hash_o="$(dirname "$hash_x")/hash.o"
   if [ ! -f "$hash_o" ]; then

@@ -1,10 +1,10 @@
 #!/bin/sh
 # x86_64 QEMU boot gate — 32-bit multiboot1 + long mode switch + 64-bit serial output.
-# Proves shux can boot a 64-bit kernel in QEMU via 32-bit entry -> long mode transition.
+# Proves xlang can boot a 64-bit kernel in QEMU via 32-bit entry -> long mode transition.
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WORKDIR="${TMPDIR:-/tmp}"
-SHUX_C="$SCRIPT_DIR/../../compiler/shux-c"
+XLANG_C="$SCRIPT_DIR/../../compiler/xlang-c"
 PASS=0
 FAIL=0
 
@@ -22,10 +22,10 @@ else
     FAIL=$((FAIL + 1))
 fi
 
-# 2. Compile shux kernel (32-bit, provides multiboot1 header)
-echo "  Check: compile shux kernel (32-bit, multiboot1 header)"
+# 2. Compile xlang kernel (32-bit, provides multiboot1 header)
+echo "  Check: compile xlang kernel (32-bit, multiboot1 header)"
 if XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" \
-    "$SHUX_C" -E "$SCRIPT_DIR/longmode.x" > "$WORKDIR/longmode_gate.c" 2>&1 && \
+    "$XLANG_C" -E "$SCRIPT_DIR/longmode.x" > "$WORKDIR/longmode_gate.c" 2>&1 && \
     XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" \
     zig cc -target x86-linux-gnu -ffreestanding -fno-sanitize=all -fno-stack-protector \
     -c -o "$WORKDIR/longmode_gate.o" "$WORKDIR/longmode_gate.c" 2>&1; then
@@ -42,7 +42,7 @@ if XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" \
     zig cc -target x86-linux-gnu -ffreestanding -nostdlib -fno-sanitize=all \
     -T "$SCRIPT_DIR/kernel.ld" -o "$WORKDIR/longmode_gate.elf" \
     "$WORKDIR/longmode_gate_boot.o" "$WORKDIR/longmode_gate.o" \
-    "$WORKDIR/shux_freestanding_stubs.o" 2>&1; then
+    "$WORKDIR/xlang_freestanding_stubs.o" 2>&1; then
     echo "    PASS"
     PASS=$((PASS + 1))
 else

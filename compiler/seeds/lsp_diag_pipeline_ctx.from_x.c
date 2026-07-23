@@ -1,10 +1,10 @@
 /* Generated from src/lsp/lsp_diag_pipeline_ctx.x (G-02f-28 true .x + C tail; G-02f-74/98 lsp ctx gates).
- * G-02f-331：PREFER_X_O hybrid 时 thin 别名由 .x→-E，rest 用 SHUX_L2_LSP_CTX_THIN_FROM_X。
- * Regen: ./shux-c -E -L .. src/lsp/lsp_diag_pipeline_ctx.x > /tmp/ldpc.c
+ * G-02f-331：PREFER_X_O hybrid 时 thin 别名由 .x→-E，rest 用 XLANG_L2_LSP_CTX_THIN_FROM_X。
+ * Regen: ./xlang-c -E -L .. src/lsp/lsp_diag_pipeline_ctx.x > /tmp/ldpc.c
  *         then re-apply weak polish + C tail (fill_paths/state/write_all).
  * .x covers: sizeof bridge + typeck_ → bare name aliases.
  */
-#include <shux_weak.h>
+#include <xlang_weak.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -26,7 +26,7 @@ extern int32_t typeck_lsp_diag_references_at(uint8_t * source, int32_t source_le
 extern int32_t typeck_lsp_diag_definition_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, int32_t * out_line, int32_t * out_col);
 extern int32_t typeck_lsp_build_semantic_tokens_response(int32_t id_val, uint8_t * doc_buf, int32_t doc_len, uint8_t * out_buf, int32_t out_cap);
 extern void lsp_diag_invalidate_cache(void);
-#ifndef SHUX_L2_LSP_CTX_THIN_FROM_X
+#ifndef XLANG_L2_LSP_CTX_THIN_FROM_X
 size_t lsp_diag_x_alloc_dep_ctx_size(void) {
   (void)(({   {
     size_t r = pipeline_sizeof_dep_ctx();
@@ -35,7 +35,7 @@ size_t lsp_diag_x_alloc_dep_ctx_size(void) {
  }));
   return 0;
 }
-SHUX_WEAK int32_t lsp_build_diagnostics_response(int32_t id_val, uint8_t * source, int32_t source_len, uint8_t * out_buf, int32_t out_cap) {
+XLANG_WEAK int32_t lsp_build_diagnostics_response(int32_t id_val, uint8_t * source, int32_t source_len, uint8_t * out_buf, int32_t out_cap) {
   (void)(({   {
     int32_t r = typeck_lsp_build_diagnostics_response(id_val, source, source_len, out_buf, out_cap);
     return r;
@@ -43,7 +43,7 @@ SHUX_WEAK int32_t lsp_build_diagnostics_response(int32_t id_val, uint8_t * sourc
  }));
   return 0;
 }
-SHUX_WEAK int32_t lsp_diag_hover_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, uint8_t * out_buf, int32_t out_cap) {
+XLANG_WEAK int32_t lsp_diag_hover_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, uint8_t * out_buf, int32_t out_cap) {
   (void)(({   {
     int32_t r = typeck_lsp_diag_hover_at(source, source_len, line_0, col_0, out_buf, out_cap);
     return r;
@@ -51,7 +51,7 @@ SHUX_WEAK int32_t lsp_diag_hover_at(uint8_t * source, int32_t source_len, int32_
  }));
   return 0;
 }
-SHUX_WEAK int32_t lsp_diag_references_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, int32_t * out_lines, int32_t * out_cols, int32_t max_refs) {
+XLANG_WEAK int32_t lsp_diag_references_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, int32_t * out_lines, int32_t * out_cols, int32_t max_refs) {
   (void)(({   {
     int32_t r = typeck_lsp_diag_references_at(source, source_len, line_0, col_0, out_lines, out_cols, max_refs);
     return r;
@@ -59,7 +59,7 @@ SHUX_WEAK int32_t lsp_diag_references_at(uint8_t * source, int32_t source_len, i
  }));
   return 0;
 }
-SHUX_WEAK int32_t lsp_hover_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, uint8_t * out_buf, int32_t out_cap) {
+XLANG_WEAK int32_t lsp_hover_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, uint8_t * out_buf, int32_t out_cap) {
   (void)(({   {
     int32_t r = typeck_lsp_diag_hover_at(source, source_len, line_0, col_0, out_buf, out_cap);
     return r;
@@ -67,7 +67,7 @@ SHUX_WEAK int32_t lsp_hover_at(uint8_t * source, int32_t source_len, int32_t lin
  }));
   return 0;
 }
-SHUX_WEAK int32_t lsp_references_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, int32_t * out_lines, int32_t * out_cols, int32_t max_refs) {
+XLANG_WEAK int32_t lsp_references_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, int32_t * out_lines, int32_t * out_cols, int32_t max_refs) {
   (void)(({   {
     int32_t r = typeck_lsp_diag_references_at(source, source_len, line_0, col_0, out_lines, out_cols, max_refs);
     return r;
@@ -75,7 +75,7 @@ SHUX_WEAK int32_t lsp_references_at(uint8_t * source, int32_t source_len, int32_
  }));
   return 0;
 }
-SHUX_WEAK int32_t lsp_diag_definition_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, int32_t * out_line, int32_t * out_col) {
+XLANG_WEAK int32_t lsp_diag_definition_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, int32_t * out_line, int32_t * out_col) {
   (void)(({   {
     int32_t r = typeck_lsp_diag_definition_at(source, source_len, line_0, col_0, out_line, out_col);
     return r;
@@ -83,7 +83,7 @@ SHUX_WEAK int32_t lsp_diag_definition_at(uint8_t * source, int32_t source_len, i
  }));
   return 0;
 }
-SHUX_WEAK int32_t lsp_build_semantic_tokens_response(int32_t id_val, uint8_t * doc_buf, int32_t doc_len, uint8_t * out_buf, int32_t out_cap) {
+XLANG_WEAK int32_t lsp_build_semantic_tokens_response(int32_t id_val, uint8_t * doc_buf, int32_t doc_len, uint8_t * out_buf, int32_t out_cap) {
   (void)(({   {
     int32_t r = typeck_lsp_build_semantic_tokens_response(id_val, doc_buf, doc_len, out_buf, out_cap);
     return r;
@@ -91,7 +91,7 @@ SHUX_WEAK int32_t lsp_build_semantic_tokens_response(int32_t id_val, uint8_t * d
  }));
   return 0;
 }
-SHUX_WEAK void lsp_io_lsp_diag_invalidate_cache(void) {
+XLANG_WEAK void lsp_io_lsp_diag_invalidate_cache(void) {
   (void)(({   {
     (void)(lsp_diag_invalidate_cache());
   }
@@ -151,7 +151,7 @@ struct ast_PipelineDepCtx {
 extern int32_t pipeline_ctx_append_lib_root(struct ast_PipelineDepCtx *ctx, uint8_t *path, int32_t len);
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-#ifndef SHUX_L2_LSP_CTX_THIN_FROM_X
+#ifndef XLANG_L2_LSP_CTX_THIN_FROM_X
 void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, const char *entry_dir, const char **lib_roots, int n_lib_roots)
 #else
 void lsp_diag_pipeline_ctx_fill_paths_impl(void *ctx_void, const char *entry_dir, const char **lib_roots, int n_lib_roots)
@@ -181,7 +181,7 @@ void lsp_diag_pipeline_ctx_fill_paths_impl(void *ctx_void, const char *entry_dir
 
 
 /** bootstrap driver：强符号覆盖 lsp_diag.c 内 weak 实现，统一走 parse_into_buf。 */
-SHUX_WEAK int lsp_definition_at(const uint8_t *source, int source_len, int line_0, int col_0, int *out_line, int *out_col) {
+XLANG_WEAK int lsp_definition_at(const uint8_t *source, int source_len, int line_0, int col_0, int *out_line, int *out_col) {
   int32_t ol = 0;
   int32_t oc = 0;
   if (!typeck_lsp_diag_definition_at((uint8_t *)source, (int32_t)source_len, (int32_t)line_0, (int32_t)col_0, &ol, &oc))
@@ -205,18 +205,18 @@ typedef struct LspMainThreadArgs {
 
 /* G-02f-98：LSP IO policy / debug env gates. */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_LSP_CTX_THIN_FROM_X
+#ifndef XLANG_L2_LSP_CTX_THIN_FROM_X
 void lsp_debug_report_sqpoll_env(void)
 #else
 void lsp_debug_report_sqpoll_env_impl(void)
 #endif
 {
-    const char *dbg = getenv("SHUX_LSP_IO_DEBUG");
-    const char *sq = getenv("SHUX_IO_URING_SQPOLL");
+    const char *dbg = getenv("XLANG_LSP_IO_DEBUG");
+    const char *sq = getenv("XLANG_IO_URING_SQPOLL");
     if (!dbg || dbg[0] == '\0' || dbg[0] == '0')
         return;
     diag_reportf(NULL, 0, 0, "note", NULL,
-                 "lsp io debug: SHUX_IO_URING_SQPOLL=%s",
+                 "lsp io debug: XLANG_IO_URING_SQPOLL=%s",
                  (sq && sq[0]) ? sq : "<unset>");
 }
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
@@ -224,15 +224,15 @@ void lsp_debug_report_sqpoll_env_impl(void)
 
 
 
-#ifndef SHUX_L2_LSP_CTX_THIN_FROM_X
+#ifndef XLANG_L2_LSP_CTX_THIN_FROM_X
 void lsp_apply_default_io_policy(void)
 #else
 void lsp_apply_default_io_policy_impl(void)
 #endif
 {
-    const char *sq = getenv("SHUX_IO_URING_SQPOLL");
+    const char *sq = getenv("XLANG_IO_URING_SQPOLL");
     if (!sq || sq[0] == '\0')
-        (void)setenv("SHUX_IO_URING_SQPOLL", "0", 1);
+        (void)setenv("XLANG_IO_URING_SQPOLL", "0", 1);
 }
 
 
@@ -246,7 +246,7 @@ static void *lsp_main_large_stack_thread_fn(void *arg) {
 }
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-#ifndef SHUX_L2_LSP_CTX_THIN_FROM_X
+#ifndef XLANG_L2_LSP_CTX_THIN_FROM_X
 int32_t typeck_lsp_main(void)
 #else
 /* thin typeck_lsp_main → typeck_lsp_main_impl（本函数为大栈编排） */
@@ -255,7 +255,7 @@ int32_t typeck_lsp_main_impl(void)
 {
     LspMainThreadArgs args;
     args.result = -1;
-#ifndef SHUX_L2_LSP_CTX_THIN_FROM_X
+#ifndef XLANG_L2_LSP_CTX_THIN_FROM_X
     lsp_apply_default_io_policy();
     lsp_debug_report_sqpoll_env();
 #else
@@ -274,7 +274,7 @@ uint8_t *lsp_state_buf_ptr(void) {
 }
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-#ifndef SHUX_L2_LSP_CTX_THIN_FROM_X
+#ifndef XLANG_L2_LSP_CTX_THIN_FROM_X
 int32_t lsp_write_all(int32_t fd, const uint8_t *buf, int32_t len)
 #else
 int32_t lsp_write_all_impl(int32_t fd, const uint8_t *buf, int32_t len)

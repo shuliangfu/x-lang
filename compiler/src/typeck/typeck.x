@@ -6105,6 +6105,33 @@ ctx: *PipelineDepCtx): i32 {
     block_ref, 102, pipeline_expr_resolved_type_ref(arena, expr_ref));
     driver_diagnostic_typeck_var_resolution(expr_ref, vbuf, vnlen, func_ix, block_ref, 104,
     pipeline_expr_resolved_type_ref(arena, expr_ref));
+    /* wave100 language residual: same-module function name as Cap-fn-ptr *u8.
+     * PLATFORM: SHARED — product large-stack surfaces need bare fn as *u8
+     * (g05 formerly held (uint8_t*)(void*)fn; .x could not form fn-pointer constants).
+     * Locals/params/top-level lets already resolved above. CALL does not typecheck
+     * the callee via this path (name-based resolve), so call sites stay unchanged.
+     * First matching overload wins (C product surfaces are #[no_mangle] unique). */
+    {
+      let fi: i32 = 0;
+      let nfuncs: i32 = module.num_funcs;
+      while (fi < nfuncs) {
+        if (pipeline_module_func_name_equal_at(module, fi, vbuf, vnlen) != 0) {
+          let u8r: i32 = ensure_u8_type_ref(arena);
+          let ptr_u8: i32 = 0;
+          if (ast.ref_is_null(u8r)) {
+            return -1;
+          }
+          ptr_u8 = find_or_alloc_ptr_type_ref(arena, u8r);
+          if (ast.ref_is_null(ptr_u8) || ptr_u8 == 0) {
+            return -1;
+          }
+          pipeline_expr_set_resolved_type_ref(arena, expr_ref, ptr_u8);
+          driver_diagnostic_typeck_var_resolution(expr_ref, vbuf, vnlen, func_ix, block_ref, 105, ptr_u8);
+          return 0;
+        }
+        fi = fi + 1;
+      }
+    }
     if (vnlen == 9 && name_equal(vbuf, vnlen, &nm_tok_kind[0], 9)) {
       tk_tr = find_or_alloc_named_type_ref(arena, &nm_tok_kind[0], 9);
       if (tk_tr != 0) {

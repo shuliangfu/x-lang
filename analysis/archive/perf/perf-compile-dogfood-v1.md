@@ -23,16 +23,16 @@
 
 | case_id | 类型 | 命令 |
 |---------|------|------|
-| `loop_i32` | microbench `-o` | `shux tests/bench/loop_i32.x -o …` |
-| `mem_copy` | microbench `-o` | `shux tests/bench/mem_copy.x -o …` |
-| `struct_param` | microbench `-o` | `shux tests/bench/struct_param.x -o …` |
-| `call_boundary` | microbench `-o` | `shux tests/bench/call_boundary.x -o …` |
-| `perf_main` | perf baseline `-o` | `shux tests/perf-baseline/main.x -o …` |
-| `check_backend` | frontend dogfood | `shux check compiler/src/asm/backend.x` |
-| `check_parser` | frontend dogfood | `shux check compiler/src/parser/parser.x` |
-| `check_typeck` | frontend dogfood | `shux check compiler/src/typeck/typeck.x`（COMP-002 热路径监控） |
+| `loop_i32` | microbench `-o` | `xlang tests/bench/loop_i32.x -o …` |
+| `mem_copy` | microbench `-o` | `xlang tests/bench/mem_copy.x -o …` |
+| `struct_param` | microbench `-o` | `xlang tests/bench/struct_param.x -o …` |
+| `call_boundary` | microbench `-o` | `xlang tests/bench/call_boundary.x -o …` |
+| `perf_main` | perf baseline `-o` | `xlang tests/perf-baseline/main.x -o …` |
+| `check_backend` | frontend dogfood | `xlang check compiler/src/asm/backend.x` |
+| `check_parser` | frontend dogfood | `xlang check compiler/src/parser/parser.x` |
+| `check_typeck` | frontend dogfood | `xlang check compiler/src/typeck/typeck.x`（COMP-002 热路径监控） |
 
-**编译器二进制**：优先 `./compiler/shux-c`（与 IO/net perf 一致）；可用 `SHUX=…` 覆盖。
+**编译器二进制**：优先 `./compiler/xlang-c`（与 IO/net perf 一致）；可用 `XLANG=…` 覆盖。
 
 ---
 
@@ -43,7 +43,7 @@
 ```bash
 ./tests/run-perf-compile-dogfood-gate.sh
 # 等价：
-SHUX_PERF_FAIL_ON_COMPILE_REGRESSION=1 ./tests/run-perf-compile-dogfood.sh
+XLANG_PERF_FAIL_ON_COMPILE_REGRESSION=1 ./tests/run-perf-compile-dogfood.sh
 ```
 
 | 检查 | 条件 |
@@ -57,7 +57,7 @@ SHUX_PERF_FAIL_ON_COMPILE_REGRESSION=1 ./tests/run-perf-compile-dogfood.sh
 | 路径 | 行为 |
 |------|------|
 | `.github/workflows/ci.yml` | push/PR → `run-ci-full-suite.sh` |
-| native **Linux x86_64** GHA | `SHUX_PERF_FAIL_ON_COMPILE_REGRESSION=1` **硬失败** |
+| native **Linux x86_64** GHA | `XLANG_PERF_FAIL_ON_COMPILE_REGRESSION=1` **硬失败** |
 | macOS / Windows / Docker | 跑 timing 烟测，**不**硬门禁（抖动/环境差异） |
 | `run-perf-p1-gate.sh` | 本地 push 前：硬门禁（与 Linux CI 对齐） |
 
@@ -66,7 +66,7 @@ CI slack（防虚拟机抖动误报）：
 | 环境 | 乘数 |
 |------|------|
 | `CI=1`（GHA 原生） | baseline × **1.4** |
-| Docker（`/.dockerenv` 或 `SHUX_CI_DOCKER=1`） | baseline × **1.65** |
+| Docker（`/.dockerenv` 或 `XLANG_CI_DOCKER=1`） | baseline × **1.65** |
 
 ---
 
@@ -79,7 +79,7 @@ CI slack（防虚拟机抖动误报）：
 更新（须 PR 评审，见 ENG-001）：
 
 ```bash
-SHUX_PERF_UPDATE_BASELINE=1 ./tests/run-perf-compile-dogfood.sh
+XLANG_PERF_UPDATE_BASELINE=1 ./tests/run-perf-compile-dogfood.sh
 # 自动写入 median×1.5 或 median+0.015 较大者作为新上限
 ```
 
@@ -89,9 +89,9 @@ SHUX_PERF_UPDATE_BASELINE=1 ./tests/run-perf-compile-dogfood.sh
 
 | ID | 范围 |
 |----|------|
-| **PERF-004** | 用户态 `shux`/`shux-c` 编译固定模块/check |
-| **BOOT-012**（P1） | 自举链全路径耗时（stage2 / shux_asm refresh 等） |
-| **BOOT-017**（P2） | std/core 55 模块 `shux check` 分模块耗时；基线 `stdlib-dogfood.tsv` |
+| **PERF-004** | 用户态 `xlang`/`xlang-c` 编译固定模块/check |
+| **BOOT-012**（P1） | 自举链全路径耗时（stage2 / xlang_asm refresh 等） |
+| **BOOT-017**（P2） | std/core 55 模块 `xlang check` 分模块耗时；基线 `stdlib-dogfood.tsv` |
 
 ---
 
@@ -100,7 +100,7 @@ SHUX_PERF_UPDATE_BASELINE=1 ./tests/run-perf-compile-dogfood.sh
 | 项 | 说明 |
 |----|------|
 | `check_typeck` / `check_pipeline` | 更大 frontend 模块 |
-| shux_asm 自编译 dogfood | WPO 路径单独 TSV |
+| xlang_asm 自编译 dogfood | WPO 路径单独 TSV |
 | 趋势上报 | PR comment 输出 delta 表 |
 
 ---

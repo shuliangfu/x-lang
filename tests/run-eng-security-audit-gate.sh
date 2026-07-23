@@ -5,13 +5,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_SEC_DOC:-analysis/eng-security-audit-v1.md}"
-MANIFEST="${SHUX_SEC_MANIFEST:-tests/baseline/eng-security-audit.tsv}"
+DOC="${XLANG_SEC_DOC:-analysis/eng-security-audit-v1.md}"
+MANIFEST="${XLANG_SEC_MANIFEST:-tests/baseline/eng-security-audit.tsv}"
 INVENTORY="tests/templates/eng-security-audit-inventory.txt"
 LIB="tests/lib/eng-security-audit.sh"
 RUNNER="tests/run-eng-security-audit.sh"
 MIN_TRACKS=4
-PREFIX="shux: [SHUX_SECURITY_AUDIT]"
+PREFIX="xlang: [XLANG_SECURITY_AUDIT]"
 
 # shellcheck source=tests/lib/eng-security-audit.sh
 . tests/lib/eng-security-audit.sh
@@ -24,7 +24,7 @@ for f in "$DOC" "$MANIFEST" "$INVENTORY" "$LIB" "$RUNNER"; do
   fi
 done
 
-for kw in runnable report SHUX_SECURITY_AUDIT T1-deps-inventory periodic audit; do
+for kw in runnable report XLANG_SECURITY_AUDIT T1-deps-inventory periodic audit; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "eng-security-audit gate FAIL: doc missing '$kw'" >&2
     exit 1

@@ -12,7 +12,7 @@
 ## 门禁
 
 ```bash
-SHUX_F_CONTEXT_V1_FAIL=1 ./tests/run-f-context-v1-gate.sh
+XLANG_F_CONTEXT_V1_FAIL=1 ./tests/run-f-context-v1-gate.sh
 ./tests/run-std-context-gate.sh
 ```
 

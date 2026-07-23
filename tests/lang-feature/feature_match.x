@@ -1,7 +1,7 @@
 /**
  * See implementation.
  */
-#if SHUX_FEATURE_MATCH_STMT
+#if XLANG_FEATURE_MATCH_STMT
 /** Internal function `main`.
  * Program/test entry point.
  * @return i32

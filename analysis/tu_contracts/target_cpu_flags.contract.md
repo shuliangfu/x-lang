@@ -28,13 +28,13 @@
 ### 3.2 当前仍由 seed/rest 提供
 - `append_feat_name`
 - `flags_has_token`
-- `shu_simd_is_vector_type_spelling`
-- `shu_simd_vector_lanes_esz_from_spelling`
-- `shu_target_cpu_detect_arm64`
-- `shu_target_cpu_detect_host`
-- `shu_target_cpu_generic_for_host`
-- `shu_target_cpu_print`
-- `shu_target_cpu_resolve`
+- `xlang_simd_is_vector_type_spelling`
+- `xlang_simd_vector_lanes_esz_from_spelling`
+- `xlang_target_cpu_detect_arm64`
+- `xlang_target_cpu_detect_host`
+- `xlang_target_cpu_generic_for_host`
+- `xlang_target_cpu_print`
+- `xlang_target_cpu_resolve`
 - `tcp_eq_at`
 - `tcp_parse_named`
 - （平台相关：x86/riscv detect 函数条件编译）
@@ -47,7 +47,7 @@
   - symbol 集
   - thin/.x 与 seed/rest 的 provider 边界
   - _impl 残余列表：N/A（本 TU 使用 #ifndef/extern 模式，非 _impl 模式）
-  - thin+rest 宏边界：`SHUX_L2_TARGET_CPU_FLAGS_FROM_X`
+  - thin+rest 宏边界：`XLANG_L2_TARGET_CPU_FLAGS_FROM_X`
 - 下一步补充：
   - arg_count / arg_shapes
   - ret_shape

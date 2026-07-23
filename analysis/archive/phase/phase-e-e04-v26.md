@@ -12,12 +12,12 @@
 | `driver_dep_seeded_clear_all` | 清槽 + 调 typeck 侧车 |
 | `driver_dep_arena_buf` / `driver_dep_module_buf` | pipeline.x getter |
 | `typeck_driver_dep_*` | typeck.x 转发 |
-| `SHUX_DRIVER_DEP_SLOT_MAX` | 槽数量常量 32 |
+| `XLANG_DRIVER_DEP_SLOT_MAX` | 槽数量常量 32 |
 
 ## 复现
 
 ```bash
-SHUX_E04_FAIL=1 ./tests/run-e04-runtime-soft-gate.sh
+XLANG_E04_FAIL=1 ./tests/run-e04-runtime-soft-gate.sh
 make -C compiler src/runtime_pipeline_abi.o src/runtime_driver_no_c.o
 ```
 

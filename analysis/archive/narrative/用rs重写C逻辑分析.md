@@ -5,7 +5,7 @@
 - **本目标仅要求 compiler 全部用 .x 实现**；std 有没有使用 C 不用管，只要 compiler 全部用 .x 写出来即可。
 - 将编译器驱动与运行时中的 **C 逻辑尽量全部用 .x 重写**。
 - **尽量完全避免在 compiler 里使用 C**：仅保留「不得不由 C 承担」的最小部分（如 asm crt0 替代 main 后可为零），后续再分析如何进一步缩小或替代。
-- **构建方式完全对标 Zig**：使用 **build.x** 配置编译，由 `shux build` 执行，不再依赖 Makefile；构建逻辑与配置全部用 .x 写在 build.x 中。
+- **构建方式完全对标 Zig**：使用 **build.x** 配置编译，由 `xlang build` 执行，不再依赖 Makefile；构建逻辑与配置全部用 .x 写在 build.x 中。
 
 本文档梳理：**当前 C 侧做了哪些事**、**哪些可以迁到 .x（含用 std）**、**哪些在可预见的范围内仍必须用 C**，便于后续制定迁移顺序与处理方案。**std 底层是否用 C 实现不在本目标范围内。**
 
@@ -138,14 +138,14 @@
 
 **约定：完全按照 Zig 的方式，使用 build.x 配置编译。**
 
-- **入口**：项目根目录（或指定目录）下的 **build.x**，由 `shux build` 执行。
+- **入口**：项目根目录（或指定目录）下的 **build.x**，由 `xlang build` 执行。
 - **职责**：build.x 是一段 .x 源码，在其中用 std.fs、std.process、std.path 等：
   - 声明要编译的 .x 入口与依赖；
-  - 调用 shux 将 .x 编译为 C/asm；
+  - 调用 xlang 将 .x 编译为 C/asm；
   - 调用 cc/ld 链接，产出可执行文件或库；
   - 可选：测试、安装、清理等步骤。
-- **不再使用 Makefile**：日常构建统一为 `shux build`；Makefile 逐步弃用，仅 bootstrap 时如需可保留一次性最小脚本。
-- **与 Zig 的对应**：Zig 的 `zig build` 执行 `build.zig`，我们用 `shux build` 执行 `build.x`，构建逻辑全部用本语言描述。
+- **不再使用 Makefile**：日常构建统一为 `xlang build`；Makefile 逐步弃用，仅 bootstrap 时如需可保留一次性最小脚本。
+- **与 Zig 的对应**：Zig 的 `zig build` 执行 `build.zig`，我们用 `xlang build` 执行 `build.x`，构建逻辑全部用本语言描述。
 
 ---
 
@@ -170,8 +170,8 @@
 6. **（可选）用 asm crt0 替代 main.c**  
    用我们写的汇编实现 crt0（_start），直接出机器码；按目标平台 ABI 取 argc/argv 后调用 `main_entry`。完成后可删除 main.c，实现**程序入口零 C**。
 
-7. **实现 build.x 与 `shux build`**  
-   完全对标 Zig：实现 `shux build`（执行当前目录或指定目录下的 build.x）；在 compiler 或独立工具中解析 build.x，按其中声明的步骤调 shux/cc/ld。项目提供根目录 build.x，用于构建 shux 自身。**实现后即可不再使用 Makefile**：日常构建统一为 `shux build`；仅首次 bootstrap（尚无 shux 可执行文件时）如需可保留一次性最小脚本，之后全部依赖 build.x。
+7. **实现 build.x 与 `xlang build`**  
+   完全对标 Zig：实现 `xlang build`（执行当前目录或指定目录下的 build.x）；在 compiler 或独立工具中解析 build.x，按其中声明的步骤调 xlang/cc/ld。项目提供根目录 build.x，用于构建 xlang 自身。**实现后即可不再使用 Makefile**：日常构建统一为 `xlang build`；仅首次 bootstrap（尚无 xlang 可执行文件时）如需可保留一次性最小脚本，之后全部依赖 build.x。
 
 ---
 
@@ -187,9 +187,9 @@
 | 路径解析、get_*_o_path | C | .x + std.fs/path（用标准库完全去掉 C） | 否 |
 | std 库底层（io/fs/process 的 .c） | C | 不要求；std 用不用 C 不管 | 否（不在本目标内） |
 | LSP | C (lsp_io.c, lsp_diag.c 等) | .x + std.io/string（用标准库完全去掉 C） | 否 |
-| **构建** | Makefile | **build.x**（对标 Zig build.zig，`shux build` 执行） | 否 |
+| **构建** | Makefile | **build.x**（对标 Zig build.zig，`xlang build` 执行） | 否 |
 | C 前端（run_compiler_c） | C | 可选保留或单独裁剪 | 与「compiler 用 .x 重写」无关 |
 
 结论：**本目标仅要求 compiler 全部用 .x 实现；std 有没有使用 C 不用管（std 的 C 是内置的，不用管）。** 程序入口用 asm crt0 可直接避免 C，**可以不用 main.c 入口**；路径解析、get_*_o_path 用标准库即可在 compiler 侧完全去掉 C；**LSP 也能用标准库在 .x 里写，完全不用 C**（std.io + .x parser/typeck + JSON 拼接）；其余 compiler 内 C 逻辑（驱动、ctx、dep、invoke_cc/ld 等）均可迁到 .x。
 
-**构建：完全对标 Zig，使用 build.x 配置编译。** 我们采用与 Zig 一致的方式：**用 build.x 作为唯一构建配置**，由 `shux build` 执行。build.x 是一段 .x 源码，在其中用 std.fs、std.process、std.path 等声明要编译的 .x、依赖关系、调用 shux/cc/ld 的步骤、产物路径等；不再使用 Makefile，日常构建统一为 `shux build`。Bootstrap 时只需「用已有 shux 执行一次 build.x」或一次性最小种子；之后全部依赖 build.x。
+**构建：完全对标 Zig，使用 build.x 配置编译。** 我们采用与 Zig 一致的方式：**用 build.x 作为唯一构建配置**，由 `xlang build` 执行。build.x 是一段 .x 源码，在其中用 std.fs、std.process、std.path 等声明要编译的 .x、依赖关系、调用 xlang/cc/ld 的步骤、产物路径等；不再使用 Makefile，日常构建统一为 `xlang build`。Bootstrap 时只需「用已有 xlang 执行一次 build.x」或一次性最小种子；之后全部依赖 build.x。

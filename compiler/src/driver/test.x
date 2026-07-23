@@ -23,7 +23,7 @@
 export extern function driver_run_test(argc: i32, argv: *u8): i32;
 
 /**
-* shux test [script.sh]
+* xlang test [script.sh]
 * See implementation.
 * See implementation.
 * See implementation.

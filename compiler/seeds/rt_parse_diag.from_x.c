@@ -1,13 +1,13 @@
 /* seeds/rt_parse_diag.from_x.c — G-02f-307 P2 runtime rest (precise parse diag)
  * Logic source: src/runtime/rt_parse_diag.x
- * Hybrid: SHUX_RT_PARSE_DIAG_FROM_X + ld -r into runtime_driver_no_c.o
+ * Hybrid: XLANG_RT_PARSE_DIAG_FROM_X + ld -r into runtime_driver_no_c.o
  *
  * R2 full（2026-07-14）：runtime_report_precise_parse_failure_if_known 由 .x 提供；
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（TOKEN_STRING → P001）。
  *
  * 【Why 根源 2026-07-15】C parser 删除后 multi-error recovery 诊断丢失；
- * shux check 在 check_only + 空 out 时假绿。本文件增加：
+ * xlang check 在 check_only + 空 out 时假绿。本文件增加：
  * 1) runtime_report_parse_recovery_diagnostics — 词法级恢复诊断（对齐已删 parser.c fail 文案）
  * 2) 供 check / parse 失败路径调用，写入 lsp_diag 或 stderr
  */
@@ -19,12 +19,12 @@
 #include "token.h"
 #include "runtime_diag_codes.h"
 
-struct shux_slice_uint8_t {
+struct xlang_slice_uint8_t {
   uint8_t *data;
   size_t length;
 };
 
-extern int32_t parser_diag_fail_at_token_kind(struct shux_slice_uint8_t *source);
+extern int32_t parser_diag_fail_at_token_kind(struct xlang_slice_uint8_t *source);
 extern void diag_reportf_with_code(const char *file, int line, int col, const char *kind, const char *code,
                                    const char *detail, const char *fmt, ...);
 extern void diag_report_with_code(const char *file, int line, int col, const char *kind, const char *code,
@@ -36,9 +36,9 @@ extern void lsp_diag_add_code(int line, int col, int severity, const char *code,
 extern int driver_check_only_get(void);
 extern void driver_check_diag_emitted_note(void);
 
-#ifndef SHUX_RT_PARSE_DIAG_FROM_X
+#ifndef XLANG_RT_PARSE_DIAG_FROM_X
 int runtime_report_precise_parse_failure_if_known(const char *input_path, const char *src, size_t src_len) {
-  struct shux_slice_uint8_t diag_src_slice;
+  struct xlang_slice_uint8_t diag_src_slice;
   int32_t fail_tok;
   if (!src || src_len == 0)
     return 0;
@@ -46,14 +46,14 @@ int runtime_report_precise_parse_failure_if_known(const char *input_path, const 
   diag_src_slice.length = src_len;
   fail_tok = parser_diag_fail_at_token_kind(&diag_src_slice);
   if (fail_tok == TOKEN_STRING) {
-    diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+    diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
                            "expected integer literal, float literal, identifier, 'true', 'false', 'if', "
                            "'break', 'continue', 'return', 'panic', 'match', or '('");
     return 1;
   }
   return 0;
 }
-#elif defined(SHUX_RT_PARSE_DIAG_PRECISE_BRIDGE)
+#elif defined(XLANG_RT_PARSE_DIAG_PRECISE_BRIDGE)
 /*
  * Hybrid PREFER_X_O + thin .x：-E 后符号常为
  *   rt_parse_diag_runtime_report_precise_parse_failure_if_known
@@ -165,7 +165,7 @@ static void rt_skip_ws_comment(RtScan *s) {
      * Why: recovery previously skipped only // comments. Docblocks that
      * mention the keyword function plus Type(T) were tokenized as a signature;
      * the real function then false-failed as "expected '{' before function body"
-     * on `shux check` only (full compile path does not run this recovery). */
+     * on `xlang check` only (full compile path does not run this recovery). */
     if (c == '/' && s->i + 1 < s->len && s->src[s->i + 1] == '*') {
       rt_get(s); /* slash */
       rt_get(s); /* star */

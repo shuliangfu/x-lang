@@ -9,7 +9,7 @@
 
 ## 1. 目标
 
-在 BOOT-024 C2 bootstrap 基础上登记 **gen1/gen2 三代一致性** 门禁：`shux_asm`（gen1）→ `shux_asm2`（gen2）行为对齐。
+在 BOOT-024 C2 bootstrap 基础上登记 **gen1/gen2 三代一致性** 门禁：`xlang_asm`（gen1）→ `xlang_asm2`（gen2）行为对齐。
 
 验收：`tests/run-boot-025-parser-gen12-consistency-gate.sh` 绿；`min_consistency_hooks=3`；Linux `gen12_ok=1`。
 
@@ -34,11 +34,11 @@
 ```
 
 ```
-shux: [SHUX_BOOT025] status=ok gen12_ok=1 dogfood_ok=0 skip=1
+xlang: [XLANG_BOOT025] status=ok gen12_ok=1 dogfood_ok=0 skip=1
 ```
 
-- **gen12_ok**：`stage2-bstrict` 通过（Linux + `shux_asm`）
-- Darwin / 无 `shux_asm`：manifest 绿 + **SKIP**
+- **gen12_ok**：`stage2-bstrict` 通过（Linux + `xlang_asm`）
+- Darwin / 无 `xlang_asm`：manifest 绿 + **SKIP**
 
 ---
 
@@ -55,4 +55,4 @@ shux: [SHUX_BOOT025] status=ok gen12_ok=1 dogfood_ok=0 skip=1
 
 - C4 全量 X bootstrap 无 C TU（见 BOOT-026）
 - Darwin stage2 硬门禁
-- 跨平台 shux_asm2 二进制发布
+- 跨平台 xlang_asm2 二进制发布

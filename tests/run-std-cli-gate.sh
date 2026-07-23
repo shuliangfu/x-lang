@@ -3,8 +3,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_CLI_DOC:-analysis/std-cli-v1.md}"
-MANIFEST="${SHUX_STD_CLI_MANIFEST:-tests/baseline/std-cli-manifest.tsv}"
+DOC="${XLANG_STD_CLI_DOC:-analysis/std-cli-v1.md}"
+MANIFEST="${XLANG_STD_CLI_MANIFEST:-tests/baseline/std-cli-manifest.tsv}"
 MOD_X="std/cli/mod.x"
 CLI_IMPL="std/cli/cli.x"
 LIB="tests/lib/std-cli.sh"
@@ -65,32 +65,32 @@ X_OK=0
 SKIP=0
 
 echo "=== STD-077: cli c smoke ==="
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   if make -C compiler ../std/cli/cli.o >/dev/null 2>&1 && \
-     cc -std=c11 -O1 -o /tmp/shux_cli_smoke "$SMOKE_C" std/cli/cli.o 2>/dev/null; then
-    if /tmp/shux_cli_smoke >/dev/null 2>&1; then C_OK=1; fi
-    rm -f /tmp/shux_cli_smoke
+     cc -std=c11 -O1 -o /tmp/xlang_cli_smoke "$SMOKE_C" std/cli/cli.o 2>/dev/null; then
+    if /tmp/xlang_cli_smoke >/dev/null 2>&1; then C_OK=1; fi
+    rm -f /tmp/xlang_cli_smoke
   fi
 fi
 if [ "$C_OK" -eq 0 ]; then
-  echo "std-cli gate SKIP c smoke (no shux-c or link failed)" >&2
+  echo "std-cli gate SKIP c smoke (no xlang-c or link failed)" >&2
   SKIP=1
 else
   SKIP=0
 fi
 
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-077: .x smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-077: .x smoke (XLANG=$XLANG_BIN) ==="
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-cli gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_cli_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_cli_run_smoke "$SHUX_BIN" "$SMOKE_X" "roundtrip"; then X_OK=1; else
+  if std_cli_run_smoke "$XLANG_BIN" "$SMOKE_X" "roundtrip"; then X_OK=1; else
     std_cli_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi

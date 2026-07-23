@@ -14,12 +14,12 @@
 ## 复现
 
 ```bash
-SHUX_E04_FAIL=1 ./tests/run-e04-runtime-soft-gate.sh
+XLANG_E04_FAIL=1 ./tests/run-e04-runtime-soft-gate.sh
 # Darwin arm64 / x86_64：
-make -C compiler relink-shux
-./compiler/shux --version 2>/dev/null || ./compiler/shux -h 2>&1 | head -1
+make -C compiler relink-xlang
+./compiler/xlang --version 2>/dev/null || ./compiler/xlang -h 2>&1 | head -1
 # 考古 C main()：
-SHUX_LEGACY_MAIN_C=1 make -C compiler relink-shux
+XLANG_LEGACY_MAIN_C=1 make -C compiler relink-xlang
 ```
 
 ## 延后（E-04 v21+）

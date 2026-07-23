@@ -29,7 +29,7 @@ Engine.IO / Socket.IO **v0–v16**（STD-SOCKETIO-001 · **P3 收口**）。
 | 脚本 | 说明 |
 |------|------|
 | `./tests/run-std-socketio-gate.sh` | manifest + 14 项 smoke（含 `p3_complete`） |
-| `SHUX_SOCKETIO_ALL_LIVE=1 ./tests/run-std-socketio-all-live.sh` | gate + 全部 live 编排 |
+| `XLANG_SOCKETIO_ALL_LIVE=1 ./tests/run-std-socketio-all-live.sh` | gate + 全部 live 编排 |
 
 ## client v8 API（WS 直连）
 
@@ -117,12 +117,12 @@ Engine.IO / Socket.IO **v0–v16**（STD-SOCKETIO-001 · **P3 收口**）。
 
 ```bash
 ./tests/run-std-socketio-gate.sh
-SHUX_SOCKETIO_LIVE=1 ./tests/run-std-socketio-live.sh
-SHUX_SOCKETIO_NPM=1 ./tests/run-std-socketio-npm-live.sh
-SHUX_SOCKETIO_NPM_WS=1 ./tests/run-std-socketio-npm-ws-live.sh
-SHUX_SOCKETIO_NPM_ROOM=1 ./tests/run-std-socketio-npm-room-live.sh
-SHUX_SOCKETIO_NPM_MW=1 ./tests/run-std-socketio-npm-mw-live.sh
-SHUX_SOCKETIO_NPM_PLUGIN=1 ./tests/run-std-socketio-npm-plugin-live.sh
-SHUX_SOCKETIO_CLUSTER_RING=1 ./tests/run-std-socketio-cluster-ring-live.sh
-SHUX_SOCKETIO_ALL_LIVE=1 ./tests/run-std-socketio-all-live.sh
+XLANG_SOCKETIO_LIVE=1 ./tests/run-std-socketio-live.sh
+XLANG_SOCKETIO_NPM=1 ./tests/run-std-socketio-npm-live.sh
+XLANG_SOCKETIO_NPM_WS=1 ./tests/run-std-socketio-npm-ws-live.sh
+XLANG_SOCKETIO_NPM_ROOM=1 ./tests/run-std-socketio-npm-room-live.sh
+XLANG_SOCKETIO_NPM_MW=1 ./tests/run-std-socketio-npm-mw-live.sh
+XLANG_SOCKETIO_NPM_PLUGIN=1 ./tests/run-std-socketio-npm-plugin-live.sh
+XLANG_SOCKETIO_CLUSTER_RING=1 ./tests/run-std-socketio-cluster-ring-live.sh
+XLANG_SOCKETIO_ALL_LIVE=1 ./tests/run-std-socketio-all-live.sh
 ```

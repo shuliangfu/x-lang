@@ -3,7 +3,7 @@
 //
 // G-02f-25： .x — backend_wpo  → glue/seed backend_*（strict WPO）。
 //  *u8（ C struct* ABI ）。
-// ：./shux-c -E → seeds/backend_asm_bare_link_alias.from_x.c
+// ：./xlang-c -E → seeds/backend_asm_bare_link_alias.from_x.c
 
 extern "C" function asm_codegen_ast(module: *u8, arena: *u8, out: *u8, ctx: *u8): i32;
 extern "C" function asm_codegen_ast_to_elf(module: *u8, arena: *u8, elf_ctx: *u8, ctx: *u8): i32;

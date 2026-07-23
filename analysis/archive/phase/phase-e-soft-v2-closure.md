@@ -17,7 +17,7 @@
 ## 一键复现（全绿）
 
 ```bash
-SHUX_E_SOFT_FAIL=1 ./tests/run-e-soft-retire-gate.sh
+XLANG_E_SOFT_FAIL=1 ./tests/run-e-soft-retire-gate.sh
 ```
 
 ## 刻意 **不在** 阶段 E 的范围（勿与 E 全绿混淆）
@@ -26,14 +26,14 @@ SHUX_E_SOFT_FAIL=1 ./tests/run-e-soft-retire-gate.sh
 |----|------|------|
 | 物理删除 `runtime.c` / `parser.c` 等 | E-soft 策略为**文件保留** | 非 E 阻塞项 |
 | 继续 E-04 v36+ 拆 `runtime.c` | v35 ABI 薄壳已满足 gate；主体留作 driver glue | 维护性优化，非 E |
-| `OBJS_CORE` 去掉 C 前端 | 仅 `shux-c` 冷启动 / LEGACY 需要 | E-03 track，阶段 F 前可选 |
-| `build_shux_asm` SEED 仍 cc -c lexer/ast | strict relink 考古路径 | E-03 track-only |
+| `OBJS_CORE` 去掉 C 前端 | 仅 `xlang-c` 冷启动 / LEGACY 需要 | E-03 track，阶段 F 前可选 |
+| `build_xlang_asm` SEED 仍 cc -c lexer/ast | strict relink 考古路径 | E-03 track-only |
 | std / include 全清 C | **完全自举终局** | **阶段 F（§9）** |
 
 ## E-04 最终形态（v1～v35）
 
 - 默认链：`runtime_driver_no_c.o` + `runtime_{abi,io,proc,link,driver,pipeline,driver_diagnostic,c_import}.o`
-- `runtime.c`：**active**（FFI/driver 胶水 + `shux-c` 路径），**不是** E 未完成标志
+- `runtime.c`：**active**（FFI/driver 胶水 + `xlang-c` 路径），**不是** E 未完成标志
 - 详细拆分记录：`analysis/phase-e-e04-v*.md`（v35 为最后一档 **gate 必需** 迁移）
 
 ## 下一阶段

@@ -2,11 +2,11 @@
 # C-06：Makefile 默认 bootstrap/relink 仅链 *_x.o 前端，不链 C parser/typeck/codegen.o。
 #
 # 用法：./tests/run-c06-x-frontend-default-gate.sh
-# 环境：SHUX_C06_FAIL=1 失败时硬退出
+# 环境：XLANG_C06_FAIL=1 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_C06_FAIL:-0}
+FAIL=${XLANG_C06_FAIL:-0}
 MF="compiler/Makefile"
 DOC="analysis/phase-c-c06-v1.md"
 
@@ -18,7 +18,7 @@ done
 grep -q 'C-06 v1' "$MF" || { echo "c06 gate FAIL: Makefile missing C-06 marker" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 grep -q 'DRIVER_SEED_X_FRONTEND_OBJS' "$MF" || { echo "c06 gate FAIL: missing DRIVER_SEED_X_FRONTEND_OBJS" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 grep -q 'runtime_driver_no_c.o' "$MF" || { echo "c06 gate FAIL: missing runtime_driver_no_c default" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
-grep -q 'SHUX_LEGACY_C_FRONTEND' "$MF" || { echo "c06 gate FAIL: missing legacy escape hatch" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
+grep -q 'XLANG_LEGACY_C_FRONTEND' "$MF" || { echo "c06 gate FAIL: missing legacy escape hatch" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 grep -q 'ast_x.o:' "$MF" || { echo "c06 gate FAIL: missing ast_x.o alias" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 
 # DRIVER_SEED_OBJS 定义行不得直接含 C parser/typeck/codegen .o（须在 LEGACY 变量内）。

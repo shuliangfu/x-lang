@@ -3,14 +3,14 @@
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-SHUX=${SHUX:-./compiler/shux}
+XLANG=${XLANG:-./compiler/xlang}
 
-$SHUX build tests/asm/assign_index_lit_fast.x -o /tmp/shux_asm_assign_index_lit 2>&1
+$XLANG build tests/asm/assign_index_lit_fast.x -o /tmp/xlang_asm_assign_index_lit 2>&1
 exitcode=0
-/tmp/shux_asm_assign_index_lit >/dev/null 2>&1 || exitcode=$?
+/tmp/xlang_asm_assign_index_lit >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 99 ] && { echo "run-asm-assign-index-lit FAIL: expected exit 99, got $exitcode"; exit 1; }
 
-if otool -tv /tmp/shux_asm_assign_index_lit 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
+if otool -tv /tmp/xlang_asm_assign_index_lit 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
   echo "run-asm-assign-index-lit FAIL: main still uses x2 for literal-index assign"
   exit 1
 fi

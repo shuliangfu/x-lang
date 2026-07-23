@@ -17,5 +17,5 @@
  * 返回值：main_entry 退出码。
  */
 int main(int argc, char **argv) {
-    return shux_forward_main_to_main_entry(argc, argv);
+    return xlang_forward_main_to_main_entry(argc, argv);
 }

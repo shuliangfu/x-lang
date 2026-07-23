@@ -55,8 +55,8 @@ language await read/write/read_fd
 
 | 变量 | 效果 |
 |------|------|
-| `SHUX_ASYNC_YIELD=1` | `cps_suspend_io` 在 await 边界 yield（返回非 0） |
-| `SHUX_IO_ASYNC_SLOTS` | async 槽位数 1..32（默认 8） |
+| `XLANG_ASYNC_YIELD=1` | `cps_suspend_io` 在 await 边界 yield（返回非 0） |
+| `XLANG_IO_ASYNC_SLOTS` | async 槽位数 1..32（默认 8） |
 
 ---
 
@@ -78,8 +78,8 @@ language await read/write/read_fd
 | API | 委托 |
 |-----|------|
 | `cps_suspend_io(phase, next_phase)` | `shu_async_cps_suspend_io` |
-| `poll_completions(timeout_ms)` | `shux_io_poll_async_completions` |
-| `drain_idle()` | `shux_async_run_drain_until_idle` |
+| `poll_completions(timeout_ms)` | `xlang_io_poll_async_completions` |
+| `drain_idle()` | `xlang_async_run_drain_until_idle` |
 
 与 STD-041 组合：`scheduler_reset` → `run`/`spawn` → `drain_idle`（内含 poll IO；C 层仍称 `drain_until_idle`）。
 
@@ -92,7 +92,7 @@ language await read/write/read_fd
 ```
 
 ```
-shux: [SHUX_STD_ASYNC_IO_CPS] status=ok align=1 emit=1 skip=0
+xlang: [XLANG_STD_ASYNC_IO_CPS] status=ok align=1 emit=1 skip=0
 ```
 
 ---

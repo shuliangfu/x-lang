@@ -2,11 +2,11 @@
 # F-04 v16：std.crypto crypto.c shell 去 C 门禁。
 #
 # 用法：./tests/run-f04-std-crypto-v16-gate.sh
-# 环境：SHUX_F04_CRYPTO_V16_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F04_CRYPTO_V16_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F04_CRYPTO_V16_FAIL:-0}
+FAIL=${XLANG_F04_CRYPTO_V16_FAIL:-0}
 DOC="analysis/phase-f-f04-v16.md"
 CORE="std/crypto/core.x"
 GLUE="compiler/seeds/runtime_crypto_inc_glue.from_x.c"
@@ -77,13 +77,13 @@ EOF
   "$TMP/sha256_smoke" || die "sha256 C smoke run failed"
   echo "f04 crypto sha256 smoke OK"
 else
-  echo "f04 crypto sha256 smoke SKIP (crypto.o missing .x symbols; need shux-c)"
+  echo "f04 crypto sha256 smoke SKIP (crypto.o missing .x symbols; need xlang-c)"
 fi
 
 if [ -f tests/run-std-crypto-gate.sh ]; then
   echo "=== F-04 v16: delegate run-std-crypto-gate (manifest) ==="
   chmod +x tests/run-std-crypto-gate.sh
-  if ! SHUX_STD_CRYPTO_MANIFEST_ONLY=1 tests/run-std-crypto-gate.sh; then
+  if ! XLANG_STD_CRYPTO_MANIFEST_ONLY=1 tests/run-std-crypto-gate.sh; then
     die "run-std-crypto-gate failed"
   fi
 fi

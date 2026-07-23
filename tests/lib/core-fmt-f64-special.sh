@@ -5,7 +5,7 @@
 #   core_fmt_f64_special_symbols_ok FMT_X STD_FMT_X TSV
 #   core_fmt_f64_special_emit_report status check_ok skip
 
-CORE_FMT_F64_SPECIAL_PREFIX="${SHUX_CORE_FMT_F64_SPECIAL_PREFIX:-shux: [SHUX_CORE_FMT_F64_SPECIAL]}"
+CORE_FMT_F64_SPECIAL_PREFIX="${XLANG_CORE_FMT_F64_SPECIAL_PREFIX:-xlang: [XLANG_CORE_FMT_F64_SPECIAL]}"
 
 # 校验 manifest 中 symbol 锚点；echo 缺失数，成功返回 0。
 core_fmt_f64_special_symbols_ok() {

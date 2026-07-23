@@ -1,8 +1,8 @@
 /**
  * tests/bench/async_scheduler_io_wake.c — IO-A5 IO 等待队列 + completion 唤醒烟测
  *
- * SHUX_ASYNC_YIELD=1 + SHUX_ASYNC_IO_WAIT=1：suspend 任务进 IO 等待队列；
- * shux_async_io_wake_all 后 drain 完成。
+ * XLANG_ASYNC_YIELD=1 + XLANG_ASYNC_IO_WAIT=1：suspend 任务进 IO 等待队列；
+ * xlang_async_io_wake_all 后 drain 完成。
  *
  * 编译：cc -std=c11 -o async_scheduler_io_wake tests/bench/async_scheduler_io_wake.c std/async/scheduler.o
  */
@@ -10,13 +10,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define SHUX_ASYNC_SUSPENDED ((int32_t)0x41535700)
+#define XLANG_ASYNC_SUSPENDED ((int32_t)0x41535700)
 
-extern int shux_async_task_submit(int32_t (*fn)(void));
-extern int32_t shux_async_scheduler_drain(void);
-extern void shux_async_queue_reset(void);
-extern void shux_async_io_wake_all(void);
-extern uint32_t shux_async_io_waiters_pending(void);
+extern int xlang_async_task_submit(int32_t (*fn)(void));
+extern int32_t xlang_async_scheduler_drain(void);
+extern void xlang_async_queue_reset(void);
+extern void xlang_async_io_wake_all(void);
+extern uint32_t xlang_async_io_waiters_pending(void);
 
 static int g_step;
 
@@ -26,7 +26,7 @@ static int g_step;
 static int32_t io_task(void) {
     if (g_step == 0) {
         g_step = 1;
-        return SHUX_ASYNC_SUSPENDED;
+        return XLANG_ASYNC_SUSPENDED;
     }
     return 42;
 }
@@ -37,34 +37,34 @@ static int32_t io_task(void) {
 int main(void) {
     int32_t r;
 
-    setenv("SHUX_ASYNC_YIELD", "1", 1);
-    setenv("SHUX_ASYNC_IO_WAIT", "1", 1);
+    setenv("XLANG_ASYNC_YIELD", "1", 1);
+    setenv("XLANG_ASYNC_IO_WAIT", "1", 1);
 
-    shux_async_queue_reset();
+    xlang_async_queue_reset();
     g_step = 0;
 
-    if (shux_async_task_submit(io_task) != 0) {
+    if (xlang_async_task_submit(io_task) != 0) {
         fprintf(stderr, "async_scheduler_io_wake: submit failed\n");
         return 1;
     }
-    r = shux_async_scheduler_drain();
+    r = xlang_async_scheduler_drain();
     if (r != 0) {
         fprintf(stderr, "async_scheduler_io_wake: first drain got %d want 0 (io wait)\n", (int)r);
         return 2;
     }
-    if (shux_async_io_waiters_pending() != 1) {
+    if (xlang_async_io_waiters_pending() != 1) {
         fprintf(stderr, "async_scheduler_io_wake: waiters=%u want 1\n",
-            (unsigned)shux_async_io_waiters_pending());
+            (unsigned)xlang_async_io_waiters_pending());
         return 3;
     }
 
-    shux_async_io_wake_all();
-    if (shux_async_io_waiters_pending() != 0) {
+    xlang_async_io_wake_all();
+    if (xlang_async_io_waiters_pending() != 0) {
         fprintf(stderr, "async_scheduler_io_wake: waiters not empty after wake\n");
         return 4;
     }
 
-    r = shux_async_scheduler_drain();
+    r = xlang_async_scheduler_drain();
     if (r != 42) {
         fprintf(stderr, "async_scheduler_io_wake: second drain got %d want 42\n", (int)r);
         return 5;

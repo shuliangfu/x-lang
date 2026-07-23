@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-simd-intrinsic.sh — STD-SIMD-INTRINSIC manifest 与烟测辅助
 
-STD_SIMD_INTRINSIC_PREFIX="${SHUX_STD_SIMD_INTRINSIC_PREFIX:-shux: [SHUX_STD_SIMD_INTRINSIC]}"
+STD_SIMD_INTRINSIC_PREFIX="${XLANG_STD_SIMD_INTRINSIC_PREFIX:-xlang: [XLANG_STD_SIMD_INTRINSIC]}"
 
 std_simd_intrinsic_symbols_ok() {
   local mod_x="$1"
@@ -26,18 +26,18 @@ std_simd_intrinsic_symbols_ok() {
 
 # 编译 .x 烟测（asm 后端；与 STD-047 相同策略）。
 std_simd_intrinsic_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
-  local obj="/tmp/shux_std_simd_intrinsic_$$.o"
-  local exe="/tmp/shux_std_simd_intrinsic_$$"
-  if ! "$shux" -L . "$src" -o "$obj" >/dev/null 2>&1; then
+  local obj="/tmp/xlang_std_simd_intrinsic_$$.o"
+  local exe="/tmp/xlang_std_simd_intrinsic_$$"
+  if ! "$xlang" -L . "$src" -o "$obj" >/dev/null 2>&1; then
     echo "std-simd-intrinsic WARN: compile $src (asm unavailable)" >&2
-    "$shux" -L . "$src" -o "$obj" 2>&1 | tail -8 >&2 || true
+    "$xlang" -L . "$src" -o "$obj" 2>&1 | tail -8 >&2 || true
     rm -f "$obj" "$exe"
     return 2
   fi
   rm -f "$obj"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-simd-intrinsic WARN: link/run skipped (compile .o OK)" >&2
     return 0
   fi

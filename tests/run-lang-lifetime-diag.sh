@@ -5,30 +5,30 @@
 set -e
 cd "$(dirname "$0")/.."
 
-MATRIX="${SHUX_LANG_LIFETIME_DIAG_CASES:-tests/baseline/lang-lifetime-diag-cases.tsv}"
+MATRIX="${XLANG_LANG_LIFETIME_DIAG_CASES:-tests/baseline/lang-lifetime-diag-cases.tsv}"
 
 # shellcheck source=tests/lib/lang-lifetime-diag.sh
 . tests/lib/lang-lifetime-diag.sh
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
-    if lang_lifetime_diag_native_shu "$cand"; then
-      SHUX_BIN="$cand"
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
+    if lang_lifetime_diag_native_xlang "$cand"; then
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHUX_BIN" ] || ! lang_lifetime_diag_native_shu "$SHUX_BIN"; then
-  echo "lang-lifetime-diag SKIP (no native shux, host=$(uname -s)/$(uname -m 2>/dev/null))"
+if [ -z "$XLANG_BIN" ] || ! lang_lifetime_diag_native_xlang "$XLANG_BIN"; then
+  echo "lang-lifetime-diag SKIP (no native xlang, host=$(uname -s)/$(uname -m 2>/dev/null))"
   echo "lang-lifetime-diag OK"
   exit 0
 fi
 
 make -C compiler -q 2>/dev/null || make -C compiler
 
-echo "=== LANG-008: lifetime diagnostic line smoke (SHUX=$SHUX_BIN) ==="
+echo "=== LANG-008: lifetime diagnostic line smoke (XLANG=$XLANG_BIN) ==="
 FAILS=0
 while IFS=$'\t' read -r case_id file substr want_line notes; do
   [ -z "${case_id:-}" ] && continue
@@ -39,7 +39,7 @@ while IFS=$'\t' read -r case_id file substr want_line notes; do
     FAILS=$((FAILS + 1))
     continue
   fi
-  err=$("$SHUX_BIN" check "$src" 2>&1) || true
+  err=$("$XLANG_BIN" check "$src" 2>&1) || true
   if lang_lifetime_diag_expect_at_line "$err" "$substr" "$want_line"; then
     echo "lang-lifetime-diag OK $case_id at ${want_line} ($notes)"
   else

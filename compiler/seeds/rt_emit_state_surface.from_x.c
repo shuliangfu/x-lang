@@ -3,7 +3,7 @@
  * Product PREFER_X_O: g05_try_x_to_o(rt_emit_state.x) + rest seed BSS+marker under FROM_X
  * Cap-global-bss residual: path/lib slots + bind APIs in driver_abi; BSS in rest seed
  * Prove: full.x vs this seed → nm IDENTICAL (public surface)
- * Regen: ./shux -E ... src/runtime/rt_emit_state.x | filter DBG + polish prologue
+ * Regen: ./xlang -E ... src/runtime/rt_emit_state.x | filter DBG + polish prologue
  */
 #include <stddef.h>
 #include <stdint.h>

@@ -1,5 +1,5 @@
 /**
- * parser_asm_seed_parse_into_buf_slice.inc — seed ./shux 链 parse_into_buf / parse_into C 实现。
+ * parser_asm_seed_parse_into_buf_slice.inc — seed ./xlang 链 parse_into_buf / parse_into C 实现。
  *
  * 瘦 parser_x.o 无 parse_into_buf；由本 TU（parser_asm_thin_c.c #include）提供强符号，
  * 覆盖 parser_asm_parse_expr_link.c 弱桩，供 runtime asm 后端 parse 任意 .x。
@@ -394,7 +394,7 @@ extern int32_t pipeline_onefunc_num_regions(uint8_t *out);
 extern int32_t pipeline_onefunc_num_body_expr_stmts(uint8_t *out);
 extern int32_t pipeline_onefunc_num_src_stmt_order(uint8_t *out);
 
-/** u8[] slice 路径与 shux_slice_uint8_t 布局一致。 */
+/** u8[] slice 路径与 xlang_slice_uint8_t 布局一致。 */
 struct parser_asm_seed_slice_u8 {
   uint8_t *data;
   size_t length;
@@ -1871,7 +1871,7 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
           lex.pos++;
         continue;
       }
-      if (getenv("SHUX_DBG_FUNC")) {
+      if (getenv("XLANG_DBG_FUNC")) {
         fprintf(stderr, "[DBG_FUNC] ok name=%.*s pos_before=%zu pos_after=%zu\n",
                 (int)(res.name_len > 0 ? res.name_len : 0), res.name,
                 (size_t)lex_at_function.pos, (size_t)lex.pos);

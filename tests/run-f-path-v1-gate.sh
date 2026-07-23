@@ -2,11 +2,11 @@
 # F-path v1：std.path 去 C（path.c → mod.x cfg path_sep_c）。
 #
 # 用法：./tests/run-f-path-v1-gate.sh
-# 环境：SHUX_F_PATH_V1_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F_PATH_V1_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F_PATH_V1_FAIL:-0}
+FAIL=${XLANG_F_PATH_V1_FAIL:-0}
 DOC="analysis/phase-f-path-v1.md"
 MANIFEST="tests/baseline/f-path-v1-closure.tsv"
 
@@ -43,16 +43,16 @@ fi
 grep -qE 'function sep\(' std/path/mod.x || die "mod.x missing sep"
 grep -q 'extern function sep' std/path/mod.x && die "mod.x still extern sep"
 
-# path.o 构建（无 shux-c 时 SKIP smoke，不 FAIL）
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+# path.o 构建（无 xlang-c 时 SKIP smoke，不 FAIL）
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/path/path.o >/dev/null 2>&1 || die "make path.o failed"
   if strings ../std/path/path.o 2>/dev/null | grep -q 'path_sep'; then
     echo "f-path-v1: path.o symbols OK"
   else
-    echo "f-path-v1 SKIP symbol check (path.o missing .x symbols; need shux-c rebuild)" >&2
+    echo "f-path-v1 SKIP symbol check (path.o missing .x symbols; need xlang-c rebuild)" >&2
   fi
 else
-  echo "f-path-v1 SKIP path.o build (no shux-c)" >&2
+  echo "f-path-v1 SKIP path.o build (no xlang-c)" >&2
 fi
 
 if [ -f tests/run-std-path-extreme-gate.sh ]; then

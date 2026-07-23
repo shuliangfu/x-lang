@@ -2,7 +2,7 @@
 # L6: Send/Sync contract gate — verify #[send] and #[sync] attributes.
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SHUX_C="$SCRIPT_DIR/../../compiler/shux-c"
+XLANG_C="$SCRIPT_DIR/../../compiler/xlang-c"
 WORKDIR="${TMPDIR:-/tmp}"
 PASS=0
 FAIL=0
@@ -33,10 +33,10 @@ function main(): i32 {
 }
 XEOF
 
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$WORKDIR/send_sync_test.x" > "$WORKDIR/send_sync.c" 2>/dev/null
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$XLANG_C" -E "$WORKDIR/send_sync_test.x" > "$WORKDIR/send_sync.c" 2>/dev/null
 
-echo "  Check: #[send] #[sync] emits shux_thread_safety:send+sync"
-if grep -q 'shux_thread_safety:send+sync' "$WORKDIR/send_sync.c"; then
+echo "  Check: #[send] #[sync] emits xlang_thread_safety:send+sync"
+if grep -q 'xlang_thread_safety:send+sync' "$WORKDIR/send_sync.c"; then
     echo "    PASS"
     PASS=$((PASS + 1))
 else
@@ -44,8 +44,8 @@ else
     FAIL=$((FAIL + 1))
 fi
 
-echo "  Check: #[send] only emits shux_thread_safety:send"
-if grep -q 'shux_thread_safety:send ' "$WORKDIR/send_sync.c"; then
+echo "  Check: #[send] only emits xlang_thread_safety:send"
+if grep -q 'xlang_thread_safety:send ' "$WORKDIR/send_sync.c"; then
     echo "    PASS"
     PASS=$((PASS + 1))
 else
@@ -55,7 +55,7 @@ fi
 
 echo "  Check: struct without attributes has no thread safety comment"
 RAWPTR_LINE=$(grep 'struct RawPtr' "$WORKDIR/send_sync.c" | head -1)
-if echo "$RAWPTR_LINE" | grep -q 'shux_thread_safety'; then
+if echo "$RAWPTR_LINE" | grep -q 'xlang_thread_safety'; then
     echo "    FAIL: unexpected comment on RawPtr"
     FAIL=$((FAIL + 1))
 else

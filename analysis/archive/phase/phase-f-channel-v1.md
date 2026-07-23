@@ -13,7 +13,7 @@
 ## 门禁
 
 ```bash
-SHUX_F_CHANNEL_V1_FAIL=1 ./tests/run-f-channel-v1-gate.sh
+XLANG_F_CHANNEL_V1_FAIL=1 ./tests/run-f-channel-v1-gate.sh
 ./tests/run-std-channel-select-gate.sh
 ./tests/run-std-channel-unbounded-gate.sh
 ```

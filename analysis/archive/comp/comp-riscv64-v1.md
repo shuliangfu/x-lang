@@ -32,7 +32,7 @@
 
 **regression 原则**：
 
-1. **稳定 SKIP**：非 Linux / 无 native shux / 无 riscv ld 时 SKIP，不 fail manifest。
+1. **稳定 SKIP**：非 Linux / 无 native xlang / 无 riscv ld 时 SKIP，不 fail manifest。
 2. **Linux 硬检**：`HOST=Linux` 时 `.o` 必须为 ELF relocatable（与 `run-asm.sh` 对齐）。
 3. **矩阵固定**：`comp-riscv64-matrix.tsv` 登记样例；新增 riscv 路径须增 case。
 4. **报告**：stderr 打印 `comp-riscv64: case=… status=OK|SKIP`。
@@ -87,7 +87,7 @@ QEMU user 仿真：`analysis/comp-riscv64-qemu-v1.md`（COMP-018；`run-comp-ris
 ```bash
 ./tests/run-comp-riscv64-gate.sh   # runnable：manifest + regression smoke
 ./tests/run-comp-riscv64.sh        # 矩阵烟测
-./tests/run-asm.sh                 # 全量 asm（含 riscv64，SHUX_CI_FORCE_ASM=1）
+./tests/run-asm.sh                 # 全量 asm（含 riscv64，XLANG_CI_FORCE_ASM=1）
 ```
 
 **gate report**：stdout 须含 `comp-riscv64 gate OK`；失败打印 `comp-riscv64 FAIL:` 行。

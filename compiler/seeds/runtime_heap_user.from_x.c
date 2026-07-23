@@ -1,10 +1,10 @@
 /* Generated from src/runtime_heap_user.x (G-02f-27 true .x + C tail).
- * Regen: ./shux-c -E -L .. src/runtime_heap_user.x > /tmp/rhu.c
+ * Regen: ./xlang-c -E -L .. src/runtime_heap_user.x > /tmp/rhu.c
  *         then re-apply C tail (aligned alloc + Arena64).
  * .x covers: heap_alloc_c / free_c / realloc_c / alloc_zeroed_c.
  */
-#ifndef SHUX_RUNTIME_HEAP_USER_INC
-#define SHUX_RUNTIME_HEAP_USER_INC
+#ifndef XLANG_RUNTIME_HEAP_USER_INC
+#define XLANG_RUNTIME_HEAP_USER_INC
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -15,8 +15,8 @@
 
 /* thin+rest 切割：thin 部分（heap_alloc/free/realloc/zeroed_c）由 .x 提供，
  * rest 模式下跳过编译避免重复定义。rest 部分（aligned_c + Arena64）始终编译。
- * 宏边界：SHUX_RUNTIME_HEAP_USER_FROM_X */
-#ifndef SHUX_RUNTIME_HEAP_USER_FROM_X
+ * 宏边界：XLANG_RUNTIME_HEAP_USER_FROM_X */
+#ifndef XLANG_RUNTIME_HEAP_USER_FROM_X
 uint8_t * heap_alloc_c(size_t size) {
   if ((size ==0)) {
     return ((uint8_t *)(0));
@@ -65,7 +65,7 @@ extern uint8_t * heap_alloc_c(size_t size);
 extern void heap_free_c(uint8_t * ptr);
 extern uint8_t * heap_realloc_c(uint8_t * ptr, size_t new_size);
 extern uint8_t * heap_alloc_zeroed_c(size_t size);
-#endif /* SHUX_RUNTIME_HEAP_USER_FROM_X */
+#endif /* XLANG_RUNTIME_HEAP_USER_FROM_X */
 
 /** posix_memalign 薄封装；失败返回 null。 */
 uint8_t *heap_alloc_aligned_c(size_t align_bytes, size_t size) {
@@ -85,16 +85,16 @@ uint8_t *heap_alloc_aligned_c(size_t align_bytes, size_t size) {
 }
 
 /* G-02f-rest：rest→.x 迁移：Arena64 struct + 3 函数真迁 .x，seed 进入 DIRECT 模式 */
-#ifndef SHUX_RUNTIME_HEAP_USER_FROM_X
+#ifndef XLANG_RUNTIME_HEAP_USER_FROM_X
 /** std.heap Arena64 布局（chunk/cap/off 各 8B）。 */
-typedef struct ShuxHeapArena64 {
+typedef struct XlangHeapArena64 {
     uint8_t *chunk;
     size_t cap;
     size_t off;
-} ShuxHeapArena64;
+} XlangHeapArena64;
 
 /** 初始化 Arena64；cap==0 时用 4096 默认 chunk。 */
-int32_t heap_arena_init_c(ShuxHeapArena64 *a, size_t cap) {
+int32_t heap_arena_init_c(XlangHeapArena64 *a, size_t cap) {
     size_t use_cap;
     if (!a)
         return -1;
@@ -112,7 +112,7 @@ int32_t heap_arena_init_c(ShuxHeapArena64 *a, size_t cap) {
 }
 
 /** 从 arena bump 分配 size 字节；align 为对象对齐（0 视为 8）。 */
-uint8_t *heap_arena64_alloc_c(ShuxHeapArena64 *a, size_t size, size_t align_bytes) {
+uint8_t *heap_arena64_alloc_c(XlangHeapArena64 *a, size_t size, size_t align_bytes) {
     size_t obj_align;
     size_t cur;
     size_t rem;
@@ -139,7 +139,7 @@ uint8_t *heap_arena64_alloc_c(ShuxHeapArena64 *a, size_t size, size_t align_byte
 }
 
 /** 释放 arena chunk 并重置。 */
-void heap_arena64_deinit_c(ShuxHeapArena64 *a) {
+void heap_arena64_deinit_c(XlangHeapArena64 *a) {
     if (!a)
         return;
     heap_free_c(a->chunk);
@@ -147,6 +147,6 @@ void heap_arena64_deinit_c(ShuxHeapArena64 *a) {
     a->cap = 0;
     a->off = 0;
 }
-#endif /* SHUX_RUNTIME_HEAP_USER_FROM_X */
+#endif /* XLANG_RUNTIME_HEAP_USER_FROM_X */
 
-#endif /* SHUX_RUNTIME_HEAP_USER_INC */
+#endif /* XLANG_RUNTIME_HEAP_USER_INC */

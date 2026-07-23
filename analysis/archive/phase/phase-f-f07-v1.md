@@ -7,7 +7,7 @@
 | 项 | 说明 |
 |----|------|
 | `tests/lib/build-std-c-o.sh` | `_std_c_o_forbidden_migrated` 拒绝 io/fs/heap/compress 子树 `.o` |
-| 测试脚本 | 移除 `ensure_std_c_o` 对 migrated 模块的调用；codec/compress 烟测改 shux 按需 `-lz` |
+| 测试脚本 | 移除 `ensure_std_c_o` 对 migrated 模块的调用；codec/compress 烟测改 xlang 按需 `-lz` |
 | dod/pre-push/zc* | 移除手工 `cc -c heap.c` / `ensure heap.o` |
 | B-32 | 仍 track 全量 `cc -c std/`；migrated 硬禁见 F-07 专 gate |
 | NL-06 | `heap.c`/`fs.c` legacy 改 `absent` 审计 |
@@ -28,7 +28,7 @@
 ## 复现
 
 ```bash
-SHUX_F07_NO_CC_MIGRATED_FAIL=1 ./tests/run-f07-no-cc-std-migrated-gate.sh
-SHUX_F06_RUNTIME_CLEANUP_FAIL=1 ./tests/run-f06-runtime-std-o-cleanup-gate.sh
-SHUX_NOLIBC_N06_FAIL=1 ./tests/run-nolibc-n06-std-track-gate.sh
+XLANG_F07_NO_CC_MIGRATED_FAIL=1 ./tests/run-f07-no-cc-std-migrated-gate.sh
+XLANG_F06_RUNTIME_CLEANUP_FAIL=1 ./tests/run-f06-runtime-std-o-cleanup-gate.sh
+XLANG_NOLIBC_N06_FAIL=1 ./tests/run-nolibc-n06-std-track-gate.sh
 ```

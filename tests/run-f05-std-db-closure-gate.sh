@@ -2,11 +2,11 @@
 # F-05 v4：std.db 三后端闭合门禁（v1～v3 聚合 + manifest）。
 #
 # 用法：./tests/run-f05-std-db-closure-gate.sh
-# 环境：SHUX_F05_DB_CLOSURE_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F05_DB_CLOSURE_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F05_DB_CLOSURE_FAIL:-0}
+FAIL=${XLANG_F05_DB_CLOSURE_FAIL:-0}
 DOC="analysis/phase-f-f05-v4-closure.md"
 MANIFEST="tests/baseline/f05-std-db-closure.tsv"
 
@@ -58,10 +58,10 @@ for sub in run-f05-std-db-arrow-v1-gate.sh run-f05-std-db-kv-v2-gate.sh \
     echo "=== F-05 v4: delegate $sub ==="
     chmod +x "tests/$sub"
     case "$sub" in
-      *arrow-v1*) env_var=SHUX_F05_DB_ARROW_V1_FAIL ;;
-      *kv-v2*) env_var=SHUX_F05_DB_KV_V2_FAIL ;;
-      *sqlite-v3*) env_var=SHUX_F05_DB_SQLITE_V3_FAIL ;;
-      *) env_var=SHUX_F05_DB_CLOSURE_FAIL ;;
+      *arrow-v1*) env_var=XLANG_F05_DB_ARROW_V1_FAIL ;;
+      *kv-v2*) env_var=XLANG_F05_DB_KV_V2_FAIL ;;
+      *sqlite-v3*) env_var=XLANG_F05_DB_SQLITE_V3_FAIL ;;
+      *) env_var=XLANG_F05_DB_CLOSURE_FAIL ;;
     esac
     if ! env "$env_var=$FAIL" "tests/$sub"; then
       die "$sub failed"
@@ -80,7 +80,7 @@ fi
 if [ -f tests/run-std-sqlite-gate.sh ]; then
   echo "=== F-05 v4: delegate std-sqlite gate (manifest) ==="
   chmod +x tests/run-std-sqlite-gate.sh
-  if ! SHUX_STD_SQLITE_MANIFEST_ONLY=1 tests/run-std-sqlite-gate.sh; then
+  if ! XLANG_STD_SQLITE_MANIFEST_ONLY=1 tests/run-std-sqlite-gate.sh; then
     die "run-std-sqlite-gate failed"
   fi
 fi

@@ -12,7 +12,7 @@
 ## 门禁
 
 ```bash
-SHUX_F_SOCKETIO_V1_FAIL=1 ./tests/run-f-socketio-v1-gate.sh
+XLANG_F_SOCKETIO_V1_FAIL=1 ./tests/run-f-socketio-v1-gate.sh
 ./tests/run-std-socketio-gate.sh
 ```
 

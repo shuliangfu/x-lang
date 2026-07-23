@@ -8,13 +8,13 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/tool-lsp-completion.sh
 . tests/lib/tool-lsp-completion.sh
 
-SHUX="${SHUX:-./compiler/shux}"
+XLANG="${XLANG:-./compiler/xlang}"
 FIXTURE=tests/lsp/completion_symbols.x
 URI="file:///$(pwd)/tests/lsp/completion_symbols.x"
 
-if ! "$SHUX" --help 2>/dev/null | grep -q '\-\-lsp'; then
+if ! "$XLANG" --help 2>/dev/null | grep -q '\-\-lsp'; then
   make -C compiler bootstrap-driver-seed 2>/dev/null || make -C compiler
-  SHUX=./compiler/shux
+  XLANG=./compiler/xlang
 fi
 
 if command -v python3 >/dev/null 2>&1; then
@@ -40,19 +40,19 @@ trap 'rm -f "$OUT" "$ERR" "$LSP_IN"' EXIT
   tool_lsp_send_frame "$INIT_REQ"
   tool_lsp_send_frame "$DID_OPEN"
   tool_lsp_send_frame "$COMP_REQ"
-  tool_lsp_send_frame "$SHUXXTDOWN"
+  tool_lsp_send_frame "$XLANGXTDOWN"
   tool_lsp_send_frame "$EXIT_NOTIF"
 } >"$LSP_IN"
 
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 LSP_EC=0
 if command -v timeout >/dev/null 2>&1; then
-  timeout 8 "$SHUX" --lsp <"$LSP_IN" 2>"$ERR" >"$OUT" || LSP_EC=$?
+  timeout 8 "$XLANG" --lsp <"$LSP_IN" 2>"$ERR" >"$OUT" || LSP_EC=$?
 else
-  "$SHUX" --lsp <"$LSP_IN" 2>"$ERR" >"$OUT" || LSP_EC=$?
+  "$XLANG" --lsp <"$LSP_IN" 2>"$ERR" >"$OUT" || LSP_EC=$?
 fi
 if [ "$LSP_EC" -ne 0 ] && [ "$LSP_EC" -ne 124 ]; then
-  echo "run-lsp-completion FAIL: shux --lsp exit $LSP_EC" >&2
+  echo "run-lsp-completion FAIL: xlang --lsp exit $LSP_EC" >&2
   [ -s "$ERR" ] && cat "$ERR" >&2
   [ -s "$OUT" ] && cat "$OUT"
   exit 1

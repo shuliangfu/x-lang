@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_FFI_CSTRING_DOC:-analysis/std-ffi-cstring-lifecycle-v1.md}"
-MANIFEST="${SHUX_STD_FFI_CSTRING_TSV:-tests/baseline/std-ffi-cstring-lifecycle.tsv}"
-VECTORS="${SHUX_STD_FFI_CSTRING_VECTORS:-tests/baseline/std-ffi-cstring-lifecycle-vectors.tsv}"
+DOC="${XLANG_STD_FFI_CSTRING_DOC:-analysis/std-ffi-cstring-lifecycle-v1.md}"
+MANIFEST="${XLANG_STD_FFI_CSTRING_TSV:-tests/baseline/std-ffi-cstring-lifecycle.tsv}"
+VECTORS="${XLANG_STD_FFI_CSTRING_VECTORS:-tests/baseline/std-ffi-cstring-lifecycle-vectors.tsv}"
 MOD_X="std/ffi/mod.x"
 FFI_IMPL="std/ffi/ffi.x"
 LIB="tests/lib/std-ffi-cstring-lifecycle.sh"
@@ -76,7 +76,7 @@ fi
 echo "std-ffi-cstring manifest OK"
 
 C_OK=0
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   if ensure_std_c_o ../std/ffi/ffi.o 2>/dev/null && std_ffi_cstring_run_c_smoke "$FFI_IMPL"; then
@@ -85,13 +85,13 @@ if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
     echo "std-ffi-cstring gate SKIP c smoke (no full ffi.o)" >&2
   fi
 else
-  echo "std-ffi-cstring gate SKIP c smoke (no shux-c)" >&2
+  echo "std-ffi-cstring gate SKIP c smoke (no xlang-c)" >&2
 fi
 
 X_OK=0
 SKIP=0
-SHUX_BIN=""
-stdlib_cm_native_shu() {
+XLANG_BIN=""
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -102,28 +102,28 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-055: .x smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-055: .x smoke (XLANG=$XLANG_BIN) ==="
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-ffi-cstring gate FAIL: typeck $SMOKE_X" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_ffi_cstring_emit_report "fail" "$C_OK" 0 0 0
     exit 1
   fi
-  if std_ffi_cstring_run_smoke "$SHUX_BIN" "$SMOKE_X" "try"; then
+  if std_ffi_cstring_run_smoke "$XLANG_BIN" "$SMOKE_X" "try"; then
     X_OK=1
   else
     std_ffi_cstring_emit_report "fail" "$C_OK" 0 0 0
     exit 1
   fi
 else
-  echo "std-ffi-cstring gate SKIP .x smoke (no native shux)" >&2
+  echo "std-ffi-cstring gate SKIP .x smoke (no native xlang)" >&2
   SKIP=1
 fi
 

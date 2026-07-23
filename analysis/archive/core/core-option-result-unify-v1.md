@@ -52,7 +52,7 @@
 ```
 
 ```
-shux: [SHUX_CORE016_OPTION_RESULT_UNIFY] status=ok golden=2 typeck=2 skip=0
+xlang: [XLANG_CORE016_OPTION_RESULT_UNIFY] status=ok golden=2 typeck=2 skip=0
 ```
 
 ---

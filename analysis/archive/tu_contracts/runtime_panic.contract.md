@@ -9,7 +9,7 @@
 - 当前阶段：Phase 2（thin+rest 切割完成）
 - 本次目标：已证明该 TU 具备 L1/L2/L3 闭环（含 ld -r 合并）
 - 当前角色判断：
-  - `thin/.x provider`：src/asm/runtime_panic.x（shux_crash_evidence_minimal public wrapper）
+  - `thin/.x provider`：src/asm/runtime_panic.x（xlang_crash_evidence_minimal public wrapper）
   - `seed/rest provider`：seeds/runtime_panic.from_x.c（_impl 实现 + 3 个残余符号）
 
 ## 3. 导出符号合同
@@ -20,13 +20,13 @@
 
 ### 3.1 必须由 thin/.x 提供
 - `runtime_panic_x_doc_anchor`
-- `shux_crash_evidence_minimal`
+- `xlang_crash_evidence_minimal`
 
 ### 3.2 当前仍由 seed/rest 提供
 - `io_register_buffers_buf_c`
-- `shux_crash_evidence_collect_c`
-- `shux_crash_evidence_minimal_impl`
-- `shux_panic_`
+- `xlang_crash_evidence_collect_c`
+- `xlang_crash_evidence_minimal_impl`
+- `xlang_panic_`
 
 ### 3.3 thin/.x 独有导出（若非空，后续需审计）
 - `runtime_panic_x_doc_anchor`
@@ -35,8 +35,8 @@
 - 当前阶段先锁定：
   - symbol 集
   - thin/.x 与 seed/rest 的 provider 边界
-  - _impl 残余列表：`shux_crash_evidence_minimal_impl`
-  - thin+rest 宏边界：`SHUX_RUNTIME_PANIC_FROM_X`
+  - _impl 残余列表：`xlang_crash_evidence_minimal_impl`
+  - thin+rest 宏边界：`XLANG_RUNTIME_PANIC_FROM_X`
 - 下一步补充：
   - arg_count / arg_shapes
   - ret_shape

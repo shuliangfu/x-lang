@@ -1,10 +1,10 @@
 /* seeds/simd_enc_surface.from_x.c
  * R2 full surface — isomorphic with src/asm/simd_enc.x
  * Product PREFER_X_O: g05_try_x_to_o(simd_enc.x) + hybrid rest
- *   seeds/simd_enc.from_x.c (-DSHUX_SIMD_ENC_FROM_X) ld -r
+ *   seeds/simd_enc.from_x.c (-DXLANG_SIMD_ENC_FROM_X) ld -r
  * R2: full.x 吃满 pure/insn/try_hw 公共业务；FROM_X rest 仅 slice_marker（业务 H=0）
  * Prove: full.x vs this seed → nm IDENTICAL
- * Regen: ./shux -E ... src/asm/simd_enc.x | filter DBG + polish prologue
+ * Regen: ./xlang -E ... src/asm/simd_enc.x | filter DBG + polish prologue
  */
 #include <stddef.h>
 #include <stdint.h>

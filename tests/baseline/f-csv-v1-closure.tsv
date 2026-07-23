@@ -5,6 +5,6 @@ fcsv_gate	gate	tests/run-f-csv-v1-gate.sh	聚合门禁
 csv_x	file	std/csv/csv.x	主实现 .x
 csv_mod	file	std/csv/mod.x	对外 API
 csv_c_absent	absent	std/csv/csv.c	已删除
-makefile	makefile	compiler/Makefile	csv.o shux asm
+makefile	makefile	compiler/Makefile	csv.o xlang asm
 row_gate	gate	tests/run-std-csv-row-gate.sh	STD-127 row
 stream_gate	gate	tests/run-std-csv-stream-gate.sh	STD-128 stream

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-trace.sh — STD-088 manifest 与烟测辅助（F-trace v2：纯 trace.x）
 
-STD_TRACE_PREFIX="${SHUX_STD_TRACE_PREFIX:-shux: [SHUX_STD_TRACE]}"
+STD_TRACE_PREFIX="${XLANG_STD_TRACE_PREFIX:-xlang: [XLANG_STD_TRACE]}"
 
 # 遍历 manifest；symbol 在 trace.x。
 std_trace_symbols_ok() {
@@ -46,7 +46,7 @@ std_trace_symbols_ok() {
 std_trace_run_c_smoke() {
   local trace_x="$1"
   local src="tests/std-trace/trace_smoke_ok.c"
-  local out="/tmp/shux_std_trace_$$"
+  local out="/tmp/xlang_std_trace_$$"
   local trace_o time_o random_o
   trace_o="$(dirname "$trace_x")/trace.o"
   time_o="std/time/time.o"
@@ -79,13 +79,13 @@ std_trace_run_c_smoke() {
 }
 
 std_trace_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-trace}"
-  local exe="/tmp/shux_std_trace_${tag}_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std_trace_${tag}_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-trace FAIL: compile $src" >&2
-    "$shux" -L . "$src" 2>&1 | tail -12 >&2 || true
+    "$xlang" -L . "$src" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi

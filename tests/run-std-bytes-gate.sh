@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_BYTES_DOC:-analysis/std-bytes-v1.md}"
-MANIFEST="${SHUX_STD_BYTES_MANIFEST:-tests/baseline/std-bytes-manifest.tsv}"
-VECTORS="${SHUX_STD_BYTES_VECTORS:-tests/baseline/std-bytes-vectors.tsv}"
+DOC="${XLANG_STD_BYTES_DOC:-analysis/std-bytes-v1.md}"
+MANIFEST="${XLANG_STD_BYTES_MANIFEST:-tests/baseline/std-bytes-manifest.tsv}"
+VECTORS="${XLANG_STD_BYTES_VECTORS:-tests/baseline/std-bytes-vectors.tsv}"
 MOD_X="std/bytes/mod.x"
 LIB="tests/lib/std-bytes.sh"
 SMOKE_X="tests/std-bytes/roundtrip.x"
@@ -62,7 +62,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-bytes manifest OK"
 
-if [ "${SHUX_STD_BYTES_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_STD_BYTES_MANIFEST_ONLY:-0}" = "1" ]; then
   std_bytes_emit_report "ok" 0 1
   echo "std-bytes gate OK (manifest only)"
   exit 0
@@ -71,25 +71,25 @@ fi
 X_OK=0
 SKIP=0
 
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-072: .x smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-072: .x smoke (XLANG=$XLANG_BIN) ==="
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-bytes gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_bytes_emit_report "fail" 0 0
     exit 1
   fi
-  if std_bytes_run_smoke "$SHUX_BIN" "$SMOKE_X" "roundtrip"; then
+  if std_bytes_run_smoke "$XLANG_BIN" "$SMOKE_X" "roundtrip"; then
     X_OK=1
   else
     std_bytes_emit_report "fail" 0 0
     exit 1
   fi
 else
-  echo "std-bytes gate SKIP .x smoke (no shux)" >&2
+  echo "std-bytes gate SKIP .x smoke (no xlang)" >&2
   SKIP=1
 fi
 

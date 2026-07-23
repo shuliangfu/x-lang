@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-ffi-cstring-lifecycle.sh — STD-055 manifest 与烟测辅助
 
-STD_FFI_CSTRING_PREFIX="${SHUX_STD_FFI_CSTRING_PREFIX:-shux: [SHUX_STD_FFI_CSTRING]}"
+STD_FFI_CSTRING_PREFIX="${XLANG_STD_FFI_CSTRING_PREFIX:-xlang: [XLANG_STD_FFI_CSTRING]}"
 
 std_ffi_cstring_symbols_ok() {
   local mod_x="$1"
@@ -56,13 +56,13 @@ std_ffi_cstring_symbols_ok() {
 }
 
 std_ffi_cstring_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shux_std_ffi_cstr_${tag}_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std_ffi_cstr_${tag}_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-ffi-cstring FAIL: compile $src" >&2
-    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -81,7 +81,7 @@ std_ffi_cstring_run_smoke() {
 std_ffi_cstring_run_c_smoke() {
   local ffi_impl="$1"
   local src="tests/std-ffi/cstring_lifecycle_ok.c"
-  local out="/tmp/shux_std_ffi_cstr_c_$$"
+  local out="/tmp/xlang_std_ffi_cstr_c_$$"
   local ffi_o
   ffi_o="$(dirname "$ffi_impl")/ffi.o"
   if [ ! -f "$ffi_o" ]; then

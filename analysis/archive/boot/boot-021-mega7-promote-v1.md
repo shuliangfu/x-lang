@@ -9,7 +9,7 @@
 
 ## 1. 目标
 
-将 mega7 **B1–B7** 从 BOOT-020 的 `stub` 推进到 **runnable 晋升波次**：逐项 `SHUX_ASM_PARSER_MEGA_BISECT=<fn>` 探测 X emit（`delta ≥ 8192` 为 `emit`）。
+将 mega7 **B1–B7** 从 BOOT-020 的 `stub` 推进到 **runnable 晋升波次**：逐项 `XLANG_ASM_PARSER_MEGA_BISECT=<fn>` 探测 X emit（`delta ≥ 8192` 为 `emit`）。
 
 验收：`tests/run-boot-021-mega7-promote-gate.sh` 绿；`parser-mega7-promote-wave.tsv` **7** 条 `promote_*` runnable。
 
@@ -37,7 +37,7 @@
 ./tests/run-parser-mega7-promote-wave.sh
 ```
 
-逐函数编译 `parser.x` 并记录 `ec/text/delta/status`；Linux + `shux_asm` 时更新 `parser-mega-bisect.tsv` 漂移检测。
+逐函数编译 `parser.x` 并记录 `ec/text/delta/status`；Linux + `xlang_asm` 时更新 `parser-mega-bisect.tsv` 漂移检测。
 
 ---
 
@@ -48,12 +48,12 @@
 ```
 
 ```
-shux: [SHUX_BOOT021] status=ok runnable_ok=7 promote_emit=0 skip=1
+xlang: [XLANG_BOOT021] status=ok runnable_ok=7 promote_emit=0 skip=1
 ```
 
 - **runnable_ok=7**：7 项 bisect 均已执行（或 manifest 绿 + Darwin SKIP）
 - **promote_emit**：`status=emit` 计数（v1 可为 0；Linux CI 晋升后递增）
-- Darwin / 无 `shux_asm`：manifest 绿 + wave **SKIP**
+- Darwin / 无 `xlang_asm`：manifest 绿 + wave **SKIP**
 
 ---
 

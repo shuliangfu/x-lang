@@ -23,7 +23,7 @@ typedef HMODULE dynlib_handle_t;
  */
 /* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：thin（src/asm/runtime_dynlib_os.x）提供 public wrapper */
-#ifndef SHUX_RUNTIME_DYNLIB_OS_FROM_X
+#ifndef XLANG_RUNTIME_DYNLIB_OS_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 size_t dynlib_win_normalize_path(char *out, size_t out_cap, const char *path) {
     size_t i = 0;
@@ -60,7 +60,7 @@ HMODULE dynlib_win_load_library_w_utf8_impl(const char *path_utf8) {
     return LoadLibraryW(wpath);
 }
 
-#ifndef SHUX_RUNTIME_DYNLIB_OS_FROM_X
+#ifndef XLANG_RUNTIME_DYNLIB_OS_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 HMODULE dynlib_win_load_library_w_utf8(const char *path_utf8) {
     return dynlib_win_load_library_w_utf8_impl(path_utf8);

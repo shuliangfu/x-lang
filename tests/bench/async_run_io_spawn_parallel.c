@@ -6,7 +6,7 @@
  *
  * 编译：cc -std=c11 -o async_run_io_spawn_parallel \
  *   tests/bench/async_run_io_spawn_parallel.c std/io/io.o std/async/scheduler.o
- * 运行：SHUX_ASYNC_YIELD=1 ./async_run_io_spawn_parallel
+ * 运行：XLANG_ASYNC_YIELD=1 ./async_run_io_spawn_parallel
  */
 #include <stdint.h>
 #include <stdio.h>
@@ -14,19 +14,19 @@
 #include <string.h>
 #include <unistd.h>
 
-#define SHUX_ASYNC_SUSPENDED ((int32_t)0x41535700)
-#define SHUX_IO_ASYNC_NOT_READY ((int32_t)-2)
+#define XLANG_ASYNC_SUSPENDED ((int32_t)0x41535700)
+#define XLANG_IO_ASYNC_NOT_READY ((int32_t)-2)
 
-extern int shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);
-extern int32_t shux_io_complete_read_async_slot(int slot);
-extern unsigned shux_io_poll_async_completions(unsigned timeout_ms);
-extern int shux_async_cps_suspend_io(int32_t *phase, int32_t next_phase);
-extern int shux_async_task_submit(int32_t (*fn)(void));
-extern int32_t shux_async_run_drain_until_idle(void);
-extern void shux_async_queue_reset(void);
-extern void shux_async_run_seed_push_i32(int32_t v);
-extern int shux_async_run_seed_valid(void);
-extern int32_t shux_async_run_seed_take_i32(void);
+extern int xlang_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);
+extern int32_t xlang_io_complete_read_async_slot(int slot);
+extern unsigned xlang_io_poll_async_completions(unsigned timeout_ms);
+extern int xlang_async_cps_suspend_io(int32_t *phase, int32_t next_phase);
+extern int xlang_async_task_submit(int32_t (*fn)(void));
+extern int32_t xlang_async_run_drain_until_idle(void);
+extern void xlang_async_queue_reset(void);
+extern void xlang_async_run_seed_push_i32(int32_t v);
+extern int xlang_async_run_seed_valid(void);
+extern int32_t xlang_async_run_seed_take_i32(void);
 
 /** 单协程 read async + seed 注入上下文。 */
 typedef struct {
@@ -51,19 +51,19 @@ static int32_t io_spawn_read_task(io_spawn_ctx_t *ctx) {
         /* fd 由 main 预设；勿用全局 seed FIFO（并行 submit 时易抢错 fd）。 */
         ctx->step = 1;
         ctx->phase = 0;
-        ctx->slot = shux_io_submit_read_async(ctx->buf, sizeof(ctx->buf),
+        ctx->slot = xlang_io_submit_read_async(ctx->buf, sizeof(ctx->buf),
             (size_t)(unsigned)ctx->read_fd);
         if (ctx->slot < 0)
             return -1;
-        if (shux_async_cps_suspend_io(&ctx->phase, 1))
-            return SHUX_ASYNC_SUSPENDED;
+        if (xlang_async_cps_suspend_io(&ctx->phase, 1))
+            return XLANG_ASYNC_SUSPENDED;
     }
-    n = shux_io_complete_read_async_slot(ctx->slot);
-    if (n == SHUX_IO_ASYNC_NOT_READY) {
+    n = xlang_io_complete_read_async_slot(ctx->slot);
+    if (n == XLANG_IO_ASYNC_NOT_READY) {
 #if defined(__linux__)
-        (void)shux_io_poll_async_completions(500);
+        (void)xlang_io_poll_async_completions(500);
 #endif
-        n = shux_io_complete_read_async_slot(ctx->slot);
+        n = xlang_io_complete_read_async_slot(ctx->slot);
     }
     return n;
 }
@@ -97,25 +97,25 @@ int main(void) {
     (void)close(fds_a[1]);
     (void)close(fds_b[1]);
 
-    setenv("SHUX_ASYNC_YIELD", "1", 1);
-    unsetenv("SHUX_ASYNC_IO_WAIT");
+    setenv("XLANG_ASYNC_YIELD", "1", 1);
+    unsetenv("XLANG_ASYNC_IO_WAIT");
 
     memset(&g_ctx_a, 0, sizeof(g_ctx_a));
     memset(&g_ctx_b, 0, sizeof(g_ctx_b));
     g_ctx_a.read_fd = fds_a[0];
     g_ctx_b.read_fd = fds_b[0];
 
-    shux_async_queue_reset();
-    if (shux_async_task_submit(io_spawn_read_a) != 0) {
+    xlang_async_queue_reset();
+    if (xlang_async_task_submit(io_spawn_read_a) != 0) {
         fprintf(stderr, "async_run_io_spawn_parallel: submit a failed\n");
         return 3;
     }
-    if (shux_async_task_submit(io_spawn_read_b) != 0) {
+    if (xlang_async_task_submit(io_spawn_read_b) != 0) {
         fprintf(stderr, "async_run_io_spawn_parallel: submit b failed\n");
         return 4;
     }
 
-    total = shux_async_run_drain_until_idle();
+    total = xlang_async_run_drain_until_idle();
     if (total != 5) {
         fprintf(stderr, "async_run_io_spawn_parallel: total=%d want 5\n", (int)total);
         return 5;

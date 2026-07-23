@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
 # MEM-A1：精细 noalias — 单指针可 restrict，多指针保守不标 restrict。
 # 用法：./tests/run-noalias-gate.sh
-# 环境：SHUX_NOALIAS_GATE_FAIL=1 失败时硬退出
+# 环境：XLANG_NOALIAS_GATE_FAIL=1 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
-SHUX="${SHUX:-./compiler/shux-c}"
-FAIL="${SHUX_NOALIAS_GATE_FAIL:-0}"
+make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+XLANG="${XLANG:-./compiler/xlang-c}"
+FAIL="${XLANG_NOALIAS_GATE_FAIL:-0}"
 
 check_emit_c() {
   local src="$1"
   local fn="$2"
   local expect_restrict="$3" # yes | no
   local gen
-  gen="$(mktemp /tmp/shux_noalias_gate_XXXXXX.c)"
-  if ! "$SHUX" build -E "$src" >"$gen" 2>/tmp/shux_noalias_gate_build.log; then
+  gen="$(mktemp /tmp/xlang_noalias_gate_XXXXXX.c)"
+  if ! "$XLANG" build -E "$src" >"$gen" 2>/tmp/xlang_noalias_gate_build.log; then
     echo "noalias-gate FAIL: compile -E $src" >&2
-    tail -8 /tmp/shux_noalias_gate_build.log 2>/dev/null || true
+    tail -8 /tmp/xlang_noalias_gate_build.log 2>/dev/null || true
     rm -f "$gen"
     [ "$FAIL" = "1" ] && exit 1
     exit 0

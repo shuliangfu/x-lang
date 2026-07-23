@@ -2,11 +2,11 @@
 # F-03 聚合：std.heap + std.fs + std.io 核心去 C 门禁。
 #
 # 用法：./tests/run-f03-std-core-gate.sh
-# 环境：SHUX_F03_CORE_FAIL=1 — 任一子 gate 失败时硬退出
+# 环境：XLANG_F03_CORE_FAIL=1 — 任一子 gate 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F03_CORE_FAIL:-0}
+FAIL=${XLANG_F03_CORE_FAIL:-0}
 
 die() {
   echo "f03-core gate FAIL: $*" >&2
@@ -29,10 +29,10 @@ do
   if [ -f "$g" ]; then
     echo "=== F-03 core: delegate $(basename "$g") ==="
     chmod +x "$g"
-    export SHUX_F03_HEAP_OPS_FAIL="$FAIL"
-    export SHUX_F03_HEAP_LIBC_FAIL="$FAIL"
-    export SHUX_F03_FS_FAIL="$FAIL"
-    export SHUX_F03_IO_FAIL="$FAIL"
+    export XLANG_F03_HEAP_OPS_FAIL="$FAIL"
+    export XLANG_F03_HEAP_LIBC_FAIL="$FAIL"
+    export XLANG_F03_FS_FAIL="$FAIL"
+    export XLANG_F03_IO_FAIL="$FAIL"
     if ! "$g"; then
       die "$(basename "$g") sub-gate failed"
     fi
@@ -42,7 +42,7 @@ done
 if [ -f tests/run-std-c-inventory-gate.sh ]; then
   echo "=== F-03 core: delegate run-std-c-inventory-gate ==="
   chmod +x tests/run-std-c-inventory-gate.sh
-  if ! SHUX_STD_C_INVENTORY_FAIL="$FAIL" tests/run-std-c-inventory-gate.sh; then
+  if ! XLANG_STD_C_INVENTORY_FAIL="$FAIL" tests/run-std-c-inventory-gate.sh; then
     die "std-c-inventory sub-gate failed"
   fi
 fi

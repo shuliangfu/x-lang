@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_LANG_LIFETIME_DIAG_DOC:-analysis/lang-lifetime-diag-v1.md}"
-MANIFEST="${SHUX_LANG_LIFETIME_DIAG_MANIFEST:-tests/baseline/lang-lifetime-diag.tsv}"
-MATRIX="${SHUX_LANG_LIFETIME_DIAG_CASES:-tests/baseline/lang-lifetime-diag-cases.tsv}"
+DOC="${XLANG_LANG_LIFETIME_DIAG_DOC:-analysis/lang-lifetime-diag-v1.md}"
+MANIFEST="${XLANG_LANG_LIFETIME_DIAG_MANIFEST:-tests/baseline/lang-lifetime-diag.tsv}"
+MATRIX="${XLANG_LANG_LIFETIME_DIAG_CASES:-tests/baseline/lang-lifetime-diag-cases.tsv}"
 MIN_LAYERS=6
 MIN_CASES=4
 

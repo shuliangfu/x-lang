@@ -23,7 +23,7 @@
 ## 4. ABI Manifest
 - _impl 残余列表：5 个
 - DIRECT 符号列表：无
-- thin+rest 宏边界：`SHUX_BUILD_RUNTIME_FROM_X`
+- thin+rest 宏边界：`XLANG_BUILD_RUNTIME_FROM_X`
 - 前向声明：5 个（`build_runtime_info`、`build_runtime_warn`、`build_patch_pipeline_gen_c`、`build_patch_driver_gen_c`、`build_run_legacy_steps`）
 
 ## 5. 验证状态

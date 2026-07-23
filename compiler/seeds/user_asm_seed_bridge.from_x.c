@@ -7,10 +7,10 @@
  * user_asm_seed_bridge.c — bootstrap-driver-seed 用户程序 asm 后端桥
  *
  * pipeline_x.o（-E-extern 瘦编排）经 extern 调用 asm_asm_codegen_ast / asm_asm_codegen_elf_o；
- * 本文件提供强符号实现，并链入 build_asm/seed_host/asm_backend_partial.o（shux-c -E asm.x 抽出）。
+ * 本文件提供强符号实现，并链入 build_asm/seed_host/asm_backend_partial.o（xlang-c -E asm.x 抽出）。
  * 无 C codegen 回退、无 cc -c 汇编 GAS 兜底：asm 失败即返回错误。
  */
-#include <shux_weak.h>
+#include <xlang_weak.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
@@ -24,29 +24,38 @@ struct codegen_CodegenOutBuf {
   uint8_t data[8388608];
   int32_t len;
 };
-/* G-02f-442：thin+rest PREFER_X_O
- *   thin .x provides 7 #[no_mangle] wrappers (6 call *_impl in rest, 1 real .x).
- *   rest seed C (compiled with -DSHUX_USER_ASM_SEED_BRIDGE_FROM_X):
- *     - 6 functions renamed to *_impl via macros (real C implementations stay).
+/* G-02f-442 / wave236：thin+rest PREFER_X_O
+ *   thin .x provides #[no_mangle] pure:
+ *     - seed_asm_debug_enabled / seed_asm_emit_trace_enabled (wave236 pure orch →
+ *       link_abi_getenv; no *_impl residual for these two)
+ *     - 4 thin wrappers call *_impl in rest + seed_elf_ctx_code_len real .x
+ *   rest seed C (compiled with -DXLANG_USER_ASM_SEED_BRIDGE_FROM_X):
+ *     - 4 functions renamed to *_impl via macros (real C implementations stay).
+ *     - debug/emit_trace cold twins only under #ifndef FROM_X (pure owns hybrid).
  *     - seed_elf_ctx_code_len guarded out (real .x in thin).
  *   Forward declaration for seed_elf_ctx_code_len (always visible; from thin in rest mode). */
 extern int32_t seed_elf_ctx_code_len(const void *elf_ctx);
-#ifdef SHUX_USER_ASM_SEED_BRIDGE_FROM_X
-#define seed_asm_debug_enabled               seed_asm_debug_enabled_impl
-#define seed_asm_emit_trace_enabled          seed_asm_emit_trace_enabled_impl
+/* wave236 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED — cold seed twins use same face as product hybrid pure .x. */
+extern char *link_abi_getenv(const char *name);
+#ifdef XLANG_USER_ASM_SEED_BRIDGE_FROM_X
+/* wave236: debug/emit_trace pure orch in .x (no rest *_impl rename). */
 #define seed_elf_ctx_set_macho_leading_underscore  seed_elf_ctx_set_macho_leading_underscore_impl
 #define seed_asm_reject_empty_elf_text       seed_asm_reject_empty_elf_text_impl
 #define seed_platform_macho_write_macho_o_to_buf  seed_platform_macho_write_macho_o_to_buf_impl
 #define seed_platform_coff_write_coff_o_to_buf   seed_platform_coff_write_coff_o_to_buf_impl
 #endif
-/* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-116 / wave236：逻辑源 .x（真迁）；cold seed 保留同语义 C 供无 PREFER 冷路径。
+ * wave236 G.7: XLANG_ASM_DEBUG / XLANG_ASM_EMIT_TRACE via link_abi_getenv (not raw getenv). */
+#ifndef XLANG_USER_ASM_SEED_BRIDGE_FROM_X
 int seed_asm_debug_enabled(void) {
-  return getenv("SHUX_ASM_DEBUG") != NULL;
+  return link_abi_getenv("XLANG_ASM_DEBUG") != NULL;
 }
-/* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int seed_asm_emit_trace_enabled(void) {
-  return getenv("SHUX_ASM_EMIT_TRACE") != NULL;
+  return link_abi_getenv("XLANG_ASM_EMIT_TRACE") != NULL;
 }
+#endif /* XLANG_USER_ASM_SEED_BRIDGE_FROM_X */
 
 
 
@@ -183,14 +192,14 @@ extern int32_t backend_asm_codegen_ast_to_elf(void *module, void *arena, void *e
 extern int32_t peephole_run(void *out_buf);
 extern int32_t peephole_elf_run(void *elf_ctx);
 /** ElfCodegenCtx.macho_leading_underscore 偏移（与 ast_pool.c kPipelineElfCtxMachoUnderscoreOff / elf.x 4096 表一致）。 */
-#define SHUX_ELF_CTX_MACHO_UNDERSCORE_OFF 598052
+#define XLANG_ELF_CTX_MACHO_UNDERSCORE_OFF 598052
 
 /** Darwin -o：call/reloc 符号须 leading `_`（与 asm.x::asm_codegen_elf_o 一致）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void seed_elf_ctx_set_macho_leading_underscore(void *elf_ctx, int32_t on) {
   if (!elf_ctx)
     return;
-  *(int32_t *)((uint8_t *)elf_ctx + SHUX_ELF_CTX_MACHO_UNDERSCORE_OFF) = on ? 1 : 0;
+  *(int32_t *)((uint8_t *)elf_ctx + XLANG_ELF_CTX_MACHO_UNDERSCORE_OFF) = on ? 1 : 0;
 }
 
 
@@ -226,7 +235,7 @@ int32_t platform_elf_elf_resolve_patches(void *elf_ctx) {
 
 /** 读 ElfCodegenCtx.code_len（前缀字段；与 platform/elf.x / PipelineElfCtxAccess 一致）。 */
 /* G-02f-120：逻辑源 .x（真迁）；G-02f-442 thin+rest：真 .x 实现，rest 下 guard 掉 */
-#ifndef SHUX_USER_ASM_SEED_BRIDGE_FROM_X
+#ifndef XLANG_USER_ASM_SEED_BRIDGE_FROM_X
 int32_t seed_elf_ctx_code_len(const void *elf_ctx) {
   if (!elf_ctx)
     return 0;
@@ -259,7 +268,7 @@ int32_t seed_asm_reject_empty_elf_text(void *module, void *elf_ctx) {
   total_code_len = pipeline_elf_ctx_total_code_len((uint8_t *)elf_ctx);
   if (total_code_len > 0)
     return 0;
-  return SHUX_ASM_CODEGEN_ELF_EMPTY_TEXT_RC;
+  return XLANG_ASM_CODEGEN_ELF_EMPTY_TEXT_RC;
 }
 
 
@@ -272,7 +281,7 @@ int32_t seed_asm_reject_empty_elf_text(void *module, void *elf_ctx) {
 #if defined(__APPLE__)
 extern int32_t platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf) __attribute__((weak_import));
 #elif defined(_WIN32) || defined(_WIN64)
-extern int32_t platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) SHUX_WEAK;
+extern int32_t platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) XLANG_WEAK;
 #endif
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 

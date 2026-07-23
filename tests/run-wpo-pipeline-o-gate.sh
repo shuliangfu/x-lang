@@ -4,21 +4,21 @@
 # 用法：
 #   ./tests/run-wpo-pipeline-o-gate.sh
 #   ./tests/run-wpo-pipeline-o-gate.sh compiler/build_asm/pipeline_wpo.o
-#   SHUX_WPO_PIPELINE_O_FAIL=1 ./tests/run-wpo-pipeline-o-gate.sh
+#   XLANG_WPO_PIPELINE_O_FAIL=1 ./tests/run-wpo-pipeline-o-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/wpo-ab-proxy.sh
 . tests/lib/wpo-ab-proxy.sh
 
 PIPE_O="${1:-compiler/build_asm/pipeline_wpo.o}"
-BASELINE="${SHUX_WPO_PIPELINE_O_BASELINE:-tests/baseline/wpo-pipeline-o.tsv}"
+BASELINE="${XLANG_WPO_PIPELINE_O_BASELINE:-tests/baseline/wpo-pipeline-o.tsv}"
 MAX_TEXT=$(awk -F'\t' '$1=="pipeline_wpo_max_text_bytes" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
 MAX_TEXT=${MAX_TEXT:-2048}
 MIN_SAVE=$(awk -F'\t' '$1=="pipeline_wpo_min_save_bytes" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
 MIN_SAVE=${MIN_SAVE:-8000}
 OFF_PROXY=$(awk -F'\t' '$1=="pipeline_dce_off_text" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
 OFF_PROXY=${OFF_PROXY:-11588}
-FAIL=${SHUX_WPO_PIPELINE_O_FAIL:-1}
+FAIL=${XLANG_WPO_PIPELINE_O_FAIL:-1}
 
 if [ ! -f "$PIPE_O" ]; then
   echo "run-wpo-pipeline-o-gate FAIL: missing $PIPE_O" >&2
@@ -50,7 +50,7 @@ fi
 
 # 编排链 reach：run_x_pipeline_impl 不应 U 其 direct callee（须 ast_pool fixpoint 后重编 pipeline_wpo.o）。
 if [ -x "$(dirname "$0")/run-wpo-pipeline-reach-gate.sh" ]; then
-  SHUX_WPO_PIPELINE_REACH_FAIL="${SHUX_WPO_PIPELINE_REACH_FAIL:-0}" \
+  XLANG_WPO_PIPELINE_REACH_FAIL="${XLANG_WPO_PIPELINE_REACH_FAIL:-0}" \
     "$(dirname "$0")/run-wpo-pipeline-reach-gate.sh" "$PIPE_O" || {
     [ "$FAIL" = "1" ] && exit 1
   }

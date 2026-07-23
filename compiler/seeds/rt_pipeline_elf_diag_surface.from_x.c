@@ -1,10 +1,10 @@
 /* seeds/rt_pipeline_elf_diag_surface.from_x.c
  * G-02f rt_pipeline_elf_diag R2 full surface — isomorphic with src/runtime/rt_pipeline_elf_diag.x
  * Product PREFER_X_O: g05_try_x_to_o(rt_pipeline_elf_diag.x) + hybrid rest seed
- *   seeds/rt_pipeline_elf_diag.from_x.c (-DSHUX_RT_PIPELINE_ELF_DIAG_FROM_X) ld -r into runtime_driver_no_c
+ *   seeds/rt_pipeline_elf_diag.from_x.c (-DXLANG_RT_PIPELINE_ELF_DIAG_FROM_X) ld -r into runtime_driver_no_c
  * Hybrid rest seed: FROM_X 仅 marker（业务 H=0）；冷启动全 C 体
  * Prove: full.x vs this seed → nm IDENTICAL (public surface)
- * Regen: ./shux -E ... src/runtime/rt_pipeline_elf_diag.x | filter DBG + polish
+ * Regen: ./xlang -E ... src/runtime/rt_pipeline_elf_diag.x | filter DBG + polish
  */
 #include <stddef.h>
 #include <stdint.h>

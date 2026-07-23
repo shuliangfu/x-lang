@@ -9,7 +9,7 @@
 
 | ID | 交付 |
 |----|------|
-| STD-149 | `fenv_available()` + 平台能力表 + `SHUX_MATH_FENV_CAP` 报告 + gate |
+| STD-149 | `fenv_available()` + 平台能力表 + `XLANG_MATH_FENV_CAP` 报告 + gate |
 
 调用方在 `test_exceptions` 前可先探测；stub 平台 API 返回 `FENV_NOT_IMPL`。
 
@@ -29,7 +29,7 @@
 ## 3. 能力报告格式
 
 ```
-shux: [SHUX_MATH_FENV_CAP] platform=Darwin available=1
+xlang: [XLANG_MATH_FENV_CAP] platform=Darwin available=1
 ```
 
 ---
@@ -50,4 +50,4 @@ if (fenv_available() != 0) {
 ./tests/run-std-math-fenv-capability-gate.sh
 ```
 
-报告：`shux: [SHUX_STD149_MATH_FENV_CAP]`
+报告：`xlang: [XLANG_STD149_MATH_FENV_CAP]`

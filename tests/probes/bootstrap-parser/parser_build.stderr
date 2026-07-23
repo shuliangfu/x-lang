@@ -198,13 +198,13 @@ note: parse skip at byte 68409 (num_funcs=-1, name=?, mode=debug)
 note: parse skip at byte 67989 (num_funcs=1, name=main, mode=debug)
  --> src/parser/parser.x
 note: skip function debug: start_pos=68159 body_pos=68168 out_pos=69132 next_tok=0 next_ident_len=0
-shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=1
-shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+xlang: [XLANG_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=1
+xlang: [XLANG_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
 note: pipeline debug: dep prerun call path=token main=-1
  --> src/parser/parser.x
-shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=1
-shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
-shux: [SHUX_DEBUG_PIPE] realign ndep 1 -> entry imports 0
+xlang: [XLANG_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=1
+xlang: [XLANG_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+xlang: [XLANG_DEBUG_PIPE] realign ndep 1 -> entry imports 0
 note: pipeline debug: dep prerun call path=token main=-1
  --> src/parser/parser.x
 note: parse skip at byte 44610 (num_funcs=-1, name=?, mode=debug)
@@ -414,9 +414,9 @@ note: parse skip at byte 46623 (num_funcs=-1, name=?, mode=debug)
 note: parse skip at byte 46509 (num_funcs=5, name=ast_arena_func_alloc, mode=debug)
  --> src/parser/parser.x
 note: skip function debug: start_pos=46622 body_pos=46647 out_pos=46778 next_tok=36 next_ident_len=0
-shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=5
-shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
-shux: [SHUX_DEBUG_PIPE] realign ndep 1 -> entry imports 0
+xlang: [XLANG_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=5
+xlang: [XLANG_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+xlang: [XLANG_DEBUG_PIPE] realign ndep 1 -> entry imports 0
 note: pipeline debug: dep prerun call path=token main=-1
  --> src/parser/parser.x
 note: parse skip at byte 1221 (num_funcs=-1, name=?, mode=debug)
@@ -439,8 +439,8 @@ note: parse skip at byte 1828 (num_funcs=-1, name=?, mode=debug)
 note: parse skip at byte 1704 (num_funcs=0, name=map_i32_i32_find_c, mode=debug)
  --> src/parser/parser.x
 note: skip function debug: start_pos=1827 body_pos=1881 out_pos=2265 next_tok=0 next_ident_len=0
-shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=0
-shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+xlang: [XLANG_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=0
+xlang: [XLANG_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
 note: pipeline debug: dep prerun call path=core.mem main=-1
  --> src/parser/parser.x
 note: parse skip at byte 3444 (num_funcs=-1, name=?, mode=debug)
@@ -535,9 +535,9 @@ note: parse skip at byte 5927 (num_funcs=-1, name=?, mode=debug)
 note: parse skip at byte 5835 (num_funcs=13, name=fence_seq_cst, mode=debug)
  --> src/parser/parser.x
 note: skip function debug: start_pos=5897 body_pos=5907 out_pos=5929 next_tok=0 next_ident_len=0
-shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=13
-shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
-shux: [SHUX_DEBUG_PIPE] realign ndep 1 -> entry imports 0
+xlang: [XLANG_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=13
+xlang: [XLANG_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+xlang: [XLANG_DEBUG_PIPE] realign ndep 1 -> entry imports 0
 note: pipeline debug: dep prerun call path=core.mem main=-1
  --> src/parser/parser.x
 note: parse skip at byte 1897 (num_funcs=-1, name=?, mode=debug)
@@ -760,8 +760,8 @@ note: parse skip at byte 13676 (num_funcs=-1, name=?, mode=debug)
 note: parse skip at byte 13532 (num_funcs=1, name=heap_trace_stats_c, mode=debug)
  --> src/parser/parser.x
 note: skip function debug: start_pos=13675 body_pos=13766 out_pos=14089 next_tok=1 next_ident_len=0
-shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=2
-shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+xlang: [XLANG_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=2
+xlang: [XLANG_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
 note: pipeline debug: dep prerun call path=core.mem main=-1
  --> src/parser/parser.x
 note: skip function debug: start_pos=10681 body_pos=10690 out_pos=10739 next_tok=24 next_ident_len=0
@@ -962,8 +962,8 @@ note: skip function debug: start_pos=10681 body_pos=10690 out_pos=10739 next_tok
 note: skip function debug: start_pos=10870 body_pos=10905 out_pos=10950 next_tok=24 next_ident_len=0
 note: skip function debug: start_pos=11074 body_pos=11142 out_pos=11207 next_tok=24 next_ident_len=0
 note: skip function debug: start_pos=11323 body_pos=11359 out_pos=11399 next_tok=1 next_ident_len=0
-shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=9
-shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+xlang: [XLANG_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=9
+xlang: [XLANG_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
 note: pipeline debug: dep prerun call path=std.heap.ops main=-1
  --> src/parser/parser.x
 note: pipeline debug: before entry memset arena_sz=16
@@ -2294,48 +2294,48 @@ note: parse skip at byte 356270 (num_funcs=-1, name=?, mode=debug)
 note: parse skip at byte 355886 (num_funcs=3, name=main, mode=debug)
  --> src/parser/parser.x
 note: skip function debug: start_pos=356089 body_pos=356098 out_pos=357429 next_tok=0 next_ident_len=0
-shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=3
-shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+xlang: [XLANG_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=3
+xlang: [XLANG_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
 note: pipeline debug: after_entry_parse num_funcs=3
  --> src/parser/parser.x
 note: pipeline debug: after_entry_parse num_funcs=3 num_defined=0 num_extern=3
  --> src/parser/parser.x
 note: pipeline debug: after_entry_parse num_top_level_lets=0
  --> src/parser/parser.x
-shux: [SHUX_DEBUG_PIPE] typeck_parsed_module_c main_idx=-1 num_funcs=3
+xlang: [XLANG_DEBUG_PIPE] typeck_parsed_module_c main_idx=-1 num_funcs=3
 note: pipeline debug: before_codegen num_funcs=3 out_len=0
  --> src/parser/parser.x
-shux: [SHUX_DEBUG_PIPE] dep emit j=0 path=lexer use_asm=0 funcs=1
-shux: [SHUX_DEBUG_PIPE] skip dep emit j=0 path=lexer
-shux: [SHUX_DEBUG_PIPE] dep emit j=1 path=token use_asm=0 funcs=1
-shux: [SHUX_DEBUG_PIPE] dep emit j=2 path=ast use_asm=0 funcs=5
-shux: [SHUX_DEBUG_PIPE] skip dep emit j=2 path=ast
-shux: [SHUX_DEBUG_PIPE] dep emit j=3 path=std.heap use_asm=0 funcs=9
-shux: [SHUX_DEBUG_PIPE] std.heap probe dep_j=3 imports=2 ctx_ndep=7 arena_exprs=202
-shux: [SHUX_DEBUG_PIPE] std.heap ctx dep[0] path=lexer funcs=1 mod=0x748220000
-shux: [SHUX_DEBUG_PIPE] std.heap ctx dep[1] path=token funcs=1 mod=0x748220030
-shux: [SHUX_DEBUG_PIPE] std.heap ctx dep[2] path=ast funcs=5 mod=0x748220060
-shux: [SHUX_DEBUG_PIPE] std.heap ctx dep[3] path=std.heap funcs=9 mod=0x748220120
-shux: [SHUX_DEBUG_PIPE] std.heap ctx dep[4] path=ast funcs=5 mod=0x748220060
-shux: [SHUX_DEBUG_PIPE] std.heap ctx dep[5] path=token funcs=1 mod=0x748220030
-shux: [SHUX_DEBUG_PIPE] std.heap ctx dep[6] path=lexer funcs=1 mod=0x748220000
-shux: [SHUX_DEBUG_PIPE] std.heap import idx=0 kind=1 path=std.heap.ops bind=heap_ops
-shux: [SHUX_DEBUG_PIPE] std.heap import idx=1 kind=1 path=std.heap.libc bind=heap_libc
-shux: [SHUX_DEBUG_PIPE] std.heap func fi=0 name=trace_on body_ref=1 nso=1 fin=0
-shux: [SHUX_DEBUG_PIPE] std.heap func stmt si=0 kind=2 idx=0
-shux: [SHUX_DEBUG_PIPE] std.heap func expr_stmt si=0 expr_ref=10 expr_kind=41
-shux: [SHUX_DEBUG_PIPE] std.heap func return_op si=0 op_ref=8 op_kind=49 callee=0 base=0 name_len=0 var= field=
-shux: [SHUX_DEBUG_PIPE] std.heap expr expr=1 kind=3 callee=0 base=0 name_len=9 var=heap_libc field= dep_ix=-1 func_ix=-1
-shux: [SHUX_DEBUG_PIPE] std.heap expr expr=3 kind=3 callee=0 base=0 name_len=9 var=heap_libc field= dep_ix=-1 func_ix=-1
-shux: [SHUX_DEBUG_PIPE] std.heap expr expr=5 kind=3 callee=0 base=0 name_len=9 var=heap_libc field= dep_ix=-1 func_ix=-1
-shux: [SHUX_DEBUG_PIPE] std.heap expr expr=7 kind=3 callee=0 base=0 name_len=9 var=heap_libc field= dep_ix=-1 func_ix=-1
-shux: [SHUX_DEBUG_PIPE] std.heap expr expr=11 kind=3 callee=0 base=0 name_len=9 var=heap_libc field= dep_ix=-1 func_ix=-1
-shux: [SHUX_DEBUG_PIPE] std.heap expr expr=13 kind=3 callee=0 base=0 name_len=9 var=heap_libc field= dep_ix=-1 func_ix=-1
-shux: [SHUX_DEBUG_PIPE] std.heap expr expr=15 kind=3 callee=0 base=0 name_len=9 var=heap_libc field= dep_ix=-1 func_ix=-1
-shux: [SHUX_DEBUG_PIPE] std.heap expr expr=17 kind=3 callee=0 base=0 name_len=9 var=heap_libc field= dep_ix=-1 func_ix=-1
-shux: [SHUX_DEBUG_PIPE] skip duplicate dep emit j=4 path=ast
-shux: [SHUX_DEBUG_PIPE] skip duplicate dep emit j=5 path=token
-shux: [SHUX_DEBUG_PIPE] skip duplicate dep emit j=6 path=lexer
+xlang: [XLANG_DEBUG_PIPE] dep emit j=0 path=lexer use_asm=0 funcs=1
+xlang: [XLANG_DEBUG_PIPE] skip dep emit j=0 path=lexer
+xlang: [XLANG_DEBUG_PIPE] dep emit j=1 path=token use_asm=0 funcs=1
+xlang: [XLANG_DEBUG_PIPE] dep emit j=2 path=ast use_asm=0 funcs=5
+xlang: [XLANG_DEBUG_PIPE] skip dep emit j=2 path=ast
+xlang: [XLANG_DEBUG_PIPE] dep emit j=3 path=std.heap use_asm=0 funcs=9
+xlang: [XLANG_DEBUG_PIPE] std.heap probe dep_j=3 imports=2 ctx_ndep=7 arena_exprs=202
+xlang: [XLANG_DEBUG_PIPE] std.heap ctx dep[0] path=lexer funcs=1 mod=0x748220000
+xlang: [XLANG_DEBUG_PIPE] std.heap ctx dep[1] path=token funcs=1 mod=0x748220030
+xlang: [XLANG_DEBUG_PIPE] std.heap ctx dep[2] path=ast funcs=5 mod=0x748220060
+xlang: [XLANG_DEBUG_PIPE] std.heap ctx dep[3] path=std.heap funcs=9 mod=0x748220120
+xlang: [XLANG_DEBUG_PIPE] std.heap ctx dep[4] path=ast funcs=5 mod=0x748220060
+xlang: [XLANG_DEBUG_PIPE] std.heap ctx dep[5] path=token funcs=1 mod=0x748220030
+xlang: [XLANG_DEBUG_PIPE] std.heap ctx dep[6] path=lexer funcs=1 mod=0x748220000
+xlang: [XLANG_DEBUG_PIPE] std.heap import idx=0 kind=1 path=std.heap.ops bind=heap_ops
+xlang: [XLANG_DEBUG_PIPE] std.heap import idx=1 kind=1 path=std.heap.libc bind=heap_libc
+xlang: [XLANG_DEBUG_PIPE] std.heap func fi=0 name=trace_on body_ref=1 nso=1 fin=0
+xlang: [XLANG_DEBUG_PIPE] std.heap func stmt si=0 kind=2 idx=0
+xlang: [XLANG_DEBUG_PIPE] std.heap func expr_stmt si=0 expr_ref=10 expr_kind=41
+xlang: [XLANG_DEBUG_PIPE] std.heap func return_op si=0 op_ref=8 op_kind=49 callee=0 base=0 name_len=0 var= field=
+xlang: [XLANG_DEBUG_PIPE] std.heap expr expr=1 kind=3 callee=0 base=0 name_len=9 var=heap_libc field= dep_ix=-1 func_ix=-1
+xlang: [XLANG_DEBUG_PIPE] std.heap expr expr=3 kind=3 callee=0 base=0 name_len=9 var=heap_libc field= dep_ix=-1 func_ix=-1
+xlang: [XLANG_DEBUG_PIPE] std.heap expr expr=5 kind=3 callee=0 base=0 name_len=9 var=heap_libc field= dep_ix=-1 func_ix=-1
+xlang: [XLANG_DEBUG_PIPE] std.heap expr expr=7 kind=3 callee=0 base=0 name_len=9 var=heap_libc field= dep_ix=-1 func_ix=-1
+xlang: [XLANG_DEBUG_PIPE] std.heap expr expr=11 kind=3 callee=0 base=0 name_len=9 var=heap_libc field= dep_ix=-1 func_ix=-1
+xlang: [XLANG_DEBUG_PIPE] std.heap expr expr=13 kind=3 callee=0 base=0 name_len=9 var=heap_libc field= dep_ix=-1 func_ix=-1
+xlang: [XLANG_DEBUG_PIPE] std.heap expr expr=15 kind=3 callee=0 base=0 name_len=9 var=heap_libc field= dep_ix=-1 func_ix=-1
+xlang: [XLANG_DEBUG_PIPE] std.heap expr expr=17 kind=3 callee=0 base=0 name_len=9 var=heap_libc field= dep_ix=-1 func_ix=-1
+xlang: [XLANG_DEBUG_PIPE] skip duplicate dep emit j=4 path=ast
+xlang: [XLANG_DEBUG_PIPE] skip duplicate dep emit j=5 path=token
+xlang: [XLANG_DEBUG_PIPE] skip duplicate dep emit j=6 path=lexer
 note: pipeline debug: pipeline thread done ec=0
  --> src/parser/parser.x
 note: pipeline debug: after pipeline_run ec=0
@@ -2345,10 +2345,10 @@ Undefined symbols for architecture arm64:
   "_main", referenced from:
       <initial-undefines>
   "_std_heap_libc_heap_trace_enabled_c", referenced from:
-      _std_heap_trace_on in shux_x-487ae9.o
+      _std_heap_trace_on in xlang_x-487ae9.o
 ld: symbol(s) not found for architecture arm64
 clang: error: linker command failed with exit code 1 (use -v to see invocation)
 build error[BLD001]: cc failed (exit 1)
  --> src/parser/parser.x
-build error: cc failed, keeping generated C: /tmp/shux_x.ny6eWN.c
+build error: cc failed, keeping generated C: /tmp/xlang_x.ny6eWN.c
  --> src/parser/parser.x

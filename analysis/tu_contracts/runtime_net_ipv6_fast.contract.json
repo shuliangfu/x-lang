@@ -51,7 +51,7 @@
       "net_tcp_listen_ipv6_c"
     ]
   },
-  "rest_macro": "SHUX_RUNTIME_NET_IPV6_FAST_FROM_X",
+  "rest_macro": "XLANG_RUNTIME_NET_IPV6_FAST_FROM_X",
   "impl_residuals": [
     "net_ipv6_ensure_wsa_c_impl",
     "net_ipv6_close_socket_c_impl",

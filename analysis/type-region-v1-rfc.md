@@ -47,7 +47,7 @@ region ra {
 下列 callee 的 **返回值** typeck 自动解析为 `u8[]<io_read_ptr>`：
 
 - `read_ptr_slice`
-- `shu_io_read_ptr_slice`
+- `xlang_io_read_ptr_slice`
 - `driver_read_ptr_slice`
 - `io_read_ptr_slice`
 

@@ -35,12 +35,12 @@
 ```
 
 ```
-shux: [SHUX_BOOT026] status=ok c4_minimal_ok=1 c4_x_probe=1 skip=1
+xlang: [XLANG_BOOT026] status=ok c4_minimal_ok=1 c4_x_probe=1 skip=1
 ```
 
 - **c4_minimal_ok**：X MINIMAL 白名单轨道通过（`MINIMAL OK`）
 - **c4_x_probe**：X emit 探测 gate 已执行且 PASS
-- Darwin / 无 `compiler/shux`：manifest 绿 + wave **SKIP**
+- Darwin / 无 `compiler/xlang`：manifest 绿 + wave **SKIP**
 
 ---
 
@@ -58,4 +58,4 @@ shux: [SHUX_BOOT026] status=ok c4_minimal_ok=1 c4_x_probe=1 skip=1
 
 - FULL X emit `ec=0` 硬门禁（仍依赖 C TU 默认路径）
 - Darwin X bootstrap 硬门禁
-- 跨平台 shux_asm2 二进制发布
+- 跨平台 xlang_asm2 二进制发布

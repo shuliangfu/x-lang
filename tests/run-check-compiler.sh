@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# shux check compiler/src：产品编译器树须能通过 C 前端 typeck（-L . -L compiler/src 由 driver 注入）。
+# xlang check compiler/src：产品编译器树须能通过 C 前端 typeck（-L . -L compiler/src 由 driver 注入）。
 set -e
 cd "$(dirname "$0")/.."
-if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  make -C compiler -q 2>/dev/null || make -C compiler shux-c 2>/dev/null || make -C compiler relink-shux
+if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+  make -C compiler -q 2>/dev/null || make -C compiler xlang-c 2>/dev/null || make -C compiler relink-xlang
 fi
-SHUX=${SHUX:-./compiler/shux}
+XLANG=${XLANG:-./compiler/xlang}
 ROOT=$(pwd)
-case "$SHUX" in
-  /*) SHUX_EXE="$SHUX" ;;
-  *) SHUX_EXE="$ROOT/$SHUX" ;;
+case "$XLANG" in
+  /*) XLANG_EXE="$XLANG" ;;
+  *) XLANG_EXE="$ROOT/$XLANG" ;;
 esac
 
 # 分阶段门禁：先覆盖已稳定的编译器/核心模块（全量 compiler/src 仍有个别 import/折行待修）。
@@ -30,7 +30,7 @@ for f in \
   compiler/src/driver/fmt.x \
   compiler/src/driver/check.x
 do
-  out=$("$SHUX_EXE" check "$f" 2>&1) || {
+  out=$("$XLANG_EXE" check "$f" 2>&1) || {
     echo "$out"
     echo "run-check-compiler: failed on $f"
     exit 1

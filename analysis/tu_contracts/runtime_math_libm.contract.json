@@ -65,7 +65,7 @@
     ],
     "only_x": ["runtime_math_libm_x_doc_anchor"]
   },
-  "rest_macro": "SHUX_RUNTIME_MATH_LIBM_FROM_X",
+  "rest_macro": "XLANG_RUNTIME_MATH_LIBM_FROM_X",
   "impl_residuals": [
     "math_fenv_mask_to_fe_impl",
     "math_fenv_fe_to_mask_impl",
@@ -89,7 +89,7 @@
   ],
   "known_limitations": [
     "预存行为（非本次切割引入）：Linux 上 thin wrapper 为 W（weak）符号——prove_x_o.sh 默认 G05_X_O_WEAK=1，macOS Mach-O 忽略 weak 均为 T",
-    "平台条件符号：math_fenv_mask_to_fe / math_fenv_fe_to_mask 及其 _impl 在 #if SHUX_MATH_HAVE_FENV 块内（macOS/Linux only）；math_fenv_emit_cap_report 及其 _impl 在 fenv #endif 之后（跨平台）"
+    "平台条件符号：math_fenv_mask_to_fe / math_fenv_fe_to_mask 及其 _impl 在 #if XLANG_MATH_HAVE_FENV 块内（macOS/Linux only）；math_fenv_emit_cap_report 及其 _impl 在 fenv #endif 之后（跨平台）"
   ],
   "platform_notes": "混合模式：3 IMPL wrapper（fenv 系列，调用 _impl）+ 1 DIRECT（math_special_near，G-02f-119 真迁 .x 完整实现）。rest 模式下 thin 函数为 U 符号由 thin.o 提供",
   "delete_seed_gate": {

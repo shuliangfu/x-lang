@@ -55,8 +55,8 @@ export extern "C" function drv_eq_asm_word(buf: *u8, len: i32): i32;
 export extern "C" function drv_eq_c_word(buf: *u8, len: i32): i32;
 export extern "C" function drv_path_ends_x(buf: *u8, len: i32): i32;
 export extern "C" function drv_target_has_arm(buf: *u8, len: i32): i32;
-export extern "C" function shu_target_cpu_resolve(spec: *u8, spec_len: usize, out: *u32): i32;
-export extern "C" function shu_target_cpu_generic_for_host(): u32;
+export extern "C" function xlang_target_cpu_resolve(spec: *u8, spec_len: usize, out: *u32): i32;
+export extern "C" function xlang_target_cpu_generic_for_host(): u32;
 export extern "C" function diag_report_with_code(
   file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
 export extern "C" function cfg_apply_compile_target_from_triple(triple: *u8, len: i32): void;
@@ -346,7 +346,7 @@ export function driver_compile_argv_set_legacy_f32_abi_c(): void {
   let name: *u8 = 0 as *u8;
   let val: *u8 = 0 as *u8;
   unsafe {
-    name = "SHUX_ABI_F32_XMM" as *u8;
+    name = "XLANG_ABI_F32_XMM" as *u8;
     val = "0" as *u8;
     setenv(name, val, 1);
   }
@@ -868,14 +868,14 @@ export function driver_compile_resolve_target_cpu_c(state: *RtCompileState): voi
     spec_len = state.target_cpu_len as usize;
   }
   unsafe {
-    rc = shu_target_cpu_resolve(spec, spec_len, &feats);
+    rc = xlang_target_cpu_resolve(spec, spec_len, &feats);
   }
   if (rc != 0) {
     unsafe {
       kind = "note" as *u8;
       msg = "unknown -target-cpu; using generic baseline" as *u8;
       diag_report_with_code(0 as *u8, 0, 0, kind, 0 as *u8, msg, 0 as *u8);
-      feats = shu_target_cpu_generic_for_host();
+      feats = xlang_target_cpu_generic_for_host();
     }
   }
   state.target_cpu_features = feats as i32;

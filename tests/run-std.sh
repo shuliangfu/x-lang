@@ -3,13 +3,13 @@
 
 set -e
 cd "$(dirname "$0")/.."
-if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   make -C compiler -q 2>/dev/null || make -C compiler
 fi
-SHUX=${SHUX:-./compiler/shux}
-out=$($SHUX build -L . tests/std/main.x 2>&1)
+XLANG=${XLANG:-./compiler/xlang}
+out=$($XLANG build -L . tests/std/main.x 2>&1)
 echo "$out" | grep -q "parse OK" || { echo "expected parse OK"; echo "$out"; exit 1; }
 echo "$out" | grep -q "typeck OK" || { echo "expected typeck OK"; echo "$out"; exit 1; }
-$SHUX build -L . tests/std/main.x -o /tmp/shux_std_hello 2>&1
-/tmp/shux_std_hello | grep -q "Hello World" || { echo "expected Hello World"; exit 1; }
+$XLANG build -L . tests/std/main.x -o /tmp/xlang_std_hello 2>&1
+/tmp/xlang_std_hello | grep -q "Hello World" || { echo "expected Hello World"; exit 1; }
 echo "std import test OK"

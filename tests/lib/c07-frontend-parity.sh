@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# C-07 前端 parity 辅助：shux-c（C 前端 REF）vs shux/shux_asm（.x 前端 CAND）同输入比对。
+# C-07 前端 parity 辅助：xlang-c（C 前端 REF）vs xlang/xlang_asm（.x 前端 CAND）同输入比对。
 #
 # 用法：source tests/lib/c07-frontend-parity.sh
 
@@ -8,7 +8,7 @@
 
 # 判断可执行文件是否可在当前宿主运行（Mach-O/ELF 架构匹配）。
 # 参数：$1 = 编译器二进制路径；返回 0 可运行，1 不可。
-c07_native_shu() {
+c07_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(ci_host_os)-$(ci_host_arch)" in
@@ -21,33 +21,33 @@ c07_native_shu() {
   esac
 }
 
-# 解析 REF/CAND 编译器路径；CAND 优先 shux_asm → shux。
+# 解析 REF/CAND 编译器路径；CAND 优先 xlang_asm → xlang。
 # 设置 C07_REF / C07_CAND；缺 REF 返回 1，缺 CAND 返回 2。
 c07_resolve_compilers() {
-  C07_REF="${C07_REF:-./compiler/shux-c}"
+  C07_REF="${C07_REF:-./compiler/xlang-c}"
   if [ -z "${C07_CAND:-}" ]; then
-    for cand in ./compiler/shux_asm ./compiler/shux; do
-      if c07_native_shu "$cand"; then
+    for cand in ./compiler/xlang_asm ./compiler/xlang; do
+      if c07_native_xlang "$cand"; then
         C07_CAND="$cand"
         break
       fi
     done
   fi
-  if ! c07_native_shu "$C07_REF"; then
+  if ! c07_native_xlang "$C07_REF"; then
     return 1
   fi
-  if [ -z "${C07_CAND:-}" ] || ! c07_native_shu "$C07_CAND"; then
+  if [ -z "${C07_CAND:-}" ] || ! c07_native_xlang "$C07_CAND"; then
     return 2
   fi
   return 0
 }
 
-# typeck-only 编译（无 -o）：CAND 加 -backend c 与 shux-c 路径对齐。
+# typeck-only 编译（无 -o）：CAND 加 -backend c 与 xlang-c 路径对齐。
 # 参数：$1=编译器 $2=源码 $3=日志文件；返回编译器退出码。
 c07_typeck_x() {
   local bin="$1" src="$2" log="$3"
   local args=(-L .)
-  if [ "${bin##*/}" != "shux-c" ]; then
+  if [ "${bin##*/}" != "xlang-c" ]; then
     args+=(-backend c)
   fi
   "$bin" "${args[@]}" "$src" >"$log" 2>&1
@@ -58,7 +58,7 @@ c07_typeck_x() {
 c07_compile_x() {
   local bin="$1" src="$2" out="$3" log="$4"
   local args=(-L .)
-  if [ "${bin##*/}" != "shux-c" ]; then
+  if [ "${bin##*/}" != "xlang-c" ]; then
     args+=(-backend c)
   fi
   rm -f "$out" 2>/dev/null || true
@@ -74,7 +74,7 @@ c07_run_exit() {
   echo "$rc"
 }
 
-# 日志是否含 typeck OK（shux-c / shux 成功路径常见输出）。
+# 日志是否含 typeck OK（xlang-c / xlang 成功路径常见输出）。
 # 参数：$1=日志文件。
 c07_log_typeck_ok() {
   grep -q 'typeck OK' "$1" 2>/dev/null

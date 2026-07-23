@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_LANG_TRAIT_DOC:-analysis/lang-trait-v1.md}"
-MANIFEST="${SHUX_LANG_TRAIT_MANIFEST:-tests/baseline/lang-trait.tsv}"
-TYPECK="${SHUX_LANG_TRAIT_TYPECK:-tests/baseline/lang-trait-typeck.tsv}"
+DOC="${XLANG_LANG_TRAIT_DOC:-analysis/lang-trait-v1.md}"
+MANIFEST="${XLANG_LANG_TRAIT_MANIFEST:-tests/baseline/lang-trait.tsv}"
+TYPECK="${XLANG_LANG_TRAIT_TYPECK:-tests/baseline/lang-trait-typeck.tsv}"
 MIN_LAYERS=6
 MIN_CASES=3
 MIN_RULES=4

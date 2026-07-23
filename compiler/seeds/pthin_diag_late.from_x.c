@@ -1,6 +1,6 @@
 /* seeds/pthin_diag_late.from_x.c — G-02f-326 P2 parser thin diag_late
  * Logic source: src/asm/pthin_diag_late.x
- * Hybrid: SHUX_PTHIN_DIAG_LATE_FROM_X + ld -r into parser_asm_thin_glue.o
+ * Hybrid: XLANG_PTHIN_DIAG_LATE_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_diag_late_slice.inc (~269)
  * diag_after_imports_then_structs + diag_fail_at_token_kind + diag_skip_let_const_buf + body_skip_buf

@@ -1,6 +1,6 @@
 /* seeds/rt_dispatch_thin.from_x.c — G-02f-312 P2 runtime rest → R2 full (dispatch thin)
  * Logic source: src/runtime/rt_dispatch_thin.x
- * Hybrid: SHUX_RT_DISPATCH_THIN_FROM_X + ld -r into runtime_driver_no_c.o
+ * Hybrid: XLANG_RT_DISPATCH_THIN_FROM_X + ld -r into runtime_driver_no_c.o
  *
  * R2 full（2026-07-14）：公共业务符号由 full .x 提供：
  *   driver_run_asm_backend_c / driver_run_emit_c_path_c /
@@ -12,7 +12,7 @@
  * Scope:
  *  - driver_run_asm_backend_c / driver_run_emit_c_path_c 兼容旧名薄门闩
  *  - driver_run_compiler_full 入口选择
- *  - driver_try_compile_via_shu_c_sibling（fork/exec 同目录 shux-c）🔒
+ *  - driver_try_compile_via_shu_c_sibling（fork/exec 同目录 xlang-c）🔒
  * impl_c / parsed 巨石在其它 R2 切片。
  */
 #include <stddef.h>
@@ -32,7 +32,7 @@ extern int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_p
                                              uint8_t *opt_level, int32_t use_lto, int32_t argc, uint8_t *argv);
 extern int32_t driver_run_compiler_full_x_impl_c(int32_t argc, uint8_t *argv);
 
-#ifndef SHUX_RT_DISPATCH_THIN_FROM_X
+#ifndef XLANG_RT_DISPATCH_THIN_FROM_X
 
 /** 兼容旧符号名；新路径 compile.x 经 compile_dispatch_* 调 impl_c。 */
 int32_t driver_run_asm_backend_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target, int32_t argc,
@@ -50,7 +50,7 @@ int32_t driver_run_emit_c_path_c(uint8_t *input_path, uint8_t *out_path, uint8_t
  * 完整编译入口：B-strict / product 走 impl_c。
  */
 int driver_run_compiler_full(int argc, char **argv) {
-#if defined(SHUX_ASM_USE_COMPILER_IMPL_C)
+#if defined(XLANG_ASM_USE_COMPILER_IMPL_C)
   return (int)driver_run_compiler_full_x_impl_c((int32_t)argc, (uint8_t *)argv);
 #else
   extern int32_t driver_run_compiler_full_x(int32_t argc, uint8_t *argv);
@@ -59,18 +59,18 @@ int driver_run_compiler_full(int argc, char **argv) {
 }
 
 /**
- * 含 import 时 seed X codegen 易重复符号；若同目录有 shux-c 则委托其完成 -o 链接。
+ * 含 import 时 seed X codegen 易重复符号；若同目录有 xlang-c 则委托其完成 -o 链接。
  * 返回 ≥0 为子进程 exit；-1 表示未委托（继续本进程路径）。
  * 🔒 fork/exec/_spawnvp。
  */
 int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
-  char shu_c[512];
+  char xlang_c[512];
   const char *self;
   const char *slash;
   if (argc < 2 || !argv || !argv[0])
     return -1;
-  /* 已在 shux-c 内：勿 fork 自身。 */
-  if (driver_argv0_basename_is(argv[0], "shux-c"))
+  /* 已在 xlang-c 内：勿 fork 自身。 */
+  if (driver_argv0_basename_is(argv[0], "xlang-c"))
     return -1;
   self = argv[0];
   slash = strrchr(self, '/');
@@ -83,20 +83,20 @@ int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
 #endif
   if (slash) {
     size_t dir_len = (size_t)(slash - self);
-    if (dir_len >= sizeof(shu_c) - 8)
+    if (dir_len >= sizeof(xlang_c) - 8)
       return -1;
-    memcpy(shu_c, self, dir_len);
-    shu_c[dir_len] = '\0';
-    strcat(shu_c, "/shux-c");
+    memcpy(xlang_c, self, dir_len);
+    xlang_c[dir_len] = '\0';
+    strcat(xlang_c, "/xlang-c");
   } else {
-    strcpy(shu_c, "shux-c");
+    strcpy(xlang_c, "xlang-c");
   }
-  if (access(shu_c, X_OK) != 0)
+  if (access(xlang_c, X_OK) != 0)
     return -1;
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
   {
-    argv[0] = shu_c;
-    intptr_t rc = _spawnvp(_P_WAIT, shu_c, (const char *const *)argv);
+    argv[0] = xlang_c;
+    intptr_t rc = _spawnvp(_P_WAIT, xlang_c, (const char *const *)argv);
     if (rc == -1)
       return -1;
     return (int)rc;
@@ -107,8 +107,8 @@ int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
     if (pid < 0)
       return -1;
     if (pid == 0) {
-      argv[0] = shu_c;
-      execvp(shu_c, argv);
+      argv[0] = xlang_c;
+      execvp(xlang_c, argv);
       _exit(127);
     }
     {

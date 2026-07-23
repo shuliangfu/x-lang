@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# S3 EMIT_HEAVY 烟测：用 shux_asm 第二遍重编 pipeline.o，统计非 ret0 桩的真机码函数数。
-# 依赖：compiler/shux_asm.experimental 或 strict_glue 已重链含最新 ast_pool.c。
+# S3 EMIT_HEAVY 烟测：用 xlang_asm 第二遍重编 pipeline.o，统计非 ret0 桩的真机码函数数。
+# 依赖：compiler/xlang_asm.experimental 或 strict_glue 已重链含最新 ast_pool.c。
 # 用法：./tests/run-s3-pipeline-emit-heavy.sh
-# 门禁：SHUX_S3_FAIL_ON_EMIT_HEAVY=1 — real_funcs / __text 低于 baseline 时失败
+# 门禁：XLANG_S3_FAIL_ON_EMIT_HEAVY=1 — real_funcs / __text 低于 baseline 时失败
 set -e
 cd "$(dirname "$0")/.."
-COMP="${SHUX_S3_EMIT_HEAVY_COMPILER:-}"
+COMP="${XLANG_S3_EMIT_HEAVY_COMPILER:-}"
 if [ -z "$COMP" ]; then
-  for cand in ./compiler/shux_asm.strict_glue ./compiler/shux_asm ./compiler/shux_asm.experimental; do
+  for cand in ./compiler/xlang_asm.strict_glue ./compiler/xlang_asm ./compiler/xlang_asm.experimental; do
     if [ -x "$cand" ]; then
       COMP="$cand"
       break
@@ -15,8 +15,8 @@ if [ -z "$COMP" ]; then
   done
 fi
 PIPELINE_X="compiler/src/pipeline/pipeline.x"
-OUT="/tmp/shux_s3_pipeline_emit_heavy.o"
-BASELINE="${SHUX_S3_PIPELINE_BASELINE:-tests/baseline/s3-pipeline-o.tsv}"
+OUT="/tmp/xlang_s3_pipeline_emit_heavy.o"
+BASELINE="${XLANG_S3_PIPELINE_BASELINE:-tests/baseline/s3-pipeline-o.tsv}"
 LIBROOT="-L compiler/asm_libroot -L compiler/.. -L compiler/src -L compiler/src/lexer -L compiler/src/ast -L compiler/src/parser -L compiler/src/typeck -L compiler/src/codegen -L compiler/src/preprocess -L compiler/src/pipeline -L compiler/src/lsp -L compiler/src/asm"
 
 MIN_REAL=$(awk -F'\t' '$1=="min_real_funcs" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
@@ -25,10 +25,10 @@ MIN_TEXT_EH=$(awk -F'\t' '$1=="min_text_emit_heavy" && $1 !~ /^#/ { print $2; ex
 MIN_TEXT_EH=${MIN_TEXT_EH:-512}
 
 if [ ! -x "$COMP" ]; then
-  echo "s3 emit-heavy: no executable compiler (set SHUX_S3_EMIT_HEAVY_COMPILER=)" >&2
+  echo "s3 emit-heavy: no executable compiler (set XLANG_S3_EMIT_HEAVY_COMPILER=)" >&2
   exit 127
 fi
-# 与 build_shux_asm rebuild_pipeline_o_second_pass 同 cwd/LIBROOT（根目录 invoke 仅 ~4KiB 薄码）。
+# 与 build_xlang_asm rebuild_pipeline_o_second_pass 同 cwd/LIBROOT（根目录 invoke 仅 ~4KiB 薄码）。
 case "$COMP" in
   ./*) COMP_ABS="$(cd "$(dirname "$COMP")" && pwd)/$(basename "$COMP")" ;;
   *) COMP_ABS="$COMP" ;;
@@ -68,7 +68,7 @@ PY
 
 rm -f "$OUT"
 if ! ( cd compiler && ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
-  env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=0 \
+  env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 XLANG_ASM_ENTRY_EMIT_HEAVY=1 XLANG_ASM_WPO_DCE=0 \
     "$COMP_ABS" -backend asm -o "$OUT" $LIBROOT "$PIPELINE_X_REL" ); then
   echo "s3 emit-heavy: compile failed" >&2
   exit 1
@@ -79,10 +79,10 @@ sz=$(text_section_size "$OUT")
 real=$(count_real_asm_funcs "$OUT")
 echo "s3 emit-heavy: __text=${sz} real_funcs=${real} (min_real=${MIN_REAL}, min_text_emit_heavy=${MIN_TEXT_EH})"
 
-if [ "${SHUX_S3_FAIL_ON_EMIT_HEAVY:-0}" = "1" ]; then
+if [ "${XLANG_S3_FAIL_ON_EMIT_HEAVY:-0}" = "1" ]; then
   if [ "${real:-0}" -lt "${MIN_REAL}" ] 2>/dev/null; then
     echo "s3 emit-heavy FAIL: real_funcs ${real} < min_real_funcs ${MIN_REAL}" >&2
-    echo "s3 emit-heavy hint: ast_pool.c 变更后须重编 pipeline_x.o + relink shux_asm" >&2
+    echo "s3 emit-heavy hint: ast_pool.c 变更后须重编 pipeline_x.o + relink xlang_asm" >&2
     exit 1
   fi
   if ! awk -v s="$sz" -v m="$MIN_TEXT_EH" 'BEGIN { exit (s >= m) ? 0 : 1 }'; then

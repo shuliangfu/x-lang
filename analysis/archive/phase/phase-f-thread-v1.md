@@ -12,7 +12,7 @@
 ## 门禁
 
 ```bash
-SHUX_F_THREAD_V1_FAIL=1 ./tests/run-f-thread-v1-gate.sh
+XLANG_F_THREAD_V1_FAIL=1 ./tests/run-f-thread-v1-gate.sh
 ./tests/run-std-thread-pool-gate.sh
 ```
 

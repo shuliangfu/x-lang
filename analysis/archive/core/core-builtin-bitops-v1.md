@@ -8,15 +8,15 @@
 
 ## 1. 目标
 
-`clz_u32` / `ctz_u32` / `popcount_u32` 跨模块 import 调用时，生成 C 直达 `shux_builtin_*`（内部 `__builtin_clz/ctz/popcount`），优于 `.x` 逐位循环。
+`clz_u32` / `ctz_u32` / `popcount_u32` 跨模块 import 调用时，生成 C 直达 `xlang_builtin_*`（内部 `__builtin_clz/ctz/popcount`），优于 `.x` 逐位循环。
 
 | API | C 符号（调用点） | 实现 |
 |-----|------------------|------|
-| `clz_u32` | `shux_builtin_clz_u32` | `__builtin_clz`，x==0→32 |
-| `ctz_u32` | `shux_builtin_ctz_u32` | `__builtin_ctz`，x==0→32 |
-| `popcount_u32` | `shux_builtin_popcount_u32` | `__builtin_popcount` |
-| `bswap_u32` | `shux_builtin_bswap_u32` | 纯 C 交换（CORE-018） |
-| `rotl_u32` / `rotr_u32` | `shux_builtin_rotl/rotr_u32` | 循环移位（CORE-018） |
+| `clz_u32` | `xlang_builtin_clz_u32` | `__builtin_clz`，x==0→32 |
+| `ctz_u32` | `xlang_builtin_ctz_u32` | `__builtin_ctz`，x==0→32 |
+| `popcount_u32` | `xlang_builtin_popcount_u32` | `__builtin_popcount` |
+| `bswap_u32` | `xlang_builtin_bswap_u32` | 纯 C 交换（CORE-018） |
+| `rotl_u32` / `rotr_u32` | `xlang_builtin_rotl/rotr_u32` | 循环移位（CORE-018） |
 
 ---
 
@@ -43,8 +43,8 @@
 
 - manifest：`tests/baseline/core-builtin-bitops.tsv`
 - 语义：`tests/builtin/main.x`、`tests/run-builtin.sh`
-- emit：`SHUX_DEBUG_C=1` 生成 C 含 `shux_builtin_*`
-- 报告：`shux: [SHUX_CORE_BUILTIN_BITOPS] status=ok emit=3/3`
+- emit：`XLANG_DEBUG_C=1` 生成 C 含 `xlang_builtin_*`
+- 报告：`xlang: [XLANG_CORE_BUILTIN_BITOPS] status=ok emit=3/3`
 
 ---
 

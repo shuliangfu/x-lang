@@ -53,7 +53,7 @@
 - `glue_sysv_x86_call_n_stack_c`
 - `glue_try_std_encoding_redirect_sym_local`
 - `glue_try_std_heap_redirect_sym_local`
-- `glue_try_std_string_shux_redirect_sym_local`
+- `glue_try_std_string_xlang_redirect_sym_local`
 - `glue_type_kind_to_suffix_c`
 - `pipeline_asm_abi_f32_xmm_enabled_c`
 - `pipeline_asm_emit_call_args_elf_c`
@@ -92,7 +92,7 @@
 - `glue_sysv_x86_call_n_stack_c_impl`
 - `glue_try_std_encoding_redirect_sym_local_impl`
 - `glue_try_std_heap_redirect_sym_local_impl`
-- `glue_try_std_string_shux_redirect_sym_local_impl`
+- `glue_try_std_string_xlang_redirect_sym_local_impl`
 - `glue_type_kind_to_suffix_c_impl`
 - `pipeline_asm_abi_f32_xmm_enabled_c_impl`
 - `pipeline_asm_emit_call_args_elf_c_impl`

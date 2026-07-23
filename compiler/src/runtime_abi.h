@@ -7,8 +7,8 @@
  * 重要约定：argv 在 ABI 上与 char** 同址；.x 侧为 *u8，须经 driver_get_argv_i 逐项拷贝字符串。
  */
 
-#ifndef SHUX_RUNTIME_ABI_H
-#define SHUX_RUNTIME_ABI_H
+#ifndef XLANG_RUNTIME_ABI_H
+#define XLANG_RUNTIME_ABI_H
 
 #include <stdint.h>
 
@@ -37,9 +37,9 @@ int32_t driver_resolve_target_arch(int32_t parsed_target, int32_t saw_target_fla
  * C 程序入口薄转发：main.c / runtime_asm_build.c 的 main() 统一经本符号进入 main.x 的 main_entry。
  * 参数：argc/argv 与 C main 一致。
  * 返回值：main_entry 的退出码。
- * 说明：Linux x86_64 bootstrap 默认 crt0 直调 main_entry（E-04 v19）；non-Linux 经 shux_forward_main_to_main_entry。
+ * 说明：Linux x86_64 bootstrap 默认 crt0 直调 main_entry（E-04 v19）；non-Linux 经 xlang_forward_main_to_main_entry。
  */
-int shux_forward_main_to_main_entry(int argc, char **argv);
+int xlang_forward_main_to_main_entry(int argc, char **argv);
 
 /**
  * NL-07 nostdlib：bootstrap_nostdlib_stubs 链入时返回 1（pthread 为同步桩）；
@@ -47,4 +47,4 @@ int shux_forward_main_to_main_entry(int argc, char **argv);
  */
 int bootstrap_nostdlib_pthread_is_stub(void);
 
-#endif /* SHUX_RUNTIME_ABI_H */
+#endif /* XLANG_RUNTIME_ABI_H */

@@ -9,7 +9,7 @@
 
 ## 1. 目标
 
-发布 **vscode-shux 0.2.0** 稳定扩展包：语法 grammar 覆盖 Phase 3 语言面（泛型、async/await、unsafe），**vsix + grammar gate** 可复现。
+发布 **vscode-xlang 0.2.0** 稳定扩展包：语法 grammar 覆盖 Phase 3 语言面（泛型、async/await、unsafe），**vsix + grammar gate** 可复现。
 
 验收：`tests/run-tool-vscode-020-gate.sh` 绿；`VERSION` 与 `package.json` version **0.2.0** 同步。
 
@@ -36,7 +36,7 @@ grammar 文件：`editors/vscode/grammars/x.tmLanguage.json`。
 
 | 产物 | 路径 |
 |------|------|
-| 扩展包 | `editors/vscode/vscode-shux-0.2.0.vsix` |
+| 扩展包 | `editors/vscode/vscode-xlang-0.2.0.vsix` |
 | 编译产出 | `editors/vscode/out/extension.js` |
 | 版本锚点 | 根目录 `VERSION` = `0.2.0` |
 
@@ -51,7 +51,7 @@ grammar 文件：`editors/vscode/grammars/x.tmLanguage.json`。
 ```
 
 ```
-shux: [SHUX_TOOL009_VSCODE_020] status=ok grammar_ok=8 vsix_ok=1 skip=0
+xlang: [XLANG_TOOL009_VSCODE_020] status=ok grammar_ok=8 vsix_ok=1 skip=0
 ```
 
 无 `node`/`npm` 时 manifest + grammar JSON 仍须绿；vsix runnable **SKIP**。

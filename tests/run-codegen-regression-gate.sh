@@ -9,12 +9,12 @@
 set -e
 cd "$(dirname "$0")/.."
 
-MATRIX="${SHUX_CODEGEN_REGRESSION_TSV:-tests/baseline/codegen-regression-matrix.tsv}"
+MATRIX="${XLANG_CODEGEN_REGRESSION_TSV:-tests/baseline/codegen-regression-matrix.tsv}"
 
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -51,32 +51,32 @@ echo "codegen-regression manifest OK (host=$(ci_host_summary))"
 
 make -C compiler -q 2>/dev/null || make -C compiler
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
-    if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
+    if native_xlang "$cand"; then
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHUX_BIN" ]; then
-  echo "codegen-regression gate SKIP bench (no native shux)" >&2
+if [ -z "$XLANG_BIN" ]; then
+  echo "codegen-regression gate SKIP bench (no native xlang)" >&2
   exit 0
 fi
 
 run_x_case() {
   local src="$1"
   local want_ec="$2"
-  local out="/tmp/shux_codegen_${src##*/}"
+  local out="/tmp/xlang_codegen_${src##*/}"
   out="${out%.x}"
   if [ ! -f "$src" ]; then
     echo "codegen-regression FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$SHUX_BIN" -L . "$src" -o "$out" >/tmp/shux_codegen_compile.log 2>&1; then
-    cat /tmp/shux_codegen_compile.log >&2
+  if ! "$XLANG_BIN" -L . "$src" -o "$out" >/tmp/xlang_codegen_compile.log 2>&1; then
+    cat /tmp/xlang_codegen_compile.log >&2
     return 1
   fi
   local ec=0
@@ -89,7 +89,7 @@ run_x_case() {
 }
 
 FAILS=0
-echo "=== COMP-003: codegen smoke (SHUX=$SHUX_BIN) ==="
+echo "=== COMP-003: codegen smoke (XLANG=$XLANG_BIN) ==="
 
 while IFS=$'\t' read -r case_id src arch policy want_ec notes; do
   [ -z "$case_id" ] && continue
@@ -108,14 +108,14 @@ while IFS=$'\t' read -r case_id src arch policy want_ec notes; do
       fi
       ;;
     hook)
-      # asm hook 优先 shux_asm
-      hook_shu="$SHUX_BIN"
-      if [ "$src" = "run-asm-73-gate.sh" ] && [ -x ./compiler/shux_asm ] && native_shu ./compiler/shux_asm; then
-        hook_shu=./compiler/shux_asm
+      # asm hook 优先 xlang_asm
+      hook_shu="$XLANG_BIN"
+      if [ "$src" = "run-asm-73-gate.sh" ] && [ -x ./compiler/xlang_asm ] && native_xlang ./compiler/xlang_asm; then
+        hook_shu=./compiler/xlang_asm
       fi
       hook="tests/${src}"
       chmod +x "$hook" 2>/dev/null || true
-      if SHUX="$hook_shu" "$hook"; then
+      if XLANG="$hook_shu" "$hook"; then
         echo "codegen-regression OK $case_id ($src)"
       else
         echo "codegen-regression FAIL $case_id ($src)" >&2

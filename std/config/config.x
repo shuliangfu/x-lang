@@ -50,7 +50,7 @@ export const CFG_LIT_NO: u8[3] = [110, 111, 0];
 export const CFG_LIT_OFF: u8[4] = [111, 102, 102, 0];
 /* See implementation. */
 export const CFG_LIT_N9090: u8[5] = [57, 48, 57, 48, 0];
-export const CFG_LIT_SHUX_CFG_DEBUG: u8[15] = [83, 72, 85, 88, 95, 67, 70, 71, 95, 100, 101, 98, 117, 103, 0];
+export const CFG_LIT_XLANG_CFG_DEBUG: u8[16] = [88, 76, 65, 78, 71, 95, 67, 70, 71, 95, 100, 101, 98, 117, 103, 0];
 export const CFG_LIT_ALPHA: u8[6] = [97, 108, 112, 104, 97, 0];
 export const CFG_LIT_BETA: u8[5] = [98, 101, 116, 97, 0];
 export const CFG_LIT_CLI: u8[4] = [99, 108, 105, 0];
@@ -1452,9 +1452,9 @@ export function config_smoke_c(): i32 {
   let kind: i32 = 0;
   let label: u8[64] = [];
   let toml: u8[79] = [35, 32, 97, 112, 112, 10, 112, 111, 114, 116, 32, 61, 32, 56, 48, 56, 48, 10, 104, 111, 115, 116, 32, 61, 32, 34, 108, 111, 99, 97, 108, 104, 111, 115, 116, 34, 10, 100, 101, 98, 117, 103, 32, 61, 32, 102, 97, 108, 115, 101, 10, 10, 91, 100, 98, 93, 10, 117, 114, 108, 32, 61, 32, 34, 115, 113, 108, 105, 116, 101, 58, 47, 47, 109, 101, 109, 34, 10, 0];
-  let env_key: u8[14] = [83, 72, 85, 88, 95, 67, 70, 71, 95, 100, 101, 98, 117, 103];
+  let env_key: u8[15] = [88, 76, 65, 78, 71, 95, 67, 70, 71, 95, 100, 101, 98, 117, 103];
   let env_val: u8[5] = [116, 114, 117, 101, 0];
-  let env_prefix: u8[10] = [83, 72, 85, 88, 95, 67, 70, 71, 95, 0];
+  let env_prefix: u8[11] = [88, 76, 65, 78, 71, 95, 67, 70, 71, 95, 0];
   let nr: i32 = 0;
   let ar: i32 = 0;
   base = config_create_c();
@@ -1469,7 +1469,7 @@ export function config_smoke_c(): i32 {
   if (config_get_bool_c(base, &CFG_LIT_DEBUG[0], 5, &dbg) != CFG_OK || dbg != 1) { return 7; }
   if (config_get_source_c(base, &CFG_LIT_DEBUG[0], 5, &kind, &label[0], 64) != CFG_OK) { return 71; }
   if (kind != CFG_SRC_ENV) { return 72; }
-  unsafe { if (strcmp(&label[0], &CFG_LIT_SHUX_CFG_DEBUG[0]) != 0) { return 73; } }
+  unsafe { if (strcmp(&label[0], &CFG_LIT_XLANG_CFG_DEBUG[0]) != 0) { return 73; } }
   if (config_get_source_c(base, &CFG_LIT_PORT[0], 4, &kind, &label[0], 64) != CFG_OK) { return 74; }
   if (kind != CFG_SRC_TOML) { return 75; }
   if (config_set_string_c(overlay, &CFG_LIT_PORT[0], 4, &CFG_LIT_N9090[0], 4) != CFG_OK) { return 8; }

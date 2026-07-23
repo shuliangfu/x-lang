@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-context.sh — STD-071 manifest 与烟测辅助（F-context v2：纯 context.x）
 
-STD_CONTEXT_PREFIX="${SHUX_STD_CONTEXT_PREFIX:-shux: [SHUX_STD_CONTEXT]}"
+STD_CONTEXT_PREFIX="${XLANG_STD_CONTEXT_PREFIX:-xlang: [XLANG_STD_CONTEXT]}"
 
 # 遍历 manifest 校验 symbol/file/smoke；symbol 在 context.x。
 std_context_symbols_ok() {
@@ -42,11 +42,11 @@ std_context_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# C 烟测：context.o + time.o（需 shux-c 产出 context.o）。
+# C 烟测：context.o + time.o（需 xlang-c 产出 context.o）。
 std_context_run_c_smoke() {
   local ctx_x="$1"
   local src="tests/std-context/context_smoke_ok.c"
-  local out="/tmp/shux_std_context_$$"
+  local out="/tmp/xlang_std_context_$$"
   local ctx_o time_o
   ctx_o="$(dirname "$ctx_x")/context.o"
   time_o="std/time/time.o"
@@ -76,13 +76,13 @@ std_context_run_c_smoke() {
 
 # 编译并运行 .x 烟测。
 std_context_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-ctx}"
-  local exe="/tmp/shux_std_context_${tag}_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std_context_${tag}_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-context FAIL: compile $src" >&2
-    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi

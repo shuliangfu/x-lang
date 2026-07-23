@@ -6,7 +6,7 @@
 
 | 项 | 说明 |
 |----|------|
-| `libc.x` | malloc/free/realloc/calloc、typed alloc、copy_*_at、Arena64、SHUX_HEAP_TRACE、alloc_f32 导出 |
+| `libc.x` | malloc/free/realloc/calloc、typed alloc、copy_*_at、Arena64、XLANG_HEAP_TRACE、alloc_f32 导出 |
 | `ops.x` | F-03 v1：mem/map 算法（不变） |
 | `mod.x` | import heap_libc + heap_ops；无 extern heap_*_c |
 | 删除 | `std/heap/heap.c`、`Makefile` heap.o、链接表 heap.o |
@@ -17,8 +17,8 @@
 ## 复现
 
 ```bash
-SHUX_F03_HEAP_LIBC_FAIL=1 ./tests/run-f03-std-heap-libc-gate.sh
-SHUX_STD_HEAP_TRACE_FAIL=1 ./tests/run-std-heap-trace-gate.sh
-SHUX_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=105
+XLANG_F03_HEAP_LIBC_FAIL=1 ./tests/run-f03-std-heap-libc-gate.sh
+XLANG_STD_HEAP_TRACE_FAIL=1 ./tests/run-std-heap-trace-gate.sh
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=105
 ./tests/run-heap.sh
 ```

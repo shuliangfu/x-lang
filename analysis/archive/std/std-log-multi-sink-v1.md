@@ -26,7 +26,7 @@
 | `close_file_sink()` | 关闭文件 sink |
 | `log` / `structured_kv` | 写入所有活跃 sink |
 
-环境变量 **`SHUX_LOG_MIN_LEVEL`**（0–3）在首次写日志时惰性应用，与 `set_min_level` 一致。
+环境变量 **`XLANG_LOG_MIN_LEVEL`**（0–3）在首次写日志时惰性应用，与 `set_min_level` 一致。
 
 ---
 
@@ -59,7 +59,7 @@ let kv: u8[24] = [101, 118, 101, 110, 116, 61, 115, 116, 97, 114, 116, 32, 117, 
 structured_kv(&comp[0], level_info(), &kv[0]);
 ```
 
-输出：`shux: level=info component=… event=start us=123`（见 OBS-003）。
+输出：`xlang: level=info component=… event=start us=123`（见 OBS-003）。
 
 ### 3.4 级别过滤
 
@@ -77,7 +77,7 @@ INFO 被丢弃（返回 0、无输出）。烟测金样：`filtered` 在 `min=WA
 | ID | 期望 |
 |----|------|
 | `human_file` | 文件含 `[INFO] sink_ok` |
-| `structured_file` | 文件含 `shux: level=info component=std_log_smoke` |
+| `structured_file` | 文件含 `xlang: level=info component=std_log_smoke` |
 | `level_filter` | `min=WARN` 时 INFO `filtered` 不出现 |
 
 ---
@@ -89,7 +89,7 @@ INFO 被丢弃（返回 0、无输出）。烟测金样：`filtered` 在 `min=WA
 ```
 
 ```
-shux: [SHUX_STD_LOG_MULTI_SINK] status=ok c_smoke=1 x=1 skip=0
+xlang: [XLANG_STD_LOG_MULTI_SINK] status=ok c_smoke=1 x=1 skip=0
 ```
 
 ---
@@ -98,4 +98,4 @@ shux: [SHUX_STD_LOG_MULTI_SINK] status=ok c_smoke=1 x=1 skip=0
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
-| v1 | 2026-06-17 | 多 sink + SHUX_LOG_MIN_LEVEL + Cookbook |
+| v1 | 2026-06-17 | 多 sink + XLANG_LOG_MIN_LEVEL + Cookbook |

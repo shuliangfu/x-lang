@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-task.sh — STD-089 manifest 与烟测辅助（F-task v2：纯 task.x）
 
-STD_TASK_PREFIX="${SHUX_STD_TASK_PREFIX:-shux: [SHUX_STD_TASK]}"
+STD_TASK_PREFIX="${XLANG_STD_TASK_PREFIX:-xlang: [XLANG_STD_TASK]}"
 
 # 校验 manifest；symbol 在 task.x。
 std_task_symbols_ok() {
@@ -48,7 +48,7 @@ std_task_symbols_ok() {
 std_task_run_c_smoke() {
   local _task_glue_unused="$1"
   local src="tests/std-task/task_smoke_ok.c"
-  local out="/tmp/shux_std_task_c_$$"
+  local out="/tmp/xlang_std_task_c_$$"
   local task_o
   task_o="$(dirname "$_task_glue_unused")/task.o"
   if [ ! -f "$task_o" ]; then
@@ -73,13 +73,13 @@ std_task_run_c_smoke() {
 }
 
 std_task_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-task}"
-  local exe="/tmp/shux_std_task_${tag}_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std_task_${tag}_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-task FAIL: compile $src" >&2
-    "$shux" -L . "$src" 2>&1 | tail -12 >&2 || true
+    "$xlang" -L . "$src" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi

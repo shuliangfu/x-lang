@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# F-10 v1：make test_x + Stage2 portable 子集（无 shux 时 SKIP 不 FAIL）。
+# F-10 v1：make test_x + Stage2 portable 子集（无 xlang 时 SKIP 不 FAIL）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F10_TEST_X_PORTABLE_FAIL:-0}
+FAIL=${XLANG_F10_TEST_X_PORTABLE_FAIL:-0}
 DOC="analysis/phase-f-f10-v1.md"
 MANIFEST="tests/baseline/f10-test-x-portable.tsv"
 die() { echo "f10-test-x-portable gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 
-stdlib_cm_native_shu() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -33,20 +33,20 @@ done < "$MANIFEST"
 grep -q '^test_x:' compiler/Makefile || die "Makefile missing test_x"
 grep -q 'test_x' compiler/Makefile || die "compiler Makefile missing test_x"
 
-SHUX_BIN=""
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+XLANG_BIN=""
+if XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux_asm && echo ./compiler/shux_asm || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang_asm && echo ./compiler/xlang_asm || true)"; then
   :
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== F-10: make test_x (SHUX=$SHUX_BIN) ==="
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== F-10: make test_x (XLANG=$XLANG_BIN) ==="
   make -C compiler test_x >/dev/null 2>&1 || die "make test_x failed"
 else
-  echo "f10 SKIP make test_x (no native shux)" >&2
+  echo "f10 SKIP make test_x (no native xlang)" >&2
 fi
 
 if [ -f tests/run-d04-stage2-portable-diff-gate.sh ]; then

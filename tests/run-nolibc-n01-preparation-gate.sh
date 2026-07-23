@@ -3,12 +3,12 @@
 #
 # 用法：./tests/run-nolibc-n01-preparation-gate.sh
 # 环境：
-#   SHUX_NOLIBC_N01_FAIL=1              — 失败时硬退出
-#   SHUX_NOLIBC_N01_MANIFEST_ONLY=1     — 仅 manifest（默认行为等价）
+#   XLANG_NOLIBC_N01_FAIL=1              — 失败时硬退出
+#   XLANG_NOLIBC_N01_MANIFEST_ONLY=1     — 仅 manifest（默认行为等价）
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_NOLIBC_N01_FAIL:-0}
+FAIL=${XLANG_NOLIBC_N01_FAIL:-0}
 DOC="analysis/phase-f-n01-v1.md"
 PARENT="analysis/phase-f-no-libc-v1.md"
 MANIFEST="tests/baseline/nolibc-n01-preparation.tsv"

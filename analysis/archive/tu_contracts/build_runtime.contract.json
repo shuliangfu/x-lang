@@ -46,7 +46,7 @@
       "main"
     ]
   },
-  "rest_macro": "SHUX_BUILD_RUNTIME_FROM_X",
+  "rest_macro": "XLANG_BUILD_RUNTIME_FROM_X",
   "impl_residuals": [
     "build_runtime_info_impl",
     "build_runtime_warn_impl",

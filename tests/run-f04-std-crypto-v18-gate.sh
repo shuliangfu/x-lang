@@ -2,11 +2,11 @@
 # F-04 v18：std.crypto chacha20_poly1305.inc.c → chacha20_poly1305.x 门禁。
 #
 # 用法：./tests/run-f04-std-crypto-v18-gate.sh
-# 环境：SHUX_F04_CRYPTO_V18_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F04_CRYPTO_V18_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F04_CRYPTO_V18_FAIL:-0}
+FAIL=${XLANG_F04_CRYPTO_V18_FAIL:-0}
 DOC="analysis/phase-f-f04-v18.md"
 CHACHA="std/crypto/chacha20_poly1305.x"
 GLUE="compiler/seeds/runtime_crypto_inc_glue.from_x.c"
@@ -74,13 +74,13 @@ EOF
     echo "f04 crypto chacha20_poly1305 smoke SKIP (crypto.o missing chacha symbols)"
   fi
 else
-  echo "f04 crypto chacha20_poly1305 smoke SKIP (crypto.o missing .x symbols; need shux-c)"
+  echo "f04 crypto chacha20_poly1305 smoke SKIP (crypto.o missing .x symbols; need xlang-c)"
 fi
 
 if [ -f tests/run-std-crypto-gate.sh ]; then
   echo "=== F-04 v18: delegate run-std-crypto-gate (manifest) ==="
   chmod +x tests/run-std-crypto-gate.sh
-  if ! SHUX_STD_CRYPTO_MANIFEST_ONLY=1 tests/run-std-crypto-gate.sh; then
+  if ! XLANG_STD_CRYPTO_MANIFEST_ONLY=1 tests/run-std-crypto-gate.sh; then
     die "run-std-crypto-gate failed"
   fi
 fi

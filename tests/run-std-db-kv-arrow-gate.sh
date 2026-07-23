@@ -33,19 +33,19 @@ for kw in std.db.kv std.db.arrow mmap LSM WAL compact null_bitmap adopt SIMD SST
 done
 echo "std-db-kv-arrow manifest OK"
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ] && [ -x ./compiler/shux ]; then
-  SHUX_BIN=./compiler/shux
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ] && [ -x ./compiler/xlang ]; then
+  XLANG_BIN=./compiler/xlang
 fi
 
-if [ -n "$SHUX_BIN" ] && [ -x "$SHUX_BIN" ]; then
-  if "$SHUX_BIN" check -L . "$SMOKE_KV" >/dev/null 2>&1 \
-     && "$SHUX_BIN" check -L . "$SMOKE_ARROW" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ] && [ -x "$XLANG_BIN" ]; then
+  if "$XLANG_BIN" check -L . "$SMOKE_KV" >/dev/null 2>&1 \
+     && "$XLANG_BIN" check -L . "$SMOKE_ARROW" >/dev/null 2>&1; then
     echo "std-db-kv-arrow typeck OK"
   else
     echo "std-db-kv-arrow gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_KV" 2>&1 | tail -5 >&2 || true
-    "$SHUX_BIN" check -L . "$SMOKE_ARROW" 2>&1 | tail -5 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_KV" 2>&1 | tail -5 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_ARROW" 2>&1 | tail -5 >&2 || true
     exit 1
   fi
 fi
@@ -73,7 +73,7 @@ if nm std/db/kv/kv.o 2>/dev/null | grep -q ' db_kv_smoke_c'; then
   "$TMP/kv_c_smoke" || { echo "std-db-kv-arrow gate FAIL: kv smoke run" >&2; exit 1; }
   echo "std-db-kv-arrow kv smoke OK"
 else
-  echo "std-db-kv-arrow SKIP kv smoke (kv.o missing .x symbols; need shux-c)" >&2
+  echo "std-db-kv-arrow SKIP kv smoke (kv.o missing .x symbols; need xlang-c)" >&2
 fi
 
 cat >"$TMP/arrow_smoke_main.c" <<'EOF'
@@ -89,21 +89,21 @@ if nm std/db/arrow/arrow.o 2>/dev/null | grep -q ' arrow_smoke_c'; then
   "$TMP/arrow_c_smoke" || { echo "std-db-kv-arrow gate FAIL: arrow C smoke run" >&2; exit 1; }
   echo "std-db-kv-arrow arrow C smoke OK"
 else
-  echo "std-db-kv-arrow SKIP arrow C smoke (need shux-c for arrow.x)" >&2
+  echo "std-db-kv-arrow SKIP arrow C smoke (need xlang-c for arrow.x)" >&2
 fi
 
 mkdir -p tests/std-db
 RUN_OK=0
-SHUX_LINK=""
-if [ -x ./compiler/shux-c ]; then
-  SHUX_LINK=./compiler/shux-c
-elif [ -n "$SHUX_BIN" ] && [ -x "$SHUX_BIN" ]; then
-  SHUX_LINK="$SHUX_BIN"
+XLANG_LINK=""
+if [ -x ./compiler/xlang-c ]; then
+  XLANG_LINK=./compiler/xlang-c
+elif [ -n "$XLANG_BIN" ] && [ -x "$XLANG_BIN" ]; then
+  XLANG_LINK="$XLANG_BIN"
 fi
 KV_O="std/db/kv/kv.o"
 ARROW_O="std/db/arrow/arrow.o"
-if [ -n "$SHUX_LINK" ]; then
-  if "$SHUX_LINK" -L . "$SMOKE_KV" -o "$TMP/kv_smoke" "$KV_O" 2>/dev/null && [ -x "$TMP/kv_smoke" ]; then
+if [ -n "$XLANG_LINK" ]; then
+  if "$XLANG_LINK" -L . "$SMOKE_KV" -o "$TMP/kv_smoke" "$KV_O" 2>/dev/null && [ -x "$TMP/kv_smoke" ]; then
     if "$TMP/kv_smoke"; then
       RUN_OK=$((RUN_OK + 1))
       echo "std-db-kv-arrow kv .x run OK"
@@ -112,7 +112,7 @@ if [ -n "$SHUX_LINK" ]; then
       exit 1
     fi
   fi
-  if "$SHUX_LINK" -L . "$SMOKE_ARROW" -o "$TMP/arrow_smoke" "$ARROW_O" 2>/dev/null && [ -x "$TMP/arrow_smoke" ]; then
+  if "$XLANG_LINK" -L . "$SMOKE_ARROW" -o "$TMP/arrow_smoke" "$ARROW_O" 2>/dev/null && [ -x "$TMP/arrow_smoke" ]; then
     if "$TMP/arrow_smoke"; then
       RUN_OK=$((RUN_OK + 1))
       echo "std-db-kv-arrow arrow .x run OK"
@@ -122,7 +122,7 @@ if [ -n "$SHUX_LINK" ]; then
     fi
   fi
   if [ -f "$COOKBOOK_DB" ] \
-     && "$SHUX_LINK" -L . "$COOKBOOK_DB" -o "$TMP/db_kv_arrow" "$KV_O" "$ARROW_O" 2>/dev/null \
+     && "$XLANG_LINK" -L . "$COOKBOOK_DB" -o "$TMP/db_kv_arrow" "$KV_O" "$ARROW_O" 2>/dev/null \
      && [ -x "$TMP/db_kv_arrow" ]; then
     if "$TMP/db_kv_arrow"; then
       RUN_OK=$((RUN_OK + 1))
@@ -135,7 +135,7 @@ if [ -n "$SHUX_LINK" ]; then
 fi
 
 if [ "$RUN_OK" = "0" ]; then
-  echo "std-db-kv-arrow SKIP .x run (no shux link or compile failed)" >&2
+  echo "std-db-kv-arrow SKIP .x run (no xlang link or compile failed)" >&2
 fi
 
 echo "std-db-kv-arrow gate OK"

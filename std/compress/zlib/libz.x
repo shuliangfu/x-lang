@@ -32,7 +32,7 @@ extern function compress2(dest: *u8, destLen: *u64, source: *u8, sourceLen: u64,
 extern function uncompress(dest: *u8, destLen: *u64, source: *u8, sourceLen: u64): i32;
 
 /* See implementation. */
-let shu_compress_zlib_marker: u8 = 1;
+let xlang_compress_zlib_marker: u8 = 1;
 
 /**
  * See implementation.

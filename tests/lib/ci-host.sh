@@ -61,7 +61,7 @@ ci_is_linux_x64() {
 
 # 是否在 Docker 容器内。
 ci_is_docker() {
-  [ -f /.dockerenv ] || [ -n "${SHUX_CI_DOCKER:-}" ]
+  [ -f /.dockerenv ] || [ -n "${XLANG_CI_DOCKER:-}" ]
 }
 
 # Linux：当前内核是否可用 io_uring（非 Linux 恒返回 1=不可用）。
@@ -86,7 +86,7 @@ ci_host_summary() {
 
 # 判断可执行文件是否可在当前宿主运行（Mach-O/ELF 架构匹配）。
 # 参数：$1 = 编译器二进制路径；返回 0 可运行，1 不可。
-ci_native_shu() {
+ci_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(ci_host_os)-$(ci_host_arch)" in

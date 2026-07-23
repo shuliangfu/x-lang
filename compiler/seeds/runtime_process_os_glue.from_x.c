@@ -14,7 +14,7 @@
  *
  * 【与其它文件的关系】
  * - 被依赖：ld -r 合并为 process.o 后由 runtime 链入用户 exe。
- * - 依赖：runtime_process_argv.o 提供 shux_process_argc/argv（codegen 写入）。
+ * - 依赖：runtime_process_argv.o 提供 xlang_process_argc/argv（codegen 写入）。
  *
  * 【重要约定与说明】
  * - 所有 *name、*path、*program 等指针均要求 NUL 结尾的 C 字符串；buf 与 buf_size 由调用方保证不越界。
@@ -42,7 +42,7 @@
 #include <io.h>
 #include <fcntl.h>
 #include <windows.h>
-#define SHUX_GETENV(name) getenv((const char *)(name))
+#define XLANG_GETENV(name) getenv((const char *)(name))
 #else
 #include <stdlib.h>
 #include <string.h>
@@ -62,7 +62,7 @@
 #if defined(__APPLE__)
 #include <mach-o/dyld.h>
 #endif
-#define SHUX_GETENV(name) getenv((const char *)(name))
+#define XLANG_GETENV(name) getenv((const char *)(name))
 extern char **environ;
 #endif
 
@@ -73,7 +73,7 @@ int process_dup_stdio_posix(int32_t fd, int slot);
 /** 热路径：单次 getenv，零分配；-flto 可内联。 */
 uint8_t *process_getenv_c(uint8_t *name) {
     if (name == NULL) return NULL;
-    const char *v = SHUX_GETENV(name);
+    const char *v = XLANG_GETENV(name);
     return v ? (uint8_t *)v : NULL;
 }
 
@@ -322,7 +322,7 @@ int32_t process_self_exe_path_cached_len_c(void) {
 /* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_process_os_glue.x）提供 public wrapper */
 void process_nop_sigchld_impl(int sig) { (void)sig; }
 
-#ifndef SHUX_RUNTIME_PROCESS_OS_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 void process_nop_sigchld(int sig) {
     process_nop_sigchld_impl(sig);
@@ -463,7 +463,7 @@ int process_dup_stdio_posix_impl(int32_t fd, int slot) {
     return 0;
 }
 
-#ifndef SHUX_RUNTIME_PROCESS_OS_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int process_dup_stdio_posix(int32_t fd, int slot) {
     return process_dup_stdio_posix_impl(fd, slot);

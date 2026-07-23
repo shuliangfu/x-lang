@@ -1,16 +1,16 @@
 /* G-02f-7 / R2 full（2026-07-14）：simd_enc 真迁
  * Logic source: src/asm/simd_enc.x
- * Product PREFER_X_O: g05_try_x_to_o(full.x) + rest (-DSHUX_SIMD_ENC_FROM_X) ld -r
+ * Product PREFER_X_O: g05_try_x_to_o(full.x) + rest (-DXLANG_SIMD_ENC_FROM_X) ld -r
  *   → src/asm/simd_enc.o
  * R2: full.x 吃满 pure/insn/try_hw 公共业务；FROM_X 下 rest 业务 T=0（仅 slice_marker）
  * 冷启动/无 PREFER：本文件完整 C 体（含 L2 thin hybrid 的 _impl 尾）
- * L2 thin hybrid（SHUX_L2_SIMD_ENC_THIN_FROM_X）仍作 full.x 失败时的回退路径。
+ * L2 thin hybrid（XLANG_L2_SIMD_ENC_THIN_FROM_X）仍作 full.x 失败时的回退路径。
  *
  * seeds/simd_enc.from_x.c — product SIMD encode TU (cold full C)
  */
-#ifndef SHUX_SIMD_ENC_FROM_X
+#ifndef XLANG_SIMD_ENC_FROM_X
 /* G-02f-348 / R2 thin full：PREFER hybrid thin 由 src/asm/simd_enc_thin.x；
- * rest SHUX_L2_SIMD_ENC_THIN_FROM_X（public 门闩→_impl；slice_marker + Cap residual 体）。
+ * rest XLANG_L2_SIMD_ENC_THIN_FROM_X（public 门闩→_impl；slice_marker + Cap residual 体）。
  * seeds/simd_enc.from_x.c — G-02f-212 select/pshufd/binop; G-02f-211/7 product pure SIMD encode TU
  * G-02f-125 true .x pure helpers.
  * G-02f-124 true .x pure helpers.
@@ -39,7 +39,7 @@
 
 extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t n);
 
-#ifdef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifdef XLANG_L2_SIMD_ENC_THIN_FROM_X
 struct platform_elf_ElfCodegenCtx;
 int32_t simd_rbp_disp32(int32_t slot_off, int32_t lanes, int32_t esz);
 int32_t simd_arm64_rbp_lea_off_128half(int32_t slot_off, int32_t half, int32_t esz);
@@ -101,7 +101,7 @@ int32_t simd_x86_vpshufd_ymm0_imm8(struct platform_elf_ElfCodegenCtx *elf_ctx, i
 
 /** slot_off 为 asm 局部槽距 fp 的正字节距（lane0 低址端，与向量 let init 的 lea 一致）；x86 disp = -slot_off。 */
 /* G-02f-113/211/348：逻辑源 .x；hybrid 时 pure 由 simd_enc_thin */
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_rbp_disp32(int32_t slot_off, int32_t lanes, int32_t esz) {
   (void)lanes;
   (void)esz;
@@ -117,7 +117,7 @@ int32_t simd_rbp_disp32(int32_t slot_off, int32_t lanes, int32_t esz) {
  * 故 half1 = slot_off - 16（非 +16）；与 let 向量 init 的 [base+lane*esz] 一致。
  */
 /* G-02f-120/348：逻辑源 .x；hybrid 时 pure 由 simd_enc_thin */
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_arm64_rbp_lea_off_128half(int32_t slot_off, int32_t half, int32_t esz) {
     if (slot_off < 0 || esz <= 0 || half < 0)
         return slot_off;
@@ -132,7 +132,7 @@ int32_t simd_append_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, const uint8
     return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)bytes, n);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_append(struct platform_elf_ElfCodegenCtx *elf_ctx, const uint8_t *bytes, int32_t n) {
   return simd_append_impl(elf_ctx, bytes, n);
 }
@@ -153,7 +153,7 @@ int32_t simd_append_disp32_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int3
     return simd_append_impl(elf_ctx, d, 4);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_append_disp32(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp) {
   return simd_append_disp32_impl(elf_ctx, disp);
 }
@@ -172,7 +172,7 @@ int32_t simd_x86_movups_xmm0_from_rbp_impl(struct platform_elf_ElfCodegenCtx *el
     return simd_append_disp32_impl(elf_ctx, disp);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_movups_xmm0_from_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp) {
   return simd_x86_movups_xmm0_from_rbp_impl(elf_ctx, disp);
 }
@@ -191,7 +191,7 @@ int32_t simd_x86_movups_xmm1_from_rbp_impl(struct platform_elf_ElfCodegenCtx *el
     return simd_append_disp32_impl(elf_ctx, disp);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_movups_xmm1_from_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp) {
   return simd_x86_movups_xmm1_from_rbp_impl(elf_ctx, disp);
 }
@@ -208,7 +208,7 @@ int32_t simd_x86_addps_xmm0_xmm1_impl(struct platform_elf_ElfCodegenCtx *elf_ctx
     return simd_append_impl(elf_ctx, insn, 3);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_addps_xmm0_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_addps_xmm0_xmm1_impl(elf_ctx);
 }
@@ -225,7 +225,7 @@ int32_t simd_x86_paddd_xmm0_xmm1_impl(struct platform_elf_ElfCodegenCtx *elf_ctx
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_paddd_xmm0_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_paddd_xmm0_xmm1_impl(elf_ctx);
 }
@@ -244,7 +244,7 @@ int32_t simd_x86_movups_xmm0_to_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_
     return simd_append_disp32_impl(elf_ctx, disp);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_movups_xmm0_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp) {
   return simd_x86_movups_xmm0_to_rbp_impl(elf_ctx, disp);
 }
@@ -263,7 +263,7 @@ int32_t simd_x86_vmovups_ymm0_from_rbp_impl(struct platform_elf_ElfCodegenCtx *e
     return simd_append_disp32_impl(elf_ctx, disp);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_vmovups_ymm0_from_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp) {
   return simd_x86_vmovups_ymm0_from_rbp_impl(elf_ctx, disp);
 }
@@ -282,7 +282,7 @@ int32_t simd_x86_vmovups_ymm1_from_rbp_impl(struct platform_elf_ElfCodegenCtx *e
     return simd_append_disp32_impl(elf_ctx, disp);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_vmovups_ymm1_from_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp) {
   return simd_x86_vmovups_ymm1_from_rbp_impl(elf_ctx, disp);
 }
@@ -299,7 +299,7 @@ int32_t simd_x86_vpaddd_ymm0_ymm1_impl(struct platform_elf_ElfCodegenCtx *elf_ct
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_vpaddd_ymm0_ymm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_vpaddd_ymm0_ymm1_impl(elf_ctx);
 }
@@ -318,7 +318,7 @@ int32_t simd_x86_vmovups_ymm0_to_rbp_impl(struct platform_elf_ElfCodegenCtx *elf
     return simd_append_disp32_impl(elf_ctx, disp);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_vmovups_ymm0_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp) {
   return simd_x86_vmovups_ymm0_to_rbp_impl(elf_ctx, disp);
 }
@@ -335,7 +335,7 @@ int32_t simd_x86_psubd_xmm0_xmm1_impl(struct platform_elf_ElfCodegenCtx *elf_ctx
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_psubd_xmm0_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_psubd_xmm0_xmm1_impl(elf_ctx);
 }
@@ -352,7 +352,7 @@ int32_t simd_x86_vpsubd_ymm0_ymm1_impl(struct platform_elf_ElfCodegenCtx *elf_ct
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_vpsubd_ymm0_ymm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_vpsubd_ymm0_ymm1_impl(elf_ctx);
 }
@@ -369,7 +369,7 @@ int32_t simd_x86_pmulld_xmm0_xmm1_impl(struct platform_elf_ElfCodegenCtx *elf_ct
     return simd_append_impl(elf_ctx, insn, 5);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_pmulld_xmm0_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_pmulld_xmm0_xmm1_impl(elf_ctx);
 }
@@ -386,7 +386,7 @@ int32_t simd_x86_vpmulld_ymm0_ymm1_impl(struct platform_elf_ElfCodegenCtx *elf_c
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_vpmulld_ymm0_ymm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_vpmulld_ymm0_ymm1_impl(elf_ctx);
 }
@@ -403,7 +403,7 @@ int32_t simd_x86_mulps_xmm0_xmm1_impl(struct platform_elf_ElfCodegenCtx *elf_ctx
     return simd_append_impl(elf_ctx, insn, 3);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_mulps_xmm0_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_mulps_xmm0_xmm1_impl(elf_ctx);
 }
@@ -422,7 +422,7 @@ int32_t simd_x86_movups_xmm2_from_rbp_impl(struct platform_elf_ElfCodegenCtx *el
     return simd_append_disp32_impl(elf_ctx, disp);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_movups_xmm2_from_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp) {
   return simd_x86_movups_xmm2_from_rbp_impl(elf_ctx, disp);
 }
@@ -439,7 +439,7 @@ int32_t simd_x86_vfmadd231ps_xmm0_xmm1_xmm2_impl(struct platform_elf_ElfCodegenC
     return simd_append_impl(elf_ctx, insn, 5);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_vfmadd231ps_xmm0_xmm1_xmm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_vfmadd231ps_xmm0_xmm1_xmm2_impl(elf_ctx);
 }
@@ -466,7 +466,7 @@ int32_t simd_enc_try_hw_vector_iadd_isub_rbp_impl(struct platform_elf_ElfCodegen
     da = simd_rbp_disp32(slot_off_a, lanes, esz);
     db = simd_rbp_disp32(slot_off_b, lanes, esz);
     dd = simd_rbp_disp32(slot_off_dst, lanes, esz);
-    if (lanes == 8 && (cpu_features & SHUX_CPU_FEAT_AVX2) != 0) {
+    if (lanes == 8 && (cpu_features & XLANG_CPU_FEAT_AVX2) != 0) {
         if (simd_x86_vmovups_ymm0_from_rbp_impl(elf_ctx, da) != 0)
             return -1;
         if (simd_x86_vmovups_ymm1_from_rbp_impl(elf_ctx, db) != 0)
@@ -482,7 +482,7 @@ int32_t simd_enc_try_hw_vector_iadd_isub_rbp_impl(struct platform_elf_ElfCodegen
             return -1;
         return 0;
     }
-    if (lanes == 4 && (cpu_features & SHUX_CPU_FEAT_SSE2) != 0) {
+    if (lanes == 4 && (cpu_features & XLANG_CPU_FEAT_SSE2) != 0) {
         if (simd_x86_movups_xmm0_from_rbp_impl(elf_ctx, da) != 0)
             return -1;
         if (simd_x86_movups_xmm1_from_rbp_impl(elf_ctx, db) != 0)
@@ -501,7 +501,7 @@ int32_t simd_enc_try_hw_vector_iadd_isub_rbp_impl(struct platform_elf_ElfCodegen
     return -1;
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_enc_try_hw_vector_iadd_isub_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
                                                     int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes,
                                                     int32_t esz, int32_t ta, uint32_t cpu_features, int32_t is_sub) {
@@ -519,7 +519,7 @@ int32_t simd_enc_try_hw_vector_iadd_rbp_impl(struct platform_elf_ElfCodegenCtx *
                                                 cpu_features, 0);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_enc_try_hw_vector_iadd_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a, int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes, int32_t esz, int32_t ta, uint32_t cpu_features) {
   return simd_enc_try_hw_vector_iadd_rbp_impl(elf_ctx, slot_off_a, slot_off_b, slot_off_dst, lanes, esz, ta, cpu_features);
 }
@@ -532,7 +532,7 @@ int32_t simd_enc_try_hw_vector_isub_rbp_impl(struct platform_elf_ElfCodegenCtx *
                                                 cpu_features, 1);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_enc_try_hw_vector_isub_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a, int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes, int32_t esz, int32_t ta, uint32_t cpu_features) {
   return simd_enc_try_hw_vector_isub_rbp_impl(elf_ctx, slot_off_a, slot_off_b, slot_off_dst, lanes, esz, ta, cpu_features);
 }
@@ -554,7 +554,7 @@ int32_t simd_enc_try_hw_vector_imul_rbp_impl(struct platform_elf_ElfCodegenCtx *
     da = simd_rbp_disp32(slot_off_a, lanes, esz);
     db = simd_rbp_disp32(slot_off_b, lanes, esz);
     dd = simd_rbp_disp32(slot_off_dst, lanes, esz);
-    if (lanes == 8 && (cpu_features & SHUX_CPU_FEAT_AVX2) != 0) {
+    if (lanes == 8 && (cpu_features & XLANG_CPU_FEAT_AVX2) != 0) {
         if (simd_x86_vmovups_ymm0_from_rbp_impl(elf_ctx, da) != 0)
             return -1;
         if (simd_x86_vmovups_ymm1_from_rbp_impl(elf_ctx, db) != 0)
@@ -565,7 +565,7 @@ int32_t simd_enc_try_hw_vector_imul_rbp_impl(struct platform_elf_ElfCodegenCtx *
             return -1;
         return 0;
     }
-    if (lanes == 4 && (cpu_features & SHUX_CPU_FEAT_SSE41) != 0) {
+    if (lanes == 4 && (cpu_features & XLANG_CPU_FEAT_SSE41) != 0) {
         if (simd_x86_movups_xmm0_from_rbp_impl(elf_ctx, da) != 0)
             return -1;
         if (simd_x86_movups_xmm1_from_rbp_impl(elf_ctx, db) != 0)
@@ -579,7 +579,7 @@ int32_t simd_enc_try_hw_vector_imul_rbp_impl(struct platform_elf_ElfCodegenCtx *
     return -1;
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_enc_try_hw_vector_imul_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
                                         int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes, int32_t esz,
                                         int32_t ta, uint32_t cpu_features) {
@@ -600,7 +600,7 @@ int32_t simd_enc_try_hw_vector_fadd_rbp_impl(struct platform_elf_ElfCodegenCtx *
         return -1;
     if (ta != 0)
         return -1;
-    if ((cpu_features & SHUX_CPU_FEAT_SSE2) == 0)
+    if ((cpu_features & XLANG_CPU_FEAT_SSE2) == 0)
         return -1;
     da = simd_rbp_disp32(slot_off_a, lanes, esz);
     db = simd_rbp_disp32(slot_off_b, lanes, esz);
@@ -616,7 +616,7 @@ int32_t simd_enc_try_hw_vector_fadd_rbp_impl(struct platform_elf_ElfCodegenCtx *
     return 0;
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_enc_try_hw_vector_fadd_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
                                         int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes, int32_t esz,
                                         int32_t ta, uint32_t cpu_features) {
@@ -637,7 +637,7 @@ int32_t simd_enc_try_hw_vector_fmul_rbp_impl(struct platform_elf_ElfCodegenCtx *
         return -1;
     if (ta != 0)
         return -1;
-    if ((cpu_features & SHUX_CPU_FEAT_SSE2) == 0)
+    if ((cpu_features & XLANG_CPU_FEAT_SSE2) == 0)
         return -1;
     da = simd_rbp_disp32(slot_off_a, lanes, esz);
     db = simd_rbp_disp32(slot_off_b, lanes, esz);
@@ -653,7 +653,7 @@ int32_t simd_enc_try_hw_vector_fmul_rbp_impl(struct platform_elf_ElfCodegenCtx *
     return 0;
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_enc_try_hw_vector_fmul_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
                                         int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes, int32_t esz,
                                         int32_t ta, uint32_t cpu_features) {
@@ -675,13 +675,13 @@ int32_t simd_enc_try_hw_vector_fma_rbp_impl(struct platform_elf_ElfCodegenCtx *e
         return -1;
     if (ta != 0)
         return -1;
-    if ((cpu_features & SHUX_CPU_FEAT_SSE2) == 0)
+    if ((cpu_features & XLANG_CPU_FEAT_SSE2) == 0)
         return -1;
     da = simd_rbp_disp32(slot_off_a, lanes, esz);
     db = simd_rbp_disp32(slot_off_b, lanes, esz);
     dc = simd_rbp_disp32(slot_off_c, lanes, esz);
     dd = simd_rbp_disp32(slot_off_dst, lanes, esz);
-    if ((cpu_features & SHUX_CPU_FEAT_FMA) != 0) {
+    if ((cpu_features & XLANG_CPU_FEAT_FMA) != 0) {
         if (simd_x86_movups_xmm0_from_rbp_impl(elf_ctx, da) != 0)
             return -1;
         if (simd_x86_movups_xmm1_from_rbp_impl(elf_ctx, db) != 0)
@@ -708,7 +708,7 @@ int32_t simd_enc_try_hw_vector_fma_rbp_impl(struct platform_elf_ElfCodegenCtx *e
     return 0;
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_enc_try_hw_vector_fma_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
                                        int32_t slot_off_b, int32_t slot_off_c, int32_t slot_off_dst, int32_t lanes,
                                        int32_t esz, int32_t ta, uint32_t cpu_features) {
@@ -724,7 +724,7 @@ int32_t simd_x86_vmovups_ymm0_from_rbx_rax4_impl(struct platform_elf_ElfCodegenC
     return simd_append_impl(elf_ctx, insn, 6);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_vmovups_ymm0_from_rbx_rax4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_vmovups_ymm0_from_rbx_rax4_impl(elf_ctx);
 }
@@ -741,7 +741,7 @@ int32_t simd_x86_vmovups_ymm1_from_rbx_rax4_impl(struct platform_elf_ElfCodegenC
     return simd_append_impl(elf_ctx, insn, 6);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_vmovups_ymm1_from_rbx_rax4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_vmovups_ymm1_from_rbx_rax4_impl(elf_ctx);
 }
@@ -758,7 +758,7 @@ int32_t simd_x86_vmovups_ymm0_to_rbx_rax4_impl(struct platform_elf_ElfCodegenCtx
     return simd_append_impl(elf_ctx, insn, 6);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_vmovups_ymm0_to_rbx_rax4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_vmovups_ymm0_to_rbx_rax4_impl(elf_ctx);
 }
@@ -775,7 +775,7 @@ int32_t simd_x86_movups_xmm0_from_rbx_rax4_impl(struct platform_elf_ElfCodegenCt
     return simd_append_impl(elf_ctx, insn, 5);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_movups_xmm0_from_rbx_rax4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_movups_xmm0_from_rbx_rax4_impl(elf_ctx);
 }
@@ -792,7 +792,7 @@ int32_t simd_x86_movups_xmm1_from_rbx_rax4_impl(struct platform_elf_ElfCodegenCt
     return simd_append_impl(elf_ctx, insn, 5);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_movups_xmm1_from_rbx_rax4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_movups_xmm1_from_rbx_rax4_impl(elf_ctx);
 }
@@ -809,7 +809,7 @@ int32_t simd_x86_movups_xmm0_to_rbx_rax4_impl(struct platform_elf_ElfCodegenCtx 
     return simd_append_impl(elf_ctx, insn, 5);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_movups_xmm0_to_rbx_rax4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_movups_xmm0_to_rbx_rax4_impl(elf_ctx);
 }
@@ -846,7 +846,7 @@ int32_t simd_enc_try_hw_vector_binop_rbp_at_idx_impl(struct platform_elf_ElfCode
         return -1;
     if (backend_enc_lea_rbp_to_rbx_arch(elf_ctx, elem0_a, ta) != 0)
         return -1;
-    if (lanes == 8 && (cpu_features & SHUX_CPU_FEAT_AVX2) != 0) {
+    if (lanes == 8 && (cpu_features & XLANG_CPU_FEAT_AVX2) != 0) {
         if (simd_x86_vmovups_ymm0_from_rbx_rax4_impl(elf_ctx) != 0)
             return -1;
         if (backend_enc_lea_rbp_to_rbx_arch(elf_ctx, elem0_b, ta) != 0)
@@ -870,9 +870,9 @@ int32_t simd_enc_try_hw_vector_binop_rbp_at_idx_impl(struct platform_elf_ElfCode
         return 0;
     }
     if (lanes == 4) {
-        if (binop_ko == 6 && (cpu_features & SHUX_CPU_FEAT_SSE41) == 0)
+        if (binop_ko == 6 && (cpu_features & XLANG_CPU_FEAT_SSE41) == 0)
             return -1;
-        if (binop_ko != 6 && (cpu_features & SHUX_CPU_FEAT_SSE2) == 0)
+        if (binop_ko != 6 && (cpu_features & XLANG_CPU_FEAT_SSE2) == 0)
             return -1;
         if (simd_x86_movups_xmm0_from_rbx_rax4_impl(elf_ctx) != 0)
             return -1;
@@ -899,7 +899,7 @@ int32_t simd_enc_try_hw_vector_binop_rbp_at_idx_impl(struct platform_elf_ElfCode
     return -1;
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_enc_try_hw_vector_binop_rbp_at_idx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_a,
                                                 int32_t off_b, int32_t off_d, int32_t off_i, int32_t array_n,
                                                 int32_t binop_ko, int32_t lanes, int32_t esz, int32_t ta,
@@ -920,7 +920,7 @@ int32_t simd_append_u32_le_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint
     return simd_append_impl(elf_ctx, b, 4);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_append_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word) {
   return simd_append_u32_le_impl(elf_ctx, word);
 }
@@ -934,7 +934,7 @@ int32_t simd_append_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t 
  * 低 16 位须为 0x401（clang -c 烟测）；误写 |1 会被 otool 解成 EXT，shuffle 结果错误。
  */
 /* G-02f-115/348：逻辑源 .x；hybrid 时 pure 由 simd_enc_thin */
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 uint32_t simd_arm64_ins_v1_from_v0_s(int32_t dst_lane, int32_t src_lane) {
   return (uint32_t)(0x6E040000U | ((dst_lane & 3) << 19) | ((src_lane & 3) << 13) | 0x401U);
 }
@@ -972,7 +972,7 @@ int32_t simd_arm64_pshufd_imm8_128_rbp_impl(struct platform_elf_ElfCodegenCtx *e
     return 0;
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_arm64_pshufd_imm8_128_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t lea_src,
                                               int32_t lea_dst, int32_t imm8, int32_t ta) {
   return simd_arm64_pshufd_imm8_128_rbp_impl(elf_ctx, lea_src, lea_dst, imm8, ta);
@@ -1023,7 +1023,7 @@ int32_t simd_arm64_select_128_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ct
     return 0;
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_arm64_select_128_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t lea_mask,
                                        int32_t lea_a, int32_t lea_b, int32_t lea_dst, int32_t is_f32,
                                        int32_t ta) {
@@ -1046,7 +1046,7 @@ int32_t simd_x86_pshufd_xmm0_imm8_impl(struct platform_elf_ElfCodegenCtx *elf_ct
     return simd_append_impl(elf_ctx, &ib, 1);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_pshufd_xmm0_imm8(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm8) {
   return simd_x86_pshufd_xmm0_imm8_impl(elf_ctx, imm8);
 }
@@ -1067,7 +1067,7 @@ int32_t simd_x86_vpshufd_ymm0_imm8_impl(struct platform_elf_ElfCodegenCtx *elf_c
     return simd_append_impl(elf_ctx, &ib, 1);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_vpshufd_ymm0_imm8(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm8) {
   return simd_x86_vpshufd_ymm0_imm8_impl(elf_ctx, imm8);
 }
@@ -1088,7 +1088,7 @@ int32_t simd_enc_try_pshufd_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx,
     ds = simd_rbp_disp32(slot_off_src, lanes, 4);
     dd = simd_rbp_disp32(slot_off_dst, lanes, 4);
     if (ta == 1) {
-        if ((cpu_features & SHUX_CPU_FEAT_NEON) == 0)
+        if ((cpu_features & XLANG_CPU_FEAT_NEON) == 0)
             return -1;
         ds = simd_arm64_rbp_lea_off_128half(slot_off_src, 0, 4);
         dd = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, 4);
@@ -1109,7 +1109,7 @@ int32_t simd_enc_try_pshufd_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx,
     }
     if (ta != 0)
         return -1;
-    if (lanes == 8 && (cpu_features & SHUX_CPU_FEAT_AVX2) != 0) {
+    if (lanes == 8 && (cpu_features & XLANG_CPU_FEAT_AVX2) != 0) {
         if (simd_x86_vmovups_ymm0_from_rbp_impl(elf_ctx, ds) != 0)
             return -1;
         if (simd_x86_vpshufd_ymm0_imm8_impl(elf_ctx, imm8) != 0)
@@ -1118,7 +1118,7 @@ int32_t simd_enc_try_pshufd_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx,
             return -1;
         return 0;
     }
-    if (lanes == 4 && (cpu_features & SHUX_CPU_FEAT_SSE2) != 0) {
+    if (lanes == 4 && (cpu_features & XLANG_CPU_FEAT_SSE2) != 0) {
         if (simd_x86_movups_xmm0_from_rbp_impl(elf_ctx, ds) != 0)
             return -1;
         if (simd_x86_pshufd_xmm0_imm8_impl(elf_ctx, imm8) != 0)
@@ -1130,7 +1130,7 @@ int32_t simd_enc_try_pshufd_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx,
     return -1;
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_enc_try_pshufd_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_src,
                                 int32_t slot_off_dst, int32_t imm8, int32_t lanes, int32_t ta,
                                 uint32_t cpu_features) {
@@ -1148,7 +1148,7 @@ int32_t simd_x86_vmovups_ymm2_from_rbp_impl(struct platform_elf_ElfCodegenCtx *e
     return simd_append_disp32_impl(elf_ctx, disp);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_vmovups_ymm2_from_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp) {
   return simd_x86_vmovups_ymm2_from_rbp_impl(elf_ctx, disp);
 }
@@ -1165,7 +1165,7 @@ int32_t simd_x86_pxor_xmm3_xmm3_impl(struct platform_elf_ElfCodegenCtx *elf_ctx)
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_pxor_xmm3_xmm3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_pxor_xmm3_xmm3_impl(elf_ctx);
 }
@@ -1182,7 +1182,7 @@ int32_t simd_x86_pcmpgtd_xmm2_xmm3_impl(struct platform_elf_ElfCodegenCtx *elf_c
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_pcmpgtd_xmm2_xmm3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_pcmpgtd_xmm2_xmm3_impl(elf_ctx);
 }
@@ -1199,7 +1199,7 @@ int32_t simd_x86_pand_xmm0_xmm2_impl(struct platform_elf_ElfCodegenCtx *elf_ctx)
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_pand_xmm0_xmm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_pand_xmm0_xmm2_impl(elf_ctx);
 }
@@ -1216,7 +1216,7 @@ int32_t simd_x86_pandn_xmm2_xmm1_impl(struct platform_elf_ElfCodegenCtx *elf_ctx
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_pandn_xmm2_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_pandn_xmm2_xmm1_impl(elf_ctx);
 }
@@ -1233,7 +1233,7 @@ int32_t simd_x86_por_xmm0_xmm2_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) 
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_por_xmm0_xmm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_por_xmm0_xmm2_impl(elf_ctx);
 }
@@ -1250,7 +1250,7 @@ int32_t simd_x86_xorps_xmm3_xmm3_impl(struct platform_elf_ElfCodegenCtx *elf_ctx
     return simd_append_impl(elf_ctx, insn, 3);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_xorps_xmm3_xmm3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_xorps_xmm3_xmm3_impl(elf_ctx);
 }
@@ -1267,7 +1267,7 @@ int32_t simd_x86_cmpgtps_xmm2_xmm3_impl(struct platform_elf_ElfCodegenCtx *elf_c
     return simd_append_impl(elf_ctx, insn, 3);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_cmpgtps_xmm2_xmm3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_cmpgtps_xmm2_xmm3_impl(elf_ctx);
 }
@@ -1284,7 +1284,7 @@ int32_t simd_x86_andps_xmm0_xmm2_impl(struct platform_elf_ElfCodegenCtx *elf_ctx
     return simd_append_impl(elf_ctx, insn, 3);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_andps_xmm0_xmm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_andps_xmm0_xmm2_impl(elf_ctx);
 }
@@ -1301,7 +1301,7 @@ int32_t simd_x86_andnps_xmm2_xmm1_impl(struct platform_elf_ElfCodegenCtx *elf_ct
     return simd_append_impl(elf_ctx, insn, 3);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_andnps_xmm2_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_andnps_xmm2_xmm1_impl(elf_ctx);
 }
@@ -1318,7 +1318,7 @@ int32_t simd_x86_orps_xmm0_xmm2_impl(struct platform_elf_ElfCodegenCtx *elf_ctx)
     return simd_append_impl(elf_ctx, insn, 3);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_orps_xmm0_xmm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_orps_xmm0_xmm2_impl(elf_ctx);
 }
@@ -1335,7 +1335,7 @@ int32_t simd_x86_vpxor_ymm3_ymm3_impl(struct platform_elf_ElfCodegenCtx *elf_ctx
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_vpxor_ymm3_ymm3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_vpxor_ymm3_ymm3_impl(elf_ctx);
 }
@@ -1352,7 +1352,7 @@ int32_t simd_x86_vpcmpgtd_ymm2_ymm3_impl(struct platform_elf_ElfCodegenCtx *elf_
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_vpcmpgtd_ymm2_ymm3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_vpcmpgtd_ymm2_ymm3_impl(elf_ctx);
 }
@@ -1369,7 +1369,7 @@ int32_t simd_x86_vpand_ymm0_ymm2_impl(struct platform_elf_ElfCodegenCtx *elf_ctx
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_vpand_ymm0_ymm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_vpand_ymm0_ymm2_impl(elf_ctx);
 }
@@ -1386,7 +1386,7 @@ int32_t simd_x86_vpandn_ymm2_ymm1_impl(struct platform_elf_ElfCodegenCtx *elf_ct
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_vpandn_ymm2_ymm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_vpandn_ymm2_ymm1_impl(elf_ctx);
 }
@@ -1403,7 +1403,7 @@ int32_t simd_x86_vpor_ymm0_ymm2_impl(struct platform_elf_ElfCodegenCtx *elf_ctx)
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_vpor_ymm0_ymm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_vpor_ymm0_ymm2_impl(elf_ctx);
 }
@@ -1420,7 +1420,7 @@ int32_t simd_x86_vxorps_ymm3_ymm3_impl(struct platform_elf_ElfCodegenCtx *elf_ct
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_vxorps_ymm3_ymm3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_vxorps_ymm3_ymm3_impl(elf_ctx);
 }
@@ -1437,7 +1437,7 @@ int32_t simd_x86_vcmpgtps_ymm2_ymm3_impl(struct platform_elf_ElfCodegenCtx *elf_
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_vcmpgtps_ymm2_ymm3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_vcmpgtps_ymm2_ymm3_impl(elf_ctx);
 }
@@ -1454,7 +1454,7 @@ int32_t simd_x86_vandps_ymm0_ymm2_impl(struct platform_elf_ElfCodegenCtx *elf_ct
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_vandps_ymm0_ymm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_vandps_ymm0_ymm2_impl(elf_ctx);
 }
@@ -1471,7 +1471,7 @@ int32_t simd_x86_vandnps_ymm2_ymm1_impl(struct platform_elf_ElfCodegenCtx *elf_c
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_vandnps_ymm2_ymm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_vandnps_ymm2_ymm1_impl(elf_ctx);
 }
@@ -1488,7 +1488,7 @@ int32_t simd_x86_vorps_ymm0_ymm2_impl(struct platform_elf_ElfCodegenCtx *elf_ctx
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_vorps_ymm0_ymm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_x86_vorps_ymm0_ymm2_impl(elf_ctx);
 }
@@ -1515,7 +1515,7 @@ int32_t simd_enc_emit_i32_select_xmm_seq_impl(struct platform_elf_ElfCodegenCtx 
     return 0;
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_enc_emit_i32_select_xmm_seq(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_enc_emit_i32_select_xmm_seq_impl(elf_ctx);
 }
@@ -1542,7 +1542,7 @@ int32_t simd_enc_emit_f32_select_xmm_seq_impl(struct platform_elf_ElfCodegenCtx 
     return 0;
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_enc_emit_f32_select_xmm_seq(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_enc_emit_f32_select_xmm_seq_impl(elf_ctx);
 }
@@ -1569,7 +1569,7 @@ int32_t simd_enc_emit_i32_select_ymm_seq_impl(struct platform_elf_ElfCodegenCtx 
     return 0;
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_enc_emit_i32_select_ymm_seq(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_enc_emit_i32_select_ymm_seq_impl(elf_ctx);
 }
@@ -1596,7 +1596,7 @@ int32_t simd_enc_emit_f32_select_ymm_seq_impl(struct platform_elf_ElfCodegenCtx 
     return 0;
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_enc_emit_f32_select_ymm_seq(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_enc_emit_f32_select_ymm_seq_impl(elf_ctx);
 }
@@ -1622,7 +1622,7 @@ int32_t simd_enc_try_hw_vector_select_rbp_impl(struct platform_elf_ElfCodegenCtx
     db = simd_rbp_disp32(slot_off_b, lanes, 4);
     dd = simd_rbp_disp32(slot_off_dst, lanes, 4);
     if (ta == 1) {
-        if ((cpu_features & SHUX_CPU_FEAT_NEON) == 0)
+        if ((cpu_features & XLANG_CPU_FEAT_NEON) == 0)
             return -1;
         dm = simd_arm64_rbp_lea_off_128half(slot_off_mask, 0, 4);
         da = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, 4);
@@ -1649,7 +1649,7 @@ int32_t simd_enc_try_hw_vector_select_rbp_impl(struct platform_elf_ElfCodegenCtx
     }
     if (ta != 0)
         return -1;
-    if (lanes == 8 && (cpu_features & SHUX_CPU_FEAT_AVX2) != 0) {
+    if (lanes == 8 && (cpu_features & XLANG_CPU_FEAT_AVX2) != 0) {
         if (simd_x86_vmovups_ymm0_from_rbp_impl(elf_ctx, da) != 0)
             return -1;
         if (simd_x86_vmovups_ymm1_from_rbp_impl(elf_ctx, db) != 0)
@@ -1667,7 +1667,7 @@ int32_t simd_enc_try_hw_vector_select_rbp_impl(struct platform_elf_ElfCodegenCtx
             return -1;
         return 0;
     }
-    if (lanes == 4 && (cpu_features & SHUX_CPU_FEAT_SSE2) != 0) {
+    if (lanes == 4 && (cpu_features & XLANG_CPU_FEAT_SSE2) != 0) {
         if (simd_x86_movups_xmm0_from_rbp_impl(elf_ctx, da) != 0)
             return -1;
         if (simd_x86_movups_xmm1_from_rbp_impl(elf_ctx, db) != 0)
@@ -1688,7 +1688,7 @@ int32_t simd_enc_try_hw_vector_select_rbp_impl(struct platform_elf_ElfCodegenCtx
     return -1;
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_enc_try_hw_vector_select_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_mask,
                                           int32_t slot_off_a, int32_t slot_off_b, int32_t slot_off_dst,
                                           int32_t lanes, int32_t is_f32, int32_t ta, uint32_t cpu_features) {
@@ -1706,7 +1706,7 @@ int32_t simd_enc_x86_xorps_xmm0_zero_impl(struct platform_elf_ElfCodegenCtx *elf
     return simd_append_impl(elf_ctx, insn, 3);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_enc_x86_xorps_xmm0_zero(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_enc_x86_xorps_xmm0_zero_impl(elf_ctx);
 }
@@ -1721,7 +1721,7 @@ int32_t simd_enc_x86_movups_xmm1_rbp_disp_impl(struct platform_elf_ElfCodegenCtx
     return simd_x86_movups_xmm1_from_rbp_impl(elf_ctx, disp);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_enc_x86_movups_xmm1_rbp_disp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp) {
   return simd_enc_x86_movups_xmm1_rbp_disp_impl(elf_ctx, disp);
 }
@@ -1736,7 +1736,7 @@ int32_t simd_enc_x86_addps_xmm0_xmm1_impl(struct platform_elf_ElfCodegenCtx *elf
     return simd_x86_addps_xmm0_xmm1_impl(elf_ctx);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_enc_x86_addps_xmm0_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_enc_x86_addps_xmm0_xmm1_impl(elf_ctx);
 }
@@ -1757,7 +1757,7 @@ int32_t simd_x86_pshufd_xmm1_xmm0_impl(struct platform_elf_ElfCodegenCtx *elf_ct
     return simd_append_impl(elf_ctx, &imm, 1);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_x86_pshufd_xmm1_xmm0(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t imm) {
   return simd_x86_pshufd_xmm1_xmm0_impl(elf_ctx, imm);
 }
@@ -1784,7 +1784,7 @@ int32_t simd_enc_x86_horizontal_addps_xmm0_impl(struct platform_elf_ElfCodegenCt
     return simd_x86_addps_xmm0_xmm1_impl(elf_ctx);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_enc_x86_horizontal_addps_xmm0(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_enc_x86_horizontal_addps_xmm0_impl(elf_ctx);
 }
@@ -1807,7 +1807,7 @@ int32_t simd_enc_x86_movss_xmm0_rbp_disp_impl(struct platform_elf_ElfCodegenCtx 
     return simd_append_disp32_impl(elf_ctx, disp);
 }
 
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_enc_x86_movss_xmm0_rbp_disp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp) {
   return simd_enc_x86_movss_xmm0_rbp_disp_impl(elf_ctx, disp);
 }
@@ -1834,7 +1834,7 @@ int32_t simd_enc_f32_soa_col_movups_xmm1_at_idx_impl(struct platform_elf_ElfCode
     }
     return 0;
 }
-#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_enc_f32_soa_col_movups_xmm1_at_idx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_col0,
                                                 int32_t off_i, int32_t ta) {
   return simd_enc_f32_soa_col_movups_xmm1_at_idx_impl(elf_ctx, off_col0, off_i, ta);
@@ -1845,8 +1845,8 @@ int simd_enc_slice_marker(void) {
     return 1;
 }
 
-#else /* SHUX_SIMD_ENC_FROM_X：产品 rest 业务 H=0 */
+#else /* XLANG_SIMD_ENC_FROM_X：产品 rest 业务 H=0 */
 int simd_enc_slice_marker(void) {
   return 0;
 }
-#endif /* SHUX_SIMD_ENC_FROM_X */
+#endif /* XLANG_SIMD_ENC_FROM_X */

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # type-borrow-conflict.sh — TYPE-003 借用冲突诊断共享辅助
 
-# 判断本机能否直接执行给定 shux 二进制。
-type_borrow_native_shu() {
+# 判断本机能否直接执行给定 xlang 二进制。
+type_borrow_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in

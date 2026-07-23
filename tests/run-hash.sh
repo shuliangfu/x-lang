@@ -2,9 +2,9 @@
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-SHUX="${SHUX:-./compiler/shux}"
-exe="/tmp/shux_hash_$$"
-if ! $SHUX build -L . tests/hash/main.x -o "$exe" 2>&1; then echo "hash test: compile failed"; rm -f "$exe"; exit 1; fi
+XLANG="${XLANG:-./compiler/xlang}"
+exe="/tmp/xlang_hash_$$"
+if ! $XLANG build -L . tests/hash/main.x -o "$exe" 2>&1; then echo "hash test: compile failed"; rm -f "$exe"; exit 1; fi
 exitcode=0; $exe 2>/dev/null || exitcode=$?
 rm -f "$exe"
 if [ "$exitcode" -ne 0 ]; then echo "hash test: expected exit 0, got $exitcode"; exit 1; fi

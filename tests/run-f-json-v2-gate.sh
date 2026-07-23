@@ -2,7 +2,7 @@
 # F-json v2：std.json 逻辑下沉（解析/游标/序列化 → json.x；删除 json_parse_glue.c）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_JSON_V2_FAIL:-0}
+FAIL=${XLANG_F_JSON_V2_FAIL:-0}
 DOC="analysis/phase-f-json-v2.md"
 MANIFEST="tests/baseline/f-json-v2-closure.tsv"
 die() { echo "f-json-v2 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -25,10 +25,10 @@ grep -q 'json_parse_string_view_c' std/json/json.x || die "json.x missing string
 grep -q 'json_f_json_v2_marker_c' std/json/json.x || die "json.x missing v2 marker"
 grep -q 'json.x' compiler/Makefile || die "Makefile missing json.x"
 grep -q 'json_parse_glue.c' compiler/Makefile && die "Makefile still references json_parse_glue.c"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/json/json.o >/dev/null 2>&1 || die "make json.o failed"
 else
-  echo "f-json-v2 SKIP json.o build (no shux-c)" >&2
+  echo "f-json-v2 SKIP json.o build (no xlang-c)" >&2
 fi
 for sub in run-std-json-gate.sh run-std-json-object-array-gate.sh \
   run-std-json-serialize-gate.sh run-std-json-typed-decode-gate.sh; do

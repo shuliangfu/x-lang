@@ -11,7 +11,7 @@
 | 目标 | 说明 |
 |------|------|
 | **自动定位阶段** | 从 CI / 本地失败 log 识别 lexer/parser/typeck/codegen/asm/link 等阶段 |
-| **联动复现** | 输出 `SHUX_BOOT_REPRO`，对接 BOOT-003 最小复现 case |
+| **联动复现** | 输出 `XLANG_BOOT_REPRO`，对接 BOOT-003 最小复现 case |
 | **可回归** | 模式表 + fixture 门禁，新增失败类型须增 pattern |
 
 验收（NEXT BOOT-004）：**失败日志自动定位阶段** + 文档 + 门禁。
@@ -30,7 +30,7 @@
 | **asm** | asm 后端 / cfg-merge | `asm-73`、`SIGSEGV`、`__text.*EMPTY` |
 | **link** | ld / 符号 | `undefined symbol`、`ld:` |
 | **build** | B-strict 构建拓扑 | `pipeline_gen.c`、`experimental fallback` |
-| **selfhost** | gen1→gen2 | `verify-selfhost-stage2`、`shux_asm2` |
+| **selfhost** | gen1→gen2 | `verify-selfhost-stage2`、`xlang_asm2` |
 | **wpo** | WPO strict_glue | `wpo strict link gate FAIL` |
 | **run** | 编译后运行 / run-all | `run-.*FAIL`、`test FAILED` |
 | **import** | 模块路径 | `cannot open import` |
@@ -55,10 +55,10 @@ curl ... | ./tests/run-bootstrap-stage-diag.sh --stdin
 输出示例：
 
 ```
-SHUX_BOOT_STAGE=parser
-SHUX_BOOT_REPRO=parser_second_pass
-SHUX_BOOT_PATTERN=ci_banner_parser_second
-SHUX_BOOT_CONFIDENCE=classified
+XLANG_BOOT_STAGE=parser
+XLANG_BOOT_REPRO=parser_second_pass
+XLANG_BOOT_PATTERN=ci_banner_parser_second
+XLANG_BOOT_CONFIDENCE=classified
 ```
 
 ### 3.2 库函数（脚本内嵌）
@@ -72,7 +72,7 @@ bootstrap_stage_classify "$(cat ci.log)"
 
 1. 保存 CI log
 2. `./tests/run-bootstrap-stage-diag.sh --repro ci.log`
-3. 或手动：`./tests/run-bootstrap-repro.sh <SHUX_BOOT_REPRO>`
+3. 或手动：`./tests/run-bootstrap-repro.sh <XLANG_BOOT_REPRO>`
 
 ---
 

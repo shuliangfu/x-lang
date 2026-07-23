@@ -8,13 +8,13 @@ const err = import("std.error");
  * @return i32
  */
 function main(): i32 {
-  let bg: Context = context.background();
+  let bg: context.Context = context.background();
   let loopback: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
   let buf: u8[1] = [0];
   let p: *u8 = &buf[0];
   let fake: TcpStream = TcpStream { fd: 1 };
 
-  let cancelled: Context = context.with_cancel(bg);
+  let cancelled: context.Context = context.with_cancel(bg);
   context.cancel(cancelled);
   if (net.connect_ctx_fd(loopback, 9, cancelled) != net_err_cancelled()) {
     return 1;
@@ -23,7 +23,7 @@ function main(): i32 {
     return 2;
   }
 
-  let expired: Context = context.with_deadline(bg, 1);
+  let expired: context.Context = context.with_deadline(bg, 1);
   if (net.connect_ctx_fd(loopback, 9, expired) != net_err_timeout()) {
     return 3;
   }

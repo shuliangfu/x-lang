@@ -3,32 +3,32 @@
 # 用法（仓库根）：./compiler/scripts/check_parse_func_count.sh
 set -e
 cd "$(dirname "$0")/../.."
-SHUX="${SHUX:-./compiler/shux}"
+XLANG="${XLANG:-./compiler/xlang}"
 TCK="compiler/src/typeck/typeck.x"
-MIN_FUNCS="${SHUX_PARSE_MIN_TYPECK_FUNCS:-80}"
-OUT="/tmp/shux_parse_count_typeck.o"
+MIN_FUNCS="${XLANG_PARSE_MIN_TYPECK_FUNCS:-80}"
+OUT="/tmp/xlang_parse_count_typeck.o"
 
-if [ ! -x "$SHUX" ]; then
-  echo "check_parse_func_count: need executable SHUX=$SHUX" >&2
+if [ ! -x "$XLANG" ]; then
+  echo "check_parse_func_count: need executable XLANG=$XLANG" >&2
   exit 127
 fi
 
 src_count=$(grep -c '^function ' "$TCK" || true)
 echo "check_parse_func_count: source functions in typeck.x: $src_count (min gate $MIN_FUNCS)"
 
-rm -f "$OUT" /tmp/shux_parse_count.log
-if ! SHUX_DEBUG_PIPE=1 "$SHUX" build -backend asm -o "$OUT" "$TCK" 2>&1 | tee /tmp/shux_parse_count.log; then
-  echo "check_parse_func_count: compile failed (see log); try SHUX_DEBUG_PARSE=1 SHUX_PARSE_STRICT=1" >&2
+rm -f "$OUT" /tmp/xlang_parse_count.log
+if ! XLANG_DEBUG_PIPE=1 "$XLANG" build -backend asm -o "$OUT" "$TCK" 2>&1 | tee /tmp/xlang_parse_count.log; then
+  echo "check_parse_func_count: compile failed (see log); try XLANG_DEBUG_PARSE=1 XLANG_PARSE_STRICT=1" >&2
   exit 1
 fi
 
-nf=$(sed -n 's/.*num_funcs=\([0-9][0-9]*\).*/\1/p' /tmp/shux_parse_count.log | tail -1)
+nf=$(sed -n 's/.*num_funcs=\([0-9][0-9]*\).*/\1/p' /tmp/xlang_parse_count.log | tail -1)
 if [ -z "$nf" ]; then
-  echo "check_parse_func_count: no num_funcs= in SHUX_DEBUG_PIPE log (compile OK, skip gate)" >&2
+  echo "check_parse_func_count: no num_funcs= in XLANG_DEBUG_PIPE log (compile OK, skip gate)" >&2
   exit 0
 fi
 if [ "$nf" -lt "$MIN_FUNCS" ]; then
-  echo "check_parse_func_count: num_funcs=$nf < $MIN_FUNCS (parse skip? SHUX_DEBUG_PARSE=1)" >&2
+  echo "check_parse_func_count: num_funcs=$nf < $MIN_FUNCS (parse skip? XLANG_DEBUG_PARSE=1)" >&2
   exit 1
 fi
 echo "check_parse_func_count: pipeline num_funcs=$nf (gate >= $MIN_FUNCS) OK"

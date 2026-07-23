@@ -1,10 +1,10 @@
 {
-  "name": "vscode-shux",
-  "displayName": "Shux Language",
-  "description": "Shux (.x) 完整开发体验：语法高亮、LSP、智能补全、参数提示、悬停、大纲、折叠、片段、任务、错误跳转、实时缩进、选区扩展、状态栏、语义高亮、CodeAction、DocumentHighlight、多语言",
-  "version": "0.3.0",
-  "license": "MIT",
-  "publisher": "shux",
+  "name": "vscode-xlang",
+  "displayName": "Xlang Language",
+  "description": "Xlang (.x) 完整开发体验：语法高亮、LSP、智能补全、参数提示、悬停、大纲、折叠、片段、任务、错误跳转、实时缩进、选区扩展、状态栏、语义高亮、CodeAction、DocumentHighlight、多语言",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "publisher": "xlang",
   "icon": "icon.png",
   "main": "./out/extension.js",
   "activationEvents": [],
@@ -17,14 +17,14 @@
     "Linters"
   ],
   "keywords": [
-    "shux",
+    "xlang",
     "x",
     "compiler",
     "lsp"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/shuliangfu/shux"
+    "url": "https://github.com/shuliangfu/xlang"
   },
   "contributes": {
     "languages": [
@@ -34,7 +34,7 @@
           ".x"
         ],
         "aliases": [
-          "Shux",
+          "Xlang",
           "x"
         ],
         "configuration": "./language-configuration.json",
@@ -52,9 +52,9 @@
       }
     ],
     "configuration": {
-      "title": "Shux",
+      "title": "Xlang",
       "properties": {
-        "shux.locale": {
+        "xlang.locale": {
           "type": "string",
           "default": "auto",
           "enum": [
@@ -74,31 +74,31 @@
             "pl"
           ],
           "enumDescriptions": [
-            "%shux.config.locale.auto%",
-            "%shux.config.locale.en%",
-            "%shux.config.locale.zh-cn%",
-            "%shux.config.locale.zh-tw%",
-            "%shux.config.locale.ja%",
-            "%shux.config.locale.ko%",
-            "%shux.config.locale.de%",
-            "%shux.config.locale.fr%",
-            "%shux.config.locale.es%",
-            "%shux.config.locale.ru%",
-            "%shux.config.locale.pt-br%",
-            "%shux.config.locale.it%",
-            "%shux.config.locale.tr%",
-            "%shux.config.locale.pl%"
+            "%xlang.config.locale.auto%",
+            "%xlang.config.locale.en%",
+            "%xlang.config.locale.zh-cn%",
+            "%xlang.config.locale.zh-tw%",
+            "%xlang.config.locale.ja%",
+            "%xlang.config.locale.ko%",
+            "%xlang.config.locale.de%",
+            "%xlang.config.locale.fr%",
+            "%xlang.config.locale.es%",
+            "%xlang.config.locale.ru%",
+            "%xlang.config.locale.pt-br%",
+            "%xlang.config.locale.it%",
+            "%xlang.config.locale.tr%",
+            "%xlang.config.locale.pl%"
           ],
-          "markdownDescription": "%shux.config.locale%",
+          "markdownDescription": "%xlang.config.locale%",
           "scope": "window"
         },
-        "shux.serverPath": {
+        "xlang.serverPath": {
           "type": "string",
-          "default": "compiler/shux",
-          "markdownDescription": "%shux.config.serverPath%",
+          "default": "compiler/xlang",
+          "markdownDescription": "%xlang.config.serverPath%",
           "scope": "machine-overridable"
         },
-        "shux.server.trace": {
+        "xlang.server.trace": {
           "type": "string",
           "default": "off",
           "enum": [
@@ -107,132 +107,132 @@
             "verbose"
           ],
           "enumDescriptions": [
-            "%shux.config.server.trace.off%",
-            "%shux.config.server.trace.messages%",
-            "%shux.config.server.trace.verbose%"
+            "%xlang.config.server.trace.off%",
+            "%xlang.config.server.trace.messages%",
+            "%xlang.config.server.trace.verbose%"
           ],
-          "markdownDescription": "%shux.config.server.trace%",
+          "markdownDescription": "%xlang.config.server.trace%",
           "scope": "window"
         },
-        "shux.server.restartOnCrash": {
+        "xlang.server.restartOnCrash": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "%shux.config.server.restartOnCrash%",
+          "markdownDescription": "%xlang.config.server.restartOnCrash%",
           "scope": "window"
         },
-        "shux.format.enabled": {
+        "xlang.format.enabled": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "%shux.config.format.enabled%",
+          "markdownDescription": "%xlang.config.format.enabled%",
           "scope": "resource"
         },
-        "shux.format.tabSize": {
+        "xlang.format.tabSize": {
           "type": "integer",
           "default": 2,
           "minimum": 1,
           "maximum": 16,
-          "markdownDescription": "%shux.config.format.tabSize%",
+          "markdownDescription": "%xlang.config.format.tabSize%",
           "scope": "resource"
         },
-        "shux.format.insertSpaces": {
+        "xlang.format.insertSpaces": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "%shux.config.format.insertSpaces%",
+          "markdownDescription": "%xlang.config.format.insertSpaces%",
           "scope": "resource"
         },
-        "shux.format.maxLineLength": {
+        "xlang.format.maxLineLength": {
           "type": "integer",
           "default": 100,
           "minimum": 20,
           "maximum": 512,
-          "markdownDescription": "%shux.config.format.maxLineLength%",
+          "markdownDescription": "%xlang.config.format.maxLineLength%",
           "scope": "resource"
         },
-        "shux.features.folding": {
+        "xlang.features.folding": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "%shux.config.features.folding%",
+          "markdownDescription": "%xlang.config.features.folding%",
           "scope": "resource"
         },
-        "shux.features.codeLens": {
+        "xlang.features.codeLens": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "%shux.config.features.codeLens%",
+          "markdownDescription": "%xlang.config.features.codeLens%",
           "scope": "resource"
         },
-        "shux.features.codeLensFunctionLabels": {
+        "xlang.features.codeLensFunctionLabels": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "%shux.config.features.codeLensFunctionLabels%",
+          "markdownDescription": "%xlang.config.features.codeLensFunctionLabels%",
           "scope": "resource"
         },
-        "shux.features.formatOnType": {
+        "xlang.features.formatOnType": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "%shux.config.features.formatOnType%",
+          "markdownDescription": "%xlang.config.features.formatOnType%",
           "scope": "resource"
         },
-        "shux.features.documentLinks": {
+        "xlang.features.documentLinks": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "%shux.config.features.documentLinks%",
+          "markdownDescription": "%xlang.config.features.documentLinks%",
           "scope": "resource"
         },
-        "shux.features.statusBar": {
+        "xlang.features.statusBar": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "%shux.config.features.statusBar%",
+          "markdownDescription": "%xlang.config.features.statusBar%",
           "scope": "resource"
         },
-        "shux.features.selectionRange": {
+        "xlang.features.selectionRange": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "%shux.config.features.selectionRange%",
+          "markdownDescription": "%xlang.config.features.selectionRange%",
           "scope": "resource"
         },
-        "shux.features.documentHighlight": {
+        "xlang.features.documentHighlight": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "%shux.config.features.documentHighlight%",
+          "markdownDescription": "%xlang.config.features.documentHighlight%",
           "scope": "resource"
         },
-        "shux.features.codeAction": {
+        "xlang.features.codeAction": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "%shux.config.features.codeAction%",
+          "markdownDescription": "%xlang.config.features.codeAction%",
           "scope": "resource"
         },
-        "shux.features.workspaceSymbol": {
+        "xlang.features.workspaceSymbol": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "%shux.config.features.workspaceSymbol%",
+          "markdownDescription": "%xlang.config.features.workspaceSymbol%",
           "scope": "resource"
         },
-        "shux.features.statusBarDiagnostics": {
+        "xlang.features.statusBarDiagnostics": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "%shux.config.features.statusBarDiagnostics%",
+          "markdownDescription": "%xlang.config.features.statusBarDiagnostics%",
           "scope": "resource"
         },
-        "shux.features.statusBarLspStatus": {
+        "xlang.features.statusBarLspStatus": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "%shux.config.features.statusBarLspStatus%",
+          "markdownDescription": "%xlang.config.features.statusBarLspStatus%",
           "scope": "resource"
         },
-        "shux.features.codeLensRunButton": {
+        "xlang.features.codeLensRunButton": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "%shux.config.features.codeLensRunButton%",
+          "markdownDescription": "%xlang.config.features.codeLensRunButton%",
           "scope": "resource"
         },
-        "shux.features.codeLensStructInfo": {
+        "xlang.features.codeLensStructInfo": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "%shux.config.features.codeLensStructInfo%",
+          "markdownDescription": "%xlang.config.features.codeLensStructInfo%",
           "scope": "resource"
         },
-        "shux.compiler.diagnosticLevel": {
+        "xlang.compiler.diagnosticLevel": {
           "type": "string",
           "default": "warning",
           "enum": [
@@ -242,78 +242,78 @@
             "info"
           ],
           "enumDescriptions": [
-            "%shux.config.compiler.diagnosticLevel.off%",
-            "%shux.config.compiler.diagnosticLevel.error%",
-            "%shux.config.compiler.diagnosticLevel.warning%",
-            "%shux.config.compiler.diagnosticLevel.info%"
+            "%xlang.config.compiler.diagnosticLevel.off%",
+            "%xlang.config.compiler.diagnosticLevel.error%",
+            "%xlang.config.compiler.diagnosticLevel.warning%",
+            "%xlang.config.compiler.diagnosticLevel.info%"
           ],
-          "markdownDescription": "%shux.config.compiler.diagnosticLevel%",
+          "markdownDescription": "%xlang.config.compiler.diagnosticLevel%",
           "scope": "resource"
         },
-        "shux.compiler.extraArgs": {
+        "xlang.compiler.extraArgs": {
           "type": "array",
           "items": {
             "type": "string"
           },
           "default": [],
-          "markdownDescription": "%shux.config.compiler.extraArgs%",
+          "markdownDescription": "%xlang.config.compiler.extraArgs%",
           "scope": "resource"
         },
-        "shux.compiler.targetDir": {
+        "xlang.compiler.targetDir": {
           "type": "string",
           "default": "",
-          "markdownDescription": "%shux.config.compiler.targetDir%",
+          "markdownDescription": "%xlang.config.compiler.targetDir%",
           "scope": "resource"
         },
-        "shux.compiler.libRoots": {
+        "xlang.compiler.libRoots": {
           "type": "array",
           "items": {
             "type": "string"
           },
           "default": [".", "compiler/src", "core", "std"],
-          "markdownDescription": "%shux.config.compiler.libRoots%",
+          "markdownDescription": "%xlang.config.compiler.libRoots%",
           "scope": "resource"
         },
-        "shux.compiler.envJson": {
+        "xlang.compiler.envJson": {
           "type": "object",
           "default": {},
-          "markdownDescription": "%shux.config.compiler.envJson%",
+          "markdownDescription": "%xlang.config.compiler.envJson%",
           "scope": "resource"
         },
-        "shux.build.optimizationLevel": {
+        "xlang.build.optimizationLevel": {
           "type": "string",
           "default": "0",
           "enum": ["0", "1", "2", "3"],
           "enumDescriptions": [
-            "%shux.config.build.optimizationLevel.0%",
-            "%shux.config.build.optimizationLevel.1%",
-            "%shux.config.build.optimizationLevel.2%",
-            "%shux.config.build.optimizationLevel.3%"
+            "%xlang.config.build.optimizationLevel.0%",
+            "%xlang.config.build.optimizationLevel.1%",
+            "%xlang.config.build.optimizationLevel.2%",
+            "%xlang.config.build.optimizationLevel.3%"
           ],
-          "markdownDescription": "%shux.config.build.optimizationLevel%",
+          "markdownDescription": "%xlang.config.build.optimizationLevel%",
           "scope": "resource"
         },
-        "shux.build.debugInfo": {
+        "xlang.build.debugInfo": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "%shux.config.build.debugInfo%",
+          "markdownDescription": "%xlang.config.build.debugInfo%",
           "scope": "resource"
         },
-        "shux.build.outputName": {
+        "xlang.build.outputName": {
           "type": "string",
           "default": "",
-          "markdownDescription": "%shux.config.build.outputName%",
+          "markdownDescription": "%xlang.config.build.outputName%",
           "scope": "resource"
         },
-        "shux.workspaceSymbol.maxFiles": {
+        "xlang.workspaceSymbol.maxFiles": {
           "type": "integer",
           "default": 2000,
           "minimum": 100,
           "maximum": 50000,
-          "markdownDescription": "%shux.config.workspaceSymbol.maxFiles%",
+          "markdownDescription": "%xlang.config.workspaceSymbol.maxFiles%",
           "scope": "resource"
         },
-        "shux.workspaceSymbol.excludePatterns": {
+        "xlang.workspaceSymbol.excludePatterns": {
           "type": "array",
           "items": {
             "type": "string"
@@ -326,14 +326,14 @@
             "**/target/**",
             "**/build/**"
           ],
-          "markdownDescription": "%shux.config.workspaceSymbol.excludePatterns%",
+          "markdownDescription": "%xlang.config.workspaceSymbol.excludePatterns%",
           "scope": "resource"
         }
       }
     },
     "configurationDefaults": {
       "[x]": {
-        "editor.defaultFormatter": "shux.vscode-shux",
+        "editor.defaultFormatter": "xlang.vscode-xlang",
         "editor.formatOnSave": true,
         "editor.formatOnPaste": true,
         "editor.tabSize": 2,
@@ -344,49 +344,49 @@
     },
     "commands": [
       {
-        "command": "shux.restartServer",
-        "title": "%shux.command.restartServer%",
-        "category": "Shux"
+        "command": "xlang.restartServer",
+        "title": "%xlang.command.restartServer%",
+        "category": "Xlang"
       },
       {
-        "command": "shux.showServerOutput",
-        "title": "%shux.command.showServerOutput%",
-        "category": "Shux"
+        "command": "xlang.showServerOutput",
+        "title": "%xlang.command.showServerOutput%",
+        "category": "Xlang"
       },
       {
-        "command": "shux.openSettings",
-        "title": "%shux.command.openSettings%",
-        "category": "Shux"
+        "command": "xlang.openSettings",
+        "title": "%xlang.command.openSettings%",
+        "category": "Xlang"
       },
       {
-        "command": "shux.runFile",
-        "title": "%shux.command.runFile%",
-        "category": "Shux"
+        "command": "xlang.runFile",
+        "title": "%xlang.command.runFile%",
+        "category": "Xlang"
       },
       {
-        "command": "shux.buildFile",
-        "title": "%shux.command.buildFile%",
-        "category": "Shux"
+        "command": "xlang.buildFile",
+        "title": "%xlang.command.buildFile%",
+        "category": "Xlang"
       },
       {
-        "command": "shux.checkFile",
-        "title": "%shux.command.checkFile%",
-        "category": "Shux"
+        "command": "xlang.checkFile",
+        "title": "%xlang.command.checkFile%",
+        "category": "Xlang"
       },
       {
-        "command": "shux.buildProject",
-        "title": "%shux.command.buildProject%",
-        "category": "Shux"
+        "command": "xlang.buildProject",
+        "title": "%xlang.command.buildProject%",
+        "category": "Xlang"
       },
       {
-        "command": "shux.formatDocument",
-        "title": "%shux.command.formatDocument%",
-        "category": "Shux"
+        "command": "xlang.formatDocument",
+        "title": "%xlang.command.formatDocument%",
+        "category": "Xlang"
       },
       {
-        "command": "shux.refreshCodeLens",
-        "title": "%shux.command.refreshCodeLens%",
-        "category": "Shux"
+        "command": "xlang.refreshCodeLens",
+        "title": "%xlang.command.refreshCodeLens%",
+        "category": "Xlang"
       }
     ],
     "snippets": [
@@ -397,17 +397,17 @@
     ],
     "iconThemes": [
       {
-        "id": "shux-icons",
-        "label": "Shux Icons",
-        "path": "./icons/shux-icon-theme.json"
+        "id": "xlang-icons",
+        "label": "Xlang Icons",
+        "path": "./icons/xlang-icon-theme.json"
       }
     ],
     "problemMatchers": [
       {
-        "name": "shux-parse",
-        "label": "%shux.problemMatcher.parse%",
+        "name": "xlang-parse",
+        "label": "%xlang.problemMatcher.parse%",
         "owner": "x",
-        "source": "shux",
+        "source": "xlang",
         "fileLocation": "relative",
         "pattern": {
           "regexp": "^parse error at (\\d+):(\\d+):\\s*(.+)$",
@@ -417,10 +417,10 @@
         }
       },
       {
-        "name": "shux-typeck",
-        "label": "%shux.problemMatcher.typeck%",
+        "name": "xlang-typeck",
+        "label": "%xlang.problemMatcher.typeck%",
         "owner": "x",
-        "source": "shux",
+        "source": "xlang",
         "fileLocation": "relative",
         "pattern": {
           "regexp": "^typeck error:\\s*(.+?)\\s+at\\s+(\\d+):(\\d+)\\s*$",
@@ -430,10 +430,10 @@
         }
       },
       {
-        "name": "shux-generic",
-        "label": "%shux.problemMatcher.generic%",
+        "name": "xlang-generic",
+        "label": "%xlang.problemMatcher.generic%",
         "owner": "x",
-        "source": "shux",
+        "source": "xlang",
         "fileLocation": "relative",
         "pattern": {
           "regexp": "^(.*?)(?:\\s+at\\s+|\\s+in\\s+)(\\S+):(\\d+):(\\d+)",
@@ -446,14 +446,14 @@
     ],
     "taskDefinitions": [
       {
-        "type": "shux",
+        "type": "xlang",
         "required": [
           "task"
         ],
         "properties": {
           "task": {
             "type": "string",
-            "description": "%shux.taskDefinition.task.description%",
+            "description": "%xlang.taskDefinition.task.description%",
             "enum": [
               "build",
               "build-file",
@@ -466,40 +466,40 @@
     ],
     "walkthroughs": [
       {
-        "id": "shux.welcome",
-        "title": "%shux.walkthrough.welcome.title%",
-        "description": "%shux.walkthrough.welcome.description%",
+        "id": "xlang.welcome",
+        "title": "%xlang.walkthrough.welcome.title%",
+        "description": "%xlang.walkthrough.welcome.description%",
         "steps": [
           {
             "id": "open.project",
-            "title": "%shux.walkthrough.openProject.title%",
-            "description": "%shux.walkthrough.openProject.description%",
+            "title": "%xlang.walkthrough.openProject.title%",
+            "description": "%xlang.walkthrough.openProject.description%",
             "media": {
-              "markdown": "%shux.walkthrough.openProject.media%"
+              "markdown": "%xlang.walkthrough.openProject.media%"
             }
           },
           {
             "id": "build.compiler",
-            "title": "%shux.walkthrough.buildCompiler.title%",
-            "description": "%shux.walkthrough.buildCompiler.description%",
+            "title": "%xlang.walkthrough.buildCompiler.title%",
+            "description": "%xlang.walkthrough.buildCompiler.description%",
             "media": {
-              "markdown": "%shux.walkthrough.buildCompiler.media%"
+              "markdown": "%xlang.walkthrough.buildCompiler.media%"
             }
           },
           {
             "id": "open.x.file",
-            "title": "%shux.walkthrough.openXFile.title%",
-            "description": "%shux.walkthrough.openXFile.description%",
+            "title": "%xlang.walkthrough.openXFile.title%",
+            "description": "%xlang.walkthrough.openXFile.description%",
             "media": {
-              "markdown": "%shux.walkthrough.openXFile.media%"
+              "markdown": "%xlang.walkthrough.openXFile.media%"
             }
           },
           {
             "id": "run.file",
-            "title": "%shux.walkthrough.runFile.title%",
-            "description": "%shux.walkthrough.runFile.description%",
+            "title": "%xlang.walkthrough.runFile.title%",
+            "description": "%xlang.walkthrough.runFile.description%",
             "media": {
-              "markdown": "%shux.walkthrough.runFile.media%"
+              "markdown": "%xlang.walkthrough.runFile.media%"
             }
           }
         ]

@@ -25,7 +25,7 @@
 |------|------|---------|
 | **Q** | Quality 质量硬门禁 | `ci_hard=yes` → Linux CI 必须绿 |
 | **Qp** | Quality portable | `ci_hard=portable` → `run-portable-suite.sh` |
-| **S** | Size advisory | 超 cap 仅 WARN；默认 `SHUX_SIZE_FAIL=0` |
+| **S** | Size advisory | 超 cap 仅 WARN；默认 `XLANG_SIZE_FAIL=0` |
 | **T** | Track-only | 指标追踪，不参与 pass/fail |
 
 ---
@@ -35,7 +35,7 @@
 | 旧策略（体积 ratchet） | 新策略（质量） |
 |------------------------|----------------|
 | parser combined/audit 字节 ratchet | `parser-thin-glue-symbol-integrity` + second-pass `__text` 下限 |
-| B-SIZE shux_asm 8MiB 硬 fail | advisory 追踪（`run-size-shux-asm-gate.sh`，`SHUX_SIZE_FAIL=0`） |
+| B-SIZE xlang_asm 8MiB 硬 fail | advisory 追踪（`run-size-xlang-asm-gate.sh`，`XLANG_SIZE_FAIL=0`） |
 | stretch tier 体积推进 | **停止**（BOOT-007） |
 | WPO .text 代理 | `wpo-strict-link` + reach gate（链路完整性） |
 
@@ -56,9 +56,9 @@
 1. manifest：RFC + matrix  
 2. 每行 `gate_script` 存在且可执行（`T` 行除外）  
 3. `tier=Q` 且 `ci_hard=yes` 计数 ≥ `min_quality_ci`  
-4. `run-ci-full-suite.sh` **不得**含 `SHUX_SIZE_FAIL=1`  
+4. `run-ci-full-suite.sh` **不得**含 `XLANG_SIZE_FAIL=1`  
 5. `run-bootstrap-bstrict-ci.sh` 须调用 symbol-integrity gate  
-6. `run-size-shux-asm-gate.sh` 默认 advisory（无 CI 自动 hard fail）
+6. `run-size-xlang-asm-gate.sh` 默认 advisory（无 CI 自动 hard fail）
 
 ---
 
@@ -77,6 +77,6 @@
 | 矩阵 | `tests/baseline/eng-quality-gate-matrix.tsv` |
 | 门禁 | `tests/run-eng-quality-gate-gate.sh` |
 | 符号完整性 | `tests/run-parser-thin-glue-symbol-integrity-gate.sh` |
-| B-SIZE advisory | `tests/run-size-shux-asm-gate.sh` |
+| B-SIZE advisory | `tests/run-size-xlang-asm-gate.sh` |
 
 **ENG-002 状态：定版 ✅**

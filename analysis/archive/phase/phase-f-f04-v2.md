@@ -22,6 +22,6 @@
 ## 复现
 
 ```bash
-SHUX_F04_NET_TCP_POOL_FAIL=1 ./tests/run-f04-std-net-tcp-pool-gate.sh
-SHUX_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=102
+XLANG_F04_NET_TCP_POOL_FAIL=1 ./tests/run-f04-std-net-tcp-pool-gate.sh
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=102
 ```

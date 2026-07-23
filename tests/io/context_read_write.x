@@ -8,11 +8,11 @@ const err = import("std.error");
  * @return i32
  */
 function main(): i32 {
-  let bg: Context = context.background();
+  let bg: context.Context = context.background();
   let buf: u8[1] = [0];
   let p: *u8 = &buf[0];
 
-  let cancelled: Context = context.with_cancel(bg);
+  let cancelled: context.Context = context.with_cancel(bg);
   context.cancel(cancelled);
   if (io.read_ctx(io.stdout(), p, 0, cancelled) != io_err_cancelled()) {
     return 1;
@@ -21,7 +21,7 @@ function main(): i32 {
     return 2;
   }
 
-  let expired: Context = context.with_deadline(bg, 1);
+  let expired: context.Context = context.with_deadline(bg, 1);
   if (io.read_ctx(io.stdout(), p, 0, expired) != io_err_timeout()) {
     return 3;
   }
@@ -33,7 +33,7 @@ function main(): i32 {
     return 5;
   }
 
-  let live: Context = context.with_timeout(bg, 1000000000);
+  let live: context.Context = context.with_timeout(bg, 1000000000);
   let tm: i32 = io.timeout_from_ctx(live);
   if (tm <= 0) {
     return 6;

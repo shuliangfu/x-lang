@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-config-yaml.sh — STD-119 manifest 与烟测辅助
 
-STD_CONFIG_YAML_PREFIX="${SHUX_STD119_CONFIG_YAML_PREFIX:-shux: [SHUX_STD119_CONFIG_YAML]}"
+STD_CONFIG_YAML_PREFIX="${XLANG_STD119_CONFIG_YAML_PREFIX:-xlang: [XLANG_STD119_CONFIG_YAML]}"
 
 std_config_yaml_symbols_ok() {
   local mod_x="$1"
@@ -33,10 +33,10 @@ std_config_yaml_symbols_ok() {
 }
 
 std_config_yaml_run_x_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
-  local exe="/tmp/shux_std_config_yaml_$$"
-  "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
+  local exe="/tmp/xlang_std_config_yaml_$$"
+  "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
   set +e
   "$exe" >/dev/null 2>&1
   local ec=$?
@@ -50,7 +50,7 @@ std_config_yaml_run_c_smoke() {
   local env_o="$2"
   local proc_o="$3"
   local rpav_o="${4:-$(cd compiler && pwd)/runtime_process_argv.o}"
-  local out="/tmp/shux_std_config_yaml_c_$$"
+  local out="/tmp/xlang_std_config_yaml_c_$$"
   make -C compiler -q runtime_process_argv.o 2>/dev/null || make -C compiler runtime_process_argv.o 2>/dev/null || true
   cc -std=c11 -O1 -o "$out" tests/std-config/yaml_smoke_ok.c "$cfg_o" "$env_o" "$proc_o" "$rpav_o" 2>/dev/null || return 1
   set +e

@@ -1,6 +1,6 @@
 /* seeds/rt_lib_root.from_x.c — G-02f-305 P2 runtime rest (lib root helpers)
  * Logic source: src/runtime/rt_lib_root.x
- * Hybrid: SHUX_RT_LIB_ROOT_FROM_X + ld -r into runtime_driver_no_c.o
+ * Hybrid: XLANG_RT_LIB_ROOT_FROM_X + ld -r into runtime_driver_no_c.o
  *
  * R2（2026-07-14）：ptr_usable + default + roots_from_key 均由 .x 提供；
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务符号 H=0）。
@@ -18,8 +18,10 @@
 extern int32_t driver_emit_lib_root_count(uint8_t *state);
 extern int32_t driver_emit_lib_root_len(uint8_t *state, int32_t i);
 extern void driver_emit_lib_root_copy(uint8_t *state, int32_t i, uint8_t *dst, int32_t cap);
+/* wave227 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv). */
+extern char *link_abi_getenv(const char *name);
 
-#ifndef SHUX_RT_LIB_ROOT_FROM_X
+#ifndef XLANG_RT_LIB_ROOT_FROM_X
 /**
  * 判断 lib root 指针可安全解引用（避开 NULL/空串；冷启动 C 体额外低位 tag）。
  */
@@ -28,10 +30,11 @@ int driver_lib_root_ptr_usable(const char *p) {
 }
 
 /**
- * 写入默认 lib root：优先 SHUX_LIB（拷贝到 root_buf），否则 "."。
+ * 写入默认 lib root：优先 XLANG_LIB（拷贝到 root_buf），否则 "."。
+ * wave227 G.7: link_abi_getenv (not raw getenv); host residual = link_abi_getenv_impl.
  */
 void driver_lib_root_default(char root_buf[512]) {
-  const char *def = getenv("SHUX_LIB");
+  const char *def = link_abi_getenv("XLANG_LIB");
   root_buf[0] = '.';
   root_buf[1] = '\0';
   if (!driver_lib_root_ptr_usable(def))

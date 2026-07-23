@@ -9,18 +9,18 @@
  * bootstrap_nostdlib_stubs.c — NL-07 v2：编译器 bootstrap crt0 链 nostdlib 最小 libc 桩
  *
  * 【职责】
- * 当 SHUX_BOOTSTRAP_NOSTDLIB=1 时，与 crt0_x86_64.o + freestanding_io_x86_64.o 一并链入，
- * 替代 -lc/-lm，供 build_shux_asm.sh crt0 路径尝试无 libc.so 静态链。
+ * 当 XLANG_BOOTSTRAP_NOSTDLIB=1 时，与 crt0_x86_64.o + freestanding_io_x86_64.o 一并链入，
+ * 替代 -lc/-lm，供 build_xlang_asm.sh crt0 路径尝试无 libc.so 静态链。
  *
  * 【范围】
  * 覆盖 bootstrap 链常见未定义符号：string/mem、stdio 最小格式化
  * （NL-07 L2 fflush；NL-07 L6 fileno/isatty/puts/strerror/fread/ferror/stdin/remove/__ctype_b_loc）、
  * getenv、libm（freestanding soft math，禁 __builtin_* 自递归）、fenv 空实现、posix_memalign、POSIX open/read/close/fstat/waitpid、
  * readlink/realpath/getcwd/opendir（NL-07 v5 runtime_link_abi / fmt_check 路径）。
- * L1–L5 companions 后 residual 应仅为本 libc 面；失败时 build_shux_asm 回退 -lc/-lm。
+ * L1–L5 companions 后 residual 应仅为本 libc 面；失败时 build_xlang_asm 回退 -lc/-lm。
  *
  * 【依赖】
- * freestanding_io_x86_64.s 提供 shux_sys_write / shux_sys_mmap / shux_sys_exit。
+ * freestanding_io_x86_64.s 提供 xlang_sys_write / xlang_sys_mmap / xlang_sys_exit。
  */
 
 #include <stddef.h>
@@ -80,12 +80,12 @@ int *__errno_location(void) {
 }
 
 /** freestanding syscall 门面（见 freestanding_io_x86_64.s）。 */
-extern long shux_sys_write(int fd, const void *buf, unsigned long len);
-extern long shux_sys_read(int fd, void *buf, unsigned long len);
-extern long shux_sys_close(int fd);
-extern void *shux_sys_mmap(void *addr, unsigned long len, int prot, int flags, int fd, long off);
-extern long shux_sys_munmap(void *addr, unsigned long len);
-extern void shux_sys_exit(int code) __attribute__((noreturn));
+extern long xlang_sys_write(int fd, const void *buf, unsigned long len);
+extern long xlang_sys_read(int fd, void *buf, unsigned long len);
+extern long xlang_sys_close(int fd);
+extern void *xlang_sys_mmap(void *addr, unsigned long len, int prot, int flags, int fd, long off);
+extern long xlang_sys_munmap(void *addr, unsigned long len);
+extern void xlang_sys_exit(int code) __attribute__((noreturn));
 
 #ifndef ARCH_SET_FS
 #define ARCH_SET_FS 0x1002
@@ -218,19 +218,19 @@ size_t strcspn(const char *s, const char *reject) {
     return i;
 }
 
-/** POSIX write；转 shux_sys_write。 */
+/** POSIX write；转 xlang_sys_write。 */
 long write(int fd, const void *buf, unsigned long count) {
-    return shux_sys_write(fd, buf, count);
+    return xlang_sys_write(fd, buf, count);
 }
 
 /** 栈保护失败；直接退出（bootstrap 烟测路径）。 */
 void __stack_chk_fail(void) {
-    shux_sys_exit(127);
+    xlang_sys_exit(127);
 }
 
 /** abort 等价；bootstrap 无 stderr 格式化。 */
 void abort(void) {
-    shux_sys_exit(134);
+    xlang_sys_exit(134);
 }
 
 /** 简单 mmap bump 分配器（MAP_PRIVATE | ANONYMOUS = 0x22 on Linux x86_64）。 */
@@ -249,12 +249,12 @@ long bootstrap_syscall4(long nr, long a0, long a1, long a2, long a3);
 #endif
 
 /** 对齐到 16 字节边界。 */
-#ifndef SHUX_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
+#ifndef XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
 /* G-02f-114：逻辑源 .x（真迁）；DIRECT 模式，rest 模式下 seed 不提供 */
 size_t bootstrap_align16(size_t n) {
   return (n + 15u) & ~(size_t)15u;
 }
-#endif /* SHUX_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X */
+#endif /* XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X */
 
 
 
@@ -265,7 +265,7 @@ int bootstrap_heap_grow_impl(size_t need) {
     void *p;
     if (need > chunk)
         chunk = (unsigned long)((need + 65535UL) & ~65535UL);
-    p = shux_sys_mmap(0, chunk, 3 /* PROT_READ|PROT_WRITE */, 0x22 /* MAP_PRIVATE|MAP_ANONYMOUS */, -1, 0);
+    p = xlang_sys_mmap(0, chunk, 3 /* PROT_READ|PROT_WRITE */, 0x22 /* MAP_PRIVATE|MAP_ANONYMOUS */, -1, 0);
     if (!p || p == (void *)(intptr_t)-1)
         return -1;
     bootstrap_heap_base = (unsigned char *)p;
@@ -274,36 +274,63 @@ int bootstrap_heap_grow_impl(size_t need) {
     return 0;
 }
 
-#ifndef SHUX_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
+#ifndef XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin（src/asm/bootstrap_nostdlib_stubs.x）提供 wrapper 调用 _impl */
 int bootstrap_heap_grow(size_t need) { return bootstrap_heap_grow_impl(need); }
-#endif /* SHUX_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X */
+#endif /* XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X */
 
 
 
 
-/** malloc 最小实现；bootstrap 链按需。 */
+/*
+ * PLATFORM: SHARED — freestanding bump heap for XLANG_BOOTSTRAP_NOSTDLIB / static xlang_asm.
+ *
+ * Layout of every live block:
+ *   [HeapHdr size (16 B, 16-aligned)][user payload ...]
+ * malloc/calloc return the payload pointer; free is still a no-op (bump).
+ *
+ * Why the header: realloc must copy min(old_user_size, new_size). The previous
+ * "memcpy(n, ptr, size)" used the *new* size while the old payload was only
+ * old_size bytes. On grow (e.g. GrowVec 256→4352 × sizeof(ast_Expr)), that
+ * read past the old block into unmapped pages → intermittent Ubuntu SIGSEGV
+ * under ASLR (~50% on large -E; setarch -R 0%; small files OK). GDB often
+ * hid it via different layout.
+ *
+ * Authority: this seed TU only (G.7). .x thin does not reimplement malloc.
+ */
+typedef struct {
+  size_t user_size; /* exact size requested by the last malloc/realloc for this block */
+  size_t _pad;      /* keep header 16 bytes so payload stays 16-aligned */
+} BootstrapHeapHdr;
+
+/** malloc minimal: bump + size header before payload. */
 void *malloc(size_t size) {
     size_t need;
-    void *out;
+    size_t payload;
+    unsigned char *raw;
+    BootstrapHeapHdr *hdr;
     if (size == 0)
         return NULL;
-    need = bootstrap_align16(size);
+    payload = bootstrap_align16(size);
+    need = sizeof(BootstrapHeapHdr) + payload;
     if (!bootstrap_heap_end || bootstrap_heap_end + need > bootstrap_heap_limit) {
         if (bootstrap_heap_grow(need) != 0)
             return NULL;
     }
-    out = bootstrap_heap_end;
+    raw = bootstrap_heap_end;
     bootstrap_heap_end += need;
-    return out;
+    hdr = (BootstrapHeapHdr *)(void *)raw;
+    hdr->user_size = size;
+    hdr->_pad = 0;
+    return (void *)(raw + sizeof(BootstrapHeapHdr));
 }
 
-/** free 最小实现；bump 分配器 no-op。 */
+/** free minimal: bump allocator no-op (payload stays reserved). */
 void free(void *ptr) {
     (void)ptr;
 }
 
-/** calloc 最小实现。 */
+/** calloc minimal: malloc then zero user_size bytes. */
 void *calloc(size_t nmemb, size_t size) {
     size_t total = nmemb * size;
     void *p = malloc(total);
@@ -312,23 +339,28 @@ void *calloc(size_t nmemb, size_t size) {
     return p;
 }
 
-/** realloc 最小实现；仅支持 NULL 或 bump 内指针的简单路径。 */
+/** realloc: allocate new block; copy min(old_user_size, size) only.
+ * PLATFORM: SHARED — must not memcpy with `size` when growing (OOB read). */
 void *realloc(void *ptr, size_t size) {
+    BootstrapHeapHdr *old_hdr;
+    size_t old_size;
+    size_t ncopy;
+    void *n;
     if (!ptr)
         return malloc(size);
     if (size == 0) {
         free(ptr);
         return NULL;
     }
-    /* bump 无法原地扩展；分配新块并拷贝（bootstrap 烟测足够）。 */
-    {
-        void *n = malloc(size);
-        if (!n)
-            return NULL;
-        /* 旧块大小未知；保守拷贝 size 字节。 */
-        memcpy(n, ptr, size);
-        return n;
-    }
+    old_hdr = (BootstrapHeapHdr *)(void *)((unsigned char *)ptr - sizeof(BootstrapHeapHdr));
+    old_size = old_hdr->user_size;
+    n = malloc(size);
+    if (!n)
+        return NULL;
+    ncopy = old_size < size ? old_size : size;
+    if (ncopy > 0)
+        memcpy(n, ptr, ncopy);
+    return n;
 }
 
 /** C 字符串比较；相等返回 0。 */
@@ -422,7 +454,7 @@ long strtol(const char *nptr, char **endptr, int base) {
   return sign * val;
 }
 
-/** strtoul 最小实现：委托 strtol，负值钳制为 0（SHUX_STACK_LIMIT_MB 等环境变量解析）。 */
+/** strtoul 最小实现：委托 strtol，负值钳制为 0（XLANG_STACK_LIMIT_MB 等环境变量解析）。 */
 unsigned long strtoul(const char *nptr, char **endptr, int base) {
   long v = strtol(nptr, endptr, base);
   if (v < 0)
@@ -442,7 +474,7 @@ unsigned long __isoc23_strtoul(const char *nptr, char **endptr, int base) {
 
 /** mmap 最小包装：将裸 syscall 的负 errno 返回归一化为 MAP_FAILED。 */
 void *mmap(void *addr, size_t len, int prot, int flags, int fd, off_t off) {
-  uintptr_t raw = (uintptr_t)shux_sys_mmap(addr, (unsigned long)len, prot, flags, fd, (long)off);
+  uintptr_t raw = (uintptr_t)xlang_sys_mmap(addr, (unsigned long)len, prot, flags, fd, (long)off);
   if (raw >= (uintptr_t)-4095) {
     bootstrap_errno = -(int)(intptr_t)raw;
     return (void *)-1;
@@ -452,7 +484,7 @@ void *mmap(void *addr, size_t len, int prot, int flags, int fd, off_t off) {
 
 /** munmap 最小包装：将裸 syscall 的负 errno 返回归一化为 -1。 */
 int munmap(void *addr, size_t len) {
-  long rc = shux_sys_munmap(addr, (unsigned long)len);
+  long rc = xlang_sys_munmap(addr, (unsigned long)len);
   if (rc < 0) {
     bootstrap_errno = (int)(-rc);
     return -1;
@@ -577,10 +609,10 @@ int bootstrap_format_double_impl(double x, char *out, size_t cap) {
     return (int)n;
 }
 
-#ifndef SHUX_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
+#ifndef XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin（src/asm/bootstrap_nostdlib_stubs.x）提供 wrapper 调用 _impl */
 int bootstrap_format_double(double x, char *out, size_t cap) { return bootstrap_format_double_impl(x, out, cap); }
-#endif /* SHUX_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X */
+#endif /* XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X */
 
 
 
@@ -822,11 +854,11 @@ int bootstrap_vfprintf_fd_impl(int fd, const char *fmt, va_list ap) {
     return wrote;
 }
 
-#ifndef SHUX_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
+#ifndef XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin（src/asm/bootstrap_nostdlib_stubs.x）提供 wrapper 调用 _impl
  * 类型擦除：.x 侧 ap 参数为 *u8，seed 前向声明用 va_list，C 链接器不看类型，ABI 兼容 */
 int bootstrap_vfprintf_fd(int fd, const char *fmt, va_list ap) { return bootstrap_vfprintf_fd_impl(fd, fmt, ap); }
-#endif /* SHUX_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X */
+#endif /* XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X */
 
 
 
@@ -908,34 +940,34 @@ int printf(const char *fmt, ...) {
 typedef union {
     double d;
     uint64_t u;
-} shux_soft_f64bits;
+} xlang_soft_f64bits;
 
 /** Absolute value via sign-bit clear (no libm). */
-static double shux_soft_fabs(double x) {
-    shux_soft_f64bits b;
+static double xlang_soft_fabs(double x) {
+    xlang_soft_f64bits b;
     b.d = x;
     b.u &= 0x7fffffffffffffffull;
     return b.d;
 }
 
 /** True if IEEE-754 quiet/signaling NaN. */
-static int shux_soft_isnan(double x) {
-    shux_soft_f64bits b;
+static int xlang_soft_isnan(double x) {
+    xlang_soft_f64bits b;
     b.d = x;
     return ((b.u & 0x7ff0000000000000ull) == 0x7ff0000000000000ull) &&
            ((b.u & 0x000fffffffffffffull) != 0ull);
 }
 
 /** True if ±Inf. */
-static int shux_soft_isinf(double x) {
-    shux_soft_f64bits b;
+static int xlang_soft_isinf(double x) {
+    xlang_soft_f64bits b;
     b.d = x;
     return (b.u & 0x7fffffffffffffffull) == 0x7ff0000000000000ull;
 }
 
 /** Copy sign bit of s onto magnitude of m. */
-static double shux_soft_copysign(double m, double s) {
-    shux_soft_f64bits bm, bs;
+static double xlang_soft_copysign(double m, double s) {
+    xlang_soft_f64bits bm, bs;
     bm.d = m;
     bs.d = s;
     bm.u = (bm.u & 0x7fffffffffffffffull) | (bs.u & 0x8000000000000000ull);
@@ -943,27 +975,27 @@ static double shux_soft_copysign(double m, double s) {
 }
 
 /** Min; NaN policy: prefer non-NaN when one is NaN (simple freestanding). */
-static double shux_soft_fmin(double a, double b) {
-    if (shux_soft_isnan(a))
+static double xlang_soft_fmin(double a, double b) {
+    if (xlang_soft_isnan(a))
         return b;
-    if (shux_soft_isnan(b))
+    if (xlang_soft_isnan(b))
         return a;
     return a < b ? a : b;
 }
 
 /** Max; NaN policy: prefer non-NaN when one is NaN. */
-static double shux_soft_fmax(double a, double b) {
-    if (shux_soft_isnan(a))
+static double xlang_soft_fmax(double a, double b) {
+    if (xlang_soft_isnan(a))
         return b;
-    if (shux_soft_isnan(b))
+    if (xlang_soft_isnan(b))
         return a;
     return a > b ? a : b;
 }
 
 /** Truncate toward zero via integer cast when |x| < 2^53. */
-static double shux_soft_trunc(double x) {
+static double xlang_soft_trunc(double x) {
     double y;
-    if (shux_soft_isnan(x) || shux_soft_isinf(x))
+    if (xlang_soft_isnan(x) || xlang_soft_isinf(x))
         return x;
     if (x >= 0x1p53 || x <= -0x1p53)
         return x;
@@ -972,9 +1004,9 @@ static double shux_soft_trunc(double x) {
 }
 
 /** Floor toward −∞. */
-static double shux_soft_floor(double x) {
+static double xlang_soft_floor(double x) {
     double y;
-    if (shux_soft_isnan(x) || shux_soft_isinf(x))
+    if (xlang_soft_isnan(x) || xlang_soft_isinf(x))
         return x;
     if (x >= 0x1p53 || x <= -0x1p53)
         return x;
@@ -985,9 +1017,9 @@ static double shux_soft_floor(double x) {
 }
 
 /** Ceil toward +∞. */
-static double shux_soft_ceil(double x) {
+static double xlang_soft_ceil(double x) {
     double y;
-    if (shux_soft_isnan(x) || shux_soft_isinf(x))
+    if (xlang_soft_isnan(x) || xlang_soft_isinf(x))
         return x;
     if (x >= 0x1p53 || x <= -0x1p53)
         return x;
@@ -998,25 +1030,25 @@ static double shux_soft_ceil(double x) {
 }
 
 /** Round half away from zero (common freestanding; matches smoke ints). */
-static double shux_soft_round(double x) {
-    if (shux_soft_isnan(x) || shux_soft_isinf(x))
+static double xlang_soft_round(double x) {
+    if (xlang_soft_isnan(x) || xlang_soft_isinf(x))
         return x;
     if (x >= 0.0)
-        return shux_soft_floor(x + 0.5);
-    return shux_soft_ceil(x - 0.5);
+        return xlang_soft_floor(x + 0.5);
+    return xlang_soft_ceil(x - 0.5);
 }
 
 /** Square root: hardware when available, else Newton. */
-static double shux_soft_sqrt(double x) {
+static double xlang_soft_sqrt(double x) {
     double r;
-    if (shux_soft_isnan(x) || x == 0.0)
+    if (xlang_soft_isnan(x) || x == 0.0)
         return x;
     if (x < 0.0) {
-        shux_soft_f64bits n;
+        xlang_soft_f64bits n;
         n.u = 0x7ff8000000000000ull; /* qNaN */
         return n.d;
     }
-    if (shux_soft_isinf(x))
+    if (xlang_soft_isinf(x))
         return x;
 #if defined(__x86_64__) || defined(_M_X64)
     __asm__ volatile("sqrtsd %1, %0" : "=x"(r) : "x"(x));
@@ -1039,33 +1071,33 @@ static double shux_soft_sqrt(double x) {
 
 /* ---- transcendentals: range reduction + minimax / Taylor ---- */
 
-#define SHUX_SOFT_PI 3.14159265358979323846
-#define SHUX_SOFT_PI_2 1.57079632679489661923
-#define SHUX_SOFT_PI_4 0.78539816339744830962
-#define SHUX_SOFT_LN2 0.693147180559945309417
-#define SHUX_SOFT_LOG2E 1.44269504088896340736
-#define SHUX_SOFT_TWO54 0x1.0p54
+#define XLANG_SOFT_PI 3.14159265358979323846
+#define XLANG_SOFT_PI_2 1.57079632679489661923
+#define XLANG_SOFT_PI_4 0.78539816339744830962
+#define XLANG_SOFT_LN2 0.693147180559945309417
+#define XLANG_SOFT_LOG2E 1.44269504088896340736
+#define XLANG_SOFT_TWO54 0x1.0p54
 
 /** exp(x) via 2^k * exp(r), |r| small; freestanding series. */
-static double shux_soft_exp(double x) {
+static double xlang_soft_exp(double x) {
     double r, z, p;
     int k;
-    if (shux_soft_isnan(x))
+    if (xlang_soft_isnan(x))
         return x;
     if (x > 709.0)
         return 0x1.0p1023 * 0x1.0p1023; /* +Inf overflow */
     if (x < -745.0)
         return 0.0;
     /* k = round(x / ln2) */
-    k = (int)(x * SHUX_SOFT_LOG2E + (x >= 0.0 ? 0.5 : -0.5));
-    r = x - (double)k * SHUX_SOFT_LN2;
+    k = (int)(x * XLANG_SOFT_LOG2E + (x >= 0.0 ? 0.5 : -0.5));
+    r = x - (double)k * XLANG_SOFT_LN2;
     /* exp(r) ≈ 1 + r + r^2/2! + … + r^8/8! */
     z = r * r;
     p = 1.0 + r +
         z * (0.5 + r * (1.0 / 6.0 + r * (1.0 / 24.0 + r * (1.0 / 120.0 + r * (1.0 / 720.0 + r * (1.0 / 5040.0 + r * (1.0 / 40320.0)))))));
     /* scale by 2^k via exponent field */
     {
-        shux_soft_f64bits b;
+        xlang_soft_f64bits b;
         int e;
         b.d = p;
         e = (int)((b.u >> 52) & 0x7ffull);
@@ -1080,8 +1112,8 @@ static double shux_soft_exp(double x) {
 }
 
 /** frexp-like: x = m * 2^e, m in [0.5, 1). */
-static double shux_soft_frexp_mant(double x, int *exp_out) {
-    shux_soft_f64bits b;
+static double xlang_soft_frexp_mant(double x, int *exp_out) {
+    xlang_soft_f64bits b;
     int e;
     b.d = x;
     e = (int)((b.u >> 52) & 0x7ffull);
@@ -1092,7 +1124,7 @@ static double shux_soft_frexp_mant(double x, int *exp_out) {
             return x;
         }
         /* normalize subnormal */
-        b.d = x * SHUX_SOFT_TWO54;
+        b.d = x * XLANG_SOFT_TWO54;
         e = (int)((b.u >> 52) & 0x7ffull) - 54;
     } else if (e == 0x7ff) {
         *exp_out = 0;
@@ -1106,23 +1138,23 @@ static double shux_soft_frexp_mant(double x, int *exp_out) {
 }
 
 /** log(x) natural log for x > 0. */
-static double shux_soft_log(double x) {
+static double xlang_soft_log(double x) {
     double m, f, s, z, R;
     int e;
-    if (shux_soft_isnan(x))
+    if (xlang_soft_isnan(x))
         return x;
     if (x < 0.0) {
-        shux_soft_f64bits n;
+        xlang_soft_f64bits n;
         n.u = 0x7ff8000000000000ull;
         return n.d;
     }
     if (x == 0.0)
         return -0x1.0p1023 * 0x1.0p1023; /* -Inf */
-    if (shux_soft_isinf(x))
+    if (xlang_soft_isinf(x))
         return x;
     if (x == 1.0)
         return 0.0;
-    m = shux_soft_frexp_mant(x, &e);
+    m = xlang_soft_frexp_mant(x, &e);
     /* Bring mant into [sqrt(1/2), sqrt(2)] ≈ [0.707, 1.414] for better series. */
     if (m < 0.7071067811865476) {
         m *= 2.0;
@@ -1133,13 +1165,13 @@ static double shux_soft_log(double x) {
     s = f * f;
     z = f + f * s * (1.0 / 3.0 + s * (1.0 / 5.0 + s * (1.0 / 7.0 + s * (1.0 / 9.0 + s * (1.0 / 11.0 + s * (1.0 / 13.0))))));
     R = 2.0 * z;
-    return R + (double)e * SHUX_SOFT_LN2;
+    return R + (double)e * XLANG_SOFT_LN2;
 }
 
 /** log1p(x) = log(1+x) numerically stable for small x. */
-static double shux_soft_log1p(double x) {
+static double xlang_soft_log1p(double x) {
     double y, z;
-    if (shux_soft_isnan(x))
+    if (xlang_soft_isnan(x))
         return x;
     if (x == 0.0)
         return x;
@@ -1147,7 +1179,7 @@ static double shux_soft_log1p(double x) {
         if (x == -1.0)
             return -0x1.0p1023 * 0x1.0p1023;
         {
-            shux_soft_f64bits n;
+            xlang_soft_f64bits n;
             n.u = 0x7ff8000000000000ull;
             return n.d;
         }
@@ -1156,29 +1188,29 @@ static double shux_soft_log1p(double x) {
     z = y - 1.0;
     if (z == 0.0)
         return x;
-    return shux_soft_log(y) * (x / z);
+    return xlang_soft_log(y) * (x / z);
 }
 
 /** expm1(x) = exp(x)-1 numerically stable for small x. */
-static double shux_soft_expm1(double x) {
+static double xlang_soft_expm1(double x) {
     double a, e;
-    if (shux_soft_isnan(x))
+    if (xlang_soft_isnan(x))
         return x;
-    if (shux_soft_fabs(x) < 1.0e-8) {
+    if (xlang_soft_fabs(x) < 1.0e-8) {
         /* x + x^2/2 + x^3/6 */
         return x + x * x * (0.5 + x / 6.0);
     }
-    e = shux_soft_exp(x);
+    e = xlang_soft_exp(x);
     if (e == 1.0)
         return x;
     a = e - 1.0;
     if (a == 0.0)
         return a;
-    return a * x / shux_soft_log(e);
+    return a * x / xlang_soft_log(e);
 }
 
 /** pow(base, exp) via exp(exp*log|base|) with special cases. */
-static double shux_soft_pow(double base, double expn) {
+static double xlang_soft_pow(double base, double expn) {
     int neg = 0;
     double r;
     long long n;
@@ -1189,8 +1221,8 @@ static double shux_soft_pow(double base, double expn) {
             return 0x1.0p1023 * 0x1.0p1023;
         return 1.0;
     }
-    if (shux_soft_isnan(base) || shux_soft_isnan(expn)) {
-        shux_soft_f64bits nb;
+    if (xlang_soft_isnan(base) || xlang_soft_isnan(expn)) {
+        xlang_soft_f64bits nb;
         nb.u = 0x7ff8000000000000ull;
         return nb.d;
     }
@@ -1199,10 +1231,10 @@ static double shux_soft_pow(double base, double expn) {
     if (base == 1.0)
         return 1.0;
     /* Small integer exponents: exact multiply ladder (avoids log/exp error on 2^3 etc.). */
-    if (expn == shux_soft_floor(expn) && expn >= -1022.0 && expn <= 1023.0) {
+    if (expn == xlang_soft_floor(expn) && expn >= -1022.0 && expn <= 1023.0) {
         n = (long long)expn;
         if (n < 0) {
-            return 1.0 / shux_soft_pow(base, (double)(-n));
+            return 1.0 / xlang_soft_pow(base, (double)(-n));
         }
         r = 1.0;
         {
@@ -1220,108 +1252,108 @@ static double shux_soft_pow(double base, double expn) {
     if (base < 0.0) {
         double ip;
         /* only integer exponents for negative bases in this soft face */
-        ip = shux_soft_floor(expn);
+        ip = xlang_soft_floor(expn);
         if (ip != expn) {
-            shux_soft_f64bits nb;
+            xlang_soft_f64bits nb;
             nb.u = 0x7ff8000000000000ull;
             return nb.d;
         }
         neg = ((long long)ip) & 1;
         base = -base;
     }
-    r = shux_soft_exp(expn * shux_soft_log(base));
+    r = xlang_soft_exp(expn * xlang_soft_log(base));
     return neg ? -r : r;
 }
 
 /** cbrt via Newton on y^3 - x = 0. */
-static double shux_soft_cbrt(double x) {
+static double xlang_soft_cbrt(double x) {
     double y;
     int i, sign = 0;
-    if (shux_soft_isnan(x) || x == 0.0 || shux_soft_isinf(x))
+    if (xlang_soft_isnan(x) || x == 0.0 || xlang_soft_isinf(x))
         return x;
     if (x < 0.0) {
         sign = 1;
         x = -x;
     }
-    y = shux_soft_exp(shux_soft_log(x) / 3.0);
+    y = xlang_soft_exp(xlang_soft_log(x) / 3.0);
     for (i = 0; i < 4; i++)
         y = (2.0 * y + x / (y * y)) / 3.0;
     return sign ? -y : y;
 }
 
 /** Kernel sin on [-pi/4, pi/4]. */
-static double shux_soft_sin_kernel(double x) {
+static double xlang_soft_sin_kernel(double x) {
     double z = x * x;
     /* sin = x + x^3*(-1/6 + z*(1/120 + z*(-1/5040 + z/362880))) */
     return x + x * z * (-1.0 / 6.0 + z * (1.0 / 120.0 + z * (-1.0 / 5040.0 + z * (1.0 / 362880.0))));
 }
 
 /** Kernel cos on [-pi/4, pi/4]. */
-static double shux_soft_cos_kernel(double x) {
+static double xlang_soft_cos_kernel(double x) {
     double z = x * x;
     return 1.0 + z * (-0.5 + z * (1.0 / 24.0 + z * (-1.0 / 720.0 + z * (1.0 / 40320.0))));
 }
 
 /** Reduce x to [-pi/4,pi/4] and quadrant; *q = 0..3. */
-static double shux_soft_rem_pio2(double x, int *q) {
+static double xlang_soft_rem_pio2(double x, int *q) {
     double y;
     long n;
     /* n ≈ x / (pi/2) */
-    n = (long)(x * (1.0 / SHUX_SOFT_PI_2) + (x >= 0.0 ? 0.5 : -0.5));
-    y = x - (double)n * SHUX_SOFT_PI_2;
+    n = (long)(x * (1.0 / XLANG_SOFT_PI_2) + (x >= 0.0 ? 0.5 : -0.5));
+    y = x - (double)n * XLANG_SOFT_PI_2;
     *q = (int)(n & 3);
     return y;
 }
 
-static double shux_soft_sin(double x) {
+static double xlang_soft_sin(double x) {
     int q;
     double y;
-    if (shux_soft_isnan(x) || shux_soft_isinf(x))
+    if (xlang_soft_isnan(x) || xlang_soft_isinf(x))
         return x - x; /* NaN */
-    y = shux_soft_rem_pio2(x, &q);
+    y = xlang_soft_rem_pio2(x, &q);
     switch (q) {
     case 0:
-        return shux_soft_sin_kernel(y);
+        return xlang_soft_sin_kernel(y);
     case 1:
-        return shux_soft_cos_kernel(y);
+        return xlang_soft_cos_kernel(y);
     case 2:
-        return -shux_soft_sin_kernel(y);
+        return -xlang_soft_sin_kernel(y);
     default:
-        return -shux_soft_cos_kernel(y);
+        return -xlang_soft_cos_kernel(y);
     }
 }
 
-static double shux_soft_cos(double x) {
+static double xlang_soft_cos(double x) {
     int q;
     double y;
-    if (shux_soft_isnan(x) || shux_soft_isinf(x))
+    if (xlang_soft_isnan(x) || xlang_soft_isinf(x))
         return x - x;
-    y = shux_soft_rem_pio2(x, &q);
+    y = xlang_soft_rem_pio2(x, &q);
     switch (q) {
     case 0:
-        return shux_soft_cos_kernel(y);
+        return xlang_soft_cos_kernel(y);
     case 1:
-        return -shux_soft_sin_kernel(y);
+        return -xlang_soft_sin_kernel(y);
     case 2:
-        return -shux_soft_cos_kernel(y);
+        return -xlang_soft_cos_kernel(y);
     default:
-        return shux_soft_sin_kernel(y);
+        return xlang_soft_sin_kernel(y);
     }
 }
 
-static double shux_soft_tan(double x) {
-    double s = shux_soft_sin(x);
-    double c = shux_soft_cos(x);
+static double xlang_soft_tan(double x) {
+    double s = xlang_soft_sin(x);
+    double c = xlang_soft_cos(x);
     if (c == 0.0)
-        return shux_soft_copysign(0x1.0p1023 * 0x1.0p1023, s);
+        return xlang_soft_copysign(0x1.0p1023 * 0x1.0p1023, s);
     return s / c;
 }
 
 /** atan via range reduction + rational approximation. */
-static double shux_soft_atan(double x) {
+static double xlang_soft_atan(double x) {
     double t, z;
     int inv = 0, sign = 0;
-    if (shux_soft_isnan(x))
+    if (xlang_soft_isnan(x))
         return x;
     if (x < 0.0) {
         sign = 1;
@@ -1337,54 +1369,54 @@ static double shux_soft_atan(double x) {
                                                                 z * (0.1111111111111111 + z * (-0.09090909090909091 +
                                                                                               z * 0.07692307692307693))))));
     if (inv)
-        t = SHUX_SOFT_PI_2 - t;
+        t = XLANG_SOFT_PI_2 - t;
     return sign ? -t : t;
 }
 
-static double shux_soft_atan2(double y, double x) {
-    if (shux_soft_isnan(x) || shux_soft_isnan(y)) {
-        shux_soft_f64bits n;
+static double xlang_soft_atan2(double y, double x) {
+    if (xlang_soft_isnan(x) || xlang_soft_isnan(y)) {
+        xlang_soft_f64bits n;
         n.u = 0x7ff8000000000000ull;
         return n.d;
     }
     if (x > 0.0)
-        return shux_soft_atan(y / x);
+        return xlang_soft_atan(y / x);
     if (x < 0.0) {
         if (y >= 0.0)
-            return shux_soft_atan(y / x) + SHUX_SOFT_PI;
-        return shux_soft_atan(y / x) - SHUX_SOFT_PI;
+            return xlang_soft_atan(y / x) + XLANG_SOFT_PI;
+        return xlang_soft_atan(y / x) - XLANG_SOFT_PI;
     }
     /* x == 0 */
     if (y > 0.0)
-        return SHUX_SOFT_PI_2;
+        return XLANG_SOFT_PI_2;
     if (y < 0.0)
-        return -SHUX_SOFT_PI_2;
+        return -XLANG_SOFT_PI_2;
     return 0.0;
 }
 
 /** asin via atan(x/sqrt(1-x^2)). */
-static double shux_soft_asin(double x) {
-    if (shux_soft_isnan(x))
+static double xlang_soft_asin(double x) {
+    if (xlang_soft_isnan(x))
         return x;
     if (x < -1.0 || x > 1.0) {
-        shux_soft_f64bits n;
+        xlang_soft_f64bits n;
         n.u = 0x7ff8000000000000ull;
         return n.d;
     }
     if (x == 1.0)
-        return SHUX_SOFT_PI_2;
+        return XLANG_SOFT_PI_2;
     if (x == -1.0)
-        return -SHUX_SOFT_PI_2;
-    return shux_soft_atan(x / shux_soft_sqrt(1.0 - x * x));
+        return -XLANG_SOFT_PI_2;
+    return xlang_soft_atan(x / xlang_soft_sqrt(1.0 - x * x));
 }
 
 /** acos via pi/2 - asin. */
-static double shux_soft_acos(double x) {
-    return SHUX_SOFT_PI_2 - shux_soft_asin(x);
+static double xlang_soft_acos(double x) {
+    return XLANG_SOFT_PI_2 - xlang_soft_asin(x);
 }
 
 /** erf via A&S 7.1.26 (max err ~1.5e-7); enough for STD-115 1e-6 gold. */
-static double shux_soft_erf(double x) {
+static double xlang_soft_erf(double x) {
     double ax, t, y;
     const double a1 = 0.254829592;
     const double a2 = -0.284496736;
@@ -1395,7 +1427,7 @@ static double shux_soft_erf(double x) {
     /* 2/sqrt(pi) — linear small-x: erf(x) ≈ c*x */
     const double two_over_sqrt_pi = 1.1283791670955126;
     int sign = 0;
-    if (shux_soft_isnan(x))
+    if (xlang_soft_isnan(x))
         return x;
     if (x == 0.0)
         return x; /* preserve ±0 */
@@ -1407,49 +1439,49 @@ static double shux_soft_erf(double x) {
     if (ax < 1.0e-8)
         return sign ? -two_over_sqrt_pi * ax : two_over_sqrt_pi * ax;
     t = 1.0 / (1.0 + p * ax);
-    y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * shux_soft_exp(-ax * ax);
+    y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * xlang_soft_exp(-ax * ax);
     return sign ? -y : y;
 }
 
 /** erfc(x) = 1 - erf(x); for large |x| use complementary path to limit cancellation. */
-static double shux_soft_erfc(double x) {
+static double xlang_soft_erfc(double x) {
     if (x >= 0.0 && x < 0.5)
-        return 1.0 - shux_soft_erf(x);
+        return 1.0 - xlang_soft_erf(x);
     if (x >= 0.5) {
         /* erfc(x) for x>=0.5: 1-erf still OK until ~6; beyond → 0 */
         if (x > 20.0)
             return 0.0;
-        return 1.0 - shux_soft_erf(x);
+        return 1.0 - xlang_soft_erf(x);
     }
     /* x < 0: erfc(x) = 1 + erf(-x) = 2 - erfc(-x) */
-    return 2.0 - shux_soft_erfc(-x);
+    return 2.0 - xlang_soft_erfc(-x);
 }
 
 /* ---- public libm face (forward only; no __builtin_*) ---- */
 
-double fabs(double x) { return shux_soft_fabs(x); }
-double fmin(double a, double b) { return shux_soft_fmin(a, b); }
-double fmax(double a, double b) { return shux_soft_fmax(a, b); }
-double trunc(double x) { return shux_soft_trunc(x); }
-double floor(double x) { return shux_soft_floor(x); }
-double ceil(double x) { return shux_soft_ceil(x); }
-double round(double x) { return shux_soft_round(x); }
-double sqrt(double x) { return shux_soft_sqrt(x); }
-double cbrt(double x) { return shux_soft_cbrt(x); }
-double exp(double x) { return shux_soft_exp(x); }
-double log(double x) { return shux_soft_log(x); }
-double log1p(double x) { return shux_soft_log1p(x); }
-double expm1(double x) { return shux_soft_expm1(x); }
-double pow(double base, double expn) { return shux_soft_pow(base, expn); }
-double sin(double x) { return shux_soft_sin(x); }
-double cos(double x) { return shux_soft_cos(x); }
-double tan(double x) { return shux_soft_tan(x); }
-double asin(double x) { return shux_soft_asin(x); }
-double acos(double x) { return shux_soft_acos(x); }
-double atan(double x) { return shux_soft_atan(x); }
-double atan2(double y, double x) { return shux_soft_atan2(y, x); }
-double erf(double x) { return shux_soft_erf(x); }
-double erfc(double x) { return shux_soft_erfc(x); }
+double fabs(double x) { return xlang_soft_fabs(x); }
+double fmin(double a, double b) { return xlang_soft_fmin(a, b); }
+double fmax(double a, double b) { return xlang_soft_fmax(a, b); }
+double trunc(double x) { return xlang_soft_trunc(x); }
+double floor(double x) { return xlang_soft_floor(x); }
+double ceil(double x) { return xlang_soft_ceil(x); }
+double round(double x) { return xlang_soft_round(x); }
+double sqrt(double x) { return xlang_soft_sqrt(x); }
+double cbrt(double x) { return xlang_soft_cbrt(x); }
+double exp(double x) { return xlang_soft_exp(x); }
+double log(double x) { return xlang_soft_log(x); }
+double log1p(double x) { return xlang_soft_log1p(x); }
+double expm1(double x) { return xlang_soft_expm1(x); }
+double pow(double base, double expn) { return xlang_soft_pow(base, expn); }
+double sin(double x) { return xlang_soft_sin(x); }
+double cos(double x) { return xlang_soft_cos(x); }
+double tan(double x) { return xlang_soft_tan(x); }
+double asin(double x) { return xlang_soft_asin(x); }
+double acos(double x) { return xlang_soft_acos(x); }
+double atan(double x) { return xlang_soft_atan(x); }
+double atan2(double y, double x) { return xlang_soft_atan2(y, x); }
+double erf(double x) { return xlang_soft_erf(x); }
+double erfc(double x) { return xlang_soft_erfc(x); }
 
 /* ── fenv 空实现：runtime_math_libm.c 在 Linux 上可链入 ── */
 
@@ -1490,10 +1522,10 @@ long bootstrap_syscall3_impl(long nr, long a0, long a1, long a2) {
     return ret;
 }
 
-#ifndef SHUX_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
+#ifndef XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin（src/asm/bootstrap_nostdlib_stubs.x）提供 wrapper 调用 _impl */
 long bootstrap_syscall3(long nr, long a0, long a1, long a2) { return bootstrap_syscall3_impl(nr, a0, a1, a2); }
-#endif /* SHUX_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X */
+#endif /* XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X */
 
 
 
@@ -1507,24 +1539,24 @@ long bootstrap_syscall4_impl(long nr, long a0, long a1, long a2, long a3) {
     return ret;
 }
 
-#ifndef SHUX_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
+#ifndef XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin（src/asm/bootstrap_nostdlib_stubs.x）提供 wrapper 调用 _impl */
 long bootstrap_syscall4(long nr, long a0, long a1, long a2, long a3) { return bootstrap_syscall4_impl(nr, a0, a1, a2, a3); }
-#endif /* SHUX_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X */
+#endif /* XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X */
 
 
 
 
 #endif
 
-/** read：转 shux_sys_read。 */
+/** read：转 xlang_sys_read。 */
 ssize_t read(int fd, void *buf, size_t count) {
-    return (ssize_t)shux_sys_read(fd, buf, (unsigned long)count);
+    return (ssize_t)xlang_sys_read(fd, buf, (unsigned long)count);
 }
 
-/** close：转 shux_sys_close。 */
+/** close：转 xlang_sys_close。 */
 int close(int fd) {
-    return (int)shux_sys_close(fd);
+    return (int)xlang_sys_close(fd);
 }
 
 /** open：O_CREAT 时取 mode；Linux 走 syscall 2。 */
@@ -1554,6 +1586,23 @@ int fstat(int fd, struct stat *st) {
     (void)fd;
     (void)st;
     return -1;
+#endif
+}
+
+/**
+ * lseek：Linux x86_64 syscall 8 (SYS_lseek).
+ * Needed by runtime_io_abi pure Cap residual (file-view size without fstat layout in .x).
+ * PLATFORM: LINUX x86_64 nostdlib product link; macOS uses host libc lseek.
+ * G.7: single face next to open/read/close/fstat in this stub TU.
+ */
+off_t lseek(int fd, off_t offset, int whence) {
+#if defined(__linux__) && defined(__x86_64__)
+    return (off_t)bootstrap_syscall3(8L, (long)fd, (long)offset, (long)whence);
+#else
+    (void)fd;
+    (void)offset;
+    (void)whence;
+    return (off_t)-1;
 #endif
 }
 
@@ -2079,8 +2128,8 @@ void *__memcpy_chk(void *dest, const void *src, size_t len, size_t destlen) {
 /**
  * Flush a stdio stream (POSIX fflush).
  *
- * PLATFORM: LINUX — this TU is linked **only** on SHUX_BOOTSTRAP_NOSTDLIB crt0
- * (build_shux_asm bootstrap_link_tail_crt0 / driver). g05 dynamic product does
+ * PLATFORM: LINUX — this TU is linked **only** on XLANG_BOOTSTRAP_NOSTDLIB crt0
+ * (build_xlang_asm bootstrap_link_tail_crt0 / driver). g05 dynamic product does
  * **not** link bootstrap_nostdlib_stubs.o, so glibc keeps fflush (historical
  * 24KiB -E truncate when a strong no-op covered glibc + unflushed fwrite).
  *
@@ -2259,7 +2308,7 @@ const unsigned short **__ctype_b_loc(void) {
  * - Hosted/dynamic (g05 product): stubs not linked; crt0 weak ref is 0 → fflush@PLT
  *   on real glibc streams (keeps -E buffer tail).
  * - Freestanding / nostdlib crt0: this symbol is strong; call fflush (this TU) then
- *   shux_sys_exit. Stub FILE* path is no-op success (unbuffered write).
+ *   xlang_sys_exit. Stub FILE* path is no-op success (unbuffered write).
  *
  * Authority: only this helper from crt0_x86_64.s for freestanding exit — do not
  * call fflush@PLT on raw stdout from asm (G.7 single exit-flush path).
@@ -2271,7 +2320,7 @@ void bootstrap_flush_stdio_and_exit(int code) {
     (void)fflush(stdout);
   if (stderr)
     (void)fflush(stderr);
-  shux_sys_exit(code);
+  xlang_sys_exit(code);
 }
 
 /** 写单字符到流。 */
@@ -2308,7 +2357,7 @@ void _exit(int status) {
   for (;;)
     ;
 #else
-  shux_sys_exit(status);
+  xlang_sys_exit(status);
 #endif
 }
 
@@ -2340,7 +2389,7 @@ static int bootstrap_execve(const char *path, char *const argv[]) {
  * POSIX execvp: search PATH when `file` has no '/'; otherwise exec absolute/relative path.
  *
  * Root cause (NL-07 L10 L4 expose): prior stub was bare execve(file) without PATH search.
- * After L4 wipe, ensure → shux_cc_compile_sync_ex → execvp("cc") → ENOENT, BLD001 on
+ * After L4 wipe, ensure → xlang_cc_compile_sync_ex → execvp("cc") → ENOENT, BLD001 on
  * runtime_asm_io_stubs.o. L2/L3 with residual .o hid this (ensure skipped).
  *
  * Authority: G.7 this freestanding execvp only — do not fork second search in link_abi.
@@ -2500,7 +2549,7 @@ FILE *fdopen(int fd, const char *mode) {
   return &bootstrap_fd_file;
 }
 
-/** mkstemp：/tmp/shuxXXXXXX 最小实现（pid+序号避免跨进程 O_EXCL 冲突）。 */
+/** mkstemp：/tmp/xlangXXXXXX 最小实现（pid+序号避免跨进程 O_EXCL 冲突）。 */
 int mkstemp(char *template) {
   static int bootstrap_mkstemp_seq;
   char *p;

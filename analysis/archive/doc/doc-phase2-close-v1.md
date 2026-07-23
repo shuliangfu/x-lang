@@ -45,7 +45,7 @@ DOC-006 manifest 食谱数由 35 增至 **36**（`min_recipes` 仍为 35，gate 
 ```
 
 ```
-shux: [SHUX_DOC08_PHASE2_CLOSE] status=ok anchors=6 cookbook=1 skip=0
+xlang: [XLANG_DOC08_PHASE2_CLOSE] status=ok anchors=6 cookbook=1 skip=0
 ```
 
 ---

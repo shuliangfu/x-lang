@@ -46,7 +46,7 @@ C_OK=0
 X_OK=0
 SKIP=0
 
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/trace/trace.o 2>/dev/null || true
@@ -61,13 +61,13 @@ if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
     echo "std-trace-hooks gate SKIP c smoke (no full trace.o)" >&2
   fi
 else
-  echo "std-trace-hooks gate SKIP c smoke (no shux-c)" >&2
+  echo "std-trace-hooks gate SKIP c smoke (no xlang-c)" >&2
 fi
 
-if [ -x ./compiler/shux-c ]; then
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  ./compiler/shux-c check -L . "$SMOKE_X" >/dev/null
-  std_trace_hooks_run_x_smoke ./compiler/shux-c "$SMOKE_X" && X_OK=1 || exit 1
+if [ -x ./compiler/xlang-c ]; then
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  ./compiler/xlang-c check -L . "$SMOKE_X" >/dev/null
+  std_trace_hooks_run_x_smoke ./compiler/xlang-c "$SMOKE_X" && X_OK=1 || exit 1
 else
   SKIP=1
 fi

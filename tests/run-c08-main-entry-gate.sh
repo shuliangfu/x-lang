@@ -19,8 +19,8 @@ if [ "$lines" -gt 20 ]; then
   echo "c08 main-entry FAIL: main.c too large ($lines lines, max 20)" >&2
   exit 1
 fi
-grep -q 'shux_forward_main_to_main_entry' "$MAIN_C" || { echo "c08 main-entry FAIL: main.c missing shux_forward_main_to_main_entry" >&2; exit 1; }
-grep -q 'return shux_forward_main_to_main_entry(argc, argv)' "$MAIN_C" || { echo "c08 main-entry FAIL: main.c must return shux_forward_main_to_main_entry(...)" >&2; exit 1; }
+grep -q 'xlang_forward_main_to_main_entry' "$MAIN_C" || { echo "c08 main-entry FAIL: main.c missing xlang_forward_main_to_main_entry" >&2; exit 1; }
+grep -q 'return xlang_forward_main_to_main_entry(argc, argv)' "$MAIN_C" || { echo "c08 main-entry FAIL: main.c must return xlang_forward_main_to_main_entry(...)" >&2; exit 1; }
 grep -q 'function entry(' "$MAIN_X" || {
   echo "c08 main-entry FAIL: main.x missing entry() (exports as main_entry via module prefix)" >&2
   exit 1

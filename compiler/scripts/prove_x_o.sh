@@ -16,7 +16,7 @@
 # 约束：
 #   - 所有外部命令都带硬超时
 #   - 诊断工件落到 tests/probes/prove_x_o/，不写 /tmp
-#   - 默认先跑 x_bootstrap_safe_lint.sh；可用 SHUX_PROVE_SKIP_LINT=1 跳过
+#   - 默认先跑 x_bootstrap_safe_lint.sh；可用 XLANG_PROVE_SKIP_LINT=1 跳过
 
 set -eu
 
@@ -29,7 +29,7 @@ usage:
 
 examples:
   sh scripts/prove_x_o.sh src/asm/simd_loop.x seeds/simd_loop.from_x.c
-  SHUX_PROVE_TIMEOUT=12 sh scripts/prove_x_o.sh src/asm/simd_enc.x
+  XLANG_PROVE_TIMEOUT=12 sh scripts/prove_x_o.sh src/asm/simd_enc.x
 EOF
 }
 
@@ -45,7 +45,7 @@ fi
 
 X_SRC="$1"
 SEED_SRC="${2:-}"
-TIMEOUT="${SHUX_PROVE_TIMEOUT:-8}"
+TIMEOUT="${XLANG_PROVE_TIMEOUT:-8}"
 CC_BIN="${CC:-cc}"
 BASE_CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
 
@@ -54,17 +54,17 @@ if [ ! -f "$X_SRC" ]; then
   exit 1
 fi
 
-pick_shux() {
-  if [ -x ./shux ]; then
-    echo ./shux
+pick_xlang() {
+  if [ -x ./xlang ]; then
+    echo ./xlang
     return 0
   fi
-  if [ -x ./shux-c ]; then
-    echo ./shux-c
+  if [ -x ./xlang-c ]; then
+    echo ./xlang-c
     return 0
   fi
-  if [ -x ./bootstrap_shuxc ]; then
-    echo ./bootstrap_shuxc
+  if [ -x ./bootstrap_xlangc ]; then
+    echo ./bootstrap_xlangc
     return 0
   fi
   return 1
@@ -99,7 +99,7 @@ resolve_seed_src() {
       ;;
   esac
 
-  _macro="$(rg -o 'SHUX_[A-Z0-9_]+_FROM_X' "$_x_src" | sort -u | head -n 1 || true)"
+  _macro="$(rg -o 'XLANG_[A-Z0-9_]+_FROM_X' "$_x_src" | sort -u | head -n 1 || true)"
   if [ -n "$_macro" ]; then
     _macro_hits="$(rg -l "$_macro" "$_seed_dir" -g '*.from_x.c' | sort -u || true)"
     _hit_count="$(printf '%s\n' "$_macro_hits" | awk 'NF { n++ } END { print n + 0 }')"
@@ -120,7 +120,7 @@ acquire_probe_lock() {
   _stem="$1"
   _lock_root="../tests/probes/prove_x_o"
   _lock_dir="${_lock_root}/${_stem}.lock"
-  _lock_timeout="${SHUX_PROVE_LOCK_TIMEOUT:-15}"
+  _lock_timeout="${XLANG_PROVE_LOCK_TIMEOUT:-15}"
   _start_ts="${SECONDS:-0}"
 
   mkdir -p "$_lock_root"
@@ -158,7 +158,7 @@ extract_rest_macro() {
   if [ ! -f "$_seed_src" ]; then
     return 1
   fi
-  rg -o 'SHUX_[A-Z0-9_]+_FROM_X' "$_seed_src" | sort -u | head -n 1
+  rg -o 'XLANG_[A-Z0-9_]+_FROM_X' "$_seed_src" | sort -u | head -n 1
 }
 
 strip_libc_redecls() {
@@ -212,10 +212,10 @@ compile_x_generated_to_o() {
   _log_e="$5"
   _log_cc="$6"
 
-  if ! run_timeout "$TIMEOUT" "$SHUX_BIN" -E "$_x_src" >"$_raw_c" 2>"$_log_e"; then
+  if ! run_timeout "$TIMEOUT" "$XLANG_BIN" -E "$_x_src" >"$_raw_c" 2>"$_log_e"; then
     : >"$_raw_c"
-    if ! run_timeout "$TIMEOUT" "$SHUX_BIN" -backend c -E "$_x_src" >"$_raw_c" 2>>"$_log_e"; then
-      echo "prove_x_o: shux -E failed for $_x_src" >&2
+    if ! run_timeout "$TIMEOUT" "$XLANG_BIN" -backend c -E "$_x_src" >"$_raw_c" 2>>"$_log_e"; then
+      echo "prove_x_o: xlang -E failed for $_x_src" >&2
       echo "  log: $_log_e" >&2
       exit 1
     fi
@@ -282,15 +282,15 @@ build_symbol_probe_source() {
       for (i = 0; i < count; i++)
         printf "extern int %s(void);\n", cidents[i]
       print ""
-      print "void *shux_probe_refs[] = {"
+      print "void *xlang_probe_refs[] = {"
       for (i = 0; i < count; i++) {
         sep = (i + 1 < count ? "," : "")
         printf "  (void *)%s%s\n", cidents[i], sep
       }
       print "};"
       print ""
-      printf "int shux_probe_%s(void) {\n", probe_label
-      print "  return shux_probe_refs[0] != NULL ? 0 : 1;"
+      printf "int xlang_probe_%s(void) {\n", probe_label
+      print "  return xlang_probe_refs[0] != NULL ? 0 : 1;"
       print "}"
     }
   ' "$_syms_txt" >"$_probe_c"
@@ -340,12 +340,12 @@ check_probe_resolution() {
   echo "  probe_nm_${_tag}: $_probe_nm"
 }
 
-SHUX_BIN="$(pick_shux)" || {
-  echo "prove_x_o: missing bootstrap binary (shux/shux-c/bootstrap_shuxc)" >&2
+XLANG_BIN="$(pick_xlang)" || {
+  echo "prove_x_o: missing bootstrap binary (xlang/xlang-c/bootstrap_xlangc)" >&2
   exit 1
 }
 
-if [ "${SHUX_PROVE_SKIP_LINT:-0}" != "1" ]; then
+if [ "${XLANG_PROVE_SKIP_LINT:-0}" != "1" ]; then
   run_timeout "$TIMEOUT" sh scripts/x_bootstrap_safe_lint.sh "$X_SRC"
 fi
 

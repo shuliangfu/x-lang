@@ -30,7 +30,7 @@ while (my $line = <$fh>) {
             print $line;
             next;
         }
-        # 单行 static inline 保留；多行函数体（如 shux_panic_）整段跳过。
+        # 单行 static inline 保留；多行函数体（如 xlang_panic_）整段跳过。
         if ($line =~ /^static inline .+\{.*\}\s*$/) {
             print $line;
             next;

@@ -9,7 +9,7 @@
 
 | ID | 交付 |
 |----|------|
-| STD-148 | 哈希族选型表 + `recommend_hasher_*` + `SHUX_HASH_ALGO` 文档 + gate |
+| STD-148 | 哈希族选型表 + `recommend_hasher_*` + `XLANG_HASH_ALGO` 文档 + gate |
 
 ---
 
@@ -26,7 +26,7 @@
 
 ---
 
-## 3. SHUX_HASH_ALGO
+## 3. XLANG_HASH_ALGO
 
 | 值（前缀匹配） | `default_hasher()` | 说明 |
 |----------------|-------------------|------|
@@ -45,4 +45,4 @@
 ./tests/run-std-hash-default-strategy-gate.sh
 ```
 
-报告：`shux: [SHUX_STD148_HASH_DEFAULT_STRATEGY]`
+报告：`xlang: [XLANG_STD148_HASH_DEFAULT_STRATEGY]`

@@ -12,7 +12,7 @@
 ## 门禁
 
 ```bash
-SHUX_F_JSON_V1_FAIL=1 ./tests/run-f-json-v1-gate.sh
+XLANG_F_JSON_V1_FAIL=1 ./tests/run-f-json-v1-gate.sh
 ./tests/run-std-json-gate.sh
 ./tests/run-std-json-object-array-gate.sh
 ./tests/run-std-json-serialize-gate.sh

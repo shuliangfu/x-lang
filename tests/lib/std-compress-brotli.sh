@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-compress-brotli.sh — STD-125 manifest 与烟测辅助
 
-STD_COMPRESS_BROTLI_PREFIX="${SHUX_STD125_COMPRESS_BROTLI_PREFIX:-shux: [SHUX_STD125_COMPRESS_BROTLI]}"
+STD_COMPRESS_BROTLI_PREFIX="${XLANG_STD125_COMPRESS_BROTLI_PREFIX:-xlang: [XLANG_STD125_COMPRESS_BROTLI]}"
 
 std_compress_brotli_symbols_ok() {
   local mod_x="$1"
@@ -52,7 +52,7 @@ std_compress_brotli_run_c_smoke() {
   if ! nm -g "$compress_o" 2>/dev/null | grep -q 'compress_brotli_smoke_c'; then
     return 2
   fi
-  local out="/tmp/shux_std_compress_brotli_c_$$"
+  local out="/tmp/xlang_std_compress_brotli_c_$$"
   if ! cc -std=c11 -O1 -o "$out" tests/std-compress/brotli_smoke_ok.c "$compress_o" -lbrotlienc -lbrotlidec 2>/dev/null; then
     return 2
   fi
@@ -65,10 +65,10 @@ std_compress_brotli_run_c_smoke() {
 }
 
 std_compress_brotli_run_x_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
-  local exe="/tmp/shux_std_compress_brotli_x_$$"
-  "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
+  local exe="/tmp/xlang_std_compress_brotli_x_$$"
+  "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
   set +e
   "$exe" >/dev/null 2>&1
   local ec=$?

@@ -2,16 +2,16 @@
 # lang-const-eval.sh — LANG-006 CTFE 共享 runner
 #
 # 用法：
-#   ./tests/lib/lang-const-eval.sh           # 全量 case（需 native shux）
+#   ./tests/lib/lang-const-eval.sh           # 全量 case（需 native xlang）
 #   ./tests/lib/lang-const-eval.sh case_id   # 单 case（manifest item_id）
 set -e
 cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.."
 
-MANIFEST="${SHUX_LANG_CONST_EVAL_MANIFEST:-tests/baseline/lang-const-eval.tsv}"
+MANIFEST="${XLANG_LANG_CONST_EVAL_MANIFEST:-tests/baseline/lang-const-eval.tsv}"
 ONE="${1:-}"
 
-# 判断本机能否直接执行给定 shux 二进制
-lang_const_eval_native_shu() {
+# 判断本机能否直接执行给定 xlang 二进制
+lang_const_eval_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -23,15 +23,15 @@ lang_const_eval_native_shu() {
   esac
 }
 
-# 解析可用 shux；失败返回 2
+# 解析可用 xlang；失败返回 2
 lang_const_eval_resolve_shu() {
-  if [ -n "${SHUX:-}" ] && lang_const_eval_native_shu "$SHUX"; then
-    echo "$SHUX"
+  if [ -n "${XLANG:-}" ] && lang_const_eval_native_xlang "$XLANG"; then
+    echo "$XLANG"
     return 0
   fi
   local cand
-  for cand in ./compiler/shux-c ./compiler/shux; do
-    if lang_const_eval_native_shu "$cand"; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
+    if lang_const_eval_native_xlang "$cand"; then
       echo "$cand"
       return 0
     fi
@@ -41,17 +41,17 @@ lang_const_eval_resolve_shu() {
 
 # 编译运行 .x 并校验退出码
 lang_const_eval_run_x() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local want="$3"
   local tag="$4"
-  local out="/tmp/shux_lang_const_${tag}"
+  local out="/tmp/xlang_lang_const_${tag}"
   if [ ! -f "$src" ]; then
     echo "lang-const-eval FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shux" -L . "$src" -o "$out" >/tmp/shux_lang_const_compile.log 2>&1; then
-    cat /tmp/shux_lang_const_compile.log >&2
+  if ! "$xlang" -L . "$src" -o "$out" >/tmp/xlang_lang_const_compile.log 2>&1; then
+    cat /tmp/xlang_lang_const_compile.log >&2
     return 1
   fi
   local ec=0
@@ -75,9 +75,9 @@ lang_const_eval_want_exit() {
 # 主入口：全量或单 case runnable
 lang_const_eval_main() {
   local ONE="${1:-}"
-  local SHUX_BIN=""
-  if ! SHUX_BIN="$(lang_const_eval_resolve_shu)"; then
-    echo "lang-const-eval: no native shux (SKIP runnable)" >&2
+  local XLANG_BIN=""
+  if ! XLANG_BIN="$(lang_const_eval_resolve_shu)"; then
+    echo "lang-const-eval: no native xlang (SKIP runnable)" >&2
     return 2
   fi
 
@@ -97,7 +97,7 @@ lang_const_eval_main() {
         want="$(lang_const_eval_want_exit "${notes:-}")"
         RAN=$((RAN + 1))
         echo "── lang-const-eval $item_id (want=$want) ──"
-        if lang_const_eval_run_x "$SHUX_BIN" "$src" "$want" "$item_id"; then
+        if lang_const_eval_run_x "$XLANG_BIN" "$src" "$want" "$item_id"; then
           echo "lang-const-eval OK $item_id"
         else
           FAILS=$((FAILS + 1))
@@ -110,7 +110,7 @@ lang_const_eval_main() {
         RAN=$((RAN + 1))
         echo "── lang-const-eval hook $item_id ──"
         chmod +x "$src" 2>/dev/null || true
-        if SHUX="$SHUX_BIN" "$src"; then
+        if XLANG="$XLANG_BIN" "$src"; then
           echo "lang-const-eval OK $item_id"
         else
           FAILS=$((FAILS + 1))

@@ -3,13 +3,13 @@
 #
 # 用法：./tests/run-nolibc-n07-v3-link-gate.sh
 # 环境：
-#   SHUX_NOLIBC_N07_V3_FAIL=1              — 失败时硬退出
-#   SHUX_NOLIBC_N07_V3_MANIFEST_ONLY=1    — 仅 manifest 审计
-#   SHUX_NOLIBC_N07_LINK_SMOKE_WITH_PANIC=0 — 不链 runtime_panic.o
+#   XLANG_NOLIBC_N07_V3_FAIL=1              — 失败时硬退出
+#   XLANG_NOLIBC_N07_V3_MANIFEST_ONLY=1    — 仅 manifest 审计
+#   XLANG_NOLIBC_N07_LINK_SMOKE_WITH_PANIC=0 — 不链 runtime_panic.o
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_NOLIBC_N07_V3_FAIL:-0}
+FAIL=${XLANG_NOLIBC_N07_V3_FAIL:-0}
 DOC="analysis/phase-f-n07-v3.md"
 MANIFEST="tests/baseline/nolibc-n07-v3-link.tsv"
 SMOKE_LIB="tests/lib/nolibc-n07-link-smoke.sh"
@@ -46,13 +46,13 @@ while IFS=$'\t' read -r item_id category anchor check_type notes; do
   esac
 done < "$MANIFEST"
 
-if [ "${SHUX_NOLIBC_N07_V3_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_NOLIBC_N07_V3_MANIFEST_ONLY:-0}" = "1" ]; then
   echo "nolibc-n07-v3 gate OK (manifest only)"
   exit 0
 fi
 
 if [ "$(uname -s 2>/dev/null)" != "Linux" ] || [ "$(uname -m 2>/dev/null)" != "x86_64" ]; then
-  echo "nolibc-n07-v3 SKIP link smoke (need Linux x86_64; use Docker: SHUX_DOCKER_PLATFORM=linux/amd64)" >&2
+  echo "nolibc-n07-v3 SKIP link smoke (need Linux x86_64; use Docker: XLANG_DOCKER_PLATFORM=linux/amd64)" >&2
   echo "nolibc-n07-v3 gate OK (manifest; link smoke skipped)"
   exit 0
 fi

@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-if [ "${SHUX_BOOTSTRAP_SYM_VIS_SKIP:-0}" = "1" ]; then
+if [ "${XLANG_BOOTSTRAP_SYM_VIS_SKIP:-0}" = "1" ]; then
   echo "bootstrap-symbol-visibility-gate: SKIP"
   exit 0
 fi
@@ -25,8 +25,8 @@ if ! bootstrap_symbol_visibility_check_import_alias "std/ffi/ffi_import_alias.c"
   FAIL=$((FAIL + 1))
 fi
 
-if [ "$(uname)" != "Darwin" ]; then bootstrap_symbol_visibility_audit_binary "compiler/shux_asm_stage1" || FAIL=$((FAIL + 1)); else echo "SKIP (macOS): shux_asm_stage1 OOM"; fi
-bootstrap_symbol_visibility_audit_binary "compiler/shux_asm" || FAIL=$((FAIL + 1))
+if [ "$(uname)" != "Darwin" ]; then bootstrap_symbol_visibility_audit_binary "compiler/xlang_asm_stage1" || FAIL=$((FAIL + 1)); else echo "SKIP (macOS): xlang_asm_stage1 OOM"; fi
+bootstrap_symbol_visibility_audit_binary "compiler/xlang_asm" || FAIL=$((FAIL + 1))
 
 if [ "$FAIL" -gt 0 ]; then
   echo "bootstrap-symbol-visibility-gate FAIL: ${FAIL} check(s)" >&2

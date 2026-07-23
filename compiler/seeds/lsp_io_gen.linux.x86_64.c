@@ -6,27 +6,27 @@
 #include <string.h>
 #include <math.h>
 extern int getpid(void);
-static inline void shux_crash_evidence_collect_inline(int has_msg, int msg_val) {
-  const char *_ev = getenv("SHUX_CRASH_EVIDENCE");
+static inline void xlang_crash_evidence_collect_inline(int has_msg, int msg_val) {
+  const char *_ev = getenv("XLANG_CRASH_EVIDENCE");
   if (!_ev || _ev[0] != '1') return;
   int _pid = (int)getpid();
-  fprintf(stderr, "shux: [SHUX_CRASH_EVIDENCE] panic=%d msg=%d frames=0 pid=%d\n", has_msg, msg_val, _pid);
-  const char *_dir = getenv("SHUX_CRASH_EVIDENCE_DIR");
-  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, "%s/shux-crash-%d.txt", _dir, _pid);
+  fprintf(stderr, "xlang: [XLANG_CRASH_EVIDENCE] panic=%d msg=%d frames=0 pid=%d\n", has_msg, msg_val, _pid);
+  const char *_dir = getenv("XLANG_CRASH_EVIDENCE_DIR");
+  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, "%s/xlang-crash-%d.txt", _dir, _pid);
     FILE *_f = fopen(_p, "w"); if (_f) { fprintf(_f, "panic_has_msg=%d\npanic_msg=%d\nframes=0\npid=%d\n", has_msg, msg_val, _pid); fclose(_f);
-      fprintf(stderr, "shux: [SHUX_CRASH_EVIDENCE] bundle=%s\n", _p); } } }
-static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));
-static inline void shux_panic_(int has_msg, int msg_val) {
-  shux_crash_evidence_collect_inline(has_msg, msg_val);
+      fprintf(stderr, "xlang: [XLANG_CRASH_EVIDENCE] bundle=%s\n", _p); } } }
+static inline void xlang_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));
+static inline void xlang_panic_(int has_msg, int msg_val) {
+  xlang_crash_evidence_collect_inline(has_msg, msg_val);
   if (has_msg) (void)fprintf(stderr, "%d\n", msg_val);
   abort();
 }
 struct std_io_sync_Iovec { uint8_t * base; size_t len; };
 struct std_io_sync_PollFd { int32_t fd; int16_t events; int16_t revents; };
 struct std_io_sync_IoBatchBuf { uint8_t * ptr; size_t len; size_t handle; };
-struct std_io_read_ptr_ShuxSliceU8 { uint8_t * data; size_t length; };
+struct std_io_read_ptr_XlangSliceU8 { uint8_t * data; size_t length; };
 struct std_io_backend_IoBatchBuf { uint8_t * ptr; size_t len; size_t handle; };
-struct std_io_backend_ShuxSliceU8 { uint8_t * data; size_t length; };
+struct std_io_backend_XlangSliceU8 { uint8_t * data; size_t length; };
 enum std_io_driver_IO_Result { std_io_driver_IO_Result_Ok, std_io_driver_IO_Result_Err, std_io_driver_IO_Result_Timeout, std_io_driver_IO_Result_Cancelled };
 struct std_io_driver_Buffer { uint8_t * ptr; size_t len; size_t handle; };
 struct std_io_driver_Completion { int32_t tag; };
@@ -36,9 +36,9 @@ struct core_result_Result_i32 { int32_t value; int32_t _pad1; int32_t err; int32
 struct core_result_Result_u8 { uint8_t value; uint8_t _pad1; uint8_t _pad2; uint8_t _pad3; int32_t err; int32_t _pad4; };
 struct std_error_Error { int32_t code; };
 struct std_error_ErrorChain { int32_t depth; int32_t c0; int32_t c1; int32_t c2; int32_t c3; };
-struct shux_slice_uint8_t { uint8_t *data; size_t length; };
-struct std_io_ReadOnlySlice { struct shux_slice_uint8_t data; };
-struct std_io_WriteOnlySlice { struct shux_slice_uint8_t data; };
+struct xlang_slice_uint8_t { uint8_t *data; size_t length; };
+struct std_io_ReadOnlySlice { struct xlang_slice_uint8_t data; };
+struct std_io_WriteOnlySlice { struct xlang_slice_uint8_t data; };
 struct std_io_ReadPtrView { uint8_t * ptr; int32_t len; uint64_t gen; };
 struct std_heap_libc_Arena64 { uint8_t * chunk; size_t cap; size_t off; };
 struct std_heap_page_mmap_PageMmapHeap { uint8_t * base; size_t cap; size_t off; };
@@ -197,7 +197,7 @@ int32_t lsp_io_extract_document_text(uint8_t * body, int32_t body_len, uint8_t *
     int32_t is_match = 1;
     int32_t k = 0;
     while (k < key_len) {
-      (void)(({ int32_t __tmp = 0; if ((body)[i + k] != (k < 0 || (k) >= 8 ? (shux_panic_(1, 0), (key)[0]) : (key)[k])) {   (is_match = (0));
+      (void)(({ int32_t __tmp = 0; if ((body)[i + k] != (k < 0 || (k) >= 8 ? (xlang_panic_(1, 0), (key)[0]) : (key)[k])) {   (is_match = (0));
   break;
  } else (__tmp = 0) ; __tmp; }));
       ++k;

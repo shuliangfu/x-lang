@@ -3,9 +3,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_METRICS_DOC:-analysis/std-metrics-v1.md}"
-MANIFEST="${SHUX_STD_METRICS_MANIFEST:-tests/baseline/std-metrics-manifest.tsv}"
-VECTORS="${SHUX_STD_METRICS_VECTORS:-tests/baseline/std-metrics-vectors.tsv}"
+DOC="${XLANG_STD_METRICS_DOC:-analysis/std-metrics-v1.md}"
+MANIFEST="${XLANG_STD_METRICS_MANIFEST:-tests/baseline/std-metrics-manifest.tsv}"
+VECTORS="${XLANG_STD_METRICS_VECTORS:-tests/baseline/std-metrics-vectors.tsv}"
 MOD_X="std/metrics/mod.x"
 LIB="tests/lib/std-metrics.sh"
 SMOKE_X="tests/std-metrics/roundtrip.x"
@@ -60,12 +60,12 @@ echo "std-metrics manifest OK"
 
 X_OK=0
 SKIP=0
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ]; then
+if [ -n "$XLANG_BIN" ]; then
   echo "=== STD-078: API rename smoke (grep) ==="
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
   for sym in err_ok counter gauge histogram extend; do
     if ! grep -qE "function ${sym}\\(" "$MOD_X" 2>/dev/null; then
       echo "std-metrics gate FAIL: mod missing $sym" >&2

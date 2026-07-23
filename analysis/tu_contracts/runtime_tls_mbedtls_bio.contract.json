@@ -23,26 +23,26 @@
   "symbols": {
     "x": [
       "runtime_tls_mbedtls_bio_x_doc_anchor",
-      "shu_mbedtls_bio_send",
-      "shu_mbedtls_bio_recv"
+      "xlang_mbedtls_bio_send",
+      "xlang_mbedtls_bio_recv"
     ],
     "seed": [
-      "shu_mbedtls_bio_send_impl",
-      "shu_mbedtls_bio_recv_impl",
-      "shu_mbedtls_ssl_bind_fd_c"
+      "xlang_mbedtls_bio_send_impl",
+      "xlang_mbedtls_bio_recv_impl",
+      "xlang_mbedtls_ssl_bind_fd_c"
     ],
     "only_x": ["runtime_tls_mbedtls_bio_x_doc_anchor"],
     "only_seed": [
-      "shu_mbedtls_bio_send_impl",
-      "shu_mbedtls_bio_recv_impl",
-      "shu_mbedtls_ssl_bind_fd_c"
+      "xlang_mbedtls_bio_send_impl",
+      "xlang_mbedtls_bio_recv_impl",
+      "xlang_mbedtls_ssl_bind_fd_c"
     ]
   },
-  "rest_macro": "SHUX_RUNTIME_TLS_MBEDTLS_BIO_FROM_X",
-  "impl_residuals": ["shu_mbedtls_bio_send_impl", "shu_mbedtls_bio_recv_impl"],
+  "rest_macro": "XLANG_RUNTIME_TLS_MBEDTLS_BIO_FROM_X",
+  "impl_residuals": ["xlang_mbedtls_bio_send_impl", "xlang_mbedtls_bio_recv_impl"],
   "forward_decls": [
-    "shu_mbedtls_bio_send",
-    "shu_mbedtls_bio_recv"
+    "xlang_mbedtls_bio_send",
+    "xlang_mbedtls_bio_recv"
   ],
   "internal_call_rewrites": [],
   "external_deps": [

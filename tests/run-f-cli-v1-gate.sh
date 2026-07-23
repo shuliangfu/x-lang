@@ -2,7 +2,7 @@
 # F-cli v1：std.cli 去 C（cli.c → cli.x）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_CLI_V1_FAIL:-0}
+FAIL=${XLANG_F_CLI_V1_FAIL:-0}
 DOC="analysis/phase-f-cli-v1.md"
 MANIFEST="tests/baseline/f-cli-v1-closure.tsv"
 die() { echo "f-cli-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -21,10 +21,10 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
   esac
 done < "$MANIFEST"
 grep -q 'cli.x' compiler/Makefile || die "Makefile missing cli.x"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/cli/cli.o >/dev/null 2>&1 || die "make cli.o failed"
 else
-  echo "f-cli-v1 SKIP cli.o build (no shux-c)" >&2
+  echo "f-cli-v1 SKIP cli.o build (no xlang-c)" >&2
 fi
 if [ -f tests/run-std-cli-gate.sh ]; then
   chmod +x tests/run-std-cli-gate.sh

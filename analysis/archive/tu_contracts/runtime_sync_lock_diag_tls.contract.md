@@ -32,7 +32,7 @@
 ## 4. ABI Manifest
 - _impl 残余列表：`sync_lock_diag_find_meta_idx_impl`、`sync_lock_diag_get_order_impl`
 - DIRECT 符号列表：`sync_lock_diag_append_byte`、`sync_lock_diag_append_lit`、`sync_lock_diag_append_i32`
-- thin+rest 宏边界：`SHUX_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X`
+- thin+rest 宏边界：`XLANG_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X`
 - 前向声明：4 个 thin 函数（`sync_lock_diag_find_meta_idx` / `sync_lock_diag_get_order` / `sync_lock_diag_append_lit` / `sync_lock_diag_append_i32`），rest 模式下供 rest 函数调用
 - 内部调用更新：
   - `sync_lock_diag_get_order_impl` 调用 `sync_lock_diag_find_meta_idx`（IMPL thin wrapper）

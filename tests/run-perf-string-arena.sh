@@ -2,15 +2,15 @@
 # ZC-4 perf：arena concat 链式 bench；仅 Arena64 chunk 分配，无 per-concat heap_alloc。
 # 用法：
 #   ./tests/run-perf-string-arena.sh
-#   SHUX=./compiler/shux_asm ./tests/run-perf-string-arena.sh
+#   XLANG=./compiler/xlang_asm ./tests/run-perf-string-arena.sh
 set -e
 cd "$(dirname "$0")/.."
 
 # shellcheck source=tests/lib/perf-alloc-hotspot.sh
 . "$(dirname "$0")/lib/perf-alloc-hotspot.sh"
 
-# 与 run-zc4-gate.sh 一致：默认 shux-c；SHUX=shux_asm 时仍用 shux-c 链 import std（co-emit 待补）
-SHUX_BIN="${SHUX:-}"
+# 与 run-zc4-gate.sh 一致：默认 xlang-c；XLANG=xlang_asm 时仍用 xlang-c 链 import std（co-emit 待补）
+XLANG_BIN="${XLANG:-}"
 str_arena_native_exe() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -34,27 +34,27 @@ str_arena_pick_shu() {
   done
   return 1
 }
-if [ -z "$SHUX_BIN" ]; then
-  SHUX_BIN="$(str_arena_pick_shu ./compiler/shux-c ./compiler/shux ./compiler/shux_asm)" || SHUX_BIN="./compiler/shux_asm"
+if [ -z "$XLANG_BIN" ]; then
+  XLANG_BIN="$(str_arena_pick_shu ./compiler/xlang-c ./compiler/xlang ./compiler/xlang_asm)" || XLANG_BIN="./compiler/xlang_asm"
 else
-  case "$SHUX_BIN" in /*) ;; *) SHUX_BIN="$(pwd)/$SHUX_BIN" ;; esac
-  if str_arena_native_exe "$SHUX_BIN" && echo "$SHUX_BIN" | grep -q 'shux_asm' \
-    && [ -z "${SHUX_ZC4_FORCE_COMPILE_ASM:-}" ]; then
-    alt="$(str_arena_pick_shu ./compiler/shux-c ./compiler/shux)" || true
+  case "$XLANG_BIN" in /*) ;; *) XLANG_BIN="$(pwd)/$XLANG_BIN" ;; esac
+  if str_arena_native_exe "$XLANG_BIN" && echo "$XLANG_BIN" | grep -q 'xlang_asm' \
+    && [ -z "${XLANG_ZC4_FORCE_COMPILE_ASM:-}" ]; then
+    alt="$(str_arena_pick_shu ./compiler/xlang-c ./compiler/xlang)" || true
     if [ -n "$alt" ]; then
-      echo "string-arena: compile via $(basename "$alt") (shux_asm import std link pending)"
-      SHUX_BIN="$alt"
+      echo "string-arena: compile via $(basename "$alt") (xlang_asm import std link pending)"
+      XLANG_BIN="$alt"
     fi
   fi
 fi
 BENCH_SRC="tests/bench/string_arena_concat.x"
-BENCH_EXE="/tmp/shux_string_arena_bench"
-EXPECT_N="${SHUX_STRING_BENCH_N:-128}"
+BENCH_EXE="/tmp/xlang_string_arena_bench"
+EXPECT_N="${XLANG_STRING_BENCH_N:-128}"
 
 echo "=== ZC-4 string arena concat bench: ${BENCH_SRC} (expect exit=${EXPECT_N}) ==="
 
-if ! str_arena_native_exe "$SHUX_BIN"; then
-  echo "string-arena perf SKIP: ${SHUX_BIN} not native (rebuild shux_asm on Linux/Mac)"
+if ! str_arena_native_exe "$XLANG_BIN"; then
+  echo "string-arena perf SKIP: ${XLANG_BIN} not native (rebuild xlang_asm on Linux/Mac)"
   exit 0
 fi
 
@@ -65,7 +65,7 @@ ensure_std_c_o ../std/string/string.o
 
 rm -f "$BENCH_EXE"
 
-if ! SHUX="$SHUX_BIN" "$SHUX_BIN" -L . "$BENCH_SRC" -o "$BENCH_EXE"; then
+if ! XLANG="$XLANG_BIN" "$XLANG_BIN" -L . "$BENCH_SRC" -o "$BENCH_EXE"; then
   echo "string-arena perf FAIL: compile $BENCH_SRC" >&2
   exit 1
 fi

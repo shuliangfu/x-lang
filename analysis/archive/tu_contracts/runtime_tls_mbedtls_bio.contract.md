@@ -25,7 +25,7 @@
 
 ## 4. ABI Manifest
 - _impl 残余列表：`shu_mbedtls_bio_send_impl`、`shu_mbedtls_bio_recv_impl`
-- thin+rest 宏边界：`SHUX_RUNTIME_TLS_MBEDTLS_BIO_FROM_X`
+- thin+rest 宏边界：`XLANG_RUNTIME_TLS_MBEDTLS_BIO_FROM_X`
 - 前向声明：`shu_mbedtls_bio_send`、`shu_mbedtls_bio_recv`（rest 模式下供 `shu_mbedtls_ssl_bind_fd_c` 取地址，符号由 thin.o 提供）
 - 内部调用更新：无（`shu_mbedtls_ssl_bind_fd_c` 引用 thin wrapper 符号，rest 模式下为 U 由 thin.o 解析）
 

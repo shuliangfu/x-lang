@@ -7,7 +7,7 @@
 | 项 | 前 | 后 |
 |----|----|-----|
 | 实现 | `encoding.c`（397 行） | `encoding.x` |
-| `encoding.o` | `cc -c encoding.c` | `shux -backend asm encoding.x` |
+| `encoding.o` | `cc -c encoding.c` | `xlang -backend asm encoding.x` |
 | UTF-8 首字节表 | 256 字节静态表 | 范围判定函数 |
 | 存量 | std 87 `.c` | std **86** `.c` |
 
@@ -26,7 +26,7 @@ make -C compiler ../std/encoding/encoding.o
 ## 门禁
 
 ```bash
-SHUX_F_ENCODING_V1_FAIL=1 ./tests/run-f-encoding-v1-gate.sh
+XLANG_F_ENCODING_V1_FAIL=1 ./tests/run-f-encoding-v1-gate.sh
 ./tests/run-std-encoding-hex-base64-gate.sh
 ./tests/run-std-encoding-extra-gate.sh
 ```

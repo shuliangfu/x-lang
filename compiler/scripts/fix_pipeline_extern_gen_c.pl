@@ -22,7 +22,7 @@ exit 0 unless $is_thin_pipeline;
 
 # 去掉重复 slice struct（与 Makefile dedupe 双保险）。
 my $slice_seen = 0;
-$src =~ s/^(struct shux_slice_uint8_t \{[^\n]*\};\n)/$slice_seen++ ? '' : $1/mge;
+$src =~ s/^(struct xlang_slice_uint8_t \{[^\n]*\};\n)/$slice_seen++ ? '' : $1/mge;
 
 my @alias_lines;
 my %alias_done;
@@ -75,7 +75,7 @@ if (index($src, 'parser_parse_into_buf') >= 0 && index($src, 'pipeline extern pa
   my $pbuf_decl = "/* pipeline extern parser_parse_into_buf */\nextern struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena *arena, struct ast_Module *module, uint8_t *data, int32_t len);\n";
   $src =~ s/(struct ast_PipelineDepCtx \{.*?\};\n)/$1\n$pbuf_decl/s
     or warn "fix_pipeline_extern_gen_c: parser_parse_into_buf anchor not found\n";
-  $src =~ s/^extern struct parser_ParseIntoResult parser_parse_into_buf[^\n]*\n\n(?=static inline void shux_panic_)//m;
+  $src =~ s/^extern struct parser_ParseIntoResult parser_parse_into_buf[^\n]*\n\n(?=static inline void xlang_panic_)//m;
 }
 
 # parser_copy_module_import_path64：parser_x.o 提供，避免 void get_module_import_path 语句导致 parse skip。
@@ -85,14 +85,14 @@ if (index($src, 'parser_copy_module_import_path64') >= 0
   $src =~ s/(struct ast_PipelineDepCtx \{.*?\};\n)/$1\n$pcopy_decl/s
     or warn "fix_pipeline_extern_gen_c: parser_copy_module_import_path64 anchor not found\n";
 }
-# shux-c -E 对 *u8 形参生成 uint8_t *out，与 out[64] 冲突（Alpine GCC -Warray-parameter / 类型不一致）。
+# xlang-c -E 对 *u8 形参生成 uint8_t *out，与 out[64] 冲突（Alpine GCC -Warray-parameter / 类型不一致）。
 $src =~ s/^extern int32_t parser_copy_module_import_path64\([^\n]*uint8_t \* out\);\n//mg;
 $src =~ s/^extern int32_t parser_copy_module_import_path64\([^\n]*uint8_t \*out\);\n//mg;
 
 if (@alias_lines && index($src, '/* pipeline extern TU aliases */') < 0) {
   my $block = "/* pipeline extern TU aliases */\n" . join('', sort @alias_lines) . "\n";
   $src =~ s/(struct ast_PipelineDepCtx \{.*?\};\n)/$1\n$block/s
-    or $src =~ s/(static inline void shux_panic_\([^\n]*\n)/$block$1/s
+    or $src =~ s/(static inline void xlang_panic_\([^\n]*\n)/$block$1/s
     or warn "fix_pipeline_extern_gen_c: anchor not found in $path\n";
 }
 if ($std_fs_extern ne '' && index($src, '/* std_fs_shim.o */') < 0) {

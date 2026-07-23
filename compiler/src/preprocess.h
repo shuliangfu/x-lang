@@ -5,8 +5,8 @@
  * 约定：支持 #if COND、#elseif COND、#else、#endif；COND 可为 -D 符号或 target_os/target_arch 表达式（与 #[cfg] 对齐）。
  */
 
-#ifndef SHUX_PREPROCESS_H
-#define SHUX_PREPROCESS_H
+#ifndef XLANG_PREPROCESS_H
+#define XLANG_PREPROCESS_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -26,13 +26,13 @@ char *preprocess_c_fallback(const char *source, size_t source_len, const char **
 
 /**
  * 求值 #if / #elseif 条件：纯标识符查 defines；-D 宏；target_os/target_arch 表达式走 #[cfg] 同款 cfg_eval。
- * 参数：cond 以 NUL 结尾；defines/ndefines 为 -D 与 SHUX_OS_* 注入符号。
+ * 参数：cond 以 NUL 结尾；defines/ndefines 为 -D 与 XLANG_OS_* 注入符号。
  * 返回值：非 0 表示条件成立。
  */
 int preprocess_eval_condition(const char *cond, const char **defines, int ndefines);
 
 /**
- * 兼容 runtime_pipeline_abi / legacy shux-c 的固定缓冲接口。
+ * 兼容 runtime_pipeline_abi / legacy xlang-c 的固定缓冲接口。
  * 参数：source_buf/source_len 为输入源码；out_buf/out_cap 为调用方提供的输出缓冲。
  * 返回值：成功返回输出字节数；失败返回 -1。
  */
@@ -46,4 +46,4 @@ void preprocess_define_reset(void);
 void preprocess_define_add(const char *name);
 int32_t preprocess_if_stack_len(void);
 
-#endif /* SHUX_PREPROCESS_H */
+#endif /* XLANG_PREPROCESS_H */

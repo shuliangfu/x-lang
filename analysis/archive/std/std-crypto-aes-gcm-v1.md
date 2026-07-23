@@ -52,7 +52,7 @@
 ```
 
 ```
-shux: [SHUX_STD_CRYPTO_AES_GCM] status=ok seal=1 open=1 main=1 skip=0
+xlang: [XLANG_STD_CRYPTO_AES_GCM] status=ok seal=1 open=1 main=1 skip=0
 ```
 
 ---

@@ -1,16 +1,16 @@
 /* seeds/rt_asm_stub.from_x.c — G-02f-300 P2 runtime R9 → R2 full (asm GAS stub)
  * Logic source: src/runtime/rt_asm_stub.x
- * Hybrid: SHUX_RT_ASM_STUB_FROM_X + ld -r into runtime_driver_no_c.o
+ * Hybrid: XLANG_RT_ASM_STUB_FROM_X + ld -r into runtime_driver_no_c.o
  *
  * R2 full（2026-07-14）：want_exe + asm_codegen_ast 由 .x 提供；
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务符号 H=0）。
  * Cap residual（driver_abi）：GAS 行表 + CodegenOutBuf append。
- * 冷启动/无 PREFER 时仍编译完整 C 体（含 SHUX_WEAK asm_codegen_ast）。
+ * 冷启动/无 PREFER 时仍编译完整 C 体（含 XLANG_WEAK asm_codegen_ast）。
  *
  * Scope: weak minimal GAS codegen stub + want_exe gate.
  * Full elf/macho asm backend remains mega/backend.
  */
-#include <shux_weak.h>
+#include <xlang_weak.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -23,20 +23,20 @@ struct codegen_CodegenOutBuf {
   int32_t len;
 };
 
-extern int shux_output_want_exe(const char *path);
+extern int xlang_output_want_exe(const char *path);
 
-#ifndef SHUX_RT_ASM_STUB_FROM_X
+#ifndef XLANG_RT_ASM_STUB_FROM_X
 
 /** compile.x extern：-o 后缀是否表示可执行（非 .o/.obj/.s）。 */
 int32_t driver_asm_output_want_exe(uint8_t *path) {
-  return shux_output_want_exe(path ? (const char *)path : NULL);
+  return xlang_output_want_exe(path ? (const char *)path : NULL);
 }
 
 /**
  * asm 后端 C 桩：-backend asm 时由 pipeline 调用，写出最小 GAS（main return 42）。
  * 实验 asm-only 链并入 build_asm/backend.o 时须为 weak，避免与 backend.x 重复定义。
  */
-SHUX_WEAK int32_t asm_codegen_ast(void *module, void *arena, struct codegen_CodegenOutBuf *out) {
+XLANG_WEAK int32_t asm_codegen_ast(void *module, void *arena, struct codegen_CodegenOutBuf *out) {
   static const char *lines[] = {".text",         ".globl main", "main:",       "pushq %rbp", "movq %rsp, %rbp",
                                   "subq $0, %rsp", "movl $42, %eax", "movq %rsp, %rbp", "popq %rbp", "ret"};
   size_t n = 0;

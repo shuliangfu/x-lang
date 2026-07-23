@@ -1,8 +1,8 @@
 /* seeds/rt_emit_flags.from_x.c — G-02f-264 pure emit/argv flag helpers
  * Logic source: src/runtime/rt_emit_flags.x
- * Note: RFC R4 DCE is under #if !SHUX_USE_X_DRIVER and is NOT in product G05
+ * Note: RFC R4 DCE is under #if !XLANG_USE_X_DRIVER and is NOT in product G05
  * runtime_driver_no_c.o; this slice is the product-path substitute (R5-lite flags).
- * Hybrid: SHUX_RT_EMIT_FLAGS_FROM_X + ld -r into runtime_driver_no_c.o
+ * Hybrid: XLANG_RT_EMIT_FLAGS_FROM_X + ld -r into runtime_driver_no_c.o
  *
  * R2（2026-07-14）：has_emit + set_use_lto + set_print_target_cpu 均由 .x 提供；
  * FROM_X 下本文件仅前向声明（产品 rest 业务符号 H=0）。
@@ -35,7 +35,7 @@ typedef struct DriverCompileStateSU {
   int32_t parse_saw_target_cpu;
 } DriverCompileStateSU;
 
-#ifndef SHUX_RT_EMIT_FLAGS_FROM_X
+#ifndef XLANG_RT_EMIT_FLAGS_FROM_X
 /** argv 是否含 -E / -E-extern。 */
 int driver_argv_has_emit_c_flag(int argc, char **argv) {
   int i;

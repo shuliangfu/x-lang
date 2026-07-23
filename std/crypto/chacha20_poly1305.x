@@ -29,14 +29,14 @@ export function crypto_chacha_core_marker_c(): i32 {
   return 0x43484132;
 }
 
-/** Exported function `shu_chacha20_block`.
- * Implements `shu_chacha20_block`.
+/** Exported function `xlang_chacha20_block`.
+ * Implements `xlang_chacha20_block`.
  * @param key *u8
  * @param nonce *u8
  * @param counter u32
  * @param out *u8
  * @return void
  */
-export function shu_chacha20_block(key: *u8, nonce: *u8, counter: u32, out: *u8): void {
+export function xlang_chacha20_block(key: *u8, nonce: *u8, counter: u32, out: *u8): void {
   return;
 }

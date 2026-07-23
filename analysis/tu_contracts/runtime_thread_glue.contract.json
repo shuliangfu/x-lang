@@ -22,12 +22,12 @@
   "symbols": {
     "x": [
       "runtime_thread_glue_x_doc_anchor",
-      "shu_cpu_zero",
-      "shu_cpu_set"
+      "xlang_cpu_zero",
+      "xlang_cpu_set"
     ],
     "seed": [
-      "shu_cpu_zero_impl",
-      "shu_cpu_set_impl",
+      "xlang_cpu_zero_impl",
+      "xlang_cpu_set_impl",
       "thread_self_c",
       "thread_create_c",
       "thread_create_with_stack_c",
@@ -54,25 +54,25 @@
     ],
     "only_x": ["runtime_thread_glue_x_doc_anchor"]
   },
-  "rest_macro": "SHUX_RUNTIME_THREAD_GLUE_FROM_X",
+  "rest_macro": "XLANG_RUNTIME_THREAD_GLUE_FROM_X",
   "impl_residuals": [
-    "shu_cpu_zero_impl",
-    "shu_cpu_set_impl"
+    "xlang_cpu_zero_impl",
+    "xlang_cpu_set_impl"
   ],
   "forward_decls": [
-    "shu_cpu_zero",
-    "shu_cpu_set"
+    "xlang_cpu_zero",
+    "xlang_cpu_set"
   ],
   "internal_call_rewrites": [
-    "thread_set_affinity_self_c -> shu_cpu_zero + shu_cpu_set",
-    "thread_set_affinity_c -> shu_cpu_zero + shu_cpu_set"
+    "thread_set_affinity_self_c -> xlang_cpu_zero + xlang_cpu_set",
+    "thread_set_affinity_c -> xlang_cpu_zero + xlang_cpu_set"
   ],
   "known_limitations": [
     "预存行为（非本次切割引入）：Linux 上 thin wrapper 为 W（weak）符号——prove_x_o.sh 默认 G05_X_O_WEAK=1，macOS Mach-O 忽略 weak 均为 T",
-    "平台条件符号：shu_cpu_zero / shu_cpu_set 及其 _impl 都在 #if defined(__linux__) 块内（Linux only）；macOS 上不编译 _impl，merged.o 有 2 个 U 符号（预期行为，Linux 最终链接时解析）",
+    "平台条件符号：xlang_cpu_zero / xlang_cpu_set 及其 _impl 都在 #if defined(__linux__) 块内（Linux only）；macOS 上不编译 _impl，merged.o 有 2 个 U 符号（预期行为，Linux 最终链接时解析）",
     "类型擦除：cpu_set_t 是 Linux 特有类型，.x 用 *u8 擦除；seed 前向声明用 cpu_set_t * 与调用处一致，thin.o 实际签名 uint8_t *，C 链接器不看类型，ABI 兼容"
   ],
-  "platform_notes": "shu_cpu_zero / shu_cpu_set 在 #if defined(__linux__) 块内（Linux only）。thread_set_affinity_self_c / thread_set_affinity_c 在 #elif defined(__linux__) 块内调用这两个 thin wrapper，rest 模式下为 U 符号由 thin.o 提供",
+  "platform_notes": "xlang_cpu_zero / xlang_cpu_set 在 #if defined(__linux__) 块内（Linux only）。thread_set_affinity_self_c / thread_set_affinity_c 在 #elif defined(__linux__) 块内调用这两个 thin wrapper，rest 模式下为 U 符号由 thin.o 提供",
   "delete_seed_gate": {
     "allowed_now": false,
     "requirements": [

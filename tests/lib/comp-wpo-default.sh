@@ -6,12 +6,12 @@
 #   comp_wpo_default_hook_runnable HOOK_SCRIPT
 #   comp_wpo_default_emit_report status default_ok default_skip skip
 
-COMP017_PREFIX="${SHUX_COMP017_PREFIX:-shux: [SHUX_COMP017_WPO_DEFAULT]}"
+COMP017_PREFIX="${XLANG_COMP017_PREFIX:-xlang: [XLANG_COMP017_WPO_DEFAULT]}"
 
-# Linux 且存在 shux_asm 则可跑 full-chain / .o 代理类 hook。
+# Linux 且存在 xlang_asm 则可跑 full-chain / .o 代理类 hook。
 comp_wpo_default_linux_asm() {
   [ "$(uname -s 2>/dev/null)" = "Linux" ] || return 1
-  [ -x "./compiler/shux_asm" ] || [ -x "./compiler/shux_asm.experimental" ] || return 1
+  [ -x "./compiler/xlang_asm" ] || [ -x "./compiler/xlang_asm.experimental" ] || return 1
   return 0
 }
 

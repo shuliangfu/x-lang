@@ -5,7 +5,7 @@
 #   bash scripts/driver_leaf_x_to_o.sh <src.x> <out.o> <rename-map> [cold-seed.c]
 #
 # rename-map：old1:new1,old2:new2（可空）
-# 优先：shux/shux-c/bootstrap_shuxc -E → rename → cc -c
+# 优先：xlang/xlang-c/bootstrap_xlangc -E → rename → cc -c
 # 回退：cold-seed.c（仅 seeds/*，不得依赖工作区 pinned driver_*_gen.c）
 set -eu
 cd "$(dirname "$0")/.."
@@ -24,8 +24,8 @@ CC="${CC:-cc}"
 BASE_CFLAGS="${BASE_CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}"
 DIRS="${DRIVER_SUBCMD_DIRS:--L .. -L src -L src/lexer -L src/ast}"
 
-pick_shux() {
-  for b in ./shux ./shux-c ./bootstrap_shuxc; do
+pick_xlang() {
+  for b in ./xlang ./xlang-c ./bootstrap_xlangc; do
     if [ -x "$b" ]; then
       printf '%s\n' "$b"
       return 0
@@ -51,10 +51,10 @@ apply_rename() {
   IFS="$_old_ifs"
 }
 
-if SHUX_BIN=$(pick_shux); then
+if XLANG_BIN=$(pick_xlang); then
   tmp="$(mktemp "${TMPDIR:-/tmp}/driver_leaf.XXXXXX.c")"
   # 30s 防死循环（与 prove_module_selfhost / g05 对齐）
-  if perl -e 'alarm 30; exec @ARGV' "$SHUX_BIN" -E $DIRS "$X_SRC" >"$tmp" 2>/dev/null \
+  if perl -e 'alarm 30; exec @ARGV' "$XLANG_BIN" -E $DIRS "$X_SRC" >"$tmp" 2>/dev/null \
     && [ -s "$tmp" ]; then
     grep -v '^DBG-' "$tmp" >"${tmp}.clean" && mv "${tmp}.clean" "$tmp"
     apply_rename "$tmp" "$SYM_RENAME"
@@ -124,5 +124,5 @@ if [ -n "$COLD_SEED" ] && [ -f "$COLD_SEED" ]; then
   exit 0
 fi
 
-echo "driver_leaf_x_to_o: cannot build $OUT_O (no shux -E and no cold seed)" >&2
+echo "driver_leaf_x_to_o: cannot build $OUT_O (no xlang -E and no cold seed)" >&2
 exit 1

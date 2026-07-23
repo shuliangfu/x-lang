@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_OBS_PERF_ALERT_DOC:-analysis/obs-perf-regression-alert-v1.md}"
-MANIFEST="${SHUX_OBS_PERF_ALERT_TSV:-tests/baseline/obs-perf-regression-alert.tsv}"
-REG="${SHUX_PERF_BASELINE_REGISTRY:-tests/baseline/perf-baseline-registry.tsv}"
+DOC="${XLANG_OBS_PERF_ALERT_DOC:-analysis/obs-perf-regression-alert-v1.md}"
+MANIFEST="${XLANG_OBS_PERF_ALERT_TSV:-tests/baseline/obs-perf-regression-alert.tsv}"
+REG="${XLANG_PERF_BASELINE_REGISTRY:-tests/baseline/perf-baseline-registry.tsv}"
 LIB="tests/lib/obs-perf-regression-alert.sh"
 RUNNER="tests/run-obs-perf-regression-alert.sh"
 DOGFOOD="tests/run-perf-compile-dogfood.sh"
@@ -71,8 +71,8 @@ while IFS=$'\t' read -r item_id kind anchor notes extra; do
       fi
       ;;
     emit_hook)
-      if ! grep -qF 'SHUX_PERF_ALERT' "tests/$anchor" 2>/dev/null; then
-        echo "obs-perf-regression-alert FAIL: $anchor missing SHUX_PERF_ALERT emit" >&2
+      if ! grep -qF 'XLANG_PERF_ALERT' "tests/$anchor" 2>/dev/null; then
+        echo "obs-perf-regression-alert FAIL: $anchor missing XLANG_PERF_ALERT emit" >&2
         MISS=$((MISS + 1))
       fi
       ;;
@@ -110,7 +110,7 @@ if [ "$MISS" -gt 0 ]; then
   exit 1
 fi
 
-for kw in SHUX_PERF_ALERT 越界 severity=critical baseline_id; do
+for kw in XLANG_PERF_ALERT 越界 severity=critical baseline_id; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "obs-perf-regression-alert gate FAIL: doc missing keyword $kw" >&2
     exit 1
@@ -124,12 +124,12 @@ if ! ./"$RUNNER" --smoke 2>&1 | tee /tmp/obs_perf_alert_smoke.log; then
   echo "obs-perf-regression-alert gate FAIL: smoke runner" >&2
   exit 1
 fi
-COUNT=$(grep -c 'shux: \[SHUX_PERF_ALERT\]' /tmp/obs_perf_alert_smoke.log || true)
+COUNT=$(grep -c 'xlang: \[XLANG_PERF_ALERT\]' /tmp/obs_perf_alert_smoke.log || true)
 if [ "$COUNT" -lt "$MIN_ALERTS" ]; then
   echo "obs-perf-regression-alert gate FAIL: alert lines=${COUNT}" >&2
   exit 1
 fi
-LINE=$(grep 'shux: \[SHUX_PERF_ALERT\]' /tmp/obs_perf_alert_smoke.log | head -1)
+LINE=$(grep 'xlang: \[XLANG_PERF_ALERT\]' /tmp/obs_perf_alert_smoke.log | head -1)
 if ! obs_perf_alert_line_valid "$LINE"; then
   echo "obs-perf-regression-alert gate FAIL: invalid line: $LINE" >&2
   exit 1

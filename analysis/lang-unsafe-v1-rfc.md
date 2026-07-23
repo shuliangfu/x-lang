@@ -48,7 +48,7 @@ Layer U4 — 保留
 
 | 构造 | 规则 | 违反时 |
 |------|------|--------|
-| `a[i]` / `s[i]` | 运行时 bounds check | `shux_panic_`（见 `tests/ub/`） |
+| `a[i]` / `s[i]` | 运行时 bounds check | `xlang_panic_`（见 `tests/ub/`） |
 | `/` `%` 除零 | 运行时 check | panic |
 | `T[]<label>` 域 | 编译期域匹配/防逃逸 | `typeck error` |
 | struct 隐式 padding | 编译期拒绝 | `typeck error: implicit padding` |

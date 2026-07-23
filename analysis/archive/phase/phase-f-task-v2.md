@@ -7,16 +7,16 @@
 | 项 | v1 | v2 |
 |----|----|-----|
 | TaskGroup/JoinSet | `task_async_glue.c`（269 行） | **`task.x`** |
-| `task.o` | `ld -r` glue + x | **纯 shux → task.o** |
-| `task_echo_fn_ptr_c` | glue 内 C 取址 | **`shux_async_task_echo_fn_ptr_c`**（scheduler 链 task.o 时解析；待 .x 支持同模块 fn 址后内联） |
+| `task.o` | `ld -r` glue + x | **纯 xlang → task.o** |
+| `task_echo_fn_ptr_c` | glue 内 C 取址 | **`xlang_async_task_echo_fn_ptr_c`**（scheduler 链 task.o 时解析；待 .x 支持同模块 fn 址后内联） |
 
 ## 门禁
 
 ```bash
-SHUX_F_TASK_V2_FAIL=1 ./tests/run-f-task-v2-gate.sh
+XLANG_F_TASK_V2_FAIL=1 ./tests/run-f-task-v2-gate.sh
 ./tests/run-std-task-gate.sh
-SHUX_F_TASK_V1_FAIL=1 ./tests/run-f-task-v1-gate.sh
-SHUX_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
+XLANG_F_TASK_V1_FAIL=1 ./tests/run-f-task-v1-gate.sh
+XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
 ```
 
 ## 下一项

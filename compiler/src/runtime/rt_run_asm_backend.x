@@ -16,7 +16,7 @@ export extern "C" function strlen(s: *u8): usize;
 export extern "C" function getenv(name: *u8): *u8;
 export extern "C" function unlink(path: *u8): i32;
 export extern "C" function runtime_read_file_malloc(path: *u8, out_len: *usize): *u8;
-export extern "C" function shux_preprocess_with_path(
+export extern "C" function xlang_preprocess_with_path(
   data: *u8, len: usize, path: *u8, defines: *u8, n_defines: i32, out_len: *usize): *u8;
 export extern "C" function pipeline_diag_emitted_reset(): void;
 export extern "C" function pipeline_diag_emitted_get(): i32;
@@ -27,7 +27,7 @@ export extern "C" function parser_parse_into_init(module: *u8, arena: *u8): void
 export extern "C" function parser_parse_into_set_main_index(module: *u8, main_idx: i32): void;
 export extern "C" function driver_get_module_num_funcs(m: *u8): i32;
 export extern "C" function parser_get_module_num_imports(module: *u8): i32;
-export extern "C" function shux_get_entry_dir(path: *u8, out: *u8, out_sz: usize): void;
+export extern "C" function xlang_get_entry_dir(path: *u8, out: *u8, out_sz: usize): void;
 export extern "C" function driver_dep_seeded_clear_all(): void;
 export extern "C" function driver_dep_publish_slot(j: i32, arena: *u8, module: *u8, path: *u8): void;
 export extern "C" function pipeline_set_dep_slots(arenas: *u8, modules: *u8): void;
@@ -37,49 +37,53 @@ export extern "C" function codegen_set_preamble_has_core_option_result(on: i32):
 export extern "C" function runtime_report_precise_parse_failure_if_known(
   input_path: *u8, src: *u8, src_len: usize): i32;
 export extern "C" function pipeline_dep_ctx_heap_destroy(ctx: *u8): void;
-export extern "C" function shux_pipeline_run_x_pipeline_large_stack(
+export extern "C" function xlang_pipeline_run_x_pipeline_large_stack(
   module: *u8, arena: *u8, src: *u8, src_len: usize, out_buf: *u8, pctx: *u8): i32;
-export extern "C" function shux_pipeline_fill_ctx_path_buffers(
+export extern "C" function xlang_pipeline_fill_ctx_path_buffers(
   ctx: *u8, entry_dir: *u8, lib_roots: *u8, n_lib: i32): void;
-export extern "C" function shux_pipeline_pctx_seed_dep_slots(
+export extern "C" function xlang_pipeline_pctx_seed_dep_slots(
   ctx: *u8, dep_mods: *u8, dep_ar: *u8, dep_paths: *u8, n: i32): void;
-export extern "C" function shux_pipeline_one_ctx_for_dep_prerun(
+export extern "C" function xlang_pipeline_one_ctx_for_dep_prerun(
   ctx: *u8, j: i32, dep_mods: *u8, dep_ar: *u8, dep_paths: *u8, n: i32,
   dep_src: *u8, dep_len: usize): void;
-export extern "C" function shux_load_direct_imports_for_asm_layout(
+export extern "C" function xlang_load_direct_imports_for_asm_layout(
   module: *u8, lib_roots: *u8, n_lib: i32, entry_dir: *u8,
   defines: *u8, n_defines: i32,
   dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n_deps: *i32): i32;
-export extern "C" function shux_collect_deps_transitive(
+export extern "C" function xlang_collect_deps_transitive(
   module: *u8, arena_sz: usize, module_sz: usize, lib_roots: *u8, n_lib: i32,
   entry_dir: *u8, defines: *u8, n_defines: i32,
   cls: *u8, clens: *u8, cpaths: *u8, n_closure: *i32): i32;
-export extern "C" function shux_merge_direct_then_transitive_deps(
+export extern "C" function xlang_merge_direct_then_transitive_deps(
   module: *u8, n_imports: i32, cls: *u8, clens: *u8, cpaths: *u8, n_closure: i32,
   dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n_deps: *i32): i32;
-export extern "C" function shux_dep_prerun_entry_dir(
+export extern "C" function xlang_dep_prerun_entry_dir(
   entry_dir: *u8, lib_roots: *u8, n_lib: i32): *u8;
-export extern "C" function shux_pipeline_dep_prerun_parse_only(
+export extern "C" function xlang_pipeline_dep_prerun_parse_only(
   mod: *u8, arena: *u8, src: *u8, len: usize): i32;
-export extern "C" function shux_pipeline_dep_prerun_parse_skip_typeck(
+export extern "C" function xlang_pipeline_dep_prerun_parse_skip_typeck(
   mod: *u8, arena: *u8, src: *u8, len: usize, out: *u8, ctx: *u8): i32;
-export extern "C" function shux_pipeline_dep_prerun_for_asm_module_o(
+export extern "C" function xlang_pipeline_dep_prerun_for_asm_module_o(
   mod: *u8, arena: *u8, src: *u8, len: usize, out: *u8, ctx: *u8): i32;
-export extern "C" function shux_asm_user_std_dep_skip_x_typeck(dep_path: *u8): i32;
-export extern "C" function shux_asm_user_dep_parse_skip_typeck_path(dep_path: *u8): i32;
-export extern "C" function shux_asm_user_std_net_dep_path(dep_path: *u8): i32;
+export extern "C" function xlang_asm_user_std_dep_skip_x_typeck(dep_path: *u8): i32;
+export extern "C" function xlang_asm_user_dep_parse_skip_typeck_path(dep_path: *u8): i32;
+export extern "C" function xlang_asm_user_std_net_dep_path(dep_path: *u8): i32;
 export extern "C" function pipeline_asm_seed_std_net_struct_layouts(m: *u8): void;
 export extern "C" function pipeline_asm_user_deps_need_coemit(dep_paths: *u8, n: i32): i32;
-export extern "C" function shux_output_want_exe(path: *u8): i32;
-export extern "C" function shux_output_is_elf_o(path: *u8): i32;
-export extern "C" function shux_asm_out_buf_is_object(data: *u8, len: usize): i32;
-export extern "C" function shux_driver_asm_prepare_entry_elf_emit(
+export extern "C" function xlang_output_want_exe(path: *u8): i32;
+export extern "C" function xlang_output_is_elf_o(path: *u8): i32;
+export extern "C" function xlang_asm_out_buf_is_object(data: *u8, len: usize): i32;
+export extern "C" function xlang_driver_asm_prepare_entry_elf_emit(
   module: *u8, arena: *u8, pctx: *u8): void;
-export extern "C" function shux_asm_codegen_elf_o_large_stack(
+export extern "C" function xlang_asm_codegen_elf_o_large_stack(
   module: *u8, arena: *u8, pctx: *u8, elf_ctx: *u8, out_buf: *u8): i32;
-export extern "C" function shux_invoke_ld_for_exe(
+export extern "C" function xlang_invoke_ld_for_exe(
   o_path: *u8, exe_path: *u8, target: *u8, use_macho: i32, use_coff: i32,
   link_argv0: *u8, lib_roots: *u8, n_lib: i32): i32;
+/** G.7 single authority: CLI user .o table shared with invoke_cc (historical name).
+ * PLATFORM: SHARED — set before invoke_ld; clear after (stale argv pointers). */
+export extern "C" function xlang_invoke_cc_set_user_o_files_from_argv(argc: i32, argv: *u8): void;
+export extern "C" function xlang_invoke_cc_clear_user_o_files(): void;
 export extern "C" function runtime_pipeline_elf_ctx_diag_note(ctx_bytes: *u8): void;
 export extern "C" function runtime_diag_errno_path(
   file: *u8, kind: *u8, op: *u8, path: *u8): void;
@@ -659,7 +663,7 @@ export function rt_ab_step_read_pp(): i32 {
   }
   unsafe {
     pipeline_diag_emitted_reset();
-    src = shux_preprocess_with_path(raw, raw_len, path, defs, ndef, &src_len);
+    src = xlang_preprocess_with_path(raw, raw_len, path, defs, ndef, &src_len);
     free(raw);
   }
   if (src == 0 as *u8) {
@@ -798,7 +802,7 @@ export function rt_ab_step_parse(): i32 {
   unsafe {
     nimp = parser_get_module_num_imports(module);
     entry = driver_entry_dir_slot();
-    shux_get_entry_dir(path, entry, 512 as usize);
+    xlang_get_entry_dir(path, entry, 512 as usize);
     driver_asm_work_p_set(ap_entry(), entry);
     driver_asm_work_i_set(ai_nimp(), nimp);
   }
@@ -881,7 +885,7 @@ export function rt_ab_step_load_deps(): i32 {
   }
   if (skip_load != 0) {
     unsafe {
-      rc = shux_load_direct_imports_for_asm_layout(
+      rc = xlang_load_direct_imports_for_asm_layout(
         module, lib, nlib, entry, defs, ndef, ds, dl, dp, &n_deps);
     }
     if (rc != 0) {
@@ -911,7 +915,7 @@ export function rt_ab_step_load_deps(): i32 {
       return 1;
     }
     unsafe {
-      rc = shux_collect_deps_transitive(
+      rc = xlang_collect_deps_transitive(
         module, asz, msz, lib, nlib, entry, defs, ndef, cls, clens, cpaths, &n_closure);
     }
     if (rc != 0) {
@@ -937,7 +941,7 @@ export function rt_ab_step_load_deps(): i32 {
       rev = rev + 1;
     }
     unsafe {
-      rc = shux_merge_direct_then_transitive_deps(
+      rc = xlang_merge_direct_then_transitive_deps(
         module, nimp, cls, clens, cpaths, n_closure, ds, dl, dp, &n_deps);
     }
     if (rc != 0) {
@@ -1018,7 +1022,7 @@ export function rt_ab_step_open_out(): i32 {
   } else {
     smoke = 0;
     unsafe {
-      want_exe = shux_output_want_exe(outp);
+      want_exe = xlang_output_want_exe(outp);
     }
     if (want_exe != 0) {
       unsafe {
@@ -1046,7 +1050,7 @@ export function rt_ab_step_open_out(): i32 {
         return 1;
       }
       unsafe {
-        emit_elf = shux_output_is_elf_o(outp);
+        emit_elf = xlang_output_is_elf_o(outp);
       }
     }
   }
@@ -1138,7 +1142,7 @@ export function rt_ab_step_open_out(): i32 {
   unsafe {
     driver_asm_work_p_set(ap_out(), out_buf);
     driver_asm_work_p_set(ap_pctx(), pctx);
-    shux_pipeline_fill_ctx_path_buffers(pctx, entry, lib, nlib);
+    xlang_pipeline_fill_ctx_path_buffers(pctx, entry, lib, nlib);
     driver_pipeline_dep_ctx_set_use_asm(pctx, 0);
     driver_asm_pctx_apply_host_defaults(pctx, target, emit_elf);
   }
@@ -1248,7 +1252,7 @@ export function rt_ab_step_prerun(): i32 {
             dep_src = driver_ptr_table_get(ds, j);
             dep_len = driver_size_table_get(dl, j);
             dep_path = driver_ptr_table_get(dp, j);
-            ec_loop = shux_pipeline_dep_prerun_parse_only(
+            ec_loop = xlang_pipeline_dep_prerun_parse_only(
               driver_ptr_table_get(dm, j), driver_ptr_table_get(da, j),
               dep_src, dep_len);
           }
@@ -1288,50 +1292,50 @@ export function rt_ab_step_prerun(): i32 {
       return 1;
     }
     unsafe {
-      prerun_dir = shux_dep_prerun_entry_dir(entry, lib, nlib);
-      shux_pipeline_fill_ctx_path_buffers(one, prerun_dir, lib, nlib);
-      shux_pipeline_one_ctx_for_dep_prerun(one, j, dm, da, dp, n_deps, dep_src, dep_len);
+      prerun_dir = xlang_dep_prerun_entry_dir(entry, lib, nlib);
+      xlang_pipeline_fill_ctx_path_buffers(one, prerun_dir, lib, nlib);
+      xlang_pipeline_one_ctx_for_dep_prerun(one, j, dm, da, dp, n_deps, dep_src, dep_len);
     }
     if (smoke != 0) {
       unsafe {
-        ec_loop = shux_pipeline_dep_prerun_parse_only(
+        ec_loop = xlang_pipeline_dep_prerun_parse_only(
           driver_ptr_table_get(dm, j), driver_ptr_table_get(da, j), dep_src, dep_len);
       }
     } else {
       if (emit_elf != 0) {
         unsafe {
-          if (shux_asm_user_std_dep_skip_x_typeck(dep_path) != 0) {
-            ec_loop = shux_pipeline_dep_prerun_parse_only(
+          if (xlang_asm_user_std_dep_skip_x_typeck(dep_path) != 0) {
+            ec_loop = xlang_pipeline_dep_prerun_parse_only(
               driver_ptr_table_get(dm, j), driver_ptr_table_get(da, j), dep_src, dep_len);
           } else {
-            if (shux_asm_user_dep_parse_skip_typeck_path(dep_path) != 0) {
-              ec_loop = shux_pipeline_dep_prerun_parse_skip_typeck(
+            if (xlang_asm_user_dep_parse_skip_typeck_path(dep_path) != 0) {
+              ec_loop = xlang_pipeline_dep_prerun_parse_skip_typeck(
                 driver_ptr_table_get(dm, j), driver_ptr_table_get(da, j),
                 dep_src, dep_len, dep_out, one);
               if (ec_loop == 0) {
-                if (shux_asm_user_std_net_dep_path(dep_path) != 0) {
+                if (xlang_asm_user_std_net_dep_path(dep_path) != 0) {
                   pipeline_asm_seed_std_net_struct_layouts(driver_ptr_table_get(dm, j));
                 }
               }
             } else {
               if (eo != 0) {
                 if (skip_tk == 0) {
-                  ec_loop = shux_pipeline_dep_prerun_parse_only(
+                  ec_loop = xlang_pipeline_dep_prerun_parse_only(
                     driver_ptr_table_get(dm, j), driver_ptr_table_get(da, j),
                     dep_src, dep_len);
                 } else {
                   if (driver_asm_use_compiler_impl_c() != 0) {
                     if (skip_tk == 0) {
-                      ec_loop = shux_pipeline_dep_prerun_parse_only(
+                      ec_loop = xlang_pipeline_dep_prerun_parse_only(
                         driver_ptr_table_get(dm, j), driver_ptr_table_get(da, j),
                         dep_src, dep_len);
                     } else {
-                      ec_loop = shux_pipeline_dep_prerun_for_asm_module_o(
+                      ec_loop = xlang_pipeline_dep_prerun_for_asm_module_o(
                         driver_ptr_table_get(dm, j), driver_ptr_table_get(da, j),
                         dep_src, dep_len, dep_out, one);
                     }
                   } else {
-                    ec_loop = shux_pipeline_dep_prerun_for_asm_module_o(
+                    ec_loop = xlang_pipeline_dep_prerun_for_asm_module_o(
                       driver_ptr_table_get(dm, j), driver_ptr_table_get(da, j),
                       dep_src, dep_len, dep_out, one);
                   }
@@ -1339,16 +1343,16 @@ export function rt_ab_step_prerun(): i32 {
               } else {
                 if (driver_asm_use_compiler_impl_c() != 0) {
                   if (skip_tk == 0) {
-                    ec_loop = shux_pipeline_dep_prerun_parse_only(
+                    ec_loop = xlang_pipeline_dep_prerun_parse_only(
                       driver_ptr_table_get(dm, j), driver_ptr_table_get(da, j),
                       dep_src, dep_len);
                   } else {
-                    ec_loop = shux_pipeline_dep_prerun_for_asm_module_o(
+                    ec_loop = xlang_pipeline_dep_prerun_for_asm_module_o(
                       driver_ptr_table_get(dm, j), driver_ptr_table_get(da, j),
                       dep_src, dep_len, dep_out, one);
                   }
                 } else {
-                  ec_loop = shux_pipeline_dep_prerun_for_asm_module_o(
+                  ec_loop = xlang_pipeline_dep_prerun_for_asm_module_o(
                     driver_ptr_table_get(dm, j), driver_ptr_table_get(da, j),
                     dep_src, dep_len, dep_out, one);
                 }
@@ -1358,7 +1362,7 @@ export function rt_ab_step_prerun(): i32 {
         }
       } else {
         unsafe {
-          ec_loop = shux_pipeline_dep_prerun_for_asm_module_o(
+          ec_loop = xlang_pipeline_dep_prerun_for_asm_module_o(
             driver_ptr_table_get(dm, j), driver_ptr_table_get(da, j),
             dep_src, dep_len, dep_out, one);
         }
@@ -1429,7 +1433,7 @@ export function rt_ab_step_pipeline(): i32 {
     j = j + 1;
   }
   unsafe {
-    shux_pipeline_pctx_seed_dep_slots(pctx, dm, da, dp, n_deps);
+    xlang_pipeline_pctx_seed_dep_slots(pctx, dm, da, dp, n_deps);
     pipeline_set_dep_slots(da, dm);
     driver_dep_seed_slots(da, dm, n_deps);
     codegen_set_dep_slots_for_x_pipeline(dm, dp, n_deps);
@@ -1462,7 +1466,7 @@ export function rt_ab_step_pipeline(): i32 {
     }
   }
   unsafe {
-    ec = shux_pipeline_run_x_pipeline_large_stack(
+    ec = xlang_pipeline_run_x_pipeline_large_stack(
       module, arena, src, src_len, out_buf, pctx);
     driver_x_pipeline_skip_typeck_set(0);
     driver_x_pipeline_skip_codegen_set(0);
@@ -1609,7 +1613,7 @@ export function rt_ab_step_finish(): i32 {
     if (emit_elf != 0) {
       if (elf != 0 as *u8) {
         unsafe {
-          is_obj = shux_asm_out_buf_is_object(out_data, out_len as usize);
+          is_obj = xlang_asm_out_buf_is_object(out_data, out_len as usize);
         }
         if (is_obj == 0) {
           if (n_deps > 0) {
@@ -1628,7 +1632,7 @@ export function rt_ab_step_finish(): i32 {
               driver_typeck_ndep_set(n_deps);
               pipeline_set_dep_slots(da, dm);
               driver_dep_seed_slots(da, dm, n_deps);
-              shux_pipeline_pctx_seed_dep_slots(pctx, dm, da, dp, n_deps);
+              xlang_pipeline_pctx_seed_dep_slots(pctx, dm, da, dp, n_deps);
               if (driver_asm_entry_module_only_from_env() == 0) {
                 if (pipeline_asm_user_deps_need_coemit(dp, n_deps) != 0) {
                   driver_pipeline_dep_ctx_set_asm_entry_module_only(pctx, 0);
@@ -1638,8 +1642,8 @@ export function rt_ab_step_finish(): i32 {
             }
           }
           unsafe {
-            shux_driver_asm_prepare_entry_elf_emit(module, arena, pctx);
-            elf_ec = shux_asm_codegen_elf_o_large_stack(module, arena, pctx, elf, out_buf);
+            xlang_driver_asm_prepare_entry_elf_emit(module, arena, pctx);
+            elf_ec = xlang_asm_codegen_elf_o_large_stack(module, arena, pctx, elf, out_buf);
             out_len = driver_codegen_outbuf_len(out_buf);
             out_data = driver_codegen_outbuf_data(out_buf);
           }
@@ -1693,7 +1697,14 @@ export function rt_ab_step_finish(): i32 {
           macho = driver_pipeline_dep_ctx_get_use_macho_o(pctx);
           coff = driver_pipeline_dep_ctx_get_use_coff_o(pctx);
           argv0 = driver_asm_argv0(argv);
-          ld_ok = shux_invoke_ld_for_exe(tmp, exe_out, target, macho, coff, argv0, lib, nlib);
+          // G.7: plumb CLI extra .o into asm ld (same globals as C invoke_cc).
+          if (argc > 0) {
+            if (argv != 0 as *u8) {
+              xlang_invoke_cc_set_user_o_files_from_argv(argc, argv);
+            }
+          }
+          ld_ok = xlang_invoke_ld_for_exe(tmp, exe_out, target, macho, coff, argv0, lib, nlib);
+          xlang_invoke_cc_clear_user_o_files();
           unlink(tmp);
         }
         if (ld_ok != 0) {

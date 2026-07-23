@@ -1,6 +1,6 @@
 /* seeds/labi_gates.from_x.c — G-02f-277/L P2 link_abi L9 thin gates → R2 full
  * Logic source: src/runtime/labi_gates.x（真迁 thin shell；*u8 不透明透传）
- * Hybrid: SHUX_LABI_GATES_FROM_X + ld -r into runtime_link_abi.o
+ * Hybrid: XLANG_LABI_GATES_FROM_X + ld -r into runtime_link_abi.o
  *
  * R2 full（2026-07-14）：公共业务符号由 full .x 提供（6 thin gates + count）。
  * Cap residual：*_impl 主体仍在 mega runtime_link_abi.from_x.c rest。
@@ -12,8 +12,8 @@
 #include "runtime_link_abi.h"
 
 /* _impl / body provided by runtime_link_abi.from_x.c rest when hybrid. */
-const char *shux_asm_ld_bank_push_impl(ShuAsmLdPathBank *b, const char *path);
-int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const char *target,
+const char *xlang_asm_ld_bank_push_impl(ShuAsmLdPathBank *b, const char *path);
+int xlang_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const char *target,
     const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o,
     const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o,
     const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o,
@@ -27,27 +27,27 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
     const char *cli_o, const char *security_o, const char *config_o, const char *cache_o,
     const char *trace_o, const char *task_o, const char *schema_o, const char *test_o,
     const char *include_root, const char *async_scheduler_o);
-void shux_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char *user_o,
+void xlang_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char *user_o,
     const ShuAsmLdStdLinkFlags *flags, const char **argv, int *la, int max_la, int append_lsystem);
-void shux_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const char *user_o,
+void xlang_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const char *user_o,
     const ShuAsmLdStdLinkFlags *flags, int need_pt, const char **argv, int *la, int max_la);
-void shux_append_linux_link_harden_impl(char *argv[], int *la, int cap);
-int shux_invoke_ld_for_exe_impl(const char *o_path, const char *exe_path, const char *target,
+void xlang_append_linux_link_harden_impl(char *argv[], int *la, int cap);
+int xlang_invoke_ld_for_exe_impl(const char *o_path, const char *exe_path, const char *target,
     int use_macho_o, int use_coff_o, const char *link_argv0, const char **lib_roots, int n_lib_roots);
 
-#ifndef SHUX_LABI_GATES_FROM_X
+#ifndef XLANG_LABI_GATES_FROM_X
 
-const char *shux_asm_ld_bank_push(ShuAsmLdPathBank *b, const char *path) {
+const char *xlang_asm_ld_bank_push(ShuAsmLdPathBank *b, const char *path) {
   if (b == NULL)
     return NULL;
   if (path == NULL)
     return NULL;
   if (path[0] == 0)
     return NULL;
-  return shux_asm_ld_bank_push_impl(b, path);
+  return xlang_asm_ld_bank_push_impl(b, path);
 }
 
-int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char *target,
+int xlang_invoke_cc(const char **c_paths, int n, const char *out_path, const char *target,
     const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o,
     const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o,
     const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o,
@@ -65,7 +65,7 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
     return -1;
   if (out_path == NULL)
     return -1;
-  return shux_invoke_cc_impl(c_paths, n, out_path, target, opt_level, use_lto, io_o, fs_o, process_o,
+  return xlang_invoke_cc_impl(c_paths, n, out_path, target, opt_level, use_lto, io_o, fs_o, process_o,
       string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o,
       sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o,
       sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o,
@@ -73,7 +73,7 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
       schema_o, test_o, include_root, async_scheduler_o);
 }
 
-void shux_asm_ld_append_mach_tail_libs(const char *compress_o, const char *user_o,
+void xlang_asm_ld_append_mach_tail_libs(const char *compress_o, const char *user_o,
     const ShuAsmLdStdLinkFlags *flags, const char **argv, int *la, int max_la, int append_lsystem) {
   if (flags == NULL)
     return;
@@ -83,10 +83,10 @@ void shux_asm_ld_append_mach_tail_libs(const char *compress_o, const char *user_
     return;
   if (*la < 0)
     return;
-  shux_asm_ld_append_mach_tail_libs_impl(compress_o, user_o, flags, argv, la, max_la, append_lsystem);
+  xlang_asm_ld_append_mach_tail_libs_impl(compress_o, user_o, flags, argv, la, max_la, append_lsystem);
 }
 
-void shux_asm_ld_append_unix_gcc_tail_libs(const char *compress_o, const char *user_o,
+void xlang_asm_ld_append_unix_gcc_tail_libs(const char *compress_o, const char *user_o,
     const ShuAsmLdStdLinkFlags *flags, int need_pt, const char **argv, int *la, int max_la) {
   if (flags == NULL)
     return;
@@ -96,24 +96,24 @@ void shux_asm_ld_append_unix_gcc_tail_libs(const char *compress_o, const char *u
     return;
   if (*la < 0)
     return;
-  shux_asm_ld_append_unix_gcc_tail_libs_impl(compress_o, user_o, flags, need_pt, argv, la, max_la);
+  xlang_asm_ld_append_unix_gcc_tail_libs_impl(compress_o, user_o, flags, need_pt, argv, la, max_la);
 }
 
-void shux_append_linux_link_harden(char *argv[], int *la, int cap) {
+void xlang_append_linux_link_harden(char *argv[], int *la, int cap) {
   if (argv == NULL)
     return;
   if (la == NULL)
     return;
-  shux_append_linux_link_harden_impl(argv, la, cap);
+  xlang_append_linux_link_harden_impl(argv, la, cap);
 }
 
-int shux_invoke_ld_for_exe(const char *o_path, const char *exe_path, const char *target,
+int xlang_invoke_ld_for_exe(const char *o_path, const char *exe_path, const char *target,
     int use_macho_o, int use_coff_o, const char *link_argv0, const char **lib_roots, int n_lib_roots) {
   if (o_path == NULL)
     return -1;
   if (exe_path == NULL)
     return -1;
-  return shux_invoke_ld_for_exe_impl(o_path, exe_path, target, use_macho_o, use_coff_o, link_argv0,
+  return xlang_invoke_ld_for_exe_impl(o_path, exe_path, target, use_macho_o, use_coff_o, link_argv0,
       lib_roots, n_lib_roots);
 }
 
@@ -122,8 +122,8 @@ int labi_gates_count(void) {
 }
 
 #else
-const char *shux_asm_ld_bank_push(ShuAsmLdPathBank *b, const char *path);
-int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char *target,
+const char *xlang_asm_ld_bank_push(ShuAsmLdPathBank *b, const char *path);
+int xlang_invoke_cc(const char **c_paths, int n, const char *out_path, const char *target,
     const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o,
     const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o,
     const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o,
@@ -137,12 +137,12 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
     const char *cli_o, const char *security_o, const char *config_o, const char *cache_o,
     const char *trace_o, const char *task_o, const char *schema_o, const char *test_o,
     const char *include_root, const char *async_scheduler_o);
-void shux_asm_ld_append_mach_tail_libs(const char *compress_o, const char *user_o,
+void xlang_asm_ld_append_mach_tail_libs(const char *compress_o, const char *user_o,
     const ShuAsmLdStdLinkFlags *flags, const char **argv, int *la, int max_la, int append_lsystem);
-void shux_asm_ld_append_unix_gcc_tail_libs(const char *compress_o, const char *user_o,
+void xlang_asm_ld_append_unix_gcc_tail_libs(const char *compress_o, const char *user_o,
     const ShuAsmLdStdLinkFlags *flags, int need_pt, const char **argv, int *la, int max_la);
-void shux_append_linux_link_harden(char *argv[], int *la, int cap);
-int shux_invoke_ld_for_exe(const char *o_path, const char *exe_path, const char *target,
+void xlang_append_linux_link_harden(char *argv[], int *la, int cap);
+int xlang_invoke_ld_for_exe(const char *o_path, const char *exe_path, const char *target,
     int use_macho_o, int use_coff_o, const char *link_argv0, const char **lib_roots, int n_lib_roots);
 int labi_gates_count(void);
 #endif

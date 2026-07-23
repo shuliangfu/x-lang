@@ -10,7 +10,7 @@
  */
 
 #if !defined(_WIN32) && !defined(_WIN64)
-#include <shux_weak.h>
+#include <xlang_weak.h>
 #include <string.h>
 /* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
  *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
@@ -21,38 +21,38 @@
 #endif
 
 /** 与 std.io IO_ASYNC_NOT_READY 一致。 */
-#define SHUX_ASYNC_IO_NOT_READY (-2)
+#define XLANG_ASYNC_IO_NOT_READY (-2)
 
 /** io.o 未链入时 weak 桩（与 scheduler_glue.c poll 桩一致）。 */
-SHUX_WEAK int shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {
+XLANG_WEAK int xlang_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {
     (void)ptr;
     (void)len;
     (void)handle;
     return -1;
 }
 
-SHUX_WEAK int32_t shux_io_complete_read_async_slot(int slot) {
+XLANG_WEAK int32_t xlang_io_complete_read_async_slot(int slot) {
     (void)slot;
-    return SHUX_ASYNC_IO_NOT_READY;
+    return XLANG_ASYNC_IO_NOT_READY;
 }
 
-SHUX_WEAK int shux_io_submit_write_async(const uint8_t *ptr, size_t len, size_t handle) {
+XLANG_WEAK int xlang_io_submit_write_async(const uint8_t *ptr, size_t len, size_t handle) {
     (void)ptr;
     (void)len;
     (void)handle;
     return -1;
 }
 
-SHUX_WEAK int32_t shux_io_complete_write_async_slot(int slot) {
+XLANG_WEAK int32_t xlang_io_complete_write_async_slot(int slot) {
     (void)slot;
-    return SHUX_ASYNC_IO_NOT_READY;
+    return XLANG_ASYNC_IO_NOT_READY;
 }
 
 /**
  * pipe 上 async read/write 往返烟测（模拟 net stream / fs fd 异步路径）；0 通过。
  * 非 Unix 跳过返回 0。
  */
-int32_t shux_async_net_fs_smoke_c(void) {
+int32_t xlang_async_net_fs_smoke_c(void) {
 #if defined(_WIN32) || defined(_WIN64)
     return 0;
 #else
@@ -71,12 +71,12 @@ int32_t shux_async_net_fs_smoke_c(void) {
         return 2;
     }
     close(pv[1]);
-    slot = shux_io_submit_read_async(rbuf, 3, (size_t)pv[0]);
+    slot = xlang_io_submit_read_async(rbuf, 3, (size_t)pv[0]);
     if (slot < 0) {
         close(pv[0]);
         return 0;
     }
-    n = shux_io_complete_read_async_slot(slot);
+    n = xlang_io_complete_read_async_slot(slot);
     close(pv[0]);
     if (n != 3)
         return 4;
@@ -86,13 +86,13 @@ int32_t shux_async_net_fs_smoke_c(void) {
     /* write async：write_async → pipe 读端校验 */
     if (pipe(pv) != 0)
         return 6;
-    slot = shux_io_submit_write_async(wbuf, 3, (size_t)pv[1]);
+    slot = xlang_io_submit_write_async(wbuf, 3, (size_t)pv[1]);
     if (slot < 0) {
         close(pv[0]);
         close(pv[1]);
         return 0;
     }
-    n = shux_io_complete_write_async_slot(slot);
+    n = xlang_io_complete_write_async_slot(slot);
     if (n != 3) {
         close(pv[0]);
         close(pv[1]);

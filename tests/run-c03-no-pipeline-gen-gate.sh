@@ -3,17 +3,17 @@
 #
 # 用法：./tests/run-c03-no-pipeline-gen-gate.sh
 # 环境：
-#   SHUX_C03_FAIL=1              — 失败时硬退出
-#   SHUX_C03_BUILD_LOG=/path     — 可选，审计已有 bstrict 构建日志
+#   XLANG_C03_FAIL=1              — 失败时硬退出
+#   XLANG_C03_BUILD_LOG=/path     — 可选，审计已有 bstrict 构建日志
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_C03_FAIL:-0}
+FAIL=${XLANG_C03_FAIL:-0}
 DOC="analysis/phase-c-c03-v1.md"
 MANIFEST="tests/baseline/c03-no-pipeline-gen.tsv"
 MF="compiler/Makefile"
-BUILD_ASM="compiler/scripts/build_shux_asm.sh"
-LOG="${SHUX_C03_BUILD_LOG:-/tmp/build_bstrict.log}"
+BUILD_ASM="compiler/scripts/build_xlang_asm.sh"
+LOG="${XLANG_C03_BUILD_LOG:-/tmp/build_bstrict.log}"
 PAT='(^|[[:space:]])cc -c (\.\./)?pipeline_gen\.c([[:space:]]|$)'
 
 die() {
@@ -32,9 +32,9 @@ done
 grep -q 'C-03 v1' "$DOC" || die "doc missing C-03 v1 marker"
 
 grep -q 'bootstrap-driver-bstrict' "$MF" || die "Makefile missing bootstrap-driver-bstrict"
-grep -q 'SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1' "$MF" || die "Makefile bstrict missing SKIP_GEN"
+grep -q 'XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1' "$MF" || die "Makefile bstrict missing SKIP_GEN"
 grep -q 'cc -c pipeline_gen.c' "$MF" || die "Makefile crt0 missing pipeline_gen audit"
-grep -q 'pipeline_gen' "$BUILD_ASM" || die "build_shux_asm.sh missing pipeline_gen references"
+grep -q 'pipeline_gen' "$BUILD_ASM" || die "build_xlang_asm.sh missing pipeline_gen references"
 
 # manifest gate_ref
 MISS=0
@@ -58,4 +58,4 @@ else
   echo "c03 note: no build log at $LOG (run bootstrap-driver-bstrict first for full audit)"
 fi
 
-echo "c03 no-pipeline-gen gate OK (Linux/macOS B-strict; Windows SHUX_WIN_BSTRICT=1 see run-bootstrap-bstrict-windows-gate)"
+echo "c03 no-pipeline-gen gate OK (Linux/macOS B-strict; Windows XLANG_WIN_BSTRICT=1 see run-bootstrap-bstrict-windows-gate)"

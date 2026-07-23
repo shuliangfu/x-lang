@@ -1,10 +1,10 @@
 /* seeds/rt_content_surface.from_x.c
  * G-02f rt_content R2 full surface — isomorphic with src/runtime/rt_content.x
  * Product PREFER_X_O: g05_try_x_to_o(rt_content.x) + hybrid rest seed
- *   seeds/rt_content.from_x.c (-DSHUX_RT_CONTENT_FROM_X) ld -r into runtime_driver_no_c
+ *   seeds/rt_content.from_x.c (-DXLANG_RT_CONTENT_FROM_X) ld -r into runtime_driver_no_c
  * R2: content_has_* + driver_source_has_* path wrappers from .x; rest FROM_X only decls+marker
  * Prove: full.x vs this seed → nm IDENTICAL (public surface + helpers)
- * Regen: ./shux -E ... src/runtime/rt_content.x | filter DBG + polish prologue
+ * Regen: ./xlang -E ... src/runtime/rt_content.x | filter DBG + polish prologue
  */
 #include <stddef.h>
 #include <stdint.h>

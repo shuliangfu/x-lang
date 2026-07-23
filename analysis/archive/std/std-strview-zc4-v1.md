@@ -56,7 +56,7 @@
 
 - manifest：`tests/baseline/std-strview-zc4.tsv`
 - 烟测：`tests/string/view_lifecycle.x` + ZC-4 三件套（subview / arena / SSO）
-- 门禁：`tests/run-std-strview-zc4-gate.sh`（`SHUX_STD_STRVIEW_ZC4`）
+- 门禁：`tests/run-std-strview-zc4-gate.sh`（`XLANG_STD_STRVIEW_ZC4`）
 - 深度回归：`tests/run-zc4-gate.sh`（runnable 时）
 
 ---

@@ -3,12 +3,12 @@
 #
 # 用法：./tests/run-e05-include-soft-gate.sh
 # 环境：
-#   SHUX_E05_FAIL=1              — 失败时硬退出
-#   SHUX_E05_MANIFEST_ONLY=1     — 仅 manifest
+#   XLANG_E05_FAIL=1              — 失败时硬退出
+#   XLANG_E05_MANIFEST_ONLY=1     — 仅 manifest
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_E05_FAIL:-0}
+FAIL=${XLANG_E05_FAIL:-0}
 DOC="analysis/phase-e-e05-v2.md"
 DOC_V1="analysis/phase-e-e05-v1.md"
 MF="tests/baseline/e05-include-inventory.tsv"
@@ -73,9 +73,9 @@ done < "$MF"
 [ "$MISS" -eq 0 ] || die "$MISS manifest item(s) failed"
 echo "e05 inventory: active_headers=${ACT} soft_retired_or_absent=${RET} (on disk unless not_exists)"
 
-# E-05 v2：C 前端头须在 SHUX_NO_C_FRONTEND 守卫之后；preprocess/target_cpu/lsp_diag 仍无条件 include
-guard_line=$(grep -n '#if !defined(SHUX_NO_C_FRONTEND)' compiler/seeds/runtime.from_x.c | head -1 | cut -d: -f1)
-[ -n "$guard_line" ] || die "runtime.c missing SHUX_NO_C_FRONTEND guard"
+# E-05 v2：C 前端头须在 XLANG_NO_C_FRONTEND 守卫之后；preprocess/target_cpu/lsp_diag 仍无条件 include
+guard_line=$(grep -n '#if !defined(XLANG_NO_C_FRONTEND)' compiler/seeds/runtime.from_x.c | head -1 | cut -d: -f1)
+[ -n "$guard_line" ] || die "runtime.c missing XLANG_NO_C_FRONTEND guard"
 for hdr in 'lexer/lexer.h' 'parser/parser.h' 'typeck/typeck.h' 'codegen/codegen.h' 'ast.h'; do
   ln=$(grep -n "#include \"$hdr\"" compiler/seeds/runtime.from_x.c | head -1 | cut -d: -f1 || true)
   if [ -n "$ln" ] && [ "$ln" -le "$guard_line" ]; then
@@ -87,7 +87,7 @@ for h in preprocess.h target_cpu.h lsp/lsp_diag.h; do
 done
 echo "e05 v2: runtime.c NO_C include guard OK"
 
-if [ "${SHUX_E05_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_E05_MANIFEST_ONLY:-0}" = "1" ]; then
   echo "e05 include soft-retire gate OK (manifest only)"
   exit 0
 fi
@@ -95,7 +95,7 @@ fi
 if [ -f tests/run-e01-extern-h-soft-gate.sh ]; then
   echo "=== E-05: delegate E-01 extern .h ==="
   chmod +x tests/run-e01-extern-h-soft-gate.sh
-  SHUX_E01_MANIFEST_ONLY=1 SHUX_E01_FAIL="$FAIL" ./tests/run-e01-extern-h-soft-gate.sh || die "E-01 delegate failed"
+  XLANG_E01_MANIFEST_ONLY=1 XLANG_E01_FAIL="$FAIL" ./tests/run-e01-extern-h-soft-gate.sh || die "E-01 delegate failed"
 fi
 
 # shellcheck source=tests/lib/phase-e-soft-audit.sh

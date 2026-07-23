@@ -35,7 +35,7 @@ fi
 
 X_SRC="$1"
 SEED_SRC="${2:-}"
-TIMEOUT="${SHUX_CONTRACT_TIMEOUT:-8}"
+TIMEOUT="${XLANG_CONTRACT_TIMEOUT:-8}"
 
 if [ ! -f "$X_SRC" ]; then
   echo "gen_tu_contract: missing x source: $X_SRC" >&2
@@ -71,7 +71,7 @@ resolve_seed_src() {
       ;;
   esac
 
-  _macro="$(rg -o 'SHUX_[A-Z0-9_]+_FROM_X' "$_x_src" | sort -u | head -n 1 || true)"
+  _macro="$(rg -o 'XLANG_[A-Z0-9_]+_FROM_X' "$_x_src" | sort -u | head -n 1 || true)"
   if [ -n "$_macro" ]; then
     _macro_hits="$(rg -l "$_macro" "$_seed_dir" -g '*.from_x.c' | sort -u || true)"
     _hit_count="$(printf '%s\n' "$_macro_hits" | awk 'NF { n++ } END { print n + 0 }')"
@@ -92,7 +92,7 @@ acquire_probe_lock() {
   _stem="$1"
   _lock_root="../tests/probes/prove_x_o"
   _lock_dir="${_lock_root}/${_stem}.lock"
-  _lock_timeout="${SHUX_PROVE_LOCK_TIMEOUT:-15}"
+  _lock_timeout="${XLANG_PROVE_LOCK_TIMEOUT:-15}"
   _start_ts="${SECONDS:-0}"
 
   mkdir -p "$_lock_root"

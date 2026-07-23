@@ -22,12 +22,12 @@
     "only_seed": 3
   },
   "symbols": {
-    "x": ["runtime_panic_arm64_x_doc_anchor", "shux_crash_evidence_minimal"],
-    "seed": ["shux_crash_evidence_collect_c", "shux_crash_evidence_minimal_impl", "shux_panic_"],
+    "x": ["runtime_panic_arm64_x_doc_anchor", "xlang_crash_evidence_minimal"],
+    "seed": ["xlang_crash_evidence_collect_c", "xlang_crash_evidence_minimal_impl", "xlang_panic_"],
     "only_x": ["runtime_panic_arm64_x_doc_anchor"],
-    "only_seed": ["shux_crash_evidence_collect_c", "shux_crash_evidence_minimal_impl", "shux_panic_"]
+    "only_seed": ["xlang_crash_evidence_collect_c", "xlang_crash_evidence_minimal_impl", "xlang_panic_"]
   },
-  "rest_macro": "SHUX_RUNTIME_PANIC_ARM64_FROM_X",
+  "rest_macro": "XLANG_RUNTIME_PANIC_ARM64_FROM_X",
   "delete_seed_gate": {
     "allowed_now": false,
     "requirements": [

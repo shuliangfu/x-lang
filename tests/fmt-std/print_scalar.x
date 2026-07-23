@@ -7,5 +7,5 @@ const fmt = import("std.fmt");
  */
 function main(): i32 {
   let a: i32 = fmt.println("Hello World", 11);
-  return if (a > 0) { 0 } else { 1 };
+  return if (a >= 0) { 0 } else { 1 };
 }

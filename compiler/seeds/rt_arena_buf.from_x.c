@@ -1,6 +1,6 @@
 /* seeds/rt_arena_buf.from_x.c — G-02f-309 P2 runtime rest (static arena/module buf)
  * Logic source: src/runtime/rt_arena_buf.x
- * Hybrid: SHUX_RT_ARENA_BUF_FROM_X + ld -r into runtime_driver_no_c.o
+ * Hybrid: XLANG_RT_ARENA_BUF_FROM_X + ld -r into runtime_driver_no_c.o
  *
  * R2 full（2026-07-14）：driver_arena_buf / driver_module_buf 由 .x 提供；
  * FROM_X 下本文件：始终保留 BSS 数据（跨 TU 非 static；Cap-global-bss）+ 前向声明 + marker
@@ -26,7 +26,7 @@ uint8_t driver_module_static[DRIVER_MODULE_STATIC_SIZE];
 
 extern size_t pipeline_arena_offset_num_types(void);
 
-#ifndef SHUX_RT_ARENA_BUF_FROM_X
+#ifndef XLANG_RT_ARENA_BUF_FROM_X
 
 uint8_t *driver_arena_buf(void) {
   memset(driver_arena_static, 0, DRIVER_ARENA_STATIC_SIZE);

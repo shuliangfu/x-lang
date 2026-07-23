@@ -1,6 +1,6 @@
 /* seeds/rt_emit_state.from_x.c — G-02f-303/304 P2 runtime rest (-E emit state)
  * Logic source: src/runtime/rt_emit_state.x
- * Hybrid: SHUX_RT_EMIT_STATE_FROM_X + ld -r into runtime_driver_no_c.o
+ * Hybrid: XLANG_RT_EMIT_STATE_FROM_X + ld -r into runtime_driver_no_c.o
  *
  * R2 full：set_path/set_lib/set_n/set_extern + argv_parse 由 .x 提供；
  * FROM_X 下本文件：始终保留 BSS 数据（跨 TU 共享；Cap-global-bss）+ 前向声明 + marker
@@ -28,7 +28,7 @@ int driver_x_emit_c_want_extern;
 char driver_x_emit_scan_ab[512];
 char driver_x_emit_scan_nx[512];
 
-#ifndef SHUX_RT_EMIT_STATE_FROM_X
+#ifndef XLANG_RT_EMIT_STATE_FROM_X
 
 int driver_run_x_emit_c_set_path(const uint8_t *path, int path_len) {
   driver_x_emit_c_path = NULL;

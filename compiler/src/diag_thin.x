@@ -3,7 +3,7 @@
 //
 // See implementation.
 // See implementation.
-//   （-DSHUX_L2_DIAG_THIN_FROM_X）ld -r → src/diag.o
+//   （-DXLANG_L2_DIAG_THIN_FROM_X）ld -r → src/diag.o
 // See implementation.
 //
 // f-335：line_digits / kind_is_exact / kind_contains / color_prefix

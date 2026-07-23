@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-regex-atomic.sh — STD-124 manifest 与烟测辅助
 
-STD_REGEX_ATOMIC_PREFIX="${SHUX_STD124_REGEX_ATOMIC_PREFIX:-shux: [SHUX_STD124_REGEX_ATOMIC]}"
+STD_REGEX_ATOMIC_PREFIX="${XLANG_STD124_REGEX_ATOMIC_PREFIX:-xlang: [XLANG_STD124_REGEX_ATOMIC]}"
 
 std_regex_atomic_symbols_ok() {
   local min_inc="$1"
@@ -26,7 +26,7 @@ std_regex_atomic_symbols_ok() {
 
 std_regex_atomic_run_c_smoke() {
   local regex_c="$1"
-  local out="/tmp/shux_std_regex_atomic_c_$$"
+  local out="/tmp/xlang_std_regex_atomic_c_$$"
   cc -std=c11 -O1 -o "$out" tests/regex/regex_min_ok.c "$regex_c" 2>/dev/null || return 1
   set +e
   "$out" >/dev/null 2>&1
@@ -37,10 +37,10 @@ std_regex_atomic_run_c_smoke() {
 }
 
 std_regex_atomic_run_x_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
-  local exe="/tmp/shux_std_regex_atomic_x_$$"
-  "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
+  local exe="/tmp/xlang_std_regex_atomic_x_$$"
+  "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
   set +e
   "$exe" >/dev/null 2>&1
   local ec=$?

@@ -26,7 +26,7 @@ C_OK=0
 X_OK=0
 SKIP=0
 
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/json/json.o 2>/dev/null || true
@@ -37,12 +37,12 @@ if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
     echo "std-json-typed-decode gate SKIP c smoke (no full json.o)" >&2
   fi
 else
-  echo "std-json-typed-decode gate SKIP c smoke (no shux-c)" >&2
+  echo "std-json-typed-decode gate SKIP c smoke (no xlang-c)" >&2
 fi
 
-if [ -x ./compiler/shux-c ]; then
-  ./compiler/shux-c check -L . "$SMOKE_X" >/dev/null
-  std_json_typed_run_x_smoke ./compiler/shux-c "$SMOKE_X" && X_OK=1 || exit 1
+if [ -x ./compiler/xlang-c ]; then
+  ./compiler/xlang-c check -L . "$SMOKE_X" >/dev/null
+  std_json_typed_run_x_smoke ./compiler/xlang-c "$SMOKE_X" && X_OK=1 || exit 1
 else
   SKIP=1
 fi

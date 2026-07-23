@@ -6,9 +6,9 @@
 #   ./tests/lib/progress-run.sh "L1 bstrict" /tmp/bstrict.log -- make -C compiler bootstrap-driver-bstrict
 #
 # 环境：
-#   SHUX_PROGRESS_QUIET=1 — 不打印子命令 stdout（仍写入 log）
-#   SHUX_PROGRESS_EST=... — 可选预计耗时提示（仅展示）
-#   SHUX_PROGRESS_TIMEOUT_SEC=N — 可选超时秒数（依赖宿主 timeout/gtimeout；124=超时）
+#   XLANG_PROGRESS_QUIET=1 — 不打印子命令 stdout（仍写入 log）
+#   XLANG_PROGRESS_EST=... — 可选预计耗时提示（仅展示）
+#   XLANG_PROGRESS_TIMEOUT_SEC=N — 可选超时秒数（依赖宿主 timeout/gtimeout；124=超时）
 
 set -euo pipefail
 
@@ -29,15 +29,15 @@ mkdir -p "$(dirname "$LOG")" 2>/dev/null || true
 : >"$LOG"
 
 progress "START $LABEL"
-if [ -n "${SHUX_PROGRESS_EST:-}" ]; then
-  progress "EST $SHUX_PROGRESS_EST"
+if [ -n "${XLANG_PROGRESS_EST:-}" ]; then
+  progress "EST $XLANG_PROGRESS_EST"
 fi
 progress "CMD $*"
 progress "LOG $LOG"
 
 # 可选超时：124 表示 timeout(1) 杀进程。
 run_cmd() {
-  if [ "${SHUX_PROGRESS_QUIET:-0}" = "1" ]; then
+  if [ "${XLANG_PROGRESS_QUIET:-0}" = "1" ]; then
     stdbuf -oL -eL "$@" >>"$LOG" 2>&1
   else
     stdbuf -oL -eL "$@" 2>&1 | tee -a "$LOG"
@@ -46,7 +46,7 @@ run_cmd() {
 }
 
 progress_timeout_cmd() {
-  local to="${SHUX_PROGRESS_TIMEOUT_SEC:-}"
+  local to="${XLANG_PROGRESS_TIMEOUT_SEC:-}"
   local timeout_bin=""
   if [ -n "$to" ] && [ "$to" != "0" ]; then
     if command -v timeout >/dev/null 2>&1; then
@@ -59,7 +59,7 @@ progress_timeout_cmd() {
       run_cmd "$timeout_bin" "$to" "$@"
       return $?
     fi
-    progress "WARN timeout unavailable; SHUX_PROGRESS_TIMEOUT_SEC ignored"
+    progress "WARN timeout unavailable; XLANG_PROGRESS_TIMEOUT_SEC ignored"
   fi
   run_cmd "$@"
 }

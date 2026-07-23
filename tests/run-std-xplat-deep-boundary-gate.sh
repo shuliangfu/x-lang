@@ -28,11 +28,11 @@ if [ "$n_cases" -lt "$MIN_SMOKE_CASES" ]; then
 fi
 SMOKE_OK=0
 SKIP=0
-SHUX_BIN=""
-for cand in ./compiler/shux-c ./compiler/shux; do
-  [ -x "$cand" ] && SHUX_BIN="$cand" && break
+XLANG_BIN=""
+for cand in ./compiler/xlang-c ./compiler/xlang; do
+  [ -x "$cand" ] && XLANG_BIN="$cand" && break
 done
-if [ -n "$SHUX_BIN" ]; then
+if [ -n "$XLANG_BIN" ]; then
   FAIL=0
   while IFS=$'\t' read -r case_id kind path linux pol_mac pol_win _notes; do
     [ -z "${case_id:-}" ] && continue
@@ -42,12 +42,12 @@ if [ -n "$SHUX_BIN" ]; then
     case "$pol" in
       skip) echo "xplat-deep SKIP $case_id"; continue ;;
     esac
-    if ! "$SHUX_BIN" check -L . "$path" >/dev/null 2>&1; then
+    if ! "$XLANG_BIN" check -L . "$path" >/dev/null 2>&1; then
       echo "xplat-deep-boundary gate FAIL: typeck $path" >&2
       FAIL=1
       break
     fi
-    if ! xplat_deep_run_smoke "$SHUX_BIN" "$path"; then
+    if ! xplat_deep_run_smoke "$XLANG_BIN" "$path"; then
       if [ "$pol" = "optional" ]; then
         echo "xplat-deep WARN $case_id (optional)" >&2
       else

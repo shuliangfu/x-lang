@@ -20,11 +20,11 @@
 | item_id | hook | 平台 | 说明 |
 |---------|------|------|------|
 | `wave_incr_smoke` | `run-comp-incr-compile.sh` | 全平台 | 二次编译 ratio 烟测 |
-| `wave_timing` | `run-obs-compile-phase-timing-gate.sh` | 全平台 | `SHUX_COMPILE_PHASE_TIMING` gate |
+| `wave_timing` | `run-obs-compile-phase-timing-gate.sh` | 全平台 | `XLANG_COMPILE_PHASE_TIMING` gate |
 | `wave_comp007` | `run-comp-incr-compile-gate.sh` | 全平台 | COMP-007 父 manifest |
 | `wave_dogfood` | `run-comp-incr-compile.sh` | 全平台 | `bench_dogfood_check` 扩面 |
 
-Darwin / 无 native `shux`：manifest 绿 + wave runnable **SKIP**。
+Darwin / 无 native `xlang`：manifest 绿 + wave runnable **SKIP**。
 
 ---
 
@@ -35,7 +35,7 @@ Darwin / 无 native `shux`：manifest 绿 + wave runnable **SKIP**。
 ```
 
 ```
-shux: [SHUX_COMP020_INCR_WAVE] status=ok wave_ok=4 wave_run=2 wave_skip=2 skip=1
+xlang: [XLANG_COMP020_INCR_WAVE] status=ok wave_ok=4 wave_run=2 wave_skip=2 skip=1
 ```
 
 - **wave_ok**：wave hook 已登记且父 COMP-007 manifest 绿

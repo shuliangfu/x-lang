@@ -6,16 +6,16 @@
 
 | 符号 | 说明 |
 |------|------|
-| `shux_output_is_elf_o` | `-o` 是否为 `.o`/`.obj`（写对象而非 `.s`） |
-| `shux_output_want_exe` | `-o` 是否表示可执行文件名（非 `.o`/`.obj`/`.s`） |
-| `shux_invoke_ld_for_exe` | prepare + `shux_asm_invoke_ld_platform`；freestanding 取自 `driver_freestanding_get` |
+| `xlang_output_is_elf_o` | `-o` 是否为 `.o`/`.obj`（写对象而非 `.s`） |
+| `xlang_output_want_exe` | `-o` 是否表示可执行文件名（非 `.o`/`.obj`/`.s`） |
+| `xlang_invoke_ld_for_exe` | prepare + `xlang_asm_invoke_ld_platform`；freestanding 取自 `driver_freestanding_get` |
 
-`driver_asm_output_want_exe`（compile.x extern）保留为薄转发至 `shux_output_want_exe`。
+`driver_asm_output_want_exe`（compile.x extern）保留为薄转发至 `xlang_output_want_exe`。
 
 ## 复现
 
 ```bash
-SHUX_E04_FAIL=1 ./tests/run-e04-runtime-soft-gate.sh
+XLANG_E04_FAIL=1 ./tests/run-e04-runtime-soft-gate.sh
 make -C compiler src/runtime_link_abi.o src/runtime_driver_no_c.o
 ```
 

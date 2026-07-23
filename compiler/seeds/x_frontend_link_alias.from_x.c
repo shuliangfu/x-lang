@@ -1,9 +1,9 @@
 /* Generated from x_frontend_link_alias.x (G-02f-26 true .x + C tail).
- * Regen: ./shux-c -E -L .. x_frontend_link_alias.x > /tmp/xfla.c
+ * Regen: ./xlang-c -E -L .. x_frontend_link_alias.x > /tmp/xfla.c
  *         then re-apply weak polish + lexer C tail (see G-02f-26).
  * lexer_* struct returns remain C; other forwards are .x.
  */
-#include <shux_weak.h>
+#include <xlang_weak.h>
 #include <stdint.h>
 #include <stddef.h>
 extern int32_t typeck_x_ast(uint8_t * module, uint8_t * arena, uint8_t * ctx);
@@ -66,7 +66,7 @@ void typeck_typeck_wpo_unify_soa_layouts(uint8_t * entry, uint8_t * ctx) {
   }
  }));
 }
-SHUX_WEAK int32_t check_block_impl(uint8_t * module, uint8_t * arena, int32_t block_ref, int32_t return_type_ref, uint8_t * ctx) {
+XLANG_WEAK int32_t check_block_impl(uint8_t * module, uint8_t * arena, int32_t block_ref, int32_t return_type_ref, uint8_t * ctx) {
   (void)(({   {
     int32_t r = pipeline_typeck_check_block_impl_c(module, arena, block_ref, return_type_ref, ctx);
     return r;
@@ -74,7 +74,7 @@ SHUX_WEAK int32_t check_block_impl(uint8_t * module, uint8_t * arena, int32_t bl
  }));
   return 0;
 }
-SHUX_WEAK int32_t check_expr_impl(uint8_t * module, uint8_t * arena, int32_t expr_ref, int32_t return_type_ref, uint8_t * ctx) {
+XLANG_WEAK int32_t check_expr_impl(uint8_t * module, uint8_t * arena, int32_t expr_ref, int32_t return_type_ref, uint8_t * ctx) {
   (void)(({   {
     int32_t r = pipeline_typeck_check_expr_impl_c(module, arena, expr_ref, return_type_ref, ctx);
     return r;
@@ -82,7 +82,7 @@ SHUX_WEAK int32_t check_expr_impl(uint8_t * module, uint8_t * arena, int32_t exp
  }));
   return 0;
 }
-SHUX_WEAK int32_t find_or_alloc_ptr_type_ref(uint8_t * arena, int32_t elem_ref) {
+XLANG_WEAK int32_t find_or_alloc_ptr_type_ref(uint8_t * arena, int32_t elem_ref) {
   (void)(({   {
     int32_t r = typeck_find_or_alloc_ptr_type_ref(arena, elem_ref);
     return r;
@@ -90,10 +90,10 @@ SHUX_WEAK int32_t find_or_alloc_ptr_type_ref(uint8_t * arena, int32_t elem_ref) 
  }));
   return 0;
 }
-SHUX_WEAK void pipeline_typeck_set_active_ctx_c(uint8_t * module, uint8_t * ctx) {
+XLANG_WEAK void pipeline_typeck_set_active_ctx_c(uint8_t * module, uint8_t * ctx) {
   (void)(0);
 }
-SHUX_WEAK int32_t pipeline_typeck_ptr_for_addr_of_operand_c(uint8_t * arena, int32_t op_ref, int32_t elem_ty, uint8_t * module, uint8_t * ctx) {
+XLANG_WEAK int32_t pipeline_typeck_ptr_for_addr_of_operand_c(uint8_t * arena, int32_t op_ref, int32_t elem_ty, uint8_t * module, uint8_t * ctx) {
   return 0;
 }
 void ast_pipeline_module_struct_layout_set_soa(uint8_t * m, int32_t idx, int32_t v) {
@@ -161,22 +161,22 @@ struct lexer_LexerResult {
   double float_val;
   struct lexer_Lexer next_lex;
 };
-struct shux_slice_uint8_t;
+struct xlang_slice_uint8_t;
 extern struct lexer_Lexer lexer_init(void);
 extern void lexer_next_into(struct lexer_LexerResult *out, struct lexer_Lexer lex,
-                            struct shux_slice_uint8_t *data);
+                            struct xlang_slice_uint8_t *data);
 extern struct lexer_LexerResult lexer_next_buf(struct lexer_Lexer lex,
-                                               struct shux_slice_uint8_t *data);
+                                               struct xlang_slice_uint8_t *data);
 
 struct lexer_Lexer lexer_lexer_init(void) {
   return lexer_init();
 }
 void lexer_lexer_next_into(struct lexer_LexerResult *out, struct lexer_Lexer lex,
-                         struct shux_slice_uint8_t *data) {
+                         struct xlang_slice_uint8_t *data) {
   lexer_next_into(out, lex, data);
 }
 struct lexer_LexerResult lexer_lexer_next_buf(struct lexer_Lexer lex,
-                                            struct shux_slice_uint8_t *data) {
+                                            struct xlang_slice_uint8_t *data) {
   return lexer_next_buf(lex, data);
 }
 
@@ -192,30 +192,30 @@ extern uint8_t *pipeline_dep_ctx_module_at(uint8_t *ctx, int32_t i);
 extern uint8_t *pipeline_asm_emit_dep_pipe_c(void);
 extern uint8_t pipeline_module_import_path_byte_at(uint8_t *m, int32_t i, int32_t j);
 
-SHUX_WEAK int32_t pipeline_expr_field_access_name_len_u8_ptr_i32_reti32(uint8_t *a, int32_t er) {
+XLANG_WEAK int32_t pipeline_expr_field_access_name_len_u8_ptr_i32_reti32(uint8_t *a, int32_t er) {
   return pipeline_expr_field_access_name_len(a, er);
 }
-SHUX_WEAK void pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr(uint8_t *a, int32_t er, uint8_t *dst) {
+XLANG_WEAK void pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr(uint8_t *a, int32_t er, uint8_t *dst) {
   pipeline_expr_field_access_name_into(a, er, dst);
 }
-SHUX_WEAK int32_t pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32(uint8_t *a, int32_t er) {
+XLANG_WEAK int32_t pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32(uint8_t *a, int32_t er) {
   return pipeline_expr_field_access_base_ref(a, er);
 }
-SHUX_WEAK int32_t pipeline_expr_binop_left_ref_at_u8_ptr_i32_reti32(uint8_t *a, int32_t er) {
+XLANG_WEAK int32_t pipeline_expr_binop_left_ref_at_u8_ptr_i32_reti32(uint8_t *a, int32_t er) {
   return pipeline_expr_binop_left_ref_at(a, er);
 }
-SHUX_WEAK int32_t pipeline_expr_binop_right_ref_at_u8_ptr_i32_reti32(uint8_t *a, int32_t er) {
+XLANG_WEAK int32_t pipeline_expr_binop_right_ref_at_u8_ptr_i32_reti32(uint8_t *a, int32_t er) {
   return pipeline_expr_binop_right_ref_at(a, er);
 }
-SHUX_WEAK int32_t pipeline_dep_ctx_ndep_u8_ptr_reti32(uint8_t *ctx) {
+XLANG_WEAK int32_t pipeline_dep_ctx_ndep_u8_ptr_reti32(uint8_t *ctx) {
   return pipeline_dep_ctx_ndep(ctx);
 }
-SHUX_WEAK uint8_t *pipeline_dep_ctx_module_at_u8_ptr_i32_retu8_ptr(uint8_t *ctx, int32_t i) {
+XLANG_WEAK uint8_t *pipeline_dep_ctx_module_at_u8_ptr_i32_retu8_ptr(uint8_t *ctx, int32_t i) {
   return pipeline_dep_ctx_module_at(ctx, i);
 }
-SHUX_WEAK uint8_t *pipeline_asm_emit_dep_pipe_c_retu8_ptr(void) {
+XLANG_WEAK uint8_t *pipeline_asm_emit_dep_pipe_c_retu8_ptr(void) {
   return pipeline_asm_emit_dep_pipe_c();
 }
-SHUX_WEAK uint8_t pipeline_module_import_path_byte_at_u8_ptr_i32_i32_retu8(uint8_t *m, int32_t i, int32_t j) {
+XLANG_WEAK uint8_t pipeline_module_import_path_byte_at_u8_ptr_i32_i32_retu8(uint8_t *m, int32_t i, int32_t j) {
   return pipeline_module_import_path_byte_at(m, i, j);
 }

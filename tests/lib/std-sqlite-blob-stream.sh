@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-sqlite-blob-stream.sh — STD-137 manifest 与 blob stream 烟测辅助
 
-STD_DB_BLOB_STREAM_PREFIX="${SHUX_STD137_PREFIX:-shux: [SHUX_STD137_DB_BLOB_STREAM]}"
+STD_DB_BLOB_STREAM_PREFIX="${XLANG_STD137_PREFIX:-xlang: [XLANG_STD137_DB_BLOB_STREAM]}"
 
 # 复用 STD-057 SQLite 探测与编译。
 std_sqlite_blob_stream_source_sqlite() {
@@ -55,7 +55,7 @@ std_sqlite_blob_stream_symbols_ok() {
 std_sqlite_blob_stream_run_c_smoke() {
   local db_c="$1"
   local src="tests/std-sqlite/blob_stream_roundtrip_ok.c"
-  local out="/tmp/shux_std_sqlite_blob_stream_$$"
+  local out="/tmp/xlang_std_sqlite_blob_stream_$$"
   local sqlite_o
   sqlite_o="$(dirname "$db_c")/sqlite.o"
   if [ ! -f "$sqlite_o" ]; then

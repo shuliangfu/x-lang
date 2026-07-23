@@ -7,7 +7,7 @@
 | 项 | v1 | v2 |
 |----|----|-----|
 | 引擎实现 | `regex_engine_glue.c` + `regex_min.inc.c` | **`regex.x`** |
-| `regex.o` | `ld -r` glue + x | **纯 shux → regex.o** |
+| `regex.o` | `ld -r` glue + x | **纯 xlang → regex.o** |
 | 特性 | NFA/回溯、capture、`\p{}`、占有型、`(?>...)` | 同上，逻辑 1:1 迁移 |
 
 ## 导出符号（mod.x extern）
@@ -17,10 +17,10 @@
 ## 门禁
 
 ```bash
-SHUX_F_REGEX_V2_FAIL=1 ./tests/run-f-regex-v2-gate.sh
+XLANG_F_REGEX_V2_FAIL=1 ./tests/run-f-regex-v2-gate.sh
 ./tests/run-std-regex-gate.sh
 ./tests/run-std-regex-atomic-gate.sh
-SHUX_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
+XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
 ```
 
 ## 下一项

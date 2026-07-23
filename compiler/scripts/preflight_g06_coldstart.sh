@@ -6,8 +6,8 @@
 #   ./scripts/preflight_g06_coldstart.sh --asm-e   # 额外跑 asm.x -E 烟测（默认 timeout 300s）
 #
 # 环境：
-#   SHUX_E              默认 ./bootstrap_shuxc 或 ./shux-c
-#   SHUX_G06_E_TIMEOUT  asm -E 超时秒数，默认 300；0=不跑 --asm-e 烟测
+#   XLANG_E              默认 ./bootstrap_xlangc 或 ./xlang-c
+#   XLANG_G06_E_TIMEOUT  asm -E 超时秒数，默认 300；0=不跑 --asm-e 烟测
 
 set -e
 cd "$(dirname "$0")/.."
@@ -17,9 +17,9 @@ if [ "${1:-}" = "--asm-e" ]; then
   ASM_E=1
 fi
 
-SHUX_E="${SHUX_E:-./bootstrap_shuxc}"
-if [ ! -x "$SHUX_E" ] && [ -x ./shux-c ]; then
-  SHUX_E=./shux-c
+XLANG_E="${XLANG_E:-./bootstrap_xlangc}"
+if [ ! -x "$XLANG_E" ] && [ -x ./xlang-c ]; then
+  XLANG_E=./xlang-c
 fi
 
 fail() {
@@ -31,7 +31,7 @@ ok() {
   echo "preflight_g06: OK: $*"
 }
 
-# --- 阶段 A：seed 清单（秒级，不依赖 shux 可运行）---
+# --- 阶段 A：seed 清单（秒级，不依赖 xlang 可运行）---
 REQUIRED_GENS="lexer_gen parser_gen typeck_gen codegen_gen pipeline_gen driver_gen preprocess_gen \
   lsp_io_gen lsp_gen lsp_diag_gen lsp_io_std_heap_gen \
   driver_fmt_gen driver_check_gen driver_test_gen driver_compile_gen driver_build_gen driver_run_gen driver_emit_gen"
@@ -43,8 +43,8 @@ for f in $REQUIRED_GENS; do
   fi
 done
 
-if [ ! -x seeds/bootstrap_shuxc.linux.x86_64 ] && [ ! -s seeds/bootstrap_shuxc.linux.x86_64 ]; then
-  fail "missing seeds/bootstrap_shuxc.linux.x86_64"
+if [ ! -x seeds/bootstrap_xlangc.linux.x86_64 ] && [ ! -s seeds/bootstrap_xlangc.linux.x86_64 ]; then
+  fail "missing seeds/bootstrap_xlangc.linux.x86_64"
 fi
 ok "all *_gen seeds non-empty ($(echo $REQUIRED_GENS | wc -w | tr -d ' ') files)"
 
@@ -59,13 +59,13 @@ fi
 ok "lsp_gen seed symbol hygiene"
 
 # --- 阶段 B：宿主可执行（秒级）---
-if [ ! -x "$SHUX_E" ]; then
-  fail "no executable SHUX_E ($SHUX_E); copy seeds/bootstrap_shuxc.linux.x86_64 -> bootstrap_shuxc"
+if [ ! -x "$XLANG_E" ]; then
+  fail "no executable XLANG_E ($XLANG_E); copy seeds/bootstrap_xlangc.linux.x86_64 -> bootstrap_xlangc"
 fi
-if ! "$SHUX_E" -h >/dev/null 2>&1; then
-  fail "$SHUX_E -h failed (wrong arch? need Docker linux/amd64)"
+if ! "$XLANG_E" -h >/dev/null 2>&1; then
+  fail "$XLANG_E -h failed (wrong arch? need Docker linux/amd64)"
 fi
-ok "$SHUX_E -h"
+ok "$XLANG_E -h"
 
 # --- 阶段 C：可选 asm.x -E 烟测（分钟级，带 timeout，失败即停）---
 if [ "$ASM_E" -eq 0 ]; then
@@ -73,7 +73,7 @@ if [ "$ASM_E" -eq 0 ]; then
   exit 0
 fi
 
-TIMEOUT_SEC="${SHUX_G06_E_TIMEOUT:-300}"
+TIMEOUT_SEC="${XLANG_G06_E_TIMEOUT:-300}"
 OUT_DIR=build_asm/seed_host
 mkdir -p "$OUT_DIR"
 TMP="$OUT_DIR/preflight_asm_full_gen.c.tmp"
@@ -88,9 +88,9 @@ run_asm_e_with_heartbeat() {
   _start=$(date +%s)
   (
     if command -v timeout >/dev/null 2>&1; then
-      timeout "$TIMEOUT_SEC" "$SHUX_E" $ASM_LIBROOT -E src/asm/asm.x >"$TMP" 2>"$ERR"
+      timeout "$TIMEOUT_SEC" "$XLANG_E" $ASM_LIBROOT -E src/asm/asm.x >"$TMP" 2>"$ERR"
     else
-      "$SHUX_E" $ASM_LIBROOT -E src/asm/asm.x >"$TMP" 2>"$ERR"
+      "$XLANG_E" $ASM_LIBROOT -E src/asm/asm.x >"$TMP" 2>"$ERR"
     fi
   ) &
   _pid=$!
@@ -112,7 +112,7 @@ rc=$?
 set -e
 
 if [ "$rc" -eq 124 ]; then
-  fail "asm.x -E timeout after ${TIMEOUT_SEC}s (increase SHUX_G06_E_TIMEOUT or fix hang)"
+  fail "asm.x -E timeout after ${TIMEOUT_SEC}s (increase XLANG_G06_E_TIMEOUT or fix hang)"
 fi
 if [ "$rc" -ne 0 ]; then
   echo "preflight_g06: asm.x -E exit=$rc" >&2
@@ -130,4 +130,4 @@ if [ ! -s "$TMP" ]; then
 fi
 ok "asm.x -E smoke ($(wc -c <"$TMP" | tr -d ' ') bytes C)"
 
-echo "preflight_g06: next: SHUX_E=$SHUX_E ./scripts/build_seed_asm_host.sh && make bootstrap-driver-seed"
+echo "preflight_g06: next: XLANG_E=$XLANG_E ./scripts/build_seed_asm_host.sh && make bootstrap-driver-seed"

@@ -7,8 +7,8 @@
  * 重要约定：有 main 则返回类型须为 i32、i64 或 void（void = 隐含 exit 0）；库模块（无 main）直接通过。类型错误时向 stderr 输出并返回 -1。
  */
 
-#ifndef SHUX_TYPECK_H
-#define SHUX_TYPECK_H
+#ifndef XLANG_TYPECK_H
+#define XLANG_TYPECK_H
 
 struct ASTModule;
 
@@ -101,4 +101,4 @@ void *typeck_x_impl_block_func(const void *mod, int k, int j);
 int typeck_float64_bits_lo(double d);
 int typeck_float64_bits_hi(double d);
 
-#endif /* SHUX_TYPECK_H */
+#endif /* XLANG_TYPECK_H */

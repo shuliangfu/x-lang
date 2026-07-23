@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD139_DOC:-analysis/std-sqlite-stub-v1.md}"
-MANIFEST="${SHUX_STD139_TSV:-tests/baseline/std-sqlite-stub.tsv}"
+DOC="${XLANG_STD139_DOC:-analysis/std-sqlite-stub-v1.md}"
+MANIFEST="${XLANG_STD139_TSV:-tests/baseline/std-sqlite-stub.tsv}"
 MOD_X="std/db/sqlite/mod.x"
 DB_C="std/db/sqlite/sqlite.x"
 LIB="tests/lib/std-sqlite-stub.sh"
@@ -72,7 +72,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-sqlite-stub manifest OK"
 
-if [ "${SHUX_STD139_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_STD139_MANIFEST_ONLY:-0}" = "1" ]; then
   std_sqlite_stub_emit_report "ok" 0 0 1
   echo "std-sqlite-stub gate OK (manifest only)"
   exit 0
@@ -89,14 +89,14 @@ set -e
 if [ "$stub_ec" -eq 0 ]; then
   STUB_C=1
 elif [ "$stub_ec" -eq 2 ]; then
-  echo "std-sqlite-stub gate SKIP stub C smoke (need shux-c)" >&2
+  echo "std-sqlite-stub gate SKIP stub C smoke (need xlang-c)" >&2
 else
   std_sqlite_stub_emit_report "fail" 0 0 1
   exit 1
 fi
 
-SHUX_BIN=""
-stdlib_cm_native_shu() {
+XLANG_BIN=""
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -107,16 +107,16 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if stdlib_cm_native_shu ./compiler/shux-c; then
-  SHUX_BIN=./compiler/shux-c
-elif stdlib_cm_native_shu ./compiler/shux; then
-  SHUX_BIN=./compiler/shux
+if stdlib_cm_native_xlang ./compiler/xlang-c; then
+  XLANG_BIN=./compiler/xlang-c
+elif stdlib_cm_native_xlang ./compiler/xlang; then
+  XLANG_BIN=./compiler/xlang
 fi
 
-if [ -n "$SHUX_BIN" ]; then
+if [ -n "$XLANG_BIN" ]; then
   echo "=== STD-139: .x stub behavior smoke ==="
-  if "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
-    if std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_X" "stub"; then
+  if "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+    if std_sqlite_run_smoke "$XLANG_BIN" "$SMOKE_X" "stub"; then
       STUB_X=1
     fi
   else

@@ -4,7 +4,7 @@
 read_path	section	## 1. 阅读路径	15min
 backend	section	## 2. 后端选型	openssl
 api_draft	section	## 3. API 草案	TlsStream
-optional_link	section	## 4. 可选链入	SHUX_NET_USE
+optional_link	section	## 4. 可选链入	XLANG_NET_USE
 verify	section	## 5. 验证与门禁	gate
 api_backend	api	tls_backend_name	std/net/mod.x	后端名
 api_available	api	tls_is_available	std/net/mod.x	可用性

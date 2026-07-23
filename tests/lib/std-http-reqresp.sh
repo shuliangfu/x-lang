@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-http-reqresp.sh — STD-HTTP-REQRESP manifest 与烟测辅助
 
-STD_HTTP_REQRESP_PREFIX="${SHUX_STD_HTTP_REQRESP_PREFIX:-shux: [SHUX_STD_HTTP_REQRESP]}"
+STD_HTTP_REQRESP_PREFIX="${XLANG_STD_HTTP_REQRESP_PREFIX:-xlang: [XLANG_STD_HTTP_REQRESP]}"
 
 std_http_reqresp_symbols_ok() {
   local mod_x="$1"
@@ -52,17 +52,17 @@ std_http_reqresp_symbols_ok() {
 }
 
 std_http_reqresp_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shux_std_http_reqresp_${tag}_$$"
+  local exe="/tmp/xlang_std_http_reqresp_${tag}_$$"
   if [ ! -f "$src" ]; then
     echo "std-http-reqresp FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-http-reqresp FAIL: compile $src" >&2
-    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi

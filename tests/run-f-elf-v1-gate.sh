@@ -2,7 +2,7 @@
 # F-elf v1：std.elf 去 C（elf.c → elf.x + elf_io_glue.c）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_ELF_V1_FAIL:-0}
+FAIL=${XLANG_F_ELF_V1_FAIL:-0}
 DOC="analysis/phase-f-elf-v1.md"
 MANIFEST="tests/baseline/f-elf-v1-closure.tsv"
 die() { echo "f-elf-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -21,13 +21,13 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
   esac
 done < "$MANIFEST"
 grep -q 'elf.x' compiler/Makefile || die "Makefile missing elf.x"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/elf/elf.o >/dev/null 2>&1 || die "make elf.o failed"
 else
-  echo "f-elf-v1 SKIP elf.o build (no shux-c)" >&2
+  echo "f-elf-v1 SKIP elf.o build (no xlang-c)" >&2
 fi
 for sub in run-std-elf-parse-gate.sh; do
   chmod +x "tests/$sub"
-  SHUX_STD_ELF_PARSE_MANIFEST_ONLY="${SHUX_STD_ELF_PARSE_MANIFEST_ONLY:-0}" tests/"$sub" || die "$sub failed"
+  XLANG_STD_ELF_PARSE_MANIFEST_ONLY="${XLANG_STD_ELF_PARSE_MANIFEST_ONLY:-0}" tests/"$sub" || die "$sub failed"
 done
 echo "f-elf-v1 gate OK"

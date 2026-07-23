@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_CODEC_DOC:-analysis/std-codec-v1.md}"
-MANIFEST="${SHUX_STD_CODEC_MANIFEST:-tests/baseline/std-codec-manifest.tsv}"
-VECTORS="${SHUX_STD_CODEC_VECTORS:-tests/baseline/std-codec-vectors.tsv}"
+DOC="${XLANG_STD_CODEC_DOC:-analysis/std-codec-v1.md}"
+MANIFEST="${XLANG_STD_CODEC_MANIFEST:-tests/baseline/std-codec-manifest.tsv}"
+VECTORS="${XLANG_STD_CODEC_VECTORS:-tests/baseline/std-codec-vectors.tsv}"
 MOD_X="std/codec/mod.x"
 LIB="tests/lib/std-codec.sh"
 SMOKE_X="tests/std-codec/roundtrip.x"
@@ -62,36 +62,36 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-codec manifest OK"
 
-if [ "${SHUX_STD_CODEC_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_STD_CODEC_MANIFEST_ONLY:-0}" = "1" ]; then
   std_codec_emit_report "ok" 0 1
   echo "std-codec gate OK (manifest only)"
   exit 0
 fi
 
-# F-04 v7+：codec 烟测经 shux 按需 -lz，不再 ensure compress.o
+# F-04 v7+：codec 烟测经 xlang 按需 -lz，不再 ensure compress.o
 X_OK=0
 SKIP=0
 
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-073: .x smoke (SHUX=$SHUX_BIN) ==="
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-073: .x smoke (XLANG=$XLANG_BIN) ==="
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-codec gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_codec_emit_report "fail" 0 0
     exit 1
   fi
-  if std_codec_run_smoke "$SHUX_BIN" "$SMOKE_X" "roundtrip"; then
+  if std_codec_run_smoke "$XLANG_BIN" "$SMOKE_X" "roundtrip"; then
     X_OK=1
   else
     std_codec_emit_report "fail" 0 0
     exit 1
   fi
 else
-  echo "std-codec gate SKIP .x smoke (no shux)" >&2
+  echo "std-codec gate SKIP .x smoke (no xlang)" >&2
   SKIP=1
 fi
 

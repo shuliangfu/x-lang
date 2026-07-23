@@ -47,7 +47,7 @@
 ```
 
 ```
-shux: [SHUX_TST003_ROUNDTRIP] status=ok vectors=4 pass=4 skip=0
+xlang: [XLANG_TST003_ROUNDTRIP] status=ok vectors=4 pass=4 skip=0
 ```
 
 便携回归：`tests/run-portable-suite.sh`

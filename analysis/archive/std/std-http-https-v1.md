@@ -19,7 +19,7 @@
 ## 3. 依赖
 
 - **传输**：`std.net` TLS（`net_tls_*`）；`http.o` 单独链时 weak 桩。
-- **运行时**：`SHUX_NET_TLS=openssl|mbedtls|auto` 与 net TLS gate 一致。
+- **运行时**：`XLANG_NET_TLS=openssl|mbedtls|auto` 与 net TLS gate 一致。
 
 ## 4. 验证与门禁
 
@@ -27,4 +27,4 @@
 ./tests/run-std-http-https-gate.sh
 ```
 
-OpenSSL 可用时 C 烟测经 `SHUX_HTTPS_SMOKE_PORT` 连本地 s_server。
+OpenSSL 可用时 C 烟测经 `XLANG_HTTPS_SMOKE_PORT` 连本地 s_server。

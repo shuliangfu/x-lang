@@ -13,10 +13,10 @@
 ## 门禁
 
 ```bash
-SHUX_F_DATETIME_V2_FAIL=1 ./tests/run-f-datetime-v2-gate.sh
+XLANG_F_DATETIME_V2_FAIL=1 ./tests/run-f-datetime-v2-gate.sh
 ./tests/run-std-datetime-gate.sh
-SHUX_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
-SHUX_F_STD_ZERO_C_FAIL=1 ./tests/run-f-std-zero-c-track-gate.sh
+XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
+XLANG_F_STD_ZERO_C_FAIL=1 ./tests/run-f-std-zero-c-track-gate.sh
 ```
 
 ## 下一项

@@ -9,9 +9,9 @@ cd "$(dirname "$0")/.."
 MOD_X="core/mem/mod.x"
 MANIFEST="tests/baseline/core-mem-volatile-fence.tsv"
 SMOKE_X="tests/core-mem/volatile_fence.x"
-PREFIX="shux: [SHUX_CORE017_MEM_VOLATILE]"
+PREFIX="xlang: [XLANG_CORE017_MEM_VOLATILE]"
 
-stdlib_cm_native_shu() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -59,19 +59,19 @@ echo "core-mem-volatile manifest OK"
 C_OK=0
 X_OK=0
 SKIP=0
-SHUX_BIN=""
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+XLANG_BIN=""
+if XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 fi
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== CORE-017: .x compile+run (SHUX=$SHUX_BIN) ==="
-  su_exe="/tmp/shux_core017_mem_vf_run_$$"
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== CORE-017: .x compile+run (XLANG=$XLANG_BIN) ==="
+  su_exe="/tmp/xlang_core017_mem_vf_run_$$"
   rm -f "$su_exe"
-  if ! "$SHUX_BIN" -L . "$SMOKE_X" -o "$su_exe" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" -L . "$SMOKE_X" -o "$su_exe" >/dev/null 2>&1; then
     echo "core-mem-volatile gate FAIL: compile $SMOKE_X" >&2
-    "$SHUX_BIN" -L . "$SMOKE_X" -o "$su_exe" 2>&1 | tail -15 >&2 || true
+    "$XLANG_BIN" -L . "$SMOKE_X" -o "$su_exe" 2>&1 | tail -15 >&2 || true
     exit 1
   fi
   set +e
@@ -83,15 +83,15 @@ if [ -n "$SHUX_BIN" ]; then
     echo "core-mem-volatile gate FAIL: run $SMOKE_X exit=$su_ec" >&2
     exit 1
   fi
-  echo "=== CORE-017: .x typeck (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+  echo "=== CORE-017: .x typeck (XLANG=$XLANG_BIN) ==="
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "core-mem-volatile gate FAIL: typeck $SMOKE_X" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     exit 1
   fi
   X_OK=2
 else
-  echo "core-mem-volatile gate SKIP .x (no native shux)" >&2
+  echo "core-mem-volatile gate SKIP .x (no native xlang)" >&2
   SKIP=1
 fi
 

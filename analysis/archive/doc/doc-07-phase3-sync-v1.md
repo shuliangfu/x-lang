@@ -43,4 +43,4 @@
 ./tests/run-doc-07-phase3-sync-gate.sh
 ```
 
-报告：`shux: [SHUX_STD171_DOC07_PHASE3_SYNC]`
+报告：`xlang: [XLANG_STD171_DOC07_PHASE3_SYNC]`

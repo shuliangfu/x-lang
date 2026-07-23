@@ -14,7 +14,7 @@
 ## F-01 存量
 
 ```bash
-SHUX_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=104
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=104
 ```
 
 （较 F-02 后 107 减 3：`heap.c` + `fs.c` + `io.c`）
@@ -22,7 +22,7 @@ SHUX_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=104
 ## 聚合复现
 
 ```bash
-SHUX_F03_CORE_FAIL=1 ./tests/run-f03-std-core-gate.sh
+XLANG_F03_CORE_FAIL=1 ./tests/run-f03-std-core-gate.sh
 ```
 
 ## v1 限制（io）
@@ -38,5 +38,5 @@ SHUX_F03_CORE_FAIL=1 ./tests/run-f03-std-core-gate.sh
 
 ## 与 F-06 关系
 
-- `runtime.c` / `build_shux_asm.sh` 仍含 `std/*/ *.o` 路径字符串（track-only）；`invoke_cc` 跳过缺失 `.o`，改链 **-lc**。
+- `runtime.c` / `build_xlang_asm.sh` 仍含 `std/*/ *.o` 路径字符串（track-only）；`invoke_cc` 跳过缺失 `.o`，改链 **-lc**。
 - bootstrap **Makefile** 已移除 heap/fs/io 的 `cc -c` 规则。

@@ -2,11 +2,11 @@
 # F-04 v11：std.net 地址/IPv6/io batch 去 C 门禁。
 #
 # 用法：./tests/run-f04-std-net-slice-v11-gate.sh
-# 环境：SHUX_F04_NET_SLICE_V11_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F04_NET_SLICE_V11_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F04_NET_SLICE_V11_FAIL:-0}
+FAIL=${XLANG_F04_NET_SLICE_V11_FAIL:-0}
 DOC="analysis/phase-f-f04-v11.md"
 NET_C="std/net/net.c"
 
@@ -36,7 +36,7 @@ grep -q 'io_batch.x' compiler/Makefile || die "Makefile missing io_batch.x"
 if [ -f tests/run-f04-std-net-dns-alpn-gate.sh ]; then
   echo "=== F-04 v11: delegate f04 dns/alpn gate ==="
   chmod +x tests/run-f04-std-net-dns-alpn-gate.sh
-  if ! SHUX_F04_NET_DNS_ALPN_FAIL="$FAIL" tests/run-f04-std-net-dns-alpn-gate.sh; then
+  if ! XLANG_F04_NET_DNS_ALPN_FAIL="$FAIL" tests/run-f04-std-net-dns-alpn-gate.sh; then
     die "dns/alpn sub-gate failed"
   fi
 fi
@@ -44,7 +44,7 @@ fi
 if [ -f tests/run-std-net-dns-gate.sh ]; then
   echo "=== F-04 v11: delegate std-net-dns gate ==="
   chmod +x tests/run-std-net-dns-gate.sh
-  if ! SHUX_STD_NET_DNS_FAIL="$FAIL" tests/run-std-net-dns-gate.sh; then
+  if ! XLANG_STD_NET_DNS_FAIL="$FAIL" tests/run-std-net-dns-gate.sh; then
     die "std-net-dns sub-gate failed"
   fi
 fi

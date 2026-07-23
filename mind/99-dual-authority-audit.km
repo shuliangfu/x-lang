@@ -1236,7 +1236,7 @@
                                 "data": {
                                     "id": "m00121",
                                     "created": 1784118466326,
-                                    "text": "shux-c (LEGACY_C_FRONTEND)",
+                                    "text": "xlang-c (LEGACY_C_FRONTEND)",
                                     "note": "lexer.c/parser.c/typeck.c/codegen.c",
                                     "expandState": "collapse"
                                 },
@@ -1256,7 +1256,7 @@
                                 "data": {
                                     "id": "m00123",
                                     "created": 1784118466328,
-                                    "text": "shux / shux_asm (.x pipeline)",
+                                    "text": "xlang / xlang_asm (.x pipeline)",
                                     "note": "产品路径",
                                     "expandState": "collapse"
                                 },
@@ -6250,7 +6250,7 @@
                         "data": {
                             "id": "m00578",
                             "created": 1784118466783,
-                            "text": "shux_output_want_exe  ×6",
+                            "text": "xlang_output_want_exe  ×6",
                             "expandState": "collapse",
                             "note": "同名跨文件；需人工判断是否双权威"
                         },

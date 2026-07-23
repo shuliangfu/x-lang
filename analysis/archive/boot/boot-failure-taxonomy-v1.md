@@ -40,7 +40,7 @@
 | asm/link | 3 | asm-73、undefined symbol |
 | build | 4 | B-strict 拓扑、strict smoke、make 失败 |
 | selfhost/wpo | 4 | stage2、verify、WPO strict |
-| 其它 | 5 | preprocess、lexer、import、run、shux_asm gate |
+| 其它 | 5 | preprocess、lexer、import、run、xlang_asm gate |
 
 **v1 共 23 项**；门禁要求 pattern+repro 覆盖 ≥ **95%**（当前 100%）。
 
@@ -56,7 +56,7 @@
 awk -F'\t' '$4=="parser" && $1 !~ /^#/' tests/baseline/bootstrap-failure-taxonomy.tsv
 
 # 3) 跑最小复现
-./tests/run-bootstrap-repro.sh "$SHUX_BOOT_REPRO"
+./tests/run-bootstrap-repro.sh "$XLANG_BOOT_REPRO"
 
 # 4) manifest 门禁
 ./tests/run-bootstrap-failure-taxonomy-gate.sh

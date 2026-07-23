@@ -15,7 +15,7 @@
 
 /** 全局池内单 host 路由条目（scheme + host:port → 子连接池句柄）。 */
 typedef struct {
-    char host[SHUX_HTTP_HOST_MAX];
+    char host[XLANG_HTTP_HOST_MAX];
     char port[8];
     int32_t scheme_h2c;
     int64_t pool_h;
@@ -81,7 +81,7 @@ static int32_t http2_global_add_entry_c(global_pool_t *gp, const char *host, con
         return -1;
     e = &gp->entries[gp->n_entries];
     memset(e, 0, sizeof(*e));
-    strncpy(e->host, host, SHUX_HTTP_HOST_MAX - 1);
+    strncpy(e->host, host, XLANG_HTTP_HOST_MAX - 1);
     strncpy(e->port, port, (size_t)(sizeof(e->port) - 1));
     e->scheme_h2c = scheme_h2c;
     e->pool_h = pool_h;
@@ -92,9 +92,9 @@ static int32_t http2_global_add_entry_c(global_pool_t *gp, const char *host, con
 /** 解析 URL 并查找/创建子池；失败 -1；满池 HTTP2_ERR_GLOBAL_POOL_FULL。 */
 static int64_t http2_global_resolve_pool_c(global_pool_t *gp, const uint8_t *url,
                                            int32_t url_len) {
-    char host_buf[SHUX_HTTP_HOST_MAX];
+    char host_buf[XLANG_HTTP_HOST_MAX];
     char port_buf[8];
-    char path_buf[SHUX_HTTP_PATH_MAX];
+    char path_buf[XLANG_HTTP_PATH_MAX];
     global_pool_entry_t *e;
     int32_t is_https = 0;
     int32_t scheme_h2c;
@@ -102,8 +102,8 @@ static int64_t http2_global_resolve_pool_c(global_pool_t *gp, const uint8_t *url
 
     if (!gp || !url || url_len <= 0)
         return 0;
-    if (parse_http_url(url, url_len, host_buf, SHUX_HTTP_HOST_MAX, port_buf, (int)sizeof(port_buf),
-                       path_buf, SHUX_HTTP_PATH_MAX, &is_https) != 0)
+    if (parse_http_url(url, url_len, host_buf, XLANG_HTTP_HOST_MAX, port_buf, (int)sizeof(port_buf),
+                       path_buf, XLANG_HTTP_PATH_MAX, &is_https) != 0)
         return 0;
     scheme_h2c = (is_https == 0) ? 1 : 0;
     e = http2_global_find_entry_c(gp, host_buf, port_buf, scheme_h2c);
@@ -253,14 +253,14 @@ int32_t http2_h2c_global_pool_goaway_smoke_c(void) {
     if (lfd < 0)
         return 1;
     if (getsockname(lfd, (struct sockaddr *)&sin, &slen) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 2;
     }
     bound_port = ntohs(sin.sin_port);
 
     pid = fork();
     if (pid < 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 3;
     }
     if (pid == 0) {
@@ -296,20 +296,20 @@ int32_t http2_h2c_global_pool_goaway_smoke_c(void) {
     if (http2_serve_h2c_one_with_goaway_c(lfd, body, 2, 1, 5000u) != 0) {
         (void)kill(pid, SIGKILL);
         (void)waitpid(pid, NULL, 0);
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 4;
     }
     if (http2_serve_h2c_one_c(lfd, body, 2, 5000u) != 0) {
         (void)kill(pid, SIGKILL);
         (void)waitpid(pid, NULL, 0);
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 5;
     }
     if (waitpid(pid, &status, 0) != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 6;
     }
-    SHUX_HTTP_CLOSE(lfd);
+    XLANG_HTTP_CLOSE(lfd);
     return 0;
 #endif
 }

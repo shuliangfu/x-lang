@@ -80,7 +80,7 @@ float arrow_f32_sum_kernel_impl(const float *data, int32_t n) {
     return sum;
 }
 
-#ifndef SHUX_RUNTIME_ARROW_SIMD_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_ARROW_SIMD_GLUE_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 float arrow_f32_sum_kernel(const float *data, int32_t n) {
     return arrow_f32_sum_kernel_impl(data, n);
@@ -118,7 +118,7 @@ float arrow_f32_dot_kernel_impl(const float *a, const float *b, int32_t n) {
     return sum;
 }
 
-#ifndef SHUX_RUNTIME_ARROW_SIMD_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_ARROW_SIMD_GLUE_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 float arrow_f32_dot_kernel(const float *a, const float *b, int32_t n) {
     return arrow_f32_dot_kernel_impl(a, b, n);
@@ -169,7 +169,7 @@ int32_t arrow_i32_sum_valid_kernel_impl(const int32_t *data, const uint8_t *bm, 
     return sum;
 }
 
-#ifndef SHUX_RUNTIME_ARROW_SIMD_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_ARROW_SIMD_GLUE_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t arrow_i32_sum_valid_kernel(const int32_t *data, const uint8_t *bm, int32_t n) {
     return arrow_i32_sum_valid_kernel_impl(data, bm, n);
@@ -225,7 +225,7 @@ float arrow_f32_sum_valid_kernel_impl(const float *data, const uint8_t *bm, int3
     return sum;
 }
 
-#ifndef SHUX_RUNTIME_ARROW_SIMD_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_ARROW_SIMD_GLUE_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 float arrow_f32_sum_valid_kernel(const float *data, const uint8_t *bm, int32_t n) {
     return arrow_f32_sum_valid_kernel_impl(data, bm, n);

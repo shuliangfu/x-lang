@@ -19,13 +19,13 @@
 
 | item_id | hook | 平台 | 说明 |
 |---------|------|------|------|
-| `prod_dce` | `run-wpo-dce-emit.sh` | 全平台 | shux-c DCE 烟测 |
+| `prod_dce` | `run-wpo-dce-emit.sh` | 全平台 | xlang-c DCE 烟测 |
 | `prod_reach_typeck` | `run-wpo-typeck-reach-gate.sh` | Linux | typeck_wpo.o reach |
 | `prod_reach_pipeline` | `run-wpo-pipeline-reach-gate.sh` | Linux | pipeline_wpo.o reach |
 | `prod_chain` | `run-wpo-build-asm-chain-gate.sh` | Linux | 五模块 .text save |
 | `prod_strict` | `run-wpo-strict-link-gate.sh` | Linux | strict_glue WPO 链 |
 
-Darwin：manifest 绿 + `prod_dce` SKIP（无 shux-c）+ chain/strict **N/A**；reach 无 `.o` 时 SKIP。
+Darwin：manifest 绿 + `prod_dce` SKIP（无 xlang-c）+ chain/strict **N/A**；reach 无 `.o` 时 SKIP。
 
 ---
 
@@ -36,12 +36,12 @@ Darwin：manifest 绿 + `prod_dce` SKIP（无 shux-c）+ chain/strict **N/A**；
 ```
 
 ```
-shux: [SHUX_COMP015_WPO_PROD] status=ok prod_ok=5 prod_skip=3 skip=1
+xlang: [XLANG_COMP015_WPO_PROD] status=ok prod_ok=5 prod_skip=3 skip=1
 ```
 
 - **prod_ok**：prod hook 已登记且父 COMP-004 manifest 绿
 - **prod_skip**：本机 SKIP/N/A 的 prod runnable 数
-- 无 native `shux`/`shux_asm` 时 manifest 仍须绿
+- 无 native `xlang`/`xlang_asm` 时 manifest 仍须绿
 
 ---
 
@@ -57,6 +57,6 @@ shux: [SHUX_COMP015_WPO_PROD] status=ok prod_ok=5 prod_skip=3 skip=1
 
 ## 5. 非目标（v2）
 
-- 默认对所有 `shux` 构建开启 asm WPO
+- 默认对所有 `xlang` 构建开启 asm WPO
 - Darwin strict_glue 硬门禁
 - 跨 TU LTO 级 IPA

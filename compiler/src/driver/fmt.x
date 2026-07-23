@@ -23,7 +23,7 @@
 export extern function driver_run_fmt(argc: i32, argv: *u8): i32;
 
 /**
-* shux fmt [--check] [--fail-fast] [--ignore=a,b] [path ...]
+* xlang fmt [--check] [--fail-fast] [--ignore=a,b] [path ...]
 * See implementation.
 */
 export function cmd_fmt(argc: i32, argv: *u8): i32 {

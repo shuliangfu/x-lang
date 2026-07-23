@@ -38,7 +38,7 @@ nhc_write_snapshot_tsv() {
   {
     echo "# F-09 no-handwritten-C whitelist (终局目标：summary_total_c=0)"
     echo "# scope: std/**/*.c + core/**/*.c + compiler/src/**/*.c"
-    echo "# 更新：SHUX_NO_HANDWRITTEN_C_UPDATE=1 ./tests/run-no-handwritten-c-gate.sh"
+    echo "# 更新：XLANG_NO_HANDWRITTEN_C_UPDATE=1 ./tests/run-no-handwritten-c-gate.sh"
     nhc_count_scope_c
     nhc_collect_scope_c | while IFS= read -r p; do
       [ -n "$p" ] && printf 'file\t%s\n' "$p"
@@ -64,9 +64,9 @@ nhc_audit_whitelist() {
     return 2
   fi
 
-  tmp="/tmp/shux_nhc_audit.$$.tsv"
+  tmp="/tmp/xlang_nhc_audit.$$.tsv"
   nhc_write_snapshot_tsv "$tmp"
-  cur="/tmp/shux_nhc_cur.$$.lst"
+  cur="/tmp/xlang_nhc_cur.$$.lst"
   nhc_collect_scope_c >"$cur"
 
   total=$(awk -F'\t' '$1=="summary_total_c" { print $2; exit }' "$tmp")
@@ -84,9 +84,9 @@ nhc_audit_whitelist() {
 
   removed_n=$(comm -13 "$cur" <(awk -F'\t' '$1=="file" { print $2 }' "$baseline" | LC_ALL=C sort) | wc -l | tr -d ' ')
   if [ "$removed_n" -gt 0 ] 2>/dev/null; then
-    echo "nhc-audit OK (${total} .c in scope; ${removed_n} removed vs baseline — run SHUX_NO_HANDWRITTEN_C_UPDATE=1 to refresh)"
+    echo "nhc-audit OK (${total} .c in scope; ${removed_n} removed vs baseline — run XLANG_NO_HANDWRITTEN_C_UPDATE=1 to refresh)"
   elif [ "$total" -lt "$base_total" ] 2>/dev/null; then
-    echo "nhc-audit OK (total=${total} < baseline ${base_total}; run SHUX_NO_HANDWRITTEN_C_UPDATE=1 to refresh)"
+    echo "nhc-audit OK (total=${total} < baseline ${base_total}; run XLANG_NO_HANDWRITTEN_C_UPDATE=1 to refresh)"
   else
     echo "nhc-audit OK (std+core+compiler/src total=${total}; baseline ${base_total})"
   fi
@@ -94,7 +94,7 @@ nhc_audit_whitelist() {
   # G-04 STRICT：检查非永久桩 .c 是否归零
   if [ "$strict" = "1" ] && [ "$total" -gt 0 ] 2>/dev/null; then
     local perm_n nonperm_n perm_lst
-    perm_lst="/tmp/shux_nhc_perm.$$.lst"
+    perm_lst="/tmp/xlang_nhc_perm.$$.lst"
     nhc_collect_permanent_stubs >"$perm_lst"
     perm_n=$(wc -l <"$perm_lst" | tr -d ' ')
     # 非永久桩 = 当前 .c 中不在永久桩列表的

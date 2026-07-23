@@ -73,7 +73,7 @@ v1 仅 **i32** channel；泛型 channel 留待后续 RFC。
 ```
 
 ```
-shux: [SHUX_STD_CHANNEL_UNBOUNDED] status=ok unbounded=1 main=1 skip=0
+xlang: [XLANG_STD_CHANNEL_UNBOUNDED] status=ok unbounded=1 main=1 skip=0
 ```
 
 ---
