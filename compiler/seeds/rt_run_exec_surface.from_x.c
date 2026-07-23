@@ -41,6 +41,8 @@ extern uint8_t * shux_repo_root_from_argv0(uint8_t * argv0);
 extern uint8_t * driver_stdio_stdout(void);
 extern void driver_print_usage_write(void);
 extern int32_t driver_exec_compiled_body(int32_t argc, uint8_t * argv_opaque);
+/* wave226 G.7: bash test shell via public pure thin link_abi_system (wave224 → _impl). */
+extern int32_t link_abi_system(uint8_t * cmd);
 int32_t rt_exec_suffix2_non_exe(uint8_t * exe, size_t n) {
   if ((n < ((size_t)(2)))) {
     return 0;
@@ -385,7 +387,8 @@ int32_t driver_run_test(int32_t argc, uint8_t * * argv) {
   (void)(rt_exec_append_byte(cmd, 1024, 34));
   {
     (void)(diag_report_with_code(((uint8_t *)(0)), 0, 0, ((uint8_t *)((uint8_t[]){105, 110, 102, 111, 0 })), ((uint8_t *)((uint8_t[]){73, 48, 48, 48, 0 })), ((uint8_t *)((uint8_t[]){116, 101, 115, 116, 32, 115, 99, 114, 105, 112, 116, 0 })), script));
-    (void)((st = system(cmd)));
+    /* wave226 G.7: public pure thin link_abi_system (not raw libc system). */
+    (void)((st = link_abi_system(cmd)));
   }
   (void)((st = runtime_test_status_to_rc(script, st)));
   {

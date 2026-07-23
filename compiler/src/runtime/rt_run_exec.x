@@ -17,7 +17,9 @@ export extern "C" function strlen(s: *u8): usize;
 export extern "C" function strcmp(a: *u8, b: *u8): i32;
 export extern "C" function malloc(n: usize): *u8;
 export extern "C" function free(p: *u8): void;
-export extern "C" function system(cmd: *u8): i32;
+/* wave226 G.7: bash test shell via public pure thin link_abi_system (wave224 → _impl host system);
+ * not raw libc system. Cap residual host system stays only link_abi_system_impl. */
+export extern "C" function link_abi_system(cmd: *u8): i32;
 export extern "C" function driver_get_argv_i(argc: i32, argv: **u8, i: i32, buf: *u8, max: i32): i32;
 export extern "C" function runtime_diag_errno_path(file: *u8, kind: *u8, op: *u8, path: *u8): void;
 export extern "C" function diag_report_with_code(
@@ -384,7 +386,8 @@ export function driver_exec_compiled(argc: i32, argv_opaque: *u8): i32 {
   return 1;
 }
 
-/** shux test: run bash test script at repo root. Uses system() (I/O boundary).
+/** shux test: run bash test script at repo root.
+ * wave226: uses link_abi_system (public pure thin → _impl host system; I/O boundary).
  * Optional argv[1] is relative path (must not start with '-'); default run-all.sh.
  * Track-L: #[no_mangle] keeps public short name.
  * PLATFORM: POSIX system/shell; SHARED surface name. */
@@ -449,7 +452,8 @@ export function driver_run_test(argc: i32, argv: **u8): i32 {
     diag_report_with_code(
       0 as *u8, 0, 0, "info" as *u8, "I000" as *u8,
       "test script" as *u8, script);
-    st = system(cmd);
+    // wave226 G.7: public pure thin link_abi_system (not raw libc system).
+    st = link_abi_system(cmd);
   }
   st = runtime_test_status_to_rc(script, st);
   unsafe {

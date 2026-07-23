@@ -10,7 +10,9 @@
 
 export extern "C" function diag_json_enabled(): i32;
 export extern "C" function getenv(name: *u8): *u8;
-export extern "C" function system(cmd: *u8): i32;
+/* wave226 G.7: shell make via public pure thin link_abi_system (wave224 → _impl host system);
+ * not raw libc system. Cap residual host system stays only link_abi_system_impl. */
+export extern "C" function link_abi_system(cmd: *u8): i32;
 export extern "C" function strcmp(a: *u8, b: *u8): i32;
 export extern "C" function write(fd: i32, buf: *u8, n: usize): isize;
 export extern "C" function driver_get_argv_i(argc: i32, argv: **u8, i: i32, buf: *u8, max: i32): i32;
@@ -638,7 +640,8 @@ export function driver_build_build_x(): i32 {
   let dcode: *u8 = 0 as *u8;
   unsafe {
     msg = driver_entry_msg_slot();
-    rc = system("cd compiler && make -s build-tool 2>&1");
+    // wave226 G.7: public pure thin link_abi_system (not raw libc system).
+    rc = link_abi_system("cd compiler && make -s build-tool 2>&1");
   }
   if (rc != 0) {
     kind = "build error";
@@ -655,7 +658,8 @@ export function driver_build_build_x(): i32 {
     return 1;
   }
   unsafe {
-    rc = system("cd compiler && ./build_tool ./shux 2>&1");
+    // wave226 G.7: public pure thin link_abi_system (not raw libc system).
+    rc = link_abi_system("cd compiler && ./build_tool ./shux 2>&1");
   }
   if (rc != 0) {
     kind = "build error";

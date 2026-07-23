@@ -10,7 +10,7 @@
  * f-297: want_asm_emit_to_file + print_usage
  * f-298: runtime_test_status_to_rc + print_target_cpu_features
  * f-299: exec pure path helpers + driver_exec_compiled (spawn)
- * f-311: driver_run_test（bash tests/run-all.sh；system）
+ * f-311: driver_run_test（bash tests/run-all.sh；wave226 → link_abi_system）
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -38,7 +38,8 @@ extern void diag_report_with_code(const char *file, int line, int col, const cha
 extern void shu_target_cpu_print(FILE *out, uint32_t features);
 extern int shu_waitpid_retry(pid_t pid, int *status_out);
 extern const char *shux_repo_root_from_argv0(const char *argv0);
-extern int system(const char *command);
+/* wave226 G.7: bash test shell via public pure thin link_abi_system (wave224 → _impl host system). */
+extern int link_abi_system(const char *cmd);
 extern void driver_print_usage_write(void);
 
 #ifndef SHUX_RT_RUN_EXEC_FROM_X
@@ -190,7 +191,12 @@ int driver_exec_compiled(int argc, uint8_t *argv_opaque) {
   }
 }
 
-/** shux test：在仓库根执行 bash 测试脚本。🔒 system。 */
+/**
+ * shux test：在仓库根执行 bash 测试脚本。
+ * wave226 G.7: public pure thin link_abi_system (not raw libc system);
+ * Cap residual host system stays only link_abi_system_impl.
+ * PLATFORM: SHARED orch / host shell boundary.
+ */
 int driver_run_test(int argc, char **argv) {
   const char *root = shux_repo_root_from_argv0(argc > 0 ? argv[0] : NULL);
   const char *rel = "tests/run-all.sh";
@@ -205,7 +211,8 @@ int driver_run_test(int argc, char **argv) {
     snprintf(script, sizeof script, "%s/%s", root, rel);
   snprintf(cmd, sizeof cmd, "cd \"%s\" && bash \"%s\"", root, script);
   diag_reportf(NULL, 0, 0, "info", NULL, "test script: %s", script);
-  return runtime_test_status_to_rc(script, system(cmd));
+  /* wave226 G.7: link_abi_system (not raw system). */
+  return runtime_test_status_to_rc(script, link_abi_system(cmd));
 }
 
 #else /* SHUX_RT_RUN_EXEC_FROM_X：产品 rest 仅 marker；业务符号由 full .x 提供 */

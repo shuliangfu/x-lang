@@ -30,7 +30,8 @@ extern void diag_print_known_codes(FILE *out);
 extern int diag_json_enabled(void);
 extern int driver_run_fmt(int argc, char **argv);
 extern int main_run_compiler_c(int argc, uint8_t *argv);
-extern int system(const char *command);
+/* wave226 G.7: shell make via public pure thin link_abi_system (wave224 → _impl host system). */
+extern int link_abi_system(const char *cmd);
 
 #ifndef SHUX_RT_ENTRY_FROM_X
 
@@ -130,16 +131,20 @@ int run_compiler_c(int argc, char **argv) {
 
 /**
  * cmd_build：make build-tool 再 build_tool ./shux。
- * 🔒 system() 经 libc。
+ * wave226 G.7: public pure thin link_abi_system (not raw libc system);
+ * Cap residual host system stays only link_abi_system_impl.
+ * PLATFORM: SHARED orch / host shell boundary.
  */
 int driver_build_build_x(void) {
-  int rc = system("cd compiler && make -s build-tool 2>&1");
+  /* wave226 G.7: link_abi_system (not raw system). */
+  int rc = link_abi_system("cd compiler && make -s build-tool 2>&1");
   if (rc != 0) {
     diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
                            "make build-tool failed (exit %d)", rc);
     return 1;
   }
-  rc = system("cd compiler && ./build_tool ./shux 2>&1");
+  /* wave226 G.7: link_abi_system (not raw system). */
+  rc = link_abi_system("cd compiler && ./build_tool ./shux 2>&1");
   if (rc != 0) {
     diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
                            "build_tool failed (exit %d)", rc);

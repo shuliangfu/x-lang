@@ -57,6 +57,8 @@ extern uint8_t * driver_entry_suggest_slot(void);
 extern uint8_t * driver_entry_msg_slot(void);
 extern uint8_t * driver_entry_tmp_slot(void);
 extern uint8_t * driver_entry_tmp2_slot(void);
+/* wave226 G.7: shell make via public pure thin link_abi_system (wave224 → _impl). */
+extern int32_t link_abi_system(uint8_t * cmd);
 extern uint8_t * * driver_entry_fmt_argv_slot(void);
 int32_t rt_entry_strlen(uint8_t * s) {
   int32_t i = 0;
@@ -530,7 +532,8 @@ int32_t driver_build_build_x(void) {
   uint8_t * dcode = ((uint8_t *)(0));
   {
     (void)((msg = driver_entry_msg_slot()));
-    (void)((rc = system((uint8_t[]){99, 100, 32, 99, 111, 109, 112, 105, 108, 101, 114, 32, 38, 38, 32, 109, 97, 107, 101, 32, 45, 115, 32, 98, 117, 105, 108, 100, 45, 116, 111, 111, 108, 32, 50, 62, 38, 49, 0 })));
+    /* wave226 G.7: public pure thin link_abi_system (not raw libc system). */
+    (void)((rc = link_abi_system((uint8_t[]){99, 100, 32, 99, 111, 109, 112, 105, 108, 101, 114, 32, 38, 38, 32, 109, 97, 107, 101, 32, 45, 115, 32, 98, 117, 105, 108, 100, 45, 116, 111, 111, 108, 32, 50, 62, 38, 49, 0 })));
   }
   if ((rc !=0)) {
     (void)((kind = (uint8_t[]){98, 117, 105, 108, 100, 32, 101, 114, 114, 111, 114, 0 }));
@@ -547,7 +550,8 @@ int32_t driver_build_build_x(void) {
     return 1;
   }
   {
-    (void)((rc = system((uint8_t[]){99, 100, 32, 99, 111, 109, 112, 105, 108, 101, 114, 32, 38, 38, 32, 46, 47, 98, 117, 105, 108, 100, 95, 116, 111, 111, 108, 32, 46, 47, 115, 104, 117, 120, 32, 50, 62, 38, 49, 0 })));
+    /* wave226 G.7: public pure thin link_abi_system (not raw libc system). */
+    (void)((rc = link_abi_system((uint8_t[]){99, 100, 32, 99, 111, 109, 112, 105, 108, 101, 114, 32, 38, 38, 32, 46, 47, 98, 117, 105, 108, 100, 95, 116, 111, 111, 108, 32, 46, 47, 115, 104, 117, 120, 32, 50, 62, 38, 49, 0 })));
   }
   if ((rc !=0)) {
     (void)((kind = (uint8_t[]){98, 117, 105, 108, 100, 32, 101, 114, 114, 111, 114, 0 }));
