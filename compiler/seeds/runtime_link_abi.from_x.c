@@ -44,6 +44,9 @@ int link_abi_user_extra_o_count(void);
 const char *link_abi_user_extra_o_at(int i);
 int link_abi_path_readable(const char *path);
 int link_abi_path_readable_impl(const char *path);
+/* wave221: X_OK pure thin (labi_path_io) + Cap residual _impl always mega. */
+int link_abi_path_executable(const char *path);
+int link_abi_path_executable_impl(const char *path);
 int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *net_o, const char *repo_root);
 void ensure_std_net_o_auto_tls(const char *repo_root);
 /* PLATFORM: SHARED — formal std .o after L4 wipe (wave188 pure L6 / cold twin). */
@@ -3221,6 +3224,33 @@ int link_abi_path_readable(const char *path) {
 }
 #else
 int link_abi_path_readable(const char *path);
+#endif
+
+/**
+ * Cap residual (wave221): host access(path, X_OK) == 0 → 1.
+ * Pure orch (wave221 labi_path_io L3) owns null/empty gates; _impl is always mega.
+ * PLATFORM: SHARED — host libc access X_OK (POSIX; Windows hybrid via compat).
+ * Product host binary probe (formal_std SHUX / compiler/{shux_asm,shux,shux-c}).
+ */
+int link_abi_path_executable_impl(const char *path) {
+    if (!path || !path[0])
+        return 0;
+    return access(path, X_OK) == 0 ? 1 : 0;
+}
+
+/* wave221: link_abi_path_executable pure orch lives in labi_path_io.x (hybrid L3);
+ * mega cold twin under #ifndef SHUX_LABI_PATH_IO_FROM_X.
+ * Pure: null/empty gates; Cap residual link_abi_path_executable_impl (access X_OK).
+ * Why: hybrid still had formal_std raw access(path, X_OK) under product ensure.
+ * PLATFORM: SHARED orch. */
+#ifndef SHUX_LABI_PATH_IO_FROM_X
+int link_abi_path_executable(const char *path) {
+    if (!path || !path[0])
+        return 0;
+    return link_abi_path_executable_impl(path);
+}
+#else
+int link_abi_path_executable(const char *path);
 #endif
 
 /**

@@ -123,14 +123,14 @@ export extern "C" function link_abi_realpath_cap(path: *u8, out: *u8): *u8;
 // Cap residual (wave158): resolve rel path under argv0/repo_root (tls_openssl.o etc.).
 export extern "C" function shux_rel_o_path_from_argv0(argv0: *u8, rel: *u8): *u8;
 
-// Cap residual (wave187/188 ensure shell make): host getenv / system / access / skip_missing.
+// Cap residual (wave187/188 ensure shell make): host getenv / system / skip_missing.
 // PLATFORM: SHARED — SHUX_NET_TLS net-o-* + formal std make (SHUX_FORMAL_STD_ENSURE reentrancy).
 export extern "C" function getenv(name: *u8): *u8;
 export extern "C" function system(cmd: *u8): i32;
 export extern "C" function strcmp(a: *u8, b: *u8): i32;
-// Cap residual (wave188): POSIX access(path, X_OK) for product host binary probe.
-// mode X_OK == 1 on POSIX (LINUX/MACOS product hosts).
-export extern "C" function access(path: *u8, mode: i32): i32;
+// wave221: product host binary X_OK probe is public pure thin link_abi_path_executable
+// (labi_path_io L3 hybrid); Cap residual access X_OK stays mega as _impl.
+export extern "C" function link_abi_path_executable(path: *u8): i32;
 // Cap residual (wave188): regular-file existence gate (stat wrapper; same as ensure leaves).
 export extern "C" function asm_link_obj_skip_missing(path: *u8): *u8;
 
@@ -1850,10 +1850,11 @@ export function labi_formal_std_build_make_cmd(cmd: *u8, cap: i32, shux_bin: *u8
  * @param make_target *u8 — make target under compiler/ (e.g. ../std/vec/vec.o); null/empty → 0
  * @return i32 — 1 if object exists after ensure, 0 otherwise
  * Pure orch: path join + SHUX discovery loop + make-cmd join (G.7 labi_net_tls_* helpers).
- * Cap residual: getenv; access(X_OK); link_abi_realpath_cap; system(make);
- *   asm_link_obj_skip_missing (stat existence).
+ * Cap residual: getenv; link_abi_path_executable (X_OK pure thin → _impl; wave221);
+ *   link_abi_realpath_cap; system(make); asm_link_obj_skip_missing (stat existence).
  * Why (wave188): hybrid still had always-mega C body for formal_std_make (getenv+access+
  *   realpath+system make orch). Soft residual sibling of wave187 ensure_std_net.
+ * wave221: raw access(X_OK) closed — public pure thin path_executable owns X_OK probe.
  * Note: export signature must stay single-line (multi-line export drops the function).
  * PLATFORM: SHARED orch — system/make is host shell (LINUX/MACOS product hosts).
  * Track-L: #[no_mangle] keeps surface short name for invoke_cc / on_demand call sites.
@@ -1912,16 +1913,15 @@ export function shux_ensure_formal_std_make_o(repo_root: *u8, rel_from_repo: *u8
   unsafe {
     env_shux = getenv("SHUX");
   }
-  // POSIX X_OK == 1 on LINUX/MACOS product hosts.
-  let x_ok: i32 = 1;
+  // wave221: X_OK via public pure thin path_executable (not raw access mode).
   let found: i32 = 0;
   if (env_shux != 0 as *u8) {
     if (env_shux[0] != 0) {
       let ax: i32 = 0;
       unsafe {
-        ax = access(env_shux, x_ok);
+        ax = link_abi_path_executable(env_shux);
       }
-      if (ax == 0) {
+      if (ax != 0) {
         let rp: *u8 = 0 as *u8;
         unsafe {
           rp = link_abi_realpath_cap(env_shux, &shux_bin[0]);
@@ -1971,9 +1971,9 @@ export function shux_ensure_formal_std_make_o(repo_root: *u8, rel_from_repo: *u8
       }
       let ax2: i32 = 0;
       unsafe {
-        ax2 = access(&cand[0], x_ok);
+        ax2 = link_abi_path_executable(&cand[0]);
       }
-      if (ax2 == 0) {
+      if (ax2 != 0) {
         let rp2: *u8 = 0 as *u8;
         unsafe {
           rp2 = link_abi_realpath_cap(&cand[0], &shux_bin[0]);
