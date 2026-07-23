@@ -385,6 +385,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _labi_l8_x=src/runtime/labi_std_list.x
   _labi_l8b_seed=seeds/labi_ondemand_list.from_x.c
   _labi_l8b_x=src/runtime/labi_ondemand_list.x
+  # wave263 L8c: ondemand heavy pure (capacity split; no separate cold seed — full L8b seed covers both)
+  _labi_l8c_x=src/runtime/labi_ondemand_heavy.x
   _labi_l9_seed=seeds/labi_gates.from_x.c
   _labi_l9_x=src/runtime/labi_gates.x
   _labi_o=src/runtime_link_abi.o
@@ -410,6 +412,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_labi_l8_x" ] && [ "$_labi_l8_x" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l8b_seed" ] && [ "$_labi_l8b_seed" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l8b_x" ] && [ "$_labi_l8b_x" -nt "$_labi_o" ]; } \
+      || { [ -f "$_labi_l8c_x" ] && [ "$_labi_l8c_x" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l9_seed" ] && [ "$_labi_l9_seed" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l9_x" ] && [ "$_labi_l9_x" -nt "$_labi_o" ]; }; then
       _labi_done=0
@@ -424,6 +427,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _labi_l7_o=$(mktemp "${TMPDIR:-/tmp}/g05_labi_l7.XXXXXX") || true
         _labi_l8_o=$(mktemp "${TMPDIR:-/tmp}/g05_labi_l8.XXXXXX") || true
         _labi_l8b_o=$(mktemp "${TMPDIR:-/tmp}/g05_labi_l8b.XXXXXX") || true
+        _labi_l8c_o=$(mktemp "${TMPDIR:-/tmp}/g05_labi_l8c.XXXXXX") || true
         _labi_l9_o=$(mktemp "${TMPDIR:-/tmp}/g05_labi_l9.XXXXXX") || true
         _labi_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_labi_rest.XXXXXX") || true
         _labi_l0_ok=0
@@ -436,6 +440,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _labi_l7_ok=0
         _labi_l8_ok=0
         _labi_l8b_ok=0
+        _labi_l8c_ok=0
         _labi_l9_ok=0
         if [ -n "$_labi_l0_o" ]; then
           # R2 labi_path_pure：PREFER_X_O=1 时 full .x（7 门闩真迁 H=0）；失败回退 seed 冷 C
@@ -587,18 +592,30 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
         fi
         if [ -n "$_labi_l8b_o" ]; then
-          # R2 labi_ondemand_list：PREFER_X_O=1 时 full .x（on_demand 纯表真迁 H=0）；失败回退 seed 冷 C
+          # wave263: L8b early + L8c heavy must BOTH PREFER .x, else full seed (covers both).
+          # Partial L8b-only would set FROM_X and UNDEF heavy exports (pre-wave263 failure mode).
+          _labi_l8b_x_ok=0
+          _labi_l8c_x_ok=0
           if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_labi_l8b_x" ]; then
             if g05_try_x_to_o "$_labi_l8b_x" "$_labi_l8b_o"; then
-              _labi_l8b_ok=1
-              echo "g05_ensure: L8b on_demand list ← $_labi_l8b_x (Track L prefer .x)"
+              _labi_l8b_x_ok=1
             fi
           fi
-          if [ "$_labi_l8b_ok" = "0" ] && [ -f "$_labi_l8b_seed" ]; then
+          if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -n "$_labi_l8c_o" ] && [ -f "$_labi_l8c_x" ]; then
+            if g05_try_x_to_o "$_labi_l8c_x" "$_labi_l8c_o"; then
+              _labi_l8c_x_ok=1
+            fi
+          fi
+          if [ "$_labi_l8b_x_ok" = "1" ] && [ "$_labi_l8c_x_ok" = "1" ]; then
+            _labi_l8b_ok=1
+            _labi_l8c_ok=1
+            echo "g05_ensure: L8b+L8c on_demand ← $_labi_l8b_x + $_labi_l8c_x (wave263 capacity split)"
+          elif [ -f "$_labi_l8b_seed" ]; then
             # shellcheck disable=SC2086
             if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_labi_l8b_o" "$_labi_l8b_seed"; then
               _labi_l8b_ok=1
-              echo "g05_ensure: L8b on_demand list ← $_labi_l8b_seed (G-02f-272 seed slice)"
+              _labi_l8c_ok=0
+              echo "g05_ensure: L8b on_demand list ← $_labi_l8b_seed (G-02f-272 full seed; L8c unused)"
             fi
           fi
         fi
@@ -681,19 +698,22 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           if [ "$_labi_l8b_ok" = "1" ]; then
             _labi_link="$_labi_link $_labi_l8b_o"
           fi
+          if [ "$_labi_l8c_ok" = "1" ]; then
+            _labi_link="$_labi_link $_labi_l8c_o"
+          fi
           if [ "$_labi_l9_ok" = "1" ]; then
             _labi_link="$_labi_link $_labi_l9_o"
           fi
           # shellcheck disable=SC2086
           if $CC -r -nostdlib -o "$_labi_o" $_labi_link "$_labi_rest_o" 2>/dev/null; then
-            echo "g05_ensure: $_labi_o ← L0..L9+L8b + link_abi rest (G-02f-277 hybrid)"
+            echo "g05_ensure: $_labi_o ← L0..L9+L8b+L8c + link_abi rest (G-02f-277 hybrid wave263)"
             _labi_done=1
           fi
         fi
         if [ "$_labi_done" = "0" ]; then
-          echo "g05_ensure: L0..L9+L8b link_abi hybrid failed; fallback full seed" >&2
+          echo "g05_ensure: L0..L9+L8b+L8c link_abi hybrid failed; fallback full seed" >&2
         fi
-        rm -f "$_labi_l0_o" "$_labi_l1_o" "$_labi_l2_o" "$_labi_l3_o" "$_labi_l4_o" "$_labi_l5_o" "$_labi_l6_o" "$_labi_l7_o" "$_labi_l8_o" "$_labi_l8b_o" "$_labi_l9_o" "$_labi_rest_o"
+        rm -f "$_labi_l0_o" "$_labi_l1_o" "$_labi_l2_o" "$_labi_l3_o" "$_labi_l4_o" "$_labi_l5_o" "$_labi_l6_o" "$_labi_l7_o" "$_labi_l8_o" "$_labi_l8b_o" "$_labi_l8c_o" "$_labi_l9_o" "$_labi_rest_o"
       fi
       if [ "$_labi_done" = "0" ]; then
         echo "g05_ensure: runtime_link_abi.o ← seed (G-02f-13)"

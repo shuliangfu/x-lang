@@ -83,7 +83,9 @@ MODULES=(
   # labi_ondemand_list R2 full：.x 吃满 simple/kv/arrow/time/queue + rel_* + wave118–135 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api + needs_heap_user_syms + needs_async_scheduler + compress family + labi_user_needs_runtime time_os/random_fill/env_os/process_argv + labi_user_needs_std_task + labi_std_fk0_user_needs_rel + wave140 user_o_provides_core_mem/std_heap 纯表+orch + wave145 link_needs_heap_user_c/std_heap_import 聚合 pure orch + wave190 labi_std_fk_gate_sym_* + labi_std_fk_user_needs (fk1–13 plan gates) + wave197 xlang_asm_ld_append_on_demand_user_objs pure orch（on_demand 产品壳）+ wave210 has_undef_sym pure thin orch + wave211 exports_marker pure thin orch + wave212 needs_undef_sym pure thin orch + wave213 has_defined_sym pure thin orch；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：nm/push/ensure + has_undef_impl / needs_undef_impl / exports_marker_impl / has_defined_impl
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_ondemand_list.from_x.c 全 C 体
+  # wave263: L8b early pure + L8c heavy capacity split (parse-skip of 14 late exports closed)
   "labi_ondemand_list|src/runtime/labi_ondemand_list.x|seeds/labi_ondemand_list_surface.from_x.c||"
+  "labi_ondemand_heavy|src/runtime/labi_ondemand_heavy.x|seeds/labi_ondemand_heavy_surface.from_x.c||"
   # labi_ensure_list R2 full：.x 吃满 ensure catalog 纯表（27 条目 stem/out/seed/flags/step_at；wave253 user_env）
   #   + wave173 ensure_from_catalog + wave174 catalog thin + wave169–172/182 special ensure
   #   + wave186 prepare_for_exe_link pure orch
