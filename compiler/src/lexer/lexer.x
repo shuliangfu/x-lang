@@ -174,6 +174,19 @@ let g_lexer_invalid_type_suffix_line: i32 = 0;
 let g_lexer_invalid_type_suffix_col: i32 = 0;
 let g_lexer_invalid_type_suffix_reported: i32 = 0;
 
+/**
+ * wave281 Cap residual: sticky invalid string-escape state for the current parse.
+ * Set when a string escape is not one of the product set `\n \t \r \0 \\ \" \xHH`
+ * (e.g. `\q`, incomplete `\x` / `\xG`). Prior: lexer blindly skipped `\`+next and
+ * parser decode silently kept the second byte → wrong AST / silent green.
+ * Cleared by lexer_invalid_escape_reset at each product parse entry.
+ * PLATFORM: SHARED — language lexical contract.
+ */
+let g_lexer_invalid_escape: i32 = 0;
+let g_lexer_invalid_escape_line: i32 = 0;
+let g_lexer_invalid_escape_col: i32 = 0;
+let g_lexer_invalid_escape_reported: i32 = 0;
+
 
 /**
  * Clear unclosed block-comment sticky state (call once per parse entry).
@@ -362,6 +375,27 @@ export function lexer_invalid_type_suffix_reset(): void {
  */
 export function lexer_invalid_type_suffix_pending(): i32 {
   return g_lexer_invalid_type_suffix;
+}
+
+/**
+ * Clear invalid string-escape sticky state (call once per parse entry).
+ * @return void
+ * PLATFORM: SHARED — wave281 Cap residual pure
+ */
+export function lexer_invalid_escape_reset(): void {
+  g_lexer_invalid_escape = 0;
+  g_lexer_invalid_escape_line = 0;
+  g_lexer_invalid_escape_col = 0;
+  g_lexer_invalid_escape_reported = 0;
+}
+
+/**
+ * Non-zero if lexer saw an invalid/incomplete string escape this parse.
+ * @return i32 — 1 when sticky L010 pending, else 0
+ * PLATFORM: SHARED — wave281 Cap residual pure
+ */
+export function lexer_invalid_escape_pending(): i32 {
+  return g_lexer_invalid_escape;
 }
 
 /**
@@ -1041,6 +1075,84 @@ function lexer_note_invalid_type_suffix(line: i32, col: i32): void {
       0 as *u8,
       g_lexer_invalid_type_suffix_line,
       g_lexer_invalid_type_suffix_col,
+      &kind[0],
+      &code[0],
+      &msg[0],
+      0 as *u8);
+  }
+}
+
+/**
+ * Record and report L010 once for an invalid or incomplete string escape.
+ * Covers unknown `\q`, incomplete `\x` / `\xG`, and any escape not in the product set
+ * `\n \t \r \0 \\ \" \xHH`. Prior soft residual: silent keep of the second source byte.
+ * @param line i32 — 1-based line of the backslash
+ * @param col i32 — 1-based column of the backslash
+ * @return void
+ * PLATFORM: SHARED — stack byte lits only (no va_list); dual-host product matrix.
+ */
+function lexer_note_invalid_escape(line: i32, col: i32): void {
+  if (g_lexer_invalid_escape == 0) {
+    g_lexer_invalid_escape = 1;
+    g_lexer_invalid_escape_line = line;
+    g_lexer_invalid_escape_col = col;
+  }
+  if (g_lexer_invalid_escape_reported != 0) {
+    return;
+  }
+  g_lexer_invalid_escape_reported = 1;
+  // kind = "lexer error"
+  let kind: u8[16] = [];
+  kind[0] = 108;
+  kind[1] = 101;
+  kind[2] = 120;
+  kind[3] = 101;
+  kind[4] = 114;
+  kind[5] = 32;
+  kind[6] = 101;
+  kind[7] = 114;
+  kind[8] = 114;
+  kind[9] = 111;
+  kind[10] = 114;
+  kind[11] = 0;
+  // code = "L010"
+  let code: u8[8] = [];
+  code[0] = 76;
+  code[1] = 48;
+  code[2] = 49;
+  code[3] = 48;
+  code[4] = 0;
+  // msg = "invalid escape sequence"
+  let msg: u8[32] = [];
+  msg[0] = 105;
+  msg[1] = 110;
+  msg[2] = 118;
+  msg[3] = 97;
+  msg[4] = 108;
+  msg[5] = 105;
+  msg[6] = 100;
+  msg[7] = 32;
+  msg[8] = 101;
+  msg[9] = 115;
+  msg[10] = 99;
+  msg[11] = 97;
+  msg[12] = 112;
+  msg[13] = 101;
+  msg[14] = 32;
+  msg[15] = 115;
+  msg[16] = 101;
+  msg[17] = 113;
+  msg[18] = 117;
+  msg[19] = 101;
+  msg[20] = 110;
+  msg[21] = 99;
+  msg[22] = 101;
+  msg[23] = 0;
+  unsafe {
+    diag_report_with_code(
+      0 as *u8,
+      g_lexer_invalid_escape_line,
+      g_lexer_invalid_escape_col,
       &kind[0],
       &code[0],
       &msg[0],
@@ -2907,19 +3019,55 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
     return;
   }
   /* wave271 Cap residual: double-quoted string; EOF without closer → L002 hard diag.
-   * Multi-line strings remain valid when a closing quote appears later in the file. */
+   * Multi-line strings remain valid when a closing quote appears later in the file.
+   * wave281: escape validation — product set `\n \t \r \0 \\ \" \xHH` only; else sticky L010. */
   if (c == 34) {
     let line0: i32 = l.line;
     let col0: i32 = l.col;
     let start: usize = l.pos + (1 as usize);
     l = advance_one(l, 34);
     while (l.pos < data.length && data[l.pos] != 34) {
-      if (data[l.pos] == 92 && l.pos + 1 < data.length) {
-        l = advance_one(l, data[l.pos]);
-        l = advance_one(l, data[l.pos]);
-      } else {
-        l = advance_one(l, data[l.pos]);
+      if (data[l.pos] == 92) {
+        // Lone `\` at EOF (no next byte): fall through to L002 unclosed path below.
+        if (l.pos + 1 >= data.length) {
+          l = advance_one(l, 92);
+          continue;
+        }
+        // wave281: validate escape; invalid → sticky L010 + TOKEN_EOF (not silent keep).
+        let esc_line: i32 = l.line;
+        let esc_col: i32 = l.col;
+        l = advance_one(l, 92);
+        let e: u8 = data[l.pos];
+        // Single-char escapes: \n \t \r \0 \\ \"
+        if (e == 110 || e == 116 || e == 114 || e == 48 || e == 92 || e == 34) {
+          l = advance_one(l, e);
+          continue;
+        }
+        // Hex escape `\xHH` — require two hex digits after `x`.
+        if (e == 120) {
+          if (l.pos + 2 < data.length && is_hex_digit(data[l.pos + 1]) && is_hex_digit(data[l.pos + 2])) {
+            l = advance_one(l, 120);
+            l = advance_one(l, data[l.pos]);
+            l = advance_one(l, data[l.pos]);
+            continue;
+          }
+          lexer_note_invalid_escape(esc_line, esc_col);
+          let tok_eof_hex: token.Token = token.Token { kind: 0, line: esc_line, col: esc_col, int_val: 0,
+            float_val: 0.0, ident: 0, ident_len: 0 };
+          write_next_lex_into(out, l);
+          write_tok_into(out, tok_eof_hex);
+          out.token_start = start;
+          return;
+        }
+        lexer_note_invalid_escape(esc_line, esc_col);
+        let tok_eof_esc: token.Token = token.Token { kind: 0, line: esc_line, col: esc_col, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        write_next_lex_into(out, l);
+        write_tok_into(out, tok_eof_esc);
+        out.token_start = start;
+        return;
       }
+      l = advance_one(l, data[l.pos]);
     }
     if (l.pos >= data.length) {
       // wave271: silent TOKEN_EOF here swallowed the rest of the module (no main / soft P001).

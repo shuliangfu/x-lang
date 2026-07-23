@@ -3511,7 +3511,8 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
           if (nlen < 0) {
             nlen = 0;
           }
-          /* Decode escapes so AST holds semantic bytes (\n→0x0A), not raw source. */
+          /* Decode escapes so AST holds semantic bytes (\n→0x0A, \xHH→byte), not raw source.
+           * wave281: product set `\n \t \r \0 \\ \" \xHH` (lexer L010 rejects others). */
           let q0: usize = r.token_start;
           let ri: i32 = 0;
           let wi: i32 = 0;
@@ -3530,6 +3531,31 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
               if (n == 114) { se.var_name[wi] = 13; wi = wi + 1; ri = ri + 2; continue; }
               if (n == 48) { se.var_name[wi] = 0; wi = wi + 1; ri = ri + 2; continue; }
               if (n == 92 || n == 34) { se.var_name[wi] = n; wi = wi + 1; ri = ri + 2; continue; }
+              // wave281: `\xHH` → one semantic byte (G.7 ≡ primary_slice decode).
+              if (n == 120 && (ri + 3) < nlen) {
+                let h1: u8 = 0;
+                let h2: u8 = 0;
+                if (q0 + ((ri + 2) as usize) < source.length) {
+                  h1 = source[q0 + ((ri + 2) as usize)];
+                }
+                if (q0 + ((ri + 3) as usize) < source.length) {
+                  h2 = source[q0 + ((ri + 3) as usize)];
+                }
+                let v1: i32 = -1;
+                let v2: i32 = -1;
+                if (h1 >= 48 && h1 <= 57) { v1 = (h1 as i32) - 48; }
+                if (h1 >= 97 && h1 <= 102) { v1 = (h1 as i32) - 97 + 10; }
+                if (h1 >= 65 && h1 <= 70) { v1 = (h1 as i32) - 65 + 10; }
+                if (h2 >= 48 && h2 <= 57) { v2 = (h2 as i32) - 48; }
+                if (h2 >= 97 && h2 <= 102) { v2 = (h2 as i32) - 97 + 10; }
+                if (h2 >= 65 && h2 <= 70) { v2 = (h2 as i32) - 65 + 10; }
+                if (v1 >= 0 && v2 >= 0) {
+                  se.var_name[wi] = ((v1 * 16) + v2) as u8;
+                  wi = wi + 1;
+                  ri = ri + 4;
+                  continue;
+                }
+              }
               se.var_name[wi] = n; wi = wi + 1; ri = ri + 2; continue;
             }
             se.var_name[wi] = c;
@@ -4413,10 +4439,11 @@ export function diag_fail_at_token_kind_buf(data: *u8, len: i32): i32 {
  * (L002 sticky), illegal character (L003 sticky), incomplete hex (L004 sticky),
  * incomplete float exponent (L005 sticky), incomplete binary (L006 sticky),
  * incomplete octal (L007 sticky), invalid digit separator (L008 sticky),
- * or invalid type suffix (L009 sticky), force parse fail.
+ * invalid type suffix (L009 sticky), or invalid string escape (L010 sticky),
+ * force parse fail.
  * Product -o paths call parser_parse_into_buf directly (not only driver_parse_into_buf_rc).
  * @param r ParseIntoResult — candidate result from parse_into / parse_into_buf
- * @return ParseIntoResult — ok=-1 when L001–L009 pending; else r unchanged
+ * @return ParseIntoResult — ok=-1 when L001–L010 pending; else r unchanged
  * PLATFORM: SHARED
  */
 export function parse_into_apply_unclosed_gate(r: ParseIntoResult): ParseIntoResult {
@@ -4446,6 +4473,9 @@ export function parse_into_apply_unclosed_gate(r: ParseIntoResult): ParseIntoRes
       return ParseIntoResult { ok: -1, main_idx: -1 }
     }
     if (lexer.lexer_invalid_type_suffix_pending() != 0) {
+      return ParseIntoResult { ok: -1, main_idx: -1 }
+    }
+    if (lexer.lexer_invalid_escape_pending() != 0) {
       return ParseIntoResult { ok: -1, main_idx: -1 }
     }
   }
@@ -4494,6 +4524,10 @@ export function parse_into_result_empty_module_or_fail_tok(fail_tok: i32): Parse
   }
   // wave279: invalid type suffix (`42u32`, `1.5f32`) is hard fail (not soft XP003).
   if (lexer.lexer_invalid_type_suffix_pending() != 0) {
+    return ParseIntoResult { ok: -1, main_idx: -1 }
+  }
+  // wave281: invalid string escape (`\q`, incomplete `\x`) is hard fail (not silent keep).
+  if (lexer.lexer_invalid_escape_pending() != 0) {
     return ParseIntoResult { ok: -1, main_idx: -1 }
   }
   if (fail_tok == (token.TokenKind.TOKEN_STRING as i32)) {
@@ -7551,7 +7585,7 @@ export function parse_into_try_skip_allow_into_buf(out: *TrySkipAllowResult, lex
 export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): ParseIntoResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  // wave269–wave279: clear L001–L009 sticky before scanning this source buffer.
+  // wave269–wave281: clear L001–L010 sticky before scanning this source buffer.
   lexer.lexer_unclosed_block_comment_reset();
   lexer.lexer_unclosed_string_reset();
   lexer.lexer_illegal_char_reset();
@@ -7561,6 +7595,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
   lexer.lexer_incomplete_oct_reset();
   lexer.lexer_invalid_digit_sep_reset();
   lexer.lexer_invalid_type_suffix_reset();
+  lexer.lexer_invalid_escape_reset();
   /* See implementation. */
   let lex: Lexer = lexer.lexer_init();
   let main_idx: i32 = -1;
@@ -9660,7 +9695,7 @@ export function parse_into_try_skip_allow_from_buf(lex: Lexer, r: LexerResult, d
 export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32): ParseIntoResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  // wave269–wave279: clear L001–L009 sticky before scanning this source buffer.
+  // wave269–wave281: clear L001–L010 sticky before scanning this source buffer.
   lexer.lexer_unclosed_block_comment_reset();
   lexer.lexer_unclosed_string_reset();
   lexer.lexer_illegal_char_reset();
@@ -9670,6 +9705,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
   lexer.lexer_incomplete_oct_reset();
   lexer.lexer_invalid_digit_sep_reset();
   lexer.lexer_invalid_type_suffix_reset();
+  lexer.lexer_invalid_escape_reset();
   let lex: Lexer = lexer.lexer_init();
   let main_idx: i32 = -1;
   let import_res: CollectImportsResult = CollectImportsResult { lex: lex };

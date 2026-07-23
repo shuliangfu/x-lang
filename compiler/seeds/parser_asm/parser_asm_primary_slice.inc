@@ -1616,7 +1616,6 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
   lexer_next_into(&r, lex, source);
   if (r.tok.kind == (int32_t)TOKEN_STRING) {
     size_t q0;
-    size_t k;
     ref = ast_ast_arena_expr_alloc(arena);
     if (ref == 0) {
       out->ok = 0;
@@ -1627,17 +1626,65 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     e.kind = PARSER_ASM_EXPR_STRING_LIT;
     e.line = r.tok.line;
     e.col = r.tok.col;
-    /* lexer.x：TOKEN_STRING 的 token_start 已指向开引号后首字节。 */
+    /* lexer.x：TOKEN_STRING 的 token_start 已指向开引号后首字节。
+     * wave281: decode escapes into AST semantic bytes (G.7 ≡ parser.x let-init STRING path).
+     * Product set: \n \t \r \0 \\ \" \xHH. Lexer sticky L010 rejects others. */
     q0 = r.token_start;
-    e.var_name_len = r.tok.ident_len;
-    if (e.var_name_len > 63)
-      e.var_name_len = 63;
-    if (e.var_name_len < 0)
-      e.var_name_len = 0;
-    for (k = 0; k < (size_t)e.var_name_len; k++)
-      e.var_name[k] = source->data[q0 + k];
-    if ((size_t)e.var_name_len < 64)
-      e.var_name[e.var_name_len] = 0;
+    {
+      int32_t nlen = r.tok.ident_len;
+      int32_t ri = 0;
+      int32_t wi = 0;
+      if (nlen > 63)
+        nlen = 63;
+      if (nlen < 0)
+        nlen = 0;
+      while (ri < nlen && wi < 63) {
+        uint8_t c = 0;
+        if (q0 + (size_t)ri < source->length)
+          c = source->data[q0 + (size_t)ri];
+        if (c == 92 && (ri + 1) < nlen) {
+          uint8_t n = 0;
+          if (q0 + (size_t)(ri + 1) < source->length)
+            n = source->data[q0 + (size_t)(ri + 1)];
+          if (n == 110) { e.var_name[wi++] = 10; ri += 2; continue; }
+          if (n == 116) { e.var_name[wi++] = 9; ri += 2; continue; }
+          if (n == 114) { e.var_name[wi++] = 13; ri += 2; continue; }
+          if (n == 48) { e.var_name[wi++] = 0; ri += 2; continue; }
+          if (n == 92 || n == 34) { e.var_name[wi++] = n; ri += 2; continue; }
+          if (n == 120 && (ri + 3) < nlen) {
+            uint8_t h1 = 0;
+            uint8_t h2 = 0;
+            int32_t v1 = -1;
+            int32_t v2 = -1;
+            if (q0 + (size_t)(ri + 2) < source->length)
+              h1 = source->data[q0 + (size_t)(ri + 2)];
+            if (q0 + (size_t)(ri + 3) < source->length)
+              h2 = source->data[q0 + (size_t)(ri + 3)];
+            if (h1 >= 48 && h1 <= 57) v1 = (int32_t)h1 - 48;
+            if (h1 >= 97 && h1 <= 102) v1 = (int32_t)h1 - 97 + 10;
+            if (h1 >= 65 && h1 <= 70) v1 = (int32_t)h1 - 65 + 10;
+            if (h2 >= 48 && h2 <= 57) v2 = (int32_t)h2 - 48;
+            if (h2 >= 97 && h2 <= 102) v2 = (int32_t)h2 - 97 + 10;
+            if (h2 >= 65 && h2 <= 70) v2 = (int32_t)h2 - 65 + 10;
+            if (v1 >= 0 && v2 >= 0) {
+              e.var_name[wi++] = (uint8_t)((v1 * 16) + v2);
+              ri += 4;
+              continue;
+            }
+          }
+          e.var_name[wi++] = n;
+          ri += 2;
+          continue;
+        }
+        e.var_name[wi++] = c;
+        ri++;
+      }
+      e.var_name_len = wi;
+      while (wi < 64) {
+        e.var_name[wi] = 0;
+        wi++;
+      }
+    }
     parser_asm_arena_expr_set_c(arena, ref, e);
     out->ok = 1;
     out->expr_ref = ref;

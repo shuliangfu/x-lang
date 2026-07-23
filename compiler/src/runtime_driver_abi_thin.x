@@ -5203,6 +5203,16 @@ export extern "C" function lexer_invalid_type_suffix_reset(): void;
  * PLATFORM: SHARED
  */
 export extern "C" function lexer_invalid_type_suffix_pending(): i32;
+/**
+ * wave281: reset sticky invalid string-escape state before each product parse.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_invalid_escape_reset(): void;
+/**
+ * wave281: non-zero if lexer saw invalid/incomplete string escape (`\q`, incomplete `\x`).
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_invalid_escape_pending(): i32;
 
 #[no_mangle]
 export function driver_parse_into_buf_rc(
@@ -5220,7 +5230,7 @@ export function driver_parse_into_buf_rc(
   if (data == 0 as *u8) {
     return -1;
   }
-  // wave269–wave279: clear sticky L001–L009 state for this entry.
+  // wave269–wave281: clear sticky L001–L010 state for this entry.
   unsafe {
     lexer_unclosed_block_comment_reset();
     lexer_unclosed_string_reset();
@@ -5231,6 +5241,7 @@ export function driver_parse_into_buf_rc(
     lexer_incomplete_oct_reset();
     lexer_invalid_digit_sep_reset();
     lexer_invalid_type_suffix_reset();
+    lexer_invalid_escape_reset();
   }
   let rc: i32 = 0;
   unsafe {
@@ -5239,7 +5250,8 @@ export function driver_parse_into_buf_rc(
   // Hard-fail when skip swallowed to EOF with unclosed /* ... (L001 already emitted),
   // string lex hit EOF without closer (L002), illegal/unknown byte (L003),
   // incomplete hex (L004), incomplete float exp (L005), incomplete binary (L006),
-  // incomplete octal (L007), invalid digit separator (L008), or invalid type suffix (L009).
+  // incomplete octal (L007), invalid digit separator (L008), invalid type suffix (L009),
+  // or invalid string escape (L010).
   unsafe {
     if (lexer_unclosed_block_comment_pending() != 0) {
       if (out_main_idx != 0 as *i32) {
@@ -5290,6 +5302,12 @@ export function driver_parse_into_buf_rc(
       return -1;
     }
     if (lexer_invalid_type_suffix_pending() != 0) {
+      if (out_main_idx != 0 as *i32) {
+        out_main_idx[0] = -1;
+      }
+      return -1;
+    }
+    if (lexer_invalid_escape_pending() != 0) {
       if (out_main_idx != 0 as *i32) {
         out_main_idx[0] = -1;
       }

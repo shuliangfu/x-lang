@@ -119,6 +119,10 @@ static const DiagCodeExplain g_diag_code_table[] = {
      "(for example `42u32`, `0x2Ai64`, `1.5f32`, or `42foo`). The language has no C/Rust-style type "
      "suffixes on numerics; use context type coerce (e.g. `let n: u32 = 42`) or `as T`. "
      "Typical action: remove the suffix or rewrite with `as` / annotated `let`."},
+    {"L010", "lexer error", "Lexer found an invalid escape sequence in a string literal.",
+     "Used when a string escape is not one of the product set `\\n \\t \\r \\0 \\\\ \\\" \\xHH` "
+     "(for example `\\q`, incomplete `\\x`, or `\\xG`). "
+     "Typical action: use a supported escape or write the byte as `\\xHH`."},
     {"IMP001", "import error", "Import path could not be opened from the resolved candidate path.",
      "Used when an import target cannot be opened after path resolution. Typical action: verify the import name, "
      "library roots, and the resolved on-disk file path shown in the diagnostic."},

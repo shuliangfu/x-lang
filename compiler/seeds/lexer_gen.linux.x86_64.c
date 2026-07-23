@@ -841,6 +841,11 @@ static int32_t g_lexer_invalid_type_suffix = 0;
 static int32_t g_lexer_invalid_type_suffix_line = 0;
 static int32_t g_lexer_invalid_type_suffix_col = 0;
 static int32_t g_lexer_invalid_type_suffix_reported = 0;
+/* wave281 Cap residual: L010 invalid string escape sticky (G.7 ≡ lexer.x). */
+static int32_t g_lexer_invalid_escape = 0;
+static int32_t g_lexer_invalid_escape_line = 0;
+static int32_t g_lexer_invalid_escape_col = 0;
+static int32_t g_lexer_invalid_escape_reported = 0;
 
 void lexer_unclosed_block_comment_reset(void) {
   g_lexer_unclosed_bc = 0;
@@ -926,6 +931,16 @@ void lexer_invalid_type_suffix_reset(void) {
 }
 int32_t lexer_invalid_type_suffix_pending(void) {
   return g_lexer_invalid_type_suffix;
+}
+/* wave281 Cap residual: clear invalid string-escape sticky (≡ lexer.x). */
+void lexer_invalid_escape_reset(void) {
+  g_lexer_invalid_escape = 0;
+  g_lexer_invalid_escape_line = 0;
+  g_lexer_invalid_escape_col = 0;
+  g_lexer_invalid_escape_reported = 0;
+}
+int32_t lexer_invalid_escape_pending(void) {
+  return g_lexer_invalid_escape;
 }
 static void lexer_note_incomplete_bin(int32_t line, int32_t col) {
   if (g_lexer_incomplete_bin == 0) {
@@ -1018,6 +1033,25 @@ static void lexer_note_invalid_type_suffix(int32_t line, int32_t col) {
     char code[] = "L009";
     char msg[] = "invalid type suffix";
     diag_report_with_code(NULL, g_lexer_invalid_type_suffix_line, g_lexer_invalid_type_suffix_col,
+                          (uint8_t *)kind, (uint8_t *)code, (uint8_t *)msg, (uint8_t *)0);
+  }
+}
+/* wave281 Cap residual: L010 invalid string escape (G.7 ≡ lexer.x). */
+static void lexer_note_invalid_escape(int32_t line, int32_t col) {
+  if (g_lexer_invalid_escape == 0) {
+    g_lexer_invalid_escape = 1;
+    g_lexer_invalid_escape_line = line;
+    g_lexer_invalid_escape_col = col;
+  }
+  if (g_lexer_invalid_escape_reported != 0) {
+    return;
+  }
+  g_lexer_invalid_escape_reported = 1;
+  {
+    char kind[] = "lexer error";
+    char code[] = "L010";
+    char msg[] = "invalid escape sequence";
+    diag_report_with_code(NULL, g_lexer_invalid_escape_line, g_lexer_invalid_escape_col,
                           (uint8_t *)kind, (uint8_t *)code, (uint8_t *)msg, (uint8_t *)0);
   }
 }
@@ -1381,11 +1415,46 @@ XLANG_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out
   int32_t col0 = (l).col;
   size_t start = (l).pos + 1;
   (l = (lexer_advance_one(l, 34)));
+  /* wave281: validate escapes; product set \n \t \r \0 \\ \" \xHH; else sticky L010. */
   while ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 34) {
-    if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 92 && (l).pos + 1 < (data)->length) {   (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
-  (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
- } else {   (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
- }
+    uint8_t ch = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+    if (ch == 92) {
+      if ((l).pos + 1 >= (data)->length) {
+        (l = (lexer_advance_one(l, 92)));
+        continue;
+      }
+      int32_t esc_line = (l).line;
+      int32_t esc_col = (l).col;
+      (l = (lexer_advance_one(l, 92)));
+      uint8_t e = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+      if (e == 110 || e == 116 || e == 114 || e == 48 || e == 92 || e == 34) {
+        (l = (lexer_advance_one(l, e)));
+        continue;
+      }
+      if (e == 120) {
+        if ((l).pos + 2 < (data)->length &&
+            lexer_is_hex_digit(((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1])) &&
+            lexer_is_hex_digit(((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]))) {
+          (l = (lexer_advance_one(l, 120)));
+          (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
+          (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
+          continue;
+        }
+        lexer_note_invalid_escape(esc_line, esc_col);
+        struct token_Token tok_eof_hex = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = esc_line, .col = esc_col, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(lexer_write_next_lex_into(out, l));
+        (void)(lexer_write_tok_into(out, tok_eof_hex));
+        ((out)->token_start = (start));
+        return;
+      }
+      lexer_note_invalid_escape(esc_line, esc_col);
+      struct token_Token tok_eof_esc = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = esc_line, .col = esc_col, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+      (void)(lexer_write_next_lex_into(out, l));
+      (void)(lexer_write_tok_into(out, tok_eof_esc));
+      ((out)->token_start = (start));
+      return;
+    }
+    (l = (lexer_advance_one(l, ch)));
   }
   if ((l).pos >= (data)->length) {
   /* wave271: unclosed string at EOF → L002 hard diag + sticky pending. */
