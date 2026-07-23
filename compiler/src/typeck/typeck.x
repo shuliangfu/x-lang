@@ -4896,10 +4896,10 @@ export function typeck_ret_coerce_integral_widen(arena: *ASTArena, op_ref: i32, 
       pipeline_expr_set_resolved_type_ref(arena, op_ref, expect_ref);
       return;
     }
-    /* wave314: stamp f32→f64 (and float identity) onto return operand. */
-    if (typeck_float_widen_ok(expect_kind, got_kind)) {
-      pipeline_expr_set_resolved_type_ref(arena, op_ref, expect_ref);
-    }
+    /* wave314: f32→f64 return is accepted by return_operand_matches; do not stamp
+     * (freestanding emit promotes with cvtss2sd using true f32 bits). */
+    (void)expect_kind;
+    (void)got_kind;
   }
 }
 
@@ -5509,9 +5509,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
         rt = lt;
       } else if (typeck_float_widen_ok(lt_kind, rt_kind_assign)) {
-        /* wave314: f32→f64 assign widen. */
-        pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
-        rt = lt;
+        /* wave314: f32→f64 assign accepted; do not stamp RHS (emit needs cvtss2sd). */
+        /* leave rt as f32 so store path can promote. */
       }
     }
     if (!ast.ref_is_null(lt) && !ast.ref_is_null(rt) && !type_refs_equal(arena, lt, rt)) {
@@ -5563,6 +5562,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     }
     if (!ast.ref_is_null(lt) && !ast.ref_is_null(rt)) {
       if (!type_refs_equal(arena, lt, rt)) {
+        lt_kind = pipeline_type_kind_ord_at(arena, lt);
+        let rt_kind_mis: i32 = pipeline_type_kind_ord_at(arena, rt);
+        /* wave314: f32→f64 is not a mismatch (emit promotes with cvtss2sd). */
+        if (!typeck_float_widen_ok(lt_kind, rt_kind_mis)) {
         eb = driver_typeck_diag_scratch_expect();
         gb = driver_typeck_diag_scratch_found();
         el = typeck_diag_fmt_type_into(arena, lt, eb, 96);
@@ -7209,26 +7212,26 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
         if (typeck_integer_widen_ok_refs(arena, ld_tr, init_ty)) {
           pipeline_expr_set_resolved_type_ref(arena, ld_ir, ld_tr);
           init_ty = ld_tr;
-        } else {
-          /* wave314: f32→f64 let-init widen. */
-          let decl_k: i32 = pipeline_type_kind_ord_at(arena, ld_tr);
-          let init_k: i32 = pipeline_type_kind_ord_at(arena, init_ty);
-          if (typeck_float_widen_ok(decl_k, init_k)) {
-            pipeline_expr_set_resolved_type_ref(arena, ld_ir, ld_tr);
-            init_ty = ld_tr;
-          }
         }
+        /* wave314: f32→f64 accepted without stamping resolved type.
+         * Freestanding emit needs true f32 bits then cvtss2sd; stamping VAR as f64
+         * zero-extends IEEE f32 bits and yields run=0 (Ubuntu gold). */
       }
       if (!ast.ref_is_null(init_ty) && !type_refs_equal(arena, ld_tr, init_ty)
           && pipeline_typeck_linear_accepts_init_c(arena, ld_tr, init_ty) == 0) {
-        eb = driver_typeck_diag_scratch_expect();
-        gb = driver_typeck_diag_scratch_found();
-        el = typeck_diag_fmt_type_into(arena, ld_tr, eb, 96);
-        gl = typeck_diag_fmt_type_into(arena, init_ty, gb, 96);
-        let err_line: i32 = pipeline_expr_line_at(arena, ld_ir);
-        let err_col: i32 = pipeline_expr_col_at(arena, ld_ir);
-        driver_diagnostic_typeck_assign_mismatch(0, err_line, err_col, eb, el, gb, gl);
-        return - 1;
+        let decl_k2: i32 = pipeline_type_kind_ord_at(arena, ld_tr);
+        let init_k2: i32 = pipeline_type_kind_ord_at(arena, init_ty);
+        if (!typeck_float_widen_ok(decl_k2, init_k2)) {
+          eb = driver_typeck_diag_scratch_expect();
+          gb = driver_typeck_diag_scratch_found();
+          el = typeck_diag_fmt_type_into(arena, ld_tr, eb, 96);
+          gl = typeck_diag_fmt_type_into(arena, init_ty, gb, 96);
+          let err_line: i32 = pipeline_expr_line_at(arena, ld_ir);
+          let err_col: i32 = pipeline_expr_col_at(arena, ld_ir);
+          driver_diagnostic_typeck_assign_mismatch(0, err_line, err_col, eb, el, gb, gl);
+          return - 1;
+        }
+        /* match via f32→f64; leave init_ty as f32 for freestanding cvtss2sd. */
       }
       /* See implementation. */
       if (!ast.ref_is_null(init_ty) && pipeline_typeck_check_slice_region_assign_c(arena, ld_ir, ld_tr, init_ty) != 0) {

@@ -4068,14 +4068,13 @@ void typeck_ret_coerce_integral_widen(struct ast_ASTArena * arena, int32_t op_re
   }
   (void)((expect_kind = pipeline_type_kind_ord_at(arena, expect_ref)));
   (void)((got_kind = pipeline_type_kind_ord_at(arena, got_ref)));
-  /* wave313/314: integer refs widen or f32→f64. */
+  /* wave313: integer stamp. wave314 f32→f64: no stamp. */
   if (typeck_integer_widen_ok_refs(arena, expect_ref, got_ref)) {
     (void)(pipeline_expr_set_resolved_type_ref(arena, op_ref, expect_ref));
     return;
   }
-  if (typeck_float_widen_ok(expect_kind, got_kind)) {
-    (void)(pipeline_expr_set_resolved_type_ref(arena, op_ref, expect_ref));
-  }
+  (void)expect_kind;
+  (void)got_kind;
 }
 void typeck_ret_coerce_null_lit_to_expect(struct ast_ASTArena * arena, int32_t op_ref, int32_t expect_ref) {
   int32_t ord_lit = 0;
@@ -4550,11 +4549,9 @@ int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena
     if (typeck_integer_widen_ok_refs(arena, lt, rt)) {
       (void)(pipeline_expr_set_resolved_type_ref(arena, right_ref, lt));
       (void)((rt = lt));
-    } else if (typeck_float_widen_ok(lt_kind, rt_kind_assign)) {
-      /* wave314: f32→f64 assign. */
-      (void)(pipeline_expr_set_resolved_type_ref(arena, right_ref, lt));
-      (void)((rt = lt));
     }
+    /* wave314: f32→f64 assign — no stamp. */
+    (void)rt_kind_assign;
   }
   if (((!(ast_ref_is_null(lt)) && !(ast_ref_is_null(rt))) && !(type_refs_equal(arena, lt, rt)))) {
     (void)((rhs_kind = pipeline_expr_kind_ord_at(arena, right_ref)));
@@ -4602,12 +4599,16 @@ int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena
   }
   if ((!(ast_ref_is_null(lt)) && !(ast_ref_is_null(rt)))) {
     if (!(type_refs_equal(arena, lt, rt))) {
-      (void)((eb = driver_typeck_diag_scratch_expect()));
-      (void)((gb = driver_typeck_diag_scratch_found()));
-      (void)((el = typeck_diag_fmt_type_into(arena, lt, eb, 96)));
-      (void)((gl = typeck_diag_fmt_type_into(arena, rt, gb, 96)));
-      (void)(driver_diagnostic_typeck_assign_mismatch(compound_flag, line, col, eb, el, gb, gl));
-      return -(1);
+      int32_t lt_k_mis = pipeline_type_kind_ord_at(arena, lt);
+      int32_t rt_k_mis = pipeline_type_kind_ord_at(arena, rt);
+      if (!(typeck_float_widen_ok(lt_k_mis, rt_k_mis))) {
+        (void)((eb = driver_typeck_diag_scratch_expect()));
+        (void)((gb = driver_typeck_diag_scratch_found()));
+        (void)((el = typeck_diag_fmt_type_into(arena, lt, eb, 96)));
+        (void)((gl = typeck_diag_fmt_type_into(arena, rt, gb, 96)));
+        (void)(driver_diagnostic_typeck_assign_mismatch(compound_flag, line, col, eb, el, gb, gl));
+        return -(1);
+      }
     }
     if ((pipeline_typeck_check_slice_region_assign_c(arena, expr_ref, lt, rt) !=0)) {
       return -(1);
@@ -5768,21 +5769,24 @@ int32_t typeck_check_block_one_let(struct ast_Module * module, struct ast_ASTAre
       if (typeck_integer_widen_ok_refs(arena, ld_tr, init_ty)) {
         (void)(pipeline_expr_set_resolved_type_ref(arena, ld_ir, ld_tr));
         (void)((init_ty = ld_tr));
-      } else if (typeck_float_widen_ok(decl_k, init_k)) {
-        /* wave314: f32→f64 let-init. */
-        (void)(pipeline_expr_set_resolved_type_ref(arena, ld_ir, ld_tr));
-        (void)((init_ty = ld_tr));
       }
+      /* wave314: f32→f64 no stamp. */
+      (void)decl_k;
+      (void)init_k;
     }
     if (((!(ast_ref_is_null(init_ty)) && !(type_refs_equal(arena, ld_tr, init_ty))) && (pipeline_typeck_linear_accepts_init_c(arena, ld_tr, init_ty) ==0))) {
-      int32_t err_line = pipeline_expr_line_at(arena, ld_ir);
-      int32_t err_col = pipeline_expr_col_at(arena, ld_ir);
-      (void)((eb = driver_typeck_diag_scratch_expect()));
-      (void)((gb = driver_typeck_diag_scratch_found()));
-      (void)((el = typeck_diag_fmt_type_into(arena, ld_tr, eb, 96)));
-      (void)((gl = typeck_diag_fmt_type_into(arena, init_ty, gb, 96)));
-      (void)(driver_diagnostic_typeck_assign_mismatch(0, err_line, err_col, eb, el, gb, gl));
-      return -(1);
+      int32_t decl_k2 = pipeline_type_kind_ord_at(arena, ld_tr);
+      int32_t init_k2 = pipeline_type_kind_ord_at(arena, init_ty);
+      if (!(typeck_float_widen_ok(decl_k2, init_k2))) {
+        int32_t err_line = pipeline_expr_line_at(arena, ld_ir);
+        int32_t err_col = pipeline_expr_col_at(arena, ld_ir);
+        (void)((eb = driver_typeck_diag_scratch_expect()));
+        (void)((gb = driver_typeck_diag_scratch_found()));
+        (void)((el = typeck_diag_fmt_type_into(arena, ld_tr, eb, 96)));
+        (void)((gl = typeck_diag_fmt_type_into(arena, init_ty, gb, 96)));
+        (void)(driver_diagnostic_typeck_assign_mismatch(0, err_line, err_col, eb, el, gb, gl));
+        return -(1);
+      }
     }
     if ((!(ast_ref_is_null(init_ty)) && (pipeline_typeck_check_slice_region_assign_c(arena, ld_ir, ld_tr, init_ty) !=0))) {
       return -(1);

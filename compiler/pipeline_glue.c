@@ -1892,6 +1892,12 @@ static int32_t glue_emit_sret_return_from_var_elf_c(struct ast_ASTArena *arena,
                                                     struct backend_AsmFuncCtx *ctx, int32_t ta);
 /** WPO-S3 async CPS：return 前 reset phase；定义见 glue_async_cps_emit_phase_reset。 */
 static int32_t glue_async_cps_emit_phase_reset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+/* wave314: f32→f64 freestanding promote (defs near typeck float_widen). */
+static int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(struct ast_ASTArena *arena,
+                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                       int32_t dest_ty_ref, int32_t src_ty_ref, int32_t ta);
+static int32_t glue_float_promote_src_ty_ref_c(struct ast_ASTArena *arena, int32_t expr_ref);
+extern int32_t pipeline_module_func_return_type_at(struct ast_Module *m, int32_t fi);
 
 static int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
@@ -1907,6 +1913,13 @@ static int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
         return -1;
     } else if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, ret_op, ctx, ta) != 0) {
       return -1;
+    } else if (g_pipeline_asm_emit_module && g_pipeline_asm_emit_func_index >= 0) {
+      /* wave314: return f32 value from f64 function — cvtss2sd. */
+      int32_t rty = pipeline_module_func_return_type_at(g_pipeline_asm_emit_module,
+                                                        g_pipeline_asm_emit_func_index);
+      int32_t sty = glue_float_promote_src_ty_ref_c(arena, ret_op);
+      if (glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, rty, sty, ta) != 0)
+        return -1;
     }
   }
   if (glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx, ta) != 0)
@@ -1929,6 +1942,11 @@ static int32_t glue_emit_binop_mul_rax_rbx_elf_c(struct ast_ASTArena *arena,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                    struct backend_AsmFuncCtx *ctx, int32_t left_ref,
                                                    int32_t right_ref, int32_t ta);
+/* wave314: f32→f64 freestanding promote (defs near typeck float_widen). */
+static int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(struct ast_ASTArena *arena,
+                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                       int32_t dest_ty_ref, int32_t src_ty_ref, int32_t ta);
+static int32_t glue_float_promote_src_ty_ref_c(struct ast_ASTArena *arena, int32_t expr_ref);
 
 /**
  * EXPR_NEG: emit unary operand, then negate.
@@ -9914,6 +9932,10 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
     }
     {
       int32_t ltr = glue_var_decl_type_ref_elf_c(arena, ctx, left_ref);
+      int32_t rty = glue_float_promote_src_ty_ref_c(arena, right_ref);
+      /* wave314: f32 RHS → f64 LHS promote before store. */
+      if (glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, ltr, rty, ta) != 0)
+        return -1;
       if (ltr > 0 && pipeline_type_kind_ord_at(arena, ltr) == GLUE_TYPE_KIND_F32_ORD) {
         if (backend_enc_store_eax_to_rbp_arch(elf_ctx, off, ta) != 0)
           return -1;
@@ -17107,6 +17129,12 @@ int32_t pipeline_asm_emit_block_inits_elf_c(struct ast_ASTArena *arena, struct p
       } else {
       if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta) != 0)
         return -1;
+      /* wave314: f32 init → f64 let slot needs cvtss2sd before store. */
+      {
+        int32_t src_ty = glue_float_promote_src_ty_ref_c(arena, init_ref);
+        if (glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, type_ref, src_ty, ta) != 0)
+          return -1;
+      }
       if (backend_enc_store_rax_to_rbp_arch(elf_ctx, backend_asm_ctx_slot_offset(ctx, slot), ta) != 0)
         return -1;
       }
@@ -20452,9 +20480,15 @@ static int32_t glue_emit_block_stmt_order_let_const_elf(struct ast_ASTArena *are
           else if (let_ty > 0 && pipeline_type_kind_ord_at(arena, let_ty) == GLUE_TYPE_KIND_F32_ORD) {
             if (backend_enc_store_eax_to_rbp_arch(elf_ctx, backend_asm_ctx_slot_offset(ctx, slot), ta) != 0)
               return -1;
-          } else if (glue_store_retval_pair_to_rbp_elf_c(glue_emit_module_from_ctx(ctx), arena, elf_ctx, let_ty,
-                                                         backend_asm_ctx_slot_offset(ctx, slot), ta, init_ref) != 0)
-            return -1;
+          } else {
+            /* wave314: f32→f64 let-init promote before 64-bit store. */
+            int32_t src_ty = glue_float_promote_src_ty_ref_c(arena, init_ref);
+            if (glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, let_ty, src_ty, ta) != 0)
+              return -1;
+            if (glue_store_retval_pair_to_rbp_elf_c(glue_emit_module_from_ctx(ctx), arena, elf_ctx, let_ty,
+                                                     backend_asm_ctx_slot_offset(ctx, slot), ta, init_ref) != 0)
+              return -1;
+          }
         }
       }
     } else if (glue_array_temp_bytes_for_let_init(arena, pipeline_block_let_type_ref(arena, block_ref, idx), 0) > 0) {
@@ -25222,6 +25256,44 @@ static int32_t pipeline_typeck_float_widen_ok_c(int32_t dest_kind, int32_t src_k
 }
 
 /**
+ * wave314 freestanding emit: if dest is f64 and src value in eax is f32 bits, promote via
+ * backend_enc_cvtss2sd_rax_from_f32_bits_arch (G.7 reuse wave293 encoder; no parallel path).
+ * @return 0 OK, -1 encode fail. No-op when not f32→f64.
+ * PLATFORM: SHARED typeck gate / LINUX+MACOS x86_64|arm64 encode via arch helper.
+ */
+static int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(struct ast_ASTArena *arena,
+                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                       int32_t dest_ty_ref, int32_t src_ty_ref, int32_t ta) {
+  int32_t dk;
+  int32_t sk;
+  if (!arena || !elf_ctx || dest_ty_ref <= 0 || src_ty_ref <= 0)
+    return 0;
+  dk = pipeline_type_kind_ord_at(arena, dest_ty_ref);
+  sk = pipeline_type_kind_ord_at(arena, src_ty_ref);
+  if (!pipeline_typeck_float_widen_ok_c(dk, sk))
+    return 0;
+  /* Only true widen f32→f64 needs convert (identity no-op). */
+  if (dk == (int32_t)ast_TypeKind_TYPE_F64 && sk == (int32_t)ast_TypeKind_TYPE_F32)
+    return backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx, ta);
+  return 0;
+}
+
+/**
+ * Resolve source type for float promote: resolved, else VAR decl fallback.
+ */
+static int32_t glue_float_promote_src_ty_ref_c(struct ast_ASTArena *arena, int32_t expr_ref) {
+  int32_t tr;
+  if (!arena || expr_ref <= 0)
+    return 0;
+  tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+  if (tr > 0)
+    return tr;
+  if (pipeline_expr_kind_ord_at(arena, expr_ref) == GLUE_EXPR_KIND_VAR)
+    return glue_var_expr_type_ref_with_decl_fallback_c(arena, expr_ref);
+  return 0;
+}
+
+/**
  * typeck.x::typeck_return_operand_matches 的 C 委托：return 操作数与期望返回类型是否匹配。
  */
 int32_t pipeline_typeck_return_operand_matches_c(struct ast_ASTArena *arena, int32_t op_ref, int32_t expect_ref) {
@@ -25308,9 +25380,9 @@ void pipeline_typeck_ret_coerce_integral_widen_c(struct ast_ASTArena *arena, int
     pipeline_expr_set_resolved_type_ref(arena, op_ref, expect_ref);
     return;
   }
-  /* wave314: stamp f32→f64 onto return operand. */
-  if (pipeline_typeck_float_widen_ok_c(expect_kind, got_kind))
-    pipeline_expr_set_resolved_type_ref(arena, op_ref, expect_ref);
+  /* wave314: f32→f64 return — no stamp; emit promotes with cvtss2sd. */
+  (void)expect_kind;
+  (void)got_kind;
 }
 
 /** EXPR_RETURN 诊断与 scratch 缓冲（runtime.c）。 */
@@ -25810,8 +25882,7 @@ int32_t pipeline_typeck_check_expr_assign_c(struct ast_Module *module, struct as
           pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
           rt = lt;
         } else if (pipeline_typeck_float_widen_ok_c(lt_kind, rt_kind_w)) {
-          pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
-          rt = lt;
+          /* wave314: accept f32→f64 without stamp — freestanding emit cvtss2sd. */
         } else {
           /* wave310: prefer G.7 int_binop coerce (covers U8/U16/NEG); keep
            * prior hard set as fallback for ADD/SUB/MUL/DIV on wide ints. */
@@ -25829,12 +25900,17 @@ int32_t pipeline_typeck_check_expr_assign_c(struct ast_Module *module, struct as
         }
       }
       if (!pipeline_typeck_type_refs_equal_c(arena, lt, rt)) {
-        eb_ptr = driver_typeck_diag_scratch_expect();
-        gb_ptr = driver_typeck_diag_scratch_found();
-        el = pipeline_typeck_diag_fmt_type_into_c(arena, lt, eb_ptr, 96);
-        gl = pipeline_typeck_diag_fmt_type_into_c(arena, rt, gb_ptr, 96);
-        driver_diagnostic_typeck_assign_mismatch(compound_flag, line, col, eb_ptr, el, gb_ptr, gl);
-        return -1;
+        int32_t lk = pipeline_type_kind_ord_at(arena, lt);
+        int32_t rk = pipeline_type_kind_ord_at(arena, rt);
+        /* wave314: f32→f64 is not a typeck mismatch. */
+        if (!pipeline_typeck_float_widen_ok_c(lk, rk)) {
+          eb_ptr = driver_typeck_diag_scratch_expect();
+          gb_ptr = driver_typeck_diag_scratch_found();
+          el = pipeline_typeck_diag_fmt_type_into_c(arena, lt, eb_ptr, 96);
+          gl = pipeline_typeck_diag_fmt_type_into_c(arena, rt, gb_ptr, 96);
+          driver_diagnostic_typeck_assign_mismatch(compound_flag, line, col, eb_ptr, el, gb_ptr, gl);
+          return -1;
+        }
       }
     }
   }
