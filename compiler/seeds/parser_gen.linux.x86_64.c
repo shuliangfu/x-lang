@@ -1081,7 +1081,26 @@ extern void parser_onefunc_push_src_stmt(struct parser_OneFuncResult * out, uint
 extern void parser_expr_set_common_zeros(struct ast_Expr * e);
 extern int32_t parser_alloc_true_bool_lit(struct ast_ASTArena * arena);
 extern int32_t parser_alloc_float_lit(struct ast_ASTArena * arena, double fval);
-extern int32_t parser_expr_wrap_in_return(struct ast_ASTArena * arena, int32_t type_ref, int32_t inner_ref);
+extern int32_t parser_alloc_int_lit(struct ast_ASTArena * arena, int64_t ival);
+extern 
+/* wave305 Cap residual pure: full i64 EXPR_LIT (plain let/return must not use i32 sidecar). */
+int32_t parser_alloc_int_lit(struct ast_ASTArena * arena, int64_t ival) {
+  {
+    int32_t ref = ast_ast_arena_expr_alloc(arena);
+    if ((ref ==0)) {
+      return 0;
+    }
+    struct ast_Expr e = ast_ast_arena_expr_get(arena, ref);
+    (void)(((e.kind) = 0));
+    (void)(((e.int_val) = ival));
+    (void)(((e.line) = 0));
+    (void)(((e.col) = 0));
+    (void)(parser_expr_set_common_zeros(&(e)));
+    (void)(ast_ast_arena_expr_set(arena, ref, e));
+    return ref;
+  }
+}
+int32_t parser_expr_wrap_in_return(struct ast_ASTArena * arena, int32_t type_ref, int32_t inner_ref);
 extern int parser_should_wrap_func_tail_in_return(struct ast_ASTArena * arena, struct parser_OneFuncResult * res, int32_t type_ref);
 extern void parser_parse_match_subject_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
 extern void parser_parse_match_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, struct parser_ParseExprResult * out);
@@ -3555,7 +3574,8 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
       }
       if ((init_handled ==0)) {
         if ((((r.tok).kind) ==80)) {
-          int32_t int_val_saved = ((r.tok).int_val);
+          /* wave305: full i64; plain let uses parser_alloc_int_lit (not i32 sidecar). */
+          int64_t int_val_saved = ((r.tok).int_val);
           size_t int_start = (r.token_start);
           if ((int_start ==0)) {
             (void)((int_start = (((r.next_lex).pos) - 1)));
@@ -3577,7 +3597,14 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
             (void)(parser_lexer_copy_from_parse_expr_result_into(&(lex), &(expr_tmp)));
             (void)(lexer_next_into(&(r), lex, source));
           } else {
-            (void)((let_init_val = int_val_saved));
+            (void)((let_init_ref = parser_alloc_int_lit(arena, int_val_saved)));
+            (void)((let_init_val = 0));
+            if ((let_init_ref ==0)) {
+              (void)(((lex_out->pos) = (lex.pos)));
+              (void)(((lex_out->line) = (lex.line)));
+              (void)(((lex_out->col) = (lex.col)));
+              return 0;
+            }
           }
           (void)((init_handled = 1));
         }
@@ -5120,7 +5147,8 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
           (void)(lexer_next_into(&(r), lex, source));
         } else {
           if ((((r.tok).kind) ==80)) {
-            int32_t ret_int_val = ((r.tok).int_val);
+            /* wave305: full i64; plain return uses parser_alloc_int_lit (not return_val:i32). */
+            int64_t ret_int_val = ((r.tok).int_val);
             size_t ret_int_start = (r.token_start);
             if ((ret_int_start ==0)) {
               (void)((ret_int_start = (((r.next_lex).pos) - 1)));
@@ -5143,7 +5171,6 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
               }
               return;
             }
-            (void)(((impl_snap.return_val) = ret_int_val));
             if (((((r.tok).kind) !=95) && (((r.tok).kind) !=85))) {
               struct parser_ParseExprResult rex_add = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = ret_int_lex };
               (void)(parser_parse_expr_into(arena, ret_int_lex, source, &(rex_add)));
@@ -5159,6 +5186,12 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
               }
               return;
             }
+            (void)((return_expr_ref_storage = parser_alloc_int_lit(arena, ret_int_val)));
+            if ((return_expr_ref_storage ==0)) {
+              (void)(parser_set_onefunc_fail(out, lex));
+              return;
+            }
+            (void)(((impl_snap.return_val) = 0));
             if (!(parser_onefunc_finish_after_return_lex(out, &(impl_snap), source, lex, &((dummy_name)[0]), (func_name_len_storage)[0], return_expr_ref_storage))) {
               (void)(parser_set_onefunc_fail(out, lex));
               return;

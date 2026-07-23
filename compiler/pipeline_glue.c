@@ -1610,6 +1610,7 @@ int32_t backend_emit_loop_body_content_elf_sync(struct ast_ASTArena *arena,
 
 int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena *a, int32_t expr_ref);
 int32_t pipeline_expr_int_val_at(struct ast_ASTArena *a, int32_t expr_ref);
+int64_t pipeline_expr_int64_val_at(struct ast_ASTArena *a, int32_t expr_ref);
 int32_t pipeline_expr_const_folded_valid_at(struct ast_ASTArena *a, int32_t expr_ref);
 int32_t pipeline_expr_const_folded_val_at(struct ast_ASTArena *a, int32_t expr_ref);
 int32_t pipeline_expr_binop_left_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
@@ -13651,8 +13652,25 @@ int32_t pipeline_asm_emit_expr_elf_fast(struct ast_ASTArena *arena, struct platf
       return backend_enc_mov_imm32_to_w0_arch(elf_ctx, e->const_folded_val, ta);
     }
   }
-  if (ko == 0 || ko == 2)
-    return backend_enc_mov_imm32_to_w0_arch(elf_ctx, pipeline_expr_int_val_at(arena, expr_ref), ta);
+  /**
+   * wave305 Cap residual pure: EXPR_LIT / BOOL_LIT may hold full i64 (lexer +
+   * parser_alloc_int_lit). Prior always mov_imm32 → freestanding truncated
+   * values outside signed int32 (same soft residual as i32 sidecar). When the
+   * value does not fit in i32, load via mov_imm64 lo/hi (existing encoder).
+   * BOOL_LIT stays 0/1 so still takes the imm32 path.
+   * PLATFORM: SHARED cast path / LINUX+MACOS x86_64 emit.
+   */
+  if (ko == 0 || ko == 2) {
+    int64_t v64 = pipeline_expr_int64_val_at(arena, expr_ref);
+    if (v64 >= (int64_t)INT32_MIN && v64 <= (int64_t)INT32_MAX)
+      return backend_enc_mov_imm32_to_w0_arch(elf_ctx, (int32_t)v64, ta);
+    {
+      uint64_t u = (uint64_t)v64;
+      int32_t lo = (int32_t)(u & 0xffffffffu);
+      int32_t hi = (int32_t)(u >> 32);
+      return backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo, hi, ta);
+    }
+  }
   if (ko == 1)
     return glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, expr_ref, ta, 0, 0);
   if (ko == 50)

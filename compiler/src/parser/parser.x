@@ -1305,6 +1305,39 @@ export function parser_alloc_float_lit(arena: *ASTArena, fval: f64): i32 {
 }
 
 /**
+ * Allocate an EXPR_LIT holding a full 64-bit integer literal value.
+ *
+ * wave305 Cap residual: plain `let x: T = <TOKEN_INT>;` used to stash the
+ * value in the OneFunc sidecar `let_init_val: i32` (and return_val: i32),
+ * truncating every magnitude outside signed int32 (e.g. 2147483648 →
+ * -2147483648, 0x8000_0000_0000_0000 → 0). Prefer this allocator so the
+ * fill_block path takes init_ref / return_expr_ref and keeps Expr.int_val
+ * as the full i64 (token.int_val / lexer ival already use i64/u64).
+ *
+ * @param arena *ASTArena — expression arena; null/exhausted → 0
+ * @param ival i64 — full literal bits (signed view of u64 bit pattern for high-bit u64)
+ * @return i32 — expr ref, or 0 on alloc failure
+ * PLATFORM: SHARED — parser AST construction; verify mac + Ubuntu.
+ */
+export function parser_alloc_int_lit(arena: *ASTArena, ival: i64): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+  let ref: i32 = ast.ast_arena_expr_alloc(arena);
+  if (ref == 0) {
+    return 0;
+  }
+  let e: Expr = ast.ast_arena_expr_get(arena, ref);
+  e.kind = ExprKind.EXPR_LIT;
+  e.int_val = ival;
+  e.line = 0;
+  e.col = 0;
+  expr_set_common_zeros(&e);
+  ast.ast_arena_expr_set(arena, ref, e);
+  return ref;
+  }
+}
+
+/**
  * See implementation.
  * See implementation.
  * See implementation.
@@ -3755,10 +3788,12 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     if (init_handled == 0) {
       if (r.tok.kind == token.TokenKind.TOKEN_INT) {
         /*
-         * See implementation.
-         * See implementation.
+         * wave305 Cap residual pure: save full i64 from token (not i32).
+         * Plain let-init must allocate EXPR_LIT via parser_alloc_int_lit so the
+         * sidecar keeps init_ref; the i32 let_init_val path truncates >2^31-1.
+         * Compound / `as` still reparse via parse_expr_into (already full i64).
          */
-        let int_val_saved: i32 = r.tok.int_val;
+        let int_val_saved: i64 = r.tok.int_val;
         let int_start: usize = r.token_start;
         if (int_start == 0) {
           int_start = r.next_lex.pos - 1;
@@ -3780,7 +3815,12 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
           lexer_copy_from_parse_expr_result_into(&lex, &expr_tmp);
           lexer.lexer_next_into(&r, lex, source);
         } else {
-          let_init_val = int_val_saved;
+          // G.7: mirror plain float path (parser_alloc_float_lit); no i32 sidecar.
+          let_init_ref = parser_alloc_int_lit(arena, int_val_saved);
+          let_init_val = 0;
+          if (let_init_ref == 0) {
+            lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
+          }
         }
         init_handled = 1;
       }
@@ -5917,7 +5957,11 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     lex_from_next_into(&lex, r);
     lexer.lexer_next_into(&r, lex, source);
   } else if (r.tok.kind == token.TokenKind.TOKEN_INT) {
-    let ret_int_val: i32 = r.tok.int_val;
+    /*
+     * wave305 Cap residual pure: plain `return <TOKEN_INT>;` used return_val:i32
+     * (truncation). Always allocate full-i64 EXPR_LIT into return_expr_ref.
+     */
+    let ret_int_val: i64 = r.tok.int_val;
     let ret_int_start: usize = r.token_start;
     if (ret_int_start == 0) {
       ret_int_start = r.next_lex.pos - 1;
@@ -5938,10 +5982,8 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       }
       return;
     }
-    impl_snap.return_val = ret_int_val;
     /*
-     * See implementation.
-     * See implementation.
+     * Compound after bare INT → full parse_expr. Plain `;`/`}`` → alloc_int_lit.
      */
     if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON && r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
       let rex_add: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: ret_int_lex };
@@ -5956,7 +5998,11 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       }
       return;
     }
-    /* See implementation. */
+    return_expr_ref_storage = parser_alloc_int_lit(arena, ret_int_val);
+    if (return_expr_ref_storage == 0) {
+      set_onefunc_fail(out, lex); return;
+    }
+    impl_snap.return_val = 0;
     if (!onefunc_finish_after_return_lex(out, &impl_snap, source, lex, &dummy_name[0], func_name_len_storage[0], return_expr_ref_storage)) {
       set_onefunc_fail(out, lex); return;
     }
