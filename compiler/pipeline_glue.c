@@ -25537,6 +25537,9 @@ int32_t pipeline_typeck_check_expr_match_c(struct ast_Module *module, struct ast
  */
 int32_t pipeline_typeck_coerce_init_struct_lit_to_decl_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                          int32_t init_ref, int32_t decl_ty_ref);
+/* wave316: return path reuses float_lit coerce before body (defined with coerce family). */
+int32_t pipeline_typeck_coerce_init_float_lit_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
+                                                        int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
 
 /** bootstrap typeck 后处理（METHOD_CALL / 泛型 CALL）；定义见 pipeline_typeck_bootstrap_expr_fixup_c。 */
 static void pipeline_typeck_bootstrap_expr_fixup_c(struct ast_Module *module, struct ast_ASTArena *arena,
@@ -25601,8 +25604,10 @@ int32_t pipeline_typeck_check_expr_return_c(struct ast_Module *module, struct as
   pipeline_typeck_bootstrap_expr_fixup_c(module, arena, op_ref);
   if (!ast_ref_is_null(op_ref) && !ast_ref_is_null(return_type_ref)) {
     op_kind = pipeline_expr_kind_ord_at(arena, op_ref);
+    rt_kind = pipeline_type_kind_ord_at(arena, return_type_ref);
+    /* wave316: return float lit / `-float` → f32/f64 (G.7 reuse float_lit coerce). */
+    (void)pipeline_typeck_coerce_init_float_lit_to_decl_c(arena, op_ref, return_type_ref, rt_kind, op_kind);
     if (op_kind == (int32_t)ast_ExprKind_EXPR_LIT) {
-      rt_kind = pipeline_type_kind_ord_at(arena, return_type_ref);
       if (rt_kind == (int32_t)ast_TypeKind_TYPE_I64) {
         pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref);
       } else {
@@ -25795,6 +25800,9 @@ int32_t pipeline_typeck_coerce_init_lit_to_decl_c(struct ast_ASTArena *arena, in
 /* wave310: assign mega path reuses int_binop coerce (body later). */
 int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
                                                         int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
+/* wave316: assign/return mega path reuses float_lit coerce (body later). */
+int32_t pipeline_typeck_coerce_init_float_lit_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
+                                                        int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
 
 static int32_t pipeline_typeck_lit_fits_named_i16_u16_c(struct ast_ASTArena *arena, int32_t ty_ref, int32_t int_val) {
   uint8_t nm[64];
@@ -25877,8 +25885,10 @@ int32_t pipeline_typeck_check_expr_assign_c(struct ast_Module *module, struct as
      * wave310: assign RHS EXPR_NEG / int binop — G.7 reuse coerce_init_int_binop
      * (product mega path calls this C assign, not typeck.x typeck_check_expr_assign;
      * typeck.x mirror alone left Ubuntu assign `u8=-1` / `u64 a=-1` found i32).
+     * wave316: assign/compound RHS FLOAT_LIT / `-float` — G.7 reuse coerce_init_float_lit
+     * (closes `a:f32=6.0` / `a+=2.0` / `a=-6.0`; product path must update this C).
      * Named i16/u16 still use lit_fits helper when lit coerce misses TYPE_NAMED.
-     * PLATFORM: SHARED — typeck lit/binop assign coerce.
+     * PLATFORM: SHARED — typeck lit/binop/float assign coerce.
      */
     if (rhs_kind == (int32_t)ast_ExprKind_EXPR_LIT) {
       if (pipeline_typeck_coerce_init_lit_to_decl_c(arena, right_ref, lt, lt_kind, rhs_kind) == 0 &&
@@ -25889,6 +25899,7 @@ int32_t pipeline_typeck_check_expr_assign_c(struct ast_Module *module, struct as
       }
       (void)rt_after;
     } else if (!pipeline_typeck_type_refs_equal_c(arena, lt, rt_after)) {
+      (void)pipeline_typeck_coerce_init_float_lit_to_decl_c(arena, right_ref, lt, lt_kind, rhs_kind);
       (void)pipeline_typeck_coerce_init_int_binop_to_decl_c(arena, right_ref, lt, lt_kind, rhs_kind);
     }
   }
@@ -29313,21 +29324,44 @@ int32_t pipeline_typeck_coerce_init_lit_to_decl_c(struct ast_ASTArena *arena, in
   return 0;
 }
 
-/** typeck.x::typeck_coerce_init_float_lit_to_decl 的 C 委托。 */
+/**
+ * typeck.x::typeck_coerce_init_float_lit_to_decl C twin (G.7).
+ * wave316: bare FLOAT_LIT + EXPR_NEG of FLOAT_LIT → f32/f64 (assign/return/let).
+ * PLATFORM: SHARED — product mega typeck uses this path for coerce_init_expr.
+ */
 int32_t pipeline_typeck_coerce_init_float_lit_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
                                                         int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind) {
   struct ast_Expr *init_ex;
+  int32_t op_ref;
 
   if (!arena || init_ref <= 0 || init_ref > arena->num_exprs)
     return 0;
-  if (init_kind != (int32_t)ast_ExprKind_EXPR_FLOAT_LIT ||
-      (decl_kind != (int32_t)ast_TypeKind_TYPE_F32 && decl_kind != (int32_t)ast_TypeKind_TYPE_F64))
+  if (decl_kind != (int32_t)ast_TypeKind_TYPE_F32 && decl_kind != (int32_t)ast_TypeKind_TYPE_F64)
     return 0;
-  init_ex = pipeline_arena_expr_ptr(arena, init_ref);
-  if (!init_ex)
-    return 0;
-  init_ex->resolved_type_ref = decl_ty_ref;
-  return 1;
+  if (init_kind == (int32_t)ast_ExprKind_EXPR_FLOAT_LIT) {
+    init_ex = pipeline_arena_expr_ptr(arena, init_ref);
+    if (!init_ex)
+      return 0;
+    init_ex->resolved_type_ref = decl_ty_ref;
+    return 1;
+  }
+  /* wave316: unary `-6.0` is EXPR_NEG of FLOAT_LIT — stamp operand + NEG. */
+  if (init_kind == (int32_t)ast_ExprKind_EXPR_NEG) {
+    op_ref = pipeline_expr_unary_operand_ref_at(arena, init_ref);
+    if (ast_ref_is_null(op_ref) || op_ref <= 0 || op_ref > arena->num_exprs)
+      return 0;
+    if (pipeline_expr_kind_ord_at(arena, op_ref) != (int32_t)ast_ExprKind_EXPR_FLOAT_LIT)
+      return 0;
+    init_ex = pipeline_arena_expr_ptr(arena, op_ref);
+    if (init_ex)
+      init_ex->resolved_type_ref = decl_ty_ref;
+    init_ex = pipeline_arena_expr_ptr(arena, init_ref);
+    if (!init_ex)
+      return 0;
+    init_ex->resolved_type_ref = decl_ty_ref;
+    return 1;
+  }
+  return 0;
 }
 
 /** typeck.x::typeck_coerce_init_enum_field_to_decl 的 C 委托（枚举 variant 字段访问）。 */

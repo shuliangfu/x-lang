@@ -4153,17 +4153,45 @@ decl_kind: i32, init_kind: i32): i32 {
   }
 }
 
-/* See implementation. */
+/**
+ * Coerce bare float literal (or unary `-` of a float literal) to a float decl type.
+ * @param arena *ASTArena — expression pool
+ * @param init_ref i32 — init/RHS/return operand expr ref
+ * @param decl_ty_ref i32 — destination type ref (f32 or f64)
+ * @param decl_kind i32 — TypeKind ordinal of decl_ty_ref
+ * @param init_kind i32 — ExprKind ordinal of init_ref
+ * @return i32 — 1 if stamped, 0 if not applicable
+ * wave316 Cap residual: bare FLOAT_LIT already coerced on let-init; assign/return
+ * and unary `-6.0` (EXPR_NEG of FLOAT_LIT) still resolved as default f64 → type mismatch
+ * on f32. G.7 single authority — peel NEG once, stamp both NEG and operand.
+ * PLATFORM: SHARED — seed typeck_gen + empty_surface + pipeline_glue twin.
+ */
 export function typeck_coerce_init_float_lit_to_decl(arena: *ASTArena, init_ref: i32, decl_ty_ref: i32,
 decl_kind: i32, init_kind: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let ord_expr_float: i32 = 1;
+    let ord_neg: i32 = 22;
     let ord_f32: i32 = 14;
-    let ord_f64: i32 = 14;
-    if (init_kind == ord_expr_float && (decl_kind == ord_f32 || decl_kind == ord_f64)) {
+    let ord_f64: i32 = 15;
+    let op_ref: i32 = 0;
+    if (decl_kind != ord_f32 && decl_kind != ord_f64) {
+      return 0;
+    }
+    if (init_kind == ord_expr_float) {
       pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
       return 1;
+    }
+    /* wave316: `let a: f32 = -6.0` / `return -6.0` / `a = -6.0` — EXPR_NEG of FLOAT_LIT. */
+    if (init_kind == ord_neg) {
+      op_ref = pipeline_expr_unary_operand_ref_at(arena, init_ref);
+      if (!ast.ref_is_null(op_ref) && op_ref > 0 && op_ref <= arena.num_exprs) {
+        if (pipeline_expr_kind_ord_at(arena, op_ref) == ord_expr_float) {
+          pipeline_expr_set_resolved_type_ref(arena, op_ref, decl_ty_ref);
+          pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+          return 1;
+        }
+      }
     }
     return 0;
   }
@@ -5490,12 +5518,15 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
        * `int_val >= 0` for u64/usize, so `a = u64max` / `a = i64max` failed.
        * wave310: assign RHS EXPR_NEG / int binop — reuse typeck_coerce_init_int_binop_to_decl
        * (closes `a:u8=-1` / `a:u16=-1` / `a:u64=-1` assign + `1-2`; let-init already had int_binop).
-       * PLATFORM: SHARED — typeck lit/binop assign coerce.
+       * wave316: assign/compound RHS FLOAT_LIT / `-float` — reuse typeck_coerce_init_float_lit_to_decl
+       * (closes `a:f32 = 6.0` / `a += 2.0` / `a = -6.0`; let-init already had float lit).
+       * PLATFORM: SHARED — typeck lit/binop/float assign coerce.
        */
       if (!type_refs_equal(arena, lt, rt_after)) {
         if (rhs_kind == ord_lit) {
           typeck_coerce_init_lit_to_decl(arena, right_ref, lt, lt_kind, rhs_kind);
         } else {
+          typeck_coerce_init_float_lit_to_decl(arena, right_ref, lt, lt_kind, rhs_kind);
           typeck_coerce_init_int_binop_to_decl(arena, right_ref, lt, lt_kind, rhs_kind);
         }
       }
@@ -5674,6 +5705,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     if (!ast.ref_is_null(op_ref) && !ast.ref_is_null(return_type_ref)) {
       let rk_ret: i32 = pipeline_type_kind_ord_at(arena, return_type_ref);
       let ok_ret: i32 = pipeline_expr_kind_ord_at(arena, op_ref);
+      /* wave316: return float lit / `-float` to f32/f64 (G.7 reuse float_lit coerce). */
+      typeck_coerce_init_float_lit_to_decl(arena, op_ref, return_type_ref, rk_ret, ok_ret);
       if (typeck_coerce_init_enum_field_to_decl(module, arena, op_ref, return_type_ref, rk_ret, ok_ret) != 0) {
         /* stamped */
       }

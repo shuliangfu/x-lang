@@ -4659,14 +4659,31 @@ int32_t typeck_coerce_init_lit_to_decl(struct ast_ASTArena * arena, int32_t init
     return 0;
   }
 }
+/* wave316 Cap residual: bare FLOAT_LIT + EXPR_NEG of FLOAT_LIT → f32/f64.
+ * PLATFORM: SHARED — mirror typeck.x + pipeline_glue float_lit coerce (G.7). */
 int32_t typeck_coerce_init_float_lit_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind) {
   {
     int32_t ord_expr_float = 1;
+    int32_t ord_neg = 22;
     int32_t ord_f32 = 14;
-    int32_t ord_f64 = 14;
-    if (((init_kind ==ord_expr_float) && ((decl_kind ==ord_f32) || (decl_kind ==ord_f64)))) {
+    int32_t ord_f64 = 15;
+    int32_t op_ref = 0;
+    if (((decl_kind !=ord_f32) && (decl_kind !=ord_f64))) {
+      return 0;
+    }
+    if ((init_kind ==ord_expr_float)) {
       (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
       return 1;
+    }
+    if ((init_kind ==ord_neg)) {
+      (void)((op_ref = pipeline_expr_unary_operand_ref_at(arena, init_ref)));
+      if (((!(ast_ref_is_null(op_ref)) && (op_ref > 0)) && (op_ref <=(arena->num_exprs)))) {
+        if ((pipeline_expr_kind_ord_at(arena, op_ref) ==ord_expr_float)) {
+          (void)(pipeline_expr_set_resolved_type_ref(arena, op_ref, decl_ty_ref));
+          (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
+          return 1;
+        }
+      }
     }
     return 0;
   }
@@ -5723,11 +5740,13 @@ int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena
       /* wave308: assign RHS bare EXPR_LIT — G.7 reuse typeck_coerce_init_lit_to_decl
        * (full i64; drop i32 int_val gate).
        * wave310: assign RHS EXPR_NEG/int binop — G.7 reuse typeck_coerce_init_int_binop_to_decl
-       * (u8/u16/u64 =-1 assign; 1-2). PLATFORM: SHARED */
+       * (u8/u16/u64 =-1 assign; 1-2).
+       * wave316: FLOAT_LIT / -float → f32/f64 (G.7 float_lit coerce). PLATFORM: SHARED */
       if (!(typeck_type_refs_equal(arena, lt, rt_after))) {
         if ((rhs_kind ==ord_lit)) {
           (void)(typeck_coerce_init_lit_to_decl(arena, right_ref, lt, lt_kind, rhs_kind));
         } else {
+          (void)(typeck_coerce_init_float_lit_to_decl(arena, right_ref, lt, lt_kind, rhs_kind));
           (void)(typeck_coerce_init_int_binop_to_decl(arena, right_ref, lt, lt_kind, rhs_kind));
         }
       }
@@ -5893,6 +5912,8 @@ int32_t typeck_check_expr_return(struct ast_Module * module, struct ast_ASTArena
     if ((!(ast_ref_is_null(op_ref)) && !(ast_ref_is_null(return_type_ref)))) {
       int32_t rk_ret = pipeline_type_kind_ord_at(arena, return_type_ref);
       int32_t ok_ret = pipeline_expr_kind_ord_at(arena, op_ref);
+      /* wave316: return float lit / -float → f32/f64. */
+      (void)(typeck_coerce_init_float_lit_to_decl(arena, op_ref, return_type_ref, rk_ret, ok_ret));
       if ((typeck_coerce_init_enum_field_to_decl(module, arena, op_ref, return_type_ref, rk_ret, ok_ret) !=0)) {
       }
     }
