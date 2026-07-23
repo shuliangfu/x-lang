@@ -148,6 +148,20 @@ let g_lexer_incomplete_oct_line: i32 = 0;
 let g_lexer_incomplete_oct_col: i32 = 0;
 let g_lexer_incomplete_oct_reported: i32 = 0;
 
+
+/**
+ * wave278 Cap residual: sticky invalid digit-separator state for the current parse.
+ * Set when `_` appears in a numeric literal without a following valid radix digit
+ * (trailing `_`, consecutive `__`, or `_` before a non-digit). Cleared by
+ * lexer_invalid_digit_sep_reset at each product parse entry.
+ * PLATFORM: SHARED
+ */
+let g_lexer_invalid_digit_sep: i32 = 0;
+let g_lexer_invalid_digit_sep_line: i32 = 0;
+let g_lexer_invalid_digit_sep_col: i32 = 0;
+let g_lexer_invalid_digit_sep_reported: i32 = 0;
+
+
 /**
  * Clear unclosed block-comment sticky state (call once per parse entry).
  * @return void
@@ -293,6 +307,27 @@ export function lexer_incomplete_oct_reset(): void {
  */
 export function lexer_incomplete_oct_pending(): i32 {
   return g_lexer_incomplete_oct;
+}
+
+/**
+ * Clear invalid-digit-separator sticky state (call once per parse entry).
+ * @return void
+ * PLATFORM: SHARED — wave278 Cap residual pure
+ */
+export function lexer_invalid_digit_sep_reset(): void {
+  g_lexer_invalid_digit_sep = 0;
+  g_lexer_invalid_digit_sep_line = 0;
+  g_lexer_invalid_digit_sep_col = 0;
+  g_lexer_invalid_digit_sep_reported = 0;
+}
+
+/**
+ * Non-zero if lexer saw an invalid numeric digit separator (`_`) this parse.
+ * @return i32 — 1 when sticky L008 pending, else 0
+ * PLATFORM: SHARED — wave278 Cap residual pure
+ */
+export function lexer_invalid_digit_sep_pending(): i32 {
+  return g_lexer_invalid_digit_sep;
 }
 
 /**
@@ -824,6 +859,86 @@ function lexer_note_incomplete_oct(line: i32, col: i32): void {
   }
 }
 
+
+/**
+ * Record and report L008 once for an invalid numeric digit separator.
+ * Covers trailing `_` (`42_`), consecutive `__` (`1__000`), and `_` not followed
+ * by a valid radix digit inside INT/FLOAT digit loops.
+ * Prior soft residual: INT+IDENT → XP003 parse-skip.
+ * @param line i32 — 1-based line of the invalid `_`
+ * @param col i32 — 1-based column of the invalid `_`
+ * @return void
+ * PLATFORM: SHARED — stack byte lits only (no va_list); dual-host product matrix.
+ */
+function lexer_note_invalid_digit_sep(line: i32, col: i32): void {
+  if (g_lexer_invalid_digit_sep == 0) {
+    g_lexer_invalid_digit_sep = 1;
+    g_lexer_invalid_digit_sep_line = line;
+    g_lexer_invalid_digit_sep_col = col;
+  }
+  if (g_lexer_invalid_digit_sep_reported != 0) {
+    return;
+  }
+  g_lexer_invalid_digit_sep_reported = 1;
+  // kind = "lexer error"
+  let kind: u8[16] = [];
+  kind[0] = 108;
+  kind[1] = 101;
+  kind[2] = 120;
+  kind[3] = 101;
+  kind[4] = 114;
+  kind[5] = 32;
+  kind[6] = 101;
+  kind[7] = 114;
+  kind[8] = 114;
+  kind[9] = 111;
+  kind[10] = 114;
+  kind[11] = 0;
+  // code = "L008"
+  let code: u8[8] = [];
+  code[0] = 76;
+  code[1] = 48;
+  code[2] = 48;
+  code[3] = 56;
+  code[4] = 0;
+  // msg = "invalid digit separator"
+  let msg: u8[32] = [];
+  msg[0] = 105;
+  msg[1] = 110;
+  msg[2] = 118;
+  msg[3] = 97;
+  msg[4] = 108;
+  msg[5] = 105;
+  msg[6] = 100;
+  msg[7] = 32;
+  msg[8] = 100;
+  msg[9] = 105;
+  msg[10] = 103;
+  msg[11] = 105;
+  msg[12] = 116;
+  msg[13] = 32;
+  msg[14] = 115;
+  msg[15] = 101;
+  msg[16] = 112;
+  msg[17] = 97;
+  msg[18] = 114;
+  msg[19] = 97;
+  msg[20] = 116;
+  msg[21] = 111;
+  msg[22] = 114;
+  msg[23] = 0;
+  unsafe {
+    diag_report_with_code(
+      0 as *u8,
+      g_lexer_invalid_digit_sep_line,
+      g_lexer_invalid_digit_sep_col,
+      &kind[0],
+      &code[0],
+      &msg[0],
+      0 as *u8);
+  }
+}
+
 /** Exported function `lexer_init`.
  * Implements `lexer_init`.
  * @return Lexer
@@ -892,10 +1007,11 @@ export function is_oct_digit(c: u8): bool {
  * wave277 Cap residual: numeric digit separator `_` (Rust/Python-style).
  * True when `data[pos]` is `_` (ASCII 95) and the next byte is a valid digit for `kind`.
  * Callers advance past the `_` then consume the following digit in the normal loop.
- * Trailing `_`, consecutive `__`, and leading `_` after a bare prefix without a following
- * digit are not separators (leave `_` for the next token / incomplete L00x path).
+ * Trailing `_`, consecutive `__`, and `_` not followed by a valid radix digit are not
+ * separators: digit loops call lexer_note_invalid_digit_sep (sticky L008) instead of
+ * leaving soft INT+IDENT XP003 (wave278).
  *
- * Prior: `1_000` / `0x2_A` lexed INT + IDENT → soft XP003 parse-skip.
+ * Prior wave277: `1_000` / `0x2_A` valid seps; trailing/`__` still soft residual until L008.
  *
  * @param data u8[] — full source buffer
  * @param pos usize — candidate underscore index
@@ -2600,6 +2716,13 @@ export function lexer_apply_optional_exponent(l: Lexer, data: u8[], fval: f64, o
         break;
       }
     }
+    // wave278: invalid `_` in optional exp digits → sticky L008 (caller emits EOF).
+    if (lex.pos < data.length && data[lex.pos] == 95) {
+      lexer_note_invalid_digit_sep(lex.line, lex.col);
+      out_l[0] = lex;
+      out_f[0] = cur;
+      return -1;
+    }
     // wave274: `1e` / `1e+` / `1.5e-` with zero digits was silent exp=0 (wrong TOKEN_FLOAT).
     if (exp_digits == 0) {
       lexer_note_incomplete_exp(e_line, e_col);
@@ -2748,6 +2871,16 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           break;
         }
       }
+      // wave278: `_` not followed by hex digit → sticky L008 (not soft XP003 / L004-only).
+      if (l.pos < data.length && data[l.pos] == 95) {
+        lexer_note_invalid_digit_sep(l.line, l.col);
+        let tok_eof_sep: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        write_next_lex_into(out, l);
+        write_tok_into(out, tok_eof_sep);
+        out.token_start = start;
+        return;
+      }
       if (hex_digits == 0) {
         lexer_note_incomplete_hex(line0, col0);
         let tok_eof: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
@@ -2782,6 +2915,16 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         } else {
           break;
         }
+      }
+      // wave278: invalid `_` digit separator → sticky L008.
+      if (l.pos < data.length && data[l.pos] == 95) {
+        lexer_note_invalid_digit_sep(l.line, l.col);
+        let tok_eof_sep: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        write_next_lex_into(out, l);
+        write_tok_into(out, tok_eof_sep);
+        out.token_start = start;
+        return;
       }
       if (bin_digits == 0) {
         lexer_note_incomplete_bin(line0, col0);
@@ -2818,6 +2961,16 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           break;
         }
       }
+      // wave278: invalid `_` digit separator → sticky L008.
+      if (l.pos < data.length && data[l.pos] == 95) {
+        lexer_note_invalid_digit_sep(l.line, l.col);
+        let tok_eof_sep: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        write_next_lex_into(out, l);
+        write_tok_into(out, tok_eof_sep);
+        out.token_start = start;
+        return;
+      }
       if (oct_digits == 0) {
         lexer_note_incomplete_oct(line0, col0);
         let tok_eof: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
@@ -2847,6 +3000,16 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         break;
       }
     }
+    // wave278: trailing/invalid `_` after decimal digits → sticky L008.
+    if (l.pos < data.length && data[l.pos] == 95) {
+        lexer_note_invalid_digit_sep(l.line, l.col);
+        let tok_eof_sep: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        write_next_lex_into(out, l);
+        write_tok_into(out, tok_eof_sep);
+        out.token_start = start;
+        return;
+    }
     // wave275 Cap residual: C-style empty fraction after `.` (`1.`, `1.e2`) → TOKEN_FLOAT.
     // Prior: required digit after `.` so `1.e2` became INT+DOT+IDENT and codegen leaked host C
     // float text (silent wrong / host "exponent has no digits"). Field `1.foo` and `1..` stay INT.
@@ -2866,6 +3029,16 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         } else {
           break;
         }
+      }
+      // wave278: invalid `_` in fraction digits → sticky L008.
+      if (l.pos < data.length && data[l.pos] == 95) {
+        lexer_note_invalid_digit_sep(l.line, l.col);
+        let tok_eof_sep: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        write_next_lex_into(out, l);
+        write_tok_into(out, tok_eof_sep);
+        out.token_start = start;
+        return;
       }
       // wave274: incomplete exp after fraction → L005 + TOKEN_EOF (not silent exp=0 float).
       // wave275: also covers empty-frac scientific `1.e` / `1.e+` (was host-cc soft residual).
@@ -2910,6 +3083,16 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         } else {
           break;
         }
+      }
+      // wave278: invalid `_` in exponent digits → sticky L008.
+      if (l.pos < data.length && data[l.pos] == 95) {
+        lexer_note_invalid_digit_sep(l.line, l.col);
+        let tok_eof_sep: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        write_next_lex_into(out, l);
+        write_tok_into(out, tok_eof_sep);
+        out.token_start = start;
+        return;
       }
       if (exp_digits == 0) {
         lexer_note_incomplete_exp(e_line, e_col);
@@ -2969,6 +3152,16 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       } else {
         break;
       }
+    }
+    // wave278: invalid `_` in leading-dot fraction → sticky L008.
+    if (l.pos < data.length && data[l.pos] == 95) {
+        lexer_note_invalid_digit_sep(l.line, l.col);
+        let tok_eof_sep: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        write_next_lex_into(out, l);
+        write_tok_into(out, tok_eof_sep);
+        out.token_start = start;
+        return;
     }
     // wave274: incomplete exp after leading-dot float → L005 + TOKEN_EOF.
     if (lexer_apply_optional_exponent(l, data, fval, &l, &fval) != 0) {
@@ -3419,6 +3612,13 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
           break;
         }
       }
+      // wave278: `_` not followed by hex digit → sticky L008.
+      if (l.pos < data.length && data[l.pos] == 95) {
+        lexer_note_invalid_digit_sep(l.line, l.col);
+        let tok_eof_sep: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        return LexerResult { next_lex: l, tok: tok_eof_sep, token_start: start };
+      }
       if (hex_digits == 0) {
         lexer_note_incomplete_hex(line0, col0);
         let tok_eof: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
@@ -3446,6 +3646,13 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
         } else {
           break;
         }
+      }
+      // wave278: invalid `_` digit separator → sticky L008.
+      if (l.pos < data.length && data[l.pos] == 95) {
+        lexer_note_invalid_digit_sep(l.line, l.col);
+        let tok_eof_sep: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        return LexerResult { next_lex: l, tok: tok_eof_sep, token_start: start };
       }
       if (bin_digits == 0) {
         lexer_note_incomplete_bin(line0, col0);
@@ -3475,6 +3682,13 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
           break;
         }
       }
+      // wave278: invalid `_` digit separator → sticky L008.
+      if (l.pos < data.length && data[l.pos] == 95) {
+        lexer_note_invalid_digit_sep(l.line, l.col);
+        let tok_eof_sep: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        return LexerResult { next_lex: l, tok: tok_eof_sep, token_start: start };
+      }
       if (oct_digits == 0) {
         lexer_note_incomplete_oct(line0, col0);
         let tok_eof: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
@@ -3498,6 +3712,13 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
         break;
       }
     }
+    // wave278: trailing/invalid `_` after decimal digits → sticky L008.
+    if (l.pos < data.length && data[l.pos] == 95) {
+        lexer_note_invalid_digit_sep(l.line, l.col);
+        let tok_eof_sep: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        return LexerResult { next_lex: l, tok: tok_eof_sep, token_start: start };
+    }
     // wave275 Cap residual: G.7 mirror product path empty-fraction float (`1.`, `1.e2`).
     if (l.pos < data.length && data[l.pos] == 46 && lexer_dot_continues_float(data, l.pos) != 0) {
       l = advance_one(l, 46);
@@ -3515,6 +3736,13 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
         } else {
           break;
         }
+      }
+      // wave278: invalid `_` in fraction digits → sticky L008.
+      if (l.pos < data.length && data[l.pos] == 95) {
+        lexer_note_invalid_digit_sep(l.line, l.col);
+        let tok_eof_sep: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        return LexerResult { next_lex: l, tok: tok_eof_sep, token_start: start };
       }
       // wave274: incomplete exp after fraction → L005 + TOKEN_EOF.
       // wave275: empty-frac scientific `1.e` also L005.
@@ -3553,6 +3781,13 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
         } else {
           break;
         }
+      }
+      // wave278: invalid `_` in exponent digits → sticky L008.
+      if (l.pos < data.length && data[l.pos] == 95) {
+        lexer_note_invalid_digit_sep(l.line, l.col);
+        let tok_eof_sep: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        return LexerResult { next_lex: l, tok: tok_eof_sep, token_start: start };
       }
       if (exp_digits == 0) {
         lexer_note_incomplete_exp(e_line, e_col);
@@ -3602,6 +3837,13 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
       } else {
         break;
       }
+    }
+    // wave278: invalid `_` in leading-dot fraction → sticky L008.
+    if (l.pos < data.length && data[l.pos] == 95) {
+        lexer_note_invalid_digit_sep(l.line, l.col);
+        let tok_eof_sep: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        return LexerResult { next_lex: l, tok: tok_eof_sep, token_start: start };
     }
     if (lexer_apply_optional_exponent(l, data, fval, &l, &fval) != 0) {
       let tok_eof: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,

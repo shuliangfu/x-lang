@@ -5183,6 +5183,16 @@ export extern "C" function lexer_incomplete_oct_reset(): void;
  * PLATFORM: SHARED
  */
 export extern "C" function lexer_incomplete_oct_pending(): i32;
+/**
+ * wave278: reset sticky invalid digit-separator state before each product parse.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_invalid_digit_sep_reset(): void;
+/**
+ * wave278: non-zero if lexer saw trailing/consecutive/`_` not followed by radix digit.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_invalid_digit_sep_pending(): i32;
 
 #[no_mangle]
 export function driver_parse_into_buf_rc(
@@ -5200,7 +5210,7 @@ export function driver_parse_into_buf_rc(
   if (data == 0 as *u8) {
     return -1;
   }
-  // wave269–wave276: clear sticky L001–L007 state for this entry.
+  // wave269–wave278: clear sticky L001–L008 state for this entry.
   unsafe {
     lexer_unclosed_block_comment_reset();
     lexer_unclosed_string_reset();
@@ -5209,6 +5219,7 @@ export function driver_parse_into_buf_rc(
     lexer_incomplete_exp_reset();
     lexer_incomplete_bin_reset();
     lexer_incomplete_oct_reset();
+    lexer_invalid_digit_sep_reset();
   }
   let rc: i32 = 0;
   unsafe {
@@ -5217,7 +5228,7 @@ export function driver_parse_into_buf_rc(
   // Hard-fail when skip swallowed to EOF with unclosed /* ... (L001 already emitted),
   // string lex hit EOF without closer (L002), illegal/unknown byte (L003),
   // incomplete hex (L004), incomplete float exp (L005), incomplete binary (L006),
-  // or incomplete octal (L007).
+  // incomplete octal (L007), or invalid digit separator (L008).
   unsafe {
     if (lexer_unclosed_block_comment_pending() != 0) {
       if (out_main_idx != 0 as *i32) {
@@ -5256,6 +5267,12 @@ export function driver_parse_into_buf_rc(
       return -1;
     }
     if (lexer_incomplete_oct_pending() != 0) {
+      if (out_main_idx != 0 as *i32) {
+        out_main_idx[0] = -1;
+      }
+      return -1;
+    }
+    if (lexer_invalid_digit_sep_pending() != 0) {
       if (out_main_idx != 0 as *i32) {
         out_main_idx[0] = -1;
       }

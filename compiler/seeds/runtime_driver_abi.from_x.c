@@ -2300,6 +2300,8 @@ extern int32_t lexer_incomplete_exp_pending(void);
 extern void lexer_incomplete_bin_reset(void);
 extern int32_t lexer_incomplete_bin_pending(void);
 extern void lexer_incomplete_oct_reset(void);
+extern void lexer_invalid_digit_sep_reset(void);
+extern int32_t lexer_invalid_digit_sep_pending(void);
 extern int32_t lexer_incomplete_oct_pending(void);
 int32_t xlang_parser_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32_t len,
                                       int32_t *out_main_idx) {
@@ -2311,6 +2313,7 @@ int32_t xlang_parser_parse_into_buf_rc(void *arena, void *module, uint8_t *data,
     lexer_incomplete_exp_reset();
     lexer_incomplete_bin_reset();
     lexer_incomplete_oct_reset();
+    lexer_invalid_digit_sep_reset();
     pr = parser_parse_into_buf(arena, module, data, len);
     if (lexer_unclosed_block_comment_pending() != 0) {
         if (out_main_idx)
@@ -2347,6 +2350,11 @@ int32_t xlang_parser_parse_into_buf_rc(void *arena, void *module, uint8_t *data,
             *out_main_idx = -1;
         return -1;
     }
+    if (lexer_invalid_digit_sep_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
     if (out_main_idx)
         *out_main_idx = pr.main_idx;
     return pr.ok;
@@ -2372,6 +2380,8 @@ extern int32_t lexer_incomplete_exp_pending(void);
 extern void lexer_incomplete_bin_reset(void);
 extern int32_t lexer_incomplete_bin_pending(void);
 extern void lexer_incomplete_oct_reset(void);
+extern void lexer_invalid_digit_sep_reset(void);
+extern int32_t lexer_invalid_digit_sep_pending(void);
 extern int32_t lexer_incomplete_oct_pending(void);
 int32_t driver_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32_t len,
                                  int32_t *out_main_idx) {
@@ -2387,6 +2397,7 @@ int32_t driver_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32
     lexer_incomplete_exp_reset();
     lexer_incomplete_bin_reset();
     lexer_incomplete_oct_reset();
+    lexer_invalid_digit_sep_reset();
     rc = xlang_parser_parse_into_buf_rc(arena, module, data, len, out_main_idx);
     if (lexer_unclosed_block_comment_pending() != 0) {
         if (out_main_idx)
@@ -2419,6 +2430,11 @@ int32_t driver_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32
         return -1;
     }
     if (lexer_incomplete_oct_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_invalid_digit_sep_pending() != 0) {
         if (out_main_idx)
             *out_main_idx = -1;
         return -1;

@@ -830,6 +830,11 @@ static int32_t g_lexer_incomplete_oct = 0;
 static int32_t g_lexer_incomplete_oct_line = 0;
 static int32_t g_lexer_incomplete_oct_col = 0;
 static int32_t g_lexer_incomplete_oct_reported = 0;
+/* wave278: invalid digit separator sticky (G.7 ≡ lexer.x). */
+static int32_t g_lexer_invalid_digit_sep = 0;
+static int32_t g_lexer_invalid_digit_sep_line = 0;
+static int32_t g_lexer_invalid_digit_sep_col = 0;
+static int32_t g_lexer_invalid_digit_sep_reported = 0;
 
 void lexer_unclosed_block_comment_reset(void) {
   g_lexer_unclosed_bc = 0;
@@ -895,6 +900,16 @@ void lexer_incomplete_oct_reset(void) {
 int32_t lexer_incomplete_oct_pending(void) {
   return g_lexer_incomplete_oct;
 }
+/* wave278 Cap residual: clear invalid digit-sep sticky (≡ lexer.x). */
+void lexer_invalid_digit_sep_reset(void) {
+  g_lexer_invalid_digit_sep = 0;
+  g_lexer_invalid_digit_sep_line = 0;
+  g_lexer_invalid_digit_sep_col = 0;
+  g_lexer_invalid_digit_sep_reported = 0;
+}
+int32_t lexer_invalid_digit_sep_pending(void) {
+  return g_lexer_invalid_digit_sep;
+}
 static void lexer_note_incomplete_bin(int32_t line, int32_t col) {
   if (g_lexer_incomplete_bin == 0) {
     g_lexer_incomplete_bin = 1;
@@ -950,6 +965,26 @@ static void lexer_note_incomplete_oct(int32_t line, int32_t col) {
                           kind, code, msg, NULL);
   }
 }
+/* wave278 Cap residual: L008 invalid digit separator (G.7 ≡ lexer.x). */
+static void lexer_note_invalid_digit_sep(int32_t line, int32_t col) {
+  if (g_lexer_invalid_digit_sep == 0) {
+    g_lexer_invalid_digit_sep = 1;
+    g_lexer_invalid_digit_sep_line = line;
+    g_lexer_invalid_digit_sep_col = col;
+  }
+  if (g_lexer_invalid_digit_sep_reported != 0) {
+    return;
+  }
+  g_lexer_invalid_digit_sep_reported = 1;
+  {
+    char kind[] = "lexer error";
+    char code[] = "L008";
+    char msg[] = "invalid digit separator";
+    diag_report_with_code(NULL, g_lexer_invalid_digit_sep_line, g_lexer_invalid_digit_sep_col,
+                          (uint8_t *)kind, (uint8_t *)code, (uint8_t *)msg, (uint8_t *)0);
+  }
+}
+
 
 static void lexer_note_incomplete_exp(int32_t line, int32_t col) {
   if (g_lexer_incomplete_exp == 0) {
@@ -1247,6 +1282,13 @@ XLANG_LIB_WEAK int32_t lexer_apply_optional_exponent(struct lexer_Lexer l, struc
       break;
     }
   }
+  /* wave278: invalid `_` in optional exp → sticky L008. */
+  if (((lex).pos < (data)->length) && (((uint8_t *)(data)->data)[(lex).pos] == 95)) {
+    lexer_note_invalid_digit_sep((lex).line, (lex).col);
+    ((out_l)[0] = (lex));
+    ((out_f)[0] = (cur));
+    return -1;
+  }
   /* wave274: require ≥1 exp digit after e/E (≡ lexer.x L005). */
   if (exp_digits == 0) {
     lexer_note_incomplete_exp(e_line, e_col);
@@ -1361,6 +1403,15 @@ XLANG_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out
       break;
     }
   }
+  /* wave278: invalid `_` digit separator → sticky L008. */
+  if (((l).pos < (data)->length) && (((uint8_t *)(data)->data)[(l).pos] == 95)) {
+    lexer_note_invalid_digit_sep((l).line, (l).col);
+    struct token_Token tok_eof_sep = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+    (void)(lexer_write_next_lex_into(out, l));
+    (void)(lexer_write_tok_into(out, tok_eof_sep));
+    ((out)->token_start = (start));
+    return;
+  }
   if (hex_digits == 0) {
     lexer_note_incomplete_hex(line0, col0);
     struct token_Token tok_eof = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
@@ -1393,6 +1444,15 @@ XLANG_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out
       break;
     }
   }
+  /* wave278: invalid `_` digit separator → sticky L008. */
+  if (((l).pos < (data)->length) && (((uint8_t *)(data)->data)[(l).pos] == 95)) {
+    lexer_note_invalid_digit_sep((l).line, (l).col);
+    struct token_Token tok_eof_sep = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+    (void)(lexer_write_next_lex_into(out, l));
+    (void)(lexer_write_tok_into(out, tok_eof_sep));
+    ((out)->token_start = (start));
+    return;
+  }
   if (bin_digits == 0) {
     lexer_note_incomplete_bin(line0, col0);
     struct token_Token tok_eof = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
@@ -1424,6 +1484,15 @@ XLANG_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out
       break;
     }
   }
+  /* wave278: invalid `_` digit separator → sticky L008. */
+  if (((l).pos < (data)->length) && (((uint8_t *)(data)->data)[(l).pos] == 95)) {
+    lexer_note_invalid_digit_sep((l).line, (l).col);
+    struct token_Token tok_eof_sep = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+    (void)(lexer_write_next_lex_into(out, l));
+    (void)(lexer_write_tok_into(out, tok_eof_sep));
+    ((out)->token_start = (start));
+    return;
+  }
   if (oct_digits == 0) {
     lexer_note_incomplete_oct(line0, col0);
     struct token_Token tok_eof = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
@@ -1451,6 +1520,15 @@ XLANG_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out
       break;
     }
   }
+  /* wave278: invalid `_` digit separator → sticky L008. */
+  if (((l).pos < (data)->length) && (((uint8_t *)(data)->data)[(l).pos] == 95)) {
+    lexer_note_invalid_digit_sep((l).line, (l).col);
+    struct token_Token tok_eof_sep = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+    (void)(lexer_write_next_lex_into(out, l));
+    (void)(lexer_write_tok_into(out, tok_eof_sep));
+    ((out)->token_start = (start));
+    return;
+  }
   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 46 && lexer_dot_continues_float(data, (l).pos) != 0) {   (l = (lexer_advance_one(l, 46)));
   double fval = ((double)(ival));
   double frac = 0.1;
@@ -1466,6 +1544,15 @@ XLANG_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out
     } else {
       break;
     }
+  }
+  /* wave278: invalid `_` digit separator → sticky L008. */
+  if (((l).pos < (data)->length) && (((uint8_t *)(data)->data)[(l).pos] == 95)) {
+    lexer_note_invalid_digit_sep((l).line, (l).col);
+    struct token_Token tok_eof_sep = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+    (void)(lexer_write_next_lex_into(out, l));
+    (void)(lexer_write_tok_into(out, tok_eof_sep));
+    ((out)->token_start = (start));
+    return;
   }
   /* wave274: incomplete exp after fraction → L005 + TOKEN_EOF. */
   if (lexer_apply_optional_exponent(l, data, fval, (&(l)), (&(fval))) != 0) {
@@ -1506,6 +1593,15 @@ XLANG_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out
     } else {
       break;
     }
+  }
+  /* wave278: invalid `_` digit separator → sticky L008. */
+  if (((l).pos < (data)->length) && (((uint8_t *)(data)->data)[(l).pos] == 95)) {
+    lexer_note_invalid_digit_sep((l).line, (l).col);
+    struct token_Token tok_eof_sep = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+    (void)(lexer_write_next_lex_into(out, l));
+    (void)(lexer_write_tok_into(out, tok_eof_sep));
+    ((out)->token_start = (start));
+    return;
   }
   if (exp_digits == 0) {
     lexer_note_incomplete_exp(e_line, e_col);
@@ -1558,6 +1654,15 @@ XLANG_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out
     } else {
       break;
     }
+  }
+  /* wave278: invalid `_` digit separator → sticky L008. */
+  if (((l).pos < (data)->length) && (((uint8_t *)(data)->data)[(l).pos] == 95)) {
+    lexer_note_invalid_digit_sep((l).line, (l).col);
+    struct token_Token tok_eof_sep = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+    (void)(lexer_write_next_lex_into(out, l));
+    (void)(lexer_write_tok_into(out, tok_eof_sep));
+    ((out)->token_start = (start));
+    return;
   }
   /* wave274: incomplete exp after fraction → L005 + TOKEN_EOF. */
   if (lexer_apply_optional_exponent(l, data, fval, (&(l)), (&(fval))) != 0) {
@@ -1928,6 +2033,12 @@ XLANG_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, st
       break;
     }
   }
+  /* wave278: invalid `_` digit separator → sticky L008. */
+  if (((l).pos < (data)->length) && (((uint8_t *)(data)->data)[(l).pos] == 95)) {
+    lexer_note_invalid_digit_sep((l).line, (l).col);
+    struct token_Token tok_eof_sep = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+    return (struct lexer_LexerResult){ .next_lex = l, .tok = tok_eof_sep, .token_start = start };
+  }
   if (hex_digits == 0) {
     lexer_note_incomplete_hex(line0, col0);
     struct token_Token tok_eof = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
@@ -1954,6 +2065,12 @@ XLANG_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, st
       break;
     }
   }
+  /* wave278: invalid `_` digit separator → sticky L008. */
+  if (((l).pos < (data)->length) && (((uint8_t *)(data)->data)[(l).pos] == 95)) {
+    lexer_note_invalid_digit_sep((l).line, (l).col);
+    struct token_Token tok_eof_sep = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+    return (struct lexer_LexerResult){ .next_lex = l, .tok = tok_eof_sep, .token_start = start };
+  }
   if (bin_digits == 0) {
     lexer_note_incomplete_bin(line0, col0);
     struct token_Token tok_eof = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
@@ -1979,6 +2096,12 @@ XLANG_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, st
       break;
     }
   }
+  /* wave278: invalid `_` digit separator → sticky L008. */
+  if (((l).pos < (data)->length) && (((uint8_t *)(data)->data)[(l).pos] == 95)) {
+    lexer_note_invalid_digit_sep((l).line, (l).col);
+    struct token_Token tok_eof_sep = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+    return (struct lexer_LexerResult){ .next_lex = l, .tok = tok_eof_sep, .token_start = start };
+  }
   if (oct_digits == 0) {
     lexer_note_incomplete_oct(line0, col0);
     struct token_Token tok_eof = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
@@ -2000,6 +2123,12 @@ XLANG_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, st
       break;
     }
   }
+  /* wave278: invalid `_` digit separator → sticky L008. */
+  if (((l).pos < (data)->length) && (((uint8_t *)(data)->data)[(l).pos] == 95)) {
+    lexer_note_invalid_digit_sep((l).line, (l).col);
+    struct token_Token tok_eof_sep = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+    return (struct lexer_LexerResult){ .next_lex = l, .tok = tok_eof_sep, .token_start = start };
+  }
   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 46 && lexer_dot_continues_float(data, (l).pos) != 0) {   (l = (lexer_advance_one(l, 46)));
   double fval = ((double)(ival));
   double frac = 0.1;
@@ -2015,6 +2144,12 @@ XLANG_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, st
     } else {
       break;
     }
+  }
+  /* wave278: invalid `_` digit separator → sticky L008. */
+  if (((l).pos < (data)->length) && (((uint8_t *)(data)->data)[(l).pos] == 95)) {
+    lexer_note_invalid_digit_sep((l).line, (l).col);
+    struct token_Token tok_eof_sep = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+    return (struct lexer_LexerResult){ .next_lex = l, .tok = tok_eof_sep, .token_start = start };
   }
   if (lexer_apply_optional_exponent(l, data, fval, (&(l)), (&(fval))) != 0) { struct token_Token tok_eof = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }; return (struct lexer_LexerResult){ .next_lex = l, .tok = tok_eof, .token_start = start }; }
   struct token_Token tok = (struct token_Token){ .kind = token_TokenKind_TOKEN_FLOAT, .line = line0, .col = col0, .int_val = 0, .float_val = fval, .ident = 0, .ident_len = 0 };
@@ -2045,6 +2180,12 @@ XLANG_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, st
     } else {
       break;
     }
+  }
+  /* wave278: invalid `_` digit separator → sticky L008. */
+  if (((l).pos < (data)->length) && (((uint8_t *)(data)->data)[(l).pos] == 95)) {
+    lexer_note_invalid_digit_sep((l).line, (l).col);
+    struct token_Token tok_eof_sep = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+    return (struct lexer_LexerResult){ .next_lex = l, .tok = tok_eof_sep, .token_start = start };
   }
   if (exp_digits == 0) {
     lexer_note_incomplete_exp(e_line, e_col);
@@ -2088,6 +2229,12 @@ XLANG_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, st
     } else {
       break;
     }
+  }
+  /* wave278: invalid `_` digit separator → sticky L008. */
+  if (((l).pos < (data)->length) && (((uint8_t *)(data)->data)[(l).pos] == 95)) {
+    lexer_note_invalid_digit_sep((l).line, (l).col);
+    struct token_Token tok_eof_sep = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+    return (struct lexer_LexerResult){ .next_lex = l, .tok = tok_eof_sep, .token_start = start };
   }
   if (lexer_apply_optional_exponent(l, data, fval, (&(l)), (&(fval))) != 0) { struct token_Token tok_eof = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }; return (struct lexer_LexerResult){ .next_lex = l, .tok = tok_eof, .token_start = start }; }
   struct token_Token tok = (struct token_Token){ .kind = token_TokenKind_TOKEN_FLOAT, .line = line0, .col = col0, .int_val = 0, .float_val = fval, .ident = 0, .ident_len = 0 };

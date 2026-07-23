@@ -110,6 +110,10 @@ static const DiagCodeExplain g_diag_code_table[] = {
     {"L007", "lexer error", "Lexer found an incomplete octal literal.",
      "Used when an octal integer introducer `0o` or `0O` is not followed by at least one octal digit (0-7). "
      "Typical action: complete the literal (e.g. `0o0`, `0o52`) or remove the incomplete `0o` prefix."},
+    {"L008", "lexer error", "Lexer found an invalid digit separator.",
+     "Used when `_` appears in a numeric literal without a following valid digit for that radix "
+     "(trailing `_`, consecutive `__`, or `_` before a non-digit). "
+     "Typical action: remove the underscore or place it only between digits (e.g. `1_000`, `0x2_A`)."},
     {"IMP001", "import error", "Import path could not be opened from the resolved candidate path.",
      "Used when an import target cannot be opened after path resolution. Typical action: verify the import name, "
      "library roots, and the resolved on-disk file path shown in the diagnostic."},
