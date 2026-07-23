@@ -10,7 +10,10 @@
 // See implementation.
 export extern "C" function shu_async_runtime_trace_enabled_impl(): i32;
 export extern "C" function shu_async_trace_now_us_impl(): u64;
-export extern "C" function getenv(name: *u8): *u8;
+/* wave230 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED — product hybrid scheduler pure env gates. */
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 
 /** Exported function `runtime_scheduler_glue_x_doc_anchor`.
  * Implements `runtime_scheduler_glue_x_doc_anchor`.
@@ -147,16 +150,16 @@ export function shux_async_q_occupancy(head: u32, tail: u32): u32 {
 
 // See implementation.
 
-export extern "C" function getenv(name: *u8): *u8;
-
-/** Exported function `shu_async_runtime_trace_enabled`.
- * Implements `shu_async_runtime_trace_enabled`.
- * @return i32
+/** Truthy env gate for SHUX_ASYNC_RUNTIME_TRACE (non-empty and not "0").
+ * @return i32 — 1 when trace should run; 0 when disabled/missing/"0"
+ * wave230 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
+ * PLATFORM: SHARED — host residual only link_abi_getenv_impl.
  */
 #[no_mangle]
 export function shu_async_runtime_trace_enabled(): i32 {
   unsafe {
-    let e: *u8 = getenv("SHUX_ASYNC_RUNTIME_TRACE");
+    // wave230 G.7: SHUX_ASYNC_RUNTIME_TRACE via link_abi_getenv.
+    let e: *u8 = link_abi_getenv("SHUX_ASYNC_RUNTIME_TRACE");
     if (e == 0) { return 0; }
     if (e[0] == 0) { return 0; }
     if (e[0] == 48) {
@@ -168,15 +171,17 @@ export function shu_async_runtime_trace_enabled(): i32 {
 
 // shux_async_io_wait_enabled: see function docblock below.
 
-/** Exported function `shux_async_io_wait_enabled`.
- * Implements `shux_async_io_wait_enabled`.
- * @return i32
+/** Gate: SHUX_ASYNC_IO_WAIT == "1" (exact).
+ * @return i32 — 1 when IO-wait suspend path is enabled; else 0
+ * wave230 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
+ * PLATFORM: SHARED — host residual only link_abi_getenv_impl.
  */
 #[no_mangle]
 export function shux_async_io_wait_enabled(): i32 {
   // SHUX_ASYNC_IO_WAIT == "1"
   unsafe {
-    let e: *u8 = getenv("SHUX_ASYNC_IO_WAIT");
+    // wave230 G.7: SHUX_ASYNC_IO_WAIT via link_abi_getenv.
+    let e: *u8 = link_abi_getenv("SHUX_ASYNC_IO_WAIT");
     if (e == 0) { return 0; }
     if (e[0] == 49) {
       if (e[1] == 0) { return 1; }
@@ -184,15 +189,17 @@ export function shux_async_io_wait_enabled(): i32 {
   }
 }
 
-/** Exported function `shux_async_affinity_enabled`.
- * Implements `shux_async_affinity_enabled`.
- * @return i32
+/** Gate: SHUX_ASYNC_AFFINITY == "1" (exact).
+ * @return i32 — 1 when worker drain should bind CPU; else 0
+ * wave230 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
+ * PLATFORM: SHARED — host residual only link_abi_getenv_impl.
  */
 #[no_mangle]
 export function shux_async_affinity_enabled(): i32 {
   // SHUX_ASYNC_AFFINITY == "1"
   unsafe {
-    let e: *u8 = getenv("SHUX_ASYNC_AFFINITY");
+    // wave230 G.7: SHUX_ASYNC_AFFINITY via link_abi_getenv.
+    let e: *u8 = link_abi_getenv("SHUX_ASYNC_AFFINITY");
     if (e == 0) { return 0; }
     if (e[0] == 49) {
       if (e[1] == 0) { return 1; }
@@ -223,14 +230,16 @@ export function env_parse_u32_default(e: *u8, defv: u32): u32 {
   return v;
 }
 
-/** Exported function `shu_async_trace_topn`.
- * Implements `shu_async_trace_topn`.
- * @return u32
+/** Parse SHUX_ASYNC_RUNTIME_TRACE_TOPN (clamp 1..64, default 20).
+ * @return u32 — top-N events for trace summary
+ * wave230 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
+ * PLATFORM: SHARED — host residual only link_abi_getenv_impl.
  */
 #[no_mangle]
 export function shu_async_trace_topn(): u32 {
   unsafe {
-    let e: *u8 = getenv("SHUX_ASYNC_RUNTIME_TRACE_TOPN");
+    // wave230 G.7: SHUX_ASYNC_RUNTIME_TRACE_TOPN via link_abi_getenv.
+    let e: *u8 = link_abi_getenv("SHUX_ASYNC_RUNTIME_TRACE_TOPN");
     let v: u32 = env_parse_u32_default(e, 20);
     if (v < 1) { return 1; }
     if (v > 64) { return 64; }
@@ -239,14 +248,16 @@ export function shu_async_trace_topn(): u32 {
   return 20;
 }
 
-/** Exported function `shu_async_trace_sample_rate`.
- * Implements `shu_async_trace_sample_rate`.
- * @return u32
+/** Parse SHUX_ASYNC_RUNTIME_TRACE_SAMPLE (min 1, default 1).
+ * @return u32 — sample rate (1 = every event)
+ * wave230 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
+ * PLATFORM: SHARED — host residual only link_abi_getenv_impl.
  */
 #[no_mangle]
 export function shu_async_trace_sample_rate(): u32 {
   unsafe {
-    let e: *u8 = getenv("SHUX_ASYNC_RUNTIME_TRACE_SAMPLE");
+    // wave230 G.7: SHUX_ASYNC_RUNTIME_TRACE_SAMPLE via link_abi_getenv.
+    let e: *u8 = link_abi_getenv("SHUX_ASYNC_RUNTIME_TRACE_SAMPLE");
     let v: u32 = env_parse_u32_default(e, 1);
     if (v < 1) { return 1; }
     return v;
@@ -254,14 +265,16 @@ export function shu_async_trace_sample_rate(): u32 {
   return 1;
 }
 
-/** Exported function `shu_async_trace_slow_us`.
- * Implements `shu_async_trace_slow_us`.
- * @return u64
+/** Parse SHUX_ASYNC_RUNTIME_TRACE_SLOW_US (default 500 microseconds).
+ * @return u64 — slow-event threshold in microseconds
+ * wave230 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
+ * PLATFORM: SHARED — host residual only link_abi_getenv_impl.
  */
 #[no_mangle]
 export function shu_async_trace_slow_us(): u64 {
   unsafe {
-    let e: *u8 = getenv("SHUX_ASYNC_RUNTIME_TRACE_SLOW_US");
+    // wave230 G.7: SHUX_ASYNC_RUNTIME_TRACE_SLOW_US via link_abi_getenv.
+    let e: *u8 = link_abi_getenv("SHUX_ASYNC_RUNTIME_TRACE_SLOW_US");
     let v: u32 = env_parse_u32_default(e, 500);
     return v;
   }

@@ -6,6 +6,8 @@
  * G-02f-107 helper gates.
  * G-02f-106 helper gates.
  * Product: runtime_scheduler_glue.o; logic still C until full .x port.
+ * wave230 G.7: all product env lookup → link_abi_getenv (not raw getenv);
+ * host residual only link_abi_getenv_impl. Cold pure twins + mega residual same commit.
  */
 /**
  * runtime_scheduler_glue.c — F-ZC：自 std/async/scheduler_glue.c 迁入 — A1/A2 协作调度胶层（F-async v1）
@@ -22,6 +24,10 @@
 #include <string.h>
 #include <stdatomic.h>
 #include <time.h>
+
+/* wave230 G.7: public pure thin link_abi_getenv (wave222 → _impl host getenv).
+ * PLATFORM: SHARED — scheduler env gates share single host getenv residual. */
+extern char *link_abi_getenv(const char *name);
 
 #if defined(__GNUC__) || defined(__clang__)
 /**
@@ -100,7 +106,7 @@ uint32_t shux_async_q_occupancy(uint32_t head, uint32_t tail);
 #ifndef SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X
 /* G-02f-20 thin+rest：DIRECT 模式，thin（src/asm/runtime_scheduler_glue.x）直接实现 */
 int shu_async_runtime_trace_enabled(void) {
-  const char *e = getenv("SHUX_ASYNC_RUNTIME_TRACE");
+  const char *e = link_abi_getenv("SHUX_ASYNC_RUNTIME_TRACE");
   return e && e[0] && !(e[0] == '0' && e[1] == '\0');
 }
 #endif /* SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X */
@@ -112,7 +118,7 @@ int shu_async_runtime_trace_enabled(void) {
 #ifndef SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X
 /* G-02f-20 thin+rest：DIRECT 模式，thin 直接实现 */
 unsigned shu_async_trace_topn(void) {
-  const char *e = getenv("SHUX_ASYNC_RUNTIME_TRACE_TOPN");
+  const char *e = link_abi_getenv("SHUX_ASYNC_RUNTIME_TRACE_TOPN");
   long v = (e && e[0]) ? strtol(e, NULL, 10) : 20;
   if (v < 1)
     v = 1;
@@ -129,7 +135,7 @@ unsigned shu_async_trace_topn(void) {
 #ifndef SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X
 /* G-02f-20 thin+rest：DIRECT 模式，thin 直接实现 */
 unsigned shu_async_trace_sample_rate(void) {
-  const char *e = getenv("SHUX_ASYNC_RUNTIME_TRACE_SAMPLE");
+  const char *e = link_abi_getenv("SHUX_ASYNC_RUNTIME_TRACE_SAMPLE");
   long v = (e && e[0]) ? strtol(e, NULL, 10) : 1;
   if (v < 1)
     v = 1;
@@ -144,7 +150,7 @@ unsigned shu_async_trace_sample_rate(void) {
 #ifndef SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X
 /* G-02f-20 thin+rest：DIRECT 模式，thin 直接实现 */
 uint64_t shu_async_trace_slow_us(void) {
-  const char *e = getenv("SHUX_ASYNC_RUNTIME_TRACE_SLOW_US");
+  const char *e = link_abi_getenv("SHUX_ASYNC_RUNTIME_TRACE_SLOW_US");
   long v = (e && e[0]) ? strtol(e, NULL, 10) : 500;
   if (v < 0)
     v = 0;
@@ -299,7 +305,7 @@ void shux_async_init_workers_impl(void) {
         return;
     shux_async_workers_inited = 1;
     shux_async_n_workers = 1;
-    e = getenv("SHUX_ASYNC_WORKERS");
+    e = link_abi_getenv("SHUX_ASYNC_WORKERS");
     if (!e || !e[0])
         return;
     v = strtol(e, NULL, 10);
@@ -334,7 +340,7 @@ static uint32_t shux_async_io_wait_n;
 #ifndef SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X
 /* G-02f-20 thin+rest：DIRECT 模式，thin 直接实现 */
 int shux_async_io_wait_enabled(void) {
-  const char *e = getenv("SHUX_ASYNC_IO_WAIT");
+  const char *e = link_abi_getenv("SHUX_ASYNC_IO_WAIT");
   return e && e[0] == '1' && e[1] == '\0';
 }
 #endif /* SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X */
@@ -634,7 +640,7 @@ int shux_async_cps_suspend(int32_t *phase, int32_t next_phase) {
     const char *yield_env;
     if (phase)
         *phase = next_phase;
-    yield_env = getenv("SHUX_ASYNC_YIELD");
+    yield_env = link_abi_getenv("SHUX_ASYNC_YIELD");
     if (yield_env && yield_env[0] == '1' && yield_env[1] == '\0')
         return 1;
     return 0;
@@ -649,7 +655,7 @@ int shux_async_cps_suspend_io(int32_t *phase, int32_t next_phase) {
     if (phase)
         *phase = next_phase;
     shux_async_suspend_io_flag = 1;
-    yield_env = getenv("SHUX_ASYNC_YIELD");
+    yield_env = link_abi_getenv("SHUX_ASYNC_YIELD");
     if (yield_env && yield_env[0] == '1' && yield_env[1] == '\0')
         return 1;
     shux_async_suspend_io_flag = 0;
@@ -831,7 +837,7 @@ int shux_async_task_submit_with_ctx(shux_async_task_fn_t fn, int64_t ctx_handle)
 #ifndef SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X
 /* G-02f-20 thin+rest：DIRECT 模式，thin 直接实现 */
 int shux_async_affinity_enabled(void) {
-  const char *e = getenv("SHUX_ASYNC_AFFINITY");
+  const char *e = link_abi_getenv("SHUX_ASYNC_AFFINITY");
   return e && e[0] == '1' && e[1] == '\0';
 }
 #endif /* SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X */
