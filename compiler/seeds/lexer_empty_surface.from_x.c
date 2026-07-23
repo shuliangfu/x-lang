@@ -104,11 +104,18 @@ extern int32_t lexer_apply_optional_exponent(struct Lexer l, struct xlang_slice_
         (void)((lex = advance_one(lex, 43)));
       }
     }
-    while ((((lex.pos) < (data.length)) && is_digit((data).data[(lex.pos)]))) {
-      uint8_t d = (data).data[(lex.pos)];
-      (void)((lex = advance_one(lex, d)));
-      (void)((exp = ((exp * 10) + (d - 48))));
-      exp_digits = exp_digits + 1;
+    /* wave277: `_` optional-exponent digit separators (≡ lexer.x). */
+    while (((lex.pos) < (data.length))) {
+      if (is_digit((data).data[(lex.pos)])) {
+        uint8_t d = (data).data[(lex.pos)];
+        (void)((lex = advance_one(lex, d)));
+        (void)((exp = ((exp * 10) + (d - 48))));
+        exp_digits = exp_digits + 1;
+      } else if (is_digit_sep(data, lex.pos, 0)) {
+        (void)((lex = advance_one(lex, 95)));
+      } else {
+        break;
+      }
     }
     /* wave274: require ≥1 exp digit (≡ lexer.x L005). */
     if (exp_digits == 0) {
@@ -245,6 +252,19 @@ static int is_bin_digit(uint8_t c) {
 }
 static int is_oct_digit(uint8_t c) {
   return c >= 48 && c <= 55;
+}
+/* wave277 Cap residual: numeric `_` separator (G.7 ≡ lexer.x lexer_is_digit_sep).
+ * kind: 0=decimal, 1=hex, 2=bin, 3=oct. */
+static int is_digit_sep(struct xlang_slice_uint8_t data, size_t pos, int32_t kind) {
+  if (pos >= data.length) { return 0; }
+  uint8_t c = (data).data[pos];
+  if (c != 95) { return 0; }
+  if ((pos + 1) >= data.length) { return 0; }
+  uint8_t n = (data).data[pos + 1];
+  if (kind == 1) { return is_hex_digit(n); }
+  if (kind == 2) { return is_bin_digit(n); }
+  if (kind == 3) { return is_oct_digit(n); }
+  return is_digit(n);
 }
 
 int32_t hex_digit_value(uint8_t c) {
@@ -1463,10 +1483,17 @@ void lexer_apply_optional_exponent(struct Lexer l, struct xlang_slice_uint8_t da
         (void)((lex = advance_one(lex, 43)));
       }
     }
-    while ((((lex.pos) < (data.length)) && is_digit((data).data[(lex.pos)]))) {
-      uint8_t d = (data).data[(lex.pos)];
-      (void)((lex = advance_one(lex, d)));
-      (void)((exp = ((exp * 10) + (d - 48))));
+    /* wave277: `_` optional-exponent digit separators (≡ lexer.x). */
+    while (((lex.pos) < (data.length))) {
+      if (is_digit((data).data[(lex.pos)])) {
+        uint8_t d = (data).data[(lex.pos)];
+        (void)((lex = advance_one(lex, d)));
+        (void)((exp = ((exp * 10) + (d - 48))));
+      } else if (is_digit_sep(data, lex.pos, 0)) {
+        (void)((lex = advance_one(lex, 95)));
+      } else {
+        break;
+      }
     }
     (void)((exp = (exp * exp_sign)));
     if ((exp > 0)) {
@@ -1579,11 +1606,18 @@ void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang
       uint64_t hval = ((uint64_t)(0));
       int32_t hex_digits = 0;
       (void)((l = advance_one(l, (data).data[(l.pos)])));
-      while ((((l.pos) < (data.length)) && is_hex_digit((data).data[(l.pos)]))) {
-        uint8_t hd = (data).data[(l.pos)];
-        (void)((hval = ((hval * 16) + ((uint64_t)(hex_digit_value(hd))))));
-        (void)((l = advance_one(l, hd)));
-        hex_digits = hex_digits + 1;
+      /* wave277: `_` hex digit separators (≡ lexer.x). */
+      while (((l.pos) < (data.length))) {
+        if (is_hex_digit((data).data[(l.pos)])) {
+          uint8_t hd = (data).data[(l.pos)];
+          (void)((hval = ((hval * 16) + ((uint64_t)(hex_digit_value(hd))))));
+          (void)((l = advance_one(l, hd)));
+          hex_digits = hex_digits + 1;
+        } else if (is_digit_sep(data, l.pos, 1)) {
+          (void)((l = advance_one(l, 95)));
+        } else {
+          break;
+        }
       }
       if (hex_digits == 0) {
         lexer_note_incomplete_hex(line0, col0);
@@ -1605,11 +1639,18 @@ void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang
       (void)((l = advance_one(l, (data).data[(l.pos)])));
       uint64_t bval = ((uint64_t)(0));
       int32_t bin_digits = 0;
-      while ((((l.pos) < (data.length)) && is_bin_digit((data).data[(l.pos)]))) {
-        uint8_t bd = (data).data[(l.pos)];
-        (void)((bval = ((bval * 2) + ((uint64_t)(bd - 48)))));
-        (void)((l = advance_one(l, bd)));
-        bin_digits = bin_digits + 1;
+      /* wave277: `_` bin digit separators (≡ lexer.x). */
+      while (((l.pos) < (data.length))) {
+        if (is_bin_digit((data).data[(l.pos)])) {
+          uint8_t bd = (data).data[(l.pos)];
+          (void)((bval = ((bval * 2) + ((uint64_t)(bd - 48)))));
+          (void)((l = advance_one(l, bd)));
+          bin_digits = bin_digits + 1;
+        } else if (is_digit_sep(data, l.pos, 2)) {
+          (void)((l = advance_one(l, 95)));
+        } else {
+          break;
+        }
       }
       if (bin_digits == 0) {
         lexer_note_incomplete_bin(line0, col0);
@@ -1630,11 +1671,18 @@ void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang
       (void)((l = advance_one(l, (data).data[(l.pos)])));
       uint64_t oval = ((uint64_t)(0));
       int32_t oct_digits = 0;
-      while ((((l.pos) < (data.length)) && is_oct_digit((data).data[(l.pos)]))) {
-        uint8_t od = (data).data[(l.pos)];
-        (void)((oval = ((oval * 8) + ((uint64_t)(od - 48)))));
-        (void)((l = advance_one(l, od)));
-        oct_digits = oct_digits + 1;
+      /* wave277: `_` oct digit separators (≡ lexer.x). */
+      while (((l.pos) < (data.length))) {
+        if (is_oct_digit((data).data[(l.pos)])) {
+          uint8_t od = (data).data[(l.pos)];
+          (void)((oval = ((oval * 8) + ((uint64_t)(od - 48)))));
+          (void)((l = advance_one(l, od)));
+          oct_digits = oct_digits + 1;
+        } else if (is_digit_sep(data, l.pos, 3)) {
+          (void)((l = advance_one(l, 95)));
+        } else {
+          break;
+        }
       }
       if (oct_digits == 0) {
         lexer_note_incomplete_oct(line0, col0);
@@ -1651,21 +1699,35 @@ void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang
       return;
     }
 (void)((ival = ((ival * 10) + (c - 48))));
-    while ((((l.pos) < (data.length)) && is_digit((data).data[(l.pos)]))) {
-      uint8_t d = (data).data[(l.pos)];
-      (void)((l = advance_one(l, d)));
-      (void)((ival = ((ival * 10) + (d - 48))));
+    /* wave277: `_` decimal digit separators (≡ lexer.x). */
+    while (((l.pos) < (data.length))) {
+      if (is_digit((data).data[(l.pos)])) {
+        uint8_t d = (data).data[(l.pos)];
+        (void)((l = advance_one(l, d)));
+        (void)((ival = ((ival * 10) + (d - 48))));
+      } else if (is_digit_sep(data, l.pos, 0)) {
+        (void)((l = advance_one(l, 95)));
+      } else {
+        break;
+      }
     }
     if (((((l.pos) < (data.length)) && ((data).data[(l.pos)] ==46)) && (lexer_dot_continues_float(data, l.pos) != 0))) {
       double fval = ((double)(ival));
       double frac = 0.0;
       struct token_Token tok = (struct Token){ .kind = 81, .line = line0, .col = col0, .int_val = 0, .float_val = fval, .ident = 0, .ident_len = 0 };
       (void)((l = advance_one(l, 46)));
-      while ((((l.pos) < (data.length)) && is_digit((data).data[(l.pos)]))) {
-        uint8_t d = (data).data[(l.pos)];
-        (void)((l = advance_one(l, d)));
-        (void)((fval = (fval + (frac * (d - 48)))));
-        (void)((frac = (frac * 0.0)));
+      /* wave277: `_` float fraction digit separators (≡ lexer.x). */
+      while (((l.pos) < (data.length))) {
+        if (is_digit((data).data[(l.pos)])) {
+          uint8_t d = (data).data[(l.pos)];
+          (void)((l = advance_one(l, d)));
+          (void)((fval = (fval + (frac * (d - 48)))));
+          (void)((frac = (frac * 0.0)));
+        } else if (is_digit_sep(data, l.pos, 0)) {
+          (void)((l = advance_one(l, 95)));
+        } else {
+          break;
+        }
       }
       if (lexer_apply_optional_exponent(l, data, fval, &(l), &(fval)) != 0) {
         struct token_Token tok_eof = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
@@ -1697,11 +1759,18 @@ void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang
           (void)((l = advance_one(l, 43)));
         }
       }
-      while ((((l.pos) < (data.length)) && is_digit((data).data[(l.pos)]))) {
-        uint8_t d = (data).data[(l.pos)];
-        (void)((l = advance_one(l, d)));
-        (void)((exp = ((exp * 10) + (d - 48))));
-        exp_digits = exp_digits + 1;
+      /* wave277: `_` float exponent digit separators (≡ lexer.x). */
+      while (((l.pos) < (data.length))) {
+        if (is_digit((data).data[(l.pos)])) {
+          uint8_t d = (data).data[(l.pos)];
+          (void)((l = advance_one(l, d)));
+          (void)((exp = ((exp * 10) + (d - 48))));
+          exp_digits = exp_digits + 1;
+        } else if (is_digit_sep(data, l.pos, 0)) {
+          (void)((l = advance_one(l, 95)));
+        } else {
+          break;
+        }
       }
       if (exp_digits == 0) {
         lexer_note_incomplete_exp(e_line, e_col);
@@ -1743,11 +1812,18 @@ void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang
     (void)((l = advance_one(l, 46)));
     double fval = 0.0;
     double frac = 0.0;
-    while ((((l.pos) < (data.length)) && is_digit((data).data[(l.pos)]))) {
-      uint8_t d = (data).data[(l.pos)];
-      (void)((l = advance_one(l, d)));
-      (void)((fval = (fval + (frac * (d - 48)))));
-      (void)((frac = (frac * 0.0)));
+    /* wave277: `_` float fraction digit separators (≡ lexer.x). */
+    while (((l.pos) < (data.length))) {
+      if (is_digit((data).data[(l.pos)])) {
+        uint8_t d = (data).data[(l.pos)];
+        (void)((l = advance_one(l, d)));
+        (void)((fval = (fval + (frac * (d - 48)))));
+        (void)((frac = (frac * 0.0)));
+      } else if (is_digit_sep(data, l.pos, 0)) {
+        (void)((l = advance_one(l, 95)));
+      } else {
+        break;
+      }
     }
     if (lexer_apply_optional_exponent(l, data, fval, &(l), &(fval)) != 0) {
         struct token_Token tok_eof = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };

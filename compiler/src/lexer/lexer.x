@@ -888,6 +888,56 @@ export function is_oct_digit(c: u8): bool {
   return c >= 48 && c <= 55;
 }
 
+/**
+ * wave277 Cap residual: numeric digit separator `_` (Rust/Python-style).
+ * True when `data[pos]` is `_` (ASCII 95) and the next byte is a valid digit for `kind`.
+ * Callers advance past the `_` then consume the following digit in the normal loop.
+ * Trailing `_`, consecutive `__`, and leading `_` after a bare prefix without a following
+ * digit are not separators (leave `_` for the next token / incomplete L00x path).
+ *
+ * Prior: `1_000` / `0x2_A` lexed INT + IDENT → soft XP003 parse-skip.
+ *
+ * @param data u8[] — full source buffer
+ * @param pos usize — candidate underscore index
+ * @param kind i32 — 0=decimal, 1=hex, 2=bin, 3=oct
+ * @return i32 — 1 if a digit separator sits at pos, else 0
+ * PLATFORM: SHARED — language lexical contract; mac + Ubuntu product matrix.
+ */
+export function lexer_is_digit_sep(data: u8[], pos: usize, kind: i32): i32 {
+  if (pos >= data.length) {
+    return 0;
+  }
+  if (data[pos] != 95) {
+    return 0;
+  }
+  if (pos + 1 >= data.length) {
+    return 0;
+  }
+  let n: u8 = data[pos + 1];
+  if (kind == 1) {
+    if (is_hex_digit(n)) {
+      return 1;
+    }
+    return 0;
+  }
+  if (kind == 2) {
+    if (is_bin_digit(n)) {
+      return 1;
+    }
+    return 0;
+  }
+  if (kind == 3) {
+    if (is_oct_digit(n)) {
+      return 1;
+    }
+    return 0;
+  }
+  if (is_digit(n)) {
+    return 1;
+  }
+  return 0;
+}
+
 /** Exported function `hex_digit_value`.
  * Implements `hex_digit_value`.
  * @param c u8
@@ -2537,11 +2587,18 @@ export function lexer_apply_optional_exponent(l: Lexer, data: u8[], fval: f64, o
     }
     let exp: i32 = 0;
     let exp_digits: i32 = 0;
-    while (lex.pos < data.length && is_digit(data[lex.pos])) {
-      let d: u8 = data[lex.pos];
-      lex = advance_one(lex, d);
-      exp = exp * 10 + (d - 48);
-      exp_digits = exp_digits + 1;
+    // wave277: allow `_` digit separators in optional exponent digits.
+    while (lex.pos < data.length) {
+      if (is_digit(data[lex.pos])) {
+        let d: u8 = data[lex.pos];
+        lex = advance_one(lex, d);
+        exp = exp * 10 + (d - 48);
+        exp_digits = exp_digits + 1;
+      } else if (lexer_is_digit_sep(data, lex.pos, 0) != 0) {
+        lex = advance_one(lex, 95);
+      } else {
+        break;
+      }
     }
     // wave274: `1e` / `1e+` / `1.5e-` with zero digits was silent exp=0 (wrong TOKEN_FLOAT).
     if (exp_digits == 0) {
@@ -2678,11 +2735,18 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       l = advance_one(l, data[l.pos]);
       let hval: u64 = (0 as u64);
       let hex_digits: i32 = 0;
-      while (l.pos < data.length && is_hex_digit(data[l.pos])) {
-        let hd: u8 = data[l.pos];
-        hval = hval * 16 + (hex_digit_value(hd) as u64);
-        l = advance_one(l, hd);
-        hex_digits = hex_digits + 1;
+      // wave277: allow `_` digit separators between hex digits (`0x2_A`, `0x_FF`).
+      while (l.pos < data.length) {
+        if (is_hex_digit(data[l.pos])) {
+          let hd: u8 = data[l.pos];
+          hval = hval * 16 + (hex_digit_value(hd) as u64);
+          l = advance_one(l, hd);
+          hex_digits = hex_digits + 1;
+        } else if (lexer_is_digit_sep(data, l.pos, 1) != 0) {
+          l = advance_one(l, 95);
+        } else {
+          break;
+        }
       }
       if (hex_digits == 0) {
         lexer_note_incomplete_hex(line0, col0);
@@ -2706,11 +2770,18 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       l = advance_one(l, data[l.pos]);
       let bval: u64 = (0 as u64);
       let bin_digits: i32 = 0;
-      while (l.pos < data.length && is_bin_digit(data[l.pos])) {
-        let bd: u8 = data[l.pos];
-        bval = bval * 2 + ((bd - 48) as u64);
-        l = advance_one(l, bd);
-        bin_digits = bin_digits + 1;
+      // wave277: allow `_` digit separators between binary digits (`0b_101010`).
+      while (l.pos < data.length) {
+        if (is_bin_digit(data[l.pos])) {
+          let bd: u8 = data[l.pos];
+          bval = bval * 2 + ((bd - 48) as u64);
+          l = advance_one(l, bd);
+          bin_digits = bin_digits + 1;
+        } else if (lexer_is_digit_sep(data, l.pos, 2) != 0) {
+          l = advance_one(l, 95);
+        } else {
+          break;
+        }
       }
       if (bin_digits == 0) {
         lexer_note_incomplete_bin(line0, col0);
@@ -2734,11 +2805,18 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       l = advance_one(l, data[l.pos]);
       let oval: u64 = (0 as u64);
       let oct_digits: i32 = 0;
-      while (l.pos < data.length && is_oct_digit(data[l.pos])) {
-        let od: u8 = data[l.pos];
-        oval = oval * 8 + ((od - 48) as u64);
-        l = advance_one(l, od);
-        oct_digits = oct_digits + 1;
+      // wave277: allow `_` digit separators between octal digits (`0o5_2`).
+      while (l.pos < data.length) {
+        if (is_oct_digit(data[l.pos])) {
+          let od: u8 = data[l.pos];
+          oval = oval * 8 + ((od - 48) as u64);
+          l = advance_one(l, od);
+          oct_digits = oct_digits + 1;
+        } else if (lexer_is_digit_sep(data, l.pos, 3) != 0) {
+          l = advance_one(l, 95);
+        } else {
+          break;
+        }
       }
       if (oct_digits == 0) {
         lexer_note_incomplete_oct(line0, col0);
@@ -2757,10 +2835,17 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       return;
     }
     ival = ival * 10 + (c - 48);
-    while (l.pos < data.length && is_digit(data[l.pos])) {
-      let d: u8 = data[l.pos];
-      l = advance_one(l, d);
-      ival = ival * 10 + (d - 48);
+    // wave277: allow `_` digit separators in decimal ints (`1_000`, `4_2`).
+    while (l.pos < data.length) {
+      if (is_digit(data[l.pos])) {
+        let d: u8 = data[l.pos];
+        l = advance_one(l, d);
+        ival = ival * 10 + (d - 48);
+      } else if (lexer_is_digit_sep(data, l.pos, 0) != 0) {
+        l = advance_one(l, 95);
+      } else {
+        break;
+      }
     }
     // wave275 Cap residual: C-style empty fraction after `.` (`1.`, `1.e2`) → TOKEN_FLOAT.
     // Prior: required digit after `.` so `1.e2` became INT+DOT+IDENT and codegen leaked host C
@@ -2769,11 +2854,18 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       l = advance_one(l, 46);
       let fval: f64 = (ival as f64);
       let frac: f64 = 0.1;
-      while (l.pos < data.length && is_digit(data[l.pos])) {
-        let d: u8 = data[l.pos];
-        l = advance_one(l, d);
-        fval = fval + frac * (d - 48);
-        frac = frac * 0.1;
+      // wave277: allow `_` digit separators in float fraction digits.
+      while (l.pos < data.length) {
+        if (is_digit(data[l.pos])) {
+          let d: u8 = data[l.pos];
+          l = advance_one(l, d);
+          fval = fval + frac * (d - 48);
+          frac = frac * 0.1;
+        } else if (lexer_is_digit_sep(data, l.pos, 0) != 0) {
+          l = advance_one(l, 95);
+        } else {
+          break;
+        }
       }
       // wave274: incomplete exp after fraction → L005 + TOKEN_EOF (not silent exp=0 float).
       // wave275: also covers empty-frac scientific `1.e` / `1.e+` (was host-cc soft residual).
@@ -2806,11 +2898,18 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       }
       let exp: i32 = 0;
       let exp_digits: i32 = 0;
-      while (l.pos < data.length && is_digit(data[l.pos])) {
-        let d: u8 = data[l.pos];
-        l = advance_one(l, d);
-        exp = exp * 10 + (d - 48);
-        exp_digits = exp_digits + 1;
+      // wave277: allow `_` digit separators in float exponent digits (`1e2_0`).
+      while (l.pos < data.length) {
+        if (is_digit(data[l.pos])) {
+          let d: u8 = data[l.pos];
+          l = advance_one(l, d);
+          exp = exp * 10 + (d - 48);
+          exp_digits = exp_digits + 1;
+        } else if (lexer_is_digit_sep(data, l.pos, 0) != 0) {
+          l = advance_one(l, 95);
+        } else {
+          break;
+        }
       }
       if (exp_digits == 0) {
         lexer_note_incomplete_exp(e_line, e_col);
@@ -2858,11 +2957,18 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
     l = advance_one(l, 46);
     let fval: f64 = 0.0;
     let frac: f64 = 0.1;
-    while (l.pos < data.length && is_digit(data[l.pos])) {
-      let d: u8 = data[l.pos];
-      l = advance_one(l, d);
-      fval = fval + frac * (d - 48);
-      frac = frac * 0.1;
+    // wave277: allow `_` digit separators in float fraction digits.
+    while (l.pos < data.length) {
+      if (is_digit(data[l.pos])) {
+        let d: u8 = data[l.pos];
+        l = advance_one(l, d);
+        fval = fval + frac * (d - 48);
+        frac = frac * 0.1;
+      } else if (lexer_is_digit_sep(data, l.pos, 0) != 0) {
+        l = advance_one(l, 95);
+      } else {
+        break;
+      }
     }
     // wave274: incomplete exp after leading-dot float → L005 + TOKEN_EOF.
     if (lexer_apply_optional_exponent(l, data, fval, &l, &fval) != 0) {
@@ -3300,11 +3406,18 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
       l = advance_one(l, data[l.pos]);
       let hval: u64 = (0 as u64);
       let hex_digits: i32 = 0;
-      while (l.pos < data.length && is_hex_digit(data[l.pos])) {
-        let hd: u8 = data[l.pos];
-        hval = hval * 16 + (hex_digit_value(hd) as u64);
-        l = advance_one(l, hd);
-        hex_digits = hex_digits + 1;
+      // wave277: allow `_` digit separators between hex digits (`0x2_A`, `0x_FF`).
+      while (l.pos < data.length) {
+        if (is_hex_digit(data[l.pos])) {
+          let hd: u8 = data[l.pos];
+          hval = hval * 16 + (hex_digit_value(hd) as u64);
+          l = advance_one(l, hd);
+          hex_digits = hex_digits + 1;
+        } else if (lexer_is_digit_sep(data, l.pos, 1) != 0) {
+          l = advance_one(l, 95);
+        } else {
+          break;
+        }
       }
       if (hex_digits == 0) {
         lexer_note_incomplete_hex(line0, col0);
@@ -3321,11 +3434,18 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
       l = advance_one(l, data[l.pos]);
       let bval: u64 = (0 as u64);
       let bin_digits: i32 = 0;
-      while (l.pos < data.length && is_bin_digit(data[l.pos])) {
-        let bd: u8 = data[l.pos];
-        bval = bval * 2 + ((bd - 48) as u64);
-        l = advance_one(l, bd);
-        bin_digits = bin_digits + 1;
+      // wave277: allow `_` digit separators between binary digits (`0b_101010`).
+      while (l.pos < data.length) {
+        if (is_bin_digit(data[l.pos])) {
+          let bd: u8 = data[l.pos];
+          bval = bval * 2 + ((bd - 48) as u64);
+          l = advance_one(l, bd);
+          bin_digits = bin_digits + 1;
+        } else if (lexer_is_digit_sep(data, l.pos, 2) != 0) {
+          l = advance_one(l, 95);
+        } else {
+          break;
+        }
       }
       if (bin_digits == 0) {
         lexer_note_incomplete_bin(line0, col0);
@@ -3342,11 +3462,18 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
       l = advance_one(l, data[l.pos]);
       let oval: u64 = (0 as u64);
       let oct_digits: i32 = 0;
-      while (l.pos < data.length && is_oct_digit(data[l.pos])) {
-        let od: u8 = data[l.pos];
-        oval = oval * 8 + ((od - 48) as u64);
-        l = advance_one(l, od);
-        oct_digits = oct_digits + 1;
+      // wave277: allow `_` digit separators between octal digits (`0o5_2`).
+      while (l.pos < data.length) {
+        if (is_oct_digit(data[l.pos])) {
+          let od: u8 = data[l.pos];
+          oval = oval * 8 + ((od - 48) as u64);
+          l = advance_one(l, od);
+          oct_digits = oct_digits + 1;
+        } else if (lexer_is_digit_sep(data, l.pos, 3) != 0) {
+          l = advance_one(l, 95);
+        } else {
+          break;
+        }
       }
       if (oct_digits == 0) {
         lexer_note_incomplete_oct(line0, col0);
@@ -3359,21 +3486,35 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
       return LexerResult { next_lex: l, tok: tok_o, token_start: start };
     }
     ival = ival * 10 + (c - 48);
-    while (l.pos < data.length && is_digit(data[l.pos])) {
-      let d: u8 = data[l.pos];
-      l = advance_one(l, d);
-      ival = ival * 10 + (d - 48);
+    // wave277: allow `_` digit separators in decimal ints (`1_000`, `4_2`).
+    while (l.pos < data.length) {
+      if (is_digit(data[l.pos])) {
+        let d: u8 = data[l.pos];
+        l = advance_one(l, d);
+        ival = ival * 10 + (d - 48);
+      } else if (lexer_is_digit_sep(data, l.pos, 0) != 0) {
+        l = advance_one(l, 95);
+      } else {
+        break;
+      }
     }
     // wave275 Cap residual: G.7 mirror product path empty-fraction float (`1.`, `1.e2`).
     if (l.pos < data.length && data[l.pos] == 46 && lexer_dot_continues_float(data, l.pos) != 0) {
       l = advance_one(l, 46);
       let fval: f64 = (ival as f64);
       let frac: f64 = 0.1;
-      while (l.pos < data.length && is_digit(data[l.pos])) {
-        let d: u8 = data[l.pos];
-        l = advance_one(l, d);
-        fval = fval + frac * (d - 48);
-        frac = frac * 0.1;
+      // wave277: allow `_` digit separators in float fraction digits.
+      while (l.pos < data.length) {
+        if (is_digit(data[l.pos])) {
+          let d: u8 = data[l.pos];
+          l = advance_one(l, d);
+          fval = fval + frac * (d - 48);
+          frac = frac * 0.1;
+        } else if (lexer_is_digit_sep(data, l.pos, 0) != 0) {
+          l = advance_one(l, 95);
+        } else {
+          break;
+        }
       }
       // wave274: incomplete exp after fraction → L005 + TOKEN_EOF.
       // wave275: empty-frac scientific `1.e` also L005.
@@ -3400,11 +3541,18 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
       }
       let exp: i32 = 0;
       let exp_digits: i32 = 0;
-      while (l.pos < data.length && is_digit(data[l.pos])) {
-        let d: u8 = data[l.pos];
-        l = advance_one(l, d);
-        exp = exp * 10 + (d - 48);
-        exp_digits = exp_digits + 1;
+      // wave277: allow `_` digit separators in float exponent digits (`1e2_0`).
+      while (l.pos < data.length) {
+        if (is_digit(data[l.pos])) {
+          let d: u8 = data[l.pos];
+          l = advance_one(l, d);
+          exp = exp * 10 + (d - 48);
+          exp_digits = exp_digits + 1;
+        } else if (lexer_is_digit_sep(data, l.pos, 0) != 0) {
+          l = advance_one(l, 95);
+        } else {
+          break;
+        }
       }
       if (exp_digits == 0) {
         lexer_note_incomplete_exp(e_line, e_col);
@@ -3442,11 +3590,18 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
     l = advance_one(l, 46);
     let fval: f64 = 0.0;
     let frac: f64 = 0.1;
-    while (l.pos < data.length && is_digit(data[l.pos])) {
-      let d: u8 = data[l.pos];
-      l = advance_one(l, d);
-      fval = fval + frac * (d - 48);
-      frac = frac * 0.1;
+    // wave277: allow `_` digit separators in float fraction digits.
+    while (l.pos < data.length) {
+      if (is_digit(data[l.pos])) {
+        let d: u8 = data[l.pos];
+        l = advance_one(l, d);
+        fval = fval + frac * (d - 48);
+        frac = frac * 0.1;
+      } else if (lexer_is_digit_sep(data, l.pos, 0) != 0) {
+        l = advance_one(l, 95);
+      } else {
+        break;
+      }
     }
     if (lexer_apply_optional_exponent(l, data, fval, &l, &fval) != 0) {
       let tok_eof: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,

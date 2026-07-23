@@ -75,6 +75,7 @@ struct lexer_Lexer lexer_init();
 struct lexer_Lexer lexer_advance_one(struct lexer_Lexer lex, uint8_t c);
 int lexer_is_alpha(uint8_t c);
 int lexer_is_hex_digit(uint8_t c);
+int lexer_is_digit_sep(struct xlang_slice_uint8_t * data, size_t pos, int32_t kind);
 int32_t lexer_hex_digit_value(uint8_t c);
 int lexer_is_digit(uint8_t c);
 int lexer_is_alnum_underscore(uint8_t c);
@@ -138,6 +139,19 @@ XLANG_LIB_WEAK int lexer_is_bin_digit(uint8_t c) {
 }
 XLANG_LIB_WEAK int lexer_is_oct_digit(uint8_t c) {
   return c >= 48 && c <= 55;
+}
+/* wave277 Cap residual: numeric `_` separator (G.7 ≡ lexer.x lexer_is_digit_sep).
+ * kind: 0=decimal, 1=hex, 2=bin, 3=oct. Requires next byte valid for kind. */
+XLANG_LIB_WEAK int lexer_is_digit_sep(struct xlang_slice_uint8_t * data, size_t pos, int32_t kind) {
+  if (data == 0 || pos >= (data)->length) { return 0; }
+  uint8_t c = (data)->data[pos];
+  if (c != 95) { return 0; }
+  if (pos + 1 >= (data)->length) { return 0; }
+  uint8_t n = (data)->data[pos + 1];
+  if (kind == 1) { return lexer_is_hex_digit(n); }
+  if (kind == 2) { return lexer_is_bin_digit(n); }
+  if (kind == 3) { return lexer_is_oct_digit(n); }
+  return lexer_is_digit(n);
 }
 
 XLANG_LIB_WEAK int32_t lexer_hex_digit_value(uint8_t c) {
@@ -1220,11 +1234,18 @@ XLANG_LIB_WEAK int32_t lexer_apply_optional_exponent(struct lexer_Lexer l, struc
  }
   int32_t exp = 0;
   int32_t exp_digits = 0;
-  while ((lex).pos < (data)->length && lexer_is_digit(((lex).pos < 0 || (size_t)((lex).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(lex).pos]))) {
-    uint8_t d = ((lex).pos < 0 || (size_t)((lex).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(lex).pos]);
-    (lex = (lexer_advance_one(lex, d)));
-    (exp = (exp * 10 + (d - 48)));
-    exp_digits = exp_digits + 1;
+  /* wave277: `_` optional-exponent digit separators (≡ lexer.x). */
+  while ((lex).pos < (data)->length) {
+    if (lexer_is_digit(((lex).pos < 0 || (size_t)((lex).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(lex).pos]))) {
+      uint8_t d = ((lex).pos < 0 || (size_t)((lex).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(lex).pos]);
+      (lex = (lexer_advance_one(lex, d)));
+      (exp = (exp * 10 + (d - 48)));
+      exp_digits = exp_digits + 1;
+    } else if (lexer_is_digit_sep(data, (lex).pos, 0)) {
+      (lex = (lexer_advance_one(lex, 95)));
+    } else {
+      break;
+    }
   }
   /* wave274: require ≥1 exp digit after e/E (≡ lexer.x L005). */
   if (exp_digits == 0) {
@@ -1327,11 +1348,18 @@ XLANG_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out
   /* wave273: require ≥1 hex digit after 0x/0X (≡ lexer.x L004). */
   uint64_t hval = ((uint64_t)(0));
   int32_t hex_digits = 0;
-  while ((l).pos < (data)->length && lexer_is_hex_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
-    uint8_t hd = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
-    (hval = (hval * 16 + ((uint64_t)(lexer_hex_digit_value(hd)))));
-    (l = (lexer_advance_one(l, hd)));
-    hex_digits = hex_digits + 1;
+  /* wave277: `_` hex digit separators (≡ lexer.x). */
+  while ((l).pos < (data)->length) {
+    if (lexer_is_hex_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
+      uint8_t hd = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+      (hval = (hval * 16 + ((uint64_t)(lexer_hex_digit_value(hd)))));
+      (l = (lexer_advance_one(l, hd)));
+      hex_digits = hex_digits + 1;
+    } else if (lexer_is_digit_sep(data, (l).pos, 1)) {
+      (l = (lexer_advance_one(l, 95)));
+    } else {
+      break;
+    }
   }
   if (hex_digits == 0) {
     lexer_note_incomplete_hex(line0, col0);
@@ -1352,11 +1380,18 @@ XLANG_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out
  if (c == 48 && (l).pos < (data)->length && (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 98 || ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 66)) {   (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
   uint64_t bval = ((uint64_t)(0));
   int32_t bin_digits = 0;
-  while ((l).pos < (data)->length && lexer_is_bin_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
-    uint8_t bd = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
-    (bval = (bval * 2 + ((uint64_t)(bd - 48))));
-    (l = (lexer_advance_one(l, bd)));
-    bin_digits = bin_digits + 1;
+  /* wave277: `_` bin digit separators (≡ lexer.x). */
+  while ((l).pos < (data)->length) {
+    if (lexer_is_bin_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
+      uint8_t bd = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+      (bval = (bval * 2 + ((uint64_t)(bd - 48))));
+      (l = (lexer_advance_one(l, bd)));
+      bin_digits = bin_digits + 1;
+    } else if (lexer_is_digit_sep(data, (l).pos, 2)) {
+      (l = (lexer_advance_one(l, 95)));
+    } else {
+      break;
+    }
   }
   if (bin_digits == 0) {
     lexer_note_incomplete_bin(line0, col0);
@@ -1376,11 +1411,18 @@ XLANG_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out
  if (c == 48 && (l).pos < (data)->length && (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 111 || ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 79)) {   (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
   uint64_t oval = ((uint64_t)(0));
   int32_t oct_digits = 0;
-  while ((l).pos < (data)->length && lexer_is_oct_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
-    uint8_t od = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
-    (oval = (oval * 8 + ((uint64_t)(od - 48))));
-    (l = (lexer_advance_one(l, od)));
-    oct_digits = oct_digits + 1;
+  /* wave277: `_` oct digit separators (≡ lexer.x). */
+  while ((l).pos < (data)->length) {
+    if (lexer_is_oct_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
+      uint8_t od = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+      (oval = (oval * 8 + ((uint64_t)(od - 48))));
+      (l = (lexer_advance_one(l, od)));
+      oct_digits = oct_digits + 1;
+    } else if (lexer_is_digit_sep(data, (l).pos, 3)) {
+      (l = (lexer_advance_one(l, 95)));
+    } else {
+      break;
+    }
   }
   if (oct_digits == 0) {
     lexer_note_incomplete_oct(line0, col0);
@@ -1397,19 +1439,33 @@ XLANG_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out
   return;
  }
 (ival = (ival * 10 + (c - 48)));
-  while ((l).pos < (data)->length && lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
-    uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
-    (l = (lexer_advance_one(l, d)));
-    (ival = (ival * 10 + (d - 48)));
+  /* wave277: `_` decimal digit separators (≡ lexer.x). */
+  while ((l).pos < (data)->length) {
+    if (lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
+      uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+      (l = (lexer_advance_one(l, d)));
+      (ival = (ival * 10 + (d - 48)));
+    } else if (lexer_is_digit_sep(data, (l).pos, 0)) {
+      (l = (lexer_advance_one(l, 95)));
+    } else {
+      break;
+    }
   }
   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 46 && lexer_dot_continues_float(data, (l).pos) != 0) {   (l = (lexer_advance_one(l, 46)));
   double fval = ((double)(ival));
   double frac = 0.1;
-  while ((l).pos < (data)->length && lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
-    uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
-    (l = (lexer_advance_one(l, d)));
-    (fval = (fval + frac * (d - 48)));
-    (frac = (frac * 0.1));
+  /* wave277: `_` float fraction digit separators (≡ lexer.x). */
+  while ((l).pos < (data)->length) {
+    if (lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
+      uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+      (l = (lexer_advance_one(l, d)));
+      (fval = (fval + frac * (d - 48)));
+      (frac = (frac * 0.1));
+    } else if (lexer_is_digit_sep(data, (l).pos, 0)) {
+      (l = (lexer_advance_one(l, 95)));
+    } else {
+      break;
+    }
   }
   /* wave274: incomplete exp after fraction → L005 + TOKEN_EOF. */
   if (lexer_apply_optional_exponent(l, data, fval, (&(l)), (&(fval))) != 0) {
@@ -1438,11 +1494,18 @@ XLANG_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out
  }
   int32_t exp = 0;
   int32_t exp_digits = 0;
-  while ((l).pos < (data)->length && lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
-    uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
-    (l = (lexer_advance_one(l, d)));
-    (exp = (exp * 10 + (d - 48)));
-    exp_digits = exp_digits + 1;
+  /* wave277: `_` float exponent digit separators (≡ lexer.x). */
+  while ((l).pos < (data)->length) {
+    if (lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
+      uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+      (l = (lexer_advance_one(l, d)));
+      (exp = (exp * 10 + (d - 48)));
+      exp_digits = exp_digits + 1;
+    } else if (lexer_is_digit_sep(data, (l).pos, 0)) {
+      (l = (lexer_advance_one(l, 95)));
+    } else {
+      break;
+    }
   }
   if (exp_digits == 0) {
     lexer_note_incomplete_exp(e_line, e_col);
@@ -1483,11 +1546,18 @@ XLANG_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out
   (l = (lexer_advance_one(l, 46)));
   double fval = 0.0;
   double frac = 0.1;
-  while ((l).pos < (data)->length && lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
-    uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
-    (l = (lexer_advance_one(l, d)));
-    (fval = (fval + frac * (d - 48)));
-    (frac = (frac * 0.1));
+  /* wave277: `_` float fraction digit separators (≡ lexer.x). */
+  while ((l).pos < (data)->length) {
+    if (lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
+      uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+      (l = (lexer_advance_one(l, d)));
+      (fval = (fval + frac * (d - 48)));
+      (frac = (frac * 0.1));
+    } else if (lexer_is_digit_sep(data, (l).pos, 0)) {
+      (l = (lexer_advance_one(l, 95)));
+    } else {
+      break;
+    }
   }
   /* wave274: incomplete exp after fraction → L005 + TOKEN_EOF. */
   if (lexer_apply_optional_exponent(l, data, fval, (&(l)), (&(fval))) != 0) {
@@ -1845,11 +1915,18 @@ XLANG_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, st
   /* wave273: require ≥1 hex digit after 0x/0X (≡ lexer.x L004). */
   uint64_t hval = ((uint64_t)(0));
   int32_t hex_digits = 0;
-  while ((l).pos < (data)->length && lexer_is_hex_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
-    uint8_t hd = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
-    (hval = (hval * 16 + ((uint64_t)(lexer_hex_digit_value(hd)))));
-    (l = (lexer_advance_one(l, hd)));
-    hex_digits = hex_digits + 1;
+  /* wave277: `_` hex digit separators (≡ lexer.x). */
+  while ((l).pos < (data)->length) {
+    if (lexer_is_hex_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
+      uint8_t hd = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+      (hval = (hval * 16 + ((uint64_t)(lexer_hex_digit_value(hd)))));
+      (l = (lexer_advance_one(l, hd)));
+      hex_digits = hex_digits + 1;
+    } else if (lexer_is_digit_sep(data, (l).pos, 1)) {
+      (l = (lexer_advance_one(l, 95)));
+    } else {
+      break;
+    }
   }
   if (hex_digits == 0) {
     lexer_note_incomplete_hex(line0, col0);
@@ -1864,11 +1941,18 @@ XLANG_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, st
  if (c == 48 && (l).pos < (data)->length && (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 98 || ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 66)) {   (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
   uint64_t bval = ((uint64_t)(0));
   int32_t bin_digits = 0;
-  while ((l).pos < (data)->length && lexer_is_bin_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
-    uint8_t bd = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
-    (bval = (bval * 2 + ((uint64_t)(bd - 48))));
-    (l = (lexer_advance_one(l, bd)));
-    bin_digits = bin_digits + 1;
+  /* wave277: `_` bin digit separators (≡ lexer.x). */
+  while ((l).pos < (data)->length) {
+    if (lexer_is_bin_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
+      uint8_t bd = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+      (bval = (bval * 2 + ((uint64_t)(bd - 48))));
+      (l = (lexer_advance_one(l, bd)));
+      bin_digits = bin_digits + 1;
+    } else if (lexer_is_digit_sep(data, (l).pos, 2)) {
+      (l = (lexer_advance_one(l, 95)));
+    } else {
+      break;
+    }
   }
   if (bin_digits == 0) {
     lexer_note_incomplete_bin(line0, col0);
@@ -1882,11 +1966,18 @@ XLANG_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, st
  if (c == 48 && (l).pos < (data)->length && (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 111 || ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 79)) {   (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
   uint64_t oval = ((uint64_t)(0));
   int32_t oct_digits = 0;
-  while ((l).pos < (data)->length && lexer_is_oct_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
-    uint8_t od = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
-    (oval = (oval * 8 + ((uint64_t)(od - 48))));
-    (l = (lexer_advance_one(l, od)));
-    oct_digits = oct_digits + 1;
+  /* wave277: `_` oct digit separators (≡ lexer.x). */
+  while ((l).pos < (data)->length) {
+    if (lexer_is_oct_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
+      uint8_t od = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+      (oval = (oval * 8 + ((uint64_t)(od - 48))));
+      (l = (lexer_advance_one(l, od)));
+      oct_digits = oct_digits + 1;
+    } else if (lexer_is_digit_sep(data, (l).pos, 3)) {
+      (l = (lexer_advance_one(l, 95)));
+    } else {
+      break;
+    }
   }
   if (oct_digits == 0) {
     lexer_note_incomplete_oct(line0, col0);
@@ -1897,19 +1988,33 @@ XLANG_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, st
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok_o, .token_start = start };
  }
 (ival = (ival * 10 + (c - 48)));
-  while ((l).pos < (data)->length && lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
-    uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
-    (l = (lexer_advance_one(l, d)));
-    (ival = (ival * 10 + (d - 48)));
+  /* wave277: `_` decimal digit separators (≡ lexer.x). */
+  while ((l).pos < (data)->length) {
+    if (lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
+      uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+      (l = (lexer_advance_one(l, d)));
+      (ival = (ival * 10 + (d - 48)));
+    } else if (lexer_is_digit_sep(data, (l).pos, 0)) {
+      (l = (lexer_advance_one(l, 95)));
+    } else {
+      break;
+    }
   }
   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 46 && lexer_dot_continues_float(data, (l).pos) != 0) {   (l = (lexer_advance_one(l, 46)));
   double fval = ((double)(ival));
   double frac = 0.1;
-  while ((l).pos < (data)->length && lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
-    uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
-    (l = (lexer_advance_one(l, d)));
-    (fval = (fval + frac * (d - 48)));
-    (frac = (frac * 0.1));
+  /* wave277: `_` float fraction digit separators (≡ lexer.x). */
+  while ((l).pos < (data)->length) {
+    if (lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
+      uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+      (l = (lexer_advance_one(l, d)));
+      (fval = (fval + frac * (d - 48)));
+      (frac = (frac * 0.1));
+    } else if (lexer_is_digit_sep(data, (l).pos, 0)) {
+      (l = (lexer_advance_one(l, 95)));
+    } else {
+      break;
+    }
   }
   if (lexer_apply_optional_exponent(l, data, fval, (&(l)), (&(fval))) != 0) { struct token_Token tok_eof = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }; return (struct lexer_LexerResult){ .next_lex = l, .tok = tok_eof, .token_start = start }; }
   struct token_Token tok = (struct token_Token){ .kind = token_TokenKind_TOKEN_FLOAT, .line = line0, .col = col0, .int_val = 0, .float_val = fval, .ident = 0, .ident_len = 0 };
@@ -1928,11 +2033,18 @@ XLANG_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, st
  }
   int32_t exp = 0;
   int32_t exp_digits = 0;
-  while ((l).pos < (data)->length && lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
-    uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
-    (l = (lexer_advance_one(l, d)));
-    (exp = (exp * 10 + (d - 48)));
-    exp_digits = exp_digits + 1;
+  /* wave277: `_` float exponent digit separators (≡ lexer.x). */
+  while ((l).pos < (data)->length) {
+    if (lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
+      uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+      (l = (lexer_advance_one(l, d)));
+      (exp = (exp * 10 + (d - 48)));
+      exp_digits = exp_digits + 1;
+    } else if (lexer_is_digit_sep(data, (l).pos, 0)) {
+      (l = (lexer_advance_one(l, 95)));
+    } else {
+      break;
+    }
   }
   if (exp_digits == 0) {
     lexer_note_incomplete_exp(e_line, e_col);
@@ -1964,11 +2076,18 @@ XLANG_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, st
   (l = (lexer_advance_one(l, 46)));
   double fval = 0.0;
   double frac = 0.1;
-  while ((l).pos < (data)->length && lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
-    uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
-    (l = (lexer_advance_one(l, d)));
-    (fval = (fval + frac * (d - 48)));
-    (frac = (frac * 0.1));
+  /* wave277: `_` float fraction digit separators (≡ lexer.x). */
+  while ((l).pos < (data)->length) {
+    if (lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
+      uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+      (l = (lexer_advance_one(l, d)));
+      (fval = (fval + frac * (d - 48)));
+      (frac = (frac * 0.1));
+    } else if (lexer_is_digit_sep(data, (l).pos, 0)) {
+      (l = (lexer_advance_one(l, 95)));
+    } else {
+      break;
+    }
   }
   if (lexer_apply_optional_exponent(l, data, fval, (&(l)), (&(fval))) != 0) { struct token_Token tok_eof = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }; return (struct lexer_LexerResult){ .next_lex = l, .tok = tok_eof, .token_start = start }; }
   struct token_Token tok = (struct token_Token){ .kind = token_TokenKind_TOKEN_FLOAT, .line = line0, .col = col0, .int_val = 0, .float_val = fval, .ident = 0, .ident_len = 0 };
