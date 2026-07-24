@@ -15,6 +15,11 @@
      `~/.grok/skills/xlang-selfhost-product-gate/SKILL.md` → **「上帝视角纪律」**；  
      现场地图见 `analysis/问题分析文档.md` §0.17 / §0.18）：
      - 动手前五问：产生 / 存储 / 消费 / 同模式爆炸半径 / 最小回归集
+     - **爆炸半径 / 影响面先查图再广读**（省 token）：本仓 skill  
+       `.grok/skills/code-review-graph` + 规则 `.grok/rules/code-review-graph-tokens.md`；  
+       优先 `code-review-graph detect-changes --brief` / `query callers_of` /  
+       `impact --max-results 40`，再只打开高风险文件；**禁止**默认全库  
+       `dead-code` 或把 CRG 整份 JSON 灌进上下文；图只导航，不替代 Ubuntu 金标
      - **一条债一层一个 commit**；禁止批量改 std、改测试期望、soft-skip 糊绿顶编译器债
      - seed 与 `.x` / glue 副本同 commit；改后 Ubuntu 重建对应 `.o` + g05
      - 探针 + 邻域矩阵绿后才扩全量 bstrict
