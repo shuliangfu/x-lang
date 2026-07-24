@@ -5705,6 +5705,16 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     if (!ast.ref_is_null(op_ref) && !ast.ref_is_null(return_type_ref)) {
       let rk_ret: i32 = pipeline_type_kind_ord_at(arena, return_type_ref);
       let ok_ret: i32 = pipeline_expr_kind_ord_at(arena, op_ref);
+      /*
+       * wave318: return bare int lit → f32/f64 (and other lit targets).
+       * let/assign already call typeck_coerce_init_lit_to_decl; return only had
+       * float_lit (wave316) + a partial hand-written i64/u32/u64/ptr0 path →
+       * `function f(): f32 { return 6; }` reported expected f32 found i32.
+       * G.7 single authority — reuse lit coerce before float_lit / enum.
+       * Leave-off: EXPR_NEG int (`return -6`) / int binop to float (let/asg same).
+       * PLATFORM: SHARED — seed typeck_gen + empty_surface + pipeline_glue twin.
+       */
+      typeck_coerce_init_lit_to_decl(arena, op_ref, return_type_ref, rk_ret, ok_ret);
       /* wave316: return float lit / `-float` to f32/f64 (G.7 reuse float_lit coerce). */
       typeck_coerce_init_float_lit_to_decl(arena, op_ref, return_type_ref, rk_ret, ok_ret);
       if (typeck_coerce_init_enum_field_to_decl(module, arena, op_ref, return_type_ref, rk_ret, ok_ret) != 0) {

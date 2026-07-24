@@ -25537,6 +25537,9 @@ int32_t pipeline_typeck_check_expr_match_c(struct ast_Module *module, struct ast
  */
 int32_t pipeline_typeck_coerce_init_struct_lit_to_decl_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                          int32_t init_ref, int32_t decl_ty_ref);
+/* wave318: return path reuses lit coerce before body (defined with coerce family). */
+int32_t pipeline_typeck_coerce_init_lit_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref, int32_t decl_ty_ref,
+                                                  int32_t decl_kind, int32_t init_kind);
 /* wave316: return path reuses float_lit coerce before body (defined with coerce family). */
 int32_t pipeline_typeck_coerce_init_float_lit_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
                                                         int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
@@ -25605,6 +25608,11 @@ int32_t pipeline_typeck_check_expr_return_c(struct ast_Module *module, struct as
   if (!ast_ref_is_null(op_ref) && !ast_ref_is_null(return_type_ref)) {
     op_kind = pipeline_expr_kind_ord_at(arena, op_ref);
     rt_kind = pipeline_type_kind_ord_at(arena, return_type_ref);
+    /*
+     * wave318: return bare int lit → f32/f64 (G.7 reuse lit coerce; let/assign parity).
+     * PLATFORM: SHARED — twin with typeck.x typeck_check_expr_return.
+     */
+    (void)pipeline_typeck_coerce_init_lit_to_decl_c(arena, op_ref, return_type_ref, rt_kind, op_kind);
     /* wave316: return float lit / `-float` → f32/f64 (G.7 reuse float_lit coerce). */
     (void)pipeline_typeck_coerce_init_float_lit_to_decl_c(arena, op_ref, return_type_ref, rt_kind, op_kind);
     if (op_kind == (int32_t)ast_ExprKind_EXPR_LIT) {

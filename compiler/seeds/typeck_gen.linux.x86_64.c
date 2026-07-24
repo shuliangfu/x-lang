@@ -5912,6 +5912,8 @@ int32_t typeck_check_expr_return(struct ast_Module * module, struct ast_ASTArena
     if ((!(ast_ref_is_null(op_ref)) && !(ast_ref_is_null(return_type_ref)))) {
       int32_t rk_ret = pipeline_type_kind_ord_at(arena, return_type_ref);
       int32_t ok_ret = pipeline_expr_kind_ord_at(arena, op_ref);
+      /* wave318: return bare int lit → f32/f64 (G.7 reuse lit coerce; let/assign parity). */
+      (void)(typeck_coerce_init_lit_to_decl(arena, op_ref, return_type_ref, rk_ret, ok_ret));
       /* wave316: return float lit / -float → f32/f64. */
       (void)(typeck_coerce_init_float_lit_to_decl(arena, op_ref, return_type_ref, rk_ret, ok_ret));
       if ((typeck_coerce_init_enum_field_to_decl(module, arena, op_ref, return_type_ref, rk_ret, ok_ret) !=0)) {
