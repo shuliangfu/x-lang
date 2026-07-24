@@ -11430,6 +11430,17 @@ static int32_t pipeline_asm_index_elem_byte_sz_c(struct ast_ASTArena *arena, int
   tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
   if (tr > 0) {
     int32_t esz_res;
+    /*
+     * wave357 Cap residual pure: multi-dim outer INDEX resolves to TYPE_ARRAY
+     * (`a[i]` of `[N][M]T` → `[M]T`). Stride is sizeof(that subarray), NOT the
+     * peeled scalar width (peel would give 4 for [3]i32 → wrong add $4).
+     * PLATFORM: SHARED freestanding address scale · LINUX gold.
+     */
+    if (pipeline_type_kind_ord_at(arena, tr) == 10) {
+      int32_t asz = glue_fixed_array_total_bytes_c(arena, tr, 0);
+      if (asz > 0)
+        return asz;
+    }
     esz_res = glue_index_elem_byte_sz_from_type_ref_c(arena, tr);
     /** v.ptr[v.len]：INDEX resolved_type 误落 i64/usize(8) 时仍按 *u8 基址步长 1。 */
     if (esz_res >= 8) {
