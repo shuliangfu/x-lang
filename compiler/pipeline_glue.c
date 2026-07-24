@@ -17419,6 +17419,12 @@ static void glue_live_fwd_collect_expr_uses_for_defer(struct ast_ASTArena *arena
 /**
  * Mark lets that must stay in pass 1 (stmt_order position).
  * @param deferred out[0..nlet) 1 = pass1 only; caller supplies buffer of size nlet
+ *
+ * Pass 0 still hoists pure lets before if/loop (parser order workaround for
+ * with_arena). wave320: never hoist a let that *reads* stack slots past an
+ * earlier expr_stmt — assign can mutate those slots (`let a=0; a=6; let b=a`
+ * was emitting b=a before a=6 → freestanding run=0).
+ * PLATFORM: SHARED — ELF block_body_sync pass0/pass1 ordering.
  */
 static void glue_block_compute_pass1_deferred_lets(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                   int32_t block_ref, int32_t slot_base, int32_t nconst, int32_t nlet,
@@ -17426,6 +17432,8 @@ static void glue_block_compute_pass1_deferred_lets(struct ast_ASTArena *arena, s
   int32_t li;
   int32_t changed;
   int32_t guard;
+  int32_t nso;
+  int32_t si;
   GlueBlockLiveFwd uses;
   if (!arena || !ctx || !deferred || nlet <= 0)
     return;
@@ -17466,6 +17474,46 @@ static void glue_block_compute_pass1_deferred_lets(struct ast_ASTArena *arena, s
     }
     if (!changed)
       break;
+  }
+  /**
+   * wave320 Cap residual: pure-let pass0 must not reorder past earlier expr_stmt.
+   * stmt_order kind 2 = expr_stmt (assign / call / …). If a let's init reads any
+   * stack slot and any expr_stmt appears before this let in source order, keep
+   * the let at its pass1 stmt_order position so assigns run first.
+   * Still allows hoisting pure lets past if/while/for/region (kinds 3–6) only —
+   * that remains the with_arena SIGSEGV workaround.
+   */
+  nso = ast_ast_block_num_stmt_order(arena, block_ref);
+  for (li = 0; li < nlet; li++) {
+    int32_t init_ref;
+    int32_t let_si;
+    int32_t j;
+    if (deferred[li])
+      continue;
+    init_ref = ast_pipeline_block_let_init_ref(arena, block_ref, li);
+    if (init_ref <= 0)
+      continue;
+    glue_live_fwd_clear(&uses);
+    glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, init_ref, &uses);
+    if (uses.n <= 0)
+      continue; /* pure lit / no stack reads — safe to hoist past assigns */
+    let_si = -1;
+    for (si = 0; si < nso; si++) {
+      if (ast_ast_block_stmt_order_kind(arena, block_ref, si) == 1 &&
+          ast_ast_block_stmt_order_idx(arena, block_ref, si) == li) {
+        let_si = si;
+        break;
+      }
+    }
+    if (let_si < 0)
+      continue;
+    for (j = 0; j < let_si; j++) {
+      /* kind 2 = expr_stmt (assign/call); do not hoist past these */
+      if (ast_ast_block_stmt_order_kind(arena, block_ref, j) == 2) {
+        deferred[li] = 1;
+        break;
+      }
+    }
   }
 }
 
