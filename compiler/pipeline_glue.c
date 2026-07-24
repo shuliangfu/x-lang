@@ -14238,8 +14238,21 @@ static int32_t glue_call_arg_var_use_lea_not_load_elf_c(struct ast_ASTArena *are
       return 0;
     return 1;
   }
-  if (glue_type_is_fixed_array(arena, decl_ty))
+  if (glue_type_is_fixed_array(arena, decl_ty)) {
+    /*
+     * wave417 Cap residual pure: T[N] formal home is E* (8B pointer; see
+     * glue_func_param_agg_byte_size_c). Forwarding `mid(a)` must load the slot
+     * (pass E*), not lea(home) which yields E**. Local T[N] still lea(payload).
+     * Root: prior always return 1 → mid did `add x0,x29,#0x10` then bl sum;
+     * sum INDEX read pointer bits as i32 (fwd 97≠100 / fwd2 106≠20).
+     * G.7: reuse glue_emit_func_param_is_indirect_array_slot_c (INDEX twin).
+     * PLATFORM: SHARED freestanding · LINUX gold + MACOS|ARM64.
+     */
+    if (g_pipeline_asm_emit_module && g_pipeline_asm_emit_func_index >= 0 &&
+        glue_emit_func_param_is_indirect_array_slot_c(arena, g_pipeline_asm_emit_module, expr_ref) != 0)
+      return 0;
     return 1;
+  }
   return 0;
 }
 
@@ -23226,6 +23239,19 @@ static int32_t glue_func_param_agg_byte_size_c(struct ast_ASTArena *arena, struc
    * with call-arg lea for TYPE_SLICE.
    */
   if (k == (int32_t)ast_TypeKind_TYPE_SLICE)
+    return 8;
+  /*
+   * wave417 Cap residual pure: fixed TYPE_ARRAY formals lower as E* (one GP),
+   * matching host-C `int32_t *a` / call-site lea(payload) / glue_emit_func_param
+   * is_indirect_array_slot_c (8B pointer in home).
+   * Root: prior glue_type_size_simple(T[N]) returned full payload (e.g. i32[8]=32).
+   * fill_param_slots then used high-end home (off+width)=0x30 while arm64
+   * emit_param_home always stores GP args at 16+i*8 (=0x10) → INDEX loads junk
+   * base → SIGSEGV. x86 SysV also mis-classed as MEMORY by-value (>16B).
+   * G.7: complete the *T / T[] / T[N] param pointer set in this authority only.
+   * PLATFORM: SHARED freestanding · LINUX gold + MACOS|ARM64.
+   */
+  if (k == (int32_t)ast_TypeKind_TYPE_ARRAY)
     return 8;
   if (k == 8) {
     sz = glue_type_named_layout_size_any_module_elf_c(arena, pty);

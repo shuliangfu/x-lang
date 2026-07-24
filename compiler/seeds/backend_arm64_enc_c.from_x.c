@@ -638,29 +638,44 @@ int32_t arch_arm64_enc_enc_load_rbp_to_x2(struct platform_elf_ElfCodegenCtx *elf
   return -1;
 }
 
+/*
+ * wave417 Cap residual pure: ARM64 ADD (shifted register) scale for INDEX.
+ * Encoding: sf=1 op=ADD shift=LSL Rm imm6 Rn Rd.
+ *   scale1 → imm6=0 (×1); scale4 → imm6=2 (×4); scale8 → imm6=3 (×8).
+ * Root: prior imm6 was 6/7 (×64/×128) — comment said "lsl #2" but word was wrong
+ * (0x8b011800 = lsl #6). Dynamic INDEX a[i] on i32 used esz=4 → ×64 stride →
+ * wrong sum / SIGSEGV; lit-index add-imm path stayed green.
+ * G.7: product authority seeds/backend_arm64_enc_c.from_x.c (g05 strong);
+ * twin arch/arm64_enc.x same commit. PLATFORM: MACOS|ARM64.
+ */
 int32_t arch_arm64_enc_enc_rax_plus_rbx_scale1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  /* add x0, x0, x1, lsl #0 */
   return arm64_enc_u32_le(elf_ctx, 0x8b010000u);
 }
 
 int32_t arch_arm64_enc_enc_rax_plus_rbx_scale4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* add x0, x0, x1, lsl #2 */
-  return arm64_enc_u32_le(elf_ctx, 0x8b011800u);
+  /* add x0, x0, x1, lsl #2  (×4) — was 0x8b011800 (lsl #6) pre-wave417 */
+  return arm64_enc_u32_le(elf_ctx, 0x8b010800u);
 }
 
 int32_t arch_arm64_enc_enc_rax_plus_rbx_scale8(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0x8b011c00u);
+  /* add x0, x0, x1, lsl #3  (×8) — was 0x8b011c00 (lsl #7) pre-wave417 */
+  return arm64_enc_u32_le(elf_ctx, 0x8b010c00u);
 }
 
 int32_t arch_arm64_enc_enc_rbx_plus_x2_scale1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  /* add x0, x1, x2, lsl #0 — EA in x0 for subsequent [x0] load */
   return arm64_enc_u32_le(elf_ctx, 0x8b020020u);
 }
 
 int32_t arch_arm64_enc_enc_rbx_plus_x2_scale4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0x8b021820u);
+  /* add x0, x1, x2, lsl #2 — was 0x8b021820 (lsl #6) pre-wave417 */
+  return arm64_enc_u32_le(elf_ctx, 0x8b020820u);
 }
 
 int32_t arch_arm64_enc_enc_rbx_plus_x2_scale8(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0x8b021c20u);
+  /* add x0, x1, x2, lsl #3 — was 0x8b021c20 (lsl #7) pre-wave417 */
+  return arm64_enc_u32_le(elf_ctx, 0x8b020c20u);
 }
 
 int32_t arch_arm64_enc_enc_store_rax_to_rbx_indirect(struct platform_elf_ElfCodegenCtx *elf_ctx) {

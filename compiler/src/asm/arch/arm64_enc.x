@@ -804,31 +804,40 @@ export function enc_memset_rbp_zero(ctx: *ElfCodegenCtx, rbp_off: i32, nbytes: i
   return enc_call(ctx, memset_nm, 6);
 }
 
-/** Exported function `enc_rax_plus_rbx_scale1`.
- * Implements `enc_rax_plus_rbx_scale1`.
- * @param ctx *ElfCodegenCtx
- * @return i32
+/**
+ * Encode ADD X0, X0, X1, LSL #0 (×1 index scale).
+ * @param ctx *ElfCodegenCtx — ELF/Mach-O text buffer
+ * @return i32 — 0 on success
+ * wave417: correct ARM64 ADD shifted-register encoding (imm6=0).
+ * PLATFORM: MACOS|ARM64 — twin of seeds/backend_arm64_enc_c.from_x.c
  */
 export function enc_rax_plus_rbx_scale1(ctx: *ElfCodegenCtx): i32 {
-  return enc_u32_le(ctx, 2334212096);
+  /* 0x8b010000 */
+  return enc_u32_le(ctx, 2332033024);
 }
 
-/** Exported function `enc_rax_plus_rbx_scale4`.
- * Implements `enc_rax_plus_rbx_scale4`.
- * @param ctx *ElfCodegenCtx
- * @return i32
+/**
+ * Encode ADD X0, X0, X1, LSL #2 (×4 index scale for i32/f32).
+ * @param ctx *ElfCodegenCtx — ELF/Mach-O text buffer
+ * @return i32 — 0 on success
+ * wave417: was wrong imm6 (×64); must be imm6=2. G.7 twin product seed.
+ * PLATFORM: MACOS|ARM64
  */
 export function enc_rax_plus_rbx_scale4(ctx: *ElfCodegenCtx): i32 {
-  return enc_u32_le(ctx, 2334214144);
+  /* 0x8b010800 */
+  return enc_u32_le(ctx, 2332100608);
 }
 
-/** Exported function `enc_rax_plus_rbx_scale8`.
- * Implements `enc_rax_plus_rbx_scale8`.
- * @param ctx *ElfCodegenCtx
- * @return i32
+/**
+ * Encode ADD X0, X0, X1, LSL #3 (×8 index scale for i64/ptr/f64).
+ * @param ctx *ElfCodegenCtx — ELF/Mach-O text buffer
+ * @return i32 — 0 on success
+ * wave417: was wrong imm6 (×128); must be imm6=3. G.7 twin product seed.
+ * PLATFORM: MACOS|ARM64
  */
 export function enc_rax_plus_rbx_scale8(ctx: *ElfCodegenCtx): i32 {
-  return enc_u32_le(ctx, 2334215168);
+  /* 0x8b010c00 */
+  return enc_u32_le(ctx, 2332101632);
 }
 
 /** Exported function `enc_store_rax_to_rbx_indirect`.
@@ -907,27 +916,39 @@ export function enc_load_rbp_to_x2(ctx: *ElfCodegenCtx, offset: i32): i32 {
   return enc_u32_le(ctx, base | (u9 << 12) | (29 << 5) | 2);
 }
 
-/** Exported function `enc_rbx_plus_x2_scale1`.
- * Implements `enc_rbx_plus_x2_scale1`.
- * @param ctx *ElfCodegenCtx
- * @return i32
+/**
+ * Encode ADD X0, X1, X2, LSL #0 — base@x1 + index@x2 → EA@x0 (×1).
+ * @param ctx *ElfCodegenCtx — ELF/Mach-O text buffer
+ * @return i32 — 0 on success
+ * PLATFORM: MACOS|ARM64 — twin product seed (result in x0 for [x0] load).
  */
 export function enc_rbx_plus_x2_scale1(ctx: *ElfCodegenCtx): i32 {
-  return enc_u32_le(ctx, 2334212096 + 65569);
+  /* 0x8b020020 */
+  return enc_u32_le(ctx, 2332164128);
 }
 
-/** add x1, x1, w2, uxtw #2（×4）。 */
+/**
+ * Encode ADD X0, X1, X2, LSL #2 — base@x1 + index@x2 → EA@x0 (×4).
+ * @param ctx *ElfCodegenCtx — ELF/Mach-O text buffer
+ * @return i32 — 0 on success
+ * wave417: was wrong imm6 (×64). G.7 twin product seed.
+ * PLATFORM: MACOS|ARM64
+ */
 export function enc_rbx_plus_x2_scale4(ctx: *ElfCodegenCtx): i32 {
-  return enc_u32_le(ctx, 2334214144 + 65569);
+  /* 0x8b020820 */
+  return enc_u32_le(ctx, 2332166176);
 }
 
-/** Exported function `enc_rbx_plus_x2_scale8`.
- * Implements `enc_rbx_plus_x2_scale8`.
- * @param ctx *ElfCodegenCtx
- * @return i32
+/**
+ * Encode ADD X0, X1, X2, LSL #3 — base@x1 + index@x2 → EA@x0 (×8).
+ * @param ctx *ElfCodegenCtx — ELF/Mach-O text buffer
+ * @return i32 — 0 on success
+ * wave417: was wrong imm6 (×128). G.7 twin product seed.
+ * PLATFORM: MACOS|ARM64
  */
 export function enc_rbx_plus_x2_scale8(ctx: *ElfCodegenCtx): i32 {
-  return enc_u32_le(ctx, 2334215168 + 65569);
+  /* 0x8b020c20 */
+  return enc_u32_le(ctx, 2332167200);
 }
 
 /** ldr x0, [x0]。 */
