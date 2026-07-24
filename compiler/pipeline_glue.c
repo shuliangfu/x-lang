@@ -5074,10 +5074,23 @@ static int32_t glue_try_index_var_or_field_base_to_rax_elf_c(struct ast_ASTArena
     boff = glue_var_expr_stack_off_elf_c(arena, ctx, base_ref);
     if (boff < 0)
       return -2;
-    /** Slice local `{ *data, length }`: load `.data` from slot (not lea fat pointer). */
+    /**
+     * TYPE_SLICE base → array data pointer in rax.
+     * - Local let: dual-GP home holds data@boff → load slot.
+     * - Formal param: slot is slice* → load ptr then load fat.data@0 (wave332e).
+     * PLATFORM: SHARED freestanding; host-C uses ->data via codegen.
+     */
     tr = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref);
-    if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == GLUE_TYPE_KIND_SLICE)
+    if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == GLUE_TYPE_KIND_SLICE) {
+      if (glue_local_var_slot_needs_ptr_load_elf_c(arena, base_ref, boff, ctx) != 0) {
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, boff, ta) != 0)
+          return -1;
+        if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+        return 0;
+      }
       return backend_enc_load_rbp_to_rax_arch(elf_ctx, boff, ta);
+    }
     return glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, base_ref, boff, ctx, ta);
   }
   if (ko == 44) {
@@ -5124,8 +5137,19 @@ static int32_t glue_try_index_var_or_field_base_to_rbx_elf_c(struct ast_ASTArena
     if (boff < 0)
       return -2;
     tr = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref);
-    if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == GLUE_TYPE_KIND_SLICE)
+    if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == GLUE_TYPE_KIND_SLICE) {
+      /* wave332e: slice* param → load fat* then .data to rbx (mirror rax path). */
+      if (glue_local_var_slot_needs_ptr_load_elf_c(arena, base_ref, boff, ctx) != 0) {
+        if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, boff, ta) != 0)
+          return -1;
+        if (backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          return -1;
+        return 0;
+      }
       return backend_enc_load_rbp_to_rbx_arch(elf_ctx, boff, ta);
+    }
     return glue_enc_local_slot_ptr_or_addr_rbx_elf_c(arena, elf_ctx, base_ref, boff, ctx, ta);
   }
   if (ko == 44) {
