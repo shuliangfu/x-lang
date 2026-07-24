@@ -2204,6 +2204,11 @@ export extern function codegen_next_host_call_array_tmp_id(): i32;
  * same-call formals do not both alias callee static `__xlang_ar` (host 66→39).
  * wave400: ARRAY_LIT as TYPE_SLICE formal uses wave345 `__xlang_sp` materialize
  * (not bare `&(rvalue compound)`) so host-C BLD001 closes; dual lit formals OK.
+ * wave406: CALL/METHOD returning TYPE_SLICE as formal deep-copies payload into
+ * unique `__xlang_sdN[512]` so dual same-call formals do not both alias callee
+ * static `__xlang_al` (host sum2(take(1),take(2)) 72→69). ARRAY_LIT path stays
+ * fat-only (each lit has its own block-static). Soft residual: true recursion /
+ * heap-free reentrancy beyond dual same-call still last-wins on static temps.
  * Gate: only when codegen_get_host_call_arg_param_ty is TYPE_SLICE (else bare
  * emit for *T / Buffer formals — option/hello). G.7: same compound as let-init.
  *
@@ -2571,15 +2576,27 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
        * wrapping `&(...)` is BLD001 "cannot take the address of an rvalue".
        * Local VAR stays `&(s)`. PLATFORM: SHARED host-C (fs dual-GP call-arg
        * already materializes — glue wave332).
-       * Soft residual: static/COMMON reentrancy last-wins (escape beyond
-       * dual same-call block-static temps).
+       * wave406: CALL/METHOD fat alone is insufficient — callee return ARRAY_LIT
+       * uses one function-static `__xlang_al`; dual same-call formals both point
+       * at last write (72 vs 69). Deep-copy payload into unique `__xlang_sdN`.
+       * Soft residual: true recursion / heap-free reentrancy beyond dual same-call.
        */
-      if (arg.kind == ExprKind.EXPR_CALL || arg.kind == ExprKind.EXPR_METHOD_CALL
-          || arg.kind == ExprKind.EXPR_ARRAY_LIT) {
+      if (arg.kind == ExprKind.EXPR_CALL || arg.kind == ExprKind.EXPR_METHOD_CALL) {
+        /*
+         * ({ static S __xlang_spN; static E __xlang_sdN[512]; size_t __xlang_snN;
+         *    size_t __xlang_siN; __xlang_spN = <call>; __xlang_snN = min(len,512);
+         *    for (...) __xlang_sdN[i] = __xlang_spN.data[i];
+         *    __xlang_spN.data = __xlang_sdN; __xlang_spN.length = __xlang_snN;
+         *    &__xlang_spN; })
+         * PLATFORM: SHARED host-C. Cap 512 matches host TYPE_ARRAY return bound.
+         */
         let ty_ref: i32 = arg.resolved_type_ref;
-        /* ({ static  — stack temp dies under host gcc -O2 when pass returns *s
-         * from a pointer into the stmt-expr local (Ubuntu SIGSEGV; -O0/mac OK).
-         * static last-wins matches escape/COMMON soft reentrancy leave-off. */
+        let tid: i32 = codegen_next_host_call_array_tmp_id();
+        let elem_tr: i32 = 0;
+        if (!ast.ref_is_null(ty_ref) && ty_ref > 0 && ty_ref <= arena.num_types) {
+          elem_tr = pipeline_type_elem_ref_at(arena, ty_ref);
+        }
+        /* ({ static  */
         let open_stmt: u8[12] = [40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0];
         if (emit_bytes_from_ptr(out, &open_stmt[0], 10) != 0) {
           return -1;
@@ -2589,7 +2606,6 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
             return -1;
           }
         } else {
-          /* fallback: struct xlang_slice_int32_t */
           let fb: u8[32] = [
             115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 105, 110, 116, 51, 50, 95, 116, 0, 0, 0, 0, 0, 0
           ];
@@ -2597,7 +2613,247 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
             return -1;
           }
         }
-        /*  __xlang_sp; __xlang_sp =  — declare then assign (static init cannot call). */
+        /*  __xlang_sp */
+        let sp_nm: u8[14] = [32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0, 0, 0];
+        if (emit_bytes_from_ptr(out, &sp_nm[0], 11) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* ; static  */
+        let st2: u8[10] = [59, 32, 115, 116, 97, 116, 105, 99, 32, 0];
+        if (emit_bytes_from_ptr(out, &st2[0], 9) != 0) {
+          return -1;
+        }
+        /* elem type for sd buffer */
+        if (ast.ref_is_null(elem_tr) || elem_tr <= 0
+            || emit_type(arena, out, elem_tr, 0 as *u8, 0, ctx) != 0) {
+          let fb_e: u8[9] = [105, 110, 116, 51, 50, 95, 116, 0, 0];
+          if (emit_bytes_from_ptr(out, &fb_e[0], 7) != 0) {
+            return -1;
+          }
+        }
+        /*  __xlang_sd */
+        let sd_nm: u8[14] = [32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 100, 0, 0, 0];
+        if (emit_bytes_from_ptr(out, &sd_nm[0], 11) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* [512]; size_t __xlang_sn */
+        let sd_mid: u8[28] = [
+          91, 53, 49, 50, 93, 59, 32, 115, 105, 122, 101, 95, 116, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0, 0, 0, 0
+        ];
+        if (emit_bytes_from_ptr(out, &sd_mid[0], 24) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* ; size_t __xlang_si */
+        let si_decl: u8[24] = [
+          59, 32, 115, 105, 122, 101, 95, 116, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105, 0, 0, 0, 0, 0
+        ];
+        if (emit_bytes_from_ptr(out, &si_decl[0], 19) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* ; __xlang_sp */
+        let sp_asg: u8[14] = [59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0, 0];
+        if (emit_bytes_from_ptr(out, &sp_asg[0], 12) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /*  =  */
+        let eq_sp: u8[4] = [32, 61, 32, 0];
+        if (emit_bytes_from_ptr(out, &eq_sp[0], 3) != 0) {
+          return -1;
+        }
+        if (emit_expr(arena, out, arg_ref, ctx) != 0) {
+          return -1;
+        }
+        /* ; __xlang_snN = __xlang_spN.length; if (__xlang_snN > 512) __xlang_snN = 512;  */
+        let sn_asg: u8[14] = [59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0, 0];
+        if (emit_bytes_from_ptr(out, &sn_asg[0], 12) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /*  = __xlang_sp */
+        let sn_eq: u8[14] = [32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0];
+        if (emit_bytes_from_ptr(out, &sn_eq[0], 13) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* .length; if (__xlang_sn */
+        let sn_len: u8[28] = [
+          46, 108, 101, 110, 103, 116, 104, 59, 32, 105, 102, 32, 40, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0, 0, 0, 0, 0
+        ];
+        if (emit_bytes_from_ptr(out, &sn_len[0], 23) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /*  > 512) __xlang_sn */
+        let sn_cap: u8[20] = [
+          32, 62, 32, 53, 49, 50, 41, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0, 0
+        ];
+        if (emit_bytes_from_ptr(out, &sn_cap[0], 18) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /*  = 512; for (__xlang_si */
+        let for_open: u8[28] = [
+          32, 61, 32, 53, 49, 50, 59, 32, 102, 111, 114, 32, 40, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105, 0, 0, 0, 0, 0
+        ];
+        if (emit_bytes_from_ptr(out, &for_open[0], 23) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /*  = 0; __xlang_si */
+        let for_mid1: u8[16] = [32, 61, 32, 48, 59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105];
+        /* note: 16 bytes exact — use from_ptr with 16 */
+        if (emit_bytes_from_ptr(out, &for_mid1[0], 16) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /*  < __xlang_sn */
+        let for_mid2: u8[16] = [32, 60, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0, 0, 0];
+        if (emit_bytes_from_ptr(out, &for_mid2[0], 13) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* ; __xlang_si */
+        let for_mid3: u8[14] = [59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105, 0, 0];
+        if (emit_bytes_from_ptr(out, &for_mid3[0], 12) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* ++) __xlang_sd */
+        let for_body: u8[16] = [43, 43, 41, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 100, 0, 0];
+        if (emit_bytes_from_ptr(out, &for_body[0], 14) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* [__xlang_si */
+        let idx_open: u8[14] = [91, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105, 0, 0, 0];
+        if (emit_bytes_from_ptr(out, &idx_open[0], 11) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* ] = __xlang_sp */
+        let copy_mid: u8[16] = [93, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0, 0];
+        if (emit_bytes_from_ptr(out, &copy_mid[0], 14) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* .data[__xlang_si */
+        let data_idx: u8[20] = [
+          46, 100, 97, 116, 97, 91, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105, 0, 0, 0, 0
+        ];
+        if (emit_bytes_from_ptr(out, &data_idx[0], 16) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* ]; __xlang_sp */
+        let after_copy: u8[16] = [93, 59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0, 0, 0];
+        if (emit_bytes_from_ptr(out, &after_copy[0], 13) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* .data = __xlang_sd */
+        let data_asg: u8[20] = [
+          46, 100, 97, 116, 97, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 100, 0, 0
+        ];
+        if (emit_bytes_from_ptr(out, &data_asg[0], 18) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* ; __xlang_sp */
+        let len_asg: u8[14] = [59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0, 0];
+        if (emit_bytes_from_ptr(out, &len_asg[0], 12) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* .length = __xlang_sn */
+        let len_eq: u8[24] = [
+          46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0, 0, 0, 0
+        ];
+        if (emit_bytes_from_ptr(out, &len_eq[0], 20) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* ; &__xlang_sp */
+        let end_sp: u8[16] = [59, 32, 38, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0, 0, 0];
+        if (emit_bytes_from_ptr(out, &end_sp[0], 13) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* ; }) */
+        let close_sp: u8[6] = [59, 32, 125, 41, 0, 0];
+        if (emit_bytes_from_ptr(out, &close_sp[0], 4) != 0) {
+          return -1;
+        }
+        return 0;
+      }
+      if (arg.kind == ExprKind.EXPR_ARRAY_LIT) {
+        let ty_ref: i32 = arg.resolved_type_ref;
+        /* ({ static  — wave400: ARRAY_LIT rvalue needs addressable fat. */
+        let open_stmt: u8[12] = [40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0];
+        if (emit_bytes_from_ptr(out, &open_stmt[0], 10) != 0) {
+          return -1;
+        }
+        if (!ast.ref_is_null(ty_ref) && ty_ref > 0 && ty_ref <= arena.num_types) {
+          if (emit_type(arena, out, ty_ref, 0 as *u8, 0, ctx) != 0) {
+            return -1;
+          }
+        } else {
+          let fb: u8[32] = [
+            115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 105, 110, 116, 51, 50, 95, 116, 0, 0, 0, 0, 0, 0
+          ];
+          if (emit_bytes_from_ptr(out, &fb[0], 26) != 0) {
+            return -1;
+          }
+        }
+        /*  __xlang_sp; __xlang_sp =  */
         let sp_decl: u8[28] = [
           32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 32, 61, 32, 0, 0
         ];
