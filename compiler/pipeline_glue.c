@@ -9788,6 +9788,13 @@ static int32_t glue_emit_assign_rhs_elf_c(struct ast_ASTArena *arena, struct pla
   return pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, right_ref, ctx, ta);
 }
 
+/* wave331: assign slice ARRAY_LIT reserves temp past dual-GP home (defs later). */
+static void glue_align_next_offset(struct backend_AsmFuncCtx *ctx);
+void pipeline_asm_bump_next_offset_for_array_lit(struct ast_ASTArena *arena, int32_t expr_ref,
+                                                 struct backend_AsmFuncCtx *ctx);
+int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                          int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+
 /**
  * EXPR_ASSIGN ELF 发射（p.a = … 等；M8 勿走 backend emit_lvalue_eff_addr_elf 桩）。
  */
@@ -9919,6 +9926,9 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
     int32_t vlen;
     int32_t off;
     int32_t is_modlet;
+    int32_t ltr_pre;
+    int32_t ltk_pre;
+    int32_t rko_pre;
     vlen = pipeline_expr_var_name_len(arena, left_ref);
     if (vlen <= 0 || vlen > 63)
       return -1;
@@ -9933,6 +9943,42 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
     /** 写 a 前失效 a 的槽命中，避免 rhs 仍用旧缓存。 */
     if (off >= 0)
       glue_binop_var_slot_cache_invalidate_slot(off);
+    /*
+     * wave331: TYPE_SLICE + ARRAY_LIT assign — reserve temp past dual-GP home before
+     * emit so payload never overwrites data@off / length@off-8 (empty→lit path).
+     * G.7: same dual store as glue_emit_slice_from_array_let_init_elf_c.
+     * PLATFORM: SHARED freestanding · LINUX gold.
+     */
+    ltr_pre = (off >= 0) ? glue_var_decl_type_ref_elf_c(arena, ctx, left_ref) : 0;
+    ltk_pre = (ltr_pre > 0) ? pipeline_type_kind_ord_at(arena, ltr_pre) : 0;
+    rko_pre = pipeline_expr_kind_ord_at(arena, right_ref);
+    if (is_modlet == 0 && off >= 0 && ltk_pre == GLUE_TYPE_KIND_SLICE &&
+        rko_pre == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT &&
+        pipeline_expr_kind_ord_at(arena, expr_ref) == (int32_t)ast_ExprKind_EXPR_ASSIGN) {
+      int32_t n_arr;
+      pipeline_glue_AsmFuncCtxLayout *ly = pipeline_asm_ctx_layout(ctx);
+      n_arr = pipeline_expr_array_lit_num_elems_at(arena, right_ref);
+      if (n_arr < 0 || n_arr > 256)
+        return -1;
+      if (ly) {
+        int32_t past_home = off + 8;
+        if (ly->next_offset < past_home)
+          ly->next_offset = past_home;
+        glue_align_next_offset(ctx);
+      }
+      if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0)
+        return -1;
+      if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off - 8, ta) != 0)
+        return -1;
+      if (n_arr > 0)
+        pipeline_asm_bump_next_offset_for_array_lit(arena, right_ref, ctx);
+      glue_binop_var_slot_cache_kill_def_at_slot(off);
+      return 0;
+    }
     if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
       return -1;
     /* Module shared mutable let: store to text cell (true cross-fn). Prefer over stack. */
@@ -9947,39 +9993,22 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
       int32_t ltr = glue_var_decl_type_ref_elf_c(arena, ctx, left_ref);
       int32_t rty = glue_float_promote_src_ty_ref_c(arena, right_ref);
       int32_t ltk;
-      int32_t rko;
       /* wave314: f32 RHS → f64 LHS promote before store. */
       if (glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, ltr, rty, ta) != 0)
         return -1;
       ltk = (ltr > 0) ? pipeline_type_kind_ord_at(arena, ltr) : 0;
       /*
-       * wave331 Cap residual pure: TYPE_SLICE VAR assign dual-GP home.
+       * wave331 Cap residual pure: TYPE_SLICE VAR assign dual-GP home (non-ARRAY_LIT).
        * Root: VAR assign only store_rax_to_rbp → length half (off-8) stale.
-       * Ubuntu freestanding `a=b` kept old length; ARRAY_LIT RHS had no length store.
-       * Authority (G.7): same dual-GP layout as glue_emit_slice_from_array_let_init_elf_c
-       * / glue_load_var_as_value_to_rax_rdx (data @ off, length @ off-8).
-       * - ARRAY_LIT RHS: rax already data ptr from emit; imm length = num_elems (incl. 0).
-       * - other RHS: rax+rdx already dual-loaded (VAR slice / compound); store both.
+       * Ubuntu freestanding `a=b` kept old length.
+       * Authority (G.7): dual-load leaves rax+rdx; store both halves.
        * PLATFORM: SHARED layout · LINUX freestanding gold · MACOS host-C uses compound.
        */
       if (ltk == GLUE_TYPE_KIND_SLICE) {
-        rko = pipeline_expr_kind_ord_at(arena, right_ref);
-        if (rko == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT) {
-          int32_t n_arr = pipeline_expr_array_lit_num_elems_at(arena, right_ref);
-          if (n_arr < 0 || n_arr > 256)
-            return -1;
-          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0)
-            return -1;
-          if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta) != 0)
-            return -1;
-          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off - 8, ta) != 0)
-            return -1;
-        } else {
-          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0)
-            return -1;
-          if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, off - 8, ta) != 0)
-            return -1;
-        }
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0)
+          return -1;
+        if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, off - 8, ta) != 0)
+          return -1;
       } else if (ltr > 0 && ltk == GLUE_TYPE_KIND_F32_ORD) {
         if (backend_enc_store_eax_to_rbp_arch(elf_ctx, off, ta) != 0)
           return -1;
@@ -17194,6 +17223,7 @@ static int32_t glue_emit_slice_from_array_let_init_elf_c(struct ast_ASTArena *ar
    */
   if (init_ko == 46) {
     int32_t n_arr;
+    pipeline_glue_AsmFuncCtxLayout *ly;
     n_arr = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
     if (n_arr < 0 || n_arr > 256)
       return -1;
@@ -17206,7 +17236,22 @@ static int32_t glue_emit_slice_from_array_let_init_elf_c(struct ast_ASTArena *ar
     /** High half of dual-GP home: length at slot_off-8 (not +8). */
     if (backend_enc_store_rax_to_rbp_arch(elf_ctx, slice_slot_off - 8, ta) != 0)
       return -1;
-    pipeline_asm_bump_next_offset_after_let_init(arena, block_ref, let_idx, init_ref, ctx);
+    /*
+     * wave331: empty ARRAY_LIT does not bump next_offset (0 temp bytes), and lea(temp)
+     * may equal the dual-GP home. Advance past home so a later `a = [..]` assign does
+     * not write payload into the fat slot (Ubuntu: empty→lit index garbage).
+     * Non-empty: also bump payload size (direct emit_array_lit skips slow-path bump).
+     * PLATFORM: SHARED freestanding stack temp discipline.
+     */
+    if (n_arr > 0)
+      pipeline_asm_bump_next_offset_for_array_lit(arena, init_ref, ctx);
+    ly = pipeline_asm_ctx_layout(ctx);
+    if (ly) {
+      int32_t past_home = slice_slot_off + 8;
+      if (ly->next_offset < past_home)
+        ly->next_offset = past_home;
+      glue_align_next_offset(ctx);
+    }
     return 1;
   }
   if (init_ko != GLUE_EXPR_KIND_VAR)
