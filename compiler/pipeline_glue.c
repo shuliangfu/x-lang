@@ -7291,6 +7291,17 @@ int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(struct ast_ASTArena *arena,
     esz = pipeline_asm_index_elem_byte_sz_c(arena, lval_ref);
     return glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, lval_ref, base_ref, idx_ref, ctx, ta, esz);
   }
+  /**
+   * wave324 Cap residual pure: EXPR_DEREF as lvalue effective address (ko==52).
+   * *p = rhs needs the pointer bits in rax (operand only) — not a load of *p.
+   * PLATFORM: SHARED emit / LINUX freestanding gold (mac host-gcc hid via *(p)=).
+   */
+  if (ko == 52) {
+    int32_t op = pipeline_expr_unary_operand_ref_at(arena, lval_ref);
+    if (op <= 0)
+      return -1;
+    return pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta);
+  }
   return -1;
 }
 
@@ -9947,6 +9958,36 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
     }
     glue_binop_var_slot_cache_kill_def_at_slot(off);
     return 0;
+  }
+  /**
+   * wave324 Cap residual pure: *p = rhs / *p += … (EXPR_DEREF lhs, ko==52).
+   *
+   * Root: assign handled VAR(3)/FIELD(44)/INDEX(47) only → DEREF lhs returned -1
+   * → freestanding CG002 (code_len tiny, no main). mac host-gcc C *(p)= hid it.
+   *
+   * Authority (G.7): same dual-slot store as FIELD (rhs→rax, push, addr→rbx, pop,
+   * store [rbx]). Addr via lvalue_eff_addr (operand pointer, no load). Width from
+   * DEREF resolved type — same helper as wave323 load path.
+   * PLATFORM: SHARED emit / LINUX freestanding gold.
+   */
+  if (lko == 52) {
+    int32_t store_sz;
+    int32_t tr;
+    if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    tr = pipeline_expr_resolved_type_ref(arena, left_ref);
+    store_sz = glue_index_elem_byte_sz_from_type_ref_c(arena, tr);
+    if (store_sz <= 0)
+      store_sz = 4;
+    return backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx, store_sz, ta);
   }
   return -1;
 }
