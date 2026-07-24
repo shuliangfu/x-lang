@@ -7010,6 +7010,45 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         /* See implementation. */
         return format_int(out, e.enum_variant_tag);
       }
+      /*
+       * wave346 Cap residual pure: fixed TYPE_ARRAY / TYPE_VECTOR `.length` is
+       * compile-time N. C arrays are not structs — never emit `a.length`.
+       * G.7: same authority as typeck field_slice (usize) + freestanding imm N.
+       * PLATFORM: SHARED host-C emit; seed must match this block.
+       */
+      if (e.field_access_field_len == 6
+          && e.field_access_field_name[0] == 108
+          && e.field_access_field_name[1] == 101
+          && e.field_access_field_name[2] == 110
+          && e.field_access_field_name[3] == 103
+          && e.field_access_field_name[4] == 116
+          && e.field_access_field_name[5] == 104
+          && !ast.ref_is_null(e.field_access_base_ref)
+          && e.field_access_base_ref > 0
+          && e.field_access_base_ref <= arena.num_exprs) {
+        let base_e: Expr = ast.ast_arena_expr_get(arena, e.field_access_base_ref);
+        let base_ty: i32 = base_e.resolved_type_ref;
+        if (!ast.ref_is_null(base_ty) && base_ty > 0 && base_ty <= arena.num_types) {
+          let bk: i32 = pipeline_type_kind_ord_at(arena, base_ty);
+          /* TYPE_ARRAY=10, TYPE_VECTOR=13 */
+          if (bk == 10 || bk == 13) {
+            let asz: i32 = pipeline_type_array_size_at(arena, base_ty);
+            if (asz > 0) {
+              /* ((size_t)N) — matches slice .length C type (size_t). */
+              let open_cast: u8[16] = [
+                40, 40, 115, 105, 122, 101, 95, 116, 41, 0, 0, 0, 0, 0, 0, 0
+              ];
+              if (emit_bytes_from_ptr(out, &open_cast[0], 9) != 0) {
+                return -1;
+              }
+              if (format_int(out, asz) != 0) {
+                return -1;
+              }
+              return append_byte(out, 41);
+            }
+          }
+        }
+      }
       /* See implementation. */
       if (ctx != 0 as *PipelineDepCtx && ctx.emit_expr_as_callee != 0 && emit_import_module_field_symbol(arena, out, expr_ref, ctx) == 0) {
         return 0;

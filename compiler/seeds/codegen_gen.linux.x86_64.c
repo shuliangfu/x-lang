@@ -7545,6 +7545,33 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
       if (((e.field_access_is_enum_variant) !=0)) {
         return codegen_format_int(out, (e.enum_variant_tag));
       }
+      /*
+       * wave346 Cap residual pure: fixed TYPE_ARRAY / TYPE_VECTOR `.length` → ((size_t)N).
+       * C arrays have no .length member. G.7: match codegen.x + typeck field_slice + fs imm.
+       * PLATFORM: SHARED host-C emit (product pin seed).
+       */
+      if ((((((e.field_access_field_len) ==6) && (((e.field_access_field_name))[0] ==108)) && (((e.field_access_field_name))[1] ==101)) && (((e.field_access_field_name))[2] ==110)) && ((((e.field_access_field_name))[3] ==103) && ((((e.field_access_field_name))[4] ==116) && (((e.field_access_field_name))[5] ==104)))) {
+        if (((!(ast_ref_is_null((e.field_access_base_ref))) && ((e.field_access_base_ref) > 0)) && ((e.field_access_base_ref) <=(arena->num_exprs)))) {
+          struct ast_Expr base_e = ast_ast_arena_expr_get(arena, (e.field_access_base_ref));
+          int32_t base_ty = (base_e.resolved_type_ref);
+          if (((!(ast_ref_is_null(base_ty)) && (base_ty > 0)) && (base_ty <=(arena->num_types)))) {
+            int32_t bk = pipeline_type_kind_ord_at(arena, base_ty);
+            if (((bk ==10) || (bk ==13))) {
+              int32_t asz = pipeline_type_array_size_at(arena, base_ty);
+              if ((asz > 0)) {
+                uint8_t open_cast[16] = {40, 40, 115, 105, 122, 101, 95, 116, 41, 0, 0, 0, 0, 0, 0, 0};
+                if ((codegen_emit_bytes_from_ptr(out, &((open_cast)[0]), 9) !=0)) {
+                  return -(1);
+                }
+                if ((codegen_format_int(out, asz) !=0)) {
+                  return -(1);
+                }
+                return codegen_append_byte(out, 41);
+              }
+            }
+          }
+        }
+      }
       if ((((ctx !=((struct ast_PipelineDepCtx *)(0))) && ((ctx->emit_expr_as_callee) !=0)) && (codegen_emit_import_module_field_symbol(arena, out, expr_ref, ctx) ==0))) {
         return 0;
       }
