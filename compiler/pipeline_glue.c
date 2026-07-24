@@ -1905,12 +1905,13 @@ static int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena,
  * short/near jmp over payload bytes, then lea [rip] → rax. All elems must be
  * EXPR_LIT (int); nbytes cap 2048. Empty → rax=0.
  *
+ * @param force_esz element byte size from TYPE_SLICE elem (0 → infer from lit).
  * @return 0 success (rax = durable ptr); -1 cannot pack (caller may fall back).
  * PLATFORM: LINUX+MACOS x86_64 SysV (ta==0). aarch64 not in this leaf.
  */
 static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena *arena,
                                                             struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                            int32_t expr_ref, int32_t ta) {
+                                                            int32_t expr_ref, int32_t force_esz, int32_t ta) {
   int32_t n_arr;
   int32_t esz;
   int32_t ai;
@@ -1936,7 +1937,10 @@ static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena
     /* Empty slice: null data pointer is durable. */
     return backend_enc_mov_imm64_to_rax_arch(elf_ctx, 0, 0, ta);
   }
-  esz = pipeline_asm_array_lit_elem_byte_sz_c(arena, expr_ref);
+  /* Prefer slice-elem width (u64[] lit elems still type as i32 without stamp). */
+  esz = force_esz;
+  if (esz != 1 && esz != 2 && esz != 4 && esz != 8)
+    esz = pipeline_asm_array_lit_elem_byte_sz_c(arena, expr_ref);
   if (esz != 1 && esz != 2 && esz != 4 && esz != 8)
     return -1;
   if (n_arr > 2048 / esz)
@@ -2049,9 +2053,20 @@ static int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
       if (slice_ty > 0) {
         int32_t n_arr = pipeline_expr_array_lit_num_elems_at(arena, ret_op);
         int32_t durable = 0;
+        int32_t force_esz = 0;
+        int32_t et = pipeline_type_elem_ref_at(arena, slice_ty);
+        if (et > 0) {
+          int32_t ek = pipeline_type_kind_ord_at(arena, et);
+          if (ek == 2 || ek == 1)
+            force_esz = 1;
+          else if (ek == 0 || ek == 3 || ek == 13 || ek == 14)
+            force_esz = 4;
+          else if (ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 15)
+            force_esz = 8;
+        }
         if (n_arr < 0 || n_arr > 256)
           return -1;
-        if (glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, ta) == 0) {
+        if (glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, force_esz, ta) == 0) {
           durable = 1;
         } else if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, ret_op, ctx, ta) != 0) {
           return -1;
