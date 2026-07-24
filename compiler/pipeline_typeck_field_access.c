@@ -498,12 +498,10 @@ void pipeline_typeck_field_slice_c(struct ast_ASTArena *arena, int32_t expr_ref,
   int32_t fl;
   int32_t bt_kind;
   uint8_t fn_buf[64];
-  static const uint8_t length_nm[6] = {108, 101, 110, 103, 116, 104}; /* "length" */
-  static const uint8_t len_nm[3] = {108, 101, 110};                   /* "len" alias */
+  static const uint8_t len_nm[6] = {108, 101, 110, 103, 116, 104};
   static const uint8_t dat_nm[4] = {100, 97, 116, 97};
   int32_t ut;
   int32_t ptr_ref;
-  int32_t is_len_field;
 
   if (ast_ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena->num_exprs)
     return;
@@ -515,17 +513,10 @@ void pipeline_typeck_field_slice_c(struct ast_ASTArena *arena, int32_t expr_ref,
   if (fl <= 0 || fl > 63)
     return;
   pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
-  /* PLATFORM: SHARED — docs/02: T[] / T[N] expose .len and .length (same member).
-   * wave380 Cap residual pure: typeck accepted bare .len without slice stamp → host
-   * emitted C field "len" (ABI is .length) → BLD001. G.7: alias here + host map + glue off. */
-  is_len_field = ((fl == 6 && typeck_name_equal(&fn_buf[0], fl, (uint8_t *)&length_nm[0], 6))
-                  || (fl == 3 && typeck_name_equal(&fn_buf[0], fl, (uint8_t *)&len_nm[0], 3)))
-                     ? 1
-                     : 0;
-  /* wave346: fixed T[N] / SIMD vector lanes — `.length`/`.len` is compile-time N as usize.
+  /* wave346: fixed T[N] / SIMD vector lanes — `.length` is compile-time N as usize.
    * No fat-pointer offset (emit must not load from stack); stamp type only. */
   if ((bt_kind == (int32_t)ast_TypeKind_TYPE_ARRAY || bt_kind == (int32_t)ast_TypeKind_TYPE_VECTOR)
-      && is_len_field != 0) {
+      && fl == 6 && typeck_name_equal(&fn_buf[0], fl, (uint8_t *)&len_nm[0], 6)) {
     if (pipeline_type_array_size_at(arena, base_ty) <= 0)
       return;
     ut = typeck_ensure_usize_type_ref(arena);
@@ -538,7 +529,7 @@ void pipeline_typeck_field_slice_c(struct ast_ASTArena *arena, int32_t expr_ref,
   elem_ty = pipeline_type_elem_ref_at(arena, base_ty);
   if (ast_ref_is_null(elem_ty))
     return;
-  if (is_len_field != 0) {
+  if (fl == 6 && typeck_name_equal(&fn_buf[0], fl, (uint8_t *)&len_nm[0], 6)) {
     ut = typeck_ensure_usize_type_ref(arena);
     if (ut != 0)
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, ut);

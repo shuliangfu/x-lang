@@ -21101,9 +21101,7 @@ int32_t pipeline_expr_field_access_layout_offset(struct ast_ASTArena *a, struct 
       if (base_ty > 0 && pipeline_type_kind_ord_at(a, base_ty) == GLUE_TYPE_KIND_SLICE) {
         if (flen == 4 && memcmp(field_name, "data", 4) == 0)
           return 0;
-        /* PLATFORM: SHARED — wave380: .len is docs/02 alias of .length (ABI length@+8). */
-        if ((flen == 6 && memcmp(field_name, "length", 6) == 0)
-            || (flen == 3 && memcmp(field_name, "len", 3) == 0))
+        if (flen == 6 && memcmp(field_name, "length", 6) == 0)
           return 8;
       }
     }
