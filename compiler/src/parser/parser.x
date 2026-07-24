@@ -3426,7 +3426,7 @@ export function parse_type_ref_for_arena_into(arena: *ASTArena, lex: Lexer, sour
  * G.7: product C authority is parser_report_untyped_binding_p010_c (body_tl_slice).
  * @param line i32 — 1-based line of unexpected token after binding name
  * @param col i32 — 1-based column
- * @param is_let bool — true = let (docs ban inference); false = const soft residual
+ * @param is_let bool — true = let (docs ban inference); false = const illegal form
  * PLATFORM: SHARED parse.
  */
 export extern function parser_report_untyped_binding_p010_c(line: i32, col: i32, is_let: i32): void;
@@ -3567,25 +3567,27 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     }
     lex_from_result_ptr_into(&lex, &r);
     lexer.lexer_next_into(&r, lex, source);
-    if (r.tok.kind != token.TokenKind.TOKEN_COLON) {
-      /*
-       * wave422 Cap residual pure: missing `: Type` after binding name.
-       * Prior: silent return false → whole function dropped → soft P001 "no functions"
-       * / BLD001 missing _main. docs/06: let requires type annotation (no inference).
-       * const type-optional (docs) remains soft leave-off; still require `:` today.
-       * G.7 authority: parse_body_lets_into (+ top_level twin in top_level_let_slice).
-       * PLATFORM: SHARED parse — pin parser_gen + seed same commit.
-       */
+    /*
+     * wave422/423 Cap residual pure: binding type annotation.
+     * let: requires `: Type` (docs/06 bans inference) → P010 if missing.
+     * const: docs allow `const name = init` with type inferred from init;
+     * wave423 accepts ASSIGN without COLON and leaves let_ty_ref=0 for typeck stamp.
+     * G.7: parse_body_lets_into + top_level_let_slice + pin parser_gen same commit.
+     * PLATFORM: SHARED parse.
+     */
+    if (r.tok.kind == token.TokenKind.TOKEN_COLON) {
+      lex_from_result_ptr_into(&lex, &r);
+      let_ty_ref = parse_type_ref_for_arena_into(arena, lex, source, &lex);
+      if (let_ty_ref == 0) {
+        lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
+      }
+      lexer.lexer_next_into(&r, lex, source);
+    } else if (!is_let && r.tok.kind == token.TokenKind.TOKEN_ASSIGN) {
+      let_ty_ref = 0;
+    } else {
       parser_report_untyped_binding_p010(r.tok.line, r.tok.col, is_let);
       lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
     }
-    lex_from_result_ptr_into(&lex, &r);
-    /* See implementation. */
-    let_ty_ref = parse_type_ref_for_arena_into(arena, lex, source, &lex);
-    if (let_ty_ref == 0) {
-      lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
-    }
-    lexer.lexer_next_into(&r, lex, source);
     /* See implementation. */
     let let_omit_init: bool = false;
     if (r.tok.kind != token.TokenKind.TOKEN_ASSIGN) {

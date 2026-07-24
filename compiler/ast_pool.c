@@ -2842,6 +2842,20 @@ int32_t pipeline_block_set_let_type_ref(struct ast_ASTArena *a, int32_t br, int3
   return 0;
 }
 
+/**
+ * wave423 Cap residual pure: stamp block const type after inference from init.
+ * Used when parser left type_ref=0 for `const name = init` (docs/06 type-optional).
+ * G.7 twin of pipeline_block_set_let_type_ref; typeck_check_block_one_const calls this.
+ * PLATFORM: SHARED typeck/AST.
+ */
+int32_t pipeline_block_set_const_type_ref(struct ast_ASTArena *a, int32_t br, int32_t ci, int32_t type_ref) {
+  struct ast_ConstDecl *cd = block_const_at(a, br, ci);
+  if (!cd)
+    return -1;
+  cd->type_ref = type_ref;
+  return 0;
+}
+
 int32_t pipeline_block_let_name_len(struct ast_ASTArena *a, int32_t br, int32_t li) {
   struct ast_LetDecl *ld = block_let_at(a, br, li);
   return ld ? (int32_t)ld->name_len : 0;
@@ -3876,6 +3890,21 @@ int32_t pipeline_module_top_level_let_type_ref(struct ast_Module *m, int32_t idx
     return 0;
   tl = (TopLevelLetEntry *)grow_vec_at(&sc->top_level_lets, idx);
   return tl ? tl->type_ref : 0;
+}
+
+/**
+ * wave423: stamp top-level const type_ref after inference from init.
+ * G.7 authority for module sidecar; typeck pre-pass uses this.
+ * PLATFORM: SHARED typeck/AST.
+ */
+void pipeline_module_top_level_let_set_type_ref(struct ast_Module *m, int32_t idx, int32_t type_ref) {
+  ModuleSidecar *sc = module_sidecar_get(m, 0);
+  TopLevelLetEntry *tl;
+  if (!sc || idx < 0 || idx >= sc->top_level_lets.len)
+    return;
+  tl = (TopLevelLetEntry *)grow_vec_at(&sc->top_level_lets, idx);
+  if (tl)
+    tl->type_ref = type_ref;
 }
 
 int32_t pipeline_module_top_level_let_init_ref(struct ast_Module *m, int32_t idx) {

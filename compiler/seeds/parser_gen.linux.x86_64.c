@@ -3243,10 +3243,23 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
       }
       (void)(parser_lex_from_result_ptr_into(&(lex), &(r)));
       (void)(lexer_next_into(&(r), lex, source));
-      if ((((r.tok).kind) !=91)) {
-        /* wave422 Cap residual pure: P010 untyped let/const (not soft P001).
-         * G.7: parser_report_untyped_binding_p010_c; twin of parser.x.
-         * PLATFORM: SHARED parse. */
+      /* wave422/423: let requires `: Type`; const may omit type when next is `=`
+       * (type_ref=0 → typeck infers from init). G.7 twin of parser.x.
+       * PLATFORM: SHARED parse. kind 91=COLON, 117=ASSIGN. */
+      if ((((r.tok).kind) ==91)) {
+        (void)(parser_lex_from_result_ptr_into(&(lex), &(r)));
+        (void)((let_ty_ref = parser_parse_type_ref_for_arena_into(arena, lex, source, &(lex))));
+        if ((let_ty_ref ==0)) {
+          (void)(((lex_out->pos) = (lex.pos)));
+          (void)(((lex_out->line) = (lex.line)));
+          (void)(((lex_out->col) = (lex.col)));
+          return 0;
+        }
+        (void)(lexer_next_into(&(r), lex, source));
+      } else if ((!(is_let) && (((r.tok).kind) ==117))) {
+        /* const name = init — wave423 type inference; leave let_ty_ref=0. */
+        (void)((let_ty_ref = 0));
+      } else {
         {
           extern void parser_report_untyped_binding_p010_c(int32_t line, int32_t col, int32_t is_let);
           parser_report_untyped_binding_p010_c((int32_t)((r.tok).line), (int32_t)((r.tok).col),
@@ -3257,15 +3270,6 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
         (void)(((lex_out->col) = (lex.col)));
         return 0;
       }
-      (void)(parser_lex_from_result_ptr_into(&(lex), &(r)));
-      (void)((let_ty_ref = parser_parse_type_ref_for_arena_into(arena, lex, source, &(lex))));
-      if ((let_ty_ref ==0)) {
-        (void)(((lex_out->pos) = (lex.pos)));
-        (void)(((lex_out->line) = (lex.line)));
-        (void)(((lex_out->col) = (lex.col)));
-        return 0;
-      }
-      (void)(lexer_next_into(&(r), lex, source));
       int let_omit_init = 0;
       if ((((r.tok).kind) !=117)) {
         if (!(is_let)) {

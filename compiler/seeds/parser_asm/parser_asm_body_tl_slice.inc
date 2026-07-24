@@ -13,13 +13,15 @@ void parser_asm_skip_one_function_full_into_slice_c(struct parser_asm_lexer *out
                                                     struct parser_asm_slice_u8 *source);
 
 /**
- * wave422 Cap residual pure: hard P010 when let/const omits `: Type`.
- * Root: missing COLON returned false with no diag → function dropped → soft P001
+ * wave422/423 Cap residual pure: hard P010 for illegal binding forms.
+ * Root (wave422): missing COLON returned false with no diag → function dropped → soft P001
  * "no functions" / BLD001 missing _main. docs/06 bans let type inference.
+ * wave423: const may omit `: Type` when followed by `= init` (type inferred in typeck);
+ * this helper is only called for illegal forms (let without `:`, const without `:`/`=`).
  * G.7 authority: this helper; parse_body_lets_into + top_level_let call it.
  * @param line 1-based source line of the unexpected token after the binding name
  * @param col  1-based column
- * @param is_let 1 = let (docs ban inference); 0 = const (type-optional soft residual)
+ * @param is_let 1 = let (docs ban inference); 0 = const (needs `: Type` or `= init`)
  * PLATFORM: SHARED parse.
  */
 void parser_report_untyped_binding_p010_c(int32_t line, int32_t col, int32_t is_let) {
@@ -31,7 +33,7 @@ void parser_report_untyped_binding_p010_c(int32_t line, int32_t col, int32_t is_
                           NULL);
   } else {
     diag_report_with_code(NULL, line, col, "parse error", "P010",
-                          "const currently requires type annotation (const type inference soft residual)",
+                          "const requires ': Type = init' or '= init' (type inferred from init)",
                           NULL);
   }
 }

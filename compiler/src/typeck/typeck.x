@@ -354,6 +354,20 @@ export extern function pipeline_typeck_const_init_not_constant_c(line: i32, col:
 export extern function pipeline_typeck_fold_expr_c(arena: *ASTArena, expr_ref: i32): void;
 export extern function pipeline_typeck_fold_block_const_init_c(arena: *ASTArena, block_ref: i32,
 const_idx: i32): void;
+/**
+ * wave423: stamp block const type_ref after inference from init.
+ * @param arena *ASTArena
+ * @param br i32 — block ref
+ * @param ci i32 — const index in block
+ * @param type_ref i32 — inferred type
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED typeck/AST.
+ */
+export extern function pipeline_block_set_const_type_ref(arena: *ASTArena, br: i32, ci: i32,
+type_ref: i32): i32;
+export extern function pipeline_module_top_level_let_set_type_ref(module: *Module, idx: i32,
+type_ref: i32): void;
+export extern function pipeline_module_top_level_let_init_ref(module: *Module, idx: i32): i32;
 export extern function pipeline_typeck_fold_expr_in_block_c(arena: *ASTArena, block_ref: i32,
 expr_ref: i32): void;
 /* See implementation. */
@@ -7401,14 +7415,31 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
         return - 1;
       }
     }
-    init_ctx = return_type_ref;
+    /*
+     * wave423 Cap residual pure: const type inference.
+     * Untyped `const name = init` (parser left type_ref null): check init with no
+     * expected type, then stamp decl type from init via pipeline_block_set_const_type_ref.
+     * Typed const still uses decl type as expected context + coerce.
+     * G.7: typeck_check_block_one_const; twin typeck_gen + set_const_type_ref.
+     * PLATFORM: SHARED typeck. return_type_ref unused for untyped path (kept in signature).
+     */
     if (!ast.ref_is_null(cd_tr)) {
       init_ctx = cd_tr;
+    } else {
+      init_ctx = 0;
     }
     if (check_expr(module, arena, cd_ir, init_ctx, ctx) != 0) {
       return - 1;
     }
-    if (!ast.ref_is_null(cd_ir) && !ast.ref_is_null(cd_tr)) {
+    if (!ast.ref_is_null(cd_ir) && ast.ref_is_null(cd_tr)) {
+      init_ty = expr_type_ref(arena, cd_ir);
+      if (ast.ref_is_null(init_ty)) {
+        return - 1;
+      }
+      if (pipeline_block_set_const_type_ref(arena, block_ref, idx, init_ty) != 0) {
+        return - 1;
+      }
+    } else if (!ast.ref_is_null(cd_ir) && !ast.ref_is_null(cd_tr)) {
       typeck_coerce_init_expr_to_decl(module, arena, cd_ir, cd_tr);
       init_ty = expr_type_ref(arena, cd_ir);
       if (!ast.ref_is_null(init_ty) && !type_refs_equal(arena, cd_tr, init_ty)) {
