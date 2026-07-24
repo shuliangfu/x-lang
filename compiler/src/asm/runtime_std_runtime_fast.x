@@ -4,7 +4,8 @@
 // See implementation.
 // See implementation.
 
-export extern "C" function xlang_panic_(has_msg: i32, msg_val: i32): void;
+/* wave386: pointer-width payload (int or cstr). */
+export extern "C" function xlang_panic_(has_msg: i32, msg_val: i64): void;
 export extern "C" function xlang_crash_evidence_collect_c(has_msg: i32, msg_val: i32): void;
 
 /** Exported function `std_runtime_crash_evidence_collect`.

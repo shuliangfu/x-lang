@@ -1841,14 +1841,17 @@ export function invoke_cc_scan_std_module_needs(c_paths: **u8, n: i32, flags: *i
         if (hit_panic != 0) {
           let body1: i32 = 0;
           let body2: i32 = 0;
+          // wave386: co-emit body may use intptr_t second arg; keep legacy int form.
+          let body3: i32 = 0;
+          let body4: i32 = 0;
           unsafe {
             body1 = link_abi_generated_c_contains_substr(cp, "void xlang_panic_(int has_msg, int msg_val) {");
             body2 = link_abi_generated_c_contains_substr(cp, "void xlang_panic_(int has_msg, int msg_val){");
+            body3 = link_abi_generated_c_contains_substr(cp, "void xlang_panic_(int has_msg, intptr_t msg_val) {");
+            body4 = link_abi_generated_c_contains_substr(cp, "void xlang_panic_(int has_msg, intptr_t msg_val){");
           }
-          if (body1 == 0) {
-            if (body2 == 0) {
-              flags[51] = 1;
-            }
+          if (body1 == 0 && body2 == 0 && body3 == 0 && body4 == 0) {
+            flags[51] = 1;
           }
         }
         mid = mid + 1;

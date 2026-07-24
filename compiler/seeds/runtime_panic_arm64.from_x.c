@@ -18,6 +18,7 @@
  *            Historical #ifndef _WIN32 guard removed — shim is a no-op
  *            on POSIX and provides needed declarations on Windows. */
 #include <xlang_weak.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -86,7 +87,25 @@ XLANG_WEAK void xlang_crash_evidence_collect_c(int has_msg, int msg_val) {
   xlang_crash_evidence_minimal_impl(has_msg, msg_val);
 }
 
-__attribute__((noreturn)) void xlang_panic_(int has_msg, int msg_val) {
-  xlang_crash_evidence_collect_c(has_msg, msg_val);
+/**
+ * Product panic entry (wave386): full-width payload; print cstr when has_msg==2.
+ * @param has_msg 0=bare, 1=integer msg_val, 2=NUL cstr pointer in msg_val
+ * @param msg_val integer evidence or cstr pointer (LP64 full width)
+ * PLATFORM: LINUX|ARM64 / MACOS twin of runtime_panic.from_x.c face.
+ */
+__attribute__((noreturn)) void xlang_panic_(int has_msg, intptr_t msg_val) {
+  if (has_msg == 2) {
+    const char *s = (const char *)(uintptr_t)msg_val;
+    if (s != NULL && s[0] != '\0') {
+      fputs("panic: ", stderr);
+      fputs(s, stderr);
+      fputc('\n', stderr);
+    } else {
+      fputs("panic\n", stderr);
+    }
+  } else if (has_msg == 1) {
+    fprintf(stderr, "panic: %ld\n", (long)msg_val);
+  }
+  xlang_crash_evidence_collect_c(has_msg, (int)msg_val);
   _exit(1);
 }

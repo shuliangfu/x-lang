@@ -7731,18 +7731,19 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
     }
     /*
      * EXPR_PANIC → host `xlang_panic_(has_msg, msg_val)`.
-     * ABI: void xlang_panic_(int has_msg, int msg_val) (runtime_panic / std.runtime).
-     * Integer msgs (panic(42)) pass as i32. String/*u8 msgs (panic("…")) must not
-     * be emitted as raw pointers — C rejects pointer→int (-Wint-conversion → BLD001).
-     * PLATFORM: SHARED — cast every non-null msg through (int)(intptr_t)(…) so both
-     * integers and cstr/pointer operands are legal host C; runtime still takes int
-     * (LP64 truncates high bits of pointers; evidence path is int-only today).
+     * ABI: void xlang_panic_(int has_msg, intptr_t msg_val) (runtime_panic / std.runtime).
+     * has_msg: 0=bare, 1=integer payload, 2=NUL-terminated cstr pointer (full width).
+     * Integer msgs (panic(42)) → has_msg=1 + (intptr_t)(expr).
+     * String/*u8 (panic("…") / panic(p: *u8)) → has_msg=2 + (intptr_t)(expr) so LP64
+     * keeps the full pointer; runtime prints the cstr then aborts (wave386).
+     * PLATFORM: SHARED — cast every non-null msg through (intptr_t)(…) for host C;
+     * evidence path still receives (int)truncation of payload.
      * G.7 authority: this emit only; seed codegen_gen must match.
      */
     if (e.kind == ExprKind.EXPR_PANIC) {
       let p: u8[23] = [120, 108, 97, 110, 103, 95, 112, 97, 110, 105, 99, 95, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-      // "(int)(intptr_t)(" — legalize string/*u8 and integer panic msgs for int ABI.
-      let cast_open: u8[16] = [40, 105, 110, 116, 41, 40, 105, 110, 116, 112, 116, 114, 95, 116, 41, 40];
+      // "(intptr_t)(" — pointer-width payload (wave386; was (int)(intptr_t) truncating cstr).
+      let cast_open: u8[12] = [40, 105, 110, 116, 112, 116, 114, 95, 116, 41, 40, 0];
       if (emit_bytes_22(out, p, 13) != 0) {
         return -1;
       }
@@ -7757,13 +7758,37 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           return -1;
         }
       } else {
-        if (append_byte(out, 49) != 0) {
-          return -1;
+        // Classify payload: STRING_LIT (59) or TYPE_PTR → cstr (has_msg=2); else integer (1).
+        let is_cstr: i32 = 0;
+        let op_ref: i32 = e.unary_operand_ref;
+        if (pipeline_expr_kind_ord_at(arena, op_ref) == 59) {
+          is_cstr = 1;
+        } else {
+          if (op_ref > 0 && op_ref <= arena.num_exprs) {
+            let op_e: Expr = ast.ast_arena_expr_get(arena, op_ref);
+            if (!ast.ref_is_null(op_e.resolved_type_ref) && op_e.resolved_type_ref > 0
+            && op_e.resolved_type_ref <= arena.num_types) {
+              let oty: Type = ast.ast_arena_type_get(arena, op_e.resolved_type_ref);
+              if (oty.kind == TypeKind.TYPE_PTR) {
+                is_cstr = 1;
+              }
+            }
+          }
+        }
+        // '1' (49) integer · '2' (50) cstr
+        if (is_cstr != 0) {
+          if (append_byte(out, 50) != 0) {
+            return -1;
+          }
+        } else {
+          if (append_byte(out, 49) != 0) {
+            return -1;
+          }
         }
         if (append_byte(out, 44) != 0) {
           return -1;
         }
-        if (emit_bytes_from_ptr(out, &cast_open[0], 16) != 0) {
+        if (emit_bytes_from_ptr(out, &cast_open[0], 11) != 0) {
           return -1;
         }
         if (emit_expr(arena, out, e.unary_operand_ref, ctx) != 0) {

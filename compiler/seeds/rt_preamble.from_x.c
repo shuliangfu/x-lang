@@ -439,7 +439,8 @@ const char *const driver_preamble_io_net_lines[] = {
            否则 multi-dep（core.types 幽灵 layout 抢 owner）时 incomplete core_result_Result_*。 */
         "struct core_result_Result_i32 { int32_t value; int32_t _pad1; int32_t err; int32_t _pad2; };\n",
         "struct core_result_Result_u8 { uint8_t value; uint8_t _pad1; uint8_t _pad2; uint8_t _pad3; int32_t err; int32_t _pad4; };\n",
-        "extern void xlang_panic_(int, int);\n",
+        /* wave386: second arg intptr_t so cstr pointers survive LP64; has_msg 0/1/2. */
+        "extern void xlang_panic_(int, intptr_t);\n",
         /* 仅 extern：co-emit core.types 会生成强定义；同 TU weak+强定义 → redefinition。 */
         "extern int32_t core_types_placeholder(void);\n",
         "extern int32_t std_heap_alloc_size_zero(void);\n",

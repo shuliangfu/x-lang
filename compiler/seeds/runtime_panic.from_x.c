@@ -21,6 +21,7 @@
  * Freestanding / 弱化 libc 路线见 compiler/docs/SELFHOST.md §6 与 src/asm/runtime_panic_x86_64.s（若存在）。
  * SAFE-007：弱符号证据收集，强符号由 runtime_backtrace_platform.o 提供。 */
 #include <xlang_weak.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #ifdef _WIN32
@@ -114,7 +115,26 @@ XLANG_WEAK int io_register_buffers_buf_c(const void *bufs, int nr) {
   return -1;
 }
 
-void xlang_panic_(int has_msg, int msg_val) {
-  xlang_crash_evidence_collect_c(has_msg, msg_val);
+/**
+ * Product panic entry (wave386): full-width payload; print cstr when has_msg==2.
+ * @param has_msg 0=bare, 1=integer msg_val, 2=NUL cstr pointer in msg_val
+ * @param msg_val integer evidence or cstr pointer (LP64 full width)
+ * PLATFORM: SHARED — host-C / libc path; Linux freestanding uses .s twin.
+ */
+void xlang_panic_(int has_msg, intptr_t msg_val) {
+  if (has_msg == 2) {
+    const char *s = (const char *)(uintptr_t)msg_val;
+    if (s != NULL && s[0] != '\0') {
+      fputs("panic: ", stderr);
+      fputs(s, stderr);
+      fputc('\n', stderr);
+    } else {
+      fputs("panic\n", stderr);
+    }
+  } else if (has_msg == 1) {
+    fprintf(stderr, "panic: %ld\n", (long)msg_val);
+  }
+  /* Evidence path keeps historical int payload (truncated). */
+  xlang_crash_evidence_collect_c(has_msg, (int)msg_val);
   abort();
 }

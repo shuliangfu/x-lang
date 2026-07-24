@@ -14999,16 +14999,33 @@ static int32_t pipeline_asm_emit_xlang_panic_call_elf_c(struct ast_ASTArena *are
 }
 
 /**
- * EXPR_PANIC：panic() → xlang_panic_(0,0)；panic(expr) → xlang_panic_(1, expr)。
+ * EXPR_PANIC → xlang_panic_(has_msg, msg).
+ * has_msg: 0 bare / 1 integer / 2 cstr pointer (STRING_LIT or TYPE_PTR).
+ * PLATFORM: SHARED freestanding+asm — wave386 aligns with host-C has_msg=2 cstr print.
+ * Second arg is pointer-width in arg1; runtime prints cstr when has_msg==2.
  */
 int32_t pipeline_asm_emit_panic_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                       int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
   int32_t op_ref;
   int32_t code;
+  int32_t is_cstr;
+  int32_t op_ty;
   if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
     return -1;
   op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
-  code = (op_ref > 0) ? 1 : 0;
+  if (op_ref <= 0) {
+    code = 0;
+  } else {
+    is_cstr = 0;
+    if (pipeline_expr_kind_ord_at(arena, op_ref) == 59) /* EXPR_STRING_LIT */ {
+      is_cstr = 1;
+    } else {
+      op_ty = pipeline_expr_resolved_type_ref(arena, op_ref);
+      if (op_ty > 0 && pipeline_type_kind_ord_at(arena, op_ty) == (int32_t)ast_TypeKind_TYPE_PTR)
+        is_cstr = 1;
+    }
+    code = is_cstr ? 2 : 1;
+  }
   return pipeline_asm_emit_xlang_panic_call_elf_c(arena, elf_ctx, ctx, ta, code, op_ref);
 }
 

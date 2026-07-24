@@ -23,4 +23,14 @@ exitcode=0; { ( /tmp/xlang_panic_msg 2>/dev/null ) 2>/dev/null || exitcode=$?; }
 exitcode=0; { ( /tmp/xlang_panic_str 2>/dev/null ) 2>/dev/null || exitcode=$?; } 2>/dev/null
 [ "$exitcode" -eq 0 ] && { echo "expected non-zero exit (panic(string) abort)"; exit 1; }
 
+# wave386: cstr message must appear on stderr (host-C / C runtime_panic; Linux .s write(2)).
+str_err=$(/tmp/xlang_panic_str 2>&1 >/dev/null || true)
+case "$str_err" in
+  *boom*) ;;
+  *)
+    echo "expected panic cstr 'boom' on stderr, got: [$str_err]"
+    exit 1
+    ;;
+esac
+
 echo "panic test OK"
