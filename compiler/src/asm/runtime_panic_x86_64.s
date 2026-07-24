@@ -33,16 +33,21 @@ xlang_panic_:
 	jne	.Lpanic_exit
 	testq	%rsi, %rsi
 	jz	.Lpanic_exit
-	/* strlen: rax = 0; scan [rsi+rax] until NUL */
+	/* save cstr in r8; write "panic: " then body then NL (match host-C face). */
+	movq	%rsi, %r8
+	leaq	.Lpanic_pfx(%rip), %rsi
+	movl	$2, %edi
+	movl	$7, %edx
+	movl	$1, %eax
+	syscall
+	/* strlen: rax = 0; scan [r8+rax] until NUL */
 	xorq	%rax, %rax
 .Lpanic_strlen:
-	cmpb	$0, (%rsi,%rax)
+	cmpb	$0, (%r8,%rax)
 	je	.Lpanic_write
 	incq	%rax
 	jmp	.Lpanic_strlen
 .Lpanic_write:
-	/* write(stderr=2, buf=rsi, len=rax) — preserve msg in r8 across syscall */
-	movq	%rsi, %r8
 	movq	%rax, %rdx
 	movl	$2, %edi
 	movq	%r8, %rsi
@@ -62,6 +67,8 @@ xlang_panic_:
 	.size	xlang_panic_, .-xlang_panic_
 
 	.section	.rodata
+.Lpanic_pfx:
+	.ascii	"panic: "
 .Lpanic_nl:
 	.byte	10
 	.text
