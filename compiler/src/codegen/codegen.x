@@ -7708,6 +7708,10 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         ai = ai + 1;
       }
       if (is_slice != 0) {
+        /* Close array compound, then ", .length = N }" for the slice compound.
+         * C form: (struct xlang_slice_T){ .data = (E[]){…}, .length = N }
+         * wave328: do NOT emit a trailing ')' — compound-literal syntax is
+         * (type){ init } with no outer close-paren after the brace. */
         let slice_end: u8[22] = [32, 125, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0, 0, 0, 0, 0, 0];
         if (emit_bytes_22(out, slice_end, 14) != 0) {
           return -1;
@@ -7721,7 +7725,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         if (append_byte(out, 125) != 0) {
           return -1;
         }
-        return append_byte(out, 41);
+        return 0;
       }
       let close: u8[4] = [32, 125, 0, 0];
       return emit_bytes_4(out, close, 2);

@@ -29642,7 +29642,14 @@ int32_t pipeline_typeck_coerce_init_named_call_to_decl_c(struct ast_ASTArena *ar
   return 1;
 }
 
-/** typeck.x::typeck_coerce_init_array_vector_lit_to_decl 的 C 委托。 */
+/**
+ * typeck.x::typeck_coerce_init_array_vector_lit_to_decl C mirror.
+ * wave328 Cap residual: TYPE_SLICE + EXPR_ARRAY_LIT (`let a: i32[] = [1,2,3]`) stamps
+ * resolved_type_ref so host emit_expr takes the slice compound path
+ * `(struct xlang_slice_*){ .data = (T[]){…}, .length = N }` instead of bare
+ * `(uint8_t[]){…}` fallback. Fixed TYPE_ARRAY and TYPE_VECTOR unchanged.
+ * PLATFORM: SHARED — keep in sync with typeck.x (G.7 dual authority).
+ */
 int32_t pipeline_typeck_coerce_init_array_vector_lit_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
                                                                int32_t decl_ty_ref, int32_t decl_kind,
                                                                int32_t init_kind) {
@@ -29655,7 +29662,10 @@ int32_t pipeline_typeck_coerce_init_array_vector_lit_to_decl_c(struct ast_ASTAre
   init_ex = pipeline_arena_expr_ptr(arena, init_ref);
   if (!init_ex)
     return 0;
-  if (decl_kind == (int32_t)ast_TypeKind_TYPE_ARRAY && init_kind == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT) {
+  /* TYPE_ARRAY T[N] or TYPE_SLICE T[] ← ARRAY_LIT */
+  if ((decl_kind == (int32_t)ast_TypeKind_TYPE_ARRAY ||
+       decl_kind == (int32_t)ast_TypeKind_TYPE_SLICE) &&
+      init_kind == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT) {
     init_ex->resolved_type_ref = decl_ty_ref;
     return 1;
   }

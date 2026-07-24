@@ -4770,7 +4770,9 @@ int32_t typeck_coerce_init_resolved_alias_to_decl(struct ast_Module * module, st
 int32_t typeck_coerce_array_lit_elem_types_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref) {
   {
     int32_t ord_type_array = 10;
+    int32_t ord_type_slice = 11;
     int32_t ord_expr_array_lit = 46;
+    int32_t decl_kind_here = 0;
     int32_t elem_decl_ref = 0;
     int32_t elem_decl_kind = 0;
     int32_t num_elems = 0;
@@ -4778,7 +4780,12 @@ int32_t typeck_coerce_array_lit_elem_types_to_decl(struct ast_ASTArena * arena, 
     if ((ast_ref_is_null(init_ref) || ast_ref_is_null(decl_ty_ref))) {
       return 0;
     }
-    if (((pipeline_expr_kind_ord_at(arena, init_ref) !=ord_expr_array_lit) || (pipeline_type_kind_ord_at(arena, decl_ty_ref) !=ord_type_array))) {
+    if ((pipeline_expr_kind_ord_at(arena, init_ref) !=ord_expr_array_lit)) {
+      return 0;
+    }
+    /* wave328: TYPE_ARRAY or TYPE_SLICE (i32[] = [1,2,3]). */
+    (void)((decl_kind_here = pipeline_type_kind_ord_at(arena, decl_ty_ref)));
+    if (((decl_kind_here !=ord_type_array) && (decl_kind_here !=ord_type_slice))) {
       return 0;
     }
     (void)((elem_decl_ref = pipeline_type_elem_ref_at(arena, decl_ty_ref)));
@@ -4864,10 +4871,12 @@ int32_t typeck_vector_lanes_of_type(struct ast_ASTArena * arena, int32_t type_re
 int32_t typeck_coerce_init_array_vector_lit_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind) {
   {
     int32_t ord_type_array = 10;
+    int32_t ord_type_slice = 11;
     int32_t ord_type_vector = 13;
     int32_t ord_expr_array_lit = 46;
     int32_t lanes = 0;
-    if (((decl_kind ==ord_type_array) && (init_kind ==ord_expr_array_lit))) {
+    /* wave328: TYPE_SLICE + ARRAY_LIT (same as typeck.x; host slice compound emit). */
+    if ((((decl_kind ==ord_type_array) || (decl_kind ==ord_type_slice)) && (init_kind ==ord_expr_array_lit))) {
       return typeck_coerce_array_lit_elem_types_to_decl(arena, init_ref, decl_ty_ref);
     }
     if ((init_kind ==ord_expr_array_lit)) {

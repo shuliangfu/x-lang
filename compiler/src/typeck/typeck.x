@@ -4294,13 +4294,23 @@ decl_kind: i32): i32 {
   }
 }
 
-/* See implementation. */
+/**
+ * Coerce ARRAY_LIT elements to the element type of a fixed array or slice decl.
+ * Stamps the literal's resolved_type_ref to decl_ty_ref (TYPE_ARRAY or TYPE_SLICE).
+ * @param arena *ASTArena — expression/type pool
+ * @param init_ref i32 — EXPR_ARRAY_LIT ref
+ * @param decl_ty_ref i32 — TYPE_ARRAY (T[N]) or TYPE_SLICE (T[]) declaration type
+ * @return i32 — 1 if handled, 0 if not applicable, -1 on nested failure
+ * PLATFORM: SHARED — wave328: TYPE_SLICE so host emit uses slice compound, not uint8_t[] fallback.
+ */
 export function typeck_coerce_array_lit_elem_types_to_decl(arena: *ASTArena, init_ref: i32,
 decl_ty_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let ord_type_array: i32 = 10;
+    let ord_type_slice: i32 = 11;
     let ord_expr_array_lit: i32 = 46;
+    let decl_kind_here: i32 = 0;
     let elem_decl_ref: i32 = 0;
     let elem_decl_kind: i32 = 0;
     let num_elems: i32 = 0;
@@ -4308,8 +4318,13 @@ decl_ty_ref: i32): i32 {
     if (ast.ref_is_null(init_ref) || ast.ref_is_null(decl_ty_ref)) {
       return 0;
     }
-    if (pipeline_expr_kind_ord_at(arena, init_ref) != ord_expr_array_lit
-    || pipeline_type_kind_ord_at(arena, decl_ty_ref) != ord_type_array) {
+    if (pipeline_expr_kind_ord_at(arena, init_ref) != ord_expr_array_lit) {
+      return 0;
+    }
+    decl_kind_here = pipeline_type_kind_ord_at(arena, decl_ty_ref);
+    /* wave328 Cap residual: accept TYPE_SLICE (i32[] = [1,2,3]) as well as TYPE_ARRAY.
+     * Prior: only TYPE_ARRAY → slice array-lit never stamped → host C (uint8_t[]){…}. */
+    if (decl_kind_here != ord_type_array && decl_kind_here != ord_type_slice) {
       return 0;
     }
     elem_decl_ref = pipeline_type_elem_ref_at(arena, decl_ty_ref);
@@ -4401,18 +4416,28 @@ export function typeck_vector_lanes_of_type(arena: *ASTArena, type_ref: i32): i3
   }
 }
 
-/* See implementation. */
+/**
+ * Coerce ARRAY_LIT init to array / slice / vector declaration type.
+ * @param arena *ASTArena — pool
+ * @param init_ref i32 — init expression
+ * @param decl_ty_ref i32 — declaration type
+ * @param decl_kind i32 — type kind ordinal of decl
+ * @param init_kind i32 — expr kind ordinal of init
+ * @return i32 — 1 if coerced, 0 otherwise
+ * PLATFORM: SHARED — wave328: TYPE_SLICE + ARRAY_LIT (same elem coerce as fixed array).
+ */
 export function typeck_coerce_init_array_vector_lit_to_decl(arena: *ASTArena, init_ref: i32,
 decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-    /* See implementation. */
     let ord_type_array: i32 = 10;
-    /* See implementation. */
+    let ord_type_slice: i32 = 11;
     let ord_type_vector: i32 = 13;
     let ord_expr_array_lit: i32 = 46;
     let lanes: i32 = 0;
-    if (decl_kind == ord_type_array && init_kind == ord_expr_array_lit) {
+    /* Fixed array T[N] or open slice T[] ← [e0, e1, …] */
+    if ((decl_kind == ord_type_array || decl_kind == ord_type_slice)
+    && init_kind == ord_expr_array_lit) {
       return typeck_coerce_array_lit_elem_types_to_decl(arena, init_ref, decl_ty_ref);
     }
     if (init_kind == ord_expr_array_lit) {

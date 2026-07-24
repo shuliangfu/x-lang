@@ -8293,6 +8293,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
         (void)((ai = (ai + 1)));
       }
       if ((is_slice !=0)) {
+        /* wave328: C compound literal is (type){ init } — no trailing ')' after '}'. */
         uint8_t slice_end[22] = {32, 125, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0, 0, 0, 0, 0, 0};
         if ((codegen_emit_bytes_22(out, slice_end, 14) !=0)) {
           return -(1);
@@ -8306,7 +8307,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
         if ((codegen_append_byte(out, 125) !=0)) {
           return -(1);
         }
-        return codegen_append_byte(out, 41);
+        return 0;
       }
       uint8_t close[4] = {32, 125, 0, 0};
       return codegen_emit_bytes_4(out, close, 2);
