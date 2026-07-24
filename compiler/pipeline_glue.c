@@ -10903,7 +10903,16 @@ static int32_t glue_try_binop_load_operand_elf_c(struct ast_ASTArena *arena,
 }
 
 /**
- * 装入操作数时是否会用 x1/rbx 做 INDEX 下标缩放（arm64 上会 clobber 已就位的 rbx 操作数）。
+ * 装入操作数时是否会用 x1/rbx 做 INDEX 下标缩放或 bounds（会 clobber 已就位的 rbx 操作数）。
+ *
+ * wave329 Cap residual pure: TYPE_SLICE INDEX always runs
+ * glue_emit_index_bounds_guard_elf_c which uses rbx (imm0 lower + length-1 upper)
+ * even for literal indices. The old "lit idx → no rbx" shortcut only holds for
+ * fixed TYPE_ARRAY (CTFE size; bounds guard early-returns without rbx). Without
+ * this, dual-slot `a[i]+a[j]` on slices keeps right in rbx then left INDEX
+ * overwrites it (Ubuntu freestanding sum 10+20+12 → 24; host-C hid).
+ * G.7: complete this classifier — no second preserve path.
+ * PLATFORM: SHARED freestanding dual-slot; LINUX x86_64 exposes; mac arm64 may CTFE.
  */
 static int32_t glue_binop_operand_index_addr_clobbers_rbx_elf_c(struct ast_ASTArena *arena, int32_t expr_ref) {
   int32_t ko;
@@ -10922,8 +10931,20 @@ static int32_t glue_binop_operand_index_addr_clobbers_rbx_elf_c(struct ast_ASTAr
   if (ko == 47) {
     int32_t idx_ref;
     int32_t lit_dummy;
+    struct ast_Expr *ix;
+    int32_t base_ref;
+    int32_t base_ty;
+    ix = pipeline_arena_expr_ptr(arena, expr_ref);
+    if (ix && ix->index_base_is_slice != 0)
+      return 1;
+    base_ref = pipeline_expr_index_base_ref(arena, expr_ref);
+    if (base_ref > 0) {
+      base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+      if (base_ty > 0 && pipeline_type_kind_ord_at(arena, base_ty) == GLUE_TYPE_KIND_SLICE)
+        return 1;
+    }
     idx_ref = pipeline_expr_index_index_ref(arena, expr_ref);
-    /** 字面量下标：base+imm*esz，不经 rbx/x1。 */
+    /** Fixed TYPE_ARRAY + lit index: base+imm*esz, bounds CTFE — no rbx. */
     if (idx_ref > 0 && pipeline_asm_expr_lit_i32_at_c(arena, idx_ref, &lit_dummy))
       return 0;
     return 1;
