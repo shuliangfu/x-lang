@@ -5872,6 +5872,135 @@ static int32_t codegen_emit_match_arm_value(struct ast_ASTArena *arena, struct c
   }
   return codegen_emit_expr(arena, out, res_ref, ctx);
 }
+/* PLATFORM: SHARED — wave372 host match stmt form (codegen.x twin). */
+static int32_t codegen_match_has_return_arm(struct ast_ASTArena *arena, int32_t expr_ref) {
+  struct ast_Expr e;
+  int32_t n;
+  int32_t i;
+  int32_t res;
+  struct ast_Expr re;
+  e = ast_ast_arena_expr_get(arena, expr_ref);
+  n = e.match_num_arms;
+  for (i = 0; i < n; i++) {
+    res = pipeline_expr_match_arm_result_ref(arena, expr_ref, i);
+    if (ast_ref_is_null(res))
+      continue;
+    re = ast_ast_arena_expr_get(arena, res);
+    if ((int32_t)re.kind == 41)
+      return 1;
+  }
+  return 0;
+}
+static int32_t codegen_emit_match_stmt_arm_body(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+                                               int32_t res_ref, int32_t indent, struct ast_PipelineDepCtx *ctx,
+                                               int32_t fn_ret_void) {
+  struct ast_Expr re;
+  uint8_t v[9] = {40, 118, 111, 105, 100, 41, 40, 0, 0};
+  uint8_t sc[4] = {41, 59, 10, 0};
+  if (!ast_ref_is_null(res_ref)) {
+    re = ast_ast_arena_expr_get(arena, res_ref);
+    if ((int32_t)re.kind == 41)
+      return codegen_emit_return_stmt_with_context(arena, out, indent + 2, re.unary_operand_ref, ctx,
+                                                   fn_ret_void);
+  }
+  if (codegen_emit_indent(out, indent + 2) != 0)
+    return -1;
+  if (codegen_emit_bytes_9(out, v, 7) != 0)
+    return -1;
+  if (ast_ref_is_null(res_ref)) {
+    if (codegen_append_byte(out, 48) != 0)
+      return -1;
+  } else if (codegen_emit_expr(arena, out, res_ref, ctx) != 0) {
+    return -1;
+  }
+  return codegen_emit_bytes_4(out, sc, 3);
+}
+static int32_t codegen_emit_match_as_stmt(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+                                         int32_t expr_ref, int32_t indent, struct ast_PipelineDepCtx *ctx,
+                                         int32_t fn_ret_void) {
+  struct ast_Expr e;
+  int32_t n;
+  int32_t matched;
+  int32_t i;
+  int32_t opened;
+  int32_t wild_i;
+  int32_t cmp_val;
+  int32_t res;
+  uint8_t eq[3] = {61, 61, 0};
+  uint8_t if_kw[4] = {105, 102, 32, 0};
+  uint8_t else_if[11] = {125, 32, 101, 108, 115, 101, 32, 105, 102, 32, 0};
+  uint8_t else_br[9] = {125, 32, 101, 108, 115, 101, 32, 123, 0};
+  uint8_t open_br[4] = {41, 32, 123, 0};
+  uint8_t close_br[3] = {125, 10, 0};
+  uint8_t if1[8] = {105, 102, 32, 40, 49, 41, 32, 0};
+  e = ast_ast_arena_expr_get(arena, expr_ref);
+  n = e.match_num_arms;
+  matched = e.match_matched_ref;
+  opened = 0;
+  wild_i = -1;
+  for (i = 0; i < n; i++) {
+    if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, i) != 0) {
+      wild_i = i;
+      continue;
+    }
+    if (codegen_emit_indent(out, indent) != 0)
+      return -1;
+    if (opened == 0) {
+      if (codegen_emit_bytes_from_ptr(out, &if_kw[0], 3) != 0)
+        return -1;
+    } else {
+      if (codegen_emit_bytes_from_ptr(out, &else_if[0], 10) != 0)
+        return -1;
+    }
+    if (codegen_append_byte(out, 40) != 0)
+      return -1;
+    if (ast_ref_is_null(matched) || codegen_emit_expr(arena, out, matched, ctx) != 0)
+      return -1;
+    if (codegen_emit_bytes_2(out, eq, 2) != 0)
+      return -1;
+    if (pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, i) != 0)
+      cmp_val = pipeline_expr_match_arm_variant_index(arena, expr_ref, i);
+    else
+      cmp_val = pipeline_expr_match_arm_lit_val(arena, expr_ref, i);
+    if (codegen_format_int(out, (int64_t)cmp_val) != 0)
+      return -1;
+    if (codegen_emit_bytes_from_ptr(out, &open_br[0], 3) != 0)
+      return -1;
+    if (codegen_append_byte(out, 10) != 0)
+      return -1;
+    res = pipeline_expr_match_arm_result_ref(arena, expr_ref, i);
+    if (codegen_emit_match_stmt_arm_body(arena, out, res, indent, ctx, fn_ret_void) != 0)
+      return -1;
+    opened = 1;
+  }
+  if (wild_i >= 0) {
+    if (codegen_emit_indent(out, indent) != 0)
+      return -1;
+    if (opened != 0) {
+      if (codegen_emit_bytes_from_ptr(out, &else_br[0], 8) != 0)
+        return -1;
+      if (codegen_append_byte(out, 10) != 0)
+        return -1;
+    } else {
+      if (codegen_emit_bytes_from_ptr(out, &if1[0], 7) != 0)
+        return -1;
+      if (codegen_append_byte(out, 123) != 0)
+        return -1;
+      if (codegen_append_byte(out, 10) != 0)
+        return -1;
+    }
+    res = pipeline_expr_match_arm_result_ref(arena, expr_ref, wild_i);
+    if (codegen_emit_match_stmt_arm_body(arena, out, res, indent, ctx, fn_ret_void) != 0)
+      return -1;
+    opened = 1;
+  }
+  if (opened != 0) {
+    if (codegen_emit_indent(out, indent) != 0)
+      return -1;
+    return codegen_emit_bytes_3(out, close_br, 2);
+  }
+  return 0;
+}
 /* PLATFORM: SHARED — host-C EXPR_MATCH nested ternary (wave326).
  * Completes arm-0 residual; freestanding uses pipeline_asm_emit_match_elf_c.
  * G.7: twin of codegen.x codegen_emit_match_from_arm. */
@@ -9968,6 +10097,11 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
                       if ((codegen_emit_continue_stmt(out, indent) !=0)) {
                         return -(1);
                       }
+                    } else if (((st.kind) ==43) && (codegen_match_has_return_arm(arena, ex_ref) !=0)) {
+                      /* wave372: mid-body match + return arms → if/else real early-return */
+                      if ((codegen_emit_match_as_stmt(arena, out, ex_ref, indent, ctx, fn_ret_void) !=0)) {
+                        return -(1);
+                      }
                     } else {
                       uint8_t v[9] = {40, 118, 111, 105, 100, 41, 40, 0, 0};
                       uint8_t sc[4] = {41, 59, 10, 0};
@@ -10395,6 +10529,11 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
               return -(1);
             }
             if ((codegen_emit_bytes_from_ptr(out, &((co)[0]), 10) !=0)) {
+              return -(1);
+            }
+          } else if (((st.kind) ==43) && (codegen_match_has_return_arm(arena, ex_fb) !=0)) {
+            /* wave372: mid-body match + return arms → if/else real early-return */
+            if ((codegen_emit_match_as_stmt(arena, out, ex_fb, indent, ctx, fn_ret_void) !=0)) {
               return -(1);
             }
           } else {

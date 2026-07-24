@@ -5273,7 +5273,8 @@ export function emit_import_module_const_field(arena: *ASTArena, out: *CodegenOu
  * wave371: emit match arm result in value position (C ternary).
  * EXPR_RETURN unwraps to its operand so host `return match { 1 => return 42; … }`
  * becomes `return (subj==1?(42):…)` instead of illegal `return (…?(return 42):…)`.
- * Mid-body early-return-with-following-stmts remains soft leave-off (needs if/else form).
+ * wave372: mid-body match with RETURN arms uses statement if/else (see
+ * codegen_emit_match_as_stmt); ternary remains for expression/value position only.
  * @param arena *ASTArena
  * @param out *CodegenOutBuf
  * @param res_ref i32 — arm result expr
@@ -5296,6 +5297,194 @@ function codegen_emit_match_arm_value(arena: *ASTArena, out: *CodegenOutBuf, res
       return emit_expr(arena, out, re.unary_operand_ref, ctx);
     }
     return emit_expr(arena, out, res_ref, ctx);
+  }
+}
+
+/**
+ * True if any match arm result is EXPR_RETURN (needs statement if/else, not ternary).
+ * @param arena *ASTArena — expression arena
+ * @param expr_ref i32 — EXPR_MATCH node
+ * @return i32 — 1 if any arm is return, else 0
+ * PLATFORM: SHARED — host-C match stmt form gate (wave372).
+ */
+function codegen_match_has_return_arm(arena: *ASTArena, expr_ref: i32): i32 {
+  // PLATFORM: SHARED — scan arm results for EXPR_RETURN.
+  unsafe {
+    let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+    let n: i32 = e.match_num_arms;
+    let i: i32 = 0;
+    while (i < n) {
+      let res: i32 = pipeline_expr_match_arm_result_ref(arena, expr_ref, i);
+      if (!ast.ref_is_null(res)) {
+        let re: Expr = ast.ast_arena_expr_get(arena, res);
+        if (re.kind == ExprKind.EXPR_RETURN) {
+          return 1;
+        }
+      }
+      i = i + 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Emit one match arm body as a C statement (true `return` or discarded value).
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param res_ref i32 — arm result
+ * @param indent i32 — base indent of the surrounding match stmt
+ * @param ctx *PipelineDepCtx
+ * @param fn_ret_void i32 — current function returns void
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED — host-C match stmt arm body (wave372).
+ */
+function codegen_emit_match_stmt_arm_body(arena: *ASTArena, out: *CodegenOutBuf, res_ref: i32,
+    indent: i32, ctx: *PipelineDepCtx, fn_ret_void: i32): i32 {
+  // PLATFORM: SHARED — RETURN → real return stmt; else (void)(value);
+  unsafe {
+    if (!ast.ref_is_null(res_ref)) {
+      let re: Expr = ast.ast_arena_expr_get(arena, res_ref);
+      if (re.kind == ExprKind.EXPR_RETURN) {
+        return emit_return_stmt_with_context(arena, out, indent + 2, re.unary_operand_ref, ctx,
+            fn_ret_void);
+      }
+    }
+    if (emit_indent(out, indent + 2) != 0) {
+      return -1;
+    }
+    let v: u8[9] = [40, 118, 111, 105, 100, 41, 40, 0, 0];
+    if (emit_bytes_9(out, v, 7) != 0) {
+      return -1;
+    }
+    if (ast.ref_is_null(res_ref)) {
+      if (append_byte(out, 48) != 0) {
+        return -1;
+      }
+    } else if (emit_expr(arena, out, res_ref, ctx) != 0) {
+      return -1;
+    }
+    let sc: u8[4] = [41, 59, 10, 0];
+    return emit_bytes_4(out, sc, 3);
+  }
+}
+
+/**
+ * Host-C statement form for mid-body EXPR_MATCH with RETURN arms.
+ * Nested ternary cannot contain `return` and wave371 value-unwrap made following
+ * statements reachable (`(void)((v==1?(42):0)); return 7;` → exit 7).
+ * Emits if/else if/else with real `return` (same shape as bare if return follow).
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param expr_ref i32 — EXPR_MATCH
+ * @param indent i32 — statement indent
+ * @param ctx *PipelineDepCtx
+ * @param fn_ret_void i32 — current function returns void
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED — host-C match early-return stmt (wave372). G.7 single authority.
+ */
+function codegen_emit_match_as_stmt(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32,
+    indent: i32, ctx: *PipelineDepCtx, fn_ret_void: i32): i32 {
+  // PLATFORM: SHARED — if/else chain; seed twin same commit.
+  unsafe {
+    let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+    let n: i32 = e.match_num_arms;
+    let matched: i32 = e.match_matched_ref;
+    let i: i32 = 0;
+    let opened: i32 = 0;
+    let wild_i: i32 = -1;
+    let eq: u8[3] = [61, 61, 0];
+    let if_kw: u8[4] = [105, 102, 32, 0];
+    let else_if: u8[11] = [125, 32, 101, 108, 115, 101, 32, 105, 102, 32, 0];
+    let else_br: u8[9] = [125, 32, 101, 108, 115, 101, 32, 123, 0];
+    let open_br: u8[4] = [41, 32, 123, 0];
+    let close_br: u8[3] = [125, 10, 0];
+    let if1: u8[8] = [105, 102, 32, 40, 49, 41, 32, 0];
+    let cmp_val: i32 = 0;
+    let res: i32 = 0;
+    while (i < n) {
+      if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, i) != 0) {
+        wild_i = i;
+      } else {
+        if (emit_indent(out, indent) != 0) {
+          return -1;
+        }
+        if (opened == 0) {
+          if (emit_bytes_from_ptr(out, &if_kw[0], 3) != 0) {
+            return -1;
+          }
+        } else {
+          if (emit_bytes_from_ptr(out, &else_if[0], 10) != 0) {
+            return -1;
+          }
+        }
+        if (append_byte(out, 40) != 0) {
+          return -1;
+        }
+        if (ast.ref_is_null(matched) || emit_expr(arena, out, matched, ctx) != 0) {
+          return -1;
+        }
+        if (emit_bytes_2(out, eq, 2) != 0) {
+          return -1;
+        }
+        if (pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, i) != 0) {
+          cmp_val = pipeline_expr_match_arm_variant_index(arena, expr_ref, i);
+        } else {
+          cmp_val = pipeline_expr_match_arm_lit_val(arena, expr_ref, i);
+        }
+        if (format_int(out, cmp_val as i64) != 0) {
+          return -1;
+        }
+        if (emit_bytes_from_ptr(out, &open_br[0], 3) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 10) != 0) {
+          return -1;
+        }
+        res = pipeline_expr_match_arm_result_ref(arena, expr_ref, i);
+        if (codegen_emit_match_stmt_arm_body(arena, out, res, indent, ctx, fn_ret_void) != 0) {
+          return -1;
+        }
+        opened = 1;
+      }
+      i = i + 1;
+    }
+    if (wild_i >= 0) {
+      if (emit_indent(out, indent) != 0) {
+        return -1;
+      }
+      if (opened != 0) {
+        /* "} else {\n" */
+        if (emit_bytes_from_ptr(out, &else_br[0], 8) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 10) != 0) {
+          return -1;
+        }
+      } else {
+        /* only wildcard: if (1) {\n body } */
+        if (emit_bytes_from_ptr(out, &if1[0], 7) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 123) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 10) != 0) {
+          return -1;
+        }
+      }
+      res = pipeline_expr_match_arm_result_ref(arena, expr_ref, wild_i);
+      if (codegen_emit_match_stmt_arm_body(arena, out, res, indent, ctx, fn_ret_void) != 0) {
+        return -1;
+      }
+      opened = 1;
+    }
+    if (opened != 0) {
+      if (emit_indent(out, indent) != 0) {
+        return -1;
+      }
+      return emit_bytes_3(out, close_br, 2);
+    }
+    return 0;
   }
 }
 
@@ -9551,6 +9740,12 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
               if (emit_continue_stmt(out, indent) != 0) {
                 return -1;
               }
+            } else if (st.kind == ExprKind.EXPR_MATCH
+                && codegen_match_has_return_arm(arena, ex_ref) != 0) {
+              /* wave372: mid-body match + return arms → if/else real early-return */
+              if (codegen_emit_match_as_stmt(arena, out, ex_ref, indent, ctx, fn_ret_void) != 0) {
+                return -1;
+              }
             } else {
               if (emit_indent(out, indent) != 0) {
                 return -1;
@@ -9971,6 +10166,12 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
         }
         let co: u8[11] = [99, 111, 110, 116, 105, 110, 117, 101, 59, 10, 0];
         if (emit_bytes_from_ptr(out, &co[0], 10) != 0) {
+          return -1;
+        }
+      } else if (st.kind == ExprKind.EXPR_MATCH
+          && codegen_match_has_return_arm(arena, ex_fb) != 0) {
+        /* wave372: mid-body match + return arms → if/else real early-return */
+        if (codegen_emit_match_as_stmt(arena, out, ex_fb, indent, ctx, fn_ret_void) != 0) {
           return -1;
         }
       } else {

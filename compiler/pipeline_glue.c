@@ -11870,11 +11870,20 @@ int32_t pipeline_asm_emit_match_elf_c(struct ast_ASTArena *arena, struct platfor
     result_ref = pipeline_expr_match_arm_result_ref(arena, expr_ref, wild_idx);
     if (result_ref <= 0 || pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta) != 0)
       return -1;
+    /*
+     * wave372: EXPR_RETURN arm already jmps to function tail_join — do not fall
+     * through / jmp done (same discipline as if-then with return in stmt_order).
+     * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64/aarch64.
+     */
+    if (pipeline_expr_kind_ord_at(arena, result_ref) != 41) {
+      if (backend_enc_jmp_arch(elf_ctx, done_lbl, done_len, ta) != 0)
+        return -1;
+    }
   } else if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0) {
     return -1;
-  }
-  if (backend_enc_jmp_arch(elf_ctx, done_lbl, done_len, ta) != 0)
+  } else if (backend_enc_jmp_arch(elf_ctx, done_lbl, done_len, ta) != 0) {
     return -1;
+  }
   for (i = 0; i < num_arms; i++) {
     if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, i) != 0)
       continue;
@@ -11883,8 +11892,11 @@ int32_t pipeline_asm_emit_match_elf_c(struct ast_ASTArena *arena, struct platfor
     result_ref = pipeline_expr_match_arm_result_ref(arena, expr_ref, i);
     if (result_ref <= 0 || pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta) != 0)
       return -1;
-    if (backend_enc_jmp_arch(elf_ctx, done_lbl, done_len, ta) != 0)
-      return -1;
+    /* wave372: RETURN arm → real early return; skip join to done. */
+    if (pipeline_expr_kind_ord_at(arena, result_ref) != 41) {
+      if (backend_enc_jmp_arch(elf_ctx, done_lbl, done_len, ta) != 0)
+        return -1;
+    }
   }
   if (backend_enc_label_arch(elf_ctx, done_lbl, done_len, 0, ta) != 0)
     return -1;
