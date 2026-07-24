@@ -15597,27 +15597,20 @@ static int32_t pipeline_asm_emit_field_access_elf_fast_c(struct ast_ASTArena *ar
     return backend_enc_mov_imm32_to_w0_arch(elf_ctx, pipeline_expr_enum_variant_tag_at(arena, expr_ref), ta);
   /*
    * wave346 Cap residual pure: fixed TYPE_ARRAY / TYPE_VECTOR `.length` → imm N in rax.
-   * wave380 Cap residual pure: docs/02 `.len` alias — same imm path (Ubuntu fs was run=1
-   * when only host mapped len; fs still treated field as offset-0 load).
    * Prior: var_field_access loaded base+0 (first elem) when field_offset stayed 0
    * (typeck only stamped fat-slice length@+8). G.7: match host ((size_t)N) + typeck usize.
    * PLATFORM: SHARED freestanding emit (LINUX gold; mac host-C co-path).
    */
   {
     int32_t flen_arr = pipeline_expr_field_access_name_len(arena, expr_ref);
-    int32_t is_len_field_arr = 0;
-    if (flen_arr == 6 || flen_arr == 3) {
+    if (flen_arr == 6) {
       uint8_t fn_arr[64];
       int32_t base_ref_arr;
       int32_t base_ty_arr;
       int32_t bk_arr;
       int32_t asz_arr;
       pipeline_expr_field_access_name_into(arena, expr_ref, fn_arr);
-      if (flen_arr == 6 && memcmp(fn_arr, "length", 6) == 0)
-        is_len_field_arr = 1;
-      if (flen_arr == 3 && memcmp(fn_arr, "len", 3) == 0)
-        is_len_field_arr = 1;
-      if (is_len_field_arr != 0) {
+      if (memcmp(fn_arr, "length", 6) == 0) {
         base_ref_arr = pipeline_expr_field_access_base_ref(arena, expr_ref);
         base_ty_arr = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref_arr);
         if (base_ty_arr <= 0)
