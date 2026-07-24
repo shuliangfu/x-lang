@@ -12587,12 +12587,18 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
         return -1;
       if (!ly)
         return -1;
-      /* Allocate 16B dual-GP home: data@home, length@home-8 (asm_local_slot_reg_offset style). */
+      /*
+       * Allocate 16B dual-GP home: data@home, length@home-8 (same as let dual-GP).
+       * CRITICAL: raise next_offset past home+8 *before* emit_array_lit so payload
+       * does not overwrite the fat slot (Ubuntu: home==payload → self-ptr / panic).
+       * G.7 / wave331: same temp discipline as assign empty→lit past home.
+       */
       base_off = ly->next_offset;
       if ((base_off % 8) != 0)
         base_off = (base_off + 7) / 8 * 8;
       home = base_off + 16;
-      ly->next_offset = base_off + 16;
+      /* Fat occupies [home-8, home+8); payload starts at home+8. */
+      ly->next_offset = home + 8;
       glue_align_next_offset(ctx);
       if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, expr_ref, ctx, ta) != 0)
         return -1;
