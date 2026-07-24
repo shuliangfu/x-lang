@@ -13790,10 +13790,34 @@ int32_t pipeline_asm_emit_expr_elf_fast(struct ast_ASTArena *arena, struct platf
    * any negative → mov_imm64 lo/hi (existing encoder; arm64 seed must emit all
    * four halfwords — see arch_arm64_enc_enc_mov_imm64_to_rax).
    * BOOL_LIT stays 0/1 so still takes the imm32 path.
+   * wave318 Cap residual pure: typeck may stamp bare EXPR_LIT as f32/f64
+   * (`let a: f32 = 6` / `return 6` after lit coerce). Emitting integer 6 in
+   * eax then movd→xmm0 is a denormal float (~0 after cvttss2si) → Ubuntu
+   * freestanding run=0 (mac host-gcc C converts). Convert int payload to IEEE
+   * bits; G.7 next to glue_emit_float_lit (FLOAT_LIT path remains kind==1).
    * PLATFORM: SHARED cast path / LINUX+MACOS x86_64+arm64 emit.
    */
   if (ko == 0 || ko == 2) {
     int64_t v64 = pipeline_expr_int64_val_at(arena, expr_ref);
+    if (ko == 0) {
+      int32_t rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+      if (rty > 0) {
+        int32_t rk = pipeline_type_kind_ord_at(arena, rty);
+        if (rk == GLUE_TYPE_KIND_F32_ORD) {
+          float fv = (float)v64;
+          uint32_t fb = 0;
+          memcpy(&fb, &fv, sizeof(fb));
+          return backend_enc_mov_imm32_to_w0_arch(elf_ctx, (int32_t)fb, ta);
+        }
+        if (rk == GLUE_TYPE_KIND_F64_ORD) {
+          double dv = (double)v64;
+          uint64_t u = 0;
+          memcpy(&u, &dv, sizeof(u));
+          return backend_enc_mov_imm64_to_rax_arch(elf_ctx, (int32_t)(u & 0xffffffffu),
+                                                   (int32_t)(u >> 32), ta);
+        }
+      }
+    }
     if (ko == 2 || (v64 >= 0 && v64 <= (int64_t)INT32_MAX))
       return backend_enc_mov_imm32_to_w0_arch(elf_ctx, (int32_t)v64, ta);
     {
