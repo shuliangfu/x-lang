@@ -1890,6 +1890,16 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     lexer_next_into(&r, lex, source);
     /* Struct lit Type { ... } only for IDENT type names, not keyword self. */
     if (r.tok.kind == (int32_t)TOKEN_LBRACE && !name_was_self) {
+      /**
+       * wave361 / docs/03 bare if/while: `if b { body }` must not parse `b {` as struct lit.
+       * Reuse G.7 lbrace_looks_like_block: stmt-like after `{` → end primary as VAR, leave `{`.
+       * Field-like (`x:`, `,`, `}`) → keep Type { fields } struct lit (return/let paths).
+       * PLATFORM: SHARED.
+       */
+      if (parser_asm_primary_lbrace_looks_like_block_c(r.next_lex, source) != 0) {
+        out->next_lex = lex;
+        return;
+      }
       parser_finish_struct_lit_from_type_ident_into_glue(arena, ref, r.next_lex, source, out);
       return;
     }

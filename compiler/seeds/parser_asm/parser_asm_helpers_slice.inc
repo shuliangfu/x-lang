@@ -329,6 +329,7 @@ int32_t parser_asm_advance_past_stmt_semicolon_into_slice_c(struct parser_asm_le
 
 /**
  * advance_past_cond_rparen_into：if/while 条件后同步到 ) 之后（或已见 {）。
+ * PLATFORM: SHARED — paren form `if (cond) {` and bare form `if cond {` (docs/03; wave361).
  */
 int32_t parser_asm_advance_past_cond_rparen_into_slice_c(struct parser_asm_lexer_result *r_out,
                                                          struct parser_asm_lexer lex,

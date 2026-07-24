@@ -53,6 +53,9 @@ int32_t parser_asm_parse_body_let_bracket_compound_init_ref_slice_c(void *arena,
 
 /**
  * parse_cond_expr_into：if/while 条件；int 后接 as 时从 int 起点 parse_expr（与 return 0 as T 一致）。
+ * Also used for some return/expr-stmt paths — do not attach cond-only global state here.
+ * Bare `if b {` disambiguation is in primary IDENT+LBRACE (looks_like_block; wave361).
+ * PLATFORM: SHARED.
  */
 void parser_asm_parse_cond_expr_into_slice_c(void *arena, struct parser_asm_lexer lex_start,
                                              struct parser_asm_slice_u8 *source,
