@@ -714,11 +714,16 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
       out->expr_ref = call_ref;
     } else if (r->tok.kind == (int32_t)TOKEN_LBRACE) {
       /**
-       * 【Why】`Module.TypeName { ... }` 语法：field-access 后跟 `{` 视为 struct 字面量。
-       * parser IDENT 后缀 loop 原本只处理 `.`/`[`/`(`/`<`，不支持 `heap.PageMmapHeap { ... }`，
-       * 导致 nolibc gate CG002（struct_lit 被解析为 FIELD_ACCESS ko=44，asm codegen 期望 ko=45）。
-       * 【Invariant】仅 FIELD_ACCESS (ko=44) 后的 LBRACE 触发；CALL/INDEX 后的 LBRACE 不触发。
-       * 【Asm/Perf】无额外分支开销：LBRACE 检查仅在 suffix loop 末尾命中一次。
+       * Qualified struct lit `Module.TypeName { ... }` (e.g. heap.PageMmapHeap { … },
+       * process.SpawnIo { … }) vs bare if/while cond ending in field access:
+       *   if a.x { … } / while b.x { … } / if c == Color.Red { … } / if 1 == b.x { … }
+       *
+       * Historical path always rewrote FIELD_ACCESS + `{` into STRUCT_LIT, which ate the
+       * then/while body → XP003 out_len=0. wave361/364 already disambiguate IDENT+`{`;
+       * G.7 reuses the same authorities here (no second heuristic).
+       *
+       * Invariant: only FIELD_ACCESS (ko=44) may become qualified struct lit; CALL/INDEX
+       * after LBRACE still stop the suffix loop. PLATFORM: SHARED.
        */
       struct parser_asm_ast_expr fae;
       int32_t fa_ref;
@@ -726,9 +731,21 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
       uint8_t tnm[64];
       int32_t ti;
       int32_t tj;
+      int32_t prefer_block;
       fa_ref = out->expr_ref;
       fae = parser_asm_arena_expr_get_c(arena, fa_ref);
       if (fae.kind != PARSER_ASM_EXPR_FIELD_ACCESS) {
+        out->next_lex = *lex;
+        return;
+      }
+      /* Same G.7 disambiguation as IDENT+LBRACE (wave361/364). Leave `{` for ctrl body. */
+      prefer_block = 0;
+      if (parser_asm_primary_lbrace_looks_like_block_c(r->next_lex, source) != 0) {
+        prefer_block = 1;
+      } else if (parser_asm_primary_empty_ident_braces_prefer_block_c(r->next_lex, source) == 1) {
+        prefer_block = 1;
+      }
+      if (prefer_block != 0) {
         out->next_lex = *lex;
         return;
       }
