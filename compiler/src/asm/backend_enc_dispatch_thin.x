@@ -1612,11 +1612,16 @@ export function backend_enc_rem_mod_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-/** Exported function `backend_enc_rem_mod_unsigned_arch`.
- * Implements `backend_enc_rem_mod_unsigned_arch`.
- * @param elf_ctx *u8
- * @param ta i32
- * @return i32
+/**
+ * Unsigned integer remainder: dividend in rax/eax, divisor in rbx/ebx → remainder in eax.
+ * PLATFORM: SHARED arith / LINUX+MACOS x86_64 emit (arm64/riscv64 stubs).
+ * wave322 Cap residual pure: x86_64 must xor edx before div (same as backend_enc_div_rbx_arch).
+ * Without xor, garbage edx makes divl #DE (Ubuntu freestanding u32/u64 % → SIGFPE exit 136).
+ * Full dispatch already routes through backend_enc_div_rbx_arch; thin is product authority and
+ * must emit the same xor+div+mov_edx_to_eax sequence (G.7 complete, no second rem path).
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param ta i32 — 0=x86_64, 1=arm64, 2=riscv64
+ * @return i32 — 0 success, -1 encode failure
  */
 #[no_mangle]
 export function backend_enc_rem_mod_unsigned_arch(elf_ctx: *u8, ta: i32): i32 {
@@ -1632,6 +1637,10 @@ export function backend_enc_rem_mod_unsigned_arch(elf_ctx: *u8, ta: i32): i32 {
     }
   }
   unsafe {
+    /* Zero high half of dividend (edx:eax) before unsigned divl %ebx. */
+    if (arch_x86_64_enc_enc_xor_edx_edx(elf_ctx) != 0) {
+      return 0 - 1;
+    }
     if (arch_x86_64_enc_enc_div_rbx(elf_ctx) != 0) {
       return 0 - 1;
     }

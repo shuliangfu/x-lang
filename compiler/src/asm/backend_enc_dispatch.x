@@ -1737,16 +1737,17 @@ export function backend_enc_rem_mod_arch(elf_ctx: *u8, ta: i32): i32 {
   return backend_enc_mov_edx_to_eax_arch(elf_ctx, ta);
 }
 
-// backend_enc_rem_mod_unsigned_arch: see function docblock below.
-/** Exported function `backend_enc_rem_mod_unsigned_arch`.
- * Implements `backend_enc_rem_mod_unsigned_arch`.
- * @param elf_ctx *u8
- * @param ta i32
- * @return i32
+/**
+ * Unsigned rem: routes through backend_enc_div_rbx_arch (xor edx + div) then mov remainder.
+ * PLATFORM: SHARED — full-dispatch twin of thin wave322 fix (thin is product authority when L2).
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param ta i32 — target arch
+ * @return i32 — 0 success, -1 failure
  */
 #[no_mangle]
 export function backend_enc_rem_mod_unsigned_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) { return backend_enc_mov_edx_to_eax_arch(elf_ctx, ta); }
+  /* backend_enc_div_rbx_arch already emits xor_edx + divl %ebx (wave322 / G.7). */
   if (backend_enc_div_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
   return backend_enc_mov_edx_to_eax_arch(elf_ctx, ta);
 }

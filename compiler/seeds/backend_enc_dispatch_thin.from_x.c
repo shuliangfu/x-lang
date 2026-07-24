@@ -1467,6 +1467,7 @@ int32_t backend_enc_rem_mod_arch(uint8_t * elf_ctx, int32_t ta) {
   }
   return (0 - 1);
 }
+/* wave322: xor edx before div — mirror backend_enc_dispatch_thin.x (G.7). */
 int32_t backend_enc_rem_mod_unsigned_arch(uint8_t * elf_ctx, int32_t ta) {
   if ((ta ==1)) {
     {
@@ -1482,6 +1483,9 @@ int32_t backend_enc_rem_mod_unsigned_arch(uint8_t * elf_ctx, int32_t ta) {
     }
   }
   {
+    if ((arch_x86_64_enc_enc_xor_edx_edx(elf_ctx) !=0)) {
+      return (0 - 1);
+    }
     if ((arch_x86_64_enc_enc_div_rbx(elf_ctx) !=0)) {
       return (0 - 1);
     }
