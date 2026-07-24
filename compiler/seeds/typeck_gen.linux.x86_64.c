@@ -6294,6 +6294,14 @@ int32_t typeck_check_expr_binop_arith(struct ast_Module * module, struct ast_AST
           if (((lko ==ord_i64) || (rko ==ord_i64))) {
             (void)((out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_i64)));
           } else {
+            /* wave317: f32 + bare FLOAT_LIT / -float stays f32 before f64 usual-arith.
+             * G.7 ≡ typeck.x typeck_coerce_init_float_lit_to_decl (wave316). */
+            if (((lko ==ord_f32) && (typeck_coerce_init_float_lit_to_decl(arena, bop_r, lt_ar, ord_f32, rk_expr) !=0))) {
+              (void)((out_ar = lt_ar));
+            } else {
+            if (((rko ==ord_f32) && (typeck_coerce_init_float_lit_to_decl(arena, bop_l, rt_ar, ord_f32, lk_expr) !=0))) {
+              (void)((out_ar = rt_ar));
+            } else {
             /* wave296 Cap residual: f64 before f32 (usual arithmetic conversion).
              * f32*f64 must resolve as f64 — not f32. G.7 ≡ typeck.x / empty_surface / ast_pool. */
             if (((lko ==ord_f64) || (rko ==ord_f64))) {
@@ -6330,6 +6338,8 @@ int32_t typeck_check_expr_binop_arith(struct ast_Module * module, struct ast_AST
                   }
                 }
               }
+            }
+            }
             }
           }
         }

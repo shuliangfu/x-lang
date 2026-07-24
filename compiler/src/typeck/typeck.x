@@ -6168,6 +6168,18 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
           out_ar = lt_ar;
         } else if (lko == ord_i64 || rko == ord_i64) {
           out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_i64);
+        } else if (lko == ord_f32
+        && typeck_coerce_init_float_lit_to_decl(arena, bop_r, lt_ar, ord_f32, rk_expr) != 0) {
+          /* wave317 Cap residual pure: f32 + bare FLOAT_LIT / `-float` stays f32.
+           * Root: FLOAT_LIT defaults to f64 (typeck_check_expr_float_lit); wave296
+           * usual-arith then widens f32+1.0 → f64 → assign/let `expected f32, found f64`.
+           * G.7 reuse typeck_coerce_init_float_lit_to_decl (wave316 let/assign/return).
+           * Must run before f64-before-f32 widen. True f32*f64 vars still widen below.
+           * PLATFORM: SHARED — seed typeck_gen + empty_surface + ast_pool twin same commit. */
+          out_ar = lt_ar;
+        } else if (rko == ord_f32
+        && typeck_coerce_init_float_lit_to_decl(arena, bop_l, rt_ar, ord_f32, lk_expr) != 0) {
+          out_ar = rt_ar;
         } else if (lko == ord_f64 || rko == ord_f64) {
           /* wave296: usual arithmetic conversion — any f64 operand widens the binop to f64
            * (f32*f64 / f64*f32 must not resolve as f32; freestanding cast/mul need mulsd bits).

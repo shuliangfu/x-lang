@@ -8157,6 +8157,35 @@ void typeck_binop_arith_infer_type_c(struct ast_ASTArena *arena, int32_t expr_re
     out_ar = lt_ar;
   } else if (out_ar == 0 && (lko == 5 || rko == 5)) {
     out_ar = pipeline_type_ensure_by_kind_ord(arena, 5);
+  } else if (out_ar == 0 && lko == 14
+             && (rk_expr == 1 /* EXPR_FLOAT_LIT */ || rk_expr == 22 /* EXPR_NEG */)) {
+    /* wave317 soft-infer twin: f32 + bare FLOAT_LIT / -float stays f32 before f64 widen.
+     * G.7 ≡ typeck.x typeck_coerce_init_float_lit_to_decl (inline stamp; ast_pool is
+     * #include'd before glue coerce body). EXPR_FLOAT_LIT=1, EXPR_NEG=22. */
+    if (rk_expr == 1) {
+      pipeline_expr_set_resolved_type_ref(arena, bop_r, lt_ar);
+      out_ar = lt_ar;
+    } else {
+      int32_t op_r = pipeline_expr_unary_operand_ref_at(arena, bop_r);
+      if (op_r > 0 && pipeline_expr_kind_ord_at(arena, op_r) == 1) {
+        pipeline_expr_set_resolved_type_ref(arena, op_r, lt_ar);
+        pipeline_expr_set_resolved_type_ref(arena, bop_r, lt_ar);
+        out_ar = lt_ar;
+      }
+    }
+  } else if (out_ar == 0 && rko == 14
+             && (lk_expr == 1 || lk_expr == 22)) {
+    if (lk_expr == 1) {
+      pipeline_expr_set_resolved_type_ref(arena, bop_l, rt_ar);
+      out_ar = rt_ar;
+    } else {
+      int32_t op_l = pipeline_expr_unary_operand_ref_at(arena, bop_l);
+      if (op_l > 0 && pipeline_expr_kind_ord_at(arena, op_l) == 1) {
+        pipeline_expr_set_resolved_type_ref(arena, op_l, rt_ar);
+        pipeline_expr_set_resolved_type_ref(arena, bop_l, rt_ar);
+        out_ar = rt_ar;
+      }
+    }
   } else if (out_ar == 0 && (lko == 15 || rko == 15)) {
     /* wave296: f64 before f32 (usual arithmetic conversion); G.7 ≡ typeck.x / typeck_gen. */
     out_ar = pipeline_type_ensure_by_kind_ord(arena, 15);
