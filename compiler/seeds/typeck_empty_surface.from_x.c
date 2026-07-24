@@ -1674,7 +1674,12 @@ int32_t ensure_struct_layout_from_struct_lit(struct ast_Module * module, struct 
     (void)((k = (k + 1)));
   }
   if ((found_idx >=0)) {
+    /* wave369: parser-complete layout (nf >= lit fields) — do not append (mid Nest scramble). */
     (void)((idx_m = found_idx));
+    (void)((nf_layout = pipeline_module_struct_layout_num_fields(module, idx_m)));
+    if ((nf_layout >= num_fields)) {
+      return 0;
+    }
     (void)((jm = 0));
     while ((jm < num_fields)) {
       (void)(pipeline_expr_struct_lit_field_name_into(arena, expr_ref, jm, field_nm));
@@ -1701,6 +1706,8 @@ int32_t ensure_struct_layout_from_struct_lit(struct ast_Module * module, struct 
           }
         }
         (void)((foff_m = pipeline_struct_layout_next_field_offset(module, arena, idx_m, ftr_m)));
+        (void)(pipeline_expr_struct_lit_field_name_into(arena, expr_ref, jm, field_nm));
+        (void)((fnlen_m = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, jm)));
         (void)(pipeline_module_struct_layout_set_field(module, idx_m, nf_m, field_nm, fnlen_m, ftr_m, foff_m));
         (void)(pipeline_module_struct_layout_set_num_fields(module, idx_m, (nf_m + 1)));
       }

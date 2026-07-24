@@ -1439,10 +1439,26 @@ type_name_len: i32, field_name: *u8, field_name_len: i32): i32 {
 }
 
 /**
-* See implementation.
-* See implementation.
-* See implementation.
-*/
+ * Ensure module.struct_layouts has an entry for STRUCT_LIT expr_ref's type name.
+ * Parser usually registered the layout already; this backfills missing fields when
+ * parser only recorded a placeholder head. Called from typeck and from asm fill_cl
+ * (skip-typeck STRUCT_LIT merge).
+ *
+ * wave369 Cap residual pure (PLATFORM: SHARED freestanding · LINUX gold):
+ *   Prior append path always pushed STRUCT_LIT fields when name lookup missed.
+ *   Mid/last nested Nest lit (`Box { a, n: Nest{e:Empty{}}, b }`) left Box layout
+ *   scrambled (nf=4 names n/b/b/a, ftr mostly 0) → metrics fail, invent sz=24,
+ *   field loads garbage. Root: (1) do not append when layout already has >= lit
+ *   field count (parser complete); (2) re-read field name after expr_type_ref /
+ *   next_field_offset — shared typeck_scratch64 slots can clobber field_nm.
+ *   G.7: single authority ensure_struct_layout_from_struct_lit; seed typeck_gen
+ *   same commit when regen.
+ *
+ * @param module *Module — owning struct_layouts table
+ * @param arena *ASTArena — STRUCT_LIT expr pool
+ * @param expr_ref i32 — EXPR_STRUCT_LIT ref; empty nf==0 is no-op (wave366 ZST)
+ * @return i32 — 0 ok, -1 alloc failure
+ */
 export function ensure_struct_layout_from_struct_lit(module: *Module, arena: *ASTArena,
 expr_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -1472,7 +1488,6 @@ expr_ref: i32): i32 {
     let foff_j: i32 = 0;
     let nsl: i32 = 0;
     let sname_len: i32 = 0;
-    /* See implementation. */
     let lit_nm: *u8 = typeck_scratch64_slot(4);
     let layout_nm: *u8 = typeck_scratch64_slot(5);
     let field_nm: *u8 = typeck_scratch64_slot(6);
@@ -1480,8 +1495,8 @@ expr_ref: i32): i32 {
     if (expr_ref <= 0 || expr_ref > arena.num_exprs) {
       return 0;
     }
-    /* See implementation. */
     num_fields = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+    /* wave366: Empty {} nf==0 — no fields to merge. */
     if (num_fields <= 0 || num_fields > 8) {
       return 0;
     }
@@ -1502,7 +1517,6 @@ expr_ref: i32): i32 {
       }
       k = k + 1;
     }
-    /* See implementation. */
     if (found_idx >= 0) {
       idx_m = found_idx;
       jm = 0;
@@ -1512,6 +1526,14 @@ expr_ref: i32): i32 {
         exists_m = 0;
         tm = 0;
         nf_layout = pipeline_module_struct_layout_num_fields(module, idx_m);
+        /*
+         * wave369: parser already registered a full field set (nf >= lit fields).
+         * Do not append — mid Nest STRUCT_LIT merge previously grew Box to nf=4
+         * with scrambled names. Name-match update of type_ref is enough.
+         */
+        if (nf_layout >= num_fields) {
+          return 0;
+        }
         while (tm < nf_layout) {
           pipeline_module_struct_layout_field_name_into(module, idx_m, tm, exist_nm);
           flen_tm = pipeline_module_struct_layout_field_name_len(module, idx_m, tm);
@@ -1531,6 +1553,9 @@ expr_ref: i32): i32 {
             }
           }
           foff_m = pipeline_struct_layout_next_field_offset(module, arena, idx_m, ftr_m);
+          /* Re-read field name after helpers that reuse typeck_scratch64 slots. */
+          pipeline_expr_struct_lit_field_name_into(arena, expr_ref, jm, field_nm);
+          fnlen_m = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, jm);
           pipeline_module_struct_layout_set_field(module, idx_m, nf_m, field_nm, fnlen_m, ftr_m,
           foff_m);
           pipeline_module_struct_layout_set_num_fields(module, idx_m, nf_m + 1);
@@ -1559,6 +1584,9 @@ expr_ref: i32): i32 {
         }
       }
       foff_j = pipeline_struct_layout_next_field_offset(module, arena, idx, ftr);
+      /* Re-read name after type/offset helpers (scratch slot safety). */
+      pipeline_expr_struct_lit_field_name_into(arena, expr_ref, j, field_nm);
+      fnlen_j = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, j);
       pipeline_module_struct_layout_set_field(module, idx, j, field_nm, fnlen_j, ftr, foff_j);
       j = j + 1;
     }
