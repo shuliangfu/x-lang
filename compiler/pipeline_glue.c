@@ -10258,6 +10258,40 @@ int32_t pipeline_asm_emit_addr_of_elf_c(struct ast_ASTArena *arena, struct platf
   return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
 }
 
+/**
+ * wave323 Cap residual pure: EXPR_DEREF rvalue (ko==52).
+ *
+ * Root cause: rec had ADDR_OF (51) but no DEREF arm → fell through to
+ * backend_emit_expr_elf_slow (weak/no-op or peel without load). Freestanding
+ * then used the pointer bits as the value:
+ *   return *p + 2  → lea p; add $2,%rax  (no mov (%rax),%eax) → exit garbage
+ *   function load(p:*i32){ return *p } → ret with rdi pointer bits
+ *
+ * Authority (G.7): single ELF path next to ADDR_OF / INDEX load-after-addr.
+ * Reuse backend_enc_load_{zext8,i32_indirect,64}_from_rax (no new encoder).
+ * Width from DEREF resolved type via glue_index_elem_byte_sz_from_type_ref_c.
+ * PLATFORM: SHARED emit / LINUX freestanding gold (mac host-gcc C hid via *(p)).
+ */
+int32_t pipeline_asm_emit_deref_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                      int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  int32_t op;
+  int32_t tr;
+  int32_t esz;
+  op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  if (op <= 0)
+    return -1;
+  /* Pointer value into rax (VAR slot load, call result, nested deref, …). */
+  if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
+    return -1;
+  tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+  esz = glue_index_elem_byte_sz_from_type_ref_c(arena, tr);
+  if (esz == 1)
+    return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
+  if (esz == 4)
+    return backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta);
+  return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+}
+
 int32_t pipeline_asm_emit_call_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                      int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
 int32_t pipeline_asm_emit_method_call_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -10772,6 +10806,16 @@ static int32_t glue_try_binop_load_operand_elf_c(struct ast_ASTArena *arena,
     vr = pipeline_asm_emit_index_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
     if (vr != 0)
       return -2;
+    if (to_rbx != 0 && backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    return 0;
+  }
+  /** wave323: *p as binop operand — emit load [ptr], not pointer bits. */
+  if (ko == 52) {
+    glue_binop_var_slot_cache_clear();
+    vr = pipeline_asm_emit_deref_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+    if (vr != 0)
+      return -1;
     if (to_rbx != 0 && backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
       return -1;
     return 0;
@@ -11739,6 +11783,9 @@ static int32_t pipeline_asm_emit_expr_elf_rec(struct ast_ASTArena *arena, struct
     out_rc = pipeline_asm_emit_index_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
   else if (ko == 51)
     out_rc = pipeline_asm_emit_addr_of_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  /** wave323: EXPR_DEREF — load [ptr]; must not fall through to slow no-op. */
+  else if (ko == 52)
+    out_rc = pipeline_asm_emit_deref_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
   else if (ko == 48)
     out_rc = pipeline_asm_emit_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
   else if (ko == 49)
