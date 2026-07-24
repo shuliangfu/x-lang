@@ -751,28 +751,56 @@ export function enc_store_x_reg_to_rbp(ctx: *ElfCodegenCtx, reg: i32, offset: i3
   return enc_u32_le(ctx, base | (u9 << 12) | (29 << 5) | rt);
 }
 
-/** Exported function `enc_lea_rbp_to_rax`.
- * Implements `enc_lea_rbp_to_rax`.
- * @param ctx *ElfCodegenCtx
- * @param offset i32
- * @return i32
+/**
+ * LEA x0 = x29 + offset (multi-chunk when offset > 4095).
+ * @param ctx *ElfCodegenCtx — emit context
+ * @param offset i32 — non-negative frame home bytes preferred
+ * @return i32 — 0 success
+ * wave420: product authority = seeds/backend_arm64_enc_c.from_x.c
+ * arch_arm64_enc_enc_lea_rbp_to_rax (multi-chunk ADD; no byte-offset clamp).
+ * This .x twin keeps multi-chunk for future M-path; product links the C seed.
+ * PLATFORM: MACOS|ARM64.
  */
 export function enc_lea_rbp_to_rax(ctx: *ElfCodegenCtx, offset: i32): i32 {
-  let imm12: i32 = offset;
-  if (imm12 > 4095) { imm12 = 4095; }
-  return enc_u32_le(ctx, 3506439072 | (imm12 << 10));
+  let left: i32 = offset;
+  if (left < 0) { left = 0; }
+  /* mov x0, x29 ≡ orr x0, xzr, x29 — 0xAA1D03E0 as signed i32 */
+  let movw: i32 = 0 - 1440939040;
+  if (enc_u32_le(ctx, movw) != 0) { return 0 - 1; }
+  while (left > 0) {
+    let chunk: i32 = left;
+    if (chunk > 4095) { chunk = 4095; }
+    /* add x0, x0, #chunk — base 0x91000000 as signed + (chunk<<10) */
+    let addb: i32 = 0 - 1862270976;
+    if (enc_u32_le(ctx, addb | (chunk << 10)) != 0) { return 0 - 1; }
+    left = left - chunk;
+  }
+  return 0;
 }
 
-/** Exported function `enc_lea_rbp_to_rbx`.
- * Implements `enc_lea_rbp_to_rbx`.
+/**
+ * LEA x1 = x29 + offset (multi-chunk twin of enc_lea_rbp_to_rax).
  * @param ctx *ElfCodegenCtx
  * @param offset i32
- * @return i32
+ * @return i32 — 0 success
+ * wave420: product authority twin seeds/backend_arm64_enc_c.from_x.c.
+ * PLATFORM: MACOS|ARM64.
  */
 export function enc_lea_rbp_to_rbx(ctx: *ElfCodegenCtx, offset: i32): i32 {
-  let imm12: i32 = offset;
-  if (imm12 > 4095) { imm12 = 4095; }
-  return enc_u32_le(ctx, 3506439072 | (imm12 << 10) | 1);
+  let left: i32 = offset;
+  if (left < 0) { left = 0; }
+  /* mov x1, x29 ≡ orr x1, xzr, x29 — 0xAA1D03E1 as signed */
+  let movw: i32 = 0 - 1440939039;
+  if (enc_u32_le(ctx, movw) != 0) { return 0 - 1; }
+  while (left > 0) {
+    let chunk: i32 = left;
+    if (chunk > 4095) { chunk = 4095; }
+    /* add x1, x1, #chunk — 0x91000021 + (chunk<<10) */
+    let addb: i32 = 0 - 1862270943;
+    if (enc_u32_le(ctx, addb | (chunk << 10)) != 0) { return 0 - 1; }
+    left = left - chunk;
+  }
+  return 0;
 }
 
 /**

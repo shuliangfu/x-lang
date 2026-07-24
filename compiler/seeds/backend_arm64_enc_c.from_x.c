@@ -111,6 +111,50 @@ static int32_t arm64_enc_addsub_sp_imm_chunks(struct platform_elf_ElfCodegenCtx 
 }
 
 /**
+ * wave420 Cap residual pure: ADD Xd, Xn, #imm with multi-chunk when imm > 4095.
+ *
+ * Root: product LDR/STR/LEA helpers clamped *byte* offset to 4095 before scaled
+ * encoding. Dual-GP fat length half at home+8 when home≈0xff8 needs #0x1000;
+ * clamp→0xfff→scaled 0xff8 aliases length onto data (fs escape/dual n≥1017
+ * SIGSEGV, address 0x3f9=length). Same clamp broke add_imm for INDEX mid at
+ * byte off≥4096 (local i32[2048] mid wrong).
+ *
+ * G.7: one helper for LEA/add_imm and large-frame load/store fallback.
+ * ADD imm12 unshifted max 4095; LDR/STR X unsigned scaled max byte 32760
+ * (imm12=offset/8 ≤ 4095) — do NOT clamp byte offset to 4095 before /8.
+ * PLATFORM: MACOS|ARM64 product pure-asm (ta==1).
+ *
+ * @param elf_ctx emit context
+ * @param rd destination Xn (0..30)
+ * @param rn source Xn (0..30); if rd!=rn emits MOV Xd,Xn first
+ * @param imm non-negative byte addend (0 ok)
+ * @return 0 success, -1 failure
+ */
+static int32_t arm64_enc_add_rd_rn_imm_chunks(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t rd,
+                                             int32_t rn, int32_t imm) {
+  int32_t left;
+  if (!elf_ctx || rd < 0 || rd > 30 || rn < 0 || rn > 30)
+    return -1;
+  left = imm;
+  if (left < 0)
+    left = 0;
+  if (rd != rn) {
+    /* mov xd, xn ≡ orr xd, xzr, xn */
+    if (arm64_enc_u32_le(elf_ctx, 0xAA0003E0u | ((uint32_t)rn << 16) | (uint32_t)rd) != 0)
+      return -1;
+  }
+  while (left > 0) {
+    int32_t chunk = left > 4095 ? 4095 : left;
+    /* add xd, xd, #chunk */
+    if (arm64_enc_u32_le(elf_ctx, 0x91000000u | ((uint32_t)chunk << 10) | ((uint32_t)rd << 5) |
+                         (uint32_t)rd) != 0)
+      return -1;
+    left -= chunk;
+  }
+  return 0;
+}
+
+/**
  * wave414 Cap residual pure: arm64 frame must cover positive [x29,#off] locals.
  *
  * Root: wave402 low-end home + product store/lea use [x29,+off] (payload grows up).
@@ -425,22 +469,21 @@ int32_t arch_arm64_enc_enc_pop_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return arm64_enc_u32_le(elf_ctx, 0xf84107e1u);
 }
 
+/**
+ * wave420: multi-chunk ADD x0,x0,#imm (was hard clamp imm≤4095).
+ * Used for INDEX byte offsets and large array element address math.
+ * PLATFORM: MACOS|ARM64.
+ */
 int32_t arch_arm64_enc_enc_add_imm_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
-  int32_t imm12 = imm;
-  if (imm12 < 0)
-    imm12 = 0;
-  if (imm12 > 4095)
-    imm12 = 4095;
-  return arm64_enc_u32_le(elf_ctx, 0x91000000u | ((uint32_t)imm12 << 10));
+  return arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 0, 0, imm);
 }
 
+/**
+ * wave420: multi-chunk ADD x1,x1,#imm (twin of add_imm_to_rax).
+ * PLATFORM: MACOS|ARM64.
+ */
 int32_t arch_arm64_enc_enc_add_imm_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
-  int32_t imm12 = imm;
-  if (imm12 < 0)
-    imm12 = 0;
-  if (imm12 > 4095)
-    imm12 = 4095;
-  return arm64_enc_u32_le(elf_ctx, 0x91000021u | ((uint32_t)imm12 << 10));
+  return arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 1, 1, imm);
 }
 
 int32_t arch_arm64_enc_enc_mov_rax_to_arg_reg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k) {
@@ -527,50 +570,76 @@ int32_t arch_arm64_enc_enc_sar_cl_rax(struct platform_elf_ElfCodegenCtx *elf_ctx
   return arm64_enc_u32_le(elf_ctx, 0x9ac22800u);
 }
 
+/**
+ * wave420: LEA x0 = x29 + offset; multi-chunk when offset > 4095.
+ * PLATFORM: MACOS|ARM64 product pure-asm.
+ */
 int32_t arch_arm64_enc_enc_lea_rbp_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
-  int32_t imm12 = offset;
-  if (imm12 < 0)
-    imm12 = -imm12;
-  if (imm12 > 4095)
-    imm12 = 4095;
-  /* add x0, x29, #imm12  (approx; negative needs sub) */
+  int32_t abs_off;
   if (offset >= 0)
-    return arm64_enc_u32_le(elf_ctx, 0x910003a0u | ((uint32_t)imm12 << 10));
-  return arm64_enc_u32_le(elf_ctx, 0xd10003a0u | ((uint32_t)imm12 << 10));
+    return arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 0, 29, offset);
+  abs_off = -offset;
+  /* mov x0, x29; then multi-chunk sub x0,x0,#c */
+  if (arm64_enc_u32_le(elf_ctx, 0xAA0003E0u | (29u << 16) | 0u) != 0)
+    return -1;
+  while (abs_off > 0) {
+    int32_t chunk = abs_off > 4095 ? 4095 : abs_off;
+    if (arm64_enc_u32_le(elf_ctx, 0xD1000000u | ((uint32_t)chunk << 10) | (0u << 5) | 0u) != 0)
+      return -1;
+    abs_off -= chunk;
+  }
+  return 0;
 }
 
+/**
+ * wave420: LEA x1 = x29 + offset; multi-chunk twin of lea_rbp_to_rax.
+ * PLATFORM: MACOS|ARM64.
+ */
 int32_t arch_arm64_enc_enc_lea_rbp_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
-  int32_t imm12 = offset;
-  if (imm12 < 0)
-    imm12 = -imm12;
-  if (imm12 > 4095)
-    imm12 = 4095;
+  int32_t abs_off;
   if (offset >= 0)
-    return arm64_enc_u32_le(elf_ctx, 0x910003a1u | ((uint32_t)imm12 << 10));
-  return arm64_enc_u32_le(elf_ctx, 0xd10003a1u | ((uint32_t)imm12 << 10));
+    return arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 1, 29, offset);
+  abs_off = -offset;
+  if (arm64_enc_u32_le(elf_ctx, 0xAA0003E0u | (29u << 16) | 1u) != 0)
+    return -1;
+  while (abs_off > 0) {
+    int32_t chunk = abs_off > 4095 ? 4095 : abs_off;
+    if (arm64_enc_u32_le(elf_ctx, 0xD1000000u | ((uint32_t)chunk << 10) | (1u << 5) | 1u) != 0)
+      return -1;
+    abs_off -= chunk;
+  }
+  return 0;
 }
 
+/**
+ * wave420: LDR x0, [x29, #offset] with correct scaled imm12 (byte/8 ≤ 4095).
+ * Root: prior clamped *byte* offset to 4095 then /8 → off 4096..4088 alias.
+ * Offsets > 32760 or unaligned: LEA then LDR [x0].
+ * PLATFORM: MACOS|ARM64 product pure-asm.
+ */
 int32_t arch_arm64_enc_enc_load_rbp_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
-  int32_t imm12 = offset;
-  if (imm12 < 0)
-    imm12 = -imm12;
-  if (imm12 > 4095)
-    imm12 = 4095;
-  /* ldr x0, [x29, #imm] — scaled imm for 8-byte; use unscaled approx */
-  if (offset >= 0)
-    return arm64_enc_u32_le(elf_ctx, 0xf94003a0u | (((uint32_t)imm12 / 8u) << 10));
-  return arch_arm64_enc_enc_lea_rbp_to_rax(elf_ctx, offset);
+  if (offset < 0)
+    return arch_arm64_enc_enc_lea_rbp_to_rax(elf_ctx, offset);
+  /* 64-bit LDR unsigned scaled: imm12 = offset/8, max byte offset 32760. */
+  if ((offset % 8) == 0 && (offset / 8) <= 4095)
+    return arm64_enc_u32_le(elf_ctx, 0xf94003a0u | (((uint32_t)(offset / 8)) << 10));
+  if (arch_arm64_enc_enc_lea_rbp_to_rax(elf_ctx, offset) != 0)
+    return -1;
+  return arm64_enc_u32_le(elf_ctx, 0xf9400000u); /* ldr x0, [x0] */
 }
 
+/**
+ * wave420: LDR x1, [x29, #offset] twin of load_rbp_to_rax.
+ * PLATFORM: MACOS|ARM64.
+ */
 int32_t arch_arm64_enc_enc_load_rbp_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
-  int32_t imm12 = offset;
-  if (imm12 < 0)
-    imm12 = -imm12;
-  if (imm12 > 4095)
-    imm12 = 4095;
-  if (offset >= 0)
-    return arm64_enc_u32_le(elf_ctx, 0xf94003a1u | (((uint32_t)imm12 / 8u) << 10));
-  return arch_arm64_enc_enc_lea_rbp_to_rbx(elf_ctx, offset);
+  if (offset < 0)
+    return arch_arm64_enc_enc_lea_rbp_to_rbx(elf_ctx, offset);
+  if ((offset % 8) == 0 && (offset / 8) <= 4095)
+    return arm64_enc_u32_le(elf_ctx, 0xf94003a1u | (((uint32_t)(offset / 8)) << 10));
+  if (arch_arm64_enc_enc_lea_rbp_to_rbx(elf_ctx, offset) != 0)
+    return -1;
+  return arm64_enc_u32_le(elf_ctx, 0xf9400021u); /* ldr x1, [x1] */
 }
 
 /**
@@ -583,6 +652,9 @@ int32_t arch_arm64_enc_enc_load_rbp_to_rbx(struct platform_elf_ElfCodegenCtx *el
  * register index misread as offset, and Rt was hard-coded x0 — both formals
  * collapsed to `str x0,[x29]` (last-wins / first-param-only; reent2=10 vs 42).
  *
+ * wave420: do not clamp byte offset to 4095 before /8. Scaled STR X allows
+ * imm12≤4095 → byte off ≤32760. Larger/unaligned: LEA x16 then STR Xt,[x16].
+ *
  * @param elf_ctx emit context
  * @param reg AAPCS64 Xn index (0..30); x0–x7 used by pipeline_asm_emit_param_home
  * @param offset frame home bytes (product convention: positive [x29,#off])
@@ -592,22 +664,22 @@ int32_t arch_arm64_enc_enc_load_rbp_to_rbx(struct platform_elf_ElfCodegenCtx *el
  */
 int32_t arch_arm64_enc_enc_store_x_reg_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg,
                                               int32_t offset) {
-  int32_t imm12 = offset;
   int32_t rt;
-  if (imm12 < 0)
-    imm12 = -imm12;
-  if (imm12 > 4095)
-    imm12 = 4095;
   rt = reg;
   if (rt < 0)
     rt = 0;
   if (rt > 30)
     rt = 30;
-  /* STR Xt, [Xn, #imm12] size=64: sf=1 opc=00 V=0 L=0; Rn=x29=29. */
-  if (offset >= 0)
-    return arm64_enc_u32_le(elf_ctx, 0xf9000000u | (((uint32_t)imm12 / 8u) << 10) | (29u << 5) |
+  if (offset < 0)
+    return -1;
+  /* STR Xt, [x29, #imm12*8] when offset in range. */
+  if ((offset % 8) == 0 && (offset / 8) <= 4095)
+    return arm64_enc_u32_le(elf_ctx, 0xf9000000u | (((uint32_t)(offset / 8)) << 10) | (29u << 5) |
                             (uint32_t)rt);
-  return -1;
+  /* Scratch x16 (IP0): lea x16,[x29+#off]; str xt,[x16]. Avoid clobbering Rt. */
+  if (arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 16, 29, offset) != 0)
+    return -1;
+  return arm64_enc_u32_le(elf_ctx, 0xf9000000u | (16u << 5) | (uint32_t)rt);
 }
 
 int32_t arch_arm64_enc_enc_store_rax_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
@@ -627,15 +699,19 @@ int32_t arch_arm64_enc_enc_load_zext8_from_rax(struct platform_elf_ElfCodegenCtx
   return arm64_enc_u32_le(elf_ctx, 0x39400000u); /* ldrb w0, [x0] */
 }
 
+/**
+ * wave420: LDR x2, [x29, #offset] — same scaled-imm fix as load_rbp_to_rax.
+ * PLATFORM: MACOS|ARM64.
+ */
 int32_t arch_arm64_enc_enc_load_rbp_to_x2(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
-  int32_t imm12 = offset;
-  if (imm12 < 0)
-    imm12 = -imm12;
-  if (imm12 > 4095)
-    imm12 = 4095;
-  if (offset >= 0)
-    return arm64_enc_u32_le(elf_ctx, 0xf94003a2u | (((uint32_t)imm12 / 8u) << 10));
-  return -1;
+  if (offset < 0)
+    return -1;
+  if ((offset % 8) == 0 && (offset / 8) <= 4095)
+    return arm64_enc_u32_le(elf_ctx, 0xf94003a2u | (((uint32_t)(offset / 8)) << 10));
+  /* lea x2, [x29+#off]; ldr x2, [x2] */
+  if (arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 2, 29, offset) != 0)
+    return -1;
+  return arm64_enc_u32_le(elf_ctx, 0xf9400042u); /* ldr x2, [x2] */
 }
 
 /*
