@@ -3684,11 +3684,16 @@ int32_t codegen_emit_call_arg_slice_abi(struct ast_ASTArena * arena, struct code
       /*
        * wave345: CALL/METHOD rvalue slice cannot take address (`&(take())` is
        * invalid C). Materialize into a GNU stmt-expr temp then pass its address.
+       * wave400: ARRAY_LIT same — emit_expr yields compound-literal rvalue
+       * `({ static E __xlang_al[]={…}; (struct slice){.data=…,.length=N}; })`;
+       * wrapping `&(...)` is BLD001 "cannot take the address of an rvalue".
        * Local VAR stays `&(s)`. PLATFORM: SHARED host-C (fs dual-GP call-arg
        * already materializes — glue wave332).
+       * Soft residual: static/COMMON reentrancy last-wins (escape beyond
+       * dual same-call block-static temps).
        */
-      /* EXPR_CALL=48, EXPR_METHOD_CALL=49 (ast_ExprKind order). */
-      if ((((arg.kind) == 48) || ((arg.kind) == 49))) {
+      /* EXPR_ARRAY_LIT=46, EXPR_CALL=48, EXPR_METHOD_CALL=49 (ast_ExprKind order). */
+      if (((((arg.kind) == 46) || ((arg.kind) == 48)) || ((arg.kind) == 49))) {
         int32_t ty_ref = (arg.resolved_type_ref);
         /* ({ static  — stack temp dies under host gcc -O2 when pass returns *s
          * from a pointer into the stmt-expr local (Ubuntu SIGSEGV; -O0/mac OK).

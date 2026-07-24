@@ -2202,6 +2202,8 @@ export extern function codegen_next_host_call_array_tmp_id(): i32;
  * (`len_of(take3(1))` / `sum3(b.a)` bare `E*` as slice* → length half garbage).
  * wave397: CALL/METHOD `.data` deep-copies into unique `__xlang_caN[N]` so dual
  * same-call formals do not both alias callee static `__xlang_ar` (host 66→39).
+ * wave400: ARRAY_LIT as TYPE_SLICE formal uses wave345 `__xlang_sp` materialize
+ * (not bare `&(rvalue compound)`) so host-C BLD001 closes; dual lit formals OK.
  * Gate: only when codegen_get_host_call_arg_param_ty is TYPE_SLICE (else bare
  * emit for *T / Buffer formals — option/hello). G.7: same compound as let-init.
  *
@@ -2564,10 +2566,16 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
       /*
        * wave345: CALL/METHOD rvalue slice cannot take address (`&(take())` is
        * invalid C). Materialize into a GNU stmt-expr temp then pass its address.
+       * wave400: ARRAY_LIT same — emit_expr yields compound-literal rvalue
+       * `({ static E __xlang_al[]={…}; (struct slice){.data=…,.length=N}; })`;
+       * wrapping `&(...)` is BLD001 "cannot take the address of an rvalue".
        * Local VAR stays `&(s)`. PLATFORM: SHARED host-C (fs dual-GP call-arg
        * already materializes — glue wave332).
+       * Soft residual: static/COMMON reentrancy last-wins (escape beyond
+       * dual same-call block-static temps).
        */
-      if (arg.kind == ExprKind.EXPR_CALL || arg.kind == ExprKind.EXPR_METHOD_CALL) {
+      if (arg.kind == ExprKind.EXPR_CALL || arg.kind == ExprKind.EXPR_METHOD_CALL
+          || arg.kind == ExprKind.EXPR_ARRAY_LIT) {
         let ty_ref: i32 = arg.resolved_type_ref;
         /* ({ static  — stack temp dies under host gcc -O2 when pass returns *s
          * from a pointer into the stmt-expr local (Ubuntu SIGSEGV; -O0/mac OK).
