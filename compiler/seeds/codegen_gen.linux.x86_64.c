@@ -5629,6 +5629,59 @@ int32_t codegen_emit_import_module_const_field(struct ast_ASTArena * arena, stru
   }
   return 0;
 }
+/* PLATFORM: SHARED — host-C EXPR_MATCH nested ternary (wave326).
+ * Completes arm-0 residual; freestanding uses pipeline_asm_emit_match_elf_c.
+ * G.7: twin of codegen.x codegen_emit_match_from_arm. */
+static int32_t codegen_emit_match_from_arm(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+                                          int32_t expr_ref, struct ast_PipelineDepCtx *ctx, int32_t arm_i) {
+  struct ast_Expr e;
+  int32_t n;
+  int32_t matched;
+  int32_t res;
+  int32_t cmp_val;
+  uint8_t eq[3];
+  e = ast_ast_arena_expr_get(arena, expr_ref);
+  n = e.match_num_arms;
+  matched = e.match_matched_ref;
+  if (arm_i >= n)
+    return codegen_append_byte(out, 48);
+  if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, arm_i) != 0) {
+    res = pipeline_expr_match_arm_result_ref(arena, expr_ref, arm_i);
+    if (ast_ref_is_null(res))
+      return codegen_append_byte(out, 48);
+    return codegen_emit_expr(arena, out, res, ctx);
+  }
+  /* (matched==val?(result):(rest)) */
+  if (codegen_append_byte(out, 40) != 0)
+    return -1;
+  if (ast_ref_is_null(matched) || codegen_emit_expr(arena, out, matched, ctx) != 0)
+    return -1;
+  eq[0] = 61;
+  eq[1] = 61;
+  eq[2] = 0;
+  if (codegen_emit_bytes_2(out, eq, 2) != 0)
+    return -1;
+  if (pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, arm_i) != 0)
+    cmp_val = pipeline_expr_match_arm_variant_index(arena, expr_ref, arm_i);
+  else
+    cmp_val = pipeline_expr_match_arm_lit_val(arena, expr_ref, arm_i);
+  if (codegen_format_int(out, (int64_t)cmp_val) != 0)
+    return -1;
+  if (codegen_append_byte(out, 63) != 0)
+    return -1;
+  res = pipeline_expr_match_arm_result_ref(arena, expr_ref, arm_i);
+  if (codegen_append_byte(out, 40) != 0)
+    return -1;
+  if (ast_ref_is_null(res) || codegen_emit_expr(arena, out, res, ctx) != 0)
+    return -1;
+  if (codegen_append_byte(out, 41) != 0)
+    return -1;
+  if (codegen_append_byte(out, 58) != 0)
+    return -1;
+  if (codegen_emit_match_from_arm(arena, out, expr_ref, ctx, arm_i + 1) != 0)
+    return -1;
+  return codegen_append_byte(out, 41);
+}
 int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t expr_ref, struct ast_PipelineDepCtx * ctx) {
   {
     struct ast_Expr e = ast_ast_arena_expr_get(arena, expr_ref);
@@ -7755,15 +7808,13 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
       }
       return codegen_append_byte(out, 41);
     }
+    /* PLATFORM: SHARED — host-C EXPR_MATCH nested ternary (wave326).
+     * Residual: arm 0 only ignored subject. G.7 complete; twin of codegen.x. */
     if (((e.kind) ==43)) {
-      int32_t m0 = pipeline_expr_match_arm_result_ref(arena, expr_ref, 0);
       if (((e.match_num_arms) <=0)) {
         return codegen_append_byte(out, 48);
       }
-      if ((!(ast_ref_is_null(m0)) && (codegen_emit_expr(arena, out, m0, ctx) !=0))) {
-        return -(1);
-      }
-      return 0;
+      return codegen_emit_match_from_arm(arena, out, expr_ref, ctx, 0);
     }
     if (((e.kind) ==45)) {
       uint8_t sl_pfx[128] = {};

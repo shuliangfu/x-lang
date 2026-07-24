@@ -104,6 +104,14 @@ export extern function pipeline_expr_call_resolved_dep_index_at(arena: *ASTArena
 export extern function pipeline_expr_call_resolved_func_index_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_method_call_arg_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
 export extern function pipeline_expr_match_arm_result_ref(arena: *ASTArena, expr_ref: i32, i: i32): i32;
+/** True if match arm i is the `_` wildcard (ends nested-ternary chain). */
+export extern function pipeline_expr_match_arm_is_wildcard(arena: *ASTArena, expr_ref: i32, i: i32): i32;
+/** Integer literal pattern value for match arm i (non-enum, non-wildcard). */
+export extern function pipeline_expr_match_arm_lit_val(arena: *ASTArena, expr_ref: i32, i: i32): i32;
+/** True if match arm i compares against an enum variant tag. */
+export extern function pipeline_expr_match_arm_is_enum_variant(arena: *ASTArena, expr_ref: i32, i: i32): i32;
+/** Enum variant index used as compare value for match arm i. */
+export extern function pipeline_expr_match_arm_variant_index(arena: *ASTArena, expr_ref: i32, i: i32): i32;
 export extern function pipeline_expr_array_lit_elem_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
 export extern function pipeline_expr_array_lit_num_elems_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_struct_lit_field_name_len(arena: *ASTArena, expr_ref: i32, j: i32): i32;
@@ -4976,8 +4984,86 @@ export function emit_import_module_const_field(arena: *ASTArena, out: *CodegenOu
 }
 
 /**
- * See implementation.
- * See implementation.
+ * Host-C emit for EXPR_MATCH arms[arm_i..): nested ternary chain.
+ * @param arena *ASTArena — expression arena
+ * @param out *CodegenOutBuf — C text sink
+ * @param expr_ref i32 — EXPR_MATCH node
+ * @param ctx *PipelineDepCtx — emit context (may be null)
+ * @param arm_i i32 — current arm index (0-based)
+ * @return i32 — 0 on success, -1 on emit failure
+ * PLATFORM: SHARED — mirrors freestanding pipeline_asm_emit_match_elf_c semantics
+ * (first match wins; wildcard ends chain). Host C re-emits the subject per arm
+ * (subjects are typically VAR/param). G.7: completes arm-0 residual that only
+ * emitted the first arm result without comparing.
+ */
+function codegen_emit_match_from_arm(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32,
+    ctx: *PipelineDepCtx, arm_i: i32): i32 {
+  // PLATFORM: SHARED — host-C match nested ternary; seed twin same commit.
+  unsafe {
+    let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+    let n: i32 = e.match_num_arms;
+    let matched: i32 = e.match_matched_ref;
+    let res: i32 = 0;
+    let cmp_val: i32 = 0;
+    let eq: u8[3] = [61, 61, 0];
+    if (arm_i >= n) {
+      return append_byte(out, 48);
+    }
+    if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, arm_i) != 0) {
+      res = pipeline_expr_match_arm_result_ref(arena, expr_ref, arm_i);
+      if (ast.ref_is_null(res)) {
+        return append_byte(out, 48);
+      }
+      return emit_expr(arena, out, res, ctx);
+    }
+    /* (matched==val?(result):(rest)) */
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    if (ast.ref_is_null(matched) || emit_expr(arena, out, matched, ctx) != 0) {
+      return -1;
+    }
+    if (emit_bytes_2(out, eq, 2) != 0) {
+      return -1;
+    }
+    if (pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, arm_i) != 0) {
+      cmp_val = pipeline_expr_match_arm_variant_index(arena, expr_ref, arm_i);
+    } else {
+      cmp_val = pipeline_expr_match_arm_lit_val(arena, expr_ref, arm_i);
+    }
+    if (format_int(out, cmp_val as i64) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 63) != 0) {
+      return -1;
+    }
+    res = pipeline_expr_match_arm_result_ref(arena, expr_ref, arm_i);
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    if (ast.ref_is_null(res) || emit_expr(arena, out, res, ctx) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 41) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 58) != 0) {
+      return -1;
+    }
+    if (codegen_emit_match_from_arm(arena, out, expr_ref, ctx, arm_i + 1) != 0) {
+      return -1;
+    }
+    return append_byte(out, 41);
+  }
+}
+
+/**
+ * Emit a single expression as C source text into out.
+ * @param arena *ASTArena — expression arena
+ * @param out *CodegenOutBuf — C text sink
+ * @param expr_ref i32 — expression ref
+ * @param ctx *PipelineDepCtx — emit context (may be null)
+ * @return i32 — 0 on success, -1 on failure
  */
 export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -7213,16 +7299,18 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       return append_byte(out, 41);
     }
-    /* See implementation. */
+    /**
+     * PLATFORM: SHARED — host-C EXPR_MATCH nested ternary (wave326).
+     * Residual: arm 0 only → always first result (e.g. match x {1=>40;2=>42;_=>7}
+     * with x=2 returned 40). Freestanding ELF already complete via
+     * pipeline_asm_emit_match_elf_c; host path must compare subject.
+     * G.7: complete this emit authority; seed codegen_gen twin same commit.
+     */
     if (e.kind == ExprKind.EXPR_MATCH) {
       if (e.match_num_arms <= 0) {
         return append_byte(out, 48);
       }
-      let m0: i32 = pipeline_expr_match_arm_result_ref(arena, expr_ref, 0);
-      if (!ast.ref_is_null(m0) && emit_expr(arena, out, m0, ctx) != 0) {
-        return -1;
-      }
-      return 0;
+      return codegen_emit_match_from_arm(arena, out, expr_ref, ctx, 0);
     }
     /* See implementation. */
     if (e.kind == ExprKind.EXPR_STRUCT_LIT) {
