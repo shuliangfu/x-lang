@@ -5104,6 +5104,39 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
       (void)(((impl_snap.has_explicit_return_kw) = 1));
       (void)(parser_lex_from_next_into(&(lex), r));
       (void)(lexer_next_into(&(r), lex, source));
+      /* wave378 Cap residual pure: bare `return;` / `return }` (void return).
+       * Nested parse_block already accepts empty operand; onefunc final path
+       * required an expression and failed on TOKEN_SEMICOLON → XP003 / dropped
+       * void functions. G.7: bare EXPR_RETURN (null unary_operand); typeck rejects
+       * for non-void; codegen emits return; / void main return 0.
+       * PLATFORM: SHARED — onefunc parse; pin same commit as parser.x. */
+      if (((((r.tok).kind) ==95) || (((r.tok).kind) ==85))) {
+        if ((((r.tok).kind) ==95)) {
+          (void)(parser_lex_from_next_into(&(lex), r));
+          (void)(lexer_next_into(&(r), lex, source));
+        }
+        if ((((r.tok).kind) !=85)) {
+          (void)(parser_set_onefunc_fail(out, lex));
+          return;
+        }
+        (void)(parser_lex_from_next_into(&(lex), r));
+        {
+          int32_t bare_ret = ast_ast_arena_expr_alloc(arena);
+          if ((bare_ret ==0)) {
+            (void)(parser_set_onefunc_fail(out, lex));
+            return;
+          }
+          struct ast_Expr bre = ast_ast_arena_expr_get(arena, bare_ret);
+          (void)(((bre.kind) = ast_ExprKind_EXPR_RETURN));
+          (void)(((bre.line) = 0));
+          (void)(((bre.col) = 0));
+          (void)(parser_expr_set_common_zeros(&(bre)));
+          (void)(ast_ast_arena_expr_set(arena, bare_ret, bre));
+          (void)((return_expr_ref_storage = bare_ret));
+        }
+        (void)(parser_onefunc_finish_impl_to_out(out, &(impl_snap), lex, &((dummy_name)[0]), (func_name_len_storage)[0], return_expr_ref_storage));
+        return;
+      }
       if ((((r.tok).kind) ==18)) {
         struct lexer_Lexer match_ret_lex = parser_lex_at_token_from_result(r);
         struct parser_ParseExprResult match_ret_res = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = match_ret_lex };

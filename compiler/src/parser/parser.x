@@ -5953,6 +5953,38 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   impl_snap.has_explicit_return_kw = true;
   lex_from_next_into(&lex, r);
   lexer.lexer_next_into(&r, lex, source);
+  /**
+   * wave378 Cap residual pure: bare `return;` / `return }` (void return).
+   * Nested parse_block already accepts empty operand after RETURN; onefunc final
+   * path required an expression and failed on TOKEN_SEMICOLON → XP003 / dropped
+   * void functions (num_funcs lost). G.7: finish with bare EXPR_RETURN (null
+   * unary_operand); typeck rejects bare return for non-void; codegen already
+   * emits `return;` / void main `return 0;`.
+   * PLATFORM: SHARED — onefunc parse; seed pin same commit.
+   */
+  if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON || r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
+    if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
+      lex_from_next_into(&lex, r);
+      lexer.lexer_next_into(&r, lex, source);
+    }
+    if (r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
+      set_onefunc_fail(out, lex); return;
+    }
+    lex_from_next_into(&lex, r);
+    let bare_ret: i32 = ast.ast_arena_expr_alloc(arena);
+    if (bare_ret == 0) {
+      set_onefunc_fail(out, lex); return;
+    }
+    let bre: Expr = ast.ast_arena_expr_get(arena, bare_ret);
+    bre.kind = ExprKind.EXPR_RETURN;
+    bre.line = 0;
+    bre.col = 0;
+    expr_set_common_zeros(&bre);
+    ast.ast_arena_expr_set(arena, bare_ret, bre);
+    return_expr_ref_storage = bare_ret;
+    onefunc_finish_impl_to_out(out, &impl_snap, lex, &dummy_name[0], func_name_len_storage[0], return_expr_ref_storage);
+    return;
+  }
   /* See implementation. */
   if (r.tok.kind == token.TokenKind.TOKEN_MATCH) {
     let match_ret_lex: Lexer = lex_at_token_from_result(r);
