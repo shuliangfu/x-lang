@@ -15720,6 +15720,35 @@ static void asm_wpo_collect_edges_from_expr(struct ast_ASTArena *a, int32_t expr
       asm_wpo_collect_edges_from_expr(a, ex->call_callee_ref, caller_id, caller_mod, ctx, depth + 1);
     return;
   }
+  /*
+   * wave358 Cap residual pure — METHOD_CALL exclusive path (before binop peel).
+   * Root: METHOD_CALL fell through to binop_left/right (union slots) and returned
+   * without UFCS edge → freestanding emit_n skipped free get → ld UNDEF get.
+   * G.7: same-module free method via call_resolved or method name match.
+   * PLATFORM: SHARED freestanding WPO · LINUX gold.
+   */
+  if (ex->kind == ast_ExprKind_EXPR_METHOD_CALL) {
+    int32_t r_fn = pipeline_expr_call_resolved_func_index_at(a, expr_ref);
+    int32_t r_dep = pipeline_expr_call_resolved_dep_index_at(a, expr_ref);
+    int32_t mcid = -1;
+    if (r_fn >= 0 && r_dep < 0 && caller_mod)
+      mcid = asm_wpo_func_id_of(caller_mod, r_fn);
+    if (mcid < 0 && ex->method_call_name_len > 0) {
+      mcid = asm_wpo_func_id_in_module(caller_mod, ex->method_call_name, ex->method_call_name_len);
+      if (mcid < 0)
+        mcid = asm_wpo_func_id_by_name(ex->method_call_name, ex->method_call_name_len);
+    }
+    if (mcid >= 0)
+      asm_wpo_add_edge(caller_id, mcid);
+    if (ex->method_call_base_ref > 0)
+      asm_wpo_collect_edges_from_expr(a, ex->method_call_base_ref, caller_id, caller_mod, ctx, depth + 1);
+    for (i = 0; i < ex->method_call_num_args; i++) {
+      arg_slot = expr_method_call_arg_slot(a, expr_ref, i, 0);
+      if (arg_slot && *arg_slot > 0)
+        asm_wpo_collect_edges_from_expr(a, *arg_slot, caller_id, caller_mod, ctx, depth + 1);
+    }
+    return;
+  }
   if (ex->kind == ast_ExprKind_EXPR_RETURN || ex->kind == ast_ExprKind_EXPR_PANIC || ex->kind == ast_ExprKind_EXPR_NEG ||
       ex->kind == ast_ExprKind_EXPR_BITNOT || ex->kind == ast_ExprKind_EXPR_LOGNOT || ex->kind == ast_ExprKind_EXPR_ADDR_OF ||
       ex->kind == ast_ExprKind_EXPR_DEREF || ex->kind == ast_ExprKind_EXPR_AWAIT || ex->kind == ast_ExprKind_EXPR_RUN ||
@@ -15785,34 +15814,6 @@ static void asm_wpo_collect_edges_from_expr(struct ast_ASTArena *a, int32_t expr
     asm_wpo_collect_edges_from_expr(a, ex->index_base_ref, caller_id, caller_mod, ctx, depth + 1);
   if (ex->index_index_ref > 0)
     asm_wpo_collect_edges_from_expr(a, ex->index_index_ref, caller_id, caller_mod, ctx, depth + 1);
-  if (ex->method_call_base_ref > 0)
-    asm_wpo_collect_edges_from_expr(a, ex->method_call_base_ref, caller_id, caller_mod, ctx, depth + 1);
-  /*
-   * wave358 Cap residual pure — METHOD_CALL UFCS same-module free method.
-   * Root: only CALL edges marked callees; s.get() never reached free get() →
-   * freestanding emit skipped get → ld UNDEF get (mac host-C hid).
-   * G.7: call_resolved dep_ix<0 + func_ix, else name match in caller_mod.
-   * PLATFORM: SHARED freestanding WPO · LINUX gold.
-   */
-  if (ex->kind == ast_ExprKind_EXPR_METHOD_CALL) {
-    int32_t r_fn = pipeline_expr_call_resolved_func_index_at(a, expr_ref);
-    int32_t r_dep = pipeline_expr_call_resolved_dep_index_at(a, expr_ref);
-    int32_t mcid = -1;
-    if (r_fn >= 0 && r_dep < 0 && caller_mod)
-      mcid = asm_wpo_func_id_of(caller_mod, r_fn);
-    if (mcid < 0 && ex->method_call_name_len > 0) {
-      mcid = asm_wpo_func_id_in_module(caller_mod, ex->method_call_name, ex->method_call_name_len);
-      if (mcid < 0)
-        mcid = asm_wpo_func_id_by_name(ex->method_call_name, ex->method_call_name_len);
-    }
-    if (mcid >= 0)
-      asm_wpo_add_edge(caller_id, mcid);
-    for (i = 0; i < ex->method_call_num_args; i++) {
-      arg_slot = expr_method_call_arg_slot(a, expr_ref, i, 0);
-      if (arg_slot && *arg_slot > 0)
-        asm_wpo_collect_edges_from_expr(a, *arg_slot, caller_id, caller_mod, ctx, depth + 1);
-    }
-  }
 }
 
 /**
@@ -16081,7 +16082,27 @@ static int32_t asm_wpo_user_pgo_force_main_callee_edge(struct ast_Module *entry,
       return -1;
     er = op;
   }
-  if (pipeline_expr_kind_ord_at(a, er) != (int32_t)ast_ExprKind_EXPR_CALL)
+  ko = pipeline_expr_kind_ord_at(a, er);
+  /* wave358: UFCS METHOD_CALL same-module free method (not only CALL). */
+  if (ko == (int32_t)ast_ExprKind_EXPR_METHOD_CALL) {
+    int32_t r_fn = pipeline_expr_call_resolved_func_index_at(a, er);
+    int32_t r_dep = pipeline_expr_call_resolved_dep_index_at(a, er);
+    int32_t nlen = pipeline_expr_method_call_name_len(a, er);
+    uint8_t mnm[64];
+    cid = -1;
+    if (r_fn >= 0 && r_dep < 0)
+      cid = asm_wpo_func_id_of(entry, r_fn);
+    if (cid < 0 && nlen > 0 && nlen <= 63) {
+      pipeline_expr_method_call_name_into(a, er, mnm);
+      cid = asm_wpo_func_id_in_module(entry, mnm, nlen);
+      if (cid < 0)
+        cid = asm_wpo_func_id_by_name(mnm, nlen);
+    }
+    if (cid >= 0)
+      asm_wpo_add_edge(main_id, cid);
+    return cid;
+  }
+  if (ko != (int32_t)ast_ExprKind_EXPR_CALL)
     return -1;
   cid = asm_wpo_call_callee_id(a, er, entry, g_asm_wpo.dep_ctx);
   if (cid >= 0)
