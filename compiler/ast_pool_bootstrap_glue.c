@@ -208,15 +208,26 @@ int32_t asm_bump_off_align_for_local(struct ast_ASTArena *arena, int32_t type_re
 }
 
 /**
- * 登记局部槽的 fp 负偏移：lea/sub 为 [fp-偏移]。
- * 统一 slot_off = off + sz（槽占 [fp-(off+sz), fp-off)）；inout 推进 off+sz。
+ * Register a local stack slot and advance the bump allocator.
  *
- * wave394 Cap residual pure: TYPE_SLICE dual-GP on arm64 product frame uses
- * [x29+off] (positive). Length half lives at data_home+8 so C fat memory order
- * matches lea(data) as slice*. Slot fill must reserve that high half so a following
- * local does not clobber length (data@off+16 → length@off+24 → next=off+32).
- * x86 [rbp-off] keeps historical 16B (length at data_home-8 inside the slot).
- * PLATFORM: MACOS|ARM64 host default product; LINUX|x86_64 unchanged.
+ * PLATFORM: SHARED layout math; **polarity differs by host product ISA**
+ * (host ISA == freestanding target for pure-asm product path):
+ *
+ * - **LINUX|x86_64**: `slot_off = off + sz` (high end). Emit uses [rbp−slot_off]
+ *   as base; ARRAY_LIT / field stores grow toward higher memory (smaller frame
+ *   offsets) and stay inside [fp−(off+sz), fp−off).
+ * - **MACOS|ARM64**: product frame uses positive [x29+off]. Emit lea/base at
+ *   `slot_off` then stores at +i×esz grow **upward**. Home must be the **low**
+ *   end (`slot_off = off`) so the payload stays in [off, off+sz) and the next
+ *   local at off+sz is not clobbered.
+ *
+ * wave402 Cap residual pure: prior arm64 path kept x86 high-end homes. Fixed
+ * `i32[3]` a@0x20 / b@0x30 then `let x` @0x38 overlapped b[2]; after sum3(a)
+ * wrote 33 into x, sum3(b) read 2+12+33=47 (expect 36). G.7: fix only
+ * asm_local_slot_reg_offset polarity — do not invent a second allocator.
+ *
+ * wave394 TYPE_SLICE length@data_home+8: with low-end home, sz=16 already covers
+ * length@home+8; no extra +8 bump (that compensated high-end home + length half).
  * G.7: pairs with pipeline_glue glue_slice_dual_gp_length_off_c.
  */
 int32_t asm_local_slot_reg_offset(struct ast_ASTArena *arena, int32_t type_ref, int32_t off, int32_t *inout_off) {
@@ -225,18 +236,19 @@ int32_t asm_local_slot_reg_offset(struct ast_ASTArena *arena, int32_t type_ref, 
   off = asm_bump_off_before_struct_local(arena, type_ref, off);
   off = asm_bump_off_align_for_local(arena, type_ref, off);
   sz = asm_local_slot_bytes(arena, type_ref);
-  slot_off = off + sz;
-  if (inout_off) {
+  if (sz <= 0)
+    sz = 8;
 #if defined(__aarch64__) || defined(__arm64__)
-    /* TYPE_SLICE ord==11: reserve past data_home+8 length half (wave394). */
-    if (arena && type_ref > 0 && pipeline_type_kind_ord_at(arena, type_ref) == 11)
-      *inout_off = slot_off + 8;
-    else
-      *inout_off = off + sz;
+  /* PLATFORM: MACOS|ARM64 — low-end home; payload grows [x29+off, +sz). */
+  slot_off = off;
+  if (inout_off)
+    *inout_off = off + sz;
 #else
+  /* PLATFORM: LINUX|x86_64 — high-end home for [rbp−off] polarity. */
+  slot_off = off + sz;
+  if (inout_off)
     *inout_off = off + sz;
 #endif
-  }
   return slot_off;
 }
 
