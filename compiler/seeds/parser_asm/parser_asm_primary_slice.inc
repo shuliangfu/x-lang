@@ -324,8 +324,10 @@ static void parser_asm_primary_parse_block_expr_c(void *arena, struct parser_asm
  *  - stmt / control keywords, nested `{`, `unsafe` → block
  *  - IDENT then `:` / `,` / `}` → anonymous struct lit (`{ fd: 1 }`, `{ fd, x }`, `{ fd }`)
  *  - IDENT then other → block (`{ y = 1; }`, `{ y; }`)
- *  - empty `}` → keep struct lit path (`{}`)
+ *  - empty `}` → keep anonymous struct lit path (`{}`) for bare `{` primary
  *  - INT / other primary heads → block (`{ 10 }`, `{ (a) }`)
+ * Named empty `Type {}` vs bare `if b {}` is NOT decided here — see
+ * parser_asm_primary_empty_ident_braces_prefer_block_c (wave364).
  */
 static int32_t parser_asm_primary_lbrace_looks_like_block_c(struct parser_asm_lexer lex_after_lbrace,
                                                             struct parser_asm_slice_u8 *source) {
@@ -359,6 +361,39 @@ static int32_t parser_asm_primary_lbrace_looks_like_block_c(struct parser_asm_le
   if (r.tok.kind == (int32_t)TOKEN_RBRACE) {
     return 0;
   }
+  return 1;
+}
+
+/**
+ * wave364 / docs/03: empty `IDENT {}` after a type/var name is ambiguous:
+ *   - value: `let s: S = S {}` / `return S {}` / `f(S {})`
+ *   - bare ctrl: `if b {}` / `while b {}` / `if b {} else {…}`
+ * G.7 single authority on IDENT+LBRACE (not a second parse path).
+ * Lookahead past the empty braces: value-position terminators keep struct lit;
+ * otherwise end primary as VAR and leave `{` for the then/while body.
+ * PLATFORM: SHARED.
+ * @param lex_after_lbrace lexer after the opening `{`
+ * @param source source slice
+ * @return 1 prefer end-as-VAR (block), 0 keep Type {} struct lit, -1 not empty braces
+ */
+static int32_t parser_asm_primary_empty_ident_braces_prefer_block_c(
+    struct parser_asm_lexer lex_after_lbrace, struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer_result r_empty;
+  struct parser_asm_lexer_result r_after;
+  int32_t k;
+  if (!source)
+    return -1;
+  lexer_next_into(&r_empty, lex_after_lbrace, source);
+  if (r_empty.tok.kind != (int32_t)TOKEN_RBRACE)
+    return -1;
+  lexer_next_into(&r_after, r_empty.next_lex, source);
+  k = r_after.tok.kind;
+  /* Value-position / expr-continuation after empty Type {} → keep struct lit. */
+  if (k == (int32_t)TOKEN_SEMICOLON || k == (int32_t)TOKEN_COMMA || k == (int32_t)TOKEN_RPAREN
+      || k == (int32_t)TOKEN_RBRACKET || k == (int32_t)TOKEN_DOT || k == (int32_t)TOKEN_AS) {
+    return 0;
+  }
+  /* Bare if/while empty body: next is return/else/ident/rbrace/if/… → then-block. */
   return 1;
 }
 
@@ -1894,9 +1929,15 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
        * wave361 / docs/03 bare if/while: `if b { body }` must not parse `b {` as struct lit.
        * Reuse G.7 lbrace_looks_like_block: stmt-like after `{` → end primary as VAR, leave `{`.
        * Field-like (`x:`, `,`, `}`) → keep Type { fields } struct lit (return/let paths).
+       * wave364: empty `}` was field-like → bare `if b {}` / `while b {}` ate then-body as
+       * empty struct lit; prefer block when post-`}` is not a value-position terminator.
        * PLATFORM: SHARED.
        */
       if (parser_asm_primary_lbrace_looks_like_block_c(r.next_lex, source) != 0) {
+        out->next_lex = lex;
+        return;
+      }
+      if (parser_asm_primary_empty_ident_braces_prefer_block_c(r.next_lex, source) == 1) {
         out->next_lex = lex;
         return;
       }
