@@ -3421,6 +3421,33 @@ export function parse_type_ref_for_arena_into(arena: *ASTArena, lex: Lexer, sour
  * See implementation.
  * See implementation.
  */
+/**
+ * wave422: emit parse error[P010] for untyped let/const (missing `: Type`).
+ * G.7: product C authority is parser_report_untyped_binding_p010_c (body_tl_slice).
+ * @param line i32 — 1-based line of unexpected token after binding name
+ * @param col i32 — 1-based column
+ * @param is_let bool — true = let (docs ban inference); false = const soft residual
+ * PLATFORM: SHARED parse.
+ */
+export extern function parser_report_untyped_binding_p010_c(line: i32, col: i32, is_let: i32): void;
+
+/**
+ * Wrapper: bool is_let → C is_let int flag for P010.
+ * @param line i32
+ * @param col i32
+ * @param is_let bool
+ */
+function parser_report_untyped_binding_p010(line: i32, col: i32, is_let: bool): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let flag: i32 = 0;
+    if (is_let) {
+      flag = 1;
+    }
+    parser_report_untyped_binding_p010_c(line, col, flag);
+  }
+}
+
 /** Internal function `parse_body_lets_into`.
  * Implements `parse_body_lets_into`.
  * @param arena *ASTArena
@@ -3541,6 +3568,15 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     lex_from_result_ptr_into(&lex, &r);
     lexer.lexer_next_into(&r, lex, source);
     if (r.tok.kind != token.TokenKind.TOKEN_COLON) {
+      /*
+       * wave422 Cap residual pure: missing `: Type` after binding name.
+       * Prior: silent return false → whole function dropped → soft P001 "no functions"
+       * / BLD001 missing _main. docs/06: let requires type annotation (no inference).
+       * const type-optional (docs) remains soft leave-off; still require `:` today.
+       * G.7 authority: parse_body_lets_into (+ top_level twin in top_level_let_slice).
+       * PLATFORM: SHARED parse — pin parser_gen + seed same commit.
+       */
+      parser_report_untyped_binding_p010(r.tok.line, r.tok.col, is_let);
       lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
     }
     lex_from_result_ptr_into(&lex, &r);

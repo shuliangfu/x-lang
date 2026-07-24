@@ -3244,6 +3244,14 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
       (void)(parser_lex_from_result_ptr_into(&(lex), &(r)));
       (void)(lexer_next_into(&(r), lex, source));
       if ((((r.tok).kind) !=91)) {
+        /* wave422 Cap residual pure: P010 untyped let/const (not soft P001).
+         * G.7: parser_report_untyped_binding_p010_c; twin of parser.x.
+         * PLATFORM: SHARED parse. */
+        {
+          extern void parser_report_untyped_binding_p010_c(int32_t line, int32_t col, int32_t is_let);
+          parser_report_untyped_binding_p010_c((int32_t)((r.tok).line), (int32_t)((r.tok).col),
+                                               is_let ? 1 : 0);
+        }
         (void)(((lex_out->pos) = (lex.pos)));
         (void)(((lex_out->line) = (lex.line)));
         (void)(((lex_out->col) = (lex.col)));

@@ -86,8 +86,12 @@ void parser_asm_parse_one_top_level_let_into_slice_c(void *arena, void *module, 
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_function_name_audit_c(name_buf, name_len));
   parser_lex_from_lexer_result_ptr_into(&lex, &r);
   lexer_next_into(&r, lex, source);
-  if (r.tok.kind != (int32_t)TOKEN_COLON)
+  if (r.tok.kind != (int32_t)TOKEN_COLON) {
+    /* wave422: P010 untyped top-level let/const (G.7 twin of parse_body_lets_into). */
+    extern void parser_report_untyped_binding_p010_c(int32_t line, int32_t col, int32_t is_let);
+    parser_report_untyped_binding_p010_c((int32_t)r.tok.line, (int32_t)r.tok.col, is_const == 0 ? 1 : 0);
     return;
+  }
   parser_lex_from_lexer_result_ptr_into(&lex, &r);
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_type_ref_deep_audit_c(lex, source));
   type_ref = parser_asm_parse_type_ref_for_arena_into_slice_c(arena, lex, source, &lex);
