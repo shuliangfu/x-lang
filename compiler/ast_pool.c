@@ -8686,6 +8686,14 @@ static uint8_t g_pipeline_elf_sym_is_common[PIPELINE_ELF_CTX_TABLE_CAP];
 static int32_t g_pipeline_elf_sym_common_size[PIPELINE_ELF_CTX_TABLE_CAP];
 static int32_t g_pipeline_elf_sym_common_align[PIPELINE_ELF_CTX_TABLE_CAP];
 
+/**
+ * PLATFORM: SHARED — per-reloc type/pcrel sidecar (wave405 arm64 ADRP/PAGEOFF for modlet).
+ * r_type 0 => fall back to call reloc default (Mach-O BRANCH26 / ELF reloc_type_r_pc32).
+ * r_pcrel: -1 = default (1 for call-style); 0/1 explicit (PAGEOFF12 needs pcrel=0).
+ */
+static int32_t g_pipeline_elf_reloc_r_type[PIPELINE_ELF_CTX_TABLE_CAP];
+static int8_t g_pipeline_elf_reloc_r_pcrel[PIPELINE_ELF_CTX_TABLE_CAP];
+
 static void pipeline_elf_common_sidecar_reset(uint8_t *ctx_bytes) {
   g_pipeline_elf_common_owner = ctx_bytes;
   memset(g_pipeline_elf_sym_is_common, 0, sizeof(g_pipeline_elf_sym_is_common));
@@ -8755,6 +8763,8 @@ static void pipeline_elf_reloc_shndx_set(uint8_t *ctx_bytes, int32_t idx, int32_
 void pipeline_elf_ctx_reloc_sidecar_reset(uint8_t *ctx_bytes) {
   g_pipeline_elf_reloc_sidecar_owner = ctx_bytes;
   pipeline_elf_shndx_sidecar_reset(ctx_bytes);
+  memset(g_pipeline_elf_reloc_r_type, 0, sizeof(g_pipeline_elf_reloc_r_type));
+  memset(g_pipeline_elf_reloc_r_pcrel, 0xff, sizeof(g_pipeline_elf_reloc_r_pcrel)); /* -1 default */
 }
 
 /** 读第 idx 条 reloc 的 code offset（内联或 heap sidecar）。 */
@@ -8868,11 +8878,14 @@ static int32_t pipeline_elf_reloc_is_defined(PipelineElfCtxAccess *ctx, uint8_t 
   return 0;
 }
 
-/** x86_64 ELF call 重定位类型：本 TU 已定义符号用 PC32；UND 外部（如 libc putchar）须 PLT32 方能 -pie 链接。 */
+/** x86_64 ELF call 重定位类型：本 TU 已定义符号用 PC32；UND 外部（如 libc putchar）须 PLT32 方能 -pie 链接。
+ * wave405: explicit per-reloc type (ADRP/PAGEOFF) wins when sidecar r_type != 0. */
 static int32_t pipeline_elf_call_reloc_type(PipelineElfCtxAccess *ctx, uint8_t *ctx_bytes, int32_t reloc_idx,
                                             uint8_t *rname, int32_t rlen) {
   if (!ctx)
     return 2;
+  if (reloc_idx >= 0 && reloc_idx < PIPELINE_ELF_CTX_TABLE_CAP && g_pipeline_elf_reloc_r_type[reloc_idx] != 0)
+    return g_pipeline_elf_reloc_r_type[reloc_idx];
   if (ctx->e_machine == 62 && !pipeline_elf_reloc_is_defined(ctx, ctx_bytes, reloc_idx, rname, rlen))
     return 4; /* R_X86_64_PLT32 */
   return ctx->reloc_type_r_pc32;
@@ -9588,18 +9601,38 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
     uint8_t ent[16];
     int32_t off = pipeline_elf_sym_name_off(ctx, s);
     int32_t sym_va = ctx->syms[s].offset;
+    int32_t is_common = 0;
+    int32_t csize = 0;
     memset(ent, 0, sizeof(ent));
     ent[0] = (uint8_t)(str_off & 255);
     ent[1] = (uint8_t)((str_off >> 8) & 255);
     ent[2] = (uint8_t)((str_off >> 16) & 255);
     ent[3] = (uint8_t)((str_off >> 24) & 255);
-    /* N_SECT|N_EXT = 0x0f, n_sect = 1 */
-    ent[4] = 15;
-    ent[5] = 1;
-    ent[8] = (uint8_t)(sym_va & 255);
-    ent[9] = (uint8_t)((sym_va >> 8) & 255);
-    ent[10] = (uint8_t)((sym_va >> 16) & 255);
-    ent[11] = (uint8_t)((sym_va >> 24) & 255);
+    /* wave405: COMMON → N_UNDF|N_EXT + n_value=size (linker BSS). Never N_SECT in __text (RX SEGV). */
+    is_common = (g_pipeline_elf_common_owner == ctx_bytes && s < PIPELINE_ELF_CTX_TABLE_CAP &&
+                 g_pipeline_elf_sym_is_common[s] != 0)
+                    ? 1
+                    : 0;
+    if (is_common != 0) {
+      csize = g_pipeline_elf_sym_common_size[s];
+      if (csize <= 0)
+        csize = 8;
+      /* N_UNDF|N_EXT = 0x01; n_sect=NO_SECT; n_value=size (tentative/common). */
+      ent[4] = 1;
+      ent[5] = 0;
+      ent[8] = (uint8_t)(csize & 255);
+      ent[9] = (uint8_t)((csize >> 8) & 255);
+      ent[10] = (uint8_t)((csize >> 16) & 255);
+      ent[11] = (uint8_t)((csize >> 24) & 255);
+    } else {
+      /* N_SECT|N_EXT = 0x0f, n_sect = 1 */
+      ent[4] = 15;
+      ent[5] = 1;
+      ent[8] = (uint8_t)(sym_va & 255);
+      ent[9] = (uint8_t)((sym_va >> 8) & 255);
+      ent[10] = (uint8_t)((sym_va >> 16) & 255);
+      ent[11] = (uint8_t)((sym_va >> 24) & 255);
+    }
     if (pipeline_elf_out_append(out, ent, 16) != 0)
       return -1;
     str_off = str_off + ctx->syms[s].name_len + pipeline_macho_link_name_extra_byte(sym_pool + off) + 1;
@@ -9658,7 +9691,7 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
     uu = uu + 1;
   }
 
-  /* relocation entries: arm64/x86_64 BRANCH26/BRANCH or UNSIGNED — product uses type 2, length 2 */
+  /* relocation entries: default BRANCH26/BRANCH type 2; wave405 typed PAGE21/PAGEOFF12. */
   rel_type = 2;
   rel_len = 2;
   if (ctx->e_machine == 183) {
@@ -9676,6 +9709,8 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
     int32_t r_sym;
     int32_t word2;
     int32_t roff;
+    int32_t use_type;
+    int32_t use_pcrel;
     pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, r, r_sym_buf);
     rlen = pipeline_elf_ctx_reloc_name_len(ctx_bytes, r);
     while (m < ctx->num_syms) {
@@ -9706,9 +9741,15 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
       }
       sym_idx = ctx->num_syms + uslot;
     }
-    /* r_symbolnum = sym_idx+1 (skip NULL nlist); r_pcrel=1; r_length; r_extern=1; r_type */
+    use_type = rel_type;
+    use_pcrel = 1;
+    if (r < PIPELINE_ELF_CTX_TABLE_CAP && g_pipeline_elf_reloc_r_type[r] != 0)
+      use_type = g_pipeline_elf_reloc_r_type[r];
+    if (r < PIPELINE_ELF_CTX_TABLE_CAP && g_pipeline_elf_reloc_r_pcrel[r] >= 0)
+      use_pcrel = (int32_t)g_pipeline_elf_reloc_r_pcrel[r];
+    /* r_symbolnum = sym_idx+1 (skip NULL nlist); r_pcrel; r_length; r_extern=1; r_type */
     r_sym = sym_idx + 1;
-    word2 = (r_sym & 16777215) | (1 << 24) | (rel_len << 25) | (1 << 27) | (rel_type << 28);
+    word2 = (r_sym & 16777215) | ((use_pcrel & 1) << 24) | (rel_len << 25) | (1 << 27) | (use_type << 28);
     roff = pipeline_elf_ctx_reloc_offset_at(ctx_bytes, r);
     ri[0] = (uint8_t)(roff & 255);
     ri[1] = (uint8_t)((roff >> 8) & 255);
@@ -10826,7 +10867,37 @@ int32_t pipeline_elf_ctx_append_reloc(uint8_t *ctx_bytes, int32_t offset, uint8_
     ent->name_len = name_len;
   else if (hent)
     hent->name_len = name_len;
+  /* Default call-style reloc type (0 => writer uses reloc_type_r_pc32 / BRANCH26). */
+  if (ri < PIPELINE_ELF_CTX_TABLE_CAP) {
+    g_pipeline_elf_reloc_r_type[ri] = 0;
+    g_pipeline_elf_reloc_r_pcrel[ri] = (int8_t)-1;
+  }
   ctx->num_relocs = ctx->num_relocs + 1;
+  return 0;
+}
+
+/**
+ * PLATFORM: SHARED — append reloc with explicit Mach-O/ELF r_type and r_pcrel.
+ * wave405: arm64 ADRP (PAGE21, pcrel=1) + ADD (PAGEOFF12, pcrel=0) for modlet COMMON.
+ * @param r_type int32 — Mach-O ARM64_RELOC_* or ELF R_* ; 0 falls back to call default
+ * @param r_pcrel int32 — 0 or 1; negative => default pcrel=1
+ */
+int32_t pipeline_elf_ctx_append_reloc_typed(uint8_t *ctx_bytes, int32_t offset, uint8_t *name, int32_t name_len,
+                                            int32_t r_type, int32_t r_pcrel) {
+  int32_t ri;
+  if (pipeline_elf_ctx_append_reloc(ctx_bytes, offset, name, name_len) != 0)
+    return -1;
+  {
+    PipelineElfCtxAccess *ctx = (PipelineElfCtxAccess *)ctx_bytes;
+    ri = ctx->num_relocs - 1;
+  }
+  if (ri >= 0 && ri < PIPELINE_ELF_CTX_TABLE_CAP) {
+    g_pipeline_elf_reloc_r_type[ri] = r_type;
+    if (r_pcrel < 0)
+      g_pipeline_elf_reloc_r_pcrel[ri] = (int8_t)-1;
+    else
+      g_pipeline_elf_reloc_r_pcrel[ri] = (int8_t)(r_pcrel != 0 ? 1 : 0);
+  }
   return 0;
 }
 

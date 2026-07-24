@@ -22058,11 +22058,11 @@ void pipeline_asm_module_func_param_name_copy32(struct ast_Module *m, int32_t fu
 }
 
 /**
- * PLATFORM: SHARED (x86_64 asm) — module-level mutable lit lets as true cross-fn storage.
+ * PLATFORM: SHARED (x86_64 + arm64 asm) — module-level mutable lit lets as true cross-fn storage.
  *
  * Root issue: per-fn stack copies of top-level `let g` make set_g/get_g observe different slots.
- * True ELF .bss is not fully wired yet; text-embedded 8B cells + RIP lea give one storage per
- * TU (same link-time image, all funcs). Const lit still use imm path; non-x86 keeps stack path.
+ * SHN_COMMON / Mach-O N_UNDF common → linker BSS (writable). x86: lea [rip]; arm64: adrp+add
+ * (wave405). Never embed mutable cells in RX .text (SEGV on store).
  *
  * Authority for load/store of covered names: modlet path below (not per-fn register + rbp).
  */
@@ -22150,17 +22150,78 @@ static int32_t pipeline_asm_modlet_lea_rbx_rip_x86(struct platform_elf_ElfCodege
   return pipeline_elf_ctx_append_reloc(cb, rel32_at, lname, llen);
 }
 
+/** ast_pool.c — typed reloc (wave405 arm64 PAGE21/PAGEOFF12). */
+extern int32_t pipeline_elf_ctx_append_reloc_typed(uint8_t *ctx_bytes, int32_t offset, uint8_t *name, int32_t name_len,
+                                                   int32_t r_type, int32_t r_pcrel);
+
+/**
+ * PLATFORM: MACOS|ARM64 — adrp x1, page; add x1, x1, pageoff → address of COMMON in x1 (rbx).
+ * Mach-O: ARM64_RELOC_PAGE21=3 (pcrel) + ARM64_RELOC_PAGEOFF12=4 (not pcrel).
+ * Does not clobber x0/rax (safe after assign rhs). wave405 Cap residual pure.
+ */
+static int32_t pipeline_asm_modlet_lea_rbx_adrp_arm64(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t idx) {
+  uint8_t *cb;
+  uint8_t adrp4[4];
+  uint8_t add4[4];
+  int32_t adrp_at;
+  int32_t add_at;
+  int32_t llen;
+  uint8_t *lname;
+  if (!elf_ctx || idx < 0 || idx >= g_pipeline_asm_modlet.n)
+    return -1;
+  cb = (uint8_t *)elf_ctx;
+  llen = g_pipeline_asm_modlet.label_len[idx];
+  lname = g_pipeline_asm_modlet.label[idx];
+  /* adrp x1, #0  →  0x90000001 (immlo/immhi zero; PAGE21 reloc fills) */
+  adrp4[0] = 0x01;
+  adrp4[1] = 0x00;
+  adrp4[2] = 0x00;
+  adrp4[3] = 0x90;
+  if (pipeline_elf_ctx_append_bytes(cb, adrp4, 4) != 0)
+    return -1;
+  adrp_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
+  if (pipeline_elf_ctx_append_reloc_typed(cb, adrp_at, lname, llen, 3, 1) != 0)
+    return -1;
+  /* add x1, x1, #0 → 0x91000021 (PAGEOFF12 reloc fills imm12) */
+  add4[0] = 0x21;
+  add4[1] = 0x00;
+  add4[2] = 0x00;
+  add4[3] = 0x91;
+  if (pipeline_elf_ctx_append_bytes(cb, add4, 4) != 0)
+    return -1;
+  add_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
+  return pipeline_elf_ctx_append_reloc_typed(cb, add_at, lname, llen, 4, 0);
+}
+
+/** lea rbx/x1 to modlet COMMON cell. ta 0=x86, 1=arm64. */
+static int32_t pipeline_asm_modlet_lea_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t idx, int32_t ta) {
+  if (ta == 1)
+    return pipeline_asm_modlet_lea_rbx_adrp_arm64(elf_ctx, idx);
+  if (ta == 0)
+    return pipeline_asm_modlet_lea_rbx_rip_x86(elf_ctx, idx);
+  return -1;
+}
+
 /** Load shared modlet cell into rax. 0=ok, -1=miss/err. */
 static int32_t pipeline_asm_modlet_load_to_rax_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name,
                                                      int32_t name_len, int32_t ta) {
   int32_t idx;
-  if (ta != 0 || !elf_ctx)
+  if ((ta != 0 && ta != 1) || !elf_ctx)
     return -1;
   idx = pipeline_asm_modlet_find(name, name_len);
   if (idx < 0)
     return -1;
-  if (pipeline_asm_modlet_lea_rbx_rip_x86(elf_ctx, idx) != 0)
+  if (pipeline_asm_modlet_lea_rbx_arch(elf_ctx, idx, ta) != 0)
     return -1;
+  if (ta == 1) {
+    /* ldr x0, [x1] = 0xf9400020 — dispatch load_qword is x86-only historically. */
+    uint8_t ldr4[4];
+    ldr4[0] = 0x20;
+    ldr4[1] = 0x00;
+    ldr4[2] = 0x40;
+    ldr4[3] = 0xf9;
+    return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, ldr4, 4);
+  }
   return backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx, ta);
 }
 
@@ -22168,12 +22229,12 @@ static int32_t pipeline_asm_modlet_load_to_rax_elf_c(struct platform_elf_ElfCode
 static int32_t pipeline_asm_modlet_store_from_rax_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name,
                                                         int32_t name_len, int32_t ta) {
   int32_t idx;
-  if (ta != 0 || !elf_ctx)
+  if ((ta != 0 && ta != 1) || !elf_ctx)
     return -1;
   idx = pipeline_asm_modlet_find(name, name_len);
   if (idx < 0)
     return -1;
-  if (pipeline_asm_modlet_lea_rbx_rip_x86(elf_ctx, idx) != 0)
+  if (pipeline_asm_modlet_lea_rbx_arch(elf_ctx, idx, ta) != 0)
     return -1;
   return backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx, 8, ta);
 }
@@ -22183,9 +22244,9 @@ extern int32_t pipeline_elf_ctx_add_common_sym(uint8_t *ctx_bytes, uint8_t *name
                                                int32_t align);
 
 /**
- * PLATFORM: SHARED x86_64 — once per mega emit: build modlet table + SHN_COMMON symbols.
+ * PLATFORM: SHARED (x86_64 + arm64) — once per mega emit: build modlet table + SHN_COMMON symbols.
  * Linker places COMMON in BSS (writable). Non-zero inits seeded on hoist-target entry.
- * Do NOT put mutable cells in .text (RX → SEGV on store).
+ * Do NOT put mutable cells in .text (RX → SEGV on store). wave405: arm64 ADRP path.
  */
 static int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(struct ast_Module *m, struct ast_ASTArena *a,
                                                           struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
@@ -22193,7 +22254,7 @@ static int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(struct ast_Module *m, 
   int32_t n;
   int32_t i;
   pipeline_asm_modlet_reset();
-  if (!m || !a || !elf_ctx || ta != 0 || m->num_top_level_lets <= 0)
+  if (!m || !a || !elf_ctx || (ta != 0 && ta != 1) || m->num_top_level_lets <= 0)
     return 0;
   n = m->num_top_level_lets;
   for (tl = 0; tl < n; tl++) {
@@ -22258,12 +22319,12 @@ static int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(struct ast_Module *m, 
 }
 
 /**
- * PLATFORM: SHARED x86_64 — seed non-zero COMMON cells once on hoist-target entry
+ * PLATFORM: SHARED (x86_64 + arm64) — seed non-zero COMMON cells once on hoist-target entry
  * (BSS starts zero; e.g. heap_trace_on = -1 needs this).
  */
 static int32_t pipeline_asm_modlet_seed_nonzero_inits_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   int32_t i;
-  if (!elf_ctx || ta != 0)
+  if (!elf_ctx || (ta != 0 && ta != 1))
     return 0;
   for (i = 0; i < g_pipeline_asm_modlet.n; i++) {
     int32_t imm = g_pipeline_asm_modlet.init_imm[i];
