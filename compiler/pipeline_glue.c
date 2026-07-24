@@ -1706,6 +1706,7 @@ static int32_t glue_binop_restore_rax_after_rbx_load_elf_c(struct platform_elf_E
                                                                int32_t ta);
 static int32_t pipeline_asm_expr_lit_i32_at_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *out_imm);
 static int32_t glue_index_elem_byte_sz_from_type_ref_c(struct ast_ASTArena *arena, int32_t tr);
+static int32_t glue_expr_emit_may_clobber_rbx_elf_c(struct ast_ASTArena *arena, int32_t expr_ref);
 static int32_t glue_var_expr_stack_off_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                               int32_t var_expr_ref);
 static int32_t glue_emit_index_add_index_to_base_rax_elf_c(struct ast_ASTArena *arena,
@@ -3465,6 +3466,13 @@ static int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena,
 static int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                  struct backend_AsmFuncCtx *ctx, int32_t ta);
 
+/**
+ * Fixed TYPE_ARRAY / SIMD vector let-init: write ARRAY_LIT elems into stack_slot_off.
+ * wave342: apply wave340 may_clobber re-lea (G.7 same authority as emit_array_lit).
+ * Root: base held only in rbx; binop elems (`n+10`) write ebx → store to garbage → Ubuntu
+ * freestanding `let a:[3]i32=[n,n+10,n+20]` SIGSEGV (const lit OK). Host-C hid it.
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS host-C uses C array init.
+ */
 static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *arena,
                                                        struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,
                                                        struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -3488,8 +3496,20 @@ static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *aren
   for (ai = 0; ai < n_arr && ai < 256; ai++) {
     elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
     if (elem_ref != 0) {
+      int32_t may_clobber = glue_expr_emit_may_clobber_rbx_elf_c(arena, elem_ref);
       if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, elem_ref, ctx, ta) != 0)
         return -1;
+      if (may_clobber != 0) {
+        /* value@rax; restore fixed-array base@rbx (wave340 dual-slot). */
+        if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta) != 0)
+          return -1;
+        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          return -1;
+        if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+      }
       if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, ai * esz, esz, ta) != 0)
         return -1;
     }
