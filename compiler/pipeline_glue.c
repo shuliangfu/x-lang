@@ -3621,7 +3621,13 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
   if (link_abi_getenv("XLANG_ASM_EMIT_TRACE"))
     fprintf(stderr, "xlang: struct_lit_c expr=%d nf=%d slot_off=%d temp_off=%d\n", (int)expr_ref, (int)nf,
             (int)stack_slot_off, (int)ly->next_offset);
-  if (nf <= 0 || nf > GLUE_ASM_MAX_STRUCT_LIT_FIELDS)
+  /**
+   * wave366 Cap residual pure: empty struct lit `Empty {}` has nf==0 (ZST).
+   * Prior `nf <= 0` → -1 → freestanding CG002 (code_len tiny / no main).
+   * G.7: materialize base address (lea/sret) with zero field stores — host C emits
+   * `{}` for empty; sizeof remains 0. PLATFORM: SHARED freestanding + host layout.
+   */
+  if (nf < 0 || nf > GLUE_ASM_MAX_STRUCT_LIT_FIELDS)
     return -1;
   /**
    * return + SysV sret：rbx 直指 caller hidden dest（[sret_home]），勿用 rbp+next_offset 小 temp
@@ -3639,6 +3645,8 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
     if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
       return -1;
   }
+  if (nf == 0)
+    return 0;
   for (fi = 0; fi < nf; fi++) {
     init_ref = pipeline_expr_struct_lit_init_ref(arena, expr_ref, fi);
     if (link_abi_getenv("XLANG_ASM_EMIT_TRACE"))
@@ -17358,6 +17366,41 @@ static int32_t glue_type_align_simple(struct ast_Module *m, struct ast_ASTArena 
 static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
 
 /**
+ * wave366: TYPE_NAMED with layout nf==0 (empty struct / ZST).
+ * Mirrors typeck.x typeck_type_is_empty_struct — G.7 twin in glue metrics path.
+ * PLATFORM: SHARED — host sizeof Empty==0; nested empty fields must not T001.
+ */
+static int32_t glue_type_is_empty_struct_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t ty_ref) {
+  uint8_t name[64];
+  int32_t nlen;
+  int32_t k;
+  int32_t j;
+  if (!module || !arena || ty_ref <= 0 || ty_ref > arena->num_types)
+    return 0;
+  if (pipeline_type_kind_ord_at(arena, ty_ref) != GLUE_TYPE_NAMED)
+    return 0;
+  nlen = pipeline_type_named_name_into(arena, ty_ref, name);
+  if (nlen <= 0 || nlen > 63)
+    return 0;
+  for (k = 0; k < (int32_t)module->num_struct_layouts; k++) {
+    int32_t ln = pipeline_module_struct_layout_name_len(module, k);
+    int32_t eq = 1;
+    if (ln != nlen)
+      continue;
+    for (j = 0; j < nlen; j++) {
+      if (pipeline_module_struct_layout_name_byte_at(module, k, j) != name[j]) {
+        eq = 0;
+        break;
+      }
+    }
+    if (!eq)
+      continue;
+    return pipeline_module_struct_layout_num_fields(module, k) == 0 ? 1 : 0;
+  }
+  return 0;
+}
+
+/**
  * C 版 struct_layout_metrics：与 typeck.x typeck_struct_layout_metrics 语义一致。
  * asm 栈槽宽 / frame_size 热路径走此实现，避免 gen2 自举 X metrics 在 Stage2 上极慢挂死。
  */
@@ -17391,7 +17434,8 @@ static int32_t glue_struct_layout_metrics_c(struct ast_Module *module, struct as
       pipeline_module_struct_layout_field_name_into(module, li, j, field_nm);
       flen = pipeline_module_struct_layout_field_name_len(module, li, j);
       fsize = glue_type_size_simple(module, arena, ftr, depth);
-      if (fsize <= 0) {
+      /* wave366: fsize==0 OK for empty nested struct (ZST). */
+      if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(module, arena, ftr) == 0)) {
         if (driver_asm_build_skip_typeck() == 0 && check_pad != 0)
           driver_diagnostic_typeck_struct_field_bad_size(layout_nm, layout_nlen, field_nm, flen);
         return -1;
@@ -17429,10 +17473,11 @@ static int32_t glue_struct_layout_metrics_c(struct ast_Module *module, struct as
     }
     current = current + gap;
     fsize = glue_type_size_simple(module, arena, ftr, depth);
-    if (fsize <= 0) {
+    if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(module, arena, ftr) == 0)) {
       /**
        * check_pad!=0：zero-padding 校验路径报告。
        * check_pad==0：size 查询静默失败（避免每个 Token 字面量刷百万行 → harness TIMEOUT）。
+       * wave366: empty named field size 0 is valid — do not treat as unknown.
        */
       if (check_pad != 0 && driver_asm_build_skip_typeck() == 0)
         driver_diagnostic_typeck_struct_field_bad_size(layout_nm, layout_nlen, field_nm, flen);
@@ -18083,7 +18128,8 @@ static int32_t glue_struct_layout_compute_field_offset_c(struct ast_Module *m, s
       return current + gap;
     current = current + gap;
     fsize = glue_type_size_simple(m, a, ftr, 0);
-    if (fsize <= 0)
+    /* wave366: keep 0 for empty nested struct; unknown size still falls back to 4. */
+    if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(m, a, ftr) == 0))
       fsize = 4;
     current = current + fsize;
   }
@@ -18201,7 +18247,7 @@ int32_t pipeline_struct_layout_next_field_offset_ex(struct ast_Module *m, struct
     for (j = 0; j < nf; j++) {
       int32_t ftr = pipeline_module_struct_layout_field_type_ref(m, layout_idx, j);
       int32_t fsize = glue_type_size_simple(m, a, ftr, 0);
-      if (fsize <= 0)
+      if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(m, a, ftr) == 0))
         fsize = 4;
       current = current + fsize;
     }
@@ -18217,7 +18263,7 @@ int32_t pipeline_struct_layout_next_field_offset_ex(struct ast_Module *m, struct
     if (fa > A)
       A = fa;
     fsize = glue_type_size_simple(m, a, ftr, 0);
-    if (fsize <= 0)
+    if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(m, a, ftr) == 0))
       fsize = 4;
     rem = current % A;
     gap = A - rem;

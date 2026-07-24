@@ -1088,6 +1088,49 @@ export function typeck_x_type_align(module: *Module, arena: *ASTArena, ty_ref: i
   }
 }
 
+/**
+ * Return 1 when ty_ref is TYPE_NAMED with a registered layout that has zero fields.
+ * Empty structs are legal ZSTs (host C sizeof == 0). Layout metrics must accept
+ * fsize == 0 for nested empty fields; unknown/broken types still fail size checks.
+ * @param module *Module — owning module for struct_layouts
+ * @param arena *ASTArena — type pool for kind/name
+ * @param ty_ref i32 — field or local type ref
+ * @return i32 — 1 empty named layout, 0 otherwise
+ * PLATFORM: SHARED — matches GCC empty-struct size 0 / Box{Empty,i32} layout
+ */
+export function typeck_type_is_empty_struct(module: *Module, arena: *ASTArena, ty_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let ko: i32 = 0;
+    let nm_len: i32 = 0;
+    let li: i32 = 0;
+    let nm: *u8 = typeck_scratch64_slot(4);
+    if (module == 0 as * Module || arena == 0 as * ASTArena || ty_ref <= 0) {
+      return 0;
+    }
+    if (ty_ref > arena.num_types) {
+      return 0;
+    }
+    ko = pipeline_type_kind_ord_at(arena, ty_ref);
+    /* TYPE_NAMED ord == 8 */
+    if (ko != 8) {
+      return 0;
+    }
+    nm_len = pipeline_type_named_name_into(arena, ty_ref, nm);
+    if (nm_len <= 0) {
+      return 0;
+    }
+    li = typeck_find_layout_idx_by_type_name(module, nm, nm_len);
+    if (li < 0) {
+      return 0;
+    }
+    if (pipeline_module_struct_layout_num_fields(module, li) == 0) {
+      return 1;
+    }
+    return 0;
+  }
+}
+
 /** Exported function `typeck_x_type_size`.
  * Implements `typeck_x_type_size`.
  * @param module *Module
@@ -1211,7 +1254,8 @@ check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
       while (j < nf) {
         ftr = pipeline_module_struct_layout_field_type_ref(module, li, j);
         fsize = typeck_x_type_size(module, arena, ftr, depth);
-        if (fsize <= 0) {
+        /* wave366: empty struct field size 0 is valid ZST (not "unknown size"). */
+        if (fsize < 0 || (fsize == 0 && typeck_type_is_empty_struct(module, arena, ftr) == 0)) {
           /* See implementation. */
           if (check_pad != 0) {
             typeck_layout_field_name_into(module, li, j, field_nm);
@@ -1249,7 +1293,8 @@ check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
       }
       current = current + gap;
       fsize = typeck_x_type_size(module, arena, ftr, depth);
-      if (fsize <= 0) {
+      /* wave366: allow fsize==0 for empty named nested fields (host sizeof Empty==0). */
+      if (fsize < 0 || (fsize == 0 && typeck_type_is_empty_struct(module, arena, ftr) == 0)) {
         if (check_pad != 0) {
           driver_diagnostic_typeck_struct_field_bad_size(layout_nm, layout_nlen, field_nm, flen);
         }

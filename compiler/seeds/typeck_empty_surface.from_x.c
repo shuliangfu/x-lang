@@ -1348,6 +1348,35 @@ int32_t typeck_x_type_align(struct ast_Module * module, struct ast_ASTArena * ar
   }
   return 1;
 }
+/* wave366: empty TYPE_NAMED layout (nf==0) — ZST; metrics accept fsize==0 for nested empty. */
+int32_t typeck_type_is_empty_struct(struct ast_Module * module, struct ast_ASTArena * arena, int32_t ty_ref) {
+  int32_t ko = 0;
+  int32_t nm_len = 0;
+  int32_t li = 0;
+  uint8_t * nm = typeck_scratch64_slot(4);
+  if ((((module ==((struct ast_Module *)(0))) || (arena ==((struct ast_ASTArena *)(0)))) || (ty_ref <=0))) {
+    return 0;
+  }
+  if ((ty_ref > (arena->num_types))) {
+    return 0;
+  }
+  (void)((ko = pipeline_type_kind_ord_at(arena, ty_ref)));
+  if ((ko !=8)) {
+    return 0;
+  }
+  (void)((nm_len = pipeline_type_named_name_into(arena, ty_ref, nm)));
+  if ((nm_len <=0)) {
+    return 0;
+  }
+  (void)((li = typeck_find_layout_idx_by_type_name(module, nm, nm_len)));
+  if ((li < 0)) {
+    return 0;
+  }
+  if ((pipeline_module_struct_layout_num_fields(module, li) ==0)) {
+    return 1;
+  }
+  return 0;
+}
 int32_t typeck_x_type_size(struct ast_Module * module, struct ast_ASTArena * arena, int32_t ty_ref, int32_t depth) {
   int32_t ko = 0;
   int32_t er = 0;
@@ -1447,7 +1476,7 @@ int32_t typeck_struct_layout_metrics(struct ast_Module * module, struct ast_ASTA
     while ((j < nf)) {
       (void)((ftr = pipeline_module_struct_layout_field_type_ref(module, li, j)));
       (void)((fsize = typeck_x_type_size(module, arena, ftr, depth)));
-      if ((fsize <=0)) {
+      if (((fsize < 0) || ((fsize ==0) && (typeck_type_is_empty_struct(module, arena, ftr) ==0)))) {
         if ((check_pad !=0)) {
           (void)(typeck_layout_field_name_into(module, li, j, field_nm));
           (void)((flen = pipeline_module_struct_layout_field_name_len(module, li, j)));
@@ -1484,7 +1513,7 @@ int32_t typeck_struct_layout_metrics(struct ast_Module * module, struct ast_ASTA
     }
     (void)((current = (current + gap)));
     (void)((fsize = typeck_x_type_size(module, arena, ftr, depth)));
-    if ((fsize <=0)) {
+    if (((fsize < 0) || ((fsize ==0) && (typeck_type_is_empty_struct(module, arena, ftr) ==0)))) {
       if ((check_pad !=0)) {
         (void)(driver_diagnostic_typeck_struct_field_bad_size(layout_nm, layout_nlen, field_nm, flen));
       }
