@@ -2136,7 +2136,7 @@ extern int32_t pipeline_module_func_return_type_at(struct ast_Module *m, int32_t
  * missed → host/fs run=1. Authority: DFS block tree from body (if/while/for/region +
  * EXPR_BLOCK children) + resolved TYPE_ARRAY on slice-init VAR.
  * PLATFORM: SHARED — host (codegen) and freestanding (ELF) share this finder.
- * Soft leave-off: reassignment after init; untyped-let; reentrancy last-wins static/COMMON.
+ * Soft leave-off: untyped-let; reentrancy last-wins static/COMMON (wave344 closed reassign N).
  */
 #define GLUE_SLICE_ESC_WALK_DEPTH_MAX 256
 #define GLUE_SLICE_ESC_WALK_VISIT_MAX 4096
@@ -2326,16 +2326,18 @@ int32_t pipeline_find_fixed_array_slice_escape(struct ast_ASTArena *arena, int32
 }
 
 /**
- * wave342+343 Cap residual pure: freestanding `return s` where
- *   `let a: T[N] = …; let s: T[] = a; return s` (body-top or nested block)
+ * wave342–344 Cap residual pure: freestanding `return s` where
+ *   `let a: T[N] = …; let s: T[] = a; …; return s` (body-top or nested block)
  * Root: try_emit_slice_init_from_array_var / glue_emit_slice_from_array_let_init VAR path
  * write `{.data=a,.length=N}` (stack view). Local aliasing is correct (s shares a);
  * escape via return dual-GP leaves a dangling data pointer (Ubuntu/host run=1 vs 60).
- * G.7: copy fixed-array payload into SHN_COMMON BSS (same face as wave341 non-const
- * ARRAY_LIT durable), then return data@rax length@rdx. View semantics inside the
- * function are unchanged; only the return path materializes an owned buffer.
+ * G.7: durable SHN_COMMON BSS sized to N (finder max), copy from **current** s dual-GP
+ * (`s.data` / `min(s.length, N)`), then return data@rax length@rdx.
  * wave343: finder walks nested blocks (pipeline_find_fixed_array_slice_escape).
- * Soft leave-off: reassignment of s after init; untyped-let; reentrancy last-wins.
+ * wave344: reassign residual — prior copied fixed-array stack with compile-time N only
+ * (host: memcpy sizeof N + length=N; fs: load a slots). After `s = [40,50]` / `s = t`
+ * content/length must follow s (probe length*100+t0 → 240 not 340).
+ * Soft leave-off: untyped-let; reentrancy last-wins static/COMMON (no heap yet).
  * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV (ta==0).
  *
  * @return 1 handled; 0 not applicable; -1 hard fail.
@@ -2347,7 +2349,7 @@ static int32_t glue_try_return_slice_escape_from_fixed_array_elf_c(
   int32_t vlen;
   int32_t arr_sz = 0;
   int32_t arr_init_ref = 0;
-  int32_t src_off;
+  int32_t s_off;
   int32_t esz;
   int32_t nbytes;
   int32_t ai;
@@ -2357,8 +2359,10 @@ static int32_t glue_try_return_slice_escape_from_fixed_array_elf_c(
   int32_t nd;
   int32_t di;
   int32_t llen;
+  int32_t end_len;
   uint8_t vname[64];
   uint8_t label[24];
+  uint8_t end_lbl[32];
   uint8_t digs[8];
   const char *pfx;
   int32_t rty;
@@ -2389,13 +2393,14 @@ static int32_t glue_try_return_slice_escape_from_fixed_array_elf_c(
     return 0;
   if (pipeline_find_fixed_array_slice_escape(arena, body_ref, vname, vlen, &arr_sz, &elem_tr, &arr_init_ref) == 0)
     return 0;
+  /* arr_init_ref proves fixed→slice init existed; capacity N from finder. */
   if (arr_sz <= 0 || arr_sz > 256 || arr_init_ref <= 0 || elem_tr <= 0)
     return 0;
 
-  src_off = glue_var_expr_stack_off_elf_c(arena, ctx, arr_init_ref);
-  if (src_off < 0)
+  /* Current s dual-GP home (data@off length@off-8) — not the original fixed a. */
+  s_off = glue_var_expr_stack_off_elf_c(arena, ctx, ret_op);
+  if (s_off < 0)
     return -1;
-  /* elem_tr set by pipeline_find_fixed_array_slice_escape */
   esz = glue_index_elem_byte_sz_from_type_ref_c(arena, elem_tr);
   if (esz != 1 && esz != 2 && esz != 4 && esz != 8)
     esz = 4;
@@ -2432,13 +2437,61 @@ static int32_t glue_try_return_slice_escape_from_fixed_array_elf_c(
   if (pipeline_elf_ctx_add_common_sym((uint8_t *)elf_ctx, label, llen, nbytes, esz) != 0)
     return -1;
 
+  end_len = pipeline_asm_emit_next_label_c(ctx, end_lbl, 32);
+  if (end_len <= 0)
+    return -1;
+
   /*
-   * Element-wise copy fixed array stack → COMMON (wave334 slot layout:
-   * elem[i] at src_off - i*esz). Store to COMMON uses +i*esz address math.
+   * wave344: for i in 0..N-1: if min(s.length,N) <= i → done;
+   * else load s.data[i] → COMMON[i]. Return length = min(s.length, N).
    */
   for (ai = 0; ai < arr_sz; ai++) {
-    if (backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, src_off - ai * esz, esz, ta) != 0)
+    /* rax = s.length; rbx = N; if rax > N then rax = N (cap). */
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, s_off - 8, ta) != 0)
       return -1;
+    if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, arr_sz, ta) != 0)
+      return -1;
+    if (backend_enc_cmp_rax_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    /* jle keep_len: length <= N */
+    {
+      uint8_t keep_lbl[32];
+      int32_t keep_len = pipeline_asm_emit_next_label_c(ctx, keep_lbl, 32);
+      if (keep_len <= 0)
+        return -1;
+      if (backend_enc_jle_arch(elf_ctx, keep_lbl, keep_len, ta) != 0)
+        return -1;
+      if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, arr_sz, 0, ta) != 0)
+        return -1;
+      if (backend_enc_label_arch(elf_ctx, keep_lbl, keep_len, 0, ta) != 0)
+        return -1;
+    }
+    /* if capped_len <= ai → end_copy */
+    if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, ai, ta) != 0)
+      return -1;
+    if (backend_enc_cmp_rax_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_jle_arch(elf_ctx, end_lbl, end_len, ta) != 0)
+      return -1;
+    /* rax = s.data + ai*esz; load elem */
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, s_off, ta) != 0)
+      return -1;
+    if (ai * esz != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, ai * esz, ta) != 0)
+      return -1;
+    if (esz == 1) {
+      if (backend_enc_load_zext8_from_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+    } else if (esz == 8) {
+      if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+    } else if (esz == 4) {
+      if (backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+    } else {
+      /* esz==2: load 32 and rely on store width (caller cap is rare for i16). */
+      if (backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+    }
     if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
       return -1;
     if (glue_asm_lea_rbx_common_rip_x86(elf_ctx, label, llen) != 0)
@@ -2448,16 +2501,31 @@ static int32_t glue_try_return_slice_escape_from_fixed_array_elf_c(
     if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, ai * esz, esz, ta) != 0)
       return -1;
   }
-  if (glue_asm_lea_rax_common_rip_x86(elf_ctx, label, llen) != 0)
+  if (backend_enc_label_arch(elf_ctx, end_lbl, end_len, 0, ta) != 0)
     return -1;
-  /* data@rax already; length@rdx = arr_sz. */
-  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+
+  /* length@rdx = min(s.length, N); data@rax = COMMON. */
+  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, s_off - 8, ta) != 0)
     return -1;
-  if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, arr_sz, 0, ta) != 0)
+  if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, arr_sz, ta) != 0)
     return -1;
+  if (backend_enc_cmp_rax_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  {
+    uint8_t keep2[32];
+    int32_t k2 = pipeline_asm_emit_next_label_c(ctx, keep2, 32);
+    if (k2 <= 0)
+      return -1;
+    if (backend_enc_jle_arch(elf_ctx, keep2, k2, ta) != 0)
+      return -1;
+    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, arr_sz, 0, ta) != 0)
+      return -1;
+    if (backend_enc_label_arch(elf_ctx, keep2, k2, 0, ta) != 0)
+      return -1;
+  }
   if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta) != 0)
     return -1;
-  if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+  if (glue_asm_lea_rax_common_rip_x86(elf_ctx, label, llen) != 0)
     return -1;
   return 1;
 }
@@ -2508,8 +2576,8 @@ static int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
        * wave342: non-ARRAY_LIT fixed→slice return escape (COMMON copy) is handled above.
        * Fallback: stack emit_array_lit only if durable pack fails.
        * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV.
-       * Soft residual: untyped-let (docs 禁推断); reassign after init; reentrancy last-wins.
-       * wave343: nested-block fixed→slice escape closed via pipeline_find_fixed_array_slice_escape.
+       * Soft residual: untyped-let (docs 禁推断); reentrancy last-wins static/COMMON.
+       * wave343: nested-block fixed→slice escape; wave344: reassign uses runtime s.length.
        */
       int32_t rty = pipeline_module_func_return_type_at(g_pipeline_asm_emit_module,
                                                         g_pipeline_asm_emit_func_index);

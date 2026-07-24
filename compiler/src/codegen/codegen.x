@@ -8144,15 +8144,14 @@ export function emit_return_stmt_with_context(arena: *ASTArena, out: *CodegenOut
         }
       }
       /*
-       * wave342/343 Cap residual pure: host `return s` where
-       *   `let a: T[N] = …; let s: T[] = a; return s` (body-top or nested block)
+       * wave342–344 Cap residual pure: host `return s` where
+       *   `let a: T[N] = …; let s: T[] = a; …; return s` (body-top or nested block)
        * Root: try_emit_slice_init_from_array_var emits `{.data=a,.length=N}` (stack view).
        * Local aliasing is correct; return of the view dangles (run=1 vs 60).
-       * G.7: durable static buffer + memcpy from s.data at escape (view inside fn unchanged).
-       * Emit: return ({ static E __xlang_esc[N]; memcpy(__xlang_esc, s.data, sizeof);
-       *                 (slice){.data=__xlang_esc,.length=N}; });
-       * wave343: scan via pipeline_find_fixed_array_slice_escape (nested blocks + resolved ARRAY).
-       * Soft: reassignment of s after fixed-array init; untyped-let; reentrancy last-wins.
+       * G.7: durable static[N] + memcpy from s.data with runtime min(s.length, N).
+       * wave343: pipeline_find_fixed_array_slice_escape (nested + resolved ARRAY).
+       * wave344: reassign residual — prior used compile-time N for memcpy/length
+       * (after s=[40,50] still length=3 → 340). Soft: untyped-let; reentrancy last-wins.
        * PLATFORM: SHARED host-C emit (matches freestanding COMMON escape).
        */
       if (!ast.ref_is_null(rty) && pipeline_type_kind_ord_at(arena, rty) == (TypeKind.TYPE_SLICE as i32)
@@ -8191,33 +8190,61 @@ export function emit_return_stmt_with_context(arena: *ASTArena, out: *CodegenOut
             if (format_int(out, arr_sz) != 0) {
               return -1;
             }
-            /* ]; memcpy(__xlang_esc,  */
-            let mid1: u8[28] = [93, 59, 32, 109, 101, 109, 99, 112, 121, 40, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 44, 32, 0, 0, 0, 0, 0];
-            if (emit_bytes_from_ptr(out, &mid1[0], 23) != 0) {
+            /* ]; size_t __xlang_esc_n = (size_t) */
+            let mid1: u8[48] = [
+              93, 59, 32, 115, 105, 122, 101, 95, 116, 32, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 95, 110, 32, 61, 32, 40, 115, 105, 122, 101, 95, 116, 41, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+            ];
+            if (emit_bytes_from_ptr(out, &mid1[0], 34) != 0) {
               return -1;
             }
             if (emit_bytes_64(out, &op_e.var_name[0], op_e.var_name_len) != 0) {
               return -1;
             }
-            /* .data, sizeof(__xlang_esc)); ( */
-            let mid2: u8[36] = [46, 100, 97, 116, 97, 44, 32, 115, 105, 122, 101, 111, 102, 40, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 41, 41, 59, 32, 40, 0, 0, 0, 0, 0, 0];
-            if (emit_bytes_from_ptr(out, &mid2[0], 30) != 0) {
-              return -1;
-            }
-            if (emit_type(arena, out, rty, 0 as *u8, 0, ctx) != 0) {
-              return -1;
-            }
-            /* ){ .data = __xlang_esc, .length =  */
-            let mid3: u8[40] = [41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0, 0, 0, 0];
-            if (emit_bytes_from_ptr(out, &mid3[0], 34) != 0) {
+            /* .length; if (__xlang_esc_n > (size_t) */
+            let mid2a: u8[48] = [
+              46, 108, 101, 110, 103, 116, 104, 59, 32, 105, 102, 32, 40, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 95, 110, 32, 62, 32, 40, 115, 105, 122, 101, 95, 116, 41, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+            ];
+            if (emit_bytes_from_ptr(out, &mid2a[0], 37) != 0) {
               return -1;
             }
             if (format_int(out, arr_sz) != 0) {
               return -1;
             }
-            /*  }; })\n */
-            let end1: u8[12] = [32, 125, 59, 32, 125, 41, 59, 10, 0, 0, 0, 0];
-            if (emit_bytes_from_ptr(out, &end1[0], 8) != 0) {
+            /* ) __xlang_esc_n = (size_t) */
+            let mid2b: u8[32] = [
+              41, 32, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 95, 110, 32, 61, 32, 40, 115, 105, 122, 101, 95, 116, 41, 0, 0, 0, 0, 0, 0
+            ];
+            if (emit_bytes_from_ptr(out, &mid2b[0], 26) != 0) {
+              return -1;
+            }
+            if (format_int(out, arr_sz) != 0) {
+              return -1;
+            }
+            /* ; memcpy(__xlang_esc,  */
+            let mid2c: u8[28] = [
+              59, 32, 109, 101, 109, 99, 112, 121, 40, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 44, 32, 0, 0, 0, 0, 0, 0
+            ];
+            if (emit_bytes_from_ptr(out, &mid2c[0], 22) != 0) {
+              return -1;
+            }
+            if (emit_bytes_64(out, &op_e.var_name[0], op_e.var_name_len) != 0) {
+              return -1;
+            }
+            /* .data, __xlang_esc_n * sizeof(__xlang_esc[0])); ( */
+            let mid3: u8[56] = [
+              46, 100, 97, 116, 97, 44, 32, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 95, 110, 32, 42, 32, 115, 105, 122, 101, 111, 102, 40, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 91, 48, 93, 41, 41, 59, 32, 40, 0, 0, 0, 0, 0, 0, 0
+            ];
+            if (emit_bytes_from_ptr(out, &mid3[0], 49) != 0) {
+              return -1;
+            }
+            if (emit_type(arena, out, rty, 0 as *u8, 0, ctx) != 0) {
+              return -1;
+            }
+            /* ){ .data = __xlang_esc, .length = __xlang_esc_n }; })\n */
+            let end1: u8[64] = [
+              41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 95, 110, 32, 125, 59, 32, 125, 41, 59, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0
+            ];
+            if (emit_bytes_from_ptr(out, &end1[0], 55) != 0) {
               return -1;
             }
             return 0;
