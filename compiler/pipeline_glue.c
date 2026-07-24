@@ -14268,19 +14268,23 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
         if (pty > 0 && pipeline_type_kind_ord_at(arena, pty) == GLUE_TYPE_KIND_F32_ORD)
           return glue_load_f32_var_slot_to_rax_elf_c(elf_ctx, arena, ctx, expr_ref, off, ta);
         /*
-         * PLATFORM: SHARED + LINUX/MACOS x86_64 SysV —
-         * TYPE_SLICE params lower as `struct xlang_slice_* *` in C (codegen.x authority).
-         * Call sites must pass &local fat (sequential {data@0,length@8}), not dual-GP
-         * by-value. Dual-load here → formal C reads data ptr as struct* → SIGSEGV
-         * (Ubuntu tests/slice/length.x -backend asm after formal mod.o). G.7 complete.
+         * PLATFORM: SHARED freestanding · LINUX gold + MACOS arm64 —
+         * TYPE_SLICE formals lower as `struct xlang_slice_* *` (codegen.x authority).
+         * Call sites must pass a fat*:
+         *   - local by-value dual-GP fat → lea(home) of sequential {data,length}
+         *   - slice* param / indirect slot already holds fat* → load the slot
+         * wave401 Cap residual pure: prior path always lea(home). Forwarding a
+         * slice param (`take(s)` inside mid) passed fat** → callee INDEX read
+         * pointer bits as payload (mid_twice=162, reent_sp=239; host-C green).
+         * G.7: reuse glue_enc_local_slot_ptr_or_addr_elf_c (needs_ptr_load twin
+         * of INDEX/length wave332e — do not invent a second detector).
+         * Dual-load of by-value fat still forbidden (SIGSEGV on formal fat*).
          */
-        if (pty > 0 && pipeline_type_kind_ord_at(arena, pty) == (int32_t)ast_TypeKind_TYPE_SLICE)
-          return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
-        {
-          if (arg_ty > 0 &&
-              pipeline_type_kind_ord_at(arena, arg_ty) == (int32_t)ast_TypeKind_TYPE_SLICE)
-            return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
-        }
+        if ((pty > 0 &&
+             pipeline_type_kind_ord_at(arena, pty) == (int32_t)ast_TypeKind_TYPE_SLICE) ||
+            (arg_ty > 0 &&
+             pipeline_type_kind_ord_at(arena, arg_ty) == (int32_t)ast_TypeKind_TYPE_SLICE))
+          return glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, expr_ref, off, ctx, ta);
         /* ≤16B named struct / scalar: dual-half load when size 9–16 (SysV rax+rdx). */
         return glue_load_var_as_value_to_rax_rdx_elf_c(elf_ctx, arena, ctx, expr_ref, off, ta);
       }
