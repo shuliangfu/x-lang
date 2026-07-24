@@ -3310,10 +3310,18 @@ int32_t codegen_try_emit_fmt_string_lit_call(struct ast_ASTArena * arena, struct
   }
   return 1;
 }
+/* PLATFORM: SHARED host-C — formal type for next emit_call_arg_slice_abi (wave395). */
+static int32_t g_codegen_host_call_arg_param_ty_ref = 0;
+void codegen_set_host_call_arg_param_ty(int32_t param_ty_ref) {
+  g_codegen_host_call_arg_param_ty_ref = param_ty_ref;
+}
+int32_t codegen_get_host_call_arg_param_ty(void) {
+  return g_codegen_host_call_arg_param_ty_ref;
+}
 /* PLATFORM: SHARED — call-arg slice ABI: TYPE_SLICE params are pointers (seed/glue).
  * Locals stay by-value → pass &(local); slice params already pointers → pass through.
- * wave395: fixed TYPE_ARRAY VAR → &((struct xlang_slice_T){.data=a,.length=N}).
- * Authority mirror of codegen.x emit_call_arg_slice_abi; only call/method arg positions. */
+ * wave395: fixed TYPE_ARRAY VAR → &((struct xlang_slice_T){.data=a,.length=N}) only when
+ * formal is TYPE_SLICE (g_codegen_host_call_arg_param_ty_ref). Authority mirror of codegen.x. */
 int32_t codegen_emit_call_arg_slice_abi(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t arg_ref, struct ast_PipelineDepCtx * ctx) {
   {
     struct ast_Expr arg;
@@ -3419,6 +3427,11 @@ int32_t codegen_emit_call_arg_slice_abi(struct ast_ASTArena * arena, struct code
         }
       }
       if ((arr_sz > 0)) {
+        int32_t formal_ty = codegen_get_host_call_arg_param_ty();
+        /* Gate: only TYPE_SLICE formals; *T keeps array decay (option/hello). */
+        if (((formal_ty <= 0) || (pipeline_type_kind_ord_at(arena, formal_ty) != 11))) {
+          return codegen_emit_expr(arena, out, arg_ref, ctx);
+        }
         uint8_t open[4] = {38, 40, 40, 0};
         uint8_t pref[20] = {115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0};
         uint8_t mid1[14] = {41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 0, 0, 0};
@@ -7530,9 +7543,17 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
                         return -(1);
                       }
                     } else {
+                      /* wave395: set formal type for TYPE_ARRAY→fat gate (TYPE_SLICE only). */
+                      int32_t pty_cur = 0;
+                      if ((arg_idx_cur < pipeline_module_func_num_params_at(cur_mod, fi))) {
+                        pty_cur = pipeline_module_func_param_type_ref_at(cur_mod, fi, arg_idx_cur);
+                      }
+                      codegen_set_host_call_arg_param_ty(pty_cur);
                       if ((codegen_emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx_cur), ctx) !=0)) {
+                        codegen_set_host_call_arg_param_ty(0);
                         return -(1);
                       }
+                      codegen_set_host_call_arg_param_ty(0);
                     }
                     (void)((ai = (ai + 1)));
                   }
@@ -7664,9 +7685,21 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
             return -(1);
           }
         } else {
+          /* wave395: formal from typeck resolved callee when available. */
+          int32_t pty_fb = 0;
+          int32_t rfi_fb = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+          if (((rfi_fb >= 0) && (ctx != ((struct ast_PipelineDepCtx *)(0))) &&
+               ((ctx->current_codegen_module) != ((struct ast_Module *)(0))))) {
+            if ((arg_idx < pipeline_module_func_num_params_at((ctx->current_codegen_module), rfi_fb))) {
+              pty_fb = pipeline_module_func_param_type_ref_at((ctx->current_codegen_module), rfi_fb, arg_idx);
+            }
+          }
+          codegen_set_host_call_arg_param_ty(pty_fb);
           if ((codegen_emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx), ctx) !=0)) {
+            codegen_set_host_call_arg_param_ty(0);
             return -(1);
           }
+          codegen_set_host_call_arg_param_ty(0);
         }
         (void)((ai = (ai + 1)));
       }

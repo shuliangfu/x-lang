@@ -2170,6 +2170,16 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
+ * Host-C: set formal type_ref for the next emit_call_arg_slice_abi invocation.
+ * wave395: TYPE_ARRAY → fat materialize only when formal is TYPE_SLICE (not *T).
+ * Callers must set before each arg and clear (0) after. PLATFORM: SHARED host-C.
+ */
+export extern function codegen_set_host_call_arg_param_ty(param_ty_ref: i32): void;
+
+/** Read host call-arg formal type_ref (0 = unknown / not slice formal). */
+export extern function codegen_get_host_call_arg_param_ty(): i32;
+
+/**
  * Emit one call argument under seed/glue slice ABI (PLATFORM: SHARED).
  *
  * Why: TYPE_SLICE params lower as `struct xlang_slice_* *`. Locals stay by-value
@@ -2179,7 +2189,8 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
  * wave395: fixed TYPE_ARRAY local (`let a: T[N]`) as slice* formal must materialize
  * a C fat `{.data=a,.length=N}` then pass its address. Bare `a` is `T*` (array decay),
  * not `struct xlang_slice_* *` → host reads length from wrong memory (e.g. a[2]=30).
- * G.7: same compound authority as try_emit_slice_init_from_array_var (let s:T[]=a).
+ * Gate: only when codegen_get_host_call_arg_param_ty is TYPE_SLICE (else bare
+ * emit for *T / Buffer formals — option/hello). G.7: same compound as let-init.
  *
  * Invariant: only for call/method arg positions; never for general emit_expr.
  */
@@ -2287,6 +2298,15 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
         }
       }
       if (arr_sz > 0) {
+        /*
+         * Only for TYPE_SLICE formals. *u8 / *Buffer / other formals need array
+         * decay (bare `a`), not fat compound (wave395 regression: option/hello).
+         */
+        let formal_ty: i32 = codegen_get_host_call_arg_param_ty();
+        if (formal_ty <= 0
+            || pipeline_type_kind_ord_at(arena, formal_ty) != (TypeKind.TYPE_SLICE as i32)) {
+          return emit_expr(arena, out, arg_ref, ctx);
+        }
         /* &(( */
         let open: u8[4] = [38, 40, 40, 0];
         if (emit_bytes_from_ptr(out, &open[0], 3) != 0) {
@@ -7211,8 +7231,18 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                       if (append_byte(out, 48) != 0) {
                         return -1;
                       }
-                    } else if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx_cur), ctx) != 0) {
-                      return -1;
+                    } else {
+                      /* wave395: pass formal type so TYPE_ARRAY→fat only for TYPE_SLICE. */
+                      let pty_cur: i32 = 0;
+                      if (arg_idx_cur < pipeline_module_func_num_params_at(cur_mod, fi)) {
+                        pty_cur = pipeline_module_func_param_type_ref_at(cur_mod, fi, arg_idx_cur);
+                      }
+                      codegen_set_host_call_arg_param_ty(pty_cur);
+                      if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx_cur), ctx) != 0) {
+                        codegen_set_host_call_arg_param_ty(0);
+                        return -1;
+                      }
+                      codegen_set_host_call_arg_param_ty(0);
                     }
                     ai = ai + 1;
                   }
@@ -7348,8 +7378,20 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           if (append_byte(out, 48) != 0) {
             return -1;
           }
-        } else if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx), ctx) != 0) {
-          return -1;
+        } else {
+          let pty_fb: i32 = 0;
+          let rfi_fb: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+          if (rfi_fb >= 0 && ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module) {
+            if (arg_idx < pipeline_module_func_num_params_at(ctx.current_codegen_module, rfi_fb)) {
+              pty_fb = pipeline_module_func_param_type_ref_at(ctx.current_codegen_module, rfi_fb, arg_idx);
+            }
+          }
+          codegen_set_host_call_arg_param_ty(pty_fb);
+          if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx), ctx) != 0) {
+            codegen_set_host_call_arg_param_ty(0);
+            return -1;
+          }
+          codegen_set_host_call_arg_param_ty(0);
         }
         ai = ai + 1;
       }
