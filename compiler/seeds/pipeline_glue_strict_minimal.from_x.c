@@ -1008,10 +1008,15 @@ static int32_t pipeline_typeck_overload_arg_score_strict_minimal(struct ast_ASTA
      * wave313 Cap residual: TYPE_NAMED=8 i8/i16/u16 integer widen score.
      * Mirror typeck_integer_widen_ok_refs (name-based family tags 10/11/12).
      * PLATFORM: SHARED — G.7 align typeck.x + typeck_gen seed.
+     *
+     * wave363 L4: pipeline_type_named_name_into always memcpy's the full Type.name[64]
+     * (see pipeline_glue.c). Prior pnm[8]/anm[8] stack-smashed on any TYPE_NAMED score
+     * path (String/StrView len overloads → __stack_chk_fail → silent exit 127).
+     * Buffers must be 64 bytes (G.7 out64 contract).
      */
     if (pk == 8 || ak == 8) {
-      uint8_t pnm[8];
-      uint8_t anm[8];
+      uint8_t pnm[64];
+      uint8_t anm[64];
       int32_t pnl = 0;
       int32_t anl = 0;
       int32_t pf = -1;
