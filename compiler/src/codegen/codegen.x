@@ -2176,6 +2176,11 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
  * structs, so call sites must pass `&local` (seed: `&(slice)`). Slice params are
  * already pointers — pass through. ADDR_OF is left unchanged.
  *
+ * wave395: fixed TYPE_ARRAY local (`let a: T[N]`) as slice* formal must materialize
+ * a C fat `{.data=a,.length=N}` then pass its address. Bare `a` is `T*` (array decay),
+ * not `struct xlang_slice_* *` → host reads length from wrong memory (e.g. a[2]=30).
+ * G.7: same compound authority as try_emit_slice_init_from_array_var (let s:T[]=a).
+ *
  * Invariant: only for call/method arg positions; never for general emit_expr.
  */
 export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, arg_ref: i32, ctx: *PipelineDepCtx): i32 {
@@ -2226,6 +2231,127 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
         if (is_slice_param != 0) {
           return emit_expr(arena, out, arg_ref, ctx);
         }
+      }
+    }
+    /*
+     * wave395 Cap residual pure: fixed TYPE_ARRAY VAR → slice* formal.
+     * Emit: &((struct xlang_slice_T){ .data = a, .length = N })
+     * PLATFORM: SHARED host-C (fs: pipeline_asm_emit_expr_elf_for_call_args).
+     */
+    if (arg.kind == ExprKind.EXPR_VAR && arg.var_name_len > 0) {
+      let arr_sz: i32 = 0;
+      let arr_tr: i32 = 0;
+      let elem_tr: i32 = 0;
+      if (!ast.ref_is_null(arg.resolved_type_ref) && arg.resolved_type_ref > 0
+          && arg.resolved_type_ref <= arena.num_types) {
+        if (pipeline_type_kind_ord_at(arena, arg.resolved_type_ref) == (TypeKind.TYPE_ARRAY as i32)) {
+          arr_tr = arg.resolved_type_ref;
+          arr_sz = pipeline_type_array_size_at(arena, arr_tr);
+        }
+      }
+      if (arr_sz <= 0 && ctx != 0 as *PipelineDepCtx) {
+        let br: i32 = 0;
+        if (ctx.current_codegen_module != 0 as *Module && ctx.current_func_index >= 0) {
+          br = pipeline_module_func_body_ref_at(ctx.current_codegen_module, ctx.current_func_index);
+        }
+        if (ast.ref_is_null(br) || br <= 0 || br > arena.num_blocks) {
+          br = ctx.current_block_ref;
+        }
+        if (!ast.ref_is_null(br) && br > 0 && br <= arena.num_blocks) {
+          let nlets: i32 = ast.ast_block_num_lets(arena, br);
+          let li: i32 = 0;
+          while (li < nlets) {
+            let nl: i32 = pipeline_block_let_name_len(arena, br, li);
+            if (nl == arg.var_name_len && nl > 0) {
+              let nb: u8[64] = [];
+              pipeline_block_let_name_copy64(arena, br, li, &nb[0]);
+              let eq: bool = true;
+              let j2: i32 = 0;
+              while (j2 < nl && j2 < 64) {
+                if (nb[j2] != arg.var_name[j2]) {
+                  eq = false;
+                  break;
+                }
+                j2 = j2 + 1;
+              }
+              if (eq) {
+                let tr: i32 = pipeline_block_let_type_ref(arena, br, li);
+                if (pipeline_type_kind_ord_at(arena, tr) == (TypeKind.TYPE_ARRAY as i32)) {
+                  arr_tr = tr;
+                  arr_sz = pipeline_type_array_size_at(arena, tr);
+                }
+              }
+            }
+            li = li + 1;
+          }
+        }
+      }
+      if (arr_sz > 0) {
+        /* &(( */
+        let open: u8[4] = [38, 40, 40, 0];
+        if (emit_bytes_from_ptr(out, &open[0], 3) != 0) {
+          return -1;
+        }
+        /* struct xlang_slice_<elem>_t — map known elems; default int32_t. */
+        elem_tr = 0;
+        if (arr_tr > 0) {
+          elem_tr = pipeline_type_elem_ref_at(arena, arr_tr);
+        }
+        let ek: i32 = -1;
+        if (elem_tr > 0) {
+          ek = pipeline_type_kind_ord_at(arena, elem_tr);
+        }
+        /* struct xlang_slice_ */
+        let pref: u8[20] = [
+          115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0
+        ];
+        if (emit_bytes_from_ptr(out, &pref[0], 19) != 0) {
+          return -1;
+        }
+        if (ek == (TypeKind.TYPE_U8 as i32)) {
+          let e: u8[8] = [117, 105, 110, 116, 56, 95, 116, 0];
+          if (emit_bytes_from_ptr(out, &e[0], 7) != 0) {
+            return -1;
+          }
+        } else if (ek == (TypeKind.TYPE_U64 as i32)) {
+          let e: u8[10] = [117, 105, 110, 116, 54, 52, 95, 116, 0, 0];
+          if (emit_bytes_from_ptr(out, &e[0], 8) != 0) {
+            return -1;
+          }
+        } else if (ek == (TypeKind.TYPE_USIZE as i32)) {
+          let e: u8[8] = [115, 105, 122, 101, 95, 116, 0, 0];
+          if (emit_bytes_from_ptr(out, &e[0], 6) != 0) {
+            return -1;
+          }
+        } else {
+          /* int32_t (TYPE_I32 and fallback) */
+          let e: u8[10] = [105, 110, 116, 51, 50, 95, 116, 0, 0, 0];
+          if (emit_bytes_from_ptr(out, &e[0], 7) != 0) {
+            return -1;
+          }
+        }
+        /* ){ .data =  */
+        let mid1: u8[14] = [41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 0, 0, 0];
+        if (emit_bytes_from_ptr(out, &mid1[0], 11) != 0) {
+          return -1;
+        }
+        if (emit_bytes_64(out, &arg.var_name[0], arg.var_name_len) != 0) {
+          return -1;
+        }
+        /* , .length =  */
+        let mid2: u8[14] = [44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0];
+        if (emit_bytes_from_ptr(out, &mid2[0], 12) != 0) {
+          return -1;
+        }
+        if (format_int(out, arr_sz as i64) != 0) {
+          return -1;
+        }
+        /*  })  — `}` closes compound body; `)` closes outer `&(`  */
+        let close: u8[4] = [32, 125, 41, 0];
+        if (emit_bytes_from_ptr(out, &close[0], 3) != 0) {
+          return -1;
+        }
+        return 0;
       }
     }
     /* Local / rvalue slice → &(arg) for pointer param ABI. */
