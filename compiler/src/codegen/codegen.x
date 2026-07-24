@@ -2190,7 +2190,7 @@ export extern function codegen_next_host_call_array_tmp_id(): i32;
 
 /**
  * wave409 Cap residual pure: finish TYPE_SLICE let from CALL/METHOD with frame deep-copy.
- * Type+name already written. Emits `; E __xlang_ldN[512]; { S __sp = call; copy; name=fat(ld); }`.
+ * Type+name already written. Emits `; E __xlang_ldN[1024]; { S __sp = call; copy; name=fat(ld); }`.
  * Fixes true recursion last-wins on callee static `__xlang_al` (walk 18→36).
  * Authority body in seed codegen_gen (G.7 twin of freestanding glue reent deep-copy).
  * @param arena *ASTArena — type/elem lookup
@@ -2223,7 +2223,7 @@ export extern function codegen_emit_slice_let_reent_finish(arena: *ASTArena, out
  * wave400: ARRAY_LIT as TYPE_SLICE formal uses wave345 `__xlang_sp` materialize
  * (not bare `&(rvalue compound)`) so host-C BLD001 closes; dual lit formals OK.
  * wave406: CALL/METHOD returning TYPE_SLICE as formal deep-copies payload into
- * unique `__xlang_sdN[512]` so dual same-call formals do not both alias callee
+ * unique `__xlang_sdN[1024]` so dual same-call formals do not both alias callee
  * static `__xlang_al` (host sum2(take(1),take(2)) 72→69). ARRAY_LIT path stays
  * fat-only (each lit has its own block-static). Soft residual: true recursion /
  * heap-free reentrancy beyond dual same-call still last-wins on static temps.
@@ -2601,12 +2601,12 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
        */
       if (arg.kind == ExprKind.EXPR_CALL || arg.kind == ExprKind.EXPR_METHOD_CALL) {
         /*
-         * ({ static S __xlang_spN; static E __xlang_sdN[512]; size_t __xlang_snN;
-         *    size_t __xlang_siN; __xlang_spN = <call>; __xlang_snN = min(len,512);
+         * ({ static S __xlang_spN; static E __xlang_sdN[1024]; size_t __xlang_snN;
+         *    size_t __xlang_siN; __xlang_spN = <call>; __xlang_snN = min(len,1024);
          *    for (...) __xlang_sdN[i] = __xlang_spN.data[i];
          *    __xlang_spN.data = __xlang_sdN; __xlang_spN.length = __xlang_snN;
          *    &__xlang_spN; })
-         * PLATFORM: SHARED host-C. Cap 512 matches host TYPE_ARRAY return bound.
+         * PLATFORM: SHARED host-C. Cap 1024 (wave418; twin freestanding max_n).
          */
         let ty_ref: i32 = arg.resolved_type_ref;
         let tid: i32 = codegen_next_host_call_array_tmp_id();
@@ -2660,11 +2660,11 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
         if (format_int(out, tid as i64) != 0) {
           return -1;
         }
-        /* [512]; size_t __xlang_sn */
+        /* [1024]; size_t __xlang_sn */
         let sd_mid: u8[28] = [
-          91, 53, 49, 50, 93, 59, 32, 115, 105, 122, 101, 95, 116, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0, 0, 0, 0
+          91, 49, 48, 50, 52, 93, 59, 32, 115, 105, 122, 101, 95, 116, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0, 0
         ];
-        if (emit_bytes_from_ptr(out, &sd_mid[0], 24) != 0) {
+        if (emit_bytes_from_ptr(out, &sd_mid[0], 25) != 0) {
           return -1;
         }
         if (format_int(out, tid as i64) != 0) {
@@ -2722,21 +2722,21 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
         if (format_int(out, tid as i64) != 0) {
           return -1;
         }
-        /*  > 512) __xlang_sn */
+        /*  > 1024) __xlang_sn */
         let sn_cap: u8[20] = [
-          32, 62, 32, 53, 49, 50, 41, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0, 0
+          32, 62, 32, 49, 48, 50, 52, 41, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0
         ];
-        if (emit_bytes_from_ptr(out, &sn_cap[0], 18) != 0) {
+        if (emit_bytes_from_ptr(out, &sn_cap[0], 19) != 0) {
           return -1;
         }
         if (format_int(out, tid as i64) != 0) {
           return -1;
         }
-        /*  = 512; for (__xlang_si */
+        /*  = 1024; for (__xlang_si */
         let for_open: u8[28] = [
-          32, 61, 32, 53, 49, 50, 59, 32, 102, 111, 114, 32, 40, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105, 0, 0, 0, 0, 0
+          32, 61, 32, 49, 48, 50, 52, 59, 32, 102, 111, 114, 32, 40, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105, 0, 0, 0
         ];
-        if (emit_bytes_from_ptr(out, &for_open[0], 23) != 0) {
+        if (emit_bytes_from_ptr(out, &for_open[0], 24) != 0) {
           return -1;
         }
         if (format_int(out, tid as i64) != 0) {
