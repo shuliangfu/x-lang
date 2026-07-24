@@ -3687,7 +3687,8 @@ static int32_t glue_field_access_effective_offset_c(struct ast_ASTArena *arena, 
 static int32_t glue_call_return_byte_size_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
 static int32_t glue_store_retval_pair_to_rbp_elf_c(struct ast_Module *m, struct ast_ASTArena *arena,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ty_ref,
-                                                   int32_t slot_off, int32_t ta, int32_t init_ref);
+                                                   int32_t slot_off, int32_t ta, int32_t init_ref,
+                                                   struct backend_AsmFuncCtx *ctx);
 static struct ast_Module *glue_emit_module_from_ctx(struct backend_AsmFuncCtx *ctx);
 void pipeline_asm_emit_set_call_sret_reg_shift_c(int32_t shift);
 
@@ -5903,10 +5904,12 @@ extern int32_t try_inline_var_field_sum_binop_elf(struct ast_ASTArena *arena,
 
 /**
  * CALL/expr 结果落 let 栈槽：SysV x86 对 9–16B struct 写 rax+rdx 两段。
+ * wave409: ctx required for TYPE_SLICE CALL/METHOD reent deep-copy frame alloc.
  */
 static int32_t glue_store_retval_pair_to_rbp_elf_c(struct ast_Module *m, struct ast_ASTArena *arena,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ty_ref,
-                                                   int32_t slot_off, int32_t ta, int32_t init_ref);
+                                                   int32_t slot_off, int32_t ta, int32_t init_ref,
+                                                   struct backend_AsmFuncCtx *ctx);
 static int32_t glue_deref_struct16_rax_ptr_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 static int32_t glue_call_struct16_ret_needs_rax_deref_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
 #define glue_deref_struct16_rax_ptr_elf_c pipeline_asm_deref_struct16_rax_ptr_elf_c
@@ -6030,7 +6033,7 @@ static int32_t glue_emit_struct_type_let_init_elf_c(struct ast_ASTArena *arena,
     if (emit_rc != 0)
       return -1;
     if (glue_store_retval_pair_to_rbp_elf_c(glue_emit_module_from_ctx(ctx), arena, elf_ctx, let_ty_ref,
-                                            stack_slot_off, ta, init_ref) != 0)
+                                            stack_slot_off, ta, init_ref, ctx) != 0)
       return -1;
     return 0;
   }
@@ -18556,9 +18559,154 @@ static int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t
   return 0;
 }
 
+/**
+ * wave409 Cap residual pure: freestanding TYPE_SLICE let from CALL/METHOD reentrancy.
+ * After dual-GP is stored at home (data@slot_off + length half), deep-copy payload into
+ * a *caller-frame* buffer and retarget fat.data. Root: durable ARRAY_LIT return uses
+ * per-function static/COMMON — recursive `let s=mk(n); walk(n-1); use(s)` last-wins
+ * (host+fs walk run=18≠36). G.7 twin of host codegen_emit_slice_let_reent_finish.
+ * Unrolled max_n=64 with runtime length gate (wave342 escape pattern). PLATFORM: SHARED.
+ *
+ * @param home fat data home (slot_off from store_retval_pair)
+ * @return 0 success; -1 hard fail
+ */
+static int32_t glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
+    struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+    struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t home, int32_t ty_ref) {
+  const int32_t max_n = 64;
+  int32_t esz = 4;
+  int32_t elem_tr = 0;
+  int32_t payload_off;
+  int32_t past;
+  int32_t ai;
+  int32_t end_len;
+  uint8_t end_lbl[32];
+  pipeline_glue_AsmFuncCtxLayout *ly;
+
+  if (!arena || !elf_ctx || !ctx || home < 0 || ty_ref <= 0)
+    return -1;
+  ly = pipeline_asm_ctx_layout(ctx);
+  if (!ly)
+    return -1;
+  elem_tr = pipeline_type_elem_ref_at(arena, ty_ref);
+  if (elem_tr > 0)
+    esz = glue_index_elem_byte_sz_from_type_ref_c(arena, elem_tr);
+  if (esz != 1 && esz != 2 && esz != 4 && esz != 8)
+    esz = 4;
+  {
+    int32_t base = ly->next_offset;
+    if ((base % 8) != 0)
+      base = (base + 7) / 8 * 8;
+    /*
+     * Frame layout: fat already at home; payload is fresh stack.
+     * MACOS|ARM64: payload grows positive from base.
+     * LINUX|x86: payload_off is high end (i=0 at payload_off, grow toward lower).
+     */
+    if (ta == 1) {
+      payload_off = base;
+      past = payload_off + max_n * esz;
+    } else {
+      payload_off = base + max_n * esz;
+      if ((payload_off % 8) != 0)
+        payload_off = (payload_off + 7) / 8 * 8;
+      past = payload_off;
+    }
+    if (past < base)
+      return -1;
+    ly->next_offset = past;
+    glue_align_next_offset(ctx);
+  }
+  end_len = pipeline_asm_emit_next_label_c(ctx, end_lbl, 32);
+  if (end_len <= 0)
+    return -1;
+  /*
+   * for ai in 0..max_n-1: if ai >= length → done; else copy elem ai.
+   * Use jge (SHARED arm64+x86) not jle (x86-only → CG002 on MACOS|ARM64).
+   * Gate: cmp ai, length; jge end  ≡  length <= ai.
+   */
+  for (ai = 0; ai < max_n; ai++) {
+    /* rax = ai; rbx = length; cmp; jge end when ai >= length */
+    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, ai, 0, ta) != 0)
+      return -1;
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) /* park ai */
+      return -1;
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, glue_slice_dual_gp_length_off_c(home, ta), ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) /* rbx = length */
+      return -1;
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) /* rax = ai */
+      return -1;
+    if (backend_enc_cmp_rax_rbx_arch(elf_ctx, ta) != 0) /* ai ? length */
+      return -1;
+    if (backend_enc_jge_arch(elf_ctx, end_lbl, end_len, ta) != 0) /* ai >= length → done */
+      return -1;
+    /* load src[ai] from fat.data */
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
+      return -1;
+    if (ai * esz != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, ai * esz, ta) != 0)
+      return -1;
+    if (esz == 1) {
+      if (backend_enc_load_zext8_from_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+    } else if (esz == 8) {
+      if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+    } else {
+      if (backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+    }
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, payload_off, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, ai * esz, esz, ta) != 0)
+      return -1;
+  }
+  if (backend_enc_label_arch(elf_ctx, end_lbl, end_len, 0, ta) != 0)
+    return -1;
+  /* cap length if > max_n: if max_n >= length keep; else store max_n.
+   * cmp max_n, length; jge keep (max_n >= length). */
+  if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, max_n, 0, ta) != 0)
+    return -1;
+  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, glue_slice_dual_gp_length_off_c(home, ta), ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) /* rbx = length */
+    return -1;
+  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) /* rax = max_n */
+    return -1;
+  if (backend_enc_cmp_rax_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  {
+    uint8_t keep_lbl[32];
+    int32_t keep_len = pipeline_asm_emit_next_label_c(ctx, keep_lbl, 32);
+    if (keep_len <= 0)
+      return -1;
+    if (backend_enc_jge_arch(elf_ctx, keep_lbl, keep_len, ta) != 0) /* max_n >= length → keep */
+      return -1;
+    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, max_n, 0, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(home, ta), ta) != 0)
+      return -1;
+    if (backend_enc_label_arch(elf_ctx, keep_lbl, keep_len, 0, ta) != 0)
+      return -1;
+  }
+  if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, payload_off, ta) != 0)
+    return -1;
+  if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+    return -1;
+  return 0;
+}
+
 static int32_t glue_store_retval_pair_to_rbp_elf_c(struct ast_Module *m, struct ast_ASTArena *arena,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ty_ref,
-                                                   int32_t slot_off, int32_t ta, int32_t init_ref) {
+                                                   int32_t slot_off, int32_t ta, int32_t init_ref,
+                                                   struct backend_AsmFuncCtx *ctx) {
   int32_t sz;
   if (!elf_ctx)
     return -1;
@@ -18588,12 +18736,22 @@ static int32_t glue_store_retval_pair_to_rbp_elf_c(struct ast_Module *m, struct 
    * Authority (G.7): same dual store as assign wave331 / call-arg wave345;
    * length half via glue_slice_dual_gp_length_off_c (arm64 home+8, x86 home-8).
    * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+   *
+   * wave409: CALL/METHOD init → frame deep-copy (true recursion reentrancy).
+   * Dual-GP alone leaves .data → callee static/COMMON last-wins across recurse.
    */
   if (arena && ty_ref > 0 &&
       pipeline_type_kind_ord_at(arena, ty_ref) == (int32_t)ast_TypeKind_TYPE_SLICE) {
     if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(slot_off, ta),
                                            ta) != 0)
       return -1;
+    if (ctx && init_ref > 0 &&
+        (pipeline_expr_kind_ord_at(arena, init_ref) == (int32_t)ast_ExprKind_EXPR_CALL ||
+         pipeline_expr_kind_ord_at(arena, init_ref) == (int32_t)ast_ExprKind_EXPR_METHOD_CALL)) {
+      if (glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(arena, elf_ctx, ctx, ta, slot_off, ty_ref) !=
+          0)
+        return -1;
+    }
     return 0;
   }
   if (ta != 0 || !m || !arena || ty_ref <= 0)
@@ -20702,7 +20860,7 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
                   return -1;
                 if (glue_store_retval_pair_to_rbp_elf_c(glue_emit_module_from_ctx(ctx), arena, elf_ctx, let_ty2,
                                                          backend_asm_ctx_slot_offset(ctx, slot), ta,
-                                                         init_ref) != 0)
+                                                         init_ref, ctx) != 0)
                   return -1;
               }
             }
@@ -23600,7 +23758,8 @@ static int32_t glue_emit_block_stmt_order_let_const_elf(struct ast_ASTArena *are
                 return -1;
             }
             if (glue_store_retval_pair_to_rbp_elf_c(glue_emit_module_from_ctx(ctx), arena, elf_ctx, let_ty,
-                                                     backend_asm_ctx_slot_offset(ctx, slot), ta, init_ref) != 0)
+                                                     backend_asm_ctx_slot_offset(ctx, slot), ta, init_ref,
+                                                     ctx) != 0)
               return -1;
           }
         }

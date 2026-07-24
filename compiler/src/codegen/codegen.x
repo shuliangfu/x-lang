@@ -2189,6 +2189,24 @@ export extern function codegen_get_host_call_arg_param_ty(): i32;
 export extern function codegen_next_host_call_array_tmp_id(): i32;
 
 /**
+ * wave409 Cap residual pure: finish TYPE_SLICE let from CALL/METHOD with frame deep-copy.
+ * Type+name already written. Emits `; E __xlang_ldN[512]; { S __sp = call; copy; name=fat(ld); }`.
+ * Fixes true recursion last-wins on callee static `__xlang_al` (walk 18→36).
+ * Authority body in seed codegen_gen (G.7 twin of freestanding glue reent deep-copy).
+ * @param arena *ASTArena — type/elem lookup
+ * @param out *CodegenOutBuf — host-C text
+ * @param indent i32 — block indent
+ * @param name *u8 — let C name bytes
+ * @param name_len i32 — name length
+ * @param let_type_ref i32 — TYPE_SLICE type ref
+ * @param linit_ref i32 — CALL/METHOD init expr
+ * @param ctx *PipelineDepCtx — emit context
+ * @return i32 — 0 success, -1 fail
+ * PLATFORM: SHARED host-C
+ */
+export extern function codegen_emit_slice_let_reent_finish(arena: *ASTArena, out: *CodegenOutBuf, indent: i32, name: *u8, name_len: i32, let_type_ref: i32, linit_ref: i32, ctx: *PipelineDepCtx): i32;
+
+/**
  * Emit one call argument under seed/glue slice ABI (PLATFORM: SHARED).
  *
  * Why: TYPE_SLICE params lower as `struct xlang_slice_* *`. Locals stay by-value
@@ -10459,6 +10477,17 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
              */
             if (use_local_array != 0) {
               if (emit_local_fixed_array_let_finish(arena, out, indent, &emit_nm[0], emit_nml, linit_ref, ctx) != 0) {
+                return -1;
+              }
+            } else if (!ast.ref_is_null(let_type_ref) && pipeline_type_kind_ord_at(arena, let_type_ref) == 11
+                       && !ast.ref_is_null(linit_ref)
+                       && (pipeline_expr_kind_ord_at(arena, linit_ref) == 48
+                           || pipeline_expr_kind_ord_at(arena, linit_ref) == 49)) {
+              /*
+               * wave409: TYPE_SLICE let from CALL/METHOD — frame deep-copy (true reentrancy).
+               * Type+name already written; finish with ; buffer; { call; copy; name=fat }.
+               */
+              if (codegen_emit_slice_let_reent_finish(arena, out, indent, &emit_nm[0], emit_nml, let_type_ref, linit_ref, ctx) != 0) {
                 return -1;
               }
             } else {

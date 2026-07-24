@@ -1513,6 +1513,7 @@ extern int32_t codegen_emit_local_fixed_array_elem_type(struct ast_ASTArena * ar
 extern int32_t codegen_emit_local_fixed_array_suffix(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t type_ref);
 extern int32_t codegen_emit_local_fixed_array_let_finish(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t indent, uint8_t * name, int32_t name_len, int32_t linit_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t block_ref, int32_t let_idx, int32_t let_type_ref, int32_t linit_ref);
+extern int32_t codegen_emit_slice_let_reent_finish(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t indent, uint8_t * name, int32_t name_len, int32_t let_type_ref, int32_t linit_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_emit_braced_array_lit_init(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t init_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_emit_struct_field_type_via_pipeline(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t type_ref, uint8_t * struct_prefix, int32_t struct_prefix_len);
 extern int32_t codegen_should_skip_emit_struct_layout_for_abi_dup(uint8_t * name, int32_t name_len);
@@ -5242,6 +5243,267 @@ int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena * arena, 
     }
     return 1;
   }
+  return 0;
+}
+/**
+ * wave409 Cap residual pure: host-C TYPE_SLICE let from CALL/METHOD — frame deep-copy.
+ * Root: callee `return [n,…]` uses function-static `__xlang_al` (wave341 durable).
+ * `let s = mk(n); recurse(); use(s)` → all frames share one static → last-wins (walk 18≠36).
+ * G.7: after `Type name` is already written, finish as:
+ *   ; E __xlang_ldN[512]; { S __xlang_spN = call; copy min(len,512) into ld; name = fat(ld); }
+ * Stack payload (auto, not static) is reentrancy-safe across recursive frames of the same let site.
+ * Host twin of freestanding glue_slice_let_reent_deep_copy_after_dual_gp_elf_c.
+ * Soft: length > 512 truncates copy (same cap as wave406 call-arg). PLATFORM: SHARED host-C.
+ * @return 0 success; -1 emit fail. Caller must only invoke when init is CALL/METHOD + TYPE_SLICE.
+ */
+int32_t codegen_emit_slice_let_reent_finish(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out,
+                                             int32_t indent, uint8_t * name, int32_t name_len,
+                                             int32_t let_type_ref, int32_t linit_ref,
+                                             struct ast_PipelineDepCtx * ctx) {
+  int32_t tid;
+  int32_t elem_tr = 0;
+  /* ";\n" — close uninit fat decl (Type name already emitted). */
+  {
+    uint8_t scnl[4] = {59, 10, 0, 0};
+    if (codegen_emit_bytes_from_ptr(out, scnl, 2) != 0)
+      return -1;
+  }
+  tid = codegen_next_host_call_array_tmp_id();
+  if (!(ast_ref_is_null(let_type_ref)) && let_type_ref > 0 && let_type_ref <= arena->num_types)
+    elem_tr = pipeline_type_elem_ref_at(arena, let_type_ref);
+  /* E __xlang_ldN[512]; */
+  if (codegen_emit_indent(out, indent) != 0)
+    return -1;
+  if (elem_tr <= 0 || codegen_emit_type(arena, out, elem_tr, ((uint8_t *)(0)), 0, ctx) != 0) {
+    uint8_t fb_e[9] = {105, 110, 116, 51, 50, 95, 116, 0, 0}; /* int32_t */
+    if (codegen_emit_bytes_from_ptr(out, fb_e, 7) != 0)
+      return -1;
+  }
+  {
+    uint8_t ld_nm[14] = {32, 95, 95, 120, 108, 97, 110, 103, 95, 108, 100, 0, 0, 0}; /*  __xlang_ld */
+    if (codegen_emit_bytes_from_ptr(out, ld_nm, 11) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t ld_sz[12] = {91, 53, 49, 50, 93, 59, 10, 0, 0, 0, 0, 0}; /* [512];\n */
+    if (codegen_emit_bytes_from_ptr(out, ld_sz, 7) != 0)
+      return -1;
+  }
+  /* { */
+  if (codegen_emit_indent(out, indent) != 0)
+    return -1;
+  if (codegen_append_byte(out, 123) != 0) /* { */
+    return -1;
+  if (codegen_append_byte(out, 10) != 0)
+    return -1;
+  /* S __xlang_spN = <call>; */
+  if (codegen_emit_indent(out, indent + 1) != 0)
+    return -1;
+  if (!(ast_ref_is_null(let_type_ref)) && let_type_ref > 0) {
+    if (codegen_emit_type(arena, out, let_type_ref, ((uint8_t *)(0)), 0, ctx) != 0)
+      return -1;
+  } else {
+    uint8_t fb[32] = {115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105,
+                      99, 101, 95, 105, 110, 116, 51, 50, 95, 116, 0, 0, 0, 0, 0, 0};
+    if (codegen_emit_bytes_from_ptr(out, fb, 26) != 0)
+      return -1;
+  }
+  {
+    uint8_t sp_nm[14] = {32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0, 0, 0}; /*  __xlang_sp */
+    if (codegen_emit_bytes_from_ptr(out, sp_nm, 11) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t eq[4] = {32, 61, 32, 0};
+    if (codegen_emit_bytes_4(out, eq, 3) != 0)
+      return -1;
+  }
+  if (codegen_emit_expr(arena, out, linit_ref, ctx) != 0)
+    return -1;
+  {
+    uint8_t sc[4] = {59, 10, 0, 0};
+    if (codegen_emit_bytes_from_ptr(out, sc, 2) != 0)
+      return -1;
+  }
+  /* size_t __xlang_snN = __xlang_spN.length; */
+  if (codegen_emit_indent(out, indent + 1) != 0)
+    return -1;
+  {
+    uint8_t sn_decl[28] = {115, 105, 122, 101, 95, 116, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115,
+                           110, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; /* size_t __xlang_sn */
+    if (codegen_emit_bytes_from_ptr(out, sn_decl, 17) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t sn_eq[16] = {32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0, 0, 0}; /*  = __xlang_sp */
+    if (codegen_emit_bytes_from_ptr(out, sn_eq, 13) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t sn_len[16] = {46, 108, 101, 110, 103, 116, 104, 59, 10, 0, 0, 0, 0, 0, 0, 0}; /* .length;\n */
+    if (codegen_emit_bytes_from_ptr(out, sn_len, 9) != 0)
+      return -1;
+  }
+  /* if (__xlang_snN > 512) __xlang_snN = 512; */
+  if (codegen_emit_indent(out, indent + 1) != 0)
+    return -1;
+  {
+    uint8_t if_h[20] = {105, 102, 32, 40, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0, 0, 0, 0, 0, 0}; /* if (__xlang_sn */
+    if (codegen_emit_bytes_from_ptr(out, if_h, 14) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t if_m[28] = {32, 62, 32, 53, 49, 50, 41, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    if (codegen_emit_bytes_from_ptr(out, if_m, 18) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t if_t[12] = {32, 61, 32, 53, 49, 50, 59, 10, 0, 0, 0, 0}; /*  = 512;\n */
+    if (codegen_emit_bytes_from_ptr(out, if_t, 8) != 0)
+      return -1;
+  }
+  /* size_t __xlang_siN; for (__xlang_siN = 0; __xlang_siN < __xlang_snN; __xlang_siN++) */
+  if (codegen_emit_indent(out, indent + 1) != 0)
+    return -1;
+  {
+    uint8_t si_decl[28] = {115, 105, 122, 101, 95, 116, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115,
+                           105, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; /* size_t __xlang_si */
+    if (codegen_emit_bytes_from_ptr(out, si_decl, 17) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t for_h[12] = {59, 32, 102, 111, 114, 32, 40, 95, 95, 120, 108, 97}; /* ; for (__xla */
+    uint8_t for_h2[8] = {110, 103, 95, 115, 105, 0, 0, 0}; /* ng_si */
+    if (codegen_emit_bytes_from_ptr(out, for_h, 12) != 0)
+      return -1;
+    if (codegen_emit_bytes_from_ptr(out, for_h2, 5) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t for_m1[16] = {32, 61, 32, 48, 59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105}; /*  = 0; __xlang_si */
+    if (codegen_emit_bytes_from_ptr(out, for_m1, 16) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t for_m2[16] = {32, 60, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0, 0, 0}; /*  < __xlang_sn */
+    if (codegen_emit_bytes_from_ptr(out, for_m2, 13) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t for_m3[16] = {59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105, 0, 0, 0, 0}; /* ; __xlang_si */
+    if (codegen_emit_bytes_from_ptr(out, for_m3, 12) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t for_body[20] = {43, 43, 41, 32, 95, 95, 120, 108, 97, 110, 103, 95, 108, 100, 0, 0, 0, 0, 0, 0}; /* ++) __xlang_ld */
+    if (codegen_emit_bytes_from_ptr(out, for_body, 14) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t idx_o[16] = {91, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105, 0, 0, 0, 0, 0}; /* [__xlang_si */
+    if (codegen_emit_bytes_from_ptr(out, idx_o, 11) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t copy_m[20] = {93, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0, 0, 0, 0, 0, 0}; /* ] = __xlang_sp */
+    if (codegen_emit_bytes_from_ptr(out, copy_m, 14) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t data_i[24] = {46, 100, 97, 116, 97, 91, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105, 0, 0, 0, 0, 0, 0, 0, 0};
+    if (codegen_emit_bytes_from_ptr(out, data_i, 16) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t after[8] = {93, 59, 10, 0, 0, 0, 0, 0}; /* ];\n */
+    if (codegen_emit_bytes_from_ptr(out, after, 3) != 0)
+      return -1;
+  }
+  /* name = (S){ .data = __xlang_ldN, .length = __xlang_spN.length }; */
+  if (codegen_emit_indent(out, indent + 1) != 0)
+    return -1;
+  if (name_len > 0 && name != ((uint8_t *)(0))) {
+    if (codegen_emit_bytes_64(out, name, name_len) != 0)
+      return -1;
+  } else {
+    uint8_t fb_nm[4] = {95, 108, 0, 0};
+    if (codegen_emit_bytes_from_ptr(out, fb_nm, 2) != 0)
+      return -1;
+  }
+  {
+    uint8_t eq[4] = {32, 61, 32, 0};
+    if (codegen_emit_bytes_4(out, eq, 3) != 0)
+      return -1;
+  }
+  if (codegen_append_byte(out, 40) != 0) /* ( */
+    return -1;
+  if (!(ast_ref_is_null(let_type_ref)) && let_type_ref > 0) {
+    if (codegen_emit_type(arena, out, let_type_ref, ((uint8_t *)(0)), 0, ctx) != 0)
+      return -1;
+  } else {
+    uint8_t fb[32] = {115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105,
+                      99, 101, 95, 105, 110, 116, 51, 50, 95, 116, 0, 0, 0, 0, 0, 0};
+    if (codegen_emit_bytes_from_ptr(out, fb, 26) != 0)
+      return -1;
+  }
+  {
+    uint8_t fat_mid[28] = {41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 95, 95, 120, 108, 97,
+                           110, 103, 95, 108, 100, 0, 0, 0, 0, 0, 0, 0}; /* ){ .data = __xlang_ld */
+    if (codegen_emit_bytes_from_ptr(out, fat_mid, 21) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t len_asg[28] = {44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 95, 95, 120, 108,
+                           97, 110, 103, 95, 115, 112, 0, 0, 0, 0, 0, 0}; /* , .length = __xlang_sp */
+    if (codegen_emit_bytes_from_ptr(out, len_asg, 22) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t end_fat[16] = {46, 108, 101, 110, 103, 116, 104, 32, 125, 59, 10, 0, 0, 0, 0, 0}; /* .length };\n */
+    if (codegen_emit_bytes_from_ptr(out, end_fat, 11) != 0)
+      return -1;
+  }
+  /* } */
+  if (codegen_emit_indent(out, indent) != 0)
+    return -1;
+  if (codegen_append_byte(out, 125) != 0)
+    return -1;
+  if (codegen_append_byte(out, 10) != 0)
+    return -1;
   return 0;
 }
 /* PLATFORM: SHARED — STRUCT_LIT array-field type lookup (parser M1 host-cc array-init).
@@ -10599,6 +10861,18 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
                   if ((codegen_emit_local_fixed_array_let_finish(arena, out, indent, &((emit_nm)[0]), emit_nml, linit_ref, ctx) !=0)) {
                     return -(1);
                   }
+                } else if ((!(ast_ref_is_null(let_type_ref)) && (pipeline_type_kind_ord_at(arena, let_type_ref) == 11) &&
+                            !(ast_ref_is_null(linit_ref)) &&
+                            ((pipeline_expr_kind_ord_at(arena, linit_ref) == 48) ||
+                             (pipeline_expr_kind_ord_at(arena, linit_ref) == 49)))) {
+                  /*
+                   * wave409: TYPE_SLICE let from CALL/METHOD — frame deep-copy (true reentrancy).
+                   * Type+name already written; finish with ; buffer; { call; copy; name=fat }.
+                   */
+                  if ((codegen_emit_slice_let_reent_finish(arena, out, indent, &((emit_nm)[0]), emit_nml,
+                                                            let_type_ref, linit_ref, ctx) != 0)) {
+                    return -(1);
+                  }
                 } else {
                   uint8_t eq[4] = {32, 61, 32, 0};
                   if ((codegen_emit_bytes_4(out, eq, 3) !=0)) {
@@ -11131,6 +11405,15 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
         }
         if ((use_local_array !=0)) {
           if ((codegen_emit_local_fixed_array_let_finish(arena, out, indent, &((emit_nm_fb)[0]), emit_nml_fb, linit_fb, ctx) !=0)) {
+            return -(1);
+          }
+        } else if ((!(ast_ref_is_null(let_type_ref)) && (pipeline_type_kind_ord_at(arena, let_type_ref) == 11) &&
+                    !(ast_ref_is_null(linit_fb)) &&
+                    ((pipeline_expr_kind_ord_at(arena, linit_fb) == 48) ||
+                     (pipeline_expr_kind_ord_at(arena, linit_fb) == 49)))) {
+          /* wave409: fb path TYPE_SLICE let from CALL/METHOD reent deep-copy. */
+          if ((codegen_emit_slice_let_reent_finish(arena, out, indent, &((emit_nm_fb)[0]), emit_nml_fb,
+                                                    let_type_ref, linit_fb, ctx) != 0)) {
             return -(1);
           }
         } else {
