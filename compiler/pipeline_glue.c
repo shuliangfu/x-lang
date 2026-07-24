@@ -4742,6 +4742,9 @@ int32_t pipeline_asm_emit_func_param_is_indirect_struct_slot_c(struct ast_ASTAre
 
 /**
  * 局部 VAR 槽是否须 load 槽内指针（*T 形参 / T[N] 形参传址 / 块内 let *T）；resolved 缺失时按 stack_off 回落形参表。
+ * wave332c: TYPE_SLICE formal is `struct xlang_slice_* *` (codegen.x); local let is by-value fat.
+ * Without this, a.length / a[i] on slice params lea the pointer slot and read stack junk
+ * (Ubuntu freestanding sum([1,2,3]) / len(b) residual after call-arg stamp).
  */
 static int32_t glue_local_var_slot_needs_ptr_load_elf_c(struct ast_ASTArena *arena, int32_t var_expr_ref,
                                                          int32_t stack_off, struct backend_AsmFuncCtx *ctx) {
@@ -4758,6 +4761,23 @@ static int32_t glue_local_var_slot_needs_ptr_load_elf_c(struct ast_ASTArena *are
   if (mod && g_pipeline_asm_emit_func_index >= 0 &&
       glue_stack_off_is_emit_param_ptr_slot_c(arena, mod, g_pipeline_asm_emit_func_index, stack_off) != 0)
     return 1;
+  /*
+   * PLATFORM: SHARED — TYPE_SLICE params lower as pointers (1 GP home).
+   * Local TYPE_SLICE lets stay by-value dual-GP (needs_ptr_load=0).
+   * G.7: complete the *T / T[N] / T[] param pointer set.
+   */
+  if (mod && g_pipeline_asm_emit_func_index >= 0 && arena && var_expr_ref > 0 &&
+      pipeline_expr_kind_ord_at(arena, var_expr_ref) == (int32_t)ast_ExprKind_EXPR_VAR) {
+    uint8_t vname[64];
+    int32_t vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
+    int32_t pty;
+    if (vlen > 0 && vlen <= 63) {
+      pipeline_expr_var_name_into(arena, var_expr_ref, vname);
+      pty = pipeline_module_func_param_type_ref_for_name(mod, g_pipeline_asm_emit_func_index, vname, vlen);
+      if (pty > 0 && pipeline_type_kind_ord_at(arena, pty) == (int32_t)ast_TypeKind_TYPE_SLICE)
+        return 1;
+    }
+  }
   return 0;
 }
 
