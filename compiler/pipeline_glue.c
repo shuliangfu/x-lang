@@ -2794,7 +2794,34 @@ static int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
         slice_ty = rty;
       else if (sty > 0 && pipeline_type_kind_ord_at(arena, sty) == (int32_t)ast_TypeKind_TYPE_SLICE)
         slice_ty = sty;
-      if (slice_ty > 0) {
+      /*
+       * wave417: return ARRAY_LIT → TYPE_ARRAY also durable E* (host __xlang_ar twin).
+       * Prior only TYPE_SLICE took durable; TYPE_ARRAY fell to stack emit → dangle.
+       */
+      if (slice_ty == 0 && rty > 0 &&
+          pipeline_type_kind_ord_at(arena, rty) == (int32_t)ast_TypeKind_TYPE_ARRAY) {
+        int32_t n_arr = pipeline_expr_array_lit_num_elems_at(arena, ret_op);
+        int32_t force_esz = 0;
+        int32_t et = pipeline_type_elem_ref_at(arena, rty);
+        if (et > 0) {
+          int32_t ek = pipeline_type_kind_ord_at(arena, et);
+          if (ek == 2 || ek == 1)
+            force_esz = 1;
+          else if (ek == 0 || ek == 3 || ek == 13 || ek == 14)
+            force_esz = 4;
+          else if (ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 15)
+            force_esz = 8;
+        }
+        if (n_arr < 0 || n_arr > GLUE_ARRAY_LIT_MAX_ELEMS)
+          return -1;
+        if (glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, force_esz, ta, ctx) != 0) {
+          if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, ret_op, ctx, ta) != 0)
+            return -1;
+          if (n_arr > 0)
+            pipeline_asm_bump_next_offset_for_array_lit(arena, ret_op, ctx);
+        }
+        /* E* only in rax — no length half (TYPE_ARRAY return ABI). */
+      } else if (slice_ty > 0) {
         int32_t n_arr = pipeline_expr_array_lit_num_elems_at(arena, ret_op);
         int32_t durable = 0;
         int32_t force_esz = 0;
@@ -14486,6 +14513,17 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
         if (pty > 0 && pipeline_type_kind_ord_at(arena, pty) == GLUE_TYPE_KIND_F32_ORD)
           return glue_load_f32_var_slot_to_rax_elf_c(elf_ctx, arena, ctx, expr_ref, off, ta);
         /*
+         * wave417 Cap residual pure: T[N] formal home is E* (8B). Forward mid(a)
+         * must load the pointer only — glue_load_var_as_value would treat payload
+         * size 16 as dual-GP struct deref (Ubuntu mid: mov (%rbx); mov 8(%rbx);
+         * pass two GPs into sum which expects one E* → SIGSEGV). G.7: load home.
+         * PLATFORM: SHARED freestanding · LINUX gold + MACOS|ARM64.
+         */
+        if (g_pipeline_asm_emit_module &&
+            glue_emit_func_param_is_indirect_array_slot_c(arena, g_pipeline_asm_emit_module,
+                                                           expr_ref) != 0)
+          return backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta);
+        /*
          * PLATFORM: SHARED freestanding · LINUX gold + MACOS arm64 —
          * TYPE_SLICE formals lower as `struct xlang_slice_* *` (codegen.x authority).
          * Call sites must pass a fat*:
@@ -18416,11 +18454,23 @@ static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *
  */
 static int32_t glue_func_return_byte_size_c(struct ast_Module *mod, struct ast_ASTArena *arena, int32_t func_index) {
   int32_t rty;
+  int32_t k;
   if (!mod || !arena || func_index < 0 || func_index >= (int32_t)mod->num_funcs)
     return 0;
   rty = pipeline_module_func_return_type_at(mod, func_index);
   if (rty <= 0 || pipeline_type_kind_ord_at(arena, rty) == 15)
     return 0;
+  /*
+   * wave417 Cap residual pure: TYPE_ARRAY return is E* (wave352 host __xlang_ar /
+   * freestanding durable ptr in rax), not SysV MEMORY by-value of the payload.
+   * Root: glue_type_size_simple(T[N]) for i32[8]=32 → sret_active + stack ARRAY_LIT
+   * return → dangling after ret (Ubuntu ret_only SIGSEGV; host-C static green).
+   * G.7: same 8B ABI as TYPE_SLICE dual-GP data half / formal T[N] pointer home.
+   * PLATFORM: SHARED freestanding · LINUX gold + MACOS|ARM64.
+   */
+  k = pipeline_type_kind_ord_at(arena, rty);
+  if (k == (int32_t)ast_TypeKind_TYPE_ARRAY)
+    return 8;
   return glue_type_size_simple(mod, arena, rty, 0);
 }
 
@@ -18451,6 +18501,12 @@ static int32_t glue_call_return_byte_size_c(struct ast_ASTArena *arena, int32_t 
       rty = mapped;
   }
   sz_mod = g_pipeline_asm_emit_module ? g_pipeline_asm_emit_module : mod;
+  /*
+   * wave417: TYPE_ARRAY callee return is E* (8B), not payload size — match
+   * glue_func_return_byte_size_c so CALL side does not invent sret for make():T[N].
+   */
+  if (pipeline_type_kind_ord_at(arena, rty) == (int32_t)ast_TypeKind_TYPE_ARRAY)
+    return 8;
   sz = glue_type_size_simple(sz_mod, arena, rty, 0);
   if (sz <= 0)
     sz = glue_type_size_simple(mod, arena, rty, 0);
