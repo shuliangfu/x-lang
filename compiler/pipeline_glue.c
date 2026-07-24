@@ -3845,6 +3845,8 @@ static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *aren
  * - wave351 CALL (`Box { a: fill(n) }`) → materialize CALL into temp (G.7 reuse
  *   glue_store_retval_pair / sret let-init), then same element-wise from temp.
  *   Companion: WPO walks STRUCT_LIT field inits (ast_pool) so fill is reachable.
+ * - wave354: also the authority for `let t: T[N] = b.a` / `= a` / `= fill(n)` (foff=0 into
+ *   let slot) and whole-array assign `t = b.a` — same element-wise copy; host-C uses memcpy.
  *
  * @return 0 handled; -1 error; -2 unsupported init (caller falls through)
  * PLATFORM: SHARED freestanding emit · LINUX gold · MACOS host-C uses braced expand
@@ -4003,6 +4005,8 @@ static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
   return -2;
 }
 
+/* wave354: glue_emit_fixed_array_type_let_init_elf_c defined after glue_type_is_fixed_array. */
+
 /** TYPE_VECTOR 的 lane 数与元素字节宽（与 asm_local_slot_bytes_mod 一致）。 */
 static int32_t glue_vector_type_lanes_esz_c(struct ast_ASTArena *arena, int32_t type_ref, int32_t *out_lanes,
                                             int32_t *out_esz) {
@@ -4085,6 +4089,32 @@ static int32_t glue_type_is_fixed_array(struct ast_ASTArena *arena, int32_t type
   if (!arena || type_ref <= 0)
     return 0;
   return pipeline_type_kind_ord_at(arena, type_ref) == GLUE_TYPE_KIND_ARRAY ? 1 : 0;
+}
+
+/**
+ * wave354 Cap residual pure: fixed TYPE_ARRAY local let init (asm freestanding).
+ *
+ * Root: only ARRAY_LIT went through vector_let_init; VAR/FIELD/CALL fell through to
+ * emit_expr + store 8B (pointer / first lane) into the array slot → Ubuntu
+ * freestanding `let t: T[N] = b.a` wrong sum (host-C memcpy already correct, wave353).
+ *
+ * G.7: thin wrapper over glue_struct_lit_store_fixed_array_field_elf_c with foff=0 /
+ * sret_direct=0 into the let slot (same element-wise authority as STRUCT_LIT fields).
+ *
+ * @return 0 handled; -1 error; -2 not a fixed array / unsupported init
+ * PLATFORM: SHARED freestanding emit · LINUX gold
+ */
+static int32_t glue_emit_fixed_array_type_let_init_elf_c(struct ast_ASTArena *arena,
+                                                         struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                         int32_t init_ref, struct backend_AsmFuncCtx *ctx,
+                                                         int32_t ta, int32_t type_ref,
+                                                         int32_t stack_slot_off) {
+  if (!arena || !elf_ctx || !ctx || init_ref <= 0 || type_ref <= 0)
+    return -2;
+  if (!glue_type_is_fixed_array(arena, type_ref))
+    return -2;
+  return glue_struct_lit_store_fixed_array_field_elf_c(arena, elf_ctx, init_ref, ctx, ta, 0,
+                                                       stack_slot_off, 0, type_ref);
 }
 
 /** 块内 let 是否为定长数组 T[N]。 */
@@ -11046,58 +11076,27 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
     }
     /*
      * wave334 Cap residual pure: TYPE_ARRAY whole-array assign (`a = [4,5,6]` / `a = b`).
+     * wave354: also `a = b.f` (FIELD) / `a = fill(n)` (CALL) — same element-wise authority.
      *
      * Root: generic path emit_array_lit → rax=temp-ptr then store_rax_to_rbp(off)
      * overwrites the first 8 bytes of the fixed array with that pointer (Ubuntu run
      * garbage / mac host-C rejects `int[N] = …` as not assignable).
      *
-     * Authority (G.7):
-     * - ARRAY_LIT → reuse pipeline_asm_emit_vector_let_init_elf_c (same as let-init:
-     *   write elems directly into LHS slot; no pointer store).
-     * - VAR → element-wise load/store. Slot base (positive rbp offset) is elem[0];
-     *   higher indices sit at *smaller* positive offsets (addresses grow up from
-     *   -base(%rbp) via +ai*esz stores in vector_let_init). load_rbp therefore uses
-     *   src_off - ai*esz. Store still uses lea(dst base) + +ai*esz (address math).
+     * Authority (G.7): glue_struct_lit_store_fixed_array_field_elf_c / fixed_array_type_let
+     * (ARRAY_LIT / VAR / FIELD / CALL → element-wise into LHS slot; no pointer store).
      * PLATFORM: SHARED freestanding emit · LINUX gold · MACOS host-C uses memcpy.
      */
     if (is_modlet == 0 && off >= 0 && ltk_pre == GLUE_TYPE_KIND_ARRAY &&
         pipeline_expr_kind_ord_at(arena, expr_ref) == (int32_t)ast_ExprKind_EXPR_ASSIGN) {
-      if (rko_pre == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT) {
-        if (pipeline_asm_emit_vector_let_init_elf_c(arena, elf_ctx, right_ref, ctx, ta, off) != 0)
-          return -1;
+      int32_t arr_st =
+          glue_emit_fixed_array_type_let_init_elf_c(arena, elf_ctx, right_ref, ctx, ta, ltr_pre, off);
+      if (arr_st == 0) {
         glue_binop_var_slot_cache_kill_def_at_slot(off);
         return 0;
       }
-      if (rko_pre == GLUE_EXPR_KIND_VAR) {
-        int32_t src_off;
-        int32_t n_arr;
-        int32_t esz;
-        int32_t ai;
-        int32_t elem_tr;
-        src_off = glue_var_expr_stack_off_elf_c(arena, ctx, right_ref);
-        if (src_off < 0)
-          return -1;
-        n_arr = pipeline_type_array_size_at(arena, ltr_pre);
-        if (n_arr <= 0 || n_arr > 256)
-          return -1;
-        elem_tr = pipeline_type_elem_ref_at(arena, ltr_pre);
-        esz = glue_index_elem_byte_sz_from_type_ref_c(arena, elem_tr);
-        if (esz <= 0)
-          esz = 4;
-        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta) != 0)
-          return -1;
-        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
-          return -1;
-        for (ai = 0; ai < n_arr; ai++) {
-          /* Positive slot: elem[i] at src_off - i*esz (see comment above). */
-          if (backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, src_off - ai * esz, esz, ta) != 0)
-            return -1;
-          if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, ai * esz, esz, ta) != 0)
-            return -1;
-        }
-        glue_binop_var_slot_cache_kill_def_at_slot(off);
-        return 0;
-      }
+      if (arr_st == -1)
+        return -1;
+      /* -2: fall through to generic assign (unsupported RHS for fixed array). */
     }
     if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
       return -1;
@@ -19005,12 +19004,26 @@ int32_t pipeline_asm_emit_block_inits_elf_c(struct ast_ASTArena *arena, struct p
       } else if (backend_enc_store_rax_to_rbp_arch(elf_ctx, backend_asm_ctx_slot_offset(ctx, slot), ta) != 0) {
         return -1;
       }
-    } else if (glue_block_let_is_fixed_array_type(arena, block_ref, i) &&
-               pipeline_expr_kind_ord_at(arena, init_ref) == 46) {
-      /** T[N] = [..]：逐元素直写内联栈槽，勿 temp 指针 + 后续 let 重叠。 */
-      if (pipeline_asm_emit_vector_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta,
-                                                  backend_asm_ctx_slot_offset(ctx, slot)) != 0)
+    } else if (glue_block_let_is_fixed_array_type(arena, block_ref, i)) {
+      /**
+       * wave354: T[N] = [..] / VAR / FIELD / CALL — element-wise into let slot.
+       * G.7: glue_emit_fixed_array_type_let_init_elf_c (reuses STRUCT_LIT field store).
+       * Prior: only ARRAY_LIT; FIELD fell through to 8B pointer store (Ubuntu fs wrong sum).
+       */
+      int32_t arr_st =
+          glue_emit_fixed_array_type_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, type_ref,
+                                                    backend_asm_ctx_slot_offset(ctx, slot));
+      if (arr_st == 0) {
+        /* fixed array payload written */
+      } else if (arr_st == -1) {
         return -1;
+      } else {
+        /* -2 unsupported fixed-array init — do not store pointer into array slot. */
+        if (link_abi_getenv("XLANG_ASM_DEBUG"))
+          fprintf(stderr, "xlang: fixed array let init unhandled block=%d i=%d init_ko=%d\n",
+                  (int)block_ref, (int)i, (int)pipeline_expr_kind_ord_at(arena, init_ref));
+        return -1;
+      }
     } else {
       int32_t slice_st = glue_emit_slice_from_array_let_init_elf_c(arena, elf_ctx, block_ref, i, init_ref,
                                                                    type_ref, ctx, ta,
@@ -19638,11 +19651,21 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
                 return -1;
               pipeline_asm_bump_next_offset_after_let_init(arena, block_ref, idx, 0, ctx);
             }
-          } else if (glue_block_let_is_fixed_array_type(arena, block_ref, idx) &&
-                     pipeline_expr_kind_ord_at(arena, init_ref) == 46) {
-            if (pipeline_asm_emit_vector_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta,
-                                                        backend_asm_ctx_slot_offset(ctx, slot)) != 0)
+          } else if (glue_block_let_is_fixed_array_type(arena, block_ref, idx)) {
+            /* wave354: T[N] = ARRAY_LIT/VAR/FIELD/CALL element-wise (G.7 fixed_array_type_let). */
+            int32_t arr_st = glue_emit_fixed_array_type_let_init_elf_c(
+                arena, elf_ctx, init_ref, ctx, ta, pipeline_block_let_type_ref(arena, block_ref, idx),
+                backend_asm_ctx_slot_offset(ctx, slot));
+            if (arr_st == 0) {
+              /* fixed array payload written */
+            } else if (arr_st == -1) {
               return -1;
+            } else {
+              if (link_abi_getenv("XLANG_ASM_DEBUG"))
+                fprintf(stderr, "xlang: fixed array let (body) unhandled block=%d idx=%d init_ko=%d\n",
+                        (int)block_ref, (int)idx, (int)pipeline_expr_kind_ord_at(arena, init_ref));
+              return -1;
+            }
           } else if (glue_block_let_is_simd_vector_type(arena, block_ref, idx)) {
             int32_t vtype_ref = pipeline_block_let_type_ref(arena, block_ref, idx);
             int32_t vst =
@@ -22460,11 +22483,21 @@ static int32_t glue_emit_block_stmt_order_let_const_elf(struct ast_ASTArena *are
             return -1;
           pipeline_asm_bump_next_offset_after_let_init(arena, block_ref, idx, 0, ctx);
         }
-      } else if (glue_block_let_is_fixed_array_type(arena, block_ref, idx) &&
-                 pipeline_expr_kind_ord_at(arena, init_ref) == 46) {
-        if (pipeline_asm_emit_vector_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta,
-                                                    backend_asm_ctx_slot_offset(ctx, slot)) != 0)
+      } else if (glue_block_let_is_fixed_array_type(arena, block_ref, idx)) {
+        /* wave354: T[N] = ARRAY_LIT/VAR/FIELD/CALL element-wise (G.7 fixed_array_type_let). */
+        int32_t arr_st = glue_emit_fixed_array_type_let_init_elf_c(
+            arena, elf_ctx, init_ref, ctx, ta, pipeline_block_let_type_ref(arena, block_ref, idx),
+            backend_asm_ctx_slot_offset(ctx, slot));
+        if (arr_st == 0) {
+          /* fixed array payload written */
+        } else if (arr_st == -1) {
           return -1;
+        } else {
+          if (link_abi_getenv("XLANG_ASM_DEBUG"))
+            fprintf(stderr, "xlang: fixed array let (stmt_order twin) unhandled block=%d idx=%d init_ko=%d\n",
+                    (int)block_ref, (int)idx, (int)pipeline_expr_kind_ord_at(arena, init_ref));
+          return -1;
+        }
       } else if (glue_block_let_is_simd_vector_type(arena, block_ref, idx)) {
         int32_t vtype_ref = pipeline_block_let_type_ref(arena, block_ref, idx);
         int32_t vst =
