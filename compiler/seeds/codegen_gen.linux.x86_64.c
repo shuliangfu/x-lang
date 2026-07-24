@@ -5191,7 +5191,9 @@ int32_t codegen_emit_module_struct_definitions(struct ast_Module * module, struc
     while ((k < (module->num_struct_layouts))) {
       int32_t nf = pipeline_module_struct_layout_num_fields(module, k);
       int32_t nl = pipeline_module_struct_layout_name_len(module, k);
-      if (((nf <=0) || (nl <=0))) {
+      /* wave365: nf==0 true empty struct Empty {} → emit `struct T {\n};\n` (host complete type).
+       * Prior `nf<=0` skip left only uses → incomplete type BLD001. PLATFORM: SHARED. */
+      if ((nl <=0)) {
         (void)((k = (k + 1)));
         continue;
       }
@@ -5302,9 +5304,9 @@ int32_t codegen_emit_module_struct_forward_declarations_ctx(struct ast_Module * 
       (void)((cur_di = (ctx->current_codegen_dep_index)));
     }
     while ((k < (module->num_struct_layouts))) {
-      int32_t nf = pipeline_module_struct_layout_num_fields(module, k);
       int32_t nl = pipeline_module_struct_layout_name_len(module, k);
-      if (((nf <=0) || (nl <=0))) {
+      /* wave365: forward-declare zero-field layouts too (name only). PLATFORM: SHARED. */
+      if ((nl <=0)) {
         (void)((k = (k + 1)));
         continue;
       }

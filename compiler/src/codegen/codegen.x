@@ -4481,7 +4481,14 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
     while (k < module.num_struct_layouts) {
       let nf: i32 = pipeline_module_struct_layout_num_fields(module, k);
       let nl: i32 = pipeline_module_struct_layout_name_len(module, k);
-      if (nf <= 0 || nl <= 0) {
+      /*
+       * wave365: allow nf == 0 (true empty `struct Empty {}`).
+       * Prior gate `nf <= 0` skipped zero-field layouts → host-C only used the tag
+       * (incomplete type / BLD001). Field loop is a no-op when nf == 0 → `struct T {\n};\n`.
+       * PLATFORM: SHARED — GNU empty struct (size 0 on clang/gcc); owner ranking still
+       * prefers nf > 0 over empty placeholders (codegen_type_dep_struct_owner_index).
+       */
+      if (nl <= 0) {
         k = k + 1;
         continue;
       }
@@ -4615,9 +4622,9 @@ export function codegen_emit_module_struct_forward_declarations_ctx(module: *Mod
       cur_di = ctx.current_codegen_dep_index;
     }
     while (k < module.num_struct_layouts) {
-      let nf: i32 = pipeline_module_struct_layout_num_fields(module, k);
       let nl: i32 = pipeline_module_struct_layout_name_len(module, k);
-      if (nf <= 0 || nl <= 0) {
+      /* wave365: forward-declare zero-field layouts too (only need a valid name). */
+      if (nl <= 0) {
         k = k + 1;
         continue;
       }
