@@ -692,6 +692,137 @@ static int32_t parser_asm_seed_commit_onefunc_c(void *arena, void *module, struc
 }
 
 /**
+ * wave390 Cap residual pure — type-start for impl for-type / inherent type.
+ * Accepts IDENT, built-in type keywords, and STAR (pointer peel one level).
+ * PLATFORM: SHARED parse.
+ */
+static int32_t parser_asm_seed_impl_type_start_kind_c(int32_t kind) {
+  if (kind == (int32_t)TOKEN_IDENT || kind == (int32_t)TOKEN_I32 || kind == (int32_t)TOKEN_I64
+      || kind == (int32_t)TOKEN_BOOL || kind == (int32_t)TOKEN_U8 || kind == (int32_t)TOKEN_U32
+      || kind == (int32_t)TOKEN_U64 || kind == (int32_t)TOKEN_USIZE || kind == (int32_t)TOKEN_ISIZE
+      || kind == (int32_t)TOKEN_F32 || kind == (int32_t)TOKEN_F64 || kind == (int32_t)TOKEN_VOID
+      || kind == (int32_t)TOKEN_STAR)
+    return 1;
+  return 0;
+}
+
+/**
+ * wave390 Cap residual pure — parse `impl [Trait for] Type { methods }` and hoist
+ * each method as a same-module free function (UFCS receiver.method).
+ *
+ * Root cause map:
+ * - Who produces: skip_one_impl discarded IDENT for-type bodies; type-keyword for-types
+ *   failed mid-header (required TOKEN_IDENT only) so methods leaked as top-level free
+ *   fns (i32/u64 accidental green; struct Box red).
+ * - Who stores: module.funcs via seed_commit_onefunc (same as top-level function).
+ * - Who consumes: typeck UFCS (wave358/360) + host/fs emit free method.
+ * G.7 authority: this seed parse_into_buf path (product parse_into_buf strong symbol).
+ * Soft leave-off: trait bounds / dyn Trait / missing-method diagnostics (tests stay).
+ * PLATFORM: SHARED parse · mac + Ubuntu L2.
+ *
+ * @return 0 success (lex_out past closing `}`); -1 failure (caller may fallback skip).
+ */
+static int32_t parser_asm_seed_parse_impl_and_add_c(void *arena, void *module, struct parser_asm_lexer lex,
+                                                     uint8_t *data, int32_t len, struct parser_asm_lexer *lex_out,
+                                                     int32_t *inout_main_idx) {
+  struct parser_asm_slice_u8 slice;
+  struct parser_asm_lexer_result r;
+  struct parser_asm_lexer body;
+  int32_t guard;
+  int32_t func_is_async;
+
+  if (!arena || !module || !data || len <= 0 || !lex_out)
+    return -1;
+  slice.data = data;
+  slice.length = (size_t)len;
+
+  r = lexer_next_buf(lex, data, len);
+  if (r.tok.kind != (int32_t)TOKEN_IMPL)
+    return -1;
+  parser_lex_from_next_into_glue(&lex, r);
+
+  /* Header: impl Trait for Type | impl Type */
+  r = lexer_next_buf(lex, data, len);
+  if (!parser_asm_seed_impl_type_start_kind_c(r.tok.kind))
+    return -1;
+  if (r.tok.kind == (int32_t)TOKEN_STAR) {
+    parser_lex_from_next_into_glue(&lex, r);
+    r = lexer_next_buf(lex, data, len);
+    if (!parser_asm_seed_impl_type_start_kind_c(r.tok.kind) || r.tok.kind == (int32_t)TOKEN_STAR)
+      return -1;
+  }
+  parser_lex_from_next_into_glue(&lex, r);
+  r = lexer_next_buf(lex, data, len);
+  if (r.tok.kind == (int32_t)TOKEN_FOR) {
+    parser_lex_from_next_into_glue(&lex, r);
+    r = lexer_next_buf(lex, data, len);
+    if (!parser_asm_seed_impl_type_start_kind_c(r.tok.kind))
+      return -1;
+    if (r.tok.kind == (int32_t)TOKEN_STAR) {
+      parser_lex_from_next_into_glue(&lex, r);
+      r = lexer_next_buf(lex, data, len);
+      if (!parser_asm_seed_impl_type_start_kind_c(r.tok.kind) || r.tok.kind == (int32_t)TOKEN_STAR)
+        return -1;
+    }
+    parser_lex_from_next_into_glue(&lex, r);
+    r = lexer_next_buf(lex, data, len);
+  }
+  if (r.tok.kind != (int32_t)TOKEN_LBRACE)
+    return -1;
+  /* Body interior starts at r.next_lex. */
+  body = r.next_lex;
+  guard = 0;
+  while (guard++ < 512) {
+    struct parser_asm_lexer fn_start;
+    struct parser_asm_onefunc_result res;
+    struct parser_asm_library_parse_result lib;
+
+    fn_start = body;
+    r = lexer_next_buf(body, data, len);
+    if (r.tok.kind == (int32_t)TOKEN_RBRACE) {
+      lex_out->pos = r.next_lex.pos;
+      lex_out->line = r.next_lex.line;
+      lex_out->col = r.next_lex.col;
+      return 0;
+    }
+    if (r.tok.kind == (int32_t)TOKEN_EOF)
+      return -1;
+    if (r.tok.kind != (int32_t)TOKEN_FUNCTION) {
+      /* Unknown item: fail closed (do not half-skip). */
+      return -1;
+    }
+    /* Same commit path as top-level function (library shape first, then onefunc). */
+    func_is_async = 0;
+    lib = parser_asm_parse_one_function_library_buf_c(arena, module, fn_start, data, len);
+    if (lib.ok) {
+      body = parser_lex_from_library_glue(lib);
+      continue;
+    }
+    res = parser_asm_seed_onefunc_wired_c(fn_start);
+    {
+      struct parser_asm_lexer fn_lex = fn_start;
+      parser_lex_from_next_into_glue(&fn_lex, r); /* after FUNCTION */
+      parser_parse_one_function_impl(&res, arena, fn_lex, &slice);
+    }
+    if (!res.ok)
+      parser_asm_parse_one_function_buf_into_c(&res, arena, fn_start, data, len);
+    if (!res.ok) {
+      parser_skip_one_function_full_into_buf_glue(&body, fn_start, data, len);
+      if (body.pos == fn_start.pos && body.pos < (size_t)len)
+        body.pos++;
+      continue;
+    }
+    if (parser_asm_seed_commit_onefunc_c(arena, module, &res, func_is_async, inout_main_idx, &body) != 0) {
+      parser_skip_one_function_full_into_buf_glue(&body, fn_start, data, len);
+      if (body.pos == fn_start.pos && body.pos < (size_t)len)
+        body.pos++;
+      continue;
+    }
+  }
+  return -1;
+}
+
+/**
  * seed parse_into_buf：collect_imports + 主循环 parse/skip（buf 路径）。
  */
 struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *arena, void *module, uint8_t *data,
@@ -1630,9 +1761,12 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
       continue;
     }
     if (r.tok.kind == (int32_t)TOKEN_IMPL) {
-      parser_skip_one_impl_into_buf_glue(&lex, iter_start, data, len);
-      if (lex.pos == iter_start.pos && lex.pos < (size_t)len)
-        lex.pos++;
+      /* wave390: hoist impl methods as free funcs (UFCS). Fallback skip on hard fail. */
+      if (parser_asm_seed_parse_impl_and_add_c(arena, module, iter_start, data, len, &lex, &main_idx) != 0) {
+        parser_skip_one_impl_into_buf_glue(&lex, iter_start, data, len);
+        if (lex.pos == iter_start.pos && lex.pos < (size_t)len)
+          lex.pos++;
+      }
       continue;
     }
     if (r.tok.kind == (int32_t)TOKEN_EXTERN) {

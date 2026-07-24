@@ -881,20 +881,24 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
 }
 
 /**
- * skip_one_impl_into：跳过一条顶层 impl 块，结果写入 *out。
+ * skip_one_impl_into：consume impl header only; leave method bodies for outer parse_into.
+ *
+ * wave390 Cap residual pure — root map:
+ * - Old byte-path skipped the whole brace block → IDENT for-type (struct) methods discarded.
+ * - Old token-path required for-type TOKEN_IDENT only → i32/u64 mid-fail leaked methods
+ *   as top-level free fns (accidental green); struct stayed red.
+ * - Fix: parse header (IDENT + type keywords + optional *T), then set *out to body
+ *   interior after `{`. Outer parse_into commits each `function` as free UFCS method;
+ *   trailing `}` is skipped as non-function noise.
+ * G.7 authority: this function (glue for parser.x + seed fallback).
+ * Soft: trait bounds / dyn / missing-method typeck still residual.
+ * PLATFORM: SHARED parse.
  */
 void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
                                            struct parser_asm_slice_u8 *source) {
   struct parser_asm_lexer_result r;
   if (!out || !source)
     return;
-  /** 字节级 skip 优先：impl 块内 function 不会被误当作顶层函数。 */
-  if (lex.pos + 4 <= source->length && source->data[lex.pos] == (uint8_t)'i'
-      && source->data[lex.pos + 1] == (uint8_t)'m' && source->data[lex.pos + 2] == (uint8_t)'p'
-      && source->data[lex.pos + 3] == (uint8_t)'l') {
-    parser_asm_skip_trait_impl_block_raw_c(out, lex, source);
-    return;
-  }
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_impl_header_audit_c(lex, source));
   lexer_next_into(&r, lex, source);
   if (r.tok.kind != (int32_t)TOKEN_IMPL) {
@@ -905,7 +909,13 @@ void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct 
   }
   parser_asm_lex_from_result_val_into(&lex, r);
   lexer_next_into(&r, lex, source);
-  if (r.tok.kind != (int32_t)TOKEN_IDENT) {
+  /* Trait name or inherent type: IDENT or built-in type keyword. */
+  if (r.tok.kind != (int32_t)TOKEN_IDENT && r.tok.kind != (int32_t)TOKEN_I32
+      && r.tok.kind != (int32_t)TOKEN_I64 && r.tok.kind != (int32_t)TOKEN_BOOL
+      && r.tok.kind != (int32_t)TOKEN_U8 && r.tok.kind != (int32_t)TOKEN_U32
+      && r.tok.kind != (int32_t)TOKEN_U64 && r.tok.kind != (int32_t)TOKEN_USIZE
+      && r.tok.kind != (int32_t)TOKEN_ISIZE && r.tok.kind != (int32_t)TOKEN_F32
+      && r.tok.kind != (int32_t)TOKEN_F64) {
     out->pos = lex.pos;
     out->line = lex.line;
     out->col = lex.col;
@@ -923,7 +933,16 @@ void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct 
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_trait_impl_type_deep_audit_c(lex, source));
     parser_asm_lex_from_result_val_into(&lex, r);
     lexer_next_into(&r, lex, source);
-    if (r.tok.kind != (int32_t)TOKEN_IDENT) {
+    if (r.tok.kind == (int32_t)TOKEN_STAR) {
+      parser_asm_lex_from_result_val_into(&lex, r);
+      lexer_next_into(&r, lex, source);
+    }
+    if (r.tok.kind != (int32_t)TOKEN_IDENT && r.tok.kind != (int32_t)TOKEN_I32
+        && r.tok.kind != (int32_t)TOKEN_I64 && r.tok.kind != (int32_t)TOKEN_BOOL
+        && r.tok.kind != (int32_t)TOKEN_U8 && r.tok.kind != (int32_t)TOKEN_U32
+        && r.tok.kind != (int32_t)TOKEN_U64 && r.tok.kind != (int32_t)TOKEN_USIZE
+        && r.tok.kind != (int32_t)TOKEN_ISIZE && r.tok.kind != (int32_t)TOKEN_F32
+        && r.tok.kind != (int32_t)TOKEN_F64) {
       out->pos = lex.pos;
       out->line = lex.line;
       out->col = lex.col;
@@ -945,7 +964,10 @@ void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct 
   }
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_impl_items_body_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_impl_items_probe_c(r.next_lex, source, 0));
-  parser_asm_skip_balanced_braces_into_slice_c(out, r.next_lex, source);
+  /* wave390: do NOT skip_balanced_braces — leave methods for outer parse_into free-fn commit. */
+  out->pos = r.next_lex.pos;
+  out->line = r.next_lex.line;
+  out->col = r.next_lex.col;
 }
 
 /** 将 extern 解析失败快照写入 out（name_len=-1）。 */
