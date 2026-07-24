@@ -17366,16 +17366,20 @@ static int32_t glue_type_align_simple(struct ast_Module *m, struct ast_ASTArena 
 static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
 
 /**
- * wave366: TYPE_NAMED with layout nf==0 (empty struct / ZST).
+ * wave366/368: TYPE_NAMED ZST — layout nf==0, or every field is itself empty ZST.
  * Mirrors typeck.x typeck_type_is_empty_struct — G.7 twin in glue metrics path.
- * PLATFORM: SHARED — host sizeof Empty==0; nested empty fields must not T001.
+ * PLATFORM: SHARED — host sizeof Empty / NestEmpty==0; empty-of-empty must not T001.
  */
-static int32_t glue_type_is_empty_struct_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t ty_ref) {
+static int32_t glue_type_is_empty_struct_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t ty_ref,
+                                          int32_t depth) {
   uint8_t name[64];
   int32_t nlen;
   int32_t k;
   int32_t j;
-  if (!module || !arena || ty_ref <= 0 || ty_ref > arena->num_types)
+  int32_t nf;
+  int32_t fi;
+  int32_t ftr;
+  if (!module || !arena || ty_ref <= 0 || ty_ref > arena->num_types || depth > 64)
     return 0;
   if (pipeline_type_kind_ord_at(arena, ty_ref) != GLUE_TYPE_NAMED)
     return 0;
@@ -17395,7 +17399,17 @@ static int32_t glue_type_is_empty_struct_c(struct ast_Module *module, struct ast
     }
     if (!eq)
       continue;
-    return pipeline_module_struct_layout_num_fields(module, k) == 0 ? 1 : 0;
+    nf = pipeline_module_struct_layout_num_fields(module, k);
+    /* wave366: bare empty struct. */
+    if (nf == 0)
+      return 1;
+    /* wave368: all fields empty ZSTs → empty-of-empty nest is also ZST. */
+    for (fi = 0; fi < nf; fi++) {
+      ftr = pipeline_module_struct_layout_field_type_ref(module, k, fi);
+      if (glue_type_is_empty_struct_c(module, arena, ftr, depth + 1) == 0)
+        return 0;
+    }
+    return 1;
   }
   return 0;
 }
@@ -17434,8 +17448,8 @@ static int32_t glue_struct_layout_metrics_c(struct ast_Module *module, struct as
       pipeline_module_struct_layout_field_name_into(module, li, j, field_nm);
       flen = pipeline_module_struct_layout_field_name_len(module, li, j);
       fsize = glue_type_size_simple(module, arena, ftr, depth);
-      /* wave366: fsize==0 OK for empty nested struct (ZST). */
-      if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(module, arena, ftr) == 0)) {
+      /* wave366/368: fsize==0 OK for empty / empty-of-empty nested ZST. */
+      if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(module, arena, ftr, depth) == 0)) {
         if (driver_asm_build_skip_typeck() == 0 && check_pad != 0)
           driver_diagnostic_typeck_struct_field_bad_size(layout_nm, layout_nlen, field_nm, flen);
         return -1;
@@ -17473,7 +17487,7 @@ static int32_t glue_struct_layout_metrics_c(struct ast_Module *module, struct as
     }
     current = current + gap;
     fsize = glue_type_size_simple(module, arena, ftr, depth);
-    if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(module, arena, ftr) == 0)) {
+    if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(module, arena, ftr, depth) == 0)) {
       /**
        * check_pad!=0：zero-padding 校验路径报告。
        * check_pad==0：size 查询静默失败（避免每个 Token 字面量刷百万行 → harness TIMEOUT）。
@@ -18128,8 +18142,8 @@ static int32_t glue_struct_layout_compute_field_offset_c(struct ast_Module *m, s
       return current + gap;
     current = current + gap;
     fsize = glue_type_size_simple(m, a, ftr, 0);
-    /* wave366: keep 0 for empty nested struct; unknown size still falls back to 4. */
-    if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(m, a, ftr) == 0))
+    /* wave366/368: keep 0 for empty / empty-of-empty ZST; unknown size → 4. */
+    if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(m, a, ftr, 0) == 0))
       fsize = 4;
     current = current + fsize;
   }
@@ -18247,7 +18261,7 @@ int32_t pipeline_struct_layout_next_field_offset_ex(struct ast_Module *m, struct
     for (j = 0; j < nf; j++) {
       int32_t ftr = pipeline_module_struct_layout_field_type_ref(m, layout_idx, j);
       int32_t fsize = glue_type_size_simple(m, a, ftr, 0);
-      if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(m, a, ftr) == 0))
+      if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(m, a, ftr, 0) == 0))
         fsize = 4;
       current = current + fsize;
     }
@@ -18263,7 +18277,7 @@ int32_t pipeline_struct_layout_next_field_offset_ex(struct ast_Module *m, struct
     if (fa > A)
       A = fa;
     fsize = glue_type_size_simple(m, a, ftr, 0);
-    if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(m, a, ftr) == 0))
+    if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(m, a, ftr, 0) == 0))
       fsize = 4;
     rem = current % A;
     gap = A - rem;

@@ -1089,26 +1089,30 @@ export function typeck_x_type_align(module: *Module, arena: *ASTArena, ty_ref: i
 }
 
 /**
- * Return 1 when ty_ref is TYPE_NAMED with a registered layout that has zero fields.
- * Empty structs are legal ZSTs (host C sizeof == 0). Layout metrics must accept
- * fsize == 0 for nested empty fields; unknown/broken types still fail size checks.
+ * Return 1 when ty_ref is a TYPE_NAMED ZST layout: zero fields, or every field is
+ * itself an empty struct (empty-of-empty nest). Host C sizeof Empty / NestEmpty is 0.
+ * Layout metrics accept fsize==0 only when this returns 1; unknown types still fail.
  * @param module *Module — owning module for struct_layouts
  * @param arena *ASTArena — type pool for kind/name
  * @param ty_ref i32 — field or local type ref
- * @return i32 — 1 empty named layout, 0 otherwise
- * PLATFORM: SHARED — matches GCC empty-struct size 0 / Box{Empty,i32} layout
+ * @param depth i32 — recursion depth; >64 → 0 (cycle / absurd nest guard)
+ * @return i32 — 1 empty named ZST layout, 0 otherwise
+ * PLATFORM: SHARED — matches GCC empty-struct size 0 / A{e:Empty} nest ZST
  */
-export function typeck_type_is_empty_struct(module: *Module, arena: *ASTArena, ty_ref: i32): i32 {
+export function typeck_type_is_empty_struct(module: *Module, arena: *ASTArena, ty_ref: i32, depth: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let ko: i32 = 0;
     let nm_len: i32 = 0;
     let li: i32 = 0;
+    let nf: i32 = 0;
+    let j: i32 = 0;
+    let ftr: i32 = 0;
     let nm: *u8 = typeck_scratch64_slot(4);
     if (module == 0 as * Module || arena == 0 as * ASTArena || ty_ref <= 0) {
       return 0;
     }
-    if (ty_ref > arena.num_types) {
+    if (ty_ref > arena.num_types || depth > 64) {
       return 0;
     }
     ko = pipeline_type_kind_ord_at(arena, ty_ref);
@@ -1124,10 +1128,21 @@ export function typeck_type_is_empty_struct(module: *Module, arena: *ASTArena, t
     if (li < 0) {
       return 0;
     }
-    if (pipeline_module_struct_layout_num_fields(module, li) == 0) {
+    nf = pipeline_module_struct_layout_num_fields(module, li);
+    /* wave366: nf==0 bare empty struct. */
+    if (nf == 0) {
       return 1;
     }
-    return 0;
+    /* wave368: all fields empty ZSTs → nested empty-of-empty is also ZST. */
+    j = 0;
+    while (j < nf) {
+      ftr = pipeline_module_struct_layout_field_type_ref(module, li, j);
+      if (typeck_type_is_empty_struct(module, arena, ftr, depth + 1) == 0) {
+        return 0;
+      }
+      j = j + 1;
+    }
+    return 1;
   }
 }
 
@@ -1254,8 +1269,8 @@ check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
       while (j < nf) {
         ftr = pipeline_module_struct_layout_field_type_ref(module, li, j);
         fsize = typeck_x_type_size(module, arena, ftr, depth);
-        /* wave366: empty struct field size 0 is valid ZST (not "unknown size"). */
-        if (fsize < 0 || (fsize == 0 && typeck_type_is_empty_struct(module, arena, ftr) == 0)) {
+        /* wave366/368: fsize==0 OK for empty / empty-of-empty named ZST fields. */
+        if (fsize < 0 || (fsize == 0 && typeck_type_is_empty_struct(module, arena, ftr, depth) == 0)) {
           /* See implementation. */
           if (check_pad != 0) {
             typeck_layout_field_name_into(module, li, j, field_nm);
@@ -1293,8 +1308,8 @@ check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
       }
       current = current + gap;
       fsize = typeck_x_type_size(module, arena, ftr, depth);
-      /* wave366: allow fsize==0 for empty named nested fields (host sizeof Empty==0). */
-      if (fsize < 0 || (fsize == 0 && typeck_type_is_empty_struct(module, arena, ftr) == 0)) {
+      /* wave366/368: allow fsize==0 for empty / empty-of-empty named ZST fields. */
+      if (fsize < 0 || (fsize == 0 && typeck_type_is_empty_struct(module, arena, ftr, depth) == 0)) {
         if (check_pad != 0) {
           driver_diagnostic_typeck_struct_field_bad_size(layout_nm, layout_nlen, field_nm, flen);
         }

@@ -2344,17 +2344,20 @@ int32_t typeck_x_type_align(struct ast_Module * module, struct ast_ASTArena * ar
     return 1;
   }
 }
-/* wave366: empty TYPE_NAMED layout (nf==0) — ZST; metrics accept fsize==0 for nested empty. */
-int32_t typeck_type_is_empty_struct(struct ast_Module * module, struct ast_ASTArena * arena, int32_t ty_ref) {
+/* wave366/368: empty TYPE_NAMED ZST — nf==0 or all fields empty-of-empty; metrics accept fsize==0. */
+int32_t typeck_type_is_empty_struct(struct ast_Module * module, struct ast_ASTArena * arena, int32_t ty_ref, int32_t depth) {
   {
     int32_t ko = 0;
     int32_t nm_len = 0;
     int32_t li = 0;
+    int32_t nf = 0;
+    int32_t j = 0;
+    int32_t ftr = 0;
     uint8_t * nm = typeck_scratch64_slot(4);
     if ((((module ==0) || (arena ==0)) || (ty_ref <=0))) {
       return 0;
     }
-    if ((ty_ref > (arena->num_types))) {
+    if (((ty_ref > (arena->num_types)) || (depth >64))) {
       return 0;
     }
     (void)((ko = pipeline_type_kind_ord_at(arena, ty_ref)));
@@ -2369,10 +2372,19 @@ int32_t typeck_type_is_empty_struct(struct ast_Module * module, struct ast_ASTAr
     if ((li < 0)) {
       return 0;
     }
-    if ((pipeline_module_struct_layout_num_fields(module, li) ==0)) {
+    (void)((nf = pipeline_module_struct_layout_num_fields(module, li)));
+    if ((nf ==0)) {
       return 1;
     }
-    return 0;
+    (void)((j = 0));
+    while ((j < nf)) {
+      (void)((ftr = pipeline_module_struct_layout_field_type_ref(module, li, j)));
+      if ((typeck_type_is_empty_struct(module, arena, ftr, (depth + 1)) ==0)) {
+        return 0;
+      }
+      (void)((j = (j + 1)));
+    }
+    return 1;
   }
 }
 int32_t typeck_x_type_size(struct ast_Module * module, struct ast_ASTArena * arena, int32_t ty_ref, int32_t depth) {
@@ -2477,7 +2489,7 @@ int32_t typeck_struct_layout_metrics(struct ast_Module * module, struct ast_ASTA
       while ((j < nf)) {
         (void)((ftr = pipeline_module_struct_layout_field_type_ref(module, li, j)));
         (void)((fsize = typeck_x_type_size(module, arena, ftr, depth)));
-        if (((fsize < 0) || ((fsize ==0) && (typeck_type_is_empty_struct(module, arena, ftr) ==0)))) {
+        if (((fsize < 0) || ((fsize ==0) && (typeck_type_is_empty_struct(module, arena, ftr, depth) ==0)))) {
           if ((check_pad !=0)) {
             (void)(typeck_layout_field_name_into(module, li, j, field_nm));
             (void)((flen = pipeline_module_struct_layout_field_name_len(module, li, j)));
@@ -2514,7 +2526,7 @@ int32_t typeck_struct_layout_metrics(struct ast_Module * module, struct ast_ASTA
       }
       (void)((current = (current + gap)));
       (void)((fsize = typeck_x_type_size(module, arena, ftr, depth)));
-      if (((fsize < 0) || ((fsize ==0) && (typeck_type_is_empty_struct(module, arena, ftr) ==0)))) {
+      if (((fsize < 0) || ((fsize ==0) && (typeck_type_is_empty_struct(module, arena, ftr, depth) ==0)))) {
         if ((check_pad !=0)) {
           (void)(driver_diagnostic_typeck_struct_field_bad_size(layout_nm, layout_nlen, field_nm, flen));
         }
