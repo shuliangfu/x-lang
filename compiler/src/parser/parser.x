@@ -8557,10 +8557,8 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       if (module.num_funcs == 0) {
         return parse_into_result_empty_module_or_fail_tok(diag_fail_at_token_kind(source));
       }
-      let out_idx_storage: i32[1] = [];
-      out_idx_storage[0] = main_idx;
-      // wave269: L001 sticky may still be set when funcs existed before unclosed /*.
-      return parse_into_apply_unclosed_gate(ParseIntoResult { ok: 0, main_idx: out_idx_storage[0] })
+      /* wave424: trait completeness (parse_into slice path; twin of parse_into_buf). */
+      return parse_into_finish_ok(module, main_idx);
     }
     /*
      * See implementation.
@@ -9594,10 +9592,8 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
   if (module.num_funcs == 0) {
     return parse_into_result_empty_module_or_fail_tok(diag_fail_at_token_kind(source));
   }
-  /* See implementation. */
-  let out_idx_storage: i32[1] = [];
-  out_idx_storage[0] = main_idx;
-  return parse_into_apply_unclosed_gate(ParseIntoResult { ok: 0, main_idx: out_idx_storage[0] })
+  /* wave424: trait completeness (parse_into slice path). */
+  return parse_into_finish_ok(module, main_idx);
   }
 }
 
@@ -10390,6 +10386,33 @@ export function parse_into_try_skip_allow_from_buf(lex: Lexer, r: LexerResult, d
  */
 export extern function xlang_trait_reg_reset_c(): void;
 
+/**
+ * wave424 Cap residual pure — finish successful parse_into with trait completeness.
+ * Root: freestanding default `-o` calls parser_parse_into_buf directly (not
+ * pipeline_parse_into_with_init_buf_impl_c) and may skip typeck; unknown_trait /
+ * missing_method only ran on host-C / with_init → pure `impl Missing for T`
+ * false-green on freestanding. G.7: single finish helper at all ok=0 exits.
+ * @param module *Module — entry module after top-level scan
+ * @param main_idx i32 — main function index or -1
+ * @return ParseIntoResult — unclosed gate + xlang_trait_check_impls_complete_c
+ * PLATFORM: SHARED parse
+ */
+export extern function xlang_trait_check_impls_complete_c(module: *Module): i32;
+
+function parse_into_finish_ok(module: *Module, main_idx: i32): ParseIntoResult {
+  unsafe {
+    let r: ParseIntoResult = parse_into_apply_unclosed_gate(ParseIntoResult { ok: 0, main_idx: main_idx });
+    if (r.ok != 0) {
+      return r;
+    }
+    /* wave424: hard fail unknown_trait / missing_method on every product parse path. */
+    if (xlang_trait_check_impls_complete_c(module) != 0) {
+      return ParseIntoResult { ok: 1, main_idx: -1 };
+    }
+    return r;
+  }
+}
+
 export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32): ParseIntoResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -10702,9 +10725,8 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       if (module.num_funcs == 0) {
         return parse_into_result_empty_module_or_fail_tok(diag_fail_at_token_kind_buf(data, len));
       }
-      let out_idx_storage: i32[1] = [];
-      out_idx_storage[0] = main_idx;
-      return parse_into_apply_unclosed_gate(ParseIntoResult { ok: 0, main_idx: out_idx_storage[0] })
+      /* wave424: trait completeness on freestanding -o (direct parse_into_buf). */
+      return parse_into_finish_ok(module, main_idx);
     }
     /*
      * See implementation.
@@ -11595,10 +11617,8 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
   if (module.num_funcs == 0) {
     return parse_into_result_empty_module_or_fail_tok(diag_fail_at_token_kind_buf(data, len));
   }
-  let out_idx: i32 = main_idx;
-  let out_idx_storage: i32[1] = [];
-  out_idx_storage[0] = out_idx;
-  return parse_into_apply_unclosed_gate(ParseIntoResult { ok: 0, main_idx: out_idx_storage[0] })
+  /* wave424: trait completeness on freestanding -o (direct parse_into_buf). */
+  return parse_into_finish_ok(module, main_idx);
   }
 }
 

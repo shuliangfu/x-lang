@@ -711,6 +711,7 @@ static int32_t parser_asm_seed_impl_type_start_kind_c(int32_t kind) {
  * Root: product path only hoisted impl methods as free funcs (wave390); never stored
  * trait signatures → impl_missing_method.x false-green (compile exit 0).
  * G.7: single table in seed parse_into_buf (reset per module); soft remains bounds/dyn.
+ * wave424: unknown_trait hard fail (align product skip_tl xlang_trait_check_impls_complete_c).
  * PLATFORM: SHARED parse.
  */
 #define XLANG_TRAIT_REG_MAX 16
@@ -849,8 +850,11 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
 }
 
 /**
- * After impl Trait for T body: require every trait method as a free module func.
- * @return 0 ok; -2 hard missing method (abort parse_into).
+ * After impl Trait for T body: require registered trait + every method as free func.
+ * wave424 Cap residual pure — unknown_trait was soft return 0 → false-green.
+ * G.7 expand this helper only (twin of skip_tl xlang_trait_check_impls_complete_c).
+ * @return 0 ok; -2 hard unknown trait or missing method (abort parse_into).
+ * PLATFORM: SHARED parse.
  */
 static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const uint8_t *trait_nm,
                                                             int32_t trait_nlen, int32_t line, int32_t col) {
@@ -861,8 +865,12 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
   if (!module || !trait_nm || trait_nlen <= 0)
     return 0;
   ti = xlang_trait_reg_find_c(trait_nm, trait_nlen);
-  if (ti < 0)
-    return 0; /* unknown_trait soft leave-off */
+  /* wave424: hard fail — was soft leave-off return 0 (LANG-004 unknown_trait). */
+  if (ti < 0) {
+    lsp_diag_report_typeck((int)line, (int)col, "impl for unknown trait %.*s", (int)trait_nlen,
+                           (const char *)trait_nm);
+    return -2;
+  }
   nf = pipeline_module_num_funcs(module);
   for (mi = 0; mi < g_xlang_trait_reg[ti].num_methods; mi++) {
     int32_t found = 0;
@@ -896,7 +904,7 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
  * - Who consumes: typeck UFCS (wave358/360) + host/fs emit free method.
  * G.7 authority: this seed parse_into_buf path (product parse_into_buf strong symbol).
  * wave421: missing-method check vs registered trait methods (return -2 hard fail).
- * Soft leave-off: trait bounds / dyn Trait.
+ * wave424: unknown_trait hard fail (return -2). Soft leave-off: bounds / dyn Trait.
  * PLATFORM: SHARED parse · mac + Ubuntu L2.
  *
  * @return 0 success (lex_out past closing `}`); -1 failure (caller may fallback skip);

@@ -4213,6 +4213,22 @@ struct parser_ParseIntoResult parser_parse_into_apply_unclosed_gate(struct parse
     return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
   return r;
 }
+/*
+ * wave424 Cap residual pure — finish successful parse_into with trait completeness.
+ * Root: freestanding -o calls parser_parse_into_buf directly (skips with_init check).
+ * G.7: single finish helper; pin ≡ parser.x parse_into_finish_ok.
+ * PLATFORM: SHARED parse.
+ */
+extern int32_t xlang_trait_check_impls_complete_c(void *module);
+static struct parser_ParseIntoResult parser_parse_into_finish_ok(struct ast_Module *module, int32_t main_idx) {
+  struct parser_ParseIntoResult r =
+      parser_parse_into_apply_unclosed_gate((struct parser_ParseIntoResult){ .ok = 0, .main_idx = main_idx });
+  if (r.ok != 0)
+    return r;
+  if (xlang_trait_check_impls_complete_c((void *)module) != 0)
+    return (struct parser_ParseIntoResult){ .ok = 1, .main_idx = -1 };
+  return r;
+}
 struct parser_ParseIntoResult parser_parse_into_result_empty_module_or_fail_tok(int32_t fail_tok) {
   /* wave269: unclosed block comment at EOF is hard fail (not empty-module success). */
   if (lexer_unclosed_block_comment_pending() != 0)
@@ -6719,9 +6735,8 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
         if (((module->num_funcs) ==0)) {
           return parser_parse_into_result_empty_module_or_fail_tok(parser_diag_fail_at_token_kind(source));
         }
-        int32_t out_idx_storage[1] = {};
-        (void)(((out_idx_storage)[0] = main_idx));
-        return parser_parse_into_apply_unclosed_gate((struct parser_ParseIntoResult){ .ok = 0, .main_idx = (out_idx_storage)[0] });
+        /* wave424: trait completeness (parse_into slice). */
+        return parser_parse_into_finish_ok(module, main_idx);
       }
       struct lexer_Lexer lex_at_function = lexer_init();
       (void)((lex_at_function = current_tok_lex));
@@ -7721,9 +7736,8 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
     if (((module->num_funcs) ==0)) {
       return parser_parse_into_result_empty_module_or_fail_tok(parser_diag_fail_at_token_kind(source));
     }
-    int32_t out_idx_storage[1] = {};
-    (void)(((out_idx_storage)[0] = main_idx));
-    return parser_parse_into_apply_unclosed_gate((struct parser_ParseIntoResult){ .ok = 0, .main_idx = (out_idx_storage)[0] });
+    /* wave424: trait completeness (parse_into slice). */
+    return parser_parse_into_finish_ok(module, main_idx);
   }
 }
 extern void parser_parse_one_top_level_let_into_glue(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, int is_const, struct parser_TopLevelLetResult * out);
@@ -8259,9 +8273,8 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
         if (((module->num_funcs) ==0)) {
           return parser_parse_into_result_empty_module_or_fail_tok(parser_diag_fail_at_token_kind_buf(data, len));
         }
-        int32_t out_idx_storage[1] = {};
-        (void)(((out_idx_storage)[0] = main_idx));
-        return parser_parse_into_apply_unclosed_gate((struct parser_ParseIntoResult){ .ok = 0, .main_idx = (out_idx_storage)[0] });
+        /* wave424: trait completeness on freestanding -o (direct parse_into_buf). */
+        return parser_parse_into_finish_ok(module, main_idx);
       }
       struct lexer_Lexer lex_at_function_buf = lexer_init();
       (void)((lex_at_function_buf = current_tok_lex_buf));
@@ -9115,10 +9128,8 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
     if (((module->num_funcs) ==0)) {
       return parser_parse_into_result_empty_module_or_fail_tok(parser_diag_fail_at_token_kind_buf(data, len));
     }
-    int32_t out_idx = main_idx;
-    int32_t out_idx_storage[1] = {};
-    (void)(((out_idx_storage)[0] = out_idx));
-    return parser_parse_into_apply_unclosed_gate((struct parser_ParseIntoResult){ .ok = 0, .main_idx = (out_idx_storage)[0] });
+    /* wave424: trait completeness on freestanding -o (direct parse_into_buf). */
+    return parser_parse_into_finish_ok(module, main_idx);
   }
 }
 extern void parser_parse_into_set_main_index_glue(struct ast_Module * module, int32_t main_idx);

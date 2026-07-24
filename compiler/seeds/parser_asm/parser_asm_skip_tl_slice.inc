@@ -837,7 +837,8 @@ void parser_asm_skip_one_enum_into_slice_c(struct parser_asm_lexer *out, struct 
  * wave421 Cap residual pure — product-path trait registry (LANG-004 missing method).
  * Root: parser.x skip_one_trait/impl never stored trait signatures → incomplete
  * impl compiled green. G.7 authority: this skip_tl slice (product skip glue).
- * Soft leave-off: bounds / dyn Trait.
+ * wave424: unknown_trait hard fail (was soft continue when trait not registered).
+ * Soft leave-off: bounds / dyn Trait; return_mismatch (sig ret types not stored).
  * PLATFORM: SHARED parse.
  */
 #define XLANG_SKIP_TRAIT_REG_MAX 16
@@ -873,8 +874,12 @@ extern int32_t pipeline_module_num_funcs(void *module);
 extern int32_t pipeline_module_func_name_equal_at(void *module, int32_t fi, uint8_t *name, int32_t name_len);
 
 /**
- * After parse: every impl Trait for T must provide free funcs for all trait methods.
- * @return 0 ok; -1 missing method (diagnostic already emitted).
+ * After parse: every `impl Trait for T` must name a registered trait and provide
+ * free funcs for all trait methods.
+ * wave424 Cap residual pure — unknown_trait was soft-skipped (ti<0 continue) →
+ * `impl Missing for i32` false-green (build exit 0). G.7 expand this function only.
+ * @return 0 ok; -1 unknown trait and/or missing method (diagnostic already emitted).
+ * PLATFORM: SHARED parse+typeck gate.
  */
 int32_t xlang_trait_check_impls_complete_c(void *module) {
   int32_t si;
@@ -899,8 +904,13 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
         break;
       }
     }
-    if (ti < 0)
-      continue; /* unknown_trait soft */
+    /* wave424: hard fail — was `continue` soft leave-off (LANG-004 unknown_trait). */
+    if (ti < 0) {
+      lsp_diag_report_typeck((int)g_xlang_skip_impl_line[si], (int)g_xlang_skip_impl_col[si],
+                             "impl for unknown trait %.*s", (int)tlen, (const char *)tname);
+      rc = -1;
+      continue;
+    }
     for (mi = 0; mi < g_xlang_skip_trait_reg[ti].num_methods; mi++) {
       int32_t found = 0;
       uint8_t *mnm = g_xlang_skip_trait_reg[ti].methods[mi];
