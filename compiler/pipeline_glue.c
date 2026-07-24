@@ -2038,9 +2038,11 @@ static int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
        * wave333+335 Cap residual pure: freestanding `return [1,2,3]` for TYPE_SLICE.
        * SysV dual-GP: data@rax length@rdx.
        * wave335: prefer durable text-embed payload (kill post-return INDEX dangle).
+       * wave339: `return a` for const ARRAY_LIT let-init is durable via let-init embed
+       * (G.7 reuse glue_emit_slice_from_array_let_init; host already static).
        * Fallback: stack emit_array_lit (non-lit elems / pack fail) — still soft residual.
        * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV.
-       * Soft residual: `return a` VAR still stack-dangles (lifetime); untyped-let; fs if.
+       * Soft residual: non-const / non-ARRAY_LIT stack slice return; untyped-let (docs 禁推断).
        */
       int32_t rty = pipeline_module_func_return_type_at(g_pipeline_asm_emit_module,
                                                         g_pipeline_asm_emit_func_index);
@@ -17805,14 +17807,21 @@ static int glue_block_stmt_order_has_return(struct ast_ASTArena *arena, int32_t 
   return 0;
 }
 
+/* wave335 durable ARRAY_LIT → rax (def later); wave339 let-init reuses it. */
+static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena *arena,
+                                                            struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                            int32_t expr_ref, int32_t force_esz, int32_t ta);
+
 /**
  * let s: T[] = arr / let s: T[] = [..]：asm 栈槽写入 { .data = ptr, .length = N }.
  * - VAR path: arr is a prior fixed TYPE_ARRAY local (codegen_try_emit_slice_init_from_array_var).
- * - ARRAY_LIT path (wave329/wave330): emit payload into temp, then dual-GP fat
- *   {data, length=num_elems}. Host-C already emits compound
- *   (struct xlang_slice_T){.data=(E[]){…},.length=N} (wave328); freestanding used to store
- *   only the data pointer → length garbage / panic. wave330: empty `[]` (num_elems=0) also
- *   reaches this path — store {lea(temp)|payload, length=0}; do not rely on prologue zeroing.
+ * - ARRAY_LIT path (wave329/wave330/wave339): dual-GP fat {data, length=num_elems}.
+ *   Host-C already uses durable static compound
+ *   `({ static E __xlang_al[]=…; slice{.data=__xlang_al,.length=N} })` so `return a` is safe.
+ *   Freestanding used stack emit_array_lit only → `return a` dual-GP dangles after clobber
+ *   (Ubuntu trash probe: expect 60, got 84). wave339: prefer durable text-embed (G.7 reuse
+ *   glue_asm_emit_array_lit_durable_ptr_rax_elf_c); stack fallback for non-const elems.
+ *   wave330: empty `[]` still writes {data, length=0}; do not rely on prologue zeroing.
  *
  * PLATFORM: SHARED layout + LINUX/MACOS x86_64 SysV dual-GP home encoding.
  * slot_off is rbp-distance to fat byte0 (data); high half (length) is at slot_off-8
@@ -17840,18 +17849,42 @@ static int32_t glue_emit_slice_from_array_let_init_elf_c(struct ast_ASTArena *ar
   init_ko = pipeline_expr_kind_ord_at(arena, init_ref);
   /*
    * wave329 Cap residual pure: TYPE_SLICE + EXPR_ARRAY_LIT (`let a: i32[] = [1,2,3]`).
-   * wave330: same path for empty `[]` (n_arr==0) — dual-GP length=0 + data via emit_array_lit
-   * (lea of temp for n=0, matching host empty compound). G.7: single authority; callers must
-   * route empty TYPE_SLICE here instead of skipping store.
+   * wave330: empty `[]` (n_arr==0) dual-GP length=0.
+   * wave339: prefer durable text-embed payload (match host static / kill return-VAR dangle).
+   * G.7: single authority for ARRAY_LIT→slice dual-GP; callers must route empty TYPE_SLICE here.
    */
   if (init_ko == 46) {
     int32_t n_arr;
+    int32_t durable = 0;
+    int32_t force_esz = 0;
+    int32_t et;
     pipeline_glue_AsmFuncCtxLayout *ly;
     n_arr = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
     if (n_arr < 0 || n_arr > 256)
       return -1;
-    if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0)
+    /* force_esz from TYPE_SLICE elem (u64[] lit elems may type as i32 without stamp). */
+    et = pipeline_type_elem_ref_at(arena, let_type_ref);
+    if (et > 0) {
+      int32_t ek = pipeline_type_kind_ord_at(arena, et);
+      if (ek == 2 || ek == 1)
+        force_esz = 1;
+      else if (ek == 0 || ek == 3 || ek == 13 || ek == 14)
+        force_esz = 4;
+      else if (ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 15)
+        force_esz = 8;
+    }
+    /*
+     * Prefer durable (wave335 helper): jmp-skip text embed + lea [rip] → rax.
+     * Fallback: stack emit_array_lit (non-const elems / pack fail) — still soft residual
+     * if that stack slice is returned.
+     * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV (ta==0 durable path).
+     */
+    if (ta == 0 &&
+        glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, init_ref, force_esz, ta) == 0) {
+      durable = 1;
+    } else if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0) {
       return -1;
+    }
     if (backend_enc_store_rax_to_rbp_arch(elf_ctx, slice_slot_off, ta) != 0)
       return -1;
     if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta) != 0)
@@ -17863,10 +17896,11 @@ static int32_t glue_emit_slice_from_array_let_init_elf_c(struct ast_ASTArena *ar
      * wave331: empty ARRAY_LIT does not bump next_offset (0 temp bytes), and lea(temp)
      * may equal the dual-GP home. Advance past home so a later `a = [..]` assign does
      * not write payload into the fat slot (Ubuntu: empty→lit index garbage).
-     * Non-empty: also bump payload size (direct emit_array_lit skips slow-path bump).
+     * Non-empty stack path: also bump payload size (direct emit_array_lit skips slow-path bump).
+     * Durable path: no stack payload — skip array_lit bump (payload lives in text).
      * PLATFORM: SHARED freestanding stack temp discipline.
      */
-    if (n_arr > 0)
+    if (durable == 0 && n_arr > 0)
       pipeline_asm_bump_next_offset_for_array_lit(arena, init_ref, ctx);
     ly = pipeline_asm_ctx_layout(ctx);
     if (ly) {
