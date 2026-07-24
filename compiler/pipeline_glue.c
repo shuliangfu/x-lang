@@ -14589,14 +14589,34 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
       base_off = ly->next_offset;
       if ((base_off % 8) != 0)
         base_off = (base_off + 7) / 8 * 8;
-      /* spill E* (8) + dual-GP fat (16) + payload (arr_sz*esz) */
+      /*
+       * Frame layout (G.7 / wave394 polarity):
+       *   spill E* @ spill_off
+       *   dual-GP fat @ home (data) + length half (arm64 home+8 / x86 home-8)
+       *   payload copy:
+       *     MACOS|ARM64: home+16 .. home+16+N*esz (positive grow away from length)
+       *     LINUX|x86: payload_off = home+N*esz; stores lea+i*esz grow *toward* fat
+       *       in address space (offsets decrease). Must keep payload_off >= home+N*esz
+       *       so element i=N-1 stays at offset >= home (no clobber of fat.data).
+       *       Prior home+8 left only 8B before data half → sum3 saw garbage (Ubuntu 94).
+       */
       spill_off = base_off + 8;
       home = spill_off + 16;
-      payload_off = home + ((ta == 1) ? 16 : 8);
-      if ((payload_off % 8) != 0)
-        payload_off = (payload_off + 7) / 8 * 8;
-      past = payload_off + arr_sz * esz;
-      if (past < payload_off)
+      if (ta == 1) {
+        payload_off = home + 16;
+        past = payload_off + arr_sz * esz;
+      } else {
+        payload_off = home + arr_sz * esz;
+        if (payload_off < home + 8)
+          payload_off = home + 8;
+        if ((payload_off % 8) != 0)
+          payload_off = (payload_off + 7) / 8 * 8;
+        /* max offset used: payload base (i=0); fat uses home / home-8 */
+        past = payload_off;
+        if (past < home + 8)
+          past = home + 8;
+      }
+      if (past < payload_off || past < home)
         return -1;
       ly->next_offset = past;
       glue_align_next_offset(ctx);
