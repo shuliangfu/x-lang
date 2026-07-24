@@ -3648,14 +3648,28 @@ export function emit_local_fixed_array_suffix(arena: *ASTArena, out: *CodegenOut
 }
 
 /**
- * See implementation.
- * See implementation.
+ * Host-C: `let s: T[] = arr` where arr is a fixed TYPE_ARRAY rvalue.
+ * Emits `{ .data = <arr>, .length = N }` (C array decays to pointer).
+ *
+ * Paths (G.7 single authority — complete, do not fork):
+ * - EXPR_VAR: prior `let a: T[N]` local (original Cap residual).
+ * - wave348: EXPR_FIELD_ACCESS with VAR base + fixed TYPE_ARRAY field
+ *   (`let s: T[] = b.a`). Prior: bare `(b.a)` is not a slice compound → host-cc red;
+ *   freestanding dual-GP unwritten → panic/SIGSEGV.
+ *
+ * @param arena *ASTArena — expression/type pool
+ * @param out *CodegenOutBuf — C text sink
+ * @param block_ref i32 — enclosing block (let scan for VAR path)
+ * @param let_idx i32 — current let index; prior lets only for VAR match
+ * @param let_type_ref i32 — must be TYPE_SLICE (kind 11)
+ * @param linit_ref i32 — init expr (VAR or FIELD_ACCESS)
+ * @return i32 — 1 emitted; 0 not applicable; -1 hard fail
+ * PLATFORM: SHARED host-C emit (mirror freestanding glue_emit_slice_from_array_let_init).
  */
 export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, let_idx: i32, let_type_ref: i32, linit_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    /* See implementation. */
     if (ast.ref_is_null(let_type_ref) || pipeline_type_kind_ord_at(arena, let_type_ref) != 11) {
       return 0;
     }
@@ -3663,42 +3677,62 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
       return 0;
     }
     let init_e: Expr = ast.ast_arena_expr_get(arena, linit_ref);
-    if (init_e.kind != ExprKind.EXPR_VAR || init_e.var_name_len <= 0) {
+    let arr_sz: i32 = 0;
+    let is_field: i32 = 0;
+    let base_e: Expr = init_e;
+    let init_ko: i32 = pipeline_expr_kind_ord_at(arena, linit_ref);
+
+    if (init_ko == 3 && init_e.var_name_len > 0) {
+      let li: i32 = 0;
+      while (li < let_idx) {
+        let nlen: i32 = pipeline_block_let_name_len(arena, block_ref, li);
+        if (nlen == init_e.var_name_len && nlen > 0) {
+          let matched: i32 = 1;
+          let nb: u8[64] = [];
+          pipeline_block_let_name_copy64(arena, block_ref, li, &nb[0]);
+          let ci: i32 = 0;
+          while (ci < nlen) {
+            if (nb[ci] != init_e.var_name[ci]) {
+              matched = 0;
+              ci = nlen;
+            } else {
+              ci = ci + 1;
+            }
+          }
+          if (matched != 0) {
+            let tr: i32 = pipeline_block_let_type_ref(arena, block_ref, li);
+            if (pipeline_type_kind_ord_at(arena, tr) == 10) {
+              arr_sz = pipeline_type_array_size_at(arena, tr);
+              li = let_idx;
+            }
+          }
+        }
+        li = li + 1;
+      }
+      if (arr_sz <= 0 && !ast.ref_is_null(init_e.resolved_type_ref) && init_e.resolved_type_ref > 0) {
+        if (pipeline_type_kind_ord_at(arena, init_e.resolved_type_ref) == 10) {
+          arr_sz = pipeline_type_array_size_at(arena, init_e.resolved_type_ref);
+        }
+      }
+    } else if (init_ko == 44
+               && init_e.field_access_field_len > 0
+               && init_e.field_access_base_ref > 0
+               && init_e.field_access_base_ref <= arena.num_exprs) {
+      /* wave348: let s: T[] = b.a — base VAR; N from TYPE_ARRAY or sizeof C idiom. */
+      is_field = 1;
+      base_e = ast.ast_arena_expr_get(arena, init_e.field_access_base_ref);
+      if (base_e.kind != ExprKind.EXPR_VAR || base_e.var_name_len <= 0) {
+        return 0;
+      }
+      if (!ast.ref_is_null(init_e.resolved_type_ref) && init_e.resolved_type_ref > 0) {
+        if (pipeline_type_kind_ord_at(arena, init_e.resolved_type_ref) == 10) {
+          arr_sz = pipeline_type_array_size_at(arena, init_e.resolved_type_ref);
+        }
+      }
+    } else {
       return 0;
     }
-    let arr_sz: i32 = 0;
-    let li: i32 = 0;
-    while (li < let_idx) {
-      let nlen: i32 = pipeline_block_let_name_len(arena, block_ref, li);
-      if (nlen == init_e.var_name_len && nlen > 0) {
-        let matched: i32 = 1;
-        let nb: u8[64] = [];
-        pipeline_block_let_name_copy64(arena, block_ref, li, &nb[0]);
-        let ci: i32 = 0;
-        while (ci < nlen) {
-          if (nb[ci] != init_e.var_name[ci]) {
-            matched = 0;
-            ci = nlen;
-          } else {
-            ci = ci + 1;
-          }
-        }
-        if (matched != 0) {
-          let tr: i32 = pipeline_block_let_type_ref(arena, block_ref, li);
-          if (pipeline_type_kind_ord_at(arena, tr) == 10) {
-            arr_sz = pipeline_type_array_size_at(arena, tr);
-            li = let_idx;
-          }
-        }
-      }
-      li = li + 1;
-    }
-    if (arr_sz <= 0 && !ast.ref_is_null(init_e.resolved_type_ref) && init_e.resolved_type_ref > 0) {
-      if (pipeline_type_kind_ord_at(arena, init_e.resolved_type_ref) == 10) {
-        arr_sz = pipeline_type_array_size_at(arena, init_e.resolved_type_ref);
-      }
-    }
-    if (arr_sz <= 0) {
+    if (arr_sz <= 0 && is_field == 0) {
       return 0;
     }
     if (append_byte(out, 123) != 0) {
@@ -3708,18 +3742,63 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
     if (emit_bytes_from_ptr(out, &d1[0], 9) != 0) {
       return -1;
     }
-    if (emit_bytes_64(out, &init_e.var_name[0], init_e.var_name_len) != 0) {
-      return -1;
+    if (is_field != 0) {
+      if (emit_bytes_64(out, &base_e.var_name[0], base_e.var_name_len) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 46) != 0) {
+        return -1;
+      }
+      if (emit_bytes_64(out, &init_e.field_access_field_name[0], init_e.field_access_field_len) != 0) {
+        return -1;
+      }
+    } else {
+      if (emit_bytes_64(out, &init_e.var_name[0], init_e.var_name_len) != 0) {
+        return -1;
+      }
     }
     let d2: u8[12] = [44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32];
     if (emit_bytes_from_ptr(out, &d2[0], 12) != 0) {
       return -1;
     }
-    if (format_int(out, arr_sz) != 0) {
-      return -1;
+    if (arr_sz > 0) {
+      if (format_int(out, arr_sz) != 0) {
+        return -1;
+      }
+    } else {
+      /* (sizeof(b.a)/sizeof((b.a)[0])) — host-C length when typeck N missing. */
+      let sz0: u8[8] = [40, 115, 105, 122, 101, 111, 102, 40];
+      let sz1: u8[12] = [41, 47, 115, 105, 122, 101, 111, 102, 40, 40, 0, 0];
+      let sz2: u8[8] = [41, 91, 48, 93, 41, 41, 0, 0]; /* )[0])) */
+      if (emit_bytes_from_ptr(out, &sz0[0], 8) != 0) {
+        return -1;
+      }
+      if (emit_bytes_64(out, &base_e.var_name[0], base_e.var_name_len) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 46) != 0) {
+        return -1;
+      }
+      if (emit_bytes_64(out, &init_e.field_access_field_name[0], init_e.field_access_field_len) != 0) {
+        return -1;
+      }
+      if (emit_bytes_from_ptr(out, &sz1[0], 10) != 0) {
+        return -1;
+      }
+      if (emit_bytes_64(out, &base_e.var_name[0], base_e.var_name_len) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 46) != 0) {
+        return -1;
+      }
+      if (emit_bytes_64(out, &init_e.field_access_field_name[0], init_e.field_access_field_len) != 0) {
+        return -1;
+      }
+      if (emit_bytes_from_ptr(out, &sz2[0], 6) != 0) {
+        return -1;
+      }
     }
     let d3: u8[4] = [32, 125, 0, 0];
-    /* See implementation. */
     if (emit_bytes_4(out, d3, 2) != 0) {
       return -1;
     }

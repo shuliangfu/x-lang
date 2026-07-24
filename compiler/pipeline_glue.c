@@ -928,54 +928,77 @@ int32_t pipeline_codegen_emit_float_lit_c(struct codegen_CodegenOutBuf *out, dou
 
 /**
  * let s: T[] = arr：写出 { .data = arr, .length = N }（对齐 codegen.c codegen_init / codegen.x）。
+ * wave348: also `let s: T[] = b.a` (FIELD_ACCESS fixed TYPE_ARRAY).
  * @return 1 已写出；0 不适用；-1 失败。
+ * PLATFORM: SHARED host-C (dup of seed when OMIT_X_DUP not set).
  */
 #if !defined(XLANG_PIPELINE_GLUE_STANDALONE_TU) && !defined(XLANG_PIPELINE_GLUE_OMIT_X_DUP_EXPORTS)
 int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
                                                    int32_t block_ref, int32_t let_idx, int32_t let_type_ref,
                                                    int32_t linit_ref) {
   struct ast_Expr *init_pe;
+  struct ast_Expr *base_pe;
   int32_t arr_sz = 0;
   int32_t li;
   int32_t vlen;
+  int32_t is_field = 0;
   uint8_t vname[64];
   if (!arena || !out || block_ref <= 0 || let_type_ref <= 0 || linit_ref <= 0 || linit_ref > arena->num_exprs)
     return 0;
   if (pipeline_type_kind_ord_at(arena, let_type_ref) != (int32_t)ast_TypeKind_TYPE_SLICE)
     return 0;
   init_pe = pipeline_arena_expr_ptr(arena, linit_ref);
-  if (!init_pe || init_pe->kind != (int32_t)ast_ExprKind_EXPR_VAR)
+  if (!init_pe)
     return 0;
-  vlen = pipeline_expr_var_name_len(arena, linit_ref);
-  if (vlen <= 0)
-    return 0;
-  pipeline_expr_var_name_into(arena, linit_ref, vname);
-  for (li = 0; li < let_idx; li++) {
-    int32_t nlen = pipeline_block_let_name_len(arena, block_ref, li);
-    if (nlen == vlen && nlen > 0) {
-      int32_t match = 1;
-      int32_t ci;
-      uint8_t nb[64];
-      pipeline_block_let_name_copy64(arena, block_ref, li, nb);
-      for (ci = 0; ci < nlen; ci++) {
-        if (nb[ci] != vname[ci]) {
-          match = 0;
-          break;
+  if (init_pe->kind == (int32_t)ast_ExprKind_EXPR_VAR) {
+    vlen = pipeline_expr_var_name_len(arena, linit_ref);
+    if (vlen <= 0)
+      return 0;
+    pipeline_expr_var_name_into(arena, linit_ref, vname);
+    for (li = 0; li < let_idx; li++) {
+      int32_t nlen = pipeline_block_let_name_len(arena, block_ref, li);
+      if (nlen == vlen && nlen > 0) {
+        int32_t match = 1;
+        int32_t ci;
+        uint8_t nb[64];
+        pipeline_block_let_name_copy64(arena, block_ref, li, nb);
+        for (ci = 0; ci < nlen; ci++) {
+          if (nb[ci] != vname[ci]) {
+            match = 0;
+            break;
+          }
         }
-      }
-      if (match) {
-        int32_t tr = pipeline_block_let_type_ref(arena, block_ref, li);
-        if (pipeline_type_kind_ord_at(arena, tr) == 10) {
-          arr_sz = pipeline_type_array_size_at(arena, tr);
-          break;
+        if (match) {
+          int32_t tr = pipeline_block_let_type_ref(arena, block_ref, li);
+          if (pipeline_type_kind_ord_at(arena, tr) == 10) {
+            arr_sz = pipeline_type_array_size_at(arena, tr);
+            break;
+          }
         }
       }
     }
+    if (arr_sz <= 0 && init_pe->resolved_type_ref > 0 &&
+        pipeline_type_kind_ord_at(arena, init_pe->resolved_type_ref) == (int32_t)ast_TypeKind_TYPE_ARRAY)
+      arr_sz = pipeline_type_array_size_at(arena, init_pe->resolved_type_ref);
+  } else if (init_pe->kind == (int32_t)ast_ExprKind_EXPR_FIELD_ACCESS &&
+             init_pe->field_access_field_len > 0 && init_pe->field_access_base_ref > 0 &&
+             init_pe->field_access_base_ref <= arena->num_exprs) {
+    /* wave348: let s: T[] = b.a */
+    is_field = 1;
+    base_pe = pipeline_arena_expr_ptr(arena, init_pe->field_access_base_ref);
+    if (!base_pe || base_pe->kind != (int32_t)ast_ExprKind_EXPR_VAR || base_pe->var_name_len <= 0)
+      return 0;
+    vlen = base_pe->var_name_len;
+    if (vlen > 63)
+      return 0;
+    memcpy(vname, base_pe->var_name, (size_t)vlen);
+    if (init_pe->resolved_type_ref > 0 &&
+        pipeline_type_kind_ord_at(arena, init_pe->resolved_type_ref) == (int32_t)ast_TypeKind_TYPE_ARRAY)
+      arr_sz = pipeline_type_array_size_at(arena, init_pe->resolved_type_ref);
+  } else {
+    return 0;
   }
-  if (arr_sz <= 0 && init_pe->resolved_type_ref > 0 &&
-      pipeline_type_kind_ord_at(arena, init_pe->resolved_type_ref) == (int32_t)ast_TypeKind_TYPE_ARRAY)
-    arr_sz = pipeline_type_array_size_at(arena, init_pe->resolved_type_ref);
-  if (arr_sz <= 0)
+  if (arr_sz <= 0 && is_field == 0)
     return 0;
   if (glue_codegen_out_append_byte(out, '{') != 0)
     return -1;
@@ -983,10 +1006,40 @@ int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena *arena, s
     return -1;
   if (glue_codegen_out_append_bytes(out, vname, vlen) != 0)
     return -1;
+  if (is_field) {
+    if (glue_codegen_out_append_byte(out, '.') != 0)
+      return -1;
+    if (glue_codegen_out_append_bytes(out, init_pe->field_access_field_name, init_pe->field_access_field_len) != 0)
+      return -1;
+  }
   if (glue_codegen_out_append_cstr(out, ", .length = ") != 0)
     return -1;
-  if (glue_codegen_out_append_int(out, arr_sz) != 0)
-    return -1;
+  if (arr_sz > 0) {
+    if (glue_codegen_out_append_int(out, arr_sz) != 0)
+      return -1;
+  } else if (is_field) {
+    /* sizeof(base.field)/sizeof((base.field)[0]) */
+    if (glue_codegen_out_append_cstr(out, "(sizeof(") != 0)
+      return -1;
+    if (glue_codegen_out_append_bytes(out, vname, vlen) != 0)
+      return -1;
+    if (glue_codegen_out_append_byte(out, '.') != 0)
+      return -1;
+    if (glue_codegen_out_append_bytes(out, init_pe->field_access_field_name, init_pe->field_access_field_len) != 0)
+      return -1;
+    if (glue_codegen_out_append_cstr(out, ")/sizeof((") != 0)
+      return -1;
+    if (glue_codegen_out_append_bytes(out, vname, vlen) != 0)
+      return -1;
+    if (glue_codegen_out_append_byte(out, '.') != 0)
+      return -1;
+    if (glue_codegen_out_append_bytes(out, init_pe->field_access_field_name, init_pe->field_access_field_len) != 0)
+      return -1;
+    if (glue_codegen_out_append_cstr(out, ")[0])") != 0)
+      return -1;
+  } else {
+    return 0;
+  }
   if (glue_codegen_out_append_cstr(out, " }") != 0)
     return -1;
   return 1;
@@ -2156,9 +2209,10 @@ extern int32_t pipeline_block_for_body_ref(struct ast_ASTArena *a, int32_t br, i
 extern int32_t pipeline_block_region_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ri);
 
 /**
- * Match `let s: T[] = a` where a is fixed TYPE_ARRAY in the same block (or a's
- * resolved_type is TYPE_ARRAY). Writes *out_arr_sz / *out_elem_tr / *out_arr_init_ref.
+ * Match `let s: T[] = a` / wave348 `let s: T[] = b.a` where a / field is fixed TYPE_ARRAY.
+ * Writes *out_arr_sz / *out_elem_tr / *out_arr_init_ref.
  * @return 1 found; 0 not in this block.
+ * PLATFORM: SHARED (host+fs escape capacity N).
  */
 static int32_t glue_match_slice_escape_lets_in_block_c(struct ast_ASTArena *arena, int32_t block_ref,
                                                       const uint8_t *vname, int32_t vlen, int32_t *out_arr_sz,
@@ -2178,6 +2232,7 @@ static int32_t glue_match_slice_escape_lets_in_block_c(struct ast_ASTArena *aren
     int32_t lj;
     int32_t arr_sz = 0;
     int32_t arr_ty = 0;
+    int32_t init_ko;
     if (nlen != vlen || nlen <= 0)
       continue;
     pipeline_block_let_name_copy64(arena, block_ref, li, nb);
@@ -2193,9 +2248,10 @@ static int32_t glue_match_slice_escape_lets_in_block_c(struct ast_ASTArena *aren
     if (tr <= 0 || pipeline_type_kind_ord_at(arena, tr) != (int32_t)ast_TypeKind_TYPE_SLICE)
       continue;
     init_ref = pipeline_block_let_init_ref(arena, block_ref, li);
-    if (init_ref <= 0 || pipeline_expr_kind_ord_at(arena, init_ref) != 3)
+    if (init_ref <= 0)
       continue;
-    /* Prefer resolved TYPE_ARRAY on init VAR (works when a lives in parent). */
+    init_ko = pipeline_expr_kind_ord_at(arena, init_ref);
+    /* Prefer resolved TYPE_ARRAY on init (VAR or FIELD_ACCESS). */
     {
       int32_t irty = pipeline_expr_resolved_type_ref(arena, init_ref);
       if (irty > 0 && pipeline_type_kind_ord_at(arena, irty) == (int32_t)ast_TypeKind_TYPE_ARRAY) {
@@ -2203,7 +2259,7 @@ static int32_t glue_match_slice_escape_lets_in_block_c(struct ast_ASTArena *aren
         arr_ty = irty;
       }
     }
-    if (arr_sz <= 0) {
+    if (arr_sz <= 0 && init_ko == 3) {
       int32_t avlen = pipeline_expr_var_name_len(arena, init_ref);
       uint8_t aname[64];
       if (avlen <= 0 || avlen > 63)
@@ -2234,7 +2290,24 @@ static int32_t glue_match_slice_escape_lets_in_block_c(struct ast_ASTArena *aren
         }
       }
     }
-    if (arr_sz > 0 && arr_ty > 0) {
+    /*
+     * wave348 FIELD: typeck may leave FA resolved unset/non-ARRAY while let is TYPE_SLICE.
+     * Escape only needs a capacity upper bound + elem type (copy uses min(s.length, N)).
+     * Prefer resolved TYPE_ARRAY; else slice-let elem + N=256 (matches host sizeof idiom).
+     */
+    if (arr_sz <= 0 && init_ko == 44) {
+      int32_t elem = pipeline_type_elem_ref_at(arena, tr);
+      if (elem > 0) {
+        arr_sz = 256;
+        arr_ty = tr; /* use slice let for elem via elem_ref below */
+        *out_arr_sz = arr_sz;
+        *out_elem_tr = elem;
+        if (out_arr_init_ref)
+          *out_arr_init_ref = init_ref;
+        return 1;
+      }
+    }
+    if (arr_sz > 0 && arr_ty > 0 && (init_ko == 3 || init_ko == 44)) {
       *out_arr_sz = arr_sz;
       *out_elem_tr = pipeline_type_elem_ref_at(arena, arr_ty);
       if (out_arr_init_ref)
@@ -18560,46 +18633,75 @@ static int32_t glue_emit_slice_from_array_let_init_elf_c(struct ast_ASTArena *ar
     }
     return 1;
   }
-  if (init_ko != GLUE_EXPR_KIND_VAR)
-    return 0;
-  vlen = pipeline_expr_var_name_len(arena, init_ref);
-  if (vlen <= 0 || vlen > 63)
-    return 0;
-  pipeline_expr_var_name_into(arena, init_ref, vname);
-  for (li = 0; li < let_idx; li++) {
-    int32_t nlen = pipeline_block_let_name_len(arena, block_ref, li);
-    if (nlen == vlen && nlen > 0) {
-      int32_t match = 1;
-      int32_t ci;
-      uint8_t nb[64];
-      pipeline_block_let_name_copy64(arena, block_ref, li, nb);
-      for (ci = 0; ci < nlen; ci++) {
-        if (nb[ci] != vname[ci]) {
-          match = 0;
-          break;
+  /*
+   * VAR path: prior fixed TYPE_ARRAY local.
+   * wave348 FIELD path: `let s: T[] = b.a` — lea base+field_off → data, length=N.
+   * G.7: same dual-GP store authority; reuse INDEX field base lea (TYPE_ARRAY no load).
+   * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV.
+   */
+  if (init_ko == GLUE_EXPR_KIND_VAR) {
+    vlen = pipeline_expr_var_name_len(arena, init_ref);
+    if (vlen <= 0 || vlen > 63)
+      return 0;
+    pipeline_expr_var_name_into(arena, init_ref, vname);
+    for (li = 0; li < let_idx; li++) {
+      int32_t nlen = pipeline_block_let_name_len(arena, block_ref, li);
+      if (nlen == vlen && nlen > 0) {
+        int32_t match = 1;
+        int32_t ci;
+        uint8_t nb[64];
+        pipeline_block_let_name_copy64(arena, block_ref, li, nb);
+        for (ci = 0; ci < nlen; ci++) {
+          if (nb[ci] != vname[ci]) {
+            match = 0;
+            break;
+          }
+        }
+        if (match) {
+          int32_t tr = pipeline_block_let_type_ref(arena, block_ref, li);
+          if (pipeline_type_kind_ord_at(arena, tr) == (int32_t)ast_TypeKind_TYPE_ARRAY)
+            arr_sz = pipeline_type_array_size_at(arena, tr);
+          if (arr_sz > 0)
+            break;
         }
       }
-      if (match) {
-        int32_t tr = pipeline_block_let_type_ref(arena, block_ref, li);
-        if (pipeline_type_kind_ord_at(arena, tr) == (int32_t)ast_TypeKind_TYPE_ARRAY)
-          arr_sz = pipeline_type_array_size_at(arena, tr);
-        if (arr_sz > 0)
-          break;
-      }
     }
-  }
-  if (arr_sz <= 0) {
-    int32_t init_tr = pipeline_expr_resolved_type_ref(arena, init_ref);
-    if (init_tr > 0 && pipeline_type_kind_ord_at(arena, init_tr) == 10)
+    if (arr_sz <= 0) {
+      int32_t init_tr = pipeline_expr_resolved_type_ref(arena, init_ref);
+      if (init_tr > 0 && pipeline_type_kind_ord_at(arena, init_tr) == 10)
+        arr_sz = pipeline_type_array_size_at(arena, init_tr);
+    }
+    if (arr_sz <= 0)
+      return 0;
+    arr_off = glue_var_expr_stack_off_elf_c(arena, ctx, init_ref);
+    if (arr_off < 0)
+      return -1;
+    if (glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, init_ref, arr_off, ctx, ta) != 0)
+      return -1;
+  } else if (init_ko == 44) {
+    /* EXPR_FIELD_ACCESS: fixed TYPE_ARRAY field of VAR base. */
+    int32_t init_tr;
+    int32_t ftr;
+    int32_t lea_rc;
+    if (pipeline_expr_field_access_is_enum_variant(arena, init_ref) != 0)
+      return 0;
+    init_tr = pipeline_expr_resolved_type_ref(arena, init_ref);
+    if (init_tr > 0 && pipeline_type_kind_ord_at(arena, init_tr) == (int32_t)ast_TypeKind_TYPE_ARRAY)
       arr_sz = pipeline_type_array_size_at(arena, init_tr);
-  }
-  if (arr_sz <= 0)
+    if (arr_sz <= 0) {
+      ftr = glue_field_access_field_type_ref_c(arena, g_pipeline_asm_emit_module, init_ref);
+      if (ftr > 0 && pipeline_type_kind_ord_at(arena, ftr) == (int32_t)ast_TypeKind_TYPE_ARRAY)
+        arr_sz = pipeline_type_array_size_at(arena, ftr);
+    }
+    if (arr_sz <= 0)
+      return 0;
+    /* lea &b.a into rax (TYPE_ARRAY field: no ptr load). */
+    lea_rc = glue_try_index_var_or_field_base_to_rax_elf_c(arena, elf_ctx, init_ref, ctx, ta);
+    if (lea_rc != 0)
+      return lea_rc < 0 ? -1 : 0;
+  } else {
     return 0;
-  arr_off = glue_var_expr_stack_off_elf_c(arena, ctx, init_ref);
-  if (arr_off < 0)
-    return -1;
-  if (glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, init_ref, arr_off, ctx, ta) != 0)
-    return -1;
+  }
   if (backend_enc_store_rax_to_rbp_arch(elf_ctx, slice_slot_off, ta) != 0)
     return -1;
   if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, arr_sz, 0, ta) != 0)
