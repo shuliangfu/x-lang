@@ -1761,7 +1761,7 @@ static int32_t glue_emit_index_eff_addr_scaled_elf_c(struct ast_ASTArena *arena,
                                                       int32_t ta, int32_t esz);
 static int32_t pipeline_asm_emit_panic_int_div_zero_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 static int32_t glue_binop_preserve_rax_for_rbx_load_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                            int32_t ta);
+                                                            int32_t ta, struct backend_AsmFuncCtx *ctx);
 static int32_t glue_binop_restore_rax_after_rbx_load_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                int32_t ta);
 static int32_t pipeline_asm_expr_lit_i32_at_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *out_imm);
@@ -7037,6 +7037,13 @@ static int32_t glue_index_scratch_stack_depth;
 static int32_t glue_binop_stack_spill_off[GLUE_BINOP_STACK_SPILL_CAP];
 static int32_t glue_binop_stack_spill_at_depth[GLUE_BINOP_STACK_SPILL_CAP];
 static int32_t glue_binop_stack_spill_n;
+/**
+ * wave403: arm64 binop left-in-rax frame spill nest (not SP push / not x9).
+ * Cap for nested (a op b) op (c op d) across CALL; cleared at block emit entry.
+ */
+#define GLUE_BINOP_RAX_FRAME_SPILL_CAP 16
+static int32_t glue_binop_rax_frame_spill_off[GLUE_BINOP_RAX_FRAME_SPILL_CAP];
+static int32_t glue_binop_rax_frame_spill_n;
 
 static void glue_binop_stack_spill_clear(void);
 static void glue_binop_stack_spill_drop_off(int32_t off);
@@ -12565,23 +12572,68 @@ static int32_t glue_binop_restore_rbx_after_index_elf_c(struct platform_elf_ElfC
 }
 
 /**
- * 左子树已在 rax；装入右操作数到 rbx 且 FIELD/INDEX 会经 rax 中转时暂存/恢复 rax。
+ * Left operand is live in rax; park it while loading the right into rbx when that
+ * load/emit would clobber rax (FIELD/INDEX via rax, CALL/METHOD, nested binop).
+ *
+ * wave403 Cap residual pure — two arm64 false starts, one root:
+ *   1) volatile x9: right CALL body reuses x9 for multi-INDEX partials
+ *      (`s[0]+s[1]+s[2]`) → outer `take(a)+take(a)` restored clobbered left
+ *      (fs run=9 expect 12; host-C / Linux x86 push path green).
+ *   2) SP push (str x0,[sp,#-16]!): arm64 callee prolog `str x0,[x29,#0x10]`
+ *      for the first param home sits at the pre-call SP slot and overwrites the
+ *      parked left (mid_s0 run=33; disasm correct-looking push/pop still red).
+ * G.7 single authority:
+ *   - LINUX|x86_64: keep push/pop (call-safe under SysV; not the arm64 leaf).
+ *   - MACOS|ARM64: frame-local spill via ctx next_offset + nest stack of homes
+ *     (x29-relative; survives CALL; nest-safe for chained binops). Do not invent
+ *     a second preserve register; x9 stays free for other scratch.
+ * PLATFORM: SHARED freestanding binop preserve · MACOS|ARM64 frame · LINUX|x86 push.
  */
 static int32_t glue_binop_preserve_rax_for_rbx_load_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                            int32_t ta) {
-  if (ta == 1)
-    return arch_arm64_enc_enc_mov_rax_to_x9(elf_ctx);
-  return backend_enc_push_rax_arch(elf_ctx, ta);
+                                                            int32_t ta, struct backend_AsmFuncCtx *ctx) {
+  if (ta != 1)
+    return backend_enc_push_rax_arch(elf_ctx, ta);
+  {
+    pipeline_glue_AsmFuncCtxLayout *ly;
+    int32_t base_off;
+    int32_t home;
+    if (!elf_ctx || !ctx)
+      return -1;
+    if (glue_binop_rax_frame_spill_n >= GLUE_BINOP_RAX_FRAME_SPILL_CAP)
+      return -1;
+    ly = pipeline_asm_ctx_layout(ctx);
+    if (!ly)
+      return -1;
+    /* PLATFORM: MACOS|ARM64 low-end home (wave402): home=off, next=off+8. */
+    base_off = ly->next_offset;
+    if ((base_off % 8) != 0)
+      base_off = (base_off + 7) / 8 * 8;
+    home = base_off;
+    ly->next_offset = base_off + 8;
+    glue_align_next_offset(ctx);
+    glue_binop_rax_frame_spill_off[glue_binop_rax_frame_spill_n++] = home;
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+      return -1;
+    return 0;
+  }
 }
 
 /**
- * glue_binop_preserve_rax_for_rbx_load_elf_c 的配对恢复。
+ * Pair restore for glue_binop_preserve_rax_for_rbx_load_elf_c.
+ * x86: pop rax. arm64: load from nested frame home (wave403).
+ * PLATFORM: SHARED freestanding · matches preserve.
  */
 static int32_t glue_binop_restore_rax_after_rbx_load_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                int32_t ta) {
-  if (ta == 1)
-    return arch_arm64_enc_enc_mov_x9_to_rax(elf_ctx);
-  return backend_enc_pop_rax_arch(elf_ctx, ta);
+  if (ta != 1)
+    return backend_enc_pop_rax_arch(elf_ctx, ta);
+  {
+    int32_t home;
+    if (!elf_ctx || glue_binop_rax_frame_spill_n <= 0)
+      return -1;
+    home = glue_binop_rax_frame_spill_off[--glue_binop_rax_frame_spill_n];
+    return backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta);
+  }
 }
 
 /**
@@ -12706,7 +12758,7 @@ static int32_t glue_try_binop_commutative_rax_rbx_elf_c(struct ast_ASTArena *are
   {
     int32_t save_rax;
     save_rax = glue_binop_operand_load_to_rbx_clobbers_rax_elf_c(arena, right_ref);
-    if (save_rax != 0 && glue_binop_preserve_rax_for_rbx_load_elf_c(elf_ctx, ta) != 0)
+    if (save_rax != 0 && glue_binop_preserve_rax_for_rbx_load_elf_c(elf_ctx, ta, ctx) != 0)
       return -1;
     r = glue_try_binop_load_operand_elf_c(arena, elf_ctx, right_ref, ctx, ta, 1);
     if (r == -1) {
@@ -12715,7 +12767,7 @@ static int32_t glue_try_binop_commutative_rax_rbx_elf_c(struct ast_ASTArena *are
       return -1;
     }
     if (r == -2) {
-      if (save_rax == 0 && glue_binop_preserve_rax_for_rbx_load_elf_c(elf_ctx, ta) != 0)
+      if (save_rax == 0 && glue_binop_preserve_rax_for_rbx_load_elf_c(elf_ctx, ta, ctx) != 0)
         return -1;
       if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, right_ref, ctx, ta) != 0)
         return -1;
@@ -12795,7 +12847,7 @@ static int32_t glue_try_binop_left_rax_right_rbx_elf_c(struct ast_ASTArena *aren
     if (r != -2)
       return r;
     /** 左已在 rax；右 slow emit 须 x2 暂存 rax 再 mov 到 rbx。 */
-    if (glue_binop_preserve_rax_for_rbx_load_elf_c(elf_ctx, ta) != 0)
+    if (glue_binop_preserve_rax_for_rbx_load_elf_c(elf_ctx, ta, ctx) != 0)
       return -1;
     if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, right_ref, ctx, ta) != 0)
       return -1;
@@ -20052,6 +20104,7 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
   glue_index_subadd3_sum_cache_clear();
   glue_index_minus_pair_cache_clear();
   glue_index_scratch_stack_depth = 0;
+  glue_binop_rax_frame_spill_n = 0;
   glue_asm_ctx_set_scope_block((uint8_t *)ctx, block_ref);
   /** 预登记本块及 if/while/for 子树全部 let（修复 get_field_offset_from_layout 内层 `j` 未入 ctx）。 */
   pipeline_asm_fill_block_locals_tree(ctx, arena, block_ref);
