@@ -3648,6 +3648,99 @@ export function emit_local_fixed_array_suffix(arena: *ASTArena, out: *CodegenOut
 }
 
 /**
+ * Host-C: finish a fixed TYPE_ARRAY local after `E name[N]` has been emitted (no `=` yet).
+ *
+ * - null / zero lit → ` = { 0 };`
+ * - EXPR_ARRAY_LIT → ` = { elems };`
+ * - other rvalue (CALL / METHOD / VAR / FIELD / …) → `;\n` + indent +
+ *   `memcpy((void*)(name), (const void*)(<expr>), sizeof(name));`
+ *
+ * Root (wave353 Cap residual): C forbids `T t[N] = ptr` and `T t[N] = other_array`.
+ * Host lowers TYPE_ARRAY returns as `E*` (wave352 durable static); memcpy once-evals CALL.
+ * G.7: single authority for local fixed-array let init; reuses wave334 memcpy form.
+ *
+ * @param arena *ASTArena — expression pool
+ * @param out *CodegenOutBuf — C text sink
+ * @param indent i32 — indentation for the optional memcpy statement
+ * @param name *u8 — C local identifier bytes (may be placeholder `_lN`)
+ * @param name_len i32 — byte length of name; must match what was just emitted
+ * @param linit_ref i32 — init expression ref; null/invalid → zero brace init
+ * @param ctx *PipelineDepCtx — emit context for nested expr
+ * @return i32 — 0 on success, -1 on hard emit failure
+ * PLATFORM: SHARED host-C emit (string.h memcpy already in product preamble).
+ */
+export function emit_local_fixed_array_let_finish(arena: *ASTArena, out: *CodegenOutBuf, indent: i32, name: *u8, name_len: i32, linit_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    let use_brace: i32 = 0;
+    let use_zero: i32 = 0;
+    if (ast.ref_is_null(linit_ref) || linit_ref <= 0 || linit_ref > arena.num_exprs) {
+      use_zero = 1;
+    } else {
+      let ie: Expr = ast.ast_arena_expr_get(arena, linit_ref);
+      if (ie.kind == ExprKind.EXPR_ARRAY_LIT) {
+        use_brace = 1;
+      } else if (ie.kind == ExprKind.EXPR_LIT && ie.int_val == 0) {
+        use_zero = 1;
+      }
+    }
+    if (use_brace != 0) {
+      let eqb: u8[4] = [32, 61, 32, 0];
+      if (emit_bytes_4(out, eqb, 3) != 0) {
+        return -1;
+      }
+      if (emit_braced_array_lit_init(arena, out, linit_ref, ctx) != 0) {
+        return -1;
+      }
+      let scb: u8[3] = [59, 10, 0];
+      return emit_bytes_3(out, scb, 2);
+    }
+    if (use_zero != 0) {
+      let z: u8[10] = [32, 61, 32, 123, 32, 48, 32, 125, 59, 10];
+      return emit_bytes_from_ptr(out, &z[0], 10);
+    }
+    /* Non-brace rvalue: declare then memcpy (once-eval of CALL/METHOD). */
+    if (append_byte(out, 59) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 10) != 0) {
+      return -1;
+    }
+    if (emit_indent(out, indent) != 0) {
+      return -1;
+    }
+    /* memcpy((void*)( */
+    let pref: u8[16] = [109, 101, 109, 99, 112, 121, 40, 40, 118, 111, 105, 100, 42, 41, 40, 0];
+    if (emit_bytes_from_ptr(out, &pref[0], 15) != 0) {
+      return -1;
+    }
+    if (name_len > 0 && emit_bytes_64(out, name, name_len) != 0) {
+      return -1;
+    }
+    /* ), (const void*)( */
+    let mid: u8[20] = [41, 44, 32, 40, 99, 111, 110, 115, 116, 32, 118, 111, 105, 100, 42, 41, 40, 0, 0, 0];
+    if (emit_bytes_from_ptr(out, &mid[0], 17) != 0) {
+      return -1;
+    }
+    if (emit_expr(arena, out, linit_ref, ctx) != 0) {
+      return -1;
+    }
+    /* ), sizeof( */
+    let mid_sz: u8[12] = [41, 44, 32, 115, 105, 122, 101, 111, 102, 40, 0, 0];
+    if (emit_bytes_from_ptr(out, &mid_sz[0], 10) != 0) {
+      return -1;
+    }
+    if (name_len > 0 && emit_bytes_64(out, name, name_len) != 0) {
+      return -1;
+    }
+    /* ));\n */
+    let tail: u8[4] = [41, 41, 59, 10];
+    return emit_bytes_from_ptr(out, &tail[0], 4);
+  }
+}
+
+/**
  * Host-C: `let s: T[] = arr` where arr is a fixed TYPE_ARRAY rvalue.
  * Emits `{ .data = <arr>, .length = N }` (C array decays to pointer).
  *
@@ -8923,34 +9016,75 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
           if (append_byte(out, 32) != 0) {
             return -1;
           }
+          /* Emit C local name into emit_nm_pre so memcpy finish can reuse it. */
+          let emit_nm_pre: u8[64] = [];
+          let emit_nml_pre: i32 = 0;
           if (lname_len_pre > 0 && (lname_pre[0] > 32)) {
-            if (emit_bytes_64(out, &lname_pre[0], lname_len_pre) != 0) {
-              return -1;
+            let ci: i32 = 0;
+            while (ci < lname_len_pre && ci < 64) {
+              emit_nm_pre[ci] = lname_pre[ci];
+              ci = ci + 1;
             }
+            emit_nml_pre = lname_len_pre;
           } else {
-            let place_pre: u8[4] = [95, 108, 48, 0];
-            if (emit_bytes_4(out, place_pre, 2) != 0) {
-              return -1;
+            emit_nm_pre[0] = 95;
+            emit_nm_pre[1] = 108;
+            emit_nml_pre = 2;
+            let v: i32 = pre_li;
+            let digs: u8[12] = [];
+            let nd: i32 = 0;
+            if (v == 0) {
+              digs[0] = 48;
+              nd = 1;
+            } else {
+              let tmp: i32 = v;
+              while (tmp > 0 && nd < 12) {
+                digs[nd] = ((tmp % 10) + 48) as u8;
+                tmp = tmp / 10;
+                nd = nd + 1;
+              }
+              let a: i32 = 0;
+              let b: i32 = nd - 1;
+              while (a < b) {
+                let sw: u8 = digs[a];
+                digs[a] = digs[b];
+                digs[b] = sw;
+                a = a + 1;
+                b = b - 1;
+              }
             }
-            if (format_int(out, pre_li) != 0) {
-              return -1;
+            let pi: i32 = 0;
+            while (pi < nd && emit_nml_pre < 64) {
+              emit_nm_pre[emit_nml_pre] = digs[pi];
+              emit_nml_pre = emit_nml_pre + 1;
+              pi = pi + 1;
             }
+          }
+          if (emit_bytes_64(out, &emit_nm_pre[0], emit_nml_pre) != 0) {
+            return -1;
           }
           if (use_local_array_pre != 0) {
             if (emit_local_fixed_array_suffix(arena, out, let_type_pre) != 0) {
               return -1;
             }
           }
-          let eq_pre: u8[4] = [32, 61, 32, 0];
-          if (emit_bytes_4(out, eq_pre, 3) != 0) {
-            return -1;
-          }
-          if (emit_expr(arena, out, linit_pre, ctx) != 0) {
-            return -1;
-          }
-          let sc_pre: u8[3] = [59, 10, 0];
-          if (emit_bytes_3(out, sc_pre, 2) != 0) {
-            return -1;
+          /* wave353: fixed TYPE_ARRAY local — brace lit or memcpy (not T t[N]=ptr). */
+          if (use_local_array_pre != 0) {
+            if (emit_local_fixed_array_let_finish(arena, out, indent, &emit_nm_pre[0], emit_nml_pre, linit_pre, ctx) != 0) {
+              return -1;
+            }
+          } else {
+            let eq_pre: u8[4] = [32, 61, 32, 0];
+            if (emit_bytes_4(out, eq_pre, 3) != 0) {
+              return -1;
+            }
+            if (emit_expr(arena, out, linit_pre, ctx) != 0) {
+              return -1;
+            }
+            let sc_pre: u8[3] = [59, 10, 0];
+            if (emit_bytes_3(out, sc_pre, 2) != 0) {
+              return -1;
+            }
           }
         }
         pre_li = pre_li + 1;
@@ -9088,107 +9222,133 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
             if (append_byte(out, 32) != 0) {
               return -1;
             }
-            /* See implementation. */
+            /* Emit C local name into emit_nm so wave353 memcpy finish can reuse it. */
+            let emit_nm: u8[64] = [];
+            let emit_nml: i32 = 0;
             if (lname_len > 0 && (lname_buf[0] > 32)) {
-              if (emit_bytes_64(out, &lname_buf[0], lname_len) != 0) {
-                return -1;
+              let ci2: i32 = 0;
+              while (ci2 < lname_len && ci2 < 64) {
+                emit_nm[ci2] = lname_buf[ci2];
+                ci2 = ci2 + 1;
               }
+              emit_nml = lname_len;
             } else {
-              let place: u8[4] = [95, 108, 48, 0];
-              if (emit_bytes_4(out, place, 2) != 0) {
-                return -1;
+              emit_nm[0] = 95;
+              emit_nm[1] = 108;
+              emit_nml = 2;
+              let v2: i32 = idx;
+              let digs2: u8[12] = [];
+              let nd2: i32 = 0;
+              if (v2 == 0) {
+                digs2[0] = 48;
+                nd2 = 1;
+              } else {
+                let tmp2: i32 = v2;
+                while (tmp2 > 0 && nd2 < 12) {
+                  digs2[nd2] = ((tmp2 % 10) + 48) as u8;
+                  tmp2 = tmp2 / 10;
+                  nd2 = nd2 + 1;
+                }
+                let a2: i32 = 0;
+                let b2: i32 = nd2 - 1;
+                while (a2 < b2) {
+                  let sw2: u8 = digs2[a2];
+                  digs2[a2] = digs2[b2];
+                  digs2[b2] = sw2;
+                  a2 = a2 + 1;
+                  b2 = b2 - 1;
+                }
               }
-              if (format_int(out, idx) != 0) {
-                return -1;
+              let pi2: i32 = 0;
+              while (pi2 < nd2 && emit_nml < 64) {
+                emit_nm[emit_nml] = digs2[pi2];
+                emit_nml = emit_nml + 1;
+                pi2 = pi2 + 1;
               }
+            }
+            if (emit_bytes_64(out, &emit_nm[0], emit_nml) != 0) {
+              return -1;
             }
             if (use_local_array != 0) {
               if (emit_local_fixed_array_suffix(arena, out, let_type_ref) != 0) {
                 return -1;
               }
             }
-            let eq: u8[4] = [32, 61, 32, 0];
-            if (emit_bytes_4(out, eq, 3) != 0) {
-              return -1;
-            }
-            let slice_init: i32 = 0;
-            if (!ast.ref_is_null(linit_ref)) {
-              slice_init = try_emit_slice_init_from_array_var(arena, out, block_ref, idx, let_type_ref, linit_ref);
-            }
-            /* See implementation. */
-            if (ast.ref_is_null(linit_ref)) {
-              let zinit_omit2: u8[6] = [123, 32, 48, 32, 125, 0];
-              if (emit_bytes_6(out, zinit_omit2, 5) != 0) {
+            /*
+             * wave353 Cap residual pure: host fixed TYPE_ARRAY local let.
+             * Root: C rejects `T t[N] = fill()` / `T t[N] = a` (not brace/string).
+             * Authority: emit_local_fixed_array_let_finish — brace lit or memcpy once-eval.
+             */
+            if (use_local_array != 0) {
+              if (emit_local_fixed_array_let_finish(arena, out, indent, &emit_nm[0], emit_nml, linit_ref, ctx) != 0) {
                 return -1;
               }
-            } else if (slice_init == 1) {
-              /* See implementation. */
-            } else if (slice_init < 0) {
-              return -1;
-            } else if (use_local_array != 0 && !ast.ref_is_null(linit_ref) && linit_ref > 0 && linit_ref <= arena.num_exprs) {
-              let init_e2: Expr = ast.ast_arena_expr_get(arena, linit_ref);
-              if (init_e2.kind == ExprKind.EXPR_ARRAY_LIT) {
-                if (emit_braced_array_lit_init(arena, out, linit_ref, ctx) != 0) {
-                  return -1;
-                }
-              } else if (init_e2.kind == ExprKind.EXPR_LIT && init_e2.int_val == 0) {
-                let zinit: u8[6] = [123, 32, 48, 32, 125, 0];
-                if (emit_bytes_6(out, zinit, 5) != 0) {
-                  return -1;
-                }
-              } else {
-                if (emit_expr(arena, out, linit_ref, ctx) != 0) {
-                  return -1;
-                }
-              }
             } else {
-              /* See implementation. */
-              let use_vec_z: i32 = 0;
-              let use_vec_braced: i32 = 0;
-              if (!ast.ref_is_null(linit_ref) && linit_ref > 0 && linit_ref <= arena.num_exprs
-                  && !ast.ref_is_null(let_type_ref)) {
-                let init_ez: Expr = ast.ast_arena_expr_get(arena, linit_ref);
-                let tk_z: i32 = pipeline_type_kind_ord_at(arena, let_type_ref);
-                let is_vec_ty: i32 = 0;
-                if (tk_z == TypeKind.TYPE_VECTOR) {
-                  is_vec_ty = 1;
-                } else if (tk_z == TypeKind.TYPE_NAMED) {
-                  let vzn: u8[64] = [];
-                  let vzn_l: i32 = pipeline_type_named_name_into(arena, let_type_ref, &vzn[0]);
-                  let vi: i32 = 0;
-                  while (vi < vzn_l) {
-                    if (vzn[vi] == 120) {
-                      is_vec_ty = 1;
-                      vi = vzn_l;
-                    } else {
-                      vi = vi + 1;
+              let eq: u8[4] = [32, 61, 32, 0];
+              if (emit_bytes_4(out, eq, 3) != 0) {
+                return -1;
+              }
+              let slice_init: i32 = 0;
+              if (!ast.ref_is_null(linit_ref)) {
+                slice_init = try_emit_slice_init_from_array_var(arena, out, block_ref, idx, let_type_ref, linit_ref);
+              }
+              if (ast.ref_is_null(linit_ref)) {
+                let zinit_omit2: u8[6] = [123, 32, 48, 32, 125, 0];
+                if (emit_bytes_6(out, zinit_omit2, 5) != 0) {
+                  return -1;
+                }
+              } else if (slice_init == 1) {
+                /* slice compound already written */
+              } else if (slice_init < 0) {
+                return -1;
+              } else {
+                let use_vec_z: i32 = 0;
+                let use_vec_braced: i32 = 0;
+                if (!ast.ref_is_null(linit_ref) && linit_ref > 0 && linit_ref <= arena.num_exprs
+                    && !ast.ref_is_null(let_type_ref)) {
+                  let init_ez: Expr = ast.ast_arena_expr_get(arena, linit_ref);
+                  let tk_z: i32 = pipeline_type_kind_ord_at(arena, let_type_ref);
+                  let is_vec_ty: i32 = 0;
+                  if (tk_z == TypeKind.TYPE_VECTOR) {
+                    is_vec_ty = 1;
+                  } else if (tk_z == TypeKind.TYPE_NAMED) {
+                    let vzn: u8[64] = [];
+                    let vzn_l: i32 = pipeline_type_named_name_into(arena, let_type_ref, &vzn[0]);
+                    let vi: i32 = 0;
+                    while (vi < vzn_l) {
+                      if (vzn[vi] == 120) {
+                        is_vec_ty = 1;
+                        vi = vzn_l;
+                      } else {
+                        vi = vi + 1;
+                      }
+                    }
+                  }
+                  if (is_vec_ty != 0) {
+                    if (init_ez.kind == ExprKind.EXPR_LIT && init_ez.int_val == 0) {
+                      use_vec_z = 1;
+                    } else if (init_ez.kind == ExprKind.EXPR_ARRAY_LIT) {
+                      use_vec_braced = 1;
                     }
                   }
                 }
-                if (is_vec_ty != 0) {
-                  if (init_ez.kind == ExprKind.EXPR_LIT && init_ez.int_val == 0) {
-                    use_vec_z = 1;
-                  } else if (init_ez.kind == ExprKind.EXPR_ARRAY_LIT) {
-                    use_vec_braced = 1;
+                if (use_vec_z != 0) {
+                  let vz: u8[6] = [123, 32, 48, 32, 125, 0];
+                  if (emit_bytes_6(out, vz, 5) != 0) {
+                    return -1;
                   }
+                } else if (use_vec_braced != 0) {
+                  if (emit_braced_array_lit_init(arena, out, linit_ref, ctx) != 0) {
+                    return -1;
+                  }
+                } else if (emit_expr(arena, out, linit_ref, ctx) != 0) {
+                  return -1;
                 }
               }
-              if (use_vec_z != 0) {
-                let vz: u8[6] = [123, 32, 48, 32, 125, 0];
-                if (emit_bytes_6(out, vz, 5) != 0) {
-                  return -1;
-                }
-              } else if (use_vec_braced != 0) {
-                if (emit_braced_array_lit_init(arena, out, linit_ref, ctx) != 0) {
-                  return -1;
-                }
-              } else if (emit_expr(arena, out, linit_ref, ctx) != 0) {
+              let sc: u8[3] = [59, 10, 0];
+              if (emit_bytes_3(out, sc, 2) != 0) {
                 return -1;
               }
-            }
-            let sc: u8[3] = [59, 10, 0];
-            if (emit_bytes_3(out, sc, 2) != 0) {
-              return -1;
             }
           }
         } else if (k == 2) {
@@ -9526,44 +9686,70 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
       if (append_byte(out, 32) != 0) {
         return -1;
       }
-      /* See implementation. */
+      let emit_nm_fb: u8[64] = [];
+      let emit_nml_fb: i32 = 0;
       if (lname_len_fb > 0 && (lname_fb[0] > 32)) {
-        if (emit_bytes_64(out, &lname_fb[0], lname_len_fb) != 0) {
-          return -1;
+        let ci3: i32 = 0;
+        while (ci3 < lname_len_fb && ci3 < 64) {
+          emit_nm_fb[ci3] = lname_fb[ci3];
+          ci3 = ci3 + 1;
         }
+        emit_nml_fb = lname_len_fb;
       } else {
-        let place: u8[4] = [95, 108, 48, 0];
-        if (emit_bytes_4(out, place, 2) != 0) {
-          return -1;
+        emit_nm_fb[0] = 95;
+        emit_nm_fb[1] = 108;
+        emit_nml_fb = 2;
+        let v3: i32 = i;
+        let digs3: u8[12] = [];
+        let nd3: i32 = 0;
+        if (v3 == 0) {
+          digs3[0] = 48;
+          nd3 = 1;
+        } else {
+          let tmp3: i32 = v3;
+          while (tmp3 > 0 && nd3 < 12) {
+            digs3[nd3] = ((tmp3 % 10) + 48) as u8;
+            tmp3 = tmp3 / 10;
+            nd3 = nd3 + 1;
+          }
+          let a3: i32 = 0;
+          let b3: i32 = nd3 - 1;
+          while (a3 < b3) {
+            let sw3: u8 = digs3[a3];
+            digs3[a3] = digs3[b3];
+            digs3[b3] = sw3;
+            a3 = a3 + 1;
+            b3 = b3 - 1;
+          }
         }
-        if (format_int(out, i) != 0) {
-          return -1;
+        let pi3: i32 = 0;
+        while (pi3 < nd3 && emit_nml_fb < 64) {
+          emit_nm_fb[emit_nml_fb] = digs3[pi3];
+          emit_nml_fb = emit_nml_fb + 1;
+          pi3 = pi3 + 1;
         }
+      }
+      if (emit_bytes_64(out, &emit_nm_fb[0], emit_nml_fb) != 0) {
+        return -1;
       }
       if (use_local_array != 0) {
         if (emit_local_fixed_array_suffix(arena, out, let_type_ref) != 0) {
           return -1;
         }
       }
-      let eq: u8[4] = [32, 61, 32, 0];
-      if (emit_bytes_4(out, eq, 3) != 0) {
-        return -1;
-      }
-      /* See implementation. */
-      if (ast.ref_is_null(linit_fb)) {
-        let zinit_omit: u8[6] = [123, 32, 48, 32, 125, 0];
-        if (emit_bytes_6(out, zinit_omit, 5) != 0) {
+      /* wave353: fixed TYPE_ARRAY local let finish (brace or memcpy). */
+      if (use_local_array != 0) {
+        if (emit_local_fixed_array_let_finish(arena, out, indent, &emit_nm_fb[0], emit_nml_fb, linit_fb, ctx) != 0) {
           return -1;
         }
-      } else if (use_local_array != 0 && !ast.ref_is_null(linit_fb) && linit_fb > 0 && linit_fb <= arena.num_exprs) {
-        let init_e3: Expr = ast.ast_arena_expr_get(arena, linit_fb);
-        if (init_e3.kind == ExprKind.EXPR_ARRAY_LIT) {
-          if (emit_braced_array_lit_init(arena, out, linit_fb, ctx) != 0) {
-            return -1;
-          }
-        } else if (init_e3.kind == ExprKind.EXPR_LIT && init_e3.int_val == 0) {
-          let zinit2: u8[6] = [123, 32, 48, 32, 125, 0];
-          if (emit_bytes_6(out, zinit2, 5) != 0) {
+      } else {
+        let eq: u8[4] = [32, 61, 32, 0];
+        if (emit_bytes_4(out, eq, 3) != 0) {
+          return -1;
+        }
+        if (ast.ref_is_null(linit_fb)) {
+          let zinit_omit: u8[6] = [123, 32, 48, 32, 125, 0];
+          if (emit_bytes_6(out, zinit_omit, 5) != 0) {
             return -1;
           }
         } else {
@@ -9571,14 +9757,10 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
             return -1;
           }
         }
-      } else {
-        if (emit_expr(arena, out, linit_fb, ctx) != 0) {
+        let sc: u8[3] = [59, 10, 0];
+        if (emit_bytes_3(out, sc, 2) != 0) {
           return -1;
         }
-      }
-      let sc: u8[3] = [59, 10, 0];
-      if (emit_bytes_3(out, sc, 2) != 0) {
-        return -1;
       }
       i = i + 1;
     }
