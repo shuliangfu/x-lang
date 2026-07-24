@@ -4490,10 +4490,18 @@ int32_t codegen_type_array_elem_is_u8(struct ast_ASTArena * arena, int32_t type_
   }
   return 0;
 }
+/* wave357: peel multi-dim TYPE_ARRAY to scalar leaf + emit all [N][M] suffixes (not E*). */
 int32_t codegen_emit_local_fixed_array_elem_type(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t type_ref, struct ast_PipelineDepCtx * ctx) {
   {
-    int32_t inner = pipeline_type_elem_ref_at(arena, type_ref);
-    if ((ast_ref_is_null(inner) || (codegen_emit_type(arena, out, inner, ((uint8_t *)(0)), 0, ctx) !=0))) {
+    int32_t base_ref = type_ref;
+    while ((!ast_ref_is_null(base_ref)) && (pipeline_type_kind_ord_at(arena, base_ref) == 10)) {
+      int32_t inner = pipeline_type_elem_ref_at(arena, base_ref);
+      if (ast_ref_is_null(inner)) {
+        break;
+      }
+      base_ref = inner;
+    }
+    if ((ast_ref_is_null(base_ref) || (codegen_emit_type(arena, out, base_ref, ((uint8_t *)(0)), 0, ctx) !=0))) {
       uint8_t fb[8] = {105, 110, 116, 51, 50, 95, 116, 0};
       return codegen_emit_bytes_8(out, fb, 7);
     }
@@ -4503,14 +4511,23 @@ int32_t codegen_emit_local_fixed_array_elem_type(struct ast_ASTArena * arena, st
 }
 int32_t codegen_emit_local_fixed_array_suffix(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t type_ref) {
   {
-    int32_t asz = pipeline_type_array_size_at(arena, type_ref);
-    if ((codegen_append_byte(out, 91) !=0)) {
-      return -(1);
+    int32_t dims_ref = type_ref;
+    int32_t depth = 0;
+    while (((!ast_ref_is_null(dims_ref)) && (pipeline_type_kind_ord_at(arena, dims_ref) == 10)) && (depth < 8)) {
+      int32_t asz = pipeline_type_array_size_at(arena, dims_ref);
+      if ((codegen_append_byte(out, 91) !=0)) {
+        return -(1);
+      }
+      if ((codegen_format_int(out, asz) !=0)) {
+        return -(1);
+      }
+      if ((codegen_append_byte(out, 93) !=0)) {
+        return -(1);
+      }
+      dims_ref = pipeline_type_elem_ref_at(arena, dims_ref);
+      depth = (depth + 1);
     }
-    if ((codegen_format_int(out, asz) !=0)) {
-      return -(1);
-    }
-    return codegen_append_byte(out, 93);
+    return 0;
   }
   return 0;
 }
@@ -4840,6 +4857,7 @@ int32_t codegen_lookup_struct_field_type_ref(struct ast_ASTArena * arena, struct
   }
   return 0;
 }
+/* wave357: nested ARRAY_LIT rows recurse as braces (multi-dim {{…},{…}}). */
 int32_t codegen_emit_braced_array_lit_init(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t init_ref, struct ast_PipelineDepCtx * ctx) {
   {
     int32_t n = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
@@ -4861,6 +4879,7 @@ int32_t codegen_emit_braced_array_lit_init(struct ast_ASTArena * arena, struct c
       return -(1);
     }
     while ((ai < n)) {
+      int32_t elem_ref;
       if ((ai > 0)) {
         uint8_t comma[3] = {44, 32, 0};
         if ((codegen_emit_bytes_3(out, comma, 2) ==0)) {
@@ -4869,7 +4888,13 @@ int32_t codegen_emit_braced_array_lit_init(struct ast_ASTArena * arena, struct c
           return -(1);
         }
       }
-      if ((codegen_emit_expr(arena, out, pipeline_expr_array_lit_elem_ref(arena, init_ref, ai), ctx) ==0)) {
+      elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
+      if (((!ast_ref_is_null(elem_ref)) && (pipeline_expr_kind_ord_at(arena, elem_ref) == ((int32_t)(46))))) {
+        if ((codegen_emit_braced_array_lit_init(arena, out, elem_ref, ctx) !=0)) {
+          return -(1);
+        }
+        (void)((ai = (ai + 1)));
+      } else if ((codegen_emit_expr(arena, out, elem_ref, ctx) ==0)) {
         (void)((ai = (ai + 1)));
       } else {
         return -(1);

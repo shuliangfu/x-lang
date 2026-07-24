@@ -3612,12 +3612,32 @@ export function type_array_elem_is_u8(arena: *ASTArena, type_ref: i32): i32 {
 /**
  * See implementation.
  */
+/**
+ * Host-C: emit the scalar/base type of a fixed TYPE_ARRAY local (peels multi-dim).
+ * wave357 Cap residual pure: `[2][3]i32` must emit `int32_t` not `int32_t *` then `[2]`.
+ * Prior: one-level peel + emit_type(TYPE_ARRAY)→`E *` produced `int32_t * a[2]` (pointer rows).
+ * G.7: same peel loop as codegen_emit_struct_field_decl_x dims path.
+ * @param arena *ASTArena — type pool
+ * @param out *CodegenOutBuf — C text sink
+ * @param type_ref i32 — outermost TYPE_ARRAY
+ * @param ctx *PipelineDepCtx — nested named/struct emit
+ * @return i32 — 0 success
+ * PLATFORM: SHARED host-C emit
+ */
 export function emit_local_fixed_array_elem_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    let inner: i32 = pipeline_type_elem_ref_at(arena, type_ref);
-    if (ast.ref_is_null(inner) || emit_type(arena, out, inner, 0 as *u8, 0, ctx) != 0) {
+    let base_ref: i32 = type_ref;
+    /* Peel all TYPE_ARRAY layers to the scalar/struct leaf (multi-dim C: E a[N][M]). */
+    while (!ast.ref_is_null(base_ref) && pipeline_type_kind_ord_at(arena, base_ref) == TypeKind.TYPE_ARRAY) {
+      let inner: i32 = pipeline_type_elem_ref_at(arena, base_ref);
+      if (ast.ref_is_null(inner)) {
+        break;
+      }
+      base_ref = inner;
+    }
+    if (ast.ref_is_null(base_ref) || emit_type(arena, out, base_ref, 0 as *u8, 0, ctx) != 0) {
       let fb: u8[8] = [105, 110, 116, 51, 50, 95, 116, 0];
       return emit_bytes_8(out, fb, 7);
     }
@@ -3625,25 +3645,37 @@ export function emit_local_fixed_array_elem_type(arena: *ASTArena, out: *Codegen
   }
 }
 
-/** Exported function `emit_local_fixed_array_suffix`.
- * Implements `emit_local_fixed_array_suffix`.
- * @param arena *ASTArena
- * @param out *CodegenOutBuf
- * @param type_ref i32
- * @return i32
+/**
+ * Host-C: emit all `[N][M]…` suffixes for a fixed multi-dim TYPE_ARRAY local.
+ * wave357: C-style `T a[N][M]` matches product type peel order (outer N first).
+ * @param arena *ASTArena — type pool
+ * @param out *CodegenOutBuf — C text sink
+ * @param type_ref i32 — outermost TYPE_ARRAY
+ * @return i32 — 0 success
+ * PLATFORM: SHARED host-C emit
  */
 export function emit_local_fixed_array_suffix(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    let asz: i32 = pipeline_type_array_size_at(arena, type_ref);
-    if (append_byte(out, 91) != 0) {
-      return -1;
+    let dims_ref: i32 = type_ref;
+    let depth: i32 = 0;
+    while (!ast.ref_is_null(dims_ref) && pipeline_type_kind_ord_at(arena, dims_ref) == TypeKind.TYPE_ARRAY
+        && depth < 8) {
+      let asz: i32 = pipeline_type_array_size_at(arena, dims_ref);
+      if (append_byte(out, 91) != 0) {
+        return -1;
+      }
+      if (format_int(out, asz) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 93) != 0) {
+        return -1;
+      }
+      dims_ref = pipeline_type_elem_ref_at(arena, dims_ref);
+      depth = depth + 1;
     }
-    if (format_int(out, asz) != 0) {
-      return -1;
-    }
-    return append_byte(out, 93);
+    return 0;
   }
 }
 
@@ -3900,7 +3932,16 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
 }
 
 /**
- * See implementation.
+ * Host-C: emit `{ e0, e1, … }` for ARRAY_LIT (fixed TYPE_ARRAY / vector let-init).
+ * wave357 Cap residual pure: nested ARRAY_LIT rows recurse (multi-dim `{{1,2},{3,4}}`).
+ * Prior: each row went through emit_expr → `(int32_t[]){…}` compound → illegal for `E a[N][M]`.
+ * G.7: single recursive authority; non-ARRAY_LIT elems still emit_expr.
+ * @param arena *ASTArena — expression pool
+ * @param out *CodegenOutBuf — C text sink
+ * @param init_ref i32 — ARRAY_LIT or fallback expr
+ * @param ctx *PipelineDepCtx — nested emit
+ * @return i32 — 0 success
+ * PLATFORM: SHARED host-C emit
  */
 export function emit_braced_array_lit_init(arena: *ASTArena, out: *CodegenOutBuf, init_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3934,8 +3975,14 @@ export function emit_braced_array_lit_init(arena: *ASTArena, out: *CodegenOutBuf
           return -1;
         }
       }
-      /* See implementation. */
-      if (emit_expr(arena, out, pipeline_expr_array_lit_elem_ref(arena, init_ref, ai), ctx) == 0) {
+      let elem_ref: i32 = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
+      /* Nested row: recurse braces; do not emit_expr (that yields (T[]){…} compound). */
+      if (!ast.ref_is_null(elem_ref) && pipeline_expr_kind_ord_at(arena, elem_ref) == (46 as i32)) {
+        if (emit_braced_array_lit_init(arena, out, elem_ref, ctx) != 0) {
+          return -1;
+        }
+        ai = ai + 1;
+      } else if (emit_expr(arena, out, elem_ref, ctx) == 0) {
         ai = ai + 1;
       } else {
         return -1;

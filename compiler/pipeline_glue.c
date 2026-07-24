@@ -3782,7 +3782,12 @@ static int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(struct platform_el
  * wave342: apply wave340 may_clobber re-lea (G.7 same authority as emit_array_lit).
  * Root: base held only in rbx; binop elems (`n+10`) write ebx → store to garbage → Ubuntu
  * freestanding `let a:[3]i32=[n,n+10,n+20]` SIGSEGV (const lit OK). Host-C hid it.
- * PLATFORM: SHARED freestanding · LINUX gold · MACOS host-C uses C array init.
+ *
+ * wave357 Cap residual pure: multi-dim nested ARRAY_LIT (`[[1,2,3],[4,5,6]]`) must write
+ * contiguous rows at stack_slot_off + i*row_sz. Prior: each row emitted as a temp then an
+ * 8-byte pointer store → shared next_offset slot + Ubuntu nested INDEX SIGSEGV.
+ * G.7: recursive self for nested ARRAY_LIT; scalar elems keep dual-slot store.
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS host-C uses C multi-dim braces.
  */
 static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *arena,
                                                        struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,
@@ -3792,6 +3797,7 @@ static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *aren
   int32_t esz;
   int32_t ai;
   int32_t elem_ref;
+  int32_t store_sz;
   if (!arena || !elf_ctx || !ctx || init_ref <= 0)
     return -1;
   if (pipeline_expr_kind_ord_at(arena, init_ref) != 46)
@@ -3800,13 +3806,27 @@ static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *aren
   if (n_arr <= 0 || n_arr > 256)
     return -1;
   esz = pipeline_asm_array_lit_elem_byte_sz_c(arena, init_ref);
-  if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta) != 0)
-    return -1;
-  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
-    return -1;
+  if (esz <= 0)
+    esz = 4;
   for (ai = 0; ai < n_arr && ai < 256; ai++) {
     elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
-    if (elem_ref != 0) {
+    if (elem_ref == 0)
+      continue;
+    /* Nested row: write payload inline at offset (contiguous multi-dim). */
+    if (pipeline_expr_kind_ord_at(arena, elem_ref) == 46) {
+      if (pipeline_asm_emit_vector_let_init_elf_c(arena, elf_ctx, elem_ref, ctx, ta,
+                                                  stack_slot_off + ai * esz) != 0)
+        return -1;
+      continue;
+    }
+    store_sz = esz;
+    if (store_sz != 1 && store_sz != 2 && store_sz != 4 && store_sz != 8)
+      store_sz = 4;
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    {
       int32_t may_clobber = glue_expr_emit_may_clobber_rbx_elf_c(arena, elem_ref);
       if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, elem_ref, ctx, ta) != 0)
         return -1;
@@ -3821,7 +3841,7 @@ static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *aren
         if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
           return -1;
       }
-      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, ai * esz, esz, ta) != 0)
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, ai * esz, store_sz, ta) != 0)
         return -1;
     }
   }
@@ -5979,6 +5999,46 @@ static int32_t glue_field_access_field_type_ref_c(struct ast_ASTArena *arena, st
   return 0;
 }
 
+/**
+ * wave357 Cap residual pure: total payload bytes of a fixed TYPE_ARRAY, recursive for
+ * multi-dim (`[2][3]i32` → 24). Scalars/slices fall back via peel helpers.
+ * PLATFORM: SHARED freestanding layout · LINUX gold (mac host-C uses C multi-dim).
+ */
+static int32_t glue_fixed_array_total_bytes_c(struct ast_ASTArena *arena, int32_t ty_ref, int32_t depth) {
+  int32_t n;
+  int32_t elem;
+  int32_t ek;
+  int32_t esz;
+  if (!arena || ty_ref <= 0 || depth > 8)
+    return 0;
+  if (pipeline_type_kind_ord_at(arena, ty_ref) != 10)
+    return 0;
+  n = pipeline_type_array_size_at(arena, ty_ref);
+  elem = pipeline_type_elem_ref_at(arena, ty_ref);
+  if (n <= 0 || elem <= 0)
+    return 0;
+  ek = pipeline_type_kind_ord_at(arena, elem);
+  if (ek == 10) {
+    esz = glue_fixed_array_total_bytes_c(arena, elem, depth + 1);
+    if (esz <= 0)
+      return 0;
+    return n * esz;
+  }
+  if (ek == 2 || ek == 1)
+    esz = 1;
+  else if (ek == 0 || ek == 3 || ek == 13 || ek == 14)
+    esz = 4;
+  else if (ek == 15 || ek == 4 || ek == 5 || ek == 6 || ek == 7)
+    esz = 8;
+  else if (ek == 8 && g_pipeline_asm_emit_module) {
+    esz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, elem, 0);
+    if (esz <= 0)
+      esz = 8;
+  } else
+    esz = 4;
+  return n * esz;
+}
+
 /** 由类型 ref 推断 INDEX 元素字节宽（*f32→4，*u8→1；TYPE_F32=14 须与 ast.x TypeKind 一致）。 */
 static int32_t glue_index_elem_byte_sz_from_type_ref_c(struct ast_ASTArena *arena, int32_t tr) {
   int32_t kind_ord;
@@ -5996,6 +6056,12 @@ static int32_t glue_index_elem_byte_sz_from_type_ref_c(struct ast_ASTArena *aren
         return 4;
       if (kind_ord == 15)
         return 8;
+      /* wave357: *T[N] / *[M]T — stride is full fixed-array payload. */
+      if (kind_ord == 10) {
+        int32_t asz = glue_fixed_array_total_bytes_c(arena, pointee, 0);
+        if (asz > 0)
+          return asz;
+      }
     }
     return 4;
   }
@@ -6009,6 +6075,20 @@ static int32_t glue_index_elem_byte_sz_from_type_ref_c(struct ast_ASTArena *aren
         return 4;
       if (kind_ord == 15)
         return 8;
+      /*
+       * wave357 Cap residual pure: multi-dim T[N][M] INDEX outer stride = sizeof(inner).
+       * Prior: nested TYPE_ARRAY fell through → esz=8 (pointer) → wrong address + SIGSEGV.
+       */
+      if (kind_ord == 10) {
+        int32_t asz = glue_fixed_array_total_bytes_c(arena, pointee, 0);
+        if (asz > 0)
+          return asz;
+      }
+      if (kind_ord == 8 && g_pipeline_asm_emit_module) {
+        int32_t ssz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, pointee, 0);
+        if (ssz > 0)
+          return ssz;
+      }
     }
   }
   if (kind_ord == 2 || kind_ord == 1)
@@ -11172,20 +11252,38 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
 }
 
 /**
- * ARRAY_LIT 元素标量字节宽（T[N] 的 T）；与 backend.x asm_array_lit_elem_byte_sz 一致。
+ * ARRAY_LIT 元素字节宽（T[N] 的 T）；与 backend.x asm_array_lit_elem_byte_sz 一致。
+ * wave357: nested TYPE_ARRAY elems use full contiguous row size (not pointer 8).
  */
 static int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t expr_ref) {
   int32_t elem_ty;
   int32_t kind_ord;
+  int32_t nested;
+  int32_t first_ref;
   elem_ty = pipeline_asm_array_lit_elem_type_ref(arena, expr_ref);
-  if (elem_ty <= 0)
-    return 4;
-  kind_ord = pipeline_type_kind_ord_at(arena, elem_ty);
-  if (kind_ord == 2 || kind_ord == 1)
-    return 1;
-  if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13)
-    return 4;
-  return 8;
+  if (elem_ty > 0) {
+    kind_ord = pipeline_type_kind_ord_at(arena, elem_ty);
+    if (kind_ord == 10) {
+      nested = glue_fixed_array_total_bytes_c(arena, elem_ty, 0);
+      if (nested > 0)
+        return nested;
+    }
+    if (kind_ord == 2 || kind_ord == 1)
+      return 1;
+    if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14)
+      return 4;
+    if (kind_ord == 15)
+      return 8;
+  }
+  /* Unstamped multi-dim lit: first elem is nested ARRAY_LIT — infer row width. */
+  first_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, 0);
+  if (first_ref > 0 && pipeline_expr_kind_ord_at(arena, first_ref) == 46) {
+    int32_t n_inner = pipeline_expr_array_lit_num_elems_at(arena, first_ref);
+    int32_t iesz = pipeline_asm_array_lit_elem_byte_sz_c(arena, first_ref);
+    if (n_inner > 0 && iesz > 0)
+      return n_inner * iesz;
+  }
+  return 4;
 }
 
 /**
@@ -11393,6 +11491,12 @@ static int32_t pipeline_asm_index_elem_byte_sz_c(struct ast_ASTArena *arena, int
         return 1;
       if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14)
         return 4;
+      /* wave357: multi-dim outer INDEX stride = sizeof(inner TYPE_ARRAY). */
+      if (kind_ord == 10) {
+        int32_t asz = glue_fixed_array_total_bytes_c(arena, pointee, 0);
+        if (asz > 0)
+          return asz;
+      }
       /** Struct[N] AoS：步长为 layout 槽宽（勿误落默认 8 → 错位/栈破坏）。 */
       if (kind_ord == 8 && g_pipeline_asm_emit_module) {
         int32_t esz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, pointee, 0);
@@ -11418,12 +11522,19 @@ static int32_t pipeline_asm_index_elem_byte_sz_c(struct ast_ASTArena *arena, int
 
 /**
  * EXPR_INDEX：base+index 有效地址后 load（name_equal 的 a[i] 等；勿 ast_arena_expr_get）。
+ *
+ * wave357 Cap residual pure: when INDEX resolves to TYPE_ARRAY (multi-dim subrow
+ * `a[i]` of `[N][M]T`), leave the element effective address in rax — do not load a
+ * pointer/scalar. Nested `a[i][j]` then INDEX-loads the scalar from that address.
+ * Root: prior always loaded esz (often 8) → garbage pointer → Ubuntu SIGSEGV.
+ * PLATFORM: SHARED freestanding · LINUX gold.
  */
 int32_t pipeline_asm_emit_index_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                              int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
   int32_t base_ref;
   int32_t idx_ref;
   int32_t esz;
+  int32_t res_ty;
   base_ref = pipeline_expr_index_base_ref(arena, expr_ref);
   idx_ref = pipeline_expr_index_index_ref(arena, expr_ref);
   if (base_ref <= 0 || idx_ref <= 0)
@@ -11446,6 +11557,13 @@ int32_t pipeline_asm_emit_index_elf_c(struct ast_ASTArena *arena, struct platfor
   glue_index_assign_addr_cache_clear();
   if (glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, expr_ref, base_ref, idx_ref, ctx, ta, esz) != 0)
     return -1;
+  /* Subarray address: multi-dim outer INDEX yields TYPE_ARRAY — no load. */
+  res_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+  if (res_ty > 0 && pipeline_type_kind_ord_at(arena, res_ty) == 10)
+    return 0;
+  /* Large non-scalar esz (nested row) without TYPE_ARRAY stamp: keep address. */
+  if (esz != 1 && esz != 2 && esz != 4 && esz != 8)
+    return 0;
   if (esz == 1)
     return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
   if (esz == 4)

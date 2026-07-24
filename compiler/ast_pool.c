@@ -12385,6 +12385,51 @@ static int32_t asm_local_slot_bytes_mod(struct ast_ASTArena *arena, int32_t type
         return arr_sz;
       }
     }
+    /*
+     * wave357 Cap residual pure: multi-dim T[N][M] slot = N × unpadded sizeof(inner).
+     * Prior: elem TYPE_ARRAY fell through esz=4 default → [2][3]i32 slot=8, overflow + SIGSEGV.
+     * Unpadded row stride matches INDEX/init (glue_fixed_array_total_bytes); pad only outer.
+     * PLATFORM: SHARED freestanding stack layout · LINUX gold.
+     */
+    if (elem_ref > 0 && elem_ref <= arena->num_types &&
+        pipeline_type_kind_ord_at(arena, elem_ref) == 10) {
+      /* Recursively peel nested TYPE_ARRAY dims to a scalar esz, product of all sizes. */
+      int32_t cur = type_ref;
+      int32_t prod = 1;
+      int32_t d;
+      int32_t leaf_esz = 4;
+      for (d = 0; d < 8; d++) {
+        struct ast_Type *ct = pipeline_arena_type_ptr(arena, cur);
+        int32_t cn;
+        int32_t ce;
+        if (!ct || pipeline_type_kind_ord_at(arena, cur) != 10)
+          break;
+        cn = ct->array_size;
+        ce = ct->elem_type_ref;
+        if (cn <= 0 || ce <= 0)
+          break;
+        prod *= cn;
+        if (pipeline_type_kind_ord_at(arena, ce) != 10) {
+          int32_t lek = pipeline_type_kind_ord_at(arena, ce);
+          if (lek == 2 || lek == 1)
+            leaf_esz = 1;
+          else if (lek == 15 || lek == 4 || lek == 5 || lek == 6 || lek == 7)
+            leaf_esz = 8;
+          else if (lek == 8) {
+            int32_t ssz = asm_slot_bytes_named_in_mod(arena, ce, mod);
+            leaf_esz = ssz > 0 ? ssz : 8;
+          } else
+            leaf_esz = 4;
+          bytes = prod * leaf_esz;
+          if (bytes < 8)
+            bytes = 8;
+          if (bytes % 8 != 0)
+            bytes = bytes + (8 - (bytes % 8));
+          return bytes;
+        }
+        cur = ce;
+      }
+    }
     esz = 4;
     if (elem_ref > 0 && elem_ref <= arena->num_types) {
       struct ast_Type *et = pipeline_arena_type_ptr(arena, elem_ref);
