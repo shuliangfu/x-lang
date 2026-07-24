@@ -11588,8 +11588,15 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
 }
 
 /**
- * ARRAY_LIT 元素字节宽（T[N] 的 T）；与 backend.x asm_array_lit_elem_byte_sz 一致。
+ * ARRAY_LIT element byte width (T in T[N] / T[]); twin of backend.x asm_array_lit_elem_byte_sz.
  * wave357: nested TYPE_ARRAY elems use full contiguous row size (not pointer 8).
+ *
+ * wave416 Cap residual pure: freestanding i64/u64/usize/isize ARRAY_LIT stores used esz=4.
+ * Root: stamped scalar kinds TYPE_U64=4 … TYPE_ISIZE=7 fell through to default 4 while INDEX
+ * loads used glue_index_elem_byte_sz (8) → stride mismatch (host-C braces correct; sum/idx red).
+ * G.7: align 8-byte integer/ptr kinds with glue_index_elem_byte_sz_from_type_ref_c scalars
+ * (do not call that helper for PTR: index peels pointee; ARRAY_LIT of *T is pointer width 8).
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS host-C already green.
  */
 static int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t expr_ref) {
   int32_t elem_ty;
@@ -11604,11 +11611,19 @@ static int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena,
       if (nested > 0)
         return nested;
     }
+    /* 1-byte: TYPE_U8=2, TYPE_BOOL=1 */
     if (kind_ord == 2 || kind_ord == 1)
       return 1;
+    /* 4-byte: TYPE_I32=0, TYPE_U32=3, TYPE_VECTOR=13, TYPE_F32=14 */
     if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14)
       return 4;
-    if (kind_ord == 15)
+    /*
+     * 8-byte: TYPE_F64=15, TYPE_U64=4, TYPE_I64=5, TYPE_USIZE=6, TYPE_ISIZE=7,
+     * TYPE_PTR=9 (element is a pointer; not pointee width).
+     * wave416: U64/I64/USIZE/ISIZE were missing → default 4 broke fixed i64[N] lit.
+     */
+    if (kind_ord == 15 || kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7 ||
+        kind_ord == 9)
       return 8;
   }
   /* Unstamped multi-dim lit: first elem is nested ARRAY_LIT — infer row width. */
