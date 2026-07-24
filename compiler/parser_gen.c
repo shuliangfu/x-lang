@@ -3290,6 +3290,37 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
           (void)((init_handled = 1));
         }
       }
+      /*
+       * wave375 / C3=C4: LBRACE let-init (TOKEN_LBRACE=84).
+       * PLATFORM: SHARED — G.7 twin of parser.x parse_body_lets_into LBRACE branch.
+       * Seed historically jumped IDENT(59) → STRING(130) and dropped bare `{ ... }` inits
+       * (block expr `{ 42 }` and anonymous struct lit `{ fd: 1 }`). Primary already
+       * disambiguates via parser_asm_primary_lbrace_looks_like_block_c; only missing
+       * is reaching parse_expr_into from the `{` start (same as IDENT path).
+       */
+      if ((init_handled ==0)) {
+        if ((((r.tok).kind) ==84)) {
+          size_t lbrace_start = (r.token_start);
+          if ((lbrace_start ==0)) {
+            (void)((lbrace_start = (lex.pos)));
+          }
+          (void)(parser_lex_from_result_ptr_into(&(lex), &(r)));
+          struct lexer_Lexer lbrace_lex = (struct lexer_Lexer){ .pos = lbrace_start, .line = ((r.tok).line), .col = ((r.tok).col) };
+          (void)(parser_parse_expr_result_reset(&(expr_tmp), lbrace_lex));
+          (void)(parser_parse_expr_into(arena, lbrace_lex, source, &(expr_tmp)));
+          if (!((expr_tmp.ok))) {
+            (void)(((lex_out->pos) = (lex.pos)));
+            (void)(((lex_out->line) = (lex.line)));
+            (void)(((lex_out->col) = (lex.col)));
+            return 0;
+          }
+          (void)((let_init_ref = (expr_tmp.expr_ref)));
+          (void)(parser_lexer_copy_from_parse_expr_result_into(&(lex), &(expr_tmp)));
+          (void)(lexer_next_into(&(r), lex, source));
+          (void)(parser_rewind_lex_for_following_stmt_into(&(lex), lex, r));
+          (void)((init_handled = 1));
+        }
+      }
       if ((init_handled ==0)) {
         if ((((r.tok).kind) ==130)) {
           int32_t str_ref = ast_ast_arena_expr_alloc(arena);

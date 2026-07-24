@@ -3575,7 +3575,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
         init_handled = 1;
       }
     }
-    /* LBRACE let-init handler (C3=C4 root fix, 2026-07-19).
+    /* LBRACE let-init handler (C3=C4 root fix, 2026-07-19; wave375 seed twin restore).
      * Before this, bare `{ a: 0 }` struct-lit as a body-let init matched NO init handler
      * (the chain covered LBRACKET/IDENT/STRING/TRUE/FALSE/FLOAT/INT/MINUS/STAR/AMP/IF/MATCH/AWAIT
      * but NOT LBRACE), so the let was silently dropped. A following unsafe/while/for then
@@ -3584,7 +3584,10 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
      * parse_expr_into, whose primary layer already disambiguates struct-lit vs block-expr
      * (parser_asm_primary_lbrace_looks_like_block_c in parser_asm_primary_slice.inc).
      * Fix: handle LBRACE exactly like the IDENT path — parse_expr_into from the `{` start,
-     * finish lexer state the same way (copy + next + rewind). PLATFORM: SHARED. */
+     * finish lexer state the same way (copy + next + rewind).
+     * wave375: product pin seeds/parser_gen.linux.x86_64.c had drifted (IDENT→STRING only);
+     * seed restored same commit so `let x: i32 = { 42 }` / anonymous `{ f: e }` build.
+     * PLATFORM: SHARED. */
     if (init_handled == 0) {
       if (r.tok.kind == token.TokenKind.TOKEN_LBRACE) {
         let lbrace_start: usize = r.token_start;
