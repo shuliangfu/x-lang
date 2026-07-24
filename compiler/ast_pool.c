@@ -15787,8 +15787,26 @@ static void asm_wpo_collect_edges_from_expr(struct ast_ASTArena *a, int32_t expr
     asm_wpo_collect_edges_from_expr(a, ex->index_index_ref, caller_id, caller_mod, ctx, depth + 1);
   if (ex->method_call_base_ref > 0)
     asm_wpo_collect_edges_from_expr(a, ex->method_call_base_ref, caller_id, caller_mod, ctx, depth + 1);
-  /* METHOD_CALL args: same class as CALL args (fill edges from method arg expressions). */
+  /*
+   * wave358 Cap residual pure — METHOD_CALL UFCS same-module free method.
+   * Root: only CALL edges marked callees; s.get() never reached free get() →
+   * freestanding emit skipped get → ld UNDEF get (mac host-C hid).
+   * G.7: call_resolved dep_ix<0 + func_ix, else name match in caller_mod.
+   * PLATFORM: SHARED freestanding WPO · LINUX gold.
+   */
   if (ex->kind == ast_ExprKind_EXPR_METHOD_CALL) {
+    int32_t r_fn = pipeline_expr_call_resolved_func_index_at(a, expr_ref);
+    int32_t r_dep = pipeline_expr_call_resolved_dep_index_at(a, expr_ref);
+    int32_t mcid = -1;
+    if (r_fn >= 0 && r_dep < 0 && caller_mod)
+      mcid = asm_wpo_func_id_of(caller_mod, r_fn);
+    if (mcid < 0 && ex->method_call_name_len > 0) {
+      mcid = asm_wpo_func_id_in_module(caller_mod, ex->method_call_name, ex->method_call_name_len);
+      if (mcid < 0)
+        mcid = asm_wpo_func_id_by_name(ex->method_call_name, ex->method_call_name_len);
+    }
+    if (mcid >= 0)
+      asm_wpo_add_edge(caller_id, mcid);
     for (i = 0; i < ex->method_call_num_args; i++) {
       arg_slot = expr_method_call_arg_slot(a, expr_ref, i, 0);
       if (arg_slot && *arg_slot > 0)
