@@ -1792,15 +1792,19 @@ export function backend_enc_load_qword_rbx8_to_rdx_arch(elf_ctx: *u8, ta: i32): 
   return 0 - 1;
 }
 
-/** Exported function `backend_enc_store_rdx_to_rbp_arch`.
- * Implements `backend_enc_store_rdx_to_rbp_arch`.
+/**
+ * Store dual-GP second half to frame (wave408: arm64 x1).
  * @param elf_ctx *u8
  * @param offset i32
- * @param ta i32
- * @return i32
+ * @param ta i32 — 0=x86 rdx, 1=arm64 x1
+ * @return i32 — 0 success, -1 fail
+ * PLATFORM: SHARED · LINUX|x86_64 · MACOS|ARM64
  */
 #[no_mangle]
 export function backend_enc_store_rdx_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
+  if (ta == 1) {
+    unsafe { return arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx, 1, offset); }
+  }
   if (ta != 0) {
     return 0 - 1;
   }

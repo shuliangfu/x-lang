@@ -1258,7 +1258,12 @@ extern int32_t arch_riscv64_enc_enc_mul_imm_to_a2(uint8_t * elf_ctx, int32_t lit
 extern int32_t arch_x86_64_enc_enc_imul_imm_to_ecx(uint8_t * elf_ctx, int32_t lit);
 extern int32_t arch_riscv64_enc_enc_mul_imm_to_rbx(uint8_t * elf_ctx, int32_t lit);
 extern int32_t arch_x86_64_enc_enc_imul_imm_to_ebx(uint8_t * elf_ctx, int32_t lit);
+/* wave408: arm64 dual-GP length half → str x1,[x29,#off]. */
+extern int32_t arch_arm64_enc_enc_store_x_reg_to_rbp(uint8_t * elf_ctx, int32_t reg, int32_t offset);
 int32_t backend_enc_store_rdx_to_rbp_arch(uint8_t * elf_ctx, int32_t offset, int32_t ta) {
+  if ((ta ==1)) {
+    return arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx, 1, offset);
+  }
   if ((ta !=0)) {
     return (0 - 1);
   }

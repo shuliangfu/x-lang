@@ -1791,18 +1791,22 @@ export extern "C" function arch_x86_64_enc_enc_imul_imm_to_ecx(elf_ctx: *u8, lit
 export extern "C" function arch_riscv64_enc_enc_mul_imm_to_rbx(elf_ctx: *u8, lit: i32): i32;
 export extern "C" function arch_x86_64_enc_enc_imul_imm_to_ebx(elf_ctx: *u8, lit: i32): i32;
 
-// G-02f-207：x86-only
-/** Exported function `backend_enc_store_rdx_to_rbp_arch`.
- * Implements `backend_enc_store_rdx_to_rbp_arch`.
- * @param elf_ctx *u8
- * @param offset i32
- * @param ta i32
- * @return i32
+/**
+ * Store dual-GP second half (length / high 8B) to frame slot.
+ * @param elf_ctx *u8 — ElfCodegenCtx
+ * @param offset i32 — product frame offset of the length half
+ * @param ta i32 — 0=x86_64 (rdx), 1=arm64 (x1 / AAPCS64 second GP)
+ * @return i32 — 0 success, -1 unsupported arch / encode fail
+ * PLATFORM: SHARED dual-GP contract · LINUX|x86_64 SysV rdx · MACOS|ARM64 x1
+ * wave408: arm64 was hard -1 → TYPE_SLICE let-init/call-arg dropped length (panic).
  */
 #[no_mangle]
 export function backend_enc_store_rdx_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
-  // See implementation.
   unsafe {
+  if (ta == 1) {
+    /* x1 = SysV/AAPCS second integer return/arg; G.7 reuse store_x_reg. */
+    return arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx, 1, offset);
+  }
   if (ta != 0) { return 0 - 1; }
   return arch_x86_64_enc_enc_store_rdx_to_rbp(elf_ctx, offset);
   }

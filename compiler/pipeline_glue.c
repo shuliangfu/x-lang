@@ -1974,7 +1974,8 @@ static int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena,
  * @param ctx AsmFuncCtx for non-const elem emit (may be null when all-const only).
  * @param force_esz element byte size from TYPE_SLICE elem (0 → infer from lit).
  * @return 0 success (rax = durable ptr); -1 cannot pack (caller may fall back).
- * PLATFORM: LINUX+MACOS x86_64 SysV (ta==0). aarch64 not in this leaf.
+ * PLATFORM: SHARED freestanding · LINUX|x86_64 (text-embed const / COMMON) ·
+ * MACOS|ARM64 (COMMON + ADRP, wave408).
  */
 static int32_t g_pipeline_asm_al_nc_seq;
 
@@ -2018,6 +2019,81 @@ static int32_t glue_asm_lea_rbx_common_rip_x86(struct platform_elf_ElfCodegenCtx
   return pipeline_elf_ctx_append_reloc((uint8_t *)elf_ctx, rel32_at, name, name_len);
 }
 
+/* wave405 typed reloc (PAGE21/PAGEOFF12) — also used by wave408 durable ADRP. */
+extern int32_t pipeline_elf_ctx_append_reloc_typed(uint8_t *ctx_bytes, int32_t offset, uint8_t *name, int32_t name_len,
+                                                   int32_t r_type, int32_t r_pcrel);
+
+/**
+ * PLATFORM: MACOS|ARM64 — adrp x1 + add pageoff → address of named COMMON in x1 (rbx).
+ * G.7 twin of pipeline_asm_modlet_lea_rbx_adrp_arm64 but for arbitrary durable labels
+ * (wave408 ARRAY_LIT durable; not only modlet table).
+ */
+static int32_t glue_asm_lea_rbx_common_adrp_arm64(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name,
+                                                   int32_t name_len) {
+  uint8_t *cb;
+  uint8_t adrp4[4];
+  uint8_t add4[4];
+  int32_t adrp_at;
+  int32_t add_at;
+  if (!elf_ctx || !name || name_len <= 0)
+    return -1;
+  cb = (uint8_t *)elf_ctx;
+  /* adrp x1, #0 → 0x90000001 */
+  adrp4[0] = 0x01;
+  adrp4[1] = 0x00;
+  adrp4[2] = 0x00;
+  adrp4[3] = 0x90;
+  if (pipeline_elf_ctx_append_bytes(cb, adrp4, 4) != 0)
+    return -1;
+  adrp_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
+  if (pipeline_elf_ctx_append_reloc_typed(cb, adrp_at, name, name_len, 3, 1) != 0)
+    return -1;
+  /* add x1, x1, #0 → 0x91000021 */
+  add4[0] = 0x21;
+  add4[1] = 0x00;
+  add4[2] = 0x00;
+  add4[3] = 0x91;
+  if (pipeline_elf_ctx_append_bytes(cb, add4, 4) != 0)
+    return -1;
+  add_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
+  return pipeline_elf_ctx_append_reloc_typed(cb, add_at, name, name_len, 4, 0);
+}
+
+/**
+ * PLATFORM: MACOS|ARM64 — adrp x0 + add pageoff → address of named COMMON in x0 (rax).
+ * wave408: durable ARRAY_LIT return/let-init final lea.
+ */
+static int32_t glue_asm_lea_rax_common_adrp_arm64(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name,
+                                                   int32_t name_len) {
+  uint8_t *cb;
+  uint8_t adrp4[4];
+  uint8_t add4[4];
+  int32_t adrp_at;
+  int32_t add_at;
+  if (!elf_ctx || !name || name_len <= 0)
+    return -1;
+  cb = (uint8_t *)elf_ctx;
+  /* adrp x0, #0 → 0x90000000 */
+  adrp4[0] = 0x00;
+  adrp4[1] = 0x00;
+  adrp4[2] = 0x00;
+  adrp4[3] = 0x90;
+  if (pipeline_elf_ctx_append_bytes(cb, adrp4, 4) != 0)
+    return -1;
+  adrp_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
+  if (pipeline_elf_ctx_append_reloc_typed(cb, adrp_at, name, name_len, 3, 1) != 0)
+    return -1;
+  /* add x0, x0, #0 → 0x91000000 */
+  add4[0] = 0x00;
+  add4[1] = 0x00;
+  add4[2] = 0x00;
+  add4[3] = 0x91;
+  if (pipeline_elf_ctx_append_bytes(cb, add4, 4) != 0)
+    return -1;
+  add_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
+  return pipeline_elf_ctx_append_reloc_typed(cb, add_at, name, name_len, 4, 0);
+}
+
 static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena *arena,
                                                             struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                             int32_t expr_ref, int32_t force_esz, int32_t ta,
@@ -2045,7 +2121,12 @@ static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena
   int32_t di;
   uint8_t digs[8];
   const char *pfx;
-  if (!arena || !elf_ctx || expr_ref <= 0 || ta != 0)
+  /*
+   * PLATFORM: LINUX+MACOS x86_64 (ta==0) + MACOS|ARM64 (ta==1).
+   * wave408: arm64 was hard -1 → return [..] fell to stack ARRAY_LIT → dangle after
+   * epilogue + missing dual-GP length → pure0/rec panic on INDEX bounds.
+   */
+  if (!arena || !elf_ctx || expr_ref <= 0 || (ta != 0 && ta != 1))
     return -1;
   if (pipeline_expr_kind_ord_at(arena, expr_ref) != (int32_t)ast_ExprKind_EXPR_ARRAY_LIT)
     return -1;
@@ -2076,7 +2157,8 @@ static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena
     if (eko != 0 && eko != 2)
       all_const = 0;
   }
-  if (all_const != 0) {
+  /* PLATFORM: LINUX+MACOS x86_64 — jmp-over text-embed + lea [rip] (const only). */
+  if (all_const != 0 && ta == 0) {
     for (ai = 0; ai < n_arr; ai++) {
       elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai);
       v64 = (int64_t)pipeline_expr_int_val_at(arena, elem_ref);
@@ -2102,7 +2184,6 @@ static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena
         payload[bi + 7] = (uint8_t)((v64 >> 56) & 0xff);
       }
     }
-    /* PLATFORM: LINUX+MACOS x86_64 — jmp over payload + lea [rip] → rax. */
     if (nbytes <= 127) {
       jmp_short[0] = 0xeb;
       jmp_short[1] = (uint8_t)nbytes;
@@ -2132,11 +2213,14 @@ static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena
   }
   /*
    * wave341 Cap residual pure: non-const durable via SHN_COMMON BSS (writable).
-   * G.7 reuse pipeline_elf_ctx_add_common_sym (modlet face); never RW .text.
+   * wave408: arm64 const also uses COMMON + runtime fill (text-embed is x86-only);
+   *           ADRP/PAGEOFF lea via glue_asm_lea_*_common_adrp_arm64.
+   * G.7: pipeline_elf_ctx_add_common_sym (modlet face); never RW .text.
    * Fill: emit elem → rax; lea rbx COMMON; store [rbx+i*esz]; finally lea rax COMMON.
-   * PLATFORM: LINUX+MACOS x86_64 SysV (ta==0). Needs ctx for elem emit.
+   * PLATFORM: SHARED freestanding · LINUX|x86_64 · MACOS|ARM64.
+   * Needs ctx for non-const elem emit; const arm64 uses imm→store without ctx rec.
    */
-  if (!ctx)
+  if (all_const == 0 && !ctx)
     return -1;
   seq = g_pipeline_asm_al_nc_seq;
   if (seq < 0 || seq > 999999)
@@ -2167,17 +2251,31 @@ static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena
     elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai);
     if (elem_ref <= 0)
       return -1;
-    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, elem_ref, ctx, ta) != 0)
-      return -1;
+    if (all_const != 0) {
+      /* Const path: imm into rax (works without ctx). */
+      v64 = (int64_t)pipeline_expr_int_val_at(arena, elem_ref);
+      if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, (int32_t)(v64 & 0xffffffff),
+                                             (int32_t)((v64 >> 32) & 0xffffffff), ta) != 0)
+        return -1;
+    } else {
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, elem_ref, ctx, ta) != 0)
+        return -1;
+    }
     if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
       return -1;
-    if (glue_asm_lea_rbx_common_rip_x86(elf_ctx, label, llen) != 0)
+    if (ta == 1) {
+      if (glue_asm_lea_rbx_common_adrp_arm64(elf_ctx, label, llen) != 0)
+        return -1;
+    } else if (glue_asm_lea_rbx_common_rip_x86(elf_ctx, label, llen) != 0) {
       return -1;
+    }
     if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
       return -1;
     if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, ai * esz, esz, ta) != 0)
       return -1;
   }
+  if (ta == 1)
+    return glue_asm_lea_rax_common_adrp_arm64(elf_ctx, label, llen);
   return glue_asm_lea_rax_common_rip_x86(elf_ctx, label, llen);
 }
 
@@ -2608,10 +2706,18 @@ static int32_t glue_try_return_slice_escape_from_fixed_array_elf_c(
     if (backend_enc_label_arch(elf_ctx, keep2, k2, 0, ta) != 0)
       return -1;
   }
-  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta) != 0)
+  /* length@rdx (x86) / @x1 (arm64) — same dual-GP return map as ARRAY_LIT return. */
+  {
+    int32_t len_arg = (ta == 1) ? 1 : 2;
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, len_arg, ta) != 0)
+      return -1;
+  }
+  if (ta == 1) {
+    if (glue_asm_lea_rax_common_adrp_arm64(elf_ctx, label, llen) != 0)
+      return -1;
+  } else if (glue_asm_lea_rax_common_rip_x86(elf_ctx, label, llen) != 0) {
     return -1;
-  if (glue_asm_lea_rax_common_rip_x86(elf_ctx, label, llen) != 0)
-    return -1;
+  }
   return 1;
 }
 
@@ -2648,19 +2754,20 @@ static int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
             return -1;
         }
       }
-    } else if (arena && ctx && elf_ctx && ta == 0 &&
+    } else if (arena && ctx && elf_ctx && (ta == 0 || ta == 1) &&
                pipeline_expr_kind_ord_at(arena, ret_op) == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT &&
                g_pipeline_asm_emit_module && g_pipeline_asm_emit_func_index >= 0) {
       /*
        * wave333+335 Cap residual pure: freestanding `return [1,2,3]` for TYPE_SLICE.
-       * SysV dual-GP: data@rax length@rdx.
+       * SysV dual-GP: data@rax length@rdx (arm64: data@x0 length@x1).
        * wave335: prefer durable text-embed payload (kill post-return INDEX dangle).
        * wave339: `return a` for const ARRAY_LIT let-init is durable via let-init embed
        * (G.7 reuse glue_emit_slice_from_array_let_init; host already static).
        * wave341: non-const ARRAY_LIT also durable (COMMON BSS fill; host static stores).
        * wave342: non-ARRAY_LIT fixed→slice return escape (COMMON copy) is handled above.
+       * wave408: open ta==1 (arm64); durable COMMON+ADRP; dual-GP via arg_reg 2.
        * Fallback: stack emit_array_lit only if durable pack fails.
-       * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV.
+       * PLATFORM: SHARED freestanding · LINUX|x86_64 SysV · MACOS|ARM64 AAPCS.
        * Soft residual: untyped-let (docs 禁推断); reentrancy last-wins static/COMMON.
        * wave343: nested-block fixed→slice escape; wave344: reassign uses runtime s.length.
        */
@@ -2693,15 +2800,23 @@ static int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
         } else if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, ret_op, ctx, ta) != 0) {
           return -1;
         }
-        /* rax = data; preserve in rbx while loading length into rdx. */
-        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+        /*
+         * Dual-GP return: data@rax + length@rdx (x86) / @x1 (arm64).
+         * wave408: cannot park data in rbx on arm64 — rbx maps to x1 which is also
+         * the length return half (overwrote data with length → pure0 crash).
+         * G.7: push/pop park works on both arches; len_arg is arch-aware.
+         * PLATFORM: SHARED freestanding · LINUX|x86_64 SysV · MACOS|ARM64 AAPCS.
+         */
+        if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
           return -1;
         if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta) != 0)
           return -1;
-        /* SysV arg_reg 2 = rdx — length half of dual-GP return. */
-        if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta) != 0)
-          return -1;
-        if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+        {
+          int32_t len_arg = (ta == 1) ? 1 : 2;
+          if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, len_arg, ta) != 0)
+            return -1;
+        }
+        if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
           return -1;
         if (durable == 0 && n_arr > 0)
           pipeline_asm_bump_next_offset_for_array_lit(arena, ret_op, ctx);
@@ -18466,6 +18581,21 @@ static int32_t glue_store_retval_pair_to_rbp_elf_c(struct ast_Module *m, struct 
   }
   if (backend_enc_store_rax_to_rbp_arch(elf_ctx, slot_off, ta) != 0)
     return -1;
+  /*
+   * wave408 Cap residual pure: TYPE_SLICE let-init from CALL must store dual-GP
+   * length half on arm64 too. Prior: `if (ta != 0) return 0` after data@rax only
+   * → [x29,#home+8] garbage → INDEX bounds panic (pure0/rec mac arm64).
+   * Authority (G.7): same dual store as assign wave331 / call-arg wave345;
+   * length half via glue_slice_dual_gp_length_off_c (arm64 home+8, x86 home-8).
+   * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+   */
+  if (arena && ty_ref > 0 &&
+      pipeline_type_kind_ord_at(arena, ty_ref) == (int32_t)ast_TypeKind_TYPE_SLICE) {
+    if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(slot_off, ta),
+                                           ta) != 0)
+      return -1;
+    return 0;
+  }
   if (ta != 0 || !m || !arena || ty_ref <= 0)
     return 0;
   if (sz > 8 && sz <= 16) {
@@ -19610,10 +19740,11 @@ static int32_t glue_emit_slice_from_array_let_init_elf_c(struct ast_ASTArena *ar
     }
     /*
      * Prefer durable (wave335/wave341 helper): const text-embed or non-const COMMON BSS.
+     * wave408: arm64 durable COMMON+ADRP (ta==1) same authority.
      * Fallback: stack emit_array_lit only if durable pack fails (cap/ta/etc).
-     * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV (ta==0 durable path).
+     * PLATFORM: SHARED freestanding · LINUX|x86_64 · MACOS|ARM64.
      */
-    if (ta == 0 &&
+    if ((ta == 0 || ta == 1) &&
         glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, init_ref, force_esz, ta, ctx) == 0) {
       durable = 1;
     } else if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0) {

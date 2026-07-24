@@ -1819,11 +1819,17 @@ int32_t backend_enc_store_rax_to_rbp_arch(struct platform_elf_ElfCodegenCtx *elf
 
 
 /**
- * ta 分派：enc_store_rdx_to_rbp_arch（SysV x86 16B struct 第二 half）。
+ * ta 分派：enc_store_rdx_to_rbp_arch（SysV dual-GP second half → frame）.
+ * wave408: arm64 x1 via store_x_reg (TYPE_SLICE length half).
+ * PLATFORM: SHARED · LINUX|x86_64 rdx · MACOS|ARM64 x1.
  */
 /* G-02f-207：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+extern int32_t arch_arm64_enc_enc_store_x_reg_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg,
+                                                      int32_t offset);
 #ifndef XLANG_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_store_rdx_to_rbp_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset, int32_t ta) {
+  if (ta == 1)
+    return arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx, 1, offset);
   if (ta != 0)
     return -1;
   return arch_x86_64_enc_enc_store_rdx_to_rbp(elf_ctx, offset);

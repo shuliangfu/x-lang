@@ -1593,7 +1593,12 @@ int32_t backend_enc_load_qword_rbx8_to_rdx_arch(uint8_t * elf_ctx, int32_t ta) {
   }
   return (0 - 1);
 }
+/* wave408: arm64 dual-GP length half → str x1,[x29,#off] via store_x_reg. */
+extern int32_t arch_arm64_enc_enc_store_x_reg_to_rbp(uint8_t * elf_ctx, int32_t reg, int32_t offset);
 int32_t backend_enc_store_rdx_to_rbp_arch(uint8_t * elf_ctx, int32_t offset, int32_t ta) {
+  if ((ta ==1)) {
+    return arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx, 1, offset);
+  }
   if ((ta !=0)) {
     return (0 - 1);
   }
