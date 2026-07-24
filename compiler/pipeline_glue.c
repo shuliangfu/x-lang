@@ -10010,7 +10010,12 @@ static int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena,
 }
 
 /**
- * let/const 初值为 `[]` 的空 ARRAY_LIT：与 backend.x asm_init_is_empty_array_lit 一致，stmt_order 路径须跳过 rec emit。
+ * let/const 初值为 `[]` 的空 ARRAY_LIT：与 backend.x asm_init_is_empty_array_lit 一致。
+ * PLATFORM: SHARED — classification only.
+ *
+ * wave330: TYPE_SLICE + empty must still go through glue_emit_slice_from_array_let_init_elf_c
+ * (dual-GP {data, length=0}). Fixed-array / pointer-slot empties may skip rec emit; do not
+ * treat "empty" as "no store" for fat slices (prologue zero is not a substitute).
  */
 static int32_t glue_init_is_empty_array_lit(struct ast_ASTArena *arena, int32_t init_ref) {
   if (init_ref <= 0)
@@ -17120,9 +17125,11 @@ static int glue_block_stmt_order_has_return(struct ast_ASTArena *arena, int32_t 
 /**
  * let s: T[] = arr / let s: T[] = [..]：asm 栈槽写入 { .data = ptr, .length = N }.
  * - VAR path: arr is a prior fixed TYPE_ARRAY local (codegen_try_emit_slice_init_from_array_var).
- * - ARRAY_LIT path (wave329): emit payload into temp, then dual-GP fat {data, length=num_elems}.
- *   Host-C already emits compound (struct xlang_slice_T){.data=(E[]){…},.length=N} (wave328);
- *   freestanding used to store only the data pointer from emit_array_lit → length garbage / panic.
+ * - ARRAY_LIT path (wave329/wave330): emit payload into temp, then dual-GP fat
+ *   {data, length=num_elems}. Host-C already emits compound
+ *   (struct xlang_slice_T){.data=(E[]){…},.length=N} (wave328); freestanding used to store
+ *   only the data pointer → length garbage / panic. wave330: empty `[]` (num_elems=0) also
+ *   reaches this path — store {lea(temp)|payload, length=0}; do not rely on prologue zeroing.
  *
  * PLATFORM: SHARED layout + LINUX/MACOS x86_64 SysV dual-GP home encoding.
  * slot_off is rbp-distance to fat byte0 (data); high half (length) is at slot_off-8
@@ -17150,9 +17157,9 @@ static int32_t glue_emit_slice_from_array_let_init_elf_c(struct ast_ASTArena *ar
   init_ko = pipeline_expr_kind_ord_at(arena, init_ref);
   /*
    * wave329 Cap residual pure: TYPE_SLICE + EXPR_ARRAY_LIT (`let a: i32[] = [1,2,3]`).
-   * Authority: same dual-GP store as VAR path; payload via pipeline_asm_emit_array_lit_elf_c
-   * (temp at ctx->next_offset). G.7: extend this function — do not open a second emit path.
-   * Empty `[]` is handled by callers via glue_init_is_empty_array_lit before this is reached.
+   * wave330: same path for empty `[]` (n_arr==0) — dual-GP length=0 + data via emit_array_lit
+   * (lea of temp for n=0, matching host empty compound). G.7: single authority; callers must
+   * route empty TYPE_SLICE here instead of skipping store.
    */
   if (init_ko == 46) {
     int32_t n_arr;
@@ -17256,7 +17263,30 @@ int32_t pipeline_asm_emit_block_inits_elf_c(struct ast_ASTArena *arena, struct p
     int32_t type_ref;
     uint8_t lnb[64];
     int32_t llen;
-    if (init_ref == 0 || glue_init_is_empty_array_lit(arena, init_ref)) {
+    if (init_ref == 0) {
+      idx++;
+      continue;
+    }
+    /**
+     * wave330: empty `[]` for TYPE_SLICE must write dual-GP {data,length=0} (G.7 authority
+     * glue_emit_slice_from_array_let_init_elf_c). Fixed/pointer empties may still skip.
+     * PLATFORM: SHARED freestanding emit.
+     */
+    if (glue_init_is_empty_array_lit(arena, init_ref)) {
+      llen = pipeline_block_let_name_len(arena, block_ref, i);
+      if (llen > 0) {
+        pipeline_block_let_name_copy64(arena, block_ref, i, lnb);
+        if (glue_lazy_append_block_let_local(arena, ctx, block_ref, i, lnb, llen) != 0)
+          return -1;
+      }
+      type_ref = pipeline_block_let_type_ref(arena, block_ref, i);
+      {
+        int32_t slice_st =
+            glue_emit_slice_from_array_let_init_elf_c(arena, elf_ctx, block_ref, i, init_ref, type_ref, ctx, ta,
+                                                      backend_asm_ctx_slot_offset(ctx, slot));
+        if (slice_st < 0)
+          return -1;
+      }
       idx++;
       continue;
     }
@@ -17890,10 +17920,24 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
         if (init_ref != 0) {
           if (glue_init_is_empty_array_lit(arena, init_ref)) {
             int32_t tref_empty;
+            int32_t slice_st_empty;
             tref_empty = pipeline_block_let_type_ref(arena, block_ref, idx);
-            /** T[N] = [] 内联 blob；prologue 已清零栈，勿 pointer+temp（会错位 offset 0）。 */
-            if (glue_block_let_is_fixed_array_type(arena, block_ref, idx)) {
-              /* 无 emit */
+            /**
+             * wave330 Cap residual pure: TYPE_SLICE + `[]` actively store dual-GP
+             * {data, length=0}. Prior path skipped empty ARRAY_LIT entirely (only prologue
+             * zeros) → soft residual vs host-C `.length = 0` compound.
+             * G.7: reuse glue_emit_slice_from_array_let_init_elf_c (ARRAY_LIT n=0).
+             * PLATFORM: SHARED freestanding emit.
+             */
+            slice_st_empty =
+                glue_emit_slice_from_array_let_init_elf_c(arena, elf_ctx, block_ref, idx, init_ref, tref_empty,
+                                                          ctx, ta, backend_asm_ctx_slot_offset(ctx, slot));
+            if (slice_st_empty == 1) {
+              /* empty fat slice written */
+            } else if (slice_st_empty < 0) {
+              return -1;
+            } else if (glue_block_let_is_fixed_array_type(arena, block_ref, idx)) {
+              /** T[N] = [] 内联 blob；prologue 已清零栈，勿 pointer+temp（会错位 offset 0）。 */
             } else if (glue_array_temp_bytes_for_let_init(arena, tref_empty, 0) > 0) {
               if (glue_emit_array_let_empty_init(arena, elf_ctx, ctx, ta, backend_asm_ctx_slot_offset(ctx, slot)) != 0)
                 return -1;
@@ -20705,7 +20749,16 @@ static int32_t glue_emit_block_stmt_order_let_const_elf(struct ast_ASTArena *are
     if (init_ref != 0) {
       if (glue_init_is_empty_array_lit(arena, init_ref)) {
         int32_t tref_empty = pipeline_block_let_type_ref(arena, block_ref, idx);
-        if (glue_block_let_is_fixed_array_type(arena, block_ref, idx)) {
+        int32_t slice_st_empty;
+        /* wave330: empty TYPE_SLICE → dual-GP {data,length=0}; see body_sync twin. */
+        slice_st_empty =
+            glue_emit_slice_from_array_let_init_elf_c(arena, elf_ctx, block_ref, idx, init_ref, tref_empty, ctx, ta,
+                                                      backend_asm_ctx_slot_offset(ctx, slot));
+        if (slice_st_empty == 1) {
+          /* empty fat slice written */
+        } else if (slice_st_empty < 0) {
+          return -1;
+        } else if (glue_block_let_is_fixed_array_type(arena, block_ref, idx)) {
           /* T[N] = [] 内联 blob，无 pointer init */
         } else if (glue_array_temp_bytes_for_let_init(arena, tref_empty, 0) > 0) {
           if (glue_emit_array_let_empty_init(arena, elf_ctx, ctx, ta, backend_asm_ctx_slot_offset(ctx, slot)) != 0)
