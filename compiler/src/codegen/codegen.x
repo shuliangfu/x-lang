@@ -2180,6 +2180,15 @@ export extern function codegen_set_host_call_arg_param_ty(param_ty_ref: i32): vo
 export extern function codegen_get_host_call_arg_param_ty(): i32;
 
 /**
+ * Allocate a unique id for host-C call-site TYPE_ARRAY deep-copy temps (`__xlang_caN`).
+ * wave397: CALL/METHOD returning T[N] as TYPE_SLICE formal must not share callee
+ * `__xlang_ar` across dual args in one call (last-wins → wrong sums).
+ * @return i32 — non-negative monotonic id (wraps at i32 max → 0)
+ * PLATFORM: SHARED host-C counter (seed body).
+ */
+export extern function codegen_next_host_call_array_tmp_id(): i32;
+
+/**
  * Emit one call argument under seed/glue slice ABI (PLATFORM: SHARED).
  *
  * Why: TYPE_SLICE params lower as `struct xlang_slice_* *`. Locals stay by-value
@@ -2191,6 +2200,8 @@ export extern function codegen_get_host_call_arg_param_ty(): i32;
  * not `struct xlang_slice_* *` → host reads length from wrong memory (e.g. a[2]=30).
  * wave396: same for CALL/METHOD return `T[N]` and FIELD_ACCESS of fixed array field
  * (`len_of(take3(1))` / `sum3(b.a)` bare `E*` as slice* → length half garbage).
+ * wave397: CALL/METHOD `.data` deep-copies into unique `__xlang_caN[N]` so dual
+ * same-call formals do not both alias callee static `__xlang_ar` (host 66→39).
  * Gate: only when codegen_get_host_call_arg_param_ty is TYPE_SLICE (else bare
  * emit for *T / Buffer formals — option/hello). G.7: same compound as let-init.
  *
@@ -2370,12 +2381,117 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
           if (emit_bytes_from_ptr(out, &mid1[0], 11) != 0) {
             return -1;
           }
-          /* VAR: bare name (array decay → E*). CALL/FIELD/METHOD: full emit_expr. */
+          /*
+           * .data = …
+           * VAR: bare name (array decay → durable local E*).
+           * CALL/METHOD: deep-copy into unique static __xlang_caN (wave397).
+           *   Host lowers TYPE_ARRAY return as E* into callee static __xlang_ar;
+           *   dual same-call formals would both alias last write (66 vs 39).
+           * FIELD: emit_expr (address of embedded payload; durable with base).
+           * PLATFORM: SHARED host-C.
+           */
           if (arg.kind == ExprKind.EXPR_VAR && arg.var_name_len > 0) {
             if (emit_bytes_64(out, &arg.var_name[0], arg.var_name_len) != 0) {
               return -1;
             }
+          } else if (arg.kind == ExprKind.EXPR_CALL || arg.kind == ExprKind.EXPR_METHOD_CALL) {
+            let tid: i32 = codegen_next_host_call_array_tmp_id();
+            /* ({ static  */
+            let ca_open: u8[12] = [40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0];
+            if (emit_bytes_from_ptr(out, &ca_open[0], 10) != 0) {
+              return -1;
+            }
+            /* elem type */
+            if (ast.ref_is_null(elem_tr) || elem_tr <= 0
+                || emit_type(arena, out, elem_tr, 0 as *u8, 0, ctx) != 0) {
+              let fb_e: u8[9] = [105, 110, 116, 51, 50, 95, 116, 0, 0];
+              if (emit_bytes_from_ptr(out, &fb_e[0], 7) != 0) {
+                return -1;
+              }
+            }
+            /*  __xlang_ca */
+            let ca_nm: u8[14] = [32, 95, 95, 120, 108, 97, 110, 103, 95, 99, 97, 0, 0, 0];
+            if (emit_bytes_from_ptr(out, &ca_nm[0], 11) != 0) {
+              return -1;
+            }
+            if (format_int(out, tid as i64) != 0) {
+              return -1;
+            }
+            /* [N];  */
+            if (append_byte(out, 91) != 0) {
+              return -1;
+            }
+            if (format_int(out, arr_sz as i64) != 0) {
+              return -1;
+            }
+            let ca_sz_end: u8[4] = [93, 59, 32, 0];
+            if (emit_bytes_from_ptr(out, &ca_sz_end[0], 3) != 0) {
+              return -1;
+            }
+            /* E *__xlang_rp = <call>;  */
+            if (ast.ref_is_null(elem_tr) || elem_tr <= 0
+                || emit_type(arena, out, elem_tr, 0 as *u8, 0, ctx) != 0) {
+              let fb_rp: u8[9] = [105, 110, 116, 51, 50, 95, 116, 0, 0];
+              if (emit_bytes_from_ptr(out, &fb_rp[0], 7) != 0) {
+                return -1;
+              }
+            }
+            let rp_asg: u8[16] = [32, 42, 95, 95, 120, 108, 97, 110, 103, 95, 114, 112, 32, 61, 32, 0];
+            if (emit_bytes_from_ptr(out, &rp_asg[0], 15) != 0) {
+              return -1;
+            }
+            if (emit_expr(arena, out, arg_ref, ctx) != 0) {
+              return -1;
+            }
+            let rp_sc: u8[4] = [59, 32, 0, 0];
+            if (emit_bytes_4(out, rp_sc, 2) != 0) {
+              return -1;
+            }
+            /* element-wise copy (no memcpy header dependency) */
+            let ai_ca: i32 = 0;
+            while (ai_ca < arr_sz) {
+              /* __xlang_caN[ */
+              let ca_asg: u8[14] = [95, 95, 120, 108, 97, 110, 103, 95, 99, 97, 0, 0, 0, 0];
+              if (emit_bytes_from_ptr(out, &ca_asg[0], 10) != 0) {
+                return -1;
+              }
+              if (format_int(out, tid as i64) != 0) {
+                return -1;
+              }
+              if (append_byte(out, 91) != 0) {
+                return -1;
+              }
+              if (format_int(out, ai_ca as i64) != 0) {
+                return -1;
+              }
+              /* ] = __xlang_rp[ */
+              let ca_mid: u8[16] = [93, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 114, 112, 91, 0];
+              if (emit_bytes_from_ptr(out, &ca_mid[0], 15) != 0) {
+                return -1;
+              }
+              if (format_int(out, ai_ca as i64) != 0) {
+                return -1;
+              }
+              let ca_el_end: u8[4] = [93, 59, 32, 0];
+              if (emit_bytes_from_ptr(out, &ca_el_end[0], 3) != 0) {
+                return -1;
+              }
+              ai_ca = ai_ca + 1;
+            }
+            /* __xlang_caN; }) */
+            let ca_ret: u8[14] = [95, 95, 120, 108, 97, 110, 103, 95, 99, 97, 0, 0, 0, 0];
+            if (emit_bytes_from_ptr(out, &ca_ret[0], 10) != 0) {
+              return -1;
+            }
+            if (format_int(out, tid as i64) != 0) {
+              return -1;
+            }
+            let ca_close: u8[6] = [59, 32, 125, 41, 0, 0];
+            if (emit_bytes_from_ptr(out, &ca_close[0], 4) != 0) {
+              return -1;
+            }
           } else {
+            /* FIELD_ACCESS etc.: address of embedded array */
             if (emit_expr(arena, out, arg_ref, ctx) != 0) {
               return -1;
             }

@@ -3318,11 +3318,24 @@ void codegen_set_host_call_arg_param_ty(int32_t param_ty_ref) {
 int32_t codegen_get_host_call_arg_param_ty(void) {
   return g_codegen_host_call_arg_param_ty_ref;
 }
+/* PLATFORM: SHARED host-C — unique id for call-site TYPE_ARRAY deep-copy temps
+ * (__xlang_caN). wave397: dual CALL/METHOD T[N] as TYPE_SLICE formals must not
+ * both alias callee __xlang_ar (last-wins). Mirror codegen.x. */
+static int32_t g_codegen_host_call_array_tmp_id = 0;
+int32_t codegen_next_host_call_array_tmp_id(void) {
+  int32_t id = g_codegen_host_call_array_tmp_id;
+  g_codegen_host_call_array_tmp_id = id + 1;
+  if (g_codegen_host_call_array_tmp_id < 0) {
+    g_codegen_host_call_array_tmp_id = 0;
+  }
+  return id;
+}
 /* PLATFORM: SHARED — call-arg slice ABI: TYPE_SLICE params are pointers (seed/glue).
  * Locals stay by-value → pass &(local); slice params already pointers → pass through.
  * wave395: fixed TYPE_ARRAY VAR → &((struct xlang_slice_T){.data=a,.length=N}) only when
  * formal is TYPE_SLICE. wave396: also CALL/METHOD return T[N] and FIELD_ACCESS of fixed
- * array field. Authority mirror of codegen.x. */
+ * array field. wave397: CALL/METHOD .data deep-copy into unique __xlang_caN.
+ * Authority mirror of codegen.x. */
 int32_t codegen_emit_call_arg_slice_abi(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t arg_ref, struct ast_PipelineDepCtx * ctx) {
   {
     struct ast_Expr arg;
@@ -3485,10 +3498,123 @@ int32_t codegen_emit_call_arg_slice_abi(struct ast_ASTArena * arena, struct code
           if ((codegen_emit_bytes_from_ptr(out, &((mid1)[0]), 11) != 0)) {
             return -(1);
           }
-          /* VAR: bare name; CALL/FIELD/METHOD: full emit_expr (returns E*). */
+          /*
+           * .data = …
+           * VAR: bare name. CALL/METHOD (48/49): unique static deep-copy (wave397).
+           * FIELD (44): emit_expr embedded address. PLATFORM: SHARED host-C.
+           */
           if ((((arg.kind) == 3) && ((arg.var_name_len) > 0))) {
             if ((codegen_emit_bytes_64(out, &((arg.var_name)[0]), (arg.var_name_len)) != 0)) {
               return -(1);
+            }
+          } else if ((((arg.kind) == 48) || ((arg.kind) == 49))) {
+            int32_t tid = codegen_next_host_call_array_tmp_id();
+            int32_t ai_ca = 0;
+            /* ({ static  */
+            {
+              uint8_t ca_open[12] = {40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((ca_open)[0]), 10) != 0)) {
+                return -(1);
+              }
+            }
+            /* elem type (fallback int32_t) */
+            if (((elem_tr <= 0) || (codegen_emit_type(arena, out, elem_tr, ((uint8_t *)(0)), 0, ctx) != 0))) {
+              uint8_t fb_e[9] = {105, 110, 116, 51, 50, 95, 116, 0, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((fb_e)[0]), 7) != 0)) {
+                return -(1);
+              }
+            }
+            /*  __xlang_ca */
+            {
+              uint8_t ca_nm[14] = {32, 95, 95, 120, 108, 97, 110, 103, 95, 99, 97, 0, 0, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((ca_nm)[0]), 11) != 0)) {
+                return -(1);
+              }
+            }
+            if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+              return -(1);
+            }
+            if ((codegen_append_byte(out, 91) != 0)) {
+              return -(1);
+            }
+            if ((codegen_format_int(out, (int64_t)arr_sz) != 0)) {
+              return -(1);
+            }
+            {
+              uint8_t ca_sz_end[4] = {93, 59, 32, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((ca_sz_end)[0]), 3) != 0)) {
+                return -(1);
+              }
+            }
+            /* E *__xlang_rp = <call>;  */
+            if (((elem_tr <= 0) || (codegen_emit_type(arena, out, elem_tr, ((uint8_t *)(0)), 0, ctx) != 0))) {
+              uint8_t fb_rp[9] = {105, 110, 116, 51, 50, 95, 116, 0, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((fb_rp)[0]), 7) != 0)) {
+                return -(1);
+              }
+            }
+            {
+              uint8_t rp_asg[16] = {32, 42, 95, 95, 120, 108, 97, 110, 103, 95, 114, 112, 32, 61, 32, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((rp_asg)[0]), 15) != 0)) {
+                return -(1);
+              }
+            }
+            if ((codegen_emit_expr(arena, out, arg_ref, ctx) != 0)) {
+              return -(1);
+            }
+            {
+              uint8_t rp_sc[4] = {59, 32, 0, 0};
+              if ((codegen_emit_bytes_4(out, rp_sc, 2) != 0)) {
+                return -(1);
+              }
+            }
+            while ((ai_ca < arr_sz)) {
+              {
+                uint8_t ca_asg[14] = {95, 95, 120, 108, 97, 110, 103, 95, 99, 97, 0, 0, 0, 0};
+                if ((codegen_emit_bytes_from_ptr(out, &((ca_asg)[0]), 10) != 0)) {
+                  return -(1);
+                }
+              }
+              if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+                return -(1);
+              }
+              if ((codegen_append_byte(out, 91) != 0)) {
+                return -(1);
+              }
+              if ((codegen_format_int(out, (int64_t)ai_ca) != 0)) {
+                return -(1);
+              }
+              {
+                uint8_t ca_mid[16] = {93, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 114, 112, 91, 0};
+                if ((codegen_emit_bytes_from_ptr(out, &((ca_mid)[0]), 15) != 0)) {
+                  return -(1);
+                }
+              }
+              if ((codegen_format_int(out, (int64_t)ai_ca) != 0)) {
+                return -(1);
+              }
+              {
+                uint8_t ca_el_end[4] = {93, 59, 32, 0};
+                if ((codegen_emit_bytes_from_ptr(out, &((ca_el_end)[0]), 3) != 0)) {
+                  return -(1);
+                }
+              }
+              ai_ca = (ai_ca + 1);
+            }
+            {
+              uint8_t ca_ret[14] = {95, 95, 120, 108, 97, 110, 103, 95, 99, 97, 0, 0, 0, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((ca_ret)[0]), 10) != 0)) {
+                return -(1);
+              }
+            }
+            if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+              return -(1);
+            }
+            {
+              uint8_t ca_close[6] = {59, 32, 125, 41, 0, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((ca_close)[0]), 4) != 0)) {
+                return -(1);
+              }
             }
           } else {
             if ((codegen_emit_expr(arena, out, arg_ref, ctx) != 0)) {
