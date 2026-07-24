@@ -27,8 +27,14 @@
 
 #if defined(__GNUC__) || defined(__clang__)
 #define CRYPTO_HOT __attribute__((hot))
+/* When std/crypto/core.x co-emits strong crypto_sha256_c / hmac (product path),
+ * glue must be weak so mac ld does not fail on duplicate (Linux allows
+ * --allow-multiple-definition). Authority: core.x when linked; glue fallback.
+ * PLATFORM: SHARED — dual-link crypto.o + runtime_crypto_inc_glue.o. */
+#define CRYPTO_SHA256_SURFACE __attribute__((weak))
 #else
 #define CRYPTO_HOT
+#define CRYPTO_SHA256_SURFACE
 #endif
 
 #define IPAD 0x36
@@ -108,7 +114,7 @@ void xlang_sha256_block(uint32_t *H, const uint8_t *block) {
 }
 #endif
 
-CRYPTO_HOT
+CRYPTO_HOT CRYPTO_SHA256_SURFACE
 void crypto_sha256_c(const uint8_t * restrict msg, int32_t len, uint8_t * restrict out) {
   uint32_t H[8];
   uint8_t block[64];
@@ -168,7 +174,7 @@ void crypto_sha256_c(const uint8_t * restrict msg, int32_t len, uint8_t * restri
   }
 }
 
-CRYPTO_HOT
+CRYPTO_HOT CRYPTO_SHA256_SURFACE
 void crypto_hmac_sha256_c(const uint8_t * restrict key, int32_t key_len,
                           const uint8_t * restrict msg, int32_t msg_len, uint8_t * restrict out) {
   uint8_t kbuf[32];

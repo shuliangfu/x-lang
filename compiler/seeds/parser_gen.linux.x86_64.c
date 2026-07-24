@@ -4903,6 +4903,14 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
               return;
             }
             (void)(parser_onefunc_push_src_stmt(out, 7, li_lr));
+            /* wave383: pin final return when L:return e; is last before } so asm
+             * backends that ignore kind=7 still emit the value (goto main → 42).
+             * PLATFORM: SHARED — mirror parser.x. */
+            if (((((r.tok).kind) ==85) && (ret_op_fn != 0))) {
+              (void)((return_expr_ref_storage = ret_op_fn));
+              (void)(((impl_snap.has_final_expr) = 1));
+              (void)(((impl_snap.has_explicit_return_kw) = 1));
+            }
             (void)((stmt_tok_ready = 1));
             continue;
           }

@@ -5750,6 +5750,18 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
             set_onefunc_fail(out, lex); return;
           }
           onefunc_push_src_stmt(out, 7, li_lr);
+          /*
+           * wave383: when `L: return e;` is immediately followed by `}`, also pin
+           * final return_expr so product asm backends (Linux x86_64) that walk only
+           * final_expr still emit the value. Host-C kind=7 path already emits
+           * `L:` + `return e;` from stmt_order; dual pin keeps asm exit codes
+           * (tests/goto/main.x → 42, not garbage). PLATFORM: SHARED.
+           */
+          if (r.tok.kind == token.TokenKind.TOKEN_RBRACE && ret_op_fn != 0) {
+            return_expr_ref_storage = ret_op_fn;
+            impl_snap.has_final_expr = true;
+            impl_snap.has_explicit_return_kw = true;
+          }
           stmt_tok_ready = true;
           continue;
         }
