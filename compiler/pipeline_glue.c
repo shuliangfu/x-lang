@@ -17097,8 +17097,11 @@ static int glue_block_stmt_order_has_return(struct ast_ASTArena *arena, int32_t 
 }
 
 /**
- * let s: T[] = arr（定长栈数组）：asm 栈槽写入 { .data = &arr, .length = N }。
- * 对齐 codegen.c codegen_init / codegen_try_emit_slice_init_from_array_var。
+ * let s: T[] = arr / let s: T[] = [..]：asm 栈槽写入 { .data = ptr, .length = N }.
+ * - VAR path: arr is a prior fixed TYPE_ARRAY local (codegen_try_emit_slice_init_from_array_var).
+ * - ARRAY_LIT path (wave329): emit payload into temp, then dual-GP fat {data, length=num_elems}.
+ *   Host-C already emits compound (struct xlang_slice_T){.data=(E[]){…},.length=N} (wave328);
+ *   freestanding used to store only the data pointer from emit_array_lit → length garbage / panic.
  *
  * PLATFORM: SHARED layout + LINUX/MACOS x86_64 SysV dual-GP home encoding.
  * slot_off is rbp-distance to fat byte0 (data); high half (length) is at slot_off-8
@@ -17116,13 +17119,38 @@ static int32_t glue_emit_slice_from_array_let_init_elf_c(struct ast_ASTArena *ar
   int32_t li;
   int32_t vlen;
   int32_t arr_off;
+  int32_t init_ko;
   uint8_t vname[64];
 
   if (!arena || !elf_ctx || !ctx || block_ref <= 0 || let_type_ref <= 0 || init_ref <= 0)
     return 0;
   if (pipeline_type_kind_ord_at(arena, let_type_ref) != GLUE_TYPE_KIND_SLICE)
     return 0;
-  if (pipeline_expr_kind_ord_at(arena, init_ref) != GLUE_EXPR_KIND_VAR)
+  init_ko = pipeline_expr_kind_ord_at(arena, init_ref);
+  /*
+   * wave329 Cap residual pure: TYPE_SLICE + EXPR_ARRAY_LIT (`let a: i32[] = [1,2,3]`).
+   * Authority: same dual-GP store as VAR path; payload via pipeline_asm_emit_array_lit_elf_c
+   * (temp at ctx->next_offset). G.7: extend this function — do not open a second emit path.
+   * Empty `[]` is handled by callers via glue_init_is_empty_array_lit before this is reached.
+   */
+  if (init_ko == 46) {
+    int32_t n_arr;
+    n_arr = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+    if (n_arr < 0 || n_arr > 256)
+      return -1;
+    if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, slice_slot_off, ta) != 0)
+      return -1;
+    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta) != 0)
+      return -1;
+    /** High half of dual-GP home: length at slot_off-8 (not +8). */
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, slice_slot_off - 8, ta) != 0)
+      return -1;
+    pipeline_asm_bump_next_offset_after_let_init(arena, block_ref, let_idx, init_ref, ctx);
+    return 1;
+  }
+  if (init_ko != GLUE_EXPR_KIND_VAR)
     return 0;
   vlen = pipeline_expr_var_name_len(arena, init_ref);
   if (vlen <= 0 || vlen > 63)
