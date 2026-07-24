@@ -2405,6 +2405,11 @@ int32_t pipeline_find_fixed_array_slice_escape(struct ast_ASTArena *arena, int32
   return 0;
 }
 
+/* wave394: TYPE_SLICE dual-GP length half (def near glue_emit_slice_from_array_let_init). */
+static int32_t glue_slice_dual_gp_length_off_c(int32_t data_home, int32_t ta);
+static void glue_slice_dual_gp_bump_past_home_c(struct backend_AsmFuncCtx *ctx, int32_t data_home,
+                                               int32_t ta);
+
 /**
  * wave342–344 Cap residual pure: freestanding `return s` where
  *   `let a: T[N] = …; let s: T[] = a; …; return s` (body-top or nested block)
@@ -2477,7 +2482,7 @@ static int32_t glue_try_return_slice_escape_from_fixed_array_elf_c(
   if (arr_sz <= 0 || arr_sz > 256 || arr_init_ref <= 0 || elem_tr <= 0)
     return 0;
 
-  /* Current s dual-GP home (data@off length@off-8) — not the original fixed a. */
+  /* Current s dual-GP home (data@off + arch-aware length half) — not the original fixed a. */
   s_off = glue_var_expr_stack_off_elf_c(arena, ctx, ret_op);
   if (s_off < 0)
     return -1;
@@ -2526,8 +2531,8 @@ static int32_t glue_try_return_slice_escape_from_fixed_array_elf_c(
    * else load s.data[i] → COMMON[i]. Return length = min(s.length, N).
    */
   for (ai = 0; ai < arr_sz; ai++) {
-    /* rax = s.length; rbx = N; if rax > N then rax = N (cap). */
-    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, s_off - 8, ta) != 0)
+    /* rax = s.length; rbx = N; if rax > N then rax = N (cap). wave394: arch length half. */
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, glue_slice_dual_gp_length_off_c(s_off, ta), ta) != 0)
       return -1;
     if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, arr_sz, ta) != 0)
       return -1;
@@ -2584,8 +2589,8 @@ static int32_t glue_try_return_slice_escape_from_fixed_array_elf_c(
   if (backend_enc_label_arch(elf_ctx, end_lbl, end_len, 0, ta) != 0)
     return -1;
 
-  /* length@rdx = min(s.length, N); data@rax = COMMON. */
-  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, s_off - 8, ta) != 0)
+  /* length@rdx = min(s.length, N); data@rax = COMMON. wave394: arch length half. */
+  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, glue_slice_dual_gp_length_off_c(s_off, ta), ta) != 0)
     return -1;
   if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, arr_sz, ta) != 0)
     return -1;
@@ -11288,19 +11293,14 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
       n_arr = pipeline_expr_array_lit_num_elems_at(arena, right_ref);
       if (n_arr < 0 || n_arr > 256)
         return -1;
-      if (ly) {
-        int32_t past_home = off + 8;
-        if (ly->next_offset < past_home)
-          ly->next_offset = past_home;
-        glue_align_next_offset(ctx);
-      }
+      glue_slice_dual_gp_bump_past_home_c(ctx, off, ta);
       if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
         return -1;
       if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0)
         return -1;
       if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta) != 0)
         return -1;
-      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off - 8, ta) != 0)
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(off, ta), ta) != 0)
         return -1;
       if (n_arr > 0)
         pipeline_asm_bump_next_offset_for_array_lit(arena, right_ref, ctx);
@@ -11351,15 +11351,17 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
       ltk = (ltr > 0) ? pipeline_type_kind_ord_at(arena, ltr) : 0;
       /*
        * wave331 Cap residual pure: TYPE_SLICE VAR assign dual-GP home (non-ARRAY_LIT).
-       * Root: VAR assign only store_rax_to_rbp → length half (off-8) stale.
+       * Root: VAR assign only store_rax_to_rbp → length half stale.
        * Ubuntu freestanding `a=b` kept old length.
+       * wave394: length half arch-aware (glue_slice_dual_gp_length_off_c).
        * Authority (G.7): dual-load leaves rax+rdx; store both halves.
        * PLATFORM: SHARED layout · LINUX freestanding gold · MACOS host-C uses compound.
        */
       if (ltk == GLUE_TYPE_KIND_SLICE) {
         if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0)
           return -1;
-        if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, off - 8, ta) != 0)
+        if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(off, ta), ta) !=
+            0)
           return -1;
       } else if (ltr > 0 && ltk == GLUE_TYPE_KIND_F32_ORD) {
         if (backend_enc_store_eax_to_rbp_arch(elf_ctx, off, ta) != 0)
@@ -12956,8 +12958,9 @@ static int32_t glue_finish_index_base_rax_index_rbx_slow_elf_c(struct ast_ASTAre
 /**
  * Slice base length → rbx ({data,length} home, *slice param, or dual-GP call rvalue).
  *
- * PLATFORM: SHARED fat layout; LINUX/MACOS x86_64 SysV:
- * - Local dual-GP home: data @ off, length @ off-8
+ * PLATFORM: SHARED fat layout; LINUX/MACOS SysV / AAPCS64:
+ * - Local dual-GP home: data @ off, length @ glue_slice_dual_gp_length_off_c(off,ta)
+ *   (wave394: arm64 +8 / x86 -8; C fat memory order)
  * - slice* param: load fat*, then length at +8
  * - CALL/METHOD_CALL returning TYPE_SLICE: freestanding dual-GP data@rax length@rdx
  *   (wave333/335 return emit). Do NOT treat rax as fat* (+8 deref) — that was wave336
@@ -13008,8 +13011,8 @@ static int32_t glue_emit_slice_length_to_rbx_elf_c(struct ast_ASTArena *arena,
         return -1;
       return 0;
     }
-    /** Dual-GP high half: length at off-8 (matches store in slice_from_array_let_init). */
-    return backend_enc_load_rbp_to_rbx_arch(elf_ctx, off - 8, ta);
+    /* wave394: arch-aware dual-GP length half (matches slice_from_array_let_init). */
+    return backend_enc_load_rbp_to_rbx_arch(elf_ctx, glue_slice_dual_gp_length_off_c(off, ta), ta);
   }
 
   /*
@@ -13199,9 +13202,9 @@ static int32_t glue_try_index_rvalue_slice_once_elf_c(struct ast_ASTArena *arena
   base_off = ly->next_offset;
   if ((base_off % 8) != 0)
     base_off = (base_off + 7) / 8 * 8;
-  /* data@home length@home-8 — same dual-GP home as let/call-arg slice. */
+  /* data@home + arch-aware length half — same dual-GP home as let/call-arg slice. */
   home = base_off + 16;
-  ly->next_offset = home + 8;
+  ly->next_offset = (ta == 1) ? (home + 16) : (home + 8);
   glue_align_next_offset(ctx);
 
   if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, base_ref, ctx, ta) != 0)
@@ -13209,17 +13212,17 @@ static int32_t glue_try_index_rvalue_slice_once_elf_c(struct ast_ASTArena *arena
   if (dual_gp != 0) {
     if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
       return -1;
-    if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, home - 8, ta) != 0)
+    if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(home, ta), ta) != 0)
       return -1;
   } else {
-    /* fat*: rax → struct { data, length }; spill both halves. */
+    /* fat*: rax → struct { data, length }; spill both halves into dual-GP home. */
     if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
       return -1;
     if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0)
       return -1;
     if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
       return -1;
-    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home - 8, ta) != 0)
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(home, ta), ta) != 0)
       return -1;
     if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
       return -1;
@@ -13259,7 +13262,7 @@ static int32_t glue_try_index_rvalue_slice_once_elf_c(struct ast_ASTArena *arena
       return -1;
     if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, idx_ref, ctx, ta) != 0)
       return -1;
-    if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, home - 8, ta) != 0)
+    if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, glue_slice_dual_gp_length_off_c(home, ta), ta) != 0)
       return -1;
     if (backend_enc_add_imm_to_rbx_arch(elf_ctx, -1, ta) != 0)
       return -1;
@@ -14231,12 +14234,11 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
       if (!ly)
         return -1;
       /*
-       * Allocate 16B dual-GP home: data@home, length@home-8 (same as let dual-GP).
-       * CRITICAL: array-lit writes at increasing addresses from temp base (0/4/8(%rbx)).
+       * Allocate dual-GP home: data@home, length via glue_slice_dual_gp_length_off_c
+       * (wave394: arm64 home+8 / x86 home-8 → C fat memory for lea as slice*).
+       * CRITICAL (x86): array-lit writes at increasing addresses from temp base.
        * Larger rbp-offset = lower address, so payload grows *toward* the fat home.
-       * next_offset must be home + payload_bytes so last elem ends just below data@home
-       * (Ubuntu: n=3 i32 with next=home+8 overwrote data with a[2] → flaky sum/a[2]).
-       * G.7 / wave331 temp discipline.
+       * next_offset must cover length half + payload (G.7 / wave331 temp discipline).
        */
       base_off = ly->next_offset;
       if ((base_off % 8) != 0)
@@ -14259,8 +14261,7 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
         payload_bytes = n_arr * esz;
         if (payload_bytes < 0)
           payload_bytes = 0;
-        /* Fat occupies [home-8, home+8) in offset space; payload grows up to home. */
-        past = home + 8;
+        past = (ta == 1) ? (home + 16) : (home + 8);
         if (payload_bytes > 0 && home + payload_bytes > past)
           past = home + payload_bytes;
         ly->next_offset = past;
@@ -14272,11 +14273,12 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
         return -1;
       if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta) != 0)
         return -1;
-      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home - 8, ta) != 0)
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(home, ta), ta) !=
+          0)
         return -1;
       if (n_arr > 0)
         pipeline_asm_bump_next_offset_for_array_lit(arena, expr_ref, ctx);
-      /* Pass &fat (slice* ABI); not dual-GP by-value. */
+      /* Pass &fat (slice* ABI); lea(data) — length at +8 in memory after wave394. */
       if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
         return -1;
       return 0;
@@ -14287,7 +14289,7 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
    * slice* formal (`pass(take())`). Root: rec path keeps only data@rax and drops
    * length@rdx; pass then treats rax as fat* → Ubuntu freestanding SIGSEGV.
    * Host-C materializes static __xlang_sp (same leaf). G.7: dual-GP → stack fat
-   * home (data@home length@home-8, ARRAY_LIT call-arg layout) then lea.
+   * home then lea. wave394: arch-aware length half.
    * PLATFORM: SHARED freestanding · LINUX gold.
    */
   if (arena && ctx && elf_ctx &&
@@ -14311,15 +14313,15 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
       if ((base_off % 8) != 0)
         base_off = (base_off + 7) / 8 * 8;
       home = base_off + 16;
-      ly->next_offset = home + 8;
+      ly->next_offset = (ta == 1) ? (home + 16) : (home + 8);
       glue_align_next_offset(ctx);
       /* Emit call → SysV dual-GP data@rax length@rdx. */
       if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta) != 0)
         return -1;
       if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
         return -1;
-      /* length@rdx → fat home-8 (same dual-GP home as ARRAY_LIT call-arg). */
-      if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, home - 8, ta) != 0)
+      if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(home, ta), ta) !=
+          0)
         return -1;
       if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
         return -1;
@@ -15589,11 +15591,9 @@ static int32_t pipeline_asm_emit_var_field_access_elf_c(struct ast_ASTArena *are
   }
   /*
    * wave393 Cap residual pure: freestanding TYPE_SLICE dual-GP local home.
-   * Store authority (`glue_emit_slice_from_array_let_init_elf_c`) writes
-   * data@off / length@off-8. C struct layout (data@0, length@+8) only applies
-   * after a fat* load (slice* params — needs_ptr_load). Prior path always
-   * lea(home)+field_off(+8 for .length) → read past dual-GP home → length=0 /
-   * stack junk (mac asm `s.length` exit 0; host-C green via `{.length=N}`).
+   * wave394: length half offset is arch-aware (glue_slice_dual_gp_length_off_c)
+   * so memory order is always C fat; arm64 home+8, x86 home-8.
+   * slice* params still fat*+8 via needs_ptr_load path below.
    * G.7: match INDEX bounds `glue_emit_slice_length_to_rbx_elf_c` dual-GP load.
    * PLATFORM: SHARED freestanding · LINUX+MACOS (arm64/x86_64); host-C untouched.
    */
@@ -15606,7 +15606,8 @@ static int32_t pipeline_asm_emit_var_field_access_elf_c(struct ast_ASTArena *are
       uint8_t fn_sl[64];
       pipeline_expr_field_access_name_into(arena, expr_ref, fn_sl);
       if (flen_sl == 6 && memcmp(fn_sl, "length", 6) == 0)
-        return backend_enc_load_rbp_to_rax_arch(elf_ctx, var_off - 8, ta);
+        return backend_enc_load_rbp_to_rax_arch(elf_ctx, glue_slice_dual_gp_length_off_c(var_off, ta),
+                                               ta);
       if (flen_sl == 4 && memcmp(fn_sl, "data", 4) == 0)
         return backend_enc_load_rbp_to_rax_arch(elf_ctx, var_off, ta);
     }
@@ -19139,6 +19140,52 @@ static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena
                                                             struct backend_AsmFuncCtx *ctx);
 
 /**
+ * wave394 Cap residual pure: TYPE_SLICE dual-GP length half product offset.
+ *
+ * Memory layout authority = C fat {data at lower address, length at data+8} so
+ * lea(data_home) is a valid slice* for call-arg / param paths.
+ *
+ * - x86_64 product offset uses [rbp-off]: smaller offset → higher address →
+ *   length half is data_home-8 (historical dual-GP high half).
+ * - arm64 product offset uses [x29+off]: larger offset → higher address →
+ *   length half is data_home+8. Prior home-8 overwrote fixed-array elems that
+ *   grow +i*esz from their slot (mac multi INDEX sum 34 vs 100; s[2]=4 length)
+ *   and fat*+8 length load saw empty (len_of(s)=0). Ubuntu x86 hid both.
+ *
+ * G.7: single helper for every TYPE_SLICE dual-GP length store/load (let-init,
+ * assign, FIELD_ACCESS, INDEX bounds, call-arg materialize, escape return).
+ * PLATFORM: SHARED freestanding · MACOS|ARM64 vs LINUX|x86_64 frame polarity.
+ *
+ * @param data_home product slot offset of the data pointer half
+ * @param ta        0=x86_64, 1=arm64, 2=riscv (riscv treated as x86 polarity)
+ * @return product offset of the length half
+ */
+static int32_t glue_slice_dual_gp_length_off_c(int32_t data_home, int32_t ta) {
+  if (ta == 1)
+    return data_home + 8;
+  return data_home - 8;
+}
+
+/**
+ * Advance next_offset past both dual-GP halves of a TYPE_SLICE home.
+ * x86: highest product offset used is data_home; arm64 also uses data_home+8.
+ */
+static void glue_slice_dual_gp_bump_past_home_c(struct backend_AsmFuncCtx *ctx, int32_t data_home,
+                                               int32_t ta) {
+  pipeline_glue_AsmFuncCtxLayout *ly;
+  int32_t past;
+  if (!ctx)
+    return;
+  ly = pipeline_asm_ctx_layout(ctx);
+  if (!ly)
+    return;
+  past = (ta == 1) ? (data_home + 16) : (data_home + 8);
+  if (ly->next_offset < past)
+    ly->next_offset = past;
+  glue_align_next_offset(ctx);
+}
+
+/**
  * let s: T[] = arr / let s: T[] = [..]：asm 栈槽写入 { .data = ptr, .length = N }.
  * - VAR path: arr is a prior fixed TYPE_ARRAY local (codegen_try_emit_slice_init_from_array_var).
  * - ARRAY_LIT path (wave329/wave330/wave339): dual-GP fat {data, length=num_elems}.
@@ -19150,10 +19197,8 @@ static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena
  *   SHN_COMMON BSS + runtime stores (ctx required). wave330: empty `[]` still writes
  *   {data, length=0}; do not rely on prologue zeroing.
  *
- * PLATFORM: SHARED layout + LINUX/MACOS x86_64 SysV dual-GP home encoding.
- * slot_off is rbp-distance to fat byte0 (data); high half (length) is at slot_off-8
- * (same as param dual-home / glue_load_var_as_value_to_rax_rdx). Never use slot_off+8 —
- * that writes past the low end of the home and leaves length unreadable via lea+add 8.
+ * PLATFORM: SHARED freestanding dual-GP. Length half offset is arch-aware
+ * (glue_slice_dual_gp_length_off_c — wave394); memory order always C fat.
  *
  * @return 1 已写入；0 不适用；-1 失败。
  */
@@ -19215,8 +19260,9 @@ static int32_t glue_emit_slice_from_array_let_init_elf_c(struct ast_ASTArena *ar
       return -1;
     if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta) != 0)
       return -1;
-    /** High half of dual-GP home: length at slot_off-8 (not +8). */
-    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, slice_slot_off - 8, ta) != 0)
+    /* wave394: arch-aware length half (C fat memory order). */
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(slice_slot_off, ta),
+                                         ta) != 0)
       return -1;
     /*
      * wave331: empty ARRAY_LIT does not bump next_offset (0 temp bytes), and lea(temp)
@@ -19224,17 +19270,12 @@ static int32_t glue_emit_slice_from_array_let_init_elf_c(struct ast_ASTArena *ar
      * not write payload into the fat slot (Ubuntu: empty→lit index garbage).
      * Non-empty stack path: also bump payload size (direct emit_array_lit skips slow-path bump).
      * Durable path: no stack payload — skip array_lit bump (payload lives in text).
+     * wave394: arm64 length@home+8 must also be past next_offset.
      * PLATFORM: SHARED freestanding stack temp discipline.
      */
     if (durable == 0 && n_arr > 0)
       pipeline_asm_bump_next_offset_for_array_lit(arena, init_ref, ctx);
-    ly = pipeline_asm_ctx_layout(ctx);
-    if (ly) {
-      int32_t past_home = slice_slot_off + 8;
-      if (ly->next_offset < past_home)
-        ly->next_offset = past_home;
-      glue_align_next_offset(ctx);
-    }
+    glue_slice_dual_gp_bump_past_home_c(ctx, slice_slot_off, ta);
     return 1;
   }
   /*
@@ -19310,9 +19351,11 @@ static int32_t glue_emit_slice_from_array_let_init_elf_c(struct ast_ASTArena *ar
     return -1;
   if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, arr_sz, 0, ta) != 0)
     return -1;
-  /** High half of dual-GP home: length at slot_off-8 (not +8). */
-  if (backend_enc_store_rax_to_rbp_arch(elf_ctx, slice_slot_off - 8, ta) != 0)
+  /* wave394: arch-aware length half (C fat memory order; arm64 home+8). */
+  if (backend_enc_store_rax_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(slice_slot_off, ta),
+                                       ta) != 0)
     return -1;
+  glue_slice_dual_gp_bump_past_home_c(ctx, slice_slot_off, ta);
   return 1;
 }
 

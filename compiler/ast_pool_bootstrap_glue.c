@@ -210,6 +210,14 @@ int32_t asm_bump_off_align_for_local(struct ast_ASTArena *arena, int32_t type_re
 /**
  * 登记局部槽的 fp 负偏移：lea/sub 为 [fp-偏移]。
  * 统一 slot_off = off + sz（槽占 [fp-(off+sz), fp-off)）；inout 推进 off+sz。
+ *
+ * wave394 Cap residual pure: TYPE_SLICE dual-GP on arm64 product frame uses
+ * [x29+off] (positive). Length half lives at data_home+8 so C fat memory order
+ * matches lea(data) as slice*. Slot fill must reserve that high half so a following
+ * local does not clobber length (data@off+16 → length@off+24 → next=off+32).
+ * x86 [rbp-off] keeps historical 16B (length at data_home-8 inside the slot).
+ * PLATFORM: MACOS|ARM64 host default product; LINUX|x86_64 unchanged.
+ * G.7: pairs with pipeline_glue glue_slice_dual_gp_length_off_c.
  */
 int32_t asm_local_slot_reg_offset(struct ast_ASTArena *arena, int32_t type_ref, int32_t off, int32_t *inout_off) {
   int32_t sz;
@@ -218,8 +226,17 @@ int32_t asm_local_slot_reg_offset(struct ast_ASTArena *arena, int32_t type_ref, 
   off = asm_bump_off_align_for_local(arena, type_ref, off);
   sz = asm_local_slot_bytes(arena, type_ref);
   slot_off = off + sz;
-  if (inout_off)
+  if (inout_off) {
+#if defined(__aarch64__) || defined(__arm64__)
+    /* TYPE_SLICE ord==11: reserve past data_home+8 length half (wave394). */
+    if (arena && type_ref > 0 && pipeline_type_kind_ord_at(arena, type_ref) == 11)
+      *inout_off = slot_off + 8;
+    else
+      *inout_off = off + sz;
+#else
     *inout_off = off + sz;
+#endif
+  }
   return slot_off;
 }
 
