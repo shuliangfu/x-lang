@@ -3778,15 +3778,74 @@ static int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(struct platform_el
                                                                  struct backend_AsmFuncCtx *ctx, int32_t ta);
 
 /**
+ * wave357: flatten nested ARRAY_LIT to row-major scalar stores at base+flat_i*leaf_esz.
+ * Same address geometry as 1D vector_let (lea base once-per-store + positive store off).
+ * @return 0 ok; -1 error
+ */
+static int32_t pipeline_asm_emit_array_lit_flat_elf_c(struct ast_ASTArena *arena,
+                                                      struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,
+                                                      struct backend_AsmFuncCtx *ctx, int32_t ta,
+                                                      int32_t stack_slot_off, int32_t leaf_esz, int32_t *flat_i) {
+  int32_t n_arr;
+  int32_t ai;
+  int32_t elem_ref;
+  int32_t store_sz;
+  if (!arena || !elf_ctx || !ctx || !flat_i || init_ref <= 0 || leaf_esz <= 0)
+    return -1;
+  if (pipeline_expr_kind_ord_at(arena, init_ref) != 46)
+    return -1;
+  n_arr = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+  if (n_arr < 0 || n_arr > 256)
+    return -1;
+  store_sz = leaf_esz;
+  if (store_sz != 1 && store_sz != 2 && store_sz != 4 && store_sz != 8)
+    store_sz = 4;
+  for (ai = 0; ai < n_arr && ai < 256; ai++) {
+    elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
+    if (elem_ref == 0)
+      continue;
+    if (pipeline_expr_kind_ord_at(arena, elem_ref) == 46) {
+      if (pipeline_asm_emit_array_lit_flat_elf_c(arena, elf_ctx, elem_ref, ctx, ta, stack_slot_off, leaf_esz,
+                                                  flat_i) != 0)
+        return -1;
+      continue;
+    }
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    {
+      int32_t may_clobber = glue_expr_emit_may_clobber_rbx_elf_c(arena, elem_ref);
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, elem_ref, ctx, ta) != 0)
+        return -1;
+      if (may_clobber != 0) {
+        if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta) != 0)
+          return -1;
+        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          return -1;
+        if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+      }
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, (*flat_i) * leaf_esz, store_sz, ta) != 0)
+        return -1;
+    }
+    *flat_i = *flat_i + 1;
+  }
+  return 0;
+}
+
+/**
  * Fixed TYPE_ARRAY / SIMD vector let-init: write ARRAY_LIT elems into stack_slot_off.
  * wave342: apply wave340 may_clobber re-lea (G.7 same authority as emit_array_lit).
  * Root: base held only in rbx; binop elems (`n+10`) write ebx → store to garbage → Ubuntu
  * freestanding `let a:[3]i32=[n,n+10,n+20]` SIGSEGV (const lit OK). Host-C hid it.
  *
- * wave357 Cap residual pure: multi-dim nested ARRAY_LIT (`[[1,2,3],[4,5,6]]`) must write
- * contiguous rows at stack_slot_off + i*row_sz. Prior: each row emitted as a temp then an
- * 8-byte pointer store → shared next_offset slot + Ubuntu nested INDEX SIGSEGV.
- * G.7: recursive self for nested ARRAY_LIT; scalar elems keep dual-slot store.
+ * wave357 Cap residual pure: multi-dim nested ARRAY_LIT flattens row-major into the
+ * fixed slot (same lea+store-off geometry as 1D). Nested base+row_sz was inverted vs
+ * INDEX lea+add on some stack-offset encodings → Ubuntu run=0 / SIGSEGV.
+ * G.7: single flat writer; leaf esz from first non-array elem path.
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS host-C uses C multi-dim braces.
  */
 static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *arena,
@@ -3798,6 +3857,8 @@ static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *aren
   int32_t ai;
   int32_t elem_ref;
   int32_t store_sz;
+  int32_t flat_i;
+  int32_t has_nested;
   if (!arena || !elf_ctx || !ctx || init_ref <= 0)
     return -1;
   if (pipeline_expr_kind_ord_at(arena, init_ref) != 46)
@@ -3805,23 +3866,35 @@ static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *aren
   n_arr = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
   if (n_arr <= 0 || n_arr > 256)
     return -1;
+  has_nested = 0;
+  for (ai = 0; ai < n_arr && ai < 256; ai++) {
+    elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
+    if (elem_ref > 0 && pipeline_expr_kind_ord_at(arena, elem_ref) == 46) {
+      has_nested = 1;
+      break;
+    }
+  }
+  if (has_nested != 0) {
+    /* Leaf esz: peel one nested ARRAY_LIT for scalar width (i32→4). */
+    esz = 4;
+    elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, 0);
+    if (elem_ref > 0 && pipeline_expr_kind_ord_at(arena, elem_ref) == 46)
+      esz = pipeline_asm_array_lit_elem_byte_sz_c(arena, elem_ref);
+    if (esz <= 0)
+      esz = 4;
+    flat_i = 0;
+    return pipeline_asm_emit_array_lit_flat_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, esz, &flat_i);
+  }
   esz = pipeline_asm_array_lit_elem_byte_sz_c(arena, init_ref);
   if (esz <= 0)
     esz = 4;
+  store_sz = esz;
+  if (store_sz != 1 && store_sz != 2 && store_sz != 4 && store_sz != 8)
+    store_sz = 4;
   for (ai = 0; ai < n_arr && ai < 256; ai++) {
     elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
     if (elem_ref == 0)
       continue;
-    /* Nested row: write payload inline at offset (contiguous multi-dim). */
-    if (pipeline_expr_kind_ord_at(arena, elem_ref) == 46) {
-      if (pipeline_asm_emit_vector_let_init_elf_c(arena, elf_ctx, elem_ref, ctx, ta,
-                                                  stack_slot_off + ai * esz) != 0)
-        return -1;
-      continue;
-    }
-    store_sz = esz;
-    if (store_sz != 1 && store_sz != 2 && store_sz != 4 && store_sz != 8)
-      store_sz = 4;
     if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta) != 0)
       return -1;
     if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
