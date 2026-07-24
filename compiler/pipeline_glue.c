@@ -14246,6 +14246,57 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
     }
   }
   /**
+   * wave396 Cap residual pure: FIELD_ACCESS fixed TYPE_ARRAY as TYPE_SLICE formal.
+   * Root: bare lea(field) / load passes T* as fat* → length half garbage (host-C
+   * sum3(b.a) was 138 before fat compound). G.7: dual-GP fat {data=lea(b.a),
+   * length=N} then lea fat (VAR twin wave395; host emit_call_arg_slice_abi).
+   * PLATFORM: SHARED freestanding · LINUX gold + MACOS arm64.
+   */
+  if (arena && ctx && elf_ctx && pipeline_expr_kind_ord_at(arena, expr_ref) == 44) {
+    int32_t want_slice = 0;
+    int32_t fty = 0;
+    int32_t arr_sz = 0;
+    int32_t rty;
+    if (pty > 0 && pipeline_type_kind_ord_at(arena, pty) == (int32_t)ast_TypeKind_TYPE_SLICE)
+      want_slice = 1;
+    if (want_slice) {
+      fty = glue_field_access_field_type_ref_c(arena, g_pipeline_asm_emit_module, expr_ref);
+      if (fty > 0 && glue_type_is_fixed_array(arena, fty))
+        arr_sz = pipeline_type_array_size_at(arena, fty);
+      rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+      if (arr_sz <= 0 && rty > 0 &&
+          pipeline_type_kind_ord_at(arena, rty) == (int32_t)ast_TypeKind_TYPE_ARRAY)
+        arr_sz = pipeline_type_array_size_at(arena, rty);
+      if (arr_sz > 0) {
+        int32_t home;
+        int32_t base_off;
+        pipeline_glue_AsmFuncCtxLayout *ly = pipeline_asm_ctx_layout(ctx);
+        if (!ly)
+          return -1;
+        base_off = ly->next_offset;
+        if ((base_off % 8) != 0)
+          base_off = (base_off + 7) / 8 * 8;
+        home = base_off + 16;
+        ly->next_offset = (ta == 1) ? (home + 16) : (home + 8);
+        glue_align_next_offset(ctx);
+        /* data@rax = &field payload */
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+          return -1;
+        if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, arr_sz, 0, ta) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(home, ta),
+                                             ta) != 0)
+          return -1;
+        /* pass &fat as slice* */
+        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
+          return -1;
+        return 0;
+      }
+    }
+  }
+  /**
    * FIELD_ACCESS struct 字段 CALL 实参（v.al → alloc）：>8B struct 须 lea 字段地址。
    * 优先按 callee 形参 type_ref；pty 缺失时按字段类型 layout（import heap.Allocator 等）。
    */
