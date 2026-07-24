@@ -9958,7 +9958,12 @@ export function emit_return_stmt_with_context(arena: *ASTArena, out: *CodegenOut
        * G.7: durable static[N] + memcpy from s.data with runtime min(s.length, N).
        * wave343: pipeline_find_fixed_array_slice_escape (nested + resolved ARRAY).
        * wave344: reassign residual — prior used compile-time N for memcpy/length
-       * (after s=[40,50] still length=3 → 340). Soft: untyped-let; reentrancy last-wins.
+       * (after s=[40,50] still length=3 → 340).
+       * wave419: raise host escape cap 256→1024 to match freestanding
+       * GLUE_ARRAY_LIT_MAX_ELEMS / deep-copy max_n (wave415/418). Prior n>256
+       * fell back to bare `return s` (dangling); dual same-call often UB-luck via
+       * call-arg deep-copy until n=1024 SIGSEGV. Soft: untyped-let; trait; true
+       * recursion last-wins on function-static __xlang_esc (no heap yet).
        * PLATFORM: SHARED host-C emit (matches freestanding COMMON escape).
        */
       if (!ast.ref_is_null(rty) && pipeline_type_kind_ord_at(arena, rty) == (TypeKind.TYPE_SLICE as i32)
@@ -9974,7 +9979,7 @@ export function emit_return_stmt_with_context(arena: *ASTArena, out: *CodegenOut
           unsafe {
             found_esc = pipeline_find_fixed_array_slice_escape(arena, body_br, &op_e.var_name[0], op_e.var_name_len, &arr_sz, &elem_tr, &arr_init_dummy);
           }
-          if (found_esc != 0 && arr_sz > 0 && arr_sz <= 256 && !ast.ref_is_null(elem_tr)) {
+          if (found_esc != 0 && arr_sz > 0 && arr_sz <= 1024 && !ast.ref_is_null(elem_tr)) {
             if (emit_indent(out, indent) != 0) {
               return -1;
             }

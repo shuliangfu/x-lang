@@ -10380,6 +10380,8 @@ int32_t codegen_emit_return_stmt_with_context(struct ast_ASTArena * arena, struc
        *   `let a: T[N] = …; let s: T[] = a; …; return s` (body-top or nested block)
        * Root: stack view dangles on return. G.7: static E __xlang_esc[N] +
        * memcpy(s.data, min(s.length,N)). wave343 finder nested; wave344 runtime length.
+       * wave419: raise host escape cap 256→1024 (≡ freestanding GLUE_ARRAY_LIT_MAX_ELEMS /
+       * deep-copy max_n). n>256 previously bare `return s`; dual n=1024 SIGSEGV.
        * PLATFORM: SHARED host-C (matches freestanding COMMON escape).
        */
       if ((!(ast_ref_is_null(rty))) && (pipeline_type_kind_ord_at(arena, rty) == 11)
@@ -10395,7 +10397,7 @@ int32_t codegen_emit_return_stmt_with_context(struct ast_ASTArena * arena, struc
           found_esc = pipeline_find_fixed_array_slice_escape(arena, body_br, &((op_e.var_name))[0],
                                                             (op_e.var_name_len), &arr_sz, &elem_tr,
                                                             &arr_init_dummy);
-          if ((((found_esc != 0) && (arr_sz > 0) && (arr_sz <= 256)) && (!(ast_ref_is_null(elem_tr))))) {
+          if ((((found_esc != 0) && (arr_sz > 0) && (arr_sz <= 1024)) && (!(ast_ref_is_null(elem_tr))))) {
             uint8_t open1[20] = {114, 101, 116, 117, 114, 110, 32, 40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0, 0};
             uint8_t esc_br[16] = {32, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 91, 0, 0, 0};
             /* ]; size_t __xlang_esc_n = (size_t) */
