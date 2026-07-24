@@ -3541,7 +3541,7 @@ int32_t pipeline_asm_emit_expr_if_arm_elf_c(struct ast_ASTArena *arena,
 /* Forward: dual-GP / named layout used by STRUCT_LIT field store (defs later). */
 static int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref);
 static int32_t glue_type_named_layout_size_any_module_elf_c(struct ast_ASTArena *arena, int32_t ty_ref);
-/* wave349: STRUCT_LIT fixed TYPE_ARRAY field inline store (def after vector_let_init). */
+/* wave349/350: STRUCT_LIT fixed TYPE_ARRAY field inline store (def after vector_let_init). */
 static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *arena,
                                                        struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,
                                                        struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -3549,6 +3549,9 @@ static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *aren
 static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
     struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,
     struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t sret_direct, int32_t base_off, int32_t foff, int32_t fty);
+/* Used by wave350 FIELD init; full def near pipeline_expr_field_access_layout_offset. */
+static int32_t glue_field_access_effective_offset_c(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                   int32_t fa_ref);
 
 /**
  * STRUCT_LIT 单字段 store 宽度：与 glue_field_access_load_bytes_for_type_ref 一致（i32=4，bool/u8=1）。
@@ -3819,7 +3822,7 @@ static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *aren
 }
 
 /**
- * wave349 Cap residual pure: STRUCT_LIT field of fixed TYPE_ARRAY stores inline
+ * wave349/350 Cap residual pure: STRUCT_LIT field of fixed TYPE_ARRAY stores inline
  * payload (N×esz), not an 8-byte pointer.
  *
  * Root: generic STRUCT_LIT path emitted ARRAY_LIT into a temp then stored rax (temp
@@ -3830,6 +3833,8 @@ static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *aren
  * - ARRAY_LIT + stack slot → pipeline_asm_emit_vector_let_init_elf_c (same as let-init)
  * - ARRAY_LIT + sret → per-elem emit + store at foff+i×esz via sret dest@rbx
  * - VAR → wave334 element-wise load (src_off − i×esz) / store
+ * - wave350 FIELD (`Box { a: b0.a }`) → same element-wise from VAR-base + field_off
+ *   (positive slot src = var_off − field_off; elem[i] at src − i×esz — matches INDEX layout)
  *
  * @return 0 handled; -1 error; -2 unsupported init (caller falls through)
  * PLATFORM: SHARED freestanding emit · LINUX gold · MACOS host-C uses braced expand
@@ -3842,6 +3847,7 @@ static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
   int32_t esz;
   int32_t ai;
   int32_t elem_tr;
+  int32_t src_off;
   if (!arena || !elf_ctx || !ctx || init_ref <= 0 || fty <= 0)
     return -1;
   iko = pipeline_expr_kind_ord_at(arena, init_ref);
@@ -3879,10 +3885,35 @@ static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
     return 0;
   }
 
+  /*
+   * VAR or FIELD_ACCESS source → element-wise copy into dest field.
+   * wave350: FIELD (`b0.a`) was -2 fallthrough → generic store 8B pointer / first lane.
+   * PLATFORM: SHARED freestanding · host-C braced expand already emits (src)[i] (codegen.x).
+   */
+  src_off = -1;
   if (iko == (int32_t)ast_ExprKind_EXPR_VAR) {
-    int32_t src_off = glue_var_expr_stack_off_elf_c(arena, ctx, init_ref);
+    src_off = glue_var_expr_stack_off_elf_c(arena, ctx, init_ref);
+  } else if (iko == (int32_t)ast_ExprKind_EXPR_FIELD_ACCESS) {
+    int32_t var_base;
+    int32_t var_off;
+    int32_t field_off;
+    if (pipeline_expr_field_access_is_enum_variant(arena, init_ref) != 0)
+      return -2;
+    var_base = pipeline_expr_field_access_base_ref(arena, init_ref);
+    if (var_base <= 0 || pipeline_expr_kind_ord_at(arena, var_base) != (int32_t)ast_ExprKind_EXPR_VAR)
+      return -2;
+    var_off = glue_var_expr_stack_off_elf_c(arena, ctx, var_base);
+    if (var_off < 0)
+      return -1;
+    field_off = glue_field_access_effective_offset_c(arena, g_pipeline_asm_emit_module, init_ref);
+    if (field_off < 0)
+      field_off = 0;
+    /* Positive slot of field base: var_off − field_off (addr = rbp − var_off + field_off). */
+    src_off = var_off - field_off;
     if (src_off < 0)
       return -1;
+  }
+  if (src_off >= 0) {
     if (sret_direct == 0) {
       if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, base_off + foff, ta) != 0)
         return -1;
@@ -3912,7 +3943,7 @@ static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
     return 0;
   }
 
-  /* Unsupported init (CALL/FIELD/etc.) — leave generic path (may still be soft residual). */
+  /* Unsupported init (CALL/etc.) — leave generic path (may still be soft residual). */
   return -2;
 }
 
