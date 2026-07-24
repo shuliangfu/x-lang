@@ -8289,8 +8289,9 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
       if ((is_slice !=0)) {
         /*
          * wave335: TYPE_SLICE + ARRAY_LIT → static when all elems LIT/BOOL (durable).
-         * wave340: non-const elems cannot use static (C non-constant initializer).
-         * G.7: match freestanding durable gate; non-const → (slice){.data=(E[]){…},.length=N}.
+         * wave340: non-const → block compound (in-fn OK; return dangles).
+         * wave341: non-const durable via runtime-filled static E __xlang_al[N]; stores.
+         * G.7: match freestanding durable gate + codegen.x (same commit).
          * PLATFORM: SHARED host-C (same as codegen.x).
          */
         int32_t ai = 0;
@@ -8384,19 +8385,13 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
           }
           return 0;
         }
-        /* Non-const: (slice){ .data = (E[]){ elems }, .length = N } */
-        if ((codegen_append_byte(out, 40) !=0)) {
-          return -(1);
-        }
-        if ((codegen_emit_type(arena, out, (e.resolved_type_ref), ((uint8_t *)(0)), 0, ctx) !=0)) {
-          uint8_t fallback[9] = {117, 105, 110, 116, 56, 95, 116, 0, 0};
-          if ((codegen_emit_bytes_9(out, fallback, 7) !=0)) {
-            return -(1);
-          }
-        }
+        /*
+         * wave341: non-const durable static fill (return-safe).
+         * ({ static E __xlang_al[N]; __xlang_al[i]=ei; …; (slice){.data=__xlang_al,.length=N}; })
+         */
         {
-          uint8_t nc_mid1[16] = {41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 40, 0, 0, 0, 0};
-          if ((codegen_emit_bytes_from_ptr(out, nc_mid1, 12) !=0)) {
+          uint8_t nc_open[12] = {40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0};
+          if ((codegen_emit_bytes_from_ptr(out, nc_open, 10) !=0)) {
             return -(1);
           }
         }
@@ -8407,27 +8402,60 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
           }
         }
         {
-          uint8_t nc_arr[8] = {91, 93, 41, 123, 0, 0, 0, 0};
-          if ((codegen_emit_bytes_from_ptr(out, nc_arr, 4) !=0)) {
+          uint8_t nc_al_br[14] = {32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 91, 0, 0};
+          if ((codegen_emit_bytes_from_ptr(out, nc_al_br, 12) !=0)) {
+            return -(1);
+          }
+        }
+        if ((codegen_format_int(out, n) !=0)) {
+          return -(1);
+        }
+        {
+          uint8_t nc_sz_end[4] = {93, 59, 32, 0};
+          if ((codegen_emit_bytes_from_ptr(out, nc_sz_end, 3) !=0)) {
             return -(1);
           }
         }
         ai = 0;
         while ((ai < n)) {
-          if ((ai > 0)) {
-            uint8_t comma[3] = {44, 32, 0};
-            if ((codegen_emit_bytes_3(out, comma, 2) !=0)) {
+          {
+            uint8_t nc_asg_h[14] = {95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 91, 0, 0, 0};
+            if ((codegen_emit_bytes_from_ptr(out, nc_asg_h, 11) !=0)) {
+              return -(1);
+            }
+          }
+          if ((codegen_format_int(out, ai) !=0)) {
+            return -(1);
+          }
+          {
+            uint8_t nc_asg_m[6] = {93, 32, 61, 32, 0, 0};
+            if ((codegen_emit_bytes_from_ptr(out, nc_asg_m, 4) !=0)) {
               return -(1);
             }
           }
           if ((!(ast_ref_is_null(pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai))) && (codegen_emit_expr(arena, out, pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai), ctx) !=0))) {
             return -(1);
           }
+          {
+            uint8_t nc_asg_t[4] = {59, 32, 0, 0};
+            if ((codegen_emit_bytes_from_ptr(out, nc_asg_t, 2) !=0)) {
+              return -(1);
+            }
+          }
           (void)((ai = (ai + 1)));
         }
+        if ((codegen_append_byte(out, 40) !=0)) {
+          return -(1);
+        }
+        if ((codegen_emit_type(arena, out, (e.resolved_type_ref), ((uint8_t *)(0)), 0, ctx) !=0)) {
+          uint8_t fallback[9] = {117, 105, 110, 116, 56, 95, 116, 0, 0};
+          if ((codegen_emit_bytes_9(out, fallback, 7) !=0)) {
+            return -(1);
+          }
+        }
         {
-          uint8_t nc_mid2[16] = {32, 125, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0};
-          if ((codegen_emit_bytes_from_ptr(out, nc_mid2, 14) !=0)) {
+          uint8_t nc_slice_mid[36] = {41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0};
+          if ((codegen_emit_bytes_from_ptr(out, nc_slice_mid, 33) !=0)) {
             return -(1);
           }
         }
@@ -8435,8 +8463,8 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
           return -(1);
         }
         {
-          uint8_t nc_end[4] = {32, 125, 0, 0};
-          if ((codegen_emit_bytes_from_ptr(out, nc_end, 2) !=0)) {
+          uint8_t nc_slice_end[8] = {32, 125, 59, 32, 125, 41, 0, 0};
+          if ((codegen_emit_bytes_from_ptr(out, nc_slice_end, 6) !=0)) {
             return -(1);
           }
         }

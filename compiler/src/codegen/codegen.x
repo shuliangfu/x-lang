@@ -7702,11 +7702,12 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
          * wave335 Cap residual pure: TYPE_SLICE + ARRAY_LIT durable static when all elems
          * are compile-time LIT/BOOL_LIT (return-safe; matches freestanding text-embed).
          * wave340: non-const elems cannot be `static E __xlang_al[] = {n,…}` (C rejects
-         * non-constant initializers). G.7 align freestanding durable gate (EXPR_LIT/BOOL only):
+         * non-constant initializers) — temporarily used block compound.
+         * wave341: non-const also durable via runtime-filled static buffer (return-safe):
          *   const → ({ static E __xlang_al[]={…}; (slice){.data=__xlang_al,.length=N}; })
-         *   non-const → (slice){ .data = (E[]){…}, .length = N }
-         *   (C99 compound literal has block duration — in-fn index OK; cross-fn return still
-         *    soft residual, same as freestanding stack path.)
+         *   non-const → ({ static E __xlang_al[N]; __xlang_al[i]=ei; …;
+         *                 (slice){.data=__xlang_al,.length=N}; })
+         * Reentrancy: last-call wins (same as const static); Minimal Core OK.
          * PLATFORM: SHARED host-C emit.
          */
         if (n == 0) {
@@ -7799,9 +7800,63 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           return 0;
         }
         /*
-         * Non-const: (slice){ .data = (E[]){ elems }, .length = N }
-         * C99 compound literal lives for the enclosing block (in-fn use OK).
+         * wave341 Cap residual pure: non-const TYPE_SLICE + ARRAY_LIT durable static fill.
+         * Root: wave340 block compound `(E[]){n,…}` has automatic duration → return dangles
+         * (Ubuntu/host `return [n,n+10,n+20]` idx garbage; length OK).
+         * G.7: same static authority as const path; runtime stores for non-const elems.
+         * Emit: ({ static E __xlang_al[N]; __xlang_al[i]=ei; …; (slice){.data=__xlang_al,.length=N}; })
+         * PLATFORM: SHARED host-C emit.
          */
+        /* ({ static  */
+        let nc_open: u8[12] = [40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0];
+        if (emit_bytes_from_ptr(out, &nc_open[0], 10) != 0) {
+          return -1;
+        }
+        if (!ast.ref_is_null(elem_type_ref) && emit_type(arena, out, elem_type_ref, 0 as *u8, 0, ctx) != 0) {
+          let fallback: u8[9] = [117, 105, 110, 116, 56, 95, 116, 0, 0];
+          if (emit_bytes_9(out, fallback, 7) != 0) {
+            return -1;
+          }
+        }
+        /*  __xlang_al[ */
+        let nc_al_br: u8[14] = [32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 91, 0, 0];
+        if (emit_bytes_from_ptr(out, &nc_al_br[0], 12) != 0) {
+          return -1;
+        }
+        if (format_int(out, n) != 0) {
+          return -1;
+        }
+        /* ];  */
+        let nc_sz_end: u8[4] = [93, 59, 32, 0];
+        if (emit_bytes_from_ptr(out, &nc_sz_end[0], 3) != 0) {
+          return -1;
+        }
+        let ai_nc: i32 = 0;
+        while (ai_nc < n) {
+          /* __xlang_al[ */
+          let nc_asg_h: u8[14] = [95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 91, 0, 0, 0];
+          if (emit_bytes_from_ptr(out, &nc_asg_h[0], 11) != 0) {
+            return -1;
+          }
+          if (format_int(out, ai_nc) != 0) {
+            return -1;
+          }
+          /* ] =  */
+          let nc_asg_m: u8[6] = [93, 32, 61, 32, 0, 0];
+          if (emit_bytes_from_ptr(out, &nc_asg_m[0], 4) != 0) {
+            return -1;
+          }
+          if (!ast.ref_is_null(pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai_nc)) && emit_expr(arena, out, pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai_nc), ctx) != 0) {
+            return -1;
+          }
+          /* ;  */
+          let nc_asg_t: u8[4] = [59, 32, 0, 0];
+          if (emit_bytes_from_ptr(out, &nc_asg_t[0], 2) != 0) {
+            return -1;
+          }
+          ai_nc = ai_nc + 1;
+        }
+        /* ( */
         if (append_byte(out, 40) != 0) {
           return -1;
         }
@@ -7811,46 +7866,17 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             return -1;
           }
         }
-        /* ){ .data = ( */
-        let nc_mid1: u8[16] = [41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 40, 0, 0, 0, 0];
-        if (emit_bytes_from_ptr(out, &nc_mid1[0], 12) != 0) {
-          return -1;
-        }
-        if (!ast.ref_is_null(elem_type_ref) && emit_type(arena, out, elem_type_ref, 0 as *u8, 0, ctx) != 0) {
-          let fallback: u8[9] = [117, 105, 110, 116, 56, 95, 116, 0, 0];
-          if (emit_bytes_9(out, fallback, 7) != 0) {
-            return -1;
-          }
-        }
-        /* []){ */
-        let nc_arr: u8[8] = [91, 93, 41, 123, 0, 0, 0, 0];
-        if (emit_bytes_from_ptr(out, &nc_arr[0], 4) != 0) {
-          return -1;
-        }
-        let ai_nc: i32 = 0;
-        while (ai_nc < n) {
-          if (ai_nc > 0) {
-            let comma: u8[3] = [44, 32, 0];
-            if (emit_bytes_3(out, comma, 2) != 0) {
-              return -1;
-            }
-          }
-          if (!ast.ref_is_null(pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai_nc)) && emit_expr(arena, out, pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai_nc), ctx) != 0) {
-            return -1;
-          }
-          ai_nc = ai_nc + 1;
-        }
-        /* }, .length =  */
-        let nc_mid2: u8[16] = [32, 125, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0];
-        if (emit_bytes_from_ptr(out, &nc_mid2[0], 14) != 0) {
+        /* ){ .data = __xlang_al, .length =  */
+        let nc_slice_mid: u8[36] = [41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0];
+        if (emit_bytes_from_ptr(out, &nc_slice_mid[0], 33) != 0) {
           return -1;
         }
         if (format_int(out, ai_nc) != 0) {
           return -1;
         }
-        /*  } */
-        let nc_end: u8[4] = [32, 125, 0, 0];
-        if (emit_bytes_from_ptr(out, &nc_end[0], 2) != 0) {
+        /*  }; }) */
+        let nc_slice_end: u8[8] = [32, 125, 59, 32, 125, 41, 0, 0];
+        if (emit_bytes_from_ptr(out, &nc_slice_end[0], 6) != 0) {
           return -1;
         }
         return 0;
