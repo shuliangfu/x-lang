@@ -13705,6 +13705,50 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
       return 0;
     }
   }
+  /*
+   * wave345 Cap residual pure: CALL/METHOD returning TYPE_SLICE as call-arg for
+   * slice* formal (`pass(take())`). Root: rec path keeps only data@rax and drops
+   * length@rdx; pass then treats rax as fat* → Ubuntu freestanding SIGSEGV.
+   * Host-C materializes static __xlang_sp (same leaf). G.7: dual-GP → stack fat
+   * home (data@home length@home-8, ARRAY_LIT call-arg layout) then lea.
+   * PLATFORM: SHARED freestanding · LINUX gold.
+   */
+  if (arena && ctx && elf_ctx &&
+      (pipeline_expr_kind_ord_at(arena, expr_ref) == (int32_t)ast_ExprKind_EXPR_CALL ||
+       pipeline_expr_kind_ord_at(arena, expr_ref) == (int32_t)ast_ExprKind_EXPR_METHOD_CALL)) {
+    int32_t slice_ty = 0;
+    int32_t rty;
+    if (pty > 0 && pipeline_type_kind_ord_at(arena, pty) == (int32_t)ast_TypeKind_TYPE_SLICE)
+      slice_ty = pty;
+    rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    if (slice_ty == 0 && rty > 0 &&
+        pipeline_type_kind_ord_at(arena, rty) == (int32_t)ast_TypeKind_TYPE_SLICE)
+      slice_ty = rty;
+    if (slice_ty > 0) {
+      int32_t home;
+      int32_t base_off;
+      pipeline_glue_AsmFuncCtxLayout *ly = pipeline_asm_ctx_layout(ctx);
+      if (!ly)
+        return -1;
+      base_off = ly->next_offset;
+      if ((base_off % 8) != 0)
+        base_off = (base_off + 7) / 8 * 8;
+      home = base_off + 16;
+      ly->next_offset = home + 8;
+      glue_align_next_offset(ctx);
+      /* Emit call → SysV dual-GP data@rax length@rdx. */
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+        return -1;
+      /* length@rdx → fat home-8 (same dual-GP home as ARRAY_LIT call-arg). */
+      if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, home - 8, ta) != 0)
+        return -1;
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
+        return -1;
+      return 0;
+    }
+  }
   return pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta);
 }
 
