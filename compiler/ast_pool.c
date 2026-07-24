@@ -12258,6 +12258,24 @@ static int32_t asm_slot_bytes_named_in_mod(struct ast_ASTArena *arena, int32_t t
     sz = 0;
     al = 1;
     mrc = typeck_typeck_struct_layout_metrics(mod, arena, k, 0, 0, &sz, &al);
+    if (link_abi_getenv("XLANG_ASM_EMIT_TRACE")) {
+      uint8_t dbg_nm[64];
+      int32_t dbg_nl = pipeline_module_struct_layout_name_len(mod, k);
+      int32_t dbg_nf = pipeline_module_struct_layout_num_fields(mod, k);
+      int32_t di;
+      if (dbg_nl > 63)
+        dbg_nl = 63;
+      for (di = 0; di < dbg_nl; di++)
+        dbg_nm[di] = pipeline_module_struct_layout_name_byte_at(mod, k, di);
+      dbg_nm[dbg_nl] = 0;
+      fprintf(stderr, "xlang: slot_metrics name=%.*s li=%d nf=%d mrc=%d sz=%d al=%d\n", (int)dbg_nl, dbg_nm,
+              (int)k, (int)dbg_nf, (int)mrc, (int)sz, (int)al);
+      for (di = 0; di < dbg_nf && di < 8; di++) {
+        int32_t ftr = pipeline_module_struct_layout_field_type_ref(mod, k, di);
+        int32_t foff = pipeline_module_struct_layout_field_offset_at(mod, k, di);
+        fprintf(stderr, "xlang:   field[%d] ftr=%d foff=%d\n", (int)di, (int)ftr, (int)foff);
+      }
+    }
     if (mrc == 0) {
       /* Metrics OK: sz==0 is legal Empty / empty-of-empty Nest ZST (wave366/368/369). */
       if (sz <= 0)
@@ -12277,6 +12295,9 @@ static int32_t asm_slot_bytes_named_in_mod(struct ast_ASTArena *arena, int32_t t
         if (fsz <= 0)
           fsz = 4;
         sz = foff + fsz;
+        if (link_abi_getenv("XLANG_ASM_EMIT_TRACE"))
+          fprintf(stderr, "xlang: slot_invent last_foff=%d fty=%d fsz=%d sz=%d\n", (int)foff, (int)fty, (int)fsz,
+                  (int)sz);
       } else {
         /* Bare empty layout with failed metrics still ZST. */
         return 0;
