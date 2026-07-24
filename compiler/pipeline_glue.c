@@ -18575,7 +18575,7 @@ static int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t
 }
 
 /**
- * wave409/wave410/wave411 Cap residual pure: freestanding TYPE_SLICE deep-copy after dual-GP.
+ * wave409/wave410/wave411/wave412 Cap residual pure: freestanding TYPE_SLICE deep-copy after dual-GP.
  * After dual-GP is stored at home (data@slot_off + length half), deep-copy payload into a
  * *unique SHN_COMMON BSS* buffer and retarget fat.data.
  *
@@ -18584,10 +18584,13 @@ static int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t
  * Root (wave411): wave409/410 stored payload on the *caller frame* by bumping next_offset
  * during body emit, but prologue frame_size was computed earlier without those bumps →
  * dual deep-copy + any extra local (e.g. `let z`) overruns SP (m28let=138; N>=29 dual red).
- * Authority: G.7 twin of host `__xlang_sdN[512]` static — freestanding uses unique
- * `Lxlang_sd_<seq>` COMMON (same face as wave341/escape durable), **zero frame growth**.
+ * Root (wave412): wave411 unrolled max_n=64 → length>64 soft-cap diverged from host
+ * `__xlang_sdN[512]`. Unrolling 512 would explode text size.
+ * Authority: G.7 twin of host `__xlang_sdN[512]` — freestanding unique `Lxlang_sd_<seq>`
+ * SHN_COMMON, **zero frame growth**, **runtime loop** over min(length,512) with push-parked
+ * element index (no next_offset bump). SHARED encoders only (jge/jmp; no x86-only jle).
  * Call sites: glue_store_retval_pair (let) + pipeline_asm_emit_expr_elf_for_call_args.
- * Unrolled max_n=64 with runtime length gate (jge SHARED). Soft: length>64 caps.
+ * Soft: length>512 still caps (same host face).
  * PLATFORM: SHARED freestanding · LINUX|x86_64 (lea rip) · MACOS|ARM64 (ADRP).
  *
  * @param home fat data home (slot_off from store_retval_pair / call-arg fat home)
@@ -18596,17 +18599,19 @@ static int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t
 static int32_t glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
     struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
     struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t home, int32_t ty_ref) {
-  const int32_t max_n = 64;
+  /* Twin host `__xlang_sdN[512]` / wave406 call-arg deep-copy cap. */
+  const int32_t max_n = 512;
   int32_t esz = 4;
   int32_t elem_tr = 0;
   int32_t nbytes;
-  int32_t ai;
+  int32_t loop_len;
   int32_t end_len;
   int32_t seq;
   int32_t v;
   int32_t nd;
   int32_t di;
   int32_t llen;
+  uint8_t loop_lbl[32];
   uint8_t end_lbl[32];
   uint8_t label[24];
   uint8_t digs[8];
@@ -18622,6 +18627,7 @@ static int32_t glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
   if (esz != 1 && esz != 2 && esz != 4 && esz != 8)
     esz = 4;
   nbytes = max_n * esz;
+  /* 512 * 8 = 4096 — hard ceiling for this COMMON face. */
   if (nbytes <= 0 || nbytes > 4096)
     return -1;
 
@@ -18652,60 +18658,11 @@ static int32_t glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
   if (pipeline_elf_ctx_add_common_sym((uint8_t *)elf_ctx, label, llen, nbytes, esz) != 0)
     return -1;
 
-  end_len = pipeline_asm_emit_next_label_c(ctx, end_lbl, 32);
-  if (end_len <= 0)
-    return -1;
   /*
-   * for ai in 0..max_n-1: if ai >= length → done; else copy elem ai into COMMON.
-   * Use jge (SHARED arm64+x86) not jle (x86-only → CG002 on MACOS|ARM64).
+   * Cap length to max_n first so the copy loop may use length as exclusive upper bound
+   * without a second min() per iteration (matches host `if (sn > 512) sn = 512`).
+   * Use jge (SHARED) not jle: max_n >= length → keep; else store max_n.
    */
-  for (ai = 0; ai < max_n; ai++) {
-    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, ai, 0, ta) != 0)
-      return -1;
-    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) /* park ai */
-      return -1;
-    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, glue_slice_dual_gp_length_off_c(home, ta), ta) != 0)
-      return -1;
-    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) /* rbx = length */
-      return -1;
-    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) /* rax = ai */
-      return -1;
-    if (backend_enc_cmp_rax_rbx_arch(elf_ctx, ta) != 0) /* ai ? length */
-      return -1;
-    if (backend_enc_jge_arch(elf_ctx, end_lbl, end_len, ta) != 0) /* ai >= length → done */
-      return -1;
-    /* load src[ai] from fat.data */
-    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
-      return -1;
-    if (ai * esz != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, ai * esz, ta) != 0)
-      return -1;
-    if (esz == 1) {
-      if (backend_enc_load_zext8_from_rax_arch(elf_ctx, ta) != 0)
-        return -1;
-    } else if (esz == 8) {
-      if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
-        return -1;
-    } else {
-      if (backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta) != 0)
-        return -1;
-    }
-    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
-      return -1;
-    /* lea COMMON → rbx; store elem at [rbx+ai*esz] */
-    if (ta == 1) {
-      if (glue_asm_lea_rbx_common_adrp_arm64(elf_ctx, label, llen) != 0)
-        return -1;
-    } else if (glue_asm_lea_rbx_common_rip_x86(elf_ctx, label, llen) != 0) {
-      return -1;
-    }
-    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
-      return -1;
-    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, ai * esz, esz, ta) != 0)
-      return -1;
-  }
-  if (backend_enc_label_arch(elf_ctx, end_lbl, end_len, 0, ta) != 0)
-    return -1;
-  /* cap length if > max_n */
   if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, max_n, 0, ta) != 0)
     return -1;
   if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
@@ -18732,6 +18689,137 @@ static int32_t glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
     if (backend_enc_label_arch(elf_ctx, keep_lbl, keep_len, 0, ta) != 0)
       return -1;
   }
+
+  loop_len = pipeline_asm_emit_next_label_c(ctx, loop_lbl, 32);
+  end_len = pipeline_asm_emit_next_label_c(ctx, end_lbl, 32);
+  if (loop_len <= 0 || end_len <= 0)
+    return -1;
+
+  /* ai = 0 parked on stack (zero frame growth; push/pop only). */
+  if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, 0, 0, ta) != 0)
+    return -1;
+  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+
+  if (backend_enc_label_arch(elf_ctx, loop_lbl, loop_len, 0, ta) != 0)
+    return -1;
+
+  /*
+   * stack invariant at loop head: [ai]
+   * if ai >= length → end (must pop ai so end has clean stack for retarget).
+   */
+  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) /* keep [ai] */
+    return -1;
+  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) /* park for cmp */
+    return -1;
+  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, glue_slice_dual_gp_length_off_c(home, ta), ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) /* rbx = length */
+    return -1;
+  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) /* rax = ai */
+    return -1;
+  if (backend_enc_cmp_rax_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_jge_arch(elf_ctx, end_lbl, end_len, ta) != 0) /* ai >= length → done */
+    return -1;
+  /* fall-through: stack still [ai]; will pop ai at end_lbl */
+
+  /*
+   * Body: value = *(data + ai*esz); *(COMMON + ai*esz) = value; ai++; jmp loop.
+   * stack: [ai]
+   */
+  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) /* rax = ai */
+    return -1;
+  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) /* [ai] keep for store/incr */
+    return -1;
+  /* byteoff = ai * esz → park */
+  if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, esz, ta) != 0)
+    return -1;
+  if (backend_enc_imul_rbx_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) /* [ai, byteoff] */
+    return -1;
+  /* src load: data + byteoff */
+  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) /* rax = byteoff */
+    return -1;
+  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) /* rbx = byteoff */
+    return -1;
+  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
+    return -1;
+  if (backend_enc_add_rax_rbx_arch(elf_ctx, ta) != 0) /* rax = data + byteoff */
+    return -1;
+  if (esz == 1) {
+    if (backend_enc_load_zext8_from_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+  } else if (esz == 8) {
+    if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+  } else {
+    if (backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+  }
+  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) /* [ai, value] */
+    return -1;
+
+  /* dest: COMMON + ai*esz. Recompute byteoff from ai under value. */
+  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) /* value */
+    return -1;
+  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) /* rbx = value (park in rbx briefly) */
+    return -1;
+  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) /* rax = ai */
+    return -1;
+  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) /* [ai] restore for incr */
+    return -1;
+  if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0) /* [ai, value] */
+    return -1;
+  /* rax still = ai (push does not clobber); byteoff = ai*esz */
+  if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, esz, ta) != 0)
+    return -1;
+  if (backend_enc_imul_rbx_rax_arch(elf_ctx, ta) != 0) /* rax = byteoff */
+    return -1;
+  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) /* [ai, value, byteoff] */
+    return -1;
+  /* lea COMMON → rbx; rbx += byteoff; pop value → store indirect */
+  if (ta == 1) {
+    if (glue_asm_lea_rbx_common_adrp_arm64(elf_ctx, label, llen) != 0)
+      return -1;
+  } else if (glue_asm_lea_rbx_common_rip_x86(elf_ctx, label, llen) != 0) {
+    return -1;
+  }
+  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) /* rax = byteoff */
+    return -1;
+  /* rbx = COMMON + byteoff: rax=byteoff, rbx=COMMON → need rbx += rax */
+  if (backend_enc_add_rax_rbx_arch(elf_ctx, ta) != 0) /* rax = byteoff + COMMON  (rax was byteoff, rbx COMMON: does this do rax+=rbx?) */
+    return -1;
+  /*
+   * backend_enc_add_rax_rbx_arch: rax = rax + rbx → rax = COMMON+byteoff.
+   * Need dest in rbx for store_rax_to_rbx_indirect: mov rax → rbx, then pop value → rax.
+   */
+  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) /* rax = value; stack [ai] */
+    return -1;
+  if (backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx, esz, ta) != 0)
+    return -1;
+
+  /* ai++ ; jmp loop. stack [ai] */
+  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_add_imm_to_rax_arch(elf_ctx, 1, ta) != 0)
+    return -1;
+  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_jmp_arch(elf_ctx, loop_lbl, loop_len, ta) != 0)
+    return -1;
+
+  /* end: stack still [ai] from jge path — discard. */
+  if (backend_enc_label_arch(elf_ctx, end_lbl, end_len, 0, ta) != 0)
+    return -1;
+  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+
   /* retarget fat.data → COMMON */
   if (ta == 1) {
     if (glue_asm_lea_rax_common_adrp_arm64(elf_ctx, label, llen) != 0)
