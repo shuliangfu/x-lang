@@ -12560,6 +12560,56 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
     if (use_lea != 0)
       return pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
   }
+  /*
+   * wave332 Cap residual pure: call-arg ARRAY_LIT for TYPE_SLICE formal.
+   * Root: rec path emits data ptr only (or bare array); formal is slice* → need dual-GP
+   * fat home + lea (mirror VAR call-arg lea path above / let-init wave329 dual store).
+   * G.7: same dual-GP layout data@home length@home-8; payload via emit_array_lit.
+   * PLATFORM: SHARED freestanding · LINUX gold (host-C uses compound + & via codegen).
+   */
+  if (arena && ctx && elf_ctx &&
+      pipeline_expr_kind_ord_at(arena, expr_ref) == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT) {
+    int32_t slice_ty = 0;
+    int32_t rty;
+    if (pty > 0 && pipeline_type_kind_ord_at(arena, pty) == (int32_t)ast_TypeKind_TYPE_SLICE)
+      slice_ty = pty;
+    rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    if (slice_ty == 0 && rty > 0 &&
+        pipeline_type_kind_ord_at(arena, rty) == (int32_t)ast_TypeKind_TYPE_SLICE)
+      slice_ty = rty;
+    if (slice_ty > 0) {
+      int32_t n_arr;
+      int32_t home;
+      int32_t base_off;
+      pipeline_glue_AsmFuncCtxLayout *ly = pipeline_asm_ctx_layout(ctx);
+      n_arr = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
+      if (n_arr < 0 || n_arr > 256)
+        return -1;
+      if (!ly)
+        return -1;
+      /* Allocate 16B dual-GP home: data@home, length@home-8 (asm_local_slot_reg_offset style). */
+      base_off = ly->next_offset;
+      if ((base_off % 8) != 0)
+        base_off = (base_off + 7) / 8 * 8;
+      home = base_off + 16;
+      ly->next_offset = base_off + 16;
+      glue_align_next_offset(ctx);
+      if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+        return -1;
+      if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home - 8, ta) != 0)
+        return -1;
+      if (n_arr > 0)
+        pipeline_asm_bump_next_offset_for_array_lit(arena, expr_ref, ctx);
+      /* Pass &fat (slice* ABI); not dual-GP by-value. */
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
+        return -1;
+      return 0;
+    }
+  }
   return pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta);
 }
 
@@ -28853,6 +28903,15 @@ static int32_t pipeline_typeck_call_arg_assignable_c(struct ast_ASTArena *arena,
     if (param_kind == (int32_t)ast_TypeKind_TYPE_U8 && iv >= 0 && iv <= 255)
       return 1;
   }
+  /*
+   * wave332: bare ARRAY_LIT vs TYPE_SLICE / TYPE_ARRAY formal — resolve runs before
+   * post-resolve stamp in check_call_slice_region; accept for overload score (elem
+   * coerce later via array_vector_lit). PLATFORM: SHARED.
+   */
+  if (arg_kind == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT &&
+      (param_kind == (int32_t)ast_TypeKind_TYPE_SLICE ||
+       param_kind == (int32_t)ast_TypeKind_TYPE_ARRAY))
+    return 1;
   return 0;
 }
 
@@ -29536,8 +29595,27 @@ int32_t pipeline_typeck_check_call_slice_region_c(struct ast_Module *module, str
   if (num_args != np)
     return 0;
   for (i = 0; i < num_args; i++) {
+    int32_t arg_kind;
+    int32_t param_kind;
     arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, i);
     param_ref = pipeline_module_func_param_type_ref_at(callee_mod, func_ix, i);
+    /*
+     * wave332 Cap residual pure: call-arg ARRAY_LIT → TYPE_SLICE / TYPE_ARRAY param.
+     * Root: args are check_expr'd *before* resolve, so no param type is available then;
+     * bare `[1,2,3]` never stamps → host emit falls to `(uint8_t[]){…}` while the formal
+     * is `struct xlang_slice_* *` (run garbage / Ubuntu freestanding wrong).
+     * Authority (G.7): reuse pipeline_typeck_coerce_init_array_vector_lit_to_decl_c
+     * (let-init wave328 / assign wave331). After stamp, host emit_call_arg_slice_abi
+     * emits `&(struct xlang_slice_T){ .data=(E[]){…}, .length=N }`.
+     * PLATFORM: SHARED typeck — runs on product path (check_call_slice_region is the
+     * post-resolve single authority for both typeck.x and glue call).
+     */
+    if (arg_ref > 0 && param_ref > 0) {
+      arg_kind = pipeline_expr_kind_ord_at(arena, arg_ref);
+      param_kind = pipeline_type_kind_ord_at(arena, param_ref);
+      (void)pipeline_typeck_coerce_init_array_vector_lit_to_decl_c(arena, arg_ref, param_ref,
+                                                                   param_kind, arg_kind);
+    }
     arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
     if (pipeline_typeck_check_slice_region_assign_c(arena, arg_ref, param_ref, arg_ty) != 0)
       return -1;
