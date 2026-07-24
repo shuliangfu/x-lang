@@ -1895,6 +1895,117 @@ int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct pla
                                           int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
 void pipeline_asm_bump_next_offset_for_array_lit(struct ast_ASTArena *arena, int32_t expr_ref,
                                                  struct backend_AsmFuncCtx *ctx);
+static int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t expr_ref);
+/**
+ * wave335 Cap residual pure: freestanding durable ARRAY_LIT payload → rax.
+ *
+ * Root: stack compound from pipeline_asm_emit_array_lit_elf_c dangles after return;
+ * caller INDEX then SIGSEGV (Ubuntu) or reads garbage (host).
+ * G.7: same pattern as glue_asm_emit_jmp_skip_string_then_lea (string lit rodata):
+ * short/near jmp over payload bytes, then lea [rip] → rax. All elems must be
+ * EXPR_LIT (int); nbytes cap 2048. Empty → rax=0.
+ *
+ * @return 0 success (rax = durable ptr); -1 cannot pack (caller may fall back).
+ * PLATFORM: LINUX+MACOS x86_64 SysV (ta==0). aarch64 not in this leaf.
+ */
+static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena *arena,
+                                                            struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                            int32_t expr_ref, int32_t ta) {
+  int32_t n_arr;
+  int32_t esz;
+  int32_t ai;
+  int32_t nbytes;
+  int32_t bi;
+  int32_t elem_ref;
+  int32_t eko;
+  int64_t v64;
+  uint8_t payload[2048];
+  uint8_t jmp_near[5];
+  uint8_t jmp_short[2];
+  uint8_t lea7[7];
+  int32_t disp32;
+  int32_t rel32;
+  if (!arena || !elf_ctx || expr_ref <= 0 || ta != 0)
+    return -1;
+  if (pipeline_expr_kind_ord_at(arena, expr_ref) != (int32_t)ast_ExprKind_EXPR_ARRAY_LIT)
+    return -1;
+  n_arr = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
+  if (n_arr < 0 || n_arr > 256)
+    return -1;
+  if (n_arr == 0) {
+    /* Empty slice: null data pointer is durable. */
+    return backend_enc_mov_imm64_to_rax_arch(elf_ctx, 0, 0, ta);
+  }
+  esz = pipeline_asm_array_lit_elem_byte_sz_c(arena, expr_ref);
+  if (esz != 1 && esz != 2 && esz != 4 && esz != 8)
+    return -1;
+  if (n_arr > 2048 / esz)
+    return -1;
+  nbytes = n_arr * esz;
+  if (nbytes <= 0 || nbytes > 2048)
+    return -1;
+  for (ai = 0; ai < n_arr; ai++) {
+    elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai);
+    if (elem_ref <= 0)
+      return -1;
+    eko = pipeline_expr_kind_ord_at(arena, elem_ref);
+    /* EXPR_LIT / BOOL_LIT only — non-const elems keep stack residual. */
+    if (eko != 0 && eko != 2)
+      return -1;
+    v64 = (int64_t)pipeline_expr_int_val_at(arena, elem_ref);
+    bi = ai * esz;
+    if (esz == 1) {
+      payload[bi] = (uint8_t)(v64 & 0xff);
+    } else if (esz == 2) {
+      payload[bi] = (uint8_t)(v64 & 0xff);
+      payload[bi + 1] = (uint8_t)((v64 >> 8) & 0xff);
+    } else if (esz == 4) {
+      payload[bi] = (uint8_t)(v64 & 0xff);
+      payload[bi + 1] = (uint8_t)((v64 >> 8) & 0xff);
+      payload[bi + 2] = (uint8_t)((v64 >> 16) & 0xff);
+      payload[bi + 3] = (uint8_t)((v64 >> 24) & 0xff);
+    } else {
+      payload[bi] = (uint8_t)(v64 & 0xff);
+      payload[bi + 1] = (uint8_t)((v64 >> 8) & 0xff);
+      payload[bi + 2] = (uint8_t)((v64 >> 16) & 0xff);
+      payload[bi + 3] = (uint8_t)((v64 >> 24) & 0xff);
+      payload[bi + 4] = (uint8_t)((v64 >> 32) & 0xff);
+      payload[bi + 5] = (uint8_t)((v64 >> 40) & 0xff);
+      payload[bi + 6] = (uint8_t)((v64 >> 48) & 0xff);
+      payload[bi + 7] = (uint8_t)((v64 >> 56) & 0xff);
+    }
+  }
+  /* PLATFORM: LINUX+MACOS x86_64 — jmp over payload + lea [rip] → rax. */
+  if (nbytes <= 127) {
+    jmp_short[0] = 0xeb;
+    jmp_short[1] = (uint8_t)nbytes;
+    if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, jmp_short, 2) != 0)
+      return -1;
+  } else {
+    /* e9 rel32: skip payload bytes after this 5-byte insn. */
+    rel32 = nbytes;
+    jmp_near[0] = 0xe9;
+    jmp_near[1] = (uint8_t)(rel32 & 0xff);
+    jmp_near[2] = (uint8_t)((rel32 >> 8) & 0xff);
+    jmp_near[3] = (uint8_t)((rel32 >> 16) & 0xff);
+    jmp_near[4] = (uint8_t)((rel32 >> 24) & 0xff);
+    if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, jmp_near, 5) != 0)
+      return -1;
+  }
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, payload, nbytes) != 0)
+    return -1;
+  /* lea rax, [rip + disp]; disp = -nbytes - 7 (payload starts nbytes before lea end-7). */
+  disp32 = -nbytes - 7;
+  lea7[0] = 0x48;
+  lea7[1] = 0x8d;
+  lea7[2] = 0x05; /* rax */
+  lea7[3] = (uint8_t)(disp32 & 0xff);
+  lea7[4] = (uint8_t)((disp32 >> 8) & 0xff);
+  lea7[5] = (uint8_t)((disp32 >> 16) & 0xff);
+  lea7[6] = (uint8_t)((disp32 >> 24) & 0xff);
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, lea7, 7);
+}
+
 /** WPO-S3 async CPS：return 前 reset phase；定义见 glue_async_cps_emit_phase_reset。 */
 static int32_t glue_async_cps_emit_phase_reset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 /* wave314: f32→f64 freestanding promote (defs near typeck float_widen). */
@@ -1920,13 +2031,12 @@ static int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
                pipeline_expr_kind_ord_at(arena, ret_op) == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT &&
                g_pipeline_asm_emit_module && g_pipeline_asm_emit_func_index >= 0) {
       /*
-       * wave333 Cap residual pure: freestanding `return [1,2,3]` for TYPE_SLICE.
-       * SysV returns 16B slice as dual-GP (data@rax, length@rdx). Rec path only
-       * leaves data ptr in rax (ARRAY_LIT). G.7: same payload emit as let-init
-       * wave329 / call-arg wave332; length via imm → rdx (arg_reg 2).
+       * wave333+335 Cap residual pure: freestanding `return [1,2,3]` for TYPE_SLICE.
+       * SysV dual-GP: data@rax length@rdx.
+       * wave335: prefer durable text-embed payload (kill post-return INDEX dangle).
+       * Fallback: stack emit_array_lit (non-lit elems / pack fail) — still soft residual.
        * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV.
-       * Soft residual: stack payload dangles after return (same as `return a`);
-       * length-by-value is sound; index after call remains leave-off.
+       * Soft residual: `return a` VAR still stack-dangles (lifetime); untyped-let; fs if.
        */
       int32_t rty = pipeline_module_func_return_type_at(g_pipeline_asm_emit_module,
                                                         g_pipeline_asm_emit_func_index);
@@ -1938,10 +2048,14 @@ static int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
         slice_ty = sty;
       if (slice_ty > 0) {
         int32_t n_arr = pipeline_expr_array_lit_num_elems_at(arena, ret_op);
+        int32_t durable = 0;
         if (n_arr < 0 || n_arr > 256)
           return -1;
-        if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, ret_op, ctx, ta) != 0)
+        if (glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, ta) == 0) {
+          durable = 1;
+        } else if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, ret_op, ctx, ta) != 0) {
           return -1;
+        }
         /* rax = data; preserve in rbx while loading length into rdx. */
         if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
           return -1;
@@ -1952,7 +2066,7 @@ static int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
           return -1;
         if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
           return -1;
-        if (n_arr > 0)
+        if (durable == 0 && n_arr > 0)
           pipeline_asm_bump_next_offset_for_array_lit(arena, ret_op, ctx);
       } else if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, ret_op, ctx, ta) != 0) {
         return -1;

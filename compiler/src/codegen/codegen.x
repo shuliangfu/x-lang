@@ -7698,21 +7698,35 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         }
       }
       if (is_slice != 0) {
-        let lp: u8[3] = [40, 0, 0];
-        if (append_byte(out, 40) != 0) {
-          return -1;
-        }
-        if (emit_type(arena, out, e.resolved_type_ref, 0 as *u8, 0, ctx) != 0) {
-          let fallback: u8[9] = [117, 105, 110, 116, 56, 95, 116, 0, 0];
-          if (emit_bytes_9(out, fallback, 7) != 0) {
+        /*
+         * wave335 Cap residual pure: TYPE_SLICE + ARRAY_LIT must use static storage.
+         * Root: `(E[]){…}` has automatic duration → return/let-then-return dangles
+         * (same class as pre-12c675d71 string stack compounds).
+         * G.7: GNU statement expr + block-scope static array (host gcc/clang):
+         *   ({ static E __xlang_al[] = {…}; (struct slice){ .data = __xlang_al, .length = N }; })
+         * PLATFORM: SHARED host-C emit.
+         */
+        if (n == 0) {
+          /* Empty: null data is durable; no static needed. */
+          if (append_byte(out, 40) != 0) {
             return -1;
           }
+          if (emit_type(arena, out, e.resolved_type_ref, 0 as *u8, 0, ctx) != 0) {
+            let fallback: u8[9] = [117, 105, 110, 116, 56, 95, 116, 0, 0];
+            if (emit_bytes_9(out, fallback, 7) != 0) {
+              return -1;
+            }
+          }
+          let empty_tail: u8[40] = [41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 40, 118, 111, 105, 100, 32, 42, 41, 48, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 48, 32, 125, 0, 0, 0, 0, 0];
+          /* ){ .data = (void *)0, .length = 0 } */
+          if (emit_bytes_from_ptr(out, &empty_tail[0], 35) != 0) {
+            return -1;
+          }
+          return 0;
         }
-        let slice_mid: u8[22] = [41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        if (emit_bytes_22(out, slice_mid, 11) != 0) {
-          return -1;
-        }
-        if (append_byte(out, 40) != 0) {
+        /* ({ static  */
+        let open_stmt: u8[12] = [40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0];
+        if (emit_bytes_from_ptr(out, &open_stmt[0], 10) != 0) {
           return -1;
         }
         if (!ast.ref_is_null(elem_type_ref) && emit_type(arena, out, elem_type_ref, 0 as *u8, 0, ctx) != 0) {
@@ -7721,10 +7735,49 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             return -1;
           }
         }
-        let arr: u8[5] = [91, 93, 41, 123, 0];
-        if (emit_bytes_5(out, arr, 4) != 0) {
+        /*  __xlang_al[] = { */
+        let al_head: u8[18] = [32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 91, 93, 32, 61, 32, 123, 0];
+        if (emit_bytes_from_ptr(out, &al_head[0], 17) != 0) {
           return -1;
         }
+        let ai: i32 = 0;
+        while (ai < n) {
+          if (ai > 0) {
+            let comma: u8[3] = [44, 32, 0];
+            if (emit_bytes_3(out, comma, 2) != 0) {
+              return -1;
+            }
+          }
+          if (!ast.ref_is_null(pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai)) && emit_expr(arena, out, pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai), ctx) != 0) {
+            return -1;
+          }
+          ai = ai + 1;
+        }
+        /* }; ( */
+        let mid: u8[6] = [125, 59, 32, 40, 0, 0];
+        if (emit_bytes_from_ptr(out, &mid[0], 4) != 0) {
+          return -1;
+        }
+        if (emit_type(arena, out, e.resolved_type_ref, 0 as *u8, 0, ctx) != 0) {
+          let fallback: u8[9] = [117, 105, 110, 116, 56, 95, 116, 0, 0];
+          if (emit_bytes_9(out, fallback, 7) != 0) {
+            return -1;
+          }
+        }
+        /* ){ .data = __xlang_al, .length =  */
+        let slice_mid: u8[36] = [41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0];
+        if (emit_bytes_from_ptr(out, &slice_mid[0], 33) != 0) {
+          return -1;
+        }
+        if (format_int(out, ai) != 0) {
+          return -1;
+        }
+        /*  }; }) */
+        let slice_end: u8[8] = [32, 125, 59, 32, 125, 41, 0, 0];
+        if (emit_bytes_from_ptr(out, &slice_end[0], 6) != 0) {
+          return -1;
+        }
+        return 0;
       } else {
         /* See implementation. */
         if (append_byte(out, 40) != 0) {
@@ -7753,26 +7806,6 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           return -1;
         }
         ai = ai + 1;
-      }
-      if (is_slice != 0) {
-        /* Close array compound, then ", .length = N }" for the slice compound.
-         * C form: (struct xlang_slice_T){ .data = (E[]){…}, .length = N }
-         * wave328: do NOT emit a trailing ')' — compound-literal syntax is
-         * (type){ init } with no outer close-paren after the brace. */
-        let slice_end: u8[22] = [32, 125, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0, 0, 0, 0, 0, 0];
-        if (emit_bytes_22(out, slice_end, 14) != 0) {
-          return -1;
-        }
-        if (format_int(out, ai) != 0) {
-          return -1;
-        }
-        if (append_byte(out, 32) != 0) {
-          return -1;
-        }
-        if (append_byte(out, 125) != 0) {
-          return -1;
-        }
-        return 0;
       }
       let close: u8[4] = [32, 125, 0, 0];
       return emit_bytes_4(out, close, 2);
