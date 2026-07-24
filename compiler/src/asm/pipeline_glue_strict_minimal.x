@@ -2572,6 +2572,79 @@ export function pipeline_typeck_check_expr_method_call_c(module: *u8, arena: *u8
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, import_ret_ty);
       return 0;
     }
+    /*
+     * wave358 Cap residual pure — UFCS same-module free method.
+     * receiver.method(args) → free fn method(receiver, args...) when nparams
+     * == num_args+1 and param0 matches receiver type. G.7 seed twin.
+     * PLATFORM: SHARED — mac + Ubuntu L2.
+     */
+    if (base_ty > 0) {
+      if (method_nlen > 0) {
+        let uf_best: i32 = 0 - 1;
+        let uf_best_score: i32 = 0 - 1;
+        let nf: i32 = pipeline_module_num_funcs(module);
+        let uj: i32 = 0;
+        while (uj < nf) {
+          if (pipeline_module_func_name_equal_at(module, uj, &method_nm[0], method_nlen) != 0) {
+            let nparams: i32 = pipeline_module_func_num_params_at(module, uj);
+            if (nparams == num_args + 1) {
+              let p0: i32 = pipeline_module_func_param_type_ref_at(module, uj, 0);
+              let sc0: i32 = 0 - 1;
+              if (p0 > 0) {
+                if (pipeline_typeck_type_refs_equal_c(arena, base_ty, p0) != 0) {
+                  sc0 = 1000;
+                }
+              }
+              if (sc0 >= 0) {
+                let score: i32 = sc0;
+                let matched: i32 = 1;
+                let ai: i32 = 0;
+                while (ai < num_args) {
+                  let param_raw: i32 = pipeline_module_func_param_type_ref_at(module, uj, ai + 1);
+                  let arg_ref: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, ai);
+                  let arg_ty: i32 = 0;
+                  if (arg_ref > 0) {
+                    arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+                  }
+                  if (param_raw > 0) {
+                    if (arg_ty > 0) {
+                      if (pipeline_typeck_type_refs_equal_c(arena, arg_ty, param_raw) != 0) {
+                        score = score + 1000;
+                        ai = ai + 1;
+                      } else {
+                        matched = 0;
+                        ai = num_args;
+                      }
+                    } else {
+                      matched = 0;
+                      ai = num_args;
+                    }
+                  } else {
+                    matched = 0;
+                    ai = num_args;
+                  }
+                }
+                if (matched != 0) {
+                  if (score > uf_best_score) {
+                    uf_best_score = score;
+                    uf_best = uj;
+                  }
+                }
+              }
+            }
+          }
+          uj = uj + 1;
+        }
+        if (uf_best >= 0) {
+          let uf_ret: i32 = pipeline_module_func_return_type_at(module, uf_best);
+          if (uf_ret > 0) {
+            pipeline_expr_apply_call_resolve(arena, expr_ref, 0 - 1, uf_best);
+            pipeline_expr_set_resolved_type_ref(arena, expr_ref, uf_ret);
+            return 0;
+          }
+        }
+      }
+    }
     if (ret_ty > 0) {
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
       return 0;

@@ -8058,6 +8058,89 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
           return codegen_append_byte(out, 41);
         }
       }
+      /*
+       * wave358 Cap residual pure — host-C UFCS same-module free method.
+       * typeck: call_resolved dep_ix=-1 + func_ix; emit free_fn(receiver, args...).
+       * PLATFORM: SHARED — G.7 twin of codegen.x.
+       */
+      if ((ctx != 0) && ((ctx)->current_codegen_module != 0)) {
+        int32_t uf_dep = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
+        int32_t uf_fn = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+        struct ast_Module *uf_mod = (ctx)->current_codegen_module;
+        if ((((uf_fn >= 0) && (uf_dep < 0)) && (uf_fn < (uf_mod)->num_funcs)) &&
+            ((e.method_call_name_len) > 0)) {
+          /*
+           * Same-module prefix + link name (align CALL callee2 path).
+           * codegen_emit_call_func_name rejects UFCS (nparams != method nargs).
+           * PLATFORM: SHARED — G.7 twin of codegen.x.
+           */
+          uint8_t cur_pre[128] = {};
+          uint8_t cur_dep_path_buf[128] = {};
+          int32_t cur_dep_plen = codegen_ctx_dep_path_for_current_codegen_module_into(ctx, &((cur_dep_path_buf)[0]));
+          int32_t pl = 0;
+          int32_t mi_uf = 0;
+          struct ast_ASTArena *uf_arena = arena;
+          if ((cur_dep_plen > 0)) {
+            (void)(codegen_import_path_to_c_prefix_into(&((cur_dep_path_buf)[0]), &((cur_pre)[0]), 128));
+            while (((pl < 128) && (((cur_pre)[pl]) != 0))) {
+              (void)((pl = (pl + 1)));
+            }
+          } else if ((((ctx)->current_codegen_prefix_len) > 0)) {
+            int32_t _cpl = (ctx)->current_codegen_prefix_len;
+            int32_t pi = 0;
+            while (((pi < _cpl) && (pi < 127))) {
+              (void)(((cur_pre)[pi] = ((ctx)->current_codegen_prefix_mirror)[pi]));
+              (void)((pi = (pi + 1)));
+            }
+            (void)(((cur_pre)[pi] = 0));
+            pl = pi;
+          }
+          if (((pipeline_module_func_is_extern_at(uf_mod, uf_fn) != 0) ||
+               (pipeline_module_func_is_no_mangle_at(uf_mod, uf_fn) != 0))) {
+            pl = 0;
+          }
+          if ((((pl > 0) && (codegen_c_prefix_redundant_with_name(&((cur_pre)[0]), pl, &(((e.method_call_name))[0]), (e.method_call_name_len)) == 0)) &&
+               (codegen_emit_bytes_from_ptr(out, &((cur_pre)[0]), pl) != 0))) {
+            return -(1);
+          }
+          if (((ctx)->current_codegen_arena != 0)) {
+            uf_arena = (ctx)->current_codegen_arena;
+          }
+          if ((codegen_emit_func_link_name(out, uf_arena, uf_mod, uf_fn) != 0)) {
+            return -(1);
+          }
+          if ((codegen_append_byte(out, 40) != 0)) {
+            return -(1);
+          }
+          if (!(ast_ref_is_null((e.method_call_base_ref)))) {
+            if ((codegen_emit_call_arg_slice_abi(arena, out, (e.method_call_base_ref), ctx) != 0)) {
+              return -(1);
+            }
+          } else {
+            if ((codegen_append_byte(out, 48) != 0)) {
+              return -(1);
+            }
+          }
+          while ((mi_uf < (e.method_call_num_args))) {
+            int32_t m_arg_uf = pipeline_expr_method_call_arg_ref(arena, expr_ref, mi_uf);
+            uint8_t comma_uf[3] = {44, 32, 0};
+            if ((codegen_emit_bytes_3(out, comma_uf, 2) != 0)) {
+              return -(1);
+            }
+            if (ast_ref_is_null(m_arg_uf)) {
+              if ((codegen_append_byte(out, 48) != 0)) {
+                return -(1);
+              }
+            } else {
+              if ((codegen_emit_call_arg_slice_abi(arena, out, m_arg_uf, ctx) != 0)) {
+                return -(1);
+              }
+            }
+            (void)((mi_uf = (mi_uf + 1)));
+          }
+          return codegen_append_byte(out, 41);
+        }
+      }
       if (((((((((((e.method_call_name_len) ==6) && (((e.method_call_name))[0] ==100)) && (((e.method_call_name))[1] ==111)) && (((e.method_call_name))[2] ==117)) && (((e.method_call_name))[3] ==98)) && (((e.method_call_name))[4] ==108)) && (((e.method_call_name))[5] ==101)) && ((e.method_call_num_args) ==0)) && !(ast_ref_is_null((e.method_call_base_ref))))) {
         uint8_t mul2[6] = {32, 42, 32, 50, 41, 0};
         if ((codegen_append_byte(out, 40) !=0)) {

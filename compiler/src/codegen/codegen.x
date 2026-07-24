@@ -7601,10 +7601,90 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         }
       }
       /*
-       * See implementation.
-       * See implementation.
-       * See implementation.
-       * See implementation.
+       * wave358 Cap residual pure — host-C UFCS same-module free method.
+       * typeck sets call_resolved dep_ix=-1 + func_ix; freestanding ELF already
+       * places receiver as arg0. Emit free_fn(receiver, args...) with G.7 link name.
+       * PLATFORM: SHARED — mac + Ubuntu L2.
+       */
+      if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module) {
+        let uf_dep: i32 = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
+        let uf_fn: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+        let uf_mod: *Module = ctx.current_codegen_module;
+        if (uf_fn >= 0 && uf_dep < 0 && uf_fn < uf_mod.num_funcs
+            && e.method_call_name_len > 0) {
+          /*
+           * Same-module prefix + link name (align CALL callee2 path).
+           * Do not use codegen_emit_call_func_name alone: it compares nparams to
+           * method_call_num_args (no receiver) and rejects UFCS (nparams=nargs+1),
+           * then falls back to bare name without file prefix → host-cc BLD001.
+           */
+          let cur_pre: u8[128] = [];
+          let cur_dep_path_buf: u8[128] = [];
+          let cur_dep_plen: i32 = codegen_ctx_dep_path_for_current_codegen_module_into(ctx, &cur_dep_path_buf[0]);
+          let pl: i32 = 0;
+          if (cur_dep_plen > 0) {
+            codegen_import_path_to_c_prefix_into(&cur_dep_path_buf[0], &cur_pre[0], 128);
+            while (pl < 128 && cur_pre[pl] != 0 as u8) {
+              pl = pl + 1;
+            }
+          } else if (ctx.current_codegen_prefix_len > 0) {
+            let _cpl: i32 = ctx.current_codegen_prefix_len;
+            let pi: i32 = 0;
+            while (pi < _cpl && pi < 127) {
+              cur_pre[pi] = ctx.current_codegen_prefix_mirror[pi];
+              pi = pi + 1;
+            }
+            cur_pre[pi] = 0 as u8;
+            pl = pi;
+          }
+          if (pipeline_module_func_is_extern_at(uf_mod, uf_fn) != 0
+              || pipeline_module_func_is_no_mangle_at(uf_mod, uf_fn) != 0) {
+            pl = 0;
+          }
+          if (pl > 0 && codegen_c_prefix_redundant_with_name(&cur_pre[0], pl, &e.method_call_name[0], e.method_call_name_len) == 0
+              && emit_bytes_from_ptr(out, &cur_pre[0], pl) != 0) {
+            return -1;
+          }
+          let uf_arena: *ASTArena = arena;
+          if (ctx.current_codegen_arena != 0 as *ASTArena) {
+            uf_arena = ctx.current_codegen_arena;
+          }
+          if (codegen_emit_func_link_name(out, uf_arena, uf_mod, uf_fn) != 0) {
+            return -1;
+          }
+          if (append_byte(out, 40) != 0) {
+            return -1;
+          }
+          if (!ast.ref_is_null(e.method_call_base_ref)) {
+            if (emit_call_arg_slice_abi(arena, out, e.method_call_base_ref, ctx) != 0) {
+              return -1;
+            }
+          } else {
+            if (append_byte(out, 48) != 0) {
+              return -1;
+            }
+          }
+          let mi_uf: i32 = 0;
+          while (mi_uf < e.method_call_num_args) {
+            let comma_uf: u8[3] = [44, 32, 0];
+            if (emit_bytes_3(out, comma_uf, 2) != 0) {
+              return -1;
+            }
+            let m_arg_uf: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, mi_uf);
+            if (ast.ref_is_null(m_arg_uf)) {
+              if (append_byte(out, 48) != 0) {
+                return -1;
+              }
+            } else if (emit_call_arg_slice_abi(arena, out, m_arg_uf, ctx) != 0) {
+              return -1;
+            }
+            mi_uf = mi_uf + 1;
+          }
+          return append_byte(out, 41);
+        }
+      }
+      /*
+       * bootstrap: i32.double() → (x * 2) when no UFCS free fn.
        */
       if (e.method_call_name_len == 6
           && e.method_call_name[0] == 100 && e.method_call_name[1] == 111

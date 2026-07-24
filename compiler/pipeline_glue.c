@@ -32321,6 +32321,63 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_method_call_c(struct as
       }
     }
   }
+  /*
+   * wave358 Cap residual pure — UFCS same-module free method (weak twin of
+   * pipeline_glue_strict_minimal strong definition).
+   * receiver.method(args) → free fn method(receiver, args...) when
+   * nparams == num_args+1 and param0 matches receiver type.
+   * PLATFORM: SHARED — G.7 seed strong wins when linked.
+   */
+  if (ret_ty == 0 && base_ty > 0 && module && method_nlen > 0) {
+    int32_t uj;
+    int32_t uf_best = -1;
+    int32_t uf_best_score = -1;
+    int32_t nf = pipeline_module_num_funcs(module);
+    for (uj = 0; uj < nf; uj++) {
+      int32_t nparams;
+      int32_t score;
+      int32_t matched;
+      int32_t p0;
+      int32_t sc0;
+      int32_t ai;
+      if (!pipeline_module_func_name_equal_at(module, uj, method_nm, method_nlen))
+        continue;
+      nparams = pipeline_module_func_num_params_at(module, uj);
+      if (nparams != num_args + 1)
+        continue;
+      p0 = pipeline_module_func_param_type_ref_at(module, uj, 0);
+      sc0 = -1;
+      if (p0 > 0 && pipeline_typeck_type_refs_equal_c(arena, base_ty, p0) != 0)
+        sc0 = 1000;
+      if (sc0 < 0)
+        continue;
+      score = sc0;
+      matched = 1;
+      for (ai = 0; ai < num_args; ai++) {
+        int32_t param_raw = pipeline_module_func_param_type_ref_at(module, uj, ai + 1);
+        int32_t arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, ai);
+        int32_t arg_ty = arg_ref > 0 ? pipeline_expr_resolved_type_ref(arena, arg_ref) : 0;
+        if (param_raw <= 0 || arg_ty <= 0 ||
+            pipeline_typeck_type_refs_equal_c(arena, arg_ty, param_raw) == 0) {
+          matched = 0;
+          break;
+        }
+        score += 1000;
+      }
+      if (matched && score > uf_best_score) {
+        uf_best_score = score;
+        uf_best = uj;
+      }
+    }
+    if (uf_best >= 0) {
+      int32_t uf_ret = pipeline_module_func_return_type_at(module, uf_best);
+      if (uf_ret > 0) {
+        pipeline_typeck_expr_apply_call_resolve_c(arena, expr_ref, -1, uf_best);
+        pipeline_expr_set_resolved_type_ref(arena, expr_ref, uf_ret);
+        return 0;
+      }
+    }
+  }
   if (base_ty > 0) {
     /** bootstrap：impl 块被 skip 时 trait 测试 i32.double() 仍须 typeck 通过。 */
     if (pipeline_type_kind_ord_at(arena, base_ty) == ord_i32 && method_nlen == 6 &&

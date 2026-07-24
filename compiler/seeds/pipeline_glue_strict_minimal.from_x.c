@@ -2488,6 +2488,73 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
     pipeline_expr_set_resolved_type_ref(arena, expr_ref, import_ret_ty);
     return 0;
   }
+  /*
+   * wave358 Cap residual pure — UFCS same-module free method.
+   * Root: product docs allow receiver.method(args); typeck only resolved
+   * import.method + i32.double → s.get() XT001. Freestanding emit already
+   * places receiver as arg0 for non-import METHOD_CALL.
+   * G.7 authority: this strong definition; same-module free fn named method
+   * with nparams == num_args+1 and param0 matching receiver type.
+   * PLATFORM: SHARED — mac + Ubuntu L2 probes.
+   */
+  if (base_ty > 0 && module && method_nlen > 0) {
+    int32_t uj;
+    int32_t uf_best = -1;
+    int32_t uf_best_score = -1;
+    int32_t nf = pipeline_module_num_funcs(module);
+    for (uj = 0; uj < nf; uj++) {
+      int32_t nparams;
+      int32_t score;
+      int32_t matched;
+      int32_t p0;
+      int32_t sc0;
+      int32_t ai;
+      if (!pipeline_module_func_name_equal_at(module, uj, method_nm, method_nlen))
+        continue;
+      nparams = pipeline_module_func_num_params_at(module, uj);
+      if (nparams != num_args + 1)
+        continue;
+      p0 = pipeline_module_func_param_type_ref_at(module, uj, 0);
+      sc0 = -1;
+      if (p0 > 0 && pipeline_typeck_type_refs_equal_c(arena, base_ty, p0) != 0)
+        sc0 = 1000;
+      if (sc0 < 0) {
+        /* Weak integer match (same family tags as overload_arg_score). */
+        int32_t ak = pipeline_type_kind_ord_at(arena, base_ty);
+        int32_t pk = pipeline_type_kind_ord_at(arena, p0);
+        if ((pk == 0 || pk == 2 || pk == 3 || pk == 4 || pk == 5 || pk == 6 || pk == 7) &&
+            (ak == 0 || ak == 2 || ak == 3 || ak == 4 || ak == 5 || ak == 6 || ak == 7) &&
+            (pk == ak || (ak == 0 && (pk == 5 || pk == 6 || pk == 7)) ||
+             (ak == 2 && (pk == 0 || pk == 3 || pk == 4 || pk == 6))))
+          sc0 = 100;
+      }
+      if (sc0 < 0)
+        continue;
+      score = sc0;
+      matched = 1;
+      for (ai = 0; ai < num_args; ai++) {
+        int32_t param_raw = pipeline_module_func_param_type_ref_at(module, uj, ai + 1);
+        int32_t sc = pipeline_typeck_overload_arg_score_strict_minimal(arena, expr_ref, 1, ai, param_raw, -1, ctx);
+        if (sc < 0) {
+          matched = 0;
+          break;
+        }
+        score += sc;
+      }
+      if (matched && score > uf_best_score) {
+        uf_best_score = score;
+        uf_best = uj;
+      }
+    }
+    if (uf_best >= 0) {
+      int32_t uf_ret = pipeline_module_func_return_type_at(module, uf_best);
+      if (uf_ret > 0) {
+        pipeline_expr_apply_call_resolve(arena, expr_ref, -1, uf_best);
+        pipeline_expr_set_resolved_type_ref(arena, expr_ref, uf_ret);
+        return 0;
+      }
+    }
+  }
   if (ret_ty > 0) {
     pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
     return 0;
