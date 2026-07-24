@@ -5681,6 +5681,7 @@ int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena
     int32_t ord_named = 8;
     int32_t ord_ptr = 9;
     int32_t ord_type_array = 10;
+    int32_t ord_type_slice = 11;
     int32_t ord_field = 44;
     int32_t ord_index = 47;
     int32_t ord_call = 48;
@@ -5740,7 +5741,7 @@ int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena
     if ((!(ast_ref_is_null(lt)) && (lt > 0))) {
       (void)((rhs_kind = pipeline_expr_kind_ord_at(arena, right_ref)));
       (void)((lt_kind = pipeline_type_kind_ord_at(arena, lt)));
-      if (((rhs_kind ==ord_expr_array_lit) && (lt_kind ==ord_type_array))) {
+      if (((rhs_kind ==ord_expr_array_lit) && ((lt_kind ==ord_type_array) || (lt_kind ==ord_type_slice)))) {
         if ((typeck_coerce_array_lit_elem_types_to_decl(arena, right_ref, lt) < 0)) {
           return -1;
         }

@@ -5530,11 +5530,20 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     if (!ast.ref_is_null(lt) && lt > 0) {
       rhs_kind = pipeline_expr_kind_ord_at(arena, right_ref);
       lt_kind = pipeline_type_kind_ord_at(arena, lt);
-      if (rhs_kind == ord_expr_array_lit && lt_kind == ord_type_array) {
-        if (typeck_coerce_array_lit_elem_types_to_decl(arena, right_ref, lt) < 0) {
-          return - 1;
+      /*
+       * wave331: assign ARRAY_LIT → TYPE_ARRAY or TYPE_SLICE (G.7 reuse
+       * typeck_coerce_array_lit_elem_types_to_decl; let-init wave328 already accepted
+       * TYPE_SLICE — assign previously only TYPE_ARRAY → `a:i32[] = []` found `?`).
+       */
+      {
+        let ord_type_slice: i32 = 11;
+        if (rhs_kind == ord_expr_array_lit
+        && (lt_kind == ord_type_array || lt_kind == ord_type_slice)) {
+          if (typeck_coerce_array_lit_elem_types_to_decl(arena, right_ref, lt) < 0) {
+            return - 1;
+          }
+          rt_after = expr_type_ref(arena, right_ref);
         }
-        rt_after = expr_type_ref(arena, right_ref);
       }
       /*
        * wave308: assign RHS bare EXPR_LIT — reuse typeck_coerce_init_lit_to_decl
@@ -5545,7 +5554,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
        * (closes `a:u8=-1` / `a:u16=-1` / `a:u64=-1` assign + `1-2`; let-init already had int_binop).
        * wave316: assign/compound RHS FLOAT_LIT / `-float` — reuse typeck_coerce_init_float_lit_to_decl
        * (closes `a:f32 = 6.0` / `a += 2.0` / `a = -6.0`; let-init already had float lit).
-       * PLATFORM: SHARED — typeck lit/binop/float assign coerce.
+       * PLATFORM: SHARED — typeck lit/binop/float/array-lit assign coerce.
        */
       if (!type_refs_equal(arena, lt, rt_after)) {
         if (rhs_kind == ord_lit) {

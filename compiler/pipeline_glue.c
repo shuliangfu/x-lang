@@ -9946,10 +9946,41 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
     {
       int32_t ltr = glue_var_decl_type_ref_elf_c(arena, ctx, left_ref);
       int32_t rty = glue_float_promote_src_ty_ref_c(arena, right_ref);
+      int32_t ltk;
+      int32_t rko;
       /* wave314: f32 RHS → f64 LHS promote before store. */
       if (glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, ltr, rty, ta) != 0)
         return -1;
-      if (ltr > 0 && pipeline_type_kind_ord_at(arena, ltr) == GLUE_TYPE_KIND_F32_ORD) {
+      ltk = (ltr > 0) ? pipeline_type_kind_ord_at(arena, ltr) : 0;
+      /*
+       * wave331 Cap residual pure: TYPE_SLICE VAR assign dual-GP home.
+       * Root: VAR assign only store_rax_to_rbp → length half (off-8) stale.
+       * Ubuntu freestanding `a=b` kept old length; ARRAY_LIT RHS had no length store.
+       * Authority (G.7): same dual-GP layout as glue_emit_slice_from_array_let_init_elf_c
+       * / glue_load_var_as_value_to_rax_rdx (data @ off, length @ off-8).
+       * - ARRAY_LIT RHS: rax already data ptr from emit; imm length = num_elems (incl. 0).
+       * - other RHS: rax+rdx already dual-loaded (VAR slice / compound); store both.
+       * PLATFORM: SHARED layout · LINUX freestanding gold · MACOS host-C uses compound.
+       */
+      if (ltk == GLUE_TYPE_KIND_SLICE) {
+        rko = pipeline_expr_kind_ord_at(arena, right_ref);
+        if (rko == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT) {
+          int32_t n_arr = pipeline_expr_array_lit_num_elems_at(arena, right_ref);
+          if (n_arr < 0 || n_arr > 256)
+            return -1;
+          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0)
+            return -1;
+          if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta) != 0)
+            return -1;
+          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off - 8, ta) != 0)
+            return -1;
+        } else {
+          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0)
+            return -1;
+          if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, off - 8, ta) != 0)
+            return -1;
+        }
+      } else if (ltr > 0 && ltk == GLUE_TYPE_KIND_F32_ORD) {
         if (backend_enc_store_eax_to_rbp_arch(elf_ctx, off, ta) != 0)
           return -1;
       } else if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0) {
@@ -26116,6 +26147,10 @@ int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(struct ast_ASTArena *are
 /* wave316: assign/return mega path reuses float_lit coerce (body later). */
 int32_t pipeline_typeck_coerce_init_float_lit_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
                                                         int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
+/* wave331: assign ARRAY_LIT→TYPE_SLICE/ARRAY reuses let-init array_vector_lit coerce (body later). */
+int32_t pipeline_typeck_coerce_init_array_vector_lit_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
+                                                               int32_t decl_ty_ref, int32_t decl_kind,
+                                                               int32_t init_kind);
 
 static int32_t pipeline_typeck_lit_fits_named_i16_u16_c(struct ast_ASTArena *arena, int32_t ty_ref, int32_t int_val) {
   uint8_t nm[64];
@@ -26200,10 +26235,19 @@ int32_t pipeline_typeck_check_expr_assign_c(struct ast_Module *module, struct as
      * typeck.x mirror alone left Ubuntu assign `u8=-1` / `u64 a=-1` found i32).
      * wave316: assign/compound RHS FLOAT_LIT / `-float` — G.7 reuse coerce_init_float_lit
      * (closes `a:f32=6.0` / `a+=2.0` / `a=-6.0`; product path must update this C).
+     * wave331: assign RHS ARRAY_LIT → TYPE_ARRAY / TYPE_SLICE — G.7 reuse
+     * coerce_init_array_vector_lit (let-init wave328 already stamps TYPE_SLICE;
+     * product assign lacked it → `a = []` / `a = [1,2]` found `?`).
      * Named i16/u16 still use lit_fits helper when lit coerce misses TYPE_NAMED.
-     * PLATFORM: SHARED — typeck lit/binop/float assign coerce.
+     * PLATFORM: SHARED — typeck lit/binop/float/array-lit assign coerce.
      */
-    if (rhs_kind == (int32_t)ast_ExprKind_EXPR_LIT) {
+    if (rhs_kind == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT &&
+        (lt_kind == (int32_t)ast_TypeKind_TYPE_ARRAY ||
+         lt_kind == (int32_t)ast_TypeKind_TYPE_SLICE)) {
+      if (pipeline_typeck_coerce_init_array_vector_lit_to_decl_c(arena, right_ref, lt, lt_kind,
+                                                                rhs_kind) != 0)
+        rt_after = lt;
+    } else if (rhs_kind == (int32_t)ast_ExprKind_EXPR_LIT) {
       if (pipeline_typeck_coerce_init_lit_to_decl_c(arena, right_ref, lt, lt_kind, rhs_kind) == 0 &&
           expr_kind == (int32_t)ast_ExprKind_EXPR_ASSIGN) {
         int_val = pipeline_expr_int_val_at(arena, right_ref);
