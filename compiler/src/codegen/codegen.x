@@ -145,6 +145,7 @@ export extern function pipeline_module_func_param_name_copy32(module: *Module, f
 /* See implementation. */
 export extern function pipeline_module_func_num_params_at(module: *Module, fi: i32): i32;
 export extern function pipeline_module_func_param_name_len_at(module: *Module, fi: i32, pi: i32): i32;
+export extern function pipeline_module_func_param_type_ref_at(module: *Module, fi: i32, pi: i32): i32;
 export extern function pipeline_module_func_name_len_at(module: *Module, fi: i32): i32;
 /* See implementation. */
 export extern function pipeline_module_func_num_generic_params_at(module: *Module, fi: i32): i32;
@@ -1481,14 +1482,17 @@ export function codegen_should_skip_emit_std_io_trivial_handle(dep_path: *u8, na
 }
 
 /**
- * wave377 Cap residual pure: same-module redefinition first-wins body emit.
- * Call resolve already binds the first surface-name + arity match; host C rejects
- * two strong definitions of the same link name (BLD001 redefinition). Skip later
- * non-extern bodies that share name and arity with an earlier non-extern body.
+ * wave377 Cap residual pure: same-module true redefinition first-wins body emit.
+ * Host C rejects two strong definitions of the same link name (BLD001). Skip a later
+ * non-extern body only when it is a true redefinition of an earlier non-extern body:
+ * same surface name, same arity, and same param type_refs at every index.
+ * True overloads (e.g. pick(i32) vs pick(i64)) share name+arity but differ in param
+ * types and mangle to distinct host symbols — they must still be emitted (wave383:
+ * name+arity-only skip dropped overload_pick_i64 → types gate link UNDEF).
  * @param module *Module — current module (null → 0)
  * @param fi i32 — candidate function index
- * @return i32 — 1 skip (superseded by earlier body); 0 emit this body
- * PLATFORM: SHARED — host-C body emit path; call resolve first-wins authority.
+ * @return i32 — 1 skip (superseded by earlier same-signature body); 0 emit this body
+ * PLATFORM: SHARED — host-C body emit path; authority: signature match not name alone.
  */
 export function codegen_should_skip_later_same_name_body(module: *Module, fi: i32): i32 {
   if (module == 0 as *Module || fi <= 0) {
@@ -1518,6 +1522,16 @@ export function codegen_should_skip_later_same_name_body(module: *Module, fi: i3
             eq = 0;
           }
           k = k + 1;
+        }
+        // Same name+arity is not enough: compare param type_refs (true redef vs overload).
+        if (eq != 0) {
+          let pi: i32 = 0;
+          while (pi < np) {
+            if (pipeline_module_func_param_type_ref_at(module, fi, pi) != pipeline_module_func_param_type_ref_at(module, j, pi)) {
+              eq = 0;
+            }
+            pi = pi + 1;
+          }
         }
         if (eq != 0) {
           return 1;

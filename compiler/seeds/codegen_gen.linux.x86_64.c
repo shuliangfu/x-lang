@@ -13100,8 +13100,10 @@ int32_t codegen_should_skip_emit_func_by_name(uint8_t * name, int32_t name_len) 
   return 0;
 }
 /*
- * wave377 Cap residual pure: same-module redefinition first-wins body emit.
- * Call resolve binds first name+arity; host C rejects dual strong definitions.
+ * wave377 Cap residual pure: same-module true redefinition first-wins body emit.
+ * Skip later non-extern body only when name + arity + all param type_refs match
+ * an earlier body. True overloads (pick(i32) vs pick(i64)) must still emit —
+ * name+arity-only skip dropped overload_pick_i64 (wave383 types gate UNDEF).
  * PLATFORM: SHARED — mirror codegen.x codegen_should_skip_later_same_name_body.
  */
 int32_t codegen_should_skip_later_same_name_body(struct ast_Module * module, int32_t fi) {
@@ -13135,6 +13137,17 @@ int32_t codegen_should_skip_later_same_name_body(struct ast_Module * module, int
             (void)((eq = 0));
           }
           (void)((k = (k + 1)));
+        }
+        /* Same name+arity is not enough: compare param type_refs (redef vs overload). */
+        if ((eq != 0)) {
+          int32_t pi = 0;
+          while ((pi < np)) {
+            if ((pipeline_module_func_param_type_ref_at(module, fi, pi) !=
+                 pipeline_module_func_param_type_ref_at(module, j, pi))) {
+              (void)((eq = 0));
+            }
+            (void)((pi = (pi + 1)));
+          }
         }
         if ((eq != 0)) {
           return 1;
