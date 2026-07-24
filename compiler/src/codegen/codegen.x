@@ -10165,7 +10165,8 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
           /**
            * wave379: labeled/goto (docs/03).
            * is_goto → `goto T;`; else `L:` then optional `return e;`.
-           * PLATFORM: SHARED — host-C only this wave (fs soft leave-off).
+           * PLATFORM: SHARED host-C. wave387: freestanding/default asm kind=7 closed
+           * in pipeline_asm_emit_block_body_sync_elf (G.7 labeled pool + enc_jmp/label).
            */
           if (idx >= 0 && idx < pipeline_block_num_labeled_stmts(arena, block_ref)) {
             let is_g: i32 = pipeline_block_labeled_is_goto(arena, block_ref, idx);

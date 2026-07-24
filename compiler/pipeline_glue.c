@@ -182,6 +182,13 @@ static void glue_asm_ctx_set_scope_block(uint8_t *ctx, int32_t block_ref) {
   asm_ctx_set_scope_block(ctx, block_ref);
 }
 int32_t pipeline_block_labeled_return_expr_ref(struct ast_ASTArena *a, int32_t br, int32_t li);
+/* wave379/wave387: labeled pool accessors (stmt_order kind=7 goto/label/labeled-return). */
+int32_t pipeline_block_num_labeled_stmts(struct ast_ASTArena *a, int32_t br);
+int32_t pipeline_block_labeled_is_goto(struct ast_ASTArena *a, int32_t br, int32_t li);
+int32_t pipeline_block_labeled_label_len(struct ast_ASTArena *a, int32_t br, int32_t li);
+void pipeline_block_labeled_label_copy32(struct ast_ASTArena *a, int32_t br, int32_t li, uint8_t *dst);
+int32_t pipeline_block_labeled_goto_target_len(struct ast_ASTArena *a, int32_t br, int32_t li);
+void pipeline_block_labeled_goto_target_copy32(struct ast_ASTArena *a, int32_t br, int32_t li, uint8_t *dst);
 /** MEM-C1：块内 region/with_arena 第 ri 条 cap expr ref；0 表示普通 region。 */
 int32_t pipeline_block_region_with_arena_cap_ref(struct ast_ASTArena *a, int32_t br, int32_t ri);
 struct ast_Type *pipeline_arena_type_ptr(struct ast_ASTArena *a, int32_t ref);
@@ -9178,7 +9185,7 @@ static void glue_live_fwd_remove(GlueBlockLiveFwd *live, int32_t off) {
   }
 }
 
-/** 块 stmt_order 是否含 if/while/for（有则不做线性前向活跃）。 */
+/** 块 stmt_order 是否含 if/while/for/goto（有则不做线性前向活跃）。 */
 static int32_t glue_block_stmt_order_has_cfg(struct ast_ASTArena *arena, int32_t block_ref) {
   int32_t nso;
   int32_t i;
@@ -9187,7 +9194,8 @@ static int32_t glue_block_stmt_order_has_cfg(struct ast_ASTArena *arena, int32_t
   nso = ast_ast_block_num_stmt_order(arena, block_ref);
   for (i = 0; i < nso; i++) {
     uint8_t k = ast_ast_block_stmt_order_kind(arena, block_ref, i);
-    if (k == 3 || k == 4 || k == 5)
+    /* wave387: kind 7 labeled/goto is control flow (same class as if/while/for). */
+    if (k == 3 || k == 4 || k == 5 || k == 7)
       return 1;
   }
   return 0;
@@ -19080,13 +19088,20 @@ static int glue_block_stmt_order_has_return(struct ast_ASTArena *arena, int32_t 
     return 0;
   nso = ast_ast_block_num_stmt_order(arena, block_ref);
   for (i = 0; i < nso; i++) {
-    if (ast_ast_block_stmt_order_kind(arena, block_ref, i) == 2) {
-      int32_t idx = ast_ast_block_stmt_order_idx(arena, block_ref, i);
+    uint8_t sk = ast_ast_block_stmt_order_kind(arena, block_ref, i);
+    int32_t idx = ast_ast_block_stmt_order_idx(arena, block_ref, i);
+    if (sk == 2) {
       int32_t expr_ref;
       if (idx < 0 || idx >= ast_ast_block_num_expr_stmts(arena, block_ref))
         continue;
       expr_ref = ast_pipeline_block_expr_stmt_ref(arena, block_ref, idx);
       if (expr_ref != 0 && pipeline_expr_kind_ord_at(arena, expr_ref) == 41)
+        return 1;
+    } else if (sk == 7) {
+      /* wave387: L: return e; stores operand in labeled pool (not EXPR_RETURN expr_stmt). */
+      if (idx >= 0 && idx < pipeline_block_num_labeled_stmts(arena, block_ref) &&
+          pipeline_block_labeled_is_goto(arena, block_ref, idx) == 0 &&
+          pipeline_block_labeled_return_expr_ref(arena, block_ref, idx) > 0)
         return 1;
     }
   }
@@ -19755,8 +19770,8 @@ static void glue_block_compute_pass1_deferred_lets(struct ast_ASTArena *arena, s
       continue;
     for (j = 0; j < let_si; j++) {
       uint8_t sk = ast_ast_block_stmt_order_kind(arena, block_ref, j);
-      /* kind 2 expr_stmt; 3 while; 4 for; 5 if; 6 region — do not hoist past */
-      if (sk == 2 || sk == 3 || sk == 4 || sk == 5 || sk == 6) {
+      /* kind 2 expr_stmt; 3 while; 4 for; 5 if; 6 region; 7 goto/label — do not hoist past */
+      if (sk == 2 || sk == 3 || sk == 4 || sk == 5 || sk == 6 || sk == 7) {
         deferred[li] = 1;
         break;
       }
@@ -20230,6 +20245,60 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
             if (glue_emit_with_arena_deinit_elf(elf_ctx, wa_off, ta) != 0)
               return -1;
             glue_wa_scope_pop_c();
+          }
+        }
+      }
+    } else if (item_kind == 7) {
+      /**
+       * wave387 Cap residual pure: bare `goto T;` / `L:` / `L: return e;` freestanding+default asm.
+       * Root: wave379 closed host-C kind=7 only; pipeline_asm_emit_block_body_sync_elf skipped
+       * kind=7 → product -backend asm (default) fell through to first return (goto_ec=0/1).
+       * G.7: single labeled pool + backend_enc_jmp_arch / backend_enc_label_arch (same face as
+       * if/while break/continue); labeled return emits operand then jmp tail_join.
+       * PLATFORM: SHARED freestanding emit · LINUX+MACOS x86_64|arm64 via arch helpers.
+       */
+      glue_index_assign_addr_cache_clear();
+      glue_binop_var_slot_cache_clear();
+      if (idx >= 0 && idx < pipeline_block_num_labeled_stmts(arena, block_ref)) {
+        int32_t is_g = pipeline_block_labeled_is_goto(arena, block_ref, idx);
+        if (is_g != 0) {
+          uint8_t gt_buf[32];
+          int32_t gt_len;
+          pipeline_block_labeled_goto_target_copy32(arena, block_ref, idx, gt_buf);
+          gt_len = pipeline_block_labeled_goto_target_len(arena, block_ref, idx);
+          if (gt_len > 0 && gt_len <= 32) {
+            if (backend_enc_jmp_arch(elf_ctx, gt_buf, gt_len, ta) != 0)
+              return -1;
+          }
+        } else {
+          uint8_t lb_buf[32];
+          int32_t lb_len;
+          int32_t ret_ref_lab;
+          pipeline_block_labeled_label_copy32(arena, block_ref, idx, lb_buf);
+          lb_len = pipeline_block_labeled_label_len(arena, block_ref, idx);
+          if (lb_len > 0 && lb_len <= 32) {
+            if (backend_enc_label_arch(elf_ctx, lb_buf, lb_len, 0, ta) != 0)
+              return -1;
+          }
+          ret_ref_lab = pipeline_block_labeled_return_expr_ref(arena, block_ref, idx);
+          if (ret_ref_lab > 0) {
+            pipeline_glue_AsmFuncCtxLayout *ly_lab = pipeline_asm_ctx_layout(ctx);
+            glue_index_assign_addr_cache_clear();
+            if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, ret_ref_lab, ctx, ta) != 0)
+              return -1;
+            if (g_pipeline_asm_emit_module && g_pipeline_asm_emit_func_index >= 0) {
+              int32_t rty_lab = pipeline_module_func_return_type_at(g_pipeline_asm_emit_module,
+                                                                   g_pipeline_asm_emit_func_index);
+              int32_t sty_lab = glue_float_promote_src_ty_ref_c(arena, ret_ref_lab);
+              if (glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, rty_lab, sty_lab, ta) != 0)
+                return -1;
+            }
+            if (glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx, ta) != 0)
+              return -1;
+            if (!ly_lab || ly_lab->tail_join_label_len <= 0)
+              return -1;
+            if (backend_enc_jmp_arch(elf_ctx, ly_lab->tail_join_label, ly_lab->tail_join_label_len, ta) != 0)
+              return -1;
           }
         }
       }
