@@ -6002,11 +6002,34 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     let bop_l: i32 = pipeline_expr_binop_left_ref_at(arena, expr_ref);
     let bop_r: i32 = pipeline_expr_binop_right_ref_at(arena, expr_ref);
     let bt: i32 = 0;
+    let lt_cmp: i32 = 0;
+    let rt_cmp: i32 = 0;
+    let lko_cmp: i32 = 0;
+    let rko_cmp: i32 = 0;
+    let lk_cmp: i32 = 0;
+    let rk_cmp: i32 = 0;
+    let ord_f32: i32 = 14;
     if (check_expr(module, arena, bop_l, return_type_ref, ctx) != 0) {
       return - 1;
     }
     if (check_expr(module, arena, bop_r, return_type_ref, ctx) != 0) {
       return - 1;
+    }
+    /* wave317: f32 peer + bare FLOAT_LIT / `-float` in cmp — G.7 reuse float_lit coerce
+     * (same as binop_arith). Else `a:f32 < 6.0` keeps lit as f64 and freestanding/host
+     * may mis-compare (Ubuntu while a<6.0 never entered). True f32 vs f64 vars unchanged. */
+    lt_cmp = pipeline_expr_resolved_type_ref(arena, bop_l);
+    rt_cmp = pipeline_expr_resolved_type_ref(arena, bop_r);
+    if (!ast.ref_is_null(lt_cmp) && !ast.ref_is_null(rt_cmp)) {
+      lko_cmp = pipeline_type_kind_ord_at(arena, lt_cmp);
+      rko_cmp = pipeline_type_kind_ord_at(arena, rt_cmp);
+      lk_cmp = pipeline_expr_kind_ord_at(arena, bop_l);
+      rk_cmp = pipeline_expr_kind_ord_at(arena, bop_r);
+      if (lko_cmp == ord_f32) {
+        typeck_coerce_init_float_lit_to_decl(arena, bop_r, lt_cmp, ord_f32, rk_cmp);
+      } else if (rko_cmp == ord_f32) {
+        typeck_coerce_init_float_lit_to_decl(arena, bop_l, rt_cmp, ord_f32, lk_cmp);
+      }
     }
     bt = ensure_bool_type_ref(arena);
     if (bt != 0) {
