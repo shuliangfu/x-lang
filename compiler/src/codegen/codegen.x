@@ -7683,6 +7683,193 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         }
         /* other abi_dup names: keep sl_pfx from ctx (do not force std_net_) */
       }
+      /*
+       * wave352 Cap residual pure: STRUCT_LIT TYPE_ARRAY field + CALL/METHOD_CALL init.
+       * Root: use_elem_expand emitted `{ fill(n)[0], fill(n)[1], fill(n)[2] }` (N calls;
+       * side effects ×N) and host array return is still a dangling stack compound
+       * (warning + UB if not copied immediately once).
+       * G.7: when any field is CALL/METHOD + fixed TYPE_ARRAY, wrap the whole compound
+       * in a GNU stmt-expr: materialize each such CALL once into `static E __xlang_aaK[N]`,
+       * immediate element copy (captures dangle before clobber), then brace-expand from
+       * the static. Mirrors wave341 durable static / wave345 stmt-expr materialize.
+       * Soft: reentrancy last-wins on static temps; freestanding already wave351.
+       * PLATFORM: SHARED host-C emit (seed pin same commit).
+       */
+      let nf_codegen: i32 = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+      let need_call_mat: i32 = 0;
+      let si_scan: i32 = 0;
+      while (si_scan < nf_codegen) {
+        let iref_s: i32 = pipeline_expr_struct_lit_init_ref(arena, expr_ref, si_scan);
+        if (!ast.ref_is_null(iref_s)) {
+          let ie_s: Expr = ast.ast_arena_expr_get(arena, iref_s);
+          if (ie_s.kind == ExprKind.EXPR_CALL || ie_s.kind == ExprKind.EXPR_METHOD_CALL) {
+            let fnbuf_s: u8[64] = [];
+            pipeline_expr_struct_lit_field_name_into(arena, expr_ref, si_scan, &fnbuf_s[0]);
+            let flen_s: i32 = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, si_scan);
+            if (flen_s > 64) {
+              flen_s = 64;
+            }
+            let ftr_s: i32 = codegen_lookup_struct_field_type_ref(
+              arena, ctx, &e.struct_lit_struct_name[0], e.struct_lit_struct_name_len, &fnbuf_s[0], flen_s);
+            let arr_ty_s: i32 = 0;
+            if (!ast.ref_is_null(ftr_s)
+                && pipeline_type_kind_ord_at(arena, ftr_s) == (TypeKind.TYPE_ARRAY as i32)) {
+              arr_ty_s = ftr_s;
+            } else if (!ast.ref_is_null(ie_s.resolved_type_ref)
+                && pipeline_type_kind_ord_at(arena, ie_s.resolved_type_ref) == (TypeKind.TYPE_ARRAY as i32)) {
+              arr_ty_s = ie_s.resolved_type_ref;
+            }
+            if (!ast.ref_is_null(arr_ty_s)) {
+              let asz_s: i32 = pipeline_type_array_size_at(arena, arr_ty_s);
+              if (asz_s > 0 && asz_s <= 512) {
+                need_call_mat = 1;
+              }
+            }
+          }
+        }
+        si_scan = si_scan + 1;
+      }
+      if (need_call_mat != 0) {
+        /* ({  */
+        let mat_open: u8[4] = [40, 123, 32, 0];
+        if (emit_bytes_4(out, mat_open, 3) != 0) {
+          return -1;
+        }
+        let mi: i32 = 0;
+        while (mi < nf_codegen) {
+          let iref_m: i32 = pipeline_expr_struct_lit_init_ref(arena, expr_ref, mi);
+          if (ast.ref_is_null(iref_m)) {
+            mi = mi + 1;
+            continue;
+          }
+          let ie_m: Expr = ast.ast_arena_expr_get(arena, iref_m);
+          if (ie_m.kind != ExprKind.EXPR_CALL && ie_m.kind != ExprKind.EXPR_METHOD_CALL) {
+            mi = mi + 1;
+            continue;
+          }
+          let fnbuf_m: u8[64] = [];
+          pipeline_expr_struct_lit_field_name_into(arena, expr_ref, mi, &fnbuf_m[0]);
+          let flen_m: i32 = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, mi);
+          if (flen_m > 64) {
+            flen_m = 64;
+          }
+          let ftr_m: i32 = codegen_lookup_struct_field_type_ref(
+            arena, ctx, &e.struct_lit_struct_name[0], e.struct_lit_struct_name_len, &fnbuf_m[0], flen_m);
+          let arr_ty_m: i32 = 0;
+          if (!ast.ref_is_null(ftr_m)
+              && pipeline_type_kind_ord_at(arena, ftr_m) == (TypeKind.TYPE_ARRAY as i32)) {
+            arr_ty_m = ftr_m;
+          } else if (!ast.ref_is_null(ie_m.resolved_type_ref)
+              && pipeline_type_kind_ord_at(arena, ie_m.resolved_type_ref) == (TypeKind.TYPE_ARRAY as i32)) {
+            arr_ty_m = ie_m.resolved_type_ref;
+          }
+          if (ast.ref_is_null(arr_ty_m)) {
+            mi = mi + 1;
+            continue;
+          }
+          let asz_m: i32 = pipeline_type_array_size_at(arena, arr_ty_m);
+          if (asz_m <= 0 || asz_m > 512) {
+            mi = mi + 1;
+            continue;
+          }
+          let elem_m: i32 = pipeline_type_elem_ref_at(arena, arr_ty_m);
+          /* static E __xlang_aaK[N]; E *__xlang_apK = CALL; copy elems */
+          let st_kw: u8[8] = [115, 116, 97, 116, 105, 99, 32, 0];
+          if (emit_bytes_from_ptr(out, &st_kw[0], 7) != 0) {
+            return -1;
+          }
+          if (ast.ref_is_null(elem_m) || emit_type(arena, out, elem_m, 0 as *u8, 0, ctx) != 0) {
+            let fb_i32: u8[9] = [105, 110, 116, 51, 50, 95, 116, 0, 0];
+            if (emit_bytes_from_ptr(out, &fb_i32[0], 7) != 0) {
+              return -1;
+            }
+          }
+          /*  __xlang_aa */
+          let aa_nm: u8[12] = [32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 97, 0];
+          if (emit_bytes_from_ptr(out, &aa_nm[0], 11) != 0) {
+            return -1;
+          }
+          if (format_int(out, mi as i64) != 0) {
+            return -1;
+          }
+          if (append_byte(out, 91) != 0) {
+            return -1;
+          }
+          if (format_int(out, asz_m as i64) != 0) {
+            return -1;
+          }
+          /* ];  */
+          let aa_end: u8[4] = [93, 59, 32, 0];
+          if (emit_bytes_from_ptr(out, &aa_end[0], 3) != 0) {
+            return -1;
+          }
+          if (ast.ref_is_null(elem_m) || emit_type(arena, out, elem_m, 0 as *u8, 0, ctx) != 0) {
+            let fb_i32b: u8[9] = [105, 110, 116, 51, 50, 95, 116, 0, 0];
+            if (emit_bytes_from_ptr(out, &fb_i32b[0], 7) != 0) {
+              return -1;
+            }
+          }
+          /*  *__xlang_ap */
+          let ap_nm: u8[14] = [32, 42, 95, 95, 120, 108, 97, 110, 103, 95, 97, 112, 0, 0];
+          if (emit_bytes_from_ptr(out, &ap_nm[0], 12) != 0) {
+            return -1;
+          }
+          if (format_int(out, mi as i64) != 0) {
+            return -1;
+          }
+          /*  =  */
+          let ap_eq: u8[4] = [32, 61, 32, 0];
+          if (emit_bytes_4(out, ap_eq, 3) != 0) {
+            return -1;
+          }
+          if (emit_expr(arena, out, iref_m, ctx) != 0) {
+            return -1;
+          }
+          /* ;  */
+          let ap_sc: u8[4] = [59, 32, 0, 0];
+          if (emit_bytes_4(out, ap_sc, 2) != 0) {
+            return -1;
+          }
+          let ai_m: i32 = 0;
+          while (ai_m < asz_m) {
+            /* __xlang_aaK[ */
+            let cp_aa: u8[12] = [95, 95, 120, 108, 97, 110, 103, 95, 97, 97, 0, 0];
+            if (emit_bytes_from_ptr(out, &cp_aa[0], 10) != 0) {
+              return -1;
+            }
+            if (format_int(out, mi as i64) != 0) {
+              return -1;
+            }
+            if (append_byte(out, 91) != 0) {
+              return -1;
+            }
+            if (format_int(out, ai_m as i64) != 0) {
+              return -1;
+            }
+            /* ] = __xlang_apK[ */
+            let cp_mid: u8[16] = [93, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 112, 0, 0];
+            if (emit_bytes_from_ptr(out, &cp_mid[0], 14) != 0) {
+              return -1;
+            }
+            if (format_int(out, mi as i64) != 0) {
+              return -1;
+            }
+            if (append_byte(out, 91) != 0) {
+              return -1;
+            }
+            if (format_int(out, ai_m as i64) != 0) {
+              return -1;
+            }
+            /* ];  */
+            let cp_end: u8[4] = [93, 59, 32, 0];
+            if (emit_bytes_from_ptr(out, &cp_end[0], 3) != 0) {
+              return -1;
+            }
+            ai_m = ai_m + 1;
+          }
+          mi = mi + 1;
+        }
+      }
       let open: u8[9] = [40, 115, 116, 114, 117, 99, 116, 32, 0];
       if (emit_bytes_9(out, open, 8) != 0) {
         return -1;
@@ -7698,7 +7885,6 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         return -1;
       }
       let fi: i32 = 0;
-      let nf_codegen: i32 = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
       while (fi < nf_codegen) {
         if (fi > 0) {
           let comma: u8[3] = [44, 32, 0];
@@ -7729,6 +7915,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
          * - EXPR_ARRAY_LIT empty → `{ 0 }`; non-empty → emit_braced_array_lit_init
          * - VAR/param (u8[N] or decayed *u8) → expand `.name = { src[0], …, src[N-1] }`
          *   (parser M1 host-cc residual: `.name = z64` / `.name = name64` illegal).
+         * - CALL/METHOD (wave352): brace-expand from materialize static __xlang_aaK
          * Do NOT emit_expr alone for TYPE_ARRAY fields (pointer-to-integer on first elem).
          * PLATFORM: SHARED — seed pin same commit; verify parser.x -E host-cc. */
         let init_ref: i32 = pipeline_expr_struct_lit_init_ref(arena, expr_ref, fi);
@@ -7767,7 +7954,45 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                 use_elem_expand = 1;
               }
             }
-            if (use_elem_expand != 0) {
+            let is_call_init: i32 = 0;
+            if (init_e.kind == ExprKind.EXPR_CALL || init_e.kind == ExprKind.EXPR_METHOD_CALL) {
+              is_call_init = 1;
+            }
+            if (use_elem_expand != 0 && is_call_init != 0 && need_call_mat != 0) {
+              /* { __xlang_aaK[0], …, __xlang_aaK[N-1] } — single materialize above */
+              if (append_byte(out, 123) != 0) {
+                return -1;
+              }
+              let ai_c: i32 = 0;
+              while (ai_c < arr_sz) {
+                if (ai_c > 0) {
+                  let cm_c: u8[3] = [44, 32, 0];
+                  if (emit_bytes_3(out, cm_c, 2) != 0) {
+                    return -1;
+                  }
+                }
+                let aa_rd: u8[12] = [95, 95, 120, 108, 97, 110, 103, 95, 97, 97, 0, 0];
+                if (emit_bytes_from_ptr(out, &aa_rd[0], 10) != 0) {
+                  return -1;
+                }
+                if (format_int(out, fi as i64) != 0) {
+                  return -1;
+                }
+                if (append_byte(out, 91) != 0) {
+                  return -1;
+                }
+                if (format_int(out, ai_c as i64) != 0) {
+                  return -1;
+                }
+                if (append_byte(out, 93) != 0) {
+                  return -1;
+                }
+                ai_c = ai_c + 1;
+              }
+              if (append_byte(out, 125) != 0) {
+                return -1;
+              }
+            } else if (use_elem_expand != 0) {
               if (append_byte(out, 123) != 0) {
                 return -1;
               }
@@ -7804,6 +8029,11 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           }
         }
         fi = fi + 1;
+      }
+      if (need_call_mat != 0) {
+        /*  }; }) */
+        let mat_close: u8[8] = [32, 125, 59, 32, 125, 41, 0, 0];
+        return emit_bytes_from_ptr(out, &mat_close[0], 6);
       }
       let close: u8[4] = [32, 125, 0, 0];
       return emit_bytes_4(out, close, 2);
@@ -8276,6 +8506,140 @@ export function emit_return_stmt_with_context(arena: *ASTArena, out: *CodegenOut
     if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module
         && ctx.current_func_index >= 0 && ctx.current_func_index < ctx.current_codegen_module.num_funcs) {
       let rty: i32 = pipeline_module_func_return_type_at(ctx.current_codegen_module, ctx.current_func_index);
+      /*
+       * wave352 Cap residual pure: host `return` of fixed TYPE_ARRAY.
+       * Root: emit_type lowers TYPE_ARRAY as `ELEM *`; `return (E[]){…}` is a
+       * stack compound (clang -Wreturn-stack-address; -O2 clobbers → STRUCT_LIT
+       * CALL field init sum garbage even after once-materialize).
+       * G.7: durable static[N] fill then return pointer (wave341 slice static
+       * authority; reentrancy last-wins soft). ARRAY_LIT stores elems; other
+       * rvalues once-eval to pointer then element copy.
+       * PLATFORM: SHARED host-C emit.
+       */
+      if (!ast.ref_is_null(rty) && pipeline_type_kind_ord_at(arena, rty) == (TypeKind.TYPE_ARRAY as i32)
+          && !ast.ref_is_null(operand_ref)) {
+        let arr_sz_r: i32 = pipeline_type_array_size_at(arena, rty);
+        let elem_r: i32 = pipeline_type_elem_ref_at(arena, rty);
+        if (arr_sz_r > 0 && arr_sz_r <= 512) {
+          if (emit_indent(out, indent) != 0) {
+            return -1;
+          }
+          /* return ({ static  */
+          let ar_open: u8[20] = [114, 101, 116, 117, 114, 110, 32, 40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0, 0];
+          if (emit_bytes_from_ptr(out, &ar_open[0], 17) != 0) {
+            return -1;
+          }
+          if (ast.ref_is_null(elem_r) || emit_type(arena, out, elem_r, 0 as *u8, 0, ctx) != 0) {
+            let fb_ar: u8[9] = [105, 110, 116, 51, 50, 95, 116, 0, 0];
+            if (emit_bytes_from_ptr(out, &fb_ar[0], 7) != 0) {
+              return -1;
+            }
+          }
+          /*  __xlang_ar[ */
+          let ar_nm: u8[14] = [32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 114, 91, 0, 0];
+          if (emit_bytes_from_ptr(out, &ar_nm[0], 12) != 0) {
+            return -1;
+          }
+          if (format_int(out, arr_sz_r as i64) != 0) {
+            return -1;
+          }
+          /* ];  */
+          let ar_sz_end: u8[4] = [93, 59, 32, 0];
+          if (emit_bytes_from_ptr(out, &ar_sz_end[0], 3) != 0) {
+            return -1;
+          }
+          let op_k: i32 = pipeline_expr_kind_ord_at(arena, operand_ref);
+          if (op_k == (ExprKind.EXPR_ARRAY_LIT as i32)) {
+            let n_lit: i32 = pipeline_expr_array_lit_num_elems_at(arena, operand_ref);
+            let ai_r: i32 = 0;
+            while (ai_r < arr_sz_r) {
+              /* __xlang_ar[ */
+              let ar_asg: u8[14] = [95, 95, 120, 108, 97, 110, 103, 95, 97, 114, 91, 0, 0, 0];
+              if (emit_bytes_from_ptr(out, &ar_asg[0], 11) != 0) {
+                return -1;
+              }
+              if (format_int(out, ai_r as i64) != 0) {
+                return -1;
+              }
+              /* ] =  */
+              let ar_eq: u8[6] = [93, 32, 61, 32, 0, 0];
+              if (emit_bytes_from_ptr(out, &ar_eq[0], 4) != 0) {
+                return -1;
+              }
+              if (ai_r < n_lit) {
+                let er_r: i32 = pipeline_expr_array_lit_elem_ref(arena, operand_ref, ai_r);
+                if (!ast.ref_is_null(er_r) && emit_expr(arena, out, er_r, ctx) != 0) {
+                  return -1;
+                } else if (ast.ref_is_null(er_r)) {
+                  if (append_byte(out, 48) != 0) {
+                    return -1;
+                  }
+                }
+              } else {
+                if (append_byte(out, 48) != 0) {
+                  return -1;
+                }
+              }
+              /* ;  */
+              let ar_sc: u8[4] = [59, 32, 0, 0];
+              if (emit_bytes_4(out, ar_sc, 2) != 0) {
+                return -1;
+              }
+              ai_r = ai_r + 1;
+            }
+          } else {
+            /* E *__xlang_rp = <operand>; copy */
+            if (ast.ref_is_null(elem_r) || emit_type(arena, out, elem_r, 0 as *u8, 0, ctx) != 0) {
+              let fb_rp: u8[9] = [105, 110, 116, 51, 50, 95, 116, 0, 0];
+              if (emit_bytes_from_ptr(out, &fb_rp[0], 7) != 0) {
+                return -1;
+              }
+            }
+            /*  *__xlang_rp =  */
+            let rp_nm: u8[16] = [32, 42, 95, 95, 120, 108, 97, 110, 103, 95, 114, 112, 32, 61, 32, 0];
+            if (emit_bytes_from_ptr(out, &rp_nm[0], 15) != 0) {
+              return -1;
+            }
+            if (emit_expr(arena, out, operand_ref, ctx) != 0) {
+              return -1;
+            }
+            /* ;  */
+            let rp_sc: u8[4] = [59, 32, 0, 0];
+            if (emit_bytes_4(out, rp_sc, 2) != 0) {
+              return -1;
+            }
+            let ai_c: i32 = 0;
+            while (ai_c < arr_sz_r) {
+              let cp_h: u8[14] = [95, 95, 120, 108, 97, 110, 103, 95, 97, 114, 91, 0, 0, 0];
+              if (emit_bytes_from_ptr(out, &cp_h[0], 11) != 0) {
+                return -1;
+              }
+              if (format_int(out, ai_c as i64) != 0) {
+                return -1;
+              }
+              /* ] = __xlang_rp[ */
+              let cp_m: u8[16] = [93, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 114, 112, 91, 0];
+              if (emit_bytes_from_ptr(out, &cp_m[0], 15) != 0) {
+                return -1;
+              }
+              if (format_int(out, ai_c as i64) != 0) {
+                return -1;
+              }
+              let cp_e: u8[4] = [93, 59, 32, 0];
+              if (emit_bytes_from_ptr(out, &cp_e[0], 3) != 0) {
+                return -1;
+              }
+              ai_c = ai_c + 1;
+            }
+          }
+          /* __xlang_ar; })\n */
+          let ar_end: u8[20] = [95, 95, 120, 108, 97, 110, 103, 95, 97, 114, 59, 32, 125, 41, 59, 10, 0, 0, 0, 0];
+          if (emit_bytes_from_ptr(out, &ar_end[0], 16) != 0) {
+            return -1;
+          }
+          return 0;
+        }
+      }
       if (!ast.ref_is_null(rty) && pipeline_type_kind_ord_at(arena, rty) == (TypeKind.TYPE_NAMED as i32)) {
         let use_struct_zero: i32 = 0;
         if (ast.ref_is_null(operand_ref)) {
