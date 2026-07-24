@@ -13767,6 +13767,25 @@ int32_t pipeline_asm_emit_expr_elf_fast(struct ast_ASTArena *arena, struct platf
           if (nlen == 3 && nm[0] == (uint8_t)'u' && nm[1] == (uint8_t)'1' && nm[2] == (uint8_t)'6')
             return backend_enc_mov_imm32_to_w0_arch(elf_ctx, (int32_t)((uint32_t)cfold_imm & 0xffffu), ta);
         }
+        /*
+         * wave318: CTFE folds int lit before EXPR_LIT IEEE path. Stamped f32/f64
+         * (`let a: f32 = 6`) still held const_folded_val=6 as integer → mov $6
+         * into f32 slot (Ubuntu freestanding run=0). Convert folded i32 to IEEE.
+         * PLATFORM: SHARED / LINUX+MACOS freestanding.
+         */
+        if (cfold_k == GLUE_TYPE_KIND_F32_ORD) {
+          float fv = (float)cfold_imm;
+          uint32_t fb = 0;
+          memcpy(&fb, &fv, sizeof(fb));
+          return backend_enc_mov_imm32_to_w0_arch(elf_ctx, (int32_t)fb, ta);
+        }
+        if (cfold_k == GLUE_TYPE_KIND_F64_ORD) {
+          double dv = (double)cfold_imm;
+          uint64_t u = 0;
+          memcpy(&u, &dv, sizeof(u));
+          return backend_enc_mov_imm64_to_rax_arch(elf_ctx, (int32_t)(u & 0xffffffffu),
+                                                   (int32_t)(u >> 32), ta);
+        }
       }
       if (cfold_imm >= 0)
         return backend_enc_mov_imm32_to_w0_arch(elf_ctx, cfold_imm, ta);
