@@ -3930,6 +3930,7 @@ int32_t codegen_emit_call_arg_slice_abi(struct ast_ASTArena * arena, struct code
     }
     return codegen_emit_expr(arena, out, arg_ref, ctx);
   }
+}
 int32_t codegen_field_access_base_is_pointer_param(struct ast_ASTArena * arena, int32_t base_ref, struct ast_Module * mod, int32_t func_index) {
   {
     struct ast_Expr base = ast_ast_arena_expr_get(arena, base_ref);
