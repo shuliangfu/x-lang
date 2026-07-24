@@ -3541,6 +3541,14 @@ int32_t pipeline_asm_emit_expr_if_arm_elf_c(struct ast_ASTArena *arena,
 /* Forward: dual-GP / named layout used by STRUCT_LIT field store (defs later). */
 static int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref);
 static int32_t glue_type_named_layout_size_any_module_elf_c(struct ast_ASTArena *arena, int32_t ty_ref);
+/* wave349: STRUCT_LIT fixed TYPE_ARRAY field inline store (def after vector_let_init). */
+static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *arena,
+                                                       struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,
+                                                       struct backend_AsmFuncCtx *ctx, int32_t ta,
+                                                       int32_t stack_slot_off);
+static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
+    struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,
+    struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t sret_direct, int32_t base_off, int32_t foff, int32_t fty);
 
 /**
  * STRUCT_LIT 单字段 store 宽度：与 glue_field_access_load_bytes_for_type_ref 一致（i32=4，bool/u8=1）。
@@ -3609,6 +3617,7 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
    * return + SysV sret：rbx 直指 caller hidden dest（[sret_home]），勿用 rbp+next_offset 小 temp
    * （大 struct 字段偏移可越过 saved rbp 致 SIGSEGV）。
    */
+  base_off = 0;
   if (stack_slot_off < 0 && ta == 0 && g_pipeline_asm_func_sret_active && g_pipeline_asm_sret_home_off >= 0) {
     if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
       return -1;
@@ -3627,9 +3636,26 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
               (int)(init_ref > 0 ? pipeline_expr_kind_ord_at(arena, init_ref) : -1));
     if (init_ref != 0) {
       int32_t fty;
+      int32_t arr_st;
       foff = pipeline_expr_struct_lit_field_offset_at(arena, g_pipeline_asm_emit_module, expr_ref, fi);
       fsz = glue_struct_lit_field_store_sz(arena, expr_ref, fi);
       fty = pipeline_expr_struct_lit_field_type_ref_at(arena, g_pipeline_asm_emit_module, expr_ref, fi);
+      /*
+       * wave349 Cap residual pure: fixed TYPE_ARRAY field must store inline payload.
+       * Generic emit_array_lit → rax=temp-ptr then store 8B overwrites field[0..7] with a
+       * pointer; Ubuntu freestanding b.a[i] / field→slice then reads garbage (host-C OK).
+       * G.7: glue_struct_lit_store_fixed_array_field_elf_c reuses vector_let_init / wave334.
+       * PLATFORM: SHARED freestanding · LINUX gold.
+       */
+      if (fty > 0 && pipeline_type_kind_ord_at(arena, fty) == (int32_t)ast_TypeKind_TYPE_ARRAY) {
+        arr_st = glue_struct_lit_store_fixed_array_field_elf_c(arena, elf_ctx, init_ref, ctx, ta, sret_direct,
+                                                              base_off, foff, fty);
+        if (arr_st == 0)
+          continue;
+        if (arr_st == -1)
+          return -1;
+        /* arr_st == -2: unsupported init form → fall through to generic store */
+      }
       /** f32 字段 + 浮点字面量：imm32 位型（skip typeck 时常无 resolved_type）。 */
       if (pipeline_expr_kind_ord_at(arena, init_ref) == 1 && fty > 0 &&
           pipeline_type_kind_ord_at(arena, fty) == 14) {
@@ -3790,6 +3816,104 @@ static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *aren
     }
   }
   return 0;
+}
+
+/**
+ * wave349 Cap residual pure: STRUCT_LIT field of fixed TYPE_ARRAY stores inline
+ * payload (N×esz), not an 8-byte pointer.
+ *
+ * Root: generic STRUCT_LIT path emitted ARRAY_LIT into a temp then stored rax (temp
+ * pointer) into the field — layout expects N elements; freestanding field index /
+ * field→slice then read garbage (host-C braced expand already correct in codegen.x).
+ *
+ * Authority (G.7 single path):
+ * - ARRAY_LIT + stack slot → pipeline_asm_emit_vector_let_init_elf_c (same as let-init)
+ * - ARRAY_LIT + sret → per-elem emit + store at foff+i×esz via sret dest@rbx
+ * - VAR → wave334 element-wise load (src_off − i×esz) / store
+ *
+ * @return 0 handled; -1 error; -2 unsupported init (caller falls through)
+ * PLATFORM: SHARED freestanding emit · LINUX gold · MACOS host-C uses braced expand
+ */
+static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
+    struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,
+    struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t sret_direct, int32_t base_off, int32_t foff, int32_t fty) {
+  int32_t iko;
+  int32_t n_arr;
+  int32_t esz;
+  int32_t ai;
+  int32_t elem_tr;
+  if (!arena || !elf_ctx || !ctx || init_ref <= 0 || fty <= 0)
+    return -1;
+  iko = pipeline_expr_kind_ord_at(arena, init_ref);
+  n_arr = pipeline_type_array_size_at(arena, fty);
+  if (n_arr <= 0 && iko == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT)
+    n_arr = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+  if (n_arr <= 0 || n_arr > 256)
+    return -1;
+  elem_tr = pipeline_type_elem_ref_at(arena, fty);
+  esz = glue_index_elem_byte_sz_from_type_ref_c(arena, elem_tr);
+  if (esz <= 0)
+    esz = 4;
+
+  if (iko == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT) {
+    if (sret_direct == 0) {
+      /* rbp-relative: write elems directly into struct field (base_off + foff). */
+      return pipeline_asm_emit_vector_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, base_off + foff);
+    }
+    /* SysV sret: dest base in [sret_home]; store each elem at foff + i*esz. */
+    for (ai = 0; ai < n_arr; ai++) {
+      int32_t elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
+      if (elem_ref == 0)
+        continue;
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, elem_ref, ctx, ta) != 0)
+        return -1;
+      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
+        return -1;
+      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + ai * esz, esz, ta) != 0)
+        return -1;
+    }
+    return 0;
+  }
+
+  if (iko == (int32_t)ast_ExprKind_EXPR_VAR) {
+    int32_t src_off = glue_var_expr_stack_off_elf_c(arena, ctx, init_ref);
+    if (src_off < 0)
+      return -1;
+    if (sret_direct == 0) {
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, base_off + foff, ta) != 0)
+        return -1;
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      for (ai = 0; ai < n_arr; ai++) {
+        /* Positive slot: elem[i] at src_off - i*esz (wave334 / vector_let_init layout). */
+        if (backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, src_off - ai * esz, esz, ta) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, ai * esz, esz, ta) != 0)
+          return -1;
+      }
+      return 0;
+    }
+    for (ai = 0; ai < n_arr; ai++) {
+      if (backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, src_off - ai * esz, esz, ta) != 0)
+        return -1;
+      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
+        return -1;
+      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + ai * esz, esz, ta) != 0)
+        return -1;
+    }
+    return 0;
+  }
+
+  /* Unsupported init (CALL/FIELD/etc.) — leave generic path (may still be soft residual). */
+  return -2;
 }
 
 /** TYPE_VECTOR 的 lane 数与元素字节宽（与 asm_local_slot_bytes_mod 一致）。 */
