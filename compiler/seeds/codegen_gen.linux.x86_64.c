@@ -3397,6 +3397,42 @@ int32_t codegen_emit_call_arg_slice_abi(struct ast_ASTArena * arena, struct code
       }
     }
     if ((need_addr !=0)) {
+      /*
+       * wave345: CALL/METHOD rvalue slice cannot take address (`&(take())` is
+       * invalid C). Materialize into a GNU stmt-expr temp then pass its address.
+       * Local VAR stays `&(s)`. PLATFORM: SHARED host-C (fs dual-GP call-arg
+       * already materializes — glue wave332).
+       */
+      /* EXPR_CALL=48, EXPR_METHOD_CALL=49 (ast_ExprKind order). */
+      if ((((arg.kind) == 48) || ((arg.kind) == 49))) {
+        int32_t ty_ref = (arg.resolved_type_ref);
+        uint8_t open_stmt[4] = {40, 123, 32, 0};
+        uint8_t sp_eq[16] = {32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 32, 61, 32, 0, 0};
+        uint8_t end_sp[20] = {59, 32, 38, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 59, 32, 125, 41, 0, 0, 0};
+        uint8_t fb[32] = {115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 105, 110, 116, 51, 50, 95, 116, 0, 0, 0, 0, 0, 0};
+        if ((codegen_emit_bytes_3(out, open_stmt, 3) !=0)) {
+          return -(1);
+        }
+        if (((!(ast_ref_is_null(ty_ref)) && (ty_ref > 0)) && (ty_ref <= (arena->num_types)))) {
+          if ((codegen_emit_type(arena, out, ty_ref, ((uint8_t *)(0)), 0, ctx) !=0)) {
+            return -(1);
+          }
+        } else {
+          if ((codegen_emit_bytes_from_ptr(out, &((fb)[0]), 26) !=0)) {
+            return -(1);
+          }
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((sp_eq)[0]), 14) !=0)) {
+          return -(1);
+        }
+        if ((codegen_emit_expr(arena, out, arg_ref, ctx) !=0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((end_sp)[0]), 17) !=0)) {
+          return -(1);
+        }
+        return 0;
+      }
       uint8_t pre[3] = {38, 40, 0};
       if ((codegen_emit_bytes_3(out, pre, 2) !=0)) {
         return -(1);
@@ -8766,6 +8802,33 @@ int32_t codegen_emit_return_stmt_with_context(struct ast_ASTArena * arena, struc
               return -(1);
             }
             return 0;
+          }
+        }
+        /*
+         * wave345 Cap residual pure: host `return s` when `s` is a TYPE_SLICE
+         * formal. C ABI lowers TYPE_SLICE params as `struct xlang_slice_* *`
+         * (G.7 field_access_base_is_pointer_param / call-arg `&local`), but the
+         * function returns the slice by value. Bare `return s` is type-error in
+         * host-cc (`*` vs value). Freestanding already dual-GP-loads fat* (wave332).
+         * G.7: reuse pointer-param classifier; emit `return *s;` when rty is
+         * TYPE_SLICE and operand is that formal (not a local by-value fat).
+         * PLATFORM: SHARED host-C emit. Soft: untyped-let; reentrancy last-wins.
+         */
+        if ((codegen_field_access_base_is_pointer_param(arena, operand_ref, (ctx->current_codegen_module), (ctx->current_func_index)) != 0)) {
+          struct ast_Expr op_e2 = ast_ast_arena_expr_get(arena, operand_ref);
+          if (((op_e2.var_name_len) > 0)) {
+            uint8_t ret_star[12] = {114, 101, 116, 117, 114, 110, 32, 42, 0, 0, 0, 0};
+            uint8_t sc_star[4] = {59, 10, 0, 0};
+            if ((codegen_emit_indent(out, indent) !=0)) {
+              return -(1);
+            }
+            if ((codegen_emit_bytes_from_ptr(out, &((ret_star)[0]), 8) !=0)) {
+              return -(1);
+            }
+            if ((codegen_emit_bytes_64(out, &(((op_e2.var_name))[0]), (op_e2.var_name_len)) !=0)) {
+              return -(1);
+            }
+            return codegen_emit_bytes_4(out, sc_star, 2);
           }
         }
       }
