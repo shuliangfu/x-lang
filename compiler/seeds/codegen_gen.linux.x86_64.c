@@ -5926,6 +5926,55 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
       return codegen_append_byte(out, 41);
     }
     if (((e.kind) ==28)) {
+      /*
+       * wave334 Cap residual pure: fixed TYPE_ARRAY whole-array assign.
+       * Root: C arrays are not assignable — host gcc rejects
+       *   `int32_t a[3] = {…}; (void)((a = (int32_t[]){…}));`
+       * Emit memcpy into the array storage instead.
+       * Form: (memcpy((void*)(lhs), (const void*)(rhs), sizeof(lhs)))
+       * G.7 single host-C authority; freestanding uses direct slot write in glue.
+       * PLATFORM: SHARED host-C emit.
+       */
+      int32_t lt_ref;
+      int32_t is_fa;
+      lt_ref = pipeline_expr_resolved_type_ref(arena, e.binop_left_ref);
+      is_fa = 0;
+      if (lt_ref > 0 && pipeline_type_kind_ord_at(arena, lt_ref) == 10)
+        is_fa = 1;
+      if (is_fa != 0) {
+        uint8_t pref[16] = {109, 101, 109, 99, 112, 121, 40, 40, 118, 111, 105, 100, 42, 41, 40, 0};
+        uint8_t mid[20] = {41, 44, 32, 40, 99, 111, 110, 115, 116, 32, 118, 111, 105, 100, 42, 41, 40, 0, 0, 0};
+        uint8_t mid_sz[12] = {41, 44, 32, 115, 105, 122, 101, 111, 102, 40, 0, 0};
+        if ((codegen_append_byte(out, 40) !=0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, pref, 15) !=0)) {
+          return -(1);
+        }
+        if ((codegen_emit_expr(arena, out, (e.binop_left_ref), ctx) !=0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, mid, 17) !=0)) {
+          return -(1);
+        }
+        if ((codegen_emit_expr(arena, out, (e.binop_right_ref), ctx) !=0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, mid_sz, 10) !=0)) {
+          return -(1);
+        }
+        if ((codegen_emit_expr(arena, out, (e.binop_left_ref), ctx) !=0)) {
+          return -(1);
+        }
+        if ((codegen_append_byte(out, 41) !=0)) {
+          return -(1);
+        }
+        if ((codegen_append_byte(out, 41) !=0)) {
+          return -(1);
+        }
+        return codegen_append_byte(out, 41);
+      }
+      {
       uint8_t op[4] = {32, 61, 32, 0};
       if ((codegen_append_byte(out, 40) !=0)) {
         return -(1);
@@ -5940,6 +5989,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
         return -(1);
       }
       return codegen_append_byte(out, 41);
+      }
     }
     if ((((((((((((e.kind) ==29) || ((e.kind) ==30)) || ((e.kind) ==31)) || ((e.kind) ==32)) || ((e.kind) ==33)) || ((e.kind) ==34)) || ((e.kind) ==35)) || ((e.kind) ==36)) || ((e.kind) ==37)) || ((e.kind) ==38))) {
       uint8_t op_buf[8] = {32, 43, 61, 32, 0, 0, 0, 0};

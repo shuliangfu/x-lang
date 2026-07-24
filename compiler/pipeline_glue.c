@@ -10075,6 +10075,58 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
       glue_binop_var_slot_cache_kill_def_at_slot(off);
       return 0;
     }
+    /*
+     * wave334 Cap residual pure: TYPE_ARRAY whole-array assign (`a = [4,5,6]` / `a = b`).
+     *
+     * Root: generic path emit_array_lit → rax=temp-ptr then store_rax_to_rbp(off)
+     * overwrites the first 8 bytes of the fixed array with that pointer (Ubuntu run
+     * garbage / mac host-C rejects `int[N] = …` as not assignable).
+     *
+     * Authority (G.7):
+     * - ARRAY_LIT → reuse pipeline_asm_emit_vector_let_init_elf_c (same as let-init:
+     *   write elems directly into LHS slot; no pointer store).
+     * - VAR → element-wise load/store at positive offsets from each slot base
+     *   (fixed-array layout, not SIMD dual-GP high-half growth).
+     * PLATFORM: SHARED freestanding emit · LINUX gold · MACOS host-C uses memcpy.
+     */
+    if (is_modlet == 0 && off >= 0 && ltk_pre == GLUE_TYPE_KIND_ARRAY &&
+        pipeline_expr_kind_ord_at(arena, expr_ref) == (int32_t)ast_ExprKind_EXPR_ASSIGN) {
+      if (rko_pre == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT) {
+        if (pipeline_asm_emit_vector_let_init_elf_c(arena, elf_ctx, right_ref, ctx, ta, off) != 0)
+          return -1;
+        glue_binop_var_slot_cache_kill_def_at_slot(off);
+        return 0;
+      }
+      if (rko_pre == GLUE_EXPR_KIND_VAR) {
+        int32_t src_off;
+        int32_t n_arr;
+        int32_t esz;
+        int32_t ai;
+        int32_t elem_tr;
+        src_off = glue_var_expr_stack_off_elf_c(arena, ctx, right_ref);
+        if (src_off < 0)
+          return -1;
+        n_arr = pipeline_type_array_size_at(arena, ltr_pre);
+        if (n_arr <= 0 || n_arr > 256)
+          return -1;
+        elem_tr = pipeline_type_elem_ref_at(arena, ltr_pre);
+        esz = glue_index_elem_byte_sz_from_type_ref_c(arena, elem_tr);
+        if (esz <= 0)
+          esz = 4;
+        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta) != 0)
+          return -1;
+        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          return -1;
+        for (ai = 0; ai < n_arr; ai++) {
+          if (backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, src_off + ai * esz, esz, ta) != 0)
+            return -1;
+          if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, ai * esz, esz, ta) != 0)
+            return -1;
+        }
+        glue_binop_var_slot_cache_kill_def_at_slot(off);
+        return 0;
+      }
+    }
     if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
       return -1;
     /* Module shared mutable let: store to text cell (true cross-fn). Prefer over stack. */

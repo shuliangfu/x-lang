@@ -5332,6 +5332,53 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       return append_byte(out, 41);
     }
     if (e.kind == ExprKind.EXPR_ASSIGN) {
+      /*
+       * wave334 Cap residual pure: fixed TYPE_ARRAY whole-array assign.
+       * Root: C arrays are not assignable — host gcc rejects
+       *   `int32_t a[3] = {…}; (void)((a = (int32_t[]){…}));`
+       * Emit memcpy into the array storage instead.
+       * Form: (memcpy((void*)(lhs), (const void*)(rhs), sizeof(lhs)))
+       * G.7 single host-C authority; freestanding uses direct slot write in glue.
+       * PLATFORM: SHARED host-C emit.
+       */
+      let lt_ref: i32 = pipeline_expr_resolved_type_ref(arena, e.binop_left_ref);
+      let is_fa: i32 = 0;
+      if (lt_ref > 0 && pipeline_type_kind_ord_at(arena, lt_ref) == (TypeKind.TYPE_ARRAY as i32)) {
+        is_fa = 1;
+      }
+      if (is_fa != 0) {
+        let pref: u8[16] = [109, 101, 109, 99, 112, 121, 40, 40, 118, 111, 105, 100, 42, 41, 40, 0];
+        let mid: u8[20] = [41, 44, 32, 40, 99, 111, 110, 115, 116, 32, 118, 111, 105, 100, 42, 41, 40, 0, 0, 0];
+        let mid_sz: u8[12] = [41, 44, 32, 115, 105, 122, 101, 111, 102, 40, 0, 0];
+        if (append_byte(out, 40) != 0) {
+          return -1;
+        }
+        if (emit_bytes_from_ptr(out, &pref[0], 15) != 0) {
+          return -1;
+        }
+        if (emit_expr(arena, out, e.binop_left_ref, ctx) != 0) {
+          return -1;
+        }
+        if (emit_bytes_from_ptr(out, &mid[0], 17) != 0) {
+          return -1;
+        }
+        if (emit_expr(arena, out, e.binop_right_ref, ctx) != 0) {
+          return -1;
+        }
+        if (emit_bytes_from_ptr(out, &mid_sz[0], 10) != 0) {
+          return -1;
+        }
+        if (emit_expr(arena, out, e.binop_left_ref, ctx) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 41) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 41) != 0) {
+          return -1;
+        }
+        return append_byte(out, 41);
+      }
       if (append_byte(out, 40) != 0) {
         return -1;
       }
