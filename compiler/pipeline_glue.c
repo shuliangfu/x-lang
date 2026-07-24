@@ -3991,6 +3991,45 @@ static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
   }
 
   /*
+   * wave363 Cap residual / tip L4: `let a: T[N] = 0` (and STRUCT_LIT field = 0).
+   * typeck coerces EXPR_LIT 0 onto TYPE_ARRAY (pipeline_typeck_coerce_init_lit_to_decl_c);
+   * host-C emits `= {0}`; freestanding previously returned -2 → CG002 num_funcs=0
+   * on Ubuntu gold (tests/array/main.x). Zero-fill each element into the inline slot.
+   * PLATFORM: SHARED freestanding · LINUX gold · only int_val==0 (product zero-init).
+   */
+  if (iko == (int32_t)ast_ExprKind_EXPR_LIT) {
+    int64_t lit_v = pipeline_expr_int64_val_at(arena, init_ref);
+    if (lit_v != 0)
+      return -2;
+    if (sret_direct == 0) {
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, base_off + foff, ta) != 0)
+        return -1;
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, 0, 0, ta) != 0)
+        return -1;
+      for (ai = 0; ai < n_arr; ai++) {
+        if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, ai * esz, esz, ta) != 0)
+          return -1;
+      }
+      return 0;
+    }
+    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, 0, 0, ta) != 0)
+      return -1;
+    for (ai = 0; ai < n_arr; ai++) {
+      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
+        return -1;
+      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + ai * esz, esz, ta) != 0)
+        return -1;
+    }
+    return 0;
+  }
+
+  /*
    * VAR or FIELD_ACCESS source → element-wise copy into dest field.
    * wave350: FIELD (`b0.a`) was -2 fallthrough → generic store 8B pointer / first lane.
    * PLATFORM: SHARED freestanding · host-C braced expand already emits (src)[i] (codegen.x).
