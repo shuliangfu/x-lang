@@ -3406,11 +3406,15 @@ int32_t codegen_emit_call_arg_slice_abi(struct ast_ASTArena * arena, struct code
       /* EXPR_CALL=48, EXPR_METHOD_CALL=49 (ast_ExprKind order). */
       if ((((arg.kind) == 48) || ((arg.kind) == 49))) {
         int32_t ty_ref = (arg.resolved_type_ref);
-        uint8_t open_stmt[4] = {40, 123, 32, 0};
-        uint8_t sp_eq[16] = {32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 32, 61, 32, 0, 0};
+        /* ({ static  — stack temp dies under host gcc -O2 when pass returns *s
+         * from a pointer into the stmt-expr local (Ubuntu SIGSEGV; -O0/mac OK).
+         * static last-wins matches escape/COMMON soft reentrancy leave-off. */
+        uint8_t open_stmt[12] = {40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0};
+        /*  __xlang_sp; __xlang_sp =  */
+        uint8_t sp_decl[28] = {32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 32, 61, 32, 0, 0};
         uint8_t end_sp[20] = {59, 32, 38, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 59, 32, 125, 41, 0, 0, 0};
         uint8_t fb[32] = {115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 105, 110, 116, 51, 50, 95, 116, 0, 0, 0, 0, 0, 0};
-        if ((codegen_emit_bytes_3(out, open_stmt, 3) !=0)) {
+        if ((codegen_emit_bytes_from_ptr(out, &((open_stmt)[0]), 10) !=0)) {
           return -(1);
         }
         if (((!(ast_ref_is_null(ty_ref)) && (ty_ref > 0)) && (ty_ref <= (arena->num_types)))) {
@@ -3422,7 +3426,7 @@ int32_t codegen_emit_call_arg_slice_abi(struct ast_ASTArena * arena, struct code
             return -(1);
           }
         }
-        if ((codegen_emit_bytes_from_ptr(out, &((sp_eq)[0]), 14) !=0)) {
+        if ((codegen_emit_bytes_from_ptr(out, &((sp_decl)[0]), 26) !=0)) {
           return -(1);
         }
         if ((codegen_emit_expr(arena, out, arg_ref, ctx) !=0)) {

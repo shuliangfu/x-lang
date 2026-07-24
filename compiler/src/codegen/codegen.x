@@ -2205,9 +2205,11 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
        */
       if (arg.kind == ExprKind.EXPR_CALL || arg.kind == ExprKind.EXPR_METHOD_CALL) {
         let ty_ref: i32 = arg.resolved_type_ref;
-        /* ({  */
-        let open_stmt: u8[4] = [40, 123, 32, 0];
-        if (emit_bytes_3(out, open_stmt, 3) != 0) {
+        /* ({ static  — stack temp dies under host gcc -O2 when pass returns *s
+         * from a pointer into the stmt-expr local (Ubuntu SIGSEGV; -O0/mac OK).
+         * static last-wins matches escape/COMMON soft reentrancy leave-off. */
+        let open_stmt: u8[12] = [40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0];
+        if (emit_bytes_from_ptr(out, &open_stmt[0], 10) != 0) {
           return -1;
         }
         if (!ast.ref_is_null(ty_ref) && ty_ref > 0 && ty_ref <= arena.num_types) {
@@ -2223,9 +2225,11 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
             return -1;
           }
         }
-        /*  __xlang_sp =  */
-        let sp_eq: u8[16] = [32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 32, 61, 32, 0, 0];
-        if (emit_bytes_from_ptr(out, &sp_eq[0], 14) != 0) {
+        /*  __xlang_sp; __xlang_sp =  — declare then assign (static init cannot call). */
+        let sp_decl: u8[28] = [
+          32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 32, 61, 32, 0, 0
+        ];
+        if (emit_bytes_from_ptr(out, &sp_decl[0], 26) != 0) {
           return -1;
         }
         if (emit_expr(arena, out, arg_ref, ctx) != 0) {
