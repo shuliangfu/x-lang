@@ -398,6 +398,9 @@ extern int32_t try_call_wpo_mono_vector_lane_of_binop_call_elf(struct ast_ASTAre
                                                                int32_t ta);
 
 extern int32_t backend_enc_mov_rax_to_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta);
+/* wave359: freestanding i32.double → x*2 (mov+add self). */
+extern int32_t backend_enc_mov_rax_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+extern int32_t backend_enc_add_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_call_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len,
                                      int32_t ta);
 extern int32_t backend_enc_push_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
@@ -3323,6 +3326,29 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
   if (name_len <= 0 || name_len > 63)
     return -1;
   pipeline_expr_method_call_name_into(arena, expr_ref, name);
+  /*
+   * wave359 Cap residual pure — freestanding i32.double() → x*2.
+   * Root: host codegen expands `(x * 2)`; freestanding called bare `double`
+   * → Ubuntu UNDEF (mac often host-C or dead_strip hid).
+   * G.7 authority: same bootstrap leaf as host METHOD_CALL double expand;
+   * only when typeck did NOT resolve UFCS free fn (call_resolved_func_index < 0).
+   * Emit: base → rax; mov rax→rbx; add rax,rbx → 2*base in rax (no new encoder).
+   * PLATFORM: SHARED — mac + Ubuntu freestanding L2.
+   */
+  {
+    int32_t r_fn = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+    if (r_fn < 0 && nargs == 0 && name_len == 6 && base_ref != 0 && name[0] == (uint8_t)'d' &&
+        name[1] == (uint8_t)'o' && name[2] == (uint8_t)'u' && name[3] == (uint8_t)'b' &&
+        name[4] == (uint8_t)'l' && name[5] == (uint8_t)'e') {
+      if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0)
+        return -1;
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_add_rax_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      return 0;
+    }
+  }
   /** import binding：encoding.foo(args) 静态调用，receiver 不入参。 */
   if (mod_ref && base_ref > 0 && pipeline_expr_kind_ord_at(arena, base_ref) == GLUE_EXPR_VAR_ORD) {
     uint8_t base_name[64];

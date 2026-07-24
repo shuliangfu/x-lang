@@ -42,6 +42,10 @@ export extern "C" function pipeline_expr_call_arg_ref(arena: *u8, er: i32, i: i3
 export extern "C" function backend_enc_mov_imm32_to_w0_arch(elf: *u8, imm: i32, ta: i32): i32;
 export extern "C" function backend_enc_mov_imm32_to_rbx_arch(elf: *u8, imm: i32, ta: i32): i32;
 export extern "C" function backend_enc_mov_rax_to_arg_reg_arch(elf: *u8, k: i32, ta: i32): i32;
+/** wave359: freestanding i32.double → x*2 (mov+add self). */
+export extern "C" function backend_enc_mov_rax_to_rbx_arch(elf: *u8, ta: i32): i32;
+export extern "C" function backend_enc_add_rax_rbx_arch(elf: *u8, ta: i32): i32;
+export extern "C" function pipeline_expr_call_resolved_func_index_at(arena: *u8, er: i32): i32;
 export extern "C" function driver_get_current_dep_path_for_codegen(): *u8;
 export extern "C" function pipeline_asm_module_func_name_len_at(m: *u8, fi: i32): i32;
 export extern "C" function pipeline_asm_module_func_name_copy64(m: *u8, fi: i32, dst: *u8): void;
@@ -1465,14 +1469,19 @@ export function pipeline_asm_emit_call_args_text_c(
 }
 
 // G-02f-147：EXPR_METHOD_CALL ELF；module_ref@16 LE；IMPORT_BINDING=1 VAR=3
-/** Exported function `pipeline_asm_emit_method_call_elf_c`.
- * Implements `pipeline_asm_emit_method_call_elf_c`.
- * @param arena *u8
- * @param elf_ctx *u8
- * @param expr_ref i32
- * @param ctx *u8
- * @param ta i32
- * @return i32
+/**
+ * Freestanding METHOD_CALL ELF emit (import.method + UFCS free + bootstrap i32.double).
+ * wave359: when typeck did not resolve a same-module free fn, `x.double()` with 0 args
+ * expands to `2*x` (mov rax→rbx; add rax,rbx) — mirrors host `(x * 2)` so Ubuntu no longer
+ * UNDEF `double`. UFCS free methods named `double` keep call_resolved_func_index >= 0 and
+ * fall through to the normal call path.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param expr_ref i32 — METHOD_CALL expr ref
+ * @param ctx *u8 — AsmFuncCtx (module_ref at +16)
+ * @param ta i32 — target arch (0=x86_64, 1=arm64, …)
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED — mac + Ubuntu freestanding
  */
 #[no_mangle]
 export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -1491,7 +1500,34 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
     if (name_len > 63) { return 0 - 1; }
     let name: u8[64] = [];
     pipeline_expr_method_call_name_into(arena, expr_ref, &name[0]);
-    // See implementation.
+    // wave359: bootstrap i32.double → 2*x when not UFCS-resolved free fn.
+    let r_fn: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+    if (r_fn < 0) {
+      if (nargs == 0) {
+        if (name_len == 6) {
+          if (base_ref != 0) {
+            if (name[0] == 100) {
+              if (name[1] == 111) {
+                if (name[2] == 117) {
+                  if (name[3] == 98) {
+                    if (name[4] == 108) {
+                      if (name[5] == 101) {
+                        if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+                          return 0 - 1;
+                        }
+                        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+                        if (backend_enc_add_rax_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+                        return 0;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
     if (mod_ref != 0) {
       if (base_ref > 0) {
         if (pipeline_expr_kind_ord_at(arena, base_ref) == 3) {
