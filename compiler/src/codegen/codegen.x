@@ -5301,25 +5301,102 @@ function codegen_emit_match_arm_value(arena: *ASTArena, out: *CodegenOutBuf, res
 }
 
 /**
- * True if any match arm result is EXPR_RETURN (needs statement if/else, not ternary).
+ * True if a block contains an explicit `return` statement (expr_stmt, final RETURN,
+ * nested region body, or nested EXPR_BLOCK). Does **not** treat a value final_expr
+ * (e.g. `{ 42 }`) as return — unlike codegen_block_contains_return.
+ * @param arena *ASTArena — expression arena
+ * @param block_ref i32 — block pool ref
+ * @return i32 — 1 if explicit return present, else 0
+ * PLATFORM: SHARED — host-C match stmt form gate (wave374).
+ */
+function codegen_block_has_explicit_return(arena: *ASTArena, block_ref: i32): i32 {
+  // PLATFORM: SHARED — only real return control, not value final_expr.
+  unsafe {
+    if (arena == 0 as *ASTArena || ast.ref_is_null(block_ref)) {
+      return 0;
+    }
+    if (block_ref <= 0 || block_ref > arena.num_blocks) {
+      return 0;
+    }
+    let ji: i32 = 0;
+    let nes: i32 = ast.ast_block_num_expr_stmts(arena, block_ref);
+    while (ji < nes) {
+      let se_ref: i32 = ast.ast_block_expr_stmt_ref(arena, block_ref, ji);
+      let se: Expr = ast.ast_arena_expr_get(arena, se_ref);
+      if (se.kind == ExprKind.EXPR_RETURN) {
+        return 1;
+      }
+      if (se.kind == ExprKind.EXPR_BLOCK && codegen_block_has_explicit_return(arena, se.block_ref) != 0) {
+        return 1;
+      }
+      ji = ji + 1;
+    }
+    let fr: i32 = ast.ast_block_final_expr_ref(arena, block_ref);
+    if (!ast.ref_is_null(fr)) {
+      let fe: Expr = ast.ast_arena_expr_get(arena, fr);
+      if (fe.kind == ExprKind.EXPR_RETURN) {
+        return 1;
+      }
+      if (fe.kind == ExprKind.EXPR_BLOCK && codegen_block_has_explicit_return(arena, fe.block_ref) != 0) {
+        return 1;
+      }
+    }
+    let ri: i32 = 0;
+    let nr: i32 = ast.ast_block_num_regions(arena, block_ref);
+    while (ri < nr) {
+      let rb: i32 = ast.ast_block_region_body_ref(arena, block_ref, ri);
+      if (codegen_block_has_explicit_return(arena, rb) != 0) {
+        return 1;
+      }
+      ri = ri + 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * True if a match arm result is return-control: bare `return e` or `{ … return …; }`.
+ * Value blocks `{ 42 }` are not return-control (stay ternary / final return value).
+ * @param arena *ASTArena
+ * @param res_ref i32 — arm result expr
+ * @return i32 — 1 if return-control, else 0
+ * PLATFORM: SHARED — host-C match stmt form gate (wave374).
+ */
+function codegen_match_arm_result_is_return_control(arena: *ASTArena, res_ref: i32): i32 {
+  // PLATFORM: SHARED — arm root RETURN or block with explicit return.
+  unsafe {
+    if (ast.ref_is_null(res_ref)) {
+      return 0;
+    }
+    let re: Expr = ast.ast_arena_expr_get(arena, res_ref);
+    if (re.kind == ExprKind.EXPR_RETURN) {
+      return 1;
+    }
+    if (re.kind == ExprKind.EXPR_BLOCK) {
+      return codegen_block_has_explicit_return(arena, re.block_ref);
+    }
+    return 0;
+  }
+}
+
+/**
+ * True if any match arm is return-control (needs statement if/else, not ternary).
+ * Covers bare `=> return N` (wave372) and block arms `=> { return N; }` (wave374).
  * @param arena *ASTArena — expression arena
  * @param expr_ref i32 — EXPR_MATCH node
- * @return i32 — 1 if any arm is return, else 0
- * PLATFORM: SHARED — host-C match stmt form gate (wave372).
+ * @return i32 — 1 if any arm is return-control, else 0
+ * PLATFORM: SHARED — host-C match stmt form gate (wave372/wave374).
  */
 function codegen_match_has_return_arm(arena: *ASTArena, expr_ref: i32): i32 {
-  // PLATFORM: SHARED — scan arm results for EXPR_RETURN.
+  // PLATFORM: SHARED — scan arm results for return-control.
   unsafe {
     let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
     let n: i32 = e.match_num_arms;
     let i: i32 = 0;
     while (i < n) {
       let res: i32 = pipeline_expr_match_arm_result_ref(arena, expr_ref, i);
-      if (!ast.ref_is_null(res)) {
-        let re: Expr = ast.ast_arena_expr_get(arena, res);
-        if (re.kind == ExprKind.EXPR_RETURN) {
-          return 1;
-        }
+      if (codegen_match_arm_result_is_return_control(arena, res) != 0) {
+        return 1;
       }
       i = i + 1;
     }
@@ -5340,13 +5417,17 @@ function codegen_match_has_return_arm(arena: *ASTArena, expr_ref: i32): i32 {
  */
 function codegen_emit_match_stmt_arm_body(arena: *ASTArena, out: *CodegenOutBuf, res_ref: i32,
     indent: i32, ctx: *PipelineDepCtx, fn_ret_void: i32): i32 {
-  // PLATFORM: SHARED — RETURN → real return stmt; else (void)(value);
+  // PLATFORM: SHARED — RETURN → real return; BLOCK → emit_block; else (void)(value);
   unsafe {
     if (!ast.ref_is_null(res_ref)) {
       let re: Expr = ast.ast_arena_expr_get(arena, res_ref);
       if (re.kind == ExprKind.EXPR_RETURN) {
         return emit_return_stmt_with_context(arena, out, indent + 2, re.unary_operand_ref, ctx,
             fn_ret_void);
+      }
+      /* wave374: block arm `{ return N; … }` as real statements inside if/else body */
+      if (re.kind == ExprKind.EXPR_BLOCK && !ast.ref_is_null(re.block_ref)) {
+        return emit_block(arena, out, re.block_ref, indent + 2, ctx);
       }
     }
     if (emit_indent(out, indent + 2) != 0) {
@@ -8921,6 +9002,18 @@ export function codegen_current_func_is_named_main(ctx: *PipelineDepCtx): i32 {
 export function emit_return_stmt_with_context(arena: *ASTArena, out: *CodegenOutBuf, indent: i32, operand_ref: i32, ctx: *PipelineDepCtx, fn_ret_void: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
+    /*
+     * wave374: `return match { … => { return N; }; }` — do not nest return in
+     * ternary value position. Emit match as if/else with real returns.
+     * Value-only match arms still use the normal `return (ternary…)` path below.
+     * PLATFORM: SHARED — G.7 codegen_emit_match_as_stmt authority.
+     */
+    if (fn_ret_void == 0 && !ast.ref_is_null(operand_ref)) {
+      let mop: Expr = ast.ast_arena_expr_get(arena, operand_ref);
+      if (mop.kind == ExprKind.EXPR_MATCH && codegen_match_has_return_arm(arena, operand_ref) != 0) {
+        return codegen_emit_match_as_stmt(arena, out, operand_ref, indent, ctx, fn_ret_void);
+      }
+    }
 
     if (fn_ret_void != 0) {
       if (!ast.ref_is_null(operand_ref)) {
@@ -9306,6 +9399,15 @@ export function emit_block_final_expr(arena: *ASTArena, out: *CodegenOutBuf, blo
   }
   if (fe.kind == ExprKind.EXPR_RETURN) {
     return emit_return_stmt_with_context(arena, out, indent, fe.unary_operand_ref, ctx, fn_ret_void);
+  }
+  /*
+   * wave374: function-final `match { … => { return N; }; }` must not become
+   * `return (subj==…?(({ return N; })):…)` (void stmt-expr in value position).
+   * Same gate as mid-body: return-control arms → if/else real return.
+   * PLATFORM: SHARED — host-C match stmt form (G.7 codegen_emit_match_as_stmt).
+   */
+  if (fe.kind == ExprKind.EXPR_MATCH && codegen_match_has_return_arm(arena, final_ref) != 0) {
+    return codegen_emit_match_as_stmt(arena, out, final_ref, indent, ctx, fn_ret_void);
   }
   let parent_br: i32 = 0;
   if (block_ref > 0 && block_ref <= arena.num_blocks) {

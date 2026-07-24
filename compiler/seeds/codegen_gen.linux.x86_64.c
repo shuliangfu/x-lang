@@ -5872,21 +5872,68 @@ static int32_t codegen_emit_match_arm_value(struct ast_ASTArena *arena, struct c
   }
   return codegen_emit_expr(arena, out, res_ref, ctx);
 }
-/* PLATFORM: SHARED — wave372 host match stmt form (codegen.x twin). */
+/* PLATFORM: SHARED — wave374 host match stmt form (codegen.x twin).
+ * Detect bare RETURN arms and block arms with explicit return (not value final_expr). */
+static int32_t codegen_block_has_explicit_return(struct ast_ASTArena *arena, int32_t block_ref) {
+  int32_t ji;
+  int32_t nes;
+  int32_t se_ref;
+  struct ast_Expr se;
+  int32_t fr;
+  struct ast_Expr fe;
+  int32_t ri;
+  int32_t nr;
+  int32_t rb;
+  if (arena == 0 || ast_ref_is_null(block_ref))
+    return 0;
+  if (block_ref <= 0 || block_ref > arena->num_blocks)
+    return 0;
+  nes = ast_ast_block_num_expr_stmts(arena, block_ref);
+  for (ji = 0; ji < nes; ji++) {
+    se_ref = ast_ast_block_expr_stmt_ref(arena, block_ref, ji);
+    se = ast_ast_arena_expr_get(arena, se_ref);
+    if ((int32_t)se.kind == 41)
+      return 1;
+    if ((int32_t)se.kind == 26 && codegen_block_has_explicit_return(arena, se.block_ref) != 0)
+      return 1;
+  }
+  fr = ast_ast_block_final_expr_ref(arena, block_ref);
+  if (!ast_ref_is_null(fr)) {
+    fe = ast_ast_arena_expr_get(arena, fr);
+    if ((int32_t)fe.kind == 41)
+      return 1;
+    if ((int32_t)fe.kind == 26 && codegen_block_has_explicit_return(arena, fe.block_ref) != 0)
+      return 1;
+  }
+  nr = ast_ast_block_num_regions(arena, block_ref);
+  for (ri = 0; ri < nr; ri++) {
+    rb = ast_ast_block_region_body_ref(arena, block_ref, ri);
+    if (codegen_block_has_explicit_return(arena, rb) != 0)
+      return 1;
+  }
+  return 0;
+}
+static int32_t codegen_match_arm_result_is_return_control(struct ast_ASTArena *arena, int32_t res_ref) {
+  struct ast_Expr re;
+  if (ast_ref_is_null(res_ref))
+    return 0;
+  re = ast_ast_arena_expr_get(arena, res_ref);
+  if ((int32_t)re.kind == 41)
+    return 1;
+  if ((int32_t)re.kind == 26)
+    return codegen_block_has_explicit_return(arena, re.block_ref);
+  return 0;
+}
 static int32_t codegen_match_has_return_arm(struct ast_ASTArena *arena, int32_t expr_ref) {
   struct ast_Expr e;
   int32_t n;
   int32_t i;
   int32_t res;
-  struct ast_Expr re;
   e = ast_ast_arena_expr_get(arena, expr_ref);
   n = e.match_num_arms;
   for (i = 0; i < n; i++) {
     res = pipeline_expr_match_arm_result_ref(arena, expr_ref, i);
-    if (ast_ref_is_null(res))
-      continue;
-    re = ast_ast_arena_expr_get(arena, res);
-    if ((int32_t)re.kind == 41)
+    if (codegen_match_arm_result_is_return_control(arena, res) != 0)
       return 1;
   }
   return 0;
@@ -5902,6 +5949,9 @@ static int32_t codegen_emit_match_stmt_arm_body(struct ast_ASTArena *arena, stru
     if ((int32_t)re.kind == 41)
       return codegen_emit_return_stmt_with_context(arena, out, indent + 2, re.unary_operand_ref, ctx,
                                                    fn_ret_void);
+    /* wave374: block arm as real statements inside if/else body */
+    if ((int32_t)re.kind == 26 && !ast_ref_is_null(re.block_ref))
+      return codegen_emit_block(arena, out, re.block_ref, indent + 2, ctx);
   }
   if (codegen_emit_indent(out, indent + 2) != 0)
     return -1;
@@ -9326,6 +9376,13 @@ int32_t codegen_emit_return_stmt_with_context(struct ast_ASTArena * arena, struc
   {
     uint8_t ret[8] = {114, 101, 116, 117, 114, 110, 32, 0};
     uint8_t sc[4] = {59, 10, 0, 0};
+    /* wave374: return match with return-control arms → if/else real returns */
+    if (((fn_ret_void == 0) && !(ast_ref_is_null(operand_ref)))) {
+      struct ast_Expr mop = ast_ast_arena_expr_get(arena, operand_ref);
+      if ((((mop.kind) == 43) && (codegen_match_has_return_arm(arena, operand_ref) != 0))) {
+        return codegen_emit_match_as_stmt(arena, out, operand_ref, indent, ctx, fn_ret_void);
+      }
+    }
     if ((fn_ret_void !=0)) {
       uint8_t retv[9] = {114, 101, 116, 117, 114, 110, 59, 10, 0};
       if (!(ast_ref_is_null(operand_ref))) {
@@ -9661,6 +9718,10 @@ int32_t codegen_emit_block_final_expr(struct ast_ASTArena * arena, struct codege
   }
   if (((fe.kind) ==41)) {
     return codegen_emit_return_stmt_with_context(arena, out, indent, (fe.unary_operand_ref), ctx, fn_ret_void);
+  }
+  /* wave374: final match with return-control arms → if/else, not return(ternary) */
+  if (((fe.kind) ==43) && (codegen_match_has_return_arm(arena, final_ref) !=0)) {
+    return codegen_emit_match_as_stmt(arena, out, final_ref, indent, ctx, fn_ret_void);
   }
   int32_t parent_br = 0;
   int32_t is_func_body = 0;
