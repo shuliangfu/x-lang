@@ -26870,12 +26870,19 @@ extern void pipeline_debug_trace_named_func_bodies(const char *phase, void *modu
 int32_t pipeline_parse_into_buf_impl_c(struct ast_ASTArena *arena, struct ast_Module *module, uint8_t *buf,
                                         int32_t buf_len) {
   struct parser_ParseIntoResult pr;
+  extern void xlang_trait_reg_reset_c(void);
+  extern int32_t xlang_trait_check_impls_complete_c(void *module);
 
   if (!arena || !module || !buf || buf_len <= 0)
     return -1;
+  /* wave421: per-module trait registry for missing-method diagnostics. */
+  xlang_trait_reg_reset_c();
   parser_parse_into_init(module, arena);
   pr = parser_parse_into_buf(arena, module, buf, buf_len);
   if (pr.ok == 0) {
+    /* Completeness check before dep loads wipe the registry. */
+    if (xlang_trait_check_impls_complete_c(module) != 0)
+      return -1;
     pipeline_debug_trace_named_func_bodies("parse_post", module, arena);
     pipeline_module_fixup_with_arena_stmt_orders(module, arena);
     pipeline_debug_trace_named_func_bodies("parse_post_fixup", module, arena);
@@ -26983,13 +26990,28 @@ struct parser_ParseIntoResult pipeline_parse_into_with_init_buf_impl_c(struct as
                                                                         struct ast_Module *module, uint8_t *data,
                                                                         int32_t len) {
   struct parser_ParseIntoResult fail;
+  struct parser_ParseIntoResult pr;
+  extern void xlang_trait_reg_reset_c(void);
+  extern int32_t xlang_trait_check_impls_complete_c(void *module);
 
   fail.ok = 1;
   fail.main_idx = -1;
   if (!arena || !module || !data || len <= 0)
     return fail;
+  /* wave421 Cap residual pure — per-module trait registry for missing method.
+   * Root: incomplete impl was false-green; check immediately after parse so
+   * dep load reset cannot wipe entry trait tables.
+   * G.7: xlang_trait_* in skip_tl + this product parse entry.
+   * PLATFORM: SHARED parse. */
+  xlang_trait_reg_reset_c();
   pipeline_strict_parse_into_init(arena, module);
-  return parser_parse_into_buf(arena, module, data, len);
+  pr = parser_parse_into_buf(arena, module, data, len);
+  if (pr.ok == 0 && xlang_trait_check_impls_complete_c(module) != 0) {
+    fail.ok = 1;
+    fail.main_idx = -1;
+    return fail;
+  }
+  return pr;
 }
 
 #ifdef XLANG_PIPELINE_GLUE_STANDALONE_TU
@@ -33832,7 +33854,23 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_method_call_c(struct as
     pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
   if (base_rc != 0 && ret_ty == 0)
     return -1;
-  return ret_ty != 0 ? 0 : -1;
+  if (ret_ty != 0)
+    return 0;
+  /*
+   * wave421 Cap residual pure — no-impl diagnostic (LANG-004 T5).
+   * Weak twin of strict_minimal strong body; product may link either.
+   * PLATFORM: SHARED typeck.
+   */
+  {
+    extern void lsp_diag_report_typeck(int line, int col, const char *fmt, ...);
+    extern int32_t pipeline_expr_line_at(struct ast_ASTArena *a, int32_t expr_ref);
+    extern int32_t pipeline_expr_col_at(struct ast_ASTArena *a, int32_t expr_ref);
+    int32_t line = pipeline_expr_line_at(arena, expr_ref);
+    int32_t col = pipeline_expr_col_at(arena, expr_ref);
+    lsp_diag_report_typeck((int)line, (int)col, "no impl for type with method %.*s", (int)method_nlen,
+                           (const char *)method_nm);
+  }
+  return -1;
 }
 
 /**

@@ -706,6 +706,184 @@ static int32_t parser_asm_seed_impl_type_start_kind_c(int32_t kind) {
   return 0;
 }
 
+/*
+ * wave421 Cap residual pure — trait method registry for missing-method diagnostics.
+ * Root: product path only hoisted impl methods as free funcs (wave390); never stored
+ * trait signatures → impl_missing_method.x false-green (compile exit 0).
+ * G.7: single table in seed parse_into_buf (reset per module); soft remains bounds/dyn.
+ * PLATFORM: SHARED parse.
+ */
+#define XLANG_TRAIT_REG_MAX 16
+#define XLANG_TRAIT_METH_MAX 32
+typedef struct {
+  uint8_t name[64];
+  int32_t name_len;
+  uint8_t methods[XLANG_TRAIT_METH_MAX][64];
+  int32_t method_lens[XLANG_TRAIT_METH_MAX];
+  int32_t num_methods;
+} xlang_trait_reg_ent_t;
+static xlang_trait_reg_ent_t g_xlang_trait_reg[XLANG_TRAIT_REG_MAX];
+static int32_t g_xlang_trait_reg_n;
+
+static void xlang_trait_reg_reset_c(void) {
+  g_xlang_trait_reg_n = 0;
+  memset(g_xlang_trait_reg, 0, sizeof(g_xlang_trait_reg));
+}
+
+static void xlang_trait_reg_copy_ident_c(uint8_t *data, int32_t len, size_t token_start, int32_t ident_len,
+                                          uint8_t *out64, int32_t *out_len) {
+  int32_t n = ident_len;
+  if (!out64 || !out_len)
+    return;
+  *out_len = 0;
+  memset(out64, 0, 64);
+  if (!data || len <= 0 || n <= 0)
+    return;
+  if (n > 63)
+    n = 63;
+  if ((size_t)token_start + (size_t)n > (size_t)len)
+    return;
+  memcpy(out64, data + token_start, (size_t)n);
+  *out_len = n;
+}
+
+static int32_t xlang_trait_reg_find_c(const uint8_t *name, int32_t name_len) {
+  int32_t i;
+  if (!name || name_len <= 0)
+    return -1;
+  for (i = 0; i < g_xlang_trait_reg_n; i++) {
+    if (g_xlang_trait_reg[i].name_len == name_len &&
+        memcmp(g_xlang_trait_reg[i].name, name, (size_t)name_len) == 0)
+      return i;
+  }
+  return -1;
+}
+
+extern void lsp_diag_report_typeck(int line, int col, const char *fmt, ...);
+extern int32_t pipeline_module_num_funcs(void *module);
+extern int32_t pipeline_module_func_name_equal_at(void *module, int32_t fi, uint8_t *name, int32_t name_len);
+
+/**
+ * Register trait Name { function m(...); ... } method names; advance lex past `}`.
+ * @return 0 success; -1 parse fail (caller may fallback skip).
+ */
+static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len,
+                                                 struct parser_asm_lexer *lex_out) {
+  struct parser_asm_lexer_result r;
+  xlang_trait_reg_ent_t *ent;
+  int32_t guard;
+
+  if (!data || len <= 0 || !lex_out)
+    return -1;
+  r = lexer_next_buf(lex, data, len);
+  if (r.tok.kind != (int32_t)TOKEN_TRAIT)
+    return -1;
+  parser_lex_from_next_into_glue(&lex, r);
+  r = lexer_next_buf(lex, data, len);
+  if (r.tok.kind != (int32_t)TOKEN_IDENT)
+    return -1;
+  if (g_xlang_trait_reg_n >= XLANG_TRAIT_REG_MAX)
+    return -1;
+  ent = &g_xlang_trait_reg[g_xlang_trait_reg_n];
+  memset(ent, 0, sizeof(*ent));
+  xlang_trait_reg_copy_ident_c(data, len, r.token_start, r.tok.ident_len, ent->name, &ent->name_len);
+  if (ent->name_len <= 0)
+    return -1;
+  parser_lex_from_next_into_glue(&lex, r);
+  r = lexer_next_buf(lex, data, len);
+  if (r.tok.kind != (int32_t)TOKEN_LBRACE)
+    return -1;
+  lex = r.next_lex;
+  guard = 0;
+  while (guard++ < 512) {
+    r = lexer_next_buf(lex, data, len);
+    if (r.tok.kind == (int32_t)TOKEN_RBRACE) {
+      lex_out->pos = r.next_lex.pos;
+      lex_out->line = r.next_lex.line;
+      lex_out->col = r.next_lex.col;
+      g_xlang_trait_reg_n++;
+      return 0;
+    }
+    if (r.tok.kind == (int32_t)TOKEN_EOF)
+      return -1;
+    if (r.tok.kind == (int32_t)TOKEN_FUNCTION) {
+      parser_lex_from_next_into_glue(&lex, r);
+      r = lexer_next_buf(lex, data, len);
+      if (r.tok.kind == (int32_t)TOKEN_IDENT && ent->num_methods < XLANG_TRAIT_METH_MAX) {
+        int32_t mi = ent->num_methods;
+        xlang_trait_reg_copy_ident_c(data, len, r.token_start, r.tok.ident_len, ent->methods[mi],
+                                     &ent->method_lens[mi]);
+        if (ent->method_lens[mi] > 0)
+          ent->num_methods++;
+      }
+      /* Skip remainder of signature/body until `;` or balanced `{...}` then optional `;`. */
+      {
+        int32_t depth = 0;
+        int32_t steps = 0;
+        while (steps++ < 4096) {
+          if (r.tok.kind == (int32_t)TOKEN_LBRACE)
+            depth++;
+          else if (r.tok.kind == (int32_t)TOKEN_RBRACE) {
+            if (depth > 0)
+              depth--;
+            if (depth == 0) {
+              /* method with body; allow trailing semicolon */
+              lex = r.next_lex;
+              break;
+            }
+          } else if (r.tok.kind == (int32_t)TOKEN_SEMICOLON && depth == 0) {
+            lex = r.next_lex;
+            break;
+          } else if (r.tok.kind == (int32_t)TOKEN_EOF)
+            return -1;
+          parser_lex_from_next_into_glue(&lex, r);
+          r = lexer_next_buf(lex, data, len);
+        }
+      }
+      continue;
+    }
+    /* Unknown token inside trait: advance one token (doc comments already stripped). */
+    parser_lex_from_next_into_glue(&lex, r);
+  }
+  return -1;
+}
+
+/**
+ * After impl Trait for T body: require every trait method as a free module func.
+ * @return 0 ok; -2 hard missing method (abort parse_into).
+ */
+static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const uint8_t *trait_nm,
+                                                            int32_t trait_nlen, int32_t line, int32_t col) {
+  int32_t ti;
+  int32_t mi;
+  int32_t nf;
+  int32_t fi;
+  if (!module || !trait_nm || trait_nlen <= 0)
+    return 0;
+  ti = xlang_trait_reg_find_c(trait_nm, trait_nlen);
+  if (ti < 0)
+    return 0; /* unknown_trait soft leave-off */
+  nf = pipeline_module_num_funcs(module);
+  for (mi = 0; mi < g_xlang_trait_reg[ti].num_methods; mi++) {
+    int32_t found = 0;
+    const uint8_t *mnm = g_xlang_trait_reg[ti].methods[mi];
+    int32_t mlen = g_xlang_trait_reg[ti].method_lens[mi];
+    if (mlen <= 0)
+      continue;
+    for (fi = 0; fi < nf; fi++) {
+      if (pipeline_module_func_name_equal_at(module, fi, mnm, mlen) != 0) {
+        found = 1;
+        break;
+      }
+    }
+    if (!found) {
+      lsp_diag_report_typeck((int)line, (int)col, "missing method %.*s", (int)mlen, (const char *)mnm);
+      return -2;
+    }
+  }
+  return 0;
+}
+
 /**
  * wave390 Cap residual pure — parse `impl [Trait for] Type { methods }` and hoist
  * each method as a same-module free function (UFCS receiver.method).
@@ -717,10 +895,12 @@ static int32_t parser_asm_seed_impl_type_start_kind_c(int32_t kind) {
  * - Who stores: module.funcs via seed_commit_onefunc (same as top-level function).
  * - Who consumes: typeck UFCS (wave358/360) + host/fs emit free method.
  * G.7 authority: this seed parse_into_buf path (product parse_into_buf strong symbol).
- * Soft leave-off: trait bounds / dyn Trait / missing-method diagnostics (tests stay).
+ * wave421: missing-method check vs registered trait methods (return -2 hard fail).
+ * Soft leave-off: trait bounds / dyn Trait.
  * PLATFORM: SHARED parse · mac + Ubuntu L2.
  *
- * @return 0 success (lex_out past closing `}`); -1 failure (caller may fallback skip).
+ * @return 0 success (lex_out past closing `}`); -1 failure (caller may fallback skip);
+ *         -2 hard trait completeness error (abort parse_into).
  */
 static int32_t parser_asm_seed_parse_impl_and_add_c(void *arena, void *module, struct parser_asm_lexer lex,
                                                      uint8_t *data, int32_t len, struct parser_asm_lexer *lex_out,
@@ -730,15 +910,23 @@ static int32_t parser_asm_seed_parse_impl_and_add_c(void *arena, void *module, s
   struct parser_asm_lexer body;
   int32_t guard;
   int32_t func_is_async;
+  uint8_t trait_nm[64];
+  int32_t trait_nlen = 0;
+  int32_t is_trait_impl = 0;
+  int32_t impl_line = 0;
+  int32_t impl_col = 0;
 
   if (!arena || !module || !data || len <= 0 || !lex_out)
     return -1;
   slice.data = data;
   slice.length = (size_t)len;
+  memset(trait_nm, 0, sizeof(trait_nm));
 
   r = lexer_next_buf(lex, data, len);
   if (r.tok.kind != (int32_t)TOKEN_IMPL)
     return -1;
+  impl_line = r.tok.line;
+  impl_col = r.tok.col;
   parser_lex_from_next_into_glue(&lex, r);
 
   /* Header: impl Trait for Type | impl Type */
@@ -751,9 +939,13 @@ static int32_t parser_asm_seed_parse_impl_and_add_c(void *arena, void *module, s
     if (!parser_asm_seed_impl_type_start_kind_c(r.tok.kind) || r.tok.kind == (int32_t)TOKEN_STAR)
       return -1;
   }
+  /* First name: trait (if `for`) or inherent type. */
+  if (r.tok.kind == (int32_t)TOKEN_IDENT)
+    xlang_trait_reg_copy_ident_c(data, len, r.token_start, r.tok.ident_len, trait_nm, &trait_nlen);
   parser_lex_from_next_into_glue(&lex, r);
   r = lexer_next_buf(lex, data, len);
   if (r.tok.kind == (int32_t)TOKEN_FOR) {
+    is_trait_impl = (trait_nlen > 0) ? 1 : 0;
     parser_lex_from_next_into_glue(&lex, r);
     r = lexer_next_buf(lex, data, len);
     if (!parser_asm_seed_impl_type_start_kind_c(r.tok.kind))
@@ -766,6 +958,10 @@ static int32_t parser_asm_seed_parse_impl_and_add_c(void *arena, void *module, s
     }
     parser_lex_from_next_into_glue(&lex, r);
     r = lexer_next_buf(lex, data, len);
+  } else {
+    /* Inherent impl: clear trait name so we do not false-check. */
+    trait_nlen = 0;
+    is_trait_impl = 0;
   }
   if (r.tok.kind != (int32_t)TOKEN_LBRACE)
     return -1;
@@ -783,6 +979,13 @@ static int32_t parser_asm_seed_parse_impl_and_add_c(void *arena, void *module, s
       lex_out->pos = r.next_lex.pos;
       lex_out->line = r.next_lex.line;
       lex_out->col = r.next_lex.col;
+      /* wave421: trait completeness after all methods committed. */
+      if (is_trait_impl) {
+        int32_t mrc =
+            parser_asm_seed_check_impl_missing_methods_c(module, trait_nm, trait_nlen, impl_line, impl_col);
+        if (mrc != 0)
+          return mrc;
+      }
       return 0;
     }
     if (r.tok.kind == (int32_t)TOKEN_EOF)
@@ -840,6 +1043,9 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
   out.main_idx = -1;
   if (!arena || !module || !data || len <= 0)
     return out;
+
+  /* wave421: per-module trait method registry (missing-method diagnostics). */
+  xlang_trait_reg_reset_c();
 
   mod_hdr = (parser_asm_x_module_hdr_t *)module;
   lex.pos = 0;
@@ -1755,17 +1961,30 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
       continue;
     }
     if (r.tok.kind == (int32_t)TOKEN_TRAIT) {
-      parser_skip_one_trait_into_buf_glue(&lex, iter_start, data, len);
-      if (lex.pos == iter_start.pos && lex.pos < (size_t)len)
-        lex.pos++;
+      /* wave421: register method names for missing-method check; fallback skip. */
+      if (parser_asm_seed_register_trait_c(iter_start, data, len, &lex) != 0) {
+        parser_skip_one_trait_into_buf_glue(&lex, iter_start, data, len);
+        if (lex.pos == iter_start.pos && lex.pos < (size_t)len)
+          lex.pos++;
+      }
       continue;
     }
     if (r.tok.kind == (int32_t)TOKEN_IMPL) {
-      /* wave390: hoist impl methods as free funcs (UFCS). Fallback skip on hard fail. */
-      if (parser_asm_seed_parse_impl_and_add_c(arena, module, iter_start, data, len, &lex, &main_idx) != 0) {
-        parser_skip_one_impl_into_buf_glue(&lex, iter_start, data, len);
-        if (lex.pos == iter_start.pos && lex.pos < (size_t)len)
-          lex.pos++;
+      /* wave390: hoist impl methods as free funcs (UFCS).
+       * wave421: -2 = missing method hard fail (do not soft-skip). */
+      {
+        int32_t impl_rc =
+            parser_asm_seed_parse_impl_and_add_c(arena, module, iter_start, data, len, &lex, &main_idx);
+        if (impl_rc == -2) {
+          out.ok = 0;
+          out.main_idx = -1;
+          return out;
+        }
+        if (impl_rc != 0) {
+          parser_skip_one_impl_into_buf_glue(&lex, iter_start, data, len);
+          if (lex.pos == iter_start.pos && lex.pos < (size_t)len)
+            lex.pos++;
+        }
       }
       continue;
     }

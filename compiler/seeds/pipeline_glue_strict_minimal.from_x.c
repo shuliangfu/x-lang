@@ -2591,6 +2591,22 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
   }
   if (base_rc != 0)
     return -1;
+  /*
+   * wave421 Cap residual pure — no-impl diagnostic (LANG-004 T5 / baseline).
+   * Root: UFCS fail returned -1 with only XT001 check_block noise; tests expect
+   * "no impl for type". Soft: dyn Trait / bounds remain leave-off.
+   * G.7 authority: this strong method_call body.
+   * PLATFORM: SHARED typeck.
+   */
+  {
+    extern void lsp_diag_report_typeck(int line, int col, const char *fmt, ...);
+    extern int32_t pipeline_expr_line_at(struct ast_ASTArena *a, int32_t expr_ref);
+    extern int32_t pipeline_expr_col_at(struct ast_ASTArena *a, int32_t expr_ref);
+    int32_t line = pipeline_expr_line_at(arena, expr_ref);
+    int32_t col = pipeline_expr_col_at(arena, expr_ref);
+    lsp_diag_report_typeck((int)line, (int)col, "no impl for type with method %.*s", (int)method_nlen,
+                           (const char *)method_nm);
+  }
   return -1;
 }
 #endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */

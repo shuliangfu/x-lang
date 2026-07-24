@@ -10346,6 +10346,12 @@ export function parse_into_try_skip_allow_from_buf(lex: Lexer, r: LexerResult, d
 /**
  * See implementation.
  */
+/**
+ * wave421: reset product-path trait/impl registries before parse_into_buf.
+ * PLATFORM: SHARED parse
+ */
+export extern function xlang_trait_reg_reset_c(): void;
+
 export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32): ParseIntoResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -10362,6 +10368,8 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
   lexer.lexer_invalid_escape_reset();
   lexer.lexer_string_lit_overflow_reset();
   lexer.lexer_ident_too_long_reset();
+  /* wave421: trait method + impl-seen tables for missing-method typeck. */
+  xlang_trait_reg_reset_c();
   let lex: Lexer = lexer.lexer_init();
   let main_idx: i32 = -1;
   let import_res: CollectImportsResult = CollectImportsResult { lex: lex };

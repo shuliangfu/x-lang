@@ -833,22 +833,135 @@ void parser_asm_skip_one_enum_into_slice_c(struct parser_asm_lexer *out, struct 
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_enum_variants_probe_c(r.next_lex, source, 0));
   parser_asm_skip_balanced_braces_into_slice_c(out, r.next_lex, source);
 }
+/*
+ * wave421 Cap residual pure — product-path trait registry (LANG-004 missing method).
+ * Root: parser.x skip_one_trait/impl never stored trait signatures → incomplete
+ * impl compiled green. G.7 authority: this skip_tl slice (product skip glue).
+ * Soft leave-off: bounds / dyn Trait.
+ * PLATFORM: SHARED parse.
+ */
+#define XLANG_SKIP_TRAIT_REG_MAX 16
+#define XLANG_SKIP_TRAIT_METH_MAX 32
+#define XLANG_SKIP_IMPL_SEEN_MAX 16
+typedef struct {
+  uint8_t name[64];
+  int32_t name_len;
+  uint8_t methods[XLANG_SKIP_TRAIT_METH_MAX][64];
+  int32_t method_lens[XLANG_SKIP_TRAIT_METH_MAX];
+  int32_t num_methods;
+} xlang_skip_trait_reg_ent_t;
+static xlang_skip_trait_reg_ent_t g_xlang_skip_trait_reg[XLANG_SKIP_TRAIT_REG_MAX];
+static int32_t g_xlang_skip_trait_reg_n;
+static uint8_t g_xlang_skip_impl_trait[XLANG_SKIP_IMPL_SEEN_MAX][64];
+static int32_t g_xlang_skip_impl_trait_len[XLANG_SKIP_IMPL_SEEN_MAX];
+static int32_t g_xlang_skip_impl_seen_n;
+static int32_t g_xlang_skip_impl_line[XLANG_SKIP_IMPL_SEEN_MAX];
+static int32_t g_xlang_skip_impl_col[XLANG_SKIP_IMPL_SEEN_MAX];
+
+void xlang_trait_reg_reset_c(void) {
+  g_xlang_skip_trait_reg_n = 0;
+  g_xlang_skip_impl_seen_n = 0;
+  memset(g_xlang_skip_trait_reg, 0, sizeof(g_xlang_skip_trait_reg));
+  memset(g_xlang_skip_impl_trait, 0, sizeof(g_xlang_skip_impl_trait));
+  memset(g_xlang_skip_impl_trait_len, 0, sizeof(g_xlang_skip_impl_trait_len));
+  memset(g_xlang_skip_impl_line, 0, sizeof(g_xlang_skip_impl_line));
+  memset(g_xlang_skip_impl_col, 0, sizeof(g_xlang_skip_impl_col));
+}
+
+extern void lsp_diag_report_typeck(int line, int col, const char *fmt, ...);
+extern int32_t pipeline_module_num_funcs(void *module);
+extern int32_t pipeline_module_func_name_equal_at(void *module, int32_t fi, uint8_t *name, int32_t name_len);
+
+/**
+ * After parse: every impl Trait for T must provide free funcs for all trait methods.
+ * @return 0 ok; -1 missing method (diagnostic already emitted).
+ */
+int32_t xlang_trait_check_impls_complete_c(void *module) {
+  int32_t si;
+  int32_t ti;
+  int32_t mi;
+  int32_t fi;
+  int32_t nf;
+  int32_t rc = 0;
+  if (!module)
+    return 0;
+  nf = pipeline_module_num_funcs(module);
+  for (si = 0; si < g_xlang_skip_impl_seen_n; si++) {
+    int32_t tlen = g_xlang_skip_impl_trait_len[si];
+    uint8_t *tname = g_xlang_skip_impl_trait[si];
+    if (tlen <= 0)
+      continue;
+    ti = -1;
+    for (mi = 0; mi < g_xlang_skip_trait_reg_n; mi++) {
+      if (g_xlang_skip_trait_reg[mi].name_len == tlen &&
+          memcmp(g_xlang_skip_trait_reg[mi].name, tname, (size_t)tlen) == 0) {
+        ti = mi;
+        break;
+      }
+    }
+    if (ti < 0)
+      continue; /* unknown_trait soft */
+    for (mi = 0; mi < g_xlang_skip_trait_reg[ti].num_methods; mi++) {
+      int32_t found = 0;
+      uint8_t *mnm = g_xlang_skip_trait_reg[ti].methods[mi];
+      int32_t mlen = g_xlang_skip_trait_reg[ti].method_lens[mi];
+      if (mlen <= 0)
+        continue;
+      for (fi = 0; fi < nf; fi++) {
+        if (pipeline_module_func_name_equal_at(module, fi, mnm, mlen) != 0) {
+          found = 1;
+          break;
+        }
+      }
+      if (!found) {
+        lsp_diag_report_typeck((int)g_xlang_skip_impl_line[si], (int)g_xlang_skip_impl_col[si],
+                               "missing method %.*s", (int)mlen, (const char *)mnm);
+        rc = -1;
+      }
+    }
+  }
+  return rc;
+}
+
+static void xlang_skip_trait_copy_ident_c(struct parser_asm_slice_u8 *source, size_t token_start, int32_t ident_len,
+                                           uint8_t *out64, int32_t *out_len) {
+  int32_t n = ident_len;
+  if (!out64 || !out_len)
+    return;
+  *out_len = 0;
+  memset(out64, 0, 64);
+  if (!source || !source->data || n <= 0)
+    return;
+  if (n > 63)
+    n = 63;
+  if (token_start + (size_t)n > source->length)
+    return;
+  memcpy(out64, source->data + token_start, (size_t)n);
+  *out_len = n;
+}
+
 void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
                                             struct parser_asm_slice_u8 *source) {
   struct parser_asm_lexer_result r;
+  xlang_skip_trait_reg_ent_t *ent = 0;
+  int32_t guard;
   if (!out || !source)
     return;
-  /** 字节级 skip 优先：trait+impl 连续时 token 路径易失败。 */
-  if (lex.pos + 5 <= source->length && source->data[lex.pos] == (uint8_t)'t'
-      && source->data[lex.pos + 1] == (uint8_t)'r' && source->data[lex.pos + 2] == (uint8_t)'a'
-      && source->data[lex.pos + 3] == (uint8_t)'i' && source->data[lex.pos + 4] == (uint8_t)'t') {
-    parser_asm_skip_trait_impl_block_raw_c(out, lex, source);
-    return;
-  }
+  /*
+   * wave421: prefer token path so we can register method names. Byte raw skip
+   * only when token path cannot start (defensive).
+   */
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_trait_header_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_trait_impl_type_deep_audit_c(lex, source));
   lexer_next_into(&r, lex, source);
   if (r.tok.kind != (int32_t)TOKEN_TRAIT) {
+    /* Fallback raw skip for non-token edge cases. */
+    if (lex.pos + 5 <= source->length && source->data[lex.pos] == (uint8_t)'t'
+        && source->data[lex.pos + 1] == (uint8_t)'r' && source->data[lex.pos + 2] == (uint8_t)'a'
+        && source->data[lex.pos + 3] == (uint8_t)'i' && source->data[lex.pos + 4] == (uint8_t)'t') {
+      parser_asm_skip_trait_impl_block_raw_c(out, lex, source);
+      return;
+    }
     out->pos = lex.pos;
     out->line = lex.line;
     out->col = lex.col;
@@ -861,6 +974,11 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
     out->line = lex.line;
     out->col = lex.col;
     return;
+  }
+  if (g_xlang_skip_trait_reg_n < XLANG_SKIP_TRAIT_REG_MAX) {
+    ent = &g_xlang_skip_trait_reg[g_xlang_skip_trait_reg_n];
+    memset(ent, 0, sizeof(*ent));
+    xlang_skip_trait_copy_ident_c(source, r.token_start, r.tok.ident_len, ent->name, &ent->name_len);
   }
   {
     uint8_t tname_audit[64];
@@ -877,7 +995,68 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
   }
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_trait_methods_body_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_trait_methods_probe_c(r.next_lex, source, 0));
-  parser_asm_skip_balanced_braces_into_slice_c(out, r.next_lex, source);
+  /* wave421: walk trait body for `function name` rather than opaque brace skip. */
+  lex = r.next_lex;
+  guard = 0;
+  while (guard++ < 512) {
+    lexer_next_into(&r, lex, source);
+    if (r.tok.kind == (int32_t)TOKEN_RBRACE) {
+      out->pos = r.next_lex.pos;
+      out->line = r.next_lex.line;
+      out->col = r.next_lex.col;
+      if (ent && ent->name_len > 0)
+        g_xlang_skip_trait_reg_n++;
+      return;
+    }
+    if (r.tok.kind == (int32_t)TOKEN_EOF) {
+      out->pos = lex.pos;
+      out->line = lex.line;
+      out->col = lex.col;
+      return;
+    }
+    if (r.tok.kind == (int32_t)TOKEN_FUNCTION) {
+      parser_asm_lex_from_result_val_into(&lex, r);
+      lexer_next_into(&r, lex, source);
+      if (r.tok.kind == (int32_t)TOKEN_IDENT && ent && ent->num_methods < XLANG_SKIP_TRAIT_METH_MAX) {
+        int32_t mi = ent->num_methods;
+        xlang_skip_trait_copy_ident_c(source, r.token_start, r.tok.ident_len, ent->methods[mi],
+                                      &ent->method_lens[mi]);
+        if (ent->method_lens[mi] > 0)
+          ent->num_methods++;
+      }
+      {
+        int32_t depth = 0;
+        int32_t steps = 0;
+        while (steps++ < 4096) {
+          if (r.tok.kind == (int32_t)TOKEN_LBRACE)
+            depth++;
+          else if (r.tok.kind == (int32_t)TOKEN_RBRACE) {
+            if (depth > 0)
+              depth--;
+            if (depth == 0) {
+              lex = r.next_lex;
+              break;
+            }
+          } else if (r.tok.kind == (int32_t)TOKEN_SEMICOLON && depth == 0) {
+            lex = r.next_lex;
+            break;
+          } else if (r.tok.kind == (int32_t)TOKEN_EOF) {
+            out->pos = lex.pos;
+            out->line = lex.line;
+            out->col = lex.col;
+            return;
+          }
+          parser_asm_lex_from_result_val_into(&lex, r);
+          lexer_next_into(&r, lex, source);
+        }
+      }
+      continue;
+    }
+    parser_asm_lex_from_result_val_into(&lex, r);
+  }
+  out->pos = lex.pos;
+  out->line = lex.line;
+  out->col = lex.col;
 }
 
 /**
@@ -891,14 +1070,20 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
  *   interior after `{`. Outer parse_into commits each `function` as free UFCS method;
  *   trailing `}` is skipped as non-function noise.
  * G.7 authority: this function (glue for parser.x + seed fallback).
- * Soft: trait bounds / dyn / missing-method typeck still residual.
+ * Soft: trait bounds / dyn.
+ * wave421: record trait name for missing-method check (typeck).
  * PLATFORM: SHARED parse.
  */
 void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
                                            struct parser_asm_slice_u8 *source) {
   struct parser_asm_lexer_result r;
+  uint8_t first_nm[64];
+  int32_t first_nlen = 0;
+  int32_t impl_line = 0;
+  int32_t impl_col = 0;
   if (!out || !source)
     return;
+  memset(first_nm, 0, sizeof(first_nm));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_impl_header_audit_c(lex, source));
   lexer_next_into(&r, lex, source);
   if (r.tok.kind != (int32_t)TOKEN_IMPL) {
@@ -907,6 +1092,8 @@ void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct 
     out->col = lex.col;
     return;
   }
+  impl_line = r.tok.line;
+  impl_col = r.tok.col;
   parser_asm_lex_from_result_val_into(&lex, r);
   lexer_next_into(&r, lex, source);
   /* Trait name or inherent type: IDENT or built-in type keyword. */
@@ -921,6 +1108,8 @@ void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct 
     out->col = lex.col;
     return;
   }
+  if (r.tok.kind == (int32_t)TOKEN_IDENT)
+    xlang_skip_trait_copy_ident_c(source, r.token_start, r.tok.ident_len, first_nm, &first_nlen);
   {
     uint8_t iname_audit[64];
     parser_asm_copy_slice_to_name64_slice_c(source, r.token_start, r.tok.ident_len, iname_audit);
@@ -929,6 +1118,15 @@ void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct 
   parser_asm_lex_from_result_val_into(&lex, r);
   lexer_next_into(&r, lex, source);
   if (r.tok.kind == (int32_t)TOKEN_FOR) {
+    /* wave421: record impl Trait for … for completeness check. */
+    if (first_nlen > 0 && g_xlang_skip_impl_seen_n < XLANG_SKIP_IMPL_SEEN_MAX) {
+      int32_t si = g_xlang_skip_impl_seen_n;
+      memcpy(g_xlang_skip_impl_trait[si], first_nm, 64);
+      g_xlang_skip_impl_trait_len[si] = first_nlen;
+      g_xlang_skip_impl_line[si] = impl_line;
+      g_xlang_skip_impl_col[si] = impl_col;
+      g_xlang_skip_impl_seen_n++;
+    }
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_impl_type_for_trait_audit_c(lex, source));
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_trait_impl_type_deep_audit_c(lex, source));
     parser_asm_lex_from_result_val_into(&lex, r);

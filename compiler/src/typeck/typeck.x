@@ -8051,6 +8051,14 @@ export function typeck_patch_all_body_parent_links(module: *Module, arena: *ASTA
 /**
  * See implementation.
  */
+/**
+ * wave421: product-path trait completeness (skip_tl registry filled at parse).
+ * @param module *Module — entry module after parse_into
+ * @return i32 — 0 ok; -1 missing method (diagnostic emitted)
+ * PLATFORM: SHARED typeck
+ */
+export extern function xlang_trait_check_impls_complete_c(module: *Module): i32;
+
 export function typeck_x_ast_impl(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -8071,6 +8079,12 @@ export function typeck_x_ast_impl(module: *Module, arena: *ASTArena, ctx: *Pipel
     let pipe_marker_main_generic_base: i32 = 320;
     if (module == 0 as * Module || arena == 0 as * ASTArena || ctx == 0 as * PipelineDepCtx) {
       return -2;
+    }
+    /* wave421 Cap residual pure — missing method before per-func check_block.
+     * Root: incomplete impl Trait for T was false-green (only free-fn hoist).
+     * G.7: xlang_trait_check_impls_complete_c (skip_tl registry). Soft: bounds/dyn. */
+    if (xlang_trait_check_impls_complete_c(module) != 0) {
+      return -1;
     }
     mi = pipeline_module_main_func_index(module);
     if (pipeline_module_func_is_extern_at(module, mi) != 0
