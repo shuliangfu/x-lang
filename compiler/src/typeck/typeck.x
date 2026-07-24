@@ -7051,7 +7051,58 @@ export function typeck_expr_is_any_assign_kind(kind_ord: i32): bool {
 }
 
 /**
- * See implementation.
+ * Recursively type-check every element of an ARRAY_LIT.
+ * Prior: check_expr fell through for kind=46 without visiting children, so nested
+ * INDEX never ran typeck_check_expr_index → index_base_is_slice stayed 0 and host-C
+ * emitted `(slice_var)[i]` (invalid for by-value fat) instead of `.data[i]`.
+ * Does not stamp the literal's own type — let/return coerce (wave328/333) owns that.
+ * @param module *Module — current module
+ * @param arena *ASTArena — expr/type pool
+ * @param expr_ref i32 — EXPR_ARRAY_LIT (kind 46); other kinds return 0
+ * @param return_type_ref i32 — ambient expected type passed to nested check_expr
+ * @param ctx *PipelineDepCtx — typeck context
+ * @return i32 — 0 on success, -1 if any element fails typeck
+ * PLATFORM: SHARED — wave407 Cap residual pure
+ */
+export function typeck_check_expr_array_lit(module: *Module, arena: *ASTArena, expr_ref: i32,
+return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let ord_expr_array_lit: i32 = 46;
+    let num_elems: i32 = 0;
+    let i: i32 = 0;
+    let elem_ref: i32 = 0;
+    if (arena == 0 as *ASTArena || expr_ref <= 0 || expr_ref > arena.num_exprs) {
+      return 0;
+    }
+    if (pipeline_expr_kind_ord_at(arena, expr_ref) != ord_expr_array_lit) {
+      return 0;
+    }
+    num_elems = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
+    while (i < num_elems) {
+      elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, i);
+      if (!ast.ref_is_null(elem_ref) && elem_ref > 0) {
+        if (check_expr(module, arena, elem_ref, return_type_ref, ctx) != 0) {
+          return -1;
+        }
+      }
+      i = i + 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Dispatch non-primary expression kinds for typeck (method/call/index/binop/…).
+ * wave407: ARRAY_LIT (46) routes to typeck_check_expr_array_lit so nested INDEX/CALL
+ * get full typeck (see that helper).
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param expr_ref i32
+ * @param return_type_ref i32
+ * @param ctx *PipelineDepCtx
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED
  */
 export function check_expr_impl_mega(module: *Module, arena: *ASTArena, expr_ref: i32, return_type_ref: i32,
 ctx: *PipelineDepCtx): i32 {
@@ -7062,6 +7113,7 @@ ctx: *PipelineDepCtx): i32 {
     let ord_match: i32 = 43;
     let ord_field: i32 = 44;
     let ord_struct_lit: i32 = 45;
+    let ord_array_lit: i32 = 46;
     let ord_index: i32 = 47;
     let ord_call: i32 = 48;
     let ord_method_call: i32 = 49;
@@ -7096,6 +7148,9 @@ ctx: *PipelineDepCtx): i32 {
     }
     if (kind == ord_field) {
       return typeck_check_expr_field_access(module, arena, expr_ref, return_type_ref, ctx);
+    }
+    if (kind == ord_array_lit) {
+      return typeck_check_expr_array_lit(module, arena, expr_ref, return_type_ref, ctx);
     }
     if (kind == ord_index) {
       return typeck_check_expr_index(module, arena, expr_ref, return_type_ref, ctx);

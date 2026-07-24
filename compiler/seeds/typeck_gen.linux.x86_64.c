@@ -1599,6 +1599,8 @@ extern int32_t typeck_check_expr_struct_lit(struct ast_Module * module, struct a
 extern int32_t typeck_vector_elem_type_ref(struct ast_ASTArena * arena, int32_t type_ref);
 extern int32_t typeck_check_expr_index(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
 extern int typeck_expr_is_any_assign_kind(int32_t kind_ord);
+/* wave407: ARRAY_LIT element recurse (nested INDEX sets index_base_is_slice). */
+extern int32_t typeck_check_expr_array_lit(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t typeck_check_expr_impl_mega(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t typeck_check_expr_impl(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t typeck_check_expr(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
@@ -6956,6 +6958,33 @@ int typeck_expr_is_any_assign_kind(int32_t kind_ord) {
   }
   return 0;
 }
+/* PLATFORM: SHARED — wave407 Cap residual pure: recurse ARRAY_LIT elems so nested
+ * INDEX runs typeck_check_expr_index (index_base_is_slice / host .data emit). */
+int32_t typeck_check_expr_array_lit(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
+  {
+    int32_t ord_expr_array_lit = 46;
+    int32_t num_elems = 0;
+    int32_t i = 0;
+    int32_t elem_ref = 0;
+    if ((((arena == 0) || (expr_ref <= 0)) || (expr_ref > (arena->num_exprs)))) {
+      return 0;
+    }
+    if ((pipeline_expr_kind_ord_at(arena, expr_ref) != ord_expr_array_lit)) {
+      return 0;
+    }
+    (void)((num_elems = pipeline_expr_array_lit_num_elems_at(arena, expr_ref)));
+    while ((i < num_elems)) {
+      (void)((elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, i)));
+      if (((!(ast_ref_is_null(elem_ref))) && (elem_ref > 0))) {
+        if ((typeck_check_expr(module, arena, elem_ref, return_type_ref, ctx) != 0)) {
+          return -1;
+        }
+      }
+      (void)((i = (i + 1)));
+    }
+    return 0;
+  }
+}
 int32_t typeck_check_expr_impl_mega(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
   {
     int32_t ord_return = 41;
@@ -6963,6 +6992,7 @@ int32_t typeck_check_expr_impl_mega(struct ast_Module * module, struct ast_ASTAr
     int32_t ord_match = 43;
     int32_t ord_field = 44;
     int32_t ord_struct_lit = 45;
+    int32_t ord_array_lit = 46;
     int32_t ord_index = 47;
     int32_t ord_call = 48;
     int32_t ord_method_call = 49;
@@ -6995,6 +7025,9 @@ int32_t typeck_check_expr_impl_mega(struct ast_Module * module, struct ast_ASTAr
     }
     if ((kind ==ord_field)) {
       return typeck_check_expr_field_access(module, arena, expr_ref, return_type_ref, ctx);
+    }
+    if ((kind ==ord_array_lit)) {
+      return typeck_check_expr_array_lit(module, arena, expr_ref, return_type_ref, ctx);
     }
     if ((kind ==ord_index)) {
       return typeck_check_expr_index(module, arena, expr_ref, return_type_ref, ctx);
