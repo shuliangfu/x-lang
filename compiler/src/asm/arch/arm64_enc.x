@@ -712,21 +712,26 @@ export function enc_load_x29_pos_to_rax(ctx: *ElfCodegenCtx, off_pos: i32): i32 
   return enc_u32_le(ctx, base | tail);
 }
 
-/** Exported function `enc_store_x_reg_to_rbp`.
- * Implements `enc_store_x_reg_to_rbp`.
- * @param ctx *ElfCodegenCtx
- * @param reg i32
- * @param offset i32
- * @return i32
+/**
+ * Store Xn (reg) into the frame home at logical offset.
+ * @param ctx *ElfCodegenCtx — ELF/Mach-O emit context
+ * @param reg i32 — AAPCS64 Xn index (0..30); param home uses x0–x7
+ * @param offset i32 — logical home bytes (this twin: STUR [x29, #-offset])
+ * @return i32 — 0 success
+ * PLATFORM: MACOS|ARM64 — G.7 twin of seeds/backend_arm64_enc_c.from_x.c
+ * arch_arm64_enc_enc_store_x_reg_to_rbp (wave392: must take reg+offset; product
+ * seed uses positive STR [x29,#off] matching other product frame slots).
+ * Soft residual: static/COMMON reentrancy last-wins on host-C __xlang_sp.
  */
 export function enc_store_x_reg_to_rbp(ctx: *ElfCodegenCtx, reg: i32, offset: i32): i32 {
+  // STUR Xt, [x29, #simm9] with simm9 = -offset (negative local direction).
   let simm9: i32 = 0 - offset;
   if (simm9 < -256) { simm9 = -256; }
   let u9: i32 = simm9 & 511;
   let rt: i32 = reg;
   if (rt < 0) { rt = 0; }
   if (rt > 30) { rt = 30; }
-  /* See implementation. */
+  /* base = 0xf8000000 as signed i32 (STUR 64-bit). */
   let base: i32 = 0 - 134217728;
   return enc_u32_le(ctx, base | (u9 << 12) | (29 << 5) | rt);
 }

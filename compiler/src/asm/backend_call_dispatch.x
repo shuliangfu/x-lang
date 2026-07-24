@@ -1167,7 +1167,12 @@ export function pipeline_asm_emit_call_args_elf_c(
         }
       }
     }
-    // See implementation.
+    /*
+     * AAPCS64: product path uses pipeline_asm_emit_call_args_elf_c_impl (seed) —
+     * wave392 spill-then-load for multi nested CALL args (reentrancy). This .x
+     * surface is high-to-low place (historical memcmp x0 fix); do not invert
+     * to low-to-high without frame spill. PLATFORM: MACOS|ARM64.
+     */
     if (ta == 1) {
       let reg_n: i32 = nargs;
       if (reg_n > eff_reg_max) { reg_n = eff_reg_max; }

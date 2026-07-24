@@ -650,13 +650,15 @@ static int32_t glue_sysv_place_rax_rdx_arg_regs_elf_c(struct platform_elf_ElfCod
  * Spill rax[+rdx] to a fresh frame slot; leave next_offset advanced.
  * PLATFORM: LINUX+MACOS x86_64 SysV — multi-arg packing: emit all values to memory first so
  * dual-load (uses rdx) does not clobber already-placed higher arg regs (e.g. index in rdx).
+ * wave392: also AAPCS64 (ta==1) for x0-only spill — nested CALL while placing xN
+ * clobbers earlier arg regs (make1 destroys x1 holding make2 → reent2=11).
  * Returns spill offset (low half), or -1.
  */
 static int32_t glue_sysv_spill_rax_rdx_to_frame_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                    struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t gp_units) {
   struct glue_AsmFuncCtxCall *ly;
   int32_t off;
-  if (!elf_ctx || !ctx || ta != 0)
+  if (!elf_ctx || !ctx || (ta != 0 && ta != 1))
     return -1;
   ly = (struct glue_AsmFuncCtxCall *)ctx;
   off = ly->next_offset + 16;
@@ -664,7 +666,8 @@ static int32_t glue_sysv_spill_rax_rdx_to_frame_c(struct platform_elf_ElfCodegen
     off = 16;
   if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0)
     return -1;
-  if (gp_units >= 2) {
+  /* dual-GP high half is SysV x86 only (rdx); AAPCS64 8B args use one Xn. */
+  if (ta == 0 && gp_units >= 2) {
     if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, off - 8, ta) != 0)
       return -1;
   }
@@ -2391,18 +2394,38 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
     }
 
     /**
-     * AAPCS64：实参经 x0 中转再 mov 到 xN；须从高序号寄存器实参向低序号 emit，
-     * 避免 emit arg1 覆盖已就位的 arg0（memcmp(pc,pe,16) 曾把 16 误装入 x0 致 SIGSEGV）。
+     * AAPCS64 (wave392): spill-then-load for register args — same discipline as SysV x86.
+     * Root: high-to-low direct place into xN was insufficient when an earlier-placed
+     * arg was a nested CALL (make2 → x1; make1 clobbers x1 as temp → take2 got y=x).
+     * Emit each arg value into x0, spill to frame, then load into final xN.
+     * PLATFORM: MACOS|ARM64 product pure-asm · SHARED frame next_offset.
      */
     if (ta == 1) {
       int32_t reg_n = nargs < eff_reg_max ? nargs : eff_reg_max;
-      for (i = reg_n - 1; i >= 0; i--) {
+      int32_t spill_off_a64[GLUE_ASM_MAX_CALL_ARGS];
+      for (i = 0; i < reg_n; i++)
+        spill_off_a64[i] = -1;
+      for (i = 0; i < reg_n; i++) {
+        int32_t so;
         arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
         if (arg_ref == 0)
           continue;
         if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
           return -1;
-        if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, i + sret_sh, ta) != 0)
+        so = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
+        if (so < 0)
+          return -1;
+        spill_off_a64[i] = so;
+      }
+      /*
+       * Load high→low: AAPCS64 x0 is both spill temp and arg0. Loading arg1 via
+       * x0 then mov x1 would clobber already-placed x0 if done low→high
+       * (reent2 saw both args = make2 → 2+32=34). High-first leaves x0 last.
+       */
+      for (i = reg_n - 1; i >= 0; i--) {
+        if (spill_off_a64[i] < 0)
+          continue;
+        if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off_a64[i], i + sret_sh, 1) != 0)
           return -1;
       }
       for (i = eff_reg_max; i < nargs; i++) {

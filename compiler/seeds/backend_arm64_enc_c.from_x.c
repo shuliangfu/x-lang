@@ -535,19 +535,46 @@ int32_t arch_arm64_enc_enc_load_rbp_to_rbx(struct platform_elf_ElfCodegenCtx *el
   return arch_arm64_enc_enc_lea_rbp_to_rbx(elf_ctx, offset);
 }
 
-int32_t arch_arm64_enc_enc_store_rax_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
+/**
+ * Store Xn (reg) to frame home [x29, #offset] (positive scaled imm12).
+ *
+ * wave392 Cap residual: param home for multi formal (take2(x,y) / take3) must
+ * keep each GP in its own slot. Prior product body was
+ *   store_x_reg_to_rbp(ctx, offset) { return store_rax_to_rbp(ctx, offset); }
+ * while dispatch always calls (ctx, reg, offset). The second C arg was then the
+ * register index misread as offset, and Rt was hard-coded x0 — both formals
+ * collapsed to `str x0,[x29]` (last-wins / first-param-only; reent2=10 vs 42).
+ *
+ * @param elf_ctx emit context
+ * @param reg AAPCS64 Xn index (0..30); x0–x7 used by pipeline_asm_emit_param_home
+ * @param offset frame home bytes (product convention: positive [x29,#off])
+ * @return 0 success, -1 failure
+ * PLATFORM: MACOS|ARM64 product pure-asm — G.7 align dispatch + arm64_enc.x
+ * (reg, offset); positive STR matches other product enc_store_rax_to_rbp slots.
+ */
+int32_t arch_arm64_enc_enc_store_x_reg_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg,
+                                              int32_t offset) {
   int32_t imm12 = offset;
+  int32_t rt;
   if (imm12 < 0)
     imm12 = -imm12;
   if (imm12 > 4095)
     imm12 = 4095;
+  rt = reg;
+  if (rt < 0)
+    rt = 0;
+  if (rt > 30)
+    rt = 30;
+  /* STR Xt, [Xn, #imm12] size=64: sf=1 opc=00 V=0 L=0; Rn=x29=29. */
   if (offset >= 0)
-    return arm64_enc_u32_le(elf_ctx, 0xf90003a0u | (((uint32_t)imm12 / 8u) << 10));
+    return arm64_enc_u32_le(elf_ctx, 0xf9000000u | (((uint32_t)imm12 / 8u) << 10) | (29u << 5) |
+                            (uint32_t)rt);
   return -1;
 }
 
-int32_t arch_arm64_enc_enc_store_x_reg_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
-  return arch_arm64_enc_enc_store_rax_to_rbp(elf_ctx, offset);
+int32_t arch_arm64_enc_enc_store_rax_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
+  /* x0 only — thin wrapper over store_x_reg (wave392 reg ABI). */
+  return arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx, 0, offset);
 }
 
 int32_t arch_arm64_enc_enc_load_32_from_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
