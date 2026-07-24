@@ -2094,6 +2094,17 @@ static int32_t glue_asm_lea_rax_common_adrp_arm64(struct platform_elf_ElfCodegen
   return pipeline_elf_ctx_append_reloc_typed(cb, add_at, name, name_len, 4, 0);
 }
 
+/**
+ * wave413 Cap residual pure: freestanding ARRAY_LIT element cap.
+ * Root: product glue hard-capped n_arr at 256 while host TYPE_ARRAY / deep-copy
+ * (`__xlang_sdN[512]`, wave412 max_n=512) and durable payload[2048] already allow
+ * 512×i32. n≥257 return [..] → CG002; host length=600 green.
+ * G.7: single #define for all freestanding ARRAY_LIT / fixed-array face limits.
+ * payload[2048] / nbytes≤2048 still bound byte size (u8[2048] / i32[512] / i64[256]).
+ * PLATFORM: SHARED freestanding.
+ */
+#define GLUE_ARRAY_LIT_MAX_ELEMS 512
+
 static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena *arena,
                                                             struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                             int32_t expr_ref, int32_t force_esz, int32_t ta,
@@ -2125,13 +2136,14 @@ static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena
    * PLATFORM: LINUX+MACOS x86_64 (ta==0) + MACOS|ARM64 (ta==1).
    * wave408: arm64 was hard -1 → return [..] fell to stack ARRAY_LIT → dangle after
    * epilogue + missing dual-GP length → pure0/rec panic on INDEX bounds.
+   * wave413: n_arr cap 256→GLUE_ARRAY_LIT_MAX_ELEMS (512) twin host.
    */
   if (!arena || !elf_ctx || expr_ref <= 0 || (ta != 0 && ta != 1))
     return -1;
   if (pipeline_expr_kind_ord_at(arena, expr_ref) != (int32_t)ast_ExprKind_EXPR_ARRAY_LIT)
     return -1;
   n_arr = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
-  if (n_arr < 0 || n_arr > 256)
+  if (n_arr < 0 || n_arr > GLUE_ARRAY_LIT_MAX_ELEMS)
     return -1;
   if (n_arr == 0) {
     /* Empty slice: null data pointer is durable. */
@@ -2577,7 +2589,7 @@ static int32_t glue_try_return_slice_escape_from_fixed_array_elf_c(
   if (pipeline_find_fixed_array_slice_escape(arena, body_ref, vname, vlen, &arr_sz, &elem_tr, &arr_init_ref) == 0)
     return 0;
   /* arr_init_ref proves fixed→slice init existed; capacity N from finder. */
-  if (arr_sz <= 0 || arr_sz > 256 || arr_init_ref <= 0 || elem_tr <= 0)
+  if (arr_sz <= 0 || arr_sz > GLUE_ARRAY_LIT_MAX_ELEMS || arr_init_ref <= 0 || elem_tr <= 0)
     return 0;
 
   /* Current s dual-GP home (data@off + arch-aware length half) — not the original fixed a. */
@@ -2793,7 +2805,7 @@ static int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
           else if (ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 15)
             force_esz = 8;
         }
-        if (n_arr < 0 || n_arr > 256)
+        if (n_arr < 0 || n_arr > GLUE_ARRAY_LIT_MAX_ELEMS)
           return -1;
         if (glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, force_esz, ta, ctx) == 0) {
           durable = 1;
@@ -3956,12 +3968,12 @@ static int32_t pipeline_asm_emit_array_lit_flat_elf_c(struct ast_ASTArena *arena
   if (pipeline_expr_kind_ord_at(arena, init_ref) != 46)
     return -1;
   n_arr = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
-  if (n_arr < 0 || n_arr > 256)
+  if (n_arr < 0 || n_arr > GLUE_ARRAY_LIT_MAX_ELEMS)
     return -1;
   store_sz = leaf_esz;
   if (store_sz != 1 && store_sz != 2 && store_sz != 4 && store_sz != 8)
     store_sz = 4;
-  for (ai = 0; ai < n_arr && ai < 256; ai++) {
+  for (ai = 0; ai < n_arr && ai < GLUE_ARRAY_LIT_MAX_ELEMS; ai++) {
     elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
     if (elem_ref == 0)
       continue;
@@ -4025,10 +4037,10 @@ static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *aren
   if (pipeline_expr_kind_ord_at(arena, init_ref) != 46)
     return -1;
   n_arr = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
-  if (n_arr <= 0 || n_arr > 256)
+  if (n_arr <= 0 || n_arr > GLUE_ARRAY_LIT_MAX_ELEMS)
     return -1;
   has_nested = 0;
-  for (ai = 0; ai < n_arr && ai < 256; ai++) {
+  for (ai = 0; ai < n_arr && ai < GLUE_ARRAY_LIT_MAX_ELEMS; ai++) {
     elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
     if (elem_ref > 0 && pipeline_expr_kind_ord_at(arena, elem_ref) == 46) {
       has_nested = 1;
@@ -4052,7 +4064,7 @@ static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *aren
   store_sz = esz;
   if (store_sz != 1 && store_sz != 2 && store_sz != 4 && store_sz != 8)
     store_sz = 4;
-  for (ai = 0; ai < n_arr && ai < 256; ai++) {
+  for (ai = 0; ai < n_arr && ai < GLUE_ARRAY_LIT_MAX_ELEMS; ai++) {
     elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
     if (elem_ref == 0)
       continue;
@@ -4120,7 +4132,7 @@ static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
   n_arr = pipeline_type_array_size_at(arena, fty);
   if (n_arr <= 0 && iko == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT)
     n_arr = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
-  if (n_arr <= 0 || n_arr > 256)
+  if (n_arr <= 0 || n_arr > GLUE_ARRAY_LIT_MAX_ELEMS)
     return -1;
   elem_tr = pipeline_type_elem_ref_at(arena, fty);
   esz = glue_index_elem_byte_sz_from_type_ref_c(arena, elem_tr);
@@ -11457,7 +11469,7 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
       int32_t n_arr;
       pipeline_glue_AsmFuncCtxLayout *ly = pipeline_asm_ctx_layout(ctx);
       n_arr = pipeline_expr_array_lit_num_elems_at(arena, right_ref);
-      if (n_arr < 0 || n_arr > 256)
+      if (n_arr < 0 || n_arr > GLUE_ARRAY_LIT_MAX_ELEMS)
         return -1;
       glue_slice_dual_gp_bump_past_home_c(ctx, off, ta);
       if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
@@ -11649,8 +11661,8 @@ int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct pla
     temp_base = ly->next_offset;
     return backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_base, ta);
   }
-  /** u8[64] 字面量可达 64 元；上限 256 与 OneFuncResult 侧车一致。 */
-  if (n_arr <= 0 || n_arr > 256)
+  /** u8[64] 字面量可达 64 元；上限 GLUE_ARRAY_LIT_MAX_ELEMS (512) 孪 host deep-copy / wave413. */
+  if (n_arr <= 0 || n_arr > GLUE_ARRAY_LIT_MAX_ELEMS)
     return -1;
   esz = pipeline_asm_array_lit_elem_byte_sz_c(arena, expr_ref);
   temp_base = ly->next_offset;
@@ -11658,7 +11670,7 @@ int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct pla
     return -1;
   if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
     return -1;
-  for (ai = 0; ai < n_arr && ai < 256; ai++) {
+  for (ai = 0; ai < n_arr && ai < GLUE_ARRAY_LIT_MAX_ELEMS; ai++) {
     elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai);
     if (elem_ref != 0) {
       int32_t may_clobber = glue_expr_emit_may_clobber_rbx_elf_c(arena, elem_ref);
@@ -14556,7 +14568,7 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
       int32_t base_off;
       pipeline_glue_AsmFuncCtxLayout *ly = pipeline_asm_ctx_layout(ctx);
       n_arr = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
-      if (n_arr < 0 || n_arr > 256)
+      if (n_arr < 0 || n_arr > GLUE_ARRAY_LIT_MAX_ELEMS)
         return -1;
       if (!ly)
         return -1;
@@ -20012,7 +20024,7 @@ static int32_t glue_emit_slice_from_array_let_init_elf_c(struct ast_ASTArena *ar
     int32_t et;
     pipeline_glue_AsmFuncCtxLayout *ly;
     n_arr = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
-    if (n_arr < 0 || n_arr > 256)
+    if (n_arr < 0 || n_arr > GLUE_ARRAY_LIT_MAX_ELEMS)
       return -1;
     /* force_esz from TYPE_SLICE elem (u64[] lit elems may type as i32 without stamp). */
     et = pipeline_type_elem_ref_at(arena, let_type_ref);
@@ -23000,8 +23012,8 @@ static void glue_asm_sum_expr_call_spill_bytes(struct ast_ASTArena *arena, int32
   /* ARRAY_LIT */
   if (ko == 46) {
     n = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
-    if (n > 256)
-      n = 256;
+    if (n > GLUE_ARRAY_LIT_MAX_ELEMS)
+      n = GLUE_ARRAY_LIT_MAX_ELEMS;
     for (i = 0; i < n; i++)
       glue_asm_sum_expr_call_spill_bytes(arena, pipeline_expr_array_lit_elem_ref(arena, expr_ref, i), inout_total,
                                          inout_visits);
