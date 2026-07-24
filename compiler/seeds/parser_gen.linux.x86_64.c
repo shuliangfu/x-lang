@@ -3610,7 +3610,7 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
         }
       }
       if ((init_handled ==0)) {
-        if (((((((r.tok).kind) ==97) || (((r.tok).kind) ==126)) || (((r.tok).kind) ==82)) || (((r.tok).kind) ==116))) {
+        if ((((((((r.tok).kind) ==97) || (((r.tok).kind) ==126)) || (((r.tok).kind) ==82)) || (((r.tok).kind) ==116)) || (((r.tok).kind) ==98))) {
           size_t rhs_unary_start = (r.token_start);
           if ((rhs_unary_start ==0)) {
             (void)((rhs_unary_start = (lex.pos)));

@@ -3492,7 +3492,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     }
     /* LBRACE let-init handler (C3=C4 root fix, 2026-07-19).
      * Before this, bare `{ a: 0 }` struct-lit as a body-let init matched NO init handler
-     * (the chain covered LBRACKET/IDENT/STRING/TRUE/FALSE/FLOAT/INT/MINUS/AMP/IF/MATCH/AWAIT
+     * (the chain covered LBRACKET/IDENT/STRING/TRUE/FALSE/FLOAT/INT/MINUS/STAR/AMP/IF/MATCH/AWAIT
      * but NOT LBRACE), so the let was silently dropped. A following unsafe/while/for then
      * hit the abandoned `{...}` lexer state and failed the whole function (P001).
      * Root cause: parse_body_lets_into had no LBRACE branch; bare `{` never reached
@@ -3827,10 +3827,15 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     }
     if (init_handled == 0) {
       if (r.tok.kind == token.TokenKind.TOKEN_MINUS || r.tok.kind == token.TokenKind.TOKEN_BANG
-          || r.tok.kind == token.TokenKind.TOKEN_LPAREN || r.tok.kind == token.TokenKind.TOKEN_TILDE) {
+          || r.tok.kind == token.TokenKind.TOKEN_LPAREN || r.tok.kind == token.TokenKind.TOKEN_TILDE
+          || r.tok.kind == token.TokenKind.TOKEN_STAR) {
         /*
-         * See implementation.
-         * See implementation.
+         * Body-let unary prefix init: -e / !e / (e) / ~e / *e (deref).
+         * wave325 Cap residual pure: bare `let v: T = *p` was missing TOKEN_STAR here
+         * (AMP has a sibling branch). Init stayed 0 → parse_body_lets returned false →
+         * num_funcs=0 / XP003 out_len=0. Parenthesized `(*p)` and `(*p) as T` already
+         * worked via LPAREN. G.7: complete this authority branch (not a new path).
+         * PLATFORM: SHARED — body/mid-block let init (seed parser_gen same commit).
          */
         let rhs_unary_start: usize = r.token_start;
         if (rhs_unary_start == 0) {
