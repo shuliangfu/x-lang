@@ -47,6 +47,14 @@ export extern function pipeline_type_named_name_into(arena: *ASTArena, ref: i32,
 export extern function pipeline_type_kind_ord_at(arena: *ASTArena, ref: i32): i32;
 export extern function pipeline_type_elem_ref_at(arena: *ASTArena, ref: i32): i32;
 export extern function pipeline_type_array_size_at(arena: *ASTArena, ref: i32): i32;
+/**
+ * Peel `type Alias = Target` for host-C emit (wave376).
+ * @param arena *ASTArena — type pool
+ * @param type_ref i32 — possibly TYPE_NAMED alias
+ * @return i32 — underlying type_ref
+ * PLATFORM: SHARED — needs g_typeck_active_module (set through typeck; kept for codegen).
+ */
+export extern function pipeline_typeck_resolve_type_alias_ref_c(arena: *ASTArena, type_ref: i32): i32;
 /* See implementation. */
 export extern function pipeline_codegen_type_to_c_repr(arena: *ASTArena, scratch: *u8, cap: i32, type_ref: i32, struct_prefix: *u8, struct_prefix_len: i32): i32;
 /* See implementation. */
@@ -3201,6 +3209,17 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
     if (ast.ref_is_null(type_ref)) {
       let s: u8[8] = [105, 110, 116, 51, 50, 95, 116, 0];
       return emit_bytes_8(out, s, 7);
+    }
+    /*
+     * wave376 Cap residual: host-C must not emit `struct ast_Coord` for
+     * `type Coord = i32` (incomplete type BLD001). Peel aliases to the
+     * underlying TYPE_* / named struct before kind dispatch.
+     * PLATFORM: SHARED — resolve uses active module from typeck phase.
+     */
+    type_ref = pipeline_typeck_resolve_type_alias_ref_c(arena, type_ref);
+    if (ast.ref_is_null(type_ref)) {
+      let s2: u8[8] = [105, 110, 116, 51, 50, 95, 116, 0];
+      return emit_bytes_8(out, s2, 7);
     }
     tk = pipeline_type_kind_ord_at(arena, type_ref);
     elem_ref = pipeline_type_elem_ref_at(arena, type_ref);

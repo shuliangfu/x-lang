@@ -1567,7 +1567,8 @@ extern int32_t pipeline_type_named_name_into(struct ast_ASTArena * arena, int32_
 extern int32_t pipeline_type_kind_ord_at(struct ast_ASTArena * arena, int32_t ref);
 extern int32_t pipeline_type_elem_ref_at(struct ast_ASTArena * arena, int32_t ref);
 extern int32_t pipeline_type_array_size_at(struct ast_ASTArena * arena, int32_t ref);
-extern int32_t pipeline_codegen_type_to_c_repr(struct ast_ASTArena * arena, uint8_t * scratch, int32_t cap, int32_t type_ref, uint8_t * struct_prefix, int32_t struct_prefix_len);
+
+extern int32_t pipeline_typeck_resolve_type_alias_ref_c(struct ast_ASTArena * arena, int32_t type_ref);extern int32_t pipeline_codegen_type_to_c_repr(struct ast_ASTArena * arena, uint8_t * scratch, int32_t cap, int32_t type_ref, uint8_t * struct_prefix, int32_t struct_prefix_len);
 extern int32_t pipeline_codegen_c_file_prologue_done_get(void);
 extern void pipeline_codegen_c_file_prologue_done_set(int32_t v);
 extern void pipeline_codegen_c_file_prologue_done_reset(void);
@@ -4144,6 +4145,12 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
     if (ast_ref_is_null(type_ref)) {
       uint8_t s[8] = {105, 110, 116, 51, 50, 95, 116, 0};
       return codegen_emit_bytes_8(out, s, 7);
+    }
+    /* wave376: peel type Alias=Target so host-C emits underlying type (not incomplete struct Alias). */
+    (void)((type_ref = pipeline_typeck_resolve_type_alias_ref_c(arena, type_ref)));
+    if (ast_ref_is_null(type_ref)) {
+      uint8_t s2[8] = {105, 110, 116, 51, 50, 95, 116, 0};
+      return codegen_emit_bytes_8(out, s2, 7);
     }
     (void)((tk = pipeline_type_kind_ord_at(arena, type_ref)));
     (void)((elem_ref = pipeline_type_elem_ref_at(arena, type_ref)));

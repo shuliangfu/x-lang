@@ -1321,6 +1321,16 @@ int32_t pipeline_typeck_dep_return_type_to_caller_strict_minimal(struct ast_ASTA
 #ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-222：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/*
+ * wave376 Cap residual: resolve type aliases before compare.
+ * Why: product link localizes pipeline_glue.c's full equal (with resolve) so this
+ * XLANG_WEAK wins; without peel, `type Coord = i32` + `return c` reports
+ * expected i32 found Coord (tests/typeck/type_alias.x). Authority mirrors
+ * pipeline_glue.c::pipeline_typeck_type_refs_equal_c (G.7 有则补全).
+ * PLATFORM: SHARED — g_typeck_active_module set in typeck_parsed_module_c.
+ */
+extern int32_t pipeline_typeck_resolve_type_alias_ref_c(struct ast_ASTArena *arena, int32_t type_ref);
+
 XLANG_WEAK int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b) {
   int32_t kind;
   (void)g_typeck_entry_module_for_dep_map_strict_minimal;
@@ -1328,6 +1338,13 @@ XLANG_WEAK int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena,
     return a == b;
   if (a == b)
     return 1;
+  /* Peel `type Alias = Target` so NAMED alias equals underlying kind/ref. */
+  if (arena) {
+    a = pipeline_typeck_resolve_type_alias_ref_c(arena, a);
+    b = pipeline_typeck_resolve_type_alias_ref_c(arena, b);
+    if (a == b)
+      return 1;
+  }
   kind = pipeline_type_kind_ord_at(arena, a);
   if (kind != pipeline_type_kind_ord_at(arena, b))
     return 0;

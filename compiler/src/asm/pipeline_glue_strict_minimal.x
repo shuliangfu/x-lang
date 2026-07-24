@@ -3252,12 +3252,23 @@ export extern "C" function ast_ast_block_final_expr_ref(arena: *u8, br: i32): i3
 
 // See implementation.
 // NAMED=8 PTR=9 LINEAR=12 SLICE=11 ARRAY=10 VECTOR=13
-/** Exported function `pipeline_typeck_type_refs_equal_c`.
- * Implements `pipeline_typeck_type_refs_equal_c`.
- * @param arena *u8
- * @param a i32
- * @param b i32
- * @return i32
+/** Resolve `type Alias = Target` chains for type equality / emit.
+ * @param arena *u8 — AST type pool
+ * @param type_ref i32 — possibly TYPE_NAMED alias
+ * @return i32 — underlying type_ref (or type_ref if not an alias)
+ * PLATFORM: SHARED — uses g_typeck_active_module from typeck_parsed_module_c.
+ */
+export extern "C" function pipeline_typeck_resolve_type_alias_ref_c(arena: *u8, type_ref: i32): i32;
+
+/**
+ * Type equality for product typeck (weak surface may win over pipeline_glue).
+ * wave376: peel type aliases before kind/name compare so `type Coord = i32`
+ * matches TYPE_I32 on return/assign (G.7 complete authority; mirror glue resolve).
+ * @param arena *u8 — AST type pool
+ * @param a i32 — type ref
+ * @param b i32 — type ref
+ * @return i32 — 1 equal, 0 not
+ * PLATFORM: SHARED
  */
 #[no_mangle]
 export function pipeline_typeck_type_refs_equal_c(arena: *u8, a: i32, b: i32): i32 {
@@ -3268,6 +3279,10 @@ export function pipeline_typeck_type_refs_equal_c(arena: *u8, a: i32, b: i32): i
   if (b == 0) { return 0; }
   if (a == b) { return 1; }
   if (arena == 0) { return 0; }
+  // Peel aliases first (wave376); same as pipeline_glue.c type_refs_equal_c.
+  a = pipeline_typeck_resolve_type_alias_ref_c(arena, a);
+  b = pipeline_typeck_resolve_type_alias_ref_c(arena, b);
+  if (a == b) { return 1; }
   unsafe {
     let kind: i32 = pipeline_type_kind_ord_at(arena, a);
     if (kind != pipeline_type_kind_ord_at(arena, b)) { return 0; }
