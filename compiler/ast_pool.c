@@ -15727,22 +15727,41 @@ static void asm_wpo_collect_edges_from_expr(struct ast_ASTArena *a, int32_t expr
    * G.7: same-module free method via call_resolved or method name match.
    * PLATFORM: SHARED freestanding WPO · LINUX gold.
    */
-  if (ex->kind == ast_ExprKind_EXPR_METHOD_CALL) {
+  /* kind via accessor (SoA-safe); 49 = EXPR_METHOD_CALL product ordinal. */
+  if (ex->kind == ast_ExprKind_EXPR_METHOD_CALL ||
+      pipeline_expr_kind_ord_at(a, expr_ref) == 49) {
     int32_t r_fn = pipeline_expr_call_resolved_func_index_at(a, expr_ref);
     int32_t r_dep = pipeline_expr_call_resolved_dep_index_at(a, expr_ref);
     int32_t mcid = -1;
+    int32_t mlen = pipeline_expr_method_call_name_len(a, expr_ref);
+    int32_t mbase = pipeline_expr_method_call_base_ref_at(a, expr_ref);
+    int32_t mnargs = pipeline_expr_method_call_num_args_at(a, expr_ref);
+    uint8_t mnm[64];
     if (r_fn >= 0 && r_dep < 0 && caller_mod)
       mcid = asm_wpo_func_id_of(caller_mod, r_fn);
-    if (mcid < 0 && ex->method_call_name_len > 0) {
-      mcid = asm_wpo_func_id_in_module(caller_mod, ex->method_call_name, ex->method_call_name_len);
+    if (mcid < 0 && mlen > 0 && mlen <= 63) {
+      pipeline_expr_method_call_name_into(a, expr_ref, mnm);
+      mcid = asm_wpo_func_id_in_module(caller_mod, mnm, mlen);
       if (mcid < 0)
-        mcid = asm_wpo_func_id_by_name(ex->method_call_name, ex->method_call_name_len);
+        mcid = asm_wpo_func_id_by_name(mnm, mlen);
+      /* All same-name overloads: free get may not be first fi registration order. */
+      if (caller_mod && mcid < 0) {
+        int32_t fi_m;
+        int32_t nf_m = pipeline_module_num_funcs(caller_mod);
+        for (fi_m = 0; fi_m < nf_m; fi_m++) {
+          if (pipeline_module_func_name_equal_at(caller_mod, fi_m, mnm, mlen)) {
+            int32_t id_m = asm_wpo_func_id_of(caller_mod, fi_m);
+            if (id_m >= 0)
+              asm_wpo_add_edge(caller_id, id_m);
+          }
+        }
+      }
     }
     if (mcid >= 0)
       asm_wpo_add_edge(caller_id, mcid);
-    if (ex->method_call_base_ref > 0)
-      asm_wpo_collect_edges_from_expr(a, ex->method_call_base_ref, caller_id, caller_mod, ctx, depth + 1);
-    for (i = 0; i < ex->method_call_num_args; i++) {
+    if (mbase > 0)
+      asm_wpo_collect_edges_from_expr(a, mbase, caller_id, caller_mod, ctx, depth + 1);
+    for (i = 0; i < mnargs; i++) {
       arg_slot = expr_method_call_arg_slot(a, expr_ref, i, 0);
       if (arg_slot && *arg_slot > 0)
         asm_wpo_collect_edges_from_expr(a, *arg_slot, caller_id, caller_mod, ctx, depth + 1);
