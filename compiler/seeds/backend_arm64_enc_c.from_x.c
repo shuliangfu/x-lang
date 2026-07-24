@@ -84,47 +84,85 @@ int32_t arch_arm64_enc_enc_label(struct platform_elf_ElfCodegenCtx *elf_ctx, uin
 }
 
 /**
- * Strong: stp x29,x30,[sp,#-16]! ; mov x29,sp ; sub sp,sp,#frame
- * Port of arm64_enc.x enc_prologue (literal words from historical enc).
+ * Adjust SP by ±imm using one or more ADD/SUB (imm12), for frames > 4095.
+ * @param elf_ctx emit context
+ * @param imm byte delta; must be >= 0
+ * @param is_sub 1 → sub sp,sp,#chunk; 0 → add sp,sp,#chunk
+ * @return 0 success, -1 failure
+ * PLATFORM: MACOS|ARM64 — AAPCS64 SP 16-byte align expected by caller.
  */
-int32_t arch_arm64_enc_enc_prologue(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t frame_size) {
-  int32_t imm12;
+static int32_t arm64_enc_addsub_sp_imm_chunks(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm,
+                                              int32_t is_sub) {
+  int32_t left;
   if (!elf_ctx)
     return -1;
-  g_arm64_enc_frame_size = frame_size;
-  /* stp x29, x30, [sp, #-16]! */
-  if (arm64_enc_u32_le(elf_ctx, 2847898621u) != 0)
-    return -1;
-  /* mov x29, sp */
-  if (arm64_enc_u32_le(elf_ctx, 2432697341u) != 0)
-    return -1;
-  imm12 = frame_size;
-  if (imm12 < 0)
-    imm12 = 0;
-  if (imm12 > 4095)
-    imm12 = 4095;
-  /* sub sp, sp, #imm12 */
-  return arm64_enc_u32_le(elf_ctx, 3506439167u | ((uint32_t)imm12 << 10));
+  left = imm;
+  if (left < 0)
+    left = 0;
+  while (left > 0) {
+    int32_t chunk = left > 4095 ? 4095 : left;
+    /* sub sp,sp,#c = 0xD10003FF | (c<<10); add sp,sp,#c = 0x910003FF | (c<<10) */
+    uint32_t base = is_sub != 0 ? 3506439167u : 2432697343u;
+    if (arm64_enc_u32_le(elf_ctx, base | ((uint32_t)chunk << 10)) != 0)
+      return -1;
+    left -= chunk;
+  }
+  return 0;
 }
 
 /**
- * Strong: add sp,sp,#frame ; ldp x29,x30,[sp],#16 ; ret
- * Port of arm64_enc.x enc_epilogue.
+ * wave414 Cap residual pure: arm64 frame must cover positive [x29,#off] locals.
+ *
+ * Root: wave402 low-end home + product store/lea use [x29,+off] (payload grows up).
+ * Old prologue was `stp [sp,#-16]!; mov x29,sp; sub sp,#frame` — frame sat BELOW
+ * x29 while locals wrote ABOVE into the caller's stack. Small arrays "worked";
+ * payload past ~472B hit the guard page → SIGBUS (i32[n] n>=118 / u8 n>=472).
+ *
+ * G.7: single allocation with x29 at the bottom of the frame so [x29+0..frame)
+ * is fully owned:
+ *   sub sp,sp,#frame ; stp x29,x30,[sp] ; mov x29,sp
+ * Epilogue: ldp x29,x30,[sp] ; add sp,sp,#frame ; ret
+ * Multi-chunk add/sub when frame > 4095 (imm12 cap).
+ * PLATFORM: MACOS|ARM64 product pure-asm — pairs with asm_local_slot_reg_offset
+ * low-end home (ast_pool_bootstrap_glue.c wave402).
  */
-int32_t arch_arm64_enc_enc_epilogue(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  int32_t imm12;
+int32_t arch_arm64_enc_enc_prologue(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t frame_size) {
+  int32_t fs;
   if (!elf_ctx)
     return -1;
-  imm12 = g_arm64_enc_frame_size;
-  if (imm12 < 0)
-    imm12 = 0;
-  if (imm12 > 4095)
-    imm12 = 4095;
-  /* add sp, sp, #imm12 */
-  if (arm64_enc_u32_le(elf_ctx, 2432697343u | ((uint32_t)imm12 << 10)) != 0)
+  fs = frame_size;
+  if (fs < 16)
+    fs = 16;
+  /* AAPCS64: keep SP 16-byte aligned. */
+  if ((fs & 15) != 0)
+    fs += 16 - (fs & 15);
+  g_arm64_enc_frame_size = fs;
+  /* sub sp, sp, #fs (chunks if fs > 4095) */
+  if (arm64_enc_addsub_sp_imm_chunks(elf_ctx, fs, 1) != 0)
     return -1;
-  /* ldp x29, x30, [sp], #16 */
-  if (arm64_enc_u32_le(elf_ctx, 2831252477u) != 0)
+  /* stp x29, x30, [sp] — save at frame bottom (offs 0 and 8) */
+  if (arm64_enc_u32_le(elf_ctx, 0xA9007BFDu) != 0)
+    return -1;
+  /* mov x29, sp  (add x29, sp, #0) */
+  return arm64_enc_u32_le(elf_ctx, 2432697341u);
+}
+
+/**
+ * wave414: match bottom-x29 prologue — restore saves then free whole frame.
+ * PLATFORM: MACOS|ARM64 product pure-asm.
+ */
+int32_t arch_arm64_enc_enc_epilogue(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  int32_t fs;
+  if (!elf_ctx)
+    return -1;
+  fs = g_arm64_enc_frame_size;
+  if (fs < 0)
+    fs = 0;
+  /* ldp x29, x30, [sp] */
+  if (arm64_enc_u32_le(elf_ctx, 0xA9407BFDu) != 0)
+    return -1;
+  /* add sp, sp, #fs (chunks if needed) */
+  if (arm64_enc_addsub_sp_imm_chunks(elf_ctx, fs, 0) != 0)
     return -1;
   /* ret */
   return arm64_enc_u32_le(elf_ctx, 3596551104u);

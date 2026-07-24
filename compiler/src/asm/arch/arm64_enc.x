@@ -44,36 +44,51 @@ export function enc_u32_le(ctx: *ElfCodegenCtx, val: i64): i32 {
   return elf.append_elf_bytes(ctx, buf, 4);
 }
 
-/** Exported function `enc_prologue`.
- * Implements `enc_prologue`.
- * @param ctx *ElfCodegenCtx
- * @param frame_size i32
- * @return i32
+/**
+ * wave414: arm64 prologue — allocate whole frame with x29 at bottom so
+ * positive [x29,#off] locals (wave402 low-end home) sit inside the frame.
+ * @param ctx *ElfCodegenCtx — emit context
+ * @param frame_size i32 — bytes for save+locals (aligned to 16; min 16)
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: MACOS|ARM64 — G.7 twin of seeds/backend_arm64_enc_c.from_x.c
  */
 export function enc_prologue(ctx: *ElfCodegenCtx, frame_size: i32): i32 {
-  ctx.current_frame_size = frame_size;
-  /* stp x29, x30, [sp, #-16]! */
-  if (enc_u32_le(ctx, 2847898621) != 0) { return -1; }
+  let fs: i32 = frame_size;
+  if (fs < 16) { fs = 16; }
+  if ((fs & 15) != 0) { fs = fs + (16 - (fs & 15)); }
+  ctx.current_frame_size = fs;
+  /* sub sp, sp, #fs in 4095 chunks */
+  let left: i32 = fs;
+  while (left > 0) {
+    let chunk: i32 = left;
+    if (chunk > 4095) { chunk = 4095; }
+    if (enc_u32_le(ctx, 3506439167 | (chunk << 10)) != 0) { return -1; }
+    left = left - chunk;
+  }
+  /* stp x29, x30, [sp] — 0xA9007BFD as signed i32 */
+  if (enc_u32_le(ctx, 0 - 1459553315) != 0) { return -1; }
   /* mov x29, sp */
-  if (enc_u32_le(ctx, 2432697341) != 0) { return -1; }
-  /* sub sp, sp, #frame_size */
-  let imm12: i32 = frame_size;
-  if (imm12 > 4095) { imm12 = 4095; }
-  return enc_u32_le(ctx, 3506439167 | (imm12 << 10));
+  return enc_u32_le(ctx, 2432697341);
 }
 
-/** Exported function `enc_epilogue`.
- * Implements `enc_epilogue`.
- * @param ctx *ElfCodegenCtx
- * @return i32
+/**
+ * wave414: match bottom-x29 prologue (ldp [sp] then add sp,#fs).
+ * @param ctx *ElfCodegenCtx — emit context
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: MACOS|ARM64 — G.7 twin of product seed epilogue
  */
 export function enc_epilogue(ctx: *ElfCodegenCtx): i32 {
-  let imm12: i32 = ctx.current_frame_size;
-  if (imm12 > 4095) { imm12 = 4095; }
-  /* add sp, sp, #frame_size */
-  if (enc_u32_le(ctx, 2432697343 | (imm12 << 10)) != 0) { return -1; }
-  /* ldp x29, x30, [sp], #16 */
-  if (enc_u32_le(ctx, 2831252477) != 0) { return -1; }
+  let fs: i32 = ctx.current_frame_size;
+  if (fs < 0) { fs = 0; }
+  /* ldp x29, x30, [sp] — 0xA9407BFD as signed i32 */
+  if (enc_u32_le(ctx, 0 - 1455367171) != 0) { return -1; }
+  let left: i32 = fs;
+  while (left > 0) {
+    let chunk: i32 = left;
+    if (chunk > 4095) { chunk = 4095; }
+    if (enc_u32_le(ctx, 2432697343 | (chunk << 10)) != 0) { return -1; }
+    left = left - chunk;
+  }
   /* ret */
   return enc_u32_le(ctx, 3596551104);
 }
