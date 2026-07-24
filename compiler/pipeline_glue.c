@@ -17417,33 +17417,18 @@ static void glue_live_fwd_collect_expr_uses_for_defer(struct ast_ASTArena *arena
 }
 
 /**
- * Mark lets that must stay in pass 1 (stmt_order position).
- * @param deferred out[0..nlet) 1 = pass1 only; caller supplies buffer of size nlet
- *
- * Pass 0 still hoists pure lets before if/loop (parser order workaround for
- * with_arena). wave320: never hoist a let that *reads* stack slots past an
- * earlier expr_stmt — assign can mutate those slots (`let a=0; a=6; let b=a`
- * was emitting b=a before a=6 → freestanding run=0).
- * PLATFORM: SHARED — ELF block_body_sync pass0/pass1 ordering.
+ * Transitive fixpoint: any let whose init reads a deferred let's stack slot
+ * is itself deferred (so pass0 cannot evaluate dependents before their sources).
  */
-static void glue_block_compute_pass1_deferred_lets(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                  int32_t block_ref, int32_t slot_base, int32_t nconst, int32_t nlet,
-                                                  uint8_t *deferred) {
+static void glue_block_defer_lets_transitive(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                            int32_t block_ref, int32_t slot_base, int32_t nconst, int32_t nlet,
+                                            uint8_t *deferred) {
   int32_t li;
   int32_t changed;
   int32_t guard;
-  int32_t nso;
-  int32_t si;
   GlueBlockLiveFwd uses;
   if (!arena || !ctx || !deferred || nlet <= 0)
     return;
-  for (li = 0; li < nlet; li++) {
-    int32_t init_ref = ast_pipeline_block_let_init_ref(arena, block_ref, li);
-    int32_t ko = init_ref > 0 ? pipeline_expr_kind_ord_at(arena, init_ref) : 0;
-    /* INDEX / CALL / METHOD_CALL: historical pass-1 seeds (side effects / addr cache). */
-    deferred[li] = (uint8_t)(ko == 47 || ko == 48 || ko == 49 ? 1 : 0);
-  }
-  /* Transitive: let whose init reads a deferred let slot also defers. */
   for (guard = 0; guard < nlet + 2; guard++) {
     changed = 0;
     for (li = 0; li < nlet; li++) {
@@ -17475,13 +17460,44 @@ static void glue_block_compute_pass1_deferred_lets(struct ast_ASTArena *arena, s
     if (!changed)
       break;
   }
+}
+
+/**
+ * Mark lets that must stay in pass 1 (stmt_order position).
+ * @param deferred out[0..nlet) 1 = pass1 only; caller supplies buffer of size nlet
+ *
+ * Pass 0 still hoists pure lets (no stack reads) before if/loop — parser order
+ * workaround for with_arena. wave320: never hoist a stack-reading let past an
+ * earlier expr_stmt (kind 2). wave321: also never hoist past earlier while/for/
+ * if/region (kinds 3–6) — nested assigns mutate outer slots
+ * (`let a=0; if(1){a=6;} let b=a` was emitting b=a before the if → freestanding
+ * run=0; mac host-gcc may hide). After stmt-order barriers, re-run transitive
+ * so `let c=b` after a newly deferred `let b=a` also stays in pass1.
+ * PLATFORM: SHARED — ELF block_body_sync pass0/pass1 ordering.
+ */
+static void glue_block_compute_pass1_deferred_lets(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                                  int32_t block_ref, int32_t slot_base, int32_t nconst, int32_t nlet,
+                                                  uint8_t *deferred) {
+  int32_t li;
+  int32_t nso;
+  int32_t si;
+  GlueBlockLiveFwd uses;
+  if (!arena || !ctx || !deferred || nlet <= 0)
+    return;
+  for (li = 0; li < nlet; li++) {
+    int32_t init_ref = ast_pipeline_block_let_init_ref(arena, block_ref, li);
+    int32_t ko = init_ref > 0 ? pipeline_expr_kind_ord_at(arena, init_ref) : 0;
+    /* INDEX / CALL / METHOD_CALL: historical pass-1 seeds (side effects / addr cache). */
+    deferred[li] = (uint8_t)(ko == 47 || ko == 48 || ko == 49 ? 1 : 0);
+  }
+  glue_block_defer_lets_transitive(arena, ctx, block_ref, slot_base, nconst, nlet, deferred);
   /**
-   * wave320 Cap residual: pure-let pass0 must not reorder past earlier expr_stmt.
-   * stmt_order kind 2 = expr_stmt (assign / call / …). If a let's init reads any
-   * stack slot and any expr_stmt appears before this let in source order, keep
-   * the let at its pass1 stmt_order position so assigns run first.
-   * Still allows hoisting pure lets past if/while/for/region (kinds 3–6) only —
-   * that remains the with_arena SIGSEGV workaround.
+   * wave320/wave321 Cap residual: pure-let pass0 must not reorder past earlier
+   * side-effecting or control-flow stmts that can mutate stack slots.
+   * stmt_order: kind 2 = expr_stmt (assign/call); 3=while; 4=for; 5=if; 6=region.
+   * If a let's init reads any stack slot and any such stmt appears before this
+   * let in source order, keep the let at its pass1 position.
+   * Pure lit lets (uses.n==0) may still hoist past if/while (with_arena workaround).
    */
   nso = ast_ast_block_num_stmt_order(arena, block_ref);
   for (li = 0; li < nlet; li++) {
@@ -17496,7 +17512,7 @@ static void glue_block_compute_pass1_deferred_lets(struct ast_ASTArena *arena, s
     glue_live_fwd_clear(&uses);
     glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, init_ref, &uses);
     if (uses.n <= 0)
-      continue; /* pure lit / no stack reads — safe to hoist past assigns */
+      continue; /* pure lit / no stack reads — safe to hoist past assigns/cfg */
     let_si = -1;
     for (si = 0; si < nso; si++) {
       if (ast_ast_block_stmt_order_kind(arena, block_ref, si) == 1 &&
@@ -17508,13 +17524,16 @@ static void glue_block_compute_pass1_deferred_lets(struct ast_ASTArena *arena, s
     if (let_si < 0)
       continue;
     for (j = 0; j < let_si; j++) {
-      /* kind 2 = expr_stmt (assign/call); do not hoist past these */
-      if (ast_ast_block_stmt_order_kind(arena, block_ref, j) == 2) {
+      uint8_t sk = ast_ast_block_stmt_order_kind(arena, block_ref, j);
+      /* kind 2 expr_stmt; 3 while; 4 for; 5 if; 6 region — do not hoist past */
+      if (sk == 2 || sk == 3 || sk == 4 || sk == 5 || sk == 6) {
         deferred[li] = 1;
         break;
       }
     }
   }
+  /* Re-close transitive after stmt-order barriers (dependents of newly deferred). */
+  glue_block_defer_lets_transitive(arena, ctx, block_ref, slot_base, nconst, nlet, deferred);
 }
 
 /**
