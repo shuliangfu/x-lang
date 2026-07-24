@@ -5270,6 +5270,36 @@ export function emit_import_module_const_field(arena: *ASTArena, out: *CodegenOu
 }
 
 /**
+ * wave371: emit match arm result in value position (C ternary).
+ * EXPR_RETURN unwraps to its operand so host `return match { 1 => return 42; … }`
+ * becomes `return (subj==1?(42):…)` instead of illegal `return (…?(return 42):…)`.
+ * Mid-body early-return-with-following-stmts remains soft leave-off (needs if/else form).
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param res_ref i32 — arm result expr
+ * @param ctx *PipelineDepCtx
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED — host-C match ternary arm value.
+ */
+function codegen_emit_match_arm_value(arena: *ASTArena, out: *CodegenOutBuf, res_ref: i32,
+    ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — host-C match arm value / RETURN unwrap.
+  unsafe {
+    if (ast.ref_is_null(res_ref)) {
+      return append_byte(out, 48);
+    }
+    let re: Expr = ast.ast_arena_expr_get(arena, res_ref);
+    if (re.kind == ExprKind.EXPR_RETURN) {
+      if (ast.ref_is_null(re.unary_operand_ref)) {
+        return append_byte(out, 48);
+      }
+      return emit_expr(arena, out, re.unary_operand_ref, ctx);
+    }
+    return emit_expr(arena, out, res_ref, ctx);
+  }
+}
+
+/**
  * Host-C emit for EXPR_MATCH arms[arm_i..): nested ternary chain.
  * @param arena *ASTArena — expression arena
  * @param out *CodegenOutBuf — C text sink
@@ -5280,7 +5310,7 @@ export function emit_import_module_const_field(arena: *ASTArena, out: *CodegenOu
  * PLATFORM: SHARED — mirrors freestanding pipeline_asm_emit_match_elf_c semantics
  * (first match wins; wildcard ends chain). Host C re-emits the subject per arm
  * (subjects are typically VAR/param). G.7: completes arm-0 residual that only
- * emitted the first arm result without comparing.
+ * emitted the first arm result without comparing. wave371: RETURN arm unwrap.
  */
 function codegen_emit_match_from_arm(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32,
     ctx: *PipelineDepCtx, arm_i: i32): i32 {
@@ -5297,10 +5327,7 @@ function codegen_emit_match_from_arm(arena: *ASTArena, out: *CodegenOutBuf, expr
     }
     if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, arm_i) != 0) {
       res = pipeline_expr_match_arm_result_ref(arena, expr_ref, arm_i);
-      if (ast.ref_is_null(res)) {
-        return append_byte(out, 48);
-      }
-      return emit_expr(arena, out, res, ctx);
+      return codegen_emit_match_arm_value(arena, out, res, ctx);
     }
     /* (matched==val?(result):(rest)) */
     if (append_byte(out, 40) != 0) {
@@ -5327,7 +5354,7 @@ function codegen_emit_match_from_arm(arena: *ASTArena, out: *CodegenOutBuf, expr
     if (append_byte(out, 40) != 0) {
       return -1;
     }
-    if (ast.ref_is_null(res) || emit_expr(arena, out, res, ctx) != 0) {
+    if (codegen_emit_match_arm_value(arena, out, res, ctx) != 0) {
       return -1;
     }
     if (append_byte(out, 41) != 0) {

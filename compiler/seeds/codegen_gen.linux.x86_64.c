@@ -5857,6 +5857,21 @@ int32_t codegen_emit_import_module_const_field(struct ast_ASTArena * arena, stru
   }
   return 0;
 }
+/* wave371: unwrap EXPR_RETURN in match ternary value position (codegen.x twin). */
+static int32_t codegen_emit_match_arm_value(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+                                           int32_t res_ref, struct ast_PipelineDepCtx *ctx) {
+  struct ast_Expr re;
+  if (ast_ref_is_null(res_ref))
+    return codegen_append_byte(out, 48);
+  re = ast_ast_arena_expr_get(arena, res_ref);
+  /* EXPR_RETURN = 41 */
+  if ((int32_t)re.kind == 41) {
+    if (ast_ref_is_null(re.unary_operand_ref))
+      return codegen_append_byte(out, 48);
+    return codegen_emit_expr(arena, out, re.unary_operand_ref, ctx);
+  }
+  return codegen_emit_expr(arena, out, res_ref, ctx);
+}
 /* PLATFORM: SHARED — host-C EXPR_MATCH nested ternary (wave326).
  * Completes arm-0 residual; freestanding uses pipeline_asm_emit_match_elf_c.
  * G.7: twin of codegen.x codegen_emit_match_from_arm. */
@@ -5875,9 +5890,7 @@ static int32_t codegen_emit_match_from_arm(struct ast_ASTArena *arena, struct co
     return codegen_append_byte(out, 48);
   if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, arm_i) != 0) {
     res = pipeline_expr_match_arm_result_ref(arena, expr_ref, arm_i);
-    if (ast_ref_is_null(res))
-      return codegen_append_byte(out, 48);
-    return codegen_emit_expr(arena, out, res, ctx);
+    return codegen_emit_match_arm_value(arena, out, res, ctx);
   }
   /* (matched==val?(result):(rest)) */
   if (codegen_append_byte(out, 40) != 0)
@@ -5900,7 +5913,7 @@ static int32_t codegen_emit_match_from_arm(struct ast_ASTArena *arena, struct co
   res = pipeline_expr_match_arm_result_ref(arena, expr_ref, arm_i);
   if (codegen_append_byte(out, 40) != 0)
     return -1;
-  if (ast_ref_is_null(res) || codegen_emit_expr(arena, out, res, ctx) != 0)
+  if (codegen_emit_match_arm_value(arena, out, res, ctx) != 0)
     return -1;
   if (codegen_append_byte(out, 41) != 0)
     return -1;

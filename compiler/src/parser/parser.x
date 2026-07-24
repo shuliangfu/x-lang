@@ -2824,6 +2824,46 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       continue;
     }
     /**
+     * wave371: nested-block `match expr { arms }` as stmt (no trailing `;`).
+     * G.7: parse_match_into; final-expr when next is block `}`, else expr_stmt.
+     * PLATFORM: SHARED.
+     */
+    if (r.tok.kind == token.TokenKind.TOKEN_MATCH) {
+      let match_blk_lex: Lexer = lex_at_token_from_result(r);
+      let match_blk_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: match_blk_lex };
+      let match_blk_ex: i32 = 0;
+      parse_match_into(arena, match_blk_lex, source, &match_blk_res);
+      if (!match_blk_res.ok) {
+        out.ok = false;
+        return;
+      }
+      lex_cur = match_blk_res.next_lex;
+      lexer.lexer_next_into(&r, lex_cur, source);
+      if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
+        lex_from_result_ptr_into(&lex_cur, &r);
+        let after_ms_blk: LexerResult = LexerResult { next_lex: lex_cur, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
+        lexer.lexer_next_into(&after_ms_blk, lex_cur, source);
+        r = after_ms_blk;
+      }
+      if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
+        b.final_expr_ref = match_blk_res.expr_ref;
+        ast.ast_arena_block_set(arena, block_ref, b);
+        break;
+      }
+      match_blk_ex = pipeline_block_append_expr_stmt(arena, block_ref, match_blk_res.expr_ref);
+      if (match_blk_ex < 0) {
+        out.ok = false;
+        return;
+      }
+      if (pipeline_block_append_stmt_order(arena, block_ref, 2, match_blk_ex) < 0) {
+        out.ok = false;
+        return;
+      }
+      b = ast.ast_arena_block_get(arena, block_ref);
+      stmt_tok_ready = true;
+      continue;
+    }
+    /**
      * Bare block statement `{ stmts }` at statement position (C compound statement).
      * PLATFORM: SHARED — not a block-expression that requires a trailing `;`.
      * Why: mega parse_into uses `{ let try_cfg_allow = ...; ... } module.pending_cfg_skip = 0;`
@@ -5277,9 +5317,15 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           lex = ret_kw_lex;
         }
       }
-      /* See implementation. */
+      /*
+       * wave371: do NOT break on TOKEN_MATCH — mid-body `match {…}` is a statement.
+       * Prior: MATCH broke the loop so only the final-expr tail path ran → following
+       * return/let after match → XP003. Tail `match …` before `}` still ends the loop
+       * via the MATCH arm below (final return) or via RBRACE after stmt.
+       * PLATFORM: SHARED.
+       */
       if (r.tok.kind == token.TokenKind.TOKEN_RETURN || r.tok.kind == token.TokenKind.TOKEN_RBRACE
-          || r.tok.kind == token.TokenKind.TOKEN_MATCH || r.tok.kind == token.TokenKind.TOKEN_EOF) {
+          || r.tok.kind == token.TokenKind.TOKEN_EOF) {
         break;
       }
       /* See implementation. */
@@ -5702,6 +5748,46 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         lex = parser_rewind_lex_for_lparen_control_stmt(lex, r, source);
         lexer.lexer_next_into(&r, lex, source);
       }
+      /**
+       * wave371: bare mid-body / final `match expr { arms }` at function-stmt position.
+       * G.7: reuse parse_match_into (expression authority); no new match-stmt AST kind.
+       * - Next token function `}` → final return expr (same as historical tail path).
+       * - Else → body_expr_stmt (no trailing `;` required after match's closing `}`).
+       * PLATFORM: SHARED — parser.x + parser_gen seed same commit.
+       */
+      if (r.tok.kind == token.TokenKind.TOKEN_MATCH) {
+        let match_mid_lex: Lexer = lex_at_token_from_result(r);
+        let match_mid_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: match_mid_lex };
+        let match_ex_i: i32 = 0;
+        parse_match_into(arena, match_mid_lex, source, &match_mid_res);
+        if (!match_mid_res.ok) {
+          set_onefunc_fail(out, lex); return;
+        }
+        lex = match_mid_res.next_lex;
+        lexer.lexer_next_into(&r, lex, source);
+        if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
+          lex_from_result_ptr_into(&lex, &r);
+          let after_match_semi: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
+          lexer.lexer_next_into(&after_match_semi, lex, source);
+          r = after_match_semi;
+        }
+        if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
+          impl_snap.has_final_expr = true;
+          impl_snap.has_explicit_return_kw = true;
+          return_expr_ref_storage = match_mid_res.expr_ref;
+          lex_from_next_into(&lex, r);
+          onefunc_finish_impl_to_out(out, &impl_snap, lex, &dummy_name[0], func_name_len_storage[0], return_expr_ref_storage);
+          return;
+        }
+        match_ex_i = pipeline_onefunc_push_body_expr_stmt(onefunc_result_pool_ptr(out), match_mid_res.expr_ref);
+        if (match_ex_i < 0) {
+          set_onefunc_fail(out, lex); return;
+        }
+        out.num_src_body_expr_stmts = pipeline_onefunc_num_body_expr_stmts(onefunc_result_pool_ptr(out));
+        onefunc_push_src_stmt(out, 2, match_ex_i);
+        stmt_tok_ready = true;
+        continue;
+      }
       if (r.tok.kind == token.TokenKind.TOKEN_IF) {
         let if_start_fn: Lexer = lex_at_token_from_result(r);
         let if_cref: i32 = 0;
@@ -5782,8 +5868,9 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       }
       out.num_src_body_expr_stmts = pipeline_onefunc_num_body_expr_stmts(onefunc_result_pool_ptr(out));
       onefunc_push_src_stmt(out, 2, ex_i);
+      /* wave371: MATCH is a mid-loop stmt arm, not a loop-exit token. */
       if (r.tok.kind == token.TokenKind.TOKEN_RETURN || r.tok.kind == token.TokenKind.TOKEN_RBRACE
-          || r.tok.kind == token.TokenKind.TOKEN_MATCH || r.tok.kind == token.TokenKind.TOKEN_EOF) {
+          || r.tok.kind == token.TokenKind.TOKEN_EOF) {
         break;
       }
       lex = lex_at_token_from_result(r);

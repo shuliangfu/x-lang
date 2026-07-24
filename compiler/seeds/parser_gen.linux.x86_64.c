@@ -4482,7 +4482,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
             (void)((lex = ret_kw_lex));
           }
         }
-        if (((((((r.tok).kind) ==11) || (((r.tok).kind) ==85)) || (((r.tok).kind) ==18)) || (((r.tok).kind) ==0))) {
+        if ((((((r.tok).kind) ==11) || (((r.tok).kind) ==85)) || (((r.tok).kind) ==0))) {
           break;
         }
         if (((((r.tok).kind) ==2) || (((r.tok).kind) ==3))) {
@@ -4887,6 +4887,42 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
           (void)((lex = parser_rewind_lex_for_lparen_control_stmt(lex, r, source)));
           (void)(lexer_next_into(&(r), lex, source));
         }
+        if ((((r.tok).kind) ==18)) {
+          /* wave371: mid-body/final match stmt (G.7 parse_match_into). */
+          struct lexer_Lexer match_mid_lex = parser_lex_at_token_from_result(r);
+          struct parser_ParseExprResult match_mid_res = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = match_mid_lex };
+          int32_t match_ex_i = 0;
+          (void)(parser_parse_match_into(arena, match_mid_lex, source, &(match_mid_res)));
+          if (!((match_mid_res.ok))) {
+            (void)(parser_set_onefunc_fail(out, lex));
+            return;
+          }
+          (void)((lex = (match_mid_res.next_lex)));
+          (void)(lexer_next_into(&(r), lex, source));
+          if ((((r.tok).kind) ==95)) {
+            (void)(parser_lex_from_result_ptr_into(&(lex), &(r)));
+            struct lexer_LexerResult after_match_semi = (struct lexer_LexerResult){ .next_lex = lex, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+            (void)(lexer_next_into(&(after_match_semi), lex, source));
+            (void)((r = after_match_semi));
+          }
+          if ((((r.tok).kind) ==85)) {
+            (void)(((impl_snap.has_final_expr) = 1));
+            (void)(((impl_snap.has_explicit_return_kw) = 1));
+            (void)((return_expr_ref_storage = (match_mid_res.expr_ref)));
+            (void)(parser_lex_from_next_into(&(lex), r));
+            (void)(parser_onefunc_finish_impl_to_out(out, &(impl_snap), lex, &((dummy_name)[0]), (func_name_len_storage)[0], return_expr_ref_storage));
+            return;
+          }
+          (void)((match_ex_i = pipeline_onefunc_push_body_expr_stmt(parser_onefunc_result_pool_ptr(out), (match_mid_res.expr_ref))));
+          if ((match_ex_i < 0)) {
+            (void)(parser_set_onefunc_fail(out, lex));
+            return;
+          }
+          (void)(((out->num_src_body_expr_stmts) = pipeline_onefunc_num_body_expr_stmts(parser_onefunc_result_pool_ptr(out))));
+          (void)(parser_onefunc_push_src_stmt(out, 2, match_ex_i));
+          (void)((stmt_tok_ready = 1));
+          continue;
+        }
         if ((((r.tok).kind) ==4)) {
           struct lexer_Lexer if_start_fn = parser_lex_at_token_from_result(r);
           int32_t if_cref = 0;
@@ -4962,7 +4998,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
         }
         (void)(((out->num_src_body_expr_stmts) = pipeline_onefunc_num_body_expr_stmts(parser_onefunc_result_pool_ptr(out))));
         (void)(parser_onefunc_push_src_stmt(out, 2, ex_i));
-        if (((((((r.tok).kind) ==11) || (((r.tok).kind) ==85)) || (((r.tok).kind) ==18)) || (((r.tok).kind) ==0))) {
+        if ((((((r.tok).kind) ==11) || (((r.tok).kind) ==85)) || (((r.tok).kind) ==0))) {
           break;
         }
         (void)((lex = parser_lex_at_token_from_result(r)));

@@ -21,6 +21,8 @@ enum {
   PARSER_ASM_EXPR_BLOCK = 26,
   PARSER_ASM_EXPR_BREAK = 39,
   PARSER_ASM_EXPR_CONTINUE = 40,
+  /** wave371: `return expr` as primary so match arms `1 => return 42;` parse. */
+  PARSER_ASM_EXPR_RETURN = 41,
   PARSER_ASM_EXPR_PANIC = 42,
   PARSER_ASM_EXPR_FIELD_ACCESS = 44,
   PARSER_ASM_EXPR_ARRAY_LIT = 46,
@@ -1912,6 +1914,54 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     out->ok = 1;
     out->expr_ref = ref;
     out->next_lex = r.next_lex;
+    return;
+  }
+  /**
+   * wave371: TOKEN_RETURN as primary → EXPR_RETURN (operand in unary_operand_ref).
+   * Needed for match-arm results `1 => return 42;` (docs/03 statement form).
+   * Arm terminator `;` is left for parse_match_into; bare `return;` has no operand.
+   * G.7: same EXPR_RETURN shape as parse_block_into return stmt (not a second return AST).
+   * PLATFORM: SHARED.
+   */
+  if (r.tok.kind == (int32_t)TOKEN_RETURN) {
+    struct parser_asm_parse_expr_result ret_op;
+    int32_t ret_line = r.tok.line;
+    int32_t ret_col = r.tok.col;
+    lex = r.next_lex;
+    ref = ast_ast_arena_expr_alloc(arena);
+    if (ref == 0) {
+      out->ok = 0;
+      return;
+    }
+    e = parser_asm_arena_expr_get_c(arena, ref);
+    e.kind = PARSER_ASM_EXPR_RETURN;
+    e.line = ret_line;
+    e.col = ret_col;
+    parser_asm_expr_set_common_zeros_c(&e);
+    lexer_next_into(&r, lex, source);
+    /* Operand starts if next is not arm/stmt terminator. */
+    if (r.tok.kind != (int32_t)TOKEN_SEMICOLON && r.tok.kind != (int32_t)TOKEN_RBRACE
+        && r.tok.kind != (int32_t)TOKEN_EOF && r.tok.kind != (int32_t)TOKEN_COMMA
+        && r.tok.kind != (int32_t)TOKEN_FATARROW) {
+      ret_op.ok = 0;
+      ret_op.expr_ref = 0;
+      ret_op.next_lex = parser_asm_lex_at_token_from_result_c(r);
+      parse_expr_into(arena, ret_op.next_lex, source, &ret_op);
+      if (!ret_op.ok) {
+        out->ok = 0;
+        return;
+      }
+      e.unary_operand_ref = ret_op.expr_ref;
+      parser_asm_arena_expr_set_c(arena, ref, e);
+      out->ok = 1;
+      out->expr_ref = ref;
+      out->next_lex = ret_op.next_lex;
+      return;
+    }
+    parser_asm_arena_expr_set_c(arena, ref, e);
+    out->ok = 1;
+    out->expr_ref = ref;
+    out->next_lex = lex;
     return;
   }
   if (r.tok.kind == (int32_t)TOKEN_MATCH) {
