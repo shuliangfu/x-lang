@@ -142,6 +142,21 @@ export extern function pipeline_module_func_name_len_at(module: *Module, fi: i32
 export extern function pipeline_module_func_num_generic_params_at(module: *Module, fi: i32): i32;
 export extern function pipeline_module_func_return_type_at(module: *Module, fi: i32): i32;
 export extern function pipeline_module_func_body_ref_at(module: *Module, fi: i32): i32;
+/**
+ * wave343 Cap residual: find `let s: T[] = a` where a is fixed TYPE_ARRAY under
+ * body_ref (top-level and nested if/while/for/region/EXPR_BLOCK). Authority in
+ * pipeline_glue.c (shared with freestanding escape). Soft: reassign; untyped-let.
+ * @param arena *ASTArena — AST arena
+ * @param body_ref i32 — function body block ref
+ * @param vname *u8 — return VAR name bytes
+ * @param vlen i32 — name length
+ * @param out_arr_sz *i32 — fixed array N on success
+ * @param out_elem_tr *i32 — element type ref on success
+ * @param out_arr_init_ref *i32 — init VAR expr ref (may be null)
+ * @return i32 — 1 found; 0 not found
+ * PLATFORM: SHARED
+ */
+export extern function pipeline_find_fixed_array_slice_escape(arena: *ASTArena, body_ref: i32, vname: *u8, vlen: i32, out_arr_sz: *i32, out_elem_tr: *i32, out_arr_init_ref: *i32): i32;
 /* See implementation. */
 export extern function pipeline_dep_ctx_empty_param_reset(ctx: *PipelineDepCtx): void;
 export extern function pipeline_dep_ctx_empty_param_append(ctx: *PipelineDepCtx, pi: i32): i32;
@@ -8129,14 +8144,15 @@ export function emit_return_stmt_with_context(arena: *ASTArena, out: *CodegenOut
         }
       }
       /*
-       * wave342 Cap residual pure: host `return s` where
-       *   `let a: T[N] = …; let s: T[] = a; return s`
+       * wave342/343 Cap residual pure: host `return s` where
+       *   `let a: T[N] = …; let s: T[] = a; return s` (body-top or nested block)
        * Root: try_emit_slice_init_from_array_var emits `{.data=a,.length=N}` (stack view).
        * Local aliasing is correct; return of the view dangles (run=1 vs 60).
        * G.7: durable static buffer + memcpy from s.data at escape (view inside fn unchanged).
        * Emit: return ({ static E __xlang_esc[N]; memcpy(__xlang_esc, s.data, sizeof);
        *                 (slice){.data=__xlang_esc,.length=N}; });
-       * Soft: nested-block lets; reassignment of s after fixed-array init.
+       * wave343: scan via pipeline_find_fixed_array_slice_escape (nested blocks + resolved ARRAY).
+       * Soft: reassignment of s after fixed-array init; untyped-let; reentrancy last-wins.
        * PLATFORM: SHARED host-C emit (matches freestanding COMMON escape).
        */
       if (!ast.ref_is_null(rty) && pipeline_type_kind_ord_at(arena, rty) == (TypeKind.TYPE_SLICE as i32)
@@ -8147,64 +8163,12 @@ export function emit_return_stmt_with_context(arena: *ASTArena, out: *CodegenOut
           let op_e: Expr = ast.ast_arena_expr_get(arena, operand_ref);
           let arr_sz: i32 = 0;
           let elem_tr: i32 = 0;
-          let nlets: i32 = ast.ast_block_num_lets(arena, body_br);
-          let li: i32 = 0;
-          while (li < nlets) {
-            let nlen: i32 = pipeline_block_let_name_len(arena, body_br, li);
-            if (nlen == op_e.var_name_len && nlen > 0) {
-              let matched: i32 = 1;
-              let nb: u8[64] = [];
-              pipeline_block_let_name_copy64(arena, body_br, li, &nb[0]);
-              let ci: i32 = 0;
-              while (ci < nlen) {
-                if (nb[ci] != op_e.var_name[ci]) {
-                  matched = 0;
-                  ci = nlen;
-                } else {
-                  ci = ci + 1;
-                }
-              }
-              if (matched != 0) {
-                let tr: i32 = pipeline_block_let_type_ref(arena, body_br, li);
-                if (pipeline_type_kind_ord_at(arena, tr) == (TypeKind.TYPE_SLICE as i32)) {
-                  let init_ref: i32 = pipeline_block_let_init_ref(arena, body_br, li);
-                  if (!ast.ref_is_null(init_ref) && pipeline_expr_kind_ord_at(arena, init_ref) == (ExprKind.EXPR_VAR as i32)) {
-                    let init_e: Expr = ast.ast_arena_expr_get(arena, init_ref);
-                    let lj: i32 = 0;
-                    while (lj < nlets) {
-                      let alen: i32 = pipeline_block_let_name_len(arena, body_br, lj);
-                      if (alen == init_e.var_name_len && alen > 0) {
-                        let am: i32 = 1;
-                        let ab: u8[64] = [];
-                        pipeline_block_let_name_copy64(arena, body_br, lj, &ab[0]);
-                        let ac: i32 = 0;
-                        while (ac < alen) {
-                          if (ab[ac] != init_e.var_name[ac]) {
-                            am = 0;
-                            ac = alen;
-                          } else {
-                            ac = ac + 1;
-                          }
-                        }
-                        if (am != 0) {
-                          let atr: i32 = pipeline_block_let_type_ref(arena, body_br, lj);
-                          if (pipeline_type_kind_ord_at(arena, atr) == (TypeKind.TYPE_ARRAY as i32)) {
-                            arr_sz = pipeline_type_array_size_at(arena, atr);
-                            elem_tr = pipeline_type_elem_ref_at(arena, atr);
-                            lj = nlets;
-                            li = nlets;
-                          }
-                        }
-                      }
-                      lj = lj + 1;
-                    }
-                  }
-                }
-              }
-            }
-            li = li + 1;
+          let arr_init_dummy: i32 = 0;
+          let found_esc: i32 = 0;
+          unsafe {
+            found_esc = pipeline_find_fixed_array_slice_escape(arena, body_br, &op_e.var_name[0], op_e.var_name_len, &arr_sz, &elem_tr, &arr_init_dummy);
           }
-          if (arr_sz > 0 && arr_sz <= 256 && !ast.ref_is_null(elem_tr)) {
+          if (found_esc != 0 && arr_sz > 0 && arr_sz <= 256 && !ast.ref_is_null(elem_tr)) {
             if (emit_indent(out, indent) != 0) {
               return -1;
             }

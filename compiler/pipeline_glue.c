@@ -2130,16 +2130,212 @@ static int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(struct ast_ASTArena *aren
 static int32_t glue_float_promote_src_ty_ref_c(struct ast_ASTArena *arena, int32_t expr_ref);
 extern int32_t pipeline_module_func_return_type_at(struct ast_Module *m, int32_t fi);
 
+/*
+ * wave343 Cap residual pure: nested-block fixed→slice return escape (G.7 complete).
+ * wave342 only scanned function-body top-level lets → nested `{ let a; let s=a; return s }`
+ * missed → host/fs run=1. Authority: DFS block tree from body (if/while/for/region +
+ * EXPR_BLOCK children) + resolved TYPE_ARRAY on slice-init VAR.
+ * PLATFORM: SHARED — host (codegen) and freestanding (ELF) share this finder.
+ * Soft leave-off: reassignment after init; untyped-let; reentrancy last-wins static/COMMON.
+ */
+#define GLUE_SLICE_ESC_WALK_DEPTH_MAX 256
+#define GLUE_SLICE_ESC_WALK_VISIT_MAX 4096
+
+/* Forward decls: full prototypes appear later in this TU / ast_pool. */
+int32_t ast_ast_block_num_expr_stmts(struct ast_ASTArena *a, int32_t br);
+int32_t ast_ast_block_num_loops(struct ast_ASTArena *a, int32_t br);
+int32_t ast_ast_block_num_for_loops(struct ast_ASTArena *a, int32_t br);
+int32_t ast_ast_block_num_if_stmts(struct ast_ASTArena *a, int32_t br);
+int32_t ast_ast_block_num_regions(struct ast_ASTArena *a, int32_t br);
+int32_t ast_ast_block_final_expr_ref(struct ast_ASTArena *a, int32_t br);
+int32_t ast_pipeline_block_expr_stmt_ref(struct ast_ASTArena *a, int32_t br, int32_t ei);
+int32_t ast_pipeline_block_if_then_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ii);
+int32_t ast_pipeline_block_if_else_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ii);
+extern int32_t pipeline_block_while_body_ref(struct ast_ASTArena *a, int32_t br, int32_t wi);
+extern int32_t pipeline_block_for_body_ref(struct ast_ASTArena *a, int32_t br, int32_t fi);
+extern int32_t pipeline_block_region_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ri);
+
 /**
- * wave342 Cap residual pure: freestanding `return s` where
- *   `let a: T[N] = …; let s: T[] = a; return s`
+ * Match `let s: T[] = a` where a is fixed TYPE_ARRAY in the same block (or a's
+ * resolved_type is TYPE_ARRAY). Writes *out_arr_sz / *out_elem_tr / *out_arr_init_ref.
+ * @return 1 found; 0 not in this block.
+ */
+static int32_t glue_match_slice_escape_lets_in_block_c(struct ast_ASTArena *arena, int32_t block_ref,
+                                                      const uint8_t *vname, int32_t vlen, int32_t *out_arr_sz,
+                                                      int32_t *out_elem_tr, int32_t *out_arr_init_ref) {
+  int32_t nlet;
+  int32_t li;
+  if (!arena || block_ref <= 0 || !vname || vlen <= 0 || !out_arr_sz || !out_elem_tr)
+    return 0;
+  nlet = ast_ast_block_num_lets(arena, block_ref);
+  for (li = 0; li < nlet; li++) {
+    int32_t nlen = pipeline_block_let_name_len(arena, block_ref, li);
+    int32_t match = 1;
+    int32_t ci;
+    uint8_t nb[64];
+    int32_t tr;
+    int32_t init_ref;
+    int32_t lj;
+    int32_t arr_sz = 0;
+    int32_t arr_ty = 0;
+    if (nlen != vlen || nlen <= 0)
+      continue;
+    pipeline_block_let_name_copy64(arena, block_ref, li, nb);
+    for (ci = 0; ci < nlen; ci++) {
+      if (nb[ci] != vname[ci]) {
+        match = 0;
+        break;
+      }
+    }
+    if (match == 0)
+      continue;
+    tr = pipeline_block_let_type_ref(arena, block_ref, li);
+    if (tr <= 0 || pipeline_type_kind_ord_at(arena, tr) != (int32_t)ast_TypeKind_TYPE_SLICE)
+      continue;
+    init_ref = pipeline_block_let_init_ref(arena, block_ref, li);
+    if (init_ref <= 0 || pipeline_expr_kind_ord_at(arena, init_ref) != 3)
+      continue;
+    /* Prefer resolved TYPE_ARRAY on init VAR (works when a lives in parent). */
+    {
+      int32_t irty = pipeline_expr_resolved_type_ref(arena, init_ref);
+      if (irty > 0 && pipeline_type_kind_ord_at(arena, irty) == (int32_t)ast_TypeKind_TYPE_ARRAY) {
+        arr_sz = pipeline_type_array_size_at(arena, irty);
+        arr_ty = irty;
+      }
+    }
+    if (arr_sz <= 0) {
+      int32_t avlen = pipeline_expr_var_name_len(arena, init_ref);
+      uint8_t aname[64];
+      if (avlen <= 0 || avlen > 63)
+        continue;
+      pipeline_expr_var_name_into(arena, init_ref, aname);
+      for (lj = 0; lj < nlet; lj++) {
+        int32_t alen = pipeline_block_let_name_len(arena, block_ref, lj);
+        int32_t am = 1;
+        int32_t ac;
+        uint8_t ab[64];
+        int32_t atr;
+        if (alen != avlen || alen <= 0)
+          continue;
+        pipeline_block_let_name_copy64(arena, block_ref, lj, ab);
+        for (ac = 0; ac < alen; ac++) {
+          if (ab[ac] != aname[ac]) {
+            am = 0;
+            break;
+          }
+        }
+        if (am == 0)
+          continue;
+        atr = pipeline_block_let_type_ref(arena, block_ref, lj);
+        if (atr > 0 && pipeline_type_kind_ord_at(arena, atr) == (int32_t)ast_TypeKind_TYPE_ARRAY) {
+          arr_sz = pipeline_type_array_size_at(arena, atr);
+          arr_ty = atr;
+          break;
+        }
+      }
+    }
+    if (arr_sz > 0 && arr_ty > 0) {
+      *out_arr_sz = arr_sz;
+      *out_elem_tr = pipeline_type_elem_ref_at(arena, arr_ty);
+      if (out_arr_init_ref)
+        *out_arr_init_ref = init_ref;
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * DFS from body_ref: match slice escape lets in body and nested blocks.
+ * Nested sources: if/while/for/region bodies + EXPR_BLOCK (kind 26) in expr_stmts/final.
+ * @return 1 found; 0 not found.
+ * PLATFORM: SHARED.
+ */
+int32_t pipeline_find_fixed_array_slice_escape(struct ast_ASTArena *arena, int32_t body_ref, uint8_t *vname,
+                                              int32_t vlen, int32_t *out_arr_sz, int32_t *out_elem_tr,
+                                              int32_t *out_arr_init_ref) {
+  int32_t stack[GLUE_SLICE_ESC_WALK_DEPTH_MAX];
+  int32_t sp = 0;
+  int32_t seen = 0;
+  if (!arena || body_ref <= 0 || !vname || vlen <= 0 || !out_arr_sz || !out_elem_tr)
+    return 0;
+  *out_arr_sz = 0;
+  *out_elem_tr = 0;
+  if (out_arr_init_ref)
+    *out_arr_init_ref = 0;
+  stack[sp++] = body_ref;
+  while (sp > 0 && seen < GLUE_SLICE_ESC_WALK_VISIT_MAX) {
+    int32_t cur;
+    int32_t i;
+    int32_t n;
+    int32_t ch;
+    int32_t er;
+    int32_t fin;
+    seen++;
+    cur = stack[--sp];
+    if (cur <= 0)
+      continue;
+    if (glue_match_slice_escape_lets_in_block_c(arena, cur, vname, vlen, out_arr_sz, out_elem_tr,
+                                               out_arr_init_ref))
+      return 1;
+    /* EXPR_BLOCK children in expr_stmts + final_expr (nested `{ … }` body). */
+    n = ast_ast_block_num_expr_stmts(arena, cur);
+    for (i = 0; i < n; i++) {
+      er = ast_pipeline_block_expr_stmt_ref(arena, cur, i);
+      if (er > 0 && pipeline_expr_kind_ord_at(arena, er) == 26) {
+        ch = pipeline_expr_block_ref_at(arena, er);
+        if (ch > 0 && sp < GLUE_SLICE_ESC_WALK_DEPTH_MAX)
+          stack[sp++] = ch;
+      }
+    }
+    fin = ast_ast_block_final_expr_ref(arena, cur);
+    if (fin > 0 && pipeline_expr_kind_ord_at(arena, fin) == 26) {
+      ch = pipeline_expr_block_ref_at(arena, fin);
+      if (ch > 0 && sp < GLUE_SLICE_ESC_WALK_DEPTH_MAX)
+        stack[sp++] = ch;
+    }
+    n = ast_ast_block_num_if_stmts(arena, cur);
+    for (i = 0; i < n; i++) {
+      ch = ast_pipeline_block_if_then_body_ref(arena, cur, i);
+      if (ch > 0 && sp < GLUE_SLICE_ESC_WALK_DEPTH_MAX)
+        stack[sp++] = ch;
+      ch = ast_pipeline_block_if_else_body_ref(arena, cur, i);
+      if (ch > 0 && sp < GLUE_SLICE_ESC_WALK_DEPTH_MAX)
+        stack[sp++] = ch;
+    }
+    n = ast_ast_block_num_loops(arena, cur);
+    for (i = 0; i < n; i++) {
+      ch = pipeline_block_while_body_ref(arena, cur, i);
+      if (ch > 0 && sp < GLUE_SLICE_ESC_WALK_DEPTH_MAX)
+        stack[sp++] = ch;
+    }
+    n = ast_ast_block_num_for_loops(arena, cur);
+    for (i = 0; i < n; i++) {
+      ch = pipeline_block_for_body_ref(arena, cur, i);
+      if (ch > 0 && sp < GLUE_SLICE_ESC_WALK_DEPTH_MAX)
+        stack[sp++] = ch;
+    }
+    n = ast_ast_block_num_regions(arena, cur);
+    for (i = 0; i < n; i++) {
+      ch = pipeline_block_region_body_ref(arena, cur, i);
+      if (ch > 0 && sp < GLUE_SLICE_ESC_WALK_DEPTH_MAX)
+        stack[sp++] = ch;
+    }
+  }
+  return 0;
+}
+
+/**
+ * wave342+343 Cap residual pure: freestanding `return s` where
+ *   `let a: T[N] = …; let s: T[] = a; return s` (body-top or nested block)
  * Root: try_emit_slice_init_from_array_var / glue_emit_slice_from_array_let_init VAR path
  * write `{.data=a,.length=N}` (stack view). Local aliasing is correct (s shares a);
  * escape via return dual-GP leaves a dangling data pointer (Ubuntu/host run=1 vs 60).
  * G.7: copy fixed-array payload into SHN_COMMON BSS (same face as wave341 non-const
  * ARRAY_LIT durable), then return data@rax length@rdx. View semantics inside the
  * function are unchanged; only the return path materializes an owned buffer.
- * Soft leave-off: reassignment of s after init; untyped-let; nested-block lets.
+ * wave343: finder walks nested blocks (pipeline_find_fixed_array_slice_escape).
+ * Soft leave-off: reassignment of s after init; untyped-let; reentrancy last-wins.
  * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV (ta==0).
  *
  * @return 1 handled; 0 not applicable; -1 hard fail.
@@ -2148,17 +2344,14 @@ static int32_t glue_try_return_slice_escape_from_fixed_array_elf_c(
     struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ret_op,
     struct backend_AsmFuncCtx *ctx, int32_t ta) {
   int32_t body_ref;
-  int32_t nlet;
-  int32_t li;
   int32_t vlen;
   int32_t arr_sz = 0;
   int32_t arr_init_ref = 0;
-  int32_t arr_ty = 0;
   int32_t src_off;
   int32_t esz;
   int32_t nbytes;
   int32_t ai;
-  int32_t elem_tr;
+  int32_t elem_tr = 0;
   int32_t seq;
   int32_t v;
   int32_t nd;
@@ -2194,75 +2387,15 @@ static int32_t glue_try_return_slice_escape_from_fixed_array_elf_c(
   body_ref = pipeline_module_func_body_ref_at(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index);
   if (body_ref <= 0)
     return 0;
-  nlet = ast_ast_block_num_lets(arena, body_ref);
-  for (li = 0; li < nlet; li++) {
-    int32_t nlen = pipeline_block_let_name_len(arena, body_ref, li);
-    int32_t match = 1;
-    int32_t ci;
-    uint8_t nb[64];
-    int32_t tr;
-    int32_t init_ref;
-    int32_t lj;
-    if (nlen != vlen || nlen <= 0)
-      continue;
-    pipeline_block_let_name_copy64(arena, body_ref, li, nb);
-    for (ci = 0; ci < nlen; ci++) {
-      if (nb[ci] != vname[ci]) {
-        match = 0;
-        break;
-      }
-    }
-    if (match == 0)
-      continue;
-    tr = pipeline_block_let_type_ref(arena, body_ref, li);
-    if (tr <= 0 || pipeline_type_kind_ord_at(arena, tr) != (int32_t)ast_TypeKind_TYPE_SLICE)
-      continue;
-    init_ref = pipeline_block_let_init_ref(arena, body_ref, li);
-    if (init_ref <= 0 || pipeline_expr_kind_ord_at(arena, init_ref) != 3)
-      continue;
-    /* init is VAR — find fixed TYPE_ARRAY local with that name. */
-    {
-      int32_t avlen = pipeline_expr_var_name_len(arena, init_ref);
-      uint8_t aname[64];
-      if (avlen <= 0 || avlen > 63)
-        continue;
-      pipeline_expr_var_name_into(arena, init_ref, aname);
-      for (lj = 0; lj < nlet; lj++) {
-        int32_t alen = pipeline_block_let_name_len(arena, body_ref, lj);
-        int32_t am = 1;
-        int32_t ac;
-        uint8_t ab[64];
-        int32_t atr;
-        if (alen != avlen || alen <= 0)
-          continue;
-        pipeline_block_let_name_copy64(arena, body_ref, lj, ab);
-        for (ac = 0; ac < alen; ac++) {
-          if (ab[ac] != aname[ac]) {
-            am = 0;
-            break;
-          }
-        }
-        if (am == 0)
-          continue;
-        atr = pipeline_block_let_type_ref(arena, body_ref, lj);
-        if (atr > 0 && pipeline_type_kind_ord_at(arena, atr) == (int32_t)ast_TypeKind_TYPE_ARRAY) {
-          arr_sz = pipeline_type_array_size_at(arena, atr);
-          arr_ty = atr;
-          arr_init_ref = init_ref;
-          break;
-        }
-      }
-    }
-    if (arr_sz > 0)
-      break;
-  }
-  if (arr_sz <= 0 || arr_sz > 256 || arr_init_ref <= 0 || arr_ty <= 0)
+  if (pipeline_find_fixed_array_slice_escape(arena, body_ref, vname, vlen, &arr_sz, &elem_tr, &arr_init_ref) == 0)
+    return 0;
+  if (arr_sz <= 0 || arr_sz > 256 || arr_init_ref <= 0 || elem_tr <= 0)
     return 0;
 
   src_off = glue_var_expr_stack_off_elf_c(arena, ctx, arr_init_ref);
   if (src_off < 0)
     return -1;
-  elem_tr = pipeline_type_elem_ref_at(arena, arr_ty);
+  /* elem_tr set by pipeline_find_fixed_array_slice_escape */
   esz = glue_index_elem_byte_sz_from_type_ref_c(arena, elem_tr);
   if (esz != 1 && esz != 2 && esz != 4 && esz != 8)
     esz = 4;
@@ -2375,7 +2508,8 @@ static int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
        * wave342: non-ARRAY_LIT fixed→slice return escape (COMMON copy) is handled above.
        * Fallback: stack emit_array_lit only if durable pack fails.
        * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV.
-       * Soft residual: untyped-let (docs 禁推断); nested-block fixed→slice escape.
+       * Soft residual: untyped-let (docs 禁推断); reassign after init; reentrancy last-wins.
+       * wave343: nested-block fixed→slice escape closed via pipeline_find_fixed_array_slice_escape.
        */
       int32_t rty = pipeline_module_func_return_type_at(g_pipeline_asm_emit_module,
                                                         g_pipeline_asm_emit_func_index);

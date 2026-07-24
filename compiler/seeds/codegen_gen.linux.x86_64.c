@@ -1631,6 +1631,10 @@ extern int32_t pipeline_module_func_name_len_at(struct ast_Module * module, int3
 extern int32_t pipeline_module_func_num_generic_params_at(struct ast_Module * module, int32_t fi);
 extern int32_t pipeline_module_func_return_type_at(struct ast_Module * module, int32_t fi);
 extern int32_t pipeline_module_func_body_ref_at(struct ast_Module * module, int32_t fi);
+/* wave343: nested-block fixed→slice return escape finder (pipeline_glue.c). */
+extern int32_t pipeline_find_fixed_array_slice_escape(struct ast_ASTArena *arena, int32_t body_ref,
+                                                     uint8_t *vname, int32_t vlen, int32_t *out_arr_sz,
+                                                     int32_t *out_elem_tr, int32_t *out_arr_init_ref);
 extern void pipeline_dep_ctx_empty_param_reset(struct ast_PipelineDepCtx * ctx);
 extern int32_t pipeline_dep_ctx_empty_param_append(struct ast_PipelineDepCtx * ctx, int32_t pi);
 extern int32_t pipeline_dep_ctx_empty_param_at(struct ast_PipelineDepCtx * ctx, int32_t i);
@@ -8676,10 +8680,11 @@ int32_t codegen_emit_return_stmt_with_context(struct ast_ASTArena * arena, struc
         }
       }
       /*
-       * wave342 Cap residual pure: host `return s` where
-       *   `let a: T[N] = …; let s: T[] = a; return s`
+       * wave342/343 Cap residual pure: host `return s` where
+       *   `let a: T[N] = …; let s: T[] = a; return s` (body-top or nested block)
        * Root: try_emit_slice_init_from_array_var → {.data=a,.length=N} stack view;
        * return dangles (run=1 vs 60). G.7: static E __xlang_esc[N] + memcpy(s.data).
+       * wave343: pipeline_find_fixed_array_slice_escape (nested + resolved ARRAY).
        * PLATFORM: SHARED host-C (matches freestanding COMMON escape).
        */
       if ((!(ast_ref_is_null(rty))) && (pipeline_type_kind_ord_at(arena, rty) == 11)
@@ -8690,64 +8695,12 @@ int32_t codegen_emit_return_stmt_with_context(struct ast_ASTArena * arena, struc
           struct ast_Expr op_e = ast_ast_arena_expr_get(arena, operand_ref);
           int32_t arr_sz = 0;
           int32_t elem_tr = 0;
-          int32_t nlets = ast_ast_block_num_lets(arena, body_br);
-          int32_t li = 0;
-          while ((li < nlets)) {
-            int32_t nlen = pipeline_block_let_name_len(arena, body_br, li);
-            if (((nlen == (op_e.var_name_len)) && (nlen > 0))) {
-              int32_t matched = 1;
-              uint8_t nb[64] = {};
-              (void)(pipeline_block_let_name_copy64(arena, body_br, li, &((nb)[0])));
-              int32_t ci = 0;
-              while ((ci < nlen)) {
-                if (((nb)[ci] != ((op_e.var_name))[ci])) {
-                  (void)((matched = 0));
-                  (void)((ci = nlen));
-                } else {
-                  (void)((ci = (ci + 1)));
-                }
-              }
-              if ((matched != 0)) {
-                int32_t tr = pipeline_block_let_type_ref(arena, body_br, li);
-                if ((pipeline_type_kind_ord_at(arena, tr) == 11)) {
-                  int32_t init_ref = pipeline_block_let_init_ref(arena, body_br, li);
-                  if ((!(ast_ref_is_null(init_ref))) && (pipeline_expr_kind_ord_at(arena, init_ref) == 3)) {
-                    struct ast_Expr init_e = ast_ast_arena_expr_get(arena, init_ref);
-                    int32_t lj = 0;
-                    while ((lj < nlets)) {
-                      int32_t alen = pipeline_block_let_name_len(arena, body_br, lj);
-                      if (((alen == (init_e.var_name_len)) && (alen > 0))) {
-                        int32_t am = 1;
-                        uint8_t ab[64] = {};
-                        (void)(pipeline_block_let_name_copy64(arena, body_br, lj, &((ab)[0])));
-                        int32_t ac = 0;
-                        while ((ac < alen)) {
-                          if (((ab)[ac] != ((init_e.var_name))[ac])) {
-                            (void)((am = 0));
-                            (void)((ac = alen));
-                          } else {
-                            (void)((ac = (ac + 1)));
-                          }
-                        }
-                        if ((am != 0)) {
-                          int32_t atr = pipeline_block_let_type_ref(arena, body_br, lj);
-                          if ((pipeline_type_kind_ord_at(arena, atr) == 10)) {
-                            (void)((arr_sz = pipeline_type_array_size_at(arena, atr)));
-                            (void)((elem_tr = pipeline_type_elem_ref_at(arena, atr)));
-                            (void)((lj = nlets));
-                            (void)((li = nlets));
-                          }
-                        }
-                      }
-                      (void)((lj = (lj + 1)));
-                    }
-                  }
-                }
-              }
-            }
-            (void)((li = (li + 1)));
-          }
-          if ((((arr_sz > 0) && (arr_sz <= 256)) && (!(ast_ref_is_null(elem_tr))))) {
+          int32_t arr_init_dummy = 0;
+          int32_t found_esc = 0;
+          found_esc = pipeline_find_fixed_array_slice_escape(arena, body_br, &((op_e.var_name))[0],
+                                                            (op_e.var_name_len), &arr_sz, &elem_tr,
+                                                            &arr_init_dummy);
+          if ((((found_esc != 0) && (arr_sz > 0) && (arr_sz <= 256)) && (!(ast_ref_is_null(elem_tr))))) {
             uint8_t open1[20] = {114, 101, 116, 117, 114, 110, 32, 40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0, 0};
             uint8_t esc_br[16] = {32, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 91, 0, 0, 0};
             uint8_t mid1[28] = {93, 59, 32, 109, 101, 109, 99, 112, 121, 40, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 44, 32, 0, 0, 0, 0, 0};
