@@ -33,4 +33,14 @@ case "$str_err" in
     ;;
 esac
 
+# wave389: integer panic(42) → "panic: 42" (Linux freestanding .s itoa; host-C fprintf).
+msg_err=$(/tmp/xlang_panic_msg 2>&1 >/dev/null || true)
+case "$msg_err" in
+  *42*) ;;
+  *)
+    echo "expected panic int '42' on stderr, got: [$msg_err]"
+    exit 1
+    ;;
+esac
+
 echo "panic test OK"
