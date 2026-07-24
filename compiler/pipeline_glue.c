@@ -15587,6 +15587,30 @@ static int32_t pipeline_asm_emit_var_field_access_elf_c(struct ast_ASTArena *are
       fprintf(stderr, "xlang: var_field_access miss var='%.*s'\n", (int)vlen, (char *)vname);
     return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
   }
+  /*
+   * wave393 Cap residual pure: freestanding TYPE_SLICE dual-GP local home.
+   * Store authority (`glue_emit_slice_from_array_let_init_elf_c`) writes
+   * data@off / length@off-8. C struct layout (data@0, length@+8) only applies
+   * after a fat* load (slice* params — needs_ptr_load). Prior path always
+   * lea(home)+field_off(+8 for .length) → read past dual-GP home → length=0 /
+   * stack junk (mac asm `s.length` exit 0; host-C green via `{.length=N}`).
+   * G.7: match INDEX bounds `glue_emit_slice_length_to_rbx_elf_c` dual-GP load.
+   * PLATFORM: SHARED freestanding · LINUX+MACOS (arm64/x86_64); host-C untouched.
+   */
+  {
+    int32_t base_ty_sl = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref);
+    int32_t flen_sl = pipeline_expr_field_access_name_len(arena, expr_ref);
+    if (base_ty_sl > 0 && flen_sl > 0 && flen_sl <= 63 &&
+        pipeline_type_kind_ord_at(arena, base_ty_sl) == GLUE_TYPE_KIND_SLICE &&
+        glue_local_var_slot_needs_ptr_load_elf_c(arena, base_ref, var_off, ctx) == 0) {
+      uint8_t fn_sl[64];
+      pipeline_expr_field_access_name_into(arena, expr_ref, fn_sl);
+      if (flen_sl == 6 && memcmp(fn_sl, "length", 6) == 0)
+        return backend_enc_load_rbp_to_rax_arch(elf_ctx, var_off - 8, ta);
+      if (flen_sl == 4 && memcmp(fn_sl, "data", 4) == 0)
+        return backend_enc_load_rbp_to_rax_arch(elf_ctx, var_off, ta);
+    }
+  }
   field_off = glue_field_access_effective_offset_c(arena, g_pipeline_asm_emit_module, expr_ref);
   if (glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, base_ref, var_off, ctx, ta) != 0)
     return -1;
