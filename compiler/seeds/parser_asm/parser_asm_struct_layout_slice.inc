@@ -1065,7 +1065,18 @@ int32_t parser_asm_parse_struct_record_layout_into_slice_c(void *arena, void *mo
       pipeline_module_struct_layout_set_field_align(module, layout_idx, nf, field_align_req);
     nf++;
     lexer_next_into(&r, lex, source);
-    if (r.tok.kind == (int32_t)TOKEN_SEMICOLON) {
+    /*
+     * PLATFORM: SHARED — field list separators.
+     * wave355 Cap residual pure: accept TOKEN_COMMA as well as TOKEN_SEMICOLON.
+     * Prior: only `;` was consumed; `,` → return -1 after field 0 was already
+     * written (set_field bumps num_fields). Caller then skip_one_struct without
+     * clearing the slot → nf=1 incomplete layout pollution. Scalar STRUCT_LIT
+     * could be repaired by typeck ensure_struct_layout_from_struct_lit; array
+     * lit of STRUCT_LIT (`let a: Pt[N] = [Pt { x, y }]`) did not → host-C emit
+     * of only the first field (BLD001 missing later fields). Authority: this
+     * field-loop (G.7); docs/02 aligned to allow both separators.
+     */
+    if (r.tok.kind == (int32_t)TOKEN_SEMICOLON || r.tok.kind == (int32_t)TOKEN_COMMA) {
       parser_asm_lex_from_result_val_into(&lex, r);
     } else if (r.tok.kind == (int32_t)TOKEN_RBRACE) {
       parser_asm_lex_from_result_val_into(&lex, r);
