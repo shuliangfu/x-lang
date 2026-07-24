@@ -2503,23 +2503,59 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
         }
         (void)((lex_cur = (r.next_lex)));
         (void)(lexer_next_into(&(r), lex_cur, source));
+        /* wave347: for-init let (TOKEN_LET=2) — hoist via body-lets face; init_ref=0. */
+        int for_past_init_semi = 0;
         if ((((r.tok).kind) !=95)) {
-          (void)((expr_res_fi = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex_cur }));
-          (void)(parser_parse_expr_into(arena, lex_cur, source, &(expr_res_fi)));
-          if (!((expr_res_fi.ok))) {
+          if ((((r.tok).kind) ==2)) {
+            int32_t let_base_fi = (b.num_lets);
+            (void)(ast_pool_onefunc_reset(parser_onefunc_result_pool_ptr(temp)));
+            (void)(((temp->num_lets) = 0));
+            (void)(((temp->num_consts) = 0));
+            struct lexer_Lexer lex_fi_let = (struct lexer_Lexer){
+              .pos = parser_lexer_pos_before_run(((r.next_lex).pos), 3),
+              .line = ((r.tok).line),
+              .col = ((r.tok).col)
+            };
+            if (!(parser_parse_body_lets_into(arena, lex_fi_let, source, temp, &(lex_cur)))) {
+              (void)(((out->ok) = 0));
+              return;
+            }
+            if (!(parser_append_block_lets_from_res(arena, block_ref, temp, 0, type_ref))) {
+              (void)(((out->ok) = 0));
+              return;
+            }
+            (void)((b = ast_ast_arena_block_get(arena, block_ref)));
+            int32_t pi_fi = let_base_fi;
+            while ((pi_fi < (b.num_lets))) {
+              if ((pipeline_block_append_stmt_order(arena, block_ref, 1, pi_fi) < 0)) {
+                (void)(((out->ok) = 0));
+                return;
+              }
+              (void)((pi_fi = (pi_fi + 1)));
+            }
+            (void)((init_ref = 0));
+            (void)((for_past_init_semi = 1));
+            (void)(lexer_next_into(&(r), lex_cur, source));
+          } else {
+            (void)((expr_res_fi = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex_cur }));
+            (void)(parser_parse_expr_into(arena, lex_cur, source, &(expr_res_fi)));
+            if (!((expr_res_fi.ok))) {
+              (void)(((out->ok) = 0));
+              return;
+            }
+            (void)((init_ref = (expr_res_fi.expr_ref)));
+            (void)((lex_cur = (expr_res_fi.next_lex)));
+            (void)(lexer_next_into(&(r), lex_cur, source));
+          }
+        }
+        if (!(for_past_init_semi)) {
+          if ((((r.tok).kind) !=95)) {
             (void)(((out->ok) = 0));
             return;
           }
-          (void)((init_ref = (expr_res_fi.expr_ref)));
-          (void)((lex_cur = (expr_res_fi.next_lex)));
+          (void)((lex_cur = (r.next_lex)));
           (void)(lexer_next_into(&(r), lex_cur, source));
         }
-        if ((((r.tok).kind) !=95)) {
-          (void)(((out->ok) = 0));
-          return;
-        }
-        (void)((lex_cur = (r.next_lex)));
-        (void)(lexer_next_into(&(r), lex_cur, source));
         if ((((r.tok).kind) !=95)) {
           (void)((expr_res_fc = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex_cur }));
           (void)(parser_parse_expr_into(arena, lex_cur, source, &(expr_res_fc)));
@@ -4733,23 +4769,49 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
           }
           (void)((lex = (r.next_lex)));
           (void)(lexer_next_into(&(r), lex, source));
+          /* wave347: for-init let (TOKEN_LET=2) — onefunc body-lets + push kind=1; init_ref=0. */
+          int for_past_init_semi_fn = 0;
           if ((((r.tok).kind) !=95)) {
-            (void)((expr_res_fi = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex }));
-            (void)(parser_parse_expr_into(arena, lex, source, &(expr_res_fi)));
-            if (!((expr_res_fi.ok))) {
+            if ((((r.tok).kind) ==2)) {
+              int32_t n_before_fi = pipeline_onefunc_num_lets(parser_onefunc_result_pool_ptr(out));
+              struct lexer_Lexer lex_fi_let = (struct lexer_Lexer){
+                .pos = parser_lexer_pos_before_run(((r.next_lex).pos), 3),
+                .line = ((r.tok).line),
+                .col = ((r.tok).col)
+              };
+              if (!(parser_parse_body_lets_into(arena, lex_fi_let, source, out, &(lex)))) {
+                (void)(parser_set_onefunc_fail(out, lex));
+                return;
+              }
+              (void)(((out->num_lets) = pipeline_onefunc_num_lets(parser_onefunc_result_pool_ptr(out))));
+              int32_t push_fi = n_before_fi;
+              while ((push_fi < (out->num_lets))) {
+                (void)(parser_onefunc_push_src_stmt(out, 1, push_fi));
+                (void)((push_fi = (push_fi + 1)));
+              }
+              (void)((init_ref = 0));
+              (void)((for_past_init_semi_fn = 1));
+              (void)(lexer_next_into(&(r), lex, source));
+            } else {
+              (void)((expr_res_fi = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex }));
+              (void)(parser_parse_expr_into(arena, lex, source, &(expr_res_fi)));
+              if (!((expr_res_fi.ok))) {
+                (void)(parser_set_onefunc_fail(out, lex));
+                return;
+              }
+              (void)((init_ref = (expr_res_fi.expr_ref)));
+              (void)((lex = (expr_res_fi.next_lex)));
+              (void)(lexer_next_into(&(r), lex, source));
+            }
+          }
+          if (!(for_past_init_semi_fn)) {
+            if ((((r.tok).kind) !=95)) {
               (void)(parser_set_onefunc_fail(out, lex));
               return;
             }
-            (void)((init_ref = (expr_res_fi.expr_ref)));
-            (void)((lex = (expr_res_fi.next_lex)));
+            (void)((lex = (r.next_lex)));
             (void)(lexer_next_into(&(r), lex, source));
           }
-          if ((((r.tok).kind) !=95)) {
-            (void)(parser_set_onefunc_fail(out, lex));
-            return;
-          }
-          (void)((lex = (r.next_lex)));
-          (void)(lexer_next_into(&(r), lex, source));
           if ((((r.tok).kind) !=95)) {
             (void)((expr_res_fc = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex }));
             (void)(parser_parse_expr_into(arena, lex, source, &(expr_res_fc)));
