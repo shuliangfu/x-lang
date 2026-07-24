@@ -8128,6 +8128,138 @@ export function emit_return_stmt_with_context(arena: *ASTArena, out: *CodegenOut
           return 0;
         }
       }
+      /*
+       * wave342 Cap residual pure: host `return s` where
+       *   `let a: T[N] = …; let s: T[] = a; return s`
+       * Root: try_emit_slice_init_from_array_var emits `{.data=a,.length=N}` (stack view).
+       * Local aliasing is correct; return of the view dangles (run=1 vs 60).
+       * G.7: durable static buffer + memcpy from s.data at escape (view inside fn unchanged).
+       * Emit: return ({ static E __xlang_esc[N]; memcpy(__xlang_esc, s.data, sizeof);
+       *                 (slice){.data=__xlang_esc,.length=N}; });
+       * Soft: nested-block lets; reassignment of s after fixed-array init.
+       * PLATFORM: SHARED host-C emit (matches freestanding COMMON escape).
+       */
+      if (!ast.ref_is_null(rty) && pipeline_type_kind_ord_at(arena, rty) == (TypeKind.TYPE_SLICE as i32)
+          && !ast.ref_is_null(operand_ref)
+          && pipeline_expr_kind_ord_at(arena, operand_ref) == (ExprKind.EXPR_VAR as i32)) {
+        let body_br: i32 = pipeline_module_func_body_ref_at(ctx.current_codegen_module, ctx.current_func_index);
+        if (!ast.ref_is_null(body_br) && body_br > 0) {
+          let op_e: Expr = ast.ast_arena_expr_get(arena, operand_ref);
+          let arr_sz: i32 = 0;
+          let elem_tr: i32 = 0;
+          let nlets: i32 = ast.ast_block_num_lets(arena, body_br);
+          let li: i32 = 0;
+          while (li < nlets) {
+            let nlen: i32 = pipeline_block_let_name_len(arena, body_br, li);
+            if (nlen == op_e.var_name_len && nlen > 0) {
+              let matched: i32 = 1;
+              let nb: u8[64] = [];
+              pipeline_block_let_name_copy64(arena, body_br, li, &nb[0]);
+              let ci: i32 = 0;
+              while (ci < nlen) {
+                if (nb[ci] != op_e.var_name[ci]) {
+                  matched = 0;
+                  ci = nlen;
+                } else {
+                  ci = ci + 1;
+                }
+              }
+              if (matched != 0) {
+                let tr: i32 = pipeline_block_let_type_ref(arena, body_br, li);
+                if (pipeline_type_kind_ord_at(arena, tr) == (TypeKind.TYPE_SLICE as i32)) {
+                  let init_ref: i32 = pipeline_block_let_init_ref(arena, body_br, li);
+                  if (!ast.ref_is_null(init_ref) && pipeline_expr_kind_ord_at(arena, init_ref) == (ExprKind.EXPR_VAR as i32)) {
+                    let init_e: Expr = ast.ast_arena_expr_get(arena, init_ref);
+                    let lj: i32 = 0;
+                    while (lj < nlets) {
+                      let alen: i32 = pipeline_block_let_name_len(arena, body_br, lj);
+                      if (alen == init_e.var_name_len && alen > 0) {
+                        let am: i32 = 1;
+                        let ab: u8[64] = [];
+                        pipeline_block_let_name_copy64(arena, body_br, lj, &ab[0]);
+                        let ac: i32 = 0;
+                        while (ac < alen) {
+                          if (ab[ac] != init_e.var_name[ac]) {
+                            am = 0;
+                            ac = alen;
+                          } else {
+                            ac = ac + 1;
+                          }
+                        }
+                        if (am != 0) {
+                          let atr: i32 = pipeline_block_let_type_ref(arena, body_br, lj);
+                          if (pipeline_type_kind_ord_at(arena, atr) == (TypeKind.TYPE_ARRAY as i32)) {
+                            arr_sz = pipeline_type_array_size_at(arena, atr);
+                            elem_tr = pipeline_type_elem_ref_at(arena, atr);
+                            lj = nlets;
+                            li = nlets;
+                          }
+                        }
+                      }
+                      lj = lj + 1;
+                    }
+                  }
+                }
+              }
+            }
+            li = li + 1;
+          }
+          if (arr_sz > 0 && arr_sz <= 256 && !ast.ref_is_null(elem_tr)) {
+            if (emit_indent(out, indent) != 0) {
+              return -1;
+            }
+            /* return ({ static  */
+            let open1: u8[20] = [114, 101, 116, 117, 114, 110, 32, 40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0, 0];
+            if (emit_bytes_from_ptr(out, &open1[0], 17) != 0) {
+              return -1;
+            }
+            if (emit_type(arena, out, elem_tr, 0 as *u8, 0, ctx) != 0) {
+              let fallback: u8[9] = [105, 110, 116, 51, 50, 95, 116, 0, 0];
+              if (emit_bytes_9(out, fallback, 7) != 0) {
+                return -1;
+              }
+            }
+            /*  __xlang_esc[ */
+            let esc_br: u8[16] = [32, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 91, 0, 0, 0];
+            if (emit_bytes_from_ptr(out, &esc_br[0], 13) != 0) {
+              return -1;
+            }
+            if (format_int(out, arr_sz) != 0) {
+              return -1;
+            }
+            /* ]; memcpy(__xlang_esc,  */
+            let mid1: u8[28] = [93, 59, 32, 109, 101, 109, 99, 112, 121, 40, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 44, 32, 0, 0, 0, 0, 0];
+            if (emit_bytes_from_ptr(out, &mid1[0], 23) != 0) {
+              return -1;
+            }
+            if (emit_bytes_64(out, &op_e.var_name[0], op_e.var_name_len) != 0) {
+              return -1;
+            }
+            /* .data, sizeof(__xlang_esc)); ( */
+            let mid2: u8[36] = [46, 100, 97, 116, 97, 44, 32, 115, 105, 122, 101, 111, 102, 40, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 41, 41, 59, 32, 40, 0, 0, 0, 0, 0, 0];
+            if (emit_bytes_from_ptr(out, &mid2[0], 30) != 0) {
+              return -1;
+            }
+            if (emit_type(arena, out, rty, 0 as *u8, 0, ctx) != 0) {
+              return -1;
+            }
+            /* ){ .data = __xlang_esc, .length =  */
+            let mid3: u8[40] = [41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0, 0, 0, 0];
+            if (emit_bytes_from_ptr(out, &mid3[0], 34) != 0) {
+              return -1;
+            }
+            if (format_int(out, arr_sz) != 0) {
+              return -1;
+            }
+            /*  }; })\n */
+            let end1: u8[12] = [32, 125, 59, 32, 125, 41, 59, 10, 0, 0, 0, 0];
+            if (emit_bytes_from_ptr(out, &end1[0], 8) != 0) {
+              return -1;
+            }
+            return 0;
+          }
+        }
+      }
     }
     if (emit_indent(out, indent) != 0) {
       return -1;

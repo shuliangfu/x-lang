@@ -1705,6 +1705,7 @@ static int32_t glue_binop_preserve_rax_for_rbx_load_elf_c(struct platform_elf_El
 static int32_t glue_binop_restore_rax_after_rbx_load_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                int32_t ta);
 static int32_t pipeline_asm_expr_lit_i32_at_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *out_imm);
+static int32_t glue_index_elem_byte_sz_from_type_ref_c(struct ast_ASTArena *arena, int32_t tr);
 static int32_t glue_var_expr_stack_off_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                               int32_t var_expr_ref);
 static int32_t glue_emit_index_add_index_to_base_rax_elf_c(struct ast_ASTArena *arena,
@@ -2128,6 +2129,205 @@ static int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(struct ast_ASTArena *aren
 static int32_t glue_float_promote_src_ty_ref_c(struct ast_ASTArena *arena, int32_t expr_ref);
 extern int32_t pipeline_module_func_return_type_at(struct ast_Module *m, int32_t fi);
 
+/**
+ * wave342 Cap residual pure: freestanding `return s` where
+ *   `let a: T[N] = …; let s: T[] = a; return s`
+ * Root: try_emit_slice_init_from_array_var / glue_emit_slice_from_array_let_init VAR path
+ * write `{.data=a,.length=N}` (stack view). Local aliasing is correct (s shares a);
+ * escape via return dual-GP leaves a dangling data pointer (Ubuntu/host run=1 vs 60).
+ * G.7: copy fixed-array payload into SHN_COMMON BSS (same face as wave341 non-const
+ * ARRAY_LIT durable), then return data@rax length@rdx. View semantics inside the
+ * function are unchanged; only the return path materializes an owned buffer.
+ * Soft leave-off: reassignment of s after init; untyped-let; nested-block lets.
+ * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV (ta==0).
+ *
+ * @return 1 handled; 0 not applicable; -1 hard fail.
+ */
+static int32_t glue_try_return_slice_escape_from_fixed_array_elf_c(
+    struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ret_op,
+    struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  int32_t body_ref;
+  int32_t nlet;
+  int32_t li;
+  int32_t vlen;
+  int32_t arr_sz = 0;
+  int32_t arr_init_ref = 0;
+  int32_t arr_ty = 0;
+  int32_t src_off;
+  int32_t esz;
+  int32_t nbytes;
+  int32_t ai;
+  int32_t elem_tr;
+  int32_t seq;
+  int32_t v;
+  int32_t nd;
+  int32_t di;
+  int32_t llen;
+  uint8_t vname[64];
+  uint8_t label[24];
+  uint8_t digs[8];
+  const char *pfx;
+  int32_t rty;
+  int32_t sty;
+  int32_t slice_ret = 0;
+
+  if (!arena || !elf_ctx || !ctx || ret_op <= 0 || ta != 0)
+    return 0;
+  if (!g_pipeline_asm_emit_module || g_pipeline_asm_emit_func_index < 0)
+    return 0;
+  if (pipeline_expr_kind_ord_at(arena, ret_op) != 3) /* EXPR_VAR */
+    return 0;
+  rty = pipeline_module_func_return_type_at(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index);
+  sty = pipeline_expr_resolved_type_ref(arena, ret_op);
+  if (rty > 0 && pipeline_type_kind_ord_at(arena, rty) == (int32_t)ast_TypeKind_TYPE_SLICE)
+    slice_ret = 1;
+  else if (sty > 0 && pipeline_type_kind_ord_at(arena, sty) == (int32_t)ast_TypeKind_TYPE_SLICE)
+    slice_ret = 1;
+  if (slice_ret == 0)
+    return 0;
+
+  vlen = pipeline_expr_var_name_len(arena, ret_op);
+  if (vlen <= 0 || vlen > 63)
+    return 0;
+  pipeline_expr_var_name_into(arena, ret_op, vname);
+  body_ref = pipeline_module_func_body_ref_at(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index);
+  if (body_ref <= 0)
+    return 0;
+  nlet = ast_ast_block_num_lets(arena, body_ref);
+  for (li = 0; li < nlet; li++) {
+    int32_t nlen = pipeline_block_let_name_len(arena, body_ref, li);
+    int32_t match = 1;
+    int32_t ci;
+    uint8_t nb[64];
+    int32_t tr;
+    int32_t init_ref;
+    int32_t lj;
+    if (nlen != vlen || nlen <= 0)
+      continue;
+    pipeline_block_let_name_copy64(arena, body_ref, li, nb);
+    for (ci = 0; ci < nlen; ci++) {
+      if (nb[ci] != vname[ci]) {
+        match = 0;
+        break;
+      }
+    }
+    if (match == 0)
+      continue;
+    tr = pipeline_block_let_type_ref(arena, body_ref, li);
+    if (tr <= 0 || pipeline_type_kind_ord_at(arena, tr) != (int32_t)ast_TypeKind_TYPE_SLICE)
+      continue;
+    init_ref = pipeline_block_let_init_ref(arena, body_ref, li);
+    if (init_ref <= 0 || pipeline_expr_kind_ord_at(arena, init_ref) != 3)
+      continue;
+    /* init is VAR — find fixed TYPE_ARRAY local with that name. */
+    {
+      int32_t avlen = pipeline_expr_var_name_len(arena, init_ref);
+      uint8_t aname[64];
+      if (avlen <= 0 || avlen > 63)
+        continue;
+      pipeline_expr_var_name_into(arena, init_ref, aname);
+      for (lj = 0; lj < nlet; lj++) {
+        int32_t alen = pipeline_block_let_name_len(arena, body_ref, lj);
+        int32_t am = 1;
+        int32_t ac;
+        uint8_t ab[64];
+        int32_t atr;
+        if (alen != avlen || alen <= 0)
+          continue;
+        pipeline_block_let_name_copy64(arena, body_ref, lj, ab);
+        for (ac = 0; ac < alen; ac++) {
+          if (ab[ac] != aname[ac]) {
+            am = 0;
+            break;
+          }
+        }
+        if (am == 0)
+          continue;
+        atr = pipeline_block_let_type_ref(arena, body_ref, lj);
+        if (atr > 0 && pipeline_type_kind_ord_at(arena, atr) == (int32_t)ast_TypeKind_TYPE_ARRAY) {
+          arr_sz = pipeline_type_array_size_at(arena, atr);
+          arr_ty = atr;
+          arr_init_ref = init_ref;
+          break;
+        }
+      }
+    }
+    if (arr_sz > 0)
+      break;
+  }
+  if (arr_sz <= 0 || arr_sz > 256 || arr_init_ref <= 0 || arr_ty <= 0)
+    return 0;
+
+  src_off = glue_var_expr_stack_off_elf_c(arena, ctx, arr_init_ref);
+  if (src_off < 0)
+    return -1;
+  elem_tr = pipeline_type_elem_ref_at(arena, arr_ty);
+  esz = glue_index_elem_byte_sz_from_type_ref_c(arena, elem_tr);
+  if (esz != 1 && esz != 2 && esz != 4 && esz != 8)
+    esz = 4;
+  if (arr_sz > 2048 / esz)
+    return -1;
+  nbytes = arr_sz * esz;
+  if (nbytes <= 0 || nbytes > 2048)
+    return -1;
+
+  /* SHN_COMMON BSS label Lxlang_esc_<seq> (writable; never RX .text). */
+  seq = g_pipeline_asm_al_nc_seq;
+  if (seq < 0 || seq > 999999)
+    seq = 0;
+  g_pipeline_asm_al_nc_seq = seq + 1;
+  llen = 0;
+  pfx = "Lxlang_esc_";
+  while (pfx[llen] != 0 && llen < 12) {
+    label[llen] = (uint8_t)pfx[llen];
+    llen++;
+  }
+  v = seq;
+  nd = 0;
+  if (v == 0) {
+    digs[0] = (uint8_t)'0';
+    nd = 1;
+  } else {
+    while (v > 0 && nd < 8) {
+      digs[nd++] = (uint8_t)('0' + (v % 10));
+      v /= 10;
+    }
+  }
+  for (di = nd - 1; di >= 0 && llen < 23; di--)
+    label[llen++] = digs[di];
+  if (pipeline_elf_ctx_add_common_sym((uint8_t *)elf_ctx, label, llen, nbytes, esz) != 0)
+    return -1;
+
+  /*
+   * Element-wise copy fixed array stack → COMMON (wave334 slot layout:
+   * elem[i] at src_off - i*esz). Store to COMMON uses +i*esz address math.
+   */
+  for (ai = 0; ai < arr_sz; ai++) {
+    if (backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, src_off - ai * esz, esz, ta) != 0)
+      return -1;
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (glue_asm_lea_rbx_common_rip_x86(elf_ctx, label, llen) != 0)
+      return -1;
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, ai * esz, esz, ta) != 0)
+      return -1;
+  }
+  if (glue_asm_lea_rax_common_rip_x86(elf_ctx, label, llen) != 0)
+    return -1;
+  /* data@rax already; length@rdx = arr_sz. */
+  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, arr_sz, 0, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  return 1;
+}
+
 static int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
                                                    struct backend_AsmFuncCtx *ctx, int32_t ta) {
@@ -2141,6 +2341,27 @@ static int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
       if (glue_emit_sret_return_from_var_elf_c(arena, elf_ctx, ret_op, ctx, ta) != 0)
         return -1;
     } else if (arena && ctx && elf_ctx && ta == 0 &&
+               pipeline_expr_kind_ord_at(arena, ret_op) == 3 &&
+               g_pipeline_asm_emit_module && g_pipeline_asm_emit_func_index >= 0) {
+      /*
+       * wave342: return TYPE_SLICE VAR that views a fixed TYPE_ARRAY local → durable
+       * COMMON copy (kill owned-buffer escape). Falls through on 0 (not applicable).
+       */
+      int32_t esc = glue_try_return_slice_escape_from_fixed_array_elf_c(arena, elf_ctx, ret_op, ctx, ta);
+      if (esc < 0)
+        return -1;
+      if (esc == 0) {
+        if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, ret_op, ctx, ta) != 0)
+          return -1;
+        if (g_pipeline_asm_emit_module && g_pipeline_asm_emit_func_index >= 0) {
+          int32_t rty = pipeline_module_func_return_type_at(g_pipeline_asm_emit_module,
+                                                            g_pipeline_asm_emit_func_index);
+          int32_t sty = glue_float_promote_src_ty_ref_c(arena, ret_op);
+          if (glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, rty, sty, ta) != 0)
+            return -1;
+        }
+      }
+    } else if (arena && ctx && elf_ctx && ta == 0 &&
                pipeline_expr_kind_ord_at(arena, ret_op) == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT &&
                g_pipeline_asm_emit_module && g_pipeline_asm_emit_func_index >= 0) {
       /*
@@ -2150,9 +2371,10 @@ static int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
        * wave339: `return a` for const ARRAY_LIT let-init is durable via let-init embed
        * (G.7 reuse glue_emit_slice_from_array_let_init; host already static).
        * wave341: non-const ARRAY_LIT also durable (COMMON BSS fill; host static stores).
+       * wave342: non-ARRAY_LIT fixed→slice return escape (COMMON copy) is handled above.
        * Fallback: stack emit_array_lit only if durable pack fails.
        * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV.
-       * Soft residual: untyped-let (docs 禁推断); non-ARRAY_LIT owned-buffer escape.
+       * Soft residual: untyped-let (docs 禁推断); nested-block fixed→slice escape.
        */
       int32_t rty = pipeline_module_func_return_type_at(g_pipeline_asm_emit_module,
                                                         g_pipeline_asm_emit_func_index);
