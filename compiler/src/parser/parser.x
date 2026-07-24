@@ -5428,12 +5428,20 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           lex = ret_mid_res.next_lex;
           lexer.lexer_next_into(&r, lex, source);
         }
+        /* Track ';' so Cap-T001 filler skip never swallows a missing-semicolon error
+         * (tests/parser/semicolon_missing.x: `return 0` then `return 1;`).
+         * PLATFORM: SHARED — align parse_block return which already requires ; or }. */
+        let had_return_semi: bool = false;
         if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
           lex_from_next_into(&lex, r);
           lexer.lexer_next_into(&r, lex, source);
+          had_return_semi = true;
         }
         /* Only keep scanning when next stmt is a label (true goto residual). */
         if (parser_token_is_label_start(r, source)) {
+          if (!had_return_semi) {
+            set_onefunc_fail(out, lex); return;
+          }
           let ret_mid_ref: i32 = ast.ast_arena_expr_alloc(arena);
           if (ret_mid_ref == 0) {
             set_onefunc_fail(out, lex); return;
@@ -5478,8 +5486,12 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           ast.ast_arena_expr_set(arena, bare_fin, re_fin);
           return_expr_ref_storage = bare_fin;
         }
+        if (!had_return_semi && r.tok.kind != token.TokenKind.TOKEN_RBRACE && r.tok.kind != token.TokenKind.TOKEN_EOF) {
+          /* Missing ';' before next statement — do not Cap-T001-skip as filler. */
+          set_onefunc_fail(out, lex); return;
+        }
         if (r.tok.kind != token.TokenKind.TOKEN_RBRACE && r.tok.kind != token.TokenKind.TOKEN_EOF) {
-          /* Cap-T001 trailing filler after first return: skip until RBRACE. */
+          /* Cap-T001 trailing filler after well-terminated `return e;`: skip until RBRACE. */
           while (r.tok.kind != token.TokenKind.TOKEN_RBRACE && r.tok.kind != token.TokenKind.TOKEN_EOF) {
             lex_from_next_into(&lex, r);
             lexer.lexer_next_into(&r, lex, source);

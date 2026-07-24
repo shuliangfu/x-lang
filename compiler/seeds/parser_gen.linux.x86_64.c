@@ -4601,11 +4601,19 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
             (void)((lex = (ret_mid_res.next_lex)));
             (void)(lexer_next_into(&(r), lex, source));
           }
+          /* Track ';' so Cap-T001 filler skip never swallows missing-semicolon
+           * (tests/parser/semicolon_missing.x). PLATFORM: SHARED mirror parser.x. */
+          int32_t had_return_semi = 0;
           if ((((r.tok).kind) ==95)) {
             (void)(parser_lex_from_next_into(&(lex), r));
             (void)(lexer_next_into(&(r), lex, source));
+            (void)((had_return_semi = 1));
           }
           if (parser_token_is_label_start(r, source)) {
+            if ((had_return_semi == 0)) {
+              (void)(parser_set_onefunc_fail(out, lex));
+              return;
+            }
             int32_t ret_mid_ref = ast_ast_arena_expr_alloc(arena);
             if ((ret_mid_ref ==0)) {
               (void)(parser_set_onefunc_fail(out, lex));
@@ -4648,6 +4656,10 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
             (void)(parser_expr_set_common_zeros(&(re_fin)));
             (void)(ast_ast_arena_expr_set(arena, bare_fin, re_fin));
             (void)((return_expr_ref_storage = bare_fin));
+          }
+          if (((had_return_semi == 0) && ((((r.tok).kind) !=85) && (((r.tok).kind) !=0)))) {
+            (void)(parser_set_onefunc_fail(out, lex));
+            return;
           }
           if (((((r.tok).kind) !=85) && (((r.tok).kind) !=0))) {
             while (((((r.tok).kind) !=85) && (((r.tok).kind) !=0))) {
