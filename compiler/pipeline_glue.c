@@ -14347,6 +14347,11 @@ static int32_t glue_call_param_named_struct_pass_addr_elf_c(struct ast_ASTArena 
   return glue_type_named_layout_size_any_module_elf_c(arena, pty) > 16 ? 1 : 0;
 }
 
+/* Forward: wave409 let reent / wave410 call-arg dual TYPE_SLICE frame deep-copy. */
+static int32_t glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
+    struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+    struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t home, int32_t ty_ref);
+
 /**
  * CALL 实参 emit 入口：>16B let struct / 定长数组 lea 传地址；≤16B POD struct 按值 load rax[+rdx]；
  * 其余委托 rec（标量 load、*T/形参 struct load 指针）。
@@ -14803,6 +14808,16 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
         return -1;
       if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(home, ta), ta) !=
           0)
+        return -1;
+      /*
+       * wave410 Cap residual pure: dual same-call TYPE_SLICE formals last-wins.
+       * Root: durable ARRAY_LIT return uses per-function static/COMMON; dual-GP
+       * fat alone → both formals .data alias last write (sum2(take(1),take(2))
+       * fs 72≠69; host wave406 already deep-copied). G.7: reuse wave409 frame
+       * deep-copy after dual-GP, then lea fat as slice*. PLATFORM: SHARED fs.
+       */
+      if (glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(arena, elf_ctx, ctx, ta, home,
+                                                             slice_ty) != 0)
         return -1;
       if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
         return -1;
@@ -18560,14 +18575,16 @@ static int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t
 }
 
 /**
- * wave409 Cap residual pure: freestanding TYPE_SLICE let from CALL/METHOD reentrancy.
+ * wave409/wave410 Cap residual pure: freestanding TYPE_SLICE frame deep-copy after dual-GP.
  * After dual-GP is stored at home (data@slot_off + length half), deep-copy payload into
  * a *caller-frame* buffer and retarget fat.data. Root: durable ARRAY_LIT return uses
- * per-function static/COMMON — recursive `let s=mk(n); walk(n-1); use(s)` last-wins
- * (host+fs walk run=18≠36). G.7 twin of host codegen_emit_slice_let_reent_finish.
+ * per-function static/COMMON — (wave409) recursive `let s=mk(n); walk; use(s)` last-wins;
+ * (wave410) dual same-call formals `sum2(take(1),take(2))` both alias last write (72≠69).
+ * Call sites: glue_store_retval_pair (let) + pipeline_asm_emit_expr_elf_for_call_args.
+ * G.7 twin of host codegen_emit_slice_let_reent_finish / emit_call_arg_slice_abi __xlang_sdN.
  * Unrolled max_n=64 with runtime length gate (wave342 escape pattern). PLATFORM: SHARED.
  *
- * @param home fat data home (slot_off from store_retval_pair)
+ * @param home fat data home (slot_off from store_retval_pair / call-arg fat home)
  * @return 0 success; -1 hard fail
  */
 static int32_t glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
