@@ -8023,7 +8023,11 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
       return codegen_append_byte(out, 41);
     }
     if (((e.kind) ==42)) {
+      /* PLATFORM: SHARED — EXPR_PANIC host emit.
+       * ABI xlang_panic_(int has_msg, int msg_val). Non-null msg: wrap (int)(intptr_t)(…)
+       * so string/cstr and integers both compile (wave384; G.7 match codegen.x). */
       uint8_t p[23] = {120, 108, 97, 110, 103, 95, 112, 97, 110, 105, 99, 95, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+      uint8_t cast_open[16] = {40, 105, 110, 116, 41, 40, 105, 110, 116, 112, 116, 114, 95, 116, 41, 40};
       if ((codegen_emit_bytes_22(out, p, 13) !=0)) {
         return -(1);
       }
@@ -8044,7 +8048,13 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
         if ((codegen_append_byte(out, 44) !=0)) {
           return -(1);
         }
+        if ((codegen_emit_bytes_from_ptr(out, &((cast_open)[0]), 16) !=0)) {
+          return -(1);
+        }
         if ((codegen_emit_expr(arena, out, (e.unary_operand_ref), ctx) !=0)) {
+          return -(1);
+        }
+        if ((codegen_append_byte(out, 41) !=0)) {
           return -(1);
         }
       }

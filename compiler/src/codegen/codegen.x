@@ -7729,9 +7729,20 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       return append_byte(out, 41);
     }
-    /* See implementation. */
+    /*
+     * EXPR_PANIC → host `xlang_panic_(has_msg, msg_val)`.
+     * ABI: void xlang_panic_(int has_msg, int msg_val) (runtime_panic / std.runtime).
+     * Integer msgs (panic(42)) pass as i32. String/*u8 msgs (panic("…")) must not
+     * be emitted as raw pointers — C rejects pointer→int (-Wint-conversion → BLD001).
+     * PLATFORM: SHARED — cast every non-null msg through (int)(intptr_t)(…) so both
+     * integers and cstr/pointer operands are legal host C; runtime still takes int
+     * (LP64 truncates high bits of pointers; evidence path is int-only today).
+     * G.7 authority: this emit only; seed codegen_gen must match.
+     */
     if (e.kind == ExprKind.EXPR_PANIC) {
       let p: u8[23] = [120, 108, 97, 110, 103, 95, 112, 97, 110, 105, 99, 95, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      // "(int)(intptr_t)(" — legalize string/*u8 and integer panic msgs for int ABI.
+      let cast_open: u8[16] = [40, 105, 110, 116, 41, 40, 105, 110, 116, 112, 116, 114, 95, 116, 41, 40];
       if (emit_bytes_22(out, p, 13) != 0) {
         return -1;
       }
@@ -7752,7 +7763,13 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         if (append_byte(out, 44) != 0) {
           return -1;
         }
+        if (emit_bytes_from_ptr(out, &cast_open[0], 16) != 0) {
+          return -1;
+        }
         if (emit_expr(arena, out, e.unary_operand_ref, ctx) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 41) != 0) {
           return -1;
         }
       }
