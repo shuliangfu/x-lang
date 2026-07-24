@@ -12646,16 +12646,39 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
         return -1;
       /*
        * Allocate 16B dual-GP home: data@home, length@home-8 (same as let dual-GP).
-       * CRITICAL: raise next_offset past home+8 *before* emit_array_lit so payload
-       * does not overwrite the fat slot (Ubuntu: home==payload → self-ptr / panic).
-       * G.7 / wave331: same temp discipline as assign empty→lit past home.
+       * CRITICAL: array-lit writes at increasing addresses from temp base (0/4/8(%rbx)).
+       * Larger rbp-offset = lower address, so payload grows *toward* the fat home.
+       * next_offset must be home + payload_bytes so last elem ends just below data@home
+       * (Ubuntu: n=3 i32 with next=home+8 overwrote data with a[2] → flaky sum/a[2]).
+       * G.7 / wave331 temp discipline.
        */
       base_off = ly->next_offset;
       if ((base_off % 8) != 0)
         base_off = (base_off + 7) / 8 * 8;
       home = base_off + 16;
-      /* Fat occupies [home-8, home+8); payload starts at home+8. */
-      ly->next_offset = home + 8;
+      {
+        int32_t esz = 4;
+        int32_t payload_bytes;
+        int32_t past;
+        int32_t er = pipeline_type_elem_ref_at(arena, slice_ty);
+        if (er > 0) {
+          int32_t ek = pipeline_type_kind_ord_at(arena, er);
+          if (ek == (int32_t)ast_TypeKind_TYPE_U8 || ek == (int32_t)ast_TypeKind_TYPE_BOOL)
+            esz = 1;
+          else if (ek == (int32_t)ast_TypeKind_TYPE_U64 || ek == (int32_t)ast_TypeKind_TYPE_I64 ||
+                   ek == (int32_t)ast_TypeKind_TYPE_USIZE || ek == (int32_t)ast_TypeKind_TYPE_ISIZE ||
+                   ek == (int32_t)ast_TypeKind_TYPE_PTR || ek == (int32_t)ast_TypeKind_TYPE_F64)
+            esz = 8;
+        }
+        payload_bytes = n_arr * esz;
+        if (payload_bytes < 0)
+          payload_bytes = 0;
+        /* Fat occupies [home-8, home+8) in offset space; payload grows up to home. */
+        past = home + 8;
+        if (payload_bytes > 0 && home + payload_bytes > past)
+          past = home + payload_bytes;
+        ly->next_offset = past;
+      }
       glue_align_next_offset(ctx);
       if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, expr_ref, ctx, ta) != 0)
         return -1;
