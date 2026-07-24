@@ -11567,13 +11567,26 @@ static int32_t glue_emit_slice_length_to_rbx_elf_c(struct ast_ASTArena *arena,
     if (off < 0)
       return -1;
     if (glue_local_var_slot_needs_ptr_load_elf_c(arena, base_ref, off, ctx) != 0) {
+      /*
+       * wave332d: preserve rax (INDEX has index in rax when loading length to rbx).
+       * Prior path load_rbp→rax clobbered the index → upper-bound cmp used length vs
+       * length-1 → always panic (Ubuntu freestanding a[0] after slice* param fix).
+       * G.7: push/pop around the pointer chase; dual-GP path already loads straight to rbx.
+       * PLATFORM: SHARED freestanding · LINUX gold.
+       */
+      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+        return -1;
       if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta) != 0)
         return -1;
       if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0)
         return -1;
       if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
         return -1;
-      return backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      return 0;
     }
     /** Dual-GP high half: length at off-8 (matches store in slice_from_array_let_init). */
     return backend_enc_load_rbp_to_rbx_arch(elf_ctx, off - 8, ta);
