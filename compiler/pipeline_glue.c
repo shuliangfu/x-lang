@@ -29608,11 +29608,19 @@ int32_t pipeline_asm_deref_struct16_rax_ptr_elf_c(struct platform_elf_ElfCodegen
 
 /**
  * CALL 返回 16B struct 是否经 rax 指针（C lowering）而非 rax/rdx 按值。
+ *
+ * wave335 Cap residual pure: TYPE_SLICE return is freestanding dual-GP
+ * (data@rax length@rdx, wave333 return emit). The generic `size>8 → deref`
+ * rule was for C/skip-heavy named structs that return a pointer in rax;
+ * applying it to slice made `let b = take()` load *data as fat (length=30
+ * garbage, INDEX SIGSEGV). G.7: slice = dual-GP by value (return 0).
+ * PLATFORM: SHARED classifier · LINUX+MACOS x86_64 SysV dual-GP store.
  */
 int32_t pipeline_asm_call_struct16_ret_needs_rax_deref_c(struct ast_ASTArena *arena, int32_t call_expr_ref) {
   struct ast_Module *mod;
   int32_t fi;
   int32_t dep_ix;
+  int32_t rty;
   uint8_t name[64];
   int32_t nlen;
   if (!arena || call_expr_ref <= 0 || pipeline_expr_kind_ord_at(arena, call_expr_ref) != 48)
@@ -29620,6 +29628,9 @@ int32_t pipeline_asm_call_struct16_ret_needs_rax_deref_c(struct ast_ASTArena *ar
   if (glue_asm_resolve_call_target_module_c(arena, call_expr_ref, &mod, &fi, &dep_ix) != 0)
     return 0;
   if (!mod || fi < 0)
+    return 0;
+  rty = pipeline_module_func_return_type_at(mod, fi);
+  if (rty > 0 && pipeline_type_kind_ord_at(arena, rty) == (int32_t)ast_TypeKind_TYPE_SLICE)
     return 0;
   nlen = pipeline_asm_module_func_name_len_at(mod, fi);
   if (nlen > 0 && nlen <= 63) {
@@ -29629,7 +29640,7 @@ int32_t pipeline_asm_call_struct16_ret_needs_rax_deref_c(struct ast_ASTArena *ar
         (nlen == 5 && memcmp(name, "ok_u8", 5) == 0) || (nlen == 6 && memcmp(name, "err_u8", 6) == 0)) {
       return 0;
     }
-    if (glue_type_size_simple(mod, arena, pipeline_module_func_return_type_at(mod, fi), 0) > 8)
+    if (glue_type_size_simple(mod, arena, rty, 0) > 8)
       return 1;
   }
   return asm_skip_heavy_module_func_body(mod, arena, fi) != 0 ? 1 : 0;
