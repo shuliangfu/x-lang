@@ -11990,6 +11990,161 @@ static int32_t glue_emit_index_bounds_guard_elf_c(struct ast_ASTArena *arena,
 }
 
 /**
+ * wave337 Cap residual pure: call-as-INDEX base evaluated once.
+ *
+ * Root: glue_emit_index_bounds_guard → glue_emit_slice_length_to_rbx emits CALL base
+ * for length@rdx, then lit/scaled path emits base again for data@rax → take()[1]
+ * double-eval (side effects / cost). Local VAR slice homes already single-eval.
+ *
+ * G.7 authority: materialize TYPE_SLICE CALL/METHOD_CALL dual-GP (data@rax length@rdx)
+ * or fat* return into one dual-GP temp {data@home, length@home-8}, then bounds+addr
+ * only load the temp — no second emit of base. Complements wave336 length@rdx.
+ *
+ * @return 0 handled (eff addr in rax), -2 not applicable, -1 error
+ * PLATFORM: SHARED freestanding · LINUX gold (host-C uses C codegen INDEX).
+ */
+static int32_t glue_try_index_rvalue_slice_once_elf_c(struct ast_ASTArena *arena,
+                                                       struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ix_ref,
+                                                       int32_t base_ref, int32_t idx_ref,
+                                                       struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t esz) {
+  int32_t base_ko;
+  int32_t bty;
+  int32_t dual_gp;
+  int32_t home;
+  int32_t base_off;
+  pipeline_glue_AsmFuncCtxLayout *ly;
+  struct ast_Expr *ix;
+  int32_t proven;
+  int32_t lit_idx;
+  int32_t ok_lo_len;
+  int32_t ok_hi_len;
+  uint8_t ok_lo[64];
+  uint8_t ok_hi[64];
+
+  if (!arena || !elf_ctx || !ctx || base_ref <= 0 || idx_ref <= 0)
+    return -2;
+  base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
+  /* CALL=48 METHOD_CALL=49 — only rvalues that re-emit full base for length+data. */
+  if (base_ko != 48 && base_ko != 49)
+    return -2;
+  bty = pipeline_expr_resolved_type_ref(arena, base_ref);
+  if (bty <= 0 || pipeline_type_kind_ord_at(arena, bty) != (int32_t)ast_TypeKind_TYPE_SLICE)
+    return -2;
+  /*
+   * dual-GP: freestanding TYPE_SLICE return (wave333/335); CALL only when
+   * needs_rax_deref==0. METHOD_CALL TYPE_SLICE treated as dual-GP (wave336).
+   * Else fat* in rax (length at [rax+8], data at [rax]).
+   */
+  dual_gp = 0;
+  if (base_ko == 49)
+    dual_gp = 1;
+  else if (base_ko == 48 && glue_call_struct16_ret_needs_rax_deref_c(arena, base_ref) == 0)
+    dual_gp = 1;
+
+  ly = pipeline_asm_ctx_layout(ctx);
+  if (!ly)
+    return -1;
+  base_off = ly->next_offset;
+  if ((base_off % 8) != 0)
+    base_off = (base_off + 7) / 8 * 8;
+  /* data@home length@home-8 — same dual-GP home as let/call-arg slice. */
+  home = base_off + 16;
+  ly->next_offset = home + 8;
+  glue_align_next_offset(ctx);
+
+  if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, base_ref, ctx, ta) != 0)
+    return -1;
+  if (dual_gp != 0) {
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+      return -1;
+    if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, home - 8, ta) != 0)
+      return -1;
+  } else {
+    /* fat*: rax → struct { data, length }; spill both halves. */
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0)
+      return -1;
+    if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home - 8, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+      return -1;
+  }
+
+  /* Bounds from materialized length only (no second base emit). */
+  proven = 0;
+  if (ix_ref > 0) {
+    ix = pipeline_arena_expr_ptr(arena, ix_ref);
+    if (ix && ix->index_proven_in_bounds != 0)
+      proven = 1;
+  }
+  if (proven == 0) {
+    if (pipeline_asm_expr_lit_i32_at_c(arena, idx_ref, &lit_idx)) {
+      if (lit_idx < 0)
+        return pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx, ta);
+    }
+    ok_lo_len = pipeline_asm_emit_next_label_c(ctx, ok_lo, 64);
+    ok_hi_len = pipeline_asm_emit_next_label_c(ctx, ok_hi, 64);
+    if (ok_lo_len <= 0 || ok_hi_len <= 0)
+      return -1;
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, idx_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, 0, ta) != 0)
+      return -1;
+    if (backend_enc_cmp_rax_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_jge_arch(elf_ctx, ok_lo, ok_lo_len, ta) != 0)
+      return -1;
+    if (pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_label_arch(elf_ctx, ok_lo, ok_lo_len, 0, ta) != 0)
+      return -1;
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, idx_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, home - 8, ta) != 0)
+      return -1;
+    if (backend_enc_add_imm_to_rbx_arch(elf_ctx, -1, ta) != 0)
+      return -1;
+    if (backend_enc_cmp_rbx_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_jge_arch(elf_ctx, ok_hi, ok_hi_len, ta) != 0)
+      return -1;
+    if (pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_label_arch(elf_ctx, ok_hi, ok_hi_len, 0, ta) != 0)
+      return -1;
+  }
+
+  /* Effective address: data@home + index * esz → rax. */
+  if (pipeline_asm_expr_lit_i32_at_c(arena, idx_ref, &lit_idx)) {
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
+      return -1;
+    if (lit_idx != 0 && esz != 0) {
+      int32_t off = lit_idx * esz;
+      if (off != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, off, ta) != 0)
+        return -1;
+    }
+    return 0;
+  }
+  /* Non-lit: after bounds, index is in rax; move to rbx then load data. */
+  if (proven != 0) {
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, idx_ref, ctx, ta) != 0)
+      return -1;
+  }
+  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
+    return -1;
+  return glue_emit_index_rax_plus_rbx_scaled_elf_c(elf_ctx, esz, ta);
+}
+
+/**
  * INDEX 有效地址完整发射：try 7.3 快速路径，否则 slow push。
  */
 static int32_t glue_emit_index_eff_addr_scaled_elf_c(struct ast_ASTArena *arena,
@@ -11998,6 +12153,14 @@ static int32_t glue_emit_index_eff_addr_scaled_elf_c(struct ast_ASTArena *arena,
                                                       int32_t ta, int32_t esz) {
   int32_t vr;
   int32_t lit_imm;
+  int32_t once_rc;
+
+  /* wave337: CALL/METHOD TYPE_SLICE base — materialize once before bounds+load. */
+  once_rc = glue_try_index_rvalue_slice_once_elf_c(arena, elf_ctx, ix_ref, base_ref, idx_ref, ctx, ta, esz);
+  if (once_rc == 0)
+    return 0;
+  if (once_rc == -1)
+    return -1;
 
   if (glue_emit_index_bounds_guard_elf_c(arena, elf_ctx, ctx, ta, ix_ref, base_ref, idx_ref) != 0)
     return -1;
