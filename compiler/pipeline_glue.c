@@ -4101,52 +4101,74 @@ static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
     src_off = var_off - field_off;
     if (src_off < 0)
       return -1;
-  } else if (iko == (int32_t)ast_ExprKind_EXPR_CALL && ta == 0) {
+  } else if (iko == (int32_t)ast_ExprKind_EXPR_CALL ||
+             iko == (int32_t)ast_ExprKind_EXPR_METHOD_CALL) {
     /*
-     * wave351: CALL returning fixed array / pointer-to-payload.
-     * Materialize into a temp stack slot with the same let-init authority
-     * (sret when >16B; else glue_store_retval_pair handles rax-ptr deref for 9–16B),
-     * then element-wise copy into the STRUCT_LIT field (G.7 no second ABI).
-     * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV.
+     * wave351/354: CALL/METHOD returning fixed TYPE_ARRAY → E* (host codegen.x
+     * wave352 durable static; freestanding returns stack/COMMON ptr in rax/x0).
+     * Element-wise load from *rax into dest (STRUCT_LIT field / let slot).
+     *
+     * wave398 Cap residual pure: prior gate was `ta == 0` only — macOS arm64
+     * `let t: T[N] = fill(n)` logged "fixed array let unhandled init_ko=48" →
+     * CG002. store_retval dual-GP (rdx) is x86-only; N*esz>16 falsely took
+     * sret while ABI is still E*. G.7: emit CALL then ptr-copy with esz-wide
+     * store_rax_to_rbx_offset (not 8B store_rax_to_rbp which clobbers neighbors).
+     * PLATFORM: SHARED freestanding · MACOS|ARM64 + LINUX|x86_64.
      */
     pipeline_glue_AsmFuncCtxLayout *ly;
-    int32_t temp_off;
-    int32_t need;
-    int32_t call_ret_sz;
+    int32_t spill_off;
     int32_t emit_rc;
     ly = pipeline_asm_ctx_layout(ctx);
     if (!ly)
       return -1;
-    /* Reserve [old, old+need]; place elem0 at high end so dual-GP half at temp-8 stays in range. */
-    need = n_arr * esz;
-    if (need < 16)
-      need = 16;
-    need = (need + 15) & ~15;
-    if (ly->next_offset + need < ly->next_offset)
+    /* Spill E* so each elem load can reload src without burning rbx across stores. */
+    if (ly->next_offset + 16 < ly->next_offset)
       return -1;
-    ly->next_offset += need;
-    temp_off = ly->next_offset;
-    call_ret_sz = glue_call_return_byte_size_c(arena, init_ref);
-    if (call_ret_sz <= 0)
-      call_ret_sz = n_arr * esz;
-    if (call_ret_sz > 16) {
-      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_off, ta) != 0)
+    ly->next_offset += 16;
+    spill_off = ly->next_offset;
+    emit_rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta);
+    if (emit_rc != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, spill_off, ta) != 0)
+      return -1;
+    for (ai = 0; ai < n_arr; ai++) {
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill_off, ta) != 0)
         return -1;
-      if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
+      if (ai * esz != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, ai * esz, ta) != 0)
         return -1;
-      pipeline_asm_emit_set_call_sret_reg_shift_c(1);
-      emit_rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta);
-      pipeline_asm_emit_set_call_sret_reg_shift_c(0);
-      if (emit_rc != 0)
+      if (esz == 1) {
+        if (backend_enc_load_zext8_from_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+      } else if (esz == 8) {
+        if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+      } else if (esz == 4) {
+        if (backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+      } else {
+        if (backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+      }
+      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
         return -1;
-    } else {
-      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta) != 0)
+      if (sret_direct == 0) {
+        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, base_off + foff, ta) != 0)
+          return -1;
+        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          return -1;
+      } else {
+        if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
+          return -1;
+      }
+      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
         return -1;
-      if (glue_store_retval_pair_to_rbp_elf_c(glue_emit_module_from_ctx(ctx), arena, elf_ctx, fty, temp_off, ta,
-                                              init_ref) != 0)
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx,
+                                                   (sret_direct == 0 ? ai * esz : foff + ai * esz), esz,
+                                                   ta) != 0)
         return -1;
     }
-    src_off = temp_off;
+    /* Fully handled — do not fall through to src_off element-wise. */
+    return 0;
   }
   if (src_off >= 0) {
     if (sret_direct == 0) {
