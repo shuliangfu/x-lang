@@ -25586,6 +25586,9 @@ int32_t pipeline_typeck_coerce_init_lit_to_decl_c(struct ast_ASTArena *arena, in
 /* wave316: return path reuses float_lit coerce before body (defined with coerce family). */
 int32_t pipeline_typeck_coerce_init_float_lit_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
                                                         int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
+/* wave319: return path reuses int_binop coerce for EXPR_NEG/int binop → f32/f64. */
+int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
+                                                        int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
 
 /** bootstrap typeck 后处理（METHOD_CALL / 泛型 CALL）；定义见 pipeline_typeck_bootstrap_expr_fixup_c。 */
 static void pipeline_typeck_bootstrap_expr_fixup_c(struct ast_Module *module, struct ast_ASTArena *arena,
@@ -25653,11 +25656,13 @@ int32_t pipeline_typeck_check_expr_return_c(struct ast_Module *module, struct as
     rt_kind = pipeline_type_kind_ord_at(arena, return_type_ref);
     /*
      * wave318: return bare int lit → f32/f64 (G.7 reuse lit coerce; let/assign parity).
+     * wave319: return EXPR_NEG / int binop → f32/f64 (G.7 reuse int_binop; let/assign parity).
      * PLATFORM: SHARED — twin with typeck.x typeck_check_expr_return.
      */
     (void)pipeline_typeck_coerce_init_lit_to_decl_c(arena, op_ref, return_type_ref, rt_kind, op_kind);
     /* wave316: return float lit / `-float` → f32/f64 (G.7 reuse float_lit coerce). */
     (void)pipeline_typeck_coerce_init_float_lit_to_decl_c(arena, op_ref, return_type_ref, rt_kind, op_kind);
+    (void)pipeline_typeck_coerce_init_int_binop_to_decl_c(arena, op_ref, return_type_ref, rt_kind, op_kind);
     if (op_kind == (int32_t)ast_ExprKind_EXPR_LIT) {
       if (rt_kind == (int32_t)ast_TypeKind_TYPE_I64) {
         pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref);
@@ -29551,6 +29556,11 @@ int32_t pipeline_typeck_coerce_init_vector_binop_to_decl_c(struct ast_ASTArena *
 /**
  * typeck.x::typeck_coerce_init_int_binop_to_decl 的 C 委托：
  * let 标量整型声明 + 算术二元初值时提升到声明类型（INT64_MIN 等 i64 表达式）。
+ * wave319 Cap residual: also TYPE_F32/TYPE_F64 for EXPR_NEG / int binop
+ * (`let a:f32 = -6` / `1-7` / assign / return). Bare int lit already via lit
+ * coerce (wave318); float lit NEG via float_lit (wave316). CTFE folds the
+ * tree to i32 then freestanding IEEE path (wave318) materializes bits.
+ * PLATFORM: SHARED — typeck.x thin-wraps this C authority; assign reuses same call (wave310).
  */
 int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
                                                         int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind) {
@@ -29563,6 +29573,7 @@ int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(struct ast_ASTArena *are
    * wave309 Cap residual: TYPE_ISIZE + EXPR_NEG/binop (let a:isize=-1 / 1-2).
    * wave310 Cap residual: TYPE_U8 + NAMED u16 bit-pattern wrap for EXPR_NEG/binop
    * (`let a:u8=-1` / `1-2` / assign; product already accepts u32/u64/usize=-1).
+   * wave319 Cap residual: TYPE_F32/TYPE_F64 + EXPR_NEG/int binop (`let a:f32=-6`).
    * Prior invariant rejected unsigned narrow NEG; lit path still range-gates bare EXPR_LIT.
    * 【Asm/Perf】与 i32 路径对齐，不做编译期范围检查（i32 路径同样不做）。
    * PLATFORM: SHARED — typeck.x thin-wraps this C authority; assign reuses same call (wave310). */
@@ -29570,6 +29581,7 @@ int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(struct ast_ASTArena *are
       decl_kind != (int32_t)ast_TypeKind_TYPE_U8 && decl_kind != (int32_t)ast_TypeKind_TYPE_U32 &&
       decl_kind != (int32_t)ast_TypeKind_TYPE_U64 && decl_kind != (int32_t)ast_TypeKind_TYPE_USIZE &&
       decl_kind != (int32_t)ast_TypeKind_TYPE_ISIZE &&
+      decl_kind != (int32_t)ast_TypeKind_TYPE_F32 && decl_kind != (int32_t)ast_TypeKind_TYPE_F64 &&
       decl_kind != (int32_t)ast_TypeKind_TYPE_NAMED)
     return 0;
   /* TYPE_NAMED: i8/i16 (signed narrow) + u16 (unsigned narrow; TYPE_U8 is builtin kind=2). */

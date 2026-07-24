@@ -1880,11 +1880,13 @@ XLANG_WEAK int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(struct ast_AS
   /* 【Why 根源】i8/i16 无独立 TypeKind（存为 TYPE_NAMED name="i8"/"i16"），binop/NEG 初值（如 -1 解析为
    * EXPR_NEG(lit(1))）需按 name 放行 signed 窄整型，否则 let y:i16=-1 报 type mismatch。
    * wave309: TYPE_ISIZE; wave310: TYPE_U8/U32 + NAMED u16 bit-pattern wrap (G.7 align pipeline_glue.c).
-   * PLATFORM: SHARED — assign reuses same call. */
+   * wave319: TYPE_F32/TYPE_F64 + EXPR_NEG/int binop (`let a:f32=-6`; G.7 ≡ pipeline_glue.c).
+   * PLATFORM: SHARED — assign/return reuse same call; product links this weak when filtered localizes glue. */
   if (decl_kind != (int32_t)ast_TypeKind_TYPE_I32 && decl_kind != (int32_t)ast_TypeKind_TYPE_I64 &&
       decl_kind != (int32_t)ast_TypeKind_TYPE_U8 && decl_kind != (int32_t)ast_TypeKind_TYPE_U32 &&
       decl_kind != (int32_t)ast_TypeKind_TYPE_U64 && decl_kind != (int32_t)ast_TypeKind_TYPE_USIZE &&
       decl_kind != (int32_t)ast_TypeKind_TYPE_ISIZE &&
+      decl_kind != (int32_t)ast_TypeKind_TYPE_F32 && decl_kind != (int32_t)ast_TypeKind_TYPE_F64 &&
       decl_kind != (int32_t)ast_TypeKind_TYPE_NAMED)
     return 0;
   if (init_kind != (int32_t)ast_ExprKind_EXPR_ADD && init_kind != (int32_t)ast_ExprKind_EXPR_SUB &&
