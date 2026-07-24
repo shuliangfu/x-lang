@@ -7939,11 +7939,19 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
       }
       /*
        * wave346 Cap residual pure: fixed TYPE_ARRAY / TYPE_VECTOR `.length` → ((size_t)N).
+       * wave380 Cap residual pure: docs/02 `.len` alias of `.length` — same imm path.
        * C arrays have no .length member. G.7: match codegen.x + typeck field_slice + fs imm.
        * PLATFORM: SHARED host-C emit (product pin seed).
        */
-      if ((((((e.field_access_field_len) ==6) && (((e.field_access_field_name))[0] ==108)) && (((e.field_access_field_name))[1] ==101)) && (((e.field_access_field_name))[2] ==110)) && ((((e.field_access_field_name))[3] ==103) && ((((e.field_access_field_name))[4] ==116) && (((e.field_access_field_name))[5] ==104)))) {
-        if (((!(ast_ref_is_null((e.field_access_base_ref))) && ((e.field_access_base_ref) > 0)) && ((e.field_access_base_ref) <=(arena->num_exprs)))) {
+      {
+        int32_t is_len_nm = 0;
+        if ((((((e.field_access_field_len) ==6) && (((e.field_access_field_name))[0] ==108)) && (((e.field_access_field_name))[1] ==101)) && (((e.field_access_field_name))[2] ==110)) && ((((e.field_access_field_name))[3] ==103) && ((((e.field_access_field_name))[4] ==116) && (((e.field_access_field_name))[5] ==104)))) {
+          is_len_nm = 1;
+        }
+        if (((((e.field_access_field_len) ==3) && (((e.field_access_field_name))[0] ==108)) && (((e.field_access_field_name))[1] ==101)) && (((e.field_access_field_name))[2] ==110)) {
+          is_len_nm = 1;
+        }
+        if (((is_len_nm !=0) && ((!(ast_ref_is_null((e.field_access_base_ref))) && ((e.field_access_base_ref) > 0))) && ((e.field_access_base_ref) <=(arena->num_exprs)))) {
           struct ast_Expr base_e = ast_ast_arena_expr_get(arena, (e.field_access_base_ref));
           int32_t base_ty = (base_e.resolved_type_ref);
           if (((!(ast_ref_is_null(base_ty)) && (base_ty > 0)) && (base_ty <=(arena->num_types)))) {
@@ -8017,8 +8025,35 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
           return -(1);
         }
       }
-      if ((codegen_emit_bytes_64(out, &(((e.field_access_field_name))[0]), (e.field_access_field_len)) !=0)) {
-        return -(1);
+      /*
+       * wave380 Cap residual pure — TYPE_SLICE `.len` → C field `length`.
+       * Named struct fields named `len` stay as-is. PLATFORM: SHARED host-C.
+       */
+      {
+        int32_t emit_len_as_length = 0;
+        if (((e.field_access_field_len) == 3)
+            && (((e.field_access_field_name))[0] == 108)
+            && (((e.field_access_field_name))[1] == 101)
+            && (((e.field_access_field_name))[2] == 110)
+            && (!(ast_ref_is_null((e.field_access_base_ref))))
+            && ((e.field_access_base_ref) > 0)
+            && ((e.field_access_base_ref) <= (arena->num_exprs))) {
+          struct ast_Expr base_e2 = ast_ast_arena_expr_get(arena, (e.field_access_base_ref));
+          int32_t base_ty2 = (base_e2.resolved_type_ref);
+          if ((!(ast_ref_is_null(base_ty2))) && (base_ty2 > 0) && (base_ty2 <= (arena->num_types))) {
+            if (pipeline_type_kind_ord_at(arena, base_ty2) == 11) {
+              emit_len_as_length = 1;
+            }
+          }
+        }
+        if (emit_len_as_length != 0) {
+          uint8_t length_nm[8] = {108, 101, 110, 103, 116, 104, 0, 0};
+          if (codegen_emit_bytes_from_ptr(out, &((length_nm)[0]), 6) != 0) {
+            return -(1);
+          }
+        } else if (codegen_emit_bytes_64(out, &(((e.field_access_field_name))[0]), (e.field_access_field_len)) != 0) {
+          return -(1);
+        }
       }
       return codegen_append_byte(out, 41);
     }
