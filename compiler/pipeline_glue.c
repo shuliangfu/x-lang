@@ -11802,10 +11802,17 @@ static int32_t glue_finish_index_base_rax_index_rbx_slow_elf_c(struct ast_ASTAre
 }
 
 /**
- * 切片 base 的 length 字段载入 rbx（栈上 {data,length} 或 *slice 形参）。
+ * Slice base length → rbx ({data,length} home, *slice param, or dual-GP call rvalue).
  *
- * PLATFORM: SHARED fat layout; LINUX/MACOS x86_64 dual-GP home: data @ off, length @ off-8.
- * Pointer-to-fat path keeps address arithmetic (+8) after loading the pointer.
+ * PLATFORM: SHARED fat layout; LINUX/MACOS x86_64 SysV:
+ * - Local dual-GP home: data @ off, length @ off-8
+ * - slice* param: load fat*, then length at +8
+ * - CALL/METHOD_CALL returning TYPE_SLICE: freestanding dual-GP data@rax length@rdx
+ *   (wave333/335 return emit). Do NOT treat rax as fat* (+8 deref) — that was wave336
+ *   soft residual take()[1] panic (bounds length garbage).
+ *
+ * Bounds guard holds index in rax; any emit of base that clobbers rax must push/pop.
+ * G.7: single authority for slice length for INDEX bounds (no parallel path).
  */
 static int32_t glue_emit_slice_length_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                     struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -11814,6 +11821,7 @@ static int32_t glue_emit_slice_length_to_rbx_elf_c(struct ast_ASTArena *arena,
   uint8_t vname[64];
   int32_t vlen;
   int32_t off;
+  int32_t bty;
 
   base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
   if (base_ko == 3) {
@@ -11851,13 +11859,40 @@ static int32_t glue_emit_slice_length_to_rbx_elf_c(struct ast_ASTArena *arena,
     /** Dual-GP high half: length at off-8 (matches store in slice_from_array_let_init). */
     return backend_enc_load_rbp_to_rbx_arch(elf_ctx, off - 8, ta);
   }
+
+  /*
+   * wave336 Cap residual pure: non-VAR slice base (esp. CALL take()[1]).
+   * Index is live in rax (bounds guard). Emit base may clobber rax/rdx.
+   * TYPE_SLICE CALL/METHOD_CALL return is dual-GP (needs_rax_deref=0): length@rdx.
+   * Else historical fat* in rax: length at [rax+8].
+   * PLATFORM: SHARED freestanding · LINUX gold (host-C uses C codegen INDEX).
+   */
+  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+    return -1;
   if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, base_ref, ctx, ta) != 0)
     return -1;
+  bty = pipeline_expr_resolved_type_ref(arena, base_ref);
+  if (bty > 0 && pipeline_type_kind_ord_at(arena, bty) == (int32_t)ast_TypeKind_TYPE_SLICE &&
+      (base_ko == 48 || base_ko == 49) &&
+      (base_ko != 48 || glue_call_struct16_ret_needs_rax_deref_c(arena, base_ref) == 0)) {
+    /* SysV arg_reg 2 = rdx — length half after dual-GP return. */
+    if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, 2, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    return 0;
+  }
   if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0)
     return -1;
   if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
     return -1;
-  return backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  return 0;
 }
 
 /**
