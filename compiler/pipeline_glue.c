@@ -3552,6 +3552,13 @@ static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
 /* Used by wave350 FIELD init; full def near pipeline_expr_field_access_layout_offset. */
 static int32_t glue_field_access_effective_offset_c(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                    int32_t fa_ref);
+/* wave351 CALL field init: reuse let-init CALL store authority (defs later). */
+static int32_t glue_call_return_byte_size_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
+static int32_t glue_store_retval_pair_to_rbp_elf_c(struct ast_Module *m, struct ast_ASTArena *arena,
+                                                   struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ty_ref,
+                                                   int32_t slot_off, int32_t ta, int32_t init_ref);
+static struct ast_Module *glue_emit_module_from_ctx(struct backend_AsmFuncCtx *ctx);
+void pipeline_asm_emit_set_call_sret_reg_shift_c(int32_t shift);
 
 /**
  * STRUCT_LIT 单字段 store 宽度：与 glue_field_access_load_bytes_for_type_ref 一致（i32=4，bool/u8=1）。
@@ -3822,7 +3829,7 @@ static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *aren
 }
 
 /**
- * wave349/350 Cap residual pure: STRUCT_LIT field of fixed TYPE_ARRAY stores inline
+ * wave349/350/351 Cap residual pure: STRUCT_LIT field of fixed TYPE_ARRAY stores inline
  * payload (N×esz), not an 8-byte pointer.
  *
  * Root: generic STRUCT_LIT path emitted ARRAY_LIT into a temp then stored rax (temp
@@ -3835,6 +3842,9 @@ static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *aren
  * - VAR → wave334 element-wise load (src_off − i×esz) / store
  * - wave350 FIELD (`Box { a: b0.a }`) → same element-wise from VAR-base + field_off
  *   (positive slot src = var_off − field_off; elem[i] at src − i×esz — matches INDEX layout)
+ * - wave351 CALL (`Box { a: fill(n) }`) → materialize CALL into temp (G.7 reuse
+ *   glue_store_retval_pair / sret let-init), then same element-wise from temp.
+ *   Companion: WPO walks STRUCT_LIT field inits (ast_pool) so fill is reachable.
  *
  * @return 0 handled; -1 error; -2 unsupported init (caller falls through)
  * PLATFORM: SHARED freestanding emit · LINUX gold · MACOS host-C uses braced expand
@@ -3912,6 +3922,52 @@ static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
     src_off = var_off - field_off;
     if (src_off < 0)
       return -1;
+  } else if (iko == (int32_t)ast_ExprKind_EXPR_CALL && ta == 0) {
+    /*
+     * wave351: CALL returning fixed array / pointer-to-payload.
+     * Materialize into a temp stack slot with the same let-init authority
+     * (sret when >16B; else glue_store_retval_pair handles rax-ptr deref for 9–16B),
+     * then element-wise copy into the STRUCT_LIT field (G.7 no second ABI).
+     * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV.
+     */
+    pipeline_glue_AsmFuncCtxLayout *ly;
+    int32_t temp_off;
+    int32_t need;
+    int32_t call_ret_sz;
+    int32_t emit_rc;
+    ly = pipeline_asm_ctx_layout(ctx);
+    if (!ly)
+      return -1;
+    /* Reserve [old, old+need]; place elem0 at high end so dual-GP half at temp-8 stays in range. */
+    need = n_arr * esz;
+    if (need < 16)
+      need = 16;
+    need = (need + 15) & ~15;
+    if (ly->next_offset + need < ly->next_offset)
+      return -1;
+    ly->next_offset += need;
+    temp_off = ly->next_offset;
+    call_ret_sz = glue_call_return_byte_size_c(arena, init_ref);
+    if (call_ret_sz <= 0)
+      call_ret_sz = n_arr * esz;
+    if (call_ret_sz > 16) {
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_off, ta) != 0)
+        return -1;
+      if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
+        return -1;
+      pipeline_asm_emit_set_call_sret_reg_shift_c(1);
+      emit_rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta);
+      pipeline_asm_emit_set_call_sret_reg_shift_c(0);
+      if (emit_rc != 0)
+        return -1;
+    } else {
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta) != 0)
+        return -1;
+      if (glue_store_retval_pair_to_rbp_elf_c(glue_emit_module_from_ctx(ctx), arena, elf_ctx, fty, temp_off, ta,
+                                              init_ref) != 0)
+        return -1;
+    }
+    src_off = temp_off;
   }
   if (src_off >= 0) {
     if (sret_direct == 0) {
@@ -3943,7 +3999,7 @@ static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
     return 0;
   }
 
-  /* Unsupported init (CALL/etc.) — leave generic path (may still be soft residual). */
+  /* Unsupported init — leave generic path. */
   return -2;
 }
 

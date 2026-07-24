@@ -15712,6 +15712,28 @@ static void asm_wpo_collect_edges_from_expr(struct ast_ASTArena *a, int32_t expr
       asm_wpo_collect_edges_from_expr(a, ex->binop_right_ref, caller_id, caller_mod, ctx, depth + 1);
     return;
   }
+  /*
+   * wave351 Cap residual pure: STRUCT_LIT field inits and ARRAY_LIT elems must feed
+   * the call graph. Root: `Box { a: fill(n) }` only-call-site left fill unreachable
+   * (emit_n skipped fill → UNDEF). G.7: same collector; walk sidecar field/elem refs.
+   * PLATFORM: SHARED freestanding WPO · LINUX gold.
+   */
+  if (ex->kind == ast_ExprKind_EXPR_STRUCT_LIT) {
+    for (i = 0; i < ex->struct_lit_num_fields; i++) {
+      int32_t iref = pipeline_expr_struct_lit_init_ref(a, expr_ref, i);
+      if (iref > 0)
+        asm_wpo_collect_edges_from_expr(a, iref, caller_id, caller_mod, ctx, depth + 1);
+    }
+    return;
+  }
+  if (ex->kind == ast_ExprKind_EXPR_ARRAY_LIT) {
+    for (i = 0; i < ex->array_lit_num_elems; i++) {
+      int32_t eref = pipeline_expr_array_lit_elem_ref(a, expr_ref, i);
+      if (eref > 0)
+        asm_wpo_collect_edges_from_expr(a, eref, caller_id, caller_mod, ctx, depth + 1);
+    }
+    return;
+  }
   if (ex->field_access_base_ref > 0)
     asm_wpo_collect_edges_from_expr(a, ex->field_access_base_ref, caller_id, caller_mod, ctx, depth + 1);
   if (ex->index_base_ref > 0)
@@ -15720,6 +15742,14 @@ static void asm_wpo_collect_edges_from_expr(struct ast_ASTArena *a, int32_t expr
     asm_wpo_collect_edges_from_expr(a, ex->index_index_ref, caller_id, caller_mod, ctx, depth + 1);
   if (ex->method_call_base_ref > 0)
     asm_wpo_collect_edges_from_expr(a, ex->method_call_base_ref, caller_id, caller_mod, ctx, depth + 1);
+  /* METHOD_CALL args: same class as CALL args (fill edges from method arg expressions). */
+  if (ex->kind == ast_ExprKind_EXPR_METHOD_CALL) {
+    for (i = 0; i < ex->method_call_num_args; i++) {
+      arg_slot = expr_method_call_arg_slot(a, expr_ref, i, 0);
+      if (arg_slot && *arg_slot > 0)
+        asm_wpo_collect_edges_from_expr(a, *arg_slot, caller_id, caller_mod, ctx, depth + 1);
+    }
+  }
 }
 
 /**
