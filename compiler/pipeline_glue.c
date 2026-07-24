@@ -10085,8 +10085,10 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
      * Authority (G.7):
      * - ARRAY_LIT → reuse pipeline_asm_emit_vector_let_init_elf_c (same as let-init:
      *   write elems directly into LHS slot; no pointer store).
-     * - VAR → element-wise load/store at positive offsets from each slot base
-     *   (fixed-array layout, not SIMD dual-GP high-half growth).
+     * - VAR → element-wise load/store. Slot base (positive rbp offset) is elem[0];
+     *   higher indices sit at *smaller* positive offsets (addresses grow up from
+     *   -base(%rbp) via +ai*esz stores in vector_let_init). load_rbp therefore uses
+     *   src_off - ai*esz. Store still uses lea(dst base) + +ai*esz (address math).
      * PLATFORM: SHARED freestanding emit · LINUX gold · MACOS host-C uses memcpy.
      */
     if (is_modlet == 0 && off >= 0 && ltk_pre == GLUE_TYPE_KIND_ARRAY &&
@@ -10118,7 +10120,8 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
         if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
           return -1;
         for (ai = 0; ai < n_arr; ai++) {
-          if (backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, src_off + ai * esz, esz, ta) != 0)
+          /* Positive slot: elem[i] at src_off - i*esz (see comment above). */
+          if (backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, src_off - ai * esz, esz, ta) != 0)
             return -1;
           if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, ai * esz, esz, ta) != 0)
             return -1;
