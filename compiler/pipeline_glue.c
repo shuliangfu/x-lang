@@ -3977,9 +3977,9 @@ static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *aren
  * Authority (G.7 single path):
  * - ARRAY_LIT + stack slot → pipeline_asm_emit_vector_let_init_elf_c (same as let-init)
  * - ARRAY_LIT + sret → per-elem emit + store at foff+i×esz via sret dest@rbx
- * - VAR → wave334 element-wise load (src_off − i×esz) / store
- * - wave350 FIELD (`Box { a: b0.a }`) → same element-wise from VAR-base + field_off
- *   (positive slot src = var_off − field_off; elem[i] at src − i×esz — matches INDEX layout)
+ * - VAR → element-wise lea(src)+i×esz + esz-wide load / store (wave399; matches ARRAY_LIT)
+ * - wave350 FIELD (`Box { a: b0.a }`) → same from VAR-base + field_off
+ *   (src base = var_off − field_off; elem[i] at base + i×esz — SHARED with CALL E* copy)
  * - wave351 CALL (`Box { a: fill(n) }`) → materialize CALL into temp (G.7 reuse
  *   glue_store_retval_pair / sret let-init), then same element-wise from temp.
  *   Companion: WPO walks STRUCT_LIT field inits (ast_pool) so fill is reachable.
@@ -4171,30 +4171,49 @@ static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
     return 0;
   }
   if (src_off >= 0) {
-    if (sret_direct == 0) {
-      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, base_off + foff, ta) != 0)
+    /*
+     * wave399 Cap residual pure: freestanding VAR/FIELD → fixed TYPE_ARRAY whole copy.
+     * Root: wave334 used load_rbp_lane(src_off − i×esz). On x86 that matches
+     * [rbp−off] polarity vs ARRAY_LIT lea+store(+i×esz). On arm64 slots live at
+     * x29+off (lea add) and product load_rbp is 64-bit scaled imm/8 — non-aligned
+     * i32 steps collapse (disasm: 0x20,0x18,0x18) → let b:T[N]=a sum=12 not 33.
+     * G.7: same geometry as CALL E* path / ARRAY_LIT — lea(src)+i×esz + esz-wide
+     * load, then store into dest (re-lea dest each elem; do not hold rbx across load).
+     * PLATFORM: SHARED freestanding · MACOS|ARM64 + LINUX|x86_64.
+     */
+    for (ai = 0; ai < n_arr; ai++) {
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, src_off, ta) != 0)
         return -1;
-      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+      if (ai * esz != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, ai * esz, ta) != 0)
         return -1;
-      for (ai = 0; ai < n_arr; ai++) {
-        /* Positive slot: elem[i] at src_off - i*esz (wave334 / vector_let_init layout). */
-        if (backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, src_off - ai * esz, esz, ta) != 0)
+      if (esz == 1) {
+        if (backend_enc_load_zext8_from_rax_arch(elf_ctx, ta) != 0)
           return -1;
-        if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, ai * esz, esz, ta) != 0)
+      } else if (esz == 8) {
+        if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+      } else if (esz == 4) {
+        if (backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+      } else {
+        if (backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta) != 0)
           return -1;
       }
-      return 0;
-    }
-    for (ai = 0; ai < n_arr; ai++) {
-      if (backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, src_off - ai * esz, esz, ta) != 0)
-        return -1;
       if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
         return -1;
-      if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
-        return -1;
+      if (sret_direct == 0) {
+        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, base_off + foff, ta) != 0)
+          return -1;
+        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          return -1;
+      } else {
+        if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
+          return -1;
+      }
       if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
         return -1;
-      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + ai * esz, esz, ta) != 0)
+      if (backend_enc_store_rax_to_rbx_offset_arch(
+              elf_ctx, (sret_direct == 0 ? ai * esz : foff + ai * esz), esz, ta) != 0)
         return -1;
     }
     return 0;
