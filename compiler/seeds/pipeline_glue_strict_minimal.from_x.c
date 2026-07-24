@@ -1902,6 +1902,17 @@ XLANG_WEAK int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(struct ast_AS
           (nlen == 3 && nm[0] == 117 && nm[1] == 49 && nm[2] == 54)))    /* "u16" */
       return 0;
   }
+  /*
+   * wave319: f32/f64 + EXPR_NEG of bare INT lit — stamp operand too (G.7 ≡ pipeline_glue.c).
+   * Freestanding emit_neg needs IEEE load + btc when return/assign skip CTFE fold.
+   */
+  if ((decl_kind == (int32_t)ast_TypeKind_TYPE_F32 || decl_kind == (int32_t)ast_TypeKind_TYPE_F64) &&
+      init_kind == (int32_t)ast_ExprKind_EXPR_NEG) {
+    int32_t op_ref = pipeline_expr_unary_operand_ref_at(arena, init_ref);
+    if (!ast_ref_is_null(op_ref) && op_ref > 0 &&
+        pipeline_expr_kind_ord_at(arena, op_ref) == (int32_t)ast_ExprKind_EXPR_LIT)
+      pipeline_expr_set_resolved_type_ref(arena, op_ref, decl_ty_ref);
+  }
   pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
   return 1;
 }

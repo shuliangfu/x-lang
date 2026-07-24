@@ -29600,6 +29600,23 @@ int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(struct ast_ASTArena *are
   init_ex = pipeline_arena_expr_ptr(arena, init_ref);
   if (!init_ex)
     return 0;
+  /*
+   * wave319: for f32/f64, stamp EXPR_NEG's bare int lit operand too (G.7 parity with
+   * float_lit NEG of FLOAT_LIT). Freestanding emit_neg then loads IEEE bits and btc
+   * the sign; return/assign paths may not CTFE-fold the tree (let does fold_in_block).
+   * Without operand stamp: mov $6; neg %eax → 0xfffffffa bits, not IEEE -6.0f.
+   * PLATFORM: SHARED / LINUX+MACOS freestanding.
+   */
+  if ((decl_kind == (int32_t)ast_TypeKind_TYPE_F32 || decl_kind == (int32_t)ast_TypeKind_TYPE_F64) &&
+      init_kind == (int32_t)ast_ExprKind_EXPR_NEG) {
+    int32_t op_ref = pipeline_expr_unary_operand_ref_at(arena, init_ref);
+    if (!ast_ref_is_null(op_ref) && op_ref > 0 && op_ref <= arena->num_exprs &&
+        pipeline_expr_kind_ord_at(arena, op_ref) == (int32_t)ast_ExprKind_EXPR_LIT) {
+      struct ast_Expr *op_ex = pipeline_arena_expr_ptr(arena, op_ref);
+      if (op_ex)
+        op_ex->resolved_type_ref = decl_ty_ref;
+    }
+  }
   init_ex->resolved_type_ref = decl_ty_ref;
   return 1;
 }
