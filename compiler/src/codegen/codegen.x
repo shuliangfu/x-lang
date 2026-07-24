@@ -199,6 +199,14 @@ export extern function pipeline_module_func_ref_at(module: *Module, func_index: 
 export extern function pipeline_asm_resolve_whole_import_qualified_symbol_c(arena: *ASTArena, cur_mod: *Module, callee_expr_ref: i32, sym_flat: *u8, out_match_imp_j: *i32): i32;
 export extern function pipeline_block_stmt_order_kind(arena: *ASTArena, br: i32, si: i32): u8;
 export extern function pipeline_block_stmt_order_idx(arena: *ASTArena, br: i32, si: i32): i32;
+/** wave379: labeled/goto stmt_order kind=7 accessors. PLATFORM: SHARED. */
+export extern function pipeline_block_num_labeled_stmts(arena: *ASTArena, br: i32): i32;
+export extern function pipeline_block_labeled_is_goto(arena: *ASTArena, br: i32, li: i32): i32;
+export extern function pipeline_block_labeled_label_len(arena: *ASTArena, br: i32, li: i32): i32;
+export extern function pipeline_block_labeled_label_copy32(arena: *ASTArena, br: i32, li: i32, dst: *u8): void;
+export extern function pipeline_block_labeled_goto_target_len(arena: *ASTArena, br: i32, li: i32): i32;
+export extern function pipeline_block_labeled_goto_target_copy32(arena: *ASTArena, br: i32, li: i32, dst: *u8): void;
+export extern function pipeline_block_labeled_return_expr_ref(arena: *ASTArena, br: i32, li: i32): i32;
 
 /**
  * See implementation.
@@ -10094,6 +10102,63 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
             } else {
               if (emit_block(arena, out, reg_body, indent, ctx) != 0) {
                 return -1;
+              }
+            }
+          }
+        } else if (k == 7) {
+          /**
+           * wave379: labeled/goto (docs/03).
+           * is_goto → `goto T;`; else `L:` then optional `return e;`.
+           * PLATFORM: SHARED — host-C only this wave (fs soft leave-off).
+           */
+          if (idx >= 0 && idx < pipeline_block_num_labeled_stmts(arena, block_ref)) {
+            let is_g: i32 = pipeline_block_labeled_is_goto(arena, block_ref, idx);
+            if (is_g != 0) {
+              if (emit_indent(out, indent) != 0) {
+                return -1;
+              }
+              /* "goto " */
+              let gkw: u8[6] = [103, 111, 116, 111, 32, 0];
+              if (emit_bytes_from_ptr(out, &gkw[0], 5) != 0) {
+                return -1;
+              }
+              let gt_buf: u8[32] = [];
+              pipeline_block_labeled_goto_target_copy32(arena, block_ref, idx, &gt_buf[0]);
+              let gt_len: i32 = pipeline_block_labeled_goto_target_len(arena, block_ref, idx);
+              if (gt_len > 0 && gt_len <= 32) {
+                if (emit_bytes_from_ptr(out, &gt_buf[0], gt_len) != 0) {
+                  return -1;
+                }
+              }
+              let gend: u8[3] = [59, 10, 0];
+              if (emit_bytes_from_ptr(out, &gend[0], 2) != 0) {
+                return -1;
+              }
+            } else {
+              let lb_buf: u8[32] = [];
+              pipeline_block_labeled_label_copy32(arena, block_ref, idx, &lb_buf[0]);
+              let lb_len: i32 = pipeline_block_labeled_label_len(arena, block_ref, idx);
+              if (lb_len > 0 && lb_len <= 32) {
+                if (emit_indent(out, indent) != 0) {
+                  return -1;
+                }
+                if (emit_bytes_from_ptr(out, &lb_buf[0], lb_len) != 0) {
+                  return -1;
+                }
+                let colon_nl: u8[3] = [58, 10, 0];
+                if (emit_bytes_from_ptr(out, &colon_nl[0], 2) != 0) {
+                  return -1;
+                }
+              }
+              let ret_ref_lab: i32 = pipeline_block_labeled_return_expr_ref(arena, block_ref, idx);
+              if (!ast.ref_is_null(ret_ref_lab) && ret_ref_lab > 0) {
+                if (emit_return_stmt_with_context(arena, out, indent, ret_ref_lab, ctx, fn_ret_void) != 0) {
+                  return -1;
+                }
+              } else if (ret_ref_lab == 0 && lb_len > 0) {
+                /* Pure label or bare `return;` with null operand: if return_expr was
+                 * intentionally empty for labeled bare return, emit `return;` for void. */
+                /* Pure label only — no return. */
               }
             }
           }

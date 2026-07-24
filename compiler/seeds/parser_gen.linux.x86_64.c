@@ -1454,6 +1454,10 @@ extern void lexer_next_buf_into(struct lexer_LexerResult * out, struct lexer_Lex
 extern int32_t ast_block_expr_stmt_ref(struct ast_ASTArena * arena, int32_t block_ref, int32_t ei);
 extern int32_t pipeline_block_append_labeled(struct ast_ASTArena * arena, int32_t br, int32_t label_len, int32_t is_goto, int32_t goto_target_len, int32_t return_expr_ref);
 extern void pipeline_block_labeled_set_names(struct ast_ASTArena * arena, int32_t br, int32_t li, uint8_t * label, int32_t label_len, uint8_t * goto_target, int32_t goto_target_len);
+/* wave379: OneFunc labeled/goto pool (stmt_order kind=7). PLATFORM: SHARED */
+extern int32_t pipeline_onefunc_append_labeled(uint8_t * out, uint8_t * label, int32_t label_len, int32_t is_goto, uint8_t * goto_target, int32_t goto_target_len, int32_t return_expr_ref);
+extern int32_t pipeline_onefunc_num_labeleds(uint8_t * out);
+extern void pipeline_block_fill_labeled_from_onefunc(struct ast_ASTArena * arena, int32_t br, uint8_t * out, int32_t count);
 extern int32_t pipeline_module_struct_layout_alloc(struct ast_Module * module);
 extern int32_t pipeline_module_struct_layout_name_len(struct ast_Module * module, int32_t idx);
 extern int32_t pipeline_module_struct_layout_num_fields(struct ast_Module * module, int32_t idx);
@@ -2264,6 +2268,39 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
         (void)((stmt_tok_ready = 1));
         continue;
       }
+      /* wave379: bare goto target; (TOKEN_GOTO=48, IDENT=59, SEMICOLON=95). stmt_order kind=7. */
+      if ((((r.tok).kind) ==48)) {
+        (void)(parser_lex_from_next_into(&(lex_cur), r));
+        (void)(lexer_next_into(&(r), lex_cur, source));
+        if ((((r.tok).kind) !=59)) {
+          (void)(((out->ok) = 0));
+          return;
+        }
+        int32_t goto_len_bare = ((r.tok).ident_len);
+        size_t goto_start_bare = (r.token_start);
+        if ((goto_start_bare ==0)) {
+          (void)((goto_start_bare = parser_lexer_pos_before_run(((r.next_lex).pos), goto_len_bare)));
+        }
+        uint8_t goto_row_bare[32] = {};
+        (void)(parser_copy_slice_to_param32(source, goto_start_bare, goto_len_bare, &((goto_row_bare)[0])));
+        (void)(parser_lex_from_next_into(&(lex_cur), r));
+        (void)(lexer_next_into(&(r), lex_cur, source));
+        if ((((r.tok).kind) ==95)) {
+          (void)((lex_cur = (r.next_lex)));
+          (void)(lexer_next_into(&(r), lex_cur, source));
+        }
+        int32_t li_bare = pipeline_block_append_labeled(arena, block_ref, 0, 1, goto_len_bare, 0);
+        if ((li_bare < 0)) {
+          (void)(((out->ok) = 0));
+          return;
+        }
+        (void)(pipeline_block_labeled_set_names(arena, block_ref, li_bare, ((uint8_t *)(0)), 0, &((goto_row_bare)[0]), goto_len_bare));
+        if ((pipeline_block_append_stmt_order(arena, block_ref, 7, li_bare) < 0)) {
+          (void)(((out->ok) = 0));
+          return;
+        }
+        continue;
+      }
       if (parser_token_is_label_start(r, source)) {
         int32_t label_len_blk = ((r.tok).ident_len);
         size_t label_start_blk = (r.token_start);
@@ -2296,51 +2333,84 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
           }
           uint8_t label_row_blk[32] = {};
           (void)(parser_copy_slice_to_param32(source, label_start_blk, label_len_blk, &((label_row_blk)[0])));
-          int32_t li_goto = pipeline_block_append_labeled(arena, block_ref, label_len_blk, 1, goto_len_blk, 0);
+          int32_t li_lab = pipeline_block_append_labeled(arena, block_ref, label_len_blk, 0, 0, 0);
+          if ((li_lab < 0)) {
+            (void)(((out->ok) = 0));
+            return;
+          }
+          (void)(pipeline_block_labeled_set_names(arena, block_ref, li_lab, &((label_row_blk)[0]), label_len_blk, ((uint8_t *)(0)), 0));
+          if ((pipeline_block_append_stmt_order(arena, block_ref, 7, li_lab) < 0)) {
+            (void)(((out->ok) = 0));
+            return;
+          }
+          int32_t li_goto = pipeline_block_append_labeled(arena, block_ref, 0, 1, goto_len_blk, 0);
           if ((li_goto < 0)) {
             (void)(((out->ok) = 0));
             return;
           }
-          (void)(pipeline_block_labeled_set_names(arena, block_ref, li_goto, &((label_row_blk)[0]), label_len_blk, &((goto_row_blk)[0]), goto_len_blk));
-          continue;
-        }
-        if ((((r.tok).kind) !=11)) {
-          (void)(((out->ok) = 0));
-          return;
-        }
-        (void)(parser_lex_from_next_into(&(lex_cur), r));
-        struct parser_ParseExprResult ret_val_lbl = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex_cur };
-        (void)(lexer_next_into(&(r), lex_cur, source));
-        if (((((r.tok).kind) !=95) && (((r.tok).kind) !=85))) {
-          (void)(parser_parse_expr_into(arena, lex_cur, source, &(ret_val_lbl)));
-          if (!((ret_val_lbl.ok))) {
+          (void)(pipeline_block_labeled_set_names(arena, block_ref, li_goto, ((uint8_t *)(0)), 0, &((goto_row_blk)[0]), goto_len_blk));
+          if ((pipeline_block_append_stmt_order(arena, block_ref, 7, li_goto) < 0)) {
             (void)(((out->ok) = 0));
             return;
           }
-          (void)((lex_cur = (ret_val_lbl.next_lex)));
+          continue;
+        }
+        if ((((r.tok).kind) ==11)) {
+          (void)(parser_lex_from_next_into(&(lex_cur), r));
+          struct parser_ParseExprResult ret_val_lbl = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex_cur };
           (void)(lexer_next_into(&(r), lex_cur, source));
+          if (((((r.tok).kind) !=95) && (((r.tok).kind) !=85))) {
+            (void)(parser_parse_expr_into(arena, lex_cur, source, &(ret_val_lbl)));
+            if (!((ret_val_lbl.ok))) {
+              (void)(((out->ok) = 0));
+              return;
+            }
+            (void)((lex_cur = (ret_val_lbl.next_lex)));
+            (void)(lexer_next_into(&(r), lex_cur, source));
+          }
+          if (((((r.tok).kind) !=95) && (((r.tok).kind) !=85))) {
+            (void)(((out->ok) = 0));
+            return;
+          }
+          if ((((r.tok).kind) ==95)) {
+            (void)((lex_cur = (r.next_lex)));
+            (void)(lexer_next_into(&(r), lex_cur, source));
+          }
+          uint8_t label_row_ret[32] = {};
+          (void)(parser_copy_slice_to_param32(source, label_start_blk, label_len_blk, &((label_row_ret)[0])));
+          int32_t ret_operand = 0;
+          if ((ret_val_lbl.ok)) {
+            (void)((ret_operand = (ret_val_lbl.expr_ref)));
+          }
+          int32_t li_ret = pipeline_block_append_labeled(arena, block_ref, label_len_blk, 0, 0, ret_operand);
+          if ((li_ret < 0)) {
+            (void)(((out->ok) = 0));
+            return;
+          }
+          (void)(pipeline_block_labeled_set_names(arena, block_ref, li_ret, &((label_row_ret)[0]), label_len_blk, ((uint8_t *)(0)), 0));
+          if ((pipeline_block_append_stmt_order(arena, block_ref, 7, li_ret) < 0)) {
+            (void)(((out->ok) = 0));
+            return;
+          }
+          continue;
         }
-        if (((((r.tok).kind) !=95) && (((r.tok).kind) !=85))) {
-          (void)(((out->ok) = 0));
-          return;
+        /* wave379: pure L: label def; fall through to next stmt */
+        {
+          uint8_t label_row_pure[32] = {};
+          (void)(parser_copy_slice_to_param32(source, label_start_blk, label_len_blk, &((label_row_pure)[0])));
+          int32_t li_pure = pipeline_block_append_labeled(arena, block_ref, label_len_blk, 0, 0, 0);
+          if ((li_pure < 0)) {
+            (void)(((out->ok) = 0));
+            return;
+          }
+          (void)(pipeline_block_labeled_set_names(arena, block_ref, li_pure, &((label_row_pure)[0]), label_len_blk, ((uint8_t *)(0)), 0));
+          if ((pipeline_block_append_stmt_order(arena, block_ref, 7, li_pure) < 0)) {
+            (void)(((out->ok) = 0));
+            return;
+          }
+          (void)((stmt_tok_ready = 1));
+          continue;
         }
-        if ((((r.tok).kind) ==95)) {
-          (void)((lex_cur = (r.next_lex)));
-          (void)(lexer_next_into(&(r), lex_cur, source));
-        }
-        uint8_t label_row_ret[32] = {};
-        (void)(parser_copy_slice_to_param32(source, label_start_blk, label_len_blk, &((label_row_ret)[0])));
-        int32_t ret_operand = 0;
-        if ((ret_val_lbl.ok)) {
-          (void)((ret_operand = (ret_val_lbl.expr_ref)));
-        }
-        int32_t li_ret = pipeline_block_append_labeled(arena, block_ref, label_len_blk, 0, 0, ret_operand);
-        if ((li_ret < 0)) {
-          (void)(((out->ok) = 0));
-          return;
-        }
-        (void)(pipeline_block_labeled_set_names(arena, block_ref, li_ret, &((label_row_ret)[0]), label_len_blk, ((uint8_t *)(0)), 0));
-        continue;
       }
       if ((((r.tok).kind) ==11)) {
         (void)(parser_lex_from_next_into(&(lex_cur), r));
@@ -4513,8 +4583,85 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
             (void)((lex = ret_kw_lex));
           }
         }
-        if ((((((r.tok).kind) ==11) || (((r.tok).kind) ==85)) || (((r.tok).kind) ==0))) {
+        /* wave379: only RBRACE/EOF break; mid-body RETURN as expr_stmt */
+        if ((((((r.tok).kind) ==85) || (((r.tok).kind) ==0)))) {
           break;
+        }
+        if ((((r.tok).kind) ==11)) {
+          /* wave379: mid-body return only if label follows; else final + skip Cap-T001 filler */
+          (void)(parser_lex_from_next_into(&(lex), r));
+          struct parser_ParseExprResult ret_mid_res = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex };
+          (void)(lexer_next_into(&(r), lex, source));
+          if (((((r.tok).kind) !=95) && (((r.tok).kind) !=85))) {
+            (void)(parser_parse_expr_into(arena, lex, source, &(ret_mid_res)));
+            if (!((ret_mid_res.ok))) {
+              (void)(parser_set_onefunc_fail(out, lex));
+              return;
+            }
+            (void)((lex = (ret_mid_res.next_lex)));
+            (void)(lexer_next_into(&(r), lex, source));
+          }
+          if ((((r.tok).kind) ==95)) {
+            (void)(parser_lex_from_next_into(&(lex), r));
+            (void)(lexer_next_into(&(r), lex, source));
+          }
+          if (parser_token_is_label_start(r, source)) {
+            int32_t ret_mid_ref = ast_ast_arena_expr_alloc(arena);
+            if ((ret_mid_ref ==0)) {
+              (void)(parser_set_onefunc_fail(out, lex));
+              return;
+            }
+            struct ast_Expr re_mid = ast_ast_arena_expr_get(arena, ret_mid_ref);
+            (void)(((re_mid.kind) = 41));
+            (void)(((re_mid.line) = 0));
+            (void)(((re_mid.col) = 0));
+            (void)(parser_expr_set_common_zeros(&(re_mid)));
+            if ((ret_mid_res.ok)) {
+              (void)(((re_mid.unary_operand_ref) = (ret_mid_res.expr_ref)));
+            }
+            (void)(ast_ast_arena_expr_set(arena, ret_mid_ref, re_mid));
+            int32_t ex_ret_i = pipeline_onefunc_push_body_expr_stmt(parser_onefunc_result_pool_ptr(out), ret_mid_ref);
+            if ((ex_ret_i < 0)) {
+              (void)(parser_set_onefunc_fail(out, lex));
+              return;
+            }
+            (void)(((out->num_src_body_expr_stmts) = pipeline_onefunc_num_body_expr_stmts(parser_onefunc_result_pool_ptr(out))));
+            (void)(parser_onefunc_push_src_stmt(out, 2, ex_ret_i));
+            (void)(((impl_snap.has_explicit_return_kw) = 1));
+            (void)((stmt_tok_ready = 1));
+            continue;
+          }
+          (void)(((impl_snap.has_explicit_return_kw) = 1));
+          (void)(((impl_snap.has_final_expr) = 1));
+          if ((ret_mid_res.ok)) {
+            (void)((return_expr_ref_storage = (ret_mid_res.expr_ref)));
+          } else {
+            int32_t bare_fin = ast_ast_arena_expr_alloc(arena);
+            if ((bare_fin ==0)) {
+              (void)(parser_set_onefunc_fail(out, lex));
+              return;
+            }
+            struct ast_Expr re_fin = ast_ast_arena_expr_get(arena, bare_fin);
+            (void)(((re_fin.kind) = 41));
+            (void)(((re_fin.line) = 0));
+            (void)(((re_fin.col) = 0));
+            (void)(parser_expr_set_common_zeros(&(re_fin)));
+            (void)(ast_ast_arena_expr_set(arena, bare_fin, re_fin));
+            (void)((return_expr_ref_storage = bare_fin));
+          }
+          if (((((r.tok).kind) !=85) && (((r.tok).kind) !=0))) {
+            while (((((r.tok).kind) !=85) && (((r.tok).kind) !=0))) {
+              (void)(parser_lex_from_next_into(&(lex), r));
+              (void)(lexer_next_into(&(r), lex, source));
+            }
+          }
+          if ((((r.tok).kind) !=85)) {
+            (void)(parser_set_onefunc_fail(out, lex));
+            return;
+          }
+          (void)(parser_lex_from_next_into(&(lex), r));
+          (void)(parser_onefunc_finish_impl_to_out(out, &(impl_snap), lex, &((dummy_name)[0]), (func_name_len_storage)[0], return_expr_ref_storage));
+          return;
         }
         if (((((r.tok).kind) ==2) || (((r.tok).kind) ==3))) {
           int32_t n_before_mid = pipeline_onefunc_num_lets(parser_onefunc_result_pool_ptr(out));
@@ -4675,13 +4822,77 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
             continue;
           }
         }
+        /* wave379: bare goto (onefunc); TOKEN_GOTO=48 */
+        if ((((r.tok).kind) ==48)) {
+          (void)(parser_lex_from_next_into(&(lex), r));
+          (void)(lexer_next_into(&(r), lex, source));
+          if ((((r.tok).kind) !=59)) {
+            (void)(parser_set_onefunc_fail(out, lex));
+            return;
+          }
+          int32_t goto_len_fn = ((r.tok).ident_len);
+          size_t goto_start_fn = (r.token_start);
+          if ((goto_start_fn ==0)) {
+            (void)((goto_start_fn = parser_lexer_pos_before_run(((r.next_lex).pos), goto_len_fn)));
+          }
+          uint8_t goto_row_fn[32] = {};
+          (void)(parser_copy_slice_to_param32(source, goto_start_fn, goto_len_fn, &((goto_row_fn)[0])));
+          (void)(parser_lex_from_next_into(&(lex), r));
+          (void)(lexer_next_into(&(r), lex, source));
+          if ((((r.tok).kind) ==95)) {
+            (void)(parser_lex_from_next_into(&(lex), r));
+            (void)(lexer_next_into(&(r), lex, source));
+          }
+          int32_t li_g_fn = pipeline_onefunc_append_labeled(parser_onefunc_result_pool_ptr(out), ((uint8_t *)(0)), 0, 1, &((goto_row_fn)[0]), goto_len_fn, 0);
+          if ((li_g_fn < 0)) {
+            (void)(parser_set_onefunc_fail(out, lex));
+            return;
+          }
+          (void)(parser_onefunc_push_src_stmt(out, 7, li_g_fn));
+          (void)((stmt_tok_ready = 1));
+          continue;
+        }
         if (parser_token_is_label_start(r, source)) {
+          int32_t label_len_fn = ((r.tok).ident_len);
+          size_t label_start_fn = (r.token_start);
+          if ((label_start_fn ==0)) {
+            (void)((label_start_fn = parser_lexer_pos_before_run(((r.next_lex).pos), label_len_fn)));
+          }
+          uint8_t label_row_fn[32] = {};
+          (void)(parser_copy_slice_to_param32(source, label_start_fn, label_len_fn, &((label_row_fn)[0])));
           struct lexer_LexerResult colon_fn = (struct lexer_LexerResult){ .next_lex = (r.next_lex), .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
           (void)(lexer_next_into(&(colon_fn), (r.next_lex), source));
           (void)((lex = (colon_fn.next_lex)));
           (void)(lexer_next_into(&(r), lex, source));
           if ((((r.tok).kind) ==11)) {
-            break;
+            (void)(parser_lex_from_next_into(&(lex), r));
+            struct parser_ParseExprResult ret_val_fn = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex };
+            (void)(lexer_next_into(&(r), lex, source));
+            if (((((r.tok).kind) !=95) && (((r.tok).kind) !=85))) {
+              (void)(parser_parse_expr_into(arena, lex, source, &(ret_val_fn)));
+              if (!((ret_val_fn.ok))) {
+                (void)(parser_set_onefunc_fail(out, lex));
+                return;
+              }
+              (void)((lex = (ret_val_fn.next_lex)));
+              (void)(lexer_next_into(&(r), lex, source));
+            }
+            if ((((r.tok).kind) ==95)) {
+              (void)(parser_lex_from_next_into(&(lex), r));
+              (void)(lexer_next_into(&(r), lex, source));
+            }
+            int32_t ret_op_fn = 0;
+            if ((ret_val_fn.ok)) {
+              (void)((ret_op_fn = (ret_val_fn.expr_ref)));
+            }
+            int32_t li_lr = pipeline_onefunc_append_labeled(parser_onefunc_result_pool_ptr(out), &((label_row_fn)[0]), label_len_fn, 0, ((uint8_t *)(0)), 0, ret_op_fn);
+            if ((li_lr < 0)) {
+              (void)(parser_set_onefunc_fail(out, lex));
+              return;
+            }
+            (void)(parser_onefunc_push_src_stmt(out, 7, li_lr));
+            (void)((stmt_tok_ready = 1));
+            continue;
           }
           if ((((r.tok).kind) ==48)) {
             (void)(parser_lex_from_next_into(&(lex), r));
@@ -4690,17 +4901,42 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
               (void)(parser_set_onefunc_fail(out, lex));
               return;
             }
+            int32_t gtn_fn = ((r.tok).ident_len);
+            size_t gts_fn = (r.token_start);
+            if ((gts_fn ==0)) {
+              (void)((gts_fn = parser_lexer_pos_before_run(((r.next_lex).pos), gtn_fn)));
+            }
+            uint8_t gtr_fn[32] = {};
+            (void)(parser_copy_slice_to_param32(source, gts_fn, gtn_fn, &((gtr_fn)[0])));
             (void)(parser_lex_from_next_into(&(lex), r));
             (void)(lexer_next_into(&(r), lex, source));
             if ((((r.tok).kind) ==95)) {
               (void)(parser_lex_from_next_into(&(lex), r));
               (void)(lexer_next_into(&(r), lex, source));
             }
+            int32_t li_lab2 = pipeline_onefunc_append_labeled(parser_onefunc_result_pool_ptr(out), &((label_row_fn)[0]), label_len_fn, 0, ((uint8_t *)(0)), 0, 0);
+            if ((li_lab2 < 0)) {
+              (void)(parser_set_onefunc_fail(out, lex));
+              return;
+            }
+            (void)(parser_onefunc_push_src_stmt(out, 7, li_lab2));
+            int32_t li_gt2 = pipeline_onefunc_append_labeled(parser_onefunc_result_pool_ptr(out), ((uint8_t *)(0)), 0, 1, &((gtr_fn)[0]), gtn_fn, 0);
+            if ((li_gt2 < 0)) {
+              (void)(parser_set_onefunc_fail(out, lex));
+              return;
+            }
+            (void)(parser_onefunc_push_src_stmt(out, 7, li_gt2));
             (void)((stmt_tok_ready = 1));
             continue;
           }
-          (void)(parser_set_onefunc_fail(out, lex));
-          return;
+          int32_t li_pure_fn = pipeline_onefunc_append_labeled(parser_onefunc_result_pool_ptr(out), &((label_row_fn)[0]), label_len_fn, 0, ((uint8_t *)(0)), 0, 0);
+          if ((li_pure_fn < 0)) {
+            (void)(parser_set_onefunc_fail(out, lex));
+            return;
+          }
+          (void)(parser_onefunc_push_src_stmt(out, 7, li_pure_fn));
+          (void)((stmt_tok_ready = 1));
+          continue;
         }
         if ((((r.tok).kind) ==7)) {
           int32_t cond_ref_loop = 0;
@@ -5029,7 +5265,8 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
         }
         (void)(((out->num_src_body_expr_stmts) = pipeline_onefunc_num_body_expr_stmts(parser_onefunc_result_pool_ptr(out))));
         (void)(parser_onefunc_push_src_stmt(out, 2, ex_i));
-        if ((((((r.tok).kind) ==11) || (((r.tok).kind) ==85)) || (((r.tok).kind) ==0))) {
+        /* wave379: RETURN no longer ends loop after expr stmt */
+        if ((((((r.tok).kind) ==85) || (((r.tok).kind) ==0)))) {
           break;
         }
         (void)((lex = parser_lex_at_token_from_result(r)));
@@ -7312,6 +7549,12 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
       int32_t n_def_pool = 0;
       (void)((n_def_pool = pipeline_onefunc_num_defers(parser_onefunc_result_pool_ptr(&(res)))));
       (void)(pipeline_block_fill_defers_from_onefunc(arena, block_ref, parser_onefunc_result_pool_ptr(&(res)), n_def_pool));
+      /* wave379: labeled/goto before stmt_order kind=7 */
+      {
+        int32_t n_lab_pool = 0;
+        (void)((n_lab_pool = pipeline_onefunc_num_labeleds(parser_onefunc_result_pool_ptr(&(res)))));
+        (void)(pipeline_block_fill_labeled_from_onefunc(arena, block_ref, parser_onefunc_result_pool_ptr(&(res)), n_lab_pool));
+      }
       (void)((b = ast_ast_arena_block_get(arena, block_ref)));
       if (((res.num_src_stmt_order) > 0)) {
         (void)(pipeline_block_fill_expr_stmts_from_onefunc(arena, block_ref, parser_onefunc_result_pool_ptr(&(res)), pipeline_onefunc_num_body_expr_stmts(parser_onefunc_result_pool_ptr(&(res)))));
@@ -8676,6 +8919,12 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
       int32_t n_def_pool2 = 0;
       (void)((n_def_pool2 = pipeline_onefunc_num_defers(parser_onefunc_result_pool_ptr(&(res)))));
       (void)(pipeline_block_fill_defers_from_onefunc(arena, block_ref, parser_onefunc_result_pool_ptr(&(res)), n_def_pool2));
+      /* wave379: labeled/goto before stmt_order kind=7 */
+      {
+        int32_t n_lab_pool2 = 0;
+        (void)((n_lab_pool2 = pipeline_onefunc_num_labeleds(parser_onefunc_result_pool_ptr(&(res)))));
+        (void)(pipeline_block_fill_labeled_from_onefunc(arena, block_ref, parser_onefunc_result_pool_ptr(&(res)), n_lab_pool2));
+      }
       (void)((b = ast_ast_arena_block_get(arena, block_ref)));
       if (((res.num_src_stmt_order) > 0)) {
         (void)(pipeline_block_fill_expr_stmts_from_onefunc(arena, block_ref, parser_onefunc_result_pool_ptr(&(res)), pipeline_onefunc_num_body_expr_stmts(parser_onefunc_result_pool_ptr(&(res)))));

@@ -1303,6 +1303,13 @@ extern void pipeline_block_fill_whiles_from_onefunc(struct ast_ASTArena * arena,
 extern void pipeline_block_fill_fors_from_onefunc(struct ast_ASTArena * arena, int32_t br, uint8_t * out, int32_t count);
 extern int32_t pipeline_block_append_labeled(struct ast_ASTArena * arena, int32_t br, int32_t label_len, int32_t is_goto, int32_t goto_target_len, int32_t return_expr_ref);
 extern int32_t pipeline_block_labeled_return_expr_ref(struct ast_ASTArena * arena, int32_t br, int32_t li);
+/* wave379: labeled/goto kind=7 accessors. PLATFORM: SHARED */
+extern int32_t pipeline_block_num_labeled_stmts(struct ast_ASTArena * arena, int32_t br);
+extern int32_t pipeline_block_labeled_is_goto(struct ast_ASTArena * arena, int32_t br, int32_t li);
+extern int32_t pipeline_block_labeled_label_len(struct ast_ASTArena * arena, int32_t br, int32_t li);
+extern void pipeline_block_labeled_label_copy32(struct ast_ASTArena * arena, int32_t br, int32_t li, uint8_t * dst);
+extern int32_t pipeline_block_labeled_goto_target_len(struct ast_ASTArena * arena, int32_t br, int32_t li);
+extern void pipeline_block_labeled_goto_target_copy32(struct ast_ASTArena * arena, int32_t br, int32_t li, uint8_t * dst);
 extern int32_t pipeline_onefunc_append_while(uint8_t * out, int32_t cond_ref, int32_t body_ref);
 extern int32_t pipeline_onefunc_while_cond_ref(uint8_t * out, int32_t i);
 extern int32_t pipeline_onefunc_while_body_ref(uint8_t * out, int32_t i);
@@ -10347,6 +10354,57 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
                         } else {
                           if ((codegen_emit_block(arena, out, reg_body, indent, ctx) !=0)) {
                             return -(1);
+                          }
+                        }
+                      }
+                    } else if ((k ==7)) {
+                      /* wave379: goto / label / labeled return (host-C). PLATFORM: SHARED */
+                      if (((idx >=0) && (idx < pipeline_block_num_labeled_stmts(arena, block_ref)))) {
+                        int32_t is_g = pipeline_block_labeled_is_goto(arena, block_ref, idx);
+                        if ((is_g !=0)) {
+                          uint8_t gkw[6] = {103, 111, 116, 111, 32, 0};
+                          uint8_t gt_buf[32] = {};
+                          uint8_t gend[3] = {59, 10, 0};
+                          int32_t gt_len = 0;
+                          if ((codegen_emit_indent(out, indent) !=0)) {
+                            return -(1);
+                          }
+                          if ((codegen_emit_bytes_from_ptr(out, &((gkw)[0]), 5) !=0)) {
+                            return -(1);
+                          }
+                          (void)(pipeline_block_labeled_goto_target_copy32(arena, block_ref, idx, &((gt_buf)[0])));
+                          (void)((gt_len = pipeline_block_labeled_goto_target_len(arena, block_ref, idx)));
+                          if (((gt_len > 0) && (gt_len <=32))) {
+                            if ((codegen_emit_bytes_from_ptr(out, &((gt_buf)[0]), gt_len) !=0)) {
+                              return -(1);
+                            }
+                          }
+                          if ((codegen_emit_bytes_from_ptr(out, &((gend)[0]), 2) !=0)) {
+                            return -(1);
+                          }
+                        } else {
+                          uint8_t lb_buf[32] = {};
+                          int32_t lb_len = 0;
+                          int32_t ret_ref_lab = 0;
+                          (void)(pipeline_block_labeled_label_copy32(arena, block_ref, idx, &((lb_buf)[0])));
+                          (void)((lb_len = pipeline_block_labeled_label_len(arena, block_ref, idx)));
+                          if (((lb_len > 0) && (lb_len <=32))) {
+                            uint8_t colon_nl[3] = {58, 10, 0};
+                            if ((codegen_emit_indent(out, indent) !=0)) {
+                              return -(1);
+                            }
+                            if ((codegen_emit_bytes_from_ptr(out, &((lb_buf)[0]), lb_len) !=0)) {
+                              return -(1);
+                            }
+                            if ((codegen_emit_bytes_from_ptr(out, &((colon_nl)[0]), 2) !=0)) {
+                              return -(1);
+                            }
+                          }
+                          (void)((ret_ref_lab = pipeline_block_labeled_return_expr_ref(arena, block_ref, idx)));
+                          if ((!(ast_ref_is_null(ret_ref_lab)) && (ret_ref_lab > 0))) {
+                            if ((codegen_emit_return_stmt_with_context(arena, out, indent, ret_ref_lab, ctx, fn_ret_void) !=0)) {
+                              return -(1);
+                            }
                           }
                         }
                       }

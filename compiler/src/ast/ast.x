@@ -980,6 +980,24 @@ export function ast_block_num_regions(a: *ASTArena, br: i32): i32 {
   return blk_nr.num_regions;
 }
 
+/**
+ * Number of labeled/goto stmts in the block (wave379 stmt_order kind=7).
+ * @param a *ASTArena — arena holding the block
+ * @param br i32 — block ref
+ * @return i32 — count of labeled_stmts (0 if invalid)
+ * PLATFORM: SHARED
+ */
+export function ast_block_num_labeled_stmts(a: *ASTArena, br: i32): i32 {
+  if (br <= 0 || br > a.num_blocks) {
+    return 0;
+  }
+  let blk_nl: Block;
+  unsafe {
+    blk_nl = ast_arena_block_get(a, br);
+  }
+  return blk_nl.num_labeled_stmts;
+}
+
 /** Exported function `ast_block_region_body_ref`.
  * Implements `ast_block_region_body_ref`.
  * @param a *ASTArena

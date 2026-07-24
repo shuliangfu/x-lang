@@ -234,6 +234,13 @@ export extern function lexer_next_buf_into(out: *LexerResult, lex: Lexer, data: 
 export extern function ast_block_expr_stmt_ref(arena: *ASTArena, block_ref: i32, ei: i32): i32;
 export extern function pipeline_block_append_labeled(arena: *ASTArena, br: i32, label_len: i32, is_goto: i32, goto_target_len: i32, return_expr_ref: i32): i32;
 export extern function pipeline_block_labeled_set_names(arena: *ASTArena, br: i32, li: i32, label: *u8, label_len: i32, goto_target: *u8, goto_target_len: i32): void;
+/**
+ * wave379: OneFunc scratch for bare `goto T;` / `L:` / `L: return e`.
+ * PLATFORM: SHARED — G.7 with pipeline_block_append_labeled; stmt_order kind=7.
+ */
+export extern function pipeline_onefunc_append_labeled(out: *u8, label: *u8, label_len: i32, is_goto: i32, goto_target: *u8, goto_target_len: i32, return_expr_ref: i32): i32;
+export extern function pipeline_onefunc_num_labeleds(out: *u8): i32;
+export extern function pipeline_block_fill_labeled_from_onefunc(arena: *ASTArena, br: i32, out: *u8, count: i32): void;
 export extern function pipeline_module_struct_layout_alloc(module: *Module): i32;
 export extern function pipeline_module_struct_layout_name_len(module: *Module, idx: i32): i32;
 export extern function pipeline_module_struct_layout_num_fields(module: *Module, idx: i32): i32;
@@ -2205,8 +2212,45 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       continue;
     }
     /**
-     * See implementation.
-     * See implementation.
+     * wave379: bare `goto target;` (docs/03). stmt_order kind=7 → labeled pool is_goto=1.
+     * PLATFORM: SHARED — G.7 single labeled path (parse_block).
+     */
+    if (r.tok.kind == token.TokenKind.TOKEN_GOTO) {
+      lex_from_next_into(&lex_cur, r);
+      lexer.lexer_next_into(&r, lex_cur, source);
+      if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
+        out.ok = false;
+        return;
+      }
+      let goto_len_bare: i32 = r.tok.ident_len;
+      let goto_start_bare: usize = r.token_start;
+      if (goto_start_bare == 0) {
+        goto_start_bare = lexer_pos_before_run(r.next_lex.pos, goto_len_bare);
+      }
+      let goto_row_bare: u8[32] = [];
+      copy_slice_to_param32(source, goto_start_bare, goto_len_bare, &goto_row_bare[0]);
+      lex_from_next_into(&lex_cur, r);
+      lexer.lexer_next_into(&r, lex_cur, source);
+      if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
+        lex_cur = r.next_lex;
+        lexer.lexer_next_into(&r, lex_cur, source);
+      }
+      let li_bare: i32 = pipeline_block_append_labeled(arena, block_ref, 0, 1, goto_len_bare, 0);
+      if (li_bare < 0) {
+        out.ok = false;
+        return;
+      }
+      pipeline_block_labeled_set_names(arena, block_ref, li_bare, 0 as *u8, 0, &goto_row_bare[0], goto_len_bare);
+      if (pipeline_block_append_stmt_order(arena, block_ref, 7, li_bare) < 0) {
+        out.ok = false;
+        return;
+      }
+      continue;
+    }
+    /**
+     * wave379: `label:` / `label: return expr` / legacy `label: goto target`.
+     * Pure `L:` (next not RETURN/GOTO) records a label def and falls through to parse next stmt.
+     * PLATFORM: SHARED — stmt_order kind=7.
      */
     if (parser_token_is_label_start(r, source)) {
       let label_len_blk: i32 = r.tok.ident_len;
@@ -2244,50 +2288,82 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
         }
         let label_row_blk: u8[32] = [];
         copy_slice_to_param32(source, label_start_blk, label_len_blk, &label_row_blk[0]);
-        let li_goto: i32 = pipeline_block_append_labeled(arena, block_ref, label_len_blk, 1, goto_len_blk, 0);
+        /* Emit both label def and goto (two kind=7 entries) for host C. */
+        let li_lab: i32 = pipeline_block_append_labeled(arena, block_ref, label_len_blk, 0, 0, 0);
+        if (li_lab < 0) {
+          out.ok = false;
+          return;
+        }
+        pipeline_block_labeled_set_names(arena, block_ref, li_lab, &label_row_blk[0], label_len_blk, 0 as *u8, 0);
+        if (pipeline_block_append_stmt_order(arena, block_ref, 7, li_lab) < 0) {
+          out.ok = false;
+          return;
+        }
+        let li_goto: i32 = pipeline_block_append_labeled(arena, block_ref, 0, 1, goto_len_blk, 0);
         if (li_goto < 0) {
           out.ok = false;
           return;
         }
-        pipeline_block_labeled_set_names(arena, block_ref, li_goto, &label_row_blk[0], label_len_blk, &goto_row_blk[0], goto_len_blk);
-        continue;
-      }
-      if (r.tok.kind != token.TokenKind.TOKEN_RETURN) {
-        out.ok = false;
-        return;
-      }
-      lex_from_next_into(&lex_cur, r);
-      let ret_val_lbl: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
-      lexer.lexer_next_into(&r, lex_cur, source);
-      if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON && r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
-        parse_expr_into(arena, lex_cur, source, &ret_val_lbl);
-        if (!ret_val_lbl.ok) {
+        pipeline_block_labeled_set_names(arena, block_ref, li_goto, 0 as *u8, 0, &goto_row_blk[0], goto_len_blk);
+        if (pipeline_block_append_stmt_order(arena, block_ref, 7, li_goto) < 0) {
           out.ok = false;
           return;
         }
-        lex_cur = ret_val_lbl.next_lex;
-        lexer.lexer_next_into(&r, lex_cur, source);
+        continue;
       }
-      if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON && r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
+      if (r.tok.kind == token.TokenKind.TOKEN_RETURN) {
+        lex_from_next_into(&lex_cur, r);
+        let ret_val_lbl: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
+        lexer.lexer_next_into(&r, lex_cur, source);
+        if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON && r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
+          parse_expr_into(arena, lex_cur, source, &ret_val_lbl);
+          if (!ret_val_lbl.ok) {
+            out.ok = false;
+            return;
+          }
+          lex_cur = ret_val_lbl.next_lex;
+          lexer.lexer_next_into(&r, lex_cur, source);
+        }
+        if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON && r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
+          out.ok = false;
+          return;
+        }
+        if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
+          lex_cur = r.next_lex;
+          lexer.lexer_next_into(&r, lex_cur, source);
+        }
+        let label_row_ret: u8[32] = [];
+        copy_slice_to_param32(source, label_start_blk, label_len_blk, &label_row_ret[0]);
+        let ret_operand: i32 = 0;
+        if (ret_val_lbl.ok) {
+          ret_operand = ret_val_lbl.expr_ref;
+        }
+        let li_ret: i32 = pipeline_block_append_labeled(arena, block_ref, label_len_blk, 0, 0, ret_operand);
+        if (li_ret < 0) {
+          out.ok = false;
+          return;
+        }
+        pipeline_block_labeled_set_names(arena, block_ref, li_ret, &label_row_ret[0], label_len_blk, 0 as *u8, 0);
+        if (pipeline_block_append_stmt_order(arena, block_ref, 7, li_ret) < 0) {
+          out.ok = false;
+          return;
+        }
+        continue;
+      }
+      /* Pure `L:` — label definition only; next token is the following statement. */
+      let label_row_pure: u8[32] = [];
+      copy_slice_to_param32(source, label_start_blk, label_len_blk, &label_row_pure[0]);
+      let li_pure: i32 = pipeline_block_append_labeled(arena, block_ref, label_len_blk, 0, 0, 0);
+      if (li_pure < 0) {
         out.ok = false;
         return;
       }
-      if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
-        lex_cur = r.next_lex;
-        lexer.lexer_next_into(&r, lex_cur, source);
-      }
-      let label_row_ret: u8[32] = [];
-      copy_slice_to_param32(source, label_start_blk, label_len_blk, &label_row_ret[0]);
-      let ret_operand: i32 = 0;
-      if (ret_val_lbl.ok) {
-        ret_operand = ret_val_lbl.expr_ref;
-      }
-      let li_ret: i32 = pipeline_block_append_labeled(arena, block_ref, label_len_blk, 0, 0, ret_operand);
-      if (li_ret < 0) {
+      pipeline_block_labeled_set_names(arena, block_ref, li_pure, &label_row_pure[0], label_len_blk, 0 as *u8, 0);
+      if (pipeline_block_append_stmt_order(arena, block_ref, 7, li_pure) < 0) {
         out.ok = false;
         return;
       }
-      pipeline_block_labeled_set_names(arena, block_ref, li_ret, &label_row_ret[0], label_len_blk, 0 as *u8, 0);
+      stmt_tok_ready = true;
       continue;
     }
     if (r.tok.kind == token.TokenKind.TOKEN_RETURN) {
@@ -5326,10 +5402,95 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
        * return/let after match → XP003. Tail `match …` before `}` still ends the loop
        * via the MATCH arm below (final return) or via RBRACE after stmt.
        * PLATFORM: SHARED.
+       *
+       * wave379: do NOT break on TOKEN_RETURN either — mid-body `return e;` then
+       * `L: return …` (true goto residual) must keep scanning. Only RBRACE/EOF end.
+       * Final return still works via mid-body EXPR_RETURN + optional final path.
        */
-      if (r.tok.kind == token.TokenKind.TOKEN_RETURN || r.tok.kind == token.TokenKind.TOKEN_RBRACE
-          || r.tok.kind == token.TokenKind.TOKEN_EOF) {
+      if (r.tok.kind == token.TokenKind.TOKEN_RBRACE || r.tok.kind == token.TokenKind.TOKEN_EOF) {
         break;
+      }
+      /**
+       * wave379: mid-body `return` only when a label follows (`return 1; L: …`).
+       * Otherwise break to final-return path (preserves Cap-T001: first `return glue`
+       * is final and drops trailing filler `return 0` — hello/slice host-C).
+       * PLATFORM: SHARED — onefunc + seed pin same commit.
+       */
+      if (r.tok.kind == token.TokenKind.TOKEN_RETURN) {
+        lex_from_next_into(&lex, r);
+        let ret_mid_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
+        lexer.lexer_next_into(&r, lex, source);
+        if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON && r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
+          parse_expr_into(arena, lex, source, &ret_mid_res);
+          if (!ret_mid_res.ok) {
+            set_onefunc_fail(out, lex); return;
+          }
+          lex = ret_mid_res.next_lex;
+          lexer.lexer_next_into(&r, lex, source);
+        }
+        if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
+          lex_from_next_into(&lex, r);
+          lexer.lexer_next_into(&r, lex, source);
+        }
+        /* Only keep scanning when next stmt is a label (true goto residual). */
+        if (parser_token_is_label_start(r, source)) {
+          let ret_mid_ref: i32 = ast.ast_arena_expr_alloc(arena);
+          if (ret_mid_ref == 0) {
+            set_onefunc_fail(out, lex); return;
+          }
+          let re_mid: Expr = ast.ast_arena_expr_get(arena, ret_mid_ref);
+          re_mid.kind = ExprKind.EXPR_RETURN;
+          re_mid.line = 0;
+          re_mid.col = 0;
+          expr_set_common_zeros(&re_mid);
+          if (ret_mid_res.ok) {
+            re_mid.unary_operand_ref = ret_mid_res.expr_ref;
+          }
+          ast.ast_arena_expr_set(arena, ret_mid_ref, re_mid);
+          let ex_ret_i: i32 = pipeline_onefunc_push_body_expr_stmt(onefunc_result_pool_ptr(out), ret_mid_ref);
+          if (ex_ret_i < 0) {
+            set_onefunc_fail(out, lex); return;
+          }
+          out.num_src_body_expr_stmts = pipeline_onefunc_num_body_expr_stmts(onefunc_result_pool_ptr(out));
+          onefunc_push_src_stmt(out, 2, ex_ret_i);
+          impl_snap.has_explicit_return_kw = true;
+          stmt_tok_ready = true;
+          continue;
+        }
+        /* Final return: leave r on RETURN keyword for the final-return path below.
+         * Rewind is hard; instead set storage and break into final handler via re-lex.
+         * Simpler: we already consumed RETURN — set final storage here and finish. */
+        impl_snap.has_explicit_return_kw = true;
+        impl_snap.has_final_expr = true;
+        if (ret_mid_res.ok) {
+          return_expr_ref_storage = ret_mid_res.expr_ref;
+        } else {
+          /* bare return; → bare EXPR_RETURN */
+          let bare_fin: i32 = ast.ast_arena_expr_alloc(arena);
+          if (bare_fin == 0) {
+            set_onefunc_fail(out, lex); return;
+          }
+          let re_fin: Expr = ast.ast_arena_expr_get(arena, bare_fin);
+          re_fin.kind = ExprKind.EXPR_RETURN;
+          re_fin.line = 0;
+          re_fin.col = 0;
+          expr_set_common_zeros(&re_fin);
+          ast.ast_arena_expr_set(arena, bare_fin, re_fin);
+          return_expr_ref_storage = bare_fin;
+        }
+        if (r.tok.kind != token.TokenKind.TOKEN_RBRACE && r.tok.kind != token.TokenKind.TOKEN_EOF) {
+          /* Cap-T001 trailing filler after first return: skip until RBRACE. */
+          while (r.tok.kind != token.TokenKind.TOKEN_RBRACE && r.tok.kind != token.TokenKind.TOKEN_EOF) {
+            lex_from_next_into(&lex, r);
+            lexer.lexer_next_into(&r, lex, source);
+          }
+        }
+        if (r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
+          set_onefunc_fail(out, lex); return;
+        }
+        lex_from_next_into(&lex, r);
+        onefunc_finish_impl_to_out(out, &impl_snap, lex, &dummy_name[0], func_name_len_storage[0], return_expr_ref_storage);
+        return;
       }
       /* See implementation. */
       if (r.tok.kind == token.TokenKind.TOKEN_LET || r.tok.kind == token.TokenKind.TOKEN_CONST) {
@@ -5501,10 +5662,49 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         }
       }
       /**
-       * See implementation.
-       * See implementation.
+       * wave379: bare `goto target;` in function body (onefunc path).
+       * PLATFORM: SHARED — OneFunc labeled pool + stmt_order kind=7.
+       */
+      if (r.tok.kind == token.TokenKind.TOKEN_GOTO) {
+        lex_from_next_into(&lex, r);
+        lexer.lexer_next_into(&r, lex, source);
+        if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
+          set_onefunc_fail(out, lex); return;
+        }
+        let goto_len_fn: i32 = r.tok.ident_len;
+        let goto_start_fn: usize = r.token_start;
+        if (goto_start_fn == 0) {
+          goto_start_fn = lexer_pos_before_run(r.next_lex.pos, goto_len_fn);
+        }
+        let goto_row_fn: u8[32] = [];
+        copy_slice_to_param32(source, goto_start_fn, goto_len_fn, &goto_row_fn[0]);
+        lex_from_next_into(&lex, r);
+        lexer.lexer_next_into(&r, lex, source);
+        if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
+          lex_from_next_into(&lex, r);
+          lexer.lexer_next_into(&r, lex, source);
+        }
+        let li_g_fn: i32 = pipeline_onefunc_append_labeled(onefunc_result_pool_ptr(out), 0 as *u8, 0, 1, &goto_row_fn[0], goto_len_fn, 0);
+        if (li_g_fn < 0) {
+          set_onefunc_fail(out, lex); return;
+        }
+        onefunc_push_src_stmt(out, 7, li_g_fn);
+        stmt_tok_ready = true;
+        continue;
+      }
+      /**
+       * wave379: `L:` / `L: return e` mid-body (onefunc). Pure label def continues;
+       * labeled return is mid-body stmt (kind=7), not only final break.
+       * PLATFORM: SHARED.
        */
       if (parser_token_is_label_start(r, source)) {
+        let label_len_fn: i32 = r.tok.ident_len;
+        let label_start_fn: usize = r.token_start;
+        if (label_start_fn == 0) {
+          label_start_fn = lexer_pos_before_run(r.next_lex.pos, label_len_fn);
+        }
+        let label_row_fn: u8[32] = [];
+        copy_slice_to_param32(source, label_start_fn, label_len_fn, &label_row_fn[0]);
         let colon_fn: LexerResult = LexerResult {
           next_lex: r.next_lex,
           tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 },
@@ -5514,7 +5714,32 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         lex = colon_fn.next_lex;
         lexer.lexer_next_into(&r, lex, source);
         if (r.tok.kind == token.TokenKind.TOKEN_RETURN) {
-          break;
+          lex_from_next_into(&lex, r);
+          let ret_val_fn: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
+          lexer.lexer_next_into(&r, lex, source);
+          if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON && r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
+            parse_expr_into(arena, lex, source, &ret_val_fn);
+            if (!ret_val_fn.ok) {
+              set_onefunc_fail(out, lex); return;
+            }
+            lex = ret_val_fn.next_lex;
+            lexer.lexer_next_into(&r, lex, source);
+          }
+          if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
+            lex_from_next_into(&lex, r);
+            lexer.lexer_next_into(&r, lex, source);
+          }
+          let ret_op_fn: i32 = 0;
+          if (ret_val_fn.ok) {
+            ret_op_fn = ret_val_fn.expr_ref;
+          }
+          let li_lr: i32 = pipeline_onefunc_append_labeled(onefunc_result_pool_ptr(out), &label_row_fn[0], label_len_fn, 0, 0 as *u8, 0, ret_op_fn);
+          if (li_lr < 0) {
+            set_onefunc_fail(out, lex); return;
+          }
+          onefunc_push_src_stmt(out, 7, li_lr);
+          stmt_tok_ready = true;
+          continue;
         }
         if (r.tok.kind == token.TokenKind.TOKEN_GOTO) {
           lex_from_next_into(&lex, r);
@@ -5522,16 +5747,40 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
             set_onefunc_fail(out, lex); return;
           }
+          let gtn_fn: i32 = r.tok.ident_len;
+          let gts_fn: usize = r.token_start;
+          if (gts_fn == 0) {
+            gts_fn = lexer_pos_before_run(r.next_lex.pos, gtn_fn);
+          }
+          let gtr_fn: u8[32] = [];
+          copy_slice_to_param32(source, gts_fn, gtn_fn, &gtr_fn[0]);
           lex_from_next_into(&lex, r);
           lexer.lexer_next_into(&r, lex, source);
           if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
             lex_from_next_into(&lex, r);
             lexer.lexer_next_into(&r, lex, source);
           }
+          let li_lab2: i32 = pipeline_onefunc_append_labeled(onefunc_result_pool_ptr(out), &label_row_fn[0], label_len_fn, 0, 0 as *u8, 0, 0);
+          if (li_lab2 < 0) {
+            set_onefunc_fail(out, lex); return;
+          }
+          onefunc_push_src_stmt(out, 7, li_lab2);
+          let li_gt2: i32 = pipeline_onefunc_append_labeled(onefunc_result_pool_ptr(out), 0 as *u8, 0, 1, &gtr_fn[0], gtn_fn, 0);
+          if (li_gt2 < 0) {
+            set_onefunc_fail(out, lex); return;
+          }
+          onefunc_push_src_stmt(out, 7, li_gt2);
           stmt_tok_ready = true;
           continue;
         }
-        set_onefunc_fail(out, lex); return;
+        /* Pure `L:` then following statement. */
+        let li_pure_fn: i32 = pipeline_onefunc_append_labeled(onefunc_result_pool_ptr(out), &label_row_fn[0], label_len_fn, 0, 0 as *u8, 0, 0);
+        if (li_pure_fn < 0) {
+          set_onefunc_fail(out, lex); return;
+        }
+        onefunc_push_src_stmt(out, 7, li_pure_fn);
+        stmt_tok_ready = true;
+        continue;
       }
       if (r.tok.kind == token.TokenKind.TOKEN_LOOP) {
         /**
@@ -5871,8 +6120,9 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       }
       out.num_src_body_expr_stmts = pipeline_onefunc_num_body_expr_stmts(onefunc_result_pool_ptr(out));
       onefunc_push_src_stmt(out, 2, ex_i);
-      /* wave371: MATCH is a mid-loop stmt arm, not a loop-exit token. */
-      if (r.tok.kind == token.TokenKind.TOKEN_RETURN || r.tok.kind == token.TokenKind.TOKEN_RBRACE
+      /* wave371: MATCH is a mid-loop stmt arm, not a loop-exit token.
+       * wave379: RETURN also mid-loop (goto residual: stmt then return then label). */
+      if (r.tok.kind == token.TokenKind.TOKEN_RBRACE
           || r.tok.kind == token.TokenKind.TOKEN_EOF) {
         break;
       }
@@ -9119,6 +9369,10 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     let n_def_pool: i32 = 0;
     n_def_pool = pipeline_onefunc_num_defers(onefunc_result_pool_ptr(&res));
     pipeline_block_fill_defers_from_onefunc(arena, block_ref, onefunc_result_pool_ptr(&res), n_def_pool);
+    /* wave379: labeled/goto pool before stmt_order (kind=7 indices). PLATFORM: SHARED. */
+    let n_lab_pool: i32 = 0;
+    n_lab_pool = pipeline_onefunc_num_labeleds(onefunc_result_pool_ptr(&res));
+    pipeline_block_fill_labeled_from_onefunc(arena, block_ref, onefunc_result_pool_ptr(&res), n_lab_pool);
     b = ast.ast_arena_block_get(arena, block_ref);
     /* See implementation. */
     if (res.num_src_stmt_order > 0) {
@@ -11098,6 +11352,10 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     let n_def_pool2: i32 = 0;
     n_def_pool2 = pipeline_onefunc_num_defers(onefunc_result_pool_ptr(&res));
     pipeline_block_fill_defers_from_onefunc(arena, block_ref, onefunc_result_pool_ptr(&res), n_def_pool2);
+    /* wave379: labeled/goto pool before stmt_order (kind=7). PLATFORM: SHARED. */
+    let n_lab_pool2: i32 = 0;
+    n_lab_pool2 = pipeline_onefunc_num_labeleds(onefunc_result_pool_ptr(&res));
+    pipeline_block_fill_labeled_from_onefunc(arena, block_ref, onefunc_result_pool_ptr(&res), n_lab_pool2);
     b = ast.ast_arena_block_get(arena, block_ref);
     if (res.num_src_stmt_order > 0) {
       pipeline_block_fill_expr_stmts_from_onefunc(arena, block_ref, onefunc_result_pool_ptr(&res), pipeline_onefunc_num_body_expr_stmts(onefunc_result_pool_ptr(&res)));

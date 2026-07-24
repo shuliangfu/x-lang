@@ -271,6 +271,21 @@ typedef struct {
   int32_t with_arena_cap_ref;
 } OneFuncRegionEntry;
 
+/**
+ * wave379: OneFunc scratch entry for `goto target;` / `label:` / `label: return expr`.
+ * Mirrors `struct ast_LabeledStmt` (label 32B + is_goto + goto_target 32B + return_expr_ref).
+ * PLATFORM: SHARED — filled into Block.labeled_stmts via fill_labeled_from_onefunc;
+ * stmt_order kind=7 indexes this pool (G.7 single authority with parse_block path).
+ */
+typedef struct {
+  uint8_t label[32];
+  int32_t label_len;
+  int32_t is_goto;
+  uint8_t goto_target[32];
+  int32_t goto_target_len;
+  int32_t return_expr_ref;
+} OneFuncLabeledEntry;
+
 /** parse_one_function_impl 的 scratch 池，按 OneFuncResult* 键控。 */
 typedef struct {
   void *onefunc;
@@ -306,6 +321,8 @@ typedef struct {
   GrowVec regions;
   /** MEM-B0：defer { body } 暂存（parse_one_function_impl → Block 池）。 */
   GrowVec defer_body_refs;
+  /** wave379: goto/label labeled_stmts scratch → Block pool (stmt_order kind=7). */
+  GrowVec labeleds;
 } OneFuncSidecar;
 
 /** PipelineDepCtx 侧车：dep 槽与 -L lib_root 动态 grow（ctx 指针作键）。 */
@@ -617,6 +634,9 @@ static OneFuncSidecar *onefunc_sidecar_get(uint8_t *out, int create) {
         return NULL;
       if (!grow_vec_init(&g_onefunc_sc[i].defer_body_refs, sizeof(int32_t), AST_POOL_INIT_CAP))
         return NULL;
+      /* wave379: goto/label OneFunc scratch (stmt_order kind=7). PLATFORM: SHARED. */
+      if (!grow_vec_init(&g_onefunc_sc[i].labeleds, sizeof(OneFuncLabeledEntry), AST_POOL_INIT_CAP))
+        return NULL;
       return &g_onefunc_sc[i];
     }
   }
@@ -654,6 +674,7 @@ static void onefunc_sidecar_free(OneFuncSidecar *sc) {
   grow_vec_free(&sc->call_arg_vals);
   grow_vec_free(&sc->regions);
   grow_vec_free(&sc->defer_body_refs);
+  grow_vec_free(&sc->labeleds);
   memset(sc, 0, sizeof(*sc));
 }
 
@@ -1293,6 +1314,7 @@ void ast_pool_onefunc_reset(uint8_t *out) {
   sc->call_arg_vals.len = 0;
   sc->regions.len = 0;
   sc->defer_body_refs.len = 0;
+  sc->labeleds.len = 0;
 }
 
 void ast_pool_onefunc_release(uint8_t *out) {
@@ -2623,6 +2645,155 @@ int32_t pipeline_block_labeled_return_expr_ref(struct ast_ASTArena *a, int32_t b
   abs = b->labeled_base + li;
   ls = (struct ast_LabeledStmt *)grow_vec_at(&sc->labeled_stmts, abs);
   return ls ? (int32_t)ls->return_expr_ref : 0;
+}
+
+/** wave379: count of labeled stmts in block (stmt_order kind=7). PLATFORM: SHARED. */
+int32_t pipeline_block_num_labeled_stmts(struct ast_ASTArena *a, int32_t br) {
+  struct ast_Block *b;
+  if (!a || !(b = block_at(a, br)))
+    return 0;
+  return b->num_labeled_stmts;
+}
+
+/**
+ * wave379: is_goto flag for labeled stmt li (1 = bare `goto target;`, 0 = label def / labeled return).
+ * PLATFORM: SHARED — host-C emit stmt_order kind=7.
+ */
+int32_t pipeline_block_labeled_is_goto(struct ast_ASTArena *a, int32_t br, int32_t li) {
+  struct ast_LabeledStmt *ls = pipeline_block_labeled_ptr(a, br, li);
+  return ls ? ls->is_goto : 0;
+}
+
+/** wave379: label name length for `L:` definition (0 when bare goto has empty label). */
+int32_t pipeline_block_labeled_label_len(struct ast_ASTArena *a, int32_t br, int32_t li) {
+  struct ast_LabeledStmt *ls = pipeline_block_labeled_ptr(a, br, li);
+  return ls ? ls->label_len : 0;
+}
+
+/** wave379: copy label name into dst[32] (NUL-padded). */
+void pipeline_block_labeled_label_copy32(struct ast_ASTArena *a, int32_t br, int32_t li, uint8_t *dst) {
+  struct ast_LabeledStmt *ls;
+  if (!dst)
+    return;
+  memset(dst, 0, 32);
+  ls = pipeline_block_labeled_ptr(a, br, li);
+  if (!ls || ls->label_len <= 0)
+    return;
+  {
+    int32_t n = ls->label_len;
+    if (n > 31)
+      n = 31;
+    memcpy(dst, ls->label, (size_t)n);
+  }
+}
+
+/** wave379: goto target name length for `goto T;`. */
+int32_t pipeline_block_labeled_goto_target_len(struct ast_ASTArena *a, int32_t br, int32_t li) {
+  struct ast_LabeledStmt *ls = pipeline_block_labeled_ptr(a, br, li);
+  return ls ? ls->goto_target_len : 0;
+}
+
+/** wave379: copy goto target into dst[32] (NUL-padded). */
+void pipeline_block_labeled_goto_target_copy32(struct ast_ASTArena *a, int32_t br, int32_t li, uint8_t *dst) {
+  struct ast_LabeledStmt *ls;
+  if (!dst)
+    return;
+  memset(dst, 0, 32);
+  ls = pipeline_block_labeled_ptr(a, br, li);
+  if (!ls || ls->goto_target_len <= 0)
+    return;
+  {
+    int32_t n = ls->goto_target_len;
+    if (n > 31)
+      n = 31;
+    memcpy(dst, ls->goto_target, (size_t)n);
+  }
+}
+
+/**
+ * wave379: append labeled entry to OneFunc scratch (goto / label / labeled return).
+ * @return index in onefunc labeled pool, or -1 on failure
+ * PLATFORM: SHARED — G.7 authority with pipeline_block_append_labeled.
+ */
+int32_t pipeline_onefunc_append_labeled(uint8_t *out, uint8_t *label, int32_t label_len, int32_t is_goto,
+                                        uint8_t *goto_target, int32_t goto_target_len, int32_t return_expr_ref) {
+  OneFuncSidecar *sc;
+  OneFuncLabeledEntry *le;
+  if (!out || !(sc = onefunc_sidecar_get(out, 1)))
+    return -1;
+  if (grow_vec_push(&sc->labeleds) < 0)
+    return -1;
+  le = (OneFuncLabeledEntry *)grow_vec_at(&sc->labeleds, sc->labeleds.len - 1);
+  if (!le)
+    return -1;
+  memset(le, 0, sizeof(*le));
+  le->is_goto = is_goto;
+  le->return_expr_ref = return_expr_ref;
+  if (label && label_len > 0) {
+    if (label_len > 31)
+      label_len = 31;
+    memcpy(le->label, label, (size_t)label_len);
+    le->label_len = label_len;
+  }
+  if (goto_target && goto_target_len > 0) {
+    if (goto_target_len > 31)
+      goto_target_len = 31;
+    memcpy(le->goto_target, goto_target, (size_t)goto_target_len);
+    le->goto_target_len = goto_target_len;
+  }
+  return sc->labeleds.len - 1;
+}
+
+int32_t pipeline_onefunc_num_labeleds(uint8_t *out) {
+  OneFuncSidecar *sc = onefunc_sidecar_get(out, 0);
+  return sc ? sc->labeleds.len : 0;
+}
+
+/**
+ * wave379: flush OneFunc labeled pool into Block.labeled_stmts (preserves names).
+ * Resets block num_labeled_stmts first (same pattern as fill_ifs_from_onefunc).
+ * Names are written via labeled_ptr (append only stores lengths).
+ * PLATFORM: SHARED.
+ */
+void pipeline_block_fill_labeled_from_onefunc(struct ast_ASTArena *a, int32_t br, uint8_t *out, int32_t count) {
+  OneFuncSidecar *sc;
+  OneFuncLabeledEntry *le;
+  struct ast_Block *b;
+  struct ast_LabeledStmt *ls;
+  int32_t i;
+  int32_t li;
+  if (!a || !out || !(sc = onefunc_sidecar_get(out, 0)))
+    return;
+  if (br > 0 && (b = block_at(a, br)))
+    b->num_labeled_stmts = 0;
+  for (i = 0; i < count && i < sc->labeleds.len; i++) {
+    le = (OneFuncLabeledEntry *)grow_vec_at(&sc->labeleds, i);
+    if (!le)
+      continue;
+    li = pipeline_block_append_labeled(a, br, le->label_len, le->is_goto, le->goto_target_len,
+                                       le->return_expr_ref);
+    if (li < 0)
+      continue;
+    ls = pipeline_block_labeled_ptr(a, br, li);
+    if (!ls)
+      continue;
+    if (le->label_len > 0) {
+      int32_t n = le->label_len;
+      if (n > 31)
+        n = 31;
+      memcpy(ls->label, le->label, (size_t)n);
+      ls->label[n] = 0;
+      ls->label_len = n;
+    }
+    if (le->goto_target_len > 0) {
+      int32_t n = le->goto_target_len;
+      if (n > 31)
+        n = 31;
+      memcpy(ls->goto_target, le->goto_target, (size_t)n);
+      ls->goto_target[n] = 0;
+      ls->goto_target_len = n;
+    }
+  }
 }
 
 int32_t pipeline_block_const_init_ref(struct ast_ASTArena *a, int32_t br, int32_t ci) {
@@ -4977,6 +5148,8 @@ void pipeline_onefunc_copy_sidecar(uint8_t *dst, uint8_t *src) {
   grow_vec_copy_append(&dsc->param_name_lens, &ssc->param_name_lens);
   grow_vec_copy_append(&dsc->param_type_refs, &ssc->param_type_refs);
   grow_vec_copy_append(&dsc->call_arg_vals, &ssc->call_arg_vals);
+  /* wave379: labeleds (goto/label) must follow const/let/stmt_order in copy. */
+  grow_vec_copy_append(&dsc->labeleds, &ssc->labeleds);
 }
 
 /** 将第 i 条 const 名拷入 64 字节缓冲（不足补 0）。 */
