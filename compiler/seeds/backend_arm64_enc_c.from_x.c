@@ -26,6 +26,8 @@ extern int32_t pipeline_elf_ctx_add_label(uint8_t *ctx_bytes, uint8_t *name, int
 extern int32_t pipeline_elf_ctx_pad_code_to_4(uint8_t *ctx_bytes);
 extern int32_t pipeline_elf_ctx_add_sym(uint8_t *ctx_bytes, uint8_t *name, int32_t name_len, int32_t offset);
 extern int32_t pipeline_elf_ctx_macho_leading_underscore(uint8_t *ctx_bytes);
+/** G.7 wave388: cc→CSET invert(cond) field; same as arch_arm64_enc_enc_cset_w0_from_cc. */
+extern int32_t pipeline_asm_arm64_cset_cond_enc_from_cc(int32_t cc);
 
 /** Frame size set by prologue; read by epilogue/ret_imm (single-threaded emit). */
 static int32_t g_arm64_enc_frame_size = 0;
@@ -336,13 +338,16 @@ int32_t arch_arm64_enc_enc_xor_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ct
 }
 
 int32_t arch_arm64_enc_enc_cmp_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* cmp x0, x1 → subs xzr, x0, x1 */
-  return arm64_enc_u32_le(elf_ctx, 0xeb01001fu);
+  /* PLATFORM: MACOS|ARM64 — left in x1 (rbx), right in x0 (rax).
+   * cmp x1, x0 → flags for (left - right); matches x86 `cmp %rax,%rbx`.
+   * wave388: prior encoding was cmp x0,x1 (right-left), which inverted lt/gt/le/ge
+   * after setcc honored real cc values. G.7 align arm64_enc.x enc_cmp_rbx_rax. */
+  return arm64_enc_u32_le(elf_ctx, 0xeb00003fu);
 }
 
 int32_t arch_arm64_enc_enc_cmp_rax_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* cmp x1, x0 */
-  return arm64_enc_u32_le(elf_ctx, 0xeb00003fu);
+  /* PLATFORM: MACOS|ARM64 — reverse of cmp_rbx_rax: cmp x0, x1 (right - left). */
+  return arm64_enc_u32_le(elf_ctx, 0xeb01001fu);
 }
 
 int32_t arch_arm64_enc_enc_neg_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
@@ -429,9 +434,19 @@ int32_t arch_arm64_enc_enc_mov_rbx_to_ecx(struct platform_elf_ElfCodegenCtx *elf
 }
 
 int32_t arch_arm64_enc_enc_cmp_setcc_movzbl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t cc) {
-  /* cset w0, eq/ne/... simplified: cset w0, eq (cc ignored → eq) */
-  (void)cc;
-  return arm64_enc_u32_le(elf_ctx, 0x1a9f17e0u);
+  /* PLATFORM: MACOS|ARM64 — cset w0 from logical cc (0=eq,1=ne,2=lt,3=le,4=gt,5=ge).
+   * wave388: prior stub ignored cc and always emitted cset eq → var-var !=/>/</>=
+   * all behaved as == (lit path const-folded so soft only hit non-folded).
+   * G.7: cond invert field via pipeline_asm_arm64_cset_cond_enc_from_cc;
+   * setcc-only (caller already emitted cmp_rbx_rax). Encoding:
+   * CSET W0,<cond> = CSINC W0,WZR,WZR,invert(cond) → 0x1a9f07e0 | (inv_cond<<12). */
+  int32_t c;
+  if (!elf_ctx)
+    return -1;
+  c = pipeline_asm_arm64_cset_cond_enc_from_cc(cc);
+  if (c < 0)
+    c = 0;
+  return arm64_enc_u32_le(elf_ctx, 0x1a9f07e0u | ((uint32_t)(c & 15) << 12));
 }
 
 int32_t arch_arm64_enc_enc_setz_movzbl_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {

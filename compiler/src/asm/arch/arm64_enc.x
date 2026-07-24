@@ -641,17 +641,17 @@ export function enc_cset_w0_from_cc(ctx: *ElfCodegenCtx, cc: i32): i32 {
   return enc_u32_le(ctx, 446629856 | (c << 12));
 }
 
-/** Exported function `enc_cmp_setcc_movzbl`.
- * Comparison/utility `enc_cmp_setcc_movzbl`.
- * @param ctx *ElfCodegenCtx
- * @param cc i32
- * @return i32
+/**
+ * Emit cset w0 from logical compare code (setcc only; caller already emitted cmp).
+ * @param ctx *ElfCodegenCtx — ELF/Mach-O emit context
+ * @param cc i32 — 0=eq, 1=ne, 2=lt, 3=le, 4=gt, 5=ge
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: MACOS|ARM64 — G.7 align seeds/backend_arm64_enc_c.from_x.c
+ * arch_arm64_enc_enc_cmp_setcc_movzbl (wave388: do not re-emit cmp; honor cc).
  */
 export function enc_cmp_setcc_movzbl(ctx: *ElfCodegenCtx, cc: i32): i32 {
-  /* cmp w1, w0 */
-  if (enc_u32_le(ctx, 1795162175) != 0) { return -1; }
   let c: i32 = pipeline_asm_arm64_cset_cond_enc_from_cc(cc);
-  /* See implementation. */
+  /* CSET W0,<cond> = 0x1a9f07e0 | (invert(cond)<<12). */
   return enc_u32_le(ctx, 446629856 | (c << 12));
 }
 
