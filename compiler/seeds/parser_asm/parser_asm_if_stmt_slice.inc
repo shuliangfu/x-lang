@@ -1228,8 +1228,16 @@ static int32_t parser_asm_kw_at_pos_c(struct parser_asm_slice_u8 *source, size_t
     next_pos = parser_asm_stretch_skip_ws_and_comments_c(source->data, source->length, i + (size_t)klen);
     if (next_pos < source->length) {
       uint8_t nx = source->data[next_pos];
+      /**
+       * wave362 / docs/03: bare `if cond {` is legal (wave361). Keyword scan must NOT
+       * require '(' after `if`, or scan_sync_after_if_stmt never finds bare ifs.
+       * Failure mode: lex_out stuck at same if → outer block re-parses forever (100% CPU)
+       * when the next stmt is an IDENT assign (return keyword realign still lucked out).
+       * Accept any non-terminator after `if` (cond starts with ident/lit/!/(/…).
+       * PLATFORM: SHARED — G.7 single kw_at_pos + scan_sync bare path.
+       */
       if (klen == 2 && memcmp(kw, "if", 2) == 0) {
-        if (nx != (uint8_t)'(')
+        if (nx == (uint8_t)'}' || nx == (uint8_t)';' || nx == (uint8_t)',')
           return 0;
       } else if (klen == 4 && memcmp(kw, "else", 4) == 0) {
         if (nx != (uint8_t)'{' && nx != (uint8_t)';') {
