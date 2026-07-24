@@ -3541,6 +3541,10 @@ int32_t pipeline_asm_emit_expr_if_arm_elf_c(struct ast_ASTArena *arena,
 /* Forward: dual-GP / named layout used by STRUCT_LIT field store (defs later). */
 static int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref);
 static int32_t glue_type_named_layout_size_any_module_elf_c(struct ast_ASTArena *arena, int32_t ty_ref);
+/* wave369: ZST store_sz — defs with layout metrics later in this file. */
+static int32_t glue_type_is_empty_struct_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t ty_ref,
+                                          int32_t depth);
+static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
 /* wave349/350: STRUCT_LIT fixed TYPE_ARRAY field inline store (def after vector_let_init). */
 static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *arena,
                                                        struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,
@@ -3561,8 +3565,11 @@ static struct ast_Module *glue_emit_module_from_ctx(struct backend_AsmFuncCtx *c
 void pipeline_asm_emit_set_call_sret_reg_shift_c(int32_t shift);
 
 /**
- * STRUCT_LIT 单字段 store 宽度：与 glue_field_access_load_bytes_for_type_ref 一致（i32=4，bool/u8=1）。
- * PLATFORM: LINUX+MACOS x86_64 SysV — 9–16B NAMED (Allocator/StrView) store 16 (rax+rdx).
+ * STRUCT_LIT per-field store width (matches glue_field_access_load_bytes_for_type_ref for scalars).
+ * wave369 Cap residual pure: empty / empty-of-empty TYPE_NAMED ZST fields store 0 bytes.
+ * Prior default 8 stored nested STRUCT_LIT temp pointer into mid Nest/Empty and shifted later
+ * field offsets (Ubuntu freestanding nest_mid garbage exit; host-C gcc path OK).
+ * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV dual-GP 9–16B still 16.
  */
 static int32_t glue_struct_lit_field_store_sz(struct ast_ASTArena *arena, int32_t expr_ref, int32_t fi) {
   int32_t ty;
@@ -3571,6 +3578,9 @@ static int32_t glue_struct_lit_field_store_sz(struct ast_ASTArena *arena, int32_
   ty = pipeline_expr_struct_lit_field_type_ref_at(arena, g_pipeline_asm_emit_module, expr_ref, fi);
   if (ty <= 0)
     return 8;
+  /* wave369: ZST named field — no store (Empty / Nest { e: Empty }). */
+  if (g_pipeline_asm_emit_module && glue_type_is_empty_struct_c(g_pipeline_asm_emit_module, arena, ty, 0) != 0)
+    return 0;
   kind_ord = pipeline_type_kind_ord_at(arena, ty);
   if (kind_ord == 2 || kind_ord == 1)
     return 1;
@@ -3583,6 +3593,12 @@ static int32_t glue_struct_lit_field_store_sz(struct ast_ASTArena *arena, int32_
     return nsz;
   nsz = glue_type_named_layout_size_any_module_elf_c(arena, ty);
   if (nsz > 8 && nsz <= 16)
+    return nsz;
+  /* Named layout size 0 that is not classified empty still must not default to 8. */
+  nsz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, ty, 0);
+  if (nsz == 0)
+    return 0;
+  if (nsz > 0 && nsz <= 8)
     return nsz;
   return 8;
 }
@@ -3658,6 +3674,15 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
       foff = pipeline_expr_struct_lit_field_offset_at(arena, g_pipeline_asm_emit_module, expr_ref, fi);
       fsz = glue_struct_lit_field_store_sz(arena, expr_ref, fi);
       fty = pipeline_expr_struct_lit_field_type_ref_at(arena, g_pipeline_asm_emit_module, expr_ref, fi);
+      /*
+       * wave369 Cap residual pure: empty / empty-of-empty ZST field — no payload store.
+       * Nested `Nest { e: Empty {} }` as mid field must not write a temp pointer at foff
+       * (that was store_sz default 8). Skip emit+store; parent layout keeps fsize 0.
+       * PLATFORM: SHARED freestanding · LINUX gold.
+       */
+      if (fsz == 0 || (fty > 0 && g_pipeline_asm_emit_module &&
+                       glue_type_is_empty_struct_c(g_pipeline_asm_emit_module, arena, fty, 0) != 0))
+        continue;
       /*
        * wave349 Cap residual pure: fixed TYPE_ARRAY field must store inline payload.
        * Generic emit_array_lit → rax=temp-ptr then store 8B overwrites field[0..7] with a

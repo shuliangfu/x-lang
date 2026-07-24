@@ -12183,16 +12183,30 @@ extern int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module, str
                                                   int32_t elem_type_ref, int32_t array_len, int32_t depth);
 extern int32_t typeck_x_type_size_from_layout_glue(struct ast_Module *module, struct ast_ASTArena *arena,
                                                     int32_t li, int32_t depth);
+/* Metrics RC distinguishes true ZST (size 0, rc=0) from metrics failure (rc!=0, size_from_layout also 0). */
+extern int32_t typeck_typeck_struct_layout_metrics(struct ast_Module *module, struct ast_ASTArena *arena, int32_t li,
+                                                   int32_t depth, int32_t check_pad, int32_t *out_sz, int32_t *out_al);
 extern struct ast_PipelineDepCtx *pipeline_asm_emit_dep_pipe_c(void);
 
 static int32_t asm_local_slot_bytes_mod(struct ast_ASTArena *arena, int32_t type_ref, struct ast_Module *mod);
 
 /**
- * 在指定模块内查 TYPE_NAMED struct layout 的栈槽字节数。
- * 【Why】typeck skip 时入口模块无 dep struct（如 PageMmapHeap）的 layout，须遍历 dep_ctx 查找；
- *       否则栈槽算成默认 8B，实际 24B，struct 末字段（off）越界覆盖相邻局部变量。
- * 【Invariant】仅查 mod 的 num_struct_layouts；返回 >0 表示命中并对齐到 8 字节，0 表示未命中。
- * 【Asm/Perf】dep_ctx 遍历仅在入口模块未命中时触发，热路径（入口模块 struct）零开销。
+ * Look up TYPE_NAMED struct layout stack slot bytes in one module.
+ *
+ * Why: typeck-skip entry modules may lack dep layouts (e.g. PageMmapHeap); without
+ * dep walk, slot defaults to 8B while real layout is 24B and trailing fields clobber
+ * neighbors.
+ *
+ * wave369 Cap residual pure (PLATFORM: SHARED freestanding stack layout · LINUX gold):
+ *   typeck_x_type_size_from_layout_glue returns 0 both for true ZST (Empty / empty-of-empty
+ *   Nest, metrics rc==0) and for metrics failure (rc!=0). Prior `sz<=0` invent path used
+ *   last_field_off+fsz → Nest became 8, parent Box became 24, mid Nest field store/load
+ *   offsets garbage (Ubuntu freestanding nest_mid exit ≠ 42; mac arm64 often folded away).
+ *   G.7: call metrics once; rc==0 && sz==0 → return 0 (true ZST, do not invent); rc!=0 keep
+ *   legacy invent for incomplete skip-typeck layouts.
+ *
+ * Invariant: only scans mod->num_struct_layouts. Return >0 hit (padded to 8), 0 miss or ZST.
+ * Asm/Perf: dep walk only when entry miss; entry-module struct hot path is zero-cost.
  */
 static int32_t asm_slot_bytes_named_in_mod(struct ast_ASTArena *arena, int32_t type_ref, struct ast_Module *mod) {
   uint8_t name[64];
@@ -12228,6 +12242,8 @@ static int32_t asm_slot_bytes_named_in_mod(struct ast_ASTArena *arena, int32_t t
     int32_t j;
     int32_t eq = 1;
     int32_t sz;
+    int32_t al;
+    int32_t mrc;
     if (ln != nlen)
       continue;
     for (j = 0; j < nlen; j++) {
@@ -12238,8 +12254,20 @@ static int32_t asm_slot_bytes_named_in_mod(struct ast_ASTArena *arena, int32_t t
     }
     if (!eq)
       continue;
-    sz = typeck_x_type_size_from_layout_glue(mod, arena, k, 0);
-    if (sz <= 0) {
+    /* Prefer metrics RC so size 0 ZST is not confused with metrics failure. */
+    sz = 0;
+    al = 1;
+    mrc = typeck_typeck_struct_layout_metrics(mod, arena, k, 0, 0, &sz, &al);
+    if (mrc == 0) {
+      /* Metrics OK: sz==0 is legal Empty / empty-of-empty Nest ZST (wave366/368/369). */
+      if (sz <= 0)
+        return 0;
+      if (sz % 8 != 0)
+        sz += 8 - (sz % 8);
+      return sz;
+    }
+    /* Metrics failed (incomplete layout / skip typeck): legacy invent last_off+fsz. */
+    {
       int32_t nf = pipeline_module_struct_layout_num_fields(mod, k);
       if (nf > 0) {
         int32_t last = nf - 1;
@@ -12249,6 +12277,9 @@ static int32_t asm_slot_bytes_named_in_mod(struct ast_ASTArena *arena, int32_t t
         if (fsz <= 0)
           fsz = 4;
         sz = foff + fsz;
+      } else {
+        /* Bare empty layout with failed metrics still ZST. */
+        return 0;
       }
     }
     if (sz > 0) {
