@@ -2095,15 +2095,17 @@ static int32_t glue_asm_lea_rax_common_adrp_arm64(struct platform_elf_ElfCodegen
 }
 
 /**
- * wave413 Cap residual pure: freestanding ARRAY_LIT element cap.
- * Root: product glue hard-capped n_arr at 256 while host TYPE_ARRAY / deep-copy
- * (`__xlang_sdN[512]`, wave412 max_n=512) and durable payload[2048] already allow
- * 512×i32. n≥257 return [..] → CG002; host length=600 green.
- * G.7: single #define for all freestanding ARRAY_LIT / fixed-array face limits.
- * payload[2048] / nbytes≤2048 still bound byte size (u8[2048] / i32[512] / i64[256]).
+ * wave413 Cap residual pure: freestanding ARRAY_LIT element cap 256→512.
+ * wave415 Cap residual pure: raise durable byte payload + elem face again.
+ * Root (wave415): n_arr≤512 and nbytes≤2048 still CG002 for i32[n] n>512
+ * (host-C green; durable text-embed / COMMON / escape shared the 2048B hard cap).
+ * G.7: single pair of #defines for freestanding ARRAY_LIT / fixed-array face.
+ *   MAX_ELEMS=1024 · MAX_PAYLOAD=4096 → u8[1024] / i32[1024] / i64[512].
+ * Host deep-copy __xlang_sdN[512] (wave412) stays reentrancy soft, not this face.
  * PLATFORM: SHARED freestanding.
  */
-#define GLUE_ARRAY_LIT_MAX_ELEMS 512
+#define GLUE_ARRAY_LIT_MAX_ELEMS 1024
+#define GLUE_ARRAY_LIT_MAX_PAYLOAD 4096
 
 static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena *arena,
                                                             struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -2118,7 +2120,7 @@ static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena
   int32_t eko;
   int32_t all_const;
   int64_t v64;
-  uint8_t payload[2048];
+  uint8_t payload[GLUE_ARRAY_LIT_MAX_PAYLOAD];
   uint8_t jmp_near[5];
   uint8_t jmp_short[2];
   uint8_t lea7[7];
@@ -2136,7 +2138,7 @@ static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena
    * PLATFORM: LINUX+MACOS x86_64 (ta==0) + MACOS|ARM64 (ta==1).
    * wave408: arm64 was hard -1 → return [..] fell to stack ARRAY_LIT → dangle after
    * epilogue + missing dual-GP length → pure0/rec panic on INDEX bounds.
-   * wave413: n_arr cap 256→GLUE_ARRAY_LIT_MAX_ELEMS (512) twin host.
+   * wave413: n_arr cap 256→512; wave415: 512→1024 + payload 2048→4096.
    */
   if (!arena || !elf_ctx || expr_ref <= 0 || (ta != 0 && ta != 1))
     return -1;
@@ -2155,10 +2157,10 @@ static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena
     esz = pipeline_asm_array_lit_elem_byte_sz_c(arena, expr_ref);
   if (esz != 1 && esz != 2 && esz != 4 && esz != 8)
     return -1;
-  if (n_arr > 2048 / esz)
+  if (n_arr > GLUE_ARRAY_LIT_MAX_PAYLOAD / esz)
     return -1;
   nbytes = n_arr * esz;
-  if (nbytes <= 0 || nbytes > 2048)
+  if (nbytes <= 0 || nbytes > GLUE_ARRAY_LIT_MAX_PAYLOAD)
     return -1;
   all_const = 1;
   for (ai = 0; ai < n_arr; ai++) {
@@ -2599,10 +2601,11 @@ static int32_t glue_try_return_slice_escape_from_fixed_array_elf_c(
   esz = glue_index_elem_byte_sz_from_type_ref_c(arena, elem_tr);
   if (esz != 1 && esz != 2 && esz != 4 && esz != 8)
     esz = 4;
-  if (arr_sz > 2048 / esz)
+  /* wave415: twin durable payload face (was hard 2048). */
+  if (arr_sz > GLUE_ARRAY_LIT_MAX_PAYLOAD / esz)
     return -1;
   nbytes = arr_sz * esz;
-  if (nbytes <= 0 || nbytes > 2048)
+  if (nbytes <= 0 || nbytes > GLUE_ARRAY_LIT_MAX_PAYLOAD)
     return -1;
 
   /* SHN_COMMON BSS label Lxlang_esc_<seq> (writable; never RX .text). */
@@ -11661,7 +11664,7 @@ int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct pla
     temp_base = ly->next_offset;
     return backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_base, ta);
   }
-  /** u8[64] 字面量可达 64 元；上限 GLUE_ARRAY_LIT_MAX_ELEMS (512) 孪 host deep-copy / wave413. */
+  /** ARRAY_LIT face: cap GLUE_ARRAY_LIT_MAX_ELEMS (1024, wave415; was 512 wave413). */
   if (n_arr <= 0 || n_arr > GLUE_ARRAY_LIT_MAX_ELEMS)
     return -1;
   esz = pipeline_asm_array_lit_elem_byte_sz_c(arena, expr_ref);
