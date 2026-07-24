@@ -602,13 +602,50 @@ int32_t arch_arm64_enc_enc_store_rax_to_rbx_indirect(struct platform_elf_ElfCode
   return arm64_enc_u32_le(elf_ctx, 0xf9000020u); /* str x0, [x1] */
 }
 
-int32_t arch_arm64_enc_enc_store_rax_to_rbx_offset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
-  int32_t imm12 = offset;
-  if (imm12 < 0)
-    imm12 = 0;
-  if (imm12 > 4095)
-    imm12 = 4095;
-  return arm64_enc_u32_le(elf_ctx, 0xf9000020u | (((uint32_t)imm12 / 8u) << 10));
+/*
+ * wave391 Cap residual pure: store value@x0 into [x1 + offset] with correct width/scale.
+ *
+ * Root: product seed took only `offset` and always encoded STR X (imm12 = offset/8).
+ * STRUCT_LIT field i32 at foff=4 → imm12=0 → every field overwrote [x1+0] (multi-field
+ * lit sum wrong: Pt{x:20,y:22} → p.x+p.y=22; host-C OK). Dispatch always passes
+ * store_size (G.7 match arch_x86_64_enc_enc_store_rax_to_rbx_offset + arm64_enc.x).
+ *
+ * ARM64 unsigned scaled imm: STRB imm=bytes; STRH imm=offset/2; STR W imm=offset/4;
+ * STR X imm=offset/8. Rt=x0 Rn=x1.
+ * PLATFORM: MACOS|ARM64 product pure-asm (ta==1). Authority twin: arch/arm64_enc.x.
+ */
+int32_t arch_arm64_enc_enc_store_rax_to_rbx_offset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
+                                                   int32_t store_size) {
+  int32_t imm12;
+  uint32_t base;
+  if (offset < 0)
+    offset = 0;
+  if (store_size == 1) {
+    /* strb w0, [x1, #offset] — imm12 is byte count 0..4095 */
+    imm12 = offset;
+    if (imm12 > 4095)
+      imm12 = 4095;
+    base = 0x39000000u; /* STRB */
+  } else if (store_size == 2) {
+    /* strh w0, [x1, #offset] — offset multiple of 2 */
+    imm12 = offset / 2;
+    if (imm12 > 4095)
+      imm12 = 4095;
+    base = 0x79000000u; /* STRH */
+  } else if (store_size == 4) {
+    /* str w0, [x1, #offset] — offset multiple of 4 */
+    imm12 = offset / 4;
+    if (imm12 > 4095)
+      imm12 = 4095;
+    base = 0xb9000000u; /* STR W */
+  } else {
+    /* str x0, [x1, #offset] — offset multiple of 8 (default / 8-byte store) */
+    imm12 = offset / 8;
+    if (imm12 > 4095)
+      imm12 = 4095;
+    base = 0xf9000000u; /* STR X */
+  }
+  return arm64_enc_u32_le(elf_ctx, base | (((uint32_t)imm12) << 10) | (1u << 5));
 }
 
 /*

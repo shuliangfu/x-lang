@@ -915,9 +915,19 @@ export function enc_load_64_from_rax(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 4181721088);
 }
 
-/* See implementation. */
-export function enc_store_rax_to_rbx_offset(ctx: *ElfCodegenCtx, offset: i32, store_size:
-i32): i32 {
+/**
+ * Store value@x0 into [x1 + offset] with ARM64 scaled-imm width matching store_size.
+ * @param ctx *ElfCodegenCtx — pure-asm emit context
+ * @param offset i32 — byte offset from base in x1; negative clamped to 0
+ * @param store_size i32 — 1=STRB, 2=STRH, 4=STR W, else STR X (scale 1/2/4/8)
+ * @return i32 — 0 ok, non-zero on emit failure
+ * PLATFORM: MACOS|ARM64 product pure-asm (ta==1). Authority twin: seeds/backend_arm64_enc_c.from_x.c
+ * wave391: product seed previously ignored store_size (always STR X /8) → multi-field STRUCT_LIT wrong.
+ */
+export function enc_store_rax_to_rbx_offset(ctx: *ElfCodegenCtx, offset: i32, store_size: i32): i32 {
+  if (offset < 0) {
+    offset = 0;
+  }
   if (store_size == 1) {
     /* strb w0, [x1, #offset] — imm12 bytes 0..4095 (u8[] array-lit byte-wise init). */
     let imm12: i32 = offset;
@@ -926,15 +936,27 @@ i32): i32 {
     }
     return enc_u32_le(ctx, 956301312 | (imm12 << 10) | (1 << 5));
   }
+  if (store_size == 2) {
+    /* strh w0, [x1, #offset] — offset multiple of 2 */
+    let imm12: i32 = offset / 2;
+    if (imm12 > 4095) {
+      imm12 = 4095;
+    }
+    return enc_u32_le(ctx, 2030043136 | (imm12 << 10) | (1 << 5));
+  }
   if (store_size == 4) {
     /* str w0, [x1, #offset] — offset must be a multiple of 4 */
     let imm12: i32 = offset / 4;
-    if (imm12 > 4095) { imm12 = 4095; }
+    if (imm12 > 4095) {
+      imm12 = 4095;
+    }
     return enc_u32_le(ctx, 3103784960 | (imm12 << 10) | (1 << 5));
   }
   /* str x0, [x1, #offset] — offset must be a multiple of 8 */
   let imm12: i32 = offset / 8;
-  if (imm12 > 4095) { imm12 = 4095; }
+  if (imm12 > 4095) {
+    imm12 = 4095;
+  }
   return enc_u32_le(ctx, 4177526784 | (imm12 << 10) | (1 << 5));
 }
 
