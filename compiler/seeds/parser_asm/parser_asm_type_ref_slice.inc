@@ -326,15 +326,24 @@ static int32_t parser_asm_parse_postfix_slice_type_ref_c(void *arena, int32_t el
 }
 
 /**
- * 解析内建/已分配元素类型后的后缀：`T[]` / `T[]<label>`（slice）或 `T[N]`（固定数组）。
- * lex 须已消费元素类型 token；若下一 token 不是 `[`，*out_lex 保持不动并返回 elem_tr。
+ * Parse postfix array/slice after an element type: `T[]` / `T[]<label>` / `T[N]` / `T[N][M]…`.
+ * lex must already have consumed the element-type token. If the next token is not `[`,
+ * *out_lex is left unchanged and elem_tr is returned.
+ *
+ * PLATFORM: SHARED — multi-dim postfix (wave356). Product spelling is C-style `T[N][M]`
+ * (docs/02): outer N, inner M, same AST as prefix `[N][M]T`. Collect dimensions left-to-right,
+ * then wrap from the rightmost dim so `i32[2][3]` ≡ `[2][3]i32` ≡ array-of-2 of array-of-3 of i32.
+ * Cap 8 dims; empty `[]` remains slice only as the first postfix (`T[]`, not `T[N][]`).
  */
 static int32_t parser_asm_parse_postfix_array_type_ref_c(void *arena, int32_t elem_tr,
                                                        struct parser_asm_lexer lex,
                                                        struct parser_asm_slice_u8 *source,
                                                        struct parser_asm_lexer *out_lex) {
   struct parser_asm_lexer_result r;
-  int32_t asz;
+  int32_t dims[8];
+  int32_t ndims;
+  int32_t di;
+  int32_t cur;
   int32_t arr_ref;
   struct ast_Type ta;
   if (!out_lex || elem_tr == 0)
@@ -344,36 +353,62 @@ static int32_t parser_asm_parse_postfix_array_type_ref_c(void *arena, int32_t el
     parser_asm_write_out_lex_c(out_lex, lex);
     return elem_tr;
   }
-  parser_asm_lex_from_result_val_into(&lex, r);
-  lexer_next_into(&r, lex, source);
-  /** M-3：`i32[]` / `i32[]<ra>` — 空 `[]` 为 slice，非固定数组 `T[N]`。 */
-  if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
-    return parser_asm_parse_postfix_slice_type_ref_c(arena, elem_tr, lex, source, out_lex);
+  ndims = 0;
+  for (;;) {
+    parser_asm_lex_from_result_val_into(&lex, r);
+    lexer_next_into(&r, lex, source);
+    /** M-3: empty `[]` is slice only when it is the first postfix (`T[]` / `T[]<label>`). */
+    if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
+      if (ndims > 0) {
+        /* `T[N][]` is not a product form — fail closed. */
+        parser_asm_write_out_lex_c(out_lex, lex);
+        return 0;
+      }
+      return parser_asm_parse_postfix_slice_type_ref_c(arena, elem_tr, lex, source, out_lex);
+    }
+    if (r.tok.kind != (int32_t)TOKEN_INT || r.tok.int_val <= 0) {
+      parser_asm_write_out_lex_c(out_lex, lex);
+      return 0;
+    }
+    if (ndims >= 8) {
+      parser_asm_write_out_lex_c(out_lex, lex);
+      return 0;
+    }
+    dims[ndims] = r.tok.int_val;
+    ndims = ndims + 1;
+    parser_asm_lex_from_result_val_into(&lex, r);
+    lexer_next_into(&r, lex, source);
+    if (r.tok.kind != (int32_t)TOKEN_RBRACKET) {
+      parser_asm_write_out_lex_c(out_lex, lex);
+      return 0;
+    }
+    parser_asm_lex_from_result_val_into(&lex, r);
+    /* Peek next token without consuming; another `[` continues multi-dim. */
+    lexer_next_into(&r, lex, source);
+    if (r.tok.kind != (int32_t)TOKEN_LBRACKET)
+      break;
   }
-  if (r.tok.kind != (int32_t)TOKEN_INT || r.tok.int_val <= 0) {
-    parser_asm_write_out_lex_c(out_lex, lex);
-    return 0;
-  }
-  asz = r.tok.int_val;
-  parser_asm_lex_from_result_val_into(&lex, r);
-  lexer_next_into(&r, lex, source);
-  if (r.tok.kind != (int32_t)TOKEN_RBRACKET) {
-    parser_asm_write_out_lex_c(out_lex, lex);
-    return 0;
-  }
-  parser_asm_lex_from_result_val_into(&lex, r);
-  arr_ref = ast_ast_arena_type_alloc(arena);
-  if (arr_ref != 0) {
+  /* Build right-to-left: dims[0]=outer … dims[ndims-1]=innermost (C / prefix form). */
+  cur = elem_tr;
+  di = ndims - 1;
+  while (di >= 0) {
+    arr_ref = ast_ast_arena_type_alloc(arena);
+    if (arr_ref == 0) {
+      parser_asm_write_out_lex_c(out_lex, lex);
+      return 0;
+    }
     ta = ast_arena_type_get(arena, arr_ref);
     ta.kind = PARSER_ASM_TYPE_ARRAY;
-    ta.elem_type_ref = elem_tr;
-    ta.array_size = asz;
+    ta.elem_type_ref = cur;
+    ta.array_size = dims[di];
     ta.name_len = 0;
     ta.region_label_len = 0;
     ast_arena_type_set(arena, arr_ref, ta);
+    cur = arr_ref;
+    di = di - 1;
   }
   parser_asm_write_out_lex_c(out_lex, lex);
-  return arr_ref;
+  return cur;
 }
 
 /**
