@@ -2298,8 +2298,8 @@ static int32_t glue_match_slice_escape_lets_in_block_c(struct ast_ASTArena *aren
     if (arr_sz <= 0 && init_ko == 44) {
       int32_t elem = pipeline_type_elem_ref_at(arena, tr);
       if (elem > 0) {
-        arr_sz = 256;
-        arr_ty = tr; /* use slice let for elem via elem_ref below */
+        /* Soft capacity when FA TYPE_ARRAY not stamped; wave344 copy uses min(len,N). */
+        arr_sz = 64;
         *out_arr_sz = arr_sz;
         *out_elem_tr = elem;
         if (out_arr_init_ref)
