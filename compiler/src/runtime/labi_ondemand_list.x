@@ -996,11 +996,11 @@ export function labi_od_set_sym_at(i: i32): *u8 {
     return p;
   }
   if (i == 9) {
-    let p: *u8 = "std_set_len_Set_i32";
+    let p: *u8 = "std_set_length_Set_i32";
     return p;
   }
   if (i == 10) {
-    let p: *u8 = "std_set_len_Set_u64";
+    let p: *u8 = "std_set_length_Set_u64";
     return p;
   }
   if (i == 11) {
@@ -1232,7 +1232,7 @@ export function labi_od_queue_api_sym_at(i: i32): *u8 {
     return p;
   }
   if (i == 8) {
-    let p: *u8 = "std_queue_len_Queue_i32";
+    let p: *u8 = "std_queue_length_Queue_i32";
     return p;
   }
   if (i == 9) {

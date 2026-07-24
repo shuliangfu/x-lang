@@ -31,7 +31,7 @@ allow(padding) struct Set_i32 {
   keys: *i32;
   occupied: *u8;
   cap: i32;
-  len: i32;
+  length: i32;
 }
 
 /** Exported function `slot`.
@@ -63,7 +63,7 @@ export function find(s: Set_i32, key: i32): i32 {
  */
 export function new(_tag: i32): Set_i32 {
   let _: i32 = _tag;
-  return Set_i32 { keys: 0, occupied: 0, cap: 0, len: 0 };
+  return Set_i32 { keys: 0, occupied: 0, cap: 0, length: 0 };
 }
 
 /** Exported function `with_capacity`.
@@ -77,7 +77,7 @@ export function with_capacity(s: *Set_i32, capacity: i32): i32 {
     s.keys = 0;
     s.occupied = 0;
     s.cap = 0;
-    s.len = 0;
+    s.length = 0;
     return 0;
   }
   let k: *i32 = heap_libc.heap_alloc_i32_c(capacity);
@@ -95,7 +95,7 @@ export function with_capacity(s: *Set_i32, capacity: i32): i32 {
   s.keys = k;
   s.occupied = o;
   s.cap = capacity;
-  s.len = 0;
+  s.length = 0;
   return 0;
 }
 
@@ -134,7 +134,7 @@ export function reserve_one(s: *Set_i32): i32 {
   if (s.cap <= 0) {
     return with_capacity(s, 8);
   }
-  if (s.len + 1 <= s.cap * 3 / 4) { return 0; }
+  if (s.length + 1 <= s.cap * 3 / 4) { return 0; }
   return grow(s, s.cap * 2);
 }
 
@@ -153,7 +153,7 @@ export function insert(s: *Set_i32, key: i32): i32 {
     if (s.occupied[i] == 0) {
       s.keys[i] = key;
       s.occupied[i] = 1;
-      s.len = s.len + 1;
+      s.length = s.length + 1;
       return 0;
     }
     if (s.keys[i] == key) {
@@ -191,7 +191,7 @@ export function remove(s: *Set_i32, key: i32): i32 {
   unsafe { idx = find(*s, key); }
   if (idx < 0) { return 0; }
   s.occupied[idx] = 0;
-  s.len = s.len - 1;
+  s.length = s.length - 1;
   return 1;
 }
 
@@ -200,7 +200,7 @@ export function remove(s: *Set_i32, key: i32): i32 {
  * @param s Set_i32
  * @return i32
  */
-export function len(s: Set_i32): i32 { return s.len; }
+export function length(s: Set_i32): i32 { return s.length; }
 
 /** Exported function `is_empty`.
  * Query helper `is_empty`.
@@ -208,7 +208,7 @@ export function len(s: Set_i32): i32 { return s.len; }
  * @return i32
  */
 export function is_empty(s: Set_i32): i32 {
-  if (s.len <= 0) { return 1; }
+  if (s.length <= 0) { return 1; }
   return 0;
 }
 
@@ -223,7 +223,7 @@ export function clear(s: *Set_i32): void {
     s.occupied[i] = 0;
     i = i + 1;
   }
-  s.len = 0;
+  s.length = 0;
 }
 
 /** Exported function `reserve`.
@@ -246,7 +246,7 @@ export function deinit(s: *Set_i32): void {
   if (s.keys != 0) { heap_libc.heap_free_i32_c(s.keys); s.keys = 0; }
   if (s.occupied != 0) { heap_libc.heap_free_u8_c(s.occupied); s.occupied = 0; }
   s.cap = 0;
-  s.len = 0;
+  s.length = 0;
 }
 
 // See implementation.
@@ -322,7 +322,7 @@ allow(padding) struct Set_u64 {
   keys: *u64;
   occupied: *u8;
   cap: i32;
-  len: i32;
+  length: i32;
 }
 
 /** Exported function `slot`.
@@ -364,7 +364,7 @@ export function find(s: Set_u64, key: u64): i32 {
  */
 export function new(_tag: i32): Set_u64 {
   let _: i32 = _tag;
-  return Set_u64 { keys: 0, occupied: 0, cap: 0, len: 0 };
+  return Set_u64 { keys: 0, occupied: 0, cap: 0, length: 0 };
 }
 
 /** Exported function `with_capacity`.
@@ -378,7 +378,7 @@ export function with_capacity(s: *Set_u64, capacity: i32): i32 {
     s.keys = 0;
     s.occupied = 0;
     s.cap = 0;
-    s.len = 0;
+    s.length = 0;
     return 0;
   }
   let k: *u64 = heap_libc.heap_alloc_u64_c(capacity);
@@ -396,7 +396,7 @@ export function with_capacity(s: *Set_u64, capacity: i32): i32 {
   s.keys = k;
   s.occupied = o;
   s.cap = capacity;
-  s.len = 0;
+  s.length = 0;
   return 0;
 }
 
@@ -435,7 +435,7 @@ export function reserve_one(s: *Set_u64): i32 {
   if (s.cap <= 0) {
     return with_capacity(s, 8);
   }
-  if (s.len + 1 <= s.cap * 3 / 4) { return 0; }
+  if (s.length + 1 <= s.cap * 3 / 4) { return 0; }
   return grow(s, s.cap * 2);
 }
 
@@ -454,7 +454,7 @@ export function insert(s: *Set_u64, key: u64): i32 {
     if (s.occupied[i] == 0) {
       s.keys[i] = key;
       s.occupied[i] = 1;
-      s.len = s.len + 1;
+      s.length = s.length + 1;
       return 0;
     }
     if (s.keys[i] == key) {
@@ -492,7 +492,7 @@ export function remove(s: *Set_u64, key: u64): i32 {
   unsafe { idx = find(*s, key); }
   if (idx < 0) { return 0; }
   s.occupied[idx] = 0;
-  s.len = s.len - 1;
+  s.length = s.length - 1;
   return 1;
 }
 
@@ -501,7 +501,7 @@ export function remove(s: *Set_u64, key: u64): i32 {
  * @param s Set_u64
  * @return i32
  */
-export function len(s: Set_u64): i32 { return s.len; }
+export function length(s: Set_u64): i32 { return s.length; }
 
 /** Exported function `deinit`.
  * Implements `deinit`.
@@ -512,7 +512,7 @@ export function deinit(s: *Set_u64): void {
   if (s.keys != 0) { heap_libc.heap_free_u64_c(s.keys); s.keys = 0; }
   if (s.occupied != 0) { heap_libc.heap_free_u8_c(s.occupied); s.occupied = 0; }
   s.cap = 0;
-  s.len = 0;
+  s.length = 0;
 }
 
 // See implementation.
@@ -539,7 +539,7 @@ allow(padding) struct Set_str {
   lens: *i32;
   occupied: *u8;
   cap: i32;
-  len: i32;
+  length: i32;
 }
 
 /** Exported function `str_new`.
@@ -547,7 +547,7 @@ allow(padding) struct Set_str {
  * @return Set_str
  */
 export function str_new(): Set_str {
-  return Set_str { keys: 0, lens: 0, occupied: 0, cap: 0, len: 0 };
+  return Set_str { keys: 0, lens: 0, occupied: 0, cap: 0, length: 0 };
 }
 
 /** Exported function `str_with_capacity`.
@@ -562,7 +562,7 @@ export function str_with_capacity(s: *Set_str, capacity: i32): i32 {
     s.lens = 0;
     s.occupied = 0;
     s.cap = 0;
-    s.len = 0;
+    s.length = 0;
     return 0;
   }
   let kcap: i32 = str_key_cap();
@@ -585,7 +585,7 @@ export function str_with_capacity(s: *Set_str, capacity: i32): i32 {
   s.lens = lens;
   s.occupied = occ;
   s.cap = capacity;
-  s.len = 0;
+  s.length = 0;
   return 0;
 }
 
@@ -680,7 +680,7 @@ export function str_grow(s: *Set_str, new_cap: i32): i32 {
  */
 export function str_reserve_one(s: *Set_str): i32 {
   if (s.cap <= 0) { return str_with_capacity(s, 8); }
-  if (s.len + 1 <= s.cap * 3 / 4) { return 0; }
+  if (s.length + 1 <= s.cap * 3 / 4) { return 0; }
   return str_grow(s, s.cap * 2);
 }
 
@@ -711,7 +711,7 @@ export function str_insert(s: *Set_str, ptr: *u8, len: i32): i32 {
       }
       s.lens[i] = len;
       s.occupied[i] = 1;
-      s.len = s.len + 1;
+      s.length = s.length + 1;
       return 0;
     }
     i = i + 1;
@@ -749,7 +749,7 @@ export function str_remove(s: *Set_str, ptr: *u8, len: i32): i32 {
   if (idx < 0) { return 0; }
   s.occupied[idx] = 0;
   s.lens[idx] = 0;
-  s.len = s.len - 1;
+  s.length = s.length - 1;
   return 1;
 }
 
@@ -758,7 +758,7 @@ export function str_remove(s: *Set_str, ptr: *u8, len: i32): i32 {
  * @param s Set_str
  * @return i32
  */
-export function str_len(s: Set_str): i32 { return s.len; }
+export function str_len(s: Set_str): i32 { return s.length; }
 
 /** Exported function `str_deinit`.
  * Implements `str_deinit`.
@@ -770,5 +770,5 @@ export function str_deinit(s: *Set_str): void {
   if (s.lens != 0) { heap_libc.heap_free_i32_c(s.lens); s.lens = 0; }
   if (s.occupied != 0) { heap_libc.heap_free_u8_c(s.occupied); s.occupied = 0; }
   s.cap = 0;
-  s.len = 0;
+  s.length = 0;
 }

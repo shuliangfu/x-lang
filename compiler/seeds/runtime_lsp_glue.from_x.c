@@ -1992,7 +1992,7 @@ int parse_first_content_change(const uint8_t *body, int len,
 
 
 
-/** 在 body[search_start..len) 中找 "text" 键（支持 "text":"、"text": "、"text" : " 等），取 JSON 字符串值到 out_buf，做 unescape；返回 out 长度，未找到或出错 -1。 */
+/** 在 body[search_start..length) 中找 "text" 键（支持 "text":"、"text": "、"text" : " 等），取 JSON 字符串值到 out_buf，做 unescape；返回 out 长度，未找到或出错 -1。 */
 /* G-02f-254：逻辑源 .x（真迁 pure）；seed 保留同语义 C 供产品 cc */
 int lsp_find_text_value_from(const uint8_t *body, int len, int search_start, uint8_t *out_buf, int out_cap) {
     const int key6_len = 6;  /* "\"text\"" */
@@ -2064,7 +2064,7 @@ int lsp_find_text_value_from(const uint8_t *body, int len, int search_start, uin
     return -1;
 }
 
-/** 在 body[0..len) 中找 didOpen 的 text：先定位到 "textDocument" 对象内再找 "text" 键，取 JSON 字符串值到 out_buf；返回 out 长度，未找到 -1。 */
+/** 在 body[0..length) 中找 didOpen 的 text：先定位到 "textDocument" 对象内再找 "text" 键，取 JSON 字符串值到 out_buf；返回 out 长度，未找到 -1。 */
 /* G-02f-254：逻辑源 .x（真迁 pure）；seed 保留同语义 C 供产品 cc */
 int lsp_find_text_value(const uint8_t *body, int len, uint8_t *out_buf, int out_cap) {
     const char *td = "\"textDocument\"";
@@ -2146,7 +2146,7 @@ int lsp_build_response_with_result(int id_val, const uint8_t *result_ptr, int re
     return k;
 }
 
-/** 在 body[0..len) 中从 start 起找 key（如 "\"line\":\"），返回 key 结束后的偏移，未找到返回 -1。 */
+/** 在 body[0..length) 中从 start 起找 key（如 "\"line\":\"），返回 key 结束后的偏移，未找到返回 -1。 */
 /* G-02f-122 / G-02f-255：逻辑源 .x（真迁 pure）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 int lsp_find_key_after(const uint8_t *body, int len, int start, const char *key) {

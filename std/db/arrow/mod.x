@@ -152,7 +152,7 @@ export function adopt(ptr: *i32, len: i32, capacity: i32): ArrowColumn {
  * @param col ArrowColumn
  * @return i32
  */
-export function len(col: ArrowColumn): i32 {
+export function length(col: ArrowColumn): i32 {
   unsafe { return arrow_column_len_c(col.handle); }
   return 0; // unreachable — typeck workaround
 }
@@ -311,7 +311,7 @@ export function get(batch: ArrowBatch, index: i32): ArrowColumn {
  * @param batch ArrowBatch
  * @return i32
  */
-export function len(batch: ArrowBatch): i32 {
+export function length(batch: ArrowBatch): i32 {
   unsafe { return arrow_batch_len_c(batch.handle); }
   return 0; // unreachable — typeck workaround
 }

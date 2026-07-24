@@ -611,7 +611,7 @@ uint8_t *labi_icc_std_need_needle_at(int32_t mid, int32_t i) {
   if (mid == 21) {
     if (i == 0) return (uint8_t *)"std_vec_new";
     if (i == 1) return (uint8_t *)"std_vec_push";
-    if (i == 2) return (uint8_t *)"std_vec_len_Vec";
+    if (i == 2) return (uint8_t *)"std_vec_length_Vec";
     if (i == 3) return (uint8_t *)"std_vec_len_ptr";
     if (i == 4) return (uint8_t *)"std_vec_with_capacity";
     if (i == 5) return (uint8_t *)"std_vec_from_slice";

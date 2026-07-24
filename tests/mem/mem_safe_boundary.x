@@ -29,10 +29,10 @@ function main(): i32 {
 
   // buffer_from
   let buf: Buffer = mem.buffer_from(&src[0], 4);
-  if ((buf.len as i32) != 4) { return 11; }
+  if ((buf.length as i32) != 4) { return 11; }
   if (buf.ptr[0] != 1) { return 12; }
   let empty: Buffer = mem.buffer_from(&src[0], 0);
-  if ((empty.len as i32) != 0) { return 13; }
+  if ((empty.length as i32) != 0) { return 13; }
 
   return 0;
 }

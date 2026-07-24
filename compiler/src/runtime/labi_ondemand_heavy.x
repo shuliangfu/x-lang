@@ -444,11 +444,11 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
       return p;
     }
     if (i == 2) {
-      let p: *u8 = "std_string_len_String";
+      let p: *u8 = "std_string_length_String";
       return p;
     }
     if (i == 3) {
-      let p: *u8 = "std_string_len_StrView";
+      let p: *u8 = "std_string_length_StrView";
       return p;
     }
     if (i == 4) {
@@ -646,11 +646,11 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
       return p;
     }
     if (i == 4) {
-      let p: *u8 = "std_vec_len_Vec_u8";
+      let p: *u8 = "std_vec_length_Vec_u8";
       return p;
     }
     if (i == 5) {
-      let p: *u8 = "std_vec_len_Vec_i32";
+      let p: *u8 = "std_vec_length_Vec_i32";
       return p;
     }
     if (i == 6) {

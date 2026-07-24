@@ -561,7 +561,7 @@ export function glue_sysv_x86_call_arg_slot_c(
  * Historical name: spill 9–16B call-arg to stack then lea.
  * PLATFORM: LINUX+MACOS x86_64 SysV — INTEGER-class 9–16B aggregates pass by value in
  * rax+rdx / two consecutive GPs. Nested CALL already leaves that form; converting to a
- * pointer mismatches formal C (std_string_len_StrView rdi+rsi). No-op; placement uses
+ * pointer mismatches formal C (std_string_length_StrView rdi+rsi). No-op; placement uses
  * mov_rax/mov_rdx_to_arg_reg. Authority aligned with pipeline_glue call-arg dual load.
  */
 #[no_mangle]

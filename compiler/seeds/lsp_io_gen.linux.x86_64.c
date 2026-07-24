@@ -27,14 +27,14 @@ static inline void xlang_panic_(int has_msg, int msg_val) {
   if (has_msg) (void)fprintf(stderr, "%d\n", msg_val);
   abort();
 }
-struct std_io_sync_Iovec { uint8_t * base; size_t len; };
+struct std_io_sync_Iovec { uint8_t * base; size_t length; };
 struct std_io_sync_PollFd { int32_t fd; int16_t events; int16_t revents; };
-struct std_io_sync_IoBatchBuf { uint8_t * ptr; size_t len; size_t handle; };
+struct std_io_sync_IoBatchBuf { uint8_t * ptr; size_t length; size_t handle; };
 struct std_io_read_ptr_XlangSliceU8 { uint8_t * data; size_t length; };
-struct std_io_backend_IoBatchBuf { uint8_t * ptr; size_t len; size_t handle; };
+struct std_io_backend_IoBatchBuf { uint8_t * ptr; size_t length; size_t handle; };
 struct std_io_backend_XlangSliceU8 { uint8_t * data; size_t length; };
 enum std_io_driver_IO_Result { std_io_driver_IO_Result_Ok, std_io_driver_IO_Result_Err, std_io_driver_IO_Result_Timeout, std_io_driver_IO_Result_Cancelled };
-struct std_io_driver_Buffer { uint8_t * ptr; size_t len; size_t handle; };
+struct std_io_driver_Buffer { uint8_t * ptr; size_t length; size_t handle; };
 struct std_io_driver_Completion { int32_t tag; };
 struct std_io_driver_AsyncContext { uint32_t flags; };
 struct std_context_Context { int64_t handle; };
@@ -45,7 +45,7 @@ struct std_error_ErrorChain { int32_t depth; int32_t c0; int32_t c1; int32_t c2;
 struct xlang_slice_uint8_t { uint8_t *data; size_t length; };
 struct std_io_ReadOnlySlice { struct xlang_slice_uint8_t data; };
 struct std_io_WriteOnlySlice { struct xlang_slice_uint8_t data; };
-struct std_io_ReadPtrView { uint8_t * ptr; int32_t len; uint64_t gen; };
+struct std_io_ReadPtrView { uint8_t * ptr; int32_t length; uint64_t gen; };
 struct std_heap_libc_Arena64 { uint8_t * chunk; size_t cap; size_t off; };
 struct std_heap_page_mmap_PageMmapHeap { uint8_t * base; size_t cap; size_t off; };
 struct std_heap_Arena64 { uint8_t * chunk; size_t cap; size_t off; };

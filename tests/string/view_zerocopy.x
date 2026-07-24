@@ -12,7 +12,7 @@ function main(): i32 {
   // See implementation.
   let buf: u8[8] = [97, 98, 99, 100, 101, 0, 0, 0];
   let v: StrView = string.view(&buf[0], 5);
-  if (string.len(v) != 5) { return 1; }
+  if (string.length(v) != 5) { return 1; }
   if (string.is_empty(v) != 0) { return 2; }
   if (string.string_view_get(v, 0) != 97) { return 3; }
   let v2: StrView = string.view(&buf[0], 5);
@@ -32,7 +32,7 @@ function main(): i32 {
   // See implementation.
   let p: *u8 = string.string_data_ptr(&s);
   if (p == 0) { return 13; }
-  if (string.len(s) != 5) { return 14; }
+  if (string.length(s) != 5) { return 14; }
   if (p[0] != 97 || p[1] != 98) { return 15; }
   if (string.string_len_ptr(&s) != 5) { return 16; }
   return 0;

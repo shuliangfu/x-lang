@@ -650,7 +650,7 @@ export function driver_run_x_emit_x(state: *DriverXEmitState): i32 {
   }
   ctx.num_lib_roots = 0;
   driver_emit_copy_lib_roots_to_ctx(state, &ctx);
-  let out: CodegenOutBuf = CodegenOutBuf { data: [], len: 0 };
+  let out: CodegenOutBuf = CodegenOutBuf { data: [], length: 0 };
   let source_len: usize = out_len as usize;
   let rc: i32 = pipeline_run_x_pipeline_impl(module_buf, arena_buf, preprocess_buf, source_len, &out, &ctx);
   if (rc != 0) {
@@ -658,7 +658,7 @@ export function driver_run_x_emit_x(state: *DriverXEmitState): i32 {
     return 1;
   }
   /* See implementation. */
-  let len: i32 = out.len;
+  let len: i32 = out.length;
   if (state.out_path_len == 0) {
     driver_print_x_smoke_summary(module_buf, len as usize);
   }

@@ -511,9 +511,9 @@ const char *labi_od_set_sym_at(int i) {
   if (i == 8)
     return "std_set_remove_Set_u64_ptr_u64";
   if (i == 9)
-    return "std_set_len_Set_i32";
+    return "std_set_length_Set_i32";
   if (i == 10)
-    return "std_set_len_Set_u64";
+    return "std_set_length_Set_u64";
   if (i == 11)
     return "std_set_deinit_Set_i32_ptr";
   if (i == 12)
@@ -615,7 +615,7 @@ const char *labi_od_queue_api_sym_at(int i) {
   if (i == 7)
     return "std_queue_get";
   if (i == 8)
-    return "std_queue_len_Queue_i32";
+    return "std_queue_length_Queue_i32";
   if (i == 9)
     return "std_queue_is_empty_Queue_i32";
   if (i == 10)
@@ -1532,9 +1532,9 @@ const char *labi_fk0_sym_at(int k, int i) {
     if (i == 1)
       return "std_string_new";
     if (i == 2)
-      return "std_string_len_String";
+      return "std_string_length_String";
     if (i == 3)
-      return "std_string_len_StrView";
+      return "std_string_length_StrView";
     if (i == 4)
       return "std_string_is_empty_String";
     if (i == 5)
@@ -1648,9 +1648,9 @@ const char *labi_fk0_sym_at(int k, int i) {
     if (i == 3)
       return "std_vec_push_Vec_i32_ptr_i32";
     if (i == 4)
-      return "std_vec_len_Vec_u8";
+      return "std_vec_length_Vec_u8";
     if (i == 5)
-      return "std_vec_len_Vec_i32";
+      return "std_vec_length_Vec_i32";
     if (i == 6)
       return "std_vec_len_empty";
     if (i == 7)

@@ -55,7 +55,7 @@ extern char *link_abi_getenv(const char *name);
 #define X_CODEGEN_OUTBUF_CAP (9 * 1024 * 1024)
 struct codegen_CodegenOutBuf {
   unsigned char data[X_CODEGEN_OUTBUF_CAP];
-  int32_t len;
+  int32_t length;
 };
 
 struct parser_ParseIntoResult {
@@ -977,12 +977,12 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     codegen_set_dep_slots_for_x_pipeline(NULL, NULL, 0);
     for (int j = n_deps - 1; j >= 0; j--) { free(dep_arenas[j]); free(dep_modules[j]); }
     while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
-    if (ec != 0 || (!driver_check_only_get() && out_buf->len == 0)) {
+    if (ec != 0 || (!driver_check_only_get() && out_buf->length == 0)) {
         diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP003, NULL,
                      "pipeline failed for '%s' (ec=%d, out_len=%d)",
-                     input_path, ec, (int)out_buf->len);
-        if (link_abi_getenv("XLANG_DEBUG_PIPE") && out_buf->len > 0) {
-            size_t show = (size_t)out_buf->len > 800u ? 800u : (size_t)out_buf->len;
+                     input_path, ec, (int)out_buf->length);
+        if (link_abi_getenv("XLANG_DEBUG_PIPE") && out_buf->length > 0) {
+            size_t show = (size_t)out_buf->length > 800u ? 800u : (size_t)out_buf->length;
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "pipeline debug: out (first %zu bytes):\n%.*s", show, (int)show,
                          (const char *)out_buf->data);
@@ -1039,7 +1039,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     }
     /* 无 -o、将生成的 C 写 stdout 之前：stderr 烟测两行，与 driver_run_x_emit_x 及 run-std/run-stdlib-import 的 grep 一致。 */
     if (emit_to_stdout)
-        driver_print_x_smoke_summary(module, (size_t)out_buf->len);
+        driver_print_x_smoke_summary(module, (size_t)out_buf->length);
     free(arena);
     free(module);
     free(src);
@@ -1047,9 +1047,9 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
         /* 内联 std.io / std.net / fs / path / map / error ABI；不再 #include std/*_abi.h。
          * 若 pipeline 产出首字符非 # 且非注释（如泛型+import 时首行为 extern ...），先写最小 preamble 避免 cc 报 unknown type 'int32_t'。 */
         size_t first_line = 0;
-        while (first_line < (size_t)out_buf->len && out_buf->data[first_line] != '\n') first_line++;
-        if (first_line < (size_t)out_buf->len) first_line++;
-        int need_preamble = (out_buf->len > 0 && out_buf->data[0] != '#' && (out_buf->len < 2 || out_buf->data[0] != '/' || out_buf->data[1] != '*'));
+        while (first_line < (size_t)out_buf->length && out_buf->data[first_line] != '\n') first_line++;
+        if (first_line < (size_t)out_buf->length) first_line++;
+        int need_preamble = (out_buf->length > 0 && out_buf->data[0] != '#' && (out_buf->length < 2 || out_buf->data[0] != '/' || out_buf->data[1] != '*'));
         if (need_preamble) {
             static const char min_preamble[] = "/* generated */\n#include <stdint.h>\n#include <stddef.h>\n#include <stdlib.h>\n#include <stdio.h>\n#include <string.h>\n";
             if (fwrite(min_preamble, 1, sizeof(min_preamble) - 1, cf) != (size_t)(sizeof(min_preamble) - 1)) {
@@ -1062,7 +1062,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
         if (fwrite(out_buf->data, 1, first_line, cf) != first_line
             || write_io_net_abi_inline(cf) != 0
             || write_fs_path_map_error_abi_inline(cf) != 0
-            || fwrite(out_buf->data + first_line, 1, (size_t)out_buf->len - first_line, cf) != (size_t)out_buf->len - first_line) {
+            || fwrite(out_buf->data + first_line, 1, (size_t)out_buf->length - first_line, cf) != (size_t)out_buf->length - first_line) {
             if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
             free(out_buf);
             pipeline_dep_ctx_heap_destroy(pctx);

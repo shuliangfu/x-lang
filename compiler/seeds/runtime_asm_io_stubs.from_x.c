@@ -150,12 +150,12 @@ XLANG_WEAK int32_t xlang_io_register(uint8_t *ptr, size_t len, size_t handle) {
 }
 
 /** driver 侧 Buffer 描述符注册。 */
-typedef struct { uint8_t *ptr; size_t len; size_t handle; } xlang_buffer_abi_t;
+typedef struct { uint8_t *ptr; size_t length; size_t handle; } xlang_buffer_abi_t;
 int32_t xlang_io_register_buf(intptr_t buf) {
   const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf;
   if (!b)
     return -1;
-  return xlang_io_register(b->ptr, b->len, b->handle);
+  return xlang_io_register(b->ptr, b->length, b->handle);
 }
 
 /** std.io.core submit_read 桩。
@@ -381,7 +381,7 @@ ptrdiff_t io_write_batch(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t
 /** driver.Buffer 批读写：与 std/io/sync.x 的 IoBatchBuf 布局一致（ptr+len 对）。 */
 typedef struct XlangIoBatchBuf {
   uint8_t *ptr;
-  size_t len;
+  size_t length;
 } XlangIoBatchBuf;
 
 /** 批量读 buf 桩：逐段 io_read 累加；timeout_ms 在桩 v1 中仅传给首段。 */
@@ -391,11 +391,11 @@ ptrdiff_t io_read_batch_buf(int32_t fd, const XlangIoBatchBuf *bufs, int32_t n, 
   if (!bufs || n <= 0)
     return (ptrdiff_t)-1;
   for (i = 0; i < n; i++) {
-    ptrdiff_t r = io_read(fd, bufs[i].ptr, bufs[i].len, i == 0 ? timeout_ms : 0);
+    ptrdiff_t r = io_read(fd, bufs[i].ptr, bufs[i].length, i == 0 ? timeout_ms : 0);
     if (r < 0)
       return r;
     total += r;
-    if ((size_t)r < bufs[i].len)
+    if ((size_t)r < bufs[i].length)
       break;
   }
   return total;
@@ -461,11 +461,11 @@ ptrdiff_t io_write_batch_buf(int32_t fd, const XlangIoBatchBuf *bufs, int32_t n,
   if (!bufs || n <= 0)
     return (ptrdiff_t)-1;
   for (i = 0; i < n; i++) {
-    ptrdiff_t r = io_write(fd, bufs[i].ptr, bufs[i].len, i == 0 ? timeout_ms : 0);
+    ptrdiff_t r = io_write(fd, bufs[i].ptr, bufs[i].length, i == 0 ? timeout_ms : 0);
     if (r < 0)
       return r;
     total += r;
-    if ((size_t)r < bufs[i].len)
+    if ((size_t)r < bufs[i].length)
       break;
   }
   return total;

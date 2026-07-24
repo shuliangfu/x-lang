@@ -803,7 +803,7 @@ int32_t glue_sysv_x86_call_n_stack_c(struct ast_ASTArena *arena, int32_t call_ex
  *
  * PLATFORM: LINUX+MACOS x86_64 SysV — INTEGER-class aggregates 9–16B pass by value in two
  * consecutive GPRs. Nested CALL already returns them in rax+rdx; converting to a stack pointer
- * (lea) mismatches formal C (e.g. std_string_len_StrView takes rdi=ptr, rsi=len).
+ * (lea) mismatches formal C (e.g. std_string_length_StrView takes rdi=ptr, rsi=len).
  * Authority: leave rax/rdx intact; placement uses mov_rax/mov_rdx_to_arg_reg.
  * (G.7: single path with call-arg VAR dual load in pipeline_glue.)
  */
@@ -1891,7 +1891,7 @@ int32_t glue_asm_append_export_c_suffix(uint8_t *sym, int32_t sym_len, int32_t c
 /**
  * 函数定义/ CALL 导出符号：无 overload 时用裸名+dep 前缀；有 overload 时用 name_t1_t2（如 pick_i32）。
  * PLATFORM: SHARED — G.7 complete authority: named/ptr suffixes + _ret_ when param-sig collides
- * (align codegen_emit_func_link_name). string.len → len_String; vec.new → new_retVec_u8.
+ * (align codegen_emit_func_link_name). string.length → len_String; vec.new → new_retVec_u8.
  */
 /* G-02f-144：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-374 call：实现体始终 seed；public PREFER 时 thin forward */
@@ -3387,7 +3387,7 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
           }
           /*
            * PLATFORM: SHARED — import-binding METHOD_CALL mangle (G.7 same authority as CALL).
-           * Parser emits METHOD_CALL for string.len(v); bare pre+name → U std_string_len.
+           * Parser emits METHOD_CALL for string.length(v); bare pre+name → U std_string_len.
            */
           sym_len = glue_asm_mangle_import_binding_call_sym_c(arena, ctx, expr_ref, ly, mod_ref, j, pre_buf,
                                                               pre_len, name, name_len, 1, sym_flat);

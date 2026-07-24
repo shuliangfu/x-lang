@@ -2123,7 +2123,7 @@ int32_t driver_preamble_fputs(uint8_t *s, uint8_t *stream) {
 #endif
 struct driver_codegen_outbuf_abi {
     unsigned char data[X_CODEGEN_OUTBUF_CAP_ABI];
-    int32_t len;
+    int32_t length;
 };
 
 extern const char *driver_x_emit_c_path;
@@ -2210,7 +2210,7 @@ void driver_codegen_outbuf_free(void *p) {
 int32_t driver_codegen_outbuf_len(void *p) {
     if (p == NULL)
         return 0;
-    return ((struct driver_codegen_outbuf_abi *)p)->len;
+    return ((struct driver_codegen_outbuf_abi *)p)->length;
 }
 
 uint8_t *driver_codegen_outbuf_data(void *p) {
@@ -3878,7 +3878,7 @@ int32_t driver_asm_stub_out_append_cstr(void *out, uint8_t *s) {
         return -1;
     ob = (struct driver_codegen_outbuf_abi *)out;
     len = strlen((const char *)(void *)s);
-    cur = (size_t)ob->len;
+    cur = (size_t)ob->length;
     if (cur > (size_t)X_CODEGEN_OUTBUF_CAP_ABI)
         return -1;
     if (cur + len + 1 > (size_t)X_CODEGEN_OUTBUF_CAP_ABI)
@@ -3886,7 +3886,7 @@ int32_t driver_asm_stub_out_append_cstr(void *out, uint8_t *s) {
     memcpy(ob->data + cur, s, len);
     ob->data[cur + len] = (unsigned char)'\n';
     n = cur + len + 1;
-    ob->len = (int32_t)n;
+    ob->length = (int32_t)n;
     return 0;
 }
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */

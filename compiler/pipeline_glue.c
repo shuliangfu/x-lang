@@ -13979,7 +13979,7 @@ static int32_t glue_call_arg_var_use_lea_not_load_elf_c(struct ast_ASTArena *are
     /**
      * PLATFORM: LINUX+MACOS x86_64 SysV — INTEGER-class aggregates ≤16B pass by value in
      * one/two GPRs (load slot to rax[/rdx]), not as a pointer. Only >16B / MEMORY class
-     * uses lea of the stack slot. Formal C (std_string_len_StrView) expects rdi+rsi.
+     * uses lea of the stack slot. Formal C (std_string_length_StrView) expects rdi+rsi.
      */
     int32_t sz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, decl_ty, 0);
     if (sz > 0 && sz <= 16)

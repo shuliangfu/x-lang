@@ -14,10 +14,10 @@ const string = import("std.string");
 function main(): i32 {
   let buf: u8[8] = [104, 101, 108, 108, 111, 0, 0, 0];
   let v: StrView = string.view(&buf[0], 5);
-  if (string.len(v) != 5) { return 1; }
+  if (string.length(v) != 5) { return 1; }
   if (string.string_view_get(v, 0) != 104) { return 2; }
   let sub: StrView = string.string_view_subview(v, 1, 3);
-  if (string.len(sub) != 3) { return 3; }
+  if (string.length(sub) != 3) { return 3; }
   if (string.string_view_get(sub, 0) != 101) { return 4; }
   return 0;
 }

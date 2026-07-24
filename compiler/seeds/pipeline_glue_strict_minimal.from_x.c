@@ -117,7 +117,7 @@ struct ast_Block {
 };
 struct xlang_slice_uint8_t {
   uint8_t *data;
-  int32_t len;
+  int32_t length;
 };
 struct parser_ParseIntoResult {
   int32_t ok;

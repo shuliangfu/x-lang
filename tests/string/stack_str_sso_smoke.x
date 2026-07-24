@@ -28,7 +28,7 @@ function main(): i32 {
     return 4;
   }
   let v2: StrView = string.stack_str_view(&ss);
-  if (string.len(v2) != 6) {
+  if (string.length(v2) != 6) {
     return 5;
   }
   if (string.string_view_get(v2, 5) != 33) {
@@ -41,7 +41,7 @@ function main(): i32 {
   let world: u8[6] = [32, 119, 111, 114, 108, 100];
   let vw: StrView = string.view(&world[0], 6);
   let joined: StrView = string.string_view_concat_arena(&arena, v2, vw);
-  if (string.len(joined) != 12) {
+  if (string.length(joined) != 12) {
     heap.arena64_deinit(&arena);
     return 8;
   }

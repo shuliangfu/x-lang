@@ -36,7 +36,7 @@ allow(padding) struct FsStatOut {
   mtime_sec: i64;
 }
 
-allow(padding) struct FsIovecBuf { ptr: *u8; len: usize; handle: usize; }
+allow(padding) struct FsIovecBuf { ptr: *u8; length: usize; handle: usize; }
 
 /* See implementation. */
 allow(padding) struct Win32FindDataA {
@@ -723,15 +723,15 @@ export function fs_readv_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
     return -1;
   }
   while (i < n) {
-    len = b[i].len as u32;
-    if (b[i].len > 0x7fffffff) {
+    len = b[i].length as u32;
+    if (b[i].length > 0x7fffffff) {
       len = 0x7fffffff;
     }
     unsafe { if (ReadFile(h, b[i].ptr, len, &got, 0 as *u8) == 0) {
       return -1;
     } }
     total = total + (got as i64);
-    if ((got) < b[i].len) {
+    if ((got) < b[i].length) {
       return total;
     }
     i = i + 1;
@@ -761,15 +761,15 @@ export function fs_writev_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
     return -1;
   }
   while (i < n) {
-    len = b[i].len as u32;
-    if (b[i].len > 0x7fffffff) {
+    len = b[i].length as u32;
+    if (b[i].length > 0x7fffffff) {
       len = 0x7fffffff;
     }
     unsafe { if (WriteFile(h, b[i].ptr, len, &written, 0 as *u8) == 0) {
       return -1;
     } }
     total = total + (written as i64);
-    if ((written) < b[i].len) {
+    if ((written) < b[i].length) {
       return total;
     }
     i = i + 1;

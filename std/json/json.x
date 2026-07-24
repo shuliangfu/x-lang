@@ -32,7 +32,7 @@ export const JSON_DECODE_MISSING: i32 = -3;
 /* See implementation. */
 export struct JsonCursor {
   ptr: *u8;
-  len: i32;
+  length: i32;
   off: i32;
 }
 
@@ -61,7 +61,7 @@ export function json_f_json_v2_marker_c(): i32 {
 export function json_cursor_copy(dst: *JsonCursor, src: *JsonCursor): void {
   if (dst == 0 || src == 0) { return; }
   dst.ptr = src.ptr;
-  dst.len = src.len;
+  dst.length = src.length;
   dst.off = src.off;
 }
 
@@ -76,7 +76,7 @@ export function json_cursor_copy(dst: *JsonCursor, src: *JsonCursor): void {
 export function json_cursor_write_fields(dst: *JsonCursor, ptr: *u8, len: i32, off: i32): void {
   if (dst == 0) { return; }
   dst.ptr = ptr;
-  dst.len = len;
+  dst.length = len;
   dst.off = off;
 }
 
@@ -408,7 +408,7 @@ export function json_append_bool_c(buf: *u8, buf_cap: i32, val: i32): i32 {
 export function json_cursor_skip_ws(cur: *JsonCursor): void {
   let c: u8 = 0;
   if (cur == 0) { return; }
-  while (cur.off < cur.len) {
+  while (cur.off < cur.length) {
     c = cur.ptr[cur.off];
     if (c == 32 || c == 9 || c == 10 || c == 13) { cur.off = cur.off + 1; }
     else { break; }
@@ -428,11 +428,11 @@ export function json_cursor_skip_value_impl(cur: *JsonCursor): i32 {
   let rem: i32 = 0;
   let c: u8 = 0;
   let i: i32 = 0;
-  if (cur == 0 || cur.off >= cur.len) { return -1; }
+  if (cur == 0 || cur.off >= cur.length) { return -1; }
   json_cursor_skip_ws(cur);
-  if (cur.off >= cur.len) { return -1; }
+  if (cur.off >= cur.length) { return -1; }
   p = &cur.ptr[cur.off];
-  rem = cur.len - cur.off;
+  rem = cur.length - cur.off;
   c = p[0];
   if (c == 34) {
     i = 1;
@@ -446,15 +446,15 @@ export function json_cursor_skip_value_impl(cur: *JsonCursor): i32 {
   if (c == 123) {
     cur.off = cur.off + 1;
     json_cursor_skip_ws(cur);
-    if (cur.off < cur.len && cur.ptr[cur.off] == 125) { cur.off = cur.off + 1; return 0; }
+    if (cur.off < cur.length && cur.ptr[cur.off] == 125) { cur.off = cur.off + 1; return 0; }
     loop {
       if (json_cursor_skip_value_impl(cur) != 0) { return -1; }
       json_cursor_skip_ws(cur);
-      if (cur.off >= cur.len || cur.ptr[cur.off] != 58) { return -1; }
+      if (cur.off >= cur.length || cur.ptr[cur.off] != 58) { return -1; }
       cur.off = cur.off + 1;
       if (json_cursor_skip_value_impl(cur) != 0) { return -1; }
       json_cursor_skip_ws(cur);
-      if (cur.off >= cur.len) { return -1; }
+      if (cur.off >= cur.length) { return -1; }
       c = cur.ptr[cur.off];
       if (c == 125) { cur.off = cur.off + 1; return 0; }
       if (c != 44) { return -1; }
@@ -464,11 +464,11 @@ export function json_cursor_skip_value_impl(cur: *JsonCursor): i32 {
   if (c == 91) {
     cur.off = cur.off + 1;
     json_cursor_skip_ws(cur);
-    if (cur.off < cur.len && cur.ptr[cur.off] == 93) { cur.off = cur.off + 1; return 0; }
+    if (cur.off < cur.length && cur.ptr[cur.off] == 93) { cur.off = cur.off + 1; return 0; }
     loop {
       if (json_cursor_skip_value_impl(cur) != 0) { return -1; }
       json_cursor_skip_ws(cur);
-      if (cur.off >= cur.len) { return -1; }
+      if (cur.off >= cur.length) { return -1; }
       c = cur.ptr[cur.off];
       if (c == 93) { cur.off = cur.off + 1; return 0; }
       if (c != 44) { return -1; }
@@ -491,7 +491,7 @@ export function json_cursor_skip_value_impl(cur: *JsonCursor): i32 {
 export function json_cursor_init_c(cur: *JsonCursor, ptr: *u8, len: i32): void {
   if (cur == 0) { return; }
   cur.ptr = ptr;
-  cur.len = len;
+  cur.length = len;
   cur.off = 0;
 }
 
@@ -503,7 +503,7 @@ export function json_cursor_init_c(cur: *JsonCursor, ptr: *u8, len: i32): void {
 function json_cursor_enter_object_c(cur: *JsonCursor): i32 {
   if (cur == 0) { return -1; }
   json_cursor_skip_ws(cur);
-  if (cur.off >= cur.len || cur.ptr[cur.off] != 123) { return -1; }
+  if (cur.off >= cur.length || cur.ptr[cur.off] != 123) { return -1; }
   cur.off = cur.off + 1;
   json_cursor_skip_ws(cur);
   return 0;
@@ -527,7 +527,7 @@ function json_cursor_load_into_c(dst: *JsonCursor, src: *JsonCursor): void {
   let of: i32 = 0;
   if (dst == 0 || src == 0) { return; }
   p = src.ptr;
-  ln = src.len;
+  ln = src.length;
   of = src.off;
   json_cursor_write_fields(dst, p, ln, of);
 }
@@ -573,7 +573,7 @@ function json_cursor_value_ptr_at_c(c: *JsonCursor): *u8 {
  */
 function json_cursor_value_len_at_c(c: *JsonCursor): i32 {
   if (c == 0) { return 0; }
-  return c.len - c.off;
+  return c.length - c.off;
 }
 
 /* See implementation. */
@@ -583,18 +583,18 @@ function json_cursor_object_next_c(cur: *JsonCursor, key_buf: *u8, key_cap: i32,
   let kl: i32 = 0;
   if (cur == 0 || key_buf == 0 || key_cap <= 0) { return -1; }
   json_cursor_skip_ws(cur);
-  if (cur.off >= cur.len) { return -1; }
+  if (cur.off >= cur.length) { return -1; }
   if (cur.ptr[cur.off] == 125) { cur.off = cur.off + 1; return 0; }
   if (cur.off > 0 && cur.ptr[cur.off] == 44) { cur.off = cur.off + 1; }
   json_cursor_skip_ws(cur);
-  if (cur.off >= cur.len || cur.ptr[cur.off] != 34) { return -1; }
-  kl = json_parse_string_c(&cur.ptr[cur.off], cur.len - cur.off, key_buf, key_cap, &consumed);
+  if (cur.off >= cur.length || cur.ptr[cur.off] != 34) { return -1; }
+  kl = json_parse_string_c(&cur.ptr[cur.off], cur.length - cur.off, key_buf, key_cap, &consumed);
   if (kl < 0) { return -1; }
   key_buf[kl] = 0;
   if (key_len != 0) { key_len[0] = kl; }
   cur.off = cur.off + consumed;
   json_cursor_skip_ws(cur);
-  if (cur.off >= cur.len || cur.ptr[cur.off] != 58) { return -1; }
+  if (cur.off >= cur.length || cur.ptr[cur.off] != 58) { return -1; }
   cur.off = cur.off + 1;
   json_cursor_skip_ws(cur);
   return 1;
@@ -661,7 +661,7 @@ function json_parse_string_view_c(ptr: *u8, len: i32, out_len: *i32, consumed: *
 function json_cursor_enter_array_c(cur: *JsonCursor): i32 {
   if (cur == 0) { return -1; }
   json_cursor_skip_ws(cur);
-  if (cur.off >= cur.len || cur.ptr[cur.off] != 91) { return -1; }
+  if (cur.off >= cur.length || cur.ptr[cur.off] != 91) { return -1; }
   cur.off = cur.off + 1;
   json_cursor_skip_ws(cur);
   return 0;
@@ -675,7 +675,7 @@ function json_cursor_enter_array_c(cur: *JsonCursor): i32 {
 function json_cursor_array_has_elem_c(cur: *JsonCursor): i32 {
   if (cur == 0) { return -1; }
   json_cursor_skip_ws(cur);
-  if (cur.off >= cur.len) { return -1; }
+  if (cur.off >= cur.length) { return -1; }
   if (cur.ptr[cur.off] == 93) {
     cur.off = cur.off + 1;
     return 0;
@@ -683,7 +683,7 @@ function json_cursor_array_has_elem_c(cur: *JsonCursor): i32 {
   if (cur.ptr[cur.off] == 44) {
     cur.off = cur.off + 1;
     json_cursor_skip_ws(cur);
-    if (cur.off >= cur.len) { return -1; }
+    if (cur.off >= cur.length) { return -1; }
     if (cur.ptr[cur.off] == 93) {
       cur.off = cur.off + 1;
       return 0;
@@ -699,9 +699,9 @@ function json_cursor_array_has_elem_c(cur: *JsonCursor): i32 {
  */
 function json_cursor_value_type_c(cur: *JsonCursor): i32 {
   let c: u8 = 0;
-  if (cur == 0 || cur.off >= cur.len) { return 0; }
+  if (cur == 0 || cur.off >= cur.length) { return 0; }
   json_cursor_skip_ws(cur);
-  if (cur.off >= cur.len) { return 0; }
+  if (cur.off >= cur.length) { return 0; }
   c = cur.ptr[cur.off];
   if (c == 34) { return 1; }
   if (c == 123) { return 3; }
@@ -878,10 +878,10 @@ function json_object_decode_i32_c(cur: *JsonCursor, key: *u8, key_len: i32, out:
   let rc: i32 = 0;
   if (cur == 0 || key == 0 || out == 0) { return -1; }
   saved_ptr = cur.ptr;
-  saved_len = cur.len;
+  saved_len = cur.length;
   saved_off = cur.off;
   scan.ptr = saved_ptr;
-  scan.len = saved_len;
+  scan.length = saved_len;
   scan.off = saved_off;
   if (json_cursor_enter_object_c(&scan) != 0) { return -1; }
   loop {
@@ -889,7 +889,7 @@ function json_object_decode_i32_c(cur: *JsonCursor, key: *u8, key_len: i32, out:
     if (nr != 1) { break; }
     if (json_key_eq(json_object_keybuf_ptr_c(), g_json_object_key_len, key, key_len) != 0) {
       val_ptr = &scan.ptr[scan.off];
-      val_len = scan.len - scan.off;
+      val_len = scan.length - scan.off;
       rc = json_decode_i32_at_c(val_ptr, val_len, json_decode_consumed_ptr_c(), out);
       json_cursor_write_fields(cur, saved_ptr, saved_len, saved_off);
       return rc;
@@ -923,10 +923,10 @@ function json_object_decode_bool_c(cur: *JsonCursor, key: *u8, key_len: i32, out
   let rc: i32 = 0;
   if (cur == 0 || key == 0 || out == 0) { return -1; }
   saved_ptr = cur.ptr;
-  saved_len = cur.len;
+  saved_len = cur.length;
   saved_off = cur.off;
   scan.ptr = saved_ptr;
-  scan.len = saved_len;
+  scan.length = saved_len;
   scan.off = saved_off;
   if (json_cursor_enter_object_c(&scan) != 0) { return -1; }
   loop {
@@ -934,7 +934,7 @@ function json_object_decode_bool_c(cur: *JsonCursor, key: *u8, key_len: i32, out
     if (nr != 1) { break; }
     if (json_key_eq(json_object_keybuf_ptr_c(), g_json_object_key_len, key, key_len) != 0) {
       val_ptr = &scan.ptr[scan.off];
-      val_len = scan.len - scan.off;
+      val_len = scan.length - scan.off;
       rc = json_decode_bool_at_c(val_ptr, val_len, json_decode_consumed_ptr_c(), out);
       json_cursor_write_fields(cur, saved_ptr, saved_len, saved_off);
       return rc;
@@ -961,10 +961,10 @@ function json_object_decode_string_c(cur: *JsonCursor, key: *u8, key_len: i32, o
   let saved_off: i32 = 0;
   if (cur == 0 || key == 0 || out == 0 || out_len == 0) { return -1; }
   saved_ptr = cur.ptr;
-  saved_len = cur.len;
+  saved_len = cur.length;
   saved_off = cur.off;
   scan.ptr = saved_ptr;
-  scan.len = saved_len;
+  scan.length = saved_len;
   scan.off = saved_off;
   if (json_cursor_enter_object_c(&scan) != 0) { return -1; }
   loop {
@@ -972,7 +972,7 @@ function json_object_decode_string_c(cur: *JsonCursor, key: *u8, key_len: i32, o
     if (nr != 1) { break; }
     if (json_key_eq(json_object_keybuf_ptr_c(), g_json_object_key_len, key, key_len) != 0) {
       val_ptr = &scan.ptr[scan.off];
-      val_len = scan.len - scan.off;
+      val_len = scan.length - scan.off;
       if (json_decode_string_at_c(val_ptr, val_len, out, out_cap, out_len,
         json_decode_consumed_ptr_c()) != 0) {
         json_cursor_write_fields(cur, saved_ptr, saved_len, saved_off);
@@ -1004,13 +1004,13 @@ function json_cursor_find_key_slice_inplace(c: *JsonCursor, path: *u8, path_off:
   let nr: i32 = 0;
   if (c == 0 || path == 0 || path_off < 0) { return -1; }
   scan.ptr = c.ptr;
-  scan.len = c.len;
+  scan.length = c.length;
   scan.off = c.off;
   loop {
     nr = json_cursor_object_next_c(&scan, json_object_keybuf_ptr_c(), 64, json_object_key_len_ptr_c());
     if (nr != 1) { break; }
     if (json_key_eq_path(json_object_keybuf_ptr_c(), g_json_object_key_len, path, path_off, key_len) != 0) {
-      json_cursor_write_fields(c, scan.ptr, scan.len, scan.off);
+      json_cursor_write_fields(c, scan.ptr, scan.length, scan.off);
       return 0;
     }
     if (json_cursor_skip_value_c(&scan) != 0) { return -1; }
@@ -1031,13 +1031,13 @@ function json_cursor_find_key_inplace(c: *JsonCursor, key: *u8, key_len: i32): i
   let nr: i32 = 0;
   if (c == 0 || key == 0) { return -1; }
   scan.ptr = c.ptr;
-  scan.len = c.len;
+  scan.length = c.length;
   scan.off = c.off;
   loop {
     nr = json_cursor_object_next_c(&scan, json_object_keybuf_ptr_c(), 64, json_object_key_len_ptr_c());
     if (nr != 1) { break; }
     if (json_key_eq(json_object_keybuf_ptr_c(), g_json_object_key_len, key, key_len) != 0) {
-      json_cursor_write_fields(c, scan.ptr, scan.len, scan.off);
+      json_cursor_write_fields(c, scan.ptr, scan.length, scan.off);
       return 0;
     }
     if (json_cursor_skip_value_c(&scan) != 0) { return -1; }
@@ -1084,7 +1084,7 @@ function json_cursor_find_key(cur: *JsonCursor, key: *u8, key_len: i32, out_at: 
   let src_off: i32 = 0;
   if (cur == 0 || key == 0 || out_at == 0) { return -1; }
   src_ptr = cur.ptr;
-  src_len = cur.len;
+  src_len = cur.length;
   src_off = cur.off;
   json_cursor_write_fields(out_at, src_ptr, src_len, src_off);
   return json_cursor_find_key_inplace(out_at, key, key_len);
@@ -1124,7 +1124,7 @@ function json_cursor_find_array_index(cur: *JsonCursor, index: i32, out_at: *Jso
   let src_off: i32 = 0;
   if (cur == 0 || out_at == 0 || index < 0) { return -1; }
   src_ptr = cur.ptr;
-  src_len = cur.len;
+  src_len = cur.length;
   src_off = cur.off;
   json_cursor_write_fields(out_at, src_ptr, src_len, src_off);
   return json_cursor_find_array_index_inplace(out_at, index);
@@ -1155,7 +1155,7 @@ function json_cursor_follow_path_seg(cur: *JsonCursor, seg: *u8, seg_len: i32,
   let src_off: i32 = 0;
   if (cur == 0 || seg == 0 || out_at == 0 || seg_len <= 0) { return -1; }
   src_ptr = cur.ptr;
-  src_len = cur.len;
+  src_len = cur.length;
   src_off = cur.off;
   json_cursor_write_fields(out_at, src_ptr, src_len, src_off);
   return json_cursor_follow_path_seg_inplace(out_at, seg, 0, seg_len);
@@ -1219,7 +1219,7 @@ function json_object_decode_dotted_at(cur: *JsonCursor, path: *u8, path_len: i32
   let src_off: i32 = 0;
   if (cur == 0 || path == 0 || out_at == 0 || path_len <= 0) { return -1; }
   src_ptr = cur.ptr;
-  src_len = cur.len;
+  src_len = cur.length;
   src_off = cur.off;
   json_cursor_write_fields(out_at, src_ptr, src_len, src_off);
   return json_object_decode_dotted_inplace(out_at, path, path_len);
@@ -1242,7 +1242,7 @@ function json_object_decode_dotted_i32_c(cur: *JsonCursor, path: *u8, path_len: 
   let rc: i32 = 0;
   if (cur == 0 || path == 0 || out == 0 || path_len <= 0) { return -1; }
   saved_ptr = cur.ptr;
-  saved_len = cur.len;
+  saved_len = cur.length;
   saved_off = cur.off;
   rc = json_object_decode_dotted_inplace(cur, path, path_len);
   if (rc != 0) {
@@ -1267,7 +1267,7 @@ function json_object_decode_dotted_string_c(cur: *JsonCursor, path: *u8, path_le
   let rc: i32 = 0;
   if (cur == 0 || path == 0 || out == 0 || out_len == 0 || path_len <= 0) { return -1; }
   saved_ptr = cur.ptr;
-  saved_len = cur.len;
+  saved_len = cur.length;
   saved_off = cur.off;
   rc = json_object_decode_dotted_inplace(cur, path, path_len);
   if (rc != 0) {
@@ -1298,7 +1298,7 @@ function json_object_decode_dotted_bool_c(cur: *JsonCursor, path: *u8, path_len:
   let rc: i32 = 0;
   if (cur == 0 || path == 0 || out == 0 || path_len <= 0) { return -1; }
   saved_ptr = cur.ptr;
-  saved_len = cur.len;
+  saved_len = cur.length;
   saved_off = cur.off;
   rc = json_object_decode_dotted_inplace(cur, path, path_len);
   if (rc != 0) {
@@ -1329,7 +1329,7 @@ function json_object_decode_dotted_f64_c(cur: *JsonCursor, path: *u8, path_len: 
   let rc: i32 = 0;
   if (cur == 0 || path == 0 || out == 0 || path_len <= 0) { return -1; }
   saved_ptr = cur.ptr;
-  saved_len = cur.len;
+  saved_len = cur.length;
   saved_off = cur.off;
   rc = json_object_decode_dotted_inplace(cur, path, path_len);
   if (rc != 0) {
@@ -1355,7 +1355,7 @@ function json_object_decode_dotted_f64_c(cur: *JsonCursor, path: *u8, path_len: 
 function json_smoke_decode_i32_c(doc: *u8, doc_len: i32, key: *u8, key_len: i32, out: *i32): i32 {
   let cur: JsonCursor;
   cur.ptr = doc;
-  cur.len = doc_len;
+  cur.length = doc_len;
   cur.off = 0;
   return json_object_decode_i32_c(&cur, key, key_len, out);
 }
@@ -1372,7 +1372,7 @@ function json_smoke_decode_i32_c(doc: *u8, doc_len: i32, key: *u8, key_len: i32,
 function json_smoke_decode_bool_c(doc: *u8, doc_len: i32, key: *u8, key_len: i32, out: *i32): i32 {
   let cur: JsonCursor;
   cur.ptr = doc;
-  cur.len = doc_len;
+  cur.length = doc_len;
   cur.off = 0;
   return json_object_decode_bool_c(&cur, key, key_len, out);
 }
@@ -1382,7 +1382,7 @@ function json_smoke_decode_string_c(doc: *u8, doc_len: i32, key: *u8, key_len: i
   out_cap: i32, out_len: *i32): i32 {
   let cur: JsonCursor;
   cur.ptr = doc;
-  cur.len = doc_len;
+  cur.length = doc_len;
   cur.off = 0;
   return json_object_decode_string_c(&cur, key, key_len, out, out_cap, out_len);
 }
@@ -1392,7 +1392,7 @@ function json_smoke_decode_dotted_i32_c(doc: *u8, doc_len: i32, path: *u8, path_
   out: *i32): i32 {
   let cur: JsonCursor;
   cur.ptr = doc;
-  cur.len = doc_len;
+  cur.length = doc_len;
   cur.off = 0;
   return json_object_decode_dotted_i32_c(&cur, path, path_len, out);
 }
@@ -1402,7 +1402,7 @@ function json_smoke_decode_dotted_string_c(doc: *u8, doc_len: i32, path: *u8, pa
   out: *u8, out_cap: i32, out_len: *i32): i32 {
   let cur: JsonCursor;
   cur.ptr = doc;
-  cur.len = doc_len;
+  cur.length = doc_len;
   cur.off = 0;
   return json_object_decode_dotted_string_c(&cur, path, path_len, out, out_cap, out_len);
 }
@@ -1412,7 +1412,7 @@ function json_smoke_decode_dotted_bool_c(doc: *u8, doc_len: i32, path: *u8, path
   out: *i32): i32 {
   let cur: JsonCursor;
   cur.ptr = doc;
-  cur.len = doc_len;
+  cur.length = doc_len;
   cur.off = 0;
   return json_object_decode_dotted_bool_c(&cur, path, path_len, out);
 }
@@ -1422,7 +1422,7 @@ function json_smoke_decode_dotted_f64_c(doc: *u8, doc_len: i32, path: *u8, path_
   out: *f64): i32 {
   let cur: JsonCursor;
   cur.ptr = doc;
-  cur.len = doc_len;
+  cur.length = doc_len;
   cur.off = 0;
   return json_object_decode_dotted_f64_c(&cur, path, path_len, out);
 }

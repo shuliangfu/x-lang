@@ -39,7 +39,7 @@
 #define X_CODEGEN_OUTBUF_CAP (9 * 1024 * 1024)
 struct codegen_CodegenOutBuf {
   unsigned char data[X_CODEGEN_OUTBUF_CAP];
-  int32_t len;
+  int32_t length;
 };
 
 struct parser_ParseIntoResult {
@@ -424,8 +424,8 @@ int driver_run_x_emit_c(void) {
         memset(arena, 0, arena_sz);
         memset(module, 0, module_sz);
         int ec = xlang_pipeline_run_x_pipeline_large_stack(module, arena, (uint8_t *)src, src_len, (void *)out_buf, (void *)pctx_e);
-        if (ec == 0 && out_buf->len > 0) {
-            fwrite(out_buf->data, 1, (size_t)out_buf->len, stdout);
+        if (ec == 0 && out_buf->length > 0) {
+            fwrite(out_buf->data, 1, (size_t)out_buf->length, stdout);
             fflush(stdout);
             for (int j = n_deps - 1; j >= 0; j--) { ast_pool_arena_release(dep_arenas[j]); ast_pool_module_release(dep_modules[j]); free(dep_arenas[j]); free(dep_modules[j]); }
             while (n_deps > 0) {
@@ -444,7 +444,7 @@ int driver_run_x_emit_c(void) {
                 diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP003, NULL,
                              ".x pipeline failed for '%s'",
                              input_path ? input_path : "?");
-            } else if (out_buf->len <= 0) {
+            } else if (out_buf->length <= 0) {
                 if (driver_get_module_num_funcs(module) <= 0) {
                     if (!runtime_report_precise_parse_failure_if_known(input_path, src, src_len)) {
                         diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
@@ -454,14 +454,14 @@ int driver_run_x_emit_c(void) {
                     goto x_emit_c_done;
                 }
                 diag_reportf_with_code(input_path, 0, 0, "codegen error", XLANG_DIAG_CODE_CODEGEN_CG004, NULL,
-                             "-x -E pipeline succeeded but codegen buffer is empty (ec=0 out_buf.len=%d); "
+                             "-x -E pipeline succeeded but codegen buffer is empty (ec=0 out_buf.length=%d); "
                              "check typeck/codegen/pipeline CodegenOutBuf",
-                             (int)out_buf->len);
+                             (int)out_buf->length);
             }
         }
-        int emit_ret = (ec != 0 || out_buf->len <= 0) ? 1 : 0;
+        int emit_ret = (ec != 0 || out_buf->length <= 0) ? 1 : 0;
 x_emit_c_done:
-        if (ec == 0 && out_buf->len <= 0)
+        if (ec == 0 && out_buf->length <= 0)
             emit_ret = 1;
         free(out_buf);
         pipeline_dep_ctx_heap_destroy(pctx_e);

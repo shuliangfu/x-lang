@@ -49,7 +49,7 @@ struct lexer_Lexer {
 
 struct xlang_slice_uint8_t {
   uint8_t *data;
-  size_t length;
+  size_t len;
 };
 
 extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex,

@@ -2580,7 +2580,7 @@ export function codegen_c_prefix_redundant_with_name(prefix: *u8, prefix_len: i3
 /* See implementation. */
 export struct CodegenOutBuf {
   data: u8[9437184];
-  len: i32;
+  length: i32;
 }
 
 /** Exported function `append_byte`.
@@ -2590,12 +2590,12 @@ export struct CodegenOutBuf {
  * @return i32
  */
 export function append_byte(out: *CodegenOutBuf, b: i32): i32 {
-  if (out.len >= 9437184) {
+  if (out.length >= 9437184) {
     return -1;
   }
   /* See implementation. */
-  out.data[out.len] = (b & 255) as u8;
-  out.len = out.len + 1;
+  out.data[out.length] = (b & 255) as u8;
+  out.length = out.length + 1;
   return 0;
 }
 

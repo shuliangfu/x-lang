@@ -18,7 +18,7 @@ function main(): i32 {
     queue.sync_deinit(&sq);
     return 3;
   }
-  if (queue.len(sq) != 2) {
+  if (queue.length(sq) != 2) {
     queue.sync_deinit(&sq);
     return 4;
   }

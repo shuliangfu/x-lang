@@ -35,7 +35,7 @@ function main(): i32 {
     heap.arena64_deinit(&arena);
     return 5;
   }
-  if (bytes.len(b) != 3) {
+  if (bytes.length(b) != 3) {
     heap.arena64_deinit(&arena);
     return 6;
   }

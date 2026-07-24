@@ -26,7 +26,7 @@ typedef struct {
   void *mu;
   int32_t *data;
   int32_t cap;
-  int32_t len;
+  int32_t length;
   int32_t head;
 } QueueSmokeState;
 
@@ -77,7 +77,7 @@ int32_t queue_smoke_push_back_impl(QueueSmokeState *q, int32_t x) {
   if (!q) {
     return -1;
   }
-  if (q->len >= q->cap) {
+  if (q->length >= q->cap) {
     if (q->cap <= 0) {
       new_cap = 8;
     } else {
@@ -87,7 +87,7 @@ int32_t queue_smoke_push_back_impl(QueueSmokeState *q, int32_t x) {
     if (!p) {
       return -1;
     }
-    for (i = 0; i < q->len; i++) {
+    for (i = 0; i < q->length; i++) {
       p[i] = q->data[queue_smoke_at(q, i)];
     }
     if (q->data) {
@@ -97,8 +97,8 @@ int32_t queue_smoke_push_back_impl(QueueSmokeState *q, int32_t x) {
     q->cap = new_cap;
     q->head = 0;
   }
-  q->data[queue_smoke_at(q, q->len)] = x;
-  q->len++;
+  q->data[queue_smoke_at(q, q->length)] = x;
+  q->length++;
   return 0;
 }
 
@@ -245,7 +245,7 @@ int32_t sync_queue_contention_smoke_c(void) {
     }
     return -1;
   }
-  rc = (st.len == 1000) ? 0 : -1;
+  rc = (st.length == 1000) ? 0 : -1;
   if (st.data) {
     free(st.data);
   }

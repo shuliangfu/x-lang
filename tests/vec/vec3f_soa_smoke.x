@@ -10,11 +10,11 @@ function main(): i32 {
   let v_soa: Vec3f_soa = vec.vec3f_soa_new();
   if (vec.vec3f_soa_push(&v_soa, 1.0, 0.0, 0.0) != 0) { return 1; }
   if (vec.vec3f_soa_push(&v_soa, 2.0, 0.0, 0.0) != 0) { return 2; }
-  if (v_soa.len != 2) { return 4; }
+  if (v_soa.length != 2) { return 4; }
   vec.vec3f_soa_deinit(&v_soa);
   let aos: Vec3f_aos = vec.vec3f_aos_new();
   if (vec.vec3f_aos_push(&aos, 3.0, 0.0, 0.0) != 0) { return 3; }
-  if (aos.len != 1) { return 5; }
+  if (aos.length != 1) { return 5; }
   vec.vec3f_aos_deinit(&aos);
   return 2 + 1;
 }

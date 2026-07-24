@@ -20,7 +20,7 @@
 #define X_CODEGEN_OUTBUF_CAP (9 * 1024 * 1024)
 struct codegen_CodegenOutBuf {
   unsigned char data[X_CODEGEN_OUTBUF_CAP];
-  int32_t len;
+  int32_t length;
 };
 
 extern int xlang_output_want_exe(const char *path);
@@ -53,7 +53,7 @@ XLANG_WEAK int32_t asm_codegen_ast(void *module, void *arena, struct codegen_Cod
     out->data[n + len] = '\n';
     n += len + 1;
   }
-  out->len = (int32_t)n;
+  out->length = (int32_t)n;
   return 0;
 }
 

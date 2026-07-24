@@ -19,7 +19,7 @@ function main(): i32 {
   let va: StrView = string.view(&a_buf[0], 3);
   let vb: StrView = string.view(&b_buf[0], 3);
   let ab: StrView = string.string_view_concat_arena(&arena, va, vb);
-  if (string.len(ab) != 6) {
+  if (string.length(ab) != 6) {
     heap.arena64_deinit(&arena);
     return 2;
   }
@@ -32,7 +32,7 @@ function main(): i32 {
   let c_buf: u8[2] = [103, 104];
   let vc: StrView = string.view(&c_buf[0], 2);
   let abc: StrView = string.string_view_concat_arena(&arena, ab, vc);
-  if (string.len(abc) != 8) {
+  if (string.length(abc) != 8) {
     heap.arena64_deinit(&arena);
     return 4;
   }

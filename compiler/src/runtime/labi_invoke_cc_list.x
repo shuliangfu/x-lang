@@ -1403,7 +1403,7 @@ export function labi_icc_std_need_needle_at(mid: i32, i: i32): *u8 {
       return p;
     }
     if (i == 2) {
-      let p: *u8 = "std_vec_len_Vec";
+      let p: *u8 = "std_vec_length_Vec";
       return p;
     }
     if (i == 3) {

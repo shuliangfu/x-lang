@@ -1,7 +1,7 @@
 /** Inline escape probe (does not import("std.csv")). */
 
 /**
- * Quote-escape ptr[0..len) into buf with capacity buf_cap.
+ * Quote-escape ptr[0..length) into buf with capacity buf_cap.
  * @return written length or -1 on capacity failure
  */
 function escape(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {

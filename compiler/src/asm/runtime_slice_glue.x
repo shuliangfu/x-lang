@@ -40,8 +40,8 @@ export function runtime_slice_glue_x_doc_anchor(): i32 {
  * @return XlangSliceI32
  */
 #[no_mangle]
-export function core_slice_i32_from_ptr_c(data: *i32, length: usize): XlangSliceI32 {
-  let s: XlangSliceI32 = XlangSliceI32 { data: data, length: length };
+export function core_slice_i32_from_ptr_c(data: *i32, len: usize): XlangSliceI32 {
+  let s: XlangSliceI32 = XlangSliceI32 { data: data, length: len };
   return s;
 }
 
@@ -52,8 +52,8 @@ export function core_slice_i32_from_ptr_c(data: *i32, length: usize): XlangSlice
  * @return XlangSliceU8
  */
 #[no_mangle]
-export function core_slice_u8_from_ptr_c(data: *u8, length: usize): XlangSliceU8 {
-  let s: XlangSliceU8 = XlangSliceU8 { data: data, length: length };
+export function core_slice_u8_from_ptr_c(data: *u8, len: usize): XlangSliceU8 {
+  let s: XlangSliceU8 = XlangSliceU8 { data: data, length: len };
   return s;
 }
 
@@ -64,8 +64,8 @@ export function core_slice_u8_from_ptr_c(data: *u8, length: usize): XlangSliceU8
  * @return XlangSliceU64
  */
 #[no_mangle]
-export function core_slice_u64_from_ptr_c(data: *u64, length: usize): XlangSliceU64 {
-  let s: XlangSliceU64 = XlangSliceU64 { data: data, length: length };
+export function core_slice_u64_from_ptr_c(data: *u64, len: usize): XlangSliceU64 {
+  let s: XlangSliceU64 = XlangSliceU64 { data: data, length: len };
   return s;
 }
 

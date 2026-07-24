@@ -7,5 +7,5 @@ const vec = import("std.vec");
  */
 function main(): i32 {
   let v: owned(Vec_u8) = vec.new();
-  return vec.len(v);
+  return vec.length(v);
 }

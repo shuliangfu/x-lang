@@ -158,7 +158,7 @@ const char *const driver_preamble_io_net_lines[] = {
         "typedef struct { float e[8]; } f32x8_t;\n"
         "typedef struct { float e[16]; } f32x16_t;\n"
         "#endif\n"
-        "typedef struct { uint8_t *ptr; size_t len; size_t handle; } xlang_batch_buf_t;\n",
+        "typedef struct { uint8_t *ptr; size_t length; size_t handle; } xlang_batch_buf_t;\n",
         "extern int io_register_buffer(uint8_t *ptr, size_t len);\n",
         "extern int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr);\n",
         "__attribute__((weak)) int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }\n",
@@ -181,10 +181,10 @@ const char *const driver_preamble_io_net_lines[] = {
         "extern int32_t xlang_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);\n",
         "extern uint8_t *xlang_io_read_ptr(size_t handle, unsigned timeout_ms);\n",
         "extern int32_t xlang_io_read_ptr_len(void);\n",
-        "typedef struct { void *ptr; size_t len; size_t handle; } xlang_buffer_abi_t;\n",
-        "static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n",
-        "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_read)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n",
-        "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_write)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n",
+        "typedef struct { void *ptr; size_t length; size_t handle; } xlang_buffer_abi_t;\n",
+        "static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->length, b->handle); }\n",
+        "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_read)((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }\n",
+        "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_write)((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }\n",
         /* 勿定义 std_io_driver_submit_read/write 同名 inline（与 co-emit Buffer 形参冲突）。 */
         "static inline int32_t std_io_driver_submit_read_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return xlang_io_submit_read_buf((intptr_t)buf, (int32_t)timeout_ms); }\n",
         "static inline int32_t std_io_driver_submit_write_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return xlang_io_submit_write_buf((intptr_t)buf, (int32_t)timeout_ms); }\n",
@@ -195,7 +195,7 @@ const char *const driver_preamble_io_net_lines[] = {
         "#undef xlang_io_register\n",
         "#undef xlang_io_submit_read\n",
         "#undef xlang_io_submit_write\n",
-        "struct std_io_driver_Buffer { void *ptr; size_t len; size_t handle; };\n",
+        "struct std_io_driver_Buffer { void *ptr; size_t length; size_t handle; };\n",
         "typedef struct std_io_driver_Buffer std_io_Buffer;\n",
         "#define std_io_Buffer std_io_driver_Buffer\n",
         "extern ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);\n",
@@ -411,9 +411,9 @@ const char *const driver_preamble_io_net_lines[] = {
          * 勿用 typedef 吸收 posix 前缀——codegen 发 (struct std_fs_posix_Iovec){...}
          * 与 struct std_fs_posix_FsIovecBuf * 时，typedef 只建别名不建 tag → incomplete type。
          * #define 标签别名：struct std_fs_posix_X → struct 权威 tag。 */
-        "#define STD_FS_FS_IOVEC_BUF_DEFINED\nstruct std_fs_FsIovecBuf { void *ptr; size_t len; size_t handle; };\n"
+        "#define STD_FS_FS_IOVEC_BUF_DEFINED\nstruct std_fs_FsIovecBuf { void *ptr; size_t length; size_t handle; };\n"
         "#define std_fs_posix_FsIovecBuf std_fs_FsIovecBuf\n"
-        "struct std_io_sync_Iovec { uint8_t *base; size_t len; };\n"
+        "struct std_io_sync_Iovec { uint8_t *base; size_t length; };\n"
         "#define std_fs_posix_Iovec std_io_sync_Iovec\n",
         /* 仅 forward：完整体由 std/map 发射；preamble 全量定义与 map.o -o 双权威 → redefinition */
         "struct std_map_Map_i32_i32;\n",
@@ -421,9 +421,9 @@ const char *const driver_preamble_io_net_lines[] = {
         /* Error + ErrorChain：与 codegen_should_skip_emit_struct_layout 同权威（缺则 incomplete type） */
         "struct std_error_Error { int32_t code; };\n",
         "struct std_error_ErrorChain { int32_t depth; int32_t c0; int32_t c1; int32_t c2; int32_t c3; };\n",
-        "struct std_string_String { uint8_t data[256]; int32_t len; };\n",
+        "struct std_string_String { uint8_t data[256]; int32_t length; };\n",
         "typedef struct std_string_String String;\n",
-        "struct std_string_StrView { uint8_t *ptr; int32_t len; };\n",
+        "struct std_string_StrView { uint8_t *ptr; int32_t length; };\n",
         /* heap.Allocator 须在 Vec 之前完整（codegen 现按模块序 emit，vec 先于 heap 布局） */
         "struct std_heap_Arena64 { uint8_t *chunk; size_t cap; size_t off; };\n",
         "struct std_heap_Allocator { int32_t kind; struct std_heap_Arena64 *arena; };\n",

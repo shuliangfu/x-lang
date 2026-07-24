@@ -9173,7 +9173,7 @@ export function pipeline_module_import_storage_release(module: *u8): void {
  * @param module *u8 — opaque ast_Module; null → -1
  * @return i32 — new import index (>=0) or -1
  * wave110 pure Cap residual: G.7 product authority (historical ast_pool GrowVec).
- * Updates module.num_imports header ≡ Cap m->num_imports = sc->imports.len.
+ * Updates module.num_imports header ≡ Cap m->num_imports = sc->imports.length.
  * PLATFORM: SHARED — Cap XLANG_WEAK cold twin for non-PREFER links.
  */
 #[no_mangle]

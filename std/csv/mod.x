@@ -190,7 +190,7 @@ export function test_unescape_fail(): i32 {
 /* See implementation. */
 allow(padding) struct StreamCsvReader {
   ptr: *u8;
-  len: i32;
+  length: i32;
   offset: i32;
 }
 
@@ -206,7 +206,7 @@ allow(padding) struct StreamCsvWriter {
  * See implementation.
  */
 export function reader(ptr: *u8, len: i32): StreamCsvReader {
-  return StreamCsvReader { ptr: ptr, len: len, offset: 0 };
+  return StreamCsvReader { ptr: ptr, length: len, offset: 0 };
 }
 
 /**
@@ -220,20 +220,20 @@ export function next_row(r: *StreamCsvReader, field_starts: *i32, field_lens: *i
   let ln: i32 = 0;
   let pos: i32 = 0;
   if (r == 0 || out_count == 0) { return -1; }
-  if (r.offset >= r.len) { return 1; }
+  if (r.offset >= r.length) { return 1; }
   pos = r.offset;
   n = 0;
-  while (pos < r.len && n < max_fields) {
-    next = next_field(r.ptr, r.len, pos, &st, &ln);
+  while (pos < r.length && n < max_fields) {
+    next = next_field(r.ptr, r.length, pos, &st, &ln);
     if (field_starts != 0) { field_starts[n] = st; }
     if (field_lens != 0) { field_lens[n] = ln; }
     n = n + 1;
     if (next <= pos) { break; }
     pos = next;
-    if (pos > 0 && pos <= r.len && r.ptr[pos - 1] == 10) { break; }
+    if (pos > 0 && pos <= r.length && r.ptr[pos - 1] == 10) { break; }
   }
   out_count[0] = n;
-  if (n <= 0 && pos >= r.len) { return 1; }
+  if (n <= 0 && pos >= r.length) { return 1; }
   r.offset = pos;
   return 0;
 }
@@ -244,7 +244,7 @@ export function next_row(r: *StreamCsvReader, field_starts: *i32, field_lens: *i
  * @return i32
  */
 export function eof(r: StreamCsvReader): i32 {
-  if (r.offset >= r.len) { return 1; }
+  if (r.offset >= r.length) { return 1; }
   return 0;
 }
 
@@ -286,7 +286,7 @@ export function append_row(w: *StreamCsvWriter, blob: *u8, starts: *i32, lens: *
  * @param w StreamCsvWriter
  * @return i32
  */
-export function len(w: StreamCsvWriter): i32 {
+export function length(w: StreamCsvWriter): i32 {
   return w.out_len;
 }
 

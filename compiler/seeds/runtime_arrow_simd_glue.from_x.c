@@ -242,7 +242,7 @@ static arrow_column_t *arrow_col_ptr(int64_t handle) {
 /** i32 列有效元素累加（SIMD 胶层）。 */
 int32_t arrow_column_i32_sum_valid_c(int64_t handle, int32_t n) {
     arrow_column_t *c = arrow_col_ptr(handle);
-    int32_t len;
+    int32_t length;
     if (!c || c->type_id != ARROW_TYPE_I32 || !c->data)
         return 0;
     len = c->length;
@@ -254,7 +254,7 @@ int32_t arrow_column_i32_sum_valid_c(int64_t handle, int32_t n) {
 /** f32 列求和（SIMD 胶层）。 */
 float arrow_column_f32_sum_c(int64_t handle, int32_t n) {
     arrow_column_t *c = arrow_col_ptr(handle);
-    int32_t len;
+    int32_t length;
     if (!c || c->type_id != ARROW_TYPE_F32 || !c->data)
         return 0.0f;
     len = c->length;

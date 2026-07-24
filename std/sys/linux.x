@@ -458,7 +458,7 @@ extern "C" function close(fd: i32): i32;
 #[cfg(not(freestanding))]
 extern "C" function lseek(fd: i32, offset: i64, whence: i32): i64;
 #[cfg(not(freestanding))]
-extern "C" function ftruncate(fd: i32, length: i64): i32;
+extern "C" function ftruncate(fd: i32, len: i64): i32;
 #[cfg(not(freestanding))]
 extern "C" function mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
 #[cfg(not(freestanding))]

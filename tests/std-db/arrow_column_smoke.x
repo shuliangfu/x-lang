@@ -48,7 +48,7 @@ function main(): i32 {
     dbarrow.free(batch);
     return 10;
   }
-  if (dbarrow.len(batch) != 2) {
+  if (dbarrow.length(batch) != 2) {
     dbarrow.free(batch);
     return 11;
   }

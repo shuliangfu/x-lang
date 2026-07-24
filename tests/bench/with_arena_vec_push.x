@@ -20,7 +20,7 @@ function main(): i32 {
     if (vec.push(&v, 3) != 0) {
       return 3;
     }
-    if (vec.len(v) != 3) {
+    if (vec.length(v) != 3) {
       return 4;
     }
     if (v.ptr[0] != 1 || v.ptr[1] != 2 || v.ptr[2] != 3) {

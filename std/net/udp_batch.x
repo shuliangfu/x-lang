@@ -24,7 +24,7 @@
 // See implementation.
 
 /* See implementation. */
-allow(padding) struct NetBatchBuf { ptr: *u8; len: usize; handle: usize; }
+allow(padding) struct NetBatchBuf { ptr: *u8; length: usize; handle: usize; }
 
 /* See implementation. */
 export const UDP_BATCH_MAX: i32 = 2;

@@ -993,7 +993,7 @@ int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(struct platform_elf_ElfCodeg
 #endif
 
 /**
- * x86：eax 中 i32 转为 f32 位型写回 eax（cvtsi2ss）；return v.len as f32 等。
+ * x86：eax 中 i32 转为 f32 位型写回 eax（cvtsi2ss）；return v.length as f32 等。
  */
 /* G-02f-208：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_ENC_DISPATCH_THIN_FROM_X

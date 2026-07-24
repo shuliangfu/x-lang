@@ -58,7 +58,7 @@ int log_write_fd(int fd, const void *buf, size_t len) { return log_write_fd_impl
 #define LOG_ASYNC_SLOT_SIZE 512
 
 typedef struct {
-  int32_t len;
+  int32_t length;
   uint8_t data[LOG_ASYNC_SLOT_SIZE];
 } log_async_slot_t;
 
@@ -260,7 +260,7 @@ int32_t log_async_enqueue_impl(const void *buf, size_t len) {
     if (log_async_flush_c() != 0) return -1;
     if (s_async_count >= LOG_ASYNC_SLOTS) return -1;
   }
-  s_async_queue[s_async_count].len = (int32_t)len;
+  s_async_queue[s_async_count].length = (int32_t)len;
   memcpy(s_async_queue[s_async_count].data, buf, len);
   s_async_count++;
   return 0;
@@ -317,7 +317,7 @@ int32_t log_set_async_enabled_c(int32_t enabled) {
 int32_t log_async_flush_c(void) {
   int32_t i;
   for (i = 0; i < s_async_count; i++) {
-    if (log_write_sync(s_async_queue[i].data, (size_t)s_async_queue[i].len) != 0) return -1;
+    if (log_write_sync(s_async_queue[i].data, (size_t)s_async_queue[i].length) != 0) return -1;
   }
   s_async_count = 0;
   return 0;

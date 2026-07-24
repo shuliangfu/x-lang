@@ -32,7 +32,7 @@ function main(): i32 {
     bytes.deinit(&b);
     return 4;
   }
-  if (bytes.len(b) != 6) {
+  if (bytes.length(b) != 6) {
     bytes.deinit(&b);
     return 5;
   }

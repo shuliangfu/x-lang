@@ -361,10 +361,10 @@ export function link_abi_user_o_needs_std_set(user_o: *u8): i32 {
     if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_set_remove_Set_u64_ptr_u64") != 0) {
       return 1;
     }
-    if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_set_len_Set_i32") != 0) {
+    if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_set_length_Set_i32") != 0) {
       return 1;
     }
-    if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_set_len_Set_u64") != 0) {
+    if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_set_length_Set_u64") != 0) {
       return 1;
     }
     if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_set_deinit_Set_i32_ptr") != 0) {
@@ -434,7 +434,7 @@ export function link_abi_user_o_needs_std_queue(user_o: *u8): i32 {
     if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_queue_get") != 0) {
       return 1;
     }
-    if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_queue_len_Queue_i32") != 0) {
+    if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_queue_length_Queue_i32") != 0) {
       return 1;
     }
     if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_queue_is_empty_Queue_i32") != 0) {

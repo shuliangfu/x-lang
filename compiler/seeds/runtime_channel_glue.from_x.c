@@ -66,7 +66,7 @@ typedef struct {
 #endif
     int32_t        *buf;
     int32_t         cap;       /* 有界为固定容量；无界为当前缓冲区大小，满时翻倍 */
-    int32_t         len;
+    int32_t         length;
     int32_t         head;      /* 环形：下一个取的位置 */
     int32_t         closed;    /* 1 已关闭 */
     int32_t         unbounded; /* 1 无界，可扩容 */
@@ -345,7 +345,7 @@ int32_t channel_unbounded_grow_impl(channel_i32_impl_t *c) {
     if (new_cap <= c->cap) return -1;
     n = (int32_t *)realloc(c->buf, (size_t)new_cap * sizeof(int32_t));
     if (!n) return -1;
-    for (i = 0, j = c->head; i < c->len; i++, j = (j + 1) % c->cap)
+    for (i = 0, j = c->head; i < c->length; i++, j = (j + 1) % c->cap)
         n[i] = n[j];
     c->buf = n;
     c->cap = new_cap;
@@ -370,7 +370,7 @@ void *channel_i32_bounded_c(int32_t cap) {
     ch->buf = (int32_t *)malloc((size_t)cap * sizeof(int32_t));
     if (!ch->buf) { free(ch); return NULL; }
     ch->cap = cap;
-    ch->len = 0;
+    ch->length = 0;
     ch->head = 0;
     ch->closed = 0;
     ch->unbounded = 0;
@@ -385,7 +385,7 @@ void *channel_i32_unbounded_c(void) {
     ch->buf = (int32_t *)malloc((size_t)UNBOUNDED_INIT_CAP * sizeof(int32_t));
     if (!ch->buf) { free(ch); return NULL; }
     ch->cap = UNBOUNDED_INIT_CAP;
-    ch->len = 0;
+    ch->length = 0;
     ch->head = 0;
     ch->closed = 0;
     ch->unbounded = 1;
@@ -401,20 +401,20 @@ int32_t channel_i32_send_c(void *ch, int32_t val) {
     channel_lock(c);
     if (c->closed) { channel_unlock(c); return CHAN_ERR_CLOSED; }
     if (c->unbounded) {
-        while (c->len == c->cap) {
+        while (c->length == c->cap) {
             if (channel_unbounded_grow(c) != 0) {
                 channel_unlock(c);
                 return CHAN_ERR_CLOSED;
             }
         }
     } else {
-        while (c->len == c->cap) {
+        while (c->length == c->cap) {
             if (c->closed) { channel_unlock(c); return CHAN_ERR_CLOSED; }
             channel_wait_not_full(c);
         }
     }
-    c->buf[(c->head + c->len) % c->cap] = val;
-    c->len++;
+    c->buf[(c->head + c->length) % c->cap] = val;
+    c->length++;
     channel_signal_not_empty(c);
     channel_unlock(c);
     return 0;
@@ -426,13 +426,13 @@ int32_t channel_i32_recv_c(void *ch, int32_t *out) {
     if (!ch || !out) return CHAN_ERR_CLOSED;
     c = (channel_i32_impl_t *)ch;
     channel_lock(c);
-    while (c->len == 0) {
+    while (c->length == 0) {
         if (c->closed) { channel_unlock(c); return CHAN_ERR_CLOSED; }
         channel_wait_not_empty(c);
     }
     *out = c->buf[c->head];
     c->head = (c->head + 1) % c->cap;
-    c->len--;
+    c->length--;
     channel_signal_not_full(c);
     channel_unlock(c);
     return 0;
@@ -446,16 +446,16 @@ int32_t channel_i32_try_send_c(void *ch, int32_t val) {
     channel_lock(c);
     if (c->closed) { channel_unlock(c); return CHAN_ERR_CLOSED; }
     if (c->unbounded) {
-        if (c->len == c->cap && channel_unbounded_grow(c) != 0) {
+        if (c->length == c->cap && channel_unbounded_grow(c) != 0) {
             channel_unlock(c);
             return CHAN_ERR_CLOSED;
         }
-    } else if (c->len == c->cap) {
+    } else if (c->length == c->cap) {
         channel_unlock(c);
         return CHAN_ERR_FULL;
     }
-    c->buf[(c->head + c->len) % c->cap] = val;
-    c->len++;
+    c->buf[(c->head + c->length) % c->cap] = val;
+    c->length++;
     channel_signal_not_empty(c);
     channel_unlock(c);
     return 0;
@@ -467,11 +467,11 @@ int32_t channel_i32_try_recv_c(void *ch, int32_t *out) {
     if (!ch || !out) return CHAN_ERR_CLOSED;
     c = (channel_i32_impl_t *)ch;
     channel_lock(c);
-    if (c->closed && c->len == 0) { channel_unlock(c); return CHAN_ERR_CLOSED; }
-    if (c->len == 0) { channel_unlock(c); return CHAN_ERR_EMPTY; }
+    if (c->closed && c->length == 0) { channel_unlock(c); return CHAN_ERR_CLOSED; }
+    if (c->length == 0) { channel_unlock(c); return CHAN_ERR_EMPTY; }
     *out = c->buf[c->head];
     c->head = (c->head + 1) % c->cap;
-    c->len--;
+    c->length--;
     channel_signal_not_full(c);
     channel_unlock(c);
     return 0;
@@ -528,7 +528,7 @@ int32_t channel_select_recv_case_live_impl(void *ch) {
     if (!ch) return 0;
     c = (channel_i32_impl_t *)ch;
     channel_lock(c);
-    live = !(c->closed && c->len == 0);
+    live = !(c->closed && c->length == 0);
     channel_unlock(c);
     return live;
 }
@@ -569,7 +569,7 @@ void channel_select_wait_recv_one_impl(void *ch) {
     if (!ch) return;
     c = (channel_i32_impl_t *)ch;
     channel_lock(c);
-    if (c->len > 0 || c->closed) {
+    if (c->length > 0 || c->closed) {
         channel_unlock(c);
         return;
     }
@@ -592,7 +592,7 @@ void channel_select_wait_send_one_impl(void *ch) {
     if (!ch) return;
     c = (channel_i32_impl_t *)ch;
     channel_lock(c);
-    if (c->closed || c->unbounded || c->len < c->cap) {
+    if (c->closed || c->unbounded || c->length < c->cap) {
         channel_unlock(c);
         return;
     }

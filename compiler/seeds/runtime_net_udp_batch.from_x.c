@@ -35,7 +35,7 @@
 /** 与 std.io.driver Buffer / net.c xlang_net_buf_t ABI 一致。 */
 typedef struct {
     uint8_t *ptr;
-    size_t len;
+    size_t length;
     size_t handle;
 } xlang_net_buf_t;
 
@@ -168,7 +168,7 @@ XLANG_NET_UDP_GLUE_API int xlang_net_udp_recvmmsg_buf_c(int32_t fd, xlang_net_bu
     for (i = 0; i < (unsigned int)n; i++) {
         socklen_t addrlen = sizeof(addrs[0]);
         iov[i].iov_base = bufs[i].ptr;
-        iov[i].iov_len  = bufs[i].len;
+        iov[i].iov_len  = bufs[i].length;
         msgvec[i].msg_hdr.msg_name = &addrs[i];
         msgvec[i].msg_hdr.msg_namelen = addrlen;
         msgvec[i].msg_hdr.msg_iov = &iov[i];
@@ -210,7 +210,7 @@ XLANG_NET_UDP_GLUE_API int xlang_net_udp_sendmmsg_buf_c(int32_t fd, const uint32
     for (i = 0; i < (unsigned int)n; i++) {
         xlang_udp_batch_set_addr_port(&sa[i], addrs_u32[i], ports[i]);
         iov[i].iov_base = (void *)bufs[i].ptr;
-        iov[i].iov_len  = bufs[i].len;
+        iov[i].iov_len  = bufs[i].length;
         msgvec[i].msg_hdr.msg_name = &sa[i];
         msgvec[i].msg_hdr.msg_namelen = sizeof(sa[i]);
         msgvec[i].msg_hdr.msg_iov = &iov[i];

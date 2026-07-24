@@ -605,7 +605,7 @@ int write_io_net_abi_inline(FILE *cf) {
         "  return (int32_t)poll((struct pollfd *)(void *)fds, (nfds_t)nfds, (int)timeout);\n"
         "}\n"
         "#endif\n",
-        "typedef struct { uint8_t *ptr; size_t len; size_t handle; } xlang_batch_buf_t;\n",
+        "typedef struct { uint8_t *ptr; size_t length; size_t handle; } xlang_batch_buf_t;\n",
         "extern int io_register_buffer(uint8_t *ptr, size_t len);\n",
         "extern int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr);\n",
         "__attribute__((weak)) int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }\n",
@@ -628,10 +628,10 @@ int write_io_net_abi_inline(FILE *cf) {
         "extern int32_t xlang_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);\n",
         "extern uint8_t *xlang_io_read_ptr(size_t handle, unsigned timeout_ms);\n",
         "extern int32_t xlang_io_read_ptr_len(void);\n",
-        "typedef struct { void *ptr; size_t len; size_t handle; } xlang_buffer_abi_t;\n",
-        "static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n",
-        "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_read)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n",
-        "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_write)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n",
+        "typedef struct { void *ptr; size_t length; size_t handle; } xlang_buffer_abi_t;\n",
+        "static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->length, b->handle); }\n",
+        "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_read)((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }\n",
+        "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_write)((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }\n",
         /* 勿定义 std_io_driver_submit_read/write 同名 inline：co-emit driver 会生成 Buffer 形参强符号。
          * 仅提供 via_ptr 与短名宏；全名调用走 co-emit 定义。 */
         "static inline int32_t std_io_driver_submit_read_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return xlang_io_submit_read_buf((intptr_t)buf, (int32_t)timeout_ms); }\n",
@@ -643,7 +643,7 @@ int write_io_net_abi_inline(FILE *cf) {
         "#undef xlang_io_register\n",
         "#undef xlang_io_submit_read\n",
         "#undef xlang_io_submit_write\n",
-        "struct std_io_driver_Buffer { void *ptr; size_t len; size_t handle; };\n",
+        "struct std_io_driver_Buffer { void *ptr; size_t length; size_t handle; };\n",
         "typedef struct std_io_driver_Buffer std_io_Buffer;\n",
         "#define std_io_Buffer std_io_driver_Buffer\n",
         "extern ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);\n",
@@ -853,9 +853,9 @@ int write_io_net_abi_inline(FILE *cf) {
         "#define std_net_net_close_socket_c(x) net_close_socket_c_real(xlang_io_net_fd(x))\n",
         "#define std_net_net_run_accept_workers_c(x, n, t) net_run_accept_workers_c_real(xlang_io_net_fd(x), n, t)\n",
         /* 与 rt_preamble 同：#define 标签别名，吸收 codegen 的 std_fs_posix_* tag */
-        "#define STD_FS_FS_IOVEC_BUF_DEFINED\nstruct std_fs_FsIovecBuf { void *ptr; size_t len; size_t handle; };\n"
+        "#define STD_FS_FS_IOVEC_BUF_DEFINED\nstruct std_fs_FsIovecBuf { void *ptr; size_t length; size_t handle; };\n"
         "#define std_fs_posix_FsIovecBuf std_fs_FsIovecBuf\n"
-        "struct std_io_sync_Iovec { uint8_t *base; size_t len; };\n"
+        "struct std_io_sync_Iovec { uint8_t *base; size_t length; };\n"
         "#define std_fs_posix_Iovec std_io_sync_Iovec\n",
         /* 仅 forward：完整体由 std/map 发射；preamble 全量定义与 map.o -o 双权威 → redefinition */
         "struct std_map_Map_i32_i32;\n",
@@ -863,9 +863,9 @@ int write_io_net_abi_inline(FILE *cf) {
         /* Error + ErrorChain：与 codegen skip 同权威（缺 ErrorChain → incomplete type） */
         "struct std_error_Error { int32_t code; };\n",
         "struct std_error_ErrorChain { int32_t depth; int32_t c0; int32_t c1; int32_t c2; int32_t c3; };\n",
-        "struct std_string_String { uint8_t data[256]; int32_t len; };\n",
+        "struct std_string_String { uint8_t data[256]; int32_t length; };\n",
         "typedef struct std_string_String String;\n",
-        "struct std_string_StrView { uint8_t *ptr; int32_t len; };\n",
+        "struct std_string_StrView { uint8_t *ptr; int32_t length; };\n",
         /* heap.Allocator 须在 Vec 之前完整（codegen 现按模块序 emit，vec 先于 heap 布局） */
         "struct std_heap_Arena64 { uint8_t *chunk; size_t cap; size_t off; };\n",
         "struct std_heap_Allocator { int32_t kind; struct std_heap_Arena64 *arena; };\n",
@@ -1106,14 +1106,14 @@ int labi_rt_pipeline_elf_diag_slice_marker(void);
 
 /** 调试：打印 module 中每个 func 的 name_len/name（由 Makefile 追加到 pipeline_gen.c）；便于定位 mai/ba 截断 */
 extern void pipeline_debug_module_funcs(void *module);
-/* 与生成代码中 codegen_CodegenOutBuf 布局一致；C 在调用后将 data[0..len-1] 写到 FILE* */
+/* 与生成代码中 codegen_CodegenOutBuf 布局一致；C 在调用后将 data[0..length-1] 写到 FILE* */
 #define X_CODEGEN_OUTBUF_CAP (9 * 1024 * 1024)
 struct codegen_CodegenOutBuf {
     unsigned char data[X_CODEGEN_OUTBUF_CAP];
-    int32_t len;
+    int32_t length;
 };
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-_Static_assert(offsetof(struct codegen_CodegenOutBuf, len) == X_CODEGEN_OUTBUF_CAP, "CodegenOutBuf: len must follow data[] for ABI");
+_Static_assert(offsetof(struct codegen_CodegenOutBuf, length) == X_CODEGEN_OUTBUF_CAP, "CodegenOutBuf: length must follow data[] for ABI");
 #endif
 /** asm 后端 C 桩：最小 GAS（main return 42）。G-02f-300 R9 → rt_asm_stub hybrid */
 #ifndef XLANG_RT_ASM_STUB_FROM_X
@@ -1140,7 +1140,7 @@ XLANG_WEAK int32_t asm_codegen_ast(void *module, void *arena, struct codegen_Cod
         out->data[n + len] = '\n';
         n += len + 1;
     }
-    out->len = (int32_t)n;
+    out->length = (int32_t)n;
     return 0;
 }
 #else
@@ -2148,18 +2148,18 @@ int RUN_CC_FUNC(int argc, char **argv) {
         if (link_abi_getenv("XLANG_ASM_ENTRY_DEBUG")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "asm entry debug: ec=%d num_funcs=%d out_asm_len=%zu",
-                         ec, driver_get_module_num_funcs(module), (size_t)out_buf->len);
+                         ec, driver_get_module_num_funcs(module), (size_t)out_buf->length);
         }
         driver_dep_seeded_clear_all();
         codegen_set_dep_slots_for_x_pipeline(NULL, NULL, 0);
-        if (ec == 0 && (out_buf->len > 0 || emit_elf_o)) {
+        if (ec == 0 && (out_buf->length > 0 || emit_elf_o)) {
             if (emit_elf_o && elf_ctx_ptr) {
                 xlang_driver_asm_prepare_entry_elf_emit(module, arena, pctx);
                 int32_t elf_ec = xlang_asm_codegen_elf_o_large_stack(module, arena, (void *)pctx, (struct platform_elf_ElfCodegenCtx *)elf_ctx_ptr, (void *)out_buf);
-                if (elf_ec != 0 || out_buf->len <= 0) {
+                if (elf_ec != 0 || out_buf->length <= 0) {
                     diag_reportf_with_code(input_path, 0, 0, "codegen error", XLANG_DIAG_CODE_CODEGEN_CG002, NULL,
                                            "asm_codegen_elf_o failed (elf_ec=%d, out_len=%zu, num_funcs=%d)",
-                                           (int)elf_ec, (size_t)out_buf->len, driver_get_module_num_funcs(module));
+                                           (int)elf_ec, (size_t)out_buf->length, driver_get_module_num_funcs(module));
                     if (elf_ec == XLANG_ASM_CODEGEN_ELF_EMPTY_TEXT_RC)
                         diag_report(NULL, 0, 0, "note",
                                     "asm backend produced no object text; empty .o emission was rejected", NULL);
@@ -2176,7 +2176,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                     return 1;
                 }
             }
-            fwrite(out_buf->data, 1, (size_t)out_buf->len, asm_out ? asm_out : stdout);
+            fwrite(out_buf->data, 1, (size_t)out_buf->length, asm_out ? asm_out : stdout);
             if (!asm_out) fflush(stdout);
             if (asm_out) fclose(asm_out);
             asm_out = NULL;
@@ -2207,8 +2207,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 }
             }
         } else {
-            /* ec != 0 或 ec == 0 但 out_buf->len == 0（且非 emit_elf_o） */
-            if (ec == 0 && out_buf->len == 0 && !emit_elf_o && !asm_out) {
+            /* ec != 0 或 ec == 0 但 out_buf->length == 0（且非 emit_elf_o） */
+            if (ec == 0 && out_buf->length == 0 && !emit_elf_o && !asm_out) {
                 /* -x -E 时 pipeline 成功但 codegen 产出 0 字节（如库模块或 codegen 路径未写 main），写最小 C 桩使 run-x-pipeline 等测试能通过 */
                 fprintf(stdout, "int main(void){return 0;}\n");
                 fflush(stdout);
@@ -2401,11 +2401,11 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 fprintf(stdout, "extern int32_t xlang_io_register(uint8_t *ptr, size_t len, size_t handle);\n");
                 fprintf(stdout, "extern int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
                 fprintf(stdout, "extern int32_t xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
-                fprintf(stdout, "typedef struct { void *ptr; size_t len; size_t handle; } xlang_buffer_abi_t;\n");
-                fprintf(stdout, "static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n");
-                fprintf(stdout, "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
-                fprintf(stdout, "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
-                fprintf(stdout, "typedef struct { uint8_t *ptr; size_t len; size_t handle; } xlang_batch_buf_t;\n");
+                fprintf(stdout, "typedef struct { void *ptr; size_t length; size_t handle; } xlang_buffer_abi_t;\n");
+                fprintf(stdout, "static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->length, b->handle); }\n");
+                fprintf(stdout, "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_read((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }\n");
+                fprintf(stdout, "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_write((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }\n");
+                fprintf(stdout, "typedef struct { uint8_t *ptr; size_t length; size_t handle; } xlang_batch_buf_t;\n");
                 fprintf(stdout, "__attribute__((weak)) int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }\n");
                 fprintf(stdout, "static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const xlang_batch_buf_t *)(uintptr_t)bufs, nr); }\n");
             }
@@ -2712,11 +2712,11 @@ int RUN_CC_FUNC(int argc, char **argv) {
              * 对齐补 weak 桩（返回 0=注册成功占位），使纯 .x io 烟测自包含，无需链 runtime_asm_io_stubs.o
              *（强桩会覆盖 submit_write 的 fwrite 弱实现，破坏 write_stdout）。 */
             fprintf(cf, "__attribute__((weak)) int32_t xlang_io_register(uint8_t *ptr, size_t len, size_t handle) { (void)ptr; (void)len; (void)handle; return 0; }\n");
-            fprintf(cf, "typedef struct { void *ptr; size_t len; size_t handle; } xlang_buffer_abi_t;\n");
-            fprintf(cf, "static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n");
-            fprintf(cf, "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
-            fprintf(cf, "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
-            fprintf(cf, "typedef struct { uint8_t *ptr; size_t len; size_t handle; } xlang_batch_buf_t;\n");
+            fprintf(cf, "typedef struct { void *ptr; size_t length; size_t handle; } xlang_buffer_abi_t;\n");
+            fprintf(cf, "static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->length, b->handle); }\n");
+            fprintf(cf, "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_read((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }\n");
+            fprintf(cf, "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_write((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }\n");
+            fprintf(cf, "typedef struct { uint8_t *ptr; size_t length; size_t handle; } xlang_batch_buf_t;\n");
             fprintf(cf, "__attribute__((weak)) int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }\n");
             fprintf(cf, "static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const xlang_batch_buf_t *)(uintptr_t)bufs, nr); }\n");
             /* codegen 跳过 std.io.print(ptr,len)；C 前端链 io.o 时由弱符号提供，避免 hello 等 Undefined _std_io_print_u8_ptr_usize。 */
@@ -3229,10 +3229,10 @@ int run_compiler_x_path(int argc, char **argv) {
     free(arena);
     free(module);
     free(src);
-    if (ec != 0 || (!driver_check_only_get() && out_buf->len == 0)) {
+    if (ec != 0 || (!driver_check_only_get() && out_buf->length == 0)) {
         diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP003, NULL,
                      "pipeline failed for '%s' (ec=%d, out_len=%d)",
-                     input_path, ec, (int)out_buf->len);
+                     input_path, ec, (int)out_buf->length);
         if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
         free(out_buf);
         pipeline_dep_ctx_heap_destroy(pctx);
@@ -3260,12 +3260,12 @@ int run_compiler_x_path(int argc, char **argv) {
     {
         /* 内联 std.io / std.net / fs / path / map / error ABI；不再 #include std/*_abi.h */
         size_t first_line = 0;
-        while (first_line < (size_t)out_buf->len && out_buf->data[first_line] != '\n') first_line++;
-        if (first_line < (size_t)out_buf->len) first_line++;
+        while (first_line < (size_t)out_buf->length && out_buf->data[first_line] != '\n') first_line++;
+        if (first_line < (size_t)out_buf->length) first_line++;
         if (fwrite(out_buf->data, 1, first_line, cf) != first_line
             || write_io_net_abi_inline(cf) != 0
             || write_fs_path_map_error_abi_inline(cf) != 0
-            || fwrite(out_buf->data + first_line, 1, (size_t)out_buf->len - first_line, cf) != (size_t)out_buf->len - first_line) {
+            || fwrite(out_buf->data + first_line, 1, (size_t)out_buf->length - first_line, cf) != (size_t)out_buf->length - first_line) {
             if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
             free(out_buf);
             pipeline_dep_ctx_heap_destroy(pctx);
@@ -4442,7 +4442,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         if (link_abi_getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "asm entry debug: AFTER pipeline_run_x_pipeline ec=%d funcs=%d out_len=%zu",
-                         ec, driver_get_module_num_funcs(module), (size_t)out_buf->len);
+                         ec, driver_get_module_num_funcs(module), (size_t)out_buf->length);
         }
         /* 3. 如果是 segfault，上面的 fprintf 不会执行；需要更前置的分段日志 */
         if (ec != 0 && !driver_check_diag_emitted_get()) {
@@ -4454,7 +4454,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     if (link_abi_getenv("XLANG_ASM_DEBUG")) {
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "asm debug: backend after pipeline ec=%d num_funcs=%d out_asm_len=%zu",
-                     ec, driver_get_module_num_funcs(module), (size_t)out_buf->len);
+                     ec, driver_get_module_num_funcs(module), (size_t)out_buf->length);
         pipeline_debug_module_funcs(module);
     }
     if (asm_smoke_only) {
@@ -4482,11 +4482,11 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 /* check 已有更具体失败诊断时，不再冒充 parse/typeck 成功摘要。 */
             }
             else if (driver_check_only_get()) {
-                driver_print_x_smoke_summary(module, (size_t)out_buf->len);
+                driver_print_x_smoke_summary(module, (size_t)out_buf->length);
                 if (input_path)
                     driver_print_check_ok(input_path);
             } else
-                driver_print_x_smoke_summary(module, (size_t)out_buf->len);
+                driver_print_x_smoke_summary(module, (size_t)out_buf->length);
             free(out_buf);
             pipeline_dep_ctx_heap_destroy(pctx);
             free(arena);
@@ -4513,8 +4513,8 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             return 0;
         }
     }
-    if (ec == 0 && (out_buf->len > 0 || emit_elf_o)) {
-        if (emit_elf_o && elf_ctx_ptr && !xlang_asm_out_buf_is_object(out_buf ? out_buf->data : NULL, out_buf ? (size_t)out_buf->len : 0)) {
+    if (ec == 0 && (out_buf->length > 0 || emit_elf_o)) {
+        if (emit_elf_o && elf_ctx_ptr && !xlang_asm_out_buf_is_object(out_buf ? out_buf->data : NULL, out_buf ? (size_t)out_buf->length : 0)) {
             /*
              * pipeline_run 后 driver_dep_seeded_clear_all 仅清全局槽；须把 dep 模块重新写入 pctx，
              * 且对用户多文件关闭 ENTRY_MODULE_ONLY，否则 asm_codegen_elf_o 只编 main、ld 缺 _foo_bar。
@@ -4544,12 +4544,12 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             if (link_abi_getenv("XLANG_ASM_DEBUG")) {
                 diag_reportf(NULL, 0, 0, "note", NULL,
                              "asm debug: asm_codegen_elf_o elf_ec=%d elf_len=%zu",
-                             (int)elf_ec, (size_t)out_buf->len);
+                             (int)elf_ec, (size_t)out_buf->length);
             }
-            if (elf_ec != 0 || out_buf->len <= 0) {
+            if (elf_ec != 0 || out_buf->length <= 0) {
                 diag_reportf_with_code(input_path, 0, 0, "codegen error", XLANG_DIAG_CODE_CODEGEN_CG002, NULL,
                                        "asm_codegen_elf_o failed (elf_ec=%d, out_len=%zu, num_funcs=%d)",
-                                       (int)elf_ec, (size_t)out_buf->len, driver_get_module_num_funcs(module));
+                                       (int)elf_ec, (size_t)out_buf->length, driver_get_module_num_funcs(module));
                 if (elf_ec == XLANG_ASM_CODEGEN_ELF_EMPTY_TEXT_RC)
                     diag_report(NULL, 0, 0, "note",
                                 "asm backend produced no object text; empty .o emission was rejected", NULL);
@@ -4568,7 +4568,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 return 1;
             }
         }
-        fwrite(out_buf->data, 1, (size_t)out_buf->len, asm_out ? asm_out : stdout);
+        fwrite(out_buf->data, 1, (size_t)out_buf->length, asm_out ? asm_out : stdout);
         if (!asm_out)
             fflush(stdout);
         driver_asm_fclose_asm_out(asm_out);
@@ -5884,12 +5884,12 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     codegen_set_dep_slots_for_x_pipeline(NULL, NULL, 0);
     for (int j = n_deps - 1; j >= 0; j--) { free(dep_arenas[j]); free(dep_modules[j]); }
     while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
-    if (ec != 0 || (!driver_check_only_get() && out_buf->len == 0)) {
+    if (ec != 0 || (!driver_check_only_get() && out_buf->length == 0)) {
         diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP003, NULL,
                      "pipeline failed for '%s' (ec=%d, out_len=%d)",
-                     input_path, ec, (int)out_buf->len);
-        if (link_abi_getenv("XLANG_DEBUG_PIPE") && out_buf->len > 0) {
-            size_t show = (size_t)out_buf->len > 800u ? 800u : (size_t)out_buf->len;
+                     input_path, ec, (int)out_buf->length);
+        if (link_abi_getenv("XLANG_DEBUG_PIPE") && out_buf->length > 0) {
+            size_t show = (size_t)out_buf->length > 800u ? 800u : (size_t)out_buf->length;
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "pipeline debug: out (first %zu bytes):\n%.*s", show, (int)show,
                          (const char *)out_buf->data);
@@ -5945,7 +5945,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     }
     /* 无 -o、将生成的 C 写 stdout 之前：stderr 烟测两行，与 driver_run_x_emit_x 及 run-std/run-stdlib-import 的 grep 一致。 */
     if (emit_to_stdout)
-        driver_print_x_smoke_summary(module, (size_t)out_buf->len);
+        driver_print_x_smoke_summary(module, (size_t)out_buf->length);
     free(arena);
     free(module);
     free(src);
@@ -5953,9 +5953,9 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
         /* 内联 std.io / std.net / fs / path / map / error ABI；不再 #include std/*_abi.h。
          * 若 pipeline 产出首字符非 # 且非注释（如泛型+import 时首行为 extern ...），先写最小 preamble 避免 cc 报 unknown type 'int32_t'。 */
         size_t first_line = 0;
-        while (first_line < (size_t)out_buf->len && out_buf->data[first_line] != '\n') first_line++;
-        if (first_line < (size_t)out_buf->len) first_line++;
-        int need_preamble = (out_buf->len > 0 && out_buf->data[0] != '#' && (out_buf->len < 2 || out_buf->data[0] != '/' || out_buf->data[1] != '*'));
+        while (first_line < (size_t)out_buf->length && out_buf->data[first_line] != '\n') first_line++;
+        if (first_line < (size_t)out_buf->length) first_line++;
+        int need_preamble = (out_buf->length > 0 && out_buf->data[0] != '#' && (out_buf->length < 2 || out_buf->data[0] != '/' || out_buf->data[1] != '*'));
         if (need_preamble) {
             static const char min_preamble[] = "/* generated */\n#include <stdint.h>\n#include <stddef.h>\n#include <stdlib.h>\n#include <stdio.h>\n#include <string.h>\n";
             if (fwrite(min_preamble, 1, sizeof(min_preamble) - 1, cf) != (size_t)(sizeof(min_preamble) - 1)) {
@@ -5968,7 +5968,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
         if (fwrite(out_buf->data, 1, first_line, cf) != first_line
             || write_io_net_abi_inline(cf) != 0
             || write_fs_path_map_error_abi_inline(cf) != 0
-            || fwrite(out_buf->data + first_line, 1, (size_t)out_buf->len - first_line, cf) != (size_t)out_buf->len - first_line) {
+            || fwrite(out_buf->data + first_line, 1, (size_t)out_buf->length - first_line, cf) != (size_t)out_buf->length - first_line) {
             if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
             free(out_buf);
             pipeline_dep_ctx_heap_destroy(pctx);
@@ -7489,11 +7489,11 @@ int driver_run_x_emit_c_extern_via_cparser(const char *input_path) {
         fprintf(stdout, "extern int32_t xlang_io_register(uint8_t *ptr, size_t len, size_t handle);\n");
         fprintf(stdout, "extern int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
         fprintf(stdout, "extern int32_t xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
-        fprintf(stdout, "typedef struct { void *ptr; size_t len; size_t handle; } xlang_buffer_abi_t;\n");
-        fprintf(stdout, "static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n");
-        fprintf(stdout, "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
-        fprintf(stdout, "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
-        fprintf(stdout, "typedef struct { uint8_t *ptr; size_t len; size_t handle; } xlang_batch_buf_t;\n");
+        fprintf(stdout, "typedef struct { void *ptr; size_t length; size_t handle; } xlang_buffer_abi_t;\n");
+        fprintf(stdout, "static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->length, b->handle); }\n");
+        fprintf(stdout, "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_read((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }\n");
+        fprintf(stdout, "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_write((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }\n");
+        fprintf(stdout, "typedef struct { uint8_t *ptr; size_t length; size_t handle; } xlang_batch_buf_t;\n");
         fprintf(stdout, "__attribute__((weak)) int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }\n");
         fprintf(stdout, "static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const xlang_batch_buf_t *)(uintptr_t)bufs, nr); }\n");
     }
@@ -7916,21 +7916,21 @@ int driver_run_x_emit_c(void) {
         memset(arena, 0, arena_sz);
         memset(module, 0, module_sz);
         int ec = xlang_pipeline_run_x_pipeline_large_stack(module, arena, (uint8_t *)src, src_len, (void *)out_buf, (void *)pctx_e);
-        if (ec == 0 && out_buf->len > 0) {
+        if (ec == 0 && out_buf->length > 0) {
             /* 平台差异诊断（分析文档 4.4）：main 段输出过短时打 stderr，便于 CI/本地确认是 len 错误还是内容只写了数字 */
-            if (out_buf->len < 20) {
+            if (out_buf->length < 20) {
                 char hexbuf[16 * 3 + 1];
                 int hexlen = 0;
                 hexbuf[0] = '\0';
-                for (int di = 0; di < out_buf->len && di < 16 && hexlen + 4 < (int)sizeof(hexbuf); di++) {
+                for (int di = 0; di < out_buf->length && di < 16 && hexlen + 4 < (int)sizeof(hexbuf); di++) {
                     hexlen += snprintf(hexbuf + hexlen, sizeof(hexbuf) - (size_t)hexlen,
                                        "%s%02x", di == 0 ? "" : " ", (unsigned char)out_buf->data[di]);
                 }
                 diag_reportf(input_path, 0, 0, "note", NULL,
-                             "-x -E diagnostic: out_buf.len=%d first bytes: %s",
-                             (int)out_buf->len, hexbuf);
+                             "-x -E diagnostic: out_buf.length=%d first bytes: %s",
+                             (int)out_buf->length, hexbuf);
             }
-            fwrite(out_buf->data, 1, (size_t)out_buf->len, stdout);
+            fwrite(out_buf->data, 1, (size_t)out_buf->length, stdout);
             fflush(stdout);
             for (int j = n_deps - 1; j >= 0; j--) { free(dep_arenas[j]); free(dep_modules[j]); }
             while (n_deps > 0) {
@@ -7949,7 +7949,7 @@ int driver_run_x_emit_c(void) {
                 diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP003, NULL,
                              ".x pipeline failed for '%s'",
                              input_path ? input_path : "?");
-            } else if (out_buf->len <= 0) {
+            } else if (out_buf->length <= 0) {
                 if (driver_get_module_num_funcs(module) <= 0) {
                     if (!runtime_report_precise_parse_failure_if_known(input_path, src, src_len)) {
                         diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
@@ -7960,14 +7960,14 @@ int driver_run_x_emit_c(void) {
                 }
                 /* CI / cross-host: distinguish -x -E 「只吐 0」与真失败——空缓冲视为 codegen 路径未写入 */
                 diag_reportf_with_code(input_path, 0, 0, "codegen error", XLANG_DIAG_CODE_CODEGEN_CG004, NULL,
-                             "-x -E pipeline succeeded but codegen buffer is empty (ec=0 out_buf.len=%d); "
+                             "-x -E pipeline succeeded but codegen buffer is empty (ec=0 out_buf.length=%d); "
                              "check typeck/codegen/pipeline CodegenOutBuf",
-                             (int)out_buf->len);
+                             (int)out_buf->length);
             }
         }
-        int emit_ret = (ec != 0 || out_buf->len <= 0) ? 1 : 0;
+        int emit_ret = (ec != 0 || out_buf->length <= 0) ? 1 : 0;
 x_emit_c_done:
-        if (ec == 0 && out_buf->len <= 0)
+        if (ec == 0 && out_buf->length <= 0)
             emit_ret = 1;
         free(out_buf);
         pipeline_dep_ctx_heap_destroy(pctx_e);

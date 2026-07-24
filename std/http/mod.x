@@ -320,7 +320,7 @@ extern "C" function http_request_owned_smoke_c(): i32;
 /* See implementation. */
 allow(padding) struct HttpUrlOwned {
   ptr: *u8;
-  len: i32;
+  length: i32;
 }
 
 /** Exported function `url_string_cap`.
@@ -332,13 +332,13 @@ export function url_string_cap(): i32 { return 256; }
 /* See implementation. */
 allow(padding) struct HttpBodyOwned {
   ptr: *u8;
-  len: i32;
+  length: i32;
 }
 
 /* See implementation. */
 allow(padding) struct HttpBodyView {
   ptr: *u8;
-  len: i32;
+  length: i32;
 }
 
 /**
@@ -839,7 +839,7 @@ export function execute_ctx(req: HttpRequest, buf: *u8, buf_cap: i32, out: *Http
  * @return HttpBodyView
  */
 export function response_body_view(buf: *u8, resp: HttpResponse): HttpBodyView {
-  return HttpBodyView { ptr: http_libc_response_body_ptr_c(buf, resp.header_end), len: resp.body_len };
+  return HttpBodyView { ptr: http_libc_response_body_ptr_c(buf, resp.header_end), length: resp.body_len };
 }
 
 /**
@@ -865,12 +865,12 @@ export function response_body_owned(buf: *u8, resp: HttpResponse, out: *HttpBody
       return -1;
     }
     out.ptr = p;
-    out.len = n;
+    out.length = n;
     return n;
   }
   if (resp.body_len <= 0) {
     out.ptr = 0;
-    out.len = 0;
+    out.length = 0;
     return 0;
   }
   p = heap.alloc(resp.body_len as usize);
@@ -883,7 +883,7 @@ export function response_body_owned(buf: *u8, resp: HttpResponse, out: *HttpBody
     return -1;
   }
   out.ptr = p;
-  out.len = n;
+  out.length = n;
   return n;
 }
 
@@ -917,7 +917,7 @@ export function url_owned_from_slice(src: *u8, src_len: i32, out: *HttpUrlOwned)
   let n: i32 = 0;
   if (src_len <= 0) {
     out.ptr = 0;
-    out.len = 0;
+    out.length = 0;
     return 0;
   }
   if (src == 0) {
@@ -933,7 +933,7 @@ export function url_owned_from_slice(src: *u8, src_len: i32, out: *HttpUrlOwned)
     return -1;
   }
   out.ptr = p;
-  out.len = n;
+  out.length = n;
   return n;
 }
 
@@ -955,7 +955,7 @@ export function url_owned_free(url: HttpUrlOwned): void {
 export function request_bind_url_owned(method: Method, url: *HttpUrlOwned, body: *u8, body_len: i32, timeout_ms: u32, out: *HttpRequest): void {
   out.method = method;
   out.url = url.ptr;
-  out.url_len = url.len;
+  out.url_len = url.length;
   out.body = body;
   out.body_len = body_len;
   out.timeout_ms = timeout_ms;
@@ -985,7 +985,7 @@ export function request_owned_init(method: Method, url_src: *u8, url_len: i32, b
   out.method = method;
   out.timeout_ms = timeout_ms;
   out.body.ptr = 0;
-  out.body.len = 0;
+  out.body.length = 0;
   if (url_owned_from_slice(url_src, url_len, &out.url) < 0) {
     return -1;
   }
@@ -995,14 +995,14 @@ export function request_owned_init(method: Method, url_src: *u8, url_len: i32, b
     if (body_src == 0) {
       url_owned_free(out.url);
       out.url.ptr = 0;
-      out.url.len = 0;
+      out.url.length = 0;
       return -1;
     }
     p = heap.alloc(body_len as usize);
     if (p == 0) {
       url_owned_free(out.url);
       out.url.ptr = 0;
-      out.url.len = 0;
+      out.url.length = 0;
       return -1;
     }
     n = http_libc_url_copy_c(body_src, body_len, p, body_len);
@@ -1010,11 +1010,11 @@ export function request_owned_init(method: Method, url_src: *u8, url_len: i32, b
       heap.free(p);
       url_owned_free(out.url);
       out.url.ptr = 0;
-      out.url.len = 0;
+      out.url.length = 0;
       return -1;
     }
     out.body.ptr = p;
-    out.body.len = n;
+    out.body.length = n;
   }
   return 0;
 }
@@ -1028,9 +1028,9 @@ export function request_owned_free(req: *HttpRequestOwned): void {
   url_owned_free(req.url);
   body_owned_free(req.body);
   req.url.ptr = 0;
-  req.url.len = 0;
+  req.url.length = 0;
   req.body.ptr = 0;
-  req.body.len = 0;
+  req.body.length = 0;
 }
 
 /**
@@ -1041,9 +1041,9 @@ export function execute_owned(req: *HttpRequestOwned, buf: *u8, buf_cap: i32, ou
   let view: HttpRequest = HttpRequest {
     method: req.method,
     url: req.url.ptr,
-    url_len: req.url.len,
+    url_len: req.url.length,
     body: req.body.ptr,
-    body_len: req.body.len,
+    body_len: req.body.length,
     timeout_ms: req.timeout_ms
   };
   return execute(view, buf, buf_cap, out);
@@ -1087,7 +1087,7 @@ export function response_owned_from_parse(buf: *u8, resp: HttpResponse, out: *Ht
  */
 export function response_owned_free(resp: *HttpResponseOwned): void {
   body_owned_free(resp.body);
-  resp.body = HttpBodyOwned { ptr: 0, len: 0 };
+  resp.body = HttpBodyOwned { ptr: 0, length: 0 };
 }
 
 /** Exported function `listen_on`.
@@ -6322,7 +6322,7 @@ export function push_last_body_owned(out_meta: *Http2PushLast, out_body: *HttpBo
   }
   if (n == 0) {
     out_body.ptr = 0;
-    out_body.len = 0;
+    out_body.length = 0;
     return 0;
   }
   p = heap.alloc(n as usize);
@@ -6335,7 +6335,7 @@ export function push_last_body_owned(out_meta: *Http2PushLast, out_body: *HttpBo
     return -1;
   }
   out_body.ptr = p;
-  out_body.len = n;
+  out_body.length = n;
   return n;
 }
 

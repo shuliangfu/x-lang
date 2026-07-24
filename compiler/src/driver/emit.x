@@ -61,7 +61,7 @@ allow(padding) struct PipelineDepCtx {
 /* See implementation. */
 allow(padding) struct CodegenOutBuf {
   data: u8[9437184];
-  len: i32;
+  length: i32;
 }
 
 /* See implementation. */
@@ -385,7 +385,7 @@ export function run_x_emit_x(state: *DriverXEmitState): i32 {
   }
   ctx.num_lib_roots = 0;
   emit_copy_lib_roots_to_ctx(emit_state_key(state), &ctx);
-  let out: CodegenOutBuf = CodegenOutBuf { data: [], len: 0 };
+  let out: CodegenOutBuf = CodegenOutBuf { data: [], length: 0 };
   let source_len: usize = out_len as usize;
   let prep_src: *u8 = ew_preprocess_buf_ptr(&ctx);
   let rc: i32 = 0;
@@ -398,7 +398,7 @@ export function run_x_emit_x(state: *DriverXEmitState): i32 {
     ew_free_source_buffers(&ctx);
     return 1;
   }
-  let len: i32 = out.len;
+  let len: i32 = out.length;
   if (state.out_path_len == 0) {
     ew_print_x_smoke_summary(module_buf, len as usize);
   }

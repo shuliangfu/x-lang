@@ -922,7 +922,7 @@ void driver_diagnostic_typeck_var_resolution(int32_t expr_ref, const uint8_t *na
 
 
 
-/** -x -E 多文件诊断：codegen 前打印 module.num_funcs 与 out_buf.len，便于排查 dep 产出为空。 */
+/** -x -E 多文件诊断：codegen 前打印 module.num_funcs 与 out_buf.length，便于排查 dep 产出为空。 */
 /** 供 .x 探测 XLANG_DEBUG_PIPE（G-02f-164）。 */
 /* pure 权威：thin.x driver_diag_env_debug_pipe；冷启动保留 _impl + public；FROM_X 剔除 pure-dup（H↓）。 */
 #ifndef XLANG_L2_RDD_THIN_FROM_X
@@ -1170,7 +1170,7 @@ void driver_diagnostic_pipe_marker(int32_t id)
 
 
 
-/** 每个 dep codegen 后打印 j 与 out_buf.len，确认 buffer 是否递增。需要时取消注释 fprintf。 */
+/** 每个 dep codegen 后打印 j 与 out_buf.length，确认 buffer 是否递增。需要时取消注释 fprintf。 */
 #ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_after_dep_codegen(int32_t j, int32_t out_len) {
   (void)(0);

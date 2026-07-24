@@ -22,7 +22,7 @@ allow(padding) struct QueueSmokeState {
   mu: *u8;
   data: *i32;
   cap: i32;
-  len: i32;
+  length: i32;
   head: i32;
 }
 
@@ -73,7 +73,7 @@ export function queue_smoke_push_back_impl(q: *QueueSmokeState, x: i32): i32 {
   if (q == 0 as *QueueSmokeState) {
     return -1;
   }
-  if (q.len >= q.cap) {
+  if (q.length >= q.cap) {
     let new_cap: i32 = 8;
     if (q.cap > 0) {
       new_cap = q.cap * 2;
@@ -86,7 +86,7 @@ export function queue_smoke_push_back_impl(q: *QueueSmokeState, x: i32): i32 {
       return -1;
     }
     let i: i32 = 0;
-    while (i < q.len) {
+    while (i < q.length) {
       p[i] = q.data[queue_smoke_at(q, i)];
       i = i + 1;
     }
@@ -99,8 +99,8 @@ export function queue_smoke_push_back_impl(q: *QueueSmokeState, x: i32): i32 {
     q.cap = new_cap;
     q.head = 0;
   }
-  q.data[queue_smoke_at(q, q.len)] = x;
-  q.len = q.len + 1;
+  q.data[queue_smoke_at(q, q.length)] = x;
+  q.length = q.length + 1;
   return 0;
 }
 
@@ -169,7 +169,7 @@ export function sync_queue_contention_smoke_c(): i32 {
     mu: 0 as *u8,
     data: 0 as *i32,
     cap: 0,
-    len: 0,
+    length: 0,
     head: 0,
   };
   let rc: i32 = -1;
@@ -194,7 +194,7 @@ export function sync_queue_contention_smoke_c(): i32 {
     }
     return -1;
   }
-  if (st.len == 1000) {
+  if (st.length == 1000) {
     rc = 0;
   }
   if (st.data != 0 as *i32) {
