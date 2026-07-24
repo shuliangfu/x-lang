@@ -128,6 +128,11 @@ extern int32_t pipeline_module_func_num_params_at(struct ast_Module *m, int32_t 
 extern int32_t pipeline_module_func_param_type_ref_at(struct ast_Module *m, int32_t fi, int32_t pi);
 extern int32_t pipeline_module_func_return_type_at(struct ast_Module *m, int32_t fi);
 extern int32_t pipeline_type_elem_ref_at(struct ast_ASTArena *arena, int32_t type_ref);
+extern int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
+/* ctx is AsmFuncCtx*; void* avoids incomplete-type visibility warning before full layout. */
+extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(struct ast_ASTArena *arena,
+                                                      struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                      int32_t lval_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_type_named_name_into(struct ast_ASTArena *arena, int32_t type_ref, uint8_t *out64);
 extern struct ast_PipelineDepCtx *pipeline_asm_emit_dep_pipe_c(void);
 extern int32_t pipeline_expr_resolved_type_ref(struct ast_ASTArena *a, int32_t expr_ref);
@@ -3556,8 +3561,36 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
     }
   }
   if (base_ref != 0) {
-    if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0)
-      return -1;
+    /*
+     * wave360 Cap residual pure — freestanding UFCS auto-ref.
+     * Root: typeck matches value.method when free fn is method(self: *T,...);
+     * emit must pass &receiver (lea), not by-value load.
+     * G.7: when resolved UFCS (dep_ix<0, func_ix>=0) and param0 is *T matching
+     * base_ty's T, use lvalue eff addr; else value emit (wave358).
+     * PLATFORM: SHARED — mac + Ubuntu freestanding L2.
+     */
+    {
+      int32_t need_aref = 0;
+      int32_t r_fn = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+      int32_t r_dep = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
+      if (r_fn >= 0 && r_dep < 0 && mod_ref) {
+        int32_t p0 = pipeline_module_func_param_type_ref_at(mod_ref, r_fn, 0);
+        int32_t bty = pipeline_expr_resolved_type_ref(arena, base_ref);
+        if (p0 > 0 && bty > 0 &&
+            pipeline_type_kind_ord_at(arena, p0) == GLUE_TYPE_PTR_ORD &&
+            pipeline_typeck_type_refs_equal_c(arena, bty, p0) == 0) {
+          int32_t pe = pipeline_type_elem_ref_at(arena, p0);
+          if (pe > 0 && pipeline_typeck_type_refs_equal_c(arena, bty, pe) != 0)
+            need_aref = 1;
+        }
+      }
+      if (need_aref) {
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0)
+          return -1;
+      } else if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+        return -1;
+      }
+    }
     if (ta != 1 && backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
       return -1;
   }

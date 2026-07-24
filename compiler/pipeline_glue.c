@@ -32326,6 +32326,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_method_call_c(struct as
    * pipeline_glue_strict_minimal strong definition).
    * receiver.method(args) → free fn method(receiver, args...) when
    * nparams == num_args+1 and param0 matches receiver type.
+   * wave360: auto-ref value → *T self (score 900).
    * PLATFORM: SHARED — G.7 seed strong wins when linked.
    */
   if (ret_ty == 0 && base_ty > 0 && module && method_nlen > 0) {
@@ -32349,6 +32350,13 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_method_call_c(struct as
       sc0 = -1;
       if (p0 > 0 && pipeline_typeck_type_refs_equal_c(arena, base_ty, p0) != 0)
         sc0 = 1000;
+      /* wave360: T.method when free fn is method(self: *T, ...) — auto-ref. */
+      if (sc0 < 0 && p0 > 0 &&
+          pipeline_type_kind_ord_at(arena, p0) == (int32_t)ast_TypeKind_TYPE_PTR) {
+        int32_t pe = pipeline_type_elem_ref_at(arena, p0);
+        if (pe > 0 && pipeline_typeck_type_refs_equal_c(arena, base_ty, pe) != 0)
+          sc0 = 900;
+      }
       if (sc0 < 0)
         continue;
       score = sc0;

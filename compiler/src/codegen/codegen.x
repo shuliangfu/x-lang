@@ -7656,7 +7656,30 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             return -1;
           }
           if (!ast.ref_is_null(e.method_call_base_ref)) {
-            if (emit_call_arg_slice_abi(arena, out, e.method_call_base_ref, ctx) != 0) {
+            /*
+             * wave360: UFCS auto-ref — self: *T with value receiver → &receiver.
+             * PLATFORM: SHARED — host-C twin of freestanding lea path.
+             */
+            let uf_are: i32 = 0;
+            let uf_p0: i32 = pipeline_module_func_param_type_ref_at(uf_mod, uf_fn, 0);
+            let uf_bty: i32 = pipeline_expr_resolved_type_ref(arena, e.method_call_base_ref);
+            if (uf_p0 > 0 && uf_bty > 0
+                && pipeline_type_kind_ord_at(uf_arena, uf_p0) == TypeKind.TYPE_PTR as i32) {
+              let uf_pe: i32 = pipeline_type_elem_ref_at(uf_arena, uf_p0);
+              if (uf_pe > 0
+                  && pipeline_typeck_type_refs_equal_c(uf_arena, uf_bty, uf_p0) == 0
+                  && pipeline_typeck_type_refs_equal_c(uf_arena, uf_bty, uf_pe) != 0) {
+                uf_are = 1;
+              }
+            }
+            if (uf_are != 0) {
+              if (append_byte(out, 38) != 0) {
+                return -1;
+              }
+              if (emit_expr(arena, out, e.method_call_base_ref, ctx) != 0) {
+                return -1;
+              }
+            } else if (emit_call_arg_slice_abi(arena, out, e.method_call_base_ref, ctx) != 0) {
               return -1;
             }
           } else {

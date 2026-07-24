@@ -8113,8 +8113,32 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
             return -(1);
           }
           if (!(ast_ref_is_null((e.method_call_base_ref)))) {
-            if ((codegen_emit_call_arg_slice_abi(arena, out, (e.method_call_base_ref), ctx) != 0)) {
-              return -(1);
+            /*
+             * wave360: UFCS auto-ref — self: *T with value receiver → &receiver.
+             * PLATFORM: SHARED — G.7 twin of codegen.x.
+             */
+            int32_t uf_are = 0;
+            int32_t uf_p0 = pipeline_module_func_param_type_ref_at(uf_mod, uf_fn, 0);
+            int32_t uf_bty = pipeline_expr_resolved_type_ref(arena, (e.method_call_base_ref));
+            if (((uf_p0 > 0) && (uf_bty > 0)) &&
+                (pipeline_type_kind_ord_at(uf_arena, uf_p0) == (int32_t)ast_TypeKind_TYPE_PTR)) {
+              int32_t uf_pe = pipeline_type_elem_ref_at(uf_arena, uf_p0);
+              if (((uf_pe > 0) && (pipeline_typeck_type_refs_equal_c(uf_arena, uf_bty, uf_p0) == 0)) &&
+                  (pipeline_typeck_type_refs_equal_c(uf_arena, uf_bty, uf_pe) != 0)) {
+                uf_are = 1;
+              }
+            }
+            if ((uf_are != 0)) {
+              if ((codegen_append_byte(out, 38) != 0)) {
+                return -(1);
+              }
+              if ((codegen_emit_expr(arena, out, (e.method_call_base_ref), ctx) != 0)) {
+                return -(1);
+              }
+            } else {
+              if ((codegen_emit_call_arg_slice_abi(arena, out, (e.method_call_base_ref), ctx) != 0)) {
+                return -(1);
+              }
             }
           } else {
             if ((codegen_append_byte(out, 48) != 0)) {
