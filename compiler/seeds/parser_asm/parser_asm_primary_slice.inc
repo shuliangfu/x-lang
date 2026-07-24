@@ -393,6 +393,17 @@ static int32_t parser_asm_primary_empty_ident_braces_prefer_block_c(
       || k == (int32_t)TOKEN_RBRACKET || k == (int32_t)TOKEN_DOT || k == (int32_t)TOKEN_AS) {
     return 0;
   }
+  /**
+   * wave367: last STRUCT_LIT field empty Type {} is followed by outer `}`:
+   *   A { x: 42, e: E {} }
+   * wave364 treated any post-empty `}` as bare if/while prefer-block → primary ends as VAR
+   * "E", leaves `{`, field parse fails → whole function P001 / out_len=0.
+   * When under field-value parse (parser_asm_struct_field_value_depth > 0), keep struct lit.
+   * Nested bare `if b { if c {} }` keeps depth==0 → still prefer block. PLATFORM: SHARED.
+   */
+  if (k == (int32_t)TOKEN_RBRACE && parser_asm_struct_field_value_depth > 0) {
+    return 0;
+  }
   /* Bare if/while empty body: next is return/else/ident/rbrace/if/… → then-block. */
   return 1;
 }

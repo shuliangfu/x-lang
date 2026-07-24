@@ -28,6 +28,15 @@ extern int32_t parser_asm_stretch_struct_lit_fields_body_audit_c(struct parser_a
 
 /** EXPR_STRUCT_LIT 序值（与 ast.x / ast.h AST_EXPR_STRUCT_LIT 一致，须为 45 勿用源文件行号）。 */
 #define PARSER_ASM_FINISH_STRUCT_LIT_KIND 45
+
+/**
+ * wave367 / PLATFORM: SHARED — nesting depth of parse_expr under STRUCT_LIT `field: expr`.
+ * Shared with primary_slice empty IDENT {} disambiguation (same TU include order:
+ * finish_struct_lit_slice.inc then primary_slice.inc).
+ * When > 0, empty `Type {}` followed by outer `}` stays a struct lit (last field), not
+ * bare if/while prefer-block (wave364). Bare ctrl empty bodies keep depth == 0.
+ */
+static int32_t parser_asm_struct_field_value_depth = 0;
 /** EXPR_VAR 序值（与 ast.x / ast.h AST_EXPR_VAR 一致）。 */
 #define PARSER_ASM_EXPR_VAR_KIND 3
 
@@ -160,7 +169,10 @@ static void parser_asm_parse_struct_lit_fields_c(void *arena, int32_t lit_ref, s
       lex = rf.next_lex;
       memset(&fv, 0, sizeof(fv));
       fv.next_lex = lex;
+      /* wave367: mark field-value so empty Type {} before outer `}` keeps struct lit. */
+      parser_asm_struct_field_value_depth = parser_asm_struct_field_value_depth + 1;
       parse_expr_into(arena, lex, source, &fv);
+      parser_asm_struct_field_value_depth = parser_asm_struct_field_value_depth - 1;
       if (!fv.ok || fv.expr_ref <= 0)
         return;
       init_ref = fv.expr_ref;
