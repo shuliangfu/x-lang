@@ -1890,6 +1890,11 @@ static int32_t glue_emit_sret_memcpy_rbx_to_home_elf_c(struct platform_elf_ElfCo
 static int32_t glue_emit_sret_return_from_var_elf_c(struct ast_ASTArena *arena,
                                                     struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t var_expr_ref,
                                                     struct backend_AsmFuncCtx *ctx, int32_t ta);
+/* wave333: return ARRAY_LIT→TYPE_SLICE dual-GP (defs later). */
+int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                          int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+void pipeline_asm_bump_next_offset_for_array_lit(struct ast_ASTArena *arena, int32_t expr_ref,
+                                                 struct backend_AsmFuncCtx *ctx);
 /** WPO-S3 async CPS：return 前 reset phase；定义见 glue_async_cps_emit_phase_reset。 */
 static int32_t glue_async_cps_emit_phase_reset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 /* wave314: f32→f64 freestanding promote (defs near typeck float_widen). */
@@ -1911,6 +1916,53 @@ static int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
         pipeline_expr_kind_ord_at(arena, ret_op) == 3) {
       if (glue_emit_sret_return_from_var_elf_c(arena, elf_ctx, ret_op, ctx, ta) != 0)
         return -1;
+    } else if (arena && ctx && elf_ctx && ta == 0 &&
+               pipeline_expr_kind_ord_at(arena, ret_op) == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT &&
+               g_pipeline_asm_emit_module && g_pipeline_asm_emit_func_index >= 0) {
+      /*
+       * wave333 Cap residual pure: freestanding `return [1,2,3]` for TYPE_SLICE.
+       * SysV returns 16B slice as dual-GP (data@rax, length@rdx). Rec path only
+       * leaves data ptr in rax (ARRAY_LIT). G.7: same payload emit as let-init
+       * wave329 / call-arg wave332; length via imm → rdx (arg_reg 2).
+       * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV.
+       * Soft residual: stack payload dangles after return (same as `return a`);
+       * length-by-value is sound; index after call remains leave-off.
+       */
+      int32_t rty = pipeline_module_func_return_type_at(g_pipeline_asm_emit_module,
+                                                        g_pipeline_asm_emit_func_index);
+      int32_t sty = pipeline_expr_resolved_type_ref(arena, ret_op);
+      int32_t slice_ty = 0;
+      if (rty > 0 && pipeline_type_kind_ord_at(arena, rty) == (int32_t)ast_TypeKind_TYPE_SLICE)
+        slice_ty = rty;
+      else if (sty > 0 && pipeline_type_kind_ord_at(arena, sty) == (int32_t)ast_TypeKind_TYPE_SLICE)
+        slice_ty = sty;
+      if (slice_ty > 0) {
+        int32_t n_arr = pipeline_expr_array_lit_num_elems_at(arena, ret_op);
+        if (n_arr < 0 || n_arr > 256)
+          return -1;
+        if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, ret_op, ctx, ta) != 0)
+          return -1;
+        /* rax = data; preserve in rbx while loading length into rdx. */
+        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          return -1;
+        if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta) != 0)
+          return -1;
+        /* SysV arg_reg 2 = rdx — length half of dual-GP return. */
+        if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta) != 0)
+          return -1;
+        if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+        if (n_arr > 0)
+          pipeline_asm_bump_next_offset_for_array_lit(arena, ret_op, ctx);
+      } else if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, ret_op, ctx, ta) != 0) {
+        return -1;
+      } else if (g_pipeline_asm_emit_module && g_pipeline_asm_emit_func_index >= 0) {
+        int32_t rty2 = pipeline_module_func_return_type_at(g_pipeline_asm_emit_module,
+                                                           g_pipeline_asm_emit_func_index);
+        int32_t sty2 = glue_float_promote_src_ty_ref_c(arena, ret_op);
+        if (glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, rty2, sty2, ta) != 0)
+          return -1;
+      }
     } else if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, ret_op, ctx, ta) != 0) {
       return -1;
     } else if (g_pipeline_asm_emit_module && g_pipeline_asm_emit_func_index >= 0) {
@@ -26058,6 +26110,10 @@ int32_t pipeline_typeck_coerce_init_float_lit_to_decl_c(struct ast_ASTArena *are
 /* wave319: return path reuses int_binop coerce for EXPR_NEG/int binop → f32/f64. */
 int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
                                                         int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
+/* wave333: return ARRAY_LIT → TYPE_SLICE/ARRAY/VECTOR (def with coerce family). */
+int32_t pipeline_typeck_coerce_init_array_vector_lit_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
+                                                               int32_t decl_ty_ref, int32_t decl_kind,
+                                                               int32_t init_kind);
 
 /** bootstrap typeck 后处理（METHOD_CALL / 泛型 CALL）；定义见 pipeline_typeck_bootstrap_expr_fixup_c。 */
 static void pipeline_typeck_bootstrap_expr_fixup_c(struct ast_Module *module, struct ast_ASTArena *arena,
@@ -26148,19 +26204,17 @@ int32_t pipeline_typeck_check_expr_return_c(struct ast_Module *module, struct as
     }
   }
   if (!ast_ref_is_null(op_ref) && !ast_ref_is_null(return_type_ref)) {
-    /** return 语境：数组/vector 字面量按函数返回类型解析（对齐 let 初值与 typeck.c type_assignable_to）。 */
+    /*
+     * wave333 Cap residual pure: return ARRAY_LIT → TYPE_SLICE / TYPE_ARRAY / VECTOR.
+     * Root: return path only stamped TYPE_ARRAY / TYPE_VECTOR, so
+     * `function f(): i32[] { return [1,2,3] }` reported expected []i32 found ?.
+     * G.7: reuse pipeline_typeck_coerce_init_array_vector_lit_to_decl_c (let-init
+     * wave328 / assign wave331 / call-arg wave332). PLATFORM: SHARED.
+     */
     op_kind = pipeline_expr_kind_ord_at(arena, op_ref);
     rt_kind = pipeline_type_kind_ord_at(arena, return_type_ref);
-    if (op_kind == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT &&
-        rt_kind == (int32_t)ast_TypeKind_TYPE_ARRAY) {
-      pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref);
-    }
-    if (op_kind == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT &&
-        rt_kind == (int32_t)ast_TypeKind_TYPE_VECTOR &&
-        pipeline_expr_array_lit_num_elems_at(arena, op_ref) ==
-            pipeline_type_array_size_at(arena, return_type_ref)) {
-      pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref);
-    }
+    (void)pipeline_typeck_coerce_init_array_vector_lit_to_decl_c(arena, op_ref, return_type_ref,
+                                                                rt_kind, op_kind);
     /** return 语境：匿名 `{ a: 1, b: 2 }` 按函数返回 struct 类型回填名与 resolved_type。 */
     if (op_kind == (int32_t)ast_ExprKind_EXPR_STRUCT_LIT &&
         rt_kind == (int32_t)ast_TypeKind_TYPE_NAMED) {

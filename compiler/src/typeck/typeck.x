@@ -5776,27 +5776,19 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       }
     }
     if (!ast.ref_is_null(op_ref) && !ast.ref_is_null(return_type_ref)) {
-      /* See implementation. */
-      let ord_type_array: i32 = 10;
-      let ord_type_vector: i32 = 13;
-      let ord_expr_array_lit: i32 = 46;
-      let ret_lanes: i32 = 0;
+      /*
+       * wave333 Cap residual pure: return ARRAY_LIT → TYPE_SLICE / TYPE_ARRAY / VECTOR.
+       * Prior: only TYPE_ARRAY + hand-written VECTOR lanes; `return [1,2,3]: i32[]`
+       * found ?. G.7: reuse typeck_coerce_init_array_vector_lit_to_decl (let wave328 /
+       * assign wave331). PLATFORM: SHARED — seed typeck_gen + glue return_c twin.
+       */
+      let crc_arr: i32 = 0;
       op_kind = pipeline_expr_kind_ord_at(arena, op_ref);
       rt_kind = pipeline_type_kind_ord_at(arena, return_type_ref);
-      if (op_kind == ord_expr_array_lit && rt_kind == ord_type_array) {
-        if (typeck_coerce_array_lit_elem_types_to_decl(arena, op_ref, return_type_ref) < 0) {
-          return - 1;
-        }
-      }
-      if (op_kind == ord_expr_array_lit) {
-        ret_lanes = typeck_vector_lanes_of_type(arena, return_type_ref);
-        if (ret_lanes > 0 && pipeline_expr_array_lit_num_elems_at(arena, op_ref) == ret_lanes) {
-          pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref);
-        } else if (rt_kind == ord_type_vector
-        && pipeline_expr_array_lit_num_elems_at(arena, op_ref) == pipeline_type_array_size_at(arena,
-        return_type_ref)) {
-          pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref);
-        }
+      crc_arr = typeck_coerce_init_array_vector_lit_to_decl(arena, op_ref, return_type_ref, rt_kind,
+      op_kind);
+      if (crc_arr < 0) {
+        return - 1;
       }
     }
     if (!ast.ref_is_null(op_ref) && !ast.ref_is_null(return_type_ref)) {
