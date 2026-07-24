@@ -3470,6 +3470,33 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     let zi: i32 = 0;
     lex_from_result_ptr_into(&lex, &r);
     lexer.lexer_next_into(&r, lex, source);
+    /*
+     * wave385: optional `mut` after `let` (not after `const`).
+     * `mut` is a plain TOKEN_IDENT (not a keyword). docs/06: let bindings are already
+     * reassignable; this is an optional spelling for Rust-compat / future immut defaults.
+     * Skip one IDENT whose span is exactly "mut", then parse the real binding name.
+     * G.7 authority: parse_body_lets_into only (for-init/mid-body/top body-lets reuse this).
+     * PLATFORM: SHARED — seed parser_gen + pin must match.
+     */
+    if (is_let && r.tok.kind == token.TokenKind.TOKEN_IDENT && r.tok.ident_len == 3) {
+      let m0: u8 = 0;
+      let m1: u8 = 0;
+      let m2: u8 = 0;
+      if (r.token_start < source.length) {
+        m0 = source[r.token_start];
+      }
+      if (r.token_start + (1 as usize) < source.length) {
+        m1 = source[r.token_start + (1 as usize)];
+      }
+      if (r.token_start + (2 as usize) < source.length) {
+        m2 = source[r.token_start + (2 as usize)];
+      }
+      // ASCII "mut" = 109,117,116
+      if (m0 == 109 && m1 == 117 && m2 == 116) {
+        lex_from_result_ptr_into(&lex, &r);
+        lexer.lexer_next_into(&r, lex, source);
+      }
+    }
     /* discard binding `let _`: lexer emits TOKEN_UNDERSCORE (ident_len=0) as name "_".
      * Rejecting would abort parse_body_lets; skip may mis-parse body lets as top-level static.
      * `let self`: TOKEN_SELF (keyword, ident_len=0) is a valid binding name "self" (phase 7.2

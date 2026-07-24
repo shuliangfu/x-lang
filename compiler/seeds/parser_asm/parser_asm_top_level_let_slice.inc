@@ -68,6 +68,15 @@ void parser_asm_parse_one_top_level_let_into_slice_c(void *arena, void *module, 
   memset(&r, 0, sizeof(r));
   memset(&expr_res, 0, sizeof(expr_res));
   lexer_next_into(&r, lex, source);
+  /* wave385: optional IDENT "mut" after let (not const). PLATFORM: SHARED G.7 with parse_body_lets. */
+  if (is_const == 0 && r.tok.kind == (int32_t)TOKEN_IDENT && r.tok.ident_len == 3) {
+    size_t mut_start = r.token_start;
+    if (source->data && mut_start + 2 < source->length && source->data[mut_start] == 109 &&
+        source->data[mut_start + 1] == 117 && source->data[mut_start + 2] == 116) {
+      parser_lex_from_lexer_result_ptr_into(&lex, &r);
+      lexer_next_into(&r, lex, source);
+    }
+  }
   if (r.tok.kind != (int32_t)TOKEN_IDENT)
     return;
   name_len = r.tok.ident_len;

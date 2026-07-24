@@ -3177,6 +3177,26 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
       int32_t zi = 0;
       (void)(parser_lex_from_result_ptr_into(&(lex), &(r)));
       (void)(lexer_next_into(&(r), lex, source));
+      /* wave385: optional IDENT "mut" after let (TOKEN_LET=2). PLATFORM: SHARED G.7 twin of parser.x. */
+      if ((is_let && ((((r.tok).kind) ==59) && (((r.tok).ident_len) ==3)))) {
+        size_t mut_start = (r.token_start);
+        uint8_t m0 = 0;
+        uint8_t m1 = 0;
+        uint8_t m2 = 0;
+        if ((mut_start < (source->length))) {
+          (void)((m0 = (source)->data[mut_start]));
+        }
+        if (((mut_start + 1) < (source->length))) {
+          (void)((m1 = (source)->data[(mut_start + 1)]));
+        }
+        if (((mut_start + 2) < (source->length))) {
+          (void)((m2 = (source)->data[(mut_start + 2)]));
+        }
+        if ((((m0 ==109) && (m1 ==117)) && (m2 ==116))) {
+          (void)(parser_lex_from_result_ptr_into(&(lex), &(r)));
+          (void)(lexer_next_into(&(r), lex, source));
+        }
+      }
       if ((((r.tok).kind) ==52)) {
         (void)((is_discard_name = 1));
       } else {

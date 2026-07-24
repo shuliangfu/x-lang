@@ -64,7 +64,7 @@ typedef struct { uint32_t e[4]; } u32x4_t;
 typedef struct { uint32_t e[8]; } u32x8_t;
 typedef struct { uint32_t e[16]; } u32x16_t;
 #endif
-typedef struct { uint8_t *ptr; size_t len; size_t handle; } xlang_batch_buf_t;
+typedef struct { uint8_t *ptr; size_t length; size_t handle; } xlang_batch_buf_t;
 extern int io_register_buffer(uint8_t *ptr, size_t len);
 extern int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr);
 __attribute__((weak)) int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }
@@ -87,10 +87,10 @@ extern int32_t xlang_io_read_fixed(size_t handle, uint32_t buf_index, size_t off
 extern int32_t xlang_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);
 extern uint8_t *xlang_io_read_ptr(size_t handle, unsigned timeout_ms);
 extern int32_t xlang_io_read_ptr_len(void);
-typedef struct { void *ptr; size_t len; size_t handle; } xlang_buffer_abi_t;
-static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }
-static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_read)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
-static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_write)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
+typedef struct { void *ptr; size_t length; size_t handle; } xlang_buffer_abi_t;
+static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->length, b->handle); }
+static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_read)((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }
+static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_write)((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }
 static inline int32_t std_io_driver_submit_read_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return xlang_io_submit_read_buf((intptr_t)buf, (int32_t)timeout_ms); }
 static inline int32_t std_io_driver_submit_write_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return xlang_io_submit_write_buf((intptr_t)buf, (int32_t)timeout_ms); }
 #define xlang_io_register(buf) xlang_io_register_buf(buf)
@@ -100,7 +100,7 @@ static inline int32_t std_io_driver_submit_write_via_ptr(ptrdiff_t buf, uint32_t
 #undef xlang_io_register
 #undef xlang_io_submit_read
 #undef xlang_io_submit_write
-struct std_io_driver_Buffer { void *ptr; size_t len; size_t handle; };
+struct std_io_driver_Buffer { void *ptr; size_t length; size_t handle; };
 typedef struct std_io_driver_Buffer std_io_Buffer;
 #define std_io_Buffer std_io_driver_Buffer
 extern ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);
@@ -292,17 +292,17 @@ extern int32_t net_run_accept_workers_c(int32_t listener_fd, int32_t n_workers, 
 #define std_net_net_close_socket_c(x) net_close_socket_c_real(xlang_io_net_fd(x))
 #define std_net_net_run_accept_workers_c(x, n, t) net_run_accept_workers_c_real(xlang_io_net_fd(x), n, t)
 #define STD_FS_FS_IOVEC_BUF_DEFINED
-struct std_fs_FsIovecBuf { void *ptr; size_t len; size_t handle; };
+struct std_fs_FsIovecBuf { void *ptr; size_t length; size_t handle; };
 #define std_fs_posix_FsIovecBuf std_fs_FsIovecBuf
-struct std_io_sync_Iovec { uint8_t *base; size_t len; };
+struct std_io_sync_Iovec { uint8_t *base; size_t length; };
 #define std_fs_posix_Iovec std_io_sync_Iovec
 struct std_map_Map_i32_i32;
 typedef struct std_io_driver_Buffer std_net_Buffer;
 struct std_error_Error { int32_t code; };
 struct std_error_ErrorChain { int32_t depth; int32_t c0; int32_t c1; int32_t c2; int32_t c3; };
-struct std_string_String { uint8_t data[256]; int32_t len; };
+struct std_string_String { uint8_t data[256]; int32_t length; };
 typedef struct std_string_String String;
-struct std_string_StrView { uint8_t *ptr; int32_t len; };
+struct std_string_StrView { uint8_t *ptr; int32_t length; };
 struct std_heap_Arena64 { uint8_t *chunk; size_t cap; size_t off; };
 struct std_heap_Allocator { int32_t kind; struct std_heap_Arena64 *arena; };
 struct std_vec_Vec_i32;
@@ -3177,6 +3177,26 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
       int32_t zi = 0;
       (void)(parser_lex_from_result_ptr_into(&(lex), &(r)));
       (void)(lexer_next_into(&(r), lex, source));
+      /* wave385: optional IDENT "mut" after let (TOKEN_LET=2). PLATFORM: SHARED G.7 twin of parser.x. */
+      if ((is_let && ((((r.tok).kind) ==59) && (((r.tok).ident_len) ==3)))) {
+        size_t mut_start = (r.token_start);
+        uint8_t m0 = 0;
+        uint8_t m1 = 0;
+        uint8_t m2 = 0;
+        if ((mut_start < (source->length))) {
+          (void)((m0 = (source)->data[mut_start]));
+        }
+        if (((mut_start + 1) < (source->length))) {
+          (void)((m1 = (source)->data[(mut_start + 1)]));
+        }
+        if (((mut_start + 2) < (source->length))) {
+          (void)((m2 = (source)->data[(mut_start + 2)]));
+        }
+        if ((((m0 ==109) && (m1 ==117)) && (m2 ==116))) {
+          (void)(parser_lex_from_result_ptr_into(&(lex), &(r)));
+          (void)(lexer_next_into(&(r), lex, source));
+        }
+      }
       if ((((r.tok).kind) ==52)) {
         (void)((is_discard_name = 1));
       } else {
@@ -4601,11 +4621,19 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
             (void)((lex = (ret_mid_res.next_lex)));
             (void)(lexer_next_into(&(r), lex, source));
           }
+          /* Track ';' so Cap-T001 filler skip never swallows missing-semicolon
+           * (tests/parser/semicolon_missing.x). PLATFORM: SHARED mirror parser.x. */
+          int32_t had_return_semi = 0;
           if ((((r.tok).kind) ==95)) {
             (void)(parser_lex_from_next_into(&(lex), r));
             (void)(lexer_next_into(&(r), lex, source));
+            (void)((had_return_semi = 1));
           }
           if (parser_token_is_label_start(r, source)) {
+            if ((had_return_semi == 0)) {
+              (void)(parser_set_onefunc_fail(out, lex));
+              return;
+            }
             int32_t ret_mid_ref = ast_ast_arena_expr_alloc(arena);
             if ((ret_mid_ref ==0)) {
               (void)(parser_set_onefunc_fail(out, lex));
@@ -4648,6 +4676,10 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
             (void)(parser_expr_set_common_zeros(&(re_fin)));
             (void)(ast_ast_arena_expr_set(arena, bare_fin, re_fin));
             (void)((return_expr_ref_storage = bare_fin));
+          }
+          if (((had_return_semi == 0) && ((((r.tok).kind) !=85) && (((r.tok).kind) !=0)))) {
+            (void)(parser_set_onefunc_fail(out, lex));
+            return;
           }
           if (((((r.tok).kind) !=85) && (((r.tok).kind) !=0))) {
             while (((((r.tok).kind) !=85) && (((r.tok).kind) !=0))) {
@@ -4891,6 +4923,14 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
               return;
             }
             (void)(parser_onefunc_push_src_stmt(out, 7, li_lr));
+            /* wave383: pin final return when L:return e; is last before } so asm
+             * backends that ignore kind=7 still emit the value (goto main → 42).
+             * PLATFORM: SHARED — mirror parser.x. */
+            if (((((r.tok).kind) ==85) && (ret_op_fn != 0))) {
+              (void)((return_expr_ref_storage = ret_op_fn));
+              (void)(((impl_snap.has_final_expr) = 1));
+              (void)(((impl_snap.has_explicit_return_kw) = 1));
+            }
             (void)((stmt_tok_ready = 1));
             continue;
           }
