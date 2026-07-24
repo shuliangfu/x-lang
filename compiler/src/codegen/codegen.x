@@ -7699,11 +7699,14 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       if (is_slice != 0) {
         /*
-         * wave335 Cap residual pure: TYPE_SLICE + ARRAY_LIT must use static storage.
-         * Root: `(E[]){…}` has automatic duration → return/let-then-return dangles
-         * (same class as pre-12c675d71 string stack compounds).
-         * G.7: GNU statement expr + block-scope static array (host gcc/clang):
-         *   ({ static E __xlang_al[] = {…}; (struct slice){ .data = __xlang_al, .length = N }; })
+         * wave335 Cap residual pure: TYPE_SLICE + ARRAY_LIT durable static when all elems
+         * are compile-time LIT/BOOL_LIT (return-safe; matches freestanding text-embed).
+         * wave340: non-const elems cannot be `static E __xlang_al[] = {n,…}` (C rejects
+         * non-constant initializers). G.7 align freestanding durable gate (EXPR_LIT/BOOL only):
+         *   const → ({ static E __xlang_al[]={…}; (slice){.data=__xlang_al,.length=N}; })
+         *   non-const → (slice){ .data = (E[]){…}, .length = N }
+         *   (C99 compound literal has block duration — in-fn index OK; cross-fn return still
+         *    soft residual, same as freestanding stack path.)
          * PLATFORM: SHARED host-C emit.
          */
         if (n == 0) {
@@ -7724,38 +7727,82 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           }
           return 0;
         }
-        /* ({ static  */
-        let open_stmt: u8[12] = [40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0];
-        if (emit_bytes_from_ptr(out, &open_stmt[0], 10) != 0) {
-          return -1;
+        /* All elems EXPR_LIT(0)/BOOL_LIT(2) → durable static (wave335); else block compound. */
+        let all_const: i32 = 1;
+        let ci: i32 = 0;
+        while (ci < n) {
+          let er: i32 = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ci);
+          if (ast.ref_is_null(er)) {
+            all_const = 0;
+          } else {
+            let ek: i32 = pipeline_expr_kind_ord_at(arena, er);
+            if (ek != 0 && ek != 2) {
+              all_const = 0;
+            }
+          }
+          ci = ci + 1;
         }
-        if (!ast.ref_is_null(elem_type_ref) && emit_type(arena, out, elem_type_ref, 0 as *u8, 0, ctx) != 0) {
-          let fallback: u8[9] = [117, 105, 110, 116, 56, 95, 116, 0, 0];
-          if (emit_bytes_9(out, fallback, 7) != 0) {
+        if (all_const != 0) {
+          /* ({ static  */
+          let open_stmt: u8[12] = [40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0];
+          if (emit_bytes_from_ptr(out, &open_stmt[0], 10) != 0) {
             return -1;
           }
-        }
-        /*  __xlang_al[] = { */
-        let al_head: u8[18] = [32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 91, 93, 32, 61, 32, 123, 0];
-        if (emit_bytes_from_ptr(out, &al_head[0], 17) != 0) {
-          return -1;
-        }
-        let ai: i32 = 0;
-        while (ai < n) {
-          if (ai > 0) {
-            let comma: u8[3] = [44, 32, 0];
-            if (emit_bytes_3(out, comma, 2) != 0) {
+          if (!ast.ref_is_null(elem_type_ref) && emit_type(arena, out, elem_type_ref, 0 as *u8, 0, ctx) != 0) {
+            let fallback: u8[9] = [117, 105, 110, 116, 56, 95, 116, 0, 0];
+            if (emit_bytes_9(out, fallback, 7) != 0) {
               return -1;
             }
           }
-          if (!ast.ref_is_null(pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai)) && emit_expr(arena, out, pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai), ctx) != 0) {
+          /*  __xlang_al[] = { */
+          let al_head: u8[18] = [32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 91, 93, 32, 61, 32, 123, 0];
+          if (emit_bytes_from_ptr(out, &al_head[0], 17) != 0) {
             return -1;
           }
-          ai = ai + 1;
+          let ai: i32 = 0;
+          while (ai < n) {
+            if (ai > 0) {
+              let comma: u8[3] = [44, 32, 0];
+              if (emit_bytes_3(out, comma, 2) != 0) {
+                return -1;
+              }
+            }
+            if (!ast.ref_is_null(pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai)) && emit_expr(arena, out, pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai), ctx) != 0) {
+              return -1;
+            }
+            ai = ai + 1;
+          }
+          /* }; ( */
+          let mid: u8[6] = [125, 59, 32, 40, 0, 0];
+          if (emit_bytes_from_ptr(out, &mid[0], 4) != 0) {
+            return -1;
+          }
+          if (emit_type(arena, out, e.resolved_type_ref, 0 as *u8, 0, ctx) != 0) {
+            let fallback: u8[9] = [117, 105, 110, 116, 56, 95, 116, 0, 0];
+            if (emit_bytes_9(out, fallback, 7) != 0) {
+              return -1;
+            }
+          }
+          /* ){ .data = __xlang_al, .length =  */
+          let slice_mid: u8[36] = [41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0];
+          if (emit_bytes_from_ptr(out, &slice_mid[0], 33) != 0) {
+            return -1;
+          }
+          if (format_int(out, ai) != 0) {
+            return -1;
+          }
+          /*  }; }) */
+          let slice_end: u8[8] = [32, 125, 59, 32, 125, 41, 0, 0];
+          if (emit_bytes_from_ptr(out, &slice_end[0], 6) != 0) {
+            return -1;
+          }
+          return 0;
         }
-        /* }; ( */
-        let mid: u8[6] = [125, 59, 32, 40, 0, 0];
-        if (emit_bytes_from_ptr(out, &mid[0], 4) != 0) {
+        /*
+         * Non-const: (slice){ .data = (E[]){ elems }, .length = N }
+         * C99 compound literal lives for the enclosing block (in-fn use OK).
+         */
+        if (append_byte(out, 40) != 0) {
           return -1;
         }
         if (emit_type(arena, out, e.resolved_type_ref, 0 as *u8, 0, ctx) != 0) {
@@ -7764,17 +7811,46 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             return -1;
           }
         }
-        /* ){ .data = __xlang_al, .length =  */
-        let slice_mid: u8[36] = [41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0];
-        if (emit_bytes_from_ptr(out, &slice_mid[0], 33) != 0) {
+        /* ){ .data = ( */
+        let nc_mid1: u8[16] = [41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 40, 0, 0, 0, 0];
+        if (emit_bytes_from_ptr(out, &nc_mid1[0], 12) != 0) {
           return -1;
         }
-        if (format_int(out, ai) != 0) {
+        if (!ast.ref_is_null(elem_type_ref) && emit_type(arena, out, elem_type_ref, 0 as *u8, 0, ctx) != 0) {
+          let fallback: u8[9] = [117, 105, 110, 116, 56, 95, 116, 0, 0];
+          if (emit_bytes_9(out, fallback, 7) != 0) {
+            return -1;
+          }
+        }
+        /* []){ */
+        let nc_arr: u8[8] = [91, 93, 41, 123, 0, 0, 0, 0];
+        if (emit_bytes_from_ptr(out, &nc_arr[0], 4) != 0) {
           return -1;
         }
-        /*  }; }) */
-        let slice_end: u8[8] = [32, 125, 59, 32, 125, 41, 0, 0];
-        if (emit_bytes_from_ptr(out, &slice_end[0], 6) != 0) {
+        let ai_nc: i32 = 0;
+        while (ai_nc < n) {
+          if (ai_nc > 0) {
+            let comma: u8[3] = [44, 32, 0];
+            if (emit_bytes_3(out, comma, 2) != 0) {
+              return -1;
+            }
+          }
+          if (!ast.ref_is_null(pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai_nc)) && emit_expr(arena, out, pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai_nc), ctx) != 0) {
+            return -1;
+          }
+          ai_nc = ai_nc + 1;
+        }
+        /* }, .length =  */
+        let nc_mid2: u8[16] = [32, 125, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0];
+        if (emit_bytes_from_ptr(out, &nc_mid2[0], 14) != 0) {
+          return -1;
+        }
+        if (format_int(out, ai_nc) != 0) {
+          return -1;
+        }
+        /*  } */
+        let nc_end: u8[4] = [32, 125, 0, 0];
+        if (emit_bytes_from_ptr(out, &nc_end[0], 2) != 0) {
           return -1;
         }
         return 0;

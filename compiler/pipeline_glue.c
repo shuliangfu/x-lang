@@ -10369,6 +10369,13 @@ static int32_t glue_init_is_empty_array_lit(struct ast_ASTArena *arena, int32_t 
 
 /**
  * EXPR_ARRAY_LIT：temp 区逐元素 emit（与 struct_lit 对称，勿落 ast_arena_expr_get 慢路径）。
+ *
+ * wave340 Cap residual pure: non-const elems (binop / call / …) clobber rbx while the
+ * payload base is held only in rbx → later stores write to garbage (Ubuntu SIGSEGV on
+ * `let a:i32[]=[n,n+10,n+20]`). G.7: same dual-slot discipline as binop (wave338) —
+ * after an elem emit that may clobber rbx, push value, re-lea temp_base → rbx, pop value,
+ * then store. LIT/VAR elems leave rbx intact (glue_expr_emit_may_clobber_rbx_elf_c=0).
+ * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV (ta==0); arm64 via same enc.
  */
 int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                  int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
@@ -10398,8 +10405,20 @@ int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct pla
   for (ai = 0; ai < n_arr && ai < 256; ai++) {
     elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai);
     if (elem_ref != 0) {
+      int32_t may_clobber = glue_expr_emit_may_clobber_rbx_elf_c(arena, elem_ref);
       if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, elem_ref, ctx, ta) != 0)
         return -1;
+      if (may_clobber != 0) {
+        /* value@rax; restore payload base@rbx without dropping the value. */
+        if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_base, ta) != 0)
+          return -1;
+        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          return -1;
+        if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+      }
       if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, ai * esz, esz, ta) != 0)
         return -1;
     }
