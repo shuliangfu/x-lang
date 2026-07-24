@@ -1554,6 +1554,8 @@ extern int32_t codegen_emit_import_dep_function_declarations(struct ast_Module *
 extern int32_t codegen_x_ast_emit_header(struct codegen_CodegenOutBuf * out);
 extern int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_PipelineDepCtx * ctx, int32_t dep_index);
 extern int32_t codegen_should_skip_emit_func_by_name(uint8_t * name, int32_t name_len);
+/* wave377 Cap residual pure: same-module redef first-wins body emit. */
+extern int32_t codegen_should_skip_later_same_name_body(struct ast_Module * module, int32_t fi);
 extern int32_t codegen_is_submit_batch_buf_call(uint8_t * name, int32_t name_len);
 extern int32_t codegen_force_param_i32(uint8_t * prefix, int32_t prefix_len, uint8_t * name, int32_t name_len, int32_t param_index);
 extern int32_t codegen_should_skip_emit_func_core_read_ptr(uint8_t * name, int32_t name_len);
@@ -12980,6 +12982,10 @@ int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, s
         }
         (void)((skip = codegen_should_skip_emit_func(skip_dep, ((uint8_t *)(0)), 0, &((skip_name)[0]), skip_nl)));
       }
+      /* wave377: same-module redef first-wins (host C dual body → redefinition). */
+      if (((skip == 0) && (asm_backend == 0))) {
+        (void)((skip = codegen_should_skip_later_same_name_body(module, i)));
+      }
       if ((skip !=0)) {
         (void)((i = (i + 1)));
         continue;
@@ -13032,6 +13038,52 @@ int32_t codegen_should_skip_emit_func_by_name(uint8_t * name, int32_t name_len) 
       }
     }
     return 0;
+  }
+  return 0;
+}
+/*
+ * wave377 Cap residual pure: same-module redefinition first-wins body emit.
+ * Call resolve binds first name+arity; host C rejects dual strong definitions.
+ * PLATFORM: SHARED — mirror codegen.x codegen_should_skip_later_same_name_body.
+ */
+int32_t codegen_should_skip_later_same_name_body(struct ast_Module * module, int32_t fi) {
+  int32_t nlen;
+  int32_t np;
+  int32_t j;
+  uint8_t name[64];
+  if ((module == ((struct ast_Module *)(0))) || (fi <= 0)) {
+    return 0;
+  }
+  if ((pipeline_module_func_is_extern_at(module, fi) != 0)) {
+    return 0;
+  }
+  nlen = pipeline_module_func_name_len_at(module, fi);
+  if ((nlen <= 0) || (nlen > 63)) {
+    return 0;
+  }
+  (void)(pipeline_module_func_name_copy64(module, fi, &((name)[0])));
+  np = pipeline_module_func_num_params_at(module, fi);
+  j = 0;
+  while ((j < fi)) {
+    if ((pipeline_module_func_is_extern_at(module, j) == 0)) {
+      int32_t jlen = pipeline_module_func_name_len_at(module, j);
+      if (((jlen == nlen) && (pipeline_module_func_num_params_at(module, j) == np))) {
+        uint8_t jname[64];
+        int32_t eq = 1;
+        int32_t k = 0;
+        (void)(pipeline_module_func_name_copy64(module, j, &((jname)[0])));
+        while ((k < nlen)) {
+          if (((name)[k] != (jname)[k])) {
+            (void)((eq = 0));
+          }
+          (void)((k = (k + 1)));
+        }
+        if ((eq != 0)) {
+          return 1;
+        }
+      }
+    }
+    (void)((j = (j + 1)));
   }
   return 0;
 }

@@ -1473,6 +1473,55 @@ export function codegen_should_skip_emit_std_io_trivial_handle(dep_path: *u8, na
 }
 
 /**
+ * wave377 Cap residual pure: same-module redefinition first-wins body emit.
+ * Call resolve already binds the first surface-name + arity match; host C rejects
+ * two strong definitions of the same link name (BLD001 redefinition). Skip later
+ * non-extern bodies that share name and arity with an earlier non-extern body.
+ * @param module *Module — current module (null → 0)
+ * @param fi i32 — candidate function index
+ * @return i32 — 1 skip (superseded by earlier body); 0 emit this body
+ * PLATFORM: SHARED — host-C body emit path; call resolve first-wins authority.
+ */
+export function codegen_should_skip_later_same_name_body(module: *Module, fi: i32): i32 {
+  if (module == 0 as *Module || fi <= 0) {
+    return 0;
+  }
+  if (pipeline_module_func_is_extern_at(module, fi) != 0) {
+    return 0;
+  }
+  let nlen: i32 = pipeline_module_func_name_len_at(module, fi);
+  if (nlen <= 0 || nlen > 63) {
+    return 0;
+  }
+  let name: u8[64] = [];
+  pipeline_module_func_name_copy64(module, fi, &name[0]);
+  let np: i32 = pipeline_module_func_num_params_at(module, fi);
+  let j: i32 = 0;
+  while (j < fi) {
+    if (pipeline_module_func_is_extern_at(module, j) == 0) {
+      let jlen: i32 = pipeline_module_func_name_len_at(module, j);
+      if (jlen == nlen && pipeline_module_func_num_params_at(module, j) == np) {
+        let jname: u8[64] = [];
+        pipeline_module_func_name_copy64(module, j, &jname[0]);
+        let eq: i32 = 1;
+        let k: i32 = 0;
+        while (k < nlen) {
+          if (name[k] != jname[k]) {
+            eq = 0;
+          }
+          k = k + 1;
+        }
+        if (eq != 0) {
+          return 1;
+        }
+      }
+    }
+    j = j + 1;
+  }
+  return 0;
+}
+
+/**
  * See implementation.
  * See implementation.
  * See implementation.
@@ -13038,6 +13087,10 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
           skip_dep = driver_get_current_dep_path_for_codegen();
         }
         skip = codegen_should_skip_emit_func(skip_dep, 0 as *u8, 0, &skip_name[0], skip_nl);
+      }
+      /* wave377: same-module redef first-wins (host C dual body → redefinition). */
+      if (skip == 0 && asm_backend == 0) {
+        skip = codegen_should_skip_later_same_name_body(module, i);
       }
       if (skip != 0) {
         i = i + 1;
