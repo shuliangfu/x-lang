@@ -1128,6 +1128,54 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                         }
                       }
                     }
+                  } else if (gek == eek && eek == XLANG_TRAIT_TY_ARRAY) {
+                    /*
+                     * wave436: *[N]T → PTR to ARRAY of N T. The PTR's elem
+                     * (elem) is the ARRAY. Walk its dims (elem_array_ndims/
+                     * dims) then compare the leaf elem kind/name with
+                     * elem_elem (base T). Multi-dim *[N][M]T is soft-skipped
+                     * at registration (eeks=-1) so this path only fires for
+                     * single-dim. Twin of wave433 ARRAY walk but on elem level.
+                     * PLATFORM: SHARED parse.
+                     */
+                    int32_t eeek = g_xlang_skip_trait_reg[ti].method_param_elem_elem_kinds[mi][pi];
+                    int32_t eend = g_xlang_skip_trait_reg[ti].method_param_elem_array_ndims[mi][pi];
+                    int32_t leaf_tr = elem;
+                    int32_t d;
+                    for (d = 0; d < eend && leaf_tr != 0; d++) {
+                      int32_t k = pipeline_type_kind_ord_at(arena, leaf_tr);
+                      int32_t gsz;
+                      if (k != XLANG_TRAIT_TY_ARRAY) {
+                        mm = 1;
+                        break;
+                      }
+                      gsz = pipeline_type_array_size_at(arena, leaf_tr);
+                      if (gsz != g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][d]) {
+                        mm = 1;
+                        break;
+                      }
+                      leaf_tr = pipeline_type_elem_ref_at(arena, leaf_tr);
+                      if (leaf_tr == 0 && d + 1 < eend) {
+                        mm = 1;
+                        break;
+                      }
+                    }
+                    if (!mm && eeek >= 0 && leaf_tr != 0) {
+                      int32_t pgek = pipeline_type_kind_ord_at(arena, leaf_tr);
+                      if (pgek >= 0 && pgek != eeek) {
+                        mm = 1;
+                      } else if (pgek == eeek && eeek == XLANG_TRAIT_TY_NAMED) {
+                        int32_t enl = g_xlang_skip_trait_reg[ti].method_param_name_lens[mi][pi];
+                        if (enl > 0) {
+                          uint8_t gnm[64];
+                          int32_t gnl = pipeline_type_named_name_into(arena, leaf_tr, gnm);
+                          if (gnl != enl ||
+                              memcmp(gnm, g_xlang_skip_trait_reg[ti].method_param_names[mi][pi],
+                                     (size_t)enl) != 0)
+                            mm = 1;
+                        }
+                      }
+                    }
                   }
                 }
               } else if (got_pk == ek && ek == XLANG_TRAIT_TY_ARRAY) {
@@ -1552,6 +1600,11 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
          * capture slice base T. PLATFORM: SHARED parse. */
         int32_t param_elem_slice_need_rb = 0;  /* elem is slice; saw `[`, want `]` */
         int32_t param_elem_elem_pending = 0;   /* slice closed; want base T */
+        /* wave436: *[N]T → PTR to ARRAY of N T. After `*[N`, close `]` then
+         * capture base T (reuses param_elem_elem_pending for base T capture).
+         * Multi-dim *[N][M]T not supported → soft-skip in param_elem_elem_pending.
+         * PLATFORM: SHARED parse. */
+        int32_t param_elem_prefix_arr_need_rb = 0; /* saw `*[N`, want `]` */
         int32_t param_elem_dim_n = 0;
         int32_t param_elem_dims[XLANG_SKIP_TRAIT_ARRAY_DIM_MAX];
         int32_t steps = 0;
@@ -1699,12 +1752,10 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                 }
               } else if (param_elem_slice_need_rb) {
                 /*
-                 * wave435: *[... — saw `[` after PTR. Decide on this token:
+                 * wave435/436: *[... — saw `[` after PTR. Decide on this token:
                  *   `]`     → *[]T  = PTR to SLICE of T (capture base T next)
-                 *   INT N   → *[N]T = PTR to ARRAY of N T (soft-skip: registry
-                 *             PTR+ARRAY check path not implemented; mark elem
-                 *             uncaptured to avoid false mismatch — preserves
-                 *             wave434 behavior for this 3-layer form)
+                 *   INT N   → *[N]T = PTR to ARRAY of N T (capture N, expect `]`
+                 *             then base T; multi-dim *[N][M]T soft-skipped later)
                  *   other   → bail out (avoid parse failure)
                  * PLATFORM: SHARED parse.
                  */
@@ -1713,21 +1764,53 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                   param_elem_slice_need_rb = 0;
                   param_elem_elem_pending = 1;
                 } else if (r.tok.kind == (int32_t)TOKEN_INT && r.tok.int_val > 0) {
-                  ent->method_param_elem_kinds[mi_reg][param_count] = -1;
+                  /* wave436: *[N]T → PTR to ARRAY of N T. Capture N, expect `]`. */
+                  ent->method_param_elem_kinds[mi_reg][param_count] = XLANG_TRAIT_TY_ARRAY;
+                  if (param_elem_dim_n < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                    param_elem_dims[param_elem_dim_n++] = r.tok.int_val;
                   param_elem_slice_need_rb = 0;
-                  want_param_ty = 0;
-                  saw_param_tok = 1;
+                  param_elem_prefix_arr_need_rb = 1;
                 } else {
                   param_elem_slice_need_rb = 0;
                   want_param_ty = 0;
                 }
+              } else if (param_elem_prefix_arr_need_rb) {
+                /*
+                 * wave436: *[N]T — saw `*[N`, want `]` then base T. On `]`,
+                 * store elem-level ARRAY dims and transition to base T capture
+                 * (param_elem_elem_pending, shared with wave435 slice path).
+                 * PLATFORM: SHARED parse.
+                 */
+                if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
+                  int32_t di;
+                  ent->method_param_elem_array_ndims[mi_reg][param_count] = param_elem_dim_n;
+                  for (di = 0; di < param_elem_dim_n; di++)
+                    ent->method_param_elem_array_dims[mi_reg][param_count][di] = param_elem_dims[di];
+                  param_elem_dim_n = 0;
+                  param_elem_prefix_arr_need_rb = 0;
+                  param_elem_elem_pending = 1;
+                } else {
+                  param_elem_prefix_arr_need_rb = 0;
+                  want_param_ty = 0;
+                }
               } else if (param_elem_elem_pending) {
-                /* wave435: slice closed; capture base T (NAMED name / builtin). */
+                /*
+                 * wave435/436: slice/array closed; capture base T (NAMED name /
+                 * builtin). For `*[N][M]T` multi-dim PTR-to-ARRAY (next token
+                 * is `[`), soft-skip — check path not implemented for 4-layer.
+                 * PLATFORM: SHARED parse.
+                 */
                 if (r.tok.kind == (int32_t)TOKEN_IDENT) {
                   ent->method_param_elem_elem_kinds[mi_reg][param_count] = XLANG_TRAIT_TY_NAMED;
                   xlang_skip_trait_copy_ident_c(source, r.token_start, r.tok.ident_len,
                                                  ent->method_param_names[mi_reg][param_count],
                                                  &ent->method_param_name_lens[mi_reg][param_count]);
+                  param_elem_elem_pending = 0;
+                  want_param_ty = 0;
+                  saw_param_tok = 1;
+                } else if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
+                  /* wave436: *[N][M]T multi-dim PTR-to-ARRAY — soft-skip. */
+                  ent->method_param_elem_kinds[mi_reg][param_count] = -1;
                   param_elem_elem_pending = 0;
                   want_param_ty = 0;
                   saw_param_tok = 1;
