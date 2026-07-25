@@ -710,19 +710,24 @@ static int32_t parser_asm_seed_impl_type_start_kind_c(int32_t kind) {
  * wave421 Cap residual pure — trait method registry for missing-method diagnostics.
  * Root: product path only hoisted impl methods as free funcs (wave390); never stored
  * trait signatures → impl_missing_method.x false-green (compile exit 0).
- * G.7: single table in seed parse_into_buf (reset per module); soft remains bounds/dyn.
+ * G.7: single table in seed parse_into_buf (reset per module).
  * wave424: unknown_trait hard fail (align product skip_tl xlang_trait_check_impls_complete_c).
  * wave425: method_ret_kinds + return_mismatch hard fail (twin of skip_tl).
+ * wave426: method_param_counts + method_param_kinds + arity/param-type hard fail.
+ * Soft leave-off: dyn Trait; generic trait bounds; complex/named ret; untyped-self.
  * PLATFORM: SHARED parse.
  */
 #define XLANG_TRAIT_REG_MAX 16
 #define XLANG_TRAIT_METH_MAX 32
+#define XLANG_TRAIT_PARAM_MAX 8
 typedef struct {
   uint8_t name[64];
   int32_t name_len;
   uint8_t methods[XLANG_TRAIT_METH_MAX][64];
   int32_t method_lens[XLANG_TRAIT_METH_MAX];
   int32_t method_ret_kinds[XLANG_TRAIT_METH_MAX]; /* TypeKind ord; -1 unknown */
+  int32_t method_param_counts[XLANG_TRAIT_METH_MAX]; /* -1 not captured */
+  int32_t method_param_kinds[XLANG_TRAIT_METH_MAX][XLANG_TRAIT_PARAM_MAX];
   int32_t num_methods;
 } xlang_trait_reg_ent_t;
 static xlang_trait_reg_ent_t g_xlang_trait_reg[XLANG_TRAIT_REG_MAX];
@@ -801,6 +806,8 @@ extern void lsp_diag_report_typeck(int line, int col, const char *fmt, ...);
 extern int32_t pipeline_module_num_funcs(void *module);
 extern int32_t pipeline_module_func_name_equal_at(void *module, int32_t fi, uint8_t *name, int32_t name_len);
 extern int32_t pipeline_module_func_return_type_at(void *module, int32_t fi);
+extern int32_t pipeline_module_func_num_params_at(void *module, int32_t fi);
+extern int32_t pipeline_module_func_param_type_ref_at(void *module, int32_t fi, int32_t pi);
 
 /**
  * Register trait Name { function m(...); ... } method names; advance lex past `}`.
@@ -850,30 +857,59 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
       parser_lex_from_next_into_glue(&lex, r);
       r = lexer_next_buf(lex, data, len);
       if (r.tok.kind == (int32_t)TOKEN_IDENT && ent->num_methods < XLANG_TRAIT_METH_MAX) {
+        int32_t pii;
         mi_reg = ent->num_methods;
         xlang_trait_reg_copy_ident_c(data, len, r.token_start, r.tok.ident_len, ent->methods[mi_reg],
                                      &ent->method_lens[mi_reg]);
         ent->method_ret_kinds[mi_reg] = -1;
+        ent->method_param_counts[mi_reg] = -1;
+        for (pii = 0; pii < XLANG_TRAIT_PARAM_MAX; pii++)
+          ent->method_param_kinds[mi_reg][pii] = -1;
         if (ent->method_lens[mi_reg] > 0)
           ent->num_methods++;
         else
           mi_reg = -1;
       }
-      /* Skip remainder of signature/body; wave425 capture `: Ret` TypeKind. */
+      /* Skip remainder; wave425 Ret kind; wave426 param count + typed param kinds. */
       {
         int32_t depth = 0;
         int32_t paren = 0;
         int32_t saw_params_close = 0;
         int32_t want_ret = 0;
+        int32_t param_count = 0;
+        int32_t saw_param_tok = 0;
+        int32_t want_param_ty = 0;
         int32_t steps = 0;
         while (steps++ < 4096) {
-          if (r.tok.kind == (int32_t)TOKEN_LPAREN)
+          if (r.tok.kind == (int32_t)TOKEN_LPAREN) {
             paren++;
-          else if (r.tok.kind == (int32_t)TOKEN_RPAREN) {
+          } else if (r.tok.kind == (int32_t)TOKEN_RPAREN) {
+            if (paren == 1 && depth == 0 && !saw_params_close) {
+              if (saw_param_tok)
+                param_count++;
+              if (mi_reg >= 0)
+                ent->method_param_counts[mi_reg] = param_count;
+              saw_params_close = 1;
+            }
             if (paren > 0)
               paren--;
-            if (paren == 0 && depth == 0)
-              saw_params_close = 1;
+          } else if (!saw_params_close && paren == 1 && depth == 0) {
+            if (r.tok.kind == (int32_t)TOKEN_COMMA) {
+              if (saw_param_tok)
+                param_count++;
+              saw_param_tok = 0;
+              want_param_ty = 0;
+            } else if (r.tok.kind == (int32_t)TOKEN_COLON) {
+              want_param_ty = 1;
+            } else if (want_param_ty && mi_reg >= 0 && param_count < XLANG_TRAIT_PARAM_MAX) {
+              if (ent->method_param_kinds[mi_reg][param_count] < 0)
+                ent->method_param_kinds[mi_reg][param_count] =
+                    parser_asm_seed_trait_token_to_type_kind_c(r.tok.kind);
+              want_param_ty = 0;
+              saw_param_tok = 1;
+            } else {
+              saw_param_tok = 1;
+            }
           } else if (saw_params_close && !want_ret && depth == 0 && paren == 0 &&
                      r.tok.kind == (int32_t)TOKEN_COLON) {
             want_ret = 1;
@@ -910,11 +946,12 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
 
 /**
  * After impl Trait for T body: require registered trait + every method as free func
- * with matching return TypeKind when trait stored a builtin kind.
+ * with matching arity / typed param kinds / return TypeKind when known.
  * wave424 Cap residual pure — unknown_trait was soft return 0 → false-green.
  * wave425 Cap residual pure — return_mismatch hard fail (sig ret was not stored).
+ * wave426 Cap residual pure — param arity / typed param kinds hard fail.
  * G.7 expand this helper only (twin of skip_tl xlang_trait_check_impls_complete_c).
- * @return 0 ok; -2 hard unknown trait / missing method / return type mismatch.
+ * @return 0 ok; -2 hard unknown trait / missing method / signature mismatch.
  * PLATFORM: SHARED parse.
  */
 static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const uint8_t *trait_nm,
@@ -940,6 +977,7 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
     const uint8_t *mnm = g_xlang_trait_reg[ti].methods[mi];
     int32_t mlen = g_xlang_trait_reg[ti].method_lens[mi];
     int32_t expect_k = g_xlang_trait_reg[ti].method_ret_kinds[mi];
+    int32_t expect_np = g_xlang_trait_reg[ti].method_param_counts[mi];
     if (mlen <= 0)
       continue;
     for (fi = 0; fi < nf; fi++) {
@@ -952,6 +990,32 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
     if (!found) {
       lsp_diag_report_typeck((int)line, (int)col, "missing method %.*s", (int)mlen, (const char *)mnm);
       return -2;
+    }
+    /* wave426: hard fail parameter count / typed param kind mismatch. */
+    if (expect_np >= 0 && found_fi >= 0) {
+      int32_t got_np = pipeline_module_func_num_params_at(module, found_fi);
+      if (got_np != expect_np) {
+        lsp_diag_report_typeck((int)line, (int)col, "method %.*s parameter count mismatch",
+                               (int)mlen, (const char *)mnm);
+        return -2;
+      }
+      if (arena) {
+        int32_t pi;
+        for (pi = 0; pi < expect_np && pi < XLANG_TRAIT_PARAM_MAX; pi++) {
+          int32_t ek = g_xlang_trait_reg[ti].method_param_kinds[mi][pi];
+          int32_t pty;
+          int32_t got_pk;
+          if (ek < 0)
+            continue;
+          pty = pipeline_module_func_param_type_ref_at(module, found_fi, pi);
+          got_pk = (pty != 0) ? pipeline_type_kind_ord_at(arena, pty) : -1;
+          if (got_pk >= 0 && got_pk != ek) {
+            lsp_diag_report_typeck((int)line, (int)col, "method %.*s parameter type mismatch",
+                                   (int)mlen, (const char *)mnm);
+            return -2;
+          }
+        }
+      }
     }
     /* wave425: hard fail return type mismatch when trait stored a builtin kind. */
     if (expect_k >= 0 && arena && found_fi >= 0) {

@@ -840,11 +840,15 @@ void parser_asm_skip_one_enum_into_slice_c(struct parser_asm_lexer *out, struct 
  * wave424: unknown_trait hard fail (was soft continue when trait not registered).
  * wave425: store method return TypeKind at trait register; hard fail return_mismatch
  *   (was soft: only method names stored → `impl` with wrong `: bool` false-green).
- * Soft leave-off: bounds / dyn Trait; complex/named ret types (kind=-1 skip compare).
+ * wave426: store method param count + typed param TypeKinds; hard fail arity /
+ *   parameter type mismatch (was soft: only names+ret → extra/wrong params green).
+ * Soft leave-off: dyn Trait; generic trait bounds; complex/named ret (kind=-1);
+ *   untyped trait `self` vs impl typed self-for-type mismatch.
  * PLATFORM: SHARED parse.
  */
 #define XLANG_SKIP_TRAIT_REG_MAX 16
 #define XLANG_SKIP_TRAIT_METH_MAX 32
+#define XLANG_SKIP_TRAIT_PARAM_MAX 8
 #define XLANG_SKIP_IMPL_SEEN_MAX 16
 typedef struct {
   uint8_t name[64];
@@ -853,6 +857,10 @@ typedef struct {
   int32_t method_lens[XLANG_SKIP_TRAIT_METH_MAX];
   /* TypeKind ord (PARSER_ASM_TYPE_*); -1 = unknown / not stored (skip ret check). */
   int32_t method_ret_kinds[XLANG_SKIP_TRAIT_METH_MAX];
+  /* wave426: arity of `(params)`; -1 = not captured (skip arity check). */
+  int32_t method_param_counts[XLANG_SKIP_TRAIT_METH_MAX];
+  /* Per-param TypeKind when trait wrote `: Ty`; -1 = untyped / unknown. */
+  int32_t method_param_kinds[XLANG_SKIP_TRAIT_METH_MAX][XLANG_SKIP_TRAIT_PARAM_MAX];
   int32_t num_methods;
 } xlang_skip_trait_reg_ent_t;
 static xlang_skip_trait_reg_ent_t g_xlang_skip_trait_reg[XLANG_SKIP_TRAIT_REG_MAX];
@@ -919,16 +927,21 @@ extern void lsp_diag_report_typeck(int line, int col, const char *fmt, ...);
 extern int32_t pipeline_module_num_funcs(void *module);
 extern int32_t pipeline_module_func_name_equal_at(void *module, int32_t fi, uint8_t *name, int32_t name_len);
 extern int32_t pipeline_module_func_return_type_at(void *module, int32_t fi);
+extern int32_t pipeline_module_func_num_params_at(void *module, int32_t fi);
+extern int32_t pipeline_module_func_param_type_ref_at(void *module, int32_t fi, int32_t pi);
 extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t type_ref);
 
 /**
  * After parse: every `impl Trait for T` must name a registered trait and provide
- * free funcs for all trait methods with matching return TypeKind when known.
+ * free funcs for all trait methods with matching arity / param TypeKinds / ret
+ * TypeKind when known.
  * wave424 Cap residual pure — unknown_trait was soft-skipped (ti<0 continue) →
  * `impl Missing for i32` false-green (build exit 0).
  * wave425 Cap residual pure — return_mismatch: only names stored → wrong ret green.
+ * wave426 Cap residual pure — param arity / typed param kinds were soft → extra
+ *   `double(self, x)` vs trait `double(self)` false-green run=42.
  * G.7 expand this function only (twin: seed_check_impl_missing_methods_c).
- * @return 0 ok; -1 unknown trait / missing method / return type mismatch.
+ * @return 0 ok; -1 unknown trait / missing method / signature mismatch.
  * PLATFORM: SHARED parse+typeck gate.
  */
 int32_t xlang_trait_check_impls_complete_c(void *module) {
@@ -968,6 +981,7 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
       uint8_t *mnm = g_xlang_skip_trait_reg[ti].methods[mi];
       int32_t mlen = g_xlang_skip_trait_reg[ti].method_lens[mi];
       int32_t expect_k = g_xlang_skip_trait_reg[ti].method_ret_kinds[mi];
+      int32_t expect_np = g_xlang_skip_trait_reg[ti].method_param_counts[mi];
       if (mlen <= 0)
         continue;
       for (fi = 0; fi < nf; fi++) {
@@ -982,6 +996,34 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                                "missing method %.*s", (int)mlen, (const char *)mnm);
         rc = -1;
         continue;
+      }
+      /* wave426: hard fail parameter count mismatch. */
+      if (expect_np >= 0 && found_fi >= 0) {
+        int32_t got_np = pipeline_module_func_num_params_at(module, found_fi);
+        if (got_np != expect_np) {
+          lsp_diag_report_typeck((int)g_xlang_skip_impl_line[si], (int)g_xlang_skip_impl_col[si],
+                                 "method %.*s parameter count mismatch", (int)mlen,
+                                 (const char *)mnm);
+          rc = -1;
+        } else if (arena) {
+          int32_t pi;
+          for (pi = 0; pi < expect_np && pi < XLANG_SKIP_TRAIT_PARAM_MAX; pi++) {
+            int32_t ek = g_xlang_skip_trait_reg[ti].method_param_kinds[mi][pi];
+            int32_t pty;
+            int32_t got_pk;
+            if (ek < 0)
+              continue;
+            pty = pipeline_module_func_param_type_ref_at(module, found_fi, pi);
+            got_pk = (pty != 0) ? pipeline_type_kind_ord_at(arena, pty) : -1;
+            if (got_pk >= 0 && got_pk != ek) {
+              lsp_diag_report_typeck((int)g_xlang_skip_impl_line[si], (int)g_xlang_skip_impl_col[si],
+                                     "method %.*s parameter type mismatch", (int)mlen,
+                                     (const char *)mnm);
+              rc = -1;
+              break;
+            }
+          }
+        }
       }
       /* wave425: hard fail return type mismatch when trait stored a builtin kind. */
       if (expect_k >= 0 && arena && found_fi >= 0) {
@@ -1094,34 +1136,68 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
       parser_asm_lex_from_result_val_into(&lex, r);
       lexer_next_into(&r, lex, source);
       if (r.tok.kind == (int32_t)TOKEN_IDENT && ent && ent->num_methods < XLANG_SKIP_TRAIT_METH_MAX) {
+        int32_t pii;
         mi_reg = ent->num_methods;
         xlang_skip_trait_copy_ident_c(source, r.token_start, r.tok.ident_len, ent->methods[mi_reg],
                                       &ent->method_lens[mi_reg]);
         ent->method_ret_kinds[mi_reg] = -1;
+        ent->method_param_counts[mi_reg] = -1;
+        for (pii = 0; pii < XLANG_SKIP_TRAIT_PARAM_MAX; pii++)
+          ent->method_param_kinds[mi_reg][pii] = -1;
         if (ent->method_lens[mi_reg] > 0)
           ent->num_methods++;
         else
           mi_reg = -1;
       }
       {
-        /* Walk ` (params) : Ret ; ` or body `{...}` — capture Ret TypeKind (wave425). */
+        /*
+         * Walk ` (params) : Ret ; ` or body `{...}` —
+         * wave425: capture Ret TypeKind; wave426: param count + typed param kinds.
+         * PLATFORM: SHARED parse.
+         */
         int32_t depth = 0;
         int32_t paren = 0;
         int32_t saw_params_close = 0;
         int32_t want_ret = 0;
+        int32_t param_count = 0;
+        int32_t saw_param_tok = 0;
+        int32_t want_param_ty = 0;
         int32_t steps = 0;
         while (steps++ < 4096) {
-          if (r.tok.kind == (int32_t)TOKEN_LPAREN)
+          if (r.tok.kind == (int32_t)TOKEN_LPAREN) {
             paren++;
-          else if (r.tok.kind == (int32_t)TOKEN_RPAREN) {
+          } else if (r.tok.kind == (int32_t)TOKEN_RPAREN) {
+            if (paren == 1 && depth == 0 && !saw_params_close) {
+              /* Closing the method parameter list. */
+              if (saw_param_tok)
+                param_count++;
+              if (mi_reg >= 0 && ent)
+                ent->method_param_counts[mi_reg] = param_count;
+              saw_params_close = 1;
+            }
             if (paren > 0)
               paren--;
-            if (paren == 0 && depth == 0)
-              saw_params_close = 1;
+          } else if (!saw_params_close && paren == 1 && depth == 0) {
+            if (r.tok.kind == (int32_t)TOKEN_COMMA) {
+              if (saw_param_tok)
+                param_count++;
+              saw_param_tok = 0;
+              want_param_ty = 0;
+            } else if (r.tok.kind == (int32_t)TOKEN_COLON) {
+              want_param_ty = 1;
+            } else if (want_param_ty && mi_reg >= 0 && ent && param_count < XLANG_SKIP_TRAIT_PARAM_MAX) {
+              if (ent->method_param_kinds[mi_reg][param_count] < 0)
+                ent->method_param_kinds[mi_reg][param_count] =
+                    xlang_trait_token_to_type_kind_c(r.tok.kind);
+              want_param_ty = 0;
+              saw_param_tok = 1;
+            } else {
+              saw_param_tok = 1;
+            }
           } else if (saw_params_close && !want_ret && depth == 0 && paren == 0 &&
                      r.tok.kind == (int32_t)TOKEN_COLON) {
             want_ret = 1;
-          } else if (want_ret && mi_reg >= 0 && ent->method_ret_kinds[mi_reg] < 0) {
+          } else if (want_ret && mi_reg >= 0 && ent && ent->method_ret_kinds[mi_reg] < 0) {
             ent->method_ret_kinds[mi_reg] = xlang_trait_token_to_type_kind_c(r.tok.kind);
             want_ret = 0;
           }
@@ -1167,7 +1243,7 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
  *   interior after `{`. Outer parse_into commits each `function` as free UFCS method;
  *   trailing `}` is skipped as non-function noise.
  * G.7 authority: this function (glue for parser.x + seed fallback).
- * Soft: trait bounds / dyn.
+ * Soft: dyn Trait; generic trait bounds.
  * wave421: record trait name for missing-method check (typeck).
  * PLATFORM: SHARED parse.
  */
