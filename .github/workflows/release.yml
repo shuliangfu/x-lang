@@ -1,0 +1,209 @@
+# Xlang selfhost release workflow.
+#
+# Triggers:
+#   - push tag matching v*-selfhost  → full release pipeline + GitHub Release
+#   - workflow_dispatch (manual)     → full pipeline, no release artifact (dry-run)
+#
+# Pipeline (all hard gates, Ubuntu gold):
+#   L4 true cold (remaining_o=0) → product matrix → full bstrict →
+#   Stage2 D-01..D-04 → F-11 selfhost release prep → upload + GitHub Release
+#
+# Authority:
+#   - analysis/自举验证.md §7 (L4 true cold)
+#   - compiler/docs/SELFHOST.md §1.3 (F-11 release checklist)
+#   - skill xlang-selfhost-product-gate §3
+
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version override (e.g. 0.1.0); defaults to VERSION file'
+        required: false
+        type: string
+  push:
+    tags:
+      - 'v*-selfhost'
+
+permissions:
+  contents: write   # softprops/action-gh-release needs this to create the release
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Selfhost release (Ubuntu gold)
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      CC: cc
+      # bstrict must run against the L4-cold xlang_asm, not a re-bootstrapped one
+      XLANG_BSTRICT_SKIP_BUILD: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install dependencies (liburing, zlib, zstd, brotli, sqlite)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq liburing-dev zlib1g-dev libzstd-dev libbrotli-dev libsqlite3-dev strace
+
+      - name: Resolve release version
+        id: ver
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            V="${{ github.event.inputs.version }}"
+          elif [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+            V="${GITHUB_REF_NAME#v}"
+            V="${V%-selfhost}"
+          else
+            V="$(cat VERSION 2>/dev/null || echo 0.0.0)"
+          fi
+          echo "version=$V"           >> "$GITHUB_OUTPUT"
+          echo "tag=v$V-selfhost"     >> "$GITHUB_OUTPUT"
+          echo "is_tag_push=$( [ "${GITHUB_REF_TYPE:-}" = "tag" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $V (tag: v$V-selfhost)"
+
+      # ── L4 true cold: wipe ALL .o + product binaries, then rebuild from pinned seed ──
+      - name: L4 cold — wipe all .o and product binaries
+        run: |
+          find compiler std core -name '*.o' -type f -delete
+          rm -f compiler/xlang compiler/xlang_asm compiler/xlang-c \
+                compiler/bootstrap_xlangc compiler/xlang-x \
+                compiler/xlang-seed-phase1 compiler/xlang-no-c-frontend \
+                compiler/bootstrap_xlang compiler/xlang_asm2 2>/dev/null || true
+          remaining=$(find compiler std core -name '*.o' 2>/dev/null | wc -l | tr -d ' ')
+          test "$remaining" -eq 0
+          test ! -e compiler/xlang_asm
+          echo "remaining_o=0 OK"
+
+      - name: Pin product seeds (Linux gold)
+        run: |
+          cd compiler
+          cp -f seeds/codegen_gen.linux.x86_64.c   codegen_gen.c
+          cp -f seeds/parser_gen.linux.x86_64.c     parser_gen.c
+          cp -f seeds/typeck_gen.linux.x86_64.c     typeck_gen.c
+
+      - name: Cold bootstrap + product relink
+        run: |
+          cd compiler
+          make bootstrap-driver-seed
+          FULL=0 bash scripts/g05_prepare_and_relink.sh
+          ls -la xlang xlang_asm xlang-c bootstrap_xlangc
+          test -x xlang_asm
+        timeout-minutes: 60
+
+      # ── Product matrix (must see exit codes; no `cmd | head` shortcuts) ──
+      - name: Product matrix (rv / option / stdlib-import / hello)
+        run: |
+          XLANG=./compiler/xlang_asm
+          test -x "$XLANG"
+          
+          "$XLANG" -o /tmp/rv tests/return-value/main.x; echo "rv_build:$?"
+          /tmp/rv; echo "rv_run:$?"        # expect 42
+          test $? -eq 42
+          
+          "$XLANG" -o /tmp/opt tests/option/main.x; echo "opt_build:$?"
+          test $? -eq 0
+          
+          "$XLANG" -o /tmp/si tests/stdlib-import/main.x; echo "si_build:$?"
+          test $? -eq 0
+          
+          "$XLANG" -o /tmp/hello examples/hello.x; echo "hello_build:$?"
+          test $? -eq 0
+          /tmp/hello > /tmp/hello.out
+          # expect real newline 0a, not literal \n (5c 6e)
+          od -An -tx1 /tmp/hello.out | head -2
+          if ! od -An -tx1 /tmp/hello.out | grep -q ' 0a'; then
+            echo "::error::hello output missing real newline (0a)"
+            exit 1
+          fi
+        timeout-minutes: 30
+
+      # ── Full bstrict against the L4-cold product binary ──
+      - name: Full bstrict (product chain, 129 scripts)
+        run: |
+          XLANG=./compiler/xlang_asm bash tests/run-all-bstrict.sh 2>&1 | tee /tmp/bstrict.log
+          rc=${PIPESTATUS[0]}
+          echo "bstrict_exit:$rc"
+          tail -5 /tmp/bstrict.log
+          test "$rc" -eq 0
+        timeout-minutes: 90
+
+      # ── Stage2 golden self-host: D-01 → D-04 ──
+      - name: Stage2 D-01 (stage0 → stage1)
+        run: |
+          chmod +x tests/run-d01-stage0-to-stage1-gate.sh
+          XLANG_D01_FAIL=1 ./tests/run-d01-stage0-to-stage1-gate.sh
+        timeout-minutes: 30
+
+      - name: Stage2 D-02 (stage1 → stage2 bstrict)
+        run: |
+          chmod +x tests/run-d02-stage1-to-stage2-gate.sh
+          XLANG_D02_FAIL=1 ./tests/run-d02-stage1-to-stage2-gate.sh
+        timeout-minutes: 45
+
+      - name: Stage2 D-03 (SHA256 hash gold)
+        run: |
+          chmod +x tests/run-d03-stage2-hash-gate.sh
+          XLANG_D03_FAIL=1 XLANG_STAGE2_HASH_STRICT=1 ./tests/run-d03-stage2-hash-gate.sh
+        timeout-minutes: 30
+
+      - name: Stage2 D-04 (portable subset diff)
+        run: |
+          chmod +x tests/run-d04-stage2-portable-diff-gate.sh
+          ./tests/run-d04-stage2-portable-diff-gate.sh
+        timeout-minutes: 30
+
+      # ── F-11 selfhost release prep (D-05 + E-soft + F-09 + G-FFI-5) ──
+      - name: F-11 selfhost release prep gate
+        run: |
+          chmod +x tests/run-f11-selfhost-release-prep-gate.sh
+          XLANG_F11_SELFHOST_RELEASE_PREP_FAIL=1 ./tests/run-f11-selfhost-release-prep-gate.sh
+        timeout-minutes: 45
+
+      # ── Upload binaries as workflow artifact (always, for both triggers) ──
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: xlang-selfhost-${{ steps.ver.outputs.version }}-linux-x86_64
+          path: |
+            compiler/xlang
+            compiler/xlang_asm
+            compiler/xlang-c
+          if-no-files-found: error
+
+      # ── Create GitHub Release only on tag push ──
+      - name: Create GitHub Release
+        if: steps.ver.outputs.is_tag_push == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ steps.ver.outputs.tag }}
+          tag_name: ${{ steps.ver.outputs.tag }}
+          body: |
+            ## Xlang selfhost release ${{ steps.ver.outputs.version }}
+
+            ### Hard gates passed (Ubuntu gold)
+            - L4 true cold (`remaining_o=0`)
+            - Product matrix (rv=42 / option / stdlib-import / hello)
+            - Full bstrict (product chain)
+            - Stage2 D-01 / D-02 / D-03 / D-04
+            - F-11 selfhost release prep (D-05 + E-soft + F-09 + G-FFI-5)
+
+            ### Binaries (Linux x86_64)
+            - `xlang`     — daily release entry (copy of xlang_asm)
+            - `xlang_asm` — asm backend product
+            - `xlang-c`   — C frontend (cold start / archaeology)
+
+            ### Authority
+            - `compiler/docs/SELFHOST.md` §1.3 (F-11 checklist)
+            - `analysis/自举验证.md` §7 (L4 true cold)
+          files: |
+            compiler/xlang
+            compiler/xlang_asm
+            compiler/xlang-c
+          draft: false
+          prerelease: true
