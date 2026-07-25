@@ -846,8 +846,10 @@ void parser_asm_skip_one_enum_into_slice_c(struct parser_asm_lexer *out, struct 
  *   hard fail Point vs Other / []i32 vs []u8 (was soft: kind=-1 skip).
  * wave428: store impl for-type; hard fail untyped trait self vs for-type
  *   (was soft: param0 ek=-1 skip → `self: u64` on `impl … for i32` false-green).
- * Soft leave-off: dyn Trait; generic trait bounds; nested complex ret (*[]T, T[N]);
- *   typed self that disagrees with for-type when trait already annotated.
+ * wave429: typed self vs for-type hard fail (drop ek0<0 gate).
+ * wave430: suffix T[N]/T[] ret capture + TYPE_ARRAY size/elem hard fail
+ *   (was: base-only registry → ok path false-red; scalar-vs-array false-green).
+ * Soft leave-off: dyn Trait; generic trait bounds; nested *[]T / multi-dim T[N][M].
  * PLATFORM: SHARED parse.
  */
 #define XLANG_SKIP_TRAIT_REG_MAX 16
@@ -861,11 +863,13 @@ typedef struct {
   int32_t method_lens[XLANG_SKIP_TRAIT_METH_MAX];
   /* TypeKind ord (PARSER_ASM_TYPE_*); -1 = unknown / not stored (skip ret check). */
   int32_t method_ret_kinds[XLANG_SKIP_TRAIT_METH_MAX];
-  /* wave427: TYPE_NAMED ret name, or *T / []T element name when elem is named. */
+  /* wave427: TYPE_NAMED ret name, or *T / []T / T[N] element name when elem is named. */
   uint8_t method_ret_names[XLANG_SKIP_TRAIT_METH_MAX][64];
   int32_t method_ret_name_lens[XLANG_SKIP_TRAIT_METH_MAX];
-  /* wave427: element TypeKind for TYPE_PTR / TYPE_SLICE; -1 = not captured. */
+  /* wave427/430: element TypeKind for TYPE_PTR / TYPE_SLICE / TYPE_ARRAY; -1 = not captured. */
   int32_t method_ret_elem_kinds[XLANG_SKIP_TRAIT_METH_MAX];
+  /* wave430: fixed T[N] size when ret kind is TYPE_ARRAY; -1 = N/A. */
+  int32_t method_ret_array_sizes[XLANG_SKIP_TRAIT_METH_MAX];
   /* wave426: arity of `(params)`; -1 = not captured (skip arity check). */
   int32_t method_param_counts[XLANG_SKIP_TRAIT_METH_MAX];
   /* Per-param TypeKind when trait wrote `: Ty`; -1 = untyped / unknown. */
@@ -921,9 +925,10 @@ static int32_t xlang_trait_token_to_type_kind_c(int32_t tok_kind) {
   }
 }
 
-/* Align PARSER_ASM_TYPE_* / ast TypeKind for wave427 ret shape checks. */
+/* Align PARSER_ASM_TYPE_* / ast TypeKind for wave427/430 ret shape checks. */
 #define XLANG_TRAIT_TY_NAMED 8
 #define XLANG_TRAIT_TY_PTR 9
+#define XLANG_TRAIT_TY_ARRAY 10
 #define XLANG_TRAIT_TY_SLICE 11
 
 /**
@@ -954,6 +959,7 @@ extern int32_t pipeline_module_func_num_params_at(void *module, int32_t fi);
 extern int32_t pipeline_module_func_param_type_ref_at(void *module, int32_t fi, int32_t pi);
 extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t type_ref);
 extern int32_t pipeline_type_named_name_into(void *arena, int32_t type_ref, uint8_t *out);
+extern int32_t pipeline_type_array_size_at(void *arena, int32_t type_ref);
 extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t type_ref);
 
 /**
@@ -1112,7 +1118,8 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
           }
         }
       }
-      /* wave425/427: hard fail return type mismatch (builtin / named / ptr / slice). */
+      /* wave425/427/430: hard fail return type mismatch
+       * (builtin / named / ptr / slice / fixed T[N]). */
       if (expect_k >= 0 && arena && found_fi >= 0) {
         int32_t rty = pipeline_module_func_return_type_at(module, found_fi);
         int32_t got_k = (rty != 0) ? pipeline_type_kind_ord_at(arena, rty) : -1;
@@ -1128,10 +1135,20 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
               mm = 1;
           }
         } else if (got_k == expect_k &&
-                   (expect_k == XLANG_TRAIT_TY_PTR || expect_k == XLANG_TRAIT_TY_SLICE)) {
+                   (expect_k == XLANG_TRAIT_TY_PTR || expect_k == XLANG_TRAIT_TY_SLICE ||
+                    expect_k == XLANG_TRAIT_TY_ARRAY)) {
           int32_t eek = g_xlang_skip_trait_reg[ti].method_ret_elem_kinds[mi];
           int32_t elem = (rty != 0) ? pipeline_type_elem_ref_at(arena, rty) : 0;
-          if (eek >= 0 && elem != 0) {
+          /* wave430: fixed T[N] size must match. */
+          if (expect_k == XLANG_TRAIT_TY_ARRAY) {
+            int32_t esz = g_xlang_skip_trait_reg[ti].method_ret_array_sizes[mi];
+            if (esz >= 0 && rty != 0) {
+              int32_t gsz = pipeline_type_array_size_at(arena, rty);
+              if (gsz != esz)
+                mm = 1;
+            }
+          }
+          if (!mm && eek >= 0 && elem != 0) {
             int32_t gek = pipeline_type_kind_ord_at(arena, elem);
             if (gek >= 0 && gek != eek) {
               mm = 1;
@@ -1262,6 +1279,7 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
         ent->method_ret_name_lens[mi_reg] = 0;
         memset(ent->method_ret_names[mi_reg], 0, 64);
         ent->method_ret_elem_kinds[mi_reg] = -1;
+        ent->method_ret_array_sizes[mi_reg] = -1;
         ent->method_param_counts[mi_reg] = -1;
         for (pii = 0; pii < XLANG_SKIP_TRAIT_PARAM_MAX; pii++)
           ent->method_param_kinds[mi_reg][pii] = -1;
@@ -1274,7 +1292,9 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
         /*
          * Walk ` (params) : Ret ; ` or body `{...}` —
          * wave425: capture Ret TypeKind; wave426: param count + typed param kinds;
-         * wave427: named / *T / []T ret shape.
+         * wave427: named / *T / []T ret shape;
+         * wave430: suffix T[N] / T[] after scalar/named base (was false-red ok /
+         *   false-green scalar-vs-array — registry stopped at base kind only).
          * PLATFORM: SHARED parse.
          */
         int32_t depth = 0;
@@ -1283,6 +1303,9 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
         int32_t want_ret = 0;
         int32_t ret_elem_pending = 0;
         int32_t ret_slice_need_rb = 0;
+        int32_t ret_suffix_pending = 0; /* base set; may still see [N] or [] */
+        int32_t ret_arr_need_size = 0;  /* saw `[` after base; want INT or `]` */
+        int32_t ret_arr_need_rb = 0;    /* saw `[N`; want `]` */
         int32_t param_count = 0;
         int32_t saw_param_tok = 0;
         int32_t want_param_ty = 0;
@@ -1323,9 +1346,50 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
             want_ret = 1;
             ret_elem_pending = 0;
             ret_slice_need_rb = 0;
+            ret_suffix_pending = 0;
+            ret_arr_need_size = 0;
+            ret_arr_need_rb = 0;
           } else if (want_ret && mi_reg >= 0 && ent) {
-            /* wave427: capture Ret as builtin / NAMED / PTR / SLICE(+elem). */
-            if (ret_slice_need_rb) {
+            /* wave427/430: capture Ret as builtin / NAMED / PTR / SLICE / ARRAY. */
+            if (ret_arr_need_rb) {
+              if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
+                ret_arr_need_rb = 0;
+                want_ret = 0;
+              } else {
+                ret_arr_need_rb = 0;
+                want_ret = 0;
+              }
+            } else if (ret_arr_need_size) {
+              if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
+                /* Suffix T[] → TYPE_SLICE with prior base as elem. */
+                int32_t base_k = ent->method_ret_kinds[mi_reg];
+                ent->method_ret_elem_kinds[mi_reg] = base_k;
+                ent->method_ret_kinds[mi_reg] = XLANG_TRAIT_TY_SLICE;
+                ent->method_ret_array_sizes[mi_reg] = -1;
+                ret_arr_need_size = 0;
+                want_ret = 0;
+              } else if (r.tok.kind == (int32_t)TOKEN_INT && r.tok.int_val > 0) {
+                /* Suffix T[N] → TYPE_ARRAY; wait for closing `]`. */
+                int32_t base_k = ent->method_ret_kinds[mi_reg];
+                ent->method_ret_elem_kinds[mi_reg] = base_k;
+                ent->method_ret_kinds[mi_reg] = XLANG_TRAIT_TY_ARRAY;
+                ent->method_ret_array_sizes[mi_reg] = r.tok.int_val;
+                ret_arr_need_size = 0;
+                ret_arr_need_rb = 1;
+              } else {
+                ret_arr_need_size = 0;
+                want_ret = 0;
+              }
+            } else if (ret_suffix_pending) {
+              if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
+                ret_suffix_pending = 0;
+                ret_arr_need_size = 1;
+              } else {
+                /* No `[…]` suffix — base kind is final. */
+                ret_suffix_pending = 0;
+                want_ret = 0;
+              }
+            } else if (ret_slice_need_rb) {
               if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
                 ret_slice_need_rb = 0;
                 ret_elem_pending = 1;
@@ -1350,7 +1414,8 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                 xlang_skip_trait_copy_ident_c(source, r.token_start, r.tok.ident_len,
                                               ent->method_ret_names[mi_reg],
                                               &ent->method_ret_name_lens[mi_reg]);
-                want_ret = 0;
+                /* wave430: keep scanning for suffix T[N] / T[]. */
+                ret_suffix_pending = 1;
               } else if (r.tok.kind == (int32_t)TOKEN_STAR) {
                 ent->method_ret_kinds[mi_reg] = XLANG_TRAIT_TY_PTR;
                 ret_elem_pending = 1;
@@ -1358,8 +1423,12 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                 ent->method_ret_kinds[mi_reg] = XLANG_TRAIT_TY_SLICE;
                 ret_slice_need_rb = 1;
               } else {
-                ent->method_ret_kinds[mi_reg] = xlang_trait_token_to_type_kind_c(r.tok.kind);
-                want_ret = 0;
+                int32_t bk = xlang_trait_token_to_type_kind_c(r.tok.kind);
+                ent->method_ret_kinds[mi_reg] = bk;
+                if (bk >= 0)
+                  ret_suffix_pending = 1;
+                else
+                  want_ret = 0;
               }
             } else {
               want_ret = 0;
