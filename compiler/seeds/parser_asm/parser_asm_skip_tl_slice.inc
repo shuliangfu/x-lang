@@ -1602,9 +1602,12 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
         int32_t param_elem_elem_pending = 0;   /* slice closed; want base T */
         /* wave436: *[N]T → PTR to ARRAY of N T. After `*[N`, close `]` then
          * capture base T (reuses param_elem_elem_pending for base T capture).
-         * Multi-dim *[N][M]T not supported → soft-skip in param_elem_elem_pending.
+         * wave437: multi-dim *[N][M]T — after first `]`, if next is `[`,
+         * collect further dims via param_elem_arr_need_size/rb, then return
+         * to param_elem_elem_pending for base T (prefix_arr_more flag).
          * PLATFORM: SHARED parse. */
         int32_t param_elem_prefix_arr_need_rb = 0; /* saw `*[N`, want `]` */
+        int32_t param_elem_prefix_arr_more = 0;    /* wave437: collecting extra *[N][M] dim */
         int32_t param_elem_dim_n = 0;
         int32_t param_elem_dims[XLANG_SKIP_TRAIT_ARRAY_DIM_MAX];
         int32_t steps = 0;
@@ -1776,17 +1779,15 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                 }
               } else if (param_elem_prefix_arr_need_rb) {
                 /*
-                 * wave436: *[N]T — saw `*[N`, want `]` then base T. On `]`,
-                 * store elem-level ARRAY dims and transition to base T capture
-                 * (param_elem_elem_pending, shared with wave435 slice path).
+                 * wave436/437: *[N]T — saw `*[N`, want `]` then base T. On `]`,
+                 * transition to base T capture (param_elem_elem_pending, shared
+                 * with wave435 slice path). Dims stay in the local buffer
+                 * (param_elem_dim_n / param_elem_dims); they are committed to
+                 * the registry when base T is captured, so multi-dim
+                 * *[N][M]T can append further dims before finalize.
                  * PLATFORM: SHARED parse.
                  */
                 if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
-                  int32_t di;
-                  ent->method_param_elem_array_ndims[mi_reg][param_count] = param_elem_dim_n;
-                  for (di = 0; di < param_elem_dim_n; di++)
-                    ent->method_param_elem_array_dims[mi_reg][param_count][di] = param_elem_dims[di];
-                  param_elem_dim_n = 0;
                   param_elem_prefix_arr_need_rb = 0;
                   param_elem_elem_pending = 1;
                 } else {
@@ -1795,9 +1796,11 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                 }
               } else if (param_elem_elem_pending) {
                 /*
-                 * wave435/436: slice/array closed; capture base T (NAMED name /
-                 * builtin). For `*[N][M]T` multi-dim PTR-to-ARRAY (next token
-                 * is `[`), soft-skip — check path not implemented for 4-layer.
+                 * wave435/436/437: slice/array closed; capture base T (NAMED
+                 * name / builtin) and commit accumulated ARRAY dims from the
+                 * local buffer to the registry. For `*[N][M]T` multi-dim
+                 * PTR-to-ARRAY (next token is `[`), collect further dims via
+                 * param_elem_arr_need_size/rb then return here (prefix_arr_more).
                  * PLATFORM: SHARED parse.
                  */
                 if (r.tok.kind == (int32_t)TOKEN_IDENT) {
@@ -1805,19 +1808,40 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                   xlang_skip_trait_copy_ident_c(source, r.token_start, r.tok.ident_len,
                                                  ent->method_param_names[mi_reg][param_count],
                                                  &ent->method_param_name_lens[mi_reg][param_count]);
+                  /* wave437: commit accumulated dims (*[N] or *[N][M]…). Reset
+                   * param_elem_dim_n so the wave434 *T[N] postfix lift at
+                   * `,`/`)` does not re-fire and overwrite the PTR-of-ARRAY
+                   * shape (root cause of wave437 c1 false red). PLATFORM: SHARED. */
+                  if (param_elem_dim_n > 0) {
+                    int32_t di;
+                    ent->method_param_elem_array_ndims[mi_reg][param_count] = param_elem_dim_n;
+                    for (di = 0; di < param_elem_dim_n; di++)
+                      ent->method_param_elem_array_dims[mi_reg][param_count][di] = param_elem_dims[di];
+                    param_elem_dim_n = 0;
+                  }
                   param_elem_elem_pending = 0;
                   want_param_ty = 0;
                   saw_param_tok = 1;
                 } else if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
-                  /* wave436: *[N][M]T multi-dim PTR-to-ARRAY — soft-skip. */
-                  ent->method_param_elem_kinds[mi_reg][param_count] = -1;
+                  /* wave437: *[N][M]T multi-dim — collect next dim, return here. */
                   param_elem_elem_pending = 0;
-                  want_param_ty = 0;
-                  saw_param_tok = 1;
+                  param_elem_prefix_arr_more = 1;
+                  param_elem_arr_need_size = 1;
                 } else {
                   int32_t bk = xlang_trait_token_to_type_kind_c(r.tok.kind);
                   if (bk >= 0) {
                     ent->method_param_elem_elem_kinds[mi_reg][param_count] = bk;
+                    /* wave437: commit accumulated dims (*[N] or *[N][M]…). Reset
+                     * param_elem_dim_n so the wave434 *T[N] postfix lift at
+                     * `,`/`)` does not re-fire and overwrite the PTR-of-ARRAY
+                     * shape (root cause of wave437 c1 false red). PLATFORM: SHARED. */
+                    if (param_elem_dim_n > 0) {
+                      int32_t di;
+                      ent->method_param_elem_array_ndims[mi_reg][param_count] = param_elem_dim_n;
+                      for (di = 0; di < param_elem_dim_n; di++)
+                        ent->method_param_elem_array_dims[mi_reg][param_count][di] = param_elem_dims[di];
+                      param_elem_dim_n = 0;
+                    }
                     param_elem_elem_pending = 0;
                     want_param_ty = 0;
                     saw_param_tok = 1;
@@ -1828,19 +1852,29 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                 }
               } else if (param_elem_arr_need_rb) {
                 if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
-                  /* wave434: after elem T[N], stay open for further [M]… */
                   param_elem_arr_need_rb = 0;
-                  param_elem_suffix_pending = 1;
+                  if (param_elem_prefix_arr_more) {
+                    /* wave437: *[N][M]T — return to base T capture for more
+                     * dims or finalize. */
+                    param_elem_prefix_arr_more = 0;
+                    param_elem_elem_pending = 1;
+                  } else {
+                    /* wave434: after elem T[N], stay open for further [M]… */
+                    param_elem_suffix_pending = 1;
+                  }
                 } else {
                   param_elem_arr_need_rb = 0;
+                  param_elem_prefix_arr_more = 0;
                   want_param_ty = 0;
                 }
               } else if (param_elem_arr_need_size) {
                 if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
                   /* wave434: elem T[] → PTR to SLICE of T (3-layer, deferred to soft).
-                   * Mark elem uncaptured so check skips; avoids parse failure. */
+                   * Mark elem uncaptured so check skips; avoids parse failure.
+                   * wave437: also clears prefix_arr_more if came from *[N][]T. */
                   ent->method_param_elem_kinds[mi_reg][param_count] = -1;
                   param_elem_arr_need_size = 0;
+                  param_elem_prefix_arr_more = 0;
                   param_elem_dim_n = 0;
                   want_param_ty = 0;
                   saw_param_tok = 1;
@@ -1852,6 +1886,7 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                   param_elem_arr_need_rb = 1;
                 } else {
                   param_elem_arr_need_size = 0;
+                  param_elem_prefix_arr_more = 0;
                   want_param_ty = 0;
                 }
               } else if (param_elem_suffix_pending) {
