@@ -1081,44 +1081,47 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
             return -2;
           }
         }
-        /* wave428: untyped trait self (param0 ek=-1) must match for-type. */
-        if (expect_np >= 1) {
-          int32_t ek0 = g_xlang_trait_reg[ti].method_param_kinds[mi][0];
-          if (ek0 < 0 && for_kind >= 0) {
-            int32_t pty0 = pipeline_module_func_param_type_ref_at(module, found_fi, 0);
-            int32_t got0 = (pty0 != 0) ? pipeline_type_kind_ord_at(arena, pty0) : -1;
-            int32_t mm_self = 0;
-            if (got0 >= 0) {
-              if (for_is_ptr) {
-                if (got0 != XLANG_SEED_TRAIT_TY_PTR) {
-                  mm_self = 1;
-                } else {
-                  int32_t elem = pipeline_type_elem_ref_at(arena, pty0);
-                  int32_t gek = (elem != 0) ? pipeline_type_kind_ord_at(arena, elem) : -1;
-                  if (gek >= 0 && gek != for_kind) {
-                    mm_self = 1;
-                  } else if (gek == for_kind && for_kind == XLANG_SEED_TRAIT_TY_NAMED && for_nlen > 0 &&
-                             for_name && elem != 0) {
-                    uint8_t gnm[64];
-                    int32_t gnl = pipeline_type_named_name_into(arena, elem, gnm);
-                    if (gnl != for_nlen || memcmp(gnm, for_name, (size_t)for_nlen) != 0)
-                      mm_self = 1;
-                  }
-                }
-              } else if (got0 != for_kind) {
+        /*
+         * wave428: untyped trait self (param0 ek=-1) must match for-type.
+         * wave429: also when trait annotated self — typed self matching trait but
+         * not `for` type was false-green (param loop only vs trait, ignored for-type).
+         * Skip when for-type unknown or impl left self untyped (got0 < 0).
+         * PLATFORM: SHARED parse.
+         */
+        if (expect_np >= 1 && for_kind >= 0) {
+          int32_t pty0 = pipeline_module_func_param_type_ref_at(module, found_fi, 0);
+          int32_t got0 = (pty0 != 0) ? pipeline_type_kind_ord_at(arena, pty0) : -1;
+          int32_t mm_self = 0;
+          if (got0 >= 0) {
+            if (for_is_ptr) {
+              if (got0 != XLANG_SEED_TRAIT_TY_PTR) {
                 mm_self = 1;
-              } else if (got0 == XLANG_SEED_TRAIT_TY_NAMED && for_nlen > 0 && for_name) {
-                uint8_t gnm[64];
-                int32_t gnl = pipeline_type_named_name_into(arena, pty0, gnm);
-                if (gnl != for_nlen || memcmp(gnm, for_name, (size_t)for_nlen) != 0)
+              } else {
+                int32_t elem = pipeline_type_elem_ref_at(arena, pty0);
+                int32_t gek = (elem != 0) ? pipeline_type_kind_ord_at(arena, elem) : -1;
+                if (gek >= 0 && gek != for_kind) {
                   mm_self = 1;
+                } else if (gek == for_kind && for_kind == XLANG_SEED_TRAIT_TY_NAMED && for_nlen > 0 &&
+                           for_name && elem != 0) {
+                  uint8_t gnm[64];
+                  int32_t gnl = pipeline_type_named_name_into(arena, elem, gnm);
+                  if (gnl != for_nlen || memcmp(gnm, for_name, (size_t)for_nlen) != 0)
+                    mm_self = 1;
+                }
               }
+            } else if (got0 != for_kind) {
+              mm_self = 1;
+            } else if (got0 == XLANG_SEED_TRAIT_TY_NAMED && for_nlen > 0 && for_name) {
+              uint8_t gnm[64];
+              int32_t gnl = pipeline_type_named_name_into(arena, pty0, gnm);
+              if (gnl != for_nlen || memcmp(gnm, for_name, (size_t)for_nlen) != 0)
+                mm_self = 1;
             }
-            if (mm_self) {
-              lsp_diag_report_typeck((int)line, (int)col, "method %.*s self type mismatch",
-                                     (int)mlen, (const char *)mnm);
-              return -2;
-            }
+          }
+          if (mm_self) {
+            lsp_diag_report_typeck((int)line, (int)col, "method %.*s self type mismatch",
+                                   (int)mlen, (const char *)mnm);
+            return -2;
           }
         }
       }

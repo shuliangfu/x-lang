@@ -1054,15 +1054,17 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
           }
           /*
            * wave428: trait wrote untyped self (param0 ek=-1) → require impl param0
-           * matches `for` type (builtin / named / *T). Skip when for-type unknown
-           * or impl left self untyped (got_pk < 0).
+           * matches `for` type (builtin / named / *T).
+           * wave429: also when trait annotated self (ek0>=0) — was false-green:
+           *   trait Double { double(self: i32) } + impl for u64 { double(self: i32) }
+           *   passed param-type (matches trait) but for-type was ignored → call on i32 run=42.
+           * Skip when for-type unknown or impl left self untyped (got0 < 0).
            * PLATFORM: SHARED parse.
            */
           if (expect_np >= 1) {
-            int32_t ek0 = g_xlang_skip_trait_reg[ti].method_param_kinds[mi][0];
             int32_t for_k = g_xlang_skip_impl_for_kinds[si];
             int32_t for_ptr = g_xlang_skip_impl_for_is_ptr[si];
-            if (ek0 < 0 && for_k >= 0) {
+            if (for_k >= 0) {
               int32_t pty0 = pipeline_module_func_param_type_ref_at(module, found_fi, 0);
               int32_t got0 = (pty0 != 0) ? pipeline_type_kind_ord_at(arena, pty0) : -1;
               int32_t mm_self = 0;
