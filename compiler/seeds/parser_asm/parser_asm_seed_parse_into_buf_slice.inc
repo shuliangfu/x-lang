@@ -712,6 +712,7 @@ static int32_t parser_asm_seed_impl_type_start_kind_c(int32_t kind) {
  * trait signatures → impl_missing_method.x false-green (compile exit 0).
  * G.7: single table in seed parse_into_buf (reset per module); soft remains bounds/dyn.
  * wave424: unknown_trait hard fail (align product skip_tl xlang_trait_check_impls_complete_c).
+ * wave425: method_ret_kinds + return_mismatch hard fail (twin of skip_tl).
  * PLATFORM: SHARED parse.
  */
 #define XLANG_TRAIT_REG_MAX 16
@@ -721,13 +722,49 @@ typedef struct {
   int32_t name_len;
   uint8_t methods[XLANG_TRAIT_METH_MAX][64];
   int32_t method_lens[XLANG_TRAIT_METH_MAX];
+  int32_t method_ret_kinds[XLANG_TRAIT_METH_MAX]; /* TypeKind ord; -1 unknown */
   int32_t num_methods;
 } xlang_trait_reg_ent_t;
 static xlang_trait_reg_ent_t g_xlang_trait_reg[XLANG_TRAIT_REG_MAX];
 static int32_t g_xlang_trait_reg_n;
+static void *g_xlang_seed_trait_check_arena;
 
-static void xlang_trait_reg_reset_c(void) {
+/**
+ * Builtin type token → TypeKind ord (align PARSER_ASM_TYPE_*). Twin of skip_tl helper.
+ * PLATFORM: SHARED parse.
+ */
+static int32_t parser_asm_seed_trait_token_to_type_kind_c(int32_t tok_kind) {
+  switch (tok_kind) {
+  case (int32_t)TOKEN_I32:
+    return 0;
+  case (int32_t)TOKEN_BOOL:
+    return 1;
+  case (int32_t)TOKEN_U8:
+    return 2;
+  case (int32_t)TOKEN_U32:
+    return 3;
+  case (int32_t)TOKEN_U64:
+    return 4;
+  case (int32_t)TOKEN_I64:
+    return 5;
+  case (int32_t)TOKEN_USIZE:
+    return 6;
+  case (int32_t)TOKEN_ISIZE:
+    return 7;
+  case (int32_t)TOKEN_F32:
+    return 14;
+  case (int32_t)TOKEN_F64:
+    return 15;
+  case (int32_t)TOKEN_VOID:
+    return 16;
+  default:
+    return -1;
+  }
+}
+
+static void xlang_trait_reg_reset_c(void *arena) {
   g_xlang_trait_reg_n = 0;
+  g_xlang_seed_trait_check_arena = arena;
   memset(g_xlang_trait_reg, 0, sizeof(g_xlang_trait_reg));
 }
 
@@ -763,6 +800,7 @@ static int32_t xlang_trait_reg_find_c(const uint8_t *name, int32_t name_len) {
 extern void lsp_diag_report_typeck(int line, int col, const char *fmt, ...);
 extern int32_t pipeline_module_num_funcs(void *module);
 extern int32_t pipeline_module_func_name_equal_at(void *module, int32_t fi, uint8_t *name, int32_t name_len);
+extern int32_t pipeline_module_func_return_type_at(void *module, int32_t fi);
 
 /**
  * Register trait Name { function m(...); ... } method names; advance lex past `}`.
@@ -808,20 +846,41 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
     if (r.tok.kind == (int32_t)TOKEN_EOF)
       return -1;
     if (r.tok.kind == (int32_t)TOKEN_FUNCTION) {
+      int32_t mi_reg = -1;
       parser_lex_from_next_into_glue(&lex, r);
       r = lexer_next_buf(lex, data, len);
       if (r.tok.kind == (int32_t)TOKEN_IDENT && ent->num_methods < XLANG_TRAIT_METH_MAX) {
-        int32_t mi = ent->num_methods;
-        xlang_trait_reg_copy_ident_c(data, len, r.token_start, r.tok.ident_len, ent->methods[mi],
-                                     &ent->method_lens[mi]);
-        if (ent->method_lens[mi] > 0)
+        mi_reg = ent->num_methods;
+        xlang_trait_reg_copy_ident_c(data, len, r.token_start, r.tok.ident_len, ent->methods[mi_reg],
+                                     &ent->method_lens[mi_reg]);
+        ent->method_ret_kinds[mi_reg] = -1;
+        if (ent->method_lens[mi_reg] > 0)
           ent->num_methods++;
+        else
+          mi_reg = -1;
       }
-      /* Skip remainder of signature/body until `;` or balanced `{...}` then optional `;`. */
+      /* Skip remainder of signature/body; wave425 capture `: Ret` TypeKind. */
       {
         int32_t depth = 0;
+        int32_t paren = 0;
+        int32_t saw_params_close = 0;
+        int32_t want_ret = 0;
         int32_t steps = 0;
         while (steps++ < 4096) {
+          if (r.tok.kind == (int32_t)TOKEN_LPAREN)
+            paren++;
+          else if (r.tok.kind == (int32_t)TOKEN_RPAREN) {
+            if (paren > 0)
+              paren--;
+            if (paren == 0 && depth == 0)
+              saw_params_close = 1;
+          } else if (saw_params_close && !want_ret && depth == 0 && paren == 0 &&
+                     r.tok.kind == (int32_t)TOKEN_COLON) {
+            want_ret = 1;
+          } else if (want_ret && mi_reg >= 0 && ent->method_ret_kinds[mi_reg] < 0) {
+            ent->method_ret_kinds[mi_reg] = parser_asm_seed_trait_token_to_type_kind_c(r.tok.kind);
+            want_ret = 0;
+          }
           if (r.tok.kind == (int32_t)TOKEN_LBRACE)
             depth++;
           else if (r.tok.kind == (int32_t)TOKEN_RBRACE) {
@@ -850,10 +909,12 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
 }
 
 /**
- * After impl Trait for T body: require registered trait + every method as free func.
+ * After impl Trait for T body: require registered trait + every method as free func
+ * with matching return TypeKind when trait stored a builtin kind.
  * wave424 Cap residual pure — unknown_trait was soft return 0 → false-green.
+ * wave425 Cap residual pure — return_mismatch hard fail (sig ret was not stored).
  * G.7 expand this helper only (twin of skip_tl xlang_trait_check_impls_complete_c).
- * @return 0 ok; -2 hard unknown trait or missing method (abort parse_into).
+ * @return 0 ok; -2 hard unknown trait / missing method / return type mismatch.
  * PLATFORM: SHARED parse.
  */
 static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const uint8_t *trait_nm,
@@ -862,6 +923,7 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
   int32_t mi;
   int32_t nf;
   int32_t fi;
+  void *arena = g_xlang_seed_trait_check_arena;
   if (!module || !trait_nm || trait_nlen <= 0)
     return 0;
   ti = xlang_trait_reg_find_c(trait_nm, trait_nlen);
@@ -874,19 +936,32 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
   nf = pipeline_module_num_funcs(module);
   for (mi = 0; mi < g_xlang_trait_reg[ti].num_methods; mi++) {
     int32_t found = 0;
+    int32_t found_fi = -1;
     const uint8_t *mnm = g_xlang_trait_reg[ti].methods[mi];
     int32_t mlen = g_xlang_trait_reg[ti].method_lens[mi];
+    int32_t expect_k = g_xlang_trait_reg[ti].method_ret_kinds[mi];
     if (mlen <= 0)
       continue;
     for (fi = 0; fi < nf; fi++) {
       if (pipeline_module_func_name_equal_at(module, fi, mnm, mlen) != 0) {
         found = 1;
+        found_fi = fi;
         break;
       }
     }
     if (!found) {
       lsp_diag_report_typeck((int)line, (int)col, "missing method %.*s", (int)mlen, (const char *)mnm);
       return -2;
+    }
+    /* wave425: hard fail return type mismatch when trait stored a builtin kind. */
+    if (expect_k >= 0 && arena && found_fi >= 0) {
+      int32_t rty = pipeline_module_func_return_type_at(module, found_fi);
+      int32_t got_k = (rty != 0) ? pipeline_type_kind_ord_at(arena, rty) : -1;
+      if (got_k >= 0 && got_k != expect_k) {
+        lsp_diag_report_typeck((int)line, (int)col, "method %.*s return type mismatch", (int)mlen,
+                               (const char *)mnm);
+        return -2;
+      }
     }
   }
   return 0;
@@ -1052,8 +1127,8 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
   if (!arena || !module || !data || len <= 0)
     return out;
 
-  /* wave421: per-module trait method registry (missing-method diagnostics). */
-  xlang_trait_reg_reset_c();
+  /* wave421/wave425: per-module trait method registry (+ ret kinds; stash arena). */
+  xlang_trait_reg_reset_c(arena);
 
   mod_hdr = (parser_asm_x_module_hdr_t *)module;
   lex.pos = 0;

@@ -6485,6 +6485,11 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
     lexer_invalid_escape_reset();
   lexer_string_lit_overflow_reset();
   lexer_ident_too_long_reset();
+    /* wave421/wave425: trait registry + stash arena for return type kind checks. */
+    {
+      extern void xlang_trait_reg_reset_c(void *arena);
+      xlang_trait_reg_reset_c((void *)arena);
+    }
     struct lexer_Lexer lex = lexer_init();
     int32_t main_idx = -(1);
     struct parser_CollectImportsResult import_res = (struct parser_CollectImportsResult){ .lex = lex };
@@ -7998,6 +8003,11 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
     lexer_invalid_escape_reset();
   lexer_string_lit_overflow_reset();
   lexer_ident_too_long_reset();
+    /* wave421/wave425: trait registry + stash arena for return type kind checks. */
+    {
+      extern void xlang_trait_reg_reset_c(void *arena);
+      xlang_trait_reg_reset_c((void *)arena);
+    }
     struct lexer_Lexer lex = lexer_init();
     int32_t main_idx = -(1);
     struct parser_CollectImportsResult import_res = (struct parser_CollectImportsResult){ .lex = lex };

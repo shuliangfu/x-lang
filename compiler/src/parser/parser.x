@@ -8284,6 +8284,8 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
   lexer.lexer_invalid_escape_reset();
   lexer.lexer_string_lit_overflow_reset();
   lexer.lexer_ident_too_long_reset();
+  /* wave421/wave425: trait registry + stash arena for ret kinds (parse_into twin of buf). */
+  xlang_trait_reg_reset_c(arena);
   /* See implementation. */
   let lex: Lexer = lexer.lexer_init();
   let main_idx: i32 = -1;
@@ -10384,7 +10386,12 @@ export function parse_into_try_skip_allow_from_buf(lex: Lexer, r: LexerResult, d
  * wave421: reset product-path trait/impl registries before parse_into_buf.
  * PLATFORM: SHARED parse
  */
-export extern function xlang_trait_reg_reset_c(): void;
+/**
+ * Reset per-module trait registry; stash arena for wave425 ret-kind checks.
+ * @param arena *ASTArena — type pool for pipeline_type_kind_ord_at (may be null)
+ * PLATFORM: SHARED parse
+ */
+export extern function xlang_trait_reg_reset_c(arena: *ASTArena): void;
 
 /**
  * wave424 Cap residual pure — finish successful parse_into with trait completeness.
@@ -10429,8 +10436,8 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
   lexer.lexer_invalid_escape_reset();
   lexer.lexer_string_lit_overflow_reset();
   lexer.lexer_ident_too_long_reset();
-  /* wave421: trait method + impl-seen tables for missing-method typeck. */
-  xlang_trait_reg_reset_c();
+  /* wave421/wave425: trait method + impl-seen tables; stash arena for ret kinds. */
+  xlang_trait_reg_reset_c(arena);
   let lex: Lexer = lexer.lexer_init();
   let main_idx: i32 = -1;
   let import_res: CollectImportsResult = CollectImportsResult { lex: lex };

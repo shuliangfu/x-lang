@@ -26870,13 +26870,13 @@ extern void pipeline_debug_trace_named_func_bodies(const char *phase, void *modu
 int32_t pipeline_parse_into_buf_impl_c(struct ast_ASTArena *arena, struct ast_Module *module, uint8_t *buf,
                                         int32_t buf_len) {
   struct parser_ParseIntoResult pr;
-  extern void xlang_trait_reg_reset_c(void);
+  extern void xlang_trait_reg_reset_c(void *arena);
   extern int32_t xlang_trait_check_impls_complete_c(void *module);
 
   if (!arena || !module || !buf || buf_len <= 0)
     return -1;
-  /* wave421: per-module trait registry for missing-method diagnostics. */
-  xlang_trait_reg_reset_c();
+  /* wave421/wave425: per-module trait registry (names + ret kinds; stash arena). */
+  xlang_trait_reg_reset_c(arena);
   parser_parse_into_init(module, arena);
   pr = parser_parse_into_buf(arena, module, buf, buf_len);
   if (pr.ok == 0) {
@@ -26991,7 +26991,7 @@ struct parser_ParseIntoResult pipeline_parse_into_with_init_buf_impl_c(struct as
                                                                         int32_t len) {
   struct parser_ParseIntoResult fail;
   struct parser_ParseIntoResult pr;
-  extern void xlang_trait_reg_reset_c(void);
+  extern void xlang_trait_reg_reset_c(void *arena);
   extern int32_t xlang_trait_check_impls_complete_c(void *module);
 
   fail.ok = 1;
@@ -27001,9 +27001,10 @@ struct parser_ParseIntoResult pipeline_parse_into_with_init_buf_impl_c(struct as
   /* wave421 Cap residual pure — per-module trait registry for missing method.
    * Root: incomplete impl was false-green; check immediately after parse so
    * dep load reset cannot wipe entry trait tables.
+   * wave425: stash arena for return type kind compare.
    * G.7: xlang_trait_* in skip_tl + this product parse entry.
    * PLATFORM: SHARED parse. */
-  xlang_trait_reg_reset_c();
+  xlang_trait_reg_reset_c(arena);
   pipeline_strict_parse_into_init(arena, module);
   pr = parser_parse_into_buf(arena, module, data, len);
   if (pr.ok == 0 && xlang_trait_check_impls_complete_c(module) != 0) {

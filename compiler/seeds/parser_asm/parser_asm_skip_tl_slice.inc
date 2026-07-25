@@ -838,7 +838,9 @@ void parser_asm_skip_one_enum_into_slice_c(struct parser_asm_lexer *out, struct 
  * Root: parser.x skip_one_trait/impl never stored trait signatures → incomplete
  * impl compiled green. G.7 authority: this skip_tl slice (product skip glue).
  * wave424: unknown_trait hard fail (was soft continue when trait not registered).
- * Soft leave-off: bounds / dyn Trait; return_mismatch (sig ret types not stored).
+ * wave425: store method return TypeKind at trait register; hard fail return_mismatch
+ *   (was soft: only method names stored → `impl` with wrong `: bool` false-green).
+ * Soft leave-off: bounds / dyn Trait; complex/named ret types (kind=-1 skip compare).
  * PLATFORM: SHARED parse.
  */
 #define XLANG_SKIP_TRAIT_REG_MAX 16
@@ -849,6 +851,8 @@ typedef struct {
   int32_t name_len;
   uint8_t methods[XLANG_SKIP_TRAIT_METH_MAX][64];
   int32_t method_lens[XLANG_SKIP_TRAIT_METH_MAX];
+  /* TypeKind ord (PARSER_ASM_TYPE_*); -1 = unknown / not stored (skip ret check). */
+  int32_t method_ret_kinds[XLANG_SKIP_TRAIT_METH_MAX];
   int32_t num_methods;
 } xlang_skip_trait_reg_ent_t;
 static xlang_skip_trait_reg_ent_t g_xlang_skip_trait_reg[XLANG_SKIP_TRAIT_REG_MAX];
@@ -858,10 +862,52 @@ static int32_t g_xlang_skip_impl_trait_len[XLANG_SKIP_IMPL_SEEN_MAX];
 static int32_t g_xlang_skip_impl_seen_n;
 static int32_t g_xlang_skip_impl_line[XLANG_SKIP_IMPL_SEEN_MAX];
 static int32_t g_xlang_skip_impl_col[XLANG_SKIP_IMPL_SEEN_MAX];
+/* wave425: arena stashed at reset so check can ord return_type_ref without API churn. */
+static void *g_xlang_trait_check_arena;
 
-void xlang_trait_reg_reset_c(void) {
+/**
+ * Map builtin type token → TypeKind ordinal (align PARSER_ASM_TYPE_* / ast TypeKind).
+ * @return kind ord >=0; -1 if not a scalar/void builtin (named/ptr soft leave-off).
+ * PLATFORM: SHARED parse.
+ */
+static int32_t xlang_trait_token_to_type_kind_c(int32_t tok_kind) {
+  switch (tok_kind) {
+  case (int32_t)TOKEN_I32:
+    return 0;
+  case (int32_t)TOKEN_BOOL:
+    return 1;
+  case (int32_t)TOKEN_U8:
+    return 2;
+  case (int32_t)TOKEN_U32:
+    return 3;
+  case (int32_t)TOKEN_U64:
+    return 4;
+  case (int32_t)TOKEN_I64:
+    return 5;
+  case (int32_t)TOKEN_USIZE:
+    return 6;
+  case (int32_t)TOKEN_ISIZE:
+    return 7;
+  case (int32_t)TOKEN_F32:
+    return 14;
+  case (int32_t)TOKEN_F64:
+    return 15;
+  case (int32_t)TOKEN_VOID:
+    return 16;
+  default:
+    return -1;
+  }
+}
+
+/**
+ * Reset per-module trait registry and stash arena for ret-kind checks.
+ * @param arena void* — ASTArena for pipeline_type_kind_ord_at (may be null → ret check skipped).
+ * PLATFORM: SHARED parse.
+ */
+void xlang_trait_reg_reset_c(void *arena) {
   g_xlang_skip_trait_reg_n = 0;
   g_xlang_skip_impl_seen_n = 0;
+  g_xlang_trait_check_arena = arena;
   memset(g_xlang_skip_trait_reg, 0, sizeof(g_xlang_skip_trait_reg));
   memset(g_xlang_skip_impl_trait, 0, sizeof(g_xlang_skip_impl_trait));
   memset(g_xlang_skip_impl_trait_len, 0, sizeof(g_xlang_skip_impl_trait_len));
@@ -872,13 +918,17 @@ void xlang_trait_reg_reset_c(void) {
 extern void lsp_diag_report_typeck(int line, int col, const char *fmt, ...);
 extern int32_t pipeline_module_num_funcs(void *module);
 extern int32_t pipeline_module_func_name_equal_at(void *module, int32_t fi, uint8_t *name, int32_t name_len);
+extern int32_t pipeline_module_func_return_type_at(void *module, int32_t fi);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t type_ref);
 
 /**
  * After parse: every `impl Trait for T` must name a registered trait and provide
- * free funcs for all trait methods.
+ * free funcs for all trait methods with matching return TypeKind when known.
  * wave424 Cap residual pure — unknown_trait was soft-skipped (ti<0 continue) →
- * `impl Missing for i32` false-green (build exit 0). G.7 expand this function only.
- * @return 0 ok; -1 unknown trait and/or missing method (diagnostic already emitted).
+ * `impl Missing for i32` false-green (build exit 0).
+ * wave425 Cap residual pure — return_mismatch: only names stored → wrong ret green.
+ * G.7 expand this function only (twin: seed_check_impl_missing_methods_c).
+ * @return 0 ok; -1 unknown trait / missing method / return type mismatch.
  * PLATFORM: SHARED parse+typeck gate.
  */
 int32_t xlang_trait_check_impls_complete_c(void *module) {
@@ -888,6 +938,7 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
   int32_t fi;
   int32_t nf;
   int32_t rc = 0;
+  void *arena = g_xlang_trait_check_arena;
   if (!module)
     return 0;
   nf = pipeline_module_num_funcs(module);
@@ -913,13 +964,16 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
     }
     for (mi = 0; mi < g_xlang_skip_trait_reg[ti].num_methods; mi++) {
       int32_t found = 0;
+      int32_t found_fi = -1;
       uint8_t *mnm = g_xlang_skip_trait_reg[ti].methods[mi];
       int32_t mlen = g_xlang_skip_trait_reg[ti].method_lens[mi];
+      int32_t expect_k = g_xlang_skip_trait_reg[ti].method_ret_kinds[mi];
       if (mlen <= 0)
         continue;
       for (fi = 0; fi < nf; fi++) {
         if (pipeline_module_func_name_equal_at(module, fi, mnm, mlen) != 0) {
           found = 1;
+          found_fi = fi;
           break;
         }
       }
@@ -927,6 +981,17 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
         lsp_diag_report_typeck((int)g_xlang_skip_impl_line[si], (int)g_xlang_skip_impl_col[si],
                                "missing method %.*s", (int)mlen, (const char *)mnm);
         rc = -1;
+        continue;
+      }
+      /* wave425: hard fail return type mismatch when trait stored a builtin kind. */
+      if (expect_k >= 0 && arena && found_fi >= 0) {
+        int32_t rty = pipeline_module_func_return_type_at(module, found_fi);
+        int32_t got_k = (rty != 0) ? pipeline_type_kind_ord_at(arena, rty) : -1;
+        if (got_k >= 0 && got_k != expect_k) {
+          lsp_diag_report_typeck((int)g_xlang_skip_impl_line[si], (int)g_xlang_skip_impl_col[si],
+                                 "method %.*s return type mismatch", (int)mlen, (const char *)mnm);
+          rc = -1;
+        }
       }
     }
   }
@@ -1025,19 +1090,41 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
       return;
     }
     if (r.tok.kind == (int32_t)TOKEN_FUNCTION) {
+      int32_t mi_reg = -1;
       parser_asm_lex_from_result_val_into(&lex, r);
       lexer_next_into(&r, lex, source);
       if (r.tok.kind == (int32_t)TOKEN_IDENT && ent && ent->num_methods < XLANG_SKIP_TRAIT_METH_MAX) {
-        int32_t mi = ent->num_methods;
-        xlang_skip_trait_copy_ident_c(source, r.token_start, r.tok.ident_len, ent->methods[mi],
-                                      &ent->method_lens[mi]);
-        if (ent->method_lens[mi] > 0)
+        mi_reg = ent->num_methods;
+        xlang_skip_trait_copy_ident_c(source, r.token_start, r.tok.ident_len, ent->methods[mi_reg],
+                                      &ent->method_lens[mi_reg]);
+        ent->method_ret_kinds[mi_reg] = -1;
+        if (ent->method_lens[mi_reg] > 0)
           ent->num_methods++;
+        else
+          mi_reg = -1;
       }
       {
+        /* Walk ` (params) : Ret ; ` or body `{...}` — capture Ret TypeKind (wave425). */
         int32_t depth = 0;
+        int32_t paren = 0;
+        int32_t saw_params_close = 0;
+        int32_t want_ret = 0;
         int32_t steps = 0;
         while (steps++ < 4096) {
+          if (r.tok.kind == (int32_t)TOKEN_LPAREN)
+            paren++;
+          else if (r.tok.kind == (int32_t)TOKEN_RPAREN) {
+            if (paren > 0)
+              paren--;
+            if (paren == 0 && depth == 0)
+              saw_params_close = 1;
+          } else if (saw_params_close && !want_ret && depth == 0 && paren == 0 &&
+                     r.tok.kind == (int32_t)TOKEN_COLON) {
+            want_ret = 1;
+          } else if (want_ret && mi_reg >= 0 && ent->method_ret_kinds[mi_reg] < 0) {
+            ent->method_ret_kinds[mi_reg] = xlang_trait_token_to_type_kind_c(r.tok.kind);
+            want_ret = 0;
+          }
           if (r.tok.kind == (int32_t)TOKEN_LBRACE)
             depth++;
           else if (r.tok.kind == (int32_t)TOKEN_RBRACE) {
