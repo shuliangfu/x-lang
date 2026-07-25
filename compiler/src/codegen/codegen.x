@@ -12762,7 +12762,7 @@ export function codegen_is_libc_conflicting_extern_name(name: *u8, name_len: i32
  * See implementation.
  * See implementation.
  */
-export function codegen_find_mono_type_for_generic_func(arena: *ASTArena, module: *Module, fi: i32): i32 {
+export function codegen_find_mono_type_for_generic_func(arena: *ASTArena, module: *Module, fi: i32, arg_idx: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
@@ -12799,9 +12799,15 @@ export function codegen_find_mono_type_for_generic_func(arena: *ASTArena, module
           }
         }
         if (matched != 0) {
-          let ty: i32 = e.resolved_type_ref;
-          if (ty <= 0 && e.call_num_args > 0) {
-            let a0: i32 = pipeline_expr_call_arg_ref(arena, ei, 0);
+          let ty: i32 = 0;
+          /* wave443: resolved_type_ref is the call's return type; only valid for
+           * param0 (identity shape: ret == param0). For arg_idx>0, must use the
+           * specific arg's type to get that param's mono type. */
+          if (arg_idx == 0) {
+            ty = e.resolved_type_ref;
+          }
+          if (ty <= 0 && arg_idx >= 0 && arg_idx < e.call_num_args) {
+            let a0: i32 = pipeline_expr_call_arg_ref(arena, ei, arg_idx);
             if (a0 > 0) {
               ty = pipeline_expr_resolved_type_ref(arena, a0);
             }
@@ -12838,7 +12844,8 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
     if (pipeline_module_func_is_extern_at(module, fi) != 0) {
       return 0;
     }
-    if (pipeline_module_func_num_params_at(module, fi) != 1) {
+    let num_params: i32 = pipeline_module_func_num_params_at(module, fi);
+    if (num_params <= 0 || num_params > 8) {
       return 0;
     }
     let ret_ty: i32 = pipeline_module_func_return_type_at(module, fi);
@@ -12866,7 +12873,7 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
       }
       bi = bi + 1;
     }
-    let mono_ty: i32 = codegen_find_mono_type_for_generic_func(arena, module, fi);
+    let mono_ty: i32 = codegen_find_mono_type_for_generic_func(arena, module, fi, 0);
     if (mono_ty <= 0) {
       return 0;
     }
@@ -12908,6 +12915,37 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
     }
     if (emit_bytes_from_ptr(out, &pn[0], pn_len) != 0) {
       return -1;
+    }
+    /* wave443: emit remaining params 1..N-1 with per-param mono types (multi-arg identity mono).
+     * For each param pi, look up the concrete type from call site arg pi, then emit
+     * ", <mono_type> <param_name>". If any mono type is missing, bail (not identity). */
+    let pi: i32 = 1;
+    while (pi < num_params) {
+      let mono_pi: i32 = codegen_find_mono_type_for_generic_func(arena, module, fi, pi);
+      if (mono_pi <= 0) {
+        return 0;
+      }
+      let comma_space: u8[2] = [44, 32];
+      if (emit_bytes_from_ptr(out, &comma_space[0], 2) != 0) {
+        return -1;
+      }
+      if (emit_type(arena, out, mono_pi, prefix, prefix_len, ctx) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 32) != 0) {
+        return -1;
+      }
+      let pni_len: i32 = pipeline_module_func_param_name_len_at(module, fi, pi);
+      let pni: u8[32] = [];
+      pipeline_module_func_param_name_copy32(module, fi, pi, &pni[0]);
+      if (pni_len <= 0) {
+        pni[0] = 120;
+        pni_len = 1;
+      }
+      if (emit_bytes_from_ptr(out, &pni[0], pni_len) != 0) {
+        return -1;
+      }
+      pi = pi + 1;
     }
     let open_body: u8[4] = [41, 32, 123, 10];
     if (emit_bytes_from_ptr(out, &open_body[0], 4) != 0) {
