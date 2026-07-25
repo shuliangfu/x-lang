@@ -715,7 +715,9 @@ static int32_t parser_asm_seed_impl_type_start_kind_c(int32_t kind) {
  * wave425: method_ret_kinds + return_mismatch hard fail (twin of skip_tl).
  * wave426: method_param_counts + method_param_kinds + arity/param-type hard fail.
  * wave427: named/ptr/slice ret shape + hard fail (twin of skip_tl).
- * Soft leave-off: dyn Trait; generic trait bounds; untyped-self; nested *[]T/T[N].
+ * wave428: for-type + untyped-self vs for-type hard fail (twin of skip_tl).
+ * Soft leave-off: dyn Trait; generic trait bounds; nested *[]T/T[N];
+ *   typed self that disagrees with for-type when trait already annotated.
  * PLATFORM: SHARED parse.
  */
 #define XLANG_TRAIT_REG_MAX 16
@@ -815,6 +817,7 @@ extern int32_t pipeline_module_func_name_equal_at(void *module, int32_t fi, uint
 extern int32_t pipeline_module_func_return_type_at(void *module, int32_t fi);
 extern int32_t pipeline_module_func_num_params_at(void *module, int32_t fi);
 extern int32_t pipeline_module_func_param_type_ref_at(void *module, int32_t fi, int32_t pi);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t type_ref);
 extern int32_t pipeline_type_named_name_into(void *arena, int32_t type_ref, uint8_t *out);
 extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t type_ref);
 
@@ -1006,12 +1009,19 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
  * wave425 Cap residual pure — return_mismatch hard fail (sig ret was not stored).
  * wave426 Cap residual pure — param arity / typed param kinds hard fail.
  * wave427 Cap residual pure — named/ptr/slice ret hard fail.
+ * wave428 Cap residual pure — untyped trait self vs for-type hard fail.
  * G.7 expand this helper only (twin of skip_tl xlang_trait_check_impls_complete_c).
+ * @param for_kind TypeKind of for-type (or elem of *T); -1 unknown
+ * @param for_is_ptr 1 if for-type is *T
+ * @param for_name named for-type bytes when for_kind is TYPE_NAMED
+ * @param for_nlen name length; 0 if not named
  * @return 0 ok; -2 hard unknown trait / missing method / signature mismatch.
  * PLATFORM: SHARED parse.
  */
 static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const uint8_t *trait_nm,
-                                                            int32_t trait_nlen, int32_t line, int32_t col) {
+                                                            int32_t trait_nlen, int32_t for_kind,
+                                                            int32_t for_is_ptr, const uint8_t *for_name,
+                                                            int32_t for_nlen, int32_t line, int32_t col) {
   int32_t ti;
   int32_t mi;
   int32_t nf;
@@ -1069,6 +1079,46 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
             lsp_diag_report_typeck((int)line, (int)col, "method %.*s parameter type mismatch",
                                    (int)mlen, (const char *)mnm);
             return -2;
+          }
+        }
+        /* wave428: untyped trait self (param0 ek=-1) must match for-type. */
+        if (expect_np >= 1) {
+          int32_t ek0 = g_xlang_trait_reg[ti].method_param_kinds[mi][0];
+          if (ek0 < 0 && for_kind >= 0) {
+            int32_t pty0 = pipeline_module_func_param_type_ref_at(module, found_fi, 0);
+            int32_t got0 = (pty0 != 0) ? pipeline_type_kind_ord_at(arena, pty0) : -1;
+            int32_t mm_self = 0;
+            if (got0 >= 0) {
+              if (for_is_ptr) {
+                if (got0 != XLANG_SEED_TRAIT_TY_PTR) {
+                  mm_self = 1;
+                } else {
+                  int32_t elem = pipeline_type_elem_ref_at(arena, pty0);
+                  int32_t gek = (elem != 0) ? pipeline_type_kind_ord_at(arena, elem) : -1;
+                  if (gek >= 0 && gek != for_kind) {
+                    mm_self = 1;
+                  } else if (gek == for_kind && for_kind == XLANG_SEED_TRAIT_TY_NAMED && for_nlen > 0 &&
+                             for_name && elem != 0) {
+                    uint8_t gnm[64];
+                    int32_t gnl = pipeline_type_named_name_into(arena, elem, gnm);
+                    if (gnl != for_nlen || memcmp(gnm, for_name, (size_t)for_nlen) != 0)
+                      mm_self = 1;
+                  }
+                }
+              } else if (got0 != for_kind) {
+                mm_self = 1;
+              } else if (got0 == XLANG_SEED_TRAIT_TY_NAMED && for_nlen > 0 && for_name) {
+                uint8_t gnm[64];
+                int32_t gnl = pipeline_type_named_name_into(arena, pty0, gnm);
+                if (gnl != for_nlen || memcmp(gnm, for_name, (size_t)for_nlen) != 0)
+                  mm_self = 1;
+              }
+            }
+            if (mm_self) {
+              lsp_diag_report_typeck((int)line, (int)col, "method %.*s self type mismatch",
+                                     (int)mlen, (const char *)mnm);
+              return -2;
+            }
           }
         }
       }
@@ -1130,7 +1180,9 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
  * - Who consumes: typeck UFCS (wave358/360) + host/fs emit free method.
  * G.7 authority: this seed parse_into_buf path (product parse_into_buf strong symbol).
  * wave421: missing-method check vs registered trait methods (return -2 hard fail).
- * wave424: unknown_trait hard fail (return -2). Soft leave-off: bounds / dyn Trait.
+ * wave424: unknown_trait hard fail (return -2).
+ * wave428: capture for-type; untyped-self vs for-type hard fail.
+ * Soft leave-off: bounds / dyn Trait.
  * PLATFORM: SHARED parse · mac + Ubuntu L2.
  *
  * @return 0 success (lex_out past closing `}`); -1 failure (caller may fallback skip);
@@ -1149,12 +1201,17 @@ static int32_t parser_asm_seed_parse_impl_and_add_c(void *arena, void *module, s
   int32_t is_trait_impl = 0;
   int32_t impl_line = 0;
   int32_t impl_col = 0;
+  int32_t for_kind = -1;
+  int32_t for_is_ptr = 0;
+  uint8_t for_nm[64];
+  int32_t for_nlen = 0;
 
   if (!arena || !module || !data || len <= 0 || !lex_out)
     return -1;
   slice.data = data;
   slice.length = (size_t)len;
   memset(trait_nm, 0, sizeof(trait_nm));
+  memset(for_nm, 0, sizeof(for_nm));
 
   r = lexer_next_buf(lex, data, len);
   if (r.tok.kind != (int32_t)TOKEN_IMPL)
@@ -1185,10 +1242,18 @@ static int32_t parser_asm_seed_parse_impl_and_add_c(void *arena, void *module, s
     if (!parser_asm_seed_impl_type_start_kind_c(r.tok.kind))
       return -1;
     if (r.tok.kind == (int32_t)TOKEN_STAR) {
+      for_is_ptr = 1;
       parser_lex_from_next_into_glue(&lex, r);
       r = lexer_next_buf(lex, data, len);
       if (!parser_asm_seed_impl_type_start_kind_c(r.tok.kind) || r.tok.kind == (int32_t)TOKEN_STAR)
         return -1;
+    }
+    /* wave428: capture for-type for untyped-self match. */
+    if (r.tok.kind == (int32_t)TOKEN_IDENT) {
+      for_kind = XLANG_SEED_TRAIT_TY_NAMED;
+      xlang_trait_reg_copy_ident_c(data, len, r.token_start, r.tok.ident_len, for_nm, &for_nlen);
+    } else {
+      for_kind = parser_asm_seed_trait_token_to_type_kind_c(r.tok.kind);
     }
     parser_lex_from_next_into_glue(&lex, r);
     r = lexer_next_buf(lex, data, len);
@@ -1215,8 +1280,8 @@ static int32_t parser_asm_seed_parse_impl_and_add_c(void *arena, void *module, s
       lex_out->col = r.next_lex.col;
       /* wave421: trait completeness after all methods committed. */
       if (is_trait_impl) {
-        int32_t mrc =
-            parser_asm_seed_check_impl_missing_methods_c(module, trait_nm, trait_nlen, impl_line, impl_col);
+        int32_t mrc = parser_asm_seed_check_impl_missing_methods_c(
+            module, trait_nm, trait_nlen, for_kind, for_is_ptr, for_nm, for_nlen, impl_line, impl_col);
         if (mrc != 0)
           return mrc;
       }

@@ -844,8 +844,10 @@ void parser_asm_skip_one_enum_into_slice_c(struct parser_asm_lexer *out, struct 
  *   parameter type mismatch (was soft: only names+ret → extra/wrong params green).
  * wave427: named ret (IDENT→TYPE_NAMED+name) + ptr/slice ret (STAR/[] + elem);
  *   hard fail Point vs Other / []i32 vs []u8 (was soft: kind=-1 skip).
- * Soft leave-off: dyn Trait; generic trait bounds; untyped self vs for-type;
- *   nested complex ret (e.g. *[]T, T[N]) still soft.
+ * wave428: store impl for-type; hard fail untyped trait self vs for-type
+ *   (was soft: param0 ek=-1 skip → `self: u64` on `impl … for i32` false-green).
+ * Soft leave-off: dyn Trait; generic trait bounds; nested complex ret (*[]T, T[N]);
+ *   typed self that disagrees with for-type when trait already annotated.
  * PLATFORM: SHARED parse.
  */
 #define XLANG_SKIP_TRAIT_REG_MAX 16
@@ -877,6 +879,11 @@ static int32_t g_xlang_skip_impl_trait_len[XLANG_SKIP_IMPL_SEEN_MAX];
 static int32_t g_xlang_skip_impl_seen_n;
 static int32_t g_xlang_skip_impl_line[XLANG_SKIP_IMPL_SEEN_MAX];
 static int32_t g_xlang_skip_impl_col[XLANG_SKIP_IMPL_SEEN_MAX];
+/* wave428: for-type of `impl Trait for T` (T may be *U). -1 kind = not captured. */
+static int32_t g_xlang_skip_impl_for_kinds[XLANG_SKIP_IMPL_SEEN_MAX];
+static int32_t g_xlang_skip_impl_for_is_ptr[XLANG_SKIP_IMPL_SEEN_MAX];
+static uint8_t g_xlang_skip_impl_for_names[XLANG_SKIP_IMPL_SEEN_MAX][64];
+static int32_t g_xlang_skip_impl_for_name_lens[XLANG_SKIP_IMPL_SEEN_MAX];
 /* wave425: arena stashed at reset so check can ord return_type_ref without API churn. */
 static void *g_xlang_trait_check_arena;
 
@@ -933,6 +940,10 @@ void xlang_trait_reg_reset_c(void *arena) {
   memset(g_xlang_skip_impl_trait_len, 0, sizeof(g_xlang_skip_impl_trait_len));
   memset(g_xlang_skip_impl_line, 0, sizeof(g_xlang_skip_impl_line));
   memset(g_xlang_skip_impl_col, 0, sizeof(g_xlang_skip_impl_col));
+  memset(g_xlang_skip_impl_for_kinds, 0xff, sizeof(g_xlang_skip_impl_for_kinds)); /* -1 each */
+  memset(g_xlang_skip_impl_for_is_ptr, 0, sizeof(g_xlang_skip_impl_for_is_ptr));
+  memset(g_xlang_skip_impl_for_names, 0, sizeof(g_xlang_skip_impl_for_names));
+  memset(g_xlang_skip_impl_for_name_lens, 0, sizeof(g_xlang_skip_impl_for_name_lens));
 }
 
 extern void lsp_diag_report_typeck(int line, int col, const char *fmt, ...);
@@ -956,6 +967,8 @@ extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t type_ref);
  *   `double(self, x)` vs trait `double(self)` false-green run=42.
  * wave427 Cap residual pure — named/ptr/slice ret soft (kind=-1) → Point vs Other /
  *   []i32 vs []u8 false-green run=42.
+ * wave428 Cap residual pure — untyped trait self (param0 ek=-1) vs for-type soft →
+ *   `impl Double for i32 { double(self: u64) }` false-green run≠42.
  * G.7 expand this function only (twin: seed_check_impl_missing_methods_c).
  * @return 0 ok; -1 unknown trait / missing method / signature mismatch.
  * PLATFORM: SHARED parse+typeck gate.
@@ -1037,6 +1050,62 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                                      (const char *)mnm);
               rc = -1;
               break;
+            }
+          }
+          /*
+           * wave428: trait wrote untyped self (param0 ek=-1) → require impl param0
+           * matches `for` type (builtin / named / *T). Skip when for-type unknown
+           * or impl left self untyped (got_pk < 0).
+           * PLATFORM: SHARED parse.
+           */
+          if (expect_np >= 1) {
+            int32_t ek0 = g_xlang_skip_trait_reg[ti].method_param_kinds[mi][0];
+            int32_t for_k = g_xlang_skip_impl_for_kinds[si];
+            int32_t for_ptr = g_xlang_skip_impl_for_is_ptr[si];
+            if (ek0 < 0 && for_k >= 0) {
+              int32_t pty0 = pipeline_module_func_param_type_ref_at(module, found_fi, 0);
+              int32_t got0 = (pty0 != 0) ? pipeline_type_kind_ord_at(arena, pty0) : -1;
+              int32_t mm_self = 0;
+              if (got0 >= 0) {
+                if (for_ptr) {
+                  if (got0 != XLANG_TRAIT_TY_PTR) {
+                    mm_self = 1;
+                  } else {
+                    int32_t elem = pipeline_type_elem_ref_at(arena, pty0);
+                    int32_t gek = (elem != 0) ? pipeline_type_kind_ord_at(arena, elem) : -1;
+                    if (gek >= 0 && gek != for_k) {
+                      mm_self = 1;
+                    } else if (gek == for_k && for_k == XLANG_TRAIT_TY_NAMED) {
+                      int32_t fnl = g_xlang_skip_impl_for_name_lens[si];
+                      if (fnl > 0 && elem != 0) {
+                        uint8_t gnm[64];
+                        int32_t gnl = pipeline_type_named_name_into(arena, elem, gnm);
+                        if (gnl != fnl ||
+                            memcmp(gnm, g_xlang_skip_impl_for_names[si], (size_t)fnl) != 0)
+                          mm_self = 1;
+                      }
+                    }
+                  }
+                } else if (got0 != for_k) {
+                  mm_self = 1;
+                } else if (got0 == XLANG_TRAIT_TY_NAMED) {
+                  int32_t fnl = g_xlang_skip_impl_for_name_lens[si];
+                  if (fnl > 0) {
+                    uint8_t gnm[64];
+                    int32_t gnl = pipeline_type_named_name_into(arena, pty0, gnm);
+                    if (gnl != fnl ||
+                        memcmp(gnm, g_xlang_skip_impl_for_names[si], (size_t)fnl) != 0)
+                      mm_self = 1;
+                  }
+                }
+              }
+              if (mm_self) {
+                lsp_diag_report_typeck((int)g_xlang_skip_impl_line[si],
+                                       (int)g_xlang_skip_impl_col[si],
+                                       "method %.*s self type mismatch", (int)mlen,
+                                       (const char *)mnm);
+                rc = -1;
+              }
             }
           }
         }
@@ -1338,6 +1407,7 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
  * G.7 authority: this function (glue for parser.x + seed fallback).
  * Soft: dyn Trait; generic trait bounds.
  * wave421: record trait name for missing-method check (typeck).
+ * wave428: also record for-type (kind / named / *T) for untyped-self check.
  * PLATFORM: SHARED parse.
  */
 void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
@@ -1384,13 +1454,20 @@ void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct 
   parser_asm_lex_from_result_val_into(&lex, r);
   lexer_next_into(&r, lex, source);
   if (r.tok.kind == (int32_t)TOKEN_FOR) {
-    /* wave421: record impl Trait for … for completeness check. */
+    /* wave421: record impl Trait for …; wave428: fill for-type after Type token. */
+    int32_t si = -1;
+    int32_t for_is_ptr = 0;
+    int32_t for_k = -1;
     if (first_nlen > 0 && g_xlang_skip_impl_seen_n < XLANG_SKIP_IMPL_SEEN_MAX) {
-      int32_t si = g_xlang_skip_impl_seen_n;
+      si = g_xlang_skip_impl_seen_n;
       memcpy(g_xlang_skip_impl_trait[si], first_nm, 64);
       g_xlang_skip_impl_trait_len[si] = first_nlen;
       g_xlang_skip_impl_line[si] = impl_line;
       g_xlang_skip_impl_col[si] = impl_col;
+      g_xlang_skip_impl_for_kinds[si] = -1;
+      g_xlang_skip_impl_for_is_ptr[si] = 0;
+      g_xlang_skip_impl_for_name_lens[si] = 0;
+      memset(g_xlang_skip_impl_for_names[si], 0, 64);
       g_xlang_skip_impl_seen_n++;
     }
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_impl_type_for_trait_audit_c(lex, source));
@@ -1398,6 +1475,7 @@ void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct 
     parser_asm_lex_from_result_val_into(&lex, r);
     lexer_next_into(&r, lex, source);
     if (r.tok.kind == (int32_t)TOKEN_STAR) {
+      for_is_ptr = 1;
       parser_asm_lex_from_result_val_into(&lex, r);
       lexer_next_into(&r, lex, source);
     }
@@ -1411,6 +1489,20 @@ void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct 
       out->line = lex.line;
       out->col = lex.col;
       return;
+    }
+    /* wave428: capture for-type shape for untyped-self match. */
+    if (r.tok.kind == (int32_t)TOKEN_IDENT) {
+      for_k = XLANG_TRAIT_TY_NAMED;
+      if (si >= 0)
+        xlang_skip_trait_copy_ident_c(source, r.token_start, r.tok.ident_len,
+                                      g_xlang_skip_impl_for_names[si],
+                                      &g_xlang_skip_impl_for_name_lens[si]);
+    } else {
+      for_k = xlang_trait_token_to_type_kind_c(r.tok.kind);
+    }
+    if (si >= 0) {
+      g_xlang_skip_impl_for_kinds[si] = for_k;
+      g_xlang_skip_impl_for_is_ptr[si] = for_is_ptr;
     }
     {
       uint8_t tname_audit[64];
