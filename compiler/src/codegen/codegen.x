@@ -13443,7 +13443,7 @@ function codegen_find_impl_method_for_type(module: *Module, arena: *ASTArena, me
 }
 
 /**
- * Emit monomorphized C instances for a generic function (wave443–447).
+ * Emit monomorphized C instances for a generic function (wave443–450).
  *
  * wave443–444: multi-arg + mangled combos for identity shape `fn(x: T): T`.
  * wave445: real body AST walk (method calls / lets) under mono_active.
@@ -13455,11 +13455,20 @@ function codegen_find_impl_method_for_type(module: *Module, arena: *ASTArena, me
  * type_refs under mono_active so C5 subst rewrites T→concrete while leaving
  * builtins (i32, …) unchanged — identity used to emit ret type as mono_ty
  * (param0 concrete), which is wrong when ret is not T.
+ * wave450: zero value-param generics (`unit_t<T>(): i32`). Parser stores only
+ * `call_num_type_args` (count), not type-arg type_refs; call-site C3 mangling
+ * therefore falls back to the bare link name when `num_params==0`. Prior mono
+ * emit hard-gated `num_params<=0` → no definition → BLD001 undeclared. Root
+ * fix: when `num_params==0` and at least one matching CALL exists, emit the
+ * body once under the bare link name (phantom T; all type-arg combos share
+ * one C function). Leave-off: bare `unit_t()` without turbofish (typeck still
+ * requires type args); zero-arg body/return that need T subst without stored
+ * type-arg refs (ret `T` / `let x: T` mono map).
  *
  * @param arena *ASTArena — shared AST arena for type_ref / expr walk
  * @param out *CodegenOutBuf — C text buffer
  * @param module *Module — owning module of fi
- * @param fi i32 — function index (must have generic params and 1..8 value params)
+ * @param fi i32 — function index (generic; value params 0..8)
  * @param prefix *u8 — module C prefix bytes
  * @param prefix_len i32 — prefix length
  * @param ctx *PipelineDepCtx — mono_active / mono_* type maps (SHARED ABI)
@@ -13483,11 +13492,179 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
       return 0;
     }
     let num_params: i32 = pipeline_module_func_num_params_at(module, fi);
-    if (num_params <= 0 || num_params > 8) {
+    if (num_params < 0 || num_params > 8) {
       return 0;
     }
     let ret_ty: i32 = pipeline_module_func_return_type_at(module, fi);
     let p0_ty: i32 = pipeline_module_func_param_type_ref_at(module, fi, 0);
+    /*
+     * wave450 Cap residual: zero value-param generic mono under bare link name.
+     * Why bare: call-site `codegen_emit_call_func_name` only mangles when
+     * `np_mono > 0` (value-arg types); zero-arg falls back to bare link name.
+     * Emit authority must match that consume-side contract (G.7 single path).
+     * PLATFORM: SHARED — mirrors seed codegen_gen.linux.x86_64.c.
+     */
+    if (num_params == 0) {
+      if (ret_ty <= 0) {
+        return 0;
+      }
+      let fn_local0: u8[64] = [];
+      codegen_copy_func_name64_from_module(module, fi, &fn_local0[0]);
+      let fn_len0: i32 = pipeline_module_func_name_len_at(module, fi);
+      if (fn_len0 <= 0) {
+        return 0;
+      }
+      let has_call: i32 = 0;
+      let ei0: i32 = 1;
+      while (ei0 <= arena.num_exprs) {
+        let e0: Expr = ast.arena_expr_get(arena, ei0);
+        if (e0.kind == ExprKind.EXPR_CALL) {
+          let matched0: i32 = 0;
+          if (e0.call_resolved_func_index == fi) {
+            matched0 = 1;
+          } else {
+            if (!ast.ref_is_null(e0.call_callee_ref) && e0.call_callee_ref > 0
+                && e0.call_callee_ref <= arena.num_exprs) {
+              let cal0: Expr = ast.arena_expr_get(arena, e0.call_callee_ref);
+              if (cal0.kind == ExprKind.EXPR_VAR && cal0.var_name_len == fn_len0) {
+                let eq0: i32 = 1;
+                let k0: i32 = 0;
+                while (k0 < fn_len0) {
+                  if (cal0.var_name[k0] != fn_local0[k0]) {
+                    eq0 = 0;
+                    k0 = fn_len0;
+                  } else {
+                    k0 = k0 + 1;
+                  }
+                }
+                matched0 = eq0;
+              }
+            }
+          }
+          if (matched0 != 0) {
+            has_call = 1;
+            ei0 = arena.num_exprs;
+          }
+        }
+        ei0 = ei0 + 1;
+      }
+      if (has_call == 0) {
+        return 0;
+      }
+      let mono_sym_pre0: i32 = codegen_func_c_symbol_prefix_len(module, fi, prefix_len);
+      let saved_func_index0: i32 = -1;
+      let saved_block_ref0: i32 = 0;
+      let ctx_set0: i32 = 0;
+      if (ctx != 0 as *PipelineDepCtx) {
+        saved_func_index0 = ctx.current_func_index;
+        saved_block_ref0 = ctx.current_block_ref;
+        ctx.current_func_index = fi;
+        ctx_set0 = 1;
+      }
+      /* Signature: <ret> <link_name>(void) { body } — no mono_active (phantom T). */
+      if (emit_type(arena, out, ret_ty, prefix, prefix_len, ctx) != 0) {
+        if (ctx_set0 != 0) {
+          ctx.current_func_index = saved_func_index0;
+          ctx.current_block_ref = saved_block_ref0;
+        }
+        return -1;
+      }
+      if (append_byte(out, 32) != 0) {
+        if (ctx_set0 != 0) {
+          ctx.current_func_index = saved_func_index0;
+          ctx.current_block_ref = saved_block_ref0;
+        }
+        return -1;
+      }
+      if (mono_sym_pre0 > 0
+          && codegen_c_prefix_redundant_with_name(prefix, mono_sym_pre0, &fn_local0[0], fn_len0) == 0) {
+        if (emit_bytes_from_ptr(out, prefix, mono_sym_pre0) != 0) {
+          if (ctx_set0 != 0) {
+            ctx.current_func_index = saved_func_index0;
+            ctx.current_block_ref = saved_block_ref0;
+          }
+          return -1;
+        }
+      }
+      if (codegen_emit_func_link_name(out, arena, module, fi) != 0) {
+        if (ctx_set0 != 0) {
+          ctx.current_func_index = saved_func_index0;
+          ctx.current_block_ref = saved_block_ref0;
+        }
+        return -1;
+      }
+      /* `() {\n` */
+      let open0: u8[4] = [40, 41, 32, 123];
+      if (emit_bytes_from_ptr(out, &open0[0], 4) != 0) {
+        if (ctx_set0 != 0) {
+          ctx.current_func_index = saved_func_index0;
+          ctx.current_block_ref = saved_block_ref0;
+        }
+        return -1;
+      }
+      if (append_byte(out, 10) != 0) {
+        if (ctx_set0 != 0) {
+          ctx.current_func_index = saved_func_index0;
+          ctx.current_block_ref = saved_block_ref0;
+        }
+        return -1;
+      }
+      let body_walked0: i32 = 0;
+      let body_br0: i32 = pipeline_module_func_body_ref_at(module, fi);
+      let body_er0: i32 = pipeline_module_func_body_expr_ref_at(module, fi);
+      if (!ast.ref_is_null(body_br0) || !ast.ref_is_null(body_er0)) {
+        if (!ast.ref_is_null(body_br0)) {
+          if (ctx_set0 != 0) {
+            ctx.current_block_ref = body_br0;
+          }
+          if (emit_block(arena, out, body_br0, 2, ctx) == 0) {
+            body_walked0 = 1;
+          }
+        } else {
+          if (ctx_set0 != 0) {
+            ctx.current_block_ref = 0;
+          }
+          if (emit_indent(out, 2) == 0) {
+            let ret_kw0: u8[8] = [114, 101, 116, 117, 114, 110, 32, 0];
+            if (emit_bytes_from_ptr(out, &ret_kw0[0], 7) == 0) {
+              if (emit_expr(arena, out, body_er0, ctx) == 0) {
+                let sc_nl0: u8[2] = [59, 10];
+                if (emit_bytes_from_ptr(out, &sc_nl0[0], 2) == 0) {
+                  body_walked0 = 1;
+                }
+              }
+            }
+          }
+        }
+      }
+      if (body_walked0 == 0) {
+        /* Defensive stub if body walk fails (keeps host C compilable). */
+        if (emit_indent(out, 2) != 0) {
+          if (ctx_set0 != 0) {
+            ctx.current_func_index = saved_func_index0;
+            ctx.current_block_ref = saved_block_ref0;
+          }
+          return -1;
+        }
+        let ret0z: u8[10] = [114, 101, 116, 117, 114, 110, 32, 48, 59, 10];
+        if (emit_bytes_from_ptr(out, &ret0z[0], 10) != 0) {
+          if (ctx_set0 != 0) {
+            ctx.current_func_index = saved_func_index0;
+            ctx.current_block_ref = saved_block_ref0;
+          }
+          return -1;
+        }
+      }
+      if (ctx_set0 != 0) {
+        ctx.current_func_index = saved_func_index0;
+        ctx.current_block_ref = saved_block_ref0;
+      }
+      let end0: u8[2] = [125, 10];
+      if (emit_bytes_from_ptr(out, &end0[0], 2) != 0) {
+        return -1;
+      }
+      return 1;
+    }
     if (ret_ty <= 0 || p0_ty <= 0) {
       return 0;
     }
