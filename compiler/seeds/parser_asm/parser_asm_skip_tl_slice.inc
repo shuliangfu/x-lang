@@ -1663,7 +1663,14 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
     return;
   source.data = data;
   source.length = (size_t)len;
+  /* wave440: lexer line/col must start at 1 (matching lexer_init in lexer.x).
+   * memset(0) left line=0 → all reported line numbers off by -1, causing
+   * diag positions to point at the line above the actual call site. col is
+   * reset to 1 by advance_one on newline so only line 1 was affected, but
+   * initializing col=1 too for full correctness on the first line. */
   memset(&lex, 0, sizeof(lex));
+  lex.line = 1;
+  lex.col = 1;
   memset(last_ident, 0, 64);
 
   for (;;) {
