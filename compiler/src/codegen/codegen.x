@@ -3859,6 +3859,67 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
       let s2: u8[8] = [105, 110, 116, 51, 50, 95, 116, 0];
       return emit_bytes_8(out, s2, 7);
     }
+    /*
+     * wave445 C5: monomorphization type substitution. When mono_active=1 (emitting a
+     * generic function's mono body), replace any type_ref matching a generic type param
+     * (T, U, ...) with the corresponding concrete type_ref (A, B, ...). This handles
+     * `let y: T` -> `let y: A` and param/return type refs encountered during body walk.
+     *
+     * Two-stage match:
+     *   1. Direct type_ref equality — works when body type_ref shares the param's
+     *      type_ref node (e.g. the param's own declared type).
+     *   2. Name-based fallback — typeck does NOT always reuse the param's type_ref node
+     *      for body occurrences; `let y: T` allocates a fresh TYPE_NAMED with name "T"
+     *      whose type_ref differs from the param's. We compare the type's name against
+     *      each generic param's name and substitute on match. Builtin types (i32, etc.)
+     *      have no name (pipeline_type_named_name_into returns 0), so they skip the
+     *      fallback and rely on direct equality, which is stable for builtins.
+     *
+     * No infinite recursion: the concrete type_ref (A) is not a generic param, so the
+     * recursive call's direct+name checks both miss (A's name "A" != any param name "T").
+     * PLATFORM: SHARED — mono state in PipelineDepCtx (L4 ABI); gated by mono_active.
+     */
+    if (ctx != 0 as *PipelineDepCtx && ctx.mono_active != 0 && ctx.mono_num_types > 0) {
+      let mi: i32 = 0;
+      while (mi < ctx.mono_num_types && mi < 8) {
+        if (type_ref == ctx.mono_generic_type_refs[mi] && ctx.mono_concrete_type_refs[mi] > 0) {
+          return emit_type(arena, out, ctx.mono_concrete_type_refs[mi], struct_prefix, struct_prefix_len, ctx);
+        }
+        mi = mi + 1;
+      }
+      /*
+       * wave445 C5 name-match fallback: cover body TYPE_NAMED nodes whose type_ref
+       * differs from the param's (e.g. `let y: T`). Compare names; substitute on
+       * equality. Mirrors codegen_find_impl_method_for_type C6 name-match fallback.
+       */
+      let fb_nm: u8[64] = [];
+      let fb_len: i32 = pipeline_type_named_name_into(arena, type_ref, &fb_nm[0]);
+      if (fb_len > 0) {
+        let mi2: i32 = 0;
+        while (mi2 < ctx.mono_num_types && mi2 < 8) {
+          if (ctx.mono_concrete_type_refs[mi2] > 0) {
+            let gnm: u8[64] = [];
+            let gname_len: i32 = pipeline_type_named_name_into(arena, ctx.mono_generic_type_refs[mi2], &gnm[0]);
+            if (gname_len == fb_len && gname_len > 0) {
+              let names_eq: i32 = 1;
+              let ci: i32 = 0;
+              while (ci < gname_len) {
+                if (gnm[ci] != fb_nm[ci]) {
+                  names_eq = 0;
+                  ci = gname_len;
+                } else {
+                  ci = ci + 1;
+                }
+              }
+              if (names_eq != 0) {
+                return emit_type(arena, out, ctx.mono_concrete_type_refs[mi2], struct_prefix, struct_prefix_len, ctx);
+              }
+            }
+          }
+          mi2 = mi2 + 1;
+        }
+      }
+    }
     tk = pipeline_type_kind_ord_at(arena, type_ref);
     elem_ref = pipeline_type_elem_ref_at(arena, type_ref);
     arr_sz = pipeline_type_array_size_at(arena, type_ref);
@@ -8406,6 +8467,166 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         }
         if (fmt_mc_rc > 0) {
           return 0;
+        }
+      }
+      /*
+       * wave445 C6: per-mono method call re-resolution. When emitting a mono body,
+       * typeck's call_resolved_func_index for `x.clone()` (x: T generic) points at the
+       * trait method (signature-only, no body) because typeck processed the body with
+       * T unresolved. Re-resolve to the impl method for the concrete receiver type
+       * (e.g., A::clone for x: A in foo__A). Falls through to existing logic if no
+       * impl method found (preserves prior behavior).
+       * PLATFORM: SHARED — mono state in PipelineDepCtx; uses codegen_mono_subst_type
+       * + codegen_find_impl_method_for_type (single resolution authority).
+       */
+      if (ctx != 0 as *PipelineDepCtx && ctx.mono_active != 0
+          && e.method_call_base_ref > 0 && e.method_call_base_ref <= arena.num_exprs
+          && e.method_call_name_len > 0) {
+        let base_mono: Expr = ast.ast_arena_expr_get(arena, e.method_call_base_ref);
+        let recv_ty: i32 = pipeline_expr_resolved_type_ref(arena, e.method_call_base_ref);
+        let mono_mod: *Module = ctx.current_codegen_module;
+        let mono_fi: i32 = ctx.current_func_index;
+        /*
+         * If typeck didn't resolve the base type (generic body, resolved_type_ref=0),
+         * try to infer from a VAR base by matching param names (e.g. x.clone() where
+         * x is the generic param). This covers the common case where the receiver is
+         * a direct parameter reference. Let-binding receiver (y.dup()) needs a separate
+         * let-scan fallback (deferred to wave446).
+         * PLATFORM: SHARED — mirrors seed codegen_gen.linux.x86_64.c C6 branch.
+         */
+        if (recv_ty <= 0 && mono_mod != 0 as *Module && base_mono.kind == 3) {
+          let parm_i: i32 = 0;
+          let nparm: i32 = pipeline_module_func_num_params_at(mono_mod, mono_fi);
+          while (parm_i < nparm) {
+            let pname: u8[32] = [];
+            let pnl: i32 = pipeline_module_func_param_name_len_at(mono_mod, mono_fi, parm_i);
+            pipeline_module_func_param_name_copy32(mono_mod, mono_fi, parm_i, &pname[0]);
+            if (pnl == base_mono.var_name_len && pnl > 0) {
+              let peq: i32 = 1;
+              let pi2: i32 = 0;
+              while (pi2 < pnl) {
+                if (pname[pi2] != base_mono.var_name[pi2]) {
+                  peq = 0;
+                  pi2 = pnl;
+                } else {
+                  pi2 = pi2 + 1;
+                }
+              }
+              if (peq != 0) {
+                recv_ty = pipeline_module_func_param_type_ref_at(mono_mod, mono_fi, parm_i);
+                parm_i = 999;
+              }
+            }
+            parm_i = parm_i + 1;
+          }
+        }
+        /*
+         * wave445 C6 local-let fallback: if recv_ty is still unresolved and the
+         * base is a VAR, scan the current block's let bindings for a name match
+         * to infer the receiver type (e.g. `let y: T = x; y.dup()` — y's type is
+         * T from the let declaration). codegen_mono_subst_type then maps T -> concrete.
+         * Why needed: typeck leaves resolved_type_ref=0 for generic-body VARs whose
+         * type is a generic param (T), so pipeline_expr_resolved_type_ref returns 0.
+         * PLATFORM: SHARED — mirrors seed codegen_gen.linux.x86_64.c C6 local-let.
+         */
+        if (recv_ty <= 0 && base_mono.kind == 3 && ctx.current_block_ref > 0) {
+          let blk: i32 = ctx.current_block_ref;
+          let nlets: i32 = ast.ast_block_num_lets(arena, blk);
+          let li: i32 = 0;
+          while (li < nlets) {
+            let lname: u8[64] = [];
+            let lnl: i32 = pipeline_block_let_name_len(arena, blk, li);
+            pipeline_block_let_name_copy64(arena, blk, li, &lname[0]);
+            if (lnl == base_mono.var_name_len && lnl > 0) {
+              let leq: i32 = 1;
+              let li2: i32 = 0;
+              while (li2 < lnl) {
+                if (lname[li2] != base_mono.var_name[li2]) {
+                  leq = 0;
+                  li2 = lnl;
+                } else {
+                  li2 = li2 + 1;
+                }
+              }
+              if (leq != 0) {
+                recv_ty = pipeline_block_let_type_ref(arena, blk, li);
+                li = 999;
+              }
+            }
+            li = li + 1;
+          }
+        }
+        let concrete_ty: i32 = codegen_mono_subst_type(ctx, arena, recv_ty);
+        if (concrete_ty != recv_ty && concrete_ty > 0) {
+          let cur_mod_mono: *Module = ctx.current_codegen_module;
+          if (cur_mod_mono != 0 as *Module) {
+            let impl_fi: i32 = codegen_find_impl_method_for_type(cur_mod_mono, arena,
+              &e.method_call_name[0], e.method_call_name_len, concrete_ty);
+            if (impl_fi >= 0) {
+              /*
+               * Emit impl method call: <link_name>(<receiver>, <explicit args>).
+               * The receiver (self) is arg 0 — typeck stores it as
+               * method_call_base_ref, NOT in method_call_args. Emit it first,
+               * then each explicit arg with a ", " separator. For 0-arg methods
+               * (e.g., x.clone()), only the receiver is emitted:
+               * <link_name>(<receiver>).
+               * PLATFORM: SHARED — mirrors seed codegen_gen.linux.x86_64.c C6 emit.
+               */
+              /*
+               * Emit module prefix (e.g. w445_let_binding_) before the link name.
+               * codegen_emit_func_link_name emits only the bare name + overload
+               * suffixes; the module prefix is emitted separately, mirroring the
+               * normal CALL path (codegen_func_c_symbol_prefix_len + emit).
+               * The prefix lives in ctx.current_codegen_prefix_mirror (filled
+               * per-module at codegen entry). Without this, `dup(y)` would clash
+               * with libc dup(int) instead of calling w445_let_binding_dup.
+               * PLATFORM: SHARED — mirrors seed codegen_gen.linux.x86_64.c C6 prefix.
+               */
+              if (ctx.current_codegen_prefix_len > 0) {
+                if (emit_bytes_from_ptr(out, &ctx.current_codegen_prefix_mirror[0], ctx.current_codegen_prefix_len) != 0) {
+                  return -1;
+                }
+              }
+              if (codegen_emit_func_link_name(out, arena, cur_mod_mono, impl_fi) != 0) {
+                return -1;
+              }
+              if (append_byte(out, 40) != 0) {
+                return -1;
+              }
+              /* Emit receiver as arg 0 (self parameter). */
+              if (e.method_call_base_ref <= 0) {
+                if (append_byte(out, 48) != 0) {
+                  return -1;
+                }
+              } else {
+                /* PLATFORM: SHARED — receiver uses same slice pointer ABI as CALL. */
+                if (emit_call_arg_slice_abi(arena, out, e.method_call_base_ref, ctx) != 0) {
+                  return -1;
+                }
+              }
+              /* Emit explicit args (arg 1..N), each preceded by ", ". */
+              let ai_mono: i32 = 0;
+              while (ai_mono < e.method_call_num_args) {
+                let cs_mono: u8[2] = [44, 32];
+                if (emit_bytes_from_ptr(out, &cs_mono[0], 2) != 0) {
+                  return -1;
+                }
+                let dep_arg_mono: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, ai_mono);
+                if (ast.ref_is_null(dep_arg_mono)) {
+                  if (append_byte(out, 48) != 0) {
+                    return -1;
+                  }
+                } else {
+                  /* PLATFORM: SHARED — method args use same slice pointer ABI as CALL. */
+                  if (emit_call_arg_slice_abi(arena, out, dep_arg_mono, ctx) != 0) {
+                    return -1;
+                  }
+                }
+                ai_mono = ai_mono + 1;
+              }
+              return append_byte(out, 41);
+            }
+          }
         }
       }
       if (ctx != 0 as *PipelineDepCtx) {
@@ -13059,6 +13280,156 @@ function codegen_emit_mono_mangled_name(out: *CodegenOutBuf, arena: *ASTArena, m
 }
 
 /**
+ * Substitute a type_ref via the active mono substitution map (C5/C6 helper).
+ *
+ * Why: during mono body emit, generic type refs (T, U, ...) must be replaced with
+ * concrete type refs (A, B, ...). This helper checks ctx.mono_generic_type_refs[]
+ * and returns the matching concrete type_ref, or the original type_ref if no match.
+ *
+ * Invariant: returns the original type_ref when mono is inactive or no match found.
+ * PLATFORM: SHARED — single substitution authority used by emit_expr method-call
+ * re-resolution (C6) and consistent with emit_type's own C5 hook.
+ */
+function codegen_mono_subst_type(ctx: *PipelineDepCtx, arena: *ASTArena, type_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (ctx == 0 as *PipelineDepCtx || ctx.mono_active == 0 || ctx.mono_num_types <= 0) {
+      return type_ref;
+    }
+    let mi: i32 = 0;
+    while (mi < ctx.mono_num_types && mi < 8) {
+      if (type_ref == ctx.mono_generic_type_refs[mi] && ctx.mono_concrete_type_refs[mi] > 0) {
+        return ctx.mono_concrete_type_refs[mi];
+      }
+      mi = mi + 1;
+    }
+    /*
+     * Name-match fallback: typeck does NOT always reuse the param's type_ref node
+     * for body occurrences (e.g. `let y: T` allocates a fresh TYPE_NAMED "T").
+     * Compare the type's name against each generic param's name; substitute on
+     * match. Builtin types have no name (returns 0) and skip this fallback.
+     * Single authority: emit_type C5 and C6 both rely on this name match.
+     * PLATFORM: SHARED — mirrors codegen_gen.linux.x86_64.c.
+     */
+    let fb_nm: u8[64] = [];
+    let fb_len: i32 = pipeline_type_named_name_into(arena, type_ref, &fb_nm[0]);
+    if (fb_len > 0) {
+      let mi2: i32 = 0;
+      while (mi2 < ctx.mono_num_types && mi2 < 8) {
+        if (ctx.mono_concrete_type_refs[mi2] > 0) {
+          let gnm: u8[64] = [];
+          let gname_len: i32 = pipeline_type_named_name_into(arena, ctx.mono_generic_type_refs[mi2], &gnm[0]);
+          if (gname_len == fb_len && gname_len > 0) {
+            let names_eq: i32 = 1;
+            let ci: i32 = 0;
+            while (ci < gname_len) {
+              if (gnm[ci] != fb_nm[ci]) {
+                names_eq = 0;
+                ci = gname_len;
+              } else {
+                ci = ci + 1;
+              }
+            }
+            if (names_eq != 0) {
+              return ctx.mono_concrete_type_refs[mi2];
+            }
+          }
+        }
+        mi2 = mi2 + 1;
+      }
+    }
+    return type_ref;
+  }
+}
+
+/**
+ * Find the impl method for a concrete receiver type + method name (C6 helper).
+ *
+ * Why: typeck processes a generic function body once with T unresolved, so
+ * call_resolved_func_index for `x.clone()` (x: T) points at the trait method
+ * (signature-only), not the impl method (A::clone). During mono body emit, the
+ * receiver's concrete type is known (A), so this helper scans the module for a
+ * function matching method_name whose param0 type equals receiver_type_ref.
+ *
+ * Invariant: returns the first matching func index, or -1 if no match.
+ * PLATFORM: SHARED — mirrors codegen_find_module_func_index_by_name_overload name
+ * matching but adds param0 type equality via pipeline_typeck_type_refs_equal_c.
+ */
+function codegen_find_impl_method_for_type(module: *Module, arena: *ASTArena, method_name: *u8, method_name_len: i32, receiver_type_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (module == 0 as *Module || arena == 0 as *ASTArena || method_name == 0 as *u8) {
+      return -1;
+    }
+    if (method_name_len <= 0 || receiver_type_ref <= 0) {
+      return -1;
+    }
+    let fi: i32 = 0;
+    while (fi < module.num_funcs) {
+      let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
+      if (fn_len == method_name_len && fn_len > 0) {
+        let fn_name: u8[64] = [];
+        pipeline_module_func_name_copy64(module, fi, &fn_name[0]);
+        let matched: i32 = 1;
+        let bi: i32 = 0;
+        while (bi < fn_len) {
+          if (fn_name[bi] != method_name[bi]) {
+            matched = 0;
+            bi = fn_len;
+          } else {
+            bi = bi + 1;
+          }
+        }
+        if (matched != 0) {
+          /*
+           * Check param0 type matches the concrete receiver type.
+           * Primary: direct type_ref equality (works when impl and call site share
+           * the same typeck context / arena). Fallback: name-based comparison —
+           * impl method's param0 type_ref and the mono substitution's concrete
+           * type_ref can come from different typeck passes (impl processed
+           * separately from the generic call site), so direct type_ref equality
+           * fails even when both refer to the same named type (e.g., "A").
+           * Mirrors C5 emit_type name-match fallback. Builtin types (i32, etc.)
+           * have no name and rely on direct equality, which is stable for builtins.
+           * PLATFORM: SHARED — mirrors seed codegen_gen.linux.x86_64.c.
+           */
+          let np: i32 = pipeline_module_func_num_params_at(module, fi);
+          if (np > 0) {
+            let p0_ty: i32 = pipeline_module_func_param_type_ref_at(module, fi, 0);
+            if (p0_ty > 0) {
+              if (pipeline_typeck_type_refs_equal_c(arena, p0_ty, receiver_type_ref) != 0) {
+                return fi;
+              }
+              let p0_nm: u8[64] = [];
+              let p0_nlen: i32 = pipeline_type_named_name_into(arena, p0_ty, &p0_nm[0]);
+              let recv_nm: u8[64] = [];
+              let recv_nlen: i32 = pipeline_type_named_name_into(arena, receiver_type_ref, &recv_nm[0]);
+              if (p0_nlen > 0 && p0_nlen == recv_nlen) {
+                let neq: i32 = 1;
+                let ni: i32 = 0;
+                while (ni < p0_nlen) {
+                  if (p0_nm[ni] != recv_nm[ni]) {
+                    neq = 0;
+                    ni = p0_nlen;
+                  } else {
+                    ni = ni + 1;
+                  }
+                }
+                if (neq != 0) {
+                  return fi;
+                }
+              }
+            }
+          }
+        }
+      }
+      fi = fi + 1;
+    }
+    return -1;
+  }
+}
+
+/**
  * See implementation.
  * See implementation.
  * See implementation.
@@ -13194,25 +13565,84 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
         }
         pi = pi + 1;
       }
+      /* wave445 C4: emit open body `) {\n` (41=`)` 32=space 123=`{` 10=newline). */
       let open_body: u8[4] = [41, 32, 123, 10];
       if (emit_bytes_from_ptr(out, &open_body[0], 4) != 0) {
         return -1;
       }
-      if (emit_indent(out, 2) != 0) {
-        return -1;
+      /*
+       * wave445 C4+C5+C6: walk the real body AST instead of hardcoding `return param0`.
+       * Set mono substitution context (T -> concrete type) so emit_type replaces generic
+       * type refs (C5) and emit_expr re-resolves method calls to impl methods (C6).
+       * If body walk fails (emit_block/emit_expr returns non-zero), fall back to identity
+       * `return <param0>;` preserving wave444 behavior.
+       * PLATFORM: SHARED — mono context lives in PipelineDepCtx (L4 ABI extension).
+       * Invariant: mono_active is always restored to its saved value before return;
+       * ctx.current_func_index / current_block_ref are saved+restored to avoid leaking
+       * mono state into subsequent non-mono function emit.
+       */
+      let body_walked: i32 = 0;
+      let body_br: i32 = pipeline_module_func_body_ref_at(module, fi);
+      let body_er: i32 = pipeline_module_func_body_expr_ref_at(module, fi);
+      if (ctx != 0 as *PipelineDepCtx && (!ast.ref_is_null(body_br) || !ast.ref_is_null(body_er))) {
+        let saved_mono_active: i32 = ctx.mono_active;
+        let saved_mono_num: i32 = ctx.mono_num_types;
+        let saved_func_index: i32 = ctx.current_func_index;
+        let saved_block_ref: i32 = ctx.current_block_ref;
+        ctx.mono_active = 1;
+        ctx.mono_num_types = num_params;
+        let sti: i32 = 0;
+        while (sti < num_params && sti < 8) {
+          ctx.mono_generic_type_refs[sti] = pipeline_module_func_param_type_ref_at(module, fi, sti);
+          ctx.mono_concrete_type_refs[sti] = combos[ci * num_params + sti];
+          sti = sti + 1;
+        }
+        ctx.current_func_index = fi;
+        if (!ast.ref_is_null(body_br)) {
+          ctx.current_block_ref = body_br;
+          if (emit_block(arena, out, body_br, 2, ctx) == 0) {
+            body_walked = 1;
+          }
+        } else {
+          /* single-expr body: emit `  return <expr>;\n` (return type is T, non-void for identity). */
+          ctx.current_block_ref = 0;
+          if (emit_indent(out, 2) == 0) {
+            let ret_kw2: u8[8] = [114, 101, 116, 117, 114, 110, 32, 0];
+            if (emit_bytes_from_ptr(out, &ret_kw2[0], 7) == 0) {
+              if (emit_expr(arena, out, body_er, ctx) == 0) {
+                let sc_nl: u8[2] = [59, 10];
+                if (emit_bytes_from_ptr(out, &sc_nl[0], 2) == 0) {
+                  body_walked = 1;
+                }
+              }
+            }
+          }
+        }
+        ctx.mono_active = saved_mono_active;
+        ctx.mono_num_types = saved_mono_num;
+        ctx.current_func_index = saved_func_index;
+        ctx.current_block_ref = saved_block_ref;
       }
-      let ret_kw: u8[8] = [114, 101, 116, 117, 114, 110, 32, 0];
-      if (emit_bytes_from_ptr(out, &ret_kw[0], 7) != 0) {
-        return -1;
+      if (body_walked == 0) {
+        /* Fallback: identity body `return <param0>;` (wave444 behavior). */
+        if (emit_indent(out, 2) != 0) {
+          return -1;
+        }
+        let ret_kw: u8[8] = [114, 101, 116, 117, 114, 110, 32, 0];
+        if (emit_bytes_from_ptr(out, &ret_kw[0], 7) != 0) {
+          return -1;
+        }
+        if (emit_bytes_from_ptr(out, &pn[0], pn_len) != 0) {
+          return -1;
+        }
+        let semi_nl: u8[2] = [59, 10];
+        if (emit_bytes_from_ptr(out, &semi_nl[0], 2) != 0) {
+          return -1;
+        }
       }
-      if (emit_bytes_from_ptr(out, &pn[0], pn_len) != 0) {
-        return -1;
-      }
-      let end: u8[3] = [59, 10, 125];
-      if (emit_bytes_from_ptr(out, &end[0], 3) != 0) {
-        return -1;
-      }
-      if (append_byte(out, 10) != 0) {
+      /* Close function body: `}\n` (125=`}` 10=newline). */
+      let end: u8[2] = [125, 10];
+      if (emit_bytes_from_ptr(out, &end[0], 2) != 0) {
         return -1;
       }
       ci = ci + 1;

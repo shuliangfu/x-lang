@@ -442,6 +442,16 @@ allow(padding) struct PipelineDepCtx {
   /* See implementation. */
   typeck_scope_region_len: i32;
   typeck_scope_region_label: u8[64];
+  /*
+   * wave445 C5: monomorphization type-substitution state for generic function
+   * body emit. When mono_active=1, emit_type replaces any type_ref matching
+   * mono_generic_type_refs[i] with mono_concrete_type_refs[i] (T -> concrete).
+   * PLATFORM: SHARED — mirror of runtime_pipeline_abi.h layout authority.
+   */
+  mono_active: i32;
+  mono_num_types: i32;
+  mono_generic_type_refs: i32[8];
+  mono_concrete_type_refs: i32[8];
 }
 
 /* See implementation. */

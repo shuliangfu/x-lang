@@ -853,6 +853,11 @@ struct ast_PipelineDepCtx {
   int32_t entry_module_import_path_len;
   int32_t typeck_scope_region_len;
   uint8_t typeck_scope_region_label[64];
+  /* wave445 C5: monomorphization type-substitution state (PLATFORM: SHARED). */
+  int32_t mono_active;
+  int32_t mono_num_types;
+  int32_t mono_generic_type_refs[8];
+  int32_t mono_concrete_type_refs[8];
 };
 
 /* pipeline glue usage aliases */
@@ -1563,6 +1568,9 @@ extern int32_t codegen_try_emit_generic_identity_mono(struct ast_ASTArena * aren
 extern int32_t codegen_call_mono_type_at(struct ast_ASTArena * arena, int32_t ei, int32_t arg_idx, int32_t num_args);
 extern int32_t codegen_collect_mono_combos_for_generic_func(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi, int32_t * combos_out, int32_t max_combos, int32_t num_params);
 extern int32_t codegen_emit_mono_mangled_name(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi, int32_t * mono_tys, int32_t num_mono);
+/* wave445 C5/C6: mono substitution + impl method lookup helpers (forward decl). */
+extern int32_t codegen_mono_subst_type(struct ast_PipelineDepCtx * ctx, struct ast_ASTArena * arena, int32_t type_ref);
+extern int32_t codegen_find_impl_method_for_type(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * method_name, int32_t method_name_len, int32_t receiver_type_ref);
 extern int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_emit_import_dep_function_declarations(struct ast_Module * module, struct codegen_CodegenOutBuf * out, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_x_ast_emit_header(struct codegen_CodegenOutBuf * out);
@@ -4637,6 +4645,47 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
     if (ast_ref_is_null(type_ref)) {
       uint8_t s2[8] = {105, 110, 116, 51, 50, 95, 116, 0};
       return codegen_emit_bytes_8(out, s2, 7);
+    }
+    /* wave445 C5: monomorphization type substitution (mono_active gate).
+     * Two-stage match: direct type_ref equality, then name-based fallback for
+     * body TYPE_NAMED nodes whose type_ref differs from the param's (let y: T).
+     * Mirrors codegen.x emit_type C5. PLATFORM: SHARED. */
+    if (((ctx != ((void*)0)) && (ctx->mono_active !=0) && (ctx->mono_num_types >0))) {
+      int32_t mi = 0;
+      while (((mi < ctx->mono_num_types) && (mi <8))) {
+        if ((((type_ref == ctx->mono_generic_type_refs[mi]) && (ctx->mono_concrete_type_refs[mi] >0)))) {
+          return codegen_emit_type(arena, out, ctx->mono_concrete_type_refs[mi], struct_prefix, struct_prefix_len, ctx);
+        }
+        mi = (mi +1);
+      }
+      /* name-match fallback: compare type name vs each generic param name */
+      uint8_t fb_nm[64] = {};
+      int32_t fb_len = pipeline_type_named_name_into(arena, type_ref, &((fb_nm)[0]));
+      if ((fb_len > 0)) {
+        int32_t mi2 = 0;
+        while (((mi2 < ctx->mono_num_types) && (mi2 <8))) {
+          if ((ctx->mono_concrete_type_refs[mi2] >0)) {
+            uint8_t gnm[64] = {};
+            int32_t gname_len = pipeline_type_named_name_into(arena, ctx->mono_generic_type_refs[mi2], &((gnm)[0]));
+            if (((gname_len == fb_len) && (gname_len > 0))) {
+              int32_t names_eq = 1;
+              int32_t ci = 0;
+              while ((ci < gname_len)) {
+                if (((gnm)[ci] !=(fb_nm)[ci])) {
+                  names_eq = 0;
+                  ci = gname_len;
+                } else {
+                  ci = (ci +1);
+                }
+              }
+              if ((names_eq !=0)) {
+                return codegen_emit_type(arena, out, ctx->mono_concrete_type_refs[mi2], struct_prefix, struct_prefix_len, ctx);
+              }
+            }
+          }
+          mi2 = (mi2 +1);
+        }
+      }
     }
     (void)((tk = pipeline_type_kind_ord_at(arena, type_ref)));
     (void)((elem_ref = pipeline_type_elem_ref_at(arena, type_ref)));
@@ -8856,6 +8905,152 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
         }
         if ((fmt_mc_rc > 0)) {
           return 0;
+        }
+      }
+      /*
+       * wave445 C6: per-mono method call re-resolution. When emitting a mono body,
+       * typeck's call_resolved_func_index for `x.clone()` (x: T generic) points at the
+       * trait method (signature-only, no body) because typeck processed the body with
+       * T unresolved. Re-resolve to the impl method for the concrete receiver type
+       * (e.g., A::clone for x: A in foo__A). Falls through to existing logic if no
+       * impl method found (preserves prior behavior).
+       * PLATFORM: SHARED — mono state in PipelineDepCtx; uses codegen_mono_subst_type
+       * + codegen_find_impl_method_for_type (single resolution authority).
+       */
+      if (((((ctx !=((struct ast_PipelineDepCtx *)(0))) && ((ctx->mono_active) !=0)) && ((e.method_call_base_ref) > 0)) && (((e.method_call_base_ref) <=(arena->num_exprs)) && ((e.method_call_name_len) > 0)))) {
+        struct ast_Expr base_mono = ast_ast_arena_expr_get(arena, (e.method_call_base_ref));
+        int32_t recv_ty = pipeline_expr_resolved_type_ref(arena, (e.method_call_base_ref));
+        struct ast_Module * mono_mod = ((struct ast_Module *)((ctx->current_codegen_module)));
+        int32_t mono_fi = (ctx->current_func_index);
+        /* If typeck didn't resolve the base type (generic body, resolved_type_ref=0),
+         * try to infer from a VAR base by matching param names. */
+        if (((recv_ty <= 0) && (mono_mod !=((struct ast_Module *)(0))))) {
+          if ((base_mono.kind == 3)) {
+            int32_t parm_i = 0;
+            int32_t nparm = pipeline_module_func_num_params_at(mono_mod, mono_fi);
+            while ((parm_i < nparm)) {
+              uint8_t pname[32] = {};
+              int32_t pnl = pipeline_module_func_param_name_len_at(mono_mod, mono_fi, parm_i);
+              (void)(pipeline_module_func_param_name_copy32(mono_mod, mono_fi, parm_i, &((pname)[0])));
+              if (((pnl == (base_mono.var_name_len)) && (pnl > 0))) {
+                int32_t peq = 1;
+                int32_t pi2 = 0;
+                while ((pi2 < pnl)) {
+                  if (((pname)[pi2] !=((base_mono.var_name))[pi2])) {
+                    (void)((peq = 0));
+                    (void)((pi2 = pnl));
+                  } else {
+                    (void)((pi2 = (pi2 + 1)));
+                  }
+                }
+                if ((peq !=0)) {
+                  recv_ty = pipeline_module_func_param_type_ref_at(mono_mod, mono_fi, parm_i);
+                  (void)((parm_i = 999));
+                }
+              }
+              (void)((parm_i = (parm_i + 1)));
+            }
+          }
+        }
+        /* wave445 C6 local-let fallback: if recv_ty still unresolved and base is
+         * a VAR, scan current block's lets for a name match to infer receiver
+         * type (let y: T = x; y.dup() -> y's type is T from the let).
+         * PLATFORM: SHARED — mirrors codegen.x C6 local-let. */
+        if ((((recv_ty <= 0) && (base_mono.kind == 3)) && ((ctx->current_block_ref) > 0))) {
+          int32_t blk = (ctx->current_block_ref);
+          int32_t nlets = ast_ast_block_num_lets(arena, blk);
+          int32_t li = 0;
+          while ((li < nlets)) {
+            uint8_t lname[64] = {};
+            int32_t lnl = pipeline_block_let_name_len(arena, blk, li);
+            (void)(pipeline_block_let_name_copy64(arena, blk, li, &((lname)[0])));
+            if (((lnl == (base_mono.var_name_len)) && (lnl > 0))) {
+              int32_t leq = 1;
+              int32_t li2 = 0;
+              while ((li2 < lnl)) {
+                if (((lname)[li2] !=((base_mono.var_name))[li2])) {
+                  (void)((leq = 0));
+                  (void)((li2 = lnl));
+                } else {
+                  (void)((li2 = (li2 + 1)));
+                }
+              }
+              if ((leq !=0)) {
+                recv_ty = pipeline_block_let_type_ref(arena, blk, li);
+                if (getenv("XLANG_DEBUG_MONO")) fprintf(stderr, "[DBG_MONO_C6] local-let match recv_ty=%d\n", (int)recv_ty);
+                (void)((li = 999));
+              }
+            }
+            (void)((li = (li + 1)));
+          }
+        }
+        int32_t concrete_ty = codegen_mono_subst_type(ctx, arena, recv_ty);
+        if (getenv("XLANG_DEBUG_MONO")) fprintf(stderr, "[DBG_MONO_C6] base_ref=%d base_kind=%d recv_ty=%d concrete_ty=%d e.resolved=%d\n", e.method_call_base_ref, base_mono.kind, recv_ty, concrete_ty, e.resolved_type_ref);
+        if (((concrete_ty != recv_ty) && (concrete_ty > 0))) {
+          struct ast_Module * cur_mod_mono = ((struct ast_Module *)((ctx->current_codegen_module)));
+          if ((cur_mod_mono !=((struct ast_Module *)(0)))) {
+            int32_t impl_fi = codegen_find_impl_method_for_type(cur_mod_mono, arena, &(((e.method_call_name))[0]), (e.method_call_name_len), concrete_ty);
+            if ((impl_fi >= 0)) {
+              /* Emit impl method call: <link_name>(<receiver>, <explicit args>).
+               * The receiver (self) is arg 0 — typeck stores it as
+               * method_call_base_ref, NOT in method_call_args. Emit it first,
+               * then each explicit arg with a ", " separator. For 0-arg methods
+               * (e.g. x.clone()), only the receiver is emitted: <link_name>(<receiver>).
+               * PLATFORM: SHARED — mirrors codegen.x C6 emit + seed codegen_gen. */
+              /* Emit module prefix (e.g. w445_let_binding_) before the bare link name.
+               * codegen_emit_func_link_name emits only the name + overload suffixes;
+               * the module prefix is emitted separately (mirrors normal CALL path).
+               * Without this, dup(y) clashes with libc dup(int) instead of
+               * w445_let_binding_dup. PLATFORM: SHARED. */
+              if (((ctx->current_codegen_prefix_len) > 0)) {
+                if ((codegen_emit_bytes_from_ptr(out, &(((ctx->current_codegen_prefix_mirror))[0]), (ctx->current_codegen_prefix_len)) !=0)) {
+                  return -(1);
+                }
+              }
+              if ((codegen_emit_func_link_name(out, arena, cur_mod_mono, impl_fi) !=0)) {
+                return -(1);
+              }
+              if ((codegen_append_byte(out, 40) !=0)) {
+                return -(1);
+              }
+              /* Emit receiver as arg 0 (self parameter). */
+              if (((e.method_call_base_ref) <= 0)) {
+                if ((codegen_append_byte(out, 48) !=0)) {
+                  return -(1);
+                }
+              } else {
+                /* PLATFORM: SHARED — receiver uses same slice pointer ABI as CALL. */
+                if ((codegen_emit_call_arg_slice_abi(arena, out, (e.method_call_base_ref), ctx) !=0)) {
+                  return -(1);
+                }
+              }
+              /* Emit explicit args (arg 1..N), each preceded by ", ". */
+              {
+                int32_t ai_mono = 0;
+                while ((ai_mono <(e.method_call_num_args))) {
+                  uint8_t cs_mono[2] = {44, 32};
+                  if ((codegen_emit_bytes_from_ptr(out, &((cs_mono)[0]), 2) !=0)) {
+                    return -(1);
+                  }
+                  {
+                    int32_t dep_arg_mono = pipeline_expr_method_call_arg_ref(arena, expr_ref, ai_mono);
+                    if (ast_ref_is_null(dep_arg_mono)) {
+                      if ((codegen_append_byte(out, 48) !=0)) {
+                        return -(1);
+                      }
+                    } else {
+                      /* PLATFORM: SHARED — method args use same slice pointer ABI as CALL. */
+                      if ((codegen_emit_call_arg_slice_abi(arena, out, dep_arg_mono, ctx) !=0)) {
+                        return -(1);
+                      }
+                    }
+                  }
+                  (void)((ai_mono = (ai_mono + 1)));
+                }
+              }
+              return codegen_append_byte(out, 41);
+            }
+          }
         }
       }
 
@@ -13204,6 +13399,120 @@ int32_t codegen_emit_mono_mangled_name(struct codegen_CodegenOutBuf * out, struc
   }
   return 0;
 }
+/*
+ * wave445 C5/C6 helper: substitute a type_ref via the active mono substitution map.
+ *
+ * Why: during mono body emit, generic type refs (T, U, ...) must be replaced with
+ * concrete type refs (A, B, ...). This helper checks ctx->mono_generic_type_refs[]
+ * and returns the matching concrete type_ref, or the original type_ref if no match.
+ *
+ * Invariant: returns the original type_ref when mono is inactive or no match found.
+ * PLATFORM: SHARED — single substitution authority used by emit_expr method-call
+ * re-resolution (C6) and consistent with emit_type's own C5 hook.
+ */
+int32_t codegen_mono_subst_type(struct ast_PipelineDepCtx * ctx, struct ast_ASTArena * arena, int32_t type_ref) {
+  if (((ctx ==((struct ast_PipelineDepCtx *)(0))) || ((ctx->mono_active) ==0))) {
+    return type_ref;
+  }
+  if ((ctx->mono_num_types <=0)) {
+    return type_ref;
+  }
+  {
+    int32_t mi = 0;
+    while (((mi <(ctx->mono_num_types)) && (mi <8))) {
+      if ((((type_ref ==(ctx->mono_generic_type_refs)[mi])) && ((ctx->mono_concrete_type_refs)[mi] >0))) {
+        return (ctx->mono_concrete_type_refs)[mi];
+      }
+      (void)((mi = (mi + 1)));
+    }
+  }
+  /* name-match fallback: typeck allocates fresh TYPE_NAMED nodes for body T
+   * occurrences (let y: T), so direct type_ref equality misses. Compare names.
+   * Builtin types have no name (returns 0) and skip this fallback.
+   * PLATFORM: SHARED — mirrors codegen.x codegen_mono_subst_type. */
+  {
+    uint8_t fb_nm[64] = {};
+    int32_t fb_len = pipeline_type_named_name_into(arena, type_ref, &((fb_nm)[0]));
+    if ((fb_len > 0)) {
+      int32_t mi2 = 0;
+      while (((mi2 <(ctx->mono_num_types)) && (mi2 <8))) {
+        if ((ctx->mono_concrete_type_refs[mi2] >0)) {
+          uint8_t gnm[64] = {};
+          int32_t gname_len = pipeline_type_named_name_into(arena, ctx->mono_generic_type_refs[mi2], &((gnm)[0]));
+          if (((gname_len == fb_len) && (gname_len > 0))) {
+            int32_t names_eq = 1;
+            int32_t ci = 0;
+            while ((ci < gname_len)) {
+              if (((gnm)[ci] !=(fb_nm)[ci])) {
+                names_eq = 0;
+                ci = gname_len;
+              } else {
+                ci = (ci +1);
+              }
+            }
+            if ((names_eq !=0)) {
+              return (ctx->mono_concrete_type_refs)[mi2];
+            }
+          }
+        }
+        (void)((mi2 = (mi2 +1)));
+      }
+    }
+  }
+  return type_ref;
+}
+/*
+ * wave445 C6 helper: find the impl method for a concrete receiver type + method name.
+ *
+ * Why: typeck processes a generic function body once with T unresolved, so
+ * call_resolved_func_index for `x.clone()` (x: T) points at the trait method
+ * (signature-only), not the impl method (A::clone). During mono body emit, the
+ * receiver's concrete type is known (A), so this helper scans the module for a
+ * function matching method_name whose param0 type equals receiver_type_ref.
+ *
+ * Invariant: returns the first matching func index, or -1 if no match.
+ * PLATFORM: SHARED — mirrors codegen_find_module_func_index_by_name_overload name
+ * matching but adds param0 type equality via pipeline_typeck_type_refs_equal_c.
+ */
+int32_t codegen_find_impl_method_for_type(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * method_name, int32_t method_name_len, int32_t receiver_type_ref) {
+  if (((((module ==((struct ast_Module *)(0))) || (arena ==((struct ast_ASTArena *)(0))))) || (method_name ==((uint8_t *)(0))))) {
+    return -(1);
+  }
+  if (((method_name_len <=0) || (receiver_type_ref <=0))) {
+    return -(1);
+  }
+  {
+    int32_t fi = 0;
+    while ((fi <(module->num_funcs))) {
+      int32_t fn_len = pipeline_module_func_name_len_at(module, fi);
+      if ((((fn_len == method_name_len) && (fn_len > 0)))) {
+        uint8_t fn_name[64] = {};
+        int32_t matched = 1;
+        int32_t bi = 0;
+        (void)(pipeline_module_func_name_copy64(module, fi, &((fn_name)[0])));
+        while ((bi < fn_len)) {
+          if (((fn_name)[bi] !=(method_name)[bi])) {
+            (void)((matched = 0));
+            (void)((bi = fn_len));
+          } else {
+            (void)((bi = (bi + 1)));
+          }
+        }
+        if ((matched !=0)) {
+          int32_t np = pipeline_module_func_num_params_at(module, fi);
+          if ((np > 0)) {
+            int32_t p0_ty = pipeline_module_func_param_type_ref_at(module, fi, 0);
+            if (((p0_ty > 0) && (pipeline_typeck_type_refs_equal_c(arena, p0_ty, receiver_type_ref) !=0))) {
+              return fi;
+            }
+          }
+        }
+      }
+      (void)((fi = (fi + 1)));
+    }
+  }
+  return -(1);
+}
 int32_t codegen_try_emit_generic_identity_mono(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx) {
   {
     int32_t ret_ty = pipeline_module_func_return_type_at(module, fi);
@@ -13330,20 +13639,89 @@ int32_t codegen_try_emit_generic_identity_mono(struct ast_ASTArena * arena, stru
       if ((codegen_emit_bytes_from_ptr(out, &((open_body)[0]), 4) !=0)) {
         return -(1);
       }
-      if ((codegen_emit_indent(out, 2) !=0)) {
-        return -(1);
-      }
-      if ((codegen_emit_bytes_from_ptr(out, &((ret_kw)[0]), 7) !=0)) {
-        return -(1);
-      }
-      if ((codegen_emit_bytes_from_ptr(out, &((pn)[0]), pn_len) !=0)) {
-        return -(1);
-      }
-      if ((codegen_emit_bytes_from_ptr(out, &((end)[0]), 3) !=0)) {
-        return -(1);
-      }
-      if ((codegen_append_byte(out, 10) !=0)) {
-        return -(1);
+      /*
+       * wave445 C4+C5+C6: walk the real body AST instead of hardcoding `return param0`.
+       * Set mono substitution context (T -> concrete type) so emit_type replaces generic
+       * type refs (C5) and emit_expr re-resolves method calls to impl methods (C6).
+       * If body walk fails (emit_block/emit_expr returns non-zero), fall back to identity
+       * `return <param0>;` preserving wave444 behavior.
+       * PLATFORM: SHARED — mono context lives in PipelineDepCtx (L4 ABI extension).
+       * Invariant: mono_active is always restored to its saved value before return;
+       * ctx->current_func_index / current_block_ref are saved+restored to avoid leaking
+       * mono state into subsequent non-mono function emit.
+       */
+      {
+        int32_t body_walked = 0;
+        int32_t body_br = pipeline_module_func_body_ref_at(module, fi);
+        int32_t body_er = pipeline_module_func_body_expr_ref_at(module, fi);
+        int32_t has_body = ((!(ast_ref_is_null(body_br))) || (!(ast_ref_is_null(body_er))));
+        if (getenv("XLANG_DEBUG_MONO")) fprintf(stderr, "[DBG_MONO] fi=%d body_br=%d body_er=%d has_body=%d num_params=%d\n", fi, body_br, body_er, has_body, num_params);
+        if (((ctx !=((struct ast_PipelineDepCtx *)(0))) && (has_body !=0))) {
+          int32_t saved_mono_active = (ctx->mono_active);
+          int32_t saved_mono_num = (ctx->mono_num_types);
+          int32_t saved_func_index = (ctx->current_func_index);
+          int32_t saved_block_ref = (ctx->current_block_ref);
+          (void)(((ctx->mono_active) = 1));
+          (void)(((ctx->mono_num_types) = num_params));
+          {
+            int32_t sti = 0;
+            while (((sti < num_params) && (sti < 8))) {
+              (void)(((ctx->mono_generic_type_refs)[sti] = pipeline_module_func_param_type_ref_at(module, fi, sti)));
+              (void)(((ctx->mono_concrete_type_refs)[sti] = (combos[(ci * num_params) + sti])));
+              (void)((sti = (sti + 1)));
+            }
+          }
+          (void)(((ctx->current_func_index) = fi));
+          if ((!(ast_ref_is_null(body_br)))) {
+            (void)(((ctx->current_block_ref) = body_br));
+            if ((codegen_emit_block(arena, out, body_br, 2, ctx) == 0)) {
+              (void)((body_walked = 1));
+            }
+          } else {
+            /* single-expr body: emit `  return <expr>;\n` (return type is T, non-void for identity). */
+            (void)(((ctx->current_block_ref) = 0));
+            if ((codegen_emit_indent(out, 2) == 0)) {
+              uint8_t ret_kw2[8] = {114, 101, 116, 117, 114, 110, 32, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((ret_kw2)[0]), 7) == 0)) {
+                if ((codegen_emit_expr(arena, out, body_er, ctx) == 0)) {
+                  uint8_t sc_nl[2] = {59, 10};
+                  if ((codegen_emit_bytes_from_ptr(out, &((sc_nl)[0]), 2) == 0)) {
+                    (void)((body_walked = 1));
+                  }
+                }
+              }
+            }
+          }
+          (void)(((ctx->mono_active) = saved_mono_active));
+          (void)(((ctx->mono_num_types) = saved_mono_num));
+          (void)(((ctx->current_func_index) = saved_func_index));
+          (void)(((ctx->current_block_ref) = saved_block_ref));
+        }
+        if ((body_walked == 0)) {
+          /* Fallback: identity body `return <param0>;` (wave444 behavior). */
+          if ((codegen_emit_indent(out, 2) !=0)) {
+            return -(1);
+          }
+          if ((codegen_emit_bytes_from_ptr(out, &((ret_kw)[0]), 7) !=0)) {
+            return -(1);
+          }
+          if ((codegen_emit_bytes_from_ptr(out, &((pn)[0]), pn_len) !=0)) {
+            return -(1);
+          }
+          {
+            uint8_t semi_nl[2] = {59, 10};
+            if ((codegen_emit_bytes_from_ptr(out, &((semi_nl)[0]), 2) !=0)) {
+              return -(1);
+            }
+          }
+        }
+        /* Close function body: `}\n` (125=`}` 10=newline). */
+        {
+          uint8_t end_close[2] = {125, 10};
+          if ((codegen_emit_bytes_from_ptr(out, &((end_close)[0]), 2) !=0)) {
+            return -(1);
+          }
+        }
       }
       (void)((ci = (ci + 1)));
     }
