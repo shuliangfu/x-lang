@@ -33875,10 +33875,26 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_method_call_c(struct as
 }
 
 /**
- * 泛型 identity 模式 bootstrap fixup：返回类型名与首形参类型名相同且为 TYPE_NAMED 时，
- * 用首个实参 resolved 类型单态化（id<T>(x:T):T，parser 未存 type_args 时的兜底）。
- * 【Why 根源】跨模块 import 时 callee 为 FIELD_ACCESS（foo.id）或 resolved 在 dep；
- * 旧实现仅扫本模块 VAR，导致 return 仍为 foo.T（run-multi-file-generic）。
+ * Generic-call return-type monomorphization fixup (G.7 single authority).
+ *
+ * Why: typeck stamps CALL resolved_type from the *generic* signature return
+ * (TYPE_NAMED `T`/`U`/…). Parser does not store turbofish type_arg type_refs
+ * (only `call_num_type_args` count). Without fixup, assignment sees
+ * `expected Marker, found T` / `found U` even when value args already carry
+ * the concrete mono types (codegen mono already uses arg types).
+ *
+ * Historical path (pre-wave451): only identity shape ret_name == param0_name
+ * → stamp arg0 type. That greenlit `id<T>(x:T):T` and multi-file generic, but
+ * left `second<T,U>(a:T,b:U):U` and any non-param0 type-param return red.
+ *
+ * wave451 root complete: scan **all** formals; if return TYPE_NAMED name equals
+ * formal[i] TYPE_NAMED name, stamp call with arg[i] resolved type (caller arena).
+ * Covers identity (i=0) and non-identity (`:U` with param1 `U`) under one path.
+ *
+ * Soft leave-off (not this leaf): zero-value-param generics whose return is a
+ * type param (`default_T<T>(): T`) — no formal to map; needs type_arg type_refs
+ * or expected-type inference. PLATFORM: SHARED — rebuild
+ * pipeline_glue_standalone.o after edit.
  */
 static int32_t glue_generic_call_fixup_resolved_type_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                        int32_t call_expr_ref, struct ast_PipelineDepCtx *ctx) {
@@ -33895,8 +33911,10 @@ static int32_t glue_generic_call_fixup_resolved_type_c(struct ast_Module *module
   uint8_t param_nm[64];
   int32_t ret_nlen;
   int32_t param_nlen;
-  int32_t arg0;
-  int32_t arg0_ty;
+  int32_t arg_i;
+  int32_t arg_ty;
+  int32_t num_params;
+  int32_t pi;
   uint8_t cnm[64];
   int32_t cnml;
   int32_t j;
@@ -33906,7 +33924,7 @@ static int32_t glue_generic_call_fixup_resolved_type_c(struct ast_Module *module
 
   if (!module || !arena || call_expr_ref <= 0)
     return 0;
-  /* 已是非 NAMED 返回类型则无需 fixup */
+  /* Already non-NAMED return (concrete mono or builtin) — nothing to fix. */
   {
     int32_t cur = pipeline_expr_resolved_type_ref(arena, call_expr_ref);
     if (cur > 0 && pipeline_type_kind_ord_at(arena, cur) != ord_named)
@@ -33926,7 +33944,7 @@ static int32_t glue_generic_call_fixup_resolved_type_c(struct ast_Module *module
       return 0;
     pipeline_expr_var_name_into(arena, callee_eff, cnm);
   } else if (callee_kind == ord_field) {
-    /* foo.id：field 名为函数名；dep 优先 call_resolved，否则扫 import binding */
+    /* foo.id: field name is the function; prefer call_resolved dep when set. */
     cnml = pipeline_expr_field_access_name_len(arena, callee_eff);
     if (cnml <= 0 || cnml > 63)
       return 0;
@@ -33953,7 +33971,7 @@ static int32_t glue_generic_call_fixup_resolved_type_c(struct ast_Module *module
       j = j + 1;
     }
   }
-  /* 本模块未命中：扫 dep（bare id 经 whole/select 或 binding 误解析时） */
+  /* Local miss: scan deps (bare id via whole/select or binding mis-resolve). */
   if (func_idx < 0 && ctx) {
     int32_t nd = pipeline_dep_ctx_ndep(ctx);
     int32_t di;
@@ -33980,44 +33998,36 @@ static int32_t glue_generic_call_fixup_resolved_type_c(struct ast_Module *module
   if (func_idx < 0)
     return 0;
   ret_ty = pipeline_module_func_return_type_at(search_mod, func_idx);
-  /* 返回类型在 search_arena；与 caller 比较时用 kind/name */
+  /* Return type lives in search_arena; match formals by kind/name. */
   if (ret_ty <= 0 || pipeline_type_kind_ord_at(search_arena, ret_ty) != ord_named)
     return 0;
-  if (pipeline_module_func_num_params_at(search_mod, func_idx) < 1)
-    return 0;
-  param_ty = pipeline_module_func_param_type_ref_at(search_mod, func_idx, 0);
-  if (param_ty <= 0 || pipeline_type_kind_ord_at(search_arena, param_ty) != ord_named)
-    return 0;
   ret_nlen = pipeline_type_named_name_into(search_arena, ret_ty, ret_nm);
-  param_nlen = pipeline_type_named_name_into(search_arena, param_ty, param_nm);
-  if (ret_nlen <= 0 || param_nlen <= 0 || !glue_slice_equal_c(ret_nm, ret_nlen, param_nm, param_nlen))
+  if (ret_nlen <= 0)
     return 0;
-  /* 短名 T 或 qualified foo.T 均视为 type param identity */
-  {
-    int32_t is_tparam = 0;
-    if (ret_nlen == 1 && ret_nm[0] == (uint8_t)'T')
-      is_tparam = 1;
-    else {
-      int32_t k;
-      for (k = ret_nlen - 1; k >= 0; k--) {
-        if (ret_nm[k] == (uint8_t)'.') {
-          if (ret_nlen - (k + 1) == 1 && ret_nm[k + 1] == (uint8_t)'T')
-            is_tparam = 1;
-          break;
-        }
-      }
-    }
-    if (!is_tparam && ret_nlen > 0) {
-      /* 仍要求 ret/param 同名（原逻辑） */
-    }
+  num_params = pipeline_module_func_num_params_at(search_mod, func_idx);
+  if (num_params < 1)
+    return 0;
+  /*
+   * wave451: any formal TYPE_NAMED whose name equals the return type name
+   * supplies the mono type via the corresponding value argument. First match
+   * wins (wave448 unifies same-name formals, so any index is equivalent).
+   */
+  for (pi = 0; pi < num_params; pi = pi + 1) {
+    param_ty = pipeline_module_func_param_type_ref_at(search_mod, func_idx, pi);
+    if (param_ty <= 0 || pipeline_type_kind_ord_at(search_arena, param_ty) != ord_named)
+      continue;
+    param_nlen = pipeline_type_named_name_into(search_arena, param_ty, param_nm);
+    if (param_nlen <= 0 || !glue_slice_equal_c(ret_nm, ret_nlen, param_nm, param_nlen))
+      continue;
+    arg_i = pipeline_expr_call_arg_ref(arena, call_expr_ref, pi);
+    if (arg_i <= 0)
+      continue;
+    arg_ty = pipeline_expr_resolved_type_ref(arena, arg_i);
+    if (arg_ty <= 0)
+      continue;
+    pipeline_expr_set_resolved_type_ref(arena, call_expr_ref, arg_ty);
+    return 0;
   }
-  arg0 = pipeline_expr_call_arg_ref(arena, call_expr_ref, 0);
-  if (arg0 <= 0)
-    return 0;
-  arg0_ty = pipeline_expr_resolved_type_ref(arena, arg0);
-  if (arg0_ty <= 0)
-    return 0;
-  pipeline_expr_set_resolved_type_ref(arena, call_expr_ref, arg0_ty);
   return 0;
 }
 
