@@ -1034,6 +1034,59 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len);
 static uint8_t *g_w439_src_data;
 static int32_t g_w439_src_len;
 
+/**
+ * wave441: verify impl method's self (param0) type matches the impl's for-type.
+ * Used both during method lookup (find the method belonging to THIS impl block,
+ * not another impl of the same trait — two structs impl same trait was a
+ * false-red: 2nd impl found 1st impl's method by name-only and failed self check)
+ * and during wave428 self-type verification.
+ * @param arena       ASTArena (void*) for kind/name access; may be null.
+ * @param pty0        type_ref of impl method param0 (self); 0 if untyped.
+ * @param for_k       for-type kind ord (g_xlang_skip_impl_for_kinds[si]); -1 unknown.
+ * @param for_ptr     1 if for-type is *T (g_xlang_skip_impl_for_is_ptr[si]).
+ * @param for_name    for-type name bytes (g_xlang_skip_impl_for_names[si]); may be null.
+ * @param for_nlen    for-type name length (g_xlang_skip_impl_for_name_lens[si]).
+ * @return 1 if match or unknown/untyped (accept, preserve old first-match);
+ *         0 if definite mismatch.
+ * PLATFORM: SHARED parse.
+ */
+static int32_t xlang_skip_impl_self_matches_for_c(void *arena, int32_t pty0,
+                                                   int32_t for_k, int32_t for_ptr,
+                                                   const uint8_t *for_name, int32_t for_nlen) {
+  int32_t got0;
+  if (for_k < 0)
+    return 1; /* for-type unknown — accept (preserve old first-match behavior) */
+  got0 = (pty0 != 0) ? pipeline_type_kind_ord_at(arena, pty0) : -1;
+  if (got0 < 0)
+    return 1; /* impl self untyped — accept (wave428 skip when got0<0) */
+  if (for_ptr) {
+    int32_t elem;
+    int32_t gek;
+    if (got0 != XLANG_TRAIT_TY_PTR)
+      return 0;
+    elem = (pty0 != 0) ? pipeline_type_elem_ref_at(arena, pty0) : 0;
+    gek = (elem != 0) ? pipeline_type_kind_ord_at(arena, elem) : -1;
+    if (gek >= 0 && gek != for_k)
+      return 0;
+    if (gek == for_k && for_k == XLANG_TRAIT_TY_NAMED && for_nlen > 0 && for_name && elem != 0) {
+      uint8_t gnm[64];
+      int32_t gnl = pipeline_type_named_name_into(arena, elem, gnm);
+      if (gnl != for_nlen || memcmp(gnm, for_name, (size_t)for_nlen) != 0)
+        return 0;
+    }
+    return 1;
+  }
+  if (got0 != for_k)
+    return 0;
+  if (got0 == XLANG_TRAIT_TY_NAMED && for_nlen > 0 && for_name) {
+    uint8_t gnm[64];
+    int32_t gnl = pipeline_type_named_name_into(arena, pty0, gnm);
+    if (gnl != for_nlen || memcmp(gnm, for_name, (size_t)for_nlen) != 0)
+      return 0;
+  }
+  return 1;
+}
+
 int32_t xlang_trait_check_impls_complete_c(void *module) {
   int32_t si;
   int32_t ti;
@@ -1068,6 +1121,7 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
     for (mi = 0; mi < g_xlang_skip_trait_reg[ti].num_methods; mi++) {
       int32_t found = 0;
       int32_t found_fi = -1;
+      int32_t first_fi = -1; /* wave441: first same-name method (fallback for static) */
       uint8_t *mnm = g_xlang_skip_trait_reg[ti].methods[mi];
       int32_t mlen = g_xlang_skip_trait_reg[ti].method_lens[mi];
       int32_t expect_k = g_xlang_skip_trait_reg[ti].method_ret_kinds[mi];
@@ -1076,10 +1130,32 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
         continue;
       for (fi = 0; fi < nf; fi++) {
         if (pipeline_module_func_name_equal_at(module, fi, mnm, mlen) != 0) {
-          found = 1;
-          found_fi = fi;
-          break;
+          /* wave441: match self (param0) type to impl for-type so two structs
+           * impl the same trait no longer collide — without this, the 2nd impl
+           * found the 1st impl's same-named method and failed the self check
+           * (false-red "method clone self type mismatch"). Prefer self-matched
+           * method; fallback to first same-name method when none matches
+           * (static trait methods w/o self have param0 != for-type → helper
+           * returns 0 for all → fallback preserves old first-match behavior). */
+          int32_t pty0 = pipeline_module_func_param_type_ref_at(module, fi, 0);
+          if (first_fi < 0)
+            first_fi = fi; /* record first same-name method as fallback */
+          if (xlang_skip_impl_self_matches_for_c(arena, pty0,
+                                                   g_xlang_skip_impl_for_kinds[si],
+                                                   g_xlang_skip_impl_for_is_ptr[si],
+                                                   g_xlang_skip_impl_for_names[si],
+                                                   g_xlang_skip_impl_for_name_lens[si])) {
+            found = 1;
+            found_fi = fi;
+            break;
+          }
         }
+      }
+      if (!found && first_fi >= 0) {
+        /* no self-type match (e.g. static trait method w/o self) — use first
+         * same-name method so signature-only checks still run (param/ret). */
+        found = 1;
+        found_fi = first_fi;
       }
       if (!found) {
         lsp_diag_report_typeck((int)g_xlang_skip_impl_line[si], (int)g_xlang_skip_impl_col[si],
@@ -1295,56 +1371,22 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
            * wave429: also when trait annotated self (ek0>=0) — was false-green:
            *   trait Double { double(self: i32) } + impl for u64 { double(self: i32) }
            *   passed param-type (matches trait) but for-type was ignored → call on i32 run=42.
-           * Skip when for-type unknown or impl left self untyped (got0 < 0).
-           * PLATFORM: SHARED parse.
+           * wave441: logic extracted to xlang_skip_impl_self_matches_for_c (shared
+           *   with method lookup); helper returns 1 when for-type unknown or self
+           *   untyped (preserve old skip behavior). PLATFORM: SHARED parse.
            */
           if (expect_np >= 1) {
-            int32_t for_k = g_xlang_skip_impl_for_kinds[si];
-            int32_t for_ptr = g_xlang_skip_impl_for_is_ptr[si];
-            if (for_k >= 0) {
-              int32_t pty0 = pipeline_module_func_param_type_ref_at(module, found_fi, 0);
-              int32_t got0 = (pty0 != 0) ? pipeline_type_kind_ord_at(arena, pty0) : -1;
-              int32_t mm_self = 0;
-              if (got0 >= 0) {
-                if (for_ptr) {
-                  if (got0 != XLANG_TRAIT_TY_PTR) {
-                    mm_self = 1;
-                  } else {
-                    int32_t elem = pipeline_type_elem_ref_at(arena, pty0);
-                    int32_t gek = (elem != 0) ? pipeline_type_kind_ord_at(arena, elem) : -1;
-                    if (gek >= 0 && gek != for_k) {
-                      mm_self = 1;
-                    } else if (gek == for_k && for_k == XLANG_TRAIT_TY_NAMED) {
-                      int32_t fnl = g_xlang_skip_impl_for_name_lens[si];
-                      if (fnl > 0 && elem != 0) {
-                        uint8_t gnm[64];
-                        int32_t gnl = pipeline_type_named_name_into(arena, elem, gnm);
-                        if (gnl != fnl ||
-                            memcmp(gnm, g_xlang_skip_impl_for_names[si], (size_t)fnl) != 0)
-                          mm_self = 1;
-                      }
-                    }
-                  }
-                } else if (got0 != for_k) {
-                  mm_self = 1;
-                } else if (got0 == XLANG_TRAIT_TY_NAMED) {
-                  int32_t fnl = g_xlang_skip_impl_for_name_lens[si];
-                  if (fnl > 0) {
-                    uint8_t gnm[64];
-                    int32_t gnl = pipeline_type_named_name_into(arena, pty0, gnm);
-                    if (gnl != fnl ||
-                        memcmp(gnm, g_xlang_skip_impl_for_names[si], (size_t)fnl) != 0)
-                      mm_self = 1;
-                  }
-                }
-              }
-              if (mm_self) {
-                lsp_diag_report_typeck((int)g_xlang_skip_impl_line[si],
-                                       (int)g_xlang_skip_impl_col[si],
-                                       "method %.*s self type mismatch", (int)mlen,
-                                       (const char *)mnm);
-                rc = -1;
-              }
+            int32_t pty0 = pipeline_module_func_param_type_ref_at(module, found_fi, 0);
+            if (!xlang_skip_impl_self_matches_for_c(arena, pty0,
+                                                     g_xlang_skip_impl_for_kinds[si],
+                                                     g_xlang_skip_impl_for_is_ptr[si],
+                                                     g_xlang_skip_impl_for_names[si],
+                                                     g_xlang_skip_impl_for_name_lens[si])) {
+              lsp_diag_report_typeck((int)g_xlang_skip_impl_line[si],
+                                     (int)g_xlang_skip_impl_col[si],
+                                     "method %.*s self type mismatch", (int)mlen,
+                                     (const char *)mnm);
+              rc = -1;
             }
           }
         }

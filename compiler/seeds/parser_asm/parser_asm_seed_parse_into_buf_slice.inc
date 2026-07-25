@@ -1653,6 +1653,61 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
  * @return 0 ok; -2 hard unknown trait / missing method / signature mismatch.
  * PLATFORM: SHARED parse.
  */
+
+/**
+ * wave441: verify impl method's self (param0) type matches the impl's for-type.
+ * Twin of skip_tl xlang_skip_impl_self_matches_for_c. Used both during method
+ * lookup (find the method belonging to THIS impl block, not another impl of the
+ * same trait — two structs impl same trait was a false-red: 2nd impl found 1st
+ * impl's method by name-only and failed self check) and during wave428 self
+ * verification.
+ * @param arena     ASTArena (void*) for kind/name access; may be null.
+ * @param pty0      type_ref of impl method param0 (self); 0 if untyped.
+ * @param for_kind  for-type kind ord; -1 unknown.
+ * @param for_is_ptr 1 if for-type is *T.
+ * @param for_name  named for-type bytes; may be null.
+ * @param for_nlen  name length; 0 if not named.
+ * @return 1 if match or unknown/untyped (accept, preserve old first-match);
+ *         0 if definite mismatch.
+ * PLATFORM: SHARED parse.
+ */
+static int32_t xlang_seed_impl_self_matches_for_c(void *arena, int32_t pty0,
+                                                    int32_t for_kind, int32_t for_is_ptr,
+                                                    const uint8_t *for_name, int32_t for_nlen) {
+  int32_t got0;
+  if (for_kind < 0)
+    return 1; /* for-type unknown — accept (preserve old first-match behavior) */
+  got0 = (pty0 != 0) ? pipeline_type_kind_ord_at(arena, pty0) : -1;
+  if (got0 < 0)
+    return 1; /* impl self untyped — accept (wave428 skip when got0<0) */
+  if (for_is_ptr) {
+    int32_t elem;
+    int32_t gek;
+    if (got0 != XLANG_SEED_TRAIT_TY_PTR)
+      return 0;
+    elem = (pty0 != 0) ? pipeline_type_elem_ref_at(arena, pty0) : 0;
+    gek = (elem != 0) ? pipeline_type_kind_ord_at(arena, elem) : -1;
+    if (gek >= 0 && gek != for_kind)
+      return 0;
+    if (gek == for_kind && for_kind == XLANG_SEED_TRAIT_TY_NAMED && for_nlen > 0 && for_name && elem != 0) {
+      uint8_t gnm[64];
+      int32_t gnl = pipeline_type_named_name_into(arena, elem, gnm);
+      if (gnl != for_nlen || memcmp(gnm, for_name, (size_t)for_nlen) != 0)
+        return 0;
+    }
+    return 1;
+  }
+  if (got0 != for_kind)
+    return 0;
+  if (got0 == XLANG_SEED_TRAIT_TY_NAMED && for_nlen > 0 && for_name) {
+    uint8_t gnm[64];
+    int32_t gnl = pipeline_type_named_name_into(arena, pty0, gnm);
+    if (gnl != for_nlen || memcmp(gnm, for_name, (size_t)for_nlen) != 0)
+      return 0;
+  }
+  return 1;
+}
+
 static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const uint8_t *trait_nm,
                                                             int32_t trait_nlen, int32_t for_kind,
                                                             int32_t for_is_ptr, const uint8_t *for_name,
@@ -1675,6 +1730,7 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
   for (mi = 0; mi < g_xlang_trait_reg[ti].num_methods; mi++) {
     int32_t found = 0;
     int32_t found_fi = -1;
+    int32_t first_fi = -1; /* wave441: first same-name method (fallback for static) */
     const uint8_t *mnm = g_xlang_trait_reg[ti].methods[mi];
     int32_t mlen = g_xlang_trait_reg[ti].method_lens[mi];
     int32_t expect_k = g_xlang_trait_reg[ti].method_ret_kinds[mi];
@@ -1683,10 +1739,28 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
       continue;
     for (fi = 0; fi < nf; fi++) {
       if (pipeline_module_func_name_equal_at(module, fi, mnm, mlen) != 0) {
-        found = 1;
-        found_fi = fi;
-        break;
+        /* wave441: match self (param0) type to impl for-type so two structs
+         * impl the same trait no longer collide — without this, the 2nd impl
+         * found the 1st impl's same-named method and failed the self check
+         * (false-red "method clone self type mismatch"). Prefer self-matched
+         * method; fallback to first same-name method when none matches
+         * (static trait methods w/o self have param0 != for-type → helper
+         * returns 0 for all → fallback preserves old first-match behavior). */
+        int32_t pty0 = pipeline_module_func_param_type_ref_at(module, fi, 0);
+        if (first_fi < 0)
+          first_fi = fi; /* record first same-name method as fallback */
+        if (xlang_seed_impl_self_matches_for_c(arena, pty0, for_kind, for_is_ptr, for_name, for_nlen)) {
+          found = 1;
+          found_fi = fi;
+          break;
+        }
       }
+    }
+    if (!found && first_fi >= 0) {
+      /* no self-type match (e.g. static trait method w/o self) — use first
+       * same-name method so signature-only checks still run (param/ret). */
+      found = 1;
+      found_fi = first_fi;
     }
     if (!found) {
       lsp_diag_report_typeck((int)line, (int)col, "missing method %.*s", (int)mlen, (const char *)mnm);
@@ -1896,40 +1970,13 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
          * wave428: untyped trait self (param0 ek=-1) must match for-type.
          * wave429: also when trait annotated self — typed self matching trait but
          * not `for` type was false-green (param loop only vs trait, ignored for-type).
-         * Skip when for-type unknown or impl left self untyped (got0 < 0).
-         * PLATFORM: SHARED parse.
+         * wave441: logic extracted to xlang_seed_impl_self_matches_for_c (shared
+         *   with method lookup); helper returns 1 when for-type unknown or self
+         *   untyped (preserve old skip behavior). PLATFORM: SHARED parse.
          */
-        if (expect_np >= 1 && for_kind >= 0) {
+        if (expect_np >= 1) {
           int32_t pty0 = pipeline_module_func_param_type_ref_at(module, found_fi, 0);
-          int32_t got0 = (pty0 != 0) ? pipeline_type_kind_ord_at(arena, pty0) : -1;
-          int32_t mm_self = 0;
-          if (got0 >= 0) {
-            if (for_is_ptr) {
-              if (got0 != XLANG_SEED_TRAIT_TY_PTR) {
-                mm_self = 1;
-              } else {
-                int32_t elem = pipeline_type_elem_ref_at(arena, pty0);
-                int32_t gek = (elem != 0) ? pipeline_type_kind_ord_at(arena, elem) : -1;
-                if (gek >= 0 && gek != for_kind) {
-                  mm_self = 1;
-                } else if (gek == for_kind && for_kind == XLANG_SEED_TRAIT_TY_NAMED && for_nlen > 0 &&
-                           for_name && elem != 0) {
-                  uint8_t gnm[64];
-                  int32_t gnl = pipeline_type_named_name_into(arena, elem, gnm);
-                  if (gnl != for_nlen || memcmp(gnm, for_name, (size_t)for_nlen) != 0)
-                    mm_self = 1;
-                }
-              }
-            } else if (got0 != for_kind) {
-              mm_self = 1;
-            } else if (got0 == XLANG_SEED_TRAIT_TY_NAMED && for_nlen > 0 && for_name) {
-              uint8_t gnm[64];
-              int32_t gnl = pipeline_type_named_name_into(arena, pty0, gnm);
-              if (gnl != for_nlen || memcmp(gnm, for_name, (size_t)for_nlen) != 0)
-                mm_self = 1;
-            }
-          }
-          if (mm_self) {
+          if (!xlang_seed_impl_self_matches_for_c(arena, pty0, for_kind, for_is_ptr, for_name, for_nlen)) {
             lsp_diag_report_typeck((int)line, (int)col, "method %.*s self type mismatch",
                                    (int)mlen, (const char *)mnm);
             return -2;
