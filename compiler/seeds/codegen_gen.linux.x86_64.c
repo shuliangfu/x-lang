@@ -681,6 +681,9 @@ struct ast_ASTArena {
 #define codegen_codegen_is_libc_conflicting_extern_name codegen_is_libc_conflicting_extern_name
 #define codegen_codegen_find_mono_type_for_generic_func codegen_find_mono_type_for_generic_func
 #define codegen_codegen_try_emit_generic_identity_mono codegen_try_emit_generic_identity_mono
+#define codegen_codegen_call_mono_type_at codegen_call_mono_type_at
+#define codegen_codegen_collect_mono_combos_for_generic_func codegen_collect_mono_combos_for_generic_func
+#define codegen_codegen_emit_mono_mangled_name codegen_emit_mono_mangled_name
 #define codegen_codegen_emit_func_extern_declaration codegen_emit_func_extern_declaration
 #define codegen_codegen_emit_import_dep_function_declarations codegen_emit_import_dep_function_declarations
 #define codegen_codegen_x_ast_emit_header codegen_x_ast_emit_header
@@ -1557,6 +1560,9 @@ extern int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_Cod
 extern int32_t codegen_is_libc_conflicting_extern_name(uint8_t * name, int32_t name_len);
 extern int32_t codegen_find_mono_type_for_generic_func(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi, int32_t arg_idx);
 extern int32_t codegen_try_emit_generic_identity_mono(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx);
+extern int32_t codegen_call_mono_type_at(struct ast_ASTArena * arena, int32_t ei, int32_t arg_idx, int32_t num_args);
+extern int32_t codegen_collect_mono_combos_for_generic_func(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi, int32_t * combos_out, int32_t max_combos, int32_t num_params);
+extern int32_t codegen_emit_mono_mangled_name(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi, int32_t * mono_tys, int32_t num_mono);
 extern int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_emit_import_dep_function_declarations(struct ast_Module * module, struct codegen_CodegenOutBuf * out, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_x_ast_emit_header(struct codegen_CodegenOutBuf * out);
@@ -12087,6 +12093,37 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
         }
         if ((ok_res !=0)) {
           struct ast_ASTArena * res_arena = codegen_arena_for_module(ctx, res_mod, arena);
+          /* wave444: for generic functions, emit mono-mangled symbol matching the
+           * instance emitted by codegen_try_emit_generic_identity_mono. The mangled
+           * name is built from the call site's arg types (via codegen_call_mono_
+           * type_at, the same extraction used on the emit side) so emit-side combo
+           * and consume-side symbol always agree. Non-generic functions keep the
+           * bare link name. If type extraction fails (incomplete call site), fall
+           * back to the bare link name to preserve prior behavior.
+           * PLATFORM: SHARED — mirrors codegen.x codegen_emit_call_func_name C3. */
+          if ((pipeline_module_func_num_generic_params_at(res_mod, func_ix) > 0)) {
+            int32_t np_mono = pipeline_module_func_num_params_at(res_mod, func_ix);
+            if (((np_mono > 0) && (np_mono <= 8))) {
+              struct ast_Expr call_e_mono = ast_ast_arena_expr_get(arena, expr_ref);
+              int32_t nargs_mono = (call_e_mono.call_num_args);
+              int32_t mono_tys[8] = {};
+              int32_t pi_mono = 0;
+              int32_t valid_mono = 1;
+              while ((pi_mono < np_mono)) {
+                int32_t ty_mono = codegen_call_mono_type_at(arena, expr_ref, pi_mono, nargs_mono);
+                if ((ty_mono <= 0)) {
+                  (void)((valid_mono = 0));
+                  (void)((pi_mono = np_mono));
+                } else {
+                  (void)(((mono_tys)[pi_mono] = ty_mono));
+                }
+                (void)((pi_mono = (pi_mono + 1)));
+              }
+              if ((valid_mono != 0)) {
+                return codegen_emit_mono_mangled_name(out, arena, res_mod, func_ix, &((mono_tys)[0]), np_mono);
+              }
+            }
+          }
           return codegen_emit_func_link_name(out, res_arena, res_mod, func_ix);
         }
       }
@@ -13008,6 +13045,165 @@ int32_t codegen_find_mono_type_for_generic_func(struct ast_ASTArena * arena, str
   }
   return 0;
 }
+int32_t codegen_call_mono_type_at(struct ast_ASTArena * arena, int32_t ei, int32_t arg_idx, int32_t num_args) {
+  {
+    int32_t ty = 0;
+    struct ast_Expr e;
+    /* wave444: null/bounds guard — split checks (semantically identical to codegen.x). */
+    if (arena == ((struct ast_ASTArena *)(0))) { return 0; }
+    if (ei <= 0) { return 0; }
+    if (arg_idx < 0) { return 0; }
+    if (num_args <= 0) { return 0; }
+    e = ast_ast_arena_expr_get(arena, ei);
+    if (((e.kind) !=48)) {
+      return 0;
+    }
+    if ((arg_idx ==0)) {
+      (void)((ty = (e.resolved_type_ref)));
+    }
+    if (((ty <=0) && (arg_idx < num_args))) {
+      int32_t a = pipeline_expr_call_arg_ref(arena, ei, arg_idx);
+      if ((a > 0)) {
+        (void)((ty = pipeline_expr_resolved_type_ref(arena, a)));
+      }
+    }
+    return ty;
+  }
+  return 0;
+}
+int32_t codegen_collect_mono_combos_for_generic_func(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi, int32_t * combos_out, int32_t max_combos, int32_t num_params) {
+  {
+    uint8_t fn_local[64] = {};
+    int32_t fn_len = pipeline_module_func_name_len_at(module, fi);
+    int32_t combo_count = 0;
+    int32_t ei = 1;
+    /* wave444: null/bounds guard — split checks (semantically identical to codegen.x). */
+    if (arena == ((struct ast_ASTArena *)(0))) { return 0; }
+    if (module == ((struct ast_Module *)(0))) { return 0; }
+    if (fi < 0) { return 0; }
+    if (fi >= (module->num_funcs)) { return 0; }
+    if (combos_out == ((int32_t *)(0))) { return 0; }
+    if (max_combos <= 0) { return 0; }
+    if (num_params <= 0) { return 0; }
+    (void)(codegen_copy_func_name64_from_module(module, fi, &((fn_local)[0])));
+    if ((fn_len <=0)) {
+      return 0;
+    }
+    while ((ei <=(arena->num_exprs))) {
+      struct ast_Expr e = ast_ast_arena_expr_get(arena, ei);
+      if (((e.kind) ==48)) {
+        int32_t matched = 0;
+        if (((e.call_resolved_func_index) ==fi)) {
+          (void)((matched = 1));
+        } else {
+          if (((!(ast_ref_is_null((e.call_callee_ref))) && ((e.call_callee_ref) > 0)) && ((e.call_callee_ref) <=(arena->num_exprs)))) {
+            struct ast_Expr cal = ast_ast_arena_expr_get(arena, (e.call_callee_ref));
+            if ((((cal.kind) ==3) && ((cal.var_name_len) ==fn_len))) {
+              int32_t eq = 1;
+              int32_t k = 0;
+              while ((k < fn_len)) {
+                if ((((cal.var_name))[k] !=(fn_local)[k])) {
+                  (void)((eq = 0));
+                  (void)((k = fn_len));
+                } else {
+                  (void)((k = (k + 1)));
+                }
+              }
+              (void)((matched = eq));
+            }
+          }
+        }
+        if (((matched !=0) && ((e.call_num_args) >=num_params))) {
+          int32_t combo[8] = {};
+          int32_t pi = 0;
+          int32_t valid = 1;
+          while ((pi < num_params)) {
+            int32_t ty = codegen_call_mono_type_at(arena, ei, pi, (e.call_num_args));
+            if ((ty <=0)) {
+              (void)((valid = 0));
+              (void)((pi = num_params));
+            } else {
+              (void)(((combo)[pi] = ty));
+            }
+            (void)((pi = (pi + 1)));
+          }
+          if ((valid !=0)) {
+            int32_t found = 0;
+            int32_t ci = 0;
+            while ((ci < combo_count)) {
+              int32_t same = 1;
+              int32_t pi2 = 0;
+              while ((pi2 < num_params)) {
+                if (((combos_out)[(ci * num_params) + pi2] !=(combo)[pi2])) {
+                  (void)((same = 0));
+                  (void)((pi2 = num_params));
+                }
+                (void)((pi2 = (pi2 + 1)));
+              }
+              if ((same !=0)) {
+                (void)((found = 1));
+                (void)((ci = combo_count));
+              }
+              (void)((ci = (ci + 1)));
+            }
+            if (((found ==0) && (combo_count < max_combos))) {
+              int32_t pi3 = 0;
+              while ((pi3 < num_params)) {
+                (void)(((combos_out)[(combo_count * num_params) + pi3] = (combo)[pi3]));
+                (void)((pi3 = (pi3 + 1)));
+              }
+              (void)((combo_count = (combo_count + 1)));
+            }
+          }
+        }
+      }
+      (void)((ei = (ei + 1)));
+    }
+    return combo_count;
+  }
+  return 0;
+}
+int32_t codegen_emit_mono_mangled_name(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi, int32_t * mono_tys, int32_t num_mono) {
+  {
+    uint8_t sep[2] = {95, 95};
+    int32_t mi = 0;
+    /* wave444: null/bounds guard — split into separate checks to avoid the
+     * nested-|| paren style the .x->C translator emits (hard to hand-sync
+     * correctly). Semantically identical to the codegen.x source. */
+    if (out == ((struct codegen_CodegenOutBuf *)(0))) { return -(1); }
+    if (arena == ((struct ast_ASTArena *)(0))) { return -(1); }
+    if (module == ((struct ast_Module *)(0))) { return -(1); }
+    if (mono_tys == ((int32_t *)(0))) { return -(1); }
+    if (fi < 0) { return -(1); }
+    if (fi >= (module->num_funcs)) { return -(1); }
+    if (num_mono <= 0) { return -(1); }
+    if ((codegen_emit_func_link_name(out, arena, module, fi) !=0)) {
+      return -(1);
+    }
+    if ((codegen_emit_bytes_from_ptr(out, &((sep)[0]), 2) !=0)) {
+      return -(1);
+    }
+    while ((mi < num_mono)) {
+      uint8_t suf[64] = {};
+      int32_t ty = (mono_tys)[mi];
+      int32_t sl = codegen_type_ref_to_suffix(arena, ty, &((suf)[0]), 64);
+      if ((sl <=0)) {
+        return -(1);
+      }
+      if ((mi > 0)) {
+        if ((codegen_append_byte(out, 95) !=0)) {
+          return -(1);
+        }
+      }
+      if ((codegen_emit_bytes_from_ptr(out, &((suf)[0]), sl) !=0)) {
+        return -(1);
+      }
+      (void)((mi = (mi + 1)));
+    }
+    return 0;
+  }
+  return 0;
+}
 int32_t codegen_try_emit_generic_identity_mono(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx) {
   {
     int32_t ret_ty = pipeline_module_func_return_type_at(module, fi);
@@ -13019,11 +13215,9 @@ int32_t codegen_try_emit_generic_identity_mono(struct ast_ASTArena * arena, stru
     int32_t bi = 0;
     int32_t num_params = 0;
     int32_t pi = 0;
-    int32_t mono_pi = 0;
     int32_t pni_len = 0;
     uint8_t pni[32] = {};
     uint8_t comma_space[2] = {44, 32};
-    int32_t mono_ty = codegen_find_mono_type_for_generic_func(arena, module, fi, 0);
     int32_t pn_len = pipeline_module_func_param_name_len_at(module, fi, 0);
     uint8_t pn[32] = {};
     uint8_t fn_local[64] = {};
@@ -13032,6 +13226,11 @@ int32_t codegen_try_emit_generic_identity_mono(struct ast_ASTArena * arena, stru
     uint8_t open_body[4] = {41, 32, 123, 10};
     uint8_t ret_kw[8] = {114, 101, 116, 117, 114, 110, 32, 0};
     uint8_t end[3] = {59, 10, 125};
+    int32_t combos[128] = {};
+    int32_t combo_count = 0;
+    int32_t ci = 0;
+    int32_t mono_ty = 0;
+    int32_t mono_pi = 0;
     if ((((arena ==((struct ast_ASTArena *)(0))) || (out ==((struct codegen_CodegenOutBuf *)(0)))) || (module ==((struct ast_Module *)(0))))) {
       return 0;
     }
@@ -13066,7 +13265,8 @@ int32_t codegen_try_emit_generic_identity_mono(struct ast_ASTArena * arena, stru
       }
       (void)((bi = (bi + 1)));
     }
-    if ((mono_ty <=0)) {
+    (void)((combo_count = codegen_collect_mono_combos_for_generic_func(arena, module, fi, &((combos)[0]), 16, num_params)));
+    if ((combo_count <=0)) {
       return 0;
     }
     (void)(pipeline_module_func_param_name_copy32(module, fi, 0, &((pn)[0])));
@@ -13074,76 +13274,78 @@ int32_t codegen_try_emit_generic_identity_mono(struct ast_ASTArena * arena, stru
       (void)(((pn)[0] = 120));
       (void)((pn_len = 1));
     }
-    if ((codegen_emit_type(arena, out, mono_ty, prefix, prefix_len, ctx) !=0)) {
-      return -(1);
-    }
-    if ((codegen_append_byte(out, 32) !=0)) {
-      return -(1);
-    }
     (void)(codegen_copy_func_name64_from_module(module, fi, &((fn_local)[0])));
-    if (((mono_sym_pre > 0) && (codegen_c_prefix_redundant_with_name(prefix, mono_sym_pre, &((fn_local)[0]), fn_len) ==0))) {
-      if ((codegen_emit_bytes_from_ptr(out, prefix, mono_sym_pre) !=0)) {
-        return -(1);
-      }
-    }
-    if ((codegen_emit_func_link_name(out, arena, module, fi) !=0)) {
-      return -(1);
-    }
-    if ((codegen_append_byte(out, 40) !=0)) {
-      return -(1);
-    }
-    if ((codegen_emit_type(arena, out, mono_ty, prefix, prefix_len, ctx) !=0)) {
-      return -(1);
-    }
-    if ((codegen_append_byte(out, 32) !=0)) {
-      return -(1);
-    }
-    if ((codegen_emit_bytes_from_ptr(out, &((pn)[0]), pn_len) !=0)) {
-      return -(1);
-    }
-    (void)((pi = 1));
-    while ((pi < num_params)) {
-      (void)((mono_pi = codegen_find_mono_type_for_generic_func(arena, module, fi, pi)));
-      if ((mono_pi <=0)) {
-        return 0;
-      }
-      if ((codegen_emit_bytes_from_ptr(out, &((comma_space)[0]), 2) !=0)) {
-        return -(1);
-      }
-      if ((codegen_emit_type(arena, out, mono_pi, prefix, prefix_len, ctx) !=0)) {
+    (void)((ci = 0));
+    while ((ci < combo_count)) {
+      (void)((mono_ty = (combos)[(ci * num_params) + 0]));
+      if ((codegen_emit_type(arena, out, mono_ty, prefix, prefix_len, ctx) !=0)) {
         return -(1);
       }
       if ((codegen_append_byte(out, 32) !=0)) {
         return -(1);
       }
-      (void)((pni_len = pipeline_module_func_param_name_len_at(module, fi, pi)));
-      (void)(pipeline_module_func_param_name_copy32(module, fi, pi, &((pni)[0])));
-      if ((pni_len <=0)) {
-        (void)(((pni)[0] = 120));
-        (void)((pni_len = 1));
+      if (((mono_sym_pre > 0) && (codegen_c_prefix_redundant_with_name(prefix, mono_sym_pre, &((fn_local)[0]), fn_len) ==0))) {
+        if ((codegen_emit_bytes_from_ptr(out, prefix, mono_sym_pre) !=0)) {
+          return -(1);
+        }
       }
-      if ((codegen_emit_bytes_from_ptr(out, &((pni)[0]), pni_len) !=0)) {
+      if ((codegen_emit_mono_mangled_name(out, arena, module, fi, &((combos)[(ci * num_params)]), num_params) !=0)) {
         return -(1);
       }
-      (void)((pi = (pi + 1)));
-    }
-    if ((codegen_emit_bytes_from_ptr(out, &((open_body)[0]), 4) !=0)) {
-      return -(1);
-    }
-    if ((codegen_emit_indent(out, 2) !=0)) {
-      return -(1);
-    }
-    if ((codegen_emit_bytes_from_ptr(out, &((ret_kw)[0]), 7) !=0)) {
-      return -(1);
-    }
-    if ((codegen_emit_bytes_from_ptr(out, &((pn)[0]), pn_len) !=0)) {
-      return -(1);
-    }
-    if ((codegen_emit_bytes_from_ptr(out, &((end)[0]), 3) !=0)) {
-      return -(1);
-    }
-    if ((codegen_append_byte(out, 10) !=0)) {
-      return -(1);
+      if ((codegen_append_byte(out, 40) !=0)) {
+        return -(1);
+      }
+      if ((codegen_emit_type(arena, out, mono_ty, prefix, prefix_len, ctx) !=0)) {
+        return -(1);
+      }
+      if ((codegen_append_byte(out, 32) !=0)) {
+        return -(1);
+      }
+      if ((codegen_emit_bytes_from_ptr(out, &((pn)[0]), pn_len) !=0)) {
+        return -(1);
+      }
+      (void)((pi = 1));
+      while ((pi < num_params)) {
+        (void)((mono_pi = (combos)[(ci * num_params) + pi]));
+        if ((codegen_emit_bytes_from_ptr(out, &((comma_space)[0]), 2) !=0)) {
+          return -(1);
+        }
+        if ((codegen_emit_type(arena, out, mono_pi, prefix, prefix_len, ctx) !=0)) {
+          return -(1);
+        }
+        if ((codegen_append_byte(out, 32) !=0)) {
+          return -(1);
+        }
+        (void)((pni_len = pipeline_module_func_param_name_len_at(module, fi, pi)));
+        (void)(pipeline_module_func_param_name_copy32(module, fi, pi, &((pni)[0])));
+        if ((pni_len <=0)) {
+          (void)(((pni)[0] = 120));
+          (void)((pni_len = 1));
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((pni)[0]), pni_len) !=0)) {
+          return -(1);
+        }
+        (void)((pi = (pi + 1)));
+      }
+      if ((codegen_emit_bytes_from_ptr(out, &((open_body)[0]), 4) !=0)) {
+        return -(1);
+      }
+      if ((codegen_emit_indent(out, 2) !=0)) {
+        return -(1);
+      }
+      if ((codegen_emit_bytes_from_ptr(out, &((ret_kw)[0]), 7) !=0)) {
+        return -(1);
+      }
+      if ((codegen_emit_bytes_from_ptr(out, &((pn)[0]), pn_len) !=0)) {
+        return -(1);
+      }
+      if ((codegen_emit_bytes_from_ptr(out, &((end)[0]), 3) !=0)) {
+        return -(1);
+      }
+      if ((codegen_append_byte(out, 10) !=0)) {
+        return -(1);
+      }
+      (void)((ci = (ci + 1)));
     }
     return 1;
   }

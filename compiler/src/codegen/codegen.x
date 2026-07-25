@@ -11808,6 +11808,36 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
           }
           if (ok_res != 0) {
             let res_arena: *ASTArena = codegen_arena_for_module(ctx, res_mod, arena);
+            /* wave444: for generic functions, emit mono-mangled symbol matching the
+             * instance emitted by codegen_try_emit_generic_identity_mono. The mangled
+             * name is built from the call site's arg types (via codegen_call_mono_
+             * type_at, the same extraction used on the emit side) so emit-side combo
+             * and consume-side symbol always agree. Non-generic functions keep the
+             * bare link name. If type extraction fails (incomplete call site), fall
+             * back to the bare link name to preserve prior behavior. */
+            if (pipeline_module_func_num_generic_params_at(res_mod, func_ix) > 0) {
+              let np_mono: i32 = pipeline_module_func_num_params_at(res_mod, func_ix);
+              if (np_mono > 0 && np_mono <= 8) {
+                let call_e_mono: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+                let nargs_mono: i32 = call_e_mono.call_num_args;
+                let mono_tys: i32[8] = [];
+                let pi_mono: i32 = 0;
+                let valid_mono: i32 = 1;
+                while (pi_mono < np_mono) {
+                  let ty_mono: i32 = codegen_call_mono_type_at(arena, expr_ref, pi_mono, nargs_mono);
+                  if (ty_mono <= 0) {
+                    valid_mono = 0;
+                    pi_mono = np_mono;
+                  } else {
+                    mono_tys[pi_mono] = ty_mono;
+                  }
+                  pi_mono = pi_mono + 1;
+                }
+                if (valid_mono != 0) {
+                  return codegen_emit_mono_mangled_name(out, arena, res_mod, func_ix, &mono_tys[0], np_mono);
+                }
+              }
+            }
             return codegen_emit_func_link_name(out, res_arena, res_mod, func_ix);
           }
         }
@@ -12824,6 +12854,211 @@ export function codegen_find_mono_type_for_generic_func(arena: *ASTArena, module
 }
 
 /**
+ * Extract the concrete mono type for call site `ei`'s param at `arg_idx`.
+ *
+ * Why: for identity-shape generics (ret == param0), the call's resolved return
+ * type (`e.resolved_type_ref`) is the authoritative mono type for param0 — it is
+ * set by typeck and avoids relying on the arg expr having a resolved type. For
+ * arg_idx > 0, the arg's own resolved type is used (the call return type only
+ * describes param0 by identity shape).
+ *
+ * Invariant: arg_idx must be < num_args; returns 0 if the type cannot be resolved.
+ * PLATFORM: SHARED — single extraction authority shared by mono-combo collector
+ * (codegen_collect_mono_combos_for_generic_func) and call-site mangled-name
+ * resolver (codegen_emit_call_func_name) so emitted symbol and call-site symbol
+ * always agree.
+ */
+function codegen_call_mono_type_at(arena: *ASTArena, ei: i32, arg_idx: i32, num_args: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || ei <= 0 || arg_idx < 0 || num_args <= 0) {
+      return 0;
+    }
+    let e: Expr = ast.ast_arena_expr_get(arena, ei);
+    if (e.kind != ExprKind.EXPR_CALL) {
+      return 0;
+    }
+    let ty: i32 = 0;
+    if (arg_idx == 0) {
+      /* wave443: resolved_type_ref is the call's return type; only valid for
+       * param0 (identity shape: ret == param0). For arg_idx>0, must use the
+       * specific arg's type to get that param's mono type. */
+      ty = e.resolved_type_ref;
+    }
+    if (ty <= 0 && arg_idx < num_args) {
+      let a: i32 = pipeline_expr_call_arg_ref(arena, ei, arg_idx);
+      if (a > 0) {
+        ty = pipeline_expr_resolved_type_ref(arena, a);
+      }
+    }
+    return ty;
+  }
+}
+
+/**
+ * Collect all unique (func fi, type-args) combos for generic function fi.
+ *
+ * Why: identity mono must emit one instance per distinct type-arg combo (not just
+ * the first call site) so multiple call sites with different types each get their
+ * own mangled symbol. Scans the arena once for EXPR_CALL matching fi, extracts
+ * per-param concrete types via codegen_call_mono_type_at, dedupes, and stores
+ * unique combos into `combos_out` (flat: combo c param p at index c*num_params+p).
+ *
+ * Invariant: combos_out holds at most max_combos*num_params entries; returns the
+ * count of unique combos found (0 if no call sites or all incomplete).
+ * PLATFORM: SHARED — single-pass scan; matching logic mirrors find_mono_type
+ * (call_resolved_func_index==fi OR callee name==fn_local) but collects all
+ * matches instead of returning the first.
+ */
+function codegen_collect_mono_combos_for_generic_func(arena: *ASTArena, module: *Module, fi: i32, combos_out: *i32, max_combos: i32, num_params: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || module == 0 as *Module || fi < 0 || fi >= module.num_funcs) {
+      return 0;
+    }
+    if (combos_out == 0 as *i32 || max_combos <= 0 || num_params <= 0) {
+      return 0;
+    }
+    let fn_local: u8[64] = [];
+    codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
+    let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
+    if (fn_len <= 0) {
+      return 0;
+    }
+    let combo_count: i32 = 0;
+    let ei: i32 = 1;
+    while (ei <= arena.num_exprs) {
+      let e: Expr = ast.ast_arena_expr_get(arena, ei);
+      if (e.kind == ExprKind.EXPR_CALL) {
+        let matched: i32 = 0;
+        if (e.call_resolved_func_index == fi) {
+          matched = 1;
+        } else if (!ast.ref_is_null(e.call_callee_ref) && e.call_callee_ref > 0 && e.call_callee_ref <= arena.num_exprs) {
+          let cal: Expr = ast.ast_arena_expr_get(arena, e.call_callee_ref);
+          if (cal.kind == ExprKind.EXPR_VAR && cal.var_name_len == fn_len) {
+            let eq: i32 = 1;
+            let k: i32 = 0;
+            while (k < fn_len) {
+              if (cal.var_name[k] != fn_local[k]) {
+                eq = 0;
+                k = fn_len;
+              } else {
+                k = k + 1;
+              }
+            }
+            matched = eq;
+          }
+        }
+        if (matched != 0 && e.call_num_args >= num_params) {
+          /* Build this call site's combo via the shared extraction helper. */
+          let combo: i32[8] = [];
+          let pi: i32 = 0;
+          let valid: i32 = 1;
+          while (pi < num_params) {
+            let ty: i32 = codegen_call_mono_type_at(arena, ei, pi, e.call_num_args);
+            if (ty <= 0) {
+              valid = 0;
+              pi = num_params;
+            } else {
+              combo[pi] = ty;
+            }
+            pi = pi + 1;
+          }
+          if (valid != 0) {
+            /* Dedup: scan existing combos for an exact match. */
+            let found: i32 = 0;
+            let ci: i32 = 0;
+            while (ci < combo_count) {
+              let same: i32 = 1;
+              let pi2: i32 = 0;
+              while (pi2 < num_params) {
+                if (combos_out[ci * num_params + pi2] != combo[pi2]) {
+                  same = 0;
+                  pi2 = num_params;
+                }
+                pi2 = pi2 + 1;
+              }
+              if (same != 0) {
+                found = 1;
+                ci = combo_count;
+              }
+              ci = ci + 1;
+            }
+            if (found == 0 && combo_count < max_combos) {
+              let pi3: i32 = 0;
+              while (pi3 < num_params) {
+                combos_out[combo_count * num_params + pi3] = combo[pi3];
+                pi3 = pi3 + 1;
+              }
+              combo_count = combo_count + 1;
+            }
+          }
+        }
+      }
+      ei = ei + 1;
+    }
+    return combo_count;
+  }
+}
+
+/**
+ * Emit a mono-mangled symbol `<link_name>__<suffix0>[_<suffix1>...]` for generic
+ * function fi with the given mono type-arg combo.
+ *
+ * Why: multiple mono instances of the same generic function need distinct C link
+ * symbols (e.g., `copy__A` vs `copy__i32`) to avoid duplicate-symbol link errors.
+ * The `__` separator distinguishes mono mangling from overload mangling (which
+ * uses single `_` per param suffix via codegen_emit_func_link_name).
+ *
+ * Invariant: mono_tys holds num_mono entries; each suffix is rendered via
+ * codegen_type_ref_to_suffix (reusing the overload-suffix authority). Returns 0
+ * on success, -1 on emit error.
+ * PLATFORM: SHARED — mono symbol authority; called by codegen_try_emit_generic_
+ * identity_mono (emit side) and must agree with call-site mangling in
+ * codegen_emit_call_func_name (consume side).
+ */
+function codegen_emit_mono_mangled_name(out: *CodegenOutBuf, arena: *ASTArena, module: *Module, fi: i32, mono_tys: *i32, num_mono: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (out == 0 as *CodegenOutBuf || arena == 0 as *ASTArena || module == 0 as *Module || mono_tys == 0 as *i32) {
+      return -1;
+    }
+    if (fi < 0 || fi >= module.num_funcs || num_mono <= 0) {
+      return -1;
+    }
+    /* Emit the base link name (bare for non-overloaded generics; overload-mangled
+     * suffix is preserved so mono + overload compose if needed). */
+    if (codegen_emit_func_link_name(out, arena, module, fi) != 0) {
+      return -1;
+    }
+    /* `__` marks this as a mono instance and separates from overload `_` mangling. */
+    let sep: u8[2] = [95, 95];
+    if (emit_bytes_from_ptr(out, &sep[0], 2) != 0) {
+      return -1;
+    }
+    let mi: i32 = 0;
+    while (mi < num_mono) {
+      let suf: u8[64] = [];
+      let ty: i32 = mono_tys[mi];
+      let sl: i32 = codegen_type_ref_to_suffix(arena, ty, &suf[0], 64);
+      if (sl <= 0) {
+        return -1;
+      }
+      if (mi > 0) {
+        if (append_byte(out, 95) != 0) {
+          return -1;
+        }
+      }
+      if (emit_bytes_from_ptr(out, &suf[0], sl) != 0) {
+        return -1;
+      }
+      mi = mi + 1;
+    }
+    return 0;
+  }
+}
+
+/**
  * See implementation.
  * See implementation.
  * See implementation.
@@ -12873,8 +13108,14 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
       }
       bi = bi + 1;
     }
-    let mono_ty: i32 = codegen_find_mono_type_for_generic_func(arena, module, fi, 0);
-    if (mono_ty <= 0) {
+    /* wave444: collect ALL unique (func, type-args) combos so each call site with
+     * a distinct type gets its own mangled mono instance (e.g., copy<A> + copy<i32>
+     * emit copy__A and copy__i32). Previously only the first call site's type was
+     * emitted with the bare link name, causing duplicate-symbol errors when multiple
+     * type-arg combos targeted the same generic function. */
+    let combos: i32[128] = [];
+    let combo_count: i32 = codegen_collect_mono_combos_for_generic_func(arena, module, fi, &combos[0], 16, num_params);
+    if (combo_count <= 0) {
       return 0;
     }
     let pn_len: i32 = pipeline_module_func_param_name_len_at(module, fi, 0);
@@ -12885,88 +13126,96 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
       pn[0] = 120;
       pn_len = 1;
     }
-    /* See implementation. */
-    if (emit_type(arena, out, mono_ty, prefix, prefix_len, ctx) != 0) {
-      return -1;
-    }
-    if (append_byte(out, 32) != 0) {
-      return -1;
-    }
     let fn_local: u8[64] = [];
     codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
     let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
     let mono_sym_pre: i32 = codegen_func_c_symbol_prefix_len(module, fi, prefix_len);
-    if (mono_sym_pre > 0 && codegen_c_prefix_redundant_with_name(prefix, mono_sym_pre, &fn_local[0], fn_len) == 0) {
-      if (emit_bytes_from_ptr(out, prefix, mono_sym_pre) != 0) {
-        return -1;
-      }
-    }
-    if (codegen_emit_func_link_name(out, arena, module, fi) != 0) {
-      return -1;
-    }
-    if (append_byte(out, 40) != 0) {
-      return -1;
-    }
-    if (emit_type(arena, out, mono_ty, prefix, prefix_len, ctx) != 0) {
-      return -1;
-    }
-    if (append_byte(out, 32) != 0) {
-      return -1;
-    }
-    if (emit_bytes_from_ptr(out, &pn[0], pn_len) != 0) {
-      return -1;
-    }
-    /* wave443: emit remaining params 1..N-1 with per-param mono types (multi-arg identity mono).
-     * For each param pi, look up the concrete type from call site arg pi, then emit
-     * ", <mono_type> <param_name>". If any mono type is missing, bail (not identity). */
-    let pi: i32 = 1;
-    while (pi < num_params) {
-      let mono_pi: i32 = codegen_find_mono_type_for_generic_func(arena, module, fi, pi);
-      if (mono_pi <= 0) {
-        return 0;
-      }
-      let comma_space: u8[2] = [44, 32];
-      if (emit_bytes_from_ptr(out, &comma_space[0], 2) != 0) {
-        return -1;
-      }
-      if (emit_type(arena, out, mono_pi, prefix, prefix_len, ctx) != 0) {
+    /* wave444: emit one mono instance per unique type-arg combo. Body stays
+     * hardcoded `return <param0>;` (identity shape); full body emission is a
+     * later wave. Each instance gets a distinct mangled symbol via
+     * codegen_emit_mono_mangled_name so multiple combos coexist without
+     * duplicate-symbol link errors. */
+    let ci: i32 = 0;
+    while (ci < combo_count) {
+      let mono_ty: i32 = combos[ci * num_params + 0];
+      /* See implementation. */
+      if (emit_type(arena, out, mono_ty, prefix, prefix_len, ctx) != 0) {
         return -1;
       }
       if (append_byte(out, 32) != 0) {
         return -1;
       }
-      let pni_len: i32 = pipeline_module_func_param_name_len_at(module, fi, pi);
-      let pni: u8[32] = [];
-      pipeline_module_func_param_name_copy32(module, fi, pi, &pni[0]);
-      if (pni_len <= 0) {
-        pni[0] = 120;
-        pni_len = 1;
+      if (mono_sym_pre > 0 && codegen_c_prefix_redundant_with_name(prefix, mono_sym_pre, &fn_local[0], fn_len) == 0) {
+        if (emit_bytes_from_ptr(out, prefix, mono_sym_pre) != 0) {
+          return -1;
+        }
       }
-      if (emit_bytes_from_ptr(out, &pni[0], pni_len) != 0) {
+      /* wave444: emit mangled mono symbol (link_name + __ + suffix per type arg). */
+      if (codegen_emit_mono_mangled_name(out, arena, module, fi, &combos[ci * num_params], num_params) != 0) {
         return -1;
       }
-      pi = pi + 1;
-    }
-    let open_body: u8[4] = [41, 32, 123, 10];
-    if (emit_bytes_from_ptr(out, &open_body[0], 4) != 0) {
-      return -1;
-    }
-    if (emit_indent(out, 2) != 0) {
-      return -1;
-    }
-    let ret_kw: u8[8] = [114, 101, 116, 117, 114, 110, 32, 0];
-    if (emit_bytes_from_ptr(out, &ret_kw[0], 7) != 0) {
-      return -1;
-    }
-    if (emit_bytes_from_ptr(out, &pn[0], pn_len) != 0) {
-      return -1;
-    }
-    let end: u8[3] = [59, 10, 125];
-    if (emit_bytes_from_ptr(out, &end[0], 3) != 0) {
-      return -1;
-    }
-    if (append_byte(out, 10) != 0) {
-      return -1;
+      if (append_byte(out, 40) != 0) {
+        return -1;
+      }
+      if (emit_type(arena, out, mono_ty, prefix, prefix_len, ctx) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 32) != 0) {
+        return -1;
+      }
+      if (emit_bytes_from_ptr(out, &pn[0], pn_len) != 0) {
+        return -1;
+      }
+      /* wave443: emit remaining params 1..N-1 with per-param mono types (multi-arg identity mono).
+       * For each param pi, look up the concrete type from call site arg pi, then emit
+       * ", <mono_type> <param_name>". If any mono type is missing, bail (not identity). */
+      let pi: i32 = 1;
+      while (pi < num_params) {
+        let mono_pi: i32 = combos[ci * num_params + pi];
+        let comma_space: u8[2] = [44, 32];
+        if (emit_bytes_from_ptr(out, &comma_space[0], 2) != 0) {
+          return -1;
+        }
+        if (emit_type(arena, out, mono_pi, prefix, prefix_len, ctx) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 32) != 0) {
+          return -1;
+        }
+        let pni_len: i32 = pipeline_module_func_param_name_len_at(module, fi, pi);
+        let pni: u8[32] = [];
+        pipeline_module_func_param_name_copy32(module, fi, pi, &pni[0]);
+        if (pni_len <= 0) {
+          pni[0] = 120;
+          pni_len = 1;
+        }
+        if (emit_bytes_from_ptr(out, &pni[0], pni_len) != 0) {
+          return -1;
+        }
+        pi = pi + 1;
+      }
+      let open_body: u8[4] = [41, 32, 123, 10];
+      if (emit_bytes_from_ptr(out, &open_body[0], 4) != 0) {
+        return -1;
+      }
+      if (emit_indent(out, 2) != 0) {
+        return -1;
+      }
+      let ret_kw: u8[8] = [114, 101, 116, 117, 114, 110, 32, 0];
+      if (emit_bytes_from_ptr(out, &ret_kw[0], 7) != 0) {
+        return -1;
+      }
+      if (emit_bytes_from_ptr(out, &pn[0], pn_len) != 0) {
+        return -1;
+      }
+      let end: u8[3] = [59, 10, 125];
+      if (emit_bytes_from_ptr(out, &end[0], 3) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 10) != 0) {
+        return -1;
+      }
+      ci = ci + 1;
     }
     return 1;
   }
