@@ -882,11 +882,14 @@ typedef struct {
   int32_t method_param_counts[XLANG_SKIP_TRAIT_METH_MAX];
   /* Per-param TypeKind when trait wrote `: Ty`; -1 = untyped / unknown. */
   int32_t method_param_kinds[XLANG_SKIP_TRAIT_METH_MAX][XLANG_SKIP_TRAIT_PARAM_MAX];
-  /* wave432: TYPE_NAMED param name, or *T / []T element name when elem is named. */
+  /* wave432: TYPE_NAMED param name, or *T / []T / T[N] leaf element name when elem is named. */
   uint8_t method_param_names[XLANG_SKIP_TRAIT_METH_MAX][XLANG_SKIP_TRAIT_PARAM_MAX][64];
   int32_t method_param_name_lens[XLANG_SKIP_TRAIT_METH_MAX][XLANG_SKIP_TRAIT_PARAM_MAX];
-  /* wave432: element TypeKind for TYPE_PTR / TYPE_SLICE param; -1 = not captured. */
+  /* wave432: element TypeKind for TYPE_PTR / TYPE_SLICE / TYPE_ARRAY leaf; -1 = not captured. */
   int32_t method_param_elem_kinds[XLANG_SKIP_TRAIT_METH_MAX][XLANG_SKIP_TRAIT_PARAM_MAX];
+  /* wave433: multi-dim count for TYPE_ARRAY param; 0 = N/A. dims[0]=outer … dims[n-1]=innermost. */
+  int32_t method_param_array_ndims[XLANG_SKIP_TRAIT_METH_MAX][XLANG_SKIP_TRAIT_PARAM_MAX];
+  int32_t method_param_array_dims[XLANG_SKIP_TRAIT_METH_MAX][XLANG_SKIP_TRAIT_PARAM_MAX][XLANG_SKIP_TRAIT_ARRAY_DIM_MAX];
   int32_t num_methods;
 } xlang_skip_trait_reg_ent_t;
 static xlang_skip_trait_reg_ent_t g_xlang_skip_trait_reg[XLANG_SKIP_TRAIT_REG_MAX];
@@ -1093,6 +1096,51 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                       if (gnl != enl ||
                           memcmp(gnm, g_xlang_skip_trait_reg[ti].method_param_names[mi][pi], (size_t)enl) != 0)
                         mm = 1;
+                    }
+                  }
+                }
+              } else if (got_pk == ek && ek == XLANG_TRAIT_TY_ARRAY) {
+                /*
+                 * wave433: walk nested TYPE_ARRAY dims[0]=outer … then leaf elem
+                 * kind/name. Twin of wave431 ret multi-dim walk.
+                 * PLATFORM: SHARED parse.
+                 */
+                int32_t nd = g_xlang_skip_trait_reg[ti].method_param_array_ndims[mi][pi];
+                int32_t eek = g_xlang_skip_trait_reg[ti].method_param_elem_kinds[mi][pi];
+                int32_t leaf_tr = pty;
+                if (nd > 0 && pty != 0) {
+                  int32_t d;
+                  for (d = 0; d < nd; d++) {
+                    int32_t k = pipeline_type_kind_ord_at(arena, leaf_tr);
+                    int32_t gsz;
+                    if (k != XLANG_TRAIT_TY_ARRAY) {
+                      mm = 1;
+                      break;
+                    }
+                    gsz = pipeline_type_array_size_at(arena, leaf_tr);
+                    if (gsz != g_xlang_skip_trait_reg[ti].method_param_array_dims[mi][pi][d]) {
+                      mm = 1;
+                      break;
+                    }
+                    leaf_tr = pipeline_type_elem_ref_at(arena, leaf_tr);
+                    if (leaf_tr == 0 && d + 1 < nd) {
+                      mm = 1;
+                      break;
+                    }
+                  }
+                  if (!mm && eek >= 0 && leaf_tr != 0) {
+                    int32_t gek = pipeline_type_kind_ord_at(arena, leaf_tr);
+                    if (gek >= 0 && gek != eek) {
+                      mm = 1;
+                    } else if (gek == eek && eek == XLANG_TRAIT_TY_NAMED) {
+                      int32_t enl = g_xlang_skip_trait_reg[ti].method_param_name_lens[mi][pi];
+                      if (enl > 0) {
+                        uint8_t gnm[64];
+                        int32_t gnl = pipeline_type_named_name_into(arena, leaf_tr, gnm);
+                        if (gnl != enl ||
+                            memcmp(gnm, g_xlang_skip_trait_reg[ti].method_param_names[mi][pi], (size_t)enl) != 0)
+                          mm = 1;
+                      }
                     }
                   }
                 }
@@ -1394,6 +1442,9 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
           ent->method_param_name_lens[mi_reg][pii] = 0;
           memset(ent->method_param_names[mi_reg][pii], 0, 64);
           ent->method_param_elem_kinds[mi_reg][pii] = -1;
+          ent->method_param_array_ndims[mi_reg][pii] = 0;
+          memset(ent->method_param_array_dims[mi_reg][pii], 0,
+                 sizeof(ent->method_param_array_dims[mi_reg][pii]));
         }
         if (ent->method_lens[mi_reg] > 0)
           ent->num_methods++;
@@ -1425,6 +1476,12 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
         int32_t want_param_ty = 0;
         int32_t param_elem_pending = 0;
         int32_t param_slice_need_rb = 0;
+        /* wave433: twin of wave431 ret multi-dim suffix state machine. */
+        int32_t param_suffix_pending = 0; /* base set; may still see [N] or [] */
+        int32_t param_arr_need_size = 0;  /* saw `[` after base; want INT or `]` */
+        int32_t param_arr_need_rb = 0;    /* saw `[N`; want `]` */
+        int32_t param_dim_n = 0;
+        int32_t param_dims[XLANG_SKIP_TRAIT_ARRAY_DIM_MAX];
         int32_t steps = 0;
         while (steps++ < 4096) {
           if (r.tok.kind == (int32_t)TOKEN_LPAREN) {
@@ -1432,6 +1489,19 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
           } else if (r.tok.kind == (int32_t)TOKEN_RPAREN) {
             if (paren == 1 && depth == 0 && !saw_params_close) {
               /* Closing the method parameter list. */
+              /* wave433: finalize pending suffix T[N][M] before param_count++. */
+              if (param_suffix_pending && param_dim_n > 0 && mi_reg >= 0 && ent &&
+                  param_count < XLANG_SKIP_TRAIT_PARAM_MAX) {
+                int32_t leaf_k = ent->method_param_kinds[mi_reg][param_count];
+                int32_t di;
+                ent->method_param_elem_kinds[mi_reg][param_count] = leaf_k;
+                ent->method_param_kinds[mi_reg][param_count] = XLANG_TRAIT_TY_ARRAY;
+                ent->method_param_array_ndims[mi_reg][param_count] = param_dim_n;
+                for (di = 0; di < param_dim_n; di++)
+                  ent->method_param_array_dims[mi_reg][param_count][di] = param_dims[di];
+              }
+              param_suffix_pending = 0;
+              param_dim_n = 0;
               if (saw_param_tok)
                 param_count++;
               if (mi_reg >= 0 && ent)
@@ -1442,6 +1512,19 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
               paren--;
           } else if (!saw_params_close && paren == 1 && depth == 0) {
             if (r.tok.kind == (int32_t)TOKEN_COMMA) {
+              /* wave433: finalize pending suffix T[N][M] before param_count++. */
+              if (param_suffix_pending && param_dim_n > 0 && mi_reg >= 0 && ent &&
+                  param_count < XLANG_SKIP_TRAIT_PARAM_MAX) {
+                int32_t leaf_k = ent->method_param_kinds[mi_reg][param_count];
+                int32_t di;
+                ent->method_param_elem_kinds[mi_reg][param_count] = leaf_k;
+                ent->method_param_kinds[mi_reg][param_count] = XLANG_TRAIT_TY_ARRAY;
+                ent->method_param_array_ndims[mi_reg][param_count] = param_dim_n;
+                for (di = 0; di < param_dim_n; di++)
+                  ent->method_param_array_dims[mi_reg][param_count][di] = param_dims[di];
+              }
+              param_suffix_pending = 0;
+              param_dim_n = 0;
               if (saw_param_tok)
                 param_count++;
               saw_param_tok = 0;
@@ -1449,8 +1532,60 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
             } else if (r.tok.kind == (int32_t)TOKEN_COLON) {
               want_param_ty = 1;
             } else if (want_param_ty && mi_reg >= 0 && ent && param_count < XLANG_SKIP_TRAIT_PARAM_MAX) {
-              /* wave432: twin of seed param shape capture (NAMED / *T / []T). */
-              if (param_slice_need_rb) {
+              /* wave432/433: twin of seed param shape capture
+               * (NAMED / *T / []T / T[N] / T[N][M] multi-dim). */
+              if (param_arr_need_rb) {
+                if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
+                  /* wave433: after T[N], stay open for further [M]… */
+                  param_arr_need_rb = 0;
+                  param_suffix_pending = 1;
+                } else {
+                  param_arr_need_rb = 0;
+                  want_param_ty = 0;
+                }
+              } else if (param_arr_need_size) {
+                if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
+                  /* Suffix T[] → TYPE_SLICE with prior base as elem (no multi after). */
+                  int32_t base_k = ent->method_param_kinds[mi_reg][param_count];
+                  ent->method_param_elem_kinds[mi_reg][param_count] = base_k;
+                  ent->method_param_kinds[mi_reg][param_count] = XLANG_TRAIT_TY_SLICE;
+                  ent->method_param_array_ndims[mi_reg][param_count] = 0;
+                  param_arr_need_size = 0;
+                  param_dim_n = 0;
+                  want_param_ty = 0;
+                  saw_param_tok = 1;
+                } else if (r.tok.kind == (int32_t)TOKEN_INT && r.tok.int_val > 0) {
+                  /* Collect one dim; finalize on non-`[` after closing `]`. */
+                  if (param_dim_n < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                    param_dims[param_dim_n++] = r.tok.int_val;
+                  param_arr_need_size = 0;
+                  param_arr_need_rb = 1;
+                } else {
+                  param_arr_need_size = 0;
+                  want_param_ty = 0;
+                }
+              } else if (param_suffix_pending) {
+                if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
+                  param_suffix_pending = 0;
+                  param_arr_need_size = 1;
+                } else {
+                  /* Finalize multi-dim (or leave scalar/named base if no dims).
+                   * Current token is not `,`/`)` (handled at outer branches), so
+                   * just stop scanning — param_count++ happens at `,`/`)` later. */
+                  if (param_dim_n > 0) {
+                    int32_t leaf_k = ent->method_param_kinds[mi_reg][param_count];
+                    int32_t di;
+                    ent->method_param_elem_kinds[mi_reg][param_count] = leaf_k;
+                    ent->method_param_kinds[mi_reg][param_count] = XLANG_TRAIT_TY_ARRAY;
+                    ent->method_param_array_ndims[mi_reg][param_count] = param_dim_n;
+                    for (di = 0; di < param_dim_n; di++)
+                      ent->method_param_array_dims[mi_reg][param_count][di] = param_dims[di];
+                  }
+                  param_suffix_pending = 0;
+                  param_dim_n = 0;
+                  want_param_ty = 0;
+                }
+              } else if (param_slice_need_rb) {
                 if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
                   param_slice_need_rb = 0;
                   param_elem_pending = 1;
@@ -1477,7 +1612,8 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                   xlang_skip_trait_copy_ident_c(source, r.token_start, r.tok.ident_len,
                                                  ent->method_param_names[mi_reg][param_count],
                                                  &ent->method_param_name_lens[mi_reg][param_count]);
-                  want_param_ty = 0;
+                  /* wave433: keep scanning for suffix T[N] / T[] / T[N][M]. */
+                  param_suffix_pending = 1;
                   saw_param_tok = 1;
                 } else if (r.tok.kind == (int32_t)TOKEN_STAR) {
                   ent->method_param_kinds[mi_reg][param_count] = XLANG_TRAIT_TY_PTR;
@@ -1488,7 +1624,8 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                 } else {
                   ent->method_param_kinds[mi_reg][param_count] =
                       xlang_trait_token_to_type_kind_c(r.tok.kind);
-                  want_param_ty = 0;
+                  /* wave433: keep scanning for suffix T[N] / T[] / T[N][M]. */
+                  param_suffix_pending = 1;
                   saw_param_tok = 1;
                 }
               } else {
