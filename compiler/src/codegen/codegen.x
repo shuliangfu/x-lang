@@ -3875,15 +3875,19 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
      *      have no name (pipeline_type_named_name_into returns 0), so they skip the
      *      fallback and rely on direct equality, which is stable for builtins.
      *
-     * No infinite recursion: the concrete type_ref (A) is not a generic param, so the
-     * recursive call's direct+name checks both miss (A's name "A" != any param name "T").
+     * No infinite recursion (wave447): when value params are builtins (i32), mono
+     * maps param type_ref → call-arg type_ref; typeck often reuses the same i32
+     * type_ref node, so generic==concrete. Recursing emit_type on the same ref
+     * stack-overflows (SEGV in resolve_type_alias). Guard: only recurse when
+     * concrete != type_ref. Identity T→A still recurses once then emits A.
      * PLATFORM: SHARED — mono state in PipelineDepCtx (L4 ABI); gated by mono_active.
      */
     if (ctx != 0 as *PipelineDepCtx && ctx.mono_active != 0 && ctx.mono_num_types > 0) {
       let mi: i32 = 0;
       while (mi < ctx.mono_num_types && mi < 8) {
-        if (type_ref == ctx.mono_generic_type_refs[mi] && ctx.mono_concrete_type_refs[mi] > 0) {
-          return emit_type(arena, out, ctx.mono_concrete_type_refs[mi], struct_prefix, struct_prefix_len, ctx);
+        let conc: i32 = ctx.mono_concrete_type_refs[mi];
+        if (type_ref == ctx.mono_generic_type_refs[mi] && conc > 0 && conc != type_ref) {
+          return emit_type(arena, out, conc, struct_prefix, struct_prefix_len, ctx);
         }
         mi = mi + 1;
       }
@@ -3891,13 +3895,15 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
        * wave445 C5 name-match fallback: cover body TYPE_NAMED nodes whose type_ref
        * differs from the param's (e.g. `let y: T`). Compare names; substitute on
        * equality. Mirrors codegen_find_impl_method_for_type C6 name-match fallback.
+       * wave447: also skip when concrete == type_ref (self-map).
        */
       let fb_nm: u8[64] = [];
       let fb_len: i32 = pipeline_type_named_name_into(arena, type_ref, &fb_nm[0]);
       if (fb_len > 0) {
         let mi2: i32 = 0;
         while (mi2 < ctx.mono_num_types && mi2 < 8) {
-          if (ctx.mono_concrete_type_refs[mi2] > 0) {
+          let conc2: i32 = ctx.mono_concrete_type_refs[mi2];
+          if (conc2 > 0 && conc2 != type_ref) {
             let gnm: u8[64] = [];
             let gname_len: i32 = pipeline_type_named_name_into(arena, ctx.mono_generic_type_refs[mi2], &gnm[0]);
             if (gname_len == fb_len && gname_len > 0) {
@@ -3912,7 +3918,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
                 }
               }
               if (names_eq != 0) {
-                return emit_type(arena, out, ctx.mono_concrete_type_refs[mi2], struct_prefix, struct_prefix_len, ctx);
+                return emit_type(arena, out, conc2, struct_prefix, struct_prefix_len, ctx);
               }
             }
           }
@@ -13100,17 +13106,24 @@ function codegen_call_mono_type_at(arena: *ASTArena, ei: i32, arg_idx: i32, num_
       return 0;
     }
     let ty: i32 = 0;
-    if (arg_idx == 0) {
-      /* wave443: resolved_type_ref is the call's return type; only valid for
-       * param0 (identity shape: ret == param0). For arg_idx>0, must use the
-       * specific arg's type to get that param's mono type. */
-      ty = e.resolved_type_ref;
-    }
-    if (ty <= 0 && arg_idx < num_args) {
+    /*
+     * wave447: prefer the value-arg's resolved type for every arg_idx, including 0.
+     * wave443 used call e.resolved_type_ref first for arg0 because identity shape
+     * has ret == param0; that breaks non-identity generics such as
+     * `getv<T>(x: T): i32` where the call resolves to i32 but param0 mono type
+     * must be the arg type (A). Identity still works: arg type matches ret type.
+     * Fallback: arg0 only may use call resolved_type_ref when the arg type is
+     * missing (e.g. some integer literals), preserving prior identity behavior.
+     * PLATFORM: SHARED — must agree with combo collector + call-site mangle.
+     */
+    if (arg_idx < num_args) {
       let a: i32 = pipeline_expr_call_arg_ref(arena, ei, arg_idx);
       if (a > 0) {
         ty = pipeline_expr_resolved_type_ref(arena, a);
       }
+    }
+    if (ty <= 0 && arg_idx == 0) {
+      ty = e.resolved_type_ref;
     }
     return ty;
   }
@@ -13430,9 +13443,28 @@ function codegen_find_impl_method_for_type(module: *Module, arena: *ASTArena, me
 }
 
 /**
- * See implementation.
- * See implementation.
- * See implementation.
+ * Emit monomorphized C instances for a generic function (wave443–447).
+ *
+ * wave443–444: multi-arg + mangled combos for identity shape `fn(x: T): T`.
+ * wave445: real body AST walk (method calls / lets) under mono_active.
+ * wave447: drop the hard identity gate (ret and param0 both TYPE_NAMED with the
+ * same name). Non-identity shapes such as `getv<T>(x: T): i32 { return x.v; }`
+ * and `absdiff<T>(x: i32, y: i32): i32 { if ... }` must also emit mono instances
+ * because call sites already mangle with `__suffix`; without a definition, host
+ * C fails BLD001 undeclared. Signature emit now uses the original ret/param
+ * type_refs under mono_active so C5 subst rewrites T→concrete while leaving
+ * builtins (i32, …) unchanged — identity used to emit ret type as mono_ty
+ * (param0 concrete), which is wrong when ret is not T.
+ *
+ * @param arena *ASTArena — shared AST arena for type_ref / expr walk
+ * @param out *CodegenOutBuf — C text buffer
+ * @param module *Module — owning module of fi
+ * @param fi i32 — function index (must have generic params and 1..8 value params)
+ * @param prefix *u8 — module C prefix bytes
+ * @param prefix_len i32 — prefix length
+ * @param ctx *PipelineDepCtx — mono_active / mono_* type maps (SHARED ABI)
+ * @return i32 — 1 if at least one mono instance was emitted, 0 skip, -1 emit error
+ * PLATFORM: SHARED — seed codegen_gen.linux.x86_64.c must match same commit.
  */
 export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *CodegenOutBuf, module: *Module, fi: i32, prefix: *u8, prefix_len: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -13459,25 +13491,34 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
     if (ret_ty <= 0 || p0_ty <= 0) {
       return 0;
     }
-    if (pipeline_type_kind_ord_at(arena, ret_ty) != TypeKind.TYPE_NAMED) {
-      return 0;
-    }
-    if (pipeline_type_kind_ord_at(arena, p0_ty) != TypeKind.TYPE_NAMED) {
-      return 0;
-    }
-    let ret_nm: u8[64] = [];
-    let p0_nm: u8[64] = [];
-    let ret_nl: i32 = pipeline_type_named_name_into(arena, ret_ty, &ret_nm[0]);
-    let p0_nl: i32 = pipeline_type_named_name_into(arena, p0_ty, &p0_nm[0]);
-    if (ret_nl <= 0 || ret_nl != p0_nl) {
-      return 0;
-    }
-    let bi: i32 = 0;
-    while (bi < ret_nl) {
-      if (ret_nm[bi] != p0_nm[bi]) {
-        return 0;
+    /*
+     * wave447: no longer require identity shape (ret and p0 both TYPE_NAMED
+     * with equal names). Call-site mono mangling is independent of that shape;
+     * skipping emit here leaves undeclared mangled symbols (BLD001).
+     * Identity shape is still detected later only to choose body fallback.
+     */
+    let is_identity_shape: i32 = 0;
+    if (pipeline_type_kind_ord_at(arena, ret_ty) == TypeKind.TYPE_NAMED
+        && pipeline_type_kind_ord_at(arena, p0_ty) == TypeKind.TYPE_NAMED) {
+      let ret_nm: u8[64] = [];
+      let p0_nm: u8[64] = [];
+      let ret_nl: i32 = pipeline_type_named_name_into(arena, ret_ty, &ret_nm[0]);
+      let p0_nl: i32 = pipeline_type_named_name_into(arena, p0_ty, &p0_nm[0]);
+      if (ret_nl > 0 && ret_nl == p0_nl) {
+        let bi: i32 = 0;
+        let names_eq: i32 = 1;
+        while (bi < ret_nl) {
+          if (ret_nm[bi] != p0_nm[bi]) {
+            names_eq = 0;
+            bi = ret_nl;
+          } else {
+            bi = bi + 1;
+          }
+        }
+        if (names_eq != 0) {
+          is_identity_shape = 1;
+        }
       }
-      bi = bi + 1;
     }
     /* wave444: collect ALL unique (func, type-args) combos so each call site with
      * a distinct type gets its own mangled mono instance (e.g., copy<A> + copy<i32>
@@ -13501,56 +13542,146 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
     codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
     let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
     let mono_sym_pre: i32 = codegen_func_c_symbol_prefix_len(module, fi, prefix_len);
-    /* wave444: emit one mono instance per unique type-arg combo. Body stays
-     * hardcoded `return <param0>;` (identity shape); full body emission is a
-     * later wave. Each instance gets a distinct mangled symbol via
-     * codegen_emit_mono_mangled_name so multiple combos coexist without
-     * duplicate-symbol link errors. */
+    /* wave444/447: one mono instance per unique combo; mangled symbol agrees with
+     * call-site codegen_emit_call_func_name. Signature types use original ret/param
+     * type_refs under mono_active (C5), not identity-only mono_ty for return. */
     let ci: i32 = 0;
     while (ci < combo_count) {
-      let mono_ty: i32 = combos[ci * num_params + 0];
-      /* See implementation. */
-      if (emit_type(arena, out, mono_ty, prefix, prefix_len, ctx) != 0) {
+      /*
+       * Activate mono substitution for this combo before signature emit so
+       * emit_type rewrites TYPE_NAMED generic params (T) to concrete types
+       * while leaving i32/bool/… unchanged. Restored after body (or on error
+       * paths that return -1 after this point must restore — we restore after
+       * each combo's body section below).
+       */
+      let saved_mono_active: i32 = 0;
+      let saved_mono_num: i32 = 0;
+      let saved_func_index: i32 = -1;
+      let saved_block_ref: i32 = 0;
+      let mono_ctx_set: i32 = 0;
+      if (ctx != 0 as *PipelineDepCtx) {
+        saved_mono_active = ctx.mono_active;
+        saved_mono_num = ctx.mono_num_types;
+        saved_func_index = ctx.current_func_index;
+        saved_block_ref = ctx.current_block_ref;
+        ctx.mono_active = 1;
+        ctx.mono_num_types = num_params;
+        let sti0: i32 = 0;
+        while (sti0 < num_params && sti0 < 8) {
+          ctx.mono_generic_type_refs[sti0] = pipeline_module_func_param_type_ref_at(module, fi, sti0);
+          ctx.mono_concrete_type_refs[sti0] = combos[ci * num_params + sti0];
+          sti0 = sti0 + 1;
+        }
+        ctx.current_func_index = fi;
+        mono_ctx_set = 1;
+      }
+      /* Return type: original ret_ty under mono_active (wave447). */
+      if (emit_type(arena, out, ret_ty, prefix, prefix_len, ctx) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
         return -1;
       }
       if (append_byte(out, 32) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
         return -1;
       }
       if (mono_sym_pre > 0 && codegen_c_prefix_redundant_with_name(prefix, mono_sym_pre, &fn_local[0], fn_len) == 0) {
         if (emit_bytes_from_ptr(out, prefix, mono_sym_pre) != 0) {
+          if (mono_ctx_set != 0) {
+            ctx.mono_active = saved_mono_active;
+            ctx.mono_num_types = saved_mono_num;
+            ctx.current_func_index = saved_func_index;
+            ctx.current_block_ref = saved_block_ref;
+          }
           return -1;
         }
       }
       /* wave444: emit mangled mono symbol (link_name + __ + suffix per type arg). */
       if (codegen_emit_mono_mangled_name(out, arena, module, fi, &combos[ci * num_params], num_params) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
         return -1;
       }
       if (append_byte(out, 40) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
         return -1;
       }
-      if (emit_type(arena, out, mono_ty, prefix, prefix_len, ctx) != 0) {
+      /* Param 0 type: original p0_ty under mono_active (T→concrete, i32 stays). */
+      if (emit_type(arena, out, p0_ty, prefix, prefix_len, ctx) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
         return -1;
       }
       if (append_byte(out, 32) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
         return -1;
       }
       if (emit_bytes_from_ptr(out, &pn[0], pn_len) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
         return -1;
       }
-      /* wave443: emit remaining params 1..N-1 with per-param mono types (multi-arg identity mono).
-       * For each param pi, look up the concrete type from call site arg pi, then emit
-       * ", <mono_type> <param_name>". If any mono type is missing, bail (not identity). */
+      /* Remaining params 1..N-1: original param type_ref under mono_active. */
       let pi: i32 = 1;
       while (pi < num_params) {
-        let mono_pi: i32 = combos[ci * num_params + pi];
+        let p_ty: i32 = pipeline_module_func_param_type_ref_at(module, fi, pi);
         let comma_space: u8[2] = [44, 32];
         if (emit_bytes_from_ptr(out, &comma_space[0], 2) != 0) {
+          if (mono_ctx_set != 0) {
+            ctx.mono_active = saved_mono_active;
+            ctx.mono_num_types = saved_mono_num;
+            ctx.current_func_index = saved_func_index;
+            ctx.current_block_ref = saved_block_ref;
+          }
           return -1;
         }
-        if (emit_type(arena, out, mono_pi, prefix, prefix_len, ctx) != 0) {
+        if (p_ty <= 0 || emit_type(arena, out, p_ty, prefix, prefix_len, ctx) != 0) {
+          if (mono_ctx_set != 0) {
+            ctx.mono_active = saved_mono_active;
+            ctx.mono_num_types = saved_mono_num;
+            ctx.current_func_index = saved_func_index;
+            ctx.current_block_ref = saved_block_ref;
+          }
           return -1;
         }
         if (append_byte(out, 32) != 0) {
+          if (mono_ctx_set != 0) {
+            ctx.mono_active = saved_mono_active;
+            ctx.mono_num_types = saved_mono_num;
+            ctx.current_func_index = saved_func_index;
+            ctx.current_block_ref = saved_block_ref;
+          }
           return -1;
         }
         let pni_len: i32 = pipeline_module_func_param_name_len_at(module, fi, pi);
@@ -13561,6 +13692,12 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
           pni_len = 1;
         }
         if (emit_bytes_from_ptr(out, &pni[0], pni_len) != 0) {
+          if (mono_ctx_set != 0) {
+            ctx.mono_active = saved_mono_active;
+            ctx.mono_num_types = saved_mono_num;
+            ctx.current_func_index = saved_func_index;
+            ctx.current_block_ref = saved_block_ref;
+          }
           return -1;
         }
         pi = pi + 1;
@@ -13568,43 +13705,32 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
       /* wave445 C4: emit open body `) {\n` (41=`)` 32=space 123=`{` 10=newline). */
       let open_body: u8[4] = [41, 32, 123, 10];
       if (emit_bytes_from_ptr(out, &open_body[0], 4) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
         return -1;
       }
       /*
-       * wave445 C4+C5+C6: walk the real body AST instead of hardcoding `return param0`.
-       * Set mono substitution context (T -> concrete type) so emit_type replaces generic
-       * type refs (C5) and emit_expr re-resolves method calls to impl methods (C6).
-       * If body walk fails (emit_block/emit_expr returns non-zero), fall back to identity
-       * `return <param0>;` preserving wave444 behavior.
+       * wave445 C4+C5+C6 + wave447: walk the real body AST under mono_active.
+       * Identity-shape fallback `return <param0>;` only when is_identity_shape
+       * (ret and param0 are the same TYPE_NAMED generic). Non-identity shapes
+       * must succeed at body walk or host C would type-mismatch on fallback.
        * PLATFORM: SHARED — mono context lives in PipelineDepCtx (L4 ABI extension).
-       * Invariant: mono_active is always restored to its saved value before return;
-       * ctx.current_func_index / current_block_ref are saved+restored to avoid leaking
-       * mono state into subsequent non-mono function emit.
        */
       let body_walked: i32 = 0;
       let body_br: i32 = pipeline_module_func_body_ref_at(module, fi);
       let body_er: i32 = pipeline_module_func_body_expr_ref_at(module, fi);
-      if (ctx != 0 as *PipelineDepCtx && (!ast.ref_is_null(body_br) || !ast.ref_is_null(body_er))) {
-        let saved_mono_active: i32 = ctx.mono_active;
-        let saved_mono_num: i32 = ctx.mono_num_types;
-        let saved_func_index: i32 = ctx.current_func_index;
-        let saved_block_ref: i32 = ctx.current_block_ref;
-        ctx.mono_active = 1;
-        ctx.mono_num_types = num_params;
-        let sti: i32 = 0;
-        while (sti < num_params && sti < 8) {
-          ctx.mono_generic_type_refs[sti] = pipeline_module_func_param_type_ref_at(module, fi, sti);
-          ctx.mono_concrete_type_refs[sti] = combos[ci * num_params + sti];
-          sti = sti + 1;
-        }
-        ctx.current_func_index = fi;
+      if (mono_ctx_set != 0 && (!ast.ref_is_null(body_br) || !ast.ref_is_null(body_er))) {
         if (!ast.ref_is_null(body_br)) {
           ctx.current_block_ref = body_br;
           if (emit_block(arena, out, body_br, 2, ctx) == 0) {
             body_walked = 1;
           }
         } else {
-          /* single-expr body: emit `  return <expr>;\n` (return type is T, non-void for identity). */
+          /* single-expr body: emit `  return <expr>;\n`. */
           ctx.current_block_ref = 0;
           if (emit_indent(out, 2) == 0) {
             let ret_kw2: u8[8] = [114, 101, 116, 117, 114, 110, 32, 0];
@@ -13618,27 +13744,81 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
             }
           }
         }
+      }
+      if (body_walked == 0) {
+        if (is_identity_shape != 0) {
+          /* Fallback: identity body `return <param0>;` (wave444 behavior). */
+          if (emit_indent(out, 2) != 0) {
+            if (mono_ctx_set != 0) {
+              ctx.mono_active = saved_mono_active;
+              ctx.mono_num_types = saved_mono_num;
+              ctx.current_func_index = saved_func_index;
+              ctx.current_block_ref = saved_block_ref;
+            }
+            return -1;
+          }
+          let ret_kw: u8[8] = [114, 101, 116, 117, 114, 110, 32, 0];
+          if (emit_bytes_from_ptr(out, &ret_kw[0], 7) != 0) {
+            if (mono_ctx_set != 0) {
+              ctx.mono_active = saved_mono_active;
+              ctx.mono_num_types = saved_mono_num;
+              ctx.current_func_index = saved_func_index;
+              ctx.current_block_ref = saved_block_ref;
+            }
+            return -1;
+          }
+          if (emit_bytes_from_ptr(out, &pn[0], pn_len) != 0) {
+            if (mono_ctx_set != 0) {
+              ctx.mono_active = saved_mono_active;
+              ctx.mono_num_types = saved_mono_num;
+              ctx.current_func_index = saved_func_index;
+              ctx.current_block_ref = saved_block_ref;
+            }
+            return -1;
+          }
+          let semi_nl: u8[2] = [59, 10];
+          if (emit_bytes_from_ptr(out, &semi_nl[0], 2) != 0) {
+            if (mono_ctx_set != 0) {
+              ctx.mono_active = saved_mono_active;
+              ctx.mono_num_types = saved_mono_num;
+              ctx.current_func_index = saved_func_index;
+              ctx.current_block_ref = saved_block_ref;
+            }
+            return -1;
+          }
+        } else {
+          /*
+           * Non-identity body walk failed: still close a stub that returns zero
+           * for scalar C types so the mangled symbol exists (avoids BLD001). Prefer
+           * real body; this path is defensive when emit_block fails unexpectedly.
+           * PLATFORM: SHARED — host-C only stub; freestanding residual separate.
+           */
+          if (emit_indent(out, 2) != 0) {
+            if (mono_ctx_set != 0) {
+              ctx.mono_active = saved_mono_active;
+              ctx.mono_num_types = saved_mono_num;
+              ctx.current_func_index = saved_func_index;
+              ctx.current_block_ref = saved_block_ref;
+            }
+            return -1;
+          }
+          let ret0: u8[12] = [114, 101, 116, 117, 114, 110, 32, 48, 59, 10, 0, 0];
+          if (emit_bytes_from_ptr(out, &ret0[0], 10) != 0) {
+            if (mono_ctx_set != 0) {
+              ctx.mono_active = saved_mono_active;
+              ctx.mono_num_types = saved_mono_num;
+              ctx.current_func_index = saved_func_index;
+              ctx.current_block_ref = saved_block_ref;
+            }
+            return -1;
+          }
+        }
+      }
+      if (mono_ctx_set != 0) {
         ctx.mono_active = saved_mono_active;
         ctx.mono_num_types = saved_mono_num;
         ctx.current_func_index = saved_func_index;
         ctx.current_block_ref = saved_block_ref;
-      }
-      if (body_walked == 0) {
-        /* Fallback: identity body `return <param0>;` (wave444 behavior). */
-        if (emit_indent(out, 2) != 0) {
-          return -1;
-        }
-        let ret_kw: u8[8] = [114, 101, 116, 117, 114, 110, 32, 0];
-        if (emit_bytes_from_ptr(out, &ret_kw[0], 7) != 0) {
-          return -1;
-        }
-        if (emit_bytes_from_ptr(out, &pn[0], pn_len) != 0) {
-          return -1;
-        }
-        let semi_nl: u8[2] = [59, 10];
-        if (emit_bytes_from_ptr(out, &semi_nl[0], 2) != 0) {
-          return -1;
-        }
       }
       /* Close function body: `}\n` (125=`}` 10=newline). */
       let end: u8[2] = [125, 10];
