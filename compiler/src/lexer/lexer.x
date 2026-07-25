@@ -1615,7 +1615,7 @@ export function match_keyword_buf(data: *u8, data_len: i32, start: usize, len: i
  * TOKEN_IDENT (ident null, ident_len = len) when not a keyword.
  *
  * kind fields use TokenKind ordinal integers (see token.x export enum order:
- * 0=TOKEN_EOF, 1=TOKEN_FUNCTION, …). Direct `kind: token.TokenKind.VARIANT`
+ * 0=TOKEN_EOF, 1=TOKEN_FUNCTION, ...). Direct `kind: token.TokenKind.VARIANT`
  * inside `token.Token { ... }` still hits a codegen residual (entry emission
  * -6); ordinals are the product-safe form and match the cold seed C
  * (token_TokenKind_TOKEN_* tags). Comparisons elsewhere may use the same
@@ -1630,7 +1630,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 3 && match_keyword(data, start, 3, [108, 101, 116])) {
@@ -1642,7 +1642,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 5 && match_keyword(data, start, 5, [99, 111, 110, 115, 116])) {
@@ -1654,7 +1654,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 2 && match_keyword(data, start, 2, [105, 102])) {
@@ -1666,7 +1666,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 4 && match_keyword(data, start, 4, [101, 108, 115, 101])) {
@@ -1678,7 +1678,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 5 && match_keyword(data, start, 5, [119, 104, 105, 108, 101])) {
@@ -1690,7 +1690,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 4 && match_keyword(data, start, 4, [108, 111, 111, 112])) {
@@ -1702,7 +1702,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 3 && match_keyword(data, start, 3, [102, 111, 114])) {
@@ -1714,7 +1714,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 5 && match_keyword(data, start, 5, [98, 114, 101, 97, 107])) {
@@ -1726,7 +1726,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 8 && match_keyword(data, start, 8, [99, 111, 110, 116, 105, 110, 117, 101])) {
@@ -1738,7 +1738,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 6 && match_keyword(data, start, 6, [114, 101, 116, 117, 114, 110])) {
@@ -1750,7 +1750,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 5 && match_keyword(data, start, 5, [112, 97, 110, 105, 99])) {
@@ -1762,7 +1762,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 5 && match_keyword(data, start, 5, [100, 101, 102, 101, 114])) {
@@ -1774,7 +1774,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 6 && match_keyword(data, start, 6, [114, 101, 103, 105, 111, 110])) {
@@ -1786,7 +1786,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 10 && match_keyword(data, start, 10, [119, 105, 116, 104, 95, 97, 114, 101, 110, 97])) {
@@ -1798,7 +1798,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 5 && match_keyword(data, start, 5, [109, 97, 116, 99, 104])) {
@@ -1810,7 +1810,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 6 && match_keyword(data, start, 6, [115, 116, 114, 117, 99, 116])) {
@@ -1822,7 +1822,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 4 && match_keyword(data, start, 4, [116, 121, 112, 101])) {
@@ -1834,7 +1834,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 6 && match_keyword(data, start, 6, [112, 97, 99, 107, 101, 100])) {
@@ -1846,7 +1846,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 3 && match_keyword(data, start, 3, [115, 111, 97])) {
@@ -1858,7 +1858,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 5 && match_keyword(data, start, 5, [97, 108, 105, 103, 110])) {
@@ -1870,7 +1870,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 4 && match_keyword(data, start, 4, [101, 110, 117, 109])) {
@@ -1882,7 +1882,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 4 && match_keyword(data, start, 4, [103, 111, 116, 111])) {
@@ -1894,7 +1894,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 5 && match_keyword(data, start, 5, [116, 114, 97, 105, 116])) {
@@ -1906,7 +1906,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 4 && match_keyword(data, start, 4, [105, 109, 112, 108])) {
@@ -1918,7 +1918,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 4 && match_keyword(data, start, 4, [115, 101, 108, 102])) {
@@ -1930,7 +1930,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 1 && data[start] == 95) {
@@ -1942,7 +1942,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 6 && match_keyword(data, start, 6, [105, 109, 112, 111, 114, 116])) {
@@ -1954,7 +1954,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 6 && match_keyword(data, start, 6, [101, 120, 116, 101, 114, 110])) {
@@ -1966,7 +1966,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 5 && match_keyword(data, start, 5, [97, 115, 121, 110, 99])) {
@@ -1978,7 +1978,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 5 && match_keyword(data, start, 5, [97, 119, 97, 105, 116])) {
@@ -1990,7 +1990,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 3 && match_keyword(data, start, 3, [114, 117, 110])) {
@@ -2002,7 +2002,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 5 && match_keyword(data, start, 5, [115, 112, 97, 119, 110])) {
@@ -2014,7 +2014,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   /** export：e x p o r t */
@@ -2027,7 +2027,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 3 && match_keyword(data, start, 3, [105, 51, 50])) {
@@ -2039,7 +2039,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 4 && match_keyword(data, start, 4, [98, 111, 111, 108])) {
@@ -2051,7 +2051,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 2 && match_keyword(data, start, 2, [117, 56])) {
@@ -2063,7 +2063,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 3 && match_keyword(data, start, 3, [117, 51, 50])) {
@@ -2075,7 +2075,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 3 && match_keyword(data, start, 3, [117, 54, 52])) {
@@ -2087,7 +2087,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 3 && match_keyword(data, start, 3, [105, 54, 52])) {
@@ -2099,7 +2099,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 5 && match_keyword(data, start, 5, [117, 115, 105, 122, 101])) {
@@ -2111,7 +2111,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 5 && match_keyword(data, start, 5, [105, 115, 105, 122, 101])) {
@@ -2123,7 +2123,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 4 && match_keyword(data, start, 4, [116, 114, 117, 101])) {
@@ -2135,7 +2135,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 5 && match_keyword(data, start, 5, [102, 97, 108, 115, 101])) {
@@ -2147,7 +2147,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 3 && match_keyword(data, start, 3, [102, 51, 50])) {
@@ -2159,7 +2159,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 3 && match_keyword(data, start, 3, [102, 54, 52])) {
@@ -2171,7 +2171,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 4 && match_keyword(data, start, 4, [118, 111, 105, 100])) {
@@ -2183,7 +2183,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 5 && match_keyword(data, start, 5, [105, 51, 120, 52])) {
@@ -2195,7 +2195,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 5 && match_keyword(data, start, 5, [105, 51, 120, 56])) {
@@ -2207,7 +2207,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 6 && match_keyword(data, start, 6, [105, 51, 120, 49, 54])) {
@@ -2219,7 +2219,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 5 && match_keyword(data, start, 5, [117, 51, 120, 52])) {
@@ -2231,7 +2231,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 5 && match_keyword(data, start, 5, [117, 51, 120, 56])) {
@@ -2243,7 +2243,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 6 && match_keyword(data, start, 6, [117, 51, 120, 49, 54])) {
@@ -2255,7 +2255,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   if (len == 2 && match_keyword(data, start, 2, [97, 115])) {
@@ -2267,7 +2267,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return t;
   }
   // wave284 Cap residual: AST name slots cap 63; long idents hard-fail L012 (not silent clamp / XP003).
@@ -2281,8 +2281,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
     int_val: 0,
     float_val: 0.0,
     ident: 0,
-    ident_len: len
-  }
+    ident_len: len };
   return t;
 }
 
@@ -2292,142 +2291,142 @@ i32): token.Token {
   if (len == 8 && match_keyword_buf(data, data_len, start, 8, [102, 117, 110, 99, 116, 105, 111,
   110])) {
     let t: token.Token = token.Token { kind: 1, line: line0, col: col0, int_val: 0,
-      float_val: 0.0, ident: 0, ident_len: 0 }
+      float_val: 0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 3 && match_keyword_buf(data, data_len, start, 3, [108, 101, 116])) {
     let t: token.Token = token.Token { kind: 2, line: line0, col: col0, int_val: 0,
-      float_val: 0.0, ident: 0, ident_len: 0 }
+      float_val: 0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 5 && match_keyword_buf(data, data_len, start, 5, [99, 111, 110, 115, 116])) {
     let t: token.Token = token.Token { kind: 3, line: line0, col: col0, int_val: 0,
-      float_val: 0.0, ident: 0, ident_len: 0 }
+      float_val: 0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 2 && match_keyword_buf(data, data_len, start, 2, [105, 102])) {
     let t: token.Token = token.Token { kind: 4, line: line0, col: col0, int_val: 0, float_val:
-      0.0, ident: 0, ident_len: 0 }
+      0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 4 && match_keyword_buf(data, data_len, start, 4, [101, 108, 115, 101])) {
     let t: token.Token = token.Token { kind: 5, line: line0, col: col0, int_val: 0,
-      float_val: 0.0, ident: 0, ident_len: 0 }
+      float_val: 0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 6 && match_keyword_buf(data, data_len, start, 6, [114, 101, 116, 117, 114, 110])) {
     let t: token.Token = token.Token { kind: 11, line: line0, col: col0, int_val: 0,
-      float_val: 0.0, ident: 0, ident_len: 0 }
+      float_val: 0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 6 && match_keyword_buf(data, data_len, start, 6, [115, 116, 114, 117, 99, 116])) {
     let t: token.Token = token.Token { kind: 19, line: line0, col: col0, int_val: 0,
-      float_val: 0.0, ident: 0, ident_len: 0 }
+      float_val: 0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 4 && match_keyword_buf(data, data_len, start, 4, [116, 121, 112, 101])) {
     let t: token.Token = token.Token { kind: 20, line: line0, col: col0, int_val: 0,
-      float_val: 0.0, ident: 0, ident_len: 0 }
+      float_val: 0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 4 && match_keyword_buf(data, data_len, start, 4, [101, 110, 117, 109])) {
     let t: token.Token = token.Token { kind: 47, line: line0, col: col0, int_val: 0,
-      float_val: 0.0, ident: 0, ident_len: 0 }
+      float_val: 0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 5 && match_keyword_buf(data, data_len, start, 5, [109, 97, 116, 99, 104])) {
     let t: token.Token = token.Token { kind: 18, line: line0, col: col0, int_val: 0,
-      float_val: 0.0, ident: 0, ident_len: 0 }
+      float_val: 0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 4 && match_keyword_buf(data, data_len, start, 4, [116, 114, 117, 101])) {
     let t: token.Token = token.Token { kind: 75, line: line0, col: col0, int_val: 0,
-      float_val: 0.0, ident: 0, ident_len: 0 }
+      float_val: 0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 5 && match_keyword_buf(data, data_len, start, 5, [102, 97, 108, 115, 101])) {
     let t: token.Token = token.Token { kind: 76, line: line0, col: col0, int_val: 0,
-      float_val: 0.0, ident: 0, ident_len: 0 }
+      float_val: 0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 3 && match_keyword_buf(data, data_len, start, 3, [102, 54, 52])) {
     let t: token.Token = token.Token { kind: 78, line: line0, col: col0, int_val: 0,
-      float_val: 0.0, ident: 0, ident_len: 0 }
+      float_val: 0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 4 && match_keyword_buf(data, data_len, start, 4, [118, 111, 105, 100])) {
     let t: token.Token = token.Token { kind: 79, line: line0, col: col0, int_val: 0,
-      float_val: 0.0, ident: 0, ident_len: 0 }
+      float_val: 0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 3 && match_keyword_buf(data, data_len, start, 3, [105, 51, 50])) {
     let t: token.Token = token.Token { kind: 60, line: line0, col: col0, int_val: 0,
-      float_val: 0.0, ident: 0, ident_len: 0 }
+      float_val: 0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 4 && match_keyword_buf(data, data_len, start, 4, [98, 111, 111, 108])) {
     let t: token.Token = token.Token { kind: 61, line: line0, col: col0, int_val: 0,
-      float_val: 0.0, ident: 0, ident_len: 0 }
+      float_val: 0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 2 && match_keyword_buf(data, data_len, start, 2, [117, 56])) {
     let t: token.Token = token.Token { kind: 62, line: line0, col: col0, int_val: 0, float_val:
-      0.0, ident: 0, ident_len: 0 }
+      0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 5 && match_keyword_buf(data, data_len, start, 5, [117, 115, 105, 122, 101])) {
     let t: token.Token = token.Token { kind: 66, line: line0, col: col0, int_val: 0,
-      float_val: 0.0, ident: 0, ident_len: 0 }
+      float_val: 0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 5 && match_keyword_buf(data, data_len, start, 5, [105, 115, 105, 122, 101])) {
     let t: token.Token = token.Token { kind: 67, line: line0, col: col0, int_val: 0,
-      float_val: 0.0, ident: 0, ident_len: 0 }
+      float_val: 0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 2 && match_keyword_buf(data, data_len, start, 2, [97, 115])) {
     let t: token.Token = token.Token { kind: 128, line: line0, col: col0, int_val: 0, float_val:
-      0.0, ident: 0, ident_len: 0 }
+      0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 6 && match_keyword_buf(data, data_len, start, 6, [105, 109, 112, 111, 114, 116])) {
     let t: token.Token = token.Token { kind: 53, line: line0, col: col0, int_val: 0,
-      float_val: 0.0, ident: 0, ident_len: 0 }
+      float_val: 0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 6 && match_keyword_buf(data, data_len, start, 6, [101, 120, 116, 101, 114, 110])) {
     let t: token.Token = token.Token { kind: 54, line: line0, col: col0, int_val: 0,
-      float_val: 0.0, ident: 0, ident_len: 0 }
+      float_val: 0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 5 && match_keyword_buf(data, data_len, start, 5, [97, 115, 121, 110, 99])) {
     let t: token.Token = token.Token { kind: 55, line: line0, col: col0, int_val: 0,
-      float_val: 0.0, ident: 0, ident_len: 0 }
+      float_val: 0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 5 && match_keyword_buf(data, data_len, start, 5, [97, 119, 97, 105, 116])) {
     let t: token.Token = token.Token { kind: 56, line: line0, col: col0, int_val: 0,
-      float_val: 0.0, ident: 0, ident_len: 0 }
+      float_val: 0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 3 && match_keyword_buf(data, data_len, start, 3, [114, 117, 110])) {
     let t: token.Token = token.Token { kind: 57, line: line0, col: col0, int_val: 0,
-      float_val: 0.0, ident: 0, ident_len: 0 }
+      float_val: 0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 5 && match_keyword_buf(data, data_len, start, 5, [115, 112, 97, 119, 110])) {
     let t: token.Token = token.Token { kind: 58, line: line0, col: col0, int_val: 0,
-      float_val: 0.0, ident: 0, ident_len: 0 }
+      float_val: 0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 6 && match_keyword_buf(data, data_len, start, 6, [101, 120, 112, 111, 114, 116])) {
     let t: token.Token = token.Token { kind: 131, line: line0, col: col0, int_val: 0,
-      float_val: 0.0, ident: 0, ident_len: 0 }
+      float_val: 0.0, ident: 0, ident_len: 0 };
     return t;
   }
   if (len == 1 && start < (data_len as usize) && data[start] == 95) {
     let t: token.Token = token.Token { kind: 52, line: line0, col: col0, int_val: 0,
-      float_val: 0.0, ident: 0, ident_len: 0 }
+      float_val: 0.0, ident: 0, ident_len: 0 };
     return t;
   }
   // wave284 Cap residual: G.7 mirror try_keyword — L012 when non-keyword span > 63.
@@ -2435,7 +2434,7 @@ i32): token.Token {
     lexer_note_ident_too_long(line0, col0);
   }
   let t: token.Token = token.Token { kind: 59, line: line0, col: col0, int_val: 0,
-    float_val: 0.0, ident: 0, ident_len: len }
+    float_val: 0.0, ident: 0, ident_len: len };
   return t;
 }
 
@@ -2877,7 +2876,7 @@ export function lexer_try_sync_attr_into(out: *LexerResult, l: Lexer, data: u8[]
 /**
  * Whether `prev` continues a path/ident so an interior `/`+`*` is a path glob
  * (e.g. `src/*.x`, `arrow}/*.o`), not a nested block-comment opener.
- * @param prev u8 — byte immediately before a candidate `/` of `/*`
+ * @param prev u8 — byte immediately before a candidate slash of the nest-open sequence
  * @return i32 — 1 if path/ident continuum (suppress nest-open), else 0
  * PLATFORM: SHARED
  */
@@ -2931,20 +2930,22 @@ function lexer_block_comment_prev_is_path_like(prev: u8): i32 {
 /**
  * Skip whitespace and comments from the current lexer position.
  *
- * Line comments: `//` to end of line, and bare `#` lines (not `#[` attrs).
- * Block comments (single-line and multi-line — one algorithm): nested `/* ... */`
- * by head/tail depth balance (not C first-close):
- *   - outer `/*` sets depth=1; each true nest-open `/*` does depth+1;
- *   - each `*/` does depth-1; the block ends only when depth returns to 0.
- * Examples (all valid on one line):
- *   `/* xxx /* xxx */ xxx */`, `/* /* */ */`, `/**/`, dense `/*/*inner*/*/`.
- * Unbalanced `/* /* */` alone leaves depth>0 (unclosed) — need a second `*/`.
+ * Line comments: double-slash to end of line, and bare hash lines (not hash-bracket attrs).
+ * Block comments (single-line and multi-line — one algorithm): nested block-comment
+ * delimiters by head/tail depth balance (not C first-close). Below, OPEN means the
+ * two-byte nest-open sequence (slash immediately followed by star) and CLOSE means
+ * the two-byte nest-close sequence (star immediately followed by slash):
+ *   - the outer OPEN sets depth=1; each true nest-OPEN does depth+1;
+ *   - each CLOSE does depth-1; the block ends only when depth returns to 0.
+ * Examples (all valid on one line): OPEN-body-CLOSE, OPEN-OPEN-CLOSE-CLOSE,
+ * empty OPEN-CLOSE, and dense OPEN-OPEN-...-CLOSE-CLOSE nests.
+ * Unbalanced OPENs alone leave depth>0 (unclosed) — need matching CLOSEs.
  *
  * Nest-open is path-safe (wave138 root fix):
- * - Intentional nests still open: space/`*` before `/*`, prose `/**/`, dense nests.
- * - Path globs do NOT open: `src/*.x`, `std/*.o`, `std/db/{kv,arrow}/*.o`,
- *   line-start `/*.o` (prev path-like, or next byte after `/*` is `.`).
- * Unmatched bare `*/` with no nested open still closes the outer block (depth 1 → 0).
+ * - Intentional nests still open: space or star before OPEN, prose empties, dense nests.
+ * - Path globs do NOT open: path-slash-star-ext, dir-slash-star-ext, brace-slash-star-ext,
+ *   line-start slash-star-dot-ext (prev path-like, or next byte after OPEN is dot).
+ * Unmatched bare CLOSE with no nested open still closes the outer block (depth 1 to 0).
  *
  * wave269: EOF with nesting depth > 0 is a hard diagnostic (L001 unclosed block
  * comment) at the outermost open site; sticky flag forces product parse fail.
@@ -3062,7 +3063,7 @@ export function lexer_next(lex: Lexer, data: u8[]): LexerResult {
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return LexerResult { next_lex: l, tok: t, token_start: (0 as usize) }
   }
   if (data[l.pos] == 0) {
@@ -3074,7 +3075,7 @@ export function lexer_next(lex: Lexer, data: u8[]): LexerResult {
       float_val: 0.0,
       ident: 0,
       ident_len: 0
-    }
+    };
     return LexerResult { next_lex: l, tok: t, token_start: (0 as usize) }
   }
   /* See implementation. */
@@ -4468,7 +4469,7 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
   let col0: i32 = l.col;
   l = advance_one(l, c);
   let tok: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
-    float_val: 0.0, ident: 0, ident_len: 0 }
+    float_val: 0.0, ident: 0, ident_len: 0 };
   if (c == 40) { tok.kind = 82; return LexerResult { next_lex: l, tok: tok,
       token_start: start } };
   if (c == 41) { tok.kind = 83; return LexerResult { next_lex: l, tok: tok,
