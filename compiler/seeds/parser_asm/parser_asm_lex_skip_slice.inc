@@ -230,14 +230,56 @@ void parser_asm_skip_balanced_braces_into_buf_c(struct parser_asm_lexer *out, st
 
 /* extracted lines 4504-4625 */
 /**
- * 跳过 `<T>` / `<T,E,...>` 泛型实参/形参列表（含嵌套 `<>`）；失败时 out 保持 lex。
+ * Tokens that cannot appear inside a type-argument list `<...>` at any depth.
+ * PLATFORM: SHARED — used by both skip helpers below.
+ *
+ * wave446 root fix: without this gate, skip_generic_angle_list is greedy across
+ * statement boundaries. Example false positive:
+ *   if (pos < n) { return 1; }
+ *   if (pos > (0 as usize)) { return 2; }
+ * The suffix loop on primary `pos` sees `<`, then skip walks all the way to the
+ * later `>` of `pos > (`, sees following `(`, and treats the span as
+ * `pos<...>(...)` generic CALL. The if condition becomes CALL/ADD with no
+ * resolved type → typeck "if condition must be bool".
+ *
+ * Abort on braces / semicolon / statement keywords so the primary LT branch
+ * falls back to relcompare (true `<` comparison).
+ */
+static int parser_asm_angle_list_token_is_stmt_boundary_c(int32_t k) {
+  if (k == (int32_t)TOKEN_LBRACE || k == (int32_t)TOKEN_RBRACE)
+    return 1;
+  if (k == (int32_t)TOKEN_SEMICOLON)
+    return 1;
+  if (k == (int32_t)TOKEN_IF || k == (int32_t)TOKEN_ELSE || k == (int32_t)TOKEN_WHILE
+      || k == (int32_t)TOKEN_LOOP || k == (int32_t)TOKEN_FOR || k == (int32_t)TOKEN_MATCH)
+    return 1;
+  if (k == (int32_t)TOKEN_RETURN || k == (int32_t)TOKEN_LET || k == (int32_t)TOKEN_CONST
+      || k == (int32_t)TOKEN_BREAK || k == (int32_t)TOKEN_CONTINUE || k == (int32_t)TOKEN_GOTO)
+    return 1;
+  if (k == (int32_t)TOKEN_FUNCTION || k == (int32_t)TOKEN_STRUCT || k == (int32_t)TOKEN_ENUM
+      || k == (int32_t)TOKEN_TRAIT || k == (int32_t)TOKEN_IMPL || k == (int32_t)TOKEN_TYPE
+      || k == (int32_t)TOKEN_IMPORT || k == (int32_t)TOKEN_EXTERN || k == (int32_t)TOKEN_EXPORT)
+    return 1;
+  /* Bare `)` / relational ops at depth 1 are comparison / call context, not types.
+   * Nested type args never need these at the outer angle depth without closing `>`. */
+  return 0;
+}
+
+/**
+ * Skip `<T>` / `<T,E,...>` generic type-arg lists (nested `<>` ok).
+ * On success: *out is past the matching `>`.
+ * On failure (EOF / statement boundary): *out restored to input lex so caller
+ * leaves `<` for relcompare instead of inventing a generic CALL.
+ * PLATFORM: SHARED
  */
 void parser_asm_skip_generic_angle_list_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
                                                      struct parser_asm_slice_u8 *source) {
   struct parser_asm_lexer_result r;
+  struct parser_asm_lexer lex_start;
   int32_t depth;
   if (!out || !source)
     return;
+  lex_start = lex;
   depth = 0;
   for (;;) {
     lexer_next_into(&r, lex, source);
@@ -251,25 +293,35 @@ void parser_asm_skip_generic_angle_list_into_slice_c(struct parser_asm_lexer *ou
         out->col = r.next_lex.col;
         return;
       }
-    } else if (r.tok.kind == (int32_t)TOKEN_EOF) {
-      out->pos = lex.pos;
-      out->line = lex.line;
-      out->col = lex.col;
+    } else if (r.tok.kind == (int32_t)TOKEN_EOF
+               || parser_asm_angle_list_token_is_stmt_boundary_c(r.tok.kind)
+               || (depth == 1 && r.tok.kind == (int32_t)TOKEN_RPAREN)) {
+      /* Not a closed type-arg list — restore so primary falls back to LT compare. */
+      out->pos = lex_start.pos;
+      out->line = lex_start.line;
+      out->col = lex_start.col;
       return;
     }
     lex = r.next_lex;
   }
 }
 
+/**
+ * Same as skip_generic_angle_list_into, also counts top-level type args.
+ * On boundary abort: *out = input lex, *count = 0 (caller must not treat as generic).
+ * PLATFORM: SHARED — wave446 angle-list boundary gate (see sibling into_slice).
+ */
 void parser_asm_skip_generic_angle_list_count_into_slice_c(struct parser_asm_lexer *out, int32_t *count,
                                                            struct parser_asm_lexer lex,
                                                            struct parser_asm_slice_u8 *source) {
   struct parser_asm_lexer_result r;
+  struct parser_asm_lexer lex_start;
   int32_t depth;
   int32_t top_count;
   int32_t saw_any;
   if (!out || !count || !source)
     return;
+  lex_start = lex;
   depth = 0;
   top_count = 0;
   saw_any = 0;
@@ -289,10 +341,13 @@ void parser_asm_skip_generic_angle_list_count_into_slice_c(struct parser_asm_lex
     } else if (r.tok.kind == (int32_t)TOKEN_COMMA) {
       if (depth == 1)
         top_count++;
-    } else if (r.tok.kind == (int32_t)TOKEN_EOF) {
-      out->pos = lex.pos;
-      out->line = lex.line;
-      out->col = lex.col;
+    } else if (r.tok.kind == (int32_t)TOKEN_EOF
+               || parser_asm_angle_list_token_is_stmt_boundary_c(r.tok.kind)
+               || (depth == 1 && r.tok.kind == (int32_t)TOKEN_RPAREN)) {
+      out->pos = lex_start.pos;
+      out->line = lex_start.line;
+      out->col = lex_start.col;
+      *count = 0;
       return;
     } else {
       if (depth == 1)
