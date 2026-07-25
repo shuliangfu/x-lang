@@ -34120,6 +34120,95 @@ int32_t pipeline_typeck_check_extern_call_unsafe_boundary_c(struct ast_Module *m
   return -1;
 }
 
+/**
+ * wave448 Cap residual pure (XP003 leaf): try to infer omitted turbofish type
+ * args from value-argument resolved types.
+ *
+ * Why: product typeck historically hard-failed generic calls with
+ * `num_type_args == 0` via requires_type_args, even when every mono type is
+ * already available from typed value args (e.g. `id(a)` with `a: A` for
+ * `function id<T>(x: T): T`). Codegen mono already extracts combos from arg
+ * resolved types (wave443–447); typeck was the only gate still demanding
+ * explicit `<T>`.
+ *
+ * Algorithm (G.7 single authority for this gate):
+ *  1. Require nargs >= num_params and every arg has resolved_type_ref > 0.
+ *  2. Unify: if two formals share the same TYPE_NAMED name, their arg types
+ *     must be type_refs_equal (covers `absdiff<T>(x: T, y: T)`).
+ *  3. Success → allow omitted type args (return 0). Failure → -1 so the caller
+ *     still emits requires_type_args.
+ *
+ * Leave-off (soft, not this leaf): zero-arg generics (`default_T<T>()`),
+ * inference from expected return type alone, bound-check without turbofish
+ * source scan. PLATFORM: SHARED — rebuild pipeline_glue_standalone.o after edit.
+ */
+static int32_t pipeline_typeck_try_infer_generic_call_from_args_c(struct ast_Module *callee_mod,
+                                                                 struct ast_ASTArena *arena,
+                                                                 int32_t expr_ref, int32_t func_ix) {
+  int32_t np;
+  int32_t nargs;
+  int32_t i;
+  int32_t j;
+  int32_t ord_named;
+
+  if (!callee_mod || !arena || expr_ref <= 0 || func_ix < 0)
+    return -1;
+  np = pipeline_module_func_num_params_at(callee_mod, func_ix);
+  nargs = pipeline_expr_call_num_args_at(arena, expr_ref);
+  if (np <= 0 || nargs < np)
+    return -1;
+  ord_named = (int32_t)ast_TypeKind_TYPE_NAMED;
+  for (i = 0; i < np; i++) {
+    int32_t arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+    int32_t arg_ty;
+    if (arg_ref <= 0)
+      return -1;
+    arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+    if (arg_ty <= 0)
+      return -1;
+  }
+  /* Unify same-named TYPE_NAMED formals across value params. */
+  for (i = 0; i < np; i++) {
+    int32_t pi_ty = pipeline_module_func_param_type_ref_at(callee_mod, func_ix, i);
+    uint8_t pi_nm[64];
+    int32_t pi_nlen;
+    int32_t ai_ty;
+    if (pi_ty <= 0 || pipeline_type_kind_ord_at(arena, pi_ty) != ord_named)
+      continue;
+    pi_nlen = pipeline_type_named_name_into(arena, pi_ty, pi_nm);
+    if (pi_nlen <= 0)
+      continue;
+    ai_ty = pipeline_expr_resolved_type_ref(arena, pipeline_expr_call_arg_ref(arena, expr_ref, i));
+    for (j = i + 1; j < np; j++) {
+      int32_t pj_ty = pipeline_module_func_param_type_ref_at(callee_mod, func_ix, j);
+      uint8_t pj_nm[64];
+      int32_t pj_nlen;
+      int32_t aj_ty;
+      int32_t k;
+      int32_t same_name;
+      if (pj_ty <= 0 || pipeline_type_kind_ord_at(arena, pj_ty) != ord_named)
+        continue;
+      pj_nlen = pipeline_type_named_name_into(arena, pj_ty, pj_nm);
+      if (pj_nlen != pi_nlen)
+        continue;
+      same_name = 1;
+      for (k = 0; k < pi_nlen; k++) {
+        if (pi_nm[k] != pj_nm[k]) {
+          same_name = 0;
+          break;
+        }
+      }
+      if (!same_name)
+        continue;
+      aj_ty = pipeline_expr_resolved_type_ref(arena, pipeline_expr_call_arg_ref(arena, expr_ref, j));
+      if (pipeline_typeck_type_refs_equal_c(arena, ai_ty, aj_ty) == 0)
+        return -1;
+    }
+  }
+  (void)func_ix;
+  return 0;
+}
+
 static int32_t pipeline_typeck_check_call_generic_type_args_c(struct ast_Module *module,
                                                               struct ast_ASTArena *arena, int32_t expr_ref,
                                                               struct ast_PipelineDepCtx *ctx) {
@@ -34161,6 +34250,13 @@ static int32_t pipeline_typeck_check_call_generic_type_args_c(struct ast_Module 
     return -1;
   }
   if (num_generic_params > 0 && num_type_args == 0) {
+    /*
+     * wave448: allow omitted turbofish when mono types are inferable from value
+     * args. Fail closed to requires_type_args when inference cannot complete
+     * (zero-arg generic, untyped arg, mismatched same-name formals).
+     */
+    if (pipeline_typeck_try_infer_generic_call_from_args_c(callee_mod, arena, expr_ref, func_ix) == 0)
+      return 0;
     driver_diagnostic_typeck_call_requires_type_args(line, col, name, name_len);
     return -1;
   }
