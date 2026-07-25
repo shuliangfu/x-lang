@@ -221,6 +221,10 @@ extern void parser_onefunc_res_wire_dummy_call_binop(struct parser_asm_onefunc_r
 extern void parser_onefunc_res_wire_dummy_loop_call(struct parser_asm_onefunc_result *res);
 extern void parser_onefunc_res_wire_dummy_for_if(struct parser_asm_onefunc_result *res);
 
+/* wave439: generic bound scan now lives inside xlang_trait_check_impls_complete_c
+ * (skip_tl_slice.inc, thin glue TU) and uses a source stash set by parser.x via
+ * xlang_generic_bound_set_source_c. No call from seed_parse needed. */
+
 #include "parser_asm_seed_parse_into_buf_slice.inc"
 
 int labi_pthin_seed_parse_slice_marker(void) {

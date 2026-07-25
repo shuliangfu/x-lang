@@ -1,3 +1,8 @@
+/* wave439: forward decl — stash full-file source slice for the generic-bound
+ * scan. Defined below; called from each top-level skip_*_into_slice_c entry.
+ * PLATFORM: SHARED parse. */
+void xlang_generic_bound_stash_source_c(struct parser_asm_slice_u8 *source);
+
 /**
  * skip_one_struct_into：跳过一条顶层 struct 定义，结果写入 *out。
  */
@@ -6,6 +11,8 @@ void parser_asm_skip_one_struct_into_slice_c(struct parser_asm_lexer *out, struc
   struct parser_asm_lexer_result r;
   if (!out || !source)
     return;
+  /* wave439: stash full-file source for generic-bound scan. */
+  xlang_generic_bound_stash_source_c(source);
   {
     struct parser_asm_lexer mod_lex = lex;
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_skip_allow_modifiers_c(&mod_lex, source));
@@ -800,6 +807,8 @@ void parser_asm_skip_one_enum_into_slice_c(struct parser_asm_lexer *out, struct 
   struct parser_asm_lexer_result r;
   if (!out || !source)
     return;
+  /* wave439: stash full-file source for generic-bound scan. */
+  xlang_generic_bound_stash_source_c(source);
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_enum_header_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_enum_body_deep_slice_audit_c(lex, source));
   lexer_next_into(&r, lex, source);
@@ -1012,6 +1021,19 @@ extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t type_ref);
  * @return 0 ok; -1 unknown trait / missing method / signature mismatch.
  * PLATFORM: SHARED parse+typeck gate.
  */
+/* wave439: forward decls — defined below, called from trait check. */
+int32_t xlang_generic_bound_check_c(void);
+void xlang_generic_bound_scan_c(uint8_t *data, int32_t len);
+
+/* wave439: source buffer stash. Populated by xlang_generic_bound_stash_source_c
+ * from the top-level skip functions (struct/enum/trait/impl), each of which
+ * receives the full-file source slice from parser.x. Read by the scan invoked
+ * inside xlang_trait_check_impls_complete_c (which only gets *Module). Any file
+ * exercising generic bounds has at least a trait+struct decl, so at least one
+ * skip function runs before the trait checker. PLATFORM: SHARED parse. */
+static uint8_t *g_w439_src_data;
+static int32_t g_w439_src_len;
+
 int32_t xlang_trait_check_impls_complete_c(void *module) {
   int32_t si;
   int32_t ti;
@@ -1555,7 +1577,252 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
       }
     }
   }
+  /* wave439: tokenize stashed source to capture generic bounds + call sites,
+   * then verify each call site's type arg satisfies its function's bound.
+   * Scan is idempotent (resets globals at entry); running it here (inside the
+   * trait checker) guarantees it executes on every product path regardless of
+   * which .x entry invoked us. PLATFORM: SHARED parse. */
+  xlang_generic_bound_scan_c(g_w439_src_data, g_w439_src_len);
+  if (xlang_generic_bound_check_c() != 0)
+    rc = -1;
   return rc;
+}
+
+/* ============================================================ */
+/* wave439: generic trait bound scan + check                    */
+/*                                                              */
+/* Captures `function foo<T: Trait>` bound declarations and     */
+/* `foo<Type>(` generic call sites by tokenizing the source.   */
+/* At check time, for each call site whose callee has a bound,  */
+/* verifies `impl Trait for Type` exists in the impl registry. */
+/* False-green fix: `copy<B>(b)` where B does not impl the     */
+/* bound trait previously compiled and ran without error.       */
+/* PLATFORM: SHARED parse.                                      */
+/* ============================================================ */
+
+#define XLANG_FN_BOUND_MAX 16
+#define XLANG_GENERIC_CALL_MAX 32
+
+/* function name → bound trait name (populated by scan, read by check). */
+static uint8_t g_fn_bound_name[XLANG_FN_BOUND_MAX][64];
+static int32_t g_fn_bound_name_len[XLANG_FN_BOUND_MAX];
+static uint8_t g_fn_bound_trait[XLANG_FN_BOUND_MAX][64];
+static int32_t g_fn_bound_trait_len[XLANG_FN_BOUND_MAX];
+static int32_t g_fn_bound_n;
+
+/* generic call site: callee name + first type arg name. */
+static uint8_t g_call_callee[XLANG_GENERIC_CALL_MAX][64];
+static int32_t g_call_callee_len[XLANG_GENERIC_CALL_MAX];
+static uint8_t g_call_typearg[XLANG_GENERIC_CALL_MAX][64];
+static int32_t g_call_typearg_len[XLANG_GENERIC_CALL_MAX];
+static int32_t g_call_line[XLANG_GENERIC_CALL_MAX];
+static int32_t g_call_col[XLANG_GENERIC_CALL_MAX];
+static int32_t g_call_n;
+
+/**
+ * Stash the full-file source slice pointer so the generic-bound scan (run later
+ * from xlang_trait_check_impls_complete_c) can tokenize it. Called from each
+ * top-level skip_*_into_slice_c entry; idempotent (same file slice each call).
+ * PLATFORM: SHARED parse.
+ */
+void xlang_generic_bound_stash_source_c(struct parser_asm_slice_u8 *source) {
+  if (source) {
+    g_w439_src_data = source->data;
+    g_w439_src_len = (int32_t)source->length;
+  }
+}
+
+/**
+ * Scan source text for generic trait bound declarations and generic call
+ * sites. Called from xlang_trait_check_impls_complete_c via the stashed source
+ * pointer. Populates g_fn_bound_* and g_call_* globals.
+ *
+ * Bound pattern: `function IDENT < IDENT : IDENT >` — the second IDENT is
+ *   the bound trait name; stored as (function_name, trait_name).
+ * Call pattern: `IDENT < IDENT > (` — the inner IDENT is the type arg;
+ *   stored as (callee_name, type_arg). Only captured when `>` is followed
+ *   by `(` to avoid false-matching comparison operators `a < b`.
+ *
+ * Soft-skip: nested generics like `foo<Vec<i32>>()` (angle depth > 1)
+ * are not captured; only simple single-IDENT type args are checked.
+ * PLATFORM: SHARED parse.
+ */
+void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
+  struct parser_asm_slice_u8 source;
+  struct parser_asm_lexer lex;
+  struct parser_asm_lexer_result r;
+  int32_t prev_function = 0;
+  uint8_t last_ident[64];
+  int32_t last_ident_len = 0;
+  int32_t last_ident_is_fn = 0;
+
+  /* reset before each file scan */
+  g_fn_bound_n = 0;
+  g_call_n = 0;
+  if (!data || len <= 0)
+    return;
+  source.data = data;
+  source.length = (size_t)len;
+  memset(&lex, 0, sizeof(lex));
+  memset(last_ident, 0, 64);
+
+  for (;;) {
+    lexer_next_into(&r, lex, &source);
+    if (r.tok.kind == (int32_t)TOKEN_EOF)
+      break;
+
+    if (r.tok.kind == (int32_t)TOKEN_FUNCTION) {
+      prev_function = 1;
+      last_ident_len = 0;
+    } else if (r.tok.kind == (int32_t)TOKEN_IDENT) {
+      last_ident_len = r.tok.ident_len > 63 ? 63 : r.tok.ident_len;
+      if (last_ident_len > 0 && source.data)
+        memcpy(last_ident, source.data + r.token_start, (size_t)last_ident_len);
+      last_ident_is_fn = prev_function;
+      prev_function = 0;
+    } else if (r.tok.kind == (int32_t)TOKEN_LT && last_ident_len > 0) {
+      /* advance lex past the `<` so the inner loops read the token AFTER it
+       * (otherwise the first lexer_next_into re-reads `<` and inflates depth). */
+      lex = r.next_lex;
+      if (last_ident_is_fn && g_fn_bound_n < XLANG_FN_BOUND_MAX) {
+        /* function name < ... > — scan for `IDENT : IDENT` bound. */
+        int32_t angle_depth = 1;
+        int32_t expect_trait = 0;
+        while (angle_depth > 0) {
+          lexer_next_into(&r, lex, &source);
+          if (r.tok.kind == (int32_t)TOKEN_EOF)
+            break;
+          if (r.tok.kind == (int32_t)TOKEN_LT)
+            angle_depth++;
+          else if (r.tok.kind == (int32_t)TOKEN_GT) {
+            angle_depth--;
+            if (angle_depth == 0)
+              break;
+          } else if (r.tok.kind == (int32_t)TOKEN_COLON && angle_depth == 1) {
+            expect_trait = 1;
+          } else if (r.tok.kind == (int32_t)TOKEN_IDENT && angle_depth == 1 && expect_trait) {
+            if (g_fn_bound_n < XLANG_FN_BOUND_MAX) {
+              memcpy(g_fn_bound_name[g_fn_bound_n], last_ident, (size_t)last_ident_len);
+              g_fn_bound_name_len[g_fn_bound_n] = last_ident_len;
+              int32_t tl = r.tok.ident_len > 63 ? 63 : r.tok.ident_len;
+              if (tl > 0 && source.data)
+                memcpy(g_fn_bound_trait[g_fn_bound_n], source.data + r.token_start, (size_t)tl);
+              g_fn_bound_trait_len[g_fn_bound_n] = tl;
+              g_fn_bound_n++;
+            }
+            expect_trait = 0;
+          } else if (r.tok.kind == (int32_t)TOKEN_COMMA && angle_depth == 1) {
+            expect_trait = 0;
+          }
+          lex = r.next_lex;
+        }
+      } else if (!last_ident_is_fn && g_call_n < XLANG_GENERIC_CALL_MAX) {
+        /* IDENT < ... > — possible generic call. Capture first type arg
+         * only if angle depth stays at 1 (simple type, not nested). */
+        int32_t angle_depth = 1;
+        int32_t simple = 1;
+        uint8_t type_arg[64];
+        int32_t type_arg_len = 0;
+        int32_t captured = 0;
+        while (angle_depth > 0) {
+          lexer_next_into(&r, lex, &source);
+          if (r.tok.kind == (int32_t)TOKEN_EOF)
+            break;
+          if (r.tok.kind == (int32_t)TOKEN_LT) {
+            angle_depth++;
+            simple = 0;
+          } else if (r.tok.kind == (int32_t)TOKEN_GT) {
+            angle_depth--;
+            if (angle_depth == 0)
+              break;
+          } else if (r.tok.kind == (int32_t)TOKEN_IDENT && angle_depth == 1 && !captured) {
+            type_arg_len = r.tok.ident_len > 63 ? 63 : r.tok.ident_len;
+            if (type_arg_len > 0 && source.data)
+              memcpy(type_arg, source.data + r.token_start, (size_t)type_arg_len);
+            captured = 1;
+          }
+          lex = r.next_lex;
+        }
+        /* only record if `(` follows the closing `>` (generic call, not compare) */
+        if (captured && simple) {
+          struct parser_asm_lexer after = r.next_lex;
+          lexer_next_into(&r, after, &source);
+          if (r.tok.kind == (int32_t)TOKEN_LPAREN) {
+            memcpy(g_call_callee[g_call_n], last_ident, (size_t)last_ident_len);
+            g_call_callee_len[g_call_n] = last_ident_len;
+            memcpy(g_call_typearg[g_call_n], type_arg, (size_t)type_arg_len);
+            g_call_typearg_len[g_call_n] = type_arg_len;
+            g_call_line[g_call_n] = (int32_t)r.tok.line;
+            g_call_col[g_call_n] = (int32_t)r.tok.col;
+            g_call_n++;
+          }
+        }
+      }
+      last_ident_len = 0;
+      last_ident_is_fn = 0;
+      prev_function = 0;
+    } else {
+      prev_function = 0;
+      if (r.tok.kind != (int32_t)TOKEN_DOT && r.tok.kind != (int32_t)TOKEN_COLON) {
+        /* clear last_ident for tokens that can't precede `<` in a call;
+         * keep it for `.` (qualified path) — though we only handle simple
+         * IDENT callees for now. */
+        last_ident_len = 0;
+      }
+    }
+    lex = r.next_lex;
+  }
+}
+
+/**
+ * Verify captured generic call sites against function bounds.
+ * For each call `foo<Type>(...)` where foo declared `T: Trait`, checks
+ * that `impl Trait for Type` exists in the impl registry. Reports a
+ * typeck error if not satisfied.
+ * @return 0 all bounds satisfied (or no bounds to check); -1 ≥1 violation.
+ * PLATFORM: SHARED parse.
+ */
+int32_t xlang_generic_bound_check_c(void) {
+  int32_t ci, bi, si;
+  int32_t violated = 0;
+  for (ci = 0; ci < g_call_n; ci++) {
+    /* find the function's bound by callee name */
+    int32_t found = -1;
+    for (bi = 0; bi < g_fn_bound_n; bi++) {
+      if (g_fn_bound_name_len[bi] == g_call_callee_len[ci] &&
+          memcmp(g_fn_bound_name[bi], g_call_callee[ci],
+                 (size_t)g_call_callee_len[ci]) == 0) {
+        found = bi;
+        break;
+      }
+    }
+    if (found < 0)
+      continue; /* no bound for this function — skip */
+    /* check if impl BoundTrait for TypeArg exists */
+    {
+      int32_t impl_ok = 0;
+      for (si = 0; si < g_xlang_skip_impl_seen_n; si++) {
+        if (g_xlang_skip_impl_trait_len[si] == g_fn_bound_trait_len[found] &&
+            memcmp(g_xlang_skip_impl_trait[si], g_fn_bound_trait[found],
+                   (size_t)g_fn_bound_trait_len[found]) == 0 &&
+            g_xlang_skip_impl_for_name_lens[si] == g_call_typearg_len[ci] &&
+            memcmp(g_xlang_skip_impl_for_names[si], g_call_typearg[ci],
+                   (size_t)g_call_typearg_len[ci]) == 0) {
+          impl_ok = 1;
+          break;
+        }
+      }
+      if (!impl_ok) {
+        lsp_diag_report_typeck((int)g_call_line[ci], (int)g_call_col[ci],
+                               "generic bound not satisfied: %.*s does not impl %.*s",
+                               (int)g_call_typearg_len[ci], (const char *)g_call_typearg[ci],
+                               (int)g_fn_bound_trait_len[found],
+                               (const char *)g_fn_bound_trait[found]);
+        violated = -1;
+      }
+    }
+  }
+  return violated;
 }
 
 static void xlang_skip_trait_copy_ident_c(struct parser_asm_slice_u8 *source, size_t token_start, int32_t ident_len,
@@ -1582,6 +1849,8 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
   int32_t guard;
   if (!out || !source)
     return;
+  /* wave439: stash full-file source for generic-bound scan. */
+  xlang_generic_bound_stash_source_c(source);
   /*
    * wave421: prefer token path so we can register method names. Byte raw skip
    * only when token path cannot start (defensive).
@@ -2434,6 +2703,8 @@ void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct 
   int32_t impl_col = 0;
   if (!out || !source)
     return;
+  /* wave439: stash full-file source for generic-bound scan. */
+  xlang_generic_bound_stash_source_c(source);
   memset(first_nm, 0, sizeof(first_nm));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_impl_header_audit_c(lex, source));
   lexer_next_into(&r, lex, source);
