@@ -842,8 +842,10 @@ void parser_asm_skip_one_enum_into_slice_c(struct parser_asm_lexer *out, struct 
  *   (was soft: only method names stored → `impl` with wrong `: bool` false-green).
  * wave426: store method param count + typed param TypeKinds; hard fail arity /
  *   parameter type mismatch (was soft: only names+ret → extra/wrong params green).
- * Soft leave-off: dyn Trait; generic trait bounds; complex/named ret (kind=-1);
- *   untyped trait `self` vs impl typed self-for-type mismatch.
+ * wave427: named ret (IDENT→TYPE_NAMED+name) + ptr/slice ret (STAR/[] + elem);
+ *   hard fail Point vs Other / []i32 vs []u8 (was soft: kind=-1 skip).
+ * Soft leave-off: dyn Trait; generic trait bounds; untyped self vs for-type;
+ *   nested complex ret (e.g. *[]T, T[N]) still soft.
  * PLATFORM: SHARED parse.
  */
 #define XLANG_SKIP_TRAIT_REG_MAX 16
@@ -857,6 +859,11 @@ typedef struct {
   int32_t method_lens[XLANG_SKIP_TRAIT_METH_MAX];
   /* TypeKind ord (PARSER_ASM_TYPE_*); -1 = unknown / not stored (skip ret check). */
   int32_t method_ret_kinds[XLANG_SKIP_TRAIT_METH_MAX];
+  /* wave427: TYPE_NAMED ret name, or *T / []T element name when elem is named. */
+  uint8_t method_ret_names[XLANG_SKIP_TRAIT_METH_MAX][64];
+  int32_t method_ret_name_lens[XLANG_SKIP_TRAIT_METH_MAX];
+  /* wave427: element TypeKind for TYPE_PTR / TYPE_SLICE; -1 = not captured. */
+  int32_t method_ret_elem_kinds[XLANG_SKIP_TRAIT_METH_MAX];
   /* wave426: arity of `(params)`; -1 = not captured (skip arity check). */
   int32_t method_param_counts[XLANG_SKIP_TRAIT_METH_MAX];
   /* Per-param TypeKind when trait wrote `: Ty`; -1 = untyped / unknown. */
@@ -875,7 +882,7 @@ static void *g_xlang_trait_check_arena;
 
 /**
  * Map builtin type token → TypeKind ordinal (align PARSER_ASM_TYPE_* / ast TypeKind).
- * @return kind ord >=0; -1 if not a scalar/void builtin (named/ptr soft leave-off).
+ * @return kind ord >=0; -1 if not a scalar/void builtin (IDENT handled separately as NAMED).
  * PLATFORM: SHARED parse.
  */
 static int32_t xlang_trait_token_to_type_kind_c(int32_t tok_kind) {
@@ -907,6 +914,11 @@ static int32_t xlang_trait_token_to_type_kind_c(int32_t tok_kind) {
   }
 }
 
+/* Align PARSER_ASM_TYPE_* / ast TypeKind for wave427 ret shape checks. */
+#define XLANG_TRAIT_TY_NAMED 8
+#define XLANG_TRAIT_TY_PTR 9
+#define XLANG_TRAIT_TY_SLICE 11
+
 /**
  * Reset per-module trait registry and stash arena for ret-kind checks.
  * @param arena void* — ASTArena for pipeline_type_kind_ord_at (may be null → ret check skipped).
@@ -930,16 +942,20 @@ extern int32_t pipeline_module_func_return_type_at(void *module, int32_t fi);
 extern int32_t pipeline_module_func_num_params_at(void *module, int32_t fi);
 extern int32_t pipeline_module_func_param_type_ref_at(void *module, int32_t fi, int32_t pi);
 extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t type_ref);
+extern int32_t pipeline_type_named_name_into(void *arena, int32_t type_ref, uint8_t *out);
+extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t type_ref);
 
 /**
  * After parse: every `impl Trait for T` must name a registered trait and provide
  * free funcs for all trait methods with matching arity / param TypeKinds / ret
- * TypeKind when known.
+ * TypeKind (+ named name / ptr·slice elem) when known.
  * wave424 Cap residual pure — unknown_trait was soft-skipped (ti<0 continue) →
  * `impl Missing for i32` false-green (build exit 0).
  * wave425 Cap residual pure — return_mismatch: only names stored → wrong ret green.
  * wave426 Cap residual pure — param arity / typed param kinds were soft → extra
  *   `double(self, x)` vs trait `double(self)` false-green run=42.
+ * wave427 Cap residual pure — named/ptr/slice ret soft (kind=-1) → Point vs Other /
+ *   []i32 vs []u8 false-green run=42.
  * G.7 expand this function only (twin: seed_check_impl_missing_methods_c).
  * @return 0 ok; -1 unknown trait / missing method / signature mismatch.
  * PLATFORM: SHARED parse+typeck gate.
@@ -1025,11 +1041,42 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
           }
         }
       }
-      /* wave425: hard fail return type mismatch when trait stored a builtin kind. */
+      /* wave425/427: hard fail return type mismatch (builtin / named / ptr / slice). */
       if (expect_k >= 0 && arena && found_fi >= 0) {
         int32_t rty = pipeline_module_func_return_type_at(module, found_fi);
         int32_t got_k = (rty != 0) ? pipeline_type_kind_ord_at(arena, rty) : -1;
+        int32_t mm = 0;
         if (got_k >= 0 && got_k != expect_k) {
+          mm = 1;
+        } else if (got_k == expect_k && expect_k == XLANG_TRAIT_TY_NAMED) {
+          int32_t enl = g_xlang_skip_trait_reg[ti].method_ret_name_lens[mi];
+          if (enl > 0 && rty != 0) {
+            uint8_t gnm[64];
+            int32_t gnl = pipeline_type_named_name_into(arena, rty, gnm);
+            if (gnl != enl || memcmp(gnm, g_xlang_skip_trait_reg[ti].method_ret_names[mi], (size_t)enl) != 0)
+              mm = 1;
+          }
+        } else if (got_k == expect_k &&
+                   (expect_k == XLANG_TRAIT_TY_PTR || expect_k == XLANG_TRAIT_TY_SLICE)) {
+          int32_t eek = g_xlang_skip_trait_reg[ti].method_ret_elem_kinds[mi];
+          int32_t elem = (rty != 0) ? pipeline_type_elem_ref_at(arena, rty) : 0;
+          if (eek >= 0 && elem != 0) {
+            int32_t gek = pipeline_type_kind_ord_at(arena, elem);
+            if (gek >= 0 && gek != eek) {
+              mm = 1;
+            } else if (gek == eek && eek == XLANG_TRAIT_TY_NAMED) {
+              int32_t enl = g_xlang_skip_trait_reg[ti].method_ret_name_lens[mi];
+              if (enl > 0) {
+                uint8_t gnm[64];
+                int32_t gnl = pipeline_type_named_name_into(arena, elem, gnm);
+                if (gnl != enl ||
+                    memcmp(gnm, g_xlang_skip_trait_reg[ti].method_ret_names[mi], (size_t)enl) != 0)
+                  mm = 1;
+              }
+            }
+          }
+        }
+        if (mm) {
           lsp_diag_report_typeck((int)g_xlang_skip_impl_line[si], (int)g_xlang_skip_impl_col[si],
                                  "method %.*s return type mismatch", (int)mlen, (const char *)mnm);
           rc = -1;
@@ -1141,6 +1188,9 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
         xlang_skip_trait_copy_ident_c(source, r.token_start, r.tok.ident_len, ent->methods[mi_reg],
                                       &ent->method_lens[mi_reg]);
         ent->method_ret_kinds[mi_reg] = -1;
+        ent->method_ret_name_lens[mi_reg] = 0;
+        memset(ent->method_ret_names[mi_reg], 0, 64);
+        ent->method_ret_elem_kinds[mi_reg] = -1;
         ent->method_param_counts[mi_reg] = -1;
         for (pii = 0; pii < XLANG_SKIP_TRAIT_PARAM_MAX; pii++)
           ent->method_param_kinds[mi_reg][pii] = -1;
@@ -1152,13 +1202,16 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
       {
         /*
          * Walk ` (params) : Ret ; ` or body `{...}` —
-         * wave425: capture Ret TypeKind; wave426: param count + typed param kinds.
+         * wave425: capture Ret TypeKind; wave426: param count + typed param kinds;
+         * wave427: named / *T / []T ret shape.
          * PLATFORM: SHARED parse.
          */
         int32_t depth = 0;
         int32_t paren = 0;
         int32_t saw_params_close = 0;
         int32_t want_ret = 0;
+        int32_t ret_elem_pending = 0;
+        int32_t ret_slice_need_rb = 0;
         int32_t param_count = 0;
         int32_t saw_param_tok = 0;
         int32_t want_param_ty = 0;
@@ -1197,9 +1250,49 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
           } else if (saw_params_close && !want_ret && depth == 0 && paren == 0 &&
                      r.tok.kind == (int32_t)TOKEN_COLON) {
             want_ret = 1;
-          } else if (want_ret && mi_reg >= 0 && ent && ent->method_ret_kinds[mi_reg] < 0) {
-            ent->method_ret_kinds[mi_reg] = xlang_trait_token_to_type_kind_c(r.tok.kind);
-            want_ret = 0;
+            ret_elem_pending = 0;
+            ret_slice_need_rb = 0;
+          } else if (want_ret && mi_reg >= 0 && ent) {
+            /* wave427: capture Ret as builtin / NAMED / PTR / SLICE(+elem). */
+            if (ret_slice_need_rb) {
+              if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
+                ret_slice_need_rb = 0;
+                ret_elem_pending = 1;
+              } else {
+                want_ret = 0;
+                ret_slice_need_rb = 0;
+              }
+            } else if (ret_elem_pending) {
+              if (r.tok.kind == (int32_t)TOKEN_IDENT) {
+                ent->method_ret_elem_kinds[mi_reg] = XLANG_TRAIT_TY_NAMED;
+                xlang_skip_trait_copy_ident_c(source, r.token_start, r.tok.ident_len,
+                                              ent->method_ret_names[mi_reg],
+                                              &ent->method_ret_name_lens[mi_reg]);
+              } else {
+                ent->method_ret_elem_kinds[mi_reg] = xlang_trait_token_to_type_kind_c(r.tok.kind);
+              }
+              ret_elem_pending = 0;
+              want_ret = 0;
+            } else if (ent->method_ret_kinds[mi_reg] < 0) {
+              if (r.tok.kind == (int32_t)TOKEN_IDENT) {
+                ent->method_ret_kinds[mi_reg] = XLANG_TRAIT_TY_NAMED;
+                xlang_skip_trait_copy_ident_c(source, r.token_start, r.tok.ident_len,
+                                              ent->method_ret_names[mi_reg],
+                                              &ent->method_ret_name_lens[mi_reg]);
+                want_ret = 0;
+              } else if (r.tok.kind == (int32_t)TOKEN_STAR) {
+                ent->method_ret_kinds[mi_reg] = XLANG_TRAIT_TY_PTR;
+                ret_elem_pending = 1;
+              } else if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
+                ent->method_ret_kinds[mi_reg] = XLANG_TRAIT_TY_SLICE;
+                ret_slice_need_rb = 1;
+              } else {
+                ent->method_ret_kinds[mi_reg] = xlang_trait_token_to_type_kind_c(r.tok.kind);
+                want_ret = 0;
+              }
+            } else {
+              want_ret = 0;
+            }
           }
           if (r.tok.kind == (int32_t)TOKEN_LBRACE)
             depth++;
