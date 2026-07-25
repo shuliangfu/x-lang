@@ -34139,8 +34139,9 @@ int32_t pipeline_typeck_check_extern_call_unsafe_boundary_c(struct ast_Module *m
  *     still emits requires_type_args.
  *
  * Leave-off (soft, not this leaf): zero-arg generics (`default_T<T>()`),
- * inference from expected return type alone, bound-check without turbofish
- * source scan. PLATFORM: SHARED — rebuild pipeline_glue_standalone.o after edit.
+ * inference from expected return type alone. wave449: bound-check after
+ * successful infer (no turbofish) via xlang_generic_bound_check_type_args_c.
+ * PLATFORM: SHARED — rebuild pipeline_glue_standalone.o after edit.
  */
 static int32_t pipeline_typeck_try_infer_generic_call_from_args_c(struct ast_Module *callee_mod,
                                                                  struct ast_ASTArena *arena,
@@ -34209,6 +34210,101 @@ static int32_t pipeline_typeck_try_infer_generic_call_from_args_c(struct ast_Mod
   return 0;
 }
 
+/*
+ * wave449: after value-arg inference succeeds (num_type_args==0), check trait
+ * bounds using the same authority as turbofish parse-time scan
+ * (xlang_generic_bound_check_type_args_c in skip_tl).
+ *
+ * Type-arg slots: first-appearance order of distinct TYPE_NAMED formals among
+ * value params (matches declaration order for conventional `foo<T,U>(x:T,y:U)`
+ * and collapses `foo<T>(x:T,y:T)` to one slot). Concrete name is the TYPE_NAMED
+ * name of the corresponding value-arg type (impl registry is name-based).
+ * Non-named arg types leave an empty slot → that bound position is skipped
+ * (same under-specified policy as wave442). PLATFORM: SHARED typeck.
+ */
+static int32_t pipeline_typeck_check_inferred_generic_bounds_c(struct ast_Module *callee_mod,
+                                                                struct ast_ASTArena *arena,
+                                                                int32_t expr_ref, int32_t func_ix,
+                                                                const uint8_t *fn_name, int32_t fn_name_len,
+                                                                int32_t line, int32_t col) {
+  /* Max type-arg slots must match XLANG_GENERIC_CALL_MAX_ARGS in skip_tl. */
+  enum { W449_MAX_TARGS = 4 };
+  uint8_t type_args[W449_MAX_TARGS][64];
+  int32_t type_arg_lens[W449_MAX_TARGS];
+  uint8_t formal_names[W449_MAX_TARGS][64];
+  int32_t formal_name_lens[W449_MAX_TARGS];
+  int32_t n_tp;
+  int32_t np;
+  int32_t i;
+  int32_t ord_named;
+  extern int32_t xlang_generic_bound_check_type_args_c(const uint8_t *fn_name, int32_t fn_name_len,
+                                                        const uint8_t type_args[][64],
+                                                        const int32_t *type_arg_lens, int32_t nargs,
+                                                        int32_t line, int32_t col);
+
+  if (!callee_mod || !arena || expr_ref <= 0 || func_ix < 0 || !fn_name || fn_name_len <= 0)
+    return 0;
+  np = pipeline_module_func_num_params_at(callee_mod, func_ix);
+  if (np <= 0)
+    return 0;
+  ord_named = (int32_t)ast_TypeKind_TYPE_NAMED;
+  n_tp = 0;
+  memset(type_args, 0, sizeof(type_args));
+  memset(type_arg_lens, 0, sizeof(type_arg_lens));
+  memset(formal_names, 0, sizeof(formal_names));
+  memset(formal_name_lens, 0, sizeof(formal_name_lens));
+
+  for (i = 0; i < np && n_tp < W449_MAX_TARGS; i++) {
+    int32_t pi_ty = pipeline_module_func_param_type_ref_at(callee_mod, func_ix, i);
+    uint8_t pi_nm[64];
+    int32_t pi_nlen;
+    int32_t arg_ref;
+    int32_t arg_ty;
+    int32_t k;
+    int32_t found;
+    int32_t slot;
+    int32_t conc_len;
+
+    if (pi_ty <= 0 || pipeline_type_kind_ord_at(arena, pi_ty) != ord_named)
+      continue;
+    memset(pi_nm, 0, sizeof(pi_nm));
+    pi_nlen = pipeline_type_named_name_into(arena, pi_ty, pi_nm);
+    if (pi_nlen <= 0)
+      continue;
+    found = -1;
+    for (k = 0; k < n_tp; k++) {
+      if (formal_name_lens[k] == pi_nlen &&
+          memcmp(formal_names[k], pi_nm, (size_t)pi_nlen) == 0) {
+        found = k;
+        break;
+      }
+    }
+    if (found >= 0)
+      continue; /* same formal name already mapped (unify already checked) */
+    slot = n_tp;
+    memcpy(formal_names[slot], pi_nm, (size_t)pi_nlen);
+    formal_name_lens[slot] = pi_nlen;
+    arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+    arg_ty = (arg_ref > 0) ? pipeline_expr_resolved_type_ref(arena, arg_ref) : 0;
+    conc_len = 0;
+    if (arg_ty > 0 && pipeline_type_kind_ord_at(arena, arg_ty) == ord_named) {
+      memset(type_args[slot], 0, 64);
+      conc_len = pipeline_type_named_name_into(arena, arg_ty, type_args[slot]);
+      if (conc_len < 0)
+        conc_len = 0;
+      if (conc_len > 63)
+        conc_len = 63;
+    }
+    type_arg_lens[slot] = conc_len;
+    n_tp++;
+  }
+
+  if (n_tp <= 0)
+    return 0;
+  return xlang_generic_bound_check_type_args_c(fn_name, fn_name_len, type_args, type_arg_lens, n_tp,
+                                              line, col);
+}
+
 static int32_t pipeline_typeck_check_call_generic_type_args_c(struct ast_Module *module,
                                                               struct ast_ASTArena *arena, int32_t expr_ref,
                                                               struct ast_PipelineDepCtx *ctx) {
@@ -34254,9 +34350,15 @@ static int32_t pipeline_typeck_check_call_generic_type_args_c(struct ast_Module 
      * wave448: allow omitted turbofish when mono types are inferable from value
      * args. Fail closed to requires_type_args when inference cannot complete
      * (zero-arg generic, untyped arg, mismatched same-name formals).
+     * wave449: after successful infer, check trait bounds (parse-time scan only
+     * sees turbofish `foo<Type>(...)`; bare `foo(arg)` was false-green).
      */
-    if (pipeline_typeck_try_infer_generic_call_from_args_c(callee_mod, arena, expr_ref, func_ix) == 0)
+    if (pipeline_typeck_try_infer_generic_call_from_args_c(callee_mod, arena, expr_ref, func_ix) == 0) {
+      if (pipeline_typeck_check_inferred_generic_bounds_c(callee_mod, arena, expr_ref, func_ix, name,
+                                                           name_len, line, col) != 0)
+        return -1;
       return 0;
+    }
     driver_diagnostic_typeck_call_requires_type_args(line, col, name, name_len);
     return -1;
   }

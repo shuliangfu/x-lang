@@ -1874,72 +1874,97 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
 }
 
 /**
+ * wave449: single authority for generic trait-bound satisfaction.
+ *
+ * Given a callee name and positional concrete type-arg names (from turbofish
+ * source scan OR from typeck value-arg inference when turbofish is omitted),
+ * verify every bound declared on that function against the impl registry.
+ *
+ * wave442: iterates ALL bounds matching the callee (not just the first) so
+ * `copy_both<T: Clone, U: Default>` checks both positions. If a bound's
+ * position exceeds nargs, that bound is skipped (under-specified call — mono
+ * gap, not a bound false-positive).
+ *
+ * G.7: turbofish path (parse-time g_call_*) and no-turbofish path (typeck after
+ * wave448 infer) both call this helper — no second bound algorithm.
+ *
+ * @param fn_name       callee function name bytes
+ * @param fn_name_len   name length (≤63)
+ * @param type_args     type_args[pos][64] concrete type names (e.g. "A")
+ * @param type_arg_lens length of each type_args[pos]; 0 → skip that slot
+ * @param nargs         number of type-arg slots (≤ XLANG_GENERIC_CALL_MAX_ARGS)
+ * @param line          diagnostic line (1-based)
+ * @param col           diagnostic column (1-based)
+ * @return 0 all bounds satisfied (or nothing to check); -1 ≥1 violation
+ * PLATFORM: SHARED parse+typeck — rebuild parser thin glue after edit.
+ */
+int32_t xlang_generic_bound_check_type_args_c(const uint8_t *fn_name, int32_t fn_name_len,
+                                               const uint8_t type_args[][64],
+                                               const int32_t *type_arg_lens, int32_t nargs,
+                                               int32_t line, int32_t col) {
+  int32_t bi, si;
+  int32_t violated = 0;
+  if (!fn_name || fn_name_len <= 0 || !type_args || !type_arg_lens || nargs <= 0)
+    return 0;
+  if (fn_name_len > 63)
+    fn_name_len = 63;
+  for (bi = 0; bi < g_fn_bound_n; bi++) {
+    int32_t pos;
+    int32_t ta_len;
+    const uint8_t *ta;
+    int32_t impl_ok;
+    if (g_fn_bound_name_len[bi] != fn_name_len ||
+        memcmp(g_fn_bound_name[bi], fn_name, (size_t)fn_name_len) != 0)
+      continue;
+    pos = g_fn_bound_pos[bi];
+    if (pos < 0 || pos >= nargs)
+      continue;
+    ta_len = type_arg_lens[pos];
+    ta = type_args[pos];
+    if (ta_len <= 0)
+      continue;
+    impl_ok = 0;
+    for (si = 0; si < g_xlang_skip_impl_seen_n; si++) {
+      if (g_xlang_skip_impl_trait_len[si] == g_fn_bound_trait_len[bi] &&
+          memcmp(g_xlang_skip_impl_trait[si], g_fn_bound_trait[bi],
+                 (size_t)g_fn_bound_trait_len[bi]) == 0 &&
+          g_xlang_skip_impl_for_name_lens[si] == ta_len &&
+          memcmp(g_xlang_skip_impl_for_names[si], ta, (size_t)ta_len) == 0) {
+        impl_ok = 1;
+        break;
+      }
+    }
+    if (!impl_ok) {
+      lsp_diag_report_typeck((int)line, (int)col,
+                             "generic bound not satisfied: %.*s does not impl %.*s",
+                             (int)ta_len, (const char *)ta,
+                             (int)g_fn_bound_trait_len[bi],
+                             (const char *)g_fn_bound_trait[bi]);
+      violated = -1;
+    }
+  }
+  return violated;
+}
+
+/**
  * Verify captured generic call sites against function bounds.
  * For each call `foo<Type>(...)` where foo declared `T: Trait`, checks
  * that `impl Trait for Type` exists in the impl registry. Reports a
  * typeck error if not satisfied.
- * wave442: iterates ALL bounds matching the callee name (not just the first)
- * and checks each against the type arg at the bound's positional index, so
- * `copy_both<T: Clone, U: Default>` called as `copy_both<A,B>` checks A vs
- * Clone (pos 0) AND B vs Default (pos 1). wave439 only checked the first
- * type arg against the first bound → B violating `U: Default` was a false-
- * green (fell through to confusing BLD001). If a bound's position exceeds
- * the call's captured nargs (e.g. call `foo<A>` vs decl `foo<T,U: Hash>`),
- * that bound is skipped (under-specified call — mono gap, not a bound
- * violation). PLATFORM: SHARED parse.
+ * wave442: multi-arg positional bounds via g_call_typeargs / g_fn_bound_pos.
+ * wave449: body delegated to xlang_generic_bound_check_type_args_c (shared with
+ * typeck no-turbofish inference path). PLATFORM: SHARED parse.
  * @return 0 all bounds satisfied (or no bounds to check); -1 ≥1 violation.
  */
 int32_t xlang_generic_bound_check_c(void) {
-  int32_t ci, bi, si;
+  int32_t ci;
   int32_t violated = 0;
   for (ci = 0; ci < g_call_n; ci++) {
-    /* iterate every bound matching the callee name (wave442: was first-match
-     * break, which missed multi-arg bounds beyond the first type param). */
-    for (bi = 0; bi < g_fn_bound_n; bi++) {
-      int32_t pos;
-      int32_t ta_len;
-      const uint8_t *ta;
-      int32_t impl_ok;
-      if (g_fn_bound_name_len[bi] != g_call_callee_len[ci] ||
-          memcmp(g_fn_bound_name[bi], g_call_callee[ci],
-                 (size_t)g_call_callee_len[ci]) != 0)
-        continue;
-      /* this bound is for this callee — check the type arg at its position */
-      pos = g_fn_bound_pos[bi];
-      if (pos < 0 || pos >= g_call_nargs[ci]) {
-        /* call has fewer type args than the bound's position — under-
-         * specified call (e.g. mono dropped a multi-param fn). Skip rather
-         * than false-positive: the missing arg is a codegen/mono gap, not a
-         * bound violation. wave439 single-arg behavior preserved when
-         * g_call_nargs[ci]==1 and pos==0. */
-        continue;
-      }
-      ta_len = g_call_typearg_lens[ci][pos];
-      ta = g_call_typeargs[ci][pos];
-      if (ta_len <= 0)
-        continue;
-      /* check if impl BoundTrait for TypeArg exists */
-      impl_ok = 0;
-      for (si = 0; si < g_xlang_skip_impl_seen_n; si++) {
-        if (g_xlang_skip_impl_trait_len[si] == g_fn_bound_trait_len[bi] &&
-            memcmp(g_xlang_skip_impl_trait[si], g_fn_bound_trait[bi],
-                   (size_t)g_fn_bound_trait_len[bi]) == 0 &&
-            g_xlang_skip_impl_for_name_lens[si] == ta_len &&
-            memcmp(g_xlang_skip_impl_for_names[si], ta,
-                   (size_t)ta_len) == 0) {
-          impl_ok = 1;
-          break;
-        }
-      }
-      if (!impl_ok) {
-        lsp_diag_report_typeck((int)g_call_line[ci], (int)g_call_col[ci],
-                               "generic bound not satisfied: %.*s does not impl %.*s",
-                               (int)ta_len, (const char *)ta,
-                               (int)g_fn_bound_trait_len[bi],
-                               (const char *)g_fn_bound_trait[bi]);
-        violated = -1;
-      }
-    }
+    if (xlang_generic_bound_check_type_args_c(g_call_callee[ci], g_call_callee_len[ci],
+                                               g_call_typeargs[ci], g_call_typearg_lens[ci],
+                                               g_call_nargs[ci], g_call_line[ci],
+                                               g_call_col[ci]) != 0)
+      violated = -1;
   }
   return violated;
 }
