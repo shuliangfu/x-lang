@@ -4537,7 +4537,7 @@ ensure_asm_bootstrap_support_extra_objs() {
 # RT Cap residual slices：与 Makefile RT_SEED_SLICE_OBJS 同源（含 parse_diag recovery）。
 # PLATFORM: SHARED — include runtime_process_argv.o (process_xlang_argc/argv_get authority).
 asm_bootstrap_support_extra_link() {
-  echo "src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o $BUILD_DIR/typeck_c_module_stubs.o src/runtime_driver_strict_glue_stubs.o runtime_process_argv.o src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o src/runtime/rt_parse_diag.o"
+  echo "src/async/async_asm_pool.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o $BUILD_DIR/typeck_c_module_stubs.o src/runtime_driver_strict_glue_stubs.o runtime_process_argv.o src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o src/runtime/rt_parse_diag.o"
 }
 
 # 确保 typeck_f64_bits.o 存在（pipeline_x / parser 浮点字面量位拆分）。
