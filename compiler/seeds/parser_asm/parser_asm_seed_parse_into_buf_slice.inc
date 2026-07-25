@@ -718,12 +718,14 @@ static int32_t parser_asm_seed_impl_type_start_kind_c(int32_t kind) {
  * wave428: for-type + untyped-self vs for-type hard fail (twin of skip_tl).
  * wave429: typed self vs for-type hard fail (twin of skip_tl).
  * wave430: suffix T[N]/T[] ret + TYPE_ARRAY size/elem hard fail (twin of skip_tl).
- * Soft leave-off: dyn Trait; generic trait bounds; nested *[]T / multi-dim T[N][M].
+ * wave431: multi-dim suffix T[N][M]… ret + recursive size walk (twin of skip_tl).
+ * Soft leave-off: dyn Trait; generic trait bounds; nested *[]T / *T[N] postfix wrap.
  * PLATFORM: SHARED parse.
  */
 #define XLANG_TRAIT_REG_MAX 16
 #define XLANG_TRAIT_METH_MAX 32
 #define XLANG_TRAIT_PARAM_MAX 8
+#define XLANG_SEED_TRAIT_ARRAY_DIM_MAX 8
 #define XLANG_SEED_TRAIT_TY_NAMED 8
 #define XLANG_SEED_TRAIT_TY_PTR 9
 #define XLANG_SEED_TRAIT_TY_ARRAY 10
@@ -736,8 +738,11 @@ typedef struct {
   int32_t method_ret_kinds[XLANG_TRAIT_METH_MAX]; /* TypeKind ord; -1 unknown */
   uint8_t method_ret_names[XLANG_TRAIT_METH_MAX][64];
   int32_t method_ret_name_lens[XLANG_TRAIT_METH_MAX];
-  int32_t method_ret_elem_kinds[XLANG_TRAIT_METH_MAX]; /* -1 not captured */
-  int32_t method_ret_array_sizes[XLANG_TRAIT_METH_MAX]; /* wave430: T[N] N; -1 N/A */
+  int32_t method_ret_elem_kinds[XLANG_TRAIT_METH_MAX]; /* -1 not captured; ARRAY leaf kind */
+  int32_t method_ret_array_sizes[XLANG_TRAIT_METH_MAX]; /* wave430: outer T[N] N; -1 N/A */
+  /* wave431: multi-dim; dims[0]=outer. 0 ndims = N/A. */
+  int32_t method_ret_array_ndims[XLANG_TRAIT_METH_MAX];
+  int32_t method_ret_array_dims[XLANG_TRAIT_METH_MAX][XLANG_SEED_TRAIT_ARRAY_DIM_MAX];
   int32_t method_param_counts[XLANG_TRAIT_METH_MAX]; /* -1 not captured */
   int32_t method_param_kinds[XLANG_TRAIT_METH_MAX][XLANG_TRAIT_PARAM_MAX];
   int32_t num_methods;
@@ -882,6 +887,8 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
         memset(ent->method_ret_names[mi_reg], 0, 64);
         ent->method_ret_elem_kinds[mi_reg] = -1;
         ent->method_ret_array_sizes[mi_reg] = -1;
+        ent->method_ret_array_ndims[mi_reg] = 0;
+        memset(ent->method_ret_array_dims[mi_reg], 0, sizeof(ent->method_ret_array_dims[mi_reg]));
         ent->method_param_counts[mi_reg] = -1;
         for (pii = 0; pii < XLANG_TRAIT_PARAM_MAX; pii++)
           ent->method_param_kinds[mi_reg][pii] = -1;
@@ -890,7 +897,7 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
         else
           mi_reg = -1;
       }
-      /* Skip remainder; wave425–430 Ret/params/named/ptr/slice/T[N]. */
+      /* Skip remainder; wave425–431 Ret/params/named/ptr/slice/T[N]/multi-dim. */
       {
         int32_t depth = 0;
         int32_t paren = 0;
@@ -901,6 +908,8 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
         int32_t ret_suffix_pending = 0;
         int32_t ret_arr_need_size = 0;
         int32_t ret_arr_need_rb = 0;
+        int32_t ret_dim_n = 0;
+        int32_t ret_dims[XLANG_SEED_TRAIT_ARRAY_DIM_MAX];
         int32_t param_count = 0;
         int32_t saw_param_tok = 0;
         int32_t want_param_ty = 0;
@@ -943,12 +952,13 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
             ret_suffix_pending = 0;
             ret_arr_need_size = 0;
             ret_arr_need_rb = 0;
+            ret_dim_n = 0;
           } else if (want_ret && mi_reg >= 0) {
-            /* wave427/430: twin of skip_tl ret capture (incl. suffix T[N]/T[]). */
+            /* wave427/430/431: twin of skip_tl ret capture (suffix T[N]/T[]/T[N][M]). */
             if (ret_arr_need_rb) {
               if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
                 ret_arr_need_rb = 0;
-                want_ret = 0;
+                ret_suffix_pending = 1;
               } else {
                 ret_arr_need_rb = 0;
                 want_ret = 0;
@@ -959,13 +969,13 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
                 ent->method_ret_elem_kinds[mi_reg] = base_k;
                 ent->method_ret_kinds[mi_reg] = XLANG_SEED_TRAIT_TY_SLICE;
                 ent->method_ret_array_sizes[mi_reg] = -1;
+                ent->method_ret_array_ndims[mi_reg] = 0;
                 ret_arr_need_size = 0;
+                ret_dim_n = 0;
                 want_ret = 0;
               } else if (r.tok.kind == (int32_t)TOKEN_INT && r.tok.int_val > 0) {
-                int32_t base_k = ent->method_ret_kinds[mi_reg];
-                ent->method_ret_elem_kinds[mi_reg] = base_k;
-                ent->method_ret_kinds[mi_reg] = XLANG_SEED_TRAIT_TY_ARRAY;
-                ent->method_ret_array_sizes[mi_reg] = r.tok.int_val;
+                if (ret_dim_n < XLANG_SEED_TRAIT_ARRAY_DIM_MAX)
+                  ret_dims[ret_dim_n++] = r.tok.int_val;
                 ret_arr_need_size = 0;
                 ret_arr_need_rb = 1;
               } else {
@@ -977,6 +987,16 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
                 ret_suffix_pending = 0;
                 ret_arr_need_size = 1;
               } else {
+                if (ret_dim_n > 0) {
+                  int32_t di;
+                  int32_t leaf_k = ent->method_ret_kinds[mi_reg];
+                  ent->method_ret_elem_kinds[mi_reg] = leaf_k;
+                  ent->method_ret_kinds[mi_reg] = XLANG_SEED_TRAIT_TY_ARRAY;
+                  ent->method_ret_array_ndims[mi_reg] = ret_dim_n;
+                  ent->method_ret_array_sizes[mi_reg] = ret_dims[0];
+                  for (di = 0; di < ret_dim_n; di++)
+                    ent->method_ret_array_dims[mi_reg][di] = ret_dims[di];
+                }
                 ret_suffix_pending = 0;
                 want_ret = 0;
               }
@@ -1176,8 +1196,8 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
         }
       }
     }
-    /* wave425/427/430: hard fail return type mismatch
-     * (builtin / named / ptr / slice / fixed T[N]). */
+    /* wave425/427/430/431: hard fail return type mismatch
+     * (builtin / named / ptr / slice / fixed T[N] / multi-dim T[N][M]…). */
     if (expect_k >= 0 && arena && found_fi >= 0) {
       int32_t rty = pipeline_module_func_return_type_at(module, found_fi);
       int32_t got_k = (rty != 0) ? pipeline_type_kind_ord_at(arena, rty) : -1;
@@ -1192,19 +1212,74 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
           if (gnl != enl || memcmp(gnm, g_xlang_trait_reg[ti].method_ret_names[mi], (size_t)enl) != 0)
             mm = 1;
         }
-      } else if (got_k == expect_k &&
-                 (expect_k == XLANG_SEED_TRAIT_TY_PTR || expect_k == XLANG_SEED_TRAIT_TY_SLICE ||
-                  expect_k == XLANG_SEED_TRAIT_TY_ARRAY)) {
+      } else if (got_k == expect_k && expect_k == XLANG_SEED_TRAIT_TY_ARRAY) {
+        /* wave431: multi-dim walk (twin of skip_tl). PLATFORM: SHARED parse. */
+        int32_t nd = g_xlang_trait_reg[ti].method_ret_array_ndims[mi];
         int32_t eek = g_xlang_trait_reg[ti].method_ret_elem_kinds[mi];
-        int32_t elem = (rty != 0) ? pipeline_type_elem_ref_at(arena, rty) : 0;
-        if (expect_k == XLANG_SEED_TRAIT_TY_ARRAY) {
+        int32_t leaf_tr = rty;
+        if (nd > 0 && rty != 0) {
+          int32_t d;
+          for (d = 0; d < nd; d++) {
+            int32_t k = pipeline_type_kind_ord_at(arena, leaf_tr);
+            int32_t gsz;
+            if (k != XLANG_SEED_TRAIT_TY_ARRAY) {
+              mm = 1;
+              break;
+            }
+            gsz = pipeline_type_array_size_at(arena, leaf_tr);
+            if (gsz != g_xlang_trait_reg[ti].method_ret_array_dims[mi][d]) {
+              mm = 1;
+              break;
+            }
+            leaf_tr = pipeline_type_elem_ref_at(arena, leaf_tr);
+            if (leaf_tr == 0 && d + 1 < nd) {
+              mm = 1;
+              break;
+            }
+          }
+          if (!mm && eek >= 0 && leaf_tr != 0) {
+            int32_t gek = pipeline_type_kind_ord_at(arena, leaf_tr);
+            if (gek >= 0 && gek != eek) {
+              mm = 1;
+            } else if (gek == eek && eek == XLANG_SEED_TRAIT_TY_NAMED) {
+              int32_t enl = g_xlang_trait_reg[ti].method_ret_name_lens[mi];
+              if (enl > 0) {
+                uint8_t gnm[64];
+                int32_t gnl = pipeline_type_named_name_into(arena, leaf_tr, gnm);
+                if (gnl != enl ||
+                    memcmp(gnm, g_xlang_trait_reg[ti].method_ret_names[mi], (size_t)enl) != 0)
+                  mm = 1;
+              }
+            }
+          }
+        } else {
+          int32_t elem = (rty != 0) ? pipeline_type_elem_ref_at(arena, rty) : 0;
           int32_t esz = g_xlang_trait_reg[ti].method_ret_array_sizes[mi];
           if (esz >= 0 && rty != 0) {
             int32_t gsz = pipeline_type_array_size_at(arena, rty);
             if (gsz != esz)
               mm = 1;
           }
+          if (!mm && eek >= 0 && elem != 0) {
+            int32_t gek = pipeline_type_kind_ord_at(arena, elem);
+            if (gek >= 0 && gek != eek) {
+              mm = 1;
+            } else if (gek == eek && eek == XLANG_SEED_TRAIT_TY_NAMED) {
+              int32_t enl = g_xlang_trait_reg[ti].method_ret_name_lens[mi];
+              if (enl > 0) {
+                uint8_t gnm[64];
+                int32_t gnl = pipeline_type_named_name_into(arena, elem, gnm);
+                if (gnl != enl ||
+                    memcmp(gnm, g_xlang_trait_reg[ti].method_ret_names[mi], (size_t)enl) != 0)
+                  mm = 1;
+              }
+            }
+          }
         }
+      } else if (got_k == expect_k &&
+                 (expect_k == XLANG_SEED_TRAIT_TY_PTR || expect_k == XLANG_SEED_TRAIT_TY_SLICE)) {
+        int32_t eek = g_xlang_trait_reg[ti].method_ret_elem_kinds[mi];
+        int32_t elem = (rty != 0) ? pipeline_type_elem_ref_at(arena, rty) : 0;
         if (!mm && eek >= 0 && elem != 0) {
           int32_t gek = pipeline_type_kind_ord_at(arena, elem);
           if (gek >= 0 && gek != eek) {
