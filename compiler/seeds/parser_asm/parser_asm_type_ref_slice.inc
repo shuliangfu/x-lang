@@ -454,12 +454,27 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
       parser_asm_lex_from_result_val_into(&lex, r);
       lexer_next_into(&r, lex, source);
     }
-    elem_ref = parser_asm_alloc_pointee_type_ref_from_tok_c(arena, source, &r);
-    if (elem_ref == 0) {
-      parser_asm_write_out_lex_c(out_lex, lex);
-      return 0;
+    if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
+      /*
+       * wave435: *[]T / *[N]T → PTR to SLICE/ARRAY of T (type syntax: [] binds
+       * tighter than *). The inner slice/array is parsed recursively (it owns
+       * the `[`), then PTR is wrapped around it. The C-style postfix *T[N]
+       * (ARRAY of PTR to T, scalar base T) is preserved for the scalar path
+       * below. PLATFORM: SHARED parse.
+       */
+      elem_ref = parser_asm_parse_type_ref_impl_c(arena, lex, source, &lex);
+      if (elem_ref == 0) {
+        parser_asm_write_out_lex_c(out_lex, lex);
+        return 0;
+      }
+    } else {
+      elem_ref = parser_asm_alloc_pointee_type_ref_from_tok_c(arena, source, &r);
+      if (elem_ref == 0) {
+        parser_asm_write_out_lex_c(out_lex, lex);
+        return 0;
+      }
+      parser_asm_lex_from_result_val_into(&lex, r);
     }
-    parser_asm_lex_from_result_val_into(&lex, r);
     while (ptr_depth > 0) {
       type_ref_param = ast_ast_arena_type_alloc(arena);
       if (type_ref_param == 0) {

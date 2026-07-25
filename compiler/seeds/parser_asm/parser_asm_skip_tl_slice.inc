@@ -1104,6 +1104,30 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
                           memcmp(gnm, g_xlang_skip_trait_reg[ti].method_param_names[mi][pi], (size_t)enl) != 0)
                         mm = 1;
                     }
+                  } else if (gek == eek && eek == XLANG_TRAIT_TY_SLICE) {
+                    /*
+                     * wave435: *[]T → PTR to SLICE of T. Walk pipeline SLICE
+                     * leaf → its elem → compare elem_elem (the slice base T).
+                     * PLATFORM: SHARED parse.
+                     */
+                    int32_t eeek = g_xlang_skip_trait_reg[ti].method_param_elem_elem_kinds[mi][pi];
+                    int32_t pelem = pipeline_type_elem_ref_at(arena, elem);
+                    if (eeek >= 0 && pelem != 0) {
+                      int32_t pgek = pipeline_type_kind_ord_at(arena, pelem);
+                      if (pgek >= 0 && pgek != eeek) {
+                        mm = 1;
+                      } else if (pgek == eeek && eeek == XLANG_TRAIT_TY_NAMED) {
+                        int32_t enl = g_xlang_skip_trait_reg[ti].method_param_name_lens[mi][pi];
+                        if (enl > 0) {
+                          uint8_t gnm[64];
+                          int32_t gnl = pipeline_type_named_name_into(arena, pelem, gnm);
+                          if (gnl != enl ||
+                              memcmp(gnm, g_xlang_skip_trait_reg[ti].method_param_names[mi][pi],
+                                     (size_t)enl) != 0)
+                            mm = 1;
+                        }
+                      }
+                    }
                   }
                 }
               } else if (got_pk == ek && ek == XLANG_TRAIT_TY_ARRAY) {
@@ -1523,6 +1547,11 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
         int32_t param_elem_suffix_pending = 0; /* elem base set; may still see [N]/[] */
         int32_t param_elem_arr_need_size = 0;  /* elem saw `[`; want INT or `]` */
         int32_t param_elem_arr_need_rb = 0;    /* elem saw `[N`; want `]` */
+        /* wave435: *[]T → PTR to SLICE of T (type syntax: [] binds tighter
+         * than *; []T forms slice, * wraps). After elem `[`, close `]` then
+         * capture slice base T. PLATFORM: SHARED parse. */
+        int32_t param_elem_slice_need_rb = 0;  /* elem is slice; saw `[`, want `]` */
+        int32_t param_elem_elem_pending = 0;   /* slice closed; want base T */
         int32_t param_elem_dim_n = 0;
         int32_t param_elem_dims[XLANG_SKIP_TRAIT_ARRAY_DIM_MAX];
         int32_t steps = 0;
@@ -1668,6 +1697,52 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                   want_param_ty = 0;
                   param_slice_need_rb = 0;
                 }
+              } else if (param_elem_slice_need_rb) {
+                /*
+                 * wave435: *[... — saw `[` after PTR. Decide on this token:
+                 *   `]`     → *[]T  = PTR to SLICE of T (capture base T next)
+                 *   INT N   → *[N]T = PTR to ARRAY of N T (soft-skip: registry
+                 *             PTR+ARRAY check path not implemented; mark elem
+                 *             uncaptured to avoid false mismatch — preserves
+                 *             wave434 behavior for this 3-layer form)
+                 *   other   → bail out (avoid parse failure)
+                 * PLATFORM: SHARED parse.
+                 */
+                if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
+                  ent->method_param_elem_kinds[mi_reg][param_count] = XLANG_TRAIT_TY_SLICE;
+                  param_elem_slice_need_rb = 0;
+                  param_elem_elem_pending = 1;
+                } else if (r.tok.kind == (int32_t)TOKEN_INT && r.tok.int_val > 0) {
+                  ent->method_param_elem_kinds[mi_reg][param_count] = -1;
+                  param_elem_slice_need_rb = 0;
+                  want_param_ty = 0;
+                  saw_param_tok = 1;
+                } else {
+                  param_elem_slice_need_rb = 0;
+                  want_param_ty = 0;
+                }
+              } else if (param_elem_elem_pending) {
+                /* wave435: slice closed; capture base T (NAMED name / builtin). */
+                if (r.tok.kind == (int32_t)TOKEN_IDENT) {
+                  ent->method_param_elem_elem_kinds[mi_reg][param_count] = XLANG_TRAIT_TY_NAMED;
+                  xlang_skip_trait_copy_ident_c(source, r.token_start, r.tok.ident_len,
+                                                 ent->method_param_names[mi_reg][param_count],
+                                                 &ent->method_param_name_lens[mi_reg][param_count]);
+                  param_elem_elem_pending = 0;
+                  want_param_ty = 0;
+                  saw_param_tok = 1;
+                } else {
+                  int32_t bk = xlang_trait_token_to_type_kind_c(r.tok.kind);
+                  if (bk >= 0) {
+                    ent->method_param_elem_elem_kinds[mi_reg][param_count] = bk;
+                    param_elem_elem_pending = 0;
+                    want_param_ty = 0;
+                    saw_param_tok = 1;
+                  } else {
+                    param_elem_elem_pending = 0;
+                    want_param_ty = 0;
+                  }
+                }
               } else if (param_elem_arr_need_rb) {
                 if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
                   /* wave434: after elem T[N], stay open for further [M]… */
@@ -1724,10 +1799,12 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
                   /* wave434: keep scanning for elem suffix [N]/[]/[N][M]. */
                   param_elem_suffix_pending = 1;
                 } else if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
-                  /* wave434: *[]T / *[N]T — elem opens with `[` and no base yet (3-layer).
-                   * Soft: mark elem uncaptured so check skips; avoids parse failure. */
-                  ent->method_param_elem_kinds[mi_reg][param_count] = -1;
-                  want_param_ty = 0;
+                  /*
+                   * wave435: *[... — elem opens with `[` (could be *[]T slice or
+                   * *[N]T array). Defer elem kind decision to param_elem_slice_need_rb
+                   * state which inspects the next token (`]` vs INT). PLATFORM: SHARED.
+                   */
+                  param_elem_slice_need_rb = 1;
                 } else {
                   ent->method_param_elem_kinds[mi_reg][param_count] =
                       xlang_trait_token_to_type_kind_c(r.tok.kind);
