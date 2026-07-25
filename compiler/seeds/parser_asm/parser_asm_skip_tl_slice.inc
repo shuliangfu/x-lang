@@ -1644,19 +1644,37 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
 
 #define XLANG_FN_BOUND_MAX 16
 #define XLANG_GENERIC_CALL_MAX 32
+/* wave442: max type args per generic call site (foo<A,B,C,D>). Most generic
+ * calls have ≤4 type args; calls exceeding this fall back to first-arg-only
+ * check (preserve wave439 behavior) — see scan capture gate. */
+#define XLANG_GENERIC_CALL_MAX_ARGS 4
 
-/* function name → bound trait name (populated by scan, read by check). */
+/* function name → bound trait name (populated by scan, read by check).
+ * wave442: g_fn_bound_pos records the type-param POSITION (0-based) of each
+ * bound within its function, so `foo<T: Clone, U: Hash>` stores two entries
+ * (Clone@pos0, Hash@pos1) and the check matches each to the call's type arg
+ * at the same position (`foo<A,B>` → A@0 checked vs Clone, B@1 vs Hash). */
 static uint8_t g_fn_bound_name[XLANG_FN_BOUND_MAX][64];
 static int32_t g_fn_bound_name_len[XLANG_FN_BOUND_MAX];
 static uint8_t g_fn_bound_trait[XLANG_FN_BOUND_MAX][64];
 static int32_t g_fn_bound_trait_len[XLANG_FN_BOUND_MAX];
+static int32_t g_fn_bound_pos[XLANG_FN_BOUND_MAX];
 static int32_t g_fn_bound_n;
 
-/* generic call site: callee name + first type arg name. */
+/* generic call site: callee name + type args. g_call_typearg (first arg) is
+ * kept for backward compat with any first-arg reader; g_call_typeargs holds
+ * all captured type args (up to XLANG_GENERIC_CALL_MAX_ARGS) and g_call_nargs
+ * the count. wave439 captured only the first type arg → multi-arg bounds like
+ * `copy_both<A,B>` where B violates `U: Default` went unchecked (false-green
+ * falling through to confusing BLD001). wave442 captures all simple type args
+ * and checks each against its positional bound. */
 static uint8_t g_call_callee[XLANG_GENERIC_CALL_MAX][64];
 static int32_t g_call_callee_len[XLANG_GENERIC_CALL_MAX];
 static uint8_t g_call_typearg[XLANG_GENERIC_CALL_MAX][64];
 static int32_t g_call_typearg_len[XLANG_GENERIC_CALL_MAX];
+static uint8_t g_call_typeargs[XLANG_GENERIC_CALL_MAX][XLANG_GENERIC_CALL_MAX_ARGS][64];
+static int32_t g_call_typearg_lens[XLANG_GENERIC_CALL_MAX][XLANG_GENERIC_CALL_MAX_ARGS];
+static int32_t g_call_nargs[XLANG_GENERIC_CALL_MAX];
 static int32_t g_call_line[XLANG_GENERIC_CALL_MAX];
 static int32_t g_call_col[XLANG_GENERIC_CALL_MAX];
 static int32_t g_call_n;
@@ -1701,6 +1719,10 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
   /* reset before each file scan */
   g_fn_bound_n = 0;
   g_call_n = 0;
+  /* wave442: zero multi-arg storage so stale data from a prior file cannot
+   * leak into the check (g_call_nargs/g_fn_bound_pos drive positional match). */
+  memset(g_call_nargs, 0, sizeof(g_call_nargs));
+  memset(g_fn_bound_pos, 0, sizeof(g_fn_bound_pos));
   if (!data || len <= 0)
     return;
   source.data = data;
@@ -1734,9 +1756,14 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
        * (otherwise the first lexer_next_into re-reads `<` and inflates depth). */
       lex = r.next_lex;
       if (last_ident_is_fn && g_fn_bound_n < XLANG_FN_BOUND_MAX) {
-        /* function name < ... > — scan for `IDENT : IDENT` bound. */
+        /* function name < ... > — scan for `IDENT : IDENT` bound. wave442:
+         * track the type-param POSITION (0-based) of each bound so multi-arg
+         * calls `foo<A,B>` can match each bound to its positional type arg.
+         * pos increments on COMMA (each comma = next type param); the first
+         * param is pos 0. A param without a bound simply never captures. */
         int32_t angle_depth = 1;
         int32_t expect_trait = 0;
+        int32_t pos = 0;
         while (angle_depth > 0) {
           lexer_next_into(&r, lex, &source);
           if (r.tok.kind == (int32_t)TOKEN_EOF)
@@ -1757,22 +1784,32 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
               if (tl > 0 && source.data)
                 memcpy(g_fn_bound_trait[g_fn_bound_n], source.data + r.token_start, (size_t)tl);
               g_fn_bound_trait_len[g_fn_bound_n] = tl;
+              g_fn_bound_pos[g_fn_bound_n] = pos;
               g_fn_bound_n++;
             }
             expect_trait = 0;
           } else if (r.tok.kind == (int32_t)TOKEN_COMMA && angle_depth == 1) {
             expect_trait = 0;
+            pos++;
           }
           lex = r.next_lex;
         }
       } else if (!last_ident_is_fn && g_call_n < XLANG_GENERIC_CALL_MAX) {
-        /* IDENT < ... > — possible generic call. Capture first type arg
-         * only if angle depth stays at 1 (simple type, not nested). */
+        /* IDENT < ... > — possible generic call. wave442: capture ALL simple
+         * type args (up to XLANG_GENERIC_CALL_MAX_ARGS) at angle depth 1, not
+         * just the first, so multi-arg bounds `foo<A,B>` check each type arg
+         * against its positional bound. `simple=0` on any nested `<` (e.g.
+         * `foo<Vec<i32>>`) keeps the wave439 nested-generic soft-skip — only
+         * flat type-arg lists are captured. expect_arg gates one IDENT per
+         * slot (right after `<` or after `,`) so `foo<A,B>` captures A then B
+         * without consuming `B` as part of A's name. */
         int32_t angle_depth = 1;
         int32_t simple = 1;
-        uint8_t type_arg[64];
-        int32_t type_arg_len = 0;
-        int32_t captured = 0;
+        uint8_t type_args[XLANG_GENERIC_CALL_MAX_ARGS][64];
+        int32_t type_arg_lens[XLANG_GENERIC_CALL_MAX_ARGS];
+        int32_t nargs = 0;
+        int32_t expect_arg = 1;
+        memset(type_arg_lens, 0, sizeof(type_arg_lens));
         while (angle_depth > 0) {
           lexer_next_into(&r, lex, &source);
           if (r.tok.kind == (int32_t)TOKEN_EOF)
@@ -1784,23 +1821,36 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
             angle_depth--;
             if (angle_depth == 0)
               break;
-          } else if (r.tok.kind == (int32_t)TOKEN_IDENT && angle_depth == 1 && !captured) {
-            type_arg_len = r.tok.ident_len > 63 ? 63 : r.tok.ident_len;
-            if (type_arg_len > 0 && source.data)
-              memcpy(type_arg, source.data + r.token_start, (size_t)type_arg_len);
-            captured = 1;
+          } else if (r.tok.kind == (int32_t)TOKEN_IDENT && angle_depth == 1 && expect_arg
+                     && nargs < XLANG_GENERIC_CALL_MAX_ARGS) {
+            int32_t al = r.tok.ident_len > 63 ? 63 : r.tok.ident_len;
+            if (al > 0 && source.data)
+              memcpy(type_args[nargs], source.data + r.token_start, (size_t)al);
+            type_arg_lens[nargs] = al;
+            nargs++;
+            expect_arg = 0;
+          } else if (r.tok.kind == (int32_t)TOKEN_COMMA && angle_depth == 1) {
+            expect_arg = 1;
           }
           lex = r.next_lex;
         }
         /* only record if `(` follows the closing `>` (generic call, not compare) */
-        if (captured && simple) {
+        if (nargs > 0 && simple) {
           struct parser_asm_lexer after = r.next_lex;
           lexer_next_into(&r, after, &source);
           if (r.tok.kind == (int32_t)TOKEN_LPAREN) {
+            int32_t k;
             memcpy(g_call_callee[g_call_n], last_ident, (size_t)last_ident_len);
             g_call_callee_len[g_call_n] = last_ident_len;
-            memcpy(g_call_typearg[g_call_n], type_arg, (size_t)type_arg_len);
-            g_call_typearg_len[g_call_n] = type_arg_len;
+            /* keep g_call_typearg (first arg) for backward compat with any
+             * first-arg reader; g_call_typeargs holds all for positional check. */
+            memcpy(g_call_typearg[g_call_n], type_args[0], 64);
+            g_call_typearg_len[g_call_n] = type_arg_lens[0];
+            for (k = 0; k < nargs; k++) {
+              memcpy(g_call_typeargs[g_call_n][k], type_args[k], 64);
+              g_call_typearg_lens[g_call_n][k] = type_arg_lens[k];
+            }
+            g_call_nargs[g_call_n] = nargs;
             g_call_line[g_call_n] = (int32_t)r.tok.line;
             g_call_col[g_call_n] = (int32_t)r.tok.col;
             g_call_n++;
@@ -1828,35 +1878,55 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
  * For each call `foo<Type>(...)` where foo declared `T: Trait`, checks
  * that `impl Trait for Type` exists in the impl registry. Reports a
  * typeck error if not satisfied.
+ * wave442: iterates ALL bounds matching the callee name (not just the first)
+ * and checks each against the type arg at the bound's positional index, so
+ * `copy_both<T: Clone, U: Default>` called as `copy_both<A,B>` checks A vs
+ * Clone (pos 0) AND B vs Default (pos 1). wave439 only checked the first
+ * type arg against the first bound → B violating `U: Default` was a false-
+ * green (fell through to confusing BLD001). If a bound's position exceeds
+ * the call's captured nargs (e.g. call `foo<A>` vs decl `foo<T,U: Hash>`),
+ * that bound is skipped (under-specified call — mono gap, not a bound
+ * violation). PLATFORM: SHARED parse.
  * @return 0 all bounds satisfied (or no bounds to check); -1 ≥1 violation.
- * PLATFORM: SHARED parse.
  */
 int32_t xlang_generic_bound_check_c(void) {
   int32_t ci, bi, si;
   int32_t violated = 0;
   for (ci = 0; ci < g_call_n; ci++) {
-    /* find the function's bound by callee name */
-    int32_t found = -1;
+    /* iterate every bound matching the callee name (wave442: was first-match
+     * break, which missed multi-arg bounds beyond the first type param). */
     for (bi = 0; bi < g_fn_bound_n; bi++) {
-      if (g_fn_bound_name_len[bi] == g_call_callee_len[ci] &&
+      int32_t pos;
+      int32_t ta_len;
+      const uint8_t *ta;
+      int32_t impl_ok;
+      if (g_fn_bound_name_len[bi] != g_call_callee_len[ci] ||
           memcmp(g_fn_bound_name[bi], g_call_callee[ci],
-                 (size_t)g_call_callee_len[ci]) == 0) {
-        found = bi;
-        break;
+                 (size_t)g_call_callee_len[ci]) != 0)
+        continue;
+      /* this bound is for this callee — check the type arg at its position */
+      pos = g_fn_bound_pos[bi];
+      if (pos < 0 || pos >= g_call_nargs[ci]) {
+        /* call has fewer type args than the bound's position — under-
+         * specified call (e.g. mono dropped a multi-param fn). Skip rather
+         * than false-positive: the missing arg is a codegen/mono gap, not a
+         * bound violation. wave439 single-arg behavior preserved when
+         * g_call_nargs[ci]==1 and pos==0. */
+        continue;
       }
-    }
-    if (found < 0)
-      continue; /* no bound for this function — skip */
-    /* check if impl BoundTrait for TypeArg exists */
-    {
-      int32_t impl_ok = 0;
+      ta_len = g_call_typearg_lens[ci][pos];
+      ta = g_call_typeargs[ci][pos];
+      if (ta_len <= 0)
+        continue;
+      /* check if impl BoundTrait for TypeArg exists */
+      impl_ok = 0;
       for (si = 0; si < g_xlang_skip_impl_seen_n; si++) {
-        if (g_xlang_skip_impl_trait_len[si] == g_fn_bound_trait_len[found] &&
-            memcmp(g_xlang_skip_impl_trait[si], g_fn_bound_trait[found],
-                   (size_t)g_fn_bound_trait_len[found]) == 0 &&
-            g_xlang_skip_impl_for_name_lens[si] == g_call_typearg_len[ci] &&
-            memcmp(g_xlang_skip_impl_for_names[si], g_call_typearg[ci],
-                   (size_t)g_call_typearg_len[ci]) == 0) {
+        if (g_xlang_skip_impl_trait_len[si] == g_fn_bound_trait_len[bi] &&
+            memcmp(g_xlang_skip_impl_trait[si], g_fn_bound_trait[bi],
+                   (size_t)g_fn_bound_trait_len[bi]) == 0 &&
+            g_xlang_skip_impl_for_name_lens[si] == ta_len &&
+            memcmp(g_xlang_skip_impl_for_names[si], ta,
+                   (size_t)ta_len) == 0) {
           impl_ok = 1;
           break;
         }
@@ -1864,9 +1934,9 @@ int32_t xlang_generic_bound_check_c(void) {
       if (!impl_ok) {
         lsp_diag_report_typeck((int)g_call_line[ci], (int)g_call_col[ci],
                                "generic bound not satisfied: %.*s does not impl %.*s",
-                               (int)g_call_typearg_len[ci], (const char *)g_call_typearg[ci],
-                               (int)g_fn_bound_trait_len[found],
-                               (const char *)g_fn_bound_trait[found]);
+                               (int)ta_len, (const char *)ta,
+                               (int)g_fn_bound_trait_len[bi],
+                               (const char *)g_fn_bound_trait[bi]);
         violated = -1;
       }
     }
