@@ -2,14 +2,21 @@
 # panic() / panic(expr)：编译通过，运行会 abort（仅验证编译与链接）
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+  make -C compiler -q 2>/dev/null || make -C compiler
+fi
 XLANG=${XLANG:-./compiler/xlang}
 # shellcheck source=lib/bootstrap-link-xlang.sh
 . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 LINK_XLANG="$RUN_XLANG"
-# panic -o：bootstrap 默认 xlang-c 对 main.x 易 SIGSEGV；xlang_asm2 已绿（与 run-struct 一致）。
-if [ -x ./compiler/xlang_asm2 ] && ci_native_xlang ./compiler/xlang_asm2; then
+# PLATFORM: SHARED — product bstrict/L4 uses this-SHA xlang_asm.
+# Preferring leftover Stage2 xlang_asm2 is July-14 wrong-binary (stale gen2
+# false green/red). Opt-in: XLANG_BSTRICT_USE_ASM2=1 (align run-all-bstrict).
+if [ -n "${XLANG_BSTRICT_USE_ASM2:-}" ] && [ -x ./compiler/xlang_asm2 ] &&
+    ci_native_xlang ./compiler/xlang_asm2; then
   LINK_XLANG=./compiler/xlang_asm2
+elif [ -x ./compiler/xlang_asm ] && ci_native_xlang ./compiler/xlang_asm; then
+  LINK_XLANG=./compiler/xlang_asm
 fi
 
 $LINK_XLANG build tests/panic/main.x -o /tmp/xlang_panic 2>&1
