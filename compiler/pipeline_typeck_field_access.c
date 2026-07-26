@@ -131,6 +131,12 @@ extern int32_t typeck_expr_field_access_fallback_scalar_type_ref(struct ast_ASTA
                                                                  int32_t field_name_len);
 extern int32_t typeck_field_access_lexer_wrapper_fallback(struct ast_ASTArena *arena, int32_t base_type_ref,
                                                           uint8_t *field_name, int32_t field_name_len);
+/* wave465: module concrete-type probe for type-param field ambient fill */
+extern int32_t pipeline_module_struct_layout_name_len(struct ast_Module *module, int32_t idx);
+extern void pipeline_module_struct_layout_name_into(struct ast_Module *module, int32_t idx, uint8_t *out);
+extern int32_t pipeline_module_enum_name_len(struct ast_Module *module, int32_t idx);
+extern uint8_t pipeline_module_enum_name_byte_at(struct ast_Module *module, int32_t idx, int32_t off);
+extern int32_t pipeline_type_named_name_into(struct ast_ASTArena *arena, int32_t type_ref, uint8_t *out);
 extern void driver_diagnostic_typeck_ptr_field(int32_t bt_kind, int32_t inner_kind, int32_t inner_nlen,
                                                int32_t base_resolved_ref, int32_t num_struct_layouts);
 
@@ -886,6 +892,80 @@ static int32_t pipeline_typeck_field_reverse_infer_base_type_c(struct ast_Module
   return hits == 1 ? unique_ty : 0;
 }
 
+/**
+ * wave465: TYPE_NAMED is a module concrete type (struct layout or enum) iff a
+ * matching name exists. Otherwise it is treated as an unconstrained type
+ * parameter (e.g. field `v: T` on `struct Wrap<T>`).
+ * PLATFORM: SHARED — used only to decide ambient fill of field results.
+ */
+static int32_t pipeline_typeck_named_is_module_concrete_c(struct ast_Module *module, uint8_t *name,
+                                                          int32_t name_len) {
+  int32_t k;
+  int32_t nsl;
+  int32_t ne;
+  if (!module || !name || name_len <= 0 || name_len > 63)
+    return 0;
+  nsl = module->num_struct_layouts;
+  for (k = 0; k < nsl; k++) {
+    int32_t sl = pipeline_module_struct_layout_name_len(module, k);
+    uint8_t snm[64];
+    if (sl != name_len)
+      continue;
+    memset(snm, 0, sizeof(snm));
+    pipeline_module_struct_layout_name_into(module, k, &snm[0]);
+    if (typeck_name_equal(&snm[0], sl, name, name_len))
+      return 1;
+  }
+  ne = module->num_module_enums;
+  for (k = 0; k < ne; k++) {
+    int32_t el = pipeline_module_enum_name_len(module, k);
+    int32_t bi;
+    if (el != name_len)
+      continue;
+    for (bi = 0; bi < el; bi++) {
+      if (pipeline_module_enum_name_byte_at(module, k, bi) != name[bi])
+        break;
+    }
+    if (bi == el)
+      return 1;
+  }
+  return 0;
+}
+
+/**
+ * wave465 Cap residual pure: after layout/fallback, if the field result is still
+ * unconstrained (null or TYPE_NAMED type-param with no module type) and ambient
+ * expected is present, stamp ambient onto the field access.
+ * Same contract as let-decl stamping of init; does NOT feed ambient into base
+ * (wave454). PLATFORM: SHARED.
+ */
+static void pipeline_typeck_field_apply_ambient_for_type_param_c(struct ast_Module *module,
+                                                                struct ast_ASTArena *arena,
+                                                                int32_t expr_ref,
+                                                                int32_t ambient_ty) {
+  int32_t got_ty;
+  int32_t use_ambient;
+  uint8_t gnm[64];
+  int32_t gnl;
+
+  if (!module || !arena || expr_ref <= 0)
+    return;
+  if (ambient_ty <= 0 || ambient_ty > arena->num_types)
+    return;
+  got_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+  use_ambient = 0;
+  if (ast_ref_is_null(got_ty) || got_ty <= 0 || got_ty > arena->num_types) {
+    use_ambient = 1;
+  } else if (pipeline_type_kind_ord_at(arena, got_ty) == (int32_t)ast_TypeKind_TYPE_NAMED) {
+    memset(gnm, 0, sizeof(gnm));
+    gnl = pipeline_type_named_name_into(arena, got_ty, &gnm[0]);
+    if (gnl > 0 && gnl <= 63 && !pipeline_typeck_named_is_module_concrete_c(module, &gnm[0], gnl))
+      use_ambient = 1;
+  }
+  if (use_ambient)
+    pipeline_expr_set_resolved_type_ref(arena, expr_ref, ambient_ty);
+}
+
 int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                                   int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
   int32_t base_ref;
@@ -917,8 +997,8 @@ int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *module, str
     base_expected = pipeline_typeck_field_reverse_infer_base_type_c(module, arena, expr_ref,
                                                                    return_type_ref);
   }
-  /* Always: never pass field-result ambient into base (even for non-CALL). */
-  (void)return_type_ref;
+  /* wave454: never pass field-result ambient into base. wave465 uses ambient
+   * only after field resolve (type-param field fill). */
   if (pipeline_typeck_check_expr_c(module, arena, base_ref, base_expected, ctx) != 0)
     return -1;
   /** DOD-S1：INDEX 基址的 SoA 字段访问优先于 AoS layout 回落。 */
@@ -933,11 +1013,14 @@ int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *module, str
         pipeline_typeck_field_known_ptr_types_c(module, arena, expr_ref, base_ref, module->num_struct_layouts);
     }
     layout_rc = pipeline_typeck_field_layout_named_c(module, arena, expr_ref, base_ref, ctx);
-    if (layout_rc == 2)
+    if (layout_rc == 2) {
+      pipeline_typeck_field_apply_ambient_for_type_param_c(module, arena, expr_ref, return_type_ref);
       return 0;
+    }
     pipeline_typeck_field_slice_c(arena, expr_ref, base_ref);
   }
   pipeline_typeck_field_name_fallback_c(arena, expr_ref, base_ref);
   pipeline_typeck_field_lexer_fallback_c(module, arena, expr_ref, base_ref, ctx);
+  pipeline_typeck_field_apply_ambient_for_type_param_c(module, arena, expr_ref, return_type_ref);
   return 0;
 }

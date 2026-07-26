@@ -343,6 +343,9 @@ extern void pipeline_module_struct_layout_field_name_into(struct ast_Module *mod
                                                          uint8_t *out64);
 extern int32_t pipeline_module_struct_layout_name_len(struct ast_Module *module, int32_t idx);
 extern void pipeline_module_struct_layout_name_into(struct ast_Module *module, int32_t idx, uint8_t *out64);
+/* wave465: enum name probe so type-param ambient fill does not swallow real enum fields */
+extern int32_t pipeline_module_enum_name_len(struct ast_Module *module, int32_t idx);
+extern uint8_t pipeline_module_enum_name_byte_at(struct ast_Module *module, int32_t idx, int32_t off);
 extern int32_t typeck_entry_module_find_struct_layout_index(struct ast_Module *mod, uint8_t *nm, int32_t nlen);
 extern int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_binop_left_ref_at(struct ast_ASTArena *arena, int32_t expr_ref);
@@ -3071,8 +3074,9 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *
    * wave454: base type ≠ field result type. Do not pass return_type_ref into
    * base. For CALL/METHOD_CALL bases reverse-infer unique owner struct so
    * bare ret-only generics get ambient A on `mk_default().v`.
+   * wave465: after field resolve, ambient fills unconstrained type-param
+   * field types (struct Wrap<T>{v:T} → return w.v with expected i32).
    */
-  (void)return_type_ref;
   base_expected = 0;
   base_kind = pipeline_expr_kind_ord_at(arena, base_ref);
   if (base_kind == (int32_t)ast_ExprKind_EXPR_CALL ||
@@ -3142,6 +3146,68 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *
                                                         field_len);
   if (field_ty > 0)
     pipeline_expr_set_resolved_type_ref(arena, expr_ref, field_ty);
+  /*
+   * wave465: type-param field (TYPE_NAMED with no module struct/enum) + ambient
+   * expected → stamp ambient (return w.v / expected i32). Never applied to base.
+   * PLATFORM: SHARED — twin of heavy pipeline_typeck_field_access.c.
+   */
+  if (return_type_ref > 0 && return_type_ref <= arena->num_types) {
+    int32_t got_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    int32_t use_ambient = 0;
+    if (ast_ref_is_null(got_ty) || got_ty <= 0 || got_ty > arena->num_types) {
+      use_ambient = 1;
+    } else if (pipeline_type_kind_ord_at(arena, got_ty) == (int32_t)ast_TypeKind_TYPE_NAMED) {
+      uint8_t gnm[64];
+      int32_t gnl;
+      int32_t concrete = 0;
+      int32_t sk;
+      memset(gnm, 0, sizeof(gnm));
+      gnl = pipeline_type_named_name_into(arena, got_ty, gnm);
+      if (gnl > 0 && gnl <= 63) {
+        for (sk = 0; sk < module->num_struct_layouts; sk++) {
+          int32_t sl = pipeline_module_struct_layout_name_len(module, sk);
+          uint8_t snm[64];
+          int32_t bi;
+          int32_t match;
+          if (sl != gnl)
+            continue;
+          memset(snm, 0, sizeof(snm));
+          pipeline_module_struct_layout_name_into(module, sk, snm);
+          match = 1;
+          for (bi = 0; bi < gnl; bi++) {
+            if (snm[bi] != gnm[bi]) {
+              match = 0;
+              break;
+            }
+          }
+          if (match) {
+            concrete = 1;
+            break;
+          }
+        }
+        if (!concrete) {
+          for (sk = 0; sk < module->num_module_enums; sk++) {
+            int32_t el = pipeline_module_enum_name_len(module, sk);
+            int32_t bi;
+            if (el != gnl)
+              continue;
+            for (bi = 0; bi < el; bi++) {
+              if (pipeline_module_enum_name_byte_at(module, sk, bi) != gnm[bi])
+                break;
+            }
+            if (bi == el) {
+              concrete = 1;
+              break;
+            }
+          }
+        }
+      }
+      if (!concrete)
+        use_ambient = 1;
+    }
+    if (use_ambient)
+      pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref);
+  }
   return 0;
 }
 #endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */

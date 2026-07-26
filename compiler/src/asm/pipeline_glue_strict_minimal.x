@@ -2356,6 +2356,8 @@ function pipeline_typeck_field_reverse_infer_base_type_strict_minimal(module: *u
 /**
  * EXPR_FIELD_ACCESS typeck (strict_minimal product path).
  * wave454: never pass field-result ambient into base; reverse-infer CALL base owner.
+ * wave465: after field resolve, ambient fills unconstrained type-param fields
+ * (struct Wrap<T>{v:T} → return w.v with expected i32). Not applied to base.
  * @param module *u8 — Module*
  * @param arena *u8 — ASTArena*
  * @param expr_ref i32 — FIELD_ACCESS
@@ -2512,6 +2514,48 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
     let field_ty: i32 = typeck_get_field_type_ref_from_layout_deps(module, arena, ctx, &type_name[0], type_name_len, &field_name[0], field_len);
     if (field_ty > 0) {
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, field_ty);
+    }
+    // wave465: type-param field (TYPE_NAMED no module concrete) + ambient → stamp ambient.
+    // Keep wave454: ambient never applied to base. PLATFORM: SHARED.
+    // Product authority is seed C; this .x stays in sync (G.7).
+    if (return_type_ref > 0) {
+      let got_ty: i32 = pipeline_expr_resolved_type_ref(arena, expr_ref);
+      let use_ambient: i32 = 0;
+      if (got_ty <= 0) {
+        use_ambient = 1;
+      } else {
+        // TYPE_NAMED = 8
+        if (pipeline_type_kind_ord_at(arena, got_ty) == 8) {
+          let gnm: u8[64] = [];
+          let gnl: i32 = pipeline_type_named_name_into(arena, got_ty, &gnm[0]);
+          let concrete: i32 = 0;
+          if (gnl > 0) {
+            if (gnl <= 63) {
+              let nsl: i32 = pipeline_module_num_struct_layouts_at(module);
+              let sk: i32 = 0;
+              while (sk < nsl) {
+                let sl: i32 = pipeline_module_struct_layout_name_len(module, sk);
+                if (sl == gnl) {
+                  let snm: u8[64] = [];
+                  pipeline_module_struct_layout_name_into(module, sk, &snm[0]);
+                  let bi: i32 = 0;
+                  let match: i32 = 1;
+                  while (bi < gnl) {
+                    if (snm[bi] != gnm[bi]) { match = 0; }
+                    bi = bi + 1;
+                  }
+                  if (match != 0) { concrete = 1; }
+                }
+                sk = sk + 1;
+              }
+            }
+          }
+          if (concrete == 0) { use_ambient = 1; }
+        }
+      }
+      if (use_ambient != 0) {
+        pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref);
+      }
     }
   }
   return 0;
