@@ -30,8 +30,8 @@ struct parser_asm_parse_block_result {
   struct parser_asm_lexer next_lex;
 };
 #endif
-/* wave475/476: mid-body if/while/for/match/expr_stmt in default-hoist buf path
- * (G.7 free onefunc twin). */
+/* wave475/476/477: mid-body if/while/for/match/let/const/expr_stmt in
+ * default-hoist buf path (G.7 free onefunc twin). */
 extern int32_t parser_asm_parse_if_stmt_into_c(void *arena, struct parser_asm_lexer lex_at_if,
                                                struct parser_asm_slice_u8 *source, int32_t type_ref,
                                                int32_t *out_cond, int32_t *out_then, int32_t *out_else,
@@ -1000,6 +1000,8 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
    * + push_stmt_order).
    * wave476: mid-body C-style `for (init;cond;step) { }` + stmt-position
    * `match` (G.7 twin free onefunc append_for / parse_match_into → expr_stmt).
+   * wave477: mid-body `let`/`const` after control (prefix-only was soft leave-off;
+   * free onefunc already re-enters parse_body_lets_into + stmt_order kind 1).
    * Soft: dyn Trait; dual Method.POST; multi mono rare; return-match compound.
    * PLATFORM: SHARED parse.
    */
@@ -1040,6 +1042,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
    * WHILE → cond + parse_block_into + append_while.
    * FOR → C-style for(init;cond;step) body + append_for (kind 4).
    * MATCH → parse_match_into → body_expr_stmt (kind 2; optional ';').
+   * LET/CONST → re-enter parse_body_lets_into + stmt_order kind 0/1 (wave477).
    * Else → expr_stmt (assign / call) via parse_expr_into + ';'.
    */
   r = lexer_next_buf(lex, data, len);
@@ -1301,6 +1304,48 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
       }
       out->num_src_body_expr_stmts = pipeline_onefunc_num_body_expr_stmts(out_pool);
       out->num_src_stmt_order = pipeline_onefunc_num_src_stmt_order(out_pool);
+      continue;
+    }
+    if (r.tok.kind == (int32_t)TOKEN_LET || r.tok.kind == (int32_t)TOKEN_CONST) {
+      /*
+       * wave477: mid-body let/const after if/while/for/match/expr_stmt.
+       * Root: prefix-only parse_body_lets_into left post-control `let j` to fall
+       * into expr_stmt → parse_expr fail → whole default method dropped →
+       * missing method (free path green via parse_one_function_impl mid_let).
+       * G.7: re-enter parse_body_lets_into at keyword; push new consts (kind 0)
+       * then new lets (kind 1) into src_stmt_order (free twin + const complete).
+       * PLATFORM: SHARED parse.
+       */
+      int32_t n_before_mid = pipeline_onefunc_num_lets(out_pool);
+      int32_t n_const_before = pipeline_onefunc_num_consts(out_pool);
+      int32_t push_mi;
+      int32_t push_mc;
+      struct parser_asm_lexer lex_mid_let;
+      lex_mid_let = parser_asm_lex_at_token_from_result_c(r);
+      if (!parser_parse_body_lets_into(arena, lex_mid_let, &source, out, &lex)) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      out->num_lets = pipeline_onefunc_num_lets(out_pool);
+      out->num_consts = pipeline_onefunc_num_consts(out_pool);
+      push_mc = n_const_before;
+      while (push_mc < out->num_consts) {
+        if (pipeline_onefunc_push_stmt_order(out_pool, (uint8_t)0, push_mc) < 0) {
+          parser_asm_set_onefunc_fail_c(out, lex);
+          return;
+        }
+        push_mc++;
+      }
+      push_mi = n_before_mid;
+      while (push_mi < out->num_lets) {
+        if (pipeline_onefunc_push_stmt_order(out_pool, (uint8_t)1, push_mi) < 0) {
+          parser_asm_set_onefunc_fail_c(out, lex);
+          return;
+        }
+        push_mi++;
+      }
+      out->num_src_stmt_order = pipeline_onefunc_num_src_stmt_order(out_pool);
+      r = lexer_next_buf(lex, data, len);
       continue;
     }
     /* Mid-body expr_stmt (assign / call / …); require trailing ';'. */
