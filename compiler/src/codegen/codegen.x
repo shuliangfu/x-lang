@@ -6904,6 +6904,34 @@ function codegen_maybe_emit_generic_struct_mono_suffix_for_type(module: *Module,
       if (nc == 1) {
         return codegen_emit_generic_struct_mono_suffix(out, arena, &combos[0], ntp);
       }
+      if (nc > 1) {
+        let match_combo: i32[4] = [];
+        let mi: i32 = 0;
+        while (mi < nc) {
+          let matched: i32 = 1;
+          let si: i32 = 0;
+          while (si < ntp) {
+            let arg_ref: i32 = pipeline_type_type_arg_ref_at(arena, type_ref, si);
+            if (arg_ref <= 0) {
+              matched = 0;
+              si = ntp;
+            } else if (codegen_type_refs_same_for_mono(arena, arg_ref, combos[mi * ntp + si]) == 0) {
+              matched = 0;
+              si = ntp;
+            }
+            si = si + 1;
+          }
+          if (matched != 0) {
+            let sj: i32 = 0;
+            while (sj < ntp) {
+              match_combo[sj] = combos[mi * ntp + sj];
+              sj = sj + 1;
+            }
+            return codegen_emit_generic_struct_mono_suffix(out, arena, &match_combo[0], ntp);
+          }
+          mi = mi + 1;
+        }
+      }
     }
     return 0;
   }
@@ -15980,7 +16008,14 @@ function codegen_find_impl_method_for_type(module: *Module, arena: *ASTArena, me
                   }
                 }
                 if (neq != 0) {
-                  return fi;
+                  if (pipeline_type_kind_ord_at(arena, p0_ty) == TypeKind.TYPE_NAMED
+                      && pipeline_type_kind_ord_at(arena, receiver_type_ref) == TypeKind.TYPE_NAMED) {
+                    if (codegen_type_refs_same_for_mono(arena, p0_ty, receiver_type_ref) != 0) {
+                      return fi;
+                    }
+                  } else {
+                    return fi;
+                  }
                 }
               }
             }

@@ -6994,6 +6994,41 @@ static int32_t codegen_maybe_emit_generic_struct_mono_suffix_for_type(struct ast
     int32_t nc = codegen_collect_generic_struct_mono_combos(module, arena, lk, nm + bare_off, bare_len, ntp, combos, 8);
     if (nc == 1)
       return codegen_emit_generic_struct_mono_suffix(out, arena, combos, ntp);
+    /*
+     * wave490 Cap residual: multi-combo generic impl method mangling.
+     * When multiple concrete type-arg combos exist (e.g., Box<A> + Box<B>),
+     * match the current type_ref's concrete args against each collected
+     * combo and emit the matching suffix so each instantiation gets a
+     * unique mangled name. PLATFORM: SHARED host-C.
+     */
+    if (nc > 1) {
+      int32_t match_combo[4];
+      int32_t mi = 0;
+      while (mi < nc) {
+        int32_t matched = 1;
+        int32_t si = 0;
+        while (si < ntp) {
+          int32_t arg_ref = pipeline_type_type_arg_ref_at(arena, type_ref, si);
+          if (arg_ref <= 0) {
+            matched = 0;
+            si = ntp;
+          } else if (pipeline_typeck_type_refs_equal_c(arena, arg_ref, combos[mi * ntp + si]) == 0) {
+            matched = 0;
+            si = ntp;
+          }
+          si = si + 1;
+        }
+        if (matched != 0) {
+          int32_t sj = 0;
+          while (sj < ntp) {
+            match_combo[sj] = combos[mi * ntp + sj];
+            sj = sj + 1;
+          }
+          return codegen_emit_generic_struct_mono_suffix(out, arena, match_combo, ntp);
+        }
+        mi = mi + 1;
+      }
+    }
   }
   return 0;
 }
