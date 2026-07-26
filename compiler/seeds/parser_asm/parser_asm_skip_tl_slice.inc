@@ -1297,8 +1297,10 @@ static int32_t xlang_skip_rewrite_self_type_ref_c(void *arena, int32_t type_ref,
  *
  * G.7 authority: general onefunc parse (`parser_asm_parse_one_function_buf_into_c`)
  * + minimal module slot commit (same pipeline_* APIs as seed_commit_onefunc).
- * Soft: multi-trait same default name; complex stmt-order (let then return r);
+ * Soft: multi-trait same default name; mid-body if/loop before return;
  *       dyn Trait. wave472: STRUCT_LIT return + Self type name rewrite.
+ * wave473: body lets via parse_body_lets_into; Self rewrite on let types +
+ *          STRUCT_LIT inits (same class as return STRUCT_LIT).
  * PLATFORM: SHARED parse.
  */
 static int32_t xlang_skip_commit_default_onefunc_c(void *arena, void *module,
@@ -1340,6 +1342,9 @@ static int32_t xlang_skip_commit_default_onefunc_c(void *arena, void *module,
   extern int32_t parser_should_wrap_func_tail_in_return_glue(void *arena, struct parser_asm_onefunc_result *res,
                                                             int32_t type_ref);
   extern int32_t pipeline_type_ensure_by_kind_ord(void *arena, int32_t kind_ord);
+  extern int32_t pipeline_block_let_type_ref(void *arena, int32_t br, int32_t li);
+  extern int32_t pipeline_block_set_let_type_ref(void *arena, int32_t br, int32_t li, int32_t type_ref);
+  extern int32_t pipeline_block_let_init_ref(void *arena, int32_t br, int32_t li);
 
   if (!arena || !module || !res || !res->ok)
     return -1;
@@ -1422,12 +1427,61 @@ static int32_t xlang_skip_commit_default_onefunc_c(void *arena, void *module,
     return -1;
   b = ast_ast_arena_block_get(arena, block_ref);
   memset(&b, 0, sizeof(b));
-  b.num_consts = res->num_consts;
-  b.num_lets = res->num_lets;
+  /*
+   * G.7 twin of parser_gen seed_commit: num_consts/num_lets must stay 0 before
+   * fill_block_const_let (append_* increments). Pre-setting res->num_lets made
+   * block_pool_append_pos treat the first append as "subsequent" → insert-and-
+   * shift in the global lets pool and corrupt sibling function bodies (wave473
+   * main `let b` became garbage `s` / undeclared b). PLATFORM: SHARED parse.
+   */
+  b.num_consts = 0;
+  b.num_lets = 0;
   b.final_expr_ref = final_expr_ref;
   ast_ast_arena_block_set(arena, block_ref, b);
   if (!parser_asm_fill_block_const_let_from_res_c(arena, block_ref, res, type_ref))
     return -1;
+  /* fill updates res->num_* from sidecar; re-read block counts for stmt_order. */
+
+  /*
+   * wave473: after fill, rewrite let-decl TYPE_NAMED Self → for-type and
+   * STRUCT_LIT init names Self → for (G.7 same helpers as param/ret/return
+   * STRUCT_LIT). Without this `let s: Self = Self { … }; return s` typeck
+   * still sees Self vs A. PLATFORM: SHARED parse.
+   */
+  b = ast_ast_arena_block_get(arena, block_ref);
+  {
+    int32_t li_rw;
+    for (li_rw = 0; li_rw < b.num_lets; li_rw++) {
+      int32_t lty = pipeline_block_let_type_ref(arena, block_ref, li_rw);
+      int32_t nty = xlang_skip_rewrite_self_type_ref_c(arena, lty, for_nm, for_nl, for_ptr);
+      int32_t init_ref;
+      if (nty != 0 && nty != lty)
+        (void)pipeline_block_set_let_type_ref(arena, block_ref, li_rw, nty);
+      init_ref = pipeline_block_let_init_ref(arena, block_ref, li_rw);
+      if (init_ref != 0) {
+        e = ast_ast_arena_expr_get(arena, init_ref);
+        if (e.kind == k_expr_struct_lit) {
+          int32_t snl = e.struct_lit_struct_name_len;
+          if (snl > 0 && xlang_skip_name_is_self_c(e.struct_lit_struct_name, snl) &&
+              for_nm && for_nl > 0 && for_nl <= 63 && for_ptr == 0) {
+            int32_t ti;
+            uint8_t for_copy[64];
+            memset(for_copy, 0, sizeof(for_copy));
+            memcpy(for_copy, for_nm, (size_t)for_nl);
+            memset(e.struct_lit_struct_name, 0, sizeof(e.struct_lit_struct_name));
+            for (ti = 0; ti < for_nl; ti++)
+              e.struct_lit_struct_name[ti] = for_copy[ti];
+            e.struct_lit_struct_name_len = for_nl;
+          }
+          if (nty != 0)
+            e.resolved_type_ref = nty;
+          else if (type_ref != 0 && e.resolved_type_ref == 0)
+            e.resolved_type_ref = type_ref;
+          ast_ast_arena_expr_set(arena, init_ref, e);
+        }
+      }
+    }
+  }
 
   /* Simple stmt_order: consts, lets, then final as expr_stmt if needed. */
   b = ast_ast_arena_block_get(arena, block_ref);

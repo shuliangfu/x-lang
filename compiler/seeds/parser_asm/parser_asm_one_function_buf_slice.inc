@@ -2,15 +2,22 @@
  * parser_asm_one_function_buf_slice.inc — parse_one_function_buf_into C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
- * 精简 buf 路径：function ident(): type { … return int; }；回调 body_skip_let_const_then_if_buf glue。
+ * 精简 buf 路径：function ident(): type { … return …; }。
+ * wave473: body lets/consts collected via G.7 parser_parse_body_lets_into (not skip).
+ * PLATFORM: SHARED parse.
  */
 #ifndef PARSER_ASM_ONE_FUNCTION_BUF_SLICE_INCLUDED
 #define PARSER_ASM_ONE_FUNCTION_BUF_SLICE_INCLUDED
 
 extern struct parser_asm_lexer_result lexer_next_buf(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
 extern void parser_lex_from_next_into_glue(struct parser_asm_lexer *out, struct parser_asm_lexer_result r);
-extern struct parser_asm_lexer_result parser_asm_body_skip_let_const_then_if_buf_c(struct parser_asm_lexer lex,
-                                                                                   uint8_t *data, int32_t len);
+extern int32_t pipeline_onefunc_num_lets(uint8_t *out);
+extern int32_t pipeline_onefunc_num_consts(uint8_t *out);
+/* G.7 authority (parser.x / parser_gen); layout-compatible with parser_asm_onefunc_result. */
+extern int parser_parse_body_lets_into(void *arena, struct parser_asm_lexer lex,
+                                       struct parser_asm_slice_u8 *source,
+                                       struct parser_asm_onefunc_result *out,
+                                       struct parser_asm_lexer *lex_out);
 extern void parser_asm_copy_slice_to_param32_buf_c(uint8_t *source, int32_t source_len, size_t start, int32_t nlen,
                                                    uint8_t *out);
 extern int32_t pipeline_onefunc_append_param(uint8_t *out, uint8_t *name, int32_t name_len, int32_t type_ref);
@@ -935,7 +942,22 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
     return;
   }
   parser_lex_from_next_into_glue(&lex, r);
-  r = parser_asm_body_skip_let_const_then_if_buf_c(lex, data, len);
+  /*
+   * wave473 Cap residual pure: collect body `let`/`const` into OneFunc sidecar.
+   * Root: body_skip_let_const_then_if dropped bindings but still accepted
+   * `return s` → hoist inject with return_var_name=s and num_lets=0 → typeck
+   * "cannot resolve return subexpression: s". Free functions already use
+   * parse_body_lets_into; default-method re-parse (buf path) must share that
+   * authority (G.7). Soft: mid-body if/loop/expr_stmt before return still fail
+   * this thin path; dyn Trait. PLATFORM: SHARED parse.
+   */
+  if (!parser_parse_body_lets_into(arena, lex, &source, out, &lex)) {
+    parser_asm_set_onefunc_fail_c(out, lex);
+    return;
+  }
+  out->num_lets = pipeline_onefunc_num_lets(out_pool);
+  out->num_consts = pipeline_onefunc_num_consts(out_pool);
+  r = lexer_next_buf(lex, data, len);
   if (r.tok.kind != (int32_t)TOKEN_RETURN) {
     parser_asm_set_onefunc_fail_c(out, lex);
     return;
@@ -1037,7 +1059,9 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
    * tail after bare var), so trait default hoist skipped inject → false
    * "missing method". G.7: reuse finish_struct_lit_from_type_ident (same
    * primary authority); commit rewrites TYPE_NAMED Self → for-type.
-   * Soft: let+return complex stmt-order; nested non-INT field inits that
+   * wave473: body lets collected (parse_body_lets_into); return self|ident|lit
+   * after prefix lets is the thin-path contract.
+   * Soft: mid-body if/loop before return; nested non-INT field inits that
    * finish_struct_lit cannot parse; dyn Trait.
    * PLATFORM: SHARED parse.
    */
