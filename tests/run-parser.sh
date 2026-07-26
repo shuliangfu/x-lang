@@ -7,11 +7,16 @@ if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   make -C compiler -q 2>/dev/null || make -C compiler
 fi
 XLANG=${XLANG:-./compiler/xlang}
-# bstrict 前序脚本 make -C compiler 会把 xlang 刷回 seed；parser 烟测须 stage2 asm（与 run-struct 策略一致）。
-if [ -n "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" ] && [ -x ./compiler/xlang_asm2 ]; then
-  XLANG=./compiler/xlang_asm2
-elif [ -n "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" ] && [ -x ./compiler/xlang_asm ]; then
-  XLANG=./compiler/xlang_asm
+# PLATFORM: SHARED — product bstrict / L4 must use this-SHA xlang_asm.
+# Preferring leftover Stage2 xlang_asm2 over product is a July-14 wrong-binary path
+# (stale gen2 can false-accept bad if / false-fail green cases). Opt-in only:
+# XLANG_BSTRICT_USE_ASM2=1 (aligns with run-all-bstrict.sh).
+if [ -n "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" ]; then
+  if [ -n "${XLANG_BSTRICT_USE_ASM2:-}" ] && [ -x ./compiler/xlang_asm2 ]; then
+    XLANG=./compiler/xlang_asm2
+  elif [ -x ./compiler/xlang_asm ]; then
+    XLANG=./compiler/xlang_asm
+  fi
 fi
 
 # 负例诊断：seed asm 的 check 对 parse 失败常静默 exit 0；优先 parse/typeck 烟测（-L .）。

@@ -8,10 +8,14 @@ if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   make -C compiler -q 2>/dev/null || make -C compiler
 fi
 XLANG=${XLANG:-./compiler/xlang}
-if [ -n "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" ] && [ -x ./compiler/xlang_asm2 ]; then
-  XLANG=./compiler/xlang_asm2
-elif [ -n "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" ] && [ -x ./compiler/xlang_asm ]; then
-  XLANG=./compiler/xlang_asm
+# PLATFORM: SHARED — product bstrict uses this-SHA xlang_asm; leftover xlang_asm2
+# only with XLANG_BSTRICT_USE_ASM2=1 (July-14 wrong-binary ban; see run-all-bstrict.sh).
+if [ -n "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" ]; then
+  if [ -n "${XLANG_BSTRICT_USE_ASM2:-}" ] && [ -x ./compiler/xlang_asm2 ]; then
+    XLANG=./compiler/xlang_asm2
+  elif [ -x ./compiler/xlang_asm ]; then
+    XLANG=./compiler/xlang_asm
+  fi
 fi
 
 # 正例：基础 f32/f64、0.0、整字面量 0
