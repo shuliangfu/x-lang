@@ -1809,6 +1809,42 @@ static int32_t xlang_seed_impl_self_matches_for_c(void *arena, int32_t pty0,
   return 1;
 }
 
+/**
+ * wave469 Cap residual pure — trait TYPE_NAMED "Self" rewrites to the impl
+ * `for` type name when matching method param/ret signatures (seed twin of
+ * xlang_skip_trait_named_eq_self_c).
+ *
+ * G.7 single authority pair with skip_tl; same semantics and soft leaves.
+ * PLATFORM: SHARED parse.
+ *
+ * @param expect_nm trait expected type name bytes (may be "Self")
+ * @param expect_nl length; <=0 → no name constraint (match)
+ * @param got_nm    impl-side type name bytes
+ * @param got_nl    length
+ * @param for_nm    impl for-type name
+ * @param for_nl    length
+ * @param for_ptr   1 if for-type is *T
+ * @return 1 match, 0 mismatch
+ */
+static int32_t xlang_seed_trait_named_eq_self_c(
+    const uint8_t *expect_nm, int32_t expect_nl,
+    const uint8_t *got_nm, int32_t got_nl,
+    const uint8_t *for_nm, int32_t for_nl, int32_t for_ptr) {
+  if (expect_nl <= 0)
+    return 1;
+  if (expect_nl == 4 && expect_nm &&
+      expect_nm[0] == (uint8_t)'S' && expect_nm[1] == (uint8_t)'e' &&
+      expect_nm[2] == (uint8_t)'l' && expect_nm[3] == (uint8_t)'f') {
+    if (for_ptr || for_nl <= 0 || !for_nm)
+      return 0;
+    return (got_nl == for_nl && got_nm &&
+            memcmp(got_nm, for_nm, (size_t)for_nl) == 0) ? 1 : 0;
+  }
+  return (got_nl == expect_nl && got_nm &&
+          memcmp(got_nm, expect_nm, (size_t)expect_nl) == 0) ? 1 : 0;
+}
+
+
 static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const uint8_t *trait_nm,
                                                             int32_t trait_nlen, int32_t for_kind,
                                                             int32_t for_is_ptr, const uint8_t *for_name,
@@ -1897,8 +1933,10 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
               if (enl > 0 && pty != 0) {
                 uint8_t gnm[64];
                 int32_t gnl = pipeline_type_named_name_into(arena, pty, gnm);
-                if (gnl != enl ||
-                    memcmp(gnm, g_xlang_trait_reg[ti].method_param_names[mi][pi], (size_t)enl) != 0)
+                if (!xlang_seed_trait_named_eq_self_c(
+                      g_xlang_trait_reg[ti].method_param_names[mi][pi], enl,
+                      gnm, gnl,
+                      for_name, for_nlen, for_is_ptr))
                   mm = 1;
               }
             } else if (got_pk == ek &&
@@ -1914,8 +1952,10 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
                   if (enl > 0) {
                     uint8_t gnm[64];
                     int32_t gnl = pipeline_type_named_name_into(arena, elem, gnm);
-                    if (gnl != enl ||
-                        memcmp(gnm, g_xlang_trait_reg[ti].method_param_names[mi][pi], (size_t)enl) != 0)
+                    if (!xlang_seed_trait_named_eq_self_c(
+                          g_xlang_trait_reg[ti].method_param_names[mi][pi], enl,
+                          gnm, gnl,
+                          for_name, for_nlen, for_is_ptr))
                       mm = 1;
                   }
                 } else if (gek == eek && eek == XLANG_SEED_TRAIT_TY_SLICE) {
@@ -1935,9 +1975,10 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
                       if (enl > 0) {
                         uint8_t gnm[64];
                         int32_t gnl = pipeline_type_named_name_into(arena, pelem, gnm);
-                        if (gnl != enl ||
-                            memcmp(gnm, g_xlang_trait_reg[ti].method_param_names[mi][pi],
-                                   (size_t)enl) != 0)
+                        if (!xlang_seed_trait_named_eq_self_c(
+                              g_xlang_trait_reg[ti].method_param_names[mi][pi], enl,
+                              gnm, gnl,
+                              for_name, for_nlen, for_is_ptr))
                           mm = 1;
                       }
                     }
@@ -1983,9 +2024,10 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
                       if (enl > 0) {
                         uint8_t gnm[64];
                         int32_t gnl = pipeline_type_named_name_into(arena, leaf_tr, gnm);
-                        if (gnl != enl ||
-                            memcmp(gnm, g_xlang_trait_reg[ti].method_param_names[mi][pi],
-                                   (size_t)enl) != 0)
+                        if (!xlang_seed_trait_named_eq_self_c(
+                              g_xlang_trait_reg[ti].method_param_names[mi][pi], enl,
+                              gnm, gnl,
+                              for_name, for_nlen, for_is_ptr))
                           mm = 1;
                       }
                     }
@@ -2030,8 +2072,10 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
                     if (enl > 0) {
                       uint8_t gnm[64];
                       int32_t gnl = pipeline_type_named_name_into(arena, leaf_tr, gnm);
-                      if (gnl != enl ||
-                          memcmp(gnm, g_xlang_trait_reg[ti].method_param_names[mi][pi], (size_t)enl) != 0)
+                      if (!xlang_seed_trait_named_eq_self_c(
+                            g_xlang_trait_reg[ti].method_param_names[mi][pi], enl,
+                            gnm, gnl,
+                            for_name, for_nlen, for_is_ptr))
                         mm = 1;
                     }
                   } else if (gek == eek && eek == XLANG_SEED_TRAIT_TY_PTR) {
@@ -2051,9 +2095,10 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
                         if (enl > 0) {
                           uint8_t gnm[64];
                           int32_t gnl = pipeline_type_named_name_into(arena, pelem, gnm);
-                          if (gnl != enl ||
-                              memcmp(gnm, g_xlang_trait_reg[ti].method_param_names[mi][pi],
-                                     (size_t)enl) != 0)
+                          if (!xlang_seed_trait_named_eq_self_c(
+                                g_xlang_trait_reg[ti].method_param_names[mi][pi], enl,
+                                gnm, gnl,
+                                for_name, for_nlen, for_is_ptr))
                             mm = 1;
                         }
                       }
@@ -2100,7 +2145,10 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
         if (enl > 0 && rty != 0) {
           uint8_t gnm[64];
           int32_t gnl = pipeline_type_named_name_into(arena, rty, gnm);
-          if (gnl != enl || memcmp(gnm, g_xlang_trait_reg[ti].method_ret_names[mi], (size_t)enl) != 0)
+          if (!xlang_seed_trait_named_eq_self_c(
+                g_xlang_trait_reg[ti].method_ret_names[mi], enl,
+                gnm, gnl,
+                for_name, for_nlen, for_is_ptr))
             mm = 1;
         }
       } else if (got_k == expect_k && expect_k == XLANG_SEED_TRAIT_TY_ARRAY) {
@@ -2137,8 +2185,10 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
               if (enl > 0) {
                 uint8_t gnm[64];
                 int32_t gnl = pipeline_type_named_name_into(arena, leaf_tr, gnm);
-                if (gnl != enl ||
-                    memcmp(gnm, g_xlang_trait_reg[ti].method_ret_names[mi], (size_t)enl) != 0)
+                if (!xlang_seed_trait_named_eq_self_c(
+                      g_xlang_trait_reg[ti].method_ret_names[mi], enl,
+                      gnm, gnl,
+                      for_name, for_nlen, for_is_ptr))
                   mm = 1;
               }
             } else if (gek == eek && eek == XLANG_SEED_TRAIT_TY_PTR) {
@@ -2159,8 +2209,10 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
                   if (enl > 0) {
                     uint8_t gnm[64];
                     int32_t gnl = pipeline_type_named_name_into(arena, pelem, gnm);
-                    if (gnl != enl ||
-                        memcmp(gnm, g_xlang_trait_reg[ti].method_ret_names[mi], (size_t)enl) != 0)
+                    if (!xlang_seed_trait_named_eq_self_c(
+                          g_xlang_trait_reg[ti].method_ret_names[mi], enl,
+                          gnm, gnl,
+                          for_name, for_nlen, for_is_ptr))
                       mm = 1;
                   }
                 }
@@ -2184,8 +2236,10 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
               if (enl > 0) {
                 uint8_t gnm[64];
                 int32_t gnl = pipeline_type_named_name_into(arena, elem, gnm);
-                if (gnl != enl ||
-                    memcmp(gnm, g_xlang_trait_reg[ti].method_ret_names[mi], (size_t)enl) != 0)
+                if (!xlang_seed_trait_named_eq_self_c(
+                      g_xlang_trait_reg[ti].method_ret_names[mi], enl,
+                      gnm, gnl,
+                      for_name, for_nlen, for_is_ptr))
                   mm = 1;
               }
             } else if (gek == eek && eek == XLANG_SEED_TRAIT_TY_PTR) {
@@ -2206,8 +2260,10 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
                   if (enl > 0) {
                     uint8_t gnm[64];
                     int32_t gnl = pipeline_type_named_name_into(arena, pelem, gnm);
-                    if (gnl != enl ||
-                        memcmp(gnm, g_xlang_trait_reg[ti].method_ret_names[mi], (size_t)enl) != 0)
+                    if (!xlang_seed_trait_named_eq_self_c(
+                          g_xlang_trait_reg[ti].method_ret_names[mi], enl,
+                          gnm, gnl,
+                          for_name, for_nlen, for_is_ptr))
                       mm = 1;
                   }
                 }
@@ -2228,8 +2284,10 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
             if (enl > 0) {
               uint8_t gnm[64];
               int32_t gnl = pipeline_type_named_name_into(arena, elem, gnm);
-              if (gnl != enl ||
-                  memcmp(gnm, g_xlang_trait_reg[ti].method_ret_names[mi], (size_t)enl) != 0)
+              if (!xlang_seed_trait_named_eq_self_c(
+                    g_xlang_trait_reg[ti].method_ret_names[mi], enl,
+                    gnm, gnl,
+                    for_name, for_nlen, for_is_ptr))
                 mm = 1;
             }
           } else if (gek == eek && eek == XLANG_SEED_TRAIT_TY_SLICE) {
@@ -2249,8 +2307,10 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
                 if (enl > 0) {
                   uint8_t gnm[64];
                   int32_t gnl = pipeline_type_named_name_into(arena, pelem, gnm);
-                  if (gnl != enl ||
-                      memcmp(gnm, g_xlang_trait_reg[ti].method_ret_names[mi], (size_t)enl) != 0)
+                  if (!xlang_seed_trait_named_eq_self_c(
+                        g_xlang_trait_reg[ti].method_ret_names[mi], enl,
+                        gnm, gnl,
+                        for_name, for_nlen, for_is_ptr))
                     mm = 1;
                 }
               }
@@ -2294,8 +2354,10 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
                 if (enl > 0) {
                   uint8_t gnm[64];
                   int32_t gnl = pipeline_type_named_name_into(arena, leaf_tr, gnm);
-                  if (gnl != enl ||
-                      memcmp(gnm, g_xlang_trait_reg[ti].method_ret_names[mi], (size_t)enl) != 0)
+                  if (!xlang_seed_trait_named_eq_self_c(
+                        g_xlang_trait_reg[ti].method_ret_names[mi], enl,
+                        gnm, gnl,
+                        for_name, for_nlen, for_is_ptr))
                     mm = 1;
                 }
               }
