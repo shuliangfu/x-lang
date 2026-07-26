@@ -8,11 +8,14 @@
 #define PARSER_ASM_IF_STMT_SLICE_INCLUDED
 
 /** 与 parser.x ParseBlockResult 布局一致（bool→i32）。 */
+#ifndef PARSER_ASM_PARSE_BLOCK_RESULT_FWD
+#define PARSER_ASM_PARSE_BLOCK_RESULT_FWD
 struct parser_asm_parse_block_result {
   int32_t ok;
   int32_t block_ref;
   struct parser_asm_lexer next_lex;
 };
+#endif
 
 extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex,
                             struct parser_asm_slice_u8 *source);

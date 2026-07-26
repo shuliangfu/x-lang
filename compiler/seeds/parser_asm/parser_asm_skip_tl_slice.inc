@@ -1297,10 +1297,12 @@ static int32_t xlang_skip_rewrite_self_type_ref_c(void *arena, int32_t type_ref,
  *
  * G.7 authority: general onefunc parse (`parser_asm_parse_one_function_buf_into_c`)
  * + minimal module slot commit (same pipeline_* APIs as seed_commit_onefunc).
- * Soft: multi-trait same default name; mid-body if/loop before return;
- *       dyn Trait. wave472: STRUCT_LIT return + Self type name rewrite.
+ * Soft: multi-trait same default name; dyn Trait.
+ * wave472: STRUCT_LIT return + Self type name rewrite.
  * wave473: body lets via parse_body_lets_into; Self rewrite on let types +
  *          STRUCT_LIT inits (same class as return STRUCT_LIT).
+ * wave475: mid-body if/while/expr_stmt — fill ifs/whiles/expr_stmts + prefer
+ *          onefunc src_stmt_order (G.7 twin of seed_commit free path).
  * PLATFORM: SHARED parse.
  */
 static int32_t xlang_skip_commit_default_onefunc_c(void *arena, void *module,
@@ -1318,6 +1320,8 @@ static int32_t xlang_skip_commit_default_onefunc_c(void *arena, void *module,
   uint8_t *pool;
   /* EXPR_STRUCT_LIT ord — match ast.h / finish_struct_lit (must stay 45). */
   const int32_t k_expr_struct_lit = 45;
+  /* EXPR_RETURN ord — match free commit final_expr RETURN guard (must stay 41). */
+  const int32_t k_expr_return = 41;
   extern int32_t pipeline_module_func_alloc_slot(void *module);
   extern void pipeline_module_func_name_write(void *module, int32_t fi, uint8_t *name_bytes, int32_t name_len);
   extern void pipeline_module_func_set_num_params(void *module, int32_t fi, int32_t n);
@@ -1345,6 +1349,14 @@ static int32_t xlang_skip_commit_default_onefunc_c(void *arena, void *module,
   extern int32_t pipeline_block_let_type_ref(void *arena, int32_t br, int32_t li);
   extern int32_t pipeline_block_set_let_type_ref(void *arena, int32_t br, int32_t li, int32_t type_ref);
   extern int32_t pipeline_block_let_init_ref(void *arena, int32_t br, int32_t li);
+  extern int32_t pipeline_onefunc_num_if_stmts(uint8_t *pool);
+  extern int32_t pipeline_onefunc_num_whiles(uint8_t *pool);
+  extern int32_t pipeline_onefunc_num_body_expr_stmts(uint8_t *pool);
+  extern int32_t pipeline_onefunc_num_src_stmt_order(uint8_t *pool);
+  extern void pipeline_block_fill_ifs_from_onefunc(void *arena, int32_t br, uint8_t *out, int32_t count);
+  extern void pipeline_block_fill_whiles_from_onefunc(void *arena, int32_t br, uint8_t *out, int32_t count);
+  extern void pipeline_block_fill_expr_stmts_from_onefunc(void *arena, int32_t br, uint8_t *out, int32_t count);
+  extern void pipeline_block_fill_stmt_order_from_onefunc(void *arena, int32_t br, uint8_t *out, int32_t count);
 
   if (!arena || !module || !res || !res->ok)
     return -1;
@@ -1483,28 +1495,57 @@ static int32_t xlang_skip_commit_default_onefunc_c(void *arena, void *module,
     }
   }
 
-  /* Simple stmt_order: consts, lets, then final as expr_stmt if needed. */
+  /*
+   * wave475: fill mid-body if/while/expr_stmt from onefunc pool, then prefer
+   * src_stmt_order when present (free seed_commit twin). Else synthetic order:
+   * consts → lets → final expr_stmt.
+   * PLATFORM: SHARED parse.
+   */
+  pool = parser_asm_onefunc_result_pool_ptr_c(res);
   b = ast_ast_arena_block_get(arena, block_ref);
   {
-    int32_t ci;
-    int32_t li;
-    for (ci = 0; ci < b.num_consts; ci++) {
-      if (pipeline_block_append_stmt_order(arena, block_ref, (uint8_t)0, ci) < 0)
-        return -1;
-    }
-    for (li = 0; li < b.num_lets; li++) {
-      if (pipeline_block_append_stmt_order(arena, block_ref, (uint8_t)1, li) < 0)
-        return -1;
-    }
-    if (final_expr_ref != 0) {
-      int32_t fin_ex = pipeline_block_append_expr_stmt(arena, block_ref, final_expr_ref);
-      if (fin_ex < 0)
-        return -1;
-      if (pipeline_block_append_stmt_order(arena, block_ref, (uint8_t)2, fin_ex) < 0)
-        return -1;
+    int32_t n_while = pool ? pipeline_onefunc_num_whiles(pool) : 0;
+    int32_t n_if = pool ? pipeline_onefunc_num_if_stmts(pool) : 0;
+    int32_t n_src = pool ? pipeline_onefunc_num_src_stmt_order(pool) : 0;
+    int32_t n_ex = pool ? pipeline_onefunc_num_body_expr_stmts(pool) : 0;
+    if (n_while > 0)
+      pipeline_block_fill_whiles_from_onefunc(arena, block_ref, pool, n_while);
+    if (n_if > 0)
+      pipeline_block_fill_ifs_from_onefunc(arena, block_ref, pool, n_if);
+    b = ast_ast_arena_block_get(arena, block_ref);
+    if (n_src > 0) {
+      if (n_ex > 0)
+        pipeline_block_fill_expr_stmts_from_onefunc(arena, block_ref, pool, n_ex);
+      pipeline_block_fill_stmt_order_from_onefunc(arena, block_ref, pool, n_src);
       b = ast_ast_arena_block_get(arena, block_ref);
-      b.final_expr_ref = 0;
+      b.final_expr_ref = final_expr_ref;
+      if (b.num_expr_stmts > 0 && final_expr_ref != 0) {
+        e = ast_ast_arena_expr_get(arena, final_expr_ref);
+        if (e.kind != k_expr_return)
+          b.final_expr_ref = 0;
+      }
       ast_ast_arena_block_set(arena, block_ref, b);
+    } else {
+      int32_t ci;
+      int32_t li;
+      for (ci = 0; ci < b.num_consts; ci++) {
+        if (pipeline_block_append_stmt_order(arena, block_ref, (uint8_t)0, ci) < 0)
+          return -1;
+      }
+      for (li = 0; li < b.num_lets; li++) {
+        if (pipeline_block_append_stmt_order(arena, block_ref, (uint8_t)1, li) < 0)
+          return -1;
+      }
+      if (final_expr_ref != 0) {
+        int32_t fin_ex = pipeline_block_append_expr_stmt(arena, block_ref, final_expr_ref);
+        if (fin_ex < 0)
+          return -1;
+        if (pipeline_block_append_stmt_order(arena, block_ref, (uint8_t)2, fin_ex) < 0)
+          return -1;
+        b = ast_ast_arena_block_get(arena, block_ref);
+        b.final_expr_ref = 0;
+        ast_ast_arena_block_set(arena, block_ref, b);
+      }
     }
   }
 
