@@ -6560,8 +6560,33 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       let fallback: u8[3] = [95, 48, 0];
       return emit_bytes_3(out, fallback, 2);
     }
-    /* See implementation. */
+    /*
+     * wave459 Cap residual pure: host-C aggregate `as` cast.
+     * Root: EXPR_AS always emitted `((TYPE)(op))`. C permits that only for
+     * scalar/pointer targets; `((struct A)(x))` is rejected by host gcc
+     * ("used type 'struct A' where arithmetic or pointer type is required")
+     * → BLD001 (soft leave-off after wave458 multi-T mono / STRUCT_LIT path).
+     * Fix: when target (after alias peel + mono subst) is a module user struct,
+     * emit C99 compound literal `((TYPE){ (op) })` — initializes first field
+     * (remaining fields zero). Matches product intent of `T { v: x }` for the
+     * scalar→single-field-struct monomorphization probes (`as_t<A>(7)`).
+     * Scalar/pointer targets keep the historical C cast path.
+     * G.7 authority: this EXPR_AS branch only; reuse
+     * codegen_mono_subst_type + codegen_type_is_module_user_struct (no second path).
+     * PLATFORM: SHARED host-C emit.
+     */
     if (e.kind == ExprKind.EXPR_AS) {
+      let as_tgt: i32 = e.as_target_type_ref;
+      if (!ast.ref_is_null(as_tgt)) {
+        as_tgt = pipeline_typeck_resolve_type_alias_ref_c(arena, as_tgt);
+        as_tgt = codegen_mono_subst_type(ctx, arena, as_tgt);
+      }
+      let as_struct: i32 = 0;
+      if (!ast.ref_is_null(as_tgt) && ctx != 0 as *PipelineDepCtx
+          && ctx.current_codegen_module != 0 as *Module
+          && codegen_type_is_module_user_struct(ctx.current_codegen_module, arena, as_tgt) != 0) {
+        as_struct = 1;
+      }
       if (append_byte(out, 40) != 0) {
         return -1;
       }
@@ -6573,6 +6598,31 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       if (append_byte(out, 41) != 0) {
         return -1;
+      }
+      if (as_struct != 0) {
+        /* Compound literal: (TYPE){ (op) } */
+        if (append_byte(out, 123) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 32) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 40) != 0) {
+          return -1;
+        }
+        if (!ast.ref_is_null(e.as_operand_ref) && emit_expr(arena, out, e.as_operand_ref, ctx) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 41) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 32) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 125) != 0) {
+          return -1;
+        }
+        return append_byte(out, 41);
       }
       if (append_byte(out, 40) != 0) {
         return -1;
