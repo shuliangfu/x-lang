@@ -2517,40 +2517,41 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
     if (field_ty > 0) {
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, field_ty);
     }
-    // wave466: single-arg generic mono — TYPE_NAMED base stores type arg in elem_type_ref
-    // (`Wrap<i32>`); type-param field (`v: T`) stamps that arg before ambient.
-    // Multi type-arg soft (slot0 only). PLATFORM: SHARED. G.7 twin of seed C + heavy.
+    // wave466/467: generic mono — type-pos args on base; type-param field stamps
+    // matching type-arg slot (multi via layout type-param names). PLATFORM: SHARED.
+    // G.7 twin of seed C + heavy. Product path uses seed C; .x stays in sync.
     {
-      let mono_ty: i32 = pipeline_type_elem_ref_at(arena, work_ty);
-      if (mono_ty > 0) {
-        let got_mono: i32 = pipeline_expr_resolved_type_ref(arena, expr_ref);
-        if (got_mono > 0) {
-          if (pipeline_type_kind_ord_at(arena, got_mono) == 8) {
-            let mnm: u8[64] = [];
-            let mnl: i32 = pipeline_type_named_name_into(arena, got_mono, &mnm[0]);
-            let m_concrete: i32 = 0;
-            if (mnl > 0) {
-              if (mnl <= 63) {
-                let nslm: i32 = pipeline_module_num_struct_layouts_at(module);
-                let skm: i32 = 0;
-                while (skm < nslm) {
-                  let slm: i32 = pipeline_module_struct_layout_name_len(module, skm);
-                  if (slm == mnl) {
-                    let snmm: u8[64] = [];
-                    pipeline_module_struct_layout_name_into(module, skm, &snmm[0]);
-                    let bim: i32 = 0;
-                    let matchm: i32 = 1;
-                    while (bim < mnl) {
-                      if (snmm[bim] != mnm[bim]) { matchm = 0; }
-                      bim = bim + 1;
-                    }
-                    if (matchm != 0) { m_concrete = 1; }
+      let got_mono: i32 = pipeline_expr_resolved_type_ref(arena, expr_ref);
+      if (got_mono > 0) {
+        if (pipeline_type_kind_ord_at(arena, got_mono) == 8) {
+          let mnm: u8[64] = [];
+          let mnl: i32 = pipeline_type_named_name_into(arena, got_mono, &mnm[0]);
+          let m_concrete: i32 = 0;
+          if (mnl > 0) {
+            if (mnl <= 63) {
+              let nslm: i32 = pipeline_module_num_struct_layouts_at(module);
+              let skm: i32 = 0;
+              while (skm < nslm) {
+                let slm: i32 = pipeline_module_struct_layout_name_len(module, skm);
+                if (slm == mnl) {
+                  let snmm: u8[64] = [];
+                  pipeline_module_struct_layout_name_into(module, skm, &snmm[0]);
+                  let bim: i32 = 0;
+                  let matchm: i32 = 1;
+                  while (bim < mnl) {
+                    if (snmm[bim] != mnm[bim]) { matchm = 0; }
+                    bim = bim + 1;
                   }
-                  skm = skm + 1;
+                  if (matchm != 0) { m_concrete = 1; }
                 }
+                skm = skm + 1;
               }
             }
-            if (m_concrete == 0) {
+          }
+          if (m_concrete == 0) {
+            // Prefer slot0 elem until multi APIs are wired into .x surface; seed C is authority.
+            let mono_ty: i32 = pipeline_type_elem_ref_at(arena, work_ty);
+            if (mono_ty > 0) {
               pipeline_expr_set_resolved_type_ref(arena, expr_ref, mono_ty);
             }
           }

@@ -668,23 +668,24 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
     }
     parser_asm_lex_from_result_val_into(&lex, r);
     /*
-     * wave466 Cap residual pure: type-position `Name<T>` / `Name<T,U>` (docs/02).
+     * wave466/467 Cap residual pure: type-position `Name<T>` / `Name<T,U>` (docs/02).
      * Prior: IDENT became TYPE_NAMED then postfix only saw `[` — bare `<` after the
      * name failed the surrounding param/let type parse (XP003 out_len=0) for
      * `let w: Wrap<i32>` / `w: Wrap<i32>`. Call-site turbofish (primary) already
      * parsed angles; type_ref had no twin path (G.7 single authority here).
      *
-     * Contract: after TYPE_NAMED, optional `< type (, type)* >`. First type arg
-     * is stored in elem_type_ref (unused for pure NAMED); array_size holds the
-     * top-level arg count (0 = none). Multi-arg storage beyond the first remains
-     * soft (field mono uses slot0 only). Nested angles work via recursive
-     * parse_type_ref. PLATFORM: SHARED type grammar.
+     * Contract: after TYPE_NAMED, optional `< type (, type)* >`.
+     *   - first type arg → elem_type_ref (wave466 single-arg mono)
+     *   - array_size → top-level arg count
+     *   - wave467: all args also in sidecar via pipeline_type_append_type_arg
+     * Nested angles work via recursive parse_type_ref. PLATFORM: SHARED type grammar.
      */
     {
       struct parser_asm_lexer_result peek_ta;
       int32_t first_ta;
       int32_t n_ta;
       int32_t ta_ref;
+      extern int32_t pipeline_type_append_type_arg(void *arena, int32_t type_ref, int32_t arg_ref);
       lexer_next_into(&peek_ta, lex, source);
       if (peek_ta.tok.kind == (int32_t)TOKEN_LT) {
         parser_asm_lex_from_result_val_into(&lex, peek_ta);
@@ -698,6 +699,8 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
           }
           if (n_ta == 0)
             first_ta = ta_ref;
+          if (type_ref_param != 0 && ta_ref > 0)
+            (void)pipeline_type_append_type_arg(arena, type_ref_param, ta_ref);
           n_ta = n_ta + 1;
           lexer_next_into(&peek_ta, lex, source);
           if (peek_ta.tok.kind == (int32_t)TOKEN_COMMA) {

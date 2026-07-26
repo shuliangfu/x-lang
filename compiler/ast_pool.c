@@ -100,6 +100,21 @@ typedef struct {
   int32_t field_align;
 } StructLayoutFieldEntry;
 
+/**
+ * wave467: struct layout type-param name (`struct Pair<T, U>`).
+ * Sidecar only — no StructLayout ABI churn. PLATFORM: SHARED.
+ */
+typedef struct {
+  uint8_t name[64];
+  int32_t name_len;
+} LayoutTypeParamEntry;
+
+/** Meta per layout idx: base into struct_layout_type_params, count of params. */
+typedef struct {
+  int32_t base;  /* -1 = unset */
+  int32_t count;
+} LayoutTypeParamMeta;
+
 /** 顶层 let/const 槽。 */
 typedef struct {
   uint8_t name[64];
@@ -247,6 +262,17 @@ typedef struct {
   GrowVec expr_call_type_arg_refs;
   /** Index by expr_ref; value is base into expr_call_type_arg_refs, or -1 if unset. */
   GrowVec expr_call_type_arg_bases;
+  /**
+   * wave467: TYPE_NAMED type-position args `Name<T,U>` (flat pool).
+   * Base per type_ref in type_type_arg_bases; count remains Type.array_size for NAMED.
+   * Slot0 also mirrored in Type.elem_type_ref (wave466 single-arg compat).
+   * PLATFORM: SHARED — G.7 single authority with pipeline_type_type_arg_* APIs.
+   */
+  GrowVec type_type_arg_refs;
+  /** Index by type_ref; value is base into type_type_arg_refs, or -1 if unset. */
+  GrowVec type_type_arg_bases;
+  /** Index by type_ref; number of type-pos args appended (wave467). */
+  GrowVec type_type_arg_counts;
   GrowVec expr_method_call_arg_refs;
   GrowVec expr_match_arms;
   GrowVec expr_struct_lit_fields;
@@ -269,6 +295,12 @@ typedef struct {
   GrowVec import_select_name_lens;
   GrowVec func_params;
   GrowVec struct_layout_fields;
+  /**
+   * wave467: layout type-param names (flat) + per-layout meta (base/count).
+   * PLATFORM: SHARED — G.7 with pipeline_module_struct_layout_*_type_param_* APIs.
+   */
+  GrowVec struct_layout_type_params;
+  GrowVec struct_layout_type_param_meta;
 } ModuleSidecar;
 
 /** M-3：OneFunc 侧车 region 条目。 */
@@ -519,6 +551,12 @@ static ArenaSidecar *arena_sidecar_get(struct ast_ASTArena *a, int create) {
         return NULL;
       if (!grow_vec_init(&g_arena_sc[i].expr_call_type_arg_bases, sizeof(int32_t), AST_POOL_INIT_CAP))
         return NULL;
+      if (!grow_vec_init(&g_arena_sc[i].type_type_arg_refs, sizeof(int32_t), AST_POOL_INIT_CAP))
+        return NULL;
+      if (!grow_vec_init(&g_arena_sc[i].type_type_arg_bases, sizeof(int32_t), AST_POOL_INIT_CAP))
+        return NULL;
+      if (!grow_vec_init(&g_arena_sc[i].type_type_arg_counts, sizeof(int32_t), AST_POOL_INIT_CAP))
+        return NULL;
       if (!grow_vec_init(&g_arena_sc[i].expr_method_call_arg_refs, sizeof(int32_t), AST_POOL_INIT_CAP))
         return NULL;
       if (!grow_vec_init(&g_arena_sc[i].expr_match_arms, sizeof(MatchArmEntry), AST_POOL_INIT_CAP))
@@ -570,6 +608,12 @@ static ModuleSidecar *module_sidecar_get(struct ast_Module *m, int create) {
       if (!grow_vec_init(&g_module_sc[i].func_params, sizeof(FuncParamEntry), AST_POOL_INIT_CAP))
         return NULL;
       if (!grow_vec_init(&g_module_sc[i].struct_layout_fields, sizeof(StructLayoutFieldEntry), AST_POOL_INIT_CAP))
+        return NULL;
+      if (!grow_vec_init(&g_module_sc[i].struct_layout_type_params, sizeof(LayoutTypeParamEntry),
+                         AST_POOL_INIT_CAP))
+        return NULL;
+      if (!grow_vec_init(&g_module_sc[i].struct_layout_type_param_meta, sizeof(LayoutTypeParamMeta),
+                         AST_POOL_INIT_CAP))
         return NULL;
       return &g_module_sc[i];
     }
@@ -736,6 +780,9 @@ static void arena_sidecar_free(ArenaSidecar *sc) {
   grow_vec_free(&sc->expr_call_arg_refs);
   grow_vec_free(&sc->expr_call_type_arg_refs);
   grow_vec_free(&sc->expr_call_type_arg_bases);
+  grow_vec_free(&sc->type_type_arg_refs);
+  grow_vec_free(&sc->type_type_arg_bases);
+  grow_vec_free(&sc->type_type_arg_counts);
   grow_vec_free(&sc->expr_method_call_arg_refs);
   grow_vec_free(&sc->expr_match_arms);
   grow_vec_free(&sc->expr_struct_lit_fields);
@@ -770,6 +817,8 @@ static void module_sidecar_free(ModuleSidecar *sc) {
   grow_vec_free(&sc->import_select_name_lens);
   grow_vec_free(&sc->func_params);
   grow_vec_free(&sc->struct_layout_fields);
+  grow_vec_free(&sc->struct_layout_type_params);
+  grow_vec_free(&sc->struct_layout_type_param_meta);
   memset(sc, 0, sizeof(*sc));
 }
 
@@ -1204,6 +1253,8 @@ void ast_pool_module_reset(struct ast_Module *m) {
   sc->import_select_name_lens.len = 0;
   sc->func_params.len = 0;
   sc->struct_layout_fields.len = 0;
+  sc->struct_layout_type_params.len = 0;
+  sc->struct_layout_type_param_meta.len = 0;
 }
 
 /**
@@ -1233,6 +1284,9 @@ void ast_pool_arena_reset(struct ast_ASTArena *a) {
   sc->expr_call_arg_refs.len = 0;
   sc->expr_call_type_arg_refs.len = 0;
   sc->expr_call_type_arg_bases.len = 0;
+  sc->type_type_arg_refs.len = 0;
+  sc->type_type_arg_bases.len = 0;
+  sc->type_type_arg_counts.len = 0;
   sc->expr_method_call_arg_refs.len = 0;
   sc->expr_match_arms.len = 0;
   sc->expr_struct_lit_fields.len = 0;
@@ -3638,10 +3692,21 @@ int32_t pipeline_module_struct_layout_alloc(struct ast_Module *m) {
 
 void pipeline_module_struct_layout_reset_slot(struct ast_Module *m, int32_t idx) {
   struct ast_StructLayout *sl = module_layout_at(m, idx);
+  ModuleSidecar *sc;
+  LayoutTypeParamMeta *meta;
   if (!sl)
     return;
   memset(sl, 0, sizeof(*sl));
   sl->field_base = -1;
+  /* wave467: clear type-param meta for this layout slot (pool entries may leak until module reset). */
+  sc = module_sidecar_get(m, 0);
+  if (sc && idx >= 0 && (size_t)idx < sc->struct_layout_type_param_meta.len) {
+    meta = (LayoutTypeParamMeta *)grow_vec_at(&sc->struct_layout_type_param_meta, idx);
+    if (meta) {
+      meta->base = -1;
+      meta->count = 0;
+    }
+  }
 }
 
 void pipeline_module_struct_layout_set_name(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len) {
@@ -3719,6 +3784,127 @@ int32_t pipeline_module_struct_layout_field_name_len(struct ast_Module *m, int32
     return 0;
   fl = fe->name_len;
   return (fl > 0 && fl <= 63) ? fl : 0;
+}
+
+/**
+ * wave467: ensure layout type-param meta cell for layout idx.
+ * PLATFORM: SHARED.
+ */
+static LayoutTypeParamMeta *layout_type_param_meta_at(struct ast_Module *m, int32_t idx, int create) {
+  ModuleSidecar *sc;
+  LayoutTypeParamMeta *meta;
+  if (!m || idx < 0)
+    return NULL;
+  sc = module_sidecar_get(m, create ? 1 : 0);
+  if (!sc)
+    return NULL;
+  if (!create && (size_t)idx >= sc->struct_layout_type_param_meta.len)
+    return NULL;
+  while ((size_t)idx >= sc->struct_layout_type_param_meta.len) {
+    int32_t pi = grow_vec_push(&sc->struct_layout_type_param_meta);
+    if (pi < 0)
+      return NULL;
+    meta = (LayoutTypeParamMeta *)grow_vec_at(&sc->struct_layout_type_param_meta, pi);
+    if (!meta)
+      return NULL;
+    meta->base = -1;
+    meta->count = 0;
+  }
+  return (LayoutTypeParamMeta *)grow_vec_at(&sc->struct_layout_type_param_meta, idx);
+}
+
+/**
+ * wave467: append type-param name for `struct Name<T, U>`.
+ * @return 0 success, -1 failure. PLATFORM: SHARED
+ */
+int32_t pipeline_module_struct_layout_append_type_param(struct ast_Module *m, int32_t li, uint8_t *name,
+                                                       int32_t name_len) {
+  ModuleSidecar *sc;
+  LayoutTypeParamMeta *meta;
+  LayoutTypeParamEntry *ent;
+  int32_t abs;
+  if (!m || li < 0 || !name || name_len <= 0 || name_len > 63)
+    return -1;
+  sc = module_sidecar_get(m, 1);
+  if (!sc)
+    return -1;
+  meta = layout_type_param_meta_at(m, li, 1);
+  if (!meta)
+    return -1;
+  if (meta->base < 0) {
+    meta->base = (int32_t)sc->struct_layout_type_params.len;
+    meta->count = 0;
+  }
+  abs = meta->base + meta->count;
+  while (sc->struct_layout_type_params.len <= (size_t)abs) {
+    int32_t pi = grow_vec_push(&sc->struct_layout_type_params);
+    if (pi < 0)
+      return -1;
+    ent = (LayoutTypeParamEntry *)grow_vec_at(&sc->struct_layout_type_params, pi);
+    if (ent) {
+      memset(ent, 0, sizeof(*ent));
+    }
+  }
+  ent = (LayoutTypeParamEntry *)grow_vec_at(&sc->struct_layout_type_params, abs);
+  if (!ent)
+    return -1;
+  memset(ent, 0, sizeof(*ent));
+  ent->name_len = name_len;
+  memcpy(ent->name, name, (size_t)name_len);
+  meta->count = meta->count + 1;
+  return 0;
+}
+
+/** wave467: number of type params on layout, or 0. PLATFORM: SHARED */
+int32_t pipeline_module_struct_layout_num_type_params_at(struct ast_Module *m, int32_t li) {
+  LayoutTypeParamMeta *meta = layout_type_param_meta_at(m, li, 0);
+  return meta ? meta->count : 0;
+}
+
+/** wave467: type-param name length at index. PLATFORM: SHARED */
+int32_t pipeline_module_struct_layout_type_param_name_len(struct ast_Module *m, int32_t li, int32_t j) {
+  ModuleSidecar *sc;
+  LayoutTypeParamMeta *meta;
+  LayoutTypeParamEntry *ent;
+  int32_t abs;
+  if (!m || li < 0 || j < 0)
+    return 0;
+  sc = module_sidecar_get(m, 0);
+  meta = layout_type_param_meta_at(m, li, 0);
+  if (!sc || !meta || j >= meta->count || meta->base < 0)
+    return 0;
+  abs = meta->base + j;
+  if (abs < 0 || (size_t)abs >= sc->struct_layout_type_params.len)
+    return 0;
+  ent = (LayoutTypeParamEntry *)grow_vec_at(&sc->struct_layout_type_params, abs);
+  if (!ent)
+    return 0;
+  return (ent->name_len > 0 && ent->name_len <= 63) ? ent->name_len : 0;
+}
+
+/** wave467: copy type-param name into out64. PLATFORM: SHARED */
+void pipeline_module_struct_layout_type_param_name_into(struct ast_Module *m, int32_t li, int32_t j,
+                                                       uint8_t *out64) {
+  ModuleSidecar *sc;
+  LayoutTypeParamMeta *meta;
+  LayoutTypeParamEntry *ent;
+  int32_t abs;
+  if (!out64)
+    return;
+  memset(out64, 0, 64);
+  if (!m || li < 0 || j < 0)
+    return;
+  sc = module_sidecar_get(m, 0);
+  meta = layout_type_param_meta_at(m, li, 0);
+  if (!sc || !meta || j >= meta->count || meta->base < 0)
+    return;
+  abs = meta->base + j;
+  if (abs < 0 || (size_t)abs >= sc->struct_layout_type_params.len)
+    return;
+  ent = (LayoutTypeParamEntry *)grow_vec_at(&sc->struct_layout_type_params, abs);
+  if (!ent || ent->name_len <= 0)
+    return;
+  memcpy(out64, ent->name, 64);
 }
 
 void pipeline_module_struct_layout_field_name_into(struct ast_Module *m, int32_t li, int32_t j, uint8_t *out64) {
@@ -5660,6 +5846,126 @@ int32_t pipeline_expr_call_type_arg_ref_at(struct ast_ASTArena *a, int32_t expr_
     return 0;
   slot = (int32_t *)grow_vec_at(&sc->expr_call_type_arg_refs, abs);
   return slot ? *slot : 0;
+}
+
+/**
+ * wave467: ensure type_type_arg_bases/counts have a slot for type_ref.
+ * PLATFORM: SHARED.
+ */
+static int32_t type_type_arg_ensure_meta(struct ast_ASTArena *a, int32_t type_ref, int create,
+                                        int32_t **out_base, int32_t **out_count) {
+  ArenaSidecar *sc;
+  int32_t *bcell;
+  int32_t *ccell;
+  if (!a || type_ref <= 0)
+    return -1;
+  sc = arena_sidecar_get(a, create ? 1 : 0);
+  if (!sc)
+    return -1;
+  if (!create && ((size_t)type_ref >= sc->type_type_arg_bases.len
+                  || (size_t)type_ref >= sc->type_type_arg_counts.len))
+    return -1;
+  while ((size_t)type_ref >= sc->type_type_arg_bases.len) {
+    int32_t idx = grow_vec_push(&sc->type_type_arg_bases);
+    if (idx < 0)
+      return -1;
+    bcell = (int32_t *)grow_vec_at(&sc->type_type_arg_bases, idx);
+    if (!bcell)
+      return -1;
+    *bcell = -1;
+  }
+  while ((size_t)type_ref >= sc->type_type_arg_counts.len) {
+    int32_t idx = grow_vec_push(&sc->type_type_arg_counts);
+    if (idx < 0)
+      return -1;
+    ccell = (int32_t *)grow_vec_at(&sc->type_type_arg_counts, idx);
+    if (!ccell)
+      return -1;
+    *ccell = 0;
+  }
+  if (out_base)
+    *out_base = (int32_t *)grow_vec_at(&sc->type_type_arg_bases, type_ref);
+  if (out_count)
+    *out_count = (int32_t *)grow_vec_at(&sc->type_type_arg_counts, type_ref);
+  return 0;
+}
+
+/**
+ * wave467: append one type-position type arg to TYPE_NAMED (`Name<T,U>`).
+ * First append fixes base; caller sets Type.array_size = n and elem_type_ref = first.
+ * @return 0 success, -1 failure. PLATFORM: SHARED
+ */
+int32_t pipeline_type_append_type_arg(struct ast_ASTArena *a, int32_t type_ref, int32_t arg_ref) {
+  ArenaSidecar *sc;
+  int32_t *base_cell;
+  int32_t *count_cell;
+  int32_t base;
+  int32_t n;
+  int32_t abs;
+  int32_t *slot;
+  if (!a || type_ref <= 0 || arg_ref <= 0)
+    return -1;
+  sc = arena_sidecar_get(a, 1);
+  if (!sc)
+    return -1;
+  if (type_type_arg_ensure_meta(a, type_ref, 1, &base_cell, &count_cell) != 0)
+    return -1;
+  if (!base_cell || !count_cell)
+    return -1;
+  if (*base_cell < 0) {
+    *base_cell = (int32_t)sc->type_type_arg_refs.len;
+    *count_cell = 0;
+  }
+  base = *base_cell;
+  n = *count_cell;
+  abs = base + n;
+  while (sc->type_type_arg_refs.len <= (size_t)abs) {
+    int32_t pi = grow_vec_push(&sc->type_type_arg_refs);
+    if (pi < 0)
+      return -1;
+    slot = (int32_t *)grow_vec_at(&sc->type_type_arg_refs, pi);
+    if (slot)
+      *slot = 0;
+  }
+  slot = (int32_t *)grow_vec_at(&sc->type_type_arg_refs, abs);
+  if (!slot)
+    return -1;
+  *slot = arg_ref;
+  *count_cell = n + 1;
+  return 0;
+}
+
+/**
+ * wave467: type_ref of TYPE_NAMED type-pos arg at index, or 0 if missing.
+ * Slot0 falls back to Type.elem_type_ref when sidecar empty (wave466).
+ * PLATFORM: SHARED
+ */
+int32_t pipeline_type_type_arg_ref_at(struct ast_ASTArena *a, int32_t type_ref, int32_t idx) {
+  ArenaSidecar *sc;
+  int32_t *base_cell;
+  int32_t *count_cell;
+  int32_t base;
+  int32_t abs;
+  int32_t *slot;
+  if (!a || type_ref <= 0 || idx < 0)
+    return 0;
+  sc = arena_sidecar_get(a, 0);
+  if (!sc)
+    return 0;
+  if (type_type_arg_ensure_meta(a, type_ref, 0, &base_cell, &count_cell) == 0
+      && base_cell && count_cell && *base_cell >= 0 && idx < *count_cell) {
+    base = *base_cell;
+    abs = base + idx;
+    if (abs >= 0 && (size_t)abs < sc->type_type_arg_refs.len) {
+      slot = (int32_t *)grow_vec_at(&sc->type_type_arg_refs, abs);
+      if (slot && *slot > 0)
+        return *slot;
+    }
+  }
+  /* wave466 single-arg: only slot0 lives in elem_type_ref. */
+  if (idx == 0)
+    return pipeline_type_elem_ref_at(a, type_ref);
+  return 0;
 }
 
 int32_t pipeline_expr_append_method_call_arg(struct ast_ASTArena *a, int32_t expr_ref, int32_t arg_ref) {

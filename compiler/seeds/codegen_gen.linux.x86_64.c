@@ -6045,11 +6045,18 @@ int32_t codegen_type_dep_enum_prefix_into(struct ast_PipelineDepCtx * ctx, struc
   return 0;
 }
 /*
- * wave466 Cap residual pure: host-C mono for type-param fields on generic structs.
- * Layout may store `v: T`; emit as concrete from type-pos Name<T> (elem_type_ref)
- * or STRUCT_LIT field init (bare Name). Single-arg only. PLATFORM: SHARED.
- * G.7 twin of codegen.x codegen_resolve_generic_struct_field_type.
+ * wave466/467 Cap residual pure: host-C mono for type-param fields on generic structs.
+ * Layout may store `v: T` / `b: U`; emit as concrete from:
+ *   (1) type-pos Name<T,U> type-arg at the type-param slot (wave467 multi)
+ *   (2) STRUCT_LIT field init (bare Name / fallback)
+ * PLATFORM: SHARED. G.7 twin of codegen.x.
  */
+extern int32_t pipeline_type_type_arg_ref_at(struct ast_ASTArena *a, int32_t type_ref, int32_t idx);
+extern int32_t pipeline_module_struct_layout_num_type_params_at(struct ast_Module *m, int32_t li);
+extern int32_t pipeline_module_struct_layout_type_param_name_len(struct ast_Module *m, int32_t li, int32_t j);
+extern void pipeline_module_struct_layout_type_param_name_into(struct ast_Module *m, int32_t li, int32_t j,
+                                                              uint8_t *out64);
+
 static int32_t codegen_resolve_generic_struct_field_type(struct ast_Module *module, struct ast_ASTArena *arena,
                                                           uint8_t *layout_nm, int32_t layout_nl, uint8_t *field_nm,
                                                           int32_t field_nl, int32_t ftr) {
@@ -6058,6 +6065,8 @@ static int32_t codegen_resolve_generic_struct_field_type(struct ast_Module *modu
   int32_t sk;
   int32_t ti;
   int32_t ei;
+  int32_t layout_idx;
+  int32_t tp_slot;
   if (!module || !arena || ftr <= 0 || !layout_nm || layout_nl <= 0 || !field_nm || field_nl <= 0)
     return ftr;
   if (pipeline_type_kind_ord_at(arena, ftr) != 8 /* TYPE_NAMED */)
@@ -6070,6 +6079,7 @@ static int32_t codegen_resolve_generic_struct_field_type(struct ast_Module *modu
   ftnl = pipeline_type_named_name_into(arena, ftr, ftn);
   if (ftnl <= 0)
     return ftr;
+  /* Module concrete layout/enum name → keep (not a type param). */
   for (sk = 0; sk < module->num_struct_layouts; sk++) {
     int32_t sl = pipeline_module_struct_layout_name_len(module, sk);
     uint8_t snm[64];
@@ -6091,6 +6101,64 @@ static int32_t codegen_resolve_generic_struct_field_type(struct ast_Module *modu
     if (match)
       return ftr;
   }
+  /* Find layout for Pair and map field type name T/U → type-param slot. */
+  layout_idx = -1;
+  tp_slot = 0; /* default slot0 when no type-param registry (wave466 Wrap) */
+  for (sk = 0; sk < module->num_struct_layouts; sk++) {
+    int32_t sl = pipeline_module_struct_layout_name_len(module, sk);
+    uint8_t snm[64];
+    int32_t bi;
+    int32_t match;
+    int32_t zi;
+    int32_t ntp;
+    int32_t tj;
+    if (sl != layout_nl || layout_nl <= 0)
+      continue;
+    for (zi = 0; zi < 64; zi++)
+      snm[zi] = 0;
+    pipeline_module_struct_layout_name_into(module, sk, snm);
+    match = 1;
+    for (bi = 0; bi < layout_nl; bi++) {
+      if (snm[bi] != layout_nm[bi]) {
+        match = 0;
+        break;
+      }
+    }
+    if (!match)
+      continue;
+    layout_idx = sk;
+    ntp = pipeline_module_struct_layout_num_type_params_at(module, sk);
+    if (ntp > 0) {
+      tp_slot = -1;
+      for (tj = 0; tj < ntp; tj++) {
+        int32_t tpl = pipeline_module_struct_layout_type_param_name_len(module, sk, tj);
+        uint8_t tpn[64];
+        int32_t pi;
+        int32_t peq;
+        if (tpl != ftnl)
+          continue;
+        for (zi = 0; zi < 64; zi++)
+          tpn[zi] = 0;
+        pipeline_module_struct_layout_type_param_name_into(module, sk, tj, tpn);
+        peq = 1;
+        for (pi = 0; pi < ftnl; pi++) {
+          if (tpn[pi] != ftn[pi]) {
+            peq = 0;
+            break;
+          }
+        }
+        if (peq) {
+          tp_slot = tj;
+          break;
+        }
+      }
+      if (tp_slot < 0)
+        return ftr; /* field type name not a type param of this layout */
+    }
+    break;
+  }
+  (void)layout_idx;
+  /* (1) Type-position Name<T,U>: type-arg at tp_slot (sidecar multi + slot0 fallback). */
   for (ti = 1; ti <= arena->num_types; ti++) {
     if (pipeline_type_kind_ord_at(arena, ti) != 8)
       continue;
@@ -6115,11 +6183,14 @@ static int32_t codegen_resolve_generic_struct_field_type(struct ast_Module *modu
       }
       if (!eq)
         continue;
-      mono = pipeline_type_elem_ref_at(arena, ti);
+      mono = pipeline_type_type_arg_ref_at(arena, ti, tp_slot);
+      if (mono <= 0 && tp_slot == 0)
+        mono = pipeline_type_elem_ref_at(arena, ti);
       if (mono > 0)
         return mono;
     }
   }
+  /* (2) STRUCT_LIT field init by field name. */
   for (ei = 1; ei <= arena->num_exprs; ei++) {
     if (pipeline_expr_kind_ord_at(arena, ei) != 45 /* EXPR_STRUCT_LIT */)
       continue;

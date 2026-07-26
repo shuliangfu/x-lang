@@ -967,17 +967,22 @@ static void pipeline_typeck_field_apply_ambient_for_type_param_c(struct ast_Modu
 }
 
 /**
- * wave466 Cap residual pure: single-arg generic struct mono for type-param fields.
+ * wave466/467 Cap residual pure: generic struct mono for type-param fields.
  *
- * When the base type is TYPE_NAMED with a type-position arg stored in
- * elem_type_ref (`Wrap<i32>` from wave466 type_ref parse) and the field result
- * is still an unconstrained TYPE_NAMED type-param (`v: T` from layout), stamp
- * the field result with that type arg. Prefer this over ambient so
- * `take(w.v)` / return without expected still resolve.
- *
- * Soft leave-off: multi type-arg structs (only slot0 stored); true multi-param
- * name→arg mapping needs layout generic_param sidecar. PLATFORM: SHARED.
+ * When the base type is TYPE_NAMED with type-position args (`Wrap<i32>` /
+ * `Pair<A,B>`) and the field result is still an unconstrained TYPE_NAMED
+ * type-param (`v: T` / `b: U` from layout), stamp the matching type arg:
+ *   - wave467: map field type name → layout type-param slot → type_arg[slot]
+ *   - wave466: slot0 via elem_type_ref when no type-param registry
+ * Prefer this over ambient so `take(w.v)` / return without expected still resolve.
+ * PLATFORM: SHARED.
  */
+extern int32_t pipeline_type_type_arg_ref_at(struct ast_ASTArena *a, int32_t type_ref, int32_t idx);
+extern int32_t pipeline_module_struct_layout_num_type_params_at(struct ast_Module *m, int32_t li);
+extern int32_t pipeline_module_struct_layout_type_param_name_len(struct ast_Module *m, int32_t li, int32_t j);
+extern void pipeline_module_struct_layout_type_param_name_into(struct ast_Module *m, int32_t li, int32_t j,
+                                                              uint8_t *out64);
+
 static void pipeline_typeck_field_apply_mono_type_arg_c(struct ast_Module *module,
                                                        struct ast_ASTArena *arena,
                                                        int32_t expr_ref,
@@ -987,6 +992,10 @@ static void pipeline_typeck_field_apply_mono_type_arg_c(struct ast_Module *modul
   int32_t bt_kind;
   uint8_t gnm[64];
   int32_t gnl;
+  uint8_t bnm[64];
+  int32_t bnl;
+  int32_t sk;
+  int32_t tp_slot;
 
   if (!module || !arena || expr_ref <= 0)
     return;
@@ -1003,10 +1012,6 @@ static void pipeline_typeck_field_apply_mono_type_arg_c(struct ast_Module *modul
   } else if (bt_kind != (int32_t)ast_TypeKind_TYPE_NAMED) {
     return;
   }
-  /* TYPE_NAMED type arg lives in elem_type_ref (wave466 type_ref parse). */
-  mono_ty = pipeline_type_elem_ref_at(arena, base_ty);
-  if (mono_ty <= 0 || mono_ty > arena->num_types)
-    return;
   got_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
   if (ast_ref_is_null(got_ty) || got_ty <= 0 || got_ty > arena->num_types)
     return;
@@ -1017,6 +1022,66 @@ static void pipeline_typeck_field_apply_mono_type_arg_c(struct ast_Module *modul
   if (gnl <= 0 || gnl > 63)
     return;
   if (pipeline_typeck_named_is_module_concrete_c(module, &gnm[0], gnl))
+    return;
+  /* Map field type name → type-param slot on base layout name. */
+  memset(bnm, 0, sizeof(bnm));
+  bnl = pipeline_type_named_name_into(arena, base_ty, &bnm[0]);
+  tp_slot = 0;
+  if (bnl > 0) {
+    for (sk = 0; sk < module->num_struct_layouts; sk++) {
+      int32_t sl = pipeline_module_struct_layout_name_len(module, sk);
+      uint8_t snm[64];
+      int32_t bi;
+      int32_t match;
+      int32_t ntp;
+      int32_t tj;
+      if (sl != bnl)
+        continue;
+      memset(snm, 0, sizeof(snm));
+      pipeline_module_struct_layout_name_into(module, sk, snm);
+      match = 1;
+      for (bi = 0; bi < bnl; bi++) {
+        if (snm[bi] != bnm[bi]) {
+          match = 0;
+          break;
+        }
+      }
+      if (!match)
+        continue;
+      ntp = pipeline_module_struct_layout_num_type_params_at(module, sk);
+      if (ntp > 0) {
+        tp_slot = -1;
+        for (tj = 0; tj < ntp; tj++) {
+          int32_t tpl = pipeline_module_struct_layout_type_param_name_len(module, sk, tj);
+          uint8_t tpn[64];
+          int32_t pi;
+          int32_t peq;
+          if (tpl != gnl)
+            continue;
+          memset(tpn, 0, sizeof(tpn));
+          pipeline_module_struct_layout_type_param_name_into(module, sk, tj, tpn);
+          peq = 1;
+          for (pi = 0; pi < gnl; pi++) {
+            if (tpn[pi] != gnm[pi]) {
+              peq = 0;
+              break;
+            }
+          }
+          if (peq) {
+            tp_slot = tj;
+            break;
+          }
+        }
+        if (tp_slot < 0)
+          return;
+      }
+      break;
+    }
+  }
+  mono_ty = pipeline_type_type_arg_ref_at(arena, base_ty, tp_slot);
+  if (mono_ty <= 0 && tp_slot == 0)
+    mono_ty = pipeline_type_elem_ref_at(arena, base_ty);
+  if (mono_ty <= 0 || mono_ty > arena->num_types)
     return;
   pipeline_expr_set_resolved_type_ref(arena, expr_ref, mono_ty);
 }

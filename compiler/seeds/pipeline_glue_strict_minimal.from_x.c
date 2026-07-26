@@ -3147,66 +3147,131 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *
   if (field_ty > 0)
     pipeline_expr_set_resolved_type_ref(arena, expr_ref, field_ty);
   /*
-   * wave466: single-arg generic struct mono — base TYPE_NAMED elem_type_ref holds
-   * the type-position arg (`Wrap<i32>`); type-param field results (`v: T`) stamp
-   * that arg before ambient. Twin of heavy pipeline_typeck_field_access.c.
-   * PLATFORM: SHARED. Multi type-arg soft (slot0 only).
+   * wave466/467: generic struct mono — type-pos args on base TYPE_NAMED;
+   * type-param field results stamp the matching type-arg slot (multi via
+   * layout type-param names + pipeline_type_type_arg_ref_at). Twin of heavy
+   * pipeline_typeck_field_access.c. PLATFORM: SHARED.
    */
   {
-    int32_t mono_ty = pipeline_type_elem_ref_at(arena, base_ty);
+    extern int32_t pipeline_type_type_arg_ref_at(struct ast_ASTArena *a, int32_t type_ref, int32_t idx);
+    extern int32_t pipeline_module_struct_layout_num_type_params_at(struct ast_Module *m, int32_t li);
+    extern int32_t pipeline_module_struct_layout_type_param_name_len(struct ast_Module *m, int32_t li, int32_t j);
+    extern void pipeline_module_struct_layout_type_param_name_into(struct ast_Module *m, int32_t li, int32_t j,
+                                                                  uint8_t *out64);
     int32_t got_mono;
     uint8_t mnm[64];
     int32_t mnl;
     int32_t m_concrete;
     int32_t sk;
-    if (mono_ty > 0 && mono_ty <= arena->num_types) {
-      got_mono = pipeline_expr_resolved_type_ref(arena, expr_ref);
-      if (got_mono > 0 && got_mono <= arena->num_types
-          && pipeline_type_kind_ord_at(arena, got_mono) == (int32_t)ast_TypeKind_TYPE_NAMED) {
-        memset(mnm, 0, sizeof(mnm));
-        mnl = pipeline_type_named_name_into(arena, got_mono, mnm);
-        m_concrete = 0;
-        if (mnl > 0 && mnl <= 63) {
+    int32_t tp_slot;
+    int32_t mono_ty;
+    uint8_t bnm[64];
+    int32_t bnl;
+    got_mono = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    if (got_mono > 0 && got_mono <= arena->num_types
+        && pipeline_type_kind_ord_at(arena, got_mono) == (int32_t)ast_TypeKind_TYPE_NAMED) {
+      memset(mnm, 0, sizeof(mnm));
+      mnl = pipeline_type_named_name_into(arena, got_mono, mnm);
+      m_concrete = 0;
+      if (mnl > 0 && mnl <= 63) {
+        for (sk = 0; sk < module->num_struct_layouts; sk++) {
+          int32_t sl = pipeline_module_struct_layout_name_len(module, sk);
+          uint8_t snm[64];
+          int32_t bi;
+          int32_t match;
+          if (sl != mnl)
+            continue;
+          memset(snm, 0, sizeof(snm));
+          pipeline_module_struct_layout_name_into(module, sk, snm);
+          match = 1;
+          for (bi = 0; bi < mnl; bi++) {
+            if (snm[bi] != mnm[bi]) {
+              match = 0;
+              break;
+            }
+          }
+          if (match) {
+            m_concrete = 1;
+            break;
+          }
+        }
+        if (!m_concrete) {
+          for (sk = 0; sk < module->num_module_enums; sk++) {
+            int32_t el = pipeline_module_enum_name_len(module, sk);
+            int32_t bi;
+            if (el != mnl)
+              continue;
+            for (bi = 0; bi < el; bi++) {
+              if (pipeline_module_enum_name_byte_at(module, sk, bi) != mnm[bi])
+                break;
+            }
+            if (bi == el) {
+              m_concrete = 1;
+              break;
+            }
+          }
+        }
+      }
+      if (!m_concrete) {
+        tp_slot = 0;
+        memset(bnm, 0, sizeof(bnm));
+        bnl = pipeline_type_named_name_into(arena, base_ty, bnm);
+        if (bnl > 0) {
           for (sk = 0; sk < module->num_struct_layouts; sk++) {
             int32_t sl = pipeline_module_struct_layout_name_len(module, sk);
             uint8_t snm[64];
             int32_t bi;
             int32_t match;
-            if (sl != mnl)
+            int32_t ntp;
+            int32_t tj;
+            if (sl != bnl)
               continue;
             memset(snm, 0, sizeof(snm));
             pipeline_module_struct_layout_name_into(module, sk, snm);
             match = 1;
-            for (bi = 0; bi < mnl; bi++) {
-              if (snm[bi] != mnm[bi]) {
+            for (bi = 0; bi < bnl; bi++) {
+              if (snm[bi] != bnm[bi]) {
                 match = 0;
                 break;
               }
             }
-            if (match) {
-              m_concrete = 1;
-              break;
-            }
-          }
-          if (!m_concrete) {
-            for (sk = 0; sk < module->num_module_enums; sk++) {
-              int32_t el = pipeline_module_enum_name_len(module, sk);
-              int32_t bi;
-              if (el != mnl)
-                continue;
-              for (bi = 0; bi < el; bi++) {
-                if (pipeline_module_enum_name_byte_at(module, sk, bi) != mnm[bi])
+            if (!match)
+              continue;
+            ntp = pipeline_module_struct_layout_num_type_params_at(module, sk);
+            if (ntp > 0) {
+              tp_slot = -1;
+              for (tj = 0; tj < ntp; tj++) {
+                int32_t tpl = pipeline_module_struct_layout_type_param_name_len(module, sk, tj);
+                uint8_t tpn[64];
+                int32_t pi;
+                int32_t peq;
+                if (tpl != mnl)
+                  continue;
+                memset(tpn, 0, sizeof(tpn));
+                pipeline_module_struct_layout_type_param_name_into(module, sk, tj, tpn);
+                peq = 1;
+                for (pi = 0; pi < mnl; pi++) {
+                  if (tpn[pi] != mnm[pi]) {
+                    peq = 0;
+                    break;
+                  }
+                }
+                if (peq) {
+                  tp_slot = tj;
                   break;
-              }
-              if (bi == el) {
-                m_concrete = 1;
-                break;
+                }
               }
             }
+            break;
           }
         }
-        if (!m_concrete)
-          pipeline_expr_set_resolved_type_ref(arena, expr_ref, mono_ty);
+        if (tp_slot >= 0) {
+          mono_ty = pipeline_type_type_arg_ref_at(arena, base_ty, tp_slot);
+          if (mono_ty <= 0 && tp_slot == 0)
+            mono_ty = pipeline_type_elem_ref_at(arena, base_ty);
+          if (mono_ty > 0 && mono_ty <= arena->num_types)
+            pipeline_expr_set_resolved_type_ref(arena, expr_ref, mono_ty);
+        }
       }
     }
   }
