@@ -13279,9 +13279,10 @@ int32_t codegen_call_mono_type_at(struct ast_ASTArena * arena, int32_t ei, int32
   return 0;
 }
 /**
- * wave452: concrete type for return-position type param not on value formals.
- * Prefers turbofish type_arg[0]; falls back to call resolved_type_ref.
- * PLATFORM: SHARED — mirrors codegen.x.
+ * wave452/455/456: concrete type for return-position type param not on formals.
+ * Prefer typeck-stamped resolved_type_ref; sole type_arg may use slot 0;
+ * multi turbofish without stamp returns 0 (do not invent type_arg[0] as ret).
+ * PLATFORM: SHARED — mirrors codegen.x (G.7).
  */
 static int32_t codegen_call_ret_type_param_concrete_at(struct ast_ASTArena * arena, int32_t ei) {
   int32_t ta;
@@ -13291,13 +13292,14 @@ static int32_t codegen_call_ret_type_param_concrete_at(struct ast_ASTArena * are
   e = ast_ast_arena_expr_get(arena, ei);
   if ((e.kind) != 48)
     return 0;
-  /* wave455: prefer typeck-stamped resolved_type_ref over type_arg[0]
-   * (multi type_arg ret-only may stamp type_arg[i] for i!=0). */
   if ((e.resolved_type_ref) > 0)
     return (e.resolved_type_ref);
-  ta = pipeline_expr_call_type_arg_ref_at(arena, ei, 0);
-  if (ta > 0)
-    return ta;
+  /* wave456: only sole type_arg falls back to slot 0; multi needs stamp. */
+  if ((e.call_num_type_args) == 1) {
+    ta = pipeline_expr_call_type_arg_ref_at(arena, ei, 0);
+    if (ta > 0)
+      return ta;
+  }
   return 0;
 }
 int32_t codegen_collect_mono_combos_for_generic_func(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi, int32_t * combos_out, int32_t max_combos, int32_t num_params) {
@@ -13664,36 +13666,43 @@ int32_t codegen_try_emit_generic_identity_mono(struct ast_ASTArena * arena, stru
          * PLATFORM: SHARED — mirrors codegen.x.
          */
         if ((pipeline_type_kind_ord_at(arena, ret_ty) == 8)) {
+          /* wave456: prefer rfi==fi; name-only ghosts may carry turbofish without fixup. */
           int32_t ta0 = 0;
           int32_t ei_ta = 1;
           while ((ei_ta <= (arena->num_exprs)) && (ta0 <= 0)) {
             struct ast_Expr e_ta = ast_ast_arena_expr_get(arena, ei_ta);
-            if (((e_ta.kind) == 48)) {
-              int32_t m_ta = 0;
-              if (((e_ta.call_resolved_func_index) == fi)) {
-                (void)((m_ta = 1));
-              } else if (((!(ast_ref_is_null((e_ta.call_callee_ref))) && ((e_ta.call_callee_ref) > 0))
-                         && ((e_ta.call_callee_ref) <= (arena->num_exprs)))) {
-                struct ast_Expr cal_ta = ast_ast_arena_expr_get(arena, (e_ta.call_callee_ref));
-                if ((((cal_ta.kind) == 3) && ((cal_ta.var_name_len) == fn_len))) {
-                  int32_t eq_ta = 1;
-                  int32_t k_ta = 0;
-                  while ((k_ta < fn_len)) {
-                    if ((((cal_ta.var_name))[k_ta] != (fn_local)[k_ta])) {
-                      (void)((eq_ta = 0));
-                      (void)((k_ta = fn_len));
-                    } else {
-                      (void)((k_ta = (k_ta + 1)));
-                    }
-                  }
-                  (void)((m_ta = eq_ta));
-                }
-              }
-              if ((m_ta != 0)) {
-                (void)((ta0 = codegen_call_ret_type_param_concrete_at(arena, ei_ta)));
-              }
+            if (((e_ta.kind) == 48) && ((e_ta.call_resolved_func_index) == fi)) {
+              (void)((ta0 = codegen_call_ret_type_param_concrete_at(arena, ei_ta)));
             }
             (void)((ei_ta = (ei_ta + 1)));
+          }
+          if (ta0 <= 0) {
+            ei_ta = 1;
+            while ((ei_ta <= (arena->num_exprs)) && (ta0 <= 0)) {
+              struct ast_Expr e_ta2 = ast_ast_arena_expr_get(arena, ei_ta);
+              if (((e_ta2.kind) == 48) && ((e_ta2.call_resolved_func_index) != fi)) {
+                if (((!(ast_ref_is_null((e_ta2.call_callee_ref))) && ((e_ta2.call_callee_ref) > 0))
+                     && ((e_ta2.call_callee_ref) <= (arena->num_exprs)))) {
+                  struct ast_Expr cal_ta = ast_ast_arena_expr_get(arena, (e_ta2.call_callee_ref));
+                  if ((((cal_ta.kind) == 3) && ((cal_ta.var_name_len) == fn_len))) {
+                    int32_t eq_ta = 1;
+                    int32_t k_ta = 0;
+                    while ((k_ta < fn_len)) {
+                      if ((((cal_ta.var_name))[k_ta] != (fn_local)[k_ta])) {
+                        (void)((eq_ta = 0));
+                        (void)((k_ta = fn_len));
+                      } else {
+                        (void)((k_ta = (k_ta + 1)));
+                      }
+                    }
+                    if (eq_ta != 0) {
+                      (void)((ta0 = codegen_call_ret_type_param_concrete_at(arena, ei_ta)));
+                    }
+                  }
+                }
+              }
+              (void)((ei_ta = (ei_ta + 1)));
+            }
           }
           if ((ta0 > 0) && (ta0 != ret_ty)) {
             (void)(((ctx->mono_active) = 1));

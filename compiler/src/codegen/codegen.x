@@ -13134,15 +13134,19 @@ function codegen_call_mono_type_at(arena: *ASTArena, ei: i32, arg_idx: i32, num_
 
 /**
  * wave452: concrete type for a return-position type parameter not present on
- * any value formal (as_t<T>(i32):T / mk_default<T>():T).
- *
- * Prefers CALL turbofish type_arg type_ref (parser sidecar); falls back to
- * call resolved_type_ref after wave452 typeck fixup stamped the mono ret.
+ * any value formal (as_t<T>(i32):T / mk_default<T>():T / mk2u<T,U>():U).
  *
  * @param arena *ASTArena
  * @param ei i32 — EXPR_CALL index
  * @return i32 — concrete type_ref, or 0
  * PLATFORM: SHARED
+ *
+ * wave455: prefer typeck-stamped resolved_type_ref over type_arg[0].
+ * wave456: when resolved is unset, only fall back to type_arg[0] for a **sole**
+ * type_arg (n_ta==1). Multi turbofish (`<A,B>`) must not use slot 0 — that is
+ * always T, while ret may be U (type_arg[1]). Unresolved multi calls return 0
+ * so the mono scanner can skip ghost name-only CALL nodes (rfi=-1) and pick the
+ * typeck-resolved site. G.7 authority matches pipeline_glue fixup.
  */
 function codegen_call_ret_type_param_concrete_at(arena: *ASTArena, ei: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -13154,19 +13158,19 @@ function codegen_call_ret_type_param_concrete_at(arena: *ASTArena, ei: i32): i32
     if (e.kind != ExprKind.EXPR_CALL) {
       return 0;
     }
-    /*
-     * wave455: prefer typeck-stamped resolved_type_ref over type_arg[0].
-     * Multi type_arg ret-only (`mk2u<T,U>():U` with turbofish <A,B>) stamps
-     * call as B via decl-order type-param index; type_arg[0] is still A and
-     * must not win or mono body returns B under ret type A → BLD001.
-     * PLATFORM: SHARED — matches pipeline_glue fixup authority.
-     */
     if (e.resolved_type_ref > 0) {
       return e.resolved_type_ref;
     }
-    let ta: i32 = pipeline_expr_call_type_arg_ref_at(arena, ei, 0);
-    if (ta > 0) {
-      return ta;
+    /*
+     * Sole type_arg: slot 0 is the only mono type (mk_default<A>() / as_t<A>(…)).
+     * Multi type_arg without a typeck stamp: fail closed (return 0) — do not
+     * invent type_arg[0] as ret (wave456 mk2u ret-U BLD001 root).
+     */
+    if (e.call_num_type_args == 1) {
+      let ta: i32 = pipeline_expr_call_type_arg_ref_at(arena, ei, 0);
+      if (ta > 0) {
+        return ta;
+      }
     }
     return 0;
   }
@@ -13610,7 +13614,12 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
          * wave452: zero-param ret type-param mono (mk_default<T>():T).
          * Wave450 emitted phantom T without mono_active → host C returns
          * struct T while body builds concrete A. Map T from turbofish /
-         * call resolved_type_ref of the first matching CALL.
+         * call resolved_type_ref of a matching CALL.
+         * wave456: prefer call_resolved_func_index==fi (typeck-resolved site).
+         * Name-only matches with rfi=-1 can be earlier arena ghosts that still
+         * carry turbofish type_args but never received fixup — using them made
+         * `mk2u<T,U>():U` mono map U→type_arg[0] (T) → BLD001. Two-pass scan:
+         * (1) rfi==fi only (2) name match only if concrete_at returns >0.
          * PLATFORM: SHARED — one bare link name still shared (leave-off:
          * multi distinct T combos under bare name).
          */
@@ -13618,16 +13627,23 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
         if (ret_ord0 == 8) {
           let ta0: i32 = 0;
           let ei_ta: i32 = 1;
+          /* Pass 1: only typeck-resolved call sites (rfi == fi). */
           while (ei_ta <= arena.num_exprs && ta0 <= 0) {
             let e_ta: Expr = ast.arena_expr_get(arena, ei_ta);
-            if (e_ta.kind == ExprKind.EXPR_CALL) {
-              let m_ta: i32 = 0;
-              if (e_ta.call_resolved_func_index == fi) {
-                m_ta = 1;
-              } else {
-                if (!ast.ref_is_null(e_ta.call_callee_ref) && e_ta.call_callee_ref > 0
-                    && e_ta.call_callee_ref <= arena.num_exprs) {
-                  let cal_ta: Expr = ast.arena_expr_get(arena, e_ta.call_callee_ref);
+            if (e_ta.kind == ExprKind.EXPR_CALL && e_ta.call_resolved_func_index == fi) {
+              ta0 = codegen_call_ret_type_param_concrete_at(arena, ei_ta);
+            }
+            ei_ta = ei_ta + 1;
+          }
+          /* Pass 2: name-only fallback when rfi was never stamped. */
+          if (ta0 <= 0) {
+            ei_ta = 1;
+            while (ei_ta <= arena.num_exprs && ta0 <= 0) {
+              let e_ta2: Expr = ast.arena_expr_get(arena, ei_ta);
+              if (e_ta2.kind == ExprKind.EXPR_CALL && e_ta2.call_resolved_func_index != fi) {
+                if (!ast.ref_is_null(e_ta2.call_callee_ref) && e_ta2.call_callee_ref > 0
+                    && e_ta2.call_callee_ref <= arena.num_exprs) {
+                  let cal_ta: Expr = ast.arena_expr_get(arena, e_ta2.call_callee_ref);
                   if (cal_ta.kind == ExprKind.EXPR_VAR && cal_ta.var_name_len == fn_len0) {
                     let eq_ta: i32 = 1;
                     let k_ta: i32 = 0;
@@ -13639,15 +13655,14 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
                         k_ta = k_ta + 1;
                       }
                     }
-                    m_ta = eq_ta;
+                    if (eq_ta != 0) {
+                      ta0 = codegen_call_ret_type_param_concrete_at(arena, ei_ta);
+                    }
                   }
                 }
               }
-              if (m_ta != 0) {
-                ta0 = codegen_call_ret_type_param_concrete_at(arena, ei_ta);
-              }
+              ei_ta = ei_ta + 1;
             }
-            ei_ta = ei_ta + 1;
           }
           if (ta0 > 0 && ta0 != ret_ty) {
             ctx.mono_active = 1;
