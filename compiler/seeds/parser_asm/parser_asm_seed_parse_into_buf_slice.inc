@@ -879,7 +879,7 @@ static int32_t xlang_seed_impl_self_matches_for_c(void *arena, int32_t pty0, int
                                                    int32_t for_nlen);
 
 /**
- * wave470: rewrite TYPE_NAMED Self → for named type (seed twin of
+ * wave470/471: rewrite TYPE_NAMED Self / PTR-to-Self → for (seed twin of
  * xlang_skip_rewrite_self_type_ref_c). PLATFORM: SHARED parse.
  */
 static int32_t xlang_seed_rewrite_self_type_ref_c(void *arena, int32_t type_ref,
@@ -888,24 +888,39 @@ static int32_t xlang_seed_rewrite_self_type_ref_c(void *arena, int32_t type_ref,
   int32_t k;
   uint8_t gnm[64];
   int32_t gnl;
+  uint8_t for_copy[64];
+  int32_t n;
+  int32_t for_named;
   extern int32_t pipeline_type_find_or_alloc_named(void *arena, uint8_t *name, int32_t name_len);
+  extern int32_t pipeline_type_find_or_alloc_compound(void *arena, int32_t kind_ord, int32_t elem_ref,
+                                                       int32_t array_size);
   if (!arena || type_ref == 0 || for_ptr || for_nl <= 0 || !for_nm)
     return type_ref;
+  n = for_nl;
+  if (n > 63)
+    n = 63;
+  memset(for_copy, 0, sizeof(for_copy));
+  memcpy(for_copy, for_nm, (size_t)n);
   k = pipeline_type_kind_ord_at(arena, type_ref);
+  if (k == XLANG_SEED_TRAIT_TY_PTR) {
+    int32_t elem = pipeline_type_elem_ref_at(arena, type_ref);
+    int32_t ek = (elem != 0) ? pipeline_type_kind_ord_at(arena, elem) : -1;
+    if (ek != XLANG_SEED_TRAIT_TY_NAMED)
+      return type_ref;
+    gnl = pipeline_type_named_name_into(arena, elem, gnm);
+    if (!xlang_seed_name_is_self_c(gnm, gnl))
+      return type_ref;
+    for_named = pipeline_type_find_or_alloc_named(arena, for_copy, n);
+    if (for_named == 0)
+      return type_ref;
+    return pipeline_type_find_or_alloc_compound(arena, XLANG_SEED_TRAIT_TY_PTR, for_named, 0);
+  }
   if (k != XLANG_SEED_TRAIT_TY_NAMED)
     return type_ref;
   gnl = pipeline_type_named_name_into(arena, type_ref, gnm);
   if (!xlang_seed_name_is_self_c(gnm, gnl))
     return type_ref;
-  {
-    uint8_t for_copy[64];
-    int32_t n = for_nl;
-    if (n > 63)
-      n = 63;
-    memset(for_copy, 0, sizeof(for_copy));
-    memcpy(for_copy, for_nm, (size_t)n);
-    return pipeline_type_find_or_alloc_named(arena, for_copy, n);
-  }
+  return pipeline_type_find_or_alloc_named(arena, for_copy, n);
 }
 
 /*
@@ -1882,7 +1897,27 @@ static int32_t xlang_seed_impl_self_matches_for_c(void *arena, int32_t pty0,
     if (gek == for_kind && for_kind == XLANG_SEED_TRAIT_TY_NAMED && for_nlen > 0 && for_name && elem != 0) {
       uint8_t gnm[64];
       int32_t gnl = pipeline_type_named_name_into(arena, elem, gnm);
-      /* *Self soft leave-off this wave. */
+      /* wave471: *Self elem aliases named for under for_is_ptr. */
+      if (xlang_seed_name_is_self_c(gnm, gnl))
+        return 1;
+      if (gnl != for_nlen || memcmp(gnm, for_name, (size_t)for_nlen) != 0)
+        return 0;
+    }
+    return 1;
+  }
+  /* wave471: non-ptr for + *For / *Self receiver. */
+  if (got0 == XLANG_SEED_TRAIT_TY_PTR) {
+    int32_t elem = (pty0 != 0) ? pipeline_type_elem_ref_at(arena, pty0) : 0;
+    int32_t gek = (elem != 0) ? pipeline_type_kind_ord_at(arena, elem) : -1;
+    if (gek < 0)
+      return 1;
+    if (gek != for_kind)
+      return 0;
+    if (for_kind == XLANG_SEED_TRAIT_TY_NAMED && for_nlen > 0 && for_name && elem != 0) {
+      uint8_t gnm[64];
+      int32_t gnl = pipeline_type_named_name_into(arena, elem, gnm);
+      if (xlang_seed_name_is_self_c(gnm, gnl))
+        return 1;
       if (gnl != for_nlen || memcmp(gnm, for_name, (size_t)for_nlen) != 0)
         return 0;
     }

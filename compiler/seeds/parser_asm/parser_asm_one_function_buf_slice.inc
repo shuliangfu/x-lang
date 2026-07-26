@@ -99,13 +99,25 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
   size_t name_start_buf;
   int32_t ret_val;
   int32_t ni;
+  extern void ast_pool_onefunc_reset(uint8_t *out_ptr);
   if (!out || !data || len <= 0)
     return;
+  /*
+   * wave471: reset OneFunc sidecar keyed by `out` address before re-parse.
+   * Hoist of the same default into multiple empty impls reuses the same stack
+   * slot for `res` → same pool key → append_param accumulated (np=2 on 2nd
+   * inject → false "parameter count mismatch"). parser_gen already resets;
+   * buf path must too. PLATFORM: SHARED parse.
+   */
+  ast_pool_onefunc_reset((uint8_t *)out);
   source.data = data;
   source.length = (size_t)len;
   memset(dummy_name, 0, sizeof(dummy_name));
   memset(pname_buf, 0, sizeof(pname_buf));
   out_pool = (uint8_t *)out;
+  out->return_var_name_len = 0;
+  out->return_expr_ref = 0;
+  out->num_params = 0;
   /* parse_into_buf 传入的 lex 已在 function 之后（首 token 为 IDENT）；与 parse_one_function_impl 一致。 */
   r = lexer_next_buf(lex, data, len);
   if (r.tok.kind == (int32_t)TOKEN_FUNCTION) {
@@ -997,6 +1009,53 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
       r = lexer_next_buf(lex, data, len);
     }
     if (r.tok.kind != (int32_t)TOKEN_RBRACE && r.tok.kind != (int32_t)TOKEN_SEMICOLON) {
+      parser_asm_set_onefunc_fail_c(out, lex);
+      return;
+    }
+    if (r.tok.kind == (int32_t)TOKEN_SEMICOLON) {
+      parser_lex_from_next_into_glue(&lex, r);
+      r = lexer_next_buf(lex, data, len);
+      if (r.tok.kind != (int32_t)TOKEN_RBRACE) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+    }
+    parser_lex_from_next_into_glue(&lex, r);
+    out->ok = 1;
+    out->next_lex = lex;
+    out->name_len = name_len;
+    for (ni = 0; ni < 64; ni++)
+      out->name[ni] = dummy_name[ni];
+    out->has_explicit_return_kw = 1;
+    return;
+  }
+  /*
+   * wave471: accept `return self` / `return ident` (default methods that
+   * return Self by identity). INT lit path retained. STRUCT_LIT `Self {…}`
+   * still soft (needs fuller body parse). PLATFORM: SHARED parse.
+   */
+  if (r.tok.kind == (int32_t)TOKEN_SELF || r.tok.kind == (int32_t)TOKEN_IDENT) {
+    int32_t rvn = 0;
+    memset(out->return_var_name, 0, sizeof(out->return_var_name));
+    if (r.tok.kind == (int32_t)TOKEN_SELF) {
+      out->return_var_name[0] = (uint8_t)'s';
+      out->return_var_name[1] = (uint8_t)'e';
+      out->return_var_name[2] = (uint8_t)'l';
+      out->return_var_name[3] = (uint8_t)'f';
+      rvn = 4;
+    } else {
+      rvn = r.tok.ident_len;
+      if (rvn <= 0 || rvn > 63) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      parser_asm_copy_slice_to_name64_buf_c(data, len, r.token_start, rvn, out->return_var_name);
+    }
+    out->return_var_name_len = rvn;
+    out->return_val = 0;
+    parser_lex_from_next_into_glue(&lex, r);
+    r = lexer_next_buf(lex, data, len);
+    if (r.tok.kind != (int32_t)TOKEN_SEMICOLON && r.tok.kind != (int32_t)TOKEN_RBRACE) {
       parser_asm_set_onefunc_fail_c(out, lex);
       return;
     }
