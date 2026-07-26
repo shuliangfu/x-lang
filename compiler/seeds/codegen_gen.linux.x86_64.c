@@ -6057,6 +6057,47 @@ extern int32_t pipeline_module_struct_layout_type_param_name_len(struct ast_Modu
 extern void pipeline_module_struct_layout_type_param_name_into(struct ast_Module *m, int32_t li, int32_t j,
                                                               uint8_t *out64);
 
+/* wave480: free TYPE_NAMED (no matching layout) = type param; skip for mono fields. */
+static int32_t codegen_type_ref_is_host_concrete(struct ast_Module *module, struct ast_ASTArena *arena, int32_t ty) {
+  int32_t k;
+  int32_t nl;
+  uint8_t nm[64];
+  int32_t sk;
+  int32_t zi;
+  if (!module || !arena || ty <= 0)
+    return 0;
+  k = pipeline_type_kind_ord_at(arena, ty);
+  /* TYPE_NAMED = 8. Other kinds (builtin/ptr/array/slice/…) are host-complete. */
+  if (k != 8)
+    return 1;
+  for (zi = 0; zi < 64; zi++)
+    nm[zi] = 0;
+  nl = pipeline_type_named_name_into(arena, ty, nm);
+  if (nl <= 0)
+    return 0;
+  for (sk = 0; sk < module->num_struct_layouts; sk++) {
+    int32_t sl = pipeline_module_struct_layout_name_len(module, sk);
+    uint8_t snm[64];
+    int32_t bi;
+    int32_t match;
+    if (sl != nl)
+      continue;
+    for (zi = 0; zi < 64; zi++)
+      snm[zi] = 0;
+    pipeline_module_struct_layout_name_into(module, sk, snm);
+    match = 1;
+    for (bi = 0; bi < nl; bi++) {
+      if (snm[bi] != nm[bi]) {
+        match = 0;
+        break;
+      }
+    }
+    if (match)
+      return 1;
+  }
+  return 0;
+}
+
 static int32_t codegen_resolve_generic_struct_field_type(struct ast_Module *module, struct ast_ASTArena *arena,
                                                           uint8_t *layout_nm, int32_t layout_nl, uint8_t *field_nm,
                                                           int32_t field_nl, int32_t ftr) {
@@ -6158,7 +6199,7 @@ static int32_t codegen_resolve_generic_struct_field_type(struct ast_Module *modu
     break;
   }
   (void)layout_idx;
-  /* (1) Type-position Name<T,U>: type-arg at tp_slot (sidecar multi + slot0 fallback). */
+  /* (1) Type-position Name<T,U>: type-arg at tp_slot; wave480 prefer concrete. */
   for (ti = 1; ti <= arena->num_types; ti++) {
     if (pipeline_type_kind_ord_at(arena, ti) != 8)
       continue;
@@ -6186,11 +6227,12 @@ static int32_t codegen_resolve_generic_struct_field_type(struct ast_Module *modu
       mono = pipeline_type_type_arg_ref_at(arena, ti, tp_slot);
       if (mono <= 0 && tp_slot == 0)
         mono = pipeline_type_elem_ref_at(arena, ti);
-      if (mono > 0)
+      /* wave480: skip free type params (T from Wrap<T> ret); keep scanning for A. */
+      if (mono > 0 && codegen_type_ref_is_host_concrete(module, arena, mono) != 0)
         return mono;
     }
   }
-  /* (2) STRUCT_LIT field init by field name. */
+  /* (2) STRUCT_LIT field init by field name; wave480 prefer concrete. */
   for (ei = 1; ei <= arena->num_exprs; ei++) {
     if (pipeline_expr_kind_ord_at(arena, ei) != 45 /* EXPR_STRUCT_LIT */)
       continue;
@@ -6238,7 +6280,7 @@ static int32_t codegen_resolve_generic_struct_field_type(struct ast_Module *modu
         if (iref <= 0)
           continue;
         ity = pipeline_expr_resolved_type_ref(arena, iref);
-        if (ity > 0)
+        if (ity > 0 && codegen_type_ref_is_host_concrete(module, arena, ity) != 0)
           return ity;
       }
     }

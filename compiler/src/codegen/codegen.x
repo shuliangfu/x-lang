@@ -5275,13 +5275,74 @@ export function codegen_type_dep_enum_prefix_into(ctx: *PipelineDepCtx, arena: *
 }
 
 /**
+ * wave480 Cap residual pure: is type_ref host-C concrete (not a free type param)?
+ *
+ * Builtins / PTR / ARRAY / SLICE / … emit as complete C types. TYPE_NAMED is concrete
+ * only when the name matches a module struct layout (user type A/B). TYPE_NAMED that
+ * does not match any layout is a free type param (T/U) — emitting `struct ast_T` is
+ * incomplete (BLD001).
+ *
+ * Used by codegen_resolve_generic_struct_field_type so mono substitution prefers
+ * Pair&lt;A,B&gt; / Wrap&lt;A&gt; over generic function return Wrap&lt;T&gt; (first-match
+ * used to stamp T and leave incomplete fields).
+ *
+ * @param module *Module — layouts for concrete named types
+ * @param arena *ASTArena
+ * @param ty i32 — type_ref to classify
+ * @return i32 — 1 concrete, 0 free type-param / invalid
+ * PLATFORM: SHARED host-C mono for generic struct fields.
+ */
+function codegen_type_ref_is_host_concrete(module: *Module, arena: *ASTArena, ty: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ty <= 0) {
+      return 0;
+    }
+    let k: i32 = pipeline_type_kind_ord_at(arena, ty);
+    // TYPE_NAMED ord = 8 (ast TypeKind). Non-named kinds are host-complete for fields.
+    if (k != (TypeKind.TYPE_NAMED as i32)) {
+      return 1;
+    }
+    let nm: u8[64] = [];
+    let nl: i32 = pipeline_type_named_name_into(arena, ty, &nm[0]);
+    if (nl <= 0) {
+      return 0;
+    }
+    let sk: i32 = 0;
+    while (sk < module.num_struct_layouts) {
+      let sl: i32 = pipeline_module_struct_layout_name_len(module, sk);
+      if (sl == nl) {
+        let snm: u8[64] = [];
+        pipeline_module_struct_layout_name_into(module, sk, &snm[0]);
+        let bi: i32 = 0;
+        let match: i32 = 1;
+        while (bi < nl) {
+          if (snm[bi] != nm[bi]) {
+            match = 0;
+          }
+          bi = bi + 1;
+        }
+        if (match != 0) {
+          return 1;
+        }
+      }
+      sk = sk + 1;
+    }
+    return 0;
+  }
+}
+
+/**
  * wave466/467 Cap residual pure: host-C mono for type-param fields on generic structs.
+ * wave480: prefer concrete type-args (skip free T/U from generic fn return types).
  *
  * Layout may store `v: T` / `b: U` (TYPE_NAMED type-params). Emitting as `struct ast_T`
  * is incomplete (BLD001). Resolve a concrete type:
  *   1) TYPE_NAMED uses of the layout with type-pos args (`Pair<A,B>`): map field type
- *      name to layout type-param slot (wave467 multi sidecar), else slot0 (wave466)
- *   2) STRUCT_LIT field init resolved type for matching field name (bare Name)
+ *      name to layout type-param slot (wave467 multi sidecar), else slot0 (wave466);
+ *      **skip** mono that is itself a free type param (wave480)
+ *   2) STRUCT_LIT field init resolved type for matching field name (bare Name);
+ *      same concrete filter (wave480)
  * PLATFORM: SHARED host-C.
  *
  * @param module *Module
@@ -5382,7 +5443,7 @@ export function codegen_resolve_generic_struct_field_type(module: *Module, arena
       }
       sk = sk + 1;
     }
-    // (1) Type-position Pair<A,B>: type-arg at tp_slot.
+    // (1) Type-position Pair<A,B>: type-arg at tp_slot (prefer concrete; wave480).
     let ti: i32 = 1;
     while (ti <= arena.num_types) {
       if (pipeline_type_kind_ord_at(arena, ti) == TypeKind.TYPE_NAMED) {
@@ -5404,7 +5465,8 @@ export function codegen_resolve_generic_struct_field_type(module: *Module, arena
                 mono = pipeline_type_elem_ref_at(arena, ti);
               }
             }
-            if (mono > 0) {
+            // wave480: skip free type params (T from Wrap<T> ret); keep scanning for A.
+            if (mono > 0 && codegen_type_ref_is_host_concrete(module, arena, mono) != 0) {
               return mono;
             }
           }
@@ -5412,7 +5474,7 @@ export function codegen_resolve_generic_struct_field_type(module: *Module, arena
       }
       ti = ti + 1;
     }
-    // (2) Bare Name + STRUCT_LIT field init by field name.
+    // (2) Bare Name + STRUCT_LIT field init by field name (prefer concrete; wave480).
     let ei: i32 = 1;
     while (ei <= arena.num_exprs) {
       if (pipeline_expr_kind_ord_at(arena, ei) == ExprKind.EXPR_STRUCT_LIT) {
@@ -5446,7 +5508,7 @@ export function codegen_resolve_generic_struct_field_type(module: *Module, arena
                   let iref: i32 = pipeline_expr_struct_lit_init_ref(arena, ei, fj);
                   if (iref > 0) {
                     let ity: i32 = pipeline_expr_resolved_type_ref(arena, iref);
-                    if (ity > 0) {
+                    if (ity > 0 && codegen_type_ref_is_host_concrete(module, arena, ity) != 0) {
                       return ity;
                     }
                   }
