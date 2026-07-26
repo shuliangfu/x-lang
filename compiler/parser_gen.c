@@ -3371,9 +3371,14 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
         }
         (void)((init_handled = 1));
       }
+      /*
+       * wave474 Cap residual pure: TOKEN_SELF (51) let-init same as IDENT (59).
+       * `let x: i32 = self.v` — primary already accepts TOKEN_SELF as EXPR_VAR;
+       * body_lets must route here so init_handled is set. G.7 twin of parser.x.
+       * PLATFORM: SHARED parse.
+       */
       if ((init_handled ==0)) {
-        if ((((r.tok).kind) ==59)) {
-          int32_t rhs_ilen = ((r.tok).ident_len);
+        if (((((r.tok).kind) ==59) || (((r.tok).kind) ==51))) {
           size_t rhs_ident_start = (r.token_start);
           (void)(parser_lex_from_result_ptr_into(&(lex), &(r)));
           struct lexer_Lexer expr_lex = (struct lexer_Lexer){ .pos = rhs_ident_start, .line = ((r.tok).line), .col = ((r.tok).col) };

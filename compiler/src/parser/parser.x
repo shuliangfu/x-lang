@@ -3703,11 +3703,18 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
       }
       init_handled = 1;
     }
+    /*
+     * wave474 Cap residual pure: let/const init starting with TOKEN_SELF
+     * (`let x: i32 = self.v` / method bodies) must use the same parse_expr
+     * path as TOKEN_IDENT. Lexer keywords `self` as TOKEN_SELF (ident_len=0);
+     * primary already builds EXPR_VAR "self" + field_access suffixes. Without
+     * this branch, init_handled stays 0 → body_lets fails or drops the let →
+     * free methods return `?` and trait default hoist skips inject ("missing
+     * method"). G.7: extend this authority only; no second let-init parser.
+     * PLATFORM: SHARED parse.
+     */
     if (init_handled == 0) {
-      if (r.tok.kind == token.TokenKind.TOKEN_IDENT) {
-        /* See implementation. */
-        let rhs_ilen: i32 = r.tok.ident_len;
-        /* See implementation. */
+      if (r.tok.kind == token.TokenKind.TOKEN_IDENT || r.tok.kind == token.TokenKind.TOKEN_SELF) {
         let rhs_ident_start: usize = r.token_start;
         lex_from_result_ptr_into(&lex, &r);
         let expr_lex: Lexer = Lexer { pos: rhs_ident_start, line: r.tok.line, col: r.tok.col };
@@ -3719,7 +3726,6 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
         let_init_ref = expr_tmp.expr_ref;
         lexer_copy_from_parse_expr_result_into(&lex, &expr_tmp);
         lexer.lexer_next_into(&r, lex, source);
-        /* See implementation. */
         parser_rewind_lex_for_following_stmt_into(&lex, lex, r);
         init_handled = 1;
       }

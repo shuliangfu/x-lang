@@ -18,6 +18,9 @@ extern int parser_parse_body_lets_into(void *arena, struct parser_asm_lexer lex,
                                        struct parser_asm_slice_u8 *source,
                                        struct parser_asm_onefunc_result *out,
                                        struct parser_asm_lexer *lex_out);
+/* G.7 parse_expr authority (primary + postfix); used for compound return exprs. */
+extern void parse_expr_into(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
+                            struct parser_asm_parse_expr_result *out);
 extern void parser_asm_copy_slice_to_param32_buf_c(uint8_t *source, int32_t source_len, size_t start, int32_t nlen,
                                                    uint8_t *out);
 extern int32_t pipeline_onefunc_append_param(uint8_t *out, uint8_t *name, int32_t name_len, int32_t type_ref);
@@ -1061,8 +1064,9 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
    * primary authority); commit rewrites TYPE_NAMED Self → for-type.
    * wave473: body lets collected (parse_body_lets_into); return self|ident|lit
    * after prefix lets is the thin-path contract.
-   * Soft: mid-body if/loop before return; nested non-INT field inits that
-   * finish_struct_lit cannot parse; dyn Trait.
+   * wave474: `return self.v` / other postfix after self|ident → G.7 parse_expr
+   * into return_expr_ref (bare SEMI/RBRACE and Type `{` keep fast paths).
+   * Soft: mid-body if/loop before return; dyn Trait.
    * PLATFORM: SHARED parse.
    */
   if (r.tok.kind == (int32_t)TOKEN_SELF || r.tok.kind == (int32_t)TOKEN_IDENT) {
@@ -1070,8 +1074,15 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
     uint8_t tnm64[64];
     int32_t tnl = 0;
     struct parser_asm_lexer_result r_after;
+    size_t expr_start;
+    int32_t expr_line;
+    int32_t expr_col;
     memset(out->return_var_name, 0, sizeof(out->return_var_name));
     memset(tnm64, 0, sizeof(tnm64));
+    /* Save start of self|ident for compound return (field / call / binop). */
+    expr_start = r.token_start;
+    expr_line = r.tok.line;
+    expr_col = r.tok.col;
     if (r.tok.kind == (int32_t)TOKEN_SELF) {
       /* Binding name for bare `return self` (lowercase VAR). */
       out->return_var_name[0] = (uint8_t)'s';
@@ -1166,10 +1177,54 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
       out->has_explicit_return_kw = 1;
       return;
     }
-    /* Bare `return self` / `return ident` (wave471). */
+    /*
+     * Bare `return self` / `return ident` (wave471) when next is `;` / `}`.
+     * wave474: otherwise compound expr from the same start (`self.v`, `x.f`,
+     * etc.) via G.7 parse_expr_into → return_expr_ref. Soft: mid-body stmts.
+     */
     r = r_after;
     if (r.tok.kind != (int32_t)TOKEN_SEMICOLON && r.tok.kind != (int32_t)TOKEN_RBRACE) {
-      parser_asm_set_onefunc_fail_c(out, lex);
+      struct parser_asm_lexer expr_lex;
+      struct parser_asm_parse_expr_result expr_out;
+      if (!arena) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      memset(&expr_lex, 0, sizeof(expr_lex));
+      expr_lex.pos = expr_start;
+      expr_lex.line = expr_line;
+      expr_lex.col = expr_col;
+      memset(&expr_out, 0, sizeof(expr_out));
+      parse_expr_into(arena, expr_lex, &source, &expr_out);
+      if (!expr_out.ok || expr_out.expr_ref == 0) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      out->return_expr_ref = expr_out.expr_ref;
+      out->return_var_name_len = 0;
+      memset(out->return_var_name, 0, sizeof(out->return_var_name));
+      out->return_val = 0;
+      lex = expr_out.next_lex;
+      r = lexer_next_buf(lex, data, len);
+      if (r.tok.kind != (int32_t)TOKEN_SEMICOLON && r.tok.kind != (int32_t)TOKEN_RBRACE) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      if (r.tok.kind == (int32_t)TOKEN_SEMICOLON) {
+        parser_lex_from_next_into_glue(&lex, r);
+        r = lexer_next_buf(lex, data, len);
+        if (r.tok.kind != (int32_t)TOKEN_RBRACE) {
+          parser_asm_set_onefunc_fail_c(out, lex);
+          return;
+        }
+      }
+      parser_lex_from_next_into_glue(&lex, r);
+      out->ok = 1;
+      out->next_lex = lex;
+      out->name_len = name_len;
+      for (ni = 0; ni < 64; ni++)
+        out->name[ni] = dummy_name[ni];
+      out->has_explicit_return_kw = 1;
       return;
     }
     if (r.tok.kind == (int32_t)TOKEN_SEMICOLON) {
