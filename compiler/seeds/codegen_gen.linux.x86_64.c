@@ -7012,7 +7012,7 @@ static int32_t codegen_maybe_emit_generic_struct_mono_suffix_for_type(struct ast
           if (arg_ref <= 0) {
             matched = 0;
             si = ntp;
-          } else if (pipeline_typeck_type_refs_equal_c(arena, arg_ref, combos[mi * ntp + si]) == 0) {
+          } else if (codegen_combo_slots_equal(arena, arg_ref, combos[mi * ntp + si]) == 0) {
             matched = 0;
             si = ntp;
           }
@@ -15222,8 +15222,41 @@ int32_t codegen_find_impl_method_for_type(struct ast_Module * module, struct ast
           int32_t np = pipeline_module_func_num_params_at(module, fi);
           if ((np > 0)) {
             int32_t p0_ty = pipeline_module_func_param_type_ref_at(module, fi, 0);
-            if (((p0_ty > 0) && (pipeline_typeck_type_refs_equal_c(arena, p0_ty, receiver_type_ref) !=0))) {
-              return fi;
+            if (p0_ty > 0) {
+              if (pipeline_typeck_type_refs_equal_c(arena, p0_ty, receiver_type_ref) != 0) {
+                return fi;
+              }
+              /*
+               * wave490 Cap residual: name-based fallback for impl method
+               * resolution — when direct type_ref equality fails (impl and
+               * call site come from different typeck passes), compare names.
+               * For TYPE_NAMED types use structural comparison (type args);
+               * for non-NAMED (builtin types) accept name match directly.
+               * PLATFORM: SHARED host-C — mirrors codegen.x.
+               */
+              {
+                uint8_t p0_nm[64];
+                uint8_t recv_nm[64];
+                int32_t p0_nlen = pipeline_type_named_name_into(arena, p0_ty, p0_nm);
+                int32_t recv_nlen = pipeline_type_named_name_into(arena, receiver_type_ref, recv_nm);
+                if (p0_nlen > 0 && p0_nlen == recv_nlen) {
+                  int32_t neq = 1, ni = 0;
+                  while (ni < p0_nlen) {
+                    if (p0_nm[ni] != recv_nm[ni]) { neq = 0; ni = p0_nlen; }
+                    else { ni = ni + 1; }
+                  }
+                  if (neq != 0) {
+                    if (pipeline_type_kind_ord_at(arena, p0_ty) == 8 &&
+                        pipeline_type_kind_ord_at(arena, receiver_type_ref) == 8) {
+                      if (codegen_combo_slots_equal(arena, p0_ty, receiver_type_ref) != 0) {
+                        return fi;
+                      }
+                    } else {
+                      return fi;
+                    }
+                  }
+                }
+              }
             }
           }
         }
