@@ -1613,15 +1613,34 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
           if (r.tok.kind == (int32_t)TOKEN_LBRACE)
             depth++;
           else if (r.tok.kind == (int32_t)TOKEN_RBRACE) {
-            if (depth > 0)
+            /*
+             * wave464 Cap residual pure — trait method signature ASI.
+             * Root: depth==0 RBRACE was always treated as "method body closed" and
+             * advanced past `}`. Signature-only methods without trailing `;`
+             * (`function get(self): i32` then trait `}`) consumed the trait's
+             * closing brace → register_trait never finished → trait soft-skipped
+             * → impl methods not hoisted → typeck "no impl for type with method".
+             * Product free-function / inherent-impl bodies use braces (no `;`
+             * required); trait method *signatures* may also omit `;` when the
+             * next token is trait `}` or the next `function` (ASI, like free form).
+             * G.7: twin skip_tl method-end; PLATFORM: SHARED parse.
+             */
+            if (depth > 0) {
               depth--;
-            if (depth == 0) {
-              /* method with body; allow trailing semicolon */
-              lex = r.next_lex;
+              if (depth == 0) {
+                /* method-with-body closed; allow trailing semicolon after */
+                lex = r.next_lex;
+                break;
+              }
+            } else {
+              /* Signature without `;` ends at trait `}` — leave brace for outer. */
               break;
             }
           } else if (r.tok.kind == (int32_t)TOKEN_SEMICOLON && depth == 0) {
             lex = r.next_lex;
+            break;
+          } else if (r.tok.kind == (int32_t)TOKEN_FUNCTION && depth == 0 && paren == 0) {
+            /* wave464: ASI — next method starts; leave FUNCTION for outer loop. */
             break;
           } else if (r.tok.kind == (int32_t)TOKEN_EOF)
             return -1;

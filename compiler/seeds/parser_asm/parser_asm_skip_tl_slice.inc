@@ -2973,14 +2973,28 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
           if (r.tok.kind == (int32_t)TOKEN_LBRACE)
             depth++;
           else if (r.tok.kind == (int32_t)TOKEN_RBRACE) {
-            if (depth > 0)
+            /*
+             * wave464 Cap residual pure — trait method signature ASI.
+             * Twin of seed parser_asm_seed_register_trait_c method-end.
+             * Root: depth==0 RBRACE was treated as method-body close and advanced
+             * past trait `}` → trait registry incomplete when signatures omit `;`.
+             * G.7 single authority pair with seed register_trait; PLATFORM: SHARED.
+             */
+            if (depth > 0) {
               depth--;
-            if (depth == 0) {
-              lex = r.next_lex;
+              if (depth == 0) {
+                lex = r.next_lex;
+                break;
+              }
+            } else {
+              /* Signature without `;` ends at trait `}` — leave brace for outer. */
               break;
             }
           } else if (r.tok.kind == (int32_t)TOKEN_SEMICOLON && depth == 0) {
             lex = r.next_lex;
+            break;
+          } else if (r.tok.kind == (int32_t)TOKEN_FUNCTION && depth == 0 && paren == 0) {
+            /* wave464: ASI — next method; leave FUNCTION for outer loop. */
             break;
           } else if (r.tok.kind == (int32_t)TOKEN_EOF) {
             out->pos = lex.pos;
