@@ -17375,13 +17375,48 @@ static void glue_typeck_fold_expr_ref(struct ast_ASTArena *a, int32_t expr_ref,
   }
 
   if (kd == ast_ExprKind_EXPR_AS) {
+    /*
+     * PLATFORM: SHARED — CTFE producer for EXPR_AS (wave460 Cap residual pure).
+     * Always fold the operand so nested trees still CTFE. Stamp this AS node
+     * only when the *target* is a scalar that host-C/asm can materialize as a
+     * bare i32 immediate.
+     *
+     * Root (soft leave-off after wave459 compound-literal host-C emit):
+     *   `let m: MultiField = 7 as MultiField` → typeck set const_folded_valid=1
+     *   from the lit operand → emit_expr consumed fold as format_int → host C
+     *   `struct MultiField m = 7` → BLD001. Variable operand skipped the fold
+     *   stamp and correctly took wave459 `((TYPE){ (op) })`.
+     *
+     * Mirror STRUCT_LIT: aggregate values cannot fit in i32 const_folded_val;
+     * never stamp valid=1 for TYPE_NAMED user structs / array / slice / vector /
+     * linear so codegen EXPR_AS (compound literal / cast) remains authority.
+     * G.7: single authority = this producer; emit only *consumes* the flags.
+     */
     glue_typeck_fold_expr_ref(a, e->as_operand_ref, const_names, const_values, n_const_names);
     {
       struct ast_Expr *eo = glue_arena_expr_at_ref(a, e->as_operand_ref);
-      if (eo && eo->const_folded_valid) {
-        e->const_folded_val = eo->const_folded_val; /* int32 product field */
-        e->const_folded_valid = 1;
+      int32_t tgt;
+      int32_t tk;
+      if (!eo || !eo->const_folded_valid)
+        return;
+      tgt = e->as_target_type_ref;
+      if (tgt <= 0)
+        tgt = e->resolved_type_ref;
+      if (tgt > 0) {
+        /* Kind check only (no alias peel): TYPE_NAMED covers user structs and
+         * named aliases; skipping stamp for aliases is safe — emit still does
+         * C cast/compound via EXPR_AS. Avoid calling resolve here (defined later
+         * in this TU; fold stays self-contained). */
+        tk = pipeline_type_kind_ord_at(a, tgt);
+        if (tk == (int32_t)ast_TypeKind_TYPE_NAMED
+            || tk == (int32_t)ast_TypeKind_TYPE_ARRAY
+            || tk == (int32_t)ast_TypeKind_TYPE_SLICE
+            || tk == (int32_t)ast_TypeKind_TYPE_LINEAR
+            || tk == (int32_t)ast_TypeKind_TYPE_VECTOR)
+          return; /* keep const_folded_valid=0; emit via EXPR_AS host-C path */
       }
+      e->const_folded_val = eo->const_folded_val; /* int32 product field */
+      e->const_folded_valid = 1;
     }
     return;
   }
