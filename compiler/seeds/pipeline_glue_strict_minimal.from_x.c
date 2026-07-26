@@ -3114,6 +3114,21 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *
   }
   if (pipeline_type_kind_ord_at(arena, base_ty) != (int32_t)ast_TypeKind_TYPE_NAMED)
     return 0;
+  /*
+   * wave479 Cap residual pure: user enum TypeName.Variant (Method.POST).
+   * Heavy pipeline_typeck_field_access.c resolves via field_layout_named_c →
+   * TYPE_NAMED enum (not i32 tag) so dual overload method(Method)|method(u8)
+   * picks Method. Product path is THIS weak twin — previously skipped enum
+   * and wave465 ambient stamped call-site return (main i32) onto null field
+   * → scored as integer → method_u8. G.7: call the same layout_named helper
+   * (no second enum implementation). PLATFORM: SHARED.
+   */
+  {
+    int32_t layout_rc =
+        pipeline_typeck_field_layout_named_c(module, arena, expr_ref, base_ref, ctx);
+    if (layout_rc == 2)
+      return 0; /* user enum variant fully resolved; skip mono/ambient */
+  }
   type_name_len = pipeline_type_named_name_into(arena, base_ty, type_name);
   if (type_name_len <= 0)
     return 0;
@@ -3278,13 +3293,16 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *
   /*
    * wave465: type-param field (TYPE_NAMED with no module struct/enum) + ambient
    * expected → stamp ambient (return w.v / expected i32). Never applied to base.
-   * PLATFORM: SHARED — twin of heavy pipeline_typeck_field_access.c.
+   * wave472/wave479: do NOT stamp ambient when field type is still null —
+   * inventing main's i32 on Method.POST polluted dual overload scoring
+   * (method(Method)|method(u8) → method_u8). Type-param fields keep TYPE_NAMED
+   * T from layout (not null). PLATFORM: SHARED — twin of heavy field_access.
    */
   if (return_type_ref > 0 && return_type_ref <= arena->num_types) {
     int32_t got_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
     int32_t use_ambient = 0;
     if (ast_ref_is_null(got_ty) || got_ty <= 0 || got_ty > arena->num_types) {
-      use_ambient = 1;
+      use_ambient = 0; /* wave479: leave unresolved; never invent ambient */
     } else if (pipeline_type_kind_ord_at(arena, got_ty) == (int32_t)ast_TypeKind_TYPE_NAMED) {
       uint8_t gnm[64];
       int32_t gnl;

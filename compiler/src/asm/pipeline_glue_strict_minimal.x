@@ -2202,6 +2202,8 @@ export extern "C" function pipeline_expr_match_arm_result_ref(arena: *u8, er: i3
 export extern "C" function pipeline_expr_field_access_name_len(arena: *u8, er: i32): i32;
 export extern "C" function pipeline_expr_field_access_name_into(arena: *u8, er: i32, out: *u8): void;
 export extern "C" function pipeline_expr_set_field_access_offset(arena: *u8, er: i32, off: i32): void;
+/* wave479: heavy field_layout_named (user enum TypeName.Variant → TYPE_NAMED). */
+export extern "C" function pipeline_typeck_field_layout_named_c(module: *u8, arena: *u8, expr_ref: i32, base_ref: i32, ctx: *u8): i32;
 export extern "C" function typeck_get_field_offset_from_layout_deps(module: *u8, ctx: *u8, tname: *u8, tlen: i32, fname: *u8, flen: i32): i32;
 export extern "C" function typeck_get_field_type_ref_from_layout_deps(module: *u8, arena: *u8, ctx: *u8, tname: *u8, tlen: i32, fname: *u8, flen: i32): i32;
 export extern "C" function pipeline_expr_init_call_resolve_at_ref(arena: *u8, er: i32): void;
@@ -2360,6 +2362,8 @@ function pipeline_typeck_field_reverse_infer_base_type_strict_minimal(module: *u
  * (struct Wrap<T>{v:T} → return w.v with expected i32). Not applied to base.
  * wave466: type-pos Wrap<i32> stores arg on TYPE_NAMED; mono stamps type-param
  * fields from that arg before ambient (single-arg; multi soft).
+ * wave479: user enum TypeName.Variant via field_layout_named_c (return 2);
+ * do not stamp ambient onto null field type (wave472 dual-overload discipline).
  * @param module *u8 — Module*
  * @param arena *u8 — ASTArena*
  * @param expr_ref i32 — FIELD_ACCESS
@@ -2451,6 +2455,17 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
       }
     }
     if (pipeline_type_kind_ord_at(arena, work_ty) != 8) { return 0; }
+    /*
+     * wave479: user enum TypeName.Variant — G.7 call heavy field_layout_named_c
+     * (return 2 = fully resolved TYPE_NAMED enum; skip mono/ambient).
+     * PLATFORM: SHARED — seed C twin is product compile unit.
+     */
+    {
+      let layout_rc: i32 = pipeline_typeck_field_layout_named_c(module, arena, expr_ref, base_ref, ctx);
+      if (layout_rc == 2) {
+        return 0;
+      }
+    }
     let type_name: u8[64] = [];
     let type_name_len: i32 = pipeline_type_named_name_into(arena, work_ty, &type_name[0]);
     if (type_name_len <= 0) { return 0; }
@@ -2559,13 +2574,14 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
       }
     }
     // wave465: type-param field (TYPE_NAMED no module concrete) + ambient → stamp ambient.
+    // wave472/wave479: never stamp ambient on null (Method.POST dual overload).
     // Keep wave454: ambient never applied to base. PLATFORM: SHARED.
     // Product authority is seed C; this .x stays in sync (G.7).
     if (return_type_ref > 0) {
       let got_ty: i32 = pipeline_expr_resolved_type_ref(arena, expr_ref);
       let use_ambient: i32 = 0;
       if (got_ty <= 0) {
-        use_ambient = 1;
+        use_ambient = 0;
       } else {
         // TYPE_NAMED = 8
         if (pipeline_type_kind_ord_at(arena, got_ty) == 8) {
