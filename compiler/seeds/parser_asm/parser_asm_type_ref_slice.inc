@@ -6,6 +6,44 @@
 #ifndef PARSER_ASM_TYPE_REF_SLICE_INCLUDED
 #define PARSER_ASM_TYPE_REF_SLICE_INCLUDED
 
+/**
+ * wave483 Cap residual pure: close one level of type-pos angle list.
+ *
+ * Nested generics spell `Name<Name<T>>` with adjacent `>>`. The lexer max-munch
+ * path emits TOKEN_RSHIFT for `>>` (shift operator), so a bare TOKEN_GT check
+ * fails mid-nest and the whole type_ref returns 0 (XP003 / dropped fn).
+ *
+ * Contract when the peek token ends a type-arg list:
+ *   - TOKEN_GT: consume fully (one close).
+ *   - TOKEN_RSHIFT: treat as two `>` — close this level and leave one `>` in the
+ *     stream for the outer list (rewind next_lex.pos/col by 1). Same rule as
+ *     C++/Rust nested-generic angle closing. Does **not** accept TOKEN_RSHIFT_EQ.
+ *
+ * @param peek lexer result already filled by lexer_next_into at the close site
+ * @param lex_inout updated to the post-close lex state on success
+ * @return 1 if closed, 0 if peek is neither GT nor RSHIFT
+ * PLATFORM: SHARED type grammar — product type_ref path (this .inc).
+ */
+static int32_t parser_asm_type_angle_close_gt_or_rshift_c(struct parser_asm_lexer_result *peek,
+                                                         struct parser_asm_lexer *lex_inout) {
+  if (!peek || !lex_inout)
+    return 0;
+  if (peek->tok.kind == (int32_t)TOKEN_GT) {
+    parser_asm_lex_from_result_val_into(lex_inout, *peek);
+    return 1;
+  }
+  if (peek->tok.kind == (int32_t)TOKEN_RSHIFT) {
+    /* next_lex is past both bytes of `>>`; leave the second `>` for the outer list. */
+    *lex_inout = peek->next_lex;
+    if (lex_inout->pos > 0)
+      lex_inout->pos = lex_inout->pos - (size_t)1;
+    if (lex_inout->col > 1)
+      lex_inout->col = lex_inout->col - 1;
+    return 1;
+  }
+  return 0;
+}
+
 /** 与 ast.x Type 布局一致。 */
 struct ast_Type {
   int32_t kind;
@@ -707,10 +745,9 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
             parser_asm_lex_from_result_val_into(&lex, peek_ta);
             continue;
           }
-          if (peek_ta.tok.kind == (int32_t)TOKEN_GT) {
-            parser_asm_lex_from_result_val_into(&lex, peek_ta);
+          /* wave483: TOKEN_GT or nested `>>` (TOKEN_RSHIFT) closes this angle level. */
+          if (parser_asm_type_angle_close_gt_or_rshift_c(&peek_ta, &lex) != 0)
             break;
-          }
           parser_asm_write_out_lex_c(out_lex, lex);
           return 0;
         }

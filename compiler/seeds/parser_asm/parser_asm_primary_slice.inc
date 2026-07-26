@@ -656,6 +656,19 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
           after_angle = sep.next_lex;
           break;
         }
+        /*
+         * wave483: nested turbofish `foo<Bar<A>>(` — lexer yields TOKEN_RSHIFT for
+         * adjacent `>>`. Close this level and leave one `>` for the outer list
+         * (same split as type_ref angle close). PLATFORM: SHARED call-site turbofish.
+         */
+        if (sep.tok.kind == (int32_t)TOKEN_RSHIFT) {
+          after_angle = sep.next_lex;
+          if (after_angle.pos > 0)
+            after_angle.pos = after_angle.pos - (size_t)1;
+          if (after_angle.col > 1)
+            after_angle.col = after_angle.col - 1;
+          break;
+        }
         parse_ok = 0;
         break;
       }
