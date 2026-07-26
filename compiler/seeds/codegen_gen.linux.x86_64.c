@@ -6080,6 +6080,13 @@ extern void pipeline_module_struct_layout_type_param_name_into(struct ast_Module
                                                               uint8_t *out64);
 
 /* wave480: free TYPE_NAMED (no matching layout) = type param; skip for mono fields. */
+/*
+ * wave480/485: host-complete type for generic-struct mono.
+ * wave485: layout name match alone is NOT enough — Wrap&lt;T&gt; / Wrap&lt;Wrap&lt;T&gt;&gt;
+ * matched layout "Wrap" and were treated concrete → incomplete Wrap__Wrap_T.
+ * Generic layouts (ntp&gt;0) require every type-arg also host-concrete (recursive).
+ * PLATFORM: SHARED host-C — G.7 twin of codegen.x.
+ */
 static int32_t codegen_type_ref_is_host_concrete(struct ast_Module *module, struct ast_ASTArena *arena, int32_t ty) {
   int32_t k;
   int32_t nl;
@@ -6102,6 +6109,8 @@ static int32_t codegen_type_ref_is_host_concrete(struct ast_Module *module, stru
     uint8_t snm[64];
     int32_t bi;
     int32_t match;
+    int32_t ntp;
+    int32_t ai;
     if (sl != nl)
       continue;
     for (zi = 0; zi < 64; zi++)
@@ -6114,8 +6123,23 @@ static int32_t codegen_type_ref_is_host_concrete(struct ast_Module *module, stru
         break;
       }
     }
-    if (match)
+    if (!match)
+      continue;
+    /* Non-generic user struct / enum-like layout: concrete by name. */
+    ntp = pipeline_module_struct_layout_num_type_params_at(module, sk);
+    if (ntp <= 0)
       return 1;
+    /* Generic layout: all type-pos args must be present and host-concrete. */
+    for (ai = 0; ai < ntp && ai < 4; ai++) {
+      int32_t arg = pipeline_type_type_arg_ref_at(arena, ty, ai);
+      if (arg <= 0 && ai == 0)
+        arg = pipeline_type_elem_ref_at(arena, ty);
+      if (arg <= 0)
+        return 0;
+      if (codegen_type_ref_is_host_concrete(module, arena, arg) == 0)
+        return 0;
+    }
+    return 1;
   }
   return 0;
 }
@@ -6711,13 +6735,19 @@ static int32_t codegen_collect_generic_struct_mono_combos(struct ast_Module *mod
   return combo_count;
 }
 
-/* wave484: mono suffix bytes from a STRUCT_LIT field init (recursive structure).
+/*
+ * wave484/485: mono suffix bytes from a STRUCT_LIT field init (recursive structure).
  * Nested Wrap { inner: Wrap { inner: A } } must not trust ambient resolved_type_ref
- * (often the outer Wrap&lt;Wrap&lt;A&gt;&gt;). PLATFORM: SHARED host-C. */
+ * (often the outer Wrap&lt;Wrap&lt;A&gt;&gt;).
+ * wave485: under function mono, leaf inits typed as free T map via ctx (T→A) so
+ * nest&lt;T&gt;():Wrap&lt;Wrap&lt;T&gt;&gt; body emits Wrap__Wrap_A / Wrap__A not shallow Wrap__A.
+ * PLATFORM: SHARED host-C.
+ */
 static int32_t codegen_mono_suffix_bytes_from_init(struct ast_ASTArena *arena, struct ast_Module *module,
-    int32_t init_ref, uint8_t *buf, int32_t buf_cap) {
+    int32_t init_ref, uint8_t *buf, int32_t buf_cap, struct ast_PipelineDepCtx *ctx) {
   struct ast_Expr ie;
   int32_t rty;
+  int32_t mapped;
   if (!arena || !module || init_ref <= 0 || !buf || buf_cap <= 0) return 0;
   ie = ast_ast_arena_expr_get(arena, init_ref);
   if (ie.kind == 45 /* EXPR_STRUCT_LIT */) {
@@ -6757,7 +6787,26 @@ static int32_t codegen_mono_suffix_bytes_from_init(struct ast_ASTArena *arena, s
           for (fi = 0; fi < flen; fi++) if (lfn[fi] != fnm[fi]) { feq = 0; break; }
           if (!feq) continue;
           iref = pipeline_expr_struct_lit_init_ref(arena, init_ref, li);
-          al = codegen_mono_suffix_bytes_from_init(arena, module, iref, asuf, 64);
+          al = codegen_mono_suffix_bytes_from_init(arena, module, iref, asuf, 64, ctx);
+          /* wave485: init leaf may lack resolved_type (param x under mono body).
+           * Fallback: layout type-param name → mono concrete suffix. */
+          if (al <= 0 && ctx && ctx->mono_active != 0 && ctx->mono_num_types > 0) {
+            int32_t mi_f;
+            for (mi_f = 0; mi_f < ctx->mono_num_types && mi_f < 8; mi_f++) {
+              uint8_t gnm_f[64];
+              int32_t gnl_f, geq_f = 1, gi_f;
+              int32_t gtr_f = ctx->mono_generic_type_refs[mi_f];
+              int32_t ctr_f = ctx->mono_concrete_type_refs[mi_f];
+              if (gtr_f <= 0 || ctr_f <= 0) continue;
+              gnl_f = pipeline_type_named_name_into(arena, gtr_f, gnm_f);
+              if (gnl_f != tpl || gnl_f <= 0) continue;
+              for (gi_f = 0; gi_f < gnl_f; gi_f++) if (gnm_f[gi_f] != tpn[gi_f]) { geq_f = 0; break; }
+              if (geq_f && codegen_type_ref_is_host_concrete(module, arena, ctr_f) != 0) {
+                al = codegen_type_ref_to_suffix(arena, ctr_f, asuf, 64);
+                break;
+              }
+            }
+          }
           if (al <= 0) return 0;
           if (pos + 1 + al >= buf_cap) return 0;
           buf[pos++] = 95;
@@ -6772,13 +6821,27 @@ static int32_t codegen_mono_suffix_bytes_from_init(struct ast_ASTArena *arena, s
     return pos;
   }
   rty = pipeline_expr_resolved_type_ref(arena, init_ref);
-  if (rty <= 0) return 0;
+  if (rty <= 0) {
+    int32_t ek = pipeline_expr_kind_ord_at(arena, init_ref);
+    /* wave485: unstamped INT lit as type-arg slot (Pair { …, b: 1 }) → i32 suffix. */
+    if (ek == 0 /* EXPR_LIT */ && buf_cap > 3) {
+      buf[0] = 105; buf[1] = 51; buf[2] = 50; /* i32 */
+      return 3;
+    }
+    /* no stamp — layout-param mono fallback is in STRUCT_LIT caller */
+    return 0;
+  }
+  /* wave485: free T under mono → concrete (param x:T with T→A). */
+  mapped = codegen_generic_struct_resolve_arg_via_ctx(module, arena, ctx, rty);
+  if (mapped > 0)
+    rty = mapped;
   return codegen_type_ref_to_suffix(arena, rty, buf, buf_cap);
 }
 
-/* wave484: emit __suf0[_suf1…] for STRUCT_LIT from field structure (not ambient type). */
+/* wave484/485: emit __suf0[_suf1…] for STRUCT_LIT from field structure (not ambient type). */
 static int32_t codegen_try_emit_struct_lit_mono_from_fields(struct ast_Module *module, struct ast_ASTArena *arena,
-    struct codegen_CodegenOutBuf *out, int32_t expr_ref, uint8_t *layout_nm, int32_t layout_nl) {
+    struct codegen_CodegenOutBuf *out, int32_t expr_ref, uint8_t *layout_nm, int32_t layout_nl,
+    struct ast_PipelineDepCtx *ctx) {
   int32_t lk, ntp, tj, first = 1;
   if (!module || !arena || !out || expr_ref <= 0 || !layout_nm || layout_nl <= 0) return 0;
   lk = codegen_module_struct_layout_index_by_name(module, layout_nm, layout_nl);
@@ -6813,7 +6876,7 @@ static int32_t codegen_try_emit_struct_lit_mono_from_fields(struct ast_Module *m
         for (fi = 0; fi < flen; fi++) if (lfn[fi] != fnm[fi]) { feq = 0; break; }
         if (!feq) continue;
         iref = pipeline_expr_struct_lit_init_ref(arena, expr_ref, li);
-        al = codegen_mono_suffix_bytes_from_init(arena, module, iref, asuf, 64);
+        al = codegen_mono_suffix_bytes_from_init(arena, module, iref, asuf, 64, ctx);
         if (al <= 0) return 0;
         found = 1;
         break;
@@ -6854,7 +6917,7 @@ static int32_t codegen_try_emit_struct_lit_mono_from_fields(struct ast_Module *m
         for (fi = 0; fi < flen; fi++) if (lfn[fi] != fnm[fi]) { feq = 0; break; }
         if (!feq) continue;
         iref = pipeline_expr_struct_lit_init_ref(arena, expr_ref, li);
-        al = codegen_mono_suffix_bytes_from_init(arena, module, iref, asuf, 64);
+        al = codegen_mono_suffix_bytes_from_init(arena, module, iref, asuf, 64, ctx);
         if (al <= 0) return -1;
         if (!first) {
           if (codegen_append_byte(out, 95) != 0) return -1;
@@ -11069,7 +11132,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
           int32_t rty_sl = e.resolved_type_ref;
           int32_t did_mono = 0;
           {
-            int32_t st = codegen_try_emit_struct_lit_mono_from_fields(mod_sl, arena, out, expr_ref, &((sl_emit_name)[0]), sl_emit_nlen);
+            int32_t st = codegen_try_emit_struct_lit_mono_from_fields(mod_sl, arena, out, expr_ref, &((sl_emit_name)[0]), sl_emit_nlen, ctx);
             if (st < 0) return -(1);
             if (st > 0) did_mono = 1;
           }

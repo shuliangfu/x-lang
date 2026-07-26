@@ -5302,6 +5302,16 @@ export function codegen_type_dep_enum_prefix_into(ctx: *PipelineDepCtx, arena: *
  * @return i32 — 1 concrete, 0 free type-param / invalid
  * PLATFORM: SHARED host-C mono for generic struct fields.
  */
+/**
+ * wave480/485: host-complete type for generic-struct mono.
+ * wave485: generic layouts require every type-arg host-concrete (recursive);
+ * bare Wrap / Wrap&lt;T&gt; free param is NOT concrete (prevents incomplete Wrap__Wrap_T).
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param ty i32 — type_ref
+ * @return i32 — 1 concrete, 0 free / incomplete generic
+ * PLATFORM: SHARED host-C — G.7 twin of seed
+ */
 function codegen_type_ref_is_host_concrete(module: *Module, arena: *ASTArena, ty: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5333,6 +5343,25 @@ function codegen_type_ref_is_host_concrete(module: *Module, arena: *ASTArena, ty
           bi = bi + 1;
         }
         if (match != 0) {
+          let ntp: i32 = pipeline_module_struct_layout_num_type_params_at(module, sk);
+          if (ntp <= 0) {
+            return 1;
+          }
+          // Generic layout: every type-pos arg must be host-concrete.
+          let ai: i32 = 0;
+          while (ai < ntp && ai < 4) {
+            let arg: i32 = pipeline_type_type_arg_ref_at(arena, ty, ai);
+            if (arg <= 0 && ai == 0) {
+              arg = pipeline_type_elem_ref_at(arena, ty);
+            }
+            if (arg <= 0) {
+              return 0;
+            }
+            if (codegen_type_ref_is_host_concrete(module, arena, arg) == 0) {
+              return 0;
+            }
+            ai = ai + 1;
+          }
           return 1;
         }
       }
@@ -5805,18 +5834,20 @@ function codegen_generic_struct_mangled_name_into(arena: *ASTArena, layout_nm: *
 }
 
 /**
- * wave484: build mono arg suffix bytes from a field init expression.
+ * wave484/485: build mono arg suffix bytes from a field init expression.
  * STRUCT_LIT recurses into nested field structure (ignores ambient resolved_type_ref).
- * Other inits use codegen_type_ref_to_suffix(resolved).
+ * wave485: leaf free T under mono maps via ctx (T→A) for nest&lt;T&gt; body STRUCT_LIT.
+ * Other inits use codegen_type_ref_to_suffix(resolved/mono-mapped).
  * @param arena *ASTArena
  * @param module *Module
  * @param init_ref i32
  * @param buf *u8
  * @param buf_cap i32
+ * @param ctx *PipelineDepCtx — may be null; mono map used when active
  * @return i32 — bytes written, or 0 on failure
  * PLATFORM: SHARED host-C — G.7 twin of seed
  */
-function codegen_mono_suffix_bytes_from_init(arena: *ASTArena, module: *Module, init_ref: i32, buf: *u8, buf_cap: i32): i32 {
+function codegen_mono_suffix_bytes_from_init(arena: *ASTArena, module: *Module, init_ref: i32, buf: *u8, buf_cap: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     if (arena == 0 as *ASTArena || module == 0 as *Module || init_ref <= 0 || buf == 0 as *u8 || buf_cap <= 0) {
@@ -5887,7 +5918,34 @@ function codegen_mono_suffix_bytes_from_init(arena: *ASTArena, module: *Module, 
                     if (feq != 0) {
                       let iref: i32 = pipeline_expr_struct_lit_init_ref(arena, init_ref, li);
                       let asuf: u8[64] = [];
-                      let al: i32 = codegen_mono_suffix_bytes_from_init(arena, module, iref, &asuf[0], 64);
+                      let al: i32 = codegen_mono_suffix_bytes_from_init(arena, module, iref, &asuf[0], 64, ctx);
+                      // wave485: leaf may lack resolved_type under mono body; map layout T via mono.
+                      if (al <= 0 && ctx != 0 as *PipelineDepCtx && ctx.mono_active != 0 && ctx.mono_num_types > 0) {
+                        let mi_f: i32 = 0;
+                        while (mi_f < ctx.mono_num_types && mi_f < 8) {
+                          let gtr_f: i32 = ctx.mono_generic_type_refs[mi_f];
+                          let ctr_f: i32 = ctx.mono_concrete_type_refs[mi_f];
+                          if (gtr_f > 0 && ctr_f > 0) {
+                            let gnm_f: u8[64] = [];
+                            let gnl_f: i32 = pipeline_type_named_name_into(arena, gtr_f, &gnm_f[0]);
+                            if (gnl_f == tpl && gnl_f > 0) {
+                              let geq_f: i32 = 1;
+                              let gi_f: i32 = 0;
+                              while (gi_f < gnl_f) {
+                                if (gnm_f[gi_f] != tpn[gi_f]) {
+                                  geq_f = 0;
+                                }
+                                gi_f = gi_f + 1;
+                              }
+                              if (geq_f != 0 && codegen_type_ref_is_host_concrete(module, arena, ctr_f) != 0) {
+                                al = codegen_type_ref_to_suffix(arena, ctr_f, &asuf[0], 64);
+                                mi_f = ctx.mono_num_types;
+                              }
+                            }
+                          }
+                          mi_f = mi_f + 1;
+                        }
+                      }
                       if (al <= 0 || pos + 1 + al >= buf_cap) {
                         return 0;
                       }
@@ -5920,18 +5978,31 @@ function codegen_mono_suffix_bytes_from_init(arena: *ASTArena, module: *Module, 
     }
     let rty: i32 = pipeline_expr_resolved_type_ref(arena, init_ref);
     if (rty <= 0) {
+      // wave485: unstamped INT lit as type-arg slot (Pair { …, b: 1 }) → i32.
+      if (pipeline_expr_kind_ord_at(arena, init_ref) == ExprKind.EXPR_LIT && buf_cap > 3) {
+        buf[0] = 105;
+        buf[1] = 51;
+        buf[2] = 50;
+        return 3;
+      }
       return 0;
+    }
+    // wave485: free T under mono → concrete via ctx map.
+    let mapped: i32 = codegen_generic_struct_resolve_arg_via_ctx(module, arena, ctx, rty);
+    if (mapped > 0) {
+      rty = mapped;
     }
     return codegen_type_ref_to_suffix(arena, rty, buf, buf_cap);
   }
 }
 
 /**
- * wave484: emit STRUCT_LIT mono `__suf…` from field structure (not ambient type).
+ * wave484/485: emit STRUCT_LIT mono `__suf…` from field structure (not ambient type).
+ * @param ctx *PipelineDepCtx — mono map for leaf free type params
  * @return i32 — 1 emitted, 0 not applicable, -1 fail
  * PLATFORM: SHARED host-C
  */
-function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, layout_nm: *u8, layout_nl: i32): i32 {
+function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, layout_nm: *u8, layout_nl: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     if (module == 0 as *Module || arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || expr_ref <= 0) {
@@ -5994,7 +6065,7 @@ function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, arena: *A
                   }
                   if (feq != 0) {
                     let iref: i32 = pipeline_expr_struct_lit_init_ref(arena, expr_ref, li);
-                    al = codegen_mono_suffix_bytes_from_init(arena, module, iref, &asuf[0], 64);
+                    al = codegen_mono_suffix_bytes_from_init(arena, module, iref, &asuf[0], 64, ctx);
                     if (al <= 0) {
                       return 0;
                     }
@@ -6065,7 +6136,7 @@ function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, arena: *A
                   if (feq2 != 0) {
                     let iref2: i32 = pipeline_expr_struct_lit_init_ref(arena, expr_ref, li2);
                     let asuf2: u8[64] = [];
-                    let al2: i32 = codegen_mono_suffix_bytes_from_init(arena, module, iref2, &asuf2[0], 64);
+                    let al2: i32 = codegen_mono_suffix_bytes_from_init(arena, module, iref2, &asuf2[0], 64, ctx);
                     if (al2 <= 0) {
                       return -1;
                     }
@@ -11358,7 +11429,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         let did_mono: i32 = 0;
         // (0) wave484: structural field mono (nested Wrap lit; ignore ambient type).
         {
-          let st0: i32 = codegen_try_emit_struct_lit_mono_from_fields(mod_sl, arena, out, expr_ref, &sl_emit_name[0], sl_emit_nlen);
+          let st0: i32 = codegen_try_emit_struct_lit_mono_from_fields(mod_sl, arena, out, expr_ref, &sl_emit_name[0], sl_emit_nlen, ctx);
           if (st0 < 0) {
             return -1;
           }
