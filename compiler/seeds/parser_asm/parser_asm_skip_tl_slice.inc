@@ -1579,6 +1579,11 @@ static int32_t xlang_skip_commit_default_onefunc_c(void *arena, void *module,
     pty = pool ? pipeline_onefunc_param_type_ref(pool, p_copy) : 0;
     /* wave470: self: Self / T: Self → for-type for UFCS match. */
     pty = xlang_skip_rewrite_self_type_ref_c(arena, pty, for_nm, for_nl, for_ptr);
+    /* wave477: self without type annotation → set to for-type so UFCS resolves. */
+    if (pty == 0 && p_copy == 0 && for_nm && for_nl > 0) {
+      extern int32_t pipeline_type_find_or_alloc_named(void *arena, uint8_t *name, int32_t name_len);
+      pty = pipeline_type_find_or_alloc_named(arena, (uint8_t *)for_nm, for_nl);
+    }
     pipeline_module_func_param_write(module, fi_mod, p_copy, pname32,
                                      pool ? pipeline_onefunc_param_name_len(pool, p_copy) : 0,
                                      pty);
@@ -1597,8 +1602,9 @@ static void xlang_skip_hoist_default_methods_c(void *module) {
                                                       struct parser_asm_lexer lex, uint8_t *data, int32_t len);
   extern struct parser_asm_onefunc_result
   parser_asm_onefunc_alloc_wired_for_parse_c(struct parser_asm_lexer lex);
-  if (!module || !arena || !g_w439_src_data || g_w439_src_len <= 0)
+  if (!module || !arena || !g_w439_src_data || g_w439_src_len <= 0) {
     return;
+  }
   /* wave470: per-impl inject so Self can be rewritten to each for-type. */
   for (si = 0; si < g_xlang_skip_impl_seen_n; si++) {
     int32_t tlen = g_xlang_skip_impl_trait_len[si];
@@ -2858,9 +2864,10 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
     if (r.tok.kind == (int32_t)TOKEN_FUNCTION) {
       int32_t mi_reg = -1;
       /* wave468: capture lexer at FUNCTION for default-body re-parse inject. */
-      int32_t fn_pos = (int32_t)lex.pos;
-      int32_t fn_line = lex.line;
-      int32_t fn_col = lex.col;
+      /* Use r.token_start (FUNCTION token start) instead of lex.pos (after FUNCTION). */
+      int32_t fn_pos = (int32_t)r.token_start;
+      int32_t fn_line = r.tok.line;
+      int32_t fn_col = r.tok.col;
       parser_asm_lex_from_result_val_into(&lex, r);
       lexer_next_into(&r, lex, source);
       if (r.tok.kind == (int32_t)TOKEN_IDENT && ent && ent->num_methods < XLANG_SKIP_TRAIT_METH_MAX) {

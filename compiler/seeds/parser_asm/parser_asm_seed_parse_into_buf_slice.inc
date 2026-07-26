@@ -1065,9 +1065,10 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
     if (r.tok.kind == (int32_t)TOKEN_FUNCTION) {
       int32_t mi_reg = -1;
       /* wave468: capture lexer at FUNCTION for default-body re-parse inject. */
-      int32_t fn_pos = (int32_t)lex.pos;
-      int32_t fn_line = lex.line;
-      int32_t fn_col = lex.col;
+      /* Use r.token_start (FUNCTION token start) instead of lex.pos (after FUNCTION). */
+      int32_t fn_pos = (int32_t)r.token_start;
+      int32_t fn_line = r.tok.line;
+      int32_t fn_col = r.tok.col;
       parser_lex_from_next_into_glue(&lex, r);
       r = lexer_next_buf(lex, data, len);
       if (r.tok.kind == (int32_t)TOKEN_IDENT && ent->num_methods < XLANG_TRAIT_METH_MAX) {

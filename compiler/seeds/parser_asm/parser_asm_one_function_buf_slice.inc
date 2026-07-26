@@ -170,7 +170,6 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
   out->return_var_name_len = 0;
   out->return_expr_ref = 0;
   out->num_params = 0;
-  /* parse_into_buf 传入的 lex 已在 function 之后（首 token 为 IDENT）；与 parse_one_function_impl 一致。 */
   r = lexer_next_buf(lex, data, len);
   if (r.tok.kind == (int32_t)TOKEN_FUNCTION) {
     parser_lex_from_next_into_glue(&lex, r);
@@ -936,6 +935,10 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
       out->num_params = param_idx + 1;
       parser_lex_from_next_into_glue(&lex, r);
       r = lexer_next_buf(lex, data, len);
+      if (r.tok.kind == (int32_t)TOKEN_RPAREN) {
+        parser_lex_from_next_into_glue(&lex, r);
+        break;
+      }
       if (r.tok.kind != (int32_t)TOKEN_COLON) {
         parser_asm_set_onefunc_fail_c(out, lex);
         return;
