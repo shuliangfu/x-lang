@@ -839,16 +839,31 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
     parser_lex_from_next_into_glue(&lex, r);
   } else {
     for (;;) {
-      if (r.tok.kind != (int32_t)TOKEN_IDENT) {
+      /*
+       * wave468: accept TOKEN_SELF as param binding name "self".
+       * Twin of parser_gen / parser.x: lexer keywords self as TOKEN_SELF with
+       * ident_len=0; IDENT-only check rejected default-method `self: T` when
+       * re-parsing trait bodies as free UFCS methods. PLATFORM: SHARED parse.
+       */
+      if (r.tok.kind != (int32_t)TOKEN_IDENT && r.tok.kind != (int32_t)TOKEN_SELF) {
         parser_asm_set_onefunc_fail_c(out, lex);
         return;
       }
-      param_name_len = r.tok.ident_len;
-      if (param_name_len <= 0 || param_name_len > 31) {
-        parser_asm_set_onefunc_fail_c(out, lex);
-        return;
+      if (r.tok.kind == (int32_t)TOKEN_SELF) {
+        param_name_len = 4;
+        pname_buf[0] = (uint8_t)'s';
+        pname_buf[1] = (uint8_t)'e';
+        pname_buf[2] = (uint8_t)'l';
+        pname_buf[3] = (uint8_t)'f';
+        pname_buf[4] = 0;
+      } else {
+        param_name_len = r.tok.ident_len;
+        if (param_name_len <= 0 || param_name_len > 31) {
+          parser_asm_set_onefunc_fail_c(out, lex);
+          return;
+        }
+        parser_asm_copy_slice_to_param32_buf_c(data, len, r.token_start, param_name_len, pname_buf);
       }
-      parser_asm_copy_slice_to_param32_buf_c(data, len, r.token_start, param_name_len, pname_buf);
       param_idx = pipeline_onefunc_append_param(out_pool, pname_buf, param_name_len, 0);
       if (param_idx < 0) {
         parser_asm_set_onefunc_fail_c(out, lex);

@@ -720,8 +720,9 @@ static int32_t parser_asm_seed_impl_type_start_kind_c(int32_t kind) {
  * wave430: suffix T[N]/T[] ret + TYPE_ARRAY size/elem hard fail (twin of skip_tl).
  * wave431: multi-dim suffix T[N][M]… ret + recursive size walk (twin of skip_tl).
  * wave432: named/ptr/slice param shape + hard fail (twin of skip_tl).
- * Soft leave-off: dyn Trait; generic trait bounds; nested *[]T / *T[N] postfix wrap;
- *   param suffix T[N] / multi-dim T[N][M] (symmetric to wave430/431 ret, deferred).
+ * wave468: method_has_default + fn start pos — hoist default bodies as free UFCS
+ *   when not overridden (twin of skip_tl xlang_skip_hoist_default_methods_c).
+ * Soft leave-off: dyn Trait; Self receiver rewrite; multi-default same-name across traits.
  * PLATFORM: SHARED parse.
  */
 #define XLANG_TRAIT_REG_MAX 16
@@ -737,6 +738,11 @@ typedef struct {
   int32_t name_len;
   uint8_t methods[XLANG_TRAIT_METH_MAX][64];
   int32_t method_lens[XLANG_TRAIT_METH_MAX];
+  /* wave468: 1 if method ended with `{ body }` (default method). */
+  int32_t method_has_default[XLANG_TRAIT_METH_MAX];
+  int32_t method_fn_pos[XLANG_TRAIT_METH_MAX];
+  int32_t method_fn_line[XLANG_TRAIT_METH_MAX];
+  int32_t method_fn_col[XLANG_TRAIT_METH_MAX];
   int32_t method_ret_kinds[XLANG_TRAIT_METH_MAX]; /* TypeKind ord; -1 unknown */
   uint8_t method_ret_names[XLANG_TRAIT_METH_MAX][64];
   int32_t method_ret_name_lens[XLANG_TRAIT_METH_MAX];
@@ -775,6 +781,9 @@ typedef struct {
 static xlang_trait_reg_ent_t g_xlang_trait_reg[XLANG_TRAIT_REG_MAX];
 static int32_t g_xlang_trait_reg_n;
 static void *g_xlang_seed_trait_check_arena;
+/* wave468: full-file source for default-method re-parse (seed twin of g_w439_*). */
+static uint8_t *g_xlang_seed_trait_src_data;
+static int32_t g_xlang_seed_trait_src_len;
 
 /**
  * Builtin type token → TypeKind ord (align PARSER_ASM_TYPE_*). Twin of skip_tl helper.
@@ -859,6 +868,66 @@ extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t type_ref);
  * Register trait Name { function m(...); ... } method names; advance lex past `}`.
  * @return 0 success; -1 parse fail (caller may fallback skip).
  */
+/* Forward: seed_commit defined later in this slice (wave468 hoist uses it). */
+static int32_t parser_asm_seed_commit_onefunc_c(void *arena, void *module, struct parser_asm_onefunc_result *res,
+                                                int32_t func_is_async, int32_t *inout_main_idx,
+                                                struct parser_asm_lexer *inout_lex);
+
+/*
+ * wave468: hoist trait default bodies as free UFCS methods (seed twin of
+ * xlang_skip_hoist_default_methods_c). Uses general onefunc parse + seed_commit.
+ * PLATFORM: SHARED parse.
+ */
+static void xlang_seed_hoist_default_methods_c(void *module) {
+  int32_t ti;
+  int32_t mi;
+  void *arena = g_xlang_seed_trait_check_arena;
+  int32_t dummy_main = -1;
+  if (!module || !arena || !g_xlang_seed_trait_src_data || g_xlang_seed_trait_src_len <= 0)
+    return;
+  for (ti = 0; ti < g_xlang_trait_reg_n; ti++) {
+    for (mi = 0; mi < g_xlang_trait_reg[ti].num_methods; mi++) {
+      const uint8_t *mnm;
+      int32_t mlen;
+      int32_t fi;
+      int32_t nf;
+      int32_t exists;
+      struct parser_asm_lexer fn_lex;
+      struct parser_asm_onefunc_result res;
+      if (g_xlang_trait_reg[ti].method_has_default[mi] == 0)
+        continue;
+      mnm = g_xlang_trait_reg[ti].methods[mi];
+      mlen = g_xlang_trait_reg[ti].method_lens[mi];
+      if (mlen <= 0)
+        continue;
+      exists = 0;
+      nf = pipeline_module_num_funcs(module);
+      for (fi = 0; fi < nf; fi++) {
+        if (pipeline_module_func_name_equal_at(module, fi, (uint8_t *)mnm, mlen) != 0) {
+          exists = 1;
+          break;
+        }
+      }
+      if (exists)
+        continue;
+      memset(&fn_lex, 0, sizeof(fn_lex));
+      fn_lex.pos = (size_t)g_xlang_trait_reg[ti].method_fn_pos[mi];
+      fn_lex.line = g_xlang_trait_reg[ti].method_fn_line[mi];
+      fn_lex.col = g_xlang_trait_reg[ti].method_fn_col[mi];
+      if (fn_lex.line <= 0)
+        fn_lex.line = 1;
+      if (fn_lex.col <= 0)
+        fn_lex.col = 1;
+      res = parser_asm_seed_onefunc_wired_c(fn_lex);
+      parser_asm_parse_one_function_buf_into_c(&res, arena, fn_lex, g_xlang_seed_trait_src_data,
+                                              g_xlang_seed_trait_src_len);
+      if (!res.ok)
+        continue;
+      (void)parser_asm_seed_commit_onefunc_c(arena, module, &res, 0, &dummy_main, &fn_lex);
+    }
+  }
+}
+
 static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len,
                                                  struct parser_asm_lexer *lex_out) {
   struct parser_asm_lexer_result r;
@@ -867,6 +936,9 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
 
   if (!data || len <= 0 || !lex_out)
     return -1;
+  /* wave468: stash full-file source for default hoist. */
+  g_xlang_seed_trait_src_data = data;
+  g_xlang_seed_trait_src_len = len;
   r = lexer_next_buf(lex, data, len);
   if (r.tok.kind != (int32_t)TOKEN_TRAIT)
     return -1;
@@ -900,6 +972,10 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
       return -1;
     if (r.tok.kind == (int32_t)TOKEN_FUNCTION) {
       int32_t mi_reg = -1;
+      /* wave468: capture lexer at FUNCTION for default-body re-parse inject. */
+      int32_t fn_pos = (int32_t)lex.pos;
+      int32_t fn_line = lex.line;
+      int32_t fn_col = lex.col;
       parser_lex_from_next_into_glue(&lex, r);
       r = lexer_next_buf(lex, data, len);
       if (r.tok.kind == (int32_t)TOKEN_IDENT && ent->num_methods < XLANG_TRAIT_METH_MAX) {
@@ -907,6 +983,10 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
         mi_reg = ent->num_methods;
         xlang_trait_reg_copy_ident_c(data, len, r.token_start, r.tok.ident_len, ent->methods[mi_reg],
                                      &ent->method_lens[mi_reg]);
+        ent->method_has_default[mi_reg] = 0;
+        ent->method_fn_pos[mi_reg] = fn_pos;
+        ent->method_fn_line[mi_reg] = fn_line;
+        ent->method_fn_col[mi_reg] = fn_col;
         ent->method_ret_kinds[mi_reg] = -1;
         ent->method_ret_name_lens[mi_reg] = 0;
         memset(ent->method_ret_names[mi_reg], 0, 64);
@@ -1628,7 +1708,9 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
             if (depth > 0) {
               depth--;
               if (depth == 0) {
-                /* method-with-body closed; allow trailing semicolon after */
+                /* wave468: method body closed → default method eligible for hoist. */
+                if (mi_reg >= 0)
+                  ent->method_has_default[mi_reg] = 1;
                 lex = r.next_lex;
                 break;
               }
@@ -1738,6 +1820,8 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
   void *arena = g_xlang_seed_trait_check_arena;
   if (!module || !trait_nm || trait_nlen <= 0)
     return 0;
+  /* wave468: inject default bodies before missing-method scan (seed twin). */
+  xlang_seed_hoist_default_methods_c(module);
   ti = xlang_trait_reg_find_c(trait_nm, trait_nlen);
   /* wave424: hard fail — was soft leave-off return 0 (LANG-004 unknown_trait). */
   if (ti < 0) {

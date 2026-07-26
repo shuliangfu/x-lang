@@ -871,8 +871,9 @@ void parser_asm_skip_one_enum_into_slice_c(struct parser_asm_lexer *out, struct 
  * wave431: multi-dim suffix T[N][M]… ret (dims[0]=outer, C order) + recursive size walk
  *   (was: one dim only → ok i32[2][3] false-red; impl i32[2] vs trait i32[2][3] false-green).
  * wave432: named/ptr/slice param shape + hard fail (twin of seed parse_into_buf).
- * Soft leave-off: dyn Trait; generic trait bounds; nested *[]T / *T[N] postfix wrap;
- *   param suffix T[N] / multi-dim T[N][M] (symmetric to wave430/431 ret, deferred).
+ * wave468: method_has_default + fn start pos — trait method bodies hoist as free
+ *   UFCS methods when impl does not override (empty/partial impl inherits default).
+ * Soft leave-off: dyn Trait; Self receiver rewrite; multi-default same-name across traits.
  * PLATFORM: SHARED parse.
  */
 #define XLANG_SKIP_TRAIT_REG_MAX 16
@@ -885,6 +886,12 @@ typedef struct {
   int32_t name_len;
   uint8_t methods[XLANG_SKIP_TRAIT_METH_MAX][64];
   int32_t method_lens[XLANG_SKIP_TRAIT_METH_MAX];
+  /* wave468: 1 if method ended with `{ body }` (default method), else 0 (`;`/ASI only). */
+  int32_t method_has_default[XLANG_SKIP_TRAIT_METH_MAX];
+  /* wave468: lexer pos/line/col at TOKEN_FUNCTION for re-parse inject. */
+  int32_t method_fn_pos[XLANG_SKIP_TRAIT_METH_MAX];
+  int32_t method_fn_line[XLANG_SKIP_TRAIT_METH_MAX];
+  int32_t method_fn_col[XLANG_SKIP_TRAIT_METH_MAX];
   /* TypeKind ord (PARSER_ASM_TYPE_*); -1 = unknown / not stored (skip ret check). */
   int32_t method_ret_kinds[XLANG_SKIP_TRAIT_METH_MAX];
   /* wave427: TYPE_NAMED ret name, or *T / []T / T[N] element name when elem is named. */
@@ -1110,6 +1117,225 @@ static int32_t xlang_skip_impl_self_matches_for_c(void *arena, int32_t pty0,
   return 1;
 }
 
+/*
+ * wave468 Cap residual pure — hoist trait default method bodies as free UFCS
+ * functions when not already present (impl override / free def).
+ *
+ * Root: skip_one_trait only registered signatures and discarded `{ body }`, so
+ * empty `impl Trait for T {}` reported missing method and method_call failed
+ * even when the trait provided a default body.
+ *
+ * G.7 authority: general onefunc parse (`parser_asm_parse_one_function_buf_into_c`)
+ * + minimal module slot commit (same pipeline_* APIs as seed_commit_onefunc).
+ * NOT library-shape parse (that path only accepts a special bool/Token form).
+ * Skip inject when any same-name free function already exists (override wins).
+ * Soft: Self rewrite; multi-trait same default name; complex stmt-order bodies
+ *       that onefunc cannot parse.
+ * PLATFORM: SHARED parse.
+ */
+static int32_t xlang_skip_commit_default_onefunc_c(void *arena, void *module,
+                                                   struct parser_asm_onefunc_result *res) {
+  int32_t type_ref;
+  int32_t final_expr_ref;
+  int32_t block_ref;
+  int32_t fi_mod;
+  int32_t p_copy;
+  int32_t func_ref;
+  struct ast_Block b;
+  struct ast_Expr e;
+  uint8_t *pool;
+  extern int32_t pipeline_module_func_alloc_slot(void *module);
+  extern void pipeline_module_func_name_write(void *module, int32_t fi, uint8_t *name_bytes, int32_t name_len);
+  extern void pipeline_module_func_set_num_params(void *module, int32_t fi, int32_t n);
+  extern void pipeline_module_func_param_write(void *module, int32_t func_index, int32_t param_index,
+                                              uint8_t *name_bytes, int32_t name_len, int32_t type_ref);
+  extern void pipeline_module_func_set_return_type(void *module, int32_t fi, int32_t type_ref);
+  extern void pipeline_module_func_set_body_ref(void *module, int32_t fi, int32_t body_ref);
+  extern void pipeline_module_func_set_body_expr_ref(void *module, int32_t fi, int32_t body_expr_ref);
+  extern void pipeline_module_func_set_is_extern(void *module, int32_t fi, int32_t is_extern);
+  extern void pipeline_module_func_set_is_async(void *module, int32_t fi, int32_t is_async);
+  extern void pipeline_module_func_ref_set(void *module, int32_t fi, int32_t func_ref);
+  extern void pipeline_arena_func_copy_slot_from_module(void *arena, int32_t func_ref, void *module, int32_t fi);
+  extern uint8_t *parser_asm_onefunc_result_pool_ptr_c(struct parser_asm_onefunc_result *res);
+  extern int32_t pipeline_onefunc_param_name_len(uint8_t *pool, int32_t pi);
+  extern void pipeline_onefunc_param_name_copy32(uint8_t *pool, int32_t pi, uint8_t *out32);
+  extern int32_t pipeline_onefunc_param_type_ref(uint8_t *pool, int32_t pi);
+  extern int32_t parser_asm_fill_block_const_let_from_res_c(void *arena, int32_t block_ref,
+                                                           struct parser_asm_onefunc_result *res,
+                                                           int32_t type_ref);
+  extern int32_t pipeline_block_append_expr_stmt(void *arena, int32_t block_ref, int32_t expr_ref);
+  extern int32_t pipeline_block_append_stmt_order(void *arena, int32_t block_ref, uint8_t kind, int32_t idx);
+  extern int32_t parser_should_wrap_func_tail_in_return_glue(void *arena, struct parser_asm_onefunc_result *res,
+                                                            int32_t type_ref);
+  extern int32_t pipeline_type_ensure_by_kind_ord(void *arena, int32_t kind_ord);
+
+  if (!arena || !module || !res || !res->ok)
+    return -1;
+  type_ref = res->func_return_type_ref;
+  if (type_ref == 0) {
+    /* default i32 when untyped ret (rare for trait methods). */
+    type_ref = pipeline_type_ensure_by_kind_ord(arena, (int32_t)PARSER_ASM_TYPE_I32);
+  }
+  if (type_ref == 0)
+    return -1;
+
+  if (res->return_expr_ref != 0) {
+    final_expr_ref = res->return_expr_ref;
+  } else if (res->return_var_name_len > 0) {
+    final_expr_ref = ast_ast_arena_expr_alloc(arena);
+    if (final_expr_ref == 0)
+      return -1;
+    e = ast_ast_arena_expr_get(arena, final_expr_ref);
+    memset(&e, 0, sizeof(e));
+    e.kind = (int32_t)AST_EXPR_VAR;
+    e.var_name_len = res->return_var_name_len;
+    memcpy(e.var_name, res->return_var_name, (size_t)res->return_var_name_len);
+    ast_ast_arena_expr_set(arena, final_expr_ref, e);
+  } else {
+    final_expr_ref = ast_ast_arena_expr_alloc(arena);
+    if (final_expr_ref == 0)
+      return -1;
+    e = ast_ast_arena_expr_get(arena, final_expr_ref);
+    memset(&e, 0, sizeof(e));
+    e.kind = (int32_t)AST_EXPR_LIT;
+    e.int_val = res->return_val;
+    e.resolved_type_ref = type_ref;
+    ast_ast_arena_expr_set(arena, final_expr_ref, e);
+  }
+
+  /* Wrap tail in RETURN when needed (authority: should_wrap_func_tail glue). */
+  if (parser_should_wrap_func_tail_in_return_glue(arena, res, type_ref)) {
+    int32_t wrapped = ast_ast_arena_expr_alloc(arena);
+    if (wrapped == 0)
+      return -1;
+    e = ast_ast_arena_expr_get(arena, wrapped);
+    memset(&e, 0, sizeof(e));
+    e.kind = (int32_t)AST_EXPR_RETURN;
+    e.unary_operand_ref = final_expr_ref;
+    e.resolved_type_ref = type_ref;
+    ast_ast_arena_expr_set(arena, wrapped, e);
+    final_expr_ref = wrapped;
+  }
+
+  block_ref = ast_ast_arena_block_alloc(arena);
+  if (block_ref == 0)
+    return -1;
+  b = ast_ast_arena_block_get(arena, block_ref);
+  memset(&b, 0, sizeof(b));
+  b.num_consts = res->num_consts;
+  b.num_lets = res->num_lets;
+  b.final_expr_ref = final_expr_ref;
+  ast_ast_arena_block_set(arena, block_ref, b);
+  if (!parser_asm_fill_block_const_let_from_res_c(arena, block_ref, res, type_ref))
+    return -1;
+
+  /* Simple stmt_order: consts, lets, then final as expr_stmt if needed. */
+  b = ast_ast_arena_block_get(arena, block_ref);
+  {
+    int32_t ci;
+    int32_t li;
+    for (ci = 0; ci < b.num_consts; ci++) {
+      if (pipeline_block_append_stmt_order(arena, block_ref, (uint8_t)0, ci) < 0)
+        return -1;
+    }
+    for (li = 0; li < b.num_lets; li++) {
+      if (pipeline_block_append_stmt_order(arena, block_ref, (uint8_t)1, li) < 0)
+        return -1;
+    }
+    if (final_expr_ref != 0) {
+      int32_t fin_ex = pipeline_block_append_expr_stmt(arena, block_ref, final_expr_ref);
+      if (fin_ex < 0)
+        return -1;
+      if (pipeline_block_append_stmt_order(arena, block_ref, (uint8_t)2, fin_ex) < 0)
+        return -1;
+      b = ast_ast_arena_block_get(arena, block_ref);
+      b.final_expr_ref = 0;
+      ast_ast_arena_block_set(arena, block_ref, b);
+    }
+  }
+
+  func_ref = ast_ast_arena_func_alloc(arena);
+  if (func_ref == 0)
+    return -1;
+  fi_mod = pipeline_module_func_alloc_slot(module);
+  if (fi_mod < 0)
+    return -1;
+  pipeline_module_func_name_write(module, fi_mod, res->name, res->name_len);
+  pipeline_module_func_set_num_params(module, fi_mod, res->num_params);
+  pipeline_module_func_set_return_type(module, fi_mod, type_ref);
+  pipeline_module_func_set_body_ref(module, fi_mod, block_ref);
+  pipeline_module_func_set_body_expr_ref(module, fi_mod, 0);
+  pipeline_module_func_set_is_extern(module, fi_mod, 0);
+  pipeline_module_func_set_is_async(module, fi_mod, 0);
+  pool = parser_asm_onefunc_result_pool_ptr_c(res);
+  for (p_copy = 0; p_copy < res->num_params; p_copy++) {
+    uint8_t pname32[32];
+    memset(pname32, 0, sizeof(pname32));
+    if (pool)
+      pipeline_onefunc_param_name_copy32(pool, p_copy, pname32);
+    pipeline_module_func_param_write(module, fi_mod, p_copy, pname32,
+                                     pool ? pipeline_onefunc_param_name_len(pool, p_copy) : 0,
+                                     pool ? pipeline_onefunc_param_type_ref(pool, p_copy) : 0);
+  }
+  pipeline_module_func_ref_set(module, fi_mod, func_ref);
+  pipeline_arena_func_copy_slot_from_module(arena, func_ref, module, fi_mod);
+  return 0;
+}
+
+static void xlang_skip_hoist_default_methods_c(void *module) {
+  int32_t ti;
+  int32_t mi;
+  void *arena = g_xlang_trait_check_arena;
+  extern void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *out, void *arena,
+                                                      struct parser_asm_lexer lex, uint8_t *data, int32_t len);
+  extern struct parser_asm_onefunc_result
+  parser_asm_onefunc_alloc_wired_for_parse_c(struct parser_asm_lexer lex);
+  if (!module || !arena || !g_w439_src_data || g_w439_src_len <= 0)
+    return;
+  for (ti = 0; ti < g_xlang_skip_trait_reg_n; ti++) {
+    for (mi = 0; mi < g_xlang_skip_trait_reg[ti].num_methods; mi++) {
+      uint8_t *mnm;
+      int32_t mlen;
+      int32_t fi;
+      int32_t nf;
+      int32_t exists;
+      struct parser_asm_lexer fn_lex;
+      struct parser_asm_onefunc_result res;
+      if (g_xlang_skip_trait_reg[ti].method_has_default[mi] == 0)
+        continue;
+      mnm = g_xlang_skip_trait_reg[ti].methods[mi];
+      mlen = g_xlang_skip_trait_reg[ti].method_lens[mi];
+      if (mlen <= 0)
+        continue;
+      /* Override / free def already present → do not re-parse (avoids BLD001 redef). */
+      exists = 0;
+      nf = pipeline_module_num_funcs(module);
+      for (fi = 0; fi < nf; fi++) {
+        if (pipeline_module_func_name_equal_at(module, fi, mnm, mlen) != 0) {
+          exists = 1;
+          break;
+        }
+      }
+      if (exists)
+        continue;
+      memset(&fn_lex, 0, sizeof(fn_lex));
+      fn_lex.pos = (size_t)g_xlang_skip_trait_reg[ti].method_fn_pos[mi];
+      fn_lex.line = g_xlang_skip_trait_reg[ti].method_fn_line[mi];
+      fn_lex.col = g_xlang_skip_trait_reg[ti].method_fn_col[mi];
+      if (fn_lex.line <= 0)
+        fn_lex.line = 1;
+      if (fn_lex.col <= 0)
+        fn_lex.col = 1;
+      /* Must wire onefunc pool before buf parse (same as seed_onefunc_wired). */
+      res = parser_asm_onefunc_alloc_wired_for_parse_c(fn_lex);
+      parser_asm_parse_one_function_buf_into_c(&res, arena, fn_lex, g_w439_src_data, g_w439_src_len);
+      if (!res.ok)
+        continue;
+      (void)xlang_skip_commit_default_onefunc_c(arena, module, &res);
+    }
+  }
+}
+
 int32_t xlang_trait_check_impls_complete_c(void *module) {
   int32_t si;
   int32_t ti;
@@ -1120,6 +1346,8 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
   void *arena = g_xlang_trait_check_arena;
   if (!module)
     return 0;
+  /* wave468: inject default bodies before missing-method scan. */
+  xlang_skip_hoist_default_methods_c(module);
   nf = pipeline_module_num_funcs(module);
   for (si = 0; si < g_xlang_skip_impl_seen_n; si++) {
     int32_t tlen = g_xlang_skip_impl_trait_len[si];
@@ -2253,6 +2481,10 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
     }
     if (r.tok.kind == (int32_t)TOKEN_FUNCTION) {
       int32_t mi_reg = -1;
+      /* wave468: capture lexer at FUNCTION for default-body re-parse inject. */
+      int32_t fn_pos = (int32_t)lex.pos;
+      int32_t fn_line = lex.line;
+      int32_t fn_col = lex.col;
       parser_asm_lex_from_result_val_into(&lex, r);
       lexer_next_into(&r, lex, source);
       if (r.tok.kind == (int32_t)TOKEN_IDENT && ent && ent->num_methods < XLANG_SKIP_TRAIT_METH_MAX) {
@@ -2260,6 +2492,10 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
         mi_reg = ent->num_methods;
         xlang_skip_trait_copy_ident_c(source, r.token_start, r.tok.ident_len, ent->methods[mi_reg],
                                       &ent->method_lens[mi_reg]);
+        ent->method_has_default[mi_reg] = 0;
+        ent->method_fn_pos[mi_reg] = fn_pos;
+        ent->method_fn_line[mi_reg] = fn_line;
+        ent->method_fn_col[mi_reg] = fn_col;
         ent->method_ret_kinds[mi_reg] = -1;
         ent->method_ret_name_lens[mi_reg] = 0;
         memset(ent->method_ret_names[mi_reg], 0, 64);
@@ -2993,6 +3229,9 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
             if (depth > 0) {
               depth--;
               if (depth == 0) {
+                /* wave468: method body closed → default method eligible for hoist. */
+                if (mi_reg >= 0 && ent)
+                  ent->method_has_default[mi_reg] = 1;
                 lex = r.next_lex;
                 break;
               }
