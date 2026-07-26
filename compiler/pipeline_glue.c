@@ -29597,7 +29597,13 @@ int32_t pipeline_typeck_check_expr_assign_c(struct ast_Module *module, struct as
   compound_flag = 1;
   if (expr_kind == (int32_t)ast_ExprKind_EXPR_ASSIGN)
     compound_flag = 0;
-  if (pipeline_typeck_check_expr_c(module, arena, left_ref, return_type_ref, ctx) != 0)
+  /*
+   * wave472 L4: product mega path uses this C assign (not typeck.x alone).
+   * Do not pass function return ambient into assign LHS — wave465 field ambient
+   * then rewrote enum field stores (out.method = m → expected ?/S found Method).
+   * PLATFORM: SHARED — keep typeck.x twin at expected 0.
+   */
+  if (pipeline_typeck_check_expr_c(module, arena, left_ref, 0, ctx) != 0)
     return -1;
   lt = pipeline_typeck_expr_type_ref_c(arena, left_ref);
   {
