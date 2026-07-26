@@ -966,6 +966,61 @@ static void pipeline_typeck_field_apply_ambient_for_type_param_c(struct ast_Modu
     pipeline_expr_set_resolved_type_ref(arena, expr_ref, ambient_ty);
 }
 
+/**
+ * wave466 Cap residual pure: single-arg generic struct mono for type-param fields.
+ *
+ * When the base type is TYPE_NAMED with a type-position arg stored in
+ * elem_type_ref (`Wrap<i32>` from wave466 type_ref parse) and the field result
+ * is still an unconstrained TYPE_NAMED type-param (`v: T` from layout), stamp
+ * the field result with that type arg. Prefer this over ambient so
+ * `take(w.v)` / return without expected still resolve.
+ *
+ * Soft leave-off: multi type-arg structs (only slot0 stored); true multi-param
+ * name→arg mapping needs layout generic_param sidecar. PLATFORM: SHARED.
+ */
+static void pipeline_typeck_field_apply_mono_type_arg_c(struct ast_Module *module,
+                                                       struct ast_ASTArena *arena,
+                                                       int32_t expr_ref,
+                                                       int32_t base_ty) {
+  int32_t got_ty;
+  int32_t mono_ty;
+  int32_t bt_kind;
+  uint8_t gnm[64];
+  int32_t gnl;
+
+  if (!module || !arena || expr_ref <= 0)
+    return;
+  if (base_ty <= 0 || base_ty > arena->num_types)
+    return;
+  bt_kind = pipeline_type_kind_ord_at(arena, base_ty);
+  if (bt_kind == (int32_t)ast_TypeKind_TYPE_PTR) {
+    int32_t elem = pipeline_type_elem_ref_at(arena, base_ty);
+    if (elem > 0 && elem <= arena->num_types
+        && pipeline_type_kind_ord_at(arena, elem) == (int32_t)ast_TypeKind_TYPE_NAMED)
+      base_ty = elem;
+    else
+      return;
+  } else if (bt_kind != (int32_t)ast_TypeKind_TYPE_NAMED) {
+    return;
+  }
+  /* TYPE_NAMED type arg lives in elem_type_ref (wave466 type_ref parse). */
+  mono_ty = pipeline_type_elem_ref_at(arena, base_ty);
+  if (mono_ty <= 0 || mono_ty > arena->num_types)
+    return;
+  got_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+  if (ast_ref_is_null(got_ty) || got_ty <= 0 || got_ty > arena->num_types)
+    return;
+  if (pipeline_type_kind_ord_at(arena, got_ty) != (int32_t)ast_TypeKind_TYPE_NAMED)
+    return;
+  memset(gnm, 0, sizeof(gnm));
+  gnl = pipeline_type_named_name_into(arena, got_ty, &gnm[0]);
+  if (gnl <= 0 || gnl > 63)
+    return;
+  if (pipeline_typeck_named_is_module_concrete_c(module, &gnm[0], gnl))
+    return;
+  pipeline_expr_set_resolved_type_ref(arena, expr_ref, mono_ty);
+}
+
 /*
  * G.7 / wave465: mega pipeline_x (OMIT_X_DUP, no STANDALONE_TU) keeps a local
  * copy only — product export must come from pipeline_glue_standalone.o so daily
@@ -1023,6 +1078,8 @@ int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *module, str
     }
     layout_rc = pipeline_typeck_field_layout_named_c(module, arena, expr_ref, base_ref, ctx);
     if (layout_rc == 2) {
+      /* wave466: mono from base type-arg before ambient (true single-arg subst). */
+      pipeline_typeck_field_apply_mono_type_arg_c(module, arena, expr_ref, base_ty);
       pipeline_typeck_field_apply_ambient_for_type_param_c(module, arena, expr_ref, return_type_ref);
       return 0;
     }
@@ -1030,6 +1087,7 @@ int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *module, str
   }
   pipeline_typeck_field_name_fallback_c(arena, expr_ref, base_ref);
   pipeline_typeck_field_lexer_fallback_c(module, arena, expr_ref, base_ref, ctx);
+  pipeline_typeck_field_apply_mono_type_arg_c(module, arena, expr_ref, base_ty);
   pipeline_typeck_field_apply_ambient_for_type_param_c(module, arena, expr_ref, return_type_ref);
   return 0;
 }

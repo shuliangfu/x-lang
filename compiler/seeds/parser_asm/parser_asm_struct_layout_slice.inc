@@ -61,6 +61,10 @@ static int parser_asm_tok_is_modifier_soa(struct parser_asm_lexer_result *r,
 extern int32_t parser_asm_parse_type_ref_for_arena_into_slice_c(void *arena, struct parser_asm_lexer lex,
                                                                   struct parser_asm_slice_u8 *source,
                                                                   struct parser_asm_lexer *out_lex);
+/** wave466: skip `struct Name<...>` type-param angle list before body. */
+extern void parser_asm_skip_generic_angle_list_into_slice_c(struct parser_asm_lexer *out,
+                                                            struct parser_asm_lexer lex,
+                                                            struct parser_asm_slice_u8 *source);
 extern struct parser_asm_lexer parser_asm_skip_balanced_braces_slice_c(struct parser_asm_lexer lex,
                                                                          struct parser_asm_slice_u8 *source);
 extern int32_t parser_struct_field_name_from_tok_glue(struct parser_asm_lexer_result r,
@@ -974,6 +978,19 @@ int32_t parser_asm_parse_struct_record_layout_into_slice_c(void *arena, void *mo
   is_soa = force_soa;
   is_packed = 0;
   lexer_next_into(&r, lex, source);
+  /*
+   * wave466 Cap residual pure: `struct Name<T>` / `struct Name<T,U>` (docs/02).
+   * Prior: only packed/soa then `{` — `Wrap<T>{...}` hit TOKEN_LT and returned -1,
+   * so the body was never registered; STRUCT_LIT ensure invented fields from inits
+   * (hiding type-param field types). Skip the angle list (reuse wave446 boundary
+   * gate) so field loop records `v: T` and type-pos `Wrap<i32>` can mono-fill.
+   * PLATFORM: SHARED parse — count/names of type params soft (layout has no
+   * generic_param sidecar yet); skip only.
+   */
+  if (r.tok.kind == (int32_t)TOKEN_LT) {
+    parser_asm_skip_generic_angle_list_into_slice_c(&lex, lex, source);
+    lexer_next_into(&r, lex, source);
+  }
   if (parser_asm_tok_is_modifier_packed(&r, source)) {
     is_packed = 1;
     parser_asm_lex_from_result_val_into(&lex, r);

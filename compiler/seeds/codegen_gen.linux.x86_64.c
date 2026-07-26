@@ -6044,6 +6044,136 @@ int32_t codegen_type_dep_enum_prefix_into(struct ast_PipelineDepCtx * ctx, struc
   }
   return 0;
 }
+/*
+ * wave466 Cap residual pure: host-C mono for type-param fields on generic structs.
+ * Layout may store `v: T`; emit as concrete from type-pos Name<T> (elem_type_ref)
+ * or STRUCT_LIT field init (bare Name). Single-arg only. PLATFORM: SHARED.
+ * G.7 twin of codegen.x codegen_resolve_generic_struct_field_type.
+ */
+static int32_t codegen_resolve_generic_struct_field_type(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                          uint8_t *layout_nm, int32_t layout_nl, uint8_t *field_nm,
+                                                          int32_t field_nl, int32_t ftr) {
+  int32_t ftnl;
+  uint8_t ftn[64];
+  int32_t sk;
+  int32_t ti;
+  int32_t ei;
+  if (!module || !arena || ftr <= 0 || !layout_nm || layout_nl <= 0 || !field_nm || field_nl <= 0)
+    return ftr;
+  if (pipeline_type_kind_ord_at(arena, ftr) != 8 /* TYPE_NAMED */)
+    return ftr;
+  {
+    int32_t zi;
+    for (zi = 0; zi < 64; zi++)
+      ftn[zi] = 0;
+  }
+  ftnl = pipeline_type_named_name_into(arena, ftr, ftn);
+  if (ftnl <= 0)
+    return ftr;
+  for (sk = 0; sk < module->num_struct_layouts; sk++) {
+    int32_t sl = pipeline_module_struct_layout_name_len(module, sk);
+    uint8_t snm[64];
+    int32_t bi;
+    int32_t match;
+    int32_t zi;
+    if (sl != ftnl)
+      continue;
+    for (zi = 0; zi < 64; zi++)
+      snm[zi] = 0;
+    pipeline_module_struct_layout_name_into(module, sk, snm);
+    match = 1;
+    for (bi = 0; bi < ftnl; bi++) {
+      if (snm[bi] != ftn[bi]) {
+        match = 0;
+        break;
+      }
+    }
+    if (match)
+      return ftr;
+  }
+  for (ti = 1; ti <= arena->num_types; ti++) {
+    if (pipeline_type_kind_ord_at(arena, ti) != 8)
+      continue;
+    {
+      uint8_t tnm[64];
+      int32_t tnl;
+      int32_t ci;
+      int32_t eq;
+      int32_t mono;
+      int32_t zi;
+      for (zi = 0; zi < 64; zi++)
+        tnm[zi] = 0;
+      tnl = pipeline_type_named_name_into(arena, ti, tnm);
+      if (tnl != layout_nl || tnl <= 0)
+        continue;
+      eq = 1;
+      for (ci = 0; ci < tnl; ci++) {
+        if (tnm[ci] != layout_nm[ci]) {
+          eq = 0;
+          break;
+        }
+      }
+      if (!eq)
+        continue;
+      mono = pipeline_type_elem_ref_at(arena, ti);
+      if (mono > 0)
+        return mono;
+    }
+  }
+  for (ei = 1; ei <= arena->num_exprs; ei++) {
+    if (pipeline_expr_kind_ord_at(arena, ei) != 45 /* EXPR_STRUCT_LIT */)
+      continue;
+    {
+      struct ast_Expr e = ast_ast_arena_expr_get(arena, ei);
+      int32_t seq;
+      int32_t si;
+      int32_t nf;
+      int32_t fj;
+      if (e.struct_lit_struct_name_len != layout_nl || layout_nl <= 0)
+        continue;
+      seq = 1;
+      for (si = 0; si < layout_nl; si++) {
+        if (e.struct_lit_struct_name[si] != layout_nm[si]) {
+          seq = 0;
+          break;
+        }
+      }
+      if (!seq)
+        continue;
+      nf = pipeline_expr_struct_lit_num_fields(arena, ei);
+      for (fj = 0; fj < nf; fj++) {
+        int32_t fl = pipeline_expr_struct_lit_field_name_len(arena, ei, fj);
+        uint8_t fnb[64];
+        int32_t fi;
+        int32_t feq;
+        int32_t iref;
+        int32_t ity;
+        int32_t zi;
+        if (fl != field_nl)
+          continue;
+        for (zi = 0; zi < 64; zi++)
+          fnb[zi] = 0;
+        pipeline_expr_struct_lit_field_name_into(arena, ei, fj, fnb);
+        feq = 1;
+        for (fi = 0; fi < fl; fi++) {
+          if (fnb[fi] != field_nm[fi]) {
+            feq = 0;
+            break;
+          }
+        }
+        if (!feq)
+          continue;
+        iref = pipeline_expr_struct_lit_init_ref(arena, ei, fj);
+        if (iref <= 0)
+          continue;
+        ity = pipeline_expr_resolved_type_ref(arena, iref);
+        if (ity > 0)
+          return ity;
+      }
+    }
+  }
+  return ftr;
+}
 int32_t codegen_emit_struct_field_decl_x(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t type_ref, uint8_t * field_name, int32_t field_name_len, uint8_t * struct_prefix, int32_t struct_prefix_len, struct ast_PipelineDepCtx * ctx) {
   {
     int32_t base_ref = type_ref;
@@ -6178,6 +6308,8 @@ int32_t codegen_emit_module_struct_definitions(struct ast_Module * module, struc
         }
         uint8_t fnm[64] = {};
         (void)(pipeline_module_struct_layout_field_name_into(module, k, j, &((fnm)[0])));
+        /* wave466: mono type-param fields before host-C field decl. */
+        ftr = codegen_resolve_generic_struct_field_type(module, arena, &((ty_nm)[0]), nl, &((fnm)[0]), flen, ftr);
         if ((codegen_emit_struct_field_decl_x(arena, out, ftr, &((fnm)[0]), flen, ((uint8_t *)(0)), 0, ctx) !=0)) {
           return -(1);
         }

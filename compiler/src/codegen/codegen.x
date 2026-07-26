@@ -5270,6 +5270,139 @@ export function codegen_type_dep_enum_prefix_into(ctx: *PipelineDepCtx, arena: *
 }
 
 /**
+ * wave466 Cap residual pure: host-C mono for type-param fields on generic structs.
+ *
+ * Layout may store `v: T` (TYPE_NAMED type-param) after wave466 struct angle skip.
+ * Emitting that as `struct ast_T` is incomplete (BLD001). Resolve a concrete type:
+ *   1) TYPE_NAMED uses of the layout name with type-pos arg in elem_type_ref (`Wrap<i32>`)
+ *   2) else STRUCT_LIT field init resolved type for matching field name (bare `Wrap`)
+ * Single type-arg only (slot0); multi soft. PLATFORM: SHARED host-C.
+ *
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param layout_nm *u8 — struct layout name
+ * @param layout_nl i32
+ * @param field_nm *u8 — field name
+ * @param field_nl i32
+ * @param ftr i32 — layout field type_ref
+ * @return i32 — concrete type_ref to emit, or ftr if no mono found
+ */
+export function codegen_resolve_generic_struct_field_type(module: *Module, arena: *ASTArena, layout_nm: *u8, layout_nl: i32, field_nm: *u8, field_nl: i32, ftr: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ftr <= 0) {
+      return ftr;
+    }
+    if (layout_nm == 0 as *u8 || layout_nl <= 0 || field_nm == 0 as *u8 || field_nl <= 0) {
+      return ftr;
+    }
+    // Only substitute unconstrained TYPE_NAMED (type params). Module concrete stays.
+    if (pipeline_type_kind_ord_at(arena, ftr) != TypeKind.TYPE_NAMED) {
+      return ftr;
+    }
+    let ftn: u8[64] = [];
+    let ftnl: i32 = pipeline_type_named_name_into(arena, ftr, &ftn[0]);
+    if (ftnl <= 0) {
+      return ftr;
+    }
+    // If field type name matches a real layout/enum, it is concrete — keep.
+    let sk: i32 = 0;
+    while (sk < module.num_struct_layouts) {
+      let sl: i32 = pipeline_module_struct_layout_name_len(module, sk);
+      if (sl == ftnl) {
+        let snm: u8[64] = [];
+        pipeline_module_struct_layout_name_into(module, sk, &snm[0]);
+        let bi: i32 = 0;
+        let match: i32 = 1;
+        while (bi < ftnl) {
+          if (snm[bi] != ftn[bi]) {
+            match = 0;
+          }
+          bi = bi + 1;
+        }
+        if (match != 0) {
+          return ftr;
+        }
+      }
+      sk = sk + 1;
+    }
+    // (1) Type-position Wrap<i32>: any TYPE_NAMED with layout name + elem_type_ref.
+    let ti: i32 = 1;
+    while (ti <= arena.num_types) {
+      if (pipeline_type_kind_ord_at(arena, ti) == TypeKind.TYPE_NAMED) {
+        let tnm: u8[64] = [];
+        let tnl: i32 = pipeline_type_named_name_into(arena, ti, &tnm[0]);
+        if (tnl == layout_nl && tnl > 0) {
+          let eq: i32 = 1;
+          let ci: i32 = 0;
+          while (ci < tnl) {
+            if (tnm[ci] != layout_nm[ci]) {
+              eq = 0;
+            }
+            ci = ci + 1;
+          }
+          if (eq != 0) {
+            let mono: i32 = pipeline_type_elem_ref_at(arena, ti);
+            if (mono > 0) {
+              return mono;
+            }
+          }
+        }
+      }
+      ti = ti + 1;
+    }
+    // (2) Bare Wrap + STRUCT_LIT field init (wave pre-466 ensure path recovery).
+    let ei: i32 = 1;
+    while (ei <= arena.num_exprs) {
+      if (pipeline_expr_kind_ord_at(arena, ei) == ExprKind.EXPR_STRUCT_LIT) {
+        let e: Expr = ast.ast_arena_expr_get(arena, ei);
+        if (e.struct_lit_struct_name_len == layout_nl && layout_nl > 0) {
+          let seq: i32 = 1;
+          let si: i32 = 0;
+          while (si < layout_nl) {
+            if (e.struct_lit_struct_name[si] != layout_nm[si]) {
+              seq = 0;
+            }
+            si = si + 1;
+          }
+          if (seq != 0) {
+            let nf: i32 = pipeline_expr_struct_lit_num_fields(arena, ei);
+            let fj: i32 = 0;
+            while (fj < nf) {
+              let fl: i32 = pipeline_expr_struct_lit_field_name_len(arena, ei, fj);
+              if (fl == field_nl) {
+                let fnb: u8[64] = [];
+                pipeline_expr_struct_lit_field_name_into(arena, ei, fj, &fnb[0]);
+                let feq: i32 = 1;
+                let fi: i32 = 0;
+                while (fi < fl) {
+                  if (fnb[fi] != field_nm[fi]) {
+                    feq = 0;
+                  }
+                  fi = fi + 1;
+                }
+                if (feq != 0) {
+                  let iref: i32 = pipeline_expr_struct_lit_init_ref(arena, ei, fj);
+                  if (iref > 0) {
+                    let ity: i32 = pipeline_expr_resolved_type_ref(arena, iref);
+                    if (ity > 0) {
+                      return ity;
+                    }
+                  }
+                }
+              }
+              fj = fj + 1;
+            }
+          }
+        }
+      }
+      ei = ei + 1;
+    }
+    return ftr;
+  }
+}
+
+/**
  * See implementation.
  * See implementation.
  */
@@ -5424,6 +5557,8 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
         }
         let fnm: u8[64] = [];
         pipeline_module_struct_layout_field_name_into(module, k, j, &fnm[0]);
+        // wave466: mono type-param fields before host-C field decl (avoids struct ast_T).
+        ftr = codegen_resolve_generic_struct_field_type(module, arena, &ty_nm[0], nl, &fnm[0], flen, ftr);
         if (codegen_emit_struct_field_decl_x(arena, out, ftr, &fnm[0], flen, 0 as *u8, 0, ctx) != 0) {
           return -1;
         }

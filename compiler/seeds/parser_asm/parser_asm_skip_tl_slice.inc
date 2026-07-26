@@ -789,6 +789,16 @@ void parser_asm_skip_one_struct_into_slice_c(struct parser_asm_lexer *out, struc
   }
   parser_asm_lex_from_result_val_into(&lex, r);
   lexer_next_into(&r, lex, source);
+  /*
+   * wave466: `struct Name<T> { ... }` — skip type-param angle list so skip
+   * reaches the body braces (same contract as parse_struct_record_layout).
+   * PLATFORM: SHARED — without this, skip stalled on TOKEN_LT and left the
+   * brace body in the top-level stream after a failed layout parse.
+   */
+  if (r.tok.kind == (int32_t)TOKEN_LT) {
+    parser_asm_skip_generic_angle_list_into_slice_c(&lex, lex, source);
+    lexer_next_into(&r, lex, source);
+  }
   if (r.tok.kind != (int32_t)TOKEN_LBRACE) {
     out->pos = lex.pos;
     out->line = lex.line;
