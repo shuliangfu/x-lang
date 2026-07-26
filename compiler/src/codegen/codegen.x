@@ -6571,8 +6571,17 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
      * (remaining fields zero). Matches product intent of `T { v: x }` for the
      * scalar→single-field-struct monomorphization probes (`as_t<A>(7)`).
      * Scalar/pointer targets keep the historical C cast path.
+     *
+     * wave461 Cap residual pure: compound literal only when the operand is
+     * NOT already a module user struct. wave459 always wrapped op as the
+     * first field, so `let b: A = a as A` / `a as B` emitted
+     * `((struct A){ (a) })` → host C "initializing int32_t with struct A"
+     * BLD001. Struct-valued operand is a value copy: emit `(op)` only
+     * (same-type identity AS greens; different-type struct→struct remains
+     * soft host BLD001 / typeck leave-off — not field-wise reinterpreting).
      * G.7 authority: this EXPR_AS branch only; reuse
-     * codegen_mono_subst_type + codegen_type_is_module_user_struct (no second path).
+     * codegen_mono_subst_type + codegen_type_is_module_user_struct +
+     * pipeline_expr_resolved_type_ref (no second path).
      * PLATFORM: SHARED host-C emit.
      */
     if (e.kind == ExprKind.EXPR_AS) {
@@ -6587,6 +6596,30 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           && codegen_type_is_module_user_struct(ctx.current_codegen_module, arena, as_tgt) != 0) {
         as_struct = 1;
       }
+      /* wave461: detect struct-valued operand (resolved + alias + mono). */
+      let as_op_struct: i32 = 0;
+      if (as_struct != 0 && !ast.ref_is_null(e.as_operand_ref) && ctx != 0 as *PipelineDepCtx
+          && ctx.current_codegen_module != 0 as *Module) {
+        let op_ty: i32 = pipeline_expr_resolved_type_ref(arena, e.as_operand_ref);
+        if (!ast.ref_is_null(op_ty)) {
+          op_ty = pipeline_typeck_resolve_type_alias_ref_c(arena, op_ty);
+          op_ty = codegen_mono_subst_type(ctx, arena, op_ty);
+          if (!ast.ref_is_null(op_ty)
+              && codegen_type_is_module_user_struct(ctx.current_codegen_module, arena, op_ty) != 0) {
+            as_op_struct = 1;
+          }
+        }
+      }
+      /* Struct op + struct target: identity value copy `(op)` — no cast/compound. */
+      if (as_struct != 0 && as_op_struct != 0) {
+        if (append_byte(out, 40) != 0) {
+          return -1;
+        }
+        if (!ast.ref_is_null(e.as_operand_ref) && emit_expr(arena, out, e.as_operand_ref, ctx) != 0) {
+          return -1;
+        }
+        return append_byte(out, 41);
+      }
       if (append_byte(out, 40) != 0) {
         return -1;
       }
@@ -6600,7 +6633,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         return -1;
       }
       if (as_struct != 0) {
-        /* Compound literal: (TYPE){ (op) } */
+        /* Compound literal: (TYPE){ (op) } — scalar/non-struct op only (wave461). */
         if (append_byte(out, 123) != 0) {
           return -1;
         }
