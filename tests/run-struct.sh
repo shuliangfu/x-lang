@@ -28,11 +28,12 @@ case "$(basename "$LINK_XLANG")" in
   xlang_asm|xlang_asm2|xlang_asm_stage1) STRUCT_CODEGEN_BACKEND_ARGS="-backend c" ;;
 esac
 
-# struct -o：bstrict 强制 XLANG_LINK_XLANG=xlang-c 时 xlang-c 对 simple.x 易 SIGSEGV；
-# W3/lang-unsafe 已验证 xlang_asm2 可绿（与 lang-unsafe-gate XLANG_BIN 策略一致）。
+# struct -o：bstrict product path uses this-SHA xlang_asm (not leftover Stage2).
+# PLATFORM: SHARED — XLANG_BSTRICT_USE_ASM2=1 only for intentional gen2.
 # bootstrap-min：保留 RUN_XLANG（xlang-min-link gcc 回退），勿覆盖为裸 xlang_asm。
 if [ -z "${XLANG_BOOTSTRAP_MIN:-}" ]; then
-  if [ -x ./compiler/xlang_asm2 ] && ci_native_xlang ./compiler/xlang_asm2; then
+  if [ -n "${XLANG_BSTRICT_USE_ASM2:-}" ] && [ -x ./compiler/xlang_asm2 ] &&
+      ci_native_xlang ./compiler/xlang_asm2; then
     LINK_XLANG=./compiler/xlang_asm2
     STRUCT_LINK_BACKEND_ARGS=""
     STRUCT_CODEGEN_BACKEND_ARGS="-backend c"
