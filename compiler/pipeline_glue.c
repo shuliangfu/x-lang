@@ -34005,8 +34005,6 @@ static int32_t glue_generic_call_fixup_resolved_type_c(struct ast_Module *module
   if (ret_nlen <= 0)
     return 0;
   num_params = pipeline_module_func_num_params_at(search_mod, func_idx);
-  if (num_params < 1)
-    return 0;
   /*
    * wave451: any formal TYPE_NAMED whose name equals the return type name
    * supplies the mono type via the corresponding value argument. First match
@@ -34028,7 +34026,162 @@ static int32_t glue_generic_call_fixup_resolved_type_c(struct ast_Module *module
     pipeline_expr_set_resolved_type_ref(arena, call_expr_ref, arg_ty);
     return 0;
   }
-  return 0;
+  /*
+   * wave452: ret TYPE_NAMED is a type parameter not present on any value
+   * formal (e.g. as_t<T>(i32):T / mk_default<T>():T). Map via turbofish
+   * type_arg type_refs stored by parser (sidecar). Formal path above already
+   * handled identity-style ret==param name.
+   *
+   * Type-param vs concrete named ret: if ret name is a module struct/alias,
+   * leave it (already mono). Else treat as type param.
+   * Index: first-appearance TYPE_NAMED formals that are not module types,
+   * then ret if new; require collected count == num_generic_params when
+   * n_gp>1; n_gp==1 uses type_arg[0] when ret is the sole type param.
+   * PLATFORM: SHARED — G.7 single authority with parser type_arg storage.
+   */
+  {
+    extern int32_t pipeline_expr_call_type_arg_ref_at(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx);
+    extern int32_t pipeline_module_func_num_generic_params_at(struct ast_Module *m, int32_t func_index);
+    extern int32_t pipeline_module_num_struct_layouts_at(struct ast_Module *m);
+    extern int32_t pipeline_module_struct_layout_name_len(struct ast_Module *m, int32_t idx);
+    extern void pipeline_module_struct_layout_name_into(struct ast_Module *m, int32_t idx, uint8_t *out64);
+    extern int32_t pipeline_module_num_type_aliases_at(struct ast_Module *m);
+    extern int32_t pipeline_module_type_alias_name_len(struct ast_Module *m, int32_t idx);
+    extern uint8_t pipeline_module_type_alias_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
+    int32_t n_gp;
+    int32_t n_ta;
+    int32_t ta_ty;
+    int32_t ret_is_module_type;
+    int32_t si;
+    int32_t nsl;
+    uint8_t snm[64];
+    int32_t snlen;
+    int32_t gnames_n;
+    uint8_t gnames[8][64];
+    int32_t glens[8];
+    int32_t gidx;
+    int32_t found_gi;
+    int32_t is_mod;
+    int32_t n_alias;
+    int32_t ai;
+
+    n_gp = pipeline_module_func_num_generic_params_at(search_mod, func_idx);
+    n_ta = pipeline_expr_call_num_type_args_at(arena, call_expr_ref);
+    if (n_gp <= 0 || n_ta <= 0 || n_ta != n_gp)
+      return 0;
+    /* Is ret name a known module type (struct)? */
+    ret_is_module_type = 0;
+    nsl = pipeline_module_num_struct_layouts_at(search_mod);
+    for (si = 0; si < nsl; si = si + 1) {
+      snlen = pipeline_module_struct_layout_name_len(search_mod, si);
+      if (snlen != ret_nlen || snlen <= 0)
+        continue;
+      pipeline_module_struct_layout_name_into(search_mod, si, snm);
+      if (glue_slice_equal_c(ret_nm, ret_nlen, snm, snlen)) {
+        ret_is_module_type = 1;
+        break;
+      }
+    }
+    if (!ret_is_module_type) {
+      n_alias = 0;
+      /* type_alias count API may be weak; best-effort scan via name_len. */
+      {
+        extern int32_t pipeline_module_num_type_aliases_at(struct ast_Module *m);
+        n_alias = pipeline_module_num_type_aliases_at(search_mod);
+      }
+      for (ai = 0; ai < n_alias; ai = ai + 1) {
+        snlen = pipeline_module_type_alias_name_len(search_mod, ai);
+        if (snlen != ret_nlen || snlen <= 0)
+          continue;
+        {
+          int32_t bi;
+          int32_t same = 1;
+          for (bi = 0; bi < snlen; bi = bi + 1) {
+            if (pipeline_module_type_alias_name_byte_at(search_mod, ai, bi) != ret_nm[bi]) {
+              same = 0;
+              break;
+            }
+          }
+          if (same) {
+            ret_is_module_type = 1;
+            break;
+          }
+        }
+      }
+    }
+    if (ret_is_module_type)
+      return 0;
+    /* Collect type-param names: formal TYPE_NAMED that are not module structs, then ret. */
+    gnames_n = 0;
+    for (pi = 0; pi < num_params && gnames_n < 8; pi = pi + 1) {
+      param_ty = pipeline_module_func_param_type_ref_at(search_mod, func_idx, pi);
+      if (param_ty <= 0 || pipeline_type_kind_ord_at(search_arena, param_ty) != ord_named)
+        continue;
+      param_nlen = pipeline_type_named_name_into(search_arena, param_ty, param_nm);
+      if (param_nlen <= 0)
+        continue;
+      is_mod = 0;
+      for (si = 0; si < nsl; si = si + 1) {
+        snlen = pipeline_module_struct_layout_name_len(search_mod, si);
+        if (snlen == param_nlen && snlen > 0) {
+          pipeline_module_struct_layout_name_into(search_mod, si, snm);
+          if (glue_slice_equal_c(param_nm, param_nlen, snm, snlen)) {
+            is_mod = 1;
+            break;
+          }
+        }
+      }
+      if (is_mod)
+        continue;
+      found_gi = -1;
+      for (gidx = 0; gidx < gnames_n; gidx = gidx + 1) {
+        if (glue_slice_equal_c(param_nm, param_nlen, gnames[gidx], glens[gidx])) {
+          found_gi = gidx;
+          break;
+        }
+      }
+      if (found_gi >= 0)
+        continue;
+      memset(gnames[gnames_n], 0, 64);
+      {
+        int32_t ci;
+        for (ci = 0; ci < param_nlen && ci < 63; ci = ci + 1)
+          gnames[gnames_n][ci] = param_nm[ci];
+      }
+      glens[gnames_n] = param_nlen;
+      gnames_n = gnames_n + 1;
+    }
+    found_gi = -1;
+    for (gidx = 0; gidx < gnames_n; gidx = gidx + 1) {
+      if (glue_slice_equal_c(ret_nm, ret_nlen, gnames[gidx], glens[gidx])) {
+        found_gi = gidx;
+        break;
+      }
+    }
+    if (found_gi < 0 && gnames_n < 8) {
+      memset(gnames[gnames_n], 0, 64);
+      {
+        int32_t ci;
+        for (ci = 0; ci < ret_nlen && ci < 63; ci = ci + 1)
+          gnames[gnames_n][ci] = ret_nm[ci];
+      }
+      glens[gnames_n] = ret_nlen;
+      found_gi = gnames_n;
+      gnames_n = gnames_n + 1;
+    }
+    if (found_gi < 0)
+      return 0;
+    /* n_gp>1 requires full type-param recovery; n_gp==1 always uses slot 0 when ret is type param. */
+    if (n_gp > 1 && gnames_n != n_gp)
+      return 0;
+    if (n_gp == 1)
+      found_gi = 0;
+    ta_ty = pipeline_expr_call_type_arg_ref_at(arena, call_expr_ref, found_gi);
+    if (ta_ty <= 0)
+      return 0;
+    pipeline_expr_set_resolved_type_ref(arena, call_expr_ref, ta_ty);
+    return 0;
+  }
 }
 
 /**

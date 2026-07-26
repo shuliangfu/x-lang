@@ -108,6 +108,9 @@ export extern function pipeline_expr_is_c_static_const_init(arena: *ASTArena, ex
 export extern function pipeline_expr_resolved_type_ref(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_as_target_type_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_call_arg_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
+/** wave452: CALL turbofish type-arg type_ref (sidecar); 0 if count-only / missing. */
+export extern function pipeline_expr_call_type_arg_ref_at(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
+export extern function pipeline_expr_call_num_type_args_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_call_resolved_dep_index_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_call_resolved_func_index_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_method_call_arg_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
@@ -13130,6 +13133,39 @@ function codegen_call_mono_type_at(arena: *ASTArena, ei: i32, arg_idx: i32, num_
 }
 
 /**
+ * wave452: concrete type for a return-position type parameter not present on
+ * any value formal (as_t<T>(i32):T / mk_default<T>():T).
+ *
+ * Prefers CALL turbofish type_arg type_ref (parser sidecar); falls back to
+ * call resolved_type_ref after wave452 typeck fixup stamped the mono ret.
+ *
+ * @param arena *ASTArena
+ * @param ei i32 — EXPR_CALL index
+ * @return i32 — concrete type_ref, or 0
+ * PLATFORM: SHARED
+ */
+function codegen_call_ret_type_param_concrete_at(arena: *ASTArena, ei: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || ei <= 0) {
+      return 0;
+    }
+    let ta: i32 = pipeline_expr_call_type_arg_ref_at(arena, ei, 0);
+    if (ta > 0) {
+      return ta;
+    }
+    let e: Expr = ast.ast_arena_expr_get(arena, ei);
+    if (e.kind != ExprKind.EXPR_CALL) {
+      return 0;
+    }
+    if (e.resolved_type_ref > 0) {
+      return e.resolved_type_ref;
+    }
+    return 0;
+  }
+}
+
+/**
  * Collect all unique (func fi, type-args) combos for generic function fi.
  *
  * Why: identity mono must emit one instance per distinct type-arg combo (not just
@@ -13554,18 +13590,74 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
       let mono_sym_pre0: i32 = codegen_func_c_symbol_prefix_len(module, fi, prefix_len);
       let saved_func_index0: i32 = -1;
       let saved_block_ref0: i32 = 0;
+      let saved_mono_active0: i32 = 0;
+      let saved_mono_num0: i32 = 0;
       let ctx_set0: i32 = 0;
       if (ctx != 0 as *PipelineDepCtx) {
         saved_func_index0 = ctx.current_func_index;
         saved_block_ref0 = ctx.current_block_ref;
+        saved_mono_active0 = ctx.mono_active;
+        saved_mono_num0 = ctx.mono_num_types;
         ctx.current_func_index = fi;
+        /*
+         * wave452: zero-param ret type-param mono (mk_default<T>():T).
+         * Wave450 emitted phantom T without mono_active → host C returns
+         * struct T while body builds concrete A. Map T from turbofish /
+         * call resolved_type_ref of the first matching CALL.
+         * PLATFORM: SHARED — one bare link name still shared (leave-off:
+         * multi distinct T combos under bare name).
+         */
+        let ret_ord0: i32 = pipeline_type_kind_ord_at(arena, ret_ty);
+        if (ret_ord0 == 8) {
+          let ta0: i32 = 0;
+          let ei_ta: i32 = 1;
+          while (ei_ta <= arena.num_exprs && ta0 <= 0) {
+            let e_ta: Expr = ast.arena_expr_get(arena, ei_ta);
+            if (e_ta.kind == ExprKind.EXPR_CALL) {
+              let m_ta: i32 = 0;
+              if (e_ta.call_resolved_func_index == fi) {
+                m_ta = 1;
+              } else {
+                if (!ast.ref_is_null(e_ta.call_callee_ref) && e_ta.call_callee_ref > 0
+                    && e_ta.call_callee_ref <= arena.num_exprs) {
+                  let cal_ta: Expr = ast.arena_expr_get(arena, e_ta.call_callee_ref);
+                  if (cal_ta.kind == ExprKind.EXPR_VAR && cal_ta.var_name_len == fn_len0) {
+                    let eq_ta: i32 = 1;
+                    let k_ta: i32 = 0;
+                    while (k_ta < fn_len0) {
+                      if (cal_ta.var_name[k_ta] != fn_local0[k_ta]) {
+                        eq_ta = 0;
+                        k_ta = fn_len0;
+                      } else {
+                        k_ta = k_ta + 1;
+                      }
+                    }
+                    m_ta = eq_ta;
+                  }
+                }
+              }
+              if (m_ta != 0) {
+                ta0 = codegen_call_ret_type_param_concrete_at(arena, ei_ta);
+              }
+            }
+            ei_ta = ei_ta + 1;
+          }
+          if (ta0 > 0 && ta0 != ret_ty) {
+            ctx.mono_active = 1;
+            ctx.mono_num_types = 1;
+            ctx.mono_generic_type_refs[0] = ret_ty;
+            ctx.mono_concrete_type_refs[0] = ta0;
+          }
+        }
         ctx_set0 = 1;
       }
-      /* Signature: <ret> <link_name>(void) { body } — no mono_active (phantom T). */
+      /* Signature: <ret> <link_name>(void) { body } — mono_active when ret is type param. */
       if (emit_type(arena, out, ret_ty, prefix, prefix_len, ctx) != 0) {
         if (ctx_set0 != 0) {
           ctx.current_func_index = saved_func_index0;
           ctx.current_block_ref = saved_block_ref0;
+          ctx.mono_active = saved_mono_active0;
+          ctx.mono_num_types = saved_mono_num0;
         }
         return -1;
       }
@@ -13573,6 +13665,8 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
         if (ctx_set0 != 0) {
           ctx.current_func_index = saved_func_index0;
           ctx.current_block_ref = saved_block_ref0;
+          ctx.mono_active = saved_mono_active0;
+          ctx.mono_num_types = saved_mono_num0;
         }
         return -1;
       }
@@ -13582,6 +13676,8 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
           if (ctx_set0 != 0) {
             ctx.current_func_index = saved_func_index0;
             ctx.current_block_ref = saved_block_ref0;
+            ctx.mono_active = saved_mono_active0;
+            ctx.mono_num_types = saved_mono_num0;
           }
           return -1;
         }
@@ -13590,6 +13686,8 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
         if (ctx_set0 != 0) {
           ctx.current_func_index = saved_func_index0;
           ctx.current_block_ref = saved_block_ref0;
+          ctx.mono_active = saved_mono_active0;
+          ctx.mono_num_types = saved_mono_num0;
         }
         return -1;
       }
@@ -13599,6 +13697,8 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
         if (ctx_set0 != 0) {
           ctx.current_func_index = saved_func_index0;
           ctx.current_block_ref = saved_block_ref0;
+          ctx.mono_active = saved_mono_active0;
+          ctx.mono_num_types = saved_mono_num0;
         }
         return -1;
       }
@@ -13606,6 +13706,8 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
         if (ctx_set0 != 0) {
           ctx.current_func_index = saved_func_index0;
           ctx.current_block_ref = saved_block_ref0;
+          ctx.mono_active = saved_mono_active0;
+          ctx.mono_num_types = saved_mono_num0;
         }
         return -1;
       }
@@ -13643,6 +13745,8 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
           if (ctx_set0 != 0) {
             ctx.current_func_index = saved_func_index0;
             ctx.current_block_ref = saved_block_ref0;
+            ctx.mono_active = saved_mono_active0;
+            ctx.mono_num_types = saved_mono_num0;
           }
           return -1;
         }
@@ -13651,6 +13755,8 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
           if (ctx_set0 != 0) {
             ctx.current_func_index = saved_func_index0;
             ctx.current_block_ref = saved_block_ref0;
+            ctx.mono_active = saved_mono_active0;
+            ctx.mono_num_types = saved_mono_num0;
           }
           return -1;
         }
@@ -13658,6 +13764,8 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
       if (ctx_set0 != 0) {
         ctx.current_func_index = saved_func_index0;
         ctx.current_block_ref = saved_block_ref0;
+        ctx.mono_active = saved_mono_active0;
+        ctx.mono_num_types = saved_mono_num0;
       }
       let end0: u8[2] = [125, 10];
       if (emit_bytes_from_ptr(out, &end0[0], 2) != 0) {
@@ -13748,6 +13856,97 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
           ctx.mono_generic_type_refs[sti0] = pipeline_module_func_param_type_ref_at(module, fi, sti0);
           ctx.mono_concrete_type_refs[sti0] = combos[ci * num_params + sti0];
           sti0 = sti0 + 1;
+        }
+        /*
+         * wave452: ret type-param not on any value formal (as_t<T>(i32):T).
+         * Param mono map only covers formals; if ret TYPE_NAMED name is not
+         * already a mapped generic, stamp T→concrete from turbofish type_arg
+         * or call resolved_type_ref (typeck fixup). Match call sites whose
+         * value-arg mono combo equals combos[ci].
+         * PLATFORM: SHARED
+         */
+        if (pipeline_type_kind_ord_at(arena, ret_ty) == TypeKind.TYPE_NAMED
+            && ctx.mono_num_types < 8) {
+          let ret_nm_m: u8[64] = [];
+          let ret_nl_m: i32 = pipeline_type_named_name_into(arena, ret_ty, &ret_nm_m[0]);
+          let ret_covered: i32 = 0;
+          let mi_c: i32 = 0;
+          while (mi_c < ctx.mono_num_types && ret_nl_m > 0) {
+            let gtr: i32 = ctx.mono_generic_type_refs[mi_c];
+            if (gtr > 0 && pipeline_type_kind_ord_at(arena, gtr) == TypeKind.TYPE_NAMED) {
+              let gnm_m: u8[64] = [];
+              let gnl_m: i32 = pipeline_type_named_name_into(arena, gtr, &gnm_m[0]);
+              if (gnl_m == ret_nl_m && gnl_m > 0) {
+                let bi_m: i32 = 0;
+                let eq_m: i32 = 1;
+                while (bi_m < gnl_m) {
+                  if (gnm_m[bi_m] != ret_nm_m[bi_m]) {
+                    eq_m = 0;
+                    bi_m = gnl_m;
+                  } else {
+                    bi_m = bi_m + 1;
+                  }
+                }
+                if (eq_m != 0) {
+                  ret_covered = 1;
+                  mi_c = ctx.mono_num_types;
+                }
+              }
+            }
+            mi_c = mi_c + 1;
+          }
+          if (ret_covered == 0) {
+            let ta_conc: i32 = 0;
+            let ei_m: i32 = 1;
+            while (ei_m <= arena.num_exprs && ta_conc <= 0) {
+              let e_m: Expr = ast.ast_arena_expr_get(arena, ei_m);
+              if (e_m.kind == ExprKind.EXPR_CALL && e_m.call_num_args >= num_params) {
+                let matched_m: i32 = 0;
+                if (e_m.call_resolved_func_index == fi) {
+                  matched_m = 1;
+                } else {
+                  if (!ast.ref_is_null(e_m.call_callee_ref) && e_m.call_callee_ref > 0
+                      && e_m.call_callee_ref <= arena.num_exprs) {
+                    let cal_m: Expr = ast.ast_arena_expr_get(arena, e_m.call_callee_ref);
+                    if (cal_m.kind == ExprKind.EXPR_VAR && cal_m.var_name_len == fn_len) {
+                      let eq_cm: i32 = 1;
+                      let k_cm: i32 = 0;
+                      while (k_cm < fn_len) {
+                        if (cal_m.var_name[k_cm] != fn_local[k_cm]) {
+                          eq_cm = 0;
+                          k_cm = fn_len;
+                        } else {
+                          k_cm = k_cm + 1;
+                        }
+                      }
+                      matched_m = eq_cm;
+                    }
+                  }
+                }
+                if (matched_m != 0) {
+                  let same_combo: i32 = 1;
+                  let pi_m: i32 = 0;
+                  while (pi_m < num_params) {
+                    let ty_m: i32 = codegen_call_mono_type_at(arena, ei_m, pi_m, e_m.call_num_args);
+                    if (ty_m != combos[ci * num_params + pi_m]) {
+                      same_combo = 0;
+                      pi_m = num_params;
+                    }
+                    pi_m = pi_m + 1;
+                  }
+                  if (same_combo != 0) {
+                    ta_conc = codegen_call_ret_type_param_concrete_at(arena, ei_m);
+                  }
+                }
+              }
+              ei_m = ei_m + 1;
+            }
+            if (ta_conc > 0 && ta_conc != ret_ty) {
+              ctx.mono_generic_type_refs[ctx.mono_num_types] = ret_ty;
+              ctx.mono_concrete_type_refs[ctx.mono_num_types] = ta_conc;
+              ctx.mono_num_types = ctx.mono_num_types + 1;
+            }
+          }
         }
         ctx.current_func_index = fi;
         mono_ctx_set = 1;

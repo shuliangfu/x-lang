@@ -162,7 +162,12 @@ extern int32_t parser_asm_stretch_call_args_shape_probe_c(struct parser_asm_lexe
 extern int32_t parser_asm_stretch_paren_expr_head_audit_c(struct parser_asm_lexer lex,
                                                           struct parser_asm_slice_u8 *source);
 extern int32_t pipeline_expr_append_call_arg(void *arena, int32_t expr_ref, int32_t arg_ref);
+/** wave452: store turbofish type-arg type_ref on CALL (sidecar pool). */
+extern int32_t pipeline_expr_append_call_type_arg(void *arena, int32_t expr_ref, int32_t type_ref);
 extern int32_t pipeline_expr_append_method_call_arg(void *arena, int32_t expr_ref, int32_t arg_ref);
+extern int32_t parser_asm_parse_type_ref_for_arena_into_slice_c(void *arena, struct parser_asm_lexer lex,
+                                                                struct parser_asm_slice_u8 *source,
+                                                                struct parser_asm_lexer *out_lex);
 extern int32_t ast_ast_arena_block_alloc(void *arena);
 extern int32_t pipeline_block_append_unsafe(void *arena, int32_t block_ref, int32_t body_ref);
 extern int32_t pipeline_block_append_stmt_order(void *arena, int32_t block_ref, uint8_t kind, int32_t idx);
@@ -428,12 +433,19 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
   struct parser_asm_ast_expr ce_init;
   int32_t fi;
   int32_t pending_call_num_type_args;
+  /* wave452: parsed turbofish type_arg type_refs (max 8); 0 slots = count-only soft path. */
+  int32_t pending_call_type_arg_refs[8];
   int32_t prev_pos;
   int32_t prev_tok_kind;
   int32_t stall_count;
   int debug_enabled;
 
   pending_call_num_type_args = 0;
+  {
+    int32_t _zi;
+    for (_zi = 0; _zi < 8; _zi++)
+      pending_call_type_arg_refs[_zi] = 0;
+  }
   prev_pos = -1;
   prev_tok_kind = -1;
   stall_count = 0;
@@ -599,20 +611,83 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
        * 仅当 `<...>` 后真实跟 `(` 时才视为泛型调用 `id<T>(...)`。
        * 否则必须把 `<` 留给上层 relcompare，避免把 `elapsed_ns < 10000000`
        * 误吞成“带类型参数的变量引用”。
+       *
+       * wave452: when it is a generic call, also parse top-level type args into
+       * type_refs (sidecar via append_call_type_arg). Nested/unparsable type
+       * args fall back to count-only (call_num_type_args) for arity checks.
+       * PLATFORM: SHARED — product primary path (parser_asm thin).
        */
       struct parser_asm_lexer after_angle;
       struct parser_asm_lexer_result after_angle_tok;
       int32_t type_arg_count = 0;
-      parser_asm_skip_generic_angle_list_count_into_slice_c(&after_angle, &type_arg_count, *lex, source);
-      memset(&after_angle_tok, 0, sizeof(after_angle_tok));
-      after_angle_tok.next_lex = after_angle;
-      lexer_next_into(&after_angle_tok, after_angle, source);
-      if (after_angle_tok.tok.kind != (int32_t)TOKEN_LPAREN) {
-        out->next_lex = *lex;
-        return;
+      int32_t parsed_n = 0;
+      int32_t parsed_refs[8];
+      int32_t parse_ok = 1;
+      struct parser_asm_lexer cur;
+      int32_t pi;
+      for (pi = 0; pi < 8; pi++)
+        parsed_refs[pi] = 0;
+      /* First try real type_ref parse: IDENT/builtin/*T/[]T etc. */
+      cur = r->next_lex;
+      for (;;) {
+        struct parser_asm_lexer out_ty;
+        struct parser_asm_lexer_result sep;
+        int32_t tr;
+        if (parsed_n >= 8) {
+          parse_ok = 0;
+          break;
+        }
+        memset(&out_ty, 0, sizeof(out_ty));
+        tr = parser_asm_parse_type_ref_for_arena_into_slice_c(arena, cur, source, &out_ty);
+        if (tr <= 0) {
+          parse_ok = 0;
+          break;
+        }
+        parsed_refs[parsed_n] = tr;
+        parsed_n = parsed_n + 1;
+        cur = out_ty;
+        memset(&sep, 0, sizeof(sep));
+        lexer_next_into(&sep, cur, source);
+        if (sep.tok.kind == (int32_t)TOKEN_COMMA) {
+          cur = sep.next_lex;
+          continue;
+        }
+        if (sep.tok.kind == (int32_t)TOKEN_GT) {
+          after_angle = sep.next_lex;
+          break;
+        }
+        parse_ok = 0;
+        break;
       }
-      pending_call_num_type_args = type_arg_count;
-      *lex = after_angle;
+      if (parse_ok != 0 && parsed_n > 0) {
+        memset(&after_angle_tok, 0, sizeof(after_angle_tok));
+        after_angle_tok.next_lex = after_angle;
+        lexer_next_into(&after_angle_tok, after_angle, source);
+        if (after_angle_tok.tok.kind != (int32_t)TOKEN_LPAREN) {
+          out->next_lex = *lex;
+          return;
+        }
+        pending_call_num_type_args = parsed_n;
+        for (pi = 0; pi < parsed_n && pi < 8; pi++)
+          pending_call_type_arg_refs[pi] = parsed_refs[pi];
+        for (pi = parsed_n; pi < 8; pi++)
+          pending_call_type_arg_refs[pi] = 0;
+        *lex = after_angle;
+      } else {
+        /* Fallback: count-only skip (complex type args / soft leave-off). */
+        parser_asm_skip_generic_angle_list_count_into_slice_c(&after_angle, &type_arg_count, *lex, source);
+        memset(&after_angle_tok, 0, sizeof(after_angle_tok));
+        after_angle_tok.next_lex = after_angle;
+        lexer_next_into(&after_angle_tok, after_angle, source);
+        if (after_angle_tok.tok.kind != (int32_t)TOKEN_LPAREN) {
+          out->next_lex = *lex;
+          return;
+        }
+        pending_call_num_type_args = type_arg_count;
+        for (pi = 0; pi < 8; pi++)
+          pending_call_type_arg_refs[pi] = 0;
+        *lex = after_angle;
+      }
     } else if (r->tok.kind == (int32_t)TOKEN_LBRACKET) {
       base_ref = out->expr_ref;
       *lex = r->next_lex;
@@ -657,8 +732,28 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
       ce_init.col = 0;
       parser_asm_expr_set_common_zeros_c(&ce_init);
       ce_init.call_callee_ref = callee_ref;
+      /* call_num_type_args set by append_call_type_arg when type_refs stored;
+       * pre-set count for count-only fallback (no type_ref sidecar). */
       ce_init.call_num_type_args = pending_call_num_type_args;
       parser_asm_arena_expr_set_c(arena, call_ref, ce_init);
+      /*
+       * wave452: persist turbofish type_arg type_refs when parsed (sidecar).
+       * append resets count then re-increments — keeps count aligned with slots.
+       */
+      if (pending_call_num_type_args > 0 && pending_call_type_arg_refs[0] > 0) {
+        int32_t tai;
+        int32_t nstore = pending_call_num_type_args;
+        if (nstore > 8)
+          nstore = 8;
+        for (tai = 0; tai < nstore; tai++) {
+          if (pending_call_type_arg_refs[tai] <= 0)
+            break;
+          if (pipeline_expr_append_call_type_arg(arena, call_ref, pending_call_type_arg_refs[tai]) < 0) {
+            out->ok = 0;
+            return;
+          }
+        }
+      }
       /*
        * 【Why 根源】call_arg 侧车池按「call_arg_base + idx」连续占槽。若 parse 嵌套 CALL 时
        * 外层已 append 部分实参，内层 base 会落在外层后续 idx 上，外层继续 append 时覆盖
@@ -667,6 +762,11 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
        * 使外层 base 落在所有嵌套 call_arg 区间之后。
        */
       pending_call_num_type_args = 0;
+      {
+        int32_t _zi2;
+        for (_zi2 = 0; _zi2 < 8; _zi2++)
+          pending_call_type_arg_refs[_zi2] = 0;
+      }
       lexer_next_into(r, *lex, source);
       {
         /* 旧硬顶 64：`arg_n >= 64` 使 65 实参 call 解析失败 → main 丢弃、无 _main（pool-limits）。 */

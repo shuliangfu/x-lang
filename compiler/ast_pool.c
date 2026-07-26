@@ -238,6 +238,15 @@ typedef struct {
   GrowVec stmt_order;
   /** Expr 变长附属：call/method 实参、match 臂、struct lit 字段、array lit 元素 */
   GrowVec expr_call_arg_refs;
+  /**
+   * wave452: CALL turbofish type-arg type_refs (flat pool).
+   * Base per expr is in expr_call_type_arg_bases[expr_ref] (sidecar only —
+   * avoids Expr layout / SHARED ABI churn). count remains Expr.call_num_type_args.
+   * PLATFORM: SHARED — G.7 single authority with pipeline_expr_call_type_arg_* APIs.
+   */
+  GrowVec expr_call_type_arg_refs;
+  /** Index by expr_ref; value is base into expr_call_type_arg_refs, or -1 if unset. */
+  GrowVec expr_call_type_arg_bases;
   GrowVec expr_method_call_arg_refs;
   GrowVec expr_match_arms;
   GrowVec expr_struct_lit_fields;
@@ -506,6 +515,10 @@ static ArenaSidecar *arena_sidecar_get(struct ast_ASTArena *a, int create) {
         return NULL;
       if (!grow_vec_init(&g_arena_sc[i].expr_call_arg_refs, sizeof(int32_t), AST_POOL_INIT_CAP))
         return NULL;
+      if (!grow_vec_init(&g_arena_sc[i].expr_call_type_arg_refs, sizeof(int32_t), AST_POOL_INIT_CAP))
+        return NULL;
+      if (!grow_vec_init(&g_arena_sc[i].expr_call_type_arg_bases, sizeof(int32_t), AST_POOL_INIT_CAP))
+        return NULL;
       if (!grow_vec_init(&g_arena_sc[i].expr_method_call_arg_refs, sizeof(int32_t), AST_POOL_INIT_CAP))
         return NULL;
       if (!grow_vec_init(&g_arena_sc[i].expr_match_arms, sizeof(MatchArmEntry), AST_POOL_INIT_CAP))
@@ -721,6 +734,8 @@ static void arena_sidecar_free(ArenaSidecar *sc) {
   grow_vec_free(&sc->expr_stmt_refs);
   grow_vec_free(&sc->stmt_order);
   grow_vec_free(&sc->expr_call_arg_refs);
+  grow_vec_free(&sc->expr_call_type_arg_refs);
+  grow_vec_free(&sc->expr_call_type_arg_bases);
   grow_vec_free(&sc->expr_method_call_arg_refs);
   grow_vec_free(&sc->expr_match_arms);
   grow_vec_free(&sc->expr_struct_lit_fields);
@@ -1216,6 +1231,8 @@ void ast_pool_arena_reset(struct ast_ASTArena *a) {
   sc->expr_stmt_refs.len = 0;
   sc->stmt_order.len = 0;
   sc->expr_call_arg_refs.len = 0;
+  sc->expr_call_type_arg_refs.len = 0;
+  sc->expr_call_type_arg_bases.len = 0;
   sc->expr_method_call_arg_refs.len = 0;
   sc->expr_match_arms.len = 0;
   sc->expr_struct_lit_fields.len = 0;
@@ -5542,6 +5559,107 @@ int32_t pipeline_expr_call_num_type_args_at(struct ast_ASTArena *a, int32_t expr
   if (!ex)
     return 0;
   return ex->call_num_type_args;
+}
+
+/**
+ * wave452: ensure expr_call_type_arg_bases has a slot for expr_ref; return pointer to base cell.
+ * Unset base is -1. PLATFORM: SHARED — G.7 with append/get type_arg APIs.
+ */
+static int32_t *expr_call_type_arg_base_cell(struct ast_ASTArena *a, int32_t expr_ref, int create) {
+  ArenaSidecar *sc;
+  int32_t *cell;
+  if (!a || expr_ref <= 0)
+    return NULL;
+  sc = arena_sidecar_get(a, create ? 1 : 0);
+  if (!sc)
+    return NULL;
+  if (!create && (size_t)expr_ref >= sc->expr_call_type_arg_bases.len)
+    return NULL;
+  while ((size_t)expr_ref >= sc->expr_call_type_arg_bases.len) {
+    int32_t idx = grow_vec_push(&sc->expr_call_type_arg_bases);
+    if (idx < 0)
+      return NULL;
+    cell = (int32_t *)grow_vec_at(&sc->expr_call_type_arg_bases, idx);
+    if (!cell)
+      return NULL;
+    *cell = -1;
+  }
+  return (int32_t *)grow_vec_at(&sc->expr_call_type_arg_bases, expr_ref);
+}
+
+/**
+ * wave452: append one turbofish type-arg type_ref to CALL expr.
+ * First append fixes base in sidecar; increments call_num_type_args.
+ * Call after CALL node is created; may reset count if base was unset and count
+ * was only a skip-count from legacy path — caller should set count via appends
+ * or set call_num_type_args then fill slots. Here: append owns the count when
+ * base was -1 (resets count to 0 then increments).
+ *
+ * @return 0 on success, -1 on failure.
+ * PLATFORM: SHARED
+ */
+int32_t pipeline_expr_append_call_type_arg(struct ast_ASTArena *a, int32_t expr_ref, int32_t type_ref) {
+  ArenaSidecar *sc;
+  struct ast_Expr *ex;
+  int32_t *base_cell;
+  int32_t base;
+  int32_t abs;
+  int32_t *slot;
+  if (!a || expr_ref <= 0 || type_ref <= 0)
+    return -1;
+  sc = arena_sidecar_get(a, 1);
+  ex = pipeline_arena_expr_ptr(a, expr_ref);
+  if (!sc || !ex)
+    return -1;
+  base_cell = expr_call_type_arg_base_cell(a, expr_ref, 1);
+  if (!base_cell)
+    return -1;
+  if (*base_cell < 0) {
+    *base_cell = (int32_t)sc->expr_call_type_arg_refs.len;
+    ex->call_num_type_args = 0;
+  }
+  base = *base_cell;
+  abs = base + ex->call_num_type_args;
+  while (sc->expr_call_type_arg_refs.len <= (size_t)abs) {
+    if (grow_vec_push(&sc->expr_call_type_arg_refs) < 0)
+      return -1;
+  }
+  slot = (int32_t *)grow_vec_at(&sc->expr_call_type_arg_refs, abs);
+  if (!slot)
+    return -1;
+  *slot = type_ref;
+  ex->call_num_type_args = ex->call_num_type_args + 1;
+  return 0;
+}
+
+/**
+ * wave452: type_ref of CALL turbofish type arg at index, or 0 if missing.
+ * PLATFORM: SHARED
+ */
+int32_t pipeline_expr_call_type_arg_ref_at(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx) {
+  ArenaSidecar *sc;
+  struct ast_Expr *ex;
+  int32_t *base_cell;
+  int32_t base;
+  int32_t abs;
+  int32_t *slot;
+  if (!a || expr_ref <= 0 || idx < 0)
+    return 0;
+  sc = arena_sidecar_get(a, 0);
+  ex = pipeline_arena_expr_ptr(a, expr_ref);
+  if (!sc || !ex)
+    return 0;
+  if (idx >= ex->call_num_type_args)
+    return 0;
+  base_cell = expr_call_type_arg_base_cell(a, expr_ref, 0);
+  if (!base_cell || *base_cell < 0)
+    return 0;
+  base = *base_cell;
+  abs = base + idx;
+  if (abs < 0 || (size_t)abs >= sc->expr_call_type_arg_refs.len)
+    return 0;
+  slot = (int32_t *)grow_vec_at(&sc->expr_call_type_arg_refs, abs);
+  return slot ? *slot : 0;
 }
 
 int32_t pipeline_expr_append_method_call_arg(struct ast_ASTArena *a, int32_t expr_ref, int32_t arg_ref) {
