@@ -381,7 +381,11 @@ export function parse_response(buf: *u8, raw_len: i32, out: *HttpResponse): i32 
  */
 export function execute(req: HttpRequest, buf: *u8, buf_cap: i32, out: *HttpResponse): i32 {
   let n: i32 = 0;
-  let m: u8 = method(req.method);
+  /* Intermediate Method binding: dual overload method(Method)|method(u8) mis-picks
+   * method(u8) when the arg is a FIELD_ACCESS (req.method) under call ambient u8.
+   * VAR of type Method scores correctly. Root residual: overload + field ambient. */
+  let mm: Method = req.method;
+  let m: u8 = method(mm);
   if (req.timeout_ms > 0) {
     n = http_libc_request_method_timeout_c(m, req.url, req.url_len, req.body, req.body_len, buf, buf_cap, req.timeout_ms);
   } else {
@@ -824,7 +828,9 @@ export function execute_ctx(req: HttpRequest, buf: *u8, buf_cap: i32, out: *Http
     return chk;
   }
   let tm: i32 = timeout_ms_for_http(ctx);
-  let m: u8 = method(req.method);
+  /* Same dual-overload FIELD_ACCESS residual as execute — bind Method first. */
+  let mm: Method = req.method;
+  let m: u8 = method(mm);
   let n: i32 = map_http_c_result(http_libc_request_method_timeout_c(m, req.url, req.url_len, req.body, req.body_len, buf, buf_cap, tm as u32));
   if (n < 0) {
     return n;

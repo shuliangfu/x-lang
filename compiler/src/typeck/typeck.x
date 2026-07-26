@@ -5611,7 +5611,16 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     if (expr_kind == ord_assign) {
       compound_flag = 0;
     }
-    if (check_expr(module, arena, left_ref, return_type_ref, ctx) != 0) {
+    /*
+     * Assign LHS must not inherit the *function* return ambient.
+     * wave465 stamps unconstrained field results with ambient; when LHS is
+     * FIELD_ACCESS (`out.method = m` / `s.c = c`), feeding return_type_ref
+     * rewrote the field type to the function return (or void→`?`) and caused
+     * "expected S/?, found Color|Method" on enum field stores that already
+     * type as R-values. G.7: check left with expected 0; then use resolved
+     * lt as RHS expected (below). PLATFORM: SHARED.
+     */
+    if (check_expr(module, arena, left_ref, 0, ctx) != 0) {
       return - 1;
     }
     lt = expr_type_ref(arena, left_ref);

@@ -4569,7 +4569,8 @@ int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena
   if ((expr_kind ==ord_assign)) {
     (void)((compound_flag = 0));
   }
-  if ((check_expr(module, arena, left_ref, return_type_ref, ctx) !=0)) {
+  /* wave472 L4: assign LHS expected=0 (not function return ambient). See typeck.x. */
+  if ((check_expr(module, arena, left_ref, 0, ctx) !=0)) {
     return -(1);
   }
   (void)((lt = expr_type_ref(arena, left_ref)));

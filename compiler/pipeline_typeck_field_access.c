@@ -934,10 +934,14 @@ static int32_t pipeline_typeck_named_is_module_concrete_c(struct ast_Module *mod
 
 /**
  * wave465 Cap residual pure: after layout/fallback, if the field result is still
- * unconstrained (null or TYPE_NAMED type-param with no module type) and ambient
+ * a TYPE_NAMED type-param (name not a module concrete struct/enum) and ambient
  * expected is present, stamp ambient onto the field access.
- * Same contract as let-decl stamping of init; does NOT feed ambient into base
- * (wave454). PLATFORM: SHARED.
+ *
+ * wave472 L4: do NOT stamp ambient when the field type is still null/unknown.
+ * Null meant layout did not resolve (enum fields / missing type_ref). Stamping
+ * ambient onto null rewrote assign LHS with function return (expected S/?) and
+ * polluted dual-overload scoring. Type-param fields keep TYPE_NAMED `T` in
+ * layout (not null), so Wrap.v still fills. PLATFORM: SHARED.
  */
 static void pipeline_typeck_field_apply_ambient_for_type_param_c(struct ast_Module *module,
                                                                 struct ast_ASTArena *arena,
@@ -954,8 +958,9 @@ static void pipeline_typeck_field_apply_ambient_for_type_param_c(struct ast_Modu
     return;
   got_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
   use_ambient = 0;
+  /* wave472: null/unknown field type → leave unresolved; never invent ambient. */
   if (ast_ref_is_null(got_ty) || got_ty <= 0 || got_ty > arena->num_types) {
-    use_ambient = 1;
+    return;
   } else if (pipeline_type_kind_ord_at(arena, got_ty) == (int32_t)ast_TypeKind_TYPE_NAMED) {
     memset(gnm, 0, sizeof(gnm));
     gnl = pipeline_type_named_name_into(arena, got_ty, &gnm[0]);
@@ -1143,9 +1148,10 @@ int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *module, str
     }
     layout_rc = pipeline_typeck_field_layout_named_c(module, arena, expr_ref, base_ref, ctx);
     if (layout_rc == 2) {
-      /* wave466: mono from base type-arg before ambient (true single-arg subst). */
-      pipeline_typeck_field_apply_mono_type_arg_c(module, arena, expr_ref, base_ty);
-      pipeline_typeck_field_apply_ambient_for_type_param_c(module, arena, expr_ref, return_type_ref);
+      /*
+       * User enum variant (Method.GET): resolved to enum TYPE_NAMED.
+       * wave472: do not mono/ambient — concrete, not type-param. PLATFORM: SHARED.
+       */
       return 0;
     }
     pipeline_typeck_field_slice_c(arena, expr_ref, base_ref);
