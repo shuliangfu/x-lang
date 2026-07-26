@@ -452,6 +452,16 @@ extern int32_t pipeline_module_enum_variant_tag_for_names(struct ast_Module *m, 
 extern int32_t pipeline_module_import_binding_name_len(struct ast_Module *module, int32_t idx);
 extern uint8_t pipeline_module_import_binding_name_byte_at(struct ast_Module *module, int32_t idx, int32_t off);
 extern void pipeline_expr_apply_call_resolve(struct ast_ASTArena *a, int32_t expr_ref, int32_t dep_ix, int32_t func_ix);
+/*
+ * wave494: generic method_call UFCS — exported from pipeline_glue.c (G.7
+ * single authority). Pattern-unifies formal self param with concrete receiver
+ * type and substitutes the return type. Called after non-generic UFCS fails.
+ * PLATFORM: SHARED typeck.
+ */
+extern int32_t pipeline_typeck_method_call_generic_ufcs_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                            int32_t expr_ref, int32_t base_ty,
+                                                            uint8_t *method_nm, int32_t method_nlen,
+                                                            int32_t num_args);
 extern int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *ctx);
 extern struct ast_Module *pipeline_dep_ctx_module_at(struct ast_PipelineDepCtx *ctx, int32_t idx);
 extern struct ast_ASTArena *pipeline_dep_ctx_arena_at(struct ast_PipelineDepCtx *ctx, int32_t idx);
@@ -2517,6 +2527,25 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
     pipeline_expr_apply_call_resolve(arena, expr_ref, dep_ix, func_ix);
     pipeline_expr_set_resolved_type_ref(arena, expr_ref, import_ret_ty);
     return 0;
+  }
+  /*
+   * wave494: generic method_call UFCS — method on generic struct.
+   * Must run BEFORE non-generic UFCS below: the non-generic UFCS uses
+   * pipeline_typeck_type_refs_equal_c (pointer equality) which fails for
+   * generic instantiations (Wrap<i32> != Wrap<T>). But the weak integer
+   * match (score 100) would still match them by TYPE_NAMED kind and stamp
+   * the raw return type T, returning 0 before the generic fixup can run.
+   * Delegating to pipeline_typeck_method_call_generic_ufcs_c (exported from
+   * pipeline_glue.c, G.7 single authority) first ensures pattern-unify of
+   * the formal self param with the concrete receiver type and substitutes
+   * the return type. Non-generic methods (self has no free type-param) are
+   * skipped by the generic path and fall through to non-generic UFCS.
+   * PLATFORM: SHARED typeck — mac + Ubuntu.
+   */
+  if (base_ty > 0 && method_nlen > 0) {
+    if (pipeline_typeck_method_call_generic_ufcs_c(module, arena, expr_ref, base_ty, method_nm, method_nlen,
+                                                     num_args) != 0)
+      return 0;
   }
   /*
    * wave358 Cap residual pure — UFCS same-module free method.

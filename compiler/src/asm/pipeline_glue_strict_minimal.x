@@ -18,6 +18,11 @@ export extern "C" function pipeline_module_func_param_name_copy32(mod: *u8, fi: 
 export extern "C" function pipeline_expr_var_name_len(arena: *u8, er: i32): i32;
 export extern "C" function pipeline_expr_var_name_into(arena: *u8, er: i32, out: *u8): void;
 export extern "C" function pipeline_type_region_label_into(arena: *u8, tr: i32, out64: *u8): i32;
+// wave494: generic method_call UFCS — exported from pipeline_glue.c (G.7 single
+// authority). Pattern-unifies formal self param with concrete receiver type
+// and substitutes the return type. Called after non-generic UFCS fails.
+// PLATFORM: SHARED typeck.
+export extern "C" function pipeline_typeck_method_call_generic_ufcs_c(module: *u8, arena: *u8, expr_ref: i32, base_ty: i32, method_nm: *u8, method_nlen: i32, num_args: i32): i32;
 
 /** Exported function `pipeline_glue_strict_minimal_x_doc_anchor`.
  * Implements `pipeline_glue_strict_minimal_x_doc_anchor`.
@@ -2763,6 +2768,25 @@ export function pipeline_typeck_check_expr_method_call_c(module: *u8, arena: *u8
       pipeline_expr_apply_call_resolve(arena, expr_ref, dep_ix, func_ix);
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, import_ret_ty);
       return 0;
+    }
+    // wave494: generic method_call UFCS — method on generic struct.
+    // Must run BEFORE non-generic UFCS below: the non-generic UFCS uses
+    // pipeline_typeck_type_refs_equal_c (pointer equality) which fails for
+    // generic instantiations (Wrap<i32> != Wrap<T>). But the weak integer
+    // match (score 100) would still match them by TYPE_NAMED kind and stamp
+    // the raw return type T, returning 0 before the generic fixup can run.
+    // Delegating to pipeline_typeck_method_call_generic_ufcs_c (exported
+    // from pipeline_glue.c, G.7 single authority) first ensures pattern-unify
+    // of the formal self param with the concrete receiver type and substitutes
+    // the return type. Non-generic methods (self has no free type-param) are
+    // skipped by the generic path and fall through to non-generic UFCS.
+    // PLATFORM: SHARED typeck — mac + Ubuntu.
+    if (base_ty > 0) {
+      if (method_nlen > 0) {
+        if (pipeline_typeck_method_call_generic_ufcs_c(module, arena, expr_ref, base_ty, &method_nm[0], method_nlen, num_args) != 0) {
+          return 0;
+        }
+      }
     }
     /*
      * wave358 Cap residual pure — UFCS same-module free method.

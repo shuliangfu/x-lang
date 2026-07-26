@@ -33670,6 +33670,15 @@ static int32_t glue_slice_equal_c(const uint8_t *a, int32_t alen, const uint8_t 
   return 1;
 }
 
+/*
+ * wave494: forward declaration — defined below after the pattern-unify helpers.
+ * Called by both the weak and strong pipeline_typeck_check_expr_method_call_c.
+ * PLATFORM: SHARED typeck.
+ */
+int32_t pipeline_typeck_method_call_generic_ufcs_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                      int32_t expr_ref, int32_t base_ty, uint8_t *method_nm,
+                                                      int32_t method_nlen, int32_t num_args);
+
 /**
  * EXPR_METHOD_CALL: typecheck base/args, resolve import.method via path-matched dep
  * slot + W-heap-overload (call_strict_minimal). Never use entry import index as dep index.
@@ -33834,6 +33843,25 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_method_call_c(struct as
     }
   }
   /*
+   * wave494: generic method_call UFCS — method on generic struct.
+   * Must run BEFORE non-generic UFCS below: the non-generic UFCS uses
+   * pipeline_typeck_type_refs_equal_c (pointer equality) which fails for
+   * generic instantiations (Wrap<i32> != Wrap<T>). But the weak integer
+   * match (score 100) would still match them by TYPE_NAMED kind and stamp
+   * the raw return type T, returning 0 before the generic fixup can run.
+   * Delegating to pipeline_typeck_method_call_generic_ufcs_c (exported from
+   * this TU, G.7 single authority) first ensures pattern-unify of the formal
+   * self param with the concrete receiver type and substitutes the return
+   * type. Non-generic methods (self has no free type-param) are skipped by
+   * the generic path and fall through to non-generic UFCS.
+   * PLATFORM: SHARED typeck — mac + Ubuntu.
+   */
+  if (ret_ty == 0 && base_ty > 0 && method_nlen > 0) {
+    if (pipeline_typeck_method_call_generic_ufcs_c(module, arena, expr_ref, base_ty, method_nm, method_nlen,
+                                                     num_args) != 0)
+      return 0;
+  }
+  /*
    * wave358 Cap residual pure — UFCS same-module free method (weak twin of
    * pipeline_glue_strict_minimal strong definition).
    * receiver.method(args) → free fn method(receiver, args...) when
@@ -33983,7 +34011,13 @@ enum { W486_MONO_MAX_MAP = 8, W486_MONO_MAX_TARGS = 8, W486_MONO_MAX_DEPTH = 12 
 
 /* Forward: used by wave487 pattern-unify before their definitions below. */
 static int32_t glue_typeck_named_num_type_args_c(struct ast_ASTArena *arena, int32_t ty);
-static int32_t glue_typeck_type_tree_has_free_param_c(struct ast_Module *mod, struct ast_ASTArena *arena, int32_t ty,
+/*
+ * wave494: exported (non-static) so pipeline_glue_strict_minimal seed can call
+ * these helpers for generic method_call UFCS. G.7 single authority — no
+ * duplicate implementation in the strict_minimal TU.
+ * PLATFORM: SHARED typeck.
+ */
+int32_t glue_typeck_type_tree_has_free_param_c(struct ast_Module *mod, struct ast_ASTArena *arena, int32_t ty,
                                                      int32_t depth);
 extern int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
 
@@ -34039,7 +34073,7 @@ static int32_t glue_typeck_mono_map_bind_c(uint8_t names[][64], int32_t *lens, i
  * @return 0 ok (partial OK if formal has no free params), -1 hard conflict
  * PLATFORM: SHARED — G.7 single authority with subst/map helpers above.
  */
-static int32_t glue_typeck_pattern_unify_bind_c(struct ast_Module *mod, struct ast_ASTArena *formal_arena,
+int32_t glue_typeck_pattern_unify_bind_c(struct ast_Module *mod, struct ast_ASTArena *formal_arena,
                                                int32_t formal_ty, struct ast_ASTArena *arg_arena, int32_t arg_ty,
                                                uint8_t names[][64], int32_t *lens, int32_t *conc, int32_t *n_map,
                                                int32_t max_map, int32_t depth) {
@@ -34231,7 +34265,7 @@ static int32_t glue_typeck_named_num_type_args_c(struct ast_ASTArena *arena, int
 }
 
 /** 1 if TYPE_NAMED tree contains a free type-param name (not a module concrete). */
-static int32_t glue_typeck_type_tree_has_free_param_c(struct ast_Module *mod, struct ast_ASTArena *arena, int32_t ty,
+int32_t glue_typeck_type_tree_has_free_param_c(struct ast_Module *mod, struct ast_ASTArena *arena, int32_t ty,
                                                      int32_t depth) {
   int32_t kind;
   int32_t nlen;
@@ -34307,7 +34341,7 @@ static int32_t glue_typeck_alloc_named_with_type_args_c(struct ast_ASTArena *are
  * types with type-args always allocate a fresh mono node.
  * @return concrete type_ref in dst_arena, or 0 on failure
  */
-static int32_t glue_typeck_subst_type_ref_c(struct ast_Module *mod, struct ast_ASTArena *src_arena,
+int32_t glue_typeck_subst_type_ref_c(struct ast_Module *mod, struct ast_ASTArena *src_arena,
                                            struct ast_ASTArena *dst_arena, int32_t ty, uint8_t names[][64],
                                            const int32_t *lens, const int32_t *conc, int32_t n_map, int32_t depth) {
   int32_t kind;
@@ -34487,6 +34521,117 @@ static int32_t glue_generic_call_subst_ret_from_formal_map_c(struct ast_Module *
   return mono_ret;
 }
 
+/*
+ * wave494: generic method_call UFCS resolution.
+ *
+ * Why: `w.get()` where w: Wrap<i32> and `impl Wrap<T> { function get(self:
+ * Wrap<T>): T }` is parsed as EXPR_METHOD_CALL (kind 49). The non-generic UFCS
+ * path in pipeline_typeck_check_expr_method_call_c uses
+ * pipeline_typeck_type_refs_equal_c (pointer-level equality), which fails for
+ * generic instantiations: Wrap<i32> != Wrap<T>. Without this fix, the method
+ * call is left unresolved (ret stays T / ?) and the return-statement typeck
+ * reports "expected i32, found T".
+ *
+ * Root: pattern-unify the formal self param (Wrap<T>, in the module arena)
+ * with the concrete receiver type (Wrap<i32>, in the caller arena) to build
+ * a free-name → concrete-type map (T → i32), then substitute the function
+ * return type (T → i32) and stamp the method_call resolved_type.
+ *
+ * Authority (G.7 single path): this exported function is the SOLE
+ * implementation of generic method_call UFCS. Both the weak
+ * pipeline_typeck_check_expr_method_call_c (pipeline_glue.c) and the strong
+ * one (pipeline_glue_strict_minimal.from_x.c) call it after the non-generic
+ * UFCS block fails. The pattern-unify/subst helpers are exported from this TU
+ * (no duplicate implementation in the strict_minimal seed).
+ *
+ * Contract:
+ * - module/arena/expr_ref must be valid; base_ty > 0; method_nlen > 0.
+ * - On success: sets expr_ref resolved_type_ref + call_resolve(-1, func_idx),
+ *   returns 1.
+ * - On failure (no generic match / unification conflict): returns 0, leaves
+ *   expr_ref untouched.
+ * - Only scans same-module free functions (nparams == num_args + 1, param[0]
+ *   is the implicit self). Cross-module import.method is handled by the
+ *   earlier binding-scan path, not here.
+ * PLATFORM: SHARED typeck — mac + Ubuntu.
+ */
+int32_t pipeline_typeck_method_call_generic_ufcs_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                      int32_t expr_ref, int32_t base_ty, uint8_t *method_nm,
+                                                      int32_t method_nlen, int32_t num_args) {
+  int32_t nf;
+  int32_t fi;
+  int32_t nparams;
+  int32_t p0;
+  int32_t g_ret;
+  int32_t g_ai;
+  int32_t g_matched;
+
+  if (!module || !arena || expr_ref <= 0 || base_ty <= 0 || !method_nm || method_nlen <= 0)
+    return 0;
+  nf = pipeline_module_num_funcs(module);
+  for (fi = 0; fi < nf; fi = fi + 1) {
+    if (pipeline_module_func_name_equal_at(module, fi, method_nm, method_nlen) == 0)
+      continue;
+    nparams = pipeline_module_func_num_params_at(module, fi);
+    if (nparams != num_args + 1)
+      continue;
+    p0 = pipeline_module_func_param_type_ref_at(module, fi, 0);
+    if (p0 <= 0)
+      continue;
+    /* Only enter generic path when self param has a free type-param. */
+    if (glue_typeck_type_tree_has_free_param_c(module, arena, p0, 0) == 0)
+      continue;
+    {
+      uint8_t g_names[W486_MONO_MAX_MAP][64];
+      int32_t g_lens[W486_MONO_MAX_MAP];
+      int32_t g_conc[W486_MONO_MAX_MAP];
+      int32_t g_nmap = 0;
+      /* Pattern-unify formal self (p0, module arena) with concrete receiver
+       * (base_ty, caller arena) to build free-name → concrete-type map. */
+      if (glue_typeck_pattern_unify_bind_c(module, arena, p0, arena, base_ty, g_names, g_lens, g_conc, &g_nmap,
+                                            W486_MONO_MAX_MAP, 0) != 0 ||
+          g_nmap <= 0)
+        continue;
+      /* Verify non-self args match (after substitution if the param is generic). */
+      g_matched = 1;
+      for (g_ai = 0; g_ai < num_args; g_ai = g_ai + 1) {
+        int32_t g_param = pipeline_module_func_param_type_ref_at(module, fi, g_ai + 1);
+        int32_t g_arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, g_ai);
+        int32_t g_arg_ty = g_arg_ref > 0 ? pipeline_expr_resolved_type_ref(arena, g_arg_ref) : 0;
+        if (g_param <= 0 || g_arg_ty <= 0) {
+          g_matched = 0;
+          break;
+        }
+        if (pipeline_typeck_type_refs_equal_c(arena, g_arg_ty, g_param) != 0)
+          continue;
+        /* Try substituted match for generic non-self params (rare but possible). */
+        {
+          int32_t g_sub = glue_typeck_subst_type_ref_c(module, arena, arena, g_param, g_names, g_lens, g_conc, g_nmap, 0);
+          if (g_sub <= 0 || pipeline_typeck_type_refs_equal_c(arena, g_arg_ty, g_sub) == 0) {
+            g_matched = 0;
+            break;
+          }
+        }
+      }
+      if (g_matched == 0)
+        continue;
+      /* Substitute the return type using the unification map. */
+      g_ret = pipeline_module_func_return_type_at(module, fi);
+      if (g_ret <= 0)
+        continue;
+      {
+        int32_t g_mono = glue_typeck_subst_type_ref_c(module, arena, arena, g_ret, g_names, g_lens, g_conc, g_nmap, 0);
+        if (g_mono > 0 && glue_typeck_type_tree_has_free_param_c(module, arena, g_mono, 0) == 0) {
+          pipeline_expr_apply_call_resolve(arena, expr_ref, -1, fi);
+          pipeline_expr_set_resolved_type_ref(arena, expr_ref, g_mono);
+          return 1;
+        }
+      }
+    }
+  }
+  return 0;
+}
+
 static int32_t glue_generic_call_fixup_resolved_type_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                        int32_t call_expr_ref, struct ast_PipelineDepCtx *ctx,
                                                        int32_t expected_ret) {
@@ -34618,6 +34763,13 @@ static int32_t glue_generic_call_fixup_resolved_type_c(struct ast_Module *module
     pipeline_expr_set_resolved_type_ref(arena, call_expr_ref, arg_ty);
     return 0;
   }
+  /*
+   * wave494: generic method_call UFCS is handled in
+   * pipeline_typeck_check_expr_method_call_c (weak + strict_minimal strong)
+   * via pipeline_typeck_method_call_generic_ufcs_c — see that authority.
+   * This CALL-fixup path only sees EXPR_CALL with ord_field/ord_var callee;
+   * EXPR_METHOD_CALL (kind 49) never reaches here.
+   */
   /*
    * wave486/wave487: stamp mono ret from value-formal map.
    * - module ret with free type-arg tree (`nest: Wrap<Wrap<T>>`) — subst tree
