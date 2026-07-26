@@ -9372,10 +9372,63 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       if (emit_bytes_9(out, open, 8) != 0) {
         return -1;
       }
+      /*
+       * wave458: STRUCT_LIT name mono subst (`return T { .v = 7 }` under mono).
+       * emit_type already rewrites TYPE_NAMED T→A for signatures/lets, but
+       * STRUCT_LIT emits the source type name string. When mono_active and the
+       * lit name equals a mapped generic param name, emit the concrete type name
+       * (and keep module prefix) so host C gets `struct …_A` not incomplete T.
+       * PLATFORM: SHARED — G.7 same mono map as emit_type C5.
+       */
+      let sl_emit_name: u8[64] = [];
+      let sl_emit_nlen: i32 = e.struct_lit_struct_name_len;
+      let sl_ni: i32 = 0;
+      while (sl_ni < sl_emit_nlen && sl_ni < 64) {
+        sl_emit_name[sl_ni] = e.struct_lit_struct_name[sl_ni];
+        sl_ni = sl_ni + 1;
+      }
+      if (ctx != 0 as *PipelineDepCtx && ctx.mono_active != 0 && ctx.mono_num_types > 0
+          && sl_emit_nlen > 0) {
+        let mi_sl: i32 = 0;
+        while (mi_sl < ctx.mono_num_types && mi_sl < 8) {
+          let gtr_sl: i32 = ctx.mono_generic_type_refs[mi_sl];
+          let ctr_sl: i32 = ctx.mono_concrete_type_refs[mi_sl];
+          if (gtr_sl > 0 && ctr_sl > 0 && ctr_sl != gtr_sl) {
+            let gnm_sl: u8[64] = [];
+            let gnl_sl: i32 = pipeline_type_named_name_into(arena, gtr_sl, &gnm_sl[0]);
+            if (gnl_sl == sl_emit_nlen && gnl_sl > 0) {
+              let eq_sl: i32 = 1;
+              let bi_sl: i32 = 0;
+              while (bi_sl < gnl_sl) {
+                if (gnm_sl[bi_sl] != sl_emit_name[bi_sl]) {
+                  eq_sl = 0;
+                  bi_sl = gnl_sl;
+                } else {
+                  bi_sl = bi_sl + 1;
+                }
+              }
+              if (eq_sl != 0) {
+                let cnm_sl: u8[64] = [];
+                let cnl_sl: i32 = pipeline_type_named_name_into(arena, ctr_sl, &cnm_sl[0]);
+                if (cnl_sl > 0 && cnl_sl <= 64) {
+                  let ci_sl: i32 = 0;
+                  while (ci_sl < cnl_sl) {
+                    sl_emit_name[ci_sl] = cnm_sl[ci_sl];
+                    ci_sl = ci_sl + 1;
+                  }
+                  sl_emit_nlen = cnl_sl;
+                }
+                mi_sl = ctx.mono_num_types;
+              }
+            }
+          }
+          mi_sl = mi_sl + 1;
+        }
+      }
       if (bare_user_lit == 0 && sl_plen > 0 && emit_bytes_from_ptr(out, &sl_pfx[0], sl_plen) != 0) {
         return -1;
       }
-      if (emit_bytes_64(out, &e.struct_lit_struct_name[0], e.struct_lit_struct_name_len) != 0) {
+      if (emit_bytes_64(out, &sl_emit_name[0], sl_emit_nlen) != 0) {
         return -1;
       }
       let open2: u8[5] = [41, 123, 32, 0, 0];
@@ -12044,10 +12097,13 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
              * type_at, the same extraction used on the emit side) so emit-side combo
              * and consume-side symbol always agree. Non-generic functions keep the
              * bare link name. If type extraction fails (incomplete call site), fall
-             * back to the bare link name to preserve prior behavior. */
+             * back to the bare link name to preserve prior behavior.
+             * wave458: also append uncovered ret type-param concrete (as_t/mk multi). */
             if (pipeline_module_func_num_generic_params_at(res_mod, func_ix) > 0) {
               let np_mono: i32 = pipeline_module_func_num_params_at(res_mod, func_ix);
-              if (np_mono > 0 && np_mono <= 8) {
+              let re_mono: i32 = codegen_func_ret_type_param_extra(res_arena, res_mod, func_ix);
+              let cw_mono: i32 = np_mono + re_mono;
+              if (cw_mono > 0 && cw_mono <= 8) {
                 let call_e_mono: Expr = ast.ast_arena_expr_get(arena, expr_ref);
                 let nargs_mono: i32 = call_e_mono.call_num_args;
                 let mono_tys: i32[8] = [];
@@ -12063,8 +12119,16 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
                   }
                   pi_mono = pi_mono + 1;
                 }
+                if (valid_mono != 0 && re_mono != 0) {
+                  let rty_mono: i32 = codegen_call_ret_type_param_concrete_at(arena, expr_ref);
+                  if (rty_mono <= 0) {
+                    valid_mono = 0;
+                  } else {
+                    mono_tys[np_mono] = rty_mono;
+                  }
+                }
                 if (valid_mono != 0) {
-                  return codegen_emit_mono_mangled_name(out, arena, res_mod, func_ix, &mono_tys[0], np_mono);
+                  return codegen_emit_mono_mangled_name(out, arena, res_mod, func_ix, &mono_tys[0], cw_mono);
                 }
               }
             }
@@ -13133,6 +13197,110 @@ function codegen_call_mono_type_at(arena: *ASTArena, ei: i32, arg_idx: i32, num_
 }
 
 /**
+ * wave458: 1 when return TYPE_NAMED is a type-param not named on any value formal.
+ *
+ * Why: mono combo keys used only value-arg types (wave444). That collapses
+ * `as_t<A>(7)` and `as_t<B>(9)` to the same key `[i32]` (value formal is i32),
+ * and zero-param `mk<A>()`/`mk<B>()` shared one bare link name. When ret is a
+ * type parameter not covered by formals, the mono key must include the call's
+ * ret concrete (resolved / turbofish) so distinct T get distinct symbols.
+ *
+ * Covered: `id<T>(x: T): T` — ret name equals param0 name → extra=0.
+ * Uncovered: `as_t<T>(x: i32): T`, `mk<T>(): T` → extra=1.
+ *
+ * @param arena *ASTArena
+ * @param module *Module
+ * @param fi i32 — function index
+ * @return i32 — 1 if ret type-param needs an extra mono-key slot, else 0
+ * PLATFORM: SHARED
+ */
+/**
+ * wave458: mono combo slot equality (type_ref id or TYPE_NAMED same name).
+ * Turbofish / fixup allocate distinct TYPE_NAMED nodes for the same A; raw
+ * type_ref equality then fails dedup and emits mk__A four times → redefinition.
+ * @return i32 — 1 equal, 0 unequal
+ * PLATFORM: SHARED
+ */
+function codegen_mono_combo_slot_equal(arena: *ASTArena, a: i32, b: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (a == b) {
+      return 1;
+    }
+    if (a <= 0 || b <= 0 || arena == 0 as *ASTArena) {
+      return 0;
+    }
+    let ka: i32 = pipeline_type_kind_ord_at(arena, a);
+    let kb: i32 = pipeline_type_kind_ord_at(arena, b);
+    if (ka != kb) {
+      return 0;
+    }
+    if (ka == TypeKind.TYPE_NAMED) {
+      let na: u8[64] = [];
+      let nb: u8[64] = [];
+      let la: i32 = pipeline_type_named_name_into(arena, a, &na[0]);
+      let lb: i32 = pipeline_type_named_name_into(arena, b, &nb[0]);
+      if (la <= 0 || la != lb) {
+        return 0;
+      }
+      let i: i32 = 0;
+      while (i < la) {
+        if (na[i] != nb[i]) {
+          return 0;
+        }
+        i = i + 1;
+      }
+      return 1;
+    }
+    return 0;
+  }
+}
+
+function codegen_func_ret_type_param_extra(arena: *ASTArena, module: *Module, fi: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || module == 0 as *Module || fi < 0 || fi >= module.num_funcs) {
+      return 0;
+    }
+    let ret_ty: i32 = pipeline_module_func_return_type_at(module, fi);
+    if (ret_ty <= 0 || pipeline_type_kind_ord_at(arena, ret_ty) != TypeKind.TYPE_NAMED) {
+      return 0;
+    }
+    let ret_nm: u8[64] = [];
+    let ret_nl: i32 = pipeline_type_named_name_into(arena, ret_ty, &ret_nm[0]);
+    if (ret_nl <= 0) {
+      return 0;
+    }
+    let np: i32 = pipeline_module_func_num_params_at(module, fi);
+    let pi: i32 = 0;
+    while (pi < np) {
+      let pty: i32 = pipeline_module_func_param_type_ref_at(module, fi, pi);
+      if (pty > 0 && pipeline_type_kind_ord_at(arena, pty) == TypeKind.TYPE_NAMED) {
+        let pnm: u8[64] = [];
+        let pnl: i32 = pipeline_type_named_name_into(arena, pty, &pnm[0]);
+        if (pnl == ret_nl && pnl > 0) {
+          let eq: i32 = 1;
+          let bi: i32 = 0;
+          while (bi < pnl) {
+            if (pnm[bi] != ret_nm[bi]) {
+              eq = 0;
+              bi = pnl;
+            } else {
+              bi = bi + 1;
+            }
+          }
+          if (eq != 0) {
+            return 0;
+          }
+        }
+      }
+      pi = pi + 1;
+    }
+    return 1;
+  }
+}
+
+/**
  * wave452: concrete type for a return-position type parameter not present on
  * any value formal (as_t<T>(i32):T / mk_default<T>():T / mk2u<T,U>():U).
  *
@@ -13177,27 +13345,35 @@ function codegen_call_ret_type_param_concrete_at(arena: *ASTArena, ei: i32): i32
 }
 
 /**
- * Collect all unique (func fi, type-args) combos for generic function fi.
+ * Collect all unique mono combos for generic function fi.
  *
  * Why: identity mono must emit one instance per distinct type-arg combo (not just
  * the first call site) so multiple call sites with different types each get their
  * own mangled symbol. Scans the arena once for EXPR_CALL matching fi, extracts
- * per-param concrete types via codegen_call_mono_type_at, dedupes, and stores
- * unique combos into `combos_out` (flat: combo c param p at index c*num_params+p).
+ * per-value-param concrete types via codegen_call_mono_type_at, and when
+ * `ret_extra!=0` (wave458) appends the call ret concrete so ret-only type params
+ * (`as_t<T>(i32):T`, `mk<T>():T`) distinguish A vs B.
  *
- * Invariant: combos_out holds at most max_combos*num_params entries; returns the
+ * Layout: flat combos_out[c * combo_width + slot]; combo_width = num_params + ret_extra.
+ * num_params may be 0 when ret_extra=1 (zero-param ret-only mono).
+ *
+ * Invariant: combos_out holds at most max_combos*combo_width entries; returns the
  * count of unique combos found (0 if no call sites or all incomplete).
  * PLATFORM: SHARED — single-pass scan; matching logic mirrors find_mono_type
  * (call_resolved_func_index==fi OR callee name==fn_local) but collects all
  * matches instead of returning the first.
  */
-function codegen_collect_mono_combos_for_generic_func(arena: *ASTArena, module: *Module, fi: i32, combos_out: *i32, max_combos: i32, num_params: i32): i32 {
+function codegen_collect_mono_combos_for_generic_func(arena: *ASTArena, module: *Module, fi: i32, combos_out: *i32, max_combos: i32, num_params: i32, ret_extra: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     if (arena == 0 as *ASTArena || module == 0 as *Module || fi < 0 || fi >= module.num_funcs) {
       return 0;
     }
-    if (combos_out == 0 as *i32 || max_combos <= 0 || num_params <= 0) {
+    let combo_width: i32 = num_params + ret_extra;
+    if (combos_out == 0 as *i32 || max_combos <= 0 || combo_width <= 0 || combo_width > 8) {
+      return 0;
+    }
+    if (num_params < 0 || ret_extra < 0 || ret_extra > 1) {
       return 0;
     }
     let fn_local: u8[64] = [];
@@ -13230,7 +13406,8 @@ function codegen_collect_mono_combos_for_generic_func(arena: *ASTArena, module: 
             matched = eq;
           }
         }
-        if (matched != 0 && e.call_num_args >= num_params) {
+        /* num_params==0: zero-arg calls still match (wave458 ret-only mono). */
+        if (matched != 0 && (num_params == 0 || e.call_num_args >= num_params)) {
           /* Build this call site's combo via the shared extraction helper. */
           let combo: i32[8] = [];
           let pi: i32 = 0;
@@ -13245,6 +13422,14 @@ function codegen_collect_mono_combos_for_generic_func(arena: *ASTArena, module: 
             }
             pi = pi + 1;
           }
+          if (valid != 0 && ret_extra != 0) {
+            let rty: i32 = codegen_call_ret_type_param_concrete_at(arena, ei);
+            if (rty <= 0) {
+              valid = 0;
+            } else {
+              combo[num_params] = rty;
+            }
+          }
           if (valid != 0) {
             /* Dedup: scan existing combos for an exact match. */
             let found: i32 = 0;
@@ -13252,10 +13437,10 @@ function codegen_collect_mono_combos_for_generic_func(arena: *ASTArena, module: 
             while (ci < combo_count) {
               let same: i32 = 1;
               let pi2: i32 = 0;
-              while (pi2 < num_params) {
-                if (combos_out[ci * num_params + pi2] != combo[pi2]) {
+              while (pi2 < combo_width) {
+                if (codegen_mono_combo_slot_equal(arena, combos_out[ci * combo_width + pi2], combo[pi2]) == 0) {
                   same = 0;
-                  pi2 = num_params;
+                  pi2 = combo_width;
                 }
                 pi2 = pi2 + 1;
               }
@@ -13267,8 +13452,8 @@ function codegen_collect_mono_combos_for_generic_func(arena: *ASTArena, module: 
             }
             if (found == 0 && combo_count < max_combos) {
               let pi3: i32 = 0;
-              while (pi3 < num_params) {
-                combos_out[combo_count * num_params + pi3] = combo[pi3];
+              while (pi3 < combo_width) {
+                combos_out[combo_count * combo_width + pi3] = combo[pi3];
                 pi3 = pi3 + 1;
               }
               combo_count = combo_count + 1;
@@ -13545,13 +13730,15 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
     let ret_ty: i32 = pipeline_module_func_return_type_at(module, fi);
     let p0_ty: i32 = pipeline_module_func_param_type_ref_at(module, fi, 0);
     /*
-     * wave450 Cap residual: zero value-param generic mono under bare link name.
-     * Why bare: call-site `codegen_emit_call_func_name` only mangles when
-     * `np_mono > 0` (value-arg types); zero-arg falls back to bare link name.
-     * Emit authority must match that consume-side contract (G.7 single path).
+     * wave450 Cap residual: zero value-param generic mono under bare link name
+     * when ret is **not** a type-param (phantom T, e.g. unit_t<T>():i32).
+     * wave458: when ret IS an uncovered type-param (`mk<T>():T`), do **not**
+     * take this bare single-instance path — fall through to multi-combo emit
+     * with ret_extra mono key (mk__A / mk__B). Call-site mangle agrees.
      * PLATFORM: SHARED — mirrors seed codegen_gen.linux.x86_64.c.
      */
-    if (num_params == 0) {
+    let ret_extra_zp: i32 = codegen_func_ret_type_param_extra(arena, module, fi);
+    if (num_params == 0 && ret_extra_zp == 0) {
       if (ret_ty <= 0) {
         return 0;
       }
@@ -13795,7 +13982,11 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
       }
       return 1;
     }
-    if (ret_ty <= 0 || p0_ty <= 0) {
+    /* wave458: zero-param ret-only has no p0; only require ret_ty. */
+    if (ret_ty <= 0) {
+      return 0;
+    }
+    if (num_params > 0 && p0_ty <= 0) {
       return 0;
     }
     /*
@@ -13805,7 +13996,8 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
      * Identity shape is still detected later only to choose body fallback.
      */
     let is_identity_shape: i32 = 0;
-    if (pipeline_type_kind_ord_at(arena, ret_ty) == TypeKind.TYPE_NAMED
+    if (num_params > 0
+        && pipeline_type_kind_ord_at(arena, ret_ty) == TypeKind.TYPE_NAMED
         && pipeline_type_kind_ord_at(arena, p0_ty) == TypeKind.TYPE_NAMED) {
       let ret_nm: u8[64] = [];
       let p0_nm: u8[64] = [];
@@ -13831,19 +14023,29 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
      * a distinct type gets its own mangled mono instance (e.g., copy<A> + copy<i32>
      * emit copy__A and copy__i32). Previously only the first call site's type was
      * emitted with the bare link name, causing duplicate-symbol errors when multiple
-     * type-arg combos targeted the same generic function. */
+     * type-arg combos targeted the same generic function.
+     * wave458: ret_extra appends uncovered ret type-param concrete to the key
+     * (`as_t__i32_A` vs `as_t__i32_B`; zero-param `mk__A` / `mk__B`). */
+    let ret_extra: i32 = ret_extra_zp;
+    let combo_width: i32 = num_params + ret_extra;
+    if (combo_width <= 0 || combo_width > 8) {
+      return 0;
+    }
     let combos: i32[128] = [];
-    let combo_count: i32 = codegen_collect_mono_combos_for_generic_func(arena, module, fi, &combos[0], 16, num_params);
+    let combo_count: i32 = codegen_collect_mono_combos_for_generic_func(arena, module, fi, &combos[0], 16, num_params, ret_extra);
     if (combo_count <= 0) {
       return 0;
     }
-    let pn_len: i32 = pipeline_module_func_param_name_len_at(module, fi, 0);
+    let pn_len: i32 = 1;
     let pn: u8[32] = [];
-    pipeline_module_func_param_name_copy32(module, fi, 0, &pn[0]);
-    if (pn_len <= 0) {
-      /* See implementation. */
-      pn[0] = 120;
-      pn_len = 1;
+    pn[0] = 120;
+    if (num_params > 0) {
+      pn_len = pipeline_module_func_param_name_len_at(module, fi, 0);
+      pipeline_module_func_param_name_copy32(module, fi, 0, &pn[0]);
+      if (pn_len <= 0) {
+        pn[0] = 120;
+        pn_len = 1;
+      }
     }
     let fn_local: u8[64] = [];
     codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
@@ -13872,102 +14074,29 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
         saved_func_index = ctx.current_func_index;
         saved_block_ref = ctx.current_block_ref;
         ctx.mono_active = 1;
-        ctx.mono_num_types = num_params;
+        ctx.mono_num_types = 0;
+        /* Value formals: map each formal type_ref → combo slot (identity T→A). */
         let sti0: i32 = 0;
         while (sti0 < num_params && sti0 < 8) {
           ctx.mono_generic_type_refs[sti0] = pipeline_module_func_param_type_ref_at(module, fi, sti0);
-          ctx.mono_concrete_type_refs[sti0] = combos[ci * num_params + sti0];
+          ctx.mono_concrete_type_refs[sti0] = combos[ci * combo_width + sti0];
           sti0 = sti0 + 1;
         }
+        ctx.mono_num_types = num_params;
         /*
-         * wave452: ret type-param not on any value formal (as_t<T>(i32):T).
-         * Param mono map only covers formals; if ret TYPE_NAMED name is not
-         * already a mapped generic, stamp T→concrete from turbofish type_arg
-         * or call resolved_type_ref (typeck fixup). Match call sites whose
-         * value-arg mono combo equals combos[ci].
+         * wave452/458: ret type-param not on any value formal.
+         * When ret_extra=1 the combo already ends with ret concrete — stamp map
+         * from that slot (authoritative per-combo, not first matching CALL).
+         * When ret_extra=0 but ret is still TYPE_NAMED (covered by a formal name),
+         * formals already mapped it. Keep legacy scan only if ret_extra and slot set.
          * PLATFORM: SHARED
          */
-        if (pipeline_type_kind_ord_at(arena, ret_ty) == TypeKind.TYPE_NAMED
-            && ctx.mono_num_types < 8) {
-          let ret_nm_m: u8[64] = [];
-          let ret_nl_m: i32 = pipeline_type_named_name_into(arena, ret_ty, &ret_nm_m[0]);
-          let ret_covered: i32 = 0;
-          let mi_c: i32 = 0;
-          while (mi_c < ctx.mono_num_types && ret_nl_m > 0) {
-            let gtr: i32 = ctx.mono_generic_type_refs[mi_c];
-            if (gtr > 0 && pipeline_type_kind_ord_at(arena, gtr) == TypeKind.TYPE_NAMED) {
-              let gnm_m: u8[64] = [];
-              let gnl_m: i32 = pipeline_type_named_name_into(arena, gtr, &gnm_m[0]);
-              if (gnl_m == ret_nl_m && gnl_m > 0) {
-                let bi_m: i32 = 0;
-                let eq_m: i32 = 1;
-                while (bi_m < gnl_m) {
-                  if (gnm_m[bi_m] != ret_nm_m[bi_m]) {
-                    eq_m = 0;
-                    bi_m = gnl_m;
-                  } else {
-                    bi_m = bi_m + 1;
-                  }
-                }
-                if (eq_m != 0) {
-                  ret_covered = 1;
-                  mi_c = ctx.mono_num_types;
-                }
-              }
-            }
-            mi_c = mi_c + 1;
-          }
-          if (ret_covered == 0) {
-            let ta_conc: i32 = 0;
-            let ei_m: i32 = 1;
-            while (ei_m <= arena.num_exprs && ta_conc <= 0) {
-              let e_m: Expr = ast.ast_arena_expr_get(arena, ei_m);
-              if (e_m.kind == ExprKind.EXPR_CALL && e_m.call_num_args >= num_params) {
-                let matched_m: i32 = 0;
-                if (e_m.call_resolved_func_index == fi) {
-                  matched_m = 1;
-                } else {
-                  if (!ast.ref_is_null(e_m.call_callee_ref) && e_m.call_callee_ref > 0
-                      && e_m.call_callee_ref <= arena.num_exprs) {
-                    let cal_m: Expr = ast.ast_arena_expr_get(arena, e_m.call_callee_ref);
-                    if (cal_m.kind == ExprKind.EXPR_VAR && cal_m.var_name_len == fn_len) {
-                      let eq_cm: i32 = 1;
-                      let k_cm: i32 = 0;
-                      while (k_cm < fn_len) {
-                        if (cal_m.var_name[k_cm] != fn_local[k_cm]) {
-                          eq_cm = 0;
-                          k_cm = fn_len;
-                        } else {
-                          k_cm = k_cm + 1;
-                        }
-                      }
-                      matched_m = eq_cm;
-                    }
-                  }
-                }
-                if (matched_m != 0) {
-                  let same_combo: i32 = 1;
-                  let pi_m: i32 = 0;
-                  while (pi_m < num_params) {
-                    let ty_m: i32 = codegen_call_mono_type_at(arena, ei_m, pi_m, e_m.call_num_args);
-                    if (ty_m != combos[ci * num_params + pi_m]) {
-                      same_combo = 0;
-                      pi_m = num_params;
-                    }
-                    pi_m = pi_m + 1;
-                  }
-                  if (same_combo != 0) {
-                    ta_conc = codegen_call_ret_type_param_concrete_at(arena, ei_m);
-                  }
-                }
-              }
-              ei_m = ei_m + 1;
-            }
-            if (ta_conc > 0 && ta_conc != ret_ty) {
-              ctx.mono_generic_type_refs[ctx.mono_num_types] = ret_ty;
-              ctx.mono_concrete_type_refs[ctx.mono_num_types] = ta_conc;
-              ctx.mono_num_types = ctx.mono_num_types + 1;
-            }
+        if (ret_extra != 0 && ctx.mono_num_types < 8) {
+          let ta_conc: i32 = combos[ci * combo_width + num_params];
+          if (ta_conc > 0 && ta_conc != ret_ty) {
+            ctx.mono_generic_type_refs[ctx.mono_num_types] = ret_ty;
+            ctx.mono_concrete_type_refs[ctx.mono_num_types] = ta_conc;
+            ctx.mono_num_types = ctx.mono_num_types + 1;
           }
         }
         ctx.current_func_index = fi;
@@ -14003,8 +14132,8 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
           return -1;
         }
       }
-      /* wave444: emit mangled mono symbol (link_name + __ + suffix per type arg). */
-      if (codegen_emit_mono_mangled_name(out, arena, module, fi, &combos[ci * num_params], num_params) != 0) {
+      /* wave444/458: mangled mono symbol (link_name + __ + suffix per combo slot). */
+      if (codegen_emit_mono_mangled_name(out, arena, module, fi, &combos[ci * combo_width], combo_width) != 0) {
         if (mono_ctx_set != 0) {
           ctx.mono_active = saved_mono_active;
           ctx.mono_num_types = saved_mono_num;
@@ -14022,6 +14151,8 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
         }
         return -1;
       }
+      /* wave458: zero-param ret-only → empty param list; open `(` already emitted. */
+      if (num_params > 0) {
       /* Param 0 type: original p0_ty under mono_active (T→concrete, i32 stays). */
       if (emit_type(arena, out, p0_ty, prefix, prefix_len, ctx) != 0) {
         if (mono_ctx_set != 0) {
@@ -14100,6 +14231,7 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
         }
         pi = pi + 1;
       }
+      } /* num_params > 0 */
       /* wave445 C4: emit open body `) {\n` (41=`)` 32=space 123=`{` 10=newline). */
       let open_body: u8[4] = [41, 32, 123, 10];
       if (emit_bytes_from_ptr(out, &open_body[0], 4) != 0) {
