@@ -1065,11 +1065,29 @@ static uint8_t *g_w439_src_data;
 static int32_t g_w439_src_len;
 
 /**
+ * TYPE_NAMED spelling "Self" (capital S) — not TOKEN_SELF lowercase binding.
+ * Used by self_matches_for and named_eq_self as the for-type alias.
+ * PLATFORM: SHARED parse.
+ */
+static int32_t xlang_skip_name_is_self_c(const uint8_t *nm, int32_t nl) {
+  return (nl == 4 && nm &&
+          nm[0] == (uint8_t)'S' && nm[1] == (uint8_t)'e' &&
+          nm[2] == (uint8_t)'l' && nm[3] == (uint8_t)'f')
+             ? 1
+             : 0;
+}
+
+/**
  * wave441: verify impl method's self (param0) type matches the impl's for-type.
  * Used both during method lookup (find the method belonging to THIS impl block,
  * not another impl of the same trait — two structs impl same trait was a
  * false-red: 2nd impl found 1st impl's method by name-only and failed self check)
  * and during wave428 self-type verification.
+ *
+ * wave470: TYPE_NAMED "Self" aliases the named non-ptr for-type. Default-method
+ * hoist re-parses the trait body with literal Self still on param0; without
+ * this alias, empty `impl Trait for A` false-reds "self type mismatch".
+ *
  * @param arena       ASTArena (void*) for kind/name access; may be null.
  * @param pty0        type_ref of impl method param0 (self); 0 if untyped.
  * @param for_k       for-type kind ord (g_xlang_skip_impl_for_kinds[si]); -1 unknown.
@@ -1101,6 +1119,7 @@ static int32_t xlang_skip_impl_self_matches_for_c(void *arena, int32_t pty0,
     if (gek == for_k && for_k == XLANG_TRAIT_TY_NAMED && for_nlen > 0 && for_name && elem != 0) {
       uint8_t gnm[64];
       int32_t gnl = pipeline_type_named_name_into(arena, elem, gnm);
+      /* *Self soft leave-off this wave (kind-level *Self rewrite). */
       if (gnl != for_nlen || memcmp(gnm, for_name, (size_t)for_nlen) != 0)
         return 0;
     }
@@ -1111,6 +1130,9 @@ static int32_t xlang_skip_impl_self_matches_for_c(void *arena, int32_t pty0,
   if (got0 == XLANG_TRAIT_TY_NAMED && for_nlen > 0 && for_name) {
     uint8_t gnm[64];
     int32_t gnl = pipeline_type_named_name_into(arena, pty0, gnm);
+    /* wave470: Self on free/default method ≡ named for-type. */
+    if (xlang_skip_name_is_self_c(gnm, gnl))
+      return (for_k == XLANG_TRAIT_TY_NAMED) ? 1 : 0;
     if (gnl != for_nlen || memcmp(gnm, for_name, (size_t)for_nlen) != 0)
       return 0;
   }
@@ -1125,6 +1147,10 @@ static int32_t xlang_skip_impl_self_matches_for_c(void *arena, int32_t pty0,
  * TYPE_NAMED spelling, not TOKEN_SELF). Completeness compared the literal
  * name "Self" to the impl's concrete type (e.g. A) → false-red
  * "parameter/return type mismatch" even when the impl correctly uses `for`.
+ *
+ * wave470: also accept got=="Self" when expect is Self (default hoist re-parse
+ * keeps literal Self on the free UFCS function) or when expect is the for-type
+ * name (impl wrote Self). Both sides mean the named non-ptr for-type.
  *
  * G.7 single authority: this helper; all NAMED name compares in
  * xlang_trait_check_impls_complete_c must call it (seed twin mirrors).
@@ -1145,19 +1171,70 @@ static int32_t xlang_skip_trait_named_eq_self_c(
     const uint8_t *expect_nm, int32_t expect_nl,
     const uint8_t *got_nm, int32_t got_nl,
     const uint8_t *for_nm, int32_t for_nl, int32_t for_ptr) {
+  int32_t exp_self;
+  int32_t got_self;
   if (expect_nl <= 0)
     return 1;
-  if (expect_nl == 4 && expect_nm &&
-      expect_nm[0] == (uint8_t)'S' && expect_nm[1] == (uint8_t)'e' &&
-      expect_nm[2] == (uint8_t)'l' && expect_nm[3] == (uint8_t)'f') {
-    /* Self → concrete for type name (named, non-ptr only this wave). */
+  exp_self = xlang_skip_name_is_self_c(expect_nm, expect_nl);
+  got_self = xlang_skip_name_is_self_c(got_nm, got_nl);
+  if (exp_self) {
+    /* Trait wrote Self → for-type (named, non-ptr only this wave). */
     if (for_ptr || for_nl <= 0 || !for_nm)
       return 0;
+    /* Default hoist: free fn still has Self; both sides alias for. */
+    if (got_self)
+      return 1;
     return (got_nl == for_nl && got_nm &&
             memcmp(got_nm, for_nm, (size_t)for_nl) == 0) ? 1 : 0;
   }
+  if (got_self) {
+    /* Impl/default side wrote Self; trait wrote concrete for name. */
+    if (for_ptr || for_nl <= 0 || !for_nm)
+      return 0;
+    return (expect_nl == for_nl && expect_nm &&
+            memcmp(expect_nm, for_nm, (size_t)for_nl) == 0) ? 1 : 0;
+  }
   return (got_nl == expect_nl && got_nm &&
           memcmp(got_nm, expect_nm, (size_t)expect_nl) == 0) ? 1 : 0;
+}
+
+/**
+ * wave470: rewrite TYPE_NAMED "Self" to the impl `for` named type.
+ * Used when hoisting trait default methods so UFCS method_call can match
+ * receiver type A against param0 type A (not the literal Self name).
+ * Soft: *Self / for_ptr / non-named for → leave type_ref unchanged.
+ * PLATFORM: SHARED parse.
+ * @param arena   ASTArena
+ * @param type_ref type to rewrite; 0 → 0
+ * @param for_nm  for-type name bytes
+ * @param for_nl  length
+ * @param for_ptr 1 if for is *T (no rewrite this wave)
+ * @return rewritten type_ref or original
+ */
+static int32_t xlang_skip_rewrite_self_type_ref_c(void *arena, int32_t type_ref,
+                                                   const uint8_t *for_nm, int32_t for_nl,
+                                                   int32_t for_ptr) {
+  int32_t k;
+  uint8_t gnm[64];
+  int32_t gnl;
+  extern int32_t pipeline_type_find_or_alloc_named(void *arena, uint8_t *name, int32_t name_len);
+  if (!arena || type_ref == 0 || for_ptr || for_nl <= 0 || !for_nm)
+    return type_ref;
+  k = pipeline_type_kind_ord_at(arena, type_ref);
+  if (k != XLANG_TRAIT_TY_NAMED)
+    return type_ref;
+  gnl = pipeline_type_named_name_into(arena, type_ref, gnm);
+  if (!xlang_skip_name_is_self_c(gnm, gnl))
+    return type_ref;
+  {
+    uint8_t for_copy[64];
+    int32_t n = for_nl;
+    if (n > 63)
+      n = 63;
+    memset(for_copy, 0, sizeof(for_copy));
+    memcpy(for_copy, for_nm, (size_t)n);
+    return pipeline_type_find_or_alloc_named(arena, for_copy, n);
+  }
 }
 
 /*
@@ -1168,16 +1245,21 @@ static int32_t xlang_skip_trait_named_eq_self_c(
  * empty `impl Trait for T {}` reported missing method and method_call failed
  * even when the trait provided a default body.
  *
+ * wave470: per-impl inject + rewrite TYPE_NAMED Self → for-type on param/ret
+ * so method_call UFCS type_refs_equal(receiver, param0) succeeds. Override /
+ * same-name with matching self skips inject. Multi empty impls get one free
+ * method per for-type (same link name; UFCS scores by self type).
+ *
  * G.7 authority: general onefunc parse (`parser_asm_parse_one_function_buf_into_c`)
  * + minimal module slot commit (same pipeline_* APIs as seed_commit_onefunc).
- * NOT library-shape parse (that path only accepts a special bool/Token form).
- * Skip inject when any same-name free function already exists (override wins).
- * Soft: Self rewrite; multi-trait same default name; complex stmt-order bodies
- *       that onefunc cannot parse.
+ * Soft: *Self; multi-trait same default name; complex stmt-order bodies that
+ *       onefunc cannot parse; dyn Trait.
  * PLATFORM: SHARED parse.
  */
 static int32_t xlang_skip_commit_default_onefunc_c(void *arena, void *module,
-                                                   struct parser_asm_onefunc_result *res) {
+                                                   struct parser_asm_onefunc_result *res,
+                                                   const uint8_t *for_nm, int32_t for_nl,
+                                                   int32_t for_ptr) {
   int32_t type_ref;
   int32_t final_expr_ref;
   int32_t block_ref;
@@ -1219,6 +1301,8 @@ static int32_t xlang_skip_commit_default_onefunc_c(void *arena, void *module,
     /* default i32 when untyped ret (rare for trait methods). */
     type_ref = pipeline_type_ensure_by_kind_ord(arena, (int32_t)PARSER_ASM_TYPE_I32);
   }
+  /* wave470: Self return → for-type before body wrap uses type_ref. */
+  type_ref = xlang_skip_rewrite_self_type_ref_c(arena, type_ref, for_nm, for_nl, for_ptr);
   if (type_ref == 0)
     return -1;
 
@@ -1313,12 +1397,16 @@ static int32_t xlang_skip_commit_default_onefunc_c(void *arena, void *module,
   pool = parser_asm_onefunc_result_pool_ptr_c(res);
   for (p_copy = 0; p_copy < res->num_params; p_copy++) {
     uint8_t pname32[32];
+    int32_t pty;
     memset(pname32, 0, sizeof(pname32));
     if (pool)
       pipeline_onefunc_param_name_copy32(pool, p_copy, pname32);
+    pty = pool ? pipeline_onefunc_param_type_ref(pool, p_copy) : 0;
+    /* wave470: self: Self / T: Self → for-type for UFCS match. */
+    pty = xlang_skip_rewrite_self_type_ref_c(arena, pty, for_nm, for_nl, for_ptr);
     pipeline_module_func_param_write(module, fi_mod, p_copy, pname32,
                                      pool ? pipeline_onefunc_param_name_len(pool, p_copy) : 0,
-                                     pool ? pipeline_onefunc_param_type_ref(pool, p_copy) : 0);
+                                     pty);
   }
   pipeline_module_func_ref_set(module, fi_mod, func_ref);
   pipeline_arena_func_copy_slot_from_module(arena, func_ref, module, fi_mod);
@@ -1326,6 +1414,7 @@ static int32_t xlang_skip_commit_default_onefunc_c(void *arena, void *module,
 }
 
 static void xlang_skip_hoist_default_methods_c(void *module) {
+  int32_t si;
   int32_t ti;
   int32_t mi;
   void *arena = g_xlang_trait_check_arena;
@@ -1335,7 +1424,22 @@ static void xlang_skip_hoist_default_methods_c(void *module) {
   parser_asm_onefunc_alloc_wired_for_parse_c(struct parser_asm_lexer lex);
   if (!module || !arena || !g_w439_src_data || g_w439_src_len <= 0)
     return;
-  for (ti = 0; ti < g_xlang_skip_trait_reg_n; ti++) {
+  /* wave470: per-impl inject so Self can be rewritten to each for-type. */
+  for (si = 0; si < g_xlang_skip_impl_seen_n; si++) {
+    int32_t tlen = g_xlang_skip_impl_trait_len[si];
+    uint8_t *tname = g_xlang_skip_impl_trait[si];
+    if (tlen <= 0)
+      continue;
+    ti = -1;
+    for (mi = 0; mi < g_xlang_skip_trait_reg_n; mi++) {
+      if (g_xlang_skip_trait_reg[mi].name_len == tlen &&
+          memcmp(g_xlang_skip_trait_reg[mi].name, tname, (size_t)tlen) == 0) {
+        ti = mi;
+        break;
+      }
+    }
+    if (ti < 0)
+      continue;
     for (mi = 0; mi < g_xlang_skip_trait_reg[ti].num_methods; mi++) {
       uint8_t *mnm;
       int32_t mlen;
@@ -1350,13 +1454,25 @@ static void xlang_skip_hoist_default_methods_c(void *module) {
       mlen = g_xlang_skip_trait_reg[ti].method_lens[mi];
       if (mlen <= 0)
         continue;
-      /* Override / free def already present → do not re-parse (avoids BLD001 redef). */
+      /* Override / free def for THIS for-type already present → skip. */
       exists = 0;
       nf = pipeline_module_num_funcs(module);
       for (fi = 0; fi < nf; fi++) {
         if (pipeline_module_func_name_equal_at(module, fi, mnm, mlen) != 0) {
-          exists = 1;
-          break;
+          int32_t pty0 = pipeline_module_func_param_type_ref_at(module, fi, 0);
+          if (xlang_skip_impl_self_matches_for_c(arena, pty0,
+                                                   g_xlang_skip_impl_for_kinds[si],
+                                                   g_xlang_skip_impl_for_is_ptr[si],
+                                                   g_xlang_skip_impl_for_names[si],
+                                                   g_xlang_skip_impl_for_name_lens[si])) {
+            exists = 1;
+            break;
+          }
+          /* Static default (no self / untyped): name-only match still skips. */
+          if (pipeline_module_func_num_params_at(module, fi) == 0) {
+            exists = 1;
+            break;
+          }
         }
       }
       if (exists)
@@ -1369,12 +1485,14 @@ static void xlang_skip_hoist_default_methods_c(void *module) {
         fn_lex.line = 1;
       if (fn_lex.col <= 0)
         fn_lex.col = 1;
-      /* Must wire onefunc pool before buf parse (same as seed_onefunc_wired). */
       res = parser_asm_onefunc_alloc_wired_for_parse_c(fn_lex);
       parser_asm_parse_one_function_buf_into_c(&res, arena, fn_lex, g_w439_src_data, g_w439_src_len);
       if (!res.ok)
         continue;
-      (void)xlang_skip_commit_default_onefunc_c(arena, module, &res);
+      (void)xlang_skip_commit_default_onefunc_c(arena, module, &res,
+                                                g_xlang_skip_impl_for_names[si],
+                                                g_xlang_skip_impl_for_name_lens[si],
+                                                g_xlang_skip_impl_for_is_ptr[si]);
     }
   }
 }

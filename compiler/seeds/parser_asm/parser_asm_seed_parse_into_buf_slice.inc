@@ -872,17 +872,61 @@ extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t type_ref);
 static int32_t parser_asm_seed_commit_onefunc_c(void *arena, void *module, struct parser_asm_onefunc_result *res,
                                                 int32_t func_is_async, int32_t *inout_main_idx,
                                                 struct parser_asm_lexer *inout_lex);
+/* Forward: Self helpers defined later (wave470 hoist needs them above register). */
+static int32_t xlang_seed_name_is_self_c(const uint8_t *nm, int32_t nl);
+static int32_t xlang_seed_impl_self_matches_for_c(void *arena, int32_t pty0, int32_t for_kind,
+                                                   int32_t for_is_ptr, const uint8_t *for_name,
+                                                   int32_t for_nlen);
+
+/**
+ * wave470: rewrite TYPE_NAMED Self → for named type (seed twin of
+ * xlang_skip_rewrite_self_type_ref_c). PLATFORM: SHARED parse.
+ */
+static int32_t xlang_seed_rewrite_self_type_ref_c(void *arena, int32_t type_ref,
+                                                   const uint8_t *for_nm, int32_t for_nl,
+                                                   int32_t for_ptr) {
+  int32_t k;
+  uint8_t gnm[64];
+  int32_t gnl;
+  extern int32_t pipeline_type_find_or_alloc_named(void *arena, uint8_t *name, int32_t name_len);
+  if (!arena || type_ref == 0 || for_ptr || for_nl <= 0 || !for_nm)
+    return type_ref;
+  k = pipeline_type_kind_ord_at(arena, type_ref);
+  if (k != XLANG_SEED_TRAIT_TY_NAMED)
+    return type_ref;
+  gnl = pipeline_type_named_name_into(arena, type_ref, gnm);
+  if (!xlang_seed_name_is_self_c(gnm, gnl))
+    return type_ref;
+  {
+    uint8_t for_copy[64];
+    int32_t n = for_nl;
+    if (n > 63)
+      n = 63;
+    memset(for_copy, 0, sizeof(for_copy));
+    memcpy(for_copy, for_nm, (size_t)n);
+    return pipeline_type_find_or_alloc_named(arena, for_copy, n);
+  }
+}
 
 /*
  * wave468: hoist trait default bodies as free UFCS methods (seed twin of
  * xlang_skip_hoist_default_methods_c). Uses general onefunc parse + seed_commit.
+ * wave470: Self → for rewrite on param/ret after commit; exists check is
+ * name + self match for this for-type (not name-only).
  * PLATFORM: SHARED parse.
  */
-static void xlang_seed_hoist_default_methods_c(void *module) {
+static void xlang_seed_hoist_default_methods_c(void *module, int32_t for_kind, int32_t for_is_ptr,
+                                                const uint8_t *for_name, int32_t for_nlen) {
   int32_t ti;
   int32_t mi;
   void *arena = g_xlang_seed_trait_check_arena;
   int32_t dummy_main = -1;
+  extern void pipeline_module_func_set_return_type(void *module, int32_t fi, int32_t type_ref);
+  extern void pipeline_module_func_param_write(void *module, int32_t func_index, int32_t param_index,
+                                              uint8_t *name_bytes, int32_t name_len, int32_t type_ref);
+  extern int32_t pipeline_module_func_param_name_len_at(void *module, int32_t fi, int32_t pi);
+  extern void pipeline_module_func_param_name_copy32(void *module, int32_t fi, int32_t pi, uint8_t *dst);
+  (void)for_kind;
   if (!module || !arena || !g_xlang_seed_trait_src_data || g_xlang_seed_trait_src_len <= 0)
     return;
   for (ti = 0; ti < g_xlang_trait_reg_n; ti++) {
@@ -892,6 +936,7 @@ static void xlang_seed_hoist_default_methods_c(void *module) {
       int32_t fi;
       int32_t nf;
       int32_t exists;
+      int32_t nf_before;
       struct parser_asm_lexer fn_lex;
       struct parser_asm_onefunc_result res;
       if (g_xlang_trait_reg[ti].method_has_default[mi] == 0)
@@ -904,8 +949,16 @@ static void xlang_seed_hoist_default_methods_c(void *module) {
       nf = pipeline_module_num_funcs(module);
       for (fi = 0; fi < nf; fi++) {
         if (pipeline_module_func_name_equal_at(module, fi, (uint8_t *)mnm, mlen) != 0) {
-          exists = 1;
-          break;
+          int32_t pty0 = pipeline_module_func_param_type_ref_at(module, fi, 0);
+          if (xlang_seed_impl_self_matches_for_c(arena, pty0, for_kind, for_is_ptr, for_name,
+                                                  for_nlen)) {
+            exists = 1;
+            break;
+          }
+          if (pipeline_module_func_num_params_at(module, fi) == 0) {
+            exists = 1;
+            break;
+          }
         }
       }
       if (exists)
@@ -923,7 +976,31 @@ static void xlang_seed_hoist_default_methods_c(void *module) {
                                               g_xlang_seed_trait_src_len);
       if (!res.ok)
         continue;
-      (void)parser_asm_seed_commit_onefunc_c(arena, module, &res, 0, &dummy_main, &fn_lex);
+      nf_before = pipeline_module_num_funcs(module);
+      if (parser_asm_seed_commit_onefunc_c(arena, module, &res, 0, &dummy_main, &fn_lex) != 0)
+        continue;
+      /* wave470: patch Self on the newly committed free method. */
+      if (pipeline_module_num_funcs(module) > nf_before) {
+        int32_t new_fi = nf_before;
+        int32_t rty = pipeline_module_func_return_type_at(module, new_fi);
+        int32_t nparams = pipeline_module_func_num_params_at(module, new_fi);
+        int32_t pi;
+        rty = xlang_seed_rewrite_self_type_ref_c(arena, rty, for_name, for_nlen, for_is_ptr);
+        pipeline_module_func_set_return_type(module, new_fi, rty);
+        for (pi = 0; pi < nparams; pi++) {
+          int32_t pty = pipeline_module_func_param_type_ref_at(module, new_fi, pi);
+          uint8_t pname32[32];
+          int32_t plen;
+          memset(pname32, 0, sizeof(pname32));
+          plen = pipeline_module_func_param_name_len_at(module, new_fi, pi);
+          if (plen > 0)
+            pipeline_module_func_param_name_copy32(module, new_fi, pi, pname32);
+          if (plen > 32)
+            plen = 32;
+          pty = xlang_seed_rewrite_self_type_ref_c(arena, pty, for_name, for_nlen, for_is_ptr);
+          pipeline_module_func_param_write(module, new_fi, pi, pname32, plen, pty);
+        }
+      }
     }
   }
 }
@@ -1772,6 +1849,18 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
  *         0 if definite mismatch.
  * PLATFORM: SHARED parse.
  */
+/**
+ * TYPE_NAMED spelling "Self" (seed twin of xlang_skip_name_is_self_c).
+ * PLATFORM: SHARED parse.
+ */
+static int32_t xlang_seed_name_is_self_c(const uint8_t *nm, int32_t nl) {
+  return (nl == 4 && nm &&
+          nm[0] == (uint8_t)'S' && nm[1] == (uint8_t)'e' &&
+          nm[2] == (uint8_t)'l' && nm[3] == (uint8_t)'f')
+             ? 1
+             : 0;
+}
+
 static int32_t xlang_seed_impl_self_matches_for_c(void *arena, int32_t pty0,
                                                     int32_t for_kind, int32_t for_is_ptr,
                                                     const uint8_t *for_name, int32_t for_nlen) {
@@ -1793,6 +1882,7 @@ static int32_t xlang_seed_impl_self_matches_for_c(void *arena, int32_t pty0,
     if (gek == for_kind && for_kind == XLANG_SEED_TRAIT_TY_NAMED && for_nlen > 0 && for_name && elem != 0) {
       uint8_t gnm[64];
       int32_t gnl = pipeline_type_named_name_into(arena, elem, gnm);
+      /* *Self soft leave-off this wave. */
       if (gnl != for_nlen || memcmp(gnm, for_name, (size_t)for_nlen) != 0)
         return 0;
     }
@@ -1803,6 +1893,9 @@ static int32_t xlang_seed_impl_self_matches_for_c(void *arena, int32_t pty0,
   if (got0 == XLANG_SEED_TRAIT_TY_NAMED && for_nlen > 0 && for_name) {
     uint8_t gnm[64];
     int32_t gnl = pipeline_type_named_name_into(arena, pty0, gnm);
+    /* wave470: Self on free/default method ≡ named for-type. */
+    if (xlang_seed_name_is_self_c(gnm, gnl))
+      return (for_kind == XLANG_SEED_TRAIT_TY_NAMED) ? 1 : 0;
     if (gnl != for_nlen || memcmp(gnm, for_name, (size_t)for_nlen) != 0)
       return 0;
   }
@@ -1814,6 +1907,7 @@ static int32_t xlang_seed_impl_self_matches_for_c(void *arena, int32_t pty0,
  * `for` type name when matching method param/ret signatures (seed twin of
  * xlang_skip_trait_named_eq_self_c).
  *
+ * wave470: also accept got=="Self" (default hoist) and got Self vs expect for.
  * G.7 single authority pair with skip_tl; same semantics and soft leaves.
  * PLATFORM: SHARED parse.
  *
@@ -1830,15 +1924,25 @@ static int32_t xlang_seed_trait_named_eq_self_c(
     const uint8_t *expect_nm, int32_t expect_nl,
     const uint8_t *got_nm, int32_t got_nl,
     const uint8_t *for_nm, int32_t for_nl, int32_t for_ptr) {
+  int32_t exp_self;
+  int32_t got_self;
   if (expect_nl <= 0)
     return 1;
-  if (expect_nl == 4 && expect_nm &&
-      expect_nm[0] == (uint8_t)'S' && expect_nm[1] == (uint8_t)'e' &&
-      expect_nm[2] == (uint8_t)'l' && expect_nm[3] == (uint8_t)'f') {
+  exp_self = xlang_seed_name_is_self_c(expect_nm, expect_nl);
+  got_self = xlang_seed_name_is_self_c(got_nm, got_nl);
+  if (exp_self) {
     if (for_ptr || for_nl <= 0 || !for_nm)
       return 0;
+    if (got_self)
+      return 1;
     return (got_nl == for_nl && got_nm &&
             memcmp(got_nm, for_nm, (size_t)for_nl) == 0) ? 1 : 0;
+  }
+  if (got_self) {
+    if (for_ptr || for_nl <= 0 || !for_nm)
+      return 0;
+    return (expect_nl == for_nl && expect_nm &&
+            memcmp(expect_nm, for_nm, (size_t)for_nl) == 0) ? 1 : 0;
   }
   return (got_nl == expect_nl && got_nm &&
           memcmp(got_nm, expect_nm, (size_t)expect_nl) == 0) ? 1 : 0;
@@ -1856,8 +1960,8 @@ static int32_t parser_asm_seed_check_impl_missing_methods_c(void *module, const 
   void *arena = g_xlang_seed_trait_check_arena;
   if (!module || !trait_nm || trait_nlen <= 0)
     return 0;
-  /* wave468: inject default bodies before missing-method scan (seed twin). */
-  xlang_seed_hoist_default_methods_c(module);
+  /* wave468/wave470: inject defaults; Self rewritten to this for-type. */
+  xlang_seed_hoist_default_methods_c(module, for_kind, for_is_ptr, for_name, for_nlen);
   ti = xlang_trait_reg_find_c(trait_nm, trait_nlen);
   /* wave424: hard fail — was soft leave-off return 0 (LANG-004 unknown_trait). */
   if (ti < 0) {
