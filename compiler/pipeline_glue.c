@@ -33954,6 +33954,312 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_method_call_c(struct as
  */
 static int32_t pipeline_typeck_named_is_module_type_c(struct ast_Module *mod, struct ast_ASTArena *arena,
                                                      const uint8_t *nm, int32_t nlen);
+
+/*
+ * wave486 Cap residual pure: monomorphize a generic *module* return type tree.
+ *
+ * Why: wave451–457 fixups only handle ret TYPE_NAMED equal to a free type-param
+ * (`: T` / `: U`). Functions like `nest<T>(x:T): Wrap<Wrap<T>>` stamp CALL with
+ * the generic signature return (TYPE_NAMED Wrap whose type-arg tree still holds
+ * free T). Field typeck mono (`pipeline_typeck_field_apply_mono_type_arg_c`) then
+ * sees `inner: T` → free T → chain `nest(...).inner.inner.v` typecks as `found ?`.
+ *
+ * Authority (G.7 single path): glue_generic_call_fixup_resolved_type_c calls
+ * these helpers after formal-identity fails and before the ret-is-type-param
+ * branch. Map free formal names → value-arg concrete types; recursively
+ * substitute TYPE_NAMED trees; allocate fresh TYPE_NAMED + type-pos args so
+ * mono field resolution can walk Wrap→Wrap→A→i32.
+ *
+ * Soft leave-off: formals that are themselves generic structs (`x: Wrap<T>`)
+ * needing pattern-unify with arg type_args; ret-only free params still use the
+ * existing type-param path below. PLATFORM: SHARED — rebuild
+ * pipeline_glue_standalone.o after edit.
+ */
+enum { W486_MONO_MAX_MAP = 8, W486_MONO_MAX_TARGS = 8, W486_MONO_MAX_DEPTH = 12 };
+
+static int32_t glue_typeck_mono_map_lookup_c(uint8_t names[][64], const int32_t *lens, const int32_t *conc,
+                                            int32_t n_map, const uint8_t *nm, int32_t nlen) {
+  int32_t i;
+  int32_t k;
+  if (!names || !lens || !conc || !nm || nlen <= 0 || n_map <= 0)
+    return 0;
+  for (i = 0; i < n_map; i++) {
+    if (lens[i] != nlen)
+      continue;
+    for (k = 0; k < nlen; k++) {
+      if (names[i][k] != nm[k])
+        break;
+    }
+    if (k == nlen)
+      return conc[i];
+  }
+  return 0;
+}
+
+/** Count type-position args on TYPE_NAMED (array_size preferred; sidecar walk fallback). */
+static int32_t glue_typeck_named_num_type_args_c(struct ast_ASTArena *arena, int32_t ty) {
+  int32_t n;
+  int32_t asz;
+  int32_t i;
+  extern int32_t pipeline_type_type_arg_ref_at(struct ast_ASTArena *a, int32_t type_ref, int32_t idx);
+  if (!arena || ty <= 0)
+    return 0;
+  asz = pipeline_type_array_size_at(arena, ty);
+  if (asz > 0 && asz <= W486_MONO_MAX_TARGS)
+    return asz;
+  n = 0;
+  for (i = 0; i < W486_MONO_MAX_TARGS; i++) {
+    if (pipeline_type_type_arg_ref_at(arena, ty, i) <= 0)
+      break;
+    n = i + 1;
+  }
+  return n;
+}
+
+/** 1 if TYPE_NAMED tree contains a free type-param name (not a module concrete). */
+static int32_t glue_typeck_type_tree_has_free_param_c(struct ast_Module *mod, struct ast_ASTArena *arena, int32_t ty,
+                                                     int32_t depth) {
+  int32_t kind;
+  int32_t nlen;
+  uint8_t nm[64];
+  int32_t n_ta;
+  int32_t i;
+  int32_t ta;
+  int32_t elem;
+  extern int32_t pipeline_type_type_arg_ref_at(struct ast_ASTArena *a, int32_t type_ref, int32_t idx);
+  if (!mod || !arena || ty <= 0 || depth > W486_MONO_MAX_DEPTH)
+    return 0;
+  kind = pipeline_type_kind_ord_at(arena, ty);
+  if (kind == (int32_t)ast_TypeKind_TYPE_NAMED) {
+    memset(nm, 0, sizeof(nm));
+    nlen = pipeline_type_named_name_into(arena, ty, nm);
+    if (nlen <= 0)
+      return 0;
+    if (pipeline_typeck_named_is_module_type_c(mod, arena, nm, nlen) == 0)
+      return 1; /* free type param */
+    n_ta = glue_typeck_named_num_type_args_c(arena, ty);
+    for (i = 0; i < n_ta; i++) {
+      ta = pipeline_type_type_arg_ref_at(arena, ty, i);
+      if (ta > 0 && glue_typeck_type_tree_has_free_param_c(mod, arena, ta, depth + 1))
+        return 1;
+    }
+    return 0;
+  }
+  if (kind == (int32_t)ast_TypeKind_TYPE_PTR || kind == (int32_t)ast_TypeKind_TYPE_SLICE ||
+      kind == (int32_t)ast_TypeKind_TYPE_ARRAY || kind == (int32_t)ast_TypeKind_TYPE_VECTOR) {
+    elem = pipeline_type_elem_ref_at(arena, ty);
+    if (elem > 0)
+      return glue_typeck_type_tree_has_free_param_c(mod, arena, elem, depth + 1);
+  }
+  return 0;
+}
+
+/**
+ * Allocate TYPE_NAMED with type-pos args (never reuse find_or_alloc_named — that
+ * collapses mono combos that share the same bare name).
+ */
+static int32_t glue_typeck_alloc_named_with_type_args_c(struct ast_ASTArena *arena, uint8_t *name, int32_t name_len,
+                                                       const int32_t *arg_refs, int32_t n_args) {
+  int32_t tr;
+  int32_t i;
+  struct ast_Type *t;
+  extern int32_t pipeline_type_append_type_arg(struct ast_ASTArena *a, int32_t type_ref, int32_t arg_ref);
+  if (!arena || !name || name_len <= 0 || name_len > 63)
+    return 0;
+  if (n_args < 0 || n_args > W486_MONO_MAX_TARGS)
+    return 0;
+  tr = pipeline_arena_type_alloc(arena);
+  if (tr <= 0)
+    return 0;
+  if (pipeline_type_init_named_at(arena, tr, name, name_len) == 0)
+    return 0;
+  for (i = 0; i < n_args; i++) {
+    if (arg_refs[i] <= 0)
+      return 0;
+    if (pipeline_type_append_type_arg(arena, tr, arg_refs[i]) != 0)
+      return 0;
+  }
+  t = pipeline_arena_type_ptr(arena, tr);
+  if (t && n_args > 0) {
+    t->elem_type_ref = arg_refs[0];
+    t->array_size = n_args;
+  }
+  return tr;
+}
+
+/**
+ * Recursively substitute free type-params in ty (src_arena) into dst_arena using
+ * the mono map. Concrete module names without free params map by name; named
+ * types with type-args always allocate a fresh mono node.
+ * @return concrete type_ref in dst_arena, or 0 on failure
+ */
+static int32_t glue_typeck_subst_type_ref_c(struct ast_Module *mod, struct ast_ASTArena *src_arena,
+                                           struct ast_ASTArena *dst_arena, int32_t ty, uint8_t names[][64],
+                                           const int32_t *lens, const int32_t *conc, int32_t n_map, int32_t depth) {
+  int32_t kind;
+  int32_t nlen;
+  uint8_t nm[64];
+  int32_t n_ta;
+  int32_t i;
+  int32_t ta;
+  int32_t sa;
+  int32_t args[W486_MONO_MAX_TARGS];
+  int32_t elem;
+  int32_t mapped_elem;
+  int32_t asz;
+  int32_t looked;
+  extern int32_t pipeline_type_type_arg_ref_at(struct ast_ASTArena *a, int32_t type_ref, int32_t idx);
+  extern int32_t pipeline_type_find_or_alloc_compound(struct ast_ASTArena *a, int32_t kind_ord, int32_t elem_ref,
+                                                     int32_t array_size);
+  extern int32_t pipeline_type_find_or_alloc_slice(struct ast_ASTArena *a, int32_t elem_ref, uint8_t *rbuf,
+                                                  int32_t rlen);
+
+  if (!mod || !src_arena || !dst_arena || ty <= 0 || depth > W486_MONO_MAX_DEPTH)
+    return 0;
+  kind = pipeline_type_kind_ord_at(src_arena, ty);
+  if (kind < 0)
+    return 0;
+  if (kind == (int32_t)ast_TypeKind_TYPE_I32 || kind == (int32_t)ast_TypeKind_TYPE_I64 ||
+      kind == (int32_t)ast_TypeKind_TYPE_BOOL || kind == (int32_t)ast_TypeKind_TYPE_F64 ||
+      kind == (int32_t)ast_TypeKind_TYPE_U8 || kind == (int32_t)ast_TypeKind_TYPE_U32 ||
+      kind == (int32_t)ast_TypeKind_TYPE_U64 || kind == (int32_t)ast_TypeKind_TYPE_ISIZE ||
+      kind == (int32_t)ast_TypeKind_TYPE_F32 || kind == (int32_t)ast_TypeKind_TYPE_USIZE ||
+      kind == (int32_t)ast_TypeKind_TYPE_VOID)
+    return pipeline_type_ensure_by_kind_ord(dst_arena, kind);
+
+  if (kind == (int32_t)ast_TypeKind_TYPE_NAMED) {
+    memset(nm, 0, sizeof(nm));
+    nlen = pipeline_type_named_name_into(src_arena, ty, nm);
+    if (nlen <= 0)
+      return 0;
+    if (pipeline_typeck_named_is_module_type_c(mod, src_arena, nm, nlen) == 0) {
+      looked = glue_typeck_mono_map_lookup_c(names, lens, conc, n_map, nm, nlen);
+      return looked > 0 ? looked : 0;
+    }
+    n_ta = glue_typeck_named_num_type_args_c(src_arena, ty);
+    if (n_ta <= 0)
+      return pipeline_type_find_or_alloc_named(dst_arena, nm, nlen);
+    for (i = 0; i < n_ta; i++) {
+      ta = pipeline_type_type_arg_ref_at(src_arena, ty, i);
+      if (ta <= 0)
+        return 0;
+      sa = glue_typeck_subst_type_ref_c(mod, src_arena, dst_arena, ta, names, lens, conc, n_map, depth + 1);
+      if (sa <= 0)
+        return 0;
+      args[i] = sa;
+    }
+    return glue_typeck_alloc_named_with_type_args_c(dst_arena, nm, nlen, args, n_ta);
+  }
+
+  elem = pipeline_type_elem_ref_at(src_arena, ty);
+  mapped_elem = 0;
+  if (elem > 0) {
+    mapped_elem =
+        glue_typeck_subst_type_ref_c(mod, src_arena, dst_arena, elem, names, lens, conc, n_map, depth + 1);
+    if (mapped_elem <= 0)
+      return 0;
+  }
+  asz = pipeline_type_array_size_at(src_arena, ty);
+  if (kind == (int32_t)ast_TypeKind_TYPE_PTR)
+    return pipeline_type_find_or_alloc_compound(dst_arena, (int32_t)ast_TypeKind_TYPE_PTR, mapped_elem, 0);
+  if (kind == (int32_t)ast_TypeKind_TYPE_VECTOR)
+    return pipeline_type_find_or_alloc_compound(dst_arena, (int32_t)ast_TypeKind_TYPE_VECTOR, mapped_elem, asz);
+  if (kind == (int32_t)ast_TypeKind_TYPE_ARRAY) {
+    if (mapped_elem <= 0 || asz <= 0)
+      return 0;
+    return pipeline_type_find_or_alloc_compound(dst_arena, (int32_t)ast_TypeKind_TYPE_ARRAY, mapped_elem, asz);
+  }
+  if (kind == (int32_t)ast_TypeKind_TYPE_SLICE)
+    return pipeline_type_find_or_alloc_slice(dst_arena, mapped_elem, NULL, 0);
+  return 0;
+}
+
+/**
+ * Build formal free-type-param map from value args; if ret is a module named
+ * type whose type-arg tree still holds free params, stamp mono return.
+ * @return mono type_ref in caller arena, or 0 if not applicable / incomplete
+ */
+static int32_t glue_generic_call_subst_module_ret_c(struct ast_Module *search_mod, struct ast_ASTArena *search_arena,
+                                                   struct ast_ASTArena *caller_arena, int32_t call_expr_ref,
+                                                   int32_t func_idx, int32_t ret_ty) {
+  int32_t ord_named = (int32_t)ast_TypeKind_TYPE_NAMED;
+  int32_t num_params;
+  int32_t pi;
+  int32_t n_map;
+  uint8_t map_names[W486_MONO_MAX_MAP][64];
+  int32_t map_lens[W486_MONO_MAX_MAP];
+  int32_t map_conc[W486_MONO_MAX_MAP];
+  uint8_t ret_nm[64];
+  int32_t ret_nlen;
+  int32_t param_ty;
+  uint8_t param_nm[64];
+  int32_t param_nlen;
+  int32_t arg_i;
+  int32_t arg_ty;
+  int32_t gi;
+  int32_t dup;
+  int32_t mono_ret;
+
+  if (!search_mod || !search_arena || !caller_arena || call_expr_ref <= 0 || func_idx < 0 || ret_ty <= 0)
+    return 0;
+  if (pipeline_type_kind_ord_at(search_arena, ret_ty) != ord_named)
+    return 0;
+  memset(ret_nm, 0, sizeof(ret_nm));
+  ret_nlen = pipeline_type_named_name_into(search_arena, ret_ty, ret_nm);
+  if (ret_nlen <= 0)
+    return 0;
+  /* Only module returns (Wrap / Pair / …). Free type-param ret uses path below. */
+  if (pipeline_typeck_named_is_module_type_c(search_mod, search_arena, ret_nm, ret_nlen) == 0)
+    return 0;
+  if (glue_typeck_type_tree_has_free_param_c(search_mod, search_arena, ret_ty, 0) == 0)
+    return 0;
+
+  n_map = 0;
+  num_params = pipeline_module_func_num_params_at(search_mod, func_idx);
+  for (pi = 0; pi < num_params && n_map < W486_MONO_MAX_MAP; pi++) {
+    param_ty = pipeline_module_func_param_type_ref_at(search_mod, func_idx, pi);
+    if (param_ty <= 0 || pipeline_type_kind_ord_at(search_arena, param_ty) != ord_named)
+      continue;
+    memset(param_nm, 0, sizeof(param_nm));
+    param_nlen = pipeline_type_named_name_into(search_arena, param_ty, param_nm);
+    if (param_nlen <= 0)
+      continue;
+    if (pipeline_typeck_named_is_module_type_c(search_mod, search_arena, param_nm, param_nlen) != 0)
+      continue; /* formal is concrete/module named, not free T */
+    dup = 0;
+    for (gi = 0; gi < n_map; gi++) {
+      if (map_lens[gi] == param_nlen && memcmp(map_names[gi], param_nm, (size_t)param_nlen) == 0) {
+        dup = 1;
+        break;
+      }
+    }
+    if (dup)
+      continue;
+    arg_i = pipeline_expr_call_arg_ref(caller_arena, call_expr_ref, pi);
+    if (arg_i <= 0)
+      continue;
+    arg_ty = pipeline_expr_resolved_type_ref(caller_arena, arg_i);
+    if (arg_ty <= 0)
+      continue;
+    memset(map_names[n_map], 0, 64);
+    memcpy(map_names[n_map], param_nm, (size_t)param_nlen);
+    map_lens[n_map] = param_nlen;
+    map_conc[n_map] = arg_ty;
+    n_map = n_map + 1;
+  }
+  if (n_map <= 0)
+    return 0;
+
+  mono_ret = glue_typeck_subst_type_ref_c(search_mod, search_arena, caller_arena, ret_ty, map_names, map_lens,
+                                         map_conc, n_map, 0);
+  if (mono_ret <= 0)
+    return 0;
+  /* Fail-closed: mono tree must not still contain free type params. */
+  if (glue_typeck_type_tree_has_free_param_c(search_mod, caller_arena, mono_ret, 0) != 0)
+    return 0;
+  return mono_ret;
+}
+
 static int32_t glue_generic_call_fixup_resolved_type_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                        int32_t call_expr_ref, struct ast_PipelineDepCtx *ctx,
                                                        int32_t expected_ret) {
@@ -34084,6 +34390,19 @@ static int32_t glue_generic_call_fixup_resolved_type_c(struct ast_Module *module
       continue;
     pipeline_expr_set_resolved_type_ref(arena, call_expr_ref, arg_ty);
     return 0;
+  }
+  /*
+   * wave486: module-named return with free type-params in the type-arg tree
+   * (`Wrap<Wrap<T>>`). Formal-identity only covers ret name == free param.
+   * Substitute T→concrete from value formals so field mono can chain.
+   */
+  {
+    int32_t mono_mod_ret =
+        glue_generic_call_subst_module_ret_c(search_mod, search_arena, arena, call_expr_ref, func_idx, ret_ty);
+    if (mono_mod_ret > 0) {
+      pipeline_expr_set_resolved_type_ref(arena, call_expr_ref, mono_mod_ret);
+      return 0;
+    }
   }
   /*
    * wave452: ret TYPE_NAMED is a type parameter not present on any value
