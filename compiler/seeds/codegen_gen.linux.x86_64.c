@@ -7075,19 +7075,18 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
       }
       return codegen_emit_bytes_3(out, fallback, 2);
     }
-    /* wave459 Cap residual pure: host-C aggregate `as` cast.
-     * Root: `((struct A)(x))` is invalid C (BLD001). When target is a module user
-     * struct (after alias peel + mono subst), emit C99 compound literal
-     * `((TYPE){ (op) })` — first field init, rest zero. Scalar/pointer keep cast.
-     * wave461: compound only when operand is NOT a module user struct; struct-valued
-     * op emits identity `(op)` (same-type `a as A` greens; A→B soft).
-     * G.7: EXPR_AS authority only; reuse codegen_mono_subst_type +
-     * codegen_type_is_module_user_struct + pipeline_expr_resolved_type_ref.
+    /* wave459/461/462 Cap residual pure: host-C aggregate `as` cast.
+     * wave459: struct target → C99 compound `((TYPE){ (op) })` (scalar op).
+     * wave461: same-type struct op → identity `(op)`.
+     * wave462: different-type struct op (A→B / struct→scalar) → GNU stmt-expr
+     * type-pun `({ OP_TY __xlang_as_o = (op); *(TGT *)(void *)&__xlang_as_o; })`.
+     * G.7: EXPR_AS authority; reuse mono + module_user_struct + type_refs_equal.
      * PLATFORM: SHARED host-C. Mirror codegen.x. */
     if (((e.kind) ==54)) {
       int32_t as_tgt = (e.as_target_type_ref);
       int32_t as_struct = 0;
       int32_t as_op_struct = 0;
+      int32_t op_ty = 0;
       if (!(ast_ref_is_null(as_tgt))) {
         as_tgt = pipeline_typeck_resolve_type_alias_ref_c(arena, as_tgt);
         as_tgt = codegen_mono_subst_type(ctx, arena, as_tgt);
@@ -7097,11 +7096,11 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
           && (codegen_type_is_module_user_struct((ctx->current_codegen_module), arena, as_tgt) !=0))) {
         as_struct = 1;
       }
-      /* wave461: struct-valued operand → identity value copy, not first-field compound. */
-      if (((as_struct != 0) && (!(ast_ref_is_null((e.as_operand_ref))))
+      /* wave461/462: resolve operand type; detect module user struct. */
+      if (((!(ast_ref_is_null((e.as_operand_ref))))
           && (ctx != ((struct ast_PipelineDepCtx *)(0)))
           && ((ctx->current_codegen_module) != ((struct ast_Module *)(0))))) {
-        int32_t op_ty = pipeline_expr_resolved_type_ref(arena, (e.as_operand_ref));
+        op_ty = pipeline_expr_resolved_type_ref(arena, (e.as_operand_ref));
         if (!(ast_ref_is_null(op_ty))) {
           op_ty = pipeline_typeck_resolve_type_alias_ref_c(arena, op_ty);
           op_ty = codegen_mono_subst_type(ctx, arena, op_ty);
@@ -7111,7 +7110,10 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
           }
         }
       }
-      if (((as_struct != 0) && (as_op_struct != 0))) {
+      /* Same-type struct op + struct target: identity `(op)`. */
+      if (((as_struct != 0) && (as_op_struct != 0)
+          && (!(ast_ref_is_null(op_ty))) && (!(ast_ref_is_null(as_tgt)))
+          && (pipeline_typeck_type_refs_equal_c(arena, op_ty, as_tgt) !=0))) {
         if ((codegen_append_byte(out, 40) !=0)) {
           return -(1);
         }
@@ -7119,6 +7121,48 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
           return -(1);
         }
         return codegen_append_byte(out, 41);
+      }
+      /* wave462: struct op → different type: type-pun stmt-expr. */
+      if (((as_op_struct != 0) && (!(ast_ref_is_null(op_ty))))) {
+        /* ({  */
+        if ((codegen_append_byte(out, 40) !=0)) { return -(1); }
+        if ((codegen_append_byte(out, 123) !=0)) { return -(1); }
+        if ((codegen_append_byte(out, 32) !=0)) { return -(1); }
+        if ((codegen_emit_type(arena, out, op_ty, ((uint8_t *)(0)), 0, ctx) !=0)) {
+          return -(1);
+        }
+        /*  __xlang_as_o = ( */
+        {
+          uint8_t as_pun_nm[20] = {
+            32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 115, 95, 111, 32, 61, 32, 40, 0, 0, 0
+          };
+          if ((codegen_emit_bytes_from_ptr(out, &as_pun_nm[0], 17) !=0)) {
+            return -(1);
+          }
+        }
+        if ((!(ast_ref_is_null((e.as_operand_ref))) && (codegen_emit_expr(arena, out, (e.as_operand_ref), ctx) !=0))) {
+          return -(1);
+        }
+        /* ); *( */
+        if ((codegen_append_byte(out, 41) !=0)) { return -(1); }
+        if ((codegen_append_byte(out, 59) !=0)) { return -(1); }
+        if ((codegen_append_byte(out, 32) !=0)) { return -(1); }
+        if ((codegen_append_byte(out, 42) !=0)) { return -(1); }
+        if ((codegen_append_byte(out, 40) !=0)) { return -(1); }
+        if ((codegen_emit_type(arena, out, (e.as_target_type_ref), ((uint8_t *)(0)), 0, ctx) !=0)) {
+          return -(1);
+        }
+        /*  *)(void *)&__xlang_as_o; }) */
+        {
+          uint8_t as_pun_end[32] = {
+            32, 42, 41, 40, 118, 111, 105, 100, 32, 42, 41, 38, 95, 95, 120, 108,
+            97, 110, 103, 95, 97, 115, 95, 111, 59, 32, 125, 41, 0, 0, 0, 0
+          };
+          if ((codegen_emit_bytes_from_ptr(out, &as_pun_end[0], 28) !=0)) {
+            return -(1);
+          }
+        }
+        return 0;
       }
       if ((codegen_append_byte(out, 40) !=0)) {
         return -(1);

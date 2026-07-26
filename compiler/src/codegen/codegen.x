@@ -6576,13 +6576,21 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
      * NOT already a module user struct. wave459 always wrapped op as the
      * first field, so `let b: A = a as A` / `a as B` emitted
      * `((struct A){ (a) })` → host C "initializing int32_t with struct A"
-     * BLD001. Struct-valued operand is a value copy: emit `(op)` only
-     * (same-type identity AS greens; different-type struct→struct remains
-     * soft host BLD001 / typeck leave-off — not field-wise reinterpreting).
-     * G.7 authority: this EXPR_AS branch only; reuse
-     * codegen_mono_subst_type + codegen_type_is_module_user_struct +
-     * pipeline_expr_resolved_type_ref (no second path).
-     * PLATFORM: SHARED host-C emit.
+     * BLD001. Same-type struct op → identity `(op)`.
+     *
+     * wave462 Cap residual pure: struct-valued operand for *different* target
+     * (A→B or struct→scalar) still failed host C — wave461 identity only works
+     * when types match; `struct B b = (a)` is incompatible, `((int32_t)(a))`
+     * needs arithmetic/pointer. Root: no legal host emit for layout-compatible
+     * reinterpret. Fix (same EXPR_AS authority): when op is module user struct
+     * and types are not equal, emit GNU statement-expression type-pun used
+     * elsewhere in host-C (call-array temps): 
+     * `({ OP_TY __xlang_as_o = (op); *(TGT *)(void *)&__xlang_as_o; })`.
+     * Same-type keeps identity; scalar→struct keeps compound; scalar→scalar cast.
+     * G.7: EXPR_AS only; reuse codegen_mono_subst_type +
+     * codegen_type_is_module_user_struct + pipeline_expr_resolved_type_ref +
+     * pipeline_typeck_type_refs_equal_c (no second cast path).
+     * PLATFORM: SHARED host-C emit (GNU stmt-expr; product host gcc/clang).
      */
     if (e.kind == ExprKind.EXPR_AS) {
       let as_tgt: i32 = e.as_target_type_ref;
@@ -6596,11 +6604,12 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           && codegen_type_is_module_user_struct(ctx.current_codegen_module, arena, as_tgt) != 0) {
         as_struct = 1;
       }
-      /* wave461: detect struct-valued operand (resolved + alias + mono). */
+      /* wave461/462: resolve operand type (alias + mono); detect module user struct. */
+      let op_ty: i32 = 0;
       let as_op_struct: i32 = 0;
-      if (as_struct != 0 && !ast.ref_is_null(e.as_operand_ref) && ctx != 0 as *PipelineDepCtx
+      if (!ast.ref_is_null(e.as_operand_ref) && ctx != 0 as *PipelineDepCtx
           && ctx.current_codegen_module != 0 as *Module) {
-        let op_ty: i32 = pipeline_expr_resolved_type_ref(arena, e.as_operand_ref);
+        op_ty = pipeline_expr_resolved_type_ref(arena, e.as_operand_ref);
         if (!ast.ref_is_null(op_ty)) {
           op_ty = pipeline_typeck_resolve_type_alias_ref_c(arena, op_ty);
           op_ty = codegen_mono_subst_type(ctx, arena, op_ty);
@@ -6610,8 +6619,10 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           }
         }
       }
-      /* Struct op + struct target: identity value copy `(op)` — no cast/compound. */
-      if (as_struct != 0 && as_op_struct != 0) {
+      /* Same-type struct op + struct target: identity value copy `(op)`. */
+      if (as_struct != 0 && as_op_struct != 0
+          && !ast.ref_is_null(op_ty) && !ast.ref_is_null(as_tgt)
+          && pipeline_typeck_type_refs_equal_c(arena, op_ty, as_tgt) != 0) {
         if (append_byte(out, 40) != 0) {
           return -1;
         }
@@ -6619,6 +6630,50 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           return -1;
         }
         return append_byte(out, 41);
+      }
+      /*
+       * wave462: struct-valued op → different type (A→B or struct→scalar/pointer).
+       * Host cannot cast or assign across struct types; layout-compatible
+       * reinterpret via address-of temp (GNU stmt-expr, already used for
+       * __xlang_ca / __xlang_sp deep-copy paths).
+       * Form: ({ OP_TY __xlang_as_o = (op); *(TGT *)(void *)&__xlang_as_o; })
+       */
+      if (as_op_struct != 0 && !ast.ref_is_null(op_ty)) {
+        /* ({  */
+        let as_pun_open: u8[4] = [40, 123, 32, 0];
+        if (emit_bytes_from_ptr(out, &as_pun_open[0], 3) != 0) {
+          return -1;
+        }
+        if (emit_type(arena, out, op_ty, 0 as *u8, 0, ctx) != 0) {
+          return -1;
+        }
+        /*  __xlang_as_o = ( */
+        let as_pun_nm: u8[20] = [
+          32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 115, 95, 111, 32, 61, 32, 40, 0, 0, 0
+        ];
+        if (emit_bytes_from_ptr(out, &as_pun_nm[0], 17) != 0) {
+          return -1;
+        }
+        if (!ast.ref_is_null(e.as_operand_ref) && emit_expr(arena, out, e.as_operand_ref, ctx) != 0) {
+          return -1;
+        }
+        /* ); *( */
+        let as_pun_mid: u8[8] = [41, 59, 32, 42, 40, 0, 0, 0];
+        if (emit_bytes_from_ptr(out, &as_pun_mid[0], 5) != 0) {
+          return -1;
+        }
+        if (emit_type(arena, out, e.as_target_type_ref, 0 as *u8, 0, ctx) != 0) {
+          return -1;
+        }
+        /*  *)(void *)&__xlang_as_o; }) */
+        let as_pun_end: u8[32] = [
+          32, 42, 41, 40, 118, 111, 105, 100, 32, 42, 41, 38, 95, 95, 120, 108,
+          97, 110, 103, 95, 97, 115, 95, 111, 59, 32, 125, 41, 0, 0, 0, 0
+        ];
+        if (emit_bytes_from_ptr(out, &as_pun_end[0], 28) != 0) {
+          return -1;
+        }
+        return 0;
       }
       if (append_byte(out, 40) != 0) {
         return -1;
