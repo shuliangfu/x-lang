@@ -338,6 +338,11 @@ extern int32_t pipeline_type_named_name_into(struct ast_ASTArena *arena, int32_t
 extern int32_t pipeline_module_struct_layout_soa_at(struct ast_Module *module, int32_t idx);
 extern int32_t pipeline_module_struct_layout_num_fields(struct ast_Module *module, int32_t idx);
 extern int32_t pipeline_module_struct_layout_field_type_ref(struct ast_Module *module, int32_t li, int32_t j);
+extern int32_t pipeline_module_struct_layout_field_name_len(struct ast_Module *module, int32_t li, int32_t j);
+extern void pipeline_module_struct_layout_field_name_into(struct ast_Module *module, int32_t li, int32_t j,
+                                                         uint8_t *out64);
+extern int32_t pipeline_module_struct_layout_name_len(struct ast_Module *module, int32_t idx);
+extern void pipeline_module_struct_layout_name_into(struct ast_Module *module, int32_t idx, uint8_t *out64);
 extern int32_t typeck_entry_module_find_struct_layout_index(struct ast_Module *mod, uint8_t *nm, int32_t nlen);
 extern int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_binop_left_ref_at(struct ast_ASTArena *arena, int32_t expr_ref);
@@ -2956,6 +2961,80 @@ int32_t field_name_equal_strict_minimal(uint8_t *buf, int32_t len, const char *l
 #ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-219：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/*
+ * wave454: reverse-infer owner type of FIELD_ACCESS from field name uniquely
+ * among module struct layouts. Product Darwin g05 links this weak export as the
+ * live field_access typeck (filtered pipeline demotes the heavy glue copy).
+ * Must NOT pass field-result ambient (return_type_ref) into base — that pinned
+ * bare ret-only generics as i32 for `mk_default().v`. PLATFORM: SHARED.
+ */
+static int32_t pipeline_typeck_field_reverse_infer_base_type_strict_minimal_c(struct ast_Module *module,
+                                                                               struct ast_ASTArena *arena,
+                                                                               int32_t expr_ref) {
+  uint8_t fn_buf[64];
+  int32_t fl;
+  int32_t nsl;
+  int32_t k;
+  int32_t hits;
+  int32_t unique_ty;
+
+  if (!module || !arena || expr_ref <= 0)
+    return 0;
+  fl = pipeline_expr_field_access_name_len(arena, expr_ref);
+  if (fl <= 0 || fl > 63)
+    return 0;
+  memset(fn_buf, 0, sizeof(fn_buf));
+  pipeline_expr_field_access_name_into(arena, expr_ref, fn_buf);
+  nsl = module->num_struct_layouts;
+  if (nsl <= 0)
+    return 0;
+  hits = 0;
+  unique_ty = 0;
+  for (k = 0; k < nsl; k++) {
+    int32_t nf = pipeline_module_struct_layout_num_fields(module, k);
+    int32_t j;
+    for (j = 0; j < nf; j++) {
+      int32_t fjl;
+      uint8_t fjn[64];
+      int32_t bi;
+      int32_t match;
+      uint8_t lnm[64];
+      int32_t lnl;
+      int32_t nty;
+
+      fjl = pipeline_module_struct_layout_field_name_len(module, k, j);
+      if (fjl != fl)
+        continue;
+      memset(fjn, 0, sizeof(fjn));
+      pipeline_module_struct_layout_field_name_into(module, k, j, fjn);
+      match = 1;
+      for (bi = 0; bi < fl; bi++) {
+        if (fjn[bi] != fn_buf[bi]) {
+          match = 0;
+          break;
+        }
+      }
+      if (!match)
+        continue;
+      lnl = pipeline_module_struct_layout_name_len(module, k);
+      if (lnl <= 0 || lnl > 63)
+        continue;
+      memset(lnm, 0, sizeof(lnm));
+      pipeline_module_struct_layout_name_into(module, k, lnm);
+      nty = pipeline_type_find_or_alloc_named(arena, lnm, lnl);
+      if (nty <= 0)
+        continue;
+      if (hits == 1 && unique_ty == nty)
+        continue;
+      hits++;
+      unique_ty = nty;
+      if (hits > 1)
+        return 0;
+    }
+  }
+  return hits == 1 ? unique_ty : 0;
+}
+
 XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *module,
                                                                         struct ast_ASTArena *arena, int32_t expr_ref,
                                                                         int32_t return_type_ref,
@@ -2972,6 +3051,8 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *
   int32_t field_off;
   int32_t prebind_len;
   uint8_t prebind_name[64];
+  int32_t base_expected;
+  int32_t base_kind;
   base_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
   if (ast_ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena->num_exprs)
     return -1;
@@ -2986,7 +3067,19 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *
                                             pipeline_type_find_or_alloc_named(arena, prebind_name, prebind_len));
     }
   }
-  if (typeck_check_expr(module, arena, base_ref, return_type_ref, ctx) != 0)
+  /*
+   * wave454: base type ≠ field result type. Do not pass return_type_ref into
+   * base. For CALL/METHOD_CALL bases reverse-infer unique owner struct so
+   * bare ret-only generics get ambient A on `mk_default().v`.
+   */
+  (void)return_type_ref;
+  base_expected = 0;
+  base_kind = pipeline_expr_kind_ord_at(arena, base_ref);
+  if (base_kind == (int32_t)ast_ExprKind_EXPR_CALL ||
+      base_kind == (int32_t)ast_ExprKind_EXPR_METHOD_CALL) {
+    base_expected = pipeline_typeck_field_reverse_infer_base_type_strict_minimal_c(module, arena, expr_ref);
+  }
+  if (typeck_check_expr(module, arena, base_ref, base_expected, ctx) != 0)
     return -1;
   base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
   if (ast_ref_is_null(base_ty) || base_ty <= 0 || base_ty > arena->num_types)

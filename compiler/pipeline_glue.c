@@ -34082,10 +34082,20 @@ static int32_t glue_generic_call_fixup_resolved_type_c(struct ast_Module *module
      * resolved type so assignment/return match and codegen mono can fall back
      * to resolved_type_ref (codegen_call_ret_type_param_concrete_at).
      * Requires ret TYPE_NAMED is a type param (already checked above).
+     * wave454: only stamp when expected is a module TYPE_NAMED (same gate as
+     * try_infer); refuse primitive ambient that would lie about T.
      */
-    if (n_gp > 0 && n_ta == 0 && expected_ret > 0) {
-      pipeline_expr_set_resolved_type_ref(arena, call_expr_ref, expected_ret);
-      return 0;
+    if (n_gp > 0 && n_ta == 0 && expected_ret > 0 &&
+        pipeline_type_kind_ord_at(arena, expected_ret) == ord_named) {
+      uint8_t exp_nm[64];
+      int32_t exp_nlen;
+      memset(exp_nm, 0, sizeof(exp_nm));
+      exp_nlen = pipeline_type_named_name_into(arena, expected_ret, exp_nm);
+      if (exp_nlen > 0 &&
+          pipeline_typeck_named_is_module_type_c(search_mod, search_arena, exp_nm, exp_nlen) != 0) {
+        pipeline_expr_set_resolved_type_ref(arena, call_expr_ref, expected_ret);
+        return 0;
+      }
     }
     if (n_gp <= 0 || n_ta <= 0 || n_ta != n_gp)
       return 0;
@@ -34414,10 +34424,26 @@ static int32_t pipeline_typeck_try_infer_generic_call_from_args_c(struct ast_Mod
    * wave453: expected-return inference for sole type param on return position.
    * Covers zero-arg `mk_default():T` and fail-closed when ret is concrete
    * (phantom T on unit_t<T>():i32 still requires turbofish).
+   * wave454: ambient expected must itself be a module TYPE_NAMED (struct/alias).
+   * Primitive expected (i32 from `return mk_default()` / wrong field ambient)
+   * must not pin T — that typeck-greened then BLD001 on host C body.
    */
   n_gp = pipeline_module_func_num_generic_params_at(callee_mod, func_ix);
   if (n_gp != 1 || expected_ret <= 0)
     return -1;
+  /* expected_ret must be a concrete module named type (not i32/bool/…). */
+  if (pipeline_type_kind_ord_at(arena, expected_ret) != ord_named)
+    return -1;
+  {
+    uint8_t exp_nm[64];
+    int32_t exp_nlen;
+    memset(exp_nm, 0, sizeof(exp_nm));
+    exp_nlen = pipeline_type_named_name_into(arena, expected_ret, exp_nm);
+    if (exp_nlen <= 0)
+      return -1;
+    if (pipeline_typeck_named_is_module_type_c(callee_mod, arena, exp_nm, exp_nlen) == 0)
+      return -1; /* not a known module type name */
+  }
   ret_ty = pipeline_module_func_return_type_at(callee_mod, func_ix);
   if (ret_ty <= 0 || pipeline_type_kind_ord_at(arena, ret_ty) != ord_named)
     return -1;

@@ -793,6 +793,99 @@ int32_t pipeline_typeck_field_import_binding_resolve_c(struct ast_Module *module
   return 0;
 }
 
+/**
+ * wave454: reverse-infer the owner type of a FIELD_ACCESS from the field name
+ * (and optional outer expected field type) among module struct layouts.
+ *
+ * Why: the ambient expected type of `base.field` is the *field result* type
+ * (e.g. i32 for `.v`), not the base type. Passing that expected into base
+ * typeck made wave453 bare ret-only generic inference pin T=i32 for
+ * `return mk_default().v`, so the CALL typed as i32 and `.v` became `?`.
+ *
+ * When exactly one module struct owns field `name` (and, when outer_expected
+ * is a concrete type, that field's type equals outer_expected), return the
+ * named type_ref for that struct so a bare generic CALL base can use it as
+ * expected_ret (`mk_default()` → A). Zero or multiple hits → 0 (fail-closed;
+ * caller still checks base without a wrong ambient).
+ *
+ * @param module module with struct layouts
+ * @param arena type/name pool
+ * @param expr_ref FIELD_ACCESS expr
+ * @param outer_expected ambient expected of the field expression (0 if none)
+ * @return unique owner TYPE_NAMED ref, or 0
+ * PLATFORM: SHARED — typeck; rebuild pipeline_glue_standalone.o after edit.
+ */
+static int32_t pipeline_typeck_field_reverse_infer_base_type_c(struct ast_Module *module,
+                                                              struct ast_ASTArena *arena,
+                                                              int32_t expr_ref,
+                                                              int32_t outer_expected) {
+  uint8_t fn_buf[64];
+  int32_t fl;
+  int32_t nsl;
+  int32_t k;
+  int32_t hits;
+  int32_t unique_ty;
+
+  if (!module || !arena || expr_ref <= 0)
+    return 0;
+  fl = pipeline_expr_field_access_name_len(arena, expr_ref);
+  if (fl <= 0 || fl > 63)
+    return 0;
+  memset(fn_buf, 0, sizeof(fn_buf));
+  pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
+  nsl = module->num_struct_layouts;
+  if (nsl <= 0)
+    return 0;
+  /* Field-name uniqueness among module layouts (outer_expected reserved). */
+  (void)outer_expected;
+  hits = 0;
+  unique_ty = 0;
+  for (k = 0; k < nsl; k++) {
+    int32_t nf = pipeline_module_struct_layout_num_fields(module, k);
+    int32_t j;
+    for (j = 0; j < nf; j++) {
+      int32_t fjl;
+      uint8_t fjn[64];
+      int32_t bi;
+      int32_t match;
+      uint8_t lnm[64];
+      int32_t lnl;
+      int32_t nty;
+
+      fjl = pipeline_module_struct_layout_field_name_len(module, k, j);
+      if (fjl != fl)
+        continue;
+      memset(fjn, 0, sizeof(fjn));
+      pipeline_module_struct_layout_field_name_into(module, k, j, &fjn[0]);
+      match = 1;
+      for (bi = 0; bi < fl; bi++) {
+        if (fjn[bi] != fn_buf[bi]) {
+          match = 0;
+          break;
+        }
+      }
+      if (!match)
+        continue;
+      lnl = pipeline_module_struct_layout_name_len(module, k);
+      if (lnl <= 0 || lnl > 63)
+        continue;
+      memset(lnm, 0, sizeof(lnm));
+      pipeline_module_struct_layout_name_into(module, k, &lnm[0]);
+      nty = typeck_find_or_alloc_named_type_ref(arena, &lnm[0], lnl);
+      if (nty <= 0)
+        continue;
+      /* Dedup same owner type (multiple fields same name should not happen). */
+      if (hits == 1 && unique_ty == nty)
+        continue;
+      hits++;
+      unique_ty = nty;
+      if (hits > 1)
+        return 0; /* ambiguous owner — leave bare CALL unconstrained */
+    }
+  }
+  return hits == 1 ? unique_ty : 0;
+}
+
 int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                                   int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
   int32_t base_ref;
@@ -800,6 +893,8 @@ int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *module, str
   int32_t bt_kind;
   int32_t elem_ty;
   int32_t layout_rc;
+  int32_t base_expected;
+  int32_t base_kind;
 
   base_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
   if (ast_ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena->num_exprs)
@@ -809,7 +904,22 @@ int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *module, str
    * foo 是 dep 模块中的函数；field access 的 typeck 应从 dep 模块查找函数返回类型。 */
   if (pipeline_typeck_field_import_binding_resolve_c(module, arena, expr_ref, base_ref, ctx))
     return 0;
-  if (pipeline_typeck_check_expr_c(module, arena, base_ref, return_type_ref, ctx) != 0)
+  /*
+   * wave454: do NOT pass field-result ambient (return_type_ref) into base.
+   * Base type ≠ field type. For CALL/METHOD_CALL bases, reverse-infer a unique
+   * owner struct from the field name so bare ret-only generics get the right
+   * expected (`mk_default().v` → expected A, not i32).
+   */
+  base_expected = 0;
+  base_kind = pipeline_expr_kind_ord_at(arena, base_ref);
+  if (base_kind == (int32_t)ast_ExprKind_EXPR_CALL ||
+      base_kind == (int32_t)ast_ExprKind_EXPR_METHOD_CALL) {
+    base_expected = pipeline_typeck_field_reverse_infer_base_type_c(module, arena, expr_ref,
+                                                                   return_type_ref);
+  }
+  /* Always: never pass field-result ambient into base (even for non-CALL). */
+  (void)return_type_ref;
+  if (pipeline_typeck_check_expr_c(module, arena, base_ref, base_expected, ctx) != 0)
     return -1;
   /** DOD-S1：INDEX 基址的 SoA 字段访问优先于 AoS layout 回落。 */
   if (pipeline_typeck_field_soa_index_c(module, arena, expr_ref, base_ref) != 0)

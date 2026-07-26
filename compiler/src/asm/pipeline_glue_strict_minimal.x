@@ -2277,14 +2277,92 @@ export function pipeline_typeck_check_expr_match_c(module: *u8, arena: *u8, expr
 
 // See implementation.
 // SLICE=11 PTR=9 NAMED=8 USIZE=6 I32=0
-/** Exported function `pipeline_typeck_check_expr_field_access_c`.
- * Implements `pipeline_typeck_check_expr_field_access_c`.
- * @param module *u8
- * @param arena *u8
- * @param expr_ref i32
- * @param return_type_ref i32
- * @param ctx *u8
- * @return i32
+// EXPR_CALL=48 EXPR_METHOD_CALL=49 EXPR_VAR=3
+export extern "C" function pipeline_module_struct_layout_field_name_len(mod: *u8, li: i32, j: i32): i32;
+export extern "C" function pipeline_module_struct_layout_field_name_into(mod: *u8, li: i32, j: i32, out: *u8): void;
+export extern "C" function pipeline_module_struct_layout_name_len(mod: *u8, idx: i32): i32;
+export extern "C" function pipeline_module_struct_layout_name_into(mod: *u8, idx: i32, out: *u8): void;
+export extern "C" function pipeline_module_num_struct_layouts_at(mod: *u8): i32;
+
+/**
+ * wave454: unique owner TYPE_NAMED of a field name among module struct layouts.
+ * Used so bare ret-only generic CALL bases of FIELD_ACCESS get ambient expected
+ * (`mk_default().v` → A), not the field-result type (i32).
+ * @param module *u8 — Module*
+ * @param arena *u8 — ASTArena*
+ * @param expr_ref i32 — FIELD_ACCESS expr
+ * @return i32 — named type_ref or 0 if zero/ambiguous
+ * PLATFORM: SHARED — product Darwin g05 field_access authority (strict_minimal).
+ */
+function pipeline_typeck_field_reverse_infer_base_type_strict_minimal(module: *u8, arena: *u8, expr_ref: i32): i32 {
+  if (module == 0) { return 0; }
+  if (arena == 0) { return 0; }
+  if (expr_ref <= 0) { return 0; }
+  let fl: i32 = pipeline_expr_field_access_name_len(arena, expr_ref);
+  if (fl <= 0) { return 0; }
+  if (fl > 63) { return 0; }
+  let fn_buf: u8[64] = [];
+  pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
+  let nsl: i32 = pipeline_module_num_struct_layouts_at(module);
+  if (nsl <= 0) { return 0; }
+  let hits: i32 = 0;
+  let unique_ty: i32 = 0;
+  let k: i32 = 0;
+  while (k < nsl) {
+    let nf: i32 = pipeline_module_struct_layout_num_fields(module, k);
+    let j: i32 = 0;
+    while (j < nf) {
+      let fjl: i32 = pipeline_module_struct_layout_field_name_len(module, k, j);
+      if (fjl == fl) {
+        let fjn: u8[64] = [];
+        pipeline_module_struct_layout_field_name_into(module, k, j, &fjn[0]);
+        let match: i32 = 1;
+        let bi: i32 = 0;
+        while (bi < fl) {
+          if (fjn[bi] != fn_buf[bi]) { match = 0; }
+          bi = bi + 1;
+        }
+        if (match != 0) {
+          let lnl: i32 = pipeline_module_struct_layout_name_len(module, k);
+          if (lnl > 0) {
+            if (lnl <= 63) {
+              let lnm: u8[64] = [];
+              pipeline_module_struct_layout_name_into(module, k, &lnm[0]);
+              let nty: i32 = pipeline_type_find_or_alloc_named(arena, &lnm[0], lnl);
+              if (nty > 0) {
+                if (hits == 1) {
+                  if (unique_ty == nty) {
+                    // same owner again — ignore
+                  } else {
+                    return 0;
+                  }
+                } else {
+                  hits = hits + 1;
+                  unique_ty = nty;
+                }
+              }
+            }
+          }
+        }
+      }
+      j = j + 1;
+    }
+    k = k + 1;
+  }
+  if (hits == 1) { return unique_ty; }
+  return 0;
+}
+
+/**
+ * EXPR_FIELD_ACCESS typeck (strict_minimal product path).
+ * wave454: never pass field-result ambient into base; reverse-infer CALL base owner.
+ * @param module *u8 — Module*
+ * @param arena *u8 — ASTArena*
+ * @param expr_ref i32 — FIELD_ACCESS
+ * @param return_type_ref i32 — ambient expected of field result (not base)
+ * @param ctx *u8 — PipelineDepCtx*
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED — Darwin g05 weak export is live authority for this path.
  */
 #[no_mangle]
 export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u8, expr_ref: i32, return_type_ref: i32, ctx: *u8): i32 {
@@ -2319,9 +2397,20 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
         }
       }
     }
-    if (typeck_check_expr(module, arena, base_ref, return_type_ref, ctx) != 0) {
+    // wave454: base expected is reverse-inferred owner for CALL, else 0 (not field ambient).
+    let base_expected: i32 = 0;
+    let base_kind: i32 = pipeline_expr_kind_ord_at(arena, base_ref);
+    if (base_kind == 48) {
+      base_expected = pipeline_typeck_field_reverse_infer_base_type_strict_minimal(module, arena, expr_ref);
+    }
+    if (base_kind == 49) {
+      base_expected = pipeline_typeck_field_reverse_infer_base_type_strict_minimal(module, arena, expr_ref);
+    }
+    if (typeck_check_expr(module, arena, base_ref, base_expected, ctx) != 0) {
       return 0 - 1;
     }
+    // return_type_ref is field-result ambient only; intentionally not applied to base.
+    if (return_type_ref < 0) { return 0 - 1; }
     let base_ty: i32 = pipeline_expr_resolved_type_ref(arena, base_ref);
     if (base_ty <= 0) { return 0; }
     let field_len: i32 = pipeline_expr_field_access_name_len(arena, expr_ref);
