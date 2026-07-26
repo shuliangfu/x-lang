@@ -6887,6 +6887,24 @@ function codegen_maybe_emit_generic_struct_mono_suffix_for_type(module: *Module,
         return codegen_emit_generic_struct_mono_suffix(out, arena, &mono[0], ntp);
       }
     }
+    /*
+     * wave489 Cap residual: generic-impl method self `Box&lt;T&gt;` / free type-args on a
+     * layout that has exactly one host-concrete mono combo in the module (e.g. only
+     * `Box&lt;i32&gt;` uses). fill_concrete fails on free T; mono_active map is off when
+     * emitting the free function signature (impl methods hoist as free fns, not under
+     * generic-function mono). Reuse collect authority: if unique combo, append that
+     * suffix so host-C matches monomorphized receivers (`struct Box__i32`) instead of
+     * incomplete bare `struct Box` BLD001.
+     * Multi-combo `impl for Box&lt;T&gt;` with Box&lt;A&gt;+Box&lt;B&gt; still soft (needs per-combo
+     * mangled methods). PLATFORM: SHARED host-C.
+     */
+    if (ntp <= 4) {
+      let combos: i32[32] = [];
+      let nc: i32 = codegen_collect_generic_struct_mono_combos(module, arena, lk, &nm[bare_off], bare_len, ntp, &combos[0], 8);
+      if (nc == 1) {
+        return codegen_emit_generic_struct_mono_suffix(out, arena, &combos[0], ntp);
+      }
+    }
     return 0;
   }
 }
