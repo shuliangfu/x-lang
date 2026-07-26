@@ -7028,190 +7028,295 @@ int32_t codegen_emit_struct_field_decl_x(struct ast_ASTArena * arena, struct cod
 }
 int32_t codegen_emit_module_struct_definitions(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, uint8_t * struct_prefix, int32_t struct_prefix_len, struct ast_PipelineDepCtx * ctx) {
   {
-    int32_t k = 0;
     int32_t cur_di = -(1);
+    int32_t phase;
+    /* wave488: claim prefix shared helper pattern (entry bare / dep / ast_). PLATFORM: SHARED. */
     if ((ctx !=((struct ast_PipelineDepCtx *)(0)))) {
       (void)((cur_di = (ctx->current_codegen_dep_index)));
     }
-    while ((k < (module->num_struct_layouts))) {
-      int32_t nf = pipeline_module_struct_layout_num_fields(module, k);
-      int32_t nl = pipeline_module_struct_layout_name_len(module, k);
-      /* wave365: nf==0 true empty struct Empty {} → emit `struct T {\n};\n` (host complete type).
-       * Prior `nf<=0` skip left only uses → incomplete type BLD001. PLATFORM: SHARED. */
-      if ((nl <=0)) {
-        (void)((k = (k + 1)));
-        continue;
-      }
-      uint8_t ty_nm[64] = {};
-      (void)(pipeline_module_struct_layout_name_into(module, k, &((ty_nm)[0])));
-      /* PLATFORM: SHARED — entry + dep: only defining owner emits full layout.
-       * Entry must skip dep-owned names (Lexer→parser_Lexer residual: field type_ref=0). */
-      if ((ctx !=((struct ast_PipelineDepCtx *)(0)))) {
-        int32_t owner = codegen_type_dep_struct_owner_index(ctx, &((ty_nm)[0]), nl);
-        if (((owner >=0) && (owner !=cur_di))) {
+    /*
+     * wave488 Cap residual pure: mono mangled structs (Wrap__A) must not emit before
+     * non-generic field types (A). Prior single pass walked layout order — generic Wrap
+     * before A → host-C "incomplete type 'struct …_A'" BLD001. Fix:
+     *   phase 0 — non-generic layouts (and generic with zero mono combos)
+     *   phase 1 — collect all mono combos across layouts, sort by type-arg nest depth
+     *             (Pair__S_i32 depth 0 before Wrap__Pair… depth 1), then emit.
+     * wave484 shallow→deep among one layout remains via global depth sort.
+     * PLATFORM: SHARED host-C.
+     */
+    for (phase = 0; phase < 2; phase++) {
+      int32_t k = 0;
+      /* phase 1 job table: layout_k, ntp, depth, mono[4] — cap 32 combos. */
+      int32_t job_k[32];
+      int32_t job_ntp[32];
+      int32_t job_depth[32];
+      int32_t job_mono[128];
+      int32_t njob = 0;
+      while ((k < (module->num_struct_layouts))) {
+        int32_t nf = pipeline_module_struct_layout_num_fields(module, k);
+        int32_t nl = pipeline_module_struct_layout_name_len(module, k);
+        int32_t ntp_gs;
+        int32_t combos_gs[32];
+        int32_t ncombo_gs = 0;
+        uint8_t ty_nm[64] = {};
+        uint8_t claim_pfx[128] = {};
+        int32_t claim_plen = 0;
+        /* wave365: nf==0 true empty struct Empty {} → emit `struct T {\n};\n` (host complete type).
+         * Prior `nf<=0` skip left only uses → incomplete type BLD001. PLATFORM: SHARED. */
+        if ((nl <=0)) {
           (void)((k = (k + 1)));
           continue;
         }
-      }
-      if ((codegen_should_skip_emit_struct_layout_for_abi_dup(&((ty_nm)[0]), nl) !=0)) {
-        (void)((k = (k + 1)));
-        continue;
-      }
-      uint8_t claim_pfx[128] = {};
-      int32_t claim_plen = 0;
-      if (((struct_prefix !=((uint8_t *)(0))) && (struct_prefix_len > 0))) {
-        int32_t ci = 0;
-        (void)((claim_plen = struct_prefix_len));
-        if ((claim_plen > 127)) {
-          (void)((claim_plen = 127));
-        }
-        while ((ci < claim_plen)) {
-          (void)(((claim_pfx)[ci] = (struct_prefix)[ci]));
-          (void)((ci = (ci + 1)));
-        }
-      } else {
-        if (!(((ctx !=((struct ast_PipelineDepCtx *)(0))) && ((ctx->current_codegen_dep_index) < 0)))) {
-          (void)(((claim_pfx)[0] = 97));
-          (void)(((claim_pfx)[1] = 115));
-          (void)(((claim_pfx)[2] = 116));
-          (void)(((claim_pfx)[3] = 95));
-          (void)((claim_plen = 4));
-        }
-      }
-      /* wave481: multi mono mangled defs when concrete type-arg combos exist. */
-      {
-        int32_t ntp_gs = pipeline_module_struct_layout_num_type_params_at(module, k);
-        if (((ntp_gs > 0) && (ntp_gs <= 4) && (arena != ((struct ast_ASTArena *)(0))))) {
-          int32_t combos_gs[32];
-          int32_t ncombo_gs = codegen_collect_generic_struct_mono_combos(module, arena, k, &((ty_nm)[0]), nl, ntp_gs, &((combos_gs)[0]), 8);
-          if ((ncombo_gs > 0)) {
-            /* wave484: shallow mono before nested. */
-            codegen_generic_struct_sort_mono_combos_by_depth(arena, &((combos_gs)[0]), ncombo_gs, ntp_gs);
-            int32_t cc = 0;
-            while ((cc < ncombo_gs)) {
-              int32_t mono_c[4];
-              int32_t ms = 0;
-              uint8_t mangled[96];
-              int32_t mlen;
-              while ((ms < ntp_gs)) {
-                (void)(((mono_c)[ms] = (combos_gs)[((cc * ntp_gs) + ms)]));
-                (void)((ms = (ms + 1)));
-              }
-              mlen = codegen_generic_struct_mangled_name_into(arena, &((ty_nm)[0]), nl, &((mono_c)[0]), ntp_gs, &((mangled)[0]), 96);
-              if ((mlen <= 0)) {
-                (void)((cc = (cc + 1)));
-                continue;
-              }
-              if ((pipeline_codegen_struct_tag_try_claim(&((claim_pfx)[0]), claim_plen, &((mangled)[0]), mlen) == 0)) {
-                (void)((cc = (cc + 1)));
-                continue;
-              }
-              {
-                uint8_t hdr_m[8] = {115, 116, 114, 117, 99, 116, 32, 0};
-                if ((codegen_emit_bytes_8(out, hdr_m, 7) != 0)) return -(1);
-                if (((struct_prefix != ((uint8_t *)(0))) && (struct_prefix_len > 0))) {
-                  if ((codegen_emit_bytes_from_ptr(out, struct_prefix, struct_prefix_len) != 0)) return -(1);
-                } else if (!(((ctx != ((struct ast_PipelineDepCtx *)(0))) && ((ctx->current_codegen_dep_index) < 0)))) {
-                  uint8_t ast_m[4] = {97, 115, 116, 95};
-                  if ((codegen_emit_bytes_4(out, ast_m, 4) != 0)) return -(1);
-                }
-                if ((codegen_emit_bytes_from_ptr(out, &((mangled)[0]), mlen) != 0)) return -(1);
-                {
-                  uint8_t br_m[4] = {32, 123, 10, 0};
-                  if ((codegen_emit_bytes_4(out, br_m, 3) != 0)) return -(1);
-                }
-                {
-                  int32_t j_m = 0;
-                  while ((j_m < nf)) {
-                    int32_t flen_m = pipeline_module_struct_layout_field_name_len(module, k, j_m);
-                    int32_t ftr_m = pipeline_module_struct_layout_field_type_ref(module, k, j_m);
-                    uint8_t fnm_m[64];
-                    if ((flen_m <= 0)) { (void)((j_m = (j_m + 1))); continue; }
-                    if ((codegen_emit_indent(out, 2) != 0)) return -(1);
-                    pipeline_module_struct_layout_field_name_into(module, k, j_m, &((fnm_m)[0]));
-                    ftr_m = codegen_generic_struct_field_type_from_mono(module, arena, k, ftr_m, &((mono_c)[0]), ntp_gs);
-                    if ((codegen_emit_struct_field_decl_x(arena, out, ftr_m, &((fnm_m)[0]), flen_m, ((uint8_t *)(0)), 0, ctx) != 0)) return -(1);
-                    {
-                      uint8_t semi_m[3] = {59, 10, 0};
-                      if ((codegen_emit_bytes_3(out, semi_m, 2) != 0)) return -(1);
-                    }
-                    (void)((j_m = (j_m + 1)));
-                  }
-                }
-                {
-                  uint8_t close_m[4] = {125, 59, 10, 10};
-                  if ((codegen_emit_bytes_4(out, close_m, 4) != 0)) return -(1);
-                }
-              }
-              (void)((cc = (cc + 1)));
-            }
+        (void)(pipeline_module_struct_layout_name_into(module, k, &((ty_nm)[0])));
+        /* PLATFORM: SHARED — entry + dep: only defining owner emits full layout.
+         * Entry must skip dep-owned names (Lexer→parser_Lexer residual: field type_ref=0). */
+        if ((ctx !=((struct ast_PipelineDepCtx *)(0)))) {
+          int32_t owner = codegen_type_dep_struct_owner_index(ctx, &((ty_nm)[0]), nl);
+          if (((owner >=0) && (owner !=cur_di))) {
             (void)((k = (k + 1)));
             continue;
           }
         }
-      }
-      if ((pipeline_codegen_struct_tag_try_claim(&((claim_pfx)[0]), claim_plen, &((ty_nm)[0]), nl) ==0)) {
-        (void)((k = (k + 1)));
-        continue;
-      }
-      uint8_t hdr_top[8] = {115, 116, 114, 117, 99, 116, 32, 0};
-      if ((codegen_emit_bytes_8(out, hdr_top, 7) !=0)) {
-        return -(1);
-      }
-      if (((struct_prefix !=((uint8_t *)(0))) && (struct_prefix_len > 0))) {
-        if ((codegen_emit_bytes_from_ptr(out, struct_prefix, struct_prefix_len) !=0)) {
-          return -(1);
+        if ((codegen_should_skip_emit_struct_layout_for_abi_dup(&((ty_nm)[0]), nl) !=0)) {
+          (void)((k = (k + 1)));
+          continue;
         }
-      } else {
-        if (((ctx !=((struct ast_PipelineDepCtx *)(0))) && ((ctx->current_codegen_dep_index) < 0))) {
+        if (((struct_prefix !=((uint8_t *)(0))) && (struct_prefix_len > 0))) {
+          int32_t ci = 0;
+          (void)((claim_plen = struct_prefix_len));
+          if ((claim_plen > 127)) {
+            (void)((claim_plen = 127));
+          }
+          while ((ci < claim_plen)) {
+            (void)(((claim_pfx)[ci] = (struct_prefix)[ci]));
+            (void)((ci = (ci + 1)));
+          }
         } else {
-          uint8_t ast_top[4] = {97, 115, 116, 95};
-          if ((codegen_emit_bytes_4(out, ast_top, 4) !=0)) {
-            return -(1);
+          if (!(((ctx !=((struct ast_PipelineDepCtx *)(0))) && ((ctx->current_codegen_dep_index) < 0)))) {
+            (void)(((claim_pfx)[0] = 97));
+            (void)(((claim_pfx)[1] = 115));
+            (void)(((claim_pfx)[2] = 116));
+            (void)(((claim_pfx)[3] = 95));
+            (void)((claim_plen = 4));
+          }
+        }
+        ntp_gs = pipeline_module_struct_layout_num_type_params_at(module, k);
+        if (((ntp_gs > 0) && (ntp_gs <= 4) && (arena != ((struct ast_ASTArena *)(0))))) {
+          ncombo_gs = codegen_collect_generic_struct_mono_combos(module, arena, k, &((ty_nm)[0]), nl, ntp_gs, &((combos_gs)[0]), 8);
+        }
+        if (phase == 0) {
+          /* Defer mono mangled defs to phase 1. */
+          if ((ncombo_gs > 0)) {
+            (void)((k = (k + 1)));
+            continue;
+          }
+          /* Ordinary / empty-generic layout emit (unchanged path). */
+          if ((pipeline_codegen_struct_tag_try_claim(&((claim_pfx)[0]), claim_plen, &((ty_nm)[0]), nl) ==0)) {
+            (void)((k = (k + 1)));
+            continue;
+          }
+          {
+            uint8_t hdr_top[8] = {115, 116, 114, 117, 99, 116, 32, 0};
+            if ((codegen_emit_bytes_8(out, hdr_top, 7) !=0)) {
+              return -(1);
+            }
+            if (((struct_prefix !=((uint8_t *)(0))) && (struct_prefix_len > 0))) {
+              if ((codegen_emit_bytes_from_ptr(out, struct_prefix, struct_prefix_len) !=0)) {
+                return -(1);
+              }
+            } else {
+              if (((ctx !=((struct ast_PipelineDepCtx *)(0))) && ((ctx->current_codegen_dep_index) < 0))) {
+              } else {
+                uint8_t ast_top[4] = {97, 115, 116, 95};
+                if ((codegen_emit_bytes_4(out, ast_top, 4) !=0)) {
+                  return -(1);
+                }
+              }
+            }
+            if ((codegen_emit_bytes_from_ptr(out, &((ty_nm)[0]), nl) !=0)) {
+              return -(1);
+            }
+            {
+              uint8_t br1[4] = {32, 123, 10, 0};
+              if ((codegen_emit_bytes_4(out, br1, 3) !=0)) {
+                return -(1);
+              }
+            }
+            {
+              int32_t j = 0;
+              while ((j < nf)) {
+                int32_t flen = pipeline_module_struct_layout_field_name_len(module, k, j);
+                int32_t ftr = pipeline_module_struct_layout_field_type_ref(module, k, j);
+                if ((flen <=0)) {
+                  (void)((j = (j + 1)));
+                  continue;
+                }
+                if ((codegen_emit_indent(out, 2) !=0)) {
+                  return -(1);
+                }
+                {
+                  uint8_t fnm[64] = {};
+                  (void)(pipeline_module_struct_layout_field_name_into(module, k, j, &((fnm)[0])));
+                  /* wave466: mono type-param fields before host-C field decl. */
+                  ftr = codegen_resolve_generic_struct_field_type(module, arena, &((ty_nm)[0]), nl, &((fnm)[0]), flen, ftr);
+                  if ((codegen_emit_struct_field_decl_x(arena, out, ftr, &((fnm)[0]), flen, ((uint8_t *)(0)), 0, ctx) !=0)) {
+                    return -(1);
+                  }
+                }
+                {
+                  uint8_t semi_nl[3] = {59, 10, 0};
+                  if ((codegen_emit_bytes_3(out, semi_nl, 2) !=0)) {
+                    return -(1);
+                  }
+                }
+                (void)((j = (j + 1)));
+              }
+            }
+            {
+              uint8_t close_ty[4] = {125, 59, 10, 10};
+              if ((codegen_emit_bytes_4(out, close_ty, 4) !=0)) {
+                return -(1);
+              }
+            }
+          }
+          (void)((k = (k + 1)));
+          continue;
+        }
+        /* phase 1: collect mono jobs only (emit after walk). */
+        if ((ncombo_gs > 0)) {
+          int32_t cc = 0;
+          while ((cc < ncombo_gs) && (njob < 32)) {
+            int32_t ms = 0;
+            int32_t mono_c[4];
+            while ((ms < ntp_gs)) {
+              (void)(((mono_c)[ms] = (combos_gs)[((cc * ntp_gs) + ms)]));
+              (void)((ms = (ms + 1)));
+            }
+            (void)(((job_k)[njob] = k));
+            (void)(((job_ntp)[njob] = ntp_gs));
+            (void)(((job_depth)[njob] = codegen_generic_struct_combo_nest_depth(arena, &((mono_c)[0]), ntp_gs)));
+            ms = 0;
+            while ((ms < ntp_gs)) {
+              (void)(((job_mono)[((njob * 4) + ms)] = (mono_c)[ms]));
+              (void)((ms = (ms + 1)));
+            }
+            while ((ms < 4)) {
+              (void)(((job_mono)[((njob * 4) + ms)] = 0));
+              (void)((ms = (ms + 1)));
+            }
+            (void)((njob = (njob + 1)));
+            (void)((cc = (cc + 1)));
+          }
+        }
+        (void)((k = (k + 1)));
+      }
+      if (phase == 1) {
+        /* Sort jobs shallow→deep by type-arg nest depth (cross-layout). */
+        {
+          int32_t i, j, s;
+          for (i = 0; i < njob; i++) {
+            for (j = i + 1; j < njob; j++) {
+              if (((job_depth)[j] < (job_depth)[i])) {
+                int32_t tmp;
+                tmp = (job_k)[i]; (job_k)[i] = (job_k)[j]; (job_k)[j] = tmp;
+                tmp = (job_ntp)[i]; (job_ntp)[i] = (job_ntp)[j]; (job_ntp)[j] = tmp;
+                tmp = (job_depth)[i]; (job_depth)[i] = (job_depth)[j]; (job_depth)[j] = tmp;
+                for (s = 0; s < 4; s++) {
+                  tmp = (job_mono)[((i * 4) + s)];
+                  (job_mono)[((i * 4) + s)] = (job_mono)[((j * 4) + s)];
+                  (job_mono)[((j * 4) + s)] = tmp;
+                }
+              }
+            }
+          }
+        }
+        /* Emit each mono job. */
+        {
+          int32_t ji;
+          for (ji = 0; ji < njob; ji++) {
+            int32_t k = (job_k)[ji];
+            int32_t ntp_gs = (job_ntp)[ji];
+            int32_t nf = pipeline_module_struct_layout_num_fields(module, k);
+            int32_t nl = pipeline_module_struct_layout_name_len(module, k);
+            int32_t mono_c[4];
+            int32_t ms = 0;
+            uint8_t ty_nm[64] = {};
+            uint8_t claim_pfx[128] = {};
+            int32_t claim_plen = 0;
+            uint8_t mangled[96];
+            int32_t mlen;
+            if ((nl <= 0) || (ntp_gs <= 0)) continue;
+            (void)(pipeline_module_struct_layout_name_into(module, k, &((ty_nm)[0])));
+            while ((ms < ntp_gs) && (ms < 4)) {
+              (void)(((mono_c)[ms] = (job_mono)[((ji * 4) + ms)]));
+              (void)((ms = (ms + 1)));
+            }
+            if (((struct_prefix !=((uint8_t *)(0))) && (struct_prefix_len > 0))) {
+              int32_t ci = 0;
+              (void)((claim_plen = struct_prefix_len));
+              if ((claim_plen > 127)) (void)((claim_plen = 127));
+              while ((ci < claim_plen)) {
+                (void)(((claim_pfx)[ci] = (struct_prefix)[ci]));
+                (void)((ci = (ci + 1)));
+              }
+            } else {
+              if (!(((ctx !=((struct ast_PipelineDepCtx *)(0))) && ((ctx->current_codegen_dep_index) < 0)))) {
+                (void)(((claim_pfx)[0] = 97));
+                (void)(((claim_pfx)[1] = 115));
+                (void)(((claim_pfx)[2] = 116));
+                (void)(((claim_pfx)[3] = 95));
+                (void)((claim_plen = 4));
+              }
+            }
+            mlen = codegen_generic_struct_mangled_name_into(arena, &((ty_nm)[0]), nl, &((mono_c)[0]), ntp_gs, &((mangled)[0]), 96);
+            if ((mlen <= 0)) continue;
+            if ((pipeline_codegen_struct_tag_try_claim(&((claim_pfx)[0]), claim_plen, &((mangled)[0]), mlen) == 0)) continue;
+            {
+              uint8_t hdr_m[8] = {115, 116, 114, 117, 99, 116, 32, 0};
+              if ((codegen_emit_bytes_8(out, hdr_m, 7) != 0)) return -(1);
+              if (((struct_prefix != ((uint8_t *)(0))) && (struct_prefix_len > 0))) {
+                if ((codegen_emit_bytes_from_ptr(out, struct_prefix, struct_prefix_len) != 0)) return -(1);
+              } else if (!(((ctx != ((struct ast_PipelineDepCtx *)(0))) && ((ctx->current_codegen_dep_index) < 0)))) {
+                uint8_t ast_m[4] = {97, 115, 116, 95};
+                if ((codegen_emit_bytes_4(out, ast_m, 4) != 0)) return -(1);
+              }
+              if ((codegen_emit_bytes_from_ptr(out, &((mangled)[0]), mlen) != 0)) return -(1);
+              {
+                uint8_t br_m[4] = {32, 123, 10, 0};
+                if ((codegen_emit_bytes_4(out, br_m, 3) != 0)) return -(1);
+              }
+              {
+                int32_t j_m = 0;
+                while ((j_m < nf)) {
+                  int32_t flen_m = pipeline_module_struct_layout_field_name_len(module, k, j_m);
+                  int32_t ftr_m = pipeline_module_struct_layout_field_type_ref(module, k, j_m);
+                  uint8_t fnm_m[64];
+                  if ((flen_m <= 0)) { (void)((j_m = (j_m + 1))); continue; }
+                  if ((codegen_emit_indent(out, 2) != 0)) return -(1);
+                  pipeline_module_struct_layout_field_name_into(module, k, j_m, &((fnm_m)[0]));
+                  ftr_m = codegen_generic_struct_field_type_from_mono(module, arena, k, ftr_m, &((mono_c)[0]), ntp_gs);
+                  if ((codegen_emit_struct_field_decl_x(arena, out, ftr_m, &((fnm_m)[0]), flen_m, ((uint8_t *)(0)), 0, ctx) != 0)) return -(1);
+                  {
+                    uint8_t semi_m[3] = {59, 10, 0};
+                    if ((codegen_emit_bytes_3(out, semi_m, 2) != 0)) return -(1);
+                  }
+                  (void)((j_m = (j_m + 1)));
+                }
+              }
+              {
+                uint8_t close_m[4] = {125, 59, 10, 10};
+                if ((codegen_emit_bytes_4(out, close_m, 4) != 0)) return -(1);
+              }
+            }
           }
         }
       }
-      if ((codegen_emit_bytes_from_ptr(out, &((ty_nm)[0]), nl) !=0)) {
-        return -(1);
-      }
-      uint8_t br1[4] = {32, 123, 10, 0};
-      if ((codegen_emit_bytes_4(out, br1, 3) !=0)) {
-        return -(1);
-      }
-      int32_t j = 0;
-      while ((j < nf)) {
-        int32_t flen = pipeline_module_struct_layout_field_name_len(module, k, j);
-        int32_t ftr = pipeline_module_struct_layout_field_type_ref(module, k, j);
-        if ((flen <=0)) {
-          (void)((j = (j + 1)));
-          continue;
-        }
-        if ((codegen_emit_indent(out, 2) !=0)) {
-          return -(1);
-        }
-        uint8_t fnm[64] = {};
-        (void)(pipeline_module_struct_layout_field_name_into(module, k, j, &((fnm)[0])));
-        /* wave466: mono type-param fields before host-C field decl. */
-        ftr = codegen_resolve_generic_struct_field_type(module, arena, &((ty_nm)[0]), nl, &((fnm)[0]), flen, ftr);
-        if ((codegen_emit_struct_field_decl_x(arena, out, ftr, &((fnm)[0]), flen, ((uint8_t *)(0)), 0, ctx) !=0)) {
-          return -(1);
-        }
-        uint8_t semi_nl[3] = {59, 10, 0};
-        if ((codegen_emit_bytes_3(out, semi_nl, 2) !=0)) {
-          return -(1);
-        }
-        (void)((j = (j + 1)));
-      }
-      uint8_t close_ty[4] = {125, 59, 10, 10};
-      if ((codegen_emit_bytes_4(out, close_ty, 4) !=0)) {
-        return -(1);
-      }
-      (void)((k = (k + 1)));
     }
     return 0;
   }
   return 0;
 }
+
 int32_t codegen_emit_module_struct_forward_declarations(struct ast_Module * module, struct codegen_CodegenOutBuf * out, uint8_t * struct_prefix, int32_t struct_prefix_len) {
   return codegen_emit_module_struct_forward_declarations_ctx(module, out, struct_prefix, struct_prefix_len, ((struct ast_PipelineDepCtx *)(0)));
 }

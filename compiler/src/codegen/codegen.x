@@ -6944,211 +6944,300 @@ export function codegen_emit_struct_field_decl_x(arena: *ASTArena, out: *Codegen
  * See implementation.
  */
 export function codegen_emit_module_struct_definitions(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, struct_prefix: *u8, struct_prefix_len: i32, ctx: *PipelineDepCtx): i32 {
+  /**
+   * Emit host-C `struct` definitions for module layouts.
+   * wave488: two-phase so mono mangled tags (Wrap__A) never precede non-generic
+   * field types (A) — prior layout-order pass caused incomplete type BLD001.
+   * Phase 0: non-generic (and generic with zero mono combos).
+   * Phase 1: collect mono combos globally, sort by type-arg nest depth, emit.
+   * @param module *Module — current module layouts
+   * @param arena *ASTArena — type graph for mono combos / field subst
+   * @param out *CodegenOutBuf — C text buffer
+   * @param struct_prefix *u8 — optional name prefix (dep modules)
+   * @param struct_prefix_len i32 — prefix byte length
+   * @param ctx *PipelineDepCtx — owner / entry vs dep emit gates
+   * @return i32 — 0 ok, -1 emit failure
+   * PLATFORM: SHARED host-C
+   */
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-
-    let k: i32 = 0;
     let cur_di: i32 = -1;
     if (ctx != 0 as *PipelineDepCtx) {
       cur_di = ctx.current_codegen_dep_index;
     }
-    while (k < module.num_struct_layouts) {
-      let nf: i32 = pipeline_module_struct_layout_num_fields(module, k);
-      let nl: i32 = pipeline_module_struct_layout_name_len(module, k);
-      /*
-       * wave365: allow nf == 0 (true empty `struct Empty {}`).
-       * Prior gate `nf <= 0` skipped zero-field layouts → host-C only used the tag
-       * (incomplete type / BLD001). Field loop is a no-op when nf == 0 → `struct T {\n};\n`.
-       * PLATFORM: SHARED — GNU empty struct (size 0 on clang/gcc); owner ranking still
-       * prefers nf > 0 over empty placeholders (codegen_type_dep_struct_owner_index).
-       */
-      if (nl <= 0) {
-        k = k + 1;
-        continue;
-      }
-      let ty_nm: u8[64] = [];
-      pipeline_module_struct_layout_name_into(module, k, &ty_nm[0]);
-      /*
-       * PLATFORM: SHARED — only the defining owner emits full C layout.
-       * Entry (cur_di < 0) must also skip dep-owned names (e.g. Lexer from lexer.x).
-       * Otherwise co-emit re-emits as parser_Lexer; entry prime/merge layouts may have
-       * field_type_ref=0 on later fields → field_decl fail mid-struct (parser M1 residual).
-       * Authority: codegen_type_dep_struct_owner_index (export-first); seed pin same commit.
-       */
-      if (ctx != 0 as *PipelineDepCtx) {
-        let owner: i32 = codegen_type_dep_struct_owner_index(ctx, &ty_nm[0], nl);
-        if (owner >= 0 && owner != cur_di) {
+    let phase: i32 = 0;
+    while (phase < 2) {
+      let k: i32 = 0;
+      let job_k: i32[32] = [];
+      let job_ntp: i32[32] = [];
+      let job_depth: i32[32] = [];
+      let job_mono: i32[128] = [];
+      let njob: i32 = 0;
+      while (k < module.num_struct_layouts) {
+        let nf: i32 = pipeline_module_struct_layout_num_fields(module, k);
+        let nl: i32 = pipeline_module_struct_layout_name_len(module, k);
+        if (nl <= 0) {
           k = k + 1;
           continue;
         }
-      }
-      if (codegen_should_skip_emit_struct_layout_for_abi_dup(&ty_nm[0], nl) != 0) {
-        k = k + 1;
-        continue;
-      }
-      /* See implementation. */
-      let claim_pfx: u8[128] = [];
-      let claim_plen: i32 = 0;
-      if (struct_prefix != 0 as *u8 && struct_prefix_len > 0) {
-        claim_plen = struct_prefix_len;
-        if (claim_plen > 127) {
-          claim_plen = 127;
+        let ty_nm: u8[64] = [];
+        pipeline_module_struct_layout_name_into(module, k, &ty_nm[0]);
+        if (ctx != 0 as *PipelineDepCtx) {
+          let owner: i32 = codegen_type_dep_struct_owner_index(ctx, &ty_nm[0], nl);
+          if (owner >= 0 && owner != cur_di) {
+            k = k + 1;
+            continue;
+          }
         }
-        let ci: i32 = 0;
-        while (ci < claim_plen) {
-          claim_pfx[ci] = struct_prefix[ci];
-          ci = ci + 1;
+        if (codegen_should_skip_emit_struct_layout_for_abi_dup(&ty_nm[0], nl) != 0) {
+          k = k + 1;
+          continue;
         }
-      } else if (!(ctx != 0 as *PipelineDepCtx && ctx.current_codegen_dep_index < 0)) {
-        claim_pfx[0] = 97;
-        claim_pfx[1] = 115;
-        claim_pfx[2] = 116;
-        claim_pfx[3] = 95;
-        claim_plen = 4;
-      }
-      /*
-       * wave481: generic struct multi mono — one C tag per concrete type-arg combo
-       * (Wrap__A / Wrap__B). First-match field mono under a single tag collides
-       * when Wrap&lt;A&gt; and Wrap&lt;B&gt; coexist (BLD001). Aligns with function multi-mono
-       * mangling (__ separator + type_ref_to_suffix). PLATFORM: SHARED host-C.
-       */
-      let ntp_gs: i32 = pipeline_module_struct_layout_num_type_params_at(module, k);
-      if (ntp_gs > 0 && ntp_gs <= 4 && arena != 0 as *ASTArena) {
+        let claim_pfx: u8[128] = [];
+        let claim_plen: i32 = 0;
+        if (struct_prefix != 0 as *u8 && struct_prefix_len > 0) {
+          claim_plen = struct_prefix_len;
+          if (claim_plen > 127) {
+            claim_plen = 127;
+          }
+          let ci: i32 = 0;
+          while (ci < claim_plen) {
+            claim_pfx[ci] = struct_prefix[ci];
+            ci = ci + 1;
+          }
+        } else if (!(ctx != 0 as *PipelineDepCtx && ctx.current_codegen_dep_index < 0)) {
+          claim_pfx[0] = 97;
+          claim_pfx[1] = 115;
+          claim_pfx[2] = 116;
+          claim_pfx[3] = 95;
+          claim_plen = 4;
+        }
+        let ntp_gs: i32 = pipeline_module_struct_layout_num_type_params_at(module, k);
         let combos_gs: i32[32] = [];
-        let ncombo_gs: i32 = codegen_collect_generic_struct_mono_combos(module, arena, k, &ty_nm[0], nl, ntp_gs, &combos_gs[0], 8);
+        let ncombo_gs: i32 = 0;
+        if (ntp_gs > 0 && ntp_gs <= 4 && arena != 0 as *ASTArena) {
+          ncombo_gs = codegen_collect_generic_struct_mono_combos(module, arena, k, &ty_nm[0], nl, ntp_gs, &combos_gs[0], 8);
+        }
+        if (phase == 0) {
+          // Defer mono mangled defs so A is complete before Wrap__A.
+          if (ncombo_gs > 0) {
+            k = k + 1;
+            continue;
+          }
+          if (pipeline_codegen_struct_tag_try_claim(&claim_pfx[0], claim_plen, &ty_nm[0], nl) == 0) {
+            k = k + 1;
+            continue;
+          }
+          let hdr_top: u8[8] = [115, 116, 114, 117, 99, 116, 32, 0];
+          if (emit_bytes_8(out, hdr_top, 7) != 0) {
+            return -1;
+          }
+          if (struct_prefix != 0 as *u8 && struct_prefix_len > 0) {
+            if (emit_bytes_from_ptr(out, struct_prefix, struct_prefix_len) != 0) {
+              return -1;
+            }
+          } else if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_dep_index < 0) {
+            /* entry module: bare file prefix */
+          } else {
+            let ast_top: u8[4] = [97, 115, 116, 95];
+            if (emit_bytes_4(out, ast_top, 4) != 0) {
+              return -1;
+            }
+          }
+          if (emit_bytes_from_ptr(out, &ty_nm[0], nl) != 0) {
+            return -1;
+          }
+          let br1: u8[4] = [32, 123, 10, 0];
+          if (emit_bytes_4(out, br1, 3) != 0) {
+            return -1;
+          }
+          let j: i32 = 0;
+          while (j < nf) {
+            let flen: i32 = pipeline_module_struct_layout_field_name_len(module, k, j);
+            let ftr: i32 = pipeline_module_struct_layout_field_type_ref(module, k, j);
+            if (flen <= 0) {
+              j = j + 1;
+              continue;
+            }
+            if (emit_indent(out, 2) != 0) {
+              return -1;
+            }
+            let fnm: u8[64] = [];
+            pipeline_module_struct_layout_field_name_into(module, k, j, &fnm[0]);
+            ftr = codegen_resolve_generic_struct_field_type(module, arena, &ty_nm[0], nl, &fnm[0], flen, ftr);
+            if (codegen_emit_struct_field_decl_x(arena, out, ftr, &fnm[0], flen, 0 as *u8, 0, ctx) != 0) {
+              return -1;
+            }
+            let semi_nl: u8[3] = [59, 10, 0];
+            if (emit_bytes_3(out, semi_nl, 2) != 0) {
+              return -1;
+            }
+            j = j + 1;
+          }
+          let close_ty: u8[4] = [125, 59, 10, 10];
+          if (emit_bytes_4(out, close_ty, 4) != 0) {
+            return -1;
+          }
+          k = k + 1;
+          continue;
+        }
+        // phase 1 collect mono jobs
         if (ncombo_gs > 0) {
-          // wave484: emit shallow mono before nested (Wrap__A before Wrap__Wrap_A).
-          codegen_generic_struct_sort_mono_combos_by_depth(arena, &combos_gs[0], ncombo_gs, ntp_gs);
           let cc: i32 = 0;
-          while (cc < ncombo_gs) {
+          while (cc < ncombo_gs && njob < 32) {
             let mono_c: i32[4] = [];
             let ms: i32 = 0;
             while (ms < ntp_gs) {
               mono_c[ms] = combos_gs[cc * ntp_gs + ms];
               ms = ms + 1;
             }
-            let mangled: u8[96] = [];
-            let mlen: i32 = codegen_generic_struct_mangled_name_into(arena, &ty_nm[0], nl, &mono_c[0], ntp_gs, &mangled[0], 96);
-            if (mlen <= 0) {
-              cc = cc + 1;
-              continue;
+            job_k[njob] = k;
+            job_ntp[njob] = ntp_gs;
+            job_depth[njob] = codegen_generic_struct_combo_nest_depth(arena, &mono_c[0], ntp_gs);
+            ms = 0;
+            while (ms < ntp_gs) {
+              job_mono[njob * 4 + ms] = mono_c[ms];
+              ms = ms + 1;
             }
-            if (pipeline_codegen_struct_tag_try_claim(&claim_pfx[0], claim_plen, &mangled[0], mlen) == 0) {
-              cc = cc + 1;
-              continue;
+            while (ms < 4) {
+              job_mono[njob * 4 + ms] = 0;
+              ms = ms + 1;
             }
-            let hdr_m: u8[8] = [115, 116, 114, 117, 99, 116, 32, 0];
-            if (emit_bytes_8(out, hdr_m, 7) != 0) {
-              return -1;
-            }
-            if (struct_prefix != 0 as *u8 && struct_prefix_len > 0) {
-              if (emit_bytes_from_ptr(out, struct_prefix, struct_prefix_len) != 0) {
-                return -1;
-              }
-            } else if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_dep_index < 0) {
-              /* entry module: bare file prefix already in claim / caller path */
-            } else {
-              let ast_m: u8[4] = [97, 115, 116, 95];
-              if (emit_bytes_4(out, ast_m, 4) != 0) {
-                return -1;
-              }
-            }
-            if (emit_bytes_from_ptr(out, &mangled[0], mlen) != 0) {
-              return -1;
-            }
-            let br_m: u8[4] = [32, 123, 10, 0];
-            if (emit_bytes_4(out, br_m, 3) != 0) {
-              return -1;
-            }
-            let j_m: i32 = 0;
-            while (j_m < nf) {
-              let flen_m: i32 = pipeline_module_struct_layout_field_name_len(module, k, j_m);
-              let ftr_m: i32 = pipeline_module_struct_layout_field_type_ref(module, k, j_m);
-              if (flen_m <= 0) {
-                j_m = j_m + 1;
-                continue;
-              }
-              if (emit_indent(out, 2) != 0) {
-                return -1;
-              }
-              let fnm_m: u8[64] = [];
-              pipeline_module_struct_layout_field_name_into(module, k, j_m, &fnm_m[0]);
-              ftr_m = codegen_generic_struct_field_type_from_mono(module, arena, k, ftr_m, &mono_c[0], ntp_gs);
-              if (codegen_emit_struct_field_decl_x(arena, out, ftr_m, &fnm_m[0], flen_m, 0 as *u8, 0, ctx) != 0) {
-                return -1;
-              }
-              let semi_m: u8[3] = [59, 10, 0];
-              if (emit_bytes_3(out, semi_m, 2) != 0) {
-                return -1;
-              }
-              j_m = j_m + 1;
-            }
-            let close_m: u8[4] = [125, 59, 10, 10];
-            if (emit_bytes_4(out, close_m, 4) != 0) {
-              return -1;
-            }
+            njob = njob + 1;
             cc = cc + 1;
           }
-          k = k + 1;
-          continue;
         }
-      }
-      if (pipeline_codegen_struct_tag_try_claim(&claim_pfx[0], claim_plen, &ty_nm[0], nl) == 0) {
         k = k + 1;
-        continue;
       }
-      let hdr_top: u8[8] = [115, 116, 114, 117, 99, 116, 32, 0];
-      if (emit_bytes_8(out, hdr_top, 7) != 0) {
-        return -1;
-      }
-      if (struct_prefix != 0 as *u8 && struct_prefix_len > 0) {
-        if (emit_bytes_from_ptr(out, struct_prefix, struct_prefix_len) != 0) {
-          return -1;
+      if (phase == 1) {
+        // Sort jobs by nest depth ascending (cross-layout: Pair before Wrap of Pair).
+        let i: i32 = 0;
+        while (i < njob) {
+          let j: i32 = i + 1;
+          while (j < njob) {
+            if (job_depth[j] < job_depth[i]) {
+              let tmp: i32 = job_k[i];
+              job_k[i] = job_k[j];
+              job_k[j] = tmp;
+              tmp = job_ntp[i];
+              job_ntp[i] = job_ntp[j];
+              job_ntp[j] = tmp;
+              tmp = job_depth[i];
+              job_depth[i] = job_depth[j];
+              job_depth[j] = tmp;
+              let s: i32 = 0;
+              while (s < 4) {
+                tmp = job_mono[i * 4 + s];
+                job_mono[i * 4 + s] = job_mono[j * 4 + s];
+                job_mono[j * 4 + s] = tmp;
+                s = s + 1;
+              }
+            }
+            j = j + 1;
+          }
+          i = i + 1;
         }
-      } else if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_dep_index < 0) {
-        /* See implementation. */
-      } else {
-        let ast_top: u8[4] = [97, 115, 116, 95];
-        if (emit_bytes_4(out, ast_top, 4) != 0) {
-          return -1;
+        let ji: i32 = 0;
+        while (ji < njob) {
+          let jk: i32 = job_k[ji];
+          let jntp: i32 = job_ntp[ji];
+          let jnf: i32 = pipeline_module_struct_layout_num_fields(module, jk);
+          let jnl: i32 = pipeline_module_struct_layout_name_len(module, jk);
+          if (jnl <= 0 || jntp <= 0) {
+            ji = ji + 1;
+            continue;
+          }
+          let jty: u8[64] = [];
+          pipeline_module_struct_layout_name_into(module, jk, &jty[0]);
+          let mono_c: i32[4] = [];
+          let ms: i32 = 0;
+          while (ms < jntp && ms < 4) {
+            mono_c[ms] = job_mono[ji * 4 + ms];
+            ms = ms + 1;
+          }
+          let claim_pfx2: u8[128] = [];
+          let claim_plen2: i32 = 0;
+          if (struct_prefix != 0 as *u8 && struct_prefix_len > 0) {
+            claim_plen2 = struct_prefix_len;
+            if (claim_plen2 > 127) {
+              claim_plen2 = 127;
+            }
+            let ci2: i32 = 0;
+            while (ci2 < claim_plen2) {
+              claim_pfx2[ci2] = struct_prefix[ci2];
+              ci2 = ci2 + 1;
+            }
+          } else if (!(ctx != 0 as *PipelineDepCtx && ctx.current_codegen_dep_index < 0)) {
+            claim_pfx2[0] = 97;
+            claim_pfx2[1] = 115;
+            claim_pfx2[2] = 116;
+            claim_pfx2[3] = 95;
+            claim_plen2 = 4;
+          }
+          let mangled: u8[96] = [];
+          let mlen: i32 = codegen_generic_struct_mangled_name_into(arena, &jty[0], jnl, &mono_c[0], jntp, &mangled[0], 96);
+          if (mlen <= 0) {
+            ji = ji + 1;
+            continue;
+          }
+          if (pipeline_codegen_struct_tag_try_claim(&claim_pfx2[0], claim_plen2, &mangled[0], mlen) == 0) {
+            ji = ji + 1;
+            continue;
+          }
+          let hdr_m: u8[8] = [115, 116, 114, 117, 99, 116, 32, 0];
+          if (emit_bytes_8(out, hdr_m, 7) != 0) {
+            return -1;
+          }
+          if (struct_prefix != 0 as *u8 && struct_prefix_len > 0) {
+            if (emit_bytes_from_ptr(out, struct_prefix, struct_prefix_len) != 0) {
+              return -1;
+            }
+          } else if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_dep_index < 0) {
+            /* entry bare */
+          } else {
+            let ast_m: u8[4] = [97, 115, 116, 95];
+            if (emit_bytes_4(out, ast_m, 4) != 0) {
+              return -1;
+            }
+          }
+          if (emit_bytes_from_ptr(out, &mangled[0], mlen) != 0) {
+            return -1;
+          }
+          let br_m: u8[4] = [32, 123, 10, 0];
+          if (emit_bytes_4(out, br_m, 3) != 0) {
+            return -1;
+          }
+          let j_m: i32 = 0;
+          while (j_m < jnf) {
+            let flen_m: i32 = pipeline_module_struct_layout_field_name_len(module, jk, j_m);
+            let ftr_m: i32 = pipeline_module_struct_layout_field_type_ref(module, jk, j_m);
+            if (flen_m <= 0) {
+              j_m = j_m + 1;
+              continue;
+            }
+            if (emit_indent(out, 2) != 0) {
+              return -1;
+            }
+            let fnm_m: u8[64] = [];
+            pipeline_module_struct_layout_field_name_into(module, jk, j_m, &fnm_m[0]);
+            ftr_m = codegen_generic_struct_field_type_from_mono(module, arena, jk, ftr_m, &mono_c[0], jntp);
+            if (codegen_emit_struct_field_decl_x(arena, out, ftr_m, &fnm_m[0], flen_m, 0 as *u8, 0, ctx) != 0) {
+              return -1;
+            }
+            let semi_m: u8[3] = [59, 10, 0];
+            if (emit_bytes_3(out, semi_m, 2) != 0) {
+              return -1;
+            }
+            j_m = j_m + 1;
+          }
+          let close_m: u8[4] = [125, 59, 10, 10];
+          if (emit_bytes_4(out, close_m, 4) != 0) {
+            return -1;
+          }
+          ji = ji + 1;
         }
       }
-      if (emit_bytes_from_ptr(out, &ty_nm[0], nl) != 0) {
-        return -1;
-      }
-      let br1: u8[4] = [32, 123, 10, 0];
-      if (emit_bytes_4(out, br1, 3) != 0) {
-        return -1;
-      }
-      let j: i32 = 0;
-      while (j < nf) {
-        let flen: i32 = pipeline_module_struct_layout_field_name_len(module, k, j);
-        let ftr: i32 = pipeline_module_struct_layout_field_type_ref(module, k, j);
-        if (flen <= 0) {
-          j = j + 1;
-          continue;
-        }
-        if (emit_indent(out, 2) != 0) {
-          return -1;
-        }
-        let fnm: u8[64] = [];
-        pipeline_module_struct_layout_field_name_into(module, k, j, &fnm[0]);
-        // wave466: mono type-param fields before host-C field decl (avoids struct ast_T).
-        ftr = codegen_resolve_generic_struct_field_type(module, arena, &ty_nm[0], nl, &fnm[0], flen, ftr);
-        if (codegen_emit_struct_field_decl_x(arena, out, ftr, &fnm[0], flen, 0 as *u8, 0, ctx) != 0) {
-          return -1;
-        }
-        let semi_nl: u8[3] = [59, 10, 0];
-        if (emit_bytes_3(out, semi_nl, 2) != 0) {
-          return -1;
-        }
-        j = j + 1;
-      }
-      let close_ty: u8[4] = [125, 59, 10, 10];
-      if (emit_bytes_4(out, close_ty, 4) != 0) {
-        return -1;
-      }
-      k = k + 1;
+      phase = phase + 1;
     }
     return 0;
   }
