@@ -1303,6 +1303,8 @@ static int32_t xlang_skip_rewrite_self_type_ref_c(void *arena, int32_t type_ref,
  *          STRUCT_LIT inits (same class as return STRUCT_LIT).
  * wave475: mid-body if/while/expr_stmt — fill ifs/whiles/expr_stmts + prefer
  *          onefunc src_stmt_order (G.7 twin of seed_commit free path).
+ * wave476: also fill fors from onefunc (mid-body C-style for; match is
+ *          body_expr_stmt already covered by fill_expr_stmts).
  * PLATFORM: SHARED parse.
  */
 static int32_t xlang_skip_commit_default_onefunc_c(void *arena, void *module,
@@ -1351,10 +1353,12 @@ static int32_t xlang_skip_commit_default_onefunc_c(void *arena, void *module,
   extern int32_t pipeline_block_let_init_ref(void *arena, int32_t br, int32_t li);
   extern int32_t pipeline_onefunc_num_if_stmts(uint8_t *pool);
   extern int32_t pipeline_onefunc_num_whiles(uint8_t *pool);
+  extern int32_t pipeline_onefunc_num_fors(uint8_t *pool);
   extern int32_t pipeline_onefunc_num_body_expr_stmts(uint8_t *pool);
   extern int32_t pipeline_onefunc_num_src_stmt_order(uint8_t *pool);
   extern void pipeline_block_fill_ifs_from_onefunc(void *arena, int32_t br, uint8_t *out, int32_t count);
   extern void pipeline_block_fill_whiles_from_onefunc(void *arena, int32_t br, uint8_t *out, int32_t count);
+  extern void pipeline_block_fill_fors_from_onefunc(void *arena, int32_t br, uint8_t *out, int32_t count);
   extern void pipeline_block_fill_expr_stmts_from_onefunc(void *arena, int32_t br, uint8_t *out, int32_t count);
   extern void pipeline_block_fill_stmt_order_from_onefunc(void *arena, int32_t br, uint8_t *out, int32_t count);
 
@@ -1496,20 +1500,23 @@ static int32_t xlang_skip_commit_default_onefunc_c(void *arena, void *module,
   }
 
   /*
-   * wave475: fill mid-body if/while/expr_stmt from onefunc pool, then prefer
-   * src_stmt_order when present (free seed_commit twin). Else synthetic order:
-   * consts → lets → final expr_stmt.
+   * wave475/476: fill mid-body if/while/for/expr_stmt from onefunc pool, then
+   * prefer src_stmt_order when present (free seed_commit twin). Else synthetic
+   * order: consts → lets → final expr_stmt.
    * PLATFORM: SHARED parse.
    */
   pool = parser_asm_onefunc_result_pool_ptr_c(res);
   b = ast_ast_arena_block_get(arena, block_ref);
   {
     int32_t n_while = pool ? pipeline_onefunc_num_whiles(pool) : 0;
+    int32_t n_for = pool ? pipeline_onefunc_num_fors(pool) : 0;
     int32_t n_if = pool ? pipeline_onefunc_num_if_stmts(pool) : 0;
     int32_t n_src = pool ? pipeline_onefunc_num_src_stmt_order(pool) : 0;
     int32_t n_ex = pool ? pipeline_onefunc_num_body_expr_stmts(pool) : 0;
     if (n_while > 0)
       pipeline_block_fill_whiles_from_onefunc(arena, block_ref, pool, n_while);
+    if (n_for > 0)
+      pipeline_block_fill_fors_from_onefunc(arena, block_ref, pool, n_for);
     if (n_if > 0)
       pipeline_block_fill_ifs_from_onefunc(arena, block_ref, pool, n_if);
     b = ast_ast_arena_block_get(arena, block_ref);

@@ -30,7 +30,8 @@ struct parser_asm_parse_block_result {
   struct parser_asm_lexer next_lex;
 };
 #endif
-/* wave475: mid-body if/while/expr_stmt in default-hoist buf path (G.7 free onefunc twin). */
+/* wave475/476: mid-body if/while/for/match/expr_stmt in default-hoist buf path
+ * (G.7 free onefunc twin). */
 extern int32_t parser_asm_parse_if_stmt_into_c(void *arena, struct parser_asm_lexer lex_at_if,
                                                struct parser_asm_slice_u8 *source, int32_t type_ref,
                                                int32_t *out_cond, int32_t *out_then, int32_t *out_else,
@@ -44,15 +45,24 @@ extern int32_t parser_advance_past_cond_rparen_into_glue(struct parser_asm_lexer
 extern void parser_parse_block_into(void *arena, struct parser_asm_lexer lex_after_lbrace,
                                     struct parser_asm_slice_u8 *source, int32_t type_ref,
                                     struct parser_asm_parse_block_result *out);
+extern void parser_parse_match_into(void *arena, struct parser_asm_lexer lex,
+                                    struct parser_asm_slice_u8 *source,
+                                    struct parser_asm_parse_expr_result *out);
+extern int32_t ast_ast_arena_expr_alloc(void *arena);
+extern struct ast_Expr ast_ast_arena_expr_get(void *arena, int32_t ref);
+extern void ast_ast_arena_expr_set(void *arena, int32_t ref, struct ast_Expr e);
 extern struct parser_asm_lexer parser_asm_lex_at_token_from_result_c(struct parser_asm_lexer_result r);
 extern int32_t pipeline_onefunc_append_if(uint8_t *out, int32_t cond, int32_t then_ref, int32_t else_ref);
 extern int32_t pipeline_onefunc_append_while(uint8_t *out, int32_t cond_ref, int32_t body_ref);
+extern int32_t pipeline_onefunc_append_for(uint8_t *out, int32_t init_ref, int32_t cond_ref,
+                                           int32_t step_ref, int32_t body_ref);
 extern int32_t pipeline_onefunc_push_body_expr_stmt(uint8_t *out, int32_t expr_ref);
 extern int32_t pipeline_onefunc_push_stmt_order(uint8_t *out, uint8_t kind, int32_t idx);
 extern int32_t pipeline_onefunc_num_src_stmt_order(uint8_t *out);
 extern int32_t pipeline_onefunc_num_body_expr_stmts(uint8_t *out);
 extern int32_t pipeline_onefunc_num_if_stmts(uint8_t *out);
 extern int32_t pipeline_onefunc_num_whiles(uint8_t *out);
+extern int32_t pipeline_onefunc_num_fors(uint8_t *out);
 extern void parser_asm_copy_slice_to_param32_buf_c(uint8_t *source, int32_t source_len, size_t start, int32_t nlen,
                                                    uint8_t *out);
 extern int32_t pipeline_onefunc_append_param(uint8_t *out, uint8_t *name, int32_t name_len, int32_t type_ref);
@@ -987,7 +997,10 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
    * wave475: after prefix lets, accept mid-body if/while/expr_stmt before
    * final `return` (G.7 twin of free onefunc body loop: parse_if_stmt_into /
    * parse_cond+block / parse_expr → append_if|append_while|push_body_expr_stmt
-   * + push_stmt_order). Soft: dyn Trait; dual Method.POST; multi mono rare.
+   * + push_stmt_order).
+   * wave476: mid-body C-style `for (init;cond;step) { }` + stmt-position
+   * `match` (G.7 twin free onefunc append_for / parse_match_into → expr_stmt).
+   * Soft: dyn Trait; dual Method.POST; multi mono rare; return-match compound.
    * PLATFORM: SHARED parse.
    */
   if (!parser_parse_body_lets_into(arena, lex, &source, out, &lex)) {
@@ -1000,6 +1013,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
   out->num_src_body_expr_stmts = 0;
   out->num_if_stmts = 0;
   out->num_loops = 0;
+  out->num_for_loops = 0;
   /* Prefix consts/lets enter stmt_order (same as free parse_one_function_impl). */
   {
     int32_t csr0 = 0;
@@ -1024,6 +1038,8 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
    * Mid-body statements until final TOKEN_RETURN / RBRACE.
    * IF → parse_if_stmt_into (then/else blocks may contain return).
    * WHILE → cond + parse_block_into + append_while.
+   * FOR → C-style for(init;cond;step) body + append_for (kind 4).
+   * MATCH → parse_match_into → body_expr_stmt (kind 2; optional ';').
    * Else → expr_stmt (assign / call) via parse_expr_into + ';'.
    */
   r = lexer_next_buf(lex, data, len);
@@ -1106,6 +1122,185 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
       out->num_src_stmt_order = pipeline_onefunc_num_src_stmt_order(out_pool);
       lex = block_res.next_lex;
       r = lexer_next_buf(lex, data, len);
+      continue;
+    }
+    if (r.tok.kind == (int32_t)TOKEN_FOR) {
+      /* C-style for (init; cond; step) { body } — G.7 free onefunc twin. */
+      int32_t init_ref = 0;
+      int32_t for_cond_ref = 0;
+      int32_t step_ref = 0;
+      int32_t for_idx;
+      int32_t for_past_init_semi = 0;
+      struct parser_asm_parse_block_result block_res_f;
+      struct parser_asm_parse_expr_result expr_res_fi;
+      struct parser_asm_parse_expr_result expr_res_fc;
+      struct parser_asm_parse_expr_result expr_res_fs;
+      parser_lex_from_next_into_glue(&lex, r);
+      r = lexer_next_buf(lex, data, len);
+      if (r.tok.kind != (int32_t)TOKEN_LPAREN) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      parser_lex_from_next_into_glue(&lex, r);
+      r = lexer_next_buf(lex, data, len);
+      /* init: empty | let …; | expr */
+      if (r.tok.kind != (int32_t)TOKEN_SEMICOLON) {
+        if (r.tok.kind == (int32_t)TOKEN_LET) {
+          int32_t n_before_fi = pipeline_onefunc_num_lets(out_pool);
+          int32_t push_fi;
+          struct parser_asm_lexer lex_fi_let;
+          /* body_lets expects lex at `let` keyword (free path twin). */
+          lex_fi_let = parser_asm_lex_at_token_from_result_c(r);
+          if (!parser_parse_body_lets_into(arena, lex_fi_let, &source, out, &lex)) {
+            parser_asm_set_onefunc_fail_c(out, lex);
+            return;
+          }
+          out->num_lets = pipeline_onefunc_num_lets(out_pool);
+          push_fi = n_before_fi;
+          while (push_fi < out->num_lets) {
+            if (pipeline_onefunc_push_stmt_order(out_pool, (uint8_t)1, push_fi) < 0) {
+              parser_asm_set_onefunc_fail_c(out, lex);
+              return;
+            }
+            push_fi++;
+          }
+          out->num_src_stmt_order = pipeline_onefunc_num_src_stmt_order(out_pool);
+          init_ref = 0;
+          for_past_init_semi = 1;
+          r = lexer_next_buf(lex, data, len);
+        } else {
+          struct parser_asm_lexer init_start;
+          init_start = parser_asm_lex_at_token_from_result_c(r);
+          memset(&expr_res_fi, 0, sizeof(expr_res_fi));
+          parse_expr_into(arena, init_start, &source, &expr_res_fi);
+          if (!expr_res_fi.ok || expr_res_fi.expr_ref == 0) {
+            parser_asm_set_onefunc_fail_c(out, lex);
+            return;
+          }
+          init_ref = expr_res_fi.expr_ref;
+          lex = expr_res_fi.next_lex;
+          r = lexer_next_buf(lex, data, len);
+        }
+      }
+      if (!for_past_init_semi) {
+        if (r.tok.kind != (int32_t)TOKEN_SEMICOLON) {
+          parser_asm_set_onefunc_fail_c(out, lex);
+          return;
+        }
+        parser_lex_from_next_into_glue(&lex, r);
+        r = lexer_next_buf(lex, data, len);
+      }
+      /* cond: empty → true (INT_LIT 1); else expr before ';' */
+      if (r.tok.kind != (int32_t)TOKEN_SEMICOLON) {
+        struct parser_asm_lexer cond_start;
+        cond_start = parser_asm_lex_at_token_from_result_c(r);
+        memset(&expr_res_fc, 0, sizeof(expr_res_fc));
+        parse_expr_into(arena, cond_start, &source, &expr_res_fc);
+        if (!expr_res_fc.ok || expr_res_fc.expr_ref == 0) {
+          parser_asm_set_onefunc_fail_c(out, lex);
+          return;
+        }
+        for_cond_ref = expr_res_fc.expr_ref;
+        lex = expr_res_fc.next_lex;
+        r = lexer_next_buf(lex, data, len);
+      }
+      if (r.tok.kind != (int32_t)TOKEN_SEMICOLON) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      parser_lex_from_next_into_glue(&lex, r);
+      r = lexer_next_buf(lex, data, len);
+      /* step: empty | expr before ')' */
+      if (r.tok.kind != (int32_t)TOKEN_RPAREN) {
+        struct parser_asm_lexer step_start;
+        step_start = parser_asm_lex_at_token_from_result_c(r);
+        memset(&expr_res_fs, 0, sizeof(expr_res_fs));
+        parse_expr_into(arena, step_start, &source, &expr_res_fs);
+        if (!expr_res_fs.ok || expr_res_fs.expr_ref == 0) {
+          parser_asm_set_onefunc_fail_c(out, lex);
+          return;
+        }
+        step_ref = expr_res_fs.expr_ref;
+        lex = expr_res_fs.next_lex;
+        r = lexer_next_buf(lex, data, len);
+      }
+      if (r.tok.kind != (int32_t)TOKEN_RPAREN) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      parser_lex_from_next_into_glue(&lex, r);
+      r = lexer_next_buf(lex, data, len);
+      if (r.tok.kind != (int32_t)TOKEN_LBRACE) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      parser_lex_from_next_into_glue(&lex, r);
+      memset(&block_res_f, 0, sizeof(block_res_f));
+      parser_parse_block_into(arena, lex, &source, ret_type_ref, &block_res_f);
+      if (!block_res_f.ok || block_res_f.block_ref == 0) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      if (for_cond_ref == 0) {
+        /* Empty cond → always-true INT_LIT (kind 2), same as free onefunc. */
+        int32_t cond_expr_ref = 0;
+        if (arena)
+          cond_expr_ref = ast_ast_arena_expr_alloc(arena);
+        if (cond_expr_ref != 0) {
+          struct ast_Expr ce;
+          memset(&ce, 0, sizeof(ce));
+          /* EXPR_INT_LIT kind=2 — free onefunc empty-for-cond twin. */
+          ce.kind = 2;
+          ce.int_val = 1;
+          ast_ast_arena_expr_set(arena, cond_expr_ref, ce);
+          for_cond_ref = cond_expr_ref;
+        }
+      }
+      for_idx = pipeline_onefunc_append_for(out_pool, init_ref, for_cond_ref, step_ref,
+                                            block_res_f.block_ref);
+      if (for_idx < 0) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      if (pipeline_onefunc_push_stmt_order(out_pool, (uint8_t)4, for_idx) < 0) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      out->num_for_loops = pipeline_onefunc_num_fors(out_pool);
+      out->num_src_stmt_order = pipeline_onefunc_num_src_stmt_order(out_pool);
+      lex = block_res_f.next_lex;
+      r = lexer_next_buf(lex, data, len);
+      continue;
+    }
+    if (r.tok.kind == (int32_t)TOKEN_MATCH) {
+      /* wave371/476: stmt-position match → body_expr_stmt (optional ';'). */
+      struct parser_asm_lexer match_mid_lex;
+      struct parser_asm_parse_expr_result match_mid_res;
+      int32_t match_ex_i;
+      match_mid_lex = parser_asm_lex_at_token_from_result_c(r);
+      memset(&match_mid_res, 0, sizeof(match_mid_res));
+      parser_parse_match_into(arena, match_mid_lex, &source, &match_mid_res);
+      if (!match_mid_res.ok || match_mid_res.expr_ref == 0) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      lex = match_mid_res.next_lex;
+      r = lexer_next_buf(lex, data, len);
+      if (r.tok.kind == (int32_t)TOKEN_SEMICOLON) {
+        parser_lex_from_next_into_glue(&lex, r);
+        r = lexer_next_buf(lex, data, len);
+      }
+      match_ex_i = pipeline_onefunc_push_body_expr_stmt(out_pool, match_mid_res.expr_ref);
+      if (match_ex_i < 0) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      if (pipeline_onefunc_push_stmt_order(out_pool, (uint8_t)2, match_ex_i) < 0) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      out->num_src_body_expr_stmts = pipeline_onefunc_num_body_expr_stmts(out_pool);
+      out->num_src_stmt_order = pipeline_onefunc_num_src_stmt_order(out_pool);
       continue;
     }
     /* Mid-body expr_stmt (assign / call / …); require trailing ';'. */
