@@ -5805,6 +5805,301 @@ function codegen_generic_struct_mangled_name_into(arena: *ASTArena, layout_nm: *
 }
 
 /**
+ * wave484: build mono arg suffix bytes from a field init expression.
+ * STRUCT_LIT recurses into nested field structure (ignores ambient resolved_type_ref).
+ * Other inits use codegen_type_ref_to_suffix(resolved).
+ * @param arena *ASTArena
+ * @param module *Module
+ * @param init_ref i32
+ * @param buf *u8
+ * @param buf_cap i32
+ * @return i32 — bytes written, or 0 on failure
+ * PLATFORM: SHARED host-C — G.7 twin of seed
+ */
+function codegen_mono_suffix_bytes_from_init(arena: *ASTArena, module: *Module, init_ref: i32, buf: *u8, buf_cap: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || module == 0 as *Module || init_ref <= 0 || buf == 0 as *u8 || buf_cap <= 0) {
+      return 0;
+    }
+    if (pipeline_expr_kind_ord_at(arena, init_ref) == ExprKind.EXPR_STRUCT_LIT) {
+      let e: Expr = ast.ast_arena_expr_get(arena, init_ref);
+      let nl: i32 = e.struct_lit_struct_name_len;
+      if (nl <= 0 || nl >= buf_cap) {
+        return 0;
+      }
+      let pos: i32 = 0;
+      let i: i32 = 0;
+      while (i < nl) {
+        buf[pos] = e.struct_lit_struct_name[i];
+        pos = pos + 1;
+        i = i + 1;
+      }
+      let lk: i32 = codegen_module_struct_layout_index_by_name(module, &e.struct_lit_struct_name[0], nl);
+      if (lk < 0) {
+        return pos;
+      }
+      let ntp: i32 = pipeline_module_struct_layout_num_type_params_at(module, lk);
+      if (ntp <= 0) {
+        return pos;
+      }
+      let tj: i32 = 0;
+      while (tj < ntp && tj < 4) {
+        let tpl: i32 = pipeline_module_struct_layout_type_param_name_len(module, lk, tj);
+        let tpn: u8[64] = [];
+        pipeline_module_struct_layout_type_param_name_into(module, lk, tj, &tpn[0]);
+        let found: i32 = 0;
+        let nf: i32 = pipeline_module_struct_layout_num_fields(module, lk);
+        let fj: i32 = 0;
+        while (fj < nf) {
+          let ftr: i32 = pipeline_module_struct_layout_field_type_ref(module, lk, fj);
+          if (pipeline_type_kind_ord_at(arena, ftr) == TypeKind.TYPE_NAMED) {
+            let ftn: u8[64] = [];
+            let ftnl: i32 = pipeline_type_named_name_into(arena, ftr, &ftn[0]);
+            if (ftnl == tpl && ftnl > 0) {
+              let peq: i32 = 1;
+              let pi: i32 = 0;
+              while (pi < ftnl) {
+                if (ftn[pi] != tpn[pi]) {
+                  peq = 0;
+                }
+                pi = pi + 1;
+              }
+              if (peq != 0) {
+                let flen: i32 = pipeline_module_struct_layout_field_name_len(module, lk, fj);
+                let fnm: u8[64] = [];
+                pipeline_module_struct_layout_field_name_into(module, lk, fj, &fnm[0]);
+                let lit_nf: i32 = pipeline_expr_struct_lit_num_fields(arena, init_ref);
+                let li: i32 = 0;
+                while (li < lit_nf) {
+                  let lfl: i32 = pipeline_expr_struct_lit_field_name_len(arena, init_ref, li);
+                  if (lfl == flen && flen > 0) {
+                    let lfn: u8[64] = [];
+                    pipeline_expr_struct_lit_field_name_into(arena, init_ref, li, &lfn[0]);
+                    let feq: i32 = 1;
+                    let fi: i32 = 0;
+                    while (fi < flen) {
+                      if (lfn[fi] != fnm[fi]) {
+                        feq = 0;
+                      }
+                      fi = fi + 1;
+                    }
+                    if (feq != 0) {
+                      let iref: i32 = pipeline_expr_struct_lit_init_ref(arena, init_ref, li);
+                      let asuf: u8[64] = [];
+                      let al: i32 = codegen_mono_suffix_bytes_from_init(arena, module, iref, &asuf[0], 64);
+                      if (al <= 0 || pos + 1 + al >= buf_cap) {
+                        return 0;
+                      }
+                      buf[pos] = 95;
+                      pos = pos + 1;
+                      let aj: i32 = 0;
+                      while (aj < al) {
+                        buf[pos] = asuf[aj];
+                        pos = pos + 1;
+                        aj = aj + 1;
+                      }
+                      found = 1;
+                      li = lit_nf;
+                      fj = nf;
+                    }
+                  }
+                  li = li + 1;
+                }
+              }
+            }
+          }
+          fj = fj + 1;
+        }
+        if (found == 0) {
+          return 0;
+        }
+        tj = tj + 1;
+      }
+      return pos;
+    }
+    let rty: i32 = pipeline_expr_resolved_type_ref(arena, init_ref);
+    if (rty <= 0) {
+      return 0;
+    }
+    return codegen_type_ref_to_suffix(arena, rty, buf, buf_cap);
+  }
+}
+
+/**
+ * wave484: emit STRUCT_LIT mono `__suf…` from field structure (not ambient type).
+ * @return i32 — 1 emitted, 0 not applicable, -1 fail
+ * PLATFORM: SHARED host-C
+ */
+function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, layout_nm: *u8, layout_nl: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (module == 0 as *Module || arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || expr_ref <= 0) {
+      return 0;
+    }
+    if (layout_nm == 0 as *u8 || layout_nl <= 0) {
+      return 0;
+    }
+    let lk: i32 = codegen_module_struct_layout_index_by_name(module, layout_nm, layout_nl);
+    if (lk < 0) {
+      return 0;
+    }
+    let ntp: i32 = pipeline_module_struct_layout_num_type_params_at(module, lk);
+    if (ntp <= 0 || ntp > 4) {
+      return 0;
+    }
+    // Probe fillable.
+    let tj: i32 = 0;
+    while (tj < ntp) {
+      let asuf: u8[64] = [];
+      let al: i32 = 0;
+      let tpl: i32 = pipeline_module_struct_layout_type_param_name_len(module, lk, tj);
+      let tpn: u8[64] = [];
+      pipeline_module_struct_layout_type_param_name_into(module, lk, tj, &tpn[0]);
+      let found: i32 = 0;
+      let nf: i32 = pipeline_module_struct_layout_num_fields(module, lk);
+      let fj: i32 = 0;
+      while (fj < nf) {
+        let ftr: i32 = pipeline_module_struct_layout_field_type_ref(module, lk, fj);
+        if (pipeline_type_kind_ord_at(arena, ftr) == TypeKind.TYPE_NAMED) {
+          let ftn: u8[64] = [];
+          let ftnl: i32 = pipeline_type_named_name_into(arena, ftr, &ftn[0]);
+          if (ftnl == tpl && ftnl > 0) {
+            let peq: i32 = 1;
+            let pi: i32 = 0;
+            while (pi < ftnl) {
+              if (ftn[pi] != tpn[pi]) {
+                peq = 0;
+              }
+              pi = pi + 1;
+            }
+            if (peq != 0) {
+              let flen: i32 = pipeline_module_struct_layout_field_name_len(module, lk, fj);
+              let fnm: u8[64] = [];
+              pipeline_module_struct_layout_field_name_into(module, lk, fj, &fnm[0]);
+              let lit_nf: i32 = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+              let li: i32 = 0;
+              while (li < lit_nf) {
+                let lfl: i32 = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, li);
+                if (lfl == flen && flen > 0) {
+                  let lfn: u8[64] = [];
+                  pipeline_expr_struct_lit_field_name_into(arena, expr_ref, li, &lfn[0]);
+                  let feq: i32 = 1;
+                  let fi: i32 = 0;
+                  while (fi < flen) {
+                    if (lfn[fi] != fnm[fi]) {
+                      feq = 0;
+                    }
+                    fi = fi + 1;
+                  }
+                  if (feq != 0) {
+                    let iref: i32 = pipeline_expr_struct_lit_init_ref(arena, expr_ref, li);
+                    al = codegen_mono_suffix_bytes_from_init(arena, module, iref, &asuf[0], 64);
+                    if (al <= 0) {
+                      return 0;
+                    }
+                    found = 1;
+                    li = lit_nf;
+                    fj = nf;
+                  }
+                }
+                li = li + 1;
+              }
+            }
+          }
+        }
+        fj = fj + 1;
+      }
+      if (found == 0) {
+        return 0;
+      }
+      tj = tj + 1;
+    }
+    // Emit __suf0[_suf1…]
+    let sep: u8[2] = [95, 95];
+    if (emit_bytes_from_ptr(out, &sep[0], 2) != 0) {
+      return -1;
+    }
+    let first: i32 = 1;
+    tj = 0;
+    while (tj < ntp) {
+      let tpl2: i32 = pipeline_module_struct_layout_type_param_name_len(module, lk, tj);
+      let tpn2: u8[64] = [];
+      pipeline_module_struct_layout_type_param_name_into(module, lk, tj, &tpn2[0]);
+      let done: i32 = 0;
+      let nf2: i32 = pipeline_module_struct_layout_num_fields(module, lk);
+      let fj2: i32 = 0;
+      while (fj2 < nf2) {
+        let ftr2: i32 = pipeline_module_struct_layout_field_type_ref(module, lk, fj2);
+        if (pipeline_type_kind_ord_at(arena, ftr2) == TypeKind.TYPE_NAMED) {
+          let ftn2: u8[64] = [];
+          let ftnl2: i32 = pipeline_type_named_name_into(arena, ftr2, &ftn2[0]);
+          if (ftnl2 == tpl2 && ftnl2 > 0) {
+            let peq2: i32 = 1;
+            let pi2: i32 = 0;
+            while (pi2 < ftnl2) {
+              if (ftn2[pi2] != tpn2[pi2]) {
+                peq2 = 0;
+              }
+              pi2 = pi2 + 1;
+            }
+            if (peq2 != 0) {
+              let flen2: i32 = pipeline_module_struct_layout_field_name_len(module, lk, fj2);
+              let fnm2: u8[64] = [];
+              pipeline_module_struct_layout_field_name_into(module, lk, fj2, &fnm2[0]);
+              let lit_nf2: i32 = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+              let li2: i32 = 0;
+              while (li2 < lit_nf2) {
+                let lfl2: i32 = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, li2);
+                if (lfl2 == flen2 && flen2 > 0) {
+                  let lfn2: u8[64] = [];
+                  pipeline_expr_struct_lit_field_name_into(arena, expr_ref, li2, &lfn2[0]);
+                  let feq2: i32 = 1;
+                  let fi2: i32 = 0;
+                  while (fi2 < flen2) {
+                    if (lfn2[fi2] != fnm2[fi2]) {
+                      feq2 = 0;
+                    }
+                    fi2 = fi2 + 1;
+                  }
+                  if (feq2 != 0) {
+                    let iref2: i32 = pipeline_expr_struct_lit_init_ref(arena, expr_ref, li2);
+                    let asuf2: u8[64] = [];
+                    let al2: i32 = codegen_mono_suffix_bytes_from_init(arena, module, iref2, &asuf2[0], 64);
+                    if (al2 <= 0) {
+                      return -1;
+                    }
+                    if (first == 0) {
+                      if (append_byte(out, 95) != 0) {
+                        return -1;
+                      }
+                    }
+                    first = 0;
+                    if (emit_bytes_from_ptr(out, &asuf2[0], al2) != 0) {
+                      return -1;
+                    }
+                    done = 1;
+                    li2 = lit_nf2;
+                    fj2 = nf2;
+                  }
+                }
+                li2 = li2 + 1;
+              }
+            }
+          }
+        }
+        fj2 = fj2 + 1;
+      }
+      if (done == 0) {
+        return -1;
+      }
+      tj = tj + 1;
+    }
+    return 1;
+  }
+}
+
+/**
  * wave481: emit mono suffix `__suf0[_suf1…]` after a base C struct tag name.
  * @param out *CodegenOutBuf
  * @param arena *ASTArena
@@ -5895,9 +6190,171 @@ function codegen_generic_struct_field_type_from_mono(module: *Module, arena: *AS
 }
 
 /**
+ * wave484: structural equality of two type_refs for mono combo dedup.
+ * Name-only equal is insufficient: Wrap&lt;A&gt; and Wrap&lt;Wrap&lt;A&gt;&gt; share name "Wrap".
+ * Recurses into type-pos args via pipeline_type_type_arg_ref_at.
+ * @param arena *ASTArena
+ * @param a i32 — type_ref
+ * @param b i32 — type_ref
+ * @return i32 — 1 if same mono shape, 0 otherwise
+ * PLATFORM: SHARED host-C
+ */
+function codegen_type_refs_same_for_mono(arena: *ASTArena, a: i32, b: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (a == b && a > 0) {
+      return 1;
+    }
+    if (arena == 0 as *ASTArena || a <= 0 || b <= 0) {
+      return 0;
+    }
+    let ka: i32 = pipeline_type_kind_ord_at(arena, a);
+    let kb: i32 = pipeline_type_kind_ord_at(arena, b);
+    if (ka != kb) {
+      return 0;
+    }
+    if (ka == (TypeKind.TYPE_NAMED as i32)) {
+      let nma: u8[64] = [];
+      let nmb: u8[64] = [];
+      let nla: i32 = pipeline_type_named_name_into(arena, a, &nma[0]);
+      let nlb: i32 = pipeline_type_named_name_into(arena, b, &nmb[0]);
+      if (nla <= 0 || nla != nlb) {
+        return 0;
+      }
+      let ni: i32 = 0;
+      while (ni < nla) {
+        if (nma[ni] != nmb[ni]) {
+          return 0;
+        }
+        ni = ni + 1;
+      }
+      let ai: i32 = 0;
+      while (ai < 4) {
+        let aa: i32 = pipeline_type_type_arg_ref_at(arena, a, ai);
+        let bb: i32 = pipeline_type_type_arg_ref_at(arena, b, ai);
+        if (aa <= 0 && bb <= 0) {
+          return 1;
+        }
+        if (aa <= 0 || bb <= 0) {
+          return 0;
+        }
+        if (codegen_type_refs_same_for_mono(arena, aa, bb) == 0) {
+          return 0;
+        }
+        ai = ai + 1;
+      }
+      return 1;
+    }
+    if (ka == (TypeKind.TYPE_PTR as i32)) {
+      return codegen_type_refs_same_for_mono(arena, pipeline_type_elem_ref_at(arena, a), pipeline_type_elem_ref_at(arena, b));
+    }
+    // Non-named builtins of same kind are equal for mono keys.
+    return 1;
+  }
+}
+
+/**
+ * wave484: nesting depth of type-pos args (0 = leaf / no args).
+ * Used to emit shallower mono layouts before deeper ones (avoid incomplete field types).
+ * @param arena *ASTArena
+ * @param ty i32
+ * @return i32 — depth
+ * PLATFORM: SHARED host-C
+ */
+function codegen_type_ref_type_arg_nest_depth(arena: *ASTArena, ty: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || ty <= 0) {
+      return 0;
+    }
+    let maxd: i32 = 0;
+    let ai: i32 = 0;
+    while (ai < 4) {
+      let arg: i32 = pipeline_type_type_arg_ref_at(arena, ty, ai);
+      if (arg <= 0) {
+        ai = 4;
+      } else {
+        let d: i32 = 1 + codegen_type_ref_type_arg_nest_depth(arena, arg);
+        if (d > maxd) {
+          maxd = d;
+        }
+        ai = ai + 1;
+      }
+    }
+    return maxd;
+  }
+}
+
+/**
+ * wave484: max type-arg nest depth across a mono combo (ntp slots).
+ * @param arena *ASTArena
+ * @param mono_tys *i32
+ * @param ntp i32
+ * @return i32
+ * PLATFORM: SHARED
+ */
+function codegen_generic_struct_combo_nest_depth(arena: *ASTArena, mono_tys: *i32, ntp: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || mono_tys == 0 as *i32 || ntp <= 0) {
+      return 0;
+    }
+    let maxd: i32 = 0;
+    let i: i32 = 0;
+    while (i < ntp) {
+      let d: i32 = codegen_type_ref_type_arg_nest_depth(arena, mono_tys[i]);
+      if (d > maxd) {
+        maxd = d;
+      }
+      i = i + 1;
+    }
+    return maxd;
+  }
+}
+
+/**
+ * wave484: sort mono combos by nest depth ascending (in-place bubble, max 8).
+ * Ensures Wrap__A is defined before Wrap__Wrap_A before Wrap__Wrap_Wrap_A.
+ * @param arena *ASTArena
+ * @param combos *i32 — layout combos[c * ntp + slot]
+ * @param ncombo i32
+ * @param ntp i32
+ * @return void
+ * PLATFORM: SHARED host-C
+ */
+function codegen_generic_struct_sort_mono_combos_by_depth(arena: *ASTArena, combos: *i32, ncombo: i32, ntp: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || combos == 0 as *i32 || ncombo <= 1 || ntp <= 0) {
+      return;
+    }
+    let i: i32 = 0;
+    while (i < ncombo) {
+      let j: i32 = i + 1;
+      while (j < ncombo) {
+        let di: i32 = codegen_generic_struct_combo_nest_depth(arena, &combos[i * ntp], ntp);
+        let dj: i32 = codegen_generic_struct_combo_nest_depth(arena, &combos[j * ntp], ntp);
+        if (dj < di) {
+          let s: i32 = 0;
+          while (s < ntp) {
+            let tmp: i32 = combos[i * ntp + s];
+            combos[i * ntp + s] = combos[j * ntp + s];
+            combos[j * ntp + s] = tmp;
+            s = s + 1;
+          }
+        }
+        j = j + 1;
+      }
+      i = i + 1;
+    }
+  }
+}
+
+/**
  * wave481: collect unique concrete mono combos for a generic struct layout.
  * Sources: TYPE_NAMED type-pos uses (Wrap&lt;A&gt;) and STRUCT_LIT field-init mapping.
  * Layout: combos_out[c * ntp + slot]; max_combos cap (typically 8).
+ * wave484: dedup uses structural type_arg equality (not name-only).
  * @return i32 — number of unique combos
  * PLATFORM: SHARED host-C multi mono
  */
@@ -5935,29 +6392,12 @@ function codegen_collect_generic_struct_mono_combos(module: *Module, arena: *AST
                 let same: i32 = 1;
                 let s0: i32 = 0;
                 while (s0 < ntp) {
-                  // Inline combo-slot equal (type_ref id or TYPE_NAMED same name).
+                  // wave484: structural mono equal (nested type-args), not name-only.
                   let ca: i32 = combos_out[c0 * ntp + s0];
                   let cb: i32 = combo[s0];
-                  if (ca != cb) {
-                    let nma: u8[64] = [];
-                    let nmb: u8[64] = [];
-                    let nla: i32 = pipeline_type_named_name_into(arena, ca, &nma[0]);
-                    let nlb: i32 = pipeline_type_named_name_into(arena, cb, &nmb[0]);
-                    let neq: i32 = 0;
-                    if (nla > 0 && nla == nlb) {
-                      neq = 1;
-                      let ni: i32 = 0;
-                      while (ni < nla) {
-                        if (nma[ni] != nmb[ni]) {
-                          neq = 0;
-                        }
-                        ni = ni + 1;
-                      }
-                    }
-                    if (neq == 0) {
-                      same = 0;
-                      s0 = ntp;
-                    }
+                  if (codegen_type_refs_same_for_mono(arena, ca, cb) == 0) {
+                    same = 0;
+                    s0 = ntp;
                   }
                   s0 = s0 + 1;
                 }
@@ -6089,28 +6529,12 @@ function codegen_collect_generic_struct_mono_combos(module: *Module, arena: *AST
                 let same2: i32 = 1;
                 let s2: i32 = 0;
                 while (s2 < ntp) {
+                  // wave484: structural mono equal (nested type-args).
                   let ca2: i32 = combos_out[c1 * ntp + s2];
                   let cb2: i32 = combo2[s2];
-                  if (ca2 != cb2) {
-                    let nma2: u8[64] = [];
-                    let nmb2: u8[64] = [];
-                    let nla2: i32 = pipeline_type_named_name_into(arena, ca2, &nma2[0]);
-                    let nlb2: i32 = pipeline_type_named_name_into(arena, cb2, &nmb2[0]);
-                    let neq2: i32 = 0;
-                    if (nla2 > 0 && nla2 == nlb2) {
-                      neq2 = 1;
-                      let ni2: i32 = 0;
-                      while (ni2 < nla2) {
-                        if (nma2[ni2] != nmb2[ni2]) {
-                          neq2 = 0;
-                        }
-                        ni2 = ni2 + 1;
-                      }
-                    }
-                    if (neq2 == 0) {
-                      same2 = 0;
-                      s2 = ntp;
-                    }
+                  if (codegen_type_refs_same_for_mono(arena, ca2, cb2) == 0) {
+                    same2 = 0;
+                    s2 = ntp;
                   }
                   s2 = s2 + 1;
                 }
@@ -6258,7 +6682,7 @@ function codegen_collect_generic_struct_mono_combos(module: *Module, arena: *AST
                           let same_r: i32 = 1;
                           let s_r: i32 = 0;
                           while (s_r < ntp) {
-                            if (codegen_combo_slots_equal(arena, combos_out[c_r * ntp + s_r], combo_r[s_r]) == 0) {
+                            if (codegen_type_refs_same_for_mono(arena, combos_out[c_r * ntp + s_r], combo_r[s_r]) == 0) {
                               same_r = 0;
                             }
                             s_r = s_r + 1;
@@ -6522,6 +6946,8 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
         let combos_gs: i32[32] = [];
         let ncombo_gs: i32 = codegen_collect_generic_struct_mono_combos(module, arena, k, &ty_nm[0], nl, ntp_gs, &combos_gs[0], 8);
         if (ncombo_gs > 0) {
+          // wave484: emit shallow mono before nested (Wrap__A before Wrap__Wrap_A).
+          codegen_generic_struct_sort_mono_combos_by_depth(arena, &combos_gs[0], ncombo_gs, ntp_gs);
           let cc: i32 = 0;
           while (cc < ncombo_gs) {
             let mono_c: i32[4] = [];
@@ -10919,86 +11345,28 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         return -1;
       }
       /*
-       * wave481: STRUCT_LIT compound tag must match mono mangled defs.
-       * Prefer resolved_type_ref type-pos args; else build combo from field inits.
+       * wave481/484: STRUCT_LIT compound tag must match mono mangled defs.
+       * wave484: **prefer field-init combo first** — nested Wrap { inner: Wrap {…} }
+       * often stamps ambient outer resolved_type_ref on every lit (same Wrap&lt;Wrap&lt;A&gt;&gt;),
+       * which made middle lit emit Wrap__Wrap_A instead of Wrap__A (BLD001).
+       * Field inits encode true nesting; resolved_type_ref is fallback for typed sites.
        * PLATFORM: SHARED host-C.
        */
       if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module) {
         let mod_sl: *Module = ctx.current_codegen_module;
         let rty_sl: i32 = e.resolved_type_ref;
         let did_mono: i32 = 0;
-        if (rty_sl > 0) {
-          if (codegen_maybe_emit_generic_struct_mono_suffix_for_type(mod_sl, arena, out, rty_sl, ctx) != 0) {
+        // (0) wave484: structural field mono (nested Wrap lit; ignore ambient type).
+        {
+          let st0: i32 = codegen_try_emit_struct_lit_mono_from_fields(mod_sl, arena, out, expr_ref, &sl_emit_name[0], sl_emit_nlen);
+          if (st0 < 0) {
             return -1;
           }
-          // Detect whether suffix was applicable: if fill would succeed, we already emitted.
-          // maybe_emit is no-op when not applicable; always OK.
-          let mono_chk: i32[4] = [];
-          let lk_sl: i32 = codegen_module_struct_layout_index_by_name(mod_sl, &sl_emit_name[0], sl_emit_nlen);
-          if (lk_sl >= 0) {
-            let ntp_sl: i32 = pipeline_module_struct_layout_num_type_params_at(mod_sl, lk_sl);
-            if (ntp_sl > 0 && codegen_generic_struct_fill_concrete_args(mod_sl, arena, rty_sl, ntp_sl, &mono_chk[0], ctx) == ntp_sl) {
-              did_mono = 1;
-            }
+          if (st0 > 0) {
+            did_mono = 1;
           }
         }
-        /*
-         * wave481: inside generic function mono body (`return Pair { a: x, b: y }`),
-         * STRUCT_LIT bare name is not type-pos Pair&lt;A,B&gt; — map layout type-params
-         * through ctx.mono_* (T→A,U→B) to emit Pair__A_B matching defs.
-         * PLATFORM: SHARED host-C mono.
-         */
-        if (did_mono == 0 && ctx.mono_active != 0 && ctx.mono_num_types > 0) {
-          let lk_m: i32 = codegen_module_struct_layout_index_by_name(mod_sl, &sl_emit_name[0], sl_emit_nlen);
-          if (lk_m >= 0) {
-            let ntp_m: i32 = pipeline_module_struct_layout_num_type_params_at(mod_sl, lk_m);
-            if (ntp_m > 0 && ntp_m <= 4) {
-              let combo_m: i32[4] = [];
-              let ok_m: i32 = 1;
-              let tj_m: i32 = 0;
-              while (tj_m < ntp_m) {
-                combo_m[tj_m] = 0;
-                let tpl_m: i32 = pipeline_module_struct_layout_type_param_name_len(mod_sl, lk_m, tj_m);
-                let tpn_m: u8[64] = [];
-                pipeline_module_struct_layout_type_param_name_into(mod_sl, lk_m, tj_m, &tpn_m[0]);
-                let mi_m: i32 = 0;
-                while (mi_m < ctx.mono_num_types && mi_m < 8) {
-                  let gtr_m: i32 = ctx.mono_generic_type_refs[mi_m];
-                  let ctr_m: i32 = ctx.mono_concrete_type_refs[mi_m];
-                  if (gtr_m > 0 && ctr_m > 0) {
-                    let gnm_m: u8[64] = [];
-                    let gnl_m: i32 = pipeline_type_named_name_into(arena, gtr_m, &gnm_m[0]);
-                    if (gnl_m == tpl_m && gnl_m > 0) {
-                      let geq: i32 = 1;
-                      let gi: i32 = 0;
-                      while (gi < gnl_m) {
-                        if (gnm_m[gi] != tpn_m[gi]) {
-                          geq = 0;
-                        }
-                        gi = gi + 1;
-                      }
-                      if (geq != 0) {
-                        combo_m[tj_m] = ctr_m;
-                        mi_m = ctx.mono_num_types;
-                      }
-                    }
-                  }
-                  mi_m = mi_m + 1;
-                }
-                if (combo_m[tj_m] <= 0) {
-                  ok_m = 0;
-                }
-                tj_m = tj_m + 1;
-              }
-              if (ok_m != 0) {
-                if (codegen_emit_generic_struct_mono_suffix(out, arena, &combo_m[0], ntp_m) != 0) {
-                  return -1;
-                }
-                did_mono = 1;
-              }
-            }
-          }
-        }
+        // (1) Field-init combo via type_ref (legacy path when structural not applicable).
         if (did_mono == 0) {
           let lk2: i32 = codegen_module_struct_layout_index_by_name(mod_sl, &sl_emit_name[0], sl_emit_nlen);
           if (lk2 >= 0) {
@@ -11091,6 +11459,77 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                 if (codegen_emit_generic_struct_mono_suffix(out, arena, &combo_sl[0], ntp2) != 0) {
                   return -1;
                 }
+                did_mono = 1;
+              }
+            }
+          }
+        }
+        // (2) Fallback: resolved_type_ref type-pos args (typed let / ret ambient).
+        if (did_mono == 0 && rty_sl > 0) {
+          if (codegen_maybe_emit_generic_struct_mono_suffix_for_type(mod_sl, arena, out, rty_sl, ctx) != 0) {
+            return -1;
+          }
+          let mono_chk: i32[4] = [];
+          let lk_sl: i32 = codegen_module_struct_layout_index_by_name(mod_sl, &sl_emit_name[0], sl_emit_nlen);
+          if (lk_sl >= 0) {
+            let ntp_sl: i32 = pipeline_module_struct_layout_num_type_params_at(mod_sl, lk_sl);
+            if (ntp_sl > 0 && codegen_generic_struct_fill_concrete_args(mod_sl, arena, rty_sl, ntp_sl, &mono_chk[0], ctx) == ntp_sl) {
+              did_mono = 1;
+            }
+          }
+        }
+        /*
+         * (3) wave481: generic function mono body bare Pair { a: x, b: y } —
+         * map layout type-params through ctx.mono_* (T→A,U→B).
+         * PLATFORM: SHARED host-C mono.
+         */
+        if (did_mono == 0 && ctx.mono_active != 0 && ctx.mono_num_types > 0) {
+          let lk_m: i32 = codegen_module_struct_layout_index_by_name(mod_sl, &sl_emit_name[0], sl_emit_nlen);
+          if (lk_m >= 0) {
+            let ntp_m: i32 = pipeline_module_struct_layout_num_type_params_at(mod_sl, lk_m);
+            if (ntp_m > 0 && ntp_m <= 4) {
+              let combo_m: i32[4] = [];
+              let ok_m: i32 = 1;
+              let tj_m: i32 = 0;
+              while (tj_m < ntp_m) {
+                combo_m[tj_m] = 0;
+                let tpl_m: i32 = pipeline_module_struct_layout_type_param_name_len(mod_sl, lk_m, tj_m);
+                let tpn_m: u8[64] = [];
+                pipeline_module_struct_layout_type_param_name_into(mod_sl, lk_m, tj_m, &tpn_m[0]);
+                let mi_m: i32 = 0;
+                while (mi_m < ctx.mono_num_types && mi_m < 8) {
+                  let gtr_m: i32 = ctx.mono_generic_type_refs[mi_m];
+                  let ctr_m: i32 = ctx.mono_concrete_type_refs[mi_m];
+                  if (gtr_m > 0 && ctr_m > 0) {
+                    let gnm_m: u8[64] = [];
+                    let gnl_m: i32 = pipeline_type_named_name_into(arena, gtr_m, &gnm_m[0]);
+                    if (gnl_m == tpl_m && gnl_m > 0) {
+                      let geq: i32 = 1;
+                      let gi: i32 = 0;
+                      while (gi < gnl_m) {
+                        if (gnm_m[gi] != tpn_m[gi]) {
+                          geq = 0;
+                        }
+                        gi = gi + 1;
+                      }
+                      if (geq != 0) {
+                        combo_m[tj_m] = ctr_m;
+                        mi_m = ctx.mono_num_types;
+                      }
+                    }
+                  }
+                  mi_m = mi_m + 1;
+                }
+                if (combo_m[tj_m] <= 0) {
+                  ok_m = 0;
+                }
+                tj_m = tj_m + 1;
+              }
+              if (ok_m != 0) {
+                if (codegen_emit_generic_struct_mono_suffix(out, arena, &combo_m[0], ntp_m) != 0) {
+                  return -1;
+                }
+                did_mono = 1;
               }
             }
           }
@@ -13145,9 +13584,15 @@ export function emit_suffix_bytes(dst: *u8, src: *u8, len: i32): i32 {
 }
 
 /**
- * See implementation.
- * See implementation.
- * See implementation.
+ * Map a type_ref to a C-safe mangle suffix (overload / mono / generic-struct tags).
+ * wave484: TYPE_NAMED with type-pos args appends nested `_` + recursive arg suffixes
+ * so Wrap&lt;Wrap&lt;A&gt;&gt; ≠ Wrap&lt;A&gt; (name-only collided as "Wrap").
+ * @param arena *ASTArena — type arena
+ * @param type_ref i32 — type to mangle
+ * @param buf *u8 — output buffer
+ * @param buf_cap i32 — capacity
+ * @return i32 — bytes written, or 0 on failure
+ * PLATFORM: SHARED — G.7 single authority with seed codegen_gen
  */
 export function codegen_type_ref_to_suffix(arena: *ASTArena, type_ref: i32, buf: *u8, buf_cap: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -13170,7 +13615,12 @@ export function codegen_type_ref_to_suffix(arena: *ASTArena, type_ref: i32, buf:
       }
       return n;
     }
-    /* See implementation. */
+    /*
+     * TYPE_NAMED: base name, then nested type-pos args as `_` + recursive suffixes.
+     * Examples: A → "A"; Wrap&lt;A&gt; → "Wrap_A"; Wrap&lt;Wrap&lt;A&gt;&gt; → "Wrap_Wrap_A";
+     * Pair&lt;A,B&gt; → "Pair_A_B". Outer mono tags still use Name__… (double underscore).
+     * PLATFORM: SHARED — uses pipeline_type_type_arg_ref_at (wave466/467 sidecar).
+     */
     if (tk == (TypeKind.TYPE_NAMED as i32)) {
       let nl: i32 = pipeline_type_named_name_into(arena, type_ref, buf);
       let si: i32 = 0;
@@ -13178,10 +13628,36 @@ export function codegen_type_ref_to_suffix(arena: *ASTArena, type_ref: i32, buf:
         if (buf[si] == 46) { buf[si] = 95; }
         si = si + 1;
       }
-      if (nl > 0 && nl < buf_cap) {
-        return nl;
+      if (nl <= 0 || nl >= buf_cap) {
+        return 0;
       }
-      return 0;
+      let pos: i32 = nl;
+      let ai: i32 = 0;
+      while (ai < 4) {
+        let arg: i32 = pipeline_type_type_arg_ref_at(arena, type_ref, ai);
+        if (arg <= 0) {
+          ai = 4;
+        } else {
+          let asuf: u8[64] = [];
+          let al: i32 = codegen_type_ref_to_suffix(arena, arg, &asuf[0], 64);
+          if (al <= 0) {
+            ai = 4;
+          } else if (pos + 1 + al >= buf_cap) {
+            ai = 4;
+          } else {
+            buf[pos] = 95;
+            pos = pos + 1;
+            let aj: i32 = 0;
+            while (aj < al) {
+              buf[pos] = asuf[aj];
+              pos = pos + 1;
+              aj = aj + 1;
+            }
+            ai = ai + 1;
+          }
+        }
+      }
+      return pos;
     }
     /* See implementation. */
     if (tk == (TypeKind.TYPE_I32 as i32)) {
