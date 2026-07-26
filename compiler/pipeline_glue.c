@@ -34347,9 +34347,15 @@ static int32_t pipeline_typeck_named_is_module_type_c(struct ast_Module *mod, st
  * wave453: when value-arg path cannot run (zero-arg) or does not pin the sole
  * type param on the return position, allow inference from expected return
  * (`let a: A = mk_default();` / `return as_t(42)` with expected A) when
- * num_generic_params==1 and ret is a type parameter (not a module type).
+ * ret is a type parameter (not a module type) and expected is a module
+ * TYPE_NAMED.
+ * wave457: same expected-return path for multi type_arg ret-only bare calls
+ * (`mk2<T,U>():T` / `mk2u<T,U>():U` with `let x: A = mk2()`). The ambient
+ * expected pins the return type param; other type params that never appear
+ * on value formals stay unconstrained — same policy as bare `as2(x)` which
+ * already greens multi with unused U via the value-arg path.
  * Phantom-only generics (`unit_t<T>(): i32`) stay requires_type_args without
- * turbofish — expected i32 does not determine T.
+ * turbofish — expected i32 does not determine T (ret is not a type param).
  * wave449: bound-check after successful infer (no turbofish) via
  * xlang_generic_bound_check_type_args_c.
  * PLATFORM: SHARED — rebuild pipeline_glue_standalone.o after edit.
@@ -34434,15 +34440,19 @@ static int32_t pipeline_typeck_try_infer_generic_call_from_args_c(struct ast_Mod
   }
 
   /*
-   * wave453: expected-return inference for sole type param on return position.
-   * Covers zero-arg `mk_default():T` and fail-closed when ret is concrete
+   * wave453/wave457: expected-return inference when ret is a type param.
+   * Covers zero-arg `mk_default():T` and multi ret-only bare
+   * (`mk2<T,U>():T` / `mk2u<T,U>():U`); fail-closed when ret is concrete
    * (phantom T on unit_t<T>():i32 still requires turbofish).
    * wave454: ambient expected must itself be a module TYPE_NAMED (struct/alias).
    * Primitive expected (i32 from `return mk_default()` / wrong field ambient)
    * must not pin T — that typeck-greened then BLD001 on host C body.
+   * wave457: n_gp may be >1; only the ret type param is pinned here. Fixup
+   * stamps call resolved_type_ref from expected (already multi-safe); codegen
+   * mono maps ret→concrete via concrete_at prefer resolved (wave455/456).
    */
   n_gp = pipeline_module_func_num_generic_params_at(callee_mod, func_ix);
-  if (n_gp != 1 || expected_ret <= 0)
+  if (n_gp < 1 || expected_ret <= 0)
     return -1;
   /* expected_ret must be a concrete module named type (not i32/bool/…). */
   if (pipeline_type_kind_ord_at(arena, expected_ret) != ord_named)
@@ -34481,9 +34491,11 @@ static int32_t pipeline_typeck_try_infer_generic_call_from_args_c(struct ast_Mod
  * Non-named arg types leave an empty slot → that bound position is skipped
  * (same under-specified policy as wave442).
  *
- * wave453: when the sole type param lives only on the return position
- * (as_t<T>(i32):T / mk_default<T>():T) formals yield n_tp==0; fill slot 0 from
- * expected_ret TYPE_NAMED name so `T: Trait` bounds still fire on bare calls.
+ * wave453/wave457: when a type param lives only on the return position
+ * (as_t<T>(i32):T / mk_default<T>():T / mk2<T,U>():T) formals yield n_tp==0
+ * for that name; append a slot from expected_ret TYPE_NAMED name so
+ * `T: Trait` bounds still fire on bare calls. Phantom type params without
+ * a filled slot stay empty → bound positions skipped (under-specified).
  * PLATFORM: SHARED typeck.
  */
 static int32_t pipeline_typeck_check_inferred_generic_bounds_c(struct ast_Module *callee_mod,
@@ -34569,9 +34581,8 @@ static int32_t pipeline_typeck_check_inferred_generic_bounds_c(struct ast_Module
   }
 
   /*
-   * wave453: sole type param only on return (or zero-arg mk_default). If ret
-   * is a type param not already in formal slots, take concrete name from
-   * expected_ret (TYPE_NAMED).
+   * wave453/wave457: ret type param not already in formal slots (zero-arg
+   * mk_default / multi ret-only mk2). Take concrete name from expected_ret.
    */
   ret_ty = pipeline_module_func_return_type_at(callee_mod, func_ix);
   if (ret_ty > 0 && pipeline_type_kind_ord_at(arena, ret_ty) == ord_named && n_tp < W449_MAX_TARGS) {
