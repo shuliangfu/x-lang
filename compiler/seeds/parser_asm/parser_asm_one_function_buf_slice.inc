@@ -30,7 +30,7 @@ struct parser_asm_parse_block_result {
   struct parser_asm_lexer next_lex;
 };
 #endif
-/* wave475/476/477: mid-body if/while/for/match/let/const/expr_stmt in
+/* wave475/476/477/478: mid-body control + return-match final in
  * default-hoist buf path (G.7 free onefunc twin). */
 extern int32_t parser_asm_parse_if_stmt_into_c(void *arena, struct parser_asm_lexer lex_at_if,
                                                struct parser_asm_slice_u8 *source, int32_t type_ref,
@@ -1465,6 +1465,81 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
         parser_asm_set_onefunc_fail_c(out, lex);
         return;
       }
+    }
+    parser_lex_from_next_into_glue(&lex, r);
+    out->ok = 1;
+    out->next_lex = lex;
+    out->name_len = name_len;
+    for (ni = 0; ni < 64; ni++)
+      out->name[ni] = dummy_name[ni];
+    out->has_explicit_return_kw = 1;
+    return;
+  }
+  /*
+   * wave478: `return match …` final expression in trait default hoist.
+   * Root: thin onefunc after `return` only accepted if-expr / self|ident|INT;
+   * TOKEN_MATCH failed → whole default dropped → missing method (free path
+   * green via parse_one_function_impl return-match → return_expr_ref).
+   * G.7: parse_match_into for bare `return match {…};`; if a binary/postfix
+   * tail follows (`return match … + 2`), re-parse from MATCH with parse_expr_into
+   * (match primary + ops — free twin). Mid-body stmt match is wave476.
+   * Soft: multi mono rare; dyn Trait; dual Method.POST.
+   * PLATFORM: SHARED parse.
+   */
+  if (r.tok.kind == (int32_t)TOKEN_MATCH) {
+    struct parser_asm_lexer match_ret_lex;
+    struct parser_asm_parse_expr_result match_ret_res;
+    size_t match_start;
+    int32_t match_line;
+    int32_t match_col;
+    if (!arena) {
+      parser_asm_set_onefunc_fail_c(out, lex);
+      return;
+    }
+    match_start = r.token_start;
+    match_line = r.tok.line;
+    match_col = r.tok.col;
+    match_ret_lex = parser_asm_lex_at_token_from_result_c(r);
+    memset(&match_ret_res, 0, sizeof(match_ret_res));
+    parser_parse_match_into(arena, match_ret_lex, &source, &match_ret_res);
+    if (!match_ret_res.ok || match_ret_res.expr_ref == 0) {
+      parser_asm_set_onefunc_fail_c(out, lex);
+      return;
+    }
+    out->return_expr_ref = match_ret_res.expr_ref;
+    out->return_var_name_len = 0;
+    memset(out->return_var_name, 0, sizeof(out->return_var_name));
+    out->return_val = 0;
+    lex = match_ret_res.next_lex;
+    r = lexer_next_buf(lex, data, len);
+    /*
+     * Compound after match (e.g. `return match x {…} + 2`): free path builds
+     * match primary + binop via parse_expr/cond; re-parse from match_start.
+     */
+    if (r.tok.kind != (int32_t)TOKEN_SEMICOLON && r.tok.kind != (int32_t)TOKEN_RBRACE) {
+      struct parser_asm_lexer expr_lex;
+      struct parser_asm_parse_expr_result expr_out;
+      memset(&expr_lex, 0, sizeof(expr_lex));
+      expr_lex.pos = match_start;
+      expr_lex.line = match_line;
+      expr_lex.col = match_col;
+      memset(&expr_out, 0, sizeof(expr_out));
+      parse_expr_into(arena, expr_lex, &source, &expr_out);
+      if (!expr_out.ok || expr_out.expr_ref == 0) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      out->return_expr_ref = expr_out.expr_ref;
+      lex = expr_out.next_lex;
+      r = lexer_next_buf(lex, data, len);
+    }
+    if (r.tok.kind == (int32_t)TOKEN_SEMICOLON) {
+      parser_lex_from_next_into_glue(&lex, r);
+      r = lexer_next_buf(lex, data, len);
+    }
+    if (r.tok.kind != (int32_t)TOKEN_RBRACE) {
+      parser_asm_set_onefunc_fail_c(out, lex);
+      return;
     }
     parser_lex_from_next_into_glue(&lex, r);
     out->ok = 1;
