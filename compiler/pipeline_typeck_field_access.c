@@ -966,6 +966,15 @@ static void pipeline_typeck_field_apply_ambient_for_type_param_c(struct ast_Modu
     pipeline_expr_set_resolved_type_ref(arena, expr_ref, ambient_ty);
 }
 
+/*
+ * G.7 / wave465: mega pipeline_x (OMIT_X_DUP, no STANDALONE_TU) keeps a local
+ * copy only — product export must come from pipeline_glue_standalone.o so daily
+ * L2 rebuilds of field_access are not silently overridden by a stale pipeline_x.o
+ * (Linux first-def-wins). PLATFORM: SHARED link discipline.
+ */
+#if defined(XLANG_PIPELINE_GLUE_OMIT_X_DUP_EXPORTS) && !defined(XLANG_PIPELINE_GLUE_STANDALONE_TU)
+static
+#endif
 int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                                   int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
   int32_t base_ref;
