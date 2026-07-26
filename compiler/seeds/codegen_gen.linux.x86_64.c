@@ -3329,6 +3329,100 @@ int32_t codegen_try_emit_fmt_string_lit_call(struct ast_ASTArena * arena, struct
   }
   return 1;
 }
+/* PLATFORM: SHARED host-C — wave463 CORE-001 size_of<T>/align_of<T> intrinsic.
+ * Zero-param type-arg-only layout builtins expand to sizeof/_Alignof at CALL site
+ * (import types.size_of<i32>() and free size_of<Pair>()). Align codegen.x G.7.
+ * Returns 1 emitted, 0 skip, -1 error. */
+int32_t codegen_try_emit_size_align_of_call(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t expr_ref, struct ast_PipelineDepCtx * ctx) {
+  struct ast_Expr e;
+  struct ast_Expr callee;
+  int32_t callee_ref;
+  int32_t name_len = 0;
+  int32_t is_size = 0;
+  int32_t is_align = 0;
+  int32_t n_ta = 0;
+  int32_t ta = 0;
+  uint8_t *name_ptr = ((uint8_t *)(0));
+  /* ((int32_t)(sizeof( */
+  uint8_t open_sz[18] = {40, 40, 105, 110, 116, 51, 50, 95, 116, 41, 40, 115, 105, 122, 101, 111, 102, 40};
+  /* ((int32_t)(_Alignof( */
+  uint8_t open_al[20] = {40, 40, 105, 110, 116, 51, 50, 95, 116, 41, 40, 95, 65, 108, 105, 103, 110, 111, 102, 40};
+  /* ))) */
+  uint8_t close3[4] = {41, 41, 41, 0};
+  if ((((arena == ((struct ast_ASTArena *)(0))) || (out == ((struct codegen_CodegenOutBuf *)(0)))) || (ctx == ((struct ast_PipelineDepCtx *)(0))))) {
+    return 0;
+  }
+  if (((expr_ref <= 0) || (expr_ref > (arena->num_exprs)))) {
+    return 0;
+  }
+  e = ast_ast_arena_expr_get(arena, expr_ref);
+  /* EXPR_CALL=48; zero value args; ≥1 type arg */
+  if ((((e.kind) != 48) || ((e.call_num_args) != 0))) {
+    return 0;
+  }
+  n_ta = pipeline_expr_call_num_type_args_at(arena, expr_ref);
+  if ((n_ta < 1)) {
+    return 0;
+  }
+  callee_ref = (e.call_callee_ref);
+  if (((callee_ref <= 0) || (callee_ref > (arena->num_exprs)))) {
+    return 0;
+  }
+  callee = ast_ast_arena_expr_get(arena, callee_ref);
+  /* FIELD_ACCESS=44 (types.size_of) or VAR=3 (free size_of) */
+  if ((((callee.kind) == 44) && ((callee.field_access_field_len) > 0))) {
+    name_ptr = &((callee.field_access_field_name)[0]);
+    name_len = (callee.field_access_field_len);
+  } else if ((((callee.kind) == 3) && ((callee.var_name_len) > 0))) {
+    name_ptr = &((callee.var_name)[0]);
+    name_len = (callee.var_name_len);
+  } else {
+    return 0;
+  }
+  if (name_ptr == ((uint8_t *)(0))) {
+    return 0;
+  }
+  if (((((((name_len == 7) && (name_ptr[0] == 115)) && (name_ptr[1] == 105)) && (name_ptr[2] == 122)) && (name_ptr[3] == 101)) && (name_ptr[4] == 95)) && (name_ptr[5] == 111) && (name_ptr[6] == 102)) {
+    is_size = 1;
+  } else if ((((((((name_len == 8) && (name_ptr[0] == 97)) && (name_ptr[1] == 108)) && (name_ptr[2] == 105)) && (name_ptr[3] == 103)) && (name_ptr[4] == 110)) && (name_ptr[5] == 95)) && (name_ptr[6] == 111) && (name_ptr[7] == 102)) {
+    is_align = 1;
+  } else {
+    return 0;
+  }
+  ta = pipeline_expr_call_type_arg_ref_at(arena, expr_ref, 0);
+  if ((ta <= 0)) {
+    return 0;
+  }
+  if ((is_size != 0)) {
+    if ((codegen_emit_bytes_from_ptr(out, &((open_sz)[0]), 18) != 0)) {
+      return -1;
+    }
+  } else if ((is_align != 0)) {
+    if ((codegen_emit_bytes_from_ptr(out, &((open_al)[0]), 20) != 0)) {
+      return -1;
+    }
+  } else {
+    return 0;
+  }
+  /* TYPE_ARRAY: emit_type → E*; sizeof needs E[N]… (wave357 peel/suffix).
+   * Kind ord 10 = TYPE_ARRAY (I32=0 … PTR=9, ARRAY=10); not I64=5. */
+  if ((pipeline_type_kind_ord_at(arena, ta) == 10)) {
+    if ((codegen_emit_local_fixed_array_elem_type(arena, out, ta, ctx) != 0)) {
+      return -1;
+    }
+    if ((codegen_emit_local_fixed_array_suffix(arena, out, ta) != 0)) {
+      return -1;
+    }
+  } else {
+    if ((codegen_emit_type(arena, out, ta, ((uint8_t *)(0)), 0, ctx) != 0)) {
+      return -1;
+    }
+  }
+  if ((codegen_emit_bytes_from_ptr(out, &((close3)[0]), 3) != 0)) {
+    return -1;
+  }
+  return 1;
+}
 /* PLATFORM: SHARED host-C — formal type for next emit_call_arg_slice_abi (wave395). */
 static int32_t g_codegen_host_call_arg_param_ty_ref = 0;
 void codegen_set_host_call_arg_param_ty(int32_t param_ty_ref) {
@@ -7695,6 +7789,16 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
           return -1;
         }
         if ((fmt_lit_rc > 0)) {
+          return 0;
+        }
+      }
+      /* wave463: size_of<T>/align_of<T> → sizeof/_Alignof (CORE-001; before bare call). */
+      if ((ctx != ((struct ast_PipelineDepCtx *)(0)))) {
+        int32_t sa_rc = codegen_try_emit_size_align_of_call(arena, out, expr_ref, ctx);
+        if ((sa_rc < 0)) {
+          return -1;
+        }
+        if ((sa_rc > 0)) {
           return 0;
         }
       }

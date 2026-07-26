@@ -2173,6 +2173,131 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
+ * wave463 Cap residual (CORE-001): host-C intrinsic for `size_of<T>()` / `align_of<T>()`.
+ *
+ * Product surface (`core.types`):
+ *   - free: `size_of<i32>()` / `align_of<Pair>()`
+ *   - import-qualified: `types.size_of<i32>()` / `types.align_of<*u8>()`
+ *
+ * Root failure before this wave:
+ *   1. Zero-param generics with type args only (ret is i32, not T) have
+ *      `cw_mono = np + re = 0`, so call-site mono mangling is skipped → bare
+ *      `core_types_size_of()` (undeclared → BLD001 on import path).
+ *   2. Core stub body is `return 0`, so even same-module bare emit is wrong
+ *      for layout (size_of<i32>() must be 4, not 0).
+ *
+ * Authority: expand at the CALL site to host C
+ *   `((int32_t)(sizeof(TYPE)))` or `((int32_t)(_Alignof(TYPE)))`
+ * using the turbofish type_arg type_ref (wave452 sidecar). Do not open a
+ * second mono path for these layout builtins (G.7 single authority).
+ *
+ * @param arena *ASTArena — expr / type_arg sidecar
+ * @param out *CodegenOutBuf — host-C text buffer
+ * @param expr_ref i32 — EXPR_CALL site
+ * @param ctx *PipelineDepCtx — emit_type needs module/struct prefix context
+ * @return i32 — 1 fully emitted; 0 not applicable; -1 emit error
+ * PLATFORM: SHARED host-C (C11 sizeof/_Alignof; gcc/clang product path)
+ */
+export function codegen_try_emit_size_align_of_call(arena: *ASTArena, out: *CodegenOutBuf,
+expr_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+    let callee_ref: i32 = 0;
+    let callee: Expr = e;
+    let name_ptr: *u8 = 0 as *u8;
+    let name_len: i32 = 0;
+    let is_size: i32 = 0;
+    let is_align: i32 = 0;
+    let n_ta: i32 = 0;
+    let ta: i32 = 0;
+    /* ((int32_t)(sizeof( */
+    let open_sz: u8[18] = [40, 40, 105, 110, 116, 51, 50, 95, 116, 41, 40, 115, 105, 122, 101, 111, 102, 40];
+    /* ((int32_t)(_Alignof( */
+    let open_al: u8[20] = [40, 40, 105, 110, 116, 51, 50, 95, 116, 41, 40, 95, 65, 108, 105, 103, 110, 111, 102, 40];
+    /* ))) */
+    let close3: u8[4] = [41, 41, 41, 0];
+    if (arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
+      return 0;
+    }
+    if (expr_ref <= 0 || expr_ref > arena.num_exprs) {
+      return 0;
+    }
+    e = ast.ast_arena_expr_get(arena, expr_ref);
+    /* Zero value args; at least one type arg (turbofish or angle list). */
+    if (e.kind != ExprKind.EXPR_CALL || e.call_num_args != 0) {
+      return 0;
+    }
+    n_ta = pipeline_expr_call_num_type_args_at(arena, expr_ref);
+    if (n_ta < 1) {
+      return 0;
+    }
+    callee_ref = e.call_callee_ref;
+    if (callee_ref <= 0 || callee_ref > arena.num_exprs) {
+      return 0;
+    }
+    callee = ast.ast_arena_expr_get(arena, callee_ref);
+    if (callee.kind == ExprKind.EXPR_FIELD_ACCESS && callee.field_access_field_len > 0) {
+      name_ptr = &callee.field_access_field_name[0];
+      name_len = callee.field_access_field_len;
+    } else if (callee.kind == ExprKind.EXPR_VAR && callee.var_name_len > 0) {
+      name_ptr = &callee.var_name[0];
+      name_len = callee.var_name_len;
+    } else {
+      return 0;
+    }
+    /* Exact bare name: size_of (7) / align_of (8). Not size_of_i32 etc. */
+    if (name_len == 7 && name_ptr[0] == 115 && name_ptr[1] == 105 && name_ptr[2] == 122
+        && name_ptr[3] == 101 && name_ptr[4] == 95 && name_ptr[5] == 111 && name_ptr[6] == 102) {
+      is_size = 1;
+    } else if (name_len == 8 && name_ptr[0] == 97 && name_ptr[1] == 108 && name_ptr[2] == 105
+        && name_ptr[3] == 103 && name_ptr[4] == 110 && name_ptr[5] == 95 && name_ptr[6] == 111
+        && name_ptr[7] == 102) {
+      is_align = 1;
+    } else {
+      return 0;
+    }
+    ta = pipeline_expr_call_type_arg_ref_at(arena, expr_ref, 0);
+    if (ta <= 0) {
+      return 0;
+    }
+    if (is_size != 0) {
+      if (emit_bytes_from_ptr(out, &open_sz[0], 18) != 0) {
+        return -1;
+      }
+    } else if (is_align != 0) {
+      if (emit_bytes_from_ptr(out, &open_al[0], 20) != 0) {
+        return -1;
+      }
+    } else {
+      return 0;
+    }
+    /*
+     * TYPE_ARRAY: bare emit_type lowers to `E *` (pointer decay for params/locals).
+     * sizeof/_Alignof need the true fixed shape `E[N]…` (CORE-001 u8[4] → 4 / align 1).
+     * Reuse wave357 local fixed-array peel + suffix (G.7; no third array emit path).
+     */
+    if (pipeline_type_kind_ord_at(arena, ta) == (TypeKind.TYPE_ARRAY as i32)) {
+      if (emit_local_fixed_array_elem_type(arena, out, ta, ctx) != 0) {
+        return -1;
+      }
+      if (emit_local_fixed_array_suffix(arena, out, ta) != 0) {
+        return -1;
+      }
+    } else {
+      /* Named struct / pointer / scalar — emit_type owns prefix resolve. */
+      if (emit_type(arena, out, ta, 0 as *u8, 0, ctx) != 0) {
+        return -1;
+      }
+    }
+    if (emit_bytes_from_ptr(out, &close3[0], 3) != 0) {
+      return -1;
+    }
+    return 1;
+  }
+}
+
+/**
  * Host-C: set formal type_ref for the next emit_call_arg_slice_abi invocation.
  * wave395: TYPE_ARRAY → fat materialize only when formal is TYPE_SLICE (not *T).
  * Callers must set before each arg and clear (0) after. PLATFORM: SHARED host-C.
@@ -7207,6 +7332,16 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           return -1;
         }
         if (fmt_lit_rc > 0) {
+          return 0;
+        }
+      }
+      /* wave463: size_of<T>/align_of<T> → sizeof/_Alignof (CORE-001; before bare call). */
+      if (ctx != 0 as *PipelineDepCtx) {
+        let sa_rc: i32 = codegen_try_emit_size_align_of_call(arena, out, expr_ref, ctx);
+        if (sa_rc < 0) {
+          return -1;
+        }
+        if (sa_rc > 0) {
           return 0;
         }
       }
