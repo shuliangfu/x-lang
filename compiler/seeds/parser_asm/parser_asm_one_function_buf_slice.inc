@@ -1031,18 +1031,36 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
   }
   /*
    * wave471: accept `return self` / `return ident` (default methods that
-   * return Self by identity). INT lit path retained. STRUCT_LIT `Self {…}`
-   * still soft (needs fuller body parse). PLATFORM: SHARED parse.
+   * return Self by identity). INT lit path retained.
+   * wave472: also `return Type { fields }` / `return Self { fields }` —
+   * onefunc IDENT path used to fail when next was `{` (looked like bad
+   * tail after bare var), so trait default hoist skipped inject → false
+   * "missing method". G.7: reuse finish_struct_lit_from_type_ident (same
+   * primary authority); commit rewrites TYPE_NAMED Self → for-type.
+   * Soft: let+return complex stmt-order; nested non-INT field inits that
+   * finish_struct_lit cannot parse; dyn Trait.
+   * PLATFORM: SHARED parse.
    */
   if (r.tok.kind == (int32_t)TOKEN_SELF || r.tok.kind == (int32_t)TOKEN_IDENT) {
     int32_t rvn = 0;
+    uint8_t tnm64[64];
+    int32_t tnl = 0;
+    struct parser_asm_lexer_result r_after;
     memset(out->return_var_name, 0, sizeof(out->return_var_name));
+    memset(tnm64, 0, sizeof(tnm64));
     if (r.tok.kind == (int32_t)TOKEN_SELF) {
+      /* Binding name for bare `return self` (lowercase VAR). */
       out->return_var_name[0] = (uint8_t)'s';
       out->return_var_name[1] = (uint8_t)'e';
       out->return_var_name[2] = (uint8_t)'l';
       out->return_var_name[3] = (uint8_t)'f';
       rvn = 4;
+      /* STRUCT_LIT type spelling is capital Self (TYPE_NAMED). */
+      tnm64[0] = (uint8_t)'S';
+      tnm64[1] = (uint8_t)'e';
+      tnm64[2] = (uint8_t)'l';
+      tnm64[3] = (uint8_t)'f';
+      tnl = 4;
     } else {
       rvn = r.tok.ident_len;
       if (rvn <= 0 || rvn > 63) {
@@ -1050,11 +1068,82 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
         return;
       }
       parser_asm_copy_slice_to_name64_buf_c(data, len, r.token_start, rvn, out->return_var_name);
+      tnl = rvn;
+      for (ni = 0; ni < 64 && ni < tnl; ni++)
+        tnm64[ni] = out->return_var_name[ni];
     }
     out->return_var_name_len = rvn;
     out->return_val = 0;
     parser_lex_from_next_into_glue(&lex, r);
-    r = lexer_next_buf(lex, data, len);
+    r_after = lexer_next_buf(lex, data, len);
+    /*
+     * wave472: Name `{` → STRUCT_LIT return (not bare VAR). Peek after name;
+     * if LBRACE, finish_struct_lit into return_expr_ref (commit already
+     * prefers return_expr_ref over return_var_name / INT).
+     */
+    if (r_after.tok.kind == (int32_t)TOKEN_LBRACE) {
+      int32_t lit_ref;
+      int32_t ti;
+      struct ast_Expr pe;
+      struct parser_asm_parse_expr_result lit_out;
+      extern int32_t ast_ast_arena_expr_alloc(void *arena);
+      extern struct ast_Expr ast_ast_arena_expr_get(void *arena, int32_t ref);
+      extern void ast_ast_arena_expr_set(void *arena, int32_t ref, struct ast_Expr e);
+      extern void parser_asm_finish_struct_lit_from_type_ident_into_c(
+          void *arena, int32_t lit_ref, struct parser_asm_lexer lex_in_brace,
+          struct parser_asm_slice_u8 *source, struct parser_asm_parse_expr_result *lit_out_p);
+
+      if (!arena) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      lit_ref = ast_ast_arena_expr_alloc(arena);
+      if (lit_ref == 0) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      pe = ast_ast_arena_expr_get(arena, lit_ref);
+      memset(&pe, 0, sizeof(pe));
+      pe.var_name_len = tnl;
+      for (ti = 0; ti < 64 && ti < tnl; ti++)
+        pe.var_name[ti] = tnm64[ti];
+      ast_ast_arena_expr_set(arena, lit_ref, pe);
+      /* lex_in_brace must be past `{` (same as primary TypeName { path). */
+      parser_lex_from_next_into_glue(&lex, r_after);
+      memset(&lit_out, 0, sizeof(lit_out));
+      parser_asm_finish_struct_lit_from_type_ident_into_c(arena, lit_ref, lex, &source, &lit_out);
+      if (!lit_out.ok || lit_out.expr_ref == 0) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      out->return_expr_ref = lit_out.expr_ref;
+      out->return_var_name_len = 0;
+      memset(out->return_var_name, 0, sizeof(out->return_var_name));
+      lex = lit_out.next_lex;
+      r = lexer_next_buf(lex, data, len);
+      if (r.tok.kind != (int32_t)TOKEN_SEMICOLON && r.tok.kind != (int32_t)TOKEN_RBRACE) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      if (r.tok.kind == (int32_t)TOKEN_SEMICOLON) {
+        parser_lex_from_next_into_glue(&lex, r);
+        r = lexer_next_buf(lex, data, len);
+        if (r.tok.kind != (int32_t)TOKEN_RBRACE) {
+          parser_asm_set_onefunc_fail_c(out, lex);
+          return;
+        }
+      }
+      parser_lex_from_next_into_glue(&lex, r);
+      out->ok = 1;
+      out->next_lex = lex;
+      out->name_len = name_len;
+      for (ni = 0; ni < 64; ni++)
+        out->name[ni] = dummy_name[ni];
+      out->has_explicit_return_kw = 1;
+      return;
+    }
+    /* Bare `return self` / `return ident` (wave471). */
+    r = r_after;
     if (r.tok.kind != (int32_t)TOKEN_SEMICOLON && r.tok.kind != (int32_t)TOKEN_RBRACE) {
       parser_asm_set_onefunc_fail_c(out, lex);
       return;

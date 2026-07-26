@@ -1297,8 +1297,8 @@ static int32_t xlang_skip_rewrite_self_type_ref_c(void *arena, int32_t type_ref,
  *
  * G.7 authority: general onefunc parse (`parser_asm_parse_one_function_buf_into_c`)
  * + minimal module slot commit (same pipeline_* APIs as seed_commit_onefunc).
- * Soft: *Self; multi-trait same default name; complex stmt-order bodies that
- *       onefunc cannot parse; dyn Trait.
+ * Soft: multi-trait same default name; complex stmt-order (let then return r);
+ *       dyn Trait. wave472: STRUCT_LIT return + Self type name rewrite.
  * PLATFORM: SHARED parse.
  */
 static int32_t xlang_skip_commit_default_onefunc_c(void *arena, void *module,
@@ -1314,6 +1314,8 @@ static int32_t xlang_skip_commit_default_onefunc_c(void *arena, void *module,
   struct ast_Block b;
   struct ast_Expr e;
   uint8_t *pool;
+  /* EXPR_STRUCT_LIT ord — match ast.h / finish_struct_lit (must stay 45). */
+  const int32_t k_expr_struct_lit = 45;
   extern int32_t pipeline_module_func_alloc_slot(void *module);
   extern void pipeline_module_func_name_write(void *module, int32_t fi, uint8_t *name_bytes, int32_t name_len);
   extern void pipeline_module_func_set_num_params(void *module, int32_t fi, int32_t n);
@@ -1353,6 +1355,32 @@ static int32_t xlang_skip_commit_default_onefunc_c(void *arena, void *module,
 
   if (res->return_expr_ref != 0) {
     final_expr_ref = res->return_expr_ref;
+    /*
+     * wave472 Cap residual pure: STRUCT_LIT type name "Self" → for-type.
+     * Default re-parse keeps literal Self on `return Self { … }`; without
+     * rewrite typeck reports expected A found Self (same class as free-fn
+     * Self lit). Concrete `return A { … }` already matches for-type name.
+     * Also stamp resolved_type_ref = rewritten return type for emit/typeck.
+     * PLATFORM: SHARED parse.
+     */
+    e = ast_ast_arena_expr_get(arena, final_expr_ref);
+    if (e.kind == k_expr_struct_lit) {
+      int32_t snl = e.struct_lit_struct_name_len;
+      if (snl > 0 && xlang_skip_name_is_self_c(e.struct_lit_struct_name, snl) &&
+          for_nm && for_nl > 0 && for_nl <= 63 && for_ptr == 0) {
+        int32_t ti;
+        uint8_t for_copy[64];
+        memset(for_copy, 0, sizeof(for_copy));
+        memcpy(for_copy, for_nm, (size_t)for_nl);
+        memset(e.struct_lit_struct_name, 0, sizeof(e.struct_lit_struct_name));
+        for (ti = 0; ti < for_nl; ti++)
+          e.struct_lit_struct_name[ti] = for_copy[ti];
+        e.struct_lit_struct_name_len = for_nl;
+      }
+      if (type_ref != 0)
+        e.resolved_type_ref = type_ref;
+      ast_ast_arena_expr_set(arena, final_expr_ref, e);
+    }
   } else if (res->return_var_name_len > 0) {
     final_expr_ref = ast_ast_arena_expr_alloc(arena);
     if (final_expr_ref == 0)
