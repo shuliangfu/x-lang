@@ -311,6 +311,18 @@ void parser_asm_skip_generic_angle_list_into_slice_c(struct parser_asm_lexer *ou
  * On boundary abort: *out = input lex, *count = 0 (caller must not treat as generic).
  * PLATFORM: SHARED — wave446 angle-list boundary gate (see sibling into_slice).
  */
+/*
+ * wave455: pending type-param names captured by the most recent angle-list
+ * count walk (function decl `foo<T, U>`). Call-site turbofish walks also
+ * overwrite this; callers that need decl names must snapshot immediately
+ * after counting a function signature (see register_type_params).
+ * PLATFORM: SHARED parser.
+ */
+#define XLANG_GP_PENDING_MAX 8
+static uint8_t g_gp_pending_names[XLANG_GP_PENDING_MAX][64];
+static int32_t g_gp_pending_lens[XLANG_GP_PENDING_MAX];
+static int32_t g_gp_pending_n;
+
 void parser_asm_skip_generic_angle_list_count_into_slice_c(struct parser_asm_lexer *out, int32_t *count,
                                                            struct parser_asm_lexer lex,
                                                            struct parser_asm_slice_u8 *source) {
@@ -319,16 +331,22 @@ void parser_asm_skip_generic_angle_list_count_into_slice_c(struct parser_asm_lex
   int32_t depth;
   int32_t top_count;
   int32_t saw_any;
+  int32_t expect_tp;
   if (!out || !count || !source)
     return;
   lex_start = lex;
   depth = 0;
   top_count = 0;
   saw_any = 0;
+  expect_tp = 0;
+  g_gp_pending_n = 0;
+  memset(g_gp_pending_lens, 0, sizeof(g_gp_pending_lens));
   for (;;) {
     lexer_next_into(&r, lex, source);
     if (r.tok.kind == (int32_t)TOKEN_LT) {
       depth++;
+      if (depth == 1)
+        expect_tp = 1;
     } else if (r.tok.kind == (int32_t)TOKEN_GT) {
       depth--;
       if (depth <= 0) {
@@ -339,8 +357,30 @@ void parser_asm_skip_generic_angle_list_count_into_slice_c(struct parser_asm_lex
         return;
       }
     } else if (r.tok.kind == (int32_t)TOKEN_COMMA) {
-      if (depth == 1)
+      if (depth == 1) {
         top_count++;
+        expect_tp = 1;
+      }
+    } else if (r.tok.kind == (int32_t)TOKEN_COLON) {
+      if (depth == 1)
+        expect_tp = 0; /* bound trait name follows — not a type-param name */
+    } else if (r.tok.kind == (int32_t)TOKEN_IDENT && depth == 1 && expect_tp) {
+      /* wave455: capture type-param IDENT at declaration position. */
+      if (g_gp_pending_n < XLANG_GP_PENDING_MAX) {
+        int32_t pl = r.tok.ident_len > 63 ? 63 : r.tok.ident_len;
+        memset(g_gp_pending_names[g_gp_pending_n], 0, 64);
+        if (pl > 0 && source->data) {
+          size_t ts = r.token_start;
+          if (ts == 0 && pl > 0 && r.next_lex.pos >= (size_t)pl)
+            ts = r.next_lex.pos - (size_t)pl;
+          if (ts + (size_t)pl <= source->length)
+            memcpy(g_gp_pending_names[g_gp_pending_n], source->data + ts, (size_t)pl);
+        }
+        g_gp_pending_lens[g_gp_pending_n] = pl;
+        g_gp_pending_n++;
+      }
+      expect_tp = 0;
+      saw_any = 1;
     } else if (r.tok.kind == (int32_t)TOKEN_EOF
                || parser_asm_angle_list_token_is_stmt_boundary_c(r.tok.kind)
                || (depth == 1 && r.tok.kind == (int32_t)TOKEN_RPAREN)) {
@@ -348,6 +388,7 @@ void parser_asm_skip_generic_angle_list_count_into_slice_c(struct parser_asm_lex
       out->line = lex_start.line;
       out->col = lex_start.col;
       *count = 0;
+      g_gp_pending_n = 0;
       return;
     } else {
       if (depth == 1)
@@ -355,6 +396,24 @@ void parser_asm_skip_generic_angle_list_count_into_slice_c(struct parser_asm_lex
     }
     lex = r.next_lex;
   }
+}
+
+/**
+ * wave455: register pending type-param names under a function name into the
+ * shared g_fn_gp_* table used by typeck ret fixup.
+ * Must be called immediately after counting a function's angle list (before
+ * body parse overwrites pending via call-site turbofish counts).
+ * @return number of names registered, or -1 on full/overflow
+ * PLATFORM: SHARED — twin of scan-time capture in skip_tl.
+ */
+int32_t xlang_generic_func_register_pending_type_params_c(const uint8_t *fn_name, int32_t fn_name_len) {
+  extern int32_t xlang_generic_func_register_type_params_c(const uint8_t *fn_name, int32_t fn_name_len,
+                                                            const uint8_t names[][64], const int32_t *lens,
+                                                            int32_t n);
+  if (!fn_name || fn_name_len <= 0 || g_gp_pending_n <= 0)
+    return 0;
+  return xlang_generic_func_register_type_params_c(fn_name, fn_name_len, g_gp_pending_names,
+                                                     g_gp_pending_lens, g_gp_pending_n);
 }
 
 /** buf 路径：跳过 `<...>` 泛型列表。 */

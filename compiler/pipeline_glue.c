@@ -26872,11 +26872,20 @@ int32_t pipeline_parse_into_buf_impl_c(struct ast_ASTArena *arena, struct ast_Mo
   struct parser_ParseIntoResult pr;
   extern void xlang_trait_reg_reset_c(void *arena);
   extern int32_t xlang_trait_check_impls_complete_c(void *module);
+  extern void xlang_generic_bound_stash_source_buf_c(uint8_t *data, int32_t len);
 
   if (!arena || !module || !buf || buf_len <= 0)
     return -1;
   /* wave421/wave425: per-module trait registry (names + ret kinds; stash arena). */
   xlang_trait_reg_reset_c(arena);
+  /*
+   * wave455: product path fully parses structs (no skip_one_struct) so the
+   * historical stash-from-skip never ran on clean struct+fn files → generic
+   * bound/type-param scan saw null source and multi type_arg ret fixup
+   * could not map T→type_arg[i]. Stash full buffer at product parse entry.
+   * PLATFORM: SHARED — same slice as freestanding -o / typeck.
+   */
+  xlang_generic_bound_stash_source_buf_c(buf, buf_len);
   parser_parse_into_init(module, arena);
   pr = parser_parse_into_buf(arena, module, buf, buf_len);
   if (pr.ok == 0) {
@@ -26993,6 +27002,7 @@ struct parser_ParseIntoResult pipeline_parse_into_with_init_buf_impl_c(struct as
   struct parser_ParseIntoResult pr;
   extern void xlang_trait_reg_reset_c(void *arena);
   extern int32_t xlang_trait_check_impls_complete_c(void *module);
+  extern void xlang_generic_bound_stash_source_buf_c(uint8_t *data, int32_t len);
 
   fail.ok = 1;
   fail.main_idx = -1;
@@ -27002,9 +27012,12 @@ struct parser_ParseIntoResult pipeline_parse_into_with_init_buf_impl_c(struct as
    * Root: incomplete impl was false-green; check immediately after parse so
    * dep load reset cannot wipe entry trait tables.
    * wave425: stash arena for return type kind compare.
+   * wave455: also stash source for generic type-param / bound scan (see
+   * pipeline_parse_into_buf_impl_c).
    * G.7: xlang_trait_* in skip_tl + this product parse entry.
    * PLATFORM: SHARED parse. */
   xlang_trait_reg_reset_c(arena);
+  xlang_generic_bound_stash_source_buf_c(data, len);
   pipeline_strict_parse_into_init(arena, module);
   pr = parser_parse_into_buf(arena, module, data, len);
   if (pr.ok == 0 && xlang_trait_check_impls_complete_c(module) != 0) {
@@ -34039,36 +34052,28 @@ static int32_t glue_generic_call_fixup_resolved_type_c(struct ast_Module *module
    *
    * Type-param vs concrete named ret: if ret name is a module struct/alias,
    * leave it (already mono). Else treat as type param.
-   * Index: first-appearance TYPE_NAMED formals that are not module types,
-   * then ret if new; require collected count == num_generic_params when
-   * n_gp>1; n_gp==1 uses type_arg[0] when ret is the sole type param.
+   *
+   * wave455: prefer declaration-order type-param names from source scan
+   * (xlang_generic_func_type_param_index_c) so multi-param generics with
+   * phantom type params (`mk2<T,U>():T`) map ret→type_arg[i] correctly.
+   * Fallback: first-appearance formals + ret (wave452), with n_gp==1 → slot 0.
    * PLATFORM: SHARED — G.7 single authority with parser type_arg storage.
    */
   {
     extern int32_t pipeline_expr_call_type_arg_ref_at(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx);
     extern int32_t pipeline_module_func_num_generic_params_at(struct ast_Module *m, int32_t func_index);
-    extern int32_t pipeline_module_num_struct_layouts_at(struct ast_Module *m);
-    extern int32_t pipeline_module_struct_layout_name_len(struct ast_Module *m, int32_t idx);
-    extern void pipeline_module_struct_layout_name_into(struct ast_Module *m, int32_t idx, uint8_t *out64);
-    extern int32_t pipeline_module_num_type_aliases_at(struct ast_Module *m);
-    extern int32_t pipeline_module_type_alias_name_len(struct ast_Module *m, int32_t idx);
-    extern uint8_t pipeline_module_type_alias_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
+    extern int32_t xlang_generic_func_type_param_index_c(const uint8_t *fn_name, int32_t fn_name_len,
+                                                          const uint8_t *tp_name, int32_t tp_name_len);
     int32_t n_gp;
     int32_t n_ta;
     int32_t ta_ty;
     int32_t ret_is_module_type;
-    int32_t si;
-    int32_t nsl;
-    uint8_t snm[64];
-    int32_t snlen;
     int32_t gnames_n;
     uint8_t gnames[8][64];
     int32_t glens[8];
     int32_t gidx;
     int32_t found_gi;
     int32_t is_mod;
-    int32_t n_alias;
-    int32_t ai;
 
     n_gp = pipeline_module_func_num_generic_params_at(search_mod, func_idx);
     n_ta = pipeline_expr_call_num_type_args_at(arena, call_expr_ref);
@@ -34099,13 +34104,21 @@ static int32_t glue_generic_call_fixup_resolved_type_c(struct ast_Module *module
     }
     if (n_gp <= 0 || n_ta <= 0 || n_ta != n_gp)
       return 0;
-    (void)nsl;
-    (void)si;
-    (void)snlen;
-    (void)snm;
-    (void)n_alias;
-    (void)ai;
-    /* Collect type-param names: formal TYPE_NAMED that are not module structs, then ret. */
+
+    /*
+     * wave455 primary: declaration-order index from bound-scan registry.
+     * Callee name is cnm/cnml (resolved above). Ret name is the type param.
+     */
+    found_gi = xlang_generic_func_type_param_index_c(cnm, cnml, ret_nm, ret_nlen);
+    if (found_gi >= 0 && found_gi < n_ta) {
+      ta_ty = pipeline_expr_call_type_arg_ref_at(arena, call_expr_ref, found_gi);
+      if (ta_ty > 0) {
+        pipeline_expr_set_resolved_type_ref(arena, call_expr_ref, ta_ty);
+        return 0;
+      }
+    }
+
+    /* Fallback wave452: collect type-param names from formals + ret. */
     gnames_n = 0;
     for (pi = 0; pi < num_params && gnames_n < 8; pi = pi + 1) {
       param_ty = pipeline_module_func_param_type_ref_at(search_mod, func_idx, pi);
@@ -34155,11 +34168,11 @@ static int32_t glue_generic_call_fixup_resolved_type_c(struct ast_Module *module
     }
     if (found_gi < 0)
       return 0;
-    /* n_gp>1 requires full type-param recovery; n_gp==1 always uses slot 0 when ret is type param. */
-    if (n_gp > 1 && gnames_n != n_gp)
-      return 0;
+    /* n_gp==1 always uses slot 0 when ret is type param. */
     if (n_gp == 1)
       found_gi = 0;
+    else if (n_gp > 1 && gnames_n != n_gp)
+      return 0; /* incomplete formal recovery; scan path above should have hit */
     ta_ty = pipeline_expr_call_type_arg_ref_at(arena, call_expr_ref, found_gi);
     if (ta_ty <= 0)
       return 0;

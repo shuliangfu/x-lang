@@ -971,6 +971,9 @@ static int32_t xlang_trait_token_to_type_kind_c(int32_t tok_kind) {
 #define XLANG_TRAIT_TY_ARRAY 10
 #define XLANG_TRAIT_TY_SLICE 11
 
+/* wave455: prototype — body after g_fn_gp_* tables. */
+void xlang_generic_func_reg_reset_c(void);
+
 /**
  * Reset per-module trait registry and stash arena for ret-kind checks.
  * @param arena void* — ASTArena for pipeline_type_kind_ord_at (may be null → ret check skipped).
@@ -989,6 +992,9 @@ void xlang_trait_reg_reset_c(void *arena) {
   memset(g_xlang_skip_impl_for_is_ptr, 0, sizeof(g_xlang_skip_impl_for_is_ptr));
   memset(g_xlang_skip_impl_for_names, 0, sizeof(g_xlang_skip_impl_for_names));
   memset(g_xlang_skip_impl_for_name_lens, 0, sizeof(g_xlang_skip_impl_for_name_lens));
+  /* wave455: type-param name registry cleared in xlang_generic_func_reg_reset_c
+   * (defined after g_fn_gp_* tables) — called from here via tail. */
+  xlang_generic_func_reg_reset_c();
 }
 
 extern void lsp_diag_report_typeck(int line, int col, const char *fmt, ...);
@@ -1024,6 +1030,13 @@ extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t type_ref);
 /* wave439: forward decls — defined below, called from trait check. */
 int32_t xlang_generic_bound_check_c(void);
 void xlang_generic_bound_scan_c(uint8_t *data, int32_t len);
+/* wave455: declaration-order type-param names per generic function (for ret fixup). */
+int32_t xlang_generic_func_type_param_index_c(const uint8_t *fn_name, int32_t fn_name_len,
+                                               const uint8_t *tp_name, int32_t tp_name_len);
+int32_t xlang_generic_func_register_type_params_c(const uint8_t *fn_name, int32_t fn_name_len,
+                                                    const uint8_t names[][64], const int32_t *lens,
+                                                    int32_t n);
+void xlang_generic_func_reg_reset_c(void);
 
 /* wave439: source buffer stash. Populated by xlang_generic_bound_stash_source_c
  * from the top-level skip functions (struct/enum/trait/impl), each of which
@@ -1679,6 +1692,34 @@ static int32_t g_call_line[XLANG_GENERIC_CALL_MAX];
 static int32_t g_call_col[XLANG_GENERIC_CALL_MAX];
 static int32_t g_call_n;
 
+/*
+ * wave455 Cap residual: declaration-order type-parameter names per generic
+ * function (`function mk2<T, U>(): T` → fn "mk2" params ["T","U"]).
+ *
+ * Why: Func only stores num_generic_params (count), not names. typeck fixup
+ * mapping ret TYPE_NAMED "T" → turbofish type_arg[i] required collecting
+ * type-param names from formals+ret and demanded gnames_n == n_gp — phantom
+ * type params that never appear in the signature (`U` unused) made gnames
+ * short → multi type_arg ret-only turbofish false-red *found T*.
+ *
+ * Authority: same G.7 thin-glue source scan as bound/call capture (no Func
+ * layout / SHARED ABI churn). Lookup: xlang_generic_func_type_param_index_c.
+ * PLATFORM: SHARED parse — rebuild parser thin glue after edit.
+ */
+#define XLANG_FN_GP_MAX 32
+static uint8_t g_fn_gp_fname[XLANG_FN_GP_MAX][64];
+static int32_t g_fn_gp_fname_len[XLANG_FN_GP_MAX];
+static uint8_t g_fn_gp_names[XLANG_FN_GP_MAX][XLANG_GENERIC_CALL_MAX_ARGS][64];
+static int32_t g_fn_gp_lens[XLANG_FN_GP_MAX][XLANG_GENERIC_CALL_MAX_ARGS];
+static int32_t g_fn_gp_nargs[XLANG_FN_GP_MAX];
+static int32_t g_fn_gp_n;
+
+/** wave455: clear type-param name registry (per-module / trait_reg_reset). */
+void xlang_generic_func_reg_reset_c(void) {
+  g_fn_gp_n = 0;
+  memset(g_fn_gp_nargs, 0, sizeof(g_fn_gp_nargs));
+}
+
 /**
  * Stash the full-file source slice pointer so the generic-bound scan (run later
  * from xlang_trait_check_impls_complete_c) can tokenize it. Called from each
@@ -1690,6 +1731,18 @@ void xlang_generic_bound_stash_source_c(struct parser_asm_slice_u8 *source) {
     g_w439_src_data = source->data;
     g_w439_src_len = (int32_t)source->length;
   }
+}
+
+/**
+ * wave455: product parse entry (pipeline_glue) stashes without depending on
+ * parser_asm_slice_u8 visibility in the glue TU.
+ * @param data full-file source bytes
+ * @param len  byte length
+ * PLATFORM: SHARED parse.
+ */
+void xlang_generic_bound_stash_source_buf_c(uint8_t *data, int32_t len) {
+  g_w439_src_data = data;
+  g_w439_src_len = (data && len > 0) ? len : 0;
 }
 
 /**
@@ -1716,15 +1769,24 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
   int32_t last_ident_len = 0;
   int32_t last_ident_is_fn = 0;
 
+  /*
+   * wave455: if source was never stashed (product pure parse path fully
+   * parses structs and never hit skip_one_* stash), do NOT wipe g_fn_gp_* —
+   * parse-time registration (xlang_generic_func_register_type_params_c) may
+   * already hold declaration-order names. Only reset+rescan when we have
+   * real source bytes.
+   */
+  if (!data || len <= 0)
+    return;
   /* reset before each file scan */
   g_fn_bound_n = 0;
   g_call_n = 0;
+  g_fn_gp_n = 0;
   /* wave442: zero multi-arg storage so stale data from a prior file cannot
    * leak into the check (g_call_nargs/g_fn_bound_pos drive positional match). */
   memset(g_call_nargs, 0, sizeof(g_call_nargs));
   memset(g_fn_bound_pos, 0, sizeof(g_fn_bound_pos));
-  if (!data || len <= 0)
-    return;
+  memset(g_fn_gp_nargs, 0, sizeof(g_fn_gp_nargs));
   source.data = data;
   source.length = (size_t)len;
   /* wave440: lexer line/col must start at 1 (matching lexer_init in lexer.x).
@@ -1755,15 +1817,27 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
       /* advance lex past the `<` so the inner loops read the token AFTER it
        * (otherwise the first lexer_next_into re-reads `<` and inflates depth). */
       lex = r.next_lex;
-      if (last_ident_is_fn && g_fn_bound_n < XLANG_FN_BOUND_MAX) {
-        /* function name < ... > — scan for `IDENT : IDENT` bound. wave442:
-         * track the type-param POSITION (0-based) of each bound so multi-arg
-         * calls `foo<A,B>` can match each bound to its positional type arg.
-         * pos increments on COMMA (each comma = next type param); the first
-         * param is pos 0. A param without a bound simply never captures. */
+      if (last_ident_is_fn) {
+        /* function name < ... > — scan for:
+         *  (1) wave442 `IDENT : IDENT` bounds with positional pos
+         *  (2) wave455 declaration-order type-param names (all slots)
+         * Type-param IDENT is the first IDENT at depth 1 after `<` or `,`
+         * (expect_tp); COLON switches to expect_trait for the bound name.
+         * PLATFORM: SHARED — same angle walk as bound-only path. */
         int32_t angle_depth = 1;
         int32_t expect_trait = 0;
+        int32_t expect_tp = 1;
         int32_t pos = 0;
+        int32_t gp_slot = -1;
+        if (g_fn_gp_n < XLANG_FN_GP_MAX) {
+          gp_slot = g_fn_gp_n;
+          memset(g_fn_gp_fname[gp_slot], 0, 64);
+          memcpy(g_fn_gp_fname[gp_slot], last_ident, (size_t)last_ident_len);
+          g_fn_gp_fname_len[gp_slot] = last_ident_len;
+          g_fn_gp_nargs[gp_slot] = 0;
+          memset(g_fn_gp_lens[gp_slot], 0, sizeof(g_fn_gp_lens[gp_slot]));
+          g_fn_gp_n++;
+        }
         while (angle_depth > 0) {
           lexer_next_into(&r, lex, &source);
           if (r.tok.kind == (int32_t)TOKEN_EOF)
@@ -1776,6 +1850,7 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
               break;
           } else if (r.tok.kind == (int32_t)TOKEN_COLON && angle_depth == 1) {
             expect_trait = 1;
+            expect_tp = 0;
           } else if (r.tok.kind == (int32_t)TOKEN_IDENT && angle_depth == 1 && expect_trait) {
             if (g_fn_bound_n < XLANG_FN_BOUND_MAX) {
               memcpy(g_fn_bound_name[g_fn_bound_n], last_ident, (size_t)last_ident_len);
@@ -1788,8 +1863,22 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
               g_fn_bound_n++;
             }
             expect_trait = 0;
+          } else if (r.tok.kind == (int32_t)TOKEN_IDENT && angle_depth == 1 && expect_tp
+                     && !expect_trait) {
+            /* wave455: type-param name at declaration position. */
+            if (gp_slot >= 0 && g_fn_gp_nargs[gp_slot] < XLANG_GENERIC_CALL_MAX_ARGS) {
+              int32_t pi = g_fn_gp_nargs[gp_slot];
+              int32_t pl = r.tok.ident_len > 63 ? 63 : r.tok.ident_len;
+              memset(g_fn_gp_names[gp_slot][pi], 0, 64);
+              if (pl > 0 && source.data)
+                memcpy(g_fn_gp_names[gp_slot][pi], source.data + r.token_start, (size_t)pl);
+              g_fn_gp_lens[gp_slot][pi] = pl;
+              g_fn_gp_nargs[gp_slot] = pi + 1;
+            }
+            expect_tp = 0;
           } else if (r.tok.kind == (int32_t)TOKEN_COMMA && angle_depth == 1) {
             expect_trait = 0;
+            expect_tp = 1;
             pos++;
           }
           lex = r.next_lex;
@@ -1871,6 +1960,96 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
     }
     lex = r.next_lex;
   }
+}
+
+/**
+ * wave455: register declaration-order type-param names for a function.
+ * Called from parse_one_function immediately after counting `<T,U>` (pending
+ * snapshot) and optionally refilled by source scan when stash has bytes.
+ * Replaces any prior entry with the same function name.
+ * PLATFORM: SHARED parse+typeck.
+ */
+int32_t xlang_generic_func_register_type_params_c(const uint8_t *fn_name, int32_t fn_name_len,
+                                                    const uint8_t names[][64], const int32_t *lens,
+                                                    int32_t n) {
+  int32_t fi;
+  int32_t pi;
+  int32_t slot;
+  if (!fn_name || fn_name_len <= 0 || !names || !lens || n <= 0)
+    return 0;
+  if (fn_name_len > 63)
+    fn_name_len = 63;
+  if (n > XLANG_GENERIC_CALL_MAX_ARGS)
+    n = XLANG_GENERIC_CALL_MAX_ARGS;
+  /* Replace existing entry for same function name. */
+  slot = -1;
+  for (fi = 0; fi < g_fn_gp_n; fi++) {
+    if (g_fn_gp_fname_len[fi] == fn_name_len &&
+        memcmp(g_fn_gp_fname[fi], fn_name, (size_t)fn_name_len) == 0) {
+      slot = fi;
+      break;
+    }
+  }
+  if (slot < 0) {
+    if (g_fn_gp_n >= XLANG_FN_GP_MAX)
+      return -1;
+    slot = g_fn_gp_n;
+    g_fn_gp_n++;
+  }
+  memset(g_fn_gp_fname[slot], 0, 64);
+  memcpy(g_fn_gp_fname[slot], fn_name, (size_t)fn_name_len);
+  g_fn_gp_fname_len[slot] = fn_name_len;
+  g_fn_gp_nargs[slot] = n;
+  for (pi = 0; pi < n; pi++) {
+    memset(g_fn_gp_names[slot][pi], 0, 64);
+    if (lens[pi] > 0) {
+      int32_t pl = lens[pi] > 63 ? 63 : lens[pi];
+      memcpy(g_fn_gp_names[slot][pi], names[pi], (size_t)pl);
+      g_fn_gp_lens[slot][pi] = pl;
+    } else {
+      g_fn_gp_lens[slot][pi] = 0;
+    }
+  }
+  return n;
+}
+
+/**
+ * wave455: look up declaration-order index of a type-parameter name on a
+ * generic function recorded by xlang_generic_bound_scan_c or parse-time
+ * register_type_params.
+ *
+ * @param fn_name       function name bytes
+ * @param fn_name_len   name length (≤63)
+ * @param tp_name       type-parameter name (e.g. "T", "U")
+ * @param tp_name_len   length of tp_name
+ * @return 0-based type-arg index, or -1 if unknown function / name
+ * PLATFORM: SHARED — used by pipeline_glue generic call ret fixup.
+ */
+int32_t xlang_generic_func_type_param_index_c(const uint8_t *fn_name, int32_t fn_name_len,
+                                               const uint8_t *tp_name, int32_t tp_name_len) {
+  int32_t fi;
+  int32_t pi;
+  if (!fn_name || fn_name_len <= 0 || !tp_name || tp_name_len <= 0)
+    return -1;
+  if (fn_name_len > 63)
+    fn_name_len = 63;
+  if (tp_name_len > 63)
+    tp_name_len = 63;
+  for (fi = 0; fi < g_fn_gp_n; fi++) {
+    if (g_fn_gp_fname_len[fi] != fn_name_len)
+      continue;
+    if (memcmp(g_fn_gp_fname[fi], fn_name, (size_t)fn_name_len) != 0)
+      continue;
+    for (pi = 0; pi < g_fn_gp_nargs[fi]; pi++) {
+      if (g_fn_gp_lens[fi][pi] != tp_name_len)
+        continue;
+      if (memcmp(g_fn_gp_names[fi][pi], tp_name, (size_t)tp_name_len) == 0) {
+        return pi;
+      }
+    }
+    return -1;
+  }
+  return -1;
 }
 
 /**

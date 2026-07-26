@@ -4486,8 +4486,15 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
     (void)(lexer_next_into(&(r), lex, source));
     if ((((r.tok).kind) ==120)) {
       int32_t generic_n = 0;
+      extern int32_t xlang_generic_func_register_pending_type_params_c(const uint8_t *fn_name, int32_t fn_name_len);
       (void)(parser_skip_generic_angle_list_count_into_glue(&(lex), &(generic_n), lex, source));
       (void)(((out->num_generic_params) = generic_n));
+      /* wave455: snapshot pending type-param names under this function name
+       * before body parse overwrites pending via call-site turbofish counts.
+       * PLATFORM: SHARED — G.7 register + typeck ret fixup. */
+      if ((generic_n > 0) && ((func_name_len_storage)[0] > 0)) {
+        (void)(xlang_generic_func_register_pending_type_params_c(&((dummy_name)[0]), (func_name_len_storage)[0]));
+      }
       (void)(lexer_next_into(&(r), lex, source));
     }
     if ((((r.tok).kind) !=82)) {

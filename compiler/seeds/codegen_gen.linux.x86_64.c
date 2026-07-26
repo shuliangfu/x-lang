@@ -13288,14 +13288,16 @@ static int32_t codegen_call_ret_type_param_concrete_at(struct ast_ASTArena * are
   struct ast_Expr e;
   if (arena == ((struct ast_ASTArena *)(0)) || ei <= 0)
     return 0;
-  ta = pipeline_expr_call_type_arg_ref_at(arena, ei, 0);
-  if (ta > 0)
-    return ta;
   e = ast_ast_arena_expr_get(arena, ei);
   if ((e.kind) != 48)
     return 0;
+  /* wave455: prefer typeck-stamped resolved_type_ref over type_arg[0]
+   * (multi type_arg ret-only may stamp type_arg[i] for i!=0). */
   if ((e.resolved_type_ref) > 0)
     return (e.resolved_type_ref);
+  ta = pipeline_expr_call_type_arg_ref_at(arena, ei, 0);
+  if (ta > 0)
+    return ta;
   return 0;
 }
 int32_t codegen_collect_mono_combos_for_generic_func(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi, int32_t * combos_out, int32_t max_combos, int32_t num_params) {

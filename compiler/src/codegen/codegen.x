@@ -13150,16 +13150,23 @@ function codegen_call_ret_type_param_concrete_at(arena: *ASTArena, ei: i32): i32
     if (arena == 0 as *ASTArena || ei <= 0) {
       return 0;
     }
-    let ta: i32 = pipeline_expr_call_type_arg_ref_at(arena, ei, 0);
-    if (ta > 0) {
-      return ta;
-    }
     let e: Expr = ast.ast_arena_expr_get(arena, ei);
     if (e.kind != ExprKind.EXPR_CALL) {
       return 0;
     }
+    /*
+     * wave455: prefer typeck-stamped resolved_type_ref over type_arg[0].
+     * Multi type_arg ret-only (`mk2u<T,U>():U` with turbofish <A,B>) stamps
+     * call as B via decl-order type-param index; type_arg[0] is still A and
+     * must not win or mono body returns B under ret type A → BLD001.
+     * PLATFORM: SHARED — matches pipeline_glue fixup authority.
+     */
     if (e.resolved_type_ref > 0) {
       return e.resolved_type_ref;
+    }
+    let ta: i32 = pipeline_expr_call_type_arg_ref_at(arena, ei, 0);
+    if (ta > 0) {
+      return ta;
     }
     return 0;
   }

@@ -65,6 +65,14 @@ export extern function parser_diagnostic_parse_skip(byte_pos: i32, num_funcs_so_
 export extern function parser_skip_generic_angle_list_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
 /* See implementation. */
 export extern function parser_skip_generic_angle_list_count_into_glue(out: *Lexer, count: *i32, lex: Lexer, source: u8[]): void;
+/**
+ * wave455: register pending type-param names after counting function `<T,U>`.
+ * @param fn_name *u8 — function name bytes
+ * @param fn_name_len i32 — name length
+ * @return i32 — number registered, or -1 on overflow
+ * PLATFORM: SHARED — thin-glue authority.
+ */
+export extern function xlang_generic_func_register_pending_type_params_c(fn_name: *u8, fn_name_len: i32): i32;
 /* See implementation. */
 export extern function parser_diagnostic_parse_commit_fail(byte_pos: i32, num_funcs_so_far: i32, name_len: i32, name: *u8): void;
 /* See implementation. */
@@ -5293,6 +5301,12 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     let generic_n: i32 = 0;
     parser_skip_generic_angle_list_count_into_glue(&lex, &generic_n, lex, source);
     out.num_generic_params = generic_n;
+    // wave455: snapshot pending <T,U> names under this function before body
+    // parse overwrites pending via call-site turbofish counts.
+    // PLATFORM: SHARED — G.7 with skip_tl registry + typeck ret fixup.
+    if (generic_n > 0 && func_name_len_storage[0] > 0) {
+      xlang_generic_func_register_pending_type_params_c(&dummy_name[0], func_name_len_storage[0]);
+    }
     lexer.lexer_next_into(&r, lex, source);
   }
   if (r.tok.kind != token.TokenKind.TOKEN_LPAREN) {
