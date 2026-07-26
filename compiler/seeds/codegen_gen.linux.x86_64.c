@@ -4737,6 +4737,9 @@ static int32_t codegen_emit_generic_struct_mono_suffix(struct codegen_CodegenOut
     int32_t *mono_tys, int32_t ntp);
 static int32_t codegen_collect_generic_struct_mono_combos(struct ast_Module *module, struct ast_ASTArena *arena,
     int32_t layout_k, uint8_t *layout_nm, int32_t layout_nl, int32_t ntp, int32_t *combos_out, int32_t max_combos);
+/* wave495: param-derived mono map for generic impl method definitions. PLATFORM: SHARED */
+static int32_t codegen_build_func_param_mono_map(struct ast_Module *module, struct ast_ASTArena *arena,
+    int32_t fi, int32_t *gen_refs, int32_t *conc_refs, int32_t max_entries);
 static int32_t codegen_generic_struct_mangled_name_into(struct ast_ASTArena *arena, uint8_t *layout_nm, int32_t layout_nl,
     int32_t *mono_tys, int32_t ntp, uint8_t *out_nm, int32_t out_cap);
 static int32_t codegen_generic_struct_field_type_from_mono(struct ast_Module *module, struct ast_ASTArena *arena,
@@ -7031,6 +7034,109 @@ static int32_t codegen_maybe_emit_generic_struct_mono_suffix_for_type(struct ast
     }
   }
   return 0;
+}
+
+/*
+ * wave495: build a type-param-name → concrete type_ref mono map for a function's
+ * params, derived from each generic-struct param's unique mono combo.
+ *
+ * Why: hoisted generic inherent impl methods (impl Wrap<T> { function get(self: Wrap<T>): T })
+ * have num_generic_params == 0 (the <T> is on the impl, not the fn), so they bypass
+ * codegen_try_emit_generic_identity_mono and are emitted by emit_func. Without mono_active,
+ * the return type T emits as `struct T` (incomplete BLD001) while the self param Wrap<T>
+ * is rescued by the wave489 unique-combo suffix mechanism. This helper derives the
+ * T→concrete mapping from the self param's unique combo so emit_func can set mono_active
+ * and let emit_type's name-based fallback substitute T in ret type + body.
+ *
+ * Guards (only handle the unique-combo case; multi-combo stays soft per wave490):
+ *   - skip param if fill_concrete_args succeeds (param already concrete)
+ *   - skip param if collect_combos returns nc != 1
+ *   - skip type-arg slot if pipeline_type_type_arg_ref_at returns <= 0 (bare struct)
+ *   - dedup by formal_arg type_ref (don't double-map same T from two params)
+ * PLATFORM: SHARED — mirrors codegen.x same commit.
+ */
+static int32_t codegen_build_func_param_mono_map(struct ast_Module *module, struct ast_ASTArena *arena,
+    int32_t fi, int32_t *gen_refs, int32_t *conc_refs, int32_t max_entries) {
+  int32_t map_count = 0;
+  int32_t num_params, p;
+  if (!module || !arena || !gen_refs || !conc_refs || max_entries <= 0) {
+    return 0;
+  }
+  if (fi < 0 || fi >= module->num_funcs) {
+    return 0;
+  }
+  num_params = pipeline_module_func_num_params_at(module, fi);
+  for (p = 0; p < num_params; p++) {
+    int32_t pty_raw = pipeline_module_func_param_type_ref_at(module, fi, p);
+    int32_t pty, nl, bare_off = 0, bi, bare_len, lk, ntp, nc, tj;
+    uint8_t nm[64];
+    int32_t mono_chk[4];
+    int32_t combos[32];
+    if (pty_raw <= 0) {
+      continue;
+    }
+    /* Peel aliases (Cap residual wave376) to reach TYPE_NAMED. */
+    pty = pipeline_typeck_resolve_type_alias_ref_c(arena, pty_raw);
+    if (pty <= 0) {
+      continue;
+    }
+    if (pipeline_type_kind_ord_at(arena, pty) != ast_TypeKind_TYPE_NAMED) {
+      continue;
+    }
+    nl = pipeline_type_named_name_into(arena, pty, nm);
+    if (nl <= 0) {
+      continue;
+    }
+    /* bare name after last '.' */
+    for (bi = 0; bi < nl && bi < 64; bi++) {
+      if (nm[bi] == 46) {
+        bare_off = bi + 1;
+      }
+    }
+    bare_len = nl - bare_off;
+    if (bare_len <= 0) {
+      continue;
+    }
+    lk = codegen_module_struct_layout_index_by_name(module, nm + bare_off, bare_len);
+    if (lk < 0) {
+      continue;
+    }
+    ntp = pipeline_module_struct_layout_num_type_params_at(module, lk);
+    if (ntp <= 0) {
+      continue;
+    }
+    /* Skip if param is already concrete (e.g. Wrap<i32>); fill_concrete succeeds. */
+    if (codegen_generic_struct_fill_concrete_args(module, arena, pty, ntp, mono_chk, ((struct ast_PipelineDepCtx *)(0))) == ntp) {
+      continue;
+    }
+    /* Has free type-args — collect combos. Only handle unique combo (wave489). */
+    nc = codegen_collect_generic_struct_mono_combos(module, arena, lk, nm + bare_off, bare_len, ntp, combos, 8);
+    if (nc != 1) {
+      continue;
+    }
+    /* Map each formal type-arg → combo concrete. */
+    for (tj = 0; tj < ntp; tj++) {
+      int32_t formal_arg = pipeline_type_type_arg_ref_at(arena, pty, tj);
+      int32_t concrete_arg = combos[tj];
+      if (formal_arg > 0 && concrete_arg > 0 && map_count < max_entries) {
+        /* Dedup by formal_arg type_ref. */
+        int32_t dup = 0;
+        int32_t dk;
+        for (dk = 0; dk < map_count; dk++) {
+          if (gen_refs[dk] == formal_arg) {
+            dup = 1;
+            break;
+          }
+        }
+        if (!dup) {
+          gen_refs[map_count] = formal_arg;
+          conc_refs[map_count] = concrete_arg;
+          map_count++;
+        }
+      }
+    }
+  }
+  return map_count;
 }
 
 int32_t codegen_emit_struct_field_decl_x(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t type_ref, uint8_t * field_name, int32_t field_name_len, uint8_t * struct_prefix, int32_t struct_prefix_len, struct ast_PipelineDepCtx * ctx) {
@@ -14257,6 +14363,13 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
     int force_entry_main = 0;
     int emit_c_main_symbol = 0;
     uint8_t main_name[4] = {109, 97, 105, 110};
+    /* wave495: hoist mono_active save/restore vars to function scope so both
+     * success return paths (std-io early return + final) can restore them.
+     * Declared here (not in the ret-type inner block) because the restores
+     * happen after the inner block closes. PLATFORM: SHARED — codegen.x same. */
+    int32_t w495_mono_set = 0;
+    int32_t w495_saved_active = 0;
+    int32_t w495_saved_num = 0;
     if (((fi < 0) || (fi >=(module->num_funcs)))) {
       return -(1);
     }
@@ -14308,6 +14421,40 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
     /* PLATFORM: SHARED — void main → int32_t main (align codegen.x). */
     {
       int32_t ret_ty_ref = pipeline_module_func_return_type_at(module, fi);
+      /*
+       * wave495: generic inherent impl method definition codegen monomorphization.
+       * Why: hoisted impl methods (num_generic_params == 0, <T> on impl not fn)
+       * bypass codegen_try_emit_generic_identity_mono and are emitted here. Their
+       * return type T would emit as `struct T` (incomplete BLD001) because
+       * mono_active is off; the self param Wrap<T> is rescued by the wave489
+       * unique-combo suffix mechanism but the free return type T is not. Build a
+       * T→concrete map from the self param's unique mono combo, set mono_active so
+       * emit_type's name-based fallback substitutes T in ret type + body. Mirrors
+       * codegen_try_emit_generic_identity_mono save/restore.
+       * PLATFORM: SHARED — codegen.x same commit.
+       * Guards: only set when w495_n > 0 (unique combo found); non-generic functions
+       * and multi-combo cases skip this entirely (no behavior change). Restore on
+       * BOTH success return paths (std-io early return + final); error paths abort.
+       * Vars w495_mono_set / w495_saved_active / w495_saved_num are declared at
+       * function scope (hoisted) so both restore sites can see them.
+       */
+      if (ctx) {
+        int32_t w495_gen[8] = {0};
+        int32_t w495_conc[8] = {0};
+        int32_t w495_n = codegen_build_func_param_mono_map(module, arena, fi, w495_gen, w495_conc, 8);
+        if (w495_n > 0) {
+          int32_t w495_k;
+          w495_saved_active = ctx->mono_active;
+          w495_saved_num = ctx->mono_num_types;
+          for (w495_k = 0; w495_k < w495_n && w495_k < 8; w495_k++) {
+            ctx->mono_generic_type_refs[w495_k] = w495_gen[w495_k];
+            ctx->mono_concrete_type_refs[w495_k] = w495_conc[w495_k];
+          }
+          ctx->mono_active = 1;
+          ctx->mono_num_types = w495_n;
+          w495_mono_set = 1;
+        }
+      }
       int fn_ret_void_pre = (pipeline_type_kind_ord_at(arena, ret_ty_ref) == ((int32_t)(16)));
       if ((emit_c_main_symbol && fn_ret_void_pre)) {
         uint8_t i32_ty[8] = {105, 110, 116, 51, 50, 95, 116, 0};
@@ -14435,6 +14582,11 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
       return -(1);
     }
     if ((codegen_try_emit_std_io_driver_buf_body(out, module, fi, prefix, prefix_len) !=0)) {
+      /* wave495: restore mono_active on early success return (std-io path). */
+      if (w495_mono_set) {
+        ctx->mono_active = w495_saved_active;
+        ctx->mono_num_types = w495_saved_num;
+      }
       return 0;
     }
     int fn_ret_void = (pipeline_type_kind_ord_at(arena, pipeline_module_func_return_type_at(module, fi)) ==((int32_t)(16)));
@@ -14611,6 +14763,11 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
     uint8_t close[3] = {125, 10, 0};
     if ((codegen_emit_bytes_3(out, close, 2) !=0)) {
       return -(1);
+    }
+    /* wave495: restore mono_active on final success return. */
+    if (w495_mono_set) {
+      ctx->mono_active = w495_saved_active;
+      ctx->mono_num_types = w495_saved_num;
     }
     return 0;
   }
@@ -15863,6 +16020,12 @@ int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct
     int32_t name_prefix_len = prefix_len;
     uint8_t lpar[2] = {40, 0};
     uint8_t end_proto[3] = {41, 59, 10};
+    /* wave495: hoist mono_active save/restore vars to function scope so the
+     * success return path can restore them. Mirrors emit_func w495 fix.
+     * PLATFORM: SHARED — codegen.x same commit. */
+    int32_t w495_mono_set = 0;
+    int32_t w495_saved_active = 0;
+    int32_t w495_saved_num = 0;
     if (((fi < 0) || (fi >=(module->num_funcs)))) {
       return -(1);
     }
@@ -15898,6 +16061,35 @@ int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct
       uint8_t int_attr[31] = {95, 95, 97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 105, 110, 116, 101, 114, 114, 117, 112, 116, 41, 41, 32, 0, 0, 0, 0};
       if ((codegen_emit_bytes_from_ptr(out, &((int_attr)[0]), 27) !=0)) {
         return -(1);
+      }
+    }
+    /*
+     * wave495: generic inherent impl method extern declaration monomorphization.
+     * Why: the extern forward declaration `extern <ret> name(<params>);` is emitted
+     * separately from the function definition. Without mono_active, the return type T
+     * emits as `struct T` (incomplete BLD001) here while the definition (emit_func)
+     * correctly emits `int32_t`. Build the same T->concrete map from params and set
+     * mono_active so emit_type substitutes T in the return type. Mirrors emit_func.
+     * PLATFORM: SHARED — codegen.x same commit.
+     * Guards: only set when w495_n > 0 (unique combo found); non-generic functions
+     * and multi-combo cases skip this entirely (no behavior change). Restore on
+     * success return; error paths abort.
+     */
+    if (ctx) {
+      int32_t w495_gen[8] = {0};
+      int32_t w495_conc[8] = {0};
+      int32_t w495_n = codegen_build_func_param_mono_map(module, arena, fi, w495_gen, w495_conc, 8);
+      if (w495_n > 0) {
+        int32_t w495_k;
+        w495_saved_active = ctx->mono_active;
+        w495_saved_num = ctx->mono_num_types;
+        for (w495_k = 0; w495_k < w495_n && w495_k < 8; w495_k++) {
+          ctx->mono_generic_type_refs[w495_k] = w495_gen[w495_k];
+          ctx->mono_concrete_type_refs[w495_k] = w495_conc[w495_k];
+        }
+        ctx->mono_active = 1;
+        ctx->mono_num_types = w495_n;
+        w495_mono_set = 1;
       }
     }
     if ((codegen_emit_type(arena, out, pipeline_module_func_return_type_at(module, fi), prefix, prefix_len, ctx) !=0)) {
@@ -16029,6 +16221,11 @@ int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct
     }
     if ((codegen_emit_bytes_from_ptr(out, &((end_proto)[0]), 3) !=0)) {
       return -(1);
+    }
+    /* wave495: restore mono_active on success return. */
+    if (w495_mono_set) {
+      ctx->mono_active = w495_saved_active;
+      ctx->mono_num_types = w495_saved_num;
     }
     return 0;
   }
