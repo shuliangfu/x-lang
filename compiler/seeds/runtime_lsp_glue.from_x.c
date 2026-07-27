@@ -46,6 +46,16 @@
  * Compiler-only TU (lsp_diag.o) — not in user STD_AND_PANIC bag. */
 extern char *link_abi_getenv(const char *name);
 
+/* wave536: GLUE_FULL implies FMT_THIN — activates all 17 #ifndef FMT_THIN
+ * body-skip guards + 8 #ifdef FMT_THIN forward-decl blocks together.
+ * Avoids modifying existing FMT_THIN guards; GLUE_FULL is a superset that
+ * switches thin from lsp_fmt_pure_thin.x (17 #[no_mangle]) to
+ * runtime_lsp_glue.x (46 #[no_mangle] after wave536 dead-code removal).
+ * PLATFORM: SHARED — pure C preprocessor, no host dependency. */
+#ifdef XLANG_L2_LSP_GLUE_FULL_FROM_X
+#define XLANG_L2_LSP_FMT_THIN_FROM_X
+#endif
+
 /** LSP import 图：由 runtime.c 提供，供跨模块 typeck 与跳转 URI。 */
 extern int xlang_lsp_resolve_and_load_imports(struct ASTModule *mod, const char **lib_roots, int n_lib_roots,
                                           const char *entry_dir, struct ASTModule **dep_mods, int *ndep_out,
