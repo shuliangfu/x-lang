@@ -6895,8 +6895,11 @@ function codegen_maybe_emit_generic_struct_mono_suffix_for_type(module: *Module,
      * generic-function mono). Reuse collect authority: if unique combo, append that
      * suffix so host-C matches monomorphized receivers (`struct Box__i32`) instead of
      * incomplete bare `struct Box` BLD001.
-     * Multi-combo `impl for Box&lt;T&gt;` with Box&lt;A&gt;+Box&lt;B&gt; still soft (needs per-combo
-     * mangled methods). PLATFORM: SHARED host-C.
+     * Multi-combo `impl for Box<T>` with Box<A>+Box<B>: wave498 fixed via per-combo
+     * mangled methods emitted by codegen_try_emit_generic_impl_method_mono + call-side
+     * codegen_try_emit_impl_method_mono_call_name (5 call paths: UFCS / dep / C6 /
+     * re-search / PTR overload). No longer soft.
+     * PLATFORM: SHARED host-C.
      */
     if (ntp <= 4) {
       let combos: i32[32] = [];

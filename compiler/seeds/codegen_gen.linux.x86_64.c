@@ -6988,11 +6988,15 @@ static int32_t codegen_maybe_emit_generic_struct_mono_suffix_for_type(struct ast
     if (ok) return codegen_emit_generic_struct_mono_suffix(out, arena, mono, ntp);
   }
   /*
-   * wave489 Cap residual: free type-args on generic-impl method self (Box&lt;T&gt;).
+   * wave489 Cap residual: free type-args on generic-impl method self (Box<T>).
    * When fill_concrete fails and mono_active is off (impl methods emit as free fns),
    * reuse collect: if this layout has exactly one host-concrete mono combo, emit that
    * suffix so params match monomorphized receivers (Box__i32) instead of incomplete
-   * bare Box. Multi-combo remains soft. PLATFORM: SHARED host-C.
+   * bare Box. Multi-combo: wave490 fixed per-combo suffix for type references;
+   * wave498 added per-combo mangled method definitions + call-side mangling
+   * (codegen_try_emit_generic_impl_method_mono + codegen_try_emit_impl_method_
+   * mono_call_name across 5 call paths). No longer soft.
+   * PLATFORM: SHARED host-C.
    */
   if (ntp <= 4) {
     int32_t combos[32];
