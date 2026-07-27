@@ -1157,8 +1157,21 @@ runtime_time_os.o: seeds/runtime_time_os.from_x.c src/asm/runtime_time_os.x
 
 # F-ZC：queue 竞争烟测 pthread；与 queue.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 # G-02f-21：runtime_queue_contention 产品 seed
+# wave512 R2 migration: PREFER_X_O=1 时 .x → thin.o + seed-rest → ld -r；
+# 否则冷启动 seed C（完整实现含 public API）。
 runtime_queue_contention.o: seeds/runtime_queue_contention.from_x.c src/asm/runtime_queue_contention.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_queue_contention.from_x.c -o $@
+	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_queue_contention.x ]; then \
+		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/queue.XXXXXX") && \
+		./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_queue_contention.x > "$$_tmp" 2>/dev/null && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o runtime_queue_contention_thin.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_QUEUE_CONTENTION_FROM_X -c seeds/runtime_queue_contention.from_x.c -o runtime_queue_contention_rest.o && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) runtime_queue_contention_thin.o runtime_queue_contention_rest.o -o $@ && \
+		rm -f "$$_tmp" runtime_queue_contention_thin.o runtime_queue_contention_rest.o && \
+		echo "phase4: $@ <- runtime_queue_contention.x + seed-rest (PREFER_X_O R2)"; \
+	else \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_queue_contention.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/runtime_queue_contention.from_x.c (cold start seed)"; \
+	fi
 
 # F-ZC：dynlib dlopen/LoadLibrary；与 dynlib.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 # G-02f-20：runtime_dynlib_os 产品 seed
