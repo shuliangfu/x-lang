@@ -1433,8 +1433,20 @@ runtime_ed25519_ref10_glue.o: seeds/runtime_ed25519_ref10_glue.from_x.c src/asm/
 
 # F-ZC：codegen 入口 argc/argv 全局；与 process.o 一并链入（G-02e-18：.inc + cc_inc_tu）
 # G-02f-20：runtime_process_argv 产品 seed
+# wave521 R2 migration: thin (.x) + rest (.from_x.c) thin+rest mode
+#   - thin (.x): #[no_mangle] xlang_process_argv_bind_from_crt (no _c suffix
+#     to match extern declarations) forwarding to _impl
+#   - rest (.from_x.c): _impl (CRT bind logic) + constructor + getters + weak
+#     fallbacks; all always compiled (constructor/getters/weak are C-only)
 runtime_process_argv.o: seeds/runtime_process_argv.from_x.c src/asm/runtime_process_argv.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_process_argv.from_x.c -o $@
+	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_process_argv.x ]; then \
+	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o runtime_process_argv.thin.o src/asm/runtime_process_argv.x && \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_PROCESS_ARGV_FROM_X=1 -c seeds/runtime_process_argv.from_x.c -o runtime_process_argv.rest.o && \
+	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ runtime_process_argv.thin.o runtime_process_argv.rest.o && \
+	  rm -f runtime_process_argv.thin.o runtime_process_argv.rest.o; \
+	else \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_process_argv.from_x.c -o $@; \
+	fi
 
 # F-ZC：进程 OS 胶层（getenv/spawn/getcwd 等）；与 process.o 一并链入（G-02e-20）
 # G-02f-18：runtime_process_os_glue 产品 seed；wave507 R2 full mode
