@@ -226,6 +226,15 @@ MODULES=(
   #   DIRECT — 纯 .x 实现（无 extern 桥，无 OS 调用，纯寄存器运算）；seed 全守卫 #ifndef
   #   XLANG_RUNTIME_SLICE_GLUE_FROM_X；无 Cap residual；prove 锁 thin surface IDENTICAL
   "runtime_slice_glue|src/asm/runtime_slice_glue.x|seeds/runtime_slice_glue_surface.from_x.c||"
+  # runtime_crypto_inc_glue R2 thin+rest (wave547)：.x 6 public API (xlang_sha256_block + _rotr32 + _ch + _maj +
+  #   crypto_i32_sub_c + crypto_rotl32_c) + 6 _impl 桥；rest 含 sha256 block/rotr/ch/maj + crypto_i32_sub/rotl32
+  #   纯 C 算术（无 OS 调用）；xlang_/crypto_ 前缀不触发 ast_；prove 锁 thin surface IDENTICAL
+  "runtime_crypto_inc_glue|src/asm/runtime_crypto_inc_glue.x|seeds/runtime_crypto_inc_glue_surface.from_x.c||"
+  # runtime_sync_lock_diag_tls R2 mixed (wave547)：.x 5 public API (sync_lock_diag_find_meta_idx + get_order +
+  #   append_byte + append_lit + append_i32) — 2 thin+rest (find_meta_idx + get_order _impl 桥) +
+  #   3 DIRECT (append_byte/lit/i32 纯计算)；rest 含 pthread_mutexattr protocol lookup；
+  #   sync_ 前缀不触发 ast_；prove 锁 thin surface IDENTICAL
+  "runtime_sync_lock_diag_tls|src/asm/runtime_sync_lock_diag_tls.x|seeds/runtime_sync_lock_diag_tls_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
