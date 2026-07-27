@@ -203,6 +203,21 @@ MODULES=(
   #   + 3 _impl_c 桥；rest #include 8 个 .inc 文件（sha512/fe/ge/sc/keypair/sign/verify + fixedint.h）经宏重命名发射
   #   _impl_c 实现；#[no_mangle] 确保符号名匹配 std/crypto/ed25519.x extern 声明（无 _c 后缀）；prove 锁 thin surface IDENTICAL
   "runtime_ed25519_ref10_glue|src/asm/runtime_ed25519_ref10_glue.x|seeds/runtime_ed25519_ref10_glue_surface.from_x.c||"
+  # runtime_net_udp_batch R2 thin+rest (wave545)：.x 2 public API (xlang_udp_batch_set_addr_port + _poll_readable)
+  #   + 2 _impl 桥；rest 含 sockaddr_in pack + poll/WSAPoll OS 调用；prove 锁 thin surface IDENTICAL
+  "runtime_net_udp_batch|src/asm/runtime_net_udp_batch.x|seeds/runtime_net_udp_batch_surface.from_x.c||"
+  # runtime_net_sock_fast R2 thin+rest (wave545)：.x 2 public API (net_ensure_wsa + net_wsa_ctor)
+  #   + 2 _impl_c 桥；rest 含 Windows WSAStartup + constructor（POSIX no-op stub）；wave545 根修 .x extern
+  #   _impl → _impl_c 匹配 seed；prove 锁 thin surface IDENTICAL
+  "runtime_net_sock_fast|src/asm/runtime_net_sock_fast.x|seeds/runtime_net_sock_fast_surface.from_x.c||"
+  # runtime_net_dns_fast R2 thin+rest (wave545)：.x 3 public API (net_dns_ai_addconfig_c + _map_gai_error_c + _ensure_wsa_c)
+  #   + 3 _impl_c 桥；rest 含 getaddrinfo hints + gai error map + WSA init；wave545 根修 .x extern
+  #   _impl → _impl_c 匹配 seed；prove 锁 thin surface IDENTICAL
+  "runtime_net_dns_fast|src/asm/runtime_net_dns_fast.x|seeds/runtime_net_dns_fast_surface.from_x.c||"
+  # runtime_net_ipv6_fast R2 thin+rest (wave545)：.x 5 public API (net_ipv6_ensure_wsa_c + _close_socket_c +
+  #   _set_nonblock_c + _poll_writable_c + _connect_retry_ok_c) + 5 _impl_c 桥；rest 含 IPv6 socket OS 调用
+  #   (close/fcntl/poll/connect)；wave545 根修 .x extern _impl → _impl_c 匹配 seed；prove 锁 thin surface IDENTICAL
+  "runtime_net_ipv6_fast|src/asm/runtime_net_ipv6_fast.x|seeds/runtime_net_ipv6_fast_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
