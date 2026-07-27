@@ -4617,14 +4617,34 @@ ensure_runtime_user_link_objs() {
   echo " cc_inc_tu runtime_random_fill.o <- seeds/runtime_random_fill.from_x.c"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_random_fill.from_x.c -o runtime_random_fill.o
   fi
-  if [ ! -f runtime_time_os.o ] || [ seeds/runtime_time_os.from_x.c -nt runtime_time_os.o ]; then
+  if [ ! -f runtime_time_os.o ] || [ seeds/runtime_time_os.from_x.c -nt runtime_time_os.o ] || [ src/asm/runtime_time_os.x -nt runtime_time_os.o ]; then
   echo " cc_inc_tu runtime_time_os.o <- seeds/runtime_time_os.from_x.c"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_time_os.from_x.c -o runtime_time_os.o
+  if [ "${XLANG_G05_PREFER_X_O:-0}" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_time_os.x ]; then
+    _rtos_tmp=$(mktemp "${TMPDIR:-/tmp}/rtos.XXXXXX") || _rtos_tmp=/tmp/rtos_tmp_$$
+    ./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_time_os.x > "$_rtos_tmp" 2>/dev/null && \
+    $CC $CFLAGS -I. -Iinclude -Isrc -x c -c "$_rtos_tmp" -o runtime_time_os_thin.o && \
+    $CC $CFLAGS -I. -Iinclude -Isrc -DXLANG_RUNTIME_TIME_OS_FROM_X -c seeds/runtime_time_os.from_x.c -o runtime_time_os_rest.o && \
+    ld -r runtime_time_os_thin.o runtime_time_os_rest.o -o runtime_time_os.o && \
+    rm -f "$_rtos_tmp" runtime_time_os_thin.o runtime_time_os_rest.o && \
+    echo "   rtos: R2 full thin+rest merged (PREFER_X_O)"
+  else
+    $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_time_os.from_x.c -o runtime_time_os.o
   fi
-  if [ ! -f runtime_env_os.o ] || [ seeds/runtime_env_os.from_x.c -nt runtime_env_os.o ]; then
+  fi
+  if [ ! -f runtime_env_os.o ] || [ seeds/runtime_env_os.from_x.c -nt runtime_env_os.o ] || [ src/asm/runtime_env_os.x -nt runtime_env_os.o ]; then
   echo " cc_inc_tu runtime_env_os.o <- seeds/runtime_env_os.from_x.c"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_env_os.from_x.c -o runtime_env_os.o
+  if [ "${XLANG_G05_PREFER_X_O:-0}" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_env_os.x ]; then
+    _reos_tmp=$(mktemp "${TMPDIR:-/tmp}/reos.XXXXXX") || _reos_tmp=/tmp/reos_tmp_$$
+    ./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_env_os.x > "$_reos_tmp" 2>/dev/null && \
+    $CC $CFLAGS -I. -Iinclude -Isrc -x c -c "$_reos_tmp" -o runtime_env_os_thin.o && \
+    $CC $CFLAGS -I. -Iinclude -Isrc -DXLANG_RUNTIME_ENV_OS_FROM_X -c seeds/runtime_env_os.from_x.c -o runtime_env_os_rest.o && \
+    ld -r runtime_env_os_thin.o runtime_env_os_rest.o -o runtime_env_os.o && \
+    rm -f "$_reos_tmp" runtime_env_os_thin.o runtime_env_os_rest.o && \
+    echo "   reos: R2 full thin+rest merged (PREFER_X_O)"
+  else
+    $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_env_os.from_x.c -o runtime_env_os.o
   fi
+fi
   # wave253: sole user-domain residual face body (weak; companion of PRIMARY_PANIC / residual).
   if [ ! -f runtime_link_abi_user_env.o ] || [ seeds/runtime_link_abi_user_env.from_x.c -nt runtime_link_abi_user_env.o ]; then
   echo " cc_inc_tu runtime_link_abi_user_env.o <- seeds/runtime_link_abi_user_env.from_x.c"

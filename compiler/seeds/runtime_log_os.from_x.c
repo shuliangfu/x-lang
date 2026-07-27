@@ -1,59 +1,43 @@
 /* seeds/runtime_log_os.from_x.c — G-02f-19 product TU
  * G-02f-112 helper gates.
  * G-02f-105 helper gates.
- * Product: runtime_log_os.o; logic still C until full .x port.
+ * Product: runtime_log_os.o; R2 full mode (wave505).
+ *
+ * R2 full mode: public API in src/asm/runtime_log_os.x (thin),
+ * OS bridge _impl functions here (rest). Thin+rest linked via ld -r.
+ * Platform-specific: _write/write for log_write_fd_impl; OS file ops
+ * for set_file_sink/close_file_sink.
  *
  * wave252 G.7: XLANG_LOG_MIN_LEVEL via public face link_abi_getenv (not raw getenv).
  * wave253: face body in runtime_link_abi_user_env.o (declaration only here).
- * Weak user-domain twin; strong may come from runtime_panic C seed (wave251).
- * PLATFORM: SHARED — user/STD_AND_PANIC residual face; never g05 host bag.
- */
-/**
- * runtime_log_os.c — F-log OS 胶层（F-ZC：自 std/log/log_os_glue.c 迁入）
- *
- * 多 sink、文件轮转、异步缓冲、log_emit_bytes_c；格式化在 log.x；与 log.o 一并链入。
+ * PLATFORM: SHARED
  */
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-/* wave253: declaration only — face body in runtime_link_abi_user_env.o (weak; panic C strong wins). */
 #include <xlang_user_link_abi_getenv.h>
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <io.h>
 #include <fcntl.h>
-#include <sys/stat.h> /* _S_IWRITE 声明在此 */
+#include <sys/stat.h>
 #define STDERR_FILENO 2
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_log_os.x）提供 public wrapper */
 int log_write_fd_impl(int fd, const void *buf, size_t len) { return (int)_write((int)fd, buf, (unsigned)len); }
-
-
-
 #else
-/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
- *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
- *            macOS/Linux delegate to system <unistd.h> via #include_next.
- *            Historical #ifndef _WIN32 guard removed — shim is a no-op
- *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_log_os.x）提供 public wrapper */
 int log_write_fd_impl(int fd, const void *buf, size_t len) { return (int)write(fd, buf, len); }
 #endif
 
 #ifndef XLANG_RUNTIME_LOG_OS_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int log_write_fd(int fd, const void *buf, size_t len) { return log_write_fd_impl(fd, buf, len); }
 #endif
 
-/** sink 掩码位（与 mod.x SINK_* 一致）。 */
 #define LOG_SINK_STDERR 1
 #define LOG_SINK_FILE 2
 
-/** 异步环形缓冲：32 槽 × 512B（STD-106）。 */
 #define LOG_ASYNC_SLOTS 32
 #define LOG_ASYNC_SLOT_SIZE 512
 
@@ -62,7 +46,7 @@ typedef struct {
   uint8_t data[LOG_ASYNC_SLOT_SIZE];
 } log_async_slot_t;
 
-static int32_t s_min_level = 0; /* 0=debug, 1=info, 2=warn, 3=error */
+static int32_t s_min_level = 0;
 static int32_t s_sink_mask = LOG_SINK_STDERR;
 static int s_file_fd = -1;
 static int s_env_applied = 0;
@@ -75,12 +59,19 @@ static int32_t s_async_enabled = 0;
 static log_async_slot_t s_async_queue[LOG_ASYNC_SLOTS];
 static int32_t s_async_count = 0;
 
-/** 前向声明。 */
 void log_close_file_sink_c(void);
 int32_t log_write_sync(const void *buf, size_t len);
 int32_t log_async_flush_c(void);
 
-/* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
+/* Forward declarations of _c public API functions provided by runtime_log_os.x
+ * in R2 mode (thin object). In cold path, these are defined locally under
+ * #ifndef XLANG_RUNTIME_LOG_OS_FROM_X guards. */
+void log_set_min_level_c(int32_t level);
+void log_set_sink_mask_c(int32_t mask);
+int32_t log_set_file_sink_c(const uint8_t *path, int32_t len);
+int32_t log_set_rotate_c(int32_t max_bytes, int32_t max_backups);
+int32_t log_set_async_enabled_c(int32_t enabled);
+
 int log_write_fd(int fd, const void *buf, size_t len);
 int32_t log_do_rotate(void);
 int32_t log_write_file_sync(const void *buf, size_t len);
@@ -88,13 +79,10 @@ int32_t log_async_enqueue(const void *buf, size_t len);
 void log_apply_env_once(void);
 int32_t log_emit_bytes(const void *buf, size_t len);
 
-/** 首次写日志时读取 XLANG_LOG_MIN_LEVEL（0–3）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_log_os.x）提供 public wrapper */
+/** Read XLANG_LOG_MIN_LEVEL env var on first call. */
 void log_apply_env_once_impl(void) {
   if (s_env_applied) return;
   s_env_applied = 1;
-  /* wave252 G.7: env via public face link_abi_getenv (not raw libc getenv). */
   const char *v = link_abi_getenv("XLANG_LOG_MIN_LEVEL");
   if (v && v[0]) {
     int l = atoi(v);
@@ -103,25 +91,40 @@ void log_apply_env_once_impl(void) {
 }
 
 #ifndef XLANG_RUNTIME_LOG_OS_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 void log_apply_env_once(void) {
   log_apply_env_once_impl();
 }
 #endif
 
+/** Get current min log level (0-3). */
+int32_t log_get_min_level_impl(void) {
+  return s_min_level;
+}
 
-
-void log_set_min_level_c(int32_t level) {
+/** Set min log level (0-3). */
+void log_set_min_level_impl(int32_t level) {
   if (level >= 0 && level <= 3) s_min_level = level;
 }
 
-/** 设置活跃 sink 掩码：LOG_SINK_STDERR | LOG_SINK_FILE。 */
-void log_set_sink_mask_c(int32_t mask) {
+#ifndef XLANG_RUNTIME_LOG_OS_FROM_X
+void log_set_min_level_c(int32_t level) {
+  if (level >= 0 && level <= 3) s_min_level = level;
+}
+#endif
+
+/** Set active sink mask (LOG_SINK_STDERR | LOG_SINK_FILE). */
+void log_set_sink_mask_impl(int32_t mask) {
   s_sink_mask = mask;
 }
 
-/** 打开追加写文件 sink；path[len] 不必 NUL 结尾。成功 0，失败 -1。 */
-int32_t log_set_file_sink_c(const uint8_t *path, int32_t len) {
+#ifndef XLANG_RUNTIME_LOG_OS_FROM_X
+void log_set_sink_mask_c(int32_t mask) {
+  s_sink_mask = mask;
+}
+#endif
+
+/** Open file sink for append; path[len] need not be NUL-terminated. Returns 0 success, -1 failure. */
+int32_t log_set_file_sink_impl(const uint8_t *path, int32_t len) {
   log_close_file_sink_c();
   if (!path || len <= 0) return -1;
   char tmp[512];
@@ -145,8 +148,14 @@ int32_t log_set_file_sink_c(const uint8_t *path, int32_t len) {
   return (s_file_fd >= 0) ? 0 : -1;
 }
 
-/** 关闭文件 sink（若已打开）。 */
-void log_close_file_sink_c(void) {
+#ifndef XLANG_RUNTIME_LOG_OS_FROM_X
+int32_t log_set_file_sink_c(const uint8_t *path, int32_t len) {
+  return log_set_file_sink_impl(path, len);
+}
+#endif
+
+/** Close file sink if open. */
+void log_close_file_sink_impl(void) {
   if (s_file_fd >= 0) {
 #if defined(_WIN32) || defined(_WIN64)
     _close(s_file_fd);
@@ -157,9 +166,13 @@ void log_close_file_sink_c(void) {
   }
 }
 
-/** 文件 sink 超限时轮转：max_backups=0 截断，1..8 备份 path.N。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_log_os.x）提供 public wrapper */
+#ifndef XLANG_RUNTIME_LOG_OS_FROM_X
+void log_close_file_sink_c(void) {
+  log_close_file_sink_impl();
+}
+#endif
+
+/** Rotate log file when size threshold reached. Returns 0 success, -1 failure. */
 int32_t log_do_rotate_impl(void) {
   char oldpath[520];
   char newpath[520];
@@ -201,17 +214,77 @@ int32_t log_do_rotate_impl(void) {
 }
 
 #ifndef XLANG_RUNTIME_LOG_OS_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t log_do_rotate(void) {
   return log_do_rotate_impl();
 }
 #endif
 
+/** Set rotation threshold; must call set_file_sink first. Returns 0 success, -1 failure. */
+int32_t log_set_rotate_impl(int32_t max_bytes, int32_t max_backups) {
+  if (max_bytes < 0 || max_backups < 0 || max_backups > 8) return -1;
+  s_rotate_max_bytes = max_bytes;
+  s_rotate_max_backups = max_backups;
+  return 0;
+}
 
+#ifndef XLANG_RUNTIME_LOG_OS_FROM_X
+int32_t log_set_rotate_c(int32_t max_bytes, int32_t max_backups) {
+  if (max_bytes < 0 || max_backups < 0 || max_backups > 8) return -1;
+  s_rotate_max_bytes = max_bytes;
+  s_rotate_max_backups = max_backups;
+  return 0;
+}
+#endif
 
-/** 同步写文件 sink（含轮转计数）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_log_os.x）提供 public wrapper */
+/** Enable/disable async buffering; flush before disabling. Returns 0 success, -1 failure. */
+int32_t log_set_async_enabled_impl(int32_t enabled) {
+  if (enabled) {
+    s_async_enabled = 1;
+    return 0;
+  }
+  if (s_async_enabled) {
+    if (log_async_flush_c() != 0) return -1;
+    s_async_enabled = 0;
+  }
+  return 0;
+}
+
+#ifndef XLANG_RUNTIME_LOG_OS_FROM_X
+int32_t log_set_async_enabled_c(int32_t enabled) {
+  if (enabled) {
+    s_async_enabled = 1;
+    return 0;
+  }
+  if (s_async_enabled) {
+    if (log_async_flush_c() != 0) return -1;
+    s_async_enabled = 0;
+  }
+  return 0;
+}
+#endif
+
+/** Flush async buffer to active sinks. Returns 0 success, -1 failure. */
+int32_t log_async_flush_impl(void) {
+  int32_t i;
+  for (i = 0; i < s_async_count; i++) {
+    if (log_write_sync(s_async_queue[i].data, (size_t)s_async_queue[i].length) != 0) return -1;
+  }
+  s_async_count = 0;
+  return 0;
+}
+
+#ifndef XLANG_RUNTIME_LOG_OS_FROM_X
+int32_t log_async_flush_c(void) {
+  int32_t i;
+  for (i = 0; i < s_async_count; i++) {
+    if (log_write_sync(s_async_queue[i].data, (size_t)s_async_queue[i].length) != 0) return -1;
+  }
+  s_async_count = 0;
+  return 0;
+}
+#endif
+
+/** Write buffer to file sink, with rotation check. Returns 0 success, -1 failure. */
 int32_t log_write_file_sync_impl(const void *buf, size_t len) {
   if (!(s_sink_mask & LOG_SINK_FILE) || s_file_fd < 0) return 0;
   if (s_rotate_max_bytes > 0 && s_file_bytes + (int64_t)len > s_rotate_max_bytes) {
@@ -223,17 +296,12 @@ int32_t log_write_file_sync_impl(const void *buf, size_t len) {
 }
 
 #ifndef XLANG_RUNTIME_LOG_OS_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t log_write_file_sync(const void *buf, size_t len) {
   return log_write_file_sync_impl(buf, len);
 }
 #endif
 
-
-
-/** 同步写所有活跃 sink（不经异步队列）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_log_os.x）提供 public wrapper */
+/** Write buffer to all active sinks (stderr + file). Returns 0 success, -1 failure. */
 int32_t log_write_sync_impl(const void *buf, size_t len) {
   if (s_sink_mask & LOG_SINK_STDERR) {
     if (log_write_fd(STDERR_FILENO, buf, len) != (int)len) return -1;
@@ -243,17 +311,12 @@ int32_t log_write_sync_impl(const void *buf, size_t len) {
 }
 
 #ifndef XLANG_RUNTIME_LOG_OS_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t log_write_sync(const void *buf, size_t len) {
   return log_write_sync_impl(buf, len);
 }
 #endif
 
-
-
-/** 入队一行；队列满时先 flush。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_log_os.x）提供 public wrapper */
+/** Enqueue buffer in async ring buffer; flush first if full. Returns 0 success, -1 failure. */
 int32_t log_async_enqueue_impl(const void *buf, size_t len) {
   if (len > LOG_ASYNC_SLOT_SIZE) return -1;
   if (s_async_count >= LOG_ASYNC_SLOTS) {
@@ -267,82 +330,47 @@ int32_t log_async_enqueue_impl(const void *buf, size_t len) {
 }
 
 #ifndef XLANG_RUNTIME_LOG_OS_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t log_async_enqueue(const void *buf, size_t len) {
   return log_async_enqueue_impl(buf, len);
 }
 #endif
 
-
-
-/** 写一行：异步模式下入队，否则直写 sink。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_log_os.x）提供 public wrapper */
+/** Write buffer: async queue if enabled, else direct write. Returns 0 success, -1 failure. */
 int32_t log_emit_bytes_impl(const void *buf, size_t len) {
   if (s_async_enabled) return log_async_enqueue(buf, len);
   return log_write_sync(buf, len);
 }
 
 #ifndef XLANG_RUNTIME_LOG_OS_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t log_emit_bytes(const void *buf, size_t len) {
   return log_emit_bytes_impl(buf, len);
 }
 #endif
 
-
-
-/** 设置轮转阈值；须先 set_file_sink。成功 0，失败 -1。 */
-int32_t log_set_rotate_c(int32_t max_bytes, int32_t max_backups) {
-  if (max_bytes < 0 || max_backups < 0 || max_backups > 8) return -1;
-  s_rotate_max_bytes = max_bytes;
-  s_rotate_max_backups = max_backups;
-  return 0;
-}
-
-/** 启用/关闭异步缓冲；关闭前先 flush。 */
-int32_t log_set_async_enabled_c(int32_t enabled) {
-  if (enabled) {
-    s_async_enabled = 1;
-    return 0;
-  }
-  if (s_async_enabled) {
-    if (log_async_flush_c() != 0) return -1;
-    s_async_enabled = 0;
-  }
-  return 0;
-}
-
-/** 刷出异步缓冲到活跃 sink。 */
-int32_t log_async_flush_c(void) {
-  int32_t i;
-  for (i = 0; i < s_async_count; i++) {
-    if (log_write_sync(s_async_queue[i].data, (size_t)s_async_queue[i].length) != 0) return -1;
-  }
-  s_async_count = 0;
-  return 0;
-}
-
-
-/** F-log v1：供 log.x 调用的导出桥。 */
+#ifndef XLANG_RUNTIME_LOG_OS_FROM_X
 void log_apply_env_once_c(void) {
   log_apply_env_once();
 }
+#endif
 
+#ifndef XLANG_RUNTIME_LOG_OS_FROM_X
 int32_t log_get_min_level_c(void) {
   log_apply_env_once();
   return s_min_level;
 }
+#endif
 
+#ifndef XLANG_RUNTIME_LOG_OS_FROM_X
 int32_t log_emit_bytes_c(const uint8_t *buf, int32_t len) {
   if (!buf || len <= 0) return -1;
   return log_emit_bytes(buf, (size_t)len);
 }
+#endif
 
 extern int32_t log_write_c(int32_t level, const uint8_t *ptr, int32_t len);
 extern int32_t log_write_structured_kv_c(const uint8_t *component, int32_t level, const uint8_t *kv_body);
 
-/** STD-053 C 烟测：人类行 + 结构化行 + 级别过滤金样。 */
+/** STD-053 C smoke test: human line + structured line + level filter golden. */
 int32_t log_multi_sink_smoke_c(const char *path) {
   const uint8_t msg_ok[] = "sink_ok";
   const uint8_t filtered[] = "filtered";
@@ -369,7 +397,6 @@ int32_t log_multi_sink_smoke_c(const char *path) {
   if (!strstr(buf, "[INFO] sink_ok")) return 6;
   if (!strstr(buf, "xlang: level=info component=std_log_smoke")) return 7;
 
-  /* 级别过滤：min=WARN 时 INFO "filtered" 不落盘 */
 #if !defined(_WIN32) && !defined(_WIN64)
   unlink(path);
 #endif
@@ -396,7 +423,7 @@ int32_t log_multi_sink_smoke_c(const char *path) {
   return 0;
 }
 
-/** STD-106 C 烟测：异步 defer/flush + 文件轮转金样。 */
+/** STD-106 C smoke test: async defer/flush + file rotation golden. */
 int32_t log_rotate_async_smoke_c(const char *path) {
   const uint8_t async_msg[] = "async1";
   const uint8_t rotate_msg[] = "rotate_line_xx";

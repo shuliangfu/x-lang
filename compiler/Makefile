@@ -1139,8 +1139,21 @@ runtime_compress_zlib_glue.o: seeds/runtime_compress_zlib_glue.from_x.c src/asm/
 
 # F-ZC：time OS syscall；与 time.o 一并链入（G-02e-18：.inc + cc_inc_tu）
 # G-02f-19：runtime_time_os 产品 seed
+# wave501 R2 migration: PREFER_X_O=1 时 .x → thin.o + seed-rest → ld -r；
+# 否则冷启动 seed C（完整实现含 public API）。
 runtime_time_os.o: seeds/runtime_time_os.from_x.c src/asm/runtime_time_os.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_time_os.from_x.c -o $@
+	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_time_os.x ]; then \
+		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/rtos.XXXXXX") && \
+		./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_time_os.x > "$$_tmp" 2>/dev/null && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o runtime_time_os_thin.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_TIME_OS_FROM_X -c seeds/runtime_time_os.from_x.c -o runtime_time_os_rest.o && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) runtime_time_os_thin.o runtime_time_os_rest.o -o $@ && \
+		rm -f "$$_tmp" runtime_time_os_thin.o runtime_time_os_rest.o && \
+		echo "phase4: $@ <- runtime_time_os.x + seed-rest (PREFER_X_O R2)"; \
+	else \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_time_os.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/runtime_time_os.from_x.c (cold start seed)"; \
+	fi
 
 # F-ZC：queue 竞争烟测 pthread；与 queue.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 # G-02f-21：runtime_queue_contention 产品 seed
@@ -1149,8 +1162,21 @@ runtime_queue_contention.o: seeds/runtime_queue_contention.from_x.c src/asm/runt
 
 # F-ZC：dynlib dlopen/LoadLibrary；与 dynlib.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 # G-02f-20：runtime_dynlib_os 产品 seed
+# wave502 R2 migration: PREFER_X_O=1 时 .x → thin.o + seed-rest → ld -r；
+# 否则冷启动 seed C（完整实现含 public API）。
 runtime_dynlib_os.o: seeds/runtime_dynlib_os.from_x.c src/asm/runtime_dynlib_os.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_dynlib_os.from_x.c -o $@
+	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_dynlib_os.x ]; then \
+		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/dyntest.XXXXXX") && \
+		./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_dynlib_os.x > "$$_tmp" 2>/dev/null && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o runtime_dynlib_os_thin.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_DYNLIB_OS_FROM_X -c seeds/runtime_dynlib_os.from_x.c -o runtime_dynlib_os_rest.o && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) runtime_dynlib_os_thin.o runtime_dynlib_os_rest.o -o $@ && \
+		rm -f "$$_tmp" runtime_dynlib_os_thin.o runtime_dynlib_os_rest.o && \
+		echo "phase4: $@ <- runtime_dynlib_os.x + seed-rest (PREFER_X_O R2)"; \
+	else \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_dynlib_os.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/runtime_dynlib_os.from_x.c (cold start seed)"; \
+	fi
 
 # wave253 G.7: sole user-domain residual face body (weak link_abi_getenv twin).
 # Never g05 host bag; STD_AND_PANIC / product -o companion of PRIMARY_PANIC.
@@ -1160,17 +1186,50 @@ runtime_link_abi_user_env.o: seeds/runtime_link_abi_user_env.from_x.c include/xl
 # F-ZC：env OS getenv/setenv/iter；与 env.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 # G-02f-19：runtime_env_os 产品 seed
 runtime_env_os.o: seeds/runtime_env_os.from_x.c src/asm/runtime_env_os.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_env_os.from_x.c -o $@
+	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_env_os.x ]; then \
+		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/reos.XXXXXX") && \
+		./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_env_os.x > "$$_tmp" 2>/dev/null && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o runtime_env_os_thin.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_ENV_OS_FROM_X -c seeds/runtime_env_os.from_x.c -o runtime_env_os_rest.o && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) runtime_env_os_thin.o runtime_env_os_rest.o -o $@ && \
+		rm -f "$$_tmp" runtime_env_os_thin.o runtime_env_os_rest.o && \
+		echo "phase4: $@ <- runtime_env_os.x + seed-rest (PREFER_X_O R2)"; \
+	else \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_env_os.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/runtime_env_os.from_x.c (cold start seed)"; \
+	fi
 
 # F-ZC：backtrace capture/symbolicate/crash evidence；与 backtrace.o 一并链入（G-02e-20）
-# G-02f-19：runtime_backtrace_platform 产品 seed
+# G-02f-19：runtime_backtrace_platform 产品 seed；wave506 R2 full mode
 runtime_backtrace_platform.o: seeds/runtime_backtrace_platform.from_x.c src/asm/runtime_backtrace_platform.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_backtrace_platform.from_x.c -o $@
+	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_backtrace_platform.x ]; then \
+		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/rbtp.XXXXXX") && \
+		./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_backtrace_platform.x > "$$_tmp" 2>/dev/null && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o runtime_backtrace_platform_thin.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X -c seeds/runtime_backtrace_platform.from_x.c -o runtime_backtrace_platform_rest.o && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) runtime_backtrace_platform_thin.o runtime_backtrace_platform_rest.o -o $@ && \
+		rm -f "$$_tmp" runtime_backtrace_platform_thin.o runtime_backtrace_platform_rest.o && \
+		echo "phase4: $@ <- runtime_backtrace_platform.x + seed-rest (PREFER_X_O R2)"; \
+	else \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_backtrace_platform.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/runtime_backtrace_platform.from_x.c (cold start seed)"; \
+	fi
 
 # F-ZC：log sink/轮转/异步；与 log.o 一并链入（G-02e-19：.inc + cc_inc_tu）
-# G-02f-19：runtime_log_os 产品 seed
+# G-02f-19：runtime_log_os 产品 seed；wave505 R2 full mode
 runtime_log_os.o: seeds/runtime_log_os.from_x.c src/asm/runtime_log_os.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_log_os.from_x.c -o $@
+	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_log_os.x ]; then \
+		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/rlog.XXXXXX") && \
+		./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_log_os.x > "$$_tmp" 2>/dev/null && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o runtime_log_os_thin.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_LOG_OS_FROM_X -c seeds/runtime_log_os.from_x.c -o runtime_log_os_rest.o && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) runtime_log_os_thin.o runtime_log_os_rest.o -o $@ && \
+		rm -f "$$_tmp" runtime_log_os_thin.o runtime_log_os_rest.o && \
+		echo "phase4: $@ <- runtime_log_os.x + seed-rest (PREFER_X_O R2)"; \
+	else \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_log_os.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/runtime_log_os.from_x.c (cold start seed)"; \
+	fi
 
 # F-ZC：math libm/fenv；与 math.o 一并链入（须 -lm；G-02e-19：.inc + cc_inc_tu）
 # G-02f-19：runtime_math_libm 产品 seed
@@ -1178,9 +1237,20 @@ runtime_math_libm.o: seeds/runtime_math_libm.from_x.c src/asm/runtime_math_libm.
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_math_libm.from_x.c -o $@
 
 # F-ZC：atomic load/store/CAS/fence；与 atomic.o 一并链入（G-02e-19：.inc + cc_inc_tu）
-# G-02f-19：runtime_atomic_glue 产品 seed
+# G-02f-19：runtime_atomic_glue 产品 seed；wave508 R2 full mode
 runtime_atomic_glue.o: seeds/runtime_atomic_glue.from_x.c src/asm/runtime_atomic_glue.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_atomic_glue.from_x.c -o $@
+	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_atomic_glue.x ]; then \
+		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/ratomic.XXXXXX") && \
+		./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_atomic_glue.x > "$$_tmp" 2>/dev/null && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o runtime_atomic_glue_thin.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_ATOMIC_GLUE_FROM_X -c seeds/runtime_atomic_glue.from_x.c -o runtime_atomic_glue_rest.o && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) runtime_atomic_glue_thin.o runtime_atomic_glue_rest.o -o $@ && \
+		rm -f "$$_tmp" runtime_atomic_glue_thin.o runtime_atomic_glue_rest.o && \
+		echo "phase4: $@ <- runtime_atomic_glue.x + seed-rest (PREFER_X_O R2)"; \
+	else \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_atomic_glue.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/runtime_atomic_glue.from_x.c (cold start seed)"; \
+	fi
 
 # F-ZC：channel 有界/无界/select；与 channel.o 一并链入（G-02e-20：.inc + cc_inc_tu）
 # G-02f-18：runtime_channel_glue 产品 seed
@@ -1198,9 +1268,20 @@ runtime_net_workers.o: seeds/runtime_net_workers.from_x.c src/asm/runtime_net_wo
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_workers.from_x.c -o $@
 
 # F-ZC：sync Mutex/RwLock/Condvar + 锁诊断 TLS；与 sync.o 一并链入（G-02e-20）
-# G-02f-19：runtime_sync_os 产品 seed
+# G-02f-19：runtime_sync_os 产品 seed；wave504 R2 full mode
 runtime_sync_os.o: seeds/runtime_sync_os.from_x.c src/asm/runtime_sync_os.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_sync_os.from_x.c -o $@
+	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_sync_os.x ]; then \
+		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/rsync.XXXXXX") && \
+		./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_sync_os.x > "$$_tmp" 2>/dev/null && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o runtime_sync_os_thin.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_SYNC_OS_FROM_X -c seeds/runtime_sync_os.from_x.c -o runtime_sync_os_rest.o && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) runtime_sync_os_thin.o runtime_sync_os_rest.o -o $@ && \
+		rm -f "$$_tmp" runtime_sync_os_thin.o runtime_sync_os_rest.o && \
+		echo "phase4: $@ <- runtime_sync_os.x + seed-rest (PREFER_X_O R2)"; \
+	else \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_sync_os.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/runtime_sync_os.from_x.c (cold start seed)"; \
+	fi
 
 # G-02f-19：runtime_sync_lock_diag_tls 产品 seed
 runtime_sync_lock_diag_tls.o: seeds/runtime_sync_lock_diag_tls.from_x.c src/asm/runtime_sync_lock_diag_tls.x
@@ -1262,9 +1343,20 @@ runtime_process_argv.o: seeds/runtime_process_argv.from_x.c src/asm/runtime_proc
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_process_argv.from_x.c -o $@
 
 # F-ZC：进程 OS 胶层（getenv/spawn/getcwd 等）；与 process.o 一并链入（G-02e-20）
-# G-02f-18：runtime_process_os_glue 产品 seed
+# G-02f-18：runtime_process_os_glue 产品 seed；wave507 R2 full mode
 runtime_process_os_glue.o: seeds/runtime_process_os_glue.from_x.c src/asm/runtime_process_os_glue.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_process_os_glue.from_x.c -o $@
+	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_process_os_glue.x ]; then \
+		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/rposglue.XXXXXX") && \
+		./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_process_os_glue.x > "$$_tmp" 2>/dev/null && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o runtime_process_os_glue_thin.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X -c seeds/runtime_process_os_glue.from_x.c -o runtime_process_os_glue_rest.o && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) runtime_process_os_glue_thin.o runtime_process_os_glue_rest.o -o $@ && \
+		rm -f "$$_tmp" runtime_process_os_glue_thin.o runtime_process_os_glue_rest.o && \
+		echo "phase4: $@ <- runtime_process_os_glue.x + seed-rest (PREFER_X_O R2)"; \
+	else \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_process_os_glue.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/runtime_process_os_glue.from_x.c (cold start seed)"; \
+	fi
 
 # 无 C 自举：crt0 提供 _start 与 driver_get_argv_i；链接 asm 版 xlang 时用本 .o 替代 main.o / runtime_asm_build.o
 ifeq ($(UNAME_S),Linux)
