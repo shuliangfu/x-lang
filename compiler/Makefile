@@ -1416,8 +1416,20 @@ runtime_crypto_inc_glue.o: seeds/runtime_crypto_inc_glue.from_x.c src/asm/runtim
 
 # F-ZC：Ed25519 ref10（含 crypto/ed25519/*.c）；与 crypto.o 一并链入（G-02e-17 .inc）
 # G-02f-20：runtime_ed25519_ref10_glue 产品 seed
+# wave520 R2 migration: thin (.x) + rest (.from_x.c) thin+rest mode
+#   - thin (.x): #[no_mangle] ed25519_ref10_create_keypair/sign/verify (no _c
+#     suffix to match ed25519.x extern declarations)
+#   - rest (.from_x.c): .inc files emit *_impl_c via macro rename; sha512
+#     stays as ed25519_ref10_sha512* (consumed by runtime_crypto_inc_glue)
 runtime_ed25519_ref10_glue.o: seeds/runtime_ed25519_ref10_glue.from_x.c src/asm/runtime_ed25519_ref10_glue.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -Isrc/asm -c seeds/runtime_ed25519_ref10_glue.from_x.c -o $@
+	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_ed25519_ref10_glue.x ]; then \
+	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o runtime_ed25519_ref10_glue.thin.o src/asm/runtime_ed25519_ref10_glue.x && \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -Isrc/asm -DXLANG_RUNTIME_ED25519_REF10_GLUE_FROM_X=1 -c seeds/runtime_ed25519_ref10_glue.from_x.c -o runtime_ed25519_ref10_glue.rest.o && \
+	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ runtime_ed25519_ref10_glue.thin.o runtime_ed25519_ref10_glue.rest.o && \
+	  rm -f runtime_ed25519_ref10_glue.thin.o runtime_ed25519_ref10_glue.rest.o; \
+	else \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -Isrc/asm -c seeds/runtime_ed25519_ref10_glue.from_x.c -o $@; \
+	fi
 
 # F-ZC：codegen 入口 argc/argv 全局；与 process.o 一并链入（G-02e-18：.inc + cc_inc_tu）
 # G-02f-20：runtime_process_argv 产品 seed
