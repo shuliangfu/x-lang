@@ -1129,8 +1129,20 @@ runtime_test_fn_invoke.o: seeds/runtime_test_fn_invoke.from_x.c src/asm/runtime_
 
 # F-ZC：CSPRNG OS fill；与 random.o 一并链入（G-02e-17：.inc + cc_inc_tu）
 # G-02f-20：runtime_random_fill 产品 seed
+# G-02f-20：runtime_random_fill 产品 seed；wave514 R2 thin+rest pattern
 runtime_random_fill.o: seeds/runtime_random_fill.from_x.c src/asm/runtime_random_fill.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_random_fill.from_x.c -o $@
+	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_random_fill.x ]; then \
+		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/random.XXXXXX") && \
+		./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_random_fill.x > "$$_tmp" 2>/dev/null && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o runtime_random_fill_thin.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_RANDOM_FILL_FROM_X -c seeds/runtime_random_fill.from_x.c -o runtime_random_fill_rest.o && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) runtime_random_fill_thin.o runtime_random_fill_rest.o -o $@ && \
+		rm -f "$$_tmp" runtime_random_fill_thin.o runtime_random_fill_rest.o && \
+		echo "phase4: $@ <- runtime_random_fill.x + seed-rest (PREFER_X_O R2)"; \
+	else \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_random_fill.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/runtime_random_fill.from_x.c (cold start seed)"; \
+	fi
 
 # zlib 宏包装桩；与 compress 同链（G-02e-17：.inc + cc_inc_tu）
 # G-02f-21：runtime_compress_zlib_glue 产品 seed
