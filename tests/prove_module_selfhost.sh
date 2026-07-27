@@ -180,6 +180,18 @@ MODULES=(
   # rest 在 XLANG_RUNTIME_TEST_FN_INVOKE_FROM_X 下仅 1 _impl 桥（uintptr_t → fnptr cast + indirect call）；
   # Xlang 无法表达 C fnptr cast，故 indirect call 留 rest；prove 锁 thin surface IDENTICAL
   "runtime_test_fn_invoke|src/asm/runtime_test_fn_invoke.x|seeds/runtime_test_fn_invoke_surface.from_x.c||"
+  # runtime_net_workers R2 thin+rest：.x 2 public API (thread_set_affinity_self_c weak default +
+  #   xlang_net_worker_accept_entry_ptr_c fnptr return) + 1 _impl 桥；
+  # rest 在 XLANG_RUNTIME_NET_WORKERS_FROM_X 下仅 _impl 桥（void*(*)(void*) C ABI 无法 .x 表达）；
+  # prove 锁 thin surface IDENTICAL
+  "runtime_net_workers|src/asm/runtime_net_workers.x|seeds/runtime_net_workers_surface.from_x.c||"
+  # runtime_compress_zlib_glue R2 thin+rest：.x 2 public API (deflateInit2 + inflateInit2 宏 wrapper)
+  #   + 2 _impl 桥；rest #include <zlib.h> + #undef macros + call real deflateInit2_/inflateInit2_；
+  # #[no_mangle] 确保符号名匹配 libz.x extern 声明（无 _c 后缀）；prove 锁 thin surface IDENTICAL
+  "runtime_compress_zlib_glue|src/asm/runtime_compress_zlib_glue.x|seeds/runtime_compress_zlib_glue_surface.from_x.c||"
+  # runtime_arrow_simd_glue R2 thin+rest：.x 4 public API (arrow_f32_sum/dot/i32_sum_valid/f32_sum_valid_kernel)
+  #   + 4 _impl 桥；rest 含 SIMD intrinsics（需 C compiler target attributes）；prove 锁 thin surface IDENTICAL
+  "runtime_arrow_simd_glue|src/asm/runtime_arrow_simd_glue.x|seeds/runtime_arrow_simd_glue_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
