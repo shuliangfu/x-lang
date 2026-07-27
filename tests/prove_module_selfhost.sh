@@ -218,6 +218,14 @@ MODULES=(
   #   _set_nonblock_c + _poll_writable_c + _connect_retry_ok_c) + 5 _impl_c 桥；rest 含 IPv6 socket OS 调用
   #   (close/fcntl/poll/connect)；wave545 根修 .x extern _impl → _impl_c 匹配 seed；prove 锁 thin surface IDENTICAL
   "runtime_net_ipv6_fast|src/asm/runtime_net_ipv6_fast.x|seeds/runtime_net_ipv6_fast_surface.from_x.c||"
+  # runtime_net_addr_fast R2 thin+rest (wave546)：.x 1 public API (net_sockaddr_in_pack_addr_port_c)
+  #   thin+rest — .x 1 thin 函数（手动字节解析无 libc）；seed 4 rest 函数（getsockname/getpeername +
+  #   htonl/htons — asm codegen u16 store bug workaround）；ast_ 前缀适配（net_ #[no_mangle] 触发）
+  "runtime_net_addr_fast|src/asm/runtime_net_addr_fast.x|seeds/runtime_net_addr_fast_surface.from_x.c||"
+  # runtime_slice_glue R2 DIRECT (wave546)：.x 6 public API (3 core_slice_*_from_ptr_c + 3 core_subslice_*_c)
+  #   DIRECT — 纯 .x 实现（无 extern 桥，无 OS 调用，纯寄存器运算）；seed 全守卫 #ifndef
+  #   XLANG_RUNTIME_SLICE_GLUE_FROM_X；无 Cap residual；prove 锁 thin surface IDENTICAL
+  "runtime_slice_glue|src/asm/runtime_slice_glue.x|seeds/runtime_slice_glue_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
