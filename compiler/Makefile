@@ -1386,9 +1386,23 @@ runtime_http_glue.o: seeds/runtime_http_glue.from_x.c src/asm/http/runtime_http_
 
 # F-ZC：mbedTLS BIO 胶层；net-o-mbedtls 时 ld -r 并入 tls_mbedtls.o（G-02e-18 .inc）
 # G-02f-21：runtime_tls_mbedtls_bio 产品 seed
+# wave522 R2 migration: thin (.x) + rest (.from_x.c) thin+rest mode
+#   - thin (.x): #[no_mangle] xlang_mbedtls_bio_send / bio_recv (no _c suffix)
+#     forwarding to _impl
+#   - rest (.from_x.c): _impl (send/recv syscalls + errno→mbedTLS mapping) +
+#     xlang_mbedtls_ssl_bind_fd_c (always compiled, takes fn address of thin
+#     wrappers via forward declaration); needs mbedtls/ssl.h include
 runtime_tls_mbedtls_bio.o: seeds/runtime_tls_mbedtls_bio.from_x.c src/asm/runtime_tls_mbedtls_bio.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -I/opt/homebrew/opt/mbedtls/include -c seeds/runtime_tls_mbedtls_bio.from_x.c -o $@ 2>/dev/null \
-	  || $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_tls_mbedtls_bio.from_x.c -o $@
+	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_tls_mbedtls_bio.x ]; then \
+	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o runtime_tls_mbedtls_bio.thin.o src/asm/runtime_tls_mbedtls_bio.x && \
+	  { $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -I/opt/homebrew/opt/mbedtls/include -DXLANG_RUNTIME_TLS_MBEDTLS_BIO_FROM_X=1 -c seeds/runtime_tls_mbedtls_bio.from_x.c -o runtime_tls_mbedtls_bio.rest.o 2>/dev/null \
+	    || $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_TLS_MBEDTLS_BIO_FROM_X=1 -c seeds/runtime_tls_mbedtls_bio.from_x.c -o runtime_tls_mbedtls_bio.rest.o; } && \
+	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ runtime_tls_mbedtls_bio.thin.o runtime_tls_mbedtls_bio.rest.o && \
+	  rm -f runtime_tls_mbedtls_bio.thin.o runtime_tls_mbedtls_bio.rest.o; \
+	else \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -I/opt/homebrew/opt/mbedtls/include -c seeds/runtime_tls_mbedtls_bio.from_x.c -o $@ 2>/dev/null \
+	    || $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_tls_mbedtls_bio.from_x.c -o $@; \
+	fi
 
 # F-ZC：db.kv mmap 胶层；与 kv.o 按需同链（G-02e-17：.inc + cc_inc_tu）
 # G-02f-21：runtime_kv_mmap_glue 产品 seed
