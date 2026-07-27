@@ -242,7 +242,14 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 	  sh scripts/xlang_compile_std_module.sh ../std/net/mod.o ../std/net/mod.x || exit 1; \
 	  objs="$$objs ../std/net/mod.o"; \
 	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_dns_fast.from_x.c -o ../std/net/net_dns_fast.o && \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_io_batch_fast.from_x.c -o ../std/net/net_io_batch_fast.o && \
+	  if [ "$$XLANG_G05_PREFER_X_O" = "1" ] && [ -f src/asm/runtime_net_io_batch_fast.x ]; then \
+	    XLANG_KEEP_C=1 $$net_sub_xlang -L .. -L src -L src/asm -lib-name "" -o ../std/net/net_io_batch_thin.o src/asm/runtime_net_io_batch_fast.x && \
+	    $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_NET_IO_BATCH_FAST_FROM_X=1 -c seeds/runtime_net_io_batch_fast.from_x.c -o ../std/net/net_io_batch_rest.o && \
+	    ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/net/net_io_batch_fast.o ../std/net/net_io_batch_thin.o ../std/net/net_io_batch_rest.o && \
+	    rm -f ../std/net/net_io_batch_thin.o ../std/net/net_io_batch_rest.o; \
+	  else \
+	    $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_io_batch_fast.from_x.c -o ../std/net/net_io_batch_fast.o; \
+	  fi && \
 	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_addr_fast.from_x.c -o ../std/net/net_addr_fast.o && \
 	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_ipv6_fast.from_x.c -o ../std/net/net_ipv6_fast.o && \
 	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_sock_fast.from_x.c -o ../std/net/net_sock_fast.o && \
