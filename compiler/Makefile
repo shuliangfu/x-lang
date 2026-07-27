@@ -1322,8 +1322,21 @@ runtime_channel_glue.o: seeds/runtime_channel_glue.from_x.c src/asm/runtime_chan
 
 # F-ZC：net UDP batch recvmmsg/sendmmsg；与 net.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 # G-02f-20：runtime_net_udp_batch 产品 seed
+# wave523 R2 migration: thin (.x) + rest (.from_x.c) thin+rest mode — Linux only
+#   - thin (.x): #[no_mangle] xlang_udp_batch_set_addr_port / poll_readable
+#     (no _c suffix) forwarding to _impl
+#   - rest (.from_x.c): _impl (sockaddr/poll) + 4 recvmmsg/sendmmsg weak APIs;
+#     whole TU guarded by #if __linux__ && __GLIBC__ → macOS cold = empty .o
+#   - PLATFORM: LINUX — R2 path gated on UNAME_S=Linux; macOS stays cold (empty)
 runtime_net_udp_batch.o: seeds/runtime_net_udp_batch.from_x.c src/asm/runtime_net_udp_batch.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_udp_batch.from_x.c -o $@
+	@if [ "$(UNAME_S)" = "Linux" ] && [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_net_udp_batch.x ]; then \
+	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o runtime_net_udp_batch.thin.o src/asm/runtime_net_udp_batch.x && \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_NET_UDP_BATCH_FROM_X=1 -c seeds/runtime_net_udp_batch.from_x.c -o runtime_net_udp_batch.rest.o && \
+	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ runtime_net_udp_batch.thin.o runtime_net_udp_batch.rest.o && \
+	  rm -f runtime_net_udp_batch.thin.o runtime_net_udp_batch.rest.o; \
+	else \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_udp_batch.from_x.c -o $@; \
+	fi
 
 # F-ZC：net accept worker 线程入口；与 net.o 一并链入（G-02e-18：.inc + cc_inc_tu）
 # G-02f-20：runtime_net_workers 产品 seed
