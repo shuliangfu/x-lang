@@ -150,6 +150,10 @@ MODULES=(
   # rest 在 XLANG_L2_RIO_THIN_FROM_X+FROM_X 下无 thin/impl 公共体；Cap residual：4 平台 _impl（mmap/fstat/O_*）
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/runtime_io_abi.from_x.c 全 C 体
   "runtime_io_abi|src/runtime_io_abi.x|seeds/runtime_io_abi_surface.from_x.c||"
+  # runtime_time_os R2 thin+rest：.x 吃满 5 public API 薄壳（monotonic/wall/sleep/rfc3339/local_offset）；
+  # rest 在 XLANG_RUNTIME_TIME_OS_FROM_X 下仅 5 _impl OS 桥（clock_gettime/nanosleep/gmtime_r/QPC/Sleep 等 Cap residual）；
+  # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/runtime_time_os.from_x.c 全 C 体
+  "runtime_time_os|src/asm/runtime_time_os.x|seeds/runtime_time_os_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
