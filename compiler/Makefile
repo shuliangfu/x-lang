@@ -1312,9 +1312,20 @@ runtime_sync_lock_diag_tls.o: seeds/runtime_sync_lock_diag_tls.from_x.c src/asm/
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_sync_lock_diag_tls.from_x.c -o $@
 
 # F-ZC：thread pthread/CreateThread；与 thread.o 一并链入（G-02e-20）
-# G-02f-18：runtime_thread_glue 产品 seed
+# G-02f-18：runtime_thread_glue 产品 seed；wave513 R2 thin+rest pattern
 runtime_thread_glue.o: seeds/runtime_thread_glue.from_x.c src/asm/runtime_thread_glue.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_thread_glue.from_x.c -o $@
+	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_thread_glue.x ]; then \
+		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/thread.XXXXXX") && \
+		./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_thread_glue.x > "$$_tmp" 2>/dev/null && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o runtime_thread_glue_thin.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_THREAD_GLUE_FROM_X -c seeds/runtime_thread_glue.from_x.c -o runtime_thread_glue_rest.o && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) runtime_thread_glue_thin.o runtime_thread_glue_rest.o -o $@ && \
+		rm -f "$$_tmp" runtime_thread_glue_thin.o runtime_thread_glue_rest.o && \
+		echo "phase4: $@ <- runtime_thread_glue.x + seed-rest (PREFER_X_O R2)"; \
+	else \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_thread_glue.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/runtime_thread_glue.from_x.c (cold start seed)"; \
+	fi
 
 # F-ZC：async 协作调度 + async_net_fs；与 scheduler.o 一并链入（按需 -pthread）
 # G-02f-18：runtime_scheduler_glue 产品 seed（#include async_net_fs.from_x.c）
