@@ -235,6 +235,15 @@ MODULES=(
   #   3 DIRECT (append_byte/lit/i32 纯计算)；rest 含 pthread_mutexattr protocol lookup；
   #   sync_ 前缀不触发 ast_；prove 锁 thin surface IDENTICAL
   "runtime_sync_lock_diag_tls|src/asm/runtime_sync_lock_diag_tls.x|seeds/runtime_sync_lock_diag_tls_surface.from_x.c||"
+  # runtime_std_runtime_fast R2 DIRECT (wave548)：.x 6 public API (std_runtime_crash_evidence_collect +
+  #   runtime_crash_evidence_collect_c + std_runtime_runtime_panic + runtime_panic + std_runtime_runtime_abort +
+  #   runtime_abort) DIRECT — 纯转发到 xlang_panic_/_crash_evidence_collect_c extern 桥；seed 全守卫；
+  #   无 doc_anchor 函数（.x 未定义）；prove 锁 6 #[no_mangle] IDENTICAL
+  "runtime_std_runtime_fast|src/asm/runtime_std_runtime_fast.x|seeds/runtime_std_runtime_fast_surface.from_x.c||"
+  # runtime_atomic_glue R2 thin+rest (wave548)：.x 30 public API (atomic_load/store/cas/fetch_add/fetch_sub ×
+  #   i16/u16/i32/u32/i64/u64 + 3 fence) + 30 _impl 桥；rest 含 C11 stdatomic/GCC __atomic intrinsics；
+  #   atomic_ 前缀不触发 ast_；prove 锁 thin surface IDENTICAL
+  "runtime_atomic_glue|src/asm/runtime_atomic_glue.x|seeds/runtime_atomic_glue_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
