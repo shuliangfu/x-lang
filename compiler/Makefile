@@ -138,10 +138,24 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 
 # std.path：保留 mod.x 作为 F-path v1 源码锚点；path.o 由 C provider 产出，
 # 避免 bootstrap asm backend 在 dirname/last_slash 链上反复卡住。
-../std/path/path.o: ../std/path/mod.x seeds/runtime_path_fast.from_x.c scripts/cc_inc_tu.sh
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_path_fast.from_x.c -o ../std/path/path_core.o && \
-	ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/path/path.o ../std/path/path_core.o && \
-	rm -f ../std/path/path_core.o
+# G-02f-21 (wave531)：R2 DIRECT mode — pure-compute path helpers (16 functions:
+#   path_sep/is_sep/last_sep/last_dot + std_path_join/dirname/basename/...).
+#   No OS bridge, no _impl indirection; .x compiles standalone via xlang-c
+#   -lib-name "". Seed .from_x.c guarded by XLANG_RUNTIME_PATH_FAST_FROM_X for
+#   cold path fallback only.
+# PLATFORM: SHARED path — pure compute (pointer scan + min), no OS dependency.
+#   Note: .x path_sep_c always returns '/' (47) per posix gate; seed Win branch
+#   returns '\' (92) but is skipped in R2 mode.
+../std/path/path.o: ../std/path/mod.x seeds/runtime_path_fast.from_x.c src/asm/runtime_path_fast.x scripts/cc_inc_tu.sh
+	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_path_fast.x ]; then \
+	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o ../std/path/path_core.o src/asm/runtime_path_fast.x && \
+	  ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/path/path.o ../std/path/path_core.o && \
+	  rm -f ../std/path/path_core.o; \
+	else \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_path_fast.from_x.c -o ../std/path/path_core.o && \
+	  ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/path/path.o ../std/path/path_core.o && \
+	  rm -f ../std/path/path_core.o; \
+	fi
 
 # std.heap：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + libc + ops）。
 ../std/heap/heap.o: ../std/heap/mod.x ../std/heap/libc.x ../std/heap/ops.x | scripts/xlang_compile_std_module.sh
