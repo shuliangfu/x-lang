@@ -10,9 +10,16 @@
  * runtime_asm_io_stubs.c 可 weak-include 本 TU，供旧 xlang_asm 未链 runtime_net_udp_batch.o 时解析符号。
  */
 
-#if defined(__linux__) && defined(__GLIBC__)
-
+/* _GNU_SOURCE must be defined before any system header so that recvmmsg /
+ * sendmmsg prototypes are exposed by <sys/socket.h>.
+ *
+ * 【根因修复】原代码 #if defined(__GLIBC__) 在 #include 之前检查，但
+ * __GLIBC__ 由 <features.h> 定义，在 #include 前不可见 → 整个 TU 恒为空
+ * → recvmmsg/sendmmsg 符号从未被编译。改为 _GNU_SOURCE + __linux__ 判断
+ * （__linux__ 是编译器预定义，不需要 include）。 */
 #define _GNU_SOURCE
+
+#if defined(__linux__)
 
 #include <stdint.h>
 #include <stddef.h>
