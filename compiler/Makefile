@@ -1232,9 +1232,20 @@ runtime_log_os.o: seeds/runtime_log_os.from_x.c src/asm/runtime_log_os.x
 	fi
 
 # F-ZC：math libm/fenv；与 math.o 一并链入（须 -lm；G-02e-19：.inc + cc_inc_tu）
-# G-02f-19：runtime_math_libm 产品 seed
+# G-02f-19：runtime_math_libm 产品 seed；wave511 R2 full mode
 runtime_math_libm.o: seeds/runtime_math_libm.from_x.c src/asm/runtime_math_libm.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_math_libm.from_x.c -o $@
+	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_math_libm.x ]; then \
+		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/rmath.XXXXXX") && \
+		./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_math_libm.x > "$$_tmp" 2>/dev/null && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o runtime_math_libm_thin.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_MATH_LIBM_FROM_X -c seeds/runtime_math_libm.from_x.c -o runtime_math_libm_rest.o && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) runtime_math_libm_thin.o runtime_math_libm_rest.o -o $@ && \
+		rm -f "$$_tmp" runtime_math_libm_thin.o runtime_math_libm_rest.o && \
+		echo "phase4: $@ <- runtime_math_libm.x + seed-rest (PREFER_X_O R2)"; \
+	else \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_math_libm.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/runtime_math_libm.from_x.c (cold start seed)"; \
+	fi
 
 # F-ZC：atomic load/store/CAS/fence；与 atomic.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 # G-02f-19：runtime_atomic_glue 产品 seed；wave508 R2 full mode
