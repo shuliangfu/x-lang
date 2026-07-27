@@ -1161,8 +1161,20 @@ runtime_random_fill.o: seeds/runtime_random_fill.from_x.c src/asm/runtime_random
 
 # zlib 宏包装桩；与 compress 同链（G-02e-17：.inc + cc_inc_tu）
 # G-02f-21：runtime_compress_zlib_glue 产品 seed
+# wave519 R2 migration: thin (.x) + rest (.from_x.c) thin+rest mode
+#   - thin (.x): #[no_mangle] deflateInit2/inflateInit2 (no _c suffix to match
+#     libz.x extern declarations)
+#   - rest (.from_x.c): _impl_c bridges that #include <zlib.h> and call real
+#     deflateInit2_/inflateInit2_ with ZLIB_VERSION and sizeof(z_stream)
 runtime_compress_zlib_glue.o: seeds/runtime_compress_zlib_glue.from_x.c src/asm/runtime_compress_zlib_glue.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_compress_zlib_glue.from_x.c -o $@
+	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_compress_zlib_glue.x ]; then \
+	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o runtime_compress_zlib_glue.thin.o src/asm/runtime_compress_zlib_glue.x && \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_COMPRESS_ZLIB_GLUE_FROM_X=1 -c seeds/runtime_compress_zlib_glue.from_x.c -o runtime_compress_zlib_glue.rest.o && \
+	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ runtime_compress_zlib_glue.thin.o runtime_compress_zlib_glue.rest.o && \
+	  rm -f runtime_compress_zlib_glue.thin.o runtime_compress_zlib_glue.rest.o; \
+	else \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_compress_zlib_glue.from_x.c -o $@; \
+	fi
 
 # F-ZC：time OS syscall；与 time.o 一并链入（G-02e-18：.inc + cc_inc_tu）
 # G-02f-19：runtime_time_os 产品 seed
