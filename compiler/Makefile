@@ -218,10 +218,22 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 
 # std.runtime：保留 runtime.x 作为 F-runtime v1 源码锚点；runtime.o 仅提供
 # runtime_panic/runtime_abort/runtime_crash_evidence_collect_c 三个 extern provider。
+# G-02f-23 (wave532)：R2 DIRECT mode — 6 thin wrappers forwarding to extern "C"
+#   xlang_panic_ / xlang_crash_evidence_collect_c (resolved by runtime_panic module
+#   at link time). No OS bridge, no _impl indirection; .x compiles standalone via
+#   xlang-c -lib-name "". Seed .from_x.c guarded by XLANG_RUNTIME_STD_RUNTIME_FAST_FROM_X
+#   for cold path fallback only.
+# PLATFORM: SHARED runtime — pure thin wrappers to panic; no OS dependency.
 ../std/runtime/runtime.o: ../std/runtime/runtime.x seeds/runtime_std_runtime_fast.from_x.c src/asm/runtime_std_runtime_fast.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_std_runtime_fast.from_x.c -o ../std/runtime/runtime_core.o && \
-	ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/runtime/runtime.o ../std/runtime/runtime_core.o && \
-	rm -f ../std/runtime/runtime_core.o
+	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_std_runtime_fast.x ]; then \
+	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o ../std/runtime/runtime_core.o src/asm/runtime_std_runtime_fast.x && \
+	  ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/runtime/runtime.o ../std/runtime/runtime_core.o && \
+	  rm -f ../std/runtime/runtime_core.o; \
+	else \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_std_runtime_fast.from_x.c -o ../std/runtime/runtime_core.o && \
+	  ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/runtime/runtime.o ../std/runtime/runtime_core.o && \
+	  rm -f ../std/runtime/runtime_core.o; \
+	fi
 
 # std.net：F-04 v10～v14 纯 .x（F-ZC）；OS glue 由 runtime_net_*_fast.inc 提供（G-02e-18）。
 # PLATFORM: SHARED — mod.x MUST be compiled into net.o; otherwise std_net_listen /
