@@ -1546,7 +1546,7 @@ export function lsp_json_escape_ident(s: *u8, esc: *u8, esc_cap: i32): i32 {
 export function lsp_hash_source(src: *u8, len: i32): u32 {
   if (src == 0) { return 0; }
   // 0x9e3779b97f4a7c15 built from u32 halves (typeck: no decimal > i64 max).
-  // wave257: same construction as lsp_fmt_pure_thin (G.7 dual-authority align).
+  // wave257→536: unified thin source (lsp_fmt_pure_thin.x retired in wave536).
   let golden_hi: u64 = 2654435769 as u64;
   let golden_lo: u64 = 2135587861 as u64;
   let two32: u64 = 4294967296 as u64;

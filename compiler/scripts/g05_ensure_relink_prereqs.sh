@@ -3003,12 +3003,12 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-15 / G-02f-423：lsp_diag + USER_ASM seed bridges
-  # 默认整 seed；PREFER_X_O=1 时 thin.x（lsp_fmt pure leaves，含 wave257 补齐的
-  # func_name_covers / lsp_hash_source / lsp_line_is_block_comment）+ seed-rest
-  # (-DXLANG_L2_LSP_FMT_THIN_FROM_X) ld -r → src/lsp/lsp_diag.o
+  # G-02f-15 / wave536：lsp_diag + USER_ASM seed bridges
+  # 默认整 seed；PREFER_X_O=1 时 thin.x（runtime_lsp_glue.x，46 #[no_mangle]，
+  # wave536 统一 thin 源替代 lsp_fmt_pure_thin.x）+ seed-rest
+  # (-DXLANG_L2_LSP_GLUE_FULL_FROM_X，implies FMT_THIN) ld -r → src/lsp/lsp_diag.o
   _lspg=seeds/runtime_lsp_glue.from_x.c
-  _lspg_thin_x=src/lsp/lsp_fmt_pure_thin.x
+  _lspg_thin_x=src/asm/runtime_lsp_glue.x
   if [ -f "$_lspg" ]; then
     if [ ! -f src/lsp/lsp_diag.o ] || [ "$_lspg" -nt src/lsp/lsp_diag.o ] \
       || { [ -f "$_lspg_thin_x" ] && [ "$_lspg_thin_x" -nt src/lsp/lsp_diag.o ]; }; then
@@ -3018,10 +3018,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _lspg_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_lspg_rest_XXXXXX.o") || true
         if [ -n "$_lspg_thin_o" ] && [ -n "$_lspg_rest_o" ] \
           && G05_X_O_WEAK=1 g05_try_x_to_o "$_lspg_thin_x" "$_lspg_thin_o" \
-          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_LSP_FMT_THIN_FROM_X \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_LSP_GLUE_FULL_FROM_X \
                -c -o "$_lspg_rest_o" "$_lspg" \
           && $CC -r -nostdlib -o src/lsp/lsp_diag.o "$_lspg_thin_o" "$_lspg_rest_o" 2>/dev/null; then
-          echo "g05_ensure: src/lsp/lsp_diag.o ← $_lspg_thin_x + seed-rest (G-02f-423 L2 hybrid lsp_fmt pure thin)"
+          echo "g05_ensure: src/lsp/lsp_diag.o ← $_lspg_thin_x + seed-rest (wave536 L2 hybrid runtime_lsp_glue full thin)"
           _lspg_done=1
         else
           echo "g05_ensure: L2 hybrid runtime_lsp_glue failed; fallback full seed" >&2

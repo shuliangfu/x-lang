@@ -2908,8 +2908,9 @@ int lsp_line_is_block_comment(const uint8_t *doc, int content_start, int content
 
 
 
-/* G-02f-423/424：L2 hybrid thin — PREFER_X_O 时 10 pure 由 lsp_fmt_pure_thin.x 提供。
- * 此处 extern 声明供 seed-rest 中其它函数（lsp_fmt_try_emit_op 等）调用。 */
+/* G-02f-423/424 → wave536：L2 hybrid thin — PREFER_X_O 时 pure 函数由
+ * runtime_lsp_glue.x 提供（wave536 统一 thin 源，替代 lsp_fmt_pure_thin.x）。
+ * 此处 extern 声明供 seed-rest 中其它函数调用。 */
 #ifdef XLANG_L2_LSP_FMT_THIN_FROM_X
 uint8_t lsp_fmt_last_out(const uint8_t *out_buf, int out_len);
 uint8_t lsp_fmt_prev_src(const uint8_t *doc, int start, int j);
