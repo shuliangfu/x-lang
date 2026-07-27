@@ -192,6 +192,17 @@ MODULES=(
   # runtime_arrow_simd_glue R2 thin+rest：.x 4 public API (arrow_f32_sum/dot/i32_sum_valid/f32_sum_valid_kernel)
   #   + 4 _impl 桥；rest 含 SIMD intrinsics（需 C compiler target attributes）；prove 锁 thin surface IDENTICAL
   "runtime_arrow_simd_glue|src/asm/runtime_arrow_simd_glue.x|seeds/runtime_arrow_simd_glue_surface.from_x.c||"
+  # runtime_random_fill R2 thin+rest (wave544)：.x 2 public API (random_get_alg + random_fill_bytes_c)
+  #   + 2 _impl 桥；rest 含 OS CSPRNG 调用（Windows BCryptGenRandom / Linux getrandom / macOS getentropy）；
+  #   #[no_mangle] 确保符号名匹配 std/crypto/random.x extern 声明（无 _c 后缀）；prove 锁 thin surface IDENTICAL
+  "runtime_random_fill|src/asm/runtime_random_fill.x|seeds/runtime_random_fill_surface.from_x.c||"
+  # runtime_tls_mbedtls_bio R2 thin+rest (wave544)：.x 2 public API (xlang_mbedtls_bio_send + _recv)
+  #   + 2 _impl 桥；rest 调用 mbedtls BIO send/recv（需 mbedtls 头）；prove 锁 thin surface IDENTICAL
+  "runtime_tls_mbedtls_bio|src/asm/runtime_tls_mbedtls_bio.x|seeds/runtime_tls_mbedtls_bio_surface.from_x.c||"
+  # runtime_ed25519_ref10_glue R2 thin+rest (wave544)：.x 3 public API (ed25519_ref10_create_keypair + _sign + _verify)
+  #   + 3 _impl_c 桥；rest #include 8 个 .inc 文件（sha512/fe/ge/sc/keypair/sign/verify + fixedint.h）经宏重命名发射
+  #   _impl_c 实现；#[no_mangle] 确保符号名匹配 std/crypto/ed25519.x extern 声明（无 _c 后缀）；prove 锁 thin surface IDENTICAL
+  "runtime_ed25519_ref10_glue|src/asm/runtime_ed25519_ref10_glue.x|seeds/runtime_ed25519_ref10_glue_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
