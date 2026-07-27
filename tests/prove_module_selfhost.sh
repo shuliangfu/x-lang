@@ -159,6 +159,12 @@ MODULES=(
   # DIRECT 模式（无 thin+rest ld -r）；prove 锁 full surface IDENTICAL；
   # 冷/无 PREFER 仍可走 seeds/runtime_path_fast.from_x.c 全 C 体
   "runtime_path_fast|src/asm/runtime_path_fast.x|seeds/runtime_path_fast_surface.from_x.c||"
+  # runtime_dynlib_os R2 thin+rest：.x 吃满 7 public API（normalize_path pure compute +
+  # 6 _impl 委托：load_library/copy_last_error/open/sym/close/win_path_smoke）；
+  # rest 在 XLANG_RUNTIME_DYNLIB_OS_FROM_X 下仅 6 _impl OS 桥（LoadLibraryW/dlopen/dlsym/
+  # dlclose/dlerror/FormatMessage 等 Cap residual）；prove 锁 thin surface IDENTICAL；
+  # 冷/无 PREFER 仍可走 seeds/runtime_dynlib_os.from_x.c 全 C 体
+  "runtime_dynlib_os|src/asm/runtime_dynlib_os.x|seeds/runtime_dynlib_os_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
