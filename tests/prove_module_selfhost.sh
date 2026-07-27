@@ -165,6 +165,21 @@ MODULES=(
   # dlclose/dlerror/FormatMessage 等 Cap residual）；prove 锁 thin surface IDENTICAL；
   # 冷/无 PREFER 仍可走 seeds/runtime_dynlib_os.from_x.c 全 C 体
   "runtime_dynlib_os|src/asm/runtime_dynlib_os.x|seeds/runtime_dynlib_os_surface.from_x.c||"
+  # runtime_panic R2 thin+rest：.x 1 public API (xlang_crash_evidence_minimal) + 1 _impl 桥；
+  # rest 在 XLANG_RUNTIME_PANIC_FROM_X 下仅 1 _impl OS 桥（crash evidence minimal）；
+  # prove 锁 thin surface IDENTICAL；x86_64 变体（与 arm64 互斥）
+  "runtime_panic|src/asm/runtime_panic.x|seeds/runtime_panic_surface.from_x.c||"
+  # runtime_panic_arm64 R2 thin+rest：arm64 变体，结构与 runtime_panic 相同；
+  # prove 锁 thin surface IDENTICAL；arm64 变体（与 x86_64 互斥）
+  "runtime_panic_arm64|src/asm/runtime_panic_arm64.x|seeds/runtime_panic_arm64_surface.from_x.c||"
+  # runtime_process_argv R2 thin+rest：.x 1 public API (xlang_process_argv_bind_from_crt) + 1 _impl 桥；
+  # rest 在 XLANG_RUNTIME_PROCESS_ARGV_FROM_X 下仅 1 _impl OS 桥（macOS _NSGetArgc / Linux /proc/self/cmdline）；
+  # prove 锁 thin surface IDENTICAL
+  "runtime_process_argv|src/asm/runtime_process_argv.x|seeds/runtime_process_argv_surface.from_x.c||"
+  # runtime_test_fn_invoke R2 thin+rest：.x 1 public API (test_call_i32_void_c) + 1 _impl 桥；
+  # rest 在 XLANG_RUNTIME_TEST_FN_INVOKE_FROM_X 下仅 1 _impl 桥（uintptr_t → fnptr cast + indirect call）；
+  # Xlang 无法表达 C fnptr cast，故 indirect call 留 rest；prove 锁 thin surface IDENTICAL
+  "runtime_test_fn_invoke|src/asm/runtime_test_fn_invoke.x|seeds/runtime_test_fn_invoke_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
