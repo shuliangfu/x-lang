@@ -1110,18 +1110,42 @@ runtime_panic.o: src/asm/runtime_panic_x86_64.s $(RUNTIME_PANIC_PLATFORM_STAMP)
 	$(CC) -c -o $@ $<
 else
 # G-02f-22：runtime_panic C 变体 seed
+# wave526 R2 migration: thin (.x) + rest (.from_x.c) thin+rest mode
 runtime_panic.o: seeds/runtime_panic.from_x.c src/asm/runtime_panic.x $(RUNTIME_PANIC_PLATFORM_STAMP)
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_panic.from_x.c -o $@
+	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_panic.x ]; then \
+	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o runtime_panic.thin.o src/asm/runtime_panic.x && \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_PANIC_FROM_X=1 -c seeds/runtime_panic.from_x.c -o runtime_panic.rest.o && \
+	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ runtime_panic.thin.o runtime_panic.rest.o && \
+	  rm -f runtime_panic.thin.o runtime_panic.rest.o; \
+	else \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_panic.from_x.c -o $@; \
+	fi
 endif
 else
 # G-02f-22：runtime_panic_arm64 seed
+# wave526 R2 migration: thin (.x) + rest (.from_x.c) thin+rest mode
 runtime_panic.o: seeds/runtime_panic_arm64.from_x.c src/asm/runtime_panic_arm64.x $(RUNTIME_PANIC_PLATFORM_STAMP)
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_panic_arm64.from_x.c -o $@
+	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_panic_arm64.x ]; then \
+	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o runtime_panic.thin.o src/asm/runtime_panic_arm64.x && \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_PANIC_ARM64_FROM_X=1 -c seeds/runtime_panic_arm64.from_x.c -o runtime_panic.rest.o && \
+	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ runtime_panic.thin.o runtime_panic.rest.o && \
+	  rm -f runtime_panic.thin.o runtime_panic.rest.o; \
+	else \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_panic_arm64.from_x.c -o $@; \
+	fi
 endif
 else
 # G-02f-22：runtime_panic C 变体 seed
+# wave526 R2 migration: thin (.x) + rest (.from_x.c) thin+rest mode
 runtime_panic.o: seeds/runtime_panic.from_x.c src/asm/runtime_panic.x $(RUNTIME_PANIC_PLATFORM_STAMP)
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_panic.from_x.c -o $@
+	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_panic.x ]; then \
+	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o runtime_panic.thin.o src/asm/runtime_panic.x && \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_PANIC_FROM_X=1 -c seeds/runtime_panic.from_x.c -o runtime_panic.rest.o && \
+	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ runtime_panic.thin.o runtime_panic.rest.o && \
+	  rm -f runtime_panic.thin.o runtime_panic.rest.o; \
+	else \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_panic.from_x.c -o $@; \
+	fi
 endif
 
 # seed asm 用户程序：std.io 跳过 .x emit 时的 print/write/read_ptr 链接桩（G-02e-20 .inc）
