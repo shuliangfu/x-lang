@@ -244,6 +244,22 @@ MODULES=(
   #   i16/u16/i32/u32/i64/u64 + 3 fence) + 30 _impl 桥；rest 含 C11 stdatomic/GCC __atomic intrinsics；
   #   atomic_ 前缀不触发 ast_；prove 锁 thin surface IDENTICAL
   "runtime_atomic_glue|src/asm/runtime_atomic_glue.x|seeds/runtime_atomic_glue_surface.from_x.c||"
+  # runtime_asm_build R2 thin(extern) (wave549)：.x 2 public API (asm_driver_skip_codegen_dep_0_get +
+  #   asm_driver_set_current_dep_path_for_codegen) thin(extern) — 纯转发到 driver_abi extern C 桥；
+  #   seed 全守卫；cap residual: main()（.x 无法表达 char** argv）；无 doc_anchor 函数；
+  #   asm_ 前缀不触发 ast_；prove 锁 2 #[no_mangle] IDENTICAL
+  "runtime_asm_build|src/asm/runtime_asm_build.x|seeds/runtime_asm_build_surface.from_x.c||"
+  # runtime_asm_io_stubs R2 thin+rest (wave549)：.x 3 public API (seed_io_syscall_write +
+  #   seed_io_syscall_read + seed_io_write_fd1) + 3 _impl 桥；rest 含 Linux x86_64 inline asm syscall
+  #   + POSIX write/read；doc_anchor runtime_asm_io_stubs_x_doc_anchor；seed_ 前缀不触发 ast_；
+  #   prove 锁 thin surface IDENTICAL (3 #[no_mangle] + 1 doc_anchor)
+  "runtime_asm_io_stubs|src/asm/runtime_asm_io_stubs.x|seeds/runtime_asm_io_stubs_surface.from_x.c||"
+  # runtime_string_fast R2 DIRECT (wave549)：.x 8 public API (xlang_string_memrchr/memchr/
+  #   portable_memmem/memmem/ptr_at/memcmp/memcmp_at/copy_c) DIRECT — 纯计算 + libc memcmp/memcpy
+  #   extern 桥；seed 全守卫；doc_anchor ast_runtime_string_fast_x_doc_anchor（非 #[no_mangle]
+  #   export function，xlang-c 自动加 ast_ 前缀，同 path_fast/net_sock_fast 规律）；
+  #   prove 锁 8 #[no_mangle] + 1 ast_ doc_anchor IDENTICAL
+  "runtime_string_fast|src/asm/runtime_string_fast.x|seeds/runtime_string_fast_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
