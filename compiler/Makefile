@@ -3365,8 +3365,17 @@ perf-baseline:
 
 # core.slice：语言限制 C 桩（G-01 core 零 C；G-02e-17：.inc + cc_inc_tu）。
 # G-02f-22：runtime_slice_glue 产品 seed
+# G-02f-29 (wave530)：R2 DIRECT mode — pure-compute module (6 functions: slice
+#   from_ptr/subslice for i32/u8/u64, no OS bridge), .x compiles standalone
+#   via xlang-c -lib-name "" without thin+rest ld -r. Seed .from_x.c guarded
+#   by XLANG_RUNTIME_SLICE_GLUE_FROM_X for cold path fallback only.
+# PLATFORM: SHARED slice — pure compute, no OS dependency.
 ../core/slice/slice.o: seeds/runtime_slice_glue.from_x.c src/asm/runtime_slice_glue.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_slice_glue.from_x.c -o $@
+	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_slice_glue.x ]; then \
+	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o $@ src/asm/runtime_slice_glue.x; \
+	else \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_slice_glue.from_x.c -o $@; \
+	fi
 
 # G-02f-22：runtime_asm_build 产品 seed
 src/asm/runtime_asm_build.o: seeds/runtime_asm_build.from_x.c src/asm/runtime_asm_build.x
