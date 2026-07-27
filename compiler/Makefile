@@ -1307,8 +1307,16 @@ runtime_net_udp_batch.o: seeds/runtime_net_udp_batch.from_x.c src/asm/runtime_ne
 
 # F-ZC：net accept worker 线程入口；与 net.o 一并链入（G-02e-18：.inc + cc_inc_tu）
 # G-02f-20：runtime_net_workers 产品 seed
+# wave517 R2 migration: thin (.x) + rest (.from_x.c) thin+rest mode
 runtime_net_workers.o: seeds/runtime_net_workers.from_x.c src/asm/runtime_net_workers.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_workers.from_x.c -o $@
+	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_net_workers.x ]; then \
+	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o runtime_net_workers.thin.o src/asm/runtime_net_workers.x && \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_NET_WORKERS_FROM_X=1 -c seeds/runtime_net_workers.from_x.c -o runtime_net_workers.rest.o && \
+	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ runtime_net_workers.thin.o runtime_net_workers.rest.o && \
+	  rm -f runtime_net_workers.thin.o runtime_net_workers.rest.o; \
+	else \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_workers.from_x.c -o $@; \
+	fi
 
 # F-ZC：sync Mutex/RwLock/Condvar + 锁诊断 TLS；与 sync.o 一并链入（G-02e-20）
 # G-02f-19：runtime_sync_os 产品 seed；wave504 R2 full mode
