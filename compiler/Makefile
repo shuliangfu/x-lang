@@ -1131,8 +1131,16 @@ runtime_asm_io_stubs.o: seeds/runtime_asm_io_stubs.from_x.c src/asm/runtime_asm_
 
 # F-ZC：std.test fn-ptr invoke；与 test.o 一并链入（G-02e-16：.inc + cc_inc_tu）
 # G-02f-21：runtime_test_fn_invoke 产品 seed
+# wave518 R2 migration: thin (.x) + rest (.from_x.c) thin+rest mode
 runtime_test_fn_invoke.o: seeds/runtime_test_fn_invoke.from_x.c src/asm/runtime_test_fn_invoke.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_test_fn_invoke.from_x.c -o $@
+	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_test_fn_invoke.x ]; then \
+	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o runtime_test_fn_invoke.thin.o src/asm/runtime_test_fn_invoke.x && \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_TEST_FN_INVOKE_FROM_X=1 -c seeds/runtime_test_fn_invoke.from_x.c -o runtime_test_fn_invoke.rest.o && \
+	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ runtime_test_fn_invoke.thin.o runtime_test_fn_invoke.rest.o && \
+	  rm -f runtime_test_fn_invoke.thin.o runtime_test_fn_invoke.rest.o; \
+	else \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_test_fn_invoke.from_x.c -o $@; \
+	fi
 
 # F-ZC：CSPRNG OS fill；与 random.o 一并链入（G-02e-17：.inc + cc_inc_tu）
 # G-02f-20：runtime_random_fill 产品 seed
