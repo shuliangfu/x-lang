@@ -741,22 +741,51 @@ int32_t arch_arm64_enc_enc_rax_plus_rbx_scale8(struct platform_elf_ElfCodegenCtx
   return arm64_enc_u32_le(elf_ctx, 0x8b010c00u);
 }
 
+/*
+ * wave614 Cap residual pure: INDEX assign EA must land in x1 (rbx twin).
+ *
+ * Root: prior `add x0, x1, x2, lsl #n` left EA in x0. Assign path is
+ *   push rhs → base@x1 + index@x2 → finish_store: pop rhs@x0; str [x1]
+ * so EA@x0 was clobbered by pop and store wrote base[0] (a[i]=32 hit a[0]).
+ * x86 twin lea rbx,[rbx+rcx*scale] and riscv add a1,a1,a2 already leave EA in
+ * the rbx slot; arm64 was the only polarity mismatch.
+ * G.7: product seed + arch/arm64_enc.x same commit; API name is *_to_rbx*.
+ * PLATFORM: MACOS|ARM64 · assign-only consumer (backend_enc_rbx_plus_index_scratch_scaled).
+ */
 int32_t arch_arm64_enc_enc_rbx_plus_x2_scale1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* add x0, x1, x2, lsl #0 — EA in x0 for subsequent [x0] load */
-  return arm64_enc_u32_le(elf_ctx, 0x8b020020u);
+  /* add x1, x1, x2, lsl #0 — EA in x1 (was add x0,x1,x2 pre-wave614) */
+  return arm64_enc_u32_le(elf_ctx, 0x8b020021u);
 }
 
 int32_t arch_arm64_enc_enc_rbx_plus_x2_scale4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* add x0, x1, x2, lsl #2 — was 0x8b021820 (lsl #6) pre-wave417 */
-  return arm64_enc_u32_le(elf_ctx, 0x8b020820u);
+  /* add x1, x1, x2, lsl #2 — was 0x8b020820 (Rd=x0) pre-wave614; scale fix wave417 */
+  return arm64_enc_u32_le(elf_ctx, 0x8b020821u);
 }
 
 int32_t arch_arm64_enc_enc_rbx_plus_x2_scale8(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* add x0, x1, x2, lsl #3 — was 0x8b021c20 (lsl #7) pre-wave417 */
-  return arm64_enc_u32_le(elf_ctx, 0x8b020c20u);
+  /* add x1, x1, x2, lsl #3 — was 0x8b020c20 (Rd=x0) pre-wave614 */
+  return arm64_enc_u32_le(elf_ctx, 0x8b020c21u);
 }
 
-int32_t arch_arm64_enc_enc_store_rax_to_rbx_indirect(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+/*
+ * wave614 Cap residual pure: store value@x0 into [x1] with correct width.
+ *
+ * Root: product seed took only elf_ctx and always encoded STR X (str x0,[x1]).
+ * INDEX assign passes elem_sz (i32→4) via dispatch but seed ignored it → 8B store
+ * wiped neighbor slots (m[0][1]=32; m[0][0]=10 → m[0][1] zeroed; host-C OK).
+ * wave391 already fixed the offset twin (store_rax_to_rbx_offset + store_size).
+ *
+ * G.7: same width table as arch/arm64_enc.x enc_store_rax_to_rbx_indirect +
+ * arch_x86_64_enc_enc_store_rax_to_rbx_indirect (1/4/8). Opcodes match arm64_enc.x:
+ *   strb w0,[x1]=0x39000020 · str w0,[x1]=0xb9000020 · str x0,[x1]=0xf9000020
+ * PLATFORM: MACOS|ARM64 product pure-asm (ta==1). Authority twin: arch/arm64_enc.x.
+ */
+int32_t arch_arm64_enc_enc_store_rax_to_rbx_indirect(struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                     int32_t elem_sz) {
+  if (elem_sz == 1)
+    return arm64_enc_u32_le(elf_ctx, 0x39000020u); /* strb w0, [x1] */
+  if (elem_sz == 4)
+    return arm64_enc_u32_le(elf_ctx, 0xb9000020u); /* str w0, [x1] */
   return arm64_enc_u32_le(elf_ctx, 0xf9000020u); /* str x0, [x1] */
 }
 

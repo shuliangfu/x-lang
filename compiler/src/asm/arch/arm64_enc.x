@@ -945,38 +945,39 @@ export function enc_load_rbp_to_x2(ctx: *ElfCodegenCtx, offset: i32): i32 {
 }
 
 /**
- * Encode ADD X0, X1, X2, LSL #0 — base@x1 + index@x2 → EA@x0 (×1).
+ * Encode ADD X1, X1, X2, LSL #0 — base@x1 + index@x2 → EA@x1 (×1).
  * @param ctx *ElfCodegenCtx — ELF/Mach-O text buffer
  * @return i32 — 0 on success
- * PLATFORM: MACOS|ARM64 — twin product seed (result in x0 for [x0] load).
+ * wave614: EA in x1 (rbx) for INDEX assign finish_store (was Rd=x0).
+ * PLATFORM: MACOS|ARM64 — G.7 twin product seed backend_arm64_enc_c.from_x.c.
  */
 export function enc_rbx_plus_x2_scale1(ctx: *ElfCodegenCtx): i32 {
-  /* 0x8b020020 */
-  return enc_u32_le(ctx, 2332164128);
+  /* 0x8b020021 */
+  return enc_u32_le(ctx, 2332164129);
 }
 
 /**
- * Encode ADD X0, X1, X2, LSL #2 — base@x1 + index@x2 → EA@x0 (×4).
+ * Encode ADD X1, X1, X2, LSL #2 — base@x1 + index@x2 → EA@x1 (×4).
  * @param ctx *ElfCodegenCtx — ELF/Mach-O text buffer
  * @return i32 — 0 on success
- * wave417: was wrong imm6 (×64). G.7 twin product seed.
- * PLATFORM: MACOS|ARM64
+ * wave417: imm6 scale fix; wave614: Rd=x1 for assign store [x1].
+ * PLATFORM: MACOS|ARM64 — G.7 twin product seed.
  */
 export function enc_rbx_plus_x2_scale4(ctx: *ElfCodegenCtx): i32 {
-  /* 0x8b020820 */
-  return enc_u32_le(ctx, 2332166176);
+  /* 0x8b020821 */
+  return enc_u32_le(ctx, 2332166177);
 }
 
 /**
- * Encode ADD X0, X1, X2, LSL #3 — base@x1 + index@x2 → EA@x0 (×8).
+ * Encode ADD X1, X1, X2, LSL #3 — base@x1 + index@x2 → EA@x1 (×8).
  * @param ctx *ElfCodegenCtx — ELF/Mach-O text buffer
  * @return i32 — 0 on success
- * wave417: was wrong imm6 (×128). G.7 twin product seed.
- * PLATFORM: MACOS|ARM64
+ * wave417: imm6 scale fix; wave614: Rd=x1 for assign store [x1].
+ * PLATFORM: MACOS|ARM64 — G.7 twin product seed.
  */
 export function enc_rbx_plus_x2_scale8(ctx: *ElfCodegenCtx): i32 {
-  /* 0x8b020c20 */
-  return enc_u32_le(ctx, 2332167200);
+  /* 0x8b020c21 */
+  return enc_u32_le(ctx, 2332167201);
 }
 
 /** ldr x0, [x0]。 */
