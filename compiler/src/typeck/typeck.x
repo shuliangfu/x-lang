@@ -136,6 +136,15 @@ export extern function driver_diagnostic_typeck_invalid_ptr_binop(line: i32, col
  * PLATFORM: SHARED — closes soft residual that formerly passed typeck then failed host-cc as BLD001.
  */
 export extern function driver_diagnostic_typeck_invalid_float_binop(line: i32, col: i32): void;
+/**
+ * Report illegal aggregate ==/!=/relational (wave657 Cap residual).
+ * @param line i32 — 1-based source line of the binop
+ * @param col i32 — 1-based source column of the binop
+ * @return void
+ * PLATFORM: SHARED — closes soft residual: typeck stamped bool then host-cc BLD001 (struct/slice)
+ * or silent pointer-identity false green (fixed array decay).
+ */
+export extern function driver_diagnostic_typeck_invalid_aggregate_cmp(line: i32, col: i32): void;
 export extern function typeck_driver_diagnostic_pipe_marker(id: i32): void;
 export extern function driver_diagnostic_typeck_if_condition_not_bool(line: i32, col: i32): void;
 export extern function driver_diagnostic_typeck_while_condition_not_bool(line: i32, col: i32): void;
@@ -6209,7 +6218,71 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * See implementation.
+ * Return 1 if ty cannot be an operand of scalar ==/!=/</>/<=/>=.
+ * Aggregates: TYPE_ARRAY/SLICE/LINEAR/VECTOR (host-C invalid or array decay pointer-identity
+ * false green), and TYPE_NAMED that matches a struct layout (enum/alias scalars still allowed).
+ * @param module *Module — current module (struct layout table)
+ * @param arena *ASTArena — type arena
+ * @param ty_ref i32 — resolved type ref of a cmp operand
+ * @return i32 — 1 aggregate / non-scalar-cmp, 0 scalar/ptr/enum/alias-ok or null/unknown
+ * PLATFORM: SHARED — wave657 Cap residual; G.7 single helper used only by binop_cmp.
+ */
+export function typeck_type_is_aggregate_cmp_operand(module: *Module, arena: *ASTArena, ty_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let ord_named: i32 = 8;
+    let ord_array: i32 = 10;
+    let ord_slice: i32 = 11;
+    let ord_linear: i32 = 12;
+    let ord_vector: i32 = 13;
+    let ko: i32 = 0;
+    let rty: i32 = 0;
+    let nm: u8[128] = [];
+    let nlen: i32 = 0;
+    let nlayouts: i32 = 0;
+    let k: i32 = 0;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ast.ref_is_null(ty_ref)) {
+      return 0;
+    }
+    /* Peel type aliases so `type MyI32 = i32` stays scalar-comparable. */
+    rty = typeck_resolve_type_alias_ref_local(module, arena, ty_ref, 0);
+    if (ast.ref_is_null(rty)) {
+      rty = ty_ref;
+    }
+    ko = pipeline_type_kind_ord_at(arena, rty);
+    if (ko == ord_array || ko == ord_slice || ko == ord_linear || ko == ord_vector) {
+      return 1;
+    }
+    if (ko != ord_named) {
+      return 0;
+    }
+    /* TYPE_NAMED: reject only when it is a product struct layout (enum tags stay ok). */
+    nlen = pipeline_type_named_name_into(arena, rty, &nm[0]);
+    if (nlen <= 0 || nlen > 127) {
+      return 0;
+    }
+    nlayouts = pipeline_module_num_struct_layouts_at(module);
+    k = 0;
+    while (k < nlayouts) {
+      if (typeck_layout_name_equal(module, k, &nm[0], nlen)) {
+        return 1;
+      }
+      k = k + 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Type-check comparison binops (== != < <= > >=). Stamps result as bool.
+ * wave317: f32 peer + bare FLOAT_LIT coerce. wave657: hard-fail aggregate operands.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param expr_ref i32 — EQ/NE/LT/LE/GT/GE expr
+ * @param return_type_ref i32 — ambient return type for subexpr
+ * @param ctx *PipelineDepCtx
+ * @return i32 — 0 ok, -1 hard fail
+ * PLATFORM: SHARED — seed typeck_gen + empty_surface same commit.
  */
 export function typeck_check_expr_binop_cmp(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
@@ -6225,6 +6298,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     let lk_cmp: i32 = 0;
     let rk_cmp: i32 = 0;
     let ord_f32: i32 = 14;
+    let line_ac: i32 = 0;
+    let col_ac: i32 = 0;
     if (check_expr(module, arena, bop_l, return_type_ref, ctx) != 0) {
       return - 1;
     }
@@ -6245,6 +6320,22 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         typeck_coerce_init_float_lit_to_decl(arena, bop_r, lt_cmp, ord_f32, rk_cmp);
       } else if (rko_cmp == ord_f32) {
         typeck_coerce_init_float_lit_to_decl(arena, bop_l, rt_cmp, ord_f32, lk_cmp);
+      }
+      /*
+       * wave657 Cap residual: hard-fail aggregate ==/!=/relational at typeck.
+       * Root cause: binop_cmp always stamped bool without checking operand kinds →
+       * struct/slice `a == b` host-cc BLD001 (invalid C); fixed array `a == b` silent
+       * pointer-identity false green (always unequal for distinct stack arrays).
+       * Allowed: scalar ints/floats/bool, TYPE_PTR, TYPE_NAMED enum/alias-of-scalar.
+       * Rejected: TYPE_ARRAY/SLICE/LINEAR/VECTOR; TYPE_NAMED matching a struct layout.
+       * PLATFORM: SHARED — seed typeck_gen + empty_surface + diagnostic twin same commit.
+       */
+      if (typeck_type_is_aggregate_cmp_operand(module, arena, lt_cmp) != 0
+      || typeck_type_is_aggregate_cmp_operand(module, arena, rt_cmp) != 0) {
+        line_ac = pipeline_expr_line_at(arena, expr_ref);
+        col_ac = pipeline_expr_col_at(arena, expr_ref);
+        driver_diagnostic_typeck_invalid_aggregate_cmp(line_ac, col_ac);
+        return -1;
       }
     }
     bt = ensure_bool_type_ref(arena);

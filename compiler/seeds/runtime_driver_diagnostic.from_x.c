@@ -639,6 +639,18 @@ void driver_diagnostic_typeck_invalid_float_binop(int32_t line, int32_t col)
 #endif
 
 
+
+/* wave657 Cap residual: pure authority thin.x driver_diagnostic_typeck_invalid_aggregate_cmp;
+ * cold-start full C; FROM_X no pure-dup _impl. PLATFORM: SHARED. */
+#ifndef XLANG_L2_RDD_THIN_FROM_X
+void driver_diagnostic_typeck_invalid_aggregate_cmp(int32_t line, int32_t col)
+{
+  (void)(lsp_diag_report_typeck(line, col,
+      "invalid aggregate comparison (== != < <= > >= not allowed on array/slice/struct; compare scalars or fields)"));
+  return;
+}
+#endif
+
 /* pure 权威：thin.x driver_diagnostic_typeck_if_condition_not_bool；冷启动全 C；FROM_X 无 pure-dup _impl */
 #ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_if_condition_not_bool(int32_t line, int32_t col)

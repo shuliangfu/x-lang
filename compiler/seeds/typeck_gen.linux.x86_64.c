@@ -1593,7 +1593,9 @@ extern int32_t typeck_check_expr_match(struct ast_Module * module, struct ast_AS
 extern int32_t typeck_check_expr_call_arg(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t arg_i, int32_t num_args);
 extern int32_t typeck_check_expr_call_resolve(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
-extern int32_t typeck_check_expr_binop_cmp(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
+extern 
+
+int32_t typeck_check_expr_binop_cmp(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t typeck_check_expr_binop_arith(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t typeck_check_expr_binop(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t typeck_check_expr_field_access(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
@@ -1696,6 +1698,7 @@ extern void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_
 extern void driver_diagnostic_typeck_invalid_ptr_binop(int32_t line, int32_t col);
 /* wave286 Cap residual: illegal float bitop/mod/shift hard diag (G.7 ≡ typeck.x). */
 extern void driver_diagnostic_typeck_invalid_float_binop(int32_t line, int32_t col);
+extern void driver_diagnostic_typeck_invalid_aggregate_cmp(int32_t line, int32_t col);
 extern void typeck_driver_diagnostic_pipe_marker(int32_t id);
 extern void driver_diagnostic_typeck_if_condition_not_bool(int32_t line, int32_t col);
 extern void driver_diagnostic_typeck_while_condition_not_bool(int32_t line, int32_t col);
@@ -6238,6 +6241,50 @@ int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena *
 
 
 
+
+/* wave657 Cap residual: return 1 if ty cannot be scalar ==/!=/relational operand.
+ * PLATFORM: SHARED — G.7 ≡ typeck.x typeck_type_is_aggregate_cmp_operand. */
+int32_t typeck_type_is_aggregate_cmp_operand(struct ast_Module * module, struct ast_ASTArena * arena, int32_t ty_ref) {
+  int32_t ord_named = 8;
+  int32_t ord_array = 10;
+  int32_t ord_slice = 11;
+  int32_t ord_linear = 12;
+  int32_t ord_vector = 13;
+  int32_t ko = 0;
+  int32_t rty = 0;
+  uint8_t nm[128];
+  int32_t nlen = 0;
+  int32_t nlayouts = 0;
+  int32_t k = 0;
+  if ((module == 0) || (arena == 0) || ast_ref_is_null(ty_ref)) {
+    return 0;
+  }
+  rty = typeck_resolve_type_alias_ref_local(module, arena, ty_ref, 0);
+  if (ast_ref_is_null(rty)) {
+    rty = ty_ref;
+  }
+  ko = pipeline_type_kind_ord_at(arena, rty);
+  if ((ko == ord_array) || (ko == ord_slice) || (ko == ord_linear) || (ko == ord_vector)) {
+    return 1;
+  }
+  if (ko != ord_named) {
+    return 0;
+  }
+  nlen = pipeline_type_named_name_into(arena, rty, &nm[0]);
+  if ((nlen <= 0) || (nlen > 127)) {
+    return 0;
+  }
+  nlayouts = pipeline_module_num_struct_layouts_at(module);
+  k = 0;
+  while (k < nlayouts) {
+    if (typeck_layout_name_equal(module, k, &nm[0], nlen)) {
+      return 1;
+    }
+    k = k + 1;
+  }
+  return 0;
+}
+
 int32_t typeck_check_expr_binop_cmp(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
   {
     int32_t bop_l = pipeline_expr_binop_left_ref_at(arena, expr_ref);
@@ -6270,6 +6317,14 @@ int32_t typeck_check_expr_binop_cmp(struct ast_Module * module, struct ast_ASTAr
         if ((rko_cmp ==ord_f32)) {
           (void)(typeck_coerce_init_float_lit_to_decl(arena, bop_l, rt_cmp, ord_f32, lk_cmp));
         }
+      }
+      /* wave657 Cap residual: hard-fail aggregate ==/!=/relational (G.7 ≡ typeck.x). */
+      if ((typeck_type_is_aggregate_cmp_operand(module, arena, lt_cmp) != 0)
+          || (typeck_type_is_aggregate_cmp_operand(module, arena, rt_cmp) != 0)) {
+        int32_t line_ac = pipeline_expr_line_at(arena, expr_ref);
+        int32_t col_ac = pipeline_expr_col_at(arena, expr_ref);
+        (void)(driver_diagnostic_typeck_invalid_aggregate_cmp(line_ac, col_ac));
+        return -1;
       }
     }
     (void)((bt = typeck_ensure_bool_type_ref(arena)));

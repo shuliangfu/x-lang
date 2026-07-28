@@ -489,6 +489,23 @@ export function driver_diagnostic_typeck_invalid_float_binop(line: i32, col: i32
   }
 }
 
+/**
+ * Report illegal aggregate ==/!=/relational (wave657 Cap residual pure leaf).
+ * Closes soft residual: typeck stamped bool for struct/slice/array cmp → host-cc BLD001
+ * or silent array pointer-identity false green.
+ * @param line i32 — 1-based source line of the binop
+ * @param col i32 — 1-based source column of the binop
+ * @return void
+ * PLATFORM: SHARED — seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X same commit.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_invalid_aggregate_cmp(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "invalid aggregate comparison (== != < <= > >= not allowed on array/slice/struct; compare scalars or fields)");
+  }
+}
+
 // ---- G-02f-341 pure helpers / remaining gates ----
 
 /** Exported function `parser_is_ident_allow`.

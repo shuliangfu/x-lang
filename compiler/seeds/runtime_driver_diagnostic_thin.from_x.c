@@ -367,6 +367,7 @@ extern void driver_diagnostic_typeck_try_propagate_bad_enclosing(int32_t line, i
 extern void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, int32_t is_break);
 extern void driver_diagnostic_typeck_invalid_ptr_binop(int32_t line, int32_t col);
 extern void driver_diagnostic_typeck_invalid_float_binop(int32_t line, int32_t col);
+extern void driver_diagnostic_typeck_invalid_aggregate_cmp(int32_t line, int32_t col);
 extern int32_t parser_is_ident_allow(uint8_t * ident, int32_t len);
 extern void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types);
 extern void driver_diagnostic_codegen_fail(int32_t dep_index, int32_t is_dep);
@@ -729,6 +730,13 @@ void driver_diagnostic_typeck_invalid_ptr_binop(int32_t line, int32_t col) {
 void driver_diagnostic_typeck_invalid_float_binop(int32_t line, int32_t col) {
   (void)(lsp_diag_report_typeck(line, col,
       ((uint8_t *)"invalid float operation (bitwise / mod / shift / unary ~ not allowed on f32/f64; use + - * / and unary - only)")));
+  (void)(0);
+  return;
+}
+/* wave657 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_invalid_aggregate_cmp */
+void driver_diagnostic_typeck_invalid_aggregate_cmp(int32_t line, int32_t col) {
+  (void)(lsp_diag_report_typeck(line, col,
+      ((uint8_t *)"invalid aggregate comparison (== != < <= > >= not allowed on array/slice/struct; compare scalars or fields)")));
   (void)(0);
   return;
 }
