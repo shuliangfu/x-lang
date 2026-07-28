@@ -447,6 +447,9 @@ extern int32_t backend_enc_store_rdx_to_rbp_arch(struct platform_elf_ElfCodegenC
                                                  int32_t ta);
 extern int32_t backend_enc_store_rax_to_rbp_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                                  int32_t ta);
+/* wave600: AAPCS64 dual-GP high half is x1 (store_rdx is x86-only). */
+extern int32_t backend_enc_store_x_reg_to_rbp_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg,
+                                                   int32_t offset, int32_t ta);
 extern int32_t backend_enc_lea_rbp_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                                int32_t ta);
 extern int32_t backend_enc_mov_rdx_to_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k,
@@ -630,8 +633,8 @@ static int32_t glue_sysv_arg_byte_size_c(struct ast_ASTArena *arena, struct back
 }
 
 /**
- * Place rax (+ rdx for 9–16B) into consecutive SysV integer arg regs starting at gp.
- * PLATFORM: LINUX+MACOS x86_64 SysV.
+ * Place rax/x0 (+ rdx/x1 for 9–16B) into consecutive integer arg regs starting at gp.
+ * PLATFORM: LINUX+MACOS x86_64 SysV (rax+rdx) · MACOS|ARM64 AAPCS64 (x0+x1, wave600).
  */
 static int32_t glue_sysv_place_rax_rdx_arg_regs_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
                                                       int32_t gp, int32_t gp_units) {
@@ -639,19 +642,30 @@ static int32_t glue_sysv_place_rax_rdx_arg_regs_elf_c(struct platform_elf_ElfCod
     return -1;
   if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, gp, ta) != 0)
     return -1;
-  if (ta == 0 && gp_units >= 2) {
-    if (backend_enc_mov_rdx_to_arg_reg_arch(elf_ctx, gp + 1, ta) != 0)
-      return -1;
+  if (gp_units >= 2) {
+    if (ta == 0) {
+      if (backend_enc_mov_rdx_to_arg_reg_arch(elf_ctx, gp + 1, ta) != 0)
+        return -1;
+    } else if (ta == 1) {
+      /*
+       * wave600: AAPCS64 dual-GP high half is x1. Product call-arg path uses
+       * spill-then-load (not place). Direct place only valid when gp==0 so
+       * x0/x1 already match the first dual-GP formal pair.
+       */
+      if (gp != 0)
+        return -1;
+    }
   }
   return 0;
 }
 
 /**
- * Spill rax[+rdx] to a fresh frame slot; leave next_offset advanced.
+ * Spill rax/x0 [+ rdx/x1 for 9–16B] to a fresh frame slot; leave next_offset advanced.
  * PLATFORM: LINUX+MACOS x86_64 SysV — multi-arg packing: emit all values to memory first so
  * dual-load (uses rdx) does not clobber already-placed higher arg regs (e.g. index in rdx).
- * wave392: also AAPCS64 (ta==1) for x0-only spill — nested CALL while placing xN
- * clobbers earlier arg regs (make1 destroys x1 holding make2 → reent2=11).
+ * wave392: also AAPCS64 (ta==1) for nested CALL while placing xN (make1 destroys x1 holding make2).
+ * wave600: AAPCS64 9–16B INTEGER dual-GP — spill x1 high half @ off+8 (low-end polarity ≡
+ * store_retval_pair / param_home); prior units=1 left only x0 → multi dual-GP take2 wrong.
  * Returns spill offset (low half), or -1.
  */
 static int32_t glue_sysv_spill_rax_rdx_to_frame_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -666,26 +680,52 @@ static int32_t glue_sysv_spill_rax_rdx_to_frame_c(struct platform_elf_ElfCodegen
     off = 16;
   if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0)
     return -1;
-  /* dual-GP high half is SysV x86 only (rdx); AAPCS64 8B args use one Xn. */
-  if (ta == 0 && gp_units >= 2) {
-    if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, off - 8, ta) != 0)
-      return -1;
+  if (gp_units >= 2) {
+    if (ta == 0) {
+      /* SysV high-end: high half @ home-8 (rdx). */
+      if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, off - 8, ta) != 0)
+        return -1;
+    } else if (ta == 1) {
+      /* AAPCS64 low-end: high half @ home+8 (x1). PLATFORM: MACOS|ARM64. */
+      if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, 1, off + 8, ta) != 0)
+        return -1;
+    }
   }
   ly->next_offset = off + 16;
   return off;
 }
 
-/** Load spilled arg from frame into SysV GP starting at gp. */
+/**
+ * Load spilled arg from frame into integer arg regs starting at gp.
+ * PLATFORM: LINUX+MACOS x86_64 SysV (high@spill-8) · MACOS|ARM64 (high@spill+8, wave600).
+ *
+ * wave600: when gp==0 and dual-GP, load **high half first** then low into x0/rax.
+ * Loading low→x0 then high→x0→x1 overwrites low (mac take2 x0 ended as high half only).
+ * When gp>0, x0/rax is a pure temp so low-then-high is fine.
+ */
 static int32_t glue_sysv_load_spill_to_arg_regs_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
                                                       int32_t spill_off, int32_t gp, int32_t gp_units) {
+  int32_t half2;
   if (!elf_ctx || spill_off < 0 || gp < 0)
     return -1;
+  if (gp_units >= 2 && gp == 0) {
+    half2 = (ta == 1) ? (spill_off + 8) : (spill_off - 8);
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, half2, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta) != 0)
+      return -1;
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill_off, ta) != 0)
+      return -1;
+    /* gp==0: low already in rax/x0 = arg0 */
+    return 0;
+  }
   if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill_off, ta) != 0)
     return -1;
   if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, gp, ta) != 0)
     return -1;
-  if (ta == 0 && gp_units >= 2) {
-    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill_off - 8, ta) != 0)
+  if (gp_units >= 2) {
+    half2 = (ta == 1) ? (spill_off + 8) : (spill_off - 8);
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, half2, ta) != 0)
       return -1;
     if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, gp + 1, ta) != 0)
       return -1;
@@ -2396,48 +2436,79 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
     }
 
     /**
-     * AAPCS64 (wave392): spill-then-load for register args — same discipline as SysV x86.
-     * Root: high-to-low direct place into xN was insufficient when an earlier-placed
-     * arg was a nested CALL (make2 → x1; make1 clobbers x1 as temp → take2 got y=x).
-     * Emit each arg value into x0, spill to frame, then load into final xN.
+     * AAPCS64 (wave392 + wave600): spill-then-load for register args — same discipline
+     * as SysV x86, including 9–16B INTEGER dual-GP (2 consecutive Xn).
+     * Root wave392: high-to-low direct place into xN was insufficient when an earlier
+     * arg was a nested CALL (make2 → x1; make1 clobbers x1 → take2 got y=x).
+     * Root wave600: units hard-coded 1 + spill only x0 → multi dual-GP
+     * `take2(mkA(), mkB())` / `f(n, s12, m)` placed only lows (mac fs take2=63≠41).
+     * G.7: gp_units from arg size (≡ x86 path); spill x0+x1; load into gp_start[+1].
      * PLATFORM: MACOS|ARM64 product pure-asm · SHARED frame next_offset.
      */
     if (ta == 1) {
-      int32_t reg_n = nargs < eff_reg_max ? nargs : eff_reg_max;
+      int32_t gp_start_a64[GLUE_ASM_MAX_CALL_ARGS];
+      int32_t gp_units_a64[GLUE_ASM_MAX_CALL_ARGS];
       int32_t spill_off_a64[GLUE_ASM_MAX_CALL_ARGS];
-      for (i = 0; i < reg_n; i++)
+      int32_t gp_cur_a64 = 0; /* AAPCS64 sret uses x8 — no GP shift */
+      int32_t stk_slot = 0;
+      for (i = 0; i < nargs; i++) {
+        int32_t pty_i;
+        int32_t ar_i;
+        int32_t u;
+        ar_i = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+        pty_i = glue_call_param_type_ref_at(arena, expr_ref, i);
+        u = glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, ctx, pty_i, ar_i));
+        if (u < 1)
+          u = 1;
+        if (u > 2)
+          u = 2;
+        gp_start_a64[i] = gp_cur_a64;
+        gp_units_a64[i] = u;
         spill_off_a64[i] = -1;
-      for (i = 0; i < reg_n; i++) {
+        if (gp_cur_a64 + u <= reg_max)
+          gp_cur_a64 += u;
+        else
+          gp_start_a64[i] = -1; /* stack / excess — soft residual */
+      }
+      for (i = 0; i < nargs; i++) {
         int32_t so;
+        if (gp_start_a64[i] < 0)
+          continue;
         arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
         if (arg_ref == 0)
           continue;
         if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
           return -1;
-        so = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
+        so = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, gp_units_a64[i]);
         if (so < 0)
           return -1;
         spill_off_a64[i] = so;
       }
       /*
-       * Load high→low: AAPCS64 x0 is both spill temp and arg0. Loading arg1 via
-       * x0 then mov x1 would clobber already-placed x0 if done low→high
-       * (reent2 saw both args = make2 → 2+32=34). High-first leaves x0 last.
+       * Load high→low by *arg index*: x0 is spill temp and may be arg0.
+       * Loading lower GPs first would clobber them when materializing higher ones
+       * through x0 (wave392 reent2). Dual-GP loads write gp and gp+1 atomically
+       * relative to later lower-index loads.
        */
-      for (i = reg_n - 1; i >= 0; i--) {
+      for (i = nargs - 1; i >= 0; i--) {
         if (spill_off_a64[i] < 0)
           continue;
-        if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off_a64[i], i + sret_sh, 1) != 0)
+        if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off_a64[i], gp_start_a64[i],
+                                                     gp_units_a64[i]) != 0)
           return -1;
       }
-      for (i = eff_reg_max; i < nargs; i++) {
+      for (i = 0; i < nargs; i++) {
+        if (gp_start_a64[i] >= 0)
+          continue;
         arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
         if (arg_ref == 0)
           continue;
         if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
           return -1;
-        if (backend_enc_store_x0_sp_offset_arch(elf_ctx, (i - eff_reg_max) * 8, ta) != 0)
+        if (backend_enc_store_x0_sp_offset_arch(elf_ctx, stk_slot * 8, ta) != 0)
           return -1;
+        stk_slot++;
+        /* dual-GP stack soft: only low half; >8 GP-full formals rare on arm64 probes */
       }
       pipeline_asm_emit_set_call_param_type_ref(0);
       return 0;
