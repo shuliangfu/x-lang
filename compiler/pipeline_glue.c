@@ -7033,7 +7033,16 @@ static int32_t glue_fixed_array_total_bytes_c(struct ast_ASTArena *arena, int32_
   return n * esz;
 }
 
-/** 由类型 ref 推断 INDEX 元素字节宽（*f32→4，*u8→1；TYPE_F32=14 须与 ast.x TypeKind 一致）。 */
+/**
+ * Infer INDEX element / pointer-base stride byte width from a type ref.
+ * - TYPE_PTR as *base for p[i]: peel to pointee width (*i32→4, *u8→1).
+ * - TYPE_ARRAY/SLICE: stride = sizeof(element); element TYPE_PTR → 8 (not pointee).
+ * - TYPE_F32=14 must match ast.x TypeKind.
+ * wave637 Cap residual pure: *T[N] / T[] of pointers — element is the pointer (8B).
+ * Prior ARRAY/SLICE of PTR fell through or INDEX result PTR was peeled like base *T
+ * → esz=4 ldr w + SEGV freestanding (host-C hid). G.7: single face; no second INDEX.
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
+ */
 static int32_t glue_index_elem_byte_sz_from_type_ref_c(struct ast_ASTArena *arena, int32_t tr) {
   int32_t kind_ord;
   int32_t pointee;
@@ -7049,6 +7058,9 @@ static int32_t glue_index_elem_byte_sz_from_type_ref_c(struct ast_ASTArena *aren
       if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14)
         return 4;
       if (kind_ord == 15)
+        return 8;
+      /* wave637: **T / *(*T) base stride = sizeof(pointer), not sizeof(**T). */
+      if (kind_ord == GLUE_TYPE_KIND_PTR)
         return 8;
       /* wave357: *T[N] / *[M]T — stride is full fixed-array payload. */
       if (kind_ord == 10) {
@@ -7068,6 +7080,12 @@ static int32_t glue_index_elem_byte_sz_from_type_ref_c(struct ast_ASTArena *aren
       if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14)
         return 4;
       if (kind_ord == 15)
+        return 8;
+      /*
+       * wave637: T[N] / T[] element is TYPE_PTR (*i32[2], *u8[]) — element width 8.
+       * Do not peel to pointee (that is pointer-base indexing, not array-of-ptr).
+       */
+      if (kind_ord == GLUE_TYPE_KIND_PTR)
         return 8;
       /*
        * wave357 Cap residual pure: multi-dim T[N][M] INDEX outer stride = sizeof(inner).
@@ -12901,6 +12919,17 @@ static int32_t pipeline_asm_index_elem_byte_sz_c(struct ast_ASTArena *arena, int
       if (asz > 0)
         return asz;
     }
+    /*
+     * wave637 Cap residual pure: INDEX result TYPE_PTR means the *element* is a
+     * pointer (`*i32[2]` → a[i] has type *i32). Stride/load width = 8.
+     * glue_index_elem_byte_sz_from_type_ref peels *T→sizeof(T) for pointer-base
+     * p[i] only — must not peel when tr is the INDEX element type itself.
+     * Root: freestanding `*a[0]+*a[1]` used esz=4 → ldr w of pointer half → SEGV;
+     * pure-asm CTFE folded 42; host-C hid. G.7: same authority as ARRAY_LIT PTR=8.
+     * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
+     */
+    if (pipeline_type_kind_ord_at(arena, tr) == GLUE_TYPE_KIND_PTR)
+      return 8;
     esz_res = glue_index_elem_byte_sz_from_type_ref_c(arena, tr);
     /** v.ptr[v.len]：INDEX resolved_type 误落 i64/usize(8) 时仍按 *u8 基址步长 1。 */
     if (esz_res >= 8) {
@@ -12962,6 +12991,9 @@ static int32_t pipeline_asm_index_elem_byte_sz_c(struct ast_ASTArena *arena, int
         return 1;
       if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14)
         return 4;
+      /* wave637: array/slice of pointers — element width 8 (see resolved-type path). */
+      if (kind_ord == GLUE_TYPE_KIND_PTR)
+        return 8;
       /* wave357: multi-dim outer INDEX stride = sizeof(inner TYPE_ARRAY). */
       if (kind_ord == 10) {
         int32_t asz = glue_fixed_array_total_bytes_c(arena, pointee, 0);
