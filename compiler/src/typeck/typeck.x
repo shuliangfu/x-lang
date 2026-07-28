@@ -4410,6 +4410,14 @@ decl_kind: i32): i32 {
  * @param decl_ty_ref i32 — TYPE_ARRAY (T[N]) or TYPE_SLICE (T[]) declaration type
  * @return i32 — 1 if handled, 0 if not applicable, -1 on nested failure
  * PLATFORM: SHARED — wave328: TYPE_SLICE so host emit uses slice compound, not uint8_t[] fallback.
+ *
+ * wave617 Cap residual pure: also stamp bare FLOAT_LIT / `-float` elems to f32/f64.
+ * Root: only typeck_coerce_init_lit_to_decl (integer EXPR_LIT) ran per elem; FLOAT_LIT
+ * stayed default f64. Freestanding ARRAY_LIT store uses esz=4 for f32 but emit still
+ * movabs full f64 bits → store low-32 of many finite doubles is 0 → INDEX cast run=0
+ * (host-C braces hide; `as f32` cast elems already green via EXPR_AS force_ty).
+ * G.7: reuse typeck_coerce_init_float_lit_to_decl (wave316 let/assign/return) — no second
+ * float-coerce authority. PLATFORM: SHARED typeck · LINUX pure-asm gold.
  */
 export function typeck_coerce_array_lit_elem_types_to_decl(arena: *ASTArena, init_ref: i32,
 decl_ty_ref: i32): i32 {
@@ -4457,6 +4465,8 @@ decl_ty_ref: i32): i32 {
         }
       } else {
         typeck_coerce_init_lit_to_decl(arena, elem_ref, elem_decl_ref, elem_decl_kind, elem_kind);
+        /* wave617: f32/f64 ARRAY_LIT elems — same stamp as scalar let f32 = 10.0. */
+        typeck_coerce_init_float_lit_to_decl(arena, elem_ref, elem_decl_ref, elem_decl_kind, elem_kind);
         elem_ty = expr_type_ref(arena, elem_ref);
         if (!ast.ref_is_null(elem_ty)) {
           if (type_refs_equal(arena, elem_ty, elem_decl_ref)

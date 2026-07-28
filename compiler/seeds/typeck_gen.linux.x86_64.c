@@ -4880,6 +4880,10 @@ int32_t typeck_coerce_array_lit_elem_types_to_decl(struct ast_ASTArena * arena, 
         }
       } else {
         (void)(typeck_coerce_init_lit_to_decl(arena, elem_ref, elem_decl_ref, elem_decl_kind, elem_kind));
+        /* wave617 Cap residual pure: stamp FLOAT_LIT / -float elems to f32/f64 (G.7 reuse
+         * typeck_coerce_init_float_lit_to_decl). Prior integer-only lit coerce left bare
+         * FLOAT_LIT as default f64 → freestanding f32[N] store low-32 of f64 bits = 0. */
+        (void)(typeck_coerce_init_float_lit_to_decl(arena, elem_ref, elem_decl_ref, elem_decl_kind, elem_kind));
         (void)((elem_ty = typeck_expr_type_ref(arena, elem_ref)));
         if (!(ast_ref_is_null(elem_ty))) {
           int32_t got_kind = pipeline_type_kind_ord_at(arena, elem_ty);
