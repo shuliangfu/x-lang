@@ -1745,7 +1745,8 @@ int32_t typeck_expr_lval_root_var_strict_minimal(struct ast_ASTArena *arena, int
     kind = pipeline_expr_kind_ord_at(arena, cur);
     if (kind == (int32_t)ast_ExprKind_EXPR_VAR) {
       *out_len = pipeline_expr_var_name_len(arena, cur);
-      if (*out_len <= 0 || *out_len > 63)
+      /* wave587 Cap residual: var name content ≤127 (Expr.var_name[128]). */
+      if (*out_len <= 0 || *out_len > 127)
         return 0;
       pipeline_expr_var_name_into(arena, cur, out);
       return 1;
@@ -2678,7 +2679,8 @@ XLANG_WEAK int32_t pipeline_typeck_check_scope_borrow_assign_c(struct ast_Module
   if (op_ref <= 0 || pipeline_expr_kind_ord_at(arena, op_ref) != (int32_t)ast_ExprKind_EXPR_VAR)
     return 0;
   rlen = pipeline_expr_var_name_len(arena, op_ref);
-  if (rlen <= 0 || rlen > 63)
+  /* wave587 Cap residual: borrow RHS var name ≤127 (rname[128]). */
+  if (rlen <= 0 || rlen > 127)
     return 0;
   pipeline_expr_var_name_into(arena, op_ref, rname);
   site_block = ctx->current_block_ref;
@@ -3013,7 +3015,8 @@ static int32_t pipeline_typeck_field_reverse_infer_base_type_strict_minimal_c(st
   if (!module || !arena || expr_ref <= 0)
     return 0;
   fl = pipeline_expr_field_access_name_len(arena, expr_ref);
-  if (fl <= 0 || fl > 63)
+  /* wave587 Cap residual: field name content ≤127 (wave583 storage). */
+  if (fl <= 0 || fl > 127)
     return 0;
   memset(fn_buf, 0, sizeof(fn_buf));
   pipeline_expr_field_access_name_into(arena, expr_ref, fn_buf);
@@ -3221,7 +3224,9 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *
       memset(mnm, 0, sizeof(mnm));
       mnl = pipeline_type_named_name_into(arena, got_mono, mnm);
       m_concrete = 0;
-      if (mnl > 0 && mnl <= 63) {
+      /* wave587 Cap residual: TYPE_NAMED content ≤127 (mnm[128]).
+       * Prior mnl<=63 skipped long concrete field types → false mono stamp. */
+      if (mnl > 0 && mnl <= 127) {
         for (sk = 0; sk < module->num_struct_layouts; sk++) {
           int32_t sl = pipeline_module_struct_layout_name_len(module, sk);
           uint8_t snm[128];
@@ -3343,7 +3348,9 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *
       int32_t sk;
       memset(gnm, 0, sizeof(gnm));
       gnl = pipeline_type_named_name_into(arena, got_ty, gnm);
-      if (gnl > 0 && gnl <= 63) {
+      /* wave587 Cap residual: ambient concrete scan ≤127 (gnm[128]).
+       * Prior gnl<=63 treated long concrete types as type-params → ambient overwrite. */
+      if (gnl > 0 && gnl <= 127) {
         for (sk = 0; sk < module->num_struct_layouts; sk++) {
           int32_t sl = pipeline_module_struct_layout_name_len(module, sk);
           uint8_t snm[128];

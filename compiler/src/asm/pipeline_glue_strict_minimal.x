@@ -2332,7 +2332,8 @@ function pipeline_typeck_field_reverse_infer_base_type_strict_minimal(module: *u
         if (match != 0) {
           let lnl: i32 = pipeline_module_struct_layout_name_len(module, k);
           if (lnl > 0) {
-            if (lnl <= 63) {
+            // wave587 Cap residual: layout name content ≤127 (lnm[128]).
+            if (lnl <= 127) {
               let lnm: u8[128] = [];
               pipeline_module_struct_layout_name_into(module, k, &lnm[0]);
               let nty: i32 = pipeline_type_find_or_alloc_named(arena, &lnm[0], lnl);
@@ -2390,7 +2391,8 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
       if (pipeline_expr_resolved_type_ref(arena, base_ref) == 0) {
         let prebind_len: i32 = pipeline_expr_var_name_len(arena, base_ref);
         if (prebind_len > 0) {
-          if (prebind_len <= 63) {
+          // wave587 Cap residual: Type/enum prebind ≤127 (seed wave582; .x was drift).
+          if (prebind_len <= 127) {
             let prebind_name: u8[128] = [];
             pipeline_expr_var_name_into(arena, base_ref, &prebind_name[0]);
             let do_prebind: i32 = 1;
@@ -2548,7 +2550,8 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
           let mnl: i32 = pipeline_type_named_name_into(arena, got_mono, &mnm[0]);
           let m_concrete: i32 = 0;
           if (mnl > 0) {
-            if (mnl <= 63) {
+            // wave587 Cap residual: mono concrete scan ≤127 (mnm[128]).
+            if (mnl <= 127) {
               let nslm: i32 = pipeline_module_num_struct_layouts_at(module);
               let skm: i32 = 0;
               while (skm < nslm) {
@@ -2594,7 +2597,8 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
           let gnl: i32 = pipeline_type_named_name_into(arena, got_ty, &gnm[0]);
           let concrete: i32 = 0;
           if (gnl > 0) {
-            if (gnl <= 63) {
+            // wave587 Cap residual: ambient concrete scan ≤127 (gnm[128]).
+            if (gnl <= 127) {
               let nsl: i32 = pipeline_module_num_struct_layouts_at(module);
               let sk: i32 = 0;
               while (sk < nsl) {
@@ -2699,7 +2703,8 @@ export function pipeline_typeck_check_expr_method_call_c(module: *u8, arena: *u8
       if (base_kind == 3) {
         let base_nlen: i32 = pipeline_expr_var_name_len(arena, base_ref);
         if (base_nlen > 0) {
-          if (base_nlen <= 63) {
+          // wave587 Cap residual: method-call import binding name ≤127 (seed already).
+          if (base_nlen <= 127) {
             let base_nm: u8[128] = [];
             pipeline_expr_var_name_into(arena, base_ref, &base_nm[0]);
             let nimp: i32 = parser_get_module_num_imports(module);

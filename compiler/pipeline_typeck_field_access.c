@@ -965,7 +965,9 @@ static void pipeline_typeck_field_apply_ambient_for_type_param_c(struct ast_Modu
   } else if (pipeline_type_kind_ord_at(arena, got_ty) == (int32_t)ast_TypeKind_TYPE_NAMED) {
     memset(gnm, 0, sizeof(gnm));
     gnl = pipeline_type_named_name_into(arena, got_ty, &gnm[0]);
-    if (gnl > 0 && gnl <= 63 && !pipeline_typeck_named_is_module_concrete_c(module, &gnm[0], gnl))
+    /* wave587 Cap residual: TYPE_NAMED content ≤127 (gnm[128]).
+     * Prior gnl<=63 skipped long concrete names → ambient stamped over real type. */
+    if (gnl > 0 && gnl <= 127 && !pipeline_typeck_named_is_module_concrete_c(module, &gnm[0], gnl))
       use_ambient = 1;
   }
   if (use_ambient)
