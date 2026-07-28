@@ -1286,7 +1286,16 @@ int32_t pipeline_asm_array_lit_elem_type_ref(struct ast_ASTArena *arena, int32_t
   if (arr_tr <= 0)
     return 0;
   tk = pipeline_type_kind_ord_at(arena, arr_tr);
-  if (tk != 10)
+  /*
+   * wave631 Cap residual pure: peel TYPE_SLICE (11) as well as TYPE_ARRAY (10).
+   * Root: `let s: S24[] = [S24{…}, …]` stamps the lit as TYPE_SLICE; old gate only
+   * accepted TYPE_ARRAY → elem_ty=0 → array_lit_elem_byte_sz defaulted 4 while INDEX
+   * used NAMED layout stride 24 → durable COMMON packed 4B pointer halves (Ubuntu
+   * pure-asm RO s[0].a+s[1].a=120≠11; host-C compound green). Fixed S24[N] lit was
+   * already TYPE_ARRAY so green via vector_let_init. G.7: single elem-type face for
+   * both aggregate stamps. PLATFORM: SHARED freestanding.
+   */
+  if (tk != 10 && tk != 11)
     return 0;
   return pipeline_type_elem_ref_at(arena, arr_tr);
 }
@@ -1979,9 +1988,14 @@ static int32_t glue_emit_sret_memcpy_rbx_to_home_elf_c(struct platform_elf_ElfCo
 static int32_t glue_emit_sret_return_from_var_elf_c(struct ast_ASTArena *arena,
                                                     struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t var_expr_ref,
                                                     struct backend_AsmFuncCtx *ctx, int32_t ta);
-/* wave333: return ARRAY_LIT→TYPE_SLICE dual-GP (defs later). */
+/* wave333: return ARRAY_LIT→TYPE_SLICE dual-GP (defs later).
+ * wave631: force_esz>0 overrides lit-inferred elem width (TYPE_SLICE formal / large NAMED). */
 int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                           int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+static int32_t pipeline_asm_emit_array_lit_force_esz_elf_c(struct ast_ASTArena *arena,
+                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                          int32_t expr_ref, struct backend_AsmFuncCtx *ctx,
+                                                          int32_t ta, int32_t force_esz);
 void pipeline_asm_bump_next_offset_for_array_lit(struct ast_ASTArena *arena, int32_t expr_ref,
                                                  struct backend_AsmFuncCtx *ctx);
 static int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t expr_ref);
@@ -2215,10 +2229,23 @@ static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena
     /* Empty slice: null data pointer is durable. */
     return backend_enc_mov_imm64_to_rax_arch(elf_ctx, 0, 0, ta);
   }
-  /* Prefer slice-elem width (u64[] lit elems still type as i32 without stamp). */
+  /*
+   * Prefer formal/let force_esz (u64[] lit elems still type as i32 without stamp).
+   * wave631 Cap residual pure: when force_esz is known but not a scalar pack width
+   * ({1,2,4,8}), return -1 so caller uses stack emit_array_lit (wave598/626 in-place
+   * STRUCT_LIT / bulk >8B). Prior code re-inferred via array_lit_elem_byte_sz which
+   * defaulted 4 for unstamped/SLICE-stamp miss → accepted durable with esz=4 while
+   * INDEX strode 24 → packed stack pointers into COMMON (Ubuntu pure-asm S24[] RO/asg
+   * garbage; mac arm64 often hid). wave625 comment already required reject→stack for
+   * ssz>8; this restores that contract. G.7: expand same durable authority only.
+   * PLATFORM: SHARED freestanding · LINUX gold exposes; MACOS|ARM64 co-path.
+   */
   esz = force_esz;
-  if (esz != 1 && esz != 2 && esz != 4 && esz != 8)
+  if (esz != 1 && esz != 2 && esz != 4 && esz != 8) {
+    if (force_esz > 0)
+      return -1;
     esz = pipeline_asm_array_lit_elem_byte_sz_c(arena, expr_ref);
+  }
   if (esz != 1 && esz != 2 && esz != 4 && esz != 8)
     return -1;
   if (n_arr > GLUE_ARRAY_LIT_MAX_PAYLOAD / esz)
@@ -2906,7 +2933,7 @@ static int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
         if (n_arr < 0 || n_arr > GLUE_ARRAY_LIT_MAX_ELEMS)
           return -1;
         if (glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, force_esz, ta, ctx) != 0) {
-          if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, ret_op, ctx, ta) != 0)
+          if (pipeline_asm_emit_array_lit_force_esz_elf_c(arena, elf_ctx, ret_op, ctx, ta, force_esz) != 0)
             return -1;
           if (n_arr > 0)
             pipeline_asm_bump_next_offset_for_array_lit(arena, ret_op, ctx);
@@ -2922,7 +2949,8 @@ static int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
           return -1;
         if (glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, force_esz, ta, ctx) == 0) {
           durable = 1;
-        } else if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, ret_op, ctx, ta) != 0) {
+        } else if (pipeline_asm_emit_array_lit_force_esz_elf_c(arena, elf_ctx, ret_op, ctx, ta,
+                                                                force_esz) != 0) {
           return -1;
         }
         /*
@@ -11882,6 +11910,10 @@ void pipeline_asm_bump_next_offset_for_array_lit(struct ast_ASTArena *arena, int
                                                  struct backend_AsmFuncCtx *ctx);
 int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                           int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
+static int32_t pipeline_asm_emit_array_lit_force_esz_elf_c(struct ast_ASTArena *arena,
+                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                          int32_t expr_ref, struct backend_AsmFuncCtx *ctx,
+                                                          int32_t ta, int32_t force_esz);
 
 /**
  * EXPR_ASSIGN ELF 发射（p.a = … 等；M8 勿走 backend emit_lvalue_eff_addr_elf 桩）。
@@ -12462,6 +12494,19 @@ static int32_t glue_init_is_empty_array_lit(struct ast_ASTArena *arena, int32_t 
  */
 int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                  int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  return pipeline_asm_emit_array_lit_force_esz_elf_c(arena, elf_ctx, expr_ref, ctx, ta, 0);
+}
+
+/**
+ * EXPR_ARRAY_LIT stack emit with optional force_esz (wave631).
+ * force_esz>0: formal/let elem width wins over lit-inferred (TYPE_SLICE large NAMED).
+ * force_esz==0: same as historical pipeline_asm_emit_array_lit_elf_c.
+ * PLATFORM: SHARED freestanding.
+ */
+static int32_t pipeline_asm_emit_array_lit_force_esz_elf_c(struct ast_ASTArena *arena,
+                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                          int32_t expr_ref, struct backend_AsmFuncCtx *ctx,
+                                                          int32_t ta, int32_t force_esz) {
   int32_t n_arr;
   int32_t esz;
   int32_t ai;
@@ -12490,7 +12535,8 @@ int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct pla
       break;
     }
   }
-  esz = pipeline_asm_array_lit_elem_byte_sz_c(arena, expr_ref);
+  /* wave631: formal force_esz (e.g. S24=24 from TYPE_SLICE let) before lit infer. */
+  esz = force_esz > 0 ? force_esz : pipeline_asm_array_lit_elem_byte_sz_c(arena, expr_ref);
   if (esz <= 0)
     esz = 4;
   elem_ty = pipeline_asm_array_lit_elem_type_ref(arena, expr_ref);
@@ -15714,7 +15760,9 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
           glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, expr_ref, force_esz, ta,
                                                          ctx) == 0) {
         durable = 1;
-      } else if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
+      } else if (pipeline_asm_emit_array_lit_force_esz_elf_c(arena, elf_ctx, expr_ref, ctx, ta,
+                                                              force_esz) != 0) {
+        /* wave631: stack fallback keeps formal force_esz (large NAMED / esz>8). */
         return -1;
       }
       if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
@@ -21811,7 +21859,9 @@ static int32_t glue_emit_slice_from_array_let_init_elf_c(struct ast_ASTArena *ar
     if ((ta == 0 || ta == 1) &&
         glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, init_ref, force_esz, ta, ctx) == 0) {
       durable = 1;
-    } else if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0) {
+    } else if (pipeline_asm_emit_array_lit_force_esz_elf_c(arena, elf_ctx, init_ref, ctx, ta,
+                                                             force_esz) != 0) {
+      /* wave631: stack fallback must keep force_esz (S24[] lit esz>8 rejects durable). */
       return -1;
     }
     if (backend_enc_store_rax_to_rbp_arch(elf_ctx, slice_slot_off, ta) != 0)
