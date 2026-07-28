@@ -20556,23 +20556,38 @@ static int32_t glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
     /*
      * Let path: per-frame buffer (true recursion). Bump next_offset; compute_frame_size
      * pre-sums TYPE_SLICE CALL/METHOD lets so prologue covers this growth.
-     * Force dest past dual-GP fat window at home (16B). PLATFORM: SHARED freestanding.
+     * Force dest past dual-GP fat window at home (16B).
+     * wave632: x86 high-end must place byte0 at the *deep* end of the alloc so
+     * dest+ai*esz stays below rbp (prior dest_off=shallow + large esz*max_n walked
+     * past rbp → Ubuntu SIGSEGV on S24[] deep-copy; scalar small-n hid it).
+     * PLATFORM: SHARED freestanding · LINUX|x86 high-end · MACOS|ARM64 low-end.
      */
     pipeline_glue_AsmFuncCtxLayout *ly = pipeline_asm_ctx_layout(ctx);
     int32_t fat_hi;
+    int32_t dest_base;
     if (!ly)
       return -1;
-    dest_off = ly->next_offset;
-    if ((dest_off % 8) != 0)
-      dest_off = (dest_off + 7) / 8 * 8;
+    dest_base = ly->next_offset;
+    if ((dest_base % 8) != 0)
+      dest_base = (dest_base + 7) / 8 * 8;
     fat_hi = home + 16;
-    if (dest_off < fat_hi)
-      dest_off = fat_hi;
-    if ((dest_off % 8) != 0)
-      dest_off = (dest_off + 7) / 8 * 8;
+    if (dest_base < fat_hi)
+      dest_base = fat_hi;
+    if ((dest_base % 8) != 0)
+      dest_base = (dest_base + 7) / 8 * 8;
+    if (dest_base < 0)
+      return -1;
+    if (ta == 1) {
+      /* MACOS|ARM64 low-end: byte0 @ dest_base, grows +. */
+      dest_off = dest_base;
+      ly->next_offset = dest_base + nbytes;
+    } else {
+      /* LINUX|x86 high-end: byte0 at deep end; +byteoff stays under rbp. */
+      dest_off = dest_base + nbytes;
+      ly->next_offset = dest_off;
+    }
     if (dest_off < 0)
       return -1;
-    ly->next_offset = dest_off + nbytes;
     glue_align_next_offset(ctx);
     llen = 0;
   } else {
