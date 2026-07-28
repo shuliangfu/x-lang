@@ -430,6 +430,13 @@ MODULES=(
   #   rest 含 20 extern bridges;
   #   prove 锁 mixed surface IDENTICAL (19 #[no_mangle] · no doc_anchor)
   "seed_link_compat|src/seed_link_compat.x|seeds/seed_link_compat_surface.from_x.c||"
+  # simd_loop_thin R2 mixed (wave563)：.x 22 #[no_mangle] public API
+  #   (5 DIRECT compute: glue_f32_slot_rbp_disp32 + glue_soa_f32_col_rbp_disp32
+  #    + glue_simd_loop_pick_lanes_c + glue_var_array_i32_size_c + glue_var_is_array_i32_n_c
+  #    + 17 thin+rest forwards to _impl);
+  #   rest 含 22 extern bridges (5 pipeline_* + 17 *_impl);
+  #   prove 锁 mixed surface IDENTICAL (22 #[no_mangle] · no doc_anchor)
+  "simd_loop_thin|src/asm/simd_loop_thin.x|seeds/simd_loop_thin_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
