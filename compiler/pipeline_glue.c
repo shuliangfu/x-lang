@@ -1985,6 +1985,15 @@ int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct pla
 void pipeline_asm_bump_next_offset_for_array_lit(struct ast_ASTArena *arena, int32_t expr_ref,
                                                  struct backend_AsmFuncCtx *ctx);
 static int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t expr_ref);
+static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
+/**
+ * wave625 Cap residual pure: ARRAY_LIT→TYPE_SLICE force_esz from formal/let elem type.
+ * Scalars 1/4/8; TYPE_NAMED → glue_type_size_simple (Pt=8). Durable only packs 1/2/4/8;
+ * larger NAMED returns size so durable rejects and stack array_lit (esz>8) takes over.
+ * G.7: single authority for let-init / call-arg / return force_esz (was 4× scalar-only).
+ * PLATFORM: SHARED freestanding · LINUX gold + MACOS|ARM64.
+ */
+static int32_t glue_array_lit_force_esz_from_elem_type_c(struct ast_ASTArena *arena, int32_t et);
 /**
  * wave335 Cap residual pure: freestanding durable ARRAY_LIT payload → rax.
  * wave341: non-const elems also durable via SHN_COMMON BSS + runtime stores
@@ -2891,17 +2900,9 @@ static int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
       if (slice_ty == 0 && rty > 0 &&
           pipeline_type_kind_ord_at(arena, rty) == (int32_t)ast_TypeKind_TYPE_ARRAY) {
         int32_t n_arr = pipeline_expr_array_lit_num_elems_at(arena, ret_op);
-        int32_t force_esz = 0;
-        int32_t et = pipeline_type_elem_ref_at(arena, rty);
-        if (et > 0) {
-          int32_t ek = pipeline_type_kind_ord_at(arena, et);
-          if (ek == 2 || ek == 1)
-            force_esz = 1;
-          else if (ek == 0 || ek == 3 || ek == 13 || ek == 14)
-            force_esz = 4;
-          else if (ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 15)
-            force_esz = 8;
-        }
+        /* wave625: G.7 force_esz includes TYPE_NAMED (was scalar-only). */
+        int32_t force_esz = glue_array_lit_force_esz_from_elem_type_c(
+            arena, pipeline_type_elem_ref_at(arena, rty));
         if (n_arr < 0 || n_arr > GLUE_ARRAY_LIT_MAX_ELEMS)
           return -1;
         if (glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, force_esz, ta, ctx) != 0) {
@@ -2914,17 +2915,9 @@ static int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
       } else if (slice_ty > 0) {
         int32_t n_arr = pipeline_expr_array_lit_num_elems_at(arena, ret_op);
         int32_t durable = 0;
-        int32_t force_esz = 0;
-        int32_t et = pipeline_type_elem_ref_at(arena, slice_ty);
-        if (et > 0) {
-          int32_t ek = pipeline_type_kind_ord_at(arena, et);
-          if (ek == 2 || ek == 1)
-            force_esz = 1;
-          else if (ek == 0 || ek == 3 || ek == 13 || ek == 14)
-            force_esz = 4;
-          else if (ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 15)
-            force_esz = 8;
-        }
+        /* wave625: G.7 force_esz includes TYPE_NAMED (was scalar-only). */
+        int32_t force_esz = glue_array_lit_force_esz_from_elem_type_c(
+            arena, pipeline_type_elem_ref_at(arena, slice_ty));
         if (n_arr < 0 || n_arr > GLUE_ARRAY_LIT_MAX_ELEMS)
           return -1;
         if (glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, force_esz, ta, ctx) == 0) {
@@ -13156,6 +13149,13 @@ static int32_t glue_try_binop_load_operand_elf_c(struct ast_ASTArena *arena,
  * apply when base materializes through ARRAY_LIT (or other non-VAR bases that park
  * temps in rbx: STRUCT_LIT/CALL/METHOD). G.7: complete this classifier only —
  * preserve/restore path already exists (glue_binop_preserve_rbx_for_index_elf_c).
+ *
+ * wave625 Cap residual pure: peel FIELD_ACCESS (ko=44) before INDEX classify.
+ * Root: `a[0].x + a[1].y` on `[]Pt` — both operands are FIELD of INDEX; classifier
+ * only handled bare INDEX (ko=47) → save_rbx=0 → left slice bounds guard
+ * `mov w1,#0` / `ldr x1,length` clobbered rhs parked in x1 → sum=10+2=12
+ * (storage esz already 8 via force_esz NAMED; p1y alone=32; let-split x+y=42).
+ * G.7: same peel as await/as; do not invent a second preserve path.
  * PLATFORM: SHARED freestanding dual-slot; LINUX x86_64 + MACOS|ARM64 both expose.
  */
 static int32_t glue_binop_operand_index_addr_clobbers_rbx_elf_c(struct ast_ASTArena *arena, int32_t expr_ref) {
@@ -13170,6 +13170,11 @@ static int32_t glue_binop_operand_index_addr_clobbers_rbx_elf_c(struct ast_ASTAr
   }
   if (glue_expr_is_x_as_cast_at_c(arena, expr_ref)) {
     op_ref = pipeline_expr_as_operand_ref_at(arena, expr_ref);
+    return op_ref > 0 ? glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena, op_ref) : 0;
+  }
+  /* wave625: FIELD of INDEX still runs INDEX bounds/addr in rbx (a[i].x dual-slot). */
+  if (ko == 44) {
+    op_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
     return op_ref > 0 ? glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena, op_ref) : 0;
   }
   if (ko == 47) {
@@ -15297,20 +15302,9 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
         return -1;
       if (!ly)
         return -1;
-      /* force_esz from formal SLICE elem — twin of glue_emit_slice_from_array_let_init. */
-      {
-        int32_t et = pipeline_type_elem_ref_at(arena, slice_ty);
-        if (et > 0) {
-          int32_t ek = pipeline_type_kind_ord_at(arena, et);
-          /* TYPE_U8=2, BOOL=1 → 1; I32/U32/VECTOR/F32 → 4; U64/I64/USIZE/ISIZE/F64 → 8 */
-          if (ek == 2 || ek == 1)
-            force_esz = 1;
-          else if (ek == 0 || ek == 3 || ek == 13 || ek == 14)
-            force_esz = 4;
-          else if (ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 15 || ek == 9)
-            force_esz = 8;
-        }
-      }
+      /* wave625: G.7 force_esz authority (scalar + TYPE_NAMED); twin of let-init. */
+      force_esz = glue_array_lit_force_esz_from_elem_type_c(
+          arena, pipeline_type_elem_ref_at(arena, slice_ty));
       /*
        * Allocate dual-GP home: data@home, length via glue_slice_dual_gp_length_off_c
        * (wave394: arm64 home+8 / x86 home-8 → C fat memory for lea as slice*).
@@ -19440,6 +19434,45 @@ static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *
 }
 
 /**
+ * wave625 Cap residual pure: force_esz for ARRAY_LIT packed into TYPE_SLICE / TYPE_ARRAY.
+ *
+ * Root: let/call/return only mapped scalar TypeKind → 1/4/8; TYPE_NAMED (Pt=8) stayed 0
+ * → durable inferred default 4 → COMMON stored only w0 of by-value STRUCT_LIT (y lost)
+ * while INDEX used glue_type_size_simple stride 8 → a[1].y unread (mac pure-asm sum=12).
+ * Host-C static compound already correct (wave624).
+ *
+ * @param arena AST arena (non-null)
+ * @param et TYPE_SLICE/ARRAY element type_ref (0 → 0)
+ * @return 1/2/4/8 for scalars; layout size for TYPE_NAMED when known; else 0
+ * PLATFORM: SHARED freestanding. G.7 authority for all force_esz call sites.
+ */
+static int32_t glue_array_lit_force_esz_from_elem_type_c(struct ast_ASTArena *arena, int32_t et) {
+  int32_t ek;
+  if (!arena || et <= 0)
+    return 0;
+  ek = pipeline_type_kind_ord_at(arena, et);
+  /* TYPE_U8=2, BOOL=1 */
+  if (ek == 2 || ek == 1)
+    return 1;
+  /* TYPE_I32=0, U32=3, VECTOR=13, F32=14 */
+  if (ek == 0 || ek == 3 || ek == 13 || ek == 14)
+    return 4;
+  /* TYPE_U64=4, I64=5, USIZE=6, ISIZE=7, F64=15, PTR=9 */
+  if (ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 15 || ek == 9)
+    return 8;
+  /*
+   * TYPE_NAMED=8: layout size (Pt i32+i32 → 8 → durable str x0 full by-value).
+   * ssz>8 (e.g. 12) still returned; durable rejects non-{1,2,4,8} → stack path.
+   */
+  if (ek == 8 && g_pipeline_asm_emit_module) {
+    int32_t ssz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, et, 0);
+    if (ssz > 0)
+      return ssz;
+  }
+  return 0;
+}
+
+/**
  * 函数 func_index 返回类型字节宽；void/未知返回 0。
  */
 static int32_t glue_func_return_byte_size_c(struct ast_Module *mod, struct ast_ASTArena *arena, int32_t func_index) {
@@ -21386,17 +21419,9 @@ static int32_t glue_emit_slice_from_array_let_init_elf_c(struct ast_ASTArena *ar
     n_arr = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
     if (n_arr < 0 || n_arr > GLUE_ARRAY_LIT_MAX_ELEMS)
       return -1;
-    /* force_esz from TYPE_SLICE elem (u64[] lit elems may type as i32 without stamp). */
+    /* wave625: G.7 force_esz authority (scalar + TYPE_NAMED layout size). */
     et = pipeline_type_elem_ref_at(arena, let_type_ref);
-    if (et > 0) {
-      int32_t ek = pipeline_type_kind_ord_at(arena, et);
-      if (ek == 2 || ek == 1)
-        force_esz = 1;
-      else if (ek == 0 || ek == 3 || ek == 13 || ek == 14)
-        force_esz = 4;
-      else if (ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 15)
-        force_esz = 8;
-    }
+    force_esz = glue_array_lit_force_esz_from_elem_type_c(arena, et);
     /*
      * Prefer durable (wave335/wave341 helper): const text-embed or non-const COMMON BSS.
      * wave408: arm64 durable COMMON+ADRP (ta==1) same authority.
