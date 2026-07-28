@@ -501,6 +501,11 @@ MODULES=(
   #   prove 锁 mixed surface IDENTICAL (42 nm T · no doc_anchor)
   #   注：wave571 修复 diag_io_fputc 参数顺序 bug (c,o)→(o,c)，-E + cc -c 全绿，L2 真测通过
   "diag|src/diag.x|seeds/diag_surface.from_x.c||"
+  # runtime R2 mixed (wave572)：.x 110 nm T symbols
+  #   (30 DIRECT compute + 80 thin+rest forwards to _impl);
+  #   rest 含 95 extern bridges (*_impl) + 7 helper externs (link_abi_getenv + diag_json_enabled + ...);
+  #   prove 锁 mixed surface IDENTICAL (110 nm T · no doc_anchor)
+  "runtime|src/runtime.x|seeds/runtime_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
