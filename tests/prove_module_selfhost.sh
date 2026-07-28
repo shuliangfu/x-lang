@@ -468,6 +468,16 @@ MODULES=(
   #   rest 含 135 extern bridges (45 arch_arm64_* + 45 arch_riscv64_* + 45 arch_x86_64_*);
   #   prove 锁 mixed surface IDENTICAL (47 nm T · no doc_anchor)
   "backend_arch_emit_dispatch_thin|src/asm/backend_arch_emit_dispatch_thin.x|seeds/backend_arch_emit_dispatch_thin_surface.from_x.c||"
+  # runtime_driver_strict_glue_thin R2 mixed (wave568)：.x 11 nm T symbols
+  #   (8 DIRECT compute + 3 thin+rest forwards to driver_*);
+  #   rest 含 9 extern bridges (3 driver_* + 6 typeck_*_slot/slot_depth);
+  #   prove 锁 mixed surface IDENTICAL (11 nm T · no doc_anchor)
+  "runtime_driver_strict_glue_thin|src/runtime_driver_strict_glue_thin.x|seeds/runtime_driver_strict_glue_thin_surface.from_x.c||"
+  # simd_enc_thin R2 mixed (wave568)：.x 74 nm T symbols
+  #   (3 DIRECT compute + 71 thin+rest forwards to _impl);
+  #   rest 含 71 extern bridges (*_impl);
+  #   prove 锁 mixed surface IDENTICAL (74 nm T · no doc_anchor)
+  "simd_enc_thin|src/asm/simd_enc_thin.x|seeds/simd_enc_thin_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
