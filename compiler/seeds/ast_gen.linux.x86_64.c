@@ -108,10 +108,10 @@ struct StmtOrderItem {
 };
 
 struct LabeledStmt {
-  uint8_t label[32];
+  uint8_t label[128];
   int32_t label_len;
   int32_t is_goto;
-  uint8_t goto_target[32];
+  uint8_t goto_target[128];
   int32_t goto_target_len;
   int32_t return_expr_ref;
 };

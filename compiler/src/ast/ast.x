@@ -244,10 +244,10 @@ allow(padding) struct StmtOrderItem {
 
 /* See implementation. */
 export struct LabeledStmt {
-  label: u8[32];
+  label: u8[128];
   label_len: i32;
   is_goto: i32;
-  goto_target: u8[32];
+  goto_target: u8[128];
   goto_target_len: i32;
   return_expr_ref: i32;
 }

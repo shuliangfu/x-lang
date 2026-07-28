@@ -316,15 +316,15 @@ typedef struct {
 
 /**
  * wave379: OneFunc scratch entry for `goto target;` / `label:` / `label: return expr`.
- * Mirrors `struct ast_LabeledStmt` (label 32B + is_goto + goto_target 32B + return_expr_ref).
+ * Mirrors `struct ast_LabeledStmt` (wave586 Cap: label 128B + is_goto + goto_target 128B + return_expr_ref).
  * PLATFORM: SHARED — filled into Block.labeled_stmts via fill_labeled_from_onefunc;
  * stmt_order kind=7 indexes this pool (G.7 single authority with parse_block path).
  */
 typedef struct {
-  uint8_t label[32];
+  uint8_t label[128];
   int32_t label_len;
   int32_t is_goto;
-  uint8_t goto_target[32];
+  uint8_t goto_target[128];
   int32_t goto_target_len;
   int32_t return_expr_ref;
 } OneFuncLabeledEntry;
@@ -2760,19 +2760,20 @@ int32_t pipeline_block_labeled_label_len(struct ast_ASTArena *a, int32_t br, int
   return ls ? ls->label_len : 0;
 }
 
-/** wave379: copy label name into dst[32] (NUL-padded). */
+/** wave379/wave586: copy label name into dst (ABI *copy32; payload 128, content ≤127). */
 void pipeline_block_labeled_label_copy32(struct ast_ASTArena *a, int32_t br, int32_t li, uint8_t *dst) {
   struct ast_LabeledStmt *ls;
   if (!dst)
     return;
-  memset(dst, 0, 32);
+  /* wave586 Cap residual: ABI name *copy32; payload 128 (match LabeledStmt.label[128]). */
+  memset(dst, 0, 128);
   ls = pipeline_block_labeled_ptr(a, br, li);
   if (!ls || ls->label_len <= 0)
     return;
   {
     int32_t n = ls->label_len;
-    if (n > 31)
-      n = 31;
+    if (n > 127)
+      n = 127;
     memcpy(dst, ls->label, (size_t)n);
   }
 }
@@ -2783,19 +2784,20 @@ int32_t pipeline_block_labeled_goto_target_len(struct ast_ASTArena *a, int32_t b
   return ls ? ls->goto_target_len : 0;
 }
 
-/** wave379: copy goto target into dst[32] (NUL-padded). */
+/** wave379/wave586: copy goto target into dst (ABI *copy32; payload 128, content ≤127). */
 void pipeline_block_labeled_goto_target_copy32(struct ast_ASTArena *a, int32_t br, int32_t li, uint8_t *dst) {
   struct ast_LabeledStmt *ls;
   if (!dst)
     return;
-  memset(dst, 0, 32);
+  /* wave586 Cap residual: ABI name *copy32; payload 128 (match LabeledStmt.goto_target[128]). */
+  memset(dst, 0, 128);
   ls = pipeline_block_labeled_ptr(a, br, li);
   if (!ls || ls->goto_target_len <= 0)
     return;
   {
     int32_t n = ls->goto_target_len;
-    if (n > 31)
-      n = 31;
+    if (n > 127)
+      n = 127;
     memcpy(dst, ls->goto_target, (size_t)n);
   }
 }
@@ -2820,14 +2822,16 @@ int32_t pipeline_onefunc_append_labeled(uint8_t *out, uint8_t *label, int32_t la
   le->is_goto = is_goto;
   le->return_expr_ref = return_expr_ref;
   if (label && label_len > 0) {
-    if (label_len > 31)
-      label_len = 31;
+    /* wave586 Cap residual: label content ≤127 (OneFuncLabeledEntry.label[128]). */
+    if (label_len > 127)
+      label_len = 127;
     memcpy(le->label, label, (size_t)label_len);
     le->label_len = label_len;
   }
   if (goto_target && goto_target_len > 0) {
-    if (goto_target_len > 31)
-      goto_target_len = 31;
+    /* wave586 Cap residual: goto target content ≤127. */
+    if (goto_target_len > 127)
+      goto_target_len = 127;
     memcpy(le->goto_target, goto_target, (size_t)goto_target_len);
     le->goto_target_len = goto_target_len;
   }
@@ -2869,16 +2873,16 @@ void pipeline_block_fill_labeled_from_onefunc(struct ast_ASTArena *a, int32_t br
       continue;
     if (le->label_len > 0) {
       int32_t n = le->label_len;
-      if (n > 31)
-        n = 31;
+      if (n > 127)
+        n = 127;
       memcpy(ls->label, le->label, (size_t)n);
       ls->label[n] = 0;
       ls->label_len = n;
     }
     if (le->goto_target_len > 0) {
       int32_t n = le->goto_target_len;
-      if (n > 31)
-        n = 31;
+      if (n > 127)
+        n = 127;
       memcpy(ls->goto_target, le->goto_target, (size_t)n);
       ls->goto_target[n] = 0;
       ls->goto_target_len = n;

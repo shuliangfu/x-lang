@@ -13548,10 +13548,11 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
               if (emit_bytes_from_ptr(out, &gkw[0], 5) != 0) {
                 return -1;
               }
-              let gt_buf: u8[32] = [];
+              /* wave586 Cap residual: label/goto name scratch 128 (content ≤127). */
+              let gt_buf: u8[128] = [];
               pipeline_block_labeled_goto_target_copy32(arena, block_ref, idx, &gt_buf[0]);
               let gt_len: i32 = pipeline_block_labeled_goto_target_len(arena, block_ref, idx);
-              if (gt_len > 0 && gt_len <= 32) {
+              if (gt_len > 0 && gt_len <= 127) {
                 if (emit_bytes_from_ptr(out, &gt_buf[0], gt_len) != 0) {
                   return -1;
                 }
@@ -13561,10 +13562,11 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
                 return -1;
               }
             } else {
-              let lb_buf: u8[32] = [];
+              /* wave586 Cap residual: label name scratch 128 (content ≤127). */
+              let lb_buf: u8[128] = [];
               pipeline_block_labeled_label_copy32(arena, block_ref, idx, &lb_buf[0]);
               let lb_len: i32 = pipeline_block_labeled_label_len(arena, block_ref, idx);
-              if (lb_len > 0 && lb_len <= 32) {
+              if (lb_len > 0 && lb_len <= 127) {
                 if (emit_indent(out, indent) != 0) {
                   return -1;
                 }

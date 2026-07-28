@@ -21337,21 +21337,23 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
       if (idx >= 0 && idx < pipeline_block_num_labeled_stmts(arena, block_ref)) {
         int32_t is_g = pipeline_block_labeled_is_goto(arena, block_ref, idx);
         if (is_g != 0) {
-          uint8_t gt_buf[32];
+          /* wave586 Cap residual: goto target scratch 128 (content ≤127; *copy32 payload 128). */
+          uint8_t gt_buf[128];
           int32_t gt_len;
           pipeline_block_labeled_goto_target_copy32(arena, block_ref, idx, gt_buf);
           gt_len = pipeline_block_labeled_goto_target_len(arena, block_ref, idx);
-          if (gt_len > 0 && gt_len <= 32) {
+          if (gt_len > 0 && gt_len <= 127) {
             if (backend_enc_jmp_arch(elf_ctx, gt_buf, gt_len, ta) != 0)
               return -1;
           }
         } else {
-          uint8_t lb_buf[32];
+          /* wave586 Cap residual: label scratch 128 (content ≤127; *copy32 payload 128). */
+          uint8_t lb_buf[128];
           int32_t lb_len;
           int32_t ret_ref_lab;
           pipeline_block_labeled_label_copy32(arena, block_ref, idx, lb_buf);
           lb_len = pipeline_block_labeled_label_len(arena, block_ref, idx);
-          if (lb_len > 0 && lb_len <= 32) {
+          if (lb_len > 0 && lb_len <= 127) {
             if (backend_enc_label_arch(elf_ctx, lb_buf, lb_len, 0, ta) != 0)
               return -1;
           }
