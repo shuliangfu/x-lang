@@ -7061,7 +7061,15 @@ static int32_t glue_index_elem_byte_sz_from_type_ref_c(struct ast_ASTArena *aren
         return 1;
       if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14)
         return 4;
-      if (kind_ord == 15)
+      /*
+       * wave644 Cap residual pure: freestanding ptr±int / p±= scale for 8B integers.
+       * Prior PTR peel only returned 8 for F64 (ord 15); U64/I64/USIZE/ISIZE (4..7)
+       * fell through to default 4 → *i64 p+1 advanced 4 bytes (half element; host-C
+       * scales sizeof; pure-asm CTFE often false-green). Align with bare-element face
+       * below (kind 15||4||5||6||7 → 8). G.7 single esz authority — no second scale.
+       * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
+       */
+      if (kind_ord == 15 || kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7)
         return 8;
       /* wave637: **T / *(*T) base stride = sizeof(pointer), not sizeof(**T). */
       if (kind_ord == GLUE_TYPE_KIND_PTR)
@@ -7071,6 +7079,15 @@ static int32_t glue_index_elem_byte_sz_from_type_ref_c(struct ast_ASTArena *aren
         int32_t asz = glue_fixed_array_total_bytes_c(arena, pointee, 0);
         if (asz > 0)
           return asz;
+      }
+      /*
+       * wave644: *NamedStruct stride via layout (S {a,b} = 8). Prior default 4 →
+       * p+1 mid-struct; host-C green. Same glue_type_size_simple as ARRAY-of-NAMED.
+       */
+      if (kind_ord == 8 && g_pipeline_asm_emit_module) {
+        int32_t ssz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, pointee, 0);
+        if (ssz > 0)
+          return ssz;
       }
     }
     return 4;
