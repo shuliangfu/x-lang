@@ -4046,6 +4046,15 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
     elem_ref = pipeline_type_elem_ref_at(arena, type_ref);
     arr_sz = pipeline_type_array_size_at(arena, type_ref);
     if (tk == TypeKind.TYPE_PTR && !ast.ref_is_null(elem_ref)) {
+      /*
+       * wave636 Cap residual pure: PTR → TYPE_ARRAY must be C `E (*)[N]…`, not
+       * emit_type(ARRAY)→`E *` then another ` *` (`E * *`). Abstract form only;
+       * named locals/params use emit_c_ptr_to_fixed_array_decl with the name.
+       * PLATFORM: SHARED host-C.
+       */
+      if (pipeline_type_kind_ord_at(arena, elem_ref) == (TypeKind.TYPE_ARRAY as i32)) {
+        return emit_c_ptr_to_fixed_array_decl(arena, out, type_ref, 0 as *u8, 0, ctx);
+      }
       if (emit_type(arena, out, elem_ref, struct_prefix, struct_prefix_len, ctx) != 0) {
         return -1;
       }
@@ -4565,6 +4574,82 @@ export function type_array_elem_is_u8(arena: *ASTArena, type_ref: i32): i32 {
 /**
  * See implementation.
  */
+/**
+ * Host-C: emit a C pointer-to-fixed-array declarator for TYPE_PTR whose pointee is TYPE_ARRAY.
+ * wave636 Cap residual pure: bare emit_type(PTR) did emit_type(ARRAY)→`E *` then ` *` → `E * *`
+ * while `&a` is `E (*)[N]` → clang warning + runtime SEGV on `(*p)[i]`.
+ * C form: `E (*name)[N][M]…` (name_len==0 → abstract `E (*)[N]…`).
+ * Reuses emit_local_fixed_array_elem_type + suffix (G.7; no third array peel path).
+ * @param arena *ASTArena — type pool
+ * @param out *CodegenOutBuf — C text sink
+ * @param ptr_type_ref i32 — TYPE_PTR → TYPE_ARRAY
+ * @param name *u8 — optional declarator name (may be null when name_len==0)
+ * @param name_len i32 — 0 for abstract type (casts / sizeof)
+ * @param ctx *PipelineDepCtx — nested named/struct emit
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: SHARED host-C emit
+ */
+export function emit_c_ptr_to_fixed_array_decl(arena: *ASTArena, out: *CodegenOutBuf, ptr_type_ref: i32, name: *u8, name_len: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let arr_tr: i32 = 0;
+    if (ast.ref_is_null(ptr_type_ref) || pipeline_type_kind_ord_at(arena, ptr_type_ref) != (TypeKind.TYPE_PTR as i32)) {
+      return -1;
+    }
+    arr_tr = pipeline_type_elem_ref_at(arena, ptr_type_ref);
+    if (ast.ref_is_null(arr_tr) || pipeline_type_kind_ord_at(arena, arr_tr) != (TypeKind.TYPE_ARRAY as i32)) {
+      return -1;
+    }
+    /* Leaf element type (peel multi-dim). */
+    if (emit_local_fixed_array_elem_type(arena, out, arr_tr, ctx) != 0) {
+      return -1;
+    }
+    /* " (*" */
+    if (append_byte(out, 32) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 42) != 0) {
+      return -1;
+    }
+    if (name_len > 0 && name != 0 as *u8) {
+      if (emit_bytes_from_ptr(out, name, name_len) != 0) {
+        return -1;
+      }
+    }
+    /* ")" */
+    if (append_byte(out, 41) != 0) {
+      return -1;
+    }
+    /* [N][M]… */
+    return emit_local_fixed_array_suffix(arena, out, arr_tr);
+  }
+}
+
+/**
+ * Host-C: true when type_ref is TYPE_PTR whose pointee is fixed TYPE_ARRAY (`*[N]T`).
+ * @param arena *ASTArena — type pool
+ * @param type_ref i32 — candidate type
+ * @return i32 — 1 if pointer-to-fixed-array, else 0
+ * PLATFORM: SHARED host-C emit
+ */
+export function type_is_ptr_to_fixed_array(arena: *ASTArena, type_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0.
+  unsafe {
+    let elem: i32 = 0;
+    if (ast.ref_is_null(type_ref) || pipeline_type_kind_ord_at(arena, type_ref) != (TypeKind.TYPE_PTR as i32)) {
+      return 0;
+    }
+    elem = pipeline_type_elem_ref_at(arena, type_ref);
+    if (ast.ref_is_null(elem) || pipeline_type_kind_ord_at(arena, elem) != (TypeKind.TYPE_ARRAY as i32)) {
+      return 0;
+    }
+    return 1;
+  }
+}
+
 /**
  * Host-C: emit the scalar/base type of a fixed TYPE_ARRAY local (peels multi-dim).
  * wave357 Cap residual pure: `[2][3]i32` must emit `int32_t` not `int32_t *` then `[2]`.
@@ -13258,8 +13343,16 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
             /* See implementation. */
             let type_emitted: i32 = 0;
             let use_local_array: i32 = 0;
+            let use_ptr_to_array: i32 = 0;
             if (!ast.ref_is_null(let_type_ref) && pipeline_type_kind_ord_at(arena, let_type_ref) == 10) {
               use_local_array = 1;
+            }
+            /*
+             * wave636: `let p: *[N]T = &a` → `E (*p)[N] = &a` (name inside declarator).
+             * Bare emit_type + name would yield invalid `E (*)[N] p`.
+             */
+            if (use_local_array == 0 && !ast.ref_is_null(let_type_ref) && type_is_ptr_to_fixed_array(arena, let_type_ref) != 0) {
+              use_ptr_to_array = 1;
             }
             if (use_local_array != 0) {
               if (emit_local_fixed_array_elem_type(arena, out, let_type_ref, ctx) != 0) {
@@ -13317,20 +13410,6 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
                 }
               }
             }
-            if (type_emitted == 0) {
-              if (ast.ref_is_null(let_type_ref) && !ast.ref_is_null(linit_ref) && linit_ref > 0 && linit_ref <= arena.num_exprs) {
-                let init_e: Expr = ast.ast_arena_expr_get(arena, linit_ref);
-                if (!ast.ref_is_null(init_e.resolved_type_ref)) {
-                  let_type_ref = init_e.resolved_type_ref;
-                }
-              }
-              if (emit_type(arena, out, let_type_ref, 0 as *u8, 0, ctx) != 0) {
-                return -1;
-              }
-            }
-            if (append_byte(out, 32) != 0) {
-              return -1;
-            }
             /* Emit C local name into emit_nm so wave353 memcpy finish can reuse it. */
             let emit_nm: u8[128] = [];
             let emit_nml: i32 = 0;
@@ -13375,8 +13454,33 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
                 pi2 = pi2 + 1;
               }
             }
-            if (emit_bytes_64(out, &emit_nm[0], emit_nml) != 0) {
-              return -1;
+            /*
+             * wave636: named pointer-to-array declarator embeds the name
+             * (`int32_t (*p)[2]`). Skip bare emit_type + trailing name.
+             */
+            if (use_ptr_to_array != 0 && type_emitted == 0) {
+              if (emit_c_ptr_to_fixed_array_decl(arena, out, let_type_ref, &emit_nm[0], emit_nml, ctx) != 0) {
+                return -1;
+              }
+              type_emitted = 1;
+            } else if (type_emitted == 0) {
+              if (ast.ref_is_null(let_type_ref) && !ast.ref_is_null(linit_ref) && linit_ref > 0 && linit_ref <= arena.num_exprs) {
+                let init_e: Expr = ast.ast_arena_expr_get(arena, linit_ref);
+                if (!ast.ref_is_null(init_e.resolved_type_ref)) {
+                  let_type_ref = init_e.resolved_type_ref;
+                }
+              }
+              if (emit_type(arena, out, let_type_ref, 0 as *u8, 0, ctx) != 0) {
+                return -1;
+              }
+            }
+            if (use_ptr_to_array == 0) {
+              if (append_byte(out, 32) != 0) {
+                return -1;
+              }
+              if (emit_bytes_64(out, &emit_nm[0], emit_nml) != 0) {
+                return -1;
+              }
             }
             if (use_local_array != 0) {
               if (emit_local_fixed_array_suffix(arena, out, let_type_ref) != 0) {
@@ -15398,13 +15502,66 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
           if (emit_bytes_8(out, i32_str, 7) != 0) {
             return -1;
           }
+        } else if (type_is_ptr_to_fixed_array(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) != 0) {
+          /*
+           * wave636: param `p: *[N]T` → `E (*p)[N]` (name inside C declarator).
+           * PLATFORM: SHARED host-C.
+           */
+          let pta_nm: u8[128] = [];
+          let pta_nl: i32 = 0;
+          if (pipeline_module_func_param_name_len_at(module, fi, p) > 0) {
+            codegen_copy_param_name32_from_module(module, fi, p, &pta_nm[0]);
+            pta_nl = pipeline_module_func_param_name_len_at(module, fi, p);
+            if (pta_nm[0] <= 32) {
+              pta_nl = 0;
+            }
+          }
+          if (pta_nl <= 0) {
+            /* Synthetic `_pN` when param name missing. */
+            pta_nm[0] = 95;
+            pta_nm[1] = 112;
+            pta_nl = 2;
+            let v_p: i32 = p;
+            let digs_p: u8[12] = [];
+            let nd_p: i32 = 0;
+            if (v_p == 0) {
+              digs_p[0] = 48;
+              nd_p = 1;
+            } else {
+              let tmp_p: i32 = v_p;
+              while (tmp_p > 0 && nd_p < 12) {
+                digs_p[nd_p] = ((tmp_p % 10) + 48) as u8;
+                tmp_p = tmp_p / 10;
+                nd_p = nd_p + 1;
+              }
+              let a_p: i32 = 0;
+              let b_p: i32 = nd_p - 1;
+              while (a_p < b_p) {
+                let sw_p: u8 = digs_p[a_p];
+                digs_p[a_p] = digs_p[b_p];
+                digs_p[b_p] = sw_p;
+                a_p = a_p + 1;
+                b_p = b_p - 1;
+              }
+            }
+            let pi_p: i32 = 0;
+            while (pi_p < nd_p && pta_nl < 128) {
+              pta_nm[pta_nl] = digs_p[pi_p];
+              pta_nl = pta_nl + 1;
+              pi_p = pi_p + 1;
+            }
+          }
+          if (emit_c_ptr_to_fixed_array_decl(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p), &pta_nm[0], pta_nl, ctx) != 0) {
+            return -1;
+          }
         } else if (emit_type(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p), prefix, prefix_len, ctx) != 0) {
           return -1;
         }
         /* PLATFORM: SHARED — lower TYPE_SLICE params as pointers (seed/glue ABI).
          * Why: Cap by-value slice + pointer glue → SIGSEGV (string bytes as ptr).
          * Emit: `struct xlang_slice_T * name` so field access uses -> and calls pass &local. */
-        if (pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == (TypeKind.TYPE_SLICE as i32)) {
+        if (type_is_ptr_to_fixed_array(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == 0
+            && pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == (TypeKind.TYPE_SLICE as i32)) {
           if (append_byte(out, 32) != 0) {
             return -1;
           }
@@ -15412,23 +15569,25 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
             return -1;
           }
         }
-        if (append_byte(out, 32) != 0) {
-          return -1;
-        }
-        /* See implementation. */
-        if (pipeline_module_func_param_name_len_at(module, fi, p) > 0) {
-          let plocal: u8[128] = [];
-          codegen_copy_param_name32_from_module(module, fi, p, &plocal[0]);
-          if (plocal[0] > 32 && emit_bytes_from_ptr(out, &plocal[0], pipeline_module_func_param_name_len_at(module, fi, p)) != 0) {
+        /* wave636: PTR→ARRAY already emitted name inside declarator — skip space+name. */
+        if (type_is_ptr_to_fixed_array(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == 0) {
+          if (append_byte(out, 32) != 0) {
             return -1;
           }
-        } else {
-          let place: u8[4] = [95, 112, 48, 0];
-          if (emit_bytes_4(out, place, 2) != 0) {
-            return -1;
-          }
-          if (format_int(out, p) != 0) {
-            return -1;
+          if (pipeline_module_func_param_name_len_at(module, fi, p) > 0) {
+            let plocal: u8[128] = [];
+            codegen_copy_param_name32_from_module(module, fi, p, &plocal[0]);
+            if (plocal[0] > 32 && emit_bytes_from_ptr(out, &plocal[0], pipeline_module_func_param_name_len_at(module, fi, p)) != 0) {
+              return -1;
+            }
+          } else {
+            let place: u8[4] = [95, 112, 48, 0];
+            if (emit_bytes_4(out, place, 2) != 0) {
+              return -1;
+            }
+            if (format_int(out, p) != 0) {
+              return -1;
+            }
           }
         }
         p = p + 1;

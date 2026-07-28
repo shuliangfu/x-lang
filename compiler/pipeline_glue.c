@@ -13117,6 +13117,17 @@ int32_t pipeline_asm_emit_deref_elf_c(struct ast_ASTArena *arena, struct platfor
   if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
     return -1;
   tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+  /*
+   * wave636 Cap residual pure: DEREF of `*[N]T` / pointer-to-fixed-array yields
+   * TYPE_ARRAY. Array "rvalue" is the base address (same bits as the pointer) for
+   * subsequent INDEX `(*p)[i]`. Loading the first element (old path: esz=elem_sz)
+   * then treating that scalar as a pointer → freestanding SEGV (mac/Ubuntu 138/139).
+   * C twin: `T (*p)[N]; (*p)[i]` — *p does not load T, it designates the array.
+   * G.7: single authority in this deref ELF path; host-C emit_type PTR→ARRAY separate.
+   * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
+   */
+  if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == (int32_t)ast_TypeKind_TYPE_ARRAY)
+    return 0;
   esz = glue_index_elem_byte_sz_from_type_ref_c(arena, tr);
   if (esz == 1)
     return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);

@@ -1522,6 +1522,11 @@ extern int32_t codegen_type_array_elem_is_u8(struct ast_ASTArena * arena, int32_
 extern int32_t codegen_emit_local_fixed_array_elem_type(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t type_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_emit_local_fixed_array_suffix(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t type_ref);
 extern int32_t codegen_emit_local_fixed_array_let_finish(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t indent, uint8_t * name, int32_t name_len, int32_t linit_ref, struct ast_PipelineDepCtx * ctx);
+/* wave636: pointer-to-fixed-array C declarator (defined after fixed-array helpers). */
+int32_t codegen_emit_c_ptr_to_fixed_array_decl(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+                                               int32_t ptr_type_ref, uint8_t *name, int32_t name_len,
+                                               struct ast_PipelineDepCtx *ctx);
+static int32_t codegen_type_is_ptr_to_fixed_array(struct ast_ASTArena *arena, int32_t type_ref);
 extern int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t block_ref, int32_t let_idx, int32_t let_type_ref, int32_t linit_ref);
 extern int32_t codegen_emit_slice_let_reent_finish(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t indent, uint8_t * name, int32_t name_len, int32_t let_type_ref, int32_t linit_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_emit_braced_array_lit_init(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t init_ref, struct ast_PipelineDepCtx * ctx);
@@ -4795,6 +4800,12 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
     (void)((elem_ref = pipeline_type_elem_ref_at(arena, type_ref)));
     (void)((arr_sz = pipeline_type_array_size_at(arena, type_ref)));
     if (((tk ==9) && !(ast_ref_is_null(elem_ref)))) {
+      /* wave636 Cap residual pure: PTR→TYPE_ARRAY → C `E (*)[N]…` not `E * *`.
+       * Named locals/params use codegen_emit_c_ptr_to_fixed_array_decl with name.
+       * PLATFORM: SHARED host-C. */
+      if (pipeline_type_kind_ord_at(arena, elem_ref) == 10 /* TYPE_ARRAY */) {
+        return codegen_emit_c_ptr_to_fixed_array_decl(arena, out, type_ref, ((uint8_t *)(0)), 0, ctx);
+      }
       if ((codegen_emit_type(arena, out, elem_ref, struct_prefix, struct_prefix_len, ctx) !=0)) {
         return -(1);
       }
@@ -5236,6 +5247,50 @@ int32_t codegen_emit_local_fixed_array_suffix(struct ast_ASTArena * arena, struc
   }
   return 0;
 }
+
+/* wave636: TYPE_PTR whose pointee is fixed TYPE_ARRAY (`*[N]T`). PLATFORM: SHARED host-C. */
+static int32_t codegen_type_is_ptr_to_fixed_array(struct ast_ASTArena *arena, int32_t type_ref) {
+  int32_t elem;
+  if (ast_ref_is_null(type_ref) || pipeline_type_kind_ord_at(arena, type_ref) != 9)
+    return 0;
+  elem = pipeline_type_elem_ref_at(arena, type_ref);
+  if (ast_ref_is_null(elem) || pipeline_type_kind_ord_at(arena, elem) != 10)
+    return 0;
+  return 1;
+}
+
+/*
+ * wave636 Cap residual pure: C declarator for pointer-to-fixed-array.
+ * Form: `E (*name)[N][M]…` (name_len==0 → abstract `E (*)[N]…`).
+ * Prior emit_type(PTR→ARRAY) → `E * *` while &a is `E (*)[N]` → SEGV on (*p)[i].
+ * G.7: reuses fixed-array peel + suffix. PLATFORM: SHARED host-C.
+ */
+int32_t codegen_emit_c_ptr_to_fixed_array_decl(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+                                               int32_t ptr_type_ref, uint8_t *name, int32_t name_len,
+                                               struct ast_PipelineDepCtx *ctx) {
+  int32_t arr_tr;
+  if (ast_ref_is_null(ptr_type_ref) || pipeline_type_kind_ord_at(arena, ptr_type_ref) != 9)
+    return -1;
+  arr_tr = pipeline_type_elem_ref_at(arena, ptr_type_ref);
+  if (ast_ref_is_null(arr_tr) || pipeline_type_kind_ord_at(arena, arr_tr) != 10)
+    return -1;
+  if (codegen_emit_local_fixed_array_elem_type(arena, out, arr_tr, ctx) != 0)
+    return -1;
+  if (codegen_append_byte(out, 32) != 0)
+    return -1;
+  if (codegen_append_byte(out, 40) != 0)
+    return -1;
+  if (codegen_append_byte(out, 42) != 0)
+    return -1;
+  if (name_len > 0 && name != NULL) {
+    if (codegen_emit_bytes_from_ptr(out, name, name_len) != 0)
+      return -1;
+  }
+  if (codegen_append_byte(out, 41) != 0)
+    return -1;
+  return codegen_emit_local_fixed_array_suffix(arena, out, arr_tr);
+}
+
 /*
  * wave353 Cap residual pure: host fixed TYPE_ARRAY local let finish.
  * After `E name[N]` is emitted (no `=` yet):
@@ -12709,8 +12764,14 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
               }
               int32_t type_emitted = 0;
               int32_t use_local_array = 0;
+              int32_t use_ptr_to_array = 0;
               if ((!(ast_ref_is_null(let_type_ref)) && (pipeline_type_kind_ord_at(arena, let_type_ref) ==10))) {
                 (void)((use_local_array = 1));
+              }
+              /* wave636: let p: *[N]T → E (*p)[N] (name inside declarator). */
+              if (use_local_array == 0 && !(ast_ref_is_null(let_type_ref)) &&
+                  codegen_type_is_ptr_to_fixed_array(arena, let_type_ref) != 0) {
+                use_ptr_to_array = 1;
               }
               if ((use_local_array !=0)) {
                 if ((codegen_emit_local_fixed_array_elem_type(arena, out, let_type_ref, ctx) !=0)) {
@@ -12762,21 +12823,7 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
                   }
                 }
               }
-              if ((type_emitted ==0)) {
-                if ((((ast_ref_is_null(let_type_ref) && !(ast_ref_is_null(linit_ref))) && (linit_ref > 0)) && (linit_ref <=(arena->num_exprs)))) {
-                  struct ast_Expr init_e = ast_ast_arena_expr_get(arena, linit_ref);
-                  if (!(ast_ref_is_null((init_e.resolved_type_ref)))) {
-                    (void)((let_type_ref = (init_e.resolved_type_ref)));
-                  }
-                }
-                if ((codegen_emit_type(arena, out, let_type_ref, ((uint8_t *)(0)), 0, ctx) !=0)) {
-                  return -(1);
-                }
-              }
-              if ((codegen_append_byte(out, 32) !=0)) {
-                return -(1);
-              }
-              /* wave353: emit C local name into emit_nm for memcpy finish. */
+              /* wave353: emit C local name into emit_nm for memcpy finish (before type for PTR→ARRAY). */
               {
                 uint8_t emit_nm[128] = {};
                 int32_t emit_nml = 0;
@@ -12827,8 +12874,28 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
                     }
                   }
                 }
-                if ((codegen_emit_bytes_64(out, &((emit_nm)[0]), emit_nml) !=0)) {
-                  return -(1);
+                if (use_ptr_to_array != 0 && type_emitted == 0) {
+                  if (codegen_emit_c_ptr_to_fixed_array_decl(arena, out, let_type_ref, &((emit_nm)[0]), emit_nml, ctx) != 0)
+                    return -1;
+                  type_emitted = 1;
+                } else if ((type_emitted ==0)) {
+                  if ((((ast_ref_is_null(let_type_ref) && !(ast_ref_is_null(linit_ref))) && (linit_ref > 0)) && (linit_ref <=(arena->num_exprs)))) {
+                    struct ast_Expr init_e = ast_ast_arena_expr_get(arena, linit_ref);
+                    if (!(ast_ref_is_null((init_e.resolved_type_ref)))) {
+                      (void)((let_type_ref = (init_e.resolved_type_ref)));
+                    }
+                  }
+                  if ((codegen_emit_type(arena, out, let_type_ref, ((uint8_t *)(0)), 0, ctx) !=0)) {
+                    return -(1);
+                  }
+                }
+                if (use_ptr_to_array == 0) {
+                  if ((codegen_append_byte(out, 32) !=0)) {
+                    return -(1);
+                  }
+                  if ((codegen_emit_bytes_64(out, &((emit_nm)[0]), emit_nml) !=0)) {
+                    return -(1);
+                  }
                 }
                 if ((use_local_array !=0)) {
                   if ((codegen_emit_local_fixed_array_suffix(arena, out, let_type_ref) !=0)) {
@@ -14681,11 +14748,51 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
                     return -(1);
                   }
                 } else {
-                  if ((codegen_emit_type(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p), prefix, prefix_len, ctx) !=0)) {
+                  int32_t pty_ref = pipeline_module_func_param_type_ref_at(module, fi, p);
+                  int32_t pta_named = 0;
+                  /* wave636: param p: *[N]T → E (*p)[N]; name inside declarator. */
+                  if (codegen_type_is_ptr_to_fixed_array(arena, pty_ref) != 0) {
+                    uint8_t pta_nm[128] = {};
+                    int32_t pta_nl = 0;
+                    if (pipeline_module_func_param_name_len_at(module, fi, p) > 0) {
+                      codegen_copy_param_name32_from_module(module, fi, p, &((pta_nm)[0]));
+                      pta_nl = pipeline_module_func_param_name_len_at(module, fi, p);
+                      if (pta_nm[0] <= 32)
+                        pta_nl = 0;
+                    }
+                    if (pta_nl <= 0) {
+                      pta_nm[0] = 95; pta_nm[1] = 112; pta_nl = 2;
+                      {
+                        int32_t v_p = p; uint8_t digs_p[12] = {}; int32_t nd_p = 0;
+                        if (v_p == 0) { digs_p[0] = 48; nd_p = 1; }
+                        else {
+                          int32_t tmp_p = v_p;
+                          while (tmp_p > 0 && nd_p < 12) {
+                            digs_p[nd_p] = (uint8_t)((tmp_p % 10) + 48);
+                            tmp_p = tmp_p / 10; nd_p = nd_p + 1;
+                          }
+                          { int32_t a_p = 0, b_p = nd_p - 1;
+                            while (a_p < b_p) {
+                              uint8_t sw_p = digs_p[a_p]; digs_p[a_p] = digs_p[b_p]; digs_p[b_p] = sw_p;
+                              a_p++; b_p--;
+                            }
+                          }
+                        }
+                        { int32_t pi_p = 0;
+                          while (pi_p < nd_p && pta_nl < 128) {
+                            pta_nm[pta_nl] = digs_p[pi_p]; pta_nl++; pi_p++;
+                          }
+                        }
+                      }
+                    }
+                    if (codegen_emit_c_ptr_to_fixed_array_decl(arena, out, pty_ref, &((pta_nm)[0]), pta_nl, ctx) != 0)
+                      return -1;
+                    pta_named = 1;
+                  } else if ((codegen_emit_type(arena, out, pty_ref, prefix, prefix_len, ctx) !=0)) {
                     return -(1);
                   }
                   /* PLATFORM: SHARED — TYPE_SLICE params as pointers (seed/glue ABI). */
-                  if ((pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) ==11)) {
+                  if (pta_named == 0 && (pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) ==11)) {
                     if ((codegen_append_byte(out, 32) !=0)) {
                       return -(1);
                     }
@@ -14693,15 +14800,23 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
                       return -(1);
                     }
                   }
+                  if (pta_named != 0) {
+                    /* name already inside E (*name)[N] */
+                  } else
+                if (0) { /* keep brace balance with outer else chain */ }
                 }
               }
             }
           }
         }
+        /* wave636: skip trailing space+name when PTR→ARRAY already named. */
+        if (codegen_type_is_ptr_to_fixed_array(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) != 0) {
+          /* done */
+        } else
         if ((codegen_append_byte(out, 32) !=0)) {
           return -(1);
         }
-        if ((pipeline_module_func_param_name_len_at(module, fi, p) > 0)) {
+        else if ((pipeline_module_func_param_name_len_at(module, fi, p) > 0)) {
           uint8_t plocal[128] = {};
           (void)(codegen_copy_param_name32_from_module(module, fi, p, &((plocal)[0])));
           if ((((plocal)[0] > 32) && (codegen_emit_bytes_from_ptr(out, &((plocal)[0]), pipeline_module_func_param_name_len_at(module, fi, p)) !=0))) {
@@ -17141,11 +17256,51 @@ int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct
                     return -(1);
                   }
                 } else {
-                  if ((codegen_emit_type(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p), prefix, prefix_len, ctx) !=0)) {
+                  int32_t pty_ref = pipeline_module_func_param_type_ref_at(module, fi, p);
+                  int32_t pta_named = 0;
+                  /* wave636: param p: *[N]T → E (*p)[N]; name inside declarator. */
+                  if (codegen_type_is_ptr_to_fixed_array(arena, pty_ref) != 0) {
+                    uint8_t pta_nm[128] = {};
+                    int32_t pta_nl = 0;
+                    if (pipeline_module_func_param_name_len_at(module, fi, p) > 0) {
+                      codegen_copy_param_name32_from_module(module, fi, p, &((pta_nm)[0]));
+                      pta_nl = pipeline_module_func_param_name_len_at(module, fi, p);
+                      if (pta_nm[0] <= 32)
+                        pta_nl = 0;
+                    }
+                    if (pta_nl <= 0) {
+                      pta_nm[0] = 95; pta_nm[1] = 112; pta_nl = 2;
+                      {
+                        int32_t v_p = p; uint8_t digs_p[12] = {}; int32_t nd_p = 0;
+                        if (v_p == 0) { digs_p[0] = 48; nd_p = 1; }
+                        else {
+                          int32_t tmp_p = v_p;
+                          while (tmp_p > 0 && nd_p < 12) {
+                            digs_p[nd_p] = (uint8_t)((tmp_p % 10) + 48);
+                            tmp_p = tmp_p / 10; nd_p = nd_p + 1;
+                          }
+                          { int32_t a_p = 0, b_p = nd_p - 1;
+                            while (a_p < b_p) {
+                              uint8_t sw_p = digs_p[a_p]; digs_p[a_p] = digs_p[b_p]; digs_p[b_p] = sw_p;
+                              a_p++; b_p--;
+                            }
+                          }
+                        }
+                        { int32_t pi_p = 0;
+                          while (pi_p < nd_p && pta_nl < 128) {
+                            pta_nm[pta_nl] = digs_p[pi_p]; pta_nl++; pi_p++;
+                          }
+                        }
+                      }
+                    }
+                    if (codegen_emit_c_ptr_to_fixed_array_decl(arena, out, pty_ref, &((pta_nm)[0]), pta_nl, ctx) != 0)
+                      return -1;
+                    pta_named = 1;
+                  } else if ((codegen_emit_type(arena, out, pty_ref, prefix, prefix_len, ctx) !=0)) {
                     return -(1);
                   }
                   /* PLATFORM: SHARED — TYPE_SLICE params as pointers (seed/glue ABI). */
-                  if ((pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) ==11)) {
+                  if (pta_named == 0 && (pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) ==11)) {
                     if ((codegen_append_byte(out, 32) !=0)) {
                       return -(1);
                     }
@@ -17153,15 +17308,23 @@ int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct
                       return -(1);
                     }
                   }
+                  if (pta_named != 0) {
+                    /* name already inside E (*name)[N] */
+                  } else
+                if (0) { /* keep brace balance with outer else chain */ }
                 }
               }
             }
           }
         }
+        /* wave636: skip trailing space+name when PTR→ARRAY already named. */
+        if (codegen_type_is_ptr_to_fixed_array(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) != 0) {
+          /* done */
+        } else
         if ((codegen_append_byte(out, 32) !=0)) {
           return -(1);
         }
-        if ((pipeline_module_func_param_name_len_at(module, fi, p) > 0)) {
+        else if ((pipeline_module_func_param_name_len_at(module, fi, p) > 0)) {
           uint8_t plocal[128] = {};
           (void)(codegen_copy_param_name32_from_module(module, fi, p, &((plocal)[0])));
           if ((((plocal)[0] > 32) && (codegen_emit_bytes_from_ptr(out, &((plocal)[0]), pipeline_module_func_param_name_len_at(module, fi, p)) !=0))) {
