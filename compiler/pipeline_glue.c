@@ -23018,7 +23018,8 @@ static void pipeline_asm_register_module_top_level_lets_c(struct backend_AsmFunc
     int32_t k;
     int32_t is_const;
     name_len = pipeline_module_top_level_let_name_len(m, tl);
-    if (name_len <= 0 || name_len > 64)
+    /* wave581 Cap residual: top-level let name content cap 127 (was 64). */
+    if (name_len <= 0 || name_len > 127)
       continue;
     for (k = 0; k < name_len; k++)
       name_buf[k] = pipeline_module_top_level_let_name_byte_at(m, tl, k);

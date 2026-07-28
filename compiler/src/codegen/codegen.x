@@ -4165,7 +4165,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
             bi2 = bi2 + 1;
           }
           let ci2: i32 = bare_off2;
-          while (ci2 < name_len && ci2 < 64) {
+          while (ci2 < name_len && ci2 < 128) {
             if (append_byte_u8(out, nm[ci2]) != 0) {
               return -1;
             }
@@ -4240,7 +4240,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
         bi = bi + 1;
       }
       let ci: i32 = bare_off;
-      while (ci < name_len && ci < 64) {
+      while (ci < name_len && ci < 128) {
         if (append_byte_u8(out, nm[ci]) != 0) {
           return -1;
         }
@@ -12981,7 +12981,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
           let emit_nml_pre: i32 = 0;
           if (lname_len_pre > 0 && (lname_pre[0] > 32)) {
             let ci: i32 = 0;
-            while (ci < lname_len_pre && ci < 64) {
+            while (ci < lname_len_pre && ci < 128) {
               emit_nm_pre[ci] = lname_pre[ci];
               ci = ci + 1;
             }
@@ -13014,7 +13014,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
               }
             }
             let pi: i32 = 0;
-            while (pi < nd && emit_nml_pre < 64) {
+            while (pi < nd && emit_nml_pre < 128) {
               emit_nm_pre[emit_nml_pre] = digs[pi];
               emit_nml_pre = emit_nml_pre + 1;
               pi = pi + 1;
@@ -13187,7 +13187,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
             let emit_nml: i32 = 0;
             if (lname_len > 0 && (lname_buf[0] > 32)) {
               let ci2: i32 = 0;
-              while (ci2 < lname_len && ci2 < 64) {
+              while (ci2 < lname_len && ci2 < 128) {
                 emit_nm[ci2] = lname_buf[ci2];
                 ci2 = ci2 + 1;
               }
@@ -13220,7 +13220,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
                 }
               }
               let pi2: i32 = 0;
-              while (pi2 < nd2 && emit_nml < 64) {
+              while (pi2 < nd2 && emit_nml < 128) {
                 emit_nm[emit_nml] = digs2[pi2];
                 emit_nml = emit_nml + 1;
                 pi2 = pi2 + 1;
@@ -13725,7 +13725,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
       let emit_nml_fb: i32 = 0;
       if (lname_len_fb > 0 && (lname_fb[0] > 32)) {
         let ci3: i32 = 0;
-        while (ci3 < lname_len_fb && ci3 < 64) {
+        while (ci3 < lname_len_fb && ci3 < 128) {
           emit_nm_fb[ci3] = lname_fb[ci3];
           ci3 = ci3 + 1;
         }
@@ -13758,7 +13758,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
           }
         }
         let pi3: i32 = 0;
-        while (pi3 < nd3 && emit_nml_fb < 64) {
+        while (pi3 < nd3 && emit_nml_fb < 128) {
           emit_nm_fb[emit_nml_fb] = digs3[pi3];
           emit_nml_fb = emit_nml_fb + 1;
           pi3 = pi3 + 1;

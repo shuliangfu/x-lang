@@ -4897,7 +4897,7 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
             (void)((bi2 = (bi2 + 1)));
           }
           int32_t ci2 = bare_off2;
-          while (((ci2 < name_len) && (ci2 < 64))) {
+          while (((ci2 < name_len) && (ci2 < 128))) {
             if ((codegen_append_byte_u8(out, (nm)[ci2]) !=0)) {
               return -(1);
             }
@@ -4970,7 +4970,7 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
         (void)((bi = (bi + 1)));
       }
       int32_t ci = bare_off;
-      while (((ci < name_len) && (ci < 64))) {
+      while (((ci < name_len) && (ci < 128))) {
         if ((codegen_append_byte_u8(out, (nm)[ci]) !=0)) {
           return -(1);
         }
@@ -12506,7 +12506,7 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
             int32_t emit_nml_pre = 0;
             if (((lname_len_pre > 0) && ((lname_pre)[0] > 32))) {
               int32_t ci = 0;
-              while (((ci < lname_len_pre) && (ci < 64))) {
+              while (((ci < lname_len_pre) && (ci < 128))) {
                 (void)(((emit_nm_pre)[ci] = (lname_pre)[ci]));
                 (void)((ci = (ci + 1)));
               }
@@ -12543,7 +12543,7 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
                 }
                 {
                   int32_t pi = 0;
-                  while (((pi < nd) && (emit_nml_pre < 64))) {
+                  while (((pi < nd) && (emit_nml_pre < 128))) {
                     (void)(((emit_nm_pre)[emit_nml_pre] = (digs)[pi]));
                     (void)((emit_nml_pre = (emit_nml_pre + 1)));
                     (void)((pi = (pi + 1)));
@@ -12712,7 +12712,7 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
                 int32_t emit_nml = 0;
                 if (((lname_len > 0) && ((lname_buf)[0] > 32))) {
                   int32_t ci2 = 0;
-                  while (((ci2 < lname_len) && (ci2 < 64))) {
+                  while (((ci2 < lname_len) && (ci2 < 128))) {
                     (void)(((emit_nm)[ci2] = (lname_buf)[ci2]));
                     (void)((ci2 = (ci2 + 1)));
                   }
@@ -12749,7 +12749,7 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
                     }
                     {
                       int32_t pi2 = 0;
-                      while (((pi2 < nd2) && (emit_nml < 64))) {
+                      while (((pi2 < nd2) && (emit_nml < 128))) {
                         (void)(((emit_nm)[emit_nml] = (digs2)[pi2]));
                         (void)((emit_nml = (emit_nml + 1)));
                         (void)((pi2 = (pi2 + 1)));
@@ -13259,7 +13259,7 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
         int32_t emit_nml_fb = 0;
         if (((lname_len_fb > 0) && ((lname_fb)[0] > 32))) {
           int32_t ci3 = 0;
-          while (((ci3 < lname_len_fb) && (ci3 < 64))) {
+          while (((ci3 < lname_len_fb) && (ci3 < 128))) {
             (void)(((emit_nm_fb)[ci3] = (lname_fb)[ci3]));
             (void)((ci3 = (ci3 + 1)));
           }
@@ -13296,7 +13296,7 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
             }
             {
               int32_t pi3 = 0;
-              while (((pi3 < nd3) && (emit_nml_fb < 64))) {
+              while (((pi3 < nd3) && (emit_nml_fb < 128))) {
                 (void)(((emit_nm_fb)[emit_nml_fb] = (digs3)[pi3]));
                 (void)((emit_nml_fb = (emit_nml_fb + 1)));
                 (void)((pi3 = (pi3 + 1)));

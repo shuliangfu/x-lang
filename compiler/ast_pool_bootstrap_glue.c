@@ -329,7 +329,8 @@ int32_t asm_ctx_local_find_offset_scoped(uint8_t *ctx, struct ast_ASTArena *aren
       extern int32_t asm_ctx_local_name_len(uint8_t *ctx, int32_t idx);
       extern void asm_ctx_local_name_copy64(uint8_t *ctx, int32_t idx, uint8_t *out);
       extern int32_t asm_ctx_local_offset_at(uint8_t *ctx, int32_t idx);
-      uint8_t nb[64];
+      /* wave581 Cap residual: asm_ctx_local_name_copy64 writes 128 bytes. */
+      uint8_t nb[128];
       int32_t nlen;
       int32_t k;
       nlen = asm_ctx_local_name_len(ctx, i);

@@ -643,7 +643,8 @@ static OneFuncSidecar *onefunc_sidecar_get(uint8_t *out, int create) {
         return NULL;
       if (!grow_vec_init(&g_onefunc_sc[i].if_else_body_refs, sizeof(int32_t), AST_POOL_INIT_CAP))
         return NULL;
-      if (!grow_vec_init(&g_onefunc_sc[i].const_names, 64, AST_POOL_INIT_CAP))
+      /* wave581 Cap residual: OneFunc const/let name rows 64→128 (match AST name[128]). */
+      if (!grow_vec_init(&g_onefunc_sc[i].const_names, 128, AST_POOL_INIT_CAP))
         return NULL;
       if (!grow_vec_init(&g_onefunc_sc[i].const_name_lens, sizeof(int32_t), AST_POOL_INIT_CAP))
         return NULL;
@@ -653,7 +654,7 @@ static OneFuncSidecar *onefunc_sidecar_get(uint8_t *out, int create) {
         return NULL;
       if (!grow_vec_init(&g_onefunc_sc[i].const_type_refs, sizeof(int32_t), AST_POOL_INIT_CAP))
         return NULL;
-      if (!grow_vec_init(&g_onefunc_sc[i].let_names, 64, AST_POOL_INIT_CAP))
+      if (!grow_vec_init(&g_onefunc_sc[i].let_names, 128, AST_POOL_INIT_CAP))
         return NULL;
       if (!grow_vec_init(&g_onefunc_sc[i].let_name_lens, sizeof(int32_t), AST_POOL_INIT_CAP))
         return NULL;
@@ -2262,9 +2263,10 @@ int32_t pipeline_block_append_const(struct ast_ASTArena *a, int32_t br, uint8_t 
     return -1;
   cd = (struct ast_ConstDecl *)grow_vec_at(&sc->consts, idx);
   memset(cd, 0, sizeof(*cd));
+  /* wave581 Cap residual: ConstDecl.name is u8[128]; copy up to 127 content bytes. */
   if (name_len > 0 && name)
-    memcpy(cd->name, name, (size_t)(name_len > 64 ? 64 : name_len));
-  cd->name_len = name_len;
+    memcpy(cd->name, name, (size_t)(name_len > 127 ? 127 : name_len));
+  cd->name_len = name_len > 127 ? 127 : name_len;
   cd->type_ref = type_ref;
   cd->init_ref = init_ref;
   b->num_consts++;
@@ -2286,9 +2288,10 @@ int32_t pipeline_block_append_let(struct ast_ASTArena *a, int32_t br, uint8_t *n
     return -1;
   ld = (struct ast_LetDecl *)grow_vec_at(&sc->lets, idx);
   memset(ld, 0, sizeof(*ld));
+  /* wave581 Cap residual: LetDecl.name is u8[128]; copy up to 127 content bytes (was 64 truncate). */
   if (name_len > 0 && name)
-    memcpy(ld->name, name, (size_t)(name_len > 64 ? 64 : name_len));
-  ld->name_len = name_len;
+    memcpy(ld->name, name, (size_t)(name_len > 127 ? 127 : name_len));
+  ld->name_len = name_len > 127 ? 127 : name_len;
   ld->type_ref = type_ref;
   ld->init_ref = init_ref;
   if (dbg_append_block && dbg_append_block[0] && atoi(dbg_append_block) == br) {
@@ -2887,14 +2890,21 @@ int32_t pipeline_block_const_name_len(struct ast_ASTArena *a, int32_t br, int32_
 
 void pipeline_block_const_name_copy64(struct ast_ASTArena *a, int32_t br, int32_t ci, uint8_t *dst) {
   struct ast_ConstDecl *cd;
+  int32_t nlen;
   if (!dst)
     return;
   cd = block_const_at(a, br, ci);
-  if (!cd) {
-    memset(dst, 0, 64);
+  /* wave581 Cap residual: ABI name *copy64; payload 128 (match LetDecl / AST name[128]). */
+  memset(dst, 0, 128);
+  if (!cd)
     return;
-  }
-  memcpy(dst, cd->name, 64);
+  nlen = cd->name_len;
+  if (nlen < 0)
+    nlen = 0;
+  if (nlen > 127)
+    nlen = 127;
+  if (nlen > 0)
+    memcpy(dst, cd->name, (size_t)nlen);
 }
 
 int32_t pipeline_block_let_init_ref(struct ast_ASTArena *a, int32_t br, int32_t li) {
@@ -4064,7 +4074,9 @@ void pipeline_module_top_level_let_set(struct ast_Module *m, int32_t idx, uint8_
                                        int32_t type_ref, int32_t init_ref, int32_t is_const) {
   TopLevelLetEntry *tl;
   ModuleSidecar *sc;
-  if (!m || !name || name_len <= 0 || name_len > 64)
+  int32_t n;
+  /* wave581 Cap residual: TopLevelLetEntry.name is u8[128]; content cap 127. */
+  if (!m || !name || name_len <= 0 || name_len > 127)
     return;
   sc = module_sidecar_get(m, 0);
   if (!sc || idx < 0 || idx >= sc->top_level_lets.len)
@@ -4072,12 +4084,13 @@ void pipeline_module_top_level_let_set(struct ast_Module *m, int32_t idx, uint8_
   tl = (TopLevelLetEntry *)grow_vec_at(&sc->top_level_lets, idx);
   if (!tl)
     return;
-  tl->name_len = name_len;
+  n = name_len > 127 ? 127 : name_len;
+  tl->name_len = n;
   tl->type_ref = type_ref;
   tl->init_ref = init_ref;
   tl->is_const = is_const;
   memset(tl->name, 0, sizeof(tl->name));
-  memcpy(tl->name, name, (size_t)name_len);
+  memcpy(tl->name, name, (size_t)n);
 }
 
 int32_t pipeline_module_top_level_let_name_len(struct ast_Module *m, int32_t idx) {
@@ -4092,7 +4105,8 @@ int32_t pipeline_module_top_level_let_name_len(struct ast_Module *m, int32_t idx
 uint8_t pipeline_module_top_level_let_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off) {
   ModuleSidecar *sc = module_sidecar_get(m, 0);
   TopLevelLetEntry *tl;
-  if (!sc || idx < 0 || idx >= sc->top_level_lets.len || off < 0 || off >= 64)
+  /* wave581 Cap residual: name slot is 128; content index 0..126. */
+  if (!sc || idx < 0 || idx >= sc->top_level_lets.len || off < 0 || off >= 127)
     return 0;
   tl = (TopLevelLetEntry *)grow_vec_at(&sc->top_level_lets, idx);
   return tl && off < tl->name_len ? tl->name[off] : 0;
@@ -4579,7 +4593,8 @@ void pipeline_module_hoist_top_level_lets_into_main(struct ast_Module *m, struct
     if (tl < 0 || tl >= sc->top_level_lets.len)
       break;
     ent = (TopLevelLetEntry *)grow_vec_at(&sc->top_level_lets, tl);
-    if (!ent || ent->name_len <= 0 || ent->name_len > 64)
+    /* wave581 Cap residual: top-level let name content cap 127. */
+    if (!ent || ent->name_len <= 0 || ent->name_len > 127)
       continue;
     if (dbg_hoist && dbg_hoist[0] && dbg_hoist[0] != '0' && tl < 40) {
       diag_reportf(NULL, 0, 0, "note", NULL,
@@ -5056,7 +5071,8 @@ int32_t pipeline_onefunc_append_const(uint8_t *out, uint8_t *name, int32_t name_
   int32_t *pv;
   int32_t *pr;
   int32_t *pt;
-  if (!out || !(sc = onefunc_sidecar_get(out, 1)) || !name || name_len <= 0 || name_len > 64)
+  /* wave581 Cap residual: OneFunc const name rows are 128B; content cap 127. */
+  if (!out || !(sc = onefunc_sidecar_get(out, 1)) || !name || name_len <= 0 || name_len > 127)
     return -1;
   if (grow_vec_push(&sc->const_names) < 0 || grow_vec_push(&sc->const_name_lens) < 0 ||
       grow_vec_push(&sc->const_init_vals) < 0 || grow_vec_push(&sc->const_init_refs) < 0 ||
@@ -5069,7 +5085,7 @@ int32_t pipeline_onefunc_append_const(uint8_t *out, uint8_t *name, int32_t name_
   pt = (int32_t *)grow_vec_at(&sc->const_type_refs, sc->const_type_refs.len - 1);
   if (!row || !pl || !pv || !pr || !pt)
     return -1;
-  memset(row, 0, 64);
+  memset(row, 0, 128);
   memcpy(row, name, (size_t)name_len);
   *pl = name_len;
   *pv = init_val;
@@ -5113,7 +5129,8 @@ uint8_t pipeline_onefunc_const_name_byte_at(uint8_t *out, int32_t i, int32_t off
   OneFuncSidecar *sc;
   uint8_t *row;
   int32_t *pl;
-  if (!out || !(sc = onefunc_sidecar_get(out, 0)) || i < 0 || i >= sc->const_names.len || off < 0 || off >= 64)
+  /* wave581 Cap residual: content index 0..126. */
+  if (!out || !(sc = onefunc_sidecar_get(out, 0)) || i < 0 || i >= sc->const_names.len || off < 0 || off >= 127)
     return 0;
   pl = (int32_t *)grow_vec_at(&sc->const_name_lens, i);
   row = (uint8_t *)grow_vec_at(&sc->const_names, i);
@@ -5143,7 +5160,12 @@ int32_t pipeline_onefunc_append_let(uint8_t *out, uint8_t *name, int32_t name_le
                                     int32_t type_ref) {
   OneFuncSidecar *sc;
   uint8_t *row;
-  if (!out || !(sc = onefunc_sidecar_get(out, 1)) || !name || name_len <= 0 || name_len > 64)
+  /*
+   * wave581 Cap residual (body let long name): parser accepts name_len<=127 but this
+   * gate was still >64 → append fails → parse_body_lets returns false → no main (BLD001).
+   * PLATFORM: SHARED — OneFunc sidecar row width 128.
+   */
+  if (!out || !(sc = onefunc_sidecar_get(out, 1)) || !name || name_len <= 0 || name_len > 127)
     return -1;
   if (grow_vec_push(&sc->let_names) < 0 || grow_vec_push(&sc->let_name_lens) < 0 ||
       grow_vec_push(&sc->let_init_vals) < 0 || grow_vec_push(&sc->let_init_refs) < 0 ||
@@ -5152,7 +5174,7 @@ int32_t pipeline_onefunc_append_let(uint8_t *out, uint8_t *name, int32_t name_le
   row = (uint8_t *)grow_vec_at(&sc->let_names, sc->let_names.len - 1);
   if (!row)
     return -1;
-  memset(row, 0, 64);
+  memset(row, 0, 128);
   memcpy(row, name, (size_t)name_len);
   *((int32_t *)grow_vec_at(&sc->let_name_lens, sc->let_name_lens.len - 1)) = name_len;
   *((int32_t *)grow_vec_at(&sc->let_init_vals, sc->let_init_vals.len - 1)) = init_val;
@@ -5174,7 +5196,8 @@ uint8_t pipeline_onefunc_let_name_byte_at(uint8_t *out, int32_t i, int32_t off) 
   OneFuncSidecar *sc;
   uint8_t *row;
   int32_t *pl;
-  if (!out || !(sc = onefunc_sidecar_get(out, 0)) || i < 0 || i >= sc->let_names.len || off < 0 || off >= 64)
+  /* wave581 Cap residual: content index 0..126. */
+  if (!out || !(sc = onefunc_sidecar_get(out, 0)) || i < 0 || i >= sc->let_names.len || off < 0 || off >= 127)
     return 0;
   pl = (int32_t *)grow_vec_at(&sc->let_name_lens, i);
   row = (uint8_t *)grow_vec_at(&sc->let_names, i);
@@ -5396,7 +5419,14 @@ void pipeline_onefunc_copy_sidecar(uint8_t *dst, uint8_t *src) {
   grow_vec_copy_append(&dsc->labeleds, &ssc->labeleds);
 }
 
-/** 将第 i 条 const 名拷入 64 字节缓冲（不足补 0）。 */
+/**
+ * Copy OneFunc const name i into dst.
+ * ABI name kept as *copy64; wave581 Cap residual raised payload 64→128.
+ * @param out OneFuncResult pool pointer
+ * @param i const index
+ * @param dst caller buffer; must have capacity >= 128
+ * PLATFORM: SHARED
+ */
 void pipeline_onefunc_const_name_copy64(uint8_t *out, int32_t i, uint8_t *dst) {
   OneFuncSidecar *sc;
   uint8_t *row;
@@ -5405,7 +5435,7 @@ void pipeline_onefunc_const_name_copy64(uint8_t *out, int32_t i, uint8_t *dst) {
   int32_t k;
   if (!dst)
     return;
-  memset(dst, 0, 64);
+  memset(dst, 0, 128);
   if (!out || !(sc = onefunc_sidecar_get(out, 0)) || i < 0 || i >= sc->const_names.len)
     return;
   pl = (int32_t *)grow_vec_at(&sc->const_name_lens, i);
@@ -5413,13 +5443,20 @@ void pipeline_onefunc_const_name_copy64(uint8_t *out, int32_t i, uint8_t *dst) {
   if (!pl || !row)
     return;
   n = *pl;
-  if (n > 64)
-    n = 64;
+  if (n > 127)
+    n = 127;
   for (k = 0; k < n; k++)
     dst[k] = row[k];
 }
 
-/** 将第 i 条 let 名拷入 64 字节缓冲（不足补 0）。 */
+/**
+ * Copy OneFunc let name i into dst.
+ * ABI name kept as *copy64; wave581 Cap residual raised payload 64→128.
+ * @param out OneFuncResult pool pointer
+ * @param i let index
+ * @param dst caller buffer; must have capacity >= 128
+ * PLATFORM: SHARED — fill_block_const_let_from_res + typeck use this path
+ */
 void pipeline_onefunc_let_name_copy64(uint8_t *out, int32_t i, uint8_t *dst) {
   OneFuncSidecar *sc;
   uint8_t *row;
@@ -5428,7 +5465,7 @@ void pipeline_onefunc_let_name_copy64(uint8_t *out, int32_t i, uint8_t *dst) {
   int32_t k;
   if (!dst)
     return;
-  memset(dst, 0, 64);
+  memset(dst, 0, 128);
   if (!out || !(sc = onefunc_sidecar_get(out, 0)) || i < 0 || i >= sc->let_names.len)
     return;
   pl = (int32_t *)grow_vec_at(&sc->let_name_lens, i);
@@ -5436,8 +5473,8 @@ void pipeline_onefunc_let_name_copy64(uint8_t *out, int32_t i, uint8_t *dst) {
   if (!pl || !row)
     return;
   n = *pl;
-  if (n > 64)
-    n = 64;
+  if (n > 127)
+    n = 127;
   for (k = 0; k < n; k++)
     dst[k] = row[k];
 }
@@ -12775,13 +12812,14 @@ void asm_ctx_local_name_copy64(uint8_t *ctx, int32_t idx, uint8_t *dst) {
   int32_t k;
   if (!dst)
     return;
-  memset(dst, 0, 64);
+  /* wave581 Cap residual: ABI *copy64; AsmLocalSlotEntry.name is u8[128]. */
+  memset(dst, 0, 128);
   if (idx < 0 || !(sc = asm_locals_sidecar_get(ctx, 0)) || idx >= sc->slots.len)
     return;
   ent = (AsmLocalSlotEntry *)grow_vec_at(&sc->slots, idx);
   if (!ent)
     return;
-  for (k = 0; k < ent->name_len && k < 63; k++)
+  for (k = 0; k < ent->name_len && k < 127; k++)
     dst[k] = ent->name[k];
 }
 

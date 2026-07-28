@@ -3557,7 +3557,8 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
       name_row[0] = 95;
       ni = 1;
     } else {
-      while (ni < name_len && ni < 64) {
+      /* wave581 Cap residual: name_row is u8[128]; pin already copies ni<128 — keep .x twin. */
+      while (ni < name_len && ni < 128) {
         if (name_start + ni < source.length) {
           name_row[ni] = source[name_start + ni];
         }
@@ -3566,7 +3567,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     }
     /* Pad NUL after name only: zi must start at ni, not 0 (hoist would wipe name_row). */
     zi = ni;
-    while (zi < 64) {
+    while (zi < 128) {
       name_row[zi] = 0;
       zi = zi + 1;
     }
