@@ -2002,23 +2002,36 @@ static int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena,
 static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
 /**
  * wave625 Cap residual pure: ARRAY_LIT→TYPE_SLICE force_esz from formal/let elem type.
- * Scalars 1/4/8; TYPE_NAMED → glue_type_size_simple (Pt=8). Durable only packs 1/2/4/8;
- * larger NAMED returns size so durable rejects and stack array_lit (esz>8) takes over.
+ * Scalars 1/4/8; TYPE_NAMED → glue_type_size_simple (Pt=8, S24=24).
+ * wave632: durable COMMON packs scalar {1,2,4,8} and bulk-fills force_esz>8 NAMED
+ * (return [S24{…}] must not fall to stack → dangle). Stack force_esz still used when
+ * durable cannot pack (weird widths / capacity).
  * G.7: single authority for let-init / call-arg / return force_esz (was 4× scalar-only).
  * PLATFORM: SHARED freestanding · LINUX gold + MACOS|ARM64.
  */
 static int32_t glue_array_lit_force_esz_from_elem_type_c(struct ast_ASTArena *arena, int32_t et);
+/* wave632: durable large NAMED bulk fill needs struct let-init + spill bulk copy. */
+static int32_t glue_emit_struct_type_let_init_elf_c(struct ast_ASTArena *arena,
+                                                    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,
+                                                    struct backend_AsmFuncCtx *ctx, int32_t ta,
+                                                    int32_t let_ty_ref, int32_t stack_slot_off);
+static int32_t glue_emit_bulk_mem_copy_spills_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                     int32_t src_spill, int32_t dst_spill, int32_t esz,
+                                                     int32_t ta);
 /**
  * wave335 Cap residual pure: freestanding durable ARRAY_LIT payload → rax.
  * wave341: non-const elems also durable via SHN_COMMON BSS + runtime stores
  * (const still uses jmp-skip text-embed; non-const cannot live in RX .text).
+ * wave632: force_esz>8 (large NAMED) COMMON bulk fill via struct let-init + chunked
+ * copy (kill return [S24{…}] stack dangle; Ubuntu pure-asm was 193≠110).
  *
  * Root: stack compound from pipeline_asm_emit_array_lit_elf_c dangles after return;
  * caller INDEX then SIGSEGV (Ubuntu) or reads garbage (host).
- * G.7: const = string-lit rodata pattern; non-const = modlet COMMON BSS pattern.
- * nbytes cap 2048. Empty → rax=0.
+ * G.7: const = string-lit rodata pattern; non-const = modlet COMMON BSS pattern;
+ *      large NAMED = same COMMON + bulk (expand wave341/598/630, no second face).
+ * nbytes cap GLUE_ARRAY_LIT_MAX_PAYLOAD. Empty → rax=0.
  *
- * @param ctx AsmFuncCtx for non-const elem emit (may be null when all-const only).
+ * @param ctx AsmFuncCtx for non-const / large-NAMED elem emit (may be null when all-const only).
  * @param force_esz element byte size from TYPE_SLICE elem (0 → infer from lit).
  * @return 0 success (rax = durable ptr); -1 cannot pack (caller may fall back).
  * PLATFORM: SHARED freestanding · LINUX|x86_64 (text-embed const / COMMON) ·
@@ -2231,22 +2244,30 @@ static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena
   }
   /*
    * Prefer formal/let force_esz (u64[] lit elems still type as i32 without stamp).
-   * wave631 Cap residual pure: when force_esz is known but not a scalar pack width
-   * ({1,2,4,8}), return -1 so caller uses stack emit_array_lit (wave598/626 in-place
-   * STRUCT_LIT / bulk >8B). Prior code re-inferred via array_lit_elem_byte_sz which
-   * defaulted 4 for unstamped/SLICE-stamp miss → accepted durable with esz=4 while
-   * INDEX strode 24 → packed stack pointers into COMMON (Ubuntu pure-asm S24[] RO/asg
-   * garbage; mac arm64 often hid). wave625 comment already required reject→stack for
-   * ssz>8; this restores that contract. G.7: expand same durable authority only.
+   * wave631: force_esz>0 but not scalar {1,2,4,8} must NOT re-infer to esz=4
+   * (packed stack-pointer halves into COMMON while INDEX strode 24).
+   * wave632 Cap residual pure: force_esz>8 (large NAMED S24=24) is accepted for
+   * COMMON bulk fill below — return [S24{…}] must not fall to stack (Ubuntu pure-asm
+   * simple_r=193≠110 / deep=113≠110; host-C 110; mac arm64 often hid). force_esz in
+   * {3,5,6,7} still reject. force_esz==0 → lit infer (scalar pack or bulk if >8).
+   * G.7: expand same durable authority (wave341 COMMON + wave598/630 bulk).
    * PLATFORM: SHARED freestanding · LINUX gold exposes; MACOS|ARM64 co-path.
    */
   esz = force_esz;
   if (esz != 1 && esz != 2 && esz != 4 && esz != 8) {
-    if (force_esz > 0)
+    if (force_esz > 8) {
+      esz = force_esz;
+    } else if (force_esz > 0) {
+      /* Weird non-scalar widths 3/5/6/7 — no pack path. */
       return -1;
-    esz = pipeline_asm_array_lit_elem_byte_sz_c(arena, expr_ref);
+    } else {
+      esz = pipeline_asm_array_lit_elem_byte_sz_c(arena, expr_ref);
+    }
   }
-  if (esz != 1 && esz != 2 && esz != 4 && esz != 8)
+  if (esz <= 0)
+    return -1;
+  /* Scalar pack widths or large-NAMED bulk (>8); reject other mid widths. */
+  if (esz != 1 && esz != 2 && esz != 4 && esz != 8 && esz <= 8)
     return -1;
   if (n_arr > GLUE_ARRAY_LIT_MAX_PAYLOAD / esz)
     return -1;
@@ -2262,8 +2283,8 @@ static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena
     if (eko != 0 && eko != 2)
       all_const = 0;
   }
-  /* PLATFORM: LINUX+MACOS x86_64 — jmp-over text-embed + lea [rip] (const only). */
-  if (all_const != 0 && ta == 0) {
+  /* PLATFORM: LINUX+MACOS x86_64 — jmp-over text-embed + lea [rip] (const scalar only). */
+  if (all_const != 0 && ta == 0 && (esz == 1 || esz == 2 || esz == 4 || esz == 8)) {
     for (ai = 0; ai < n_arr; ai++) {
       elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai);
       v64 = (int64_t)pipeline_expr_int_val_at(arena, elem_ref);
@@ -2320,12 +2341,15 @@ static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena
    * wave341 Cap residual pure: non-const durable via SHN_COMMON BSS (writable).
    * wave408: arm64 const also uses COMMON + runtime fill (text-embed is x86-only);
    *           ADRP/PAGEOFF lea via glue_asm_lea_*_common_adrp_arm64.
+   * wave632: esz>8 large NAMED — COMMON + per-elem struct let-init temp + bulk copy
+   *           (scalar store_rax_to_rbx_offset only packs ≤8).
    * G.7: pipeline_elf_ctx_add_common_sym (modlet face); never RW .text.
-   * Fill: emit elem → rax; lea rbx COMMON; store [rbx+i*esz]; finally lea rax COMMON.
+   * Fill (scalar): emit elem → rax; lea rbx COMMON; store [rbx+i*esz]; lea rax COMMON.
+   * Fill (bulk):   let-init → frame temp; src/dst spills; bulk_mem_copy_spills.
    * PLATFORM: SHARED freestanding · LINUX|x86_64 · MACOS|ARM64.
-   * Needs ctx for non-const elem emit; const arm64 uses imm→store without ctx rec.
+   * Needs ctx for non-const / large-NAMED elem emit; const arm64 uses imm→store.
    */
-  if (all_const == 0 && !ctx)
+  if ((all_const == 0 || esz > 8) && !ctx)
     return -1;
   seq = g_pipeline_asm_al_nc_seq;
   if (seq < 0 || seq > 999999)
@@ -2350,8 +2374,82 @@ static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena
   }
   for (di = nd - 1; di >= 0 && llen < 23; di--)
     label[llen++] = digs[di];
-  if (pipeline_elf_ctx_add_common_sym((uint8_t *)elf_ctx, label, llen, nbytes, esz) != 0)
-    return -1;
+  /* Align COMMON size to esz (loader min align); cap esz for align arg at 16. */
+  {
+    int32_t common_align = esz;
+    if (common_align > 16)
+      common_align = 16;
+    if (common_align < 1)
+      common_align = 1;
+    if (pipeline_elf_ctx_add_common_sym((uint8_t *)elf_ctx, label, llen, nbytes, common_align) != 0)
+      return -1;
+  }
+  /*
+   * wave632 Cap residual pure: large NAMED / esz>8 bulk into COMMON.
+   * Root: wave631 rejected force_esz=24 → stack emit_array_lit → return dual-GP
+   * data@rax points into callee frame → Ubuntu pure-asm after return: 193≠110
+   * (host-C static compound green; mac arm64 often still-green).
+   * G.7: same COMMON face as wave341; fill reuses glue_emit_struct_type_let_init
+   * (wave598) + glue_emit_bulk_mem_copy_spills (wave630) — no third durable path.
+   * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
+   */
+  if (esz > 8) {
+    pipeline_glue_AsmFuncCtxLayout *ly;
+    int32_t elem_ty;
+    int32_t src_spill;
+    int32_t dst_spill;
+    int32_t temp_home;
+    int32_t elem_reserve;
+    int32_t st;
+    ly = pipeline_asm_ctx_layout(ctx);
+    if (!ly)
+      return -1;
+    elem_ty = pipeline_asm_array_lit_elem_type_ref(arena, expr_ref);
+    /* Two pointer spills (src, dst); 16B each for dual-GP slot alignment. */
+    if (ly->next_offset + 32 < ly->next_offset)
+      return -1;
+    ly->next_offset += 16;
+    src_spill = ly->next_offset;
+    ly->next_offset += 16;
+    dst_spill = ly->next_offset;
+    elem_reserve = (esz + 7) & ~7;
+    if (elem_reserve < 8)
+      elem_reserve = 8;
+    if (ly->next_offset + elem_reserve < ly->next_offset)
+      return -1;
+    ly->next_offset += elem_reserve;
+    temp_home = ly->next_offset;
+    for (ai = 0; ai < n_arr; ai++) {
+      elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai);
+      if (elem_ref <= 0)
+        return -1;
+      st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, elem_ref, ctx, ta,
+                                                 elem_ty > 0 ? elem_ty : 0, temp_home);
+      if (st != 0)
+        return -1;
+      /* src = &temp_home */
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_home, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, src_spill, ta) != 0)
+        return -1;
+      /* dst = COMMON + ai*esz */
+      if (ta == 1) {
+        if (glue_asm_lea_rax_common_adrp_arm64(elf_ctx, label, llen) != 0)
+          return -1;
+      } else if (glue_asm_lea_rax_common_rip_x86(elf_ctx, label, llen) != 0) {
+        return -1;
+      }
+      if (ai * esz != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, ai * esz, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, dst_spill, ta) != 0)
+        return -1;
+      if (glue_emit_bulk_mem_copy_spills_elf_c(elf_ctx, src_spill, dst_spill, esz, ta) != 0)
+        return -1;
+    }
+    if (ta == 1)
+      return glue_asm_lea_rax_common_adrp_arm64(elf_ctx, label, llen);
+    return glue_asm_lea_rax_common_rip_x86(elf_ctx, label, llen);
+  }
   for (ai = 0; ai < n_arr; ai++) {
     elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai);
     if (elem_ref <= 0)
