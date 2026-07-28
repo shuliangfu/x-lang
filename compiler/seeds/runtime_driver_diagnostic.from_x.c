@@ -660,6 +660,15 @@ void driver_diagnostic_typeck_invalid_as_cast(int32_t line, int32_t col)
       "invalid cast (as not allowed for aggregate or float↔pointer; use numeric/ptr casts or fields)"));
   return;
 }
+
+/* wave660 Cap residual: pure authority thin.x driver_diagnostic_typeck_call_arity_mismatch;
+ * cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X. */
+void driver_diagnostic_typeck_call_arity_mismatch(int32_t line, int32_t col)
+{
+  (void)(lsp_diag_report_typeck(line, col,
+      "wrong number of arguments in function call (arity mismatch)"));
+  return;
+}
 #endif
 
 /* pure 权威：thin.x driver_diagnostic_typeck_if_condition_not_bool；冷启动全 C；FROM_X 无 pure-dup _impl */

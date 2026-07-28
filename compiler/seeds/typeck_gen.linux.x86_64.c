@@ -1701,6 +1701,8 @@ extern void driver_diagnostic_typeck_invalid_float_binop(int32_t line, int32_t c
 extern void driver_diagnostic_typeck_invalid_aggregate_cmp(int32_t line, int32_t col);
 /* wave659 Cap residual: illegal as-cast hard diag (G.7 ≡ typeck.x). */
 extern void driver_diagnostic_typeck_invalid_as_cast(int32_t line, int32_t col);
+/* wave660 Cap residual: call arity hard diag (G.7 ≡ typeck.x). */
+extern void driver_diagnostic_typeck_call_arity_mismatch(int32_t line, int32_t col);
 extern void typeck_driver_diagnostic_pipe_marker(int32_t id);
 extern void driver_diagnostic_typeck_if_condition_not_bool(int32_t line, int32_t col);
 extern void driver_diagnostic_typeck_while_condition_not_bool(int32_t line, int32_t col);
@@ -1819,6 +1821,8 @@ extern int32_t pipeline_typeck_read_ptr_slice_return_ref_c(struct ast_ASTArena *
 extern int32_t pipeline_module_func_param_type_ref_at(struct ast_Module * module, int32_t fi, int32_t pi);
 extern int32_t pipeline_module_func_num_params_at(struct ast_Module * module, int32_t fi);
 extern int32_t pipeline_expr_call_resolved_func_index_at(struct ast_ASTArena * arena, int32_t expr_ref);
+/* wave660: dep module for resolved CALL arity check. */
+extern int32_t pipeline_expr_call_resolved_dep_index_at(struct ast_ASTArena * arena, int32_t expr_ref);
 extern int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena * arena, int32_t expr_ref);
 extern int32_t pipeline_typeck_block_const_init_is_const_c(struct ast_ASTArena * arena, int32_t block_ref, int32_t const_idx);
 extern void pipeline_typeck_const_init_not_constant_c(int32_t line, int32_t col);
@@ -3810,7 +3814,22 @@ int32_t typeck_find_func_return_type_in_module_by_name_overload(struct ast_Modul
       }
       return typeck_get_dep_return_type_in_caller_arena(from_dep_index, best_ret, caller_arena, ctx);
     }
+    /* wave660: pure arity miss → no first_idx bind (G.7 ≡ typeck.x). */
     if ((first_idx >=0)) {
+      int32_t any_arity = 0;
+      int32_t j2 = 0;
+      while ((j2 < (mod->num_funcs))) {
+        if ((pipeline_module_func_name_equal_at(mod, j2, name, name_len) !=0)) {
+          if ((pipeline_module_func_num_params_at(mod, j2) ==num_args)) {
+            (void)((any_arity = 1));
+            break;
+          }
+        }
+        (void)((j2 = (j2 + 1)));
+      }
+      if ((any_arity ==0)) {
+        return 0;
+      }
       if ((func_index_out !=0)) {
         (void)(((func_index_out)[0] = first_idx));
       }
@@ -3892,7 +3911,24 @@ int32_t typeck_find_func_return_type_in_module_overload(struct ast_Module * mod,
       }
       return typeck_get_dep_return_type_in_caller_arena(from_dep_index, best_ret, caller_arena, ctx);
     }
+    /* wave660: pure arity miss → no first_idx bind (G.7 ≡ typeck.x module_overload). */
     if ((first_idx >=0)) {
+      if ((has_call_info !=0)) {
+        int32_t any_arity2 = 0;
+        int32_t j3 = 0;
+        while ((j3 < (mod->num_funcs))) {
+          if (typeck_expr_var_name_equal_func(callee_arena, callee_expr_ref, mod, j3)) {
+            if ((pipeline_module_func_num_params_at(mod, j3) ==num_args)) {
+              (void)((any_arity2 = 1));
+              break;
+            }
+          }
+          (void)((j3 = (j3 + 1)));
+        }
+        if ((any_arity2 ==0)) {
+          return 0;
+        }
+      }
       if ((func_index_out !=0)) {
         (void)(((func_index_out)[0] = first_idx));
       }
@@ -6230,6 +6266,89 @@ int32_t typeck_check_expr_call_resolve(struct ast_Module * module, struct ast_AS
     }
     return 0;
   }
+}
+/* wave660 Cap residual: hard-fail CALL arity (G.7 ≡ typeck.x typeck_check_call_arity).
+ * Invoked from pipeline_typeck_check_expr_call_c after resolve. */
+int32_t typeck_check_call_arity(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx) {
+  int32_t num_args = 0;
+  int32_t fi = 0;
+  int32_t dep = 0;
+  struct ast_Module * mod = 0;
+  struct ast_Module * dm = 0;
+  int32_t np = 0;
+  int32_t line_a = 0;
+  int32_t col_a = 0;
+  int32_t callee_ref = 0;
+  int32_t callee_eff = 0;
+  int32_t ord_addr_of = 51;
+  int32_t ord_var = 3;
+  int32_t inner_c = 0;
+  int32_t cnml = 0;
+  uint8_t cnm[128];
+  int32_t j = 0;
+  int32_t name_hits = 0;
+  int32_t arity_hits = 0;
+  if ((((module ==0) || (arena ==0)) || (expr_ref <=0))) {
+    return 0;
+  }
+  (void)((num_args = pipeline_expr_call_num_args_at(arena, expr_ref)));
+  (void)((fi = pipeline_expr_call_resolved_func_index_at(arena, expr_ref)));
+  (void)((dep = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref)));
+  if ((fi >=0)) {
+    (void)((mod = module));
+    if (((dep >=0) && (ctx !=0))) {
+      (void)((dm = pipeline_dep_ctx_module_at(ctx, dep)));
+      if ((dm !=0)) {
+        (void)((mod = dm));
+      }
+    }
+    (void)((np = pipeline_module_func_num_params_at(mod, fi)));
+    if ((np !=num_args)) {
+      (void)((line_a = pipeline_expr_line_at(arena, expr_ref)));
+      (void)((col_a = pipeline_expr_col_at(arena, expr_ref)));
+      (void)(driver_diagnostic_typeck_call_arity_mismatch(line_a, col_a));
+      return -1;
+    }
+    return 0;
+  }
+  (void)((callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref)));
+  if (ast_ref_is_null(callee_ref)) {
+    return 0;
+  }
+  (void)((callee_eff = callee_ref));
+  if ((pipeline_expr_kind_ord_at(arena, callee_eff) ==ord_addr_of)) {
+    (void)((inner_c = pipeline_expr_unary_operand_ref_at(arena, callee_eff)));
+    if (!(ast_ref_is_null(inner_c))) {
+      (void)((callee_eff = inner_c));
+    }
+  }
+  if ((pipeline_expr_kind_ord_at(arena, callee_eff) !=ord_var)) {
+    return 0;
+  }
+  (void)((cnml = pipeline_expr_var_name_len(arena, callee_eff)));
+  if (((cnml <=0) || (cnml > 127))) {
+    return 0;
+  }
+  (void)(pipeline_expr_var_name_into(arena, callee_eff, &((cnm)[0])));
+  (void)((name_hits = 0));
+  (void)((arity_hits = 0));
+  (void)((j = 0));
+  while ((j < (module->num_funcs))) {
+    if ((pipeline_module_func_name_equal_at(module, j, &((cnm)[0]), cnml) !=0)) {
+      (void)((name_hits = (name_hits + 1)));
+      if ((pipeline_module_func_num_params_at(module, j) ==num_args)) {
+        (void)((arity_hits = (arity_hits + 1)));
+      }
+    }
+    (void)((j = (j + 1)));
+  }
+  if (((name_hits > 0) && (arity_hits ==0))) {
+    (void)((line_a = pipeline_expr_line_at(arena, expr_ref)));
+    (void)((col_a = pipeline_expr_col_at(arena, expr_ref)));
+    (void)(driver_diagnostic_typeck_call_arity_mismatch(line_a, col_a));
+    return -1;
+  }
+  return 0;
 }
 int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
   /* LANG-007: always use glue path (enforces S0 extern-in-unsafe). */

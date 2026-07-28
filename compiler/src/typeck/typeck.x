@@ -154,6 +154,15 @@ export extern function driver_diagnostic_typeck_invalid_aggregate_cmp(line: i32,
  * (float→ptr) or silent false green (struct/array as scalar).
  */
 export extern function driver_diagnostic_typeck_invalid_as_cast(line: i32, col: i32): void;
+/**
+ * Report free-function call arity mismatch (wave660 Cap residual).
+ * @param line i32 — 1-based source line of the CALL expr
+ * @param col i32 — 1-based source column of the CALL expr
+ * @return void
+ * PLATFORM: SHARED — closes soft residual: typeck bound first same-name func
+ * ignoring arity → host-cc BLD001 (too few / too many arguments).
+ */
+export extern function driver_diagnostic_typeck_call_arity_mismatch(line: i32, col: i32): void;
 export extern function typeck_driver_diagnostic_pipe_marker(id: i32): void;
 export extern function driver_diagnostic_typeck_if_condition_not_bool(line: i32, col: i32): void;
 export extern function driver_diagnostic_typeck_while_condition_not_bool(line: i32, col: i32): void;
@@ -358,6 +367,11 @@ export extern function pipeline_typeck_read_ptr_slice_return_ref_c(arena: *ASTAr
 export extern function pipeline_module_func_param_type_ref_at(module: *Module, fi: i32, pi: i32): i32;
 export extern function pipeline_module_func_num_params_at(module: *Module, fi: i32): i32;
 export extern function pipeline_expr_call_resolved_func_index_at(arena: *ASTArena, expr_ref: i32): i32;
+/**
+ * Resolved dep module index for a CALL (-1 = local / entry module).
+ * PLATFORM: SHARED — wave660 call arity gate needs dep module for num_params.
+ */
+export extern function pipeline_expr_call_resolved_dep_index_at(arena: *ASTArena, expr_ref: i32): i32;
 /* See implementation. */
 export extern function pipeline_expr_kind_ord_at(arena: *ASTArena, expr_ref: i32): i32;
 /* See implementation. */
@@ -3060,8 +3074,28 @@ func_index_out: *i32): i32 {
       }
       return get_dep_return_type_in_caller_arena(from_dep_index, best_ret, caller_arena, ctx);
     }
-    /* See implementation. */
+    /*
+     * wave660 Cap residual: do NOT bind first same-name func when no candidate has
+     * matching arity (host-cc BLD001 too few/many args). first_idx fallback remains
+     * only when some same-name func has nparams==num_args but arg type scores failed
+     * (type-mismatch soft residual; not this wave).
+     * PLATFORM: SHARED — G.7 single authority with module_overload twin below.
+     */
     if (first_idx >= 0) {
+      let any_arity: i32 = 0;
+      let j2: i32 = 0;
+      while (j2 < mod.num_funcs) {
+        if (pipeline_module_func_name_equal_at(mod, j2, name, name_len) != 0) {
+          if (pipeline_module_func_num_params_at(mod, j2) == num_args) {
+            any_arity = 1;
+            break;
+          }
+        }
+        j2 = j2 + 1;
+      }
+      if (any_arity == 0) {
+        return 0;
+      }
       if (func_index_out != 0 as * i32) {
         func_index_out[0] = first_idx;
       }
@@ -3163,8 +3197,29 @@ call_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *
       }
       return get_dep_return_type_in_caller_arena(from_dep_index, best_ret, caller_arena, ctx);
     }
-    /* See implementation. */
+    /*
+     * wave660 Cap residual: pure arity miss → return 0 (no first_idx bind).
+     * first_idx only when has_call_info and some same-name nparams==num_args
+     * (type-score soft residual). Without call info, keep legacy first_idx.
+     * PLATFORM: SHARED — G.7 twin of by_name_overload.
+     */
     if (first_idx >= 0) {
+      if (has_call_info != 0) {
+        let any_arity2: i32 = 0;
+        let j3: i32 = 0;
+        while (j3 < mod.num_funcs) {
+          if (expr_var_name_equal_func(callee_arena, callee_expr_ref, mod, j3)) {
+            if (pipeline_module_func_num_params_at(mod, j3) == num_args) {
+              any_arity2 = 1;
+              break;
+            }
+          }
+          j3 = j3 + 1;
+        }
+        if (any_arity2 == 0) {
+          return 0;
+        }
+      }
       if (func_index_out != 0 as * i32) {
         func_index_out[0] = first_idx;
       }
@@ -6192,9 +6247,114 @@ ctx: *PipelineDepCtx): i32 {
 }
 
 /**
-* See implementation.
-* Installs expected return (return_type_ref from let/assign/return) for zero-arg overload pick.
-*/
+ * Hard-fail free-function CALL when argument count ≠ resolved (or name-matched) arity.
+ * wave660 Cap residual: overload pick used to bind first same-name func ignoring arity
+ * → typeck OK then host-cc BLD001. Also covers pure miss after first_idx gate.
+ * @param module *Module — entry / local module
+ * @param arena *ASTArena
+ * @param expr_ref i32 — EXPR_CALL
+ * @param ctx *PipelineDepCtx — for dep module when resolved_dep_index ≥ 0
+ * @return i32 — 0 ok, -1 arity mismatch (diagnostic emitted)
+ * PLATFORM: SHARED — G.7 single gate; product path also invoked from
+ * pipeline_typeck_check_expr_call_c after resolve (seed typeck_check_expr_call delegates).
+ */
+export function typeck_check_call_arity(module: *Module, arena: *ASTArena, expr_ref: i32,
+ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let num_args: i32 = 0;
+    let fi: i32 = 0;
+    let dep: i32 = 0;
+    let mod: *Module = 0 as * Module;
+    let dm: *Module = 0 as * Module;
+    let np: i32 = 0;
+    let line_a: i32 = 0;
+    let col_a: i32 = 0;
+    let callee_ref: i32 = 0;
+    let callee_eff: i32 = 0;
+    let ord_addr_of: i32 = 51;
+    let ord_var: i32 = 3;
+    let inner_c: i32 = 0;
+    let cnml: i32 = 0;
+    let cnm: u8[128] = [];
+    let j: i32 = 0;
+    let name_hits: i32 = 0;
+    let arity_hits: i32 = 0;
+    if (module == 0 as * Module || arena == 0 as * ASTArena || expr_ref <= 0) {
+      return 0;
+    }
+    num_args = pipeline_expr_call_num_args_at(arena, expr_ref);
+    fi = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+    dep = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
+    if (fi >= 0) {
+      mod = module;
+      if (dep >= 0 && ctx != 0 as * PipelineDepCtx) {
+        dm = pipeline_dep_ctx_module_at(ctx, dep);
+        if (dm != 0 as * Module) {
+          mod = dm;
+        }
+      }
+      np = pipeline_module_func_num_params_at(mod, fi);
+      if (np != num_args) {
+        line_a = pipeline_expr_line_at(arena, expr_ref);
+        col_a = pipeline_expr_col_at(arena, expr_ref);
+        driver_diagnostic_typeck_call_arity_mismatch(line_a, col_a);
+        return -1;
+      }
+      return 0;
+    }
+    /*
+     * Unresolved CALL: if callee is a bare VAR name that exists in the local module
+     * but no same-name func has nparams==num_args, hard-fail (after wave660 first_idx
+     * gate, pure arity miss returns no resolve but codegen still emits by name).
+     */
+    callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
+    if (ast.ref_is_null(callee_ref)) {
+      return 0;
+    }
+    callee_eff = callee_ref;
+    if (pipeline_expr_kind_ord_at(arena, callee_eff) == ord_addr_of) {
+      inner_c = pipeline_expr_unary_operand_ref_at(arena, callee_eff);
+      if (!ast.ref_is_null(inner_c)) {
+        callee_eff = inner_c;
+      }
+    }
+    if (pipeline_expr_kind_ord_at(arena, callee_eff) != ord_var) {
+      return 0;
+    }
+    cnml = pipeline_expr_var_name_len(arena, callee_eff);
+    if (cnml <= 0 || cnml > 127) {
+      return 0;
+    }
+    pipeline_expr_var_name_into(arena, callee_eff, &cnm[0]);
+    name_hits = 0;
+    arity_hits = 0;
+    j = 0;
+    while (j < module.num_funcs) {
+      if (pipeline_module_func_name_equal_at(module, j, &cnm[0], cnml) != 0) {
+        name_hits = name_hits + 1;
+        if (pipeline_module_func_num_params_at(module, j) == num_args) {
+          arity_hits = arity_hits + 1;
+        }
+      }
+      j = j + 1;
+    }
+    if (name_hits > 0 && arity_hits == 0) {
+      line_a = pipeline_expr_line_at(arena, expr_ref);
+      col_a = pipeline_expr_col_at(arena, expr_ref);
+      driver_diagnostic_typeck_call_arity_mismatch(line_a, col_a);
+      return -1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Type-check EXPR_CALL: args, resolve, arity (wave660), slice region.
+ * Installs expected return (return_type_ref from let/assign/return) for zero-arg overload pick.
+ * Note: product seed typeck_check_expr_call may delegate to pipeline_typeck_check_expr_call_c
+ * which must call typeck_check_call_arity after resolve (same commit).
+ */
 export function typeck_check_expr_call(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -6214,6 +6374,11 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       return -1;
     }
     if (typeck_check_expr_call_resolve(module, arena, expr_ref, ctx) != 0) {
+      typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0);
+      return -1;
+    }
+    /* wave660: hard-fail arity before slice region / codegen. */
+    if (typeck_check_call_arity(module, arena, expr_ref, ctx) != 0) {
       typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0);
       return -1;
     }

@@ -225,6 +225,22 @@ export function driver_diagnostic_typeck_invalid_as_cast(line: i32, col: i32): v
   }
 }
 
+/**
+ * Report free-function call arity mismatch (wave660 Cap residual).
+ * Closes soft residual: typeck bound first same-name func ignoring arity → host-cc BLD001.
+ * @param line i32 — 1-based source line of the CALL
+ * @param col i32 — 1-based source column of the CALL
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ thin.x; seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_call_arity_mismatch(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "wrong number of arguments in function call (arity mismatch)");
+  }
+}
+
 /** Exported function `driver_diagnostic_typeck_enum_no_variant`.
  * Implements `driver_diagnostic_typeck_enum_no_variant`.
  * @param line i32

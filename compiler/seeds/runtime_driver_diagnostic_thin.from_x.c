@@ -369,6 +369,7 @@ extern void driver_diagnostic_typeck_invalid_ptr_binop(int32_t line, int32_t col
 extern void driver_diagnostic_typeck_invalid_float_binop(int32_t line, int32_t col);
 extern void driver_diagnostic_typeck_invalid_aggregate_cmp(int32_t line, int32_t col);
 extern void driver_diagnostic_typeck_invalid_as_cast(int32_t line, int32_t col);
+extern void driver_diagnostic_typeck_call_arity_mismatch(int32_t line, int32_t col);
 extern int32_t parser_is_ident_allow(uint8_t * ident, int32_t len);
 extern void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types);
 extern void driver_diagnostic_codegen_fail(int32_t dep_index, int32_t is_dep);
@@ -745,6 +746,13 @@ void driver_diagnostic_typeck_invalid_aggregate_cmp(int32_t line, int32_t col) {
 void driver_diagnostic_typeck_invalid_as_cast(int32_t line, int32_t col) {
   (void)(lsp_diag_report_typeck(line, col,
       ((uint8_t *)"invalid cast (as not allowed for aggregate or float↔pointer; use numeric/ptr casts or fields)")));
+  (void)(0);
+  return;
+}
+/* wave660 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_call_arity_mismatch */
+void driver_diagnostic_typeck_call_arity_mismatch(int32_t line, int32_t col) {
+  (void)(lsp_diag_report_typeck(line, col,
+      ((uint8_t *)"wrong number of arguments in function call (arity mismatch)")));
   (void)(0);
   return;
 }

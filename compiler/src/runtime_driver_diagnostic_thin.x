@@ -522,6 +522,21 @@ export function driver_diagnostic_typeck_invalid_as_cast(line: i32, col: i32): v
   }
 }
 
+/**
+ * Report free-function call arity mismatch (wave660 Cap residual pure leaf).
+ * @param line i32 — 1-based source line of the CALL
+ * @param col i32 — 1-based source column of the CALL
+ * @return void
+ * PLATFORM: SHARED — seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X same commit.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_call_arity_mismatch(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "wrong number of arguments in function call (arity mismatch)");
+  }
+}
+
 // ---- G-02f-341 pure helpers / remaining gates ----
 
 /** Exported function `parser_is_ident_allow`.

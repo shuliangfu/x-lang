@@ -38297,6 +38297,20 @@ int32_t pipeline_typeck_check_expr_call_c(struct ast_Module *module, struct ast_
     *typeck_overload_expected_ret_slot() = 0;
     return rc;
   }
+  /*
+   * wave660 Cap residual: hard-fail free-function call arity at typeck.
+   * Root: overload first_idx fallback ignored nparams vs num_args → typeck OK,
+   * host-cc BLD001 (too few/many arguments). G.7: typeck_check_call_arity.
+   * PLATFORM: SHARED — product path (seed typeck_check_expr_call → this glue).
+   */
+  {
+    extern int32_t typeck_check_call_arity(struct ast_Module *module, struct ast_ASTArena *arena,
+                                           int32_t expr_ref, struct ast_PipelineDepCtx *ctx);
+    if (typeck_check_call_arity(module, arena, expr_ref, ctx) != 0) {
+      *typeck_overload_expected_ret_slot() = 0;
+      return -1;
+    }
+  }
   /* Keep expected_ret through generic gate + fixup (wave453); clear after. */
   if (pipeline_typeck_check_call_generic_type_args_c(module, arena, expr_ref, ctx, expect_store) != 0) {
     *typeck_overload_expected_ret_slot() = 0;
