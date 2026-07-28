@@ -51,14 +51,22 @@ struct ast_PipelineDepCtx {
     void *current_codegen_module;
     void *current_codegen_arena;
     int32_t current_codegen_dep_index;
-    uint8_t current_codegen_prefix_mirror[64];
+    /*
+     * wave577 Cap / wave579: name and path mirrors are u8[128] (63→127 usable).
+     * Must match ast.x PipelineDepCtx and seed pipeline_gen (G.7 single layout).
+     * History: residual [64] made driver_pipeline_dep_ctx_calloc undersized
+     * (0x800588 vs 0x800600); typeck stack-escape memset of region_label stomped
+     * the following heap chunk (dep_modules grow_vec) → hello SEGV on Ubuntu.
+     * PLATFORM: SHARED — mac + Ubuntu product matrix after any size change.
+     */
+    uint8_t current_codegen_prefix_mirror[128];
     int32_t current_codegen_prefix_len;
     int32_t asm_entry_module_only;
-    uint8_t entry_module_import_path_mirror[64];
+    uint8_t entry_module_import_path_mirror[128];
     int32_t entry_module_import_path_len;
     /** M-3 typeck：与 ast.x PipelineDepCtx.typeck_scope_region_* 对齐。 */
     int32_t typeck_scope_region_len;
-    uint8_t typeck_scope_region_label[64];
+    uint8_t typeck_scope_region_label[128];
     /*
      * wave445 C5: monomorphization type-substitution state for generic function
      * body emit. When mono_active=1, emit_type replaces any type_ref matching

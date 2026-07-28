@@ -450,7 +450,9 @@ static DepCtxSidecar *depctx_sidecar_get(struct ast_PipelineDepCtx *ctx, int cre
         return NULL;
       if (!grow_vec_init(&g_xlang_depctx_sc[i].dep_arenas, sizeof(void *), AST_POOL_INIT_CAP))
         return NULL;
-      if (!grow_vec_init(&g_xlang_depctx_sc[i].dep_path_rows, 64, AST_POOL_INIT_CAP))
+      /* wave579 Cap: path row width 64→128 (import paths may be >63 after Cap).
+       * PLATFORM: SHARED — must match set_import_path memcpy cap below. */
+      if (!grow_vec_init(&g_xlang_depctx_sc[i].dep_path_rows, 128, AST_POOL_INIT_CAP))
         return NULL;
       if (!grow_vec_init(&g_xlang_depctx_sc[i].dep_path_lens, sizeof(int32_t), AST_POOL_INIT_CAP))
         return NULL;
@@ -493,7 +495,7 @@ static int depctx_ensure_slot(DepCtxSidecar *sc, int32_t idx) {
       return 0;
     row = (uint8_t *)grow_vec_at(&sc->dep_path_rows, sc->dep_path_rows.len - 1);
     if (row)
-      memset(row, 0, 64);
+      memset(row, 0, 128);
     if (grow_vec_push(&sc->dep_path_lens) < 0)
       return 0;
     pl = (int32_t *)grow_vec_at(&sc->dep_path_lens, sc->dep_path_lens.len - 1);
@@ -6248,8 +6250,9 @@ void pipeline_dep_ctx_set_import_path(struct ast_PipelineDepCtx *ctx, int32_t id
   pl = (int32_t *)grow_vec_at(&sc->dep_path_lens, idx);
   if (!row || !pl)
     return;
+  /* wave579 Cap: row is 128 bytes; allow up to 127 path bytes + NUL. */
   n = len > 127 ? 127 : len;
-  memset(row, 0, 64);
+  memset(row, 0, 128);
   memcpy(row, bytes, (size_t)n);
   row[n] = 0;
   *pl = n;
