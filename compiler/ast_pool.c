@@ -11959,6 +11959,35 @@ static int32_t pipeline_codegen_type_to_c_repr_inner(struct ast_ASTArena *arena,
   }
   name_len = pipeline_type_named_name_into(arena, type_ref, nm);
   if (tk == 8 && name_len > 0) {
+    /* wave619 Cap residual pure: NAMED short ints have no TypeKind (wave313 i8/i16/u16).
+     * Map to stdint C names so TYPE_SLICE tags are xlang_slice_int16_t etc., matching
+     * scalar host-C emit (int16_t x) and static int16_t[] array-lit payloads.
+     * Prior path always emitted struct ast_<name> → incomplete xlang_slice_ast_i16.
+     * PLATFORM: SHARED host-C type_to_c_repr authority (G.7 single table). */
+    if (name_len == 2 && nm[0] == 'i' && nm[1] == '8') {
+      static const uint8_t k_i8[6] = {'i', 'n', 't', '8', '_', 't'};
+      if (cap < 6)
+        return -1;
+      for (j = 0; j < 6; j++)
+        scratch[j] = k_i8[j];
+      return 6;
+    }
+    if (name_len == 3 && nm[0] == 'i' && nm[1] == '1' && nm[2] == '6') {
+      static const uint8_t k_i16[7] = {'i', 'n', 't', '1', '6', '_', 't'};
+      if (cap < 7)
+        return -1;
+      for (j = 0; j < 7; j++)
+        scratch[j] = k_i16[j];
+      return 7;
+    }
+    if (name_len == 3 && nm[0] == 'u' && nm[1] == '1' && nm[2] == '6') {
+      static const uint8_t k_u16[8] = {'u', 'i', 'n', 't', '1', '6', '_', 't'};
+      if (cap < 8)
+        return -1;
+      for (j = 0; j < 8; j++)
+        scratch[j] = k_u16[j];
+      return 8;
+    }
     static const uint8_t hdr2[7] = {'s', 't', 'r', 'u', 'c', 't', ' '};
     w = 0;
     for (h = 0; h < 7; h++) {

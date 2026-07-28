@@ -2501,54 +2501,29 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
           if (emit_bytes_from_ptr(out, &open[0], 3) != 0) {
             return -1;
           }
-          /* struct xlang_slice_<elem>_t — map known elems; default int32_t. */
-          elem_tr = 0;
-          if (arr_tr > 0) {
-            elem_tr = pipeline_type_elem_ref_at(arena, arr_tr);
-          }
-          let ek: i32 = -1;
-          if (elem_tr > 0) {
-            ek = pipeline_type_kind_ord_at(arena, elem_tr);
-          }
-          /* struct xlang_slice_ */
-          let pref: u8[20] = [
-            115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0
-          ];
-          if (emit_bytes_from_ptr(out, &pref[0], 19) != 0) {
-            return -1;
-          }
-          if (ek == (TypeKind.TYPE_U8 as i32)) {
-            let e: u8[8] = [117, 105, 110, 116, 56, 95, 116, 0];
-            if (emit_bytes_from_ptr(out, &e[0], 7) != 0) {
-              return -1;
-            }
-          } else if (ek == (TypeKind.TYPE_U64 as i32)) {
-            let e: u8[10] = [117, 105, 110, 116, 54, 52, 95, 116, 0, 0];
-            if (emit_bytes_from_ptr(out, &e[0], 8) != 0) {
-              return -1;
-            }
-          } else if (ek == (TypeKind.TYPE_USIZE as i32)) {
-            let e: u8[8] = [115, 105, 122, 101, 95, 116, 0, 0];
-            if (emit_bytes_from_ptr(out, &e[0], 6) != 0) {
-              return -1;
-            }
-          } else if (ek == (TypeKind.TYPE_F32 as i32)) {
-            /* wave618: f32[] call-arg fat — match type_to_c_repr / preamble xlang_slice_float */
-            let e: u8[8] = [102, 108, 111, 97, 116, 0, 0, 0];
-            if (emit_bytes_from_ptr(out, &e[0], 5) != 0) {
-              return -1;
-            }
-          } else if (ek == (TypeKind.TYPE_F64 as i32)) {
-            /* wave618: f64[] call-arg fat — match type_to_c_repr / preamble xlang_slice_double */
-            let e: u8[8] = [100, 111, 117, 98, 108, 101, 0, 0];
-            if (emit_bytes_from_ptr(out, &e[0], 6) != 0) {
-              return -1;
-            }
-          } else {
-            /* int32_t (TYPE_I32 and fallback) */
-            let e: u8[10] = [105, 110, 116, 51, 50, 95, 116, 0, 0, 0];
-            if (emit_bytes_from_ptr(out, &e[0], 7) != 0) {
-              return -1;
+          /*
+           * wave619: emit full fat tag via type_to_c_repr(formal SLICE) — single authority
+           * with locals/preamble (bool→xlang_slice_int, u32/i64/isize, f32/f64, NAMED i8/i16/u16).
+           * Prior hand map only U8/U64/USIZE/F32/F64 else int32_t → call-arg/local tag drift.
+           * PLATFORM: SHARED host-C. G.7: no second elem→suffix table.
+           */
+          {
+            let tybuf: u8[256];
+            let empty_pref: u8[1] = [0];
+            let tyn: i32 = type_to_c_repr(arena, &tybuf[0], 256, formal_ty, &empty_pref[0], 0);
+            if (tyn <= 0) {
+              /* Fallback: struct xlang_slice_int32_t */
+              let fb: u8[28] = [
+                115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+                105, 110, 116, 51, 50, 95, 116, 0, 0
+              ];
+              if (emit_bytes_from_ptr(out, &fb[0], 26) != 0) {
+                return -1;
+              }
+            } else {
+              if (emit_bytes_from_ptr(out, &tybuf[0], tyn) != 0) {
+                return -1;
+              }
             }
           }
           /* ){ .data =  */

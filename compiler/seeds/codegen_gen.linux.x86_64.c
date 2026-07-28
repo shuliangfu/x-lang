@@ -3511,7 +3511,6 @@ int32_t codegen_emit_call_arg_slice_abi(struct ast_ASTArena * arena, struct code
       int32_t arr_sz = 0;
       int32_t arr_tr = 0;
       int32_t elem_tr = 0;
-      int32_t ek = -1;
       int32_t is_arr_rvalue = 0;
       if ((((arg.kind) == 3) && ((arg.var_name_len) > 0))) {
         is_arr_rvalue = 1;
@@ -3572,55 +3571,33 @@ int32_t codegen_emit_call_arg_slice_abi(struct ast_ASTArena * arena, struct code
             return codegen_emit_expr(arena, out, arg_ref, ctx);
           }
           uint8_t open[4] = {38, 40, 40, 0};
-          uint8_t pref[20] = {115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0};
           uint8_t mid1[14] = {41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 0, 0, 0};
           uint8_t mid2[14] = {44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0};
           uint8_t close[4] = {32, 125, 41, 0};
           if ((codegen_emit_bytes_from_ptr(out, &((open)[0]), 3) != 0)) {
             return -(1);
           }
-          if ((codegen_emit_bytes_from_ptr(out, &((pref)[0]), 19) != 0)) {
-            return -(1);
-          }
+          /* elem_tr still needed for CALL/METHOD deep-copy static payload type. */
           if ((arr_tr > 0)) {
             elem_tr = pipeline_type_elem_ref_at(arena, arr_tr);
           }
-          if ((elem_tr > 0)) {
-            ek = pipeline_type_kind_ord_at(arena, elem_tr);
-          }
-          /* TYPE_U8=2, TYPE_U64=4, TYPE_USIZE=6, TYPE_F32=14, TYPE_F64=15, else int32_t.
-           * wave618: f32/f64 slice call-arg tags match type_to_c_repr + rt_preamble. */
-          if ((ek == 2)) {
-            uint8_t e[8] = {117, 105, 110, 116, 56, 95, 116, 0};
-            if ((codegen_emit_bytes_from_ptr(out, &((e)[0]), 7) != 0)) {
-              return -(1);
-            }
-          } else if ((ek == 4)) {
-            uint8_t e[10] = {117, 105, 110, 116, 54, 52, 95, 116, 0, 0};
-            if ((codegen_emit_bytes_from_ptr(out, &((e)[0]), 8) != 0)) {
-              return -(1);
-            }
-          } else if ((ek == 6)) {
-            uint8_t e[8] = {115, 105, 122, 101, 95, 116, 0, 0};
-            if ((codegen_emit_bytes_from_ptr(out, &((e)[0]), 6) != 0)) {
-              return -(1);
-            }
-          } else if ((ek == 14)) {
-            /* TYPE_F32 → xlang_slice_float */
-            uint8_t e[8] = {102, 108, 111, 97, 116, 0, 0, 0};
-            if ((codegen_emit_bytes_from_ptr(out, &((e)[0]), 5) != 0)) {
-              return -(1);
-            }
-          } else if ((ek == 15)) {
-            /* TYPE_F64 → xlang_slice_double */
-            uint8_t e[8] = {100, 111, 117, 98, 108, 101, 0, 0};
-            if ((codegen_emit_bytes_from_ptr(out, &((e)[0]), 6) != 0)) {
-              return -(1);
-            }
-          } else {
-            uint8_t e[10] = {105, 110, 116, 51, 50, 95, 116, 0, 0, 0};
-            if ((codegen_emit_bytes_from_ptr(out, &((e)[0]), 7) != 0)) {
-              return -(1);
+          /* wave619: full fat tag via type_to_c_repr(formal SLICE) — G.7 single authority
+           * with locals/preamble (bool/u32/i64/isize/f32/f64 + NAMED i8/i16/u16).
+           * PLATFORM: SHARED host-C. */
+          {
+            uint8_t tybuf[256];
+            int32_t tyn = codegen_type_to_c_repr(arena, &((tybuf)[0]), 256, formal_ty, ((uint8_t *)(0)), 0);
+            if ((tyn <= 0)) {
+              static const uint8_t fb[27] = {
+                  115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+                  105, 110, 116, 51, 50, 95, 116, 0};
+              if ((codegen_emit_bytes_from_ptr(out, (uint8_t *)fb, 26) != 0)) {
+                return -(1);
+              }
+            } else {
+              if ((codegen_emit_bytes_from_ptr(out, &((tybuf)[0]), tyn) != 0)) {
+                return -(1);
+              }
             }
           }
           if ((codegen_emit_bytes_from_ptr(out, &((mid1)[0]), 11) != 0)) {

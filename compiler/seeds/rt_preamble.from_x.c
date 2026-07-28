@@ -131,13 +131,22 @@ const char *const driver_preamble_io_net_lines[] = {
         "static inline int32_t xlang_fs_rmdir(uint8_t *path) {\n"
         "  return (int32_t)rmdir((const char *)path);\n"
         "}\n",
+        /* PLATFORM: SHARED — host-C TYPE_SLICE fat layouts. Tags = type_to_c_repr
+         * (struct xlang_slice_ + elem C name from type_kind_cstr / NAMED stdint map).
+         * wave618: float/double. wave619: complete scalar set (bool/int, u32, i64,
+         * isize/ssize_t, NAMED i8/i16/u16 → int8_t/int16_t/uint16_t). Incomplete
+         * tag → host-cc BLD001 "incomplete type struct xlang_slice_*". */
         "struct xlang_slice_uint8_t { uint8_t *data; size_t length; };\n"
+        "struct xlang_slice_int8_t { int8_t *data; size_t length; };\n"
+        "struct xlang_slice_int16_t { int16_t *data; size_t length; };\n"
+        "struct xlang_slice_uint16_t { uint16_t *data; size_t length; };\n"
+        "struct xlang_slice_int { int *data; size_t length; };\n"
         "struct xlang_slice_int32_t { int32_t *data; size_t length; };\n"
+        "struct xlang_slice_uint32_t { uint32_t *data; size_t length; };\n"
+        "struct xlang_slice_int64_t { int64_t *data; size_t length; };\n"
         "struct xlang_slice_uint64_t { uint64_t *data; size_t length; };\n"
         "struct xlang_slice_size_t { size_t *data; size_t length; };\n"
-        /* wave618: type_to_c_repr tags TYPE_SLICE of f32/f64 as xlang_slice_float/double
-         * (elem C name "float"/"double" appended to xlang_slice_). Must match
-         * pipeline_codegen_type_kind_cstr TYPE_F32=14 / TYPE_F64=15. PLATFORM: SHARED. */
+        "struct xlang_slice_ssize_t { ssize_t *data; size_t length; };\n"
         "struct xlang_slice_float { float *data; size_t length; };\n"
         "struct xlang_slice_double { double *data; size_t length; };\n"
         /* §10 向量：codegen 发 i32x4_t / f32x4_t 等；与 emit_vector_c_type_out +
