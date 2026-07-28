@@ -181,6 +181,8 @@ extern int32_t pipeline_elf_ctx_ensure_label(uint8_t *ctx_bytes, uint8_t *name, 
 extern int32_t pipeline_elf_ctx_append_patch(uint8_t *ctx_bytes, int32_t rel32_offset, uint8_t *name, int32_t name_len,
                                               int32_t imm_bits);
 extern int32_t pipeline_elf_ctx_append_reloc(uint8_t *ctx_bytes, int32_t offset, uint8_t *name, int32_t name_len);
+/* G.7 wave580: single authority for Darwin leading '_' (never hardcode ElfCodegenCtx offsetof). */
+extern int32_t pipeline_elf_ctx_macho_leading_underscore(uint8_t *ctx_bytes);
 
 /**
  * x86_64 条件跳转 rel32：0F opcode2 00 00 00 00 + patch（与 x86_64_enc.x enc_jle/enc_jl 一致）。
@@ -268,10 +270,14 @@ int32_t backend_enc_arm64_call_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx
   at = pipeline_elf_ctx_emit_code_len((uint8_t *)elf_ctx) - 4;
   if (at < 0)
     return -1;
-  macho_leading_underscore = *(int32_t *)((uint8_t *)elf_ctx + 598052);
-  if (macho_leading_underscore != 0 && name_len <= 63 && name[0] != (uint8_t)'_') {
+  /* wave580 Cap residual: NEVER hardcode ElfCodegenCtx field offsets (598052 was
+   * pre-Cap name[64]; after name[128] tables, offsetof is ~9e6). G.7 authority =
+   * pipeline_elf_ctx_macho_leading_underscore (ast_pool offsetof).
+   * PLATFORM: MACOS|DARWIN arm64 BL reloc; LINUX flag stays 0. */
+  macho_leading_underscore = pipeline_elf_ctx_macho_leading_underscore((uint8_t *)elf_ctx);
+  if (macho_leading_underscore != 0 && name_len > 0 && name_len <= 127 && name[0] != (uint8_t)'_') {
     reloc_name[0] = (uint8_t)'_';
-    for (i = 0; i < name_len && i < 63; i++)
+    for (i = 0; i < name_len && i < 127; i++)
       reloc_name[i + 1] = name[i];
     reloc_len = name_len + 1;
     return pipeline_elf_ctx_append_reloc((uint8_t *)elf_ctx, at, reloc_name, reloc_len);

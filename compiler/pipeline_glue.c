@@ -26781,7 +26781,8 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(struct ast_Module *m
     }
     pipeline_asm_register_module_top_level_lets_c(bctx, m, a, i);
     pipeline_debug_trace_named_func_bodies("mega_post_register_top_level", m, a);
-    export_sym_len = glue_asm_build_func_export_sym_c(m, a, i, export_sym, 64);
+    /* wave580 Cap: export_sym is u8[128]; out_cap must be 128 (was 64 → silent truncate / clen<cap reject at 64). */
+    export_sym_len = glue_asm_build_func_export_sym_c(m, a, i, export_sym, 128);
     if (export_sym_len <= 0)
       return -1;
     if (backend_enc_label_arch(elf_ctx, export_sym, export_sym_len, 1, ta) != 0) {

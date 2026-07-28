@@ -9486,8 +9486,9 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
         u0 = u0 + 1;
       }
       if (dup == 0 && num_undef < PIPELINE_ELF_UNDEF_SYM_CAP) {
-        if (rlen > 64)
-          rlen = 64;
+        /* wave580 Cap: undef_names rows are u8[128]; full row ('_'+127). */
+        if (rlen > 128)
+          rlen = 128;
         if (rlen > 0)
           memcpy(undef_names[num_undef], rname, (size_t)rlen);
         undef_lens[num_undef] = rlen;
@@ -10377,8 +10378,9 @@ int32_t pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, struct codegen_Codeg
         u0 = u0 + 1;
       }
       if (dup == 0 && num_undef < 32) {
-        if (rlen > 64)
-          rlen = 64;
+        /* wave580 Cap: undef_names rows are u8[128]; full row ('_'+127). */
+        if (rlen > 128)
+          rlen = 128;
         if (rlen > 0)
           memcpy(undef_names[num_undef], rname, (size_t)rlen);
         undef_lens[num_undef] = rlen;
@@ -10988,10 +10990,13 @@ int32_t pipeline_elf_ctx_add_label(uint8_t *ctx_bytes, uint8_t *name, int32_t na
   if (ctx->num_labels >= PIPELINE_ELF_CTX_TABLE_CAP)
     return -1;
   li = ctx->num_labels;
-  n = name_len > 64 ? 64 : name_len;
+  /* wave577 Cap / wave580: labels.name is u8[128]; store up to 128 (was silent 64 clamp). */
+  n = name_len > 128 ? 128 : name_len;
+  if (n < 0)
+    n = 0;
   if (n > 0)
     memcpy(ctx->labels[li].name, name, (size_t)n);
-  ctx->labels[li].name_len = name_len;
+  ctx->labels[li].name_len = n;
   ctx->labels[li].offset = offset;
   pipeline_elf_label_shndx_set(ctx_bytes, li, shndx);
   ctx->num_labels = ctx->num_labels + 1;
@@ -11043,8 +11048,10 @@ int32_t pipeline_elf_ctx_add_sym(uint8_t *ctx_bytes, uint8_t *name, int32_t name
   if (g_pipeline_elf_common_owner != ctx_bytes)
     pipeline_elf_common_sidecar_reset(ctx_bytes);
   copy_len = name_len;
-  if (copy_len > 64)
-    copy_len = 64;
+  /* wave580 Cap residual: sym name pool holds link names up to 128
+   * ('_' + 127 AST content on Darwin). Was 64. */
+  if (copy_len > 128)
+    copy_len = 128;
   if (copy_len < 0)
     copy_len = 0;
   if (ctx->sym_name_len + copy_len > 131072)
@@ -11135,10 +11142,13 @@ int32_t pipeline_elf_ctx_append_patch(uint8_t *ctx_bytes, int32_t rel32_offset, 
   pi = ctx->num_patches;
   ent = &ctx->patches[pi];
   ent->rel32_offset = rel32_offset;
-  n = name_len > 64 ? 64 : name_len;
+  /* wave580 Cap: patches.name is u8[128]; store clamped length matching copied bytes. */
+  n = name_len > 128 ? 128 : name_len;
+  if (n < 0)
+    n = 0;
   if (n > 0)
     memcpy(ent->name, name, (size_t)n);
-  ent->name_len = name_len;
+  ent->name_len = n;
   ent->patch_imm_bits = bits;
   pipeline_elf_patch_shndx_set(ctx_bytes, pi, pipeline_elf_ctx_current_shndx(ctx));
   ctx->num_patches = ctx->num_patches + 1;
@@ -11376,13 +11386,17 @@ int32_t pipeline_elf_ctx_append_reloc(uint8_t *ctx_bytes, int32_t offset, uint8_
     hent->name_len = name_len;
   }
   pipeline_elf_reloc_shndx_set(ctx_bytes, ri, pipeline_elf_ctx_current_shndx(ctx));
-  memset(sym_row, 0, 64);
-  n = name_len > 64 ? 64 : name_len;
-  memcpy(sym_row, name, (size_t)n);
+  /* wave580 Cap: reloc_sym_names.bytes is u8[128]; clamp to full row ('_'+127 ok). */
+  memset(sym_row, 0, 128);
+  n = name_len > 128 ? 128 : name_len;
+  if (n < 0)
+    n = 0;
+  if (n > 0)
+    memcpy(sym_row, name, (size_t)n);
   if (ent)
-    ent->name_len = name_len;
+    ent->name_len = n;
   else if (hent)
-    hent->name_len = name_len;
+    hent->name_len = n;
   /* Default call-style reloc type (0 => writer uses reloc_type_r_pc32 / BRANCH26). */
   if (ri < PIPELINE_ELF_CTX_TABLE_CAP) {
     g_pipeline_elf_reloc_r_type[ri] = 0;
@@ -11436,21 +11450,24 @@ uint8_t *pipeline_elf_ctx_reloc_sym_name_ptr(uint8_t *ctx_bytes, int32_t idx) {
   return g_pipeline_elf_reloc_sym_heap[hi];
 }
 
-/** 将 reloc_sym_names[idx] 拷入 dst（最多 63 字节 + NUL）；含 heap sidecar。 */
+/** Copy reloc_sym_names[idx] into dst (u8[128] content cap 127 + trailing zero region).
+ * Name kept as *copy64 for ABI stability; wave580 Cap raised payload 64→128.
+ * PLATFORM: SHARED — heap sidecar + inline reloc rows.
+ */
 void pipeline_elf_ctx_reloc_sym_name_copy64(uint8_t *ctx_bytes, int32_t idx, uint8_t *dst) {
   PipelineElfCtxAccess *ctx;
   int32_t k;
   uint8_t *src;
   if (!dst)
     return;
-  memset(dst, 0, 64);
+  memset(dst, 0, 128);
   src = pipeline_elf_ctx_reloc_sym_name_ptr(ctx_bytes, idx);
   if (!src)
     return;
   ctx = (PipelineElfCtxAccess *)ctx_bytes;
   if (!ctx || idx < 0 || idx >= ctx->num_relocs)
     return;
-  for (k = 0; k < 64; k++)
+  for (k = 0; k < 128; k++)
     dst[k] = src[k];
 }
 

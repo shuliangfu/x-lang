@@ -1545,7 +1545,8 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
         if (pipeline_expr_kind_ord_at(arena, base_ref) == 3) {
           let base_len: i32 = pipeline_expr_var_name_len(arena, base_ref);
           if (base_len > 0) {
-            if (base_len <= 63) {
+            // wave580 Cap: import binding name content cap 127.
+            if (base_len <= 127) {
               let base_name: u8[128] = [];
               pipeline_expr_var_name_into(arena, base_ref, &base_name[0]);
               let j: i32 = 0;
@@ -1745,12 +1746,13 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
           if (pipeline_expr_kind_ord_at(arena, base_ref) == 3) {
             let base_len: i32 = pipeline_expr_var_name_len(arena, base_ref);
             if (base_len > 0) {
-              if (base_len <= 63) {
+              // wave580 Cap: binding/field name content cap 127 (AST u8[128]).
+              if (base_len <= 127) {
                 let base_name: u8[128] = [];
                 pipeline_expr_var_name_into(arena, base_ref, &base_name[0]);
                 let field_len: i32 = pipeline_expr_field_access_name_len(arena, callee_ref);
                 if (field_len > 0) {
-                  if (field_len <= 63) {
+                  if (field_len <= 127) {
                     let field_name: u8[128] = [];
                     pipeline_expr_field_access_name_into(arena, callee_ref, &field_name[0]);
                     let j: i32 = 0;
@@ -1893,7 +1895,8 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
     if (clen0 <= 0) { return 0 - 1; }
     if (clen0 > 127) { return 0 - 1; }
     let cname: u8[128] = [];
-    let clen: i32 = glue_asm_build_call_export_sym_c(arena, expr_ref, callee_ref, mod_ref, dep_pipe, &cname[0], 64);
+    // wave580 Cap residual: out_cap must match cname[128] / AST name content cap 127.
+    let clen: i32 = glue_asm_build_call_export_sym_c(arena, expr_ref, callee_ref, mod_ref, dep_pipe, &cname[0], 128);
     if (clen <= 0) { return 0 - 1; }
     return glue_asm_emit_call_with_cleanup(arena, elf_ctx, expr_ref, ctx, ta, nargs, &cname[0], clen);
   }

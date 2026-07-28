@@ -337,8 +337,9 @@ export function elf_add_sym(ctx: *ElfCodegenCtx, name: *u8, name_len: i32, offse
     return -1;
   }
   let copy_len: i32 = name_len;
-  if (copy_len > 64) {
-    copy_len = 64;
+  // wave580 Cap residual: link-name pool up to 128 ('_' + 127 AST content); was 64.
+  if (copy_len > 128) {
+    copy_len = 128;
   }
   if (copy_len < 0) {
     copy_len = 0;

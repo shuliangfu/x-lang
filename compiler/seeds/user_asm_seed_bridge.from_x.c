@@ -191,15 +191,19 @@ extern int32_t backend_asm_codegen_ast(void *module, void *arena, void *out_buf,
 extern int32_t backend_asm_codegen_ast_to_elf(void *module, void *arena, void *elf_ctx, void *ctx);
 extern int32_t peephole_run(void *out_buf);
 extern int32_t peephole_elf_run(void *elf_ctx);
-/** ElfCodegenCtx.macho_leading_underscore 偏移（与 ast_pool.c kPipelineElfCtxMachoUnderscoreOff / elf.x 4096 表一致）。 */
-#define XLANG_ELF_CTX_MACHO_UNDERSCORE_OFF 598052
-
-/** Darwin -o：call/reloc 符号须 leading `_`（与 asm.x::asm_codegen_elf_o 一致）。 */
+/**
+ * Darwin -o: call/reloc symbols need leading `_` (same as asm_codegen_elf_o).
+ * wave580 Cap residual: NEVER hardcode offsetof (pre-Cap 598052 is stale after
+ * name[64]→[128] tables; real offsetof is ~9e6). G.7: write the field via the
+ * local ElfCodegenCtx mirror (layout must match elf.x / ast_pool PipelineElfCtxAccess).
+ * PLATFORM: MACOS|DARWIN product pure-asm; no-op effect on LINUX when flag left 0.
+ */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void seed_elf_ctx_set_macho_leading_underscore(void *elf_ctx, int32_t on) {
-  if (!elf_ctx)
+  struct platform_elf_ElfCodegenCtx *ctx = (struct platform_elf_ElfCodegenCtx *)elf_ctx;
+  if (!ctx)
     return;
-  *(int32_t *)((uint8_t *)elf_ctx + XLANG_ELF_CTX_MACHO_UNDERSCORE_OFF) = on ? 1 : 0;
+  ctx->macho_leading_underscore = on ? 1 : 0;
 }
 
 

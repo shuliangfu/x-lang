@@ -1125,11 +1125,13 @@ int32_t glue_asm_build_dep_export_sym_c_impl(const uint8_t *name, int32_t name_l
     while (plen < 127 && prefix[plen])
       plen++;
     if (plen > 0 && !glue_asm_c_prefix_redundant_with_name(prefix, plen, name, name_len)) {
-      for (i = 0; i < plen && pos < out_cap - 1; i++)
+      /* wave580 Cap: fill out[0..out_cap) without reserved NUL (length-returned API). */
+      for (i = 0; i < plen && pos < out_cap; i++)
         out[pos++] = prefix[i];
     }
   }
-  for (i = 0; i < name_len && pos < out_cap - 1; i++)
+  /* wave580 Cap: allow full content cap 127 into out_cap 128 (was out_cap-1 → truncate 64→63). */
+  for (i = 0; i < name_len && pos < out_cap; i++)
     out[pos++] = name[i];
   return pos > 0 ? pos : -1;
 }
@@ -2662,7 +2664,8 @@ int32_t glue_asm_build_call_export_sym_c_impl(struct ast_ASTArena *arena, int32_
   if (!arena || callee_ref <= 0 || !out || out_cap <= 0)
     return -1;
   clen = pipeline_expr_var_name_len(arena, callee_ref);
-  if (clen <= 0 || clen > 63)
+  /* wave577 Cap / wave580: AST name slots u8[128] content cap 127 (was 63). */
+  if (clen <= 0 || clen > 127)
     return -1;
   pipeline_expr_var_name_into(arena, callee_ref, cname);
   /*
@@ -3167,13 +3170,13 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
     if (base_ref > 0 && pipeline_expr_kind_ord_at(arena, base_ref) == 3) {
       uint8_t base_name[128];
       int32_t base_len = pipeline_expr_var_name_len(arena, base_ref);
-      if (base_len > 0 && base_len <= 63) {
+      if (base_len > 0 && base_len <= 127) {
         int32_t j;
         uint8_t field_name[128];
         int32_t field_len;
         pipeline_expr_var_name_into(arena, base_ref, base_name);
         field_len = pipeline_expr_field_access_name_len(arena, callee_ref);
-        if (field_len > 0 && field_len <= 63) {
+        if (field_len > 0 && field_len <= 127) {
           pipeline_expr_field_access_name_into(arena, callee_ref, field_name);
           for (j = 0; j < parser_get_module_num_imports(mod_ref); j++) {
             if (pipeline_module_import_kind_at(mod_ref, j) == GLUE_IMPORT_KIND_BINDING &&
@@ -3301,9 +3304,10 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
       return inline_rc < 0 ? -1 : 0;
   }
   clen = pipeline_expr_var_name_len(arena, callee_ref);
-  if (clen <= 0 || clen > 63)
+  /* wave580 Cap residual: long callee idents (64..127) must build call symbols. */
+  if (clen <= 0 || clen > 127)
     return -1;
-  clen = glue_asm_build_call_export_sym_c(arena, expr_ref, callee_ref, mod_ref, ly ? ly->dep_pipe : 0, cname, 64);
+  clen = glue_asm_build_call_export_sym_c(arena, expr_ref, callee_ref, mod_ref, ly ? ly->dep_pipe : 0, cname, 128);
   if (clen <= 0)
     return -1;
   backend_call_debugf("call elf c %.*s nargs=%d", (int)clen, (char *)cname, (int)nargs);
@@ -3381,7 +3385,7 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
   if (mod_ref && base_ref > 0 && pipeline_expr_kind_ord_at(arena, base_ref) == GLUE_EXPR_VAR_ORD) {
     uint8_t base_name[128];
     int32_t base_len = pipeline_expr_var_name_len(arena, base_ref);
-    if (base_len > 0 && base_len <= 63) {
+    if (base_len > 0 && base_len <= 127) {
       int32_t j;
       pipeline_expr_var_name_into(arena, base_ref, base_name);
       for (j = 0; j < parser_get_module_num_imports(mod_ref); j++) {

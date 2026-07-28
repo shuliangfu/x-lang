@@ -167,6 +167,7 @@ extern int32_t pipeline_elf_ctx_emit_code_len(uint8_t * ctx);
 extern int32_t pipeline_elf_ctx_ensure_label(uint8_t * ctx, uint8_t * name, int32_t name_len);
 extern int32_t pipeline_elf_ctx_append_patch(uint8_t * ctx, int32_t rel32_offset, uint8_t * name, int32_t name_len, int32_t imm_bits);
 extern int32_t pipeline_elf_ctx_append_reloc(uint8_t * ctx, int32_t at, uint8_t * name, int32_t name_len);
+extern int32_t pipeline_elf_ctx_macho_leading_underscore(uint8_t * ctx);
 extern int32_t arch_arm64_enc_enc_u32_le(uint8_t * elf_ctx, int32_t word);
 int32_t backend_enc_x86_jcc_rel32_c(uint8_t * elf_ctx, uint8_t opcode2, uint8_t * label, int32_t label_len) {
   if ((elf_ctx ==0)) {
@@ -242,25 +243,22 @@ int32_t backend_enc_arm64_call_c(uint8_t * elf_ctx, uint8_t * name, int32_t name
   }
   {
     int32_t at = (pipeline_elf_ctx_emit_code_len(elf_ctx) - 4);
-    int32_t m = 256;
-    int32_t macho = ((int32_t)((elf_ctx)[598052]));
+    /* wave580 Cap: G.7 pipeline_elf_ctx_macho_leading_underscore (no hardcode offsetof). */
+    int32_t macho = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
     if ((backend_enc_append_u32_le_c(elf_ctx, -1811939328) !=0)) {
       return (0 - 1);
     }
     if ((at < 0)) {
       return (0 - 1);
     }
-    (void)((macho = (macho + (((int32_t)((elf_ctx)[598053])) * m))));
-    (void)((macho = (macho + (((int32_t)((elf_ctx)[598054])) * (m * m)))));
-    (void)((macho = (macho + (((int32_t)((elf_ctx)[598055])) * ((m * m) * m)))));
     if ((macho !=0)) {
-      if ((name_len <=63)) {
+      if ((name_len <=127)) {
         if (((name)[0] !=95)) {
           uint8_t reloc_name[128] = {};
           (void)(((reloc_name)[0] = 95));
           int32_t i = 0;
           while ((i < name_len)) {
-            if ((i >=63)) {
+            if ((i >=127)) {
               break;
             }
             (void)(((reloc_name)[(i + 1)] = (name)[i]));

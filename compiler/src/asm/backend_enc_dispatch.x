@@ -40,6 +40,14 @@ export extern "C" function pipeline_elf_ctx_emit_code_len(ctx: *u8): i32;
 export extern "C" function pipeline_elf_ctx_ensure_label(ctx: *u8, name: *u8, name_len: i32): i32;
 export extern "C" function pipeline_elf_ctx_append_patch(ctx: *u8, rel32_offset: i32, name: *u8, name_len: i32, imm_bits: i32): i32;
 export extern "C" function pipeline_elf_ctx_append_reloc(ctx: *u8, at: i32, name: *u8, name_len: i32): i32;
+/**
+ * Read ElfCodegenCtx.macho_leading_underscore via offsetof (ast_pool).
+ * wave580 Cap: forbids hardcoding field offset (pre-Cap 598052 is stale after name[128]).
+ * @param ctx *u8 — ElfCodegenCtx bytes
+ * @return i32 — non-zero when Darwin leading '_' must be applied
+ * PLATFORM: MACOS|DARWIN product pure-asm; 0 on LINUX/WINDOWS
+ */
+export extern "C" function pipeline_elf_ctx_macho_leading_underscore(ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_u32_le(elf_ctx: *u8, word: i32): i32;
 
 // backend_enc_x86_jcc_rel32_c: see function docblock below.
@@ -113,25 +121,25 @@ export function backend_enc_arm64_call_c(elf_ctx: *u8, name: *u8, name_len: i32)
     if (backend_enc_append_u32_le_c(elf_ctx, 2483027968) != 0) { return 0 - 1; }
     let at: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
     if (at < 0) { return 0 - 1; }
-    // macho_leading_underscore i32 @ offset 598052
-    let m: i32 = 256;
-    let macho: i32 = elf_ctx[598052] as i32;
-    macho = macho + (elf_ctx[598053] as i32) * m;
-    macho = macho + (elf_ctx[598054] as i32) * (m * m);
-    macho = macho + (elf_ctx[598055] as i32) * (m * m * m);
+    // wave580 Cap residual: G.7 API only — never hardcode ElfCodegenCtx offsets
+    // (pre-Cap 598052 broke after name[64]→[128] table growth).
+    // PLATFORM: MACOS|DARWIN arm64 BL reloc; LINUX flag 0.
+    let macho: i32 = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
     if (macho != 0) {
-      if (name_len <= 63) {
-        if (name[0] != 95) {
-          let reloc_name: u8[128] = [];
-          reloc_name[0] = 95;
-          let i: i32 = 0;
-          while (i < name_len) {
-            if (i >= 63) { break; }
-            reloc_name[i + 1] = name[i];
-            i = i + 1;
+      if (name_len > 0) {
+        if (name_len <= 127) {
+          if (name[0] != 95) {
+            let reloc_name: u8[128] = [];
+            reloc_name[0] = 95;
+            let i: i32 = 0;
+            while (i < name_len) {
+              if (i >= 127) { break; }
+              reloc_name[i + 1] = name[i];
+              i = i + 1;
+            }
+            let reloc_len: i32 = name_len + 1;
+            return pipeline_elf_ctx_append_reloc(elf_ctx, at, &reloc_name[0], reloc_len);
           }
-          let reloc_len: i32 = name_len + 1;
-          return pipeline_elf_ctx_append_reloc(elf_ctx, at, &reloc_name[0], reloc_len);
         }
       }
     }

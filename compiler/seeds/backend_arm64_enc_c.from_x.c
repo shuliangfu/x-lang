@@ -71,10 +71,12 @@ int32_t arch_arm64_enc_enc_label(struct platform_elf_ElfCodegenCtx *elf_ctx, uin
     return -1;
   if (is_func == 0)
     return 0;
-  if (pipeline_elf_ctx_macho_leading_underscore(cb) != 0 && name_len > 0 && name_len <= 63 && name[0] != 95) {
+  /* wave580 Cap: mn is u8[128] → '_' + up to 127 content bytes (was 63).
+   * PLATFORM: MACOS|DARWIN arm64 pure-asm export syms. */
+  if (pipeline_elf_ctx_macho_leading_underscore(cb) != 0 && name_len > 0 && name_len <= 127 && name[0] != 95) {
     mn[0] = 95;
     k = 0;
-    while (k < name_len && k < 63) {
+    while (k < name_len && k < 127) {
       mn[k + 1] = name[k];
       k = k + 1;
     }

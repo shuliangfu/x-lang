@@ -827,11 +827,12 @@ int32_t arch_x86_64_enc_enc_label(uint8_t * elf_ctx, uint8_t * name, int32_t nam
     if ((is_func ==0)) {
       return 0;
     }
-    if (((((pipeline_elf_ctx_macho_leading_underscore(elf_ctx) !=0) && (name_len > 0)) && (name_len <=63)) && ((name)[0] !=95))) {
+    /* wave580 Cap: mn u8[128] holds '_' + up to 127 content (was 63). PLATFORM: MACOS|DARWIN. */
+    if (((((pipeline_elf_ctx_macho_leading_underscore(elf_ctx) !=0) && (name_len > 0)) && (name_len <=127)) && ((name)[0] !=95))) {
       uint8_t mn[128] = {0};
       (void)(((mn)[0] = 95));
       int32_t k = 0;
-      while (((k < name_len) && (k < 63))) {
+      while (((k < name_len) && (k < 127))) {
         (void)(((mn)[(k + 1)] = (name)[k]));
         (void)((k = (k + 1)));
       }
@@ -1224,11 +1225,12 @@ int32_t arch_x86_64_enc_enc_call(uint8_t * elf_ctx, uint8_t * name, int32_t name
   }
   {
     int32_t rel32_at = (pipeline_elf_ctx_emit_code_len(elf_ctx) - 4);
-    if (((((pipeline_elf_ctx_macho_leading_underscore(elf_ctx) !=0) && (name_len > 0)) && (name_len <=63)) && ((name)[0] !=95))) {
+    /* wave580 Cap: rn u8[128] holds '_' + up to 127 content (was 63). PLATFORM: MACOS|DARWIN. */
+    if (((((pipeline_elf_ctx_macho_leading_underscore(elf_ctx) !=0) && (name_len > 0)) && (name_len <=127)) && ((name)[0] !=95))) {
       uint8_t rn[128] = {0};
       (void)(((rn)[0] = 95));
       int32_t k = 0;
-      while (((k < name_len) && (k < 63))) {
+      while (((k < name_len) && (k < 127))) {
         (void)(((rn)[(k + 1)] = (name)[k]));
         (void)((k = (k + 1)));
       }
