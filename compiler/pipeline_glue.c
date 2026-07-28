@@ -19390,9 +19390,15 @@ int32_t pipeline_asm_push_sysv_memory_by_value_elf_c(struct ast_ASTArena *arena,
 }
 
 /**
- * wave603 Cap residual: AAPCS64 MEMORY by-value call-arg → store words at [sp+#sp_off].
+ * wave603/604 Cap residual: AAPCS64 MEMORY by-value call-arg → store words at [sp+#sp_off].
  * PLATFORM: MACOS|ARM64 — low-end home (byte0@off); store low word first at sp_off.
- * G.7: VAR home authority twin of push_sysv_memory; CALL/METHOD MEMORY as arg soft.
+ *
+ * Materialize sources (G.7 twin of pipeline_asm_push_sysv_memory_by_value_elf_c):
+ *   - VAR (kind 3): copy qwords from local home (wave603)
+ *   - CALL/METHOD_CALL (48/49) with >16B return: sret into frame temp (x8), then copy
+ *     (wave604; arm64 Indirect Result Location — no GP shift, unlike x86 rdi+shift)
+ *   - else: unsupported (STRUCT_LIT/FIELD → let first; product pattern)
+ *
  * @return nbytes stored, or -1
  */
 int32_t pipeline_asm_store_memory_by_value_to_sp_elf_c(struct ast_ASTArena *arena,
@@ -19403,16 +19409,52 @@ int32_t pipeline_asm_store_memory_by_value_to_sp_elf_c(struct ast_ASTArena *aren
   int32_t nbytes;
   int32_t k;
   int32_t ko;
+  typedef struct {
+    int32_t frame_size;
+    int32_t next_offset;
+  } glue_AsmFuncCtxHead;
+  glue_AsmFuncCtxHead *ly;
   if (!arena || !elf_ctx || !ctx || arg_ref <= 0 || sz <= 16 || ta != 1 || sp_off < 0)
     return -1;
   nbytes = (sz + 7) & ~7;
   ko = pipeline_expr_kind_ord_at(arena, arg_ref);
-  /* VAR only this leaf (sum(s)); sum(mk()) arm64 soft residual. */
-  if (ko != 3)
+  off = -1;
+  /* 1) Local VAR: known stack home (wave603). */
+  if (ko == 3) {
+    off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, arg_ref);
+    if (off < 0)
+      return -1;
+  } else if (ko == 48 || ko == 49) {
+    /*
+     * 2) Nested CALL/METHOD large return: materialize via AAPCS64 sret into frame temp.
+     * Root wave604: sum(mk()) previously returned -1 (VAR-only) → CG002; x86 push_sysv
+     * already sret+push since wave601.
+     * PLATFORM: MACOS|ARM64 — dest in x8 (wave591); low-end home byte0@off.
+     */
+    int32_t ret_sz = glue_call_return_byte_size_c(arena, arg_ref);
+    if (ret_sz <= 16)
+      ret_sz = sz;
+    if (ret_sz <= 16)
+      return -1;
+    ly = (glue_AsmFuncCtxHead *)ctx;
+    /* Low-end: allocate [off, off+nbytes); byte0 @ off. */
+    off = ly->next_offset;
+    if (off < 16)
+      off = 16;
+    if (off + nbytes < off)
+      return -1;
+    ly->next_offset = off + nbytes;
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta) != 0)
+      return -1;
+    /* AAPCS64 Indirect Result Location = x8 (not an arg GP; no sret_reg_shift). */
+    if (glue_arm64_mov_x0_to_x8_elf_c(elf_ctx) != 0)
+      return -1;
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, arg_ref, ctx, ta) != 0)
+      return -1;
+  } else {
+    /* STRUCT_LIT / FIELD / … as MEMORY call-arg: materialize via let first. */
     return -1;
-  off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, arg_ref);
-  if (off < 0)
-    return -1;
+  }
   for (k = 0; k < nbytes; k += 8) {
     if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off + k, ta) != 0)
       return -1;
