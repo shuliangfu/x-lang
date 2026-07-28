@@ -7389,6 +7389,11 @@ static int32_t glue_var_expr_type_ref_with_decl_fallback_c(struct ast_ASTArena *
  *   Prior: only VAR-base / call_base; DEREF base fell through → field rvalue load first
  *   array word (ldr w) as “pointer” → freestanding SEGV (host-C green; `p.xs` arrow green).
  *   G.7: emit DEREF operand (pointer bits) + field_off — same authority as VAR-base lea/load.
+ * wave651: FIELD rooted at EXPR_INDEX (ko=47) — `m[i].xs` / `take(m[0].xs)`.
+ *   Prior: VAR/DEREF/call_base only; INDEX base fell through → field rvalue load first array
+ *   word as E* → freestanding SEGV (host-C temp + &field green; `take(w.xs)` VAR green;
+ *   wave610 STRUCT_LIT/CALL field green). G.7: INDEX eff_addr (elem of m[i]) + field_off —
+ *   same leave-addr authority; do not invent a second FIELD→array path.
  * PLATFORM: SHARED — lit-index fast path and scaled INDEX both use this (must match
  * glue_emit_index_eff_addr_base_* slice load at +0).
  */
@@ -7404,6 +7409,9 @@ static int32_t glue_try_index_var_or_field_base_to_rax_elf_c(struct ast_ASTArena
   int32_t call_fa;
   int32_t base_ko;
   int32_t d_op;
+  int32_t ix_base;
+  int32_t ix_idx;
+  int32_t ix_esz;
 
   if (!arena || !elf_ctx || !ctx || base_ref <= 0)
     return -2;
@@ -7462,6 +7470,30 @@ static int32_t glue_try_index_var_or_field_base_to_rax_elf_c(struct ast_ASTArena
         if (d_op <= 0)
           return -2;
         if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, d_op, ctx, ta) != 0)
+          return -1;
+        field_off = glue_field_access_effective_offset_c(arena, g_pipeline_asm_emit_module, base_ref);
+        if (field_off != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0)
+          return -1;
+        if (glue_index_deref_ptr_field_slot_rax_elf_c(arena, elf_ctx, base_ref, ta) != 0)
+          return -1;
+        return 0;
+      }
+      /*
+       * wave651 Cap residual pure: call-arg / INDEX base `m[i].xs` — FIELD over EXPR_INDEX.
+       * INDEX eff_addr leaves &m[i] (elem of outer array); +field_off → &m[i].xs payload.
+       * Reuses glue_emit_index_eff_addr_scaled (VAR twin already handles m); no second path.
+       * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
+       */
+      if (base_ko == 47) {
+        ix_base = pipeline_expr_index_base_ref(arena, var_base);
+        ix_idx = pipeline_expr_index_index_ref(arena, var_base);
+        if (ix_base <= 0 || ix_idx <= 0)
+          return -2;
+        ix_esz = pipeline_asm_index_elem_byte_sz_c(arena, var_base);
+        if (ix_esz <= 0)
+          return -2;
+        if (glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, var_base, ix_base, ix_idx, ctx, ta,
+                                                   ix_esz) != 0)
           return -1;
         field_off = glue_field_access_effective_offset_c(arena, g_pipeline_asm_emit_module, base_ref);
         if (field_off != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0)
@@ -7562,6 +7594,34 @@ static int32_t glue_try_index_var_or_field_base_to_rbx_elf_c(struct ast_ASTArena
       if (field_off != 0 && backend_enc_add_imm_to_rbx_arch(elf_ctx, field_off, ta) != 0)
         return -1;
       if (glue_index_deref_ptr_field_slot_rbx_elf_c(arena, elf_ctx, base_ref, ta) != 0)
+        return -1;
+      return 0;
+    }
+    /*
+     * wave651: FIELD over EXPR_INDEX as INDEX/call-arg base — twin of rax path.
+     * Emit &m[i].xs into rax then mov→rbx (rhs may live in rax on assign path).
+     * PLATFORM: SHARED freestanding (assign path mirrors rax twin).
+     */
+    if (var_base > 0 && pipeline_expr_kind_ord_at(arena, var_base) == 47) {
+      int32_t ix_base;
+      int32_t ix_idx;
+      int32_t ix_esz;
+      ix_base = pipeline_expr_index_base_ref(arena, var_base);
+      ix_idx = pipeline_expr_index_index_ref(arena, var_base);
+      if (ix_base <= 0 || ix_idx <= 0)
+        return -2;
+      ix_esz = pipeline_asm_index_elem_byte_sz_c(arena, var_base);
+      if (ix_esz <= 0)
+        return -2;
+      if (glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, var_base, ix_base, ix_idx, ctx, ta,
+                                                 ix_esz) != 0)
+        return -1;
+      field_off = glue_field_access_effective_offset_c(arena, g_pipeline_asm_emit_module, base_ref);
+      if (field_off != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0)
+        return -1;
+      if (glue_index_deref_ptr_field_slot_rax_elf_c(arena, elf_ctx, base_ref, ta) != 0)
+        return -1;
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
         return -1;
       return 0;
     }
@@ -16138,6 +16198,7 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
    * INDEX SEGV (host-C temp + &field green; ARRAY_LIT call-arg already lea green).
    * G.7: reuse INDEX base address helper (wave609 call_base leave_addr + VAR-base field
    * lea) — pass E* = &field payload only; do not invent a second FIELD array path.
+   * wave651: same helper covers FIELD over INDEX (`take(m[i].xs)`) — INDEX eff_addr + off.
    * PLATFORM: SHARED freestanding · LINUX gold + MACOS|ARM64.
    */
   if (arena && ctx && elf_ctx && pipeline_expr_kind_ord_at(arena, expr_ref) == 44) {
