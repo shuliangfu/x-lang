@@ -6996,6 +6996,10 @@ static int32_t glue_field_access_field_type_ref_c(struct ast_ASTArena *arena, st
 /**
  * wave357 Cap residual pure: total payload bytes of a fixed TYPE_ARRAY, recursive for
  * multi-dim (`[2][3]i32` → 24). Scalars/slices fall back via peel helpers.
+ * wave637: element TYPE_PTR=9 is pointer width 8 (`*i32[2]` → 16), not default 4.
+ * Root: prior PTR fell to esz=4 → frame slot 8B while ARRAY_LIT/INDEX used 8B stride
+ * → Ubuntu x86 high-end a[1] overwrote prior local y (mac low-end free space hid).
+ * G.7: align with pipeline_asm_array_lit_elem_byte_sz_c PTR=8 + INDEX element 8.
  * PLATFORM: SHARED freestanding layout · LINUX gold (mac host-C uses C multi-dim).
  */
 static int32_t glue_fixed_array_total_bytes_c(struct ast_ASTArena *arena, int32_t ty_ref, int32_t depth) {
@@ -7022,7 +7026,7 @@ static int32_t glue_fixed_array_total_bytes_c(struct ast_ASTArena *arena, int32_
     esz = 1;
   else if (ek == 0 || ek == 3 || ek == 13 || ek == 14)
     esz = 4;
-  else if (ek == 15 || ek == 4 || ek == 5 || ek == 6 || ek == 7)
+  else if (ek == 15 || ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == GLUE_TYPE_KIND_PTR)
     esz = 8;
   else if (ek == 8 && g_pipeline_asm_emit_module) {
     esz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, elem, 0);

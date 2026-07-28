@@ -13390,7 +13390,8 @@ static int32_t asm_local_slot_bytes_mod(struct ast_ASTArena *arena, int32_t type
           int32_t lek = pipeline_type_kind_ord_at(arena, ce);
           if (lek == 2 || lek == 1)
             leaf_esz = 1;
-          else if (lek == 15 || lek == 4 || lek == 5 || lek == 6 || lek == 7)
+          else if (lek == 15 || lek == 4 || lek == 5 || lek == 6 || lek == 7 ||
+                   lek == 9 /* TYPE_PTR */)
             leaf_esz = 8;
           else if (lek == 8) {
             int32_t ssz = asm_slot_bytes_named_in_mod(arena, ce, mod);
@@ -13407,18 +13408,22 @@ static int32_t asm_local_slot_bytes_mod(struct ast_ASTArena *arena, int32_t type
         cur = ce;
       }
     }
+    /*
+     * wave637 Cap residual pure: T[N] element TYPE_PTR → esz 8 (`*i32[2]` slot 16).
+     * Prior only named/u64/i64/usize → PTR defaulted 4 → 8B slot, a[1] clobbered y
+     * on LINUX|x86 high-end (INDEX stride already 8 after INDEX result PTR fix).
+     * G.7: same PTR=8 as glue_fixed_array_total_bytes_c / array_lit_elem_byte_sz.
+     * PLATFORM: SHARED freestanding stack · LINUX gold · MACOS|ARM64 co-path.
+     */
     esz = 4;
     if (elem_ref > 0 && elem_ref <= arena->num_types) {
-      struct ast_Type *et = pipeline_arena_type_ptr(arena, elem_ref);
-      if (et) {
-        if ((int32_t)et->kind == 2)
-          esz = 1;
-        else if ((int32_t)et->kind == 14)
-          esz = 4;
-        else if ((int32_t)et->kind == 8 || (int32_t)et->kind == 4 || (int32_t)et->kind == 5 ||
-                 (int32_t)et->kind == 6)
-          esz = 8;
-      }
+      int32_t ek = pipeline_type_kind_ord_at(arena, elem_ref);
+      if (ek == 2 || ek == 1)
+        esz = 1;
+      else if (ek == 14 || ek == 0 || ek == 3 || ek == 13)
+        esz = 4;
+      else if (ek == 8 || ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 15 || ek == 9)
+        esz = 8;
     }
     bytes = t->array_size * esz;
     if (bytes < 8)
