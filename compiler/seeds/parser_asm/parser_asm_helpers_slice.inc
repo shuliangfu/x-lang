@@ -308,11 +308,28 @@ void parser_asm_parse_block_return_end_tail_c(struct parser_asm_lexer_result *r,
 }
 
 /**
- * advance_past_stmt_semicolon_into：表达式语句后同步到 ; 之后（或合法后继 token）。
+ * advance_past_stmt_semicolon_into: sync past `;` after an expression statement,
+ * or accept a legal ASI following token that clearly starts the next statement.
+ *
+ * Historical ASI allowlist: `;` · unsafe · let/const · return · if/while/for · `}`.
+ * That omitted IDENT and other stmt heads, so mid-block
+ *   break
+ *   s = 99
+ * (and assign chains `x = 1` / `y = 2`) failed with XP003 while the same break
+ * before `}` or before `if` already succeeded.
+ *
+ * wave654 Cap residual: G.7 extend the same authority — also accept IDENT,
+ * BREAK/CONTINUE, MATCH/LOOP, PANIC/DEFER/GOTO, STAR (*p = …), SELF as
+ * following-stmt heads. Expr parse already finished before this call, so
+ * IDENT cannot continue the prior expr (no sticky binop across ASI).
+ *
+ * PLATFORM: SHARED — parse ASI; docs/08 still recommends `;` mid-block;
+ * product accepts keyword ASI (wave361+) and IDENT/control heads here.
  */
 int32_t parser_asm_advance_past_stmt_semicolon_into_slice_c(struct parser_asm_lexer_result *r_out,
                                                             struct parser_asm_lexer lex,
                                                             struct parser_asm_slice_u8 *source) {
+  int32_t k;
   if (!r_out || !source)
     return 0;
   lexer_next_into(r_out, lex, source);
@@ -320,10 +337,13 @@ int32_t parser_asm_advance_past_stmt_semicolon_into_slice_c(struct parser_asm_le
     return 1;
   if (parser_asm_ident_is_unsafe_stmt_slice_c(*r_out, source) != 0)
     return 1;
-  if (r_out->tok.kind == (int32_t)TOKEN_LET || r_out->tok.kind == (int32_t)TOKEN_CONST ||
-      r_out->tok.kind == (int32_t)TOKEN_RETURN || r_out->tok.kind == (int32_t)TOKEN_IF ||
-      r_out->tok.kind == (int32_t)TOKEN_WHILE || r_out->tok.kind == (int32_t)TOKEN_FOR ||
-      r_out->tok.kind == (int32_t)TOKEN_RBRACE)
+  k = r_out->tok.kind;
+  if (k == (int32_t)TOKEN_LET || k == (int32_t)TOKEN_CONST || k == (int32_t)TOKEN_RETURN ||
+      k == (int32_t)TOKEN_IF || k == (int32_t)TOKEN_WHILE || k == (int32_t)TOKEN_FOR ||
+      k == (int32_t)TOKEN_RBRACE || k == (int32_t)TOKEN_IDENT || k == (int32_t)TOKEN_BREAK ||
+      k == (int32_t)TOKEN_CONTINUE || k == (int32_t)TOKEN_MATCH || k == (int32_t)TOKEN_LOOP ||
+      k == (int32_t)TOKEN_PANIC || k == (int32_t)TOKEN_DEFER || k == (int32_t)TOKEN_GOTO ||
+      k == (int32_t)TOKEN_STAR || k == (int32_t)TOKEN_SELF)
     return 1;
   return 0;
 }
