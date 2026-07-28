@@ -5574,11 +5574,14 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let ord_assign: i32 = 28;
+    let ord_add_assign: i32 = 29;
+    let ord_sub_assign: i32 = 30;
     let ord_lit: i32 = 0;
     let ord_var: i32 = 3;
     let ord_ternary: i32 = 27;
     let ord_add: i32 = 4;
     let ord_sub: i32 = 5;
+    let ord_i32: i32 = 0;
     let ord_u8: i32 = 2;
     let ord_u32: i32 = 3;
     let ord_u64: i32 = 4;
@@ -5624,6 +5627,11 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     let gb: *u8 = 0 as *u8;
     let el: i32 = 0;
     let gl: i32 = 0;
+    /*
+     * wave643: 1 when compound *T +=/-= integer offset is accepted (C-like ≡ p = p ± n).
+     * Do not stamp RHS to *T (emit wave642 scales integer offset by sizeof(*p)).
+     */
+    let ptr_compound_offset_ok: i32 = 0;
     if (expr_kind == ord_assign) {
       compound_flag = 0;
     }
@@ -5643,6 +5651,23 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     rhs_ctx = return_type_ref;
     if (!ast.ref_is_null(lt)) {
       rhs_ctx = lt;
+    }
+    /*
+     * wave643 Cap residual: compound `p += n` / `p -= n` is C-like pointer
+     * arithmetic (≡ `p = p ± n`). The compound RHS is an *integer offset*, not
+     * *T. Prior path set rhs_ctx = lt (*T) then required type_refs_equal →
+     * "expected *i32, found i32" while `p = p + 1` already greened (wave285
+     * binop + wave642 freestanding scale). G.7: complete same assign authority
+     * (no second compound-ptr path); offset kinds match wave285 (i32/usize/isize
+     * plus common integer widths for typed offset vars). PLATFORM: SHARED —
+     * seed typeck_gen same commit.
+     */
+    if (compound_flag != 0 && !ast.ref_is_null(lt)
+    && (expr_kind == ord_add_assign || expr_kind == ord_sub_assign)) {
+      lt_kind = pipeline_type_kind_ord_at(arena, lt);
+      if (lt_kind == ord_ptr) {
+        rhs_ctx = 0;
+      }
     }
     if (check_expr(module, arena, right_ref, rhs_ctx, ctx) != 0) {
       return - 1;
@@ -5752,21 +5777,47 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         lt = rt;
       }
     }
+    /*
+     * wave643: *T +=/-= integer offset — accept without requiring lt==rt and
+     * without stamping RHS to *T. Reject *T += *U (would type_refs_equal if
+     * rhs_ctx stayed *T) and *T += float/struct etc. G.7 ≡ wave285 ptr±int.
+     */
+    if (compound_flag != 0 && !ast.ref_is_null(lt) && !ast.ref_is_null(rt)
+    && (expr_kind == ord_add_assign || expr_kind == ord_sub_assign)) {
+      lt_kind = pipeline_type_kind_ord_at(arena, lt);
+      if (lt_kind == ord_ptr) {
+        let rt_kind_pca: i32 = pipeline_type_kind_ord_at(arena, rt);
+        if (rt_kind_pca == ord_i32 || rt_kind_pca == ord_usize || rt_kind_pca == ord_isize
+        || rt_kind_pca == ord_u8 || rt_kind_pca == ord_u32 || rt_kind_pca == ord_u64
+        || rt_kind_pca == ord_i64) {
+          ptr_compound_offset_ok = 1;
+        } else {
+          eb = driver_typeck_diag_scratch_expect();
+          gb = driver_typeck_diag_scratch_found();
+          el = typeck_diag_fmt_type_into(arena, lt, eb, 96);
+          gl = typeck_diag_fmt_type_into(arena, rt, gb, 96);
+          driver_diagnostic_typeck_assign_mismatch(compound_flag, line, col, eb, el, gb, gl);
+          return - 1;
+        }
+      }
+    }
     if (!ast.ref_is_null(lt) && !ast.ref_is_null(rt)) {
-      if (!type_refs_equal(arena, lt, rt)) {
+      if (!type_refs_equal(arena, lt, rt) && ptr_compound_offset_ok == 0) {
         lt_kind = pipeline_type_kind_ord_at(arena, lt);
         let rt_kind_mis: i32 = pipeline_type_kind_ord_at(arena, rt);
         /* wave314: f32→f64 is not a mismatch (emit promotes with cvtss2sd). */
         if (!typeck_float_widen_ok(lt_kind, rt_kind_mis)) {
-        eb = driver_typeck_diag_scratch_expect();
-        gb = driver_typeck_diag_scratch_found();
-        el = typeck_diag_fmt_type_into(arena, lt, eb, 96);
-        gl = typeck_diag_fmt_type_into(arena, rt, gb, 96);
-        driver_diagnostic_typeck_assign_mismatch(compound_flag, line, col, eb, el, gb, gl);
-        return - 1;
+          eb = driver_typeck_diag_scratch_expect();
+          gb = driver_typeck_diag_scratch_found();
+          el = typeck_diag_fmt_type_into(arena, lt, eb, 96);
+          gl = typeck_diag_fmt_type_into(arena, rt, gb, 96);
+          driver_diagnostic_typeck_assign_mismatch(compound_flag, line, col, eb, el, gb, gl);
+          return - 1;
+        }
       }
       /* See implementation. */
-      if (pipeline_typeck_check_slice_region_assign_c(arena, expr_ref, lt, rt) != 0) {
+      if (ptr_compound_offset_ok == 0
+      && pipeline_typeck_check_slice_region_assign_c(arena, expr_ref, lt, rt) != 0) {
         return - 1;
       }
     }

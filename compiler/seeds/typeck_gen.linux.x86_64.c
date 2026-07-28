@@ -5785,6 +5785,11 @@ int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena
     uint8_t * gb = 0;
     int32_t el = 0;
     int32_t gl = 0;
+    /* wave643: 1 when compound *T +=/-= integer offset accepted (G.7 ≡ typeck.x). */
+    int32_t ptr_compound_offset_ok = 0;
+    int32_t ord_add_assign = 29;
+    int32_t ord_sub_assign = 30;
+    int32_t ord_i32 = 0;
     if ((expr_kind ==ord_assign)) {
       (void)((compound_flag = 0));
     }
@@ -5796,6 +5801,14 @@ int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena
     (void)((rhs_ctx = return_type_ref));
     if (!(ast_ref_is_null(lt))) {
       (void)((rhs_ctx = lt));
+    }
+    /* wave643 Cap residual: compound p +=/-= n is integer offset, not *T (G.7 ≡ typeck.x / wave285). */
+    if (((compound_flag != 0) && !(ast_ref_is_null(lt)))
+        && ((expr_kind == ord_add_assign) || (expr_kind == ord_sub_assign))) {
+      (void)((lt_kind = pipeline_type_kind_ord_at(arena, lt)));
+      if ((lt_kind == ord_ptr)) {
+        (void)((rhs_ctx = 0));
+      }
     }
     if ((typeck_check_expr(module, arena, right_ref, rhs_ctx, ctx) !=0)) {
       return -1;
@@ -5885,8 +5898,28 @@ int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena
         (void)((lt = rt));
       }
     }
+    /* wave643: *T +=/-= integer offset (G.7 ≡ typeck.x); reject non-int RHS. */
+    if (((compound_flag != 0) && !(ast_ref_is_null(lt)) && !(ast_ref_is_null(rt)))
+        && ((expr_kind == ord_add_assign) || (expr_kind == ord_sub_assign))) {
+      (void)((lt_kind = pipeline_type_kind_ord_at(arena, lt)));
+      if ((lt_kind == ord_ptr)) {
+        int32_t rt_kind_pca = pipeline_type_kind_ord_at(arena, rt);
+        if ((((((((rt_kind_pca == ord_i32) || (rt_kind_pca == ord_usize)) || (rt_kind_pca == ord_isize))
+            || (rt_kind_pca == ord_u8)) || (rt_kind_pca == ord_u32)) || (rt_kind_pca == ord_u64))
+            || (rt_kind_pca == ord_i64))) {
+          (void)((ptr_compound_offset_ok = 1));
+        } else {
+          (void)((eb = driver_typeck_diag_scratch_expect()));
+          (void)((gb = driver_typeck_diag_scratch_found()));
+          (void)((el = typeck_diag_fmt_type_into(arena, lt, eb, 96)));
+          (void)((gl = typeck_diag_fmt_type_into(arena, rt, gb, 96)));
+          (void)(driver_diagnostic_typeck_assign_mismatch(compound_flag, line, col, eb, el, gb, gl));
+          return -1;
+        }
+      }
+    }
     if ((!(ast_ref_is_null(lt)) && !(ast_ref_is_null(rt)))) {
-      if (!(typeck_type_refs_equal(arena, lt, rt))) {
+      if ((!(typeck_type_refs_equal(arena, lt, rt)) && (ptr_compound_offset_ok == 0))) {
         int32_t lt_k_mis = pipeline_type_kind_ord_at(arena, lt);
         int32_t rt_k_mis = pipeline_type_kind_ord_at(arena, rt);
         /* wave314: f32→f64 is not a mismatch. */
@@ -5899,7 +5932,8 @@ int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena
           return -1;
         }
       }
-      if ((pipeline_typeck_check_slice_region_assign_c(arena, expr_ref, lt, rt) !=0)) {
+      if (((ptr_compound_offset_ok == 0)
+          && (pipeline_typeck_check_slice_region_assign_c(arena, expr_ref, lt, rt) !=0))) {
         return -1;
       }
     }
