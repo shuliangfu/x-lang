@@ -15042,6 +15042,43 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
     }
   }
   /**
+   * wave610 Cap residual pure: FIELD_ACCESS fixed TYPE_ARRAY as TYPE_ARRAY formal (E*).
+   * Root: freestanding `take(w.xs)` / `take(Wrap{…}.xs)` / `take(mk().xs)` fell through to
+   * emit_expr field rvalue (leave_addr=0) → load first array word as "pointer" → callee
+   * INDEX SEGV (host-C temp + &field green; ARRAY_LIT call-arg already lea green).
+   * G.7: reuse INDEX base address helper (wave609 call_base leave_addr + VAR-base field
+   * lea) — pass E* = &field payload only; do not invent a second FIELD array path.
+   * PLATFORM: SHARED freestanding · LINUX gold + MACOS|ARM64.
+   */
+  if (arena && ctx && elf_ctx && pipeline_expr_kind_ord_at(arena, expr_ref) == 44) {
+    int32_t want_arr = 0;
+    int32_t fty = 0;
+    int32_t rty;
+    int32_t is_arr = 0;
+    if (pty > 0 &&
+        (pipeline_type_kind_ord_at(arena, pty) == (int32_t)ast_TypeKind_TYPE_ARRAY ||
+         glue_type_is_fixed_array(arena, pty)))
+      want_arr = 1;
+    if (want_arr) {
+      fty = glue_field_access_field_type_ref_c(arena, g_pipeline_asm_emit_module, expr_ref);
+      if (fty > 0 && glue_type_is_fixed_array(arena, fty))
+        is_arr = 1;
+      rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+      if (is_arr == 0 && rty > 0 &&
+          pipeline_type_kind_ord_at(arena, rty) == (int32_t)ast_TypeKind_TYPE_ARRAY)
+        is_arr = 1;
+      if (is_arr) {
+        int32_t br =
+            glue_try_index_var_or_field_base_to_rax_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+        if (br == 0)
+          return 0;
+        if (br == -1)
+          return -1;
+        /* -2: fall through to other FIELD / rec paths */
+      }
+    }
+  }
+  /**
    * FIELD_ACCESS struct 字段 CALL 实参（v.al → alloc）：>8B struct 须 lea 字段地址。
    * 优先按 callee 形参 type_ref；pty 缺失时按字段类型 layout（import heap.Allocator 等）。
    */
