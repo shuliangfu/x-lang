@@ -1366,6 +1366,8 @@ extern int32_t backend_enc_mov_imm32_to_rbx_arch(struct platform_elf_ElfCodegenC
 extern int32_t backend_enc_mov_imm64_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t lo, int32_t hi,
                                                    int32_t ta);
 extern int32_t backend_enc_push_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+extern int32_t backend_enc_store_x0_sp_offset_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_bytes,
+                                                   int32_t ta);
 extern int32_t backend_enc_push_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_pop_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 /** arm64 INDEX binop：mov x2/x1 暂存 rbx（asm_backend_partial.o / build_asm/arm64_enc.o）。 */
@@ -14652,6 +14654,18 @@ static int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t
  * VAR 按值装入 rax（及 9–16B struct 的 rdx）：局部 let 双 half 栈 load；形参 hidden pointer 则 deref。
  * or_i32/and_i32 三元 `r : other` 与 `return r` 须完整 SysV 双寄存器，单 load 会丢 err 半或误用指针。
  */
+/**
+ * Load local VAR by-value into return/arg GP pair for call-arg packing.
+ * PLATFORM: SHARED freestanding · LINUX|x86 high-end (low@off, high@off-8 → rax+rdx)
+ *   · MACOS|ARM64 low-end (low@off, high@off+8 → x0+x1).
+ *
+ * wave603 Cap residual: arm64 previously returned after the low half only
+ * (`if (ta != 0) return 0`), so dual-GP call-arg spill stored dirty x1
+ * (e.g. last STRUCT_LIT base pointer) → mac fs take(p) for 12B/16B Pair wrong
+ * (var12=78/var16=70; call_dual via mk() dual return was green).
+ * G.7: complete dual load for ta==1 with low-end polarity ≡ param_home /
+ * store_retval_pair / glue_sysv_spill (wave599/600); no second authority.
+ */
 static int32_t glue_load_var_as_value_to_rax_rdx_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                         struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                         int32_t var_expr_ref, int32_t off, int32_t ta) {
@@ -14673,23 +14687,46 @@ static int32_t glue_load_var_as_value_to_rax_rdx_elf_c(struct platform_elf_ElfCo
     }
     if (sz > 8 && sz <= 16 && ta == 0)
       return pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
+    /* arm64 *T dual soft: still pointer-in-x0 only (rare freestanding path). */
     return 0;
   }
-  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta) != 0)
-    return -1;
-  if (ta != 0 || !arena || !ctx)
-    return 0;
   tr = glue_var_decl_type_ref_elf_c(arena, ctx, var_expr_ref);
   if (tr <= 0)
-      tr = pipeline_expr_resolved_type_ref(arena, var_expr_ref);
+    tr = pipeline_expr_resolved_type_ref(arena, var_expr_ref);
   sz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, tr, 0);
   if (sz <= 16 && tr > 0) {
     int32_t nsz = glue_sysv_dual_gp_byte_size_c(arena, tr);
     if (nsz > sz)
       sz = nsz;
   }
-  if (sz > 8 && sz <= 16)
-    return backend_enc_load_rbp_to_rdx_arch(elf_ctx, off - 8, ta);
+  /*
+   * 9–16B INTEGER dual-GP by-value into the return/arg GP pair that spill expects:
+   *   - x86 SysV: rax + rdx (high@off-8 high-end)
+   *   - arm64 AAPCS64: x0 + x1 (high@off+8 low-end)
+   * wave603: arm64 must load x1; prior early-return left x1 dirty.
+   */
+  if (sz > 8 && sz <= 16 && arena && ctx) {
+    if (ta == 1) {
+      /* MACOS|ARM64: high first into x1 (via x0 temp), then low into x0. */
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off + 8, ta) != 0)
+        return -1;
+      if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta) != 0)
+        return -1;
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta) != 0)
+        return -1;
+      return 0;
+    }
+    if (ta == 0) {
+      /* LINUX+MACOS x86_64: low→rax, high→rdx (unchanged polarity). */
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta) != 0)
+        return -1;
+      if (backend_enc_load_rbp_to_rdx_arch(elf_ctx, off - 8, ta) != 0)
+        return -1;
+      return 0;
+    }
+  }
+  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta) != 0)
+    return -1;
   return 0;
 }
 
@@ -19347,6 +19384,39 @@ int32_t pipeline_asm_push_sysv_memory_by_value_elf_c(struct ast_ASTArena *arena,
     if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off - k, ta) != 0)
       return -1;
     if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+  }
+  return nbytes;
+}
+
+/**
+ * wave603 Cap residual: AAPCS64 MEMORY by-value call-arg → store words at [sp+#sp_off].
+ * PLATFORM: MACOS|ARM64 — low-end home (byte0@off); store low word first at sp_off.
+ * G.7: VAR home authority twin of push_sysv_memory; CALL/METHOD MEMORY as arg soft.
+ * @return nbytes stored, or -1
+ */
+int32_t pipeline_asm_store_memory_by_value_to_sp_elf_c(struct ast_ASTArena *arena,
+                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                       struct backend_AsmFuncCtx *ctx, int32_t arg_ref, int32_t sz,
+                                                       int32_t ta, int32_t sp_off) {
+  int32_t off;
+  int32_t nbytes;
+  int32_t k;
+  int32_t ko;
+  if (!arena || !elf_ctx || !ctx || arg_ref <= 0 || sz <= 16 || ta != 1 || sp_off < 0)
+    return -1;
+  nbytes = (sz + 7) & ~7;
+  ko = pipeline_expr_kind_ord_at(arena, arg_ref);
+  /* VAR only this leaf (sum(s)); sum(mk()) arm64 soft residual. */
+  if (ko != 3)
+    return -1;
+  off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, arg_ref);
+  if (off < 0)
+    return -1;
+  for (k = 0; k < nbytes; k += 8) {
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off + k, ta) != 0)
+      return -1;
+    if (backend_enc_store_x0_sp_offset_arch(elf_ctx, sp_off + k, ta) != 0)
       return -1;
   }
   return nbytes;
@@ -24614,11 +24684,22 @@ int32_t pipeline_asm_emit_param_home_elf_c(struct platform_elf_ElfCodegenCtx *el
   {
     struct ast_ASTArena *arena = g_pipeline_asm_emit_arena;
     int32_t gp = 0;
-    int32_t stack_pos = 16; /* first incoming stack arg after saved fp/lr */
+    /*
+     * wave414 low-end prologue: sub sp,#fs; stp; mov x29,sp → locals [x29+16..)
+     * and incoming stack args live at [x29+frame_size + …], not [x29+16]
+     * (that was classic stp #-16! / high locals layout). wave603: use frame_size.
+     * Fallback 16 only when frame_size unset (skip-heavy / zero-body stubs).
+     */
+    int32_t stack_pos = 16;
     int32_t cur = 16;
     int32_t k;
     if (!arena)
       return -1;
+    if (ctx) {
+      pipeline_glue_AsmFuncCtxLayout *ly = pipeline_asm_ctx_layout(ctx);
+      if (ly && ly->frame_size > 16)
+        stack_pos = ly->frame_size;
+    }
     for (i = 0; i < np; i++) {
       int32_t psz = glue_func_param_agg_byte_size_c(arena, mod, func_index, i);
       int32_t home_w = glue_func_param_home_width_c(arena, mod, func_index, i);
@@ -27556,6 +27637,15 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(struct ast_Module *m
     }
     if (backend_enc_prologue_arch(elf_ctx, frame_sz, ta) != 0)
       return -1;
+    /*
+     * wave603: arm64 MEMORY param_home needs frame_size so incoming stack args
+     * resolve at [x29+frame] (wave414 low-end prologue), not [x29+16] identity.
+     */
+    if (bctx) {
+      pipeline_glue_AsmFuncCtxLayout *ly_fs = pipeline_asm_ctx_layout(bctx);
+      if (ly_fs)
+        ly_fs->frame_size = frame_sz;
+    }
     if (pipeline_asm_emit_param_home_elf_c(elf_ctx, bctx, m, i, ta) != 0)
       return -1;
     /** Mutable module-level lit lets on non-hoist: seed stack slots after param home. */

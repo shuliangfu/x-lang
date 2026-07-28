@@ -443,6 +443,11 @@ extern int32_t pipeline_asm_push_sysv_memory_by_value_elf_c(struct ast_ASTArena 
                                                             struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                             struct backend_AsmFuncCtx *ctx, int32_t arg_ref,
                                                             int32_t sz, int32_t ta);
+/* wave603: arm64 MEMORY by-value → [sp+#sp_off] multi-word (VAR). */
+extern int32_t pipeline_asm_store_memory_by_value_to_sp_elf_c(struct ast_ASTArena *arena,
+                                                              struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                              struct backend_AsmFuncCtx *ctx, int32_t arg_ref,
+                                                              int32_t sz, int32_t ta, int32_t sp_off);
 extern int32_t backend_enc_store_rdx_to_rbp_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                                  int32_t ta);
 extern int32_t backend_enc_store_rax_to_rbp_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
@@ -2471,6 +2476,30 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
       stack_reserve = nw * 8;
       if (nw > 0 && (nw & 1))
         stack_reserve += 8;
+    } else if (ta == 1 && arena && expr_ref > 0) {
+      /*
+       * wave603: AAPCS64 stack words include MEMORY multi-word (≡ x86 wave601),
+       * not nargs-reg_max alone. Align 16 for arm64 SP.
+       */
+      int32_t nw = 0;
+      int32_t gp_tmp = 0;
+      int32_t j;
+      for (j = 0; j < nargs; j++) {
+        int32_t ar_j = pipeline_expr_call_arg_ref(arena, expr_ref, j);
+        int32_t pty_j = glue_call_param_type_ref_at(arena, expr_ref, j);
+        int32_t sz_j = glue_sysv_arg_byte_size_c(arena, ctx, pty_j, ar_j);
+        int32_t u_j = glue_sysv_arg_gp_units_from_size_c(sz_j);
+        int32_t w_j = glue_sysv_arg_stack_words_c(sz_j, u_j);
+        if (glue_sysv_arg_is_memory_by_value_c(sz_j))
+          nw += w_j;
+        else if (u_j > 0 && gp_tmp + u_j <= reg_max)
+          gp_tmp += u_j;
+        else
+          nw += w_j > 0 ? w_j : 1;
+      }
+      stack_reserve = nw * 8;
+      if (stack_reserve > 0)
+        stack_reserve = (stack_reserve + 15) & ~15;
     } else {
       stack_reserve = glue_asm_call_stack_cleanup_bytes(ta, nargs);
     }
@@ -2537,15 +2566,32 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
       int32_t gp_start_a64[GLUE_ASM_MAX_CALL_ARGS];
       int32_t gp_units_a64[GLUE_ASM_MAX_CALL_ARGS];
       int32_t spill_off_a64[GLUE_ASM_MAX_CALL_ARGS];
+      int32_t arg_sz_a64[GLUE_ASM_MAX_CALL_ARGS];
+      int32_t is_mem_a64[GLUE_ASM_MAX_CALL_ARGS];
       int32_t gp_cur_a64 = 0; /* AAPCS64 sret uses x8 — no GP shift */
       int32_t stk_slot = 0;
+      /*
+       * wave603: MEMORY (sz>16) is stack-only (units=0) — do NOT coerce to u=1
+       * (that forced lea/pointer in x0 while param_home expects by-value words).
+       * G.7: same classification as x86 wave601 / glue_sysv_arg_gp_units_from_size.
+       */
       for (i = 0; i < nargs; i++) {
         int32_t pty_i;
         int32_t ar_i;
         int32_t u;
+        int32_t sz_i;
         ar_i = pipeline_expr_call_arg_ref(arena, expr_ref, i);
         pty_i = glue_call_param_type_ref_at(arena, expr_ref, i);
-        u = glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, ctx, pty_i, ar_i));
+        sz_i = glue_sysv_arg_byte_size_c(arena, ctx, pty_i, ar_i);
+        arg_sz_a64[i] = sz_i;
+        is_mem_a64[i] = glue_sysv_arg_is_memory_by_value_c(sz_i);
+        u = glue_sysv_arg_gp_units_from_size_c(sz_i);
+        if (is_mem_a64[i]) {
+          gp_start_a64[i] = -1;
+          gp_units_a64[i] = 0;
+          spill_off_a64[i] = -1;
+          continue;
+        }
         if (u < 1)
           u = 1;
         if (u > 2)
@@ -2556,7 +2602,7 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
         if (gp_cur_a64 + u <= reg_max)
           gp_cur_a64 += u;
         else
-          gp_start_a64[i] = -1; /* stack / excess — soft residual */
+          gp_start_a64[i] = -1; /* stack / excess */
       }
       for (i = 0; i < nargs; i++) {
         int32_t so;
@@ -2586,17 +2632,34 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
           return -1;
       }
       for (i = 0; i < nargs; i++) {
+        int32_t words;
+        int32_t stored;
         if (gp_start_a64[i] >= 0)
           continue;
         arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
         if (arg_ref == 0)
           continue;
+        if (is_mem_a64[i]) {
+          /* wave603: multi-word MEMORY by-value at [sp+stk*8]. */
+          stored = pipeline_asm_store_memory_by_value_to_sp_elf_c(arena, elf_ctx, ctx, arg_ref,
+                                                                   arg_sz_a64[i], ta, stk_slot * 8);
+          if (stored < 0)
+            return -1;
+          words = stored / 8;
+          if (words < 1)
+            words = 1;
+          stk_slot += words;
+          continue;
+        }
         if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
           return -1;
         if (backend_enc_store_x0_sp_offset_arch(elf_ctx, stk_slot * 8, ta) != 0)
           return -1;
         stk_slot++;
-        /* dual-GP stack soft: only low half; >8 GP-full formals rare on arm64 probes */
+        /* dual-GP stack residual: only low half when excess GP */
+        if (gp_units_a64[i] >= 2) {
+          /* high half soft when stack-spilled dual — rare on probes */
+        }
       }
       pipeline_asm_emit_set_call_param_type_ref(0);
       return 0;
@@ -3280,6 +3343,28 @@ int32_t glue_asm_emit_call_with_cleanup_impl(struct ast_ASTArena *arena, struct 
     cleanup = nw * 8;
     if (nw > 0 && (nw & 1))
       cleanup += 8;
+  } else if (ta == 1 && arena && expr_ref > 0) {
+    /* wave603: arm64 cleanup twin of MEMORY-aware reserve (16-aligned). */
+    int32_t nw = 0;
+    int32_t gp_tmp = 0;
+    int32_t j;
+    int32_t reg_max_a = glue_asm_call_reg_max(1);
+    for (j = 0; j < nargs; j++) {
+      int32_t ar_j = pipeline_expr_call_arg_ref(arena, expr_ref, j);
+      int32_t pty_j = glue_call_param_type_ref_at(arena, expr_ref, j);
+      int32_t sz_j = glue_sysv_arg_byte_size_c(arena, ctx, pty_j, ar_j);
+      int32_t u_j = glue_sysv_arg_gp_units_from_size_c(sz_j);
+      int32_t w_j = glue_sysv_arg_stack_words_c(sz_j, u_j);
+      if (glue_sysv_arg_is_memory_by_value_c(sz_j))
+        nw += w_j;
+      else if (u_j > 0 && gp_tmp + u_j <= reg_max_a)
+        gp_tmp += u_j;
+      else
+        nw += w_j > 0 ? w_j : 1;
+    }
+    cleanup = nw * 8;
+    if (cleanup > 0)
+      cleanup = (cleanup + 15) & ~15;
   } else {
     cleanup = glue_asm_call_stack_cleanup_bytes(ta, nargs);
   }
