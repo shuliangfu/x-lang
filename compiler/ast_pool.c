@@ -12001,14 +12001,14 @@ static int32_t pipeline_codegen_type_to_c_repr_inner(struct ast_ASTArena *arena,
           return -1;
         scratch[w++] = struct_prefix[pi];
       }
-    } else {
-      static const uint8_t ast_p[4] = {'a', 's', 't', '_', 0};
-      for (pi = 0; pi < 4; pi++) {
-        if (w >= cap - 1)
-          return -1;
-        scratch[w++] = ast_p[pi];
-      }
     }
+    /*
+     * wave624 Cap residual pure: empty prefix → bare name (entry module).
+     * Prior always injected `ast_` → `struct xlang_slice_ast_Pt` incomplete while
+     * codegen_emit_module_struct_definitions emitted bare `struct Pt`.
+     * Dep modules always pass a real struct_prefix; emit_type resolves ctx tags.
+     * PLATFORM: SHARED host-C type_to_c_repr authority (G.7).
+     */
     for (pi = 0; pi < name_len && pi < 64; pi++) {
       if (w >= cap - 1)
         return -1;
@@ -12176,11 +12176,8 @@ static int32_t pipeline_codegen_emit_struct_field_type_inner(struct ast_ASTArena
     if (struct_prefix && struct_prefix_len > 0) {
       if (pipeline_codegen_out_append_bytes(out, struct_prefix, struct_prefix_len) != 0)
         return -1;
-    } else {
-      static const uint8_t ast_p[4] = {'a', 's', 't', '_'};
-      if (pipeline_codegen_out_append_bytes(out, ast_p, 4) != 0)
-        return -1;
     }
+    /* wave624: empty prefix → bare name (entry); match type_to_c_repr_inner. */
     return pipeline_codegen_out_append_bytes(out, nm, nl);
   }
   if (ord == 11) {

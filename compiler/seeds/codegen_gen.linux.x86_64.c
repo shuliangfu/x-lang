@@ -1531,6 +1531,7 @@ extern int32_t codegen_type_is_module_user_struct(struct ast_Module * module, st
 extern int32_t codegen_type_is_module_user_enum(struct ast_Module * module, struct ast_ASTArena * arena, int32_t type_ref);
 extern int32_t codegen_type_dep_enum_prefix_into(struct ast_PipelineDepCtx * ctx, struct ast_ASTArena * arena, int32_t type_ref, uint8_t * dst, int32_t dst_cap);
 extern int32_t codegen_emit_struct_field_decl_x(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t type_ref, uint8_t * field_name, int32_t field_name_len, uint8_t * struct_prefix, int32_t struct_prefix_len, struct ast_PipelineDepCtx * ctx);
+extern int32_t codegen_emit_companion_named_slice_layout(struct codegen_CodegenOutBuf * out, uint8_t * pfx, int32_t pfx_len, uint8_t * name, int32_t name_len);
 extern int32_t codegen_emit_module_struct_definitions(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, uint8_t * struct_prefix, int32_t struct_prefix_len, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_emit_module_struct_forward_declarations(struct ast_Module * module, struct codegen_CodegenOutBuf * out, uint8_t * struct_prefix, int32_t struct_prefix_len);
 extern int32_t codegen_emit_module_struct_forward_declarations_ctx(struct ast_Module * module, struct codegen_CodegenOutBuf * out, uint8_t * struct_prefix, int32_t struct_prefix_len, struct ast_PipelineDepCtx * ctx);
@@ -3581,23 +3582,14 @@ int32_t codegen_emit_call_arg_slice_abi(struct ast_ASTArena * arena, struct code
           if ((arr_tr > 0)) {
             elem_tr = pipeline_type_elem_ref_at(arena, arr_tr);
           }
-          /* wave619: full fat tag via type_to_c_repr(formal SLICE) — G.7 single authority
-           * with locals/preamble (bool/u32/i64/isize/f32/f64 + NAMED i8/i16/u16).
-           * PLATFORM: SHARED host-C. */
-          {
-            uint8_t tybuf[256];
-            int32_t tyn = codegen_type_to_c_repr(arena, &((tybuf)[0]), 256, formal_ty, ((uint8_t *)(0)), 0);
-            if ((tyn <= 0)) {
-              static const uint8_t fb[27] = {
-                  115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
-                  105, 110, 116, 51, 50, 95, 116, 0};
-              if ((codegen_emit_bytes_from_ptr(out, (uint8_t *)fb, 26) != 0)) {
-                return -(1);
-              }
-            } else {
-              if ((codegen_emit_bytes_from_ptr(out, &((tybuf)[0]), tyn) != 0)) {
-                return -(1);
-              }
+          /* wave619/wave624: fat tag via codegen_emit_type(formal SLICE) — ctx-aware NAMED tags.
+           * PLATFORM: SHARED host-C. G.7 single authority with locals/formals. */
+          if ((codegen_emit_type(arena, out, formal_ty, ((uint8_t *)(0)), 0, ctx) != 0)) {
+            static const uint8_t fb[27] = {
+                115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+                105, 110, 116, 51, 50, 95, 116, 0};
+            if ((codegen_emit_bytes_from_ptr(out, (uint8_t *)fb, 26) != 0)) {
+              return -(1);
             }
           }
           if ((codegen_emit_bytes_from_ptr(out, &((mid1)[0]), 11) != 0)) {
@@ -4943,6 +4935,8 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
             if (((cur_pre_len > 0) && (codegen_emit_bytes_from_ptr(out, &((cur_pre)[0]), cur_pre_len) !=0))) {
               return -(1);
             }
+          } else if (((ctx != ((struct ast_PipelineDepCtx *)(0))) && ((ctx->current_codegen_dep_index) < 0))) {
+            /* wave624: entry module bare — match struct definitions. */
           } else {
             uint8_t ast_p[4] = {97, 115, 116, 95};
             if ((codegen_emit_bytes_4(out, ast_p, 4) !=0)) {
@@ -4984,19 +4978,70 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
       return codegen_append_byte(out, 42);
     }
     if (((tk ==11) && !(ast_ref_is_null(elem_ref)))) {
-      uint8_t slb[256] = {};
-      int32_t nl = codegen_type_to_c_repr(arena, &((slb)[0]), 256, type_ref, struct_prefix, struct_prefix_len);
-      if ((nl <=0)) {
-        return -(1);
+      /* wave624: NAMED user elem → ctx-aware fat tag (not empty-prefix ast_). */
+      int32_t ek = pipeline_type_kind_ord_at(arena, elem_ref);
+      if ((ek == 8)) {
+        uint8_t enm[128] = {};
+        int32_t enl = pipeline_type_named_name_into(arena, elem_ref, &((enm)[0]));
+        int32_t is_short_int = 0;
+        if (((enl == 2) && ((enm)[0] == 105) && ((enm)[1] == 56))) is_short_int = 1;
+        if (((enl == 3) && ((enm)[0] == 105) && ((enm)[1] == 49) && ((enm)[2] == 54))) is_short_int = 1;
+        if (((enl == 3) && ((enm)[0] == 117) && ((enm)[1] == 49) && ((enm)[2] == 54))) is_short_int = 1;
+        if (((is_short_int == 0) && (enl > 0))) {
+          static const uint8_t hdr_sl[20] = {
+              115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0};
+          if ((codegen_emit_bytes_from_ptr(out, (uint8_t *)hdr_sl, 19) != 0)) return -(1);
+          {
+            uint8_t dep_prefix_buf2[128] = {};
+            int32_t dep_prefix_len2 = codegen_type_dep_struct_prefix_into(ctx, arena, elem_ref, &((dep_prefix_buf2)[0]), 128);
+            if ((dep_prefix_len2 > 0)) {
+              if ((codegen_emit_bytes_from_ptr(out, &((dep_prefix_buf2)[0]), dep_prefix_len2) != 0)) return -(1);
+            } else if (((struct_prefix != ((uint8_t *)(0))) && (struct_prefix_len > 0))) {
+              if ((codegen_emit_bytes_from_ptr(out, struct_prefix, struct_prefix_len) != 0)) return -(1);
+            } else if ((((ctx != ((struct ast_PipelineDepCtx *)(0))) && ((ctx->current_codegen_module) != ((struct ast_Module *)(0)))) && (codegen_type_is_module_user_struct((ctx->current_codegen_module), arena, elem_ref) != 0))) {
+              uint8_t cur_pre2[128] = {};
+              int32_t cur_pre_len2 = codegen_emit_prefix_len_from_ctx(ctx, &((cur_pre2)[0]), 128);
+              if (((cur_pre_len2 > 0) && (codegen_emit_bytes_from_ptr(out, &((cur_pre2)[0]), cur_pre_len2) != 0))) return -(1);
+            } else if (((ctx != ((struct ast_PipelineDepCtx *)(0))) && ((ctx->current_codegen_dep_index) < 0))) {
+              /* entry bare */
+            } else {
+              uint8_t ast_p2[4] = {97, 115, 116, 95};
+              if ((codegen_emit_bytes_4(out, ast_p2, 4) != 0)) return -(1);
+            }
+            {
+              int32_t bare_off2 = 0;
+              int32_t bi3 = 0;
+              while (((bi3 < enl) && (bi3 < 64))) {
+                if (((enm)[bi3] == 46)) (void)((bare_off2 = (bi3 + 1)));
+                (void)((bi3 = (bi3 + 1)));
+              }
+              {
+                int32_t ci3 = bare_off2;
+                while (((ci3 < enl) && (ci3 < 128))) {
+                  if ((codegen_append_byte_u8(out, (enm)[ci3]) != 0)) return -(1);
+                  (void)((ci3 = (ci3 + 1)));
+                }
+              }
+            }
+          }
+          return 0;
+        }
       }
-      int32_t si = 0;
-      while ((si < nl)) {
-        if ((codegen_append_byte_u8(out, (slb)[si]) !=0)) {
+      {
+        uint8_t slb[256] = {};
+        int32_t nl = codegen_type_to_c_repr(arena, &((slb)[0]), 256, type_ref, struct_prefix, struct_prefix_len);
+        if ((nl <=0)) {
           return -(1);
         }
-        (void)((si = (si + 1)));
+        int32_t si = 0;
+        while ((si < nl)) {
+          if ((codegen_append_byte_u8(out, (slb)[si]) !=0)) {
+            return -(1);
+          }
+          (void)((si = (si + 1)));
+        }
+        return 0;
       }
-      return 0;
     }
     if (((tk ==13) && !(ast_ref_is_null(elem_ref)))) {
       (void)((elem_kind = pipeline_type_kind_ord_at(arena, elem_ref)));
@@ -7177,6 +7222,32 @@ int32_t codegen_emit_struct_field_decl_x(struct ast_ASTArena * arena, struct cod
   }
   return 0;
 }
+
+/* wave624 Cap residual pure: companion fat layout for named struct C tags.
+ * PLATFORM: SHARED host-C. G.7: same tag as codegen_emit_module_struct_definitions. */
+int32_t codegen_emit_companion_named_slice_layout(struct codegen_CodegenOutBuf * out, uint8_t * pfx, int32_t pfx_len, uint8_t * name, int32_t name_len) {
+  static const uint8_t h1[20] = {
+      115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0};
+  static const uint8_t mid[12] = {32, 123, 32, 115, 116, 114, 117, 99, 116, 32, 0, 0};
+  static const uint8_t tail[28] = {
+      32, 42, 100, 97, 116, 97, 59, 32, 115, 105, 122, 101, 95, 116, 32, 108, 101, 110, 103, 116, 104, 59, 32, 125, 59, 10, 10, 0};
+  if (((out == ((struct codegen_CodegenOutBuf *)(0))) || (name == ((uint8_t *)(0))) || (name_len <= 0))) {
+    return -(1);
+  }
+  if ((codegen_emit_bytes_from_ptr(out, (uint8_t *)h1, 19) != 0)) return -(1);
+  if (((pfx != ((uint8_t *)(0))) && (pfx_len > 0))) {
+    if ((codegen_emit_bytes_from_ptr(out, pfx, pfx_len) != 0)) return -(1);
+  }
+  if ((codegen_emit_bytes_from_ptr(out, name, name_len) != 0)) return -(1);
+  if ((codegen_emit_bytes_from_ptr(out, (uint8_t *)mid, 10) != 0)) return -(1);
+  if (((pfx != ((uint8_t *)(0))) && (pfx_len > 0))) {
+    if ((codegen_emit_bytes_from_ptr(out, pfx, pfx_len) != 0)) return -(1);
+  }
+  if ((codegen_emit_bytes_from_ptr(out, name, name_len) != 0)) return -(1);
+  if ((codegen_emit_bytes_from_ptr(out, (uint8_t *)tail, 27) != 0)) return -(1);
+  return 0;
+}
+
 int32_t codegen_emit_module_struct_definitions(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, uint8_t * struct_prefix, int32_t struct_prefix_len, struct ast_PipelineDepCtx * ctx) {
   {
     int32_t cur_di = -(1);
@@ -7329,6 +7400,10 @@ int32_t codegen_emit_module_struct_definitions(struct ast_Module * module, struc
                 return -(1);
               }
             }
+            /* wave624: companion fat slice so []Named host-C is complete. */
+            if ((codegen_emit_companion_named_slice_layout(out, &((claim_pfx)[0]), claim_plen, &((ty_nm)[0]), nl) != 0)) {
+              return -(1);
+            }
           }
           (void)((k = (k + 1)));
           continue;
@@ -7458,6 +7533,8 @@ int32_t codegen_emit_module_struct_definitions(struct ast_Module * module, struc
                 uint8_t close_m[4] = {125, 59, 10, 10};
                 if ((codegen_emit_bytes_4(out, close_m, 4) != 0)) return -(1);
               }
+              /* wave624: companion fat slice for mono-mangled TAG. */
+              if ((codegen_emit_companion_named_slice_layout(out, &((claim_pfx)[0]), claim_plen, &((mangled)[0]), mlen) != 0)) return -(1);
             }
           }
         }

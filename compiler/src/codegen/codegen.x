@@ -2502,28 +2502,19 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
             return -1;
           }
           /*
-           * wave619: emit full fat tag via type_to_c_repr(formal SLICE) — single authority
-           * with locals/preamble (bool→xlang_slice_int, u32/i64/isize, f32/f64, NAMED i8/i16/u16).
-           * Prior hand map only U8/U64/USIZE/F32/F64 else int32_t → call-arg/local tag drift.
+           * wave619/wave624: fat tag via emit_type(formal SLICE) — single authority with
+           * locals/formals (ctx-aware NAMED tags + scalar stdint map). Prior type_to_c_repr
+           * with empty prefix forced `ast_` and drifted from module struct tags.
            * PLATFORM: SHARED host-C. G.7: no second elem→suffix table.
            */
-          {
-            let tybuf: u8[256];
-            let empty_pref: u8[1] = [0];
-            let tyn: i32 = type_to_c_repr(arena, &tybuf[0], 256, formal_ty, &empty_pref[0], 0);
-            if (tyn <= 0) {
-              /* Fallback: struct xlang_slice_int32_t */
-              let fb: u8[28] = [
-                115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
-                105, 110, 116, 51, 50, 95, 116, 0, 0
-              ];
-              if (emit_bytes_from_ptr(out, &fb[0], 26) != 0) {
-                return -1;
-              }
-            } else {
-              if (emit_bytes_from_ptr(out, &tybuf[0], tyn) != 0) {
-                return -1;
-              }
+          if (emit_type(arena, out, formal_ty, 0 as *u8, 0, ctx) != 0) {
+            /* Fallback: struct xlang_slice_int32_t */
+            let fb: u8[28] = [
+              115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+              105, 110, 116, 51, 50, 95, 116, 0, 0
+            ];
+            if (emit_bytes_from_ptr(out, &fb[0], 26) != 0) {
+              return -1;
             }
           }
           /* ){ .data =  */
@@ -4215,8 +4206,10 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
         if (cur_pre_len > 0 && emit_bytes_from_ptr(out, &cur_pre[0], cur_pre_len) != 0) {
           return -1;
         }
+      } else if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_dep_index < 0) {
+        /* wave624: entry module bare tag — match codegen_emit_module_struct_definitions. */
       } else {
-        /* See implementation. */
+        /* dep / no-ctx fallback: historical ast_ prefix */
         let ast_p: u8[4] = [97, 115, 116, 95];
         if (emit_bytes_4(out, ast_p, 4) != 0) {
           return -1;
@@ -4260,8 +4253,109 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
       }
       return append_byte(out, 42);
     }
-    /* See implementation. */
+    /*
+     * TYPE_SLICE → `struct xlang_slice_<elemTag>`.
+     * wave624 Cap residual pure: NAMED user structs must use the same C tag as
+     * codegen_emit_module_struct_definitions (entry bare / module prefix / dep
+     * prefix). Prior path always called type_to_c_repr with the caller's prefix
+     * only — empty prefix forced `ast_` → incomplete `xlang_slice_ast_Pt` while
+     * the layout was `struct Pt` / `struct mod_Pt`, and locals vs formals dual-tagged.
+     * Scalar i8/i16/u16 still go through type_to_c_repr (stdint map, wave619).
+     * PLATFORM: SHARED host-C. G.7: single tag authority with struct emit.
+     */
     if (tk == TypeKind.TYPE_SLICE && !ast.ref_is_null(elem_ref)) {
+      let ek: i32 = pipeline_type_kind_ord_at(arena, elem_ref);
+      if (ek == (TypeKind.TYPE_NAMED as i32)) {
+        let enm: u8[128] = [];
+        let enl: i32 = pipeline_type_named_name_into(arena, elem_ref, &enm[0]);
+        /* wave619: short int aliases → stdint slice tags via type_to_c_repr. */
+        let is_short_int: i32 = 0;
+        if (enl == 2 && enm[0] == 105 && enm[1] == 56) {
+          is_short_int = 1;
+        }
+        if (enl == 3 && enm[0] == 105 && enm[1] == 49 && enm[2] == 54) {
+          is_short_int = 1;
+        }
+        if (enl == 3 && enm[0] == 117 && enm[1] == 49 && enm[2] == 54) {
+          is_short_int = 1;
+        }
+        if (is_short_int == 0 && enl > 0) {
+          let hdr_sl: u8[20] = [
+            115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0
+          ];
+          if (emit_bytes_from_ptr(out, &hdr_sl[0], 19) != 0) {
+            return -1;
+          }
+          /* Mirror TYPE_NAMED prefix resolution for the element tag. */
+          let dep_prefix_buf2: u8[128] = [];
+          let dep_prefix_len2: i32 = codegen_type_dep_struct_prefix_into(ctx, arena, elem_ref, &dep_prefix_buf2[0], 128);
+          if (dep_prefix_len2 == 0) {
+            let qmod_end2: i32 = 0;
+            let qhas_dot2: bool = false;
+            let qi2: i32 = 0;
+            while (qi2 < enl && qi2 < 64) {
+              if (enm[qi2] == 46) {
+                qhas_dot2 = true;
+                qmod_end2 = qi2;
+              }
+              qi2 = qi2 + 1;
+            }
+            if (qhas_dot2 && qmod_end2 > 0 && qmod_end2 < 64) {
+              let mod_path2: u8[128] = [];
+              let mi2: i32 = 0;
+              while (mi2 < qmod_end2) {
+                mod_path2[mi2] = enm[mi2];
+                mi2 = mi2 + 1;
+              }
+              mod_path2[mi2] = 0 as u8;
+              codegen_import_path_to_c_prefix_into(&mod_path2[0], &dep_prefix_buf2[0], 128);
+              dep_prefix_len2 = 0;
+              while (dep_prefix_len2 < 128 && dep_prefix_buf2[dep_prefix_len2] != 0 as u8) {
+                dep_prefix_len2 = dep_prefix_len2 + 1;
+              }
+            }
+          }
+          if (dep_prefix_len2 > 0) {
+            if (emit_bytes_from_ptr(out, &dep_prefix_buf2[0], dep_prefix_len2) != 0) {
+              return -1;
+            }
+          } else if (struct_prefix != 0 as *u8 && struct_prefix_len > 0) {
+            if (emit_bytes_from_ptr(out, struct_prefix, struct_prefix_len) != 0) {
+              return -1;
+            }
+          } else if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module
+              && codegen_type_is_module_user_struct(ctx.current_codegen_module, arena, elem_ref) != 0) {
+            let cur_pre2: u8[128] = [];
+            let cur_pre_len2: i32 = codegen_emit_prefix_len_from_ctx(ctx, &cur_pre2[0], 128);
+            if (cur_pre_len2 > 0 && emit_bytes_from_ptr(out, &cur_pre2[0], cur_pre_len2) != 0) {
+              return -1;
+            }
+          } else if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_dep_index < 0) {
+            /* entry module bare — match struct definitions */
+          } else {
+            let ast_p2: u8[4] = [97, 115, 116, 95];
+            if (emit_bytes_4(out, ast_p2, 4) != 0) {
+              return -1;
+            }
+          }
+          let bare_off2: i32 = 0;
+          let bi3: i32 = 0;
+          while (bi3 < enl && bi3 < 64) {
+            if (enm[bi3] == 46) {
+              bare_off2 = bi3 + 1;
+            }
+            bi3 = bi3 + 1;
+          }
+          let ci3: i32 = bare_off2;
+          while (ci3 < enl && ci3 < 128) {
+            if (append_byte_u8(out, enm[ci3]) != 0) {
+              return -1;
+            }
+            ci3 = ci3 + 1;
+          }
+          return 0;
+        }
+      }
       let slb: u8[256] = [];
       let nl: i32 = type_to_c_repr(arena, &slb[0], 256, type_ref, struct_prefix, struct_prefix_len);
       if (nl <= 0) {
@@ -7110,26 +7204,78 @@ export function codegen_emit_struct_field_decl_x(arena: *ASTArena, out: *Codegen
 }
 
 /**
- * See implementation.
- * See implementation.
- * See implementation.
+ * Emit companion fat-slice layout for a named struct C tag.
+ * After `struct TAG { ... };` emit:
+ *   `struct xlang_slice_TAG { struct TAG *data; size_t length; };`
+ * so host-C `[]Named` lowers to a complete type (wave624 Cap residual pure).
+ * @param out *CodegenOutBuf — C text buffer
+ * @param pfx *u8 — struct tag prefix (empty for entry bare)
+ * @param pfx_len i32 — prefix byte count; 0 means bare tag
+ * @param name *u8 — bare or mono-mangled struct name
+ * @param name_len i32 — name length; must be > 0
+ * @return i32 — 0 on success, -1 on emit failure
+ * PLATFORM: SHARED host-C. G.7: same tag as codegen_emit_module_struct_definitions.
+ */
+export function codegen_emit_companion_named_slice_layout(out: *CodegenOutBuf, pfx: *u8, pfx_len: i32, name: *u8, name_len: i32): i32 {
+  if (out == 0 as *CodegenOutBuf || name == 0 as *u8 || name_len <= 0) {
+    return -1;
+  }
+  /* "struct xlang_slice_" */
+  let h1: u8[20] = [
+    115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0
+  ];
+  if (emit_bytes_from_ptr(out, &h1[0], 19) != 0) {
+    return -1;
+  }
+  if (pfx != 0 as *u8 && pfx_len > 0) {
+    if (emit_bytes_from_ptr(out, pfx, pfx_len) != 0) {
+      return -1;
+    }
+  }
+  if (emit_bytes_from_ptr(out, name, name_len) != 0) {
+    return -1;
+  }
+  /* " { struct " */
+  let mid: u8[12] = [32, 123, 32, 115, 116, 114, 117, 99, 116, 32, 0, 0];
+  if (emit_bytes_from_ptr(out, &mid[0], 10) != 0) {
+    return -1;
+  }
+  if (pfx != 0 as *u8 && pfx_len > 0) {
+    if (emit_bytes_from_ptr(out, pfx, pfx_len) != 0) {
+      return -1;
+    }
+  }
+  if (emit_bytes_from_ptr(out, name, name_len) != 0) {
+    return -1;
+  }
+  /* " *data; size_t length; };\n\n" */
+  let tail: u8[28] = [
+    32, 42, 100, 97, 116, 97, 59, 32, 115, 105, 122, 101, 95, 116, 32, 108, 101, 110, 103, 116, 104, 59, 32, 125, 59, 10, 10, 0
+  ];
+  if (emit_bytes_from_ptr(out, &tail[0], 27) != 0) {
+    return -1;
+  }
+  return 0;
+}
+
+/**
+ * Emit host-C `struct` definitions for module layouts.
+ * wave488: two-phase so mono mangled tags (Wrap__A) never precede non-generic
+ * field types (A) — prior layout-order pass caused incomplete type BLD001.
+ * Phase 0: non-generic (and generic with zero mono combos).
+ * Phase 1: collect mono combos globally, sort by type-arg nest depth, emit.
+ * wave624: after each struct body, emit companion `xlang_slice_<TAG>` fat layout.
+ * @param module *Module — current module layouts
+ * @param arena *ASTArena — type graph for mono combos / field subst
+ * @param out *CodegenOutBuf — C text buffer
+ * @param struct_prefix *u8 — optional name prefix (dep modules)
+ * @param struct_prefix_len i32 — prefix byte length
+ * @param ctx *PipelineDepCtx — owner / entry vs dep emit gates
+ * @return i32 — 0 ok, -1 emit failure
+ * PLATFORM: SHARED host-C
  */
 export function codegen_emit_module_struct_definitions(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, struct_prefix: *u8, struct_prefix_len: i32, ctx: *PipelineDepCtx): i32 {
   /**
-   * Emit host-C `struct` definitions for module layouts.
-   * wave488: two-phase so mono mangled tags (Wrap__A) never precede non-generic
-   * field types (A) — prior layout-order pass caused incomplete type BLD001.
-   * Phase 0: non-generic (and generic with zero mono combos).
-   * Phase 1: collect mono combos globally, sort by type-arg nest depth, emit.
-   * @param module *Module — current module layouts
-   * @param arena *ASTArena — type graph for mono combos / field subst
-   * @param out *CodegenOutBuf — C text buffer
-   * @param struct_prefix *u8 — optional name prefix (dep modules)
-   * @param struct_prefix_len i32 — prefix byte length
-   * @param ctx *PipelineDepCtx — owner / entry vs dep emit gates
-   * @return i32 — 0 ok, -1 emit failure
-   * PLATFORM: SHARED host-C
-   */
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let cur_di: i32 = -1;
@@ -7247,6 +7393,10 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
           }
           let close_ty: u8[4] = [125, 59, 10, 10];
           if (emit_bytes_4(out, close_ty, 4) != 0) {
+            return -1;
+          }
+          /* wave624: companion fat slice so []Named host-C is complete. */
+          if (codegen_emit_companion_named_slice_layout(out, &claim_pfx[0], claim_plen, &ty_nm[0], nl) != 0) {
             return -1;
           }
           k = k + 1;
@@ -7403,6 +7553,10 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
           }
           let close_m: u8[4] = [125, 59, 10, 10];
           if (emit_bytes_4(out, close_m, 4) != 0) {
+            return -1;
+          }
+          /* wave624: companion fat slice for mono-mangled TAG. */
+          if (codegen_emit_companion_named_slice_layout(out, &claim_pfx2[0], claim_plen2, &mangled[0], mlen) != 0) {
             return -1;
           }
           ji = ji + 1;
