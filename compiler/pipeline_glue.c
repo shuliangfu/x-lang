@@ -16525,7 +16525,9 @@ static int32_t glue_field_call_arg_try_load_agg_from_rax_elf_c(struct ast_ASTAre
  *     3) ≤16B: emit CALL + glue_store_retval_pair_to_rbp_elf_c
  *   then lea home+sum(field_offs) and load outermost field — one path, no host-C.
  *
- * Soft residual: frame temps ≥512 scratch; dual-GP param field extract (take_m).
+ * Soft residual: frame temps ≥512 scratch.
+ * wave599: dual-GP param field extract (take_m) closed — arm64 param_home +
+ *   fill_param low-end polarity (was soft leave after wave593).
  *
  * wave596: pointer intermediate on CALL chain (`mk().p.f` / `mk().m.p.f`) —
  * pure offset-sum skipped *T loads (same root as VAR-chain lvalue). Now walk
