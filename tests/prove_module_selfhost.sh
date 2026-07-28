@@ -458,6 +458,16 @@ MODULES=(
   #   rest 含 42 extern bridges (37 *_impl + 5 pipeline_/asm_ctx_/backend_);
   #   prove 锁 mixed surface IDENTICAL (50 nm T · no doc_anchor)
   "backend_try_inline_dispatch_thin|src/asm/backend_try_inline_dispatch_thin.x|seeds/backend_try_inline_dispatch_thin_surface.from_x.c||"
+  # backend_call_dispatch_thin R2 mixed (wave567)：.x 44 nm T symbols
+  #   (6 DIRECT compute + 1 thin forward + 37 thin+rest forwards to _impl);
+  #   rest 含 40 extern bridges (36 *_impl + 4 pipeline_);
+  #   prove 锁 mixed surface IDENTICAL (44 nm T · no doc_anchor)
+  "backend_call_dispatch_thin|src/asm/backend_call_dispatch_thin.x|seeds/backend_call_dispatch_thin_surface.from_x.c||"
+  # backend_arch_emit_dispatch_thin R2 mixed (wave567)：.x 47 nm T symbols
+  #   (43 pure dispatch by ta + 4 dispatch with DIRECT return 0 fallback);
+  #   rest 含 135 extern bridges (45 arch_arm64_* + 45 arch_riscv64_* + 45 arch_x86_64_*);
+  #   prove 锁 mixed surface IDENTICAL (47 nm T · no doc_anchor)
+  "backend_arch_emit_dispatch_thin|src/asm/backend_arch_emit_dispatch_thin.x|seeds/backend_arch_emit_dispatch_thin_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
