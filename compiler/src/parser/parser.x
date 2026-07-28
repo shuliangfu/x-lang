@@ -5517,36 +5517,40 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       }
       /**
        * wave379: mid-body `return` only when a label follows (`return 1; L: …`).
-       * Otherwise break to final-return path (preserves Cap-T001: first `return glue`
-       * is final and drops trailing filler `return 0` — hello/slice host-C).
+       * Otherwise final-return path (Cap-T001: first `return glue` is final and
+       * drops trailing filler `return 0` — hello/slice host-C).
+       *
+       * wave656 Cap residual: bare `return expr` then more stmts at onefunc top.
+       * Nested parse_block (wave655) already uses ASI after the operand; this arm
+       * still raw-advanced and hard-failed without `;` before Cap-T001 skip →
+       * XP003 for `return 1 return 2` / `return 5 let …` (with `;` Cap-T001 green).
+       * G.7: same ASI authority as parse_block (`advance_past_stmt_semicolon_into`);
+       * label mid-body no longer requires an explicit `;` when ASI already landed
+       * on the label IDENT; Cap-T001 skip runs after a successful ASI (or `;`/}).
+       * True reject remains when ASI fails (e.g. `return 0 1` — INT_LIT not a stmt head).
        * PLATFORM: SHARED — onefunc + seed pin same commit.
        */
       if (r.tok.kind == token.TokenKind.TOKEN_RETURN) {
         lex_from_next_into(&lex, r);
         let ret_mid_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
         lexer.lexer_next_into(&r, lex, source);
+        /* Bare `return;` / `return }` — no operand. Else parse operand then ASI. */
         if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON && r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
           parse_expr_into(arena, lex, source, &ret_mid_res);
           if (!ret_mid_res.ok) {
             set_onefunc_fail(out, lex); return;
           }
           lex = ret_mid_res.next_lex;
-          lexer.lexer_next_into(&r, lex, source);
+          if (advance_past_stmt_semicolon_into(&r, lex, source) == 0) {
+            set_onefunc_fail(out, lex); return;
+          }
         }
-        /* Track ';' so Cap-T001 filler skip never swallows a missing-semicolon error
-         * (tests/parser/semicolon_missing.x: `return 0` then `return 1;`).
-         * PLATFORM: SHARED — align parse_block return which already requires ; or }. */
-        let had_return_semi: bool = false;
         if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
           lex_from_next_into(&lex, r);
           lexer.lexer_next_into(&r, lex, source);
-          had_return_semi = true;
         }
         /* Only keep scanning when next stmt is a label (true goto residual). */
         if (parser_token_is_label_start(r, source)) {
-          if (!had_return_semi) {
-            set_onefunc_fail(out, lex); return;
-          }
           let ret_mid_ref: i32 = ast.ast_arena_expr_alloc(arena);
           if (ret_mid_ref == 0) {
             set_onefunc_fail(out, lex); return;
@@ -5570,9 +5574,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           stmt_tok_ready = true;
           continue;
         }
-        /* Final return: leave r on RETURN keyword for the final-return path below.
-         * Rewind is hard; instead set storage and break into final handler via re-lex.
-         * Simpler: we already consumed RETURN — set final storage here and finish. */
+        /* Final return: we already consumed RETURN — set final storage and finish. */
         impl_snap.has_explicit_return_kw = true;
         impl_snap.has_final_expr = true;
         if (ret_mid_res.ok) {
@@ -5591,12 +5593,8 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           ast.ast_arena_expr_set(arena, bare_fin, re_fin);
           return_expr_ref_storage = bare_fin;
         }
-        if (!had_return_semi && r.tok.kind != token.TokenKind.TOKEN_RBRACE && r.tok.kind != token.TokenKind.TOKEN_EOF) {
-          /* Missing ';' before next statement — do not Cap-T001-skip as filler. */
-          set_onefunc_fail(out, lex); return;
-        }
         if (r.tok.kind != token.TokenKind.TOKEN_RBRACE && r.tok.kind != token.TokenKind.TOKEN_EOF) {
-          /* Cap-T001 trailing filler after well-terminated `return e;`: skip until RBRACE. */
+          /* Cap-T001 trailing filler after well-terminated return: skip until RBRACE. */
           while (r.tok.kind != token.TokenKind.TOKEN_RBRACE && r.tok.kind != token.TokenKind.TOKEN_EOF) {
             lex_from_next_into(&lex, r);
             lexer.lexer_next_into(&r, lex, source);

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# 分号统一：语句结束必须加分号；仅 } 后可不加（} 后加也不报错）。正例：带分号通过；负例：return 后缺分号报错。
-# `return (expr)` 在 `}` 前可省略分号：与 $XLANG（默认 ./compiler/xlang，make test 常为 xlang-c）共用 parser.c。
+# 分号统一：语句结束须 `;` 或 ASI 后继为语句头（wave654–656）。正例：带分号通过；
+# 负例：return 操作数后接 INT_LIT（非语句头，ASI 拒绝）。与 $XLANG 共用产品 parser。
 set -e
 cd "$(dirname "$0")/.."
 if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
@@ -36,11 +36,11 @@ parser_expect_reject() {
 $XLANG build -L . tests/parser/semicolon_required.x -o /tmp/xlang_parser_ok 2>&1 || { echo "parser: semicolon_required.x (with semicolon) should compile"; exit 1; }
 /tmp/xlang_parser_ok || { echo "parser: semicolon_required binary should exit 0"; exit 1; }
 
-# 负例：连续 return 间无分号应拒绝（impl 路径报 parse；buf 回退路径常落 typeck error）
-if parser_expect_reject tests/parser/semicolon_missing.x "expected ';' after return|parse produced no functions|typeck error"; then
+# 负例：return 操作数后接 INT_LIT（非语句头）应拒绝；bare 双 return 已由 Cap-T001+ASI 放行
+if parser_expect_reject tests/parser/semicolon_missing.x "expected ';' after return|parse produced no functions|typeck error|pipeline failed|XP003"; then
   : # 预期报错
 else
-  echo "parser: expected parse error for missing semicolon between returns"
+  echo "parser: expected parse error for return operand then INT_LIT (ASI refuse)"
   exit 1
 fi
 
