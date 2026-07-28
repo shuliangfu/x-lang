@@ -24043,12 +24043,17 @@ int32_t pipeline_asm_compute_frame_size_c(int32_t num_params, struct ast_ASTAren
   if (num_params > 0 && mod && func_index >= 0) {
     int32_t pi;
     /**
-     * PLATFORM: LINUX+MACOS x86_64 SysV — match fill_param_slots advancement:
-     * 8B → +8; multi-word (9–16 dual / MEMORY) home at off+w then next = home+8.
+     * Match pipeline_asm_fill_param_slots advancement (wave599):
+     * - PLATFORM: LINUX|x86_64 — 8B +8; multi-word high-end next = home+8 (= off+w+8).
+     * - PLATFORM: MACOS|ARM64 — 8B +8; multi-word low-end next = off+w (no high-end gap).
      */
     for (pi = 0; pi < num_params; pi++) {
       int32_t w = glue_func_param_home_width_c(arena, mod, func_index, pi);
+#if defined(__aarch64__) || defined(__arm64__)
+      next_off += (w > 8) ? w : 8;
+#else
       next_off += (w > 8) ? (w + 8) : 8;
+#endif
     }
   } else if (num_params > 0) {
     next_off = 16 + num_params * 8;
@@ -24165,7 +24170,18 @@ static int32_t glue_func_param_home_width_c(struct ast_ASTArena *arena, struct a
 /**
  * 将函数形参填入 asm 局部 sidecar；[rbp-8] 保留给 prologue 的 saved rbx。
  * >16B MEMORY by-value params get a full-size home (not 8B pointer slot).
- * PLATFORM: LINUX+MACOS x86_64 SysV — matches CALL MEMORY push + param_home copy.
+ *
+ * wave599 Cap residual pure: arm64 9–16B named dual-GP formals.
+ * Root: fill_param always used x86 high-end (home=off+width) while
+ * asm_local_slot_reg_offset (wave402) is low-end on MACOS|ARM64, and
+ * emit_param_home arm64 only stored one GP at 16+i*8 — field loads from
+ * empty high-end home (take_m(o).m / o.m.f → 0; take_field fs=65≠41).
+ * G.7: same polarity authority as asm_local_slot_reg_offset + dual-GP
+ * store_retval half2 (low@home high@home±8 by ta).
+ *
+ * PLATFORM: LINUX|x86_64 SysV — high-end multi-word (home=off+w, next=home+8).
+ * PLATFORM: MACOS|ARM64 — low-end multi-word (home=off, next=off+w); matches
+ *   [x29+off] emit + field_off add (host ISA == freestanding product target).
  */
 void pipeline_asm_fill_param_slots(struct backend_AsmFuncCtx *ctx, struct ast_Module *mod, int32_t func_index) {
   int32_t off;
@@ -24190,7 +24206,20 @@ void pipeline_asm_fill_param_slots(struct backend_AsmFuncCtx *ctx, struct ast_Mo
     pipeline_asm_module_func_param_name_copy32(mod, func_index, i, pname_buf);
     plen = pipeline_asm_module_func_param_name_len_at(mod, func_index, i);
     width = arena ? glue_func_param_home_width_c(arena, mod, func_index, i) : 8;
+#if defined(__aarch64__) || defined(__arm64__)
+    /*
+     * PLATFORM: MACOS|ARM64 — low-end home (≡ asm_local_slot_reg_offset).
+     * 8B scalar/pointer: home@off, next off+8.
+     * width>8 dual/MEMORY: byte0@off, payload [off,off+width), next off+width.
+     */
+    slot_off = off;
+    if (asm_ctx_local_append((uint8_t *)ctx, pname_buf, plen, slot_off) < 0)
+      return;
+    ly->num_locals = asm_ctx_local_count((uint8_t *)ctx);
+    off = (width > 8) ? (off + width) : (off + 8);
+#else
     /**
+     * PLATFORM: LINUX|x86_64 — high-end multi-word home.
      * 8B (scalar/pointer): home at `off`, next off+8 (historical param layout).
      * width>8 (9–16B dual-half or MEMORY): byte0 at off+width (like asm_local_slot_reg_offset);
      * words live at home, home-8, … — next free is home+8 so a following 8B param does not
@@ -24204,6 +24233,7 @@ void pipeline_asm_fill_param_slots(struct backend_AsmFuncCtx *ctx, struct ast_Mo
       return;
     ly->num_locals = asm_ctx_local_count((uint8_t *)ctx);
     off = (width > 8) ? (slot_off + 8) : (off + 8);
+#endif
   }
   ly->next_offset = off;
 }
@@ -24525,22 +24555,68 @@ int32_t pipeline_asm_emit_param_home_elf_c(struct platform_elf_ElfCodegenCtx *el
     }
     return 0;
   }
-  reg_max = 8; /* arm64 */
+  /*
+   * PLATFORM: MACOS|ARM64 AAPCS64 (wave599) — dual-GP / MEMORY param home.
+   * Prior: one GP per formal at 16+i*8, ignored 9–16B INTEGER dual-GP and
+   * fill_param multi-word homes → field extract on Outer formal returned 0.
+   * G.7: mirror SysV x86 dual-GP/MEMORY path with arm64 low-end polarity
+   * (low@home, high@home+8 ≡ glue_store_retval_pair / wave402 locals).
+   * Hidden sret uses x8 (already saved above); GP formals start at x0 (no shift).
+   */
+  reg_max = 8;
   {
-    int32_t sret_shift = 0;
+    struct ast_ASTArena *arena = g_pipeline_asm_emit_arena;
+    int32_t gp = 0;
+    int32_t stack_pos = 16; /* first incoming stack arg after saved fp/lr */
+    int32_t cur = 16;
+    int32_t k;
+    if (!arena)
+      return -1;
     for (i = 0; i < np; i++) {
-      int32_t rk;
-      off = 16 + i * 8;
-      rk = i + sret_shift;
-      if (rk < reg_max) {
-        if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, rk, off, ta) != 0)
+      int32_t psz = glue_func_param_agg_byte_size_c(arena, mod, func_index, i);
+      int32_t home_w = glue_func_param_home_width_c(arena, mod, func_index, i);
+      int32_t home = cur; /* low-end (match fill_param arm64) */
+      if (psz > 16) {
+        /* MEMORY by-value: copy nbytes from caller stack into low-end home. */
+        int32_t nbytes = (psz + 7) & ~7;
+        for (k = 0; k < nbytes; k += 8) {
+          if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, stack_pos + k, ta) != 0)
+            return -1;
+          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home + k, ta) != 0)
+            return -1;
+        }
+        stack_pos += nbytes;
+      } else if (psz > 8) {
+        /* 9–16B INTEGER dual-GP: low half @ home, high @ home+8. */
+        if (gp + 2 <= reg_max) {
+          if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, gp, home, ta) != 0)
+            return -1;
+          if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, gp + 1, home + 8, ta) != 0)
+            return -1;
+          gp += 2;
+        } else {
+          if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, stack_pos, ta) != 0)
+            return -1;
+          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+            return -1;
+          if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, stack_pos + 8, ta) != 0)
+            return -1;
+          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home + 8, ta) != 0)
+            return -1;
+          stack_pos += 16;
+        }
+      } else if (gp < reg_max) {
+        if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, gp, home, ta) != 0)
           return -1;
+        gp++;
       } else {
-        if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, 16 + (rk - reg_max) * 8, ta) != 0)
+        if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, stack_pos, ta) != 0)
           return -1;
-        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0)
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
           return -1;
+        stack_pos += 8;
       }
+      cur = (home_w > 8) ? (cur + home_w) : (cur + 8);
     }
   }
   return 0;
