@@ -3767,17 +3767,39 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
       }
     }
   }
-  if (base_ref != 0) {
-    /*
-     * wave360 Cap residual pure — freestanding UFCS auto-ref.
-     * Root: typeck matches value.method when free fn is method(self: *T,...);
-     * emit must pass &receiver (lea), not by-value load.
-     * G.7: when resolved UFCS (dep_ix<0, func_ix>=0) and param0 is *T matching
-     * base_ty's T, use lvalue eff addr; else value emit (wave358).
-     * PLATFORM: SHARED — mac + Ubuntu freestanding L2.
-     */
-    {
-      int32_t need_aref = 0;
+  /*
+   * wave602 Cap residual pure — freestanding UFCS method self SysV dual-GP / MEMORY.
+   * Root: receiver was always 1 GP (`mov rax→rdi`); 9–16B self dropped high half (rdx);
+   * >16B self used lea→rdi while callee `param_home` reads `[rbp+0x10..]` (wave599 MEMORY).
+   * Ubuntu pure-asm `s.sum()` Pair=16B → 59; S24=24B → 57 (mac arm64 often host-C/const-fold hid).
+   * Import-binding METHOD path already packs dual-GP/MEMORY; free CALL wave601 same.
+   * G.7: complete same-module UFCS leaf — logical places [receiver, arg0..] with formal
+   * param types 0..n_place-1 (self is formal 0). wave360 auto-ref (*T self → lea) stays.
+   * PLATFORM: LINUX+MACOS x86_64 SysV; arm64 dual-GP self via spill/load (wave600 twin).
+   */
+  {
+    int32_t has_recv = (base_ref != 0) ? 1 : 0;
+    int32_t n_place = has_recv + nargs;
+    int32_t need_aref = 0;
+    int32_t reg_start[GLUE_ASM_MAX_CALL_ARGS];
+    int32_t reg_units[GLUE_ASM_MAX_CALL_ARGS];
+    int32_t spill_off[GLUE_ASM_MAX_CALL_ARGS];
+    int32_t is_sse[GLUE_ASM_MAX_CALL_ARGS];
+    int32_t is_f64[GLUE_ASM_MAX_CALL_ARGS];
+    int32_t is_mem[GLUE_ASM_MAX_CALL_ARGS];
+    int32_t is_stk[GLUE_ASM_MAX_CALL_ARGS];
+    int32_t arg_sz[GLUE_ASM_MAX_CALL_ARGS];
+    int32_t sret_sh;
+    int32_t gp_cur;
+    int32_t xmm_cur;
+    int32_t mem_stack;
+    int32_t reg_max;
+
+    if (n_place < 0 || n_place > GLUE_ASM_MAX_CALL_ARGS)
+      return -1;
+
+    /* wave360: value.method when free fn is method(self: *T,...) → pass &receiver. */
+    if (has_recv) {
       int32_t r_fn = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
       int32_t r_dep = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
       if (r_fn >= 0 && r_dep < 0 && mod_ref) {
@@ -3791,39 +3813,187 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
             need_aref = 1;
         }
       }
-      if (need_aref) {
-        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0)
+    }
+
+    sret_sh = (ta == 0) ? pipeline_asm_emit_call_sret_reg_shift_c() : 0;
+    gp_cur = sret_sh;
+    xmm_cur = 0;
+    mem_stack = 0;
+    reg_max = glue_asm_call_reg_max(ta);
+    if (reg_max < 1)
+      reg_max = 6;
+
+    for (i = 0; i < n_place; i++) {
+      int32_t arg_ref;
+      int32_t pty_i;
+      int32_t u;
+      int32_t sz;
+      is_sse[i] = 0;
+      is_f64[i] = 0;
+      is_mem[i] = 0;
+      is_stk[i] = 0;
+      arg_sz[i] = 0;
+      reg_start[i] = -1;
+      reg_units[i] = 0;
+      spill_off[i] = -1;
+      if (has_recv && i == 0)
+        arg_ref = base_ref;
+      else
+        arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i - has_recv);
+      if (arg_ref == 0)
+        continue;
+      /* Formal index == place index when receiver is formal 0. */
+      pty_i = glue_call_param_type_ref_at(arena, expr_ref, i);
+      if (has_recv && i == 0 && need_aref)
+        sz = 8;
+      else
+        sz = glue_sysv_arg_byte_size_c(arena, ctx, pty_i, arg_ref);
+      arg_sz[i] = sz;
+      is_sse[i] = (ta == 0) ? glue_arg_ref_is_sse_float_c(arena, arg_ref, pty_i) : 0;
+      is_f64[i] = glue_arg_ref_is_f64_width_c(arena, arg_ref, pty_i);
+      if (is_sse[i]) {
+        if (xmm_cur >= 8)
           return -1;
-      } else if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+        reg_start[i] = xmm_cur++;
+        reg_units[i] = 1;
+        continue;
+      }
+      if (ta == 0 && glue_sysv_arg_is_memory_by_value_c(sz)) {
+        is_mem[i] = 1;
+        continue;
+      }
+      u = glue_sysv_arg_gp_units_from_size_c(sz);
+      if (ta != 0) {
+        /* AAPCS64: dual-GP for 9–16B; MEMORY soft as 1×xN (lea residual). */
+        if (u < 1)
+          u = 1;
+        if (u > 2)
+          u = 2;
+      }
+      if (gp_cur + u > reg_max) {
+        if (u > 1)
+          return -1;
+        is_stk[i] = 1;
+        continue;
+      }
+      reg_start[i] = gp_cur;
+      reg_units[i] = u;
+      gp_cur += u;
+    }
+
+    /* Push MEMORY / stack excess before reg loads (pad first for 16-align). */
+    if (ta == 0) {
+      int32_t raw_mem = 0;
+      int32_t pushed_total = 0;
+      for (i = 0; i < n_place; i++) {
+        if (is_mem[i])
+          raw_mem += (arg_sz[i] + 7) & ~7;
+        else if (is_stk[i])
+          raw_mem += 8;
+      }
+      while (((raw_mem + pushed_total) & 15) != 0) {
+        if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)
+          return -1;
+        if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+        pushed_total += 8;
+      }
+      for (i = n_place - 1; i >= 0; i--) {
+        int32_t arg_ref;
+        int32_t pushed;
+        if (is_mem[i]) {
+          if (has_recv && i == 0)
+            arg_ref = base_ref;
+          else
+            arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i - has_recv);
+          if (arg_ref == 0)
+            return -1;
+          pushed = pipeline_asm_push_sysv_memory_by_value_elf_c(arena, elf_ctx, ctx, arg_ref, arg_sz[i], ta);
+          if (pushed < 0)
+            return -1;
+          pushed_total += pushed;
+        } else if (is_stk[i]) {
+          int32_t formal_ix = i;
+          if (has_recv && i == 0) {
+            arg_ref = base_ref;
+            if (need_aref) {
+              if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0)
+                return -1;
+            } else if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+              return -1;
+            }
+          } else {
+            arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i - has_recv);
+            if (arg_ref == 0)
+              return -1;
+            if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, formal_ix, ctx, ta) != 0)
+              return -1;
+          }
+          if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+            return -1;
+          pushed_total += 8;
+        }
+      }
+      mem_stack = pushed_total;
+    }
+
+    /* Materialize register places → spill → load (dual-GP safe). */
+    for (i = 0; i < n_place; i++) {
+      int32_t arg_ref;
+      int32_t so;
+      int32_t formal_ix = i;
+      if (reg_start[i] < 0 || is_mem[i] || is_stk[i])
+        continue;
+      if (has_recv && i == 0) {
+        if (need_aref) {
+          if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0)
+            return -1;
+        } else if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+          return -1;
+        }
+      } else {
+        arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i - has_recv);
+        if (arg_ref == 0)
+          continue;
+        if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, formal_ix, ctx, ta) != 0)
+          return -1;
+      }
+      so = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, reg_units[i]);
+      if (so < 0)
+        return -1;
+      spill_off[i] = so;
+    }
+    /* Load high place index first so lower GPs are not clobbered via x0/rax temp. */
+    for (i = n_place - 1; i >= 0; i--) {
+      int32_t mov_rc;
+      if (spill_off[i] < 0)
+        continue;
+      if (is_sse[i]) {
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill_off[i], ta) != 0)
+          return -1;
+        if (is_f64[i])
+          mov_rc = backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, reg_start[i], ta);
+        else
+          mov_rc = backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, reg_start[i], ta);
+        if (mov_rc != 0)
+          return -1;
+      } else if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off[i], reg_start[i],
+                                                         reg_units[i]) != 0) {
         return -1;
       }
     }
-    if (ta != 1 && backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
+
+    if (glue_asm_enc_call_redirected(elf_ctx, name, name_len, ta) != 0)
       return -1;
-  }
-  /** AAPCS64：receiver 已在 x0；其余实参从高序号向低序号 emit，勿覆盖 x0。 */
-  if (ta == 1) {
-    for (i = nargs - 1; i >= 0; i--) {
-      int32_t arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
-      if (arg_ref != 0) {
-        if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
-          return -1;
-        if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, i + 1, ta) != 0)
-          return -1;
-      }
+    {
+      int32_t cln = mem_stack;
+      if (cln > 0 && backend_enc_call_stack_cleanup_arch(elf_ctx, cln, ta) != 0)
+        return -1;
     }
-  } else {
-    for (i = 0; i < nargs && i < 6; i++) {
-      int32_t arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
-      if (arg_ref != 0) {
-        if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
-          return -1;
-        if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, i + 1, ta) != 0)
-          return -1;
-      }
-    }
+    if (glue_asm_harvest_sse_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
+      return -1;
+    return 0;
   }
-  return glue_asm_enc_call_redirected(elf_ctx, name, name_len, ta);
 }
 
 #ifndef XLANG_L2_CALL_DISPATCH_THIN_FROM_X
