@@ -6486,7 +6486,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
  * @param arena *ASTArena — type arena
  * @param ty_ref i32 — resolved type ref of a binop operand
  * @return i32 — 1 aggregate / non-scalar-binop, 0 scalar/ptr/enum/alias-ok or null/unknown
- * PLATFORM: SHARED — wave657 cmp + wave658 arith; G.7 single helper for binop_cmp and binop_arith.
+ * PLATFORM: SHARED — wave657 cmp + wave658 arith + wave662 unary; G.7 single helper.
  */
 export function typeck_type_is_aggregate_cmp_operand(module: *Module, arena: *ASTArena, ty_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -6873,9 +6873,13 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
  * @param ctx *PipelineDepCtx — dep/typeck context
  * @return i32 — 0 ok, -1 hard fail
  * wave289 Cap residual: hard-fail illegal unary ~ on float/ptr and unary - on ptr.
- * Root cause: this path copied operand type for NEG/BITNOT without host-cc validity
- * checks → soft residual BLD001 (`~double`, `~uint8_t*`, `-uint8_t*`).
- * Allowed: ~int, -int, -float, !any (LOGNOT→bool). Rejected: ~f32/f64, ~ptr, -ptr.
+ * wave662 Cap residual: hard-fail unary -/~/! on aggregates (struct/array/slice).
+ * Root cause (wave289): copied operand type without host-cc validity → BLD001 on
+ * `~double`, `~uint8_t*`, `-uint8_t*`.
+ * Root cause (wave662): LOGNOT always stamped bool; NEG/BITNOT stamped aggregate
+ * type → host-cc BLD001 (`-struct`, `~struct`, `!slice`) without T001.
+ * Allowed: ~int, -int, -float, !scalar (LOGNOT→bool). Rejected: ~f32/f64, ~ptr,
+ * -ptr, and aggregate operands for -/~/! (G.7 reuse typeck_type_is_aggregate_cmp_operand).
  * PLATFORM: SHARED — seed typeck_gen + empty_surface same commit (G.7).
  */
 export function typeck_check_expr_unary(module: *Module, arena: *ASTArena, expr_ref: i32,
@@ -6898,6 +6902,21 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     if (check_expr(module, arena, op_ref, return_type_ref, ctx) != 0) {
       return - 1;
     }
+    op_tr = expr_type_ref(arena, op_ref);
+    /*
+     * wave662 Cap residual: hard-fail unary -/~/! on aggregates at typeck.
+     * LOGNOT previously stamped bool for any operand (including struct/slice) → BLD001;
+     * NEG/BITNOT stamped the aggregate type → BLD001 on host-C. G.7: reuse aggregate
+     * helper from wave657/658; diag invalid_aggregate_cmp (message covers unary).
+     */
+    if (!ast.ref_is_null(op_tr) && op_tr > 0 && op_tr <= arena.num_types) {
+      if (typeck_type_is_aggregate_cmp_operand(module, arena, op_tr) != 0) {
+        line_u = pipeline_expr_line_at(arena, expr_ref);
+        col_u = pipeline_expr_col_at(arena, expr_ref);
+        driver_diagnostic_typeck_invalid_aggregate_cmp(line_u, col_u);
+        return -1;
+      }
+    }
     if (expr_kind == ord_lognot) {
       bt = ensure_bool_type_ref(arena);
       if (bt != 0) {
@@ -6905,7 +6924,6 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       }
       return 0;
     }
-    op_tr = expr_type_ref(arena, op_ref);
     if (!ast.ref_is_null(op_tr) && op_tr > 0 && op_tr <= arena.num_types) {
       op_ko = pipeline_type_kind_ord_at(arena, op_tr);
       /* wave289: reject ~float, ~ptr, -ptr at typeck (reuse wave285/286 diags — G.7). */

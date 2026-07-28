@@ -502,7 +502,7 @@ export function driver_diagnostic_typeck_invalid_float_binop(line: i32, col: i32
 export function driver_diagnostic_typeck_invalid_aggregate_cmp(line: i32, col: i32): void {
   unsafe {
     lsp_diag_report_typeck(line, col,
-      "invalid aggregate binary operation (cmp/arith not allowed on array/slice/struct; use scalars or fields)");
+      "invalid aggregate operation (cmp/arith/unary -/~/! not allowed on array/slice/struct; use scalars or fields)");
   }
 }
 

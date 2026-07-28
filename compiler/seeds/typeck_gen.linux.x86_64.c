@@ -6737,7 +6737,8 @@ int32_t typeck_check_expr_binop(struct ast_Module * module, struct ast_ASTArena 
 int32_t typeck_check_expr_field_access(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
   return pipeline_typeck_check_expr_field_access_c(module, arena, expr_ref, return_type_ref, ctx);
 }
-/* wave289 Cap residual: G.7 ≡ typeck.x typeck_check_expr_unary — hard-fail ~float/~ptr/-ptr. */
+/* wave289 Cap residual: G.7 ≡ typeck.x typeck_check_expr_unary — hard-fail ~float/~ptr/-ptr.
+ * wave662 Cap residual: hard-fail unary -/~/! on aggregates (reuse typeck_type_is_aggregate_cmp_operand). */
 int32_t typeck_check_expr_unary(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
   {
     int32_t ord_neg = 22;
@@ -6756,6 +6757,16 @@ int32_t typeck_check_expr_unary(struct ast_Module * module, struct ast_ASTArena 
     if ((typeck_check_expr(module, arena, op_ref, return_type_ref, ctx) !=0)) {
       return -1;
     }
+    (void)((op_tr = typeck_expr_type_ref(arena, op_ref)));
+    /* wave662: hard-fail aggregate operands for -/~/! before LOGNOT stamps bool. */
+    if (((!(ast_ref_is_null(op_tr)) && (op_tr > 0)) && (op_tr <=(arena->num_types)))) {
+      if ((typeck_type_is_aggregate_cmp_operand(module, arena, op_tr) != 0)) {
+        (void)((line_u = pipeline_expr_line_at(arena, expr_ref)));
+        (void)((col_u = pipeline_expr_col_at(arena, expr_ref)));
+        (void)(driver_diagnostic_typeck_invalid_aggregate_cmp(line_u, col_u));
+        return -1;
+      }
+    }
     if ((expr_kind ==ord_lognot)) {
       (void)((bt = typeck_ensure_bool_type_ref(arena)));
       if ((bt !=0)) {
@@ -6763,7 +6774,6 @@ int32_t typeck_check_expr_unary(struct ast_Module * module, struct ast_ASTArena 
       }
       return 0;
     }
-    (void)((op_tr = typeck_expr_type_ref(arena, op_ref)));
     if (((!(ast_ref_is_null(op_tr)) && (op_tr > 0)) && (op_tr <=(arena->num_types)))) {
       (void)((op_ko = pipeline_type_kind_ord_at(arena, op_tr)));
       if ((expr_kind ==ord_bitnot)) {
