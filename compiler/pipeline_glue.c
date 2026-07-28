@@ -29044,6 +29044,13 @@ int32_t backend_emit_while_loop_elf_sync(struct ast_ASTArena *arena, struct plat
 
 /**
  * ELF for 循环；C glue 真实现（与 backend.x emit_for_loop_elf 语义一致）。
+ *
+ * wave653: continue must target the *step* label, not the cond head.
+ * C for-semantics: continue → step → cond. Old path pushed loop_buf (cond) as
+ * continue_label → `for (…; i = i + 1)` body `continue` skipped step → infinite
+ * when i stuck (masked until loop-body final_expr no longer early-returned).
+ * Empty step (`for ( ; c ; )`) still uses step label (= fall into jmp head).
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS co-path.
  */
 int32_t backend_emit_for_loop_elf_sync(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                        int32_t block_ref, int32_t for_idx, struct backend_AsmFuncCtx *ctx, int32_t ta) {
@@ -29053,8 +29060,10 @@ int32_t backend_emit_for_loop_elf_sync(struct ast_ASTArena *arena, struct platfo
   int32_t body_ref;
   uint8_t loop_buf[128];
   uint8_t exit_buf[128];
+  uint8_t step_buf[128];
   int32_t loop_len;
   int32_t exit_len;
+  int32_t step_len;
 
   init_ref = ast_ast_block_for_init_ref(arena, block_ref, for_idx);
   cond_ref = ast_ast_block_for_cond_ref(arena, block_ref, for_idx);
@@ -29064,7 +29073,8 @@ int32_t backend_emit_for_loop_elf_sync(struct ast_ASTArena *arena, struct platfo
     return -1;
   loop_len = pipeline_asm_emit_next_label_c(ctx, loop_buf, 64);
   exit_len = pipeline_asm_emit_next_label_c(ctx, exit_buf, 64);
-  if (loop_len <= 0 || exit_len <= 0)
+  step_len = pipeline_asm_emit_next_label_c(ctx, step_buf, 64);
+  if (loop_len <= 0 || exit_len <= 0 || step_len <= 0)
     return -1;
   if (backend_enc_label_arch(elf_ctx, loop_buf, loop_len, 0, ta) != 0)
     return -1;
@@ -29074,10 +29084,16 @@ int32_t backend_emit_for_loop_elf_sync(struct ast_ASTArena *arena, struct platfo
     if (glue_enc_jz_after_bool_in_eax(elf_ctx, exit_buf, exit_len, ta) != 0)
       return -1;
   }
-  if (backend_ctx_push_loop_labels(ctx, exit_buf, exit_len, loop_buf, loop_len) != 0)
+  /* continue → step_buf (not loop_buf); break → exit_buf. */
+  if (backend_ctx_push_loop_labels(ctx, exit_buf, exit_len, step_buf, step_len) != 0)
     return -1;
   glue_loop_break_exit_push();
   if (backend_emit_loop_body_content_elf_sync(arena, elf_ctx, body_ref, ctx, ta) != 0) {
+    glue_loop_break_exit_pop();
+    backend_ctx_pop_loop_labels(ctx);
+    return -1;
+  }
+  if (backend_enc_label_arch(elf_ctx, step_buf, step_len, 0, ta) != 0) {
     glue_loop_break_exit_pop();
     backend_ctx_pop_loop_labels(ctx);
     return -1;
