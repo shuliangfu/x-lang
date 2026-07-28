@@ -478,6 +478,18 @@ MODULES=(
   #   rest 含 71 extern bridges (*_impl);
   #   prove 锁 mixed surface IDENTICAL (74 nm T · no doc_anchor)
   "simd_enc_thin|src/asm/simd_enc_thin.x|seeds/simd_enc_thin_surface.from_x.c||"
+  # diag_thin R2 mixed (wave569)：.x 78 nm T symbols
+  #   (19 DIRECT compute + 59 thin+rest forwards to _impl);
+  #   rest 含 53 extern bridges (*_impl);
+  #   prove 锁 mixed surface IDENTICAL (78 nm T · no doc_anchor)
+  #   注：diag_thin.x ≠ diag.x（diag.x 有 Cap residual 已排除，diag_thin.x 的 -E 成功）
+  "diag_thin|src/diag_thin.x|seeds/diag_thin_surface.from_x.c||"
+  # runtime_driver_abi R2 mixed (wave569)：.x 61 nm T symbols
+  #   (54 DIRECT compute + 7 thin+rest forwards to _impl);
+  #   rest 含 39 extern bridges (driver_*_flag_slot + getenv + *_impl);
+  #   prove 锁 mixed surface IDENTICAL (61 nm T · no doc_anchor)
+  #   注：full 变体，thin 已注册为 driver_abi 模块
+  "runtime_driver_abi|src/runtime_driver_abi.x|seeds/runtime_driver_abi_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
