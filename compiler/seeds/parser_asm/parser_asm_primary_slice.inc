@@ -2189,6 +2189,19 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
   if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_array_lit_head_audit_c(parser_asm_lex_at_token_from_result_c(r), source));
     parser_asm_primary_parse_array_lit_c(arena, source, &lex, &r, out);
+    if (!out->ok)
+      return;
+    /**
+     * wave611 / PLATFORM: SHARED — array literal is not a suffix-chain endpoint.
+     * `[e0, e1][i]` / `[..][0] + …` need the same G.7 postfix loop as `(expr)`
+     * and anonymous `{…}` (INDEX / CALL / FIELD). Early return left the trailing
+     * `[` for the outer expr layer → whole-function parse skip (XP003 out_len=0).
+     * G.7: reuse parser_asm_primary_ident_suffix_loop_c only; no second path.
+     */
+    lex = out->next_lex;
+    lexer_next_into(&r, lex, source);
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_suffix_chain_probe_c(lex, source));
+    parser_asm_primary_ident_suffix_loop_c(arena, source, &lex, &r, out, 1);
     return;
   }
   if (r.tok.kind == (int32_t)TOKEN_IF) {

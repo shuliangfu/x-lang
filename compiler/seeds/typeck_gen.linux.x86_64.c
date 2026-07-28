@@ -6936,13 +6936,22 @@ int typeck_expr_is_any_assign_kind(int32_t kind_ord) {
   return 0;
 }
 /* PLATFORM: SHARED — wave407 Cap residual pure: recurse ARRAY_LIT elems so nested
- * INDEX runs typeck_check_expr_index (index_base_is_slice / host .data emit). */
+ * INDEX runs typeck_check_expr_index (index_base_is_slice / host .data emit).
+ * wave611: untyped ARRAY_LIT rvalue → infer TYPE_ARRAY from homogeneous elems
+ * so `[10,32][1]` / INDEX bases typeck (let/return coerce may still overwrite). */
 int32_t typeck_check_expr_array_lit(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
   {
     int32_t ord_expr_array_lit = 46;
     int32_t num_elems = 0;
     int32_t i = 0;
     int32_t elem_ref = 0;
+    int32_t already = 0;
+    int32_t elem_ty = 0;
+    int32_t ok_inf = 1;
+    int32_t j = 0;
+    int32_t er = 0;
+    int32_t et = 0;
+    int32_t arr_ty = 0;
     if ((((arena == 0) || (expr_ref <= 0)) || (expr_ref > (arena->num_exprs)))) {
       return 0;
     }
@@ -6958,6 +6967,41 @@ int32_t typeck_check_expr_array_lit(struct ast_Module * module, struct ast_ASTAr
         }
       }
       (void)((i = (i + 1)));
+    }
+    /* wave611: infer TYPE_ARRAY when still untyped (G.7 complete array_lit authority). */
+    (void)((already = pipeline_expr_resolved_type_ref(arena, expr_ref)));
+    if ((((ast_ref_is_null(already)) || (already <= 0)) && (num_elems > 0))) {
+      (void)((elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, 0)));
+      (void)((elem_ty = 0));
+      (void)((ok_inf = 1));
+      if (((!(ast_ref_is_null(elem_ref))) && (elem_ref > 0))) {
+        (void)((elem_ty = pipeline_expr_resolved_type_ref(arena, elem_ref)));
+      }
+      if (((ast_ref_is_null(elem_ty)) || (elem_ty <= 0))) {
+        (void)((ok_inf = 0));
+      }
+      (void)((j = 1));
+      while (((ok_inf != 0) && (j < num_elems))) {
+        (void)((er = pipeline_expr_array_lit_elem_ref(arena, expr_ref, j)));
+        (void)((et = 0));
+        if (((!(ast_ref_is_null(er))) && (er > 0))) {
+          (void)((et = pipeline_expr_resolved_type_ref(arena, er)));
+        }
+        if (((ast_ref_is_null(et)) || (et <= 0))) {
+          (void)((ok_inf = 0));
+        } else if (((!(typeck_type_refs_equal(arena, et, elem_ty))) && (!(typeck_integer_widen_ok_refs(arena, elem_ty, et)))) && (!(typeck_integer_widen_ok_refs(arena, et, elem_ty)))) {
+          (void)((ok_inf = 0));
+        } else if (((!(typeck_type_refs_equal(arena, et, elem_ty))) && typeck_integer_widen_ok_refs(arena, et, elem_ty))) {
+          (void)((elem_ty = et));
+        }
+        (void)((j = (j + 1)));
+      }
+      if ((ok_inf != 0)) {
+        (void)((arr_ty = typeck_find_or_alloc_array_type_ref(arena, elem_ty, num_elems)));
+        if (((!(ast_ref_is_null(arr_ty))) && (arr_ty > 0))) {
+          (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, arr_ty));
+        }
+      }
     }
     return 0;
   }

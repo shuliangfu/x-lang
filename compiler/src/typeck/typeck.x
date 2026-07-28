@@ -7086,14 +7086,17 @@ export function typeck_expr_is_any_assign_kind(kind_ord: i32): bool {
  * Prior: check_expr fell through for kind=46 without visiting children, so nested
  * INDEX never ran typeck_check_expr_index → index_base_is_slice stayed 0 and host-C
  * emitted `(slice_var)[i]` (invalid for by-value fat) instead of `.data[i]`.
- * Does not stamp the literal's own type — let/return coerce (wave328/333) owns that.
+ * wave611: when the literal still has no resolved type after elems (no let/return
+ * ambient), infer TYPE_ARRAY from homogeneous element types so rvalues like
+ * `[10, 32][1]` pass typeck_check_expr_index. Let/return still overwrite via
+ * typeck_coerce_array_lit_elem_types_to_decl (wave328/333).
  * @param module *Module — current module
  * @param arena *ASTArena — expr/type pool
  * @param expr_ref i32 — EXPR_ARRAY_LIT (kind 46); other kinds return 0
  * @param return_type_ref i32 — ambient expected type passed to nested check_expr
  * @param ctx *PipelineDepCtx — typeck context
  * @return i32 — 0 on success, -1 if any element fails typeck
- * PLATFORM: SHARED — wave407 Cap residual pure
+ * PLATFORM: SHARED — wave407 Cap residual pure; wave611 untyped ARRAY_LIT infer
  */
 export function typeck_check_expr_array_lit(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
@@ -7103,6 +7106,13 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     let num_elems: i32 = 0;
     let i: i32 = 0;
     let elem_ref: i32 = 0;
+    let already: i32 = 0;
+    let elem_ty: i32 = 0;
+    let ok_inf: i32 = 1;
+    let j: i32 = 0;
+    let er: i32 = 0;
+    let et: i32 = 0;
+    let arr_ty: i32 = 0;
     if (arena == 0 as *ASTArena || expr_ref <= 0 || expr_ref > arena.num_exprs) {
       return 0;
     }
@@ -7118,6 +7128,49 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         }
       }
       i = i + 1;
+    }
+    /*
+     * wave611 / PLATFORM: SHARED — untyped ARRAY_LIT rvalue type inference.
+     * G.7: complete this authority (no second INDEX-only path). Empty lit leaves
+     * type unset (no size-0 array stamp). Coerce paths may still overwrite.
+     */
+    already = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    if ((ast.ref_is_null(already) || already <= 0) && num_elems > 0) {
+      elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, 0);
+      elem_ty = 0;
+      ok_inf = 1;
+      if (!ast.ref_is_null(elem_ref) && elem_ref > 0) {
+        elem_ty = pipeline_expr_resolved_type_ref(arena, elem_ref);
+      }
+      if (ast.ref_is_null(elem_ty) || elem_ty <= 0) {
+        ok_inf = 0;
+      }
+      j = 1;
+      while (ok_inf != 0 && j < num_elems) {
+        er = pipeline_expr_array_lit_elem_ref(arena, expr_ref, j);
+        et = 0;
+        if (!ast.ref_is_null(er) && er > 0) {
+          et = pipeline_expr_resolved_type_ref(arena, er);
+        }
+        if (ast.ref_is_null(et) || et <= 0) {
+          ok_inf = 0;
+        } else if (!type_refs_equal(arena, et, elem_ty)
+        && !typeck_integer_widen_ok_refs(arena, elem_ty, et)
+        && !typeck_integer_widen_ok_refs(arena, et, elem_ty)) {
+          ok_inf = 0;
+        } else if (!type_refs_equal(arena, et, elem_ty)
+        && typeck_integer_widen_ok_refs(arena, et, elem_ty)) {
+          /* wider element type wins (e.g. i32 then i64 → i64[N]). */
+          elem_ty = et;
+        }
+        j = j + 1;
+      }
+      if (ok_inf != 0) {
+        arr_ty = find_or_alloc_array_type_ref(arena, elem_ty, num_elems);
+        if (!ast.ref_is_null(arr_ty) && arr_ty > 0) {
+          pipeline_expr_set_resolved_type_ref(arena, expr_ref, arr_ty);
+        }
+      }
     }
     return 0;
   }
