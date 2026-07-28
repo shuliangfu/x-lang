@@ -128,14 +128,12 @@ void parser_asm_parse_if_expr_into_c(void *arena, struct parser_asm_lexer lex_at
   parser_lex_from_next_into_glue(&lex_cur, r);
   lexer_next_into(&r, lex_cur, source);
   /**
-   * wave361: docs/03 `if cond { then } else { else }` — parens optional.
-   * PLATFORM: SHARED — G.7 single if-expr cond path (paren or bare).
+   * wave361/wave650: docs/03 `if cond { then } else { else }` — parens optional.
+   * wave650: do NOT strip leading `(` — same root as if_stmt (inclusive grouping
+   * so `(x >> 2) != 4` is one cond expr). PLATFORM: SHARED — G.7 single if-expr
+   * cond path (expr primary owns parens).
    */
-  if (r.tok.kind == (int32_t)TOKEN_LPAREN) {
-    lex_cur = r.next_lex;
-  } else {
-    lex_cur = parser_lex_at_token_from_result_glue(r);
-  }
+  lex_cur = parser_lex_at_token_from_result_glue(r);
   memset(&cond_res, 0, sizeof(cond_res));
   cond_res.next_lex = lex_cur;
   parser_parse_cond_expr_into_glue(arena, lex_cur, source, &cond_res);

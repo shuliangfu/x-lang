@@ -2512,12 +2512,8 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
         int32_t while_idx = 0;
         (void)(parser_lex_from_next_into(&(lex_cur), r));
         (void)(lexer_next_into(&(r), lex_cur, source));
-        /* wave361: bare while cond (docs/03); kind 82=LPAREN */
-        if ((((r.tok).kind) ==82)) {
-          (void)((lex_cur = (r.next_lex)));
-        } else {
-          (void)((lex_cur = parser_lex_at_token_from_result(r)));
-        }
+        /* wave361/wave650: bare while cond (docs/03); do not strip LPAREN (82). */
+        (void)((lex_cur = parser_lex_at_token_from_result(r)));
         (void)((loop_cond_start = lex_cur));
         (void)((expr_res = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = loop_cond_start }));
         (void)(parser_parse_cond_expr_into(arena, loop_cond_start, source, &(expr_res)));
@@ -5060,12 +5056,8 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
           int32_t while_idx = 0;
           (void)(parser_lex_from_next_into(&(lex), r));
           (void)(lexer_next_into(&(r), lex, source));
-          /* wave361: bare while cond (docs/03); kind 82=LPAREN */
-          if ((((r.tok).kind) ==82)) {
-            (void)((lex = (r.next_lex)));
-          } else {
-            (void)((lex = parser_lex_at_token_from_result(r)));
-          }
+          /* wave361/wave650: bare while cond (docs/03); do not strip LPAREN (82). */
+          (void)((lex = parser_lex_at_token_from_result(r)));
           (void)((while_cond_start = lex));
           (void)((expr_res = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = while_cond_start }));
           (void)(parser_parse_cond_expr_into(arena, while_cond_start, source, &(expr_res)));

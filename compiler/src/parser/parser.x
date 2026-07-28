@@ -2495,14 +2495,11 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       lex_from_next_into(&lex_cur, r);
       lexer.lexer_next_into(&r, lex_cur, source);
       /**
-       * wave361: docs/03 `while cond { body }` — parentheses optional.
-       * PLATFORM: SHARED — G.7 single while (block path) cond entry.
+       * wave361/wave650: docs/03 `while cond { body }` — parentheses optional.
+       * wave650: do NOT strip leading `(` (same as if_stmt: `(x >> 2) != 4` is one
+       * cond). PLATFORM: SHARED — G.7 single while (block path) cond entry.
        */
-      if (r.tok.kind == token.TokenKind.TOKEN_LPAREN) {
-        lex_cur = r.next_lex;
-      } else {
-        lex_cur = lex_at_token_from_result(r);
-      }
+      lex_cur = lex_at_token_from_result(r);
       loop_cond_start = lex_cur;
       expr_res = ParseExprResult { ok: false, expr_ref: 0, next_lex: loop_cond_start };
       parse_cond_expr_into(arena, loop_cond_start, source, &expr_res);
@@ -5947,14 +5944,11 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
         /**
-         * wave361: docs/03 bare `while cond { body }` (parens optional).
+         * wave361/wave650: docs/03 bare `while cond { body }` (parens optional).
+         * wave650: do NOT strip leading `(` (inclusive grouping; twin of block while).
          * PLATFORM: SHARED — G.7 single while (onefunc path) cond entry.
          */
-        if (r.tok.kind == token.TokenKind.TOKEN_LPAREN) {
-          lex = r.next_lex;
-        } else {
-          lex = lex_at_token_from_result(r);
-        }
+        lex = lex_at_token_from_result(r);
         while_cond_start = lex;
         expr_res = ParseExprResult { ok: false, expr_ref: 0, next_lex: while_cond_start };
         parse_cond_expr_into(arena, while_cond_start, source, &expr_res);
