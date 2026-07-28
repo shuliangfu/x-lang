@@ -16240,23 +16240,28 @@ static int32_t glue_field_call_arg_try_load_agg_from_rax_elf_c(struct ast_ASTAre
  * wave589 Cap residual pure: freestanding FIELD_ACCESS on CALL/METHOD_CALL return
  * (`mk().x` / long-field `mk().f…`).
  * wave590: extend >16B MEMORY/sret rvalue field (was soft leave after wave589).
+ * wave593: (1) nested chain `mk().i.f` — walk FIELD bases to CALL/METHOD root and
+ *          sum AoS field offsets; (2) ≤16B STRUCT_LIT-return CALL.field — try_inline
+ *          first (same order as glue_emit_struct_type_let_init). Prior ≤16 path only
+ *          did emit CALL + store_retval_pair; mid-size (9–16B) dual-GP CALL.field
+ *          CG002 on arm64 freestanding while let inlined and green; >16 already inlined.
  *
  * Root: field_access fast fell through to lvalue_eff_addr, which only handles
  * VAR / nested FIELD / INDEX / DEREF. CALL base returns -1 → UNHANDLED → CG002
- * (host-C emits temporary `.` access; Ubuntu pure-asm gold exposes). Soft leave
- * after wave588 incorrectly pinned this to "long field names"; short `mk().x`
- * fails the same path. wave589 closed ≤16B dual-GP; wave590 closes >16B.
+ * (host-C emits temporary `.` access; Ubuntu pure-asm gold exposes). Nested
+ * `mk().i.f` base is FIELD not CALL → same UNHANDLED before wave593.
  *
  * G.7 authority (same as `let s = mk()` / glue_emit_struct_type_let_init):
- *   ≤16B: emit CALL + glue_store_retval_pair_to_rbp_elf_c
- *   >16B: try_inline STRUCT_LIT return into frame temp, else SysV sret
- *         (hidden rdi = temp; call_sret_reg_shift) on x86_64
- * then load field at layout offset — no second field-access path, no host-C change.
+ *   materialise CALL/METHOD root once into frame temp:
+ *     1) try_inline STRUCT_LIT return (any size; CALL only)
+ *     2) >16B: sret (x86 SysV rdi+shift / arm64 AAPCS64 x8)
+ *     3) ≤16B: emit CALL + glue_store_retval_pair_to_rbp_elf_c
+ *   then lea home+sum(field_offs) and load outermost field — one path, no host-C.
  *
- * Soft residual: arm64 freestanding non-inlineable large CALL.field (use let);
- * frame temps rely on compute_frame_size scratch (≥512) for typical aggregates.
+ * Soft residual: non-inline mid-size dual-GP return-local CALL.field if store path
+ * still red; pointer intermediate fields (`mk().ptr.f`); frame temps ≥512 scratch.
  *
- * @return 0 success, -1 emit error, PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED not CALL/METHOD base
+ * @return 0 success, -1 emit error, PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED not CALL-rooted chain
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path (ta layout;
  *   sret gate: x86_64 SysV + arm64 AAPCS64 x8 (wave591))
  */
@@ -16275,22 +16280,57 @@ static int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *are
   int32_t emit_rc;
   int32_t agg;
   int32_t materialised;
+  int32_t cur_fa;
+  int32_t chain_depth;
   pipeline_glue_AsmFuncCtxLayout *ly;
   struct ast_Module *mod;
 
   if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
     return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+  if (pipeline_expr_kind_ord_at(arena, expr_ref) != (int32_t)ast_ExprKind_EXPR_FIELD_ACCESS)
+    return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
   if (pipeline_expr_field_access_is_enum_variant(arena, expr_ref) != 0)
     return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
-  base_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
+
+  /*
+   * wave593: walk FIELD_ACCESS chain to CALL/METHOD root; sum AoS field offsets.
+   * mk().i.f → offs(f)+offs(i), root=CALL(mk). Single-level mk().x is depth-0.
+   * Cap depth 16 — pathological nest falls through UNHANDLED (use let).
+   */
+  mod = g_pipeline_asm_emit_module;
+  field_off = 0;
+  cur_fa = expr_ref;
+  base_ref = 0;
+  base_ko = 0;
+  chain_depth = 0;
+  while (chain_depth < 16) {
+    int32_t fo;
+    int32_t next_base;
+    if (pipeline_expr_field_access_is_enum_variant(arena, cur_fa) != 0)
+      return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+    fo = glue_field_access_effective_offset_c(arena, mod, cur_fa);
+    if (fo < 0)
+      fo = 0;
+    field_off += fo;
+    next_base = pipeline_expr_field_access_base_ref(arena, cur_fa);
+    if (next_base <= 0)
+      return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+    base_ko = pipeline_expr_kind_ord_at(arena, next_base);
+    /* EXPR_CALL=48, EXPR_METHOD_CALL=49, EXPR_FIELD_ACCESS=44 */
+    if (base_ko == 48 || base_ko == 49) {
+      base_ref = next_base;
+      break;
+    }
+    if (base_ko == 44) {
+      cur_fa = next_base;
+      chain_depth++;
+      continue;
+    }
+    return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+  }
   if (base_ref <= 0)
     return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
-  base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
-  /* EXPR_CALL=48, EXPR_METHOD_CALL=49 */
-  if (base_ko != 48 && base_ko != 49)
-    return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
 
-  mod = g_pipeline_asm_emit_module;
   base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
   ret_sz = 0;
   if (base_ty > 0)
@@ -16333,58 +16373,56 @@ static int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *are
   }
   glue_align_next_offset(ctx);
 
+  /*
+   * Materialise root CALL/METHOD into home — same order as let_init (G.7):
+   * inline STRUCT_LIT (any size) → sret if >16 → dual-GP store if ≤16.
+   * wave593: pull try_inline out of >16-only so 9–16B STRUCT_LIT CALL.field greens.
+   */
   materialised = 0;
-  if (ret_sz > 16) {
-    /*
-     * wave590: same order as glue_emit_struct_type_let_init for large CALL.
-     * 1) STRUCT_LIT return inline into home (works dual-end freestanding).
-     * 2) sret: x86 SysV rdi=home+shift; arm64 AAPCS64 x8=home (wave591).
-     * METHOD_CALL has no STRUCT_LIT-return inline helper; sret path covers it.
-     */
-    if (base_ko == 48) {
-      int32_t inl;
-      inl = try_inline_struct_lit_return_call_to_slot_elf(arena, elf_ctx, base_ref, ctx, ta, home);
+  if (base_ko == 48) {
+    int32_t inl;
+    inl = try_inline_struct_lit_return_call_to_slot_elf(arena, elf_ctx, base_ref, ctx, ta, home);
+    if (inl == 1)
+      materialised = 1;
+    if (materialised == 0) {
+      inl = try_inline_const_struct_lit_return_call_to_slot_elf(arena, elf_ctx, base_ref, ctx, ta, home);
       if (inl == 1)
         materialised = 1;
-      if (materialised == 0) {
-        inl = try_inline_const_struct_lit_return_call_to_slot_elf(arena, elf_ctx, base_ref, ctx, ta, home);
-        if (inl == 1)
-          materialised = 1;
-      }
     }
-    if (materialised == 0) {
-      /*
-       * Non-inline large CALL: materialise via sret into home.
-       * PLATFORM: LINUX+MACOS x86_64 SysV — hidden dest in rdi + GP shift.
-       * PLATFORM: MACOS|ARM64 AAPCS64 (wave591) — dest in x8; no GP shift.
-       */
-      if (ta != 0 && ta != 1)
-        return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
-      pipeline_asm_set_call_expected_ret_ty_c(base_ty > 0 ? base_ty : 0);
-      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta) != 0) {
+  }
+  if (materialised == 0 && ret_sz > 16) {
+    /*
+     * Non-inline large CALL: materialise via sret into home.
+     * PLATFORM: LINUX+MACOS x86_64 SysV — hidden dest in rdi + GP shift.
+     * PLATFORM: MACOS|ARM64 AAPCS64 (wave591) — dest in x8; no GP shift.
+     * METHOD_CALL has no STRUCT_LIT-return inline helper; sret path covers it.
+     */
+    if (ta != 0 && ta != 1)
+      return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+    pipeline_asm_set_call_expected_ret_ty_c(base_ty > 0 ? base_ty : 0);
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta) != 0) {
+      pipeline_asm_set_call_expected_ret_ty_c(0);
+      return -1;
+    }
+    if (ta == 0) {
+      if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) {
         pipeline_asm_set_call_expected_ret_ty_c(0);
         return -1;
       }
-      if (ta == 0) {
-        if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) {
-          pipeline_asm_set_call_expected_ret_ty_c(0);
-          return -1;
-        }
-        pipeline_asm_emit_set_call_sret_reg_shift_c(1);
-      } else {
-        if (glue_arm64_mov_x0_to_x8_elf_c(elf_ctx) != 0) {
-          pipeline_asm_set_call_expected_ret_ty_c(0);
-          return -1;
-        }
-      }
-      emit_rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, base_ref, ctx, ta);
-      pipeline_asm_emit_set_call_sret_reg_shift_c(0);
-      pipeline_asm_set_call_expected_ret_ty_c(0);
-      if (emit_rc != 0)
+      pipeline_asm_emit_set_call_sret_reg_shift_c(1);
+    } else {
+      if (glue_arm64_mov_x0_to_x8_elf_c(elf_ctx) != 0) {
+        pipeline_asm_set_call_expected_ret_ty_c(0);
         return -1;
-      materialised = 1;
+      }
     }
-  } else {
+    emit_rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, base_ref, ctx, ta);
+    pipeline_asm_emit_set_call_sret_reg_shift_c(0);
+    pipeline_asm_set_call_expected_ret_ty_c(0);
+    if (emit_rc != 0)
+      return -1;
+    materialised = 1;
+  } else if (materialised == 0) {
     emit_rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, base_ref, ctx, ta);
     if (emit_rc != 0)
       return -1;
@@ -16396,7 +16434,7 @@ static int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *are
   if (materialised == 0)
     return -1;
 
-  field_off = glue_field_access_effective_offset_c(arena, mod, expr_ref);
+  /* Outermost field load (expr_ref); offset is chain sum above. */
   if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
     return -1;
   if (field_off != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0)
@@ -19376,11 +19414,18 @@ static int32_t glue_store_retval_pair_to_rbp_elf_c(struct ast_Module *m, struct 
     }
     return 0;
   }
-  if (ta != 0 || !m || !arena || ty_ref <= 0)
+  if (!m || !arena || ty_ref <= 0)
     return 0;
   if (sz > 8 && sz <= 16) {
-    /** fp 负偏移：slot_off 越大地址越低；第二 half 在 struct+8 即 slot_off-8。 */
-    if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, slot_off - 8, ta) != 0)
+    /*
+     * SysV INTEGER dual-GP second half (rdx / x1).
+     * PLATFORM: LINUX+MACOS x86_64 — high-end home: low@slot_off, high@slot_off-8.
+     * PLATFORM: MACOS|ARM64 (wave593) — low-end home: low@slot_off, high@slot_off+8
+     *   (same memory order as glue_slice_dual_gp_length_off_c / wave402 frame).
+     * Prior: `if (ta != 0) return 0` after rax-only store left 9–16B arm64 half garbage.
+     */
+    int32_t half2 = (ta == 1) ? (slot_off + 8) : (slot_off - 8);
+    if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, half2, ta) != 0)
       return -1;
   }
   return 0;
