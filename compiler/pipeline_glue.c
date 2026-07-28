@@ -4246,6 +4246,15 @@ static int32_t pipeline_asm_array_lit_leaf_elem_byte_sz_c(struct ast_ASTArena *a
 /**
  * wave357: flatten nested ARRAY_LIT to row-major scalar stores at base+flat_i*leaf_esz.
  * Same address geometry as 1D vector_let (lea base once-per-store + positive store off).
+ *
+ * wave627 Cap residual pure: multi-dim nested ARRAY_LIT of STRUCT_LIT leaves
+ * (e.g. `Pt[2][1] = [[Pt{10,0}], [Pt{0,32}]]`).
+ * Root: flat path always emit_expr (STRUCT_LIT slot=-1 → next_offset aliases array
+ * byte0) then store_sz clamped ≤8 of rax — same high-end overwrite class as
+ * wave626 1D vector_let. Ubuntu pure-asm sum=32; host-C braces green.
+ * G.7: per-leaf glue_emit_struct_type_let_init at arch-aware home (≡ wave598/626).
+ * PLATFORM: SHARED freestanding multi-dim · LINUX|x86 high-end · MACOS|ARM64 low-end.
+ *
  * @return 0 ok; -1 error
  */
 static int32_t pipeline_asm_emit_array_lit_flat_elf_c(struct ast_ASTArena *arena,
@@ -4275,6 +4284,26 @@ static int32_t pipeline_asm_emit_array_lit_flat_elf_c(struct ast_ASTArena *arena
                                                   flat_i) != 0)
         return -1;
       continue;
+    }
+    /*
+     * wave627: STRUCT_LIT / >8B leaf — in-place at flat home (not rvalue next_offset).
+     * PLATFORM: MACOS|ARM64 low-end home=base+i*esz; LINUX|x86 high-end home=base-i*esz.
+     */
+    if (leaf_esz > 8 || pipeline_expr_kind_ord_at(arena, elem_ref) == 45) {
+      int32_t elem_home;
+      int32_t st;
+      elem_home = (ta == 1) ? (stack_slot_off + (*flat_i) * leaf_esz)
+                            : (stack_slot_off - (*flat_i) * leaf_esz);
+      if (elem_home < 0)
+        return -1;
+      st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, elem_ref, ctx, ta, 0, elem_home);
+      if (st == 0) {
+        *flat_i = *flat_i + 1;
+        continue;
+      }
+      if (st == -1)
+        return -1;
+      /* st == -2: not STRUCT_LIT/CALL — fall through to scalar store */
     }
     if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta) != 0)
       return -1;
@@ -11780,11 +11809,57 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
   if (lko == 47) {
     int32_t base_ref;
     int32_t idx_ref;
+    int32_t rko_idx;
     esz = pipeline_asm_index_elem_byte_sz_c(arena, left_ref);
     base_ref = pipeline_expr_index_base_ref(arena, left_ref);
     idx_ref = pipeline_expr_index_index_ref(arena, left_ref);
     if (base_ref <= 0 || idx_ref <= 0)
       return -1;
+    /*
+     * wave627 Cap residual pure: INDEX assign of STRUCT_LIT (`a[i] = Pt{…}` / S24{…}).
+     *
+     * Root: generic path emit_expr STRUCT_LIT (slot_off=-1) materializes at
+     * ly->next_offset without advancing high-end top; after fixed TYPE_ARRAY
+     * alloc, next_offset aliases a[0]. Field stores for a[1]=Pt{0,32} overwrite
+     * a[0], then finish_store bulk-copies 8B to a[1] → Ubuntu pure-asm
+     * a[0].x+a[1].y=32 (host-C temps green; single a[0]= and VAR/CALL rhs green).
+     * >8B STRUCT_LIT also only store_rax width ≤8 → s24_asg run=3.
+     *
+     * G.7: same in-place authority as wave626 vector_let STRUCT_LIT — when base is
+     * local VAR and index is INT_LIT, write fields at arch-aware elem home
+     * (no rvalue next_offset / no register bulk). Non-lit / non-VAR fall through.
+     * PLATFORM: SHARED freestanding · LINUX|x86 high-end · MACOS|ARM64 low-end.
+     */
+    rko_idx = pipeline_expr_kind_ord_at(arena, right_ref);
+    if (pipeline_expr_kind_ord_at(arena, expr_ref) == (int32_t)ast_ExprKind_EXPR_ASSIGN &&
+        rko_idx == 45 && esz > 0) {
+      int32_t lit_imm;
+      int32_t base_off;
+      int32_t elem_home;
+      int32_t base_tr;
+      int32_t base_tk;
+      /*
+       * Only fixed TYPE_ARRAY payload homes (byte0 @ base_off). TYPE_SLICE VAR is a
+       * fat pointer dual-GP home — in-place there would smash data/length (sl_asg SEGV).
+       */
+      if (pipeline_expr_kind_ord_at(arena, base_ref) == 3 &&
+          pipeline_asm_expr_lit_i32_at_c(arena, idx_ref, &lit_imm)) {
+        base_tr = glue_var_decl_type_ref_elf_c(arena, ctx, base_ref);
+        base_tk = (base_tr > 0) ? pipeline_type_kind_ord_at(arena, base_tr) : 0;
+        if (base_tk == GLUE_TYPE_KIND_ARRAY) {
+          base_off = glue_var_expr_stack_off_elf_c(arena, ctx, base_ref);
+          if (base_off >= 0) {
+            elem_home = (ta == 1) ? (base_off + lit_imm * esz) : (base_off - lit_imm * esz);
+            if (elem_home >= 0 &&
+                pipeline_asm_emit_struct_lit_fields_elf_c(arena, elf_ctx, right_ref, ctx, ta,
+                                                           elem_home) == 0) {
+              glue_index_assign_addr_cache_clear();
+              return 0;
+            }
+          }
+        }
+      }
+    }
     /** arm64 rbx=x1：先 emit 右值→rax，再 INDEX 址→rbx（字面量/变量下标直路径免 x2）。 */
     if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0) {
       glue_index_assign_addr_cache_clear();
