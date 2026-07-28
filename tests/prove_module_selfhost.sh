@@ -490,6 +490,11 @@ MODULES=(
   #   prove 锁 mixed surface IDENTICAL (61 nm T · no doc_anchor)
   #   注：full 变体，thin 已注册为 driver_abi 模块
   "runtime_driver_abi|src/runtime_driver_abi.x|seeds/runtime_driver_abi_surface.from_x.c||"
+  # backend_x86_64_enc_c R2 mixed (wave570)：.x 104 nm T symbols
+  #   (104 DIRECT compute · 0 thin+rest);
+  #   rest 含 9 extern bridges (pipeline_elf_ctx_*);
+  #   prove 锁 mixed surface IDENTICAL (104 nm T · has doc_anchor backend_x86_64_enc_c_x_doc_anchor)
+  "backend_x86_64_enc_c|src/asm/backend_x86_64_enc_c.x|seeds/backend_x86_64_enc_c_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
