@@ -399,6 +399,22 @@ MODULES=(
   #   rest 含 10 extern bridges;
   #   prove 锁 mixed surface IDENTICAL (12 #[no_mangle] · no doc_anchor)
   "runtime_driver_strict_glue_stubs|src/runtime_driver_strict_glue_stubs.x|seeds/runtime_driver_strict_glue_stubs_surface.from_x.c||"
+  # rt_dispatch_thin R2 thin+rest (wave561)：.x 4 #[no_mangle] public API
+  #   (4 thin forwards to _impl: driver_run_asm_backend_c + driver_run_emit_c_path_c
+  #    + driver_run_compiler_full + driver_try_compile_via_shu_c_sibling);
+  #   rest 含 4 _impl bridges;
+  #   prove 锁 thin+rest surface IDENTICAL (4 #[no_mangle] · no doc_anchor)
+  "rt_dispatch_thin|src/runtime/rt_dispatch_thin.x|seeds/rt_dispatch_thin_surface.from_x.c||"
+  # lsp_diag_pipeline_ctx R2 thin+rest (wave561)：.x 14 #[no_mangle] public API
+  #   (14 thin forwards to extern bridges: lsp_diag_x_alloc_dep_ctx_size
+  #    + lsp_build_diagnostics_response + lsp_diag_hover_at + lsp_diag_references_at
+  #    + lsp_hover_at + lsp_references_at + lsp_diag_definition_at
+  #    + lsp_build_semantic_tokens_response + lsp_io_lsp_diag_invalidate_cache
+  #    + lsp_diag_pipeline_ctx_fill_paths + typeck_lsp_main + lsp_write_all
+  #    + lsp_debug_report_sqpoll_env + lsp_apply_default_io_policy);
+  #   rest 含 12 extern bridges (typeck_lsp_* shared by 2 wrappers each);
+  #   prove 锁 thin+rest surface IDENTICAL (14 #[no_mangle] · no doc_anchor)
+  "lsp_diag_pipeline_ctx|src/lsp/lsp_diag_pipeline_ctx.x|seeds/lsp_diag_pipeline_ctx_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
