@@ -2198,6 +2198,13 @@ static int32_t glue_asm_lea_rax_common_adrp_arm64(struct platform_elf_ElfCodegen
 #define GLUE_ARRAY_LIT_MAX_ELEMS 1024
 #define GLUE_ARRAY_LIT_MAX_PAYLOAD 4096
 
+/* wave647: ARRAY_LIT scalar elem → rax (FLOAT_LIT force_ty for f32 pack). Def later. */
+static int32_t glue_array_lit_emit_scalar_elem_to_rax_elf_c(struct ast_ASTArena *arena,
+                                                            struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                            int32_t array_lit_ref, int32_t elem_ref,
+                                                            struct backend_AsmFuncCtx *ctx, int32_t ta,
+                                                            int32_t force_esz);
+
 static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena *arena,
                                                             struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                             int32_t expr_ref, int32_t force_esz, int32_t ta,
@@ -2455,13 +2462,18 @@ static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena
     if (elem_ref <= 0)
       return -1;
     if (all_const != 0) {
-      /* Const path: imm into rax (works without ctx). */
+      /* Const path: imm into rax (works without ctx). INT_LIT/BOOL only. */
       v64 = (int64_t)pipeline_expr_int_val_at(arena, elem_ref);
       if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, (int32_t)(v64 & 0xffffffff),
                                              (int32_t)((v64 >> 32) & 0xffffffff), ta) != 0)
         return -1;
     } else {
-      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, elem_ref, ctx, ta) != 0)
+      /*
+       * wave647: FLOAT_LIT pack via force_ty/force_esz (f32 bits when esz=4).
+       * Prior emit_expr_rec alone left f64 bits → store esz=4 wrote zeros.
+       */
+      if (glue_array_lit_emit_scalar_elem_to_rax_elf_c(arena, elf_ctx, expr_ref, elem_ref, ctx, ta,
+                                                        force_esz) != 0)
         return -1;
     }
     if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
@@ -3457,6 +3469,73 @@ static int32_t pipeline_asm_emit_try_propagate_elf_impl(struct ast_ASTArena *are
 
 /** EXPR_FLOAT_LIT → rax/x0：resolved f32 发 32-bit IEEE754 位型（勿 f64 movabs 低 32 位截断为 0）。 */
 /** call_abi_widen_f64：CALL 实参经整型寄存器 8B 槽传递时须发 f64 位型（callee cvtsd2ss）；let/field 用 imm32。 */
+static int32_t glue_emit_float_lit_to_rax_elf_c(struct ast_ASTArena *arena,
+                                                 struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
+                                                 int32_t ta, int32_t force_ty_ref, int32_t call_abi_widen_f64);
+
+/**
+ * wave647 Cap residual pure: emit one ARRAY_LIT scalar element to rax for esz-wide pack.
+ *
+ * Root: bare FLOAT_LIT defaults to f64 IEEE bits in rax; packing force_esz=4 (formal
+ * []f32 / TYPE_F32) stores only the low 32 of f64 1.0 (=0x00000000) → freestanding
+ * `take([1.0, 2.0])` as []f32 reads 0 while host-C braced compound is green; let
+ * `let a: []f32 = [1.0, 2.0]; take(a)` often green via stamped elems / CTFE.
+ * Ubuntu x86 gold exposes; mac arm64 CTFE may fold `return 42` and hide.
+ *
+ * G.7: single authority — pass force_ty from ARRAY_LIT peel (TYPE_SLICE/ARRAY elem)
+ * into glue_emit_float_lit (wave300); when peel missing but force_esz==4, pack f32
+ * bits (same IEEE convert as force_ty F32). force_esz==8 keeps f64 default.
+ * PLATFORM: SHARED freestanding · LINUX gold + MACOS|ARM64 co-path.
+ *
+ * @param arena AST arena
+ * @param elf_ctx product ELF/Mach-O codegen ctx
+ * @param array_lit_ref parent EXPR_ARRAY_LIT (for elem type peel)
+ * @param elem_ref element expression
+ * @param ctx asm func ctx (required for non-lit elems)
+ * @param ta 0=x86_64, 1=arm64
+ * @param force_esz formal/let element byte size (0 → infer only via peel)
+ * @return 0 success, -1 emit error
+ */
+static int32_t glue_array_lit_emit_scalar_elem_to_rax_elf_c(struct ast_ASTArena *arena,
+                                                            struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                            int32_t array_lit_ref, int32_t elem_ref,
+                                                            struct backend_AsmFuncCtx *ctx, int32_t ta,
+                                                            int32_t force_esz) {
+  int32_t eko;
+  int32_t ety;
+  int32_t ek;
+  if (!arena || !elf_ctx || elem_ref <= 0)
+    return -1;
+  eko = pipeline_expr_kind_ord_at(arena, elem_ref);
+  /* EXPR_FLOAT_LIT = 1 */
+  if (eko == 1) {
+    ety = pipeline_asm_array_lit_elem_type_ref(arena, array_lit_ref);
+    ek = ety > 0 ? pipeline_type_kind_ord_at(arena, ety) : -1;
+    if (ek == 14 || ek == 15)
+      return glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, elem_ref, ta, ety, 0);
+    /*
+     * Formal force_esz=4 without peel (call-arg stamp race / unstamped lit):
+     * still pack f32 bits — never store f64 low-half zeros into f32 slots.
+     */
+    if (force_esz == 4) {
+      int32_t lo = pipeline_expr_float_bits_lo_at(arena, elem_ref);
+      int32_t hi = pipeline_expr_float_bits_hi_at(arena, elem_ref);
+      double dv;
+      float fv;
+      uint32_t fb;
+      memcpy(&dv, (int32_t[]){lo, hi}, sizeof(dv));
+      fv = (float)dv;
+      memcpy(&fb, &fv, sizeof(fb));
+      return backend_enc_mov_imm32_to_w0_arch(elf_ctx, (int32_t)fb, ta);
+    }
+    /* force_esz==8 or 0: default f64 bits via glue_emit_float_lit. */
+    return glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, elem_ref, ta, 0, 0);
+  }
+  if (!ctx)
+    return -1;
+  return pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, elem_ref, ctx, ta);
+}
+
 static int32_t glue_emit_float_lit_to_rax_elf_c(struct ast_ASTArena *arena,
                                                  struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
                                                  int32_t ta, int32_t force_ty_ref, int32_t call_abi_widen_f64) {
@@ -12956,7 +13035,9 @@ static int32_t pipeline_asm_emit_array_lit_force_esz_elf_c(struct ast_ASTArena *
         int32_t store_sz = esz;
         if (store_sz != 1 && store_sz != 2 && store_sz != 4 && store_sz != 8)
           store_sz = 4;
-        if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, elem_ref, ctx, ta) != 0)
+        /* wave647: FLOAT_LIT force_ty/force_esz (twin of durable COMMON fill). */
+        if (glue_array_lit_emit_scalar_elem_to_rax_elf_c(arena, elf_ctx, expr_ref, elem_ref, ctx, ta,
+                                                          force_esz) != 0)
           return -1;
         if (may_clobber != 0) {
           /* value@rax; restore payload base@rbx without dropping the value. */
@@ -22465,6 +22546,12 @@ static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena
                                                             struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                             int32_t expr_ref, int32_t force_esz, int32_t ta,
                                                             struct backend_AsmFuncCtx *ctx);
+/* wave647: ARRAY_LIT scalar elem → rax (FLOAT_LIT force_ty for f32 pack). */
+static int32_t glue_array_lit_emit_scalar_elem_to_rax_elf_c(struct ast_ASTArena *arena,
+                                                            struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                            int32_t array_lit_ref, int32_t elem_ref,
+                                                            struct backend_AsmFuncCtx *ctx, int32_t ta,
+                                                            int32_t force_esz);
 
 /**
  * wave394 Cap residual pure: TYPE_SLICE dual-GP length half product offset.
