@@ -16074,6 +16074,16 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
    * sum3(b.a) was 138 before fat compound). G.7: dual-GP fat {data=lea(b.a),
    * length=N} then lea fat (VAR twin wave395; host emit_call_arg_slice_abi).
    * PLATFORM: SHARED freestanding · LINUX gold + MACOS arm64.
+   *
+   * wave649 Cap residual pure: STRUCT_LIT/CALL base field as TYPE_SLICE formal.
+   * Root: wave396 used pipeline_asm_emit_lvalue_eff_addr_elf_c, which only handles
+   * VAR/INDEX/DEREF/FIELD chains as true lvalues — Wrap{…}.xs / mk().xs returned
+   * -1 → freestanding CG002 (host-C temp + &field green; VAR w.xs fat already green;
+   * wave610 TYPE_ARRAY formal green via glue_try_index_var_or_field_base_to_rax).
+   * G.7: reuse the same INDEX/call-arg field-address helper (wave609 leave_addr
+   * materialise) for data half; fat pack path unchanged — do not invent a second
+   * FIELD→slice path.
+   * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
    */
   if (arena && ctx && elf_ctx && pipeline_expr_kind_ord_at(arena, expr_ref) == 44) {
     int32_t want_slice = 0;
@@ -16093,6 +16103,7 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
       if (arr_sz > 0) {
         int32_t home;
         int32_t base_off;
+        int32_t br;
         pipeline_glue_AsmFuncCtxLayout *ly = pipeline_asm_ctx_layout(ctx);
         if (!ly)
           return -1;
@@ -16102,8 +16113,9 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
         home = base_off + 16;
         ly->next_offset = (ta == 1) ? (home + 16) : (home + 8);
         glue_align_next_offset(ctx);
-        /* data@rax = &field payload */
-        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+        /* data@rax = &field payload (VAR / STRUCT_LIT / CALL / DEREF base; ≡ wave610) */
+        br = glue_try_index_var_or_field_base_to_rax_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+        if (br != 0)
           return -1;
         if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
           return -1;
