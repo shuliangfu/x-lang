@@ -4093,6 +4093,8 @@ static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *aren
 static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
     struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,
     struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t sret_direct, int32_t base_off, int32_t foff, int32_t fty);
+/* wave652: arch-aware struct field frame mag (nest_slot + fixed array field). */
+static int32_t glue_struct_field_frame_mag_c(int32_t base_off, int32_t foff, int32_t ta);
 /* Used by wave350 FIELD init; full def near pipeline_expr_field_access_layout_offset. */
 static int32_t glue_field_access_effective_offset_c(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                    int32_t fa_ref);
@@ -4330,7 +4332,8 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
       if (pipeline_expr_kind_ord_at(arena, init_ref) == 45) {
         if (!sret_direct) {
           int32_t nest_slot;
-          nest_slot = (ta == 1) ? (base_off + foff) : (base_off - foff);
+          /* wave652: G.7 single polarity helper (≡ fixed array field dest). */
+          nest_slot = glue_struct_field_frame_mag_c(base_off, foff, ta);
           if (nest_slot < 0)
             return -1;
           if (pipeline_asm_emit_struct_lit_fields_elf_c(arena, elf_ctx, init_ref, ctx, ta,
@@ -4806,6 +4809,43 @@ static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *aren
 }
 
 /**
+ * Frame magnitude of a struct field at byte offset `foff` from struct byte0
+ * whose frame magnitude is `base_off`.
+ *
+ * wave652 Cap residual pure: fixed TYPE_ARRAY field stores used base+foff on all
+ * arches. On x86 high-end, lea -base(%rbp) is Outer byte0 and field@byte0+foff is
+ * magnitude base-foff. Using base+foff placed the array *before* Outer; elem[1]
+ * at +esz then overwrote pad (Ubuntu fs return w.pad → 32 not 7; take(w.xs)=0).
+ * Nested STRUCT_LIT already used this polarity (wave595 nest_slot); array fields
+ * must match. sret true-address paths still use pointer + foff (not this helper).
+ *
+ * @param base_off frame magnitude of Outer byte0 (lea ±base from fp)
+ * @param foff field byte offset from Outer byte0 (layout; always ≥0)
+ * @param ta target arch (1=arm64 low-end, 0=x86 high-end)
+ * @return field frame magnitude, or -1 if invalid
+ * PLATFORM: MACOS|ARM64 low-end mag=base+foff · LINUX|x86 high-end mag=base-foff
+ */
+static int32_t glue_struct_field_frame_mag_c(int32_t base_off, int32_t foff, int32_t ta) {
+  int32_t mag;
+  if (foff < 0)
+    return -1;
+  if (foff == 0)
+    return base_off;
+  if (ta == 1) {
+    /* PLATFORM: MACOS|ARM64 low-end — lea [x29,#base]; field@base+foff. */
+    mag = base_off + foff;
+  } else {
+    /* PLATFORM: LINUX|x86 high-end — lea -base(%rbp)=byte0; field mag base-foff. */
+    if (foff > base_off)
+      return -1;
+    mag = base_off - foff;
+  }
+  if (mag < 0)
+    return -1;
+  return mag;
+}
+
+/**
  * wave349/350/351 Cap residual pure: STRUCT_LIT field of fixed TYPE_ARRAY stores inline
  * payload (N×esz), not an 8-byte pointer.
  *
@@ -4818,13 +4858,14 @@ static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *aren
  * - ARRAY_LIT + sret → per-elem emit + store at foff+i×esz via sret dest@rbx
  * - VAR → element-wise lea(src)+i×esz + esz-wide load / store (wave399; matches ARRAY_LIT)
  * - wave350 FIELD (`Box { a: b0.a }`) → same from VAR-base + field_off
- *   (src base = var_off − field_off; elem[i] at base + i×esz — SHARED with CALL E* copy)
+ *   (src base = arch-aware field mag; elem[i] at base + i×esz — SHARED with CALL E* copy)
  * - wave351 CALL (`Box { a: fill(n) }`) → materialize CALL into temp (G.7 reuse
  *   glue_store_retval_pair / sret let-init), then same element-wise from temp.
  *   Companion: WPO walks STRUCT_LIT field inits (ast_pool) so fill is reachable.
  * - wave354: also the authority for `let t: T[N] = b.a` / `= a` / `= fill(n)` (foff=0 into
  *   let slot) and whole-array assign `t = b.a` — same element-wise copy; host-C uses memcpy.
  * - wave615: INDEX multi-dim subrow (`let r: T[N] = m[0]`) — same E* element-wise as CALL.
+ * - wave652: dest frame mag = glue_struct_field_frame_mag_c (≡ nest_slot wave595).
  *
  * @return 0 handled; -1 error; -2 unsupported init (caller falls through)
  * PLATFORM: SHARED freestanding emit · LINUX gold · MACOS host-C uses braced expand
@@ -4838,6 +4879,7 @@ static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
   int32_t ai;
   int32_t elem_tr;
   int32_t src_off;
+  int32_t field_mag;
   if (!arena || !elf_ctx || !ctx || init_ref <= 0 || fty <= 0)
     return -1;
   iko = pipeline_expr_kind_ord_at(arena, init_ref);
@@ -4850,11 +4892,21 @@ static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
   esz = glue_index_elem_byte_sz_from_type_ref_c(arena, elem_tr);
   if (esz <= 0)
     esz = 4;
+  /*
+   * wave652: non-sret dest is a frame magnitude. foff>0 must be arch-aware
+   * (x86 high-end base-foff). sret paths keep true address + foff below.
+   */
+  field_mag = 0;
+  if (sret_direct == 0) {
+    field_mag = glue_struct_field_frame_mag_c(base_off, foff, ta);
+    if (field_mag < 0)
+      return -1;
+  }
 
   if (iko == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT) {
     if (sret_direct == 0) {
-      /* rbp-relative: write elems directly into struct field (base_off + foff). */
-      return pipeline_asm_emit_vector_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, base_off + foff);
+      /* rbp-relative: write elems at arch-aware field mag (wave652 ≡ nest_slot). */
+      return pipeline_asm_emit_vector_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, field_mag);
     }
     /* SysV sret: dest base in [sret_home]; store each elem at foff + i*esz. */
     for (ai = 0; ai < n_arr; ai++) {
@@ -4887,7 +4939,7 @@ static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
     if (lit_v != 0)
       return -2;
     if (sret_direct == 0) {
-      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, base_off + foff, ta) != 0)
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, field_mag, ta) != 0)
         return -1;
       if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
         return -1;
@@ -4937,8 +4989,11 @@ static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
     field_off = glue_field_access_effective_offset_c(arena, g_pipeline_asm_emit_module, init_ref);
     if (field_off < 0)
       field_off = 0;
-    /* Positive slot of field base: var_off − field_off (addr = rbp − var_off + field_off). */
-    src_off = var_off - field_off;
+    /*
+     * wave652: src field mag arch-aware (≡ dest field_mag / nest_slot).
+     * PLATFORM: MACOS|ARM64 low-end var+foff · LINUX|x86 high-end var-foff.
+     */
+    src_off = glue_struct_field_frame_mag_c(var_off, field_off, ta);
     if (src_off < 0)
       return -1;
   } else if (iko == (int32_t)ast_ExprKind_EXPR_CALL ||
@@ -5010,7 +5065,7 @@ static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
       if (backend_enc_store_rax_to_rbp_arch(elf_ctx, src_spill, ta) != 0)
         return -1;
       if (sret_direct == 0) {
-        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, base_off + foff, ta) != 0)
+        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, field_mag, ta) != 0)
           return -1;
       } else {
         if (backend_enc_load_rbp_to_rax_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
@@ -5045,7 +5100,7 @@ static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
       if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
         return -1;
       if (sret_direct == 0) {
-        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, base_off + foff, ta) != 0)
+        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, field_mag, ta) != 0)
           return -1;
         if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
           return -1;
@@ -5100,7 +5155,7 @@ static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
       if (backend_enc_store_rax_to_rbp_arch(elf_ctx, src_spill, ta) != 0)
         return -1;
       if (sret_direct == 0) {
-        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, base_off + foff, ta) != 0)
+        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, field_mag, ta) != 0)
           return -1;
       } else {
         if (backend_enc_load_rbp_to_rax_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
@@ -5135,7 +5190,7 @@ static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
       if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
         return -1;
       if (sret_direct == 0) {
-        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, base_off + foff, ta) != 0)
+        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, field_mag, ta) != 0)
           return -1;
         if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
           return -1;
