@@ -380,6 +380,25 @@ MODULES=(
   #   pure compute + static BSS, no extern bridges;
   #   prove 锁 DIRECT surface IDENTICAL (5 #[no_mangle] · no doc_anchor)
   "target_cpu_flags|src/driver/target_cpu_flags.x|seeds/target_cpu_flags_surface.from_x.c||"
+  # parser_asm_thin_c R2 mixed (wave560)：.x 11 #[no_mangle] public API
+  #   (10 thin+rest forwards to _impl: copy_token_bytes_to_buf64 + extern_parse_set_fail_c
+  #    + skip_trait_impl_block_raw_c + skip_one_top_level_let/const_into_slice_c
+  #    + cfg_skip_pending_top_level_into_slice_c + try_skip_const_import_stmt
+  #    + collect_imports_consume_path + write_try_skip_allow_result + lex_from_lr_next_c
+  #    + 1 DIRECT pure compute: is_fn_sig_scalar_type_token_c);
+  #   rest 含 10 _impl bridges;
+  #   prove 锁 mixed surface IDENTICAL (11 #[no_mangle] + 1 doc_anchor)
+  "parser_asm_thin_c|src/asm/parser_asm_thin_c.x|seeds/parser_asm_thin_c_surface.from_x.c||"
+  # runtime_driver_strict_glue_stubs R2 mixed (wave560)：.x 12 #[no_mangle] public API
+  #   (3 thin+rest forwards to driver_*: asm_driver_skip_codegen_dep_0_get
+  #    + asm_driver_set_current_dep_path_for_codegen + typeck_driver_diagnostic_pipe_marker
+  #    + 8 DIRECT via typeck_*_slot extern bridges: typeck_i32_ptr_store/read
+  #    + typeck_layout_metrics_init_slot/init_depth/al_read_depth/sz_read_depth
+  #    + typeck_call_resolve_dep_idx_peek + typeck_call_resolve_func_idx_peek
+  #    + 1 thin+rest forward to append_text_to_codegen_buf_impl);
+  #   rest 含 10 extern bridges;
+  #   prove 锁 mixed surface IDENTICAL (12 #[no_mangle] · no doc_anchor)
+  "runtime_driver_strict_glue_stubs|src/runtime_driver_strict_glue_stubs.x|seeds/runtime_driver_strict_glue_stubs_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
