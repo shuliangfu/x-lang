@@ -16450,6 +16450,158 @@ static int32_t glue_emit_binop_sub_rax_minus_rbx_elf_c(struct ast_ASTArena *aren
                                                          struct backend_AsmFuncCtx *ctx, int32_t left_ref,
                                                          int32_t right_ref, int32_t ta);
 
+/**
+ * wave642 Cap residual pure: freestanding C-like pointer arithmetic scale.
+ * typeck allows ptr±int / int+ptr / ptr-ptr (wave285); host-C scales by sizeof(*p).
+ * Prior freestanding ADD/SUB used raw GP add → `p+1` advanced 1 byte (i32 expect 4;
+ * pure-asm CTFE often folds false-green; host-C green). Reuse INDEX PTR peel
+ * (`glue_index_elem_byte_sz_from_type_ref_c`) for pointee width — G.7 single face.
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
+ */
+static int32_t glue_expr_type_is_ptr_c(struct ast_ASTArena *arena, int32_t expr_ref) {
+  int32_t tr;
+  if (!arena || expr_ref <= 0)
+    return 0;
+  tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+  if (tr <= 0)
+    return 0;
+  return pipeline_type_kind_ord_at(arena, tr) == GLUE_TYPE_KIND_PTR ? 1 : 0;
+}
+
+/** Pointee byte width for pointer-typed expr (0 if not ptr / unknown). */
+static int32_t glue_ptr_expr_pointee_byte_sz_c(struct ast_ASTArena *arena, int32_t ptr_expr_ref) {
+  int32_t tr;
+  int32_t esz;
+  if (!arena || ptr_expr_ref <= 0)
+    return 0;
+  tr = pipeline_expr_resolved_type_ref(arena, ptr_expr_ref);
+  if (tr <= 0 || pipeline_type_kind_ord_at(arena, tr) != GLUE_TYPE_KIND_PTR)
+    return 0;
+  esz = glue_index_elem_byte_sz_from_type_ref_c(arena, tr);
+  return esz > 0 ? esz : 0;
+}
+
+/**
+ * Scale offset in rbx by pointee size when left@rax is *T and right is integer
+ * (assign `p += n` / `p -= n` left-rax right-rbx convention).
+ * @return 0 ok; -1 emit fail
+ */
+static int32_t glue_ptr_arith_scale_rbx_offset_if_left_ptr_c(struct ast_ASTArena *arena,
+                                                              struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                              int32_t left_ref, int32_t right_ref,
+                                                              int32_t ta) {
+  int32_t esz;
+  if (!glue_expr_type_is_ptr_c(arena, left_ref))
+    return 0;
+  if (glue_expr_type_is_ptr_c(arena, right_ref))
+    return 0;
+  esz = glue_ptr_expr_pointee_byte_sz_c(arena, left_ref);
+  if (esz <= 1)
+    return 0;
+  return backend_enc_mul_imm_to_rbx_arch(elf_ctx, esz, ta);
+}
+
+/**
+ * Emit ptr ± int / int + ptr with C scale: ptr@rax, (offset*esz)@rbx, then add or sub.
+ * @param is_sub 0=add, 1=sub (ptr - int only; int-ptr rejected by typeck)
+ * @return 0 handled; -2 not pointer arith (caller falls through); -1 emit fail
+ */
+static int32_t glue_try_emit_ptr_arith_scaled_elf_c(struct ast_ASTArena *arena,
+                                                     struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                     struct backend_AsmFuncCtx *ctx, int32_t left_ref,
+                                                     int32_t right_ref, int32_t ta, int32_t is_sub) {
+  int32_t lp;
+  int32_t rp;
+  int32_t ptr_ref;
+  int32_t off_ref;
+  int32_t esz;
+  int32_t lit_imm;
+  int32_t scaled;
+  if (!arena || !elf_ctx || !ctx || left_ref <= 0 || right_ref <= 0)
+    return -2;
+  lp = glue_expr_type_is_ptr_c(arena, left_ref);
+  rp = glue_expr_type_is_ptr_c(arena, right_ref);
+  if (is_sub) {
+    /* ptr - ptr → element count (byte diff / esz). */
+    if (lp && rp) {
+      esz = glue_ptr_expr_pointee_byte_sz_c(arena, left_ref);
+      if (esz <= 0)
+        return -1;
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, left_ref, ctx, ta) != 0)
+        return -1;
+      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, right_ref, ctx, ta) != 0)
+        return -1;
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_sub_rax_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (esz != 1) {
+        glue_binop_var_slot_cache_invalidate_rbx();
+        if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, esz, ta) != 0)
+          return -1;
+        if (backend_enc_idiv_rbx_arch(elf_ctx, ta) != 0)
+          return -1;
+      }
+      glue_binop_var_slot_cache_invalidate_rax();
+      glue_binop_var_slot_cache_invalidate_rbx();
+      return 0;
+    }
+    /* ptr - int only (int - ptr rejected at typeck). */
+    if (!(lp && !rp))
+      return -2;
+    ptr_ref = left_ref;
+    off_ref = right_ref;
+  } else {
+    /* ADD: exactly one pointer (ptr+int or int+ptr). */
+    if (lp == rp)
+      return -2;
+    ptr_ref = lp ? left_ref : right_ref;
+    off_ref = lp ? right_ref : left_ref;
+  }
+  esz = glue_ptr_expr_pointee_byte_sz_c(arena, ptr_ref);
+  if (esz <= 0)
+    return -1;
+  /* ptr → rax */
+  if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, ptr_ref, ctx, ta) != 0)
+    return -1;
+  glue_binop_var_slot_cache_invalidate_rax();
+  /* offset → rbx, pre-scale when literal (avoid imul on 1*esz). */
+  if (pipeline_asm_expr_lit_i32_at_c(arena, off_ref, &lit_imm)) {
+    scaled = lit_imm;
+    if (esz != 1) {
+      /* Small probes; overflow → still best-effort int32 product. */
+      scaled = lit_imm * esz;
+    }
+    glue_binop_var_slot_cache_invalidate_rbx();
+    if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, scaled, ta) != 0)
+      return -1;
+  } else {
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, off_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (esz > 1 && backend_enc_mul_imm_to_rbx_arch(elf_ctx, esz, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+  }
+  if (is_sub) {
+    if (backend_enc_sub_rax_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+  } else {
+    if (backend_enc_add_rax_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+  }
+  glue_binop_var_slot_cache_invalidate_rax();
+  return 0;
+}
+
 /** f32 ADD → addss; f64 ADD → addsd; else integer add。 */
 static int32_t glue_emit_binop_add_rax_rbx_elf_c(struct ast_ASTArena *arena,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -16461,6 +16613,9 @@ static int32_t glue_emit_binop_add_rax_rbx_elf_c(struct ast_ASTArena *arena,
   if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
       glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref))
     return backend_enc_addss_rax_rbx_arch(elf_ctx, ta);
+  /* wave642: assign `p += n` — left@rax right@rbx; scale integer offset. */
+  if (glue_ptr_arith_scale_rbx_offset_if_left_ptr_c(arena, elf_ctx, left_ref, right_ref, ta) != 0)
+    return -1;
   return backend_enc_add_rax_rbx_arch(elf_ctx, ta);
 }
 
@@ -16543,6 +16698,7 @@ static int32_t pipeline_asm_emit_binop_add_elf_c(struct ast_ASTArena *arena, str
   int32_t vr;
   int32_t inl;
   int32_t mixed_rc;
+  int32_t ptr_rc;
   /**
    * wave297: mixed f32+f64 before commutative/left-assoc (placement not fixed there).
    * Promote f32 side (cvtss2sd) then addsd; typeck result is f64 (f64-before-f32).
@@ -16551,6 +16707,15 @@ static int32_t pipeline_asm_emit_binop_add_elf_c(struct ast_ASTArena *arena, str
   if (mixed_rc == 0)
     return 0;
   if (mixed_rc == -1)
+    return -1;
+  /**
+   * wave642: ptr+int / int+ptr with C pointee scale before integer lit/var paths
+   * (those paths raw-add byte offsets).
+   */
+  ptr_rc = glue_try_emit_ptr_arith_scaled_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta, 0);
+  if (ptr_rc == 0)
+    return 0;
+  if (ptr_rc == -1)
     return -1;
   /** WPO-S3：p.a + p.b 同 VAR 字段求和（cross_ret 等 import struct）。 */
   inl = try_inline_var_field_sum_binop_elf(arena, elf_ctx, left_ref, right_ref, ctx, ta);
@@ -16654,6 +16819,9 @@ static int32_t glue_emit_binop_sub_rax_minus_rbx_elf_c(struct ast_ASTArena *aren
   if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
       glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref))
     return backend_enc_subss_rax_rbx_arch(elf_ctx, ta);
+  /* wave642: assign `p -= n` — left@rax right@rbx; scale integer offset. */
+  if (glue_ptr_arith_scale_rbx_offset_if_left_ptr_c(arena, elf_ctx, left_ref, right_ref, ta) != 0)
+    return -1;
   return backend_enc_sub_rax_rbx_arch(elf_ctx, ta);
 }
 
@@ -16803,6 +16971,7 @@ static int32_t pipeline_asm_emit_binop_sub_elf_c(struct ast_ASTArena *arena, str
                                                    int32_t ta) {
   int32_t lit_imm;
   int32_t mixed_rc;
+  int32_t ptr_rc;
   /**
    * wave297: mixed f32-f64 / f64-f32 before lit/var paths (placement not fixed there).
    * Promote f32 side then subsd_rbx_rax (left − right); typeck result f64.
@@ -16811,6 +16980,14 @@ static int32_t pipeline_asm_emit_binop_sub_elf_c(struct ast_ASTArena *arena, str
   if (mixed_rc == 0)
     return 0;
   if (mixed_rc == -1)
+    return -1;
+  /**
+   * wave642: ptr-int (scale) / ptr-ptr (byte diff / esz) before integer lit/var paths.
+   */
+  ptr_rc = glue_try_emit_ptr_arith_scaled_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta, 1);
+  if (ptr_rc == 0)
+    return 0;
+  if (ptr_rc == -1)
     return -1;
   /** 左字面量：先 emit 右子树，再 rbx=左立即数，结果 rbx-rax（如 42-i）。 */
   if (pipeline_asm_expr_lit_i32_at_c(arena, left_ref, &lit_imm)) {
