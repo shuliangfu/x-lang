@@ -9008,8 +9008,23 @@ int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(struct ast_ASTArena *arena,
     }
     if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0)
       return -1;
+    /*
+     * wave596 Cap residual pure: pointer intermediate field (`w.p.f`).
+     * Root: chain lvalue only lea/add field offsets — never load *T mid-field →
+     * rax stays address of the pointer slot → outer load reads pointer low bits
+     * (host-C hides via temporary `.`). INDEX path already had
+     * glue_index_deref_ptr_field_slot_rax_elf_c; complete same auto-deref here.
+     * G.7: single authority for *T field auto-deref on field-access chains.
+     * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
+     */
+    if (pipeline_expr_kind_ord_at(arena, base_ref) == 44) {
+      if (glue_index_deref_ptr_field_slot_rax_elf_c(arena, elf_ctx, base_ref, ta) != 0)
+        return -1;
+    }
     field_off = glue_field_access_effective_offset_c(arena, g_pipeline_asm_emit_module, lval_ref);
-    return backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta);
+    if (field_off != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0)
+      return -1;
+    return 0;
   }
   if (ko == 47) {
     int32_t base_ref;
@@ -14140,8 +14155,22 @@ int32_t pipeline_asm_emit_lvalue_eff_addr_text_c(struct ast_ASTArena *arena, str
     }
     if (pipeline_asm_emit_lvalue_eff_addr_text_c(arena, out, base_ref, ctx, ta) != 0)
       return -1;
+    /*
+     * wave596: twin of ELF lvalue — auto-deref *T intermediate field before next
+     * field offset (w.p.f / chain). G.7 same authority as INDEX ptr-field slot.
+     * PLATFORM: SHARED freestanding text path.
+     */
+    if (pipeline_expr_kind_ord_at(arena, base_ref) == 44) {
+      int32_t ftr = glue_field_access_field_type_ref_c(arena, g_pipeline_asm_emit_module, base_ref);
+      int32_t fk = (ftr > 0) ? pipeline_type_kind_ord_at(arena, ftr) : 0;
+      if ((fk == GLUE_TYPE_KIND_PTR || fk == GLUE_TYPE_KIND_SLICE) &&
+          backend_arch_emit_load_64_from_rax(out, ta) != 0)
+        return -1;
+    }
     field_off = glue_field_access_effective_offset_c(arena, g_pipeline_asm_emit_module, lval_ref);
-    return backend_arch_emit_add_imm_to_rax(out, field_off, ta);
+    if (field_off != 0 && backend_arch_emit_add_imm_to_rax(out, field_off, ta) != 0)
+      return -1;
+    return 0;
   }
   if (ko == 47) {
     int32_t esz;
@@ -16354,8 +16383,11 @@ static int32_t glue_field_call_arg_try_load_agg_from_rax_elf_c(struct ast_ASTAre
  *     3) ≤16B: emit CALL + glue_store_retval_pair_to_rbp_elf_c
  *   then lea home+sum(field_offs) and load outermost field — one path, no host-C.
  *
- * Soft residual: non-inline mid-size dual-GP return-local CALL.field if store path
- * still red; pointer intermediate fields (`mk().ptr.f`); frame temps ≥512 scratch.
+ * Soft residual: frame temps ≥512 scratch; dual-GP param field extract (take_m).
+ *
+ * wave596: pointer intermediate on CALL chain (`mk().p.f` / `mk().m.p.f`) —
+ * pure offset-sum skipped *T loads (same root as VAR-chain lvalue). Now walk
+ * chain root→outer and load at each *T/*slice intermediate (G.7 + lvalue twin).
  *
  * @return 0 success, -1 emit error, PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED not CALL-rooted chain
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path (ta layout;
@@ -16371,13 +16403,15 @@ static int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *are
   int32_t alloc_sz;
   int32_t home;
   int32_t base_off;
-  int32_t field_off;
   int32_t load_sz;
   int32_t emit_rc;
   int32_t agg;
   int32_t materialised;
   int32_t cur_fa;
   int32_t chain_depth;
+  int32_t chain_fa[16];
+  int32_t chain_n;
+  int32_t ci;
   pipeline_glue_AsmFuncCtxLayout *ly;
   struct ast_Module *mod;
 
@@ -16389,25 +16423,24 @@ static int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *are
     return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
 
   /*
-   * wave593: walk FIELD_ACCESS chain to CALL/METHOD root; sum AoS field offsets.
-   * mk().i.f → offs(f)+offs(i), root=CALL(mk). Single-level mk().x is depth-0.
+   * wave593: walk FIELD_ACCESS chain to CALL/METHOD root.
+   * wave596: keep FA refs (outer→inner) so *T intermediate can load; pure
+   * offset sum is wrong when a mid-field is a pointer (`mk().p.f`).
    * Cap depth 16 — pathological nest falls through UNHANDLED (use let).
    */
   mod = g_pipeline_asm_emit_module;
-  field_off = 0;
   cur_fa = expr_ref;
   base_ref = 0;
   base_ko = 0;
   chain_depth = 0;
+  chain_n = 0;
   while (chain_depth < 16) {
-    int32_t fo;
     int32_t next_base;
     if (pipeline_expr_field_access_is_enum_variant(arena, cur_fa) != 0)
       return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
-    fo = glue_field_access_effective_offset_c(arena, mod, cur_fa);
-    if (fo < 0)
-      fo = 0;
-    field_off += fo;
+    if (chain_n >= 16)
+      return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+    chain_fa[chain_n++] = cur_fa;
     next_base = pipeline_expr_field_access_base_ref(arena, cur_fa);
     if (next_base <= 0)
       return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
@@ -16424,7 +16457,7 @@ static int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *are
     }
     return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
   }
-  if (base_ref <= 0)
+  if (base_ref <= 0 || chain_n <= 0)
     return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
 
   base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
@@ -16530,11 +16563,25 @@ static int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *are
   if (materialised == 0)
     return -1;
 
-  /* Outermost field load (expr_ref); offset is chain sum above. */
+  /*
+   * Walk chain root→outer (chain_fa is outer→inner): add each field offset;
+   * auto-deref *T / fat-slice intermediate (wave596) before the next hop.
+   * Outermost load uses load_sz of expr_ref (chain_fa[0]).
+   */
   if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
     return -1;
-  if (field_off != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0)
-    return -1;
+  for (ci = chain_n - 1; ci >= 0; ci--) {
+    int32_t fo = glue_field_access_effective_offset_c(arena, mod, chain_fa[ci]);
+    if (fo < 0)
+      fo = 0;
+    if (fo != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, fo, ta) != 0)
+      return -1;
+    if (ci > 0) {
+      /* Intermediate FA: if field is *T or slice fat, load pointer before next offset. */
+      if (glue_index_deref_ptr_field_slot_rax_elf_c(arena, elf_ctx, chain_fa[ci], ta) != 0)
+        return -1;
+    }
+  }
   if (glue_field_access_call_arg_struct_by_addr_elf_c(arena, expr_ref) != 0)
     return 0;
   agg = glue_field_call_arg_try_load_agg_from_rax_elf_c(arena, elf_ctx, expr_ref, ta);
@@ -24252,14 +24299,22 @@ int32_t pipeline_asm_emit_param_home_elf_c(struct platform_elf_ElfCodegenCtx *el
    */
   if (g_pipeline_asm_func_sret_active && g_pipeline_asm_sret_home_off >= 0) {
     if (ta == 0) {
+      /* SysV: hidden dest in rdi (= arg reg 0); GP formals shift to rsi… */
       if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, 0, ta) != 0)
         return -1;
       if (backend_enc_store_rax_to_rbp_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
         return -1;
     } else if (ta == 1) {
-      if (glue_arm64_mov_x8_to_x0_elf_c(elf_ctx) != 0)
-        return -1;
-      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
+      /*
+       * wave596 Cap residual pure: AAPCS64 sret save must not clobber x0.
+       * Root: wave591 used mov x8→x0 then store_rax — x0 is first GP formal
+       * (no GP shift; x8 is separate Indirect Result Location). mk(ip) with
+       * >16B return stored sret dest into ip home → pointer fields / first
+       * arg garbage (mac freestanding mk(&i).m.p.f wrong; host-C hid).
+       * G.7: store x8 directly via store_x_reg_to_rbp(reg=8).
+       * PLATFORM: MACOS|ARM64 AAPCS64 · LINUX arm64 same if ever product.
+       */
+      if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, 8, g_pipeline_asm_sret_home_off, ta) != 0)
         return -1;
     }
   }
