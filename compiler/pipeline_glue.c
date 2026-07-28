@@ -12936,6 +12936,39 @@ int32_t pipeline_asm_emit_expr_elf_fast(struct ast_ASTArena *arena, struct platf
                                         int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
 
 /**
+ * Whether EXPR_AS must run pipeline_asm_emit_as_elf_impl in binop load (not peel).
+ * True for float-target AS (wave301) and float-source → integer AS (wave620).
+ * PLATFORM: SHARED freestanding dual-slot cast authority.
+ */
+static int32_t glue_binop_as_needs_full_emit_elf_c(struct ast_ASTArena *arena, int32_t expr_ref) {
+  int32_t op_ref;
+  int32_t tgt;
+  int32_t tgt_k;
+  int32_t src_tr;
+  int32_t src_k;
+  int32_t op_ko;
+  if (!arena || expr_ref <= 0 || !glue_expr_is_x_as_cast_at_c(arena, expr_ref))
+    return 0;
+  op_ref = pipeline_expr_as_operand_ref_at(arena, expr_ref);
+  if (op_ref <= 0)
+    return 0;
+  tgt = pipeline_expr_as_target_type_ref_at(arena, expr_ref);
+  if (tgt <= 0)
+    return 0;
+  tgt_k = pipeline_type_kind_ord_at(arena, tgt);
+  if (tgt_k == GLUE_TYPE_KIND_F32_ORD || tgt_k == GLUE_TYPE_KIND_F64_ORD)
+    return 1;
+  src_tr = pipeline_expr_resolved_type_ref(arena, op_ref);
+  src_k = src_tr > 0 ? pipeline_type_kind_ord_at(arena, src_tr) : -1;
+  op_ko = pipeline_expr_kind_ord_at(arena, op_ref);
+  /* kind 1 = EXPR_FLOAT_LIT — often unresolved or f64 default. */
+  if (src_k == GLUE_TYPE_KIND_F32_ORD || src_k == GLUE_TYPE_KIND_F64_ORD ||
+      (src_k <= 0 && op_ko == 1))
+    return 1;
+  return 0;
+}
+
+/**
  * 7.3：标量 binop 操作数装入 rax（to_rbx=0）或 rbx/x1（to_rbx=1）；VAR / VAR-base FIELD / INDEX。
  * 0=成功，-1=错，-2=需 rec slow。
  */
@@ -13070,8 +13103,6 @@ static int32_t glue_try_binop_load_operand_elf_c(struct ast_ASTArena *arena,
   }
   if (glue_expr_is_x_as_cast_at_c(arena, expr_ref)) {
     int32_t op_ref;
-    int32_t tgt;
-    int32_t tgt_k;
     op_ref = pipeline_expr_as_operand_ref_at(arena, expr_ref);
     if (op_ref <= 0)
       return -2;
@@ -13083,18 +13114,21 @@ static int32_t glue_try_binop_load_operand_elf_c(struct ast_ASTArena *arena,
      * `(u64 as f32) as i32` stayed green. G.7: complete loader authority next to
      * emit_as (reuse pipeline_asm_emit_as_elf_impl; no new encoder / no second cast path).
      * PLATFORM: SHARED cast semantics / LINUX+MACOS x86_64 freestanding exposes; mac host-gcc hid.
+     *
+     * wave620 Cap residual pure: float→int AS must not peel either.
+     * Top-level `return z as i32` hits pipeline_asm_emit_as_elf_impl (cvttss2si green),
+     * but dual-slot binop `(x as i32)+(y as i32)` / `(a[0] as i32)+(a[1] as i32)` peeled
+     * AS → integer ADD of IEEE bits (mac/Ubuntu pure-asm run=0 via 8-bit $?; host-C hid).
+     * G.7: glue_binop_as_needs_full_emit_elf_c + same full-AS authority — no second path.
+     * PLATFORM: SHARED freestanding dual-slot; LINUX x86_64 + MACOS|ARM64 both expose.
      */
-    tgt = pipeline_expr_as_target_type_ref_at(arena, expr_ref);
-    if (tgt > 0) {
-      tgt_k = pipeline_type_kind_ord_at(arena, tgt);
-      if (tgt_k == GLUE_TYPE_KIND_F32_ORD || tgt_k == GLUE_TYPE_KIND_F64_ORD) {
-        glue_binop_var_slot_cache_clear();
-        if (pipeline_asm_emit_as_elf_impl(arena, elf_ctx, expr_ref, ctx, ta) != 0)
-          return -1;
-        if (to_rbx != 0 && backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
-          return -1;
-        return 0;
-      }
+    if (glue_binop_as_needs_full_emit_elf_c(arena, expr_ref) != 0) {
+      glue_binop_var_slot_cache_clear();
+      if (pipeline_asm_emit_as_elf_impl(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+        return -1;
+      if (to_rbx != 0 && backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      return 0;
     }
     return glue_try_binop_load_operand_elf_c(arena, elf_ctx, op_ref, ctx, ta, to_rbx);
   }
@@ -13204,6 +13238,12 @@ static int32_t glue_binop_operand_load_to_rbx_clobbers_rax_elf_c(struct ast_ASTA
     return op_ref > 0 ? glue_binop_operand_load_to_rbx_clobbers_rax_elf_c(arena, op_ref) : 1;
   }
   if (glue_expr_is_x_as_cast_at_c(arena, expr_ref)) {
+    /*
+     * wave620: full-AS (float↔int) always materializes via rax then mov→rbx when
+     * to_rbx=1 — peels as VAR would claim "no clobber" and destroy a live left in rax.
+     */
+    if (glue_binop_as_needs_full_emit_elf_c(arena, expr_ref) != 0)
+      return 1;
     op_ref = pipeline_expr_as_operand_ref_at(arena, expr_ref);
     return op_ref > 0 ? glue_binop_operand_load_to_rbx_clobbers_rax_elf_c(arena, op_ref) : 1;
   }
@@ -13229,6 +13269,11 @@ static int32_t glue_expr_emit_may_clobber_rbx_elf_c(struct ast_ASTArena *arena, 
     return op_ref > 0 ? glue_expr_emit_may_clobber_rbx_elf_c(arena, op_ref) : 1;
   }
   if (glue_expr_is_x_as_cast_at_c(arena, expr_ref)) {
+    /* Full-AS may walk INDEX/FIELD operands that park temps in rbx. */
+    if (glue_binop_as_needs_full_emit_elf_c(arena, expr_ref) != 0) {
+      op_ref = pipeline_expr_as_operand_ref_at(arena, expr_ref);
+      return op_ref > 0 ? glue_expr_emit_may_clobber_rbx_elf_c(arena, op_ref) : 1;
+    }
     op_ref = pipeline_expr_as_operand_ref_at(arena, expr_ref);
     return op_ref > 0 ? glue_expr_emit_may_clobber_rbx_elf_c(arena, op_ref) : 1;
   }
