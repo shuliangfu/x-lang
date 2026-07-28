@@ -889,7 +889,17 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
       parser_asm_arena_expr_set_c(arena, fa_ref, fae);
       *lex = r->next_lex;
       parser_asm_parse_struct_lit_fields_c(arena, fa_ref, *lex, source, out);
-      return;
+      if (!out->ok)
+        return;
+      /**
+       * wave607 / PLATFORM: SHARED — qualified `Mod.Type { ... }.method()` /
+       * `.field` continues the suffix chain (same as bare Type { } primary).
+       * G.7: stay in this loop; do not open a second postfix path.
+       */
+      *lex = out->next_lex;
+      lexer_next_into(r, *lex, source);
+      first_suffix = 1;
+      continue;
     } else {
       out->next_lex = *lex;
       return;
@@ -2133,6 +2143,20 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
         return;
       }
       parser_finish_struct_lit_from_type_ident_into_glue(arena, ref, r.next_lex, source, out);
+      if (!out->ok)
+        return;
+      /**
+       * wave607 / PLATFORM: SHARED — STRUCT_LIT is not a suffix-chain terminal.
+       * `Type { ... }.method()` / `.field` / `[i]` must continue the same suffix
+       * loop as `(expr).method()`. Historical early return left `.sum()` unparsed
+       * → return-stmt parse fail → main dropped (num_funcs=1, main_idx=-1) →
+       * ld undefined `_main` (soft residual "STRUCT_LIT as method base").
+       * G.7: reuse parser_asm_primary_ident_suffix_loop_c (no second postfix path).
+       */
+      lex = out->next_lex;
+      lexer_next_into(&r, lex, source);
+      PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_suffix_chain_probe_c(lex, source));
+      parser_asm_primary_ident_suffix_loop_c(arena, source, &lex, &r, out, 1);
       return;
     }
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_suffix_chain_probe_c(lex, source));
@@ -2186,6 +2210,16 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     }
     /** 匿名 struct 字面量 `{ fd, x: 1 }`（let p: PollFd = { ... }）。 */
     parser_asm_parse_anonymous_struct_lit_c(arena, r.next_lex, source, out);
+    if (!out->ok)
+      return;
+    /**
+     * wave607 / PLATFORM: SHARED — anonymous `{ ... }.field` / `.method()` suffix.
+     * Same G.7 suffix loop as named Type { } (no second path).
+     */
+    lex = out->next_lex;
+    lexer_next_into(&r, lex, source);
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_suffix_chain_probe_c(lex, source));
+    parser_asm_primary_ident_suffix_loop_c(arena, source, &lex, &r, out, 1);
     return;
   }
   out->ok = 0;
