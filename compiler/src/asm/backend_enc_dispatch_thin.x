@@ -131,12 +131,18 @@ export function arm64_enc_load_w0_from_rbp_c(elf_ctx: *u8, offset: i32): i32 {
   return 0 - 1;
 }
 
-// STUR w0, [x29, #-offset]
-/** Exported function `arm64_enc_store_w0_to_rbp_c`.
- * Implements `arm64_enc_store_w0_to_rbp_c`.
- * @param elf_ctx *u8
- * @param offset i32
- * @return i32
+/**
+ * Store w0 (32-bit, f32/i32 bits) to product frame home [x29, #offset].
+ * @param elf_ctx *u8 — ELF/Mach-O emit context
+ * @param offset i32 — logical frame bytes; must be >=0 and multiple of 4
+ * @return i32 — 0 ok, -1 bad ctx/offset
+ * PLATFORM: MACOS|ARM64 product pure-asm.
+ * wave616 Cap residual: product frame uses **positive** STR/LDR [x29,#off]
+ * (wave420 load_rbp_to_rax / store_x_reg_to_rbp). Prior body used STUR
+ * [x29,#-off] → freestanding f32 let store/load mismatch → `x as i32` run=0
+ * while f64 (64-bit positive STR) stayed green. G.7: fix this single helper
+ * (store_eax_to_rbp_arch calls it). Encoding: STR Wt,[Xn,#imm12*4]
+ * 0xB9000000 | ((off/4)<<10) | (29<<5) | Rt=0.
  */
 #[no_mangle]
 export function arm64_enc_store_w0_to_rbp_c(elf_ctx: *u8, offset: i32): i32 {
@@ -146,15 +152,16 @@ export function arm64_enc_store_w0_to_rbp_c(elf_ctx: *u8, offset: i32): i32 {
   if (offset < 0) {
     return 0 - 1;
   }
-  if (offset > 256) {
-    unsafe {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, (3087007744 | (256 * 4096) | 928) as i32);
-    }
+  /* STR W scaled imm12: byte offset = imm12*4, imm12 <= 4095. */
+  if ((offset % 4) != 0) {
+    return 0 - 1;
+  }
+  if ((offset / 4) > 4095) {
     return 0 - 1;
   }
   unsafe {
-    let u9: i32 = (0 - offset) & 511;
-    return arch_arm64_enc_enc_u32_le(elf_ctx, (3087007744 | ((u9 as u32) * 4096) | 928) as i32);
+    /* 0xB9000000 | ((offset/4)<<10) | (29<<5) | 0 = 3103785888 | imm | 928 */
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (3103785888 | (((offset / 4) as u32) * 1024) | 928) as i32);
   }
   return 0 - 1;
 }
@@ -2485,6 +2492,16 @@ export function backend_enc_load_rbp_lane_to_rbx_arch(elf_ctx: *u8, offset: i32,
  */
 #[no_mangle]
 export function backend_enc_addss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) {
+    if (elf_ctx == 0 as *u8) { return 0 - 1; }
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 505872384 as i32) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 505872417 as i32) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 505489408 as i32) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 505806848 as i32);
+    }
+    return 0 - 1;
+  }
   if (ta != 0) {
     return 0 - 1;
   }
@@ -2509,14 +2526,24 @@ export function backend_enc_addss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
 /**
  * Scalar f32 multiply (mulss); thin u32 LE twin of full seed.
  * @param elf_ctx *u8 — ELF codegen context
- * @param ta i32 — target arch; 0 = x86_64 only
+ * @param ta i32 — 0=x86_64, 1=arm64 (wave616)
  * @return i32 — 0 ok, -1 unsupported arch / null ctx
- * PLATFORM: LINUX+MACOS x86_64 — freestanding f32 `*` (wave294 Cap residual pure).
+ * PLATFORM: LINUX+MACOS x86_64 + MACOS|ARM64 — freestanding f32 `*` (wave294; arm64 wave616).
  * Encoding mirror of addss with mulss opcode F3 0F 59 C1
  * (u32 le 0xc1590ff3 = 3243839475; addss is 0xc1580ff3 = 3243773939).
  */
 #[no_mangle]
 export function backend_enc_mulss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) {
+    if (elf_ctx == 0 as *u8) { return 0 - 1; }
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 505872384 as i32) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 505872417 as i32) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 505481216 as i32) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 505806848 as i32);
+    }
+    return 0 - 1;
+  }
   if (ta != 0) {
     return 0 - 1;
   }
@@ -2552,6 +2579,16 @@ export function backend_enc_mulss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
  */
 #[no_mangle]
 export function backend_enc_subss_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) {
+    if (elf_ctx == 0 as *u8) { return 0 - 1; }
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 505872416 as i32) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 505872385 as i32) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 505493504 as i32) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 505806848 as i32);
+    }
+    return 0 - 1;
+  }
   if (ta != 0) {
     return 0 - 1;
   }
@@ -2585,6 +2622,16 @@ export function backend_enc_subss_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
  */
 #[no_mangle]
 export function backend_enc_subss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) {
+    if (elf_ctx == 0 as *u8) { return 0 - 1; }
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 505872384 as i32) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 505872417 as i32) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 505493504 as i32) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 505806848 as i32);
+    }
+    return 0 - 1;
+  }
   if (ta != 0) {
     return 0 - 1;
   }
@@ -2617,6 +2664,16 @@ export function backend_enc_subss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
  */
 #[no_mangle]
 export function backend_enc_divss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) {
+    if (elf_ctx == 0 as *u8) { return 0 - 1; }
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 505872384 as i32) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 505872417 as i32) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 505485312 as i32) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 505806848 as i32);
+    }
+    return 0 - 1;
+  }
   if (ta != 0) {
     return 0 - 1;
   }
@@ -2647,6 +2704,14 @@ export function backend_enc_divss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
  */
 #[no_mangle]
 export function backend_enc_cvttss2si_eax_from_f32_bits_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) {
+    if (elf_ctx == 0 as *u8) { return 0 - 1; }
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 505872384 as i32) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 506986496 as i32);
+    }
+    return 0 - 1;
+  }
   if (ta != 0) {
     return 0 - 1;
   }
@@ -2671,6 +2736,14 @@ export function backend_enc_cvttss2si_eax_from_f32_bits_arch(elf_ctx: *u8, ta: i
  */
 #[no_mangle]
 export function backend_enc_cvttsd2si_eax_from_f64_bits_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) {
+    if (elf_ctx == 0 as *u8) { return 0 - 1; }
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 2657550336 as i32) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 511180800 as i32);
+    }
+    return 0 - 1;
+  }
   if (ta != 0) {
     return 0 - 1;
   }
@@ -2702,6 +2775,14 @@ export function backend_enc_cvttsd2si_eax_from_f64_bits_arch(elf_ctx: *u8, ta: i
  */
 #[no_mangle]
 export function backend_enc_cvttss2si_rax_from_f32_bits_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) {
+    if (elf_ctx == 0 as *u8) { return 0 - 1; }
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 505872384 as i32) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 2654470144 as i32);
+    }
+    return 0 - 1;
+  }
   if (ta != 0) {
     return 0 - 1;
   }
@@ -2733,6 +2814,14 @@ export function backend_enc_cvttss2si_rax_from_f32_bits_arch(elf_ctx: *u8, ta: i
  */
 #[no_mangle]
 export function backend_enc_cvttsd2si_rax_from_f64_bits_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) {
+    if (elf_ctx == 0 as *u8) { return 0 - 1; }
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 2657550336 as i32) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 2658664448 as i32);
+    }
+    return 0 - 1;
+  }
   if (ta != 0) {
     return 0 - 1;
   }
@@ -2766,6 +2855,14 @@ export function backend_enc_cvttsd2si_rax_from_f64_bits_arch(elf_ctx: *u8, ta: i
  */
 #[no_mangle]
 export function backend_enc_cvtsi2sd_rax_from_u64_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) {
+    if (elf_ctx == 0 as *u8) { return 0 - 1; }
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 2657288192 as i32) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 2657484800 as i32);
+    }
+    return 0 - 1;
+  }
   if (ta != 0) {
     return 0 - 1;
   }
@@ -2831,6 +2928,14 @@ export function backend_enc_cvtsi2sd_rax_from_u64_arch(elf_ctx: *u8, ta: i32): i
  */
 #[no_mangle]
 export function backend_enc_cvtsi2ss_eax_from_u64_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) {
+    if (elf_ctx == 0 as *u8) { return 0 - 1; }
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 2653093888 as i32) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 505806848 as i32);
+    }
+    return 0 - 1;
+  }
   if (ta != 0) {
     return 0 - 1;
   }
@@ -2891,6 +2996,15 @@ export function backend_enc_cvtsi2ss_eax_from_u64_arch(elf_ctx: *u8, ta: i32): i
  */
 #[no_mangle]
 export function backend_enc_cvtsd2ss_eax_from_f64_bits_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) {
+    if (elf_ctx == 0 as *u8) { return 0 - 1; }
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 2657550336 as i32) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 509755392 as i32) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 505806848 as i32);
+    }
+    return 0 - 1;
+  }
   if (ta != 0) {
     return 0 - 1;
   }
@@ -2920,6 +3034,14 @@ export function backend_enc_cvtsd2ss_eax_from_f64_bits_arch(elf_ctx: *u8, ta: i3
  */
 #[no_mangle]
 export function backend_enc_cvtsi2ss_eax_from_i32_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) {
+    if (elf_ctx == 0 as *u8) { return 0 - 1; }
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 505544704 as i32) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 505806848 as i32);
+    }
+    return 0 - 1;
+  }
   if (ta != 0) {
     return 0 - 1;
   }
@@ -2946,6 +3068,14 @@ export function backend_enc_cvtsi2ss_eax_from_i32_arch(elf_ctx: *u8, ta: i32): i
  */
 #[no_mangle]
 export function backend_enc_cvtsi2ss_eax_from_i64_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) {
+    if (elf_ctx == 0 as *u8) { return 0 - 1; }
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 2653028352 as i32) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 505806848 as i32);
+    }
+    return 0 - 1;
+  }
   if (ta != 0) {
     return 0 - 1;
   }
@@ -2975,6 +3105,14 @@ export function backend_enc_cvtsi2ss_eax_from_i64_arch(elf_ctx: *u8, ta: i32): i
  */
 #[no_mangle]
 export function backend_enc_cvtsi2sd_rax_from_i32_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) {
+    if (elf_ctx == 0 as *u8) { return 0 - 1; }
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 509739008 as i32) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 2657484800 as i32);
+    }
+    return 0 - 1;
+  }
   if (ta != 0) {
     return 0 - 1;
   }
@@ -3007,6 +3145,14 @@ export function backend_enc_cvtsi2sd_rax_from_i32_arch(elf_ctx: *u8, ta: i32): i
  */
 #[no_mangle]
 export function backend_enc_cvtsi2sd_rax_from_i64_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) {
+    if (elf_ctx == 0 as *u8) { return 0 - 1; }
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 2657222656 as i32) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 2657484800 as i32);
+    }
+    return 0 - 1;
+  }
   if (ta != 0) {
     return 0 - 1;
   }
@@ -3039,6 +3185,15 @@ export function backend_enc_cvtsi2sd_rax_from_i64_arch(elf_ctx: *u8, ta: i32): i
  */
 #[no_mangle]
 export function backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) {
+    if (elf_ctx == 0 as *u8) { return 0 - 1; }
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 505872384 as i32) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 505593856 as i32) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 2657484800 as i32);
+    }
+    return 0 - 1;
+  }
   if (ta != 0) {
     return 0 - 1;
   }
@@ -3148,23 +3303,9 @@ export function backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx: *u8, k: i32, ta
  */
 #[no_mangle]
 export function backend_enc_store_eax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
+  /* wave616: arm64 f32/i32 32-bit frame store — single authority helper. */
   if (ta == 1) {
-    if (elf_ctx == 0 as *u8) {
-      return 0 - 1;
-    }
-    if (offset < 0) {
-      return 0 - 1;
-    }
-    if (offset > 256) {
-      unsafe {
-        return arch_arm64_enc_enc_u32_le(elf_ctx, (3087007744 | (256 * 4096) | 928) as i32);
-      }
-      return 0 - 1;
-    }
-    unsafe {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, (3087007744 | ((((0 - offset) & 511) as u32) * 4096) | 928) as i32);
-    }
-    return 0 - 1;
+    return arm64_enc_store_w0_to_rbp_c(elf_ctx, offset);
   }
   if (ta != 0) {
     return 0 - 1;

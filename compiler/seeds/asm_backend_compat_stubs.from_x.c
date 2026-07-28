@@ -232,6 +232,10 @@ int32_t xlang_elf_ctx_append_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, 
 
 /**
  * arm64 MOVZ/MOVK 将 imm32 装入 w0；绕过 partial.o，避免 type_kind_ordinal 首条 cmp 时 Abort。
+ * wave616 Cap residual: MOVK must use hw=1 (0x72a00000 = lsl #16), not hw=0
+ * (0x72800000). Prior bug: f32 lit 0x42280000 emitted as 0x4228 → fcvtzs run=0.
+ * Keep same opcode table as arch_arm64_enc_enc_mov_imm32_to_w0 / arm64_enc.x.
+ * PLATFORM: MACOS|ARM64 product pure-asm.
  */
 /* G-02f-128：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t xlang_arm64_mov_imm32_to_w0_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32) {
@@ -241,7 +245,8 @@ int32_t xlang_arm64_mov_imm32_to_w0_c(struct platform_elf_ElfCodegenCtx *elf_ctx
   hi = ((uint32_t)imm32 >> 16) & 65535u;
   if (xlang_elf_ctx_append_u32_le(elf_ctx, 0x52800000u | (lo << 5)) != 0)
     return -1;
-  if (hi != 0 && xlang_elf_ctx_append_u32_le(elf_ctx, 0x72800000u | (hi << 5)) != 0)
+  /* MOVK w0, #hi, lsl #16 */
+  if (hi != 0 && xlang_elf_ctx_append_u32_le(elf_ctx, 0x72a00000u | (hi << 5)) != 0)
     return -1;
   return 0;
 }

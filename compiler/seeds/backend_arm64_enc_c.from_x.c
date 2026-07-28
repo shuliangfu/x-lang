@@ -214,7 +214,14 @@ int32_t arch_arm64_enc_enc_epilogue(struct platform_elf_ElfCodegenCtx *elf_ctx) 
   return arm64_enc_u32_le(elf_ctx, 3596551104u);
 }
 
-/** Strong: MOVZ/MOVK w0 (same encoding as xlang_arm64_mov_imm32_to_w0_c). */
+/**
+ * Strong: MOVZ/MOVK w0 for full 32-bit imm (f32 IEEE bits, large i32).
+ * PLATFORM: MACOS|ARM64 product pure-asm.
+ * wave616 Cap residual: prior MOVK used hw=0 (0x7280… = lsl #0) so high half
+ * of imm landed in bits 0–15 → freestanding f32 lit 42.0 stored 0x4228 not
+ * 0x42280000 → fcvtzs run=0. G.7 match arch/arm64_enc.x enc_mov_imm32_to_w0:
+ * MOVZ w0,#lo; MOVK w0,#hi,lsl#16 (0x72a0… hw=1).
+ */
 int32_t arch_arm64_enc_enc_mov_imm32_to_w0(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32) {
   uint32_t lo;
   uint32_t hi;
@@ -222,14 +229,19 @@ int32_t arch_arm64_enc_enc_mov_imm32_to_w0(struct platform_elf_ElfCodegenCtx *el
     return -1;
   lo = (uint32_t)imm32 & 65535u;
   hi = ((uint32_t)imm32 >> 16) & 65535u;
+  /* MOVZ w0, #lo */
   if (arm64_enc_u32_le(elf_ctx, 0x52800000u | (lo << 5)) != 0)
     return -1;
-  if (hi != 0 && arm64_enc_u32_le(elf_ctx, 0x72800000u | (hi << 5)) != 0)
+  /* MOVK w0, #hi, lsl #16 — hw=1 (0x72a00000), not hw=0 (0x72800000). */
+  if (hi != 0 && arm64_enc_u32_le(elf_ctx, 0x72a00000u | (hi << 5)) != 0)
     return -1;
   return 0;
 }
 
-/** Strong: MOVZ/MOVK w1 (rbx alias on arm64 path). */
+/**
+ * Strong: MOVZ/MOVK w1 (rbx alias on arm64 path).
+ * PLATFORM: MACOS|ARM64 — wave616: same MOVK hw=1 fix as mov_imm32_to_w0.
+ */
 int32_t arch_arm64_enc_enc_mov_imm32_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32) {
   uint32_t lo;
   uint32_t hi;
@@ -240,7 +252,8 @@ int32_t arch_arm64_enc_enc_mov_imm32_to_rbx(struct platform_elf_ElfCodegenCtx *e
   /* MOVZ w1, #lo */
   if (arm64_enc_u32_le(elf_ctx, 0x52800001u | (lo << 5)) != 0)
     return -1;
-  if (hi != 0 && arm64_enc_u32_le(elf_ctx, 0x72800001u | (hi << 5)) != 0)
+  /* MOVK w1, #hi, lsl #16 */
+  if (hi != 0 && arm64_enc_u32_le(elf_ctx, 0x72a00001u | (hi << 5)) != 0)
     return -1;
   return 0;
 }

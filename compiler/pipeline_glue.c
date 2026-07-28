@@ -3021,12 +3021,23 @@ static int32_t pipeline_asm_emit_neg_elf_impl(struct ast_ASTArena *arena, struct
   if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
     return -1;
   /* f32 first: btc eax, 31 — flip IEEE f32 sign in low 32 bits. */
-  if (ta == 0 && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, op)) {
+  if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, op)) {
+    /* x86: btc eax,31. arm64 wave616: eor sign bit in w0. */
+    if (ta == 1) {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x52b00001u) != 0) /* movz w1,#0x8000,lsl#16 */
+        return -1;
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x4a010000u); /* eor w0,w0,w1 */
+    }
     static const uint8_t btc_eax_31[4] = {0x0f, 0xba, 0xf8, 0x1f};
     return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)btc_eax_31, 4);
   }
   /* f64 / float lit default: btc rax, 63 — flip IEEE f64 sign without touching magnitude. */
-  if (ta == 0 && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, op)) {
+  if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, op)) {
+    if (ta == 1) {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xd2f00001u) != 0) /* movz x1,#0x8000,lsl#48 */
+        return -1;
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0xca010000u); /* eor x0,x0,x1 */
+    }
     static const uint8_t btc_rax_63[5] = {0x48, 0x0f, 0xba, 0xf8, 0x3f};
     return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)btc_rax_63, 5);
   }
@@ -15638,10 +15649,10 @@ static int32_t glue_emit_binop_add_rax_rbx_elf_c(struct ast_ASTArena *arena,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                    struct backend_AsmFuncCtx *ctx, int32_t left_ref,
                                                    int32_t right_ref, int32_t ta) {
-  if (ta == 0 && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
+  if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
       glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref))
     return backend_enc_addsd_rax_rbx_arch(elf_ctx, ta);
-  if (ta == 0 && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
+  if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
       glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref))
     return backend_enc_addss_rax_rbx_arch(elf_ctx, ta);
   return backend_enc_add_rax_rbx_arch(elf_ctx, ta);
@@ -15685,10 +15696,10 @@ static int32_t glue_emit_assign_rhs_to_rax_elf_c(struct ast_ASTArena *arena,
     return glue_emit_binop_mul_rax_rbx_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
   case 32:
     /* PLATFORM: SHARED — f64 /= → divsd; f32 /= → divss (same residual as EXPR_DIV; not idiv). */
-    if (ta == 0 && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
+    if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
         glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref))
       return backend_enc_divsd_rax_rbx_arch(elf_ctx, ta);
-    if (ta == 0 && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
+    if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
         glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref))
       return backend_enc_divss_rax_rbx_arch(elf_ctx, ta);
     if (pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx, ctx, ta) != 0)
@@ -15818,10 +15829,10 @@ static int32_t glue_emit_binop_sub_rbx_minus_rax_elf_c(struct ast_ASTArena *aren
                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                          struct backend_AsmFuncCtx *ctx, int32_t left_ref,
                                                          int32_t right_ref, int32_t ta) {
-  if (ta == 0 && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
+  if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
       glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref))
     return backend_enc_subsd_rbx_rax_arch(elf_ctx, ta);
-  if (ta == 0 && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
+  if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
       glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref))
     return backend_enc_subss_rbx_rax_arch(elf_ctx, ta);
   return backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx, ta);
@@ -15831,10 +15842,10 @@ static int32_t glue_emit_binop_sub_rax_minus_rbx_elf_c(struct ast_ASTArena *aren
                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                          struct backend_AsmFuncCtx *ctx, int32_t left_ref,
                                                          int32_t right_ref, int32_t ta) {
-  if (ta == 0 && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
+  if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
       glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref))
     return backend_enc_subsd_rax_rbx_arch(elf_ctx, ta);
-  if (ta == 0 && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
+  if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
       glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref))
     return backend_enc_subss_rax_rbx_arch(elf_ctx, ta);
   return backend_enc_sub_rax_rbx_arch(elf_ctx, ta);
@@ -15856,10 +15867,10 @@ static int32_t glue_emit_binop_mul_rax_rbx_elf_c(struct ast_ASTArena *arena,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                    struct backend_AsmFuncCtx *ctx, int32_t left_ref,
                                                    int32_t right_ref, int32_t ta) {
-  if (ta == 0 && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
+  if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
       glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref))
     return backend_enc_mulsd_rax_rbx_arch(elf_ctx, ta);
-  if (ta == 0 && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
+  if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
       glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref))
     return backend_enc_mulss_rax_rbx_arch(elf_ctx, ta);
   return backend_enc_imul_rbx_rax_arch(elf_ctx, ta);
@@ -16314,7 +16325,7 @@ static int32_t pipeline_asm_emit_binop_div_elf_c(struct ast_ASTArena *arena, str
     return -1;
   /** PLATFORM: SHARED — f64 / must use IEEE divsd, not idiv of bit patterns (same residual as mulsd).
    * Skip integer lit imm32 path (truncates float bits) and integer div-zero panic (IEEE → Inf/NaN). */
-  if (ta == 0 && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
+  if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
       glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref)) {
     vr = glue_try_binop_left_rax_right_rbx_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta);
     if (vr == -1)
@@ -16338,7 +16349,7 @@ static int32_t pipeline_asm_emit_binop_div_elf_c(struct ast_ASTArena *arena, str
    * Placement left=rax right=rbx matches pure f64 divsd path. IEEE Inf/NaN on /0.
    * G.7: complete f32 scalar arith next to mulss/addss/subss.
    */
-  if (ta == 0 && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
+  if ((ta == 0 || ta == 1) && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
       glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref)) {
     vr = glue_try_binop_left_rax_right_rbx_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta);
     if (vr == -1)
@@ -20809,7 +20820,7 @@ static int32_t glue_emit_rex_w_if_64bit(struct platform_elf_ElfCodegenCtx *elf_c
 static int32_t glue_emit_cmp_finish_rbx_rax_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                     struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t left_ref,
                                                     int32_t right_ref, int32_t is_cmp_64bit, int32_t cc, int32_t ta) {
-  if (ta == 0 && left_ref > 0 && right_ref > 0 &&
+  if ((ta == 0 || ta == 1) && left_ref > 0 && right_ref > 0 &&
       glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
       glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref)) {
     if (backend_enc_ucomisd_rbx_rax_arch(elf_ctx, ta) != 0)

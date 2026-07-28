@@ -80,25 +80,27 @@ export function xlang_elf_ctx_append_u32_le(elf_ctx: *u8, word: u32): i32 {
   return r;
 }
 
-/** Exported function `xlang_arm64_mov_imm32_to_w0_c`.
- * Implements `xlang_arm64_mov_imm32_to_w0_c`.
- * @param elf_ctx *u8
- * @param imm32 i32
- * @return i32
+/**
+ * arm64 MOVZ/MOVK load imm32 into w0 (f32 IEEE bits / large i32).
+ * @param elf_ctx *u8 — emit context
+ * @param imm32 i32 — full 32-bit immediate
+ * @return i32 — 0 ok, -1 failure
+ * PLATFORM: MACOS|ARM64 product pure-asm.
+ * wave616: MOVK hw=1 (0x72a00000 = lsl #16), not hw=0 (0x72800000).
+ * Matches arch_arm64_enc_enc_mov_imm32_to_w0 / arm64_enc.x.
  */
 #[no_mangle]
 export function xlang_arm64_mov_imm32_to_w0_c(elf_ctx: *u8, imm32: i32): i32 {
-  // See implementation.
   let u: u32 = imm32 as u32;
   let lo: u32 = u & 65535;
   let hi: u32 = (u / 65536) & 65535;
-  // 0x52800000 | (lo << 5)
+  /* MOVZ w0, #lo — 0x52800000 | (lo << 5) */
   if (xlang_elf_ctx_append_u32_le(elf_ctx, 1384120320 | (lo * 32)) != 0) {
     return 0 - 1;
   }
   if (hi != 0) {
-    // 0x72800000 | (hi << 5)
-    if (xlang_elf_ctx_append_u32_le(elf_ctx, 1920991232 | (hi * 32)) != 0) {
+    /* MOVK w0, #hi, lsl #16 — 0x72a00000 | (hi << 5) = 1923088384 | … */
+    if (xlang_elf_ctx_append_u32_le(elf_ctx, 1923088384 | (hi * 32)) != 0) {
       return 0 - 1;
     }
   }

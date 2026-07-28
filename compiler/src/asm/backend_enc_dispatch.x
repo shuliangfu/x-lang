@@ -225,26 +225,23 @@ export function arm64_enc_load_w0_from_rbp_c(elf_ctx: *u8, offset: i32): i32 {
   return 0 - 1;
 }
 
-// STUR w0, [x29, #-offset] — 0xB8000000 | (u9<<12) | (29<<5)
-/** Exported function `arm64_enc_store_w0_to_rbp_c`.
- * Implements `arm64_enc_store_w0_to_rbp_c`.
- * @param elf_ctx *u8
- * @param offset i32
- * @return i32
+/**
+ * Store w0 to product frame [x29, #offset] (32-bit STR, positive polarity).
+ * @param elf_ctx *u8 — emit context
+ * @param offset i32 — logical frame bytes; >=0, multiple of 4, /4 <= 4095
+ * @return i32 — 0 ok, -1 failure
+ * PLATFORM: MACOS|ARM64 — wave616: match product positive STR/LDR frame
+ * (was STUR [x29,#-off] mismatched load_rbp_to_rax).
  */
 #[no_mangle]
 export function arm64_enc_store_w0_to_rbp_c(elf_ctx: *u8, offset: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (offset < 0) { return 0 - 1; }
-  if (offset > 256) {
-    unsafe {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, (3087007744 | (256 * 4096) | 928) as i32);
-    }
-    return 0 - 1;
-  }
+  if ((offset % 4) != 0) { return 0 - 1; }
+  if ((offset / 4) > 4095) { return 0 - 1; }
   unsafe {
-    let u9: i32 = (0 - offset) & 511;
-    return arch_arm64_enc_enc_u32_le(elf_ctx, (3087007744 | ((u9 as u32) * 4096) | 928) as i32);
+    /* STR W0,[x29,#off]: 0xB9000000 | ((off/4)<<10) | (29<<5) */
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (3103785888 | (((offset / 4) as u32) * 1024)) as i32);
   }
   return 0 - 1;
 }
