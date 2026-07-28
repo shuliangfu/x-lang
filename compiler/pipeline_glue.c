@@ -3951,7 +3951,7 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
       }
       /*
        * wave595 Cap residual pure: nested STRUCT_LIT field must materialize in-place
-       * at parent base+foff (or sret dest+foff via temp copy).
+       * at the parent field's frame home (or sret dest+foff via temp copy).
        *
        * Root: prior path emitted nested lit via emit_expr_elf_rec with slot_off=-1,
        * which reused ly->next_offset (== parent base). Nested field stores overwrote
@@ -3960,14 +3960,24 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
        * (Ubuntu pure-asm nest3); arm64 also returned a stack pointer for 9–16B Outer
        * (dual-GP return was ta==0 only) → wrong field loads.
        *
+       * Frame home of nested field is arch-aware (G.8):
+       *   PLATFORM: MACOS|ARM64 low-end — lea [x29,#base]; field@base+foff
+       *   PLATFORM: LINUX|x86 high-end — lea -base(%rbp) is byte0; field@byte0+foff
+       *     is frame magnitude base-foff (not base+foff: that places nest *below*
+       *     Outer and clobbers a when nested writes +foff upward).
+       *
        * G.7: same authority as let_init stack_slot_off path — nested STRUCT_LIT writes
        * fields at the destination address; no dual-GP value round-trip for the nest.
        * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
        */
       if (pipeline_expr_kind_ord_at(arena, init_ref) == 45) {
         if (!sret_direct) {
+          int32_t nest_slot;
+          nest_slot = (ta == 1) ? (base_off + foff) : (base_off - foff);
+          if (nest_slot < 0)
+            return -1;
           if (pipeline_asm_emit_struct_lit_fields_elf_c(arena, elf_ctx, init_ref, ctx, ta,
-                                                         base_off + foff) != 0)
+                                                         nest_slot) != 0)
             return -1;
           continue;
         }
@@ -4073,7 +4083,17 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
   /**
    * return 路径：小 struct（≤8B）按值经 rax 返回（mov rbx→rax 再 load [rax]）；
    * 勿 mov rbx→rax 单独返回栈地址（跨模块 call 后悬空）。
+   *
+   * wave595: nested in-place leaves rbx on the last nested field home — re-home
+   * to this lit's base_off before by-value load (x86 load_qword_from_rbx* and
+   * ≤8 mov_rbx_to_rax both require rbx = Outer byte0).
    */
+  if (!sret_direct) {
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, base_off, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+  }
   {
     int32_t vb;
     vb = pipeline_expr_struct_lit_value_bytes(arena, g_pipeline_asm_emit_module, expr_ref);
@@ -4087,7 +4107,8 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
     }
     /**
      * 9–16B dual-GP by value — do not return a stack pointer.
-     * PLATFORM: LINUX+MACOS x86_64 SysV — rax + rdx from [rbx]/[rbx+8].
+     * PLATFORM: LINUX+MACOS x86_64 SysV — rax + rdx from [rbx]/[rbx+8]
+     *   after re-home above.
      * PLATFORM: MACOS|ARM64 AAPCS64 (wave595) — x0 + x1 from frame home
      *   (base_off). load_qword_* is x86-only; arm64 rbx==x1 would clobber the
      *   second return reg if we loaded half2 from [x1+8] after moving base.
