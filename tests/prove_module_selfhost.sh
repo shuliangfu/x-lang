@@ -443,6 +443,11 @@ MODULES=(
   #   rest 含 32 extern bridges (math_*_impl);
   #   prove 锁 mixed surface IDENTICAL (34 #[no_mangle] · no doc_anchor)
   "runtime_math_libm|src/asm/runtime_math_libm.x|seeds/runtime_math_libm_surface.from_x.c||"
+  # fmt_check_cmd R2 mixed (wave565)：.x 25 #[no_mangle] public API
+  #   (DIRECT compute + thin+rest forwards to _impl);
+  #   rest 含 30 extern bridges (driver_/path_/fmt_/file_/check_/walk_/collect_/parse_);
+  #   prove 锁 mixed surface IDENTICAL (25 #[no_mangle] · no doc_anchor)
+  "fmt_check_cmd|src/driver/fmt_check_cmd.x|seeds/fmt_check_cmd_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
