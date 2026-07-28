@@ -3810,6 +3810,11 @@ static int32_t glue_store_retval_pair_to_rbp_elf_c(struct ast_Module *m, struct 
                                                    int32_t slot_off, int32_t ta, int32_t init_ref,
                                                    struct backend_AsmFuncCtx *ctx);
 static struct ast_Module *glue_emit_module_from_ctx(struct backend_AsmFuncCtx *ctx);
+/* wave598: ARRAY_LIT of >8B named struct elems reuses struct let-init (dual-GP / sret / lit). */
+static int32_t glue_emit_struct_type_let_init_elf_c(struct ast_ASTArena *arena,
+                                                    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,
+                                                    struct backend_AsmFuncCtx *ctx, int32_t ta,
+                                                    int32_t let_ty_ref, int32_t stack_slot_off);
 void pipeline_asm_emit_set_call_sret_reg_shift_c(int32_t shift);
 
 /**
@@ -4256,7 +4261,14 @@ static int32_t pipeline_asm_emit_array_lit_flat_elf_c(struct ast_ASTArena *arena
  * fixed slot (same lea+store-off geometry as 1D). Nested base+row_sz was inverted vs
  * INDEX lea+add on some stack-offset encodings → Ubuntu run=0 / SIGSEGV.
  * G.7: single flat writer; leaf esz from first non-array elem path.
- * PLATFORM: SHARED freestanding · LINUX gold · MACOS host-C uses C multi-dim braces.
+ *
+ * wave598 Cap residual pure: freestanding ARRAY_LIT of >8B named struct elements.
+ * Root: store_sz was clamped to 4 for esz∉{1,2,4,8} and only rax was stored — dual-GP
+ * (9–16B) / sret (>16B) / STRUCT_LIT payload never landed. mac freestanding
+ * `S12[2]=[mk(),mk()]` run=20≠42; STRUCT_LIT control same class (run=11≠32). Host-C
+ * braces hid it. G.7: per-elem glue_emit_struct_type_let_init at arch-aware home
+ * (same nest_slot polarity as wave595 nested STRUCT_LIT field).
+ * PLATFORM: SHARED freestanding · LINUX|x86 high-end · MACOS|ARM64 low-end.
  */
 static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *arena,
                                                        struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,
@@ -4269,6 +4281,7 @@ static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *aren
   int32_t store_sz;
   int32_t flat_i;
   int32_t has_nested;
+  int32_t elem_ty;
   if (!arena || !elf_ctx || !ctx || init_ref <= 0)
     return -1;
   if (pipeline_expr_kind_ord_at(arena, init_ref) != 46)
@@ -4298,6 +4311,7 @@ static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *aren
   esz = pipeline_asm_array_lit_elem_byte_sz_c(arena, init_ref);
   if (esz <= 0)
     esz = 4;
+  elem_ty = pipeline_asm_array_lit_elem_type_ref(arena, init_ref);
   store_sz = esz;
   if (store_sz != 1 && store_sz != 2 && store_sz != 4 && store_sz != 8)
     store_sz = 4;
@@ -4305,6 +4319,26 @@ static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *aren
     elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
     if (elem_ref == 0)
       continue;
+    /*
+     * wave598: >8B named struct / dual-GP / sret element — do not clamp-store rax only.
+     * Frame home polarity matches nested STRUCT_LIT field (wave595):
+     *   PLATFORM: MACOS|ARM64 low-end — home = base + ai*esz
+     *   PLATFORM: LINUX|x86 high-end — home = base - ai*esz
+     */
+    if (esz > 8) {
+      int32_t elem_home;
+      int32_t st;
+      elem_home = (ta == 1) ? (stack_slot_off + ai * esz) : (stack_slot_off - ai * esz);
+      if (elem_home < 0)
+        return -1;
+      st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, elem_ref, ctx, ta,
+                                                 elem_ty > 0 ? elem_ty : 0, elem_home);
+      if (st == 0)
+        continue;
+      if (st == -1)
+        return -1;
+      /* st == -2: not STRUCT_LIT/CALL — fall through to scalar store */
+    }
     if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta) != 0)
       return -1;
     if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
@@ -6674,6 +6708,20 @@ static int32_t glue_index_elem_byte_sz_from_type_ref_c(struct ast_ASTArena *aren
     return 4;
   if (kind_ord == 15 || kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7)
     return 8;
+  /*
+   * wave598 Cap residual pure: TYPE_NAMED element stride for INDEX.
+   * Root: INDEX `xs[i]` of `S[N]` resolves to named S; prior fell through to default 8
+   * → stride 8 for 12/16/24B structs → xs[1].b read wrong slot (mac freestanding
+   * arr_sz12 write OK via wave598 let-init but run=40≠42). Array-of-named peel
+   * (kind 10→pointee 8) already used glue_type_size_simple; bare NAMED tr did not.
+   * G.7: same layout authority as pipeline_asm_array_lit_elem_byte_sz_c (wave597).
+   * PLATFORM: SHARED freestanding · LINUX gold.
+   */
+  if (kind_ord == 8 && g_pipeline_asm_emit_module) {
+    int32_t ssz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, tr, 0);
+    if (ssz > 0)
+      return ssz;
+  }
   return 8;
 }
 
@@ -11935,6 +11983,9 @@ static int32_t glue_init_is_empty_array_lit(struct ast_ASTArena *arena, int32_t 
  * `let a:i32[]=[n,n+10,n+20]`). G.7: same dual-slot discipline as binop (wave338) —
  * after an elem emit that may clobber rbx, push value, re-lea temp_base → rbx, pop value,
  * then store. LIT/VAR elems leave rbx intact (glue_expr_emit_may_clobber_rbx_elf_c=0).
+ *
+ * wave598 Cap residual pure: >8B STRUCT_LIT/CALL elems use struct let-init into temp
+ * homes (dual-GP / sret / in-place lit) then re-lea payload base for return ptr.
  * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV (ta==0); arm64 via same enc.
  */
 int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -11944,6 +11995,8 @@ int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct pla
   int32_t ai;
   int32_t temp_base;
   int32_t elem_ref;
+  int32_t elem_ty;
+  int32_t nbytes;
   pipeline_glue_AsmFuncCtxLayout *ly;
   ly = pipeline_asm_ctx_layout(ctx);
   if (!ly)
@@ -11957,7 +12010,33 @@ int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct pla
   if (n_arr <= 0 || n_arr > GLUE_ARRAY_LIT_MAX_ELEMS)
     return -1;
   esz = pipeline_asm_array_lit_elem_byte_sz_c(arena, expr_ref);
-  temp_base = ly->next_offset;
+  if (esz <= 0)
+    esz = 4;
+  elem_ty = pipeline_asm_array_lit_elem_type_ref(arena, expr_ref);
+  /*
+   * Reserve contiguous payload for per-elem struct let-init homes.
+   * PLATFORM: MACOS|ARM64 low-end — byte0 @ temp_base, grows +ai*esz.
+   * PLATFORM: LINUX|x86 high-end — byte0 @ temp_base (top of alloc), home = base-ai*esz
+   *   (same polarity as nested STRUCT_LIT field / wave595).
+   */
+  nbytes = n_arr * esz;
+  {
+    int32_t reserve = (nbytes + 7) & ~7;
+    if (reserve < 8)
+      reserve = 8;
+    if (ta == 1) {
+      temp_base = ly->next_offset;
+      if ((temp_base % 8) != 0)
+        temp_base = (temp_base + 7) / 8 * 8;
+      ly->next_offset = temp_base + reserve;
+    } else {
+      temp_base = ly->next_offset;
+      if ((temp_base % 8) != 0)
+        temp_base = (temp_base + 7) / 8 * 8;
+      temp_base = temp_base + reserve;
+      ly->next_offset = temp_base;
+    }
+  }
   if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_base, ta) != 0)
     return -1;
   if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
@@ -11965,24 +12044,46 @@ int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct pla
   for (ai = 0; ai < n_arr && ai < GLUE_ARRAY_LIT_MAX_ELEMS; ai++) {
     elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai);
     if (elem_ref != 0) {
-      int32_t may_clobber = glue_expr_emit_may_clobber_rbx_elf_c(arena, elem_ref);
-      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, elem_ref, ctx, ta) != 0)
-        return -1;
-      if (may_clobber != 0) {
-        /* value@rax; restore payload base@rbx without dropping the value. */
-        if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      if (esz > 8) {
+        int32_t elem_home;
+        int32_t st;
+        elem_home = (ta == 1) ? (temp_base + ai * esz) : (temp_base - ai * esz);
+        if (elem_home < 0)
           return -1;
-        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_base, ta) != 0)
-          return -1;
-        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
-          return -1;
-        if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+        st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, elem_ref, ctx, ta,
+                                                   elem_ty > 0 ? elem_ty : 0, elem_home);
+        if (st == 0)
+          continue;
+        if (st == -1)
           return -1;
       }
-      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, ai * esz, esz, ta) != 0)
-        return -1;
+      {
+        int32_t may_clobber = glue_expr_emit_may_clobber_rbx_elf_c(arena, elem_ref);
+        int32_t store_sz = esz;
+        if (store_sz != 1 && store_sz != 2 && store_sz != 4 && store_sz != 8)
+          store_sz = 4;
+        if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, elem_ref, ctx, ta) != 0)
+          return -1;
+        if (may_clobber != 0) {
+          /* value@rax; restore payload base@rbx without dropping the value. */
+          if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+            return -1;
+          if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_base, ta) != 0)
+            return -1;
+          if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+            return -1;
+          if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+            return -1;
+        }
+        if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, ai * esz, store_sz, ta) != 0)
+          return -1;
+      }
     }
   }
+  if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_base, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
   return backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
 }
 
