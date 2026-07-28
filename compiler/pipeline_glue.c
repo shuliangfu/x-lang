@@ -3893,6 +3893,32 @@ int32_t pipeline_expr_struct_lit_field_store_sz(struct ast_ASTArena *a, struct a
  * PLATFORM: SHARED freestanding INDEX STRUCT_LIT assign.
  */
 #define GLUE_STRUCT_LIT_DEST_IN_RBX (-3)
+/**
+ * wave629: rehome_off sentinel — dest pointer lives on the CPU stack (push rbx at
+ * DEST_IN_RBX entry), not at a frame magnitude. Frame next_offset spill can alias
+ * later locals (TYPE_SLICE durable + i/j: first spill overwrote j → bounds panic 0).
+ */
+#define GLUE_STRUCT_LIT_REHOME_CPU_STACK (-4)
+/**
+ * Re-home dest address into rbx for sret_direct / DEST_IN_RBX field stores.
+ * rehome_off >= 0 → load from rbp magnitude; REHOME_CPU_STACK → pop dest then
+ * push it back (caller must have value already popped from stack, or value not
+ * yet pushed — see call sites).
+ * @return 0 ok, -1 fail
+ */
+static int32_t glue_struct_lit_rehome_dest_rbx_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t rehome_off,
+                                                      int32_t ta) {
+  if (rehome_off == GLUE_STRUCT_LIT_REHOME_CPU_STACK) {
+    if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    return 0;
+  }
+  if (rehome_off < 0)
+    return -1;
+  return backend_enc_load_rbp_to_rbx_arch(elf_ctx, rehome_off, ta);
+}
 static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *arena,
                                                          struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
                                                          struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -3906,10 +3932,12 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
   int32_t sret_direct;
   int32_t dest_ptr_home;
   int32_t rehome_off;
+  int32_t dest_on_cpu_stack;
   pipeline_glue_AsmFuncCtxLayout *ly;
   nf = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
   sret_direct = 0;
   dest_ptr_home = -1;
+  dest_on_cpu_stack = 0;
   ly = pipeline_asm_ctx_layout(ctx);
   if (!ly)
     return -1;
@@ -3929,26 +3957,19 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
    * rbp+next_offset temp (field offsets can overrun saved fp → SIGSEGV).
    * PLATFORM: LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64 (wave591).
    *
-   * wave628: GLUE_STRUCT_LIT_DEST_IN_RBX — dest already in rbx (INDEX var-index
-   * elem home). Field-value emits clobber rbx, so spill the dest pointer to a
-   * frame slot and re-home from there (same geometry as sret_home reload).
+   * wave628/629: GLUE_STRUCT_LIT_DEST_IN_RBX — dest already in rbx (INDEX
+   * elem home). Field-value emits clobber rbx, so spill dest:
+   *   wave628 used ly->next_offset frame slot — aliases locals when next_offset
+   *   sits on i/j (TYPE_SLICE durable + two var-index assigns → Ubuntu panic:0).
+   *   wave629: push rbx on the CPU stack; re-home via pop/push (no frame alias).
    * Do NOT reload g_pipeline_asm_sret_home_off (unset → garbage / smash).
    */
   base_off = 0;
   if (stack_slot_off == GLUE_STRUCT_LIT_DEST_IN_RBX) {
     sret_direct = 1;
-    dest_ptr_home = ly->next_offset;
-    if (dest_ptr_home < 0)
-      return -1;
-    if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
-      return -1;
-    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, dest_ptr_home, ta) != 0)
-      return -1;
-    /* Reserve 8B so nested field temps at next_offset do not clobber dest spill. */
-    if (ly->next_offset + 8 < ly->next_offset)
-      return -1;
-    ly->next_offset += 8;
-    if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, dest_ptr_home, ta) != 0)
+    dest_on_cpu_stack = 1;
+    dest_ptr_home = GLUE_STRUCT_LIT_REHOME_CPU_STACK;
+    if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
       return -1;
   } else if (stack_slot_off < 0 && (ta == 0 || ta == 1) && g_pipeline_asm_func_sret_active &&
              g_pipeline_asm_sret_home_off >= 0) {
@@ -3962,10 +3983,16 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
     if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
       return -1;
   }
-  /* sret_home or dest-ptr spill — unified re-home offset for field stores. */
-  rehome_off = dest_ptr_home >= 0 ? dest_ptr_home : g_pipeline_asm_sret_home_off;
-  if (nf == 0)
+  /* sret_home / dest-ptr frame spill / CPU-stack dest — unified re-home. */
+  if (dest_on_cpu_stack)
+    rehome_off = GLUE_STRUCT_LIT_REHOME_CPU_STACK;
+  else
+    rehome_off = dest_ptr_home >= 0 ? dest_ptr_home : g_pipeline_asm_sret_home_off;
+  if (nf == 0) {
+    if (dest_on_cpu_stack && backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
     return 0;
+  }
   for (fi = 0; fi < nf; fi++) {
     init_ref = pipeline_expr_struct_lit_init_ref(arena, expr_ref, fi);
     if (link_abi_getenv("XLANG_ASM_EMIT_TRACE"))
@@ -4083,8 +4110,8 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
               return -1;
             if (backend_enc_load_rbp_to_rax_arch(elf_ctx, load_off, ta) != 0)
               return -1;
-            /* wave628: rehome_off is dest_ptr spill or sret_home. */
-            if (rehome_off < 0 || backend_enc_load_rbp_to_rbx_arch(elf_ctx, rehome_off, ta) != 0)
+            /* wave628/629: rehome_off is dest_ptr frame / sret_home / CPU stack. */
+            if (glue_struct_lit_rehome_dest_rbx_elf_c(elf_ctx, rehome_off, ta) != 0)
               return -1;
             if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + cop, chunk, ta) != 0)
               return -1;
@@ -4107,7 +4134,7 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
        * 【Invariant】rax（+rdx for 9–16B SysV）含字段值；spill 到 frame 后再重载 rbx。
        * PLATFORM: LINUX+MACOS x86_64 — dual-GP CALL/VAR field init must keep rdx half.
        * wave595: clamp dual store to fsz (not always 16) so 9–12B fields do not smash.
-       * wave628: sret_direct re-home uses rehome_off (dest_ptr spill or sret_home).
+       * wave628/629: sret_direct re-home uses rehome_off (frame spill / sret / CPU stack).
        */
       if (ta == 0 && fsz > 8 && fsz <= 16) {
         int32_t spill = ly->next_offset + 16;
@@ -4119,7 +4146,7 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
         if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, spill - 8, ta) != 0)
           return -1;
         if (sret_direct) {
-          if (rehome_off < 0 || backend_enc_load_rbp_to_rbx_arch(elf_ctx, rehome_off, ta) != 0)
+          if (glue_struct_lit_rehome_dest_rbx_elf_c(elf_ctx, rehome_off, ta) != 0)
             return -1;
         } else {
           if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, base_off, ta) != 0)
@@ -4140,11 +4167,23 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
           if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + 8, high_sz, ta) != 0)
             return -1;
         }
+      } else if (dest_on_cpu_stack) {
+        /*
+         * wave629: dest on CPU stack (entry push); value in rax after emit.
+         * pop dest → rbx, push dest back, store [rbx+foff]=rax.
+         * (Cannot rehome via helper after push value — would pop value as dest.)
+         */
+        if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+          return -1;
+        if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, fsz, ta) != 0)
+          return -1;
       } else {
         if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
           return -1;
         if (sret_direct) {
-          if (rehome_off < 0 || backend_enc_load_rbp_to_rbx_arch(elf_ctx, rehome_off, ta) != 0)
+          if (glue_struct_lit_rehome_dest_rbx_elf_c(elf_ctx, rehome_off, ta) != 0)
             return -1;
         } else {
           if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, base_off, ta) != 0)
@@ -4161,9 +4200,12 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
   }
   if (link_abi_getenv("XLANG_ASM_EMIT_TRACE"))
     fprintf(stderr, "xlang: struct_lit_c done expr=%d\n", (int)expr_ref);
-  /* let-init home or wave628 INDEX dest-in-rbx: fields already stored; no rvalue. */
-  if (stack_slot_off >= 0 || stack_slot_off == GLUE_STRUCT_LIT_DEST_IN_RBX)
+  /* let-init home or wave628/629 INDEX dest-in-rbx: fields already stored; no rvalue. */
+  if (stack_slot_off >= 0 || stack_slot_off == GLUE_STRUCT_LIT_DEST_IN_RBX) {
+    if (dest_on_cpu_stack && backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
     return 0;
+  }
   /**
    * return 路径：小 struct（≤8B）按值经 rax 返回（mov rbx→rax 再 load [rax]）；
    * 勿 mov rbx→rax 单独返回栈地址（跨模块 call 后悬空）。
