@@ -4809,7 +4809,14 @@ static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
      * emits memcpy(dst, (m)[0], sizeof); freestanding only handled VAR/FIELD/CALL
      * → init_ko=47 "fixed array let unhandled" → CG002. INDEX of TYPE_ARRAY leaves
      * subrow address (wave357 no-load); same E* element-wise authority as CALL.
-     * PLATFORM: SHARED freestanding · MACOS|ARM64 + LINUX|x86_64.
+     *
+     * wave633 Cap residual pure: esz>8 large NAMED (S24=24) must bulk-copy the
+     * whole payload. Old else-branch load_i32 + store esz wrote only the first
+     * i32 of each element → Ubuntu pure-asm `let s: S24[2] = mk()` sum=11 (a0+a1)
+     * not 110; host-C memcpy green; temporary INDEX mk()[i].field often green
+     * (reads durable COMMON directly). G.7: reuse glue_emit_bulk_mem_copy_spills
+     * (wave630) — one contiguous n*esz copy; no third fixed-array path.
+     * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
      */
     pipeline_glue_AsmFuncCtxLayout *ly;
     int32_t spill_off;
@@ -4827,6 +4834,45 @@ static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
       return -1;
     if (backend_enc_store_rax_to_rbp_arch(elf_ctx, spill_off, ta) != 0)
       return -1;
+    /*
+     * wave633: large NAMED / esz>8 — bulk copy contiguous n_arr*esz from E*.
+     * Scalar esz∈{1,4,8} keep per-elem load/store (existing authority).
+     */
+    if (esz > 8) {
+      int32_t src_spill;
+      int32_t dst_spill;
+      int32_t total;
+      if (n_arr > GLUE_ARRAY_LIT_MAX_PAYLOAD / esz)
+        return -1;
+      total = n_arr * esz;
+      if (total <= 0 || total > GLUE_ARRAY_LIT_MAX_PAYLOAD)
+        return -1;
+      if (ly->next_offset + 32 < ly->next_offset)
+        return -1;
+      ly->next_offset += 16;
+      src_spill = ly->next_offset;
+      ly->next_offset += 16;
+      dst_spill = ly->next_offset;
+      /* src = E* already in spill_off */
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill_off, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, src_spill, ta) != 0)
+        return -1;
+      if (sret_direct == 0) {
+        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, base_off + foff, ta) != 0)
+          return -1;
+      } else {
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
+          return -1;
+        if (foff != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, foff, ta) != 0)
+          return -1;
+      }
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, dst_spill, ta) != 0)
+        return -1;
+      if (glue_emit_bulk_mem_copy_spills_elf_c(elf_ctx, src_spill, dst_spill, total, ta) != 0)
+        return -1;
+      return 0;
+    }
     for (ai = 0; ai < n_arr; ai++) {
       if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill_off, ta) != 0)
         return -1;
@@ -4875,8 +4921,48 @@ static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
      * i32 steps collapse (disasm: 0x20,0x18,0x18) → let b:T[N]=a sum=12 not 33.
      * G.7: same geometry as CALL E* path / ARRAY_LIT — lea(src)+i×esz + esz-wide
      * load, then store into dest (re-lea dest each elem; do not hold rbx across load).
+     *
+     * wave633: esz>8 large NAMED VAR/FIELD whole-array copy also bulk (twin of CALL).
      * PLATFORM: SHARED freestanding · MACOS|ARM64 + LINUX|x86_64.
      */
+    if (esz > 8) {
+      pipeline_glue_AsmFuncCtxLayout *ly_v;
+      int32_t src_spill;
+      int32_t dst_spill;
+      int32_t total;
+      ly_v = pipeline_asm_ctx_layout(ctx);
+      if (!ly_v)
+        return -1;
+      if (n_arr > GLUE_ARRAY_LIT_MAX_PAYLOAD / esz)
+        return -1;
+      total = n_arr * esz;
+      if (total <= 0 || total > GLUE_ARRAY_LIT_MAX_PAYLOAD)
+        return -1;
+      if (ly_v->next_offset + 32 < ly_v->next_offset)
+        return -1;
+      ly_v->next_offset += 16;
+      src_spill = ly_v->next_offset;
+      ly_v->next_offset += 16;
+      dst_spill = ly_v->next_offset;
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, src_off, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, src_spill, ta) != 0)
+        return -1;
+      if (sret_direct == 0) {
+        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, base_off + foff, ta) != 0)
+          return -1;
+      } else {
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
+          return -1;
+        if (foff != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, foff, ta) != 0)
+          return -1;
+      }
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, dst_spill, ta) != 0)
+        return -1;
+      if (glue_emit_bulk_mem_copy_spills_elf_c(elf_ctx, src_spill, dst_spill, total, ta) != 0)
+        return -1;
+      return 0;
+    }
     for (ai = 0; ai < n_arr; ai++) {
       if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, src_off, ta) != 0)
         return -1;
