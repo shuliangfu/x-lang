@@ -4426,6 +4426,7 @@ static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *aren
  *   Companion: WPO walks STRUCT_LIT field inits (ast_pool) so fill is reachable.
  * - wave354: also the authority for `let t: T[N] = b.a` / `= a` / `= fill(n)` (foff=0 into
  *   let slot) and whole-array assign `t = b.a` — same element-wise copy; host-C uses memcpy.
+ * - wave615: INDEX multi-dim subrow (`let r: T[N] = m[0]`) — same E* element-wise as CALL.
  *
  * @return 0 handled; -1 error; -2 unsupported init (caller falls through)
  * PLATFORM: SHARED freestanding emit · LINUX gold · MACOS host-C uses braced expand
@@ -4543,7 +4544,8 @@ static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
     if (src_off < 0)
       return -1;
   } else if (iko == (int32_t)ast_ExprKind_EXPR_CALL ||
-             iko == (int32_t)ast_ExprKind_EXPR_METHOD_CALL) {
+             iko == (int32_t)ast_ExprKind_EXPR_METHOD_CALL ||
+             iko == (int32_t)ast_ExprKind_EXPR_INDEX) {
     /*
      * wave351/354: CALL/METHOD returning fixed TYPE_ARRAY → E* (host codegen.x
      * wave352 durable static; freestanding returns stack/COMMON ptr in rax/x0).
@@ -4554,6 +4556,12 @@ static int32_t glue_struct_lit_store_fixed_array_field_elf_c(
      * CG002. store_retval dual-GP (rdx) is x86-only; N*esz>16 falsely took
      * sret while ABI is still E*. G.7: emit CALL then ptr-copy with esz-wide
      * store_rax_to_rbx_offset (not 8B store_rax_to_rbp which clobbers neighbors).
+     *
+     * wave615 Cap residual pure: multi-dim INDEX subrow as fixed TYPE_ARRAY src
+     * (`let r: i32[2] = m[0]` / STRUCT_LIT field / whole-array assign). Host-C
+     * emits memcpy(dst, (m)[0], sizeof); freestanding only handled VAR/FIELD/CALL
+     * → init_ko=47 "fixed array let unhandled" → CG002. INDEX of TYPE_ARRAY leaves
+     * subrow address (wave357 no-load); same E* element-wise authority as CALL.
      * PLATFORM: SHARED freestanding · MACOS|ARM64 + LINUX|x86_64.
      */
     pipeline_glue_AsmFuncCtxLayout *ly;
