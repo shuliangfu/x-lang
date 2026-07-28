@@ -495,6 +495,12 @@ MODULES=(
   #   rest 含 9 extern bridges (pipeline_elf_ctx_*);
   #   prove 锁 mixed surface IDENTICAL (104 nm T · has doc_anchor backend_x86_64_enc_c_x_doc_anchor)
   "backend_x86_64_enc_c|src/asm/backend_x86_64_enc_c.x|seeds/backend_x86_64_enc_c_surface.from_x.c||"
+  # diag R2 mixed (wave571)：.x 42 nm T symbols
+  #   (35 DIRECT compute + 7 thin+rest forwards to diag_ctx_*/diag_code_table_*/diag_entry_*/link_abi_getenv);
+  #   rest 含 39 extern bridges (diag_io_* + diag_ctx_* + diag_code_table_* + diag_entry_* + link_abi_getenv);
+  #   prove 锁 mixed surface IDENTICAL (42 nm T · no doc_anchor)
+  #   注：wave571 修复 diag_io_fputc 参数顺序 bug (c,o)→(o,c)，-E + cc -c 全绿，L2 真测通过
+  "diag|src/diag.x|seeds/diag_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
