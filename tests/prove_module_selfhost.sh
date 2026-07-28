@@ -517,6 +517,13 @@ MODULES=(
   #   rest 含 arch_*_enc_* extern bridges (per-arch enc helpers) + *_impl externs;
   #   prove 锁 thin full surface IDENTICAL (133 nm T · no doc_anchor)
   "backend_enc_dispatch_thin|src/asm/backend_enc_dispatch_thin.x|seeds/backend_enc_dispatch_thin_surface.from_x.c||"
+  # runtime_pipeline_abi R2 full (wave575)：.x 270 nm T symbols
+  #   (DIRECT compute: pipeline import/load/sync/parse/typeck orch + module import storage +
+  #    debug_trace + diag_emitted + dep_seeded + ndep + cfg_eval complex ops);
+  #   rest 含 333 extern bridges (parser_*/asm_*/pipeline_*/typeck_*/cfg_eval_*/driver_*/xlang_*) +
+  #   48 static BSS slots (g_import_open_*/g_pipe_*) + init_globals;
+  #   prove 锁 full surface IDENTICAL (270 nm T · no doc_anchor)
+  "runtime_pipeline_abi|src/runtime_pipeline_abi.x|seeds/runtime_pipeline_abi_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
