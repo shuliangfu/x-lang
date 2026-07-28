@@ -31961,6 +31961,8 @@ int32_t pipeline_typeck_check_expr_assign_c(struct ast_Module *module, struct as
   uint8_t *gb_ptr;
   int32_t el;
   int32_t gl;
+  /* wave643: 1 when compound *T +=/-= integer offset accepted (G.7 ≡ typeck.x twin). */
+  int32_t ptr_compound_offset_ok = 0;
 
   if (!arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
     return 0;
@@ -31986,6 +31988,21 @@ int32_t pipeline_typeck_check_expr_assign_c(struct ast_Module *module, struct as
     int32_t rhs_ctx = return_type_ref;
     if (!ast_ref_is_null(lt))
       rhs_ctx = lt;
+    /*
+     * wave643 Cap residual: product mega path is this C assign (not typeck.x alone).
+     * Compound p += n / p -= n is C-like pointer arithmetic (≡ p = p ± n): RHS is an
+     * integer offset, not *T. Prior rhs_ctx=lt + type_refs_equal → expected *i32 found
+     * i32 while p = p + 1 greened (wave285). G.7: complete same assign authority; emit
+     * already scales (wave642). Twin: typeck.x + seed typeck_gen same semantics.
+     * PLATFORM: SHARED.
+     */
+    if (compound_flag != 0 && !ast_ref_is_null(lt) &&
+        (expr_kind == (int32_t)ast_ExprKind_EXPR_ADD_ASSIGN ||
+         expr_kind == (int32_t)ast_ExprKind_EXPR_SUB_ASSIGN)) {
+      lt_kind = pipeline_type_kind_ord_at(arena, lt);
+      if (lt_kind == (int32_t)ast_TypeKind_TYPE_PTR)
+        rhs_ctx = 0;
+    }
     if (pipeline_typeck_check_expr_c(module, arena, right_ref, rhs_ctx, ctx) != 0)
       return -1;
   }
@@ -32074,8 +32091,37 @@ int32_t pipeline_typeck_check_expr_assign_c(struct ast_Module *module, struct as
       lt = rt;
     }
   }
+  /*
+   * wave643: *T +=/-= integer offset — accept without lt==rt and without stamping
+   * RHS to *T (emit scales). Reject *T += *U / float / etc. G.7 ≡ wave285 ptr±int
+   * + typeck.x twin. PLATFORM: SHARED product mega path.
+   */
+  if (compound_flag != 0 && !ast_ref_is_null(lt) && !ast_ref_is_null(rt) &&
+      (expr_kind == (int32_t)ast_ExprKind_EXPR_ADD_ASSIGN ||
+       expr_kind == (int32_t)ast_ExprKind_EXPR_SUB_ASSIGN)) {
+    lt_kind = pipeline_type_kind_ord_at(arena, lt);
+    if (lt_kind == (int32_t)ast_TypeKind_TYPE_PTR) {
+      int32_t rt_kind_pca = pipeline_type_kind_ord_at(arena, rt);
+      if (rt_kind_pca == (int32_t)ast_TypeKind_TYPE_I32 ||
+          rt_kind_pca == (int32_t)ast_TypeKind_TYPE_USIZE ||
+          rt_kind_pca == (int32_t)ast_TypeKind_TYPE_ISIZE ||
+          rt_kind_pca == (int32_t)ast_TypeKind_TYPE_U8 ||
+          rt_kind_pca == (int32_t)ast_TypeKind_TYPE_U32 ||
+          rt_kind_pca == (int32_t)ast_TypeKind_TYPE_U64 ||
+          rt_kind_pca == (int32_t)ast_TypeKind_TYPE_I64) {
+        ptr_compound_offset_ok = 1;
+      } else {
+        eb_ptr = driver_typeck_diag_scratch_expect();
+        gb_ptr = driver_typeck_diag_scratch_found();
+        el = pipeline_typeck_diag_fmt_type_into_c(arena, lt, eb_ptr, 96);
+        gl = pipeline_typeck_diag_fmt_type_into_c(arena, rt, gb_ptr, 96);
+        driver_diagnostic_typeck_assign_mismatch(compound_flag, line, col, eb_ptr, el, gb_ptr, gl);
+        return -1;
+      }
+    }
+  }
   if (!ast_ref_is_null(lt) && !ast_ref_is_null(rt)) {
-    if (!pipeline_typeck_type_refs_equal_c(arena, lt, rt)) {
+    if (!pipeline_typeck_type_refs_equal_c(arena, lt, rt) && ptr_compound_offset_ok == 0) {
       /* 整型隐式拓宽：i32→isize/i64/usize… + NAMED i8/i16/u16（typeck_integer_widen_ok_refs）
        * wave314: + f32→f64 float widen (typeck_float_widen_ok). */
       if (expr_kind == (int32_t)ast_ExprKind_EXPR_ASSIGN) {
