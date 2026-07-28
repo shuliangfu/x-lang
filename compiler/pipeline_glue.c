@@ -23123,15 +23123,39 @@ static int glue_emit_block_final_expr_elf(struct ast_ASTArena *arena, struct pla
               (int)g_pipeline_asm_func_sret_active, (int)g_pipeline_asm_func_sret_ret_sz);
     return -1;
   }
-  /** 隐式尾表达式（非 EXPR_RETURN）：结果在 rax，须 jmp 到 tail_join。if-expr 分支块由 done 标签汇合。 */
-  if (glue_if_expr_arm_emit_depth <= 0 &&
-      pipeline_expr_kind_ord_at(arena, blk->final_expr_ref) != 41) {
-    pipeline_glue_AsmFuncCtxLayout *ly = pipeline_asm_ctx_layout(ctx);
-    if (ly->tail_join_label_len > 0 &&
-        backend_enc_jmp_arch(elf_ctx, ly->tail_join_label, ly->tail_join_label_len, ta) != 0) {
-      if (link_abi_getenv("XLANG_ASM_DEBUG"))
-        fprintf(stderr, "xlang: final_expr tail_join jmp fail block=%d\n", (int)block_ref);
-      return -1;
+  /**
+   * Implicit trailing expr (non-EXPR_RETURN): jmp function tail_join only when this
+   * block *is* the function body (value falls into epilogue). Nested blocks must not:
+   *   - if-expr arms: done-label joins (glue_if_expr_arm_emit_depth; prior waves)
+   *   - while/for loop bodies: back-edge joins after body emit
+   *   - if-stmt then/else / bare blocks: fall through to parent CFG
+   * wave653 root: ASI omits `;` so trailing `s = s + i` is final_expr of while body;
+   * old path always jmp tail_join → freestanding one-iteration (fs=1 vs host=12).
+   * G.7 single authority: function-body gate (not a second loop-only special case).
+   * PLATFORM: SHARED freestanding · LINUX x86_64 gold · MACOS arm64 co-path.
+   */
+  {
+    int32_t allow_tail_join = 0;
+    int32_t fref_ko = pipeline_expr_kind_ord_at(arena, blk->final_expr_ref);
+    if (glue_if_expr_arm_emit_depth <= 0 && fref_ko != 41) {
+      if (g_pipeline_asm_emit_module && g_pipeline_asm_emit_func_index >= 0) {
+        int32_t fb =
+            pipeline_module_func_body_ref_at(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index);
+        if (fb > 0 && fb == block_ref)
+          allow_tail_join = 1;
+      } else {
+        /* No module context (rare unit path): keep prior non-if-arm tail_join. */
+        allow_tail_join = 1;
+      }
+    }
+    if (allow_tail_join) {
+      pipeline_glue_AsmFuncCtxLayout *ly = pipeline_asm_ctx_layout(ctx);
+      if (ly->tail_join_label_len > 0 &&
+          backend_enc_jmp_arch(elf_ctx, ly->tail_join_label, ly->tail_join_label_len, ta) != 0) {
+        if (link_abi_getenv("XLANG_ASM_DEBUG"))
+          fprintf(stderr, "xlang: final_expr tail_join jmp fail block=%d\n", (int)block_ref);
+        return -1;
+      }
     }
   }
   return 0;
