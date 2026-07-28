@@ -98,7 +98,7 @@ struct parser_ParseBlockResult { int ok; int32_t block_ref; struct lexer_Lexer n
 struct parser_ExternParseResult { struct lexer_Lexer next_lex; uint8_t name[128]; int32_t name_len; int32_t return_ty_ref; int32_t num_params; int32_t abi_kind; int32_t is_variadic; };
 struct parser_TrySkipAllowResult { struct lexer_Lexer lex; int32_t skipped; uint8_t _pad[4]; };
 struct parser_LibraryParseResult { int ok; uint8_t _pad[4]; struct lexer_Lexer next_lex; uint8_t name[128]; int32_t name_len; uint8_t _pad_tail[4]; };
-struct parser_LibraryParseScanResult { int ok; uint8_t _pad[4]; struct lexer_Lexer next_lex; uint8_t name[128]; int32_t name_len; uint8_t param_name[32]; int32_t param_name_len; uint8_t param_type_name[128]; int32_t param_type_len; uint8_t field_name[128]; int32_t field_len; uint8_t _pad_tail[4]; uint8_t _pad_tail2[4]; };
+struct parser_LibraryParseScanResult { int ok; uint8_t _pad[4]; struct lexer_Lexer next_lex; uint8_t name[128]; int32_t name_len; uint8_t param_name[128]; int32_t param_name_len; uint8_t param_type_name[128]; int32_t param_type_len; uint8_t field_name[128]; int32_t field_len; uint8_t _pad_tail[4]; uint8_t _pad_tail2[4]; };
 struct codegen_CodegenOutBuf { uint8_t data[9437184]; int32_t length; };
 struct codegen_outbuf_abi_CodegenOutBuf { uint8_t data[9437184]; int32_t length; };
 enum asm_types_TargetArch { asm_types_TargetArch_TARGET_X86_64, asm_types_TargetArch_TARGET_ARM64, asm_types_TargetArch_TARGET_RISCV64, asm_types_TargetArch_TARGET_NONE };

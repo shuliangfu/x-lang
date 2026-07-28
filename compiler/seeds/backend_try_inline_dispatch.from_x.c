@@ -965,7 +965,7 @@ int32_t pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c(struct ast_ASTArena
 /* G-02f-371 try：实现体始终 seed；public PREFER 时 thin forward */
 int32_t glue_expr_is_func_param_at_impl(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx,
                                           int32_t expr_ref, int32_t param_ix) {
-  uint8_t pbuf[32];
+  uint8_t pbuf[128];
   uint8_t vbuf[128];
   int32_t plen;
   int32_t vlen;

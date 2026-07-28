@@ -2450,7 +2450,7 @@ int32_t codegen_expr_var_matches_func_param_index(struct ast_ASTArena * arena, i
       return 0;
     }
     if ((p_name_len > 0)) {
-      uint8_t pname_buf[32] = {};
+      uint8_t pname_buf[128] = {};
       (void)(pipeline_module_func_param_name_copy32(mod, func_index, param_idx, &((pname_buf)[0])));
       if (((pname_buf)[0] > 32)) {
         int32_t j = 0;
@@ -3063,8 +3063,8 @@ int32_t codegen_try_emit_std_io_driver_buf_body(struct codegen_CodegenOutBuf * o
     uint8_t fn_local[128] = {};
     int32_t fn_len = 0;
     int32_t nparams = 0;
-    uint8_t p0[32] = {98, 117, 102, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-    uint8_t p1[32] = {116, 105, 109, 101, 111, 117, 116, 95, 109, 115, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    uint8_t p0[128] = {98, 117, 102, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    uint8_t p1[128] = {116, 105, 109, 101, 111, 117, 116, 95, 109, 115, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     uint8_t reg8[8] = {114, 101, 103, 105, 115, 116, 101, 114};
     uint8_t rd11[11] = {115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100};
     uint8_t wr12[12] = {115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101};
@@ -3475,7 +3475,7 @@ int32_t codegen_emit_call_arg_slice_abi(struct ast_ASTArena * arena, struct code
           while ((pi < np)) {
             int32_t p_name_len = pipeline_module_func_param_name_len_at(mod, fi, pi);
             if (((p_name_len > 0) && (p_name_len ==(arg.var_name_len)))) {
-              uint8_t pname_buf[32] = {};
+              uint8_t pname_buf[128] = {};
               (void)(pipeline_module_func_param_name_copy32(mod, fi, pi, &((pname_buf)[0])));
               int matched = 1;
               int32_t j = 0;
@@ -4063,7 +4063,7 @@ int32_t codegen_field_access_base_is_pointer_param(struct ast_ASTArena * arena, 
     while ((pi < np)) {
       int32_t p_name_len = pipeline_module_func_param_name_len_at(mod, func_index, pi);
       if (((p_name_len > 0) && (p_name_len ==(base.var_name_len)))) {
-        uint8_t pname_buf[32] = {};
+        uint8_t pname_buf[128] = {};
         (void)(pipeline_module_func_param_name_copy32(mod, func_index, pi, &((pname_buf)[0])));
         int matched = 1;
         int32_t j = 0;
@@ -4170,7 +4170,7 @@ int32_t codegen_field_access_base_param_type_known(struct ast_ASTArena * arena, 
     while ((pi < np)) {
       int32_t p_name_len = pipeline_module_func_param_name_len_at(mod, func_index, pi);
       if (((p_name_len > 0) && (p_name_len ==(base.var_name_len)))) {
-        uint8_t pname_buf[32] = {};
+        uint8_t pname_buf[128] = {};
         (void)(pipeline_module_func_param_name_copy32(mod, func_index, pi, &((pname_buf)[0])));
         int matched = 1;
         int32_t j = 0;
@@ -10433,7 +10433,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
             int32_t parm_i = 0;
             int32_t nparm = pipeline_module_func_num_params_at(mono_mod, mono_fi);
             while ((parm_i < nparm)) {
-              uint8_t pname[32] = {};
+              uint8_t pname[128] = {};
               int32_t pnl = pipeline_module_func_param_name_len_at(mono_mod, mono_fi, parm_i);
               (void)(pipeline_module_func_param_name_copy32(mono_mod, mono_fi, parm_i, &((pname)[0])));
               if (((pnl == (base_mono.var_name_len)) && (pnl > 0))) {
@@ -13838,7 +13838,7 @@ int32_t codegen_name_is_local_binding(struct ast_ASTArena * arena, struct ast_Pi
         while ((pi < np)) {
           int32_t pl = pipeline_module_func_param_name_len_at(mod, fi, pi);
           if (((pl == name_len) && (pl > 0))) {
-            uint8_t pb[32] = {};
+            uint8_t pb[128] = {};
             int32_t ok = 1;
             int32_t j = 0;
             (void)(pipeline_module_func_param_name_copy32(mod, fi, pi, &((pb)[0])));
@@ -14632,9 +14632,9 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
           return -(1);
         }
         if ((pipeline_module_func_param_name_len_at(module, fi, p) > 0)) {
-          uint8_t plocal[32] = {};
+          uint8_t plocal[128] = {};
           (void)(codegen_copy_param_name32_from_module(module, fi, p, &((plocal)[0])));
-          if ((((plocal)[0] > 32) && (codegen_emit_bytes_32(out, plocal, pipeline_module_func_param_name_len_at(module, fi, p)) !=0))) {
+          if ((((plocal)[0] > 32) && (codegen_emit_bytes_from_ptr(out, &((plocal)[0]), pipeline_module_func_param_name_len_at(module, fi, p)) !=0))) {
             return -(1);
           }
         } else {
@@ -15593,10 +15593,10 @@ int32_t codegen_try_emit_generic_identity_mono(struct ast_ASTArena * arena, stru
     int32_t num_params = 0;
     int32_t pi = 0;
     int32_t pni_len = 0;
-    uint8_t pni[32] = {};
+    uint8_t pni[128] = {};
     uint8_t comma_space[2] = {44, 32};
     int32_t pn_len = pipeline_module_func_param_name_len_at(module, fi, 0);
-    uint8_t pn[32] = {};
+    uint8_t pn[128] = {};
     uint8_t fn_local[128] = {};
     int32_t fn_len = pipeline_module_func_name_len_at(module, fi);
     int32_t mono_sym_pre = codegen_func_c_symbol_prefix_len(module, fi, prefix_len);
@@ -16445,7 +16445,7 @@ int32_t codegen_try_emit_generic_impl_method_mono(struct ast_ASTArena * arena, s
           return -(1);
         }
         {
-          uint8_t pname[32] = {};
+          uint8_t pname[128] = {};
           int32_t plen = pipeline_module_func_param_name_len_at(module, fi, pi);
           pipeline_module_func_param_name_copy32(module, fi, pi, &((pname)[0]));
           if ((plen <= 0)) {
@@ -16832,7 +16832,7 @@ static int32_t codegen_try_emit_generic_impl_method_extern_mono(struct ast_ASTAr
           return -(1);
         }
         {
-          uint8_t pname[32] = {};
+          uint8_t pname[128] = {};
           int32_t plen = pipeline_module_func_param_name_len_at(module, fi, pi);
           pipeline_module_func_param_name_copy32(module, fi, pi, &((pname)[0]));
           if ((plen <= 0)) {
@@ -17092,9 +17092,9 @@ int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct
           return -(1);
         }
         if ((pipeline_module_func_param_name_len_at(module, fi, p) > 0)) {
-          uint8_t plocal[32] = {};
+          uint8_t plocal[128] = {};
           (void)(codegen_copy_param_name32_from_module(module, fi, p, &((plocal)[0])));
-          if ((((plocal)[0] > 32) && (codegen_emit_bytes_32(out, plocal, pipeline_module_func_param_name_len_at(module, fi, p)) !=0))) {
+          if ((((plocal)[0] > 32) && (codegen_emit_bytes_from_ptr(out, &((plocal)[0]), pipeline_module_func_param_name_len_at(module, fi, p)) !=0))) {
             return -(1);
           }
         } else {

@@ -1022,7 +1022,7 @@ struct parser_LibraryParseScanResult {
   struct lexer_Lexer next_lex;
   uint8_t name[128];
   int32_t name_len;
-  uint8_t param_name[32];
+  uint8_t param_name[128];
   int32_t param_name_len;
   uint8_t param_type_name[128];
   int32_t param_type_len;
@@ -2281,7 +2281,7 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
         if ((goto_start_bare ==0)) {
           (void)((goto_start_bare = parser_lexer_pos_before_run(((r.next_lex).pos), goto_len_bare)));
         }
-        uint8_t goto_row_bare[32] = {};
+        uint8_t goto_row_bare[128] = {};
         (void)(parser_copy_slice_to_param32(source, goto_start_bare, goto_len_bare, &((goto_row_bare)[0])));
         (void)(parser_lex_from_next_into(&(lex_cur), r));
         (void)(lexer_next_into(&(r), lex_cur, source));
@@ -2323,7 +2323,7 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
           if ((goto_start_blk ==0)) {
             (void)((goto_start_blk = parser_lexer_pos_before_run(((r.next_lex).pos), goto_len_blk)));
           }
-          uint8_t goto_row_blk[32] = {};
+          uint8_t goto_row_blk[128] = {};
           (void)(parser_copy_slice_to_param32(source, goto_start_blk, goto_len_blk, &((goto_row_blk)[0])));
           (void)(parser_lex_from_next_into(&(lex_cur), r));
           (void)(lexer_next_into(&(r), lex_cur, source));
@@ -2331,7 +2331,7 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
             (void)((lex_cur = (r.next_lex)));
             (void)(lexer_next_into(&(r), lex_cur, source));
           }
-          uint8_t label_row_blk[32] = {};
+          uint8_t label_row_blk[128] = {};
           (void)(parser_copy_slice_to_param32(source, label_start_blk, label_len_blk, &((label_row_blk)[0])));
           int32_t li_lab = pipeline_block_append_labeled(arena, block_ref, label_len_blk, 0, 0, 0);
           if ((li_lab < 0)) {
@@ -2376,7 +2376,7 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
             (void)((lex_cur = (r.next_lex)));
             (void)(lexer_next_into(&(r), lex_cur, source));
           }
-          uint8_t label_row_ret[32] = {};
+          uint8_t label_row_ret[128] = {};
           (void)(parser_copy_slice_to_param32(source, label_start_blk, label_len_blk, &((label_row_ret)[0])));
           int32_t ret_operand = 0;
           if ((ret_val_lbl.ok)) {
@@ -2396,7 +2396,7 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
         }
         /* wave379: pure L: label def; fall through to next stmt */
         {
-          uint8_t label_row_pure[32] = {};
+          uint8_t label_row_pure[128] = {};
           (void)(parser_copy_slice_to_param32(source, label_start_blk, label_len_blk, &((label_row_pure)[0])));
           int32_t li_pure = pipeline_block_append_labeled(arena, block_ref, label_len_blk, 0, 0, 0);
           if ((li_pure < 0)) {
@@ -4342,7 +4342,8 @@ int parser_token_is_label_start(struct lexer_LexerResult r, struct xlang_slice_u
 void parser_copy_slice_to_param32(struct xlang_slice_uint8_t * source, size_t start, int32_t nlen, uint8_t * out) {
   {
     int32_t i = 0;
-    while ((i < 32)) {
+    /* wave585 Cap residual: fill 128-byte row (ABI name *param32). */
+    while ((i < 128)) {
       if (((i < nlen) && ((start + ((size_t)(i))) < (source->length)))) {
         (void)(((out)[i] = (source)->data[(start + ((size_t)(i)))]));
       } else {
@@ -4379,7 +4380,7 @@ void parser_copy_slice_to_param32_at_end_buf(uint8_t * source, int32_t source_le
   {
     size_t start = (end_pos - ((size_t)(nlen)));
     int32_t i = 0;
-    while ((i < 32)) {
+    while ((i < 128)) {
       if (((i < nlen) && ((start + ((size_t)(i))) < ((size_t)(source_len))))) {
         (void)(((out)[i] = (source)[(start + ((size_t)(i)))]));
       } else {
@@ -4392,7 +4393,7 @@ void parser_copy_slice_to_param32_at_end_buf(uint8_t * source, int32_t source_le
 void parser_copy_slice_to_param32_buf(uint8_t * source, int32_t source_len, size_t start, int32_t nlen, uint8_t * out) {
   {
     int32_t i = 0;
-    while ((i < 32)) {
+    while ((i < 128)) {
       if (((i < nlen) && ((start + ((size_t)(i))) < ((size_t)(source_len))))) {
         (void)(((out)[i] = (source)[(start + ((size_t)(i)))]));
       } else {
@@ -4428,7 +4429,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
     int32_t plen_param = 0;
     int32_t param_idx = 0;
     uint8_t * param_pool = ((uint8_t *)(0));
-    uint8_t pname_row[32] = {};
+    uint8_t pname_row[128] = {};
     int32_t zi_param = 0;
     struct lexer_LexerResult r = (struct lexer_LexerResult){ .next_lex = lex, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
     (void)(lexer_next_into(&(r), lex, source));
@@ -4524,12 +4525,12 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
         } else {
           (void)((plen_param = ((r.tok).ident_len)));
         }
-        if (((plen_param <=0) || (plen_param > 31))) {
+        if (((plen_param <=0) || (plen_param > 127))) {
           (void)(parser_set_onefunc_fail(out_ref, lex));
           return;
         }
         (void)((zi_param = 0));
-        while ((zi_param < 32)) {
+        while ((zi_param < 128)) {
           (void)(((pname_row)[zi_param] = 0));
           (void)((zi_param = (zi_param + 1)));
         }
@@ -4907,7 +4908,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
           if ((goto_start_fn ==0)) {
             (void)((goto_start_fn = parser_lexer_pos_before_run(((r.next_lex).pos), goto_len_fn)));
           }
-          uint8_t goto_row_fn[32] = {};
+          uint8_t goto_row_fn[128] = {};
           (void)(parser_copy_slice_to_param32(source, goto_start_fn, goto_len_fn, &((goto_row_fn)[0])));
           (void)(parser_lex_from_next_into(&(lex), r));
           (void)(lexer_next_into(&(r), lex, source));
@@ -4930,7 +4931,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
           if ((label_start_fn ==0)) {
             (void)((label_start_fn = parser_lexer_pos_before_run(((r.next_lex).pos), label_len_fn)));
           }
-          uint8_t label_row_fn[32] = {};
+          uint8_t label_row_fn[128] = {};
           (void)(parser_copy_slice_to_param32(source, label_start_fn, label_len_fn, &((label_row_fn)[0])));
           struct lexer_LexerResult colon_fn = (struct lexer_LexerResult){ .next_lex = (r.next_lex), .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
           (void)(lexer_next_into(&(colon_fn), (r.next_lex), source));
@@ -4986,7 +4987,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
             if ((gts_fn ==0)) {
               (void)((gts_fn = parser_lexer_pos_before_run(((r.next_lex).pos), gtn_fn)));
             }
-            uint8_t gtr_fn[32] = {};
+            uint8_t gtr_fn[128] = {};
             (void)(parser_copy_slice_to_param32(source, gts_fn, gtn_fn, &((gtr_fn)[0])));
             (void)(parser_lex_from_next_into(&(lex), r));
             (void)(lexer_next_into(&(r), lex, source));
@@ -6163,7 +6164,7 @@ void parser_write_extern_params_to_pools(struct ast_ASTArena * arena, struct ast
     uint8_t * pool = parser_extern_parse_pool_ptr(res);
     int32_t p = 0;
     while ((p < (res->num_params))) {
-      uint8_t pname32[32] = {};
+      uint8_t pname32[128] = {};
       (void)(pipeline_onefunc_param_name_copy32(pool, p, &((pname32)[0])));
       int32_t plen = pipeline_onefunc_param_name_len(pool, p);
       int32_t pty = pipeline_onefunc_param_type_ref(pool, p);
@@ -7723,7 +7724,7 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
       uint8_t * mod_pool = parser_onefunc_result_pool_ptr(&(res));
       int32_t p = 0;
       while ((p < (res.num_params))) {
-        uint8_t pname32[32] = {};
+        uint8_t pname32[128] = {};
         (void)(pipeline_onefunc_param_name_copy32(mod_pool, p, &((pname32)[0])));
         (void)(pipeline_module_func_param_write(module, fi, p, &((pname32)[0]), pipeline_onefunc_param_name_len(mod_pool, p), pipeline_onefunc_param_type_ref(mod_pool, p)));
         (void)((p = (p + 1)));
@@ -9130,7 +9131,7 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
       int32_t p_copy = 0;
       uint8_t * mod_pool_buf = parser_onefunc_result_pool_ptr(&(res));
       while ((p_copy < (res.num_params))) {
-        uint8_t pname32b[32] = {};
+        uint8_t pname32b[128] = {};
         (void)(pipeline_onefunc_param_name_copy32(mod_pool_buf, p_copy, &((pname32b)[0])));
         (void)(pipeline_module_func_param_write(module, fi_mod, p_copy, &((pname32b)[0]), pipeline_onefunc_param_name_len(mod_pool_buf, p_copy), pipeline_onefunc_param_type_ref(mod_pool_buf, p_copy)));
         (void)((p_copy = (p_copy + 1)));

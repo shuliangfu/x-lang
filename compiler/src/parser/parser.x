@@ -2235,7 +2235,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       if (goto_start_bare == 0) {
         goto_start_bare = lexer_pos_before_run(r.next_lex.pos, goto_len_bare);
       }
-      let goto_row_bare: u8[32] = [];
+      let goto_row_bare: u8[128] = [];
       copy_slice_to_param32(source, goto_start_bare, goto_len_bare, &goto_row_bare[0]);
       lex_from_next_into(&lex_cur, r);
       lexer.lexer_next_into(&r, lex_cur, source);
@@ -2286,7 +2286,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
         if (goto_start_blk == 0) {
           goto_start_blk = lexer_pos_before_run(r.next_lex.pos, goto_len_blk);
         }
-        let goto_row_blk: u8[32] = [];
+        let goto_row_blk: u8[128] = [];
         copy_slice_to_param32(source, goto_start_blk, goto_len_blk, &goto_row_blk[0]);
         lex_from_next_into(&lex_cur, r);
         lexer.lexer_next_into(&r, lex_cur, source);
@@ -2294,7 +2294,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
           lex_cur = r.next_lex;
           lexer.lexer_next_into(&r, lex_cur, source);
         }
-        let label_row_blk: u8[32] = [];
+        let label_row_blk: u8[128] = [];
         copy_slice_to_param32(source, label_start_blk, label_len_blk, &label_row_blk[0]);
         /* Emit both label def and goto (two kind=7 entries) for host C. */
         let li_lab: i32 = pipeline_block_append_labeled(arena, block_ref, label_len_blk, 0, 0, 0);
@@ -2340,7 +2340,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
           lex_cur = r.next_lex;
           lexer.lexer_next_into(&r, lex_cur, source);
         }
-        let label_row_ret: u8[32] = [];
+        let label_row_ret: u8[128] = [];
         copy_slice_to_param32(source, label_start_blk, label_len_blk, &label_row_ret[0]);
         let ret_operand: i32 = 0;
         if (ret_val_lbl.ok) {
@@ -2359,7 +2359,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
         continue;
       }
       /* Pure `L:` — label definition only; next token is the following statement. */
-      let label_row_pure: u8[32] = [];
+      let label_row_pure: u8[128] = [];
       copy_slice_to_param32(source, label_start_blk, label_len_blk, &label_row_pure[0]);
       let li_pure: i32 = pipeline_block_append_labeled(arena, block_ref, label_len_blk, 0, 0, 0);
       if (li_pure < 0) {
@@ -5061,19 +5061,23 @@ export function parser_token_is_label_start(r: LexerResult, source: u8[]): bool 
   }
 }
 
-/** Exported function `copy_slice_to_param32`.
- * Implements `copy_slice_to_param32`.
- * @param source u8[]
- * @param start usize
- * @param nlen i32
- * @param out *u8
+/**
+ * Copy up to 127 source bytes into out (zero-fill full 128-byte row).
+ * ABI name kept as *param32; wave585 Cap residual raised payload 32→128.
+ * Callers must pass a dst buffer of at least 128 bytes.
+ * @param source u8[] — source text
+ * @param start usize — start offset into source
+ * @param nlen i32 — content length (0..127 used; larger values still zero-fill)
+ * @param out *u8 — destination row (≥128 bytes)
  * @return void
+ * PLATFORM: SHARED
  */
 export function copy_slice_to_param32(source: u8[], start: usize, nlen: i32, out: *u8): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let i: i32 = 0;
-  while (i < 32) {
+  // wave585: fill full 128-byte Cap row (historical name *param32).
+  while (i < 128) {
     if (i < nlen && start + (i as usize) < source.length) {
       out[i] = source[start + (i as usize)];
     } else {
@@ -5154,10 +5158,11 @@ export function copy_slice_to_name64_at_end_buf(source: *u8, source_len: i32, en
  */
 export function copy_slice_to_param32_at_end_buf(source: *u8, source_len: i32, end_pos: usize, nlen: i32, out: *u8): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // wave585 Cap residual: fill 128-byte row (ABI name *param32).
   unsafe {
   let start: usize = end_pos - (nlen as usize);
   let i: i32 = 0;
-  while (i < 32) {
+  while (i < 128) {
     if (i < nlen && start + (i as usize) < (source_len as usize)) {
       out[i] = source[start + (i as usize)];
     } else {
@@ -5180,9 +5185,10 @@ export function copy_slice_to_param32_at_end_buf(source: *u8, source_len: i32, e
  */
 export function copy_slice_to_param32_buf(source: *u8, source_len: i32, start: usize, nlen: i32, out: *u8): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // wave585 Cap residual: fill 128-byte row (ABI name *param32).
   unsafe {
   let i: i32 = 0;
-  while (i < 32) {
+  while (i < 128) {
     if (i < nlen && start + (i as usize) < (source_len as usize)) {
       out[i] = source[start + (i as usize)];
     } else {
@@ -5246,7 +5252,8 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   let plen_param: i32 = 0;
   let param_idx: i32 = 0;
   let param_pool: *u8 = 0 as *u8;
-  let pname_row: u8[32] = [];
+  /* wave585 Cap residual: param name row 32→128 (content ≤127). */
+  let pname_row: u8[128] = [];
   let zi_param: i32 = 0;
   /* See implementation. */
   let r: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
@@ -5338,12 +5345,13 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       } else {
         plen_param = r.tok.ident_len;
       }
-      if (plen_param <= 0 || plen_param > 31) {
+      /* wave585 Cap residual: param content ≤127 (was 31). */
+      if (plen_param <= 0 || plen_param > 127) {
         set_onefunc_fail(out_ref, lex); return;
       }
       /* Clear row then copy binding-name bytes from token_start before append into sidecar pool. */
       zi_param = 0;
-      while (zi_param < 32) {
+      while (zi_param < 128) {
         pname_row[zi_param] = 0;
         zi_param = zi_param + 1;
       }
@@ -5774,7 +5782,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         if (goto_start_fn == 0) {
           goto_start_fn = lexer_pos_before_run(r.next_lex.pos, goto_len_fn);
         }
-        let goto_row_fn: u8[32] = [];
+        let goto_row_fn: u8[128] = [];
         copy_slice_to_param32(source, goto_start_fn, goto_len_fn, &goto_row_fn[0]);
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
@@ -5801,7 +5809,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         if (label_start_fn == 0) {
           label_start_fn = lexer_pos_before_run(r.next_lex.pos, label_len_fn);
         }
-        let label_row_fn: u8[32] = [];
+        let label_row_fn: u8[128] = [];
         copy_slice_to_param32(source, label_start_fn, label_len_fn, &label_row_fn[0]);
         let colon_fn: LexerResult = LexerResult {
           next_lex: r.next_lex,
@@ -5862,7 +5870,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           if (gts_fn == 0) {
             gts_fn = lexer_pos_before_run(r.next_lex.pos, gtn_fn);
           }
-          let gtr_fn: u8[32] = [];
+          let gtr_fn: u8[128] = [];
           copy_slice_to_param32(source, gts_fn, gtn_fn, &gtr_fn[0]);
           lex_from_next_into(&lex, r);
           lexer.lexer_next_into(&r, lex, source);
@@ -7460,7 +7468,7 @@ function write_extern_params_to_pools(arena: *ASTArena, module: *Module, func_re
   let pool: *u8 = extern_parse_pool_ptr(res);
   let p: i32 = 0;
   while (p < res.num_params) {
-    let pname32: u8[32] = [];
+    let pname32: u8[128] = [];
     pipeline_onefunc_param_name_copy32(pool, p, &pname32[0]);
     let plen: i32 = pipeline_onefunc_param_name_len(pool, p);
     let pty: i32 = pipeline_onefunc_param_type_ref(pool, p);
@@ -7750,7 +7758,7 @@ struct LibraryParseScanResult {
   next_lex: Lexer;
   name: u8[128];
   name_len: i32;
-  param_name: u8[32];
+  param_name: u8[128];
   param_name_len: i32;
   param_type_name: u8[128];
   param_type_len: i32;
@@ -9584,7 +9592,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     let mod_pool: *u8 = onefunc_result_pool_ptr(&res);
     let p: i32 = 0;
     while (p < res.num_params) {
-      let pname32: u8[32] = [];
+      let pname32: u8[128] = [];
       pipeline_onefunc_param_name_copy32(mod_pool, p, &pname32[0]);
       pipeline_module_func_param_write(module, fi, p, &pname32[0], pipeline_onefunc_param_name_len(mod_pool, p), pipeline_onefunc_param_type_ref(mod_pool, p));
       p = p + 1;
@@ -11624,7 +11632,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     let p_copy: i32 = 0;
     let mod_pool_buf: *u8 = onefunc_result_pool_ptr(&res);
     while (p_copy < res.num_params) {
-      let pname32b: u8[32] = [];
+      let pname32b: u8[128] = [];
       pipeline_onefunc_param_name_copy32(mod_pool_buf, p_copy, &pname32b[0]);
       pipeline_module_func_param_write(module, fi_mod, p_copy, &pname32b[0], pipeline_onefunc_param_name_len(mod_pool_buf, p_copy), pipeline_onefunc_param_type_ref(mod_pool_buf, p_copy));
       p_copy = p_copy + 1;

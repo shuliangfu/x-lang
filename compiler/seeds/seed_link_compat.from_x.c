@@ -299,7 +299,7 @@ XLANG_WEAK int32_t backend_fold_func_return_operand_ref(void *arena, struct ast_
 #ifndef XLANG_SEED_LINK_COMPAT_FROM_X
 int32_t xlang_expr_is_func_param_at(void *arena, struct ast_Module *mod, int32_t func_idx, int32_t expr_ref,
                                           int32_t param_ix) {
-  uint8_t pbuf[32];
+  uint8_t pbuf[128];
   uint8_t vbuf[128];
   int32_t plen;
   int32_t vlen;

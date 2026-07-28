@@ -1595,7 +1595,7 @@ int32_t parser_asm_parse_one_function_library_scan_slice_c(struct parser_asm_lex
     return 0;
   }
   result->param_name_len = r.tok.ident_len;
-  if (result->param_name_len <= 0 || result->param_name_len > 31) {
+  if (result->param_name_len <= 0 || result->param_name_len > 127) {
     result->next_lex = r.next_lex;
     return 0;
   }

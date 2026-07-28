@@ -1672,7 +1672,7 @@ export function fold_expr_is_func_param0(arena: *ASTArena, mod: *Module, func_id
   let plen: i32 = pipeline_asm_module_func_param_name_len_at(mod, func_idx, 0);
   let vlen: i32 = pipeline_expr_var_name_len(arena, expr_ref);
   if (plen <= 0 || plen != vlen) { return 0; }
-  let pbuf: u8[32] = [];
+  let pbuf: u8[128] = [];
   let vbuf: u8[128] = [];
   pipeline_asm_module_func_param_name_copy32(mod, func_idx, 0, &pbuf[0]);
   pipeline_expr_var_name_into(arena, expr_ref, &vbuf[0]);

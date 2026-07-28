@@ -141,7 +141,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
   struct parser_asm_lexer_result r;
   struct parser_asm_slice_u8 source;
   uint8_t dummy_name[64];
-  uint8_t pname_buf[32];
+  uint8_t pname_buf[128];
   uint8_t *out_pool;
   int32_t param_idx;
   int32_t param_name_len;
@@ -921,7 +921,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
         pname_buf[4] = 0;
       } else {
         param_name_len = r.tok.ident_len;
-        if (param_name_len <= 0 || param_name_len > 31) {
+        if (param_name_len <= 0 || param_name_len > 127) {
           parser_asm_set_onefunc_fail_c(out, lex);
           return;
         }

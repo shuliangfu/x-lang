@@ -393,7 +393,7 @@ int32_t glue_expr_is_func_param_at(uint8_t * arena, uint8_t * mod, int32_t fi, i
   {
     int32_t plen = pipeline_asm_module_func_param_name_len_at(mod, fi, pix);
     int32_t vlen = pipeline_expr_var_name_len(arena, er);
-    uint8_t pbuf[32] = {};
+    uint8_t pbuf[128] = {};
     uint8_t vbuf[128] = {};
     int32_t k = 0;
     if ((pipeline_expr_kind_ord_at(arena, er) !=3)) {

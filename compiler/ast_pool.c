@@ -83,9 +83,11 @@ typedef struct {
   int32_t init_ref;
 } StructLitFieldEntry;
 
-/** 函数形参槽（module/arena sidecar func_params 池）。 */
+/** 函数形参槽（module/arena sidecar func_params 池）。
+ * wave585 Cap residual: name[32]→[128] (content ≤127; match AST / let Cap).
+ * PLATFORM: SHARED */
 typedef struct {
-  uint8_t name[32];
+  uint8_t name[128];
   int32_t name_len;
   int32_t type_ref;
 } FuncParamEntry;
@@ -683,7 +685,8 @@ static OneFuncSidecar *onefunc_sidecar_get(uint8_t *out, int create) {
         return NULL;
       if (!grow_vec_init(&g_onefunc_sc[i].for_body_refs, sizeof(int32_t), AST_POOL_INIT_CAP))
         return NULL;
-      if (!grow_vec_init(&g_onefunc_sc[i].param_names, 32, AST_POOL_INIT_CAP))
+      /* wave585 Cap residual: OneFunc param name rows 32→128 (match FuncParamEntry). */
+      if (!grow_vec_init(&g_onefunc_sc[i].param_names, 128, AST_POOL_INIT_CAP))
         return NULL;
       if (!grow_vec_init(&g_onefunc_sc[i].param_name_lens, sizeof(int32_t), AST_POOL_INIT_CAP))
         return NULL;
@@ -1955,7 +1958,8 @@ int32_t pipeline_module_func_param_type_ref_for_name(struct ast_Module *m, int32
   FuncParamEntry *pe;
   if (!m || !var_name || func_index < 0 || func_index >= m->num_funcs)
     return 0;
-  if (var_name_len <= 0 || var_name_len > 31)
+  /* wave585 Cap residual: param content ≤127 (FuncParamEntry.name[128]). */
+  if (var_name_len <= 0 || var_name_len > 127)
     return 0;
   f = module_func_at(m, func_index);
   if (!f)
@@ -1967,7 +1971,7 @@ int32_t pipeline_module_func_param_type_ref_for_name(struct ast_Module *m, int32
       continue;
     if ((int32_t)pe->name_len != var_name_len)
       continue;
-    if (pe->name_len <= 0 || pe->name_len > 31)
+    if (pe->name_len <= 0 || pe->name_len > 127)
       continue;
     if (memcmp(pe->name, var_name, (size_t)var_name_len) != 0)
       continue;
@@ -1989,7 +1993,8 @@ void pipeline_module_func_param_write(struct ast_Module *m, int32_t func_index, 
   FuncParamEntry *pe;
   if (!m || !name_bytes || func_index < 0 || param_index < 0)
     return;
-  if (name_len < 0 || name_len > 31)
+  /* wave585 Cap residual: content ≤127 (name[128]). */
+  if (name_len < 0 || name_len > 127)
     return;
   pe = module_func_param_entry(m, func_index, param_index, 1);
   if (!pe)
@@ -2006,9 +2011,15 @@ int32_t pipeline_module_func_param_name_len_at(struct ast_Module *m, int32_t fun
   if (!m || func_index < 0 || func_index >= m->num_funcs || param_index < 0)
     return 0;
   pe = module_func_param_entry(m, func_index, param_index, 0);
-  return pe ? (int32_t)pe->name_len : 0;
+  /* wave585: return only legal content lengths (≤127). */
+  return pe && pe->name_len > 0 && pe->name_len <= 127 ? (int32_t)pe->name_len : 0;
 }
 
+/**
+ * ABI name kept as *copy32; wave585 Cap residual raised payload 32→128.
+ * Callers must pass a dst buffer of at least 128 bytes.
+ * PLATFORM: SHARED
+ */
 void pipeline_module_func_param_name_copy32(struct ast_Module *m, int32_t func_index, int32_t param_index,
                                             uint8_t *dst) {
   FuncParamEntry *pe;
@@ -2016,10 +2027,10 @@ void pipeline_module_func_param_name_copy32(struct ast_Module *m, int32_t func_i
     return;
   pe = module_func_param_entry(m, func_index, param_index, 0);
   if (!pe) {
-    memset(dst, 0, 32);
+    memset(dst, 0, 128);
     return;
   }
-  memcpy(dst, pe->name, (size_t)32);
+  memcpy(dst, pe->name, (size_t)128);
 }
 
 void pipeline_arena_func_param_write(struct ast_ASTArena *arena, int32_t func_ref, int32_t param_index,
@@ -2027,7 +2038,8 @@ void pipeline_arena_func_param_write(struct ast_ASTArena *arena, int32_t func_re
   FuncParamEntry *pe;
   if (!arena || !name_bytes || func_ref <= 0 || func_ref > arena->num_funcs || param_index < 0)
     return;
-  if (name_len < 0 || name_len > 31)
+  /* wave585 Cap residual: content ≤127 (name[128]). */
+  if (name_len < 0 || name_len > 127)
     return;
   pe = arena_func_param_entry(arena, func_ref, param_index, 1);
   if (!pe)
@@ -5273,7 +5285,12 @@ int32_t pipeline_onefunc_num_lets(uint8_t *out) {
   return sc ? sc->let_name_lens.len : 0;
 }
 
-/** 追加一条解析 scratch 形参；返回新下标，失败 -1。type_ref 可随后用 set_param_type_ref 填写。 */
+/**
+ * Append one parse-scratch param name into OneFunc sidecar.
+ * wave585 Cap residual: content ≤127; row width 128 (was 31/32).
+ * @return new index, or -1 on failure
+ * PLATFORM: SHARED
+ */
 int32_t pipeline_onefunc_append_param(uint8_t *out, uint8_t *name, int32_t name_len, int32_t type_ref) {
   OneFuncSidecar *sc;
   uint8_t *row;
@@ -5281,7 +5298,7 @@ int32_t pipeline_onefunc_append_param(uint8_t *out, uint8_t *name, int32_t name_
   int32_t *pt;
   int32_t n;
   int32_t k;
-  if (!out || !(sc = onefunc_sidecar_get(out, 1)) || !name || name_len <= 0 || name_len > 31)
+  if (!out || !(sc = onefunc_sidecar_get(out, 1)) || !name || name_len <= 0 || name_len > 127)
     return -1;
   if (grow_vec_push(&sc->param_names) < 0 || grow_vec_push(&sc->param_name_lens) < 0 ||
       grow_vec_push(&sc->param_type_refs) < 0)
@@ -5291,7 +5308,7 @@ int32_t pipeline_onefunc_append_param(uint8_t *out, uint8_t *name, int32_t name_
   pt = (int32_t *)grow_vec_at(&sc->param_type_refs, sc->param_type_refs.len - 1);
   if (!row || !pl || !pt)
     return -1;
-  memset(row, 0, 32);
+  memset(row, 0, 128);
   n = name_len;
   for (k = 0; k < n; k++)
     row[k] = name[k];
@@ -5323,7 +5340,8 @@ uint8_t pipeline_onefunc_param_name_byte_at(uint8_t *out, int32_t i, int32_t off
   OneFuncSidecar *sc;
   uint8_t *row;
   int32_t *pl;
-  if (!out || !(sc = onefunc_sidecar_get(out, 0)) || i < 0 || i >= sc->param_names.len || off < 0 || off >= 32)
+  /* wave585 Cap residual: off bound 32→128 (param row[128]). */
+  if (!out || !(sc = onefunc_sidecar_get(out, 0)) || i < 0 || i >= sc->param_names.len || off < 0 || off >= 128)
     return 0;
   pl = (int32_t *)grow_vec_at(&sc->param_name_lens, i);
   row = (uint8_t *)grow_vec_at(&sc->param_names, i);
@@ -5332,6 +5350,11 @@ uint8_t pipeline_onefunc_param_name_byte_at(uint8_t *out, int32_t i, int32_t off
   return row[off];
 }
 
+/**
+ * ABI name kept as *copy32; wave585 Cap residual raised payload 32→128.
+ * Callers must pass a dst buffer of at least 128 bytes.
+ * PLATFORM: SHARED
+ */
 void pipeline_onefunc_param_name_copy32(uint8_t *out, int32_t i, uint8_t *dst) {
   OneFuncSidecar *sc;
   uint8_t *row;
@@ -5340,7 +5363,7 @@ void pipeline_onefunc_param_name_copy32(uint8_t *out, int32_t i, uint8_t *dst) {
   int32_t k;
   if (!dst)
     return;
-  memset(dst, 0, 32);
+  memset(dst, 0, 128);
   if (!out || !(sc = onefunc_sidecar_get(out, 0)) || i < 0 || i >= sc->param_names.len)
     return;
   pl = (int32_t *)grow_vec_at(&sc->param_name_lens, i);
@@ -5348,8 +5371,8 @@ void pipeline_onefunc_param_name_copy32(uint8_t *out, int32_t i, uint8_t *dst) {
   if (!pl || !row)
     return;
   n = *pl;
-  if (n > 31)
-    n = 31;
+  if (n > 127)
+    n = 127;
   for (k = 0; k < n; k++)
     dst[k] = row[k];
 }

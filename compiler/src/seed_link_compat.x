@@ -247,8 +247,8 @@ export function xlang_expr_is_func_param_at(arena: *u8, mod: *u8, func_idx: i32,
     let vlen: i32 = pipeline_expr_var_name_len(arena, expr_ref);
     if (plen <= 0) { return 0; }
     if (plen != vlen) { return 0; }
-    if (plen > 31) { return 0; }
-    let pbuf: u8[32] = [];
+    if (plen > 127) { return 0; }
+    let pbuf: u8[128] = [];
     let vbuf: u8[128] = [];
     pipeline_module_func_param_name_copy32(mod, func_idx, param_ix, &pbuf[0]);
     pipeline_expr_var_name_into(arena, expr_ref, &vbuf[0]);

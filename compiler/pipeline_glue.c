@@ -5433,7 +5433,7 @@ static int32_t glue_fold_func_return_operand_ref_c(struct ast_ASTArena *arena, s
  */
 static int32_t glue_expr_is_func_param_at_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx,
                                             int32_t expr_ref, int32_t param_ix) {
-  uint8_t pbuf[32];
+  uint8_t pbuf[128];
   uint8_t vbuf[128];
   int32_t plen;
   int32_t vlen;
@@ -23571,7 +23571,7 @@ void pipeline_asm_fill_param_slots(struct backend_AsmFuncCtx *ctx, struct ast_Mo
   int32_t off;
   int32_t np;
   int32_t i;
-  uint8_t pname_buf[32];
+  uint8_t pname_buf[128];
   int32_t plen;
   struct ast_ASTArena *arena;
   pipeline_glue_AsmFuncCtxLayout *ly;
@@ -25952,7 +25952,7 @@ static int32_t glue_try_fold_lcg_xor_while_elf_c(struct ast_ASTArena *arena,
 static int32_t glue_fold_expr_is_func_param0_c(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                 int32_t func_idx, int32_t expr_ref) {
   int32_t plen, vlen, k;
-  uint8_t pbuf[32];
+  uint8_t pbuf[128];
   uint8_t vbuf[128];
   if (!arena || !mod || expr_ref <= 0)
     return 0;

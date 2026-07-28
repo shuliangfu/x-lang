@@ -672,7 +672,7 @@ static int32_t parser_asm_seed_commit_onefunc_c(void *arena, void *module, struc
   pipeline_module_func_set_is_extern(module, fi_mod, 0);
   pipeline_module_func_set_is_async(module, fi_mod, func_is_async);
   for (p_copy = 0; p_copy < res->num_params; p_copy++) {
-    uint8_t pname32[32];
+    uint8_t pname32[128];
     memset(pname32, 0, sizeof(pname32));
     pipeline_onefunc_param_name_copy32(pool, p_copy, pname32);
     pipeline_module_func_param_write(module, fi_mod, p_copy, pname32,
@@ -1004,7 +1004,7 @@ static void xlang_seed_hoist_default_methods_c(void *module, int32_t for_kind, i
         pipeline_module_func_set_return_type(module, new_fi, rty);
         for (pi = 0; pi < nparams; pi++) {
           int32_t pty = pipeline_module_func_param_type_ref_at(module, new_fi, pi);
-          uint8_t pname32[32];
+          uint8_t pname32[128];
           int32_t plen;
           memset(pname32, 0, sizeof(pname32));
           plen = pipeline_module_func_param_name_len_at(module, new_fi, pi);

@@ -55,7 +55,7 @@ struct parser_asm_library_parse_scan_result {
   struct parser_asm_lexer next_lex;
   uint8_t name[128];
   int32_t name_len;
-  uint8_t param_name[32];
+  uint8_t param_name[128];
   int32_t param_name_len;
   uint8_t param_type_name[128];
   int32_t param_type_len;

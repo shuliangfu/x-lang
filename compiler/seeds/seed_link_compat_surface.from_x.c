@@ -129,8 +129,8 @@ int32_t xlang_expr_is_func_param_at(uint8_t *arena, uint8_t *mod, int32_t func_i
   int32_t vlen = pipeline_expr_var_name_len(arena, expr_ref);
   if (plen <= 0) { return 0; }
   if (plen != vlen) { return 0; }
-  if (plen > 31) { return 0; }
-  uint8_t pbuf[32] = {};
+  if (plen > 127) { return 0; }
+  uint8_t pbuf[128] = {};
   uint8_t vbuf[128] = {};
   pipeline_module_func_param_name_copy32(mod, func_idx, param_ix, &pbuf[0]);
   pipeline_expr_var_name_into(arena, expr_ref, &vbuf[0]);

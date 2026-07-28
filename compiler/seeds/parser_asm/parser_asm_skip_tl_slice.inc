@@ -1571,7 +1571,7 @@ static int32_t xlang_skip_commit_default_onefunc_c(void *arena, void *module,
   pipeline_module_func_set_is_async(module, fi_mod, 0);
   pool = parser_asm_onefunc_result_pool_ptr_c(res);
   for (p_copy = 0; p_copy < res->num_params; p_copy++) {
-    uint8_t pname32[32];
+    uint8_t pname32[128];
     int32_t pty;
     memset(pname32, 0, sizeof(pname32));
     if (pool)
@@ -3809,7 +3809,7 @@ void parser_asm_parse_one_extern_skip_into_slice_c(struct parser_asm_extern_pars
   struct parser_asm_lexer_result r;
   struct parser_asm_lexer lex_cur;
   uint8_t name_buf[64];
-  uint8_t pname_ex[32];
+  uint8_t pname_ex[128];
   uint8_t *ex_pool;
   int32_t name_len;
   int32_t n_ex;
@@ -3902,7 +3902,7 @@ void parser_asm_parse_one_extern_skip_into_slice_c(struct parser_asm_extern_pars
         return;
       }
       plen_ex = r.tok.ident_len;
-      if (plen_ex <= 0 || plen_ex > 31) {
+      if (plen_ex <= 0 || plen_ex > 127) {
         parser_asm_extern_parse_set_fail_c(out, lex);
         return;
       }
@@ -4091,7 +4091,7 @@ void parser_asm_write_extern_params_to_pools_c(void *arena, void *module, int32_
                                                struct parser_asm_extern_parse_result *res) {
   uint8_t *pool;
   int32_t p;
-  uint8_t pname32[32];
+  uint8_t pname32[128];
   int32_t plen;
   int32_t pty;
   if (!res)

@@ -1141,7 +1141,7 @@ export function expr_var_matches_func_param_index(arena: *ASTArena, var_ref: i32
     }
     let p_name_len: i32 = pipeline_module_func_param_name_len_at(mod, func_index, param_idx);
     if (p_name_len > 0) {
-      let pname_buf: u8[32] = [];
+      let pname_buf: u8[128] = [];
       pipeline_module_func_param_name_copy32(mod, func_index, param_idx, &pname_buf[0]);
       if (pname_buf[0] > 32) {
         if (base.var_name_len != p_name_len) {
@@ -1931,8 +1931,9 @@ export function codegen_try_emit_std_io_driver_buf_body(out: *CodegenOutBuf, mod
     let fn_local: u8[128] = [];
     let fn_len: i32 = 0;
     let nparams: i32 = 0;
-    let p0: u8[32] = [98, 117, 102, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let p1: u8[32] = [116, 105, 109, 101, 111, 117, 116, 95, 109, 115, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    /* wave585 Cap residual: param name scratch 32→128 for *copy32 payload. */
+    let p0: u8[128] = [];
+    let p1: u8[128] = [];
     let reg8: u8[8] = [114, 101, 103, 105, 115, 116, 101, 114];
     let rd11: u8[11] = [115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100];
     let wr12: u8[12] = [115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101];
@@ -1946,6 +1947,10 @@ export function codegen_try_emit_std_io_driver_buf_body(out: *CodegenOutBuf, mod
     }
     let p0_len: i32 = 3;
     let p1_len: i32 = 10;
+    /* Default short names "buf" / "timeout_ms" (std.io.driver helpers). */
+    p0[0] = 98; p0[1] = 117; p0[2] = 102;
+    p1[0] = 116; p1[1] = 105; p1[2] = 109; p1[3] = 101; p1[4] = 111; p1[5] = 117;
+    p1[6] = 116; p1[7] = 95; p1[8] = 109; p1[9] = 115;
     pipeline_module_func_name_copy64(module, fi, &fn_local[0]);
     fn_len = pipeline_module_func_name_len_at(module, fi);
     nparams = pipeline_module_func_num_params_at(module, fi);
@@ -2389,7 +2394,7 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
           while (pi < np) {
             let p_name_len: i32 = pipeline_module_func_param_name_len_at(mod, fi, pi);
             if (p_name_len > 0 && p_name_len == base.var_name_len) {
-              let pname_buf: u8[32] = [];
+              let pname_buf: u8[128] = [];
               pipeline_module_func_param_name_copy32(mod, fi, pi, &pname_buf[0]);
               let matched: bool = true;
               let j: i32 = 0;
@@ -3060,7 +3065,7 @@ export function field_access_base_is_pointer_param(arena: *ASTArena, base_ref: i
     while (pi < np) {
       let p_name_len: i32 = pipeline_module_func_param_name_len_at(mod, func_index, pi);
       if (p_name_len > 0 && p_name_len == base.var_name_len) {
-        let pname_buf: u8[32] = [];
+        let pname_buf: u8[128] = [];
         pipeline_module_func_param_name_copy32(mod, func_index, pi, &pname_buf[0]);
         let matched: bool = true;
         let j: i32 = 0;
@@ -3170,7 +3175,7 @@ export function field_access_base_param_type_known(arena: *ASTArena, base_ref: i
     while (pi < np) {
       let p_name_len: i32 = pipeline_module_func_param_name_len_at(mod, func_index, pi);
       if (p_name_len > 0 && p_name_len == base.var_name_len) {
-        let pname_buf: u8[32] = [];
+        let pname_buf: u8[128] = [];
         pipeline_module_func_param_name_copy32(mod, func_index, pi, &pname_buf[0]);
         let matched: bool = true;
         let j: i32 = 0;
@@ -10758,7 +10763,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           let parm_i: i32 = 0;
           let nparm: i32 = pipeline_module_func_num_params_at(mono_mod, mono_fi);
           while (parm_i < nparm) {
-            let pname: u8[32] = [];
+            let pname: u8[128] = [];
             let pnl: i32 = pipeline_module_func_param_name_len_at(mono_mod, mono_fi, parm_i);
             pipeline_module_func_param_name_copy32(mono_mod, mono_fi, parm_i, &pname[0]);
             if (pnl == base_mono.var_name_len && pnl > 0) {
@@ -14378,7 +14383,7 @@ export function codegen_name_is_local_binding(arena: *ASTArena, ctx: *PipelineDe
       while (pi < np) {
         let pl: i32 = pipeline_module_func_param_name_len_at(mod, fi, pi);
         if (pl == name_len && pl > 0) {
-          let pb: u8[32] = [];
+          let pb: u8[128] = [];
           let ok: i32 = 1;
           let j: i32 = 0;
           pipeline_module_func_param_name_copy32(mod, fi, pi, &pb[0]);
@@ -15266,9 +15271,9 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
         }
         /* See implementation. */
         if (pipeline_module_func_param_name_len_at(module, fi, p) > 0) {
-          let plocal: u8[32] = [];
+          let plocal: u8[128] = [];
           codegen_copy_param_name32_from_module(module, fi, p, &plocal[0]);
-          if (plocal[0] > 32 && emit_bytes_32(out, plocal, pipeline_module_func_param_name_len_at(module, fi, p)) != 0) {
+          if (plocal[0] > 32 && emit_bytes_from_ptr(out, &plocal[0], pipeline_module_func_param_name_len_at(module, fi, p)) != 0) {
             return -1;
           }
         } else {
@@ -16727,7 +16732,7 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
       return 0;
     }
     let pn_len: i32 = 1;
-    let pn: u8[32] = [];
+    let pn: u8[128] = [];
     pn[0] = 120;
     if (num_params > 0) {
       pn_len = pipeline_module_func_param_name_len_at(module, fi, 0);
@@ -16904,7 +16909,7 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
           return -1;
         }
         let pni_len: i32 = pipeline_module_func_param_name_len_at(module, fi, pi);
-        let pni: u8[32] = [];
+        let pni: u8[128] = [];
         pipeline_module_func_param_name_copy32(module, fi, pi, &pni[0]);
         if (pni_len <= 0) {
           pni[0] = 120;
@@ -17288,7 +17293,7 @@ export function codegen_try_emit_generic_impl_method_mono(arena: *ASTArena, out:
           }
           return -1;
         }
-        let pname: u8[32] = [];
+        let pname: u8[128] = [];
         let plen: i32 = pipeline_module_func_param_name_len_at(module, fi, pi);
         pipeline_module_func_param_name_copy32(module, fi, pi, &pname[0]);
         if (plen <= 0) {
@@ -17647,7 +17652,7 @@ function codegen_try_emit_generic_impl_method_extern_mono(arena: *ASTArena, out:
           }
           return -1;
         }
-        let pname: u8[32] = [];
+        let pname: u8[128] = [];
         let plen: i32 = pipeline_module_func_param_name_len_at(module, fi, pi);
         pipeline_module_func_param_name_copy32(module, fi, pi, &pname[0]);
         if (plen <= 0) {
@@ -17893,9 +17898,9 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
           return -1;
         }
         if (pipeline_module_func_param_name_len_at(module, fi, p) > 0) {
-          let plocal: u8[32] = [];
+          let plocal: u8[128] = [];
           codegen_copy_param_name32_from_module(module, fi, p, &plocal[0]);
-          if (plocal[0] > 32 && emit_bytes_32(out, plocal, pipeline_module_func_param_name_len_at(module, fi, p)) != 0) {
+          if (plocal[0] > 32 && emit_bytes_from_ptr(out, &plocal[0], pipeline_module_func_param_name_len_at(module, fi, p)) != 0) {
             return -1;
           }
         } else {

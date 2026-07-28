@@ -1664,7 +1664,7 @@ int32_t pipeline_typeck_slice_region_escape_strict_minimal(struct ast_ASTArena *
 /* G-02f-139：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int pipeline_expr_is_func_param_at_strict_minimal(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                          int32_t func_idx, int32_t expr_ref, int32_t param_ix) {
-  uint8_t pbuf[32];
+  uint8_t pbuf[128];
   uint8_t vbuf[128];
   int32_t plen;
   int32_t vlen;
