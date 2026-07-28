@@ -139,13 +139,25 @@ static struct ast_ASTArena *g_pipeline_asm_emit_arena;
 static int32_t g_pipeline_asm_emit_call_param_ty_ref;
 /** CALL 实参 emit 嵌套深度（>0 时 FIELD_ACCESS 可区分传址 struct 字段）。 */
 static int32_t g_glue_emit_call_arg_depth;
-/** SysV sret：>16B struct 返回时 incoming hidden rdi 保存栈槽（-1=当前函数非 sret 目标）。 */
+/**
+ * Large-struct (>16B) return home: stack slot holding the caller's dest pointer.
+ * PLATFORM: LINUX+MACOS x86_64 SysV — hidden dest arrives in rdi, saved here.
+ * PLATFORM: MACOS|ARM64 AAPCS64 — Indirect Result Location arrives in x8, saved here.
+ * (-1 = current function is not an sret return target.)
+ */
 static int32_t g_pipeline_asm_sret_home_off = -1;
-/** 1=当前 emit 函数经 hidden rdi 写回大 struct 返回值（x86_64）。 */
+/**
+ * 1 = current emit function writes large struct return via hidden dest (sret).
+ * PLATFORM: LINUX+MACOS x86_64 SysV (rdi) · MACOS|ARM64 AAPCS64 (x8).
+ */
 static int32_t g_pipeline_asm_func_sret_active = 0;
-/** 当前 emit 函数 sret 返回字节宽（>16 时有效）。 */
+/** Current emit function sret return byte width (valid when >16). */
 static int32_t g_pipeline_asm_func_sret_ret_sz = 0;
-/** CALL 侧 hidden sret：实参寄存器槽整体右移位数（0 或 1；rdi 已预装 dest 指针）。 */
+/**
+ * CALL-side sret: how many GP arg slots shift (0 or 1).
+ * PLATFORM: LINUX+MACOS x86_64 SysV only — rdi already holds dest, args start at rsi.
+ * PLATFORM: MACOS|ARM64 AAPCS64 — x8 is separate from x0–x7; always 0 (no GP shift).
+ */
 static int32_t g_pipeline_asm_call_sret_reg_shift = 0;
 /**
  * PLATFORM: SHARED — expected return type for import CALL/METHOD_CALL overload mangle.
@@ -2024,6 +2036,37 @@ extern int32_t pipeline_elf_ctx_append_reloc_typed(uint8_t *ctx_bytes, int32_t o
                                                    int32_t r_type, int32_t r_pcrel);
 
 /**
+ * PLATFORM: MACOS|ARM64 AAPCS64 — mov x8, x0 (Indirect Result Location = dest).
+ * wave591: large-struct CALL sret setup; x8 is not an arg-reg index (0..7).
+ * Encoding: ORR X8, XZR, X0 → 0xAA0003E8.
+ */
+static int32_t glue_arm64_mov_x0_to_x8_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  uint8_t insn[4];
+  if (!elf_ctx)
+    return -1;
+  insn[0] = 0xe8;
+  insn[1] = 0x03;
+  insn[2] = 0x00;
+  insn[3] = 0xaa;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, insn, 4);
+}
+
+/**
+ * PLATFORM: MACOS|ARM64 AAPCS64 — mov x0, x8 (save incoming sret dest for store).
+ * Encoding: ORR X0, XZR, X8 → 0xAA0803E0.
+ */
+static int32_t glue_arm64_mov_x8_to_x0_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  uint8_t insn[4];
+  if (!elf_ctx)
+    return -1;
+  insn[0] = 0xe0;
+  insn[1] = 0x03;
+  insn[2] = 0x08;
+  insn[3] = 0xaa;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, insn, 4);
+}
+
+/**
  * PLATFORM: MACOS|ARM64 — adrp x1 + add pageoff → address of named COMMON in x1 (rbx).
  * G.7 twin of pipeline_asm_modlet_lea_rbx_adrp_arm64 but for arbitrary durable labels
  * (wave408 ARRAY_LIT durable; not only modlet table).
@@ -2777,8 +2820,9 @@ static int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
   ly = pipeline_asm_ctx_layout(ctx);
   ret_op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
   if (ret_op != 0) {
-    if (g_pipeline_asm_func_sret_active && g_pipeline_asm_func_sret_ret_sz > 16 && ta == 0 &&
-        pipeline_expr_kind_ord_at(arena, ret_op) == 3) {
+    /* PLATFORM: x86_64 SysV + arm64 AAPCS64 sret — return local_var of >16B struct. */
+    if (g_pipeline_asm_func_sret_active && g_pipeline_asm_func_sret_ret_sz > 16 &&
+        (ta == 0 || ta == 1) && pipeline_expr_kind_ord_at(arena, ret_op) == 3) {
       if (glue_emit_sret_return_from_var_elf_c(arena, elf_ctx, ret_op, ctx, ta) != 0)
         return -1;
     } else if (arena && ctx && elf_ctx && (ta == 0 || ta == 1) &&
@@ -3850,11 +3894,13 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
   if (nf < 0 || nf > GLUE_ASM_MAX_STRUCT_LIT_FIELDS)
     return -1;
   /**
-   * return + SysV sret：rbx 直指 caller hidden dest（[sret_home]），勿用 rbp+next_offset 小 temp
-   * （大 struct 字段偏移可越过 saved rbp 致 SIGSEGV）。
+   * return + sret: rbx points at caller hidden dest ([sret_home]), not a small
+   * rbp+next_offset temp (field offsets can overrun saved fp → SIGSEGV).
+   * PLATFORM: LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64 (wave591).
    */
   base_off = 0;
-  if (stack_slot_off < 0 && ta == 0 && g_pipeline_asm_func_sret_active && g_pipeline_asm_sret_home_off >= 0) {
+  if (stack_slot_off < 0 && (ta == 0 || ta == 1) && g_pipeline_asm_func_sret_active &&
+      g_pipeline_asm_sret_home_off >= 0) {
     if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
       return -1;
     sret_direct = 1;
@@ -3988,10 +4034,13 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
         return -1;
       return 0;
     }
-    /** SysV >16B sret：已直写 caller dest 则完成；否则从栈 temp memcpy。 */
-    if (vb > 16 && ta == 0 && sret_direct)
+    /**
+     * >16B sret: already wrote caller dest, or memcpy from stack temp.
+     * PLATFORM: LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64 (wave591).
+     */
+    if (vb > 16 && (ta == 0 || ta == 1) && sret_direct)
       return 0;
-    if (vb > 16 && ta == 0 && g_pipeline_asm_func_sret_active)
+    if (vb > 16 && (ta == 0 || ta == 1) && g_pipeline_asm_func_sret_active)
       return glue_emit_sret_memcpy_rbx_to_home_elf_c(elf_ctx, vb, ta);
   }
   return backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
@@ -6086,17 +6135,29 @@ static int32_t glue_emit_struct_type_let_init_elf_c(struct ast_ASTArena *arena,
         if (best > call_ret_sz)
           call_ret_sz = best;
       }
-      /** SysV >16B struct return: hidden rdi = let slot; callee writes; do not glue_store_retval. */
-      if (call_ret_sz > 16 && ta == 0) {
+      /**
+       * >16B struct return into let slot (callee writes; no glue_store_retval).
+       * PLATFORM: LINUX+MACOS x86_64 SysV — hidden dest in rdi + GP arg shift.
+       * PLATFORM: MACOS|ARM64 AAPCS64 (wave591) — dest in x8; no GP shift.
+       */
+      if (call_ret_sz > 16 && (ta == 0 || ta == 1)) {
         if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta) != 0) {
           pipeline_asm_set_call_expected_ret_ty_c(0);
           return -1;
         }
-        if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) {
-          pipeline_asm_set_call_expected_ret_ty_c(0);
-          return -1;
+        if (ta == 0) {
+          if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) {
+            pipeline_asm_set_call_expected_ret_ty_c(0);
+            return -1;
+          }
+          pipeline_asm_emit_set_call_sret_reg_shift_c(1);
+        } else {
+          /* AAPCS64: Indirect Result Location Register x8. */
+          if (glue_arm64_mov_x0_to_x8_elf_c(elf_ctx) != 0) {
+            pipeline_asm_set_call_expected_ret_ty_c(0);
+            return -1;
+          }
         }
-        pipeline_asm_emit_set_call_sret_reg_shift_c(1);
         emit_rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta);
         pipeline_asm_emit_set_call_sret_reg_shift_c(0);
         pipeline_asm_set_call_expected_ret_ty_c(0);
@@ -16197,7 +16258,7 @@ static int32_t glue_field_call_arg_try_load_agg_from_rax_elf_c(struct ast_ASTAre
  *
  * @return 0 success, -1 emit error, PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED not CALL/METHOD base
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path (ta layout;
- *   sret gate is LINUX+MACOS x86_64 SysV, ta==0)
+ *   sret gate: x86_64 SysV + arm64 AAPCS64 x8 (wave591))
  */
 static int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *arena,
                                                         struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
@@ -16277,7 +16338,7 @@ static int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *are
     /*
      * wave590: same order as glue_emit_struct_type_let_init for large CALL.
      * 1) STRUCT_LIT return inline into home (works dual-end freestanding).
-     * 2) SysV sret: rdi = home, reg_shift=1 (ta==0 only).
+     * 2) sret: x86 SysV rdi=home+shift; arm64 AAPCS64 x8=home (wave591).
      * METHOD_CALL has no STRUCT_LIT-return inline helper; sret path covers it.
      */
     if (base_ko == 48) {
@@ -16292,19 +16353,30 @@ static int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *are
       }
     }
     if (materialised == 0) {
-      /* PLATFORM: LINUX+MACOS x86_64 SysV — hidden sret dest in rdi. */
-      if (ta != 0)
+      /*
+       * Non-inline large CALL: materialise via sret into home.
+       * PLATFORM: LINUX+MACOS x86_64 SysV — hidden dest in rdi + GP shift.
+       * PLATFORM: MACOS|ARM64 AAPCS64 (wave591) — dest in x8; no GP shift.
+       */
+      if (ta != 0 && ta != 1)
         return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
       pipeline_asm_set_call_expected_ret_ty_c(base_ty > 0 ? base_ty : 0);
       if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta) != 0) {
         pipeline_asm_set_call_expected_ret_ty_c(0);
         return -1;
       }
-      if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) {
-        pipeline_asm_set_call_expected_ret_ty_c(0);
-        return -1;
+      if (ta == 0) {
+        if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) {
+          pipeline_asm_set_call_expected_ret_ty_c(0);
+          return -1;
+        }
+        pipeline_asm_emit_set_call_sret_reg_shift_c(1);
+      } else {
+        if (glue_arm64_mov_x0_to_x8_elf_c(elf_ctx) != 0) {
+          pipeline_asm_set_call_expected_ret_ty_c(0);
+          return -1;
+        }
       }
-      pipeline_asm_emit_set_call_sret_reg_shift_c(1);
       emit_rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, base_ref, ctx, ta);
       pipeline_asm_emit_set_call_sret_reg_shift_c(0);
       pipeline_asm_set_call_expected_ret_ty_c(0);
@@ -18776,13 +18848,31 @@ static int32_t glue_call_return_byte_size_c(struct ast_ASTArena *arena, int32_t 
 }
 
 /**
- * SysV sret 写回：rbx 指向源 struct，memcpy 到 g_pipeline_asm_sret_home_off 保存的 hidden dest 指针。
+ * sret write-back: rbx = source struct base; memcpy into caller dest saved at
+ * g_pipeline_asm_sret_home_off.
+ * PLATFORM: LINUX+MACOS x86_64 SysV — dest@rdi src@rsi n@rdx (rax scratch; arg regs distinct).
+ * PLATFORM: MACOS|ARM64 AAPCS64 (wave591) — dest@x0 src@x1 n@x2.
+ *   arm64 cannot reuse the x86 push/pop sequence: mov_rax_to_arg_reg(0) is a no-op
+ *   (arg0≡x0), so pop would clobber dest. Order: keep src in x1 (rbx), size→x2 first,
+ *   then load dest into x0.
  */
 static int32_t glue_emit_sret_memcpy_rbx_to_home_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t sz,
                                                        int32_t ta) {
   static const uint8_t memcpy_sym[] = "memcpy";
-  if (ta != 0 || !elf_ctx || sz <= 16 || g_pipeline_asm_sret_home_off < 0)
+  if ((ta != 0 && ta != 1) || !elf_ctx || sz <= 16 || g_pipeline_asm_sret_home_off < 0)
     return -1;
+  if (ta == 1) {
+    /* src already in x1 (=rbx); set n@x2 then dest@x0 (load must not clobber x1/x2). */
+    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, sz, 0, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta) != 0)
+      return -1;
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
+      return -1;
+    /* x0=dest, x1=src, x2=n */
+    return backend_enc_call_arch(elf_ctx, (uint8_t *)memcpy_sym, (int32_t)(sizeof(memcpy_sym) - 1), ta);
+  }
+  /* x86 SysV: rax scratch, rdi/rsi/rdx hold args. */
   if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
     return -1;
   if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
@@ -24014,12 +24104,23 @@ int32_t pipeline_asm_emit_param_home_elf_c(struct platform_elf_ElfCodegenCtx *el
   /** seed partial mega 可能未调 backend.x 的 emit_set_func_index；形参 *T field 识别依赖此下标。 */
   pipeline_asm_emit_set_func_index(func_index);
   np = pipeline_asm_module_func_num_params_at(mod, func_index);
-  /** SysV >16B sret：incoming rdi 为 hidden dest；与形参个数无关须先于 homing 保存。 */
-  if (ta == 0 && g_pipeline_asm_func_sret_active && g_pipeline_asm_sret_home_off >= 0) {
-    if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, 0, ta) != 0)
-      return -1;
-    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
-      return -1;
+  /**
+   * >16B sret: save incoming hidden dest before param homing (independent of nargs).
+   * PLATFORM: LINUX+MACOS x86_64 SysV — rdi → [sret_home].
+   * PLATFORM: MACOS|ARM64 AAPCS64 (wave591) — x8 → [sret_home].
+   */
+  if (g_pipeline_asm_func_sret_active && g_pipeline_asm_sret_home_off >= 0) {
+    if (ta == 0) {
+      if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, 0, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
+        return -1;
+    } else if (ta == 1) {
+      if (glue_arm64_mov_x8_to_x0_elf_c(elf_ctx) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
+        return -1;
+    }
   }
   if (np <= 0)
     return 0;
@@ -26950,8 +27051,12 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(struct ast_Module *m
     g_pipeline_asm_func_sret_ret_sz = 0;
     pipeline_asm_fill_param_slots(bctx, m, i);
     pipeline_debug_trace_named_func_bodies("mega_post_param_slots", m, a);
-    /** SysV >16B 返回：预留 8B 保存 incoming hidden rdi（须在 top-level lets 之前）。 */
-    if (ta == 0) {
+    /**
+     * >16B return: reserve 8B to save incoming hidden dest (before top-level lets).
+     * PLATFORM: LINUX+MACOS x86_64 SysV (rdi) · MACOS|ARM64 AAPCS64 x8 (wave591).
+     * fill_param_slots already set next_offset ≥ 16 (saved fp/lr / rbx reserve).
+     */
+    if (ta == 0 || ta == 1) {
       int32_t fn_ret_sz = glue_func_return_byte_size_c(m, a, i);
       if (fn_ret_sz > 16) {
         g_pipeline_asm_func_sret_ret_sz = fn_ret_sz;
