@@ -4203,6 +4203,41 @@ static int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(struct platform_el
                                                                  struct backend_AsmFuncCtx *ctx, int32_t ta);
 
 /**
+ * wave613: peel nested ARRAY_LIT to the scalar/leaf element byte width for flat stores.
+ * `pipeline_asm_array_lit_elem_byte_sz_c` on a mid-level row returns full row width
+ * (e.g. `[[10,32]]` → 8), which is correct as outer stride but wrong as leaf_esz —
+ * flat writer would `str x0` at +0/+8 while INDEX uses i32 stride 4 →
+ * `[[[10,32]]][0][0][1]` freestanding=0 (host-C green; 2-level already green).
+ * G.7: single peel helper for vector_let_init + rvalue emit_array_lit flat paths.
+ * PLATFORM: SHARED freestanding multi-dim.
+ */
+static int32_t pipeline_asm_array_lit_leaf_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t init_ref) {
+  int32_t cur;
+  int32_t guard;
+  if (!arena || init_ref <= 0)
+    return 4;
+  cur = init_ref;
+  for (guard = 0; guard < 8; guard++) {
+    int32_t first;
+    if (pipeline_expr_kind_ord_at(arena, cur) != 46)
+      break;
+    first = pipeline_expr_array_lit_elem_ref(arena, cur, 0);
+    if (first <= 0)
+      break;
+    if (pipeline_expr_kind_ord_at(arena, first) != 46) {
+      /* Innermost ARRAY_LIT of non-array elems — scalar/struct width. */
+      int32_t esz = pipeline_asm_array_lit_elem_byte_sz_c(arena, cur);
+      return esz > 0 ? esz : 4;
+    }
+    cur = first;
+  }
+  {
+    int32_t esz = pipeline_asm_array_lit_elem_byte_sz_c(arena, init_ref);
+    return esz > 0 ? esz : 4;
+  }
+}
+
+/**
  * wave357: flatten nested ARRAY_LIT to row-major scalar stores at base+flat_i*leaf_esz.
  * Same address geometry as 1D vector_let (lea base once-per-store + positive store off).
  * @return 0 ok; -1 error
@@ -4308,11 +4343,8 @@ static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *aren
     }
   }
   if (has_nested != 0) {
-    /* Leaf esz: peel one nested ARRAY_LIT for scalar width (i32→4). */
-    esz = 4;
-    elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, 0);
-    if (elem_ref > 0 && pipeline_expr_kind_ord_at(arena, elem_ref) == 46)
-      esz = pipeline_asm_array_lit_elem_byte_sz_c(arena, elem_ref);
+    /* Leaf esz: peel all nested ARRAY_LIT levels to scalar width (wave613). */
+    esz = pipeline_asm_array_lit_leaf_elem_byte_sz_c(arena, init_ref);
     if (esz <= 0)
       esz = 4;
     flat_i = 0;
@@ -12030,7 +12062,14 @@ static int32_t glue_init_is_empty_array_lit(struct ast_ASTArena *arena, int32_t 
  *
  * wave598 Cap residual pure: >8B STRUCT_LIT/CALL elems use struct let-init into temp
  * homes (dual-GP / sret / in-place lit) then re-lea payload base for return ptr.
- * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV (ta==0); arm64 via same enc.
+ *
+ * wave613 Cap residual pure: nested multi-dim ARRAY_LIT rvalue (`[[10,32],[1,2]][0][0]`)
+ * must flatten row-major into the temp (G.7 same authority as vector_let_init wave357).
+ * Root: per-elem `emit_expr_rec` on nested ARRAY_LIT leaves a **pointer** in rax; storing
+ * that at outer stride builds array-of-pointers while INDEX leave_addr+load expects
+ * contiguous T[N][M] (let `m:i32[2][2]=[[…]]` already green via flat writer). host-C
+ * braces hid freestanding wrong values (mac fs [0][0]=32, [0][1]=1; dual sum=65).
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
  */
 int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                  int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
@@ -12041,6 +12080,7 @@ int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct pla
   int32_t elem_ref;
   int32_t elem_ty;
   int32_t nbytes;
+  int32_t has_nested;
   pipeline_glue_AsmFuncCtxLayout *ly;
   ly = pipeline_asm_ctx_layout(ctx);
   if (!ly)
@@ -12053,6 +12093,14 @@ int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct pla
   /** ARRAY_LIT face: cap GLUE_ARRAY_LIT_MAX_ELEMS (1024, wave415; was 512 wave413). */
   if (n_arr <= 0 || n_arr > GLUE_ARRAY_LIT_MAX_ELEMS)
     return -1;
+  has_nested = 0;
+  for (ai = 0; ai < n_arr && ai < GLUE_ARRAY_LIT_MAX_ELEMS; ai++) {
+    elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai);
+    if (elem_ref > 0 && pipeline_expr_kind_ord_at(arena, elem_ref) == 46) {
+      has_nested = 1;
+      break;
+    }
+  }
   esz = pipeline_asm_array_lit_elem_byte_sz_c(arena, expr_ref);
   if (esz <= 0)
     esz = 4;
@@ -12080,6 +12128,24 @@ int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct pla
       temp_base = temp_base + reserve;
       ly->next_offset = temp_base;
     }
+  }
+  /*
+   * wave613: multi-dim nested ARRAY_LIT → flat row-major (≡ vector_let_init has_nested).
+   * Do not emit_rec nested rows (pointer-in-slot); INDEX expects contiguous scalars.
+   */
+  if (has_nested != 0) {
+    int32_t leaf_esz = pipeline_asm_array_lit_leaf_elem_byte_sz_c(arena, expr_ref);
+    int32_t flat_i = 0;
+    if (leaf_esz <= 0)
+      leaf_esz = 4;
+    if (pipeline_asm_emit_array_lit_flat_elf_c(arena, elf_ctx, expr_ref, ctx, ta, temp_base, leaf_esz,
+                                                &flat_i) != 0)
+      return -1;
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_base, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    return backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
   }
   if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_base, ta) != 0)
     return -1;
