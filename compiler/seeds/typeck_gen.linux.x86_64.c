@@ -3425,7 +3425,7 @@ void typeck_merge_dep_struct_layouts_into_entry(struct ast_Module * mod, struct 
       (void)((k = 0));
       while ((k < ndm_sl)) {
         (void)((nl = pipeline_module_struct_layout_name_len(dm, k)));
-        if (((nl > 0) && (nl <=63))) {
+        if (((nl > 0) && (nl <=127))) {
           (void)((nf_dep = pipeline_module_struct_layout_num_fields(dm, k)));
           if ((nf_dep > 64)) {
             (void)((nf_dep = 64));
@@ -3525,7 +3525,7 @@ void typeck_wpo_unify_soa_layouts(struct ast_Module * entry, struct ast_Pipeline
       (void)((k = 0));
       while ((k < nsl)) {
         (void)((nl = pipeline_module_struct_layout_name_len(dm, k)));
-        if (((nl > 0) && (nl <=63))) {
+        if (((nl > 0) && (nl <=127))) {
           (void)(pipeline_module_struct_layout_name_into(dm, k, nm_buf));
           (void)((any_soa = pipeline_module_struct_layout_soa_at(dm, k)));
           (void)((mj = -1));
@@ -6745,7 +6745,7 @@ int32_t typeck_coerce_struct_lit_field_inits_to_layout(struct ast_Module * modul
     (void)(pipeline_expr_struct_lit_type_name_into(arena, expr_ref, name_buf));
     while ((j < num_fields)) {
       (void)((flen = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, j)));
-      if (((flen > 0) && (flen <=63))) {
+      if (((flen > 0) && (flen <=127))) {
         (void)(pipeline_expr_struct_lit_field_name_into(arena, expr_ref, j, field_buf));
         (void)((ftr = typeck_get_field_type_ref_from_layout(module, name_buf, name_len, field_buf, flen)));
         (void)((init_r = pipeline_expr_struct_lit_init_ref(arena, expr_ref, j)));
@@ -6775,7 +6775,7 @@ int32_t typeck_check_expr_struct_lit(struct ast_Module * module, struct ast_ASTA
         if ((!(ast_ref_is_null(resolved_ref)) && (pipeline_type_kind_ord_at(arena, resolved_ref) ==ord_named))) {
           uint8_t backfill_name[128] = {};
           int32_t backfill_len = pipeline_type_named_name_into(arena, resolved_ref, &((backfill_name)[0]));
-          if (((backfill_len > 0) && (backfill_len <=63))) {
+          if (((backfill_len > 0) && (backfill_len <=127))) {
             (void)(pipeline_expr_struct_lit_type_name_set(arena, expr_ref, &((backfill_name)[0]), backfill_len));
           }
         }

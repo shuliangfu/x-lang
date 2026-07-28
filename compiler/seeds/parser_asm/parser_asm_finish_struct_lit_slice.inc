@@ -90,7 +90,8 @@ static int32_t parser_asm_alloc_var_expr_from_field_name_c(void *arena, uint8_t 
   struct ast_Expr ve;
   int32_t vref;
   int32_t vi;
-  if (!arena || !fnbuf || flen <= 0 || flen > 63)
+  /* wave583 Cap residual: field-shorthand VAR name content ≤127 (Expr.var_name[128]). */
+  if (!arena || !fnbuf || flen <= 0 || flen > 127)
     return 0;
   vref = ast_ast_arena_expr_alloc(arena);
   if (vref == 0)
@@ -104,7 +105,7 @@ static int32_t parser_asm_alloc_var_expr_from_field_name_c(void *arena, uint8_t 
   ve.float_val = 0.0;
   ve.var_name_len = flen;
   vi = 0;
-  while (vi < 64) {
+  while (vi < 128) {
     ve.var_name[vi] = (vi < flen) ? fnbuf[vi] : (uint8_t)0;
     vi = vi + 1;
   }
@@ -121,7 +122,8 @@ static void parser_asm_parse_struct_lit_fields_c(void *arena, int32_t lit_ref, s
   struct parser_asm_lexer lex;
   struct parser_asm_lexer_result rf;
   int32_t flen;
-  uint8_t fnbuf[64];
+  /* wave583 Cap residual: struct-lit field name content ≤127. */
+  uint8_t fnbuf[128];
   size_t fs;
   int32_t fq;
   struct parser_asm_parse_expr_result fv;
@@ -146,11 +148,11 @@ static void parser_asm_parse_struct_lit_fields_c(void *arena, int32_t lit_ref, s
     if (rf.tok.kind != (int32_t)TOKEN_IDENT)
       return;
     flen = rf.tok.ident_len;
-    if (flen <= 0 || flen > 63)
+    if (flen <= 0 || flen > 127)
       return;
     fs = rf.token_start;
     fq = 0;
-    while (fq < flen && fq < 64) {
+    while (fq < flen && fq < 128) {
       size_t idx_fs;
       idx_fs = fs + (size_t)fq;
       if (idx_fs >= source->length)
@@ -158,7 +160,7 @@ static void parser_asm_parse_struct_lit_fields_c(void *arena, int32_t lit_ref, s
       fnbuf[fq] = source->data[idx_fs];
       fq = fq + 1;
     }
-    while (fq < 64) {
+    while (fq < 128) {
       fnbuf[fq] = 0;
       fq = fq + 1;
     }
@@ -256,7 +258,8 @@ void parser_asm_finish_struct_lit_from_type_ident_into_c(void *arena, int32_t li
                                                          struct parser_asm_parse_expr_result *out) {
   struct ast_Expr le;
   int32_t tlen;
-  uint8_t tnm[64];
+  /* wave583 Cap residual: struct-lit type name content ≤127 (struct_lit_struct_name[128]). */
+  uint8_t tnm[128];
   int32_t ti;
   int32_t tj;
   if (!arena || !source || !out)
@@ -266,10 +269,10 @@ void parser_asm_finish_struct_lit_from_type_ident_into_c(void *arena, int32_t li
     return;
   le = ast_ast_arena_expr_get(arena, lit_ref);
   tlen = le.var_name_len;
-  if (tlen <= 0 || tlen > 63)
+  if (tlen <= 0 || tlen > 127)
     return;
   ti = 0;
-  while (ti < 64) {
+  while (ti < 128) {
     tnm[ti] = le.var_name[ti];
     ti = ti + 1;
   }
@@ -277,7 +280,7 @@ void parser_asm_finish_struct_lit_from_type_ident_into_c(void *arena, int32_t li
   le.kind = PARSER_ASM_FINISH_STRUCT_LIT_KIND;
   le.struct_lit_struct_name_len = tlen;
   tj = 0;
-  while (tj < 64) {
+  while (tj < 128) {
     le.struct_lit_struct_name[tj] = tnm[tj];
     tj = tj + 1;
   }

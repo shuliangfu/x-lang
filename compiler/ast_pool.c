@@ -3805,7 +3805,8 @@ int32_t pipeline_module_struct_layout_field_name_len(struct ast_Module *m, int32
   if (!fe)
     return 0;
   fl = fe->name_len;
-  return (fl > 0 && fl <= 63) ? fl : 0;
+  /* wave583 Cap residual: field name content ≤127 (StructLayoutFieldEntry.name[128]). */
+  return (fl > 0 && fl <= 127) ? fl : 0;
 }
 
 /**
@@ -3901,10 +3902,11 @@ int32_t pipeline_module_struct_layout_type_param_name_len(struct ast_Module *m, 
   ent = (LayoutTypeParamEntry *)grow_vec_at(&sc->struct_layout_type_params, abs);
   if (!ent)
     return 0;
-  return (ent->name_len > 0 && ent->name_len <= 63) ? ent->name_len : 0;
+  /* wave583 Cap residual: type-param name content ≤127 (LayoutTypeParamEntry.name[128]). */
+  return (ent->name_len > 0 && ent->name_len <= 127) ? ent->name_len : 0;
 }
 
-/** wave467: copy type-param name into out64. PLATFORM: SHARED */
+/** wave467: copy type-param name into out (128-byte row). PLATFORM: SHARED */
 void pipeline_module_struct_layout_type_param_name_into(struct ast_Module *m, int32_t li, int32_t j,
                                                        uint8_t *out64) {
   ModuleSidecar *sc;
@@ -3913,7 +3915,7 @@ void pipeline_module_struct_layout_type_param_name_into(struct ast_Module *m, in
   int32_t abs;
   if (!out64)
     return;
-  memset(out64, 0, 64);
+  memset(out64, 0, 128);
   if (!m || li < 0 || j < 0)
     return;
   sc = module_sidecar_get(m, 0);
@@ -3926,7 +3928,8 @@ void pipeline_module_struct_layout_type_param_name_into(struct ast_Module *m, in
   ent = (LayoutTypeParamEntry *)grow_vec_at(&sc->struct_layout_type_params, abs);
   if (!ent || ent->name_len <= 0)
     return;
-  memcpy(out64, ent->name, 64);
+  /* wave583: full 128-byte row (match name_into for layout/field). */
+  memcpy(out64, ent->name, 128);
 }
 
 void pipeline_module_struct_layout_field_name_into(struct ast_Module *m, int32_t li, int32_t j, uint8_t *out64) {

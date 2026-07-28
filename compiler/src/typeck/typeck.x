@@ -2561,7 +2561,8 @@ ctx: *PipelineDepCtx): void {
       k = 0;
       while (k < ndm_sl) {
         nl = pipeline_module_struct_layout_name_len(dm, k);
-        if (nl > 0 && nl <= 63) {
+        /* wave583 Cap residual: merge layout names ≤127 (scratch64 slots are 128 bytes). */
+        if (nl > 0 && nl <= 127) {
           nf_dep = pipeline_module_struct_layout_num_fields(dm, k);
           if (nf_dep > 64) {
             nf_dep = 64;
@@ -2682,7 +2683,8 @@ export function typeck_wpo_unify_soa_layouts(entry: *Module, ctx: *PipelineDepCt
       k = 0;
       while (k < nsl) {
         nl = pipeline_module_struct_layout_name_len(dm, k);
-        if (nl > 0 && nl <= 63) {
+        /* wave583 Cap residual: WPO SoA unify layout names ≤127. */
+        if (nl > 0 && nl <= 127) {
           pipeline_module_struct_layout_name_into(dm, k, nm_buf);
           any_soa = pipeline_module_struct_layout_soa_at(dm, k);
           mj = -1;
@@ -6836,7 +6838,8 @@ expr_ref: i32): i32 {
     pipeline_expr_struct_lit_type_name_into(arena, expr_ref, name_buf);
     while (j < num_fields) {
       flen = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, j);
-      if (flen > 0 && flen <= 63) {
+      /* wave583 Cap residual: struct-lit field name content ≤127. */
+      if (flen > 0 && flen <= 127) {
         pipeline_expr_struct_lit_field_name_into(arena, expr_ref, j, field_buf);
         ftr = get_field_type_ref_from_layout(module, name_buf, name_len, field_buf, flen);
         init_r = pipeline_expr_struct_lit_init_ref(arena, expr_ref, j);
@@ -6885,7 +6888,8 @@ export function typeck_check_expr_struct_lit(
         && pipeline_type_kind_ord_at(arena, resolved_ref) == ord_named) {
           let backfill_name: u8[128] = [];
           let backfill_len: i32 = pipeline_type_named_name_into(arena, resolved_ref, &backfill_name[0]);
-          if (backfill_len > 0 && backfill_len <= 63) {
+          /* wave583 Cap residual: anonymous struct-lit type name backfill ≤127. */
+          if (backfill_len > 0 && backfill_len <= 127) {
             /* Why setter (not get_copy/set_copy): avoids returning the ~400-byte ast.Expr
              * by value across the X-ABI boundary (sret mismatch → SIGBUS on arm64). */
             pipeline_expr_struct_lit_type_name_set(arena, expr_ref, &backfill_name[0], backfill_len);

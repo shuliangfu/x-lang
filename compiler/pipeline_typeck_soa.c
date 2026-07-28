@@ -16,7 +16,8 @@ extern int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *ctx);
 static int32_t typeck_soa_find_layout_idx_by_name(struct ast_Module *module, uint8_t *name, int32_t name_len) {
   int32_t k;
   int32_t j;
-  if (!module || !name || name_len <= 0 || name_len > 63)
+  /* wave583 Cap residual: layout name content ≤127 (StructLayout.name[128]). */
+  if (!module || !name || name_len <= 0 || name_len > 127)
     return -1;
   for (k = 0; k < (int32_t)module->num_struct_layouts; k++) {
     int32_t ln = pipeline_module_struct_layout_name_len(module, k);
@@ -109,7 +110,8 @@ static int32_t typeck_soa_col_base_for_field(struct ast_Module *module, struct a
  */
 int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module, struct ast_ASTArena *arena, int32_t elem_type_ref,
                                            int32_t array_len, int32_t depth) {
-  uint8_t name[64];
+  /* wave583 Cap residual: TYPE_NAMED name into 128-byte row. */
+  uint8_t name[128];
   int32_t nlen;
   int32_t li;
   int32_t nf;
@@ -121,7 +123,7 @@ int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module, struct ast
   if (pipeline_type_kind_ord_at(arena, elem_type_ref) != 8)
     return 0;
   nlen = pipeline_type_named_name_into(arena, elem_type_ref, name);
-  if (nlen <= 0)
+  if (nlen <= 0 || nlen > 127)
     return 0;
   li = typeck_soa_find_layout_idx_by_name(module, name, nlen);
   if (li < 0 || pipeline_module_struct_layout_soa_at(module, li) == 0)
@@ -155,11 +157,12 @@ int32_t pipeline_typeck_field_soa_index_c(struct ast_Module *module, struct ast_
   int32_t bt_kind;
   int32_t elem_ty;
   int32_t array_sz;
-  uint8_t elem_nm[64];
+  /* wave583 Cap residual: SoA name/field buffers 64→128. */
+  uint8_t elem_nm[128];
   int32_t elem_nlen;
   int32_t li;
   int32_t fl;
-  uint8_t fn_buf[64];
+  uint8_t fn_buf[128];
   int32_t j;
   int32_t fnlen;
   int32_t ftr;
@@ -178,9 +181,9 @@ int32_t pipeline_typeck_field_soa_index_c(struct ast_Module *module, struct ast_
   /** skip .x typeck：形参 VAR 常无 resolved_type；按 emit 函数或全 module 形参表回落。 */
   if (base_ty <= 0 && pipeline_expr_kind_ord_at(arena, ix_base_ref) == 3) {
     int32_t fi;
-    uint8_t vname[64];
+    uint8_t vname[128];
     int32_t vlen = pipeline_expr_var_name_len(arena, ix_base_ref);
-    if (vlen > 0 && vlen <= 63) {
+    if (vlen > 0 && vlen <= 127) {
       pipeline_expr_var_name_into(arena, ix_base_ref, vname);
       fi = g_pipeline_asm_emit_func_index;
       if (fi >= 0 && fi < (int32_t)module->num_funcs)
@@ -208,13 +211,13 @@ int32_t pipeline_typeck_field_soa_index_c(struct ast_Module *module, struct ast_
   if (pipeline_type_kind_ord_at(arena, elem_ty) != 8)
     return 0;
   elem_nlen = pipeline_type_named_name_into(arena, elem_ty, elem_nm);
-  if (elem_nlen <= 0)
+  if (elem_nlen <= 0 || elem_nlen > 127)
     return 0;
   li = typeck_soa_find_layout_module_and_idx(module, elem_nm, elem_nlen, &layout_mod);
   if (li < 0 || !layout_mod || pipeline_module_struct_layout_soa_at(layout_mod, li) == 0)
     return 0;
   fl = pipeline_expr_field_access_name_len(arena, expr_ref);
-  if (fl <= 0 || fl > 63)
+  if (fl <= 0 || fl > 127)
     return 0;
   pipeline_expr_field_access_name_into(arena, expr_ref, fn_buf);
   ftr = 0;
@@ -227,7 +230,7 @@ int32_t pipeline_typeck_field_soa_index_c(struct ast_Module *module, struct ast_
     if (fnlen != fl)
       continue;
     for (fi = 0; fi < fnlen; fi++) {
-      uint8_t fb[64];
+      uint8_t fb[128];
       pipeline_module_struct_layout_field_name_into(layout_mod, li, j, fb);
       if (fb[fi] != fn_buf[fi]) {
         feq = 0;

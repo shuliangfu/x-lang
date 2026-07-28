@@ -63,7 +63,8 @@ int32_t parser_asm_struct_field_name_from_tok_slice_c(struct parser_asm_lexer_re
                                                       struct parser_asm_slice_u8 *source, uint8_t *out) {
   if (!out)
     return -1;
-  if (r.tok.kind == (int32_t)TOKEN_IDENT && r.tok.ident_len > 0 && r.tok.ident_len <= 63) {
+  /* wave583 Cap residual: field name content ≤127 (StructLayoutFieldEntry.name[128]). */
+  if (r.tok.kind == (int32_t)TOKEN_IDENT && r.tok.ident_len > 0 && r.tok.ident_len <= 127) {
     parser_asm_copy_slice_to_name64_at_end_slice_c(source, r.next_lex.pos, r.tok.ident_len, out);
     return r.tok.ident_len;
   }
