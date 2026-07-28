@@ -4319,7 +4319,14 @@ static int32_t pipeline_asm_emit_array_lit_flat_elf_c(struct ast_ASTArena *arena
  * `S12[2]=[mk(),mk()]` run=20≠42; STRUCT_LIT control same class (run=11≠32). Host-C
  * braces hid it. G.7: per-elem glue_emit_struct_type_let_init at arch-aware home
  * (same nest_slot polarity as wave595 nested STRUCT_LIT field).
- * PLATFORM: SHARED freestanding · LINUX|x86 high-end · MACOS|ARM64 low-end.
+ *
+ * wave626 Cap residual pure: ≤8B STRUCT_LIT elements of fixed TYPE_ARRAY (e.g. Pt[2]).
+ * Root: rvalue STRUCT_LIT (slot_off=-1) materializes at ly->next_offset without
+ * advancing the high-end top; after fixed-array alloc, next_offset aliases array
+ * byte0. Field stores for elem1 overwrite a[0] before bulk store to +ai*esz →
+ * Ubuntu pure-asm p0x=0 / sum=32 (host-C 42; arm64 low-end next past alloc green).
+ * G.7: same in-place let-init authority for STRUCT_LIT (ko=45) at any esz — not
+ * only esz>8. PLATFORM: SHARED freestanding · LINUX|x86 high-end · MACOS|ARM64.
  */
 static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *arena,
                                                        struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,
@@ -4368,12 +4375,14 @@ static int32_t pipeline_asm_emit_vector_let_init_elf_c(struct ast_ASTArena *aren
     if (elem_ref == 0)
       continue;
     /*
-     * wave598: >8B named struct / dual-GP / sret element — do not clamp-store rax only.
+     * wave598/626: named struct / dual-GP / sret / STRUCT_LIT element — write in place.
      * Frame home polarity matches nested STRUCT_LIT field (wave595):
      *   PLATFORM: MACOS|ARM64 low-end — home = base + ai*esz
      *   PLATFORM: LINUX|x86 high-end — home = base - ai*esz
+     * wave626: STRUCT_LIT (ko=45) at any esz (not only esz>8) — rvalue path aliases
+     * high-end array byte0 via next_offset (see function doc).
      */
-    if (esz > 8) {
+    if (esz > 8 || pipeline_expr_kind_ord_at(arena, elem_ref) == 45) {
       int32_t elem_home;
       int32_t st;
       elem_home = (ta == 1) ? (stack_slot_off + ai * esz) : (stack_slot_off - ai * esz);
@@ -12168,7 +12177,11 @@ int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct pla
   for (ai = 0; ai < n_arr && ai < GLUE_ARRAY_LIT_MAX_ELEMS; ai++) {
     elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai);
     if (elem_ref != 0) {
-      if (esz > 8) {
+      /*
+       * wave598/626: >8B struct homes + STRUCT_LIT at any esz (G.7 same as vector_let_init).
+       * wave626: ≤8B STRUCT_LIT rvalue next_offset aliases high-end temp_base byte0.
+       */
+      if (esz > 8 || pipeline_expr_kind_ord_at(arena, elem_ref) == 45) {
         int32_t elem_home;
         int32_t st;
         elem_home = (ta == 1) ? (temp_base + ai * esz) : (temp_base - ai * esz);
@@ -12180,6 +12193,7 @@ int32_t pipeline_asm_emit_array_lit_elf_c(struct ast_ASTArena *arena, struct pla
           continue;
         if (st == -1)
           return -1;
+        /* st == -2: fall through to emit+store */
       }
       {
         int32_t may_clobber = glue_expr_emit_may_clobber_rbx_elf_c(arena, elem_ref);
