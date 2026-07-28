@@ -3132,6 +3132,8 @@ static int32_t glue_float_promote_src_ty_ref_c(struct ast_ASTArena *arena, int32
  * PLATFORM: SHARED type classification; x86_64 (ta==0) btc / REX.W neg; arm64
  * (ta==1) 64-bit neg via bit31 of the ALU opcode.
  */
+/* wave646: i32 GP canonicalize after 32-bit unary (defined with BITNOT). */
+static int32_t glue_enc_sxt_i32_result_to_rax_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 static int32_t pipeline_asm_emit_neg_elf_impl(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                               int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
   int32_t op;
@@ -3203,12 +3205,17 @@ static int32_t pipeline_asm_emit_neg_elf_impl(struct ast_ASTArena *arena, struct
    * wave310: after 32-bit neg, rax/eax is 0xffffffff for -1. Freestanding
    * compares u8/u16 against 0xff/0xffff — mask to declared width (cfold path
    * already masks; live NEG from assign `a=-1` does not).
-   * PLATFORM: SHARED emit / x86_64 and-imm; arm64 and-imm32.
+   * wave646: i32 needs sxtw/cdqe — 32-bit neg zero-extends high half while
+   * freestanding cmp is 64-bit and negative i32 lits are full-width sign-ext
+   * → `-x == -5` false (host-C / pure CTFE green). u32 keeps zero-ext.
+   * PLATFORM: SHARED emit / x86_64 and-imm+cdqe; arm64 and-imm32+sxtw.
    */
   {
     int32_t tr_n = pipeline_expr_resolved_type_ref(arena, expr_ref);
     int32_t k_n = (tr_n > 0) ? pipeline_type_kind_ord_at(arena, tr_n) : -1;
-    if (k_n == (int32_t)ast_TypeKind_TYPE_U8) {
+    if (k_n == (int32_t)ast_TypeKind_TYPE_I32) {
+      return glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta);
+    } else if (k_n == (int32_t)ast_TypeKind_TYPE_U8) {
       if (ta == 0) {
         /* and $0xff,%eax — must be imm32 (25 ff 00 00 00). Opcode 83 e0 ff
          * sign-extends imm8 0xff → and $0xffffffff (no-op). */
@@ -3259,6 +3266,33 @@ static int32_t pipeline_asm_emit_lognot_elf_impl(struct ast_ASTArena *arena,
 }
 
 /**
+ * Sign-extend i32 result in eax/w0 to full GP (rax/x0).
+ *
+ * wave646 Cap residual: freestanding binop cmp uses 64-bit registers and
+ * negative i32 literals are materialised as full-width sign-ext values, but
+ * 32-bit `neg`/`not` leave the high half zero → `~x == -1` / `-x == -5` false
+ * (host-C green; pure-asm often CTFE-folds). u32 must NOT call this (keeps
+ * zero-ext so `~0u == 4294967295` still matches 32-bit lit materialisation).
+ *
+ * PLATFORM: SHARED contract; x86_64 cdqe; arm64 sxtw x0,w0; other ta no-op.
+ */
+static int32_t glue_enc_sxt_i32_result_to_rax_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  if (!elf_ctx)
+    return -1;
+  if (ta == 0) {
+    /* cdqe — 48 98 */
+    static const uint8_t cdqe[2] = {0x48, 0x98};
+    return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)cdqe, 2);
+  }
+  if (ta == 1) {
+    /* sxtw x0, w0 — 0x93407c00 little-endian */
+    static const uint8_t sxtw[4] = {0x00, 0x7c, 0x40, 0x93};
+    return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)sxtw, 4);
+  }
+  return 0;
+}
+
+/**
  * EXPR_BITNOT: emit unary operand into eax/w0, then bitwise complement.
  *
  * wave290 Cap residual root fix:
@@ -3269,20 +3303,57 @@ static int32_t pipeline_asm_emit_lognot_elf_impl(struct ast_ASTArena *arena,
  *   lit BITNOT still works via const_folded_valid (mac path); this impl covers
  *   non-folded / runtime operands and closes the ELF dispatch hole.
  *
- * Authority: single ELF emit path here; encoder is backend_enc_not_eax_arch
- * (x86_64 notl %eax / arm64 mvn / riscv not — already product-linked).
+ * wave646 Cap residual:
+ *   (1) i64/u64/usize/isize/ptr: full-width not (mirror wave306 NEG) — prior
+ *       always 32-bit notl/mvn → `~i64(0) == -1` freestanding false.
+ *   (2) i32: after 32-bit not, sxtw/cdqe so cmp vs full-width -1 matches.
+ *   u32 stays 32-bit zero-ext (G.7: do not sxt unsigned).
+ *
+ * Authority: single ELF emit path here; encoders backend_enc_not_eax_arch +
+ * inline REX.W/sf=1 not for 64-bit + glue_enc_sxt_i32_result_to_rax_elf_c.
  * PLATFORM: SHARED dispatch; arch encoding via ta.
  */
 static int32_t pipeline_asm_emit_bitnot_elf_impl(struct ast_ASTArena *arena,
                                                  struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
                                                  struct backend_AsmFuncCtx *ctx, int32_t ta) {
   int32_t op;
+  int32_t use_i64_not = 0;
+  int32_t tr;
+  int32_t kind_ord = -1;
   op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
   if (op == 0)
     return -1;
   if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
     return -1;
-  return backend_enc_not_eax_arch(elf_ctx, ta);
+  /* Type width: prefer BITNOT result, else operand, else var decl (≡ NEG). */
+  tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+  if (tr <= 0)
+    tr = pipeline_expr_resolved_type_ref(arena, op);
+  if (tr <= 0 && ctx)
+    tr = glue_var_decl_type_ref_elf_c(arena, ctx, op);
+  if (tr > 0)
+    kind_ord = pipeline_type_kind_ord_at(arena, tr);
+  /* TYPE_U64=4, TYPE_I64=5, TYPE_USIZE=6, TYPE_ISIZE=7, TYPE_PTR=9 */
+  if (kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7 || kind_ord == 9)
+    use_i64_not = 1;
+  if (use_i64_not) {
+    if (ta == 0) {
+      /* REX.W not %rax — 48 F7 D0 */
+      static const uint8_t not_rax[3] = {0x48, 0xf7, 0xd0};
+      return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)not_rax, 3);
+    }
+    if (ta == 1) {
+      /* mvn x0, x0 — sf=1 orn x0, xzr, x0 (0xaa2003e0) */
+      static const uint8_t mvn_x0[4] = {0xe0, 0x03, 0x20, 0xaa};
+      return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)mvn_x0, 4);
+    }
+  }
+  if (backend_enc_not_eax_arch(elf_ctx, ta) != 0)
+    return -1;
+  /* i32: canonicalize to full GP for 64-bit freestanding cmp (wave646). */
+  if (kind_ord == (int32_t)ast_TypeKind_TYPE_I32)
+    return glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta);
+  return 0;
 }
 
 /** C ASTExprKind 与 X ast_ExprKind 在序 54 碰撞：C AWAIT=54，X EXPR_AS=54；X EXPR_AWAIT=55。 */
