@@ -346,6 +346,16 @@ MODULES=(
   #   doc_anchor backend_seed_mega_fallback_x_doc_anchor（无 ast_）；mega_/pipeline_ 前缀不触发 ast_；
   #   prove 锁 DIRECT surface IDENTICAL (2 #[no_mangle] + 3 helper + 1 doc_anchor)
   "backend_seed_mega_fallback|src/asm/backend_seed_mega_fallback.x|seeds/backend_seed_mega_fallback_surface.from_x.c||"
+  # parser_asm_parse_expr_link R2 thin+rest (wave557)：.x 1 #[no_mangle] public API
+  #   (parser_asm_parse_expr_debug_enabled thin forward to link_abi_getenv extern bridge);
+  #   rest 含 link_abi_getenv _impl (host getenv);
+  #   prove 锁 thin+rest surface IDENTICAL (1 #[no_mangle] + 1 doc_anchor)
+  "parser_asm_parse_expr_link|src/asm/parser_asm_parse_expr_link.x|seeds/parser_asm_parse_expr_link_surface.from_x.c||"
+  # lsp_diag_stubs_no_c R2 DIRECT (wave557)：.x 4 #[no_mangle] public API
+  #   (lsp_diag_copy_text_impl + json_escape_str_impl + lsp_diag_copy_text + json_escape_str);
+  #   lsp_diag_copy_text/json_escape_str forward to _impl (same module #[no_mangle]);
+  #   prove 锁 DIRECT surface IDENTICAL (4 #[no_mangle] + 1 doc_anchor)
+  "lsp_diag_stubs_no_c|src/lsp/lsp_diag_stubs_no_c.x|seeds/lsp_diag_stubs_no_c_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
