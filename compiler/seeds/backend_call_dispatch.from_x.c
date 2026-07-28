@@ -3861,6 +3861,14 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
    * G.7: complete same-module UFCS leaf — logical places [receiver, arg0..] with formal
    * param types 0..n_place-1 (self is formal 0). wave360 auto-ref (*T self → lea) stays.
    * PLATFORM: LINUX+MACOS x86_64 SysV; arm64 dual-GP self via spill/load (wave600 twin).
+   *
+   * wave606 Cap residual pure — arm64 UFCS method MEMORY by-value (self + args).
+   * Root: wave602 classified MEMORY only for ta==0; arm64 coerced u=0→1 (lea→x0) while
+   * callee param_home reads stack words (wave599/603). free CALL arm64 fixed in wave603
+   * (store_memory_to_sp); method UFCS still lea residual → mac fs s.sum()=234≠42.
+   * G.7: same places[] classification as free CALL — MEMORY stack-only on ta==0 and ta==1;
+   * arm64 reserve + store_memory_to_sp + cleanup ≡ emit_call_args wave603 path.
+   * PLATFORM: MACOS|ARM64 AAPCS64 + SHARED freestanding · LINUX|x86 push path unchanged.
    */
   {
     int32_t has_recv = (base_ref != 0) ? 1 : 0;
@@ -3943,13 +3951,17 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
         reg_units[i] = 1;
         continue;
       }
-      if (ta == 0 && glue_sysv_arg_is_memory_by_value_c(sz)) {
+      /*
+       * wave606: MEMORY by-value is stack-only on both SysV x86 and AAPCS64.
+       * Do NOT coerce units=0 → 1 on arm64 (lea pointer vs callee stack words).
+       */
+      if (glue_sysv_arg_is_memory_by_value_c(sz)) {
         is_mem[i] = 1;
         continue;
       }
       u = glue_sysv_arg_gp_units_from_size_c(sz);
       if (ta != 0) {
-        /* AAPCS64: dual-GP for 9–16B; MEMORY soft as 1×xN (lea residual). */
+        /* AAPCS64: dual-GP for 9–16B INTEGER; units already 1–2 after MEMORY filter. */
         if (u < 1)
           u = 1;
         if (u > 2)
@@ -4020,6 +4032,26 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
         }
       }
       mem_stack = pushed_total;
+    } else if (ta == 1) {
+      /*
+       * wave606: AAPCS64 MEMORY / excess stack for UFCS method places — ≡ free CALL
+       * wave603 (reserve → GP spill/load → store_memory_to_sp → call → cleanup).
+       * Low-end multi-word at [sp+#off]; SP 16-align.
+       */
+      int32_t nw = 0;
+      int32_t stack_reserve;
+      for (i = 0; i < n_place; i++) {
+        if (is_mem[i])
+          nw += glue_sysv_arg_stack_words_c(arg_sz[i], 0);
+        else if (is_stk[i])
+          nw += 1;
+      }
+      stack_reserve = nw * 8;
+      if (stack_reserve > 0)
+        stack_reserve = (stack_reserve + 15) & ~15;
+      mem_stack = stack_reserve;
+      if (backend_enc_call_stack_reserve_arch(elf_ctx, stack_reserve, ta) != 0)
+        return -1;
     }
 
     /* Materialize register places → spill → load (dual-GP safe). */
@@ -4065,6 +4097,53 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
       } else if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off[i], reg_start[i],
                                                          reg_units[i]) != 0) {
         return -1;
+      }
+    }
+
+    /*
+     * wave606: after GP arg regs are final, materialize MEMORY/excess stack places
+     * at [sp+#stk*8] (AAPCS64 low-end). Order: left-to-right place index.
+     */
+    if (ta == 1) {
+      int32_t stk_slot = 0;
+      for (i = 0; i < n_place; i++) {
+        int32_t arg_ref;
+        int32_t formal_ix = i;
+        int32_t words;
+        int32_t stored;
+        if (!is_mem[i] && !is_stk[i])
+          continue;
+        if (has_recv && i == 0)
+          arg_ref = base_ref;
+        else
+          arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i - has_recv);
+        if (arg_ref == 0)
+          return -1;
+        if (is_mem[i]) {
+          stored = pipeline_asm_store_memory_by_value_to_sp_elf_c(arena, elf_ctx, ctx, arg_ref,
+                                                                   arg_sz[i], ta, stk_slot * 8);
+          if (stored < 0)
+            return -1;
+          words = stored / 8;
+          if (words < 1)
+            words = 1;
+          stk_slot += words;
+          continue;
+        }
+        /* is_stk: single GP excess → store x0 at [sp+off]. */
+        if (has_recv && i == 0) {
+          if (need_aref) {
+            if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0)
+              return -1;
+          } else if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+            return -1;
+          }
+        } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, formal_ix, ctx, ta) != 0) {
+          return -1;
+        }
+        if (backend_enc_store_x0_sp_offset_arch(elf_ctx, stk_slot * 8, ta) != 0)
+          return -1;
+        stk_slot++;
       }
     }
 
