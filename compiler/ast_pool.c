@@ -7915,6 +7915,29 @@ int32_t run_x_pipeline_codegen_one_dep_emit(struct ast_Module *dep_mod, struct c
   }
   memset(dep_path_buf, 0, sizeof(dep_path_buf));
   pipeline_dep_ctx_import_path_copy64(ctx, dep_j, dep_path_buf);
+  /*
+   * wave578 Cap residual (Ubuntu L2): product path is
+   * pipeline_run_x_pipeline_codegen_one_dep → emit(module_at(...)), not the _c
+   * wrapper. After name[64]→[128], DepCtx sidecar module_at can be NULL while
+   * driver_dep_module_buf still holds the pre-parsed dep (num_funcs>0). Rebind
+   * here so both seed weak one_dep and C one_dep_c paths share one authority.
+   * PLATFORM: SHARED — mac L2 often hit sidecar; Ubuntu gold exposed NULL.
+   */
+  if (!dep_mod) {
+    int32_t sync_slot = driver_dep_slot_for_path(dep_path_buf);
+    if (sync_slot < 0)
+      sync_slot = dep_j;
+    dep_mod = (struct ast_Module *)driver_dep_module_buf(sync_slot);
+    if (dep_mod) {
+      pipeline_dep_ctx_set_module(ctx, dep_j, dep_mod);
+      pipeline_dep_ctx_set_arena(ctx, dep_j, (struct ast_ASTArena *)driver_dep_arena_buf(sync_slot));
+      if (link_abi_getenv("XLANG_DEBUG_PIPE"))
+        fprintf(stderr,
+                "xlang: [XLANG_DEBUG_PIPE] rebind dep emit j=%d path=%s slot=%d funcs=%d\n",
+                (int)dep_j, (char *)dep_path_buf, (int)sync_slot,
+                (int)pipeline_module_num_funcs(dep_mod));
+    }
+  }
   if (link_abi_getenv("XLANG_DEBUG_PIPE"))
     fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] dep emit j=%d path=%s use_asm=%d funcs=%d\n", (int)dep_j,
             (char *)dep_path_buf, (int)use_asm_backend,
