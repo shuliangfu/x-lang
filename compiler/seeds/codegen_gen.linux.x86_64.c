@@ -17231,9 +17231,33 @@ int32_t codegen_emit_import_dep_function_declarations(struct ast_Module * module
   }
   return 0;
 }
+/* wave623 Cap residual pure: bare `-E` minimal host-C preamble must include
+ * TYPE_SLICE fat layouts (struct xlang_slice_*) matching type_to_c_repr /
+ * rt_preamble wave618–619. Full `-o` injects rt_preamble first; both sites use
+ * XLANG_SLICE_LAYOUTS so redefinition is safe. PLATFORM: SHARED host-C.
+ * Authority: G.7 expand codegen_x_ast_emit_header; keep codegen.x same commit. */
 int32_t codegen_x_ast_emit_header(struct codegen_CodegenOutBuf * out) {
-  uint8_t h[128] = {35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 105, 110, 116, 46, 104, 62, 10, 35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 100, 101, 102, 46, 104, 62, 10, 35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 121, 115, 47, 116, 121, 112, 101, 115, 46, 104, 62, 10, 0};
-  return codegen_emit_bytes_64(out, &((h)[0]), 63);
+  static const char hdr[] =
+      "#include <stdint.h>\n"
+      "#include <stddef.h>\n"
+      "#include <sys/types.h>\n"
+      "#ifndef XLANG_SLICE_LAYOUTS\n"
+      "#define XLANG_SLICE_LAYOUTS\n"
+      "struct xlang_slice_uint8_t { uint8_t *data; size_t length; };\n"
+      "struct xlang_slice_int8_t { int8_t *data; size_t length; };\n"
+      "struct xlang_slice_int16_t { int16_t *data; size_t length; };\n"
+      "struct xlang_slice_uint16_t { uint16_t *data; size_t length; };\n"
+      "struct xlang_slice_int { int *data; size_t length; };\n"
+      "struct xlang_slice_int32_t { int32_t *data; size_t length; };\n"
+      "struct xlang_slice_uint32_t { uint32_t *data; size_t length; };\n"
+      "struct xlang_slice_int64_t { int64_t *data; size_t length; };\n"
+      "struct xlang_slice_uint64_t { uint64_t *data; size_t length; };\n"
+      "struct xlang_slice_size_t { size_t *data; size_t length; };\n"
+      "struct xlang_slice_ssize_t { ssize_t *data; size_t length; };\n"
+      "struct xlang_slice_float { float *data; size_t length; };\n"
+      "struct xlang_slice_double { double *data; size_t length; };\n"
+      "#endif\n";
+  return codegen_emit_bytes_64(out, (uint8_t *)(uintptr_t)hdr, (int32_t)(sizeof(hdr) - 1u));
 }
 extern int32_t pipeline_codegen_std_dep_link_only(uint8_t * path);
 int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_PipelineDepCtx * ctx, int32_t dep_index) {

@@ -135,7 +135,12 @@ const char *const driver_preamble_io_net_lines[] = {
          * (struct xlang_slice_ + elem C name from type_kind_cstr / NAMED stdint map).
          * wave618: float/double. wave619: complete scalar set (bool/int, u32, i64,
          * isize/ssize_t, NAMED i8/i16/u16 → int8_t/int16_t/uint16_t). Incomplete
-         * tag → host-cc BLD001 "incomplete type struct xlang_slice_*". */
+         * tag → host-cc BLD001 "incomplete type struct xlang_slice_*".
+         * wave623: XLANG_SLICE_LAYOUTS guard — bare `-E` also emits the same layouts
+         * via codegen_x_ast_emit_header; full `-o` writes this table first then
+         * header, so both must share the guard (G.7 single layout authority). */
+        "#ifndef XLANG_SLICE_LAYOUTS\n"
+        "#define XLANG_SLICE_LAYOUTS\n"
         "struct xlang_slice_uint8_t { uint8_t *data; size_t length; };\n"
         "struct xlang_slice_int8_t { int8_t *data; size_t length; };\n"
         "struct xlang_slice_int16_t { int16_t *data; size_t length; };\n"
@@ -149,6 +154,7 @@ const char *const driver_preamble_io_net_lines[] = {
         "struct xlang_slice_ssize_t { ssize_t *data; size_t length; };\n"
         "struct xlang_slice_float { float *data; size_t length; };\n"
         "struct xlang_slice_double { double *data; size_t length; };\n"
+        "#endif\n"
         /* §10 向量：codegen 发 i32x4_t / f32x4_t 等；与 emit_vector_c_type_out +
          * pipeline_codegen_vector_type_cstr 对齐。f32x{4,8,16} 供 Vec4f 等 F32 向量使用。 */
         "#if defined(__GNUC__) || defined(__clang__)\n"
