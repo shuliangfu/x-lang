@@ -8098,6 +8098,29 @@ int32_t run_x_pipeline_codegen_one_dep_c(struct ast_Module *module, struct codeg
   memset(dep_path_buf, 0, sizeof(dep_path_buf));
   pipeline_prepare_dep_codegen_path_c(ctx, dep_j, dep_path_buf);
   dep_mod = pipeline_dep_ctx_module_at(ctx, dep_j);
+  /*
+   * wave578 Cap residual (Ubuntu L2): after name[64]→[128], DepCtx sidecar
+   * module_at can be NULL at codegen while driver_dep_module_buf still holds the
+   * pre-parsed dep (parse_set_main_from_buf saw num_funcs>0). Same pattern as
+   * load_and_sync closure rebind (ast_pool ~7486): rebind from driver publish
+   * slots via this TU's set_module (G.7 single sidecar authority).
+   * PLATFORM: SHARED — mac L2 stayed green (sidecar hit); Ubuntu gold exposed NULL.
+   */
+  if (!dep_mod) {
+    int32_t sync_slot = driver_dep_slot_for_path(dep_path_buf);
+    if (sync_slot < 0)
+      sync_slot = dep_j;
+    dep_mod = (struct ast_Module *)driver_dep_module_buf(sync_slot);
+    if (dep_mod) {
+      pipeline_dep_ctx_set_module(ctx, dep_j, dep_mod);
+      pipeline_dep_ctx_set_arena(ctx, dep_j, (struct ast_ASTArena *)driver_dep_arena_buf(sync_slot));
+      if (link_abi_getenv("XLANG_DEBUG_PIPE"))
+        fprintf(stderr,
+                "xlang: [XLANG_DEBUG_PIPE] rebind dep j=%d path=%s slot=%d funcs=%d\n",
+                (int)dep_j, (char *)dep_path_buf, (int)sync_slot,
+                (int)pipeline_module_num_funcs(dep_mod));
+    }
+  }
   if (link_abi_getenv("XLANG_DEBUG_PIPE"))
     fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] dep codegen j=%d path=%s funcs=%d\n", (int)dep_j,
             (char *)dep_path_buf, dep_mod ? (int)pipeline_module_num_funcs(dep_mod) : -1);
