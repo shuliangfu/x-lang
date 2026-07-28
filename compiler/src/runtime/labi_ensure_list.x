@@ -93,6 +93,8 @@ export extern "C" function link_diag_runtime_obj_missing(obj_name: *u8, out_o: *
 export extern "C" function xlang_link_freestanding_enabled(driver_freestanding: i32): i32;
 export extern "C" function xlang_freestanding_user_o_needs_panic(user_o: *u8): i32;
 export extern "C" function xlang_freestanding_user_o_needs_io(user_o: *u8): i32;
+// wave592: nostdlib face (memcpy/malloc) forces freestanding_io companion (mmap).
+export extern "C" function link_abi_user_o_needs_freestanding_nostdlib_face(user_o: *u8): i32;
 export extern "C" function xlang_ensure_crt0_user_o(argv0: *u8, driver_freestanding: i32): i32;
 export extern "C" function xlang_ensure_freestanding_io_o(argv0: *u8, driver_freestanding: i32): i32;
 export extern "C" function labi_user_needs_runtime_process_argv(user_o: *u8): i32;
@@ -2549,13 +2551,21 @@ export function xlang_asm_ld_prepare_for_exe_link(link_eff: *u8, user_o: *u8, dr
   if (crc != 0) {
     return 0 - 1;
   }
-  // Freestanding + needs_io → freestanding_io ensure (non-Linux fs==0 skips).
+  // Freestanding + needs freestanding_io.o → ensure (non-Linux fs==0 skips).
+  // PLATFORM: LINUX freestanding product residual (wave592).
+  // Root: true-sret / large struct paths call memcpy → nostdlib face
+  // (bootstrap_nostdlib_stubs) forces need_io because stubs use xlang_sys_mmap
+  // from freestanding_io. Prepare only gated on UNDEF xlang_sys_* → missing
+  // freestanding_io.o and BLD001 "xlang_sys_write" while user never refs write.
+  // G.7: ensure whenever ld will need_io (direct UNDEF *or* nostdlib face).
   if (fs != 0) {
     let need_io: i32 = 0;
+    let need_face: i32 = 0;
     unsafe {
       need_io = xlang_freestanding_user_o_needs_io(user_o);
+      need_face = link_abi_user_o_needs_freestanding_nostdlib_face(user_o);
     }
-    if (need_io != 0) {
+    if (need_io != 0 || need_face != 0) {
       let irc: i32 = 0;
       unsafe {
         irc = xlang_ensure_freestanding_io_o(link_eff, driver_freestanding);
