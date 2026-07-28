@@ -292,6 +292,19 @@ MODULES=(
   #   runtime_sync_os_x_doc_anchor（无 ast_）；sync_ 前缀不触发 ast_；
   #   prove 锁 thin surface IDENTICAL (16 #[no_mangle] + 1 doc_anchor)
   "runtime_sync_os|src/asm/runtime_sync_os.x|seeds/runtime_sync_os_surface.from_x.c||"
+  # runtime_channel_glue R2 thin+rest (wave553)：.x 17 public API (8 channel_sync_*/lock/unlock/
+  #   signal/broadcast + 4 channel_wait_*/timedwait_* + 1 channel_unbounded_grow + 4 channel_select_*)
+  #   + 17 _impl 桥；rest 含 pthread_mutex_t/pthread_cond_t (POSIX) + CRITICAL_SECTION/
+  #   CONDITION_VARIABLE (Windows)；doc_anchor runtime_channel_glue_x_doc_anchor（无 ast_）；
+  #   channel_ 前缀不触发 ast_；prove 锁 thin surface IDENTICAL (17 #[no_mangle] + 1 doc_anchor)
+  "runtime_channel_glue|src/asm/runtime_channel_glue.x|seeds/runtime_channel_glue_surface.from_x.c||"
+  # runtime_log_os R2 mixed (wave553)：.x 16 public API (7 thin+rest log_apply_env_once/do_rotate/
+  #   write_file_sync/write_sync/async_enqueue/emit_bytes/write_fd + 9 mixed _c bridges:
+  #   log_apply_env_once_c/get_min_level_c + 7 _c thin+rest forwards) + 14 _impl 桥；
+  #   rest 含 _write (Windows)/write (POSIX) + C static state；doc_anchor runtime_log_os_x_doc_anchor
+  #   （无 ast_）；log_ 前缀不触发 ast_；log_emit_bytes_c 用 `null or` 语法被 xlang_asm 静默丢弃
+  #   （编译器 bug，待修）；prove 锁 mixed surface IDENTICAL (16 #[no_mangle] + 1 doc_anchor)
+  "runtime_log_os|src/asm/runtime_log_os.x|seeds/runtime_log_os_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
