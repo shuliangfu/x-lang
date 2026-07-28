@@ -506,6 +506,11 @@ MODULES=(
   #   rest 含 95 extern bridges (*_impl) + 7 helper externs (link_abi_getenv + diag_json_enabled + ...);
   #   prove 锁 mixed surface IDENTICAL (110 nm T · no doc_anchor)
   "runtime|src/runtime.x|seeds/runtime_surface.from_x.c||"
+  # runtime_link_abi R2 mixed (wave573)：.x 145 nm T symbols
+  #   (75 DIRECT compute + 70 thin+rest forwards to _impl);
+  #   rest 含 91 extern bridges (*_impl) + 7 helper externs;
+  #   prove 锁 mixed surface IDENTICAL (145 nm T · no doc_anchor)
+  "runtime_link_abi|src/runtime_link_abi.x|seeds/runtime_link_abi_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
