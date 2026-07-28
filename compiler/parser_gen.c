@@ -2413,22 +2413,22 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
         }
       }
       if ((((r.tok).kind) ==11)) {
+        /* wave655: return operand + ASI (same as expr-stmt); no double-advance after `;`. */
         (void)(parser_lex_from_next_into(&(lex_cur), r));
         struct parser_ParseExprResult ret_val_res = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex_cur };
         int return_ends_block = 0;
         (void)(lexer_next_into(&(r), lex_cur, source));
-        if ((((r.tok).kind) !=95)) {
+        if (((((r.tok).kind) !=95) && (((r.tok).kind) !=85))) {
           (void)(parser_parse_expr_into(arena, lex_cur, source, &(ret_val_res)));
           if (!((ret_val_res.ok))) {
             (void)(((out->ok) = 0));
             return;
           }
           (void)((lex_cur = (ret_val_res.next_lex)));
-          (void)(lexer_next_into(&(r), lex_cur, source));
-        }
-        if (((((r.tok).kind) !=95) && (((r.tok).kind) !=85))) {
-          (void)(((out->ok) = 0));
-          return;
+          if ((parser_advance_past_stmt_semicolon_into(&(r), lex_cur, source) ==0)) {
+            (void)(((out->ok) = 0));
+            return;
+          }
         }
         if ((((r.tok).kind) ==95)) {
           (void)((lex_cur = (r.next_lex)));
@@ -2453,6 +2453,7 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
         if (return_ends_block) {
           (void)(((b.final_expr_ref) = ret_ref));
           (void)(ast_ast_arena_block_set(arena, block_ref, b));
+          (void)((pb_break = 1));
         } else {
           int32_t ret_ex_i = pipeline_block_append_expr_stmt(arena, block_ref, ret_ref);
           if ((ret_ex_i < 0)) {
@@ -2464,8 +2465,8 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
             return;
           }
           (void)((b = ast_ast_arena_block_get(arena, block_ref)));
+          (void)((stmt_tok_ready = 1));
         }
-        (void)(parser_asm_parse_block_return_end_tail_glue(&(r), &(lex_cur), source, &(stmt_tok_ready), &(pb_break)));
         continue;
       }
       if ((((r.tok).kind) ==7)) {

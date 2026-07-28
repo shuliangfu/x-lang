@@ -2375,23 +2375,37 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       continue;
     }
     if (r.tok.kind == token.TokenKind.TOKEN_RETURN) {
+      /**
+       * wave655 Cap residual: mid-block `return expr` then more stmts.
+       *
+       * Prior path required `;` or `}` after the operand, then always called
+       * return_end_tail. That failed two ways:
+       * 1) bare `return 3` then IDENT/`let`/`if`/… → XP003 (no ASI, unlike
+       *    expr-stmt / break/continue which use advance_past_stmt_semicolon);
+       * 2) `return 3;` then more — after consuming `;`, r already sits on the
+       *    next stmt head, but return_end_tail advanced again and skipped it.
+       *
+       * G.7: same ASI authority as expr-stmt (`advance_past_stmt_semicolon_into`);
+       * when r is already the next stmt head, set stmt_tok_ready and continue
+       * without a second advance. RBRACE still becomes final_expr.
+       * PLATFORM: SHARED — parse_block return; seed pin same commit.
+       */
       lex_from_next_into(&lex_cur, r);
       let ret_val_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
       let return_ends_block: bool = false;
       lexer.lexer_next_into(&r, lex_cur, source);
-      if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
+      /* Bare `return;` / `return }` — no operand. Else parse operand then ASI. */
+      if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON && r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
         parse_expr_into(arena, lex_cur, source, &ret_val_res);
         if (!ret_val_res.ok) {
           out.ok = false;
           return;
         }
         lex_cur = ret_val_res.next_lex;
-        lexer.lexer_next_into(&r, lex_cur, source);
-      }
-      /* See implementation. */
-      if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON && r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
-        out.ok = false;
-        return;
+        if (advance_past_stmt_semicolon_into(&r, lex_cur, source) == 0) {
+          out.ok = false;
+          return;
+        }
       }
       if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
         lex_cur = r.next_lex;
@@ -2416,6 +2430,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       if (return_ends_block) {
         b.final_expr_ref = ret_ref;
         ast.ast_arena_block_set(arena, block_ref, b);
+        pb_break = 1;
       } else {
         let ret_ex_i: i32 = pipeline_block_append_expr_stmt(arena, block_ref, ret_ref);
         if (ret_ex_i < 0) {
@@ -2427,10 +2442,9 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
           return;
         }
         b = ast.ast_arena_block_get(arena, block_ref);
+        /* r is already the next statement head — keep it for the next loop. */
+        stmt_tok_ready = true;
       }
-      /* See implementation. */
-      parser_asm_parse_block_return_end_tail_glue(&r, &lex_cur, source, &stmt_tok_ready, &pb_break);
-      /* See implementation. */
       continue;
     }
     if (r.tok.kind == token.TokenKind.TOKEN_LOOP) {
