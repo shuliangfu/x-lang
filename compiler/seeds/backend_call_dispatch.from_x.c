@@ -716,7 +716,9 @@ static int32_t glue_sysv_load_spill_to_arg_regs_elf_c(struct platform_elf_ElfCod
       return -1;
     if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill_off, ta) != 0)
       return -1;
-    /* gp==0: low already in rax/x0 = arg0 */
+    /* low → arg0: arm64 x0 is already arg0 (no-op mov); x86 must rax→rdi. */
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
+      return -1;
     return 0;
   }
   if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill_off, ta) != 0)
