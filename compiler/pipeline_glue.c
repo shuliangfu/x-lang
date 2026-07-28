@@ -13022,11 +13022,20 @@ static int32_t glue_try_binop_load_operand_elf_c(struct ast_ASTArena *arena,
  * wave329 Cap residual pure: TYPE_SLICE INDEX always runs
  * glue_emit_index_bounds_guard_elf_c which uses rbx (imm0 lower + length-1 upper)
  * even for literal indices. The old "lit idx → no rbx" shortcut only holds for
- * fixed TYPE_ARRAY (CTFE size; bounds guard early-returns without rbx). Without
- * this, dual-slot `a[i]+a[j]` on slices keeps right in rbx then left INDEX
- * overwrites it (Ubuntu freestanding sum 10+20+12 → 24; host-C hid).
- * G.7: complete this classifier — no second preserve path.
- * PLATFORM: SHARED freestanding dual-slot; LINUX x86_64 exposes; mac arm64 may CTFE.
+ * fixed TYPE_ARRAY on VAR/FIELD base (CTFE size; bounds guard early-returns without
+ * rbx). Without this, dual-slot `a[i]+a[j]` on slices keeps right in rbx then left
+ * INDEX overwrites it (Ubuntu freestanding sum 10+20+12 → 24; host-C hid).
+ *
+ * wave612 Cap residual pure: freestanding dual ARRAY_LIT INDEX binop
+ * (`[10,32][0]+[10,32][1]`). `pipeline_asm_emit_array_lit_elf_c` always parks the
+ * payload base in rbx (`mov rax→rbx` / x1) while storing elems (wave340 dual-slot).
+ * INDEX of that base re-leas into rbx then loads the elem — so even TYPE_ARRAY +
+ * lit index clobbers a live binop operand in rbx (mac fs run=114; Ubuntu run=218;
+ * let-split `a+b` green; host-C green). The "lit idx → no rbx" shortcut must not
+ * apply when base materializes through ARRAY_LIT (or other non-VAR bases that park
+ * temps in rbx: STRUCT_LIT/CALL/METHOD). G.7: complete this classifier only —
+ * preserve/restore path already exists (glue_binop_preserve_rbx_for_index_elf_c).
+ * PLATFORM: SHARED freestanding dual-slot; LINUX x86_64 + MACOS|ARM64 both expose.
  */
 static int32_t glue_binop_operand_index_addr_clobbers_rbx_elf_c(struct ast_ASTArena *arena, int32_t expr_ref) {
   int32_t ko;
@@ -13048,6 +13057,7 @@ static int32_t glue_binop_operand_index_addr_clobbers_rbx_elf_c(struct ast_ASTAr
     struct ast_Expr *ix;
     int32_t base_ref;
     int32_t base_ty;
+    int32_t base_ko;
     ix = pipeline_arena_expr_ptr(arena, expr_ref);
     if (ix && ix->index_base_is_slice != 0)
       return 1;
@@ -13056,9 +13066,30 @@ static int32_t glue_binop_operand_index_addr_clobbers_rbx_elf_c(struct ast_ASTAr
       base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
       if (base_ty > 0 && pipeline_type_kind_ord_at(arena, base_ty) == GLUE_TYPE_KIND_SLICE)
         return 1;
+      /*
+       * Materializing bases park payload/home in rbx while writing temps.
+       * ARRAY_LIT (46): emit_array_lit mov rax→rbx for store loop.
+       * STRUCT_LIT (45) / CALL (48) / METHOD (49): call_base / struct temp same.
+       * Nested INDEX (47) / FIELD (44) of those: recurse via base walk below.
+       * Only VAR / pure FIELD-of-VAR can take base+imm*esz without touching rbx.
+       */
+      base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
+      if (base_ko == 46 || base_ko == 45 || base_ko == 48 || base_ko == 49)
+        return 1;
+      if (base_ko == 47)
+        return 1;
+      if (base_ko == 44) {
+        int32_t fa_base = pipeline_expr_field_access_base_ref(arena, base_ref);
+        if (fa_base > 0) {
+          int32_t fa_ko = pipeline_expr_kind_ord_at(arena, fa_base);
+          /* FIELD of materializing root (Wrap{}.xs[i] dual-slot) also parks rbx. */
+          if (fa_ko == 46 || fa_ko == 45 || fa_ko == 48 || fa_ko == 49 || fa_ko == 47)
+            return 1;
+        }
+      }
     }
     idx_ref = pipeline_expr_index_index_ref(arena, expr_ref);
-    /** Fixed TYPE_ARRAY + lit index: base+imm*esz, bounds CTFE — no rbx. */
+    /* Fixed TYPE_ARRAY + lit index on VAR/FIELD base: base+imm*esz, bounds CTFE — no rbx. */
     if (idx_ref > 0 && pipeline_asm_expr_lit_i32_at_c(arena, idx_ref, &lit_dummy))
       return 0;
     return 1;
@@ -16654,7 +16685,9 @@ static int32_t glue_field_call_arg_try_load_agg_from_rax_elf_c(struct ast_ASTAre
  *     3) ≤16B: emit CALL + glue_store_retval_pair_to_rbp_elf_c
  *   then lea home+sum(field_offs); leave_addr ? return addr : load outermost field.
  *
- * Soft residual: frame temps ≥512 scratch; ARRAY_LIT base INDEX (`[10,32][1]`).
+ * Soft residual: frame temps ≥512 scratch.
+ * wave611: ARRAY_LIT base INDEX parse+typeck closed; wave612: dual INDEX binop
+ *   rbx clobber classifier closed (see glue_binop_operand_index_addr_clobbers_rbx).
  * wave599: dual-GP param field extract (take_m) closed — arm64 param_home +
  *   fill_param low-end polarity (was soft leave after wave593).
  *
