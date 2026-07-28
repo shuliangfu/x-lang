@@ -4915,9 +4915,10 @@ export function codegen_lookup_struct_field_type_ref(
     if (bare_len <= 0) {
       return 0;
     }
+    /* wave588 Cap residual: field name content ≤127 (StructLitFieldEntry / layout name[128]). */
     let flen_use: i32 = field_name_len;
-    if (flen_use > 64) {
-      flen_use = 64;
+    if (flen_use > 127) {
+      flen_use = 127;
     }
     let try_mod: *Module = 0 as *Module;
     let pass: i32 = 0;
@@ -11494,8 +11495,9 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             let fnbuf_s: u8[128] = [];
             pipeline_expr_struct_lit_field_name_into(arena, expr_ref, si_scan, &fnbuf_s[0]);
             let flen_s: i32 = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, si_scan);
-            if (flen_s > 64) {
-              flen_s = 64;
+            /* wave588 Cap residual: content ≤127 (name[128]); do not clamp designator lookup to 64. */
+            if (flen_s > 127) {
+              flen_s = 127;
             }
             let ftr_s: i32 = codegen_lookup_struct_field_type_ref(
               arena, ctx, &e.struct_lit_struct_name[0], e.struct_lit_struct_name_len, &fnbuf_s[0], flen_s);
@@ -11538,8 +11540,9 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           let fnbuf_m: u8[128] = [];
           pipeline_expr_struct_lit_field_name_into(arena, expr_ref, mi, &fnbuf_m[0]);
           let flen_m: i32 = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, mi);
-          if (flen_m > 64) {
-            flen_m = 64;
+          /* wave588 Cap residual: content ≤127 (name[128]). */
+          if (flen_m > 127) {
+            flen_m = 127;
           }
           let ftr_m: i32 = codegen_lookup_struct_field_type_ref(
             arena, ctx, &e.struct_lit_struct_name[0], e.struct_lit_struct_name_len, &fnbuf_m[0], flen_m);
@@ -11930,14 +11933,14 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         let sl_fnbuf: u8[128] = [];
         pipeline_expr_struct_lit_field_name_into(arena, expr_ref, fi, &sl_fnbuf[0]);
         let flen: i32 = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, fi);
-        if (flen > 64) {
-          if (emit_bytes_64(out, &sl_fnbuf[0], 64) != 0) {
-            return -1;
-          }
-        } else {
-          if (emit_bytes_64(out, &sl_fnbuf[0], flen) != 0) {
-            return -1;
-          }
+        /* wave588 Cap residual: host-C field designator content ≤127 (StructLitFieldEntry.name[128]).
+         * Prior flen>64 trunc to 64 → designator mismatch vs layout field decl (fldh 75/127 BLD001).
+         * PLATFORM: SHARED host-C; seed pin same commit. */
+        if (flen > 127) {
+          flen = 127;
+        }
+        if (flen > 0 && emit_bytes_from_ptr(out, &sl_fnbuf[0], flen) != 0) {
+          return -1;
         }
         let eq: u8[4] = [32, 61, 32, 0];
         if (emit_bytes_4(out, eq, 3) != 0) {
@@ -11968,8 +11971,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             let use_elem_expand: i32 = 0;
             let arr_sz: i32 = 0;
             let flen_lk: i32 = flen;
-            if (flen_lk > 64) {
-              flen_lk = 64;
+            if (flen_lk > 127) {
+              flen_lk = 127;
             }
             let ftr: i32 = codegen_lookup_struct_field_type_ref(
               arena, ctx, &e.struct_lit_struct_name[0], e.struct_lit_struct_name_len, &sl_fnbuf[0], flen_lk);

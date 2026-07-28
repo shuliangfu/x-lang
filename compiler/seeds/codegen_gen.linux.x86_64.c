@@ -5711,9 +5711,10 @@ int32_t codegen_lookup_struct_field_type_ref(struct ast_ASTArena * arena, struct
   if ((bare_len <= 0)) {
     return 0;
   }
+  /* wave588 Cap residual: field name content ≤127 (StructLitFieldEntry / layout name[128]). */
   flen_use = field_name_len;
-  if ((flen_use > 64)) {
-    flen_use = 64;
+  if ((flen_use > 127)) {
+    flen_use = 127;
   }
   while ((pass < 2)) {
     int32_t nmod = 1;
@@ -11212,8 +11213,9 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
             int32_t ftr_s = 0;
             int32_t arr_ty_s = 0;
             (void)(pipeline_expr_struct_lit_field_name_into(arena, expr_ref, si_scan, &((fnbuf_s)[0])));
-            if ((flen_s > 64)) {
-              flen_s = 64;
+            /* wave588 Cap residual: content ≤127 (name[128]); do not clamp designator lookup to 64. */
+            if ((flen_s > 127)) {
+              flen_s = 127;
             }
             ftr_s = codegen_lookup_struct_field_type_ref(arena, ctx, &(((e.struct_lit_struct_name))[0]), (e.struct_lit_struct_name_len), &((fnbuf_s)[0]), flen_s);
             if (((!(ast_ref_is_null(ftr_s))) && (pipeline_type_kind_ord_at(arena, ftr_s) == 10))) {
@@ -11259,8 +11261,9 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
               int32_t asz_m = 0;
               int32_t elem_m = 0;
               (void)(pipeline_expr_struct_lit_field_name_into(arena, expr_ref, mi, &((fnbuf_m)[0])));
-              if ((flen_m > 64)) {
-                flen_m = 64;
+              /* wave588 Cap residual: content ≤127 (name[128]). */
+              if ((flen_m > 127)) {
+                flen_m = 127;
               }
               ftr_m = codegen_lookup_struct_field_type_ref(arena, ctx, &(((e.struct_lit_struct_name))[0]), (e.struct_lit_struct_name_len), &((fnbuf_m)[0]), flen_m);
               if (((!(ast_ref_is_null(ftr_m))) && (pipeline_type_kind_ord_at(arena, ftr_m) == 10))) {
@@ -11566,14 +11569,14 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
           return -(1);
         }
         (void)(pipeline_expr_struct_lit_field_name_into(arena, expr_ref, fi, &((sl_fnbuf)[0])));
-        if ((flen > 64)) {
-          if ((codegen_emit_bytes_64(out, &((sl_fnbuf)[0]), 64) !=0)) {
-            return -(1);
-          }
-        } else {
-          if ((codegen_emit_bytes_64(out, &((sl_fnbuf)[0]), flen) !=0)) {
-            return -(1);
-          }
+        /* wave588 Cap residual: host-C field designator content ≤127 (StructLitFieldEntry.name[128]).
+         * Prior flen>64 trunc to 64 → designator mismatch vs layout field decl (fldh 75/127 BLD001).
+         * PLATFORM: SHARED host-C; codegen.x same commit. */
+        if ((flen > 127)) {
+          flen = 127;
+        }
+        if (((flen > 0) && (codegen_emit_bytes_from_ptr(out, &((sl_fnbuf)[0]), flen) !=0))) {
+          return -(1);
         }
         if ((codegen_emit_bytes_4(out, eq, 3) !=0)) {
           return -(1);
@@ -11599,8 +11602,8 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
             int32_t flen_lk = flen;
             int32_t ftr = 0;
             int32_t is_call_init = 0;
-            if ((flen_lk > 64)) {
-              flen_lk = 64;
+            if ((flen_lk > 127)) {
+              flen_lk = 127;
             }
             ftr = codegen_lookup_struct_field_type_ref(arena, ctx, &(((e.struct_lit_struct_name))[0]), (e.struct_lit_struct_name_len), &((sl_fnbuf)[0]), flen_lk);
             if (((!(ast_ref_is_null(ftr))) && (pipeline_type_kind_ord_at(arena, ftr) == 10))) {
