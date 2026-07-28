@@ -448,6 +448,16 @@ MODULES=(
   #   rest 含 30 extern bridges (driver_/path_/fmt_/file_/check_/walk_/collect_/parse_);
   #   prove 锁 mixed surface IDENTICAL (25 #[no_mangle] · no doc_anchor)
   "fmt_check_cmd|src/driver/fmt_check_cmd.x|seeds/fmt_check_cmd_surface.from_x.c||"
+  # runtime_lsp_glue R2 mixed (wave566)：.x 54 nm T symbols (46 #[no_mangle] + 8 non-mangle global)
+  #   (37 DIRECT compute + 17 thin+rest forwards to _impl);
+  #   rest 含 23 extern bridges (17 *_impl + 6 lsp_entry_*/lsp_json_key_*);
+  #   prove 锁 mixed surface IDENTICAL (54 nm T · has doc_anchor runtime_lsp_glue_x_doc_anchor)
+  "runtime_lsp_glue|src/asm/runtime_lsp_glue.x|seeds/runtime_lsp_glue_surface.from_x.c||"
+  # backend_try_inline_dispatch_thin R2 mixed (wave566)：.x 50 nm T symbols
+  #   (8 DIRECT compute + 42 thin+rest forwards to _impl);
+  #   rest 含 42 extern bridges (37 *_impl + 5 pipeline_/asm_ctx_/backend_);
+  #   prove 锁 mixed surface IDENTICAL (50 nm T · no doc_anchor)
+  "backend_try_inline_dispatch_thin|src/asm/backend_try_inline_dispatch_thin.x|seeds/backend_try_inline_dispatch_thin_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
