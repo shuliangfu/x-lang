@@ -305,6 +305,21 @@ MODULES=(
   #   （无 ast_）；log_ 前缀不触发 ast_；log_emit_bytes_c 用 `null or` 语法被 xlang_asm 静默丢弃
   #   （编译器 bug，待修）；prove 锁 mixed surface IDENTICAL (16 #[no_mangle] + 1 doc_anchor)
   "runtime_log_os|src/asm/runtime_log_os.x|seeds/runtime_log_os_surface.from_x.c||"
+  # runtime_scheduler_glue R2 mixed (wave554)：.x 17 public API (10 thin+rest xlang_async_*/coop_*
+  #   + 7 DIRECT: xlang_async_q_occupancy pure compute + 6 env gate using link_abi_getenv) +
+  #   11 _impl 桥 + link_abi_getenv (env bridge)；rest 含 worker/coop frame OS logic；
+  #   env_parse_u32_default export 无 #[no_mangle]，surface 用 static helper 匹配 .x linkage；
+  #   doc_anchor runtime_scheduler_glue_x_doc_anchor（无 ast_）；xlang_ 前缀不触发 ast_；
+  #   prove 锁 mixed surface IDENTICAL (17 #[no_mangle] + 1 doc_anchor)
+  "runtime_scheduler_glue|src/asm/runtime_scheduler_glue.x|seeds/runtime_scheduler_glue_surface.from_x.c||"
+  # runtime_process_os_glue R2 thin+rest (wave554)：.x 22 public API (process_getenv/setenv/
+  #   unsetenv/getpid/getppid/getcwd/getcwd_ptr/getcwd_cached_len/chdir/self_exe_path/
+  #   self_exe_path_ptr/self_exe_path_cached_len/nop_sigchld/spawn/exec/waitpid/spawn_simple/
+  #   exec_simple/dup_stdio_posix/spawn_io/pipe _c) + 22 _impl 桥；rest 含 POSIX getpid/getcwd/
+  #   chdir/execve/waitpid/pipe + Windows _wpgmptr/GetModuleFileName/CreateProcess；
+  #   doc_anchor runtime_process_os_glue_x_doc_anchor（无 ast_）；process_ 前缀不触发 ast_；
+  #   prove 锁 thin surface IDENTICAL (22 #[no_mangle] + 1 doc_anchor)
+  "runtime_process_os_glue|src/asm/runtime_process_os_glue.x|seeds/runtime_process_os_glue_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
