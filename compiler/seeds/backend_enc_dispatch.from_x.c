@@ -171,6 +171,7 @@ int32_t backend_enc_subsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ct
 int32_t backend_enc_mulsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_divsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_ucomisd_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+int32_t backend_enc_ucomiss_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_fp_cmp_setcc_movzbl_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t cc, int32_t ta);
 int32_t backend_enc_store_eax_to_rbp_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset, int32_t ta);
 #endif
@@ -1533,6 +1534,36 @@ int32_t backend_enc_ucomisd_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm1_rax, 5) != 0)
     return -1;
   return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)ucomisd_xmm0_xmm1, 4);
+}
+
+/**
+ * PLATFORM: LINUX+MACOS x86_64 / MACOS|ARM64 — ordered f32 compare: left in rbx/x1, right in rax/x0.
+ * wave621 Cap residual: freestanding f32 ==/!=/<> used integer cmp of 64-bit stack loads
+ * (high half garbage → equal floats fail; signed order wrong for negatives).
+ * x86_64: movd xmm0,ebx; movd xmm1,eax; ucomiss xmm0,xmm1 (low 32 only; CF/ZF setcc).
+ * arm64: fmov s0,w1; fmov s1,w0; fcmp s0,s1 (Wn = low 32 of Xn).
+ * Pair with backend_enc_fp_cmp_setcc_movzbl_arch (same CF/ZF / NZCV contract as f64).
+ * G.7: sibling of backend_enc_ucomisd_rbx_rax_arch — do not reuse ucomisd for f32.
+ */
+int32_t backend_enc_ucomiss_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  /* movd xmm0, ebx (no REX.W — 32-bit GP → xmm); movd xmm1, eax; ucomiss xmm0, xmm1 */
+  static const uint8_t movd_xmm0_ebx[4] = {0x66, 0x0f, 0x6e, 0xc3};
+  static const uint8_t movd_xmm1_eax[4] = {0x66, 0x0f, 0x6e, 0xc8};
+  static const uint8_t ucomiss_xmm0_xmm1[3] = {0x0f, 0x2e, 0xc1};
+  /* PLATFORM: MACOS|ARM64 — fmov s0,w1; fmov s1,w0; fcmp s0,s1 */
+  if (ta == 1) {
+    if (!elf_ctx) return -1;
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e270020u) != 0) return -1; /* fmov s0, w1 */
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e270001u) != 0) return -1; /* fmov s1, w0 */
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e212000u);             /* fcmp s0, s1 */
+  }
+  if (ta != 0 || !elf_ctx)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_xmm0_ebx, 4) != 0)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_xmm1_eax, 4) != 0)
+    return -1;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)ucomiss_xmm0_xmm1, 3);
 }
 
 /**

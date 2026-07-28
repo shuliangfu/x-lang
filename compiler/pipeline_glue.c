@@ -1429,6 +1429,8 @@ extern int32_t backend_enc_subsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx 
 extern int32_t backend_enc_mulsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_divsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_ucomisd_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+/* wave621: f32 ordered compare (ucomiss / fcmp s); sibling of ucomisd. */
+extern int32_t backend_enc_ucomiss_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_fp_cmp_setcc_movzbl_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t cc, int32_t ta);
 extern int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 /** f64 bits in rax → truncated i32 in eax (cvttsd2si); freestanding `as i32` (wave291). */
@@ -20859,8 +20861,11 @@ static int32_t glue_emit_rex_w_if_64bit(struct platform_elf_ElfCodegenCtx *elf_c
 
 /**
  * Finish a cmp with left in rbx, right in rax.
- * PLATFORM: LINUX+MACOS x86_64 — scalar f64 uses ucomisd + CF/ZF setcc;
- * integers use cmp/cmpq + SF setcc. G.7 single finish authority for both.
+ * PLATFORM: LINUX+MACOS x86_64 / MACOS|ARM64 —
+ *   scalar f64 → ucomisd/fcmp d + CF/ZF (NZCV) setcc
+ *   scalar f32 → ucomiss/fcmp s + same setcc (wave621; prior fell through to integer cmp)
+ *   integers   → cmp/cmpq + SF setcc
+ * G.7 single finish authority for all three; do not open a second cmp finish path.
  */
 static int32_t glue_emit_cmp_finish_rbx_rax_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                     struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t left_ref,
@@ -20869,6 +20874,16 @@ static int32_t glue_emit_cmp_finish_rbx_rax_elf_c(struct ast_ASTArena *arena, st
       glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
       glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref)) {
     if (backend_enc_ucomisd_rbx_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    return backend_enc_fp_cmp_setcc_movzbl_arch(elf_ctx, cc, ta);
+  }
+  /* wave621 Cap residual pure: freestanding f32 ==/ordered used integer cmp of 64-bit
+   * stack loads (high-half garbage → equal false; signed order wrong for negatives).
+   * Authority: backend_enc_ucomiss_rbx_rax_arch + fp setcc (G.7 expand finish, not a fork). */
+  if ((ta == 0 || ta == 1) && left_ref > 0 && right_ref > 0 &&
+      glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
+      glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref)) {
+    if (backend_enc_ucomiss_rbx_rax_arch(elf_ctx, ta) != 0)
       return -1;
     return backend_enc_fp_cmp_setcc_movzbl_arch(elf_ctx, cc, ta);
   }
@@ -20959,9 +20974,10 @@ int32_t pipeline_asm_emit_cmp_elf(struct ast_ASTArena *arena, struct platform_el
     return glue_emit_cmp_finish_rbx_rax_elf_c(arena, ctx, elf_ctx, left_ref, right_ref, is_cmp_64bit, cc, ta);
   }
   /** while 头 VAR vs 字面量：rbp 直 load+cmp，勿 rec emit left 再 mov rax→rbx（tear 易失败）。
-   * Skip when left is scalar f64 (float lit is not lit_i32; keep integer path only). */
+   * Skip when left is scalar f32/f64 (float must finish via ucomiss/ucomisd; int imm path is wrong). */
   if (left_ref > 0 && right_ref > 0 && pipeline_expr_kind_ord_at(arena, left_ref) == GLUE_EXPR_KIND_VAR &&
       !glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
+      !glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
       pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm)) {
     int32_t var_off = glue_var_expr_stack_off_elf_c(arena, ctx, left_ref);
     if (var_off >= 0) {
@@ -20976,6 +20992,7 @@ int32_t pipeline_asm_emit_cmp_elf(struct ast_ASTArena *arena, struct platform_el
     }
   }
   if (right_ref != 0 && !glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
+      !glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
       pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm)) {
     if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, cmp_expr_ref), ctx, ta) != 0)
       return -1;
