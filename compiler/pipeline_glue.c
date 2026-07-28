@@ -16178,20 +16178,26 @@ static int32_t glue_field_call_arg_try_load_agg_from_rax_elf_c(struct ast_ASTAre
 /**
  * wave589 Cap residual pure: freestanding FIELD_ACCESS on CALL/METHOD_CALL return
  * (`mk().x` / long-field `mk().f…`).
+ * wave590: extend >16B MEMORY/sret rvalue field (was soft leave after wave589).
  *
  * Root: field_access fast fell through to lvalue_eff_addr, which only handles
  * VAR / nested FIELD / INDEX / DEREF. CALL base returns -1 → UNHANDLED → CG002
  * (host-C emits temporary `.` access; Ubuntu pure-asm gold exposes). Soft leave
  * after wave588 incorrectly pinned this to "long field names"; short `mk().x`
- * fails the same path.
+ * fails the same path. wave589 closed ≤16B dual-GP; wave590 closes >16B.
  *
- * G.7 authority: materialize ≤16B return into a frame temp via
- * glue_store_retval_pair_to_rbp_elf_c (same as `let s = mk()`), then load field
- * at layout offset — no second field-access path, no host-C change.
- * Soft residual: >16B sret rvalue field (use let binding).
+ * G.7 authority (same as `let s = mk()` / glue_emit_struct_type_let_init):
+ *   ≤16B: emit CALL + glue_store_retval_pair_to_rbp_elf_c
+ *   >16B: try_inline STRUCT_LIT return into frame temp, else SysV sret
+ *         (hidden rdi = temp; call_sret_reg_shift) on x86_64
+ * then load field at layout offset — no second field-access path, no host-C change.
+ *
+ * Soft residual: arm64 freestanding non-inlineable large CALL.field (use let);
+ * frame temps rely on compute_frame_size scratch (≥512) for typical aggregates.
  *
  * @return 0 success, -1 emit error, PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED not CALL/METHOD base
- * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path (ta layout)
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path (ta layout;
+ *   sret gate is LINUX+MACOS x86_64 SysV, ta==0)
  */
 static int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *arena,
                                                         struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
@@ -16207,6 +16213,7 @@ static int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *are
   int32_t load_sz;
   int32_t emit_rc;
   int32_t agg;
+  int32_t materialised;
   pipeline_glue_AsmFuncCtxLayout *ly;
   struct ast_Module *mod;
 
@@ -16229,6 +16236,8 @@ static int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *are
     ret_sz = glue_type_size_simple(mod, arena, base_ty, 0);
   if (ret_sz <= 0 && base_ko == 48)
     ret_sz = glue_call_return_byte_size_c(arena, base_ref);
+  if (ret_sz <= 0 && base_ty > 0)
+    ret_sz = glue_type_named_layout_size_any_module_elf_c(arena, base_ty);
   if (ret_sz <= 0)
     ret_sz = 8;
   if (base_ty > 0 && ret_sz <= 16) {
@@ -16236,11 +16245,14 @@ static int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *are
     if (nsz > ret_sz)
       ret_sz = nsz;
   }
-  /* Soft: large MEMORY/sret rvalue field — let s = mk(); s.f still works. */
-  if (ret_sz > 16)
+  /*
+   * Cap frame temp: compute_frame_size scratch is ≥512; refuse pathological
+   * aggregates rather than silent SP overrun (use let binding for huge types).
+   */
+  if (ret_sz > 4096)
     return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
 
-  alloc_sz = (ret_sz <= 8) ? 8 : 16;
+  alloc_sz = (ret_sz <= 8) ? 8 : ((ret_sz <= 16) ? 16 : ((ret_sz + 7) & ~7));
   ly = pipeline_asm_ctx_layout(ctx);
   if (!ly)
     return -1;
@@ -16249,7 +16261,7 @@ static int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *are
     base_off = (base_off + 7) / 8 * 8;
   /*
    * PLATFORM: MACOS|ARM64 low-end home=off (wave402); LINUX|x86 high-end
-   * home=off+alloc (store_retval dual-GP: low@home, high@home-8).
+   * home=off+alloc (store_retval dual-GP: low@home, high@home-8; sret byte0@home).
    */
   if (ta == 1) {
     home = base_off;
@@ -16260,11 +16272,56 @@ static int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *are
   }
   glue_align_next_offset(ctx);
 
-  emit_rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, base_ref, ctx, ta);
-  if (emit_rc != 0)
-    return -1;
-  if (glue_store_retval_pair_to_rbp_elf_c(mod, arena, elf_ctx, base_ty > 0 ? base_ty : 0, home, ta, base_ref,
-                                          ctx) != 0)
+  materialised = 0;
+  if (ret_sz > 16) {
+    /*
+     * wave590: same order as glue_emit_struct_type_let_init for large CALL.
+     * 1) STRUCT_LIT return inline into home (works dual-end freestanding).
+     * 2) SysV sret: rdi = home, reg_shift=1 (ta==0 only).
+     * METHOD_CALL has no STRUCT_LIT-return inline helper; sret path covers it.
+     */
+    if (base_ko == 48) {
+      int32_t inl;
+      inl = try_inline_struct_lit_return_call_to_slot_elf(arena, elf_ctx, base_ref, ctx, ta, home);
+      if (inl == 1)
+        materialised = 1;
+      if (materialised == 0) {
+        inl = try_inline_const_struct_lit_return_call_to_slot_elf(arena, elf_ctx, base_ref, ctx, ta, home);
+        if (inl == 1)
+          materialised = 1;
+      }
+    }
+    if (materialised == 0) {
+      /* PLATFORM: LINUX+MACOS x86_64 SysV — hidden sret dest in rdi. */
+      if (ta != 0)
+        return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+      pipeline_asm_set_call_expected_ret_ty_c(base_ty > 0 ? base_ty : 0);
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta) != 0) {
+        pipeline_asm_set_call_expected_ret_ty_c(0);
+        return -1;
+      }
+      if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) {
+        pipeline_asm_set_call_expected_ret_ty_c(0);
+        return -1;
+      }
+      pipeline_asm_emit_set_call_sret_reg_shift_c(1);
+      emit_rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, base_ref, ctx, ta);
+      pipeline_asm_emit_set_call_sret_reg_shift_c(0);
+      pipeline_asm_set_call_expected_ret_ty_c(0);
+      if (emit_rc != 0)
+        return -1;
+      materialised = 1;
+    }
+  } else {
+    emit_rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, base_ref, ctx, ta);
+    if (emit_rc != 0)
+      return -1;
+    if (glue_store_retval_pair_to_rbp_elf_c(mod, arena, elf_ctx, base_ty > 0 ? base_ty : 0, home, ta, base_ref,
+                                            ctx) != 0)
+      return -1;
+    materialised = 1;
+  }
+  if (materialised == 0)
     return -1;
 
   field_off = glue_field_access_effective_offset_c(arena, mod, expr_ref);
