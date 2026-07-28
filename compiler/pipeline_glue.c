@@ -11403,6 +11403,66 @@ static int32_t glue_index_assign_addr_cache_hit(struct ast_ASTArena *arena, stru
   return 1;
 }
 
+/**
+ * wave630 Cap residual pure: bulk copy [src_spill]→[dst_spill] for esz>8 INDEX assign.
+ *
+ * Root: generic finish_store only moves 1/4/8 via store_rax_to_rbx_indirect, and rhs
+ * VAR of S24 loads first qword only — pure-asm a[i]=t writes one word at wrong scale.
+ * G.7: freestanding-safe chunked load/store (no libc memcpy); reload base ptrs each
+ * chunk so load clobbers do not burn dest (same geometry as wave399 element-wise).
+ * PLATFORM: SHARED freestanding · LINUX|x86 high-end · MACOS|ARM64 low-end.
+ *
+ * @param src_spill frame off holding source pointer
+ * @param dst_spill frame off holding dest pointer
+ * @param esz       total bytes to copy (must be > 0)
+ * @return 0 ok, -1 emit error
+ */
+static int32_t glue_emit_bulk_mem_copy_spills_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                     int32_t src_spill, int32_t dst_spill, int32_t esz,
+                                                     int32_t ta) {
+  int32_t off;
+  int32_t chunk;
+  if (!elf_ctx || src_spill < 0 || dst_spill < 0 || esz <= 0)
+    return -1;
+  off = 0;
+  while (off < esz) {
+    if (off + 8 <= esz)
+      chunk = 8;
+    else if (off + 4 <= esz)
+      chunk = 4;
+    else
+      chunk = 1;
+    /* Load chunk from src+off → rax (value). */
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, src_spill, ta) != 0)
+      return -1;
+    if (off != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, off, ta) != 0)
+      return -1;
+    if (chunk == 8) {
+      if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+    } else if (chunk == 4) {
+      if (backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+    } else {
+      if (backend_enc_load_zext8_from_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+    }
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    /* Dest base → rbx; pop value; store at [rbx+off]. */
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, dst_spill, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, off, chunk, ta) != 0)
+      return -1;
+    off += chunk;
+  }
+  return 0;
+}
+
 /** Store rhs (rax) at [rbx] and remember rbx for an identical next INDEX assign. */
 static int32_t glue_index_assign_finish_store_elf_c(struct ast_ASTArena *arena,
                                                      struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -11994,6 +12054,95 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
         return 0;
       }
     }
+    /*
+     * wave630 Cap residual pure: non-STRUCT_LIT INDEX assign with esz>8
+     * (`a[i]=t` / `a[j]=a[i]` / `a[i]=mk()` / S12 esz=12).
+     *
+     * Root (Ubuntu pure-asm; host-C green; arm64 low-end often masks):
+     *  1) assign-side try_* ends in rbx_plus_index_scratch_scaled which only
+     *     scales {1,4,8} — esz=12/24 falls to ×8 → mid-element dest
+     *  2) finish_store store_rax_to_rbx_indirect width ≤8; rhs VAR of large
+     *     struct loads first qword only → s24_asg run=14 (=1+10+3)
+     * G.7: ① src address (lvalue lea / CALL materialize into temp via
+     *   glue_emit_struct_type_let_init) ② dest via glue_emit_index_eff_addr_scaled
+     *   (general imul esz; TYPE_SLICE .data) ③ chunked bulk copy (no ≤8 store).
+     * Once entered hard-fail (rax/rbx already used). STRUCT_LIT still above.
+     * PLATFORM: SHARED freestanding · LINUX|x86 high-end · MACOS|ARM64 low-end.
+     */
+    if (esz > 8) {
+      int32_t rko_bulk;
+      int32_t src_spill;
+      int32_t dst_spill;
+      int32_t temp_home;
+      int32_t nbytes;
+      int32_t rc_bulk;
+      pipeline_glue_AsmFuncCtxLayout *ly_bulk;
+      rko_bulk = pipeline_expr_kind_ord_at(arena, right_ref);
+      if (rko_bulk == 3 || rko_bulk == 44 || rko_bulk == 47 || rko_bulk == 48 || rko_bulk == 49) {
+        ly_bulk = pipeline_asm_ctx_layout(ctx);
+        if (!ly_bulk) {
+          glue_index_assign_addr_cache_clear();
+          return -1;
+        }
+        /* Two pointer spills (src, dst); 16B each for dual-GP slot alignment. */
+        if (ly_bulk->next_offset + 32 < ly_bulk->next_offset) {
+          glue_index_assign_addr_cache_clear();
+          return -1;
+        }
+        ly_bulk->next_offset += 16;
+        src_spill = ly_bulk->next_offset;
+        ly_bulk->next_offset += 16;
+        dst_spill = ly_bulk->next_offset;
+        temp_home = -1;
+        if (rko_bulk == 3 || rko_bulk == 44 || rko_bulk == 47) {
+          if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0) {
+            glue_index_assign_addr_cache_clear();
+            return -1;
+          }
+          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, src_spill, ta) != 0) {
+            glue_index_assign_addr_cache_clear();
+            return -1;
+          }
+        } else {
+          /* CALL/METHOD: materialize return into temp then copy (sret / dual-GP). */
+          nbytes = (esz + 7) & ~7;
+          if (ly_bulk->next_offset + nbytes < ly_bulk->next_offset) {
+            glue_index_assign_addr_cache_clear();
+            return -1;
+          }
+          ly_bulk->next_offset += nbytes;
+          temp_home = ly_bulk->next_offset;
+          rc_bulk = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, right_ref, ctx, ta, 0, temp_home);
+          if (rc_bulk != 0) {
+            glue_index_assign_addr_cache_clear();
+            return -1;
+          }
+          if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_home, ta) != 0) {
+            glue_index_assign_addr_cache_clear();
+            return -1;
+          }
+          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, src_spill, ta) != 0) {
+            glue_index_assign_addr_cache_clear();
+            return -1;
+          }
+        }
+        if (glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, left_ref, base_ref, idx_ref, ctx, ta,
+                                                    esz) != 0) {
+          glue_index_assign_addr_cache_clear();
+          return -1;
+        }
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, dst_spill, ta) != 0) {
+          glue_index_assign_addr_cache_clear();
+          return -1;
+        }
+        if (glue_emit_bulk_mem_copy_spills_elf_c(elf_ctx, src_spill, dst_spill, esz, ta) != 0) {
+          glue_index_assign_addr_cache_clear();
+          return -1;
+        }
+        glue_index_assign_addr_cache_clear();
+        return 0;
+      }
+    }
     /** arm64 rbx=x1：先 emit 右值→rax，再 INDEX 址→rbx（字面量/变量下标直路径免 x2）。 */
     if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0) {
       glue_index_assign_addr_cache_clear();
@@ -12009,42 +12158,50 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
       glue_index_assign_addr_cache_clear();
     if (glue_index_assign_addr_cache_hit(arena, ctx, base_ref, idx_ref, esz))
       return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
-    if (glue_try_index_var_lit_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
-      return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
-    if (glue_try_index_var_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
-      return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
-    if (glue_try_index_var_plus_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
-      return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
-    if (glue_try_index_var_plus_var_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
-      return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
-    if (glue_try_index_var_minus_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
-      return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
-    if (glue_try_index_var_minus_var_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
-      return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
-    if (glue_try_index_var_mul_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
-      return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
-    if (glue_try_index_var_mul_var_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
-      return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
-    if (glue_try_index_var_plus_var_plus_var_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
-      return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
-    if (glue_try_index_var_minus_var_plus_var_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
-      return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
-    if (glue_try_index_var_minus_var_minus_var_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
-      return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
-    if (glue_try_index_var_minus_add3_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
-      return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
-    if (glue_try_index_var_plus_var_mul_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
-      return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
-    if (glue_try_index_var_minus_var_mul_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
-      return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
-    if (glue_try_index_var_add3_mul_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
-      return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
-    if (glue_try_index_var_subadd3_mul_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
-      return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
-    if (glue_try_index_var_subsub3_mul_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
-      return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
-    if (glue_try_index_var_minus_add3_mul_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
-      return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+    /*
+     * wave630: assign-side try_* use rbx_plus_index_scratch_scaled which only
+     * scales {1,4,8}. esz∉{1,4,8} (e.g. 12,24) must skip try_* → fall through
+     * to glue_emit_index_eff_addr_scaled (general imul). lit path multiplies
+     * esz correctly but still only for ≤8 store widths in finish_store.
+     */
+    if (esz == 1 || esz == 4 || esz == 8) {
+      if (glue_try_index_var_lit_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_plus_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_plus_var_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_minus_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_minus_var_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_mul_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_mul_var_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_plus_var_plus_var_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_minus_var_plus_var_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_minus_var_minus_var_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_minus_add3_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_plus_var_mul_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_minus_var_mul_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_add3_mul_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_subadd3_mul_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_subsub3_mul_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+      if (glue_try_index_var_minus_add3_mul_lit_idx_addr_to_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz) == 0)
+        return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
+    }
     glue_index_assign_addr_cache_clear();
     if (glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, left_ref, base_ref, idx_ref, ctx, ta, esz) != 0)
       return -1;
