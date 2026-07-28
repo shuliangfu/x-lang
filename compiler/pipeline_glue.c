@@ -11851,25 +11851,32 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
     if (base_ref <= 0 || idx_ref <= 0)
       return -1;
     /*
-     * wave627/628 Cap residual pure: INDEX assign of STRUCT_LIT (`a[i] = Pt{…}` / S24{…}).
+     * wave627/628/629 Cap residual pure: INDEX assign of STRUCT_LIT
+     * (`a[i] = Pt{…}` / S24{…} on TYPE_ARRAY or TYPE_SLICE).
      *
-     * Root (wave627 INT_LIT): generic path emit_expr STRUCT_LIT (slot_off=-1)
-     * materializes at ly->next_offset without advancing high-end top; after fixed
-     * TYPE_ARRAY alloc, next_offset aliases a[0]. Field stores for a[1]=Pt{0,32}
-     * overwrite a[0], then finish_store bulk-copies 8B to a[1] → Ubuntu pure-asm
-     * a[0].x+a[1].y=32 (host-C temps green). >8B also store_rax width ≤8 → s24 lit
-     * asg run=3 before in-place.
+     * Root (wave627 INT_LIT TYPE_ARRAY): generic path emit_expr STRUCT_LIT
+     * (slot_off=-1) materializes at ly->next_offset without advancing high-end
+     * top; after fixed TYPE_ARRAY alloc, next_offset aliases a[0]. Field stores
+     * for a[1]=Pt{0,32} overwrite a[0], then finish_store bulk-copies 8B to a[1]
+     * → Ubuntu pure-asm a[0].x+a[1].y=32 (host-C temps green). >8B also
+     * store_rax width ≤8 → s24 lit asg run=3 before in-place.
      *
-     * Root (wave628 var-index): same generic path leaves pointer in rax and
-     * finish_store only writes 8B of that pointer into the element (s24_var
-     * field a = stack addr bits; sum garbage). Assign-side scale helper also
-     * falls back to ×8 for esz∉{1,4} so a[j] with esz=24 lands mid-element.
+     * Root (wave628 var-index TYPE_ARRAY): same generic path leaves pointer in
+     * rax and finish_store only writes 8B of that pointer into the element
+     * (s24_var field a = stack addr bits; sum garbage). Assign-side scale
+     * helper also falls back to ×8 for esz∉{1,4} so a[j] with esz=24 lands
+     * mid-element.
+     *
+     * Root (wave629 TYPE_SLICE): wave628 gated only TYPE_ARRAY. Slice fat home
+     * is dual-GP {data,length} — never a payload base. Generic path still
+     * leaves temp pointer + finish_store ≤8 → pure-asm S24[] sum garbage
+     * (host-C green; fixed TYPE_ARRAY already green via wave628).
      *
      * G.7: same in-place authority as wave626 vector_let STRUCT_LIT —
-     * ① INT_LIT: arch-aware rbp elem_home field writes (wave627)
-     * ② non-lit: glue_emit_index_eff_addr_scaled (general esz mul) → rbx, then
-     *    fields with GLUE_STRUCT_LIT_DEST_IN_RBX (no rvalue / no bulk≤8)
-     * Only fixed TYPE_ARRAY base; TYPE_SLICE fat home still gated out.
+     * ① TYPE_ARRAY+INT_LIT: arch-aware rbp elem_home field writes (wave627)
+     * ② TYPE_ARRAY non-lit OR TYPE_SLICE (any index): glue_emit_index_eff_addr
+     *    scaled (loads .data for slice; general imul esz) → rbx, then fields
+     *    with GLUE_STRUCT_LIT_DEST_IN_RBX (no rvalue / no bulk≤8)
      * PLATFORM: SHARED freestanding · LINUX|x86 high-end · MACOS|ARM64 low-end.
      */
     rko_idx = pipeline_expr_kind_ord_at(arena, right_ref);
@@ -11918,6 +11925,31 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
           glue_index_assign_addr_cache_clear();
           return 0;
         }
+      } else if (base_tk == GLUE_TYPE_KIND_SLICE) {
+        /*
+         * wave629: TYPE_SLICE INDEX STRUCT_LIT — always eff_addr + DEST_IN_RBX.
+         * Fat home is {data@0,length@8}; INT_LIT must NOT use fat rbp as elem
+         * base (that would smash length / miss durable data). Scaled path loads
+         * .data then imul esz (same as wave628 non-lit TYPE_ARRAY). Once entered
+         * hard-fail (rax/rbx already clobbered). Covers local dual-GP let and
+         * formal slice* (glue_emit_index_eff_addr_base loads via needs_ptr_load).
+         */
+        if (glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, left_ref, base_ref, idx_ref, ctx, ta,
+                                                    esz) != 0) {
+          glue_index_assign_addr_cache_clear();
+          return -1;
+        }
+        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+          glue_index_assign_addr_cache_clear();
+          return -1;
+        }
+        if (pipeline_asm_emit_struct_lit_fields_elf_c(arena, elf_ctx, right_ref, ctx, ta,
+                                                       GLUE_STRUCT_LIT_DEST_IN_RBX) != 0) {
+          glue_index_assign_addr_cache_clear();
+          return -1;
+        }
+        glue_index_assign_addr_cache_clear();
+        return 0;
       }
     }
     /** arm64 rbx=x1：先 emit 右值→rax，再 INDEX 址→rbx（字面量/变量下标直路径免 x2）。 */
