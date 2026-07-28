@@ -16176,6 +16176,118 @@ static int32_t glue_field_call_arg_try_load_agg_from_rax_elf_c(struct ast_ASTAre
 }
 
 /**
+ * wave589 Cap residual pure: freestanding FIELD_ACCESS on CALL/METHOD_CALL return
+ * (`mk().x` / long-field `mk().f…`).
+ *
+ * Root: field_access fast fell through to lvalue_eff_addr, which only handles
+ * VAR / nested FIELD / INDEX / DEREF. CALL base returns -1 → UNHANDLED → CG002
+ * (host-C emits temporary `.` access; Ubuntu pure-asm gold exposes). Soft leave
+ * after wave588 incorrectly pinned this to "long field names"; short `mk().x`
+ * fails the same path.
+ *
+ * G.7 authority: materialize ≤16B return into a frame temp via
+ * glue_store_retval_pair_to_rbp_elf_c (same as `let s = mk()`), then load field
+ * at layout offset — no second field-access path, no host-C change.
+ * Soft residual: >16B sret rvalue field (use let binding).
+ *
+ * @return 0 success, -1 emit error, PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED not CALL/METHOD base
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path (ta layout)
+ */
+static int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *arena,
+                                                        struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
+                                                        struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  int32_t base_ref;
+  int32_t base_ko;
+  int32_t base_ty;
+  int32_t ret_sz;
+  int32_t alloc_sz;
+  int32_t home;
+  int32_t base_off;
+  int32_t field_off;
+  int32_t load_sz;
+  int32_t emit_rc;
+  int32_t agg;
+  pipeline_glue_AsmFuncCtxLayout *ly;
+  struct ast_Module *mod;
+
+  if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
+    return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+  if (pipeline_expr_field_access_is_enum_variant(arena, expr_ref) != 0)
+    return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+  base_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
+  if (base_ref <= 0)
+    return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+  base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
+  /* EXPR_CALL=48, EXPR_METHOD_CALL=49 */
+  if (base_ko != 48 && base_ko != 49)
+    return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+
+  mod = g_pipeline_asm_emit_module;
+  base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+  ret_sz = 0;
+  if (base_ty > 0)
+    ret_sz = glue_type_size_simple(mod, arena, base_ty, 0);
+  if (ret_sz <= 0 && base_ko == 48)
+    ret_sz = glue_call_return_byte_size_c(arena, base_ref);
+  if (ret_sz <= 0)
+    ret_sz = 8;
+  if (base_ty > 0 && ret_sz <= 16) {
+    int32_t nsz = glue_sysv_dual_gp_byte_size_c(arena, base_ty);
+    if (nsz > ret_sz)
+      ret_sz = nsz;
+  }
+  /* Soft: large MEMORY/sret rvalue field — let s = mk(); s.f still works. */
+  if (ret_sz > 16)
+    return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+
+  alloc_sz = (ret_sz <= 8) ? 8 : 16;
+  ly = pipeline_asm_ctx_layout(ctx);
+  if (!ly)
+    return -1;
+  base_off = ly->next_offset;
+  if ((base_off % 8) != 0)
+    base_off = (base_off + 7) / 8 * 8;
+  /*
+   * PLATFORM: MACOS|ARM64 low-end home=off (wave402); LINUX|x86 high-end
+   * home=off+alloc (store_retval dual-GP: low@home, high@home-8).
+   */
+  if (ta == 1) {
+    home = base_off;
+    ly->next_offset = base_off + alloc_sz;
+  } else {
+    home = base_off + alloc_sz;
+    ly->next_offset = home;
+  }
+  glue_align_next_offset(ctx);
+
+  emit_rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, base_ref, ctx, ta);
+  if (emit_rc != 0)
+    return -1;
+  if (glue_store_retval_pair_to_rbp_elf_c(mod, arena, elf_ctx, base_ty > 0 ? base_ty : 0, home, ta, base_ref,
+                                          ctx) != 0)
+    return -1;
+
+  field_off = glue_field_access_effective_offset_c(arena, mod, expr_ref);
+  if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
+    return -1;
+  if (field_off != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0)
+    return -1;
+  if (glue_field_access_call_arg_struct_by_addr_elf_c(arena, expr_ref) != 0)
+    return 0;
+  agg = glue_field_call_arg_try_load_agg_from_rax_elf_c(arena, elf_ctx, expr_ref, ta);
+  if (agg < 0)
+    return -1;
+  if (agg > 0)
+    return 0;
+  load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
+  if (load_sz == 1)
+    return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
+  if (load_sz == 8)
+    return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+  return backend_enc_load_32_from_rax_arch(elf_ctx, ta);
+}
+
+/**
  * VAR 基底字段访问（lex.pos、l.line 等）：经 asm_ctx 查栈槽 + 字段偏移 load，勿落 backend slow 的 ast_arena_expr_get 按值拷贝。
  */
 static int32_t pipeline_asm_emit_var_field_access_elf_c(struct ast_ASTArena *arena,
@@ -16311,6 +16423,15 @@ static int32_t pipeline_asm_emit_field_access_elf_fast_c(struct ast_ASTArena *ar
     if (load_sz == 8)
       return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
     return backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta);
+  }
+  /**
+   * wave589: CALL/METHOD_CALL rvalue base (`mk().x`) before VAR / chain lvalue.
+   * PLATFORM: SHARED freestanding · LINUX gold.
+   */
+  {
+    int32_t call_fa = glue_field_access_call_base_rvalue_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+    if (call_fa != PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED)
+      return call_fa;
   }
   /** 局部/形参 struct 字段（listener.fd 等）；枚举 TokenKind/TypeKind/ExprKind 须先于 var_field_access（skip typeck 无 is_enum_variant）。 */
   if (fa_base2 > 0 && pipeline_expr_kind_ord_at(arena, fa_base2) == 3) {
