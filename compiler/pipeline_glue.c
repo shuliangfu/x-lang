@@ -13177,6 +13177,18 @@ int32_t pipeline_asm_emit_addr_of_elf_c(struct ast_ASTArena *arena, struct platf
   /** &v.field / &ptr.field：直接复用 lvalue 有效地址路径。 */
   if (ok == 44)
     return pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, op, ctx, ta);
+  /*
+   * wave641 Cap residual pure: language-level `&(*p)` / `&(*(*pp))` — ADDR_OF of
+   * EXPR_DEREF (ko=52). Prior path handled only VAR(3)/INDEX(47)/FIELD(44) →
+   * UNHANDLED → freestanding CG002 (host-C emits `&(*(p))` → cancels to `p`;
+   * pure-asm CTFE often folds). Semantics: address of the pointee *is* the
+   * pointer value of the DEREF operand — same as wave324 lvalue_eff_addr for
+   * DEREF assign lhs (`*p = …`). G.7: complete same ADDR_OF authority; reuse
+   * lvalue_eff_addr (no second cancel path). PLATFORM: SHARED freestanding ·
+   * LINUX gold · MACOS|ARM64 co-path.
+   */
+  if (ok == 52)
+    return pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, op, ctx, ta);
   /* #region debug-point A:context-cg002-addr-of-fallback */
   if (link_abi_getenv("XLANG_ASM_DEBUG")) {
     fprintf(stderr, "xlang: addr_of elf fallback expr_ref=%d op_ref=%d op_kind=%d\n",
