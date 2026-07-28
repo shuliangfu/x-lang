@@ -1474,6 +1474,7 @@ extern int32_t backend_enc_xor_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *e
 extern int32_t backend_enc_mov_rbx_to_ecx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_shl_cl_eax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_shr_cl_eax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+extern int32_t backend_enc_sar_cl_eax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_shl_cl_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_shr_cl_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_sar_cl_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
@@ -16788,6 +16789,14 @@ static int32_t glue_emit_binop_add_rax_rbx_elf_c(struct ast_ASTArena *arena,
   return backend_enc_add_rax_rbx_arch(elf_ctx, ta);
 }
 
+/* Forward: defined below with other binop type helpers (used by <<= / >>=). */
+static int32_t glue_binop_operand_is_unsigned_elf_c(struct ast_ASTArena *arena,
+                                                     struct backend_AsmFuncCtx *ctx,
+                                                     int32_t left_ref, int32_t right_ref);
+static int32_t glue_binop_operand_is_64bit_elf_c(struct ast_ASTArena *arena,
+                                                  struct backend_AsmFuncCtx *ctx,
+                                                  int32_t left_ref, int32_t right_ref);
+
 /**
  * assign/复合赋值：将待写入 lhs 的值装入 rax（plain 为 rhs；a+=10 为 lhs+rhs）。
  * 避免 EXPR_*_ASSIGN 落 backend_emit_expr_elf_slow 与 rec 互递归 SIGSEGV。
@@ -16845,16 +16854,34 @@ static int32_t glue_emit_assign_rhs_to_rax_elf_c(struct ast_ASTArena *arena,
     return backend_enc_or_rbx_rax_arch(elf_ctx, ta);
   case 36:
     return backend_enc_xor_rbx_rax_arch(elf_ctx, ta);
-  case 37:
+  case 37: {
+    int32_t is_64bit;
     glue_binop_var_slot_cache_clear();
     if (backend_enc_mov_rbx_to_ecx_arch(elf_ctx, ta) != 0)
       return -1;
-    return backend_enc_shl_cl_eax_arch(elf_ctx, ta);
-  case 38:
+    /* left only: compound assign shift width follows lhs type. */
+    is_64bit = glue_binop_operand_is_64bit_elf_c(arena, ctx, left_ref, 0);
+    return is_64bit ? backend_enc_shl_cl_rax_arch(elf_ctx, ta) : backend_enc_shl_cl_eax_arch(elf_ctx, ta);
+  }
+  case 38: {
+    /*
+     * wave648 Cap residual pure: signed >>= must be SAR not logical SHR.
+     * Same root as binop >> — host-C uses arithmetic shift; freestanding
+     * always emitted SHR so `-16 >>= 2` stayed 0x3ffffffc (fs if-eq 0).
+     * G.7: reuse unsigned + 64-bit helpers; u32/u64 keep SHR.
+     * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
+     */
+    int32_t is_64bit;
+    int32_t is_unsigned;
     glue_binop_var_slot_cache_clear();
     if (backend_enc_mov_rbx_to_ecx_arch(elf_ctx, ta) != 0)
       return -1;
-    return backend_enc_shr_cl_eax_arch(elf_ctx, ta);
+    is_64bit = glue_binop_operand_is_64bit_elf_c(arena, ctx, left_ref, 0);
+    is_unsigned = glue_binop_operand_is_unsigned_elf_c(arena, ctx, left_ref, 0);
+    if (is_unsigned)
+      return is_64bit ? backend_enc_shr_cl_rax_arch(elf_ctx, ta) : backend_enc_shr_cl_eax_arch(elf_ctx, ta);
+    return is_64bit ? backend_enc_sar_cl_rax_arch(elf_ctx, ta) : backend_enc_sar_cl_eax_arch(elf_ctx, ta);
+  }
   default:
     return -1;
   }
@@ -17705,8 +17732,18 @@ static int32_t pipeline_asm_emit_binop_bitwise_elf_c(struct ast_ASTArena *arena,
 }
 
 /**
- * 移位二元运算 ELF：value 在 rax/w0，count 在 rbx/w1，x86 再 mov 到 cl，arm64 mov w2,w1。
- * op: 0=shl, 1=shr（逻辑右移）。
+ * Freestanding shift binop ELF: value@rax/w0, count@rbx/w1, then count→cl/w2.
+ *
+ * op: 0=shl, 1=right shift (signed → SAR / asr; unsigned → SHR / lsr).
+ *
+ * wave648 Cap residual pure: EXPR_SHR always emitted logical SHR even for
+ * signed i32/i64 → freestanding `-16 >> 2` became 0x3ffffffc (host-C SAR
+ * green; cmp to -4 fs=0; pure may CTFE-fold). Encoders already had
+ * backend_enc_sar_cl_{eax,rax}_arch (wave306 arm64 64-bit asr).
+ *
+ * G.7: single authority — reuse glue_binop_operand_is_unsigned_elf_c
+ * (same as div/rem) + is_64bit; do not open a second shift path.
+ * PLATFORM: SHARED freestanding · LINUX x86 sar · MACOS|ARM64 asr co-path.
  */
 static int32_t pipeline_asm_emit_binop_shift_elf_c(struct ast_ASTArena *arena,
                                                     struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t left_ref,
@@ -17715,9 +17752,11 @@ static int32_t pipeline_asm_emit_binop_shift_elf_c(struct ast_ASTArena *arena,
   int32_t lit_imm;
   int32_t vr;
   int32_t is_64bit;
-  /* 【Why】i64/u64/usize/isize/ptr 移位须用 64-bit 指令（shlq/shrq/sarq，REX.W 前缀），
-   *        否则移位量被 & 31 截断（1<<40 变成 1<<8），高 32 位丢失。 */
+  int32_t is_unsigned;
+  /* i64/u64/usize/isize/ptr need 64-bit shift forms (REX.W / sf=1). */
   is_64bit = glue_binop_operand_is_64bit_elf_c(arena, ctx, left_ref, right_ref);
+  /* Left operand width decides arithmetic vs logical right shift. */
+  is_unsigned = glue_binop_operand_is_unsigned_elf_c(arena, ctx, left_ref, right_ref);
   if (pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm)) {
     if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, left_ref, ctx, ta) != 0)
       return -1;
@@ -17744,10 +17783,12 @@ static int32_t pipeline_asm_emit_binop_shift_elf_c(struct ast_ASTArena *arena,
   glue_binop_var_slot_cache_clear();
   if (backend_enc_mov_rbx_to_ecx_arch(elf_ctx, ta) != 0)
     return -1;
-  if (op != 0) {
+  if (op == 0)
+    return is_64bit ? backend_enc_shl_cl_rax_arch(elf_ctx, ta) : backend_enc_shl_cl_eax_arch(elf_ctx, ta);
+  /* op==1 right shift: signed arithmetic, unsigned logical. */
+  if (is_unsigned)
     return is_64bit ? backend_enc_shr_cl_rax_arch(elf_ctx, ta) : backend_enc_shr_cl_eax_arch(elf_ctx, ta);
-  }
-  return is_64bit ? backend_enc_shl_cl_rax_arch(elf_ctx, ta) : backend_enc_shl_cl_eax_arch(elf_ctx, ta);
+  return is_64bit ? backend_enc_sar_cl_rax_arch(elf_ctx, ta) : backend_enc_sar_cl_eax_arch(elf_ctx, ta);
 }
 
 static int32_t pipeline_asm_emit_binop_mod_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
