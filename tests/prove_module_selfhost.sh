@@ -260,6 +260,16 @@ MODULES=(
   #   export function，xlang-c 自动加 ast_ 前缀，同 path_fast/net_sock_fast 规律）；
   #   prove 锁 8 #[no_mangle] + 1 ast_ doc_anchor IDENTICAL
   "runtime_string_fast|src/asm/runtime_string_fast.x|seeds/runtime_string_fast_surface.from_x.c||"
+  # runtime_net_io_batch_fast R2 thin+rest (wave550)：.x 8 public API (3 weak io_* defaults +
+  #   3 net_stream_*_batch_c + 2 net_udp_*_many_buf_c) + 2 _impl 桥；rest 含 Linux
+  #   recvmmsg/sendmmsg syscall；doc_anchor ast_runtime_net_io_batch_fast_x_doc_anchor（触发 ast_）；
+  #   net_/io_ 前缀不触发 ast_（仅 doc_anchor 触发）；prove 锁 thin surface IDENTICAL
+  "runtime_net_io_batch_fast|src/asm/runtime_net_io_batch_fast.x|seeds/runtime_net_io_batch_fast_surface.from_x.c||"
+  # runtime_env_os R2 thin+rest (wave550)：.x 10 public API (1 DIRECT env_build_key + 9 thin+rest
+  #   forwards) + 9 _impl 桥；rest 含 POSIX getenv/setenv/unsetenv/environ + Windows
+  #   GetEnvironmentVariableA/_putenv；doc_anchor runtime_env_os_x_doc_anchor（无 ast_）；
+  #   env_ 前缀不触发 ast_；prove 锁 thin surface IDENTICAL
+  "runtime_env_os|src/asm/runtime_env_os.x|seeds/runtime_env_os_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
@@ -589,6 +599,8 @@ gen_x_o() {
         -e '/^extern int closedir(/d' \
         -e '/^extern int32_t access(/d' \
         -e '/^extern int access(/d' \
+        -e '/^extern ptrdiff_t io_read_batch(/d' \
+        -e '/^extern ptrdiff_t io_write_batch(/d' \
         -e '/^extern uint8_t \* xlang_fmt_opendir(/d' \
         -e '/^extern int32_t xlang_fmt_closedir(/d' \
         -e '/^extern int32_t xlang_fmt_access(/d' \
