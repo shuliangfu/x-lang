@@ -21028,6 +21028,36 @@ int32_t pipeline_asm_call_arg_value_byte_size_c(struct ast_ASTArena *arena, stru
     if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == (int32_t)ast_TypeKind_TYPE_SLICE)
       return 8;
   }
+  /*
+   * wave635 Cap residual pure: fixed TYPE_ARRAY formal is E* (one GP), not MEMORY
+   * by-value of the payload. Twin of glue_func_param_agg_byte_size_c (wave417) and
+   * TYPE_SLICE call-arg size above.
+   * Root: prior glue_type_size_simple(T[N]) returned full payload (S24[2]=48, S12[2]=24)
+   * → glue_sysv_arg_gp_units_from_size → MEMORY (units=0) → arm64 store_memory_by_value
+   * / x86 push_sysv_memory multi-word stack copy, while callee param_home + INDEX treat
+   * the formal as a pointer in x0/rdi (wave417). Freestanding take(mk())/take(s) SEGV;
+   * pure-asm without -freestanding often CTFE-folds away the call (false green);
+   * host-C decays T[N]→E*. S8[2]=16 dual-GP + single S24 MEMORY named both green.
+   * G.7: complete call-arg size authority only — emit already lea local T[N] /
+   * load param E* / pass CALL return E* (wave417/610). Do not invent a second path.
+   * PLATFORM: SHARED freestanding · LINUX gold + MACOS|ARM64.
+   */
+  if (arena && pty > 0 &&
+      (pipeline_type_kind_ord_at(arena, pty) == (int32_t)ast_TypeKind_TYPE_ARRAY ||
+       glue_type_is_fixed_array(arena, pty)))
+    return 8;
+  if (arena && arg_ref > 0) {
+    tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+    if (tr > 0 &&
+        (pipeline_type_kind_ord_at(arena, tr) == (int32_t)ast_TypeKind_TYPE_ARRAY ||
+         glue_type_is_fixed_array(arena, tr))) {
+      /* When formal missing, still pass E* for fixed-array values (C decay twin). */
+      if (pty <= 0 ||
+          pipeline_type_kind_ord_at(arena, pty) == (int32_t)ast_TypeKind_TYPE_ARRAY ||
+          glue_type_is_fixed_array(arena, pty))
+        return 8;
+    }
+  }
   if (pty > 0)
     sz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, pty, 0);
   if (sz <= 0 && arg_ref > 0 && arena) {
