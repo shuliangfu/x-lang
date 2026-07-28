@@ -415,6 +415,21 @@ MODULES=(
   #   rest 含 12 extern bridges (typeck_lsp_* shared by 2 wrappers each);
   #   prove 锁 thin+rest surface IDENTICAL (14 #[no_mangle] · no doc_anchor)
   "lsp_diag_pipeline_ctx|src/lsp/lsp_diag_pipeline_ctx.x|seeds/lsp_diag_pipeline_ctx_surface.from_x.c||"
+  # x_seed_bridge R2 mixed (wave562)：.x 14 #[no_mangle] public API
+  #   (5 thin+rest forwards: typeck_preprocess_x_buf + std_heap_alloc_zeroed/zero/free/alloc
+  #    + 9 DIRECT: 8 io_* stubs + 1 forward chain io_register_buffers_buf_i32/xlang_io_register);
+  #   rest 含 4 extern bridges (preprocess_x_buf + typeck_std_heap_alloc + calloc + free);
+  #   prove 锁 mixed surface IDENTICAL (14 #[no_mangle] · no doc_anchor)
+  "x_seed_bridge|src/x_seed_bridge.x|seeds/x_seed_bridge_surface.from_x.c||"
+  # seed_link_compat R2 mixed (wave562)：.x 19 #[no_mangle] public API
+  #   (11 thin+rest forwards: typeck_lsp_alloc/free/is_null/main_impl + typeck_std_heap_alloc/alloc_zeroed/free
+  #    + std_sys_read_file_into + std_heap_free_u8_ptr + ast_pipeline_module_struct_layout_set_packed
+  #    + backend_asm_ctx_slot_offset
+  #    + 5 DIRECT stubs returning -1: lsp_diag_lsp_build_diagnostics/semantic_tokens + lsp_diag_hover/references/definition_at
+  #    + 3 DIRECT compute: xlang_expr_is_func_param_at + xlang_expr_is_param0_field_access + xlang_module_func_index_by_name);
+  #   rest 含 20 extern bridges;
+  #   prove 锁 mixed surface IDENTICAL (19 #[no_mangle] · no doc_anchor)
+  "seed_link_compat|src/seed_link_compat.x|seeds/seed_link_compat_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
@@ -746,6 +761,23 @@ gen_x_o() {
         -e '/^extern int access(/d' \
         -e '/^extern ptrdiff_t io_read_batch(/d' \
         -e '/^extern ptrdiff_t io_write_batch(/d' \
+        -e '/^extern .*io_read_ptr(/d' \
+        -e '/^extern .*io_read_ptr_len(/d' \
+        -e '/^extern .*io_register_buffer(/d' \
+        -e '/^extern .*io_unregister_buffers(/d' \
+        -e '/^extern .*io_wait_readable(/d' \
+        -e '/^extern .*io_register_buffers_4(/d' \
+        -e '/^extern .*io_register_buffers_buf(/d' \
+        -e '/^extern .*io_register_buffers_buf_i32(/d' \
+        -e '/^#define io_register_buffers_buf(/d' \
+        -e '/^#define std_io_driver_io_register_buffers_buf(/d' \
+        -e '/^#define std_io_core_xlang_io_register_buffers_buf/d' \
+        -e '/^__attribute__((weak)).* io_register_buffers_buf_c(/d' \
+        -e '/^__attribute__((weak)).* io_register_buffers_4(/,/^}/d' \
+        -e '/^__attribute__((weak)).* io_wait_readable(/,/^}/d' \
+        -e '/^__attribute__((weak)).* io_read_batch_buf(/,/^}/d' \
+        -e '/^__attribute__((weak)).* io_write_batch_buf(/,/^}/d' \
+        -e '/^static inline .*io_register_buffers_buf_i32(/d' \
         -e '/^extern uint8_t \* xlang_fmt_opendir(/d' \
         -e '/^extern int32_t xlang_fmt_closedir(/d' \
         -e '/^extern int32_t xlang_fmt_access(/d' \
