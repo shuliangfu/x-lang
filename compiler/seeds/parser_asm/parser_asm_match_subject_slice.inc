@@ -199,14 +199,15 @@ void parser_asm_parse_match_subject_into_c(void *arena, struct parser_asm_lexer 
       return;
     e = ast_ast_arena_expr_get(arena, ref);
     e.kind = 3; /* AST_EXPR_VAR */
+    /* wave582 Cap residual: Expr.var_name is u8[128]; clamp 63→127, pad 128. */
     name_len = r.tok.ident_len;
-    if (name_len > 63)
-      name_len = 63;
+    if (name_len > 127)
+      name_len = 127;
     e.var_name_len = name_len;
     start = r.token_start;
     for (ni = 0; ni < name_len && start + (size_t)ni < source->length; ni++)
       e.var_name[ni] = source->data[start + ni];
-    for (; ni < 64; ni++)
+    for (; ni < 128; ni++)
       e.var_name[ni] = 0;
     e.line = 0;
     e.col = 0;
@@ -240,10 +241,10 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
   int32_t var_idx;
   int32_t enum_len;
   size_t enum_start;
-  uint8_t enum_buf[64];
+  uint8_t enum_buf[128]; /* wave582 Cap residual: match Enum.Variant names ≤127 */
   int32_t variant_len;
   size_t variant_start;
-  uint8_t variant_buf[64];
+  uint8_t variant_buf[128];
   struct ast_Module *mod_m;
   struct parser_asm_parse_expr_result arm_res;
   int32_t arm_i;
@@ -1081,9 +1082,10 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
         is_wc = 1;
         parser_lex_from_next_into_glue(&lex, r);
       } else if (r.tok.kind == (int32_t)TOKEN_IDENT) {
+        /* wave582 Cap residual: enum/variant pattern names content ≤127. */
         enum_len = r.tok.ident_len;
-        if (enum_len > 63)
-          enum_len = 63;
+        if (enum_len > 127)
+          enum_len = 127;
         enum_start = r.token_start;
         if (enum_start == 0)
           enum_start = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, enum_len);
@@ -1098,8 +1100,8 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
         if (r.tok.kind != (int32_t)TOKEN_IDENT)
           return;
         variant_len = r.tok.ident_len;
-        if (variant_len > 63)
-          variant_len = 63;
+        if (variant_len > 127)
+          variant_len = 127;
         variant_start = r.token_start;
         if (variant_start == 0)
           variant_start = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, variant_len);

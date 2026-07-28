@@ -3049,7 +3049,8 @@ static int32_t pipeline_typeck_field_reverse_infer_base_type_strict_minimal_c(st
       if (!match)
         continue;
       lnl = pipeline_module_struct_layout_name_len(module, k);
-      if (lnl <= 0 || lnl > 63)
+      /* wave582 Cap residual: layout name content ≤127. */
+      if (lnl <= 0 || lnl > 127)
         continue;
       memset(lnm, 0, sizeof(lnm));
       pipeline_module_struct_layout_name_into(module, k, lnm);
@@ -3091,7 +3092,9 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *
   if (pipeline_expr_kind_ord_at(arena, base_ref) == (int32_t)ast_ExprKind_EXPR_VAR &&
       ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, base_ref))) {
     prebind_len = pipeline_expr_var_name_len(arena, base_ref);
-    if (prebind_len > 0 && prebind_len <= 63) {
+    /* wave582 Cap residual: Type/enum names up to 127 (Expr.var_name[128]).
+     * Prior prebind_len<=63 skipped LongEnum.Variant → check_expr base fail. */
+    if (prebind_len > 0 && prebind_len <= 127) {
       pipeline_expr_var_name_into(arena, base_ref, prebind_name);
       if (!ctx || ctx->current_func_index < 0 ||
           pipeline_module_func_param_type_ref_for_name(module, ctx->current_func_index, prebind_name, prebind_len) <= 0)
@@ -3118,7 +3121,8 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *
   if (ast_ref_is_null(base_ty) || base_ty <= 0 || base_ty > arena->num_types)
     return 0;
   field_len = pipeline_expr_field_access_name_len(arena, expr_ref);
-  if (field_len <= 0 || field_len > 63)
+  /* wave582 Cap residual: field name content ≤127. */
+  if (field_len <= 0 || field_len > 127)
     return 0;
   pipeline_expr_field_access_name_into(arena, expr_ref, field_name);
   bt_kind = pipeline_type_kind_ord_at(arena, base_ty);

@@ -4216,10 +4216,11 @@ void parser_asm_module_append_enum_variants_and_skip_body_into_slice_c(
     } else if (depth == 1 && enum_idx >= 0 && r.tok.kind == (int32_t)TOKEN_IDENT) {
       int32_t vlen;
       size_t vstart;
-      uint8_t vb[64];
+      /* wave582 Cap residual: variant name content ≤127 (variant_name[][128]). */
+      uint8_t vb[128];
       vlen = r.tok.ident_len;
-      if (vlen > 63)
-        vlen = 63;
+      if (vlen > 127)
+        vlen = 127;
       vstart = r.token_start;
       if (vstart == 0)
         vstart = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, vlen);
@@ -4237,12 +4238,16 @@ void parser_asm_module_append_enum_variants_and_skip_body_into_slice_c(
 /**
  * skip_one_enum_register_into：登记 enum 名并 skip 整条 enum 定义，结果写入 *out。
  */
+/**
+ * Register enum name and skip whole enum definition.
+ * wave582 Cap residual: enum name content ≤127 (nb[128]). PLATFORM: SHARED
+ */
 void parser_asm_skip_one_enum_register_into_slice_c(void *module, struct parser_asm_lexer *out,
                                                     struct parser_asm_lexer lex,
                                                     struct parser_asm_slice_u8 *source) {
   struct parser_asm_lexer_result r;
   int32_t enum_idx;
-  uint8_t nb[64];
+  uint8_t nb[128];
   if (!out || !source)
     return;
   enum_idx = -1;
@@ -4261,7 +4266,7 @@ void parser_asm_skip_one_enum_register_into_slice_c(void *module, struct parser_
     out->col = lex.col;
     return;
   }
-  if (r.tok.ident_len > 0 && r.tok.ident_len <= 63) {
+  if (r.tok.ident_len > 0 && r.tok.ident_len <= 127) {
     parser_asm_copy_slice_to_name64_slice_c(source, r.token_start, r.tok.ident_len, nb);
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_collect_imports_bind_audit_c(nb, r.tok.ident_len));
     enum_idx = parser_asm_module_try_register_enum_name_c(module, nb, r.tok.ident_len);

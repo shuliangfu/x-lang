@@ -1932,7 +1932,7 @@ int32_t typeck_resolve_type_alias_ref_local(struct ast_Module * module, struct a
     (void)((alias_count = pipeline_module_num_type_aliases_at(module)));
     while ((alias_i < alias_count)) {
       (void)((alias_name_len = pipeline_module_type_alias_name_len(module, alias_i)));
-      if ((((alias_name_len ==type_name_len) && (alias_name_len > 0)) && (alias_name_len <=63))) {
+      if ((((alias_name_len ==type_name_len) && (alias_name_len > 0)) && (alias_name_len <=127))) {
         (void)((alias_off = 0));
         while ((alias_off < alias_name_len)) {
           if ((pipeline_module_type_alias_name_byte_at(module, alias_i, alias_off) !=(type_name)[alias_off])) {
@@ -1986,7 +1986,7 @@ int typeck_named_type_matches_name_or_alias(struct ast_Module * module, struct a
     (void)((alias_count = pipeline_module_num_type_aliases_at(module)));
     while ((alias_i < alias_count)) {
       (void)((alias_name_len = pipeline_module_type_alias_name_len(module, alias_i)));
-      if ((((alias_name_len ==decl_name_len) && (alias_name_len > 0)) && (alias_name_len <=63))) {
+      if ((((alias_name_len ==decl_name_len) && (alias_name_len > 0)) && (alias_name_len <=127))) {
         (void)((alias_off = 0));
         while ((alias_off < alias_name_len)) {
           (void)(((alias_name)[alias_off] = pipeline_module_type_alias_name_byte_at(module, alias_i, alias_off)));

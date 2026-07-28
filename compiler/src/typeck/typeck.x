@@ -533,7 +533,8 @@ export function typeck_resolve_type_alias_ref_local(module: *Module, arena: *AST
     alias_count = pipeline_module_num_type_aliases_at(module);
     while (alias_i < alias_count) {
       alias_name_len = pipeline_module_type_alias_name_len(module, alias_i);
-      if (alias_name_len == type_name_len && alias_name_len > 0 && alias_name_len <= 63) {
+      /* wave582 Cap residual: alias names may be up to 127 (TypeAliasEntry.name[128]). */
+      if (alias_name_len == type_name_len && alias_name_len > 0 && alias_name_len <= 127) {
         alias_off = 0;
         while (alias_off < alias_name_len) {
           if (pipeline_module_type_alias_name_byte_at(module, alias_i, alias_off) != type_name[alias_off]) {
@@ -595,7 +596,8 @@ lit_name: *u8, lit_name_len: i32, depth: i32): bool {
     alias_count = pipeline_module_num_type_aliases_at(module);
     while (alias_i < alias_count) {
       alias_name_len = pipeline_module_type_alias_name_len(module, alias_i);
-      if (alias_name_len == decl_name_len && alias_name_len > 0 && alias_name_len <= 63) {
+      /* wave582 Cap residual: alias names may be up to 127 (match resolve_type_alias). */
+      if (alias_name_len == decl_name_len && alias_name_len > 0 && alias_name_len <= 127) {
         alias_off = 0;
         while (alias_off < alias_name_len) {
           alias_name[alias_off] = pipeline_module_type_alias_name_byte_at(module, alias_i, alias_off);

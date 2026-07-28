@@ -233,7 +233,7 @@ int32_t pipeline_typeck_field_known_ptr_types_c(struct ast_Module *module, struc
   driver_diagnostic_typeck_ptr_field((int32_t)ast_TypeKind_TYPE_PTR, inner_ord, inner_nm_len, base_ty,
                                      num_struct_layouts);
   fl = pipeline_expr_field_access_name_len(arena, expr_ref);
-  if (fl <= 0 || fl > 63)
+  if (fl <= 0 || fl > 127)
     return 0;
   pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
   i32r_at = typeck_ensure_i32_type_ref(arena);
@@ -386,7 +386,8 @@ int32_t pipeline_typeck_field_layout_named_c(struct ast_Module *module, struct a
   if (layout_nm_len <= 0 || pipeline_type_kind_ord_at(arena, layout_named_ref) != (int32_t)ast_TypeKind_TYPE_NAMED)
     return 0;
   fl2 = pipeline_expr_field_access_name_len(arena, expr_ref);
-  if (fl2 <= 0 || fl2 > 63)
+  /* wave582 Cap residual: field name content ≤127. */
+  if (fl2 <= 0 || fl2 > 127)
     return 0;
   pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
   user_ev_tag = pipeline_module_enum_variant_tag_for_names(module, &layout_nm_buf[0], layout_nm_len, &fn_buf[0], fl2);
@@ -516,7 +517,7 @@ void pipeline_typeck_field_slice_c(struct ast_ASTArena *arena, int32_t expr_ref,
     return;
   bt_kind = pipeline_type_kind_ord_at(arena, base_ty);
   fl = pipeline_expr_field_access_name_len(arena, expr_ref);
-  if (fl <= 0 || fl > 63)
+  if (fl <= 0 || fl > 127)
     return;
   pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
   /* wave346: fixed T[N] / SIMD vector lanes — `.length` is compile-time N as usize.
@@ -575,7 +576,7 @@ void pipeline_typeck_field_name_fallback_c(struct ast_ASTArena *arena, int32_t e
   if (!ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref)))
     return;
   fl = pipeline_expr_field_access_name_len(arena, expr_ref);
-  if (fl <= 0 || fl > 63)
+  if (fl <= 0 || fl > 127)
     return;
   pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
   if (fl == 4 && !ast_ref_is_null(base_ref) && base_ref > 0 && base_ref <= arena->num_exprs) {
@@ -641,7 +642,7 @@ void pipeline_typeck_field_lexer_fallback_c(struct ast_Module *module, struct as
   if (ast_ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena->num_exprs)
     return;
   fl = pipeline_expr_field_access_name_len(arena, expr_ref);
-  if (fl <= 0 || fl > 63)
+  if (fl <= 0 || fl > 127)
     return;
   pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
   base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
@@ -667,7 +668,7 @@ void pipeline_typeck_field_lexer_fallback_c(struct ast_Module *module, struct as
   if (pipeline_expr_kind_ord_at(arena, base_ref) != (int32_t)ast_ExprKind_EXPR_VAR)
     return;
   vnlen = pipeline_expr_var_name_len(arena, base_ref);
-  if (vnlen <= 0 || vnlen > 63)
+  if (vnlen <= 0 || vnlen > 127)
     return;
   if (ctx->current_func_index < 0 || ctx->current_func_index >= module->num_funcs)
     return;
@@ -835,7 +836,7 @@ static int32_t pipeline_typeck_field_reverse_infer_base_type_c(struct ast_Module
   if (!module || !arena || expr_ref <= 0)
     return 0;
   fl = pipeline_expr_field_access_name_len(arena, expr_ref);
-  if (fl <= 0 || fl > 63)
+  if (fl <= 0 || fl > 127)
     return 0;
   memset(fn_buf, 0, sizeof(fn_buf));
   pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
@@ -873,7 +874,7 @@ static int32_t pipeline_typeck_field_reverse_infer_base_type_c(struct ast_Module
       if (!match)
         continue;
       lnl = pipeline_module_struct_layout_name_len(module, k);
-      if (lnl <= 0 || lnl > 63)
+      if (lnl <= 0 || lnl > 127)
         continue;
       memset(lnm, 0, sizeof(lnm));
       pipeline_module_struct_layout_name_into(module, k, &lnm[0]);
@@ -903,7 +904,7 @@ static int32_t pipeline_typeck_named_is_module_concrete_c(struct ast_Module *mod
   int32_t k;
   int32_t nsl;
   int32_t ne;
-  if (!module || !name || name_len <= 0 || name_len > 63)
+  if (!module || !name || name_len <= 0 || name_len > 127)
     return 0;
   nsl = module->num_struct_layouts;
   for (k = 0; k < nsl; k++) {
@@ -1024,7 +1025,7 @@ static void pipeline_typeck_field_apply_mono_type_arg_c(struct ast_Module *modul
     return;
   memset(gnm, 0, sizeof(gnm));
   gnl = pipeline_type_named_name_into(arena, got_ty, &gnm[0]);
-  if (gnl <= 0 || gnl > 63)
+  if (gnl <= 0 || gnl > 127)
     return;
   if (pipeline_typeck_named_is_module_concrete_c(module, &gnm[0], gnl))
     return;

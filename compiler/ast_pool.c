@@ -4184,13 +4184,20 @@ int32_t pipeline_module_type_alias_alloc(struct ast_Module *m) {
   return idx;
 }
 
-/** 写入 type 别名 name 与 target type ref。 */
+/**
+ * Write type-alias name + target type ref into sidecar slot.
+ * wave582 Cap residual: TypeAliasEntry.name is already u8[128]; gate was still
+ * name_len>64 → long aliases never stored → typeck "expected NAMED, found i32".
+ * Content cap 127 (match AST name[128] / wave577 Cap); zero-fill full row.
+ * PLATFORM: SHARED
+ */
 void pipeline_module_type_alias_set(struct ast_Module *m, int32_t idx, uint8_t *name, int32_t name_len,
                                     int32_t target_type_ref) {
   TypeAliasEntry *ta;
   ModuleSidecar *sc;
   int32_t i;
-  if (!m || !name || name_len <= 0 || name_len > 64)
+  /* Content max 127; storage is name[128]. */
+  if (!m || !name || name_len <= 0 || name_len > 127)
     return;
   sc = module_sidecar_get(m, 0);
   if (!sc || idx < 0 || idx >= sc->type_aliases.len)
@@ -4200,7 +4207,7 @@ void pipeline_module_type_alias_set(struct ast_Module *m, int32_t idx, uint8_t *
     return;
   for (i = 0; i < name_len; i++)
     ta->name[i] = name[i];
-  for (i = name_len; i < 64; i++)
+  for (i = name_len; i < 128; i++)
     ta->name[i] = 0;
   ta->name_len = name_len;
   ta->target_type_ref = target_type_ref;
@@ -4220,11 +4227,11 @@ int32_t pipeline_module_type_alias_name_len(struct ast_Module *m, int32_t idx) {
   return ta ? ta->name_len : 0;
 }
 
-/** 读 type 别名名字节；越界返回 0。 */
+/** Read type-alias name byte; OOB → 0. wave582: off bound 64→128. PLATFORM: SHARED */
 uint8_t pipeline_module_type_alias_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off) {
   ModuleSidecar *sc = module_sidecar_get(m, 0);
   TypeAliasEntry *ta;
-  if (!sc || idx < 0 || idx >= sc->type_aliases.len || off < 0 || off >= 64)
+  if (!sc || idx < 0 || idx >= sc->type_aliases.len || off < 0 || off >= 128)
     return 0;
   ta = (TypeAliasEntry *)grow_vec_at(&sc->type_aliases, idx);
   return ta ? ta->name[off] : 0;
@@ -4753,10 +4760,22 @@ int32_t pipeline_module_enum_alloc(struct ast_Module *m) {
   return idx;
 }
 
+/**
+ * Set module enum type name at idx.
+ * wave582 Cap residual: ModuleEnumEntry.name is u8[128]; gate was still len>64
+ * → long enum names never registered → typeck check_block fail.
+ * Content cap 127. PLATFORM: SHARED
+ */
+/**
+ * Set module enum type name at idx.
+ * wave582 Cap residual: ModuleEnumEntry.name is u8[128]; gate was still len>64
+ * → long enum names never registered → typeck check_block fail.
+ * Content cap 127. PLATFORM: SHARED
+ */
 void pipeline_module_enum_set_name(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len) {
   ModuleEnumEntry *me;
   ModuleSidecar *sc = module_sidecar_get(m, 0);
-  if (!sc || !bytes || len <= 0 || len > 64 || idx < 0 || idx >= sc->module_enums.len)
+  if (!sc || !bytes || len <= 0 || len > 127 || idx < 0 || idx >= sc->module_enums.len)
     return;
   me = (ModuleEnumEntry *)grow_vec_at(&sc->module_enums, idx);
   if (!me)
@@ -4786,12 +4805,17 @@ int32_t pipeline_module_enum_is_export_at(struct ast_Module *m, int32_t idx) {
   return me ? me->is_export : 0;
 }
 
-/** 向 module 第 idx 个 enum 追加变体名；成功返回变体 tag（0..n-1），失败返回 -1。 */
+/**
+ * Append variant name to module enum idx; returns tag 0..n-1 or -1.
+ * wave582 Cap residual: variant_name rows are u8[128]; gate was still len>64 and
+ * memset only 64 → long variants dropped / truncated → Color.LongName fail.
+ * Content cap 127. PLATFORM: SHARED
+ */
 int32_t pipeline_module_enum_append_variant(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len) {
   ModuleEnumEntry *me;
   ModuleSidecar *sc = module_sidecar_get(m, 0);
   int32_t slot;
-  if (!sc || !bytes || len <= 0 || len > 64 || idx < 0 || idx >= sc->module_enums.len)
+  if (!sc || !bytes || len <= 0 || len > 127 || idx < 0 || idx >= sc->module_enums.len)
     return -1;
   me = (ModuleEnumEntry *)grow_vec_at(&sc->module_enums, idx);
   if (!me)
@@ -4806,7 +4830,7 @@ int32_t pipeline_module_enum_append_variant(struct ast_Module *m, int32_t idx, u
   }
   slot = me->num_variants;
   me->variant_name_len[slot] = len;
-  memset(me->variant_name[slot], 0, 64);
+  memset(me->variant_name[slot], 0, 128);
   memcpy(me->variant_name[slot], bytes, (size_t)len);
   me->num_variants = slot + 1;
   return slot;
@@ -4918,7 +4942,7 @@ static int32_t pipeline_enum_name_from_field_access_base(struct ast_Expr *base, 
   if (base->kind == ast_ExprKind_EXPR_VAR && base->var_name_len > 0) {
     elen = base->var_name_len;
     if (elen > 127)
-      elen = 63;
+      elen = 127;
     memcpy(ename_out, base->var_name, (size_t)elen);
     return elen;
   }
@@ -4926,7 +4950,7 @@ static int32_t pipeline_enum_name_from_field_access_base(struct ast_Expr *base, 
   if (base->kind == ast_ExprKind_EXPR_FIELD_ACCESS && base->field_access_field_len > 0) {
     elen = base->field_access_field_len;
     if (elen > 127)
-      elen = 63;
+      elen = 127;
     memcpy(ename_out, base->field_access_field_name, (size_t)elen);
     return elen;
   }
@@ -5019,10 +5043,11 @@ int32_t pipeline_module_enum_name_len(struct ast_Module *m, int32_t idx) {
   return me ? me->name_len : 0;
 }
 
+/** wave582: off bound 64→128 (name[128]). PLATFORM: SHARED */
 uint8_t pipeline_module_enum_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off) {
   ModuleSidecar *sc = module_sidecar_get(m, 0);
   ModuleEnumEntry *me;
-  if (!sc || idx < 0 || idx >= sc->module_enums.len || off < 0 || off >= 64)
+  if (!sc || idx < 0 || idx >= sc->module_enums.len || off < 0 || off >= 128)
     return 0;
   me = (ModuleEnumEntry *)grow_vec_at(&sc->module_enums, idx);
   return me && off < me->name_len ? me->name[off] : 0;
@@ -5048,10 +5073,11 @@ int32_t pipeline_module_enum_variant_name_len(struct ast_Module *m, int32_t idx,
   return me->variant_name_len[variant_idx];
 }
 
+/** wave582: off bound 64→128 (variant_name[][128]). PLATFORM: SHARED */
 uint8_t pipeline_module_enum_variant_name_byte_at(struct ast_Module *m, int32_t idx, int32_t variant_idx, int32_t off) {
   ModuleSidecar *sc = module_sidecar_get(m, 0);
   ModuleEnumEntry *me;
-  if (!sc || idx < 0 || idx >= sc->module_enums.len || off < 0 || off >= 64)
+  if (!sc || idx < 0 || idx >= sc->module_enums.len || off < 0 || off >= 128)
     return 0;
   me = (ModuleEnumEntry *)grow_vec_at(&sc->module_enums, idx);
   if (!me || variant_idx < 0 || variant_idx >= me->num_variants || off >= me->variant_name_len[variant_idx])
