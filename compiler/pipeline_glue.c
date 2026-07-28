@@ -16550,13 +16550,21 @@ static int32_t glue_field_call_arg_try_load_agg_from_rax_elf_c(struct ast_ASTAre
  *          did emit CALL + store_retval_pair; mid-size (9–16B) dual-GP CALL.field
  *          CG002 on arm64 freestanding while let inlined and green; >16 already inlined.
  *
+ * wave608 Cap residual pure: freestanding FIELD_ACCESS on STRUCT_LIT rvalue base
+ * (`Big { a: 40, b: 2 }.a` / paren twin). Root: chain walk only accepted CALL/METHOD
+ * (48/49); STRUCT_LIT (45) fell through → lvalue_eff_addr UNHANDLED → CG002 while
+ * host-C temporary `.` stayed green. G.7: same materialise-then-load authority —
+ * STRUCT_LIT root via pipeline_asm_emit_struct_let_init_elf_c (≡ wave605 MEMORY
+ * call-arg / let s: Big = Big{…}), then field offset load (no second field path).
+ *
  * Root: field_access fast fell through to lvalue_eff_addr, which only handles
- * VAR / nested FIELD / INDEX / DEREF. CALL base returns -1 → UNHANDLED → CG002
- * (host-C emits temporary `.` access; Ubuntu pure-asm gold exposes). Nested
+ * VAR / nested FIELD / INDEX / DEREF. CALL/STRUCT_LIT base returns -1 → UNHANDLED
+ * → CG002 (host-C emits temporary `.` access; Ubuntu pure-asm gold exposes). Nested
  * `mk().i.f` base is FIELD not CALL → same UNHANDLED before wave593.
  *
  * G.7 authority (same as `let s = mk()` / glue_emit_struct_type_let_init):
- *   materialise CALL/METHOD root once into frame temp:
+ *   materialise CALL/METHOD/STRUCT_LIT root once into frame temp:
+ *     0) STRUCT_LIT (45): emit fields into home (struct_let_init)
  *     1) try_inline STRUCT_LIT return (any size; CALL only)
  *     2) >16B: sret (x86 SysV rdi+shift / arm64 AAPCS64 x8)
  *     3) ≤16B: emit CALL + glue_store_retval_pair_to_rbp_elf_c
@@ -16570,7 +16578,8 @@ static int32_t glue_field_call_arg_try_load_agg_from_rax_elf_c(struct ast_ASTAre
  * pure offset-sum skipped *T loads (same root as VAR-chain lvalue). Now walk
  * chain root→outer and load at each *T/*slice intermediate (G.7 + lvalue twin).
  *
- * @return 0 success, -1 emit error, PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED not CALL-rooted chain
+ * @return 0 success, -1 emit error, PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED not
+ *   CALL/METHOD/STRUCT_LIT-rooted chain
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path (ta layout;
  *   sret gate: x86_64 SysV + arm64 AAPCS64 x8 (wave591))
  */
@@ -16626,8 +16635,8 @@ static int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *are
     if (next_base <= 0)
       return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
     base_ko = pipeline_expr_kind_ord_at(arena, next_base);
-    /* EXPR_CALL=48, EXPR_METHOD_CALL=49, EXPR_FIELD_ACCESS=44 */
-    if (base_ko == 48 || base_ko == 49) {
+    /* EXPR_STRUCT_LIT=45, EXPR_CALL=48, EXPR_METHOD_CALL=49, EXPR_FIELD_ACCESS=44 */
+    if (base_ko == 48 || base_ko == 49 || base_ko == 45) {
       base_ref = next_base;
       break;
     }
@@ -16647,6 +16656,8 @@ static int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *are
     ret_sz = glue_type_size_simple(mod, arena, base_ty, 0);
   if (ret_sz <= 0 && base_ko == 48)
     ret_sz = glue_call_return_byte_size_c(arena, base_ref);
+  if (ret_sz <= 0 && base_ko == 45)
+    ret_sz = pipeline_expr_struct_lit_value_bytes(arena, mod, base_ref);
   if (ret_sz <= 0 && base_ty > 0)
     ret_sz = glue_type_named_layout_size_any_module_elf_c(arena, base_ty);
   if (ret_sz <= 0)
@@ -16684,12 +16695,19 @@ static int32_t glue_field_access_call_base_rvalue_elf_c(struct ast_ASTArena *are
   glue_align_next_offset(ctx);
 
   /*
-   * Materialise root CALL/METHOD into home — same order as let_init (G.7):
-   * inline STRUCT_LIT (any size) → sret if >16 → dual-GP store if ≤16.
+   * Materialise root CALL/METHOD/STRUCT_LIT into home — same order as let_init (G.7):
+   * STRUCT_LIT fields → inline STRUCT_LIT return CALL → sret if >16 → dual-GP if ≤16.
    * wave593: pull try_inline out of >16-only so 9–16B STRUCT_LIT CALL.field greens.
+   * wave608: bare STRUCT_LIT.field (not only CALL-return inline).
    */
   materialised = 0;
-  if (base_ko == 48) {
+  if (base_ko == 45) {
+    /* PLATFORM: SHARED — reuse wave605 MEMORY / let struct_let_init (G.7 one path). */
+    if (pipeline_asm_emit_struct_let_init_elf_c(arena, elf_ctx, base_ref, ctx, ta, home) != 0)
+      return -1;
+    materialised = 1;
+  }
+  if (materialised == 0 && base_ko == 48) {
     int32_t inl;
     inl = try_inline_struct_lit_return_call_to_slot_elf(arena, elf_ctx, base_ref, ctx, ta, home);
     if (inl == 1)
