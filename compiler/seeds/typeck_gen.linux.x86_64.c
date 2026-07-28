@@ -2242,7 +2242,8 @@ int32_t typeck_import_const_binding_hint_at(struct ast_Module * module, int32_t 
     (void)((import_kind = pipeline_module_import_kind_at(module, dep_ix)));
     if ((import_kind ==1)) {
       (void)((bl = pipeline_module_import_binding_name_len(module, dep_ix)));
-      if (((bl > 0) && (bl <=63))) {
+      /* wave584 Cap residual: binding hint content ≤127 (binding_name[128]). */
+      if (((bl > 0) && (bl <=127))) {
         while ((i < bl)) {
           (void)(((out)[i] = pipeline_module_import_binding_name_byte_at(module, dep_ix, i)));
           (void)((i = (i + 1)));

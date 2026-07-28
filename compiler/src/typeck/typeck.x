@@ -981,7 +981,8 @@ export function typeck_import_const_binding_hint_at(module: *Module, dep_ix: i32
     import_kind = pipeline_module_import_kind_at(module, dep_ix);
     if (import_kind == 1) {
       bl = pipeline_module_import_binding_name_len(module, dep_ix);
-      if (bl > 0 && bl <= 63) {
+      /* wave584 Cap residual: binding hint content ≤127 (binding_name[128]). */
+      if (bl > 0 && bl <= 127) {
         while (i < bl) {
           out[i] = pipeline_module_import_binding_name_byte_at(module, dep_ix, i);
           i = i + 1;
@@ -3284,7 +3285,8 @@ callee_expr_ref: i32, ctx: *PipelineDepCtx, dep_index_out: *i32, func_index_out:
       }
       let path_cnt_buf: u8[128] = [];
       let pci: i32 = 0;
-      while (pci < plen && pci < 64) {
+      /* wave584 Cap residual: copy full path content ≤127 (was pci < 64 truncate). */
+      while (pci < plen && pci < 127) {
         path_cnt_buf[pci] = pipeline_module_import_path_byte_at(module, dep_j, pci);
         pci = pci + 1;
       }

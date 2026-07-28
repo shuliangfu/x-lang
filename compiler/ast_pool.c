@@ -603,7 +603,8 @@ static ModuleSidecar *module_sidecar_get(struct ast_Module *m, int create) {
         return NULL;
       if (!grow_vec_init(&g_module_sc[i].module_enums, sizeof(ModuleEnumEntry), AST_POOL_INIT_CAP))
         return NULL;
-      if (!grow_vec_init(&g_module_sc[i].import_select_name_rows, 64, AST_POOL_INIT_CAP))
+      /* wave584 Cap residual: select name row width 64→128 (content ≤127). */
+      if (!grow_vec_init(&g_module_sc[i].import_select_name_rows, 128, AST_POOL_INIT_CAP))
         return NULL;
       if (!grow_vec_init(&g_module_sc[i].import_select_name_lens, sizeof(int32_t), AST_POOL_INIT_CAP))
         return NULL;
@@ -3573,7 +3574,8 @@ XLANG_WEAK int32_t pipeline_module_import_kind_at(struct ast_Module *m, int32_t 
 
 XLANG_WEAK void pipeline_module_import_set_binding_name(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len) {
   ImportEntry *ie;
-  if (!bytes || len <= 0 || len > 64)
+  /* wave584 Cap residual: binding content ≤127 (ImportEntry.binding_name[128]). */
+  if (!bytes || len <= 0 || len > 127)
     return;
   ie = module_import_at(m, idx);
   if (!ie)
@@ -3590,7 +3592,8 @@ XLANG_WEAK int32_t pipeline_module_import_binding_name_len(struct ast_Module *m,
 
 XLANG_WEAK uint8_t pipeline_module_import_binding_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off) {
   ImportEntry *ie;
-  if (off < 0 || off >= 64)
+  /* wave584 Cap residual: off bound 64→128 (binding_name[128]). */
+  if (off < 0 || off >= 128)
     return 0;
   ie = module_import_at(m, idx);
   if (!ie || off >= ie->binding_name_len)
@@ -3624,7 +3627,8 @@ XLANG_WEAK int32_t pipeline_module_import_append_select_name(struct ast_Module *
   if (!row || !pl)
     return -1;
   n = len > 127 ? 127 : len;
-  memset(row, 0, 64);
+  /* wave584: select row is 128 bytes (was 64; prior memcpy of n≤127 overflowed). */
+  memset(row, 0, 128);
   memcpy(row, bytes, (size_t)n);
   *pl = n;
   ie->select_count++;
@@ -3658,7 +3662,8 @@ XLANG_WEAK void pipeline_module_import_set_select_name(struct ast_Module *m, int
   if (!row || !pl)
     return;
   n = len > 127 ? 127 : len;
-  memset(row, 0, 64);
+  /* wave584: select row is 128 bytes. */
+  memset(row, 0, 128);
   memcpy(row, bytes, (size_t)n);
   *pl = n;
 }
@@ -3690,7 +3695,8 @@ XLANG_WEAK uint8_t pipeline_module_import_select_name_byte_at(struct ast_Module 
   abs = ie->select_base + sel;
   row = (uint8_t *)grow_vec_at(&sc->import_select_name_rows, abs);
   nlen = pipeline_module_import_select_name_len(m, idx, sel);
-  if (!row || off >= nlen || off >= 64)
+  /* wave584 Cap residual: off bound 64→128 (select row[128]). */
+  if (!row || off >= nlen || off >= 128)
     return 0;
   return row[off];
 }
@@ -6346,6 +6352,12 @@ uint8_t pipeline_dep_ctx_import_path_byte_at(struct ast_PipelineDepCtx *ctx, int
   return row[off];
 }
 
+/**
+ * Copy dep import path into dst (zero-pad first 128 bytes).
+ * wave584 Cap residual: historical name "copy64"; width matches dep_path_rows[128]
+ * (wave579). Callers must provide ≥128-byte dst (typeck/codegen already do).
+ * PLATFORM: SHARED product dep resolve path.
+ */
 void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx *ctx, int32_t idx, uint8_t *dst) {
   DepCtxSidecar *sc;
   uint8_t *row;
@@ -6354,7 +6366,7 @@ void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx *ctx, int32_t
   int32_t k;
   if (!dst)
     return;
-  memset(dst, 0, 64);
+  memset(dst, 0, 128);
   if (!ctx || idx < 0 || !(sc = depctx_sidecar_get(ctx, 0)) || idx >= sc->dep_path_rows.len)
     return;
   pl = (int32_t *)grow_vec_at(&sc->dep_path_lens, idx);
@@ -6362,8 +6374,8 @@ void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx *ctx, int32_t
   if (!pl || !row)
     return;
   n = *pl;
-  if (n > 64)
-    n = 64;
+  if (n > 127)
+    n = 127;
   for (k = 0; k < n; k++)
     dst[k] = row[k];
 }
@@ -8094,13 +8106,14 @@ int32_t run_x_pipeline_parse_entry_if_needed_c(struct ast_Module *module, struct
   return run_x_pipeline_parse_entry_do_parse_c(module, arena, source_data, source_len, ctx);
 }
 
-/** dep 路径 buf 非空时写入 ctx import_path；C glue（X u8[64] 栈后单点 set）。 */
+/** dep 路径 buf 非空时写入 ctx import_path；C glue（X u8[128] 栈后单点 set）。 */
 int32_t pipeline_fill_dep_import_path_from_buf_c(struct ast_PipelineDepCtx *ctx, int32_t dep_j, uint8_t *path_buf) {
   int32_t path_len = 0;
 
   if (!ctx || !path_buf || dep_j < 0)
     return -1;
-  while (path_len < 64 && path_buf[path_len] != 0)
+  /* wave584 Cap residual: scan ≤127 (dep_path_rows content). */
+  while (path_len < 127 && path_buf[path_len] != 0)
     path_len = path_len + 1;
   if (path_len > 0)
     pipeline_dep_ctx_set_import_path(ctx, dep_j, path_buf, path_len);
@@ -8108,14 +8121,15 @@ int32_t pipeline_fill_dep_import_path_from_buf_c(struct ast_PipelineDepCtx *ctx,
 }
 
 /**
- * 扫描 buf64 长度后 resolve_path_x；C glue（X 栈 path + assign CALL emit 失败）。
+ * 扫描 buf 长度后 resolve_path_x；C glue（X 栈 path + assign CALL emit 失败）。
+ * wave584: scan width 64→127.
  */
 int32_t pipeline_resolve_path_x_from_buf64_c(struct ast_PipelineDepCtx *ctx, uint8_t *path_buf) {
   int32_t path_len = 0;
 
   if (!ctx || !path_buf)
     return -1;
-  while (path_len < 64 && path_buf[path_len] != 0)
+  while (path_len < 127 && path_buf[path_len] != 0)
     path_len = path_len + 1;
   if (path_len <= 0)
     return -1;
@@ -8147,7 +8161,8 @@ int32_t run_x_pipeline_fill_dep_import_path_c(struct ast_Module *module, struct 
   memset(path_buf, 0, sizeof(path_buf));
   (void)parser_copy_module_import_path64(module, dep_j, path_buf);
   path_len = 0;
-  while (path_len < 64 && path_buf[path_len] != 0)
+  /* wave584 Cap residual: scan ≤127 (path_buf[128] / dep row). */
+  while (path_len < 127 && path_buf[path_len] != 0)
     path_len = path_len + 1;
   if (path_len > 0)
     pipeline_dep_ctx_set_import_path(ctx, dep_j, path_buf, path_len);

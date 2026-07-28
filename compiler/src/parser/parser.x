@@ -11768,10 +11768,11 @@ export function get_module_import_path(module: *Module, i: i32, out: u8[128]): v
  */
 export function copy_module_import_path64(module: *Module, i: i32, out: u8[128]): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // wave584 Cap residual: path content scan ≤127 (out[128] / dep_path_rows).
   unsafe {
   get_module_import_path(module, i, out);
   let path_len: i32 = 0;
-  while (path_len < 64 && out[path_len] != 0) {
+  while (path_len < 127 && out[path_len] != 0) {
     path_len = path_len + 1;
   }
   return path_len;
