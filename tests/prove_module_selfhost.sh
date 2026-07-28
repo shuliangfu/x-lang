@@ -270,6 +270,17 @@ MODULES=(
   #   GetEnvironmentVariableA/_putenv；doc_anchor runtime_env_os_x_doc_anchor（无 ast_）；
   #   env_ 前缀不触发 ast_；prove 锁 thin surface IDENTICAL
   "runtime_env_os|src/asm/runtime_env_os.x|seeds/runtime_env_os_surface.from_x.c||"
+  # runtime_http_glue R2 mixed (wave551)：.x 12 public API (11 thin+rest forwards + 1 DIRECT
+  #   http_method_has_body) + 11 _impl 桥；rest 含 POSIX socket + Win32 winsock + TLS bridge；
+  #   doc_anchor runtime_http_glue_x_doc_anchor（无 ast_）；http_/xlang_http_ 前缀不触发 ast_；
+  #   .x 在 asm/http/ 子目录；prove 锁 thin surface IDENTICAL (12 #[no_mangle] + 1 doc_anchor)
+  "runtime_http_glue|src/asm/http/runtime_http_glue.x|seeds/runtime_http_glue_surface.from_x.c||"
+  # runtime_queue_contention R2 mixed (wave551)：.x 13 public API (5 thin+rest queue_os_*_c + 8 DIRECT
+  #   queue_smoke_*/worker/trampoline/smoke_c) + 5 _impl 桥；rest 含 POSIX pthread_mutex_t +
+  #   pthread_create / Windows CRITICAL_SECTION + _beginthreadex；QueueSmokeState struct 5 fields；
+  #   doc_anchor runtime_queue_contention_x_doc_anchor（无 ast_）；queue_ 前缀不触发 ast_；
+  #   prove 锁 thin surface IDENTICAL (13 #[no_mangle] + 1 doc_anchor)
+  "runtime_queue_contention|src/asm/runtime_queue_contention.x|seeds/runtime_queue_contention_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
