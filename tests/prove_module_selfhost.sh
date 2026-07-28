@@ -332,6 +332,20 @@ MODULES=(
   #   doc_anchor runtime_thread_glue_x_doc_anchor（无 ast_）；thread_/std_thread_/xlang_ 前缀不触发 ast_；
   #   prove 锁 thin surface IDENTICAL (24 #[no_mangle] + 1 doc_anchor)
   "runtime_thread_glue|src/asm/runtime_thread_glue.x|seeds/runtime_thread_glue_surface.from_x.c||"
+  # bootstrap_nostdlib_stubs R2 mixed (wave556)：.x 6 #[no_mangle] public API
+  #   (5 thin+rest forwards to _impl: heap_grow/syscall3/syscall4/format_double/vfprintf_fd
+  #    + 1 DIRECT pure compute: align16);
+  #   rest 含 5 _impl bridges (bump heap mmap / Linux x86_64 syscall / vsnprintf+write);
+  #   doc_anchor bootstrap_nostdlib_stubs_x_doc_anchor（无 ast_）；bootstrap_ 前缀不触发 ast_；
+  #   prove 锁 mixed surface IDENTICAL (6 #[no_mangle] + 1 doc_anchor)
+  "bootstrap_nostdlib_stubs|src/asm/bootstrap_nostdlib_stubs.x|seeds/bootstrap_nostdlib_stubs_surface.from_x.c||"
+  # backend_seed_mega_fallback R2 DIRECT (wave556)：.x 2 #[no_mangle] public API
+  #   (pipeline_seed_mega_ctx_reset + pipeline_dep_ctx_target_arch_local)
+  #   + 3 non-no_mangle helpers (mega_load_i32_le + mega_store_i32_le + mega_store_ptr_le);
+  #   seed 全守卫 #ifndef XLANG_BACKEND_SEED_MEGA_FALLBACK_FROM_X;
+  #   doc_anchor backend_seed_mega_fallback_x_doc_anchor（无 ast_）；mega_/pipeline_ 前缀不触发 ast_；
+  #   prove 锁 DIRECT surface IDENTICAL (2 #[no_mangle] + 3 helper + 1 doc_anchor)
+  "backend_seed_mega_fallback|src/asm/backend_seed_mega_fallback.x|seeds/backend_seed_mega_fallback_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
