@@ -511,6 +511,12 @@ MODULES=(
   #   rest 含 91 extern bridges (*_impl) + 7 helper externs;
   #   prove 锁 mixed surface IDENTICAL (145 nm T · no doc_anchor)
   "runtime_link_abi|src/runtime_link_abi.x|seeds/runtime_link_abi_surface.from_x.c||"
+  # backend_enc_dispatch_thin R2 thin full (wave574)：.x 133 nm T symbols
+  #   (arm64/riscv64/x86_64 enc dispatch + arch_*_enc_* forwards to _impl +
+  #    DIRECT compute: arm64_add/sub_sp_imm12/str_x0/load_store_w0/call 等);
+  #   rest 含 arch_*_enc_* extern bridges (per-arch enc helpers) + *_impl externs;
+  #   prove 锁 thin full surface IDENTICAL (133 nm T · no doc_anchor)
+  "backend_enc_dispatch_thin|src/asm/backend_enc_dispatch_thin.x|seeds/backend_enc_dispatch_thin_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
