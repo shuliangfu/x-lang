@@ -437,6 +437,12 @@ MODULES=(
   #   rest 含 22 extern bridges (5 pipeline_* + 17 *_impl);
   #   prove 锁 mixed surface IDENTICAL (22 #[no_mangle] · no doc_anchor)
   "simd_loop_thin|src/asm/simd_loop_thin.x|seeds/simd_loop_thin_surface.from_x.c||"
+  # runtime_math_libm R2 mixed (wave564)：.x 34 #[no_mangle] public API
+  #   (2 DIRECT compute: math_signum_c + math_special_near
+  #    + 32 thin+rest forwards to math_*_impl);
+  #   rest 含 32 extern bridges (math_*_impl);
+  #   prove 锁 mixed surface IDENTICAL (34 #[no_mangle] · no doc_anchor)
+  "runtime_math_libm|src/asm/runtime_math_libm.x|seeds/runtime_math_libm_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
