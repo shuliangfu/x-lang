@@ -13152,8 +13152,17 @@ int32_t pipeline_asm_emit_addr_of_elf_c(struct ast_ASTArena *arena, struct platf
       off = asm_ctx_local_find_offset((uint8_t *)ctx, vname, vlen);
     if (off < 0)
       return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
-    /** 向量/struct 按值槽 lea；*T/T[N] 指针槽 load（与 glue_enc_local_slot_ptr_or_addr 一致）。 */
-    return glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, op, off, ctx, ta);
+    /*
+     * wave640 Cap residual pure: language-level `&var` is always the address of
+     * the local/param *slot* (lea rbp+off). Prior path reused
+     * glue_enc_local_slot_ptr_or_addr which *loads* *T / T[] param slots — correct
+     * for INDEX/field base (`p[i]`, `p.f`) but wrong for ADDR_OF: `&p` became
+     * equal to `p` when p:*T, so `let pp:**T = &p` stored the pointee pointer;
+     * freestanding `**pp` / `(*(*pp)).v` then SEGV (host-C real &; pure-asm CTFE
+     * folded 42). G.7: fix ADDR_OF authority only — do not change needs_ptr_load
+     * (INDEX/field still load). PLATFORM: SHARED freestanding · LINUX gold.
+     */
+    return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
   }
   /** &ptr[i] / &arr[0]：INDEX 有效地址（7.3 字面量下标 add_imm / VAR+VAR 快速路径）。 */
   if (ok == 47) {
@@ -13214,6 +13223,18 @@ int32_t pipeline_asm_emit_deref_elf_c(struct ast_ASTArena *arena, struct platfor
    */
   if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == (int32_t)ast_TypeKind_TYPE_ARRAY)
     return 0;
+  /*
+   * wave640 Cap residual pure: DEREF result TYPE_PTR means load a *pointer value*
+   * (8 bytes), not sizeof(pointee). glue_index_elem_byte_sz_from_type_ref peels
+   * *T→sizeof(T) for pointer-base INDEX stride only — using it here for *pp
+   * (pp:**T → result *T) yields esz=4 → half-pointer load → freestanding SEGV on
+   * **pp / (*(*pp)).v / let q = *pp (host-C / pure-asm CTFE hid).
+   * Twin of wave637 INDEX result TYPE_PTR → 8. G.7: complete same deref authority;
+   * do not open a second nested-deref path.
+   * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
+   */
+  if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == GLUE_TYPE_KIND_PTR)
+    return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
   esz = glue_index_elem_byte_sz_from_type_ref_c(arena, tr);
   if (esz == 1)
     return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
