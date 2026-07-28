@@ -281,6 +281,17 @@ MODULES=(
   #   doc_anchor runtime_queue_contention_x_doc_anchor（无 ast_）；queue_ 前缀不触发 ast_；
   #   prove 锁 thin surface IDENTICAL (13 #[no_mangle] + 1 doc_anchor)
   "runtime_queue_contention|src/asm/runtime_queue_contention.x|seeds/runtime_queue_contention_surface.from_x.c||"
+  # runtime_backtrace_platform R2 thin+rest (wave552)：.x 15 public API (14 backtrace_*_c forwards +
+  #   1 name_has_gold_anchor DIRECT forward) + 13 _impl 桥；rest 含 execinfo/dladdr/DbgHelp/
+  #   CaptureStackBackTrace；doc_anchor runtime_backtrace_platform_x_doc_anchor（无 ast_）；
+  #   backtrace_/xlang_ 前缀不触发 ast_；prove 锁 thin surface IDENTICAL (15 #[no_mangle] + 1 doc_anchor)
+  "runtime_backtrace_platform|src/asm/runtime_backtrace_platform.x|seeds/runtime_backtrace_platform_surface.from_x.c||"
+  # runtime_sync_os R2 thin+rest (wave552)：.x 16 public API (5 sync_mutex_*_c + 6 sync_rwlock_*_c +
+  #   5 sync_condvar_*_c) + 16 _impl 桥；rest 含 pthread_mutex_t/pthread_rwlock_t/pthread_cond_t
+  #   (POSIX) + CRITICAL_SECTION/SRWLOCK/CONDITION_VARIABLE (Windows)；doc_anchor
+  #   runtime_sync_os_x_doc_anchor（无 ast_）；sync_ 前缀不触发 ast_；
+  #   prove 锁 thin surface IDENTICAL (16 #[no_mangle] + 1 doc_anchor)
+  "runtime_sync_os|src/asm/runtime_sync_os.x|seeds/runtime_sync_os_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
