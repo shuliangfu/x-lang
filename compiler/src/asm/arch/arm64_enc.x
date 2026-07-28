@@ -584,10 +584,13 @@ export function enc_idiv_rbx(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 448859136);
 }
 
-/** Exported function `enc_mov_edx_to_eax`.
- * Implements `enc_mov_edx_to_eax`.
- * @param ctx *ElfCodegenCtx
- * @return i32
+/**
+ * arm64 signed remainder: w0 = w0 % w1 (x86 name is historical edx:eax rem).
+ * @param ctx *ElfCodegenCtx — code buffer
+ * @return i32 — 0 success, -1 encode failure
+ * PLATFORM: MACOS|ARM64 — product rem_mod (ta==1) calls only this (no cltd/idiv).
+ * G.7 twin of seeds/backend_arm64_enc_c.from_x.c arch_arm64_enc_enc_mov_edx_to_eax
+ * (wave645: product seed was a no-op stub; .x already had sdiv+msub).
  */
 export function enc_mov_edx_to_eax(ctx: *ElfCodegenCtx): i32 {
   /* sdiv w2, w0, w1 */

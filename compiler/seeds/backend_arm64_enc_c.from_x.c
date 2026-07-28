@@ -519,9 +519,24 @@ int32_t arch_arm64_enc_enc_cltd(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return 0; /* no-op on arm64 (idiv path uses sdiv) */
 }
 
+/**
+ * wave645 Cap residual: arm64 signed remainder w0 = w0 % w1.
+ *
+ * PLATFORM: MACOS|ARM64 product seed authority (linked as backend_arm64_enc_c.o).
+ * G.7 twin of arch/arm64_enc.x enc_mov_edx_to_eax — rem_mod dispatch (ta==1) calls
+ * ONLY this helper (no cltd/idiv first). Prior seed was a no-op → freestanding
+ * `x % n` / `x %= n` left dividend in w0 (host-C green; Ubuntu x86 rem_mod does
+ * cltd+idiv+mov_edx so Linux gold was already green).
+ *
+ * Sequence: sdiv w2,w0,w1 ; msub w0,w2,w1,w0  (rem = dividend - quot*divisor).
+ * Encodings match arm64_enc.x (0x1ac10c02 / 0x1b018040).
+ */
 int32_t arch_arm64_enc_enc_mov_edx_to_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  (void)elf_ctx;
-  return 0;
+  /* sdiv w2, w0, w1 */
+  if (arm64_enc_u32_le(elf_ctx, 0x1ac10c02u) != 0)
+    return -1;
+  /* msub w0, w2, w1, w0 */
+  return arm64_enc_u32_le(elf_ctx, 0x1b018040u);
 }
 
 int32_t arch_arm64_enc_enc_mov_rbx_to_ecx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
