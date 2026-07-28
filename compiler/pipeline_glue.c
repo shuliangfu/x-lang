@@ -19279,8 +19279,14 @@ static int32_t glue_copy_large_struct_from_rax_ptr_elf_c(struct platform_elf_Elf
  * PLATFORM: LINUX+MACOS x86_64 SysV — push a MEMORY-class (>16B) by-value aggregate onto the
  * outgoing call stack (matches formal C: full struct on stack, not a pointer in rdi).
  * Authority for asm freestanding/product vec residual (len(Vec) etc.).
- * Parameters: arg_ref must be a local VAR with a known stack slot; sz is byte size (>16).
+ *
+ * wave601 Cap residual: complete materialize sources beyond VAR:
+ *   - VAR (kind 3): push qwords from local home (low-end polarity: off, off-8, …)
+ *   - CALL/METHOD_CALL (48/49) with >16B return: sret into a fresh frame temp, then push
+ *   - else: unsupported (return -1; STRUCT_LIT→let first is the green product pattern)
+ *
  * Returns bytes pushed (8-aligned), or -1 on error.
+ * G.7: single push authority (method import path already calls this; CALL path wave601).
  */
 int32_t pipeline_asm_push_sysv_memory_by_value_elf_c(struct ast_ASTArena *arena,
                                                      struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -19289,15 +19295,54 @@ int32_t pipeline_asm_push_sysv_memory_by_value_elf_c(struct ast_ASTArena *arena,
   int32_t off;
   int32_t nbytes;
   int32_t k;
+  int32_t ko;
+  typedef struct {
+    int32_t frame_size;
+    int32_t next_offset;
+  } glue_AsmFuncCtxHead;
+  glue_AsmFuncCtxHead *ly;
   if (!arena || !elf_ctx || !ctx || arg_ref <= 0 || sz <= 16 || ta != 0)
     return -1;
-  if (pipeline_expr_kind_ord_at(arena, arg_ref) != 3)
-    return -1;
-  off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, arg_ref);
-  if (off < 0)
-    return -1;
   nbytes = (sz + 7) & ~7;
-  /* Push high qwords first so [rsp+0] holds struct byte 0 (ptr). */
+  ko = pipeline_expr_kind_ord_at(arena, arg_ref);
+  off = -1;
+  /* 1) Local VAR: known stack home. */
+  if (ko == 3) {
+    off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, arg_ref);
+    if (off < 0)
+      return -1;
+  } else if (ko == 48 || ko == 49) {
+    /*
+     * 2) Nested CALL/METHOD large return: materialize via SysV sret into frame temp.
+     * Root wave601: sum(mk()) previously placed only rax→rdi (pointer) while callee
+     * param_home reads MEMORY at [rbp+0x10..].
+     */
+    int32_t ret_sz = glue_call_return_byte_size_c(arena, arg_ref);
+    if (ret_sz <= 16)
+      ret_sz = sz;
+    if (ret_sz <= 16)
+      return -1;
+    ly = (glue_AsmFuncCtxHead *)ctx;
+    /* Low-end home: allocate nbytes contiguous; home = next after bump (≡ dual-GP spill). */
+    if (ly->next_offset + nbytes < ly->next_offset)
+      return -1;
+    ly->next_offset += nbytes;
+    off = ly->next_offset;
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
+      return -1;
+    pipeline_asm_emit_set_call_sret_reg_shift_c(1);
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, arg_ref, ctx, ta) != 0) {
+      pipeline_asm_emit_set_call_sret_reg_shift_c(0);
+      return -1;
+    }
+    pipeline_asm_emit_set_call_sret_reg_shift_c(0);
+  } else {
+    /* STRUCT_LIT / FIELD / … as MEMORY call-arg: materialize via let first (product pattern). */
+    return -1;
+  }
+  /* Push high qwords first so [rsp+0] holds struct byte 0. */
   for (k = nbytes - 8; k >= 0; k -= 8) {
     if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off - k, ta) != 0)
       return -1;

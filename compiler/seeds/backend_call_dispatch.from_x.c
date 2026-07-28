@@ -599,12 +599,30 @@ static int32_t glue_call_arg_is_f64_width_c(struct ast_ASTArena *arena, int32_t 
 
 /**
  * PLATFORM: LINUX+MACOS x86_64 SysV — how many integer arg registers a value of size sz needs.
- * 9–16B POD → 2; else 1 (scalars / pointers / ≤8B). >16B is MEMORY (caller lea) → 1 pointer.
+ * 9–16B POD → 2; else 1 (scalars / pointers / ≤8B).
+ * wave601: >16B is MEMORY by-value on the stack (0 GP). Historical comment "caller lea → 1
+ * pointer" mismatched formal C / param_home (callee reads [rbp+0x10..], not rdi).
  */
 static int32_t glue_sysv_arg_gp_units_from_size_c(int32_t sz) {
+  if (sz > 16)
+    return 0; /* MEMORY class — no GP; stack words via n_stack / push_sysv_memory */
   if (sz > 8 && sz <= 16)
     return 2;
   return 1;
+}
+
+/** SysV MEMORY by-value: aggregate size >16 (not a pointer in a GP). */
+static int32_t glue_sysv_arg_is_memory_by_value_c(int32_t sz) {
+  return sz > 16 ? 1 : 0;
+}
+
+/** Stack words for one SysV arg: MEMORY → ceil(sz/8); integer stack excess → units. */
+static int32_t glue_sysv_arg_stack_words_c(int32_t sz, int32_t gp_units) {
+  if (sz > 16)
+    return (sz + 7) / 8;
+  if (gp_units < 1)
+    return 1;
+  return gp_units;
 }
 
 /**
@@ -749,6 +767,8 @@ int32_t glue_sysv_x86_call_arg_slot_c_impl(struct ast_ASTArena *arena, int32_t c
   int32_t pty;
   int32_t arg_ref;
   int32_t units;
+  int32_t sz;
+  int32_t words;
   if (!out_kind || !out_reg_k || !out_stack_k)
     return 0;
   gp = 0;
@@ -757,7 +777,9 @@ int32_t glue_sysv_x86_call_arg_slot_c_impl(struct ast_ASTArena *arena, int32_t c
   for (j = 0; j <= arg_index && j < nargs; j++) {
     pty = glue_call_param_type_ref_at(arena, call_expr_ref, j);
     arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, j);
-    units = glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, 0, pty, arg_ref));
+    sz = glue_sysv_arg_byte_size_c(arena, 0, pty, arg_ref);
+    units = glue_sysv_arg_gp_units_from_size_c(sz);
+    words = glue_sysv_arg_stack_words_c(sz, units);
     if (j == arg_index) {
       if (glue_call_arg_is_sse_float_c(arena, call_expr_ref, j, pty)) {
         if (xmm < 8) {
@@ -767,7 +789,11 @@ int32_t glue_sysv_x86_call_arg_slot_c_impl(struct ast_ASTArena *arena, int32_t c
           *out_kind = 2;
           *out_stack_k = stk;
         }
-      } else if (gp + units <= 6) {
+      } else if (glue_sysv_arg_is_memory_by_value_c(sz)) {
+        /* wave601: MEMORY by-value — stack only, never a GP pointer. */
+        *out_kind = 2;
+        *out_stack_k = stk;
+      } else if (units > 0 && gp + units <= 6) {
         *out_kind = 0;
         *out_reg_k = gp;
       } else {
@@ -781,10 +807,12 @@ int32_t glue_sysv_x86_call_arg_slot_c_impl(struct ast_ASTArena *arena, int32_t c
         xmm++;
       else
         stk++;
-    } else if (gp + units <= 6) {
+    } else if (glue_sysv_arg_is_memory_by_value_c(sz)) {
+      stk += words;
+    } else if (units > 0 && gp + units <= 6) {
       gp += units;
     } else {
-      stk += units;
+      stk += words;
     }
   }
   *out_kind = 2;
@@ -813,22 +841,29 @@ int32_t glue_sysv_x86_call_n_stack_c_impl(struct ast_ASTArena *arena, int32_t ca
   int32_t pty;
   int32_t arg_ref;
   int32_t units;
+  int32_t sz;
+  int32_t words;
   gp = 0;
   xmm = 0;
   stk = 0;
   for (j = 0; j < nargs; j++) {
     pty = glue_call_param_type_ref_at(arena, call_expr_ref, j);
     arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, j);
-    units = glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, 0, pty, arg_ref));
+    sz = glue_sysv_arg_byte_size_c(arena, 0, pty, arg_ref);
+    units = glue_sysv_arg_gp_units_from_size_c(sz);
+    words = glue_sysv_arg_stack_words_c(sz, units);
     if (glue_call_arg_is_sse_float_c(arena, call_expr_ref, j, pty)) {
       if (xmm < 8)
         xmm++;
       else
         stk++;
-    } else if (gp + units <= 6) {
+    } else if (glue_sysv_arg_is_memory_by_value_c(sz)) {
+      /* wave601: MEMORY multi-word on stack (not 1 GP). */
+      stk += words;
+    } else if (units > 0 && gp + units <= 6) {
       gp += units;
     } else {
-      stk += units;
+      stk += words;
     }
   }
   return stk;
@@ -915,10 +950,25 @@ int32_t glue_emit_call_args_elf_sysv_f32_xmm_c_impl(struct ast_ASTArena *arena,
       return -1;
   }
   for (si = n_stk_push - 1; si >= 0; si--) {
+    int32_t pty_i;
+    int32_t sz_i;
+    int32_t pushed;
     i = stk_push[si];
     arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
     if (arg_ref == 0)
       continue;
+    pty_i = glue_call_param_type_ref_at(arena, expr_ref, i);
+    sz_i = glue_sysv_arg_byte_size_c(arena, ctx, pty_i, arg_ref);
+    /*
+     * wave601: >16B MEMORY by-value — multi-qword push (not single lea→push).
+     * Matches method-import path + formal param_home [rbp+0x10..].
+     */
+    if (glue_sysv_arg_is_memory_by_value_c(sz_i)) {
+      pushed = pipeline_asm_push_sysv_memory_by_value_elf_c(arena, elf_ctx, ctx, arg_ref, sz_i, ta);
+      if (pushed < 0)
+        return -1;
+      continue;
+    }
     if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
       return -1;
     if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
@@ -2412,29 +2462,65 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
     if (n_stack > 0 && ta == 2)
       return -1;
 
-    stack_reserve = glue_asm_call_stack_cleanup_bytes(ta, nargs);
+    /*
+     * wave601: x86 outgoing words include MEMORY multi-word (not nargs-reg_max alone).
+     * Cleanup twin: glue_asm_emit_call_with_cleanup uses glue_sysv_x86_call_n_stack_c.
+     */
+    if (ta == 0 && arena && expr_ref > 0) {
+      int32_t nw = glue_sysv_x86_call_n_stack_c(arena, expr_ref, nargs);
+      stack_reserve = nw * 8;
+      if (nw > 0 && (nw & 1))
+        stack_reserve += 8;
+    } else {
+      stack_reserve = glue_asm_call_stack_cleanup_bytes(ta, nargs);
+    }
     if (stack_reserve < 0)
       return -1;
     if (backend_enc_call_stack_reserve_arch(elf_ctx, stack_reserve, ta) != 0)
       return -1;
 
-    /** x86_64：奇数个栈实参时先 push 8B 对齐垫（须在实参之前，否则 callee 0x10(%rbp) 错位）；再右到左 push 栈实参。 */
-    if (ta == 0 && n_stack > 0) {
-      if (n_stack & 1) {
+    /**
+     * x86_64：先 pad（16 对齐），再右到左 push 栈实参。
+     * wave601: MEMORY (sz>16) uses push_sysv_memory multi-qword; also any arg that
+     * classification places on stack (excess GP), not only index>=eff_reg_max.
+     */
+    if (ta == 0) {
+      int32_t nw = glue_sysv_x86_call_n_stack_c(arena, expr_ref, nargs);
+      int32_t kind_i;
+      int32_t reg_k_i;
+      int32_t stack_k_i;
+      if (nw > 0 && (nw & 1)) {
         if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)
           return -1;
         if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
           return -1;
       }
-      for (i = nargs - 1; i >= eff_reg_max; i--) {
+      for (i = nargs - 1; i >= 0; i--) {
+        int32_t pty_i;
+        int32_t sz_i;
+        int32_t pushed;
         arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
-        if (arg_ref != 0) {
+        if (arg_ref == 0)
+          continue;
+        glue_sysv_x86_call_arg_slot_c(arena, expr_ref, nargs, i, &kind_i, &reg_k_i, &stack_k_i);
+        if (kind_i != 2)
+          continue;
+        pty_i = glue_call_param_type_ref_at(arena, expr_ref, i);
+        sz_i = glue_sysv_arg_byte_size_c(arena, ctx, pty_i, arg_ref);
+        if (glue_sysv_arg_is_memory_by_value_c(sz_i)) {
+          pushed = pipeline_asm_push_sysv_memory_by_value_elf_c(arena, elf_ctx, ctx, arg_ref, sz_i, ta);
+          if (pushed < 0)
+            return -1;
+        } else {
           if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
             return -1;
           if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
             return -1;
         }
       }
+      (void)eff_reg_max;
+      (void)n_stack;
+      (void)sret_sh;
     }
 
     /**
@@ -2545,11 +2631,21 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
             xmm_cur++;
           continue;
         }
-        u = glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, ctx, pty_i, ar_i));
+        {
+          int32_t sz_i = glue_sysv_arg_byte_size_c(arena, ctx, pty_i, ar_i);
+          /* wave601: MEMORY → stack only (already pushed above); skip GP place. */
+          if (glue_sysv_arg_is_memory_by_value_c(sz_i)) {
+            gp_start[i] = -1;
+            gp_units[i] = 0;
+            spill_off[i] = -1;
+            continue;
+          }
+          u = glue_sysv_arg_gp_units_from_size_c(sz_i);
+        }
         gp_start[i] = gp_cur;
         gp_units[i] = u;
         spill_off[i] = -1;
-        if (gp_cur + u <= reg_max)
+        if (u > 0 && gp_cur + u <= reg_max)
           gp_cur += u;
         else
           gp_start[i] = -1;
@@ -3175,7 +3271,18 @@ int32_t glue_asm_emit_call_with_cleanup_impl(struct ast_ASTArena *arena, struct 
     return -1;
   if (glue_asm_enc_call_redirected(elf_ctx, cname, clen, ta) != 0)
     return -1;
-  cleanup = glue_asm_call_stack_cleanup_bytes(ta, nargs);
+  /*
+   * wave601: x86 cleanup must include MEMORY multi-word + pad, not nargs-only.
+   * glue_sysv_x86_call_n_stack_c returns stack *words* (MEMORY ceil(sz/8)).
+   */
+  if (ta == 0 && arena && expr_ref > 0) {
+    int32_t nw = glue_sysv_x86_call_n_stack_c(arena, expr_ref, nargs);
+    cleanup = nw * 8;
+    if (nw > 0 && (nw & 1))
+      cleanup += 8;
+  } else {
+    cleanup = glue_asm_call_stack_cleanup_bytes(ta, nargs);
+  }
   if (cleanup < 0)
     return -1;
   if (backend_enc_call_stack_cleanup_arch(elf_ctx, cleanup, ta) != 0)
