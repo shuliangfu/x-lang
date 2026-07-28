@@ -3886,6 +3886,13 @@ int32_t pipeline_expr_struct_lit_field_store_sz(struct ast_ASTArena *a, struct a
 
 /** struct_lit 逐字段 emit 上限（与 grow 池 many_fields 等边界用例对齐，旧硬顶 8）。 */
 #define GLUE_ASM_MAX_STRUCT_LIT_FIELDS 64
+/**
+ * wave628: stack_slot_off sentinel — caller already placed element/dest address in rbx
+ * (e.g. INDEX assign with runtime index). Field stores use sret_direct geometry
+ * (store_rax_to_rbx_offset) without lea rbp / next_offset materialize.
+ * PLATFORM: SHARED freestanding INDEX STRUCT_LIT assign.
+ */
+#define GLUE_STRUCT_LIT_DEST_IN_RBX (-3)
 static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *arena,
                                                          struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
                                                          struct backend_AsmFuncCtx *ctx, int32_t ta,
@@ -3897,9 +3904,12 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
   int32_t foff;
   int32_t fsz;
   int32_t sret_direct;
+  int32_t dest_ptr_home;
+  int32_t rehome_off;
   pipeline_glue_AsmFuncCtxLayout *ly;
   nf = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
   sret_direct = 0;
+  dest_ptr_home = -1;
   ly = pipeline_asm_ctx_layout(ctx);
   if (!ly)
     return -1;
@@ -3918,10 +3928,30 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
    * return + sret: rbx points at caller hidden dest ([sret_home]), not a small
    * rbp+next_offset temp (field offsets can overrun saved fp → SIGSEGV).
    * PLATFORM: LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64 (wave591).
+   *
+   * wave628: GLUE_STRUCT_LIT_DEST_IN_RBX — dest already in rbx (INDEX var-index
+   * elem home). Field-value emits clobber rbx, so spill the dest pointer to a
+   * frame slot and re-home from there (same geometry as sret_home reload).
+   * Do NOT reload g_pipeline_asm_sret_home_off (unset → garbage / smash).
    */
   base_off = 0;
-  if (stack_slot_off < 0 && (ta == 0 || ta == 1) && g_pipeline_asm_func_sret_active &&
-      g_pipeline_asm_sret_home_off >= 0) {
+  if (stack_slot_off == GLUE_STRUCT_LIT_DEST_IN_RBX) {
+    sret_direct = 1;
+    dest_ptr_home = ly->next_offset;
+    if (dest_ptr_home < 0)
+      return -1;
+    if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, dest_ptr_home, ta) != 0)
+      return -1;
+    /* Reserve 8B so nested field temps at next_offset do not clobber dest spill. */
+    if (ly->next_offset + 8 < ly->next_offset)
+      return -1;
+    ly->next_offset += 8;
+    if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, dest_ptr_home, ta) != 0)
+      return -1;
+  } else if (stack_slot_off < 0 && (ta == 0 || ta == 1) && g_pipeline_asm_func_sret_active &&
+             g_pipeline_asm_sret_home_off >= 0) {
     if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
       return -1;
     sret_direct = 1;
@@ -3932,6 +3962,8 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
     if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
       return -1;
   }
+  /* sret_home or dest-ptr spill — unified re-home offset for field stores. */
+  rehome_off = dest_ptr_home >= 0 ? dest_ptr_home : g_pipeline_asm_sret_home_off;
   if (nf == 0)
     return 0;
   for (fi = 0; fi < nf; fi++) {
@@ -4051,7 +4083,8 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
               return -1;
             if (backend_enc_load_rbp_to_rax_arch(elf_ctx, load_off, ta) != 0)
               return -1;
-            if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
+            /* wave628: rehome_off is dest_ptr spill or sret_home. */
+            if (rehome_off < 0 || backend_enc_load_rbp_to_rbx_arch(elf_ctx, rehome_off, ta) != 0)
               return -1;
             if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + cop, chunk, ta) != 0)
               return -1;
@@ -4074,6 +4107,7 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
        * 【Invariant】rax（+rdx for 9–16B SysV）含字段值；spill 到 frame 后再重载 rbx。
        * PLATFORM: LINUX+MACOS x86_64 — dual-GP CALL/VAR field init must keep rdx half.
        * wave595: clamp dual store to fsz (not always 16) so 9–12B fields do not smash.
+       * wave628: sret_direct re-home uses rehome_off (dest_ptr spill or sret_home).
        */
       if (ta == 0 && fsz > 8 && fsz <= 16) {
         int32_t spill = ly->next_offset + 16;
@@ -4085,7 +4119,7 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
         if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, spill - 8, ta) != 0)
           return -1;
         if (sret_direct) {
-          if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
+          if (rehome_off < 0 || backend_enc_load_rbp_to_rbx_arch(elf_ctx, rehome_off, ta) != 0)
             return -1;
         } else {
           if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, base_off, ta) != 0)
@@ -4110,7 +4144,7 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
         if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
           return -1;
         if (sret_direct) {
-          if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
+          if (rehome_off < 0 || backend_enc_load_rbp_to_rbx_arch(elf_ctx, rehome_off, ta) != 0)
             return -1;
         } else {
           if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, base_off, ta) != 0)
@@ -4127,7 +4161,8 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
   }
   if (link_abi_getenv("XLANG_ASM_EMIT_TRACE"))
     fprintf(stderr, "xlang: struct_lit_c done expr=%d\n", (int)expr_ref);
-  if (stack_slot_off >= 0)
+  /* let-init home or wave628 INDEX dest-in-rbx: fields already stored; no rvalue. */
+  if (stack_slot_off >= 0 || stack_slot_off == GLUE_STRUCT_LIT_DEST_IN_RBX)
     return 0;
   /**
    * return 路径：小 struct（≤8B）按值经 rax 返回（mov rbx→rax 再 load [rax]）；
@@ -11816,37 +11851,40 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
     if (base_ref <= 0 || idx_ref <= 0)
       return -1;
     /*
-     * wave627 Cap residual pure: INDEX assign of STRUCT_LIT (`a[i] = Pt{…}` / S24{…}).
+     * wave627/628 Cap residual pure: INDEX assign of STRUCT_LIT (`a[i] = Pt{…}` / S24{…}).
      *
-     * Root: generic path emit_expr STRUCT_LIT (slot_off=-1) materializes at
-     * ly->next_offset without advancing high-end top; after fixed TYPE_ARRAY
-     * alloc, next_offset aliases a[0]. Field stores for a[1]=Pt{0,32} overwrite
-     * a[0], then finish_store bulk-copies 8B to a[1] → Ubuntu pure-asm
-     * a[0].x+a[1].y=32 (host-C temps green; single a[0]= and VAR/CALL rhs green).
-     * >8B STRUCT_LIT also only store_rax width ≤8 → s24_asg run=3.
+     * Root (wave627 INT_LIT): generic path emit_expr STRUCT_LIT (slot_off=-1)
+     * materializes at ly->next_offset without advancing high-end top; after fixed
+     * TYPE_ARRAY alloc, next_offset aliases a[0]. Field stores for a[1]=Pt{0,32}
+     * overwrite a[0], then finish_store bulk-copies 8B to a[1] → Ubuntu pure-asm
+     * a[0].x+a[1].y=32 (host-C temps green). >8B also store_rax width ≤8 → s24 lit
+     * asg run=3 before in-place.
      *
-     * G.7: same in-place authority as wave626 vector_let STRUCT_LIT — when base is
-     * local VAR and index is INT_LIT, write fields at arch-aware elem home
-     * (no rvalue next_offset / no register bulk). Non-lit / non-VAR fall through.
+     * Root (wave628 var-index): same generic path leaves pointer in rax and
+     * finish_store only writes 8B of that pointer into the element (s24_var
+     * field a = stack addr bits; sum garbage). Assign-side scale helper also
+     * falls back to ×8 for esz∉{1,4} so a[j] with esz=24 lands mid-element.
+     *
+     * G.7: same in-place authority as wave626 vector_let STRUCT_LIT —
+     * ① INT_LIT: arch-aware rbp elem_home field writes (wave627)
+     * ② non-lit: glue_emit_index_eff_addr_scaled (general esz mul) → rbx, then
+     *    fields with GLUE_STRUCT_LIT_DEST_IN_RBX (no rvalue / no bulk≤8)
+     * Only fixed TYPE_ARRAY base; TYPE_SLICE fat home still gated out.
      * PLATFORM: SHARED freestanding · LINUX|x86 high-end · MACOS|ARM64 low-end.
      */
     rko_idx = pipeline_expr_kind_ord_at(arena, right_ref);
     if (pipeline_expr_kind_ord_at(arena, expr_ref) == (int32_t)ast_ExprKind_EXPR_ASSIGN &&
-        rko_idx == 45 && esz > 0) {
+        rko_idx == 45 && esz > 0 && pipeline_expr_kind_ord_at(arena, base_ref) == 3) {
       int32_t lit_imm;
       int32_t base_off;
       int32_t elem_home;
       int32_t base_tr;
       int32_t base_tk;
-      /*
-       * Only fixed TYPE_ARRAY payload homes (byte0 @ base_off). TYPE_SLICE VAR is a
-       * fat pointer dual-GP home — in-place there would smash data/length (sl_asg SEGV).
-       */
-      if (pipeline_expr_kind_ord_at(arena, base_ref) == 3 &&
-          pipeline_asm_expr_lit_i32_at_c(arena, idx_ref, &lit_imm)) {
-        base_tr = glue_var_decl_type_ref_elf_c(arena, ctx, base_ref);
-        base_tk = (base_tr > 0) ? pipeline_type_kind_ord_at(arena, base_tr) : 0;
-        if (base_tk == GLUE_TYPE_KIND_ARRAY) {
+      base_tr = glue_var_decl_type_ref_elf_c(arena, ctx, base_ref);
+      base_tk = (base_tr > 0) ? pipeline_type_kind_ord_at(arena, base_tr) : 0;
+      if (base_tk == GLUE_TYPE_KIND_ARRAY) {
+        /* wave627: compile-time index → rbp-relative field home. */
+        if (pipeline_asm_expr_lit_i32_at_c(arena, idx_ref, &lit_imm)) {
           base_off = glue_var_expr_stack_off_elf_c(arena, ctx, base_ref);
           if (base_off >= 0) {
             elem_home = (ta == 1) ? (base_off + lit_imm * esz) : (base_off - lit_imm * esz);
@@ -11857,6 +11895,28 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
               return 0;
             }
           }
+        } else {
+          /*
+           * wave628: runtime index — eff_addr (handles general esz via imul, not
+           * assign-side ×8 fallback) then field-write through rbx. Once entered,
+           * hard-fail (no generic fall-through: rax/rbx already clobbered).
+           */
+          if (glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, left_ref, base_ref, idx_ref, ctx, ta,
+                                                      esz) != 0) {
+            glue_index_assign_addr_cache_clear();
+            return -1;
+          }
+          if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+            glue_index_assign_addr_cache_clear();
+            return -1;
+          }
+          if (pipeline_asm_emit_struct_lit_fields_elf_c(arena, elf_ctx, right_ref, ctx, ta,
+                                                         GLUE_STRUCT_LIT_DEST_IN_RBX) != 0) {
+            glue_index_assign_addr_cache_clear();
+            return -1;
+          }
+          glue_index_assign_addr_cache_clear();
+          return 0;
         }
       }
     }
