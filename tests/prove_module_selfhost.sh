@@ -320,6 +320,18 @@ MODULES=(
   #   doc_anchor runtime_process_os_glue_x_doc_anchor（无 ast_）；process_ 前缀不触发 ast_；
   #   prove 锁 thin surface IDENTICAL (22 #[no_mangle] + 1 doc_anchor)
   "runtime_process_os_glue|src/asm/runtime_process_os_glue.x|seeds/runtime_process_os_glue_surface.from_x.c||"
+  # asm_backend_compat_stubs R2 DIRECT (wave555)：.x 3 public API (xlang_format_u32_to_buf pure compute +
+  #   xlang_elf_ctx_append_u32_le + xlang_arm64_mov_imm32_to_w0_c via pipeline_elf_ctx_append_bytes extern bridge);
+  #   seed 全守卫 #ifndef XLANG_ASM_BACKEND_COMPAT_STUBS_FROM_X;
+  #   doc_anchor asm_backend_compat_stubs_x_doc_anchor（无 ast_）；xlang_ 前缀不触发 ast_；
+  #   prove 锁 DIRECT surface IDENTICAL (3 #[no_mangle] + 1 doc_anchor)
+  "asm_backend_compat_stubs|src/asm/asm_backend_compat_stubs.x|seeds/asm_backend_compat_stubs_surface.from_x.c||"
+  # runtime_thread_glue R2 thin+rest (wave555)：.x 24 public API (16 thin+rest forwards to _impl:
+  #   2 xlang_cpu_ star + 14 thread_ star + 8 DIRECT std_thread_ star forwards to thread_ star _c);
+  #   rest 含 16 _impl OS bridges (pthread_ star / CreateThread / SetThreadAffinityMask / qos_class);
+  #   doc_anchor runtime_thread_glue_x_doc_anchor（无 ast_）；thread_/std_thread_/xlang_ 前缀不触发 ast_；
+  #   prove 锁 thin surface IDENTICAL (24 #[no_mangle] + 1 doc_anchor)
+  "runtime_thread_glue|src/asm/runtime_thread_glue.x|seeds/runtime_thread_glue_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
