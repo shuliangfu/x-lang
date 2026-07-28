@@ -10420,10 +10420,23 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
           }
         }
       }
+      /*
+       * wave638 Cap residual pure: host-C FIELD base must be a primary.
+       * Historical `(base.field)` + DEREF base `*(p)` → `(*(p).v)` which C parses
+       * as `*((p).v)` (`.` tighter than unary `*`) → BLD001.
+       * G.7: emit `((base).field)` / `((base)->field)`. INDEX already wraps base alone.
+       * PLATFORM: SHARED host-C emit; match codegen.x.
+       */
+      if ((codegen_append_byte(out, 40) !=0)) {
+        return -(1);
+      }
       if ((codegen_append_byte(out, 40) !=0)) {
         return -(1);
       }
       if ((!(ast_ref_is_null((e.field_access_base_ref))) && (codegen_emit_expr(arena, out, (e.field_access_base_ref), ctx) !=0))) {
+        return -(1);
+      }
+      if ((codegen_append_byte(out, 41) !=0)) {
         return -(1);
       }
       if ((((ctx !=((struct ast_PipelineDepCtx *)(0))) && ((ctx->current_codegen_module) !=((struct ast_Module *)(0)))) && ((ctx->current_func_index) >=0))) {

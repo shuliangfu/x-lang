@@ -10832,10 +10832,24 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           }
         }
       }
+      /*
+       * wave638 Cap residual pure: host-C FIELD base must be a primary.
+       * Historical shape `(base.field)` with DEREF base `*(p)` emitted `(*(p).v)`,
+       * which C parses as `*((p).v)` (`.` binds tighter than unary `*`) → BLD001.
+       * G.7: emit `((base).field)` / `((base)->field)` so postfix attaches to the
+       * whole base (including `(*p)`). INDEX already wraps base alone — leave it.
+       * PLATFORM: SHARED host-C emit; seed codegen_gen must match.
+       */
+      if (append_byte(out, 40) != 0) {
+        return -1;
+      }
       if (append_byte(out, 40) != 0) {
         return -1;
       }
       if (!ast.ref_is_null(e.field_access_base_ref) && emit_expr(arena, out, e.field_access_base_ref, ctx) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 41) != 0) {
         return -1;
       }
       /* See implementation. */
