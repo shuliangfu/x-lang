@@ -356,6 +356,19 @@ MODULES=(
   #   lsp_diag_copy_text/json_escape_str forward to _impl (same module #[no_mangle]);
   #   prove 锁 DIRECT surface IDENTICAL (4 #[no_mangle] + 1 doc_anchor)
   "lsp_diag_stubs_no_c|src/lsp/lsp_diag_stubs_no_c.x|seeds/lsp_diag_stubs_no_c_surface.from_x.c||"
+  # build_runtime R2 thin+rest (wave558)：.x 5 #[no_mangle] public API
+  #   (5 thin forwards to _impl: build_runtime_info/warn + build_patch_pipeline_gen_c/driver_gen_c + build_run_legacy_steps);
+  #   rest 含 5 _impl bridges;
+  #   prove 锁 thin+rest surface IDENTICAL (5 #[no_mangle] + 1 doc_anchor)
+  "build_runtime|src/build_runtime.x|seeds/build_runtime_surface.from_x.c||"
+  # user_asm_seed_bridge R2 mixed (wave558)：.x 7 #[no_mangle] public API
+  #   (4 thin+rest forwards to _impl: seed_elf_ctx_set_macho_leading_underscore + seed_asm_reject_empty_elf_text
+  #    + seed_platform_macho_write_macho_o_to_buf + seed_platform_coff_write_coff_o_to_buf
+  #    + 2 DIRECT env gates: seed_asm_debug_enabled + seed_asm_emit_trace_enabled via link_abi_getenv
+  #    + 1 DIRECT pure compute: seed_elf_ctx_code_len);
+  #   rest 含 4 _impl bridges + link_abi_getenv _impl;
+  #   prove 锁 mixed surface IDENTICAL (7 #[no_mangle] + 1 doc_anchor)
+  "user_asm_seed_bridge|src/asm/user_asm_seed_bridge.x|seeds/user_asm_seed_bridge_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
