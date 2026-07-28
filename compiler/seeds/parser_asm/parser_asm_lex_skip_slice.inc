@@ -230,14 +230,56 @@ void parser_asm_skip_balanced_braces_into_buf_c(struct parser_asm_lexer *out, st
 
 /* extracted lines 4504-4625 */
 /**
- * 跳过 `<T>` / `<T,E,...>` 泛型实参/形参列表（含嵌套 `<>`）；失败时 out 保持 lex。
+ * Tokens that cannot appear inside a type-argument list `<...>` at any depth.
+ * PLATFORM: SHARED — used by both skip helpers below.
+ *
+ * wave446 root fix: without this gate, skip_generic_angle_list is greedy across
+ * statement boundaries. Example false positive:
+ *   if (pos < n) { return 1; }
+ *   if (pos > (0 as usize)) { return 2; }
+ * The suffix loop on primary `pos` sees `<`, then skip walks all the way to the
+ * later `>` of `pos > (`, sees following `(`, and treats the span as
+ * `pos<...>(...)` generic CALL. The if condition becomes CALL/ADD with no
+ * resolved type → typeck "if condition must be bool".
+ *
+ * Abort on braces / semicolon / statement keywords so the primary LT branch
+ * falls back to relcompare (true `<` comparison).
+ */
+static int parser_asm_angle_list_token_is_stmt_boundary_c(int32_t k) {
+  if (k == (int32_t)TOKEN_LBRACE || k == (int32_t)TOKEN_RBRACE)
+    return 1;
+  if (k == (int32_t)TOKEN_SEMICOLON)
+    return 1;
+  if (k == (int32_t)TOKEN_IF || k == (int32_t)TOKEN_ELSE || k == (int32_t)TOKEN_WHILE
+      || k == (int32_t)TOKEN_LOOP || k == (int32_t)TOKEN_FOR || k == (int32_t)TOKEN_MATCH)
+    return 1;
+  if (k == (int32_t)TOKEN_RETURN || k == (int32_t)TOKEN_LET || k == (int32_t)TOKEN_CONST
+      || k == (int32_t)TOKEN_BREAK || k == (int32_t)TOKEN_CONTINUE || k == (int32_t)TOKEN_GOTO)
+    return 1;
+  if (k == (int32_t)TOKEN_FUNCTION || k == (int32_t)TOKEN_STRUCT || k == (int32_t)TOKEN_ENUM
+      || k == (int32_t)TOKEN_TRAIT || k == (int32_t)TOKEN_IMPL || k == (int32_t)TOKEN_TYPE
+      || k == (int32_t)TOKEN_IMPORT || k == (int32_t)TOKEN_EXTERN || k == (int32_t)TOKEN_EXPORT)
+    return 1;
+  /* Bare `)` / relational ops at depth 1 are comparison / call context, not types.
+   * Nested type args never need these at the outer angle depth without closing `>`. */
+  return 0;
+}
+
+/**
+ * Skip `<T>` / `<T,E,...>` generic type-arg lists (nested `<>` ok).
+ * On success: *out is past the matching `>`.
+ * On failure (EOF / statement boundary): *out restored to input lex so caller
+ * leaves `<` for relcompare instead of inventing a generic CALL.
+ * PLATFORM: SHARED
  */
 void parser_asm_skip_generic_angle_list_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
                                                      struct parser_asm_slice_u8 *source) {
   struct parser_asm_lexer_result r;
+  struct parser_asm_lexer lex_start;
   int32_t depth;
   if (!out || !source)
     return;
+  lex_start = lex;
   depth = 0;
   for (;;) {
     lexer_next_into(&r, lex, source);
@@ -251,32 +293,60 @@ void parser_asm_skip_generic_angle_list_into_slice_c(struct parser_asm_lexer *ou
         out->col = r.next_lex.col;
         return;
       }
-    } else if (r.tok.kind == (int32_t)TOKEN_EOF) {
-      out->pos = lex.pos;
-      out->line = lex.line;
-      out->col = lex.col;
+    } else if (r.tok.kind == (int32_t)TOKEN_EOF
+               || parser_asm_angle_list_token_is_stmt_boundary_c(r.tok.kind)
+               || (depth == 1 && r.tok.kind == (int32_t)TOKEN_RPAREN)) {
+      /* Not a closed type-arg list — restore so primary falls back to LT compare. */
+      out->pos = lex_start.pos;
+      out->line = lex_start.line;
+      out->col = lex_start.col;
       return;
     }
     lex = r.next_lex;
   }
 }
 
+/**
+ * Same as skip_generic_angle_list_into, also counts top-level type args.
+ * On boundary abort: *out = input lex, *count = 0 (caller must not treat as generic).
+ * PLATFORM: SHARED — wave446 angle-list boundary gate (see sibling into_slice).
+ */
+/*
+ * wave455: pending type-param names captured by the most recent angle-list
+ * count walk (function decl `foo<T, U>`). Call-site turbofish walks also
+ * overwrite this; callers that need decl names must snapshot immediately
+ * after counting a function signature (see register_type_params).
+ * PLATFORM: SHARED parser.
+ */
+#define XLANG_GP_PENDING_MAX 8
+static uint8_t g_gp_pending_names[XLANG_GP_PENDING_MAX][64];
+static int32_t g_gp_pending_lens[XLANG_GP_PENDING_MAX];
+static int32_t g_gp_pending_n;
+
 void parser_asm_skip_generic_angle_list_count_into_slice_c(struct parser_asm_lexer *out, int32_t *count,
                                                            struct parser_asm_lexer lex,
                                                            struct parser_asm_slice_u8 *source) {
   struct parser_asm_lexer_result r;
+  struct parser_asm_lexer lex_start;
   int32_t depth;
   int32_t top_count;
   int32_t saw_any;
+  int32_t expect_tp;
   if (!out || !count || !source)
     return;
+  lex_start = lex;
   depth = 0;
   top_count = 0;
   saw_any = 0;
+  expect_tp = 0;
+  g_gp_pending_n = 0;
+  memset(g_gp_pending_lens, 0, sizeof(g_gp_pending_lens));
   for (;;) {
     lexer_next_into(&r, lex, source);
     if (r.tok.kind == (int32_t)TOKEN_LT) {
       depth++;
+      if (depth == 1)
+        expect_tp = 1;
     } else if (r.tok.kind == (int32_t)TOKEN_GT) {
       depth--;
       if (depth <= 0) {
@@ -287,12 +357,38 @@ void parser_asm_skip_generic_angle_list_count_into_slice_c(struct parser_asm_lex
         return;
       }
     } else if (r.tok.kind == (int32_t)TOKEN_COMMA) {
-      if (depth == 1)
+      if (depth == 1) {
         top_count++;
-    } else if (r.tok.kind == (int32_t)TOKEN_EOF) {
-      out->pos = lex.pos;
-      out->line = lex.line;
-      out->col = lex.col;
+        expect_tp = 1;
+      }
+    } else if (r.tok.kind == (int32_t)TOKEN_COLON) {
+      if (depth == 1)
+        expect_tp = 0; /* bound trait name follows — not a type-param name */
+    } else if (r.tok.kind == (int32_t)TOKEN_IDENT && depth == 1 && expect_tp) {
+      /* wave455: capture type-param IDENT at declaration position. */
+      if (g_gp_pending_n < XLANG_GP_PENDING_MAX) {
+        int32_t pl = r.tok.ident_len > 63 ? 63 : r.tok.ident_len;
+        memset(g_gp_pending_names[g_gp_pending_n], 0, 64);
+        if (pl > 0 && source->data) {
+          size_t ts = r.token_start;
+          if (ts == 0 && pl > 0 && r.next_lex.pos >= (size_t)pl)
+            ts = r.next_lex.pos - (size_t)pl;
+          if (ts + (size_t)pl <= source->length)
+            memcpy(g_gp_pending_names[g_gp_pending_n], source->data + ts, (size_t)pl);
+        }
+        g_gp_pending_lens[g_gp_pending_n] = pl;
+        g_gp_pending_n++;
+      }
+      expect_tp = 0;
+      saw_any = 1;
+    } else if (r.tok.kind == (int32_t)TOKEN_EOF
+               || parser_asm_angle_list_token_is_stmt_boundary_c(r.tok.kind)
+               || (depth == 1 && r.tok.kind == (int32_t)TOKEN_RPAREN)) {
+      out->pos = lex_start.pos;
+      out->line = lex_start.line;
+      out->col = lex_start.col;
+      *count = 0;
+      g_gp_pending_n = 0;
       return;
     } else {
       if (depth == 1)
@@ -300,6 +396,24 @@ void parser_asm_skip_generic_angle_list_count_into_slice_c(struct parser_asm_lex
     }
     lex = r.next_lex;
   }
+}
+
+/**
+ * wave455: register pending type-param names under a function name into the
+ * shared g_fn_gp_* table used by typeck ret fixup.
+ * Must be called immediately after counting a function's angle list (before
+ * body parse overwrites pending via call-site turbofish counts).
+ * @return number of names registered, or -1 on full/overflow
+ * PLATFORM: SHARED — twin of scan-time capture in skip_tl.
+ */
+int32_t xlang_generic_func_register_pending_type_params_c(const uint8_t *fn_name, int32_t fn_name_len) {
+  extern int32_t xlang_generic_func_register_type_params_c(const uint8_t *fn_name, int32_t fn_name_len,
+                                                            const uint8_t names[][64], const int32_t *lens,
+                                                            int32_t n);
+  if (!fn_name || fn_name_len <= 0 || g_gp_pending_n <= 0)
+    return 0;
+  return xlang_generic_func_register_type_params_c(fn_name, fn_name_len, g_gp_pending_names,
+                                                     g_gp_pending_lens, g_gp_pending_n);
 }
 
 /** buf 路径：跳过 `<...>` 泛型列表。 */

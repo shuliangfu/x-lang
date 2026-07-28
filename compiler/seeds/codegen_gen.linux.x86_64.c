@@ -53,7 +53,7 @@ typedef struct { uint32_t e[4]; } u32x4_t;
 typedef struct { uint32_t e[8]; } u32x8_t;
 typedef struct { uint32_t e[16]; } u32x16_t;
 #endif
-typedef struct { uint8_t *ptr; size_t len; size_t handle; } xlang_batch_buf_t;
+typedef struct { uint8_t *ptr; size_t length; size_t handle; } xlang_batch_buf_t;
 extern int io_register_buffer(uint8_t *ptr, size_t len);
 extern int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr);
 __attribute__((weak)) int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }
@@ -76,10 +76,10 @@ extern int32_t xlang_io_read_fixed(size_t handle, uint32_t buf_index, size_t off
 extern int32_t xlang_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);
 extern uint8_t *xlang_io_read_ptr(size_t handle, unsigned timeout_ms);
 extern int32_t xlang_io_read_ptr_len(void);
-typedef struct { void *ptr; size_t len; size_t handle; } xlang_buffer_abi_t;
-static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }
-static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_read)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
-static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_write)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
+typedef struct { void *ptr; size_t length; size_t handle; } xlang_buffer_abi_t;
+static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->length, b->handle); }
+static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_read)((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }
+static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_write)((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }
 static inline int32_t std_io_driver_submit_read_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return xlang_io_submit_read_buf((intptr_t)buf, (int32_t)timeout_ms); }
 static inline int32_t std_io_driver_submit_write_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return xlang_io_submit_write_buf((intptr_t)buf, (int32_t)timeout_ms); }
 #define xlang_io_register(buf) xlang_io_register_buf(buf)
@@ -89,7 +89,7 @@ static inline int32_t std_io_driver_submit_write_via_ptr(ptrdiff_t buf, uint32_t
 #undef xlang_io_register
 #undef xlang_io_submit_read
 #undef xlang_io_submit_write
-struct std_io_driver_Buffer { void *ptr; size_t len; size_t handle; };
+struct std_io_driver_Buffer { void *ptr; size_t length; size_t handle; };
 typedef struct std_io_driver_Buffer std_io_Buffer;
 #define std_io_Buffer std_io_driver_Buffer
 extern ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);
@@ -282,17 +282,17 @@ extern int32_t net_run_accept_workers_c(int32_t listener_fd, int32_t n_workers, 
 #define std_net_net_close_socket_c(x) net_close_socket_c_real(xlang_io_net_fd(x))
 #define std_net_net_run_accept_workers_c(x, n, t) net_run_accept_workers_c_real(xlang_io_net_fd(x), n, t)
 #define STD_FS_FS_IOVEC_BUF_DEFINED
-struct std_fs_FsIovecBuf { void *ptr; size_t len; size_t handle; };
+struct std_fs_FsIovecBuf { void *ptr; size_t length; size_t handle; };
 #define std_fs_posix_FsIovecBuf std_fs_FsIovecBuf
-struct std_io_sync_Iovec { uint8_t *base; size_t len; };
+struct std_io_sync_Iovec { uint8_t *base; size_t length; };
 #define std_fs_posix_Iovec std_io_sync_Iovec
 struct std_map_Map_i32_i32;
 typedef struct std_io_driver_Buffer std_net_Buffer;
 struct std_error_Error { int32_t code; };
 struct std_error_ErrorChain { int32_t depth; int32_t c0; int32_t c1; int32_t c2; int32_t c3; };
-struct std_string_String { uint8_t data[256]; int32_t len; };
+struct std_string_String { uint8_t data[256]; int32_t length; };
 typedef struct std_string_String String;
-struct std_string_StrView { uint8_t *ptr; int32_t len; };
+struct std_string_StrView { uint8_t *ptr; int32_t length; };
 struct std_heap_Arena64 { uint8_t *chunk; size_t cap; size_t off; };
 struct std_heap_Allocator { int32_t kind; struct std_heap_Arena64 *arena; };
 struct std_vec_Vec_i32;
@@ -643,6 +643,7 @@ struct ast_ASTArena {
 #define codegen_codegen_type_array_elem_is_u8 codegen_type_array_elem_is_u8
 #define codegen_codegen_emit_local_fixed_array_elem_type codegen_emit_local_fixed_array_elem_type
 #define codegen_codegen_emit_local_fixed_array_suffix codegen_emit_local_fixed_array_suffix
+#define codegen_codegen_emit_local_fixed_array_let_finish codegen_emit_local_fixed_array_let_finish
 #define codegen_codegen_try_emit_slice_init_from_array_var codegen_try_emit_slice_init_from_array_var
 #define codegen_codegen_emit_braced_array_lit_init codegen_emit_braced_array_lit_init
 #define codegen_codegen_emit_struct_field_type_via_pipeline codegen_emit_struct_field_type_via_pipeline
@@ -680,6 +681,9 @@ struct ast_ASTArena {
 #define codegen_codegen_is_libc_conflicting_extern_name codegen_is_libc_conflicting_extern_name
 #define codegen_codegen_find_mono_type_for_generic_func codegen_find_mono_type_for_generic_func
 #define codegen_codegen_try_emit_generic_identity_mono codegen_try_emit_generic_identity_mono
+#define codegen_codegen_call_mono_type_at codegen_call_mono_type_at
+#define codegen_codegen_collect_mono_combos_for_generic_func codegen_collect_mono_combos_for_generic_func
+#define codegen_codegen_emit_mono_mangled_name codegen_emit_mono_mangled_name
 #define codegen_codegen_emit_func_extern_declaration codegen_emit_func_extern_declaration
 #define codegen_codegen_emit_import_dep_function_declarations codegen_emit_import_dep_function_declarations
 #define codegen_codegen_x_ast_emit_header codegen_x_ast_emit_header
@@ -849,6 +853,11 @@ struct ast_PipelineDepCtx {
   int32_t entry_module_import_path_len;
   int32_t typeck_scope_region_len;
   uint8_t typeck_scope_region_label[64];
+  /* wave445 C5: monomorphization type-substitution state (PLATFORM: SHARED). */
+  int32_t mono_active;
+  int32_t mono_num_types;
+  int32_t mono_generic_type_refs[8];
+  int32_t mono_concrete_type_refs[8];
 };
 
 /* pipeline glue usage aliases */
@@ -1302,6 +1311,13 @@ extern void pipeline_block_fill_whiles_from_onefunc(struct ast_ASTArena * arena,
 extern void pipeline_block_fill_fors_from_onefunc(struct ast_ASTArena * arena, int32_t br, uint8_t * out, int32_t count);
 extern int32_t pipeline_block_append_labeled(struct ast_ASTArena * arena, int32_t br, int32_t label_len, int32_t is_goto, int32_t goto_target_len, int32_t return_expr_ref);
 extern int32_t pipeline_block_labeled_return_expr_ref(struct ast_ASTArena * arena, int32_t br, int32_t li);
+/* wave379: labeled/goto kind=7 accessors. PLATFORM: SHARED */
+extern int32_t pipeline_block_num_labeled_stmts(struct ast_ASTArena * arena, int32_t br);
+extern int32_t pipeline_block_labeled_is_goto(struct ast_ASTArena * arena, int32_t br, int32_t li);
+extern int32_t pipeline_block_labeled_label_len(struct ast_ASTArena * arena, int32_t br, int32_t li);
+extern void pipeline_block_labeled_label_copy32(struct ast_ASTArena * arena, int32_t br, int32_t li, uint8_t * dst);
+extern int32_t pipeline_block_labeled_goto_target_len(struct ast_ASTArena * arena, int32_t br, int32_t li);
+extern void pipeline_block_labeled_goto_target_copy32(struct ast_ASTArena * arena, int32_t br, int32_t li, uint8_t * dst);
 extern int32_t pipeline_onefunc_append_while(uint8_t * out, int32_t cond_ref, int32_t body_ref);
 extern int32_t pipeline_onefunc_while_cond_ref(uint8_t * out, int32_t i);
 extern int32_t pipeline_onefunc_while_body_ref(uint8_t * out, int32_t i);
@@ -1357,6 +1373,8 @@ extern int32_t pipeline_expr_append_call_arg(struct ast_ASTArena * arena, int32_
 extern int32_t pipeline_expr_call_arg_ref(struct ast_ASTArena * arena, int32_t expr_ref, int32_t idx);
 extern int32_t pipeline_expr_call_num_args_at(struct ast_ASTArena * arena, int32_t expr_ref);
 extern int32_t pipeline_expr_call_num_type_args_at(struct ast_ASTArena * arena, int32_t expr_ref);
+/* wave452: turbofish type-arg type_ref sidecar (ast_pool). */
+extern int32_t pipeline_expr_call_type_arg_ref_at(struct ast_ASTArena * arena, int32_t expr_ref, int32_t idx);
 extern int32_t pipeline_expr_append_method_call_arg(struct ast_ASTArena * arena, int32_t expr_ref, int32_t arg_ref);
 extern int32_t pipeline_expr_method_call_arg_ref(struct ast_ASTArena * arena, int32_t expr_ref, int32_t idx);
 extern int32_t pipeline_expr_append_match_arm(struct ast_ASTArena * arena, int32_t expr_ref, int32_t result_ref, int32_t is_wildcard, int32_t lit_val, int32_t is_enum_variant, int32_t variant_index);
@@ -1417,8 +1435,14 @@ extern struct ast_Func ast_ast_arena_func_get(struct ast_ASTArena * arena, int32
 extern void ast_ast_arena_func_set(struct ast_ASTArena * arena, int32_t ref, struct ast_Func f);
 struct codegen_CodegenOutBuf {
   uint8_t data[9437184];
-  int32_t len;
+  int32_t length;
 };
+
+/* wave245 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED orch / host getenv residual via single face.
+ * Compiler-only seed pin (codegen_gen) — DEBUG_* probes; not in user STD_AND_PANIC bag. */
+extern char *link_abi_getenv(const char *name);
 
 extern int32_t codegen_path_is_std_io_driver_bytes(uint8_t * path);
 extern int32_t codegen_path_is_std_io_core_bytes(uint8_t * path);
@@ -1497,7 +1521,9 @@ extern int32_t codegen_type_dep_struct_prefix_into(struct ast_PipelineDepCtx * c
 extern int32_t codegen_type_array_elem_is_u8(struct ast_ASTArena * arena, int32_t type_ref);
 extern int32_t codegen_emit_local_fixed_array_elem_type(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t type_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_emit_local_fixed_array_suffix(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t type_ref);
+extern int32_t codegen_emit_local_fixed_array_let_finish(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t indent, uint8_t * name, int32_t name_len, int32_t linit_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t block_ref, int32_t let_idx, int32_t let_type_ref, int32_t linit_ref);
+extern int32_t codegen_emit_slice_let_reent_finish(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t indent, uint8_t * name, int32_t name_len, int32_t let_type_ref, int32_t linit_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_emit_braced_array_lit_init(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t init_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_emit_struct_field_type_via_pipeline(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t type_ref, uint8_t * struct_prefix, int32_t struct_prefix_len);
 extern int32_t codegen_should_skip_emit_struct_layout_for_abi_dup(uint8_t * name, int32_t name_len);
@@ -1539,13 +1565,25 @@ extern void codegen_copy_param_name32_from_module(struct ast_Module * module, in
 extern int32_t codegen_block_contains_return(struct ast_ASTArena * arena, int32_t block_ref);
 extern int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, int is_entry, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx, int32_t call_init_globals);
 extern int32_t codegen_is_libc_conflicting_extern_name(uint8_t * name, int32_t name_len);
-extern int32_t codegen_find_mono_type_for_generic_func(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi);
+extern int32_t codegen_find_mono_type_for_generic_func(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi, int32_t arg_idx);
 extern int32_t codegen_try_emit_generic_identity_mono(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx);
+extern int32_t codegen_call_mono_type_at(struct ast_ASTArena * arena, int32_t ei, int32_t arg_idx, int32_t num_args);
+int32_t codegen_func_ret_type_param_extra(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi);
+int32_t codegen_call_ret_type_param_concrete_at(struct ast_ASTArena * arena, int32_t ei);
+extern int32_t codegen_collect_mono_combos_for_generic_func(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi, int32_t * combos_out, int32_t max_combos, int32_t num_params, int32_t ret_extra);
+extern int32_t codegen_emit_mono_mangled_name(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi, int32_t * mono_tys, int32_t num_mono);
+/* wave498: call-side mono mangling for generic inherent impl methods. */
+extern int32_t codegen_try_emit_impl_method_mono_call_name(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, struct ast_Module * module, int32_t fi, int32_t receiver_ty);
+/* wave445 C5/C6: mono substitution + impl method lookup helpers (forward decl). */
+extern int32_t codegen_mono_subst_type(struct ast_PipelineDepCtx * ctx, struct ast_ASTArena * arena, int32_t type_ref);
+extern int32_t codegen_find_impl_method_for_type(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * method_name, int32_t method_name_len, int32_t receiver_type_ref);
 extern int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_emit_import_dep_function_declarations(struct ast_Module * module, struct codegen_CodegenOutBuf * out, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_x_ast_emit_header(struct codegen_CodegenOutBuf * out);
 extern int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_PipelineDepCtx * ctx, int32_t dep_index);
 extern int32_t codegen_should_skip_emit_func_by_name(uint8_t * name, int32_t name_len);
+/* wave377 Cap residual pure: same-module redef first-wins body emit. */
+extern int32_t codegen_should_skip_later_same_name_body(struct ast_Module * module, int32_t fi);
 extern int32_t codegen_is_submit_batch_buf_call(uint8_t * name, int32_t name_len);
 extern int32_t codegen_force_param_i32(uint8_t * prefix, int32_t prefix_len, uint8_t * name, int32_t name_len, int32_t param_index);
 extern int32_t codegen_should_skip_emit_func_core_read_ptr(uint8_t * name, int32_t name_len);
@@ -1559,7 +1597,8 @@ extern int32_t pipeline_type_named_name_into(struct ast_ASTArena * arena, int32_
 extern int32_t pipeline_type_kind_ord_at(struct ast_ASTArena * arena, int32_t ref);
 extern int32_t pipeline_type_elem_ref_at(struct ast_ASTArena * arena, int32_t ref);
 extern int32_t pipeline_type_array_size_at(struct ast_ASTArena * arena, int32_t ref);
-extern int32_t pipeline_codegen_type_to_c_repr(struct ast_ASTArena * arena, uint8_t * scratch, int32_t cap, int32_t type_ref, uint8_t * struct_prefix, int32_t struct_prefix_len);
+
+extern int32_t pipeline_typeck_resolve_type_alias_ref_c(struct ast_ASTArena * arena, int32_t type_ref);extern int32_t pipeline_codegen_type_to_c_repr(struct ast_ASTArena * arena, uint8_t * scratch, int32_t cap, int32_t type_ref, uint8_t * struct_prefix, int32_t struct_prefix_len);
 extern int32_t pipeline_codegen_c_file_prologue_done_get(void);
 extern void pipeline_codegen_c_file_prologue_done_set(int32_t v);
 extern void pipeline_codegen_c_file_prologue_done_reset(void);
@@ -1625,6 +1664,10 @@ extern int32_t pipeline_module_func_name_len_at(struct ast_Module * module, int3
 extern int32_t pipeline_module_func_num_generic_params_at(struct ast_Module * module, int32_t fi);
 extern int32_t pipeline_module_func_return_type_at(struct ast_Module * module, int32_t fi);
 extern int32_t pipeline_module_func_body_ref_at(struct ast_Module * module, int32_t fi);
+/* wave343: nested-block fixed→slice return escape finder (pipeline_glue.c). */
+extern int32_t pipeline_find_fixed_array_slice_escape(struct ast_ASTArena *arena, int32_t body_ref,
+                                                     uint8_t *vname, int32_t vlen, int32_t *out_arr_sz,
+                                                     int32_t *out_elem_tr, int32_t *out_arr_init_ref);
 extern void pipeline_dep_ctx_empty_param_reset(struct ast_PipelineDepCtx * ctx);
 extern int32_t pipeline_dep_ctx_empty_param_append(struct ast_PipelineDepCtx * ctx, int32_t pi);
 extern int32_t pipeline_dep_ctx_empty_param_at(struct ast_PipelineDepCtx * ctx, int32_t i);
@@ -1764,7 +1807,7 @@ int32_t codegen_find_dep_index_by_path(struct ast_PipelineDepCtx * ctx, uint8_t 
     if ((((ctx ==((struct ast_PipelineDepCtx *)(0))) || (path ==((uint8_t *)(0)))) || (path_len <=0))) {
       return -(1);
     }
-    if (getenv("XLANG_DEBUG_DEP_LIST")) {
+    if (link_abi_getenv("XLANG_DEBUG_DEP_LIST")) {
       fprintf(stderr, "xlang: [DBG_DEP_LIST] find_dep_index_by_path lookup='%.*s' len=%d nd=%d\n",
               (int)path_len, (char*)path, (int)path_len, (int)nd);
       for (di = 0; di < nd; di++) {
@@ -3288,9 +3331,126 @@ int32_t codegen_try_emit_fmt_string_lit_call(struct ast_ASTArena * arena, struct
   }
   return 1;
 }
+/* PLATFORM: SHARED host-C — wave463 CORE-001 size_of<T>/align_of<T> intrinsic.
+ * Zero-param type-arg-only layout builtins expand to sizeof/_Alignof at CALL site
+ * (import types.size_of<i32>() and free size_of<Pair>()). Align codegen.x G.7.
+ * Returns 1 emitted, 0 skip, -1 error. */
+int32_t codegen_try_emit_size_align_of_call(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t expr_ref, struct ast_PipelineDepCtx * ctx) {
+  struct ast_Expr e;
+  struct ast_Expr callee;
+  int32_t callee_ref;
+  int32_t name_len = 0;
+  int32_t is_size = 0;
+  int32_t is_align = 0;
+  int32_t n_ta = 0;
+  int32_t ta = 0;
+  uint8_t *name_ptr = ((uint8_t *)(0));
+  /* ((int32_t)(sizeof( */
+  uint8_t open_sz[18] = {40, 40, 105, 110, 116, 51, 50, 95, 116, 41, 40, 115, 105, 122, 101, 111, 102, 40};
+  /* ((int32_t)(_Alignof( */
+  uint8_t open_al[20] = {40, 40, 105, 110, 116, 51, 50, 95, 116, 41, 40, 95, 65, 108, 105, 103, 110, 111, 102, 40};
+  /* ))) */
+  uint8_t close3[4] = {41, 41, 41, 0};
+  if ((((arena == ((struct ast_ASTArena *)(0))) || (out == ((struct codegen_CodegenOutBuf *)(0)))) || (ctx == ((struct ast_PipelineDepCtx *)(0))))) {
+    return 0;
+  }
+  if (((expr_ref <= 0) || (expr_ref > (arena->num_exprs)))) {
+    return 0;
+  }
+  e = ast_ast_arena_expr_get(arena, expr_ref);
+  /* EXPR_CALL=48; zero value args; ≥1 type arg */
+  if ((((e.kind) != 48) || ((e.call_num_args) != 0))) {
+    return 0;
+  }
+  n_ta = pipeline_expr_call_num_type_args_at(arena, expr_ref);
+  if ((n_ta < 1)) {
+    return 0;
+  }
+  callee_ref = (e.call_callee_ref);
+  if (((callee_ref <= 0) || (callee_ref > (arena->num_exprs)))) {
+    return 0;
+  }
+  callee = ast_ast_arena_expr_get(arena, callee_ref);
+  /* FIELD_ACCESS=44 (types.size_of) or VAR=3 (free size_of) */
+  if ((((callee.kind) == 44) && ((callee.field_access_field_len) > 0))) {
+    name_ptr = &((callee.field_access_field_name)[0]);
+    name_len = (callee.field_access_field_len);
+  } else if ((((callee.kind) == 3) && ((callee.var_name_len) > 0))) {
+    name_ptr = &((callee.var_name)[0]);
+    name_len = (callee.var_name_len);
+  } else {
+    return 0;
+  }
+  if (name_ptr == ((uint8_t *)(0))) {
+    return 0;
+  }
+  if (((((((name_len == 7) && (name_ptr[0] == 115)) && (name_ptr[1] == 105)) && (name_ptr[2] == 122)) && (name_ptr[3] == 101)) && (name_ptr[4] == 95)) && (name_ptr[5] == 111) && (name_ptr[6] == 102)) {
+    is_size = 1;
+  } else if ((((((((name_len == 8) && (name_ptr[0] == 97)) && (name_ptr[1] == 108)) && (name_ptr[2] == 105)) && (name_ptr[3] == 103)) && (name_ptr[4] == 110)) && (name_ptr[5] == 95)) && (name_ptr[6] == 111) && (name_ptr[7] == 102)) {
+    is_align = 1;
+  } else {
+    return 0;
+  }
+  ta = pipeline_expr_call_type_arg_ref_at(arena, expr_ref, 0);
+  if ((ta <= 0)) {
+    return 0;
+  }
+  if ((is_size != 0)) {
+    if ((codegen_emit_bytes_from_ptr(out, &((open_sz)[0]), 18) != 0)) {
+      return -1;
+    }
+  } else if ((is_align != 0)) {
+    if ((codegen_emit_bytes_from_ptr(out, &((open_al)[0]), 20) != 0)) {
+      return -1;
+    }
+  } else {
+    return 0;
+  }
+  /* TYPE_ARRAY: emit_type → E*; sizeof needs E[N]… (wave357 peel/suffix).
+   * Kind ord 10 = TYPE_ARRAY (I32=0 … PTR=9, ARRAY=10); not I64=5. */
+  if ((pipeline_type_kind_ord_at(arena, ta) == 10)) {
+    if ((codegen_emit_local_fixed_array_elem_type(arena, out, ta, ctx) != 0)) {
+      return -1;
+    }
+    if ((codegen_emit_local_fixed_array_suffix(arena, out, ta) != 0)) {
+      return -1;
+    }
+  } else {
+    if ((codegen_emit_type(arena, out, ta, ((uint8_t *)(0)), 0, ctx) != 0)) {
+      return -1;
+    }
+  }
+  if ((codegen_emit_bytes_from_ptr(out, &((close3)[0]), 3) != 0)) {
+    return -1;
+  }
+  return 1;
+}
+/* PLATFORM: SHARED host-C — formal type for next emit_call_arg_slice_abi (wave395). */
+static int32_t g_codegen_host_call_arg_param_ty_ref = 0;
+void codegen_set_host_call_arg_param_ty(int32_t param_ty_ref) {
+  g_codegen_host_call_arg_param_ty_ref = param_ty_ref;
+}
+int32_t codegen_get_host_call_arg_param_ty(void) {
+  return g_codegen_host_call_arg_param_ty_ref;
+}
+/* PLATFORM: SHARED host-C — unique id for call-site TYPE_ARRAY deep-copy temps
+ * (__xlang_caN). wave397: dual CALL/METHOD T[N] as TYPE_SLICE formals must not
+ * both alias callee __xlang_ar (last-wins). Mirror codegen.x. */
+static int32_t g_codegen_host_call_array_tmp_id = 0;
+int32_t codegen_next_host_call_array_tmp_id(void) {
+  int32_t id = g_codegen_host_call_array_tmp_id;
+  g_codegen_host_call_array_tmp_id = id + 1;
+  if (g_codegen_host_call_array_tmp_id < 0) {
+    g_codegen_host_call_array_tmp_id = 0;
+  }
+  return id;
+}
 /* PLATFORM: SHARED — call-arg slice ABI: TYPE_SLICE params are pointers (seed/glue).
  * Locals stay by-value → pass &(local); slice params already pointers → pass through.
- * Authority mirror of codegen.x emit_call_arg_slice_abi; only call/method arg positions. */
+ * wave395: fixed TYPE_ARRAY VAR → &((struct xlang_slice_T){.data=a,.length=N}) only when
+ * formal is TYPE_SLICE. wave396: also CALL/METHOD return T[N] and FIELD_ACCESS of fixed
+ * array field. wave397: CALL/METHOD .data deep-copy into unique __xlang_caN.
+ * Authority mirror of codegen.x. */
 int32_t codegen_emit_call_arg_slice_abi(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t arg_ref, struct ast_PipelineDepCtx * ctx) {
   {
     struct ast_Expr arg;
@@ -3341,6 +3501,255 @@ int32_t codegen_emit_call_arg_slice_abi(struct ast_ASTArena * arena, struct code
         }
       }
     }
+    /*
+     * wave395/396: fixed TYPE_ARRAY rvalue → slice* formal.
+     * Emit: &((struct xlang_slice_T){ .data = <arr>, .length = N })
+     * wave395: EXPR_VAR=3; wave396: CALL=48, METHOD=49, FIELD=44.
+     * PLATFORM: SHARED host-C (mirror codegen.x).
+     */
+    {
+      int32_t arr_sz = 0;
+      int32_t arr_tr = 0;
+      int32_t elem_tr = 0;
+      int32_t ek = -1;
+      int32_t is_arr_rvalue = 0;
+      if ((((arg.kind) == 3) && ((arg.var_name_len) > 0))) {
+        is_arr_rvalue = 1;
+      } else if (((((arg.kind) == 48) || ((arg.kind) == 49)) || ((arg.kind) == 44))) {
+        is_arr_rvalue = 1;
+      }
+      if ((is_arr_rvalue != 0)) {
+        if (((!(ast_ref_is_null((arg.resolved_type_ref))) && ((arg.resolved_type_ref) > 0)) &&
+             ((arg.resolved_type_ref) <= (arena->num_types)))) {
+          if ((pipeline_type_kind_ord_at(arena, (arg.resolved_type_ref)) == 10)) {
+            arr_tr = (arg.resolved_type_ref);
+            arr_sz = pipeline_type_array_size_at(arena, arr_tr);
+          }
+        }
+        /* VAR: resolve from let decl when resolved stamp missing. */
+        if (((((arr_sz <= 0) && ((arg.kind) == 3)) && ((arg.var_name_len) > 0)) &&
+             (ctx != ((struct ast_PipelineDepCtx *)(0))))) {
+          int32_t br = 0;
+          if ((((ctx->current_codegen_module) != ((struct ast_Module *)(0))) && ((ctx->current_func_index) >= 0))) {
+            br = pipeline_module_func_body_ref_at((ctx->current_codegen_module), (ctx->current_func_index));
+          }
+          if (((ast_ref_is_null(br) || (br <= 0)) || (br > (arena->num_blocks)))) {
+            br = (ctx->current_block_ref);
+          }
+          if (((!(ast_ref_is_null(br)) && (br > 0)) && (br <= (arena->num_blocks)))) {
+            int32_t nlets = ast_ast_block_num_lets(arena, br);
+            int32_t li = 0;
+            while ((li < nlets)) {
+              int32_t nl = pipeline_block_let_name_len(arena, br, li);
+              if (((nl == (arg.var_name_len)) && (nl > 0))) {
+                uint8_t nb[64] = {};
+                (void)(pipeline_block_let_name_copy64(arena, br, li, &((nb)[0])));
+                int eq = 1;
+                int32_t j2 = 0;
+                while (((j2 < nl) && (j2 < 64))) {
+                  if (((nb)[j2] != ((arg.var_name))[j2])) {
+                    eq = 0;
+                    break;
+                  }
+                  j2 = (j2 + 1);
+                }
+                if (eq) {
+                  int32_t tr = pipeline_block_let_type_ref(arena, br, li);
+                  if ((pipeline_type_kind_ord_at(arena, tr) == 10)) {
+                    arr_tr = tr;
+                    arr_sz = pipeline_type_array_size_at(arena, tr);
+                  }
+                }
+              }
+              li = (li + 1);
+            }
+          }
+        }
+        if ((arr_sz > 0)) {
+          int32_t formal_ty = codegen_get_host_call_arg_param_ty();
+          /* Gate: only TYPE_SLICE formals; *T keeps array decay (option/hello). */
+          if (((formal_ty <= 0) || (pipeline_type_kind_ord_at(arena, formal_ty) != 11))) {
+            return codegen_emit_expr(arena, out, arg_ref, ctx);
+          }
+          uint8_t open[4] = {38, 40, 40, 0};
+          uint8_t pref[20] = {115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0};
+          uint8_t mid1[14] = {41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 0, 0, 0};
+          uint8_t mid2[14] = {44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0};
+          uint8_t close[4] = {32, 125, 41, 0};
+          if ((codegen_emit_bytes_from_ptr(out, &((open)[0]), 3) != 0)) {
+            return -(1);
+          }
+          if ((codegen_emit_bytes_from_ptr(out, &((pref)[0]), 19) != 0)) {
+            return -(1);
+          }
+          if ((arr_tr > 0)) {
+            elem_tr = pipeline_type_elem_ref_at(arena, arr_tr);
+          }
+          if ((elem_tr > 0)) {
+            ek = pipeline_type_kind_ord_at(arena, elem_tr);
+          }
+          /* TYPE_U8=2, TYPE_U64=4, TYPE_USIZE=6, else int32_t */
+          if ((ek == 2)) {
+            uint8_t e[8] = {117, 105, 110, 116, 56, 95, 116, 0};
+            if ((codegen_emit_bytes_from_ptr(out, &((e)[0]), 7) != 0)) {
+              return -(1);
+            }
+          } else if ((ek == 4)) {
+            uint8_t e[10] = {117, 105, 110, 116, 54, 52, 95, 116, 0, 0};
+            if ((codegen_emit_bytes_from_ptr(out, &((e)[0]), 8) != 0)) {
+              return -(1);
+            }
+          } else if ((ek == 6)) {
+            uint8_t e[8] = {115, 105, 122, 101, 95, 116, 0, 0};
+            if ((codegen_emit_bytes_from_ptr(out, &((e)[0]), 6) != 0)) {
+              return -(1);
+            }
+          } else {
+            uint8_t e[10] = {105, 110, 116, 51, 50, 95, 116, 0, 0, 0};
+            if ((codegen_emit_bytes_from_ptr(out, &((e)[0]), 7) != 0)) {
+              return -(1);
+            }
+          }
+          if ((codegen_emit_bytes_from_ptr(out, &((mid1)[0]), 11) != 0)) {
+            return -(1);
+          }
+          /*
+           * .data = …
+           * VAR: bare name. CALL/METHOD (48/49): unique static deep-copy (wave397).
+           * FIELD (44): emit_expr embedded address. PLATFORM: SHARED host-C.
+           */
+          if ((((arg.kind) == 3) && ((arg.var_name_len) > 0))) {
+            if ((codegen_emit_bytes_64(out, &((arg.var_name)[0]), (arg.var_name_len)) != 0)) {
+              return -(1);
+            }
+          } else if ((((arg.kind) == 48) || ((arg.kind) == 49))) {
+            int32_t tid = codegen_next_host_call_array_tmp_id();
+            int32_t ai_ca = 0;
+            /* ({ static  */
+            {
+              uint8_t ca_open[12] = {40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((ca_open)[0]), 10) != 0)) {
+                return -(1);
+              }
+            }
+            /* elem type (fallback int32_t) */
+            if (((elem_tr <= 0) || (codegen_emit_type(arena, out, elem_tr, ((uint8_t *)(0)), 0, ctx) != 0))) {
+              uint8_t fb_e[9] = {105, 110, 116, 51, 50, 95, 116, 0, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((fb_e)[0]), 7) != 0)) {
+                return -(1);
+              }
+            }
+            /*  __xlang_ca */
+            {
+              uint8_t ca_nm[14] = {32, 95, 95, 120, 108, 97, 110, 103, 95, 99, 97, 0, 0, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((ca_nm)[0]), 11) != 0)) {
+                return -(1);
+              }
+            }
+            if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+              return -(1);
+            }
+            if ((codegen_append_byte(out, 91) != 0)) {
+              return -(1);
+            }
+            if ((codegen_format_int(out, (int64_t)arr_sz) != 0)) {
+              return -(1);
+            }
+            {
+              uint8_t ca_sz_end[4] = {93, 59, 32, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((ca_sz_end)[0]), 3) != 0)) {
+                return -(1);
+              }
+            }
+            /* E *__xlang_rp = <call>;  */
+            if (((elem_tr <= 0) || (codegen_emit_type(arena, out, elem_tr, ((uint8_t *)(0)), 0, ctx) != 0))) {
+              uint8_t fb_rp[9] = {105, 110, 116, 51, 50, 95, 116, 0, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((fb_rp)[0]), 7) != 0)) {
+                return -(1);
+              }
+            }
+            {
+              uint8_t rp_asg[16] = {32, 42, 95, 95, 120, 108, 97, 110, 103, 95, 114, 112, 32, 61, 32, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((rp_asg)[0]), 15) != 0)) {
+                return -(1);
+              }
+            }
+            if ((codegen_emit_expr(arena, out, arg_ref, ctx) != 0)) {
+              return -(1);
+            }
+            {
+              uint8_t rp_sc[4] = {59, 32, 0, 0};
+              if ((codegen_emit_bytes_4(out, rp_sc, 2) != 0)) {
+                return -(1);
+              }
+            }
+            while ((ai_ca < arr_sz)) {
+              {
+                uint8_t ca_asg[14] = {95, 95, 120, 108, 97, 110, 103, 95, 99, 97, 0, 0, 0, 0};
+                if ((codegen_emit_bytes_from_ptr(out, &((ca_asg)[0]), 10) != 0)) {
+                  return -(1);
+                }
+              }
+              if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+                return -(1);
+              }
+              if ((codegen_append_byte(out, 91) != 0)) {
+                return -(1);
+              }
+              if ((codegen_format_int(out, (int64_t)ai_ca) != 0)) {
+                return -(1);
+              }
+              {
+                uint8_t ca_mid[16] = {93, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 114, 112, 91, 0};
+                if ((codegen_emit_bytes_from_ptr(out, &((ca_mid)[0]), 15) != 0)) {
+                  return -(1);
+                }
+              }
+              if ((codegen_format_int(out, (int64_t)ai_ca) != 0)) {
+                return -(1);
+              }
+              {
+                uint8_t ca_el_end[4] = {93, 59, 32, 0};
+                if ((codegen_emit_bytes_from_ptr(out, &((ca_el_end)[0]), 3) != 0)) {
+                  return -(1);
+                }
+              }
+              ai_ca = (ai_ca + 1);
+            }
+            {
+              uint8_t ca_ret[14] = {95, 95, 120, 108, 97, 110, 103, 95, 99, 97, 0, 0, 0, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((ca_ret)[0]), 10) != 0)) {
+                return -(1);
+              }
+            }
+            if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+              return -(1);
+            }
+            {
+              uint8_t ca_close[6] = {59, 32, 125, 41, 0, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((ca_close)[0]), 4) != 0)) {
+                return -(1);
+              }
+            }
+          } else {
+            if ((codegen_emit_expr(arena, out, arg_ref, ctx) != 0)) {
+              return -(1);
+            }
+          }
+          if ((codegen_emit_bytes_from_ptr(out, &((mid2)[0]), 12) != 0)) {
+            return -(1);
+          }
+          if ((codegen_format_int(out, (int64_t)arr_sz) != 0)) {
+            return -(1);
+          }
+          /* ` })` — `}` compound body; `)` outer `&(` */
+          if ((codegen_emit_bytes_from_ptr(out, &((close)[0]), 3) != 0)) {
+            return -(1);
+          }
+          return 0;
+        }
+      }
+    }
     /* Local / rvalue TYPE_SLICE → &(arg) for pointer param ABI. */
     if (((!(ast_ref_is_null((arg.resolved_type_ref))) && ((arg.resolved_type_ref) > 0)) && ((arg.resolved_type_ref) <=(arena->num_types)))) {
       struct ast_Type aty = ast_ast_arena_type_get(arena, (arg.resolved_type_ref));
@@ -3387,6 +3796,244 @@ int32_t codegen_emit_call_arg_slice_abi(struct ast_ASTArena * arena, struct code
       }
     }
     if ((need_addr !=0)) {
+      /*
+       * wave345: CALL/METHOD rvalue slice cannot take address (`&(take())` is
+       * invalid C). Materialize into a GNU stmt-expr temp then pass its address.
+       * wave400: ARRAY_LIT same — emit_expr yields compound-literal rvalue.
+       * wave406: CALL/METHOD deep-copy payload into unique __xlang_sdN[1024] so
+       * dual same-call formals do not both alias callee static __xlang_al
+       * (host sum2(take(1),take(2)) 72→69). PLATFORM: SHARED host-C.
+       * Soft residual: true recursion / heap-free reentrancy beyond dual same-call.
+       */
+      /* EXPR_CALL=48, EXPR_METHOD_CALL=49 — deep-copy path (wave406). */
+      if ((((arg.kind) == 48) || ((arg.kind) == 49))) {
+        int32_t ty_ref = (arg.resolved_type_ref);
+        int32_t tid = codegen_next_host_call_array_tmp_id();
+        int32_t elem_tr = 0;
+        uint8_t open_stmt[12] = {40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0};
+        uint8_t fb[32] = {115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 105, 110, 116, 51, 50, 95, 116, 0, 0, 0, 0, 0, 0};
+        uint8_t sp_nm[14] = {32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0, 0, 0};
+        uint8_t st2[10] = {59, 32, 115, 116, 97, 116, 105, 99, 32, 0};
+        uint8_t fb_e[9] = {105, 110, 116, 51, 50, 95, 116, 0, 0};
+        uint8_t sd_nm[14] = {32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 100, 0, 0, 0};
+        uint8_t sd_mid[28] = {91, 49, 48, 50, 52, 93, 59, 32, 115, 105, 122, 101, 95, 116, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0, 0};
+        uint8_t si_decl[24] = {59, 32, 115, 105, 122, 101, 95, 116, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105, 0, 0, 0, 0, 0};
+        uint8_t sp_asg[14] = {59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0, 0};
+        uint8_t eq_sp[4] = {32, 61, 32, 0};
+        uint8_t sn_asg[14] = {59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0, 0};
+        uint8_t sn_eq[14] = {32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0};
+        uint8_t sn_len[28] = {46, 108, 101, 110, 103, 116, 104, 59, 32, 105, 102, 32, 40, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0, 0, 0, 0, 0};
+        uint8_t sn_cap[20] = {32, 62, 32, 49, 48, 50, 52, 41, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0};
+        uint8_t for_open[28] = {32, 61, 32, 49, 48, 50, 52, 59, 32, 102, 111, 114, 32, 40, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105, 0, 0, 0};
+        uint8_t for_mid1[16] = {32, 61, 32, 48, 59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105};
+        uint8_t for_mid2[16] = {32, 60, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0, 0, 0};
+        uint8_t for_mid3[14] = {59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105, 0, 0};
+        uint8_t for_body[16] = {43, 43, 41, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 100, 0, 0};
+        uint8_t idx_open[14] = {91, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105, 0, 0, 0};
+        uint8_t copy_mid[16] = {93, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0, 0};
+        uint8_t data_idx[20] = {46, 100, 97, 116, 97, 91, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105, 0, 0, 0, 0};
+        uint8_t after_copy[16] = {93, 59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0, 0, 0};
+        uint8_t data_asg[20] = {46, 100, 97, 116, 97, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 100, 0, 0};
+        uint8_t len_asg[14] = {59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0, 0};
+        uint8_t len_eq[24] = {46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0, 0, 0, 0};
+        uint8_t end_sp[16] = {59, 32, 38, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0, 0, 0};
+        uint8_t close_sp[6] = {59, 32, 125, 41, 0, 0};
+        if (((!(ast_ref_is_null(ty_ref)) && (ty_ref > 0)) && (ty_ref <= (arena->num_types)))) {
+          elem_tr = pipeline_type_elem_ref_at(arena, ty_ref);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((open_stmt)[0]), 10) != 0)) {
+          return -(1);
+        }
+        if (((!(ast_ref_is_null(ty_ref)) && (ty_ref > 0)) && (ty_ref <= (arena->num_types)))) {
+          if ((codegen_emit_type(arena, out, ty_ref, ((uint8_t *)(0)), 0, ctx) != 0)) {
+            return -(1);
+          }
+        } else {
+          if ((codegen_emit_bytes_from_ptr(out, &((fb)[0]), 26) != 0)) {
+            return -(1);
+          }
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((sp_nm)[0]), 11) != 0)) {
+          return -(1);
+        }
+        if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((st2)[0]), 9) != 0)) {
+          return -(1);
+        }
+        if (((elem_tr <= 0) || (codegen_emit_type(arena, out, elem_tr, ((uint8_t *)(0)), 0, ctx) != 0))) {
+          if ((codegen_emit_bytes_from_ptr(out, &((fb_e)[0]), 7) != 0)) {
+            return -(1);
+          }
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((sd_nm)[0]), 11) != 0)) {
+          return -(1);
+        }
+        if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((sd_mid)[0]), 25) != 0)) {
+          return -(1);
+        }
+        if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((si_decl)[0]), 19) != 0)) {
+          return -(1);
+        }
+        if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((sp_asg)[0]), 12) != 0)) {
+          return -(1);
+        }
+        if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((eq_sp)[0]), 3) != 0)) {
+          return -(1);
+        }
+        if ((codegen_emit_expr(arena, out, arg_ref, ctx) != 0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((sn_asg)[0]), 12) != 0)) {
+          return -(1);
+        }
+        if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((sn_eq)[0]), 13) != 0)) {
+          return -(1);
+        }
+        if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((sn_len)[0]), 23) != 0)) {
+          return -(1);
+        }
+        if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((sn_cap)[0]), 19) != 0)) {
+          return -(1);
+        }
+        if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((for_open)[0]), 24) != 0)) {
+          return -(1);
+        }
+        if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((for_mid1)[0]), 16) != 0)) {
+          return -(1);
+        }
+        if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((for_mid2)[0]), 13) != 0)) {
+          return -(1);
+        }
+        if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((for_mid3)[0]), 12) != 0)) {
+          return -(1);
+        }
+        if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((for_body)[0]), 14) != 0)) {
+          return -(1);
+        }
+        if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((idx_open)[0]), 11) != 0)) {
+          return -(1);
+        }
+        if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((copy_mid)[0]), 14) != 0)) {
+          return -(1);
+        }
+        if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((data_idx)[0]), 16) != 0)) {
+          return -(1);
+        }
+        if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((after_copy)[0]), 13) != 0)) {
+          return -(1);
+        }
+        if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((data_asg)[0]), 18) != 0)) {
+          return -(1);
+        }
+        if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((len_asg)[0]), 12) != 0)) {
+          return -(1);
+        }
+        if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((len_eq)[0]), 20) != 0)) {
+          return -(1);
+        }
+        if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((end_sp)[0]), 13) != 0)) {
+          return -(1);
+        }
+        if ((codegen_format_int(out, (int64_t)tid) != 0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((close_sp)[0]), 4) != 0)) {
+          return -(1);
+        }
+        return 0;
+      }
+      /* EXPR_ARRAY_LIT=46 — fat materialize only (wave400; each lit has own static). */
+      if (((arg.kind) == 46)) {
+        int32_t ty_ref = (arg.resolved_type_ref);
+        uint8_t open_stmt[12] = {40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0};
+        uint8_t sp_decl[28] = {32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 32, 61, 32, 0, 0};
+        uint8_t end_sp[20] = {59, 32, 38, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 59, 32, 125, 41, 0, 0, 0};
+        uint8_t fb[32] = {115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 105, 110, 116, 51, 50, 95, 116, 0, 0, 0, 0, 0, 0};
+        if ((codegen_emit_bytes_from_ptr(out, &((open_stmt)[0]), 10) !=0)) {
+          return -(1);
+        }
+        if (((!(ast_ref_is_null(ty_ref)) && (ty_ref > 0)) && (ty_ref <= (arena->num_types)))) {
+          if ((codegen_emit_type(arena, out, ty_ref, ((uint8_t *)(0)), 0, ctx) !=0)) {
+            return -(1);
+          }
+        } else {
+          if ((codegen_emit_bytes_from_ptr(out, &((fb)[0]), 26) !=0)) {
+            return -(1);
+          }
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((sp_decl)[0]), 26) !=0)) {
+          return -(1);
+        }
+        if ((codegen_emit_expr(arena, out, arg_ref, ctx) !=0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((end_sp)[0]), 17) !=0)) {
+          return -(1);
+        }
+        return 0;
+      }
       uint8_t pre[3] = {38, 40, 0};
       if ((codegen_emit_bytes_3(out, pre, 2) !=0)) {
         return -(1);
@@ -3619,11 +4266,11 @@ int32_t codegen_c_prefix_redundant_with_name(uint8_t * prefix, int32_t prefix_le
   return 1;
 }
 int32_t codegen_append_byte(struct codegen_CodegenOutBuf * out, int32_t b) {
-  if (((out->len) >=9437184)) {
+  if (((out->length) >=9437184)) {
     return -(1);
   }
-  (void)((((out->data))[(out->len)] = ((uint8_t)((b & 255)))));
-  (void)(((out->len) = ((out->len) + 1)));
+  (void)((((out->data))[(out->length)] = ((uint8_t)((b & 255)))));
+  (void)(((out->length) = ((out->length) + 1)));
   return 0;
 }
 int32_t codegen_append_byte_u8(struct codegen_CodegenOutBuf * out, uint8_t b) {
@@ -4081,6 +4728,25 @@ int32_t codegen_type_to_c_repr(struct ast_ASTArena * arena, uint8_t * scratch, i
   return pipeline_codegen_type_to_c_repr(arena, scratch, cap, type_ref, struct_prefix, struct_prefix_len);
   return 0;
 }
+
+/* wave481/482 forward decls (emit_type precedes helper defs). PLATFORM: SHARED */
+static int32_t codegen_maybe_emit_generic_struct_mono_suffix_for_type(struct ast_Module *module, struct ast_ASTArena *arena,
+    struct codegen_CodegenOutBuf *out, int32_t type_ref, struct ast_PipelineDepCtx *ctx);
+static int32_t codegen_module_struct_layout_index_by_name(struct ast_Module *module, uint8_t *layout_nm, int32_t layout_nl);
+static int32_t codegen_generic_struct_fill_concrete_args(struct ast_Module *module, struct ast_ASTArena *arena,
+    int32_t type_ref, int32_t ntp, int32_t *mono_out, struct ast_PipelineDepCtx *ctx);
+static int32_t codegen_emit_generic_struct_mono_suffix(struct codegen_CodegenOutBuf *out, struct ast_ASTArena *arena,
+    int32_t *mono_tys, int32_t ntp);
+static int32_t codegen_collect_generic_struct_mono_combos(struct ast_Module *module, struct ast_ASTArena *arena,
+    int32_t layout_k, uint8_t *layout_nm, int32_t layout_nl, int32_t ntp, int32_t *combos_out, int32_t max_combos);
+/* wave495: param-derived mono map for generic impl method definitions. PLATFORM: SHARED */
+static int32_t codegen_build_func_param_mono_map(struct ast_Module *module, struct ast_ASTArena *arena,
+    int32_t fi, int32_t *gen_refs, int32_t *conc_refs, int32_t max_entries);
+static int32_t codegen_generic_struct_mangled_name_into(struct ast_ASTArena *arena, uint8_t *layout_nm, int32_t layout_nl,
+    int32_t *mono_tys, int32_t ntp, uint8_t *out_nm, int32_t out_cap);
+static int32_t codegen_generic_struct_field_type_from_mono(struct ast_Module *module, struct ast_ASTArena *arena,
+    int32_t layout_k, int32_t ftr, int32_t *mono_tys, int32_t ntp);
+
 int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t type_ref, uint8_t * struct_prefix, int32_t struct_prefix_len, struct ast_PipelineDepCtx * ctx) {
   {
     int32_t tk = 0;
@@ -4092,6 +4758,56 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
     if (ast_ref_is_null(type_ref)) {
       uint8_t s[8] = {105, 110, 116, 51, 50, 95, 116, 0};
       return codegen_emit_bytes_8(out, s, 7);
+    }
+    /* wave376: peel type Alias=Target so host-C emits underlying type (not incomplete struct Alias). */
+    (void)((type_ref = pipeline_typeck_resolve_type_alias_ref_c(arena, type_ref)));
+    if (ast_ref_is_null(type_ref)) {
+      uint8_t s2[8] = {105, 110, 116, 51, 50, 95, 116, 0};
+      return codegen_emit_bytes_8(out, s2, 7);
+    }
+    /* wave445 C5: monomorphization type substitution (mono_active gate).
+     * Two-stage match: direct type_ref equality, then name-based fallback for
+     * body TYPE_NAMED nodes whose type_ref differs from the param's (let y: T).
+     * wave447: skip recurse when concrete==type_ref (i32→i32 self-map SEGV).
+     * Mirrors codegen.x emit_type C5. PLATFORM: SHARED. */
+    if (((ctx != ((void*)0)) && (ctx->mono_active !=0) && (ctx->mono_num_types >0))) {
+      int32_t mi = 0;
+      while (((mi < ctx->mono_num_types) && (mi <8))) {
+        int32_t conc = ctx->mono_concrete_type_refs[mi];
+        if ((((type_ref == ctx->mono_generic_type_refs[mi]) && (conc >0) && (conc != type_ref)))) {
+          return codegen_emit_type(arena, out, conc, struct_prefix, struct_prefix_len, ctx);
+        }
+        mi = (mi +1);
+      }
+      /* name-match fallback: compare type name vs each generic param name */
+      uint8_t fb_nm[64] = {};
+      int32_t fb_len = pipeline_type_named_name_into(arena, type_ref, &((fb_nm)[0]));
+      if ((fb_len > 0)) {
+        int32_t mi2 = 0;
+        while (((mi2 < ctx->mono_num_types) && (mi2 <8))) {
+          int32_t conc2 = ctx->mono_concrete_type_refs[mi2];
+          if (((conc2 >0) && (conc2 != type_ref))) {
+            uint8_t gnm[64] = {};
+            int32_t gname_len = pipeline_type_named_name_into(arena, ctx->mono_generic_type_refs[mi2], &((gnm)[0]));
+            if (((gname_len == fb_len) && (gname_len > 0))) {
+              int32_t names_eq = 1;
+              int32_t ci = 0;
+              while ((ci < gname_len)) {
+                if (((gnm)[ci] !=(fb_nm)[ci])) {
+                  names_eq = 0;
+                  ci = gname_len;
+                } else {
+                  ci = (ci +1);
+                }
+              }
+              if ((names_eq !=0)) {
+                return codegen_emit_type(arena, out, conc2, struct_prefix, struct_prefix_len, ctx);
+              }
+            }
+          }
+          mi2 = (mi2 +1);
+        }
+      }
     }
     (void)((tk = pipeline_type_kind_ord_at(arena, type_ref)));
     (void)((elem_ref = pipeline_type_elem_ref_at(arena, type_ref)));
@@ -4259,6 +4975,12 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
           return -(1);
         }
         (void)((ci = (ci + 1)));
+      }
+      /* wave481: generic struct multi mono C tag suffix. PLATFORM: SHARED. */
+      if (((ctx != ((struct ast_PipelineDepCtx *)(0))) && ((ctx->current_codegen_module) != ((struct ast_Module *)(0))))) {
+        if ((codegen_maybe_emit_generic_struct_mono_suffix_for_type(ctx->current_codegen_module, arena, out, type_ref, ctx) != 0)) {
+          return -(1);
+        }
       }
       return 0;
     }
@@ -4438,10 +5160,18 @@ int32_t codegen_type_array_elem_is_u8(struct ast_ASTArena * arena, int32_t type_
   }
   return 0;
 }
+/* wave357: peel multi-dim TYPE_ARRAY to scalar leaf + emit all [N][M] suffixes (not E*). */
 int32_t codegen_emit_local_fixed_array_elem_type(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t type_ref, struct ast_PipelineDepCtx * ctx) {
   {
-    int32_t inner = pipeline_type_elem_ref_at(arena, type_ref);
-    if ((ast_ref_is_null(inner) || (codegen_emit_type(arena, out, inner, ((uint8_t *)(0)), 0, ctx) !=0))) {
+    int32_t base_ref = type_ref;
+    while ((!ast_ref_is_null(base_ref)) && (pipeline_type_kind_ord_at(arena, base_ref) == 10)) {
+      int32_t inner = pipeline_type_elem_ref_at(arena, base_ref);
+      if (ast_ref_is_null(inner)) {
+        break;
+      }
+      base_ref = inner;
+    }
+    if ((ast_ref_is_null(base_ref) || (codegen_emit_type(arena, out, base_ref, ((uint8_t *)(0)), 0, ctx) !=0))) {
       uint8_t fb[8] = {105, 110, 116, 51, 50, 95, 116, 0};
       return codegen_emit_bytes_8(out, fb, 7);
     }
@@ -4451,22 +5181,123 @@ int32_t codegen_emit_local_fixed_array_elem_type(struct ast_ASTArena * arena, st
 }
 int32_t codegen_emit_local_fixed_array_suffix(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t type_ref) {
   {
-    int32_t asz = pipeline_type_array_size_at(arena, type_ref);
-    if ((codegen_append_byte(out, 91) !=0)) {
-      return -(1);
+    int32_t dims_ref = type_ref;
+    int32_t depth = 0;
+    while (((!ast_ref_is_null(dims_ref)) && (pipeline_type_kind_ord_at(arena, dims_ref) == 10)) && (depth < 8)) {
+      int32_t asz = pipeline_type_array_size_at(arena, dims_ref);
+      if ((codegen_append_byte(out, 91) !=0)) {
+        return -(1);
+      }
+      if ((codegen_format_int(out, asz) !=0)) {
+        return -(1);
+      }
+      if ((codegen_append_byte(out, 93) !=0)) {
+        return -(1);
+      }
+      dims_ref = pipeline_type_elem_ref_at(arena, dims_ref);
+      depth = (depth + 1);
     }
-    if ((codegen_format_int(out, asz) !=0)) {
-      return -(1);
-    }
-    return codegen_append_byte(out, 93);
+    return 0;
   }
   return 0;
 }
+/*
+ * wave353 Cap residual pure: host fixed TYPE_ARRAY local let finish.
+ * After `E name[N]` is emitted (no `=` yet):
+ * - null/zero lit → ` = { 0 };`
+ * - ARRAY_LIT → ` = { elems };`
+ * - other (CALL/VAR/FIELD/…) → `;\n` + `memcpy((void*)(name), (const void*)(expr), sizeof(name));`
+ * Root: C forbids `T t[N]=ptr` / `T t[N]=other_array`. G.7 single authority; wave334 memcpy form.
+ * PLATFORM: SHARED host-C (string.h memcpy in preamble). Mirror codegen.x.
+ */
+int32_t codegen_emit_local_fixed_array_let_finish(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t indent, uint8_t * name, int32_t name_len, int32_t linit_ref, struct ast_PipelineDepCtx * ctx) {
+  {
+    int32_t use_brace = 0;
+    int32_t use_zero = 0;
+    if ((ast_ref_is_null(linit_ref) || (linit_ref <= 0) || (linit_ref > (arena->num_exprs)))) {
+      (void)((use_zero = 1));
+    } else {
+      struct ast_Expr ie = ast_ast_arena_expr_get(arena, linit_ref);
+      if (((ie.kind) == 46)) {
+        (void)((use_brace = 1));
+      } else {
+        if ((((ie.kind) == 0) && ((ie.int_val) == 0))) {
+          (void)((use_zero = 1));
+        }
+      }
+    }
+    if ((use_brace != 0)) {
+      uint8_t eqb[4] = {32, 61, 32, 0};
+      if ((codegen_emit_bytes_4(out, eqb, 3) != 0)) {
+        return -(1);
+      }
+      if ((codegen_emit_braced_array_lit_init(arena, out, linit_ref, ctx) != 0)) {
+        return -(1);
+      }
+      {
+        uint8_t scb[3] = {59, 10, 0};
+        return codegen_emit_bytes_3(out, scb, 2);
+      }
+    }
+    if ((use_zero != 0)) {
+      uint8_t z[10] = {32, 61, 32, 123, 32, 48, 32, 125, 59, 10};
+      return codegen_emit_bytes_from_ptr(out, &((z)[0]), 10);
+    }
+    if ((codegen_append_byte(out, 59) != 0)) {
+      return -(1);
+    }
+    if ((codegen_append_byte(out, 10) != 0)) {
+      return -(1);
+    }
+    if ((codegen_emit_indent(out, indent) != 0)) {
+      return -(1);
+    }
+    {
+      uint8_t pref[16] = {109, 101, 109, 99, 112, 121, 40, 40, 118, 111, 105, 100, 42, 41, 40, 0};
+      if ((codegen_emit_bytes_from_ptr(out, &((pref)[0]), 15) != 0)) {
+        return -(1);
+      }
+    }
+    if (((name_len > 0) && (codegen_emit_bytes_64(out, name, name_len) != 0))) {
+      return -(1);
+    }
+    {
+      uint8_t mid[20] = {41, 44, 32, 40, 99, 111, 110, 115, 116, 32, 118, 111, 105, 100, 42, 41, 40, 0, 0, 0};
+      if ((codegen_emit_bytes_from_ptr(out, &((mid)[0]), 17) != 0)) {
+        return -(1);
+      }
+    }
+    if ((codegen_emit_expr(arena, out, linit_ref, ctx) != 0)) {
+      return -(1);
+    }
+    {
+      uint8_t mid_sz[12] = {41, 44, 32, 115, 105, 122, 101, 111, 102, 40, 0, 0};
+      if ((codegen_emit_bytes_from_ptr(out, &((mid_sz)[0]), 10) != 0)) {
+        return -(1);
+      }
+    }
+    if (((name_len > 0) && (codegen_emit_bytes_64(out, name, name_len) != 0))) {
+      return -(1);
+    }
+    {
+      uint8_t tail[4] = {41, 41, 59, 10};
+      return codegen_emit_bytes_from_ptr(out, &((tail)[0]), 4);
+    }
+  }
+  return 0;
+}
+/*
+ * PLATFORM: SHARED host-C — G.7 complete try_emit_slice_init_from_array_var.
+ * wave348: also EXPR_FIELD_ACCESS fixed TYPE_ARRAY field (`let s:T[]=b.a`).
+ * Mirror of codegen.x; same commit as freestanding glue FIELD path.
+ */
 int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t block_ref, int32_t let_idx, int32_t let_type_ref, int32_t linit_ref) {
   {
-    struct ast_Expr init_e = ast_ast_arena_expr_get(arena, linit_ref);
+    struct ast_Expr init_e;
+    struct ast_Expr base_e;
     int32_t arr_sz = 0;
     int32_t li = 0;
+    int32_t is_field = 0;
     uint8_t d1[9] = {32, 46, 100, 97, 116, 97, 32, 61, 32};
     uint8_t d2[12] = {44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32};
     uint8_t d3[4] = {32, 125, 0, 0};
@@ -4476,40 +5307,57 @@ int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena * arena, 
     if (((ast_ref_is_null(linit_ref) || (linit_ref <=0)) || (linit_ref > (arena->num_exprs)))) {
       return 0;
     }
-    if ((((init_e.kind) !=3) || ((init_e.var_name_len) <=0))) {
+    init_e = ast_ast_arena_expr_get(arena, linit_ref);
+    if (((pipeline_expr_kind_ord_at(arena, linit_ref) == 3) && ((init_e.var_name_len) > 0))) {
+      while ((li < let_idx)) {
+        int32_t nlen = pipeline_block_let_name_len(arena, block_ref, li);
+        if (((nlen ==(init_e.var_name_len)) && (nlen > 0))) {
+          int32_t matched = 1;
+          uint8_t nb[64] = {};
+          (void)(pipeline_block_let_name_copy64(arena, block_ref, li, &((nb)[0])));
+          int32_t ci = 0;
+          while ((ci < nlen)) {
+            if (((nb)[ci] !=((init_e.var_name))[ci])) {
+              (void)((matched = 0));
+              (void)((ci = nlen));
+            } else {
+              (void)((ci = (ci + 1)));
+            }
+          }
+          if ((matched !=0)) {
+            int32_t tr = pipeline_block_let_type_ref(arena, block_ref, li);
+            if ((pipeline_type_kind_ord_at(arena, tr) ==10)) {
+              (void)((arr_sz = pipeline_type_array_size_at(arena, tr)));
+              (void)((li = let_idx));
+            }
+          }
+        }
+        (void)((li = (li + 1)));
+      }
+      if ((((arr_sz <=0) && !(ast_ref_is_null((init_e.resolved_type_ref)))) && ((init_e.resolved_type_ref) > 0))) {
+        if ((pipeline_type_kind_ord_at(arena, (init_e.resolved_type_ref)) ==10)) {
+          (void)((arr_sz = pipeline_type_array_size_at(arena, (init_e.resolved_type_ref))));
+        }
+      }
+    } else if (((pipeline_expr_kind_ord_at(arena, linit_ref) == 44) && ((init_e.field_access_field_len) > 0)
+               && ((init_e.field_access_base_ref) > 0)
+               && ((init_e.field_access_base_ref) <= (arena->num_exprs)))) {
+      /* wave348: let s: T[] = b.a — N from resolved TYPE_ARRAY, else sizeof C idiom. */
+      is_field = 1;
+      base_e = ast_ast_arena_expr_get(arena, init_e.field_access_base_ref);
+      if ((((base_e.kind) != 3) || ((base_e.var_name_len) <= 0))) {
+        return 0;
+      }
+      if ((!(ast_ref_is_null((init_e.resolved_type_ref))) && ((init_e.resolved_type_ref) > 0))) {
+        if ((pipeline_type_kind_ord_at(arena, (init_e.resolved_type_ref)) ==10)) {
+          (void)((arr_sz = pipeline_type_array_size_at(arena, (init_e.resolved_type_ref))));
+        }
+      }
+      /* arr_sz may stay 0 → emit sizeof(b.a)/sizeof(b.a[0]) below. */
+    } else {
       return 0;
     }
-    while ((li < let_idx)) {
-      int32_t nlen = pipeline_block_let_name_len(arena, block_ref, li);
-      if (((nlen ==(init_e.var_name_len)) && (nlen > 0))) {
-        int32_t matched = 1;
-        uint8_t nb[64] = {};
-        (void)(pipeline_block_let_name_copy64(arena, block_ref, li, &((nb)[0])));
-        int32_t ci = 0;
-        while ((ci < nlen)) {
-          if (((nb)[ci] !=((init_e.var_name))[ci])) {
-            (void)((matched = 0));
-            (void)((ci = nlen));
-          } else {
-            (void)((ci = (ci + 1)));
-          }
-        }
-        if ((matched !=0)) {
-          int32_t tr = pipeline_block_let_type_ref(arena, block_ref, li);
-          if ((pipeline_type_kind_ord_at(arena, tr) ==10)) {
-            (void)((arr_sz = pipeline_type_array_size_at(arena, tr)));
-            (void)((li = let_idx));
-          }
-        }
-      }
-      (void)((li = (li + 1)));
-    }
-    if ((((arr_sz <=0) && !(ast_ref_is_null((init_e.resolved_type_ref)))) && ((init_e.resolved_type_ref) > 0))) {
-      if ((pipeline_type_kind_ord_at(arena, (init_e.resolved_type_ref)) ==10)) {
-        (void)((arr_sz = pipeline_type_array_size_at(arena, (init_e.resolved_type_ref))));
-      }
-    }
-    if ((arr_sz <=0)) {
+    if ((arr_sz <=0) && (is_field == 0)) {
       return 0;
     }
     if ((codegen_append_byte(out, 123) !=0)) {
@@ -4518,20 +5366,327 @@ int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena * arena, 
     if ((codegen_emit_bytes_from_ptr(out, &((d1)[0]), 9) !=0)) {
       return -(1);
     }
-    if ((codegen_emit_bytes_64(out, &(((init_e.var_name))[0]), (init_e.var_name_len)) !=0)) {
-      return -(1);
+    if ((is_field != 0)) {
+      if ((codegen_emit_bytes_64(out, &(((base_e.var_name))[0]), (base_e.var_name_len)) !=0)) {
+        return -(1);
+      }
+      if ((codegen_append_byte(out, 46) !=0)) {
+        return -(1);
+      }
+      if ((codegen_emit_bytes_64(out, &(((init_e.field_access_field_name))[0]), (init_e.field_access_field_len)) !=0)) {
+        return -(1);
+      }
+    } else {
+      if ((codegen_emit_bytes_64(out, &(((init_e.var_name))[0]), (init_e.var_name_len)) !=0)) {
+        return -(1);
+      }
     }
     if ((codegen_emit_bytes_from_ptr(out, &((d2)[0]), 12) !=0)) {
       return -(1);
     }
-    if ((codegen_format_int(out, arr_sz) !=0)) {
-      return -(1);
+    if ((arr_sz > 0)) {
+      if ((codegen_format_int(out, arr_sz) !=0)) {
+        return -(1);
+      }
+    } else {
+      /* sizeof(base.field)/sizeof((base.field)[0]) — host-C only; no typeck N. */
+      uint8_t sz0[8] = {40, 115, 105, 122, 101, 111, 102, 40}; /* (sizeof( */
+      uint8_t sz1[12] = {41, 47, 115, 105, 122, 101, 111, 102, 40, 40, 0, 0}; /* )/sizeof(( */
+      uint8_t sz2[8] = {41, 91, 48, 93, 41, 41, 0, 0}; /* )[0])) */
+      if ((codegen_emit_bytes_from_ptr(out, &((sz0)[0]), 8) !=0)) {
+        return -(1);
+      }
+      if ((codegen_emit_bytes_64(out, &(((base_e.var_name))[0]), (base_e.var_name_len)) !=0)) {
+        return -(1);
+      }
+      if ((codegen_append_byte(out, 46) !=0)) {
+        return -(1);
+      }
+      if ((codegen_emit_bytes_64(out, &(((init_e.field_access_field_name))[0]), (init_e.field_access_field_len)) !=0)) {
+        return -(1);
+      }
+      if ((codegen_emit_bytes_from_ptr(out, &((sz1)[0]), 10) !=0)) {
+        return -(1);
+      }
+      if ((codegen_emit_bytes_64(out, &(((base_e.var_name))[0]), (base_e.var_name_len)) !=0)) {
+        return -(1);
+      }
+      if ((codegen_append_byte(out, 46) !=0)) {
+        return -(1);
+      }
+      if ((codegen_emit_bytes_64(out, &(((init_e.field_access_field_name))[0]), (init_e.field_access_field_len)) !=0)) {
+        return -(1);
+      }
+      if ((codegen_emit_bytes_from_ptr(out, &((sz2)[0]), 6) !=0)) {
+        return -(1);
+      }
     }
     if ((codegen_emit_bytes_4(out, d3, 2) !=0)) {
       return -(1);
     }
     return 1;
   }
+  return 0;
+}
+/**
+ * wave409 Cap residual pure: host-C TYPE_SLICE let from CALL/METHOD — frame deep-copy.
+ * Root: callee `return [n,…]` uses function-static `__xlang_al` (wave341 durable).
+ * `let s = mk(n); recurse(); use(s)` → all frames share one static → last-wins (walk 18≠36).
+ * G.7: after `Type name` is already written, finish as:
+ *   ; E __xlang_ldN[1024]; { S __xlang_spN = call; copy min(len,1024) into ld; name = fat(ld); }
+ * Stack payload (auto, not static) is reentrancy-safe across recursive frames of the same let site.
+ * Host twin of freestanding glue_slice_let_reent_deep_copy_after_dual_gp_elf_c.
+ * Soft: length > 1024 truncates copy (same cap as wave406 call-arg). PLATFORM: SHARED host-C.
+ * @return 0 success; -1 emit fail. Caller must only invoke when init is CALL/METHOD + TYPE_SLICE.
+ */
+int32_t codegen_emit_slice_let_reent_finish(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out,
+                                             int32_t indent, uint8_t * name, int32_t name_len,
+                                             int32_t let_type_ref, int32_t linit_ref,
+                                             struct ast_PipelineDepCtx * ctx) {
+  int32_t tid;
+  int32_t elem_tr = 0;
+  /* ";\n" — close uninit fat decl (Type name already emitted). */
+  {
+    uint8_t scnl[4] = {59, 10, 0, 0};
+    if (codegen_emit_bytes_from_ptr(out, scnl, 2) != 0)
+      return -1;
+  }
+  tid = codegen_next_host_call_array_tmp_id();
+  if (!(ast_ref_is_null(let_type_ref)) && let_type_ref > 0 && let_type_ref <= arena->num_types)
+    elem_tr = pipeline_type_elem_ref_at(arena, let_type_ref);
+  /* E __xlang_ldN[1024]; */
+  if (codegen_emit_indent(out, indent) != 0)
+    return -1;
+  if (elem_tr <= 0 || codegen_emit_type(arena, out, elem_tr, ((uint8_t *)(0)), 0, ctx) != 0) {
+    uint8_t fb_e[9] = {105, 110, 116, 51, 50, 95, 116, 0, 0}; /* int32_t */
+    if (codegen_emit_bytes_from_ptr(out, fb_e, 7) != 0)
+      return -1;
+  }
+  {
+    uint8_t ld_nm[14] = {32, 95, 95, 120, 108, 97, 110, 103, 95, 108, 100, 0, 0, 0}; /*  __xlang_ld */
+    if (codegen_emit_bytes_from_ptr(out, ld_nm, 11) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t ld_sz[12] = {91, 49, 48, 50, 52, 93, 59, 10, 0, 0, 0, 0}; /* [1024];\n */
+    if (codegen_emit_bytes_from_ptr(out, ld_sz, 8) != 0)
+      return -1;
+  }
+  /* { */
+  if (codegen_emit_indent(out, indent) != 0)
+    return -1;
+  if (codegen_append_byte(out, 123) != 0) /* { */
+    return -1;
+  if (codegen_append_byte(out, 10) != 0)
+    return -1;
+  /* S __xlang_spN = <call>; */
+  if (codegen_emit_indent(out, indent + 1) != 0)
+    return -1;
+  if (!(ast_ref_is_null(let_type_ref)) && let_type_ref > 0) {
+    if (codegen_emit_type(arena, out, let_type_ref, ((uint8_t *)(0)), 0, ctx) != 0)
+      return -1;
+  } else {
+    uint8_t fb[32] = {115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105,
+                      99, 101, 95, 105, 110, 116, 51, 50, 95, 116, 0, 0, 0, 0, 0, 0};
+    if (codegen_emit_bytes_from_ptr(out, fb, 26) != 0)
+      return -1;
+  }
+  {
+    uint8_t sp_nm[14] = {32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0, 0, 0}; /*  __xlang_sp */
+    if (codegen_emit_bytes_from_ptr(out, sp_nm, 11) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t eq[4] = {32, 61, 32, 0};
+    if (codegen_emit_bytes_4(out, eq, 3) != 0)
+      return -1;
+  }
+  if (codegen_emit_expr(arena, out, linit_ref, ctx) != 0)
+    return -1;
+  {
+    uint8_t sc[4] = {59, 10, 0, 0};
+    if (codegen_emit_bytes_from_ptr(out, sc, 2) != 0)
+      return -1;
+  }
+  /* size_t __xlang_snN = __xlang_spN.length; */
+  if (codegen_emit_indent(out, indent + 1) != 0)
+    return -1;
+  {
+    uint8_t sn_decl[28] = {115, 105, 122, 101, 95, 116, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115,
+                           110, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; /* size_t __xlang_sn */
+    if (codegen_emit_bytes_from_ptr(out, sn_decl, 17) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t sn_eq[16] = {32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0, 0, 0}; /*  = __xlang_sp */
+    if (codegen_emit_bytes_from_ptr(out, sn_eq, 13) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t sn_len[16] = {46, 108, 101, 110, 103, 116, 104, 59, 10, 0, 0, 0, 0, 0, 0, 0}; /* .length;\n */
+    if (codegen_emit_bytes_from_ptr(out, sn_len, 9) != 0)
+      return -1;
+  }
+  /* if (__xlang_snN > 1024) __xlang_snN = 1024; */
+  if (codegen_emit_indent(out, indent + 1) != 0)
+    return -1;
+  {
+    uint8_t if_h[20] = {105, 102, 32, 40, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0, 0, 0, 0, 0, 0}; /* if (__xlang_sn */
+    if (codegen_emit_bytes_from_ptr(out, if_h, 14) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t if_m[28] = {32, 62, 32, 49, 48, 50, 52, 41, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0, 0, 0, 0, 0, 0, 0, 0};
+    if (codegen_emit_bytes_from_ptr(out, if_m, 19) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t if_t[12] = {32, 61, 32, 49, 48, 50, 52, 59, 10, 0, 0, 0}; /*  = 1024;\n */
+    if (codegen_emit_bytes_from_ptr(out, if_t, 9) != 0)
+      return -1;
+  }
+  /* size_t __xlang_siN; for (__xlang_siN = 0; __xlang_siN < __xlang_snN; __xlang_siN++) */
+  if (codegen_emit_indent(out, indent + 1) != 0)
+    return -1;
+  {
+    uint8_t si_decl[28] = {115, 105, 122, 101, 95, 116, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115,
+                           105, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; /* size_t __xlang_si */
+    if (codegen_emit_bytes_from_ptr(out, si_decl, 17) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t for_h[12] = {59, 32, 102, 111, 114, 32, 40, 95, 95, 120, 108, 97}; /* ; for (__xla */
+    uint8_t for_h2[8] = {110, 103, 95, 115, 105, 0, 0, 0}; /* ng_si */
+    if (codegen_emit_bytes_from_ptr(out, for_h, 12) != 0)
+      return -1;
+    if (codegen_emit_bytes_from_ptr(out, for_h2, 5) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t for_m1[16] = {32, 61, 32, 48, 59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105}; /*  = 0; __xlang_si */
+    if (codegen_emit_bytes_from_ptr(out, for_m1, 16) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t for_m2[16] = {32, 60, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0, 0, 0}; /*  < __xlang_sn */
+    if (codegen_emit_bytes_from_ptr(out, for_m2, 13) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t for_m3[16] = {59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105, 0, 0, 0, 0}; /* ; __xlang_si */
+    if (codegen_emit_bytes_from_ptr(out, for_m3, 12) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t for_body[20] = {43, 43, 41, 32, 95, 95, 120, 108, 97, 110, 103, 95, 108, 100, 0, 0, 0, 0, 0, 0}; /* ++) __xlang_ld */
+    if (codegen_emit_bytes_from_ptr(out, for_body, 14) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t idx_o[16] = {91, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105, 0, 0, 0, 0, 0}; /* [__xlang_si */
+    if (codegen_emit_bytes_from_ptr(out, idx_o, 11) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t copy_m[20] = {93, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0, 0, 0, 0, 0, 0}; /* ] = __xlang_sp */
+    if (codegen_emit_bytes_from_ptr(out, copy_m, 14) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t data_i[24] = {46, 100, 97, 116, 97, 91, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105, 0, 0, 0, 0, 0, 0, 0, 0};
+    if (codegen_emit_bytes_from_ptr(out, data_i, 16) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t after[8] = {93, 59, 10, 0, 0, 0, 0, 0}; /* ];\n */
+    if (codegen_emit_bytes_from_ptr(out, after, 3) != 0)
+      return -1;
+  }
+  /* name = (S){ .data = __xlang_ldN, .length = __xlang_spN.length }; */
+  if (codegen_emit_indent(out, indent + 1) != 0)
+    return -1;
+  if (name_len > 0 && name != ((uint8_t *)(0))) {
+    if (codegen_emit_bytes_64(out, name, name_len) != 0)
+      return -1;
+  } else {
+    uint8_t fb_nm[4] = {95, 108, 0, 0};
+    if (codegen_emit_bytes_from_ptr(out, fb_nm, 2) != 0)
+      return -1;
+  }
+  {
+    uint8_t eq[4] = {32, 61, 32, 0};
+    if (codegen_emit_bytes_4(out, eq, 3) != 0)
+      return -1;
+  }
+  if (codegen_append_byte(out, 40) != 0) /* ( */
+    return -1;
+  if (!(ast_ref_is_null(let_type_ref)) && let_type_ref > 0) {
+    if (codegen_emit_type(arena, out, let_type_ref, ((uint8_t *)(0)), 0, ctx) != 0)
+      return -1;
+  } else {
+    uint8_t fb[32] = {115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105,
+                      99, 101, 95, 105, 110, 116, 51, 50, 95, 116, 0, 0, 0, 0, 0, 0};
+    if (codegen_emit_bytes_from_ptr(out, fb, 26) != 0)
+      return -1;
+  }
+  {
+    uint8_t fat_mid[28] = {41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 95, 95, 120, 108, 97,
+                           110, 103, 95, 108, 100, 0, 0, 0, 0, 0, 0, 0}; /* ){ .data = __xlang_ld */
+    if (codegen_emit_bytes_from_ptr(out, fat_mid, 21) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t len_asg[28] = {44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 95, 95, 120, 108,
+                           97, 110, 103, 95, 115, 110, 0, 0, 0, 0, 0, 0}; /* , .length = __xlang_sn */
+    if (codegen_emit_bytes_from_ptr(out, len_asg, 22) != 0)
+      return -1;
+  }
+  if (codegen_format_int(out, (int64_t)tid) != 0)
+    return -1;
+  {
+    uint8_t end_fat[16] = {32, 125, 59, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; /*  };\n */
+    if (codegen_emit_bytes_from_ptr(out, end_fat, 4) != 0)
+      return -1;
+  }
+  /* } */
+  if (codegen_emit_indent(out, indent) != 0)
+    return -1;
+  if (codegen_append_byte(out, 125) != 0)
+    return -1;
+  if (codegen_append_byte(out, 10) != 0)
+    return -1;
   return 0;
 }
 /* PLATFORM: SHARED — STRUCT_LIT array-field type lookup (parser M1 host-cc array-init).
@@ -4633,6 +5788,7 @@ int32_t codegen_lookup_struct_field_type_ref(struct ast_ASTArena * arena, struct
   }
   return 0;
 }
+/* wave357: nested ARRAY_LIT rows recurse as braces (multi-dim {{…},{…}}). */
 int32_t codegen_emit_braced_array_lit_init(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t init_ref, struct ast_PipelineDepCtx * ctx) {
   {
     int32_t n = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
@@ -4654,6 +5810,7 @@ int32_t codegen_emit_braced_array_lit_init(struct ast_ASTArena * arena, struct c
       return -(1);
     }
     while ((ai < n)) {
+      int32_t elem_ref;
       if ((ai > 0)) {
         uint8_t comma[3] = {44, 32, 0};
         if ((codegen_emit_bytes_3(out, comma, 2) ==0)) {
@@ -4662,7 +5819,13 @@ int32_t codegen_emit_braced_array_lit_init(struct ast_ASTArena * arena, struct c
           return -(1);
         }
       }
-      if ((codegen_emit_expr(arena, out, pipeline_expr_array_lit_elem_ref(arena, init_ref, ai), ctx) ==0)) {
+      elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
+      if (((!ast_ref_is_null(elem_ref)) && (pipeline_expr_kind_ord_at(arena, elem_ref) == ((int32_t)(46))))) {
+        if ((codegen_emit_braced_array_lit_init(arena, out, elem_ref, ctx) !=0)) {
+          return -(1);
+        }
+        (void)((ai = (ai + 1)));
+      } else if ((codegen_emit_expr(arena, out, elem_ref, ctx) ==0)) {
         (void)((ai = (ai + 1)));
       } else {
         return -(1);
@@ -4908,6 +6071,1080 @@ int32_t codegen_type_dep_enum_prefix_into(struct ast_PipelineDepCtx * ctx, struc
   }
   return 0;
 }
+/*
+ * wave466/467 Cap residual pure: host-C mono for type-param fields on generic structs.
+ * Layout may store `v: T` / `b: U`; emit as concrete from:
+ *   (1) type-pos Name<T,U> type-arg at the type-param slot (wave467 multi)
+ *   (2) STRUCT_LIT field init (bare Name / fallback)
+ * PLATFORM: SHARED. G.7 twin of codegen.x.
+ */
+extern int32_t pipeline_type_type_arg_ref_at(struct ast_ASTArena *a, int32_t type_ref, int32_t idx);
+extern int32_t pipeline_module_struct_layout_num_type_params_at(struct ast_Module *m, int32_t li);
+extern int32_t pipeline_module_struct_layout_type_param_name_len(struct ast_Module *m, int32_t li, int32_t j);
+extern void pipeline_module_struct_layout_type_param_name_into(struct ast_Module *m, int32_t li, int32_t j,
+                                                              uint8_t *out64);
+
+/* wave480: free TYPE_NAMED (no matching layout) = type param; skip for mono fields. */
+/*
+ * wave480/485: host-complete type for generic-struct mono.
+ * wave485: layout name match alone is NOT enough — Wrap&lt;T&gt; / Wrap&lt;Wrap&lt;T&gt;&gt;
+ * matched layout "Wrap" and were treated concrete → incomplete Wrap__Wrap_T.
+ * Generic layouts (ntp&gt;0) require every type-arg also host-concrete (recursive).
+ * PLATFORM: SHARED host-C — G.7 twin of codegen.x.
+ */
+static int32_t codegen_type_ref_is_host_concrete(struct ast_Module *module, struct ast_ASTArena *arena, int32_t ty) {
+  int32_t k;
+  int32_t nl;
+  uint8_t nm[64];
+  int32_t sk;
+  int32_t zi;
+  if (!module || !arena || ty <= 0)
+    return 0;
+  k = pipeline_type_kind_ord_at(arena, ty);
+  /* TYPE_NAMED = 8. Other kinds (builtin/ptr/array/slice/…) are host-complete. */
+  if (k != 8)
+    return 1;
+  for (zi = 0; zi < 64; zi++)
+    nm[zi] = 0;
+  nl = pipeline_type_named_name_into(arena, ty, nm);
+  if (nl <= 0)
+    return 0;
+  for (sk = 0; sk < module->num_struct_layouts; sk++) {
+    int32_t sl = pipeline_module_struct_layout_name_len(module, sk);
+    uint8_t snm[64];
+    int32_t bi;
+    int32_t match;
+    int32_t ntp;
+    int32_t ai;
+    if (sl != nl)
+      continue;
+    for (zi = 0; zi < 64; zi++)
+      snm[zi] = 0;
+    pipeline_module_struct_layout_name_into(module, sk, snm);
+    match = 1;
+    for (bi = 0; bi < nl; bi++) {
+      if (snm[bi] != nm[bi]) {
+        match = 0;
+        break;
+      }
+    }
+    if (!match)
+      continue;
+    /* Non-generic user struct / enum-like layout: concrete by name. */
+    ntp = pipeline_module_struct_layout_num_type_params_at(module, sk);
+    if (ntp <= 0)
+      return 1;
+    /* Generic layout: all type-pos args must be present and host-concrete. */
+    for (ai = 0; ai < ntp && ai < 4; ai++) {
+      int32_t arg = pipeline_type_type_arg_ref_at(arena, ty, ai);
+      if (arg <= 0 && ai == 0)
+        arg = pipeline_type_elem_ref_at(arena, ty);
+      if (arg <= 0)
+        return 0;
+      if (codegen_type_ref_is_host_concrete(module, arena, arg) == 0)
+        return 0;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+static int32_t codegen_resolve_generic_struct_field_type(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                          uint8_t *layout_nm, int32_t layout_nl, uint8_t *field_nm,
+                                                          int32_t field_nl, int32_t ftr) {
+  int32_t ftnl;
+  uint8_t ftn[64];
+  int32_t sk;
+  int32_t ti;
+  int32_t ei;
+  int32_t layout_idx;
+  int32_t tp_slot;
+  if (!module || !arena || ftr <= 0 || !layout_nm || layout_nl <= 0 || !field_nm || field_nl <= 0)
+    return ftr;
+  if (pipeline_type_kind_ord_at(arena, ftr) != 8 /* TYPE_NAMED */)
+    return ftr;
+  {
+    int32_t zi;
+    for (zi = 0; zi < 64; zi++)
+      ftn[zi] = 0;
+  }
+  ftnl = pipeline_type_named_name_into(arena, ftr, ftn);
+  if (ftnl <= 0)
+    return ftr;
+  /* Module concrete layout/enum name → keep (not a type param). */
+  for (sk = 0; sk < module->num_struct_layouts; sk++) {
+    int32_t sl = pipeline_module_struct_layout_name_len(module, sk);
+    uint8_t snm[64];
+    int32_t bi;
+    int32_t match;
+    int32_t zi;
+    if (sl != ftnl)
+      continue;
+    for (zi = 0; zi < 64; zi++)
+      snm[zi] = 0;
+    pipeline_module_struct_layout_name_into(module, sk, snm);
+    match = 1;
+    for (bi = 0; bi < ftnl; bi++) {
+      if (snm[bi] != ftn[bi]) {
+        match = 0;
+        break;
+      }
+    }
+    if (match)
+      return ftr;
+  }
+  /* Find layout for Pair and map field type name T/U → type-param slot. */
+  layout_idx = -1;
+  tp_slot = 0; /* default slot0 when no type-param registry (wave466 Wrap) */
+  for (sk = 0; sk < module->num_struct_layouts; sk++) {
+    int32_t sl = pipeline_module_struct_layout_name_len(module, sk);
+    uint8_t snm[64];
+    int32_t bi;
+    int32_t match;
+    int32_t zi;
+    int32_t ntp;
+    int32_t tj;
+    if (sl != layout_nl || layout_nl <= 0)
+      continue;
+    for (zi = 0; zi < 64; zi++)
+      snm[zi] = 0;
+    pipeline_module_struct_layout_name_into(module, sk, snm);
+    match = 1;
+    for (bi = 0; bi < layout_nl; bi++) {
+      if (snm[bi] != layout_nm[bi]) {
+        match = 0;
+        break;
+      }
+    }
+    if (!match)
+      continue;
+    layout_idx = sk;
+    ntp = pipeline_module_struct_layout_num_type_params_at(module, sk);
+    if (ntp > 0) {
+      tp_slot = -1;
+      for (tj = 0; tj < ntp; tj++) {
+        int32_t tpl = pipeline_module_struct_layout_type_param_name_len(module, sk, tj);
+        uint8_t tpn[64];
+        int32_t pi;
+        int32_t peq;
+        if (tpl != ftnl)
+          continue;
+        for (zi = 0; zi < 64; zi++)
+          tpn[zi] = 0;
+        pipeline_module_struct_layout_type_param_name_into(module, sk, tj, tpn);
+        peq = 1;
+        for (pi = 0; pi < ftnl; pi++) {
+          if (tpn[pi] != ftn[pi]) {
+            peq = 0;
+            break;
+          }
+        }
+        if (peq) {
+          tp_slot = tj;
+          break;
+        }
+      }
+      if (tp_slot < 0)
+        return ftr; /* field type name not a type param of this layout */
+    }
+    break;
+  }
+  (void)layout_idx;
+  /* (1) Type-position Name<T,U>: type-arg at tp_slot; wave480 prefer concrete. */
+  for (ti = 1; ti <= arena->num_types; ti++) {
+    if (pipeline_type_kind_ord_at(arena, ti) != 8)
+      continue;
+    {
+      uint8_t tnm[64];
+      int32_t tnl;
+      int32_t ci;
+      int32_t eq;
+      int32_t mono;
+      int32_t zi;
+      for (zi = 0; zi < 64; zi++)
+        tnm[zi] = 0;
+      tnl = pipeline_type_named_name_into(arena, ti, tnm);
+      if (tnl != layout_nl || tnl <= 0)
+        continue;
+      eq = 1;
+      for (ci = 0; ci < tnl; ci++) {
+        if (tnm[ci] != layout_nm[ci]) {
+          eq = 0;
+          break;
+        }
+      }
+      if (!eq)
+        continue;
+      mono = pipeline_type_type_arg_ref_at(arena, ti, tp_slot);
+      if (mono <= 0 && tp_slot == 0)
+        mono = pipeline_type_elem_ref_at(arena, ti);
+      /* wave480: skip free type params (T from Wrap<T> ret); keep scanning for A. */
+      if (mono > 0 && codegen_type_ref_is_host_concrete(module, arena, mono) != 0)
+        return mono;
+    }
+  }
+  /* (2) STRUCT_LIT field init by field name; wave480 prefer concrete. */
+  for (ei = 1; ei <= arena->num_exprs; ei++) {
+    if (pipeline_expr_kind_ord_at(arena, ei) != 45 /* EXPR_STRUCT_LIT */)
+      continue;
+    {
+      struct ast_Expr e = ast_ast_arena_expr_get(arena, ei);
+      int32_t seq;
+      int32_t si;
+      int32_t nf;
+      int32_t fj;
+      if (e.struct_lit_struct_name_len != layout_nl || layout_nl <= 0)
+        continue;
+      seq = 1;
+      for (si = 0; si < layout_nl; si++) {
+        if (e.struct_lit_struct_name[si] != layout_nm[si]) {
+          seq = 0;
+          break;
+        }
+      }
+      if (!seq)
+        continue;
+      nf = pipeline_expr_struct_lit_num_fields(arena, ei);
+      for (fj = 0; fj < nf; fj++) {
+        int32_t fl = pipeline_expr_struct_lit_field_name_len(arena, ei, fj);
+        uint8_t fnb[64];
+        int32_t fi;
+        int32_t feq;
+        int32_t iref;
+        int32_t ity;
+        int32_t zi;
+        if (fl != field_nl)
+          continue;
+        for (zi = 0; zi < 64; zi++)
+          fnb[zi] = 0;
+        pipeline_expr_struct_lit_field_name_into(arena, ei, fj, fnb);
+        feq = 1;
+        for (fi = 0; fi < fl; fi++) {
+          if (fnb[fi] != field_nm[fi]) {
+            feq = 0;
+            break;
+          }
+        }
+        if (!feq)
+          continue;
+        iref = pipeline_expr_struct_lit_init_ref(arena, ei, fj);
+        if (iref <= 0)
+          continue;
+        ity = pipeline_expr_resolved_type_ref(arena, iref);
+        if (ity > 0 && codegen_type_ref_is_host_concrete(module, arena, ity) != 0)
+          return ity;
+      }
+    }
+  }
+  return ftr;
+}
+
+/* wave481: generic struct multi mono helpers. PLATFORM: SHARED host-C; twin of codegen.x. */
+static int32_t codegen_module_struct_layout_index_by_name(struct ast_Module *module, uint8_t *layout_nm, int32_t layout_nl) {
+  int32_t sk;
+  if (!module || !layout_nm || layout_nl <= 0) return -1;
+  for (sk = 0; sk < module->num_struct_layouts; sk++) {
+    int32_t sl = pipeline_module_struct_layout_name_len(module, sk);
+    uint8_t snm[64]; int32_t bi, eq, zi;
+    if (sl != layout_nl) continue;
+    for (zi = 0; zi < 64; zi++) snm[zi] = 0;
+    pipeline_module_struct_layout_name_into(module, sk, snm);
+    eq = 1;
+    for (bi = 0; bi < layout_nl; bi++) if (snm[bi] != layout_nm[bi]) { eq = 0; break; }
+    if (eq) return sk;
+  }
+  return -1;
+}
+/*
+ * wave482: resolve free TYPE_NAMED (T/U) through active function mono map.
+ * PLATFORM: SHARED host-C — twin of codegen.x; used by fill + maybe_emit.
+ */
+static int32_t codegen_generic_struct_resolve_arg_via_ctx(struct ast_Module *module, struct ast_ASTArena *arena,
+    struct ast_PipelineDepCtx *ctx, int32_t ty) {
+  int32_t mi;
+  uint8_t fb_nm[64];
+  int32_t fb_len;
+  if (!module || !arena || ty <= 0) return 0;
+  if (codegen_type_ref_is_host_concrete(module, arena, ty) != 0) return ty;
+  if (!ctx || ctx->mono_active == 0 || ctx->mono_num_types <= 0) return 0;
+  for (mi = 0; mi < ctx->mono_num_types && mi < 8; mi++) {
+    int32_t gen = ctx->mono_generic_type_refs[mi];
+    int32_t conc = ctx->mono_concrete_type_refs[mi];
+    if (gen > 0 && conc > 0 && conc != ty && ty == gen) {
+      if (codegen_type_ref_is_host_concrete(module, arena, conc) != 0) return conc;
+    }
+  }
+  fb_len = pipeline_type_named_name_into(arena, ty, fb_nm);
+  if (fb_len <= 0) return 0;
+  for (mi = 0; mi < ctx->mono_num_types && mi < 8; mi++) {
+    int32_t gen = ctx->mono_generic_type_refs[mi];
+    int32_t conc = ctx->mono_concrete_type_refs[mi];
+    uint8_t gnm[64];
+    int32_t gnl, eq = 1, bi;
+    if (gen <= 0 || conc <= 0 || conc == ty) continue;
+    gnl = pipeline_type_named_name_into(arena, gen, gnm);
+    if (gnl != fb_len || gnl <= 0) continue;
+    for (bi = 0; bi < gnl; bi++) if (gnm[bi] != fb_nm[bi]) { eq = 0; break; }
+    if (eq && codegen_type_ref_is_host_concrete(module, arena, conc) != 0) return conc;
+  }
+  return 0;
+}
+/* Resolve free type via explicit mono map arrays (collect path; no live ctx). */
+static int32_t codegen_generic_struct_resolve_arg_via_map(struct ast_Module *module, struct ast_ASTArena *arena,
+    int32_t ty, int32_t *mono_gen, int32_t *mono_conc, int32_t nmono) {
+  int32_t mi;
+  uint8_t fb_nm[64];
+  int32_t fb_len;
+  if (!module || !arena || ty <= 0 || !mono_gen || !mono_conc || nmono <= 0) return 0;
+  if (codegen_type_ref_is_host_concrete(module, arena, ty) != 0) return ty;
+  for (mi = 0; mi < nmono && mi < 8; mi++) {
+    if (mono_gen[mi] > 0 && mono_conc[mi] > 0 && mono_conc[mi] != ty && ty == mono_gen[mi]) {
+      if (codegen_type_ref_is_host_concrete(module, arena, mono_conc[mi]) != 0) return mono_conc[mi];
+    }
+  }
+  fb_len = pipeline_type_named_name_into(arena, ty, fb_nm);
+  if (fb_len <= 0) return 0;
+  for (mi = 0; mi < nmono && mi < 8; mi++) {
+    uint8_t gnm[64];
+    int32_t gnl, eq = 1, bi;
+    if (mono_gen[mi] <= 0 || mono_conc[mi] <= 0 || mono_conc[mi] == ty) continue;
+    gnl = pipeline_type_named_name_into(arena, mono_gen[mi], gnm);
+    if (gnl != fb_len || gnl <= 0) continue;
+    for (bi = 0; bi < gnl; bi++) if (gnm[bi] != fb_nm[bi]) { eq = 0; break; }
+    if (eq && codegen_type_ref_is_host_concrete(module, arena, mono_conc[mi]) != 0) return mono_conc[mi];
+  }
+  return 0;
+}
+static int32_t codegen_generic_struct_fill_concrete_args(struct ast_Module *module, struct ast_ASTArena *arena,
+    int32_t type_ref, int32_t ntp, int32_t *mono_out, struct ast_PipelineDepCtx *ctx) {
+  int32_t si;
+  if (!module || !arena || type_ref <= 0 || !mono_out || ntp <= 0 || ntp > 4) return 0;
+  if (pipeline_type_kind_ord_at(arena, type_ref) != 8) return 0;
+  for (si = 0; si < ntp; si++) {
+    int32_t mono = pipeline_type_type_arg_ref_at(arena, type_ref, si);
+    if (mono <= 0 && si == 0) mono = pipeline_type_elem_ref_at(arena, type_ref);
+    if (mono > 0 && codegen_type_ref_is_host_concrete(module, arena, mono) == 0) {
+      /* wave482: free T/U under function mono → concrete via mono map. */
+      mono = codegen_generic_struct_resolve_arg_via_ctx(module, arena, ctx, mono);
+    }
+    if (mono <= 0 || codegen_type_ref_is_host_concrete(module, arena, mono) == 0) return 0;
+    mono_out[si] = mono;
+  }
+  return ntp;
+}
+static int32_t codegen_generic_struct_mangled_name_into(struct ast_ASTArena *arena, uint8_t *layout_nm, int32_t layout_nl,
+    int32_t *mono_tys, int32_t ntp, uint8_t *out_nm, int32_t out_cap) {
+  int32_t o = 0, bi, mi;
+  if (!arena || !layout_nm || layout_nl <= 0 || !mono_tys || !out_nm || ntp <= 0 || out_cap <= layout_nl + 2) return 0;
+  for (bi = 0; bi < layout_nl && o < out_cap; bi++) out_nm[o++] = layout_nm[bi];
+  if (o + 2 >= out_cap) return 0;
+  out_nm[o++] = 95; out_nm[o++] = 95;
+  for (mi = 0; mi < ntp; mi++) {
+    uint8_t suf[64]; int32_t sl, si;
+    if (mi > 0) { if (o >= out_cap) return 0; out_nm[o++] = 95; }
+    sl = codegen_type_ref_to_suffix(arena, mono_tys[mi], suf, 64);
+    if (sl <= 0) return 0;
+    for (si = 0; si < sl; si++) { if (o >= out_cap) return 0; out_nm[o++] = suf[si]; }
+  }
+  return o;
+}
+static int32_t codegen_emit_generic_struct_mono_suffix(struct codegen_CodegenOutBuf *out, struct ast_ASTArena *arena,
+    int32_t *mono_tys, int32_t ntp) {
+  uint8_t sep[2] = {95, 95}; int32_t mi;
+  if (!out || !arena || !mono_tys || ntp <= 0) return -1;
+  if (codegen_emit_bytes_from_ptr(out, sep, 2) != 0) return -1;
+  for (mi = 0; mi < ntp; mi++) {
+    uint8_t suf[64]; int32_t sl;
+    if (mi > 0) { if (codegen_append_byte(out, 95) != 0) return -1; }
+    sl = codegen_type_ref_to_suffix(arena, mono_tys[mi], suf, 64);
+    if (sl <= 0) return -1;
+    if (codegen_emit_bytes_from_ptr(out, suf, sl) != 0) return -1;
+  }
+  return 0;
+}
+static int32_t codegen_generic_struct_field_type_from_mono(struct ast_Module *module, struct ast_ASTArena *arena,
+    int32_t layout_k, int32_t ftr, int32_t *mono_tys, int32_t ntp) {
+  int32_t ftnl, tj, zi; uint8_t ftn[64];
+  if (!module || !arena || ftr <= 0 || !mono_tys || ntp <= 0) return ftr;
+  if (pipeline_type_kind_ord_at(arena, ftr) != 8) return ftr;
+  for (zi = 0; zi < 64; zi++) ftn[zi] = 0;
+  ftnl = pipeline_type_named_name_into(arena, ftr, ftn);
+  if (ftnl <= 0) return ftr;
+  for (tj = 0; tj < ntp; tj++) {
+    int32_t tpl = pipeline_module_struct_layout_type_param_name_len(module, layout_k, tj);
+    uint8_t tpn[64]; int32_t peq = 1, pi;
+    if (tpl != ftnl) continue;
+    for (zi = 0; zi < 64; zi++) tpn[zi] = 0;
+    pipeline_module_struct_layout_type_param_name_into(module, layout_k, tj, tpn);
+    for (pi = 0; pi < ftnl; pi++) if (tpn[pi] != ftn[pi]) { peq = 0; break; }
+    if (peq && mono_tys[tj] > 0) return mono_tys[tj];
+  }
+  return ftr;
+}
+/* wave484: structural mono equality (nested type-args). PLATFORM: SHARED. */
+static int32_t codegen_combo_slots_equal(struct ast_ASTArena *arena, int32_t a, int32_t b) {
+  uint8_t nma[64], nmb[64]; int32_t nla, nlb, ni, ai, ka, kb;
+  if (a == b && a > 0) return 1;
+  if (!arena || a <= 0 || b <= 0) return 0;
+  ka = pipeline_type_kind_ord_at(arena, a);
+  kb = pipeline_type_kind_ord_at(arena, b);
+  if (ka != kb) return 0;
+  if (ka == 8 /* TYPE_NAMED */) {
+    nla = pipeline_type_named_name_into(arena, a, nma);
+    nlb = pipeline_type_named_name_into(arena, b, nmb);
+    if (nla <= 0 || nla != nlb) return 0;
+    for (ni = 0; ni < nla; ni++) if (nma[ni] != nmb[ni]) return 0;
+    for (ai = 0; ai < 4; ai++) {
+      int32_t aa = pipeline_type_type_arg_ref_at(arena, a, ai);
+      int32_t bb = pipeline_type_type_arg_ref_at(arena, b, ai);
+      if (aa <= 0 && bb <= 0) return 1;
+      if (aa <= 0 || bb <= 0) return 0;
+      if (!codegen_combo_slots_equal(arena, aa, bb)) return 0;
+    }
+    return 1;
+  }
+  if (ka == 9 /* TYPE_PTR */)
+    return codegen_combo_slots_equal(arena, pipeline_type_elem_ref_at(arena, a), pipeline_type_elem_ref_at(arena, b));
+  return 1;
+}
+
+/* wave484: type-pos nest depth. PLATFORM: SHARED. */
+static int32_t codegen_type_ref_type_arg_nest_depth(struct ast_ASTArena *arena, int32_t ty) {
+  int32_t maxd = 0, ai;
+  if (!arena || ty <= 0) return 0;
+  for (ai = 0; ai < 4; ai++) {
+    int32_t arg = pipeline_type_type_arg_ref_at(arena, ty, ai);
+    int32_t d;
+    if (arg <= 0) break;
+    d = 1 + codegen_type_ref_type_arg_nest_depth(arena, arg);
+    if (d > maxd) maxd = d;
+  }
+  return maxd;
+}
+
+static int32_t codegen_generic_struct_combo_nest_depth(struct ast_ASTArena *arena, int32_t *mono_tys, int32_t ntp) {
+  int32_t maxd = 0, i;
+  if (!arena || !mono_tys || ntp <= 0) return 0;
+  for (i = 0; i < ntp; i++) {
+    int32_t d = codegen_type_ref_type_arg_nest_depth(arena, mono_tys[i]);
+    if (d > maxd) maxd = d;
+  }
+  return maxd;
+}
+
+/* wave484: sort combos shallow→deep so nested field types are complete. PLATFORM: SHARED. */
+static void codegen_generic_struct_sort_mono_combos_by_depth(struct ast_ASTArena *arena, int32_t *combos, int32_t ncombo, int32_t ntp) {
+  int32_t i, j, s;
+  if (!arena || !combos || ncombo <= 1 || ntp <= 0) return;
+  for (i = 0; i < ncombo; i++) {
+    for (j = i + 1; j < ncombo; j++) {
+      int32_t di = codegen_generic_struct_combo_nest_depth(arena, &combos[i * ntp], ntp);
+      int32_t dj = codegen_generic_struct_combo_nest_depth(arena, &combos[j * ntp], ntp);
+      if (dj < di) {
+        for (s = 0; s < ntp; s++) {
+          int32_t tmp = combos[i * ntp + s];
+          combos[i * ntp + s] = combos[j * ntp + s];
+          combos[j * ntp + s] = tmp;
+        }
+      }
+    }
+  }
+}
+
+static int32_t codegen_collect_generic_struct_mono_combos(struct ast_Module *module, struct ast_ASTArena *arena,
+    int32_t layout_k, uint8_t *layout_nm, int32_t layout_nl, int32_t ntp, int32_t *combos_out, int32_t max_combos) {
+  int32_t combo_count = 0, ti, ei;
+  if (!module || !arena || !layout_nm || !combos_out || ntp <= 0 || ntp > 4 || max_combos <= 0 || layout_nl <= 0)
+    return 0;
+  for (ti = 1; ti <= arena->num_types; ti++) {
+    uint8_t tnm[64]; int32_t tnl, eq = 1, ci, combo[4], found, c0, s1;
+    if (pipeline_type_kind_ord_at(arena, ti) != 8) continue;
+    tnl = pipeline_type_named_name_into(arena, ti, tnm);
+    if (tnl != layout_nl || tnl <= 0) continue;
+    for (ci = 0; ci < tnl; ci++) if (tnm[ci] != layout_nm[ci]) { eq = 0; break; }
+    if (!eq) continue;
+    if (codegen_generic_struct_fill_concrete_args(module, arena, ti, ntp, combo, ((struct ast_PipelineDepCtx *)(0))) != ntp) continue;
+    found = 0;
+    for (c0 = 0; c0 < combo_count; c0++) {
+      int32_t same = 1, s0;
+      for (s0 = 0; s0 < ntp; s0++)
+        if (!codegen_combo_slots_equal(arena, combos_out[c0 * ntp + s0], combo[s0])) { same = 0; break; }
+      if (same) { found = 1; break; }
+    }
+    if (!found && combo_count < max_combos) {
+      for (s1 = 0; s1 < ntp; s1++) combos_out[combo_count * ntp + s1] = combo[s1];
+      combo_count++;
+    }
+  }
+  for (ei = 1; ei <= arena->num_exprs; ei++) {
+    struct ast_Expr e;
+    int32_t seq = 1, si, combo2[4], filled = 0, ok = 1, tj, nf, fj, found2, c1, s3, scheck;
+    if (pipeline_expr_kind_ord_at(arena, ei) != 45 /* EXPR_STRUCT_LIT */) continue;
+    e = ast_ast_arena_expr_get(arena, ei);
+    if (e.struct_lit_struct_name_len != layout_nl || layout_nl <= 0) continue;
+    for (si = 0; si < layout_nl; si++)
+      if (e.struct_lit_struct_name[si] != layout_nm[si]) { seq = 0; break; }
+    if (!seq) continue;
+    for (tj = 0; tj < ntp; tj++) combo2[tj] = 0;
+    nf = pipeline_module_struct_layout_num_fields(module, layout_k);
+    for (fj = 0; fj < nf; fj++) {
+      int32_t ftr = pipeline_module_struct_layout_field_type_ref(module, layout_k, fj);
+      int32_t ftnl, slot = -1, pj, flen, lit_nf, li, zi;
+      uint8_t ftn[64], fnm[64];
+      if (pipeline_type_kind_ord_at(arena, ftr) != 8) continue;
+      for (zi = 0; zi < 64; zi++) ftn[zi] = 0;
+      ftnl = pipeline_type_named_name_into(arena, ftr, ftn);
+      for (pj = 0; pj < ntp; pj++) {
+        int32_t tpl = pipeline_module_struct_layout_type_param_name_len(module, layout_k, pj);
+        uint8_t tpn[64]; int32_t peq = 1, pi;
+        if (tpl != ftnl || ftnl <= 0) continue;
+        for (zi = 0; zi < 64; zi++) tpn[zi] = 0;
+        pipeline_module_struct_layout_type_param_name_into(module, layout_k, pj, tpn);
+        for (pi = 0; pi < ftnl; pi++) if (tpn[pi] != ftn[pi]) { peq = 0; break; }
+        if (peq) { slot = pj; break; }
+      }
+      if (slot < 0) continue;
+      flen = pipeline_module_struct_layout_field_name_len(module, layout_k, fj);
+      for (zi = 0; zi < 64; zi++) fnm[zi] = 0;
+      pipeline_module_struct_layout_field_name_into(module, layout_k, fj, fnm);
+      lit_nf = pipeline_expr_struct_lit_num_fields(arena, ei);
+      for (li = 0; li < lit_nf; li++) {
+        int32_t lfl = pipeline_expr_struct_lit_field_name_len(arena, ei, li);
+        uint8_t lfn[64]; int32_t feq = 1, fi, iref, ity;
+        if (lfl != flen || flen <= 0) continue;
+        for (zi = 0; zi < 64; zi++) lfn[zi] = 0;
+        pipeline_expr_struct_lit_field_name_into(arena, ei, li, lfn);
+        for (fi = 0; fi < flen; fi++) if (lfn[fi] != fnm[fi]) { feq = 0; break; }
+        if (!feq) continue;
+        iref = pipeline_expr_struct_lit_init_ref(arena, ei, li);
+        if (iref > 0) {
+          ity = pipeline_expr_resolved_type_ref(arena, iref);
+          if (ity > 0 && codegen_type_ref_is_host_concrete(module, arena, ity) != 0) {
+            if (combo2[slot] == 0) { combo2[slot] = ity; filled++; }
+          }
+        }
+        break;
+      }
+    }
+    for (scheck = 0; scheck < ntp; scheck++) if (combo2[scheck] <= 0) ok = 0;
+    if (!ok || filled <= 0) continue;
+    found2 = 0;
+    for (c1 = 0; c1 < combo_count; c1++) {
+      int32_t same2 = 1, s2;
+      for (s2 = 0; s2 < ntp; s2++)
+        if (!codegen_combo_slots_equal(arena, combos_out[c1 * ntp + s2], combo2[s2])) { same2 = 0; break; }
+      if (same2) { found2 = 1; break; }
+    }
+    if (!found2 && combo_count < max_combos) {
+      for (s3 = 0; s3 < ntp; s3++) combos_out[combo_count * ntp + s3] = combo2[s3];
+      combo_count++;
+    }
+  }
+  /*
+   * wave482: harvest combos from generic function mono (bare multi mono).
+   * Root: chain `make_pair(A,B).a` has no TYPE_NAMED Pair&lt;A,B&gt; type-pos and
+   * STRUCT_LIT field inits are free T/U — collect missed Pair__A_B def → BLD001.
+   * Map ret/param TYPE_NAMED layout type-args through each func mono combo.
+   * PLATFORM: SHARED host-C; twin of codegen.x.
+   */
+  {
+    int32_t fi;
+    for (fi = 0; fi < module->num_funcs && combo_count < max_combos; fi++) {
+      int32_t np, ret_extra, combo_width, ncombo_fn, ci_fn;
+      int32_t combos_fn[128];
+      if (pipeline_module_func_num_generic_params_at(module, fi) <= 0) continue;
+      if (pipeline_module_func_is_extern_at(module, fi) != 0) continue;
+      np = pipeline_module_func_num_params_at(module, fi);
+      if (np < 0 || np > 8) continue;
+      ret_extra = codegen_func_ret_type_param_extra(arena, module, fi);
+      combo_width = np + ret_extra;
+      if (combo_width <= 0 || combo_width > 8) continue;
+      ncombo_fn = codegen_collect_mono_combos_for_generic_func(arena, module, fi, &combos_fn[0], 16, np, ret_extra);
+      for (ci_fn = 0; ci_fn < ncombo_fn && combo_count < max_combos; ci_fn++) {
+        int32_t mono_gen[8], mono_conc[8], nmono = 0, pi, try_tr, tr_i;
+        int32_t ret_ty_fn = pipeline_module_func_return_type_at(module, fi);
+        for (pi = 0; pi < np && nmono < 8; pi++) {
+          mono_gen[nmono] = pipeline_module_func_param_type_ref_at(module, fi, pi);
+          mono_conc[nmono] = combos_fn[ci_fn * combo_width + pi];
+          nmono++;
+        }
+        if (ret_extra != 0 && nmono < 8) {
+          int32_t ta_c = combos_fn[ci_fn * combo_width + np];
+          if (ta_c > 0 && ta_c != ret_ty_fn) {
+            mono_gen[nmono] = ret_ty_fn;
+            mono_conc[nmono] = ta_c;
+            nmono++;
+          }
+        }
+        for (tr_i = 0; tr_i < np + 1; tr_i++) {
+          int32_t combo_r[4], filled_r = 0, ok_r = 1, s_r, found_r, c_r, s_a;
+          uint8_t tnm_r[64];
+          int32_t tnl_r, eq_r = 1, bi_r, si_r;
+          try_tr = (tr_i < np) ? pipeline_module_func_param_type_ref_at(module, fi, tr_i) : ret_ty_fn;
+          if (try_tr <= 0 || pipeline_type_kind_ord_at(arena, try_tr) != 8) continue;
+          tnl_r = pipeline_type_named_name_into(arena, try_tr, tnm_r);
+          if (tnl_r != layout_nl || tnl_r <= 0) continue;
+          for (bi_r = 0; bi_r < tnl_r; bi_r++) if (tnm_r[bi_r] != layout_nm[bi_r]) { eq_r = 0; break; }
+          if (!eq_r) continue;
+          for (si_r = 0; si_r < ntp; si_r++) {
+            int32_t arg = pipeline_type_type_arg_ref_at(arena, try_tr, si_r);
+            if (arg <= 0 && si_r == 0) arg = pipeline_type_elem_ref_at(arena, try_tr);
+            if (arg > 0 && codegen_type_ref_is_host_concrete(module, arena, arg) == 0)
+              arg = codegen_generic_struct_resolve_arg_via_map(module, arena, arg, mono_gen, mono_conc, nmono);
+            if (arg <= 0 || codegen_type_ref_is_host_concrete(module, arena, arg) == 0) { ok_r = 0; break; }
+            combo_r[si_r] = arg;
+            filled_r++;
+          }
+          if (!ok_r || filled_r != ntp) {
+            /* Fallback: layout type-param names via mono map (bare Pair ret under mono). */
+            ok_r = 1;
+            filled_r = 0;
+            for (si_r = 0; si_r < ntp; si_r++) {
+              int32_t tpl, mi_m, found_slot = 0;
+              uint8_t tpn[64];
+              tpl = pipeline_module_struct_layout_type_param_name_len(module, layout_k, si_r);
+              pipeline_module_struct_layout_type_param_name_into(module, layout_k, si_r, tpn);
+              for (mi_m = 0; mi_m < nmono && mi_m < 8; mi_m++) {
+                uint8_t gnm[64];
+                int32_t gnl, geq = 1, gi;
+                if (mono_gen[mi_m] <= 0 || mono_conc[mi_m] <= 0) continue;
+                gnl = pipeline_type_named_name_into(arena, mono_gen[mi_m], gnm);
+                if (gnl != tpl || gnl <= 0) continue;
+                for (gi = 0; gi < gnl; gi++) if (gnm[gi] != tpn[gi]) { geq = 0; break; }
+                if (geq && codegen_type_ref_is_host_concrete(module, arena, mono_conc[mi_m]) != 0) {
+                  combo_r[si_r] = mono_conc[mi_m];
+                  found_slot = 1;
+                  filled_r++;
+                  break;
+                }
+              }
+              if (!found_slot) { ok_r = 0; break; }
+            }
+          }
+          if (!ok_r || filled_r != ntp) continue;
+          found_r = 0;
+          for (c_r = 0; c_r < combo_count; c_r++) {
+            int32_t same_r = 1;
+            for (s_r = 0; s_r < ntp; s_r++)
+              if (!codegen_combo_slots_equal(arena, combos_out[c_r * ntp + s_r], combo_r[s_r])) { same_r = 0; break; }
+            if (same_r) { found_r = 1; break; }
+          }
+          if (!found_r && combo_count < max_combos) {
+            for (s_a = 0; s_a < ntp; s_a++) combos_out[combo_count * ntp + s_a] = combo_r[s_a];
+            combo_count++;
+          }
+        }
+      }
+    }
+  }
+  return combo_count;
+}
+
+/*
+ * wave484/485: mono suffix bytes from a STRUCT_LIT field init (recursive structure).
+ * Nested Wrap { inner: Wrap { inner: A } } must not trust ambient resolved_type_ref
+ * (often the outer Wrap&lt;Wrap&lt;A&gt;&gt;).
+ * wave485: under function mono, leaf inits typed as free T map via ctx (T→A) so
+ * nest&lt;T&gt;():Wrap&lt;Wrap&lt;T&gt;&gt; body emits Wrap__Wrap_A / Wrap__A not shallow Wrap__A.
+ * PLATFORM: SHARED host-C.
+ */
+static int32_t codegen_mono_suffix_bytes_from_init(struct ast_ASTArena *arena, struct ast_Module *module,
+    int32_t init_ref, uint8_t *buf, int32_t buf_cap, struct ast_PipelineDepCtx *ctx) {
+  struct ast_Expr ie;
+  int32_t rty;
+  int32_t mapped;
+  if (!arena || !module || init_ref <= 0 || !buf || buf_cap <= 0) return 0;
+  ie = ast_ast_arena_expr_get(arena, init_ref);
+  if (ie.kind == 45 /* EXPR_STRUCT_LIT */) {
+    int32_t nl = ie.struct_lit_struct_name_len;
+    int32_t pos = 0, i, lk, ntp, tj;
+    if (nl <= 0 || nl >= buf_cap) return 0;
+    for (i = 0; i < nl && pos < buf_cap; i++) buf[pos++] = ie.struct_lit_struct_name[i];
+    lk = codegen_module_struct_layout_index_by_name(module, ie.struct_lit_struct_name, nl);
+    if (lk < 0) return pos;
+    ntp = pipeline_module_struct_layout_num_type_params_at(module, lk);
+    if (ntp <= 0) return pos;
+    for (tj = 0; tj < ntp && tj < 4; tj++) {
+      int32_t tpl = pipeline_module_struct_layout_type_param_name_len(module, lk, tj);
+      uint8_t tpn[64];
+      int32_t nf = pipeline_module_struct_layout_num_fields(module, lk);
+      int32_t fj, found = 0;
+      pipeline_module_struct_layout_type_param_name_into(module, lk, tj, tpn);
+      for (fj = 0; fj < nf; fj++) {
+        int32_t ftr = pipeline_module_struct_layout_field_type_ref(module, lk, fj);
+        uint8_t ftn[64]; int32_t ftnl, peq = 1, pi;
+        int32_t flen, lit_nf, li;
+        uint8_t fnm[64];
+        if (pipeline_type_kind_ord_at(arena, ftr) != 8) continue;
+        ftnl = pipeline_type_named_name_into(arena, ftr, ftn);
+        if (ftnl != tpl || ftnl <= 0) continue;
+        for (pi = 0; pi < ftnl; pi++) if (ftn[pi] != tpn[pi]) { peq = 0; break; }
+        if (!peq) continue;
+        flen = pipeline_module_struct_layout_field_name_len(module, lk, fj);
+        pipeline_module_struct_layout_field_name_into(module, lk, fj, fnm);
+        lit_nf = pipeline_expr_struct_lit_num_fields(arena, init_ref);
+        for (li = 0; li < lit_nf; li++) {
+          int32_t lfl = pipeline_expr_struct_lit_field_name_len(arena, init_ref, li);
+          uint8_t lfn[64]; int32_t feq = 1, fi, iref, al;
+          uint8_t asuf[64];
+          if (lfl != flen || flen <= 0) continue;
+          pipeline_expr_struct_lit_field_name_into(arena, init_ref, li, lfn);
+          for (fi = 0; fi < flen; fi++) if (lfn[fi] != fnm[fi]) { feq = 0; break; }
+          if (!feq) continue;
+          iref = pipeline_expr_struct_lit_init_ref(arena, init_ref, li);
+          al = codegen_mono_suffix_bytes_from_init(arena, module, iref, asuf, 64, ctx);
+          /* wave485: init leaf may lack resolved_type (param x under mono body).
+           * Fallback: layout type-param name → mono concrete suffix. */
+          if (al <= 0 && ctx && ctx->mono_active != 0 && ctx->mono_num_types > 0) {
+            int32_t mi_f;
+            for (mi_f = 0; mi_f < ctx->mono_num_types && mi_f < 8; mi_f++) {
+              uint8_t gnm_f[64];
+              int32_t gnl_f, geq_f = 1, gi_f;
+              int32_t gtr_f = ctx->mono_generic_type_refs[mi_f];
+              int32_t ctr_f = ctx->mono_concrete_type_refs[mi_f];
+              if (gtr_f <= 0 || ctr_f <= 0) continue;
+              gnl_f = pipeline_type_named_name_into(arena, gtr_f, gnm_f);
+              if (gnl_f != tpl || gnl_f <= 0) continue;
+              for (gi_f = 0; gi_f < gnl_f; gi_f++) if (gnm_f[gi_f] != tpn[gi_f]) { geq_f = 0; break; }
+              if (geq_f && codegen_type_ref_is_host_concrete(module, arena, ctr_f) != 0) {
+                al = codegen_type_ref_to_suffix(arena, ctr_f, asuf, 64);
+                break;
+              }
+            }
+          }
+          if (al <= 0) return 0;
+          if (pos + 1 + al >= buf_cap) return 0;
+          buf[pos++] = 95;
+          for (fi = 0; fi < al; fi++) buf[pos++] = asuf[fi];
+          found = 1;
+          break;
+        }
+        if (found) break;
+      }
+      if (!found) return 0;
+    }
+    return pos;
+  }
+  rty = pipeline_expr_resolved_type_ref(arena, init_ref);
+  if (rty <= 0) {
+    int32_t ek = pipeline_expr_kind_ord_at(arena, init_ref);
+    /* wave485: unstamped INT lit as type-arg slot (Pair { …, b: 1 }) → i32 suffix. */
+    if (ek == 0 /* EXPR_LIT */ && buf_cap > 3) {
+      buf[0] = 105; buf[1] = 51; buf[2] = 50; /* i32 */
+      return 3;
+    }
+    /* no stamp — layout-param mono fallback is in STRUCT_LIT caller */
+    return 0;
+  }
+  /* wave485: free T under mono → concrete (param x:T with T→A). */
+  mapped = codegen_generic_struct_resolve_arg_via_ctx(module, arena, ctx, rty);
+  if (mapped > 0)
+    rty = mapped;
+  return codegen_type_ref_to_suffix(arena, rty, buf, buf_cap);
+}
+
+/* wave484/485: emit __suf0[_suf1…] for STRUCT_LIT from field structure (not ambient type). */
+static int32_t codegen_try_emit_struct_lit_mono_from_fields(struct ast_Module *module, struct ast_ASTArena *arena,
+    struct codegen_CodegenOutBuf *out, int32_t expr_ref, uint8_t *layout_nm, int32_t layout_nl,
+    struct ast_PipelineDepCtx *ctx) {
+  int32_t lk, ntp, tj, first = 1;
+  if (!module || !arena || !out || expr_ref <= 0 || !layout_nm || layout_nl <= 0) return 0;
+  lk = codegen_module_struct_layout_index_by_name(module, layout_nm, layout_nl);
+  if (lk < 0) return 0;
+  ntp = pipeline_module_struct_layout_num_type_params_at(module, lk);
+  if (ntp <= 0 || ntp > 4) return 0;
+  /* probe all slots fillable */
+  for (tj = 0; tj < ntp; tj++) {
+    int32_t tpl = pipeline_module_struct_layout_type_param_name_len(module, lk, tj);
+    uint8_t tpn[64];
+    int32_t nf = pipeline_module_struct_layout_num_fields(module, lk);
+    int32_t fj, found = 0;
+    pipeline_module_struct_layout_type_param_name_into(module, lk, tj, tpn);
+    for (fj = 0; fj < nf; fj++) {
+      int32_t ftr = pipeline_module_struct_layout_field_type_ref(module, lk, fj);
+      uint8_t ftn[64]; int32_t ftnl, peq = 1, pi, flen, lit_nf, li;
+      uint8_t fnm[64];
+      if (pipeline_type_kind_ord_at(arena, ftr) != 8) continue;
+      ftnl = pipeline_type_named_name_into(arena, ftr, ftn);
+      if (ftnl != tpl || ftnl <= 0) continue;
+      for (pi = 0; pi < ftnl; pi++) if (ftn[pi] != tpn[pi]) { peq = 0; break; }
+      if (!peq) continue;
+      flen = pipeline_module_struct_layout_field_name_len(module, lk, fj);
+      pipeline_module_struct_layout_field_name_into(module, lk, fj, fnm);
+      lit_nf = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+      for (li = 0; li < lit_nf; li++) {
+        int32_t lfl = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, li);
+        uint8_t lfn[64]; int32_t feq = 1, fi, iref, al;
+        uint8_t asuf[64];
+        if (lfl != flen || flen <= 0) continue;
+        pipeline_expr_struct_lit_field_name_into(arena, expr_ref, li, lfn);
+        for (fi = 0; fi < flen; fi++) if (lfn[fi] != fnm[fi]) { feq = 0; break; }
+        if (!feq) continue;
+        iref = pipeline_expr_struct_lit_init_ref(arena, expr_ref, li);
+        al = codegen_mono_suffix_bytes_from_init(arena, module, iref, asuf, 64, ctx);
+        if (al <= 0) return 0;
+        found = 1;
+        break;
+      }
+      if (found) break;
+    }
+    if (!found) return 0;
+  }
+  /* emit __ then each slot */
+  {
+    uint8_t sep[2] = {95, 95};
+    if (codegen_emit_bytes_from_ptr(out, sep, 2) != 0) return -1;
+  }
+  for (tj = 0; tj < ntp; tj++) {
+    int32_t tpl = pipeline_module_struct_layout_type_param_name_len(module, lk, tj);
+    uint8_t tpn[64];
+    int32_t nf = pipeline_module_struct_layout_num_fields(module, lk);
+    int32_t fj, done = 0;
+    pipeline_module_struct_layout_type_param_name_into(module, lk, tj, tpn);
+    for (fj = 0; fj < nf; fj++) {
+      int32_t ftr = pipeline_module_struct_layout_field_type_ref(module, lk, fj);
+      uint8_t ftn[64]; int32_t ftnl, peq = 1, pi, flen, lit_nf, li;
+      uint8_t fnm[64];
+      if (pipeline_type_kind_ord_at(arena, ftr) != 8) continue;
+      ftnl = pipeline_type_named_name_into(arena, ftr, ftn);
+      if (ftnl != tpl || ftnl <= 0) continue;
+      for (pi = 0; pi < ftnl; pi++) if (ftn[pi] != tpn[pi]) { peq = 0; break; }
+      if (!peq) continue;
+      flen = pipeline_module_struct_layout_field_name_len(module, lk, fj);
+      pipeline_module_struct_layout_field_name_into(module, lk, fj, fnm);
+      lit_nf = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+      for (li = 0; li < lit_nf; li++) {
+        int32_t lfl = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, li);
+        uint8_t lfn[64]; int32_t feq = 1, fi, iref, al;
+        uint8_t asuf[64];
+        if (lfl != flen || flen <= 0) continue;
+        pipeline_expr_struct_lit_field_name_into(arena, expr_ref, li, lfn);
+        for (fi = 0; fi < flen; fi++) if (lfn[fi] != fnm[fi]) { feq = 0; break; }
+        if (!feq) continue;
+        iref = pipeline_expr_struct_lit_init_ref(arena, expr_ref, li);
+        al = codegen_mono_suffix_bytes_from_init(arena, module, iref, asuf, 64, ctx);
+        if (al <= 0) return -1;
+        if (!first) {
+          if (codegen_append_byte(out, 95) != 0) return -1;
+        }
+        first = 0;
+        if (codegen_emit_bytes_from_ptr(out, asuf, al) != 0) return -1;
+        done = 1;
+        break;
+      }
+      if (done) break;
+    }
+    if (!done) return -1;
+  }
+  return 1; /* emitted */
+}
+
+static int32_t codegen_maybe_emit_generic_struct_mono_suffix_for_type(struct ast_Module *module, struct ast_ASTArena *arena,
+    struct codegen_CodegenOutBuf *out, int32_t type_ref, struct ast_PipelineDepCtx *ctx) {
+  uint8_t nm[64]; int32_t nl, bare_off = 0, bi, bare_len, lk, ntp; int32_t mono[4];
+  if (!module || !arena || !out || type_ref <= 0) return 0;
+  if (pipeline_type_kind_ord_at(arena, type_ref) != 8) return 0;
+  nl = pipeline_type_named_name_into(arena, type_ref, nm);
+  if (nl <= 0) return 0;
+  for (bi = 0; bi < nl && bi < 64; bi++) if (nm[bi] == 46) bare_off = bi + 1;
+  bare_len = nl - bare_off;
+  if (bare_len <= 0) return 0;
+  lk = codegen_module_struct_layout_index_by_name(module, nm + bare_off, bare_len);
+  if (lk < 0) return 0;
+  ntp = pipeline_module_struct_layout_num_type_params_at(module, lk);
+  if (ntp <= 0) return 0;
+  if (codegen_generic_struct_fill_concrete_args(module, arena, type_ref, ntp, mono, ctx) == ntp)
+    return codegen_emit_generic_struct_mono_suffix(out, arena, mono, ntp);
+  /*
+   * wave482: mono body / mono signature — layout type-param names via mono map
+   * when type_ref still carries free T/U (Pair&lt;T,U&gt; under T→A,U→B).
+   * PLATFORM: SHARED host-C.
+   */
+  if (ctx && ctx->mono_active != 0 && ctx->mono_num_types > 0 && ntp <= 4) {
+    int32_t tj, ok = 1;
+    for (tj = 0; tj < ntp; tj++) {
+      int32_t tpl, mi_m, found = 0;
+      uint8_t tpn[64];
+      tpl = pipeline_module_struct_layout_type_param_name_len(module, lk, tj);
+      pipeline_module_struct_layout_type_param_name_into(module, lk, tj, tpn);
+      mono[tj] = 0;
+      for (mi_m = 0; mi_m < ctx->mono_num_types && mi_m < 8; mi_m++) {
+        int32_t gtr = ctx->mono_generic_type_refs[mi_m];
+        int32_t ctr = ctx->mono_concrete_type_refs[mi_m];
+        uint8_t gnm[64];
+        int32_t gnl, geq = 1, gi;
+        if (gtr <= 0 || ctr <= 0) continue;
+        gnl = pipeline_type_named_name_into(arena, gtr, gnm);
+        if (gnl != tpl || gnl <= 0) continue;
+        for (gi = 0; gi < gnl; gi++) if (gnm[gi] != tpn[gi]) { geq = 0; break; }
+        if (geq && codegen_type_ref_is_host_concrete(module, arena, ctr) != 0) {
+          mono[tj] = ctr;
+          found = 1;
+          break;
+        }
+      }
+      if (!found) { ok = 0; break; }
+    }
+    if (ok) return codegen_emit_generic_struct_mono_suffix(out, arena, mono, ntp);
+  }
+  /*
+   * wave489 Cap residual: free type-args on generic-impl method self (Box<T>).
+   * When fill_concrete fails and mono_active is off (impl methods emit as free fns),
+   * reuse collect: if this layout has exactly one host-concrete mono combo, emit that
+   * suffix so params match monomorphized receivers (Box__i32) instead of incomplete
+   * bare Box. Multi-combo: wave490 fixed per-combo suffix for type references;
+   * wave498 added per-combo mangled method definitions + call-side mangling
+   * (codegen_try_emit_generic_impl_method_mono + codegen_try_emit_impl_method_
+   * mono_call_name across 5 call paths). No longer soft.
+   * PLATFORM: SHARED host-C.
+   */
+  if (ntp <= 4) {
+    int32_t combos[32];
+    int32_t nc = codegen_collect_generic_struct_mono_combos(module, arena, lk, nm + bare_off, bare_len, ntp, combos, 8);
+    if (nc == 1)
+      return codegen_emit_generic_struct_mono_suffix(out, arena, combos, ntp);
+    /*
+     * wave490 Cap residual: multi-combo generic impl method mangling.
+     * When multiple concrete type-arg combos exist (e.g., Box<A> + Box<B>),
+     * match the current type_ref's concrete args against each collected
+     * combo and emit the matching suffix so each instantiation gets a
+     * unique mangled name. PLATFORM: SHARED host-C.
+     */
+    if (nc > 1) {
+      int32_t match_combo[4];
+      int32_t mi = 0;
+      while (mi < nc) {
+        int32_t matched = 1;
+        int32_t si = 0;
+        while (si < ntp) {
+          int32_t arg_ref = pipeline_type_type_arg_ref_at(arena, type_ref, si);
+          if (arg_ref <= 0) {
+            matched = 0;
+            si = ntp;
+          } else if (codegen_combo_slots_equal(arena, arg_ref, combos[mi * ntp + si]) == 0) {
+            matched = 0;
+            si = ntp;
+          }
+          si = si + 1;
+        }
+        if (matched != 0) {
+          int32_t sj = 0;
+          while (sj < ntp) {
+            match_combo[sj] = combos[mi * ntp + sj];
+            sj = sj + 1;
+          }
+          return codegen_emit_generic_struct_mono_suffix(out, arena, match_combo, ntp);
+        }
+        mi = mi + 1;
+      }
+    }
+  }
+  return 0;
+}
+
+/*
+ * wave495: build a type-param-name → concrete type_ref mono map for a function's
+ * params, derived from each generic-struct param's unique mono combo.
+ *
+ * Why: hoisted generic inherent impl methods (impl Wrap<T> { function get(self: Wrap<T>): T })
+ * have num_generic_params == 0 (the <T> is on the impl, not the fn), so they bypass
+ * codegen_try_emit_generic_identity_mono and are emitted by emit_func. Without mono_active,
+ * the return type T emits as `struct T` (incomplete BLD001) while the self param Wrap<T>
+ * is rescued by the wave489 unique-combo suffix mechanism. This helper derives the
+ * T→concrete mapping from the self param's unique combo so emit_func can set mono_active
+ * and let emit_type's name-based fallback substitute T in ret type + body.
+ *
+ * Guards (only handle the unique-combo case; multi-combo stays soft per wave490):
+ *   - skip param if fill_concrete_args succeeds (param already concrete)
+ *   - skip param if collect_combos returns nc != 1
+ *   - skip type-arg slot if pipeline_type_type_arg_ref_at returns <= 0 (bare struct)
+ *   - dedup by formal_arg type_ref (don't double-map same T from two params)
+ * PLATFORM: SHARED — mirrors codegen.x same commit.
+ */
+static int32_t codegen_build_func_param_mono_map(struct ast_Module *module, struct ast_ASTArena *arena,
+    int32_t fi, int32_t *gen_refs, int32_t *conc_refs, int32_t max_entries) {
+  int32_t map_count = 0;
+  int32_t num_params, p;
+  if (!module || !arena || !gen_refs || !conc_refs || max_entries <= 0) {
+    return 0;
+  }
+  if (fi < 0 || fi >= module->num_funcs) {
+    return 0;
+  }
+  num_params = pipeline_module_func_num_params_at(module, fi);
+  for (p = 0; p < num_params; p++) {
+    int32_t pty_raw = pipeline_module_func_param_type_ref_at(module, fi, p);
+    int32_t pty, nl, bare_off = 0, bi, bare_len, lk, ntp, nc, tj;
+    uint8_t nm[64];
+    int32_t mono_chk[4];
+    int32_t combos[32];
+    if (pty_raw <= 0) {
+      continue;
+    }
+    /* Peel aliases (Cap residual wave376) to reach TYPE_NAMED. */
+    pty = pipeline_typeck_resolve_type_alias_ref_c(arena, pty_raw);
+    if (pty <= 0) {
+      continue;
+    }
+    if (pipeline_type_kind_ord_at(arena, pty) != ast_TypeKind_TYPE_NAMED) {
+      continue;
+    }
+    nl = pipeline_type_named_name_into(arena, pty, nm);
+    if (nl <= 0) {
+      continue;
+    }
+    /* bare name after last '.' */
+    for (bi = 0; bi < nl && bi < 64; bi++) {
+      if (nm[bi] == 46) {
+        bare_off = bi + 1;
+      }
+    }
+    bare_len = nl - bare_off;
+    if (bare_len <= 0) {
+      continue;
+    }
+    lk = codegen_module_struct_layout_index_by_name(module, nm + bare_off, bare_len);
+    if (lk < 0) {
+      continue;
+    }
+    ntp = pipeline_module_struct_layout_num_type_params_at(module, lk);
+    if (ntp <= 0) {
+      continue;
+    }
+    /* Skip if param is already concrete (e.g. Wrap<i32>); fill_concrete succeeds. */
+    if (codegen_generic_struct_fill_concrete_args(module, arena, pty, ntp, mono_chk, ((struct ast_PipelineDepCtx *)(0))) == ntp) {
+      continue;
+    }
+    /* Has free type-args — collect combos. Only handle unique combo (wave489). */
+    nc = codegen_collect_generic_struct_mono_combos(module, arena, lk, nm + bare_off, bare_len, ntp, combos, 8);
+    if (nc != 1) {
+      continue;
+    }
+    /* Map each formal type-arg → combo concrete. */
+    for (tj = 0; tj < ntp; tj++) {
+      int32_t formal_arg = pipeline_type_type_arg_ref_at(arena, pty, tj);
+      int32_t concrete_arg = combos[tj];
+      if (formal_arg > 0 && concrete_arg > 0 && map_count < max_entries) {
+        /* Dedup by formal_arg type_ref. */
+        int32_t dup = 0;
+        int32_t dk;
+        for (dk = 0; dk < map_count; dk++) {
+          if (gen_refs[dk] == formal_arg) {
+            dup = 1;
+            break;
+          }
+        }
+        if (!dup) {
+          gen_refs[map_count] = formal_arg;
+          conc_refs[map_count] = concrete_arg;
+          map_count++;
+        }
+      }
+    }
+  }
+  return map_count;
+}
+
 int32_t codegen_emit_struct_field_decl_x(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t type_ref, uint8_t * field_name, int32_t field_name_len, uint8_t * struct_prefix, int32_t struct_prefix_len, struct ast_PipelineDepCtx * ctx) {
   {
     int32_t base_ref = type_ref;
@@ -4951,114 +7188,295 @@ int32_t codegen_emit_struct_field_decl_x(struct ast_ASTArena * arena, struct cod
 }
 int32_t codegen_emit_module_struct_definitions(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, uint8_t * struct_prefix, int32_t struct_prefix_len, struct ast_PipelineDepCtx * ctx) {
   {
-    int32_t k = 0;
     int32_t cur_di = -(1);
+    int32_t phase;
+    /* wave488: claim prefix shared helper pattern (entry bare / dep / ast_). PLATFORM: SHARED. */
     if ((ctx !=((struct ast_PipelineDepCtx *)(0)))) {
       (void)((cur_di = (ctx->current_codegen_dep_index)));
     }
-    while ((k < (module->num_struct_layouts))) {
-      int32_t nf = pipeline_module_struct_layout_num_fields(module, k);
-      int32_t nl = pipeline_module_struct_layout_name_len(module, k);
-      if (((nf <=0) || (nl <=0))) {
-        (void)((k = (k + 1)));
-        continue;
-      }
-      uint8_t ty_nm[64] = {};
-      (void)(pipeline_module_struct_layout_name_into(module, k, &((ty_nm)[0])));
-      /* PLATFORM: SHARED — entry + dep: only defining owner emits full layout.
-       * Entry must skip dep-owned names (Lexer→parser_Lexer residual: field type_ref=0). */
-      if ((ctx !=((struct ast_PipelineDepCtx *)(0)))) {
-        int32_t owner = codegen_type_dep_struct_owner_index(ctx, &((ty_nm)[0]), nl);
-        if (((owner >=0) && (owner !=cur_di))) {
+    /*
+     * wave488 Cap residual pure: mono mangled structs (Wrap__A) must not emit before
+     * non-generic field types (A). Prior single pass walked layout order — generic Wrap
+     * before A → host-C "incomplete type 'struct …_A'" BLD001. Fix:
+     *   phase 0 — non-generic layouts (and generic with zero mono combos)
+     *   phase 1 — collect all mono combos across layouts, sort by type-arg nest depth
+     *             (Pair__S_i32 depth 0 before Wrap__Pair… depth 1), then emit.
+     * wave484 shallow→deep among one layout remains via global depth sort.
+     * PLATFORM: SHARED host-C.
+     */
+    for (phase = 0; phase < 2; phase++) {
+      int32_t k = 0;
+      /* phase 1 job table: layout_k, ntp, depth, mono[4] — cap 32 combos. */
+      int32_t job_k[32];
+      int32_t job_ntp[32];
+      int32_t job_depth[32];
+      int32_t job_mono[128];
+      int32_t njob = 0;
+      while ((k < (module->num_struct_layouts))) {
+        int32_t nf = pipeline_module_struct_layout_num_fields(module, k);
+        int32_t nl = pipeline_module_struct_layout_name_len(module, k);
+        int32_t ntp_gs;
+        int32_t combos_gs[32];
+        int32_t ncombo_gs = 0;
+        uint8_t ty_nm[64] = {};
+        uint8_t claim_pfx[128] = {};
+        int32_t claim_plen = 0;
+        /* wave365: nf==0 true empty struct Empty {} → emit `struct T {\n};\n` (host complete type).
+         * Prior `nf<=0` skip left only uses → incomplete type BLD001. PLATFORM: SHARED. */
+        if ((nl <=0)) {
           (void)((k = (k + 1)));
           continue;
         }
-      }
-      if ((codegen_should_skip_emit_struct_layout_for_abi_dup(&((ty_nm)[0]), nl) !=0)) {
-        (void)((k = (k + 1)));
-        continue;
-      }
-      uint8_t claim_pfx[128] = {};
-      int32_t claim_plen = 0;
-      if (((struct_prefix !=((uint8_t *)(0))) && (struct_prefix_len > 0))) {
-        int32_t ci = 0;
-        (void)((claim_plen = struct_prefix_len));
-        if ((claim_plen > 127)) {
-          (void)((claim_plen = 127));
+        (void)(pipeline_module_struct_layout_name_into(module, k, &((ty_nm)[0])));
+        /* PLATFORM: SHARED — entry + dep: only defining owner emits full layout.
+         * Entry must skip dep-owned names (Lexer→parser_Lexer residual: field type_ref=0). */
+        if ((ctx !=((struct ast_PipelineDepCtx *)(0)))) {
+          int32_t owner = codegen_type_dep_struct_owner_index(ctx, &((ty_nm)[0]), nl);
+          if (((owner >=0) && (owner !=cur_di))) {
+            (void)((k = (k + 1)));
+            continue;
+          }
         }
-        while ((ci < claim_plen)) {
-          (void)(((claim_pfx)[ci] = (struct_prefix)[ci]));
-          (void)((ci = (ci + 1)));
+        if ((codegen_should_skip_emit_struct_layout_for_abi_dup(&((ty_nm)[0]), nl) !=0)) {
+          (void)((k = (k + 1)));
+          continue;
         }
-      } else {
-        if (!(((ctx !=((struct ast_PipelineDepCtx *)(0))) && ((ctx->current_codegen_dep_index) < 0)))) {
-          (void)(((claim_pfx)[0] = 97));
-          (void)(((claim_pfx)[1] = 115));
-          (void)(((claim_pfx)[2] = 116));
-          (void)(((claim_pfx)[3] = 95));
-          (void)((claim_plen = 4));
-        }
-      }
-      if ((pipeline_codegen_struct_tag_try_claim(&((claim_pfx)[0]), claim_plen, &((ty_nm)[0]), nl) ==0)) {
-        (void)((k = (k + 1)));
-        continue;
-      }
-      uint8_t hdr_top[8] = {115, 116, 114, 117, 99, 116, 32, 0};
-      if ((codegen_emit_bytes_8(out, hdr_top, 7) !=0)) {
-        return -(1);
-      }
-      if (((struct_prefix !=((uint8_t *)(0))) && (struct_prefix_len > 0))) {
-        if ((codegen_emit_bytes_from_ptr(out, struct_prefix, struct_prefix_len) !=0)) {
-          return -(1);
-        }
-      } else {
-        if (((ctx !=((struct ast_PipelineDepCtx *)(0))) && ((ctx->current_codegen_dep_index) < 0))) {
+        if (((struct_prefix !=((uint8_t *)(0))) && (struct_prefix_len > 0))) {
+          int32_t ci = 0;
+          (void)((claim_plen = struct_prefix_len));
+          if ((claim_plen > 127)) {
+            (void)((claim_plen = 127));
+          }
+          while ((ci < claim_plen)) {
+            (void)(((claim_pfx)[ci] = (struct_prefix)[ci]));
+            (void)((ci = (ci + 1)));
+          }
         } else {
-          uint8_t ast_top[4] = {97, 115, 116, 95};
-          if ((codegen_emit_bytes_4(out, ast_top, 4) !=0)) {
-            return -(1);
+          if (!(((ctx !=((struct ast_PipelineDepCtx *)(0))) && ((ctx->current_codegen_dep_index) < 0)))) {
+            (void)(((claim_pfx)[0] = 97));
+            (void)(((claim_pfx)[1] = 115));
+            (void)(((claim_pfx)[2] = 116));
+            (void)(((claim_pfx)[3] = 95));
+            (void)((claim_plen = 4));
+          }
+        }
+        ntp_gs = pipeline_module_struct_layout_num_type_params_at(module, k);
+        if (((ntp_gs > 0) && (ntp_gs <= 4) && (arena != ((struct ast_ASTArena *)(0))))) {
+          ncombo_gs = codegen_collect_generic_struct_mono_combos(module, arena, k, &((ty_nm)[0]), nl, ntp_gs, &((combos_gs)[0]), 8);
+        }
+        if (phase == 0) {
+          /* Defer mono mangled defs to phase 1. */
+          if ((ncombo_gs > 0)) {
+            (void)((k = (k + 1)));
+            continue;
+          }
+          /* Ordinary / empty-generic layout emit (unchanged path). */
+          if ((pipeline_codegen_struct_tag_try_claim(&((claim_pfx)[0]), claim_plen, &((ty_nm)[0]), nl) ==0)) {
+            (void)((k = (k + 1)));
+            continue;
+          }
+          {
+            uint8_t hdr_top[8] = {115, 116, 114, 117, 99, 116, 32, 0};
+            if ((codegen_emit_bytes_8(out, hdr_top, 7) !=0)) {
+              return -(1);
+            }
+            if (((struct_prefix !=((uint8_t *)(0))) && (struct_prefix_len > 0))) {
+              if ((codegen_emit_bytes_from_ptr(out, struct_prefix, struct_prefix_len) !=0)) {
+                return -(1);
+              }
+            } else {
+              if (((ctx !=((struct ast_PipelineDepCtx *)(0))) && ((ctx->current_codegen_dep_index) < 0))) {
+              } else {
+                uint8_t ast_top[4] = {97, 115, 116, 95};
+                if ((codegen_emit_bytes_4(out, ast_top, 4) !=0)) {
+                  return -(1);
+                }
+              }
+            }
+            if ((codegen_emit_bytes_from_ptr(out, &((ty_nm)[0]), nl) !=0)) {
+              return -(1);
+            }
+            {
+              uint8_t br1[4] = {32, 123, 10, 0};
+              if ((codegen_emit_bytes_4(out, br1, 3) !=0)) {
+                return -(1);
+              }
+            }
+            {
+              int32_t j = 0;
+              while ((j < nf)) {
+                int32_t flen = pipeline_module_struct_layout_field_name_len(module, k, j);
+                int32_t ftr = pipeline_module_struct_layout_field_type_ref(module, k, j);
+                if ((flen <=0)) {
+                  (void)((j = (j + 1)));
+                  continue;
+                }
+                if ((codegen_emit_indent(out, 2) !=0)) {
+                  return -(1);
+                }
+                {
+                  uint8_t fnm[64] = {};
+                  (void)(pipeline_module_struct_layout_field_name_into(module, k, j, &((fnm)[0])));
+                  /* wave466: mono type-param fields before host-C field decl. */
+                  ftr = codegen_resolve_generic_struct_field_type(module, arena, &((ty_nm)[0]), nl, &((fnm)[0]), flen, ftr);
+                  if ((codegen_emit_struct_field_decl_x(arena, out, ftr, &((fnm)[0]), flen, ((uint8_t *)(0)), 0, ctx) !=0)) {
+                    return -(1);
+                  }
+                }
+                {
+                  uint8_t semi_nl[3] = {59, 10, 0};
+                  if ((codegen_emit_bytes_3(out, semi_nl, 2) !=0)) {
+                    return -(1);
+                  }
+                }
+                (void)((j = (j + 1)));
+              }
+            }
+            {
+              uint8_t close_ty[4] = {125, 59, 10, 10};
+              if ((codegen_emit_bytes_4(out, close_ty, 4) !=0)) {
+                return -(1);
+              }
+            }
+          }
+          (void)((k = (k + 1)));
+          continue;
+        }
+        /* phase 1: collect mono jobs only (emit after walk). */
+        if ((ncombo_gs > 0)) {
+          int32_t cc = 0;
+          while ((cc < ncombo_gs) && (njob < 32)) {
+            int32_t ms = 0;
+            int32_t mono_c[4];
+            while ((ms < ntp_gs)) {
+              (void)(((mono_c)[ms] = (combos_gs)[((cc * ntp_gs) + ms)]));
+              (void)((ms = (ms + 1)));
+            }
+            (void)(((job_k)[njob] = k));
+            (void)(((job_ntp)[njob] = ntp_gs));
+            (void)(((job_depth)[njob] = codegen_generic_struct_combo_nest_depth(arena, &((mono_c)[0]), ntp_gs)));
+            ms = 0;
+            while ((ms < ntp_gs)) {
+              (void)(((job_mono)[((njob * 4) + ms)] = (mono_c)[ms]));
+              (void)((ms = (ms + 1)));
+            }
+            while ((ms < 4)) {
+              (void)(((job_mono)[((njob * 4) + ms)] = 0));
+              (void)((ms = (ms + 1)));
+            }
+            (void)((njob = (njob + 1)));
+            (void)((cc = (cc + 1)));
+          }
+        }
+        (void)((k = (k + 1)));
+      }
+      if (phase == 1) {
+        /* Sort jobs shallow→deep by type-arg nest depth (cross-layout). */
+        {
+          int32_t i, j, s;
+          for (i = 0; i < njob; i++) {
+            for (j = i + 1; j < njob; j++) {
+              if (((job_depth)[j] < (job_depth)[i])) {
+                int32_t tmp;
+                tmp = (job_k)[i]; (job_k)[i] = (job_k)[j]; (job_k)[j] = tmp;
+                tmp = (job_ntp)[i]; (job_ntp)[i] = (job_ntp)[j]; (job_ntp)[j] = tmp;
+                tmp = (job_depth)[i]; (job_depth)[i] = (job_depth)[j]; (job_depth)[j] = tmp;
+                for (s = 0; s < 4; s++) {
+                  tmp = (job_mono)[((i * 4) + s)];
+                  (job_mono)[((i * 4) + s)] = (job_mono)[((j * 4) + s)];
+                  (job_mono)[((j * 4) + s)] = tmp;
+                }
+              }
+            }
+          }
+        }
+        /* Emit each mono job. */
+        {
+          int32_t ji;
+          for (ji = 0; ji < njob; ji++) {
+            int32_t k = (job_k)[ji];
+            int32_t ntp_gs = (job_ntp)[ji];
+            int32_t nf = pipeline_module_struct_layout_num_fields(module, k);
+            int32_t nl = pipeline_module_struct_layout_name_len(module, k);
+            int32_t mono_c[4];
+            int32_t ms = 0;
+            uint8_t ty_nm[64] = {};
+            uint8_t claim_pfx[128] = {};
+            int32_t claim_plen = 0;
+            uint8_t mangled[96];
+            int32_t mlen;
+            if ((nl <= 0) || (ntp_gs <= 0)) continue;
+            (void)(pipeline_module_struct_layout_name_into(module, k, &((ty_nm)[0])));
+            while ((ms < ntp_gs) && (ms < 4)) {
+              (void)(((mono_c)[ms] = (job_mono)[((ji * 4) + ms)]));
+              (void)((ms = (ms + 1)));
+            }
+            if (((struct_prefix !=((uint8_t *)(0))) && (struct_prefix_len > 0))) {
+              int32_t ci = 0;
+              (void)((claim_plen = struct_prefix_len));
+              if ((claim_plen > 127)) (void)((claim_plen = 127));
+              while ((ci < claim_plen)) {
+                (void)(((claim_pfx)[ci] = (struct_prefix)[ci]));
+                (void)((ci = (ci + 1)));
+              }
+            } else {
+              if (!(((ctx !=((struct ast_PipelineDepCtx *)(0))) && ((ctx->current_codegen_dep_index) < 0)))) {
+                (void)(((claim_pfx)[0] = 97));
+                (void)(((claim_pfx)[1] = 115));
+                (void)(((claim_pfx)[2] = 116));
+                (void)(((claim_pfx)[3] = 95));
+                (void)((claim_plen = 4));
+              }
+            }
+            mlen = codegen_generic_struct_mangled_name_into(arena, &((ty_nm)[0]), nl, &((mono_c)[0]), ntp_gs, &((mangled)[0]), 96);
+            if ((mlen <= 0)) continue;
+            if ((pipeline_codegen_struct_tag_try_claim(&((claim_pfx)[0]), claim_plen, &((mangled)[0]), mlen) == 0)) continue;
+            {
+              uint8_t hdr_m[8] = {115, 116, 114, 117, 99, 116, 32, 0};
+              if ((codegen_emit_bytes_8(out, hdr_m, 7) != 0)) return -(1);
+              if (((struct_prefix != ((uint8_t *)(0))) && (struct_prefix_len > 0))) {
+                if ((codegen_emit_bytes_from_ptr(out, struct_prefix, struct_prefix_len) != 0)) return -(1);
+              } else if (!(((ctx != ((struct ast_PipelineDepCtx *)(0))) && ((ctx->current_codegen_dep_index) < 0)))) {
+                uint8_t ast_m[4] = {97, 115, 116, 95};
+                if ((codegen_emit_bytes_4(out, ast_m, 4) != 0)) return -(1);
+              }
+              if ((codegen_emit_bytes_from_ptr(out, &((mangled)[0]), mlen) != 0)) return -(1);
+              {
+                uint8_t br_m[4] = {32, 123, 10, 0};
+                if ((codegen_emit_bytes_4(out, br_m, 3) != 0)) return -(1);
+              }
+              {
+                int32_t j_m = 0;
+                while ((j_m < nf)) {
+                  int32_t flen_m = pipeline_module_struct_layout_field_name_len(module, k, j_m);
+                  int32_t ftr_m = pipeline_module_struct_layout_field_type_ref(module, k, j_m);
+                  uint8_t fnm_m[64];
+                  if ((flen_m <= 0)) { (void)((j_m = (j_m + 1))); continue; }
+                  if ((codegen_emit_indent(out, 2) != 0)) return -(1);
+                  pipeline_module_struct_layout_field_name_into(module, k, j_m, &((fnm_m)[0]));
+                  ftr_m = codegen_generic_struct_field_type_from_mono(module, arena, k, ftr_m, &((mono_c)[0]), ntp_gs);
+                  if ((codegen_emit_struct_field_decl_x(arena, out, ftr_m, &((fnm_m)[0]), flen_m, ((uint8_t *)(0)), 0, ctx) != 0)) return -(1);
+                  {
+                    uint8_t semi_m[3] = {59, 10, 0};
+                    if ((codegen_emit_bytes_3(out, semi_m, 2) != 0)) return -(1);
+                  }
+                  (void)((j_m = (j_m + 1)));
+                }
+              }
+              {
+                uint8_t close_m[4] = {125, 59, 10, 10};
+                if ((codegen_emit_bytes_4(out, close_m, 4) != 0)) return -(1);
+              }
+            }
           }
         }
       }
-      if ((codegen_emit_bytes_from_ptr(out, &((ty_nm)[0]), nl) !=0)) {
-        return -(1);
-      }
-      uint8_t br1[4] = {32, 123, 10, 0};
-      if ((codegen_emit_bytes_4(out, br1, 3) !=0)) {
-        return -(1);
-      }
-      int32_t j = 0;
-      while ((j < nf)) {
-        int32_t flen = pipeline_module_struct_layout_field_name_len(module, k, j);
-        int32_t ftr = pipeline_module_struct_layout_field_type_ref(module, k, j);
-        if ((flen <=0)) {
-          (void)((j = (j + 1)));
-          continue;
-        }
-        if ((codegen_emit_indent(out, 2) !=0)) {
-          return -(1);
-        }
-        uint8_t fnm[64] = {};
-        (void)(pipeline_module_struct_layout_field_name_into(module, k, j, &((fnm)[0])));
-        if ((codegen_emit_struct_field_decl_x(arena, out, ftr, &((fnm)[0]), flen, ((uint8_t *)(0)), 0, ctx) !=0)) {
-          return -(1);
-        }
-        uint8_t semi_nl[3] = {59, 10, 0};
-        if ((codegen_emit_bytes_3(out, semi_nl, 2) !=0)) {
-          return -(1);
-        }
-        (void)((j = (j + 1)));
-      }
-      uint8_t close_ty[4] = {125, 59, 10, 10};
-      if ((codegen_emit_bytes_4(out, close_ty, 4) !=0)) {
-        return -(1);
-      }
-      (void)((k = (k + 1)));
     }
     return 0;
   }
   return 0;
 }
+
 int32_t codegen_emit_module_struct_forward_declarations(struct ast_Module * module, struct codegen_CodegenOutBuf * out, uint8_t * struct_prefix, int32_t struct_prefix_len) {
   return codegen_emit_module_struct_forward_declarations_ctx(module, out, struct_prefix, struct_prefix_len, ((struct ast_PipelineDepCtx *)(0)));
 }
@@ -5070,9 +7488,9 @@ int32_t codegen_emit_module_struct_forward_declarations_ctx(struct ast_Module * 
       (void)((cur_di = (ctx->current_codegen_dep_index)));
     }
     while ((k < (module->num_struct_layouts))) {
-      int32_t nf = pipeline_module_struct_layout_num_fields(module, k);
       int32_t nl = pipeline_module_struct_layout_name_len(module, k);
-      if (((nf <=0) || (nl <=0))) {
+      /* wave365: forward-declare zero-field layouts too (name only). PLATFORM: SHARED. */
+      if ((nl <=0)) {
         (void)((k = (k + 1)));
         continue;
       }
@@ -5623,6 +8041,251 @@ int32_t codegen_emit_import_module_const_field(struct ast_ASTArena * arena, stru
   }
   return 0;
 }
+/* wave371: unwrap EXPR_RETURN in match ternary value position (codegen.x twin). */
+static int32_t codegen_emit_match_arm_value(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+                                           int32_t res_ref, struct ast_PipelineDepCtx *ctx) {
+  struct ast_Expr re;
+  if (ast_ref_is_null(res_ref))
+    return codegen_append_byte(out, 48);
+  re = ast_ast_arena_expr_get(arena, res_ref);
+  /* EXPR_RETURN = 41 */
+  if ((int32_t)re.kind == 41) {
+    if (ast_ref_is_null(re.unary_operand_ref))
+      return codegen_append_byte(out, 48);
+    return codegen_emit_expr(arena, out, re.unary_operand_ref, ctx);
+  }
+  return codegen_emit_expr(arena, out, res_ref, ctx);
+}
+/* PLATFORM: SHARED — wave374 host match stmt form (codegen.x twin).
+ * Detect bare RETURN arms and block arms with explicit return (not value final_expr). */
+static int32_t codegen_block_has_explicit_return(struct ast_ASTArena *arena, int32_t block_ref) {
+  int32_t ji;
+  int32_t nes;
+  int32_t se_ref;
+  struct ast_Expr se;
+  int32_t fr;
+  struct ast_Expr fe;
+  int32_t ri;
+  int32_t nr;
+  int32_t rb;
+  if (arena == 0 || ast_ref_is_null(block_ref))
+    return 0;
+  if (block_ref <= 0 || block_ref > arena->num_blocks)
+    return 0;
+  nes = ast_ast_block_num_expr_stmts(arena, block_ref);
+  for (ji = 0; ji < nes; ji++) {
+    se_ref = ast_ast_block_expr_stmt_ref(arena, block_ref, ji);
+    se = ast_ast_arena_expr_get(arena, se_ref);
+    if ((int32_t)se.kind == 41)
+      return 1;
+    if ((int32_t)se.kind == 26 && codegen_block_has_explicit_return(arena, se.block_ref) != 0)
+      return 1;
+  }
+  fr = ast_ast_block_final_expr_ref(arena, block_ref);
+  if (!ast_ref_is_null(fr)) {
+    fe = ast_ast_arena_expr_get(arena, fr);
+    if ((int32_t)fe.kind == 41)
+      return 1;
+    if ((int32_t)fe.kind == 26 && codegen_block_has_explicit_return(arena, fe.block_ref) != 0)
+      return 1;
+  }
+  nr = ast_ast_block_num_regions(arena, block_ref);
+  for (ri = 0; ri < nr; ri++) {
+    rb = ast_ast_block_region_body_ref(arena, block_ref, ri);
+    if (codegen_block_has_explicit_return(arena, rb) != 0)
+      return 1;
+  }
+  return 0;
+}
+static int32_t codegen_match_arm_result_is_return_control(struct ast_ASTArena *arena, int32_t res_ref) {
+  struct ast_Expr re;
+  if (ast_ref_is_null(res_ref))
+    return 0;
+  re = ast_ast_arena_expr_get(arena, res_ref);
+  if ((int32_t)re.kind == 41)
+    return 1;
+  if ((int32_t)re.kind == 26)
+    return codegen_block_has_explicit_return(arena, re.block_ref);
+  return 0;
+}
+static int32_t codegen_match_has_return_arm(struct ast_ASTArena *arena, int32_t expr_ref) {
+  struct ast_Expr e;
+  int32_t n;
+  int32_t i;
+  int32_t res;
+  e = ast_ast_arena_expr_get(arena, expr_ref);
+  n = e.match_num_arms;
+  for (i = 0; i < n; i++) {
+    res = pipeline_expr_match_arm_result_ref(arena, expr_ref, i);
+    if (codegen_match_arm_result_is_return_control(arena, res) != 0)
+      return 1;
+  }
+  return 0;
+}
+static int32_t codegen_emit_match_stmt_arm_body(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+                                               int32_t res_ref, int32_t indent, struct ast_PipelineDepCtx *ctx,
+                                               int32_t fn_ret_void) {
+  struct ast_Expr re;
+  uint8_t v[9] = {40, 118, 111, 105, 100, 41, 40, 0, 0};
+  uint8_t sc[4] = {41, 59, 10, 0};
+  if (!ast_ref_is_null(res_ref)) {
+    re = ast_ast_arena_expr_get(arena, res_ref);
+    if ((int32_t)re.kind == 41)
+      return codegen_emit_return_stmt_with_context(arena, out, indent + 2, re.unary_operand_ref, ctx,
+                                                   fn_ret_void);
+    /* wave374: block arm as real statements inside if/else body */
+    if ((int32_t)re.kind == 26 && !ast_ref_is_null(re.block_ref))
+      return codegen_emit_block(arena, out, re.block_ref, indent + 2, ctx);
+  }
+  if (codegen_emit_indent(out, indent + 2) != 0)
+    return -1;
+  if (codegen_emit_bytes_9(out, v, 7) != 0)
+    return -1;
+  if (ast_ref_is_null(res_ref)) {
+    if (codegen_append_byte(out, 48) != 0)
+      return -1;
+  } else if (codegen_emit_expr(arena, out, res_ref, ctx) != 0) {
+    return -1;
+  }
+  return codegen_emit_bytes_4(out, sc, 3);
+}
+static int32_t codegen_emit_match_as_stmt(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+                                         int32_t expr_ref, int32_t indent, struct ast_PipelineDepCtx *ctx,
+                                         int32_t fn_ret_void) {
+  struct ast_Expr e;
+  int32_t n;
+  int32_t matched;
+  int32_t i;
+  int32_t opened;
+  int32_t wild_i;
+  int32_t cmp_val;
+  int32_t res;
+  uint8_t eq[3] = {61, 61, 0};
+  uint8_t if_kw[4] = {105, 102, 32, 0};
+  uint8_t else_if[11] = {125, 32, 101, 108, 115, 101, 32, 105, 102, 32, 0};
+  uint8_t else_br[9] = {125, 32, 101, 108, 115, 101, 32, 123, 0};
+  uint8_t open_br[4] = {41, 32, 123, 0};
+  uint8_t close_br[3] = {125, 10, 0};
+  uint8_t if1[8] = {105, 102, 32, 40, 49, 41, 32, 0};
+  e = ast_ast_arena_expr_get(arena, expr_ref);
+  n = e.match_num_arms;
+  matched = e.match_matched_ref;
+  opened = 0;
+  wild_i = -1;
+  for (i = 0; i < n; i++) {
+    if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, i) != 0) {
+      wild_i = i;
+      continue;
+    }
+    if (codegen_emit_indent(out, indent) != 0)
+      return -1;
+    if (opened == 0) {
+      if (codegen_emit_bytes_from_ptr(out, &if_kw[0], 3) != 0)
+        return -1;
+    } else {
+      if (codegen_emit_bytes_from_ptr(out, &else_if[0], 10) != 0)
+        return -1;
+    }
+    if (codegen_append_byte(out, 40) != 0)
+      return -1;
+    if (ast_ref_is_null(matched) || codegen_emit_expr(arena, out, matched, ctx) != 0)
+      return -1;
+    if (codegen_emit_bytes_2(out, eq, 2) != 0)
+      return -1;
+    if (pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, i) != 0)
+      cmp_val = pipeline_expr_match_arm_variant_index(arena, expr_ref, i);
+    else
+      cmp_val = pipeline_expr_match_arm_lit_val(arena, expr_ref, i);
+    if (codegen_format_int(out, (int64_t)cmp_val) != 0)
+      return -1;
+    if (codegen_emit_bytes_from_ptr(out, &open_br[0], 3) != 0)
+      return -1;
+    if (codegen_append_byte(out, 10) != 0)
+      return -1;
+    res = pipeline_expr_match_arm_result_ref(arena, expr_ref, i);
+    if (codegen_emit_match_stmt_arm_body(arena, out, res, indent, ctx, fn_ret_void) != 0)
+      return -1;
+    opened = 1;
+  }
+  if (wild_i >= 0) {
+    if (codegen_emit_indent(out, indent) != 0)
+      return -1;
+    if (opened != 0) {
+      if (codegen_emit_bytes_from_ptr(out, &else_br[0], 8) != 0)
+        return -1;
+      if (codegen_append_byte(out, 10) != 0)
+        return -1;
+    } else {
+      if (codegen_emit_bytes_from_ptr(out, &if1[0], 7) != 0)
+        return -1;
+      if (codegen_append_byte(out, 123) != 0)
+        return -1;
+      if (codegen_append_byte(out, 10) != 0)
+        return -1;
+    }
+    res = pipeline_expr_match_arm_result_ref(arena, expr_ref, wild_i);
+    if (codegen_emit_match_stmt_arm_body(arena, out, res, indent, ctx, fn_ret_void) != 0)
+      return -1;
+    opened = 1;
+  }
+  if (opened != 0) {
+    if (codegen_emit_indent(out, indent) != 0)
+      return -1;
+    return codegen_emit_bytes_3(out, close_br, 2);
+  }
+  return 0;
+}
+/* PLATFORM: SHARED — host-C EXPR_MATCH nested ternary (wave326).
+ * Completes arm-0 residual; freestanding uses pipeline_asm_emit_match_elf_c.
+ * G.7: twin of codegen.x codegen_emit_match_from_arm. */
+static int32_t codegen_emit_match_from_arm(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
+                                          int32_t expr_ref, struct ast_PipelineDepCtx *ctx, int32_t arm_i) {
+  struct ast_Expr e;
+  int32_t n;
+  int32_t matched;
+  int32_t res;
+  int32_t cmp_val;
+  uint8_t eq[3];
+  e = ast_ast_arena_expr_get(arena, expr_ref);
+  n = e.match_num_arms;
+  matched = e.match_matched_ref;
+  if (arm_i >= n)
+    return codegen_append_byte(out, 48);
+  if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, arm_i) != 0) {
+    res = pipeline_expr_match_arm_result_ref(arena, expr_ref, arm_i);
+    return codegen_emit_match_arm_value(arena, out, res, ctx);
+  }
+  /* (matched==val?(result):(rest)) */
+  if (codegen_append_byte(out, 40) != 0)
+    return -1;
+  if (ast_ref_is_null(matched) || codegen_emit_expr(arena, out, matched, ctx) != 0)
+    return -1;
+  eq[0] = 61;
+  eq[1] = 61;
+  eq[2] = 0;
+  if (codegen_emit_bytes_2(out, eq, 2) != 0)
+    return -1;
+  if (pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, arm_i) != 0)
+    cmp_val = pipeline_expr_match_arm_variant_index(arena, expr_ref, arm_i);
+  else
+    cmp_val = pipeline_expr_match_arm_lit_val(arena, expr_ref, arm_i);
+  if (codegen_format_int(out, (int64_t)cmp_val) != 0)
+    return -1;
+  if (codegen_append_byte(out, 63) != 0)
+    return -1;
+  res = pipeline_expr_match_arm_result_ref(arena, expr_ref, arm_i);
+  if (codegen_append_byte(out, 40) != 0)
+    return -1;
+  if (codegen_emit_match_arm_value(arena, out, res, ctx) != 0)
+    return -1;
+  if (codegen_append_byte(out, 41) != 0)
+    return -1;
+  if (codegen_append_byte(out, 58) != 0)
+    return -1;
+  if (codegen_emit_match_from_arm(arena, out, expr_ref, ctx, arm_i + 1) != 0)
+    return -1;
+  return codegen_append_byte(out, 41);
+}
 int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t expr_ref, struct ast_PipelineDepCtx * ctx) {
   {
     struct ast_Expr e = ast_ast_arena_expr_get(arena, expr_ref);
@@ -5632,8 +8295,10 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
     if (((expr_ref <=0) || (expr_ref > (arena->num_exprs)))) {
       return 0;
     }
-    /* PLATFORM: SHARED — consume typeck CTFE (const_folded_*); not emit optim expand. Skip VAR. */
-    if (((e.const_folded_valid) != 0) && (pipeline_expr_kind_ord_at(arena, expr_ref) != 3)) {
+    /* PLATFORM: SHARED — consume typeck CTFE (const_folded_*); not emit optim expand.
+     * Skip VAR (ord 3). wave287: also skip FLOAT_LIT (ord 1) — i32 fold truncates fractions. */
+    if ((((e.const_folded_valid) != 0) && (pipeline_expr_kind_ord_at(arena, expr_ref) != 3))
+        && (pipeline_expr_kind_ord_at(arena, expr_ref) != 1)) {
       if ((codegen_format_int(out, (int64_t)(e.const_folded_val)) != 0)) {
         return -1;
       }
@@ -5784,7 +8449,95 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
       }
       return codegen_emit_bytes_3(out, fallback, 2);
     }
+    /* wave459/461/462 Cap residual pure: host-C aggregate `as` cast.
+     * wave459: struct target → C99 compound `((TYPE){ (op) })` (scalar op).
+     * wave461: same-type struct op → identity `(op)`.
+     * wave462: different-type struct op (A→B / struct→scalar) → GNU stmt-expr
+     * type-pun `({ OP_TY __xlang_as_o = (op); *(TGT *)(void *)&__xlang_as_o; })`.
+     * G.7: EXPR_AS authority; reuse mono + module_user_struct + type_refs_equal.
+     * PLATFORM: SHARED host-C. Mirror codegen.x. */
     if (((e.kind) ==54)) {
+      int32_t as_tgt = (e.as_target_type_ref);
+      int32_t as_struct = 0;
+      int32_t as_op_struct = 0;
+      int32_t op_ty = 0;
+      if (!(ast_ref_is_null(as_tgt))) {
+        as_tgt = pipeline_typeck_resolve_type_alias_ref_c(arena, as_tgt);
+        as_tgt = codegen_mono_subst_type(ctx, arena, as_tgt);
+      }
+      if ((!(ast_ref_is_null(as_tgt)) && (ctx != ((struct ast_PipelineDepCtx *)(0)))
+          && ((ctx->current_codegen_module) != ((struct ast_Module *)(0)))
+          && (codegen_type_is_module_user_struct((ctx->current_codegen_module), arena, as_tgt) !=0))) {
+        as_struct = 1;
+      }
+      /* wave461/462: resolve operand type; detect module user struct. */
+      if (((!(ast_ref_is_null((e.as_operand_ref))))
+          && (ctx != ((struct ast_PipelineDepCtx *)(0)))
+          && ((ctx->current_codegen_module) != ((struct ast_Module *)(0))))) {
+        op_ty = pipeline_expr_resolved_type_ref(arena, (e.as_operand_ref));
+        if (!(ast_ref_is_null(op_ty))) {
+          op_ty = pipeline_typeck_resolve_type_alias_ref_c(arena, op_ty);
+          op_ty = codegen_mono_subst_type(ctx, arena, op_ty);
+          if ((!(ast_ref_is_null(op_ty))
+              && (codegen_type_is_module_user_struct((ctx->current_codegen_module), arena, op_ty) !=0))) {
+            as_op_struct = 1;
+          }
+        }
+      }
+      /* Same-type struct op + struct target: identity `(op)`. */
+      if (((as_struct != 0) && (as_op_struct != 0)
+          && (!(ast_ref_is_null(op_ty))) && (!(ast_ref_is_null(as_tgt)))
+          && (pipeline_typeck_type_refs_equal_c(arena, op_ty, as_tgt) !=0))) {
+        if ((codegen_append_byte(out, 40) !=0)) {
+          return -(1);
+        }
+        if ((!(ast_ref_is_null((e.as_operand_ref))) && (codegen_emit_expr(arena, out, (e.as_operand_ref), ctx) !=0))) {
+          return -(1);
+        }
+        return codegen_append_byte(out, 41);
+      }
+      /* wave462: struct op → different type: type-pun stmt-expr. */
+      if (((as_op_struct != 0) && (!(ast_ref_is_null(op_ty))))) {
+        /* ({  */
+        if ((codegen_append_byte(out, 40) !=0)) { return -(1); }
+        if ((codegen_append_byte(out, 123) !=0)) { return -(1); }
+        if ((codegen_append_byte(out, 32) !=0)) { return -(1); }
+        if ((codegen_emit_type(arena, out, op_ty, ((uint8_t *)(0)), 0, ctx) !=0)) {
+          return -(1);
+        }
+        /*  __xlang_as_o = ( */
+        {
+          uint8_t as_pun_nm[20] = {
+            32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 115, 95, 111, 32, 61, 32, 40, 0, 0, 0
+          };
+          if ((codegen_emit_bytes_from_ptr(out, &as_pun_nm[0], 17) !=0)) {
+            return -(1);
+          }
+        }
+        if ((!(ast_ref_is_null((e.as_operand_ref))) && (codegen_emit_expr(arena, out, (e.as_operand_ref), ctx) !=0))) {
+          return -(1);
+        }
+        /* ); *( */
+        if ((codegen_append_byte(out, 41) !=0)) { return -(1); }
+        if ((codegen_append_byte(out, 59) !=0)) { return -(1); }
+        if ((codegen_append_byte(out, 32) !=0)) { return -(1); }
+        if ((codegen_append_byte(out, 42) !=0)) { return -(1); }
+        if ((codegen_append_byte(out, 40) !=0)) { return -(1); }
+        if ((codegen_emit_type(arena, out, (e.as_target_type_ref), ((uint8_t *)(0)), 0, ctx) !=0)) {
+          return -(1);
+        }
+        /*  *)(void *)&__xlang_as_o; }) */
+        {
+          uint8_t as_pun_end[32] = {
+            32, 42, 41, 40, 118, 111, 105, 100, 32, 42, 41, 38, 95, 95, 120, 108,
+            97, 110, 103, 95, 97, 115, 95, 111, 59, 32, 125, 41, 0, 0, 0, 0
+          };
+          if ((codegen_emit_bytes_from_ptr(out, &as_pun_end[0], 28) !=0)) {
+            return -(1);
+          }
+        }
+        return 0;
+      }
       if ((codegen_append_byte(out, 40) !=0)) {
         return -(1);
       }
@@ -5796,6 +8549,31 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
       }
       if ((codegen_append_byte(out, 41) !=0)) {
         return -(1);
+      }
+      if ((as_struct !=0)) {
+        /* Compound literal: (TYPE){ (op) } — scalar/non-struct op only (wave461). */
+        if ((codegen_append_byte(out, 123) !=0)) {
+          return -(1);
+        }
+        if ((codegen_append_byte(out, 32) !=0)) {
+          return -(1);
+        }
+        if ((codegen_append_byte(out, 40) !=0)) {
+          return -(1);
+        }
+        if ((!(ast_ref_is_null((e.as_operand_ref))) && (codegen_emit_expr(arena, out, (e.as_operand_ref), ctx) !=0))) {
+          return -(1);
+        }
+        if ((codegen_append_byte(out, 41) !=0)) {
+          return -(1);
+        }
+        if ((codegen_append_byte(out, 32) !=0)) {
+          return -(1);
+        }
+        if ((codegen_append_byte(out, 125) !=0)) {
+          return -(1);
+        }
+        return codegen_append_byte(out, 41);
       }
       if ((codegen_append_byte(out, 40) !=0)) {
         return -(1);
@@ -5865,6 +8643,55 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
       return codegen_append_byte(out, 41);
     }
     if (((e.kind) ==28)) {
+      /*
+       * wave334 Cap residual pure: fixed TYPE_ARRAY whole-array assign.
+       * Root: C arrays are not assignable — host gcc rejects
+       *   `int32_t a[3] = {…}; (void)((a = (int32_t[]){…}));`
+       * Emit memcpy into the array storage instead.
+       * Form: (memcpy((void*)(lhs), (const void*)(rhs), sizeof(lhs)))
+       * G.7 single host-C authority; freestanding uses direct slot write in glue.
+       * PLATFORM: SHARED host-C emit.
+       */
+      int32_t lt_ref;
+      int32_t is_fa;
+      lt_ref = pipeline_expr_resolved_type_ref(arena, e.binop_left_ref);
+      is_fa = 0;
+      if (lt_ref > 0 && pipeline_type_kind_ord_at(arena, lt_ref) == 10)
+        is_fa = 1;
+      if (is_fa != 0) {
+        uint8_t pref[16] = {109, 101, 109, 99, 112, 121, 40, 40, 118, 111, 105, 100, 42, 41, 40, 0};
+        uint8_t mid[20] = {41, 44, 32, 40, 99, 111, 110, 115, 116, 32, 118, 111, 105, 100, 42, 41, 40, 0, 0, 0};
+        uint8_t mid_sz[12] = {41, 44, 32, 115, 105, 122, 101, 111, 102, 40, 0, 0};
+        if ((codegen_append_byte(out, 40) !=0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, pref, 15) !=0)) {
+          return -(1);
+        }
+        if ((codegen_emit_expr(arena, out, (e.binop_left_ref), ctx) !=0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, mid, 17) !=0)) {
+          return -(1);
+        }
+        if ((codegen_emit_expr(arena, out, (e.binop_right_ref), ctx) !=0)) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, mid_sz, 10) !=0)) {
+          return -(1);
+        }
+        if ((codegen_emit_expr(arena, out, (e.binop_left_ref), ctx) !=0)) {
+          return -(1);
+        }
+        if ((codegen_append_byte(out, 41) !=0)) {
+          return -(1);
+        }
+        if ((codegen_append_byte(out, 41) !=0)) {
+          return -(1);
+        }
+        return codegen_append_byte(out, 41);
+      }
+      {
       uint8_t op[4] = {32, 61, 32, 0};
       if ((codegen_append_byte(out, 40) !=0)) {
         return -(1);
@@ -5879,6 +8706,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
         return -(1);
       }
       return codegen_append_byte(out, 41);
+      }
     }
     if ((((((((((((e.kind) ==29) || ((e.kind) ==30)) || ((e.kind) ==31)) || ((e.kind) ==32)) || ((e.kind) ==33)) || ((e.kind) ==34)) || ((e.kind) ==35)) || ((e.kind) ==36)) || ((e.kind) ==37)) || ((e.kind) ==38))) {
       uint8_t op_buf[8] = {32, 43, 61, 32, 0, 0, 0, 0};
@@ -6241,6 +9069,16 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
           return -1;
         }
         if ((fmt_lit_rc > 0)) {
+          return 0;
+        }
+      }
+      /* wave463: size_of<T>/align_of<T> → sizeof/_Alignof (CORE-001; before bare call). */
+      if ((ctx != ((struct ast_PipelineDepCtx *)(0)))) {
+        int32_t sa_rc = codegen_try_emit_size_align_of_call(arena, out, expr_ref, ctx);
+        if ((sa_rc < 0)) {
+          return -1;
+        }
+        if ((sa_rc > 0)) {
           return 0;
         }
       }
@@ -6869,9 +9707,17 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
                         return -(1);
                       }
                     } else {
+                      /* wave395: set formal type for TYPE_ARRAY→fat gate (TYPE_SLICE only). */
+                      int32_t pty_cur = 0;
+                      if ((arg_idx_cur < pipeline_module_func_num_params_at(cur_mod, fi))) {
+                        pty_cur = pipeline_module_func_param_type_ref_at(cur_mod, fi, arg_idx_cur);
+                      }
+                      codegen_set_host_call_arg_param_ty(pty_cur);
                       if ((codegen_emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx_cur), ctx) !=0)) {
+                        codegen_set_host_call_arg_param_ty(0);
                         return -(1);
                       }
+                      codegen_set_host_call_arg_param_ty(0);
                     }
                     (void)((ai = (ai + 1)));
                   }
@@ -7003,9 +9849,21 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
             return -(1);
           }
         } else {
+          /* wave395: formal from typeck resolved callee when available. */
+          int32_t pty_fb = 0;
+          int32_t rfi_fb = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+          if (((rfi_fb >= 0) && (ctx != ((struct ast_PipelineDepCtx *)(0))) &&
+               ((ctx->current_codegen_module) != ((struct ast_Module *)(0))))) {
+            if ((arg_idx < pipeline_module_func_num_params_at((ctx->current_codegen_module), rfi_fb))) {
+              pty_fb = pipeline_module_func_param_type_ref_at((ctx->current_codegen_module), rfi_fb, arg_idx);
+            }
+          }
+          codegen_set_host_call_arg_param_ty(pty_fb);
           if ((codegen_emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx), ctx) !=0)) {
+            codegen_set_host_call_arg_param_ty(0);
             return -(1);
           }
+          codegen_set_host_call_arg_param_ty(0);
         }
         (void)((ai = (ai + 1)));
       }
@@ -7390,6 +10248,33 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
       if (((e.field_access_is_enum_variant) !=0)) {
         return codegen_format_int(out, (e.enum_variant_tag));
       }
+      /*
+       * wave346 Cap residual pure: fixed TYPE_ARRAY / TYPE_VECTOR `.length` → ((size_t)N).
+       * C arrays have no .length member. G.7: match codegen.x + typeck field_slice + fs imm.
+       * PLATFORM: SHARED host-C emit (product pin seed).
+       */
+      if ((((((e.field_access_field_len) ==6) && (((e.field_access_field_name))[0] ==108)) && (((e.field_access_field_name))[1] ==101)) && (((e.field_access_field_name))[2] ==110)) && ((((e.field_access_field_name))[3] ==103) && ((((e.field_access_field_name))[4] ==116) && (((e.field_access_field_name))[5] ==104)))) {
+        if (((!(ast_ref_is_null((e.field_access_base_ref))) && ((e.field_access_base_ref) > 0)) && ((e.field_access_base_ref) <=(arena->num_exprs)))) {
+          struct ast_Expr base_e = ast_ast_arena_expr_get(arena, (e.field_access_base_ref));
+          int32_t base_ty = (base_e.resolved_type_ref);
+          if (((!(ast_ref_is_null(base_ty)) && (base_ty > 0)) && (base_ty <=(arena->num_types)))) {
+            int32_t bk = pipeline_type_kind_ord_at(arena, base_ty);
+            if (((bk ==10) || (bk ==13))) {
+              int32_t asz = pipeline_type_array_size_at(arena, base_ty);
+              if ((asz > 0)) {
+                uint8_t open_cast[16] = {40, 40, 115, 105, 122, 101, 95, 116, 41, 0, 0, 0, 0, 0, 0, 0};
+                if ((codegen_emit_bytes_from_ptr(out, &((open_cast)[0]), 9) !=0)) {
+                  return -(1);
+                }
+                if ((codegen_format_int(out, asz) !=0)) {
+                  return -(1);
+                }
+                return codegen_append_byte(out, 41);
+              }
+            }
+          }
+        }
+      }
       if ((((ctx !=((struct ast_PipelineDepCtx *)(0))) && ((ctx->emit_expr_as_callee) !=0)) && (codegen_emit_import_module_field_symbol(arena, out, expr_ref, ctx) ==0))) {
         return 0;
       }
@@ -7449,7 +10334,13 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
       return codegen_append_byte(out, 41);
     }
     if (((e.kind) ==42)) {
+      /* PLATFORM: SHARED — EXPR_PANIC host emit (wave386).
+       * ABI xlang_panic_(int has_msg, intptr_t msg_val).
+       * has_msg: 0 bare / 1 integer / 2 cstr pointer (full width).
+       * Non-null msg: wrap (intptr_t)(…); STRING_LIT or TYPE_PTR → has_msg=2.
+       * G.7 match codegen.x. */
       uint8_t p[23] = {120, 108, 97, 110, 103, 95, 112, 97, 110, 105, 99, 95, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+      uint8_t cast_open[12] = {40, 105, 110, 116, 112, 116, 114, 95, 116, 41, 40, 0};
       if ((codegen_emit_bytes_22(out, p, 13) !=0)) {
         return -(1);
       }
@@ -7464,13 +10355,40 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
           return -(1);
         }
       } else {
-        if ((codegen_append_byte(out, 49) !=0)) {
-          return -(1);
+        int32_t is_cstr = 0;
+        int32_t op_ref = (e.unary_operand_ref);
+        if ((pipeline_expr_kind_ord_at(arena, op_ref) ==59)) {
+          is_cstr = 1;
+        } else {
+          if ((op_ref >0) && (op_ref <= (arena->num_exprs))) {
+            struct ast_Expr op_e = ast_arena_expr_get(arena, op_ref);
+            if ((!ast_ref_is_null((op_e.resolved_type_ref))) && ((op_e.resolved_type_ref) >0) && ((op_e.resolved_type_ref) <= (arena->num_types))) {
+              struct ast_Type oty = ast_arena_type_get(arena, (op_e.resolved_type_ref));
+              if (((oty.kind) == ast_TypeKind_TYPE_PTR)) {
+                is_cstr = 1;
+              }
+            }
+          }
+        }
+        if ((is_cstr !=0)) {
+          if ((codegen_append_byte(out, 50) !=0)) {
+            return -(1);
+          }
+        } else {
+          if ((codegen_append_byte(out, 49) !=0)) {
+            return -(1);
+          }
         }
         if ((codegen_append_byte(out, 44) !=0)) {
           return -(1);
         }
+        if ((codegen_emit_bytes_from_ptr(out, &((cast_open)[0]), 11) !=0)) {
+          return -(1);
+        }
         if ((codegen_emit_expr(arena, out, (e.unary_operand_ref), ctx) !=0)) {
+          return -(1);
+        }
+        if ((codegen_append_byte(out, 41) !=0)) {
           return -(1);
         }
       }
@@ -7491,6 +10409,160 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
         }
         if ((fmt_mc_rc > 0)) {
           return 0;
+        }
+      }
+      /*
+       * wave445 C6: per-mono method call re-resolution. When emitting a mono body,
+       * typeck's call_resolved_func_index for `x.clone()` (x: T generic) points at the
+       * trait method (signature-only, no body) because typeck processed the body with
+       * T unresolved. Re-resolve to the impl method for the concrete receiver type
+       * (e.g., A::clone for x: A in foo__A). Falls through to existing logic if no
+       * impl method found (preserves prior behavior).
+       * PLATFORM: SHARED — mono state in PipelineDepCtx; uses codegen_mono_subst_type
+       * + codegen_find_impl_method_for_type (single resolution authority).
+       */
+      if (((((ctx !=((struct ast_PipelineDepCtx *)(0))) && ((ctx->mono_active) !=0)) && ((e.method_call_base_ref) > 0)) && (((e.method_call_base_ref) <=(arena->num_exprs)) && ((e.method_call_name_len) > 0)))) {
+        struct ast_Expr base_mono = ast_ast_arena_expr_get(arena, (e.method_call_base_ref));
+        int32_t recv_ty = pipeline_expr_resolved_type_ref(arena, (e.method_call_base_ref));
+        struct ast_Module * mono_mod = ((struct ast_Module *)((ctx->current_codegen_module)));
+        int32_t mono_fi = (ctx->current_func_index);
+        /* If typeck didn't resolve the base type (generic body, resolved_type_ref=0),
+         * try to infer from a VAR base by matching param names. */
+        if (((recv_ty <= 0) && (mono_mod !=((struct ast_Module *)(0))))) {
+          if ((base_mono.kind == 3)) {
+            int32_t parm_i = 0;
+            int32_t nparm = pipeline_module_func_num_params_at(mono_mod, mono_fi);
+            while ((parm_i < nparm)) {
+              uint8_t pname[32] = {};
+              int32_t pnl = pipeline_module_func_param_name_len_at(mono_mod, mono_fi, parm_i);
+              (void)(pipeline_module_func_param_name_copy32(mono_mod, mono_fi, parm_i, &((pname)[0])));
+              if (((pnl == (base_mono.var_name_len)) && (pnl > 0))) {
+                int32_t peq = 1;
+                int32_t pi2 = 0;
+                while ((pi2 < pnl)) {
+                  if (((pname)[pi2] !=((base_mono.var_name))[pi2])) {
+                    (void)((peq = 0));
+                    (void)((pi2 = pnl));
+                  } else {
+                    (void)((pi2 = (pi2 + 1)));
+                  }
+                }
+                if ((peq !=0)) {
+                  recv_ty = pipeline_module_func_param_type_ref_at(mono_mod, mono_fi, parm_i);
+                  (void)((parm_i = 999));
+                }
+              }
+              (void)((parm_i = (parm_i + 1)));
+            }
+          }
+        }
+        /* wave445 C6 local-let fallback: if recv_ty still unresolved and base is
+         * a VAR, scan current block's lets for a name match to infer receiver
+         * type (let y: T = x; y.dup() -> y's type is T from the let).
+         * PLATFORM: SHARED — mirrors codegen.x C6 local-let. */
+        if ((((recv_ty <= 0) && (base_mono.kind == 3)) && ((ctx->current_block_ref) > 0))) {
+          int32_t blk = (ctx->current_block_ref);
+          int32_t nlets = ast_ast_block_num_lets(arena, blk);
+          int32_t li = 0;
+          while ((li < nlets)) {
+            uint8_t lname[64] = {};
+            int32_t lnl = pipeline_block_let_name_len(arena, blk, li);
+            (void)(pipeline_block_let_name_copy64(arena, blk, li, &((lname)[0])));
+            if (((lnl == (base_mono.var_name_len)) && (lnl > 0))) {
+              int32_t leq = 1;
+              int32_t li2 = 0;
+              while ((li2 < lnl)) {
+                if (((lname)[li2] !=((base_mono.var_name))[li2])) {
+                  (void)((leq = 0));
+                  (void)((li2 = lnl));
+                } else {
+                  (void)((li2 = (li2 + 1)));
+                }
+              }
+              if ((leq !=0)) {
+                recv_ty = pipeline_block_let_type_ref(arena, blk, li);
+                if (getenv("XLANG_DEBUG_MONO")) fprintf(stderr, "[DBG_MONO_C6] local-let match recv_ty=%d\n", (int)recv_ty);
+                (void)((li = 999));
+              }
+            }
+            (void)((li = (li + 1)));
+          }
+        }
+        int32_t concrete_ty = codegen_mono_subst_type(ctx, arena, recv_ty);
+        if (getenv("XLANG_DEBUG_MONO")) fprintf(stderr, "[DBG_MONO_C6] base_ref=%d base_kind=%d recv_ty=%d concrete_ty=%d e.resolved=%d\n", e.method_call_base_ref, base_mono.kind, recv_ty, concrete_ty, e.resolved_type_ref);
+        if (((concrete_ty != recv_ty) && (concrete_ty > 0))) {
+          struct ast_Module * cur_mod_mono = ((struct ast_Module *)((ctx->current_codegen_module)));
+          if ((cur_mod_mono !=((struct ast_Module *)(0)))) {
+            int32_t impl_fi = codegen_find_impl_method_for_type(cur_mod_mono, arena, &(((e.method_call_name))[0]), (e.method_call_name_len), concrete_ty);
+            if ((impl_fi >= 0)) {
+              /* Emit impl method call: <link_name>(<receiver>, <explicit args>).
+               * The receiver (self) is arg 0 — typeck stores it as
+               * method_call_base_ref, NOT in method_call_args. Emit it first,
+               * then each explicit arg with a ", " separator. For 0-arg methods
+               * (e.g. x.clone()), only the receiver is emitted: <link_name>(<receiver>).
+               * PLATFORM: SHARED — mirrors codegen.x C6 emit + seed codegen_gen. */
+              /* Emit module prefix (e.g. w445_let_binding_) before the bare link name.
+               * codegen_emit_func_link_name emits only the name + overload suffixes;
+               * the module prefix is emitted separately (mirrors normal CALL path).
+               * Without this, dup(y) clashes with libc dup(int) instead of
+               * w445_let_binding_dup. PLATFORM: SHARED. */
+              if (((ctx->current_codegen_prefix_len) > 0)) {
+                if ((codegen_emit_bytes_from_ptr(out, &(((ctx->current_codegen_prefix_mirror))[0]), (ctx->current_codegen_prefix_len)) !=0)) {
+                  return -(1);
+                }
+              }
+              {
+                int32_t c6_mono_rc = codegen_try_emit_impl_method_mono_call_name(out, arena, ctx, cur_mod_mono, impl_fi, concrete_ty);
+                if (c6_mono_rc < 0) {
+                  return -(1);
+                }
+                if (c6_mono_rc == 0) {
+                  if ((codegen_emit_func_link_name(out, arena, cur_mod_mono, impl_fi) !=0)) {
+                    return -(1);
+                  }
+                }
+              }
+              if ((codegen_append_byte(out, 40) !=0)) {
+                return -(1);
+              }
+              /* Emit receiver as arg 0 (self parameter). */
+              if (((e.method_call_base_ref) <= 0)) {
+                if ((codegen_append_byte(out, 48) !=0)) {
+                  return -(1);
+                }
+              } else {
+                /* PLATFORM: SHARED — receiver uses same slice pointer ABI as CALL. */
+                if ((codegen_emit_call_arg_slice_abi(arena, out, (e.method_call_base_ref), ctx) !=0)) {
+                  return -(1);
+                }
+              }
+              /* Emit explicit args (arg 1..N), each preceded by ", ". */
+              {
+                int32_t ai_mono = 0;
+                while ((ai_mono <(e.method_call_num_args))) {
+                  uint8_t cs_mono[2] = {44, 32};
+                  if ((codegen_emit_bytes_from_ptr(out, &((cs_mono)[0]), 2) !=0)) {
+                    return -(1);
+                  }
+                  {
+                    int32_t dep_arg_mono = pipeline_expr_method_call_arg_ref(arena, expr_ref, ai_mono);
+                    if (ast_ref_is_null(dep_arg_mono)) {
+                      if ((codegen_append_byte(out, 48) !=0)) {
+                        return -(1);
+                      }
+                    } else {
+                      /* PLATFORM: SHARED — method args use same slice pointer ABI as CALL. */
+                      if ((codegen_emit_call_arg_slice_abi(arena, out, dep_arg_mono, ctx) !=0)) {
+                        return -(1);
+                      }
+                    }
+                  }
+                  (void)((ai_mono = (ai_mono + 1)));
+                }
+              }
+              return codegen_append_byte(out, 41);
+            }
+          }
         }
       }
 
@@ -7573,8 +10645,23 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
                 if ((dep_arena ==((struct ast_ASTArena *)(0)))) {
                   (void)((dep_arena = pipeline_dep_ctx_arena_at(ctx, dep_ix)));
                 }
-                if (((fn_len > 0) && (codegen_emit_func_link_name(out, dep_arena, dep_mod, func_ix) !=0))) {
-                  return -(1);
+                if ((fn_len > 0)) {
+                  int32_t dep_recv_ty = 0;
+                  int32_t dep_mono_rc = 0;
+                  if (!(ast_ref_is_null((e.method_call_base_ref)))) {
+                    dep_recv_ty = pipeline_expr_resolved_type_ref(arena, (e.method_call_base_ref));
+                  }
+                  if (dep_recv_ty > 0) {
+                    dep_mono_rc = codegen_try_emit_impl_method_mono_call_name(out, dep_arena, ctx, dep_mod, func_ix, dep_recv_ty);
+                  }
+                  if (dep_mono_rc < 0) {
+                    return -(1);
+                  }
+                  if (dep_mono_rc == 0) {
+                    if ((codegen_emit_func_link_name(out, dep_arena, dep_mod, func_ix) !=0)) {
+                      return -(1);
+                    }
+                  }
                 }
               }
               if ((codegen_append_byte(out, 40) !=0)) {
@@ -7694,6 +10781,128 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
           return codegen_append_byte(out, 41);
         }
       }
+      /*
+       * wave358 Cap residual pure — host-C UFCS same-module free method.
+       * typeck: call_resolved dep_ix=-1 + func_ix; emit free_fn(receiver, args...).
+       * PLATFORM: SHARED — G.7 twin of codegen.x.
+       */
+      if ((ctx != 0) && ((ctx)->current_codegen_module != 0)) {
+        int32_t uf_dep = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
+        int32_t uf_fn = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+        struct ast_Module *uf_mod = (ctx)->current_codegen_module;
+        if ((((uf_fn >= 0) && (uf_dep < 0)) && (uf_fn < (uf_mod)->num_funcs)) &&
+            ((e.method_call_name_len) > 0)) {
+          /*
+           * Same-module prefix + link name (align CALL callee2 path).
+           * codegen_emit_call_func_name rejects UFCS (nparams != method nargs).
+           * PLATFORM: SHARED — G.7 twin of codegen.x.
+           */
+          uint8_t cur_pre[128] = {};
+          uint8_t cur_dep_path_buf[128] = {};
+          int32_t cur_dep_plen = codegen_ctx_dep_path_for_current_codegen_module_into(ctx, &((cur_dep_path_buf)[0]));
+          int32_t pl = 0;
+          int32_t mi_uf = 0;
+          struct ast_ASTArena *uf_arena = arena;
+          if ((cur_dep_plen > 0)) {
+            (void)(codegen_import_path_to_c_prefix_into(&((cur_dep_path_buf)[0]), &((cur_pre)[0]), 128));
+            while (((pl < 128) && (((cur_pre)[pl]) != 0))) {
+              (void)((pl = (pl + 1)));
+            }
+          } else if ((((ctx)->current_codegen_prefix_len) > 0)) {
+            int32_t _cpl = (ctx)->current_codegen_prefix_len;
+            int32_t pi = 0;
+            while (((pi < _cpl) && (pi < 127))) {
+              (void)(((cur_pre)[pi] = ((ctx)->current_codegen_prefix_mirror)[pi]));
+              (void)((pi = (pi + 1)));
+            }
+            (void)(((cur_pre)[pi] = 0));
+            pl = pi;
+          }
+          if (((pipeline_module_func_is_extern_at(uf_mod, uf_fn) != 0) ||
+               (pipeline_module_func_is_no_mangle_at(uf_mod, uf_fn) != 0))) {
+            pl = 0;
+          }
+          if ((((pl > 0) && (codegen_c_prefix_redundant_with_name(&((cur_pre)[0]), pl, &(((e.method_call_name))[0]), (e.method_call_name_len)) == 0)) &&
+               (codegen_emit_bytes_from_ptr(out, &((cur_pre)[0]), pl) != 0))) {
+            return -(1);
+          }
+          if (((ctx)->current_codegen_arena != 0)) {
+            uf_arena = (ctx)->current_codegen_arena;
+          }
+          {
+            int32_t uf_bty_mono = 0;
+            int32_t uf_mono_rc = 0;
+            if (!(ast_ref_is_null((e.method_call_base_ref)))) {
+              uf_bty_mono = pipeline_expr_resolved_type_ref(arena, (e.method_call_base_ref));
+            }
+            if (uf_bty_mono > 0) {
+              uf_mono_rc = codegen_try_emit_impl_method_mono_call_name(out, uf_arena, ctx, uf_mod, uf_fn, uf_bty_mono);
+            }
+            if (uf_mono_rc < 0) {
+              return -(1);
+            }
+            if (uf_mono_rc == 0) {
+              if ((codegen_emit_func_link_name(out, uf_arena, uf_mod, uf_fn) != 0)) {
+                return -(1);
+              }
+            }
+          }
+          if ((codegen_append_byte(out, 40) != 0)) {
+            return -(1);
+          }
+          if (!(ast_ref_is_null((e.method_call_base_ref)))) {
+            /*
+             * wave360: UFCS auto-ref — self: *T with value receiver → &receiver.
+             * PLATFORM: SHARED — G.7 twin of codegen.x.
+             */
+            int32_t uf_are = 0;
+            int32_t uf_p0 = pipeline_module_func_param_type_ref_at(uf_mod, uf_fn, 0);
+            int32_t uf_bty = pipeline_expr_resolved_type_ref(arena, (e.method_call_base_ref));
+            if (((uf_p0 > 0) && (uf_bty > 0)) &&
+                (pipeline_type_kind_ord_at(uf_arena, uf_p0) == (int32_t)ast_TypeKind_TYPE_PTR)) {
+              int32_t uf_pe = pipeline_type_elem_ref_at(uf_arena, uf_p0);
+              if (((uf_pe > 0) && (pipeline_typeck_type_refs_equal_c(uf_arena, uf_bty, uf_p0) == 0)) &&
+                  (pipeline_typeck_type_refs_equal_c(uf_arena, uf_bty, uf_pe) != 0)) {
+                uf_are = 1;
+              }
+            }
+            if ((uf_are != 0)) {
+              if ((codegen_append_byte(out, 38) != 0)) {
+                return -(1);
+              }
+              if ((codegen_emit_expr(arena, out, (e.method_call_base_ref), ctx) != 0)) {
+                return -(1);
+              }
+            } else {
+              if ((codegen_emit_call_arg_slice_abi(arena, out, (e.method_call_base_ref), ctx) != 0)) {
+                return -(1);
+              }
+            }
+          } else {
+            if ((codegen_append_byte(out, 48) != 0)) {
+              return -(1);
+            }
+          }
+          while ((mi_uf < (e.method_call_num_args))) {
+            int32_t m_arg_uf = pipeline_expr_method_call_arg_ref(arena, expr_ref, mi_uf);
+            uint8_t comma_uf[3] = {44, 32, 0};
+            if ((codegen_emit_bytes_3(out, comma_uf, 2) != 0)) {
+              return -(1);
+            }
+            if (ast_ref_is_null(m_arg_uf)) {
+              if ((codegen_append_byte(out, 48) != 0)) {
+                return -(1);
+              }
+            } else {
+              if ((codegen_emit_call_arg_slice_abi(arena, out, m_arg_uf, ctx) != 0)) {
+                return -(1);
+              }
+            }
+            (void)((mi_uf = (mi_uf + 1)));
+          }
+          return codegen_append_byte(out, 41);
+        }
+      }
       if (((((((((((e.method_call_name_len) ==6) && (((e.method_call_name))[0] ==100)) && (((e.method_call_name))[1] ==111)) && (((e.method_call_name))[2] ==117)) && (((e.method_call_name))[3] ==98)) && (((e.method_call_name))[4] ==108)) && (((e.method_call_name))[5] ==101)) && ((e.method_call_num_args) ==0)) && !(ast_ref_is_null((e.method_call_base_ref))))) {
         uint8_t mul2[6] = {32, 42, 32, 50, 41, 0};
         if ((codegen_append_byte(out, 40) !=0)) {
@@ -7747,15 +10956,13 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
       }
       return codegen_append_byte(out, 41);
     }
+    /* PLATFORM: SHARED — host-C EXPR_MATCH nested ternary (wave326).
+     * Residual: arm 0 only ignored subject. G.7 complete; twin of codegen.x. */
     if (((e.kind) ==43)) {
-      int32_t m0 = pipeline_expr_match_arm_result_ref(arena, expr_ref, 0);
       if (((e.match_num_arms) <=0)) {
         return codegen_append_byte(out, 48);
       }
-      if ((!(ast_ref_is_null(m0)) && (codegen_emit_expr(arena, out, m0, ctx) !=0))) {
-        return -(1);
-      }
-      return 0;
+      return codegen_emit_match_from_arm(arena, out, expr_ref, ctx, 0);
     }
     if (((e.kind) ==45)) {
       uint8_t sl_pfx[128] = {};
@@ -7989,22 +11196,361 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
           }
         }
       }
+      /* wave352: STRUCT_LIT TYPE_ARRAY field CALL/METHOD — materialize once (host).
+       * PLATFORM: SHARED host-C; mirrors codegen.x; seed pin same commit. */
+      int32_t nf_codegen = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+      int32_t need_call_mat = 0;
+      int32_t si_scan = 0;
+      while ((si_scan < nf_codegen)) {
+        int32_t iref_s = pipeline_expr_struct_lit_init_ref(arena, expr_ref, si_scan);
+        if (!(ast_ref_is_null(iref_s))) {
+          struct ast_Expr ie_s = ast_ast_arena_expr_get(arena, iref_s);
+          /* EXPR_CALL=48 EXPR_METHOD_CALL=49 */
+          if ((((ie_s.kind) == 48) || ((ie_s.kind) == 49))) {
+            uint8_t fnbuf_s[64] = {};
+            int32_t flen_s = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, si_scan);
+            int32_t ftr_s = 0;
+            int32_t arr_ty_s = 0;
+            (void)(pipeline_expr_struct_lit_field_name_into(arena, expr_ref, si_scan, &((fnbuf_s)[0])));
+            if ((flen_s > 64)) {
+              flen_s = 64;
+            }
+            ftr_s = codegen_lookup_struct_field_type_ref(arena, ctx, &(((e.struct_lit_struct_name))[0]), (e.struct_lit_struct_name_len), &((fnbuf_s)[0]), flen_s);
+            if (((!(ast_ref_is_null(ftr_s))) && (pipeline_type_kind_ord_at(arena, ftr_s) == 10))) {
+              arr_ty_s = ftr_s;
+            } else {
+              if (((!(ast_ref_is_null((ie_s.resolved_type_ref)))) && (pipeline_type_kind_ord_at(arena, (ie_s.resolved_type_ref)) == 10))) {
+                arr_ty_s = (ie_s.resolved_type_ref);
+              }
+            }
+            if (!(ast_ref_is_null(arr_ty_s))) {
+              int32_t asz_s = pipeline_type_array_size_at(arena, arr_ty_s);
+              if (((asz_s > 0) && (asz_s <= 512))) {
+                need_call_mat = 1;
+              }
+            }
+          }
+        }
+        (void)((si_scan = (si_scan + 1)));
+      }
+      if ((need_call_mat != 0)) {
+        uint8_t mat_open[4] = {40, 123, 32, 0};
+        int32_t mi = 0;
+        if ((codegen_emit_bytes_4(out, mat_open, 3) !=0)) {
+          return -(1);
+        }
+        while ((mi < nf_codegen)) {
+          int32_t iref_m = pipeline_expr_struct_lit_init_ref(arena, expr_ref, mi);
+          if (ast_ref_is_null(iref_m)) {
+            (void)((mi = (mi + 1)));
+            continue;
+          }
+          {
+            struct ast_Expr ie_m = ast_ast_arena_expr_get(arena, iref_m);
+            if ((((ie_m.kind) != 48) && ((ie_m.kind) != 49))) {
+              (void)((mi = (mi + 1)));
+              continue;
+            }
+            {
+              uint8_t fnbuf_m[64] = {};
+              int32_t flen_m = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, mi);
+              int32_t ftr_m = 0;
+              int32_t arr_ty_m = 0;
+              int32_t asz_m = 0;
+              int32_t elem_m = 0;
+              (void)(pipeline_expr_struct_lit_field_name_into(arena, expr_ref, mi, &((fnbuf_m)[0])));
+              if ((flen_m > 64)) {
+                flen_m = 64;
+              }
+              ftr_m = codegen_lookup_struct_field_type_ref(arena, ctx, &(((e.struct_lit_struct_name))[0]), (e.struct_lit_struct_name_len), &((fnbuf_m)[0]), flen_m);
+              if (((!(ast_ref_is_null(ftr_m))) && (pipeline_type_kind_ord_at(arena, ftr_m) == 10))) {
+                arr_ty_m = ftr_m;
+              } else {
+                if (((!(ast_ref_is_null((ie_m.resolved_type_ref)))) && (pipeline_type_kind_ord_at(arena, (ie_m.resolved_type_ref)) == 10))) {
+                  arr_ty_m = (ie_m.resolved_type_ref);
+                }
+              }
+              if (ast_ref_is_null(arr_ty_m)) {
+                (void)((mi = (mi + 1)));
+                continue;
+              }
+              asz_m = pipeline_type_array_size_at(arena, arr_ty_m);
+              if (((asz_m <= 0) || (asz_m > 512))) {
+                (void)((mi = (mi + 1)));
+                continue;
+              }
+              elem_m = pipeline_type_elem_ref_at(arena, arr_ty_m);
+              {
+                uint8_t st_kw[8] = {115, 116, 97, 116, 105, 99, 32, 0};
+                uint8_t aa_nm[12] = {32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 97, 0};
+                uint8_t aa_end[4] = {93, 59, 32, 0};
+                uint8_t ap_nm[14] = {32, 42, 95, 95, 120, 108, 97, 110, 103, 95, 97, 112, 0, 0};
+                uint8_t ap_eq[4] = {32, 61, 32, 0};
+                uint8_t ap_sc[4] = {59, 32, 0, 0};
+                int32_t ai_m = 0;
+                if ((codegen_emit_bytes_from_ptr(out, &((st_kw)[0]), 7) !=0)) {
+                  return -(1);
+                }
+                if ((ast_ref_is_null(elem_m) || (codegen_emit_type(arena, out, elem_m, ((uint8_t *)(0)), 0, ctx) !=0))) {
+                  uint8_t fb_i32[9] = {105, 110, 116, 51, 50, 95, 116, 0, 0};
+                  if ((codegen_emit_bytes_from_ptr(out, &((fb_i32)[0]), 7) !=0)) {
+                    return -(1);
+                  }
+                }
+                if ((codegen_emit_bytes_from_ptr(out, &((aa_nm)[0]), 11) !=0)) {
+                  return -(1);
+                }
+                if ((codegen_format_int(out, ((int64_t)(mi))) !=0)) {
+                  return -(1);
+                }
+                if ((codegen_append_byte(out, 91) !=0)) {
+                  return -(1);
+                }
+                if ((codegen_format_int(out, ((int64_t)(asz_m))) !=0)) {
+                  return -(1);
+                }
+                if ((codegen_emit_bytes_from_ptr(out, &((aa_end)[0]), 3) !=0)) {
+                  return -(1);
+                }
+                if ((ast_ref_is_null(elem_m) || (codegen_emit_type(arena, out, elem_m, ((uint8_t *)(0)), 0, ctx) !=0))) {
+                  uint8_t fb_i32b[9] = {105, 110, 116, 51, 50, 95, 116, 0, 0};
+                  if ((codegen_emit_bytes_from_ptr(out, &((fb_i32b)[0]), 7) !=0)) {
+                    return -(1);
+                  }
+                }
+                if ((codegen_emit_bytes_from_ptr(out, &((ap_nm)[0]), 12) !=0)) {
+                  return -(1);
+                }
+                if ((codegen_format_int(out, ((int64_t)(mi))) !=0)) {
+                  return -(1);
+                }
+                if ((codegen_emit_bytes_4(out, ap_eq, 3) !=0)) {
+                  return -(1);
+                }
+                if ((codegen_emit_expr(arena, out, iref_m, ctx) !=0)) {
+                  return -(1);
+                }
+                if ((codegen_emit_bytes_4(out, ap_sc, 2) !=0)) {
+                  return -(1);
+                }
+                while ((ai_m < asz_m)) {
+                  uint8_t cp_aa[12] = {95, 95, 120, 108, 97, 110, 103, 95, 97, 97, 0, 0};
+                  uint8_t cp_mid[16] = {93, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 112, 0, 0};
+                  uint8_t cp_end[4] = {93, 59, 32, 0};
+                  if ((codegen_emit_bytes_from_ptr(out, &((cp_aa)[0]), 10) !=0)) {
+                    return -(1);
+                  }
+                  if ((codegen_format_int(out, ((int64_t)(mi))) !=0)) {
+                    return -(1);
+                  }
+                  if ((codegen_append_byte(out, 91) !=0)) {
+                    return -(1);
+                  }
+                  if ((codegen_format_int(out, ((int64_t)(ai_m))) !=0)) {
+                    return -(1);
+                  }
+                  if ((codegen_emit_bytes_from_ptr(out, &((cp_mid)[0]), 14) !=0)) {
+                    return -(1);
+                  }
+                  if ((codegen_format_int(out, ((int64_t)(mi))) !=0)) {
+                    return -(1);
+                  }
+                  if ((codegen_append_byte(out, 91) !=0)) {
+                    return -(1);
+                  }
+                  if ((codegen_format_int(out, ((int64_t)(ai_m))) !=0)) {
+                    return -(1);
+                  }
+                  if ((codegen_emit_bytes_from_ptr(out, &((cp_end)[0]), 3) !=0)) {
+                    return -(1);
+                  }
+                  (void)((ai_m = (ai_m + 1)));
+                }
+              }
+            }
+          }
+          (void)((mi = (mi + 1)));
+        }
+      }
       uint8_t open[9] = {40, 115, 116, 114, 117, 99, 116, 32, 0};
       if ((codegen_emit_bytes_9(out, open, 8) !=0)) {
         return -(1);
       }
-      if ((((bare_user_lit ==0) && (sl_plen > 0)) && (codegen_emit_bytes_from_ptr(out, &((sl_pfx)[0]), sl_plen) !=0))) {
-        return -(1);
-      }
-      if ((codegen_emit_bytes_64(out, &(((e.struct_lit_struct_name))[0]), (e.struct_lit_struct_name_len)) !=0)) {
-        return -(1);
+      /* wave458: STRUCT_LIT name mono subst (T {..} under mono → concrete). */
+      {
+        uint8_t sl_emit_name[64] = {};
+        int32_t sl_emit_nlen = (e.struct_lit_struct_name_len);
+        int32_t sl_ni = 0;
+        while (((sl_ni < sl_emit_nlen) && (sl_ni < 64))) {
+          (void)(((sl_emit_name)[sl_ni] = ((e.struct_lit_struct_name))[sl_ni]));
+          (void)((sl_ni = (sl_ni + 1)));
+        }
+        if (((((ctx != ((struct ast_PipelineDepCtx *)(0))) && ((ctx->mono_active) != 0)) && ((ctx->mono_num_types) > 0)) && (sl_emit_nlen > 0))) {
+          int32_t mi_sl = 0;
+          while (((mi_sl < (ctx->mono_num_types)) && (mi_sl < 8))) {
+            int32_t gtr_sl = (ctx->mono_generic_type_refs)[mi_sl];
+            int32_t ctr_sl = (ctx->mono_concrete_type_refs)[mi_sl];
+            if ((((gtr_sl > 0) && (ctr_sl > 0)) && (ctr_sl != gtr_sl))) {
+              uint8_t gnm_sl[64] = {};
+              int32_t gnl_sl = pipeline_type_named_name_into(arena, gtr_sl, &((gnm_sl)[0]));
+              if (((gnl_sl == sl_emit_nlen) && (gnl_sl > 0))) {
+                int32_t eq_sl = 1;
+                int32_t bi_sl = 0;
+                while ((bi_sl < gnl_sl)) {
+                  if ((((gnm_sl)[bi_sl] != (sl_emit_name)[bi_sl]))) {
+                    (void)((eq_sl = 0));
+                    (void)((bi_sl = gnl_sl));
+                  } else {
+                    (void)((bi_sl = (bi_sl + 1)));
+                  }
+                }
+                if ((eq_sl != 0)) {
+                  uint8_t cnm_sl[64] = {};
+                  int32_t cnl_sl = pipeline_type_named_name_into(arena, ctr_sl, &((cnm_sl)[0]));
+                  if (((cnl_sl > 0) && (cnl_sl <= 64))) {
+                    int32_t ci_sl = 0;
+                    while ((ci_sl < cnl_sl)) {
+                      (void)(((sl_emit_name)[ci_sl] = (cnm_sl)[ci_sl]));
+                      (void)((ci_sl = (ci_sl + 1)));
+                    }
+                    (void)((sl_emit_nlen = cnl_sl));
+                  }
+                  (void)((mi_sl = (ctx->mono_num_types)));
+                }
+              }
+            }
+            (void)((mi_sl = (mi_sl + 1)));
+          }
+        }
+        if ((((bare_user_lit ==0) && (sl_plen > 0)) && (codegen_emit_bytes_from_ptr(out, &((sl_pfx)[0]), sl_plen) !=0))) {
+          return -(1);
+        }
+        if ((codegen_emit_bytes_64(out, &((sl_emit_name)[0]), sl_emit_nlen) !=0)) {
+          return -(1);
+        }
+        /* wave481/484: STRUCT_LIT mono tag. wave484: structural field mono first
+         * (nested Wrap lit must not inherit outer ambient resolved_type_ref). */
+        if (((ctx != ((struct ast_PipelineDepCtx *)(0))) && ((ctx->current_codegen_module) != ((struct ast_Module *)(0))))) {
+          struct ast_Module *mod_sl = ctx->current_codegen_module;
+          int32_t rty_sl = e.resolved_type_ref;
+          int32_t did_mono = 0;
+          {
+            int32_t st = codegen_try_emit_struct_lit_mono_from_fields(mod_sl, arena, out, expr_ref, &((sl_emit_name)[0]), sl_emit_nlen, ctx);
+            if (st < 0) return -(1);
+            if (st > 0) did_mono = 1;
+          }
+          if ((did_mono == 0) && (rty_sl > 0)) {
+            if ((codegen_maybe_emit_generic_struct_mono_suffix_for_type(mod_sl, arena, out, rty_sl, ctx) != 0)) return -(1);
+            {
+              int32_t mono_chk[4];
+              int32_t lk_sl = codegen_module_struct_layout_index_by_name(mod_sl, &((sl_emit_name)[0]), sl_emit_nlen);
+              if ((lk_sl >= 0)) {
+                int32_t ntp_sl = pipeline_module_struct_layout_num_type_params_at(mod_sl, lk_sl);
+                if (((ntp_sl > 0) && (codegen_generic_struct_fill_concrete_args(mod_sl, arena, rty_sl, ntp_sl, &((mono_chk)[0]), ctx) == ntp_sl))) {
+                  did_mono = 1;
+                }
+              }
+            }
+          }
+          /* wave481: mono body `return Pair {..}` — map layout type-params via mono map. */
+          if (((did_mono == 0) && ((ctx->mono_active) != 0) && ((ctx->mono_num_types) > 0))) {
+            int32_t lk_m = codegen_module_struct_layout_index_by_name(mod_sl, &((sl_emit_name)[0]), sl_emit_nlen);
+            if ((lk_m >= 0)) {
+              int32_t ntp_m = pipeline_module_struct_layout_num_type_params_at(mod_sl, lk_m);
+              if (((ntp_m > 0) && (ntp_m <= 4))) {
+                int32_t combo_m[4];
+                int32_t ok_m = 1;
+                int32_t tj_m;
+                for (tj_m = 0; tj_m < ntp_m; tj_m++) {
+                  int32_t tpl_m, mi_m;
+                  uint8_t tpn_m[64];
+                  combo_m[tj_m] = 0;
+                  tpl_m = pipeline_module_struct_layout_type_param_name_len(mod_sl, lk_m, tj_m);
+                  pipeline_module_struct_layout_type_param_name_into(mod_sl, lk_m, tj_m, tpn_m);
+                  for (mi_m = 0; mi_m < ctx->mono_num_types && mi_m < 8; mi_m++) {
+                    int32_t gtr_m = ctx->mono_generic_type_refs[mi_m];
+                    int32_t ctr_m = ctx->mono_concrete_type_refs[mi_m];
+                    if (gtr_m > 0 && ctr_m > 0) {
+                      uint8_t gnm_m[64];
+                      int32_t gnl_m = pipeline_type_named_name_into(arena, gtr_m, gnm_m);
+                      if (gnl_m == tpl_m && gnl_m > 0) {
+                        int32_t geq = 1, gi;
+                        for (gi = 0; gi < gnl_m; gi++) if (gnm_m[gi] != tpn_m[gi]) { geq = 0; break; }
+                        if (geq) { combo_m[tj_m] = ctr_m; break; }
+                      }
+                    }
+                  }
+                  if (combo_m[tj_m] <= 0) ok_m = 0;
+                }
+                if (ok_m) {
+                  if (codegen_emit_generic_struct_mono_suffix(out, arena, combo_m, ntp_m) != 0) return -(1);
+                  did_mono = 1;
+                }
+              }
+            }
+          }
+          if ((did_mono == 0)) {
+            int32_t lk2 = codegen_module_struct_layout_index_by_name(mod_sl, &((sl_emit_name)[0]), sl_emit_nlen);
+            if ((lk2 >= 0)) {
+              int32_t ntp2 = pipeline_module_struct_layout_num_type_params_at(mod_sl, lk2);
+              if (((ntp2 > 0) && (ntp2 <= 4))) {
+                int32_t combo_sl[4]; int32_t filled_sl = 0; int32_t ok_sl = 1; int32_t tj_sl = 0;
+                int32_t nf_lay, fj_sl, sc_sl;
+                while ((tj_sl < ntp2)) { combo_sl[tj_sl] = 0; tj_sl++; }
+                nf_lay = pipeline_module_struct_layout_num_fields(mod_sl, lk2);
+                for (fj_sl = 0; fj_sl < nf_lay; fj_sl++) {
+                  int32_t ftr_sl = pipeline_module_struct_layout_field_type_ref(mod_sl, lk2, fj_sl);
+                  int32_t ftnl_sl, slot_sl = -1, pj_sl, flen_sl, lit_nf_sl, li_sl, zi;
+                  uint8_t ftn_sl[64], fnm_sl[64];
+                  if (pipeline_type_kind_ord_at(arena, ftr_sl) != 8) continue;
+                  for (zi = 0; zi < 64; zi++) ftn_sl[zi] = 0;
+                  ftnl_sl = pipeline_type_named_name_into(arena, ftr_sl, ftn_sl);
+                  for (pj_sl = 0; pj_sl < ntp2; pj_sl++) {
+                    int32_t tpl_sl = pipeline_module_struct_layout_type_param_name_len(mod_sl, lk2, pj_sl);
+                    uint8_t tpn_sl[64]; int32_t peq_sl = 1, pi_sl;
+                    if (tpl_sl != ftnl_sl || ftnl_sl <= 0) continue;
+                    for (zi = 0; zi < 64; zi++) tpn_sl[zi] = 0;
+                    pipeline_module_struct_layout_type_param_name_into(mod_sl, lk2, pj_sl, tpn_sl);
+                    for (pi_sl = 0; pi_sl < ftnl_sl; pi_sl++) if (tpn_sl[pi_sl] != ftn_sl[pi_sl]) { peq_sl = 0; break; }
+                    if (peq_sl) { slot_sl = pj_sl; break; }
+                  }
+                  if (slot_sl < 0) continue;
+                  flen_sl = pipeline_module_struct_layout_field_name_len(mod_sl, lk2, fj_sl);
+                  for (zi = 0; zi < 64; zi++) fnm_sl[zi] = 0;
+                  pipeline_module_struct_layout_field_name_into(mod_sl, lk2, fj_sl, fnm_sl);
+                  lit_nf_sl = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+                  for (li_sl = 0; li_sl < lit_nf_sl; li_sl++) {
+                    int32_t lfl_sl = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, li_sl);
+                    uint8_t lfn_sl[64]; int32_t feq_sl = 1, fi_sl, iref_sl, ity_sl;
+                    if (lfl_sl != flen_sl || flen_sl <= 0) continue;
+                    for (zi = 0; zi < 64; zi++) lfn_sl[zi] = 0;
+                    pipeline_expr_struct_lit_field_name_into(arena, expr_ref, li_sl, lfn_sl);
+                    for (fi_sl = 0; fi_sl < flen_sl; fi_sl++) if (lfn_sl[fi_sl] != fnm_sl[fi_sl]) { feq_sl = 0; break; }
+                    if (!feq_sl) continue;
+                    iref_sl = pipeline_expr_struct_lit_init_ref(arena, expr_ref, li_sl);
+                    if (iref_sl > 0) {
+                      ity_sl = pipeline_expr_resolved_type_ref(arena, iref_sl);
+                      if (ity_sl > 0 && codegen_type_ref_is_host_concrete(mod_sl, arena, ity_sl) != 0) {
+                        if (combo_sl[slot_sl] == 0) { combo_sl[slot_sl] = ity_sl; filled_sl++; }
+                      }
+                    }
+                    break;
+                  }
+                }
+                for (sc_sl = 0; sc_sl < ntp2; sc_sl++) if (combo_sl[sc_sl] <= 0) ok_sl = 0;
+                if (ok_sl && filled_sl > 0) {
+                  if (codegen_emit_generic_struct_mono_suffix(out, arena, combo_sl, ntp2) != 0) return -(1);
+                }
+              }
+            }
+          }
+        }
       }
       uint8_t open2[5] = {41, 123, 32, 0, 0};
       if ((codegen_emit_bytes_5(out, open2, 3) !=0)) {
         return -(1);
       }
       int32_t fi = 0;
-      int32_t nf_codegen = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
       while ((fi < nf_codegen)) {
         uint8_t sl_fnbuf[64] = {};
         int32_t flen = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, fi);
@@ -8046,11 +11592,13 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
               }
             }
           } else {
-            /* PLATFORM: SHARED — array field ← VAR/param: expand to { src[0], … }. */
+            /* PLATFORM: SHARED — array field ← VAR/param: expand to { src[0], … }.
+             * wave352: CALL/METHOD expand from __xlang_aaK after once-materialize. */
             int32_t use_elem_expand = 0;
             int32_t arr_sz = 0;
             int32_t flen_lk = flen;
             int32_t ftr = 0;
+            int32_t is_call_init = 0;
             if ((flen_lk > 64)) {
               flen_lk = 64;
             }
@@ -8068,43 +11616,85 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
                 }
               }
             }
-            if ((use_elem_expand != 0)) {
-              int32_t ai = 0;
+            if ((((init_e.kind) == 48) || ((init_e.kind) == 49))) {
+              is_call_init = 1;
+            }
+            if ((((use_elem_expand != 0) && (is_call_init != 0)) && (need_call_mat != 0))) {
+              int32_t ai_c = 0;
               if ((codegen_append_byte(out, 123) !=0)) {
                 return -(1);
               }
-              while ((ai < arr_sz)) {
-                if ((ai > 0)) {
-                  uint8_t cm[3] = {44, 32, 0};
-                  if ((codegen_emit_bytes_3(out, cm, 2) !=0)) {
+              while ((ai_c < arr_sz)) {
+                uint8_t aa_rd[12] = {95, 95, 120, 108, 97, 110, 103, 95, 97, 97, 0, 0};
+                if ((ai_c > 0)) {
+                  uint8_t cm_c[3] = {44, 32, 0};
+                  if ((codegen_emit_bytes_3(out, cm_c, 2) !=0)) {
                     return -(1);
                   }
                 }
-                if ((codegen_emit_expr(arena, out, init_ref, ctx) !=0)) {
+                if ((codegen_emit_bytes_from_ptr(out, &((aa_rd)[0]), 10) !=0)) {
+                  return -(1);
+                }
+                if ((codegen_format_int(out, ((int64_t)(fi))) !=0)) {
                   return -(1);
                 }
                 if ((codegen_append_byte(out, 91) !=0)) {
                   return -(1);
                 }
-                if ((codegen_format_int(out, ((int64_t)(ai))) !=0)) {
+                if ((codegen_format_int(out, ((int64_t)(ai_c))) !=0)) {
                   return -(1);
                 }
                 if ((codegen_append_byte(out, 93) !=0)) {
                   return -(1);
                 }
-                (void)((ai = (ai + 1)));
+                (void)((ai_c = (ai_c + 1)));
               }
               if ((codegen_append_byte(out, 125) !=0)) {
                 return -(1);
               }
             } else {
-              if ((codegen_emit_expr(arena, out, init_ref, ctx) !=0)) {
-                return -(1);
+              if ((use_elem_expand != 0)) {
+                int32_t ai = 0;
+                if ((codegen_append_byte(out, 123) !=0)) {
+                  return -(1);
+                }
+                while ((ai < arr_sz)) {
+                  if ((ai > 0)) {
+                    uint8_t cm[3] = {44, 32, 0};
+                    if ((codegen_emit_bytes_3(out, cm, 2) !=0)) {
+                      return -(1);
+                    }
+                  }
+                  if ((codegen_emit_expr(arena, out, init_ref, ctx) !=0)) {
+                    return -(1);
+                  }
+                  if ((codegen_append_byte(out, 91) !=0)) {
+                    return -(1);
+                  }
+                  if ((codegen_format_int(out, ((int64_t)(ai))) !=0)) {
+                    return -(1);
+                  }
+                  if ((codegen_append_byte(out, 93) !=0)) {
+                    return -(1);
+                  }
+                  (void)((ai = (ai + 1)));
+                }
+                if ((codegen_append_byte(out, 125) !=0)) {
+                  return -(1);
+                }
+              } else {
+                if ((codegen_emit_expr(arena, out, init_ref, ctx) !=0)) {
+                  return -(1);
+                }
               }
             }
           }
         }
         (void)((fi = (fi + 1)));
+      }
+      if ((need_call_mat != 0)) {
+        uint8_t mat_close[8] = {32, 125, 59, 32, 125, 41, 0, 0};
+        return codegen_emit_bytes_from_ptr(out, &((mat_close)[0]), 6);
       }
       uint8_t close[4] = {32, 125, 0, 0};
       return codegen_emit_bytes_4(out, close, 2);
@@ -8178,7 +11768,163 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
         }
       }
       if ((is_slice !=0)) {
-        uint8_t lp[3] = {40, 0, 0};
+        /*
+         * wave335: TYPE_SLICE + ARRAY_LIT → static when all elems LIT/BOOL (durable).
+         * wave340: non-const → block compound (in-fn OK; return dangles).
+         * wave341: non-const durable via runtime-filled static E __xlang_al[N]; stores.
+         * G.7: match freestanding durable gate + codegen.x (same commit).
+         * PLATFORM: SHARED host-C (same as codegen.x).
+         */
+        int32_t ai = 0;
+        int32_t all_const = 1;
+        int32_t ci = 0;
+        if (n == 0) {
+          uint8_t empty_tail[40] = {41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 40, 118, 111, 105, 100, 32, 42, 41, 48, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 48, 32, 125, 0, 0, 0, 0, 0};
+          if ((codegen_append_byte(out, 40) !=0)) {
+            return -(1);
+          }
+          if ((codegen_emit_type(arena, out, (e.resolved_type_ref), ((uint8_t *)(0)), 0, ctx) !=0)) {
+            uint8_t fallback[9] = {117, 105, 110, 116, 56, 95, 116, 0, 0};
+            if ((codegen_emit_bytes_9(out, fallback, 7) !=0)) {
+              return -(1);
+            }
+          }
+          if ((codegen_emit_bytes_from_ptr(out, empty_tail, 35) !=0)) {
+            return -(1);
+          }
+          return 0;
+        }
+        while ((ci < n)) {
+          int32_t er = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ci);
+          if (ast_ref_is_null(er)) {
+            all_const = 0;
+          } else {
+            int32_t ek = pipeline_expr_kind_ord_at(arena, er);
+            if (((ek != 0) && (ek != 2))) {
+              all_const = 0;
+            }
+          }
+          (void)((ci = (ci + 1)));
+        }
+        if ((all_const != 0)) {
+          {
+            uint8_t open_stmt[12] = {40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0};
+            if ((codegen_emit_bytes_from_ptr(out, open_stmt, 10) !=0)) {
+              return -(1);
+            }
+          }
+          if ((!(ast_ref_is_null(elem_type_ref)) && (codegen_emit_type(arena, out, elem_type_ref, ((uint8_t *)(0)), 0, ctx) !=0))) {
+            uint8_t fallback[9] = {117, 105, 110, 116, 56, 95, 116, 0, 0};
+            if ((codegen_emit_bytes_9(out, fallback, 7) !=0)) {
+              return -(1);
+            }
+          }
+          {
+            uint8_t al_head[18] = {32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 91, 93, 32, 61, 32, 123, 0};
+            if ((codegen_emit_bytes_from_ptr(out, al_head, 17) !=0)) {
+              return -(1);
+            }
+          }
+          while ((ai < n)) {
+            if ((ai > 0)) {
+              uint8_t comma[3] = {44, 32, 0};
+              if ((codegen_emit_bytes_3(out, comma, 2) !=0)) {
+                return -(1);
+              }
+            }
+            if ((!(ast_ref_is_null(pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai))) && (codegen_emit_expr(arena, out, pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai), ctx) !=0))) {
+              return -(1);
+            }
+            (void)((ai = (ai + 1)));
+          }
+          {
+            uint8_t mid[6] = {125, 59, 32, 40, 0, 0};
+            if ((codegen_emit_bytes_from_ptr(out, mid, 4) !=0)) {
+              return -(1);
+            }
+          }
+          if ((codegen_emit_type(arena, out, (e.resolved_type_ref), ((uint8_t *)(0)), 0, ctx) !=0)) {
+            uint8_t fallback[9] = {117, 105, 110, 116, 56, 95, 116, 0, 0};
+            if ((codegen_emit_bytes_9(out, fallback, 7) !=0)) {
+              return -(1);
+            }
+          }
+          {
+            uint8_t slice_mid[36] = {41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0};
+            if ((codegen_emit_bytes_from_ptr(out, slice_mid, 33) !=0)) {
+              return -(1);
+            }
+          }
+          if ((codegen_format_int(out, ai) !=0)) {
+            return -(1);
+          }
+          {
+            uint8_t slice_end[8] = {32, 125, 59, 32, 125, 41, 0, 0};
+            if ((codegen_emit_bytes_from_ptr(out, slice_end, 6) !=0)) {
+              return -(1);
+            }
+          }
+          return 0;
+        }
+        /*
+         * wave341: non-const durable static fill (return-safe).
+         * ({ static E __xlang_al[N]; __xlang_al[i]=ei; …; (slice){.data=__xlang_al,.length=N}; })
+         */
+        {
+          uint8_t nc_open[12] = {40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0};
+          if ((codegen_emit_bytes_from_ptr(out, nc_open, 10) !=0)) {
+            return -(1);
+          }
+        }
+        if ((!(ast_ref_is_null(elem_type_ref)) && (codegen_emit_type(arena, out, elem_type_ref, ((uint8_t *)(0)), 0, ctx) !=0))) {
+          uint8_t fallback[9] = {117, 105, 110, 116, 56, 95, 116, 0, 0};
+          if ((codegen_emit_bytes_9(out, fallback, 7) !=0)) {
+            return -(1);
+          }
+        }
+        {
+          uint8_t nc_al_br[14] = {32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 91, 0, 0};
+          if ((codegen_emit_bytes_from_ptr(out, nc_al_br, 12) !=0)) {
+            return -(1);
+          }
+        }
+        if ((codegen_format_int(out, n) !=0)) {
+          return -(1);
+        }
+        {
+          uint8_t nc_sz_end[4] = {93, 59, 32, 0};
+          if ((codegen_emit_bytes_from_ptr(out, nc_sz_end, 3) !=0)) {
+            return -(1);
+          }
+        }
+        ai = 0;
+        while ((ai < n)) {
+          {
+            uint8_t nc_asg_h[14] = {95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 91, 0, 0, 0};
+            if ((codegen_emit_bytes_from_ptr(out, nc_asg_h, 11) !=0)) {
+              return -(1);
+            }
+          }
+          if ((codegen_format_int(out, ai) !=0)) {
+            return -(1);
+          }
+          {
+            uint8_t nc_asg_m[6] = {93, 32, 61, 32, 0, 0};
+            if ((codegen_emit_bytes_from_ptr(out, nc_asg_m, 4) !=0)) {
+              return -(1);
+            }
+          }
+          if ((!(ast_ref_is_null(pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai))) && (codegen_emit_expr(arena, out, pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai), ctx) !=0))) {
+            return -(1);
+          }
+          {
+            uint8_t nc_asg_t[4] = {59, 32, 0, 0};
+            if ((codegen_emit_bytes_from_ptr(out, nc_asg_t, 2) !=0)) {
+              return -(1);
+            }
+          }
+          (void)((ai = (ai + 1)));
+        }
         if ((codegen_append_byte(out, 40) !=0)) {
           return -(1);
         }
@@ -8188,23 +11934,22 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
             return -(1);
           }
         }
-        uint8_t slice_mid[22] = {41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-        if ((codegen_emit_bytes_22(out, slice_mid, 11) !=0)) {
-          return -(1);
-        }
-        if ((codegen_append_byte(out, 40) !=0)) {
-          return -(1);
-        }
-        if ((!(ast_ref_is_null(elem_type_ref)) && (codegen_emit_type(arena, out, elem_type_ref, ((uint8_t *)(0)), 0, ctx) !=0))) {
-          uint8_t fallback[9] = {117, 105, 110, 116, 56, 95, 116, 0, 0};
-          if ((codegen_emit_bytes_9(out, fallback, 7) !=0)) {
+        {
+          uint8_t nc_slice_mid[36] = {41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0};
+          if ((codegen_emit_bytes_from_ptr(out, nc_slice_mid, 33) !=0)) {
             return -(1);
           }
         }
-        uint8_t arr[5] = {91, 93, 41, 123, 0};
-        if ((codegen_emit_bytes_5(out, arr, 4) !=0)) {
+        if ((codegen_format_int(out, ai) !=0)) {
           return -(1);
         }
+        {
+          uint8_t nc_slice_end[8] = {32, 125, 59, 32, 125, 41, 0, 0};
+          if ((codegen_emit_bytes_from_ptr(out, nc_slice_end, 6) !=0)) {
+            return -(1);
+          }
+        }
+        return 0;
       } else {
         uint8_t arr[5] = {91, 93, 41, 123, 0};
         if ((codegen_append_byte(out, 40) !=0)) {
@@ -8232,22 +11977,6 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
           return -(1);
         }
         (void)((ai = (ai + 1)));
-      }
-      if ((is_slice !=0)) {
-        uint8_t slice_end[22] = {32, 125, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0, 0, 0, 0, 0, 0};
-        if ((codegen_emit_bytes_22(out, slice_end, 14) !=0)) {
-          return -(1);
-        }
-        if ((codegen_format_int(out, ai) !=0)) {
-          return -(1);
-        }
-        if ((codegen_append_byte(out, 32) !=0)) {
-          return -(1);
-        }
-        if ((codegen_append_byte(out, 125) !=0)) {
-          return -(1);
-        }
-        return codegen_append_byte(out, 41);
       }
       uint8_t close[4] = {32, 125, 0, 0};
       return codegen_emit_bytes_4(out, close, 2);
@@ -8355,6 +12084,13 @@ int32_t codegen_emit_return_stmt_with_context(struct ast_ASTArena * arena, struc
   {
     uint8_t ret[8] = {114, 101, 116, 117, 114, 110, 32, 0};
     uint8_t sc[4] = {59, 10, 0, 0};
+    /* wave374: return match with return-control arms → if/else real returns */
+    if (((fn_ret_void == 0) && !(ast_ref_is_null(operand_ref)))) {
+      struct ast_Expr mop = ast_ast_arena_expr_get(arena, operand_ref);
+      if ((((mop.kind) == 43) && (codegen_match_has_return_arm(arena, operand_ref) != 0))) {
+        return codegen_emit_match_as_stmt(arena, out, operand_ref, indent, ctx, fn_ret_void);
+      }
+    }
     if ((fn_ret_void !=0)) {
       uint8_t retv[9] = {114, 101, 116, 117, 114, 110, 59, 10, 0};
       if (!(ast_ref_is_null(operand_ref))) {
@@ -8399,6 +12135,125 @@ int32_t codegen_emit_return_stmt_with_context(struct ast_ASTArena * arena, struc
     if ((ctx != ((struct ast_PipelineDepCtx *)(0))) && (ctx->current_codegen_module != ((struct ast_Module *)(0)))
         && (ctx->current_func_index >= 0) && (ctx->current_func_index < (ctx->current_codegen_module->num_funcs))) {
       int32_t rty = pipeline_module_func_return_type_at(ctx->current_codegen_module, ctx->current_func_index);
+      /* wave352: host return fixed TYPE_ARRAY → durable static (seed mirror).
+       * TYPE_ARRAY=10; EXPR_ARRAY_LIT=46. PLATFORM: SHARED host-C. */
+      if (((!(ast_ref_is_null(rty))) && (pipeline_type_kind_ord_at(arena, rty) == 10)) && (!(ast_ref_is_null(operand_ref)))) {
+        int32_t arr_sz_r = pipeline_type_array_size_at(arena, rty);
+        int32_t elem_r = pipeline_type_elem_ref_at(arena, rty);
+        if (((arr_sz_r > 0) && (arr_sz_r <= 512))) {
+          uint8_t ar_open[20] = {114, 101, 116, 117, 114, 110, 32, 40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0, 0};
+          uint8_t ar_nm[14] = {32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 114, 91, 0, 0};
+          uint8_t ar_sz_end[4] = {93, 59, 32, 0};
+          int32_t op_k = 0;
+          if ((codegen_emit_indent(out, indent) !=0)) {
+            return -(1);
+          }
+          if ((codegen_emit_bytes_from_ptr(out, &((ar_open)[0]), 17) !=0)) {
+            return -(1);
+          }
+          if ((ast_ref_is_null(elem_r) || (codegen_emit_type(arena, out, elem_r, ((uint8_t *)(0)), 0, ctx) !=0))) {
+            uint8_t fb_ar[9] = {105, 110, 116, 51, 50, 95, 116, 0, 0};
+            if ((codegen_emit_bytes_from_ptr(out, &((fb_ar)[0]), 7) !=0)) {
+              return -(1);
+            }
+          }
+          if ((codegen_emit_bytes_from_ptr(out, &((ar_nm)[0]), 12) !=0)) {
+            return -(1);
+          }
+          if ((codegen_format_int(out, ((int64_t)(arr_sz_r))) !=0)) {
+            return -(1);
+          }
+          if ((codegen_emit_bytes_from_ptr(out, &((ar_sz_end)[0]), 3) !=0)) {
+            return -(1);
+          }
+          op_k = pipeline_expr_kind_ord_at(arena, operand_ref);
+          if ((op_k == 46)) {
+            int32_t n_lit = pipeline_expr_array_lit_num_elems_at(arena, operand_ref);
+            int32_t ai_r = 0;
+            while ((ai_r < arr_sz_r)) {
+              uint8_t ar_asg[14] = {95, 95, 120, 108, 97, 110, 103, 95, 97, 114, 91, 0, 0, 0};
+              uint8_t ar_eq[6] = {93, 32, 61, 32, 0, 0};
+              uint8_t ar_sc[4] = {59, 32, 0, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((ar_asg)[0]), 11) !=0)) {
+                return -(1);
+              }
+              if ((codegen_format_int(out, ((int64_t)(ai_r))) !=0)) {
+                return -(1);
+              }
+              if ((codegen_emit_bytes_from_ptr(out, &((ar_eq)[0]), 4) !=0)) {
+                return -(1);
+              }
+              if ((ai_r < n_lit)) {
+                int32_t er_r = pipeline_expr_array_lit_elem_ref(arena, operand_ref, ai_r);
+                if ((!(ast_ref_is_null(er_r))) && (codegen_emit_expr(arena, out, er_r, ctx) !=0)) {
+                  return -(1);
+                } else {
+                  if (ast_ref_is_null(er_r)) {
+                    if ((codegen_append_byte(out, 48) !=0)) {
+                      return -(1);
+                    }
+                  }
+                }
+              } else {
+                if ((codegen_append_byte(out, 48) !=0)) {
+                  return -(1);
+                }
+              }
+              if ((codegen_emit_bytes_4(out, ar_sc, 2) !=0)) {
+                return -(1);
+              }
+              (void)((ai_r = (ai_r + 1)));
+            }
+          } else {
+            uint8_t rp_nm[16] = {32, 42, 95, 95, 120, 108, 97, 110, 103, 95, 114, 112, 32, 61, 32, 0};
+            uint8_t rp_sc[4] = {59, 32, 0, 0};
+            int32_t ai_c = 0;
+            if ((ast_ref_is_null(elem_r) || (codegen_emit_type(arena, out, elem_r, ((uint8_t *)(0)), 0, ctx) !=0))) {
+              uint8_t fb_rp[9] = {105, 110, 116, 51, 50, 95, 116, 0, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((fb_rp)[0]), 7) !=0)) {
+                return -(1);
+              }
+            }
+            if ((codegen_emit_bytes_from_ptr(out, &((rp_nm)[0]), 15) !=0)) {
+              return -(1);
+            }
+            if ((codegen_emit_expr(arena, out, operand_ref, ctx) !=0)) {
+              return -(1);
+            }
+            if ((codegen_emit_bytes_4(out, rp_sc, 2) !=0)) {
+              return -(1);
+            }
+            while ((ai_c < arr_sz_r)) {
+              uint8_t cp_h[14] = {95, 95, 120, 108, 97, 110, 103, 95, 97, 114, 91, 0, 0, 0};
+              uint8_t cp_m[16] = {93, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 114, 112, 91, 0};
+              uint8_t cp_e[4] = {93, 59, 32, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((cp_h)[0]), 11) !=0)) {
+                return -(1);
+              }
+              if ((codegen_format_int(out, ((int64_t)(ai_c))) !=0)) {
+                return -(1);
+              }
+              if ((codegen_emit_bytes_from_ptr(out, &((cp_m)[0]), 15) !=0)) {
+                return -(1);
+              }
+              if ((codegen_format_int(out, ((int64_t)(ai_c))) !=0)) {
+                return -(1);
+              }
+              if ((codegen_emit_bytes_from_ptr(out, &((cp_e)[0]), 3) !=0)) {
+                return -(1);
+              }
+              (void)((ai_c = (ai_c + 1)));
+            }
+          }
+          {
+            uint8_t ar_end[20] = {95, 95, 120, 108, 97, 110, 103, 95, 97, 114, 59, 32, 125, 41, 59, 10, 0, 0, 0, 0};
+            if ((codegen_emit_bytes_from_ptr(out, &((ar_end)[0]), 16) !=0)) {
+              return -(1);
+            }
+          }
+          return 0;
+        }
+      }
       if ((!(ast_ref_is_null(rty))) && (pipeline_type_kind_ord_at(arena, rty) == 8)) {
         int32_t use_struct_zero = 0;
         if (ast_ref_is_null(operand_ref)) {
@@ -8425,6 +12280,125 @@ int32_t codegen_emit_return_stmt_with_context(struct ast_ASTArena * arena, struc
             return -(1);
           }
           return 0;
+        }
+      }
+      /*
+       * wave342–344 Cap residual pure: host `return s` where
+       *   `let a: T[N] = …; let s: T[] = a; …; return s` (body-top or nested block)
+       * Root: stack view dangles on return. G.7: static E __xlang_esc[N] +
+       * memcpy(s.data, min(s.length,N)). wave343 finder nested; wave344 runtime length.
+       * wave419: raise host escape cap 256→1024 (≡ freestanding GLUE_ARRAY_LIT_MAX_ELEMS /
+       * deep-copy max_n). n>256 previously bare `return s`; dual n=1024 SIGSEGV.
+       * PLATFORM: SHARED host-C (matches freestanding COMMON escape).
+       */
+      if ((!(ast_ref_is_null(rty))) && (pipeline_type_kind_ord_at(arena, rty) == 11)
+          && (!(ast_ref_is_null(operand_ref)))
+          && (pipeline_expr_kind_ord_at(arena, operand_ref) == 3)) {
+        int32_t body_br = pipeline_module_func_body_ref_at(ctx->current_codegen_module, ctx->current_func_index);
+        if ((!(ast_ref_is_null(body_br))) && (body_br > 0)) {
+          struct ast_Expr op_e = ast_ast_arena_expr_get(arena, operand_ref);
+          int32_t arr_sz = 0;
+          int32_t elem_tr = 0;
+          int32_t arr_init_dummy = 0;
+          int32_t found_esc = 0;
+          found_esc = pipeline_find_fixed_array_slice_escape(arena, body_br, &((op_e.var_name))[0],
+                                                            (op_e.var_name_len), &arr_sz, &elem_tr,
+                                                            &arr_init_dummy);
+          if ((((found_esc != 0) && (arr_sz > 0) && (arr_sz <= 1024)) && (!(ast_ref_is_null(elem_tr))))) {
+            uint8_t open1[20] = {114, 101, 116, 117, 114, 110, 32, 40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0, 0};
+            uint8_t esc_br[16] = {32, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 91, 0, 0, 0};
+            /* ]; size_t __xlang_esc_n = (size_t) */
+            uint8_t mid1[36] = {93, 59, 32, 115, 105, 122, 101, 95, 116, 32, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 95, 110, 32, 61, 32, 40, 115, 105, 122, 101, 95, 116, 41, 0, 0};
+            /* .length; if (__xlang_esc_n > (size_t) */
+            uint8_t mid2a[40] = {46, 108, 101, 110, 103, 116, 104, 59, 32, 105, 102, 32, 40, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 95, 110, 32, 62, 32, 40, 115, 105, 122, 101, 95, 116, 41, 0, 0, 0};
+            /* ) __xlang_esc_n = (size_t) */
+            uint8_t mid2b[28] = {41, 32, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 95, 110, 32, 61, 32, 40, 115, 105, 122, 101, 95, 116, 41, 0, 0};
+            /* ; memcpy(__xlang_esc,  */
+            uint8_t mid2c[24] = {59, 32, 109, 101, 109, 99, 112, 121, 40, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 44, 32, 0, 0};
+            /* .data, __xlang_esc_n * sizeof(__xlang_esc[0])); ( */
+            uint8_t mid3[52] = {46, 100, 97, 116, 97, 44, 32, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 95, 110, 32, 42, 32, 115, 105, 122, 101, 111, 102, 40, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 91, 48, 93, 41, 41, 59, 32, 40, 0, 0, 0};
+            /* ){ .data = __xlang_esc, .length = __xlang_esc_n }; })\n */
+            uint8_t end1[56] = {41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 95, 110, 32, 125, 59, 32, 125, 41, 59, 10, 0};
+            uint8_t fallback[9] = {105, 110, 116, 51, 50, 95, 116, 0, 0};
+            if ((codegen_emit_indent(out, indent) !=0)) {
+              return -(1);
+            }
+            if ((codegen_emit_bytes_from_ptr(out, &((open1)[0]), 17) !=0)) {
+              return -(1);
+            }
+            if ((codegen_emit_type(arena, out, elem_tr, ((uint8_t *)(0)), 0, ctx) !=0)) {
+              if ((codegen_emit_bytes_9(out, fallback, 7) !=0)) {
+                return -(1);
+              }
+            }
+            if ((codegen_emit_bytes_from_ptr(out, &((esc_br)[0]), 13) !=0)) {
+              return -(1);
+            }
+            if ((codegen_format_int(out, arr_sz) !=0)) {
+              return -(1);
+            }
+            if ((codegen_emit_bytes_from_ptr(out, &((mid1)[0]), 34) !=0)) {
+              return -(1);
+            }
+            if ((codegen_emit_bytes_64(out, &(((op_e.var_name))[0]), (op_e.var_name_len)) !=0)) {
+              return -(1);
+            }
+            if ((codegen_emit_bytes_from_ptr(out, &((mid2a)[0]), 37) !=0)) {
+              return -(1);
+            }
+            if ((codegen_format_int(out, arr_sz) !=0)) {
+              return -(1);
+            }
+            if ((codegen_emit_bytes_from_ptr(out, &((mid2b)[0]), 26) !=0)) {
+              return -(1);
+            }
+            if ((codegen_format_int(out, arr_sz) !=0)) {
+              return -(1);
+            }
+            if ((codegen_emit_bytes_from_ptr(out, &((mid2c)[0]), 22) !=0)) {
+              return -(1);
+            }
+            if ((codegen_emit_bytes_64(out, &(((op_e.var_name))[0]), (op_e.var_name_len)) !=0)) {
+              return -(1);
+            }
+            if ((codegen_emit_bytes_from_ptr(out, &((mid3)[0]), 49) !=0)) {
+              return -(1);
+            }
+            if ((codegen_emit_type(arena, out, rty, ((uint8_t *)(0)), 0, ctx) !=0)) {
+              return -(1);
+            }
+            if ((codegen_emit_bytes_from_ptr(out, &((end1)[0]), 55) !=0)) {
+              return -(1);
+            }
+            return 0;
+          }
+        }
+        /*
+         * wave345 Cap residual pure: host `return s` when `s` is a TYPE_SLICE
+         * formal. C ABI lowers TYPE_SLICE params as `struct xlang_slice_* *`
+         * (G.7 field_access_base_is_pointer_param / call-arg `&local`), but the
+         * function returns the slice by value. Bare `return s` is type-error in
+         * host-cc (`*` vs value). Freestanding already dual-GP-loads fat* (wave332).
+         * G.7: reuse pointer-param classifier; emit `return *s;` when rty is
+         * TYPE_SLICE and operand is that formal (not a local by-value fat).
+         * PLATFORM: SHARED host-C emit. Soft: untyped-let; reentrancy last-wins.
+         */
+        if ((codegen_field_access_base_is_pointer_param(arena, operand_ref, (ctx->current_codegen_module), (ctx->current_func_index)) != 0)) {
+          struct ast_Expr op_e2 = ast_ast_arena_expr_get(arena, operand_ref);
+          if (((op_e2.var_name_len) > 0)) {
+            uint8_t ret_star[12] = {114, 101, 116, 117, 114, 110, 32, 42, 0, 0, 0, 0};
+            uint8_t sc_star[4] = {59, 10, 0, 0};
+            if ((codegen_emit_indent(out, indent) !=0)) {
+              return -(1);
+            }
+            if ((codegen_emit_bytes_from_ptr(out, &((ret_star)[0]), 8) !=0)) {
+              return -(1);
+            }
+            if ((codegen_emit_bytes_64(out, &(((op_e2.var_name))[0]), (op_e2.var_name_len)) !=0)) {
+              return -(1);
+            }
+            return codegen_emit_bytes_4(out, sc_star, 2);
+          }
         }
       }
     }
@@ -8454,6 +12428,10 @@ int32_t codegen_emit_block_final_expr(struct ast_ASTArena * arena, struct codege
   }
   if (((fe.kind) ==41)) {
     return codegen_emit_return_stmt_with_context(arena, out, indent, (fe.unary_operand_ref), ctx, fn_ret_void);
+  }
+  /* wave374: final match with return-control arms → if/else, not return(ternary) */
+  if (((fe.kind) ==43) && (codegen_match_has_return_arm(arena, final_ref) !=0)) {
+    return codegen_emit_match_as_stmt(arena, out, final_ref, indent, ctx, fn_ret_void);
   }
   int32_t parent_br = 0;
   int32_t is_func_body = 0;
@@ -8523,34 +12501,81 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
           if ((codegen_append_byte(out, 32) !=0)) {
             return -(1);
           }
-          if (((lname_len_pre > 0) && ((lname_pre)[0] > 32))) {
-            if ((codegen_emit_bytes_64(out, &((lname_pre)[0]), lname_len_pre) !=0)) {
+          {
+            uint8_t emit_nm_pre[64] = {};
+            int32_t emit_nml_pre = 0;
+            if (((lname_len_pre > 0) && ((lname_pre)[0] > 32))) {
+              int32_t ci = 0;
+              while (((ci < lname_len_pre) && (ci < 64))) {
+                (void)(((emit_nm_pre)[ci] = (lname_pre)[ci]));
+                (void)((ci = (ci + 1)));
+              }
+              (void)((emit_nml_pre = lname_len_pre));
+            } else {
+              (void)(((emit_nm_pre)[0] = 95));
+              (void)(((emit_nm_pre)[1] = 108));
+              (void)((emit_nml_pre = 2));
+              {
+                int32_t v = pre_li;
+                uint8_t digs[12] = {};
+                int32_t nd = 0;
+                if ((v == 0)) {
+                  (void)(((digs)[0] = 48));
+                  (void)((nd = 1));
+                } else {
+                  int32_t tmp = v;
+                  while (((tmp > 0) && (nd < 12))) {
+                    (void)(((digs)[nd] = ((uint8_t)((tmp % 10) + 48))));
+                    (void)((tmp = (tmp / 10)));
+                    (void)((nd = (nd + 1)));
+                  }
+                  {
+                    int32_t a = 0;
+                    int32_t b = (nd - 1);
+                    while ((a < b)) {
+                      uint8_t sw = (digs)[a];
+                      (void)(((digs)[a] = (digs)[b]));
+                      (void)(((digs)[b] = sw));
+                      (void)((a = (a + 1)));
+                      (void)((b = (b - 1)));
+                    }
+                  }
+                }
+                {
+                  int32_t pi = 0;
+                  while (((pi < nd) && (emit_nml_pre < 64))) {
+                    (void)(((emit_nm_pre)[emit_nml_pre] = (digs)[pi]));
+                    (void)((emit_nml_pre = (emit_nml_pre + 1)));
+                    (void)((pi = (pi + 1)));
+                  }
+                }
+              }
+            }
+            if ((codegen_emit_bytes_64(out, &((emit_nm_pre)[0]), emit_nml_pre) !=0)) {
               return -(1);
             }
-          } else {
-            uint8_t place_pre[4] = {95, 108, 48, 0};
-            if ((codegen_emit_bytes_4(out, place_pre, 2) !=0)) {
-              return -(1);
+            if ((use_local_array_pre !=0)) {
+              if ((codegen_emit_local_fixed_array_suffix(arena, out, let_type_pre) !=0)) {
+                return -(1);
+              }
             }
-            if ((codegen_format_int(out, pre_li) !=0)) {
-              return -(1);
+            if ((use_local_array_pre !=0)) {
+              if ((codegen_emit_local_fixed_array_let_finish(arena, out, indent, &((emit_nm_pre)[0]), emit_nml_pre, linit_pre, ctx) !=0)) {
+                return -(1);
+              }
+            } else {
+              uint8_t eq_pre[4] = {32, 61, 32, 0};
+              if ((codegen_emit_bytes_4(out, eq_pre, 3) !=0)) {
+                return -(1);
+              }
+              if ((codegen_emit_expr(arena, out, linit_pre, ctx) !=0)) {
+                return -(1);
+              }
+              uint8_t sc_pre[3] = {59, 10, 0};
+              if ((codegen_emit_bytes_3(out, sc_pre, 2) !=0)) {
+                return -(1);
+              }
             }
-          }
-          if ((use_local_array_pre !=0)) {
-            if ((codegen_emit_local_fixed_array_suffix(arena, out, let_type_pre) !=0)) {
-              return -(1);
-            }
-          }
-          uint8_t eq_pre[4] = {32, 61, 32, 0};
-          if ((codegen_emit_bytes_4(out, eq_pre, 3) !=0)) {
-            return -(1);
-          }
-          if ((codegen_emit_expr(arena, out, linit_pre, ctx) !=0)) {
-            return -(1);
-          }
-          uint8_t sc_pre[3] = {59, 10, 0};
-          if ((codegen_emit_bytes_3(out, sc_pre, 2) !=0)) {
-            return -(1);
           }
         }
         (void)((pre_li = (pre_li + 1)));
@@ -8681,118 +12706,159 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
               if ((codegen_append_byte(out, 32) !=0)) {
                 return -(1);
               }
-              if (((lname_len > 0) && ((lname_buf)[0] > 32))) {
-                if ((codegen_emit_bytes_64(out, &((lname_buf)[0]), lname_len) !=0)) {
-                  return -(1);
-                }
-              } else {
-                uint8_t place[4] = {95, 108, 48, 0};
-                if ((codegen_emit_bytes_4(out, place, 2) !=0)) {
-                  return -(1);
-                }
-                if ((codegen_format_int(out, idx) !=0)) {
-                  return -(1);
-                }
-              }
-              if ((use_local_array !=0)) {
-                if ((codegen_emit_local_fixed_array_suffix(arena, out, let_type_ref) !=0)) {
-                  return -(1);
-                }
-              }
-              uint8_t eq[4] = {32, 61, 32, 0};
-              if ((codegen_emit_bytes_4(out, eq, 3) !=0)) {
-                return -(1);
-              }
-              int32_t slice_init = 0;
-              if (!(ast_ref_is_null(linit_ref))) {
-                (void)((slice_init = codegen_try_emit_slice_init_from_array_var(arena, out, block_ref, idx, let_type_ref, linit_ref)));
-              }
-              if (ast_ref_is_null(linit_ref)) {
-                uint8_t zinit_omit2[6] = {123, 32, 48, 32, 125, 0};
-                if ((codegen_emit_bytes_6(out, zinit_omit2, 5) !=0)) {
-                  return -(1);
-                }
-              } else {
-                if ((slice_init ==1)) {
+              /* wave353: emit C local name into emit_nm for memcpy finish. */
+              {
+                uint8_t emit_nm[64] = {};
+                int32_t emit_nml = 0;
+                if (((lname_len > 0) && ((lname_buf)[0] > 32))) {
+                  int32_t ci2 = 0;
+                  while (((ci2 < lname_len) && (ci2 < 64))) {
+                    (void)(((emit_nm)[ci2] = (lname_buf)[ci2]));
+                    (void)((ci2 = (ci2 + 1)));
+                  }
+                  (void)((emit_nml = lname_len));
                 } else {
-                  if ((slice_init < 0)) {
-                    return -(1);
-                  } else {
-                    if (((((use_local_array !=0) && !(ast_ref_is_null(linit_ref))) && (linit_ref > 0)) && (linit_ref <=(arena->num_exprs)))) {
-                      struct ast_Expr init_e2 = ast_ast_arena_expr_get(arena, linit_ref);
-                      if (((init_e2.kind) ==46)) {
-                        if ((codegen_emit_braced_array_lit_init(arena, out, linit_ref, ctx) !=0)) {
-                          return -(1);
-                        }
-                      } else {
-                        if ((((init_e2.kind) ==0) && ((init_e2.int_val) ==0))) {
-                          uint8_t zinit[6] = {123, 32, 48, 32, 125, 0};
-                          if ((codegen_emit_bytes_6(out, zinit, 5) !=0)) {
-                            return -(1);
-                          }
-                        } else {
-                          if ((codegen_emit_expr(arena, out, linit_ref, ctx) !=0)) {
-                            return -(1);
-                          }
+                  (void)(((emit_nm)[0] = 95));
+                  (void)(((emit_nm)[1] = 108));
+                  (void)((emit_nml = 2));
+                  {
+                    int32_t v2 = idx;
+                    uint8_t digs2[12] = {};
+                    int32_t nd2 = 0;
+                    if ((v2 == 0)) {
+                      (void)(((digs2)[0] = 48));
+                      (void)((nd2 = 1));
+                    } else {
+                      int32_t tmp2 = v2;
+                      while (((tmp2 > 0) && (nd2 < 12))) {
+                        (void)(((digs2)[nd2] = ((uint8_t)((tmp2 % 10) + 48))));
+                        (void)((tmp2 = (tmp2 / 10)));
+                        (void)((nd2 = (nd2 + 1)));
+                      }
+                      {
+                        int32_t a2 = 0;
+                        int32_t b2 = (nd2 - 1);
+                        while ((a2 < b2)) {
+                          uint8_t sw2 = (digs2)[a2];
+                          (void)(((digs2)[a2] = (digs2)[b2]));
+                          (void)(((digs2)[b2] = sw2));
+                          (void)((a2 = (a2 + 1)));
+                          (void)((b2 = (b2 - 1)));
                         }
                       }
+                    }
+                    {
+                      int32_t pi2 = 0;
+                      while (((pi2 < nd2) && (emit_nml < 64))) {
+                        (void)(((emit_nm)[emit_nml] = (digs2)[pi2]));
+                        (void)((emit_nml = (emit_nml + 1)));
+                        (void)((pi2 = (pi2 + 1)));
+                      }
+                    }
+                  }
+                }
+                if ((codegen_emit_bytes_64(out, &((emit_nm)[0]), emit_nml) !=0)) {
+                  return -(1);
+                }
+                if ((use_local_array !=0)) {
+                  if ((codegen_emit_local_fixed_array_suffix(arena, out, let_type_ref) !=0)) {
+                    return -(1);
+                  }
+                }
+                /* wave353: fixed TYPE_ARRAY local — brace lit or memcpy. */
+                if ((use_local_array !=0)) {
+                  if ((codegen_emit_local_fixed_array_let_finish(arena, out, indent, &((emit_nm)[0]), emit_nml, linit_ref, ctx) !=0)) {
+                    return -(1);
+                  }
+                } else if ((!(ast_ref_is_null(let_type_ref)) && (pipeline_type_kind_ord_at(arena, let_type_ref) == 11) &&
+                            !(ast_ref_is_null(linit_ref)) &&
+                            ((pipeline_expr_kind_ord_at(arena, linit_ref) == 48) ||
+                             (pipeline_expr_kind_ord_at(arena, linit_ref) == 49)))) {
+                  /*
+                   * wave409: TYPE_SLICE let from CALL/METHOD — frame deep-copy (true reentrancy).
+                   * Type+name already written; finish with ; buffer; { call; copy; name=fat }.
+                   */
+                  if ((codegen_emit_slice_let_reent_finish(arena, out, indent, &((emit_nm)[0]), emit_nml,
+                                                            let_type_ref, linit_ref, ctx) != 0)) {
+                    return -(1);
+                  }
+                } else {
+                  uint8_t eq[4] = {32, 61, 32, 0};
+                  if ((codegen_emit_bytes_4(out, eq, 3) !=0)) {
+                    return -(1);
+                  }
+                  int32_t slice_init = 0;
+                  if (!(ast_ref_is_null(linit_ref))) {
+                    (void)((slice_init = codegen_try_emit_slice_init_from_array_var(arena, out, block_ref, idx, let_type_ref, linit_ref)));
+                  }
+                  if (ast_ref_is_null(linit_ref)) {
+                    uint8_t zinit_omit2[6] = {123, 32, 48, 32, 125, 0};
+                    if ((codegen_emit_bytes_6(out, zinit_omit2, 5) !=0)) {
+                      return -(1);
+                    }
+                  } else {
+                    if ((slice_init ==1)) {
                     } else {
-                      int32_t use_vec_z = 0;
-                      int32_t use_vec_braced = 0;
-                      if ((((!(ast_ref_is_null(linit_ref)) && (linit_ref > 0)) && (linit_ref <=(arena->num_exprs))) && !(ast_ref_is_null(let_type_ref)))) {
-                        struct ast_Expr init_ez = ast_ast_arena_expr_get(arena, linit_ref);
-                        int32_t tk_z = pipeline_type_kind_ord_at(arena, let_type_ref);
-                        int32_t is_vec_ty = 0;
-                        if ((tk_z ==13)) {
-                          (void)((is_vec_ty = 1));
-                        } else {
-                          if ((tk_z ==8)) {
-                            uint8_t vzn[64] = {};
-                            int32_t vzn_l = pipeline_type_named_name_into(arena, let_type_ref, &((vzn)[0]));
-                            int32_t vi = 0;
-                            while ((vi < vzn_l)) {
-                              if (((vzn)[vi] ==120)) {
-                                (void)((is_vec_ty = 1));
-                                (void)((vi = vzn_l));
-                              } else {
-                                (void)((vi = (vi + 1)));
+                      if ((slice_init < 0)) {
+                        return -(1);
+                      } else {
+                        int32_t use_vec_z = 0;
+                        int32_t use_vec_braced = 0;
+                        if ((((!(ast_ref_is_null(linit_ref)) && (linit_ref > 0)) && (linit_ref <=(arena->num_exprs))) && !(ast_ref_is_null(let_type_ref)))) {
+                          struct ast_Expr init_ez = ast_ast_arena_expr_get(arena, linit_ref);
+                          int32_t tk_z = pipeline_type_kind_ord_at(arena, let_type_ref);
+                          int32_t is_vec_ty = 0;
+                          if ((tk_z ==13)) {
+                            (void)((is_vec_ty = 1));
+                          } else {
+                            if ((tk_z ==8)) {
+                              uint8_t vzn[64] = {};
+                              int32_t vzn_l = pipeline_type_named_name_into(arena, let_type_ref, &((vzn)[0]));
+                              int32_t vi = 0;
+                              while ((vi < vzn_l)) {
+                                if (((vzn)[vi] ==120)) {
+                                  (void)((is_vec_ty = 1));
+                                  (void)((vi = vzn_l));
+                                } else {
+                                  (void)((vi = (vi + 1)));
+                                }
+                              }
+                            }
+                          }
+                          if ((is_vec_ty !=0)) {
+                            if ((((init_ez.kind) ==0) && ((init_ez.int_val) ==0))) {
+                              (void)((use_vec_z = 1));
+                            } else {
+                              if (((init_ez.kind) ==46)) {
+                                (void)((use_vec_braced = 1));
                               }
                             }
                           }
                         }
-                        if ((is_vec_ty !=0)) {
-                          if ((((init_ez.kind) ==0) && ((init_ez.int_val) ==0))) {
-                            (void)((use_vec_z = 1));
-                          } else {
-                            if (((init_ez.kind) ==46)) {
-                              (void)((use_vec_braced = 1));
-                            }
-                          }
-                        }
-                      }
-                      if ((use_vec_z !=0)) {
-                        uint8_t vz[6] = {123, 32, 48, 32, 125, 0};
-                        if ((codegen_emit_bytes_6(out, vz, 5) !=0)) {
-                          return -(1);
-                        }
-                      } else {
-                        if ((use_vec_braced !=0)) {
-                          if ((codegen_emit_braced_array_lit_init(arena, out, linit_ref, ctx) !=0)) {
+                        if ((use_vec_z !=0)) {
+                          uint8_t vz[6] = {123, 32, 48, 32, 125, 0};
+                          if ((codegen_emit_bytes_6(out, vz, 5) !=0)) {
                             return -(1);
                           }
                         } else {
-                          if ((codegen_emit_expr(arena, out, linit_ref, ctx) !=0)) {
-                            return -(1);
+                          if ((use_vec_braced !=0)) {
+                            if ((codegen_emit_braced_array_lit_init(arena, out, linit_ref, ctx) !=0)) {
+                              return -(1);
+                            }
+                          } else {
+                            if ((codegen_emit_expr(arena, out, linit_ref, ctx) !=0)) {
+                              return -(1);
+                            }
                           }
                         }
                       }
                     }
                   }
+                  uint8_t sc[3] = {59, 10, 0};
+                  if ((codegen_emit_bytes_3(out, sc, 2) !=0)) {
+                    return -(1);
+                  }
                 }
-              }
-              uint8_t sc[3] = {59, 10, 0};
-              if ((codegen_emit_bytes_3(out, sc, 2) !=0)) {
-                return -(1);
               }
             }
           } else {
@@ -8812,6 +12878,11 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
                   } else {
                     if (((st.kind) ==40)) {
                       if ((codegen_emit_continue_stmt(out, indent) !=0)) {
+                        return -(1);
+                      }
+                    } else if (((st.kind) ==43) && (codegen_match_has_return_arm(arena, ex_ref) !=0)) {
+                      /* wave372: mid-body match + return arms → if/else real early-return */
+                      if ((codegen_emit_match_as_stmt(arena, out, ex_ref, indent, ctx, fn_ret_void) !=0)) {
                         return -(1);
                       }
                     } else {
@@ -8992,6 +13063,57 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
                           }
                         }
                       }
+                    } else if ((k ==7)) {
+                      /* wave379: goto / label / labeled return (host-C). PLATFORM: SHARED */
+                      if (((idx >=0) && (idx < pipeline_block_num_labeled_stmts(arena, block_ref)))) {
+                        int32_t is_g = pipeline_block_labeled_is_goto(arena, block_ref, idx);
+                        if ((is_g !=0)) {
+                          uint8_t gkw[6] = {103, 111, 116, 111, 32, 0};
+                          uint8_t gt_buf[32] = {};
+                          uint8_t gend[3] = {59, 10, 0};
+                          int32_t gt_len = 0;
+                          if ((codegen_emit_indent(out, indent) !=0)) {
+                            return -(1);
+                          }
+                          if ((codegen_emit_bytes_from_ptr(out, &((gkw)[0]), 5) !=0)) {
+                            return -(1);
+                          }
+                          (void)(pipeline_block_labeled_goto_target_copy32(arena, block_ref, idx, &((gt_buf)[0])));
+                          (void)((gt_len = pipeline_block_labeled_goto_target_len(arena, block_ref, idx)));
+                          if (((gt_len > 0) && (gt_len <=32))) {
+                            if ((codegen_emit_bytes_from_ptr(out, &((gt_buf)[0]), gt_len) !=0)) {
+                              return -(1);
+                            }
+                          }
+                          if ((codegen_emit_bytes_from_ptr(out, &((gend)[0]), 2) !=0)) {
+                            return -(1);
+                          }
+                        } else {
+                          uint8_t lb_buf[32] = {};
+                          int32_t lb_len = 0;
+                          int32_t ret_ref_lab = 0;
+                          (void)(pipeline_block_labeled_label_copy32(arena, block_ref, idx, &((lb_buf)[0])));
+                          (void)((lb_len = pipeline_block_labeled_label_len(arena, block_ref, idx)));
+                          if (((lb_len > 0) && (lb_len <=32))) {
+                            uint8_t colon_nl[3] = {58, 10, 0};
+                            if ((codegen_emit_indent(out, indent) !=0)) {
+                              return -(1);
+                            }
+                            if ((codegen_emit_bytes_from_ptr(out, &((lb_buf)[0]), lb_len) !=0)) {
+                              return -(1);
+                            }
+                            if ((codegen_emit_bytes_from_ptr(out, &((colon_nl)[0]), 2) !=0)) {
+                              return -(1);
+                            }
+                          }
+                          (void)((ret_ref_lab = pipeline_block_labeled_return_expr_ref(arena, block_ref, idx)));
+                          if ((!(ast_ref_is_null(ret_ref_lab)) && (ret_ref_lab > 0))) {
+                            if ((codegen_emit_return_stmt_with_context(arena, out, indent, ret_ref_lab, ctx, fn_ret_void) !=0)) {
+                              return -(1);
+                            }
+                          }
+                        }
+                      }
                     }
                   }
                 }
@@ -9132,61 +13254,97 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
       if ((codegen_append_byte(out, 32) !=0)) {
         return -(1);
       }
-      if (((lname_len_fb > 0) && ((lname_fb)[0] > 32))) {
-        if ((codegen_emit_bytes_64(out, &((lname_fb)[0]), lname_len_fb) !=0)) {
-          return -(1);
-        }
-      } else {
-        uint8_t place[4] = {95, 108, 48, 0};
-        if ((codegen_emit_bytes_4(out, place, 2) !=0)) {
-          return -(1);
-        }
-        if ((codegen_format_int(out, i) !=0)) {
-          return -(1);
-        }
-      }
-      if ((use_local_array !=0)) {
-        if ((codegen_emit_local_fixed_array_suffix(arena, out, let_type_ref) !=0)) {
-          return -(1);
-        }
-      }
-      uint8_t eq[4] = {32, 61, 32, 0};
-      if ((codegen_emit_bytes_4(out, eq, 3) !=0)) {
-        return -(1);
-      }
-      if (ast_ref_is_null(linit_fb)) {
-        uint8_t zinit_omit[6] = {123, 32, 48, 32, 125, 0};
-        if ((codegen_emit_bytes_6(out, zinit_omit, 5) !=0)) {
-          return -(1);
-        }
-      } else {
-        if (((((use_local_array !=0) && !(ast_ref_is_null(linit_fb))) && (linit_fb > 0)) && (linit_fb <=(arena->num_exprs)))) {
-          struct ast_Expr init_e3 = ast_ast_arena_expr_get(arena, linit_fb);
-          if (((init_e3.kind) ==46)) {
-            if ((codegen_emit_braced_array_lit_init(arena, out, linit_fb, ctx) !=0)) {
-              return -(1);
-            }
-          } else {
-            if ((((init_e3.kind) ==0) && ((init_e3.int_val) ==0))) {
-              uint8_t zinit2[6] = {123, 32, 48, 32, 125, 0};
-              if ((codegen_emit_bytes_6(out, zinit2, 5) !=0)) {
-                return -(1);
-              }
+      {
+        uint8_t emit_nm_fb[64] = {};
+        int32_t emit_nml_fb = 0;
+        if (((lname_len_fb > 0) && ((lname_fb)[0] > 32))) {
+          int32_t ci3 = 0;
+          while (((ci3 < lname_len_fb) && (ci3 < 64))) {
+            (void)(((emit_nm_fb)[ci3] = (lname_fb)[ci3]));
+            (void)((ci3 = (ci3 + 1)));
+          }
+          (void)((emit_nml_fb = lname_len_fb));
+        } else {
+          (void)(((emit_nm_fb)[0] = 95));
+          (void)(((emit_nm_fb)[1] = 108));
+          (void)((emit_nml_fb = 2));
+          {
+            int32_t v3 = i;
+            uint8_t digs3[12] = {};
+            int32_t nd3 = 0;
+            if ((v3 == 0)) {
+              (void)(((digs3)[0] = 48));
+              (void)((nd3 = 1));
             } else {
-              if ((codegen_emit_expr(arena, out, linit_fb, ctx) !=0)) {
-                return -(1);
+              int32_t tmp3 = v3;
+              while (((tmp3 > 0) && (nd3 < 12))) {
+                (void)(((digs3)[nd3] = ((uint8_t)((tmp3 % 10) + 48))));
+                (void)((tmp3 = (tmp3 / 10)));
+                (void)((nd3 = (nd3 + 1)));
+              }
+              {
+                int32_t a3 = 0;
+                int32_t b3 = (nd3 - 1);
+                while ((a3 < b3)) {
+                  uint8_t sw3 = (digs3)[a3];
+                  (void)(((digs3)[a3] = (digs3)[b3]));
+                  (void)(((digs3)[b3] = sw3));
+                  (void)((a3 = (a3 + 1)));
+                  (void)((b3 = (b3 - 1)));
+                }
+              }
+            }
+            {
+              int32_t pi3 = 0;
+              while (((pi3 < nd3) && (emit_nml_fb < 64))) {
+                (void)(((emit_nm_fb)[emit_nml_fb] = (digs3)[pi3]));
+                (void)((emit_nml_fb = (emit_nml_fb + 1)));
+                (void)((pi3 = (pi3 + 1)));
               }
             }
           }
-        } else {
-          if ((codegen_emit_expr(arena, out, linit_fb, ctx) !=0)) {
+        }
+        if ((codegen_emit_bytes_64(out, &((emit_nm_fb)[0]), emit_nml_fb) !=0)) {
+          return -(1);
+        }
+        if ((use_local_array !=0)) {
+          if ((codegen_emit_local_fixed_array_suffix(arena, out, let_type_ref) !=0)) {
             return -(1);
           }
         }
-      }
-      uint8_t sc[3] = {59, 10, 0};
-      if ((codegen_emit_bytes_3(out, sc, 2) !=0)) {
-        return -(1);
+        if ((use_local_array !=0)) {
+          if ((codegen_emit_local_fixed_array_let_finish(arena, out, indent, &((emit_nm_fb)[0]), emit_nml_fb, linit_fb, ctx) !=0)) {
+            return -(1);
+          }
+        } else if ((!(ast_ref_is_null(let_type_ref)) && (pipeline_type_kind_ord_at(arena, let_type_ref) == 11) &&
+                    !(ast_ref_is_null(linit_fb)) &&
+                    ((pipeline_expr_kind_ord_at(arena, linit_fb) == 48) ||
+                     (pipeline_expr_kind_ord_at(arena, linit_fb) == 49)))) {
+          /* wave409: fb path TYPE_SLICE let from CALL/METHOD reent deep-copy. */
+          if ((codegen_emit_slice_let_reent_finish(arena, out, indent, &((emit_nm_fb)[0]), emit_nml_fb,
+                                                    let_type_ref, linit_fb, ctx) != 0)) {
+            return -(1);
+          }
+        } else {
+          uint8_t eq[4] = {32, 61, 32, 0};
+          if ((codegen_emit_bytes_4(out, eq, 3) !=0)) {
+            return -(1);
+          }
+          if (ast_ref_is_null(linit_fb)) {
+            uint8_t zinit_omit[6] = {123, 32, 48, 32, 125, 0};
+            if ((codegen_emit_bytes_6(out, zinit_omit, 5) !=0)) {
+              return -(1);
+            }
+          } else {
+            if ((codegen_emit_expr(arena, out, linit_fb, ctx) !=0)) {
+              return -(1);
+            }
+          }
+          uint8_t sc[3] = {59, 10, 0};
+          if ((codegen_emit_bytes_3(out, sc, 2) !=0)) {
+            return -(1);
+          }
+        }
       }
       (void)((i = (i + 1)));
     }
@@ -9214,6 +13372,11 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
               return -(1);
             }
             if ((codegen_emit_bytes_from_ptr(out, &((co)[0]), 10) !=0)) {
+              return -(1);
+            }
+          } else if (((st.kind) ==43) && (codegen_match_has_return_arm(arena, ex_fb) !=0)) {
+            /* wave372: mid-body match + return arms → if/else real early-return */
+            if ((codegen_emit_match_as_stmt(arena, out, ex_fb, indent, ctx, fn_ret_void) !=0)) {
               return -(1);
             }
           } else {
@@ -9355,19 +13518,49 @@ int32_t codegen_type_ref_to_suffix(struct ast_ASTArena * arena, int32_t type_ref
       }
       return n;
     }
+    /* wave484: TYPE_NAMED + recursive type-pos arg suffixes (Wrap_Wrap_A).
+     * PLATFORM: SHARED — G.7 twin of codegen.x. */
     if ((tk ==((int32_t)(8)))) {
       int32_t nl = pipeline_type_named_name_into(arena, type_ref, buf);
       int32_t si = 0;
+      int32_t pos;
+      int32_t ai;
       while (((si < nl) && (si < buf_cap))) {
         if (((buf)[si] ==46)) {
           (void)(((buf)[si] = 95));
         }
         (void)((si = (si + 1)));
       }
-      if (((nl > 0) && (nl < buf_cap))) {
-        return nl;
+      if (((nl <= 0) || (nl >= buf_cap))) {
+        return 0;
       }
-      return 0;
+      pos = nl;
+      ai = 0;
+      while ((ai < 4)) {
+        int32_t arg = pipeline_type_type_arg_ref_at(arena, type_ref, ai);
+        if ((arg <= 0)) {
+          ai = 4;
+        } else {
+          uint8_t asuf[64];
+          int32_t al = codegen_type_ref_to_suffix(arena, arg, &((asuf)[0]), 64);
+          if ((al <= 0)) {
+            ai = 4;
+          } else if (((pos + 1 + al) >= buf_cap)) {
+            ai = 4;
+          } else {
+            int32_t aj = 0;
+            (void)(((buf)[pos] = 95));
+            pos = (pos + 1);
+            while ((aj < al)) {
+              (void)(((buf)[pos] = (asuf)[aj]));
+              pos = (pos + 1);
+              aj = (aj + 1);
+            }
+            ai = (ai + 1);
+          }
+        }
+      }
+      return pos;
     }
     if ((tk ==((int32_t)(0)))) {
       uint8_t s[4] = {105, 51, 50, 0};
@@ -9831,6 +14024,47 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
         }
         if ((ok_res !=0)) {
           struct ast_ASTArena * res_arena = codegen_arena_for_module(ctx, res_mod, arena);
+          /* wave444: for generic functions, emit mono-mangled symbol matching the
+           * instance emitted by codegen_try_emit_generic_identity_mono. The mangled
+           * name is built from the call site's arg types (via codegen_call_mono_
+           * type_at, the same extraction used on the emit side) so emit-side combo
+           * and consume-side symbol always agree. Non-generic functions keep the
+           * bare link name. If type extraction fails (incomplete call site), fall
+           * back to the bare link name to preserve prior behavior.
+           * PLATFORM: SHARED — mirrors codegen.x codegen_emit_call_func_name C3. */
+          if ((pipeline_module_func_num_generic_params_at(res_mod, func_ix) > 0)) {
+            int32_t np_mono = pipeline_module_func_num_params_at(res_mod, func_ix);
+            int32_t re_mono = codegen_func_ret_type_param_extra(res_arena, res_mod, func_ix);
+            int32_t cw_mono = np_mono + re_mono;
+            if (((cw_mono > 0) && (cw_mono <= 8))) {
+              struct ast_Expr call_e_mono = ast_ast_arena_expr_get(arena, expr_ref);
+              int32_t nargs_mono = (call_e_mono.call_num_args);
+              int32_t mono_tys[8] = {};
+              int32_t pi_mono = 0;
+              int32_t valid_mono = 1;
+              while ((pi_mono < np_mono)) {
+                int32_t ty_mono = codegen_call_mono_type_at(arena, expr_ref, pi_mono, nargs_mono);
+                if ((ty_mono <= 0)) {
+                  (void)((valid_mono = 0));
+                  (void)((pi_mono = np_mono));
+                } else {
+                  (void)(((mono_tys)[pi_mono] = ty_mono));
+                }
+                (void)((pi_mono = (pi_mono + 1)));
+              }
+              if (((valid_mono != 0) && (re_mono != 0))) {
+                int32_t rty_mono = codegen_call_ret_type_param_concrete_at(arena, expr_ref);
+                if ((rty_mono <= 0)) {
+                  (void)((valid_mono = 0));
+                } else {
+                  (void)(((mono_tys)[np_mono] = rty_mono));
+                }
+              }
+              if ((valid_mono != 0)) {
+                return codegen_emit_mono_mangled_name(out, arena, res_mod, func_ix, &((mono_tys)[0]), cw_mono);
+              }
+            }
+          }
           return codegen_emit_func_link_name(out, res_arena, res_mod, func_ix);
         }
       }
@@ -9944,7 +14178,7 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
                       (void)((nb = codegen_type_ref_to_suffix(search_arena, param_ty, &((sb)[0]), 64)));
                     }
                   }
-                  { extern char *getenv(const char *); if (getenv("XLANG_CGFCN")) fprintf(stderr, "XLANG_CGFCN: fi_s=%d pi=%d arg_ty=%d param_ty=%d na=%d nb=%d\n", (int)fi_s, (int)pi, (int)arg_ty, (int)param_ty, (int)na, (int)nb); }
+                  { if (link_abi_getenv("XLANG_CGFCN")) fprintf(stderr, "XLANG_CGFCN: fi_s=%d pi=%d arg_ty=%d param_ty=%d na=%d nb=%d\n", (int)fi_s, (int)pi, (int)arg_ty, (int)param_ty, (int)na, (int)nb); }
                   if ((na !=nb)) {
                     (void)((types_match = 0));
                   } else {
@@ -9975,6 +14209,22 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
         (void)((fi_s = (fi_s + 1)));
       }
       if (((found_count ==1) && (found_fi >=0))) {
+        if ((is_method !=0)) {
+          int32_t recv_ty_fb = 0;
+          struct ast_Expr call_e_fb = call_e0;
+          if (!(ast_ref_is_null(call_e_fb.method_call_base_ref))) {
+            recv_ty_fb = pipeline_expr_resolved_type_ref(arena, call_e_fb.method_call_base_ref);
+          }
+          if ((recv_ty_fb > 0)) {
+            int32_t fb_mono_rc = codegen_try_emit_impl_method_mono_call_name(out, search_arena, ctx, search_mod, found_fi, recv_ty_fb);
+            if ((fb_mono_rc < 0)) {
+              return -(1);
+            }
+            if ((fb_mono_rc ==1)) {
+              return 0;
+            }
+          }
+        }
         return codegen_emit_func_link_name(out, search_arena, search_mod, found_fi);
       }
       /* PLATFORM: SHARED — PTR overload (heap.free *u8): kind+elem match when suffix fails. */
@@ -10022,6 +14272,22 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
             (void)((fi_p = (fi_p + 1)));
           }
           if (((n_p ==1) && (best_p >=0))) {
+            {
+              int32_t recv_ty_p = 0;
+              struct ast_Expr call_e_p = call_e0;
+              if (!(ast_ref_is_null(call_e_p.method_call_base_ref))) {
+                recv_ty_p = pipeline_expr_resolved_type_ref(arena, call_e_p.method_call_base_ref);
+              }
+              if ((recv_ty_p > 0)) {
+                int32_t p_mono_rc = codegen_try_emit_impl_method_mono_call_name(out, search_arena, ctx, search_mod, best_p, recv_ty_p);
+                if ((p_mono_rc < 0)) {
+                  return -(1);
+                }
+                if ((p_mono_rc ==1)) {
+                  return 0;
+                }
+              }
+            }
             return codegen_emit_func_link_name(out, search_arena, search_mod, best_p);
           }
         }
@@ -10173,6 +14439,13 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
     int force_entry_main = 0;
     int emit_c_main_symbol = 0;
     uint8_t main_name[4] = {109, 97, 105, 110};
+    /* wave495: hoist mono_active save/restore vars to function scope so both
+     * success return paths (std-io early return + final) can restore them.
+     * Declared here (not in the ret-type inner block) because the restores
+     * happen after the inner block closes. PLATFORM: SHARED — codegen.x same. */
+    int32_t w495_mono_set = 0;
+    int32_t w495_saved_active = 0;
+    int32_t w495_saved_num = 0;
     if (((fi < 0) || (fi >=(module->num_funcs)))) {
       return -(1);
     }
@@ -10224,6 +14497,40 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
     /* PLATFORM: SHARED — void main → int32_t main (align codegen.x). */
     {
       int32_t ret_ty_ref = pipeline_module_func_return_type_at(module, fi);
+      /*
+       * wave495: generic inherent impl method definition codegen monomorphization.
+       * Why: hoisted impl methods (num_generic_params == 0, <T> on impl not fn)
+       * bypass codegen_try_emit_generic_identity_mono and are emitted here. Their
+       * return type T would emit as `struct T` (incomplete BLD001) because
+       * mono_active is off; the self param Wrap<T> is rescued by the wave489
+       * unique-combo suffix mechanism but the free return type T is not. Build a
+       * T→concrete map from the self param's unique mono combo, set mono_active so
+       * emit_type's name-based fallback substitutes T in ret type + body. Mirrors
+       * codegen_try_emit_generic_identity_mono save/restore.
+       * PLATFORM: SHARED — codegen.x same commit.
+       * Guards: only set when w495_n > 0 (unique combo found); non-generic functions
+       * and multi-combo cases skip this entirely (no behavior change). Restore on
+       * BOTH success return paths (std-io early return + final); error paths abort.
+       * Vars w495_mono_set / w495_saved_active / w495_saved_num are declared at
+       * function scope (hoisted) so both restore sites can see them.
+       */
+      if (ctx) {
+        int32_t w495_gen[8] = {0};
+        int32_t w495_conc[8] = {0};
+        int32_t w495_n = codegen_build_func_param_mono_map(module, arena, fi, w495_gen, w495_conc, 8);
+        if (w495_n > 0) {
+          int32_t w495_k;
+          w495_saved_active = ctx->mono_active;
+          w495_saved_num = ctx->mono_num_types;
+          for (w495_k = 0; w495_k < w495_n && w495_k < 8; w495_k++) {
+            ctx->mono_generic_type_refs[w495_k] = w495_gen[w495_k];
+            ctx->mono_concrete_type_refs[w495_k] = w495_conc[w495_k];
+          }
+          ctx->mono_active = 1;
+          ctx->mono_num_types = w495_n;
+          w495_mono_set = 1;
+        }
+      }
       int fn_ret_void_pre = (pipeline_type_kind_ord_at(arena, ret_ty_ref) == ((int32_t)(16)));
       if ((emit_c_main_symbol && fn_ret_void_pre)) {
         uint8_t i32_ty[8] = {105, 110, 116, 51, 50, 95, 116, 0};
@@ -10351,6 +14658,11 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
       return -(1);
     }
     if ((codegen_try_emit_std_io_driver_buf_body(out, module, fi, prefix, prefix_len) !=0)) {
+      /* wave495: restore mono_active on early success return (std-io path). */
+      if (w495_mono_set) {
+        ctx->mono_active = w495_saved_active;
+        ctx->mono_num_types = w495_saved_num;
+      }
       return 0;
     }
     int fn_ret_void = (pipeline_type_kind_ord_at(arena, pipeline_module_func_return_type_at(module, fi)) ==((int32_t)(16)));
@@ -10528,6 +14840,11 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
     if ((codegen_emit_bytes_3(out, close, 2) !=0)) {
       return -(1);
     }
+    /* wave495: restore mono_active on final success return. */
+    if (w495_mono_set) {
+      ctx->mono_active = w495_saved_active;
+      ctx->mono_num_types = w495_saved_num;
+    }
     return 0;
   }
   return 0;
@@ -10694,7 +15011,7 @@ int32_t codegen_is_libc_conflicting_extern_name(uint8_t * name, int32_t name_len
   }
   return 0;
 }
-int32_t codegen_find_mono_type_for_generic_func(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi) {
+int32_t codegen_find_mono_type_for_generic_func(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi, int32_t arg_idx) {
   {
     uint8_t fn_local[64] = {};
     int32_t fn_len = pipeline_module_func_name_len_at(module, fi);
@@ -10731,9 +15048,12 @@ int32_t codegen_find_mono_type_for_generic_func(struct ast_ASTArena * arena, str
           }
         }
         if ((matched !=0)) {
-          int32_t ty = (e.resolved_type_ref);
-          if (((ty <=0) && ((e.call_num_args) > 0))) {
-            int32_t a0 = pipeline_expr_call_arg_ref(arena, ei, 0);
+          int32_t ty = 0;
+          if ((arg_idx ==0)) {
+            (void)((ty = (e.resolved_type_ref)));
+          }
+          if (((ty <=0) && ((arg_idx >=0) && (arg_idx <(e.call_num_args))))) {
+            int32_t a0 = pipeline_expr_call_arg_ref(arena, ei, arg_idx);
             if ((a0 > 0)) {
               (void)((ty = pipeline_expr_resolved_type_ref(arena, a0)));
             }
@@ -10749,6 +15069,518 @@ int32_t codegen_find_mono_type_for_generic_func(struct ast_ASTArena * arena, str
   }
   return 0;
 }
+int32_t codegen_call_mono_type_at(struct ast_ASTArena * arena, int32_t ei, int32_t arg_idx, int32_t num_args) {
+  {
+    int32_t ty = 0;
+    struct ast_Expr e;
+    /* wave444: null/bounds guard — split checks (semantically identical to codegen.x). */
+    if (arena == ((struct ast_ASTArena *)(0))) { return 0; }
+    if (ei <= 0) { return 0; }
+    if (arg_idx < 0) { return 0; }
+    if (num_args <= 0) { return 0; }
+    e = ast_ast_arena_expr_get(arena, ei);
+    if (((e.kind) !=48)) {
+      return 0;
+    }
+    /*
+     * wave447: prefer value-arg resolved type for every arg_idx (incl. 0).
+     * wave443 used call return type first for arg0 (identity ret==param0);
+     * that maps getv<T>(x:T):i32 to i32 mono and emits int32_t x + x.v (BLD001).
+     * Fallback: arg0 may use call resolved_type_ref when arg type missing.
+     * PLATFORM: SHARED — mirrors codegen.x.
+     */
+    if ((arg_idx < num_args)) {
+      int32_t a = pipeline_expr_call_arg_ref(arena, ei, arg_idx);
+      if ((a > 0)) {
+        (void)((ty = pipeline_expr_resolved_type_ref(arena, a)));
+      }
+    }
+    if (((ty <=0) && (arg_idx ==0))) {
+      (void)((ty = (e.resolved_type_ref)));
+    }
+    return ty;
+  }
+  return 0;
+}
+
+/**
+ * wave458: 1 when return TYPE_NAMED is a type-param not named on any value formal.
+ * PLATFORM: SHARED — mirrors codegen.x (G.7).
+ */
+
+/**
+ * wave458: mono combo slot equality (type_ref id or TYPE_NAMED same name).
+ * PLATFORM: SHARED — mirrors codegen.x.
+ */
+static int32_t codegen_mono_combo_slot_equal(struct ast_ASTArena * arena, int32_t a, int32_t b) {
+  int32_t ka;
+  int32_t kb;
+  uint8_t na[64];
+  uint8_t nb[64];
+  int32_t la;
+  int32_t lb;
+  int32_t i;
+  if (a == b)
+    return 1;
+  if (a <= 0 || b <= 0 || arena == ((struct ast_ASTArena *)(0)))
+    return 0;
+  ka = pipeline_type_kind_ord_at(arena, a);
+  kb = pipeline_type_kind_ord_at(arena, b);
+  if (ka != kb)
+    return 0;
+  if (ka == 8) {
+    la = pipeline_type_named_name_into(arena, a, &na[0]);
+    lb = pipeline_type_named_name_into(arena, b, &nb[0]);
+    if (la <= 0 || la != lb)
+      return 0;
+    i = 0;
+    while (i < la) {
+      if (na[i] != nb[i])
+        return 0;
+      i = i + 1;
+    }
+    return 1;
+  }
+  return 0;
+}
+int32_t codegen_func_ret_type_param_extra(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi) {
+  int32_t ret_ty;
+  uint8_t ret_nm[64];
+  int32_t ret_nl;
+  int32_t np;
+  int32_t pi;
+  if (arena == ((struct ast_ASTArena *)(0)) || module == ((struct ast_Module *)(0)))
+    return 0;
+  if (fi < 0 || fi >= (module->num_funcs))
+    return 0;
+  ret_ty = pipeline_module_func_return_type_at(module, fi);
+  if (ret_ty <= 0 || pipeline_type_kind_ord_at(arena, ret_ty) != 8)
+    return 0;
+  ret_nl = pipeline_type_named_name_into(arena, ret_ty, &ret_nm[0]);
+  if (ret_nl <= 0)
+    return 0;
+  np = pipeline_module_func_num_params_at(module, fi);
+  pi = 0;
+  while (pi < np) {
+    int32_t pty = pipeline_module_func_param_type_ref_at(module, fi, pi);
+    if (pty > 0 && pipeline_type_kind_ord_at(arena, pty) == 8) {
+      uint8_t pnm[64];
+      int32_t pnl = pipeline_type_named_name_into(arena, pty, &pnm[0]);
+      if (pnl == ret_nl && pnl > 0) {
+        int32_t eq = 1;
+        int32_t bi = 0;
+        while (bi < pnl) {
+          if (pnm[bi] != ret_nm[bi]) {
+            eq = 0;
+            bi = pnl;
+          } else {
+            bi = bi + 1;
+          }
+        }
+        if (eq != 0)
+          return 0;
+      }
+    }
+    pi = pi + 1;
+  }
+  return 1;
+}
+/**
+ * wave452/455/456: concrete type for return-position type param not on formals.
+ * Prefer typeck-stamped resolved_type_ref; sole type_arg may use slot 0;
+ * multi turbofish without stamp returns 0 (do not invent type_arg[0] as ret).
+ * PLATFORM: SHARED — mirrors codegen.x (G.7).
+ */
+int32_t codegen_call_ret_type_param_concrete_at(struct ast_ASTArena * arena, int32_t ei) {
+  int32_t ta;
+  struct ast_Expr e;
+  if (arena == ((struct ast_ASTArena *)(0)) || ei <= 0)
+    return 0;
+  e = ast_ast_arena_expr_get(arena, ei);
+  if ((e.kind) != 48)
+    return 0;
+  if ((e.resolved_type_ref) > 0)
+    return (e.resolved_type_ref);
+  /* wave456: only sole type_arg falls back to slot 0; multi needs stamp. */
+  if ((e.call_num_type_args) == 1) {
+    ta = pipeline_expr_call_type_arg_ref_at(arena, ei, 0);
+    if (ta > 0)
+      return ta;
+  }
+  return 0;
+}
+int32_t codegen_collect_mono_combos_for_generic_func(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi, int32_t * combos_out, int32_t max_combos, int32_t num_params, int32_t ret_extra) {
+  {
+    uint8_t fn_local[64] = {};
+    int32_t fn_len = pipeline_module_func_name_len_at(module, fi);
+    int32_t combo_count = 0;
+    int32_t ei = 1;
+    /* wave444: null/bounds guard — split checks (semantically identical to codegen.x). */
+    if (arena == ((struct ast_ASTArena *)(0))) { return 0; }
+    if (module == ((struct ast_Module *)(0))) { return 0; }
+    if (fi < 0) { return 0; }
+    if (fi >= (module->num_funcs)) { return 0; }
+    int32_t combo_width = num_params + ret_extra;
+    if (combos_out == ((int32_t *)(0))) { return 0; }
+    if (max_combos <= 0) { return 0; }
+    if (combo_width <= 0 || combo_width > 8) { return 0; }
+    if (num_params < 0 || ret_extra < 0 || ret_extra > 1) { return 0; }
+    (void)(codegen_copy_func_name64_from_module(module, fi, &((fn_local)[0])));
+    if ((fn_len <=0)) {
+      return 0;
+    }
+    while ((ei <=(arena->num_exprs))) {
+      struct ast_Expr e = ast_ast_arena_expr_get(arena, ei);
+      if (((e.kind) ==48)) {
+        int32_t matched = 0;
+        if (((e.call_resolved_func_index) ==fi)) {
+          (void)((matched = 1));
+        } else {
+          if (((!(ast_ref_is_null((e.call_callee_ref))) && ((e.call_callee_ref) > 0)) && ((e.call_callee_ref) <=(arena->num_exprs)))) {
+            struct ast_Expr cal = ast_ast_arena_expr_get(arena, (e.call_callee_ref));
+            if ((((cal.kind) ==3) && ((cal.var_name_len) ==fn_len))) {
+              int32_t eq = 1;
+              int32_t k = 0;
+              while ((k < fn_len)) {
+                if ((((cal.var_name))[k] !=(fn_local)[k])) {
+                  (void)((eq = 0));
+                  (void)((k = fn_len));
+                } else {
+                  (void)((k = (k + 1)));
+                }
+              }
+              (void)((matched = eq));
+            }
+          }
+        }
+        if (((matched !=0) && ((num_params == 0) || ((e.call_num_args) >=num_params)))) {
+          int32_t combo[8] = {};
+          int32_t pi = 0;
+          int32_t valid = 1;
+          while ((pi < num_params)) {
+            int32_t ty = codegen_call_mono_type_at(arena, ei, pi, (e.call_num_args));
+            if ((ty <=0)) {
+              (void)((valid = 0));
+              (void)((pi = num_params));
+            } else {
+              (void)(((combo)[pi] = ty));
+            }
+            (void)((pi = (pi + 1)));
+          }
+          if (((valid !=0) && (ret_extra != 0))) {
+            int32_t rty = codegen_call_ret_type_param_concrete_at(arena, ei);
+            if ((rty <= 0)) {
+              (void)((valid = 0));
+            } else {
+              (void)(((combo)[num_params] = rty));
+            }
+          }
+          if ((valid !=0)) {
+            int32_t found = 0;
+            int32_t ci = 0;
+            while ((ci < combo_count)) {
+              int32_t same = 1;
+              int32_t pi2 = 0;
+              while ((pi2 < combo_width)) {
+                if ((codegen_mono_combo_slot_equal(arena, (combos_out)[(ci * combo_width) + pi2], (combo)[pi2]) == 0)) {
+                  (void)((same = 0));
+                  (void)((pi2 = combo_width));
+                }
+                (void)((pi2 = (pi2 + 1)));
+              }
+              if ((same !=0)) {
+                (void)((found = 1));
+                (void)((ci = combo_count));
+              }
+              (void)((ci = (ci + 1)));
+            }
+            if (((found ==0) && (combo_count < max_combos))) {
+              int32_t pi3 = 0;
+              while ((pi3 < combo_width)) {
+                (void)(((combos_out)[(combo_count * combo_width) + pi3] = (combo)[pi3]));
+                (void)((pi3 = (pi3 + 1)));
+              }
+              (void)((combo_count = (combo_count + 1)));
+            }
+          }
+        }
+      }
+      (void)((ei = (ei + 1)));
+    }
+    return combo_count;
+  }
+  return 0;
+}
+/*
+ * wave498: call-side mono mangling for generic inherent impl methods.
+ * Why: define-side codegen_try_emit_generic_impl_method_mono emits mangled
+ * symbols (get__i32, get__bool) for multi-combo impl methods. Call sites must
+ * emit the same mangled name or cc throws "undeclared function". This helper
+ * detects whether func_ix is a generic inherent impl method (first param is a
+ * generic struct with free type-args -> nc>1 combos), extracts concrete type
+ * args from the receiver type, and emits the mangled symbol via codegen_emit_
+ * mono_mangled_name. Returns 1 if emitted (caller should skip bare link-name),
+ * 0 if not applicable (caller falls back to bare link_name), -1 on emit error.
+ * PLATFORM: SHARED — codegen.x same commit.
+ * Guards: only activates when receiver_ty is concrete (fill_concrete succeeds),
+ * func has >=1 param, first param is a named struct with >0 type params, and
+ * the total combo count for that struct layout >1 (nc==1 uses bare link name).
+ */
+int32_t codegen_try_emit_impl_method_mono_call_name(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, struct ast_Module * module, int32_t fi, int32_t receiver_ty) {
+  {
+    int32_t np = 0;
+    int32_t p0_ty_raw = 0;
+    int32_t p0_ty = 0;
+    uint8_t nm[64];
+    int32_t nl = 0;
+    int32_t bare_off = 0;
+    int32_t bi = 0;
+    int32_t bare_len = 0;
+    int32_t lk = 0;
+    int32_t ntp = 0;
+    int32_t mono_chk[8];
+    int32_t combos[32];
+    int32_t nc = 0;
+    int32_t recv_concrete = 0;
+    int32_t recv_mono[8];
+    if (out == ((struct codegen_CodegenOutBuf *)(0))) { return 0; }
+    if (arena == ((struct ast_ASTArena *)(0))) { return 0; }
+    if (module == ((struct ast_Module *)(0))) { return 0; }
+    if (fi < 0) { return 0; }
+    if (fi >= module->num_funcs) { return 0; }
+    if (pipeline_module_func_num_generic_params_at(module, fi) > 0) { return 0; }
+    if (receiver_ty <= 0) { return 0; }
+    np = pipeline_module_func_num_params_at(module, fi);
+    if (np < 1) { return 0; }
+    p0_ty_raw = pipeline_module_func_param_type_ref_at(module, fi, 0);
+    if (p0_ty_raw <= 0) { return 0; }
+    p0_ty = pipeline_typeck_resolve_type_alias_ref_c(arena, p0_ty_raw);
+    if (p0_ty <= 0) { return 0; }
+    if (pipeline_type_kind_ord_at(arena, p0_ty) != ast_TypeKind_TYPE_NAMED) { return 0; }
+    nl = pipeline_type_named_name_into(arena, p0_ty, &(nm[0]));
+    if (nl <= 0) { return 0; }
+    bare_off = 0;
+    bi = 0;
+    while ((bi < nl) && (bi < 64)) {
+      if (nm[bi] == 46) {
+        bare_off = bi + 1;
+      }
+      bi = bi + 1;
+    }
+    bare_len = nl - bare_off;
+    if (bare_len <= 0) { return 0; }
+    lk = codegen_module_struct_layout_index_by_name(module, &(nm[bare_off]), bare_len);
+    if (lk < 0) { return 0; }
+    ntp = pipeline_module_struct_layout_num_type_params_at(module, lk);
+    if (ntp <= 0) { return 0; }
+    if (ntp > 8) { return 0; }
+    if (codegen_generic_struct_fill_concrete_args(module, arena, p0_ty, ntp, &(mono_chk[0]), ((struct ast_PipelineDepCtx *)(0))) == ntp) {
+      return 0;
+    }
+    nc = codegen_collect_generic_struct_mono_combos(module, arena, lk, &(nm[bare_off]), bare_len, ntp, &(combos[0]), 8);
+    if (nc <= 1) { return 0; }
+    recv_concrete = receiver_ty;
+    if ((ctx != ((struct ast_PipelineDepCtx *)(0))) && (ctx->mono_active != 0)) {
+      recv_concrete = codegen_mono_subst_type(ctx, arena, recv_concrete);
+    }
+    if (codegen_generic_struct_fill_concrete_args(module, arena, recv_concrete, ntp, &(recv_mono[0]), ctx) != ntp) {
+      return 0;
+    }
+    if (codegen_emit_mono_mangled_name(out, arena, module, fi, &(recv_mono[0]), ntp) != 0) {
+      return -(1);
+    }
+    return 1;
+  }
+  return 0;
+}
+int32_t codegen_emit_mono_mangled_name(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi, int32_t * mono_tys, int32_t num_mono) {
+  {
+    uint8_t sep[2] = {95, 95};
+    int32_t mi = 0;
+    /* wave444: null/bounds guard — split into separate checks to avoid the
+     * nested-|| paren style the .x->C translator emits (hard to hand-sync
+     * correctly). Semantically identical to the codegen.x source. */
+    if (out == ((struct codegen_CodegenOutBuf *)(0))) { return -(1); }
+    if (arena == ((struct ast_ASTArena *)(0))) { return -(1); }
+    if (module == ((struct ast_Module *)(0))) { return -(1); }
+    if (mono_tys == ((int32_t *)(0))) { return -(1); }
+    if (fi < 0) { return -(1); }
+    if (fi >= (module->num_funcs)) { return -(1); }
+    if (num_mono <= 0) { return -(1); }
+    if ((codegen_emit_func_link_name(out, arena, module, fi) !=0)) {
+      return -(1);
+    }
+    if ((codegen_emit_bytes_from_ptr(out, &((sep)[0]), 2) !=0)) {
+      return -(1);
+    }
+    while ((mi < num_mono)) {
+      uint8_t suf[64] = {};
+      int32_t ty = (mono_tys)[mi];
+      int32_t sl = codegen_type_ref_to_suffix(arena, ty, &((suf)[0]), 64);
+      if ((sl <=0)) {
+        return -(1);
+      }
+      if ((mi > 0)) {
+        if ((codegen_append_byte(out, 95) !=0)) {
+          return -(1);
+        }
+      }
+      if ((codegen_emit_bytes_from_ptr(out, &((suf)[0]), sl) !=0)) {
+        return -(1);
+      }
+      (void)((mi = (mi + 1)));
+    }
+    return 0;
+  }
+  return 0;
+}
+/*
+ * wave445 C5/C6 helper: substitute a type_ref via the active mono substitution map.
+ *
+ * Why: during mono body emit, generic type refs (T, U, ...) must be replaced with
+ * concrete type refs (A, B, ...). This helper checks ctx->mono_generic_type_refs[]
+ * and returns the matching concrete type_ref, or the original type_ref if no match.
+ *
+ * Invariant: returns the original type_ref when mono is inactive or no match found.
+ * PLATFORM: SHARED — single substitution authority used by emit_expr method-call
+ * re-resolution (C6) and consistent with emit_type's own C5 hook.
+ */
+int32_t codegen_mono_subst_type(struct ast_PipelineDepCtx * ctx, struct ast_ASTArena * arena, int32_t type_ref) {
+  if (((ctx ==((struct ast_PipelineDepCtx *)(0))) || ((ctx->mono_active) ==0))) {
+    return type_ref;
+  }
+  if ((ctx->mono_num_types <=0)) {
+    return type_ref;
+  }
+  {
+    int32_t mi = 0;
+    while (((mi <(ctx->mono_num_types)) && (mi <8))) {
+      if ((((type_ref ==(ctx->mono_generic_type_refs)[mi])) && ((ctx->mono_concrete_type_refs)[mi] >0))) {
+        return (ctx->mono_concrete_type_refs)[mi];
+      }
+      (void)((mi = (mi + 1)));
+    }
+  }
+  /* name-match fallback: typeck allocates fresh TYPE_NAMED nodes for body T
+   * occurrences (let y: T), so direct type_ref equality misses. Compare names.
+   * Builtin types have no name (returns 0) and skip this fallback.
+   * PLATFORM: SHARED — mirrors codegen.x codegen_mono_subst_type. */
+  {
+    uint8_t fb_nm[64] = {};
+    int32_t fb_len = pipeline_type_named_name_into(arena, type_ref, &((fb_nm)[0]));
+    if ((fb_len > 0)) {
+      int32_t mi2 = 0;
+      while (((mi2 <(ctx->mono_num_types)) && (mi2 <8))) {
+        if ((ctx->mono_concrete_type_refs[mi2] >0)) {
+          uint8_t gnm[64] = {};
+          int32_t gname_len = pipeline_type_named_name_into(arena, ctx->mono_generic_type_refs[mi2], &((gnm)[0]));
+          if (((gname_len == fb_len) && (gname_len > 0))) {
+            int32_t names_eq = 1;
+            int32_t ci = 0;
+            while ((ci < gname_len)) {
+              if (((gnm)[ci] !=(fb_nm)[ci])) {
+                names_eq = 0;
+                ci = gname_len;
+              } else {
+                ci = (ci +1);
+              }
+            }
+            if ((names_eq !=0)) {
+              return (ctx->mono_concrete_type_refs)[mi2];
+            }
+          }
+        }
+        (void)((mi2 = (mi2 +1)));
+      }
+    }
+  }
+  return type_ref;
+}
+/*
+ * wave445 C6 helper: find the impl method for a concrete receiver type + method name.
+ *
+ * Why: typeck processes a generic function body once with T unresolved, so
+ * call_resolved_func_index for `x.clone()` (x: T) points at the trait method
+ * (signature-only), not the impl method (A::clone). During mono body emit, the
+ * receiver's concrete type is known (A), so this helper scans the module for a
+ * function matching method_name whose param0 type equals receiver_type_ref.
+ *
+ * Invariant: returns the first matching func index, or -1 if no match.
+ * PLATFORM: SHARED — mirrors codegen_find_module_func_index_by_name_overload name
+ * matching but adds param0 type equality via pipeline_typeck_type_refs_equal_c.
+ */
+int32_t codegen_find_impl_method_for_type(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * method_name, int32_t method_name_len, int32_t receiver_type_ref) {
+  if (((((module ==((struct ast_Module *)(0))) || (arena ==((struct ast_ASTArena *)(0))))) || (method_name ==((uint8_t *)(0))))) {
+    return -(1);
+  }
+  if (((method_name_len <=0) || (receiver_type_ref <=0))) {
+    return -(1);
+  }
+  {
+    int32_t fi = 0;
+    while ((fi <(module->num_funcs))) {
+      int32_t fn_len = pipeline_module_func_name_len_at(module, fi);
+      if ((((fn_len == method_name_len) && (fn_len > 0)))) {
+        uint8_t fn_name[64] = {};
+        int32_t matched = 1;
+        int32_t bi = 0;
+        (void)(pipeline_module_func_name_copy64(module, fi, &((fn_name)[0])));
+        while ((bi < fn_len)) {
+          if (((fn_name)[bi] !=(method_name)[bi])) {
+            (void)((matched = 0));
+            (void)((bi = fn_len));
+          } else {
+            (void)((bi = (bi + 1)));
+          }
+        }
+        if ((matched !=0)) {
+          int32_t np = pipeline_module_func_num_params_at(module, fi);
+          if ((np > 0)) {
+            int32_t p0_ty = pipeline_module_func_param_type_ref_at(module, fi, 0);
+            if (p0_ty > 0) {
+              if (pipeline_typeck_type_refs_equal_c(arena, p0_ty, receiver_type_ref) != 0) {
+                return fi;
+              }
+              /*
+               * wave490 Cap residual: name-based fallback for impl method
+               * resolution — when direct type_ref equality fails (impl and
+               * call site come from different typeck passes), compare names.
+               * For TYPE_NAMED types use structural comparison (type args);
+               * for non-NAMED (builtin types) accept name match directly.
+               * PLATFORM: SHARED host-C — mirrors codegen.x.
+               */
+              {
+                uint8_t p0_nm[64];
+                uint8_t recv_nm[64];
+                int32_t p0_nlen = pipeline_type_named_name_into(arena, p0_ty, p0_nm);
+                int32_t recv_nlen = pipeline_type_named_name_into(arena, receiver_type_ref, recv_nm);
+                if (p0_nlen > 0 && p0_nlen == recv_nlen) {
+                  int32_t neq = 1, ni = 0;
+                  while (ni < p0_nlen) {
+                    if (p0_nm[ni] != recv_nm[ni]) { neq = 0; ni = p0_nlen; }
+                    else { ni = ni + 1; }
+                  }
+                  if (neq != 0) {
+                    if (pipeline_type_kind_ord_at(arena, p0_ty) == 8 &&
+                        pipeline_type_kind_ord_at(arena, receiver_type_ref) == 8) {
+                      if (codegen_combo_slots_equal(arena, p0_ty, receiver_type_ref) != 0) {
+                        return fi;
+                      }
+                    } else {
+                      return fi;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      (void)((fi = (fi + 1)));
+    }
+  }
+  return -(1);
+}
 int32_t codegen_try_emit_generic_identity_mono(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx) {
   {
     int32_t ret_ty = pipeline_module_func_return_type_at(module, fi);
@@ -10758,7 +15590,11 @@ int32_t codegen_try_emit_generic_identity_mono(struct ast_ASTArena * arena, stru
     int32_t ret_nl = pipeline_type_named_name_into(arena, ret_ty, &((ret_nm)[0]));
     int32_t p0_nl = pipeline_type_named_name_into(arena, p0_ty, &((p0_nm)[0]));
     int32_t bi = 0;
-    int32_t mono_ty = codegen_find_mono_type_for_generic_func(arena, module, fi);
+    int32_t num_params = 0;
+    int32_t pi = 0;
+    int32_t pni_len = 0;
+    uint8_t pni[32] = {};
+    uint8_t comma_space[2] = {44, 32};
     int32_t pn_len = pipeline_module_func_param_name_len_at(module, fi, 0);
     uint8_t pn[32] = {};
     uint8_t fn_local[64] = {};
@@ -10767,6 +15603,11 @@ int32_t codegen_try_emit_generic_identity_mono(struct ast_ASTArena * arena, stru
     uint8_t open_body[4] = {41, 32, 123, 10};
     uint8_t ret_kw[8] = {114, 101, 116, 117, 114, 110, 32, 0};
     uint8_t end[3] = {59, 10, 125};
+    int32_t combos[128] = {};
+    int32_t combo_count = 0;
+    int32_t ci = 0;
+    int32_t mono_ty = 0;
+    int32_t mono_pi = 0;
     if ((((arena ==((struct ast_ASTArena *)(0))) || (out ==((struct codegen_CodegenOutBuf *)(0)))) || (module ==((struct ast_Module *)(0))))) {
       return 0;
     }
@@ -10779,83 +15620,1257 @@ int32_t codegen_try_emit_generic_identity_mono(struct ast_ASTArena * arena, stru
     if ((pipeline_module_func_is_extern_at(module, fi) !=0)) {
       return 0;
     }
-    if ((pipeline_module_func_num_params_at(module, fi) !=1)) {
+    (void)((num_params = pipeline_module_func_num_params_at(module, fi)));
+    if (((num_params < 0) || (num_params > 8))) {
       return 0;
     }
-    if (((ret_ty <=0) || (p0_ty <=0))) {
-      return 0;
-    }
-    if ((pipeline_type_kind_ord_at(arena, ret_ty) !=8)) {
-      return 0;
-    }
-    if ((pipeline_type_kind_ord_at(arena, p0_ty) !=8)) {
-      return 0;
-    }
-    if (((ret_nl <=0) || (ret_nl !=p0_nl))) {
-      return 0;
-    }
-    while ((bi < ret_nl)) {
-      if (((ret_nm)[bi] !=(p0_nm)[bi])) {
+    /*
+     * wave450 Cap residual pure: zero value-param generic mono under bare link name.
+     * Root: try_emit hard-gated num_params<=0 so unit_t<T>():i32 never emitted;
+     * call-site C3 only mangles when np_mono>0 and falls back to bare link name →
+     * BLD001 undeclared. Parser stores call_num_type_args count only (no type_ref
+     * type-args), so all type-arg combos share one bare C function (phantom T).
+     * PLATFORM: SHARED — mirrors codegen.x; leave-off bare unit_t() and ret T subst.
+     */
+    int32_t ret_extra_zp = codegen_func_ret_type_param_extra(arena, module, fi);
+    /* wave458: bare zero-param only when ret is NOT uncovered type-param (unit_t).
+     * mk<T>():T falls through to multi-combo path with ret_extra. */
+    if (((num_params == 0) && (ret_extra_zp == 0))) {
+      int32_t has_call = 0;
+      int32_t ei0 = 1;
+      int32_t mono_sym_pre0 = 0;
+      int32_t saved_func_index0 = -(1);
+      int32_t saved_block_ref0 = 0;
+      int32_t saved_mono_active0 = 0;
+      int32_t saved_mono_num0 = 0;
+      int32_t ctx_set0 = 0;
+      int32_t body_walked0 = 0;
+      int32_t body_br0 = 0;
+      int32_t body_er0 = 0;
+      if ((ret_ty <= 0)) {
         return 0;
       }
-      (void)((bi = (bi + 1)));
-    }
-    if ((mono_ty <=0)) {
-      return 0;
-    }
-    (void)(pipeline_module_func_param_name_copy32(module, fi, 0, &((pn)[0])));
-    if ((pn_len <=0)) {
-      (void)(((pn)[0] = 120));
-      (void)((pn_len = 1));
-    }
-    if ((codegen_emit_type(arena, out, mono_ty, prefix, prefix_len, ctx) !=0)) {
-      return -(1);
-    }
-    if ((codegen_append_byte(out, 32) !=0)) {
-      return -(1);
-    }
-    (void)(codegen_copy_func_name64_from_module(module, fi, &((fn_local)[0])));
-    if (((mono_sym_pre > 0) && (codegen_c_prefix_redundant_with_name(prefix, mono_sym_pre, &((fn_local)[0]), fn_len) ==0))) {
-      if ((codegen_emit_bytes_from_ptr(out, prefix, mono_sym_pre) !=0)) {
+      (void)(codegen_copy_func_name64_from_module(module, fi, &((fn_local)[0])));
+      if ((fn_len <= 0)) {
+        return 0;
+      }
+      while ((ei0 <= (arena->num_exprs))) {
+        struct ast_Expr e0 = ast_ast_arena_expr_get(arena, ei0);
+        if (((e0.kind) == 48)) {
+          int32_t matched0 = 0;
+          if (((e0.call_resolved_func_index) == fi)) {
+            (void)((matched0 = 1));
+          } else {
+            if (((!(ast_ref_is_null((e0.call_callee_ref))) && ((e0.call_callee_ref) > 0)) && ((e0.call_callee_ref) <= (arena->num_exprs)))) {
+              struct ast_Expr cal0 = ast_ast_arena_expr_get(arena, (e0.call_callee_ref));
+              if ((((cal0.kind) == 3) && ((cal0.var_name_len) == fn_len))) {
+                int32_t eq0 = 1;
+                int32_t k0 = 0;
+                while ((k0 < fn_len)) {
+                  if ((((cal0.var_name))[k0] != (fn_local)[k0])) {
+                    (void)((eq0 = 0));
+                    (void)((k0 = fn_len));
+                  } else {
+                    (void)((k0 = (k0 + 1)));
+                  }
+                }
+                (void)((matched0 = eq0));
+              }
+            }
+          }
+          if ((matched0 != 0)) {
+            (void)((has_call = 1));
+            (void)((ei0 = (arena->num_exprs)));
+          }
+        }
+        (void)((ei0 = (ei0 + 1)));
+      }
+      if ((has_call == 0)) {
+        return 0;
+      }
+      (void)((mono_sym_pre0 = codegen_func_c_symbol_prefix_len(module, fi, prefix_len)));
+      if ((ctx != ((struct ast_PipelineDepCtx *)(0)))) {
+        (void)((saved_func_index0 = (ctx->current_func_index)));
+        (void)((saved_block_ref0 = (ctx->current_block_ref)));
+        (void)((saved_mono_active0 = (ctx->mono_active)));
+        (void)((saved_mono_num0 = (ctx->mono_num_types)));
+        (void)(((ctx->current_func_index) = fi));
+        /*
+         * wave452: zero-param ret type-param mono (mk_default<T>():T).
+         * Map T from turbofish / call resolved_type_ref of first matching CALL.
+         * PLATFORM: SHARED — mirrors codegen.x.
+         */
+        if ((pipeline_type_kind_ord_at(arena, ret_ty) == 8)) {
+          /* wave456: prefer rfi==fi; name-only ghosts may carry turbofish without fixup. */
+          int32_t ta0 = 0;
+          int32_t ei_ta = 1;
+          while ((ei_ta <= (arena->num_exprs)) && (ta0 <= 0)) {
+            struct ast_Expr e_ta = ast_ast_arena_expr_get(arena, ei_ta);
+            if (((e_ta.kind) == 48) && ((e_ta.call_resolved_func_index) == fi)) {
+              (void)((ta0 = codegen_call_ret_type_param_concrete_at(arena, ei_ta)));
+            }
+            (void)((ei_ta = (ei_ta + 1)));
+          }
+          if (ta0 <= 0) {
+            ei_ta = 1;
+            while ((ei_ta <= (arena->num_exprs)) && (ta0 <= 0)) {
+              struct ast_Expr e_ta2 = ast_ast_arena_expr_get(arena, ei_ta);
+              if (((e_ta2.kind) == 48) && ((e_ta2.call_resolved_func_index) != fi)) {
+                if (((!(ast_ref_is_null((e_ta2.call_callee_ref))) && ((e_ta2.call_callee_ref) > 0))
+                     && ((e_ta2.call_callee_ref) <= (arena->num_exprs)))) {
+                  struct ast_Expr cal_ta = ast_ast_arena_expr_get(arena, (e_ta2.call_callee_ref));
+                  if ((((cal_ta.kind) == 3) && ((cal_ta.var_name_len) == fn_len))) {
+                    int32_t eq_ta = 1;
+                    int32_t k_ta = 0;
+                    while ((k_ta < fn_len)) {
+                      if ((((cal_ta.var_name))[k_ta] != (fn_local)[k_ta])) {
+                        (void)((eq_ta = 0));
+                        (void)((k_ta = fn_len));
+                      } else {
+                        (void)((k_ta = (k_ta + 1)));
+                      }
+                    }
+                    if (eq_ta != 0) {
+                      (void)((ta0 = codegen_call_ret_type_param_concrete_at(arena, ei_ta)));
+                    }
+                  }
+                }
+              }
+              (void)((ei_ta = (ei_ta + 1)));
+            }
+          }
+          if ((ta0 > 0) && (ta0 != ret_ty)) {
+            (void)(((ctx->mono_active) = 1));
+            (void)(((ctx->mono_num_types) = 1));
+            (void)(((ctx->mono_generic_type_refs)[0] = ret_ty));
+            (void)(((ctx->mono_concrete_type_refs)[0] = ta0));
+          }
+        }
+        (void)((ctx_set0 = 1));
+      }
+      /* Restore helper for zero-param paths (incl. mono). */
+#define W452_RESTORE_Z0() do { \
+        if ((ctx_set0 != 0)) { \
+          (void)(((ctx->current_func_index) = saved_func_index0)); \
+          (void)(((ctx->current_block_ref) = saved_block_ref0)); \
+          (void)(((ctx->mono_active) = saved_mono_active0)); \
+          (void)(((ctx->mono_num_types) = saved_mono_num0)); \
+        } \
+      } while (0)
+      if ((codegen_emit_type(arena, out, ret_ty, prefix, prefix_len, ctx) != 0)) {
+        W452_RESTORE_Z0();
         return -(1);
       }
+      if ((codegen_append_byte(out, 32) != 0)) {
+        W452_RESTORE_Z0();
+        return -(1);
+      }
+      if (((mono_sym_pre0 > 0) && (codegen_c_prefix_redundant_with_name(prefix, mono_sym_pre0, &((fn_local)[0]), fn_len) == 0))) {
+        if ((codegen_emit_bytes_from_ptr(out, prefix, mono_sym_pre0) != 0)) {
+          W452_RESTORE_Z0();
+          return -(1);
+        }
+      }
+      if ((codegen_emit_func_link_name(out, arena, module, fi) != 0)) {
+        W452_RESTORE_Z0();
+        return -(1);
+      }
+      {
+        uint8_t open0[4] = {40, 41, 32, 123};
+        if ((codegen_emit_bytes_from_ptr(out, &((open0)[0]), 4) != 0)) {
+          W452_RESTORE_Z0();
+          return -(1);
+        }
+      }
+      if ((codegen_append_byte(out, 10) != 0)) {
+        W452_RESTORE_Z0();
+        return -(1);
+      }
+      (void)((body_br0 = pipeline_module_func_body_ref_at(module, fi)));
+      (void)((body_er0 = pipeline_module_func_body_expr_ref_at(module, fi)));
+      if (((!(ast_ref_is_null(body_br0))) || (!(ast_ref_is_null(body_er0))))) {
+        if ((!(ast_ref_is_null(body_br0)))) {
+          if ((ctx_set0 != 0)) {
+            (void)(((ctx->current_block_ref) = body_br0));
+          }
+          if ((codegen_emit_block(arena, out, body_br0, 2, ctx) == 0)) {
+            (void)((body_walked0 = 1));
+          }
+        } else {
+          if ((ctx_set0 != 0)) {
+            (void)(((ctx->current_block_ref) = 0));
+          }
+          if ((codegen_emit_indent(out, 2) == 0)) {
+            uint8_t ret_kw0[8] = {114, 101, 116, 117, 114, 110, 32, 0};
+            if ((codegen_emit_bytes_from_ptr(out, &((ret_kw0)[0]), 7) == 0)) {
+              if ((codegen_emit_expr(arena, out, body_er0, ctx) == 0)) {
+                uint8_t sc_nl0[2] = {59, 10};
+                if ((codegen_emit_bytes_from_ptr(out, &((sc_nl0)[0]), 2) == 0)) {
+                  (void)((body_walked0 = 1));
+                }
+              }
+            }
+          }
+        }
+      }
+      if ((body_walked0 == 0)) {
+        if ((codegen_emit_indent(out, 2) != 0)) {
+          W452_RESTORE_Z0();
+          return -(1);
+        }
+        {
+          uint8_t ret0z[10] = {114, 101, 116, 117, 114, 110, 32, 48, 59, 10};
+          if ((codegen_emit_bytes_from_ptr(out, &((ret0z)[0]), 10) != 0)) {
+            if ((ctx_set0 != 0)) {
+              (void)(((ctx->current_func_index) = saved_func_index0));
+              (void)(((ctx->current_block_ref) = saved_block_ref0));
+            }
+            return -(1);
+          }
+        }
+      }
+      W452_RESTORE_Z0();
+      {
+        uint8_t end0[2] = {125, 10};
+        if ((codegen_emit_bytes_from_ptr(out, &((end0)[0]), 2) != 0)) {
+          return -(1);
+        }
+      }
+      #undef W452_RESTORE_Z0
+      return 1;
     }
-    if ((codegen_emit_func_link_name(out, arena, module, fi) !=0)) {
-      return -(1);
+    if ((ret_ty <=0)) {
+      return 0;
     }
-    if ((codegen_append_byte(out, 40) !=0)) {
-      return -(1);
+    if (((num_params > 0) && (p0_ty <=0))) {
+      return 0;
     }
-    if ((codegen_emit_type(arena, out, mono_ty, prefix, prefix_len, ctx) !=0)) {
-      return -(1);
+    /* wave447: drop hard identity gate (ret/p0 both TYPE_NAMED same name).
+     * Still detect identity for body fallback only. TYPE_NAMED ord == 8.
+     * wave458: skip identity detect when zero-param. */
+    {
+      int32_t is_identity_shape = 0;
+      if (((num_params > 0) && (pipeline_type_kind_ord_at(arena, ret_ty) == 8) && (pipeline_type_kind_ord_at(arena, p0_ty) == 8))) {
+        if (((ret_nl > 0) && (ret_nl == p0_nl))) {
+          int32_t names_eq = 1;
+          (void)((bi = 0));
+          while ((bi < ret_nl)) {
+            if (((ret_nm)[bi] != (p0_nm)[bi])) {
+              (void)((names_eq = 0));
+              (void)((bi = ret_nl));
+            } else {
+              (void)((bi = (bi + 1)));
+            }
+          }
+          if ((names_eq != 0)) {
+            (void)((is_identity_shape = 1));
+          }
+        }
+      }
+      int32_t ret_extra = ret_extra_zp;
+      int32_t combo_width = num_params + ret_extra;
+      if (((combo_width <= 0) || (combo_width > 8))) {
+        return 0;
+      }
+      (void)((combo_count = codegen_collect_mono_combos_for_generic_func(arena, module, fi, &((combos)[0]), 16, num_params, ret_extra)));
+      if ((combo_count <=0)) {
+        return 0;
+      }
+      if ((num_params > 0)) {
+        (void)(pipeline_module_func_param_name_copy32(module, fi, 0, &((pn)[0])));
+        if ((pn_len <=0)) {
+          (void)(((pn)[0] = 120));
+          (void)((pn_len = 1));
+        }
+      } else {
+        (void)(((pn)[0] = 120));
+        (void)((pn_len = 1));
+      }
+      (void)(codegen_copy_func_name64_from_module(module, fi, &((fn_local)[0])));
+      (void)((ci = 0));
+      while ((ci < combo_count)) {
+        int32_t saved_mono_active = 0;
+        int32_t saved_mono_num = 0;
+        int32_t saved_func_index = -(1);
+        int32_t saved_block_ref = 0;
+        int32_t mono_ctx_set = 0;
+        int32_t body_walked = 0;
+        int32_t body_br = 0;
+        int32_t body_er = 0;
+        int32_t has_body = 0;
+        int32_t p_ty = 0;
+        if ((ctx != ((struct ast_PipelineDepCtx *)(0)))) {
+          (void)((saved_mono_active = (ctx->mono_active)));
+          (void)((saved_mono_num = (ctx->mono_num_types)));
+          (void)((saved_func_index = (ctx->current_func_index)));
+          (void)((saved_block_ref = (ctx->current_block_ref)));
+          (void)(((ctx->mono_active) = 1));
+          (void)(((ctx->mono_num_types) = 0));
+          {
+            int32_t sti = 0;
+            while (((sti < num_params) && (sti < 8))) {
+              (void)(((ctx->mono_generic_type_refs)[sti] = pipeline_module_func_param_type_ref_at(module, fi, sti)));
+              (void)(((ctx->mono_concrete_type_refs)[sti] = (combos[(ci * combo_width) + sti])));
+              (void)((sti = (sti + 1)));
+            }
+          }
+          (void)(((ctx->mono_num_types) = num_params));
+          /* wave458: ret_extra slot is authoritative per-combo ret concrete. */
+          if (((ret_extra != 0) && ((ctx->mono_num_types) < 8))) {
+            int32_t ta_conc = (combos[(ci * combo_width) + num_params]);
+            if (((ta_conc > 0) && (ta_conc != ret_ty))) {
+              (void)(((ctx->mono_generic_type_refs)[(ctx->mono_num_types)] = ret_ty));
+              (void)(((ctx->mono_concrete_type_refs)[(ctx->mono_num_types)] = ta_conc));
+              (void)(((ctx->mono_num_types) = ((ctx->mono_num_types) + 1)));
+            }
+          }
+          (void)(((ctx->current_func_index) = fi));
+          (void)((mono_ctx_set = 1));
+        }
+        /* Return type: original ret_ty under mono_active (wave447). */
+        if ((codegen_emit_type(arena, out, ret_ty, prefix, prefix_len, ctx) !=0)) {
+          if ((mono_ctx_set != 0)) {
+            (void)(((ctx->mono_active) = saved_mono_active));
+            (void)(((ctx->mono_num_types) = saved_mono_num));
+            (void)(((ctx->current_func_index) = saved_func_index));
+            (void)(((ctx->current_block_ref) = saved_block_ref));
+          }
+          return -(1);
+        }
+        if ((codegen_append_byte(out, 32) !=0)) {
+          if ((mono_ctx_set != 0)) {
+            (void)(((ctx->mono_active) = saved_mono_active));
+            (void)(((ctx->mono_num_types) = saved_mono_num));
+            (void)(((ctx->current_func_index) = saved_func_index));
+            (void)(((ctx->current_block_ref) = saved_block_ref));
+          }
+          return -(1);
+        }
+        if (((mono_sym_pre > 0) && (codegen_c_prefix_redundant_with_name(prefix, mono_sym_pre, &((fn_local)[0]), fn_len) ==0))) {
+          if ((codegen_emit_bytes_from_ptr(out, prefix, mono_sym_pre) !=0)) {
+            if ((mono_ctx_set != 0)) {
+              (void)(((ctx->mono_active) = saved_mono_active));
+              (void)(((ctx->mono_num_types) = saved_mono_num));
+              (void)(((ctx->current_func_index) = saved_func_index));
+              (void)(((ctx->current_block_ref) = saved_block_ref));
+            }
+            return -(1);
+          }
+        }
+        if ((codegen_emit_mono_mangled_name(out, arena, module, fi, &((combos)[(ci * combo_width)]), combo_width) !=0)) {
+          if ((mono_ctx_set != 0)) {
+            (void)(((ctx->mono_active) = saved_mono_active));
+            (void)(((ctx->mono_num_types) = saved_mono_num));
+            (void)(((ctx->current_func_index) = saved_func_index));
+            (void)(((ctx->current_block_ref) = saved_block_ref));
+          }
+          return -(1);
+        }
+        if ((codegen_append_byte(out, 40) !=0)) {
+          if ((mono_ctx_set != 0)) {
+            (void)(((ctx->mono_active) = saved_mono_active));
+            (void)(((ctx->mono_num_types) = saved_mono_num));
+            (void)(((ctx->current_func_index) = saved_func_index));
+            (void)(((ctx->current_block_ref) = saved_block_ref));
+          }
+          return -(1);
+        }
+        /* Param 0: original p0_ty under mono_active. wave458: skip when zero-param. */
+        if ((num_params > 0)) {
+        if ((codegen_emit_type(arena, out, p0_ty, prefix, prefix_len, ctx) !=0)) {
+          if ((mono_ctx_set != 0)) {
+            (void)(((ctx->mono_active) = saved_mono_active));
+            (void)(((ctx->mono_num_types) = saved_mono_num));
+            (void)(((ctx->current_func_index) = saved_func_index));
+            (void)(((ctx->current_block_ref) = saved_block_ref));
+          }
+          return -(1);
+        }
+        if ((codegen_append_byte(out, 32) !=0)) {
+          if ((mono_ctx_set != 0)) {
+            (void)(((ctx->mono_active) = saved_mono_active));
+            (void)(((ctx->mono_num_types) = saved_mono_num));
+            (void)(((ctx->current_func_index) = saved_func_index));
+            (void)(((ctx->current_block_ref) = saved_block_ref));
+          }
+          return -(1);
+        }
+        if ((codegen_emit_bytes_from_ptr(out, &((pn)[0]), pn_len) !=0)) {
+          if ((mono_ctx_set != 0)) {
+            (void)(((ctx->mono_active) = saved_mono_active));
+            (void)(((ctx->mono_num_types) = saved_mono_num));
+            (void)(((ctx->current_func_index) = saved_func_index));
+            (void)(((ctx->current_block_ref) = saved_block_ref));
+          }
+          return -(1);
+        }
+        (void)((pi = 1));
+        while ((pi < num_params)) {
+          (void)((p_ty = pipeline_module_func_param_type_ref_at(module, fi, pi)));
+          if ((codegen_emit_bytes_from_ptr(out, &((comma_space)[0]), 2) !=0)) {
+            if ((mono_ctx_set != 0)) {
+              (void)(((ctx->mono_active) = saved_mono_active));
+              (void)(((ctx->mono_num_types) = saved_mono_num));
+              (void)(((ctx->current_func_index) = saved_func_index));
+              (void)(((ctx->current_block_ref) = saved_block_ref));
+            }
+            return -(1);
+          }
+          if (((p_ty <= 0) || (codegen_emit_type(arena, out, p_ty, prefix, prefix_len, ctx) !=0))) {
+            if ((mono_ctx_set != 0)) {
+              (void)(((ctx->mono_active) = saved_mono_active));
+              (void)(((ctx->mono_num_types) = saved_mono_num));
+              (void)(((ctx->current_func_index) = saved_func_index));
+              (void)(((ctx->current_block_ref) = saved_block_ref));
+            }
+            return -(1);
+          }
+          if ((codegen_append_byte(out, 32) !=0)) {
+            if ((mono_ctx_set != 0)) {
+              (void)(((ctx->mono_active) = saved_mono_active));
+              (void)(((ctx->mono_num_types) = saved_mono_num));
+              (void)(((ctx->current_func_index) = saved_func_index));
+              (void)(((ctx->current_block_ref) = saved_block_ref));
+            }
+            return -(1);
+          }
+          (void)((pni_len = pipeline_module_func_param_name_len_at(module, fi, pi)));
+          (void)(pipeline_module_func_param_name_copy32(module, fi, pi, &((pni)[0])));
+          if ((pni_len <=0)) {
+            (void)(((pni)[0] = 120));
+            (void)((pni_len = 1));
+          }
+          if ((codegen_emit_bytes_from_ptr(out, &((pni)[0]), pni_len) !=0)) {
+            if ((mono_ctx_set != 0)) {
+              (void)(((ctx->mono_active) = saved_mono_active));
+              (void)(((ctx->mono_num_types) = saved_mono_num));
+              (void)(((ctx->current_func_index) = saved_func_index));
+              (void)(((ctx->current_block_ref) = saved_block_ref));
+            }
+            return -(1);
+          }
+          (void)((pi = (pi + 1)));
+        }
+        } /* num_params > 0 */
+        if ((codegen_emit_bytes_from_ptr(out, &((open_body)[0]), 4) !=0)) {
+          if ((mono_ctx_set != 0)) {
+            (void)(((ctx->mono_active) = saved_mono_active));
+            (void)(((ctx->mono_num_types) = saved_mono_num));
+            (void)(((ctx->current_func_index) = saved_func_index));
+            (void)(((ctx->current_block_ref) = saved_block_ref));
+          }
+          return -(1);
+        }
+        (void)((body_br = pipeline_module_func_body_ref_at(module, fi)));
+        (void)((body_er = pipeline_module_func_body_expr_ref_at(module, fi)));
+        (void)((has_body = ((!(ast_ref_is_null(body_br))) || (!(ast_ref_is_null(body_er))))));
+        if (((mono_ctx_set != 0) && (has_body != 0))) {
+          if ((!(ast_ref_is_null(body_br)))) {
+            (void)(((ctx->current_block_ref) = body_br));
+            if ((codegen_emit_block(arena, out, body_br, 2, ctx) == 0)) {
+              (void)((body_walked = 1));
+            }
+          } else {
+            (void)(((ctx->current_block_ref) = 0));
+            if ((codegen_emit_indent(out, 2) == 0)) {
+              uint8_t ret_kw2[8] = {114, 101, 116, 117, 114, 110, 32, 0};
+              if ((codegen_emit_bytes_from_ptr(out, &((ret_kw2)[0]), 7) == 0)) {
+                if ((codegen_emit_expr(arena, out, body_er, ctx) == 0)) {
+                  uint8_t sc_nl[2] = {59, 10};
+                  if ((codegen_emit_bytes_from_ptr(out, &((sc_nl)[0]), 2) == 0)) {
+                    (void)((body_walked = 1));
+                  }
+                }
+              }
+            }
+          }
+        }
+        if ((body_walked == 0)) {
+          if ((is_identity_shape != 0)) {
+            if ((codegen_emit_indent(out, 2) !=0)) {
+              if ((mono_ctx_set != 0)) {
+                (void)(((ctx->mono_active) = saved_mono_active));
+                (void)(((ctx->mono_num_types) = saved_mono_num));
+                (void)(((ctx->current_func_index) = saved_func_index));
+                (void)(((ctx->current_block_ref) = saved_block_ref));
+              }
+              return -(1);
+            }
+            if ((codegen_emit_bytes_from_ptr(out, &((ret_kw)[0]), 7) !=0)) {
+              if ((mono_ctx_set != 0)) {
+                (void)(((ctx->mono_active) = saved_mono_active));
+                (void)(((ctx->mono_num_types) = saved_mono_num));
+                (void)(((ctx->current_func_index) = saved_func_index));
+                (void)(((ctx->current_block_ref) = saved_block_ref));
+              }
+              return -(1);
+            }
+            if ((codegen_emit_bytes_from_ptr(out, &((pn)[0]), pn_len) !=0)) {
+              if ((mono_ctx_set != 0)) {
+                (void)(((ctx->mono_active) = saved_mono_active));
+                (void)(((ctx->mono_num_types) = saved_mono_num));
+                (void)(((ctx->current_func_index) = saved_func_index));
+                (void)(((ctx->current_block_ref) = saved_block_ref));
+              }
+              return -(1);
+            }
+            {
+              uint8_t semi_nl[2] = {59, 10};
+              if ((codegen_emit_bytes_from_ptr(out, &((semi_nl)[0]), 2) !=0)) {
+                if ((mono_ctx_set != 0)) {
+                  (void)(((ctx->mono_active) = saved_mono_active));
+                  (void)(((ctx->mono_num_types) = saved_mono_num));
+                  (void)(((ctx->current_func_index) = saved_func_index));
+                  (void)(((ctx->current_block_ref) = saved_block_ref));
+                }
+                return -(1);
+              }
+            }
+          } else {
+            /* Non-identity stub: return 0; (defensive if body walk fails). */
+            if ((codegen_emit_indent(out, 2) !=0)) {
+              if ((mono_ctx_set != 0)) {
+                (void)(((ctx->mono_active) = saved_mono_active));
+                (void)(((ctx->mono_num_types) = saved_mono_num));
+                (void)(((ctx->current_func_index) = saved_func_index));
+                (void)(((ctx->current_block_ref) = saved_block_ref));
+              }
+              return -(1);
+            }
+            {
+              uint8_t ret0[10] = {114, 101, 116, 117, 114, 110, 32, 48, 59, 10};
+              if ((codegen_emit_bytes_from_ptr(out, &((ret0)[0]), 10) !=0)) {
+                if ((mono_ctx_set != 0)) {
+                  (void)(((ctx->mono_active) = saved_mono_active));
+                  (void)(((ctx->mono_num_types) = saved_mono_num));
+                  (void)(((ctx->current_func_index) = saved_func_index));
+                  (void)(((ctx->current_block_ref) = saved_block_ref));
+                }
+                return -(1);
+              }
+            }
+          }
+        }
+        if ((mono_ctx_set != 0)) {
+          (void)(((ctx->mono_active) = saved_mono_active));
+          (void)(((ctx->mono_num_types) = saved_mono_num));
+          (void)(((ctx->current_func_index) = saved_func_index));
+          (void)(((ctx->current_block_ref) = saved_block_ref));
+        }
+        {
+          uint8_t end_close[2] = {125, 10};
+          if ((codegen_emit_bytes_from_ptr(out, &((end_close)[0]), 2) !=0)) {
+            return -(1);
+          }
+        }
+        (void)((ci = (ci + 1)));
+      }
+      return 1;
     }
-    if ((codegen_append_byte(out, 32) !=0)) {
-      return -(1);
+  }
+  return 0;
+}
+/*
+ * wave498: multi-combo generic inherent impl method codegen monomorphization.
+ * Why: hoisted impl methods (num_generic_params == 0, <T> on impl not fn) bypass
+ * codegen_try_emit_generic_identity_mono. wave495 handled the unique-combo case
+ * (nc==1) by setting mono_active in emit_func, but multi-combo (nc>1) still emits
+ * a single generic definition with bare `struct T` return type (BLD001). Collect
+ * all mono combos from the first free-type-arg param (usually self), then emit
+ * one monomorphized definition per combo with a mangled symbol name, matching
+ * call-side mangling. Mirrors the loop structure of codegen_try_emit_generic_
+ * identity_mono but uses struct-layout combos instead of func-generic combos.
+ * PLATFORM: SHARED — codegen.x same commit.
+ * Guards: only activates when num_generic_params==0 AND a param has free type-args
+ * AND combo_count>1. All other cases return 0 and fall through to normal emit_func
+ * (wave495 unique-combo path or plain emit).
+ */
+int32_t codegen_try_emit_generic_impl_method_mono(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx) {
+  {
+    int32_t num_params = 0;
+    int32_t ret_ty = 0;
+    int32_t p = 0;
+    int32_t found_lk = -1;
+    int32_t found_pty = 0;
+    int32_t found_ntp = 0;
+    uint8_t found_nm[64] = {};
+    int32_t found_bare_off = 0;
+    int32_t found_bare_len = 0;
+    int32_t combos[32] = {};
+    int32_t nc = 0;
+    uint8_t fn_local[64] = {};
+    int32_t fn_len = 0;
+    int32_t mono_sym_pre = 0;
+    int32_t ci = 0;
+    uint8_t open_body[4] = {41, 32, 123, 10};
+    uint8_t ret_kw[8] = {114, 101, 116, 117, 114, 110, 32, 0};
+    uint8_t sc_nl[2] = {59, 10};
+    uint8_t end[2] = {125, 10};
+    if ((((arena ==((struct ast_ASTArena *)(0))) || (out ==((struct codegen_CodegenOutBuf *)(0)))) || (module ==((struct ast_Module *)(0))))) {
+      return 0;
     }
-    if ((codegen_emit_bytes_from_ptr(out, &((pn)[0]), pn_len) !=0)) {
-      return -(1);
+    if (((fi < 0) || (fi >=(module->num_funcs)))) {
+      return 0;
     }
-    if ((codegen_emit_bytes_from_ptr(out, &((open_body)[0]), 4) !=0)) {
-      return -(1);
+    if ((pipeline_module_func_num_generic_params_at(module, fi) > 0)) {
+      return 0;
     }
-    if ((codegen_emit_indent(out, 2) !=0)) {
-      return -(1);
+    if ((pipeline_module_func_is_extern_at(module, fi) !=0)) {
+      return 0;
     }
-    if ((codegen_emit_bytes_from_ptr(out, &((ret_kw)[0]), 7) !=0)) {
-      return -(1);
+    (void)((num_params = pipeline_module_func_num_params_at(module, fi)));
+    if (((num_params < 0) || (num_params > 8))) {
+      return 0;
     }
-    if ((codegen_emit_bytes_from_ptr(out, &((pn)[0]), pn_len) !=0)) {
-      return -(1);
+    (void)((ret_ty = pipeline_module_func_return_type_at(module, fi)));
+    if ((ret_ty <= 0)) {
+      return 0;
     }
-    if ((codegen_emit_bytes_from_ptr(out, &((end)[0]), 3) !=0)) {
-      return -(1);
+    /* Find first param with free type-args on a generic struct (usually self). */
+    (void)((p = 0));
+    (void)((found_lk = -1));
+    (void)((found_pty = 0));
+    (void)((found_ntp = 0));
+    (void)((found_bare_off = 0));
+    (void)((found_bare_len = 0));
+    while ((p < num_params)) {
+      int32_t pty_raw = pipeline_module_func_param_type_ref_at(module, fi, p);
+      if ((pty_raw <= 0)) {
+        (void)((p = (p + 1)));
+        continue;
+      }
+      {
+        int32_t pty = pipeline_typeck_resolve_type_alias_ref_c(arena, pty_raw);
+        if ((pty <= 0)) {
+          (void)((p = (p + 1)));
+          continue;
+        }
+        if ((pipeline_type_kind_ord_at(arena, pty) != ast_TypeKind_TYPE_NAMED)) {
+          (void)((p = (p + 1)));
+          continue;
+        }
+        {
+          uint8_t nm[64] = {};
+          int32_t nl = pipeline_type_named_name_into(arena, pty, &((nm)[0]));
+          if ((nl <= 0)) {
+            (void)((p = (p + 1)));
+            continue;
+          }
+          {
+            int32_t bare_off = 0;
+            int32_t bi = 0;
+            while (((bi < nl) && (bi < 64))) {
+              if ((nm[bi] ==46)) {
+                (void)((bare_off = (bi + 1)));
+              }
+              (void)((bi = (bi + 1)));
+            }
+            {
+              int32_t bare_len = nl - bare_off;
+              if ((bare_len <= 0)) {
+                (void)((p = (p + 1)));
+                continue;
+              }
+              {
+                int32_t lk = codegen_module_struct_layout_index_by_name(module, &((nm)[bare_off]), bare_len);
+                if ((lk < 0)) {
+                  (void)((p = (p + 1)));
+                  continue;
+                }
+                {
+                  int32_t ntp = pipeline_module_struct_layout_num_type_params_at(module, lk);
+                  if ((ntp <= 0)) {
+                    (void)((p = (p + 1)));
+                    continue;
+                  }
+                  /* Skip if param is already concrete (e.g. Wrap<i32>); fill_concrete succeeds. */
+                  {
+                    int32_t mono_chk[4] = {};
+                    if ((codegen_generic_struct_fill_concrete_args(module, arena, pty, ntp, &((mono_chk)[0]), ((struct ast_PipelineDepCtx *)(0))) == ntp)) {
+                      (void)((p = (p + 1)));
+                      continue;
+                    }
+                  }
+                  /* Has free type-args — this is our target param. */
+                  (void)((found_lk = lk));
+                  (void)((found_pty = pty));
+                  (void)((found_ntp = ntp));
+                  {
+                    int32_t cp_i = 0;
+                    while (((cp_i < nl) && (cp_i < 64))) {
+                      (void)((found_nm[cp_i] = nm[cp_i]));
+                      (void)((cp_i = (cp_i + 1)));
+                    }
+                  }
+                  (void)((found_bare_off = bare_off));
+                  (void)((found_bare_len = bare_len));
+                  (void)((p = num_params));
+                }
+              }
+            }
+          }
+        }
+      }
     }
-    if ((codegen_append_byte(out, 10) !=0)) {
-      return -(1);
+    if ((found_lk < 0)) {
+      return 0;
+    }
+    /* Collect all unique mono combos for this struct layout. */
+    (void)((nc = codegen_collect_generic_struct_mono_combos(module, arena, found_lk, &((found_nm)[found_bare_off]), found_bare_len, found_ntp, &((combos)[0]), 8)));
+    if ((nc <= 1)) {
+      return 0;
+    }
+    (void)(codegen_copy_func_name64_from_module(module, fi, &((fn_local)[0])));
+    (void)((fn_len = pipeline_module_func_name_len_at(module, fi)));
+    (void)((mono_sym_pre = codegen_func_c_symbol_prefix_len(module, fi, prefix_len)));
+    /* One mono instance per unique combo; mangled symbol agrees with call-side. */
+    (void)((ci = 0));
+    while ((ci < nc)) {
+      int32_t saved_mono_active = 0;
+      int32_t saved_mono_num = 0;
+      int32_t saved_func_index = -1;
+      int32_t saved_block_ref = 0;
+      int32_t mono_ctx_set = 0;
+      int32_t pi = 0;
+      int32_t body_walked = 0;
+      int32_t body_br = 0;
+      int32_t body_er = 0;
+      uint8_t cs[2] = {44, 32};
+      if ((ctx !=((struct ast_PipelineDepCtx *)(0)))) {
+        int32_t tj = 0;
+        saved_mono_active = ctx->mono_active;
+        saved_mono_num = ctx->mono_num_types;
+        saved_func_index = ctx->current_func_index;
+        saved_block_ref = ctx->current_block_ref;
+        ctx->mono_active = 1;
+        ctx->mono_num_types = 0;
+        /* Map each formal type-arg → combo concrete. */
+        (void)((tj = 0));
+        while (((tj < found_ntp) && (tj < 8))) {
+          int32_t formal_arg = pipeline_type_type_arg_ref_at(arena, found_pty, tj);
+          int32_t concrete_arg = combos[ci * found_ntp + tj];
+          if (((formal_arg > 0) && (concrete_arg > 0))) {
+            ctx->mono_generic_type_refs[ctx->mono_num_types] = formal_arg;
+            ctx->mono_concrete_type_refs[ctx->mono_num_types] = concrete_arg;
+            (void)((ctx->mono_num_types = ctx->mono_num_types + 1));
+          }
+          (void)((tj = (tj + 1)));
+        }
+        ctx->current_func_index = fi;
+        (void)((mono_ctx_set = 1));
+      }
+      /* Return type under mono_active. */
+      if ((codegen_emit_type(arena, out, ret_ty, prefix, prefix_len, ctx) !=0)) {
+        if ((mono_ctx_set !=0)) {
+          ctx->mono_active = saved_mono_active;
+          ctx->mono_num_types = saved_mono_num;
+          ctx->current_func_index = saved_func_index;
+          ctx->current_block_ref = saved_block_ref;
+        }
+        return -(1);
+      }
+      if ((codegen_append_byte(out, 32) !=0)) {
+        if ((mono_ctx_set !=0)) {
+          ctx->mono_active = saved_mono_active;
+          ctx->mono_num_types = saved_mono_num;
+          ctx->current_func_index = saved_func_index;
+          ctx->current_block_ref = saved_block_ref;
+        }
+        return -(1);
+      }
+      if (((mono_sym_pre > 0)
+          && (codegen_c_prefix_redundant_with_name(prefix, mono_sym_pre, &((fn_local)[0]), fn_len) ==0))) {
+        if ((codegen_emit_bytes_from_ptr(out, prefix, mono_sym_pre) !=0)) {
+          if ((mono_ctx_set !=0)) {
+            ctx->mono_active = saved_mono_active;
+            ctx->mono_num_types = saved_mono_num;
+            ctx->current_func_index = saved_func_index;
+            ctx->current_block_ref = saved_block_ref;
+          }
+          return -(1);
+        }
+      }
+      /* Mangled mono symbol: link_name + __ + suffix per combo slot. */
+      if ((codegen_emit_mono_mangled_name(out, arena, module, fi, &((combos)[ci * found_ntp]), found_ntp) !=0)) {
+        if ((mono_ctx_set !=0)) {
+          ctx->mono_active = saved_mono_active;
+          ctx->mono_num_types = saved_mono_num;
+          ctx->current_func_index = saved_func_index;
+          ctx->current_block_ref = saved_block_ref;
+        }
+        return -(1);
+      }
+      if ((codegen_append_byte(out, 40) !=0)) {
+        if ((mono_ctx_set !=0)) {
+          ctx->mono_active = saved_mono_active;
+          ctx->mono_num_types = saved_mono_num;
+          ctx->current_func_index = saved_func_index;
+          ctx->current_block_ref = saved_block_ref;
+        }
+        return -(1);
+      }
+      /* Emit all params under mono_active. */
+      (void)((pi = 0));
+      while ((pi < num_params)) {
+        if ((pi > 0)) {
+          if ((codegen_emit_bytes_from_ptr(out, &((cs)[0]), 2) !=0)) {
+            if ((mono_ctx_set !=0)) {
+              ctx->mono_active = saved_mono_active;
+              ctx->mono_num_types = saved_mono_num;
+              ctx->current_func_index = saved_func_index;
+              ctx->current_block_ref = saved_block_ref;
+            }
+            return -(1);
+          }
+        }
+        {
+          int32_t p_ty = pipeline_module_func_param_type_ref_at(module, fi, pi);
+          if ((codegen_emit_type(arena, out, p_ty, prefix, prefix_len, ctx) !=0)) {
+            if ((mono_ctx_set !=0)) {
+              ctx->mono_active = saved_mono_active;
+              ctx->mono_num_types = saved_mono_num;
+              ctx->current_func_index = saved_func_index;
+              ctx->current_block_ref = saved_block_ref;
+            }
+            return -(1);
+          }
+        }
+        if ((codegen_append_byte(out, 32) !=0)) {
+          if ((mono_ctx_set !=0)) {
+            ctx->mono_active = saved_mono_active;
+            ctx->mono_num_types = saved_mono_num;
+            ctx->current_func_index = saved_func_index;
+            ctx->current_block_ref = saved_block_ref;
+          }
+          return -(1);
+        }
+        {
+          uint8_t pname[32] = {};
+          int32_t plen = pipeline_module_func_param_name_len_at(module, fi, pi);
+          pipeline_module_func_param_name_copy32(module, fi, pi, &((pname)[0]));
+          if ((plen <= 0)) {
+            pname[0] = 95;
+            plen = 1;
+          }
+          if ((codegen_emit_bytes_from_ptr(out, &((pname)[0]), plen) !=0)) {
+            if ((mono_ctx_set !=0)) {
+              ctx->mono_active = saved_mono_active;
+              ctx->mono_num_types = saved_mono_num;
+              ctx->current_func_index = saved_func_index;
+              ctx->current_block_ref = saved_block_ref;
+            }
+            return -(1);
+          }
+        }
+        (void)((pi = (pi + 1)));
+      }
+      /* `) {\n` */
+      if ((codegen_emit_bytes_from_ptr(out, &((open_body)[0]), 4) !=0)) {
+        if ((mono_ctx_set !=0)) {
+          ctx->mono_active = saved_mono_active;
+          ctx->mono_num_types = saved_mono_num;
+          ctx->current_func_index = saved_func_index;
+          ctx->current_block_ref = saved_block_ref;
+        }
+        return -(1);
+      }
+      /* Emit function body (block or expr). */
+      (void)((body_walked = 0));
+      (void)((body_br = pipeline_module_func_body_ref_at(module, fi)));
+      (void)((body_er = pipeline_module_func_body_expr_ref_at(module, fi)));
+      if (((!(ast_ref_is_null(body_br))) || (!(ast_ref_is_null(body_er))))) {
+        if (!(ast_ref_is_null(body_br))) {
+          if ((mono_ctx_set !=0)) {
+            ctx->current_block_ref = body_br;
+          }
+          if ((codegen_emit_block(arena, out, body_br, 2, ctx) == 0)) {
+            (void)((body_walked = 1));
+          }
+        } else {
+          if ((mono_ctx_set !=0)) {
+            ctx->current_block_ref = 0;
+          }
+          if ((codegen_emit_indent(out, 2) == 0)) {
+            if ((codegen_emit_bytes_from_ptr(out, &((ret_kw)[0]), 7) == 0)) {
+              if ((codegen_emit_expr(arena, out, body_er, ctx) == 0)) {
+                if ((codegen_emit_bytes_from_ptr(out, &((sc_nl)[0]), 2) == 0)) {
+                  (void)((body_walked = 1));
+                }
+              }
+            }
+          }
+        }
+      }
+      if ((body_walked == 0)) {
+        if ((codegen_emit_indent(out, 2) !=0)) {
+          if ((mono_ctx_set !=0)) {
+            ctx->mono_active = saved_mono_active;
+            ctx->mono_num_types = saved_mono_num;
+            ctx->current_func_index = saved_func_index;
+            ctx->current_block_ref = saved_block_ref;
+          }
+          return -(1);
+        }
+        {
+          uint8_t ret0[10] = {114, 101, 116, 117, 114, 110, 32, 48, 59, 10};
+          if ((codegen_emit_bytes_from_ptr(out, &((ret0)[0]), 10) !=0)) {
+            if ((mono_ctx_set !=0)) {
+              ctx->mono_active = saved_mono_active;
+              ctx->mono_num_types = saved_mono_num;
+              ctx->current_func_index = saved_func_index;
+              ctx->current_block_ref = saved_block_ref;
+            }
+            return -(1);
+          }
+        }
+      }
+      if ((mono_ctx_set !=0)) {
+        ctx->mono_active = saved_mono_active;
+        ctx->mono_num_types = saved_mono_num;
+        ctx->current_func_index = saved_func_index;
+        ctx->current_block_ref = saved_block_ref;
+      }
+      if ((codegen_emit_bytes_from_ptr(out, &((end)[0]), 2) !=0)) {
+        return -(1);
+      }
+      (void)((ci = (ci + 1)));
     }
     return 1;
   }
-  return 0;
+}
+/*
+ * wave498: multi-combo generic inherent impl method extern declaration monomorphization.
+ * Why: hoisted impl methods (num_generic_params == 0, <T> on impl not fn) need
+ * forward-declared extern prototypes for each mono combo with mangled symbols,
+ * matching the definitions emitted by codegen_try_emit_generic_impl_method_mono.
+ * Without this, co-emitted TUs calling later generic impl methods get implicit
+ * declaration warnings or wrong types (struct T instead of concrete).
+ * PLATFORM: SHARED — codegen.x same commit.
+ * Guards: only activates when num_generic_params==0 AND a param has free type-args
+ * AND combo_count>1. All other cases return 0 and fall through to normal
+ * emit_func_extern_declaration (wave495 unique-combo path or plain emit).
+ */
+static int32_t codegen_try_emit_generic_impl_method_extern_mono(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx) {
+  {
+    int32_t num_params = 0;
+    int32_t ret_ty = 0;
+    int32_t p = 0;
+    int32_t found_lk = -1;
+    int32_t found_pty = 0;
+    int32_t found_ntp = 0;
+    uint8_t found_nm[64] = {};
+    int32_t found_bare_off = 0;
+    int32_t found_bare_len = 0;
+    int32_t combos[32] = {};
+    int32_t nc = 0;
+    uint8_t fn_local[64] = {};
+    int32_t fn_len = 0;
+    int32_t mono_sym_pre = 0;
+    int32_t ci = 0;
+    uint8_t kw[8] = {101, 120, 116, 101, 114, 110, 32, 0};
+    uint8_t end_proto[3] = {41, 59, 10};
+    if ((((arena ==((struct ast_ASTArena *)(0))) || (out ==((struct codegen_CodegenOutBuf *)(0)))) || (module ==((struct ast_Module *)(0))))) {
+      return 0;
+    }
+    if (((fi < 0) || (fi >=(module->num_funcs)))) {
+      return 0;
+    }
+    if ((pipeline_module_func_num_generic_params_at(module, fi) > 0)) {
+      return 0;
+    }
+    (void)((num_params = pipeline_module_func_num_params_at(module, fi)));
+    if (((num_params < 0) || (num_params > 8))) {
+      return 0;
+    }
+    (void)((ret_ty = pipeline_module_func_return_type_at(module, fi)));
+    if ((ret_ty <= 0)) {
+      return 0;
+    }
+    /* Find first param with free type-args on a generic struct (usually self). */
+    (void)((p = 0));
+    (void)((found_lk = -1));
+    (void)((found_pty = 0));
+    (void)((found_ntp = 0));
+    (void)((found_bare_off = 0));
+    (void)((found_bare_len = 0));
+    while ((p < num_params)) {
+      int32_t pty_raw = pipeline_module_func_param_type_ref_at(module, fi, p);
+      if ((pty_raw <= 0)) {
+        (void)((p = (p + 1)));
+        continue;
+      }
+      {
+        int32_t pty = pipeline_typeck_resolve_type_alias_ref_c(arena, pty_raw);
+        if ((pty <= 0)) {
+          (void)((p = (p + 1)));
+          continue;
+        }
+        if ((pipeline_type_kind_ord_at(arena, pty) != ast_TypeKind_TYPE_NAMED)) {
+          (void)((p = (p + 1)));
+          continue;
+        }
+        {
+          uint8_t nm[64] = {};
+          int32_t nl = pipeline_type_named_name_into(arena, pty, &((nm)[0]));
+          if ((nl <= 0)) {
+            (void)((p = (p + 1)));
+            continue;
+          }
+          {
+            int32_t bare_off = 0;
+            int32_t bi = 0;
+            while (((bi < nl) && (bi < 64))) {
+              if ((nm[bi] ==46)) {
+                (void)((bare_off = (bi + 1)));
+              }
+              (void)((bi = (bi + 1)));
+            }
+            {
+              int32_t bare_len = nl - bare_off;
+              if ((bare_len <= 0)) {
+                (void)((p = (p + 1)));
+                continue;
+              }
+              {
+                int32_t lk = codegen_module_struct_layout_index_by_name(module, &((nm)[bare_off]), bare_len);
+                if ((lk < 0)) {
+                  (void)((p = (p + 1)));
+                  continue;
+                }
+                {
+                  int32_t ntp = pipeline_module_struct_layout_num_type_params_at(module, lk);
+                  if ((ntp <= 0)) {
+                    (void)((p = (p + 1)));
+                    continue;
+                  }
+                  /* Skip if param is already concrete (e.g. Wrap<i32>); fill_concrete succeeds. */
+                  {
+                    int32_t mono_chk[4] = {};
+                    if ((codegen_generic_struct_fill_concrete_args(module, arena, pty, ntp, &((mono_chk)[0]), ((struct ast_PipelineDepCtx *)(0))) == ntp)) {
+                      (void)((p = (p + 1)));
+                      continue;
+                    }
+                  }
+                  /* Has free type-args — this is our target param. */
+                  (void)((found_lk = lk));
+                  (void)((found_pty = pty));
+                  (void)((found_ntp = ntp));
+                  {
+                    int32_t cp_i = 0;
+                    while (((cp_i < nl) && (cp_i < 64))) {
+                      (void)((found_nm[cp_i] = nm[cp_i]));
+                      (void)((cp_i = (cp_i + 1)));
+                    }
+                  }
+                  (void)((found_bare_off = bare_off));
+                  (void)((found_bare_len = bare_len));
+                  (void)((p = num_params));
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    if ((found_lk < 0)) {
+      return 0;
+    }
+    /* Collect all unique mono combos for this struct layout. */
+    (void)((nc = codegen_collect_generic_struct_mono_combos(module, arena, found_lk, &((found_nm)[found_bare_off]), found_bare_len, found_ntp, &((combos)[0]), 8)));
+    if ((nc <= 1)) {
+      return 0;
+    }
+    (void)(codegen_copy_func_name64_from_module(module, fi, &((fn_local)[0])));
+    (void)((fn_len = pipeline_module_func_name_len_at(module, fi)));
+    (void)((mono_sym_pre = codegen_func_c_symbol_prefix_len(module, fi, prefix_len)));
+    /* One extern declaration per unique combo; mangled symbol agrees with definition side. */
+    (void)((ci = 0));
+    while ((ci < nc)) {
+      int32_t saved_mono_active = 0;
+      int32_t saved_mono_num = 0;
+      int32_t saved_func_index = -1;
+      int32_t saved_block_ref = 0;
+      int32_t mono_ctx_set = 0;
+      int32_t pi = 0;
+      uint8_t cs[2] = {44, 32};
+      if ((ctx !=((struct ast_PipelineDepCtx *)(0)))) {
+        int32_t tj = 0;
+        saved_mono_active = ctx->mono_active;
+        saved_mono_num = ctx->mono_num_types;
+        saved_func_index = ctx->current_func_index;
+        saved_block_ref = ctx->current_block_ref;
+        ctx->mono_active = 1;
+        ctx->mono_num_types = 0;
+        /* Map each formal type-arg → combo concrete. */
+        (void)((tj = 0));
+        while (((tj < found_ntp) && (tj < 8))) {
+          int32_t formal_arg = pipeline_type_type_arg_ref_at(arena, found_pty, tj);
+          int32_t concrete_arg = combos[ci * found_ntp + tj];
+          if (((formal_arg > 0) && (concrete_arg > 0))) {
+            ctx->mono_generic_type_refs[ctx->mono_num_types] = formal_arg;
+            ctx->mono_concrete_type_refs[ctx->mono_num_types] = concrete_arg;
+            (void)((ctx->mono_num_types = ctx->mono_num_types + 1));
+          }
+          (void)((tj = (tj + 1)));
+        }
+        ctx->current_func_index = fi;
+        (void)((mono_ctx_set = 1));
+      }
+      /* "extern " */
+      if ((codegen_emit_bytes_from_ptr(out, &((kw)[0]), 7) !=0)) {
+        if ((mono_ctx_set !=0)) {
+          ctx->mono_active = saved_mono_active;
+          ctx->mono_num_types = saved_mono_num;
+          ctx->current_func_index = saved_func_index;
+          ctx->current_block_ref = saved_block_ref;
+        }
+        return -(1);
+      }
+      /* Return type under mono_active. */
+      if ((codegen_emit_type(arena, out, ret_ty, prefix, prefix_len, ctx) !=0)) {
+        if ((mono_ctx_set !=0)) {
+          ctx->mono_active = saved_mono_active;
+          ctx->mono_num_types = saved_mono_num;
+          ctx->current_func_index = saved_func_index;
+          ctx->current_block_ref = saved_block_ref;
+        }
+        return -(1);
+      }
+      if ((codegen_append_byte(out, 32) !=0)) {
+        if ((mono_ctx_set !=0)) {
+          ctx->mono_active = saved_mono_active;
+          ctx->mono_num_types = saved_mono_num;
+          ctx->current_func_index = saved_func_index;
+          ctx->current_block_ref = saved_block_ref;
+        }
+        return -(1);
+      }
+      if (((mono_sym_pre > 0)
+          && (codegen_c_prefix_redundant_with_name(prefix, mono_sym_pre, &((fn_local)[0]), fn_len) ==0))) {
+        if ((codegen_emit_bytes_from_ptr(out, prefix, mono_sym_pre) !=0)) {
+          if ((mono_ctx_set !=0)) {
+            ctx->mono_active = saved_mono_active;
+            ctx->mono_num_types = saved_mono_num;
+            ctx->current_func_index = saved_func_index;
+            ctx->current_block_ref = saved_block_ref;
+          }
+          return -(1);
+        }
+      }
+      /* Mangled mono symbol: link_name + __ + suffix per combo slot. */
+      if ((codegen_emit_mono_mangled_name(out, arena, module, fi, &((combos)[ci * found_ntp]), found_ntp) !=0)) {
+        if ((mono_ctx_set !=0)) {
+          ctx->mono_active = saved_mono_active;
+          ctx->mono_num_types = saved_mono_num;
+          ctx->current_func_index = saved_func_index;
+          ctx->current_block_ref = saved_block_ref;
+        }
+        return -(1);
+      }
+      if ((codegen_append_byte(out, 40) !=0)) {
+        if ((mono_ctx_set !=0)) {
+          ctx->mono_active = saved_mono_active;
+          ctx->mono_num_types = saved_mono_num;
+          ctx->current_func_index = saved_func_index;
+          ctx->current_block_ref = saved_block_ref;
+        }
+        return -(1);
+      }
+      /* Emit all params under mono_active. */
+      (void)((pi = 0));
+      while ((pi < num_params)) {
+        int32_t p_ty = 0;
+        if ((pi > 0)) {
+          if ((codegen_emit_bytes_from_ptr(out, &((cs)[0]), 2) !=0)) {
+            if ((mono_ctx_set !=0)) {
+              ctx->mono_active = saved_mono_active;
+              ctx->mono_num_types = saved_mono_num;
+              ctx->current_func_index = saved_func_index;
+              ctx->current_block_ref = saved_block_ref;
+            }
+            return -(1);
+          }
+        }
+        (void)((p_ty = pipeline_module_func_param_type_ref_at(module, fi, pi)));
+        if ((codegen_emit_type(arena, out, p_ty, prefix, prefix_len, ctx) !=0)) {
+          if ((mono_ctx_set !=0)) {
+            ctx->mono_active = saved_mono_active;
+            ctx->mono_num_types = saved_mono_num;
+            ctx->current_func_index = saved_func_index;
+            ctx->current_block_ref = saved_block_ref;
+          }
+          return -(1);
+        }
+        /* PLATFORM: SHARED — TYPE_SLICE params as pointers (mirror emit_func_extern_declaration). */
+        if ((pipeline_type_kind_ord_at(arena, p_ty) == ast_TypeKind_TYPE_SLICE)) {
+          if ((codegen_append_byte(out, 32) !=0)) {
+            if ((mono_ctx_set !=0)) {
+              ctx->mono_active = saved_mono_active;
+              ctx->mono_num_types = saved_mono_num;
+              ctx->current_func_index = saved_func_index;
+              ctx->current_block_ref = saved_block_ref;
+            }
+            return -(1);
+          }
+          if ((codegen_append_byte(out, 42) !=0)) {
+            if ((mono_ctx_set !=0)) {
+              ctx->mono_active = saved_mono_active;
+              ctx->mono_num_types = saved_mono_num;
+              ctx->current_func_index = saved_func_index;
+              ctx->current_block_ref = saved_block_ref;
+            }
+            return -(1);
+          }
+        }
+        if ((codegen_append_byte(out, 32) !=0)) {
+          if ((mono_ctx_set !=0)) {
+            ctx->mono_active = saved_mono_active;
+            ctx->mono_num_types = saved_mono_num;
+            ctx->current_func_index = saved_func_index;
+            ctx->current_block_ref = saved_block_ref;
+          }
+          return -(1);
+        }
+        {
+          uint8_t pname[32] = {};
+          int32_t plen = pipeline_module_func_param_name_len_at(module, fi, pi);
+          pipeline_module_func_param_name_copy32(module, fi, pi, &((pname)[0]));
+          if ((plen <= 0)) {
+            pname[0] = 95;
+            plen = 1;
+          }
+          if ((codegen_emit_bytes_from_ptr(out, &((pname)[0]), plen) !=0)) {
+            if ((mono_ctx_set !=0)) {
+              ctx->mono_active = saved_mono_active;
+              ctx->mono_num_types = saved_mono_num;
+              ctx->current_func_index = saved_func_index;
+              ctx->current_block_ref = saved_block_ref;
+            }
+            return -(1);
+          }
+        }
+        (void)((pi = (pi + 1)));
+      }
+      /* ");\n" */
+      if ((codegen_emit_bytes_from_ptr(out, &((end_proto)[0]), 3) !=0)) {
+        if ((mono_ctx_set !=0)) {
+          ctx->mono_active = saved_mono_active;
+          ctx->mono_num_types = saved_mono_num;
+          ctx->current_func_index = saved_func_index;
+          ctx->current_block_ref = saved_block_ref;
+        }
+        return -(1);
+      }
+      if ((mono_ctx_set !=0)) {
+        ctx->mono_active = saved_mono_active;
+        ctx->mono_num_types = saved_mono_num;
+        ctx->current_func_index = saved_func_index;
+        ctx->current_block_ref = saved_block_ref;
+      }
+      (void)((ci = (ci + 1)));
+    }
+    return 1;
+  }
 }
 int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx) {
   {
@@ -10865,11 +16880,34 @@ int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct
     int32_t name_prefix_len = prefix_len;
     uint8_t lpar[2] = {40, 0};
     uint8_t end_proto[3] = {41, 59, 10};
+    /* wave495: hoist mono_active save/restore vars to function scope so the
+     * success return path can restore them. Mirrors emit_func w495 fix.
+     * PLATFORM: SHARED — codegen.x same commit. */
+    int32_t w495_mono_set = 0;
+    int32_t w495_saved_active = 0;
+    int32_t w495_saved_num = 0;
     if (((fi < 0) || (fi >=(module->num_funcs)))) {
       return -(1);
     }
     if ((pipeline_module_func_num_generic_params_at(module, fi) > 0)) {
       return 0;
+    }
+    /*
+     * wave498: multi-combo generic inherent impl method extern declaration.
+     * Why: hoisted impl methods (num_generic_params == 0, <T> on impl not fn)
+     * with multi-combo (nc>1) need one extern declaration per combo with
+     * mangled symbol. Return 1 means handled; fall through to normal path
+     * for unique-combo / plain functions.
+     * PLATFORM: SHARED — codegen.x same commit.
+     */
+    {
+      int32_t w498_ext_rc = codegen_try_emit_generic_impl_method_extern_mono(arena, out, module, fi, prefix, prefix_len, ctx);
+      if ((w498_ext_rc < 0)) {
+        return -(1);
+      }
+      if ((w498_ext_rc > 0)) {
+        return 0;
+      }
     }
     (void)(codegen_copy_func_name64_from_module(module, fi, &((fn_local)[0])));
     if (((pipeline_module_func_is_extern_at(module, fi) !=0) && (codegen_is_libc_conflicting_extern_name(&((fn_local)[0]), fn_len) !=0))) {
@@ -10900,6 +16938,35 @@ int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct
       uint8_t int_attr[31] = {95, 95, 97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 105, 110, 116, 101, 114, 114, 117, 112, 116, 41, 41, 32, 0, 0, 0, 0};
       if ((codegen_emit_bytes_from_ptr(out, &((int_attr)[0]), 27) !=0)) {
         return -(1);
+      }
+    }
+    /*
+     * wave495: generic inherent impl method extern declaration monomorphization.
+     * Why: the extern forward declaration `extern <ret> name(<params>);` is emitted
+     * separately from the function definition. Without mono_active, the return type T
+     * emits as `struct T` (incomplete BLD001) here while the definition (emit_func)
+     * correctly emits `int32_t`. Build the same T->concrete map from params and set
+     * mono_active so emit_type substitutes T in the return type. Mirrors emit_func.
+     * PLATFORM: SHARED — codegen.x same commit.
+     * Guards: only set when w495_n > 0 (unique combo found); non-generic functions
+     * and multi-combo cases skip this entirely (no behavior change). Restore on
+     * success return; error paths abort.
+     */
+    if (ctx) {
+      int32_t w495_gen[8] = {0};
+      int32_t w495_conc[8] = {0};
+      int32_t w495_n = codegen_build_func_param_mono_map(module, arena, fi, w495_gen, w495_conc, 8);
+      if (w495_n > 0) {
+        int32_t w495_k;
+        w495_saved_active = ctx->mono_active;
+        w495_saved_num = ctx->mono_num_types;
+        for (w495_k = 0; w495_k < w495_n && w495_k < 8; w495_k++) {
+          ctx->mono_generic_type_refs[w495_k] = w495_gen[w495_k];
+          ctx->mono_concrete_type_refs[w495_k] = w495_conc[w495_k];
+        }
+        ctx->mono_active = 1;
+        ctx->mono_num_types = w495_n;
+        w495_mono_set = 1;
       }
     }
     if ((codegen_emit_type(arena, out, pipeline_module_func_return_type_at(module, fi), prefix, prefix_len, ctx) !=0)) {
@@ -11032,6 +17099,11 @@ int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct
     if ((codegen_emit_bytes_from_ptr(out, &((end_proto)[0]), 3) !=0)) {
       return -(1);
     }
+    /* wave495: restore mono_active on success return. */
+    if (w495_mono_set) {
+      ctx->mono_active = w495_saved_active;
+      ctx->mono_num_types = w495_saved_num;
+    }
     return 0;
   }
   return 0;
@@ -11084,13 +17156,13 @@ int32_t codegen_emit_import_dep_function_declarations(struct ast_Module * module
           struct ast_Module * dep_mod = ((struct ast_Module *)(0));
           struct ast_ASTArena * dep_arena = ((struct ast_ASTArena *)(0));
           int32_t dep_ctx_ix = dep_ix;
-          if (getenv("XLANG_DEBUG_PREFIX"))
+          if (link_abi_getenv("XLANG_DEBUG_PREFIX"))
             fprintf(stderr, "xlang: [DBG_PREFIX] emit_import_dep_decl module=%p n_imp=%d imp_i=%d dep_path=%.*s dep_ix=%d\n",
                     (void*)module, (int)n_imp, (int)imp_i, (int)dep_path_len, (char*)dep_path, (int)dep_ix);
           if (((dep_ix >=0) && (dep_ix < pipeline_dep_ctx_ndep(ctx)))) {
             (void)((dep_mod = pipeline_dep_ctx_module_at(ctx, dep_ix)));
             (void)((dep_arena = pipeline_dep_ctx_arena_at(ctx, dep_ix)));
-            if (getenv("XLANG_DEBUG_PREFIX"))
+            if (link_abi_getenv("XLANG_DEBUG_PREFIX"))
               fprintf(stderr, "xlang: [DBG_PREFIX]   -> dep_ix=%d dep_mod=%p num_funcs=%d\n",
                       (int)dep_ix, (void*)dep_mod, dep_mod ? (int)dep_mod->num_funcs : -1);
           }
@@ -11529,6 +17601,25 @@ int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, s
         (void)((i = (i + 1)));
         continue;
       }
+      /*
+       * wave498: multi-combo generic inherent impl method codegen monomorphization.
+       * Why: hoisted impl methods (num_generic_params == 0, <T> on impl not fn) bypass
+       * codegen_try_emit_generic_identity_mono. For multi-combo (nc>1) cases, emit one
+       * monomorphized definition per combo with mangled symbol; return 1 means handled.
+       * PLATFORM: SHARED — codegen.x same commit.
+       * Guards: returns 0 for non-qualifying funcs (nc<=1, no free type-args, etc.),
+       * so fall through to normal emit_func path for unique-combo / plain funcs.
+       */
+      {
+        int32_t w498_mono_rc = codegen_try_emit_generic_impl_method_mono(arena, out, module, i, &((prefix_buf)[0]), prefix_len, ctx);
+        if ((w498_mono_rc < 0)) {
+          return -(1);
+        }
+        if ((w498_mono_rc > 0)) {
+          (void)((i = (i + 1)));
+          continue;
+        }
+      }
       if ((pipeline_module_func_is_extern_at(module, i) !=0)) {
         if ((codegen_emit_func_extern_declaration(arena, out, module, i, &((prefix_buf)[0]), prefix_len, ctx) !=0)) {
           return -(1);
@@ -11592,6 +17683,10 @@ int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, s
         }
         (void)((skip = codegen_should_skip_emit_func(skip_dep, ((uint8_t *)(0)), 0, &((skip_name)[0]), skip_nl)));
       }
+      /* wave377: same-module redef first-wins (host C dual body → redefinition). */
+      if (((skip == 0) && (asm_backend == 0))) {
+        (void)((skip = codegen_should_skip_later_same_name_body(module, i)));
+      }
       if ((skip !=0)) {
         (void)((i = (i + 1)));
         continue;
@@ -11644,6 +17739,65 @@ int32_t codegen_should_skip_emit_func_by_name(uint8_t * name, int32_t name_len) 
       }
     }
     return 0;
+  }
+  return 0;
+}
+/*
+ * wave377 Cap residual pure: same-module true redefinition first-wins body emit.
+ * Skip later non-extern body only when name + arity + all param type_refs match
+ * an earlier body. True overloads (pick(i32) vs pick(i64)) must still emit —
+ * name+arity-only skip dropped overload_pick_i64 (wave383 types gate UNDEF).
+ * PLATFORM: SHARED — mirror codegen.x codegen_should_skip_later_same_name_body.
+ */
+int32_t codegen_should_skip_later_same_name_body(struct ast_Module * module, int32_t fi) {
+  int32_t nlen;
+  int32_t np;
+  int32_t j;
+  uint8_t name[64];
+  if ((module == ((struct ast_Module *)(0))) || (fi <= 0)) {
+    return 0;
+  }
+  if ((pipeline_module_func_is_extern_at(module, fi) != 0)) {
+    return 0;
+  }
+  nlen = pipeline_module_func_name_len_at(module, fi);
+  if ((nlen <= 0) || (nlen > 63)) {
+    return 0;
+  }
+  (void)(pipeline_module_func_name_copy64(module, fi, &((name)[0])));
+  np = pipeline_module_func_num_params_at(module, fi);
+  j = 0;
+  while ((j < fi)) {
+    if ((pipeline_module_func_is_extern_at(module, j) == 0)) {
+      int32_t jlen = pipeline_module_func_name_len_at(module, j);
+      if (((jlen == nlen) && (pipeline_module_func_num_params_at(module, j) == np))) {
+        uint8_t jname[64];
+        int32_t eq = 1;
+        int32_t k = 0;
+        (void)(pipeline_module_func_name_copy64(module, j, &((jname)[0])));
+        while ((k < nlen)) {
+          if (((name)[k] != (jname)[k])) {
+            (void)((eq = 0));
+          }
+          (void)((k = (k + 1)));
+        }
+        /* Same name+arity is not enough: compare param type_refs (redef vs overload). */
+        if ((eq != 0)) {
+          int32_t pi = 0;
+          while ((pi < np)) {
+            if ((pipeline_module_func_param_type_ref_at(module, fi, pi) !=
+                 pipeline_module_func_param_type_ref_at(module, j, pi))) {
+              (void)((eq = 0));
+            }
+            (void)((pi = (pi + 1)));
+          }
+        }
+        if ((eq != 0)) {
+          return 1;
+        }
+      }
+    }
+    (void)((j = (j + 1)));
   }
   return 0;
 }

@@ -24,13 +24,13 @@
 // See implementation.
 
 /* See implementation. */
-allow(padding) struct Iovec { base: *u8; len: usize; }
+allow(padding) struct Iovec { base: *u8; length: usize; }
 
 /* See implementation. */
 allow(padding) struct PollFd { fd: i32; events: i16; revents: i16; }
 
 /* See implementation. */
-allow(padding) struct IoBatchBuf { ptr: *u8; len: usize; handle: usize; }
+allow(padding) struct IoBatchBuf { ptr: *u8; length: usize; handle: usize; }
 
 /* See implementation. */
 export const IO_FIXED_MAX: u32 = 8;
@@ -153,16 +153,16 @@ export function io_read_batch(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p
   if (timeout_ms == 0) {
     let iov: [4]Iovec;
     iov[0].base = p0;
-    iov[0].len = l0;
+    iov[0].length = l0;
     iov[1].base = p1;
-    iov[1].len = l1;
+    iov[1].length = l1;
     if (n >= 3) {
       iov[2].base = p2;
-      iov[2].len = l2;
+      iov[2].length = l2;
     }
     if (n >= 4) {
       iov[3].base = p3;
-      iov[3].len = l3;
+      iov[3].length = l3;
     }
     return io_libc_readv(fd, &iov[0], n);
   }
@@ -199,16 +199,16 @@ export function io_write_batch(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, 
   if (timeout_ms == 0) {
     let iov: [4]Iovec;
     iov[0].base = p0;
-    iov[0].len = l0;
+    iov[0].length = l0;
     iov[1].base = p1;
-    iov[1].len = l1;
+    iov[1].length = l1;
     if (n >= 3) {
       iov[2].base = p2;
-      iov[2].len = l2;
+      iov[2].length = l2;
     }
     if (n >= 4) {
       iov[3].base = p3;
-      iov[3].len = l3;
+      iov[3].length = l3;
     }
     return io_libc_writev(fd, &iov[0], n);
   }
@@ -238,14 +238,14 @@ export function io_read_batch_buf(fd: i32, bufs: *IoBatchBuf, n: i32, timeout_ms
     return -1 as isize;
   }
   if (n == 1) {
-    return io_read(fd, bufs[0].ptr, bufs[0].len, timeout_ms);
+    return io_read(fd, bufs[0].ptr, bufs[0].length, timeout_ms);
   }
   if (timeout_ms == 0) {
     let iov: [16]Iovec;
     let i: i32 = 0;
     while (i < n) {
       iov[i].base = bufs[i].ptr;
-      iov[i].len = bufs[i].len;
+      iov[i].length = bufs[i].length;
       i = i + 1;
     }
     return io_libc_readv(fd, &iov[0], n);
@@ -253,7 +253,7 @@ export function io_read_batch_buf(fd: i32, bufs: *IoBatchBuf, n: i32, timeout_ms
   let total: isize = 0;
   let i2: i32 = 0;
   while (i2 < n) {
-    let r: isize = io_read(fd, bufs[i2].ptr, bufs[i2].len, timeout_ms);
+    let r: isize = io_read(fd, bufs[i2].ptr, bufs[i2].length, timeout_ms);
     if (r < 0) { return -1 as isize; }
     total = total + r;
     i2 = i2 + 1;
@@ -274,14 +274,14 @@ export function io_write_batch_buf(fd: i32, bufs: *IoBatchBuf, n: i32, timeout_m
     return -1 as isize;
   }
   if (n == 1) {
-    return io_write(fd, bufs[0].ptr, bufs[0].len, timeout_ms);
+    return io_write(fd, bufs[0].ptr, bufs[0].length, timeout_ms);
   }
   if (timeout_ms == 0) {
     let iov: [16]Iovec;
     let i: i32 = 0;
     while (i < n) {
       iov[i].base = bufs[i].ptr;
-      iov[i].len = bufs[i].len;
+      iov[i].length = bufs[i].length;
       i = i + 1;
     }
     return io_libc_writev(fd, &iov[0], n);
@@ -289,7 +289,7 @@ export function io_write_batch_buf(fd: i32, bufs: *IoBatchBuf, n: i32, timeout_m
   let total: isize = 0;
   let i2: i32 = 0;
   while (i2 < n) {
-    let r: isize = io_write(fd, bufs[i2].ptr, bufs[i2].len, timeout_ms);
+    let r: isize = io_write(fd, bufs[i2].ptr, bufs[i2].length, timeout_ms);
     if (r < 0) { return -1 as isize; }
     total = total + r;
     i2 = i2 + 1;
@@ -357,7 +357,7 @@ export function io_register_buffers_buf(bufs: *IoBatchBuf, nr: i32): i32 {
   let i: i32 = 0;
   while (i < nr) {
     let p: *u8 = bufs[i].ptr;
-    let l: usize = bufs[i].len;
+    let l: usize = bufs[i].length;
     if (p == 0 as *u8) {
       return 0;
     }

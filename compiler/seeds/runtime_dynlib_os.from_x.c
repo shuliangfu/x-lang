@@ -1,13 +1,16 @@
 /* seeds/runtime_dynlib_os.from_x.c — G-02f-20 product TU
  * G-02f-112 helper gates.
- * Product: runtime_dynlib_os.o; logic still C until full .x port.
- */
-/**
- * runtime_dynlib_os.c — 动态库 OS 胶层（F-ZC：自 std/dynlib/dynlib_os_glue.c 迁入）
+ * Product: runtime_dynlib_os.o; R2 full mode.
  *
- * dlopen/dlsym/dlclose、LoadLibrary/GetProcAddress/FreeLibrary；
- * dynlib.x 经 extern 调用；与 dynlib.o 一并链入（Linux 需 -ldl）。
+ * wave502 R2 migration: public API moved to src/asm/runtime_dynlib_os.x;
+ * this file only retains OS bridge _impl functions, guarded by
+ * XLANG_RUNTIME_DYNLIB_OS_FROM_X when building the rest object.
+ * Cold path (without FROM_X guard) provides full public API for bootstrapping.
+ *
+ * PLATFORM: SHARED — Windows (LoadLibrary/GetProcAddress/FreeLibrary)
+ *           POSIX (dlopen/dlsym/dlclose) with _WIN32 / _WIN64 branches.
  */
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,16 +19,14 @@
 #include <windows.h>
 typedef HMODULE dynlib_handle_t;
 
-/**
- * 将 UTF-8 路径中的 '/' 规范为 '\\' 写入 out。
- * 参数：out 输出缓冲；out_cap 容量；path UTF-8 路径。
- * 返回值：写入长度（不含 NUL）；失败 0。
- */
-/* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：thin（src/asm/runtime_dynlib_os.x）提供 public wrapper */
+/* R2 full: dynlib_win_normalize_path is pure computation, implemented in .x.
+ * Guarded here to avoid duplicate definition when FROM_X is active. */
 #ifndef XLANG_RUNTIME_DYNLIB_OS_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+/* Public wrapper — only compiled in cold (non-FROM_X) mode.
+ * Real implementation is in .x (src/asm/runtime_dynlib_os.x). */
 size_t dynlib_win_normalize_path(char *out, size_t out_cap, const char *path) {
+    /* Cold-path fallback: minimal C implementation matching .x semantics.
+     * This exists only for bootstrapping before .x is available. */
     size_t i = 0;
     if (!out || out_cap < 2 || !path)
         return 0;
@@ -40,12 +41,8 @@ size_t dynlib_win_normalize_path(char *out, size_t out_cap, const char *path) {
 }
 #endif
 
-
-
-
-/** UTF-8 路径转宽字符后 LoadLibraryW（STD-097）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_dynlib_os.x）提供 public wrapper */
+/* OS bridge _impl: UTF-8 path → LoadLibraryW (STD-097).
+ * Declared extern "C" in runtime_dynlib_os.x. */
 HMODULE dynlib_win_load_library_w_utf8_impl(const char *path_utf8) {
     wchar_t wpath[512];
     char norm[512];
@@ -61,34 +58,25 @@ HMODULE dynlib_win_load_library_w_utf8_impl(const char *path_utf8) {
 }
 
 #ifndef XLANG_RUNTIME_DYNLIB_OS_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+/* Public wrapper — delegates to _impl. Only in cold mode. */
 HMODULE dynlib_win_load_library_w_utf8(const char *path_utf8) {
     return dynlib_win_load_library_w_utf8_impl(path_utf8);
 }
 #endif
 
-
-
-#else
+#else /* !_WIN32 && !_WIN64 */
 #include <dlfcn.h>
 typedef void *dynlib_handle_t;
 #endif
 
-/**
- * 从 OS 读取动态库错误并写入 buf。
- * 参数：buf 输出；cap 容量。
- * 返回值：写入字节数（不含 NUL）；无内容 0。
- */
-int32_t dynlib_os_copy_last_error_c(uint8_t *buf, int32_t cap) {
+/* OS bridge _impl: retrieve last OS error message into buffer.
+ * Windows: GetLastError + FormatMessageA; POSIX: dlerror().
+ * Declared extern "C" in runtime_dynlib_os.x. */
+int32_t dynlib_os_copy_last_error_impl(uint8_t *buf, int32_t cap) {
     if (!buf || cap <= 0)
         return 0;
     buf[0] = '\0';
 #if defined(_WIN32) || defined(_WIN64)
-    /* 【Why 根源】Windows 无 dlerror：用 GetLastError + FormatMessageA 取系统错误描述。
-     * dynlib_os_open_c 失败后立即调用 dynlib_note_os_error_c → 本函数，
-     * GetLastError 仍保留 LoadLibrary 失败码（ERROR_MOD_NOT_FOUND 等）。
-     * 【Invariant】buf[0..cap) 可写；FormatMessageA NUL 终止；去尾 \r\n 避免诊断噪声。
-     * 【Asm/Perf】仅失败路径调用，热路径无开销。 */
     {
         DWORD err = GetLastError();
         DWORD n;
@@ -120,11 +108,17 @@ int32_t dynlib_os_copy_last_error_c(uint8_t *buf, int32_t cap) {
 #endif
 }
 
-/**
- * 打开动态库 path（NUL 结尾）。
- * 返回值：句柄；失败 NULL。
- */
-void *dynlib_os_open_c(const uint8_t *path) {
+#ifndef XLANG_RUNTIME_DYNLIB_OS_FROM_X
+/* Public wrapper — only in cold mode. */
+int32_t dynlib_os_copy_last_error_c(uint8_t *buf, int32_t cap) {
+    return dynlib_os_copy_last_error_impl(buf, cap);
+}
+#endif
+
+/* OS bridge _impl: open dynamic library.
+ * Windows: LoadLibraryA with LoadLibraryW fallback; POSIX: dlopen(RTLD_NOW).
+ * Declared extern "C" in runtime_dynlib_os.x. */
+void *dynlib_os_open_impl(const uint8_t *path) {
     if (!path || !path[0])
         return NULL;
 #if defined(_WIN32) || defined(_WIN64)
@@ -139,11 +133,17 @@ void *dynlib_os_open_c(const uint8_t *path) {
 #endif
 }
 
-/**
- * 取符号 name（NUL 结尾）。
- * 返回值：符号地址；失败 NULL。
- */
-void *dynlib_os_sym_c(void *lib, const uint8_t *name) {
+#ifndef XLANG_RUNTIME_DYNLIB_OS_FROM_X
+/* Public wrapper — only in cold mode. */
+void *dynlib_os_open_c(const uint8_t *path) {
+    return dynlib_os_open_impl(path);
+}
+#endif
+
+/* OS bridge _impl: look up symbol in library.
+ * Windows: GetProcAddress; POSIX: dlsym.
+ * Declared extern "C" in runtime_dynlib_os.x. */
+void *dynlib_os_sym_impl(void *lib, const uint8_t *name) {
     if (!lib || !name)
         return NULL;
 #if defined(_WIN32) || defined(_WIN64)
@@ -153,8 +153,17 @@ void *dynlib_os_sym_c(void *lib, const uint8_t *name) {
 #endif
 }
 
-/** 关闭动态库句柄。 */
-void dynlib_os_close_c(void *lib) {
+#ifndef XLANG_RUNTIME_DYNLIB_OS_FROM_X
+/* Public wrapper — only in cold mode. */
+void *dynlib_os_sym_c(void *lib, const uint8_t *name) {
+    return dynlib_os_sym_impl(lib, name);
+}
+#endif
+
+/* OS bridge _impl: close dynamic library handle.
+ * Windows: FreeLibrary; POSIX: dlclose.
+ * Declared extern "C" in runtime_dynlib_os.x. */
+void dynlib_os_close_impl(void *lib) {
     if (!lib)
         return;
 #if defined(_WIN32) || defined(_WIN64)
@@ -164,11 +173,17 @@ void dynlib_os_close_c(void *lib) {
 #endif
 }
 
-/**
- * STD-097：Windows 正斜杠路径烟测；POSIX 直接返回 0。
- * 返回值：0 成功；负值失败码。
- */
-int32_t dynlib_os_win_path_smoke_c(void) {
+#ifndef XLANG_RUNTIME_DYNLIB_OS_FROM_X
+/* Public wrapper — only in cold mode. */
+void dynlib_os_close_c(void *lib) {
+    dynlib_os_close_impl(lib);
+}
+#endif
+
+/* OS bridge _impl: Windows-only path smoke test.
+ * Verifies forward-slash path normalization + LoadLibraryW fallback.
+ * Declared extern "C" in runtime_dynlib_os.x. */
+int32_t dynlib_os_win_path_smoke_impl(void) {
 #if defined(_WIN32) || defined(_WIN64)
     char norm[128];
     HMODULE h;
@@ -190,3 +205,10 @@ int32_t dynlib_os_win_path_smoke_c(void) {
     return 0;
 #endif
 }
+
+#ifndef XLANG_RUNTIME_DYNLIB_OS_FROM_X
+/* Public wrapper — only in cold mode. */
+int32_t dynlib_os_win_path_smoke_c(void) {
+    return dynlib_os_win_path_smoke_impl();
+}
+#endif

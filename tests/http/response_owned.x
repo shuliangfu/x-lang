@@ -14,15 +14,15 @@ function main(): i32 {
 
   let owned: HttpResponseOwned = HttpResponseOwned {
     status: 0,
-    body: HttpBodyOwned { ptr: 0, len: 0 }
+    body: HttpBodyOwned { ptr: 0, length: 0 }
   };
   if (http.response_owned_from_parse(&line[0], resp, &owned) != 4) { return 2; }
   if (owned.status != 200) { return 3; }
-  if (owned.body.len != 4) { return 4; }
+  if (owned.body.length != 4) { return 4; }
   http.response_owned_free(&owned);
 
   http.push_last_reset();
-  let push_body: HttpBodyOwned = HttpBodyOwned { ptr: 0, len: 0 };
+  let push_body: HttpBodyOwned = HttpBodyOwned { ptr: 0, length: 0 };
   let meta: Http2PushLast = Http2PushLast { promised_stream_id: 0, body_len: 0 };
   if (http.push_last_body_owned(&meta, &push_body) != 0) { return 5; }
   if (push_body.ptr != 0) { return 6; }

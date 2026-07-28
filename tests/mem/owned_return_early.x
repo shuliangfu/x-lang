@@ -11,7 +11,7 @@ function early(flag: i32): i32 {
   if (flag != 0) {
     return 42;
   }
-  return vec.len(v);
+  return vec.length(v);
 }
 
 /** Internal function `main`.

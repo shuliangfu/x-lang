@@ -969,14 +969,21 @@ void parser_asm_collect_imports_slice_c(struct parser_asm_lexer lex, struct pars
       if (r2.tok.kind == (int32_t)TOKEN_IDENT && r2.tok.ident_len > 0 && r2.tok.ident_len <= 63) {
         lexer_next_into(&r3, r2.next_lex, source);
         if (r3.tok.kind == (int32_t)TOKEN_ASSIGN) {
-          parser_asm_copy_token_bytes_to_buf64(source, r2.token_start, r2.tok.ident_len, bind_buf);
-          out->lex.pos = r3.next_lex.pos;
-          out->lex.line = r3.next_lex.line;
-          out->lex.col = r3.next_lex.col;
-          lexer_next_into(&r, out->lex, source);
+          /*
+           * wave423: only consume `const name = import ...` as import binding.
+           * Bare `const name = expr` (type inference) must leave lex at TOKEN_CONST
+           * so parse_one_top_level_let can parse it. Prior: advanced past `=` then
+           * returned → dropped binding → XT001 on use of name.
+           * Look ahead one token after `=` without advancing out->lex until confirmed.
+           * PLATFORM: SHARED parse.
+           */
+          lexer_next_into(&r, r3.next_lex, source);
           PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_const_import_kw_audit_c((int32_t)r.tok.kind));
-          if (r.tok.kind != (int32_t)TOKEN_IMPORT)
-            return;
+          if (r.tok.kind != (int32_t)TOKEN_IMPORT) {
+            /* Not import-binding: end import collection; out->lex still at CONST. */
+            break;
+          }
+          parser_asm_copy_token_bytes_to_buf64(source, r2.token_start, r2.tok.ident_len, bind_buf);
           parser_asm_lex_from_result_val_into(&out->lex, r);
           if (!parser_asm_collect_imports_consume_path(out, source, path_buf, &path_len))
             return;

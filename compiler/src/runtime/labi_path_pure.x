@@ -128,6 +128,7 @@ let g_labi_time_os_o_path_buf: u8[4096] = [];
 let g_labi_queue_contention_o_path_buf: u8[4096] = [];
 let g_labi_dynlib_os_o_path_buf: u8[4096] = [];
 let g_labi_env_os_o_path_buf: u8[4096] = [];
+let g_labi_link_abi_user_env_o_path_buf: u8[4096] = [];
 let g_labi_backtrace_platform_o_path_buf: u8[4096] = [];
 let g_labi_log_os_o_path_buf: u8[4096] = [];
 let g_labi_math_libm_o_path_buf: u8[4096] = [];
@@ -1329,22 +1330,22 @@ export function xlang_std_async_scheduler_o_path(argv0: *u8): *u8 {
 }
 
 /**
- * Push nostdlib minimal runtime .o set: io_stubs + process_argv + panic.
+ * Push nostdlib minimal runtime .o set: io_stubs + process_argv + panic + user_env companion.
  * hello / freestanding product paths still need std_fmt_print stubs and panic even when
  * no std/*.o is scanned; omit only when resolve fails (push_obj silent skip).
  * @param link_argv0 *u8 — compiler argv0 for Cap residual primary path helpers (may be null)
  * @param lib_roots **u8 — lib root table for try_under (null-safe in push_obj)
  * @param n_lib_roots i32 — root count
- * @param bank *u8 — ShuAsmLdPathBank* for durable path copy (may be null)
+ * @param bank *u8 — path bank for durable path copy (may be null)
  * @param argv **u8 — ld argv table
  * @param la *i32 — in/out argv length
  * @param max_la i32 — argv capacity
- * @return void — always attempts three push_obj; each may no-op if resolve fails
- * Pure orch: Cap residual *_o_path primary (io/process) + pure peer panic_o_path (wave163)
- *   + pure peer push_obj ×3 (wave148).
- * Peer pure (wave183): xlang_runtime_asm_io_stubs_o_path / process_argv_o_path
- *   (compiler-dir / cwd resolve; static buffers; empty → primary unused).
+ * @return void — always attempts four push_obj; each may no-op if resolve fails
+ * Pure orch: pure peer *_o_path (io/process/panic/user_env) + pure peer push_obj ×4 (wave148/253).
+ * Peer pure (wave183/253): xlang_runtime_asm_io_stubs_o_path / process_argv_o_path /
+ *   panic_o_path / link_abi_user_env_o_path (compiler-dir BSS; empty → primary unused).
  * Why (wave150): hybrid still had always-mega C body over pure push_obj leaves.
+ * wave258: do not early-return on panic miss — always attempt user_env (≡ cold twin G.7).
  * Note: export signature must stay single-line (multi-line export drops the function).
  * PLATFORM: SHARED — hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
  * Track-L: #[no_mangle] keeps surface short name.
@@ -1373,7 +1374,14 @@ export function link_abi_asm_ld_push_minimal_runtime_objs(link_argv0: *u8, lib_r
   }
   let _pn: i32 = link_abi_asm_ld_push_obj(panic_p, link_argv0, "compiler/runtime_panic.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
   if (_pn == 0) {
-    return;
+    // continue: missing panic does not block user_env companion (wave258 ≡ cold twin)
+  }
+  // wave253/258: companion user-domain face (weak; residual declare-only; panic C strong wins).
+  // Always attempt after panic — do not gate on panic push status (cold twin / G.7 dual-authority).
+  let ue_p: *u8 = xlang_runtime_link_abi_user_env_o_path(link_argv0);
+  let _ue: i32 = link_abi_asm_ld_push_obj(ue_p, link_argv0, "compiler/runtime_link_abi_user_env.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+  if (_ue == 0) {
+    // continue: missing user_env is silent skip (same as other minimal companions)
   }
 }
 
@@ -2031,6 +2039,25 @@ export function xlang_runtime_env_os_o_path(argv0: *u8): *u8 {
   }
   return &g_labi_env_os_o_path_buf[0];
 }
+
+/**
+ * Thin durable path for compiler/runtime_link_abi_user_env.o (wave253 pure BSS + compiler_o_path_copy).
+ * @param argv0 *u8 — optional product host path; may be null
+ * @return *u8 — static BSS path or empty string (never null)
+ * Sole residual-domain face body for STD_AND_PANIC (weak; panic C strong wins).
+ * PLATFORM: SHARED orch — hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function xlang_runtime_link_abi_user_env_o_path(argv0: *u8): *u8 {
+  g_labi_link_abi_user_env_o_path_buf[0] = 0;
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_link_abi_user_env.o", &g_labi_link_abi_user_env_o_path_buf[0], 4096);
+  if (rc != 0) {
+    g_labi_link_abi_user_env_o_path_buf[0] = 0;
+  }
+  return &g_labi_link_abi_user_env_o_path_buf[0];
+}
+
 
 /**
  * Thin durable path for compiler/runtime_backtrace_platform.o (wave183 pure BSS + compiler_o_path_copy).
@@ -2716,7 +2743,9 @@ export function labi_path_pure_count(): i32 {
  * @param b *u8 — right; null → 0
  * @return i32 — 1 equal, 0 not
  * PLATFORM: SHARED — pure strcmp substitute for option name match.
+ * Track-L: #[no_mangle] keeps short surface name (wave262; not module_prefix double name).
  */
+#[no_mangle]
 function labi_user_extra_cstr_eq(a: *u8, b: *u8): i32 {
   if (a == 0 as *u8) {
     return 0;
@@ -2744,7 +2773,9 @@ function labi_user_extra_cstr_eq(a: *u8, b: *u8): i32 {
  * @param a *u8 — path; null/empty → 0
  * @return i32 — 1 if suffix .o
  * PLATFORM: SHARED — pure; ≡ mega len>=2 && a[len-2]=='.' && a[len-1]=='o'
+ * Track-L: #[no_mangle] keeps short surface name (wave262; not module_prefix double name).
  */
+#[no_mangle]
 function labi_user_extra_ends_with_dot_o(a: *u8): i32 {
   if (a == 0 as *u8) {
     return 0;

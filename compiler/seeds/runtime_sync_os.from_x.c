@@ -1,5 +1,11 @@
 /* seeds/runtime_sync_os.from_x.c — G-02f-19 product TU
  * Product: runtime_sync_os.o; logic still C until full .x port.
+ *
+ * R2 full mode (wave504): public API in src/asm/runtime_sync_os.x (thin),
+ * OS bridge _impl functions here (rest). Thin+rest linked via ld -r.
+ * Platform-specific: Windows (CRITICAL_SECTION/SRWLOCK/CONDITION_VARIABLE)
+ * vs POSIX (pthread_mutex_t/pthread_rwlock_t/pthread_cond_t).
+ * PLATFORM: SHARED
  */
 /**
  * runtime_sync_os.c — Mutex/RwLock/Condvar OS 胶层（F-ZC：自 std/sync/sync_os_glue.c 迁入）
@@ -15,28 +21,55 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-/** 锁诊断钩子（sync.x）。 */
+/** Lock diagnostic hooks (defined in std/sync/sync.x). */
 extern int32_t sync_lock_diag_before_lock(void *m);
 extern void sync_lock_diag_after_lock(void *m);
 extern int32_t sync_lock_diag_before_unlock(void *m);
 extern void sync_lock_diag_after_unlock(void *m);
 
+/* Forward declarations of thin public API functions (provided by runtime_sync_os.x
+ * in R2 mode; defined locally in cold path). Needed by smoke tests and _impl
+ * functions that call back into the public API. */
+void *sync_mutex_new_c(void);
+int32_t sync_mutex_lock_c(void *m);
+int32_t sync_mutex_try_lock_c(void *m);
+int32_t sync_mutex_unlock_c(void *m);
+void sync_mutex_free_c(void *m);
+void *sync_rwlock_new_c(void);
+int32_t sync_rwlock_read_lock_c(void *rw);
+int32_t sync_rwlock_write_lock_c(void *rw);
+int32_t sync_rwlock_read_unlock_c(void *rw);
+int32_t sync_rwlock_write_unlock_c(void *rw);
+void sync_rwlock_free_c(void *rw);
+void *sync_condvar_new_c(void);
+int32_t sync_condvar_wait_c(void *cv, void *mutex);
+int32_t sync_condvar_signal_c(void *cv);
+int32_t sync_condvar_broadcast_c(void *cv);
+void sync_condvar_free_c(void *cv);
+
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
 
-/** Windows：互斥体为 CRITICAL_SECTION*，堆分配以便返回不透明指针。 */
+/** Windows: mutex is CRITICAL_SECTION*, heap-allocated for opaque return. */
 typedef CRITICAL_SECTION xlang_mutex_impl_t;
 
-/** 创建新互斥体；失败 NULL。 */
-void *sync_mutex_new_c(void) {
+/** Create new mutex; returns NULL on failure. */
+/* G-02f-20 thin+rest: _impl OS bridge; thin (src/asm/runtime_sync_os.x) provides public wrapper */
+void *sync_mutex_new_impl(void) {
     xlang_mutex_impl_t *m = (xlang_mutex_impl_t *)malloc(sizeof(xlang_mutex_impl_t));
     if (m == NULL) return NULL;
     InitializeCriticalSection(m);
     return (void *)m;
 }
 
-/** 加锁；阻塞直到获取。返回 0 成功，-1 失败（如 m 为 NULL）。 */
-int32_t sync_mutex_lock_c(void *m) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+/* Cold path: public wrapper provided by seed */
+void *sync_mutex_new_c(void) { return sync_mutex_new_impl(); }
+#endif
+
+/** Lock; blocks until acquired. Returns 0 success, -1 failure (e.g. m is NULL). */
+/* G-02f-20 thin+rest: _impl OS bridge */
+int32_t sync_mutex_lock_impl(void *m) {
     if (m == NULL) return -1;
     if (sync_lock_diag_before_lock(m) != 0) {
         return -1;
@@ -46,8 +79,13 @@ int32_t sync_mutex_lock_c(void *m) {
     return 0;
 }
 
-/** 尝试加锁；不阻塞。返回 0 成功获取，非 0 未获取（忙或 m 为 NULL）。 */
-int32_t sync_mutex_try_lock_c(void *m) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+int32_t sync_mutex_lock_c(void *m) { return sync_mutex_lock_impl(m); }
+#endif
+
+/** Try-lock; non-blocking. Returns 0 success, non-zero not acquired (busy or m NULL). */
+/* G-02f-20 thin+rest: _impl OS bridge */
+int32_t sync_mutex_try_lock_impl(void *m) {
     if (m == NULL) return -1;
     if (sync_lock_diag_before_lock(m) != 0) {
         return -1;
@@ -59,8 +97,13 @@ int32_t sync_mutex_try_lock_c(void *m) {
     return 0;
 }
 
-/** 解锁。返回 0 成功，-1 失败（如 m 为 NULL）。 */
-int32_t sync_mutex_unlock_c(void *m) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+int32_t sync_mutex_try_lock_c(void *m) { return sync_mutex_try_lock_impl(m); }
+#endif
+
+/** Unlock. Returns 0 success, -1 failure (e.g. m is NULL). */
+/* G-02f-20 thin+rest: _impl OS bridge */
+int32_t sync_mutex_unlock_impl(void *m) {
     if (m == NULL) return -1;
     if (sync_lock_diag_before_unlock(m) != 0) {
         return -1;
@@ -70,67 +113,112 @@ int32_t sync_mutex_unlock_c(void *m) {
     return 0;
 }
 
-/** 销毁并释放互斥体；调用后 m 不可再使用。 */
-void sync_mutex_free_c(void *m) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+int32_t sync_mutex_unlock_c(void *m) { return sync_mutex_unlock_impl(m); }
+#endif
+
+/** Destroy and free mutex; m must not be used after this call. */
+/* G-02f-20 thin+rest: _impl OS bridge */
+void sync_mutex_free_impl(void *m) {
     if (m == NULL) return;
     DeleteCriticalSection((CRITICAL_SECTION *)m);
     free(m);
 }
 
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+void sync_mutex_free_c(void *m) { sync_mutex_free_impl(m); }
+#endif
+
 typedef SRWLOCK xlang_rwlock_impl_t;
 typedef CONDITION_VARIABLE xlang_condvar_impl_t;
 
-/** 创建 RwLock；失败 NULL。 */
-void *sync_rwlock_new_c(void) {
+/** Create RwLock; returns NULL on failure. */
+/* G-02f-20 thin+rest: _impl OS bridge */
+void *sync_rwlock_new_impl(void) {
     xlang_rwlock_impl_t *rw = (xlang_rwlock_impl_t *)malloc(sizeof(xlang_rwlock_impl_t));
     if (!rw) return NULL;
     InitializeSRWLock(rw);
     return (void *)rw;
 }
 
-/** 获取读锁；成功 0。 */
-int32_t sync_rwlock_read_lock_c(void *rw) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+void *sync_rwlock_new_c(void) { return sync_rwlock_new_impl(); }
+#endif
+
+/** Acquire read lock; returns 0 success. */
+/* G-02f-20 thin+rest: _impl OS bridge */
+int32_t sync_rwlock_read_lock_impl(void *rw) {
     if (!rw) return -1;
     AcquireSRWLockShared((SRWLOCK *)rw);
     return 0;
 }
 
-/** 获取写锁；成功 0。 */
-int32_t sync_rwlock_write_lock_c(void *rw) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+int32_t sync_rwlock_read_lock_c(void *rw) { return sync_rwlock_read_lock_impl(rw); }
+#endif
+
+/** Acquire write lock; returns 0 success. */
+/* G-02f-20 thin+rest: _impl OS bridge */
+int32_t sync_rwlock_write_lock_impl(void *rw) {
     if (!rw) return -1;
     AcquireSRWLockExclusive((SRWLOCK *)rw);
     return 0;
 }
 
-/** 释放读锁；成功 0。 */
-int32_t sync_rwlock_read_unlock_c(void *rw) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+int32_t sync_rwlock_write_lock_c(void *rw) { return sync_rwlock_write_lock_impl(rw); }
+#endif
+
+/** Release read lock; returns 0 success. */
+/* G-02f-20 thin+rest: _impl OS bridge */
+int32_t sync_rwlock_read_unlock_impl(void *rw) {
     if (!rw) return -1;
     ReleaseSRWLockShared((SRWLOCK *)rw);
     return 0;
 }
 
-/** 释放写锁；成功 0。 */
-int32_t sync_rwlock_write_unlock_c(void *rw) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+int32_t sync_rwlock_read_unlock_c(void *rw) { return sync_rwlock_read_unlock_impl(rw); }
+#endif
+
+/** Release write lock; returns 0 success. */
+/* G-02f-20 thin+rest: _impl OS bridge */
+int32_t sync_rwlock_write_unlock_impl(void *rw) {
     if (!rw) return -1;
     ReleaseSRWLockExclusive((SRWLOCK *)rw);
     return 0;
 }
 
-/** 销毁 RwLock。 */
-void sync_rwlock_free_c(void *rw) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+int32_t sync_rwlock_write_unlock_c(void *rw) { return sync_rwlock_write_unlock_impl(rw); }
+#endif
+
+/** Destroy RwLock. */
+/* G-02f-20 thin+rest: _impl OS bridge */
+void sync_rwlock_free_impl(void *rw) {
     free(rw);
 }
 
-/** 创建 Condvar；失败 NULL。 */
-void *sync_condvar_new_c(void) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+void sync_rwlock_free_c(void *rw) { sync_rwlock_free_impl(rw); }
+#endif
+
+/** Create Condvar; returns NULL on failure. */
+/* G-02f-20 thin+rest: _impl OS bridge */
+void *sync_condvar_new_impl(void) {
     xlang_condvar_impl_t *cv = (xlang_condvar_impl_t *)malloc(sizeof(xlang_condvar_impl_t));
     if (!cv) return NULL;
     InitializeConditionVariable(cv);
     return (void *)cv;
 }
 
-/** 在已持有 mutex 时等待 condvar。 */
-int32_t sync_condvar_wait_c(void *cv, void *mutex) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+void *sync_condvar_new_c(void) { return sync_condvar_new_impl(); }
+#endif
+
+/** Wait on condvar while holding mutex. */
+/* G-02f-20 thin+rest: _impl OS bridge */
+int32_t sync_condvar_wait_impl(void *cv, void *mutex) {
     if (!cv || !mutex) return -1;
     if (!SleepConditionVariableCS((CONDITION_VARIABLE *)cv, (CRITICAL_SECTION *)mutex, INFINITE)) {
         return -1;
@@ -138,26 +226,45 @@ int32_t sync_condvar_wait_c(void *cv, void *mutex) {
     return 0;
 }
 
-/** 唤醒一个等待线程。 */
-int32_t sync_condvar_signal_c(void *cv) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+int32_t sync_condvar_wait_c(void *cv, void *mutex) { return sync_condvar_wait_impl(cv, mutex); }
+#endif
+
+/** Wake one waiting thread. */
+/* G-02f-20 thin+rest: _impl OS bridge */
+int32_t sync_condvar_signal_impl(void *cv) {
     if (!cv) return -1;
     WakeConditionVariable((CONDITION_VARIABLE *)cv);
     return 0;
 }
 
-/** 唤醒全部等待线程。 */
-int32_t sync_condvar_broadcast_c(void *cv) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+int32_t sync_condvar_signal_c(void *cv) { return sync_condvar_signal_impl(cv); }
+#endif
+
+/** Wake all waiting threads. */
+/* G-02f-20 thin+rest: _impl OS bridge */
+int32_t sync_condvar_broadcast_impl(void *cv) {
     if (!cv) return -1;
     WakeAllConditionVariable((CONDITION_VARIABLE *)cv);
     return 0;
 }
 
-/** 销毁 Condvar。 */
-void sync_condvar_free_c(void *cv) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+int32_t sync_condvar_broadcast_c(void *cv) { return sync_condvar_broadcast_impl(cv); }
+#endif
+
+/** Destroy Condvar. */
+/* G-02f-20 thin+rest: _impl OS bridge */
+void sync_condvar_free_impl(void *cv) {
     free(cv);
 }
 
-/** RwLock 竞争烟测；成功 0。 */
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+void sync_condvar_free_c(void *cv) { sync_condvar_free_impl(cv); }
+#endif
+
+/** RwLock contention smoke test; success 0. */
 int32_t sync_rwlock_contention_smoke_c(void) {
     void *rw = sync_rwlock_new_c();
     int32_t counter = 0;
@@ -174,7 +281,7 @@ int32_t sync_rwlock_contention_smoke_c(void) {
     return (counter == 1000) ? 0 : 2;
 }
 
-/** Condvar 烟测（Windows 桩：创建 API 可用即可）。 */
+/** Condvar smoke test (Windows stub: creation API available is sufficient). */
 int32_t sync_condvar_contention_smoke_c(void) {
     (void)sync_condvar_new_c;
     return 0;
@@ -184,11 +291,12 @@ int32_t sync_condvar_contention_smoke_c(void) {
 #include <pthread.h>
 #include <time.h>
 
-/** POSIX：互斥体为 pthread_mutex_t*，堆分配以便返回不透明指针。 */
+/** POSIX: mutex is pthread_mutex_t*, heap-allocated for opaque return. */
 typedef pthread_mutex_t xlang_mutex_impl_t;
 
-/** 创建新互斥体；失败 NULL。 */
-void *sync_mutex_new_c(void) {
+/** Create new mutex; returns NULL on failure. */
+/* G-02f-20 thin+rest: _impl OS bridge */
+void *sync_mutex_new_impl(void) {
     xlang_mutex_impl_t *m = (xlang_mutex_impl_t *)malloc(sizeof(xlang_mutex_impl_t));
     if (m == NULL) return NULL;
     if (pthread_mutex_init(m, NULL) != 0) {
@@ -198,8 +306,13 @@ void *sync_mutex_new_c(void) {
     return (void *)m;
 }
 
-/** 加锁；阻塞直到获取。返回 0 成功，-1 失败（如 m 为 NULL）。 */
-int32_t sync_mutex_lock_c(void *m) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+void *sync_mutex_new_c(void) { return sync_mutex_new_impl(); }
+#endif
+
+/** Lock; blocks until acquired. Returns 0 success, -1 failure (e.g. m is NULL). */
+/* G-02f-20 thin+rest: _impl OS bridge */
+int32_t sync_mutex_lock_impl(void *m) {
     if (m == NULL) return -1;
     if (sync_lock_diag_before_lock(m) != 0) {
         return -1;
@@ -211,23 +324,31 @@ int32_t sync_mutex_lock_c(void *m) {
     return 0;
 }
 
-/** 尝试加锁；不阻塞。返回 0 成功获取，非 0 未获取（EBUSY 或 m 为 NULL）。 */
-int32_t sync_mutex_try_lock_c(void *m) {
-    int ret;
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+int32_t sync_mutex_lock_c(void *m) { return sync_mutex_lock_impl(m); }
+#endif
+
+/** Try-lock; non-blocking. Returns 0 success, non-zero not acquired (busy or m NULL). */
+/* G-02f-20 thin+rest: _impl OS bridge */
+int32_t sync_mutex_try_lock_impl(void *m) {
     if (m == NULL) return -1;
     if (sync_lock_diag_before_lock(m) != 0) {
         return -1;
     }
-    ret = pthread_mutex_trylock((pthread_mutex_t *)m);
-    if (ret == 0) {
-        sync_lock_diag_after_lock(m);
-        return 0;
+    if (pthread_mutex_trylock((pthread_mutex_t *)m) != 0) {
+        return 1;
     }
-    return 1; /* EBUSY 或其它 */
+    sync_lock_diag_after_lock(m);
+    return 0;
 }
 
-/** 解锁。返回 0 成功，-1 失败。 */
-int32_t sync_mutex_unlock_c(void *m) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+int32_t sync_mutex_try_lock_c(void *m) { return sync_mutex_try_lock_impl(m); }
+#endif
+
+/** Unlock. Returns 0 success, -1 failure (e.g. m is NULL). */
+/* G-02f-20 thin+rest: _impl OS bridge */
+int32_t sync_mutex_unlock_impl(void *m) {
     if (m == NULL) return -1;
     if (sync_lock_diag_before_unlock(m) != 0) {
         return -1;
@@ -239,18 +360,28 @@ int32_t sync_mutex_unlock_c(void *m) {
     return 0;
 }
 
-/** 销毁并释放互斥体；调用后 m 不可再使用。 */
-void sync_mutex_free_c(void *m) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+int32_t sync_mutex_unlock_c(void *m) { return sync_mutex_unlock_impl(m); }
+#endif
+
+/** Destroy and free mutex; m must not be used after this call. */
+/* G-02f-20 thin+rest: _impl OS bridge */
+void sync_mutex_free_impl(void *m) {
     if (m == NULL) return;
     pthread_mutex_destroy((pthread_mutex_t *)m);
     free(m);
 }
 
-typedef pthread_rwlock_t xlang_rwlock_impl_t;
-typedef pthread_cond_t xlang_condvar_impl_t;
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+void sync_mutex_free_c(void *m) { sync_mutex_free_impl(m); }
+#endif
 
-/** 创建 RwLock；失败 NULL。 */
-void *sync_rwlock_new_c(void) {
+/** POSIX: rwlock is pthread_rwlock_t*, heap-allocated. */
+typedef pthread_rwlock_t xlang_rwlock_impl_t;
+
+/** Create RwLock; returns NULL on failure. */
+/* G-02f-20 thin+rest: _impl OS bridge */
+void *sync_rwlock_new_impl(void) {
     xlang_rwlock_impl_t *rw = (xlang_rwlock_impl_t *)malloc(sizeof(xlang_rwlock_impl_t));
     if (!rw) return NULL;
     if (pthread_rwlock_init(rw, NULL) != 0) {
@@ -260,39 +391,72 @@ void *sync_rwlock_new_c(void) {
     return (void *)rw;
 }
 
-/** 获取读锁；成功 0。 */
-int32_t sync_rwlock_read_lock_c(void *rw) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+void *sync_rwlock_new_c(void) { return sync_rwlock_new_impl(); }
+#endif
+
+/** Acquire read lock; returns 0 success, -1 failure. */
+/* G-02f-20 thin+rest: _impl OS bridge */
+int32_t sync_rwlock_read_lock_impl(void *rw) {
     if (!rw) return -1;
     return (pthread_rwlock_rdlock((pthread_rwlock_t *)rw) == 0) ? 0 : -1;
 }
 
-/** 获取写锁；成功 0。 */
-int32_t sync_rwlock_write_lock_c(void *rw) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+int32_t sync_rwlock_read_lock_c(void *rw) { return sync_rwlock_read_lock_impl(rw); }
+#endif
+
+/** Acquire write lock; returns 0 success, -1 failure. */
+/* G-02f-20 thin+rest: _impl OS bridge */
+int32_t sync_rwlock_write_lock_impl(void *rw) {
     if (!rw) return -1;
     return (pthread_rwlock_wrlock((pthread_rwlock_t *)rw) == 0) ? 0 : -1;
 }
 
-/** 释放读锁；成功 0。 */
-int32_t sync_rwlock_read_unlock_c(void *rw) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+int32_t sync_rwlock_write_lock_c(void *rw) { return sync_rwlock_write_lock_impl(rw); }
+#endif
+
+/** Release read lock; returns 0 success, -1 failure. */
+/* G-02f-20 thin+rest: _impl OS bridge */
+int32_t sync_rwlock_read_unlock_impl(void *rw) {
     if (!rw) return -1;
     return (pthread_rwlock_unlock((pthread_rwlock_t *)rw) == 0) ? 0 : -1;
 }
 
-/** 释放写锁；成功 0。 */
-int32_t sync_rwlock_write_unlock_c(void *rw) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+int32_t sync_rwlock_read_unlock_c(void *rw) { return sync_rwlock_read_unlock_impl(rw); }
+#endif
+
+/** Release write lock; returns 0 success, -1 failure. */
+/* G-02f-20 thin+rest: _impl OS bridge */
+int32_t sync_rwlock_write_unlock_impl(void *rw) {
     if (!rw) return -1;
     return (pthread_rwlock_unlock((pthread_rwlock_t *)rw) == 0) ? 0 : -1;
 }
 
-/** 销毁 RwLock。 */
-void sync_rwlock_free_c(void *rw) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+int32_t sync_rwlock_write_unlock_c(void *rw) { return sync_rwlock_write_unlock_impl(rw); }
+#endif
+
+/** Destroy RwLock. */
+/* G-02f-20 thin+rest: _impl OS bridge */
+void sync_rwlock_free_impl(void *rw) {
     if (!rw) return;
     pthread_rwlock_destroy((pthread_rwlock_t *)rw);
     free(rw);
 }
 
-/** 创建 Condvar；失败 NULL。 */
-void *sync_condvar_new_c(void) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+void sync_rwlock_free_c(void *rw) { sync_rwlock_free_impl(rw); }
+#endif
+
+/** POSIX: condvar is pthread_cond_t*, heap-allocated. */
+typedef pthread_cond_t xlang_condvar_impl_t;
+
+/** Create Condvar; returns NULL on failure. */
+/* G-02f-20 thin+rest: _impl OS bridge */
+void *sync_condvar_new_impl(void) {
     xlang_condvar_impl_t *cv = (xlang_condvar_impl_t *)malloc(sizeof(xlang_condvar_impl_t));
     if (!cv) return NULL;
     if (pthread_cond_init(cv, NULL) != 0) {
@@ -302,30 +466,54 @@ void *sync_condvar_new_c(void) {
     return (void *)cv;
 }
 
-/** 在已持有 mutex 时等待 condvar。 */
-int32_t sync_condvar_wait_c(void *cv, void *mutex) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+void *sync_condvar_new_c(void) { return sync_condvar_new_impl(); }
+#endif
+
+/** Wait on condvar while holding mutex. */
+/* G-02f-20 thin+rest: _impl OS bridge */
+int32_t sync_condvar_wait_impl(void *cv, void *mutex) {
     if (!cv || !mutex) return -1;
     return (pthread_cond_wait((pthread_cond_t *)cv, (pthread_mutex_t *)mutex) == 0) ? 0 : -1;
 }
 
-/** 唤醒一个等待线程。 */
-int32_t sync_condvar_signal_c(void *cv) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+int32_t sync_condvar_wait_c(void *cv, void *mutex) { return sync_condvar_wait_impl(cv, mutex); }
+#endif
+
+/** Wake one waiting thread. */
+/* G-02f-20 thin+rest: _impl OS bridge */
+int32_t sync_condvar_signal_impl(void *cv) {
     if (!cv) return -1;
     return (pthread_cond_signal((pthread_cond_t *)cv) == 0) ? 0 : -1;
 }
 
-/** 唤醒全部等待线程。 */
-int32_t sync_condvar_broadcast_c(void *cv) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+int32_t sync_condvar_signal_c(void *cv) { return sync_condvar_signal_impl(cv); }
+#endif
+
+/** Wake all waiting threads. */
+/* G-02f-20 thin+rest: _impl OS bridge */
+int32_t sync_condvar_broadcast_impl(void *cv) {
     if (!cv) return -1;
     return (pthread_cond_broadcast((pthread_cond_t *)cv) == 0) ? 0 : -1;
 }
 
-/** 销毁 Condvar。 */
-void sync_condvar_free_c(void *cv) {
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+int32_t sync_condvar_broadcast_c(void *cv) { return sync_condvar_broadcast_impl(cv); }
+#endif
+
+/** Destroy Condvar. */
+/* G-02f-20 thin+rest: _impl OS bridge */
+void sync_condvar_free_impl(void *cv) {
     if (!cv) return;
     pthread_cond_destroy((pthread_cond_t *)cv);
     free(cv);
 }
+
+#ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
+void sync_condvar_free_c(void *cv) { sync_condvar_free_impl(cv); }
+#endif
 
 typedef struct {
     void *cv;
@@ -333,7 +521,7 @@ typedef struct {
     int32_t ready;
 } xlang_cond_smoke_ctx_t;
 
-/** Condvar 烟测 waiter 线程入口。 */
+/** Condvar smoke test waiter thread entry. */
 static void *xlang_condvar_smoke_waiter(void *arg) {
     xlang_cond_smoke_ctx_t *ctx = (xlang_cond_smoke_ctx_t *)arg;
     if (sync_mutex_lock_c(ctx->mu) != 0) return (void *)(intptr_t)1;
@@ -347,7 +535,7 @@ static void *xlang_condvar_smoke_waiter(void *arg) {
     return NULL;
 }
 
-/** RwLock 竞争烟测；成功 0。 */
+/** RwLock contention smoke test; success 0. */
 int32_t sync_rwlock_contention_smoke_c(void) {
     void *rw = sync_rwlock_new_c();
     int32_t counter = 0;
@@ -364,7 +552,7 @@ int32_t sync_rwlock_contention_smoke_c(void) {
     return (counter == 1000) ? 0 : 2;
 }
 
-/** Condvar 竞争烟测；成功 0。 */
+/** Condvar contention smoke test; success 0. */
 int32_t sync_condvar_contention_smoke_c(void) {
     xlang_cond_smoke_ctx_t ctx;
     pthread_t tid;

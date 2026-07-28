@@ -31,7 +31,7 @@ function main(): i32 {
   if (heap.arena64_init(&arena, 256) != 0) { return 5; }
   let tail: u8[2] = [100, 101];
   let joined: StrView = string.string_view_concat_arena(&arena, sv, string.view(&tail[0], 2));
-  if (string.len(joined) != 5) {
+  if (string.length(joined) != 5) {
     heap.arena64_deinit(&arena);
     return 6;
   }

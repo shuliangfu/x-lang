@@ -19,7 +19,12 @@
 export extern "C" function main_entry(argc: i32, argv: *u8): i32;
 export extern "C" function xlang_link_obj_needs_undef_sym_impl(user_o: *u8, sym: *u8): i32;
 export extern "C" function xlang_link_obj_has_defined_sym_impl(o_path: *u8, sym: *u8): i32;
-export extern "C" function getenv(name: *u8): *u8;
+/* wave241 G.7: dual-anchor env via public pure thin link_abi_getenv (wave222 → _impl host
+ * getenv); not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * Product hybrid authority remains labi_* pure modules; this file is the cold/.x dual
+ * anchor and must match pure semantics (link_abi_getenv, not bare getenv).
+ * PLATFORM: SHARED orch / host getenv residual via single face. */
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 export extern "C" function xlang_host_is_linux(): i32;
 export extern "C" function xlang_host_is_apple_aarch64(): i32;
 export extern "C" function driver_argv_at(argv: *u8, i: i32): *u8;
@@ -185,22 +190,25 @@ export function xlang_freestanding_user_o_needs_io(user_o: *u8): i32 {
   return 0;
 }
 
-/** Exported function `invoke_cc_skip_native_tuning`.
- * Implements `invoke_cc_skip_native_tuning`.
- * @return i32
+/**
+ * Skip -march=native / aggressive LTO when CI or musl-like env is set.
+ * Dual-anchor mirror of labi_invoke_cc_list pure orch (wave223 G.7).
+ * @return i32 — nonzero → skip native tuning
+ * wave241: raw getenv closed — public pure thin link_abi_getenv owns env lookup.
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function invoke_cc_skip_native_tuning(): i32 {
   unsafe {
-    let a: *u8 = getenv("CI");
+    let a: *u8 = link_abi_getenv("CI");
     if (a != 0 as *u8) {
       return 1;
     }
-    let b: *u8 = getenv("XLANG_CI_DOCKER");
+    let b: *u8 = link_abi_getenv("XLANG_CI_DOCKER");
     if (b != 0 as *u8) {
       return 1;
     }
-    let c: *u8 = getenv("XLANG_NO_MARCH_NATIVE");
+    let c: *u8 = link_abi_getenv("XLANG_NO_MARCH_NATIVE");
     if (c != 0 as *u8) {
       return 1;
     }
@@ -209,8 +217,16 @@ export function invoke_cc_skip_native_tuning(): i32 {
   return 0;
 }
 
-/* See implementation. */
-
+/**
+ * Whether freestanding link path is active.
+ * Dual-anchor mirror of labi_freestanding_list pure orch (wave159 / wave223 G.7).
+ * Rules: non-Linux → 0; driver_freestanding != 0 → 1; else XLANG_FREESTANDING
+ * null / empty / leading '0' → 0; any other non-empty → 1.
+ * @param driver_freestanding i32 — CLI/driver freestanding flag
+ * @return i32 — 1 if freestanding path should run, else 0
+ * wave241: raw getenv closed — public pure thin link_abi_getenv owns env lookup.
+ * PLATFORM: SHARED orch / LINUX freestanding consumers.
+ */
 #[no_mangle]
 export function xlang_link_freestanding_enabled(driver_freestanding: i32): i32 {
   unsafe {
@@ -220,14 +236,14 @@ export function xlang_link_freestanding_enabled(driver_freestanding: i32): i32 {
     if (driver_freestanding != 0) {
       return 1;
     }
-    let e: *u8 = getenv("XLANG_FREESTANDING");
+    let e: *u8 = link_abi_getenv("XLANG_FREESTANDING");
     if (e == 0 as *u8) {
       return 0;
     }
     if (e[0] == 0) {
       return 0;
     }
-    /* See implementation. */
+    /* Leading ASCII '0' (48) disables freestanding. */
     if (e[0] == 48) {
       return 0;
     }
@@ -345,10 +361,10 @@ export function link_abi_user_o_needs_std_set(user_o: *u8): i32 {
     if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_set_remove_Set_u64_ptr_u64") != 0) {
       return 1;
     }
-    if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_set_len_Set_i32") != 0) {
+    if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_set_length_Set_i32") != 0) {
       return 1;
     }
-    if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_set_len_Set_u64") != 0) {
+    if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_set_length_Set_u64") != 0) {
       return 1;
     }
     if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_set_deinit_Set_i32_ptr") != 0) {
@@ -418,7 +434,7 @@ export function link_abi_user_o_needs_std_queue(user_o: *u8): i32 {
     if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_queue_get") != 0) {
       return 1;
     }
-    if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_queue_len_Queue_i32") != 0) {
+    if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_queue_length_Queue_i32") != 0) {
       return 1;
     }
     if (xlang_link_obj_needs_undef_sym_impl(user_o, "std_queue_is_empty_Queue_i32") != 0) {
@@ -2473,7 +2489,20 @@ export function xlang_asm_ld_prepare_for_exe_link(link_eff: *u8, user_o: *u8, dr
   return 0 - 1;
 }
 
-export extern "C" function xlang_invoke_cc_impl(c_paths: *u8, n: i32, out_path: *u8, target: *u8, opt_level: *u8, use_lto: i32, io_o: *u8, fs_o: *u8, process_o: *u8, string_o: *u8, heap_o: *u8, path_o: *u8, runtime_o: *u8, runtime_panic_o: *u8, net_o: *u8, thread_o: *u8, time_o: *u8, random_o: *u8, env_o: *u8, sync_o: *u8, encoding_o: *u8, base64_o: *u8, crypto_o: *u8, log_o: *u8, atomic_o: *u8, channel_o: *u8, backtrace_o: *u8, hash_o: *u8, math_o: *u8, sort_o: *u8, ffi_o: *u8, db_o: *u8, elf_o: *u8, json_o: *u8, csv_o: *u8, regex_o: *u8, compress_o: *u8, unicode_o: *u8, dynlib_o: *u8, http_o: *u8, tar_o: *u8, simd_o: *u8, context_o: *u8, datetime_o: *u8, uuid_o: *u8, url_o: *u8, cli_o: *u8, security_o: *u8, config_o: *u8, cache_o: *u8, trace_o: *u8, task_o: *u8, schema_o: *u8, test_o: *u8, include_root: *u8, async_scheduler_o: *u8): i32;
+/* wave264: multi-line form — product lexer/parser hard-fails a single source line of
+ * length >= 512 (P001 / silent skip of following exports). labi_gates.x already uses
+ * this capacity-safe layout for the same 56-param face. PLATFORM: SHARED. */
+export extern "C" function xlang_invoke_cc_impl(
+  c_paths: *u8, n: i32, out_path: *u8, target: *u8, opt_level: *u8, use_lto: i32,
+  io_o: *u8, fs_o: *u8, process_o: *u8, string_o: *u8, heap_o: *u8, path_o: *u8, runtime_o: *u8,
+  runtime_panic_o: *u8, net_o: *u8, thread_o: *u8, time_o: *u8, random_o: *u8, env_o: *u8,
+  sync_o: *u8, encoding_o: *u8, base64_o: *u8, crypto_o: *u8, log_o: *u8, atomic_o: *u8,
+  channel_o: *u8, backtrace_o: *u8, hash_o: *u8, math_o: *u8, sort_o: *u8, ffi_o: *u8,
+  db_o: *u8, elf_o: *u8, json_o: *u8, csv_o: *u8, regex_o: *u8, compress_o: *u8, unicode_o: *u8,
+  dynlib_o: *u8, http_o: *u8, tar_o: *u8, simd_o: *u8, context_o: *u8, datetime_o: *u8,
+  uuid_o: *u8, url_o: *u8, cli_o: *u8, security_o: *u8, config_o: *u8, cache_o: *u8,
+  trace_o: *u8, task_o: *u8, schema_o: *u8, test_o: *u8, include_root: *u8, async_scheduler_o: *u8
+): i32;
 export extern "C" function xlang_append_linux_link_harden_impl(argv: *u8, la: *i32, cap: i32): void;
 
 /* See implementation. */
@@ -2616,8 +2645,33 @@ export function ensure_std_net_o_auto_tls(repo_root: *u8): void {
 
 /* See implementation. */
 
+/**
+ * Thin public face for host cc invoke (56 std/runtime .o path slots + include_root).
+ * wave264: multi-line signature/call — single-line form was >=512 bytes and tripped the
+ * product line-length hard fail (cascade silent-skip of later mega exports).
+ * @param c_paths *u8 — C path table (host layout; null rejected)
+ * @param n i32 — path count
+ * @param out_path *u8 — output object/exe path; null rejected
+ * @param target *u8 — target triple / arch token (may be null per Cap residual host)
+ * @param opt_level *u8 — -O level string
+ * @param use_lto i32 — non-zero enables LTO path in host impl
+ * @param io_o..async_scheduler_o *u8 — std/runtime companion .o paths (may be null)
+ * @param include_root *u8 — -I root for host cc
+ * @return i32 — host status; -1 on null gates
+ * PLATFORM: SHARED orch face; body is Cap residual host via xlang_invoke_cc_impl
+ */
 #[no_mangle]
-export function xlang_invoke_cc(c_paths: *u8, n: i32, out_path: *u8, target: *u8, opt_level: *u8, use_lto: i32, io_o: *u8, fs_o: *u8, process_o: *u8, string_o: *u8, heap_o: *u8, path_o: *u8, runtime_o: *u8, runtime_panic_o: *u8, net_o: *u8, thread_o: *u8, time_o: *u8, random_o: *u8, env_o: *u8, sync_o: *u8, encoding_o: *u8, base64_o: *u8, crypto_o: *u8, log_o: *u8, atomic_o: *u8, channel_o: *u8, backtrace_o: *u8, hash_o: *u8, math_o: *u8, sort_o: *u8, ffi_o: *u8, db_o: *u8, elf_o: *u8, json_o: *u8, csv_o: *u8, regex_o: *u8, compress_o: *u8, unicode_o: *u8, dynlib_o: *u8, http_o: *u8, tar_o: *u8, simd_o: *u8, context_o: *u8, datetime_o: *u8, uuid_o: *u8, url_o: *u8, cli_o: *u8, security_o: *u8, config_o: *u8, cache_o: *u8, trace_o: *u8, task_o: *u8, schema_o: *u8, test_o: *u8, include_root: *u8, async_scheduler_o: *u8): i32 {
+export function xlang_invoke_cc(
+  c_paths: *u8, n: i32, out_path: *u8, target: *u8, opt_level: *u8, use_lto: i32,
+  io_o: *u8, fs_o: *u8, process_o: *u8, string_o: *u8, heap_o: *u8, path_o: *u8, runtime_o: *u8,
+  runtime_panic_o: *u8, net_o: *u8, thread_o: *u8, time_o: *u8, random_o: *u8, env_o: *u8,
+  sync_o: *u8, encoding_o: *u8, base64_o: *u8, crypto_o: *u8, log_o: *u8, atomic_o: *u8,
+  channel_o: *u8, backtrace_o: *u8, hash_o: *u8, math_o: *u8, sort_o: *u8, ffi_o: *u8,
+  db_o: *u8, elf_o: *u8, json_o: *u8, csv_o: *u8, regex_o: *u8, compress_o: *u8, unicode_o: *u8,
+  dynlib_o: *u8, http_o: *u8, tar_o: *u8, simd_o: *u8, context_o: *u8, datetime_o: *u8,
+  uuid_o: *u8, url_o: *u8, cli_o: *u8, security_o: *u8, config_o: *u8, cache_o: *u8,
+  trace_o: *u8, task_o: *u8, schema_o: *u8, test_o: *u8, include_root: *u8, async_scheduler_o: *u8
+): i32 {
   if (c_paths == 0 as *u8) {
     return 0 - 1;
   }
@@ -2625,7 +2679,17 @@ export function xlang_invoke_cc(c_paths: *u8, n: i32, out_path: *u8, target: *u8
     return 0 - 1;
   }
   unsafe {
-    return xlang_invoke_cc_impl(c_paths, n, out_path, target, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, include_root, async_scheduler_o);
+    return xlang_invoke_cc_impl(
+      c_paths, n, out_path, target, opt_level, use_lto,
+      io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o,
+      runtime_panic_o, net_o, thread_o, time_o, random_o, env_o,
+      sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o,
+      channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o,
+      db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o,
+      dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o,
+      uuid_o, url_o, cli_o, security_o, config_o, cache_o,
+      trace_o, task_o, schema_o, test_o, include_root, async_scheduler_o
+    );
   }
   return 0 - 1;
 }
@@ -2869,18 +2933,20 @@ export function link_diag_ld_debug_argv(label: *u8, argv: *u8): void {
 
 /**
  * Write default lib-root into root_buf (XLANG_LIB or ".").
- * @param root_buf *u8 — capacity >= 512
- * Authority: labi_path_pure.x (wave115 product hybrid). Anchor body matches pure.
+ * @param root_buf *u8 — capacity >= 512; always left NUL-terminated
+ * Authority: labi_path_pure.x (wave115 product hybrid). Dual-anchor body matches pure.
+ * wave241: raw getenv closed — public pure thin link_abi_getenv owns env lookup
+ * (align with mega cold twin wave223 + pure labi_path_pure).
  * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function xlang_asm_ld_lib_root_default(root_buf: *u8): void {
-  /* Anchor mirror of labi_path_pure pure orch (not product hybrid path). */
+  /* Dual-anchor mirror of labi_path_pure pure orch (not product hybrid path). */
   root_buf[0] = 46;
   root_buf[1] = 0;
   let def: *u8 = 0 as *u8;
   unsafe {
-    def = getenv("XLANG_LIB");
+    def = link_abi_getenv("XLANG_LIB");
   }
   if (xlang_asm_ld_lib_root_ptr_usable(def) == 0) {
     return;

@@ -8,11 +8,14 @@
 #define PARSER_ASM_IF_STMT_SLICE_INCLUDED
 
 /** 与 parser.x ParseBlockResult 布局一致（bool→i32）。 */
+#ifndef PARSER_ASM_PARSE_BLOCK_RESULT_FWD
+#define PARSER_ASM_PARSE_BLOCK_RESULT_FWD
 struct parser_asm_parse_block_result {
   int32_t ok;
   int32_t block_ref;
   struct parser_asm_lexer next_lex;
 };
+#endif
 
 extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex,
                             struct parser_asm_slice_u8 *source);
@@ -1095,17 +1098,33 @@ static int32_t parser_asm_parse_if_stmt_into_slice_c(void *arena, struct parser_
     return 0;
   parser_lex_from_next_into_glue(&lex_cur, r);
   lexer_next_into(&r, lex_cur, source);
-  if (r.tok.kind != (int32_t)TOKEN_LPAREN)
-    return 0;
-  lex_cur = r.next_lex;
-  memset(&cond_res, 0, sizeof(cond_res));
-  cond_res.next_lex = lex_cur;
-  parser_parse_cond_expr_into_glue(arena, lex_cur, source, &cond_res);
-  if (!cond_res.ok)
-    return 0;
-  cond_ref = cond_res.expr_ref;
-  /** field cond 后勿信 cond_res.next_lex；按源码括号深度对齐至 ')' 之后。 */
-  lex_cur = parser_asm_sync_lex_after_if_cond_paren_c(lex_at_if, source);
+  /**
+   * wave361: docs/03 `if cond { then }` — parentheses optional.
+   * Paren form keeps field-cond sync via sync_lex_after_if_cond_paren.
+   * Bare form starts cond at current token; cond_res.next_lex + advance_past (LBRACE).
+   * PLATFORM: SHARED — G.7 single if-stmt cond path.
+   */
+  {
+    int32_t bare_cond = 0;
+    if (r.tok.kind == (int32_t)TOKEN_LPAREN) {
+      lex_cur = r.next_lex;
+    } else {
+      bare_cond = 1;
+      lex_cur = parser_asm_lex_at_token_from_result_c(r);
+    }
+    memset(&cond_res, 0, sizeof(cond_res));
+    cond_res.next_lex = lex_cur;
+    parser_parse_cond_expr_into_glue(arena, lex_cur, source, &cond_res);
+    if (!cond_res.ok)
+      return 0;
+    cond_ref = cond_res.expr_ref;
+    if (bare_cond != 0) {
+      lex_cur = cond_res.next_lex;
+    } else {
+      /** field cond 后勿信 cond_res.next_lex；按源码括号深度对齐至 ')' 之后。 */
+      lex_cur = parser_asm_sync_lex_after_if_cond_paren_c(lex_at_if, source);
+    }
+  }
   if (parser_advance_past_cond_rparen_into_glue(&r, lex_cur, source) == 0)
     return 0;
   if (r.tok.kind != (int32_t)TOKEN_LBRACE)
@@ -1212,8 +1231,16 @@ static int32_t parser_asm_kw_at_pos_c(struct parser_asm_slice_u8 *source, size_t
     next_pos = parser_asm_stretch_skip_ws_and_comments_c(source->data, source->length, i + (size_t)klen);
     if (next_pos < source->length) {
       uint8_t nx = source->data[next_pos];
+      /**
+       * wave362 / docs/03: bare `if cond {` is legal (wave361). Keyword scan must NOT
+       * require '(' after `if`, or scan_sync_after_if_stmt never finds bare ifs.
+       * Failure mode: lex_out stuck at same if → outer block re-parses forever (100% CPU)
+       * when the next stmt is an IDENT assign (return keyword realign still lucked out).
+       * Accept any non-terminator after `if` (cond starts with ident/lit/!/(/…).
+       * PLATFORM: SHARED — G.7 single kw_at_pos + scan_sync bare path.
+       */
       if (klen == 2 && memcmp(kw, "if", 2) == 0) {
-        if (nx != (uint8_t)'(')
+        if (nx == (uint8_t)'}' || nx == (uint8_t)';' || nx == (uint8_t)',')
           return 0;
       } else if (klen == 4 && memcmp(kw, "else", 4) == 0) {
         if (nx != (uint8_t)'{' && nx != (uint8_t)';') {
@@ -1309,17 +1336,21 @@ static size_t parser_asm_skip_balanced_braces_bytes_comment_aware_c(const uint8_
 }
 
 /**
- * 从 lex 附近回找 if (…) { … } [else …] 并返回整句后的首字节位置；
+ * 从 lex 附近回找 if (…) { … } [else …] 或 bare if cond { … } 并返回整句后的首字节位置；
  * 不依赖 lexer 预读状态，修复 if 条件含 struct.field 时 lex 滑入下一 stmt 中部。
  * Brace regions use comment/string-aware depth (see helper above).
+ * wave361: also accepts bare `if cond {` (docs/03).
+ * PLATFORM: SHARED.
  */
 static struct parser_asm_lexer parser_asm_scan_sync_after_if_stmt_c(struct parser_asm_lexer lex_cur,
                                                                     struct parser_asm_slice_u8 *source) {
   size_t if_pos = (size_t)lex_cur.pos;
   size_t lo = if_pos > 512 ? if_pos - 512 : 0;
   size_t paren_pos = 0;
+  size_t bare_start = 0;
   size_t i;
   int32_t found = 0;
+  int32_t bare = 0;
   if (!source || !source->data)
     return lex_cur;
   while (if_pos >= lo) {
@@ -1327,7 +1358,15 @@ static struct parser_asm_lexer parser_asm_scan_sync_after_if_stmt_c(struct parse
       size_t probe = parser_asm_stretch_skip_ws_and_comments_c(source->data, source->length, if_pos + 2);
       if (probe < source->length && source->data[probe] == (uint8_t)'(') {
         found = 1;
+        bare = 0;
         paren_pos = probe;
+        break;
+      }
+      /* wave361 bare cond: first non-ws after `if` is not `(` */
+      if (probe < source->length) {
+        found = 1;
+        bare = 1;
+        bare_start = probe;
         break;
       }
     }
@@ -1337,47 +1376,95 @@ static struct parser_asm_lexer parser_asm_scan_sync_after_if_stmt_c(struct parse
   }
   if (!found)
     return lex_cur;
-  i = paren_pos + 1;
-  {
-    int32_t par = 1;
-    while (i < source->length && par > 0) {
-      /* Skip comments/strings so `(` / `)` inside them do not skew cond depth. */
-      uint8_t c = source->data[i];
-      if (c == (uint8_t)'/' && i + 1 < source->length && source->data[i + 1] == (uint8_t)'/') {
-        i = i + 2;
-        while (i < source->length && source->data[i] != (uint8_t)'\n')
-          i = i + 1;
-        continue;
-      }
-      if (c == (uint8_t)'/' && i + 1 < source->length && source->data[i + 1] == (uint8_t)'*') {
-        i = i + 2;
-        while (i + 1 < source->length
-               && !(source->data[i] == (uint8_t)'*' && source->data[i + 1] == (uint8_t)'/'))
-          i = i + 1;
-        if (i + 1 < source->length)
+  if (bare == 0) {
+    i = paren_pos + 1;
+    {
+      int32_t par = 1;
+      while (i < source->length && par > 0) {
+        /* Skip comments/strings so `(` / `)` inside them do not skew cond depth. */
+        uint8_t c = source->data[i];
+        if (c == (uint8_t)'/' && i + 1 < source->length && source->data[i + 1] == (uint8_t)'/') {
           i = i + 2;
-        else
-          i = source->length;
-        continue;
-      }
-      if (c == (uint8_t)'"' || c == (uint8_t)'\'') {
-        uint8_t q = c;
-        i = i + 1;
-        while (i < source->length && source->data[i] != q) {
-          if (source->data[i] == (uint8_t)'\\' && i + 1 < source->length)
+          while (i < source->length && source->data[i] != (uint8_t)'\n')
+            i = i + 1;
+          continue;
+        }
+        if (c == (uint8_t)'/' && i + 1 < source->length && source->data[i + 1] == (uint8_t)'*') {
+          i = i + 2;
+          while (i + 1 < source->length
+                 && !(source->data[i] == (uint8_t)'*' && source->data[i + 1] == (uint8_t)'/'))
+            i = i + 1;
+          if (i + 1 < source->length)
             i = i + 2;
           else
-            i = i + 1;
+            i = source->length;
+          continue;
         }
-        if (i < source->length)
+        if (c == (uint8_t)'"' || c == (uint8_t)'\'') {
+          uint8_t q = c;
           i = i + 1;
-        continue;
+          while (i < source->length && source->data[i] != q) {
+            if (source->data[i] == (uint8_t)'\\' && i + 1 < source->length)
+              i = i + 2;
+            else
+              i = i + 1;
+          }
+          if (i < source->length)
+            i = i + 1;
+          continue;
+        }
+        if (c == (uint8_t)'(')
+          par = par + 1;
+        else if (c == (uint8_t)')')
+          par = par - 1;
+        i = i + 1;
       }
-      if (c == (uint8_t)'(')
-        par = par + 1;
-      else if (c == (uint8_t)')')
-        par = par - 1;
-      i = i + 1;
+    }
+  } else {
+    /* bare: first `{` at paren-depth 0 after cond start is the then-body. */
+    i = bare_start;
+    {
+      int32_t par = 0;
+      while (i < source->length) {
+        uint8_t c = source->data[i];
+        if (c == (uint8_t)'/' && i + 1 < source->length && source->data[i + 1] == (uint8_t)'/') {
+          i = i + 2;
+          while (i < source->length && source->data[i] != (uint8_t)'\n')
+            i = i + 1;
+          continue;
+        }
+        if (c == (uint8_t)'/' && i + 1 < source->length && source->data[i + 1] == (uint8_t)'*') {
+          i = i + 2;
+          while (i + 1 < source->length
+                 && !(source->data[i] == (uint8_t)'*' && source->data[i + 1] == (uint8_t)'/'))
+            i = i + 1;
+          if (i + 1 < source->length)
+            i = i + 2;
+          else
+            i = source->length;
+          continue;
+        }
+        if (c == (uint8_t)'"' || c == (uint8_t)'\'') {
+          uint8_t q = c;
+          i = i + 1;
+          while (i < source->length && source->data[i] != q) {
+            if (source->data[i] == (uint8_t)'\\' && i + 1 < source->length)
+              i = i + 2;
+            else
+              i = i + 1;
+          }
+          if (i < source->length)
+            i = i + 1;
+          continue;
+        }
+        if (c == (uint8_t)'(')
+          par = par + 1;
+        else if (c == (uint8_t)')' && par > 0)
+          par = par - 1;
+        else if (c == (uint8_t)'{' && par == 0)
+          break;
+        i = i + 1;
+      }
     }
   }
   i = parser_asm_stretch_skip_ws_and_comments_c(source->data, source->length, i);

@@ -34,13 +34,13 @@ const heap_libc = import("std.heap.libc");
 /** See implementation for details. */
 export struct Buffer {
   ptr: *u8
-  len: usize
+  length: usize
   handle: usize
 }
 /** IO pre-register: after import("std.io.core"), call xlang_io_register; shared with std.io.driver.
 */
 export function register_buffer(buf: Buffer): i32 {
-  return core.xlang_io_register(buf.ptr, buf.len, buf.handle);
+  return core.xlang_io_register(buf.ptr, buf.length, buf.handle);
 }
 // See implementation.
 /** Exported function `copy`.
@@ -130,7 +130,7 @@ export function compare_bounded(a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
  * @return Buffer
  */
 export function buffer_from(ptr: *u8, len: usize): Buffer {
-  return Buffer { ptr: ptr, len: len, handle: 0 };
+  return Buffer { ptr: ptr, length: len, handle: 0 };
 }
 
 /** Exported function `module_anchor`.

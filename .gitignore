@@ -314,3 +314,5 @@ compiler/xlang_*
 compiler/xlang-*
 !compiler/xlang_x_stubs.c
 !compiler/scripts/
+# Added by code-review-graph
+.code-review-graph/

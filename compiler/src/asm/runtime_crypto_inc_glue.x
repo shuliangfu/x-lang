@@ -11,6 +11,8 @@ export extern "C" function xlang_sha256_rotr32_impl(x: u32, n: u32): u32;
 export extern "C" function xlang_sha256_ch_impl(x: u32, y: u32, z: u32): u32;
 export extern "C" function xlang_sha256_maj_impl(x: u32, y: u32, z: u32): u32;
 export extern "C" function xlang_sha256_block_impl(H: *u32, block: *u8): void;
+export extern "C" function crypto_i32_sub_impl(a: i32, b: i32): i32;
+export extern "C" function crypto_rotl32_impl(x: u32, n: u32): u32;
 
 /** Exported function `runtime_crypto_inc_glue_x_doc_anchor`.
  * Implements `runtime_crypto_inc_glue_x_doc_anchor`.
@@ -42,8 +44,9 @@ export function xlang_sha256_block(H: *u32, block: *u8): void {
  */
 #[no_mangle]
 export function xlang_sha256_rotr32(x: u32, n: u32): u32 {
-  n = n & 31;
-  return (x >> n) | (x << (32 - n));
+  unsafe {
+    return xlang_sha256_rotr32_impl(x, n);
+  }
 }
 
 /** Exported function `xlang_sha256_ch`.
@@ -55,7 +58,9 @@ export function xlang_sha256_rotr32(x: u32, n: u32): u32 {
  */
 #[no_mangle]
 export function xlang_sha256_ch(x: u32, y: u32, z: u32): u32 {
-  return (x & y) ^ ((~x) & z);
+  unsafe {
+    return xlang_sha256_ch_impl(x, y, z);
+  }
 }
 
 /** Exported function `xlang_sha256_maj`.
@@ -67,10 +72,10 @@ export function xlang_sha256_ch(x: u32, y: u32, z: u32): u32 {
  */
 #[no_mangle]
 export function xlang_sha256_maj(x: u32, y: u32, z: u32): u32 {
-  return (x & y) ^ (x & z) ^ (y & z);
+  unsafe {
+    return xlang_sha256_maj_impl(x, y, z);
+  }
 }
-
-// crypto_i32_sub_c: see function docblock below.
 
 /** Exported function `crypto_i32_sub_c`.
  * Implements `crypto_i32_sub_c`.
@@ -80,7 +85,9 @@ export function xlang_sha256_maj(x: u32, y: u32, z: u32): u32 {
  */
 #[no_mangle]
 export function crypto_i32_sub_c(a: i32, b: i32): i32 {
-  return a - b;
+  unsafe {
+    return crypto_i32_sub_impl(a, b);
+  }
 }
 
 /** Exported function `crypto_rotl32_c`.
@@ -91,6 +98,7 @@ export function crypto_i32_sub_c(a: i32, b: i32): i32 {
  */
 #[no_mangle]
 export function crypto_rotl32_c(x: u32, n: u32): u32 {
-  n = n & 31;
-  return (x << n) | (x >> (32 - n));
+  unsafe {
+    return crypto_rotl32_impl(x, n);
+  }
 }

@@ -1,4 +1,8 @@
-/* seeds/runtime.from_x.c — G-02f-14/85/86/87/88/90/93/94/95/71/72 product TU
+/* seeds/runtime.from_x.c — wave243 getenv→link_abi_getenv; wave247 residual system→link_abi_system;
+ * wave254: user C CRASH_EVIDENCE fprintf templates emit link_abi_getenv (not raw getenv);
+ * wave261: residual realpath→link_abi_realpath_cap (codegen_emit_include_pipeline_glue_c);
+ * product -o resolves face via panic strong / user_env weak (wave251–253).
+ * G-02f-14/85/86/87/88/90/93/94/95/71/72 product TU
  * G-02f-129 true .x pure helpers.
  * G-02f-128 true .x pure helpers.
  * G-02f-127 true .x pure helpers.
@@ -45,6 +49,19 @@
 
 #include "win32_compat.h"
 
+/* wave243 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED orch / host getenv residual via single face. */
+extern char *link_abi_getenv(const char *name);
+/* wave247 G.7: shell via public pure thin link_abi_system (wave224 → _impl host system);
+ * not raw libc system. Cap residual host system stays only link_abi_system_impl.
+ * Aligns mega dual cold (#ifndef RT_ENTRY/RT_RUN_EXEC) with modular twins / pure .x (wave226).
+ * PLATFORM: SHARED orch / host system residual via single face. */
+extern int link_abi_system(const char *cmd);
+/* wave261 G.7: path resolve via public pure thin link_abi_realpath_cap (wave218 → _impl host
+ * realpath); not raw libc realpath. Cap residual host realpath stays only link_abi_realpath_cap_impl
+ * (+ freestanding stubs). PLATFORM: SHARED orch / host realpath residual via single face. */
+extern char *link_abi_realpath_cap(const char *path, char *out);
 
 #if !defined(_WIN32) && !defined(_WIN64)
 #define XLANG_TMP_PREFIX "/tmp/xlang_"
@@ -53,8 +70,8 @@
 #include <stdio.h>
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 const char * xlang_get_tmp_prefix(void) {
-    const char *tmp = getenv("TEMP");
-    if (!tmp || !tmp[0]) tmp = getenv("TMP");
+    const char *tmp = link_abi_getenv("TEMP");
+    if (!tmp || !tmp[0]) tmp = link_abi_getenv("TMP");
     if (!tmp || !tmp[0]) tmp = ".";
     static char buf[260];
     size_t L = strlen(tmp);
@@ -328,17 +345,25 @@ extern int codegen_codegen_entry_library_module_to_c(struct ASTModule *m, const 
 #endif
 
 /**
- * 结构化 smoke 是否启用：`--diag-json`（diag_json_enabled）或 XLANG_SMOKE_DIAG=1。
- * 默认关闭，保持 stdout 旧行（grep/golden 兼容）；启用时另向 stderr 输出带编号的 info 诊断。
+ * Whether structured smoke diagnostic emission is enabled.
+ * Dual-anchor cold twin of rt_entry pure / runtime.x (wave227/wave242 G.7).
+ * True when `--diag-json` (diag_json_enabled) or XLANG_SMOKE_DIAG is non-empty
+ * and not leading ASCII '0'. Default off keeps legacy stdout lines (grep/golden).
+ * wave242: raw getenv closed — public pure thin link_abi_getenv (→ _impl host getenv).
+ * Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED — process env; host residual via single face.
  */
 /* G-02f-117：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-301 R10 → rt_entry hybrid */
+/* wave242/243 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv). */
+/* (declaration at file top for Windows TEMP/TMP + cold mega residual call sites) */
 #ifndef XLANG_RT_ENTRY_FROM_X
 int xlang_smoke_diag_enabled(void) {
   const char *e;
   if (diag_json_enabled())
     return 1;
-  e = getenv("XLANG_SMOKE_DIAG");
+  /* wave242 G.7: link_abi_getenv (not raw getenv); host residual = link_abi_getenv_impl. */
+  e = link_abi_getenv("XLANG_SMOKE_DIAG");
   return (e && e[0] && e[0] != '0') ? 1 : 0;
 }
 #else
@@ -580,7 +605,7 @@ int write_io_net_abi_inline(FILE *cf) {
         "  return (int32_t)poll((struct pollfd *)(void *)fds, (nfds_t)nfds, (int)timeout);\n"
         "}\n"
         "#endif\n",
-        "typedef struct { uint8_t *ptr; size_t len; size_t handle; } xlang_batch_buf_t;\n",
+        "typedef struct { uint8_t *ptr; size_t length; size_t handle; } xlang_batch_buf_t;\n",
         "extern int io_register_buffer(uint8_t *ptr, size_t len);\n",
         "extern int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr);\n",
         "__attribute__((weak)) int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }\n",
@@ -603,10 +628,10 @@ int write_io_net_abi_inline(FILE *cf) {
         "extern int32_t xlang_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);\n",
         "extern uint8_t *xlang_io_read_ptr(size_t handle, unsigned timeout_ms);\n",
         "extern int32_t xlang_io_read_ptr_len(void);\n",
-        "typedef struct { void *ptr; size_t len; size_t handle; } xlang_buffer_abi_t;\n",
-        "static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n",
-        "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_read)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n",
-        "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_write)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n",
+        "typedef struct { void *ptr; size_t length; size_t handle; } xlang_buffer_abi_t;\n",
+        "static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->length, b->handle); }\n",
+        "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_read)((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }\n",
+        "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_write)((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }\n",
         /* 勿定义 std_io_driver_submit_read/write 同名 inline：co-emit driver 会生成 Buffer 形参强符号。
          * 仅提供 via_ptr 与短名宏；全名调用走 co-emit 定义。 */
         "static inline int32_t std_io_driver_submit_read_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return xlang_io_submit_read_buf((intptr_t)buf, (int32_t)timeout_ms); }\n",
@@ -618,7 +643,7 @@ int write_io_net_abi_inline(FILE *cf) {
         "#undef xlang_io_register\n",
         "#undef xlang_io_submit_read\n",
         "#undef xlang_io_submit_write\n",
-        "struct std_io_driver_Buffer { void *ptr; size_t len; size_t handle; };\n",
+        "struct std_io_driver_Buffer { void *ptr; size_t length; size_t handle; };\n",
         "typedef struct std_io_driver_Buffer std_io_Buffer;\n",
         "#define std_io_Buffer std_io_driver_Buffer\n",
         "extern ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);\n",
@@ -828,9 +853,9 @@ int write_io_net_abi_inline(FILE *cf) {
         "#define std_net_net_close_socket_c(x) net_close_socket_c_real(xlang_io_net_fd(x))\n",
         "#define std_net_net_run_accept_workers_c(x, n, t) net_run_accept_workers_c_real(xlang_io_net_fd(x), n, t)\n",
         /* 与 rt_preamble 同：#define 标签别名，吸收 codegen 的 std_fs_posix_* tag */
-        "#define STD_FS_FS_IOVEC_BUF_DEFINED\nstruct std_fs_FsIovecBuf { void *ptr; size_t len; size_t handle; };\n"
+        "#define STD_FS_FS_IOVEC_BUF_DEFINED\nstruct std_fs_FsIovecBuf { void *ptr; size_t length; size_t handle; };\n"
         "#define std_fs_posix_FsIovecBuf std_fs_FsIovecBuf\n"
-        "struct std_io_sync_Iovec { uint8_t *base; size_t len; };\n"
+        "struct std_io_sync_Iovec { uint8_t *base; size_t length; };\n"
         "#define std_fs_posix_Iovec std_io_sync_Iovec\n",
         /* 仅 forward：完整体由 std/map 发射；preamble 全量定义与 map.o -o 双权威 → redefinition */
         "struct std_map_Map_i32_i32;\n",
@@ -838,9 +863,9 @@ int write_io_net_abi_inline(FILE *cf) {
         /* Error + ErrorChain：与 codegen skip 同权威（缺 ErrorChain → incomplete type） */
         "struct std_error_Error { int32_t code; };\n",
         "struct std_error_ErrorChain { int32_t depth; int32_t c0; int32_t c1; int32_t c2; int32_t c3; };\n",
-        "struct std_string_String { uint8_t data[256]; int32_t len; };\n",
+        "struct std_string_String { uint8_t data[256]; int32_t length; };\n",
         "typedef struct std_string_String String;\n",
-        "struct std_string_StrView { uint8_t *ptr; int32_t len; };\n",
+        "struct std_string_StrView { uint8_t *ptr; int32_t length; };\n",
         /* heap.Allocator 须在 Vec 之前完整（codegen 现按模块序 emit，vec 先于 heap 布局） */
         "struct std_heap_Arena64 { uint8_t *chunk; size_t cap; size_t off; };\n",
         "struct std_heap_Allocator { int32_t kind; struct std_heap_Arena64 *arena; };\n",
@@ -942,7 +967,8 @@ int write_fs_path_map_error_abi_inline(FILE *cf);
 #endif /* XLANG_USE_X_PIPELINE */
 
 #if !defined(XLANG_USE_X_DRIVER)
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc
+ * wave261 G.7: path resolve via link_abi_realpath_cap (not raw realpath). */
 void codegen_emit_include_pipeline_glue_c(FILE *out, const char *argv0) {
     char rel[PATH_MAX];
     static char canon[PATH_MAX];
@@ -953,7 +979,7 @@ void codegen_emit_include_pipeline_glue_c(FILE *out, const char *argv0) {
     /* 缩减版：无 pipeline.x 全量类型与 codegen.o 转发目标，见 pipeline_glue.c 内 #ifndef 块。 */
     fprintf(out, "\n#define XLANG_PARSER_EXE_PIPELINE_GLUE 1\n");
     if (!argv0 || !argv0[0]) {
-        if (realpath("pipeline_glue.c", canon) != NULL)
+        if (link_abi_realpath_cap("pipeline_glue.c", canon) != NULL)
             fprintf(out, "\n#include \"%s\"\n", canon);
         return;
     }
@@ -964,16 +990,16 @@ void codegen_emit_include_pipeline_glue_c(FILE *out, const char *argv0) {
             if (n >= 0 && (size_t)n + (size_t)21 < sizeof(rel)) {
                 (void)snprintf(rel, sizeof(rel), "%.*s/pipeline_glue.c", n, argv0);
             }
-        } else if (realpath("pipeline_glue.c", rel) == NULL) {
+        } else if (link_abi_realpath_cap("pipeline_glue.c", rel) == NULL) {
             rel[0] = '\0';
         }
     }
     if (rel[0] != '\0') {
-        if (realpath(rel, canon) != NULL)
+        if (link_abi_realpath_cap(rel, canon) != NULL)
             fprintf(out, "\n#include \"%s\"\n", canon);
         else
             fprintf(out, "\n#include \"%s\"\n", rel);
-    } else if (realpath("pipeline_glue.c", canon) != NULL) {
+    } else if (link_abi_realpath_cap("pipeline_glue.c", canon) != NULL) {
         fprintf(out, "\n#include \"%s\"\n", canon);
     }
 }
@@ -1080,14 +1106,14 @@ int labi_rt_pipeline_elf_diag_slice_marker(void);
 
 /** 调试：打印 module 中每个 func 的 name_len/name（由 Makefile 追加到 pipeline_gen.c）；便于定位 mai/ba 截断 */
 extern void pipeline_debug_module_funcs(void *module);
-/* 与生成代码中 codegen_CodegenOutBuf 布局一致；C 在调用后将 data[0..len-1] 写到 FILE* */
+/* 与生成代码中 codegen_CodegenOutBuf 布局一致；C 在调用后将 data[0..length-1] 写到 FILE* */
 #define X_CODEGEN_OUTBUF_CAP (9 * 1024 * 1024)
 struct codegen_CodegenOutBuf {
     unsigned char data[X_CODEGEN_OUTBUF_CAP];
-    int32_t len;
+    int32_t length;
 };
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-_Static_assert(offsetof(struct codegen_CodegenOutBuf, len) == X_CODEGEN_OUTBUF_CAP, "CodegenOutBuf: len must follow data[] for ABI");
+_Static_assert(offsetof(struct codegen_CodegenOutBuf, length) == X_CODEGEN_OUTBUF_CAP, "CodegenOutBuf: length must follow data[] for ABI");
 #endif
 /** asm 后端 C 桩：最小 GAS（main return 42）。G-02f-300 R9 → rt_asm_stub hybrid */
 #ifndef XLANG_RT_ASM_STUB_FROM_X
@@ -1114,7 +1140,7 @@ XLANG_WEAK int32_t asm_codegen_ast(void *module, void *arena, struct codegen_Cod
         out->data[n + len] = '\n';
         n += len + 1;
     }
-    out->len = (int32_t)n;
+    out->length = (int32_t)n;
     return 0;
 }
 #else
@@ -1471,7 +1497,7 @@ int dce_is_type_used(void *ctx, const ASTModule *mod, const char *type_name) {
  * 参数：argc、argv 为标准 C 程序参数；argv[0] 为程序名，后续为可选 -L/-target/-o 及其参数与一个输入 .x 路径。
  * 返回值：0 表示成功（含无参数时打印用法）；1 表示读文件失败、解析/typeck 失败、codegen 或 cc 失败。
  * 错误与边界：无输入文件时打印用法并返回 0；-o 指定但无 main 时返回 1；import 数量超过 32 时仅处理前 32 个。
- * 副作用与约定：可能创建/删除 /tmp 下临时文件；依赖 getenv("XLANG_LIB")；多文件时可能多次解析同一 import 的 .x。
+ * 副作用与约定：可能创建/删除 /tmp 下临时文件；依赖 link_abi_getenv("XLANG_LIB")；多文件时可能多次解析同一 import 的 .x。
  */
 #define MAX_DEFINES 64
 #define MAX_LIB_ROOTS 16
@@ -1669,13 +1695,13 @@ int RUN_CC_FUNC(int argc, char **argv) {
         }
     }
     if (n_lib_roots == 0) {
-        lib_roots_arr[0] = getenv("XLANG_LIB");
+        lib_roots_arr[0] = link_abi_getenv("XLANG_LIB");
         if (!lib_roots_arr[0]) lib_roots_arr[0] = ".";
         n_lib_roots = 1;
     }
-    if (!opt_level) opt_level = getenv("XLANG_OPT");
+    if (!opt_level) opt_level = link_abi_getenv("XLANG_OPT");
     if (!opt_level || !*opt_level) opt_level = "2";
-    if (!use_lto && getenv("XLANG_LTO") && strcmp(getenv("XLANG_LTO"), "1") == 0)
+    if (!use_lto && link_abi_getenv("XLANG_LTO") && strcmp(link_abi_getenv("XLANG_LTO"), "1") == 0)
         use_lto = 1;
 
     if (!input_path) {
@@ -2119,21 +2145,21 @@ int RUN_CC_FUNC(int argc, char **argv) {
         int ec = xlang_pipeline_run_x_pipeline_large_stack(module, arena, src_slice.data, (size_t)src_slice.length, (void *)out_buf, (void *)pctx);
         driver_x_pipeline_skip_typeck_set(0);
         driver_x_pipeline_skip_codegen_set(0);
-        if (getenv("XLANG_ASM_ENTRY_DEBUG")) {
+        if (link_abi_getenv("XLANG_ASM_ENTRY_DEBUG")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "asm entry debug: ec=%d num_funcs=%d out_asm_len=%zu",
-                         ec, driver_get_module_num_funcs(module), (size_t)out_buf->len);
+                         ec, driver_get_module_num_funcs(module), (size_t)out_buf->length);
         }
         driver_dep_seeded_clear_all();
         codegen_set_dep_slots_for_x_pipeline(NULL, NULL, 0);
-        if (ec == 0 && (out_buf->len > 0 || emit_elf_o)) {
+        if (ec == 0 && (out_buf->length > 0 || emit_elf_o)) {
             if (emit_elf_o && elf_ctx_ptr) {
                 xlang_driver_asm_prepare_entry_elf_emit(module, arena, pctx);
                 int32_t elf_ec = xlang_asm_codegen_elf_o_large_stack(module, arena, (void *)pctx, (struct platform_elf_ElfCodegenCtx *)elf_ctx_ptr, (void *)out_buf);
-                if (elf_ec != 0 || out_buf->len <= 0) {
+                if (elf_ec != 0 || out_buf->length <= 0) {
                     diag_reportf_with_code(input_path, 0, 0, "codegen error", XLANG_DIAG_CODE_CODEGEN_CG002, NULL,
                                            "asm_codegen_elf_o failed (elf_ec=%d, out_len=%zu, num_funcs=%d)",
-                                           (int)elf_ec, (size_t)out_buf->len, driver_get_module_num_funcs(module));
+                                           (int)elf_ec, (size_t)out_buf->length, driver_get_module_num_funcs(module));
                     if (elf_ec == XLANG_ASM_CODEGEN_ELF_EMPTY_TEXT_RC)
                         diag_report(NULL, 0, 0, "note",
                                     "asm backend produced no object text; empty .o emission was rejected", NULL);
@@ -2150,7 +2176,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                     return 1;
                 }
             }
-            fwrite(out_buf->data, 1, (size_t)out_buf->len, asm_out ? asm_out : stdout);
+            fwrite(out_buf->data, 1, (size_t)out_buf->length, asm_out ? asm_out : stdout);
             if (!asm_out) fflush(stdout);
             if (asm_out) fclose(asm_out);
             asm_out = NULL;
@@ -2181,8 +2207,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 }
             }
         } else {
-            /* ec != 0 或 ec == 0 但 out_buf->len == 0（且非 emit_elf_o） */
-            if (ec == 0 && out_buf->len == 0 && !emit_elf_o && !asm_out) {
+            /* ec != 0 或 ec == 0 但 out_buf->length == 0（且非 emit_elf_o） */
+            if (ec == 0 && out_buf->length == 0 && !emit_elf_o && !asm_out) {
                 /* -x -E 时 pipeline 成功但 codegen 产出 0 字节（如库模块或 codegen 路径未写 main），写最小 C 桩使 run-x-pipeline 等测试能通过 */
                 fprintf(stdout, "int main(void){return 0;}\n");
                 fflush(stdout);
@@ -2289,7 +2315,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
 
     /* WPO-S1：typeck 后可选导出跨模块 call graph JSON（XLANG_WPO_DUMP_CALLGRAPH=路径，"-"=stdout）。 */
     {
-        const char *wpo_out = getenv("XLANG_WPO_DUMP_CALLGRAPH");
+        const char *wpo_out = link_abi_getenv("XLANG_WPO_DUMP_CALLGRAPH");
         if (wpo_out && wpo_out[0]) {
             FILE *wf = (strcmp(wpo_out, "-") == 0) ? stdout : fopen(wpo_out, "w");
             if (wf) {
@@ -2350,13 +2376,17 @@ int RUN_CC_FUNC(int argc, char **argv) {
             fprintf(stdout, "#ifdef _WIN32\n#define XLANG_LIB_WEAK\n#else\n#define XLANG_LIB_WEAK __attribute__((weak))\n#endif\n");
             codegen_emit_fmt_json_helpers_once(stdout);
             codegen_emit_builtin_inline_decls(stdout);
+            /* wave254 G.7: user C template uses link_abi_getenv face (not raw libc getenv).
+             * Product -o resolves via panic strong / user_env weak (wave251–253).
+             * PLATFORM: SHARED — single face name in emitted user C. */
+            fprintf(stdout, "extern char *link_abi_getenv(const char *name);\n");
             fprintf(stdout, "extern int getpid(void);\n");
             fprintf(stdout, "static inline void xlang_crash_evidence_collect_inline(int has_msg, int msg_val) {\n");
-            fprintf(stdout, "  const char *_ev = getenv(\"XLANG_CRASH_EVIDENCE\");\n");
+            fprintf(stdout, "  const char *_ev = link_abi_getenv(\"XLANG_CRASH_EVIDENCE\");\n");
             fprintf(stdout, "  if (!_ev || _ev[0] != '1') return;\n");
             fprintf(stdout, "  int _pid = (int)getpid();\n");
             fprintf(stdout, "  fprintf(stderr, \"note: crash evidence: panic=%%d msg=%%d frames=0 pid=%%d\\n\", has_msg, msg_val, _pid);\n");
-            fprintf(stdout, "  const char *_dir = getenv(\"XLANG_CRASH_EVIDENCE_DIR\");\n");
+            fprintf(stdout, "  const char *_dir = link_abi_getenv(\"XLANG_CRASH_EVIDENCE_DIR\");\n");
             fprintf(stdout, "  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, \"%%s/xlang-crash-%%d.txt\", _dir, _pid);\n");
             fprintf(stdout, "    FILE *_f = fopen(_p, \"w\"); if (_f) { fprintf(_f, \"panic_has_msg=%%d\\npanic_msg=%%d\\nframes=0\\npid=%%d\\n\", has_msg, msg_val, _pid); fclose(_f);\n");
             fprintf(stdout, "      fprintf(stderr, \"note: crash evidence: bundle=%%s\\n\", _p); } } }\n");
@@ -2371,11 +2401,11 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 fprintf(stdout, "extern int32_t xlang_io_register(uint8_t *ptr, size_t len, size_t handle);\n");
                 fprintf(stdout, "extern int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
                 fprintf(stdout, "extern int32_t xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
-                fprintf(stdout, "typedef struct { void *ptr; size_t len; size_t handle; } xlang_buffer_abi_t;\n");
-                fprintf(stdout, "static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n");
-                fprintf(stdout, "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
-                fprintf(stdout, "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
-                fprintf(stdout, "typedef struct { uint8_t *ptr; size_t len; size_t handle; } xlang_batch_buf_t;\n");
+                fprintf(stdout, "typedef struct { void *ptr; size_t length; size_t handle; } xlang_buffer_abi_t;\n");
+                fprintf(stdout, "static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->length, b->handle); }\n");
+                fprintf(stdout, "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_read((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }\n");
+                fprintf(stdout, "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_write((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }\n");
+                fprintf(stdout, "typedef struct { uint8_t *ptr; size_t length; size_t handle; } xlang_batch_buf_t;\n");
                 fprintf(stdout, "__attribute__((weak)) int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }\n");
                 fprintf(stdout, "static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const xlang_batch_buf_t *)(uintptr_t)bufs, nr); }\n");
             }
@@ -2553,7 +2583,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                     if (cc_ok != 0)
                         diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                                      "cc failed, keeping generated C: %s", tmp_lib_c);
-                    else if (!getenv("XLANG_KEEP_C"))
+                    else if (!link_abi_getenv("XLANG_KEEP_C"))
                         unlink(tmp_lib_c);
                     while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
                     ast_module_free(mod);
@@ -2630,13 +2660,17 @@ int RUN_CC_FUNC(int argc, char **argv) {
             codegen_emit_fmt_json_helpers_once(cf);
             codegen_emit_builtin_inline_decls(cf);
             fprintf(cf, "#include <string.h>\n");
+            /* wave254 G.7: user C template uses link_abi_getenv face (not raw libc getenv).
+             * Product -o resolves via panic strong / user_env weak (wave251–253).
+             * PLATFORM: SHARED — single face name in emitted user C. */
+            fprintf(cf, "extern char *link_abi_getenv(const char *name);\n");
             fprintf(cf, "extern int getpid(void);\n");
             fprintf(cf, "static inline void xlang_crash_evidence_collect_inline(int has_msg, int msg_val) {\n");
-            fprintf(cf, "  const char *_ev = getenv(\"XLANG_CRASH_EVIDENCE\");\n");
+            fprintf(cf, "  const char *_ev = link_abi_getenv(\"XLANG_CRASH_EVIDENCE\");\n");
             fprintf(cf, "  if (!_ev || _ev[0] != '1') return;\n");
             fprintf(cf, "  int _pid = (int)getpid();\n");
             fprintf(cf, "  fprintf(stderr, \"note: crash evidence: panic=%%d msg=%%d frames=0 pid=%%d\\n\", has_msg, msg_val, _pid);\n");
-            fprintf(cf, "  const char *_dir = getenv(\"XLANG_CRASH_EVIDENCE_DIR\");\n");
+            fprintf(cf, "  const char *_dir = link_abi_getenv(\"XLANG_CRASH_EVIDENCE_DIR\");\n");
             fprintf(cf, "  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, \"%%s/xlang-crash-%%d.txt\", _dir, _pid);\n");
             fprintf(cf, "    FILE *_f = fopen(_p, \"w\"); if (_f) { fprintf(_f, \"panic_has_msg=%%d\\npanic_msg=%%d\\nframes=0\\npid=%%d\\n\", has_msg, msg_val, _pid); fclose(_f);\n");
             fprintf(cf, "      fprintf(stderr, \"note: crash evidence: bundle=%%s\\n\", _p); } } }\n");
@@ -2678,11 +2712,11 @@ int RUN_CC_FUNC(int argc, char **argv) {
              * 对齐补 weak 桩（返回 0=注册成功占位），使纯 .x io 烟测自包含，无需链 runtime_asm_io_stubs.o
              *（强桩会覆盖 submit_write 的 fwrite 弱实现，破坏 write_stdout）。 */
             fprintf(cf, "__attribute__((weak)) int32_t xlang_io_register(uint8_t *ptr, size_t len, size_t handle) { (void)ptr; (void)len; (void)handle; return 0; }\n");
-            fprintf(cf, "typedef struct { void *ptr; size_t len; size_t handle; } xlang_buffer_abi_t;\n");
-            fprintf(cf, "static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n");
-            fprintf(cf, "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
-            fprintf(cf, "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
-            fprintf(cf, "typedef struct { uint8_t *ptr; size_t len; size_t handle; } xlang_batch_buf_t;\n");
+            fprintf(cf, "typedef struct { void *ptr; size_t length; size_t handle; } xlang_buffer_abi_t;\n");
+            fprintf(cf, "static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->length, b->handle); }\n");
+            fprintf(cf, "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_read((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }\n");
+            fprintf(cf, "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_write((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }\n");
+            fprintf(cf, "typedef struct { uint8_t *ptr; size_t length; size_t handle; } xlang_batch_buf_t;\n");
             fprintf(cf, "__attribute__((weak)) int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }\n");
             fprintf(cf, "static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const xlang_batch_buf_t *)(uintptr_t)bufs, nr); }\n");
             /* codegen 跳过 std.io.print(ptr,len)；C 前端链 io.o 时由弱符号提供，避免 hello 等 Undefined _std_io_print_u8_ptr_usize。 */
@@ -2783,7 +2817,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             free(src);
             return 1;
         }
-        if (getenv("XLANG_DEBUG_C")) {
+        if (link_abi_getenv("XLANG_DEBUG_C")) {
             FILE *dc = fopen(tmp_c, "r");
             if (dc) {
                 { char _dbg[256]; snprintf(_dbg, sizeof(_dbg), "%sxlang_debug.c", XLANG_TMP_PREFIX); FILE *_df = fopen(_dbg, "w"); if (_df) { int ch; while ((ch = getc(dc)) != EOF) putc(ch, _df); fclose(_df); } }
@@ -2851,7 +2885,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             driver_unlink_failed_output(out_path);
             diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                          "cc failed, keeping generated C: %s", tmp_c);
-        } else if (getenv("XLANG_KEEP_C")) {
+        } else if (link_abi_getenv("XLANG_KEEP_C")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "kept generated C: %s", tmp_c);
         } else {
@@ -2928,9 +2962,9 @@ int run_compiler_x_path(int argc, char **argv) {
         if (strcmp(argv[i], "-x") == 0) continue;
         if (!input_path) input_path = argv[i];
     }
-    if (!use_lto && getenv("XLANG_LTO") && strcmp(getenv("XLANG_LTO"), "1") == 0) use_lto = 1;
+    if (!use_lto && link_abi_getenv("XLANG_LTO") && strcmp(link_abi_getenv("XLANG_LTO"), "1") == 0) use_lto = 1;
     if (n_lib_roots == 0) {
-        lib_roots_arr[0] = getenv("XLANG_LIB");
+        lib_roots_arr[0] = link_abi_getenv("XLANG_LIB");
         if (!lib_roots_arr[0]) lib_roots_arr[0] = ".";
         n_lib_roots = 1;
     }
@@ -3195,10 +3229,10 @@ int run_compiler_x_path(int argc, char **argv) {
     free(arena);
     free(module);
     free(src);
-    if (ec != 0 || (!driver_check_only_get() && out_buf->len == 0)) {
+    if (ec != 0 || (!driver_check_only_get() && out_buf->length == 0)) {
         diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP003, NULL,
                      "pipeline failed for '%s' (ec=%d, out_len=%d)",
-                     input_path, ec, (int)out_buf->len);
+                     input_path, ec, (int)out_buf->length);
         if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
         free(out_buf);
         pipeline_dep_ctx_heap_destroy(pctx);
@@ -3226,12 +3260,12 @@ int run_compiler_x_path(int argc, char **argv) {
     {
         /* 内联 std.io / std.net / fs / path / map / error ABI；不再 #include std/*_abi.h */
         size_t first_line = 0;
-        while (first_line < (size_t)out_buf->len && out_buf->data[first_line] != '\n') first_line++;
-        if (first_line < (size_t)out_buf->len) first_line++;
+        while (first_line < (size_t)out_buf->length && out_buf->data[first_line] != '\n') first_line++;
+        if (first_line < (size_t)out_buf->length) first_line++;
         if (fwrite(out_buf->data, 1, first_line, cf) != first_line
             || write_io_net_abi_inline(cf) != 0
             || write_fs_path_map_error_abi_inline(cf) != 0
-            || fwrite(out_buf->data + first_line, 1, (size_t)out_buf->len - first_line, cf) != (size_t)out_buf->len - first_line) {
+            || fwrite(out_buf->data + first_line, 1, (size_t)out_buf->length - first_line, cf) != (size_t)out_buf->length - first_line) {
             if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
             free(out_buf);
             pipeline_dep_ctx_heap_destroy(pctx);
@@ -3303,7 +3337,7 @@ int run_compiler_x_path(int argc, char **argv) {
                 driver_unlink_failed_output(out_path);
                 diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                              "cc failed, keeping generated C: %s", tmp_c);
-            } else if (!getenv("XLANG_KEEP_C")) {
+            } else if (!link_abi_getenv("XLANG_KEEP_C")) {
                 unlink(tmp_c);
             } else {
                 diag_reportf(NULL, 0, 0, "note", NULL,
@@ -3523,14 +3557,15 @@ int driver_run_compiler_full(int argc, char **argv);
 int driver_build_build_x(void) {
     /* 生成 build_tool 并执行：等价 make build-tool && ./build_tool ./xlang。
        build.x 没有 main，需结合 build_runtime.c 做成 build_tool 再跑。
-       Makefile 在 compiler 子目录，build_tool 也生成在 compiler 下。 */
-    int rc = system("cd compiler && make -s build-tool 2>&1");
+       Makefile 在 compiler 子目录，build_tool 也生成在 compiler 下。
+       wave247 G.7: link_abi_system (not raw system); ≡ rt_entry pure/twin (wave226). */
+    int rc = link_abi_system("cd compiler && make -s build-tool 2>&1");
     if (rc != 0) {
         diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                      "make build-tool failed (exit %d)", rc);
         return 1;
     }
-    rc = system("cd compiler && ./build_tool ./xlang 2>&1");
+    rc = link_abi_system("cd compiler && ./build_tool ./xlang 2>&1");
     if (rc != 0) {
         diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                      "build_tool failed (exit %d)", rc);
@@ -3919,7 +3954,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     }
     parser_parse_into_set_main_index(module, pr_imp.main_idx);
     driver_set_pipeline_entry_source_len(src_len);
-    if (getenv("XLANG_DEBUG_PIPE"))
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: driver_first_parse num_funcs=%d src_len=%zu",
                      driver_get_module_num_funcs(module), src_len);
@@ -4249,7 +4284,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
              */
             int ec_loop;
             if (asm_smoke_only) {
-                if (getenv("XLANG_ASM_DEBUG"))
+                if (link_abi_getenv("XLANG_ASM_DEBUG"))
                     diag_reportf(NULL, 0, 0, "note", NULL,
                                  "asm debug: dep_prerun[%d] path=%s len=%zu", (int)j,
                                  dep_paths[j] ? dep_paths[j] : "?", (size_t)dep_lens[j]);
@@ -4329,19 +4364,19 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         /* === XLANG_ASM_ENTRY_ONLY_DEBUG: 分段日志，定位 segfault === */
         const char *entry_name = input_path ? strrchr(input_path, '/') : NULL;
         entry_name = entry_name ? entry_name + 1 : input_path;
-        if (getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
+        if (link_abi_getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "asm entry debug: entry=%s n_deps=%d",
                          entry_name ? entry_name : "?", n_deps);
         }
         /* 1. 预检：当前文件长度 */
-        if (getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
+        if (link_abi_getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "asm entry debug: src_len=%zu entry_funcs=%d",
                          src_len, driver_get_module_num_funcs(module));
         }
         /* 2. 调 pipeline_run_x_pipeline */
-        if (getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
+        if (link_abi_getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
             diag_report(NULL, 0, 0, "note",
                         "asm entry debug: BEFORE pipeline_run_x_pipeline", NULL);
         }
@@ -4351,7 +4386,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
          * 再 skip pipeline 内 .x typeck（第 2+ CALL 实参仍可能 SIGSEGV）。
          */
         if (!driver_asm_build_skip_typeck()) {
-            const char *skip_c_precheck = getenv("XLANG_ASM_SKIP_C_TYPECK_PRECHECK");
+            const char *skip_c_precheck = link_abi_getenv("XLANG_ASM_SKIP_C_TYPECK_PRECHECK");
             if (skip_c_precheck == NULL || skip_c_precheck[0] == '\0' || skip_c_precheck[0] == '0') {
                 if (driver_c_typeck_entry_large_stack(input_path, src, lib_roots_arr, n_lib_roots, 0) != 0) {
                     free(out_buf);
@@ -4404,10 +4439,10 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         ec = xlang_pipeline_run_x_pipeline_large_stack(module, arena, (const uint8_t *)src, src_len, (void *)out_buf, (void *)pctx);
         driver_x_pipeline_skip_typeck_set(0);
         driver_x_pipeline_skip_codegen_set(0);
-        if (getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
+        if (link_abi_getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "asm entry debug: AFTER pipeline_run_x_pipeline ec=%d funcs=%d out_len=%zu",
-                         ec, driver_get_module_num_funcs(module), (size_t)out_buf->len);
+                         ec, driver_get_module_num_funcs(module), (size_t)out_buf->length);
         }
         /* 3. 如果是 segfault，上面的 fprintf 不会执行；需要更前置的分段日志 */
         if (ec != 0 && !driver_check_diag_emitted_get()) {
@@ -4416,10 +4451,10 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         }
     }
     pctx->use_asm_backend = 1;
-    if (getenv("XLANG_ASM_DEBUG")) {
+    if (link_abi_getenv("XLANG_ASM_DEBUG")) {
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "asm debug: backend after pipeline ec=%d num_funcs=%d out_asm_len=%zu",
-                     ec, driver_get_module_num_funcs(module), (size_t)out_buf->len);
+                     ec, driver_get_module_num_funcs(module), (size_t)out_buf->length);
         pipeline_debug_module_funcs(module);
     }
     if (asm_smoke_only) {
@@ -4447,11 +4482,11 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 /* check 已有更具体失败诊断时，不再冒充 parse/typeck 成功摘要。 */
             }
             else if (driver_check_only_get()) {
-                driver_print_x_smoke_summary(module, (size_t)out_buf->len);
+                driver_print_x_smoke_summary(module, (size_t)out_buf->length);
                 if (input_path)
                     driver_print_check_ok(input_path);
             } else
-                driver_print_x_smoke_summary(module, (size_t)out_buf->len);
+                driver_print_x_smoke_summary(module, (size_t)out_buf->length);
             free(out_buf);
             pipeline_dep_ctx_heap_destroy(pctx);
             free(arena);
@@ -4478,8 +4513,8 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             return 0;
         }
     }
-    if (ec == 0 && (out_buf->len > 0 || emit_elf_o)) {
-        if (emit_elf_o && elf_ctx_ptr && !xlang_asm_out_buf_is_object(out_buf ? out_buf->data : NULL, out_buf ? (size_t)out_buf->len : 0)) {
+    if (ec == 0 && (out_buf->length > 0 || emit_elf_o)) {
+        if (emit_elf_o && elf_ctx_ptr && !xlang_asm_out_buf_is_object(out_buf ? out_buf->data : NULL, out_buf ? (size_t)out_buf->length : 0)) {
             /*
              * pipeline_run 后 driver_dep_seeded_clear_all 仅清全局槽；须把 dep 模块重新写入 pctx，
              * 且对用户多文件关闭 ENTRY_MODULE_ONLY，否则 asm_codegen_elf_o 只编 main、ld 缺 _foo_bar。
@@ -4506,15 +4541,15 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             }
             xlang_driver_asm_prepare_entry_elf_emit(module, arena, pctx);
             int32_t elf_ec = xlang_asm_codegen_elf_o_large_stack(module, arena, (void *)pctx, (struct platform_elf_ElfCodegenCtx *)elf_ctx_ptr, (void *)out_buf);
-            if (getenv("XLANG_ASM_DEBUG")) {
+            if (link_abi_getenv("XLANG_ASM_DEBUG")) {
                 diag_reportf(NULL, 0, 0, "note", NULL,
                              "asm debug: asm_codegen_elf_o elf_ec=%d elf_len=%zu",
-                             (int)elf_ec, (size_t)out_buf->len);
+                             (int)elf_ec, (size_t)out_buf->length);
             }
-            if (elf_ec != 0 || out_buf->len <= 0) {
+            if (elf_ec != 0 || out_buf->length <= 0) {
                 diag_reportf_with_code(input_path, 0, 0, "codegen error", XLANG_DIAG_CODE_CODEGEN_CG002, NULL,
                                        "asm_codegen_elf_o failed (elf_ec=%d, out_len=%zu, num_funcs=%d)",
-                                       (int)elf_ec, (size_t)out_buf->len, driver_get_module_num_funcs(module));
+                                       (int)elf_ec, (size_t)out_buf->length, driver_get_module_num_funcs(module));
                 if (elf_ec == XLANG_ASM_CODEGEN_ELF_EMPTY_TEXT_RC)
                     diag_report(NULL, 0, 0, "note",
                                 "asm backend produced no object text; empty .o emission was rejected", NULL);
@@ -4533,7 +4568,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 return 1;
             }
         }
-        fwrite(out_buf->data, 1, (size_t)out_buf->len, asm_out ? asm_out : stdout);
+        fwrite(out_buf->data, 1, (size_t)out_buf->length, asm_out ? asm_out : stdout);
         if (!asm_out)
             fflush(stdout);
         driver_asm_fclose_asm_out(asm_out);
@@ -5273,7 +5308,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                         if (cc_ok != 0)
                             diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                                          "cc failed, keeping generated C: %s", tmp_lib_c);
-                        else if (!getenv("XLANG_KEEP_C"))
+                        else if (!link_abi_getenv("XLANG_KEEP_C"))
                             unlink(tmp_lib_c);
                         while (n_all--) {
                             free(all_dep_paths[n_all]);
@@ -5463,7 +5498,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                     driver_unlink_failed_output(out_path);
                     diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                                  "cc failed, keeping generated C: %s", tmp_c);
-                } else if (!getenv("XLANG_KEEP_C"))
+                } else if (!link_abi_getenv("XLANG_KEEP_C"))
                     unlink(tmp_c);
                 while (n_all--) {
                     free(all_dep_paths[n_all]);
@@ -5482,7 +5517,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
      * 勿在此拒掉（否则 -E asm.x / build_seed_asm_host 无法冷启动 partial）。
      */
 #endif /* !XLANG_NO_C_FRONTEND */
-    if (getenv("XLANG_DUMP_PREP")) {
+    if (link_abi_getenv("XLANG_DUMP_PREP")) {
         if (xlang_write_path_bytes("/tmp/xlang_prep_entry.bin", src, src_len) == 0) {
             diag_reportf(input_path, 0, 0, "note", NULL,
                          "dumped prep entry (%zu bytes) to /tmp/xlang_prep_entry.bin", src_len);
@@ -5545,7 +5580,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     }
     parser_parse_into_set_main_index(module, pr.main_idx);
     int32_t n_imports = parser_get_module_num_imports(module);
-    if (getenv("XLANG_DEBUG_PIPE"))
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: driver post-parse_into_buf num_funcs=%d n_imports=%d pr_ok=%d pr_main_idx=%d src_len=%zu",
                      driver_get_module_num_funcs(module), (int)n_imports, (int)pr.ok, (int)pr.main_idx, src_len);
@@ -5566,7 +5601,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
             free(src);
             return 1;
         }
-        if (getenv("XLANG_DEBUG_PIPE")) {
+        if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "pipeline debug: n_deps=%d", n_deps);
             for (int dj = 0; dj < n_deps; dj++)
@@ -5734,7 +5769,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
      * 隐式 padding 校验会变成空操作（tests/run-struct.sh padding_no_allow）。
      * import 已解析完毕；清零后 pipeline 从同一预处理源码重建 module/arena。
      */
-    if (getenv("XLANG_DEBUG_PIPE"))
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: before entry memset arena_sz=%zu", arena_sz);
     /* preserve pre-parsed module/arena; do NOT re-zero (entry_already_parsed=1) */
@@ -5768,7 +5803,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     if (n_deps > 0 && !driver_check_only_get() && want_asm_backend &&
         driver_deps_are_std_core_closure_only(dep_paths, n_deps))
         pctx->asm_entry_module_only = 1;
-    if (getenv("XLANG_DEBUG_PIPE"))
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: before pipeline_run entry=%s src_len=%zu",
                      input_path ? input_path : "?", (size_t)src_slice.length);
@@ -5842,19 +5877,19 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
 #endif
     int ec = xlang_pipeline_run_x_pipeline_large_stack(module, arena, src_slice.data, (size_t)src_slice.length, (void *)out_buf, (void *)pctx);
     driver_x_pipeline_skip_typeck_set(0);
-    if (getenv("XLANG_DEBUG_PIPE"))
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: after pipeline_run ec=%d", ec);
     driver_dep_seeded_clear_all();
     codegen_set_dep_slots_for_x_pipeline(NULL, NULL, 0);
     for (int j = n_deps - 1; j >= 0; j--) { free(dep_arenas[j]); free(dep_modules[j]); }
     while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
-    if (ec != 0 || (!driver_check_only_get() && out_buf->len == 0)) {
+    if (ec != 0 || (!driver_check_only_get() && out_buf->length == 0)) {
         diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP003, NULL,
                      "pipeline failed for '%s' (ec=%d, out_len=%d)",
-                     input_path, ec, (int)out_buf->len);
-        if (getenv("XLANG_DEBUG_PIPE") && out_buf->len > 0) {
-            size_t show = (size_t)out_buf->len > 800u ? 800u : (size_t)out_buf->len;
+                     input_path, ec, (int)out_buf->length);
+        if (link_abi_getenv("XLANG_DEBUG_PIPE") && out_buf->length > 0) {
+            size_t show = (size_t)out_buf->length > 800u ? 800u : (size_t)out_buf->length;
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "pipeline debug: out (first %zu bytes):\n%.*s", show, (int)show,
                          (const char *)out_buf->data);
@@ -5910,7 +5945,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     }
     /* 无 -o、将生成的 C 写 stdout 之前：stderr 烟测两行，与 driver_run_x_emit_x 及 run-std/run-stdlib-import 的 grep 一致。 */
     if (emit_to_stdout)
-        driver_print_x_smoke_summary(module, (size_t)out_buf->len);
+        driver_print_x_smoke_summary(module, (size_t)out_buf->length);
     free(arena);
     free(module);
     free(src);
@@ -5918,9 +5953,9 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
         /* 内联 std.io / std.net / fs / path / map / error ABI；不再 #include std/*_abi.h。
          * 若 pipeline 产出首字符非 # 且非注释（如泛型+import 时首行为 extern ...），先写最小 preamble 避免 cc 报 unknown type 'int32_t'。 */
         size_t first_line = 0;
-        while (first_line < (size_t)out_buf->len && out_buf->data[first_line] != '\n') first_line++;
-        if (first_line < (size_t)out_buf->len) first_line++;
-        int need_preamble = (out_buf->len > 0 && out_buf->data[0] != '#' && (out_buf->len < 2 || out_buf->data[0] != '/' || out_buf->data[1] != '*'));
+        while (first_line < (size_t)out_buf->length && out_buf->data[first_line] != '\n') first_line++;
+        if (first_line < (size_t)out_buf->length) first_line++;
+        int need_preamble = (out_buf->length > 0 && out_buf->data[0] != '#' && (out_buf->length < 2 || out_buf->data[0] != '/' || out_buf->data[1] != '*'));
         if (need_preamble) {
             static const char min_preamble[] = "/* generated */\n#include <stdint.h>\n#include <stddef.h>\n#include <stdlib.h>\n#include <stdio.h>\n#include <string.h>\n";
             if (fwrite(min_preamble, 1, sizeof(min_preamble) - 1, cf) != (size_t)(sizeof(min_preamble) - 1)) {
@@ -5933,7 +5968,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
         if (fwrite(out_buf->data, 1, first_line, cf) != first_line
             || write_io_net_abi_inline(cf) != 0
             || write_fs_path_map_error_abi_inline(cf) != 0
-            || fwrite(out_buf->data + first_line, 1, (size_t)out_buf->len - first_line, cf) != (size_t)out_buf->len - first_line) {
+            || fwrite(out_buf->data + first_line, 1, (size_t)out_buf->length - first_line, cf) != (size_t)out_buf->length - first_line) {
             if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
             free(out_buf);
             pipeline_dep_ctx_heap_destroy(pctx);
@@ -6005,7 +6040,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                 driver_unlink_failed_output(out_path);
                 diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                              "cc failed, keeping generated C: %s", tmp_c);
-            } else if (!getenv("XLANG_KEEP_C")) {
+            } else if (!link_abi_getenv("XLANG_KEEP_C")) {
                 unlink(tmp_c);
             } else {
                 diag_reportf(NULL, 0, 0, "note", NULL,
@@ -6052,7 +6087,7 @@ int driver_lib_root_ptr_usable(const char *p) {
  * 参数：root_buf 输出缓冲（至少 512 字节）。
  */
 void driver_lib_root_default(char root_buf[512]) {
-    const char *def = getenv("XLANG_LIB");
+    const char *def = link_abi_getenv("XLANG_LIB");
     root_buf[0] = '.';
     root_buf[1] = '\0';
     if (!driver_lib_root_ptr_usable(def))
@@ -6241,7 +6276,7 @@ int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, ui
     p.target = target && target[0] ? (const char *)target : NULL;
     p.opt_level = (opt_level && opt_level[0]) ? (const char *)opt_level : "2";
     p.use_lto = use_lto != 0;
-    if (!p.use_lto && getenv("XLANG_LTO") && strcmp(getenv("XLANG_LTO"), "1") == 0)
+    if (!p.use_lto && link_abi_getenv("XLANG_LTO") && strcmp(link_abi_getenv("XLANG_LTO"), "1") == 0)
         p.use_lto = 1;
     /* check 走本进程 C typeck，避免子进程 xlang-c 与双 -L 导致 core.* import 误解析。
      * build_xlang_asm 单模块 -o（XLANG_ASM_ENTRY_MODULE_ONLY）：须走 asm，勿 exec xlang-c（其不支持 -backend asm）。
@@ -7045,9 +7080,9 @@ void driver_print_usage_c(void) {
      * Forward-declare isatty so the body stays identical to driver_print_usage_write
      * in runtime_driver_abi.from_x.c (AGENTS.md §4 — no dual authority drift). */
     extern int isatty(int fd);
-    const char *no_color = getenv("NO_COLOR");
-    const char *force = getenv("CLICOLOR_FORCE");
-    const char *xlang_force = getenv("XLANG_FORCE_COLOR");
+    const char *no_color = link_abi_getenv("NO_COLOR");
+    const char *force = link_abi_getenv("CLICOLOR_FORCE");
+    const char *xlang_force = link_abi_getenv("XLANG_FORCE_COLOR");
     int use_color;
     if (no_color != (const char *)0) {
         use_color = 0;
@@ -7285,7 +7320,8 @@ int driver_run_test(int argc, char **argv) {
     snprintf(cmd, sizeof cmd, "cd \"%s\" && bash \"%s\"", root, script);
     diag_reportf(NULL, 0, 0, "info", NULL,
                  "test script: %s", script);
-    return runtime_test_status_to_rc(script, system(cmd));
+    /* wave247 G.7: link_abi_system (not raw system); ≡ rt_run_exec pure/twin (wave226). */
+    return runtime_test_status_to_rc(script, link_abi_system(cmd));
 }
 #else
 int driver_run_test(int argc, char **argv);
@@ -7429,13 +7465,17 @@ int driver_run_x_emit_c_extern_via_cparser(const char *input_path) {
     fprintf(stdout, "#undef htonl\n#undef htons\n#undef ntohl\n#undef ntohs\n");
     fprintf(stdout, "#ifdef _WIN32\n#define XLANG_LIB_WEAK\n#else\n#define XLANG_LIB_WEAK __attribute__((weak))\n#endif\n");
     codegen_emit_builtin_inline_decls(stdout);
+    /* wave254 G.7: user C template uses link_abi_getenv face (not raw libc getenv).
+     * Product -o resolves via panic strong / user_env weak (wave251–253).
+     * PLATFORM: SHARED — single face name in emitted user C. */
+    fprintf(stdout, "extern char *link_abi_getenv(const char *name);\n");
     fprintf(stdout, "extern int getpid(void);\n");
     fprintf(stdout, "static inline void xlang_crash_evidence_collect_inline(int has_msg, int msg_val) {\n");
-    fprintf(stdout, "  const char *_ev = getenv(\"XLANG_CRASH_EVIDENCE\");\n");
+    fprintf(stdout, "  const char *_ev = link_abi_getenv(\"XLANG_CRASH_EVIDENCE\");\n");
     fprintf(stdout, "  if (!_ev || _ev[0] != '1') return;\n");
     fprintf(stdout, "  int _pid = (int)getpid();\n");
     fprintf(stdout, "  fprintf(stderr, \"note: crash evidence: panic=%%d msg=%%d frames=0 pid=%%d\\n\", has_msg, msg_val, _pid);\n");
-    fprintf(stdout, "  const char *_dir = getenv(\"XLANG_CRASH_EVIDENCE_DIR\");\n");
+    fprintf(stdout, "  const char *_dir = link_abi_getenv(\"XLANG_CRASH_EVIDENCE_DIR\");\n");
     fprintf(stdout, "  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, \"%%s/xlang-crash-%%d.txt\", _dir, _pid);\n");
     fprintf(stdout, "    FILE *_f = fopen(_p, \"w\"); if (_f) { fprintf(_f, \"panic_has_msg=%%d\\npanic_msg=%%d\\nframes=0\\npid=%%d\\n\", has_msg, msg_val, _pid); fclose(_f);\n");
     fprintf(stdout, "      fprintf(stderr, \"note: crash evidence: bundle=%%s\\n\", _p); } } }\n");
@@ -7449,11 +7489,11 @@ int driver_run_x_emit_c_extern_via_cparser(const char *input_path) {
         fprintf(stdout, "extern int32_t xlang_io_register(uint8_t *ptr, size_t len, size_t handle);\n");
         fprintf(stdout, "extern int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
         fprintf(stdout, "extern int32_t xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
-        fprintf(stdout, "typedef struct { void *ptr; size_t len; size_t handle; } xlang_buffer_abi_t;\n");
-        fprintf(stdout, "static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n");
-        fprintf(stdout, "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
-        fprintf(stdout, "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
-        fprintf(stdout, "typedef struct { uint8_t *ptr; size_t len; size_t handle; } xlang_batch_buf_t;\n");
+        fprintf(stdout, "typedef struct { void *ptr; size_t length; size_t handle; } xlang_buffer_abi_t;\n");
+        fprintf(stdout, "static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->length, b->handle); }\n");
+        fprintf(stdout, "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_read((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }\n");
+        fprintf(stdout, "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_write((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }\n");
+        fprintf(stdout, "typedef struct { uint8_t *ptr; size_t length; size_t handle; } xlang_batch_buf_t;\n");
         fprintf(stdout, "__attribute__((weak)) int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }\n");
         fprintf(stdout, "static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const xlang_batch_buf_t *)(uintptr_t)bufs, nr); }\n");
     }
@@ -7819,14 +7859,14 @@ int driver_run_x_emit_c(void) {
                 ec_dep = xlang_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                                                              (const uint8_t *)dep_src, dep_len);
             } else {
-                if (getenv("XLANG_DEBUG_PIPE"))
+                if (link_abi_getenv("XLANG_DEBUG_PIPE"))
                     diag_reportf(NULL, 0, 0, "note", NULL,
                                  "pipeline debug: dep prerun begin j=%d path=%s",
                                  j, dep_paths[j] ? dep_paths[j] : "?");
                 ec_dep = xlang_pipeline_dep_prerun_typeck_only(dep_modules[j], dep_arenas[j],
                                                               (const uint8_t *)dep_src, dep_len,
                                                               (void *)dep_out, (void *)one_ctx);
-                if (getenv("XLANG_DEBUG_PIPE"))
+                if (link_abi_getenv("XLANG_DEBUG_PIPE"))
                     diag_reportf(NULL, 0, 0, "note", NULL,
                                  "pipeline debug: dep prerun end j=%d path=%s rc=%d",
                                  j, dep_paths[j] ? dep_paths[j] : "?", ec_dep);
@@ -7876,21 +7916,21 @@ int driver_run_x_emit_c(void) {
         memset(arena, 0, arena_sz);
         memset(module, 0, module_sz);
         int ec = xlang_pipeline_run_x_pipeline_large_stack(module, arena, (uint8_t *)src, src_len, (void *)out_buf, (void *)pctx_e);
-        if (ec == 0 && out_buf->len > 0) {
+        if (ec == 0 && out_buf->length > 0) {
             /* 平台差异诊断（分析文档 4.4）：main 段输出过短时打 stderr，便于 CI/本地确认是 len 错误还是内容只写了数字 */
-            if (out_buf->len < 20) {
+            if (out_buf->length < 20) {
                 char hexbuf[16 * 3 + 1];
                 int hexlen = 0;
                 hexbuf[0] = '\0';
-                for (int di = 0; di < out_buf->len && di < 16 && hexlen + 4 < (int)sizeof(hexbuf); di++) {
+                for (int di = 0; di < out_buf->length && di < 16 && hexlen + 4 < (int)sizeof(hexbuf); di++) {
                     hexlen += snprintf(hexbuf + hexlen, sizeof(hexbuf) - (size_t)hexlen,
                                        "%s%02x", di == 0 ? "" : " ", (unsigned char)out_buf->data[di]);
                 }
                 diag_reportf(input_path, 0, 0, "note", NULL,
-                             "-x -E diagnostic: out_buf.len=%d first bytes: %s",
-                             (int)out_buf->len, hexbuf);
+                             "-x -E diagnostic: out_buf.length=%d first bytes: %s",
+                             (int)out_buf->length, hexbuf);
             }
-            fwrite(out_buf->data, 1, (size_t)out_buf->len, stdout);
+            fwrite(out_buf->data, 1, (size_t)out_buf->length, stdout);
             fflush(stdout);
             for (int j = n_deps - 1; j >= 0; j--) { free(dep_arenas[j]); free(dep_modules[j]); }
             while (n_deps > 0) {
@@ -7909,7 +7949,7 @@ int driver_run_x_emit_c(void) {
                 diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP003, NULL,
                              ".x pipeline failed for '%s'",
                              input_path ? input_path : "?");
-            } else if (out_buf->len <= 0) {
+            } else if (out_buf->length <= 0) {
                 if (driver_get_module_num_funcs(module) <= 0) {
                     if (!runtime_report_precise_parse_failure_if_known(input_path, src, src_len)) {
                         diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
@@ -7920,14 +7960,14 @@ int driver_run_x_emit_c(void) {
                 }
                 /* CI / cross-host: distinguish -x -E 「只吐 0」与真失败——空缓冲视为 codegen 路径未写入 */
                 diag_reportf_with_code(input_path, 0, 0, "codegen error", XLANG_DIAG_CODE_CODEGEN_CG004, NULL,
-                             "-x -E pipeline succeeded but codegen buffer is empty (ec=0 out_buf.len=%d); "
+                             "-x -E pipeline succeeded but codegen buffer is empty (ec=0 out_buf.length=%d); "
                              "check typeck/codegen/pipeline CodegenOutBuf",
-                             (int)out_buf->len);
+                             (int)out_buf->length);
             }
         }
-        int emit_ret = (ec != 0 || out_buf->len <= 0) ? 1 : 0;
+        int emit_ret = (ec != 0 || out_buf->length <= 0) ? 1 : 0;
 x_emit_c_done:
-        if (ec == 0 && out_buf->len <= 0)
+        if (ec == 0 && out_buf->length <= 0)
             emit_ret = 1;
         free(out_buf);
         pipeline_dep_ctx_heap_destroy(pctx_e);
@@ -8078,6 +8118,7 @@ int runtime_run_fmt_c(int argc, char **argv) {
 
 /** xlang test（C 前端）：在仓库根目录执行 bash 测试脚本。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* wave247 G.7: shell via link_abi_system (not raw system); same face as driver_run_test. */
 int runtime_run_test_c(int argc, char **argv) {
     const char *root = xlang_repo_root_from_argv0(argc > 0 ? argv[0] : NULL);
     const char *rel = "tests/run-all.sh";
@@ -8092,7 +8133,7 @@ int runtime_run_test_c(int argc, char **argv) {
     snprintf(cmd, sizeof cmd, "cd \"%s\" && bash \"%s\"", root, script);
     diag_reportf(NULL, 0, 0, "info", NULL,
                  "test script: %s", script);
-    return runtime_test_status_to_rc(script, system(cmd));
+    return runtime_test_status_to_rc(script, link_abi_system(cmd));
 }
 
 

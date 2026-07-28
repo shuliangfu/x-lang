@@ -12,6 +12,32 @@ void parser_asm_skip_one_struct_into_slice_c(struct parser_asm_lexer *out, struc
 void parser_asm_skip_one_function_full_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
                                                     struct parser_asm_slice_u8 *source);
 
+/**
+ * wave422/423 Cap residual pure: hard P010 for illegal binding forms.
+ * Root (wave422): missing COLON returned false with no diag → function dropped → soft P001
+ * "no functions" / BLD001 missing _main. docs/06 bans let type inference.
+ * wave423: const may omit `: Type` when followed by `= init` (type inferred in typeck);
+ * this helper is only called for illegal forms (let without `:`, const without `:`/`=`).
+ * G.7 authority: this helper; parse_body_lets_into + top_level_let call it.
+ * @param line 1-based source line of the unexpected token after the binding name
+ * @param col  1-based column
+ * @param is_let 1 = let (docs ban inference); 0 = const (needs `: Type` or `= init`)
+ * PLATFORM: SHARED parse.
+ */
+void parser_report_untyped_binding_p010_c(int32_t line, int32_t col, int32_t is_let) {
+  extern void diag_report_with_code(const char *file, int32_t line, int32_t col, const char *kind,
+                                    const char *code, const char *msg, const char *detail);
+  if (is_let != 0) {
+    diag_report_with_code(NULL, line, col, "parse error", "P010",
+                          "let requires type annotation (no type inference; write let name: Type = ...)",
+                          NULL);
+  } else {
+    diag_report_with_code(NULL, line, col, "parse error", "P010",
+                          "const requires ': Type = init' or '= init' (type inferred from init)",
+                          NULL);
+  }
+}
+
 /* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t parser_asm_is_fn_sig_scalar_type_token_c(int32_t kind) {
   return kind == (int32_t)TOKEN_I32 || kind == (int32_t)TOKEN_I64 || kind == (int32_t)TOKEN_BOOL

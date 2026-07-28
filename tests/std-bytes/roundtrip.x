@@ -14,7 +14,7 @@ function main(): i32 {
     bytes.deinit(&b);
     return 1;
   }
-  if (bytes.len(b) != 3 || bytes.capacity(b) < 3) {
+  if (bytes.length(b) != 3 || bytes.capacity(b) < 3) {
     bytes.deinit(&b);
     return 2;
   }
@@ -44,18 +44,18 @@ function main(): i32 {
     bytes.deinit(&b);
     return 7;
   }
-  if (bytes.len(b) != 4) {
+  if (bytes.length(b) != 4) {
     bytes.deinit(&b);
     return 8;
   }
 
   let v: StrView = bytes.as_view(b);
-  if (string.len(v) != 4) {
+  if (string.length(v) != 4) {
     bytes.deinit(&b);
     return 9;
   }
   let b2: Bytes = bytes.from_view(v);
-  if (bytes.len(b2) != 4) {
+  if (bytes.length(b2) != 4) {
     bytes.deinit(&b2);
     bytes.deinit(&b);
     return 10;
@@ -63,13 +63,13 @@ function main(): i32 {
   bytes.deinit(&b2);
 
   let buf: Buffer = bytes.as_buffer(b);
-  if ((buf.len as i32) != 4) {
+  if ((buf.length as i32) != 4) {
     bytes.deinit(&b);
     return 11;
   }
 
   bytes.clear(&b);
-  if (bytes.len(b) != 0) {
+  if (bytes.length(b) != 0) {
     bytes.deinit(&b);
     return 12;
   }
@@ -77,7 +77,7 @@ function main(): i32 {
     bytes.deinit(&b);
     return 13;
   }
-  if (bytes.len(b) != 2) {
+  if (bytes.length(b) != 2) {
     bytes.deinit(&b);
     return 14;
   }
@@ -96,7 +96,7 @@ function main(): i32 {
     bytes.deinit(&b);
     return 16;
   }
-  if (bytes.len(b) != 66) {
+  if (bytes.length(b) != 66) {
     bytes.deinit(&b);
     return 17;
   }

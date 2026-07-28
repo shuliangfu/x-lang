@@ -59,6 +59,16 @@ struct ast_PipelineDepCtx {
     /** M-3 typeck：与 ast.x PipelineDepCtx.typeck_scope_region_* 对齐。 */
     int32_t typeck_scope_region_len;
     uint8_t typeck_scope_region_label[64];
+    /*
+     * wave445 C5: monomorphization type-substitution state for generic function
+     * body emit. When mono_active=1, emit_type replaces any type_ref matching
+     * mono_generic_type_refs[i] with mono_concrete_type_refs[i] (T -> concrete).
+     * PLATFORM: SHARED — layout authority; .x mirrors in emit.x + ast.x must match.
+     */
+    int32_t mono_active;                /* 0 = inactive, 1 = mono body emit active */
+    int32_t mono_num_types;             /* count of generic type params to substitute (1..8) */
+    int32_t mono_generic_type_refs[8];  /* type refs to replace (T, U, ...) */
+    int32_t mono_concrete_type_refs[8]; /* concrete type refs to use (A, B, ...) */
 };
 
 /** pipeline dep 全局槽数量（与 pipeline.x / runtime 预跑 dep 上限一致）。 */

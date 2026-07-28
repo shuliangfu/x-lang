@@ -20,7 +20,7 @@ function main(): i32 {
   let sock_fd: i32 = unsafe { net_udp_bind_c(loopback, 0) };
   if (sock_fd < 0) { return 1; }
   let recv_buf: u8[64] = 0;
-  let recv_io: Buffer = Buffer { ptr: &recv_buf[0], len: 64, handle: 0 };
+  let recv_io: Buffer = Buffer { ptr: &recv_buf[0], length: 64, handle: 0 };
   let out_size0: i32 = 0;
   let out_addr0: u32 = 0;
   let out_port0: u32 = 0;
@@ -29,7 +29,7 @@ function main(): i32 {
   let send_port0: u32 = 9;
   let payload: u8[4] = [1, 2, 3, 4];
   /* See implementation. */
-  let send_io: Buffer = Buffer { ptr: &payload[0], len: 4, handle: 0 };
+  let send_io: Buffer = Buffer { ptr: &payload[0], length: 4, handle: 0 };
   let n_send: i32 = unsafe { net_udp_send_many_buf_c(sock_fd, &send_addr0, &send_port0, &send_io, 1) };
   let c: i32 = unsafe { net_close_socket_c(sock_fd) };
   if (c != 0) { return 2; }

@@ -13,21 +13,21 @@ function main(): i32 {
   if (string.string_empty() != 0) { return 1; }
   
   let s: String = string.new();
-  if (string.len(s) != 0) { return 3; }
+  if (string.length(s) != 0) { return 3; }
   if (string.is_empty(s) != 1) { return 4; }
   
   let one_byte: u8[1] = [97];
   let s1: String = string.string_from_slice(&one_byte[0], 1);
-  if (string.len(s1) != 1) { return 5; }
+  if (string.length(s1) != 1) { return 5; }
   if (string.string_get(s1, 0) != 97) { return 6; }
   
   let slice_empty: u8[1] = [0];
   let s2: String = string.string_from_slice(&slice_empty[0], 0);
-  if (string.len(s2) != 0) { return 7; }
+  if (string.length(s2) != 0) { return 7; }
   
   let slice_ab: u8[3] = [97, 98, 0];
   let s3: String = string.string_from_slice(&slice_ab[0], 2);
-  if (string.len(s3) != 2) { return 8; }
+  if (string.length(s3) != 2) { return 8; }
   if (string.string_get(s3, 0) != 97 || string.string_get(s3, 1) != 98) { return 9; }
   
   let s4: String = string.string_from_slice(&slice_ab[0], 2);
@@ -55,7 +55,7 @@ function main(): i32 {
   if (string.string_contains(h, &no[0], 2) != 0) { return 20; }
   
   let v: StrView = string.view(&hay[0], 5);
-  if (string.len(v) != 5) { return 21; }
+  if (string.length(v) != 5) { return 21; }
   if (string.is_empty(v) != 0) { return 22; }
   let v0: StrView = string.view(&hay[0], 0);
   if (string.is_empty(v0) != 1) { return 23; }

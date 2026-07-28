@@ -23,12 +23,12 @@ function main(): i32 {
   if (resp.chunked != 0) { return 7; }
 
   let view: HttpBodyView = http.response_body_view(&line[0], resp);
-  if (view.len != 4) { return 8; }
+  if (view.length != 4) { return 8; }
 
-  let owned: HttpBodyOwned = HttpBodyOwned { ptr: 0, len: 0 };
+  let owned: HttpBodyOwned = HttpBodyOwned { ptr: 0, length: 0 };
   let blen: i32 = http.response_body_owned(&line[0], resp, &owned);
   if (blen != 4) { return 9; }
-  if (owned.len != 4) { return 10; }
+  if (owned.length != 4) { return 10; }
   http.body_owned_free(owned);
 
   let url: u8[32] = [104, 116, 116, 112, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111,

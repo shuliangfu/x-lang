@@ -203,10 +203,10 @@ export function set_blocking(stream: TcpStream, blocking: i32): i32 {
 export function read_batch(stream: TcpStream, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, n: i32, timeout_ms: u32): i32 {
   let h: usize = io_backend.handle_from_fd(stream.fd, 0);
   let bufs: Buffer[4] = [
-    Buffer { ptr: p0, len: l0, handle: h },
-    Buffer { ptr: p1, len: l1, handle: h },
-    Buffer { ptr: p2, len: l2, handle: h },
-    Buffer { ptr: p3, len: l3, handle: h }
+    Buffer { ptr: p0, length: l0, handle: h },
+    Buffer { ptr: p1, length: l1, handle: h },
+    Buffer { ptr: p2, length: l2, handle: h },
+    Buffer { ptr: p3, length: l3, handle: h }
   ];
   return driver.submit_read_batch(bufs, n, timeout_ms);
 }
@@ -228,10 +228,10 @@ export function read_batch(stream: TcpStream, p0: *u8, l0: usize, p1: *u8, l1: u
 export function write_batch(stream: TcpStream, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, n: i32, timeout_ms: u32): i32 {
   let h: usize = io_backend.handle_from_fd(stream.fd, 0);
   let bufs: Buffer[4] = [
-    Buffer { ptr: p0, len: l0, handle: h },
-    Buffer { ptr: p1, len: l1, handle: h },
-    Buffer { ptr: p2, len: l2, handle: h },
-    Buffer { ptr: p3, len: l3, handle: h }
+    Buffer { ptr: p0, length: l0, handle: h },
+    Buffer { ptr: p1, length: l1, handle: h },
+    Buffer { ptr: p2, length: l2, handle: h },
+    Buffer { ptr: p3, length: l3, handle: h }
   ];
   return driver.submit_write_batch(bufs, n, timeout_ms);
 }
@@ -723,7 +723,7 @@ export function read_ctx(stream: TcpStream, ptr: *u8, len: usize, ctx: context.C
   if (tm < 0) {
     return tm;
   }
-  let buf: Buffer = Buffer { ptr: ptr, len: len, handle: io_backend.handle_from_fd(stream.fd, 0) };
+  let buf: Buffer = Buffer { ptr: ptr, length: len, handle: io_backend.handle_from_fd(stream.fd, 0) };
   return driver.submit_read(buf, tm as u32);
 }
 /** Exported function `write_ctx`.
@@ -739,7 +739,7 @@ export function write_ctx(stream: TcpStream, ptr: *u8, len: usize, ctx: context.
   if (tm < 0) {
     return tm;
   }
-  let buf: Buffer = Buffer { ptr: ptr, len: len, handle: io_backend.handle_from_fd(stream.fd, 0) };
+  let buf: Buffer = Buffer { ptr: ptr, length: len, handle: io_backend.handle_from_fd(stream.fd, 0) };
   return driver.submit_write(buf, tm as u32);
 }
 // See implementation.

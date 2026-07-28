@@ -24,6 +24,10 @@
 #include "runtime_driver_abi.h"
 #include "runtime_pipeline_abi.h"
 #include "runtime_link_abi.h"
+/* wave238 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED — cold seed twin uses same face as product hybrid pure .x peers. */
+extern char *link_abi_getenv(const char *name);
 #include "runtime_proc_abi.h"
 #include "token.h"
 
@@ -51,7 +55,7 @@
 #define X_CODEGEN_OUTBUF_CAP (9 * 1024 * 1024)
 struct codegen_CodegenOutBuf {
   unsigned char data[X_CODEGEN_OUTBUF_CAP];
-  int32_t len;
+  int32_t length;
 };
 
 struct parser_ParseIntoResult {
@@ -416,7 +420,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                         if (cc_ok != 0)
                             diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                                          "cc failed, keeping generated C: %s", tmp_lib_c);
-                        else if (!getenv("XLANG_KEEP_C"))
+                        else if (!link_abi_getenv("XLANG_KEEP_C"))
                             unlink(tmp_lib_c);
                         while (n_all--) {
                             free(all_dep_paths[n_all]);
@@ -606,7 +610,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                     driver_unlink_failed_output(out_path);
                     diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                                  "cc failed, keeping generated C: %s", tmp_c);
-                } else if (!getenv("XLANG_KEEP_C"))
+                } else if (!link_abi_getenv("XLANG_KEEP_C"))
                     unlink(tmp_c);
                 while (n_all--) {
                     free(all_dep_paths[n_all]);
@@ -625,7 +629,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
      * 勿在此拒掉（否则 -E asm.x / build_seed_asm_host 无法冷启动 partial）。
      */
 #endif /* !XLANG_NO_C_FRONTEND */
-    if (getenv("XLANG_DUMP_PREP")) {
+    if (link_abi_getenv("XLANG_DUMP_PREP")) {
         if (xlang_write_path_bytes("/tmp/xlang_prep_entry.bin", src, src_len) == 0) {
             diag_reportf(input_path, 0, 0, "note", NULL,
                          "dumped prep entry (%zu bytes) to /tmp/xlang_prep_entry.bin", src_len);
@@ -688,7 +692,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     }
     parser_parse_into_set_main_index(module, pr.main_idx);
     int32_t n_imports = parser_get_module_num_imports(module);
-    if (getenv("XLANG_DEBUG_PIPE"))
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: driver post-parse_into_buf num_funcs=%d n_imports=%d pr_ok=%d pr_main_idx=%d src_len=%zu",
                      driver_get_module_num_funcs(module), (int)n_imports, (int)pr.ok, (int)pr.main_idx, src_len);
@@ -709,7 +713,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
             free(src);
             return 1;
         }
-        if (getenv("XLANG_DEBUG_PIPE")) {
+        if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "pipeline debug: n_deps=%d", n_deps);
             for (int dj = 0; dj < n_deps; dj++)
@@ -904,7 +908,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
      * 隐式 padding 校验会变成空操作（tests/run-struct.sh padding_no_allow）。
      * import 已解析完毕；清零后 pipeline 从同一预处理源码重建 module/arena。
      */
-    if (getenv("XLANG_DEBUG_PIPE"))
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: before entry memset arena_sz=%zu", arena_sz);
     memset(arena, 0, arena_sz);
@@ -914,7 +918,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     if (n_deps > 0 && !driver_check_only_get() && want_asm_backend &&
         driver_deps_are_std_core_closure_only(dep_paths, n_deps))
         pctx->asm_entry_module_only = 1;
-    if (getenv("XLANG_DEBUG_PIPE"))
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: before pipeline_run entry=%s src_len=%zu",
                      input_path ? input_path : "?", (size_t)src_slice.length);
@@ -966,19 +970,19 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
 #endif
     int ec = xlang_pipeline_run_x_pipeline_large_stack(module, arena, src_slice.data, (size_t)src_slice.length, (void *)out_buf, (void *)pctx);
     driver_x_pipeline_skip_typeck_set(0);
-    if (getenv("XLANG_DEBUG_PIPE"))
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: after pipeline_run ec=%d", ec);
     driver_dep_seeded_clear_all();
     codegen_set_dep_slots_for_x_pipeline(NULL, NULL, 0);
     for (int j = n_deps - 1; j >= 0; j--) { free(dep_arenas[j]); free(dep_modules[j]); }
     while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
-    if (ec != 0 || (!driver_check_only_get() && out_buf->len == 0)) {
+    if (ec != 0 || (!driver_check_only_get() && out_buf->length == 0)) {
         diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP003, NULL,
                      "pipeline failed for '%s' (ec=%d, out_len=%d)",
-                     input_path, ec, (int)out_buf->len);
-        if (getenv("XLANG_DEBUG_PIPE") && out_buf->len > 0) {
-            size_t show = (size_t)out_buf->len > 800u ? 800u : (size_t)out_buf->len;
+                     input_path, ec, (int)out_buf->length);
+        if (link_abi_getenv("XLANG_DEBUG_PIPE") && out_buf->length > 0) {
+            size_t show = (size_t)out_buf->length > 800u ? 800u : (size_t)out_buf->length;
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "pipeline debug: out (first %zu bytes):\n%.*s", show, (int)show,
                          (const char *)out_buf->data);
@@ -1035,7 +1039,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     }
     /* 无 -o、将生成的 C 写 stdout 之前：stderr 烟测两行，与 driver_run_x_emit_x 及 run-std/run-stdlib-import 的 grep 一致。 */
     if (emit_to_stdout)
-        driver_print_x_smoke_summary(module, (size_t)out_buf->len);
+        driver_print_x_smoke_summary(module, (size_t)out_buf->length);
     free(arena);
     free(module);
     free(src);
@@ -1043,9 +1047,9 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
         /* 内联 std.io / std.net / fs / path / map / error ABI；不再 #include std/*_abi.h。
          * 若 pipeline 产出首字符非 # 且非注释（如泛型+import 时首行为 extern ...），先写最小 preamble 避免 cc 报 unknown type 'int32_t'。 */
         size_t first_line = 0;
-        while (first_line < (size_t)out_buf->len && out_buf->data[first_line] != '\n') first_line++;
-        if (first_line < (size_t)out_buf->len) first_line++;
-        int need_preamble = (out_buf->len > 0 && out_buf->data[0] != '#' && (out_buf->len < 2 || out_buf->data[0] != '/' || out_buf->data[1] != '*'));
+        while (first_line < (size_t)out_buf->length && out_buf->data[first_line] != '\n') first_line++;
+        if (first_line < (size_t)out_buf->length) first_line++;
+        int need_preamble = (out_buf->length > 0 && out_buf->data[0] != '#' && (out_buf->length < 2 || out_buf->data[0] != '/' || out_buf->data[1] != '*'));
         if (need_preamble) {
             static const char min_preamble[] = "/* generated */\n#include <stdint.h>\n#include <stddef.h>\n#include <stdlib.h>\n#include <stdio.h>\n#include <string.h>\n";
             if (fwrite(min_preamble, 1, sizeof(min_preamble) - 1, cf) != (size_t)(sizeof(min_preamble) - 1)) {
@@ -1058,7 +1062,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
         if (fwrite(out_buf->data, 1, first_line, cf) != first_line
             || write_io_net_abi_inline(cf) != 0
             || write_fs_path_map_error_abi_inline(cf) != 0
-            || fwrite(out_buf->data + first_line, 1, (size_t)out_buf->len - first_line, cf) != (size_t)out_buf->len - first_line) {
+            || fwrite(out_buf->data + first_line, 1, (size_t)out_buf->length - first_line, cf) != (size_t)out_buf->length - first_line) {
             if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
             free(out_buf);
             pipeline_dep_ctx_heap_destroy(pctx);
@@ -1130,7 +1134,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                 driver_unlink_failed_output(out_path);
                 diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                              "cc failed, keeping generated C: %s", tmp_c);
-            } else if (!getenv("XLANG_KEEP_C")) {
+            } else if (!link_abi_getenv("XLANG_KEEP_C")) {
                 unlink(tmp_c);
             } else {
                 diag_reportf(NULL, 0, 0, "note", NULL,

@@ -412,6 +412,6 @@ editors/vscode/
 
 ## Links
 
-- **Repository**: <https://github.com/shuliangfu/xlang>
+- **Repository**: <https://github.com/shuliangfu/x-lang>
 - **License**: Apache-2.0
 - **Roadmap**: See [完善功能.md](./完善功能.md) for feature completion status and LSP enhancement plans (post-bootstrap)

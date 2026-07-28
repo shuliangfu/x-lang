@@ -36,7 +36,7 @@ allow(padding) struct Map_i32_i32 {
   vals: *i32;
   occupied: *u8;
   cap: i32;
-  len: i32;
+  length: i32;
 }
 /** Exported function `slot`.
  * Implements `slot`.
@@ -65,7 +65,7 @@ export function find(m: Map_i32_i32, key: i32): i32 {
  */
 export function new(_tag: i32): Map_i32_i32 {
   let _: i32 = _tag;
-  return Map_i32_i32 { keys: 0, vals: 0, occupied: 0, cap: 0, len: 0 };
+  return Map_i32_i32 { keys: 0, vals: 0, occupied: 0, cap: 0, length: 0 };
 }
 /** Exported function `with_capacity`.
  * Implements `with_capacity`.
@@ -79,7 +79,7 @@ export function with_capacity(m: *Map_i32_i32, capacity: i32): i32 {
     m.vals = 0;
     m.occupied = 0;
     m.cap = 0;
-    m.len = 0;
+    m.length = 0;
     return 0;
   }
   let k: *i32 = heap_libc.heap_alloc_i32_c(capacity);
@@ -100,7 +100,7 @@ export function with_capacity(m: *Map_i32_i32, capacity: i32): i32 {
   m.vals = v;
   m.occupied = o;
   m.cap = capacity;
-  m.len = 0;
+  m.length = 0;
   return 0;
 }
 /** Exported function `grow`.
@@ -115,7 +115,7 @@ export function grow(m: *Map_i32_i32, new_cap: i32): i32 {
   let old_vals: *i32 = m.vals;
   let old_occupied: *u8 = m.occupied;
   let old_cap: i32 = m.cap;
-  let old_len: i32 = m.len;
+  let old_len: i32 = m.length;
   if (with_capacity(m, new_cap) != 0) { return -1; }
   let i: i32 = 0;
   while (i < old_cap) {
@@ -140,7 +140,7 @@ export function reserve_one(m: *Map_i32_i32): i32 {
   if (m.cap <= 0) {
     return with_capacity(m, 8);
   }
-  if (m.len + 1 <= m.cap * 3 / 4) { return 0; }
+  if (m.length + 1 <= m.cap * 3 / 4) { return 0; }
   return grow(m, m.cap * 2);
 }
 /** Exported function `insert`.
@@ -160,7 +160,7 @@ export function insert(m: *Map_i32_i32, key: i32, value: i32): i32 {
       m.keys[i] = key;
       m.vals[i] = value;
       m.occupied[i] = 1;
-      m.len = m.len + 1;
+      m.length = m.length + 1;
       return 0;
     }
     if (m.keys[i] == key) {
@@ -209,7 +209,7 @@ export function remove(m: *Map_i32_i32, key: i32): i32 {
   unsafe { idx = find(*m, key); }
   if (idx < 0) { return 0; }
   m.occupied[idx] = 0;
-  m.len = m.len - 1;
+  m.length = m.length - 1;
   return 1;
 }
 /** Exported function `len`.
@@ -217,20 +217,20 @@ export function remove(m: *Map_i32_i32, key: i32): i32 {
  * @param m Map_i32_i32
  * @return i32
  */
-export function len(m: Map_i32_i32): i32 { return m.len; }
+export function length(m: Map_i32_i32): i32 { return m.length; }
 /** Exported function `len_ptr`.
  * Implements `len_ptr`.
  * @param m *Map_i32_i32
  * @return i32
  */
-export function len_ptr(m: *Map_i32_i32): i32 { return m.len; }
+export function len_ptr(m: *Map_i32_i32): i32 { return m.length; }
 /** Exported function `is_empty`.
  * Query helper `is_empty`.
  * @param m Map_i32_i32
  * @return i32
  */
 export function is_empty(m: Map_i32_i32): i32 {
-  if (m.len <= 0) { return 1; }
+  if (m.length <= 0) { return 1; }
   return 0;
 }
 /** Exported function `clear`.
@@ -244,7 +244,7 @@ export function clear(m: *Map_i32_i32): void {
     m.occupied[i] = 0;
     i = i + 1;
   }
-  m.len = 0;
+  m.length = 0;
 }
 /** Exported function `reserve`.
  * Implements `reserve`.
@@ -266,7 +266,7 @@ export function deinit(m: *Map_i32_i32): void {
   if (m.vals != 0) { heap_libc.heap_free_i32_c(m.vals); m.vals = 0; }
   if (m.occupied != 0) { heap_libc.heap_free_u8_c(m.occupied); m.occupied = 0; }
   m.cap = 0;
-  m.len = 0;
+  m.length = 0;
 }
 /* See implementation. */
 export struct MapIterItem_i32 {
@@ -318,7 +318,7 @@ export function iter_next(it: *MapIter_i32_i32): MapIterItem_i32 {
  */
 export function load_factor_pct(m: Map_i32_i32): i32 {
   if (m.cap <= 0) { return 0; }
-  return m.len * 100 / m.cap;
+  return m.length * 100 / m.cap;
 }
 
 /** Exported function `empty_size`.
@@ -335,7 +335,7 @@ allow(padding) struct Map_u64_i32 {
   vals: *i32;
   occupied: *u8;
   cap: i32;
-  len: i32;
+  length: i32;
 }
 
 /** Exported function `slot`.
@@ -377,7 +377,7 @@ export function find(m: Map_u64_i32, key: u64): i32 {
  */
 export function new(_tag: u64): Map_u64_i32 {
   let _: u64 = _tag;
-  return Map_u64_i32 { keys: 0, vals: 0, occupied: 0, cap: 0, len: 0 };
+  return Map_u64_i32 { keys: 0, vals: 0, occupied: 0, cap: 0, length: 0 };
 }
 
 /** Exported function `with_capacity`.
@@ -392,7 +392,7 @@ export function with_capacity(m: *Map_u64_i32, capacity: i32): i32 {
     m.vals = 0;
     m.occupied = 0;
     m.cap = 0;
-    m.len = 0;
+    m.length = 0;
     return 0;
   }
   let k: *u64 = heap_libc.heap_alloc_u64_c(capacity);
@@ -413,7 +413,7 @@ export function with_capacity(m: *Map_u64_i32, capacity: i32): i32 {
   m.vals = v;
   m.occupied = o;
   m.cap = capacity;
-  m.len = 0;
+  m.length = 0;
   return 0;
 }
 
@@ -454,7 +454,7 @@ export function reserve_one(m: *Map_u64_i32): i32 {
   if (m.cap <= 0) {
     return with_capacity(m, 8);
   }
-  if (m.len + 1 <= m.cap * 3 / 4) { return 0; }
+  if (m.length + 1 <= m.cap * 3 / 4) { return 0; }
   return grow(m, m.cap * 2);
 }
 
@@ -475,7 +475,7 @@ export function insert(m: *Map_u64_i32, key: u64, value: i32): i32 {
       m.keys[i] = key;
       m.vals[i] = value;
       m.occupied[i] = 1;
-      m.len = m.len + 1;
+      m.length = m.length + 1;
       return 0;
     }
     if (m.keys[i] == key) {
@@ -527,7 +527,7 @@ export function remove(m: *Map_u64_i32, key: u64): i32 {
   unsafe { idx = find(*m, key); }
   if (idx < 0) { return 0; }
   m.occupied[idx] = 0;
-  m.len = m.len - 1;
+  m.length = m.length - 1;
   return 1;
 }
 
@@ -541,7 +541,7 @@ export function deinit(m: *Map_u64_i32): void {
   if (m.vals != 0) { heap_libc.heap_free_i32_c(m.vals); m.vals = 0; }
   if (m.occupied != 0) { heap_libc.heap_free_u8_c(m.occupied); m.occupied = 0; }
   m.cap = 0;
-  m.len = 0;
+  m.length = 0;
 }
 
 // See implementation.
@@ -559,7 +559,7 @@ allow(padding) struct Map_str_i32 {
   vals: *i32;
   occupied: *u8;
   cap: i32;
-  len: i32;
+  length: i32;
 }
 
 /** Exported function `str_hash`.
@@ -636,7 +636,7 @@ export function str_find(m: Map_str_i32, key: *u8, key_len: i32): i32 {
  * @return Map_str_i32
  */
 export function str_new(): Map_str_i32 {
-  return Map_str_i32 { keys: 0, key_lens: 0, vals: 0, occupied: 0, cap: 0, len: 0 };
+  return Map_str_i32 { keys: 0, key_lens: 0, vals: 0, occupied: 0, cap: 0, length: 0 };
 }
 
 /** Exported function `str_with_capacity`.
@@ -652,7 +652,7 @@ export function str_with_capacity(m: *Map_str_i32, capacity: i32): i32 {
     m.vals = 0;
     m.occupied = 0;
     m.cap = 0;
-    m.len = 0;
+    m.length = 0;
     return 0;
   }
   let key_bytes: i32 = capacity * str_key_cap();
@@ -678,7 +678,7 @@ export function str_with_capacity(m: *Map_str_i32, capacity: i32): i32 {
   m.vals = v;
   m.occupied = o;
   m.cap = capacity;
-  m.len = 0;
+  m.length = 0;
   return 0;
 }
 
@@ -722,7 +722,7 @@ export function str_reserve_one(m: *Map_str_i32): i32 {
   if (m.cap <= 0) {
     return str_with_capacity(m, 8);
   }
-  if (m.len + 1 <= m.cap * 3 / 4) { return 0; }
+  if (m.length + 1 <= m.cap * 3 / 4) { return 0; }
   return str_grow(m, m.cap * 2);
 }
 
@@ -748,7 +748,7 @@ export function str_insert(m: *Map_str_i32, key: *u8, key_len: i32, value: i32):
       m.key_lens[i] = key_len;
       m.vals[i] = value;
       m.occupied[i] = 1;
-      m.len = m.len + 1;
+      m.length = m.length + 1;
       return 0;
     }
     let eq: i32 = 0;
@@ -805,7 +805,7 @@ export function str_remove(m: *Map_str_i32, key: *u8, key_len: i32): i32 {
   unsafe { idx = str_find(*m, key, key_len); }
   if (idx < 0) { return 0; }
   m.occupied[idx] = 0;
-  m.len = m.len - 1;
+  m.length = m.length - 1;
   return 1;
 }
 
@@ -820,5 +820,5 @@ export function str_deinit(m: *Map_str_i32): void {
   if (m.vals != 0) { heap_libc.heap_free_i32_c(m.vals); m.vals = 0; }
   if (m.occupied != 0) { heap_libc.heap_free_u8_c(m.occupied); m.occupied = 0; }
   m.cap = 0;
-  m.len = 0;
+  m.length = 0;
 }

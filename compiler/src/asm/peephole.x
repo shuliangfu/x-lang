@@ -65,7 +65,7 @@ export function peephole_reloc_offset_set(ctx: *ElfCodegenCtx, idx: i32, offset:
  * @return i32
  */
 export function slice_eq(out: *CodegenOutBuf, pos: i32, ptr: *u8, len: i32): i32 {
-  if (pos + len > out.len) { return 0; }
+  if (pos + len > out.length) { return 0; }
   let i: i32 = 0;
   while (i < len) {
     if (out.data[pos + i] != ptr[i]) { return 0; }
@@ -89,29 +89,29 @@ export function peephole_remove_redundant_push_pop(out: *CodegenOutBuf): i32 {
   let arm_pop: u8[18] = [108, 100, 114, 32, 119, 48, 44, 32, 91, 115, 112, 93, 44, 32, 35, 49, 54,
   10];
   let i: i32 = 0;
-  while (i < out.len) {
+  while (i < out.length) {
     let line_end: i32 = i;
     let line_len: i32 = 0;
     let next_start: i32 = 0;
     let remove_len: i32 = 0;
-    while (line_end < out.len && out.data[line_end] != 10) { line_end = line_end + 1; }
-    if (line_end >= out.len) { break; }
+    while (line_end < out.length && out.data[line_end] != 10) { line_end = line_end + 1; }
+    if (line_end >= out.length) { break; }
     line_len = line_end - i;
     next_start = line_end + 1;
-    if (line_len == 10 && next_start + 10 <= out.len && slice_eq(out, i, x86_push, 11) != 0 &&
+    if (line_len == 10 && next_start + 10 <= out.length && slice_eq(out, i, x86_push, 11) != 0 &&
     slice_eq(out, next_start, x86_pop, 10) != 0) {
       remove_len = 11 + 10;
-    } else if (line_len == 19 && next_start + 18 <= out.len && slice_eq(out, i, arm_push, 20) != 0
+    } else if (line_len == 19 && next_start + 18 <= out.length && slice_eq(out, i, arm_push, 20) != 0
     && slice_eq(out, next_start, arm_pop, 18) != 0) {
       remove_len = 20 + 18;
     }
     if (remove_len > 0) {
       let j: i32 = i;
-      while (j < out.len - remove_len) {
+      while (j < out.length - remove_len) {
         out.data[j] = out.data[j + remove_len];
         j = j + 1;
       }
-      out.len = out.len - remove_len;
+      out.length = out.length - remove_len;
       continue;
     }
     i = next_start;
@@ -127,19 +127,19 @@ export function peephole_remove_redundant_push_pop(out: *CodegenOutBuf): i32 {
 export function peephole_remove_noop_mov_rax_rax(out: *CodegenOutBuf): i32 {
   let x86_noop: u8[16] = [109, 111, 118, 113, 32, 37, 114, 97, 120, 44, 32, 37, 114, 97, 120, 10];
   let i: i32 = 0;
-  while (i < out.len) {
-    if (i + 16 <= out.len && slice_eq(out, i, x86_noop, 16) != 0) {
+  while (i < out.length) {
+    if (i + 16 <= out.length && slice_eq(out, i, x86_noop, 16) != 0) {
       let j: i32 = i;
-      while (j < out.len - 16) {
+      while (j < out.length - 16) {
         out.data[j] = out.data[j + 16];
         j = j + 1;
       }
-      out.len = out.len - 16;
+      out.length = out.length - 16;
       continue;
     }
     let line_end: i32 = i;
-    while (line_end < out.len && out.data[line_end] != 10) { line_end = line_end + 1; }
-    if (line_end >= out.len) { break; }
+    while (line_end < out.length && out.data[line_end] != 10) { line_end = line_end + 1; }
+    if (line_end >= out.length) { break; }
     i = line_end + 1;
   }
   return 0;
@@ -153,19 +153,19 @@ export function peephole_remove_noop_mov_rax_rax(out: *CodegenOutBuf): i32 {
 export function peephole_remove_noop_mov_x0_x0(out: *CodegenOutBuf): i32 {
   let arm_noop: u8[11] = [109, 111, 118, 32, 120, 48, 44, 32, 120, 48, 10];
   let i: i32 = 0;
-  while (i < out.len) {
-    if (i + 11 <= out.len && slice_eq(out, i, arm_noop, 11) != 0) {
+  while (i < out.length) {
+    if (i + 11 <= out.length && slice_eq(out, i, arm_noop, 11) != 0) {
       let j: i32 = i;
-      while (j < out.len - 11) {
+      while (j < out.length - 11) {
         out.data[j] = out.data[j + 11];
         j = j + 1;
       }
-      out.len = out.len - 11;
+      out.length = out.length - 11;
       continue;
     }
     let line_end: i32 = i;
-    while (line_end < out.len && out.data[line_end] != 10) { line_end = line_end + 1; }
-    if (line_end >= out.len) { break; }
+    while (line_end < out.length && out.data[line_end] != 10) { line_end = line_end + 1; }
+    if (line_end >= out.length) { break; }
     i = line_end + 1;
   }
   return 0;
@@ -180,7 +180,7 @@ export function peephole_remove_empty_lines(out: *CodegenOutBuf): i32 {
   let src: i32 = 0;
   let dst: i32 = 0;
   let prev_was_nl: i32 = 0;
-  while (src < out.len && dst < 8388608) {
+  while (src < out.length && dst < 8388608) {
     let ch: u8 = out.data[src];
     if (ch == 10) {
       if (prev_was_nl != 0) {
@@ -195,7 +195,7 @@ export function peephole_remove_empty_lines(out: *CodegenOutBuf): i32 {
     dst = dst + 1;
     src = src + 1;
   }
-  out.len = dst;
+  out.length = dst;
   return 0;
 }
 

@@ -13,7 +13,7 @@ function main(): i32 {
   if (v1.ptr == 0 as *u8) {
     return 1;
   }
-  if (v1.len < 2) {
+  if (v1.length < 2) {
     return 2;
   }
   if (io.ptr_view_valid(v1) != 1) {
@@ -24,7 +24,7 @@ function main(): i32 {
   }
   /* See implementation. */
   let v2: ReadPtrView = io.stdin_ptr_view();
-  if (v2.ptr != 0 as *u8 && v2.len > 0 && v2.ptr[0] == 65 && v2.gen == v1.gen) {
+  if (v2.ptr != 0 as *u8 && v2.length > 0 && v2.ptr[0] == 65 && v2.gen == v1.gen) {
     return 11;
   }
   if (io.ptr_view_valid(v1) != 0) {

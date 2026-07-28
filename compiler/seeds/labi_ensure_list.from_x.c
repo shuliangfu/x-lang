@@ -73,6 +73,7 @@ const char *xlang_runtime_time_os_o_path(const char *argv0);
 const char *xlang_runtime_queue_contention_o_path(const char *argv0);
 const char *xlang_runtime_dynlib_os_o_path(const char *argv0);
 const char *xlang_runtime_env_os_o_path(const char *argv0);
+const char *xlang_runtime_link_abi_user_env_o_path(const char *argv0);
 const char *xlang_runtime_backtrace_platform_o_path(const char *argv0);
 const char *xlang_runtime_log_os_o_path(const char *argv0);
 const char *xlang_runtime_math_libm_o_path(const char *argv0);
@@ -100,7 +101,7 @@ void link_diag_runtime_obj_missing(const char *obj_name, const char *out_o);
 /* flags: 0=NONE, 1=PIE (-fPIE), 2=SQLITE (-DXLANG_DB_USE_SQLITE3), 3=HTTP_SEEDS */
 
 int labi_ensure_catalog_count(void) {
-  return 26;
+  return 27;
 }
 
 const char *labi_ensure_catalog_stem(int i) {
@@ -159,6 +160,8 @@ const char *labi_ensure_catalog_stem(int i) {
     return "runtime_crypto_inc_glue";
   if (i == 25)
     return "runtime_ed25519_ref10_glue";
+  if (i == 26)
+    return "runtime_link_abi_user_env";
   return NULL;
 }
 
@@ -217,6 +220,8 @@ const char *labi_ensure_catalog_out_base(int i) {
     return "runtime_crypto_inc_glue.o";
   if (i == 25)
     return "runtime_ed25519_ref10_glue.o";
+  if (i == 26)
+    return "runtime_link_abi_user_env.o";
   return NULL;
 }
 
@@ -275,6 +280,8 @@ const char *labi_ensure_catalog_seed_base(int i) {
     return "runtime_crypto_inc_glue.from_x.c";
   if (i == 25)
     return "runtime_ed25519_ref10_glue.from_x.c";
+  if (i == 26)
+    return "runtime_link_abi_user_env.from_x.c";
   return NULL;
 }
 
@@ -287,7 +294,7 @@ int labi_ensure_catalog_flags(int i) {
     return 3; /* LABI_ENS_HTTP_GLUE → LABI_ENS_FLAG_HTTP_SEEDS (-I seeds/http) */
   if (i == 23)
     return 2; /* LABI_ENS_FLAG_SQLITE */
-  if (i >= 26)
+  if (i >= 27)
     return 0;
   return 0;
 }
@@ -296,7 +303,7 @@ int labi_ensure_catalog_step_at(int i, const char **stem_out, const char **out_b
                                 const char **seed_base_out, int *flags_out,
                                 const char **hint_out) {
   const char *s;
-  if (i < 0 || i >= 26)
+  if (i < 0 || i >= 27)
     return 0;
   s = labi_ensure_catalog_stem(i);
   if (!s)
@@ -1144,6 +1151,13 @@ int xlang_ensure_runtime_ed25519_ref10_glue_o(const char *argv0) {
   return link_abi_ensure_from_catalog(argv0, 25, p);
 }
 
+/* wave253: catalog thin ensure wrap — user-domain residual face companion. */
+int xlang_ensure_runtime_link_abi_user_env_o(const char *argv0) {
+  const char *p = xlang_runtime_link_abi_user_env_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 26, p);
+}
+
+
 /* wave186: xlang_asm_ld_prepare_for_exe_link pure orch (cold twin ≡ .x).
  * Peer freestanding_enabled/needs + peer ensure_* + peer user_needs;
  * Cap residual debug report + freestanding_unsupported.
@@ -1168,9 +1182,17 @@ int xlang_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o,
       rc = xlang_ensure_runtime_panic_o(link_eff);
       if (rc != 0)
         return -1;
+      /* wave253: companion user-domain face (weak) with freestanding panic. */
+      rc = xlang_ensure_runtime_link_abi_user_env_o(link_eff);
+      if (rc != 0)
+        return -1;
     }
   } else {
     rc = xlang_ensure_runtime_panic_o(link_eff);
+    if (rc != 0)
+      return -1;
+    /* wave253: companion user-domain face for residual declare-only / Linux .s panic. */
+    rc = xlang_ensure_runtime_link_abi_user_env_o(link_eff);
     if (rc != 0)
       return -1;
   }
@@ -1257,6 +1279,7 @@ int xlang_ensure_runtime_arrow_simd_glue_o(const char *argv0);
 int xlang_ensure_runtime_sqlite_glue_o(const char *argv0);
 int xlang_ensure_runtime_crypto_inc_glue_o(const char *argv0);
 int xlang_ensure_runtime_ed25519_ref10_glue_o(const char *argv0);
+int xlang_ensure_runtime_link_abi_user_env_o(const char *argv0);
 /* wave169: ensure_runtime_panic_o pure orch (L4). */
 int xlang_ensure_runtime_panic_o(const char *argv0);
 /* wave170: ensure_runtime_heap_user_o pure orch (L4). */

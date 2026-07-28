@@ -112,9 +112,19 @@ cc $CFLAGS -c "$tmp/mod.c" -o "$tmp/mod.o"
 # 2) string.x bare ABI (xlang_string_*_c) — 必须裸符号。
 # 【Why】产品 xlang 为 XLANG_NO_C_FRONTEND 时 -lib-name 未接线（仅 C 前端 RUN_CC 解析），
 #   路径前缀会把 xlang_string_copy_c 打成 std_string_string_xlang_string_copy_c。
-# 权威裸实现与 path.o 同策略：seeds/runtime_string_fast.from_x.c（与 string.x 同语义）。
+# 权威裸实现：R2 路径下编译 runtime_string_fast.x（DIRECT 模式，无 ld -r，因无 OS bridge）；
+#   冷路径下用 seeds/runtime_string_fast.from_x.c（与 string.x 同语义）。
 # -lib-name 接线后可改回 xlang -lib-name "" string.x。
-if [ -f "$COMP/seeds/runtime_string_fast.from_x.c" ]; then
+if [ "$XLANG_G05_PREFER_X_O" = "1" ] && [ -x "$COMP/xlang-c" ] && [ -f "$COMP/src/asm/runtime_string_fast.x" ]; then
+  if XLANG_KEEP_C=1 "$COMP/xlang-c" -L "$ROOT" -L "$COMP/src" -L "$COMP/src/asm" -lib-name "" -o "$tmp/sx.o" "$COMP/src/asm/runtime_string_fast.x" >"$tmp/sx_xlangc.log" 2>&1; then
+    echo "xlang_compile_std_string_o: sx.o <- runtime_string_fast.x (PREFER_X_O R2 DIRECT)"
+    rm -f /tmp/xlang_xlang_x.*.c 2>/dev/null || true
+  else
+    echo "xlang_compile_std_string_o: R2 DIRECT failed, fallback to seed" >&2
+    rm -f /tmp/xlang_xlang_x.*.c 2>/dev/null || true
+    cc $CFLAGS -c "$COMP/seeds/runtime_string_fast.from_x.c" -o "$tmp/sx.o"
+  fi
+elif [ -f "$COMP/seeds/runtime_string_fast.from_x.c" ]; then
   cc $CFLAGS -c "$COMP/seeds/runtime_string_fast.from_x.c" -o "$tmp/sx.o"
 else
   XLANG_KEEP_C=1 "$XLANG" build -L "$ROOT" -lib-name "" -o "$tmp/sx.o" "$ROOT/std/string/string.x" >"$tmp/sx.log" 2>&1 || true

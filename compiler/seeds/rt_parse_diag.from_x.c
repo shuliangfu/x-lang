@@ -112,7 +112,7 @@ typedef struct {
 
 typedef struct {
   const char *src;
-  size_t len;
+  size_t length;
   size_t i;
   int line;
   int col;
@@ -120,21 +120,21 @@ typedef struct {
 
 static void rt_scan_init(RtScan *s, const char *src, size_t len) {
   s->src = src;
-  s->len = len;
+  s->length = len;
   s->i = 0;
   s->line = 1;
   s->col = 1;
 }
 
 static int rt_peek(const RtScan *s) {
-  if (s->i >= s->len)
+  if (s->i >= s->length)
     return 0;
   return (unsigned char)s->src[s->i];
 }
 
 static int rt_get(RtScan *s) {
   int c;
-  if (s->i >= s->len)
+  if (s->i >= s->length)
     return 0;
   c = (unsigned char)s->src[s->i++];
   if (c == '\n') {
@@ -156,7 +156,7 @@ static void rt_skip_ws_comment(RtScan *s) {
       continue;
     }
     /* line comment // ... */
-    if (c == '/' && s->i + 1 < s->len && s->src[s->i + 1] == '/') {
+    if (c == '/' && s->i + 1 < s->length && s->src[s->i + 1] == '/') {
       while (rt_peek(s) && rt_peek(s) != '\n')
         rt_get(s);
       continue;
@@ -166,10 +166,10 @@ static void rt_skip_ws_comment(RtScan *s) {
      * mention the keyword function plus Type(T) were tokenized as a signature;
      * the real function then false-failed as "expected '{' before function body"
      * on `xlang check` only (full compile path does not run this recovery). */
-    if (c == '/' && s->i + 1 < s->len && s->src[s->i + 1] == '*') {
+    if (c == '/' && s->i + 1 < s->length && s->src[s->i + 1] == '*') {
       rt_get(s); /* slash */
       rt_get(s); /* star */
-      while (s->i < s->len) {
+      while (s->i < s->length) {
         int n = rt_get(s);
         if (n == 0)
           break;
@@ -238,7 +238,7 @@ static int rt_next_tok(RtScan *s, RtTok *out) {
   size_t start;
   int line0, col0;
   rt_skip_ws_comment(s);
-  if (s->i >= s->len) {
+  if (s->i >= s->length) {
     out->kw = RT_KW_NONE;
     out->ch = 0;
     out->line = s->line;
@@ -255,7 +255,7 @@ static int rt_next_tok(RtScan *s, RtTok *out) {
   out->col = col0;
   out->pos = start;
   if (isalpha(c) || c == '_') {
-    while (s->i < s->len) {
+    while (s->i < s->length) {
       int n = rt_peek(s);
       if (!isalnum(n) && n != '_')
         break;
@@ -275,9 +275,9 @@ static int rt_next_tok(RtScan *s, RtTok *out) {
     return 1;
   }
   if (c == '"') {
-    while (s->i < s->len) {
+    while (s->i < s->length) {
       int n = rt_get(s);
-      if (n == '\\' && s->i < s->len)
+      if (n == '\\' && s->i < s->length)
         rt_get(s);
       else if (n == '"')
         break;

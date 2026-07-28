@@ -1737,16 +1737,17 @@ export function backend_enc_rem_mod_arch(elf_ctx: *u8, ta: i32): i32 {
   return backend_enc_mov_edx_to_eax_arch(elf_ctx, ta);
 }
 
-// backend_enc_rem_mod_unsigned_arch: see function docblock below.
-/** Exported function `backend_enc_rem_mod_unsigned_arch`.
- * Implements `backend_enc_rem_mod_unsigned_arch`.
- * @param elf_ctx *u8
- * @param ta i32
- * @return i32
+/**
+ * Unsigned rem: routes through backend_enc_div_rbx_arch (xor edx + div) then mov remainder.
+ * PLATFORM: SHARED — full-dispatch twin of thin wave322 fix (thin is product authority when L2).
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param ta i32 — target arch
+ * @return i32 — 0 success, -1 failure
  */
 #[no_mangle]
 export function backend_enc_rem_mod_unsigned_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) { return backend_enc_mov_edx_to_eax_arch(elf_ctx, ta); }
+  /* backend_enc_div_rbx_arch already emits xor_edx + divl %ebx (wave322 / G.7). */
   if (backend_enc_div_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
   return backend_enc_mov_edx_to_eax_arch(elf_ctx, ta);
 }
@@ -1790,18 +1791,22 @@ export extern "C" function arch_x86_64_enc_enc_imul_imm_to_ecx(elf_ctx: *u8, lit
 export extern "C" function arch_riscv64_enc_enc_mul_imm_to_rbx(elf_ctx: *u8, lit: i32): i32;
 export extern "C" function arch_x86_64_enc_enc_imul_imm_to_ebx(elf_ctx: *u8, lit: i32): i32;
 
-// G-02f-207：x86-only
-/** Exported function `backend_enc_store_rdx_to_rbp_arch`.
- * Implements `backend_enc_store_rdx_to_rbp_arch`.
- * @param elf_ctx *u8
- * @param offset i32
- * @param ta i32
- * @return i32
+/**
+ * Store dual-GP second half (length / high 8B) to frame slot.
+ * @param elf_ctx *u8 — ElfCodegenCtx
+ * @param offset i32 — product frame offset of the length half
+ * @param ta i32 — 0=x86_64 (rdx), 1=arm64 (x1 / AAPCS64 second GP)
+ * @return i32 — 0 success, -1 unsupported arch / encode fail
+ * PLATFORM: SHARED dual-GP contract · LINUX|x86_64 SysV rdx · MACOS|ARM64 x1
+ * wave408: arm64 was hard -1 → TYPE_SLICE let-init/call-arg dropped length (panic).
  */
 #[no_mangle]
 export function backend_enc_store_rdx_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
-  // See implementation.
   unsafe {
+  if (ta == 1) {
+    /* x1 = SysV/AAPCS second integer return/arg; G.7 reuse store_x_reg. */
+    return arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx, 1, offset);
+  }
   if (ta != 0) { return 0 - 1; }
   return arch_x86_64_enc_enc_store_rdx_to_rbp(elf_ctx, offset);
   }
@@ -2316,6 +2321,127 @@ export function backend_enc_addss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
+/**
+ * Scalar f32 multiply: IEEE bits in eax/rbx low 32 → product bits in eax (mulss).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding f32 `*` (wave294 Cap residual pure).
+ * G.7: complete authority next to addss / mulsd (not integer imul on float bits).
+ */
+#[no_mangle]
+export function backend_enc_mulss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    let a: u8[4] = [];
+    /* movd xmm0, eax — 66 0f 6e c0 */
+    a[0] = 102; a[1] = 15; a[2] = 110; a[3] = 192;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* movd xmm1, ebx — 66 0f 6e cb */
+    a[0] = 102; a[1] = 15; a[2] = 110; a[3] = 203;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* mulss xmm0, xmm1 — f3 0f 59 c1 */
+    a[0] = 243; a[1] = 15; a[2] = 89; a[3] = 193;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* movd eax, xmm0 — 66 0f 7e c0 */
+    a[0] = 102; a[1] = 15; a[2] = 126; a[3] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Scalar f32 sub: left bits in ebx, right in eax → (left-right) bits in eax (subss).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding f32 `-` (wave298 Cap residual pure).
+ * G.7: complete authority next to addss/mulss/subsd (not integer sub on float bits).
+ */
+#[no_mangle]
+export function backend_enc_subss_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    let a: u8[4] = [];
+    /* movd xmm0, ebx — 66 0f 6e c3 */
+    a[0] = 102; a[1] = 15; a[2] = 110; a[3] = 195;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* movd xmm1, eax — 66 0f 6e c8 */
+    a[0] = 102; a[1] = 15; a[2] = 110; a[3] = 200;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* subss xmm0, xmm1 — f3 0f 5c c1 */
+    a[0] = 243; a[1] = 15; a[2] = 92; a[3] = 193;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* movd eax, xmm0 — 66 0f 7e c0 */
+    a[0] = 102; a[1] = 15; a[2] = 126; a[3] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Scalar f32 sub: left bits in eax, right in ebx → (left-right) bits in eax (subss).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding f32 `-` (wave298 Cap residual pure).
+ * G.7 twin of subss_rbx_rax (rax-rbx placement convention).
+ */
+#[no_mangle]
+export function backend_enc_subss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    let a: u8[4] = [];
+    /* movd xmm0, eax — 66 0f 6e c0 */
+    a[0] = 102; a[1] = 15; a[2] = 110; a[3] = 192;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* movd xmm1, ebx — 66 0f 6e cb */
+    a[0] = 102; a[1] = 15; a[2] = 110; a[3] = 203;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* subss xmm0, xmm1 — f3 0f 5c c1 */
+    a[0] = 243; a[1] = 15; a[2] = 92; a[3] = 193;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* movd eax, xmm0 — 66 0f 7e c0 */
+    a[0] = 102; a[1] = 15; a[2] = 126; a[3] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Scalar f32 divide: left bits in eax, right in ebx → quotient bits in eax (divss).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding f32 `/` (wave298 Cap residual pure).
+ * G.7: complete authority next to mulss/divsd (not integer idiv on float bits).
+ * IEEE Inf/NaN on /0 (no integer div-zero panic).
+ */
+#[no_mangle]
+export function backend_enc_divss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    let a: u8[4] = [];
+    /* movd xmm0, eax — 66 0f 6e c0 */
+    a[0] = 102; a[1] = 15; a[2] = 110; a[3] = 192;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* movd xmm1, ebx — 66 0f 6e cb */
+    a[0] = 102; a[1] = 15; a[2] = 110; a[3] = 203;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* divss xmm0, xmm1 — f3 0f 5e c1 */
+    a[0] = 243; a[1] = 15; a[2] = 94; a[3] = 193;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* movd eax, xmm0 — 66 0f 7e c0 */
+    a[0] = 102; a[1] = 15; a[2] = 126; a[3] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4);
+  }
+  return 0 - 1;
+}
+
 /** Exported function `backend_enc_cvttss2si_eax_from_f32_bits_arch`.
  * Implements `backend_enc_cvttss2si_eax_from_f32_bits_arch`.
  * @param elf_ctx *u8
@@ -2332,6 +2458,80 @@ export function backend_enc_cvttss2si_eax_from_f32_bits_arch(elf_ctx: *u8, ta: i
     if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
     a[0] = 243; a[1] = 15; a[2] = 44; a[3] = 192;
     return pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Truncate f64 bits in rax to i32 in eax (cvttsd2si).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding `as i32` from f64 (wave291).
+ */
+#[no_mangle]
+export function backend_enc_cvttsd2si_eax_from_f64_bits_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    /* movq xmm0, rax — 66 48 0f 6e c0 (must include 66 + REX.W). */
+    let q: u8[5] = [];
+    q[0] = 102; q[1] = 72; q[2] = 15; q[3] = 110; q[4] = 192;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &q[0], 5) != 0) { return 0 - 1; }
+    /* cvttsd2si eax, xmm0 — f2 0f 2c c0 */
+    let a: u8[4] = [];
+    a[0] = 242; a[1] = 15; a[2] = 44; a[3] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Truncate f32 bits in eax to i64 in rax (REX.W cvttss2si).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding `as i64/u64/usize/isize` from f32 (wave303).
+ * Encoding: movd xmm0,eax (66 0F 6E C0) ; cvttss2si rax,xmm0 (F3 48 0F 2C C0).
+ */
+#[no_mangle]
+export function backend_enc_cvttss2si_rax_from_f32_bits_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    /* movd xmm0, eax — 66 0f 6e c0 */
+    let m: u8[4] = [];
+    m[0] = 102; m[1] = 15; m[2] = 110; m[3] = 192;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &m[0], 4) != 0) { return 0 - 1; }
+    /* cvttss2si rax, xmm0 — f3 48 0f 2c c0 */
+    let a: u8[5] = [];
+    a[0] = 243; a[1] = 72; a[2] = 15; a[3] = 44; a[4] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 5);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Truncate f64 bits in rax to i64 in rax (REX.W cvttsd2si).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding `as i64/u64/usize/isize` from f64 (wave303).
+ * Encoding: movq xmm0,rax (66 REX.W 0F 6E C0) ; cvttsd2si rax,xmm0 (F2 48 0F 2C C0).
+ */
+#[no_mangle]
+export function backend_enc_cvttsd2si_rax_from_f64_bits_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    /* movq xmm0, rax — 66 48 0f 6e c0 */
+    let q: u8[5] = [];
+    q[0] = 102; q[1] = 72; q[2] = 15; q[3] = 110; q[4] = 192;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &q[0], 5) != 0) { return 0 - 1; }
+    /* cvttsd2si rax, xmm0 — f2 48 0f 2c c0 */
+    let a: u8[5] = [];
+    a[0] = 242; a[1] = 72; a[2] = 15; a[3] = 44; a[4] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 5);
   }
   return 0 - 1;
 }
@@ -2375,6 +2575,180 @@ export function backend_enc_cvtsi2ss_eax_from_i32_arch(elf_ctx: *u8, ta: i32): i
     if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
     a[0] = 102; a[1] = 15; a[2] = 126; a[3] = 192;
     return pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Convert i64/u64 (value in i64 range) in rax to f32 bits in eax (REX.W cvtsi2ss).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding `as f32` from u64/i64 (wave299 Cap residual).
+ * Encoding: cvtsi2ss xmm0,rax (F3 48 0F 2A C0) ; movd eax,xmm0 (66 0F 7E C0).
+ * Note: signed convert; unsigned >2^63-1 uses backend_enc_cvtsi2ss_eax_from_u64_arch (wave304).
+ */
+#[no_mangle]
+export function backend_enc_cvtsi2ss_eax_from_i64_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    /* cvtsi2ss xmm0, rax — f3 48 0f 2a c0 */
+    let a: u8[5] = [];
+    a[0] = 243; a[1] = 72; a[2] = 15; a[3] = 42; a[4] = 192;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 5) != 0) { return 0 - 1; }
+    /* movd eax, xmm0 — 66 0f 7e c0 */
+    let m: u8[4] = [];
+    m[0] = 102; m[1] = 15; m[2] = 126; m[3] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &m[0], 4);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Convert i32 in eax to f64 bits in rax (cvtsi2sd).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding `as f64` from i32 (wave292).
+ */
+#[no_mangle]
+export function backend_enc_cvtsi2sd_rax_from_i32_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    /* cvtsi2sd xmm0, eax — f2 0f 2a c0 */
+    let a: u8[4] = [];
+    a[0] = 242; a[1] = 15; a[2] = 42; a[3] = 192;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* movq rax, xmm0 — 66 48 0f 7e c0 (must include 66 + REX.W). */
+    let q: u8[5] = [];
+    q[0] = 102; q[1] = 72; q[2] = 15; q[3] = 126; q[4] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &q[0], 5);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Convert i64/u64 (value in i64 range) in rax to f64 bits in rax (REX.W cvtsi2sd).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding `as f64` from u64/i64 (wave295 Cap residual).
+ * Encoding: cvtsi2sd xmm0,rax (F2 48 0F 2A C0) ; movq rax,xmm0 (66 REX.W 0F 7E C0).
+ * Note: signed convert; unsigned >2^63-1 uses backend_enc_cvtsi2sd_rax_from_u64_arch (wave304).
+ */
+#[no_mangle]
+export function backend_enc_cvtsi2sd_rax_from_i64_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    /* cvtsi2sd xmm0, rax — f2 48 0f 2a c0 */
+    let a: u8[5] = [];
+    a[0] = 242; a[1] = 72; a[2] = 15; a[3] = 42; a[4] = 192;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 5) != 0) { return 0 - 1; }
+    /* movq rax, xmm0 — 66 48 0f 7e c0 */
+    let q: u8[5] = [];
+    q[0] = 102; q[1] = 72; q[2] = 15; q[3] = 126; q[4] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &q[0], 5);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Convert full-range u64 in rax to f64 bits in rax (unsigned convert sequence).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding `as f64` from u64/usize (wave304 Cap residual).
+ * Root: signed REX.W cvtsi2sd makes values >2^63-1 negative → freestanding run=0.
+ * Algorithm (gcc/clang): if high bit clear, signed convert; else (v>>1)|(v&1) convert + add.
+ * Fixed rel8: jns +28, jmp +10. G.7 next to signed i64 form.
+ */
+#[no_mangle]
+export function backend_enc_cvtsi2sd_rax_from_u64_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    let s: u8[43] = [];
+    /* test rax,rax */
+    s[0] = 72; s[1] = 133; s[2] = 192;
+    /* jns +28 */
+    s[3] = 121; s[4] = 28;
+    /* mov rdx,rax; shr rdx,1; and eax,1; or rdx,rax */
+    s[5] = 72; s[6] = 137; s[7] = 194;
+    s[8] = 72; s[9] = 209; s[10] = 234;
+    s[11] = 131; s[12] = 224; s[13] = 1;
+    s[14] = 72; s[15] = 9; s[16] = 194;
+    /* cvtsi2sd xmm0,rdx; addsd xmm0,xmm0; movq rax,xmm0 */
+    s[17] = 242; s[18] = 72; s[19] = 15; s[20] = 42; s[21] = 194;
+    s[22] = 242; s[23] = 15; s[24] = 88; s[25] = 192;
+    s[26] = 102; s[27] = 72; s[28] = 15; s[29] = 126; s[30] = 192;
+    /* jmp +10 */
+    s[31] = 235; s[32] = 10;
+    /* fit: cvtsi2sd xmm0,rax; movq rax,xmm0 */
+    s[33] = 242; s[34] = 72; s[35] = 15; s[36] = 42; s[37] = 192;
+    s[38] = 102; s[39] = 72; s[40] = 15; s[41] = 126; s[42] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &s[0], 43);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Convert full-range u64 in rax to f32 bits in eax (unsigned convert sequence).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding `as f32` from u64/usize (wave304 Cap residual).
+ * Same algorithm as u64→f64 with cvtsi2ss/addss/movd. jns +27, jmp +9.
+ * G.7 next to signed backend_enc_cvtsi2ss_eax_from_i64_arch.
+ */
+#[no_mangle]
+export function backend_enc_cvtsi2ss_eax_from_u64_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    let s: u8[41] = [];
+    s[0] = 72; s[1] = 133; s[2] = 192;
+    s[3] = 121; s[4] = 27;
+    s[5] = 72; s[6] = 137; s[7] = 194;
+    s[8] = 72; s[9] = 209; s[10] = 234;
+    s[11] = 131; s[12] = 224; s[13] = 1;
+    s[14] = 72; s[15] = 9; s[16] = 194;
+    s[17] = 243; s[18] = 72; s[19] = 15; s[20] = 42; s[21] = 194;
+    s[22] = 243; s[23] = 15; s[24] = 88; s[25] = 192;
+    s[26] = 102; s[27] = 15; s[28] = 126; s[29] = 192;
+    s[30] = 235; s[31] = 9;
+    s[32] = 243; s[33] = 72; s[34] = 15; s[35] = 42; s[36] = 192;
+    s[37] = 102; s[38] = 15; s[39] = 126; s[40] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &s[0], 41);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Convert f32 bits in eax to f64 bits in rax (cvtss2sd).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding `as f64` from f32 (wave293 Cap residual).
+ */
+#[no_mangle]
+export function backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    /* movd xmm0, eax — 66 0f 6e c0 */
+    let a: u8[4] = [];
+    a[0] = 102; a[1] = 15; a[2] = 110; a[3] = 192;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* cvtss2sd xmm0, xmm0 — f3 0f 5a c0 */
+    a[0] = 243; a[1] = 15; a[2] = 90; a[3] = 192;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* movq rax, xmm0 — 66 48 0f 7e c0 */
+    let q: u8[5] = [];
+    q[0] = 102; q[1] = 72; q[2] = 15; q[3] = 126; q[4] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &q[0], 5);
   }
   return 0 - 1;
 }

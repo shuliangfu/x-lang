@@ -129,12 +129,12 @@ export function string_ptr_at_c(ptr: *u8, off: i32): *u8 {
 export function string_capacity(): i32 { return 256; }
 export struct String {
   data: u8[256];
-  len: i32;
+  length: i32;
 }
 /** See implementation for details. */
 allow(padding) struct StrView {
   ptr: *u8;
-  len: i32;
+  length: i32;
 }
 /** Exported function `string_empty`.
  * Implements `string_empty`.
@@ -149,21 +149,21 @@ export function string_empty(): i32 { return 0; }
  * @return StrView
  */
 export function view(ptr: *u8, len: i32): StrView {
-  return StrView { ptr: ptr, len: len };
+  return StrView { ptr: ptr, length: len };
 }
 /** Exported function `len`.
  * Implements `len`.
  * @param v StrView
  * @return i32
  */
-export function len(v: StrView): i32 { return v.len; }
+export function length(v: StrView): i32 { return v.length; }
 /** Exported function `is_empty`.
  * Query helper `is_empty`.
  * @param v StrView
  * @return i32
  */
 export function is_empty(v: StrView): i32 {
-  if (v.len <= 0) { return 1; }
+  if (v.length <= 0) { return 1; }
   return 0;
 }
 
@@ -176,7 +176,7 @@ export function is_empty(v: StrView): i32 {
  */
 export function string_view_case_fold(v: StrView, out: *u8, out_cap: i32): i32 {
   let i: i32 = 0;
-  while (i < v.len) {
+  while (i < v.length) {
     if (i >= out_cap) { return -1; }
     let c: u8 = v.ptr[i];
     if (c >= 65 && c <= 90) { c = (c + 32) as u8; }
@@ -193,7 +193,7 @@ export function string_view_case_fold(v: StrView, out: *u8, out_cap: i32): i32 {
  */
 export function string_view_is_valid_utf8(v: StrView): i32 {
   let i: i32 = 0;
-  while (i < v.len) {
+  while (i < v.length) {
     let c: u8 = v.ptr[i];
     if (c <= 127) {
       i = i + 1;
@@ -216,10 +216,10 @@ export function string_view_get(v: StrView, i: i32): u8 { return v.ptr[i]; }
  */
 export function string_view_subview(v: StrView, off: i32, len: i32): StrView {
   if (off < 0) { off = 0; }
-  if (off >= v.len || len <= 0) {
+  if (off >= v.length || len <= 0) {
     return view(string_ptr_at_c(v.ptr, off), 0);
   }
-  let remain: i32 = v.len - off;
+  let remain: i32 = v.length - off;
   let n: i32 = len;
   if (n > remain) { n = remain; }
   return view(string_ptr_at_c(v.ptr, off), n);
@@ -230,7 +230,7 @@ export function string_view_subview(v: StrView, off: i32, len: i32): StrView {
  * See implementation.
  */
 export function string_view_concat_arena(arena: *heap_libc.LibcArena64, left: StrView, right: StrView): StrView {
-  let n: i32 = left.len + right.len;
+  let n: i32 = left.length + right.length;
   if (n <= 0) {
     return view(left.ptr, 0);
   }
@@ -240,12 +240,12 @@ export function string_view_concat_arena(arena: *heap_libc.LibcArena64, left: St
   if (p == 0) {
     return view(0 as *u8, 0);
   }
-  if (left.len > 0) {
-    string_copy_c(p, left.ptr, left.len);
+  if (left.length > 0) {
+    string_copy_c(p, left.ptr, left.length);
   }
-  if (right.len > 0) {
-    let dst2: *u8 = string_ptr_at_c(p, left.len);
-    string_copy_c(dst2, right.ptr, right.len);
+  if (right.length > 0) {
+    let dst2: *u8 = string_ptr_at_c(p, left.length);
+    string_copy_c(dst2, right.ptr, right.length);
   }
   return view(p, n);
 }
@@ -256,24 +256,24 @@ export function string_view_concat_arena(arena: *heap_libc.LibcArena64, left: St
  * @return i32
  */
 export function string_view_eq(a: StrView, b: StrView): i32 {
-  if (a.len != b.len) { return 0; }
-  if (a.len == 1) { if (a.ptr[0] != b.ptr[0]) { return 0; } return 1; }
-  if (a.len == 2) { if (a.ptr[0] != b.ptr[0] || a.ptr[1] != b.ptr[1]) { return 0; } return 1; }
-  if (a.len == 3) { if (a.ptr[0] != b.ptr[0] || a.ptr[1] != b.ptr[1] || a.ptr[2] != b.ptr[2]) {
+  if (a.length != b.length) { return 0; }
+  if (a.length == 1) { if (a.ptr[0] != b.ptr[0]) { return 0; } return 1; }
+  if (a.length == 2) { if (a.ptr[0] != b.ptr[0] || a.ptr[1] != b.ptr[1]) { return 0; } return 1; }
+  if (a.length == 3) { if (a.ptr[0] != b.ptr[0] || a.ptr[1] != b.ptr[1] || a.ptr[2] != b.ptr[2]) {
       return 0; } return 1; }
-  if (a.len == 4) { if (a.ptr[0] != b.ptr[0] || a.ptr[1] != b.ptr[1] || a.ptr[2] != b.ptr[2] ||
+  if (a.length == 4) { if (a.ptr[0] != b.ptr[0] || a.ptr[1] != b.ptr[1] || a.ptr[2] != b.ptr[2] ||
     a.ptr[3] != b.ptr[3]) { return 0; } return 1; }
-  if (a.len >= 32) {
-    if (string_memcmp_c(a.ptr, b.ptr, a.len) == 0) { return 1; }
+  if (a.length >= 32) {
+    if (string_memcmp_c(a.ptr, b.ptr, a.length) == 0) { return 1; }
     return 0;
   }
   let i: i32 = 0;
-  while (i + 3 < a.len) {
+  while (i + 3 < a.length) {
     if (a.ptr[i] != b.ptr[i] || a.ptr[i + 1] != b.ptr[i + 1] || a.ptr[i + 2] != b.ptr[i + 2] ||
     a.ptr[i + 3] != b.ptr[i + 3]) { return 0; }
     i = i + 4;
   }
-  while (i < a.len) {
+  while (i < a.length) {
     if (a.ptr[i] != b.ptr[i]) { return 0; }
     i = i + 1;
   }
@@ -287,24 +287,24 @@ export function string_view_eq(a: StrView, b: StrView): i32 {
  * @return i32
  */
 export function string_view_eq_slice(v: StrView, ptr: *u8, len: i32): i32 {
-  if (v.len != len) { return 0; }
-  if (v.len == 1) { if (v.ptr[0] != ptr[0]) { return 0; } return 1; }
-  if (v.len == 2) { if (v.ptr[0] != ptr[0] || v.ptr[1] != ptr[1]) { return 0; } return 1; }
-  if (v.len == 3) { if (v.ptr[0] != ptr[0] || v.ptr[1] != ptr[1] || v.ptr[2] != ptr[2]) { return 0;
+  if (v.length != len) { return 0; }
+  if (v.length == 1) { if (v.ptr[0] != ptr[0]) { return 0; } return 1; }
+  if (v.length == 2) { if (v.ptr[0] != ptr[0] || v.ptr[1] != ptr[1]) { return 0; } return 1; }
+  if (v.length == 3) { if (v.ptr[0] != ptr[0] || v.ptr[1] != ptr[1] || v.ptr[2] != ptr[2]) { return 0;
     } return 1; }
-  if (v.len == 4) { if (v.ptr[0] != ptr[0] || v.ptr[1] != ptr[1] || v.ptr[2] != ptr[2] || v.ptr[3]
+  if (v.length == 4) { if (v.ptr[0] != ptr[0] || v.ptr[1] != ptr[1] || v.ptr[2] != ptr[2] || v.ptr[3]
     != ptr[3]) { return 0; } return 1; }
-  if (v.len >= 32) {
-    if (string_memcmp_c(v.ptr, ptr, v.len) == 0) { return 1; }
+  if (v.length >= 32) {
+    if (string_memcmp_c(v.ptr, ptr, v.length) == 0) { return 1; }
     return 0;
   }
   let i: i32 = 0;
-  while (i + 3 < v.len) {
+  while (i + 3 < v.length) {
     if (v.ptr[i] != ptr[i] || v.ptr[i + 1] != ptr[i + 1] || v.ptr[i + 2] != ptr[i + 2] || v.ptr[i +
     3] != ptr[i + 3]) { return 0; }
     i = i + 4;
   }
-  while (i < v.len) {
+  while (i < v.length) {
     if (v.ptr[i] != ptr[i]) { return 0; }
     i = i + 1;
   }
@@ -317,8 +317,8 @@ export function string_view_eq_slice(v: StrView, ptr: *u8, len: i32): i32 {
  * @return i32
  */
 export function string_view_compare(a: StrView, b: StrView): i32 {
-  let n: i32 = a.len;
-  if (b.len < n) { n = b.len; }
+  let n: i32 = a.length;
+  if (b.length < n) { n = b.length; }
   if (n >= 32) {
     let r: i32 = string_memcmp_c(a.ptr, b.ptr, n);
     if (r != 0) { return r; }
@@ -339,8 +339,8 @@ export function string_view_compare(a: StrView, b: StrView): i32 {
       i = i + 1;
     }
   }
-  if (a.len < b.len) { return -1; }
-  if (a.len > b.len) { return 1; }
+  if (a.length < b.length) { return -1; }
+  if (a.length > b.length) { return 1; }
   return 0;
 }
 /** Exported function `string_view_find_char`.
@@ -350,7 +350,7 @@ export function string_view_compare(a: StrView, b: StrView): i32 {
  * @return i32
  */
 export function string_view_find_char(v: StrView, c: u8): i32 {
-  return string_memchr_c(v.ptr, c, v.len);
+  return string_memchr_c(v.ptr, c, v.length);
 }
 /** Exported function `string_view_starts_with`.
  * Implements `string_view_starts_with`.
@@ -361,7 +361,7 @@ export function string_view_find_char(v: StrView, c: u8): i32 {
  */
 export function string_view_starts_with(v: StrView, prefix: *u8, prefix_len: i32): i32 {
   if (prefix_len <= 0) { return 1; }
-  if (v.len < prefix_len) { return 0; }
+  if (v.length < prefix_len) { return 0; }
   if (prefix_len >= 8) {
     if (string_memcmp_c(v.ptr, prefix, prefix_len) == 0) { return 1; }
     return 0;
@@ -382,8 +382,8 @@ export function string_view_starts_with(v: StrView, prefix: *u8, prefix_len: i32
  */
 export function string_view_ends_with(v: StrView, suffix: *u8, suffix_len: i32): i32 {
   if (suffix_len <= 0) { return 1; }
-  if (v.len < suffix_len) { return 0; }
-  let off: i32 = v.len - suffix_len;
+  if (v.length < suffix_len) { return 0; }
+  let off: i32 = v.length - suffix_len;
   if (string_memcmp_at_c(v.ptr, off, suffix, suffix_len) == 0) { return 1; }
   return 0;
 }
@@ -416,14 +416,14 @@ export function string_view_find_slice_scan(v: StrView, sub: *u8, sub_len: i32, 
  */
 export function string_view_find_slice(v: StrView, sub: *u8, sub_len: i32): i32 {
   if (sub_len <= 0) { return 0; }
-  if (v.len < sub_len) { return 0 - 1; }
+  if (v.length < sub_len) { return 0 - 1; }
   if (sub_len == 1) {
-    return string_memchr_c(v.ptr, sub[0], v.len);
+    return string_memchr_c(v.ptr, sub[0], v.length);
   }
-  if (v.len >= 32 || sub_len >= 8) {
-    return string_memmem_c(v.ptr, v.len, sub, sub_len);
+  if (v.length >= 32 || sub_len >= 8) {
+    return string_memmem_c(v.ptr, v.length, sub, sub_len);
   }
-  let end: i32 = v.len - sub_len;
+  let end: i32 = v.length - sub_len;
   return string_view_find_slice_scan(v, sub, sub_len, 0, end);
 }
 /** Exported function `string_view_contains`.
@@ -444,18 +444,18 @@ export function string_view_contains(v: StrView, sub: *u8, sub_len: i32): i32 {
  * @return i32
  */
 export function string_eq_view(s: String, v: StrView): i32 {
-  if (s.len != v.len) { return 0; }
-  if (s.len >= 32) {
-    if (string_memcmp_c(&s.data[0], v.ptr, s.len) == 0) { return 1; }
+  if (s.length != v.length) { return 0; }
+  if (s.length >= 32) {
+    if (string_memcmp_c(&s.data[0], v.ptr, s.length) == 0) { return 1; }
     return 0;
   }
   let i: i32 = 0;
-  while (i + 3 < s.len) {
+  while (i + 3 < s.length) {
     if (s.data[i] != v.ptr[i] || s.data[i + 1] != v.ptr[i + 1] || s.data[i + 2] != v.ptr[i + 2] ||
     s.data[i + 3] != v.ptr[i + 3]) { return 0; }
     i = i + 4;
   }
-  while (i < s.len) {
+  while (i < s.length) {
     if (s.data[i] != v.ptr[i]) { return 0; }
     i = i + 1;
   }
@@ -468,8 +468,8 @@ export function string_eq_view(s: String, v: StrView): i32 {
  * @return i32
  */
 export function string_compare_view(s: String, v: StrView): i32 {
-  let n: i32 = s.len;
-  if (v.len < n) { n = v.len; }
+  let n: i32 = s.length;
+  if (v.length < n) { n = v.length; }
   if (n >= 32) {
     let r: i32 = string_memcmp_c(&s.data[0], v.ptr, n);
     if (r != 0) { return r; }
@@ -490,8 +490,8 @@ export function string_compare_view(s: String, v: StrView): i32 {
       i = i + 1;
     }
   }
-  if (s.len < v.len) { return -1; }
-  if (s.len > v.len) { return 1; }
+  if (s.length < v.length) { return -1; }
+  if (s.length > v.length) { return 1; }
   return 0;
 }
 // See implementation.
@@ -503,28 +503,28 @@ export function stack_str_capacity(): i32 { return 32; }
 /* See implementation. */
 export struct StackStr {
   data: u8[32];
-  len: i32;
+  length: i32;
 }
 /** Exported function `stack_str_new`.
  * Implements `stack_str_new`.
  * @return StackStr
  */
 export function stack_str_new(): StackStr {
-  return StackStr { data: [], len: 0 };
+  return StackStr { data: [], length: 0 };
 }
 /** Exported function `stack_str_len`.
  * Query helper `stack_str_len`.
  * @param s *StackStr
  * @return i32
  */
-export function stack_str_len(s: *StackStr): i32 { return s.len; }
+export function stack_str_len(s: *StackStr): i32 { return s.length; }
 /** Exported function `stack_str_view`.
  * Implements `stack_str_view`.
  * @param s *StackStr
  * @return StrView
  */
 export function stack_str_view(s: *StackStr): StrView {
-  return view(&s.data[0], s.len);
+  return view(&s.data[0], s.length);
 }
 /**
  * See implementation.
@@ -534,7 +534,7 @@ export function stack_str_from_slice(s: *StackStr, ptr: *u8, len: i32): i32 {
   let cap: i32 = stack_str_capacity();
   if (len > cap) { return -1; }
   if (len <= 0) {
-    s.len = 0;
+    s.length = 0;
     return 0;
   }
   if (len >= 8) {
@@ -546,7 +546,7 @@ export function stack_str_from_slice(s: *StackStr, ptr: *u8, len: i32): i32 {
       i = i + 1;
     }
   }
-  s.len = len;
+  s.length = len;
   return 0;
 }
 /** Exported function `stack_str_append_char`.
@@ -557,9 +557,9 @@ export function stack_str_from_slice(s: *StackStr, ptr: *u8, len: i32): i32 {
  */
 export function stack_str_append_char(s: *StackStr, c: u8): i32 {
   let cap: i32 = stack_str_capacity();
-  if (s.len >= cap) { return -1; }
-  s.data[s.len] = c;
-  s.len = s.len + 1;
+  if (s.length >= cap) { return -1; }
+  s.data[s.length] = c;
+  s.length = s.length + 1;
   return 0;
 }
 // See implementation.
@@ -570,7 +570,7 @@ export function stack_str_append_char(s: *StackStr, c: u8): i32 {
 export function new(): String {
   return String {
     data: [],
-    len: 0
+    length: 0
   }
 }
 /** Exported function `len`.
@@ -578,20 +578,20 @@ export function new(): String {
  * @param s String
  * @return i32
  */
-export function len(s: String): i32 { return s.len; }
+export function length(s: String): i32 { return s.length; }
 /** Exported function `string_len_ptr`.
  * Implements `string_len_ptr`.
  * @param s *String
  * @return i32
  */
-export function string_len_ptr(s: *String): i32 { return s.len; }
+export function string_len_ptr(s: *String): i32 { return s.length; }
 /** Exported function `is_empty`.
  * Query helper `is_empty`.
  * @param s String
  * @return i32
  */
 export function is_empty(s: String): i32 {
-  if (s.len <= 0) { return 1; }
+  if (s.length <= 0) { return 1; }
   return 0;
 }
 /** Exported function `string_is_empty_ptr`.
@@ -600,7 +600,7 @@ export function is_empty(s: String): i32 {
  * @return i32
  */
 export function string_is_empty_ptr(s: *String): i32 {
-  if (s.len <= 0) { return 1; }
+  if (s.length <= 0) { return 1; }
   return 0;
 }
 /** Exported function `string_from_char`.
@@ -626,7 +626,7 @@ export function string_from_slice(ptr: *u8, len: i32): String {
   if (n > 0) {
     string_copy_c(&s.data[0], ptr, n);
   }
-  s.len = n;
+  s.length = n;
   return s;
 }
 /** Exported function `string_get`.
@@ -643,24 +643,24 @@ export function string_get(s: String, i: i32): u8 { return s.data[i]; }
  * @return i32
  */
 export function string_eq(a: String, b: String): i32 {
-  if (a.len != b.len) { return 0; }
-  if (a.len == 1) { if (a.data[0] != b.data[0]) { return 0; } return 1; }
-  if (a.len == 2) { if (a.data[0] != b.data[0] || a.data[1] != b.data[1]) { return 0; } return 1; }
-  if (a.len == 3) { if (a.data[0] != b.data[0] || a.data[1] != b.data[1] || a.data[2] != b.data[2])
+  if (a.length != b.length) { return 0; }
+  if (a.length == 1) { if (a.data[0] != b.data[0]) { return 0; } return 1; }
+  if (a.length == 2) { if (a.data[0] != b.data[0] || a.data[1] != b.data[1]) { return 0; } return 1; }
+  if (a.length == 3) { if (a.data[0] != b.data[0] || a.data[1] != b.data[1] || a.data[2] != b.data[2])
     { return 0; } return 1; }
-  if (a.len == 4) { if (a.data[0] != b.data[0] || a.data[1] != b.data[1] || a.data[2] != b.data[2]
+  if (a.length == 4) { if (a.data[0] != b.data[0] || a.data[1] != b.data[1] || a.data[2] != b.data[2]
     || a.data[3] != b.data[3]) { return 0; } return 1; }
-  if (a.len >= 32) {
-    if (string_memcmp_c(&a.data[0], &b.data[0], a.len) == 0) { return 1; }
+  if (a.length >= 32) {
+    if (string_memcmp_c(&a.data[0], &b.data[0], a.length) == 0) { return 1; }
     return 0;
   }
   let i: i32 = 0;
-  while (i + 3 < a.len) {
+  while (i + 3 < a.length) {
     if (a.data[i] != b.data[i] || a.data[i + 1] != b.data[i + 1] || a.data[i + 2] != b.data[i + 2]
     || a.data[i + 3] != b.data[i + 3]) { return 0; }
     i = i + 4;
   }
-  while (i < a.len) {
+  while (i < a.length) {
     if (a.data[i] != b.data[i]) { return 0; }
     i = i + 1;
   }
@@ -673,24 +673,24 @@ export function string_eq(a: String, b: String): i32 {
  * @return i32
  */
 export function string_eq_ptr(a: *String, b: *String): i32 {
-  if (a.len != b.len) { return 0; }
-  if (a.len == 1) { if (a.data[0] != b.data[0]) { return 0; } return 1; }
-  if (a.len == 2) { if (a.data[0] != b.data[0] || a.data[1] != b.data[1]) { return 0; } return 1; }
-  if (a.len == 3) { if (a.data[0] != b.data[0] || a.data[1] != b.data[1] || a.data[2] != b.data[2])
+  if (a.length != b.length) { return 0; }
+  if (a.length == 1) { if (a.data[0] != b.data[0]) { return 0; } return 1; }
+  if (a.length == 2) { if (a.data[0] != b.data[0] || a.data[1] != b.data[1]) { return 0; } return 1; }
+  if (a.length == 3) { if (a.data[0] != b.data[0] || a.data[1] != b.data[1] || a.data[2] != b.data[2])
     { return 0; } return 1; }
-  if (a.len == 4) { if (a.data[0] != b.data[0] || a.data[1] != b.data[1] || a.data[2] != b.data[2]
+  if (a.length == 4) { if (a.data[0] != b.data[0] || a.data[1] != b.data[1] || a.data[2] != b.data[2]
     || a.data[3] != b.data[3]) { return 0; } return 1; }
-  if (a.len >= 32) {
-    if (string_memcmp_c(&a.data[0], &b.data[0], a.len) == 0) { return 1; }
+  if (a.length >= 32) {
+    if (string_memcmp_c(&a.data[0], &b.data[0], a.length) == 0) { return 1; }
     return 0;
   }
   let i: i32 = 0;
-  while (i + 3 < a.len) {
+  while (i + 3 < a.length) {
     if (a.data[i] != b.data[i] || a.data[i + 1] != b.data[i + 1] || a.data[i + 2] != b.data[i + 2]
     || a.data[i + 3] != b.data[i + 3]) { return 0; }
     i = i + 4;
   }
-  while (i < a.len) {
+  while (i < a.length) {
     if (a.data[i] != b.data[i]) { return 0; }
     i = i + 1;
   }
@@ -703,13 +703,13 @@ export function string_eq_ptr(a: *String, b: *String): i32 {
  * @return i32
  */
 export function string_compare(a: String, b: String): i32 {
-  let n: i32 = a.len;
-  if (b.len < n) { n = b.len; }
+  let n: i32 = a.length;
+  if (b.length < n) { n = b.length; }
   /* See implementation. */
   if (n >= 1 && string_memcmp_c(&a.data[0], &b.data[0], n) < 0) { return -1; }
   if (n >= 1 && string_memcmp_c(&a.data[0], &b.data[0], n) > 0) { return 1; }
-  if (a.len < b.len) { return -1; }
-  if (a.len > b.len) { return 1; }
+  if (a.length < b.length) { return -1; }
+  if (a.length > b.length) { return 1; }
   return 0;
 }
 /** Exported function `string_compare_ptr`.
@@ -719,12 +719,12 @@ export function string_compare(a: String, b: String): i32 {
  * @return i32
  */
 export function string_compare_ptr(a: *String, b: *String): i32 {
-  let n: i32 = a.len;
-  if (b.len < n) { n = b.len; }
+  let n: i32 = a.length;
+  if (b.length < n) { n = b.length; }
   if (n >= 1 && string_memcmp_c(&a.data[0], &b.data[0], n) < 0) { return -1; }
   if (n >= 1 && string_memcmp_c(&a.data[0], &b.data[0], n) > 0) { return 1; }
-  if (a.len < b.len) { return -1; }
-  if (a.len > b.len) { return 1; }
+  if (a.length < b.length) { return -1; }
+  if (a.length > b.length) { return 1; }
   return 0;
 }
 /** Exported function `string_clear`.
@@ -733,7 +733,7 @@ export function string_compare_ptr(a: *String, b: *String): i32 {
  * @return i32
  */
 export function string_clear(s: *String): i32 {
-  s.len = 0;
+  s.length = 0;
   return 0;
 }
 /** Exported function `string_append_char`.
@@ -743,9 +743,9 @@ export function string_clear(s: *String): i32 {
  * @return i32
  */
 export function string_append_char(s: *String, c: u8): i32 {
-  if (s.len >= 256) { return -1; }
-  s.data[s.len] = c;
-  s.len = s.len + 1;
+  if (s.length >= 256) { return -1; }
+  s.data[s.length] = c;
+  s.length = s.length + 1;
   return 0;
 }
 /** Exported function `string_append_slice`.
@@ -757,15 +757,15 @@ export function string_append_char(s: *String, c: u8): i32 {
  */
 export function string_append_slice(s: *String, ptr: *u8, len: i32): i32 {
   let cap: i32 = 256;
-  let remain: i32 = cap - s.len;
+  let remain: i32 = cap - s.length;
   if (remain <= 0) { return -1; }
   if (len > remain) { return -1; }
-  let base: i32 = s.len;
+  let base: i32 = s.length;
   let new_len: i32 = base + len;
   if (len > 0) {
     string_copy_c(&s.data[base], ptr, len);
   }
-  s.len = new_len;
+  s.length = new_len;
   return 0;
 }
 /** Exported function `string_data_ptr`.
@@ -781,7 +781,7 @@ export function string_data_ptr(s: *String): *u8 {
  * See implementation.
  */
 export function string_view_from_string(s: *String): StrView {
-  return view(string_data_ptr(s), s.len);
+  return view(string_data_ptr(s), s.length);
 }
 /** Exported function `string_copy_to`.
  * Implements `string_copy_to`.
@@ -791,16 +791,16 @@ export function string_view_from_string(s: *String): StrView {
  * @return i32
  */
 export function string_copy_to(s: String, out: *u8, out_max: i32): i32 {
-  if (s.len > out_max) { return -1; }
+  if (s.length > out_max) { return -1; }
   /* See implementation. */
-  if (s.len >= 4) {
-    string_copy_c(out, &s.data[0], s.len);
+  if (s.length >= 4) {
+    string_copy_c(out, &s.data[0], s.length);
   } else {
-    if (s.len > 0) { out[0] = s.data[0]; }
-    if (s.len > 1) { out[1] = s.data[1]; }
-    if (s.len > 2) { out[2] = s.data[2]; }
+    if (s.length > 0) { out[0] = s.data[0]; }
+    if (s.length > 1) { out[1] = s.data[1]; }
+    if (s.length > 2) { out[2] = s.data[2]; }
   }
-  return s.len;
+  return s.length;
 }
 /** Exported function `string_copy_to_ptr`.
  * Implements `string_copy_to_ptr`.
@@ -810,15 +810,15 @@ export function string_copy_to(s: String, out: *u8, out_max: i32): i32 {
  * @return i32
  */
 export function string_copy_to_ptr(s: *String, out: *u8, out_max: i32): i32 {
-  if (s.len > out_max) { return -1; }
-  if (s.len >= 4) {
-    string_copy_c(out, &s.data[0], s.len);
+  if (s.length > out_max) { return -1; }
+  if (s.length >= 4) {
+    string_copy_c(out, &s.data[0], s.length);
   } else {
-    if (s.len > 0) { out[0] = s.data[0]; }
-    if (s.len > 1) { out[1] = s.data[1]; }
-    if (s.len > 2) { out[2] = s.data[2]; }
+    if (s.length > 0) { out[0] = s.data[0]; }
+    if (s.length > 1) { out[1] = s.data[1]; }
+    if (s.length > 2) { out[2] = s.data[2]; }
   }
-  return s.len;
+  return s.length;
 }
 /* See implementation. */
 /** Exported function `string_find_char`.
@@ -828,7 +828,7 @@ export function string_copy_to_ptr(s: *String, out: *u8, out_max: i32): i32 {
  * @return i32
  */
 export function string_find_char(s: String, c: u8): i32 {
-  return string_memchr_c(&s.data[0], c, s.len);
+  return string_memchr_c(&s.data[0], c, s.length);
 }
 /** Exported function `string_starts_with`.
  * Implements `string_starts_with`.
@@ -839,7 +839,7 @@ export function string_find_char(s: String, c: u8): i32 {
  */
 export function string_starts_with(s: String, prefix: *u8, prefix_len: i32): i32 {
   if (prefix_len <= 0) { return 1; }
-  if (s.len < prefix_len) { return 0; }
+  if (s.length < prefix_len) { return 0; }
   if (string_memcmp_c(&s.data[0], prefix, prefix_len) == 0) { return 1; }
   return 0;
 }
@@ -852,8 +852,8 @@ export function string_starts_with(s: String, prefix: *u8, prefix_len: i32): i32
  */
 export function string_ends_with(s: String, suffix: *u8, suffix_len: i32): i32 {
   if (suffix_len <= 0) { return 1; }
-  if (s.len < suffix_len) { return 0; }
-  let off: i32 = s.len - suffix_len;
+  if (s.length < suffix_len) { return 0; }
+  let off: i32 = s.length - suffix_len;
   if (string_memcmp_at_c(&s.data[0], off, suffix, suffix_len) == 0) { return 1; }
   return 0;
 }
@@ -897,14 +897,14 @@ export function string_find_slice_scan(s: *String, sub: *u8, sub_len: i32, start
  */
 export function string_find_slice(s: String, sub: *u8, sub_len: i32): i32 {
   if (sub_len <= 0) { return 0; }
-  if (s.len < sub_len) { return 0 - 1; }
+  if (s.length < sub_len) { return 0 - 1; }
   if (sub_len == 1) {
-    return string_memchr_c(&s.data[0], sub[0], s.len);
+    return string_memchr_c(&s.data[0], sub[0], s.length);
   }
-  if (s.len >= 32 || sub_len >= 8) {
-    return string_memmem_c(&s.data[0], s.len, sub, sub_len);
+  if (s.length >= 32 || sub_len >= 8) {
+    return string_memmem_c(&s.data[0], s.length, sub, sub_len);
   }
-  let end: i32 = s.len - sub_len;
+  let end: i32 = s.length - sub_len;
   return string_find_slice_scan(&s, sub, sub_len, 0, end);
 }
 /** Exported function `string_rfind_char_scan`.
@@ -926,8 +926,8 @@ export function string_rfind_char_scan(s: *String, c: u8, pos: i32): i32 {
  * @return i32
  */
 export function string_rfind_char(s: String, c: u8): i32 {
-  if (s.len <= 0) { return 0 - 1; }
-  return string_rfind_char_scan(&s, c, s.len - 1);
+  if (s.length <= 0) { return 0 - 1; }
+  return string_rfind_char_scan(&s, c, s.length - 1);
 }
 /** Exported function `string_trim_skip_start`.
  * Implements `string_trim_skip_start`.
@@ -936,7 +936,7 @@ export function string_rfind_char(s: String, c: u8): i32 {
  * @return i32
  */
 export function string_trim_skip_start(s: *String, i: i32): i32 {
-  if (i >= s.len) { return i; }
+  if (i >= s.length) { return i; }
   if (s.data[i] != 32 && s.data[i] != 9) { return i; }
   return string_trim_skip_start(s, i + 1);
 }
@@ -960,9 +960,9 @@ export function string_trim_skip_end(s: *String, start: i32, i: i32): i32 {
  * @return i32
  */
 export function trim(s: String, out: *u8, out_max: i32): i32 {
-  if (s.len <= 0 || out_max <= 0) { return 0; }
+  if (s.length <= 0 || out_max <= 0) { return 0; }
   let start: i32 = string_trim_skip_start(&s, 0);
-  let end: i32 = string_trim_skip_end(&s, start, s.len - 1);
+  let end: i32 = string_trim_skip_end(&s, start, s.length - 1);
   let n: i32 = end - start + 1;
   if (n <= 0) { return 0; }
   if (n > out_max) { return -1; }
@@ -981,7 +981,7 @@ export function trim(s: String, out: *u8, out_max: i32): i32 {
  * @return i32
  */
 export function string_replace_char_scan(s: *String, from: u8, to: u8, i: i32, count: i32): i32 {
-  if (i >= s.len) { return count; }
+  if (i >= s.length) { return count; }
   if (s.data[i] == from) {
     s.data[i] = to;
     count = count + 1;

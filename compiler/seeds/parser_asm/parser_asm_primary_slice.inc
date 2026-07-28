@@ -21,6 +21,8 @@ enum {
   PARSER_ASM_EXPR_BLOCK = 26,
   PARSER_ASM_EXPR_BREAK = 39,
   PARSER_ASM_EXPR_CONTINUE = 40,
+  /** wave371: `return expr` as primary so match arms `1 => return 42;` parse. */
+  PARSER_ASM_EXPR_RETURN = 41,
   PARSER_ASM_EXPR_PANIC = 42,
   PARSER_ASM_EXPR_FIELD_ACCESS = 44,
   PARSER_ASM_EXPR_ARRAY_LIT = 46,
@@ -32,6 +34,7 @@ enum {
   PARSER_ASM_EXPR_STRING_LIT = 59
 };
 
+extern void lexer_note_string_lit_overflow(int32_t line, int32_t col);
 extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex,
                             struct parser_asm_slice_u8 *source);
 extern void parse_expr_into(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
@@ -159,7 +162,12 @@ extern int32_t parser_asm_stretch_call_args_shape_probe_c(struct parser_asm_lexe
 extern int32_t parser_asm_stretch_paren_expr_head_audit_c(struct parser_asm_lexer lex,
                                                           struct parser_asm_slice_u8 *source);
 extern int32_t pipeline_expr_append_call_arg(void *arena, int32_t expr_ref, int32_t arg_ref);
+/** wave452: store turbofish type-arg type_ref on CALL (sidecar pool). */
+extern int32_t pipeline_expr_append_call_type_arg(void *arena, int32_t expr_ref, int32_t type_ref);
 extern int32_t pipeline_expr_append_method_call_arg(void *arena, int32_t expr_ref, int32_t arg_ref);
+extern int32_t parser_asm_parse_type_ref_for_arena_into_slice_c(void *arena, struct parser_asm_lexer lex,
+                                                                struct parser_asm_slice_u8 *source,
+                                                                struct parser_asm_lexer *out_lex);
 extern int32_t ast_ast_arena_block_alloc(void *arena);
 extern int32_t pipeline_block_append_unsafe(void *arena, int32_t block_ref, int32_t body_ref);
 extern int32_t pipeline_block_append_stmt_order(void *arena, int32_t block_ref, uint8_t kind, int32_t idx);
@@ -323,8 +331,10 @@ static void parser_asm_primary_parse_block_expr_c(void *arena, struct parser_asm
  *  - stmt / control keywords, nested `{`, `unsafe` → block
  *  - IDENT then `:` / `,` / `}` → anonymous struct lit (`{ fd: 1 }`, `{ fd, x }`, `{ fd }`)
  *  - IDENT then other → block (`{ y = 1; }`, `{ y; }`)
- *  - empty `}` → keep struct lit path (`{}`)
+ *  - empty `}` → keep anonymous struct lit path (`{}`) for bare `{` primary
  *  - INT / other primary heads → block (`{ 10 }`, `{ (a) }`)
+ * Named empty `Type {}` vs bare `if b {}` is NOT decided here — see
+ * parser_asm_primary_empty_ident_braces_prefer_block_c (wave364).
  */
 static int32_t parser_asm_primary_lbrace_looks_like_block_c(struct parser_asm_lexer lex_after_lbrace,
                                                             struct parser_asm_slice_u8 *source) {
@@ -361,6 +371,50 @@ static int32_t parser_asm_primary_lbrace_looks_like_block_c(struct parser_asm_le
   return 1;
 }
 
+/**
+ * wave364 / docs/03: empty `IDENT {}` after a type/var name is ambiguous:
+ *   - value: `let s: S = S {}` / `return S {}` / `f(S {})`
+ *   - bare ctrl: `if b {}` / `while b {}` / `if b {} else {…}`
+ * G.7 single authority on IDENT+LBRACE (not a second parse path).
+ * Lookahead past the empty braces: value-position terminators keep struct lit;
+ * otherwise end primary as VAR and leave `{` for the then/while body.
+ * PLATFORM: SHARED.
+ * @param lex_after_lbrace lexer after the opening `{`
+ * @param source source slice
+ * @return 1 prefer end-as-VAR (block), 0 keep Type {} struct lit, -1 not empty braces
+ */
+static int32_t parser_asm_primary_empty_ident_braces_prefer_block_c(
+    struct parser_asm_lexer lex_after_lbrace, struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer_result r_empty;
+  struct parser_asm_lexer_result r_after;
+  int32_t k;
+  if (!source)
+    return -1;
+  lexer_next_into(&r_empty, lex_after_lbrace, source);
+  if (r_empty.tok.kind != (int32_t)TOKEN_RBRACE)
+    return -1;
+  lexer_next_into(&r_after, r_empty.next_lex, source);
+  k = r_after.tok.kind;
+  /* Value-position / expr-continuation after empty Type {} → keep struct lit. */
+  if (k == (int32_t)TOKEN_SEMICOLON || k == (int32_t)TOKEN_COMMA || k == (int32_t)TOKEN_RPAREN
+      || k == (int32_t)TOKEN_RBRACKET || k == (int32_t)TOKEN_DOT || k == (int32_t)TOKEN_AS) {
+    return 0;
+  }
+  /**
+   * wave367: last STRUCT_LIT field empty Type {} is followed by outer `}`:
+   *   A { x: 42, e: E {} }
+   * wave364 treated any post-empty `}` as bare if/while prefer-block → primary ends as VAR
+   * "E", leaves `{`, field parse fails → whole function P001 / out_len=0.
+   * When under field-value parse (parser_asm_struct_field_value_depth > 0), keep struct lit.
+   * Nested bare `if b { if c {} }` keeps depth==0 → still prefer block. PLATFORM: SHARED.
+   */
+  if (k == (int32_t)TOKEN_RBRACE && parser_asm_struct_field_value_depth > 0) {
+    return 0;
+  }
+  /* Bare if/while empty body: next is return/else/ident/rbrace/if/… → then-block. */
+  return 1;
+}
+
 /** IDENT 后 `.field` / `[idx]` / `(args)` 后缀链；失败时写 out.ok=0 或仅写 out.next_lex 后返回。 */
 static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_asm_slice_u8 *source,
                                                    struct parser_asm_lexer *lex, struct parser_asm_lexer_result *r,
@@ -379,12 +433,19 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
   struct parser_asm_ast_expr ce_init;
   int32_t fi;
   int32_t pending_call_num_type_args;
+  /* wave452: parsed turbofish type_arg type_refs (max 8); 0 slots = count-only soft path. */
+  int32_t pending_call_type_arg_refs[8];
   int32_t prev_pos;
   int32_t prev_tok_kind;
   int32_t stall_count;
   int debug_enabled;
 
   pending_call_num_type_args = 0;
+  {
+    int32_t _zi;
+    for (_zi = 0; _zi < 8; _zi++)
+      pending_call_type_arg_refs[_zi] = 0;
+  }
   prev_pos = -1;
   prev_tok_kind = -1;
   stall_count = 0;
@@ -550,20 +611,96 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
        * 仅当 `<...>` 后真实跟 `(` 时才视为泛型调用 `id<T>(...)`。
        * 否则必须把 `<` 留给上层 relcompare，避免把 `elapsed_ns < 10000000`
        * 误吞成“带类型参数的变量引用”。
+       *
+       * wave452: when it is a generic call, also parse top-level type args into
+       * type_refs (sidecar via append_call_type_arg). Nested/unparsable type
+       * args fall back to count-only (call_num_type_args) for arity checks.
+       * PLATFORM: SHARED — product primary path (parser_asm thin).
        */
       struct parser_asm_lexer after_angle;
       struct parser_asm_lexer_result after_angle_tok;
       int32_t type_arg_count = 0;
-      parser_asm_skip_generic_angle_list_count_into_slice_c(&after_angle, &type_arg_count, *lex, source);
-      memset(&after_angle_tok, 0, sizeof(after_angle_tok));
-      after_angle_tok.next_lex = after_angle;
-      lexer_next_into(&after_angle_tok, after_angle, source);
-      if (after_angle_tok.tok.kind != (int32_t)TOKEN_LPAREN) {
-        out->next_lex = *lex;
-        return;
+      int32_t parsed_n = 0;
+      int32_t parsed_refs[8];
+      int32_t parse_ok = 1;
+      struct parser_asm_lexer cur;
+      int32_t pi;
+      for (pi = 0; pi < 8; pi++)
+        parsed_refs[pi] = 0;
+      /* First try real type_ref parse: IDENT/builtin/*T/[]T etc. */
+      cur = r->next_lex;
+      for (;;) {
+        struct parser_asm_lexer out_ty;
+        struct parser_asm_lexer_result sep;
+        int32_t tr;
+        if (parsed_n >= 8) {
+          parse_ok = 0;
+          break;
+        }
+        memset(&out_ty, 0, sizeof(out_ty));
+        tr = parser_asm_parse_type_ref_for_arena_into_slice_c(arena, cur, source, &out_ty);
+        if (tr <= 0) {
+          parse_ok = 0;
+          break;
+        }
+        parsed_refs[parsed_n] = tr;
+        parsed_n = parsed_n + 1;
+        cur = out_ty;
+        memset(&sep, 0, sizeof(sep));
+        lexer_next_into(&sep, cur, source);
+        if (sep.tok.kind == (int32_t)TOKEN_COMMA) {
+          cur = sep.next_lex;
+          continue;
+        }
+        if (sep.tok.kind == (int32_t)TOKEN_GT) {
+          after_angle = sep.next_lex;
+          break;
+        }
+        /*
+         * wave483: nested turbofish `foo<Bar<A>>(` — lexer yields TOKEN_RSHIFT for
+         * adjacent `>>`. Close this level and leave one `>` for the outer list
+         * (same split as type_ref angle close). PLATFORM: SHARED call-site turbofish.
+         */
+        if (sep.tok.kind == (int32_t)TOKEN_RSHIFT) {
+          after_angle = sep.next_lex;
+          if (after_angle.pos > 0)
+            after_angle.pos = after_angle.pos - (size_t)1;
+          if (after_angle.col > 1)
+            after_angle.col = after_angle.col - 1;
+          break;
+        }
+        parse_ok = 0;
+        break;
       }
-      pending_call_num_type_args = type_arg_count;
-      *lex = after_angle;
+      if (parse_ok != 0 && parsed_n > 0) {
+        memset(&after_angle_tok, 0, sizeof(after_angle_tok));
+        after_angle_tok.next_lex = after_angle;
+        lexer_next_into(&after_angle_tok, after_angle, source);
+        if (after_angle_tok.tok.kind != (int32_t)TOKEN_LPAREN) {
+          out->next_lex = *lex;
+          return;
+        }
+        pending_call_num_type_args = parsed_n;
+        for (pi = 0; pi < parsed_n && pi < 8; pi++)
+          pending_call_type_arg_refs[pi] = parsed_refs[pi];
+        for (pi = parsed_n; pi < 8; pi++)
+          pending_call_type_arg_refs[pi] = 0;
+        *lex = after_angle;
+      } else {
+        /* Fallback: count-only skip (complex type args / soft leave-off). */
+        parser_asm_skip_generic_angle_list_count_into_slice_c(&after_angle, &type_arg_count, *lex, source);
+        memset(&after_angle_tok, 0, sizeof(after_angle_tok));
+        after_angle_tok.next_lex = after_angle;
+        lexer_next_into(&after_angle_tok, after_angle, source);
+        if (after_angle_tok.tok.kind != (int32_t)TOKEN_LPAREN) {
+          out->next_lex = *lex;
+          return;
+        }
+        pending_call_num_type_args = type_arg_count;
+        for (pi = 0; pi < 8; pi++)
+          pending_call_type_arg_refs[pi] = 0;
+        *lex = after_angle;
+      }
     } else if (r->tok.kind == (int32_t)TOKEN_LBRACKET) {
       base_ref = out->expr_ref;
       *lex = r->next_lex;
@@ -608,8 +745,28 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
       ce_init.col = 0;
       parser_asm_expr_set_common_zeros_c(&ce_init);
       ce_init.call_callee_ref = callee_ref;
+      /* call_num_type_args set by append_call_type_arg when type_refs stored;
+       * pre-set count for count-only fallback (no type_ref sidecar). */
       ce_init.call_num_type_args = pending_call_num_type_args;
       parser_asm_arena_expr_set_c(arena, call_ref, ce_init);
+      /*
+       * wave452: persist turbofish type_arg type_refs when parsed (sidecar).
+       * append resets count then re-increments — keeps count aligned with slots.
+       */
+      if (pending_call_num_type_args > 0 && pending_call_type_arg_refs[0] > 0) {
+        int32_t tai;
+        int32_t nstore = pending_call_num_type_args;
+        if (nstore > 8)
+          nstore = 8;
+        for (tai = 0; tai < nstore; tai++) {
+          if (pending_call_type_arg_refs[tai] <= 0)
+            break;
+          if (pipeline_expr_append_call_type_arg(arena, call_ref, pending_call_type_arg_refs[tai]) < 0) {
+            out->ok = 0;
+            return;
+          }
+        }
+      }
       /*
        * 【Why 根源】call_arg 侧车池按「call_arg_base + idx」连续占槽。若 parse 嵌套 CALL 时
        * 外层已 append 部分实参，内层 base 会落在外层后续 idx 上，外层继续 append 时覆盖
@@ -618,6 +775,11 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
        * 使外层 base 落在所有嵌套 call_arg 区间之后。
        */
       pending_call_num_type_args = 0;
+      {
+        int32_t _zi2;
+        for (_zi2 = 0; _zi2 < 8; _zi2++)
+          pending_call_type_arg_refs[_zi2] = 0;
+      }
       lexer_next_into(r, *lex, source);
       {
         /* 旧硬顶 64：`arg_n >= 64` 使 65 实参 call 解析失败 → main 丢弃、无 _main（pool-limits）。 */
@@ -667,11 +829,16 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
       out->expr_ref = call_ref;
     } else if (r->tok.kind == (int32_t)TOKEN_LBRACE) {
       /**
-       * 【Why】`Module.TypeName { ... }` 语法：field-access 后跟 `{` 视为 struct 字面量。
-       * parser IDENT 后缀 loop 原本只处理 `.`/`[`/`(`/`<`，不支持 `heap.PageMmapHeap { ... }`，
-       * 导致 nolibc gate CG002（struct_lit 被解析为 FIELD_ACCESS ko=44，asm codegen 期望 ko=45）。
-       * 【Invariant】仅 FIELD_ACCESS (ko=44) 后的 LBRACE 触发；CALL/INDEX 后的 LBRACE 不触发。
-       * 【Asm/Perf】无额外分支开销：LBRACE 检查仅在 suffix loop 末尾命中一次。
+       * Qualified struct lit `Module.TypeName { ... }` (e.g. heap.PageMmapHeap { … },
+       * process.SpawnIo { … }) vs bare if/while cond ending in field access:
+       *   if a.x { … } / while b.x { … } / if c == Color.Red { … } / if 1 == b.x { … }
+       *
+       * Historical path always rewrote FIELD_ACCESS + `{` into STRUCT_LIT, which ate the
+       * then/while body → XP003 out_len=0. wave361/364 already disambiguate IDENT+`{`;
+       * G.7 reuses the same authorities here (no second heuristic).
+       *
+       * Invariant: only FIELD_ACCESS (ko=44) may become qualified struct lit; CALL/INDEX
+       * after LBRACE still stop the suffix loop. PLATFORM: SHARED.
        */
       struct parser_asm_ast_expr fae;
       int32_t fa_ref;
@@ -679,9 +846,21 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
       uint8_t tnm[64];
       int32_t ti;
       int32_t tj;
+      int32_t prefer_block;
       fa_ref = out->expr_ref;
       fae = parser_asm_arena_expr_get_c(arena, fa_ref);
       if (fae.kind != PARSER_ASM_EXPR_FIELD_ACCESS) {
+        out->next_lex = *lex;
+        return;
+      }
+      /* Same G.7 disambiguation as IDENT+LBRACE (wave361/364). Leave `{` for ctrl body. */
+      prefer_block = 0;
+      if (parser_asm_primary_lbrace_looks_like_block_c(r->next_lex, source) != 0) {
+        prefer_block = 1;
+      } else if (parser_asm_primary_empty_ident_braces_prefer_block_c(r->next_lex, source) == 1) {
+        prefer_block = 1;
+      }
+      if (prefer_block != 0) {
         out->next_lex = *lex;
         return;
       }
@@ -1616,7 +1795,6 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
   lexer_next_into(&r, lex, source);
   if (r.tok.kind == (int32_t)TOKEN_STRING) {
     size_t q0;
-    size_t k;
     ref = ast_ast_arena_expr_alloc(arena);
     if (ref == 0) {
       out->ok = 0;
@@ -1627,21 +1805,153 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     e.kind = PARSER_ASM_EXPR_STRING_LIT;
     e.line = r.tok.line;
     e.col = r.tok.col;
-    /* lexer.x：TOKEN_STRING 的 token_start 已指向开引号后首字节。 */
+    /* lexer.x：TOKEN_STRING 的 token_start 已指向开引号后首字节。
+     * wave281: decode escapes into AST semantic bytes (G.7 ≡ parser.x let-init STRING path).
+     * Product set: \n \t \r \0 \\ \" \xHH. Lexer sticky L010 rejects others. */
     q0 = r.token_start;
-    e.var_name_len = r.tok.ident_len;
-    if (e.var_name_len > 63)
-      e.var_name_len = 63;
-    if (e.var_name_len < 0)
-      e.var_name_len = 0;
-    for (k = 0; k < (size_t)e.var_name_len; k++)
-      e.var_name[k] = source->data[q0 + k];
-    if ((size_t)e.var_name_len < 64)
-      e.var_name[e.var_name_len] = 0;
+    {
+      int32_t nlen = r.tok.ident_len;
+      int32_t ri = 0;
+      int32_t wi = 0;
+      /* wave283: full span; L011 if semantic bytes would exceed 63 (not silent truncate). */
+      if (nlen < 0)
+        nlen = 0;
+      while (ri < nlen) {
+        if (wi >= 63) {
+          lexer_note_string_lit_overflow(e.line, e.col);
+          break;
+        }
+        uint8_t c = 0;
+        if (q0 + (size_t)ri < source->length)
+          c = source->data[q0 + (size_t)ri];
+        if (c == 92 && (ri + 1) < nlen) {
+          uint8_t n = 0;
+          if (q0 + (size_t)(ri + 1) < source->length)
+            n = source->data[q0 + (size_t)(ri + 1)];
+          if (n == 110) { e.var_name[wi++] = 10; ri += 2; continue; }
+          if (n == 116) { e.var_name[wi++] = 9; ri += 2; continue; }
+          if (n == 114) { e.var_name[wi++] = 13; ri += 2; continue; }
+          if (n == 48) { e.var_name[wi++] = 0; ri += 2; continue; }
+          if (n == 92 || n == 34) { e.var_name[wi++] = n; ri += 2; continue; }
+          if (n == 120 && (ri + 3) < nlen) {
+            uint8_t h1 = 0;
+            uint8_t h2 = 0;
+            int32_t v1 = -1;
+            int32_t v2 = -1;
+            if (q0 + (size_t)(ri + 2) < source->length)
+              h1 = source->data[q0 + (size_t)(ri + 2)];
+            if (q0 + (size_t)(ri + 3) < source->length)
+              h2 = source->data[q0 + (size_t)(ri + 3)];
+            if (h1 >= 48 && h1 <= 57) v1 = (int32_t)h1 - 48;
+            if (h1 >= 97 && h1 <= 102) v1 = (int32_t)h1 - 97 + 10;
+            if (h1 >= 65 && h1 <= 70) v1 = (int32_t)h1 - 65 + 10;
+            if (h2 >= 48 && h2 <= 57) v2 = (int32_t)h2 - 48;
+            if (h2 >= 97 && h2 <= 102) v2 = (int32_t)h2 - 97 + 10;
+            if (h2 >= 65 && h2 <= 70) v2 = (int32_t)h2 - 65 + 10;
+            if (v1 >= 0 && v2 >= 0) {
+              e.var_name[wi++] = (uint8_t)((v1 * 16) + v2);
+              ri += 4;
+              continue;
+            }
+          }
+          e.var_name[wi++] = n;
+          ri += 2;
+          continue;
+        }
+        e.var_name[wi++] = c;
+        ri++;
+      }
+      e.var_name_len = wi;
+      while (wi < 64) {
+        e.var_name[wi] = 0;
+        wi++;
+      }
+    }
     parser_asm_arena_expr_set_c(arena, ref, e);
-    out->ok = 1;
-    out->expr_ref = ref;
-    out->next_lex = r.next_lex;
+    /* wave282: C-style adjacent string-literal concat (G.7 ≡ parser.x / parser_gen).
+     * Soft residual: 2nd+ TOKEN_STRING after primary STRING was left unconsumed or
+     * dropped as bare expr-stmt; only first literal entered the AST.
+     * Peek/consume only TOKEN_STRING; leave non-string for parent via next_lex. */
+    {
+      struct parser_asm_lexer_result nr;
+      struct parser_asm_lexer nlex = r.next_lex;
+      out->ok = 1;
+      out->expr_ref = ref;
+      out->next_lex = r.next_lex;
+      for (;;) {
+        int32_t wi_adj;
+        int32_t nlen_adj;
+        size_t q0_adj;
+        int32_t ri_adj;
+        lexer_next_into(&nr, nlex, source);
+        if (nr.tok.kind != (int32_t)TOKEN_STRING)
+          break;
+        e = parser_asm_arena_expr_get_c(arena, ref);
+        wi_adj = e.var_name_len;
+        if (wi_adj < 0)
+          wi_adj = 0;
+        if (wi_adj > 63)
+          wi_adj = 63;
+        nlen_adj = nr.tok.ident_len;
+        if (nlen_adj < 0)
+          nlen_adj = 0;
+        q0_adj = nr.token_start;
+        ri_adj = 0;
+        while (ri_adj < nlen_adj) {
+          if (wi_adj >= 63) {
+            lexer_note_string_lit_overflow(e.line, e.col);
+            break;
+          }
+          uint8_t c2 = 0;
+          if (q0_adj + (size_t)ri_adj < source->length)
+            c2 = source->data[q0_adj + (size_t)ri_adj];
+          if (c2 == 92 && (ri_adj + 1) < nlen_adj) {
+            uint8_t n2 = 0;
+            if (q0_adj + (size_t)(ri_adj + 1) < source->length)
+              n2 = source->data[q0_adj + (size_t)(ri_adj + 1)];
+            if (n2 == 110) { e.var_name[wi_adj++] = 10; ri_adj += 2; continue; }
+            if (n2 == 116) { e.var_name[wi_adj++] = 9; ri_adj += 2; continue; }
+            if (n2 == 114) { e.var_name[wi_adj++] = 13; ri_adj += 2; continue; }
+            if (n2 == 48) { e.var_name[wi_adj++] = 0; ri_adj += 2; continue; }
+            if (n2 == 92 || n2 == 34) { e.var_name[wi_adj++] = n2; ri_adj += 2; continue; }
+            if (n2 == 120 && (ri_adj + 3) < nlen_adj) {
+              uint8_t h1b = 0;
+              uint8_t h2b = 0;
+              int32_t v1b = -1;
+              int32_t v2b = -1;
+              if (q0_adj + (size_t)(ri_adj + 2) < source->length)
+                h1b = source->data[q0_adj + (size_t)(ri_adj + 2)];
+              if (q0_adj + (size_t)(ri_adj + 3) < source->length)
+                h2b = source->data[q0_adj + (size_t)(ri_adj + 3)];
+              if (h1b >= 48 && h1b <= 57) v1b = (int32_t)h1b - 48;
+              if (h1b >= 97 && h1b <= 102) v1b = (int32_t)h1b - 97 + 10;
+              if (h1b >= 65 && h1b <= 70) v1b = (int32_t)h1b - 65 + 10;
+              if (h2b >= 48 && h2b <= 57) v2b = (int32_t)h2b - 48;
+              if (h2b >= 97 && h2b <= 102) v2b = (int32_t)h2b - 97 + 10;
+              if (h2b >= 65 && h2b <= 70) v2b = (int32_t)h2b - 65 + 10;
+              if (v1b >= 0 && v2b >= 0) {
+                e.var_name[wi_adj++] = (uint8_t)((v1b * 16) + v2b);
+                ri_adj += 4;
+                continue;
+              }
+            }
+            e.var_name[wi_adj++] = n2;
+            ri_adj += 2;
+            continue;
+          }
+          e.var_name[wi_adj++] = c2;
+          ri_adj++;
+        }
+        e.var_name_len = wi_adj;
+        while (wi_adj < 64) {
+          e.var_name[wi_adj] = 0;
+          wi_adj++;
+        }
+        parser_asm_arena_expr_set_c(arena, ref, e);
+        nlex = nr.next_lex;
+        out->next_lex = nlex;
+      }
+    }
     return;
   }
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source));
@@ -1719,6 +2029,54 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     out->next_lex = r.next_lex;
     return;
   }
+  /**
+   * wave371: TOKEN_RETURN as primary → EXPR_RETURN (operand in unary_operand_ref).
+   * Needed for match-arm results `1 => return 42;` (docs/03 statement form).
+   * Arm terminator `;` is left for parse_match_into; bare `return;` has no operand.
+   * G.7: same EXPR_RETURN shape as parse_block_into return stmt (not a second return AST).
+   * PLATFORM: SHARED.
+   */
+  if (r.tok.kind == (int32_t)TOKEN_RETURN) {
+    struct parser_asm_parse_expr_result ret_op;
+    int32_t ret_line = r.tok.line;
+    int32_t ret_col = r.tok.col;
+    lex = r.next_lex;
+    ref = ast_ast_arena_expr_alloc(arena);
+    if (ref == 0) {
+      out->ok = 0;
+      return;
+    }
+    e = parser_asm_arena_expr_get_c(arena, ref);
+    e.kind = PARSER_ASM_EXPR_RETURN;
+    e.line = ret_line;
+    e.col = ret_col;
+    parser_asm_expr_set_common_zeros_c(&e);
+    lexer_next_into(&r, lex, source);
+    /* Operand starts if next is not arm/stmt terminator. */
+    if (r.tok.kind != (int32_t)TOKEN_SEMICOLON && r.tok.kind != (int32_t)TOKEN_RBRACE
+        && r.tok.kind != (int32_t)TOKEN_EOF && r.tok.kind != (int32_t)TOKEN_COMMA
+        && r.tok.kind != (int32_t)TOKEN_FATARROW) {
+      ret_op.ok = 0;
+      ret_op.expr_ref = 0;
+      ret_op.next_lex = parser_asm_lex_at_token_from_result_c(r);
+      parse_expr_into(arena, ret_op.next_lex, source, &ret_op);
+      if (!ret_op.ok) {
+        out->ok = 0;
+        return;
+      }
+      e.unary_operand_ref = ret_op.expr_ref;
+      parser_asm_arena_expr_set_c(arena, ref, e);
+      out->ok = 1;
+      out->expr_ref = ref;
+      out->next_lex = ret_op.next_lex;
+      return;
+    }
+    parser_asm_arena_expr_set_c(arena, ref, e);
+    out->ok = 1;
+    out->expr_ref = ref;
+    out->next_lex = lex;
+    return;
+  }
   if (r.tok.kind == (int32_t)TOKEN_MATCH) {
     parser_parse_match_into(arena, parser_asm_lex_at_token_from_result_c(r), source, out);
     return;
@@ -1758,6 +2116,22 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     lexer_next_into(&r, lex, source);
     /* Struct lit Type { ... } only for IDENT type names, not keyword self. */
     if (r.tok.kind == (int32_t)TOKEN_LBRACE && !name_was_self) {
+      /**
+       * wave361 / docs/03 bare if/while: `if b { body }` must not parse `b {` as struct lit.
+       * Reuse G.7 lbrace_looks_like_block: stmt-like after `{` → end primary as VAR, leave `{`.
+       * Field-like (`x:`, `,`, `}`) → keep Type { fields } struct lit (return/let paths).
+       * wave364: empty `}` was field-like → bare `if b {}` / `while b {}` ate then-body as
+       * empty struct lit; prefer block when post-`}` is not a value-position terminator.
+       * PLATFORM: SHARED.
+       */
+      if (parser_asm_primary_lbrace_looks_like_block_c(r.next_lex, source) != 0) {
+        out->next_lex = lex;
+        return;
+      }
+      if (parser_asm_primary_empty_ident_braces_prefer_block_c(r.next_lex, source) == 1) {
+        out->next_lex = lex;
+        return;
+      }
       parser_finish_struct_lit_from_type_ident_into_glue(arena, ref, r.next_lex, source, out);
       return;
     }

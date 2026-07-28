@@ -20,7 +20,7 @@ function main(): i32 {
     vec.deinit(&v, al);
     return 3;
   }
-  if (vec.len(v) != 2) {
+  if (vec.length(v) != 2) {
     vec.deinit(&v, al);
     return 4;
   }
@@ -52,7 +52,7 @@ function main(): i32 {
     heap.arena64_deinit(&ar);
     return 9;
   }
-  if (vec.len(v2) != 1 || v2.ptr[0] != 68) {
+  if (vec.length(v2) != 1 || v2.ptr[0] != 68) {
     vec.deinit(&v2, al2);
     heap.arena64_deinit(&ar);
     return 10;

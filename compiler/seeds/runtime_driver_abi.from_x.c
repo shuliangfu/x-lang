@@ -2123,7 +2123,7 @@ int32_t driver_preamble_fputs(uint8_t *s, uint8_t *stream) {
 #endif
 struct driver_codegen_outbuf_abi {
     unsigned char data[X_CODEGEN_OUTBUF_CAP_ABI];
-    int32_t len;
+    int32_t length;
 };
 
 extern const char *driver_x_emit_c_path;
@@ -2210,7 +2210,7 @@ void driver_codegen_outbuf_free(void *p) {
 int32_t driver_codegen_outbuf_len(void *p) {
     if (p == NULL)
         return 0;
-    return ((struct driver_codegen_outbuf_abi *)p)->len;
+    return ((struct driver_codegen_outbuf_abi *)p)->length;
 }
 
 uint8_t *driver_codegen_outbuf_data(void *p) {
@@ -2279,25 +2279,183 @@ void driver_size_table_set(void *t, int32_t i, size_t v) {
  * Cap-struct-return residual：unpack parser_parse_into_buf into rc + out_main_idx.
  * Always-seed (not stripped by FROM_X). Wave38 pure driver_parse_into_buf_rc owns
  * null guards then calls this. PLATFORM: SHARED — struct return stays C.
+ *
+ * wave269: always-seed also owns L001 sticky hard-fail (reset before parse, pending
+ * after). wave271: same for L002 unclosed string. wave272: same for L003 illegal char.
+ * wave273: same for L004 incomplete hex.
+ * wave274: same for L005 incomplete float exponent.
+ * Thin driver_parse_into_buf_rc may also check; this residual is the G.7 single choke
+ * that hybrid and cold both pass through.
  */
+extern void lexer_unclosed_block_comment_reset(void);
+extern int32_t lexer_unclosed_block_comment_pending(void);
+extern void lexer_unclosed_string_reset(void);
+extern int32_t lexer_unclosed_string_pending(void);
+extern void lexer_illegal_char_reset(void);
+extern int32_t lexer_illegal_char_pending(void);
+extern void lexer_incomplete_hex_reset(void);
+extern int32_t lexer_incomplete_hex_pending(void);
+extern void lexer_incomplete_exp_reset(void);
+extern int32_t lexer_incomplete_exp_pending(void);
+extern void lexer_incomplete_bin_reset(void);
+extern int32_t lexer_incomplete_bin_pending(void);
+extern void lexer_incomplete_oct_reset(void);
+extern void lexer_invalid_digit_sep_reset(void);
+extern int32_t lexer_invalid_digit_sep_pending(void);
+extern void lexer_invalid_type_suffix_reset(void);
+extern int32_t lexer_invalid_type_suffix_pending(void);
+extern int32_t lexer_incomplete_oct_pending(void);
 int32_t xlang_parser_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32_t len,
                                       int32_t *out_main_idx) {
     struct parser_ParseIntoResult pr;
+    lexer_unclosed_block_comment_reset();
+    lexer_unclosed_string_reset();
+    lexer_illegal_char_reset();
+    lexer_incomplete_hex_reset();
+    lexer_incomplete_exp_reset();
+    lexer_incomplete_bin_reset();
+    lexer_incomplete_oct_reset();
+    lexer_invalid_digit_sep_reset();
+    lexer_invalid_type_suffix_reset();
     pr = parser_parse_into_buf(arena, module, data, len);
+    if (lexer_unclosed_block_comment_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_unclosed_string_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_illegal_char_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_incomplete_hex_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_incomplete_exp_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_incomplete_bin_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_incomplete_oct_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_invalid_digit_sep_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_invalid_type_suffix_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
     if (out_main_idx)
         *out_main_idx = pr.main_idx;
     return pr.ok;
 }
 
-/* wave38 pure: hybrid thin owns parse_into_buf_rc orch; cold keeps twin with guards. */
+/* wave38 pure: hybrid thin owns parse_into_buf_rc orch; cold keeps twin with guards.
+ * wave269: reset + hard-fail on unclosed block comment (L001 sticky pending).
+ * wave271: reset + hard-fail on unclosed string (L002 sticky pending).
+ * wave272: reset + hard-fail on illegal character (L003 sticky pending).
+ * wave273: reset + hard-fail on incomplete hex (L004 sticky pending).
+ * wave274: reset + hard-fail on incomplete float exponent (L005 sticky pending). */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+extern void lexer_unclosed_block_comment_reset(void);
+extern int32_t lexer_unclosed_block_comment_pending(void);
+extern void lexer_unclosed_string_reset(void);
+extern int32_t lexer_unclosed_string_pending(void);
+extern void lexer_illegal_char_reset(void);
+extern int32_t lexer_illegal_char_pending(void);
+extern void lexer_incomplete_hex_reset(void);
+extern int32_t lexer_incomplete_hex_pending(void);
+extern void lexer_incomplete_exp_reset(void);
+extern int32_t lexer_incomplete_exp_pending(void);
+extern void lexer_incomplete_bin_reset(void);
+extern int32_t lexer_incomplete_bin_pending(void);
+extern void lexer_incomplete_oct_reset(void);
+extern void lexer_invalid_digit_sep_reset(void);
+extern int32_t lexer_invalid_digit_sep_pending(void);
+extern void lexer_invalid_type_suffix_reset(void);
+extern int32_t lexer_invalid_type_suffix_pending(void);
+extern int32_t lexer_incomplete_oct_pending(void);
 int32_t driver_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32_t len,
                                  int32_t *out_main_idx) {
+    int32_t rc;
     if (out_main_idx)
         *out_main_idx = -1;
     if (!arena || !module || !data)
         return -1;
-    return xlang_parser_parse_into_buf_rc(arena, module, data, len, out_main_idx);
+    lexer_unclosed_block_comment_reset();
+    lexer_unclosed_string_reset();
+    lexer_illegal_char_reset();
+    lexer_incomplete_hex_reset();
+    lexer_incomplete_exp_reset();
+    lexer_incomplete_bin_reset();
+    lexer_incomplete_oct_reset();
+    lexer_invalid_digit_sep_reset();
+    lexer_invalid_type_suffix_reset();
+    rc = xlang_parser_parse_into_buf_rc(arena, module, data, len, out_main_idx);
+    if (lexer_unclosed_block_comment_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_unclosed_string_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_illegal_char_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_incomplete_hex_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_incomplete_exp_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_incomplete_bin_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_incomplete_oct_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_invalid_digit_sep_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_invalid_type_suffix_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    return rc;
 }
 #endif
 
@@ -3720,7 +3878,7 @@ int32_t driver_asm_stub_out_append_cstr(void *out, uint8_t *s) {
         return -1;
     ob = (struct driver_codegen_outbuf_abi *)out;
     len = strlen((const char *)(void *)s);
-    cur = (size_t)ob->len;
+    cur = (size_t)ob->length;
     if (cur > (size_t)X_CODEGEN_OUTBUF_CAP_ABI)
         return -1;
     if (cur + len + 1 > (size_t)X_CODEGEN_OUTBUF_CAP_ABI)
@@ -3728,7 +3886,7 @@ int32_t driver_asm_stub_out_append_cstr(void *out, uint8_t *s) {
     memcpy(ob->data + cur, s, len);
     ob->data[cur + len] = (unsigned char)'\n';
     n = cur + len + 1;
-    ob->len = (int32_t)n;
+    ob->length = (int32_t)n;
     return 0;
 }
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */

@@ -567,9 +567,9 @@ int xlang_invoke_cc(const char **c_paths, int n, const char *out_path, const cha
  * 参数：argv/ia/max_ia 为 cc 链接 argv 构建状态；path 候选 .o。
  * 返回值：1 已追加，0 跳过。
  */
-/* Cap residual always (wave179 / wave215): skip_missing + realpath multi-slot pool body. */
+/* Cap residual always (wave179 / wave215 / wave255): multi-slot realpath pool body only. */
 const char *invoke_cc_argv_resolve_existing_path_impl(const char *path);
-/* wave215 pure orch (L6): null/empty gates + Cap residual _impl; cold twin under #ifndef. */
+/* wave215/255 pure orch (L6): null/empty + skip_missing + Cap residual pool; cold twin under #ifndef. */
 const char *invoke_cc_argv_resolve_existing_path(const char *path);
 /* wave179 pure orch (L6); Cap residual resolve via public face → _impl. */
 int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path);

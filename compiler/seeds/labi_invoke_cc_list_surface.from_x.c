@@ -18,6 +18,7 @@
  * 【Invariant】全部返回 C 字符串字面量（rodata），与 labi_invoke_cc_list.from_x.c 冷路径一致。
  * Prove: full.x vs this seed → nm IDENTICAL (harden/skip-native/icc rel pure table
  *   + wave155/198/199/200/201/202/203/204/205/206/207/208 pure orch).
+ * wave260: product g05 L5 default PREFER full .x (cold seed = fallback only).
  * Cap residual: generated_c_needs_* + ensure/path/push peers + host_is_* + net_tls_ld
  *   + xlang_spawn_sync / setenv / invoke_cc_strip_out_x / link_diag_tool_status
  *   + asm_link_obj_skip_missing + link_abi_user_extra_o_{count,at}
@@ -55,6 +56,9 @@ extern int32_t xlang_ensure_runtime_time_os_o(uint8_t * argv0);
 extern uint8_t * xlang_runtime_time_os_o_path(uint8_t * argv0);
 extern int32_t xlang_ensure_runtime_panic_o(uint8_t * argv0);
 extern uint8_t * xlang_runtime_panic_o_path(uint8_t * argv0);
+/* wave288 L4: residual face companion (never g05 host bag). */
+extern int32_t xlang_ensure_runtime_link_abi_user_env_o(uint8_t * argv0);
+extern uint8_t * xlang_runtime_link_abi_user_env_o_path(uint8_t * argv0);
 extern int32_t xlang_host_is_linux(void);
 extern int32_t link_abi_host_is_apple(void);
 extern int32_t link_abi_host_is_windows(void);
@@ -607,7 +611,7 @@ uint8_t *labi_icc_std_need_needle_at(int32_t mid, int32_t i) {
   if (mid == 21) {
     if (i == 0) return (uint8_t *)"std_vec_new";
     if (i == 1) return (uint8_t *)"std_vec_push";
-    if (i == 2) return (uint8_t *)"std_vec_len_Vec";
+    if (i == 2) return (uint8_t *)"std_vec_length_Vec";
     if (i == 3) return (uint8_t *)"std_vec_len_ptr";
     if (i == 4) return (uint8_t *)"std_vec_with_capacity";
     if (i == 5) return (uint8_t *)"std_vec_from_slice";
@@ -864,6 +868,16 @@ void invoke_cc_append_std_ensure_push_front(uint8_t **argv, int32_t *ia, int32_t
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rp);
     }
   }
+  /* wave288 L4 G.7: residual face companion — process/env/panic U link_abi_getenv.
+   * PLATFORM: SHARED — ≡ PRIMARY_PANIC user_env on asm ld; invoke_cc was lagging. */
+  if (need_process || need_env || need_panic || need_runtime) {
+    (void)xlang_ensure_runtime_link_abi_user_env_o(NULL);
+    {
+      uint8_t *rue = xlang_runtime_link_abi_user_env_o_path(NULL);
+      if (rue && rue[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rue);
+    }
+  }
 
   if (need_net && invoke_cc_argv_push_existing(argv, ia, argv_cap, net_o)) {
     (void)invoke_cc_append_net_tls_ld(argv, ia, argv_cap, net_o, include_root);
@@ -1002,6 +1016,13 @@ void invoke_cc_append_std_ensure_push_mid(uint8_t **argv, int32_t *ia, int32_t a
       if (rlo && rlo[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rlo);
     }
+    /* wave288 L4: log_os residual U link_abi_getenv → user_env face. */
+    (void)xlang_ensure_runtime_link_abi_user_env_o(NULL);
+    {
+      uint8_t *rue = xlang_runtime_link_abi_user_env_o_path(NULL);
+      if (rue && rue[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rue);
+    }
   }
   if (need_atomic && invoke_cc_argv_push_existing(argv, ia, argv_cap, atomic_o)) {
     (void)xlang_ensure_runtime_atomic_glue_o(NULL);
@@ -1027,6 +1048,13 @@ void invoke_cc_append_std_ensure_push_mid(uint8_t **argv, int32_t *ia, int32_t a
       uint8_t *rbp = xlang_runtime_backtrace_platform_o_path(NULL);
       if (rbp && rbp[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rbp);
+    }
+    /* wave288 L4: backtrace residual U link_abi_getenv → user_env face. */
+    (void)xlang_ensure_runtime_link_abi_user_env_o(NULL);
+    {
+      uint8_t *rue = xlang_runtime_link_abi_user_env_o_path(NULL);
+      if (rue && rue[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rue);
     }
     if (xlang_host_is_linux()) {
       labi_icc_argv_try_push_flag(argv, ia, argv_cap, (uint8_t *)"-rdynamic");
@@ -1316,6 +1344,13 @@ void invoke_cc_append_std_ensure_push_heavy_b(uint8_t **argv, int32_t *ia, int32
       uint8_t *rhg = xlang_runtime_http_glue_o_path(NULL);
       if (rhg && rhg[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rhg);
+    }
+    /* wave288 L4: http_glue residual U link_abi_getenv → user_env face. */
+    (void)xlang_ensure_runtime_link_abi_user_env_o(NULL);
+    {
+      uint8_t *rue = xlang_runtime_link_abi_user_env_o_path(NULL);
+      if (rue && rue[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rue);
     }
     if (link_abi_host_is_windows())
       labi_icc_argv_try_push_flag(argv, ia, argv_cap, labi_ld_flag_lws2_32());

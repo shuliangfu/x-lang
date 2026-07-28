@@ -870,20 +870,20 @@ export function emit_jmp(out: *CodegenOutBuf, label: *u8, label_len: i32): i32 {
  */
 export function emit_label(out: *CodegenOutBuf, name: *u8, name_len: i32): i32 {
   let i: i32 = 0;
-  while (i < name_len && out.len < 8388608) {
-    out.data[out.len] = name[i];
-    out.len = out.len + 1;
+  while (i < name_len && out.length < 8388608) {
+    out.data[out.length] = name[i];
+    out.length = out.length + 1;
     i = i + 1;
   }
-  if (out.len < 8388608) {
+  if (out.length < 8388608) {
     let colon: u8[1] = [58];
-    out.data[out.len] = colon[0];
-    out.len = out.len + 1;
+    out.data[out.length] = colon[0];
+    out.length = out.length + 1;
   }
-  if (out.len < 8388608) {
+  if (out.length < 8388608) {
     let nl: u8[1] = [10];
-    out.data[out.len] = nl[0];
-    out.len = out.len + 1;
+    out.data[out.length] = nl[0];
+    out.length = out.length + 1;
     return 0;
   }
   return -1;

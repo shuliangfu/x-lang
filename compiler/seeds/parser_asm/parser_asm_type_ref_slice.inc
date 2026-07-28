@@ -6,6 +6,44 @@
 #ifndef PARSER_ASM_TYPE_REF_SLICE_INCLUDED
 #define PARSER_ASM_TYPE_REF_SLICE_INCLUDED
 
+/**
+ * wave483 Cap residual pure: close one level of type-pos angle list.
+ *
+ * Nested generics spell `Name<Name<T>>` with adjacent `>>`. The lexer max-munch
+ * path emits TOKEN_RSHIFT for `>>` (shift operator), so a bare TOKEN_GT check
+ * fails mid-nest and the whole type_ref returns 0 (XP003 / dropped fn).
+ *
+ * Contract when the peek token ends a type-arg list:
+ *   - TOKEN_GT: consume fully (one close).
+ *   - TOKEN_RSHIFT: treat as two `>` — close this level and leave one `>` in the
+ *     stream for the outer list (rewind next_lex.pos/col by 1). Same rule as
+ *     C++/Rust nested-generic angle closing. Does **not** accept TOKEN_RSHIFT_EQ.
+ *
+ * @param peek lexer result already filled by lexer_next_into at the close site
+ * @param lex_inout updated to the post-close lex state on success
+ * @return 1 if closed, 0 if peek is neither GT nor RSHIFT
+ * PLATFORM: SHARED type grammar — product type_ref path (this .inc).
+ */
+static int32_t parser_asm_type_angle_close_gt_or_rshift_c(struct parser_asm_lexer_result *peek,
+                                                         struct parser_asm_lexer *lex_inout) {
+  if (!peek || !lex_inout)
+    return 0;
+  if (peek->tok.kind == (int32_t)TOKEN_GT) {
+    parser_asm_lex_from_result_val_into(lex_inout, *peek);
+    return 1;
+  }
+  if (peek->tok.kind == (int32_t)TOKEN_RSHIFT) {
+    /* next_lex is past both bytes of `>>`; leave the second `>` for the outer list. */
+    *lex_inout = peek->next_lex;
+    if (lex_inout->pos > 0)
+      lex_inout->pos = lex_inout->pos - (size_t)1;
+    if (lex_inout->col > 1)
+      lex_inout->col = lex_inout->col - 1;
+    return 1;
+  }
+  return 0;
+}
+
 /** 与 ast.x Type 布局一致。 */
 struct ast_Type {
   int32_t kind;
@@ -326,15 +364,24 @@ static int32_t parser_asm_parse_postfix_slice_type_ref_c(void *arena, int32_t el
 }
 
 /**
- * 解析内建/已分配元素类型后的后缀：`T[]` / `T[]<label>`（slice）或 `T[N]`（固定数组）。
- * lex 须已消费元素类型 token；若下一 token 不是 `[`，*out_lex 保持不动并返回 elem_tr。
+ * Parse postfix array/slice after an element type: `T[]` / `T[]<label>` / `T[N]` / `T[N][M]…`.
+ * lex must already have consumed the element-type token. If the next token is not `[`,
+ * *out_lex is left unchanged and elem_tr is returned.
+ *
+ * PLATFORM: SHARED — multi-dim postfix (wave356). Product spelling is C-style `T[N][M]`
+ * (docs/02): outer N, inner M, same AST as prefix `[N][M]T`. Collect dimensions left-to-right,
+ * then wrap from the rightmost dim so `i32[2][3]` ≡ `[2][3]i32` ≡ array-of-2 of array-of-3 of i32.
+ * Cap 8 dims; empty `[]` remains slice only as the first postfix (`T[]`, not `T[N][]`).
  */
 static int32_t parser_asm_parse_postfix_array_type_ref_c(void *arena, int32_t elem_tr,
                                                        struct parser_asm_lexer lex,
                                                        struct parser_asm_slice_u8 *source,
                                                        struct parser_asm_lexer *out_lex) {
   struct parser_asm_lexer_result r;
-  int32_t asz;
+  int32_t dims[8];
+  int32_t ndims;
+  int32_t di;
+  int32_t cur;
   int32_t arr_ref;
   struct ast_Type ta;
   if (!out_lex || elem_tr == 0)
@@ -344,36 +391,62 @@ static int32_t parser_asm_parse_postfix_array_type_ref_c(void *arena, int32_t el
     parser_asm_write_out_lex_c(out_lex, lex);
     return elem_tr;
   }
-  parser_asm_lex_from_result_val_into(&lex, r);
-  lexer_next_into(&r, lex, source);
-  /** M-3：`i32[]` / `i32[]<ra>` — 空 `[]` 为 slice，非固定数组 `T[N]`。 */
-  if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
-    return parser_asm_parse_postfix_slice_type_ref_c(arena, elem_tr, lex, source, out_lex);
+  ndims = 0;
+  for (;;) {
+    parser_asm_lex_from_result_val_into(&lex, r);
+    lexer_next_into(&r, lex, source);
+    /** M-3: empty `[]` is slice only when it is the first postfix (`T[]` / `T[]<label>`). */
+    if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
+      if (ndims > 0) {
+        /* `T[N][]` is not a product form — fail closed. */
+        parser_asm_write_out_lex_c(out_lex, lex);
+        return 0;
+      }
+      return parser_asm_parse_postfix_slice_type_ref_c(arena, elem_tr, lex, source, out_lex);
+    }
+    if (r.tok.kind != (int32_t)TOKEN_INT || r.tok.int_val <= 0) {
+      parser_asm_write_out_lex_c(out_lex, lex);
+      return 0;
+    }
+    if (ndims >= 8) {
+      parser_asm_write_out_lex_c(out_lex, lex);
+      return 0;
+    }
+    dims[ndims] = r.tok.int_val;
+    ndims = ndims + 1;
+    parser_asm_lex_from_result_val_into(&lex, r);
+    lexer_next_into(&r, lex, source);
+    if (r.tok.kind != (int32_t)TOKEN_RBRACKET) {
+      parser_asm_write_out_lex_c(out_lex, lex);
+      return 0;
+    }
+    parser_asm_lex_from_result_val_into(&lex, r);
+    /* Peek next token without consuming; another `[` continues multi-dim. */
+    lexer_next_into(&r, lex, source);
+    if (r.tok.kind != (int32_t)TOKEN_LBRACKET)
+      break;
   }
-  if (r.tok.kind != (int32_t)TOKEN_INT || r.tok.int_val <= 0) {
-    parser_asm_write_out_lex_c(out_lex, lex);
-    return 0;
-  }
-  asz = r.tok.int_val;
-  parser_asm_lex_from_result_val_into(&lex, r);
-  lexer_next_into(&r, lex, source);
-  if (r.tok.kind != (int32_t)TOKEN_RBRACKET) {
-    parser_asm_write_out_lex_c(out_lex, lex);
-    return 0;
-  }
-  parser_asm_lex_from_result_val_into(&lex, r);
-  arr_ref = ast_ast_arena_type_alloc(arena);
-  if (arr_ref != 0) {
+  /* Build right-to-left: dims[0]=outer … dims[ndims-1]=innermost (C / prefix form). */
+  cur = elem_tr;
+  di = ndims - 1;
+  while (di >= 0) {
+    arr_ref = ast_ast_arena_type_alloc(arena);
+    if (arr_ref == 0) {
+      parser_asm_write_out_lex_c(out_lex, lex);
+      return 0;
+    }
     ta = ast_arena_type_get(arena, arr_ref);
     ta.kind = PARSER_ASM_TYPE_ARRAY;
-    ta.elem_type_ref = elem_tr;
-    ta.array_size = asz;
+    ta.elem_type_ref = cur;
+    ta.array_size = dims[di];
     ta.name_len = 0;
     ta.region_label_len = 0;
     ast_arena_type_set(arena, arr_ref, ta);
+    cur = arr_ref;
+    di = di - 1;
   }
   parser_asm_write_out_lex_c(out_lex, lex);
-  return arr_ref;
+  return cur;
 }
 
 /**
@@ -419,12 +492,27 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
       parser_asm_lex_from_result_val_into(&lex, r);
       lexer_next_into(&r, lex, source);
     }
-    elem_ref = parser_asm_alloc_pointee_type_ref_from_tok_c(arena, source, &r);
-    if (elem_ref == 0) {
-      parser_asm_write_out_lex_c(out_lex, lex);
-      return 0;
+    if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
+      /*
+       * wave435: *[]T / *[N]T → PTR to SLICE/ARRAY of T (type syntax: [] binds
+       * tighter than *). The inner slice/array is parsed recursively (it owns
+       * the `[`), then PTR is wrapped around it. The C-style postfix *T[N]
+       * (ARRAY of PTR to T, scalar base T) is preserved for the scalar path
+       * below. PLATFORM: SHARED parse.
+       */
+      elem_ref = parser_asm_parse_type_ref_impl_c(arena, lex, source, &lex);
+      if (elem_ref == 0) {
+        parser_asm_write_out_lex_c(out_lex, lex);
+        return 0;
+      }
+    } else {
+      elem_ref = parser_asm_alloc_pointee_type_ref_from_tok_c(arena, source, &r);
+      if (elem_ref == 0) {
+        parser_asm_write_out_lex_c(out_lex, lex);
+        return 0;
+      }
+      parser_asm_lex_from_result_val_into(&lex, r);
     }
-    parser_asm_lex_from_result_val_into(&lex, r);
     while (ptr_depth > 0) {
       type_ref_param = ast_ast_arena_type_alloc(arena);
       if (type_ref_param == 0) {
@@ -617,6 +705,61 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
       ast_arena_type_set(arena, type_ref_param, t);
     }
     parser_asm_lex_from_result_val_into(&lex, r);
+    /*
+     * wave466/467 Cap residual pure: type-position `Name<T>` / `Name<T,U>` (docs/02).
+     * Prior: IDENT became TYPE_NAMED then postfix only saw `[` — bare `<` after the
+     * name failed the surrounding param/let type parse (XP003 out_len=0) for
+     * `let w: Wrap<i32>` / `w: Wrap<i32>`. Call-site turbofish (primary) already
+     * parsed angles; type_ref had no twin path (G.7 single authority here).
+     *
+     * Contract: after TYPE_NAMED, optional `< type (, type)* >`.
+     *   - first type arg → elem_type_ref (wave466 single-arg mono)
+     *   - array_size → top-level arg count
+     *   - wave467: all args also in sidecar via pipeline_type_append_type_arg
+     * Nested angles work via recursive parse_type_ref. PLATFORM: SHARED type grammar.
+     */
+    {
+      struct parser_asm_lexer_result peek_ta;
+      int32_t first_ta;
+      int32_t n_ta;
+      int32_t ta_ref;
+      extern int32_t pipeline_type_append_type_arg(void *arena, int32_t type_ref, int32_t arg_ref);
+      lexer_next_into(&peek_ta, lex, source);
+      if (peek_ta.tok.kind == (int32_t)TOKEN_LT) {
+        parser_asm_lex_from_result_val_into(&lex, peek_ta);
+        first_ta = 0;
+        n_ta = 0;
+        for (;;) {
+          ta_ref = parser_asm_parse_type_ref_impl_c(arena, lex, source, &lex);
+          if (ta_ref == 0) {
+            parser_asm_write_out_lex_c(out_lex, lex);
+            return 0;
+          }
+          if (n_ta == 0)
+            first_ta = ta_ref;
+          if (type_ref_param != 0 && ta_ref > 0)
+            (void)pipeline_type_append_type_arg(arena, type_ref_param, ta_ref);
+          n_ta = n_ta + 1;
+          lexer_next_into(&peek_ta, lex, source);
+          if (peek_ta.tok.kind == (int32_t)TOKEN_COMMA) {
+            parser_asm_lex_from_result_val_into(&lex, peek_ta);
+            continue;
+          }
+          /* wave483: TOKEN_GT or nested `>>` (TOKEN_RSHIFT) closes this angle level. */
+          if (parser_asm_type_angle_close_gt_or_rshift_c(&peek_ta, &lex) != 0)
+            break;
+          parser_asm_write_out_lex_c(out_lex, lex);
+          return 0;
+        }
+        if (type_ref_param != 0 && first_ta > 0) {
+          t = ast_arena_type_get(arena, type_ref_param);
+          t.elem_type_ref = first_ta;
+          t.array_size = n_ta;
+          ast_arena_type_set(arena, type_ref_param, t);
+        }
+      }
+      /* If next was not `<`, leave lex unadvanced so postfix sees `[` / end. */
+    }
     return parser_asm_parse_postfix_array_type_ref_c(arena, type_ref_param, lex, source, out_lex);
   }
   parser_asm_write_out_lex_c(out_lex, lex);

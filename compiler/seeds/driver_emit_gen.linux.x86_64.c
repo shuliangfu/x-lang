@@ -40,7 +40,7 @@ struct PipelineDepCtx {
 
 struct CodegenOutBuf {
   uint8_t data[9437184];
-  int32_t len;
+  int32_t length;
 };
 
 struct DriverXEmitState {
@@ -278,7 +278,7 @@ int32_t driver_run_x_emit_x(struct DriverXEmitState * state) {
   }
   (void)(((ctx.num_lib_roots) = 0));
   (void)(driver_emit_copy_lib_roots_to_ctx(driver_emit_state_key(state), &(ctx)));
-  struct CodegenOutBuf out = (struct CodegenOutBuf){ .data = { 0 }, .len = 0 };
+  struct CodegenOutBuf out = (struct CodegenOutBuf){ .data = { 0 }, .length = 0 };
   size_t source_len = ((size_t)(out_len));
   uint8_t * prep_src = ew_preprocess_buf_ptr(&(ctx));
   int32_t rc = 0;
@@ -288,7 +288,7 @@ int32_t driver_run_x_emit_x(struct DriverXEmitState * state) {
     (void)(ew_free_source_buffers(&(ctx)));
     return 1;
   }
-  int32_t len = (out.len);
+  int32_t len = (out.length);
   if (((state->out_path_len) ==0)) {
     (void)(ew_print_x_smoke_summary(module_buf, ((size_t)(len))));
   }

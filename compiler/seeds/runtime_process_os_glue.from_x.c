@@ -1,6 +1,11 @@
 /* seeds/runtime_process_os_glue.from_x.c — G-02f-18 product TU
  * G-02f-103 helper gates.
  * Product: runtime_process_os_glue.o; logic still C until full .x port.
+ *
+ * wave252 G.7: process_getenv via public face link_abi_getenv (not raw getenv).
+ * wave253: face body in runtime_link_abi_user_env.o (declaration only here).
+ * Weak user-domain twin; strong may come from runtime_panic C seed (wave251).
+ * PLATFORM: SHARED — user/STD_AND_PANIC residual face; never g05 host bag.
  */
 /**
  * runtime_process_os_glue.c — 进程 OS 胶层（F-ZC：自 std/process/process_os_glue.c 迁入）
@@ -35,17 +40,18 @@
 
 #include <stddef.h>
 #include <stdint.h>
-
-#if defined(_WIN32) || defined(_WIN64)
 #include <stdlib.h>
 #include <string.h>
+/* wave253: declaration only — face body in runtime_link_abi_user_env.o (weak; panic C strong wins). */
+#include <xlang_user_link_abi_getenv.h>
+/* wave252 G.7: single face — XLANG_GETENV routes through link_abi_getenv. */
+#define XLANG_GETENV(name) link_abi_getenv((const char *)(name))
+
+#if defined(_WIN32) || defined(_WIN64)
 #include <io.h>
 #include <fcntl.h>
 #include <windows.h>
-#define XLANG_GETENV(name) getenv((const char *)(name))
 #else
-#include <stdlib.h>
-#include <string.h>
 /* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
  *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
  *            macOS/Linux delegate to system <unistd.h> via #include_next.
@@ -62,27 +68,54 @@
 #if defined(__APPLE__)
 #include <mach-o/dyld.h>
 #endif
-#define XLANG_GETENV(name) getenv((const char *)(name))
 extern char **environ;
 #endif
 
 /* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
-void process_nop_sigchld(int sig);
-int process_dup_stdio_posix(int32_t fd, int slot);
+void process_nop_sigchld(int32_t sig);
+int32_t process_dup_stdio_posix(int32_t fd, int32_t slot);
 
-/** 热路径：单次 getenv，零分配；-flto 可内联。 */
-uint8_t *process_getenv_c(uint8_t *name) {
+/* Forward declarations of thin public API functions (provided by .x in R2 mode).
+ * Needed by smoke tests and noinline C functions that call back into public API. */
+uint8_t *process_getenv_c(uint8_t *name);
+int32_t process_setenv_c(uint8_t *name, uint8_t *value, int32_t overwrite);
+int32_t process_unsetenv_c(uint8_t *name);
+int32_t process_getpid_c(void);
+int32_t process_getppid_c(void);
+int32_t process_getcwd_c(uint8_t *buf, int32_t buf_size);
+uint8_t *process_getcwd_ptr_c(void);
+int32_t process_getcwd_cached_len_c(void);
+int32_t process_chdir_c(uint8_t *path);
+int32_t process_self_exe_path_c(uint8_t *buf, int32_t buf_size);
+uint8_t *process_self_exe_path_ptr_c(void);
+int32_t process_self_exe_path_cached_len_c(void);
+int32_t process_spawn_c(uint8_t *program, uint8_t *argv_ptr);
+int32_t process_exec_c(uint8_t *program, uint8_t *argv_ptr);
+int32_t process_waitpid_c(int32_t pid);
+int32_t process_spawn_simple_c(uint8_t *program);
+int32_t process_spawn_io_c(uint8_t *program, uint8_t *argv_ptr, void *io);
+int32_t process_exec_simple_c(uint8_t *program);
+int32_t process_pipe_c(int32_t *read_fd, int32_t *write_fd);
+
+/** Get environment variable value. */
+uint8_t *process_getenv_impl(uint8_t *name) {
     if (name == NULL) return NULL;
     const char *v = XLANG_GETENV(name);
     return v ? (uint8_t *)v : NULL;
 }
+
+#ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
+uint8_t *process_getenv_c(uint8_t *name) {
+    return process_getenv_impl(name);
+}
+#endif
 
 /**
  * 设置环境变量 name=value；overwrite 非 0 时覆盖已有值。
  * POSIX: setenv(name, value, overwrite)；Windows: _putenv("name=value")。
  * 返回 0 成功，-1 失败。
  */
-int32_t process_setenv_c(uint8_t *name, uint8_t *value, int32_t overwrite) {
+int32_t process_setenv_impl(uint8_t *name, uint8_t *value, int32_t overwrite) {
     if (name == NULL) return -1;
 #if defined(_WIN32) || defined(_WIN64)
     (void)overwrite;
@@ -104,8 +137,14 @@ int32_t process_setenv_c(uint8_t *name, uint8_t *value, int32_t overwrite) {
 #endif
 }
 
+#ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
+int32_t process_setenv_c(uint8_t *name, uint8_t *value, int32_t overwrite) {
+    return process_setenv_impl(name, value, overwrite);
+}
+#endif
+
 /** 删除环境变量 name。POSIX: unsetenv；Windows: _putenv("name=")。返回 0 成功，-1 失败。 */
-int32_t process_unsetenv_c(uint8_t *name) {
+int32_t process_unsetenv_impl(uint8_t *name) {
     if (name == NULL) return -1;
 #if defined(_WIN32) || defined(_WIN64)
     {
@@ -122,8 +161,14 @@ int32_t process_unsetenv_c(uint8_t *name) {
 #endif
 }
 
+#ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
+int32_t process_unsetenv_c(uint8_t *name) {
+    return process_unsetenv_impl(name);
+}
+#endif
+
 /** 热路径：单次 syscall；-flto 可内联。POSIX: getpid()；Windows: GetCurrentProcessId()。 */
-int32_t process_getpid_c(void) {
+int32_t process_getpid_impl(void) {
 #if defined(_WIN32) || defined(_WIN64)
     return (int32_t)(intptr_t)GetCurrentProcessId();
 #else
@@ -131,8 +176,14 @@ int32_t process_getpid_c(void) {
 #endif
 }
 
+#ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
+int32_t process_getpid_c(void) {
+    return process_getpid_impl();
+}
+#endif
+
 /** 热路径：POSIX 单次 getppid()；Windows 返回 -1。-flto 可内联。 */
-int32_t process_getppid_c(void) {
+int32_t process_getppid_impl(void) {
 #if defined(_WIN32) || defined(_WIN64)
     (void)0;
     return -1;
@@ -140,6 +191,12 @@ int32_t process_getppid_c(void) {
     return (int32_t)getppid();
 #endif
 }
+
+#ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
+int32_t process_getppid_c(void) {
+    return process_getppid_impl();
+}
+#endif
 
 /* getcwd 缓存：进程内多次 getcwd 且未 chdir 时避免重复 syscall；chdir 时失效。最大路径 4K。 */
 #define PROCESS_CWD_CACHE_SIZE 4096
@@ -151,7 +208,7 @@ static int32_t process_cwd_cache_len = 0; /* 0 表示未缓存或已失效 */
  * 返回写入的字节数（不含 NUL），失败返回 -1。
  * 性能：首次调用或 chdir 后走 syscall 并缓存；后续调用仅内存拷贝，避免重复 getcwd/GetCurrentDirectory。
  */
-int32_t process_getcwd_c(uint8_t *buf, int32_t buf_size) {
+int32_t process_getcwd_impl(uint8_t *buf, int32_t buf_size) {
     if (buf == NULL || buf_size <= 0) return -1;
 #if defined(_WIN32) || defined(_WIN64)
     if (process_cwd_cache_len > 0) {
@@ -185,11 +242,17 @@ int32_t process_getcwd_c(uint8_t *buf, int32_t buf_size) {
 #endif
 }
 
+#ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
+int32_t process_getcwd_c(uint8_t *buf, int32_t buf_size) {
+    return process_getcwd_impl(buf, buf_size);
+}
+#endif
+
 /**
  * 零拷贝：返回指向内部缓存的当前工作目录字符串（NUL 结尾）。
  * 若缓存未填充则先填充；失败返回 NULL。调用方只读，不得修改；指针在下次 chdir 或 getcwd 前有效。
  */
-uint8_t *process_getcwd_ptr_c(void) {
+uint8_t *process_getcwd_ptr_impl(void) {
 #if defined(_WIN32) || defined(_WIN64)
     if (process_cwd_cache_len > 0)
         return (uint8_t *)process_cwd_cache;
@@ -212,13 +275,25 @@ uint8_t *process_getcwd_ptr_c(void) {
 #endif
 }
 
+#ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
+uint8_t *process_getcwd_ptr_c(void) {
+    return process_getcwd_ptr_impl();
+}
+#endif
+
 /** 返回当前 getcwd 缓存长度（不含 NUL）；未缓存或已失效为 0。与 process_getcwd_ptr_c 配套使用。 */
-int32_t process_getcwd_cached_len_c(void) {
+int32_t process_getcwd_cached_len_impl(void) {
     return process_cwd_cache_len;
 }
 
+#ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
+int32_t process_getcwd_cached_len_c(void) {
+    return process_getcwd_cached_len_impl();
+}
+#endif
+
 /** 切换当前工作目录到 path（NUL 结尾）。返回 0 成功，-1 失败。调用后使 getcwd 缓存失效。 */
-int32_t process_chdir_c(uint8_t *path) {
+int32_t process_chdir_impl(uint8_t *path) {
     if (path == NULL) return -1;
     process_cwd_cache_len = 0;
 #if defined(_WIN32) || defined(_WIN64)
@@ -227,6 +302,12 @@ int32_t process_chdir_c(uint8_t *path) {
     return chdir((const char *)path) == 0 ? 0 : -1;
 #endif
 }
+
+#ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
+int32_t process_chdir_c(uint8_t *path) {
+    return process_chdir_impl(path);
+}
+#endif
 
 /* self_exe_path 缓存：可执行路径在进程生命周期内不变，首次 syscall 后缓存，后续仅 memcpy。 */
 #define PROCESS_EXE_CACHE_SIZE 4096
@@ -238,7 +319,7 @@ static int32_t process_exe_cache_len = 0; /* 0 表示未缓存 */
  * 返回写入的字节数（不含 NUL），失败返回 -1。
  * 性能：首次调用走 readlink/GetModuleFileName/_NSGetExecutablePath 并缓存；后续仅 memcpy，避免重复 syscall。
  */
-int32_t process_self_exe_path_c(uint8_t *buf, int32_t buf_size) {
+int32_t process_self_exe_path_impl(uint8_t *buf, int32_t buf_size) {
     if (buf == NULL || buf_size <= 0) return -1;
     if (process_exe_cache_len > 0) {
         if (process_exe_cache_len >= buf_size) return -1;
@@ -278,11 +359,17 @@ int32_t process_self_exe_path_c(uint8_t *buf, int32_t buf_size) {
 #endif
 }
 
+#ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
+int32_t process_self_exe_path_c(uint8_t *buf, int32_t buf_size) {
+    return process_self_exe_path_impl(buf, buf_size);
+}
+#endif
+
 /**
  * 零拷贝：返回指向内部缓存的可执行路径（NUL 结尾）。若未缓存则先填充；失败返回 NULL。
  * 调用方只读，不得修改；指针在进程生命周期内有效。
  */
-uint8_t *process_self_exe_path_ptr_c(void) {
+uint8_t *process_self_exe_path_ptr_impl(void) {
     if (process_exe_cache_len > 0)
         return (uint8_t *)process_exe_cache;
 #if defined(_WIN32) || defined(_WIN64)
@@ -311,24 +398,34 @@ uint8_t *process_self_exe_path_ptr_c(void) {
 #endif
 }
 
+#ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
+uint8_t *process_self_exe_path_ptr_c(void) {
+    return process_self_exe_path_ptr_impl();
+}
+#endif
+
 /** 返回当前 self_exe_path 缓存长度（不含 NUL）；未缓存为 0。与 process_self_exe_path_ptr_c 配套使用。 */
-int32_t process_self_exe_path_cached_len_c(void) {
+int32_t process_self_exe_path_cached_len_impl(void) {
     return process_exe_cache_len;
 }
 
+#ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
+int32_t process_self_exe_path_cached_len_c(void) {
+    return process_self_exe_path_cached_len_impl();
+}
+#endif
+
 #if !defined(_WIN32) && !defined(_WIN64)
-/** 空 SIGCHLD handler，用于 spawn 前临时替换 SIG_IGN，使子进程可被 waitpid 回收（SIG_IGN 时系统会自动回收，waitpid 得 ECHILD）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_process_os_glue.x）提供 public wrapper */
-void process_nop_sigchld_impl(int sig) { (void)sig; }
+void process_nop_sigchld_impl(int32_t sig) { (void)sig; }
 
 #ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-void process_nop_sigchld(int sig) {
+void process_nop_sigchld(int32_t sig) {
     process_nop_sigchld_impl(sig);
 }
 #endif
 
+#else
+void process_nop_sigchld_impl(int32_t sig) { (void)sig; }
 #endif
 
 /**
@@ -336,7 +433,7 @@ void process_nop_sigchld(int sig) {
  * 使用当前环境与当前工作目录。返回子进程 pid（>0），失败返回 -1。
  * POSIX: fork + execve；Windows: CreateProcess。
  */
-int32_t process_spawn_c(uint8_t *program, uint8_t *argv_ptr) {
+int32_t process_spawn_impl(uint8_t *program, uint8_t *argv_ptr) {
     if (program == NULL || argv_ptr == NULL) return -1;
     char **argv = (char **)(void *)argv_ptr;
 #if defined(_WIN32) || defined(_WIN64)
@@ -369,7 +466,6 @@ int32_t process_spawn_c(uint8_t *program, uint8_t *argv_ptr) {
     }
 #else
     {
-        /* 若当前为 SIG_IGN，子进程会被系统自动回收，waitpid 会得 ECHILD。临时改为空 handler，使子进程不被自动回收、可被 waitpid 回收；fork 后在父进程恢复。 */
         void (*saved_sigchld)(int) = signal(SIGCHLD, process_nop_sigchld);
         if (saved_sigchld == SIG_ERR) saved_sigchld = SIG_DFL;
         pid_t pid = fork();
@@ -388,11 +484,17 @@ int32_t process_spawn_c(uint8_t *program, uint8_t *argv_ptr) {
 #endif
 }
 
+#ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
+int32_t process_spawn_c(uint8_t *program, uint8_t *argv_ptr) {
+    return process_spawn_impl(program, argv_ptr);
+}
+#endif
+
 /**
  * 用 program 替换当前进程（不返回）。argv 为 char* 数组，以 NULL 结尾。
  * POSIX: execve；Windows 不支持，返回 -1。
  */
-int32_t process_exec_c(uint8_t *program, uint8_t *argv_ptr) {
+int32_t process_exec_impl(uint8_t *program, uint8_t *argv_ptr) {
     if (program == NULL || argv_ptr == NULL) return -1;
 #if defined(_WIN32) || defined(_WIN64)
     (void)program;
@@ -405,11 +507,17 @@ int32_t process_exec_c(uint8_t *program, uint8_t *argv_ptr) {
 #endif
 }
 
+#ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
+int32_t process_exec_c(uint8_t *program, uint8_t *argv_ptr) {
+    return process_exec_impl(program, argv_ptr);
+}
+#endif
+
 /**
  * 等待子进程 pid 结束，返回其退出码（低 8 位）；失败返回 -1。
  * POSIX: waitpid(pid, &status, 0)；Windows: OpenProcess + WaitForSingleObject + GetExitCodeProcess。
  */
-int32_t process_waitpid_c(int32_t pid) {
+int32_t process_waitpid_impl(int32_t pid) {
     if (pid <= 0) return -1;
 #if defined(_WIN32) || defined(_WIN64)
     {
@@ -437,14 +545,26 @@ int32_t process_waitpid_c(int32_t pid) {
 #endif
 }
 
+#ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
+int32_t process_waitpid_c(int32_t pid) {
+    return process_waitpid_impl(pid);
+}
+#endif
+
 /**
  * 简化 spawn：argv = [program, NULL]。返回 pid 或 -1。
  */
-int32_t process_spawn_simple_c(uint8_t *program) {
+int32_t process_spawn_simple_impl(uint8_t *program) {
     if (program == NULL) return -1;
     char *argv[] = { (char *)program, NULL };
-    return process_spawn_c(program, (uint8_t *)(void *)argv);
+    return process_spawn_impl(program, (uint8_t *)(void *)argv);
 }
+
+#ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
+int32_t process_spawn_simple_c(uint8_t *program) {
+    return process_spawn_simple_impl(program);
+}
+#endif
 
 /** spawn_io 与 mod.x SpawnIo 布局一致（三 i32 fd）。 */
 typedef struct {
@@ -454,30 +574,29 @@ typedef struct {
 } process_spawn_io_t;
 
 #if !defined(_WIN32) && !defined(_WIN64)
-/** POSIX：在子进程 dup2 指定 fd 到 stdio 后 execve。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_process_os_glue.x）提供 public wrapper */
-int process_dup_stdio_posix_impl(int32_t fd, int slot) {
+int32_t process_dup_stdio_posix_impl(int32_t fd, int32_t slot) {
     if (fd < 0) return 0;
     if (dup2(fd, slot) < 0) return -1;
     return 0;
 }
 
 #ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-int process_dup_stdio_posix(int32_t fd, int slot) {
+int32_t process_dup_stdio_posix(int32_t fd, int32_t slot) {
     return process_dup_stdio_posix_impl(fd, slot);
 }
 #endif
 
+#else
+int32_t process_dup_stdio_posix_impl(int32_t fd, int32_t slot) { (void)fd; (void)slot; return -1; }
 #endif
 
 /**
  * 创建子进程并应用 stdio 重定向；fd < 0 表示继承。
  * POSIX: fork + dup2 + execve；Windows: CreateProcess + STARTF_USESTDHANDLES。
  */
-int32_t process_spawn_io_c(uint8_t *program, uint8_t *argv_ptr, process_spawn_io_t *io) {
+int32_t process_spawn_io_impl(uint8_t *program, uint8_t *argv_ptr, void *io_void) {
     if (program == NULL || argv_ptr == NULL) return -1;
+    process_spawn_io_t *io = (process_spawn_io_t *)io_void;
     int32_t in_fd = io ? io->stdin_fd : -1;
     int32_t out_fd = io ? io->stdout_fd : -1;
     int32_t err_fd = io ? io->stderr_fd : -1;
@@ -536,9 +655,9 @@ int32_t process_spawn_io_c(uint8_t *program, uint8_t *argv_ptr, process_spawn_io
         }
         if (pid == 0) {
             signal(SIGCHLD, saved_sigchld);
-            if (process_dup_stdio_posix(in_fd, STDIN_FILENO) != 0) _exit(127);
-            if (process_dup_stdio_posix(out_fd, STDOUT_FILENO) != 0) _exit(127);
-            if (process_dup_stdio_posix(err_fd, STDERR_FILENO) != 0) _exit(127);
+            if (in_fd >= 0 && process_dup_stdio_posix(in_fd, STDIN_FILENO) != 0) _exit(127);
+            if (out_fd >= 0 && process_dup_stdio_posix(out_fd, STDOUT_FILENO) != 0) _exit(127);
+            if (err_fd >= 0 && process_dup_stdio_posix(err_fd, STDERR_FILENO) != 0) _exit(127);
             execve((const char *)program, (char *const *)argv, environ);
             _exit(127);
         }
@@ -548,20 +667,32 @@ int32_t process_spawn_io_c(uint8_t *program, uint8_t *argv_ptr, process_spawn_io
 #endif
 }
 
+#ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
+int32_t process_spawn_io_c(uint8_t *program, uint8_t *argv_ptr, void *io) {
+    return process_spawn_io_impl(program, argv_ptr, io);
+}
+#endif
+
 /**
  * 简化 exec：argv = [program, NULL]。成功不返回；失败返回 -1。
  */
-int32_t process_exec_simple_c(uint8_t *program) {
+int32_t process_exec_simple_impl(uint8_t *program) {
     if (program == NULL) return -1;
     char *argv[] = { (char *)program, NULL };
-    return process_exec_c(program, (uint8_t *)(void *)argv);
+    return process_exec_impl(program, (uint8_t *)(void *)argv);
 }
+
+#ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
+int32_t process_exec_simple_c(uint8_t *program) {
+    return process_exec_simple_impl(program);
+}
+#endif
 
 /**
  * 创建管道（P3 process 扩展）；成功时 *read_fd 可读、*write_fd 可写，返回 0；失败返回 -1。
  * POSIX: pipe(2)；Windows 暂不支持，返回 -1。
  */
-int32_t process_pipe_c(int32_t *read_fd, int32_t *write_fd) {
+int32_t process_pipe_impl(int32_t *read_fd, int32_t *write_fd) {
     if (read_fd == NULL || write_fd == NULL) return -1;
 #if defined(_WIN32) || defined(_WIN64)
     {
@@ -586,3 +717,9 @@ int32_t process_pipe_c(int32_t *read_fd, int32_t *write_fd) {
     return 0;
 #endif
 }
+
+#ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
+int32_t process_pipe_c(int32_t *read_fd, int32_t *write_fd) {
+    return process_pipe_impl(read_fd, write_fd);
+}
+#endif

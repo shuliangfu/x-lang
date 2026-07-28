@@ -37,7 +37,7 @@ struct std_io_WriteOnlySlice {
 
 struct std_io_ReadPtrView {
   uint8_t * ptr;
-  int32_t len;
+  int32_t length;
   uint64_t gen;
 };
 
@@ -58,7 +58,7 @@ struct std_io_sync_PollFd {
 
 struct std_io_sync_IoBatchBuf {
   uint8_t * ptr;
-  size_t len;
+  size_t length;
   size_t handle;
 };
 
@@ -480,11 +480,11 @@ size_t std_io_from_fd(int32_t fd, int32_t _unused) {
   return ((size_t)(fd));
 }
 int32_t std_io_read_usize_u8_ptr_usize_u32(size_t handle, uint8_t * ptr, size_t len, uint32_t timeout_ms) {
-  struct std_io_Buffer buf = (struct std_io_driver_Buffer){ .ptr = ptr, .len = len, .handle = handle };
+  struct std_io_Buffer buf = (struct std_io_driver_Buffer){ .ptr = ptr, .length = len, .handle = handle };
   return xlang_io_submit_read_buf((intptr_t)(void*)&buf, timeout_ms);
 }
 int32_t std_io_write_usize_u8_ptr_usize_u32(size_t handle, uint8_t * ptr, size_t len, uint32_t timeout_ms) {
-  struct std_io_Buffer buf = (struct std_io_driver_Buffer){ .ptr = ptr, .len = len, .handle = handle };
+  struct std_io_Buffer buf = (struct std_io_driver_Buffer){ .ptr = ptr, .length = len, .handle = handle };
   return xlang_io_submit_write_buf((intptr_t)(void*)&buf, timeout_ms);
 }
 int32_t std_io_timeout_from_ctx(struct std_context_Context ctx) {
@@ -550,7 +550,7 @@ struct std_io_ReadPtrView std_io_ptr_view(size_t handle, uint32_t timeout_ms) {
   uint8_t * p = std_io_read_ptr(handle, timeout_ms);
   int32_t n = std_io_ptr_len();
   uint64_t g = std_io_ptr_gen();
-  return (struct std_io_ReadPtrView){ .ptr = p, .len = n, .gen = g };
+  return (struct std_io_ReadPtrView){ .ptr = p, .length = n, .gen = g };
 }
 int32_t std_io_ptr_view_valid(struct std_io_ReadPtrView v) {
   if (((v.ptr) ==0)) {
@@ -593,12 +593,12 @@ int32_t std_io_write_fd(int32_t fd, uint8_t * ptr, size_t len) {
 }
 int32_t std_io_read_batch_fd(int32_t fd, uint8_t * p0, size_t l0, uint8_t * p1, size_t l1, uint8_t * p2, size_t l2, uint8_t * p3, size_t l3, int32_t n) {
   size_t h = std_io_from_fd(fd, 0);
-  struct std_io_Buffer bufs[4] = {(struct std_io_driver_Buffer){ .ptr = p0, .len = l0, .handle = h }, (struct std_io_driver_Buffer){ .ptr = p1, .len = l1, .handle = h }, (struct std_io_driver_Buffer){ .ptr = p2, .len = l2, .handle = h }, (struct std_io_driver_Buffer){ .ptr = p3, .len = l3, .handle = h }};
+  struct std_io_Buffer bufs[4] = {(struct std_io_driver_Buffer){ .ptr = p0, .length = l0, .handle = h }, (struct std_io_driver_Buffer){ .ptr = p1, .length = l1, .handle = h }, (struct std_io_driver_Buffer){ .ptr = p2, .length = l2, .handle = h }, (struct std_io_driver_Buffer){ .ptr = p3, .length = l3, .handle = h }};
   return std_io_driver_submit_read_batch(bufs, n, ((uint32_t)(0)));
 }
 int32_t std_io_write_batch_fd(int32_t fd, uint8_t * p0, size_t l0, uint8_t * p1, size_t l1, uint8_t * p2, size_t l2, uint8_t * p3, size_t l3, int32_t n) {
   size_t h = std_io_from_fd(fd, 0);
-  struct std_io_Buffer bufs[4] = {(struct std_io_driver_Buffer){ .ptr = p0, .len = l0, .handle = h }, (struct std_io_driver_Buffer){ .ptr = p1, .len = l1, .handle = h }, (struct std_io_driver_Buffer){ .ptr = p2, .len = l2, .handle = h }, (struct std_io_driver_Buffer){ .ptr = p3, .len = l3, .handle = h }};
+  struct std_io_Buffer bufs[4] = {(struct std_io_driver_Buffer){ .ptr = p0, .length = l0, .handle = h }, (struct std_io_driver_Buffer){ .ptr = p1, .length = l1, .handle = h }, (struct std_io_driver_Buffer){ .ptr = p2, .length = l2, .handle = h }, (struct std_io_driver_Buffer){ .ptr = p3, .length = l3, .handle = h }};
   return std_io_driver_submit_write_batch(bufs, n, ((uint32_t)(0)));
 }
 int32_t std_io_readv(int32_t fd, struct std_io_Buffer * buffers, int32_t n) {
@@ -1673,16 +1673,16 @@ ssize_t std_io_sync_io_read_batch(int32_t fd, uint8_t * p0, size_t l0, uint8_t *
   if ((timeout_ms ==0)) {
     struct std_io_sync_Iovec iov[4] = { 0 };
     (void)((((iov)[0].base) = p0));
-    (void)((((iov)[0].len) = l0));
+    (void)((((iov)[0].length) = l0));
     (void)((((iov)[1].base) = p1));
-    (void)((((iov)[1].len) = l1));
+    (void)((((iov)[1].length) = l1));
     if ((n >=3)) {
       (void)((((iov)[2].base) = p2));
-      (void)((((iov)[2].len) = l2));
+      (void)((((iov)[2].length) = l2));
     }
     if ((n >=4)) {
       (void)((((iov)[3].base) = p3));
-      (void)((((iov)[3].len) = l3));
+      (void)((((iov)[3].length) = l3));
     }
     return std_io_sync_io_libc_readv(fd, &((iov)[0]), n);
   }
@@ -1727,16 +1727,16 @@ ssize_t std_io_sync_io_write_batch(int32_t fd, uint8_t * p0, size_t l0, uint8_t 
   if ((timeout_ms ==0)) {
     struct std_io_sync_Iovec iov[4] = { 0 };
     (void)((((iov)[0].base) = p0));
-    (void)((((iov)[0].len) = l0));
+    (void)((((iov)[0].length) = l0));
     (void)((((iov)[1].base) = p1));
-    (void)((((iov)[1].len) = l1));
+    (void)((((iov)[1].length) = l1));
     if ((n >=3)) {
       (void)((((iov)[2].base) = p2));
-      (void)((((iov)[2].len) = l2));
+      (void)((((iov)[2].length) = l2));
     }
     if ((n >=4)) {
       (void)((((iov)[3].base) = p3));
-      (void)((((iov)[3].len) = l3));
+      (void)((((iov)[3].length) = l3));
     }
     return std_io_sync_io_libc_writev(fd, &((iov)[0]), n);
   }
@@ -1776,14 +1776,14 @@ ssize_t std_io_sync_io_read_batch_buf(int32_t fd, struct std_io_sync_IoBatchBuf 
     return ((ssize_t)(-(1)));
   }
   if ((n ==1)) {
-    return std_io_sync_io_read(fd, ((bufs)[0].ptr), ((bufs)[0].len), timeout_ms);
+    return std_io_sync_io_read(fd, ((bufs)[0].ptr), ((bufs)[0].length), timeout_ms);
   }
   if ((timeout_ms ==0)) {
     struct std_io_sync_Iovec iov[16] = { 0 };
     int32_t i = 0;
     while ((i < n)) {
       (void)((((iov)[i].base) = ((bufs)[i].ptr)));
-      (void)((((iov)[i].len) = ((bufs)[i].len)));
+      (void)((((iov)[i].length) = ((bufs)[i].length)));
       (void)((i = (i + 1)));
     }
     return std_io_sync_io_libc_readv(fd, &((iov)[0]), n);
@@ -1791,7 +1791,7 @@ ssize_t std_io_sync_io_read_batch_buf(int32_t fd, struct std_io_sync_IoBatchBuf 
   ssize_t total = 0;
   int32_t i2 = 0;
   while ((i2 < n)) {
-    ssize_t r = std_io_sync_io_read(fd, ((bufs)[i2].ptr), ((bufs)[i2].len), timeout_ms);
+    ssize_t r = std_io_sync_io_read(fd, ((bufs)[i2].ptr), ((bufs)[i2].length), timeout_ms);
     if ((r < 0)) {
       return ((ssize_t)(-(1)));
     }
@@ -1805,14 +1805,14 @@ ssize_t std_io_sync_io_write_batch_buf(int32_t fd, struct std_io_sync_IoBatchBuf
     return ((ssize_t)(-(1)));
   }
   if ((n ==1)) {
-    return std_io_sync_io_write(fd, ((bufs)[0].ptr), ((bufs)[0].len), timeout_ms);
+    return std_io_sync_io_write(fd, ((bufs)[0].ptr), ((bufs)[0].length), timeout_ms);
   }
   if ((timeout_ms ==0)) {
     struct std_io_sync_Iovec iov[16] = { 0 };
     int32_t i = 0;
     while ((i < n)) {
       (void)((((iov)[i].base) = ((bufs)[i].ptr)));
-      (void)((((iov)[i].len) = ((bufs)[i].len)));
+      (void)((((iov)[i].length) = ((bufs)[i].length)));
       (void)((i = (i + 1)));
     }
     return std_io_sync_io_libc_writev(fd, &((iov)[0]), n);
@@ -1820,7 +1820,7 @@ ssize_t std_io_sync_io_write_batch_buf(int32_t fd, struct std_io_sync_IoBatchBuf
   ssize_t total = 0;
   int32_t i2 = 0;
   while ((i2 < n)) {
-    ssize_t r = std_io_sync_io_write(fd, ((bufs)[i2].ptr), ((bufs)[i2].len), timeout_ms);
+    ssize_t r = std_io_sync_io_write(fd, ((bufs)[i2].ptr), ((bufs)[i2].length), timeout_ms);
     if ((r < 0)) {
       return ((ssize_t)(-(1)));
     }
@@ -1881,7 +1881,7 @@ int32_t std_io_sync_io_register_buffers_buf(struct std_io_sync_IoBatchBuf * bufs
   int32_t i = 0;
   while ((i < nr)) {
     uint8_t * p = ((bufs)[i].ptr);
-    size_t l = ((bufs)[i].len);
+    size_t l = ((bufs)[i].length);
     if ((p ==((uint8_t *)(0)))) {
       return 0;
     }
@@ -2039,11 +2039,11 @@ struct xlang_slice_uint8_t std_io_driver_driver_read_ptr_slice(size_t handle, ui
 }
 int32_t std_io_driver_submit_read_batch(struct std_io_Buffer * buffers, int32_t n, uint32_t timeout_ms) {
   size_t h = ((buffers)[0].handle);
-  return std_io_core_xlang_io_submit_read_batch(((buffers)[0].ptr), ((buffers)[0].len), ((buffers)[1].ptr), ((buffers)[1].len), ((buffers)[2].ptr), ((buffers)[2].len), ((buffers)[3].ptr), ((buffers)[3].len), h, n, timeout_ms);
+  return std_io_core_xlang_io_submit_read_batch(((buffers)[0].ptr), ((buffers)[0].length), ((buffers)[1].ptr), ((buffers)[1].length), ((buffers)[2].ptr), ((buffers)[2].length), ((buffers)[3].ptr), ((buffers)[3].length), h, n, timeout_ms);
 }
 int32_t std_io_driver_submit_write_batch(struct std_io_Buffer * buffers, int32_t n, uint32_t timeout_ms) {
   size_t h = ((buffers)[0].handle);
-  return std_io_core_xlang_io_submit_write_batch(((buffers)[0].ptr), ((buffers)[0].len), ((buffers)[1].ptr), ((buffers)[1].len), ((buffers)[2].ptr), ((buffers)[2].len), ((buffers)[3].ptr), ((buffers)[3].len), h, n, timeout_ms);
+  return std_io_core_xlang_io_submit_write_batch(((buffers)[0].ptr), ((buffers)[0].length), ((buffers)[1].ptr), ((buffers)[1].length), ((buffers)[2].ptr), ((buffers)[2].length), ((buffers)[3].ptr), ((buffers)[3].length), h, n, timeout_ms);
 }
 int32_t std_io_driver_submit_read_batch_buf(size_t  handle, struct std_io_Buffer * bufs, int32_t n, uint32_t  timeout_ms) {
   ssize_t r = std_io_core_xlang_io_read_batch_buf(((int32_t)(handle)), ((uint8_t *)(bufs)), n, timeout_ms);

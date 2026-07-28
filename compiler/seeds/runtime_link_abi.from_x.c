@@ -50,6 +50,11 @@ int link_abi_path_executable_impl(const char *path);
 /* wave222: getenv pure thin (labi_diag_pure) + Cap residual _impl always mega. */
 const char *link_abi_getenv(const char *name);
 const char *link_abi_getenv_impl(const char *name);
+/* wave218/261: realpath pure thin (labi_path_io) + Cap residual _impl always mega.
+ * wave261: always-mega residual raw realpath() call sites → this public face (G.7).
+ * Host residual realpath stays only in link_abi_realpath_cap_impl (+ freestanding stubs). */
+const char *link_abi_realpath_cap(const char *path, char *out);
+const char *link_abi_realpath_cap_impl(const char *path, char *out);
 int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *net_o, const char *repo_root);
 void ensure_std_net_o_auto_tls(const char *repo_root);
 /* PLATFORM: SHARED — formal std .o after L4 wipe (wave188 pure L6 / cold twin). */
@@ -81,12 +86,12 @@ void labi_std_append_op_std(const char *link_argv0, const char *user_o, const ch
 /* G-02f-68 / wave216: pure thin public (L1) + Cap residual _impl always. */
 int xlang_waitpid_retry(pid_t pid, int *status_out);
 int xlang_waitpid_retry_impl(pid_t pid, int *status_out);
-/* Cap residual always (wave215): skip_missing + multi-slot realpath pool body. */
+/* Cap residual always (wave215/255): multi-slot realpath pool body only. */
 const char *invoke_cc_argv_resolve_existing_path_impl(const char *path);
 int xlang_asm_user_o_has_undef_syms(const char *o_path);
 void asm_ld_append_compress_libs(const char *compress_o, const char *user_o, const char **argv, int *la, int max_la);
 void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char *compress_o, const char *user_o);
-/* Cap residual (wave179): skip_missing + realpath multi-slot pool for pure push_existing. */
+/* wave215/255 pure public: null/empty + skip_missing + Cap residual pool. */
 const char *invoke_cc_argv_resolve_existing_path(const char *path);
 /* wave179: pure orch in L6 (cold twin include / hybrid FROM_X pure .x). */
 int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path);
@@ -991,10 +996,15 @@ void xlang_debug_hello_stage1_report(const char *hypothesis_id, const char *loca
 /* #endregion */
 
 /**
- * 解析当前 xlang 可执行文件所在目录（compiler/），用于冷启动时在同一目录生成 runtime_panic.o。
- * Linux 用 /proc/self/exe，macOS 用 _NSGetExecutablePath；再回退 realpath(argv0)。
- * 参数：argv0 可选；out_dir/out_dir_sz 输出缓冲。
- * 返回值：0 成功，-1 失败。
+ * Resolve the directory of the running xlang binary (compiler/), used to place
+ * runtime_panic.o next to the driver on cold start.
+ * Linux: /proc/self/exe; macOS: _NSGetExecutablePath then link_abi_realpath_cap;
+ * fallback: link_abi_realpath_cap(argv0) + strip last sep.
+ * wave261 G.7: residual realpath via public pure thin link_abi_realpath_cap
+ * (wave218 → _impl host realpath); not raw libc realpath.
+ * @param argv0 optional path for fallback; out_dir / out_dir_sz output buffer
+ * @return 0 success, -1 failure
+ * PLATFORM: SHARED orch / LINUX|MACOS|WINDOWS path sources; realpath face WINDOWS null
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int xlang_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz) {
@@ -1023,7 +1033,8 @@ int xlang_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_
         uint32_t bufsz = (uint32_t)sizeof(buf);
         if (_NSGetExecutablePath(buf, &bufsz) == 0) {
             char resolved[PATH_MAX];
-            if (realpath(buf, resolved) != NULL) {
+            /* wave261 G.7: link_abi_realpath_cap (not raw realpath). */
+            if (link_abi_realpath_cap(buf, resolved) != NULL) {
                 char *slash = strrchr(resolved, '/');
                 if (slash) {
                     *slash = '\0';
@@ -1061,7 +1072,8 @@ int xlang_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_
 #endif
     if (!argv0 || !argv0[0] || !xlang_path_has_sep(argv0))
         return -1;
-    if (realpath(argv0, buf) == NULL)
+    /* wave261 G.7: link_abi_realpath_cap (not raw realpath); WINDOWS face → null. */
+    if (link_abi_realpath_cap(argv0, buf) == NULL)
         return -1;
     {
         char *slash = xlang_path_last_sep(buf);
@@ -1287,7 +1299,7 @@ const char *xlang_asm_ld_try_under_lib_roots(const char *rel, const char **lib_r
 /* G-02f-270/L L3：realpath+skip 主体始终在 rest（thin shell 在 labi_path_io）。
  * 注意：impl 调用 asm_link_obj_skip_missing（hybrid 时由 L3 提供）。 */
 const char *xlang_runtime_o_realpath_if_exists_impl(const char *path, char *resolved) {
-    if (!path || !path[0] || !resolved || realpath(path, resolved) == NULL)
+    if (!path || !path[0] || !resolved || link_abi_realpath_cap(path, resolved) == NULL)
         return NULL;
     return asm_link_obj_skip_missing(resolved);
 }
@@ -1391,7 +1403,7 @@ const char *xlang_runtime_panic_o_path(const char *argv0);
 const char *xlang_std_async_scheduler_o_path(const char *argv0) {
     static char buf[PATH_MAX], resolved[PATH_MAX];
     buf[0] = resolved[0] = '\0';
-    if (realpath("std/async/scheduler.o", resolved) != NULL)
+    if (link_abi_realpath_cap("std/async/scheduler.o", resolved) != NULL)
         return resolved;
     {
         char cwd[512];
@@ -1400,17 +1412,17 @@ const char *xlang_std_async_scheduler_o_path(const char *argv0) {
             if (L + 26 <= sizeof(cwd)) {
                 memcpy(cwd + L, "/std/async/scheduler.o", 22);
                 cwd[L + 22] = '\0';
-                if (realpath(cwd, resolved) != NULL)
+                if (link_abi_realpath_cap(cwd, resolved) != NULL)
                     return resolved;
             }
         }
     }
-    if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
+    if (argv0 && argv0[0] && link_abi_realpath_cap(argv0, buf) != NULL) {
         char *last = xlang_path_last_sep(buf);
         if (last && (size_t)(last - buf) + 26 < sizeof(buf)) {
             *last = '\0';
             strcat(buf, "/../std/async/scheduler.o");
-            if (realpath(buf, resolved) != NULL)
+            if (link_abi_realpath_cap(buf, resolved) != NULL)
                 return resolved;
         }
     }
@@ -1435,7 +1447,7 @@ const char *xlang_crt0_user_o_path(const char *argv0) {
     static char buf[512];
     static char resolved[PATH_MAX];
     buf[0] = resolved[0] = '\0';
-    if (realpath("compiler/crt0_user.o", resolved) != NULL)
+    if (link_abi_realpath_cap("compiler/crt0_user.o", resolved) != NULL)
         return resolved;
     {
         char cwd[512];
@@ -1444,7 +1456,7 @@ const char *xlang_crt0_user_o_path(const char *argv0) {
             if (L + 22 <= sizeof(cwd)) {
                 memcpy(cwd + L, "/compiler/crt0_user.o", 22);
                 cwd[L + 21] = '\0';
-                if (realpath(cwd, resolved) != NULL)
+                if (link_abi_realpath_cap(cwd, resolved) != NULL)
                     return resolved;
             }
         }
@@ -1465,7 +1477,7 @@ const char *xlang_crt0_user_o_path(const char *argv0) {
         }
         if (n + 14 < (int)sizeof(buf)) {
             strcat(buf, "/crt0_user.o");
-            if (realpath(buf, resolved) != NULL)
+            if (link_abi_realpath_cap(buf, resolved) != NULL)
                 return resolved;
             return buf;
         }
@@ -1491,7 +1503,7 @@ const char *xlang_freestanding_io_o_path(const char *argv0) {
     static char buf[512];
     static char resolved[PATH_MAX];
     buf[0] = resolved[0] = '\0';
-    if (realpath("compiler/freestanding_io.o", resolved) != NULL)
+    if (link_abi_realpath_cap("compiler/freestanding_io.o", resolved) != NULL)
         return resolved;
     {
         char cwd[512];
@@ -1500,7 +1512,7 @@ const char *xlang_freestanding_io_o_path(const char *argv0) {
             if (L + 28 <= sizeof(cwd)) {
                 memcpy(cwd + L, "/compiler/freestanding_io.o", 28);
                 cwd[L + 27] = '\0';
-                if (realpath(cwd, resolved) != NULL)
+                if (link_abi_realpath_cap(cwd, resolved) != NULL)
                     return resolved;
             }
         }
@@ -1521,7 +1533,7 @@ const char *xlang_freestanding_io_o_path(const char *argv0) {
         }
         if (n + 18 < (int)sizeof(buf)) {
             strcat(buf, "/freestanding_io.o");
-            if (realpath(buf, resolved) != NULL)
+            if (link_abi_realpath_cap(buf, resolved) != NULL)
                 return resolved;
             return buf;
         }
@@ -1909,6 +1921,19 @@ const char *xlang_runtime_ed25519_ref10_glue_o_path(const char *argv0) {
     return resolved;
 }
 
+/**
+ * wave253: runtime_link_abi_user_env.o path — sole residual-domain face companion (weak).
+ * @param argv0 optional product host path
+ * @return durable .o path or empty string
+ * PLATFORM: SHARED — user/STD_AND_PANIC only; never g05 host bag as TU (path only).
+ */
+const char *xlang_runtime_link_abi_user_env_o_path(const char *argv0) {
+    static char resolved[PATH_MAX];
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_link_abi_user_env.o", resolved, sizeof resolved) != 0)
+        resolved[0] = '\0';
+    return resolved;
+}
+
 #else
 const char *xlang_runtime_asm_io_stubs_o_path(const char *argv0);
 const char *xlang_runtime_process_argv_o_path(const char *argv0);
@@ -1939,6 +1964,7 @@ const char *xlang_runtime_arrow_simd_glue_o_path(const char *argv0);
 const char *xlang_runtime_sqlite_glue_o_path(const char *argv0);
 const char *xlang_runtime_crypto_inc_glue_o_path(const char *argv0);
 const char *xlang_runtime_ed25519_ref10_glue_o_path(const char *argv0);
+const char *xlang_runtime_link_abi_user_env_o_path(const char *argv0);
 #endif
 
 /**
@@ -2441,39 +2467,42 @@ void invoke_cc_append_minimal_cc_link_tail(char **argv, int *ia, int argv_cap);
 
 
 /**
- * Cap residual (wave179 / wave215): resolve path body for invoke_cc argv push.
- * skip_missing then (POSIX) realpath into multi-slot static pool so multiple
- * pushes keep durable pointers (single static slot would overwrite earlier argv).
- * Windows: skip realpath; return skip_missing path as-is.
- * Pure orch (wave215 labi_invoke_ld_list L6) owns null/empty gates; _impl is always mega.
+ * Cap residual (wave179 / wave215 / wave255): multi-slot realpath pool only.
+ * Pure orch (wave215/255 labi_invoke_ld_list L6) owns null/empty + skip_missing;
+ * _impl is always mega (static pool + host realpath).
+ * (POSIX) realpath into multi-slot static pool so multiple pushes keep durable
+ * pointers (single static slot would overwrite earlier argv).
+ * Windows: skip realpath; return validated path as-is.
  * Pure push_existing owns capacity/dedup/append and calls the public resolve face.
- * PLATFORM: SHARED residual / POSIX realpath pool / WINDOWS no realpath.
+ * Why (wave255): soft residual skip_missing still lived inside always-mega _impl.
+ * wave261 G.7: pool slots filled via public pure thin link_abi_realpath_cap
+ * (not raw libc realpath); host residual stays link_abi_realpath_cap_impl only.
+ * PLATFORM: SHARED residual / POSIX realpath pool via face / WINDOWS no realpath.
  */
 const char *invoke_cc_argv_resolve_existing_path_impl(const char *path) {
     static char abs_pool[INVOKE_CC_ABS_POOL_SZ][PATH_MAX];
     static int abs_pool_i;
-    const char *use;
     if (!path || !path[0])
-        return NULL;
-    use = asm_link_obj_skip_missing(path);
-    if (!use)
         return NULL;
 #if !defined(_WIN32) && !defined(_WIN64)
     {
         char *slot = abs_pool[abs_pool_i % INVOKE_CC_ABS_POOL_SZ];
         abs_pool_i++;
-        if (realpath(use, slot) != NULL)
-            use = slot;
+        /* wave261: face (gates + _impl), not raw realpath. */
+        if (link_abi_realpath_cap(path, slot) != NULL)
+            return slot;
     }
 #endif
-    return use;
+    /* Windows or realpath fail: return caller's durable path pointer as-is. */
+    return path;
 }
 
-/* wave215: invoke_cc_argv_resolve_existing_path pure orch lives in labi_invoke_ld_list.x
+/* wave215/255: invoke_cc_argv_resolve_existing_path pure orch lives in labi_invoke_ld_list.x
  * (hybrid L6); mega cold twin via #include labi_invoke_ld_list.from_x.c under
- * #ifndef XLANG_LABI_INVOKE_LD_LIST_FROM_X. Pure: null/empty gates; Cap residual _impl
- * (skip+pool) always mega above. Why: hybrid still had resolve_existing body always
- * mega C (gates+skip+pool). PLATFORM: SHARED orch. */
+ * #ifndef XLANG_LABI_INVOKE_LD_LIST_FROM_X. Pure: null/empty + skip_missing; Cap residual
+ * _impl (pool only) always mega above. Why wave215: hybrid still had resolve_existing
+ * body always mega C (gates+skip+pool). Why wave255: skip_missing moved to pure.
+ * PLATFORM: SHARED orch. */
 #ifdef XLANG_LABI_INVOKE_LD_LIST_FROM_X
 const char *invoke_cc_argv_resolve_existing_path(const char *path);
 #endif
@@ -2526,7 +2555,7 @@ const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_s
             return derived;
     }
     cwd_buf[0] = '\0';
-    if (realpath("std/async/scheduler.o", cwd_buf) != NULL)
+    if (link_abi_realpath_cap("std/async/scheduler.o", cwd_buf) != NULL)
         return cwd_buf;
     return NULL;
 }
@@ -2539,7 +2568,8 @@ const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_s
  * Pure orch (labi_ondemand_list L8b) owns null/empty gates; _impl is always mega.
  * Params: obj_o / marker — caller pure already rejected null/empty (defense in depth here too).
  * Returns: 1 if any nm line contains marker substring, else 0.
- * PLATFORM: SHARED — host realpath (POSIX) + popen nm; Windows hybrid via tools.
+ * PLATFORM: SHARED — host realpath via link_abi_realpath_cap (wave261) + popen nm;
+ * Windows hybrid via tools (face null → use path as-is).
  */
 int link_abi_obj_exports_marker_impl(const char *obj_o, const char *marker) {
     char cmd[PATH_MAX + 96];
@@ -2550,7 +2580,8 @@ int link_abi_obj_exports_marker_impl(const char *obj_o, const char *marker) {
     if (!obj_o || !obj_o[0] || !marker || !marker[0])
         return 0;
 #if !defined(_WIN32) && !defined(_WIN64)
-    if (realpath(obj_o, resolved) != NULL)
+    /* wave261 G.7: link_abi_realpath_cap (not raw realpath). */
+    if (link_abi_realpath_cap(obj_o, resolved) != NULL)
         use = resolved;
 #endif
     if ((size_t)snprintf(cmd, sizeof cmd, "nm '%s' 2>/dev/null", use) >= sizeof cmd)
@@ -2586,7 +2617,8 @@ int link_abi_obj_exports_marker(const char *obj_o, const char *marker);
  * Pure orch (labi_ondemand_list L8b) owns null/empty gates; _impl is always mega.
  * Params: obj_o / sym — caller pure already rejected null/empty (defense in depth here too).
  * Returns: 1 if any nm line has " U " and contains sym, else 0.
- * PLATFORM: SHARED — host realpath (POSIX) + popen nm; Windows hybrid via tools.
+ * PLATFORM: SHARED — host realpath via link_abi_realpath_cap (wave261) + popen nm;
+ * Windows hybrid via tools (face null → use path as-is).
  */
 int link_abi_obj_has_undef_sym_impl(const char *obj_o, const char *sym) {
     char cmd[PATH_MAX + 96];
@@ -2597,7 +2629,8 @@ int link_abi_obj_has_undef_sym_impl(const char *obj_o, const char *sym) {
     if (!obj_o || !obj_o[0] || !sym || !sym[0])
         return 0;
 #if !defined(_WIN32) && !defined(_WIN64)
-    if (realpath(obj_o, resolved) != NULL)
+    /* wave261 G.7: link_abi_realpath_cap (not raw realpath). */
+    if (link_abi_realpath_cap(obj_o, resolved) != NULL)
         use = resolved;
 #endif
     if ((size_t)snprintf(cmd, sizeof cmd, "nm '%s' 2>/dev/null", use) >= sizeof cmd)
@@ -2755,7 +2788,7 @@ int link_abi_host_is_posix_aarch64(void) {
  * (needs + ensure + path Cap + pure push_existing / Cap residual resolve for glue).
  * Cold twin via #include labi_invoke_ld_list.from_x.c above; hybrid FROM_X → L6 pure
  * .x (decl in #else). Why: hybrid still had always-mega C body for invoke_cc compress.
- * Cap residual stays: invoke_cc_argv_resolve_existing_path (skip+realpath pool; wave179).
+ * Cap residual stays: invoke_cc_argv_resolve_existing_path (pure skip + pool residual; wave179/255).
  * PLATFORM: SHARED. */
 
 /* wave156: xlang_asm_ld_append_mach_tail_libs_impl pure orch lives in labi_invoke_ld_list
@@ -2971,12 +3004,12 @@ const char *xlang_bootstrap_nostdlib_stubs_o_path(const char *argv0) {
     char comp_dir[PATH_MAX];
     int nn;
     buf[0] = resolved[0] = '\0';
-    if (realpath("compiler/src/asm/bootstrap_nostdlib_stubs.o", resolved) != NULL)
+    if (link_abi_realpath_cap("compiler/src/asm/bootstrap_nostdlib_stubs.o", resolved) != NULL)
         return resolved;
     if (xlang_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) == 0) {
         nn = snprintf(buf, sizeof buf, "%s/src/asm/bootstrap_nostdlib_stubs.o", comp_dir);
         if (nn > 0 && (size_t)nn < sizeof buf) {
-            if (realpath(buf, resolved) != NULL)
+            if (link_abi_realpath_cap(buf, resolved) != NULL)
                 return resolved;
             return buf;
         }
@@ -3609,7 +3642,7 @@ const char *xlang_rel_o_path_from_argv0(const char *argv0, const char *rel) {
     if (!rel || !rel[0])
         return strdup("");
     rel_len = strlen(rel);
-    if (realpath(rel, resolved) != NULL)
+    if (link_abi_realpath_cap(rel, resolved) != NULL)
         return strdup(resolved);
     {
         char cwd[512];
@@ -3618,7 +3651,7 @@ const char *xlang_rel_o_path_from_argv0(const char *argv0, const char *rel) {
             if (L + 1 + rel_len + 1 <= sizeof(cwd)) {
                 cwd[L] = '/';
                 memcpy(cwd + L + 1, rel, rel_len + 1);
-                if (realpath(cwd, resolved) != NULL)
+                if (link_abi_realpath_cap(cwd, resolved) != NULL)
                     return strdup(resolved);
             }
         }
@@ -3640,7 +3673,7 @@ const char *xlang_rel_o_path_from_argv0(const char *argv0, const char *rel) {
         if ((size_t)n + 3 + rel_len < sizeof(buf)) {
             strcat(buf, "/../");
             strcat(buf, rel);
-            if (realpath(buf, resolved) != NULL)
+            if (link_abi_realpath_cap(buf, resolved) != NULL)
                 return strdup(resolved);
             /* realpath 失败时勿返回臆造路径：仅当 stat 命中常规文件才返回 buf。 */
             if (asm_link_obj_skip_missing(buf))
@@ -4106,7 +4139,7 @@ int link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path) {
         return 0;
     use_new = path;
 #if !defined(_WIN32) && !defined(_WIN64)
-    if (realpath(path, abs_new) != NULL)
+    if (link_abi_realpath_cap(path, abs_new) != NULL)
         use_new = abs_new;
 #endif
     for (k = 0; k < la; k++) {
@@ -4116,7 +4149,7 @@ int link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path) {
         if (strcmp(exist, path) == 0 || strcmp(exist, use_new) == 0)
             return 1;
 #if !defined(_WIN32) && !defined(_WIN64)
-        if (realpath(exist, abs_exist) != NULL && strcmp(abs_exist, use_new) == 0)
+        if (link_abi_realpath_cap(exist, abs_exist) != NULL && strcmp(abs_exist, use_new) == 0)
             return 1;
 #endif
     }
@@ -4320,6 +4353,9 @@ void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, const cha
         "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(xlang_runtime_panic_o_path(link_argv0), link_argv0,
         "compiler/runtime_panic.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+    /* wave253: companion user-domain face (weak; residual declare-only; panic C strong wins). */
+    link_abi_asm_ld_push_obj(xlang_runtime_link_abi_user_env_o_path(link_argv0), link_argv0,
+        "compiler/runtime_link_abi_user_env.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
 }
 #else
 void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, const char **lib_roots, int n_lib_roots,

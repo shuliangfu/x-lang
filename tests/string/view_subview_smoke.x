@@ -12,11 +12,11 @@ function main(): i32 {
   let buf: u8[8] = [97, 98, 99, 100, 101, 102, 103, 0];
   let full: StrView = string.view(&buf[0], 7);
   let mid: StrView = string.string_view_subview(full, 2, 3);
-  if (string.len(mid) != 3) { return 1; }
+  if (string.length(mid) != 3) { return 1; }
   if (string.string_view_get(mid, 0) != 99) { return 2; }
   if (string.string_view_get(mid, 2) != 101) { return 3; }
   let tail: StrView = string.string_view_subview(full, 5, 10);
-  if (string.len(tail) != 2) { return 4; }
+  if (string.length(tail) != 2) { return 4; }
   if (string.string_view_get(tail, 0) != 102) { return 5; }
   let empty: StrView = string.string_view_subview(full, 20, 1);
   if (string.is_empty(empty) != 1) { return 6; }

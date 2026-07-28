@@ -1,4 +1,4 @@
-module github.com/shuliangfu/xlang/editors/tree-sitter-xlang/bindings/go
+module github.com/shuliangfu/x-lang/editors/tree-sitter-xlang/bindings/go
 
 go 1.22
 

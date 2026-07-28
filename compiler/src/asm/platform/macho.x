@@ -47,9 +47,9 @@ export extern function pipeline_elf_ctx_reloc_offset_at(ctx: *u8, idx: i32): i32
 export function macho_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
   let i: i32 = 0;
 /** See implementation for details. */
-  while (i < n && out.len < 8388608) {
-    out.data[out.len] = ptr[i];
-    out.len = out.len + 1;
+  while (i < n && out.length < 8388608) {
+    out.data[out.length] = ptr[i];
+    out.length = out.length + 1;
     i = i + 1;
   }
   if (i < n) { return -1; }
@@ -208,7 +208,7 @@ export function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): 
   let off_str: i32 = off_sym + symtab_size;
   let off_reloc: i32 = off_str + strtab_size;
   
-  out.len = 0;
+  out.length = 0;
   /* CPU_TYPE_X86_64 = 0x01000007; CPU_TYPE_ARM64 = 0x0100000C (wrong cputype: linker rejects). */
   let cputype: i32 = 16777223;
   let cpusubtype: i32 = 3;
@@ -538,5 +538,5 @@ export function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): 
     if (macho_append(out, ri, 8) != 0) { return -1; }
     r = r + 1;
   }
-  return out.len;
+  return out.length;
 }

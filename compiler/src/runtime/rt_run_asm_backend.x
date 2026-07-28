@@ -13,7 +13,14 @@ export extern "C" function malloc(n: usize): *u8;
 export extern "C" function free(p: *u8): void;
 export extern "C" function memset(p: *u8, c: i32, n: usize): *u8;
 export extern "C" function strlen(s: *u8): usize;
-export extern "C" function getenv(name: *u8): *u8;
+/* wave239 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED — cold seed twin (rt_run_asm_backend.from_x.c #ifndef FROM_X)
+ * uses link_abi_getenv for XLANG_DEBUG_PIPE / XLANG_ASM_DEBUG /
+ * XLANG_ASM_ENTRY_ONLY_DEBUG / XLANG_ASM_SKIP_C_TYPECK_PRECHECK.
+ * Product PREFER full .x rest is marker (H=0); keep the same public face here.
+ */
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 export extern "C" function unlink(path: *u8): i32;
 export extern "C" function runtime_read_file_malloc(path: *u8, out_len: *usize): *u8;
 export extern "C" function xlang_preprocess_with_path(

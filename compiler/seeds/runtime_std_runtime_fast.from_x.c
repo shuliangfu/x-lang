@@ -3,7 +3,8 @@
  */
 #include <stdint.h>
 #include <stddef.h>
-extern void xlang_panic_(int32_t has_msg, int32_t msg_val);
+/* wave386: pointer-width second arg (int payload or cstr). */
+extern void xlang_panic_(int32_t has_msg, intptr_t msg_val);
 extern void xlang_crash_evidence_collect_c(int32_t has_msg, int32_t msg_val);
 
 #ifndef XLANG_RUNTIME_STD_RUNTIME_FAST_FROM_X

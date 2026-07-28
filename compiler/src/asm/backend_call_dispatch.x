@@ -42,12 +42,21 @@ export extern "C" function pipeline_expr_call_arg_ref(arena: *u8, er: i32, i: i3
 export extern "C" function backend_enc_mov_imm32_to_w0_arch(elf: *u8, imm: i32, ta: i32): i32;
 export extern "C" function backend_enc_mov_imm32_to_rbx_arch(elf: *u8, imm: i32, ta: i32): i32;
 export extern "C" function backend_enc_mov_rax_to_arg_reg_arch(elf: *u8, k: i32, ta: i32): i32;
+/** wave359: freestanding i32.double → x*2 (mov+add self). */
+export extern "C" function backend_enc_mov_rax_to_rbx_arch(elf: *u8, ta: i32): i32;
+export extern "C" function backend_enc_add_rax_rbx_arch(elf: *u8, ta: i32): i32;
+export extern "C" function pipeline_expr_call_resolved_func_index_at(arena: *u8, er: i32): i32;
 export extern "C" function driver_get_current_dep_path_for_codegen(): *u8;
 export extern "C" function pipeline_asm_module_func_name_len_at(m: *u8, fi: i32): i32;
 export extern "C" function pipeline_asm_module_func_name_copy64(m: *u8, fi: i32, dst: *u8): void;
 export extern "C" function pipeline_module_func_num_params_at(m: *u8, fi: i32): i32;
 export extern "C" function pipeline_module_func_param_type_ref_at(m: *u8, fi: i32, pi: i32): i32;
 export extern "C" function pipeline_type_elem_ref_at(a: *u8, tr: i32): i32;
+/** wave360: UFCS auto-ref helpers (type equal + lvalue lea). */
+export extern "C" function pipeline_typeck_type_refs_equal_c(a: *u8, x: i32, y: i32): i32;
+export extern "C" function pipeline_type_kind_ord_at(a: *u8, tr: i32): i32;
+export extern "C" function pipeline_expr_resolved_type_ref(a: *u8, er: i32): i32;
+export extern "C" function pipeline_asm_emit_lvalue_eff_addr_elf_c(a: *u8, elf: *u8, lr: i32, ctx: *u8, ta: i32): i32;
 export extern "C" function pipeline_asm_type_ref_byte_size_c(arena: *u8, pty: i32): i32;
 export extern "C" function backend_enc_store_rax_to_rbp_arch(elf: *u8, off: i32, ta: i32): i32;
 export extern "C" function backend_enc_store_rdx_to_rbp_arch(elf: *u8, off: i32, ta: i32): i32;
@@ -552,7 +561,7 @@ export function glue_sysv_x86_call_arg_slot_c(
  * Historical name: spill 9–16B call-arg to stack then lea.
  * PLATFORM: LINUX+MACOS x86_64 SysV — INTEGER-class 9–16B aggregates pass by value in
  * rax+rdx / two consecutive GPs. Nested CALL already leaves that form; converting to a
- * pointer mismatches formal C (std_string_len_StrView rdi+rsi). No-op; placement uses
+ * pointer mismatches formal C (std_string_length_StrView rdi+rsi). No-op; placement uses
  * mov_rax/mov_rdx_to_arg_reg. Authority aligned with pipeline_glue call-arg dual load.
  */
 #[no_mangle]
@@ -1158,7 +1167,12 @@ export function pipeline_asm_emit_call_args_elf_c(
         }
       }
     }
-    // See implementation.
+    /*
+     * AAPCS64: product path uses pipeline_asm_emit_call_args_elf_c_impl (seed) —
+     * wave392 spill-then-load for multi nested CALL args (reentrancy). This .x
+     * surface is high-to-low place (historical memcmp x0 fix); do not invert
+     * to low-to-high without frame spill. PLATFORM: MACOS|ARM64.
+     */
     if (ta == 1) {
       let reg_n: i32 = nargs;
       if (reg_n > eff_reg_max) { reg_n = eff_reg_max; }
@@ -1465,14 +1479,21 @@ export function pipeline_asm_emit_call_args_text_c(
 }
 
 // G-02f-147：EXPR_METHOD_CALL ELF；module_ref@16 LE；IMPORT_BINDING=1 VAR=3
-/** Exported function `pipeline_asm_emit_method_call_elf_c`.
- * Implements `pipeline_asm_emit_method_call_elf_c`.
- * @param arena *u8
- * @param elf_ctx *u8
- * @param expr_ref i32
- * @param ctx *u8
- * @param ta i32
- * @return i32
+/**
+ * Freestanding METHOD_CALL ELF emit (import.method + UFCS free + bootstrap i32.double).
+ * wave359: when typeck did not resolve a same-module free fn, `x.double()` with 0 args
+ * expands to `2*x` (mov rax→rbx; add rax,rbx) — mirrors host `(x * 2)` so Ubuntu no longer
+ * UNDEF `double`. UFCS free methods named `double` keep call_resolved_func_index >= 0 and
+ * fall through to the normal call path.
+ * wave360: UFCS auto-ref — free fn `method(self: *T, ...)` with value receiver emits lea
+ * of receiver as arg0 (not by-value load).
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param expr_ref i32 — METHOD_CALL expr ref
+ * @param ctx *u8 — AsmFuncCtx (module_ref at +16)
+ * @param ta i32 — target arch (0=x86_64, 1=arm64, …)
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED — mac + Ubuntu freestanding
  */
 #[no_mangle]
 export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -1491,7 +1512,34 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
     if (name_len > 63) { return 0 - 1; }
     let name: u8[64] = [];
     pipeline_expr_method_call_name_into(arena, expr_ref, &name[0]);
-    // See implementation.
+    // wave359: bootstrap i32.double → 2*x when not UFCS-resolved free fn.
+    let r_fn: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+    if (r_fn < 0) {
+      if (nargs == 0) {
+        if (name_len == 6) {
+          if (base_ref != 0) {
+            if (name[0] == 100) {
+              if (name[1] == 111) {
+                if (name[2] == 117) {
+                  if (name[3] == 98) {
+                    if (name[4] == 108) {
+                      if (name[5] == 101) {
+                        if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+                          return 0 - 1;
+                        }
+                        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+                        if (backend_enc_add_rax_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+                        return 0;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
     if (mod_ref != 0) {
       if (base_ref > 0) {
         if (pipeline_expr_kind_ord_at(arena, base_ref) == 3) {
@@ -1579,8 +1627,39 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
         }
       }
     }
+    // wave360: UFCS auto-ref — self: *T + value receiver → lea (not by-value).
     if (base_ref != 0) {
-      if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) { return 0 - 1; }
+      let need_aref: i32 = 0;
+      let r_fn2: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+      let r_dep2: i32 = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
+      if (r_fn2 >= 0) {
+        if (r_dep2 < 0) {
+          if (mod_ref != 0) {
+            let p0: i32 = pipeline_module_func_param_type_ref_at(mod_ref, r_fn2, 0);
+            let bty: i32 = pipeline_expr_resolved_type_ref(arena, base_ref);
+            if (p0 > 0) {
+              if (bty > 0) {
+                // TYPE_PTR kind ord = 9
+                if (pipeline_type_kind_ord_at(arena, p0) == 9) {
+                  if (pipeline_typeck_type_refs_equal_c(arena, bty, p0) == 0) {
+                    let pe: i32 = pipeline_type_elem_ref_at(arena, p0);
+                    if (pe > 0) {
+                      if (pipeline_typeck_type_refs_equal_c(arena, bty, pe) != 0) {
+                        need_aref = 1;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      if (need_aref != 0) {
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0) { return 0 - 1; }
+      } else {
+        if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) { return 0 - 1; }
+      }
       if (ta != 1) {
         if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
       }

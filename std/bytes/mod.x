@@ -42,7 +42,7 @@ export const BYTES_OWN_EXTERNAL: i32 = 0;
 /* See implementation. */
 allow(padding) struct Bytes {
   ptr: *u8;
-  len: i32;
+  length: i32;
   cap: i32;
   owned: i32;
 }
@@ -63,7 +63,7 @@ allow(padding) struct BytesWriter {
  * @return Bytes
  */
 export function new(): Bytes {
-  return Bytes { ptr: 0, len: 0, cap: 0, owned: BYTES_OWN_HEAP };
+  return Bytes { ptr: 0, length: 0, cap: 0, owned: BYTES_OWN_HEAP };
 }
 
 /**
@@ -71,7 +71,7 @@ export function new(): Bytes {
  * See implementation.
  */
 export function from_external(ptr: *u8, len: i32, cap: i32): Bytes {
-  return Bytes { ptr: ptr, len: len, cap: cap, owned: BYTES_OWN_EXTERNAL };
+  return Bytes { ptr: ptr, length: len, cap: cap, owned: BYTES_OWN_EXTERNAL };
 }
 
 /** Exported function `is_owned`.
@@ -115,7 +115,7 @@ export function with_capacity(b: *Bytes, capacity: i32): i32 {
   if (capacity <= 0) {
     b.ptr = 0;
     b.cap = 0;
-    b.len = 0;
+    b.length = 0;
     return 0;
   }
   let p: *u8 = heap.alloc(capacity);
@@ -126,7 +126,7 @@ export function with_capacity(b: *Bytes, capacity: i32): i32 {
   if (0 == 0) {
     b.ptr = p;
     b.cap = capacity;
-    b.len = 0;
+    b.length = 0;
     return 0;
   }
   return -1;
@@ -138,7 +138,7 @@ export function with_capacity(b: *Bytes, capacity: i32): i32 {
  * @return i32
  */
 export function reserve_one(b: *Bytes): i32 {
-  if (b.len < b.cap) { return 0; }
+  if (b.length < b.cap) { return 0; }
   if (b.owned == 0) {
     return -1;
   }
@@ -187,7 +187,7 @@ export function reserve(b: *Bytes, new_cap: i32): i32 {
  */
 export function grow(b: *Bytes, extra: i32): i32 {
   if (extra <= 0) { return 0; }
-  return reserve(b, b.len + extra);
+  return reserve(b, b.length + extra);
 }
 
 /** Exported function `append_byte`.
@@ -200,8 +200,8 @@ export function append_byte(b: *Bytes, x: u8): i32 {
   if (reserve_one(b) != 0) {
     return -1;
   } else {
-    b.ptr[b.len] = x;
-    b.len = b.len + 1;
+    b.ptr[b.length] = x;
+    b.length = b.length + 1;
     return 0;
   }
 }
@@ -216,9 +216,9 @@ export function append_byte(b: *Bytes, x: u8): i32 {
 export function extend(b: *Bytes, ptr: *u8, n: i32): i32 {
   if (n <= 0) { return 0; }
   if (grow(b, n) != 0) { return -1; }
-  heap.copy(b.ptr, b.len, ptr, n);
+  heap.copy(b.ptr, b.length, ptr, n);
   if (0 == 0) {
-    b.len = b.len + n;
+    b.length = b.length + n;
     return 0;
   }
   return -1;
@@ -234,11 +234,11 @@ export function from_slice(ptr: *u8, n: i32): Bytes {
   let b: Bytes = new();
   if (n <= 0) { return b; }
   if (with_capacity(&b, n) != 0) {
-    return Bytes { ptr: 0, len: -1, cap: 0, owned: BYTES_OWN_HEAP };
+    return Bytes { ptr: 0, length: -1, cap: 0, owned: BYTES_OWN_HEAP };
   }
   heap.copy(b.ptr, 0, ptr, n);
   if (0 == 0) {
-    b.len = n;
+    b.length = n;
     return b;
   }
   return new();
@@ -249,7 +249,7 @@ export function from_slice(ptr: *u8, n: i32): Bytes {
  * @param b Bytes
  * @return i32
  */
-export function len(b: Bytes): i32 { return b.len; }
+export function length(b: Bytes): i32 { return b.length; }
 
 /** Exported function `capacity`.
  * Implements `capacity`.
@@ -263,7 +263,7 @@ export function capacity(b: Bytes): i32 { return b.cap; }
  * @param b *Bytes
  * @return void
  */
-export function clear(b: *Bytes): void { b.len = 0; }
+export function clear(b: *Bytes): void { b.length = 0; }
 
 /** Exported function `deinit`.
  * Implements `deinit`.
@@ -275,7 +275,7 @@ export function deinit(b: *Bytes): void {
     heap.free(b.ptr);
     b.ptr = 0;
   }
-  b.len = 0;
+  b.length = 0;
   b.cap = 0;
   b.owned = BYTES_OWN_HEAP;
 }
@@ -286,7 +286,7 @@ export function deinit(b: *Bytes): void {
  * @return StrView
  */
 export function as_view(b: Bytes): StrView {
-  return string.view(b.ptr, b.len);
+  return string.view(b.ptr, b.length);
 }
 
 /** Exported function `from_view`.
@@ -295,7 +295,7 @@ export function as_view(b: Bytes): StrView {
  * @return Bytes
  */
 export function from_view(v: StrView): Bytes {
-  return from_slice(v.ptr, v.len);
+  return from_slice(v.ptr, v.length);
 }
 
 /** Exported function `as_buffer`.
@@ -304,7 +304,7 @@ export function from_view(v: StrView): Bytes {
  * @return Buffer
  */
 export function as_buffer(b: Bytes): Buffer {
-  return Buffer { ptr: b.ptr, len: b.len, handle: 0 };
+  return Buffer { ptr: b.ptr, length: b.length, handle: 0 };
 }
 
 /**
@@ -326,7 +326,7 @@ export function read(r: *BytesReader, out: *u8, n: i32): i32 {
   let remain: i32 = 0;
   let take: i32 = 0;
   if (buf == 0 || out == 0 || n <= 0) { return 0; }
-  remain = buf.len - r.pos;
+  remain = buf.length - r.pos;
   if (remain <= 0) { return 0; }
   if (n < remain) {
     take = n;
@@ -350,8 +350,8 @@ export function read(r: *BytesReader, out: *u8, n: i32): i32 {
 export function remaining(r: BytesReader): i32 {
   let buf: *Bytes = r.buf;
   if (buf == 0) { return 0; }
-  if (r.pos >= buf.len) { return 0; }
-  return buf.len - r.pos;
+  if (r.pos >= buf.length) { return 0; }
+  return buf.length - r.pos;
 }
 
 /** Exported function `seek`.
@@ -363,7 +363,7 @@ export function remaining(r: BytesReader): i32 {
 export function seek(r: *BytesReader, pos: i32): i32 {
   let buf: *Bytes = r.buf;
   if (buf == 0) { return -1; }
-  if (pos < 0 || pos > buf.len) { return -1; }
+  if (pos < 0 || pos > buf.length) { return -1; }
   if (0 == 0) {
     r.pos = pos;
     return 0;
@@ -398,8 +398,8 @@ export function write(w: *BytesWriter, ptr: *u8, n: i32): i32 {
 export function remaining_cap(w: BytesWriter): i32 {
   let buf: *Bytes = w.buf;
   if (buf == 0) { return 0; }
-  if (buf.cap <= buf.len) { return 0; }
-  return buf.cap - buf.len;
+  if (buf.cap <= buf.length) { return 0; }
+  return buf.cap - buf.length;
 }
 
 /**

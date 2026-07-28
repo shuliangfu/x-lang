@@ -71,7 +71,7 @@ int32_t xlang_sys_poll(uint8_t *fds, int32_t nfds, int32_t timeout) {
 static int net_wsa_done = 0;
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_net_sock_fast.x）提供 public wrapper */
-void net_ensure_wsa_impl(void) {
+void net_ensure_wsa_impl_c(void) {
     WSADATA data;
     if (net_wsa_done) return;
     if (WSAStartup(MAKEWORD(2, 2), &data) == 0)
@@ -81,7 +81,7 @@ void net_ensure_wsa_impl(void) {
 #ifndef XLANG_RUNTIME_NET_SOCK_FAST_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 void net_ensure_wsa(void) {
-    net_ensure_wsa_impl();
+    net_ensure_wsa_impl_c();
 }
 #endif
 
@@ -89,7 +89,7 @@ void net_ensure_wsa(void) {
 
 __attribute__((constructor(65534)))
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void net_wsa_ctor_impl(void) { net_ensure_wsa_impl(); }
+void net_wsa_ctor_impl_c(void) { net_ensure_wsa_impl_c(); }
 
 #ifndef XLANG_RUNTIME_NET_SOCK_FAST_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
@@ -98,6 +98,11 @@ void net_wsa_ctor(void) { net_ensure_wsa(); }
 
 
 
+#else
+/* Non-Windows: WSAStartup not needed; provide no-op stubs for R2 thin link.
+ * PLATFORM: POSIX — Windows Winsock init is Windows-only; POSIX sockets need no init. */
+void net_ensure_wsa_impl_c(void) { }
+void net_wsa_ctor_impl_c(void) { }
 #endif
 
 int32_t net_set_blocking_c(int32_t fd, int32_t blocking) {

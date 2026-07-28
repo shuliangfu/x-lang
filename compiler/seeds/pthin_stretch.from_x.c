@@ -37,7 +37,7 @@ struct parser_asm_lexer_result {
 
 struct parser_asm_slice_u8 {
   uint8_t *data;
-  size_t length;
+  size_t len;
 };
 
 /* P1 lex_skip / mega rest helpers used by suite (ld -r) */

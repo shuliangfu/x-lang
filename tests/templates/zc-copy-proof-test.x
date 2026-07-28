@@ -18,6 +18,6 @@ function main(): i32 {
   // See implementation.
   let buf: u8[4] = [97, 98, 99, 0];
   let v: StrView = string.view(&buf[0], 3);
-  if (string.len(v) != 3) { return 1; }
+  if (string.length(v) != 3) { return 1; }
   return 0;
 }

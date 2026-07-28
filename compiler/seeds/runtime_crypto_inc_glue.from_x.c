@@ -39,10 +39,40 @@ uint32_t crypto_rotr32_c(uint32_t x, uint32_t n);
 /* G-02f-115：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 uint32_t crypto_rotl32_c(uint32_t x, uint32_t n);
 uint32_t crypto_sha256_k256_c(int32_t i);
-/* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 _impl 调用 */
-uint32_t xlang_sha256_rotr32(uint32_t x, uint32_t n);
-uint32_t xlang_sha256_ch(uint32_t x, uint32_t y, uint32_t z);
-uint32_t xlang_sha256_maj(uint32_t x, uint32_t y, uint32_t z);
+
+/* wave525: _impl C functions (always compiled) — called by xlang_sha256_block_impl
+ * below AND by thin (.x) wrappers. Previously the block_impl called the thin
+ * wrappers directly, but xlang-c backend uses a non-standard calling convention
+ * (params via stack frame, not registers), causing C → .x calls to segfault.
+ * By calling _impl (C) instead, all calls within block_impl stay C → C (standard
+ * AAPCS64 ABI). The thin (.x) wrappers forward to these _impl functions. */
+
+/** SHA-256 right rotation (always compiled; called by block_impl + thin wrapper). */
+uint32_t xlang_sha256_rotr32_impl(uint32_t x, uint32_t n) {
+  n &= 31u;
+  return (x >> n) | (x << (32u - n));
+}
+
+/** SHA-256 Ch function (always compiled; called by block_impl + thin wrapper). */
+uint32_t xlang_sha256_ch_impl(uint32_t x, uint32_t y, uint32_t z) {
+  return (x & y) ^ ((~x) & z);
+}
+
+/** SHA-256 Maj function (always compiled; called by block_impl + thin wrapper). */
+uint32_t xlang_sha256_maj_impl(uint32_t x, uint32_t y, uint32_t z) {
+  return (x & y) ^ (x & z) ^ (y & z);
+}
+
+/** i32 subtraction _impl (always compiled; called by thin wrapper). */
+int32_t crypto_i32_sub_impl(int32_t a, int32_t b) {
+  return a - b;
+}
+
+/** u32 left rotation _impl (always compiled; called by thin wrapper). */
+uint32_t crypto_rotl32_impl(uint32_t x, uint32_t n) {
+  n &= 31u;
+  return (x << n) | (x >> (32u - n));
+}
 
 /** i32 减法 a - b；seed asm 字面量减变量 emit 失败（如 64 - klen）。 */
 /* G-02f-115：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -50,22 +80,21 @@ uint32_t xlang_sha256_maj(uint32_t x, uint32_t y, uint32_t z);
 #ifndef XLANG_RUNTIME_CRYPTO_INC_GLUE_FROM_X
 /* 完整模式（未定义 thin 宏）：thin 函数由 seed 提供 */
 int32_t crypto_i32_sub_c(int32_t a, int32_t b) {
-  return a - b;
+  return crypto_i32_sub_impl(a, b);
 }
 
 /* ---------- SHA-256 / HMAC-SHA256（seed asm 单文件仅首函数可 emit；完整实现放 C） ---------- */
 /* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 uint32_t xlang_sha256_rotr32(uint32_t x, uint32_t n) {
-  n &= 31u;
-  return (x >> n) | (x << (32u - n));
+  return xlang_sha256_rotr32_impl(x, n);
 }
 /* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 uint32_t xlang_sha256_ch(uint32_t x, uint32_t y, uint32_t z) {
-  return (x & y) ^ ((~x) & z);
+  return xlang_sha256_ch_impl(x, y, z);
 }
 /* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 uint32_t xlang_sha256_maj(uint32_t x, uint32_t y, uint32_t z) {
-  return (x & y) ^ (x & z) ^ (y & z);
+  return xlang_sha256_maj_impl(x, y, z);
 }
 #endif /* XLANG_RUNTIME_CRYPTO_INC_GLUE_FROM_X */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
@@ -83,17 +112,17 @@ void xlang_sha256_block_impl(uint32_t *H, const uint8_t *block) {
     uint32_t w7 = W[i - 7];
     uint32_t w15 = W[i - 15];
     uint32_t w16 = W[i - 16];
-    uint32_t s0 = xlang_sha256_rotr32(w15, 7) ^ xlang_sha256_rotr32(w15, 18) ^ (w15 >> 3);
-    uint32_t s1 = xlang_sha256_rotr32(w2, 17) ^ xlang_sha256_rotr32(w2, 19) ^ (w2 >> 10);
+    uint32_t s0 = xlang_sha256_rotr32_impl(w15, 7) ^ xlang_sha256_rotr32_impl(w15, 18) ^ (w15 >> 3);
+    uint32_t s1 = xlang_sha256_rotr32_impl(w2, 17) ^ xlang_sha256_rotr32_impl(w2, 19) ^ (w2 >> 10);
     W[i] = s1 + w7 + s0 + w16;
   }
   uint32_t a = H[0], b = H[1], c = H[2], d = H[3];
   uint32_t e = H[4], f = H[5], g = H[6], h = H[7];
   for (i = 0; i < 64; i++) {
-    uint32_t t1 = h + (xlang_sha256_rotr32(e, 6) ^ xlang_sha256_rotr32(e, 11) ^ xlang_sha256_rotr32(e, 25))
-                + xlang_sha256_ch(e, f, g) + crypto_sha256_k256_c(i) + W[i];
-    uint32_t t2 = (xlang_sha256_rotr32(a, 2) ^ xlang_sha256_rotr32(a, 13) ^ xlang_sha256_rotr32(a, 22))
-                + xlang_sha256_maj(a, b, c);
+    uint32_t t1 = h + (xlang_sha256_rotr32_impl(e, 6) ^ xlang_sha256_rotr32_impl(e, 11) ^ xlang_sha256_rotr32_impl(e, 25))
+                + xlang_sha256_ch_impl(e, f, g) + crypto_sha256_k256_c(i) + W[i];
+    uint32_t t2 = (xlang_sha256_rotr32_impl(a, 2) ^ xlang_sha256_rotr32_impl(a, 13) ^ xlang_sha256_rotr32_impl(a, 22))
+                + xlang_sha256_maj_impl(a, b, c);
     h = g; g = f; f = e; e = d + t1;
     d = c; c = b; b = a; a = t1 + t2;
   }
@@ -272,8 +301,7 @@ uint32_t crypto_rotr32_c(uint32_t x, uint32_t n) {
 #ifndef XLANG_RUNTIME_CRYPTO_INC_GLUE_FROM_X
 /* 完整模式（未定义 thin 宏）：thin 函数由 seed 提供 */
 uint32_t crypto_rotl32_c(uint32_t x, uint32_t n) {
-  n &= 31u;
-  return (x << n) | (x >> (32u - n));
+  return crypto_rotl32_impl(x, n);
 }
 #endif
 

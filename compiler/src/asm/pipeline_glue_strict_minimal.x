@@ -18,6 +18,11 @@ export extern "C" function pipeline_module_func_param_name_copy32(mod: *u8, fi: 
 export extern "C" function pipeline_expr_var_name_len(arena: *u8, er: i32): i32;
 export extern "C" function pipeline_expr_var_name_into(arena: *u8, er: i32, out: *u8): void;
 export extern "C" function pipeline_type_region_label_into(arena: *u8, tr: i32, out64: *u8): i32;
+// wave494: generic method_call UFCS — exported from pipeline_glue.c (G.7 single
+// authority). Pattern-unifies formal self param with concrete receiver type
+// and substitutes the return type. Called after non-generic UFCS fails.
+// PLATFORM: SHARED typeck.
+export extern "C" function pipeline_typeck_method_call_generic_ufcs_c(module: *u8, arena: *u8, expr_ref: i32, base_ty: i32, method_nm: *u8, method_nlen: i32, num_args: i32): i32;
 
 /** Exported function `pipeline_glue_strict_minimal_x_doc_anchor`.
  * Implements `pipeline_glue_strict_minimal_x_doc_anchor`.
@@ -2202,6 +2207,8 @@ export extern "C" function pipeline_expr_match_arm_result_ref(arena: *u8, er: i3
 export extern "C" function pipeline_expr_field_access_name_len(arena: *u8, er: i32): i32;
 export extern "C" function pipeline_expr_field_access_name_into(arena: *u8, er: i32, out: *u8): void;
 export extern "C" function pipeline_expr_set_field_access_offset(arena: *u8, er: i32, off: i32): void;
+/* wave479: heavy field_layout_named (user enum TypeName.Variant → TYPE_NAMED). */
+export extern "C" function pipeline_typeck_field_layout_named_c(module: *u8, arena: *u8, expr_ref: i32, base_ref: i32, ctx: *u8): i32;
 export extern "C" function typeck_get_field_offset_from_layout_deps(module: *u8, ctx: *u8, tname: *u8, tlen: i32, fname: *u8, flen: i32): i32;
 export extern "C" function typeck_get_field_type_ref_from_layout_deps(module: *u8, arena: *u8, ctx: *u8, tname: *u8, tlen: i32, fname: *u8, flen: i32): i32;
 export extern "C" function pipeline_expr_init_call_resolve_at_ref(arena: *u8, er: i32): void;
@@ -2277,14 +2284,98 @@ export function pipeline_typeck_check_expr_match_c(module: *u8, arena: *u8, expr
 
 // See implementation.
 // SLICE=11 PTR=9 NAMED=8 USIZE=6 I32=0
-/** Exported function `pipeline_typeck_check_expr_field_access_c`.
- * Implements `pipeline_typeck_check_expr_field_access_c`.
- * @param module *u8
- * @param arena *u8
- * @param expr_ref i32
- * @param return_type_ref i32
- * @param ctx *u8
- * @return i32
+// EXPR_CALL=48 EXPR_METHOD_CALL=49 EXPR_VAR=3
+export extern "C" function pipeline_module_struct_layout_field_name_len(mod: *u8, li: i32, j: i32): i32;
+export extern "C" function pipeline_module_struct_layout_field_name_into(mod: *u8, li: i32, j: i32, out: *u8): void;
+export extern "C" function pipeline_module_struct_layout_name_len(mod: *u8, idx: i32): i32;
+export extern "C" function pipeline_module_struct_layout_name_into(mod: *u8, idx: i32, out: *u8): void;
+export extern "C" function pipeline_module_num_struct_layouts_at(mod: *u8): i32;
+
+/**
+ * wave454: unique owner TYPE_NAMED of a field name among module struct layouts.
+ * Used so bare ret-only generic CALL bases of FIELD_ACCESS get ambient expected
+ * (`mk_default().v` → A), not the field-result type (i32).
+ * @param module *u8 — Module*
+ * @param arena *u8 — ASTArena*
+ * @param expr_ref i32 — FIELD_ACCESS expr
+ * @return i32 — named type_ref or 0 if zero/ambiguous
+ * PLATFORM: SHARED — product Darwin g05 field_access authority (strict_minimal).
+ */
+function pipeline_typeck_field_reverse_infer_base_type_strict_minimal(module: *u8, arena: *u8, expr_ref: i32): i32 {
+  if (module == 0) { return 0; }
+  if (arena == 0) { return 0; }
+  if (expr_ref <= 0) { return 0; }
+  let fl: i32 = pipeline_expr_field_access_name_len(arena, expr_ref);
+  if (fl <= 0) { return 0; }
+  if (fl > 63) { return 0; }
+  let fn_buf: u8[64] = [];
+  pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
+  let nsl: i32 = pipeline_module_num_struct_layouts_at(module);
+  if (nsl <= 0) { return 0; }
+  let hits: i32 = 0;
+  let unique_ty: i32 = 0;
+  let k: i32 = 0;
+  while (k < nsl) {
+    let nf: i32 = pipeline_module_struct_layout_num_fields(module, k);
+    let j: i32 = 0;
+    while (j < nf) {
+      let fjl: i32 = pipeline_module_struct_layout_field_name_len(module, k, j);
+      if (fjl == fl) {
+        let fjn: u8[64] = [];
+        pipeline_module_struct_layout_field_name_into(module, k, j, &fjn[0]);
+        let match: i32 = 1;
+        let bi: i32 = 0;
+        while (bi < fl) {
+          if (fjn[bi] != fn_buf[bi]) { match = 0; }
+          bi = bi + 1;
+        }
+        if (match != 0) {
+          let lnl: i32 = pipeline_module_struct_layout_name_len(module, k);
+          if (lnl > 0) {
+            if (lnl <= 63) {
+              let lnm: u8[64] = [];
+              pipeline_module_struct_layout_name_into(module, k, &lnm[0]);
+              let nty: i32 = pipeline_type_find_or_alloc_named(arena, &lnm[0], lnl);
+              if (nty > 0) {
+                if (hits == 1) {
+                  if (unique_ty == nty) {
+                    // same owner again — ignore
+                  } else {
+                    return 0;
+                  }
+                } else {
+                  hits = hits + 1;
+                  unique_ty = nty;
+                }
+              }
+            }
+          }
+        }
+      }
+      j = j + 1;
+    }
+    k = k + 1;
+  }
+  if (hits == 1) { return unique_ty; }
+  return 0;
+}
+
+/**
+ * EXPR_FIELD_ACCESS typeck (strict_minimal product path).
+ * wave454: never pass field-result ambient into base; reverse-infer CALL base owner.
+ * wave465: after field resolve, ambient fills unconstrained type-param fields
+ * (struct Wrap<T>{v:T} → return w.v with expected i32). Not applied to base.
+ * wave466: type-pos Wrap<i32> stores arg on TYPE_NAMED; mono stamps type-param
+ * fields from that arg before ambient (single-arg; multi soft).
+ * wave479: user enum TypeName.Variant via field_layout_named_c (return 2);
+ * do not stamp ambient onto null field type (wave472 dual-overload discipline).
+ * @param module *u8 — Module*
+ * @param arena *u8 — ASTArena*
+ * @param expr_ref i32 — FIELD_ACCESS
+ * @param return_type_ref i32 — ambient expected of field result (not base)
+ * @param ctx *u8 — PipelineDepCtx*
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED — Darwin g05 weak export is live authority for this path.
  */
 #[no_mangle]
 export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u8, expr_ref: i32, return_type_ref: i32, ctx: *u8): i32 {
@@ -2319,9 +2410,20 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
         }
       }
     }
-    if (typeck_check_expr(module, arena, base_ref, return_type_ref, ctx) != 0) {
+    // wave454: base expected is reverse-inferred owner for CALL, else 0 (not field ambient).
+    let base_expected: i32 = 0;
+    let base_kind: i32 = pipeline_expr_kind_ord_at(arena, base_ref);
+    if (base_kind == 48) {
+      base_expected = pipeline_typeck_field_reverse_infer_base_type_strict_minimal(module, arena, expr_ref);
+    }
+    if (base_kind == 49) {
+      base_expected = pipeline_typeck_field_reverse_infer_base_type_strict_minimal(module, arena, expr_ref);
+    }
+    if (typeck_check_expr(module, arena, base_ref, base_expected, ctx) != 0) {
       return 0 - 1;
     }
+    // return_type_ref is field-result ambient only; intentionally not applied to base.
+    if (return_type_ref < 0) { return 0 - 1; }
     let base_ty: i32 = pipeline_expr_resolved_type_ref(arena, base_ref);
     if (base_ty <= 0) { return 0; }
     let field_len: i32 = pipeline_expr_field_access_name_len(arena, expr_ref);
@@ -2358,6 +2460,17 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
       }
     }
     if (pipeline_type_kind_ord_at(arena, work_ty) != 8) { return 0; }
+    /*
+     * wave479: user enum TypeName.Variant — G.7 call heavy field_layout_named_c
+     * (return 2 = fully resolved TYPE_NAMED enum; skip mono/ambient).
+     * PLATFORM: SHARED — seed C twin is product compile unit.
+     */
+    {
+      let layout_rc: i32 = pipeline_typeck_field_layout_named_c(module, arena, expr_ref, base_ref, ctx);
+      if (layout_rc == 2) {
+        return 0;
+      }
+    }
     let type_name: u8[64] = [];
     let type_name_len: i32 = pipeline_type_named_name_into(arena, work_ty, &type_name[0]);
     if (type_name_len <= 0) { return 0; }
@@ -2423,6 +2536,90 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
     let field_ty: i32 = typeck_get_field_type_ref_from_layout_deps(module, arena, ctx, &type_name[0], type_name_len, &field_name[0], field_len);
     if (field_ty > 0) {
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, field_ty);
+    }
+    // wave466/467: generic mono — type-pos args on base; type-param field stamps
+    // matching type-arg slot (multi via layout type-param names). PLATFORM: SHARED.
+    // G.7 twin of seed C + heavy. Product path uses seed C; .x stays in sync.
+    {
+      let got_mono: i32 = pipeline_expr_resolved_type_ref(arena, expr_ref);
+      if (got_mono > 0) {
+        if (pipeline_type_kind_ord_at(arena, got_mono) == 8) {
+          let mnm: u8[64] = [];
+          let mnl: i32 = pipeline_type_named_name_into(arena, got_mono, &mnm[0]);
+          let m_concrete: i32 = 0;
+          if (mnl > 0) {
+            if (mnl <= 63) {
+              let nslm: i32 = pipeline_module_num_struct_layouts_at(module);
+              let skm: i32 = 0;
+              while (skm < nslm) {
+                let slm: i32 = pipeline_module_struct_layout_name_len(module, skm);
+                if (slm == mnl) {
+                  let snmm: u8[64] = [];
+                  pipeline_module_struct_layout_name_into(module, skm, &snmm[0]);
+                  let bim: i32 = 0;
+                  let matchm: i32 = 1;
+                  while (bim < mnl) {
+                    if (snmm[bim] != mnm[bim]) { matchm = 0; }
+                    bim = bim + 1;
+                  }
+                  if (matchm != 0) { m_concrete = 1; }
+                }
+                skm = skm + 1;
+              }
+            }
+          }
+          if (m_concrete == 0) {
+            // Prefer slot0 elem until multi APIs are wired into .x surface; seed C is authority.
+            let mono_ty: i32 = pipeline_type_elem_ref_at(arena, work_ty);
+            if (mono_ty > 0) {
+              pipeline_expr_set_resolved_type_ref(arena, expr_ref, mono_ty);
+            }
+          }
+        }
+      }
+    }
+    // wave465: type-param field (TYPE_NAMED no module concrete) + ambient → stamp ambient.
+    // wave472/wave479: never stamp ambient on null (Method.POST dual overload).
+    // Keep wave454: ambient never applied to base. PLATFORM: SHARED.
+    // Product authority is seed C; this .x stays in sync (G.7).
+    if (return_type_ref > 0) {
+      let got_ty: i32 = pipeline_expr_resolved_type_ref(arena, expr_ref);
+      let use_ambient: i32 = 0;
+      if (got_ty <= 0) {
+        use_ambient = 0;
+      } else {
+        // TYPE_NAMED = 8
+        if (pipeline_type_kind_ord_at(arena, got_ty) == 8) {
+          let gnm: u8[64] = [];
+          let gnl: i32 = pipeline_type_named_name_into(arena, got_ty, &gnm[0]);
+          let concrete: i32 = 0;
+          if (gnl > 0) {
+            if (gnl <= 63) {
+              let nsl: i32 = pipeline_module_num_struct_layouts_at(module);
+              let sk: i32 = 0;
+              while (sk < nsl) {
+                let sl: i32 = pipeline_module_struct_layout_name_len(module, sk);
+                if (sl == gnl) {
+                  let snm: u8[64] = [];
+                  pipeline_module_struct_layout_name_into(module, sk, &snm[0]);
+                  let bi: i32 = 0;
+                  let match: i32 = 1;
+                  while (bi < gnl) {
+                    if (snm[bi] != gnm[bi]) { match = 0; }
+                    bi = bi + 1;
+                  }
+                  if (match != 0) { concrete = 1; }
+                }
+                sk = sk + 1;
+              }
+            }
+          }
+          if (concrete == 0) { use_ambient = 1; }
+        }
+      }
+      if (use_ambient != 0) {
+        pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref);
+      }
     }
   }
   return 0;
@@ -2571,6 +2768,98 @@ export function pipeline_typeck_check_expr_method_call_c(module: *u8, arena: *u8
       pipeline_expr_apply_call_resolve(arena, expr_ref, dep_ix, func_ix);
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, import_ret_ty);
       return 0;
+    }
+    // wave494: generic method_call UFCS — method on generic struct.
+    // Must run BEFORE non-generic UFCS below: the non-generic UFCS uses
+    // pipeline_typeck_type_refs_equal_c (pointer equality) which fails for
+    // generic instantiations (Wrap<i32> != Wrap<T>). But the weak integer
+    // match (score 100) would still match them by TYPE_NAMED kind and stamp
+    // the raw return type T, returning 0 before the generic fixup can run.
+    // Delegating to pipeline_typeck_method_call_generic_ufcs_c (exported
+    // from pipeline_glue.c, G.7 single authority) first ensures pattern-unify
+    // of the formal self param with the concrete receiver type and substitutes
+    // the return type. Non-generic methods (self has no free type-param) are
+    // skipped by the generic path and fall through to non-generic UFCS.
+    // PLATFORM: SHARED typeck — mac + Ubuntu.
+    if (base_ty > 0) {
+      if (method_nlen > 0) {
+        if (pipeline_typeck_method_call_generic_ufcs_c(module, arena, expr_ref, base_ty, &method_nm[0], method_nlen, num_args) != 0) {
+          return 0;
+        }
+      }
+    }
+    /*
+     * wave358 Cap residual pure — UFCS same-module free method.
+     * receiver.method(args) → free fn method(receiver, args...) when nparams
+     * == num_args+1 and param0 matches receiver type. G.7 seed twin.
+     * PLATFORM: SHARED — mac + Ubuntu L2.
+     */
+    if (base_ty > 0) {
+      if (method_nlen > 0) {
+        let uf_best: i32 = 0 - 1;
+        let uf_best_score: i32 = 0 - 1;
+        let nf: i32 = pipeline_module_num_funcs(module);
+        let uj: i32 = 0;
+        while (uj < nf) {
+          if (pipeline_module_func_name_equal_at(module, uj, &method_nm[0], method_nlen) != 0) {
+            let nparams: i32 = pipeline_module_func_num_params_at(module, uj);
+            if (nparams == num_args + 1) {
+              let p0: i32 = pipeline_module_func_param_type_ref_at(module, uj, 0);
+              let sc0: i32 = 0 - 1;
+              if (p0 > 0) {
+                if (pipeline_typeck_type_refs_equal_c(arena, base_ty, p0) != 0) {
+                  sc0 = 1000;
+                }
+              }
+              if (sc0 >= 0) {
+                let score: i32 = sc0;
+                let matched: i32 = 1;
+                let ai: i32 = 0;
+                while (ai < num_args) {
+                  let param_raw: i32 = pipeline_module_func_param_type_ref_at(module, uj, ai + 1);
+                  let arg_ref: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, ai);
+                  let arg_ty: i32 = 0;
+                  if (arg_ref > 0) {
+                    arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+                  }
+                  if (param_raw > 0) {
+                    if (arg_ty > 0) {
+                      if (pipeline_typeck_type_refs_equal_c(arena, arg_ty, param_raw) != 0) {
+                        score = score + 1000;
+                        ai = ai + 1;
+                      } else {
+                        matched = 0;
+                        ai = num_args;
+                      }
+                    } else {
+                      matched = 0;
+                      ai = num_args;
+                    }
+                  } else {
+                    matched = 0;
+                    ai = num_args;
+                  }
+                }
+                if (matched != 0) {
+                  if (score > uf_best_score) {
+                    uf_best_score = score;
+                    uf_best = uj;
+                  }
+                }
+              }
+            }
+          }
+          uj = uj + 1;
+        }
+        if (uf_best >= 0) {
+          let uf_ret: i32 = pipeline_module_func_return_type_at(module, uf_best);
+          if (uf_ret > 0) {
+            pipeline_expr_apply_call_resolve(arena, expr_ref, 0 - 1, uf_best);
+            pipeline_expr_set_resolved_type_ref(arena, expr_ref, uf_ret);
+            return 0;
+          }
+        }
+      }
     }
     if (ret_ty > 0) {
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
@@ -3179,12 +3468,23 @@ export extern "C" function ast_ast_block_final_expr_ref(arena: *u8, br: i32): i3
 
 // See implementation.
 // NAMED=8 PTR=9 LINEAR=12 SLICE=11 ARRAY=10 VECTOR=13
-/** Exported function `pipeline_typeck_type_refs_equal_c`.
- * Implements `pipeline_typeck_type_refs_equal_c`.
- * @param arena *u8
- * @param a i32
- * @param b i32
- * @return i32
+/** Resolve `type Alias = Target` chains for type equality / emit.
+ * @param arena *u8 — AST type pool
+ * @param type_ref i32 — possibly TYPE_NAMED alias
+ * @return i32 — underlying type_ref (or type_ref if not an alias)
+ * PLATFORM: SHARED — uses g_typeck_active_module from typeck_parsed_module_c.
+ */
+export extern "C" function pipeline_typeck_resolve_type_alias_ref_c(arena: *u8, type_ref: i32): i32;
+
+/**
+ * Type equality for product typeck (weak surface may win over pipeline_glue).
+ * wave376: peel type aliases before kind/name compare so `type Coord = i32`
+ * matches TYPE_I32 on return/assign (G.7 complete authority; mirror glue resolve).
+ * @param arena *u8 — AST type pool
+ * @param a i32 — type ref
+ * @param b i32 — type ref
+ * @return i32 — 1 equal, 0 not
+ * PLATFORM: SHARED
  */
 #[no_mangle]
 export function pipeline_typeck_type_refs_equal_c(arena: *u8, a: i32, b: i32): i32 {
@@ -3195,6 +3495,10 @@ export function pipeline_typeck_type_refs_equal_c(arena: *u8, a: i32, b: i32): i
   if (b == 0) { return 0; }
   if (a == b) { return 1; }
   if (arena == 0) { return 0; }
+  // Peel aliases first (wave376); same as pipeline_glue.c type_refs_equal_c.
+  a = pipeline_typeck_resolve_type_alias_ref_c(arena, a);
+  b = pipeline_typeck_resolve_type_alias_ref_c(arena, b);
+  if (a == b) { return 1; }
   unsafe {
     let kind: i32 = pipeline_type_kind_ord_at(arena, a);
     if (kind != pipeline_type_kind_ord_at(arena, b)) { return 0; }

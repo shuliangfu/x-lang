@@ -363,7 +363,7 @@ export function driver_compile_argv_set_sanitize_address_c(): void {
   }
 }
 
-/** Return 1 if buf[0..len) is "-h" or "--help" (byte compares, no string lit).
+/** Return 1 if buf[0..length) is "-h" or "--help" (byte compares, no string lit).
  * Track-L: #[no_mangle] keeps surface short name (not rt_compile_rt_help_token_is).
  * PLATFORM: SHARED — link-name contract; dual-host prove. */
 #[no_mangle]

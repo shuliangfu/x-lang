@@ -131,9 +131,22 @@ extern int32_t backend_enc_load_rbp_index_secondary_scratch_arch(uint8_t * elf_c
 extern int32_t backend_enc_mul_imm_to_index_scratch_arch(uint8_t * elf_ctx, int32_t lit, int32_t ta);
 extern int32_t backend_enc_mul_imm_to_rbx_arch(uint8_t * elf_ctx, int32_t lit, int32_t ta);
 extern int32_t backend_enc_addss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_mulss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_subss_rbx_rax_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_subss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_divss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvttsd2si_eax_from_f64_bits_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvttss2si_rax_from_f32_bits_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvttsd2si_rax_from_f64_bits_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsi2ss_eax_from_i64_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsi2sd_rax_from_i32_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsi2sd_rax_from_i64_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsi2sd_rax_from_u64_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsi2ss_eax_from_u64_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtss2sd_rax_from_f32_bits_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_mov_eax_to_xmm_arg_reg_arch(uint8_t * elf_ctx, int32_t k, int32_t ta);
 extern int32_t backend_enc_mov_xmm_arg_reg_to_eax_arch(uint8_t * elf_ctx, int32_t k, int32_t ta);
 extern int32_t arch_arm64_enc_enc_cmp_w0_imm12(uint8_t * elf_ctx, int32_t imm12);
@@ -1245,7 +1258,12 @@ extern int32_t arch_riscv64_enc_enc_mul_imm_to_a2(uint8_t * elf_ctx, int32_t lit
 extern int32_t arch_x86_64_enc_enc_imul_imm_to_ecx(uint8_t * elf_ctx, int32_t lit);
 extern int32_t arch_riscv64_enc_enc_mul_imm_to_rbx(uint8_t * elf_ctx, int32_t lit);
 extern int32_t arch_x86_64_enc_enc_imul_imm_to_ebx(uint8_t * elf_ctx, int32_t lit);
+/* wave408: arm64 dual-GP length half → str x1,[x29,#off]. */
+extern int32_t arch_arm64_enc_enc_store_x_reg_to_rbp(uint8_t * elf_ctx, int32_t reg, int32_t offset);
 int32_t backend_enc_store_rdx_to_rbp_arch(uint8_t * elf_ctx, int32_t offset, int32_t ta) {
+  if ((ta ==1)) {
+    return arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx, 1, offset);
+  }
   if ((ta !=0)) {
     return (0 - 1);
   }
@@ -1600,6 +1618,168 @@ int32_t backend_enc_addss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta) {
   }
   return (0 - 1);
 }
+/* wave294: f32 MUL freestanding (mulss); surface twin of addss. */
+int32_t backend_enc_mulss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==0)) {
+    return (0 - 1);
+  }
+  {
+    uint8_t a[4] = {};
+    (void)(((a)[0] = 102));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 110));
+    (void)(((a)[3] = 192));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    (void)(((a)[0] = 102));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 110));
+    (void)(((a)[3] = 203));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    /* mulss xmm0,xmm1 — f3 0f 59 c1 */
+    (void)(((a)[0] = 243));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 89));
+    (void)(((a)[3] = 193));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    (void)(((a)[0] = 102));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 126));
+    (void)(((a)[3] = 192));
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4);
+  }
+  return (0 - 1);
+}
+/* wave298: f32 SUB freestanding (subss); left=rbx right=rax → eax. */
+int32_t backend_enc_subss_rbx_rax_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==0)) {
+    return (0 - 1);
+  }
+  {
+    uint8_t a[4] = {};
+    /* movd xmm0,ebx — 66 0f 6e c3 */
+    (void)(((a)[0] = 102));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 110));
+    (void)(((a)[3] = 195));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    /* movd xmm1,eax — 66 0f 6e c8 */
+    (void)(((a)[0] = 102));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 110));
+    (void)(((a)[3] = 200));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    /* subss xmm0,xmm1 — f3 0f 5c c1 */
+    (void)(((a)[0] = 243));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 92));
+    (void)(((a)[3] = 193));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    (void)(((a)[0] = 102));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 126));
+    (void)(((a)[3] = 192));
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4);
+  }
+  return (0 - 1);
+}
+/* wave298: f32 SUB freestanding (subss); left=rax right=rbx → eax. */
+int32_t backend_enc_subss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==0)) {
+    return (0 - 1);
+  }
+  {
+    uint8_t a[4] = {};
+    (void)(((a)[0] = 102));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 110));
+    (void)(((a)[3] = 192));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    (void)(((a)[0] = 102));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 110));
+    (void)(((a)[3] = 203));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    /* subss xmm0,xmm1 — f3 0f 5c c1 */
+    (void)(((a)[0] = 243));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 92));
+    (void)(((a)[3] = 193));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    (void)(((a)[0] = 102));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 126));
+    (void)(((a)[3] = 192));
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4);
+  }
+  return (0 - 1);
+}
+/* wave298: f32 DIV freestanding (divss); left=rax right=rbx → eax. */
+int32_t backend_enc_divss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==0)) {
+    return (0 - 1);
+  }
+  {
+    uint8_t a[4] = {};
+    (void)(((a)[0] = 102));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 110));
+    (void)(((a)[3] = 192));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    (void)(((a)[0] = 102));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 110));
+    (void)(((a)[3] = 203));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    /* divss xmm0,xmm1 — f3 0f 5e c1 */
+    (void)(((a)[0] = 243));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 94));
+    (void)(((a)[3] = 193));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    (void)(((a)[0] = 102));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 126));
+    (void)(((a)[3] = 192));
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4);
+  }
+  return (0 - 1);
+}
 int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(uint8_t * elf_ctx, int32_t ta) {
   if ((ta !=0)) {
     return (0 - 1);
@@ -1621,6 +1801,87 @@ int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(uint8_t * elf_ctx, int32_t 
     (void)(((a)[2] = 44));
     (void)(((a)[3] = 192));
     return pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4);
+  }
+  return (0 - 1);
+}
+int32_t backend_enc_cvttsd2si_eax_from_f64_bits_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==0)) {
+    return (0 - 1);
+  }
+  {
+    uint8_t q[5] = {};
+    (void)(((q)[0] = 102));
+    (void)(((q)[1] = 72));
+    (void)(((q)[2] = 15));
+    (void)(((q)[3] = 110));
+    (void)(((q)[4] = 192));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((q)[0]), 5) !=0)) {
+      return (0 - 1);
+    }
+    uint8_t a[4] = {};
+    (void)(((a)[0] = 242));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 44));
+    (void)(((a)[3] = 192));
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4);
+  }
+  return (0 - 1);
+}
+/* wave303: f32→i64 freestanding cast (REX.W cvttss2si). */
+int32_t backend_enc_cvttss2si_rax_from_f32_bits_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==0)) {
+    return (0 - 1);
+  }
+  {
+    uint8_t m[4] = {};
+    (void)(((m)[0] = 102));
+    (void)(((m)[1] = 15));
+    (void)(((m)[2] = 110));
+    (void)(((m)[3] = 192));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((m)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    uint8_t a[5] = {};
+    (void)(((a)[0] = 243));
+    (void)(((a)[1] = 72));
+    (void)(((a)[2] = 15));
+    (void)(((a)[3] = 44));
+    (void)(((a)[4] = 192));
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 5);
+  }
+  return (0 - 1);
+}
+/* wave303: f64→i64 freestanding cast (REX.W cvttsd2si). */
+int32_t backend_enc_cvttsd2si_rax_from_f64_bits_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==0)) {
+    return (0 - 1);
+  }
+  {
+    uint8_t q[5] = {};
+    (void)(((q)[0] = 102));
+    (void)(((q)[1] = 72));
+    (void)(((q)[2] = 15));
+    (void)(((q)[3] = 110));
+    (void)(((q)[4] = 192));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((q)[0]), 5) !=0)) {
+      return (0 - 1);
+    }
+    uint8_t a[5] = {};
+    (void)(((a)[0] = 242));
+    (void)(((a)[1] = 72));
+    (void)(((a)[2] = 15));
+    (void)(((a)[3] = 44));
+    (void)(((a)[4] = 192));
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 5);
   }
   return (0 - 1);
 }
@@ -1678,6 +1939,164 @@ int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(uint8_t * elf_ctx, int32_t ta) {
     (void)(((a)[2] = 126));
     (void)(((a)[3] = 192));
     return pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4);
+  }
+  return (0 - 1);
+}
+/* wave299: i64/u64→f32 freestanding cast (REX.W cvtsi2ss). */
+int32_t backend_enc_cvtsi2ss_eax_from_i64_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==0)) {
+    return (0 - 1);
+  }
+  {
+    uint8_t a[5] = {};
+    uint8_t m[4] = {};
+    /* F3 48 0F 2A C0 — cvtsi2ss xmm0, rax */
+    (void)(((a)[0] = 243));
+    (void)(((a)[1] = 72));
+    (void)(((a)[2] = 15));
+    (void)(((a)[3] = 42));
+    (void)(((a)[4] = 192));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 5) !=0)) {
+      return (0 - 1);
+    }
+    /* 66 0F 7E C0 — movd eax, xmm0 */
+    (void)(((m)[0] = 102));
+    (void)(((m)[1] = 15));
+    (void)(((m)[2] = 126));
+    (void)(((m)[3] = 192));
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &((m)[0]), 4);
+  }
+  return (0 - 1);
+}
+/* wave292: i32→f64 freestanding cast (cvtsi2sd). */
+int32_t backend_enc_cvtsi2sd_rax_from_i32_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==0)) {
+    return (0 - 1);
+  }
+  {
+    uint8_t a[4] = {};
+    uint8_t q[5] = {};
+    (void)(((a)[0] = 242));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 42));
+    (void)(((a)[3] = 192));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    (void)(((q)[0] = 102));
+    (void)(((q)[1] = 72));
+    (void)(((q)[2] = 15));
+    (void)(((q)[3] = 126));
+    (void)(((q)[4] = 192));
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &((q)[0]), 5);
+  }
+  return (0 - 1);
+}
+/* wave295: i64/u64→f64 freestanding cast (REX.W cvtsi2sd). */
+int32_t backend_enc_cvtsi2sd_rax_from_i64_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==0)) {
+    return (0 - 1);
+  }
+  {
+    uint8_t a[5] = {};
+    uint8_t q[5] = {};
+    /* F2 48 0F 2A C0 — cvtsi2sd xmm0, rax */
+    (void)(((a)[0] = 242));
+    (void)(((a)[1] = 72));
+    (void)(((a)[2] = 15));
+    (void)(((a)[3] = 42));
+    (void)(((a)[4] = 192));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 5) !=0)) {
+      return (0 - 1);
+    }
+    (void)(((q)[0] = 102));
+    (void)(((q)[1] = 72));
+    (void)(((q)[2] = 15));
+    (void)(((q)[3] = 126));
+    (void)(((q)[4] = 192));
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &((q)[0]), 5);
+  }
+  return (0 - 1);
+}
+/* wave304: u64→f64 unsigned freestanding cast sequence. */
+int32_t backend_enc_cvtsi2sd_rax_from_u64_arch(uint8_t * elf_ctx, int32_t ta) {
+  static const uint8_t seq[43] = {
+      0x48, 0x85, 0xc0, 0x79, 0x1c,
+      0x48, 0x89, 0xc2, 0x48, 0xd1, 0xea, 0x83, 0xe0, 0x01, 0x48, 0x09, 0xc2,
+      0xf2, 0x48, 0x0f, 0x2a, 0xc2, 0xf2, 0x0f, 0x58, 0xc0,
+      0x66, 0x48, 0x0f, 0x7e, 0xc0, 0xeb, 0x0a,
+      0xf2, 0x48, 0x0f, 0x2a, 0xc0, 0x66, 0x48, 0x0f, 0x7e, 0xc0
+  };
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==0)) {
+    return (0 - 1);
+  }
+  return pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)seq, 43);
+}
+/* wave304: u64→f32 unsigned freestanding cast sequence. */
+int32_t backend_enc_cvtsi2ss_eax_from_u64_arch(uint8_t * elf_ctx, int32_t ta) {
+  static const uint8_t seq[41] = {
+      0x48, 0x85, 0xc0, 0x79, 0x1b,
+      0x48, 0x89, 0xc2, 0x48, 0xd1, 0xea, 0x83, 0xe0, 0x01, 0x48, 0x09, 0xc2,
+      0xf3, 0x48, 0x0f, 0x2a, 0xc2, 0xf3, 0x0f, 0x58, 0xc0,
+      0x66, 0x0f, 0x7e, 0xc0, 0xeb, 0x09,
+      0xf3, 0x48, 0x0f, 0x2a, 0xc0, 0x66, 0x0f, 0x7e, 0xc0
+  };
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==0)) {
+    return (0 - 1);
+  }
+  return pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)seq, 41);
+}
+
+/* wave293: f32→f64 freestanding cast (cvtss2sd). */
+int32_t backend_enc_cvtss2sd_rax_from_f32_bits_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==0)) {
+    return (0 - 1);
+  }
+  {
+    uint8_t a[4] = {};
+    uint8_t b[4] = {};
+    uint8_t q[5] = {};
+    /* movd xmm0,eax — 66 0f 6e c0 */
+    (void)(((a)[0] = 102));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 110));
+    (void)(((a)[3] = 192));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    /* cvtss2sd xmm0,xmm0 — f3 0f 5a c0 */
+    (void)(((b)[0] = 243));
+    (void)(((b)[1] = 15));
+    (void)(((b)[2] = 90));
+    (void)(((b)[3] = 192));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((b)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    /* movq rax,xmm0 — 66 48 0f 7e c0 */
+    (void)(((q)[0] = 102));
+    (void)(((q)[1] = 72));
+    (void)(((q)[2] = 15));
+    (void)(((q)[3] = 126));
+    (void)(((q)[4] = 192));
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &((q)[0]), 5);
   }
   return (0 - 1);
 }

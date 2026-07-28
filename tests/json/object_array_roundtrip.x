@@ -102,14 +102,14 @@ function main(): i32 {
     if (nr == 0) { break; }
     if (nr < 0) { return 18; }
     if (key_eq(&key[0], key_len, 110, 97, 109, 101, 4) != 0) {
-      vp = json.parse_string_view(&cur.ptr[cur.off], cur.len - cur.off, &vlen, &vcon);
+      vp = json.parse_string_view(&cur.ptr[cur.off], cur.length - cur.off, &vlen, &vcon);
       if (vp == 0 as *u8) { return 19; }
       if (vlen != 5) { return 20; }
       if (json.cursor_skip_value(&cur) != 0) { return 21; }
       continue;
     }
     if (key_eq(&key[0], key_len, 97, 103, 101, 0, 3) != 0) {
-      if (json.parse_number(&cur.ptr[cur.off], cur.len - cur.off, &out_val, &vcon) != 0) { return 22; }
+      if (json.parse_number(&cur.ptr[cur.off], cur.length - cur.off, &out_val, &vcon) != 0) { return 22; }
       if (out_val != 30.0) { return 23; }
       if (json.cursor_skip_value(&cur) != 0) { return 24; }
       continue;
@@ -118,7 +118,7 @@ function main(): i32 {
       if (json.cursor_enter_array(&cur) != 0) { return 25; }
       has_elem = json.cursor_array_has_elem(&cur);
       while (has_elem == 1) {
-        vp = json.parse_string_view(&cur.ptr[cur.off], cur.len - cur.off, &vlen, &vcon);
+        vp = json.parse_string_view(&cur.ptr[cur.off], cur.length - cur.off, &vlen, &vcon);
         if (vp == 0 as *u8) { return 26; }
         if (vlen != 1) { return 27; }
         if (json.cursor_skip_value(&cur) != 0) { return 28; }

@@ -25,7 +25,7 @@ function main(): i32 {
     cur = string.string_view_concat_arena(&arena, cur, unit);
     i = i + 1;
   }
-  if (string.len(cur) != n) {
+  if (string.length(cur) != n) {
     heap.arena64_deinit(&arena);
     return 2;
   }

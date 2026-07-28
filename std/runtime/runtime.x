@@ -20,7 +20,8 @@
 // runtime_panic / runtime_abort / runtime_crash_evidence_collect_c；
 // See implementation.
 
-extern function xlang_panic_(has_msg: i32, msg_val: i32): void;
+/* wave386: msg_val is pointer-width (cstr or int); has_msg 0/1/2. */
+extern function xlang_panic_(has_msg: i32, msg_val: i64): void;
 extern function xlang_crash_evidence_collect_c(has_msg: i32, msg_val: i32): void;
 
 /** Exported function `runtime_crash_evidence_collect_c`.

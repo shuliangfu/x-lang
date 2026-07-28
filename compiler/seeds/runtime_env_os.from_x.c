@@ -1,7 +1,13 @@
 /* seeds/runtime_env_os.from_x.c — G-02f-19 product TU
  * G-02f-123 true .x pure helpers.
  * G-02f-103 helper gates.
- * Product: runtime_env_os.o; logic still C until full .x port.
+ * Product: runtime_env_os.o; R2 full mode: .x provides public API (thin),
+ * this file provides OS bridge _impl functions (rest).
+ *
+ * wave252 G.7: POSIX getenv residual via public face link_abi_getenv (not raw getenv).
+ * wave253: face body in runtime_link_abi_user_env.o (declaration only here).
+ * Windows path keeps GetEnvironmentVariableA (PLATFORM: WINDOWS).
+ * PLATFORM: SHARED face name / POSIX host residual via face; never g05 host bag.
  */
 /**
  * runtime_env_os.c — 环境变量 OS 胶层（F-ZC：自 std/env/env_os_glue.c 迁入）
@@ -11,6 +17,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+/* wave253: declaration only — face body in runtime_link_abi_user_env.o (weak; panic C strong wins). */
+#include <xlang_user_link_abi_getenv.h>
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
@@ -62,13 +70,12 @@ extern int env_build_key(const uint8_t *key, int32_t key_len, char *key_buf);
 
 
 
-
 /**
  * getenv：key[0..key_len) 拷贝到栈上并加 NUL，调用系统 getenv；结果写入 out。
  * 返回值：写入字节数（不含 NUL），不存在或错误 -1。
  */
 ENV_HOT
-int32_t env_getenv_c(const uint8_t * restrict key, int32_t key_len, uint8_t * restrict out, int32_t out_cap) {
+int32_t env_getenv_c_impl(const uint8_t * restrict key, int32_t key_len, uint8_t * restrict out, int32_t out_cap) {
     if (out == NULL || out_cap <= 0) return -1;
 
 #if defined(__STDC_NO_VLA__)
@@ -98,7 +105,8 @@ int32_t env_getenv_c(const uint8_t * restrict key, int32_t key_len, uint8_t * re
     }
 #else
     {
-        const char *v = getenv(key_buf);
+        /* wave252 G.7: env via public face link_abi_getenv (not raw libc getenv). */
+        const char *v = link_abi_getenv(key_buf);
         if (ENV_UNLIKELY(v == NULL)) return -1;
         size_t len = strlen(v);
         if (ENV_LIKELY(len < (size_t)out_cap)) {
@@ -112,12 +120,19 @@ int32_t env_getenv_c(const uint8_t * restrict key, int32_t key_len, uint8_t * re
 #endif
 }
 
+#ifndef XLANG_RUNTIME_ENV_OS_FROM_X
+ENV_HOT
+int32_t env_getenv_c(const uint8_t * restrict key, int32_t key_len, uint8_t * restrict out, int32_t out_cap) {
+    return env_getenv_c_impl(key, key_len, out, out_cap);
+}
+#endif
+
 /**
  * 零拷贝 getenv：返回 value 只读指针（NUL 结尾），不存在 NULL。
  * 参数：out_len 可选写入长度（不含 NUL）。
  */
 ENV_HOT
-uint8_t *env_getenv_ptr_c(const uint8_t * restrict key, int32_t key_len, int32_t *out_len) {
+uint8_t *env_getenv_ptr_c_impl(const uint8_t * restrict key, int32_t key_len, int32_t *out_len) {
 #if defined(__STDC_NO_VLA__)
     char key_buf[ENV_KEY_MAX];
 #else
@@ -125,29 +140,45 @@ uint8_t *env_getenv_ptr_c(const uint8_t * restrict key, int32_t key_len, int32_t
 #endif
     if (env_build_key(key, key_len, key_buf) != 0) return NULL;
 
-    const char *v = getenv(key_buf);
+    /* wave252 G.7: env via public face link_abi_getenv (not raw libc getenv). */
+    const char *v = link_abi_getenv(key_buf);
     if (v == NULL) return NULL;
     if (out_len) *out_len = (int32_t)strlen(v);
     return (uint8_t *)v;
 }
 
+#ifndef XLANG_RUNTIME_ENV_OS_FROM_X
+ENV_HOT
+uint8_t *env_getenv_ptr_c(const uint8_t * restrict key, int32_t key_len, int32_t *out_len) {
+    return env_getenv_ptr_c_impl(key, key_len, out_len);
+}
+#endif
+
 /**
- * 零拷贝 getenv（key 须 NUL 结尾）：直接 getenv，无 key 拷贝。
+ * 零拷贝 getenv（key 须 NUL 结尾）：直接 face 查找，无 key 拷贝。
  */
 ENV_HOT
-uint8_t *env_getenv_z_c(const uint8_t *key_z, int32_t *out_len) {
+uint8_t *env_getenv_z_c_impl(const uint8_t *key_z, int32_t *out_len) {
     if (key_z == NULL) return NULL;
-    const char *v = getenv((const char *)key_z);
+    /* wave252 G.7: env via public face link_abi_getenv (not raw libc getenv). */
+    const char *v = link_abi_getenv((const char *)key_z);
     if (v == NULL) return NULL;
     if (out_len) *out_len = (int32_t)strlen(v);
     return (uint8_t *)v;
 }
+
+#ifndef XLANG_RUNTIME_ENV_OS_FROM_X
+ENV_HOT
+uint8_t *env_getenv_z_c(const uint8_t *key_z, int32_t *out_len) {
+    return env_getenv_z_c_impl(key_z, out_len);
+}
+#endif
 
 /**
  * 判断环境变量是否存在；存在 1，不存在 0。
  */
 ENV_HOT
-int32_t env_getenv_exists_c(const uint8_t * restrict key, int32_t key_len) {
+int32_t env_getenv_exists_c_impl(const uint8_t * restrict key, int32_t key_len) {
 #if defined(__STDC_NO_VLA__)
     char key_buf[ENV_KEY_MAX];
 #else
@@ -158,16 +189,24 @@ int32_t env_getenv_exists_c(const uint8_t * restrict key, int32_t key_len) {
 #if defined(_WIN32) || defined(_WIN64)
     return GetEnvironmentVariableA(key_buf, NULL, 0) != 0 ? 1 : 0;
 #else
-    return getenv(key_buf) != NULL ? 1 : 0;
+    /* wave252 G.7: env via public face link_abi_getenv (not raw libc getenv). */
+    return link_abi_getenv(key_buf) != NULL ? 1 : 0;
 #endif
 }
+
+#ifndef XLANG_RUNTIME_ENV_OS_FROM_X
+ENV_HOT
+int32_t env_getenv_exists_c(const uint8_t * restrict key, int32_t key_len) {
+    return env_getenv_exists_c_impl(key, key_len);
+}
+#endif
 
 /**
  * 设置环境变量 name=value（NUL 结尾）；overwrite 非 0 覆盖。
  * 返回值：0 成功，-1 失败。
  */
 ENV_COLD
-int32_t env_setenv_c(const uint8_t *name, const uint8_t *value, int32_t overwrite) {
+int32_t env_setenv_c_impl(const uint8_t *name, const uint8_t *value, int32_t overwrite) {
     if (name == NULL) return -1;
 #if defined(_WIN32) || defined(_WIN64)
     /* 【Why 根源】Windows 有两套环境块：
@@ -200,12 +239,19 @@ int32_t env_setenv_c(const uint8_t *name, const uint8_t *value, int32_t overwrit
 #endif
 }
 
+#ifndef XLANG_RUNTIME_ENV_OS_FROM_X
+ENV_COLD
+int32_t env_setenv_c(const uint8_t *name, const uint8_t *value, int32_t overwrite) {
+    return env_setenv_c_impl(name, value, overwrite);
+}
+#endif
+
 /**
  * 删除环境变量 name（NUL 结尾）。
  * 返回值：0 成功，-1 失败。
  */
 ENV_COLD
-int32_t env_unsetenv_c(const uint8_t *name) {
+int32_t env_unsetenv_c_impl(const uint8_t *name) {
     if (name == NULL) return -1;
 #if defined(_WIN32) || defined(_WIN64)
     /* 同时清除 CRT 环境（_putenv("name=") 删除）和进程环境块（SetEnvironmentVariableA NULL 删除）。
@@ -228,11 +274,18 @@ int32_t env_unsetenv_c(const uint8_t *name) {
 #endif
 }
 
+#ifndef XLANG_RUNTIME_ENV_OS_FROM_X
+ENV_COLD
+int32_t env_unsetenv_c(const uint8_t *name) {
+    return env_unsetenv_c_impl(name);
+}
+#endif
+
 /**
  * 临时目录路径写入 out（NUL 结尾）；POSIX TMPDIR/TEMP/TMP → /tmp；Windows GetTempPath。
  * 返回值：写入字节数（不含 NUL），失败 -1。
  */
-int32_t env_temp_dir_c(uint8_t *out, int32_t out_cap) {
+int32_t env_temp_dir_c_impl(uint8_t *out, int32_t out_cap) {
     if (out == NULL || out_cap <= 0) return -1;
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -275,11 +328,12 @@ int32_t env_temp_dir_c(uint8_t *out, int32_t out_cap) {
         }
         cached_valid = 0;
 
+        /* wave252 G.7: env via public face link_abi_getenv (not raw libc getenv). */
         const char *p = NULL;
-        const char *tmd = getenv("TMPDIR");
+        const char *tmd = link_abi_getenv("TMPDIR");
         if (tmd && tmd[0]) p = tmd;
-        if (!p) { tmd = getenv("TEMP"); if (tmd && tmd[0]) p = tmd; }
-        if (!p) { tmd = getenv("TMP"); if (tmd && tmd[0]) p = tmd; }
+        if (!p) { tmd = link_abi_getenv("TEMP"); if (tmd && tmd[0]) p = tmd; }
+        if (!p) { tmd = link_abi_getenv("TMP"); if (tmd && tmd[0]) p = tmd; }
         if (!p) p = fallback;
         size_t len = strlen(p);
         if (len >= (size_t)out_cap) return -1;
@@ -295,6 +349,12 @@ int32_t env_temp_dir_c(uint8_t *out, int32_t out_cap) {
 #endif
 }
 
+#ifndef XLANG_RUNTIME_ENV_OS_FROM_X
+int32_t env_temp_dir_c(uint8_t *out, int32_t out_cap) {
+    return env_temp_dir_c_impl(out, out_cap);
+}
+#endif
+
 #if !defined(_WIN32) && !defined(_WIN64)
 extern char **environ;
 #endif
@@ -304,7 +364,7 @@ extern char **environ;
  * 返回值：条目数；失败 0。
  */
 ENV_COLD
-int32_t env_iter_count_c(void) {
+int32_t env_iter_count_c_impl(void) {
 #if defined(_WIN32) || defined(_WIN64)
     {
         char *block = GetEnvironmentStringsA();
@@ -328,12 +388,19 @@ int32_t env_iter_count_c(void) {
 #endif
 }
 
+#ifndef XLANG_RUNTIME_ENV_OS_FROM_X
+ENV_COLD
+int32_t env_iter_count_c(void) {
+    return env_iter_count_c_impl();
+}
+#endif
+
 /**
  * 将 environ[index] 拆为 key/value 写入 out 缓冲。
  * 返回值：成功 1，越界 0，错误 -1。
  */
 ENV_COLD
-int32_t env_iter_at_c(int32_t index, uint8_t *key_out, int32_t key_cap,
+int32_t env_iter_at_c_impl(int32_t index, uint8_t *key_out, int32_t key_cap,
                       uint8_t *val_out, int32_t val_cap) {
     const char *entry = NULL;
     const char *eq;
@@ -397,3 +464,11 @@ int32_t env_iter_at_c(int32_t index, uint8_t *key_out, int32_t key_cap,
     }
 #endif
 }
+
+#ifndef XLANG_RUNTIME_ENV_OS_FROM_X
+ENV_COLD
+int32_t env_iter_at_c(int32_t index, uint8_t *key_out, int32_t key_cap,
+                      uint8_t *val_out, int32_t val_cap) {
+    return env_iter_at_c_impl(index, key_out, key_cap, val_out, val_cap);
+}
+#endif

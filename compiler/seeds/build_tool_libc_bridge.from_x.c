@@ -10,21 +10,56 @@
  *
  * 另：build_run_asm_build / build_copy_xlang_asm 放在此 C 侧实现——当前 -x -E
  * 对 build_runtime_x.x 中该函数会截断（丢 copy_path/suffix），导致 build_tool 卡死或恒失败。
+ *
+ * wave250 G.7: shell via public pure thin link_abi_system (wave224 → _impl host
+ * system); not raw libc system. Cap residual host system stays only
+ * link_abi_system_impl. build_exec_system remains the build_tool domain thin
+ * (Darwin-safe *u8 face for .x); body only forwards to link_abi_system.
+ * PLATFORM: SHARED — build_tool shell face; host residual via single face.
  */
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+/* wave250 G.7: build_tool is a standalone binary (Makefile build-tool only) and
+ * is NOT linked into xlang/xlang_asm. Product authority for the public face
+ * remains labi_diag_pure.x (pure thin) + runtime_link_abi link_abi_system_impl
+ * (g05). This TU supplies a build_tool-local cold twin of the same face ABI so
+ * domain thin build_exec_system can call link_abi_system without dragging mega
+ * product objects into the tool link graph. Semantics ≡ wave224 pure thin
+ * (null/empty → -1) + host system residual. Never dual-def with product:
+ * this .o is only on the build_tool link line.
+ * PLATFORM: SHARED — build_tool-local host residual twin of product face. */
+
 /**
- * 执行 shell 命令；cmd 为 NUL 结尾字节串（与 build_runtime_x.x 一致）。
- * 返回 system(3) 状态，失败时由调用方判非零。
+ * Cap residual host system for the build_tool binary (≡ product _impl).
+ * @param cmd NUL-terminated shell command; may be null (host system behavior)
+ * @return system(3) status
  */
-int build_exec_system(const char *cmd) {
-  if (!cmd) {
+int link_abi_system_impl(const char *cmd) {
+  return system(cmd);
+}
+
+/**
+ * Public face twin: null/empty gate then host residual (≡ product pure thin).
+ * @param cmd NUL-terminated shell command
+ * @return -1 on null/empty; else link_abi_system_impl status
+ */
+int link_abi_system(const char *cmd) {
+  if (!cmd || cmd[0] == '\0') {
     return -1;
   }
-  return system(cmd);
+  return link_abi_system_impl(cmd);
+}
+
+/**
+ * Execute shell command; cmd is NUL-terminated (matches build_runtime_x.x).
+ * Returns link_abi_system status; caller treats non-zero as failure.
+ * wave250: domain thin only — forwards to public face (no raw libc system).
+ */
+int build_exec_system(const char *cmd) {
+  return link_abi_system(cmd);
 }
 
 /**

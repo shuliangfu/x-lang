@@ -8,5 +8,5 @@
 /* See implementation. */
 export struct CodegenOutBuf {
   data: u8[9437184];
-  len: i32;
+  length: i32;
 }

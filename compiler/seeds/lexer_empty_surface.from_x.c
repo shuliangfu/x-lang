@@ -47,9 +47,11 @@ extern int is_alpha(uint8_t c);
 extern int is_hex_digit(uint8_t c);
 extern int32_t hex_digit_value(uint8_t c);
 extern int is_digit(uint8_t c);
+extern int32_t lexer_dot_continues_float(struct xlang_slice_uint8_t data, size_t pos);
 extern int is_alnum_underscore(uint8_t c);
 extern int match_keyword(struct xlang_slice_uint8_t data, size_t start, int32_t len, struct xlang_slice_uint8_t keyword);
 extern int match_keyword_buf(uint8_t * data, int32_t data_len, size_t start, int32_t len, struct xlang_slice_uint8_t keyword);
+static void lexer_note_ident_too_long(int32_t line, int32_t col);
 extern struct token_Token try_keyword(struct xlang_slice_uint8_t data, size_t start, size_t len, int32_t line0, int32_t col0);
 extern struct token_Token try_keyword_buf(uint8_t * data, int32_t data_len, size_t start, size_t len, int32_t line0, int32_t col0);
 extern struct Lexer skip_repr_c_attr_if_present(struct Lexer lex, struct xlang_slice_uint8_t data);
@@ -68,9 +70,87 @@ extern int32_t lexer_try_send_attr_into(struct LexerResult * out, struct Lexer l
 extern int32_t lexer_try_sync_attr_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data);
 extern struct Lexer skip_whitespace_and_comments(struct Lexer lex, struct xlang_slice_uint8_t data);
 extern struct Lexer skip_whitespace_and_comments_buf(struct Lexer lex, uint8_t * data, int32_t len);
+/* wave269: L001 unclosed block comment hard diag */
+extern void diag_report_with_code(const char *file, int32_t line, int32_t col,
+                                  const char *kind, const char *code,
+                                  const char *msg, const char *detail);
+extern void lexer_unclosed_block_comment_reset(void);
+extern int32_t lexer_unclosed_block_comment_pending(void);
+extern void lexer_unclosed_string_reset(void);
+extern int32_t lexer_unclosed_string_pending(void);
+extern void lexer_illegal_char_reset(void);
+extern int32_t lexer_illegal_char_pending(void);
+extern void lexer_incomplete_hex_reset(void);
+extern int32_t lexer_incomplete_hex_pending(void);
+extern void lexer_incomplete_exp_reset(void);
+extern int32_t lexer_incomplete_exp_pending(void);
 extern struct LexerResult lexer_next(struct Lexer lex, struct xlang_slice_uint8_t data);
-extern void lexer_apply_optional_exponent(struct Lexer l, struct xlang_slice_uint8_t data, double fval, struct Lexer * out_l, double * out_f);
-extern void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data);
+extern int32_t lexer_apply_optional_exponent(struct Lexer l, struct xlang_slice_uint8_t data, double fval, struct Lexer * out_l, double * out_f) {
+  struct Lexer lex = l;
+  double cur = fval;
+  if ((((lex.pos) < (data.length)) && (((data).data[(lex.pos)] ==101) || ((data).data[(lex.pos)] ==69)))) {
+    int32_t e_line = lex.line;
+    int32_t e_col = lex.col;
+    int32_t exp_sign = 1;
+    int32_t exp = 0;
+    int32_t exp_digits = 0;
+    double scale = 1.0;
+    int32_t e = 0;
+    (void)((lex = advance_one(lex, (data).data[(lex.pos)])));
+    if ((((lex.pos) < (data.length)) && ((data).data[(lex.pos)] ==45))) {
+      (void)((exp_sign = -(1)));
+      (void)((lex = advance_one(lex, 45)));
+    } else {
+      if ((((lex.pos) < (data.length)) && ((data).data[(lex.pos)] ==43))) {
+        (void)((lex = advance_one(lex, 43)));
+      }
+    }
+    /* wave277: `_` optional-exponent digit separators (≡ lexer.x). */
+    while (((lex.pos) < (data.length))) {
+      if (is_digit((data).data[(lex.pos)])) {
+        uint8_t d = (data).data[(lex.pos)];
+        (void)((lex = advance_one(lex, d)));
+        (void)((exp = ((exp * 10) + (d - 48))));
+        exp_digits = exp_digits + 1;
+      } else if (is_digit_sep(data, lex.pos, 0)) {
+        (void)((lex = advance_one(lex, 95)));
+      } else {
+        break;
+      }
+    }
+    /* wave278: invalid `_` in optional exp → sticky L008. */
+    if (((lex.pos) < (data.length)) && ((data).data[(lex.pos)] == 95)) {
+      lexer_note_invalid_digit_sep(lex.line, lex.col);
+      (void)(((out_l)[0] = lex));
+      (void)(((out_f)[0] = cur));
+      return -1;
+    }
+    /* wave274: require ≥1 exp digit (≡ lexer.x L005). */
+    if (exp_digits == 0) {
+      lexer_note_incomplete_exp(e_line, e_col);
+      (void)(((out_l)[0] = lex));
+      (void)(((out_f)[0] = cur));
+      return -1;
+    }
+    (void)((exp = (exp * exp_sign)));
+    if ((exp > 0)) {
+      while ((e < exp)) {
+        (void)((scale = (scale * 10.0)));
+        (void)((e = (e + 1)));
+      }
+    } else {
+      while ((e > exp)) {
+        (void)((scale = (scale * 0.1)));
+        (void)((e = (e - 1)));
+      }
+    }
+    (void)((cur = (fval * scale)));
+  }
+  (void)(((out_l)[0] = lex));
+  (void)(((out_f)[0] = cur));
+  return 0;
+}
+void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data);
 extern void lexer_next_punct_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data, uint8_t c);
 extern void write_next_lex_into(struct LexerResult * out, struct Lexer l);
 extern void write_tok_into(struct LexerResult * out, struct token_Token t);
@@ -175,6 +255,26 @@ int is_hex_digit(uint8_t c) {
   }
   return 0;
 }
+static int is_bin_digit(uint8_t c) {
+  return c == 48 || c == 49;
+}
+static int is_oct_digit(uint8_t c) {
+  return c >= 48 && c <= 55;
+}
+/* wave277 Cap residual: numeric `_` separator (G.7 ≡ lexer.x lexer_is_digit_sep).
+ * kind: 0=decimal, 1=hex, 2=bin, 3=oct. */
+static int is_digit_sep(struct xlang_slice_uint8_t data, size_t pos, int32_t kind) {
+  if (pos >= data.length) { return 0; }
+  uint8_t c = (data).data[pos];
+  if (c != 95) { return 0; }
+  if ((pos + 1) >= data.length) { return 0; }
+  uint8_t n = (data).data[pos + 1];
+  if (kind == 1) { return is_hex_digit(n); }
+  if (kind == 2) { return is_bin_digit(n); }
+  if (kind == 3) { return is_oct_digit(n); }
+  return is_digit(n);
+}
+
 int32_t hex_digit_value(uint8_t c) {
   if (((c >=48) && (c <=57))) {
     return ((int32_t)((c - 48)));
@@ -186,6 +286,20 @@ int32_t hex_digit_value(uint8_t c) {
     return ((int32_t)(((c - 65) + 10)));
   }
   return 0;
+}
+
+/* wave275 Cap residual: empty-fraction float (≡ lexer.x). PLATFORM: SHARED surface twin. */
+int32_t lexer_dot_continues_float(struct xlang_slice_uint8_t data, size_t pos) {
+  uint8_t n;
+  if (pos >= data.length) return 0;
+  if ((data).data[pos] != 46) return 0;
+  if (pos + 1 >= data.length) return 1;
+  n = (data).data[pos + 1];
+  if (n == 46) return 0;
+  if (is_digit(n)) return 1;
+  if (n == 101 || n == 69) return 1;
+  if (is_alpha(n) || n == 95) return 0;
+  return 1;
 }
 int is_digit(uint8_t c) {
   return ((c >=48) && (c <=57));
@@ -433,6 +547,9 @@ struct token_Token try_keyword(struct xlang_slice_uint8_t data, size_t start, si
     struct token_Token t = (struct Token){ .kind = 128, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
     return t;
   }
+  if (len > 63) {
+    lexer_note_ident_too_long(line0, col0);
+  }
   struct token_Token t = (struct Token){ .kind = 59, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = len };
   return t;
 }
@@ -548,6 +665,9 @@ struct token_Token try_keyword_buf(uint8_t * data, int32_t data_len, size_t star
   if ((((len ==1) && (start < ((size_t)(data_len)))) && ((data)[start] ==95))) {
     struct token_Token t = (struct Token){ .kind = 52, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
     return t;
+  }
+  if (len > 63) {
+    lexer_note_ident_too_long(line0, col0);
   }
   struct token_Token t = (struct Token){ .kind = 59, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = len };
   return t;
@@ -948,7 +1068,8 @@ int32_t lexer_try_sync_attr_into(struct LexerResult * out, struct Lexer l, struc
   (void)(((out->token_start) = ((size_t)(0))));
   return 1;
 }
-/* PLATFORM: SHARED — nested block comments; path-safe nest-open; lockstep with lexer.x. */
+/* PLATFORM: SHARED — nested block comments; path-safe nest-open; lockstep with lexer.x.
+ * wave269: EOF depth>0 → L001 unclosed block comment hard diag + sticky pending. */
 static int lexer_block_comment_prev_is_path_like(uint8_t prev) {
   if (prev >= 65 && prev <= 90)
     return 1;
@@ -960,6 +1081,463 @@ static int lexer_block_comment_prev_is_path_like(uint8_t prev) {
       || prev == 34 || prev == 39)
     return 1;
   return 0;
+}
+/* wave269 Cap residual: sticky unclosed block-comment state (≡ lexer.x). */
+static int32_t g_lexer_unclosed_bc = 0;
+static int32_t g_lexer_unclosed_line = 0;
+static int32_t g_lexer_unclosed_col = 0;
+static int32_t g_lexer_unclosed_reported = 0;
+/* wave271 Cap residual: sticky unclosed string state (≡ lexer.x). */
+static int32_t g_lexer_unclosed_str = 0;
+static int32_t g_lexer_unclosed_str_line = 0;
+static int32_t g_lexer_unclosed_str_col = 0;
+static int32_t g_lexer_unclosed_str_reported = 0;
+/* wave272 Cap residual: sticky illegal character state (≡ lexer.x). */
+static int32_t g_lexer_illegal_ch = 0;
+static int32_t g_lexer_illegal_ch_line = 0;
+static int32_t g_lexer_illegal_ch_col = 0;
+static int32_t g_lexer_illegal_ch_reported = 0;
+/* wave273 Cap residual: sticky incomplete hex state (≡ lexer.x). */
+static int32_t g_lexer_incomplete_hex = 0;
+static int32_t g_lexer_incomplete_hex_line = 0;
+static int32_t g_lexer_incomplete_hex_col = 0;
+static int32_t g_lexer_incomplete_hex_reported = 0;
+
+/* wave274 Cap residual: sticky incomplete float-exponent state (≡ lexer.x). */
+static int32_t g_lexer_incomplete_exp = 0;
+static int32_t g_lexer_incomplete_exp_line = 0;
+static int32_t g_lexer_incomplete_exp_col = 0;
+static int32_t g_lexer_incomplete_exp_reported = 0;
+/* wave276 Cap residual: sticky incomplete binary state (≡ lexer.x). */
+static int32_t g_lexer_incomplete_bin = 0;
+static int32_t g_lexer_incomplete_bin_line = 0;
+static int32_t g_lexer_incomplete_bin_col = 0;
+static int32_t g_lexer_incomplete_bin_reported = 0;
+/* wave276 Cap residual: sticky incomplete octal state (≡ lexer.x). */
+static int32_t g_lexer_incomplete_oct = 0;
+static int32_t g_lexer_incomplete_oct_line = 0;
+static int32_t g_lexer_incomplete_oct_col = 0;
+static int32_t g_lexer_incomplete_oct_reported = 0;
+/* wave278: invalid digit separator sticky (G.7 ≡ lexer.x). */
+static int32_t g_lexer_invalid_digit_sep = 0;
+static int32_t g_lexer_invalid_digit_sep_line = 0;
+static int32_t g_lexer_invalid_digit_sep_col = 0;
+static int32_t g_lexer_invalid_digit_sep_reported = 0;
+
+/* wave279: invalid type suffix sticky (G.7 ≡ lexer.x). */
+static int32_t g_lexer_invalid_type_suffix = 0;
+static int32_t g_lexer_invalid_type_suffix_line = 0;
+static int32_t g_lexer_invalid_type_suffix_col = 0;
+static int32_t g_lexer_invalid_type_suffix_reported = 0;
+/* wave281 Cap residual: L010 invalid string escape sticky (G.7 ≡ lexer.x). */
+static int32_t g_lexer_invalid_escape = 0;
+static int32_t g_lexer_invalid_escape_line = 0;
+static int32_t g_lexer_invalid_escape_col = 0;
+static int32_t g_lexer_invalid_escape_reported = 0;
+/* wave283 Cap residual: L011 string literal capacity overflow sticky (G.7 ≡ lexer.x). */
+static int32_t g_lexer_string_lit_overflow = 0;
+static int32_t g_lexer_string_lit_overflow_line = 0;
+static int32_t g_lexer_string_lit_overflow_col = 0;
+static int32_t g_lexer_string_lit_overflow_reported = 0;
+
+/* wave284 Cap residual: L012 identifier too long sticky (G.7 ≡ lexer.x). */
+static int32_t g_lexer_ident_too_long = 0;
+static int32_t g_lexer_ident_too_long_line = 0;
+static int32_t g_lexer_ident_too_long_col = 0;
+static int32_t g_lexer_ident_too_long_reported = 0;
+
+void lexer_unclosed_block_comment_reset(void) {
+  g_lexer_unclosed_bc = 0;
+  g_lexer_unclosed_line = 0;
+  g_lexer_unclosed_col = 0;
+  g_lexer_unclosed_reported = 0;
+}
+int32_t lexer_unclosed_block_comment_pending(void) {
+  return g_lexer_unclosed_bc;
+}
+void lexer_unclosed_string_reset(void) {
+  g_lexer_unclosed_str = 0;
+  g_lexer_unclosed_str_line = 0;
+  g_lexer_unclosed_str_col = 0;
+  g_lexer_unclosed_str_reported = 0;
+}
+int32_t lexer_unclosed_string_pending(void) {
+  return g_lexer_unclosed_str;
+}
+void lexer_illegal_char_reset(void) {
+  g_lexer_illegal_ch = 0;
+  g_lexer_illegal_ch_line = 0;
+  g_lexer_illegal_ch_col = 0;
+  g_lexer_illegal_ch_reported = 0;
+}
+int32_t lexer_illegal_char_pending(void) {
+  return g_lexer_illegal_ch;
+}
+void lexer_incomplete_hex_reset(void) {
+  g_lexer_incomplete_hex = 0;
+  g_lexer_incomplete_hex_line = 0;
+  g_lexer_incomplete_hex_col = 0;
+  g_lexer_incomplete_hex_reported = 0;
+}
+int32_t lexer_incomplete_hex_pending(void) {
+  return g_lexer_incomplete_hex;
+}
+
+void lexer_incomplete_exp_reset(void) {
+  g_lexer_incomplete_exp = 0;
+  g_lexer_incomplete_exp_line = 0;
+  g_lexer_incomplete_exp_col = 0;
+  g_lexer_incomplete_exp_reported = 0;
+}
+int32_t lexer_incomplete_exp_pending(void) {
+  return g_lexer_incomplete_exp;
+}
+void lexer_incomplete_bin_reset(void) {
+  g_lexer_incomplete_bin = 0;
+  g_lexer_incomplete_bin_line = 0;
+  g_lexer_incomplete_bin_col = 0;
+  g_lexer_incomplete_bin_reported = 0;
+}
+int32_t lexer_incomplete_bin_pending(void) {
+  return g_lexer_incomplete_bin;
+}
+void lexer_incomplete_oct_reset(void) {
+  g_lexer_incomplete_oct = 0;
+  g_lexer_incomplete_oct_line = 0;
+  g_lexer_incomplete_oct_col = 0;
+  g_lexer_incomplete_oct_reported = 0;
+}
+int32_t lexer_incomplete_oct_pending(void) {
+  return g_lexer_incomplete_oct;
+}
+/* wave278 Cap residual: clear invalid digit-sep sticky (≡ lexer.x). */
+void lexer_invalid_digit_sep_reset(void) {
+  g_lexer_invalid_digit_sep = 0;
+  g_lexer_invalid_digit_sep_line = 0;
+  g_lexer_invalid_digit_sep_col = 0;
+  g_lexer_invalid_digit_sep_reported = 0;
+}
+int32_t lexer_invalid_digit_sep_pending(void) {
+  return g_lexer_invalid_digit_sep;
+}
+
+/* wave279 Cap residual: clear invalid type-suffix sticky (≡ lexer.x). */
+void lexer_invalid_type_suffix_reset(void) {
+  g_lexer_invalid_type_suffix = 0;
+  g_lexer_invalid_type_suffix_line = 0;
+  g_lexer_invalid_type_suffix_col = 0;
+  g_lexer_invalid_type_suffix_reported = 0;
+}
+int32_t lexer_invalid_type_suffix_pending(void) {
+  return g_lexer_invalid_type_suffix;
+}
+/* wave281 Cap residual: clear invalid string-escape sticky (≡ lexer.x). */
+void lexer_invalid_escape_reset(void) {
+  g_lexer_invalid_escape = 0;
+  g_lexer_invalid_escape_line = 0;
+  g_lexer_invalid_escape_col = 0;
+  g_lexer_invalid_escape_reported = 0;
+}
+int32_t lexer_invalid_escape_pending(void) {
+  return g_lexer_invalid_escape;
+}
+
+/* wave283 Cap residual: L011 string lit capacity overflow (G.7 ≡ lexer.x). */
+void lexer_string_lit_overflow_reset(void) {
+  g_lexer_string_lit_overflow = 0;
+  g_lexer_string_lit_overflow_line = 0;
+  g_lexer_string_lit_overflow_col = 0;
+  g_lexer_string_lit_overflow_reported = 0;
+}
+int32_t lexer_string_lit_overflow_pending(void) {
+  return g_lexer_string_lit_overflow;
+}
+static void lexer_note_incomplete_bin(int32_t line, int32_t col) {
+  if (g_lexer_incomplete_bin == 0) {
+    g_lexer_incomplete_bin = 1;
+    g_lexer_incomplete_bin_line = line;
+    g_lexer_incomplete_bin_col = col;
+  }
+  if (g_lexer_incomplete_bin_reported != 0)
+    return;
+  g_lexer_incomplete_bin_reported = 1;
+  {
+    char kind[16]; char code[8]; char msg[32];
+    kind[0] = 'l'; kind[1] = 'e'; kind[2] = 'x'; kind[3] = 'e'; kind[4] = 'r';
+    kind[5] = ' '; kind[6] = 'e'; kind[7] = 'r'; kind[8] = 'r'; kind[9] = 'o';
+    kind[10] = 'r'; kind[11] = 0;
+    code[0] = 'L'; code[1] = '0'; code[2] = '0'; code[3] = '6'; code[4] = 0;
+    msg[0] = 'i'; msg[1] = 'n'; msg[2] = 'c'; msg[3] = 'o'; msg[4] = 'm';
+    msg[5] = 'p'; msg[6] = 'l'; msg[7] = 'e'; msg[8] = 't'; msg[9] = 'e';
+    msg[10] = ' '; msg[11] = 'b'; msg[12] = 'i'; msg[13] = 'n'; msg[14] = 'a';
+    msg[15] = 'r'; msg[16] = 'y'; msg[17] = ' '; msg[18] = 'l'; msg[19] = 'i';
+    msg[20] = 't'; msg[21] = 'e'; msg[22] = 'r'; msg[23] = 'a'; msg[24] = 'l';
+    msg[25] = 0;
+    diag_report_with_code(NULL, g_lexer_incomplete_bin_line, g_lexer_incomplete_bin_col, kind, code, msg, NULL);
+  }
+}
+static void lexer_note_incomplete_oct(int32_t line, int32_t col) {
+  if (g_lexer_incomplete_oct == 0) {
+    g_lexer_incomplete_oct = 1;
+    g_lexer_incomplete_oct_line = line;
+    g_lexer_incomplete_oct_col = col;
+  }
+  if (g_lexer_incomplete_oct_reported != 0)
+    return;
+  g_lexer_incomplete_oct_reported = 1;
+  {
+    char kind[16]; char code[8]; char msg[32];
+    kind[0] = 'l'; kind[1] = 'e'; kind[2] = 'x'; kind[3] = 'e'; kind[4] = 'r';
+    kind[5] = ' '; kind[6] = 'e'; kind[7] = 'r'; kind[8] = 'r'; kind[9] = 'o';
+    kind[10] = 'r'; kind[11] = 0;
+    code[0] = 'L'; code[1] = '0'; code[2] = '0'; code[3] = '7'; code[4] = 0;
+    msg[0] = 'i'; msg[1] = 'n'; msg[2] = 'c'; msg[3] = 'o'; msg[4] = 'm';
+    msg[5] = 'p'; msg[6] = 'l'; msg[7] = 'e'; msg[8] = 't'; msg[9] = 'e';
+    msg[10] = ' '; msg[11] = 'o'; msg[12] = 'c'; msg[13] = 't'; msg[14] = 'a';
+    msg[15] = 'l'; msg[16] = ' '; msg[17] = 'l'; msg[18] = 'i'; msg[19] = 't';
+    msg[20] = 'e'; msg[21] = 'r'; msg[22] = 'a'; msg[23] = 'l'; msg[24] = 0;
+    diag_report_with_code(NULL, g_lexer_incomplete_oct_line, g_lexer_incomplete_oct_col, kind, code, msg, NULL);
+  }
+}
+/* wave278 Cap residual: L008 invalid digit separator (G.7 ≡ lexer.x). */
+static void lexer_note_invalid_digit_sep(int32_t line, int32_t col) {
+  if (g_lexer_invalid_digit_sep == 0) {
+    g_lexer_invalid_digit_sep = 1;
+    g_lexer_invalid_digit_sep_line = line;
+    g_lexer_invalid_digit_sep_col = col;
+  }
+  if (g_lexer_invalid_digit_sep_reported != 0) {
+    return;
+  }
+  g_lexer_invalid_digit_sep_reported = 1;
+  {
+    char kind[] = "lexer error";
+    char code[] = "L008";
+    char msg[] = "invalid digit separator";
+    diag_report_with_code(NULL, g_lexer_invalid_digit_sep_line, g_lexer_invalid_digit_sep_col,
+                          (uint8_t *)kind, (uint8_t *)code, (uint8_t *)msg, (uint8_t *)0);
+  }
+}
+
+/* wave279 Cap residual: L009 invalid type suffix (G.7 ≡ lexer.x). */
+static void lexer_note_invalid_type_suffix(int32_t line, int32_t col) {
+  if (g_lexer_invalid_type_suffix == 0) {
+    g_lexer_invalid_type_suffix = 1;
+    g_lexer_invalid_type_suffix_line = line;
+    g_lexer_invalid_type_suffix_col = col;
+  }
+  if (g_lexer_invalid_type_suffix_reported != 0) {
+    return;
+  }
+  g_lexer_invalid_type_suffix_reported = 1;
+  {
+    char kind[] = "lexer error";
+    char code[] = "L009";
+    char msg[] = "invalid type suffix";
+    diag_report_with_code(NULL, g_lexer_invalid_type_suffix_line, g_lexer_invalid_type_suffix_col,
+                          (uint8_t *)kind, (uint8_t *)code, (uint8_t *)msg, (uint8_t *)0);
+  }
+}
+/* wave281 Cap residual: L010 invalid string escape (G.7 ≡ lexer.x). */
+static void lexer_note_invalid_escape(int32_t line, int32_t col) {
+  if (g_lexer_invalid_escape == 0) {
+    g_lexer_invalid_escape = 1;
+    g_lexer_invalid_escape_line = line;
+    g_lexer_invalid_escape_col = col;
+  }
+  if (g_lexer_invalid_escape_reported != 0) {
+    return;
+  }
+  g_lexer_invalid_escape_reported = 1;
+  {
+    char kind[] = "lexer error";
+    char code[] = "L010";
+    char msg[] = "invalid escape sequence";
+    diag_report_with_code(NULL, g_lexer_invalid_escape_line, g_lexer_invalid_escape_col,
+                          (uint8_t *)kind, (uint8_t *)code, (uint8_t *)msg, (uint8_t *)0);
+  }
+}
+
+/* wave283 Cap residual: L011 string literal too long (G.7 ≡ lexer.x export). */
+void lexer_note_string_lit_overflow(int32_t line, int32_t col) {
+  if (g_lexer_string_lit_overflow == 0) {
+    g_lexer_string_lit_overflow = 1;
+    g_lexer_string_lit_overflow_line = line;
+    g_lexer_string_lit_overflow_col = col;
+  }
+  if (g_lexer_string_lit_overflow_reported != 0) {
+    return;
+  }
+  g_lexer_string_lit_overflow_reported = 1;
+  {
+    char kind[] = "lexer error";
+    char code[] = "L011";
+    char msg[] = "string literal too long";
+    diag_report_with_code(NULL, g_lexer_string_lit_overflow_line, g_lexer_string_lit_overflow_col,
+                          (uint8_t *)kind, (uint8_t *)code, (uint8_t *)msg, (uint8_t *)0);
+  }
+}
+
+/* wave284 Cap residual: L012 identifier capacity overflow (G.7 ≡ lexer.x). */
+void lexer_ident_too_long_reset(void) {
+  g_lexer_ident_too_long = 0;
+  g_lexer_ident_too_long_line = 0;
+  g_lexer_ident_too_long_col = 0;
+  g_lexer_ident_too_long_reported = 0;
+}
+int32_t lexer_ident_too_long_pending(void) {
+  return g_lexer_ident_too_long;
+}
+/* wave284 Cap residual: L012 identifier too long (G.7 ≡ lexer.x). */
+static void lexer_note_ident_too_long(int32_t line, int32_t col) {
+  if (g_lexer_ident_too_long == 0) {
+    g_lexer_ident_too_long = 1;
+    g_lexer_ident_too_long_line = line;
+    g_lexer_ident_too_long_col = col;
+  }
+  if (g_lexer_ident_too_long_reported != 0) {
+    return;
+  }
+  g_lexer_ident_too_long_reported = 1;
+  {
+    char kind[] = "lexer error";
+    char code[] = "L012";
+    char msg[] = "identifier too long";
+    diag_report_with_code(NULL, g_lexer_ident_too_long_line, g_lexer_ident_too_long_col,
+                          (uint8_t *)kind, (uint8_t *)code, (uint8_t *)msg, (uint8_t *)0);
+  }
+}
+
+
+static void lexer_note_incomplete_exp(int32_t line, int32_t col) {
+  if (g_lexer_incomplete_exp == 0) {
+    g_lexer_incomplete_exp = 1;
+    g_lexer_incomplete_exp_line = line;
+    g_lexer_incomplete_exp_col = col;
+  }
+  if (g_lexer_incomplete_exp_reported != 0)
+    return;
+  g_lexer_incomplete_exp_reported = 1;
+  {
+    char kind[16];
+    char code[8];
+    char msg[32];
+    kind[0] = 'l'; kind[1] = 'e'; kind[2] = 'x'; kind[3] = 'e'; kind[4] = 'r';
+    kind[5] = ' '; kind[6] = 'e'; kind[7] = 'r'; kind[8] = 'r'; kind[9] = 'o';
+    kind[10] = 'r'; kind[11] = 0;
+    code[0] = 'L'; code[1] = '0'; code[2] = '0'; code[3] = '5'; code[4] = 0;
+    msg[0] = 'i'; msg[1] = 'n'; msg[2] = 'c'; msg[3] = 'o'; msg[4] = 'm';
+    msg[5] = 'p'; msg[6] = 'l'; msg[7] = 'e'; msg[8] = 't'; msg[9] = 'e';
+    msg[10] = ' '; msg[11] = 'f'; msg[12] = 'l'; msg[13] = 'o'; msg[14] = 'a';
+    msg[15] = 't'; msg[16] = ' '; msg[17] = 'e'; msg[18] = 'x'; msg[19] = 'p';
+    msg[20] = 'o'; msg[21] = 'n'; msg[22] = 'e'; msg[23] = 'n'; msg[24] = 't';
+    msg[25] = 0;
+    diag_report_with_code(NULL, g_lexer_incomplete_exp_line, g_lexer_incomplete_exp_col,
+                          kind, code, msg, NULL);
+  }
+}
+static void lexer_note_unclosed_block_comment(int32_t line, int32_t col) {
+  if (g_lexer_unclosed_bc == 0) {
+    g_lexer_unclosed_bc = 1;
+    g_lexer_unclosed_line = line;
+    g_lexer_unclosed_col = col;
+  }
+  if (g_lexer_unclosed_reported != 0)
+    return;
+  g_lexer_unclosed_reported = 1;
+  {
+    char kind[16];
+    char code[8];
+    char msg[32];
+    kind[0] = 'l'; kind[1] = 'e'; kind[2] = 'x'; kind[3] = 'e'; kind[4] = 'r';
+    kind[5] = ' '; kind[6] = 'e'; kind[7] = 'r'; kind[8] = 'r'; kind[9] = 'o';
+    kind[10] = 'r'; kind[11] = 0;
+    code[0] = 'L'; code[1] = '0'; code[2] = '0'; code[3] = '1'; code[4] = 0;
+    msg[0] = 'u'; msg[1] = 'n'; msg[2] = 'c'; msg[3] = 'l'; msg[4] = 'o';
+    msg[5] = 's'; msg[6] = 'e'; msg[7] = 'd'; msg[8] = ' '; msg[9] = 'b';
+    msg[10] = 'l'; msg[11] = 'o'; msg[12] = 'c'; msg[13] = 'k'; msg[14] = ' ';
+    msg[15] = 'c'; msg[16] = 'o'; msg[17] = 'm'; msg[18] = 'm'; msg[19] = 'e';
+    msg[20] = 'n'; msg[21] = 't'; msg[22] = 0;
+    diag_report_with_code(NULL, g_lexer_unclosed_line, g_lexer_unclosed_col,
+                          kind, code, msg, NULL);
+  }
+}
+static void lexer_note_unclosed_string(int32_t line, int32_t col) {
+  if (g_lexer_unclosed_str == 0) {
+    g_lexer_unclosed_str = 1;
+    g_lexer_unclosed_str_line = line;
+    g_lexer_unclosed_str_col = col;
+  }
+  if (g_lexer_unclosed_str_reported != 0)
+    return;
+  g_lexer_unclosed_str_reported = 1;
+  {
+    char kind[16];
+    char code[8];
+    char msg[32];
+    kind[0] = 'l'; kind[1] = 'e'; kind[2] = 'x'; kind[3] = 'e'; kind[4] = 'r';
+    kind[5] = ' '; kind[6] = 'e'; kind[7] = 'r'; kind[8] = 'r'; kind[9] = 'o';
+    kind[10] = 'r'; kind[11] = 0;
+    code[0] = 'L'; code[1] = '0'; code[2] = '0'; code[3] = '2'; code[4] = 0;
+    msg[0] = 'u'; msg[1] = 'n'; msg[2] = 'c'; msg[3] = 'l'; msg[4] = 'o';
+    msg[5] = 's'; msg[6] = 'e'; msg[7] = 'd'; msg[8] = ' '; msg[9] = 's';
+    msg[10] = 't'; msg[11] = 'r'; msg[12] = 'i'; msg[13] = 'n'; msg[14] = 'g';
+    msg[15] = ' '; msg[16] = 'l'; msg[17] = 'i'; msg[18] = 't'; msg[19] = 'e';
+    msg[20] = 'r'; msg[21] = 'a'; msg[22] = 'l'; msg[23] = 0;
+    diag_report_with_code(NULL, g_lexer_unclosed_str_line, g_lexer_unclosed_str_col,
+                          kind, code, msg, NULL);
+  }
+}
+static void lexer_note_illegal_char(int32_t line, int32_t col) {
+  if (g_lexer_illegal_ch == 0) {
+    g_lexer_illegal_ch = 1;
+    g_lexer_illegal_ch_line = line;
+    g_lexer_illegal_ch_col = col;
+  }
+  if (g_lexer_illegal_ch_reported != 0)
+    return;
+  g_lexer_illegal_ch_reported = 1;
+  {
+    char kind[16];
+    char code[8];
+    char msg[32];
+    kind[0] = 'l'; kind[1] = 'e'; kind[2] = 'x'; kind[3] = 'e'; kind[4] = 'r';
+    kind[5] = ' '; kind[6] = 'e'; kind[7] = 'r'; kind[8] = 'r'; kind[9] = 'o';
+    kind[10] = 'r'; kind[11] = 0;
+    code[0] = 'L'; code[1] = '0'; code[2] = '0'; code[3] = '3'; code[4] = 0;
+    msg[0] = 'i'; msg[1] = 'l'; msg[2] = 'l'; msg[3] = 'e'; msg[4] = 'g';
+    msg[5] = 'a'; msg[6] = 'l'; msg[7] = ' '; msg[8] = 'c'; msg[9] = 'h';
+    msg[10] = 'a'; msg[11] = 'r'; msg[12] = 'a'; msg[13] = 'c'; msg[14] = 't';
+    msg[15] = 'e'; msg[16] = 'r'; msg[17] = 0;
+    diag_report_with_code(NULL, g_lexer_illegal_ch_line, g_lexer_illegal_ch_col,
+                          kind, code, msg, NULL);
+  }
+}
+static void lexer_note_incomplete_hex(int32_t line, int32_t col) {
+  if (g_lexer_incomplete_hex == 0) {
+    g_lexer_incomplete_hex = 1;
+    g_lexer_incomplete_hex_line = line;
+    g_lexer_incomplete_hex_col = col;
+  }
+  if (g_lexer_incomplete_hex_reported != 0)
+    return;
+  g_lexer_incomplete_hex_reported = 1;
+  {
+    char kind[16];
+    char code[8];
+    char msg[32];
+    kind[0] = 'l'; kind[1] = 'e'; kind[2] = 'x'; kind[3] = 'e'; kind[4] = 'r';
+    kind[5] = ' '; kind[6] = 'e'; kind[7] = 'r'; kind[8] = 'r'; kind[9] = 'o';
+    kind[10] = 'r'; kind[11] = 0;
+    code[0] = 'L'; code[1] = '0'; code[2] = '0'; code[3] = '4'; code[4] = 0;
+    msg[0] = 'i'; msg[1] = 'n'; msg[2] = 'c'; msg[3] = 'o'; msg[4] = 'm';
+    msg[5] = 'p'; msg[6] = 'l'; msg[7] = 'e'; msg[8] = 't'; msg[9] = 'e';
+    msg[10] = ' '; msg[11] = 'h'; msg[12] = 'e'; msg[13] = 'x'; msg[14] = ' ';
+    msg[15] = 'l'; msg[16] = 'i'; msg[17] = 't'; msg[18] = 'e'; msg[19] = 'r';
+    msg[20] = 'a'; msg[21] = 'l'; msg[22] = 0;
+    diag_report_with_code(NULL, g_lexer_incomplete_hex_line, g_lexer_incomplete_hex_col,
+                          kind, code, msg, NULL);
+  }
 }
 struct Lexer skip_whitespace_and_comments(struct Lexer lex, struct xlang_slice_uint8_t data) {
   struct Lexer l = lex;
@@ -975,6 +1553,8 @@ struct Lexer skip_whitespace_and_comments(struct Lexer lex, struct xlang_slice_u
         }
       } else {
         if ((((c ==47) && (((l.pos) + 1) < (data.length))) && ((data).data[((l.pos) + 1)] ==42))) {
+          int32_t open_line = l.line;
+          int32_t open_col = l.col;
           (void)((l = advance_one(l, 47)));
           (void)((l = advance_one(l, 42)));
           depth = 1;
@@ -1003,6 +1583,8 @@ struct Lexer skip_whitespace_and_comments(struct Lexer lex, struct xlang_slice_u
               (void)((l = advance_one(l, (data).data[(l.pos)])));
             }
           }
+          if (depth > 0)
+            lexer_note_unclosed_block_comment(open_line, open_col);
           depth = 0;
         } else {
           if ((c ==35)) {
@@ -1093,10 +1675,24 @@ void lexer_apply_optional_exponent(struct Lexer l, struct xlang_slice_uint8_t da
         (void)((lex = advance_one(lex, 43)));
       }
     }
-    while ((((lex.pos) < (data.length)) && is_digit((data).data[(lex.pos)]))) {
-      uint8_t d = (data).data[(lex.pos)];
-      (void)((lex = advance_one(lex, d)));
-      (void)((exp = ((exp * 10) + (d - 48))));
+    /* wave277: `_` optional-exponent digit separators (≡ lexer.x). */
+    while (((lex.pos) < (data.length))) {
+      if (is_digit((data).data[(lex.pos)])) {
+        uint8_t d = (data).data[(lex.pos)];
+        (void)((lex = advance_one(lex, d)));
+        (void)((exp = ((exp * 10) + (d - 48))));
+      } else if (is_digit_sep(data, lex.pos, 0)) {
+        (void)((lex = advance_one(lex, 95)));
+      } else {
+        break;
+      }
+    }
+    /* wave278: invalid `_` in optional exp → sticky L008. */
+    if (((lex.pos) < (data.length)) && ((data).data[(lex.pos)] == 95)) {
+      lexer_note_invalid_digit_sep(lex.line, lex.col);
+      (void)(((out_l)[0] = lex));
+      (void)(((out_f)[0] = cur));
+      return -1;
     }
     (void)((exp = (exp * exp_sign)));
     if ((exp > 0)) {
@@ -1158,15 +1754,48 @@ void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang
     int32_t col0 = (l.col);
     size_t start = ((l.pos) + ((size_t)(1)));
     (void)((l = advance_one(l, 34)));
+    /* wave281: validate escapes; product set \n \t \r \0 \\ \" \xHH; else sticky L010. */
     while ((((l.pos) < (data.length)) && ((data).data[(l.pos)] !=34))) {
-      if ((((data).data[(l.pos)] ==92) && (((l.pos) + 1) < (data.length)))) {
-        (void)((l = advance_one(l, (data).data[(l.pos)])));
-        (void)((l = advance_one(l, (data).data[(l.pos)])));
-      } else {
-        (void)((l = advance_one(l, (data).data[(l.pos)])));
+      uint8_t ch = (data).data[(l.pos)];
+      if (ch == 92) {
+        if (((l.pos) + 1) >= (data.length)) {
+          (void)((l = advance_one(l, 92)));
+          continue;
+        }
+        int32_t esc_line = (l.line);
+        int32_t esc_col = (l.col);
+        (void)((l = advance_one(l, 92)));
+        uint8_t e = (data).data[(l.pos)];
+        if (e == 110 || e == 116 || e == 114 || e == 48 || e == 92 || e == 34) {
+          (void)((l = advance_one(l, e)));
+          continue;
+        }
+        if (e == 120) {
+          if (((l.pos) + 2) < (data.length) && is_hex_digit((data).data[(l.pos) + 1]) && is_hex_digit((data).data[(l.pos) + 2])) {
+            (void)((l = advance_one(l, 120)));
+            (void)((l = advance_one(l, (data).data[(l.pos)])));
+            (void)((l = advance_one(l, (data).data[(l.pos)])));
+            continue;
+          }
+          lexer_note_invalid_escape(esc_line, esc_col);
+          struct token_Token tok_eof_hex = (struct Token){ .kind = 0, .line = esc_line, .col = esc_col, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+          (void)(write_next_lex_into(out, l));
+          (void)(write_tok_into(out, tok_eof_hex));
+          (void)(((out->token_start) = start));
+          return;
+        }
+        lexer_note_invalid_escape(esc_line, esc_col);
+        struct token_Token tok_eof_esc = (struct Token){ .kind = 0, .line = esc_line, .col = esc_col, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof_esc));
+        (void)(((out->token_start) = start));
+        return;
       }
+      (void)((l = advance_one(l, ch)));
     }
     if (((l.pos) >=(data.length))) {
+      /* wave271: unclosed string at EOF → L002 hard diag + sticky pending. */
+      lexer_note_unclosed_string(line0, col0);
       struct token_Token tok_eof = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
       (void)(write_next_lex_into(out, l));
       (void)(write_tok_into(out, tok_eof));
@@ -1203,49 +1832,235 @@ void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang
     int64_t ival = 0;
     (void)((l = advance_one(l, c)));
     if ((((c ==48) && ((l.pos) < (data.length))) && (((data).data[(l.pos)] ==120) || ((data).data[(l.pos)] ==88)))) {
+      /* wave273: require ≥1 hex digit after 0x/0X (≡ lexer.x L004). */
       uint64_t hval = ((uint64_t)(0));
-      struct token_Token tok = (struct Token){ .kind = 80, .line = line0, .col = col0, .int_val = ((int64_t)(hval)), .float_val = 0.0, .ident = 0, .ident_len = 0 };
+      int32_t hex_digits = 0;
       (void)((l = advance_one(l, (data).data[(l.pos)])));
-      while ((((l.pos) < (data.length)) && is_hex_digit((data).data[(l.pos)]))) {
-        uint8_t hd = (data).data[(l.pos)];
-        (void)((hval = ((hval * 16) + ((uint64_t)(hex_digit_value(hd))))));
-        (void)((l = advance_one(l, hd)));
+      /* wave277: `_` hex digit separators (≡ lexer.x). */
+      while (((l.pos) < (data.length))) {
+        if (is_hex_digit((data).data[(l.pos)])) {
+          uint8_t hd = (data).data[(l.pos)];
+          (void)((hval = ((hval * 16) + ((uint64_t)(hex_digit_value(hd))))));
+          (void)((l = advance_one(l, hd)));
+          hex_digits = hex_digits + 1;
+        } else if (is_digit_sep(data, l.pos, 1)) {
+          (void)((l = advance_one(l, 95)));
+        } else {
+          break;
+        }
       }
+      /* wave278: invalid `_` digit separator → sticky L008. */
+      if (((l.pos) < (data.length)) && ((data).data[(l.pos)] == 95)) {
+        lexer_note_invalid_digit_sep(l.line, l.col);
+        struct token_Token tok_eof_sep = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof_sep));
+        (void)(((out->token_start) = start));
+        return;
+      }
+      if (hex_digits == 0) {
+        lexer_note_incomplete_hex(line0, col0);
+        struct token_Token tok_eof = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof));
+        (void)(((out->token_start) = start));
+        return;
+      }
+      /* wave279: alphabetic type suffix → sticky L009. */
+      if (((l.pos) < (data.length)) && is_alpha((data).data[(l.pos)])) {
+        lexer_note_invalid_type_suffix(l.line, l.col);
+        struct token_Token tok_eof_sfx = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof_sfx));
+        (void)(((out->token_start) = start));
+        return;
+      }
+      struct token_Token tok = (struct Token){ .kind = 80, .line = line0, .col = col0, .int_val = ((int64_t)(hval)), .float_val = 0.0, .ident = 0, .ident_len = 0 };
       (void)(write_next_lex_into(out, l));
       (void)(write_tok_into(out, tok));
       (void)(((out->token_start) = start));
       return;
     }
-    (void)((ival = ((ival * 10) + (c - 48))));
-    while ((((l.pos) < (data.length)) && is_digit((data).data[(l.pos)]))) {
-      uint8_t d = (data).data[(l.pos)];
-      (void)((l = advance_one(l, d)));
-      (void)((ival = ((ival * 10) + (d - 48))));
+    
+    /* wave276: binary 0b/0B (≥1 bin digit → TOKEN_INT; else L006). */
+    if (c == 48 && ((l.pos) < (data.length)) && (((data).data[(l.pos)] == 98) || ((data).data[(l.pos)] == 66))) {
+      (void)((l = advance_one(l, (data).data[(l.pos)])));
+      uint64_t bval = ((uint64_t)(0));
+      int32_t bin_digits = 0;
+      /* wave277: `_` bin digit separators (≡ lexer.x). */
+      while (((l.pos) < (data.length))) {
+        if (is_bin_digit((data).data[(l.pos)])) {
+          uint8_t bd = (data).data[(l.pos)];
+          (void)((bval = ((bval * 2) + ((uint64_t)(bd - 48)))));
+          (void)((l = advance_one(l, bd)));
+          bin_digits = bin_digits + 1;
+        } else if (is_digit_sep(data, l.pos, 2)) {
+          (void)((l = advance_one(l, 95)));
+        } else {
+          break;
+        }
+      }
+      /* wave278: invalid `_` digit separator → sticky L008. */
+      if (((l.pos) < (data.length)) && ((data).data[(l.pos)] == 95)) {
+        lexer_note_invalid_digit_sep(l.line, l.col);
+        struct token_Token tok_eof_sep = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof_sep));
+        (void)(((out->token_start) = start));
+        return;
+      }
+      if (bin_digits == 0) {
+        lexer_note_incomplete_bin(line0, col0);
+        struct token_Token tok_eof = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof));
+        (void)(((out->token_start) = start));
+        return;
+      }
+      /* wave279: alphabetic type suffix → sticky L009. */
+      if (((l.pos) < (data.length)) && is_alpha((data).data[(l.pos)])) {
+        lexer_note_invalid_type_suffix(l.line, l.col);
+        struct token_Token tok_eof_sfx = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof_sfx));
+        (void)(((out->token_start) = start));
+        return;
+      }
+      struct token_Token tok_b = (struct Token){ .kind = 80, .line = line0, .col = col0, .int_val = ((int64_t)(bval)), .float_val = 0.0, .ident = 0, .ident_len = 0 };
+      (void)(write_next_lex_into(out, l));
+      (void)(write_tok_into(out, tok_b));
+      (void)(((out->token_start) = start));
+      return;
     }
-    if ((((((l.pos) < (data.length)) && ((data).data[(l.pos)] ==46)) && (((l.pos) + 1) < (data.length))) && is_digit((data).data[((l.pos) + 1)]))) {
-      double fval = ((double)(ival));
-      double frac = 0.0;
-      struct token_Token tok = (struct Token){ .kind = 81, .line = line0, .col = col0, .int_val = 0, .float_val = fval, .ident = 0, .ident_len = 0 };
-      (void)((l = advance_one(l, 46)));
-      while ((((l.pos) < (data.length)) && is_digit((data).data[(l.pos)]))) {
+    /* wave276: octal 0o/0O (≥1 oct digit → TOKEN_INT; else L007). */
+    if (c == 48 && ((l.pos) < (data.length)) && (((data).data[(l.pos)] == 111) || ((data).data[(l.pos)] == 79))) {
+      (void)((l = advance_one(l, (data).data[(l.pos)])));
+      uint64_t oval = ((uint64_t)(0));
+      int32_t oct_digits = 0;
+      /* wave277: `_` oct digit separators (≡ lexer.x). */
+      while (((l.pos) < (data.length))) {
+        if (is_oct_digit((data).data[(l.pos)])) {
+          uint8_t od = (data).data[(l.pos)];
+          (void)((oval = ((oval * 8) + ((uint64_t)(od - 48)))));
+          (void)((l = advance_one(l, od)));
+          oct_digits = oct_digits + 1;
+        } else if (is_digit_sep(data, l.pos, 3)) {
+          (void)((l = advance_one(l, 95)));
+        } else {
+          break;
+        }
+      }
+      /* wave278: invalid `_` digit separator → sticky L008. */
+      if (((l.pos) < (data.length)) && ((data).data[(l.pos)] == 95)) {
+        lexer_note_invalid_digit_sep(l.line, l.col);
+        struct token_Token tok_eof_sep = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof_sep));
+        (void)(((out->token_start) = start));
+        return;
+      }
+      if (oct_digits == 0) {
+        lexer_note_incomplete_oct(line0, col0);
+        struct token_Token tok_eof = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof));
+        (void)(((out->token_start) = start));
+        return;
+      }
+      /* wave279: alphabetic type suffix → sticky L009. */
+      if (((l.pos) < (data.length)) && is_alpha((data).data[(l.pos)])) {
+        lexer_note_invalid_type_suffix(l.line, l.col);
+        struct token_Token tok_eof_sfx = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof_sfx));
+        (void)(((out->token_start) = start));
+        return;
+      }
+      struct token_Token tok_o = (struct Token){ .kind = 80, .line = line0, .col = col0, .int_val = ((int64_t)(oval)), .float_val = 0.0, .ident = 0, .ident_len = 0 };
+      (void)(write_next_lex_into(out, l));
+      (void)(write_tok_into(out, tok_o));
+      (void)(((out->token_start) = start));
+      return;
+    }
+(void)((ival = ((ival * 10) + (c - 48))));
+    /* wave277: `_` decimal digit separators (≡ lexer.x). */
+    while (((l.pos) < (data.length))) {
+      if (is_digit((data).data[(l.pos)])) {
         uint8_t d = (data).data[(l.pos)];
         (void)((l = advance_one(l, d)));
-        (void)((fval = (fval + (frac * (d - 48)))));
-        (void)((frac = (frac * 0.0)));
+        (void)((ival = ((ival * 10) + (d - 48))));
+      } else if (is_digit_sep(data, l.pos, 0)) {
+        (void)((l = advance_one(l, 95)));
+      } else {
+        break;
       }
-      (void)(lexer_apply_optional_exponent(l, data, fval, &(l), &(fval)));
+    }
+      /* wave278: invalid `_` digit separator → sticky L008. */
+      if (((l.pos) < (data.length)) && ((data).data[(l.pos)] == 95)) {
+        lexer_note_invalid_digit_sep(l.line, l.col);
+        struct token_Token tok_eof_sep = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof_sep));
+        (void)(((out->token_start) = start));
+        return;
+      }
+    if (((((l.pos) < (data.length)) && ((data).data[(l.pos)] ==46)) && (lexer_dot_continues_float(data, l.pos) != 0))) {
+      double fval = ((double)(ival));
+      double frac = 0.0;
+      /* wave279: alphabetic type suffix → sticky L009. */
+      if (((l.pos) < (data.length)) && is_alpha((data).data[(l.pos)])) {
+        lexer_note_invalid_type_suffix(l.line, l.col);
+        struct token_Token tok_eof_sfx = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof_sfx));
+        (void)(((out->token_start) = start));
+        return;
+      }
+      struct token_Token tok = (struct Token){ .kind = 81, .line = line0, .col = col0, .int_val = 0, .float_val = fval, .ident = 0, .ident_len = 0 };
+      (void)((l = advance_one(l, 46)));
+      /* wave277: `_` float fraction digit separators (≡ lexer.x). */
+      while (((l.pos) < (data.length))) {
+        if (is_digit((data).data[(l.pos)])) {
+          uint8_t d = (data).data[(l.pos)];
+          (void)((l = advance_one(l, d)));
+          (void)((fval = (fval + (frac * (d - 48)))));
+          (void)((frac = (frac * 0.0)));
+        } else if (is_digit_sep(data, l.pos, 0)) {
+          (void)((l = advance_one(l, 95)));
+        } else {
+          break;
+        }
+      }
+      /* wave278: invalid `_` digit separator → sticky L008. */
+      if (((l.pos) < (data.length)) && ((data).data[(l.pos)] == 95)) {
+        lexer_note_invalid_digit_sep(l.line, l.col);
+        struct token_Token tok_eof_sep = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof_sep));
+        (void)(((out->token_start) = start));
+        return;
+      }
+      if (lexer_apply_optional_exponent(l, data, fval, &(l), &(fval)) != 0) {
+        struct token_Token tok_eof = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof));
+        (void)(((out->token_start) = start));
+        return;
+      }
       (void)(write_next_lex_into(out, l));
       (void)(write_tok_into(out, tok));
       (void)(((out->token_start) = start));
       return;
     }
     if ((((l.pos) < (data.length)) && (((data).data[(l.pos)] ==101) || ((data).data[(l.pos)] ==69)))) {
+      /* wave274: require ≥1 exp digit (≡ lexer.x L005). */
+      int32_t e_line = l.line;
+      int32_t e_col = l.col;
       int32_t exp_sign = 1;
       int32_t exp = 0;
-      double scale = 0.0;
+      int32_t exp_digits = 0;
+      double scale = 1.0;
       int32_t e = 0;
-      double fval = (((double)(ival)) * scale);
-      struct token_Token tok = (struct Token){ .kind = 81, .line = line0, .col = col0, .int_val = 0, .float_val = fval, .ident = 0, .ident_len = 0 };
       (void)((l = advance_one(l, (data).data[(l.pos)])));
       if ((((l.pos) < (data.length)) && ((data).data[(l.pos)] ==45))) {
         (void)((exp_sign = -(1)));
@@ -1255,25 +2070,70 @@ void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang
           (void)((l = advance_one(l, 43)));
         }
       }
-      while ((((l.pos) < (data.length)) && is_digit((data).data[(l.pos)]))) {
-        uint8_t d = (data).data[(l.pos)];
-        (void)((l = advance_one(l, d)));
-        (void)((exp = ((exp * 10) + (d - 48))));
+      /* wave277: `_` float exponent digit separators (≡ lexer.x). */
+      while (((l.pos) < (data.length))) {
+        if (is_digit((data).data[(l.pos)])) {
+          uint8_t d = (data).data[(l.pos)];
+          (void)((l = advance_one(l, d)));
+          (void)((exp = ((exp * 10) + (d - 48))));
+          exp_digits = exp_digits + 1;
+        } else if (is_digit_sep(data, l.pos, 0)) {
+          (void)((l = advance_one(l, 95)));
+        } else {
+          break;
+        }
+      }
+      /* wave278: invalid `_` digit separator → sticky L008. */
+      if (((l.pos) < (data.length)) && ((data).data[(l.pos)] == 95)) {
+        lexer_note_invalid_digit_sep(l.line, l.col);
+        struct token_Token tok_eof_sep = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof_sep));
+        (void)(((out->token_start) = start));
+        return;
+      }
+      if (exp_digits == 0) {
+        lexer_note_incomplete_exp(e_line, e_col);
+        struct token_Token tok_eof = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof));
+        (void)(((out->token_start) = start));
+        return;
       }
       (void)((exp = (exp * exp_sign)));
       if ((exp > 0)) {
         while ((e < exp)) {
-          (void)((scale = (scale * 0.0)));
+          (void)((scale = (scale * 10.0)));
           (void)((e = (e + 1)));
         }
       } else {
         while ((e > exp)) {
-          (void)((scale = (scale * 0.0)));
+          (void)((scale = (scale * 0.1)));
           (void)((e = (e - 1)));
         }
       }
+      double fval = (((double)(ival)) * scale);
+      /* wave279: alphabetic type suffix → sticky L009. */
+      if (((l.pos) < (data.length)) && is_alpha((data).data[(l.pos)])) {
+        lexer_note_invalid_type_suffix(l.line, l.col);
+        struct token_Token tok_eof_sfx = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof_sfx));
+        (void)(((out->token_start) = start));
+        return;
+      }
+      struct token_Token tok = (struct Token){ .kind = 81, .line = line0, .col = col0, .int_val = 0, .float_val = fval, .ident = 0, .ident_len = 0 };
       (void)(write_next_lex_into(out, l));
       (void)(write_tok_into(out, tok));
+      (void)(((out->token_start) = start));
+      return;
+    }
+    /* wave279: alphabetic type suffix → sticky L009. */
+    if (((l.pos) < (data.length)) && is_alpha((data).data[(l.pos)])) {
+      lexer_note_invalid_type_suffix(l.line, l.col);
+      struct token_Token tok_eof_sfx = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+      (void)(write_next_lex_into(out, l));
+      (void)(write_tok_into(out, tok_eof_sfx));
       (void)(((out->token_start) = start));
       return;
     }
@@ -1290,13 +2150,44 @@ void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang
     (void)((l = advance_one(l, 46)));
     double fval = 0.0;
     double frac = 0.0;
-    while ((((l.pos) < (data.length)) && is_digit((data).data[(l.pos)]))) {
-      uint8_t d = (data).data[(l.pos)];
-      (void)((l = advance_one(l, d)));
-      (void)((fval = (fval + (frac * (d - 48)))));
-      (void)((frac = (frac * 0.0)));
+    /* wave277: `_` float fraction digit separators (≡ lexer.x). */
+    while (((l.pos) < (data.length))) {
+      if (is_digit((data).data[(l.pos)])) {
+        uint8_t d = (data).data[(l.pos)];
+        (void)((l = advance_one(l, d)));
+        (void)((fval = (fval + (frac * (d - 48)))));
+        (void)((frac = (frac * 0.0)));
+      } else if (is_digit_sep(data, l.pos, 0)) {
+        (void)((l = advance_one(l, 95)));
+      } else {
+        break;
+      }
     }
-    (void)(lexer_apply_optional_exponent(l, data, fval, &(l), &(fval)));
+      /* wave278: invalid `_` digit separator → sticky L008. */
+      if (((l.pos) < (data.length)) && ((data).data[(l.pos)] == 95)) {
+        lexer_note_invalid_digit_sep(l.line, l.col);
+        struct token_Token tok_eof_sep = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof_sep));
+        (void)(((out->token_start) = start));
+        return;
+      }
+    if (lexer_apply_optional_exponent(l, data, fval, &(l), &(fval)) != 0) {
+        struct token_Token tok_eof = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof));
+        (void)(((out->token_start) = start));
+        return;
+      }
+    /* wave279: alphabetic type suffix → sticky L009. */
+    if (((l.pos) < (data.length)) && is_alpha((data).data[(l.pos)])) {
+      lexer_note_invalid_type_suffix(l.line, l.col);
+      struct token_Token tok_eof_sfx = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+      (void)(write_next_lex_into(out, l));
+      (void)(write_tok_into(out, tok_eof_sfx));
+      (void)(((out->token_start) = start));
+      return;
+    }
     struct token_Token tok = (struct Token){ .kind = 81, .line = line0, .col = col0, .int_val = 0, .float_val = fval, .ident = 0, .ident_len = 0 };
     (void)(write_next_lex_into(out, l));
     (void)(write_tok_into(out, tok));
@@ -1631,6 +2522,8 @@ void lexer_next_punct_into(struct LexerResult * out, struct Lexer l, struct xlan
     (void)(((out->token_start) = start));
     return;
   }
+  /* wave272: unknown byte → L003 hard diag + sticky pending (≡ lexer.x). */
+  lexer_note_illegal_char(line0, col0);
   struct token_Token unk = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   (void)(write_next_lex_into(out, l));
   (void)(write_tok_into(out, unk));

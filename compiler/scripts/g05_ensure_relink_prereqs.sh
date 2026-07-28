@@ -385,6 +385,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _labi_l8_x=src/runtime/labi_std_list.x
   _labi_l8b_seed=seeds/labi_ondemand_list.from_x.c
   _labi_l8b_x=src/runtime/labi_ondemand_list.x
+  # wave263 L8c: ondemand heavy pure (capacity split; no separate cold seed — full L8b seed covers both)
+  _labi_l8c_x=src/runtime/labi_ondemand_heavy.x
   _labi_l9_seed=seeds/labi_gates.from_x.c
   _labi_l9_x=src/runtime/labi_gates.x
   _labi_o=src/runtime_link_abi.o
@@ -410,6 +412,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_labi_l8_x" ] && [ "$_labi_l8_x" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l8b_seed" ] && [ "$_labi_l8b_seed" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l8b_x" ] && [ "$_labi_l8b_x" -nt "$_labi_o" ]; } \
+      || { [ -f "$_labi_l8c_x" ] && [ "$_labi_l8c_x" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l9_seed" ] && [ "$_labi_l9_seed" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l9_x" ] && [ "$_labi_l9_x" -nt "$_labi_o" ]; }; then
       _labi_done=0
@@ -424,6 +427,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _labi_l7_o=$(mktemp "${TMPDIR:-/tmp}/g05_labi_l7.XXXXXX") || true
         _labi_l8_o=$(mktemp "${TMPDIR:-/tmp}/g05_labi_l8.XXXXXX") || true
         _labi_l8b_o=$(mktemp "${TMPDIR:-/tmp}/g05_labi_l8b.XXXXXX") || true
+        _labi_l8c_o=$(mktemp "${TMPDIR:-/tmp}/g05_labi_l8c.XXXXXX") || true
         _labi_l9_o=$(mktemp "${TMPDIR:-/tmp}/g05_labi_l9.XXXXXX") || true
         _labi_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_labi_rest.XXXXXX") || true
         _labi_l0_ok=0
@@ -436,6 +440,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _labi_l7_ok=0
         _labi_l8_ok=0
         _labi_l8b_ok=0
+        _labi_l8c_ok=0
         _labi_l9_ok=0
         if [ -n "$_labi_l0_o" ]; then
           # R2 labi_path_pure：PREFER_X_O=1 时 full .x（7 门闩真迁 H=0）；失败回退 seed 冷 C
@@ -518,20 +523,23 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
         fi
         if [ -n "$_labi_l5_o" ]; then
-          # L5 labi_invoke_cc_list：默认冷 seed（rodata 字符串字面量）。
-          # 【Why】.x STRING_LIT 曾发栈 compound，return 后悬空 → invoke_cc argv 乱码。
-          # 仅当显式 XLANG_G05_PREFER_X_O_LABI=1 且 host STRING_LIT 已 rodata 时才 prefer .x。
-          if [ "${XLANG_G05_PREFER_X_O_LABI:-0}" = "1" ] && [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_labi_l5_x" ]; then
+          # L5 labi_invoke_cc_list：PREFER_X_O=1 时 full .x（R2 pure orch + flag tables；H=0）；失败回退 seed 冷 C。
+          # wave260: default prefer .x (aligned L0/L4/L6)；historical leave-off was stack STRING_LIT
+          # compound dangling after return → argv garbage. Host STRING_LIT is durable rodata now
+          # (prove nm IDENTICAL + matrix with prefer .x). Legacy XLANG_G05_PREFER_X_O_LABI ignored
+          # (prefer follows XLANG_G05_PREFER_X_O only, same as sibling labi layers).
+          # PLATFORM: SHARED g05 hybrid gate · Ubuntu gold + mac L2.
+          if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_labi_l5_x" ]; then
             if g05_try_x_to_o "$_labi_l5_x" "$_labi_l5_o"; then
               _labi_l5_ok=1
-              echo "g05_ensure: L5 invoke_cc list ← $_labi_l5_x (opt-in prefer .x)"
+              echo "g05_ensure: L5 invoke_cc list ← $_labi_l5_x (R2 full prefer .x)"
             fi
           fi
           if [ "$_labi_l5_ok" = "0" ] && [ -f "$_labi_l5_seed" ]; then
             # shellcheck disable=SC2086
             if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_labi_l5_o" "$_labi_l5_seed"; then
               _labi_l5_ok=1
-              echo "g05_ensure: L5 invoke_cc list ← $_labi_l5_seed (cold seed rodata; default)"
+              echo "g05_ensure: L5 invoke_cc list ← $_labi_l5_seed (cold seed fallback)"
             fi
           fi
         fi
@@ -584,18 +592,30 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
         fi
         if [ -n "$_labi_l8b_o" ]; then
-          # R2 labi_ondemand_list：PREFER_X_O=1 时 full .x（on_demand 纯表真迁 H=0）；失败回退 seed 冷 C
+          # wave263: L8b early + L8c heavy must BOTH PREFER .x, else full seed (covers both).
+          # Partial L8b-only would set FROM_X and UNDEF heavy exports (pre-wave263 failure mode).
+          _labi_l8b_x_ok=0
+          _labi_l8c_x_ok=0
           if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_labi_l8b_x" ]; then
             if g05_try_x_to_o "$_labi_l8b_x" "$_labi_l8b_o"; then
-              _labi_l8b_ok=1
-              echo "g05_ensure: L8b on_demand list ← $_labi_l8b_x (Track L prefer .x)"
+              _labi_l8b_x_ok=1
             fi
           fi
-          if [ "$_labi_l8b_ok" = "0" ] && [ -f "$_labi_l8b_seed" ]; then
+          if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -n "$_labi_l8c_o" ] && [ -f "$_labi_l8c_x" ]; then
+            if g05_try_x_to_o "$_labi_l8c_x" "$_labi_l8c_o"; then
+              _labi_l8c_x_ok=1
+            fi
+          fi
+          if [ "$_labi_l8b_x_ok" = "1" ] && [ "$_labi_l8c_x_ok" = "1" ]; then
+            _labi_l8b_ok=1
+            _labi_l8c_ok=1
+            echo "g05_ensure: L8b+L8c on_demand ← $_labi_l8b_x + $_labi_l8c_x (wave263 capacity split)"
+          elif [ -f "$_labi_l8b_seed" ]; then
             # shellcheck disable=SC2086
             if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_labi_l8b_o" "$_labi_l8b_seed"; then
               _labi_l8b_ok=1
-              echo "g05_ensure: L8b on_demand list ← $_labi_l8b_seed (G-02f-272 seed slice)"
+              _labi_l8c_ok=0
+              echo "g05_ensure: L8b on_demand list ← $_labi_l8b_seed (G-02f-272 full seed; L8c unused)"
             fi
           fi
         fi
@@ -678,19 +698,22 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           if [ "$_labi_l8b_ok" = "1" ]; then
             _labi_link="$_labi_link $_labi_l8b_o"
           fi
+          if [ "$_labi_l8c_ok" = "1" ]; then
+            _labi_link="$_labi_link $_labi_l8c_o"
+          fi
           if [ "$_labi_l9_ok" = "1" ]; then
             _labi_link="$_labi_link $_labi_l9_o"
           fi
           # shellcheck disable=SC2086
           if $CC -r -nostdlib -o "$_labi_o" $_labi_link "$_labi_rest_o" 2>/dev/null; then
-            echo "g05_ensure: $_labi_o ← L0..L9+L8b + link_abi rest (G-02f-277 hybrid)"
+            echo "g05_ensure: $_labi_o ← L0..L9+L8b+L8c + link_abi rest (G-02f-277 hybrid wave263)"
             _labi_done=1
           fi
         fi
         if [ "$_labi_done" = "0" ]; then
-          echo "g05_ensure: L0..L9+L8b link_abi hybrid failed; fallback full seed" >&2
+          echo "g05_ensure: L0..L9+L8b+L8c link_abi hybrid failed; fallback full seed" >&2
         fi
-        rm -f "$_labi_l0_o" "$_labi_l1_o" "$_labi_l2_o" "$_labi_l3_o" "$_labi_l4_o" "$_labi_l5_o" "$_labi_l6_o" "$_labi_l7_o" "$_labi_l8_o" "$_labi_l8b_o" "$_labi_l9_o" "$_labi_rest_o"
+        rm -f "$_labi_l0_o" "$_labi_l1_o" "$_labi_l2_o" "$_labi_l3_o" "$_labi_l4_o" "$_labi_l5_o" "$_labi_l6_o" "$_labi_l7_o" "$_labi_l8_o" "$_labi_l8b_o" "$_labi_l8c_o" "$_labi_l9_o" "$_labi_rest_o"
       fi
       if [ "$_labi_done" = "0" ]; then
         echo "g05_ensure: runtime_link_abi.o ← seed (G-02f-13)"
@@ -2980,10 +3003,12 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-15 / G-02f-423：lsp_diag + USER_ASM seed bridges
-  # 默认整 seed；PREFER_X_O=1 时 thin.x（5 pure leaf）+ seed-rest（-DXLANG_L2_LSP_FMT_THIN_FROM_X）ld -r
+  # G-02f-15 / wave536：lsp_diag + USER_ASM seed bridges
+  # 默认整 seed；PREFER_X_O=1 时 thin.x（runtime_lsp_glue.x，46 #[no_mangle]，
+  # wave536 统一 thin 源替代 lsp_fmt_pure_thin.x）+ seed-rest
+  # (-DXLANG_L2_LSP_GLUE_FULL_FROM_X，implies FMT_THIN) ld -r → src/lsp/lsp_diag.o
   _lspg=seeds/runtime_lsp_glue.from_x.c
-  _lspg_thin_x=src/lsp/lsp_fmt_pure_thin.x
+  _lspg_thin_x=src/asm/runtime_lsp_glue.x
   if [ -f "$_lspg" ]; then
     if [ ! -f src/lsp/lsp_diag.o ] || [ "$_lspg" -nt src/lsp/lsp_diag.o ] \
       || { [ -f "$_lspg_thin_x" ] && [ "$_lspg_thin_x" -nt src/lsp/lsp_diag.o ]; }; then
@@ -2993,10 +3018,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _lspg_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_lspg_rest_XXXXXX.o") || true
         if [ -n "$_lspg_thin_o" ] && [ -n "$_lspg_rest_o" ] \
           && G05_X_O_WEAK=1 g05_try_x_to_o "$_lspg_thin_x" "$_lspg_thin_o" \
-          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_LSP_FMT_THIN_FROM_X \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_LSP_GLUE_FULL_FROM_X \
                -c -o "$_lspg_rest_o" "$_lspg" \
           && $CC -r -nostdlib -o src/lsp/lsp_diag.o "$_lspg_thin_o" "$_lspg_rest_o" 2>/dev/null; then
-          echo "g05_ensure: src/lsp/lsp_diag.o ← $_lspg_thin_x + seed-rest (G-02f-423 L2 hybrid lsp_fmt pure thin)"
+          echo "g05_ensure: src/lsp/lsp_diag.o ← $_lspg_thin_x + seed-rest (wave536 L2 hybrid runtime_lsp_glue full thin)"
           _lspg_done=1
         else
           echo "g05_ensure: L2 hybrid runtime_lsp_glue failed; fallback full seed" >&2

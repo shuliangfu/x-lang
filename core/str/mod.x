@@ -21,25 +21,25 @@
 /* note */
 allow(padding) struct BytesView {
   ptr: *u8;
-  len: i32;
+  length: i32;
 }
 
 /** `bytes_view`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function bytes_view(ptr: *u8, len: i32): BytesView {
-  return BytesView { ptr: ptr, len: len };
+  return BytesView { ptr: ptr, length: len };
 }
 
 /** `bytes_view_from_slice`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function bytes_view_from_slice(s: u8[]): BytesView {
-  return BytesView { ptr: s.data, len: s.length as i32 };
+  return BytesView { ptr: s.data, length: s.length as i32 };
 }
 
 /** `bytes_view_len`: purpose/params/returns per signature; panics or error codes follow local contracts. */
-export function bytes_view_len(v: BytesView): i32 { return v.len; }
+export function bytes_view_len(v: BytesView): i32 { return v.length; }
 
 /** `bytes_view_is_empty`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function bytes_view_is_empty(v: BytesView): i32 {
-  if (v.len <= 0) { return 1; }
+  if (v.length <= 0) { return 1; }
   return 0;
 }
 
@@ -52,10 +52,10 @@ export function bytes_view_get(v: BytesView, i: i32): u8 { return v.ptr[i]; }
  */
 export function bytes_view_subview(v: BytesView, off: i32, len: i32): BytesView {
   if (off < 0) { off = 0; }
-  if (off >= v.len || len <= 0) {
+  if (off >= v.length || len <= 0) {
     return bytes_view(&v.ptr[off], 0);
   }
-  let remain: i32 = v.len - off;
+  let remain: i32 = v.length - off;
   let n: i32 = len;
   if (n > remain) { n = remain; }
   return bytes_view(&v.ptr[off], n);
@@ -63,9 +63,9 @@ export function bytes_view_subview(v: BytesView, off: i32, len: i32): BytesView 
 
 /** `bytes_view_eq`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function bytes_view_eq(a: BytesView, b: BytesView): i32 {
-  if (a.len != b.len) { return 0; }
+  if (a.length != b.length) { return 0; }
   let i: i32 = 0;
-  while (i < a.len) {
+  while (i < a.length) {
     if (a.ptr[i] != b.ptr[i]) { return 0; }
     i = i + 1;
   }
@@ -74,9 +74,9 @@ export function bytes_view_eq(a: BytesView, b: BytesView): i32 {
 
 /** `bytes_view_eq_bytes`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function bytes_view_eq_bytes(v: BytesView, ptr: *u8, len: i32): i32 {
-  if (v.len != len) { return 0; }
+  if (v.length != len) { return 0; }
   let i: i32 = 0;
-  while (i < v.len) {
+  while (i < v.length) {
     if (v.ptr[i] != ptr[i]) { return 0; }
     i = i + 1;
   }
@@ -90,7 +90,7 @@ export function bytes_view_eq_bytes(v: BytesView, ptr: *u8, len: i32): i32 {
  */
 export function bytes_view_index_of_byte(v: BytesView, b: u8): i32 {
   let i: i32 = 0;
-  while (i < v.len) {
+  while (i < v.length) {
     if (v.ptr[i] == b) { return i; }
     i = i + 1;
   }
@@ -103,9 +103,9 @@ export function bytes_view_index_of_byte(v: BytesView, b: u8): i32 {
  */
 export function bytes_view_index_of(v: BytesView, needle: *u8, needle_len: i32): i32 {
   if (needle_len <= 0) { return 0; }
-  if (needle_len > v.len) { return -1; }
+  if (needle_len > v.length) { return -1; }
   let i: i32 = 0;
-  while (i + needle_len <= v.len) {
+  while (i + needle_len <= v.length) {
     let j: i32 = 0;
     let ok: i32 = 1;
     while (j < needle_len) {
@@ -130,7 +130,7 @@ export function bytes_view_contains_byte(v: BytesView, b: u8): i32 {
 /** `bytes_view_starts_with`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function bytes_view_starts_with(v: BytesView, prefix: *u8, prefix_len: i32): i32 {
   if (prefix_len <= 0) { return 1; }
-  if (prefix_len > v.len) { return 0; }
+  if (prefix_len > v.length) { return 0; }
   let i: i32 = 0;
   while (i < prefix_len) {
     if (v.ptr[i] != prefix[i]) { return 0; }

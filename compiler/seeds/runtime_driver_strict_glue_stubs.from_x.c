@@ -283,7 +283,7 @@ void asm_driver_set_current_dep_path_for_codegen(uint8_t * path) {
 /** 与 runtime.c 中 codegen_CodegenOutBuf 布局一致。 */
 struct codegen_CodegenOutBuf {
   unsigned char data[9 * 1024 * 1024];
-  int32_t len;
+  int32_t length;
 };
 
 /** 路径是否 lsp_io.x 的 -E-extern 入口。 */
@@ -356,10 +356,10 @@ int append_text_to_codegen_buf(struct codegen_CodegenOutBuf *out, const char *te
   if (!out || !text)
     return -1;
   n = strlen(text);
-  if (out->len < 0 || (size_t)out->len + n >= sizeof(out->data))
+  if (out->length < 0 || (size_t)out->length + n >= sizeof(out->data))
     return -1;
-  memcpy(out->data + (size_t)out->len, text, n);
-  out->len += (int32_t)n;
+  memcpy(out->data + (size_t)out->length, text, n);
+  out->length += (int32_t)n;
   return 0;
 }
 
@@ -402,7 +402,7 @@ struct parser_ParseIntoResult {
 
 struct xlang_slice_uint8_t {
     const uint8_t *ptr;
-    size_t len;
+    size_t length;
 };
 
 struct ast_Module;

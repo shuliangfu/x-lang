@@ -278,7 +278,7 @@ ptrdiff_t io_write_batch(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t
 
 typedef struct {
   uint8_t *ptr;
-  size_t len;
+  size_t length;
   size_t handle;
 } xlang_buffer_abi_t;
 
@@ -286,7 +286,7 @@ int32_t xlang_io_register_buf(intptr_t buf) {
   const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf;
   if (!b)
     return -1;
-  return xlang_io_register(b->ptr, b->len, b->handle);
+  return xlang_io_register(b->ptr, b->length, b->handle);
 }
 
 int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, unsigned timeout_ms) {
@@ -301,7 +301,7 @@ int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_ms) {
   const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf;
   if (!b)
     return -1;
-  return xlang_io_submit_read(b->ptr, b->len, b->handle, (unsigned)timeout_ms);
+  return xlang_io_submit_read(b->ptr, b->length, b->handle, (unsigned)timeout_ms);
 }
 
 int32_t xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, unsigned timeout_ms) {
@@ -316,7 +316,7 @@ int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_ms) {
   const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf;
   if (!b)
     return -1;
-  return xlang_io_submit_write(b->ptr, b->len, b->handle, (unsigned)timeout_ms);
+  return xlang_io_submit_write(b->ptr, b->length, b->handle, (unsigned)timeout_ms);
 }
 
 /** lsp_gen 引用 driver_read_ptr*；真 partial 无 phase1 弱桩时兜底。 */

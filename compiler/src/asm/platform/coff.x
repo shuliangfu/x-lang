@@ -42,9 +42,9 @@ export extern function pipeline_elf_ctx_reloc_offset_at(ctx: *u8, idx: i32): i32
  */
 export function coff_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
   let i: i32 = 0;
-  while (i < n && out.len < 8388608) {
-    out.data[out.len] = ptr[i];
-    out.len = out.len + 1;
+  while (i < n && out.length < 8388608) {
+    out.data[out.length] = ptr[i];
+    out.length = out.length + 1;
     i = i + 1;
   }
   if (i < n) { return -1; }
@@ -79,7 +79,7 @@ export function write_coff_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i
   let ptr_sym: i32 = ptr_reloc + reloc_size;
   let ptr_str: i32 = ptr_sym + symtab_size;
   
-  out.len = 0;
+  out.length = 0;
   
   let fh: u8[20] = [];
   fh[0] = elf.elf_to_u8(100);
@@ -243,5 +243,5 @@ export function write_coff_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i
     if (coff_append(out, zero, 1) != 0) { return -1; }
     s = s + 1;
   }
-  return out.len;
+  return out.length;
 }

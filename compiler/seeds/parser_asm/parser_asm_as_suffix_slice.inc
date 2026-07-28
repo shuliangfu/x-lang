@@ -122,8 +122,6 @@ void parser_asm_parse_as_suffix_into_slice_c(void *arena, struct parser_asm_slic
   int32_t as_ref;
   int32_t try_ref;
   struct parser_asm_ast_expr ae;
-  struct ast_Type tptr;
-  int32_t elem_ref;
   if (!out || !out->ok || !source)
     return;
   lex_cur = out->next_lex;
@@ -167,25 +165,26 @@ void parser_asm_parse_as_suffix_into_slice_c(void *arena, struct parser_asm_slic
     lexer_next_into(&r, lex_cur, source);
     type_ref = 0;
     if (r.tok.kind == (int32_t)TOKEN_STAR) {
-      parser_lex_from_lexer_result_ptr_into(&lex_cur, &r);
-      lexer_next_into(&r, lex_cur, source);
-      elem_ref = parser_asm_alloc_pointee_type_ref_from_tok_c(arena, source, &r);
-      if (elem_ref == 0) {
+      /*
+       * wave438: delegate to the full type_ref parser so `as *[N]T` /
+       * `as *[]T` / `as *[N][M]T` casts parse correctly. Previously only
+       * `as *T` (simple pointer to scalar/named) was supported; impl
+       * methods containing `as *[N]T` casts were silently dropped during
+       * parse, causing "missing method" false negatives in trait checks.
+       *
+       * lex_cur points at `*` (set at the `as` advance above); the parser
+       * consumes the whole type incl. dims and writes the post-type
+       * position back into lex_cur. r.next_lex is then synced so the
+       * loop tail `lex_cur = r.next_lex` stays consistent without
+       * re-reading a token that belongs to the next iteration.
+       * PLATFORM: SHARED.
+       */
+      type_ref = parser_asm_parse_type_ref_for_arena_into_slice_c(arena, lex_cur, source, &lex_cur);
+      if (type_ref == 0) {
         out->ok = 0;
         return;
       }
-      type_ref = ast_ast_arena_type_alloc(arena);
-      if (type_ref != 0) {
-        tptr = ast_arena_type_get(arena, type_ref);
-        tptr.kind = PARSER_ASM_TYPE_PTR;
-        tptr.elem_type_ref = elem_ref;
-        tptr.name_len = 0;
-        tptr.array_size = 0;
-        tptr.region_label_len = 0;
-        ast_arena_type_set(arena, type_ref, tptr);
-      }
-      parser_lex_from_lexer_result_ptr_into(&lex_cur, &r);
-      lex_cur = r.next_lex;
+      r.next_lex = lex_cur;
     } else {
       type_ref = parser_asm_as_suffix_type_from_token_c(arena, source, &r);
       if (type_ref == 0) {

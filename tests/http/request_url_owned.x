@@ -46,11 +46,11 @@ function main(): i32 {
   buf[7] = 120;
   buf[8] = 47;
 
-  let owned: HttpUrlOwned = HttpUrlOwned { ptr: 0, len: 0 };
+  let owned: HttpUrlOwned = HttpUrlOwned { ptr: 0, length: 0 };
   if (http.url_owned_from_slice(&buf[0], 300, &owned) != 300) { return 5; }
-  if (owned.len != 300) { return 6; }
+  if (owned.length != 300) { return 6; }
 
-  let req: HttpRequest = HttpRequest { method: Method.GET, url: owned.ptr, url_len: owned.len, body: 0, body_len: 0, timeout_ms: 0 };
+  let req: HttpRequest = HttpRequest { method: Method.GET, url: owned.ptr, url_len: owned.length, body: 0, body_len: 0, timeout_ms: 0 };
   if (req.url_len != 300) { return 7; }
 
   http.url_owned_free(owned);

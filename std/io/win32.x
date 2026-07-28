@@ -24,7 +24,7 @@
 // See implementation.
 
 /* See implementation. */
-allow(padding) struct IoBatchBuf { ptr: *u8; len: usize; handle: usize; }
+allow(padding) struct IoBatchBuf { ptr: *u8; length: usize; handle: usize; }
 
 export const IO_FIXED_MAX: u32 = 8 as u32;
 export const IO_READV_BUF_MAX: i32 = 16;
@@ -202,7 +202,7 @@ export function io_read_batch_buf(fd: i32, bufs: *IoBatchBuf, n: i32, timeout_ms
   let total: isize = 0;
   let i: i32 = 0;
   while (i < n) {
-    let r: isize = io_read(fd, bufs[i].ptr, bufs[i].len, timeout_ms);
+    let r: isize = io_read(fd, bufs[i].ptr, bufs[i].length, timeout_ms);
     if (r < 0) { return -1; }
     total = total + r;
     i = i + 1;
@@ -223,7 +223,7 @@ export function io_write_batch_buf(fd: i32, bufs: *IoBatchBuf, n: i32, timeout_m
   let total: isize = 0;
   let i: i32 = 0;
   while (i < n) {
-    let r: isize = io_write(fd, bufs[i].ptr, bufs[i].len, timeout_ms);
+    let r: isize = io_write(fd, bufs[i].ptr, bufs[i].length, timeout_ms);
     if (r < 0) { return -1; }
     total = total + r;
     i = i + 1;
@@ -294,7 +294,7 @@ export function io_register_buffers_buf(bufs: *IoBatchBuf, nr: i32): i32 {
   while (i < nr) {
     if (bufs[i].ptr == 0) { return 0; }
     io_fixed_ptr[i] = bufs[i].ptr;
-    io_fixed_len[i] = bufs[i].len;
+    io_fixed_len[i] = bufs[i].length;
     i = i + 1;
   }
   io_fixed_nr = (nr as u32);

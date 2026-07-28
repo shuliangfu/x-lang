@@ -38,7 +38,7 @@ function main(): i32 {
   ];
   let okm: u8[42] = [];
   let secret: u8[16] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
-  let sb: SensitiveBuf = SensitiveBuf { ptr: 0, len: 0, locked: 0 };
+  let sb: SensitiveBuf = SensitiveBuf { ptr: 0, length: 0, locked: 0 };
   let a: u8[4] = [1, 2, 3, 4];
   let b: u8[4] = [1, 2, 3, 4];
   let c: u8[4] = [1, 2, 3, 5];

@@ -2,7 +2,7 @@
 #[repr(C)]
 struct Header {
   tag: u8
-  len: u32
+  length: u32
 }
 
 /** Internal function `main`.
@@ -10,7 +10,7 @@ struct Header {
  * @return i32
  */
 function main(): i32 {
-  let h: Header = Header { tag: 1, len: 42 };
+  let h: Header = Header { tag: 1, length: 42 };
   /* See implementation. */
-  return (h.tag as i32) + (h.len as i32);
+  return (h.tag as i32) + (h.length as i32);
 }

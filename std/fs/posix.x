@@ -42,7 +42,7 @@ allow(padding) struct FsStatOut {
 /* See implementation. */
 
 /* See implementation. */
-allow(padding) struct FsIovecBuf { ptr: *u8; len: usize; handle: usize; }
+allow(padding) struct FsIovecBuf { ptr: *u8; length: usize; handle: usize; }
 
 /* See implementation. */
 allow(padding) struct FsDirHandlePosix { dir: *u8; }
@@ -882,7 +882,7 @@ export function fs_copy_file_range_c(fd_in: i32, fd_out: i32, len: usize): i64 {
  * @return i64
  */
 export function fs_readv2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize): i64 {
-  let iov: Iovec[2] = [Iovec { base: p0, len: l0 }, Iovec { base: p1, len: l1 }];
+  let iov: Iovec[2] = [Iovec { base: p0, length: l0 }, Iovec { base: p1, length: l1 }];
   let n: isize = fs_libc_readv(fd, &iov[0], 2);
   return n >= 0 ? (n as i64) : (-1 as i64);
 }
@@ -897,7 +897,7 @@ export function fs_readv2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize): i6
  * @return i64
  */
 export function fs_writev2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize): i64 {
-  let iov: Iovec[2] = [Iovec { base: p0, len: l0 }, Iovec { base: p1, len: l1 }];
+  let iov: Iovec[2] = [Iovec { base: p0, length: l0 }, Iovec { base: p1, length: l1 }];
   let n: isize = fs_libc_writev(fd, &iov[0], 2);
   return n >= 0 ? (n as i64) : (-1 as i64);
 }
@@ -1126,10 +1126,10 @@ export function fs_posix_pwrite_c(fd: i32, buf: *u8, count: usize, offset: i64):
  */
 export function fs_readv4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize): i64 {
   let iov: Iovec[4] = [
-    Iovec { base: p0, len: l0 },
-    Iovec { base: p1, len: l1 },
-    Iovec { base: p2, len: l2 },
-    Iovec { base: p3, len: l3 }
+    Iovec { base: p0, length: l0 },
+    Iovec { base: p1, length: l1 },
+    Iovec { base: p2, length: l2 },
+    Iovec { base: p3, length: l3 }
   ];
   let n: isize = fs_libc_readv(fd, &iov[0], 4);
   return n >= 0 ? (n as i64) : (-1 as i64);
@@ -1150,10 +1150,10 @@ export function fs_readv4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2:
  */
 export function fs_writev4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize): i64 {
   let iov: Iovec[4] = [
-    Iovec { base: p0, len: l0 },
-    Iovec { base: p1, len: l1 },
-    Iovec { base: p2, len: l2 },
-    Iovec { base: p3, len: l3 }
+    Iovec { base: p0, length: l0 },
+    Iovec { base: p1, length: l1 },
+    Iovec { base: p2, length: l2 },
+    Iovec { base: p3, length: l3 }
   ];
   let n: isize = fs_libc_writev(fd, &iov[0], 4);
   return n >= 0 ? (n as i64) : (-1 as i64);
@@ -1175,7 +1175,7 @@ export function fs_readv_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
   let i: i32 = 0;
   while (i < n) {
     iov[i].base = b[i].ptr;
-    iov[i].len = b[i].len;
+    iov[i].length = b[i].length;
     i = i + 1;
   }
   let r: isize = fs_libc_readv(fd, &iov[0], n);
@@ -1198,7 +1198,7 @@ export function fs_writev_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
   let i: i32 = 0;
   while (i < n) {
     iov[i].base = b[i].ptr;
-    iov[i].len = b[i].len;
+    iov[i].length = b[i].length;
     i = i + 1;
   }
   let r: isize = fs_libc_writev(fd, &iov[0], n);

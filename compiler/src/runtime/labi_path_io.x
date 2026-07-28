@@ -12,6 +12,10 @@
 //   - link_abi_path_readable → _impl (access R_OK Cap residual; wave209)
 //   - link_abi_realpath_cap → _impl (POSIX realpath / Windows null; wave218)
 //   - link_abi_path_executable → _impl (access X_OK Cap residual; wave221)
+// wave261 G.7: always-mega residual raw realpath() call sites (resolve_compiler_dir,
+// path ladders cold, nm probes, resolve pool slots, pipeline glue include, pipeline_abi
+// cold try_realpath) → public pure thin link_abi_realpath_cap; host residual realpath
+// stays only link_abi_realpath_cap_impl (+ freestanding bootstrap_nostdlib stubs).
 // No struct stat layout; no libc realpath/access prototype here (avoids *u8 vs char* clash).
 
 export extern "C" function xlang_path_is_nonempty_regular_file_impl(path: *u8): i32;

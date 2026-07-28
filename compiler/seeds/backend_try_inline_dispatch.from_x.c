@@ -859,7 +859,7 @@ int32_t asm_local_var_slot_holds_indirect_ptr_impl(struct ast_ASTArena *arena, i
   kind = pipeline_type_kind_ord_at(arena, tr);
   if (kind == GLUE_TYPE_PTR)
     return 1;
-  /** 命名 struct：块内 let 仍 lea；>8B 形参 hidden pointer 槽须 load（vec3f_soa_sum_x 的 v.len / v.col_x）。 */
+  /** 命名 struct：块内 let 仍 lea；>8B 形参 hidden pointer 槽须 load（vec3f_soa_sum_x 的 v.length / v.col_x）。 */
   if (glue_type_ref_is_named_struct_layout(arena, mod, tr)) {
     if (mod && pipeline_asm_emit_func_param_is_indirect_struct_slot_c(arena, mod, expr_ref) != 0)
       return 1;

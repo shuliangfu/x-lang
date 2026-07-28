@@ -21,7 +21,7 @@ struct codegen_CodegenOutBuf;
 #define XLANG_CODEGEN_OUTBUF_CAP 9437184
 typedef struct {
   uint8_t data[XLANG_CODEGEN_OUTBUF_CAP];
-  int32_t len;
+  int32_t length;
 } ShuCodegenOutBuf;
 
 /**
@@ -35,13 +35,13 @@ XLANG_WEAK int32_t append_asm_line(struct codegen_CodegenOutBuf *out, uint8_t *p
   if (!buf || !ptr || len < 0)
     return -1;
   for (i = 0; i < len; i++) {
-    if (buf->len >= XLANG_CODEGEN_OUTBUF_CAP)
+    if (buf->length >= XLANG_CODEGEN_OUTBUF_CAP)
       return -1;
-    buf->data[buf->len++] = ptr[i];
+    buf->data[buf->length++] = ptr[i];
   }
-  if (buf->len >= XLANG_CODEGEN_OUTBUF_CAP)
+  if (buf->length >= XLANG_CODEGEN_OUTBUF_CAP)
     return -1;
-  buf->data[buf->len++] = (uint8_t)'\n';
+  buf->data[buf->length++] = (uint8_t)'\n';
   return 0;
 }
 

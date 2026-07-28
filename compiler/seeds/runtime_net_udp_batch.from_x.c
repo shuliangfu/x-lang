@@ -10,9 +10,16 @@
  * runtime_asm_io_stubs.c 可 weak-include 本 TU，供旧 xlang_asm 未链 runtime_net_udp_batch.o 时解析符号。
  */
 
-#if defined(__linux__) && defined(__GLIBC__)
-
+/* _GNU_SOURCE must be defined before any system header so that recvmmsg /
+ * sendmmsg prototypes are exposed by <sys/socket.h>.
+ *
+ * 【根因修复】原代码 #if defined(__GLIBC__) 在 #include 之前检查，但
+ * __GLIBC__ 由 <features.h> 定义，在 #include 前不可见 → 整个 TU 恒为空
+ * → recvmmsg/sendmmsg 符号从未被编译。改为 _GNU_SOURCE + __linux__ 判断
+ * （__linux__ 是编译器预定义，不需要 include）。 */
 #define _GNU_SOURCE
+
+#if defined(__linux__)
 
 #include <stdint.h>
 #include <stddef.h>
@@ -35,7 +42,7 @@
 /** 与 std.io.driver Buffer / net.c xlang_net_buf_t ABI 一致。 */
 typedef struct {
     uint8_t *ptr;
-    size_t len;
+    size_t length;
     size_t handle;
 } xlang_net_buf_t;
 
@@ -168,7 +175,7 @@ XLANG_NET_UDP_GLUE_API int xlang_net_udp_recvmmsg_buf_c(int32_t fd, xlang_net_bu
     for (i = 0; i < (unsigned int)n; i++) {
         socklen_t addrlen = sizeof(addrs[0]);
         iov[i].iov_base = bufs[i].ptr;
-        iov[i].iov_len  = bufs[i].len;
+        iov[i].iov_len  = bufs[i].length;
         msgvec[i].msg_hdr.msg_name = &addrs[i];
         msgvec[i].msg_hdr.msg_namelen = addrlen;
         msgvec[i].msg_hdr.msg_iov = &iov[i];
@@ -210,7 +217,7 @@ XLANG_NET_UDP_GLUE_API int xlang_net_udp_sendmmsg_buf_c(int32_t fd, const uint32
     for (i = 0; i < (unsigned int)n; i++) {
         xlang_udp_batch_set_addr_port(&sa[i], addrs_u32[i], ports[i]);
         iov[i].iov_base = (void *)bufs[i].ptr;
-        iov[i].iov_len  = bufs[i].len;
+        iov[i].iov_len  = bufs[i].length;
         msgvec[i].msg_hdr.msg_name = &sa[i];
         msgvec[i].msg_hdr.msg_namelen = sizeof(sa[i]);
         msgvec[i].msg_hdr.msg_iov = &iov[i];

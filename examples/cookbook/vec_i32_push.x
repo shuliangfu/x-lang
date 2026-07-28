@@ -11,7 +11,7 @@ function main(): i32 {
   let v: Vec_i32 = vec.new();
   if (vec.push(&v, 10) != 0) { return 1; }
   if (vec.push(&v, 20) != 0) { return 2; }
-  if (vec.len(v) != 2) { return 3; }
+  if (vec.length(v) != 2) { return 3; }
   if (vec.pop(&v) != 20) { return 4; }
   let tail: i32[2] = [30, 40];
   if (vec.extend(&v, &tail[0], 2) != 0) { return 5; }

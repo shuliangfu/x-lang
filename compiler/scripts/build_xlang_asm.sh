@@ -4537,7 +4537,7 @@ ensure_asm_bootstrap_support_extra_objs() {
 # RT Cap residual slices：与 Makefile RT_SEED_SLICE_OBJS 同源（含 parse_diag recovery）。
 # PLATFORM: SHARED — include runtime_process_argv.o (process_xlang_argc/argv_get authority).
 asm_bootstrap_support_extra_link() {
-  echo "src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o $BUILD_DIR/typeck_c_module_stubs.o src/runtime_driver_strict_glue_stubs.o runtime_process_argv.o src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o src/runtime/rt_parse_diag.o"
+  echo "src/async/async_asm_pool.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o $BUILD_DIR/typeck_c_module_stubs.o src/runtime_driver_strict_glue_stubs.o runtime_process_argv.o src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o src/runtime/rt_parse_diag.o"
 }
 
 # 确保 typeck_f64_bits.o 存在（pipeline_x / parser 浮点字面量位拆分）。
@@ -4617,13 +4617,38 @@ ensure_runtime_user_link_objs() {
   echo " cc_inc_tu runtime_random_fill.o <- seeds/runtime_random_fill.from_x.c"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_random_fill.from_x.c -o runtime_random_fill.o
   fi
-  if [ ! -f runtime_time_os.o ] || [ seeds/runtime_time_os.from_x.c -nt runtime_time_os.o ]; then
+  if [ ! -f runtime_time_os.o ] || [ seeds/runtime_time_os.from_x.c -nt runtime_time_os.o ] || [ src/asm/runtime_time_os.x -nt runtime_time_os.o ]; then
   echo " cc_inc_tu runtime_time_os.o <- seeds/runtime_time_os.from_x.c"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_time_os.from_x.c -o runtime_time_os.o
+  if [ "${XLANG_G05_PREFER_X_O:-0}" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_time_os.x ]; then
+    _rtos_tmp=$(mktemp "${TMPDIR:-/tmp}/rtos.XXXXXX") || _rtos_tmp=/tmp/rtos_tmp_$$
+    ./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_time_os.x > "$_rtos_tmp" 2>/dev/null && \
+    $CC $CFLAGS -I. -Iinclude -Isrc -x c -c "$_rtos_tmp" -o runtime_time_os_thin.o && \
+    $CC $CFLAGS -I. -Iinclude -Isrc -DXLANG_RUNTIME_TIME_OS_FROM_X -c seeds/runtime_time_os.from_x.c -o runtime_time_os_rest.o && \
+    ld -r runtime_time_os_thin.o runtime_time_os_rest.o -o runtime_time_os.o && \
+    rm -f "$_rtos_tmp" runtime_time_os_thin.o runtime_time_os_rest.o && \
+    echo "   rtos: R2 full thin+rest merged (PREFER_X_O)"
+  else
+    $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_time_os.from_x.c -o runtime_time_os.o
   fi
-  if [ ! -f runtime_env_os.o ] || [ seeds/runtime_env_os.from_x.c -nt runtime_env_os.o ]; then
+  fi
+  if [ ! -f runtime_env_os.o ] || [ seeds/runtime_env_os.from_x.c -nt runtime_env_os.o ] || [ src/asm/runtime_env_os.x -nt runtime_env_os.o ]; then
   echo " cc_inc_tu runtime_env_os.o <- seeds/runtime_env_os.from_x.c"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_env_os.from_x.c -o runtime_env_os.o
+  if [ "${XLANG_G05_PREFER_X_O:-0}" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_env_os.x ]; then
+    _reos_tmp=$(mktemp "${TMPDIR:-/tmp}/reos.XXXXXX") || _reos_tmp=/tmp/reos_tmp_$$
+    ./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_env_os.x > "$_reos_tmp" 2>/dev/null && \
+    $CC $CFLAGS -I. -Iinclude -Isrc -x c -c "$_reos_tmp" -o runtime_env_os_thin.o && \
+    $CC $CFLAGS -I. -Iinclude -Isrc -DXLANG_RUNTIME_ENV_OS_FROM_X -c seeds/runtime_env_os.from_x.c -o runtime_env_os_rest.o && \
+    ld -r runtime_env_os_thin.o runtime_env_os_rest.o -o runtime_env_os.o && \
+    rm -f "$_reos_tmp" runtime_env_os_thin.o runtime_env_os_rest.o && \
+    echo "   reos: R2 full thin+rest merged (PREFER_X_O)"
+  else
+    $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_env_os.from_x.c -o runtime_env_os.o
+  fi
+fi
+  # wave253: sole user-domain residual face body (weak; companion of PRIMARY_PANIC / residual).
+  if [ ! -f runtime_link_abi_user_env.o ] || [ seeds/runtime_link_abi_user_env.from_x.c -nt runtime_link_abi_user_env.o ]; then
+  echo " cc_inc_tu runtime_link_abi_user_env.o <- seeds/runtime_link_abi_user_env.from_x.c"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_link_abi_user_env.from_x.c -o runtime_link_abi_user_env.o
   fi
 }
 

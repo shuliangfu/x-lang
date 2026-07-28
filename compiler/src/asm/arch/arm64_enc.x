@@ -44,36 +44,51 @@ export function enc_u32_le(ctx: *ElfCodegenCtx, val: i64): i32 {
   return elf.append_elf_bytes(ctx, buf, 4);
 }
 
-/** Exported function `enc_prologue`.
- * Implements `enc_prologue`.
- * @param ctx *ElfCodegenCtx
- * @param frame_size i32
- * @return i32
+/**
+ * wave414: arm64 prologue — allocate whole frame with x29 at bottom so
+ * positive [x29,#off] locals (wave402 low-end home) sit inside the frame.
+ * @param ctx *ElfCodegenCtx — emit context
+ * @param frame_size i32 — bytes for save+locals (aligned to 16; min 16)
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: MACOS|ARM64 — G.7 twin of seeds/backend_arm64_enc_c.from_x.c
  */
 export function enc_prologue(ctx: *ElfCodegenCtx, frame_size: i32): i32 {
-  ctx.current_frame_size = frame_size;
-  /* stp x29, x30, [sp, #-16]! */
-  if (enc_u32_le(ctx, 2847898621) != 0) { return -1; }
+  let fs: i32 = frame_size;
+  if (fs < 16) { fs = 16; }
+  if ((fs & 15) != 0) { fs = fs + (16 - (fs & 15)); }
+  ctx.current_frame_size = fs;
+  /* sub sp, sp, #fs in 4095 chunks */
+  let left: i32 = fs;
+  while (left > 0) {
+    let chunk: i32 = left;
+    if (chunk > 4095) { chunk = 4095; }
+    if (enc_u32_le(ctx, 3506439167 | (chunk << 10)) != 0) { return -1; }
+    left = left - chunk;
+  }
+  /* stp x29, x30, [sp] — 0xA9007BFD as signed i32 */
+  if (enc_u32_le(ctx, 0 - 1459553315) != 0) { return -1; }
   /* mov x29, sp */
-  if (enc_u32_le(ctx, 2432697341) != 0) { return -1; }
-  /* sub sp, sp, #frame_size */
-  let imm12: i32 = frame_size;
-  if (imm12 > 4095) { imm12 = 4095; }
-  return enc_u32_le(ctx, 3506439167 | (imm12 << 10));
+  return enc_u32_le(ctx, 2432697341);
 }
 
-/** Exported function `enc_epilogue`.
- * Implements `enc_epilogue`.
- * @param ctx *ElfCodegenCtx
- * @return i32
+/**
+ * wave414: match bottom-x29 prologue (ldp [sp] then add sp,#fs).
+ * @param ctx *ElfCodegenCtx — emit context
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: MACOS|ARM64 — G.7 twin of product seed epilogue
  */
 export function enc_epilogue(ctx: *ElfCodegenCtx): i32 {
-  let imm12: i32 = ctx.current_frame_size;
-  if (imm12 > 4095) { imm12 = 4095; }
-  /* add sp, sp, #frame_size */
-  if (enc_u32_le(ctx, 2432697343 | (imm12 << 10)) != 0) { return -1; }
-  /* ldp x29, x30, [sp], #16 */
-  if (enc_u32_le(ctx, 2831252477) != 0) { return -1; }
+  let fs: i32 = ctx.current_frame_size;
+  if (fs < 0) { fs = 0; }
+  /* ldp x29, x30, [sp] — 0xA9407BFD as signed i32 */
+  if (enc_u32_le(ctx, 0 - 1455367171) != 0) { return -1; }
+  let left: i32 = fs;
+  while (left > 0) {
+    let chunk: i32 = left;
+    if (chunk > 4095) { chunk = 4095; }
+    if (enc_u32_le(ctx, 2432697343 | (chunk << 10)) != 0) { return -1; }
+    left = left - chunk;
+  }
   /* ret */
   return enc_u32_le(ctx, 3596551104);
 }
@@ -641,17 +656,17 @@ export function enc_cset_w0_from_cc(ctx: *ElfCodegenCtx, cc: i32): i32 {
   return enc_u32_le(ctx, 446629856 | (c << 12));
 }
 
-/** Exported function `enc_cmp_setcc_movzbl`.
- * Comparison/utility `enc_cmp_setcc_movzbl`.
- * @param ctx *ElfCodegenCtx
- * @param cc i32
- * @return i32
+/**
+ * Emit cset w0 from logical compare code (setcc only; caller already emitted cmp).
+ * @param ctx *ElfCodegenCtx — ELF/Mach-O emit context
+ * @param cc i32 — 0=eq, 1=ne, 2=lt, 3=le, 4=gt, 5=ge
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: MACOS|ARM64 — G.7 align seeds/backend_arm64_enc_c.from_x.c
+ * arch_arm64_enc_enc_cmp_setcc_movzbl (wave388: do not re-emit cmp; honor cc).
  */
 export function enc_cmp_setcc_movzbl(ctx: *ElfCodegenCtx, cc: i32): i32 {
-  /* cmp w1, w0 */
-  if (enc_u32_le(ctx, 1795162175) != 0) { return -1; }
   let c: i32 = pipeline_asm_arm64_cset_cond_enc_from_cc(cc);
-  /* See implementation. */
+  /* CSET W0,<cond> = 0x1a9f07e0 | (invert(cond)<<12). */
   return enc_u32_le(ctx, 446629856 | (c << 12));
 }
 
@@ -712,47 +727,80 @@ export function enc_load_x29_pos_to_rax(ctx: *ElfCodegenCtx, off_pos: i32): i32 
   return enc_u32_le(ctx, base | tail);
 }
 
-/** Exported function `enc_store_x_reg_to_rbp`.
- * Implements `enc_store_x_reg_to_rbp`.
- * @param ctx *ElfCodegenCtx
- * @param reg i32
- * @param offset i32
- * @return i32
+/**
+ * Store Xn (reg) into the frame home at logical offset.
+ * @param ctx *ElfCodegenCtx — ELF/Mach-O emit context
+ * @param reg i32 — AAPCS64 Xn index (0..30); param home uses x0–x7
+ * @param offset i32 — logical home bytes (this twin: STUR [x29, #-offset])
+ * @return i32 — 0 success
+ * PLATFORM: MACOS|ARM64 — G.7 twin of seeds/backend_arm64_enc_c.from_x.c
+ * arch_arm64_enc_enc_store_x_reg_to_rbp (wave392: must take reg+offset; product
+ * seed uses positive STR [x29,#off] matching other product frame slots).
+ * Soft residual: static/COMMON reentrancy last-wins on host-C __xlang_sp.
  */
 export function enc_store_x_reg_to_rbp(ctx: *ElfCodegenCtx, reg: i32, offset: i32): i32 {
+  // STUR Xt, [x29, #simm9] with simm9 = -offset (negative local direction).
   let simm9: i32 = 0 - offset;
   if (simm9 < -256) { simm9 = -256; }
   let u9: i32 = simm9 & 511;
   let rt: i32 = reg;
   if (rt < 0) { rt = 0; }
   if (rt > 30) { rt = 30; }
-  /* See implementation. */
+  /* base = 0xf8000000 as signed i32 (STUR 64-bit). */
   let base: i32 = 0 - 134217728;
   return enc_u32_le(ctx, base | (u9 << 12) | (29 << 5) | rt);
 }
 
-/** Exported function `enc_lea_rbp_to_rax`.
- * Implements `enc_lea_rbp_to_rax`.
- * @param ctx *ElfCodegenCtx
- * @param offset i32
- * @return i32
+/**
+ * LEA x0 = x29 + offset (multi-chunk when offset > 4095).
+ * @param ctx *ElfCodegenCtx — emit context
+ * @param offset i32 — non-negative frame home bytes preferred
+ * @return i32 — 0 success
+ * wave420: product authority = seeds/backend_arm64_enc_c.from_x.c
+ * arch_arm64_enc_enc_lea_rbp_to_rax (multi-chunk ADD; no byte-offset clamp).
+ * This .x twin keeps multi-chunk for future M-path; product links the C seed.
+ * PLATFORM: MACOS|ARM64.
  */
 export function enc_lea_rbp_to_rax(ctx: *ElfCodegenCtx, offset: i32): i32 {
-  let imm12: i32 = offset;
-  if (imm12 > 4095) { imm12 = 4095; }
-  return enc_u32_le(ctx, 3506439072 | (imm12 << 10));
+  let left: i32 = offset;
+  if (left < 0) { left = 0; }
+  /* mov x0, x29 ≡ orr x0, xzr, x29 — 0xAA1D03E0 as signed i32 */
+  let movw: i32 = 0 - 1440939040;
+  if (enc_u32_le(ctx, movw) != 0) { return 0 - 1; }
+  while (left > 0) {
+    let chunk: i32 = left;
+    if (chunk > 4095) { chunk = 4095; }
+    /* add x0, x0, #chunk — base 0x91000000 as signed + (chunk<<10) */
+    let addb: i32 = 0 - 1862270976;
+    if (enc_u32_le(ctx, addb | (chunk << 10)) != 0) { return 0 - 1; }
+    left = left - chunk;
+  }
+  return 0;
 }
 
-/** Exported function `enc_lea_rbp_to_rbx`.
- * Implements `enc_lea_rbp_to_rbx`.
+/**
+ * LEA x1 = x29 + offset (multi-chunk twin of enc_lea_rbp_to_rax).
  * @param ctx *ElfCodegenCtx
  * @param offset i32
- * @return i32
+ * @return i32 — 0 success
+ * wave420: product authority twin seeds/backend_arm64_enc_c.from_x.c.
+ * PLATFORM: MACOS|ARM64.
  */
 export function enc_lea_rbp_to_rbx(ctx: *ElfCodegenCtx, offset: i32): i32 {
-  let imm12: i32 = offset;
-  if (imm12 > 4095) { imm12 = 4095; }
-  return enc_u32_le(ctx, 3506439072 | (imm12 << 10) | 1);
+  let left: i32 = offset;
+  if (left < 0) { left = 0; }
+  /* mov x1, x29 ≡ orr x1, xzr, x29 — 0xAA1D03E1 as signed */
+  let movw: i32 = 0 - 1440939039;
+  if (enc_u32_le(ctx, movw) != 0) { return 0 - 1; }
+  while (left > 0) {
+    let chunk: i32 = left;
+    if (chunk > 4095) { chunk = 4095; }
+    /* add x1, x1, #chunk — 0x91000021 + (chunk<<10) */
+    let addb: i32 = 0 - 1862270943;
+    if (enc_u32_le(ctx, addb | (chunk << 10)) != 0) { return 0 - 1; }
+    left = left - chunk;
+  }
+  return 0;
 }
 
 /**
@@ -784,31 +832,40 @@ export function enc_memset_rbp_zero(ctx: *ElfCodegenCtx, rbp_off: i32, nbytes: i
   return enc_call(ctx, memset_nm, 6);
 }
 
-/** Exported function `enc_rax_plus_rbx_scale1`.
- * Implements `enc_rax_plus_rbx_scale1`.
- * @param ctx *ElfCodegenCtx
- * @return i32
+/**
+ * Encode ADD X0, X0, X1, LSL #0 (×1 index scale).
+ * @param ctx *ElfCodegenCtx — ELF/Mach-O text buffer
+ * @return i32 — 0 on success
+ * wave417: correct ARM64 ADD shifted-register encoding (imm6=0).
+ * PLATFORM: MACOS|ARM64 — twin of seeds/backend_arm64_enc_c.from_x.c
  */
 export function enc_rax_plus_rbx_scale1(ctx: *ElfCodegenCtx): i32 {
-  return enc_u32_le(ctx, 2334212096);
+  /* 0x8b010000 */
+  return enc_u32_le(ctx, 2332033024);
 }
 
-/** Exported function `enc_rax_plus_rbx_scale4`.
- * Implements `enc_rax_plus_rbx_scale4`.
- * @param ctx *ElfCodegenCtx
- * @return i32
+/**
+ * Encode ADD X0, X0, X1, LSL #2 (×4 index scale for i32/f32).
+ * @param ctx *ElfCodegenCtx — ELF/Mach-O text buffer
+ * @return i32 — 0 on success
+ * wave417: was wrong imm6 (×64); must be imm6=2. G.7 twin product seed.
+ * PLATFORM: MACOS|ARM64
  */
 export function enc_rax_plus_rbx_scale4(ctx: *ElfCodegenCtx): i32 {
-  return enc_u32_le(ctx, 2334214144);
+  /* 0x8b010800 */
+  return enc_u32_le(ctx, 2332100608);
 }
 
-/** Exported function `enc_rax_plus_rbx_scale8`.
- * Implements `enc_rax_plus_rbx_scale8`.
- * @param ctx *ElfCodegenCtx
- * @return i32
+/**
+ * Encode ADD X0, X0, X1, LSL #3 (×8 index scale for i64/ptr/f64).
+ * @param ctx *ElfCodegenCtx — ELF/Mach-O text buffer
+ * @return i32 — 0 on success
+ * wave417: was wrong imm6 (×128); must be imm6=3. G.7 twin product seed.
+ * PLATFORM: MACOS|ARM64
  */
 export function enc_rax_plus_rbx_scale8(ctx: *ElfCodegenCtx): i32 {
-  return enc_u32_le(ctx, 2334215168);
+  /* 0x8b010c00 */
+  return enc_u32_le(ctx, 2332101632);
 }
 
 /** Exported function `enc_store_rax_to_rbx_indirect`.
@@ -887,27 +944,39 @@ export function enc_load_rbp_to_x2(ctx: *ElfCodegenCtx, offset: i32): i32 {
   return enc_u32_le(ctx, base | (u9 << 12) | (29 << 5) | 2);
 }
 
-/** Exported function `enc_rbx_plus_x2_scale1`.
- * Implements `enc_rbx_plus_x2_scale1`.
- * @param ctx *ElfCodegenCtx
- * @return i32
+/**
+ * Encode ADD X0, X1, X2, LSL #0 — base@x1 + index@x2 → EA@x0 (×1).
+ * @param ctx *ElfCodegenCtx — ELF/Mach-O text buffer
+ * @return i32 — 0 on success
+ * PLATFORM: MACOS|ARM64 — twin product seed (result in x0 for [x0] load).
  */
 export function enc_rbx_plus_x2_scale1(ctx: *ElfCodegenCtx): i32 {
-  return enc_u32_le(ctx, 2334212096 + 65569);
+  /* 0x8b020020 */
+  return enc_u32_le(ctx, 2332164128);
 }
 
-/** add x1, x1, w2, uxtw #2（×4）。 */
+/**
+ * Encode ADD X0, X1, X2, LSL #2 — base@x1 + index@x2 → EA@x0 (×4).
+ * @param ctx *ElfCodegenCtx — ELF/Mach-O text buffer
+ * @return i32 — 0 on success
+ * wave417: was wrong imm6 (×64). G.7 twin product seed.
+ * PLATFORM: MACOS|ARM64
+ */
 export function enc_rbx_plus_x2_scale4(ctx: *ElfCodegenCtx): i32 {
-  return enc_u32_le(ctx, 2334214144 + 65569);
+  /* 0x8b020820 */
+  return enc_u32_le(ctx, 2332166176);
 }
 
-/** Exported function `enc_rbx_plus_x2_scale8`.
- * Implements `enc_rbx_plus_x2_scale8`.
- * @param ctx *ElfCodegenCtx
- * @return i32
+/**
+ * Encode ADD X0, X1, X2, LSL #3 — base@x1 + index@x2 → EA@x0 (×8).
+ * @param ctx *ElfCodegenCtx — ELF/Mach-O text buffer
+ * @return i32 — 0 on success
+ * wave417: was wrong imm6 (×128). G.7 twin product seed.
+ * PLATFORM: MACOS|ARM64
  */
 export function enc_rbx_plus_x2_scale8(ctx: *ElfCodegenCtx): i32 {
-  return enc_u32_le(ctx, 2334215168 + 65569);
+  /* 0x8b020c20 */
+  return enc_u32_le(ctx, 2332167200);
 }
 
 /** ldr x0, [x0]。 */
@@ -915,9 +984,19 @@ export function enc_load_64_from_rax(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 4181721088);
 }
 
-/* See implementation. */
-export function enc_store_rax_to_rbx_offset(ctx: *ElfCodegenCtx, offset: i32, store_size:
-i32): i32 {
+/**
+ * Store value@x0 into [x1 + offset] with ARM64 scaled-imm width matching store_size.
+ * @param ctx *ElfCodegenCtx — pure-asm emit context
+ * @param offset i32 — byte offset from base in x1; negative clamped to 0
+ * @param store_size i32 — 1=STRB, 2=STRH, 4=STR W, else STR X (scale 1/2/4/8)
+ * @return i32 — 0 ok, non-zero on emit failure
+ * PLATFORM: MACOS|ARM64 product pure-asm (ta==1). Authority twin: seeds/backend_arm64_enc_c.from_x.c
+ * wave391: product seed previously ignored store_size (always STR X /8) → multi-field STRUCT_LIT wrong.
+ */
+export function enc_store_rax_to_rbx_offset(ctx: *ElfCodegenCtx, offset: i32, store_size: i32): i32 {
+  if (offset < 0) {
+    offset = 0;
+  }
   if (store_size == 1) {
     /* strb w0, [x1, #offset] — imm12 bytes 0..4095 (u8[] array-lit byte-wise init). */
     let imm12: i32 = offset;
@@ -926,15 +1005,27 @@ i32): i32 {
     }
     return enc_u32_le(ctx, 956301312 | (imm12 << 10) | (1 << 5));
   }
+  if (store_size == 2) {
+    /* strh w0, [x1, #offset] — offset multiple of 2 */
+    let imm12: i32 = offset / 2;
+    if (imm12 > 4095) {
+      imm12 = 4095;
+    }
+    return enc_u32_le(ctx, 2030043136 | (imm12 << 10) | (1 << 5));
+  }
   if (store_size == 4) {
     /* str w0, [x1, #offset] — offset must be a multiple of 4 */
     let imm12: i32 = offset / 4;
-    if (imm12 > 4095) { imm12 = 4095; }
+    if (imm12 > 4095) {
+      imm12 = 4095;
+    }
     return enc_u32_le(ctx, 3103784960 | (imm12 << 10) | (1 << 5));
   }
   /* str x0, [x1, #offset] — offset must be a multiple of 8 */
   let imm12: i32 = offset / 8;
-  if (imm12 > 4095) { imm12 = 4095; }
+  if (imm12 > 4095) {
+    imm12 = 4095;
+  }
   return enc_u32_le(ctx, 4177526784 | (imm12 << 10) | (1 << 5));
 }
 
