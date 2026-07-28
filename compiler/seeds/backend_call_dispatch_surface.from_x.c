@@ -265,7 +265,7 @@ int32_t glue_asm_fill_c_prefix_from_module_import(uint8_t * mod, int32_t ix, uin
   if ((pre ==0)) {
     return (0 - 1);
   }
-  uint8_t path_bytes[64] = {};
+  uint8_t path_bytes[128] = {};
   {
     (void)(parser_get_module_import_path(mod, ix, &((path_bytes)[0])));
     if (((path_bytes)[0] ==0)) {
@@ -679,7 +679,7 @@ int32_t glue_asm_build_call_export_sym_c(uint8_t * arena, int32_t call_expr_ref,
     if ((clen > 63)) {
       return (0 - 1);
     }
-    uint8_t cname[64] = {};
+    uint8_t cname[128] = {};
     (void)(pipeline_expr_var_name_into(arena, callee_ref, &((cname)[0])));
     int32_t rlen = glue_try_std_heap_redirect_sym_local(&((cname)[0]), clen, out, out_cap);
     if ((rlen > 0)) {
@@ -736,7 +736,7 @@ int32_t glue_asm_build_call_export_sym_c(uint8_t * arena, int32_t call_expr_ref,
             (void)((fi2 = (fi2 + 1)));
           }
         }
-        uint8_t path[64] = {};
+        uint8_t path[128] = {};
         int32_t zi = 0;
         while ((zi < 64)) {
           (void)(((path)[zi] = 0));
@@ -869,10 +869,10 @@ int32_t glue_asm_build_func_export_sym_c(uint8_t * m, uint8_t * a, int32_t func_
     if ((fname_len <=0)) {
       return (0 - 1);
     }
-    if ((fname_len > 63)) {
+    if ((fname_len > 127)) {
       return (0 - 1);
     }
-    uint8_t fname[64] = {};
+    uint8_t fname[128] = {};
     (void)(pipeline_asm_module_func_name_copy64(m, func_ix, &((fname)[0])));
     if ((glue_module_func_overload_count_c(m, &((fname)[0]), fname_len) <=1)) {
       int32_t pos0 = glue_asm_build_dep_export_sym_c(&((fname)[0]), fname_len, out, out_cap);
@@ -967,8 +967,8 @@ int32_t glue_asm_try_emit_fmt_string_lit_import_call_elf_c(uint8_t * arena, uint
     int32_t nargs = pipeline_expr_call_num_args_at(arena, call_expr_ref);
     int32_t arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, 0);
     int32_t slen = glue_asm_string_lit_len(arena, arg_ref);
-    uint8_t sbuf[64] = {};
-    uint8_t sym_flat[64] = {};
+    uint8_t sbuf[128] = {};
+    uint8_t sym_flat[128] = {};
     int32_t sym_len = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, field_name, field_len, &((sym_flat)[0]));
     if ((glue_asm_prefix_is_fmt_or_debug(pre_buf, pre_len) ==0)) {
       return 0;
@@ -1035,7 +1035,7 @@ int32_t glue_asm_enc_call_redirected(uint8_t * elf_ctx, uint8_t * name, int32_t 
     return (0 - 1);
   }
   {
-    uint8_t redir[64] = {};
+    uint8_t redir[128] = {};
     int32_t rlen = glue_try_std_heap_redirect_sym_local(name, name_len, &((redir)[0]), 64);
     if ((rlen <=0)) {
       (void)((rlen = glue_try_std_string_xlang_redirect_sym_local(name, name_len, &((redir)[0]), 64)));
@@ -1190,7 +1190,7 @@ int32_t glue_asm_emit_string_lit_ptr_rax_elf_c(uint8_t * arena, uint8_t * elf_ct
   }
   {
     int32_t slen = glue_asm_string_lit_len(arena, str_expr_ref);
-    uint8_t sbuf[64] = {};
+    uint8_t sbuf[128] = {};
     if ((pipeline_expr_kind_ord_at(arena, str_expr_ref) !=59)) {
       return (0 - 1);
     }
@@ -1287,7 +1287,7 @@ int32_t pipeline_asm_resolve_whole_import_qualified_symbol_c(uint8_t * arena, ui
     int32_t cur_ref = callee_expr_ref;
     int32_t nstack = asm_qual_sym_layer_count();
     int32_t vnlen = pipeline_expr_var_name_len(arena, cur_ref);
-    uint8_t vname_buf[64] = {};
+    uint8_t vname_buf[128] = {};
     int32_t dep_j = 0;
     int32_t nimp = parser_get_module_num_imports(cur_mod);
     if ((pipeline_expr_kind_ord_at(arena, callee_expr_ref) !=44)) {
@@ -1296,7 +1296,7 @@ int32_t pipeline_asm_resolve_whole_import_qualified_symbol_c(uint8_t * arena, ui
     (void)(asm_qual_sym_layer_reset());
     while ((1 ==1)) {
       int32_t falen = pipeline_expr_field_access_name_len(arena, cur_ref);
-      uint8_t layer_buf[64] = {};
+      uint8_t layer_buf[128] = {};
       if ((cur_ref <=0)) {
         return (0 - 1);
       }
@@ -1324,7 +1324,7 @@ int32_t pipeline_asm_resolve_whole_import_qualified_symbol_c(uint8_t * arena, ui
     if ((vnlen <=0)) {
       return (0 - 1);
     }
-    if ((vnlen > 63)) {
+    if ((vnlen > 127)) {
       return (0 - 1);
     }
     (void)(pipeline_expr_var_name_into(arena, cur_ref, &((vname_buf)[0])));
@@ -1338,7 +1338,7 @@ int32_t pipeline_asm_resolve_whole_import_qualified_symbol_c(uint8_t * arena, ui
         (void)((dep_j = (dep_j + 1)));
         continue;
       }
-      uint8_t path_cnt_buf[64] = {};
+      uint8_t path_cnt_buf[128] = {};
       int32_t pci = 0;
       while ((pci < plen)) {
         if ((pci >=64)) {
@@ -1376,7 +1376,7 @@ int32_t pipeline_asm_resolve_whole_import_qualified_symbol_c(uint8_t * arena, ui
           break;
         }
         int32_t lay_ix = (pseg - sm);
-        uint8_t layer_mid[64] = {};
+        uint8_t layer_mid[128] = {};
         (void)(asm_qual_sym_layer_copy(lay_ix, &((layer_mid)[0]), 64));
         if ((glue_asm_import_path_slice_equal(cur_mod, dep_j, srv, slv, &((layer_mid)[0]), asm_qual_sym_layer_len(lay_ix)) ==0)) {
           (void)((bad_mid = 1));
@@ -1394,7 +1394,7 @@ int32_t pipeline_asm_resolve_whole_import_qualified_symbol_c(uint8_t * arena, ui
         (void)((dep_j = (dep_j + 1)));
         continue;
       }
-      uint8_t layer0[64] = {};
+      uint8_t layer0[128] = {};
       (void)(asm_qual_sym_layer_copy(0, &((layer0)[0]), 64));
       int32_t blt = glue_asm_build_import_binding_call_sym(&((pre_buf)[0]), pre_len, &((layer0)[0]), asm_qual_sym_layer_len(0), sym_flat);
       if ((out_match_imp_j !=0)) {
@@ -1490,10 +1490,10 @@ int32_t pipeline_asm_emit_method_call_elf_c(uint8_t * arena, uint8_t * elf_ctx, 
     if ((name_len <=0)) {
       return (0 - 1);
     }
-    if ((name_len > 63)) {
+    if ((name_len > 127)) {
       return (0 - 1);
     }
-    uint8_t name[64] = {};
+    uint8_t name[128] = {};
     (void)(pipeline_expr_method_call_name_into(arena, expr_ref, &((name)[0])));
     if ((mod_ref !=0)) {
       if ((base_ref > 0)) {
@@ -1501,7 +1501,7 @@ int32_t pipeline_asm_emit_method_call_elf_c(uint8_t * arena, uint8_t * elf_ctx, 
           int32_t base_len = pipeline_expr_var_name_len(arena, base_ref);
           if ((base_len > 0)) {
             if ((base_len <=63)) {
-              uint8_t base_name[64] = {};
+              uint8_t base_name[128] = {};
               (void)(pipeline_expr_var_name_into(arena, base_ref, &((base_name)[0])));
               int32_t j = 0;
               int32_t nimp = parser_get_module_num_imports(mod_ref);
@@ -1513,7 +1513,7 @@ int32_t pipeline_asm_emit_method_call_elf_c(uint8_t * arena, uint8_t * elf_ctx, 
                     if ((pre_len <=0)) {
                       return (0 - 1);
                     }
-                    uint8_t sym_flat[64] = {};
+                    uint8_t sym_flat[128] = {};
                     int32_t sym_len = glue_asm_build_import_binding_call_sym(&((pre_buf)[0]), pre_len, &((name)[0]), name_len, &((sym_flat)[0]));
                     if ((sym_len <=0)) {
                       return (0 - 1);
@@ -1682,12 +1682,12 @@ int32_t pipeline_asm_emit_call_elf_c(uint8_t * arena, uint8_t * elf_ctx, int32_t
             int32_t base_len = pipeline_expr_var_name_len(arena, base_ref);
             if ((base_len > 0)) {
               if ((base_len <=63)) {
-                uint8_t base_name[64] = {};
+                uint8_t base_name[128] = {};
                 (void)(pipeline_expr_var_name_into(arena, base_ref, &((base_name)[0])));
                 int32_t field_len = pipeline_expr_field_access_name_len(arena, callee_ref);
                 if ((field_len > 0)) {
                   if ((field_len <=63)) {
-                    uint8_t field_name[64] = {};
+                    uint8_t field_name[128] = {};
                     (void)(pipeline_expr_field_access_name_into(arena, callee_ref, &((field_name)[0])));
                     int32_t j = 0;
                     int32_t nimp = parser_get_module_num_imports(mod_ref);
@@ -1699,7 +1699,7 @@ int32_t pipeline_asm_emit_call_elf_c(uint8_t * arena, uint8_t * elf_ctx, int32_t
                           if ((pre_len <=0)) {
                             return (0 - 1);
                           }
-                          uint8_t sym_flat[64] = {};
+                          uint8_t sym_flat[128] = {};
                           int32_t sym_len = glue_asm_build_import_binding_call_sym(&((pre_buf)[0]), pre_len, &((field_name)[0]), field_len, &((sym_flat)[0]));
                           if ((sym_len <=0)) {
                             return (0 - 1);
@@ -1742,7 +1742,7 @@ int32_t pipeline_asm_emit_call_elf_c(uint8_t * arena, uint8_t * elf_ctx, int32_t
     if ((mod_ref !=0)) {
       if ((callee_ko ==44)) {
         int32_t imp_elt = 0;
-        uint8_t sym_eh[64] = {};
+        uint8_t sym_eh[128] = {};
         int32_t elen = pipeline_asm_resolve_whole_import_qualified_symbol_c(arena, mod_ref, callee_ref, &((sym_eh)[0]), &(imp_elt));
         if ((elen > 0)) {
           if ((imp_elt >=0)) {
@@ -1754,7 +1754,7 @@ int32_t pipeline_asm_emit_call_elf_c(uint8_t * arena, uint8_t * elf_ctx, int32_t
               if ((field_len2 > 63)) {
                 return (0 - 1);
               }
-              uint8_t field_name2[64] = {};
+              uint8_t field_name2[128] = {};
               (void)(pipeline_expr_field_access_name_into(arena, callee_ref, &((field_name2)[0])));
               uint8_t pre_eb[128] = {};
               int32_t pre_el = glue_asm_fill_c_prefix_from_module_import(mod_ref, imp_elt, &((pre_eb)[0]));
@@ -1886,7 +1886,7 @@ int32_t pipeline_asm_emit_call_elf_c(uint8_t * arena, uint8_t * elf_ctx, int32_t
     if ((clen0 > 63)) {
       return (0 - 1);
     }
-    uint8_t cname[64] = {};
+    uint8_t cname[128] = {};
     int32_t clen = glue_asm_build_call_export_sym_c(arena, expr_ref, callee_ref, mod_ref, dep_pipe, &((cname)[0]), 64);
     if ((clen <=0)) {
       return (0 - 1);

@@ -59,7 +59,7 @@ export extern function pipeline_elf_log_unresolved_patch(ctx: *ElfCodegenCtx, pa
 
 /* See implementation. */
 export struct ElfLabelEntry {
-  name: u8[64];
+  name: u8[128];
   name_len: i32;
   offset: i32;
 }
@@ -67,7 +67,7 @@ export struct ElfLabelEntry {
 /** See implementation for details. */
 export struct ElfPatchEntry {
   rel32_offset: i32;
-  name: u8[64];
+  name: u8[128];
   name_len: i32;
   /* See implementation. */
   patch_imm_bits: i32;
@@ -84,12 +84,12 @@ export struct ElfRelocEntry {
 }
 
 export struct ElfRelocSymName64 {
-  bytes: u8[64];
+  bytes: u8[128];
 }
 
 /* See implementation. */
 export struct ElfSymEntry {
-  name: u8[64];
+  name: u8[128];
   name_len: i32;
   offset: i32;
   /** ELF st_shndx：1=.text，2=.text.hot（PGO-Lite）。 */
@@ -367,13 +367,13 @@ export function elf_add_sym(ctx: *ElfCodegenCtx, name: *u8, name_len: i32, offse
 
 /** Exported function `elf_name_eq`.
  * Implements `elf_name_eq`.
- * @param a u8[64]
+ * @param a u8[128]
  * @param a_len i32
- * @param b u8[64]
+ * @param b u8[128]
  * @param b_len i32
  * @return i32
  */
-export function elf_name_eq(a: u8[64], a_len: i32, b: u8[64], b_len: i32): i32 {
+export function elf_name_eq(a: u8[128], a_len: i32, b: u8[128], b_len: i32): i32 {
   if (a_len != b_len) {
     return 0;
   }
@@ -391,7 +391,7 @@ export function elf_name_eq(a: u8[64], a_len: i32, b: u8[64], b_len: i32): i32 {
 * See implementation.
 * See implementation.
 */
-export function elf_name_eq_arr_to_pool(name: u8[64], name_len: i32, pool: *u8, pool_len: i32): i32 {
+export function elf_name_eq_arr_to_pool(name: u8[128], name_len: i32, pool: *u8, pool_len: i32): i32 {
   if (name_len != pool_len) {
     return 0;
   }
@@ -413,7 +413,7 @@ export function elf_name_eq_arr_to_pool(name: u8[64], name_len: i32, pool: *u8, 
  */
 export function elf_reloc_target_is_defined(ctx: *ElfCodegenCtx, reloc_idx: i32): i32 {
   let m: i32 = 0;
-  let r_sym_buf: u8[64] = [];
+  let r_sym_buf: u8[128] = [];
   pipeline_elf_ctx_reloc_sym_name_copy64(ctx as *u8, reloc_idx, &r_sym_buf[0]);
   let rlen: i32 = pipeline_elf_ctx_reloc_name_len(ctx as *u8, reloc_idx);
   while (m < ctx.num_syms) {

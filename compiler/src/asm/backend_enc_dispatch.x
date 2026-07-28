@@ -122,7 +122,7 @@ export function backend_enc_arm64_call_c(elf_ctx: *u8, name: *u8, name_len: i32)
     if (macho != 0) {
       if (name_len <= 63) {
         if (name[0] != 95) {
-          let reloc_name: u8[64] = [];
+          let reloc_name: u8[128] = [];
           reloc_name[0] = 95;
           let i: i32 = 0;
           while (i < name_len) {

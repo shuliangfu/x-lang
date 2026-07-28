@@ -1647,7 +1647,7 @@ export function driver_diagnostic_warn_pad_fields_same_cache_line(sname: *u8, sn
   at = driver_diag_append_name(&msg[0], 384, at, f0, f0_len);
   at = driver_diag_append_cstr(&msg[0], 384, at, "' and '");
   at = driver_diag_append_name(&msg[0], 384, at, f1, f1_len);
-  // Split long cstr: product codegen string-lit cap ~63 bytes (G.9 / no silent truncate).
+  // Split long cstr: product codegen string-lit cap ~127 bytes (G.9 / no silent truncate).
   at = driver_diag_append_cstr(&msg[0], 384, at, "' share a 64-byte cache line; ");
   at = driver_diag_append_cstr(&msg[0], 384, at, "consider align(64) to avoid false sharing");
   unsafe {
@@ -1721,7 +1721,7 @@ export function driver_diagnostic_typeck_binop_operands(expr_ref: i32, left_ref:
   driver_diag_fill_expr_part(&left_buf[0], 112, left_ty, left_ty_len);
   driver_diag_fill_expr_part(&right_buf[0], 112, right_ty, right_ty_len);
   let msg: u8[384] = [];
-  // Split long cstrs: product codegen string-lit cap ~63 bytes.
+  // Split long cstrs: product codegen string-lit cap ~127 bytes.
   let at: i32 = driver_diag_append_cstr(&msg[0], 384, 0, "typeck binop debug: expr=");
   at = driver_diag_append_i32(&msg[0], 384, at, expr_ref);
   at = driver_diag_append_cstr(&msg[0], 384, at, " left_ref=");

@@ -256,7 +256,7 @@ int32_t backend_enc_arm64_call_c(uint8_t * elf_ctx, uint8_t * name, int32_t name
     if ((macho !=0)) {
       if ((name_len <=63)) {
         if (((name)[0] !=95)) {
-          uint8_t reloc_name[64] = {};
+          uint8_t reloc_name[128] = {};
           (void)(((reloc_name)[0] = 95));
           int32_t i = 0;
           while ((i < name_len)) {

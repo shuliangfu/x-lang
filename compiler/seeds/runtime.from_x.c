@@ -1037,14 +1037,14 @@ extern int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, struc
 #define RUNTIME_PIPELINE_ELF_CTX_TABLE_CAP 16384
 
 typedef struct {
-    uint8_t name[64];
+    uint8_t name[128];
     int32_t name_len;
     int32_t offset;
 } RuntimePipelineElfLabelEntry;
 
 typedef struct {
     int32_t rel32_offset;
-    uint8_t name[64];
+    uint8_t name[128];
     int32_t name_len;
     int32_t patch_imm_bits;
 } RuntimePipelineElfPatchEntry;
@@ -1840,7 +1840,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
 #else
         if (n_imports > 0 && n_imports <= 32) {
             for (int i = 0; i < n_imports && n_deps < MAX_ALL_DEPS; i++) {
-                uint8_t path_buf[64];
+                uint8_t path_buf[128];
                 parser_get_module_import_path(module, i, path_buf);
                 char path_c[65];
                 size_t k = 0;
@@ -6152,7 +6152,7 @@ typedef struct DriverCompileStateSU {
     int32_t backend_asm_explicit;
     int32_t use_freestanding;
     int32_t parse_saw_target;
-    uint8_t target_cpu_buf[64];
+    uint8_t target_cpu_buf[128];
     int32_t target_cpu_len;
     int32_t target_cpu_features;
     int32_t print_target_cpu;

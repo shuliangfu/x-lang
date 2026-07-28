@@ -290,7 +290,7 @@ export function onefunc_result_pool_ptr(res: *OneFuncResult): *u8 {
 allow(padding) struct OneFuncResult {
   ok: bool;
   next_lex: Lexer;
-  name: u8[64];
+  name: u8[128];
   name_len: i32;
   num_params: i32;
   num_generic_params: i32;
@@ -313,10 +313,10 @@ allow(padding) struct OneFuncResult {
   return_val: i32;
   /* See implementation. */
   has_call_expr: bool;
-  call_callee_name: u8[64];
+  call_callee_name: u8[128];
   call_callee_len: i32;
   /* See implementation. */
-  return_var_name: u8[64];
+  return_var_name: u8[128];
   return_var_name_len: i32;
   /* See implementation. */
   return_expr_ref: i32;
@@ -810,7 +810,7 @@ export function advance_past_cond_rparen_into_buf(r_out: *LexerResult, lex: Lexe
 export function onefunc_result_layout_prime(): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let z64: u8[64] = [];
+  let z64: u8[128] = [];
   /* See implementation. */
   let _prime: OneFuncResult = OneFuncResult {
     ok: false,
@@ -907,7 +907,7 @@ export function onefunc_result_layout_prime_c(): void {
 export function onefunc_result_layout_prime_d(): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let ccn: u8[64] = [];
+  let ccn: u8[128] = [];
   let _q4: OneFuncResult = OneFuncResult {
     has_binop: false,
     binop_right_val: 0,
@@ -928,7 +928,7 @@ export function onefunc_result_layout_prime_d(): void {
 export function onefunc_result_layout_prime_d_b(): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let rvn: u8[64] = [];
+  let rvn: u8[128] = [];
   let _q4b: OneFuncResult = OneFuncResult {
     call_callee_len: 0,
     return_var_name: rvn,
@@ -1045,7 +1045,7 @@ export function copy_onefunc_into(dst: *OneFuncResult, src: *OneFuncResult): voi
 export function onefunc_scratch_empty(): OneFuncResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let z64: u8[64] = [];
+  let z64: u8[128] = [];
   return OneFuncResult {
     ok: false,
     next_lex: lexer.lexer_init(),
@@ -1110,10 +1110,10 @@ export function onefunc_finish_impl_to_out(
  * Implements `onefunc_res_wire_dummy_head`.
  * @param res *OneFuncResult
  * @param lex Lexer
- * @param name64 u8[64]
+ * @param name64 u8[128]
  * @return void
  */
-export function onefunc_res_wire_dummy_head(res: *OneFuncResult, lex: Lexer, name64: u8[64]): void {
+export function onefunc_res_wire_dummy_head(res: *OneFuncResult, lex: Lexer, name64: u8[128]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let _w: OneFuncResult = OneFuncResult { ok: false, next_lex: lex, name: name64, name_len: 0, num_params: 0 };
@@ -1153,10 +1153,10 @@ export function onefunc_res_wire_dummy_if_mul(res: *OneFuncResult): void {
 /** Exported function `onefunc_res_wire_dummy_call_binop`.
  * Implements `onefunc_res_wire_dummy_call_binop`.
  * @param res *OneFuncResult
- * @param name64 u8[64]
+ * @param name64 u8[128]
  * @return void
  */
-export function onefunc_res_wire_dummy_call_binop(res: *OneFuncResult, name64: u8[64]): void {
+export function onefunc_res_wire_dummy_call_binop(res: *OneFuncResult, name64: u8[128]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let _w: OneFuncResult = OneFuncResult { has_binop: false, binop_right_val: 0, binop_left_param_idx: -1, binop_right_param_idx: -1, has_unary_neg: false, return_val: 0, has_call_expr: false, call_callee_name: name64 };
@@ -1200,7 +1200,7 @@ export function onefunc_res_wire_dummy_for_if(res: *OneFuncResult): void {
 export function onefunc_alloc_wired_for_parse(lex: Lexer): OneFuncResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let dummy_name: u8[64] = [];
+  let dummy_name: u8[128] = [];
   let res: OneFuncResult = onefunc_scratch_empty();
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&res));
   onefunc_res_wire_dummy_head(&res, lex, dummy_name);
@@ -1217,7 +1217,7 @@ export function onefunc_alloc_wired_for_parse(lex: Lexer): OneFuncResult {
 export function onefunc_snap_set_return_path(
   snap: *OneFuncResult,
   has_call: bool,
-  ret_var: u8[64],
+  ret_var: u8[128],
   ret_var_len: i32,
   ret_expr_ref: i32
 ): void {
@@ -2795,7 +2795,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
      * PLATFORM: SHARED.
      */
     if (r.tok.kind == token.TokenKind.TOKEN_REGION) {
-      let reg_label_blk: u8[64] = [];
+      let reg_label_blk: u8[128] = [];
       let reg_label_len_blk: i32 = 0;
       let block_res_reg: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
       let reg_pool_i: i32 = 0;
@@ -2839,7 +2839,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
     }
     if (r.tok.kind == token.TokenKind.TOKEN_IDENT && r.tok.ident_len == 6) {
       /* See implementation. */
-      let unsafe_nm: u8[64] = [];
+      let unsafe_nm: u8[128] = [];
       copy_slice_to_name64(source, r.token_start, r.tok.ident_len, &unsafe_nm[0]);
       if (unsafe_nm[0] == 117 && unsafe_nm[1] == 110 && unsafe_nm[2] == 115 && unsafe_nm[3] == 97
       && unsafe_nm[4] == 102 && unsafe_nm[5] == 101) {
@@ -3500,7 +3500,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     let is_discard_name: i32 = 0;
     let name_len: i32 = 0;
     let name_start: usize = 0;
-    let name_row: u8[64] = [];
+    let name_row: u8[128] = [];
     let ni: i32 = 0;
     let zi: i32 = 0;
     lex_from_result_ptr_into(&lex, &r);
@@ -3548,7 +3548,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     } else if (r.tok.kind == token.TokenKind.TOKEN_SELF) {
       name_len = 4;
     }
-    if (name_len <= 0 || name_len > 63) {
+    if (name_len <= 0 || name_len > 127) {
       lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
     }
     /* token_start is real offset in slice; 0 is legal (do not use token_start!=0 as sentinel). */
@@ -3865,8 +3865,8 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
           if (wi_adj < 0) {
             wi_adj = 0;
           }
-          if (wi_adj > 63) {
-            wi_adj = 63;
+          if (wi_adj > 127) {
+            wi_adj = 127;
           }
           let nlen_adj: i32 = r.tok.ident_len;
           if (nlen_adj < 0) {
@@ -4908,7 +4908,7 @@ export function parse_into_result_empty_module_or_fail_tok(fail_tok: i32): Parse
   if (lexer.lexer_invalid_escape_pending() != 0) {
     return ParseIntoResult { ok: -1, main_idx: -1 }
   }
-  // wave283: string lit >63 semantic bytes is hard fail (not silent truncate).
+  // wave283: string lit >127 semantic bytes is hard fail (not silent truncate).
   if (lexer.lexer_string_lit_overflow_pending() != 0) {
     return ParseIntoResult { ok: -1, main_idx: -1 }
   }
@@ -5207,7 +5207,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   let out_clean: OneFuncResult = onefunc_alloc_wired_for_parse(lex);
   copy_onefunc_into(out, &out_clean);
   let out_ref: *OneFuncResult = out;
-  let dummy_name: u8[64] = [];
+  let dummy_name: u8[128] = [];
   /* See implementation. */
   let impl_snap: OneFuncResult = onefunc_scratch_empty();
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&impl_snap));
@@ -5281,7 +5281,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       set_onefunc_fail(out, lex); return;
     } else {
       func_name_len_storage[0] = r.tok.ident_len;
-      if (func_name_len_storage[0] <= 0 || func_name_len_storage[0] > 63) {
+      if (func_name_len_storage[0] <= 0 || func_name_len_storage[0] > 127) {
         set_onefunc_fail(out, lex); return;
       }
       name_start = r.next_lex.pos - func_name_len_storage[0];
@@ -5294,7 +5294,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       set_onefunc_fail(out, lex); return;
     }
     func_name_len_storage[0] = r.tok.ident_len;
-    if (func_name_len_storage[0] <= 0 || func_name_len_storage[0] > 63) {
+    if (func_name_len_storage[0] <= 0 || func_name_len_storage[0] > 127) {
       set_onefunc_fail(out, lex); return;
     }
     name_start = r.next_lex.pos - func_name_len_storage[0];
@@ -5691,7 +5691,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
        * PLATFORM: SHARED.
        */
       if (r.tok.kind == token.TokenKind.TOKEN_REGION) {
-        let reg_nm_fn: u8[64] = [];
+        let reg_nm_fn: u8[128] = [];
         let reg_nlen_fn: i32 = 0;
         let block_res_reg_fn: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
         let reg_idx_fn: i32 = 0;
@@ -5726,7 +5726,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       }
       /* See implementation. */
       if (r.tok.kind == token.TokenKind.TOKEN_IDENT && r.tok.ident_len == 6) {
-        let unsafe_nm_fn: u8[64] = [];
+        let unsafe_nm_fn: u8[128] = [];
         copy_slice_to_name64(source, r.token_start, r.tok.ident_len, &unsafe_nm_fn[0]);
         if (unsafe_nm_fn[0] == 117 && unsafe_nm_fn[1] == 110 && unsafe_nm_fn[2] == 115 && unsafe_nm_fn[3] == 97
         && unsafe_nm_fn[4] == 102 && unsafe_nm_fn[5] == 101) {
@@ -7021,7 +7021,7 @@ export extern function parser_module_try_register_enum_name_glue(module: *Module
 export function module_try_register_enum_name(module: *Module, name: *u8, name_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  if (module == 0 as *Module || name == 0 as *u8 || name_len <= 0 || name_len > 63) {
+  if (module == 0 as *Module || name == 0 as *u8 || name_len <= 0 || name_len > 127) {
     return -1;
   }
   let ei: i32 = 0;
@@ -7104,11 +7104,11 @@ function module_append_enum_variants_and_skip_body_into_buf(module: *Module, enu
       depth = depth + 1;
     } else if (depth == 1 && enum_idx >= 0 && r.tok.kind == token.TokenKind.TOKEN_IDENT) {
       let vlen: i32 = r.tok.ident_len;
-      if (vlen > 63) {
-        vlen = 63;
+      if (vlen > 127) {
+        vlen = 127;
       }
       let vstart: usize = r.token_start;
-      let vb: u8[64] = [];
+      let vb: u8[128] = [];
       let nk: i32 = 0;
       while (nk < vlen && nk < 64) {
         let ix: usize = vstart + (nk as usize);
@@ -7415,7 +7415,7 @@ function skip_one_extern(lex: Lexer, source: u8[]): Lexer {
  */
 allow(padding) struct ExternParseResult {
   next_lex: Lexer;
-  name: u8[64];
+  name: u8[128];
   name_len: i32;
   /* See implementation. */
   return_ty_ref: i32;
@@ -7481,7 +7481,7 @@ function write_extern_params_to_pools(arena: *ASTArena, module: *Module, func_re
 function extern_parse_set_fail(out: *ExternParseResult, lex: Lexer): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let empty64: u8[64] = [];
+  let empty64: u8[128] = [];
   out.next_lex = lex;
   out.name_len = -1;
   out.return_ty_ref = 0;
@@ -7675,7 +7675,7 @@ allow(padding) struct LibraryParseResult {
   ok: bool;
   _pad: u8[4];
   next_lex: Lexer;
-  name: u8[64];
+  name: u8[128];
   name_len: i32;
   _pad_tail: u8[4];
 }
@@ -7747,13 +7747,13 @@ struct LibraryParseScanResult {
   ok: bool;
   _pad: u8[4];
   next_lex: Lexer;
-  name: u8[64];
+  name: u8[128];
   name_len: i32;
   param_name: u8[32];
   param_name_len: i32;
-  param_type_name: u8[64];
+  param_type_name: u8[128];
   param_type_len: i32;
-  field_name: u8[64];
+  field_name: u8[128];
   field_len: i32;
   _pad_tail: u8[4];
   _pad_tail2: u8[4];
@@ -7782,15 +7782,15 @@ function parse_one_function_library_scan(lex: Lexer, source: u8[], result: *Libr
 
 /* See implementation. */
 /* See implementation. */
-extern function parser_struct_layout_name_exists_arr_glue(module: *Module, nm: u8[64], nlen: i32): bool;
+extern function parser_struct_layout_name_exists_arr_glue(module: *Module, nm: u8[128], nlen: i32): bool;
 /** Internal function `struct_layout_name_exists_arr`.
  * Implements `struct_layout_name_exists_arr`.
  * @param module *Module
- * @param nm u8[64]
+ * @param nm u8[128]
  * @param nlen i32
  * @return bool
  */
-function struct_layout_name_exists_arr(module: *Module, nm: u8[64], nlen: i32): bool {
+function struct_layout_name_exists_arr(module: *Module, nm: u8[128], nlen: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let k: i32 = 0;
@@ -7819,15 +7819,15 @@ function struct_layout_name_exists_arr(module: *Module, nm: u8[64], nlen: i32): 
 
 /* See implementation. */
 /* See implementation. */
-extern function parser_struct_layout_first_name_match_idx_glue(module: *Module, nm: u8[64], nlen: i32): i32;
+extern function parser_struct_layout_first_name_match_idx_glue(module: *Module, nm: u8[128], nlen: i32): i32;
 /** Internal function `struct_layout_first_name_match_idx`.
  * Implements `struct_layout_first_name_match_idx`.
  * @param module *Module
- * @param nm u8[64]
+ * @param nm u8[128]
  * @param nlen i32
  * @return i32
  */
-function struct_layout_first_name_match_idx(module: *Module, nm: u8[64], nlen: i32): i32 {
+function struct_layout_first_name_match_idx(module: *Module, nm: u8[128], nlen: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let k: i32 = 0;
@@ -7859,12 +7859,12 @@ function struct_layout_first_name_match_idx(module: *Module, nm: u8[64], nlen: i
  * See implementation.
  */
 /* See implementation. */
-extern function parser_struct_layout_placeholder_idx_glue(module: *Module, nm: u8[64], nlen: i32): i32;
+extern function parser_struct_layout_placeholder_idx_glue(module: *Module, nm: u8[128], nlen: i32): i32;
 /**
  * See implementation.
  * See implementation.
  */
-function struct_layout_placeholder_idx(module: *Module, nm: u8[64], nlen: i32): i32 {
+function struct_layout_placeholder_idx(module: *Module, nm: u8[128], nlen: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let k: i32 = 0;
@@ -8589,7 +8589,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     let lex_at_function: Lexer = lexer.lexer_init();
     lex_at_function = current_tok_lex;
     lex_from_next_into(&lex, r);
-    let parse_into_empty64: u8[64] = [];
+    let parse_into_empty64: u8[128] = [];
     let res: OneFuncResult = onefunc_scratch_empty();
     res = onefunc_scratch_empty();
     onefunc_res_wire_dummy_head(&res, lex, parse_into_empty64);
@@ -8599,7 +8599,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     onefunc_res_wire_dummy_loop_call(&res);
     onefunc_res_wire_dummy_for_if(&res);
     /* See implementation. */
-    let empty64_lib_first: u8[64] = [];
+    let empty64_lib_first: u8[128] = [];
     let lib_first: LibraryParseResult = LibraryParseResult { ok: false, _pad: [], next_lex: lex_at_function, name: empty64_lib_first, name_len: 0, _pad_tail: [] };
     lib_first = LibraryParseResult { ok: false, _pad: [], next_lex: lex_at_function, name: empty64_lib_first, name_len: 0, _pad_tail: [] };
     parse_one_function_library_into(&lib_first, arena, module, lex_at_function, source);
@@ -10766,7 +10766,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     lex_from_next_into(&lex, r);
     /* See implementation. */
     /* See implementation. */
-    let empty64_buf: u8[64] = [];
+    let empty64_buf: u8[128] = [];
     let res: OneFuncResult = onefunc_scratch_empty();
     res = onefunc_scratch_empty();
     onefunc_res_wire_dummy_head(&res, lex, empty64_buf);
@@ -10778,7 +10778,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     let slice_for_impl: u8[] = parser_slice_from_buf(data, len);
     slice_for_impl = parser_slice_from_buf(data, len);
     /* See implementation. */
-    let empty64_lib_buf_first: u8[64] = [];
+    let empty64_lib_buf_first: u8[128] = [];
     let lib_buf_first: LibraryParseResult = LibraryParseResult {
       ok: false,
       _pad: [],
@@ -10805,7 +10805,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       parse_one_function_buf_into(&res, arena, lex_at_function_buf, data, len);
     }
     if (!res.ok) {
-      let skip_name: u8[64] = [0];
+      let skip_name: u8[128] = [0];
       let skip_nlen: i32 = parse_peek_function_name_buf(lex_at_function_buf, data, len, &skip_name[0]);
       parser_diagnostic_parse_skip((lex_at_function_buf.pos) as i32, module.num_funcs, skip_nlen, &skip_name[0]);
       skip_one_function_full_into_buf(&lex, lex_at_function_buf, data, len);
@@ -11746,10 +11746,10 @@ export function get_module_num_imports(module: *Module): i32 {
  * Query helper `get_module_import_path`.
  * @param module *Module
  * @param i i32
- * @param out u8[64]
+ * @param out u8[128]
  * @return void
  */
-export function get_module_import_path(module: *Module, i: i32, out: u8[64]): void {
+export function get_module_import_path(module: *Module, i: i32, out: u8[128]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   if (i < 0 || i >= module.num_imports) {
@@ -11765,7 +11765,7 @@ export function get_module_import_path(module: *Module, i: i32, out: u8[64]): vo
  * See implementation.
  * See implementation.
  */
-export function copy_module_import_path64(module: *Module, i: i32, out: u8[64]): i32 {
+export function copy_module_import_path64(module: *Module, i: i32, out: u8[128]): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   get_module_import_path(module, i, out);
@@ -11804,7 +11804,7 @@ export function main(): i32 {
     }
   }
   // See implementation.
-  let src: u8[64] = [
+  let src: u8[128] = [
     102, 117, 110, 99, 116, 105, 111, 110, 32, 109, 97, 105, 110, 40, 41, 58,
     32, 105, 51, 50, 32, 123, 32, 114, 101, 116, 117, 114, 110, 32, 48, 59,
     32, 125, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

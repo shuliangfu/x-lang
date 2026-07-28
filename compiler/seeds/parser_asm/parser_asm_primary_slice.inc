@@ -209,14 +209,14 @@ static int parser_asm_suffix_debug_enabled(void) {
   return v && *v && *v != '0';
 }
 
-/** 从 source[token_start..] 拷贝 ident 到 e.var_name（最多 63 字节 + 零填充）。 */
+/** Copy ident into e.var_name (wave577 Cap: up to 127 bytes + zero-pad to 128). */
 static void parser_asm_primary_copy_ident_to_var_c(struct parser_asm_ast_expr *e, struct parser_asm_slice_u8 *source,
                                                    size_t start, int32_t len) {
   int32_t i;
   if (!e)
     return;
-  if (len > 63)
-    len = 63;
+  if (len > 127)
+    len = 127;
   e->var_name_len = len;
   for (i = 0; i < len; i++) {
     if (start + (size_t)i < source->length)
@@ -224,7 +224,7 @@ static void parser_asm_primary_copy_ident_to_var_c(struct parser_asm_ast_expr *e
     else
       e->var_name[i] = 0;
   }
-  while (i < 64) {
+  while (i < 128) {
     e->var_name[i] = 0;
     i++;
   }
@@ -504,8 +504,8 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
       }
       PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_field_access_name_audit_c(source, r->token_start, r->tok.ident_len));
       mname_len = r->tok.ident_len;
-      if (mname_len > 63)
-        mname_len = 63;
+      if (mname_len > 127)
+        mname_len = 127;
       {
         size_t mname_start = r->token_start;
         parser_asm_lex_from_result_val_into(lex, *r);
@@ -527,7 +527,7 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
             me.method_call_name[fi] = source->data[mname_start + (size_t)fi];
             fi++;
           }
-          while (fi < 64) {
+          while (fi < 128) {
             me.method_call_name[fi] = 0;
             fi++;
           }
@@ -595,7 +595,7 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
             fe.field_access_field_name[fi] = source->data[mname_start + (size_t)fi];
             fi++;
           }
-          while (fi < 64) {
+          while (fi < 128) {
             fe.field_access_field_name[fi] = 0;
             fi++;
           }
@@ -870,7 +870,7 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
         return;
       }
       ti = 0;
-      while (ti < 64) {
+      while (ti < 128) {
         tnm[ti] = fae.field_access_field_name[ti];
         ti = ti + 1;
       }
@@ -878,7 +878,7 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
       fae.kind = PARSER_ASM_FINISH_STRUCT_LIT_KIND;
       fae.struct_lit_struct_name_len = tlen;
       tj = 0;
-      while (tj < 64) {
+      while (tj < 128) {
         fae.struct_lit_struct_name[tj] = tnm[tj];
         tj = tj + 1;
       }
@@ -1862,7 +1862,7 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
         ri++;
       }
       e.var_name_len = wi;
-      while (wi < 64) {
+      while (wi < 128) {
         e.var_name[wi] = 0;
         wi++;
       }
@@ -1943,7 +1943,7 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
           ri_adj++;
         }
         e.var_name_len = wi_adj;
-        while (wi_adj < 64) {
+        while (wi_adj < 128) {
           e.var_name[wi_adj] = 0;
           wi_adj++;
         }

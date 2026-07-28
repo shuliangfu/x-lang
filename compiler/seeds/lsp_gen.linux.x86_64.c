@@ -321,7 +321,7 @@ int32_t lsp_parse_id(uint8_t * body, int32_t len, uint8_t * id_buf, int32_t id_b
   return (-1);
 }
 int32_t lsp_send_response(int32_t fd, uint8_t * body, int32_t body_len) {
-  uint8_t header[64] = { 0 };
+  uint8_t header[128] = { 0 };
   ((header)[0] = (67));
   ((1 < 0 || (1) >= 64 ? (xlang_panic_(1, 0), 0) : ((header)[1] = 111, 0)));
   ((2 < 0 || (2) >= 64 ? (xlang_panic_(1, 0), 0) : ((header)[2] = 110, 0)));

@@ -151,7 +151,7 @@ void pipeline_typeck_field_prebind_c(struct ast_Module *module, struct ast_ASTAr
                                             struct ast_PipelineDepCtx *ctx) {
   int32_t base_ref;
   int32_t vnlen;
-  uint8_t vbuf[64];
+  uint8_t vbuf[128] /* wave577 Cap name into */;
   int32_t param_pre;
   int32_t nt_pre;
 
@@ -186,11 +186,11 @@ int32_t pipeline_typeck_field_known_ptr_types_c(struct ast_Module *module, struc
   int32_t base_ty;
   int32_t bt_kind;
   int32_t elem_ty;
-  uint8_t inner_nm_buf[64];
+  uint8_t inner_nm_buf[128] /* wave577 Cap name into */;
   int32_t inner_nm_len;
   int32_t inner_ord;
   int32_t fl;
-  uint8_t fn_buf[64];
+  uint8_t fn_buf[128] /* wave577 Cap name into */;
   static const uint8_t nm_astarena[8] = {65, 83, 84, 65, 114, 101, 110, 97};
   static const uint8_t nm_types[5] = {116, 121, 112, 101, 115};
   static const uint8_t nm_num_types[9] = {110, 117, 109, 95, 116, 121, 112, 101, 115};
@@ -349,9 +349,9 @@ int32_t pipeline_typeck_field_layout_named_c(struct ast_Module *module, struct a
   int32_t base_ty;
   int32_t bt_kind;
   int32_t layout_named_ref;
-  uint8_t layout_nm_buf[64];
+  uint8_t layout_nm_buf[128] /* wave577 Cap name into */;
   int32_t layout_nm_len;
-  uint8_t fn_buf[64];
+  uint8_t fn_buf[128] /* wave577 Cap name into */;
   int32_t fl2;
   int32_t user_ev_tag;
   static const uint8_t nm_type_kind_ty[8] = {84, 121, 112, 101, 75, 105, 110, 100};
@@ -503,7 +503,7 @@ void pipeline_typeck_field_slice_c(struct ast_ASTArena *arena, int32_t expr_ref,
   int32_t elem_ty;
   int32_t fl;
   int32_t bt_kind;
-  uint8_t fn_buf[64];
+  uint8_t fn_buf[128] /* wave577 Cap name into */;
   static const uint8_t len_nm[6] = {108, 101, 110, 103, 116, 104};
   static const uint8_t dat_nm[4] = {100, 97, 116, 97};
   int32_t ut;
@@ -557,11 +557,11 @@ void pipeline_typeck_field_slice_c(struct ast_ASTArena *arena, int32_t expr_ref,
  */
 void pipeline_typeck_field_name_fallback_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t base_ref) {
   int32_t fl;
-  uint8_t fn_buf[64];
+  uint8_t fn_buf[128] /* wave577 Cap name into */;
   int32_t base_ty;
   int32_t bt_kind;
   int32_t named_ref;
-  uint8_t cob_nm[64];
+  uint8_t cob_nm[128] /* wave577 Cap name into */;
   int32_t cob_len;
   static const uint8_t nm_dat[4] = {100, 97, 116, 97};
   static const uint8_t nm_cob[13] = {67, 111, 100, 101, 103, 101, 110, 79, 117, 116, 66, 117, 102};
@@ -630,8 +630,8 @@ void pipeline_typeck_field_lexer_fallback_c(struct ast_Module *module, struct as
   int32_t base_ty;
   int32_t elem_ty;
   int32_t fl;
-  uint8_t fn_buf[64];
-  uint8_t vbuf[64];
+  uint8_t fn_buf[128] /* wave577 Cap name into */;
+  uint8_t vbuf[128] /* wave577 Cap name into */;
   int32_t vnlen;
   int32_t pr_fb;
   int32_t lx_fb;
@@ -691,9 +691,9 @@ void pipeline_typeck_field_lexer_fallback_c(struct ast_Module *module, struct as
 int32_t pipeline_typeck_field_import_binding_resolve_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                         int32_t expr_ref, int32_t base_ref,
                                                         struct ast_PipelineDepCtx *ctx) {
-  uint8_t base_name[64];
+  uint8_t base_name[128]; /* wave577 Cap */
   int32_t base_name_len;
-  uint8_t field_name[64];
+  uint8_t field_name[128]; /* wave577 Cap */
   int32_t field_name_len;
   int32_t i;
   int32_t n_imp;
@@ -706,12 +706,12 @@ int32_t pipeline_typeck_field_import_binding_resolve_c(struct ast_Module *module
     return 0;
 
   base_name_len = pipeline_expr_var_name_len(arena, base_ref);
-  if (base_name_len <= 0 || base_name_len > 63)
+  if (base_name_len <= 0 || base_name_len > 127)
     return 0;
   pipeline_expr_var_name_into(arena, base_ref, &base_name[0]);
 
   field_name_len = pipeline_expr_field_access_name_len(arena, expr_ref);
-  if (field_name_len <= 0 || field_name_len > 63)
+  if (field_name_len <= 0 || field_name_len > 127)
     return 0;
   pipeline_expr_field_access_name_into(arena, expr_ref, &field_name[0]);
 
@@ -761,7 +761,7 @@ int32_t pipeline_typeck_field_import_binding_resolve_c(struct ast_Module *module
         continue;
       for (k = 0; k < fn_len && match; k++) {
         /* 用 scratch buffer 比较 */
-        uint8_t fn_buf[64];
+        uint8_t fn_buf[128] /* wave577 Cap name into */;
         pipeline_module_func_name_copy64(dep_mod, j, fn_buf);
         if (fn_buf[k] != field_name[k])
           match = 0;
@@ -825,7 +825,7 @@ static int32_t pipeline_typeck_field_reverse_infer_base_type_c(struct ast_Module
                                                               struct ast_ASTArena *arena,
                                                               int32_t expr_ref,
                                                               int32_t outer_expected) {
-  uint8_t fn_buf[64];
+  uint8_t fn_buf[128] /* wave577 Cap name into */;
   int32_t fl;
   int32_t nsl;
   int32_t k;
@@ -851,10 +851,10 @@ static int32_t pipeline_typeck_field_reverse_infer_base_type_c(struct ast_Module
     int32_t j;
     for (j = 0; j < nf; j++) {
       int32_t fjl;
-      uint8_t fjn[64];
+      uint8_t fjn[128] /* wave577 Cap name into */;
       int32_t bi;
       int32_t match;
-      uint8_t lnm[64];
+      uint8_t lnm[128] /* wave577 Cap name into */;
       int32_t lnl;
       int32_t nty;
 
@@ -908,7 +908,7 @@ static int32_t pipeline_typeck_named_is_module_concrete_c(struct ast_Module *mod
   nsl = module->num_struct_layouts;
   for (k = 0; k < nsl; k++) {
     int32_t sl = pipeline_module_struct_layout_name_len(module, k);
-    uint8_t snm[64];
+    uint8_t snm[128] /* wave577 Cap name into */;
     if (sl != name_len)
       continue;
     memset(snm, 0, sizeof(snm));
@@ -949,7 +949,7 @@ static void pipeline_typeck_field_apply_ambient_for_type_param_c(struct ast_Modu
                                                                 int32_t ambient_ty) {
   int32_t got_ty;
   int32_t use_ambient;
-  uint8_t gnm[64];
+  uint8_t gnm[128] /* wave577 Cap name into */;
   int32_t gnl;
 
   if (!module || !arena || expr_ref <= 0)
@@ -995,9 +995,9 @@ static void pipeline_typeck_field_apply_mono_type_arg_c(struct ast_Module *modul
   int32_t got_ty;
   int32_t mono_ty;
   int32_t bt_kind;
-  uint8_t gnm[64];
+  uint8_t gnm[128] /* wave577 Cap name into */;
   int32_t gnl;
-  uint8_t bnm[64];
+  uint8_t bnm[128] /* wave577 Cap name into */;
   int32_t bnl;
   int32_t sk;
   int32_t tp_slot;
@@ -1035,7 +1035,7 @@ static void pipeline_typeck_field_apply_mono_type_arg_c(struct ast_Module *modul
   if (bnl > 0) {
     for (sk = 0; sk < module->num_struct_layouts; sk++) {
       int32_t sl = pipeline_module_struct_layout_name_len(module, sk);
-      uint8_t snm[64];
+      uint8_t snm[128] /* wave577 Cap name into */;
       int32_t bi;
       int32_t match;
       int32_t ntp;
@@ -1058,7 +1058,7 @@ static void pipeline_typeck_field_apply_mono_type_arg_c(struct ast_Module *modul
         tp_slot = -1;
         for (tj = 0; tj < ntp; tj++) {
           int32_t tpl = pipeline_module_struct_layout_type_param_name_len(module, sk, tj);
-          uint8_t tpn[64];
+          uint8_t tpn[128] /* wave577 Cap name into */;
           int32_t pi;
           int32_t peq;
           if (tpl != gnl)

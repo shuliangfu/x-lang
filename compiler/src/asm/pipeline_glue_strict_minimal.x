@@ -46,8 +46,8 @@ export function pipeline_glue_strict_minimal_x_doc_anchor(): i32 {
 export function pipeline_typeck_named_equal_strict_minimal(arena: *u8, a: i32, b: i32): i32 {
   if (arena == 0) { return 0; }
   unsafe {
-    let buf_a: u8[64] = [];
-    let buf_b: u8[64] = [];
+    let buf_a: u8[128] = [];
+    let buf_b: u8[128] = [];
     let na: i32 = pipeline_type_named_name_into(arena, a, &buf_a[0]);
     let nb: i32 = pipeline_type_named_name_into(arena, b, &buf_b[0]);
     if (na <= 0) { return 0; }
@@ -96,7 +96,7 @@ export function pipeline_typeck_import_binding_name_equal_strict_minimal(module:
     let bind_len: i32 = pipeline_module_import_binding_name_len(module, dep_ix);
     if (bind_len != name_len) { return 0; }
     if (bind_len <= 0) { return 0; }
-    if (bind_len > 63) { return 0; }
+    if (bind_len > 127) { return 0; }
     let i: i32 = 0;
     while (i < bind_len) {
       if (pipeline_module_import_binding_name_byte_at(module, dep_ix, i) != name[i]) { return 0; }
@@ -128,7 +128,7 @@ export function pipeline_expr_is_func_param_at_strict_minimal(arena: *u8, mod: *
     if (plen <= 0) { return 0; }
     if (plen != vlen) { return 0; }
     let pbuf: u8[32] = [];
-    let vbuf: u8[64] = [];
+    let vbuf: u8[128] = [];
     pipeline_module_func_param_name_copy32(mod, func_idx, param_ix, &pbuf[0]);
     pipeline_expr_var_name_into(arena, expr_ref, &vbuf[0]);
     let k: i32 = 0;
@@ -264,10 +264,10 @@ export function pipeline_typeck_map_import_binding_named_to_caller_strict_minima
     if (bl <= 0) {
       return pipeline_type_find_or_alloc_named(caller_arena, nm, nlen);
     }
-    if (bl + 1 + nlen > 63) {
+    if (bl + 1 + nlen > 127) {
       return pipeline_type_find_or_alloc_named(caller_arena, nm, nlen);
     }
-    let qnm: u8[64] = [];
+    let qnm: u8[128] = [];
     let i: i32 = 0;
     while (i < bl) {
       qnm[i] = pipeline_module_import_binding_name_byte_at(entry_mod, dep_ix, i);
@@ -308,8 +308,8 @@ export function pipeline_typeck_slice_region_conflict_strict_minimal(arena: *u8,
     let sk: i32 = pipeline_type_region_label_len_at(arena, src_ref);
     if (ek <= 0) { return 0; }
     if (sk <= 0) { return 0; }
-    let eb: u8[64] = [];
-    let sb: u8[64] = [];
+    let eb: u8[128] = [];
+    let sb: u8[128] = [];
     if (pipeline_type_region_label_into(arena, expect_ref, &eb[0]) != ek) { return 0; }
     if (pipeline_type_region_label_into(arena, src_ref, &sb[0]) != sk) { return 0; }
     if (ek != sk) { return 1; }
@@ -437,7 +437,7 @@ export function typeck_expr_lval_root_var_strict_minimal(arena: *u8, expr_ref: i
         let nlen: i32 = pipeline_expr_var_name_len(arena, cur);
         out_len[0] = nlen;
         if (nlen <= 0) { return 0; }
-        if (nlen > 63) { return 0; }
+        if (nlen > 127) { return 0; }
         pipeline_expr_var_name_into(arena, cur, out);
         return 1;
       }
@@ -513,7 +513,7 @@ export function typeck_expr_is_addr_of_block_local_strict_minimal(module: *u8, a
     if (pipeline_expr_kind_ord_at(arena, expr_ref) != 51) { return 0; }
     let op_ref: i32 = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
     if (op_ref <= 0) { return 0; }
-    let vbuf: u8[64] = [];
+    let vbuf: u8[128] = [];
     let vlen: i32 = 0;
     if (typeck_expr_lval_root_var_strict_minimal(arena, op_ref, &vbuf[0], &vlen) == 0) {
       return 0;
@@ -613,7 +613,7 @@ export function pipeline_typeck_dep_return_type_to_caller_strict_minimal(dep_are
     if (kind == 15) { return pipeline_type_ensure_by_kind_ord(caller_arena, kind); }
     if (kind == 16) { return pipeline_type_ensure_by_kind_ord(caller_arena, kind); }
     if (kind == 8) {
-      let nm: u8[64] = [];
+      let nm: u8[128] = [];
       let nlen: i32 = pipeline_type_named_name_into(dep_arena, dep_return_type_ref, &nm[0]);
       if (nlen <= 0) { return 0; }
       return pipeline_type_find_or_alloc_named(caller_arena, &nm[0], nlen);
@@ -627,7 +627,7 @@ export function pipeline_typeck_dep_return_type_to_caller_strict_minimal(dep_are
     let array_size: i32 = pipeline_type_array_size_at(dep_arena, dep_return_type_ref);
     if (kind == 11) {
       let rlen: i32 = pipeline_type_region_label_len_at(dep_arena, dep_return_type_ref);
-      let rbuf: u8[64] = [];
+      let rbuf: u8[128] = [];
       if (rlen > 0) {
         pipeline_type_region_label_into(dep_arena, dep_return_type_ref, &rbuf[0]);
         return pipeline_type_find_or_alloc_slice(caller_arena, inner_mapped, &rbuf[0], rlen);
@@ -647,7 +647,7 @@ export function pipeline_typeck_dep_return_type_to_caller_strict_minimal(dep_are
     }
     if (elem_ref > 0) { return 0; }
     if (array_size != 0) { return 0; }
-    let nm2: u8[64] = [];
+    let nm2: u8[128] = [];
     let nlen2: i32 = pipeline_type_named_name_into(dep_arena, dep_return_type_ref, &nm2[0]);
     if (nlen2 != 0) { return 0; }
     return pipeline_type_ensure_by_kind_ord(caller_arena, kind);
@@ -677,8 +677,8 @@ export function pipeline_typeck_const_expr_ref_strict_minimal(arena: *u8, expr_r
     if (kind == 3) {
       let name_len: i32 = pipeline_expr_var_name_len(arena, expr_ref);
       if (name_len <= 0) { return 0; }
-      if (name_len > 63) { return 0; }
-      let name_buf: u8[64] = [];
+      if (name_len > 127) { return 0; }
+      let name_buf: u8[128] = [];
       pipeline_expr_var_name_into(arena, expr_ref, &name_buf[0]);
       if (const_names == 0) { return 0; }
       let i: i32 = 0;
@@ -1006,8 +1006,8 @@ export function pipeline_typeck_resolve_call_func_index_c(m: *u8, a: *u8, call_e
     if (pipeline_expr_kind_ord_at(a, callee_ref) != 3) { return 0 - 1; }
     let callee_name_len: i32 = pipeline_expr_var_name_len(a, callee_ref);
     if (callee_name_len <= 0) { return 0 - 1; }
-    if (callee_name_len > 63) { return 0 - 1; }
-    let callee_name: u8[64] = [];
+    if (callee_name_len > 127) { return 0 - 1; }
+    let callee_name: u8[128] = [];
     pipeline_expr_var_name_into(a, callee_ref, &callee_name[0]);
     let i: i32 = 0;
     let n: i32 = pipeline_module_num_funcs(m);
@@ -1409,7 +1409,7 @@ export function pipeline_typeck_coerce_init_int_binop_to_decl_c(arena: *u8, init
   }
   if (decl_kind == 8) {
     unsafe {
-      let nm: u8[64] = [];
+      let nm: u8[128] = [];
       let nlen: i32 = pipeline_type_named_name_into(arena, decl_ty_ref, &nm[0]);
       // "i8" = [105,56] len2; "i16" = [105,49,54] len3
       let ok: i32 = 0;
@@ -1565,8 +1565,8 @@ export function pipeline_typeck_reject_addr_of_linear_c(arena: *u8, op_ref: i32,
     if (pipeline_expr_kind_ord_at(arena, op_ref) != 3) { return 0; }
     let vnlen: i32 = pipeline_expr_var_name_len(arena, op_ref);
     if (vnlen <= 0) { return 0; }
-    if (vnlen > 63) { return 0; }
-    let vbuf: u8[64] = [];
+    if (vnlen > 127) { return 0; }
+    let vbuf: u8[128] = [];
     pipeline_expr_var_name_into(arena, op_ref, &vbuf[0]);
     let block_ref: i32 = pipeline_dep_ctx_current_block_ref_at(ctx);
     if (block_ref > 0) {
@@ -1625,7 +1625,7 @@ export function typeck_soa_array_storage_size_glue(module: *u8, arena: *u8, elem
   if (depth > 64) { return 0; }
   unsafe {
     if (pipeline_type_kind_ord_at(arena, elem_type_ref) != 8) { return 0; }
-    let name: u8[64] = [];
+    let name: u8[128] = [];
     let nlen: i32 = pipeline_type_named_name_into(arena, elem_type_ref, &name[0]);
     if (nlen <= 0) { return 0; }
     let li: i32 = typeck_entry_module_find_struct_layout_index(module, &name[0], nlen);
@@ -1706,7 +1706,7 @@ export function pipeline_typeck_check_scope_borrow_assign_c(module: *u8, arena: 
   if (right_ref <= 0) { return 0; }
   unsafe {
     if (typeck_expr_is_addr_of_block_local_strict_minimal(module, arena, ctx, right_ref) == 0) { return 0; }
-    let lname: u8[64] = [];
+    let lname: u8[128] = [];
     let llen: i32 = 0;
     if (typeck_expr_lval_root_var_strict_minimal(arena, left_ref, &lname[0], &llen) == 0) { return 0; }
     // EXPR_ADDR_OF=51
@@ -1716,8 +1716,8 @@ export function pipeline_typeck_check_scope_borrow_assign_c(module: *u8, arena: 
     if (pipeline_expr_kind_ord_at(arena, op_ref) != 3) { return 0; }
     let rlen: i32 = pipeline_expr_var_name_len(arena, op_ref);
     if (rlen <= 0) { return 0; }
-    if (rlen > 63) { return 0; }
-    let rname: u8[64] = [];
+    if (rlen > 127) { return 0; }
+    let rname: u8[128] = [];
     pipeline_expr_var_name_into(arena, op_ref, &rname[0]);
     let site_block: i32 = pipeline_dep_ctx_current_block_ref_at(ctx);
     if (site_block <= 0) {
@@ -1772,8 +1772,8 @@ export function pipeline_typeck_check_struct_stack_escape_assign_c(module: *u8, 
     if (pipeline_expr_kind_ord_at(arena, op_ref) != 3) { return 0; }
     let name_len: i32 = pipeline_expr_var_name_len(arena, op_ref);
     if (name_len <= 0) { return 0; }
-    if (name_len > 63) { return 0; }
-    let name_buf: u8[64] = [];
+    if (name_len > 127) { return 0; }
+    let name_buf: u8[128] = [];
     pipeline_expr_var_name_into(arena, op_ref, &name_buf[0]);
     let br: i32 = pipeline_dep_ctx_current_block_ref_at(ctx);
     if (br <= 0) { return 0; }
@@ -1914,10 +1914,10 @@ export function pipeline_typeck_check_slice_region_assign_c(arena: *u8, site_exp
       col = pipeline_expr_col_at(arena, site_expr_ref);
     }
     if (pipeline_typeck_slice_region_escape_strict_minimal(arena, expect_ref, src_ref) != 0) {
-      let sb: u8[64] = [];
+      let sb: u8[128] = [];
       let slen: i32 = pipeline_type_region_label_into(arena, src_ref, &sb[0]);
       if (slen < 0) { slen = 0; }
-      if (slen > 63) { slen = 63; }
+      if (slen > 127) { slen = 127; }
       // "slice region escape: cannot assign " + <lab> + " slice to unbound T[]"
       let pre: u8[40] = [];
       pre[0]=115;pre[1]=108;pre[2]=105;pre[3]=99;pre[4]=101;pre[5]=32;pre[6]=114;pre[7]=101;
@@ -1935,14 +1935,14 @@ export function pipeline_typeck_check_slice_region_assign_c(arena: *u8, site_exp
       return 0 - 1;
     }
     if (pipeline_typeck_slice_region_conflict_strict_minimal(arena, expect_ref, src_ref) != 0) {
-      let eb: u8[64] = [];
-      let sb2: u8[64] = [];
+      let eb: u8[128] = [];
+      let sb2: u8[128] = [];
       let elen: i32 = pipeline_type_region_label_into(arena, expect_ref, &eb[0]);
       let slen2: i32 = pipeline_type_region_label_into(arena, src_ref, &sb2[0]);
       if (elen < 0) { elen = 0; }
       if (slen2 < 0) { slen2 = 0; }
-      if (elen > 63) { elen = 63; }
-      if (slen2 > 63) { slen2 = 63; }
+      if (elen > 127) { elen = 127; }
+      if (slen2 > 127) { slen2 = 127; }
       // "slice region mismatch: expected <e>, found <s>"
       let msg2: u8[192] = [];
       let pos: i32 = 0;
@@ -1994,10 +1994,10 @@ export function pipeline_typeck_check_return_slice_region_c(arena: *u8, ret_site
     let col: i32 = 0;
     pipeline_typeck_expr_diag_line_col_strict_minimal(arena, ret_site_ref, &line, &col);
     if (pipeline_typeck_slice_region_escape_strict_minimal(arena, func_return_ref, got_ref) != 0) {
-      let sb: u8[64] = [];
+      let sb: u8[128] = [];
       let slen: i32 = pipeline_type_region_label_into(arena, got_ref, &sb[0]);
       if (slen < 0) { slen = 0; }
-      if (slen > 63) { slen = 63; }
+      if (slen > 127) { slen = 127; }
       // "slice region escape: cannot return " + <lab> + " slice as unbound T[]"
       let pre: u8[40] = [];
       pre[0]=115;pre[1]=108;pre[2]=105;pre[3]=99;pre[4]=101;pre[5]=32;pre[6]=114;pre[7]=101;
@@ -2015,14 +2015,14 @@ export function pipeline_typeck_check_return_slice_region_c(arena: *u8, ret_site
       return 0 - 1;
     }
     if (pipeline_typeck_slice_region_conflict_strict_minimal(arena, func_return_ref, got_ref) != 0) {
-      let eb: u8[64] = [];
-      let sb2: u8[64] = [];
+      let eb: u8[128] = [];
+      let sb2: u8[128] = [];
       let elen: i32 = pipeline_type_region_label_into(arena, func_return_ref, &eb[0]);
       let slen2: i32 = pipeline_type_region_label_into(arena, got_ref, &sb2[0]);
       if (elen < 0) { elen = 0; }
       if (slen2 < 0) { slen2 = 0; }
-      if (elen > 63) { elen = 63; }
-      if (slen2 > 63) { slen2 = 63; }
+      if (elen > 127) { elen = 127; }
+      if (slen2 > 127) { slen2 = 127; }
       // "slice region mismatch in return: expected <e>, found <s>"
       let msg2: u8[192] = [];
       let pos: i32 = 0;
@@ -2142,7 +2142,7 @@ export function pipeline_typeck_check_expr_try_propagate_c(module: *u8, arena: *
       driver_diagnostic_typeck_try_propagate_bad_enclosing(line, col);
       return 0 - 1;
     }
-    let rname: u8[64] = [];
+    let rname: u8[128] = [];
     let rlen: i32 = pipeline_type_named_name_into(arena, op_ty, &rname[0]);
     // "Result_" len 7
     if (rlen < 7) {
@@ -2307,8 +2307,8 @@ function pipeline_typeck_field_reverse_infer_base_type_strict_minimal(module: *u
   if (expr_ref <= 0) { return 0; }
   let fl: i32 = pipeline_expr_field_access_name_len(arena, expr_ref);
   if (fl <= 0) { return 0; }
-  if (fl > 63) { return 0; }
-  let fn_buf: u8[64] = [];
+  if (fl > 127) { return 0; }
+  let fn_buf: u8[128] = [];
   pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
   let nsl: i32 = pipeline_module_num_struct_layouts_at(module);
   if (nsl <= 0) { return 0; }
@@ -2321,7 +2321,7 @@ function pipeline_typeck_field_reverse_infer_base_type_strict_minimal(module: *u
     while (j < nf) {
       let fjl: i32 = pipeline_module_struct_layout_field_name_len(module, k, j);
       if (fjl == fl) {
-        let fjn: u8[64] = [];
+        let fjn: u8[128] = [];
         pipeline_module_struct_layout_field_name_into(module, k, j, &fjn[0]);
         let match: i32 = 1;
         let bi: i32 = 0;
@@ -2333,7 +2333,7 @@ function pipeline_typeck_field_reverse_infer_base_type_strict_minimal(module: *u
           let lnl: i32 = pipeline_module_struct_layout_name_len(module, k);
           if (lnl > 0) {
             if (lnl <= 63) {
-              let lnm: u8[64] = [];
+              let lnm: u8[128] = [];
               pipeline_module_struct_layout_name_into(module, k, &lnm[0]);
               let nty: i32 = pipeline_type_find_or_alloc_named(arena, &lnm[0], lnl);
               if (nty > 0) {
@@ -2391,7 +2391,7 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
         let prebind_len: i32 = pipeline_expr_var_name_len(arena, base_ref);
         if (prebind_len > 0) {
           if (prebind_len <= 63) {
-            let prebind_name: u8[64] = [];
+            let prebind_name: u8[128] = [];
             pipeline_expr_var_name_into(arena, base_ref, &prebind_name[0]);
             let do_prebind: i32 = 1;
             if (ctx != 0) {
@@ -2428,8 +2428,8 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
     if (base_ty <= 0) { return 0; }
     let field_len: i32 = pipeline_expr_field_access_name_len(arena, expr_ref);
     if (field_len <= 0) { return 0; }
-    if (field_len > 63) { return 0; }
-    let field_name: u8[64] = [];
+    if (field_len > 127) { return 0; }
+    let field_name: u8[128] = [];
     pipeline_expr_field_access_name_into(arena, expr_ref, &field_name[0]);
     let bt_kind: i32 = pipeline_type_kind_ord_at(arena, base_ty);
     if (bt_kind == 11) {
@@ -2471,7 +2471,7 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
         return 0;
       }
     }
-    let type_name: u8[64] = [];
+    let type_name: u8[128] = [];
     let type_name_len: i32 = pipeline_type_named_name_into(arena, work_ty, &type_name[0]);
     if (type_name_len <= 0) { return 0; }
     // "ASTArena"
@@ -2544,7 +2544,7 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
       let got_mono: i32 = pipeline_expr_resolved_type_ref(arena, expr_ref);
       if (got_mono > 0) {
         if (pipeline_type_kind_ord_at(arena, got_mono) == 8) {
-          let mnm: u8[64] = [];
+          let mnm: u8[128] = [];
           let mnl: i32 = pipeline_type_named_name_into(arena, got_mono, &mnm[0]);
           let m_concrete: i32 = 0;
           if (mnl > 0) {
@@ -2554,7 +2554,7 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
               while (skm < nslm) {
                 let slm: i32 = pipeline_module_struct_layout_name_len(module, skm);
                 if (slm == mnl) {
-                  let snmm: u8[64] = [];
+                  let snmm: u8[128] = [];
                   pipeline_module_struct_layout_name_into(module, skm, &snmm[0]);
                   let bim: i32 = 0;
                   let matchm: i32 = 1;
@@ -2590,7 +2590,7 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
       } else {
         // TYPE_NAMED = 8
         if (pipeline_type_kind_ord_at(arena, got_ty) == 8) {
-          let gnm: u8[64] = [];
+          let gnm: u8[128] = [];
           let gnl: i32 = pipeline_type_named_name_into(arena, got_ty, &gnm[0]);
           let concrete: i32 = 0;
           if (gnl > 0) {
@@ -2600,7 +2600,7 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
               while (sk < nsl) {
                 let sl: i32 = pipeline_module_struct_layout_name_len(module, sk);
                 if (sl == gnl) {
-                  let snm: u8[64] = [];
+                  let snm: u8[128] = [];
                   pipeline_module_struct_layout_name_into(module, sk, &snm[0]);
                   let bi: i32 = 0;
                   let match: i32 = 1;
@@ -2659,8 +2659,8 @@ export function pipeline_typeck_check_expr_method_call_c(module: *u8, arena: *u8
     let base_ty: i32 = pipeline_expr_resolved_type_ref(arena, base_ref);
     let method_nlen: i32 = pipeline_expr_method_call_name_len(arena, expr_ref);
     if (method_nlen <= 0) { return 0 - 1; }
-    if (method_nlen > 63) { return 0 - 1; }
-    let method_nm: u8[64] = [];
+    if (method_nlen > 127) { return 0 - 1; }
+    let method_nm: u8[128] = [];
     pipeline_expr_method_call_name_into(arena, expr_ref, &method_nm[0]);
     let ret_ty: i32 = 0;
     // TYPE_I32=0; "double" 6
@@ -2700,7 +2700,7 @@ export function pipeline_typeck_check_expr_method_call_c(module: *u8, arena: *u8
         let base_nlen: i32 = pipeline_expr_var_name_len(arena, base_ref);
         if (base_nlen > 0) {
           if (base_nlen <= 63) {
-            let base_nm: u8[64] = [];
+            let base_nm: u8[128] = [];
             pipeline_expr_var_name_into(arena, base_ref, &base_nm[0]);
             let nimp: i32 = parser_get_module_num_imports(module);
             let ii: i32 = 0;
@@ -3019,7 +3019,7 @@ export function pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_i
         let kind: i32 = pipeline_type_kind_ord_at(dep_arena, dep_return_type_ref);
         // TYPE_NAMED=8
         if (kind == 8) {
-          let nm: u8[64] = [];
+          let nm: u8[128] = [];
           let nlen: i32 = pipeline_type_named_name_into(dep_arena, dep_return_type_ref, &nm[0]);
           if (nlen > 0) {
             return pipeline_typeck_map_import_binding_named_to_caller_strict_minimal(
@@ -3251,7 +3251,7 @@ export function pipeline_typeck_linear_use_var_c(arena: *u8, type_ref: i32, expr
   if (arena == 0) { return 0; }
   if (name == 0) { return 0; }
   if (name_len <= 0) { return 0; }
-  if (name_len > 63) { return 0; }
+  if (name_len > 127) { return 0; }
   if (type_ref <= 0) { return 0; }
   unsafe {
     if (pipeline_type_kind_ord_at(arena, type_ref) != 12) { return 0; }
@@ -3347,7 +3347,7 @@ export function glue_block_prior_const_name_match(arena: *u8, block_ref: i32, co
       if (clen == name_len) {
         if (clen > 0) {
           if (clen < 64) {
-            let cbuf: u8[64] = [];
+            let cbuf: u8[128] = [];
             pipeline_block_const_name_copy64(arena, block_ref, i, &cbuf[0]);
             let j: i32 = 0;
             let ok: i32 = 1;
@@ -3390,8 +3390,8 @@ export function glue_block_const_expr_is_const(arena: *u8, expr_ref: i32, block_
     if (kind == 3) {
       let name_len: i32 = pipeline_expr_var_name_len(arena, expr_ref);
       if (name_len <= 0) { return 0; }
-      if (name_len > 63) { return 0; }
-      let name_buf: u8[64] = [];
+      if (name_len > 127) { return 0; }
+      let name_buf: u8[128] = [];
       pipeline_expr_var_name_into(arena, expr_ref, &name_buf[0]);
       return glue_block_prior_const_name_match(arena, block_ref, const_idx, &name_buf[0], name_len);
     }
@@ -3520,8 +3520,8 @@ export function pipeline_typeck_type_refs_equal_c(arena: *u8, a: i32, b: i32): i
       if (alen > 0) {
         if (blen > 0) {
           if (alen != blen) { return 0; }
-          let abuf: u8[64] = [];
-          let bbuf: u8[64] = [];
+          let abuf: u8[128] = [];
+          let bbuf: u8[128] = [];
           if (pipeline_type_region_label_into(arena, a, &abuf[0]) != alen) { return 0; }
           if (pipeline_type_region_label_into(arena, b, &bbuf[0]) != blen) { return 0; }
           let i: i32 = 0;

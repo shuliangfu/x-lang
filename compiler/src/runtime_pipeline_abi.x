@@ -2837,7 +2837,7 @@ export function pipeline_sync_one_dep_slot(module: *u8, ctx: *u8, dep_i: i32): i
   if (dep_i < 0) {
     return 0 - 1;
   }
-  let sync_path: u8[64] = [];
+  let sync_path: u8[128] = [];
   unsafe {
     memset(&sync_path[0], 0, 64 as usize);
     let _pl: i32 = parser_copy_module_import_path64(module, dep_i, &sync_path[0]);
@@ -2957,7 +2957,7 @@ export function pipeline_load_import_from_disk_c(module: *u8, arena: *u8, ctx: *
   if (import_idx < 0) {
     return 0 - 1;
   }
-  let path_buf: u8[64] = [];
+  let path_buf: u8[128] = [];
   let path_len: i32 = 0;
   unsafe {
     memset(&path_buf[0], 0, 64 as usize);
@@ -3137,7 +3137,7 @@ export function pipeline_load_and_sync_direct_import_deps_c(module: *u8, arena: 
   unsafe {
     ndep0 = ast_pipeline_dep_ctx_ndep(ctx);
   }
-  let path_buf: u8[64] = [];
+  let path_buf: u8[128] = [];
   let i: i32 = 0;
   let rc: i32 = 0;
   if (ndep0 == 0) {
@@ -3208,8 +3208,8 @@ export function pipeline_load_and_sync_direct_import_deps_c(module: *u8, arena: 
               let reg_path: *u8 = driver_dep_path_registry_at(i);
               if (reg_path != 0 as *u8) {
                 let rpl: i32 = pipe_cstr_len(reg_path);
-                if (rpl > 63) {
-                  rpl = 63;
+                if (rpl > 127) {
+                  rpl = 127;
                 }
                 if (rpl > 0) {
                   ast_pipeline_dep_ctx_set_import_path(ctx, i, reg_path, rpl);
@@ -4178,7 +4178,7 @@ let g_pipe_typeck_dep_module_ptrs: u8[256] = [];
 let g_pipe_typeck_dep_arena_ptrs: u8[256] = [];
 
 // wave85 pure preprocess -D define table (G.7 single authority for product define_has/eval).
-// PLATFORM: SHARED — same capacity as glue PREPROCESS_MAX_DEFINES=128 × name[64].
+// PLATFORM: SHARED — same capacity as glue PREPROCESS_MAX_DEFINES=128 × name[128].
 // Flat layout: slot i occupies bytes [i*64 .. i*64+63], NUL-terminated name (len 1..63).
 // Product hybrid: pure strong override of glue XLANG_WEAK cold fallback in strict_glue_stubs.
 // wave88: pure preprocess_eval_condition_c → same-TU preprocess_define_has (simple names);
@@ -6763,7 +6763,7 @@ export function pipeline_debug_trace_named_func_bodies_impl(phase: *u8, module: 
     let nf: i32 = pipeline_module_num_funcs(module);
     let fi: i32 = 0;
     while (fi < nf) {
-      let raw_name: u8[64] = [];
+      let raw_name: u8[128] = [];
       let name: u8[65] = [];
       let ni: i32 = 0;
       while (ni < 64) {
@@ -7166,7 +7166,7 @@ export function pipeline_diag_merge_dep_missing(import_path: *u8): void {
   let code: u8[8] = [];
   let msg: u8[48] = [];
   let note_k: u8[8] = [];
-  let note_m: u8[64] = [];
+  let note_m: u8[128] = [];
   // "import error"
   kind[0]=105;kind[1]=109;kind[2]=112;kind[3]=111;kind[4]=114;kind[5]=116;kind[6]=32;kind[7]=101;
   kind[8]=114;kind[9]=114;kind[10]=111;kind[11]=114;kind[12]=0;
@@ -7475,7 +7475,7 @@ export function xlang_module_import_path_cstr(module: *u8, idx: i32, buf: *u8, c
   if (module == 0 as *u8) {
     return;
   }
-  let path_buf: u8[64] = [];
+  let path_buf: u8[128] = [];
   unsafe {
     parser_get_module_import_path(module, idx, &path_buf[0]);
   }
@@ -8811,7 +8811,7 @@ export function pipeline_debug_body_func_match(filter: *u8, name: *u8): i32 {
 // and select name rows. Mirrors ast_pool ModuleSidecar.imports + import_select_* .
 // Product hybrid: pure strong pipeline_module_import_* override Cap XLANG_WEAK cold.
 // Layout of one ImportEntry (340 bytes, packed LE, ≡ C typedef ImportEntry):
-//   path[256] @0 | path_len i32 @256 | kind i32 @260 | binding_name[64] @264
+//   path[256] @0 | path_len i32 @256 | kind i32 @260 | binding_name[128] @264
 //   | binding_name_len i32 @328 | select_base i32 @332 | select_count i32 @336
 // Module.num_imports lives at LP64 offsetof 8 (header field; parser authority read).
 // Soft-reset: when header num_imports==0, pure slot n_imports/sel_n forced 0 so
@@ -9680,8 +9680,8 @@ export function pipeline_module_import_append_select_name(module: *u8, idx: i32,
     z = z + 1;
   }
   let n: i32 = len;
-  if (n > 63) {
-    n = 63;
+  if (n > 127) {
+    n = 127;
   }
   let i: i32 = 0;
   while (i < n) {
@@ -9806,8 +9806,8 @@ export function pipeline_module_import_set_select_name(module: *u8, idx: i32, se
     z = z + 1;
   }
   let n: i32 = len;
-  if (n > 63) {
-    n = 63;
+  if (n > 127) {
+    n = 127;
   }
   let i: i32 = 0;
   while (i < n) {

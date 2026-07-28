@@ -353,7 +353,7 @@ XLANG_LIB_WEAK struct token_Token lexer_try_keyword(struct xlang_slice_uint8_t *
   if (len == 2 && lexer_match_keyword(data, start, 2, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 97, 115 }, .length = 2 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_AS, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len > 63) {
+  if (len > 127) {
     lexer_note_ident_too_long(line0, col0);
   }
   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_IDENT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = len };
@@ -444,7 +444,7 @@ XLANG_LIB_WEAK struct token_Token lexer_try_keyword_buf(uint8_t * restrict data,
   if (len == 1 && start < ((size_t)(data_len)) && (data)[start] == 95) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_UNDERSCORE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len > 63) {
+  if (len > 127) {
     lexer_note_ident_too_long(line0, col0);
   }
   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_IDENT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = len };

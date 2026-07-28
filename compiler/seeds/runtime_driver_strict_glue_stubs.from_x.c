@@ -704,7 +704,7 @@ struct ast_PipelineDepCtx;
 
 extern struct ast_LabeledStmt *pipeline_block_labeled_ptr(struct ast_ASTArena *a, int32_t br, int32_t li);
 extern void driver_diagnostic_pipe_marker(int32_t id);
-extern int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t i, uint8_t out[64]);
+extern int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t i, uint8_t out[128]);
 extern void pipeline_dep_ctx_set_import_path(struct ast_PipelineDepCtx *ctx, int32_t idx, uint8_t *bytes, int32_t len);
 
 XLANG_WEAK struct ast_LabeledStmt *pipeline_block_labeled_ptr(struct ast_ASTArena *a, int32_t br, int32_t li) {
@@ -724,7 +724,7 @@ XLANG_WEAK void pipeline_dep_ctx_set_import_path(struct ast_PipelineDepCtx *ctx,
  * PLATFORM: SHARED — semantics ≡ pure / parser_gen weak cold twin. */
 extern void pipeline_module_import_path_copy(struct ast_Module *m, int32_t idx, uint8_t *dst, int32_t dst_cap);
 
-XLANG_WEAK int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t i, uint8_t out[64]) {
+XLANG_WEAK int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t i, uint8_t out[128]) {
   int32_t path_len;
   if (!out)
     return 0;
@@ -743,7 +743,7 @@ XLANG_WEAK int32_t parser_copy_module_import_path64(struct ast_Module *module, i
 #define PREPROCESS_MAX_DEFINES 128
 static char g_preprocess_defines[PREPROCESS_MAX_DEFINES][64];
 static int g_preprocess_ndefines;
-static uint8_t g_typeck_scratch64[16][64];
+static uint8_t g_typeck_scratch64[16][128];
 static int32_t g_typeck_layout_metrics_sz_slot;
 static int32_t g_typeck_layout_metrics_al_slot = 1;
 static int32_t g_typeck_layout_metrics_sz_depth[64];
@@ -850,7 +850,7 @@ XLANG_WEAK int32_t typeck_overload_expected_ret_peek(void) {
 
 XLANG_WEAK int32_t run_x_pipeline_fill_dep_import_path_c(struct ast_Module *module,
                                                                      struct ast_PipelineDepCtx *ctx, int32_t dep_j) {
-  uint8_t path_buf[64];
+  uint8_t path_buf[128];
   int32_t path_len;
   if (!module || !ctx || dep_j < 0)
     return -1;

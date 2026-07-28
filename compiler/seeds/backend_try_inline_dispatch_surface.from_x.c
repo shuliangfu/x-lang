@@ -117,7 +117,7 @@ int32_t glue_module_func_index_by_name(uint8_t * mod, uint8_t * name, int32_t nl
   if ((nlen <=0)) {
     return (0 - 1);
   }
-  if ((nlen > 63)) {
+  if ((nlen > 127)) {
     return (0 - 1);
   }
   {
@@ -126,7 +126,7 @@ int32_t glue_module_func_index_by_name(uint8_t * mod, uint8_t * name, int32_t nl
     while ((fi < nfuncs)) {
       int32_t flen = pipeline_asm_module_func_name_len_at(mod, fi);
       if ((flen ==nlen)) {
-        uint8_t fb[64] = {};
+        uint8_t fb[128] = {};
         (void)(pipeline_asm_module_func_name_copy64(mod, fi, &((fb)[0])));
         int32_t k = 0;
         int32_t ok = 1;
@@ -227,7 +227,7 @@ int32_t glue_type_ref_is_named_struct_layout(uint8_t * arena, uint8_t * mod, int
     return 0;
   }
   {
-    uint8_t nm[64] = {};
+    uint8_t nm[128] = {};
     int32_t nlen = pipeline_type_named_name_into(arena, ty_ref, &((nm)[0]));
     if ((pipeline_type_kind_ord_at(arena, ty_ref) !=8)) {
       return 0;
@@ -299,7 +299,7 @@ int32_t asm_local_var_slot_holds_indirect_ptr(uint8_t * arena, int32_t expr_ref,
       }
       if ((vlen > 0)) {
         if ((vlen <=63)) {
-          uint8_t vname[64] = {};
+          uint8_t vname[128] = {};
           {
             (void)(pipeline_expr_var_name_into(arena, expr_ref, &((vname)[0])));
           }
@@ -394,7 +394,7 @@ int32_t glue_expr_is_func_param_at(uint8_t * arena, uint8_t * mod, int32_t fi, i
     int32_t plen = pipeline_asm_module_func_param_name_len_at(mod, fi, pix);
     int32_t vlen = pipeline_expr_var_name_len(arena, er);
     uint8_t pbuf[32] = {};
-    uint8_t vbuf[64] = {};
+    uint8_t vbuf[128] = {};
     int32_t k = 0;
     if ((pipeline_expr_kind_ord_at(arena, er) !=3)) {
       return 0;
@@ -570,7 +570,7 @@ int32_t glue_call_lookup_callee_mod_fi_arena(uint8_t * caller_arena, int32_t cal
       int32_t field_len = pipeline_expr_field_access_name_len_u8_ptr_i32_reti32(caller_arena, callee_ref);
       if ((field_len > 0)) {
         if ((field_len <=63)) {
-          uint8_t field_name[64] = {};
+          uint8_t field_name[128] = {};
           (void)(pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr(caller_arena, callee_ref, &((field_name)[0])));
           uint8_t * pctx2 = g02f_load_ptr_at(ctx, 1256);
           if ((pctx2 ==0)) {
@@ -610,7 +610,7 @@ int32_t glue_call_lookup_callee_mod_fi_arena(uint8_t * caller_arena, int32_t cal
     if ((clen > 63)) {
       return 0;
     }
-    uint8_t cname[64] = {};
+    uint8_t cname[128] = {};
     (void)(pipeline_expr_var_name_into(caller_arena, callee_ref, &((cname)[0])));
     int32_t fi3 = glue_module_func_index_by_name(entry_mod, &((cname)[0]), clen);
     if ((fi3 >=0)) {
@@ -795,7 +795,7 @@ int32_t glue_struct_lit_field_index_by_name(uint8_t * arena, int32_t lit_ref, ui
       if ((slen ==fnlen)) {
         if ((slen > 0)) {
           if ((slen <=63)) {
-            uint8_t sb[64] = {};
+            uint8_t sb[128] = {};
             (void)(pipeline_expr_struct_lit_field_name_into(arena, lit_ref, j, &((sb)[0])));
             int32_t k = 0;
             int32_t ok = 1;
@@ -841,7 +841,7 @@ int32_t glue_inner_call_arg_for_field_access(uint8_t * arena, uint8_t * ctx, int
     uint8_t * callee_mod = g02f_load_ptr_at(&((cm_slot)[0]), 0);
     int32_t lit_ref = 0;
     int32_t flen = pipeline_expr_field_access_name_len_u8_ptr_i32_reti32(arena, outer_field_ref);
-    uint8_t fname[64] = {};
+    uint8_t fname[128] = {};
     int32_t fj = glue_struct_lit_field_index_by_name(callee_arena, lit_ref, &((fname)[0]), flen);
     int32_t pix = 0;
     int32_t arg = pipeline_expr_call_arg_ref(arena, inner_call_ref, pix);
@@ -903,7 +903,7 @@ int32_t glue_dep_module_field_offset_by_name(uint8_t * pctx, uint8_t * field_nam
             if ((fnlen ==flen)) {
               if ((fnlen > 0)) {
                 if ((fnlen <=63)) {
-                  uint8_t fb[64] = {};
+                  uint8_t fb[128] = {};
                   (void)(pipeline_module_struct_layout_field_name_into(dm, k, j, &((fb)[0])));
                   int32_t fi = 0;
                   int32_t feq = 1;
@@ -958,7 +958,7 @@ int32_t glue_inline_var_field_access_offset(uint8_t * arena, uint8_t * mod, uint
         int32_t vlen = pipeline_expr_var_name_len(arena, base_ref);
         if ((vlen > 0)) {
           if ((vlen <=63)) {
-            uint8_t vname[64] = {};
+            uint8_t vname[128] = {};
             (void)(pipeline_expr_var_name_into(arena, base_ref, &((vname)[0])));
             (void)((base_ty = pipeline_block_resolve_var_type_ref(arena, scope_br, &((vname)[0]), vlen)));
           }
@@ -973,7 +973,7 @@ int32_t glue_inline_var_field_access_offset(uint8_t * arena, uint8_t * mod, uint
           if ((fi < pipeline_module_num_funcs(mod))) {
             if ((vlen > 0)) {
               if ((vlen <=63)) {
-                uint8_t vname[64] = {};
+                uint8_t vname[128] = {};
                 (void)(pipeline_expr_var_name_into(arena, base_ref, &((vname)[0])));
                 int32_t body_ref = pipeline_module_func_body_ref_at(mod, fi);
                 if ((body_ref > 0)) {
@@ -992,7 +992,7 @@ int32_t glue_inline_var_field_access_offset(uint8_t * arena, uint8_t * mod, uint
     if ((flen > 63)) {
       return (0 - 1);
     }
-    uint8_t field_name[64] = {};
+    uint8_t field_name[128] = {};
     (void)(pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr(arena, fa_ref, &((field_name)[0])));
     if ((pctx !=0)) {
       int32_t off = glue_dep_module_field_offset_by_name(pctx, &((field_name)[0]), flen);
@@ -1014,7 +1014,7 @@ int32_t glue_inline_var_field_access_offset(uint8_t * arena, uint8_t * mod, uint
     if ((kind !=8)) {
       return (0 - 1);
     }
-    uint8_t struct_name[64] = {};
+    uint8_t struct_name[128] = {};
     int32_t nlen = pipeline_type_named_name_into(arena, base_ty, &((struct_name)[0]));
     if ((pctx !=0)) {
       int32_t off2 = typeck_get_field_offset_from_layout_deps(mod, pctx, &((struct_name)[0]), nlen, &((field_name)[0]), flen);
@@ -1157,7 +1157,7 @@ int32_t glue_call_is_zero_arg_default_alloc(uint8_t * arena, int32_t call_ref) {
   {
     int32_t callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
     int32_t ko = pipeline_expr_kind_ord_at(arena, callee_ref);
-    uint8_t nm[64] = {};
+    uint8_t nm[128] = {};
     if ((pipeline_expr_kind_ord_at(arena, call_ref) !=48)) {
       return 0;
     }
@@ -1455,7 +1455,7 @@ int32_t try_inline_x_plus_k_call_elf(uint8_t * arena, uint8_t * elf_ctx, int32_t
     if ((clen > 63)) {
       return 0;
     }
-    uint8_t cname[64] = {};
+    uint8_t cname[128] = {};
     (void)(pipeline_expr_var_name_into(arena, callee_ref, &((cname)[0])));
     int32_t fi = glue_module_func_index_by_name(mod_ref, &((cname)[0]), clen);
     if ((fi < 0)) {
@@ -1487,8 +1487,8 @@ int32_t try_inline_x_plus_k_call_elf(uint8_t * arena, uint8_t * elf_ctx, int32_t
       if ((rlen !=plen)) {
         return 0;
       }
-      uint8_t pname[64] = {};
-      uint8_t rname[64] = {};
+      uint8_t pname[128] = {};
+      uint8_t rname[128] = {};
       (void)(pipeline_asm_module_func_param_name_copy32(mod_ref, fi, 0, &((pname)[0])));
       (void)(pipeline_expr_var_name_into(arena, ret_ref, &((rname)[0])));
       int32_t pi = 0;
@@ -1538,7 +1538,7 @@ int32_t try_inline_param0_single_field_call_elf(uint8_t * arena, uint8_t * elf_c
     int32_t off = pipeline_expr_field_access_layout_offset(callee_arena, callee_mod, ret_ref);
     int32_t arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
     int32_t vlen = pipeline_expr_var_name_len(arena, arg_ref);
-    uint8_t vname[64] = {};
+    uint8_t vname[128] = {};
     int32_t slot_off = glue_try_inline_local_slot_off(ctx, arena, &((vname)[0]), vlen);
     if ((pipeline_expr_call_num_args_at(arena, expr_ref) !=1)) {
       return 0;
@@ -1620,7 +1620,7 @@ int32_t try_inline_param0_field_sum_call_elf(uint8_t * arena, uint8_t * elf_ctx,
     int32_t off_b = pipeline_expr_field_access_layout_offset(callee_arena, callee_mod, ar);
     int32_t arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
     int32_t vlen = pipeline_expr_var_name_len(arena, arg_ref);
-    uint8_t vname[64] = {};
+    uint8_t vname[128] = {};
     int32_t slot_off = glue_try_inline_local_slot_off(ctx, arena, &((vname)[0]), vlen);
     if ((pipeline_expr_call_num_args_at(arena, expr_ref) !=1)) {
       return 0;
@@ -1738,7 +1738,7 @@ int32_t try_inline_var_field_sum_binop_elf(uint8_t * arena, uint8_t * elf_ctx, i
     int32_t nd = pipeline_dep_ctx_ndep_u8_ptr_reti32(pctx);
     int32_t di = 0;
     int32_t vlen = pipeline_expr_var_name_len(arena, base_l);
-    uint8_t vname[64] = {};
+    uint8_t vname[128] = {};
     int32_t slot_off = glue_try_inline_local_slot_off(ctx, arena, &((vname)[0]), vlen);
     if ((pipeline_expr_kind_ord_at(arena, left_ref) !=44)) {
       return 0;
@@ -1782,7 +1782,7 @@ int32_t try_inline_var_field_sum_binop_elf(uint8_t * arena, uint8_t * elf_ctx, i
       int32_t flen_a = pipeline_expr_field_access_name_len_u8_ptr_i32_reti32(arena, left_ref);
       if ((flen_a > 0)) {
         if ((flen_a <=63)) {
-          uint8_t fname_a[64] = {};
+          uint8_t fname_a[128] = {};
           (void)(pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr(arena, left_ref, &((fname_a)[0])));
           (void)((off_a = glue_dep_module_field_offset_by_name(pctx, &((fname_a)[0]), flen_a)));
         }
@@ -1792,7 +1792,7 @@ int32_t try_inline_var_field_sum_binop_elf(uint8_t * arena, uint8_t * elf_ctx, i
       int32_t flen_b = pipeline_expr_field_access_name_len_u8_ptr_i32_reti32(arena, right_ref);
       if ((flen_b > 0)) {
         if ((flen_b <=63)) {
-          uint8_t fname_b[64] = {};
+          uint8_t fname_b[128] = {};
           (void)(pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr(arena, right_ref, &((fname_b)[0])));
           (void)((off_b = glue_dep_module_field_offset_by_name(pctx, &((fname_b)[0]), flen_b)));
         }
@@ -1864,7 +1864,7 @@ int32_t try_inline_wpo_const_scalar_binop_call_elf(uint8_t * arena, uint8_t * el
     uint8_t * mod_ref = g02f_load_ptr_at(ctx, 16);
     int32_t callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
     int32_t clen = pipeline_expr_var_name_len(arena, callee_ref);
-    uint8_t cname[64] = {};
+    uint8_t cname[128] = {};
     int32_t fi = glue_module_func_index_by_name(mod_ref, &((cname)[0]), clen);
     int32_t binop_ko = 0;
     int32_t arg0 = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
@@ -1943,13 +1943,13 @@ int32_t try_inline_wpo_const_vector_lane_of_binop_call_elf(uint8_t * arena, uint
     uint8_t * mod_ref = g02f_load_ptr_at(ctx, 16);
     int32_t outer_callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
     int32_t olen = pipeline_expr_var_name_len(arena, outer_callee_ref);
-    uint8_t outer_name[64] = {};
+    uint8_t outer_name[128] = {};
     int32_t outer_fi = glue_module_func_index_by_name(mod_ref, &((outer_name)[0]), olen);
     int32_t lane = 0;
     int32_t inner_call_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
     int32_t inner_callee_ref = pipeline_expr_call_callee_ref_at(arena, inner_call_ref);
     int32_t ilen = pipeline_expr_var_name_len(arena, inner_callee_ref);
-    uint8_t inner_name[64] = {};
+    uint8_t inner_name[128] = {};
     int32_t inner_fi = glue_module_func_index_by_name(mod_ref, &((inner_name)[0]), ilen);
     int32_t binop_ko = 0;
     int32_t arg0 = pipeline_expr_call_arg_ref(arena, inner_call_ref, 0);
@@ -2096,7 +2096,7 @@ int32_t try_call_wpo_mono_symbol_elf(uint8_t * arena, uint8_t * elf_ctx, int32_t
     if ((clen > 63)) {
       return 0;
     }
-    uint8_t cname[64] = {};
+    uint8_t cname[128] = {};
     (void)(pipeline_expr_var_name_into(arena, callee_ref, &((cname)[0])));
     (void)(((cname)[clen] = 0));
     int32_t fi = glue_module_func_index_by_name(mod_ref, &((cname)[0]), clen);
@@ -2354,7 +2354,7 @@ int32_t try_call_wpo_mono_vector_lane_of_binop_call_elf(uint8_t * arena, uint8_t
     if ((olen > 63)) {
       return 0;
     }
-    uint8_t outer_name[64] = {};
+    uint8_t outer_name[128] = {};
     (void)(pipeline_expr_var_name_into(arena, outer_callee_ref, &((outer_name)[0])));
     (void)(((outer_name)[olen] = 0));
     int32_t outer_fi = glue_module_func_index_by_name(mod_ref, &((outer_name)[0]), olen);
@@ -2389,7 +2389,7 @@ int32_t try_call_wpo_mono_vector_lane_of_binop_call_elf(uint8_t * arena, uint8_t
     if ((ilen > 63)) {
       return 0;
     }
-    uint8_t inner_name[64] = {};
+    uint8_t inner_name[128] = {};
     (void)(pipeline_expr_var_name_into(arena, inner_callee_ref, &((inner_name)[0])));
     int32_t inner_fi = glue_module_func_index_by_name(mod_ref, &((inner_name)[0]), ilen);
     if ((inner_fi < 0)) {

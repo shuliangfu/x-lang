@@ -2128,8 +2128,8 @@ export function driver_x_emit_work_cleanup(): void {
 // Cold seed keeps C static + accessor twins under #ifndef XLANG_L2_RDABI_THIN_FROM_X.
 // Defined before work_reset so pure reset can call same-TU accessors.
 
-let g_driver_asm_tmp_path_slot: u8[64] = [];
-let g_driver_parsed_tmp_c_slot: u8[64] = [];
+let g_driver_asm_tmp_path_slot: u8[128] = [];
+let g_driver_parsed_tmp_c_slot: u8[128] = [];
 let g_driver_parsed_tmp_c_buf: u8[256] = [];
 
 /**
@@ -5219,7 +5219,7 @@ export extern "C" function lexer_invalid_escape_pending(): i32;
  */
 export extern "C" function lexer_string_lit_overflow_reset(): void;
 /**
- * wave283: non-zero if string decode would exceed Expr.var_name cap 63 (L011).
+ * wave283: non-zero if string decode would exceed Expr.var_name cap 127 (L011).
  * PLATFORM: SHARED
  */
 export extern "C" function lexer_string_lit_overflow_pending(): i32;
@@ -5229,7 +5229,7 @@ export extern "C" function lexer_string_lit_overflow_pending(): i32;
  */
 export extern "C" function lexer_ident_too_long_reset(): void;
 /**
- * wave284: non-zero if non-keyword ident span exceeds AST name cap 63 (L012).
+ * wave284: non-zero if non-keyword ident span exceeds AST name cap 127 (L012).
  * PLATFORM: SHARED
  */
 export extern "C" function lexer_ident_too_long_pending(): i32;

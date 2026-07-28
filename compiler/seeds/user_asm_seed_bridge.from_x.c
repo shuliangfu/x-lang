@@ -63,13 +63,13 @@ struct ast_Module;
 struct ast_ASTArena;
 struct ast_PipelineDepCtx;
 struct platform_elf_ElfLabelEntry {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t offset;
 };
 struct platform_elf_ElfPatchEntry {
   int32_t rel32_offset;
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t patch_imm_bits;
 };
@@ -78,10 +78,10 @@ struct platform_elf_ElfRelocEntry {
   int32_t name_len;
 };
 struct platform_elf_ElfRelocSymName64 {
-  uint8_t bytes[64];
+  uint8_t bytes[128];
 };
 struct platform_elf_ElfSymEntry {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t offset;
   int32_t sym_shndx;
@@ -357,7 +357,7 @@ int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ct
     for (jdep = 0; jdep < ndep_elf; jdep++) {
       struct ast_Module *dep_mod;
       struct ast_ASTArena *dep_ar;
-      uint8_t dep_path_buf[64];
+      uint8_t dep_path_buf[128];
       int pk;
       int dup;
       if (jdep == 0 && driver_skip_codegen_dep_0_get() != 0)

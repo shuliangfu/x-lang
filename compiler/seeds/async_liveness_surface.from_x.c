@@ -1512,7 +1512,7 @@ void frame_build_tag(uint8_t * f, uint8_t * out, int32_t cap) {
       (void)((name = ((uint8_t *)"\x66\x6e")));
     }
   }
-  uint8_t m[64] = {};
+  uint8_t m[128] = {};
   (void)(frame_mangle_ident(name, &((m)[0]), 64));
   uint8_t * pref = ((uint8_t *)"\x5f\x5f\x73\x68\x75\x78\x5f\x61\x73\x79\x6e\x63\x5f\x66\x72\x61\x6d\x65\x5f");
   int32_t j = 0;
@@ -1647,7 +1647,7 @@ void async_live_sort_frame_names(uint8_t * out) {
   }
   int32_t i = 1;
   while ((i < n)) {
-    uint8_t key[64] = {};
+    uint8_t key[128] = {};
     uint8_t * src = async_liveness_frame_live_row_ptr(out, i);
     int32_t k = 0;
     while ((k < 64)) {
@@ -1777,7 +1777,7 @@ void async_liveness_type_to_c_buf(uint8_t * ty, uint8_t * buf, int32_t cap) {
   if ((kind ==9)) {
     uint8_t * elem = async_liveness_async_live_load_ptr(ty, 16);
     if ((elem !=0)) {
-      uint8_t inner[64] = {};
+      uint8_t inner[128] = {};
       (void)(async_liveness_type_to_c_buf(elem, &((inner)[0]), 64));
       int32_t j = 0;
       while (((j + 1) < cap)) {

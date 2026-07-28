@@ -832,7 +832,7 @@ export extern function typeck_lsp_main(): i32;
  * PLATFORM: SHARED — mac + Ubuntu product binary must accept the same bare form.
  */
 export function entry(argc: i32, argv: *u8): i32 {
-  let arg_buf: u8[64] = [];
+  let arg_buf: u8[128] = [];
   let i: i32 = 1;
   while (i < argc) {
     let len: i32 = driver_get_argv_i(argc, argv, i, arg_buf, 64);

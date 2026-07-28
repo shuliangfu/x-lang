@@ -274,7 +274,7 @@ int32_t arch_x86_64_enc_enc_epilogue(struct platform_elf_ElfCodegenCtx *elf_ctx)
 /* Cap residual pure R2 wave2: .x provides arch_x86_64_enc_enc_label */
 int32_t arch_x86_64_enc_enc_label(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len, int32_t is_func) {
   uint8_t *cb;
-  uint8_t mn[64];
+  uint8_t mn[128];
   int32_t k;
   if (!elf_ctx || !name || name_len < 0) return -1;
   cb = x86_enc_ctx_bytes(elf_ctx);
@@ -1125,7 +1125,7 @@ int32_t arch_x86_64_enc_enc_jmp(struct platform_elf_ElfCodegenCtx *elf_ctx, uint
 int32_t arch_x86_64_enc_enc_call(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len) {
   int32_t rel32_at;
   uint8_t *cb;
-  uint8_t rn[64];
+  uint8_t rn[128];
   int32_t k;
   if (!elf_ctx || !name || name_len <= 0) return -1;
   cb = x86_enc_ctx_bytes(elf_ctx);

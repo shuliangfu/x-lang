@@ -15,14 +15,14 @@
 #define RUNTIME_PIPELINE_ELF_CTX_TABLE_CAP 16384
 
 typedef struct {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t offset;
 } RuntimePipelineElfLabelEntry;
 
 typedef struct {
   int32_t rel32_offset;
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t patch_imm_bits;
 } RuntimePipelineElfPatchEntry;

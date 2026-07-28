@@ -60,7 +60,7 @@ typedef struct {
   uint8_t path[256];
   int32_t path_len;
   int32_t kind;
-  uint8_t binding_name[64];
+  uint8_t binding_name[128];
   int32_t binding_name_len;
   /** import { a, b } 名称在 module 侧车 select 池中的起始下标 */
   int32_t select_base;
@@ -78,7 +78,7 @@ typedef struct {
 
 /** struct literal 单字段（Expr 侧车池）。 */
 typedef struct {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t init_ref;
 } StructLitFieldEntry;
@@ -92,7 +92,7 @@ typedef struct {
 
 /** struct_layout 单字段槽（module sidecar struct_layout_fields 池）。 */
 typedef struct {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t field_offset;
   int32_t type_ref;
@@ -105,7 +105,7 @@ typedef struct {
  * Sidecar only — no StructLayout ABI churn. PLATFORM: SHARED.
  */
 typedef struct {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
 } LayoutTypeParamEntry;
 
@@ -117,7 +117,7 @@ typedef struct {
 
 /** 顶层 let/const 槽。 */
 typedef struct {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t type_ref;
   int32_t init_ref;
@@ -128,7 +128,7 @@ typedef struct {
 
 /** 顶层 type 别名槽：type Alias = Target;（纯 typeck 别名，codegen typedef）。 */
 typedef struct {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t target_type_ref;
 } TypeAliasEntry;
@@ -140,10 +140,10 @@ typedef struct {
  */
 #define MODULE_ENUM_MAX_VARIANTS 256
 typedef struct {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t num_variants;
-  uint8_t variant_name[MODULE_ENUM_MAX_VARIANTS][64];
+  uint8_t variant_name[MODULE_ENUM_MAX_VARIANTS][128];
   int32_t variant_name_len[MODULE_ENUM_MAX_VARIANTS];
   /** 1=`export enum`；类型名 ∈ E(M)。 */
   int32_t is_export;
@@ -226,7 +226,7 @@ static int32_t grow_vec_push(GrowVec *v) {
 
 /** M-3：region label { body } 侧车槽（与 C ASTRegionBlock 语义一致）。 */
 typedef struct {
-  uint8_t label[64];
+  uint8_t label[128];
   int32_t label_len;
   int32_t body_ref;
   /** MEM-C1：>0 表示 with_arena(cap) 块（cap 表达式 ref）；0 表示普通 region。 */
@@ -305,7 +305,7 @@ typedef struct {
 
 /** M-3：OneFunc 侧车 region 条目。 */
 typedef struct {
-  uint8_t label[64];
+  uint8_t label[128];
   int32_t label_len;
   int32_t body_ref;
   /** MEM-C1：>0 表示 with_arena(cap)；LANG-007：-1 表示 unsafe { body }。 */
@@ -1005,7 +1005,7 @@ void pipeline_arena_expr_write_var(struct ast_ASTArena *a, int32_t ref, uint8_t 
   memset(ep, 0, sizeof(*ep));
   ep->kind = ast_ExprKind_EXPR_VAR;
   n = name_len;
-  if (n > 63)
+  if (n > 127)
     n = 63;
   ep->var_name_len = n;
   memcpy(ep->var_name, name, (size_t)n);
@@ -1632,7 +1632,7 @@ int32_t pipeline_visibility_mode(void) {
 
 int32_t pipeline_visibility_allow_func(struct ast_Module *m, int32_t fi, int32_t cross_module) {
   int32_t mode;
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t nlen;
   int i;
   if (!cross_module)
@@ -1654,8 +1654,8 @@ int32_t pipeline_visibility_allow_func(struct ast_Module *m, int32_t fi, int32_t
     nlen = pipeline_module_func_name_len_at(m, fi);
     if (nlen < 0)
       nlen = 0;
-    if (nlen > 63)
-      nlen = 63;
+    if (nlen > 127)
+      nlen = 127;
     fprintf(stderr, "warning: '%.*s' is not exported (XLANG_VISIBILITY=warn); "
                     "add `export` or it will error under strict\n",
             (int)nlen, (const char *)name);
@@ -1767,7 +1767,7 @@ static void pipeline_report_unused_private(const uint8_t *name, int32_t nlen) {
   int nl = (nlen > 0) ? (int)nlen : 0;
   int line = 1;
   int col = 1;
-  if (nl > 63)
+  if (nl > 127)
     nl = 63;
   snprintf(msg, sizeof msg, "unused private function '%.*s' (not export, not reachable in module)",
            nl, (const char *)(name ? name : (const uint8_t *)""));
@@ -1800,7 +1800,7 @@ static void pipeline_mark_local_call_names(struct ast_ASTArena *a, uint8_t *used
   int32_t fi;
   struct ast_Expr *ex;
   struct ast_Expr *callee;
-  uint8_t fname[64];
+  uint8_t fname[128];
   int32_t flen;
 
   if (!a || !used_flags || !m || nfuncs <= 0)
@@ -1850,7 +1850,7 @@ int32_t pipeline_typeck_unused_private_funcs(struct ast_Module *m, struct ast_AS
   int32_t fi;
   int32_t nwarn = 0;
   uint8_t *used = NULL;
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t nlen;
   struct ast_Func *f;
 
@@ -2065,7 +2065,8 @@ int32_t pipeline_module_func_return_type_at(struct ast_Module *m, int32_t fi) {
 /** 比较 module 函数名与外部 name 字节序列；相等返回 1。 */
 int32_t pipeline_module_func_name_equal_at(struct ast_Module *m, int32_t fi, uint8_t *name, int32_t name_len) {
   struct ast_Func *f;
-  if (!m || !name || name_len <= 0 || name_len > 64)
+  /* wave577 Cap: name slots u8[128] → accept name_len <= 127 */
+  if (!m || !name || name_len <= 0 || name_len > 127)
     return 0;
   f = module_func_at(m, fi);
   if (!f || (int32_t)f->name_len != name_len)
@@ -2324,7 +2325,7 @@ int32_t pipeline_block_append_region(struct ast_ASTArena *a, int32_t br, uint8_t
   struct ast_Block *b;
   RegionBlockEntry *rb;
   int32_t idx;
-  if (!a || !(sc = arena_sidecar_get(a, 1)) || !(b = block_at(a, br)) || !label || label_len <= 0 || label_len > 63)
+  if (!a || !(sc = arena_sidecar_get(a, 1)) || !(b = block_at(a, br)) || !label || label_len <= 0 || label_len > 127)
     return -1;
   idx = block_pool_append_pos(a, br, &sc->regions, offsetof(struct ast_Block, region_base), b->num_regions);
   if (idx < 0)
@@ -2934,14 +2935,23 @@ int32_t pipeline_block_let_name_len(struct ast_ASTArena *a, int32_t br, int32_t 
 
 void pipeline_block_let_name_copy64(struct ast_ASTArena *a, int32_t br, int32_t li, uint8_t *dst) {
   struct ast_LetDecl *ld;
+  int32_t nlen;
   if (!dst)
     return;
   ld = block_let_at(a, br, li);
   if (!ld) {
-    memset(dst, 0, 64);
+    memset(dst, 0, 128);
     return;
   }
-  memcpy(dst, ld->name, 64);
+  /* wave577 Cap: 拷贝 name_len 字节（≤127），余下清零；与 AST name[128] 对齐避免截断。 */
+  nlen = ld->name_len;
+  if (nlen < 0)
+    nlen = 0;
+  if (nlen > 127)
+    nlen = 127;
+  memset(dst, 0, 128);
+  if (nlen > 0)
+    memcpy(dst, ld->name, (size_t)nlen);
 }
 
 int32_t pipeline_block_expr_stmt_ref(struct ast_ASTArena *a, int32_t br, int32_t ei) {
@@ -3291,7 +3301,7 @@ int32_t pipeline_onefunc_num_if_stmts(uint8_t *out) {
 int32_t pipeline_onefunc_append_region(uint8_t *out, uint8_t *label, int32_t label_len, int32_t body_ref) {
   OneFuncSidecar *sc;
   OneFuncRegionEntry *re;
-  if (!out || !(sc = onefunc_sidecar_get(out, 1)) || !label || label_len <= 0 || label_len > 63)
+  if (!out || !(sc = onefunc_sidecar_get(out, 1)) || !label || label_len <= 0 || label_len > 127)
     return -1;
   if (grow_vec_push(&sc->regions) < 0)
     return -1;
@@ -3601,7 +3611,7 @@ XLANG_WEAK int32_t pipeline_module_import_append_select_name(struct ast_Module *
   pl = (int32_t *)grow_vec_at(&sc->import_select_name_lens, vi);
   if (!row || !pl)
     return -1;
-  n = len > 63 ? 63 : len;
+  n = len > 127 ? 127 : len;
   memset(row, 0, 64);
   memcpy(row, bytes, (size_t)n);
   *pl = n;
@@ -3635,7 +3645,7 @@ XLANG_WEAK void pipeline_module_import_set_select_name(struct ast_Module *m, int
   pl = (int32_t *)grow_vec_at(&sc->import_select_name_lens, abs);
   if (!row || !pl)
     return;
-  n = len > 63 ? 63 : len;
+  n = len > 127 ? 127 : len;
   memset(row, 0, 64);
   memcpy(row, bytes, (size_t)n);
   *pl = n;
@@ -3711,7 +3721,7 @@ void pipeline_module_struct_layout_reset_slot(struct ast_Module *m, int32_t idx)
 
 void pipeline_module_struct_layout_set_name(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len) {
   struct ast_StructLayout *sl;
-  if (!bytes || len <= 0 || len > 63)
+  if (!bytes || len <= 0 || len > 127)
     return;
   sl = module_layout_at(m, idx);
   if (!sl)
@@ -3724,7 +3734,7 @@ void pipeline_module_struct_layout_set_name(struct ast_Module *m, int32_t idx, u
 void pipeline_module_struct_layout_set_field(struct ast_Module *m, int32_t li, int32_t j, uint8_t *fname_bytes,
                                              int32_t fname_len, int32_t ftype_ref, int32_t foff) {
   StructLayoutFieldEntry *fe;
-  if (fname_len <= 0 || fname_len > 63 || j < 0)
+  if (fname_len <= 0 || fname_len > 127 || j < 0)
     return;
   fe = module_layout_field_entry(m, li, j, 1);
   if (!fe)
@@ -3749,10 +3759,10 @@ void pipeline_module_struct_layout_name_into(struct ast_Module *m, int32_t idx, 
     return;
   sl = module_layout_at(m, idx);
   if (!sl) {
-    memset(out64, 0, 64);
+    memset(out64, 0, 128);
     return;
   }
-  memcpy(out64, sl->name, 64);
+  memcpy(out64, sl->name, 128); /* wave577 Cap */
 }
 
 int32_t pipeline_module_struct_layout_num_fields(struct ast_Module *m, int32_t idx) {
@@ -3823,7 +3833,7 @@ int32_t pipeline_module_struct_layout_append_type_param(struct ast_Module *m, in
   LayoutTypeParamMeta *meta;
   LayoutTypeParamEntry *ent;
   int32_t abs;
-  if (!m || li < 0 || !name || name_len <= 0 || name_len > 63)
+  if (!m || li < 0 || !name || name_len <= 0 || name_len > 127)
     return -1;
   sc = module_sidecar_get(m, 1);
   if (!sc)
@@ -3911,21 +3921,21 @@ void pipeline_module_struct_layout_field_name_into(struct ast_Module *m, int32_t
   StructLayoutFieldEntry *fe;
   if (!out64 || j < 0) {
     if (out64)
-      memset(out64, 0, 64);
+      memset(out64, 0, 128);
     return;
   }
   fe = module_layout_field_entry(m, li, j, 0);
   if (!fe) {
-    memset(out64, 0, 64);
+    memset(out64, 0, 128);
     return;
   }
-  memcpy(out64, fe->name, 64);
+  memcpy(out64, fe->name, 128); /* wave577 Cap */
 }
 
 /** 读 struct_layout 槽名字节；越界返回 0。 */
 uint8_t pipeline_module_struct_layout_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off) {
   struct ast_StructLayout *sl;
-  if (off < 0 || off >= 64)
+  if (off < 0 || off >= 128)
     return 0;
   sl = module_layout_at(m, idx);
   if (!sl || off >= sl->name_len)
@@ -4525,7 +4535,7 @@ void pipeline_module_hoist_top_level_lets_into_main(struct ast_Module *m, struct
   int32_t fi;
   int32_t n;
   int32_t let_start_idx;
-  uint8_t name_buf[64];
+  uint8_t name_buf[128];
   int32_t name_len;
   int32_t k;
   ModuleSidecar *sc;
@@ -4890,7 +4900,7 @@ static int32_t pipeline_enum_name_from_field_access_base(struct ast_Expr *base, 
   /* Case 1: EnumName.Variant */
   if (base->kind == ast_ExprKind_EXPR_VAR && base->var_name_len > 0) {
     elen = base->var_name_len;
-    if (elen > 63)
+    if (elen > 127)
       elen = 63;
     memcpy(ename_out, base->var_name, (size_t)elen);
     return elen;
@@ -4898,7 +4908,7 @@ static int32_t pipeline_enum_name_from_field_access_base(struct ast_Expr *base, 
   /* Case 2: import_binding.EnumName.Variant — enum name is the field on the binding. */
   if (base->kind == ast_ExprKind_EXPR_FIELD_ACCESS && base->field_access_field_len > 0) {
     elen = base->field_access_field_len;
-    if (elen > 63)
+    if (elen > 127)
       elen = 63;
     memcpy(ename_out, base->field_access_field_name, (size_t)elen);
     return elen;
@@ -4911,8 +4921,8 @@ void pipeline_expr_try_mark_enum_field_access(struct ast_Module *m, struct ast_A
   struct ast_Expr *e;
   struct ast_Expr *base;
   int32_t tag;
-  uint8_t ename[64];
-  uint8_t vname[64];
+  uint8_t ename[128];
+  uint8_t vname[128];
   int32_t elen;
   int32_t vlen;
   if (!m || !a || expr_ref <= 0 || expr_ref > a->num_exprs)
@@ -4925,7 +4935,7 @@ void pipeline_expr_try_mark_enum_field_access(struct ast_Module *m, struct ast_A
   if (elen <= 0)
     return;
   vlen = e->field_access_field_len;
-  if (vlen <= 0 || vlen > 63)
+  if (vlen <= 0 || vlen > 127)
     return;
   memcpy(vname, e->field_access_field_name, (size_t)vlen);
   tag = pipeline_module_enum_variant_tag_for_names(m, ename, elen, vname, vlen);
@@ -4944,8 +4954,8 @@ void pipeline_codegen_try_mark_enum_field_access(struct ast_Module *m, struct as
   struct ast_Expr *e;
   struct ast_Expr *base;
   int32_t tag;
-  uint8_t ename[64];
-  uint8_t vname[64];
+  uint8_t ename[128];
+  uint8_t vname[128];
   int32_t elen;
   int32_t vlen;
   if (!m || !a || expr_ref <= 0 || expr_ref > a->num_exprs)
@@ -4958,7 +4968,7 @@ void pipeline_codegen_try_mark_enum_field_access(struct ast_Module *m, struct as
   if (elen <= 0)
     return;
   vlen = e->field_access_field_len;
-  if (vlen <= 0 || vlen > 63) return;
+  if (vlen <= 0 || vlen > 127) return;
   memcpy(vname, e->field_access_field_name, (size_t)vlen);
   tag = pipeline_module_enum_variant_tag_for_names(m, ename, elen, vname, vlen);
   if (tag >= 0) {
@@ -6093,7 +6103,7 @@ int32_t pipeline_expr_append_struct_lit_field(struct ast_ASTArena *a, int32_t ex
   fe = expr_struct_lit_field_at(a, expr_ref, ex->struct_lit_num_fields, 1);
   if (!fe)
     return -1;
-  n = name_len > 63 ? 63 : name_len;
+  n = name_len > 127 ? 127 : name_len;
   memset(fe->name, 0, sizeof(fe->name));
   memcpy(fe->name, name_bytes, (size_t)n);
   fe->name_len = n;
@@ -6115,10 +6125,10 @@ void pipeline_expr_struct_lit_field_name_into(struct ast_ASTArena *a, int32_t ex
   }
   fe = expr_struct_lit_field_at(a, expr_ref, j, 0);
   if (!fe) {
-    memset(out64, 0, 64);
+    memset(out64, 0, 128);
     return;
   }
-  memcpy(out64, fe->name, 64);
+  memcpy(out64, fe->name, 128); /* wave577 Cap */
 }
 
 int32_t pipeline_expr_struct_lit_init_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t j) {
@@ -6238,7 +6248,7 @@ void pipeline_dep_ctx_set_import_path(struct ast_PipelineDepCtx *ctx, int32_t id
   pl = (int32_t *)grow_vec_at(&sc->dep_path_lens, idx);
   if (!row || !pl)
     return;
-  n = len > 63 ? 63 : len;
+  n = len > 127 ? 127 : len;
   memset(row, 0, 64);
   memcpy(row, bytes, (size_t)n);
   row[n] = 0;
@@ -6334,7 +6344,7 @@ void pipeline_dep_ctx_set_codegen_prefix_mirror(struct ast_PipelineDepCtx *ctx, 
   int32_t k, n;
   if (!ctx)
     return;
-  n = len > 63 ? 63 : (len > 0 ? len : 0);
+  n = len > 127 ? 127 : (len > 0 ? len : 0);
   ctx->current_codegen_prefix_len = 0;
   for (k = 0; k < n; k++)
     ctx->current_codegen_prefix_mirror[k] = bytes[k];
@@ -6981,7 +6991,7 @@ extern uint8_t *driver_dep_module_buf(int32_t i);
 extern int32_t driver_dep_seeded_get(int32_t i);
 extern const char *driver_dep_path_registry_at(int32_t i);
 extern int32_t driver_dep_slot_for_path(uint8_t *path);
-extern int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t i, uint8_t out[64]);
+extern int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t i, uint8_t out[128]);
 
 /** pipeline_load_import_from_disk X emit：读 ctx.preprocess_len（避免 FIELD_ACCESS emit 失败）。 */
 int32_t pipeline_dep_ctx_preprocess_len_get(struct ast_PipelineDepCtx *ctx) {
@@ -7050,7 +7060,7 @@ XLANG_WEAK int32_t pipeline_try_bind_seeded_import(struct ast_PipelineDepCtx *ct
  * PLATFORM: SHARED — ELF weak overridden by pure.
  */
 XLANG_WEAK int32_t pipeline_sync_one_dep_slot(struct ast_Module *module, struct ast_PipelineDepCtx *ctx, int32_t dep_i) {
-  uint8_t sync_path[64];
+  uint8_t sync_path[128];
   int32_t sync_slot;
 
   if (!module || !ctx || dep_i < 0)
@@ -7371,7 +7381,7 @@ XLANG_WEAK void pipeline_dep_ctx_realign_ndep_for_entry_c(struct ast_Module *mod
  */
 int32_t pipeline_load_import_resolve_read_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx,
                                             int32_t import_idx) {
-  uint8_t path_buf[64];
+  uint8_t path_buf[128];
   int32_t path_len;
 
   if (!module || !ctx || import_idx < 0)
@@ -7390,7 +7400,7 @@ int32_t pipeline_load_import_resolve_read_c(struct ast_Module *module, struct as
  */
 int32_t pipeline_load_one_import_slot_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                         struct ast_PipelineDepCtx *ctx, int32_t import_idx) {
-  uint8_t path_buf[64];
+  uint8_t path_buf[128];
   int32_t gs;
 
   if (!module || !arena || !ctx || import_idx < 0)
@@ -7418,7 +7428,7 @@ XLANG_WEAK int32_t pipeline_load_and_sync_direct_import_deps_c(struct ast_Module
   int32_t i;
   int32_t rc;
   int32_t sync_rc;
-  uint8_t path_buf[64];
+  uint8_t path_buf[128];
 
   if (!module || !arena || !ctx)
     return -1;
@@ -7766,7 +7776,7 @@ static void pipeline_debug_dump_std_heap_trace_call(struct ast_Module *dep_mod, 
   fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] std.heap probe dep_j=%d imports=%d ctx_ndep=%d arena_exprs=%d\n",
           (int)dep_j, (int)n_imp, (int)pipeline_dep_ctx_ndep(ctx), (int)arena->num_exprs);
   for (j = 0; j < pipeline_dep_ctx_ndep(ctx); j++) {
-    uint8_t ctx_path_buf[64];
+    uint8_t ctx_path_buf[128];
     int32_t ctx_path_len = pipeline_dep_ctx_import_path_len(ctx, j);
     struct ast_Module *ctx_mod = pipeline_dep_ctx_module_at(ctx, j);
     memset(ctx_path_buf, 0, sizeof(ctx_path_buf));
@@ -7777,8 +7787,8 @@ static void pipeline_debug_dump_std_heap_trace_call(struct ast_Module *dep_mod, 
             (void *)ctx_mod);
   }
   for (j = 0; j < n_imp; j++) {
-    uint8_t path_buf[64];
-    uint8_t bind_buf[64];
+    uint8_t path_buf[128];
+    uint8_t bind_buf[128];
     int32_t path_len = pipeline_module_import_path_len(dep_mod, j);
     int32_t bind_len = pipeline_module_import_binding_name_len(dep_mod, j);
     int32_t k;
@@ -7792,13 +7802,13 @@ static void pipeline_debug_dump_std_heap_trace_call(struct ast_Module *dep_mod, 
             (char *)bind_buf);
   }
   for (j = 0; j < pipeline_module_num_funcs(dep_mod); j++) {
-    uint8_t fn_buf[64];
+    uint8_t fn_buf[128];
     int32_t fn_len = pipeline_module_func_name_len_at(dep_mod, j);
     int32_t body_ref;
     int32_t nso;
     int32_t si;
     memset(fn_buf, 0, sizeof(fn_buf));
-    if (fn_len <= 0 || fn_len > 63)
+    if (fn_len <= 0 || fn_len > 127)
       continue;
     pipeline_module_func_name_copy64(dep_mod, j, fn_buf);
     if (!pipeline_debug_name_eq_buf_lit(fn_buf, fn_len, "trace_on"))
@@ -7836,7 +7846,7 @@ static void pipeline_debug_dump_std_heap_trace_call(struct ast_Module *dep_mod, 
     struct ast_Expr *base_ex;
     int32_t dep_ix;
     int32_t func_ix;
-    uint8_t dep_resolved_path[64];
+    uint8_t dep_resolved_path[128];
     if (!call_ex || call_ex->kind != ast_ExprKind_EXPR_CALL || call_ex->call_callee_ref <= 0)
       continue;
     callee_ex = pipeline_arena_expr_ptr(arena, call_ex->call_callee_ref);
@@ -7890,7 +7900,7 @@ static int32_t pipeline_dep_ctx_has_earlier_same_import_path_c(struct ast_Pipeli
 int32_t run_x_pipeline_codegen_one_dep_emit(struct ast_Module *dep_mod, struct codegen_CodegenOutBuf *out_buf,
                                              struct ast_PipelineDepCtx *ctx, int32_t dep_j, int32_t skip_asm_dep_codegen,
                                              int32_t use_asm_backend) {
-  uint8_t dep_path_buf[64];
+  uint8_t dep_path_buf[128];
 
   if (!out_buf || !ctx || dep_j < 0)
     return -1;
@@ -8030,7 +8040,7 @@ int32_t pipeline_resolve_path_x_from_buf64_c(struct ast_PipelineDepCtx *ctx, uin
  */
 int32_t run_x_pipeline_fill_dep_import_path_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx,
                                                 int32_t dep_j) {
-  uint8_t path_buf[64];
+  uint8_t path_buf[128];
   int32_t path_len;
   int32_t existing;
 
@@ -8071,7 +8081,7 @@ int32_t pipeline_finish_dep_codegen_diag_c(int32_t dep_j, struct codegen_Codegen
 int32_t run_x_pipeline_codegen_one_dep_c(struct ast_Module *module, struct codegen_CodegenOutBuf *out_buf,
                                           struct ast_PipelineDepCtx *ctx, int32_t dep_j,
                                           int32_t skip_asm_dep_codegen) {
-  uint8_t dep_path_buf[64];
+  uint8_t dep_path_buf[128];
   struct ast_Module *dep_mod;
   int32_t use_asm;
 
@@ -8107,7 +8117,7 @@ int32_t run_x_pipeline_codegen_one_dep_c(struct ast_Module *module, struct codeg
 static int32_t pipeline_dep_ctx_has_earlier_same_import_path_c(struct ast_PipelineDepCtx *ctx, int32_t dep_j) {
   int32_t path_len;
   int32_t prev_j;
-  uint8_t path_buf[64];
+  uint8_t path_buf[128];
 
   if (!ctx || dep_j <= 0)
     return 0;
@@ -8119,7 +8129,7 @@ static int32_t pipeline_dep_ctx_has_earlier_same_import_path_c(struct ast_Pipeli
   prev_j = 0;
   while (prev_j < dep_j) {
     int32_t prev_len = pipeline_dep_ctx_import_path_len(ctx, prev_j);
-    uint8_t prev_buf[64];
+    uint8_t prev_buf[128];
     if (prev_len == path_len && prev_len > 0 && prev_len <= (int32_t)sizeof(prev_buf)) {
       memset(prev_buf, 0, sizeof(prev_buf));
       pipeline_dep_ctx_import_path_copy64(ctx, prev_j, prev_buf);
@@ -8156,7 +8166,7 @@ int32_t run_x_pipeline_codegen_deps_c(struct ast_Module *module, struct ast_ASTA
   while (j < ndep) {
     if (pipeline_dep_ctx_has_earlier_same_import_path_c(ctx, j) != 0) {
       if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
-        uint8_t dup_path_buf[64];
+        uint8_t dup_path_buf[128];
         memset(dup_path_buf, 0, sizeof(dup_path_buf));
         pipeline_dep_ctx_import_path_copy64(ctx, j, dup_path_buf);
         fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] skip duplicate dep codegen j=%d path=%s\n", (int)j,
@@ -8239,7 +8249,7 @@ void pipeline_load_and_sync_set_ndep_from_module_c(struct ast_Module *module, st
 
 /** one_dep codegen 前 prepare path prefix；C glue（X 侧 u8[64] 栈数组）。 */
 int32_t run_x_pipeline_codegen_one_dep_prepare_c(struct ast_PipelineDepCtx *ctx, int32_t dep_j) {
-  uint8_t dep_path_buf[64];
+  uint8_t dep_path_buf[128];
 
   if (!ctx || dep_j < 0)
     return -1;
@@ -8443,7 +8453,7 @@ int32_t asm_qual_sym_layer_push(uint8_t *bytes, int32_t len) {
   asm_qual_sym_scratch_ensure();
   if (!g_asm_qual_sym.inited)
     return -1;
-  n = len > 63 ? 63 : len;
+  n = len > 127 ? 127 : len;
   idx = grow_vec_push(&g_asm_qual_sym.layer_rows);
   if (idx < 0 || grow_vec_push(&g_asm_qual_sym.layer_lens) < 0)
     return -1;
@@ -8571,12 +8581,12 @@ XLANG_WEAK void preprocess_if_stack_set_at(int32_t i, int32_t v) {
 
 /** typeck.x：命名类型对齐/大小时复用的 64 字节 scratch（避免局部 u8[64] 在自 typecheck 时 check_block 失败）。 */
 uint8_t *typeck_named_scratch64(void) {
-  static uint8_t s[64];
+  static uint8_t s[128];
   return s;
 }
 
-/** typeck.x：多槽 64 字节 scratch；嵌套 layout/struct_lit 路径须用不同 slot 避免覆盖。 */
-static uint8_t g_typeck_scratch64[16][64];
+/** typeck.x：多槽 128 字节 scratch (wave577 Cap: AST name slots 64→128)；嵌套 layout/struct_lit 路径须用不同 slot 避免覆盖。 */
+static uint8_t g_typeck_scratch64[16][128];
 
 uint8_t *typeck_scratch64_slot(int32_t slot) {
   if (slot < 0 || slot >= 16)
@@ -8855,8 +8865,8 @@ int32_t typeck_struct_layout_metrics_try_packed_c(struct ast_Module *module, str
   int32_t ftr;
   int32_t fsize;
   int32_t current;
-  uint8_t layout_nm[64];
-  uint8_t field_nm[64];
+  uint8_t layout_nm[128];
+  uint8_t field_nm[128];
   int32_t layout_nlen;
   int32_t flen;
   extern int32_t typeck_x_type_size(struct ast_Module *module, struct ast_ASTArena *arena, int32_t ty_ref,
@@ -8932,7 +8942,7 @@ int32_t *typeck_layout_metrics_al_slot_depth(int32_t depth) {
  */
 /** 与 elf.x ElfLabelEntry 布局一致（无 code_shndx；PGO 段索引见 sidecar）。 */
 typedef struct {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t offset;
 } PipelineElfLabelEntry;
@@ -8940,7 +8950,7 @@ typedef struct {
 /** 与 elf.x ElfPatchEntry 布局一致。 */
 typedef struct {
   int32_t rel32_offset;
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t patch_imm_bits;
 } PipelineElfPatchEntry;
@@ -8959,7 +8969,7 @@ typedef struct {
 } PipelineElfRelocHeapEntry;
 
 typedef struct {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t offset;
   /** 符号所属段：1=.text，2=.text.hot，3=.text.unlikely。 */
@@ -8967,7 +8977,7 @@ typedef struct {
 } PipelineElfSymEntry;
 
 typedef struct {
-  uint8_t bytes[64];
+  uint8_t bytes[128];
 } PipelineElfRelocSymName64;
 
 /** code_data 之前的完整前缀；glue 用 offsetof 取 e_machine / code_data，避免手算偏移漂移。 */
@@ -9009,10 +9019,10 @@ enum {
 };
 
 /** 与 elf.x ElfCodegenCtx 前缀一致；漂移会导致 append_bytes 写穿 malloc 区。 */
-_Static_assert(sizeof(PipelineElfLabelEntry) == 72, "PipelineElfLabelEntry must match elf.x ElfLabelEntry");
-_Static_assert(sizeof(PipelineElfPatchEntry) == 76, "PipelineElfPatchEntry must match elf.x ElfPatchEntry");
+_Static_assert(sizeof(PipelineElfLabelEntry) == 136, "PipelineElfLabelEntry must match elf.x ElfLabelEntry (wave577 Cap: name[64]→[128])");
+_Static_assert(sizeof(PipelineElfPatchEntry) == 140, "PipelineElfPatchEntry must match elf.x ElfPatchEntry (wave577 Cap: name[64]→[128])");
 _Static_assert(sizeof(PipelineElfRelocEntry) == 8, "PipelineElfRelocEntry must match elf.x ElfRelocEntry");
-_Static_assert(sizeof(PipelineElfSymEntry) == 76, "PipelineElfSymEntry must match elf.x ElfSymEntry");
+_Static_assert(sizeof(PipelineElfSymEntry) == 140, "PipelineElfSymEntry must match elf.x ElfSymEntry (wave577 Cap: name[64]→[128])");
 _Static_assert(kPipelineElfCtxCodeDataOff == (int)sizeof(PipelineElfCtxAccess),
                "PipelineElfCtxAccess prefix size drift vs elf.x");
 
@@ -9122,7 +9132,7 @@ int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t 
 /** num_relocs > TABLE_CAP 时的堆 sidecar（单 ctx 编译期有效；elf_ctx_reset 绑定 owner）。 */
 static uint8_t *g_pipeline_elf_reloc_sidecar_owner;
 static PipelineElfRelocHeapEntry g_pipeline_elf_reloc_heap[PIPELINE_ELF_CTX_RELOC_HEAP_CAP];
-static uint8_t g_pipeline_elf_reloc_sym_heap[PIPELINE_ELF_CTX_RELOC_HEAP_CAP][64];
+static uint8_t g_pipeline_elf_reloc_sym_heap[PIPELINE_ELF_CTX_RELOC_HEAP_CAP][128];
 
 /** PGO 段索引 sidecar：内联 labels/patches/relocs 无 code_shndx 字段（与 elf.x 布局对齐）。 */
 static uint8_t *g_pipeline_elf_shndx_sidecar_owner;
@@ -9368,7 +9378,7 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
   int32_t code_len;
   int32_t strtab_off;
   int32_t num_undef;
-  uint8_t undef_names[PIPELINE_ELF_UNDEF_SYM_CAP][64];
+  uint8_t undef_names[PIPELINE_ELF_UNDEF_SYM_CAP][128];
   int32_t undef_lens[PIPELINE_ELF_UNDEF_SYM_CAP];
   int32_t strtab_size;
   int32_t symtab_ents;
@@ -9385,7 +9395,7 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
       0, '.', 't', 'e', 'x', 't', 0, '.', 's', 'y', 'm', 't', 'a', 'b', 0,
       '.', 's', 't', 'r', 't', 'a', 'b', 0, '.', 's', 'h', 's', 't', 'r', 't', 'a', 'b', 0,
       '.', 'r', 'e', 'l', 'a', '.', 't', 'e', 'x', 't', 0};
-  uint8_t ehdr[64];
+  uint8_t ehdr[128];
   uint8_t z0[1];
   int32_t s;
   int32_t r0;
@@ -9406,7 +9416,7 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
   num_undef = 0;
   r0 = 0;
   while (r0 < ctx->num_relocs) {
-    uint8_t rname[64];
+    uint8_t rname[128];
     int32_t rlen;
     pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, r0, rname);
     rlen = pipeline_elf_ctx_reloc_name_len(ctx_bytes, r0);
@@ -9592,7 +9602,7 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
     int32_t sym_idx;
     int32_t m;
     int32_t u;
-    uint8_t r_sym_buf[64];
+    uint8_t r_sym_buf[128];
     int32_t rlen;
     uint8_t rela_buf[24];
     int32_t roff;
@@ -9643,12 +9653,12 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
     r = r + 1;
   }
   {
-    uint8_t shdr0[64];
-    uint8_t shdr_text[64];
-    uint8_t shdr_sym[64];
-    uint8_t shdr_str[64];
-    uint8_t shdr_shstr[64];
-    uint8_t shdr_rela[64];
+    uint8_t shdr0[128];
+    uint8_t shdr_text[128];
+    uint8_t shdr_sym[128];
+    uint8_t shdr_str[128];
+    uint8_t shdr_shstr[128];
+    uint8_t shdr_rela[128];
     memset(shdr0, 0, sizeof(shdr0));
     if (pipeline_elf_out_append(out, shdr0, 64) != 0)
       return -1;
@@ -9825,7 +9835,7 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
   nu = 0;
   rx = 0;
   while (rx < ctx->num_relocs) {
-    uint8_t rname[64];
+    uint8_t rname[128];
     int32_t rlen;
     int32_t us;
     int32_t dup;
@@ -9838,7 +9848,7 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
     dup = -1;
     us = 0;
     while (us < nu) {
-      uint8_t srname[64];
+      uint8_t srname[128];
       int32_t sr = und_src_reloc[us];
       pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, sr, srname);
       if (pipeline_macho_name_eq(rname, rlen, srname, und_lens[us]) != 0) {
@@ -10157,7 +10167,7 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
     int32_t sym_idx = 0;
     int32_t found_def = 0;
     int32_t m = 0;
-    uint8_t r_sym_buf[64];
+    uint8_t r_sym_buf[128];
     int32_t rlen;
     int32_t r_sym;
     int32_t word2;
@@ -10179,7 +10189,7 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
       int32_t uslot = -1;
       int32_t us2 = 0;
       while (us2 < nu) {
-        uint8_t sr2_buf[64];
+        uint8_t sr2_buf[128];
         int32_t sr2 = und_src_reloc[us2];
         pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, sr2, sr2_buf);
         if (pipeline_macho_name_eq(r_sym_buf, rlen, sr2_buf, und_lens[us2]) != 0) {
@@ -10243,7 +10253,7 @@ int32_t pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, struct codegen_Codeg
   int32_t strtab_off;
   int32_t strtab_size;
   int32_t num_undef;
-  uint8_t undef_names[32][64];
+  uint8_t undef_names[32][128];
   int32_t undef_lens[32];
   int32_t num_text_rela;
   int32_t num_hot_rela;
@@ -10274,7 +10284,7 @@ int32_t pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, struct codegen_Codeg
       46, 114, 101, 108, 97, 46, 116, 101, 120, 116, 0,
       46, 114, 101, 108, 97, 46, 116, 101, 120, 116, 46, 104, 111, 116, 0,
       46, 114, 101, 108, 97, 46, 116, 101, 120, 116, 46, 117, 110, 108, 105, 107, 101, 108, 121, 0};
-  uint8_t ehdr[64];
+  uint8_t ehdr[128];
   uint8_t z0[1];
   int32_t s;
   int32_t r0;
@@ -10296,7 +10306,7 @@ int32_t pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, struct codegen_Codeg
   num_unlikely_rela = 0;
   r0 = 0;
   while (r0 < ctx->num_relocs) {
-    uint8_t rname[64];
+    uint8_t rname[128];
     int32_t rlen;
     int32_t rsh;
     pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, r0, rname);
@@ -10518,7 +10528,7 @@ int32_t pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, struct codegen_Codeg
     int32_t m;
     int32_t u;
     uint8_t rela_buf[24];
-    uint8_t r_sym_buf[64];
+    uint8_t r_sym_buf[128];
     int32_t rlen;
     want_sh = pipeline_elf_ctx_reloc_shndx_at(ctx_bytes, r);
     if (want_sh != PIPELINE_ELF_SHNX_TEXT)
@@ -10582,7 +10592,7 @@ int32_t pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, struct codegen_Codeg
     int32_t m;
     int32_t u;
     uint8_t rela_buf[24];
-    uint8_t r_sym_buf[64];
+    uint8_t r_sym_buf[128];
     int32_t rlen;
     if (pipeline_elf_ctx_reloc_shndx_at(ctx_bytes, r) != PIPELINE_ELF_SHNX_TEXT_HOT)
       continue;
@@ -10645,7 +10655,7 @@ int32_t pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, struct codegen_Codeg
     int32_t m;
     int32_t u;
     uint8_t rela_buf[24];
-    uint8_t r_sym_buf[64];
+    uint8_t r_sym_buf[128];
     int32_t rlen;
     if (pipeline_elf_ctx_reloc_shndx_at(ctx_bytes, r) != PIPELINE_ELF_SHNX_TEXT_UNLIKELY)
       continue;
@@ -10703,16 +10713,16 @@ int32_t pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, struct codegen_Codeg
       return -1;
   }
   {
-    uint8_t shdr0[64];
-    uint8_t shdr_text[64];
-    uint8_t shdr_hot[64];
-    uint8_t shdr_unlikely[64];
-    uint8_t shdr_sym[64];
-    uint8_t shdr_str[64];
-    uint8_t shdr_shstr[64];
-    uint8_t shdr_rela_text[64];
-    uint8_t shdr_rela_hot[64];
-    uint8_t shdr_rela_unlikely[64];
+    uint8_t shdr0[128];
+    uint8_t shdr_text[128];
+    uint8_t shdr_hot[128];
+    uint8_t shdr_unlikely[128];
+    uint8_t shdr_sym[128];
+    uint8_t shdr_str[128];
+    uint8_t shdr_shstr[128];
+    uint8_t shdr_rela_text[128];
+    uint8_t shdr_rela_hot[128];
+    uint8_t shdr_rela_unlikely[128];
     memset(shdr0, 0, sizeof(shdr0));
     memset(shdr_text, 0, sizeof(shdr_text));
     memset(shdr_hot, 0, sizeof(shdr_hot));
@@ -11475,7 +11485,7 @@ void pipeline_elf_log_unresolved_patch(struct platform_elf_ElfCodegenCtx *ctx, i
 }
 
 /** codegen.x：路径/前缀 scratch（避免 `u8[64] = []` 在 asm emit 时 ExprKind=-1）。 */
-static uint8_t g_scratch64[4][64];
+static uint8_t g_scratch64[4][128];
 static uint8_t g_scratch128[2][128];
 static uint8_t g_scratch256[2][256];
 
@@ -11692,7 +11702,7 @@ static int32_t pipeline_codegen_type_to_c_repr_inner(struct ast_ASTArena *arena,
   int32_t w;
   int32_t h;
   int32_t name_len;
-  uint8_t nm[64];
+  uint8_t nm[128];
   int32_t sn;
 
   if (cap < 16)
@@ -11908,7 +11918,7 @@ static int32_t pipeline_codegen_emit_struct_field_type_inner(struct ast_ASTArena
   int32_t lanes_v;
   int32_t nl;
   int32_t sn;
-  uint8_t nm[64];
+  uint8_t nm[128];
 
   ord = pipeline_type_kind_ord_at(arena, type_ref);
   if (!arena || type_ref <= 0 || ord < 0) {
@@ -12589,7 +12599,7 @@ int32_t pipeline_codegen_std_io_fixed_fd_emit_impl(uint8_t *prefix, int32_t pref
 
 /** backend.x：AsmFuncCtx 局部变量 grow 池（替代 locals[24]）。 */
 typedef struct {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t offset;
 } AsmLocalSlotEntry;
@@ -12661,7 +12671,7 @@ int32_t asm_ctx_local_append(uint8_t *ctx, uint8_t *name, int32_t name_len, int3
   if (!ent)
     return -1;
   memset(ent, 0, sizeof(*ent));
-  n = name_len > 63 ? 63 : name_len;
+  n = name_len > 127 ? 127 : name_len;
   for (k = 0; k < n; k++)
     ent->name[k] = name[k];
   ent->name_len = name_len;
@@ -12906,13 +12916,13 @@ static int32_t asm_local_slot_bytes_mod(struct ast_ASTArena *arena, int32_t type
  * Asm/Perf: dep walk only when entry miss; entry-module struct hot path is zero-cost.
  */
 static int32_t asm_slot_bytes_named_in_mod(struct ast_ASTArena *arena, int32_t type_ref, struct ast_Module *mod) {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t nlen;
   int32_t k;
   if (!arena || type_ref <= 0 || !mod)
     return 0;
   nlen = pipeline_type_named_name_into(arena, type_ref, name);
-  if (nlen <= 0 || nlen > 63)
+  if (nlen <= 0 || nlen > 127)
     return 0;
   /** 【Why】type name 可能带模块前缀（如 "heap.PageMmapHeap"），而 struct layout
    *  name 是裸名（"PageMmapHeap"）；比较时取最后一个 "." 之后的部分。
@@ -12956,11 +12966,11 @@ static int32_t asm_slot_bytes_named_in_mod(struct ast_ASTArena *arena, int32_t t
     al = 1;
     mrc = typeck_typeck_struct_layout_metrics(mod, arena, k, 0, 0, &sz, &al);
     if (link_abi_getenv("XLANG_ASM_EMIT_TRACE")) {
-      uint8_t dbg_nm[64];
+      uint8_t dbg_nm[128];
       int32_t dbg_nl = pipeline_module_struct_layout_name_len(mod, k);
       int32_t dbg_nf = pipeline_module_struct_layout_num_fields(mod, k);
       int32_t di;
-      if (dbg_nl > 63)
+      if (dbg_nl > 127)
         dbg_nl = 63;
       for (di = 0; di < dbg_nl; di++)
         dbg_nm[di] = pipeline_module_struct_layout_name_byte_at(mod, k, di);
@@ -13033,7 +13043,7 @@ static int32_t asm_fixed_array_total_bytes_mod(struct ast_ASTArena *arena, int32
   if (soa_sz > 0)
     return soa_sz;
   {
-    uint8_t ename[64];
+    uint8_t ename[128];
     int32_t elen = pipeline_type_named_name_into(arena, elem_ref, ename);
     if (elen > 0 && elen <= 63) {
       int32_t lk;
@@ -13093,7 +13103,7 @@ static int32_t asm_local_slot_bytes_mod(struct ast_ASTArena *arena, int32_t type
       int32_t sz = asm_slot_bytes_named_in_mod(arena, type_ref, mod);
       if (sz > 0) {
         if (link_abi_getenv("XLANG_ASM_EMIT_TRACE")) {
-          uint8_t nm[64];
+          uint8_t nm[128];
           int32_t nl = pipeline_type_named_name_into(arena, type_ref, nm);
           fprintf(stderr, "xlang: local_slot struct %.*s sz=%d\n", (int)nl, nm, (int)sz);
         }
@@ -13260,7 +13270,7 @@ void asm_ctx_ensure_block_locals(uint8_t *ctx, struct ast_ASTArena *arena, int32
   struct ast_Block *b;
   struct ast_Module *mod;
   int32_t i, off, base, nlen, type_ref, init_ref;
-  uint8_t name_buf[64];
+  uint8_t name_buf[128];
   if (!ctx || !arena || !inout_next_offset || !inout_num_locals || block_ref <= 0)
     return;
   if (asm_ctx_block_slot_get(ctx, block_ref) >= 0)
@@ -14802,13 +14812,13 @@ static const AsmBackendThinDelegateRow k_asm_parser_thin_delegate[] = {
 
 /** XLANG_ASM_DEBUG=1 时打印 parser EMIT_HEAVY 真 emit 决策（定位 seed_mega SIGSEGV）。 */
 static void asm_parser_emit_heavy_dbg_real(struct ast_Module *m, int32_t fi, const char *why) {
-  uint8_t fn[64];
+  uint8_t fn[128];
   int32_t fl;
   if (!link_abi_getenv("XLANG_ASM_DEBUG") || !m || fi < 0 || !why)
     return;
   fl = pipeline_module_func_name_len_at(m, fi);
   pipeline_module_func_name_copy64(m, fi, fn);
-  fprintf(stderr, "xlang: parser REAL_EMIT fi=%d fn=%.*s why=%s\n", fi, (int)(fl > 63 ? 63 : fl), fn, why);
+  fprintf(stderr, "xlang: parser REAL_EMIT fi=%d fn=%.*s why=%s\n", fi, (int)(fl > 127 ? 127 : fl), fn, why);
   fflush(stderr);
 }
 
@@ -16124,7 +16134,7 @@ typedef struct {
   int32_t block_ref;
   int32_t stmt_i;
   int32_t end_label_len;
-  uint8_t end_label[64];
+  uint8_t end_label[128];
 } AsmBlockEmitCont;
 
 static AsmBlockEmitCont g_asm_be_cont[24];
@@ -16372,7 +16382,7 @@ static int32_t asm_wpo_call_callee_name(struct ast_ASTArena *a, int32_t callee_r
     pipeline_expr_var_name_into(a, callee_ref, cname);
     return clen;
   }
-  if (!callee_ex || callee_ex->var_name_len <= 0 || callee_ex->var_name_len > 63)
+  if (!callee_ex || callee_ex->var_name_len <= 0 || callee_ex->var_name_len > 127)
     return 0;
   clen = callee_ex->var_name_len;
   memcpy(cname, callee_ex->var_name, (size_t)clen);
@@ -16388,7 +16398,7 @@ static int32_t asm_wpo_call_callee_id(struct ast_ASTArena *a, int32_t call_expr_
   int32_t callee_ref;
   int32_t cid;
   int32_t clen;
-  uint8_t cname[64];
+  uint8_t cname[128];
   if (!a || call_expr_ref <= 0)
     return -1;
   callee_ref = pipeline_expr_call_callee_ref_at(a, call_expr_ref);
@@ -16485,7 +16495,7 @@ static void asm_wpo_collect_edges_from_expr(struct ast_ASTArena *a, int32_t expr
     int32_t mlen = pipeline_expr_method_call_name_len(a, expr_ref);
     int32_t mbase = pipeline_expr_method_call_base_ref_at(a, expr_ref);
     int32_t mnargs = pipeline_expr_method_call_num_args_at(a, expr_ref);
-    uint8_t mnm[64];
+    uint8_t mnm[128];
     if (r_fn >= 0 && r_dep < 0 && caller_mod)
       mcid = asm_wpo_func_id_of(caller_mod, r_fn);
     if (mcid < 0 && mlen > 0 && mlen <= 63) {
@@ -16856,7 +16866,7 @@ static int32_t asm_wpo_user_pgo_force_main_callee_edge(struct ast_Module *entry,
     int32_t r_fn = pipeline_expr_call_resolved_func_index_at(a, er);
     int32_t r_dep = pipeline_expr_call_resolved_dep_index_at(a, er);
     int32_t nlen = pipeline_expr_method_call_name_len(a, er);
-    uint8_t mnm[64];
+    uint8_t mnm[128];
     cid = -1;
     if (r_fn >= 0 && r_dep < 0)
       cid = asm_wpo_func_id_of(entry, r_fn);
@@ -17049,14 +17059,14 @@ static void asm_wpo_close_std_heap_helpers(void) {
   if (!heap_mod)
     return;
   for (fid = 0; fid < g_asm_wpo.nfuncs; fid++) {
-    uint8_t fn[64];
+    uint8_t fn[128];
     int32_t fl;
     int32_t fi;
     if (g_asm_wpo.func_mod[fid] != heap_mod)
       continue;
     fi = g_asm_wpo.func_fi[fid];
     fl = pipeline_module_func_name_len_at(heap_mod, fi);
-    if (fl <= 0 || fl > 63)
+    if (fl <= 0 || fl > 127)
       continue;
     pipeline_module_func_name_copy64(heap_mod, fi, fn);
     if (pipeline_module_func_name_equal_at(heap_mod, fi, (uint8_t *)"alloc", 5) ||

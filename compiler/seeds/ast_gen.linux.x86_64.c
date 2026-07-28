@@ -7,11 +7,11 @@ enum ExprKind { ExprKind_EXPR_LIT, ExprKind_EXPR_FLOAT_LIT, ExprKind_EXPR_BOOL_L
 enum ImportKind { ImportKind_IMPORT_WHOLE, ImportKind_IMPORT_BINDING, ImportKind_IMPORT_SELECT };
 struct Type {
   int32_t kind;
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t elem_type_ref;
   int32_t array_size;
-  uint8_t region_label[64];
+  uint8_t region_label[128];
   int32_t region_label_len;
 };
 
@@ -22,7 +22,7 @@ struct Expr {
   int32_t col;
   int64_t int_val;
   double float_val;
-  uint8_t var_name[64];
+  uint8_t var_name[128];
   int32_t var_name_len;
   int32_t binop_left_ref;
   int32_t binop_right_ref;
@@ -35,7 +35,7 @@ struct Expr {
   int32_t match_arm_base;
   int32_t match_num_arms;
   int32_t field_access_base_ref;
-  uint8_t field_access_field_name[64];
+  uint8_t field_access_field_name[128];
   int32_t field_access_field_len;
   int32_t field_access_is_enum_variant;
   int32_t field_access_offset;
@@ -48,14 +48,14 @@ struct Expr {
   int32_t call_num_args;
   int32_t call_num_type_args;
   int32_t method_call_base_ref;
-  uint8_t method_call_name[64];
+  uint8_t method_call_name[128];
   int32_t method_call_name_len;
   int32_t method_call_arg_base;
   int32_t method_call_num_args;
   int32_t const_folded_val;
   int32_t const_folded_valid;
   int32_t index_proven_in_bounds;
-  uint8_t struct_lit_struct_name[64];
+  uint8_t struct_lit_struct_name[128];
   int32_t struct_lit_struct_name_len;
   int32_t struct_lit_field_base;
   int32_t struct_lit_num_fields;
@@ -71,14 +71,14 @@ struct Expr {
 };
 
 struct ConstDecl {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t type_ref;
   int32_t init_ref;
 };
 
 struct LetDecl {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t type_ref;
   int32_t init_ref;
@@ -149,7 +149,7 @@ struct Param {
 };
 
 struct Func {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t param_base;
   int32_t num_params;
@@ -170,7 +170,7 @@ struct Func {
 };
 
 struct StructLayout {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t field_base;
   int32_t num_fields;
@@ -235,13 +235,13 @@ struct PipelineDepCtx {
   struct Module * current_codegen_module;
   struct ASTArena * current_codegen_arena;
   int32_t current_codegen_dep_index;
-  uint8_t current_codegen_prefix_mirror[64];
+  uint8_t current_codegen_prefix_mirror[128];
   int32_t current_codegen_prefix_len;
   int32_t asm_entry_module_only;
-  uint8_t entry_module_import_path_mirror[64];
+  uint8_t entry_module_import_path_mirror[128];
   int32_t entry_module_import_path_len;
   int32_t typeck_scope_region_len;
-  uint8_t typeck_scope_region_label[64];
+  uint8_t typeck_scope_region_label[128];
 };
 
 extern int ref_is_null(int32_t ref);
@@ -456,7 +456,7 @@ void expr_layout_prime_call_resolved(void) {
   (void)(((_tail.call_resolved_func_index) = -(1)));
 }
 void func_layout_prime_generic_params(void) {
-  uint8_t name0[64] = {};
+  uint8_t name0[128] = {};
   struct Func f0 = (struct Func){ .name = name0, .name_len = 0, .param_base = 0, .num_params = 0, .num_generic_params = 0, .return_type_ref = 0, .body_ref = 0, .body_expr_ref = 0, .is_extern = 0, .is_async = 0 };
   (void)(((f0.num_generic_params) = 0));
 }

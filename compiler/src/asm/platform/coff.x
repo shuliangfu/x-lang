@@ -160,7 +160,7 @@ export function write_coff_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i
     let rel: u8[10] = [];
     let sym_idx: i32 = 0;
     let m: i32 = 0;
-    let r_sym_buf: u8[64] = [];
+    let r_sym_buf: u8[128] = [];
     pipeline_elf_ctx_reloc_sym_name_copy64(ctx as *u8, r, &r_sym_buf[0]);
     while (m < num_syms) {
       /* See implementation. */

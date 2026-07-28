@@ -351,11 +351,11 @@ enum ast_ExprKind { ast_ExprKind_EXPR_LIT, ast_ExprKind_EXPR_FLOAT_LIT, ast_Expr
 enum ast_ImportKind { ast_ImportKind_IMPORT_WHOLE, ast_ImportKind_IMPORT_BINDING, ast_ImportKind_IMPORT_SELECT };
 struct ast_Type {
   int32_t kind;
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t elem_type_ref;
   int32_t array_size;
-  uint8_t region_label[64];
+  uint8_t region_label[128];
   int32_t region_label_len;
 };
 
@@ -366,7 +366,7 @@ struct ast_Expr {
   int32_t col;
   int64_t int_val;
   double float_val;
-  uint8_t var_name[64];
+  uint8_t var_name[128];
   int32_t var_name_len;
   int32_t binop_left_ref;
   int32_t binop_right_ref;
@@ -379,7 +379,7 @@ struct ast_Expr {
   int32_t match_arm_base;
   int32_t match_num_arms;
   int32_t field_access_base_ref;
-  uint8_t field_access_field_name[64];
+  uint8_t field_access_field_name[128];
   int32_t field_access_field_len;
   int32_t field_access_is_enum_variant;
   int32_t field_access_offset;
@@ -392,14 +392,14 @@ struct ast_Expr {
   int32_t call_num_args;
   int32_t call_num_type_args;
   int32_t method_call_base_ref;
-  uint8_t method_call_name[64];
+  uint8_t method_call_name[128];
   int32_t method_call_name_len;
   int32_t method_call_arg_base;
   int32_t method_call_num_args;
   int32_t const_folded_val;
   int32_t const_folded_valid;
   int32_t index_proven_in_bounds;
-  uint8_t struct_lit_struct_name[64];
+  uint8_t struct_lit_struct_name[128];
   int32_t struct_lit_struct_name_len;
   int32_t struct_lit_field_base;
   int32_t struct_lit_num_fields;
@@ -415,14 +415,14 @@ struct ast_Expr {
 };
 
 struct ast_ConstDecl {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t type_ref;
   int32_t init_ref;
 };
 
 struct ast_LetDecl {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t type_ref;
   int32_t init_ref;
@@ -493,7 +493,7 @@ struct ast_Param {
 };
 
 struct ast_Func {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t param_base;
   int32_t num_params;
@@ -514,7 +514,7 @@ struct ast_Func {
 };
 
 struct ast_StructLayout {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t field_base;
   int32_t num_fields;
@@ -846,13 +846,13 @@ struct ast_PipelineDepCtx {
   struct ast_Module * current_codegen_module;
   struct ast_ASTArena * current_codegen_arena;
   int32_t current_codegen_dep_index;
-  uint8_t current_codegen_prefix_mirror[64];
+  uint8_t current_codegen_prefix_mirror[128];
   int32_t current_codegen_prefix_len;
   int32_t asm_entry_module_only;
-  uint8_t entry_module_import_path_mirror[64];
+  uint8_t entry_module_import_path_mirror[128];
   int32_t entry_module_import_path_len;
   int32_t typeck_scope_region_len;
-  uint8_t typeck_scope_region_label[64];
+  uint8_t typeck_scope_region_label[128];
   /* wave445 C5: monomorphization type-substitution state (PLATFORM: SHARED). */
   int32_t mono_active;
   int32_t mono_num_types;
@@ -1811,7 +1811,7 @@ int32_t codegen_find_dep_index_by_path(struct ast_PipelineDepCtx * ctx, uint8_t 
       fprintf(stderr, "xlang: [DBG_DEP_LIST] find_dep_index_by_path lookup='%.*s' len=%d nd=%d\n",
               (int)path_len, (char*)path, (int)path_len, (int)nd);
       for (di = 0; di < nd; di++) {
-        uint8_t dp[64] = {};
+        uint8_t dp[128] = {};
         int32_t dl = codegen_dep_import_path_len_at(ctx, di, &dp[0]);
         struct ast_Module * dm = pipeline_dep_ctx_module_at(ctx, di);
         fprintf(stderr, "xlang: [DBG_DEP_LIST]   [%d] path='%.*s' len=%d mod=%p funcs=%d\n",
@@ -1820,7 +1820,7 @@ int32_t codegen_find_dep_index_by_path(struct ast_PipelineDepCtx * ctx, uint8_t 
       di = 0;
     }
     while ((di < nd)) {
-      uint8_t dep_path[64] = {};
+      uint8_t dep_path[128] = {};
       int32_t dep_len = codegen_dep_import_path_len_at(ctx, di, &((dep_path)[0]));
       if ((dep_len ==path_len)) {
         int eq = 1;
@@ -1844,7 +1844,7 @@ int32_t codegen_find_dep_index_by_path(struct ast_PipelineDepCtx * ctx, uint8_t 
 }
 int32_t codegen_find_seeded_global_dep_slot_by_path(uint8_t * path, int32_t path_len) {
   {
-    uint8_t path_buf[64] = {};
+    uint8_t path_buf[128] = {};
     int32_t i = 0;
     int32_t gs = driver_dep_slot_for_path(&((path_buf)[0]));
     if ((((path ==((uint8_t *)(0))) || (path_len <=0)) || (path_len > 63))) {
@@ -1898,7 +1898,7 @@ int32_t codegen_emit_prefix_len_from_ctx(struct ast_PipelineDepCtx * ctx, uint8_
     (void)(((buf)[pi] = ((uint8_t)(0))));
     return pi;
   }
-  uint8_t path_buf[64] = {};
+  uint8_t path_buf[128] = {};
   int32_t path_len = 0;
   if (((ctx->current_codegen_dep_index) >=0)) {
     (void)((path_len = codegen_dep_import_path_len_at(ctx, (ctx->current_codegen_dep_index), &((path_buf)[0]))));
@@ -1945,7 +1945,7 @@ int32_t codegen_emit_async_run_seed_push_name(struct codegen_CodegenOutBuf * out
 int32_t codegen_emit_async_sched_call(struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t func_index) {
   {
     uint8_t sched_prefix[18] = {120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 115, 99, 104, 101, 100, 95};
-    uint8_t fn_name[64] = {};
+    uint8_t fn_name[128] = {};
     int32_t fn_len = 0;
     if ((((module ==((struct ast_Module *)(0))) || (func_index < 0)) || (func_index >=(module->num_funcs)))) {
       return -(1);
@@ -1988,7 +1988,7 @@ int32_t codegen_emit_async_task_submit_call(struct codegen_CodegenOutBuf * out, 
   {
     uint8_t submit_name[23] = {120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 116, 97, 115, 107, 95, 115, 117, 98, 109, 105, 116};
     uint8_t cast_prefix[19] = {40, 105, 110, 116, 51, 50, 95, 116, 32, 40, 42, 41, 40, 118, 111, 105, 100, 41, 41};
-    uint8_t fn_name[64] = {};
+    uint8_t fn_name[128] = {};
     int32_t fn_len = 0;
     if ((((module ==((struct ast_Module *)(0))) || (func_index < 0)) || (func_index >=(module->num_funcs)))) {
       return -(1);
@@ -2047,7 +2047,7 @@ int32_t codegen_emit_async_binding_import_call(struct ast_ASTArena * arena, stru
   {
     uint8_t reset_name[26] = {120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 114, 101, 115, 101, 116};
     uint8_t comma[3] = {44, 32, 0};
-    uint8_t dep_path[64] = {};
+    uint8_t dep_path[128] = {};
     uint8_t prefix_buf[128] = {};
     int32_t dep_ix = -(1);
     int32_t n_args = 0;
@@ -2240,7 +2240,7 @@ int32_t codegen_find_module_func_index_by_name(struct ast_Module * module, uint8
     while ((fi < (module->num_funcs))) {
       int32_t fn_len = pipeline_module_func_name_len_at(module, fi);
       if (((fn_len ==nm_len) && (fn_len > 0))) {
-        uint8_t fn_name[64] = {};
+        uint8_t fn_name[128] = {};
         int32_t matched = 1;
         int32_t bi = 0;
         (void)(pipeline_module_func_name_copy64(module, fi, &((fn_name)[0])));
@@ -2297,7 +2297,7 @@ int32_t codegen_resolve_binding_import_dep_index(struct ast_PipelineDepCtx * ctx
             }
           }
           if ((matched !=0)) {
-            uint8_t import_path[64] = {};
+            uint8_t import_path[128] = {};
             int32_t import_path_len = codegen_module_import_path_len_at(cur_mod, j, &((import_path)[0]));
             if ((import_path_len <=0)) {
               return -(1);
@@ -2330,7 +2330,7 @@ int32_t call_expr_ref, uint8_t * nm, int32_t nm_len) {
     while ((fi < (module->num_funcs))) {
       int32_t fn_len = pipeline_module_func_name_len_at(module, fi);
       if (((fn_len ==nm_len) && (fn_len > 0))) {
-        uint8_t fn_name[64] = {};
+        uint8_t fn_name[128] = {};
         int32_t matched = 1;
         int32_t bi = 0;
         pipeline_module_func_name_copy64(module, fi, &((fn_name)[0]));
@@ -3060,7 +3060,7 @@ int32_t codegen_emit_io_driver_buf_call_name(struct codegen_CodegenOutBuf * out,
 }
 int32_t codegen_try_emit_std_io_driver_buf_body(struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, uint8_t * prefix, int32_t prefix_len) {
   {
-    uint8_t fn_local[64] = {};
+    uint8_t fn_local[128] = {};
     int32_t fn_len = 0;
     int32_t nparams = 0;
     uint8_t p0[32] = {98, 117, 102, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -3226,7 +3226,7 @@ int32_t codegen_try_emit_fmt_string_lit_call(struct ast_ASTArena * arena, struct
   int32_t arg_ref = 0;
   int32_t slen;
   int32_t pi;
-  uint8_t path[64];
+  uint8_t path[128];
   uint8_t pre[128];
   uint8_t mid[12] = {95, 117, 56, 95, 112, 116, 114, 95, 105, 51, 50, 0}; /* _u8_ptr_i32 */
   uint8_t comma[3] = {44, 32, 0};
@@ -3542,7 +3542,7 @@ int32_t codegen_emit_call_arg_slice_abi(struct ast_ASTArena * arena, struct code
             while ((li < nlets)) {
               int32_t nl = pipeline_block_let_name_len(arena, br, li);
               if (((nl == (arg.var_name_len)) && (nl > 0))) {
-                uint8_t nb[64] = {};
+                uint8_t nb[128] = {};
                 (void)(pipeline_block_let_name_copy64(arena, br, li, &((nb)[0])));
                 int eq = 1;
                 int32_t j2 = 0;
@@ -3772,7 +3772,7 @@ int32_t codegen_emit_call_arg_slice_abi(struct ast_ASTArena * arena, struct code
           while ((li < nlets)) {
             int32_t nl = pipeline_block_let_name_len(arena, br, li);
             if (((nl ==(arg.var_name_len)) && (nl > 0))) {
-              uint8_t nb[64] = {};
+              uint8_t nb[128] = {};
               (void)(pipeline_block_let_name_copy64(arena, br, li, &((nb)[0])));
               int eq = 1;
               int32_t j2 = 0;
@@ -4125,7 +4125,7 @@ int32_t codegen_field_access_base_is_pointer_local(struct ast_ASTArena * arena, 
     while ((li < nlets)) {
       int32_t nl = pipeline_block_let_name_len(arena, br, li);
       if (((nl ==(base.var_name_len)) && (nl > 0))) {
-        uint8_t nb[64] = {};
+        uint8_t nb[128] = {};
         (void)(pipeline_block_let_name_copy64(arena, br, li, &((nb)[0])));
         int eq = 1;
         int32_t j = 0;
@@ -4754,7 +4754,7 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
     int32_t arr_sz = 0;
     int32_t elem_kind = 0;
     int32_t name_len = 0;
-    uint8_t nm[64] = {};
+    uint8_t nm[128] = {};
     if (ast_ref_is_null(type_ref)) {
       uint8_t s[8] = {105, 110, 116, 51, 50, 95, 116, 0};
       return codegen_emit_bytes_8(out, s, 7);
@@ -4780,14 +4780,14 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
         mi = (mi +1);
       }
       /* name-match fallback: compare type name vs each generic param name */
-      uint8_t fb_nm[64] = {};
+      uint8_t fb_nm[128] = {};
       int32_t fb_len = pipeline_type_named_name_into(arena, type_ref, &((fb_nm)[0]));
       if ((fb_len > 0)) {
         int32_t mi2 = 0;
         while (((mi2 < ctx->mono_num_types) && (mi2 <8))) {
           int32_t conc2 = ctx->mono_concrete_type_refs[mi2];
           if (((conc2 >0) && (conc2 != type_ref))) {
-            uint8_t gnm[64] = {};
+            uint8_t gnm[128] = {};
             int32_t gname_len = pipeline_type_named_name_into(arena, ctx->mono_generic_type_refs[mi2], &((gnm)[0]));
             if (((gname_len == fb_len) && (gname_len > 0))) {
               int32_t names_eq = 1;
@@ -4923,7 +4923,7 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
           (void)((qi = (qi + 1)));
         }
         if (((qhas_dot && (qmod_end > 0)) && (qmod_end < 64))) {
-          uint8_t mod_path[64] = {};
+          uint8_t mod_path[128] = {};
           int32_t mi = 0;
           while ((mi < qmod_end)) {
             (void)(((mod_path)[mi] = (nm)[mi]));
@@ -5042,7 +5042,7 @@ int32_t codegen_type_dep_struct_owner_index(struct ast_PipelineDepCtx * ctx, uin
         while ((li < (dep_mod->num_struct_layouts))) {
           int32_t dep_name_len = pipeline_module_struct_layout_name_len(dep_mod, li);
           if ((dep_name_len ==bare_len)) {
-            uint8_t dep_nm[64] = {};
+            uint8_t dep_nm[128] = {};
             int eq = 1;
             int32_t j = 0;
             (void)(pipeline_module_struct_layout_name_into(dep_mod, li, &((dep_nm)[0])));
@@ -5102,7 +5102,7 @@ int32_t codegen_type_dep_struct_owner_index(struct ast_PipelineDepCtx * ctx, uin
 int32_t codegen_type_dep_struct_prefix_into(struct ast_PipelineDepCtx * ctx, struct ast_ASTArena * arena, int32_t type_ref, uint8_t * dst, int32_t dst_cap) {
   {
     int32_t name_len = 0;
-    uint8_t ty_nm[64] = {};
+    uint8_t ty_nm[128] = {};
     int32_t owner = -(1);
     if ((((((ctx ==((struct ast_PipelineDepCtx *)(0))) || (arena ==((struct ast_ASTArena *)(0)))) || (dst ==((uint8_t *)(0)))) || (dst_cap <=0)) || ast_ref_is_null(type_ref))) {
       return 0;
@@ -5125,7 +5125,7 @@ int32_t codegen_type_dep_struct_prefix_into(struct ast_PipelineDepCtx * ctx, str
     int32_t bare_len = (name_len - bare_off);
     (void)((owner = codegen_type_dep_struct_owner_index(ctx, &((ty_nm)[bare_off]), bare_len)));
     if ((owner >=0)) {
-      uint8_t dep_path[64] = {};
+      uint8_t dep_path[128] = {};
       int32_t plen = codegen_dep_import_path_len_at(ctx, owner, &((dep_path)[0]));
       if ((plen > 0)) {
         int32_t out_len = 0;
@@ -5313,7 +5313,7 @@ int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena * arena, 
         int32_t nlen = pipeline_block_let_name_len(arena, block_ref, li);
         if (((nlen ==(init_e.var_name_len)) && (nlen > 0))) {
           int32_t matched = 1;
-          uint8_t nb[64] = {};
+          uint8_t nb[128] = {};
           (void)(pipeline_block_let_name_copy64(arena, block_ref, li, &((nb)[0])));
           int32_t ci = 0;
           while ((ci < nlen)) {
@@ -5740,7 +5740,7 @@ int32_t codegen_lookup_struct_field_type_ref(struct ast_ASTArena * arena, struct
         while ((k < (try_mod->num_struct_layouts))) {
           int32_t snl = pipeline_module_struct_layout_name_len(try_mod, k);
           if (((snl == bare_len) && (snl > 0))) {
-            uint8_t snm[64] = {};
+            uint8_t snm[128] = {};
             int eq = 1;
             int32_t sj = 0;
             (void)(pipeline_module_struct_layout_name_into(try_mod, k, &((snm)[0])));
@@ -5757,7 +5757,7 @@ int32_t codegen_lookup_struct_field_type_ref(struct ast_ASTArena * arena, struct
               while ((j < nf)) {
                 int32_t fnl = pipeline_module_struct_layout_field_name_len(try_mod, k, j);
                 if (((fnl == flen_use) && (fnl > 0))) {
-                  uint8_t fnm[64] = {};
+                  uint8_t fnm[128] = {};
                   int feq = 1;
                   int32_t fj = 0;
                   (void)(pipeline_module_struct_layout_field_name_into(try_mod, k, j, &((fnm)[0])));
@@ -5935,7 +5935,7 @@ int32_t codegen_should_skip_emit_struct_layout_for_abi_dup(uint8_t * name, int32
 int32_t codegen_type_is_module_user_struct(struct ast_Module * module, struct ast_ASTArena * arena, int32_t type_ref) {
   {
     int32_t name_len = 0;
-    uint8_t ty_nm[64] = {};
+    uint8_t ty_nm[128] = {};
     if ((((module ==((struct ast_Module *)(0))) || (arena ==((struct ast_ASTArena *)(0)))) || ast_ref_is_null(type_ref))) {
       return 0;
     }
@@ -5950,7 +5950,7 @@ int32_t codegen_type_is_module_user_struct(struct ast_Module * module, struct as
     while ((k < (module->num_struct_layouts))) {
       int32_t nl = pipeline_module_struct_layout_name_len(module, k);
       if ((nl ==name_len)) {
-        uint8_t lay_nm[64] = {};
+        uint8_t lay_nm[128] = {};
         (void)(pipeline_module_struct_layout_name_into(module, k, &((lay_nm)[0])));
         int eq = 1;
         int32_t j = 0;
@@ -5974,7 +5974,7 @@ int32_t codegen_type_is_module_user_struct(struct ast_Module * module, struct as
 int32_t codegen_type_is_module_user_enum(struct ast_Module * module, struct ast_ASTArena * arena, int32_t type_ref) {
   {
     int32_t name_len = 0;
-    uint8_t ty_nm[64] = {};
+    uint8_t ty_nm[128] = {};
     if ((((module ==((struct ast_Module *)(0))) || (arena ==((struct ast_ASTArena *)(0)))) || ast_ref_is_null(type_ref))) {
       return 0;
     }
@@ -6011,7 +6011,7 @@ int32_t codegen_type_is_module_user_enum(struct ast_Module * module, struct ast_
 int32_t codegen_type_dep_enum_prefix_into(struct ast_PipelineDepCtx * ctx, struct ast_ASTArena * arena, int32_t type_ref, uint8_t * dst, int32_t dst_cap) {
   {
     int32_t name_len = 0;
-    uint8_t ty_nm[64] = {};
+    uint8_t ty_nm[128] = {};
     int32_t di = 0;
     if ((((((ctx ==((struct ast_PipelineDepCtx *)(0))) || (arena ==((struct ast_ASTArena *)(0)))) || (dst ==((uint8_t *)(0)))) || (dst_cap <=0)) || ast_ref_is_null(type_ref))) {
       return 0;
@@ -6050,7 +6050,7 @@ int32_t codegen_type_dep_enum_prefix_into(struct ast_PipelineDepCtx * ctx, struc
               (void)((j = (j + 1)));
             }
             if (eq) {
-              uint8_t dep_path[64] = {};
+              uint8_t dep_path[128] = {};
               int32_t plen = codegen_dep_import_path_len_at(ctx, di, &((dep_path)[0]));
               if ((plen > 0)) {
                 int32_t out_len = 0;
@@ -6095,7 +6095,7 @@ extern void pipeline_module_struct_layout_type_param_name_into(struct ast_Module
 static int32_t codegen_type_ref_is_host_concrete(struct ast_Module *module, struct ast_ASTArena *arena, int32_t ty) {
   int32_t k;
   int32_t nl;
-  uint8_t nm[64];
+  uint8_t nm[128];
   int32_t sk;
   int32_t zi;
   if (!module || !arena || ty <= 0)
@@ -6111,7 +6111,7 @@ static int32_t codegen_type_ref_is_host_concrete(struct ast_Module *module, stru
     return 0;
   for (sk = 0; sk < module->num_struct_layouts; sk++) {
     int32_t sl = pipeline_module_struct_layout_name_len(module, sk);
-    uint8_t snm[64];
+    uint8_t snm[128];
     int32_t bi;
     int32_t match;
     int32_t ntp;
@@ -6153,7 +6153,7 @@ static int32_t codegen_resolve_generic_struct_field_type(struct ast_Module *modu
                                                           uint8_t *layout_nm, int32_t layout_nl, uint8_t *field_nm,
                                                           int32_t field_nl, int32_t ftr) {
   int32_t ftnl;
-  uint8_t ftn[64];
+  uint8_t ftn[128];
   int32_t sk;
   int32_t ti;
   int32_t ei;
@@ -6174,7 +6174,7 @@ static int32_t codegen_resolve_generic_struct_field_type(struct ast_Module *modu
   /* Module concrete layout/enum name → keep (not a type param). */
   for (sk = 0; sk < module->num_struct_layouts; sk++) {
     int32_t sl = pipeline_module_struct_layout_name_len(module, sk);
-    uint8_t snm[64];
+    uint8_t snm[128];
     int32_t bi;
     int32_t match;
     int32_t zi;
@@ -6198,7 +6198,7 @@ static int32_t codegen_resolve_generic_struct_field_type(struct ast_Module *modu
   tp_slot = 0; /* default slot0 when no type-param registry (wave466 Wrap) */
   for (sk = 0; sk < module->num_struct_layouts; sk++) {
     int32_t sl = pipeline_module_struct_layout_name_len(module, sk);
-    uint8_t snm[64];
+    uint8_t snm[128];
     int32_t bi;
     int32_t match;
     int32_t zi;
@@ -6224,7 +6224,7 @@ static int32_t codegen_resolve_generic_struct_field_type(struct ast_Module *modu
       tp_slot = -1;
       for (tj = 0; tj < ntp; tj++) {
         int32_t tpl = pipeline_module_struct_layout_type_param_name_len(module, sk, tj);
-        uint8_t tpn[64];
+        uint8_t tpn[128];
         int32_t pi;
         int32_t peq;
         if (tpl != ftnl)
@@ -6255,7 +6255,7 @@ static int32_t codegen_resolve_generic_struct_field_type(struct ast_Module *modu
     if (pipeline_type_kind_ord_at(arena, ti) != 8)
       continue;
     {
-      uint8_t tnm[64];
+      uint8_t tnm[128];
       int32_t tnl;
       int32_t ci;
       int32_t eq;
@@ -6307,7 +6307,7 @@ static int32_t codegen_resolve_generic_struct_field_type(struct ast_Module *modu
       nf = pipeline_expr_struct_lit_num_fields(arena, ei);
       for (fj = 0; fj < nf; fj++) {
         int32_t fl = pipeline_expr_struct_lit_field_name_len(arena, ei, fj);
-        uint8_t fnb[64];
+        uint8_t fnb[128];
         int32_t fi;
         int32_t feq;
         int32_t iref;
@@ -6345,7 +6345,7 @@ static int32_t codegen_module_struct_layout_index_by_name(struct ast_Module *mod
   if (!module || !layout_nm || layout_nl <= 0) return -1;
   for (sk = 0; sk < module->num_struct_layouts; sk++) {
     int32_t sl = pipeline_module_struct_layout_name_len(module, sk);
-    uint8_t snm[64]; int32_t bi, eq, zi;
+    uint8_t snm[128]; int32_t bi, eq, zi;
     if (sl != layout_nl) continue;
     for (zi = 0; zi < 64; zi++) snm[zi] = 0;
     pipeline_module_struct_layout_name_into(module, sk, snm);
@@ -6362,7 +6362,7 @@ static int32_t codegen_module_struct_layout_index_by_name(struct ast_Module *mod
 static int32_t codegen_generic_struct_resolve_arg_via_ctx(struct ast_Module *module, struct ast_ASTArena *arena,
     struct ast_PipelineDepCtx *ctx, int32_t ty) {
   int32_t mi;
-  uint8_t fb_nm[64];
+  uint8_t fb_nm[128];
   int32_t fb_len;
   if (!module || !arena || ty <= 0) return 0;
   if (codegen_type_ref_is_host_concrete(module, arena, ty) != 0) return ty;
@@ -6379,7 +6379,7 @@ static int32_t codegen_generic_struct_resolve_arg_via_ctx(struct ast_Module *mod
   for (mi = 0; mi < ctx->mono_num_types && mi < 8; mi++) {
     int32_t gen = ctx->mono_generic_type_refs[mi];
     int32_t conc = ctx->mono_concrete_type_refs[mi];
-    uint8_t gnm[64];
+    uint8_t gnm[128];
     int32_t gnl, eq = 1, bi;
     if (gen <= 0 || conc <= 0 || conc == ty) continue;
     gnl = pipeline_type_named_name_into(arena, gen, gnm);
@@ -6393,7 +6393,7 @@ static int32_t codegen_generic_struct_resolve_arg_via_ctx(struct ast_Module *mod
 static int32_t codegen_generic_struct_resolve_arg_via_map(struct ast_Module *module, struct ast_ASTArena *arena,
     int32_t ty, int32_t *mono_gen, int32_t *mono_conc, int32_t nmono) {
   int32_t mi;
-  uint8_t fb_nm[64];
+  uint8_t fb_nm[128];
   int32_t fb_len;
   if (!module || !arena || ty <= 0 || !mono_gen || !mono_conc || nmono <= 0) return 0;
   if (codegen_type_ref_is_host_concrete(module, arena, ty) != 0) return ty;
@@ -6405,7 +6405,7 @@ static int32_t codegen_generic_struct_resolve_arg_via_map(struct ast_Module *mod
   fb_len = pipeline_type_named_name_into(arena, ty, fb_nm);
   if (fb_len <= 0) return 0;
   for (mi = 0; mi < nmono && mi < 8; mi++) {
-    uint8_t gnm[64];
+    uint8_t gnm[128];
     int32_t gnl, eq = 1, bi;
     if (mono_gen[mi] <= 0 || mono_conc[mi] <= 0 || mono_conc[mi] == ty) continue;
     gnl = pipeline_type_named_name_into(arena, mono_gen[mi], gnm);
@@ -6440,7 +6440,7 @@ static int32_t codegen_generic_struct_mangled_name_into(struct ast_ASTArena *are
   if (o + 2 >= out_cap) return 0;
   out_nm[o++] = 95; out_nm[o++] = 95;
   for (mi = 0; mi < ntp; mi++) {
-    uint8_t suf[64]; int32_t sl, si;
+    uint8_t suf[128]; int32_t sl, si;
     if (mi > 0) { if (o >= out_cap) return 0; out_nm[o++] = 95; }
     sl = codegen_type_ref_to_suffix(arena, mono_tys[mi], suf, 64);
     if (sl <= 0) return 0;
@@ -6454,7 +6454,7 @@ static int32_t codegen_emit_generic_struct_mono_suffix(struct codegen_CodegenOut
   if (!out || !arena || !mono_tys || ntp <= 0) return -1;
   if (codegen_emit_bytes_from_ptr(out, sep, 2) != 0) return -1;
   for (mi = 0; mi < ntp; mi++) {
-    uint8_t suf[64]; int32_t sl;
+    uint8_t suf[128]; int32_t sl;
     if (mi > 0) { if (codegen_append_byte(out, 95) != 0) return -1; }
     sl = codegen_type_ref_to_suffix(arena, mono_tys[mi], suf, 64);
     if (sl <= 0) return -1;
@@ -6464,7 +6464,7 @@ static int32_t codegen_emit_generic_struct_mono_suffix(struct codegen_CodegenOut
 }
 static int32_t codegen_generic_struct_field_type_from_mono(struct ast_Module *module, struct ast_ASTArena *arena,
     int32_t layout_k, int32_t ftr, int32_t *mono_tys, int32_t ntp) {
-  int32_t ftnl, tj, zi; uint8_t ftn[64];
+  int32_t ftnl, tj, zi; uint8_t ftn[128];
   if (!module || !arena || ftr <= 0 || !mono_tys || ntp <= 0) return ftr;
   if (pipeline_type_kind_ord_at(arena, ftr) != 8) return ftr;
   for (zi = 0; zi < 64; zi++) ftn[zi] = 0;
@@ -6472,7 +6472,7 @@ static int32_t codegen_generic_struct_field_type_from_mono(struct ast_Module *mo
   if (ftnl <= 0) return ftr;
   for (tj = 0; tj < ntp; tj++) {
     int32_t tpl = pipeline_module_struct_layout_type_param_name_len(module, layout_k, tj);
-    uint8_t tpn[64]; int32_t peq = 1, pi;
+    uint8_t tpn[128]; int32_t peq = 1, pi;
     if (tpl != ftnl) continue;
     for (zi = 0; zi < 64; zi++) tpn[zi] = 0;
     pipeline_module_struct_layout_type_param_name_into(module, layout_k, tj, tpn);
@@ -6483,7 +6483,7 @@ static int32_t codegen_generic_struct_field_type_from_mono(struct ast_Module *mo
 }
 /* wave484: structural mono equality (nested type-args). PLATFORM: SHARED. */
 static int32_t codegen_combo_slots_equal(struct ast_ASTArena *arena, int32_t a, int32_t b) {
-  uint8_t nma[64], nmb[64]; int32_t nla, nlb, ni, ai, ka, kb;
+  uint8_t nma[128], nmb[128]; int32_t nla, nlb, ni, ai, ka, kb;
   if (a == b && a > 0) return 1;
   if (!arena || a <= 0 || b <= 0) return 0;
   ka = pipeline_type_kind_ord_at(arena, a);
@@ -6557,7 +6557,7 @@ static int32_t codegen_collect_generic_struct_mono_combos(struct ast_Module *mod
   if (!module || !arena || !layout_nm || !combos_out || ntp <= 0 || ntp > 4 || max_combos <= 0 || layout_nl <= 0)
     return 0;
   for (ti = 1; ti <= arena->num_types; ti++) {
-    uint8_t tnm[64]; int32_t tnl, eq = 1, ci, combo[4], found, c0, s1;
+    uint8_t tnm[128]; int32_t tnl, eq = 1, ci, combo[4], found, c0, s1;
     if (pipeline_type_kind_ord_at(arena, ti) != 8) continue;
     tnl = pipeline_type_named_name_into(arena, ti, tnm);
     if (tnl != layout_nl || tnl <= 0) continue;
@@ -6590,13 +6590,13 @@ static int32_t codegen_collect_generic_struct_mono_combos(struct ast_Module *mod
     for (fj = 0; fj < nf; fj++) {
       int32_t ftr = pipeline_module_struct_layout_field_type_ref(module, layout_k, fj);
       int32_t ftnl, slot = -1, pj, flen, lit_nf, li, zi;
-      uint8_t ftn[64], fnm[64];
+      uint8_t ftn[128], fnm[128];
       if (pipeline_type_kind_ord_at(arena, ftr) != 8) continue;
       for (zi = 0; zi < 64; zi++) ftn[zi] = 0;
       ftnl = pipeline_type_named_name_into(arena, ftr, ftn);
       for (pj = 0; pj < ntp; pj++) {
         int32_t tpl = pipeline_module_struct_layout_type_param_name_len(module, layout_k, pj);
-        uint8_t tpn[64]; int32_t peq = 1, pi;
+        uint8_t tpn[128]; int32_t peq = 1, pi;
         if (tpl != ftnl || ftnl <= 0) continue;
         for (zi = 0; zi < 64; zi++) tpn[zi] = 0;
         pipeline_module_struct_layout_type_param_name_into(module, layout_k, pj, tpn);
@@ -6610,7 +6610,7 @@ static int32_t codegen_collect_generic_struct_mono_combos(struct ast_Module *mod
       lit_nf = pipeline_expr_struct_lit_num_fields(arena, ei);
       for (li = 0; li < lit_nf; li++) {
         int32_t lfl = pipeline_expr_struct_lit_field_name_len(arena, ei, li);
-        uint8_t lfn[64]; int32_t feq = 1, fi, iref, ity;
+        uint8_t lfn[128]; int32_t feq = 1, fi, iref, ity;
         if (lfl != flen || flen <= 0) continue;
         for (zi = 0; zi < 64; zi++) lfn[zi] = 0;
         pipeline_expr_struct_lit_field_name_into(arena, ei, li, lfn);
@@ -6678,7 +6678,7 @@ static int32_t codegen_collect_generic_struct_mono_combos(struct ast_Module *mod
         }
         for (tr_i = 0; tr_i < np + 1; tr_i++) {
           int32_t combo_r[4], filled_r = 0, ok_r = 1, s_r, found_r, c_r, s_a;
-          uint8_t tnm_r[64];
+          uint8_t tnm_r[128];
           int32_t tnl_r, eq_r = 1, bi_r, si_r;
           try_tr = (tr_i < np) ? pipeline_module_func_param_type_ref_at(module, fi, tr_i) : ret_ty_fn;
           if (try_tr <= 0 || pipeline_type_kind_ord_at(arena, try_tr) != 8) continue;
@@ -6701,11 +6701,11 @@ static int32_t codegen_collect_generic_struct_mono_combos(struct ast_Module *mod
             filled_r = 0;
             for (si_r = 0; si_r < ntp; si_r++) {
               int32_t tpl, mi_m, found_slot = 0;
-              uint8_t tpn[64];
+              uint8_t tpn[128];
               tpl = pipeline_module_struct_layout_type_param_name_len(module, layout_k, si_r);
               pipeline_module_struct_layout_type_param_name_into(module, layout_k, si_r, tpn);
               for (mi_m = 0; mi_m < nmono && mi_m < 8; mi_m++) {
-                uint8_t gnm[64];
+                uint8_t gnm[128];
                 int32_t gnl, geq = 1, gi;
                 if (mono_gen[mi_m] <= 0 || mono_conc[mi_m] <= 0) continue;
                 gnl = pipeline_type_named_name_into(arena, mono_gen[mi_m], gnm);
@@ -6766,15 +6766,15 @@ static int32_t codegen_mono_suffix_bytes_from_init(struct ast_ASTArena *arena, s
     if (ntp <= 0) return pos;
     for (tj = 0; tj < ntp && tj < 4; tj++) {
       int32_t tpl = pipeline_module_struct_layout_type_param_name_len(module, lk, tj);
-      uint8_t tpn[64];
+      uint8_t tpn[128];
       int32_t nf = pipeline_module_struct_layout_num_fields(module, lk);
       int32_t fj, found = 0;
       pipeline_module_struct_layout_type_param_name_into(module, lk, tj, tpn);
       for (fj = 0; fj < nf; fj++) {
         int32_t ftr = pipeline_module_struct_layout_field_type_ref(module, lk, fj);
-        uint8_t ftn[64]; int32_t ftnl, peq = 1, pi;
+        uint8_t ftn[128]; int32_t ftnl, peq = 1, pi;
         int32_t flen, lit_nf, li;
-        uint8_t fnm[64];
+        uint8_t fnm[128];
         if (pipeline_type_kind_ord_at(arena, ftr) != 8) continue;
         ftnl = pipeline_type_named_name_into(arena, ftr, ftn);
         if (ftnl != tpl || ftnl <= 0) continue;
@@ -6785,8 +6785,8 @@ static int32_t codegen_mono_suffix_bytes_from_init(struct ast_ASTArena *arena, s
         lit_nf = pipeline_expr_struct_lit_num_fields(arena, init_ref);
         for (li = 0; li < lit_nf; li++) {
           int32_t lfl = pipeline_expr_struct_lit_field_name_len(arena, init_ref, li);
-          uint8_t lfn[64]; int32_t feq = 1, fi, iref, al;
-          uint8_t asuf[64];
+          uint8_t lfn[128]; int32_t feq = 1, fi, iref, al;
+          uint8_t asuf[128];
           if (lfl != flen || flen <= 0) continue;
           pipeline_expr_struct_lit_field_name_into(arena, init_ref, li, lfn);
           for (fi = 0; fi < flen; fi++) if (lfn[fi] != fnm[fi]) { feq = 0; break; }
@@ -6798,7 +6798,7 @@ static int32_t codegen_mono_suffix_bytes_from_init(struct ast_ASTArena *arena, s
           if (al <= 0 && ctx && ctx->mono_active != 0 && ctx->mono_num_types > 0) {
             int32_t mi_f;
             for (mi_f = 0; mi_f < ctx->mono_num_types && mi_f < 8; mi_f++) {
-              uint8_t gnm_f[64];
+              uint8_t gnm_f[128];
               int32_t gnl_f, geq_f = 1, gi_f;
               int32_t gtr_f = ctx->mono_generic_type_refs[mi_f];
               int32_t ctr_f = ctx->mono_concrete_type_refs[mi_f];
@@ -6856,14 +6856,14 @@ static int32_t codegen_try_emit_struct_lit_mono_from_fields(struct ast_Module *m
   /* probe all slots fillable */
   for (tj = 0; tj < ntp; tj++) {
     int32_t tpl = pipeline_module_struct_layout_type_param_name_len(module, lk, tj);
-    uint8_t tpn[64];
+    uint8_t tpn[128];
     int32_t nf = pipeline_module_struct_layout_num_fields(module, lk);
     int32_t fj, found = 0;
     pipeline_module_struct_layout_type_param_name_into(module, lk, tj, tpn);
     for (fj = 0; fj < nf; fj++) {
       int32_t ftr = pipeline_module_struct_layout_field_type_ref(module, lk, fj);
-      uint8_t ftn[64]; int32_t ftnl, peq = 1, pi, flen, lit_nf, li;
-      uint8_t fnm[64];
+      uint8_t ftn[128]; int32_t ftnl, peq = 1, pi, flen, lit_nf, li;
+      uint8_t fnm[128];
       if (pipeline_type_kind_ord_at(arena, ftr) != 8) continue;
       ftnl = pipeline_type_named_name_into(arena, ftr, ftn);
       if (ftnl != tpl || ftnl <= 0) continue;
@@ -6874,8 +6874,8 @@ static int32_t codegen_try_emit_struct_lit_mono_from_fields(struct ast_Module *m
       lit_nf = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
       for (li = 0; li < lit_nf; li++) {
         int32_t lfl = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, li);
-        uint8_t lfn[64]; int32_t feq = 1, fi, iref, al;
-        uint8_t asuf[64];
+        uint8_t lfn[128]; int32_t feq = 1, fi, iref, al;
+        uint8_t asuf[128];
         if (lfl != flen || flen <= 0) continue;
         pipeline_expr_struct_lit_field_name_into(arena, expr_ref, li, lfn);
         for (fi = 0; fi < flen; fi++) if (lfn[fi] != fnm[fi]) { feq = 0; break; }
@@ -6897,14 +6897,14 @@ static int32_t codegen_try_emit_struct_lit_mono_from_fields(struct ast_Module *m
   }
   for (tj = 0; tj < ntp; tj++) {
     int32_t tpl = pipeline_module_struct_layout_type_param_name_len(module, lk, tj);
-    uint8_t tpn[64];
+    uint8_t tpn[128];
     int32_t nf = pipeline_module_struct_layout_num_fields(module, lk);
     int32_t fj, done = 0;
     pipeline_module_struct_layout_type_param_name_into(module, lk, tj, tpn);
     for (fj = 0; fj < nf; fj++) {
       int32_t ftr = pipeline_module_struct_layout_field_type_ref(module, lk, fj);
-      uint8_t ftn[64]; int32_t ftnl, peq = 1, pi, flen, lit_nf, li;
-      uint8_t fnm[64];
+      uint8_t ftn[128]; int32_t ftnl, peq = 1, pi, flen, lit_nf, li;
+      uint8_t fnm[128];
       if (pipeline_type_kind_ord_at(arena, ftr) != 8) continue;
       ftnl = pipeline_type_named_name_into(arena, ftr, ftn);
       if (ftnl != tpl || ftnl <= 0) continue;
@@ -6915,8 +6915,8 @@ static int32_t codegen_try_emit_struct_lit_mono_from_fields(struct ast_Module *m
       lit_nf = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
       for (li = 0; li < lit_nf; li++) {
         int32_t lfl = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, li);
-        uint8_t lfn[64]; int32_t feq = 1, fi, iref, al;
-        uint8_t asuf[64];
+        uint8_t lfn[128]; int32_t feq = 1, fi, iref, al;
+        uint8_t asuf[128];
         if (lfl != flen || flen <= 0) continue;
         pipeline_expr_struct_lit_field_name_into(arena, expr_ref, li, lfn);
         for (fi = 0; fi < flen; fi++) if (lfn[fi] != fnm[fi]) { feq = 0; break; }
@@ -6941,7 +6941,7 @@ static int32_t codegen_try_emit_struct_lit_mono_from_fields(struct ast_Module *m
 
 static int32_t codegen_maybe_emit_generic_struct_mono_suffix_for_type(struct ast_Module *module, struct ast_ASTArena *arena,
     struct codegen_CodegenOutBuf *out, int32_t type_ref, struct ast_PipelineDepCtx *ctx) {
-  uint8_t nm[64]; int32_t nl, bare_off = 0, bi, bare_len, lk, ntp; int32_t mono[4];
+  uint8_t nm[128]; int32_t nl, bare_off = 0, bi, bare_len, lk, ntp; int32_t mono[4];
   if (!module || !arena || !out || type_ref <= 0) return 0;
   if (pipeline_type_kind_ord_at(arena, type_ref) != 8) return 0;
   nl = pipeline_type_named_name_into(arena, type_ref, nm);
@@ -6964,14 +6964,14 @@ static int32_t codegen_maybe_emit_generic_struct_mono_suffix_for_type(struct ast
     int32_t tj, ok = 1;
     for (tj = 0; tj < ntp; tj++) {
       int32_t tpl, mi_m, found = 0;
-      uint8_t tpn[64];
+      uint8_t tpn[128];
       tpl = pipeline_module_struct_layout_type_param_name_len(module, lk, tj);
       pipeline_module_struct_layout_type_param_name_into(module, lk, tj, tpn);
       mono[tj] = 0;
       for (mi_m = 0; mi_m < ctx->mono_num_types && mi_m < 8; mi_m++) {
         int32_t gtr = ctx->mono_generic_type_refs[mi_m];
         int32_t ctr = ctx->mono_concrete_type_refs[mi_m];
-        uint8_t gnm[64];
+        uint8_t gnm[128];
         int32_t gnl, geq = 1, gi;
         if (gtr <= 0 || ctr <= 0) continue;
         gnl = pipeline_type_named_name_into(arena, gtr, gnm);
@@ -7075,7 +7075,7 @@ static int32_t codegen_build_func_param_mono_map(struct ast_Module *module, stru
   for (p = 0; p < num_params; p++) {
     int32_t pty_raw = pipeline_module_func_param_type_ref_at(module, fi, p);
     int32_t pty, nl, bare_off = 0, bi, bare_len, lk, ntp, nc, tj;
-    uint8_t nm[64];
+    uint8_t nm[128];
     int32_t mono_chk[4];
     int32_t combos[32];
     if (pty_raw <= 0) {
@@ -7218,7 +7218,7 @@ int32_t codegen_emit_module_struct_definitions(struct ast_Module * module, struc
         int32_t ntp_gs;
         int32_t combos_gs[32];
         int32_t ncombo_gs = 0;
-        uint8_t ty_nm[64] = {};
+        uint8_t ty_nm[128] = {};
         uint8_t claim_pfx[128] = {};
         int32_t claim_plen = 0;
         /* wave365: nf==0 true empty struct Empty {} → emit `struct T {\n};\n` (host complete type).
@@ -7315,7 +7315,7 @@ int32_t codegen_emit_module_struct_definitions(struct ast_Module * module, struc
                   return -(1);
                 }
                 {
-                  uint8_t fnm[64] = {};
+                  uint8_t fnm[128] = {};
                   (void)(pipeline_module_struct_layout_field_name_into(module, k, j, &((fnm)[0])));
                   /* wave466: mono type-param fields before host-C field decl. */
                   ftr = codegen_resolve_generic_struct_field_type(module, arena, &((ty_nm)[0]), nl, &((fnm)[0]), flen, ftr);
@@ -7400,7 +7400,7 @@ int32_t codegen_emit_module_struct_definitions(struct ast_Module * module, struc
             int32_t nl = pipeline_module_struct_layout_name_len(module, k);
             int32_t mono_c[4];
             int32_t ms = 0;
-            uint8_t ty_nm[64] = {};
+            uint8_t ty_nm[128] = {};
             uint8_t claim_pfx[128] = {};
             int32_t claim_plen = 0;
             uint8_t mangled[96];
@@ -7450,7 +7450,7 @@ int32_t codegen_emit_module_struct_definitions(struct ast_Module * module, struc
                 while ((j_m < nf)) {
                   int32_t flen_m = pipeline_module_struct_layout_field_name_len(module, k, j_m);
                   int32_t ftr_m = pipeline_module_struct_layout_field_type_ref(module, k, j_m);
-                  uint8_t fnm_m[64];
+                  uint8_t fnm_m[128];
                   if ((flen_m <= 0)) { (void)((j_m = (j_m + 1))); continue; }
                   if ((codegen_emit_indent(out, 2) != 0)) return -(1);
                   pipeline_module_struct_layout_field_name_into(module, k, j_m, &((fnm_m)[0]));
@@ -7494,7 +7494,7 @@ int32_t codegen_emit_module_struct_forward_declarations_ctx(struct ast_Module * 
         (void)((k = (k + 1)));
         continue;
       }
-      uint8_t ty_nm[64] = {};
+      uint8_t ty_nm[128] = {};
       (void)(pipeline_module_struct_layout_name_into(module, k, &((ty_nm)[0])));
       /* PLATFORM: SHARED — entry + dep: only defining owner emits full layout.
        * Entry must skip dep-owned names (Lexer→parser_Lexer residual: field type_ref=0). */
@@ -7536,7 +7536,7 @@ int32_t codegen_emit_module_enum_definitions(struct ast_Module * module, struct 
         (void)((ei = (ei + 1)));
         continue;
       }
-      uint8_t enm[64] = {};
+      uint8_t enm[128] = {};
       uint8_t hdr[8] = {101, 110, 117, 109, 32, 0, 0, 0};
       uint8_t open[4] = {32, 123, 32, 0};
       uint8_t close[6] = {32, 125, 59, 10, 0, 0};
@@ -7585,7 +7585,7 @@ int32_t codegen_emit_module_enum_definitions(struct ast_Module * module, struct 
       int32_t vi = 0;
       while ((vi < nv)) {
         int32_t vlen = pipeline_module_enum_variant_name_len(module, ei, vi);
-        uint8_t vnm[64] = {};
+        uint8_t vnm[128] = {};
         int32_t vk = 0;
         if ((vi > 0)) {
           if ((codegen_emit_bytes_3(out, comma, 2) !=0)) {
@@ -7628,7 +7628,7 @@ int32_t codegen_emit_skipped_dep_type_definitions(struct ast_PipelineDepCtx * ct
     struct ast_ASTArena * saved_arena;
     int32_t saved_dep_index;
     int32_t saved_prefix_len;
-    uint8_t saved_prefix[64] = {};
+    uint8_t saved_prefix[128] = {};
     int32_t sp = 0;
     int32_t nd;
     int32_t done[64];
@@ -7658,7 +7658,7 @@ int32_t codegen_emit_skipped_dep_type_definitions(struct ast_PipelineDepCtx * ct
     while ((di_count < nd)) {
       struct ast_Module * dep_mod0 = pipeline_dep_ctx_module_at(ctx, di_count);
       struct ast_ASTArena * dep_arena0 = pipeline_dep_ctx_arena_at(ctx, di_count);
-      uint8_t dep_path0[64] = {};
+      uint8_t dep_path0[128] = {};
       int32_t plen0 = codegen_dep_import_path_len_at(ctx, di_count, &((dep_path0)[0]));
       if ((((dep_mod0 !=((struct ast_Module *)(0))) && (dep_arena0 !=((struct ast_ASTArena *)(0)))) && (plen0 > 0))) {
         (void)((remaining = (remaining + 1)));
@@ -7680,7 +7680,7 @@ int32_t codegen_emit_skipped_dep_type_definitions(struct ast_PipelineDepCtx * ct
         {
           struct ast_Module * dep_mod = pipeline_dep_ctx_module_at(ctx, di);
           struct ast_ASTArena * dep_arena = pipeline_dep_ctx_arena_at(ctx, di);
-          uint8_t dep_path[64] = {};
+          uint8_t dep_path[128] = {};
           int32_t dep_path_len = codegen_dep_import_path_len_at(ctx, di, &((dep_path)[0]));
           int32_t ready = 1;
           int32_t n_imp;
@@ -7695,7 +7695,7 @@ int32_t codegen_emit_skipped_dep_type_definitions(struct ast_PipelineDepCtx * ct
           n_imp = codegen_module_num_imports(dep_mod);
           ii = 0;
           while ((ii < n_imp)) {
-            uint8_t ipath[64] = {};
+            uint8_t ipath[128] = {};
             int32_t ilen = codegen_module_import_path_len_at(dep_mod, ii, &((ipath)[0]));
             if ((ilen > 0)) {
               int32_t idi = codegen_find_dep_index_by_path(ctx, &((ipath)[0]), ilen);
@@ -7716,7 +7716,7 @@ int32_t codegen_emit_skipped_dep_type_definitions(struct ast_PipelineDepCtx * ct
           seen_before = 0;
           pj = 0;
           while ((pj < di)) {
-            uint8_t prev_path[64] = {};
+            uint8_t prev_path[128] = {};
             int32_t prev_len = codegen_dep_import_path_len_at(ctx, pj, &((prev_path)[0]));
             if ((prev_len ==dep_path_len)) {
               int eq_prev = 1;
@@ -7777,7 +7777,7 @@ int32_t codegen_emit_skipped_dep_type_definitions(struct ast_PipelineDepCtx * ct
           if (((done)[dj] ==0)) {
             struct ast_Module * dep_mod2 = pipeline_dep_ctx_module_at(ctx, dj);
             struct ast_ASTArena * dep_arena2 = pipeline_dep_ctx_arena_at(ctx, dj);
-            uint8_t dep_path2[64] = {};
+            uint8_t dep_path2[128] = {};
             int32_t plen2 = codegen_dep_import_path_len_at(ctx, dj, &((dep_path2)[0]));
             if ((((dep_mod2 !=((struct ast_Module *)(0))) && (dep_arena2 !=((struct ast_ASTArena *)(0)))) && (plen2 > 0))) {
               uint8_t prefix_buf2[128] = {};
@@ -7837,7 +7837,7 @@ int32_t codegen_emit_dep_struct_forward_declarations(struct ast_PipelineDepCtx *
     while ((di < nd)) {
       struct ast_Module * dep_mod = pipeline_dep_ctx_module_at(ctx, di);
       if ((dep_mod !=((struct ast_Module *)(0)))) {
-        uint8_t dep_path[64] = {};
+        uint8_t dep_path[128] = {};
         int32_t dep_path_len = codegen_dep_import_path_len_at(ctx, di, &((dep_path)[0]));
         uint8_t prefix_buf[128] = {};
         int32_t prefix_len = 0;
@@ -7970,7 +7970,7 @@ int32_t codegen_emit_import_module_field_symbol(struct ast_ASTArena * arena, str
     return -(1);
   }
   struct ast_Expr e = ast_ast_arena_expr_get(arena, expr_ref);
-  uint8_t dep_path[64] = {};
+  uint8_t dep_path[128] = {};
   int32_t dep_path_len = codegen_resolve_binding_import_path_for_field_access(ctx, arena, expr_ref, &((dep_path)[0]));
   if ((((e.kind) !=44) || (dep_path_len <=0))) {
     return -(1);
@@ -7992,7 +7992,7 @@ int32_t codegen_emit_import_module_field_symbol(struct ast_ASTArena * arena, str
 int32_t codegen_emit_import_module_const_field(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t expr_ref, struct ast_PipelineDepCtx * ctx) {
   {
     struct ast_Expr e = ast_ast_arena_expr_get(arena, expr_ref);
-    uint8_t dep_path[64] = {};
+    uint8_t dep_path[128] = {};
     int32_t dep_path_len = codegen_resolve_binding_import_path_for_field_access(ctx, arena, expr_ref, &((dep_path)[0]));
     int32_t dep_ix = codegen_find_dep_index_by_path(ctx, &((dep_path)[0]), dep_path_len);
     struct ast_Module * dep_mod = pipeline_dep_ctx_module_at(ctx, dep_ix);
@@ -9161,7 +9161,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
             while ((fi_c < (dep_mod_chk->num_funcs))) {
               int32_t fl = pipeline_module_func_name_len_at(dep_mod_chk, fi_c);
               if (((fl ==(callee_fast.field_access_field_len)) && (fl > 0))) {
-                uint8_t fnc[64] = {};
+                uint8_t fnc[128] = {};
                 (void)(pipeline_module_func_name_copy64(dep_mod_chk, fi_c, &((fnc)[0])));
                 int32_t eqc = 1;
                 int32_t ic = 0;
@@ -9185,7 +9185,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
             }
           }
           if ((field_in_dep !=0)) {
-            uint8_t dep_path_fast[64] = {};
+            uint8_t dep_path_fast[128] = {};
             (void)(pipeline_dep_ctx_import_path_copy64(ctx, dep_ix_fast, &((dep_path_fast)[0])));
             uint8_t pre_fast[128] = {};
             (void)(codegen_import_path_to_c_prefix_into(&((dep_path_fast)[0]), &((pre_fast)[0]), 128));
@@ -9273,7 +9273,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
                   (void)((kk = (kk + 1)));
                 }
                 if (eq) {
-                  uint8_t dep_path_bind[64] = {};
+                  uint8_t dep_path_bind[128] = {};
                   int32_t dep_path_bind_len = codegen_module_import_path_len_at(cur_mod, j, &((dep_path_bind)[0]));
                   if ((dep_path_bind_len <=0)) {
                     (void)((j = (j + 1)));
@@ -9304,7 +9304,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
                       while ((fi_b < (dep_mod_bind->num_funcs))) {
                         int32_t fl = pipeline_module_func_name_len_at(dep_mod_bind, fi_b);
                         if (((fl ==(callee.field_access_field_len)) && (fl > 0))) {
-                          uint8_t fnb[64] = {};
+                          uint8_t fnb[128] = {};
                           (void)(pipeline_module_func_name_copy64(dep_mod_bind, fi_b, &((fnb)[0])));
                           int32_t eqb = 1;
                           int32_t bi_b = 0;
@@ -9394,7 +9394,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
                     (void)((kk = (kk + 1)));
                   }
                   if (eq) {
-                    uint8_t dep_path_sel[64] = {};
+                    uint8_t dep_path_sel[128] = {};
                     int32_t dep_path_sel_len = codegen_module_import_path_len_at(cur_mod, j, &((dep_path_sel)[0]));
                     if ((dep_path_sel_len <=0)) {
                       (void)((k = (k + 1)));
@@ -9454,7 +9454,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
             while ((lfi < (cur_mod->num_funcs))) {
               int32_t lnl = pipeline_module_func_name_len_at(cur_mod, lfi);
               if ((lnl ==(callee.var_name_len))) {
-                uint8_t lnm[64] = {};
+                uint8_t lnm[128] = {};
                 (void)(pipeline_module_func_name_copy64(cur_mod, lfi, &((lnm)[0])));
                 int32_t leq = 1;
                 int32_t li = 0;
@@ -9497,7 +9497,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
                   }
                   if ((eq && (pipeline_dep_ctx_import_path_len(ctx, j) > 0))) {
                     int32_t callee_is_extern = pipeline_module_func_is_extern_at(dep_mod, fi);
-                    uint8_t dep_path_call[64] = {};
+                    uint8_t dep_path_call[128] = {};
                     (void)(pipeline_dep_ctx_import_path_copy64(ctx, j, &((dep_path_call)[0])));
                     uint8_t pre_buf[128] = {};
                     (void)(codegen_import_path_to_c_prefix_into(&((dep_path_call)[0]), &((pre_buf)[0]), 128));
@@ -9807,7 +9807,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
       if ((codegen_append_byte(out, 40) !=0)) {
         return -(1);
       }
-      uint8_t fallback_pre[64] = {};
+      uint8_t fallback_pre[128] = {};
       int32_t fallback_pl = 0;
       if ((ctx !=((struct ast_PipelineDepCtx *)(0)))) {
         uint8_t fb_dep_path_buf[128] = {};
@@ -10287,7 +10287,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
           int32_t cfi = (ctx->current_func_index);
           uint8_t pref[128] = {};
           int32_t plen = codegen_emit_prefix_len_from_ctx(ctx, &((pref)[0]), 128);
-          uint8_t cfn[64] = {};
+          uint8_t cfn[128] = {};
           (void)(pipeline_module_func_name_copy64(mod, cfi, &((cfn)[0])));
           int32_t cfn_len = pipeline_module_func_name_len_at(mod, cfi);
           if ((codegen_force_param_ptrdiff_t(&((pref)[0]), plen, &((cfn)[0]), cfn_len, 0) !=0)) {
@@ -10465,7 +10465,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
           int32_t nlets = ast_ast_block_num_lets(arena, blk);
           int32_t li = 0;
           while ((li < nlets)) {
-            uint8_t lname[64] = {};
+            uint8_t lname[128] = {};
             int32_t lnl = pipeline_block_let_name_len(arena, blk, li);
             (void)(pipeline_block_let_name_copy64(arena, blk, li, &((lname)[0])));
             if (((lnl == (base_mono.var_name_len)) && (lnl > 0))) {
@@ -10575,7 +10575,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
         if ((((dep_ix >=0) && (func_ix >=0)) && (dep_ix < pipeline_dep_ctx_ndep(ctx)))) {
           struct ast_Module * dep_mod = pipeline_dep_ctx_module_at(ctx, dep_ix);
           if (((dep_mod !=((struct ast_Module *)(0))) && (func_ix < (dep_mod->num_funcs)))) {
-            uint8_t fn_name[64] = {};
+            uint8_t fn_name[128] = {};
             int32_t fn_len = pipeline_module_func_name_len_at(dep_mod, func_ix);
             int32_t name_ok = 0;
             if ((fn_len > 0)) {
@@ -10599,9 +10599,9 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
             /* PLATFORM: SHARED — multi-import: call_resolved dep may be transitive (heap.libc)
              * while binding is std.heap; require path match. Keep typeck overload when path OK. */
             if ((mc_resolved_ok !=0)) {
-              uint8_t bind_path[64] = {};
+              uint8_t bind_path[128] = {};
               int32_t bind_plen = codegen_resolve_binding_import_path_for_method_call(ctx, arena, expr_ref, &((bind_path)[0]));
-              uint8_t dep_path_chk[64] = {};
+              uint8_t dep_path_chk[128] = {};
               (void)(pipeline_dep_ctx_import_path_copy64(ctx, dep_ix, &((dep_path_chk)[0])));
               int32_t dep_plen_chk = pipeline_dep_ctx_import_path_len(ctx, dep_ix);
               if ((bind_plen > 0)) {
@@ -10621,7 +10621,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
               }
             }
             if ((mc_resolved_ok !=0)) {
-              uint8_t dep_path[64] = {};
+              uint8_t dep_path[128] = {};
               (void)(pipeline_dep_ctx_import_path_copy64(ctx, dep_ix, &((dep_path)[0])));
               uint8_t pre_buf[128] = {};
               (void)(codegen_import_path_to_c_prefix_into(&((dep_path)[0]), &((pre_buf)[0]), 128));
@@ -10699,7 +10699,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
             }
           }
         }
-        uint8_t dep_path_fb[64] = {};
+        uint8_t dep_path_fb[128] = {};
         int32_t dep_path_fb_len = codegen_resolve_binding_import_path_for_method_call(ctx, arena, expr_ref, &((dep_path_fb)[0]));
         if ((dep_path_fb_len > 0)) {
           uint8_t pre_fb[128] = {};
@@ -10722,7 +10722,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
               return -(1);
             }
             while ((dj < pipeline_dep_ctx_ndep(ctx))) {
-              uint8_t dj_path[64] = {};
+              uint8_t dj_path[128] = {};
               (void)(pipeline_dep_ctx_import_path_copy64(ctx, dj, &((dj_path)[0])));
               int32_t dj_plen = pipeline_dep_ctx_import_path_len(ctx, dj);
               if (((dj_plen ==dep_path_fb_len) && (dj_plen > 0))) {
@@ -10984,7 +10984,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
         if ((lit_bare_len > 0)) {
           lit_owner = codegen_type_dep_struct_owner_index(ctx, &(((e.struct_lit_struct_name))[lit_bare_off]), lit_bare_len);
           if ((lit_owner >=0)) {
-            uint8_t lit_path[64] = {};
+            uint8_t lit_path[128] = {};
             int32_t lit_plen = codegen_dep_import_path_len_at(ctx, lit_owner, &((lit_path)[0]));
             if ((lit_plen > 0)) {
               (void)(codegen_import_path_to_c_prefix_into(&((lit_path)[0]), &((sl_pfx)[0]), 128));
@@ -11003,7 +11003,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
         while ((sk < (modu->num_struct_layouts))) {
           int32_t snl = pipeline_module_struct_layout_name_len(modu, sk);
           if (((snl ==(e.struct_lit_struct_name_len)) && (snl > 0))) {
-            uint8_t snm[64] = {};
+            uint8_t snm[128] = {};
             (void)(pipeline_module_struct_layout_name_into(modu, sk, &((snm)[0])));
             int eq2 = 1;
             int32_t sj = 0;
@@ -11207,7 +11207,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
           struct ast_Expr ie_s = ast_ast_arena_expr_get(arena, iref_s);
           /* EXPR_CALL=48 EXPR_METHOD_CALL=49 */
           if ((((ie_s.kind) == 48) || ((ie_s.kind) == 49))) {
-            uint8_t fnbuf_s[64] = {};
+            uint8_t fnbuf_s[128] = {};
             int32_t flen_s = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, si_scan);
             int32_t ftr_s = 0;
             int32_t arr_ty_s = 0;
@@ -11252,7 +11252,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
               continue;
             }
             {
-              uint8_t fnbuf_m[64] = {};
+              uint8_t fnbuf_m[128] = {};
               int32_t flen_m = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, mi);
               int32_t ftr_m = 0;
               int32_t arr_ty_m = 0;
@@ -11378,7 +11378,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
       }
       /* wave458: STRUCT_LIT name mono subst (T {..} under mono → concrete). */
       {
-        uint8_t sl_emit_name[64] = {};
+        uint8_t sl_emit_name[128] = {};
         int32_t sl_emit_nlen = (e.struct_lit_struct_name_len);
         int32_t sl_ni = 0;
         while (((sl_ni < sl_emit_nlen) && (sl_ni < 64))) {
@@ -11391,7 +11391,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
             int32_t gtr_sl = (ctx->mono_generic_type_refs)[mi_sl];
             int32_t ctr_sl = (ctx->mono_concrete_type_refs)[mi_sl];
             if ((((gtr_sl > 0) && (ctr_sl > 0)) && (ctr_sl != gtr_sl))) {
-              uint8_t gnm_sl[64] = {};
+              uint8_t gnm_sl[128] = {};
               int32_t gnl_sl = pipeline_type_named_name_into(arena, gtr_sl, &((gnm_sl)[0]));
               if (((gnl_sl == sl_emit_nlen) && (gnl_sl > 0))) {
                 int32_t eq_sl = 1;
@@ -11405,7 +11405,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
                   }
                 }
                 if ((eq_sl != 0)) {
-                  uint8_t cnm_sl[64] = {};
+                  uint8_t cnm_sl[128] = {};
                   int32_t cnl_sl = pipeline_type_named_name_into(arena, ctr_sl, &((cnm_sl)[0]));
                   if (((cnl_sl > 0) && (cnl_sl <= 64))) {
                     int32_t ci_sl = 0;
@@ -11463,7 +11463,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
                 int32_t tj_m;
                 for (tj_m = 0; tj_m < ntp_m; tj_m++) {
                   int32_t tpl_m, mi_m;
-                  uint8_t tpn_m[64];
+                  uint8_t tpn_m[128];
                   combo_m[tj_m] = 0;
                   tpl_m = pipeline_module_struct_layout_type_param_name_len(mod_sl, lk_m, tj_m);
                   pipeline_module_struct_layout_type_param_name_into(mod_sl, lk_m, tj_m, tpn_m);
@@ -11471,7 +11471,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
                     int32_t gtr_m = ctx->mono_generic_type_refs[mi_m];
                     int32_t ctr_m = ctx->mono_concrete_type_refs[mi_m];
                     if (gtr_m > 0 && ctr_m > 0) {
-                      uint8_t gnm_m[64];
+                      uint8_t gnm_m[128];
                       int32_t gnl_m = pipeline_type_named_name_into(arena, gtr_m, gnm_m);
                       if (gnl_m == tpl_m && gnl_m > 0) {
                         int32_t geq = 1, gi;
@@ -11501,13 +11501,13 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
                 for (fj_sl = 0; fj_sl < nf_lay; fj_sl++) {
                   int32_t ftr_sl = pipeline_module_struct_layout_field_type_ref(mod_sl, lk2, fj_sl);
                   int32_t ftnl_sl, slot_sl = -1, pj_sl, flen_sl, lit_nf_sl, li_sl, zi;
-                  uint8_t ftn_sl[64], fnm_sl[64];
+                  uint8_t ftn_sl[128], fnm_sl[128];
                   if (pipeline_type_kind_ord_at(arena, ftr_sl) != 8) continue;
                   for (zi = 0; zi < 64; zi++) ftn_sl[zi] = 0;
                   ftnl_sl = pipeline_type_named_name_into(arena, ftr_sl, ftn_sl);
                   for (pj_sl = 0; pj_sl < ntp2; pj_sl++) {
                     int32_t tpl_sl = pipeline_module_struct_layout_type_param_name_len(mod_sl, lk2, pj_sl);
-                    uint8_t tpn_sl[64]; int32_t peq_sl = 1, pi_sl;
+                    uint8_t tpn_sl[128]; int32_t peq_sl = 1, pi_sl;
                     if (tpl_sl != ftnl_sl || ftnl_sl <= 0) continue;
                     for (zi = 0; zi < 64; zi++) tpn_sl[zi] = 0;
                     pipeline_module_struct_layout_type_param_name_into(mod_sl, lk2, pj_sl, tpn_sl);
@@ -11521,7 +11521,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
                   lit_nf_sl = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
                   for (li_sl = 0; li_sl < lit_nf_sl; li_sl++) {
                     int32_t lfl_sl = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, li_sl);
-                    uint8_t lfn_sl[64]; int32_t feq_sl = 1, fi_sl, iref_sl, ity_sl;
+                    uint8_t lfn_sl[128]; int32_t feq_sl = 1, fi_sl, iref_sl, ity_sl;
                     if (lfl_sl != flen_sl || flen_sl <= 0) continue;
                     for (zi = 0; zi < 64; zi++) lfn_sl[zi] = 0;
                     pipeline_expr_struct_lit_field_name_into(arena, expr_ref, li_sl, lfn_sl);
@@ -11552,7 +11552,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
       }
       int32_t fi = 0;
       while ((fi < nf_codegen)) {
-        uint8_t sl_fnbuf[64] = {};
+        uint8_t sl_fnbuf[128] = {};
         int32_t flen = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, fi);
         uint8_t eq[4] = {32, 61, 32, 0};
         int32_t init_ref = pipeline_expr_struct_lit_init_ref(arena, expr_ref, fi);
@@ -12060,7 +12060,7 @@ int32_t codegen_current_func_is_named_main(struct ast_PipelineDepCtx * ctx) {
   {
     struct ast_Module * mod;
     int32_t nlen;
-    uint8_t nm[64];
+    uint8_t nm[128];
     if (((ctx == ((struct ast_PipelineDepCtx *)(0))) || ((ctx->current_codegen_module) == ((struct ast_Module *)(0))) || ((ctx->current_func_index) < 0))) {
       return 0;
     }
@@ -12474,7 +12474,7 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
       int32_t pre_li = 0;
       while ((pre_li < ast_ast_block_num_lets(arena, block_ref))) {
         if ((codegen_block_stmt_order_has_let(arena, block_ref, pre_li) ==0)) {
-          uint8_t lname_pre[64] = {};
+          uint8_t lname_pre[128] = {};
           (void)(pipeline_block_let_name_copy64(arena, block_ref, pre_li, &((lname_pre)[0])));
           int32_t lname_len_pre = pipeline_block_let_name_len(arena, block_ref, pre_li);
           int32_t let_type_pre = pipeline_block_let_type_ref(arena, block_ref, pre_li);
@@ -12502,7 +12502,7 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
             return -(1);
           }
           {
-            uint8_t emit_nm_pre[64] = {};
+            uint8_t emit_nm_pre[128] = {};
             int32_t emit_nml_pre = 0;
             if (((lname_len_pre > 0) && ((lname_pre)[0] > 32))) {
               int32_t ci = 0;
@@ -12586,7 +12586,7 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
         int32_t idx = ast_ast_block_stmt_order_idx(arena, block_ref, si);
         if ((k ==0)) {
           if (((idx >=0) && (idx < ast_ast_block_num_consts(arena, block_ref)))) {
-            uint8_t cname_buf[64] = {};
+            uint8_t cname_buf[128] = {};
             (void)(pipeline_block_const_name_copy64(arena, block_ref, idx, &((cname_buf)[0])));
             int32_t cname_len = pipeline_block_const_name_len(arena, block_ref, idx);
             int32_t ctype_ref = pipeline_block_const_type_ref(arena, block_ref, idx);
@@ -12629,7 +12629,7 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
         } else {
           if ((k ==1)) {
             if (((idx >=0) && (idx < ast_ast_block_num_lets(arena, block_ref)))) {
-              uint8_t lname_buf[64] = {};
+              uint8_t lname_buf[128] = {};
               (void)(pipeline_block_let_name_copy64(arena, block_ref, idx, &((lname_buf)[0])));
               int32_t lname_len = pipeline_block_let_name_len(arena, block_ref, idx);
               int32_t let_type_ref = pipeline_block_let_type_ref(arena, block_ref, idx);
@@ -12708,7 +12708,7 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
               }
               /* wave353: emit C local name into emit_nm for memcpy finish. */
               {
-                uint8_t emit_nm[64] = {};
+                uint8_t emit_nm[128] = {};
                 int32_t emit_nml = 0;
                 if (((lname_len > 0) && ((lname_buf)[0] > 32))) {
                   int32_t ci2 = 0;
@@ -12812,7 +12812,7 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
                             (void)((is_vec_ty = 1));
                           } else {
                             if ((tk_z ==8)) {
-                              uint8_t vzn[64] = {};
+                              uint8_t vzn[128] = {};
                               int32_t vzn_l = pipeline_type_named_name_into(arena, let_type_ref, &((vzn)[0]));
                               int32_t vi = 0;
                               while ((vi < vzn_l)) {
@@ -13134,7 +13134,7 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
     }
     int32_t i = 0;
     while ((i < ast_ast_block_num_consts(arena, block_ref))) {
-      uint8_t cname_fb[64] = {};
+      uint8_t cname_fb[128] = {};
       (void)(pipeline_block_const_name_copy64(arena, block_ref, i, &((cname_fb)[0])));
       int32_t cname_len_fb = pipeline_block_const_name_len(arena, block_ref, i);
       int32_t ctype_fb = pipeline_block_const_type_ref(arena, block_ref, i);
@@ -13177,7 +13177,7 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
     }
     (void)((i = 0));
     while ((i < ast_ast_block_num_lets(arena, block_ref))) {
-      uint8_t lname_fb[64] = {};
+      uint8_t lname_fb[128] = {};
       (void)(pipeline_block_let_name_copy64(arena, block_ref, i, &((lname_fb)[0])));
       int32_t lname_len_fb = pipeline_block_let_name_len(arena, block_ref, i);
       int32_t let_type_ref = pipeline_block_let_type_ref(arena, block_ref, i);
@@ -13255,7 +13255,7 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
         return -(1);
       }
       {
-        uint8_t emit_nm_fb[64] = {};
+        uint8_t emit_nm_fb[128] = {};
         int32_t emit_nml_fb = 0;
         if (((lname_len_fb > 0) && ((lname_fb)[0] > 32))) {
           int32_t ci3 = 0;
@@ -13541,7 +13541,7 @@ int32_t codegen_type_ref_to_suffix(struct ast_ASTArena * arena, int32_t type_ref
         if ((arg <= 0)) {
           ai = 4;
         } else {
-          uint8_t asuf[64];
+          uint8_t asuf[128];
           int32_t al = codegen_type_ref_to_suffix(arena, arg, &((asuf)[0]), 64);
           if ((al <= 0)) {
             ai = 4;
@@ -13662,7 +13662,7 @@ int32_t codegen_module_func_overload_count(struct ast_Module * module, uint8_t *
     while ((i < (module->num_funcs))) {
       int32_t fn_len = pipeline_module_func_name_len_at(module, i);
       if (((fn_len ==name_len) && (fn_len > 0))) {
-        uint8_t fn_name[64] = {};
+        uint8_t fn_name[128] = {};
         int32_t matched = 1;
         int32_t bi = 0;
         (void)(pipeline_module_func_name_copy64(module, i, &((fn_name)[0])));
@@ -13693,8 +13693,8 @@ int32_t codegen_func_param_sig_equal(struct ast_ASTArena * arena, struct ast_Mod
     }
     int32_t pi = 0;
     while ((pi < np_a)) {
-      uint8_t sa[64] = {};
-      uint8_t sb[64] = {};
+      uint8_t sa[128] = {};
+      uint8_t sb[128] = {};
       int32_t na = codegen_type_ref_to_suffix(arena, pipeline_module_func_param_type_ref_at(mod_a, fi_a, pi), &((sa)[0]), 64);
       int32_t nb = codegen_type_ref_to_suffix(arena, pipeline_module_func_param_type_ref_at(mod_b, fi_b, pi), &((sb)[0]), 64);
       if ((na !=nb)) {
@@ -13719,7 +13719,7 @@ int32_t codegen_module_overload_param_sig_count(struct ast_ASTArena * arena, str
     if ((((module ==((struct ast_Module *)(0))) || (fi < 0)) || (fi >=(module->num_funcs)))) {
       return 0;
     }
-    uint8_t fn_local[64] = {};
+    uint8_t fn_local[128] = {};
     (void)(codegen_copy_func_name64_from_module(module, fi, &((fn_local)[0])));
     int32_t fn_len = pipeline_module_func_name_len_at(module, fi);
     if ((fn_len <=0)) {
@@ -13729,7 +13729,7 @@ int32_t codegen_module_overload_param_sig_count(struct ast_ASTArena * arena, str
     while ((i < (module->num_funcs))) {
       int32_t g_len = pipeline_module_func_name_len_at(module, i);
       if (((g_len ==fn_len) && (g_len > 0))) {
-        uint8_t g_name[64] = {};
+        uint8_t g_name[128] = {};
         int32_t matched = 1;
         int32_t bi = 0;
         (void)(pipeline_module_func_name_copy64(module, i, &((g_name)[0])));
@@ -13765,7 +13765,7 @@ int32_t codegen_func_c_symbol_prefix_len(struct ast_Module * module, int32_t fi,
 }
 int32_t codegen_emit_func_link_name(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi) {
   {
-    uint8_t fn_local[64] = {};
+    uint8_t fn_local[128] = {};
     int32_t fn_len = 0;
     int32_t overload_count = 0;
     int32_t np = 0;
@@ -13792,7 +13792,7 @@ int32_t codegen_emit_func_link_name(struct codegen_CodegenOutBuf * out, struct a
     (void)((np = pipeline_module_func_num_params_at(module, fi)));
     (void)((pi = 0));
     while ((pi < np)) {
-      uint8_t suf[64] = {};
+      uint8_t suf[128] = {};
       int32_t sl = codegen_type_ref_to_suffix(arena, pipeline_module_func_param_type_ref_at(module, fi, pi), &((suf)[0]), 64);
       if ((sl > 0)) {
         if ((codegen_append_byte(out, 95) !=0)) {
@@ -13807,7 +13807,7 @@ int32_t codegen_emit_func_link_name(struct codegen_CodegenOutBuf * out, struct a
     (void)((sig_count = codegen_module_overload_param_sig_count(arena, module, fi)));
     if ((sig_count > 1)) {
       int32_t ret_ref = pipeline_module_func_return_type_at(module, fi);
-      uint8_t rs[64] = {};
+      uint8_t rs[128] = {};
       int32_t rsl = codegen_type_ref_to_suffix(arena, ret_ref, &((rs)[0]), 64);
       if ((rsl > 0)) {
         uint8_t ret_kw[5] = {95, 114, 101, 116, 0};
@@ -13864,7 +13864,7 @@ int32_t codegen_name_is_local_binding(struct ast_ASTArena * arena, struct ast_Pi
         while ((li < nlets)) {
           int32_t nl = pipeline_block_let_name_len(arena, br, li);
           if (((nl == name_len) && (nl > 0))) {
-            uint8_t nb[64] = {};
+            uint8_t nb[128] = {};
             int32_t ok2 = 1;
             int32_t j2 = 0;
             (void)(pipeline_block_let_name_copy64(arena, br, li, &((nb)[0])));
@@ -13888,7 +13888,7 @@ int32_t codegen_name_is_local_binding(struct ast_ASTArena * arena, struct ast_Pi
           while ((ci < nconsts)) {
             int32_t cl = pipeline_block_const_name_len(arena, br, ci);
             if (((cl == name_len) && (cl > 0))) {
-              uint8_t cb[64] = {};
+              uint8_t cb[128] = {};
               int32_t ok3 = 1;
               int32_t j3 = 0;
               (void)(pipeline_block_const_name_copy64(arena, br, ci, &((cb)[0])));
@@ -14003,7 +14003,7 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
           if ((rlen !=fallback_len)) {
             (void)((ok_res = 0));
           } else {
-            uint8_t rnm[64] = {};
+            uint8_t rnm[128] = {};
             (void)(pipeline_module_func_name_copy64(res_mod, func_ix, &((rnm)[0])));
             int32_t ri = 0;
             while ((ri < rlen)) {
@@ -14096,7 +14096,7 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
       while ((fi_s < (search_mod->num_funcs))) {
         int32_t fn_len = pipeline_module_func_name_len_at(search_mod, fi_s);
         if (((fn_len ==fallback_len) && (fn_len > 0))) {
-          uint8_t fn_name[64] = {};
+          uint8_t fn_name[128] = {};
           (void)(pipeline_module_func_name_copy64(search_mod, fi_s, &((fn_name)[0])));
           int32_t matched = 1;
           int32_t bi = 0;
@@ -14134,7 +14134,7 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
                     if (pipeline_expr_kind_ord_at(arena, arg_ref) ==3) {
                       int32_t av_len = pipeline_expr_var_name_len(arena, arg_ref);
                       if (((av_len > 0) && (av_len <= 63))) {
-                        uint8_t av_buf[64] = {};
+                        uint8_t av_buf[128] = {};
                         pipeline_expr_var_name_into(arena, arg_ref, &((av_buf)[0]));
                         int32_t apt = pipeline_module_func_param_type_ref_for_name(ctx->current_codegen_module, ctx->current_func_index, &((av_buf)[0]), av_len);
                         if ((apt > 0)) {
@@ -14154,8 +14154,8 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
                     (void)((is_str_lit = 1));
                   }
                   int32_t param_ty = pipeline_module_func_param_type_ref_at(search_mod, fi_s, pi);
-                  uint8_t sa[64] = {};
-                  uint8_t sb[64] = {};
+                  uint8_t sa[128] = {};
+                  uint8_t sb[128] = {};
                   int32_t na = 0;
                   int32_t nb = 0;
                   if (((((is_str_lit ==0) && (arg_ty > 0)) && (pipeline_type_kind_ord_at(arena, arg_ty) ==10)) && (pipeline_type_kind_ord_at(search_arena, param_ty) ==9))) {
@@ -14246,7 +14246,7 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
           while ((fi_p < (search_mod->num_funcs))) {
             int32_t fl = pipeline_module_func_name_len_at(search_mod, fi_p);
             if ((((fl ==fallback_len) && (fl > 0)) && (pipeline_module_func_num_params_at(search_mod, fi_p) ==1))) {
-              uint8_t fnm_p[64] = {};
+              uint8_t fnm_p[128] = {};
               (void)(pipeline_module_func_name_copy64(search_mod, fi_p, &((fnm_p)[0])));
               int32_t me = 1;
               int32_t bi = 0;
@@ -14301,7 +14301,7 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
         while ((fi_a < (search_mod->num_funcs))) {
           int32_t fn_len_a = pipeline_module_func_name_len_at(search_mod, fi_a);
           if (((fn_len_a ==fallback_len) && (fn_len_a > 0))) {
-            uint8_t fn_name_a[64] = {};
+            uint8_t fn_name_a[128] = {};
             (void)(pipeline_module_func_name_copy64(search_mod, fi_a, &((fn_name_a)[0])));
             int32_t matched_a = 1;
             int32_t bi_a = 0;
@@ -14355,7 +14355,7 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
         while ((fi_x < (dm->num_funcs))) {
           int32_t fn_x = pipeline_module_func_name_len_at(dm, fi_x);
           if (((fn_x ==fallback_len) && (fn_x > 0))) {
-            uint8_t fnm[64] = {};
+            uint8_t fnm[128] = {};
             (void)(pipeline_module_func_name_copy64(dm, fi_x, &((fnm)[0])));
             int32_t mx = 1;
             int32_t bx = 0;
@@ -14433,7 +14433,7 @@ int32_t codegen_block_contains_return(struct ast_ASTArena * arena, int32_t block
 
 int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, int is_entry, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx, int32_t call_init_globals) {
   {
-    uint8_t fn_local[64] = {};
+    uint8_t fn_local[128] = {};
     int32_t fn_len = 0;
     int name_is_main = 0;
     int force_entry_main = 0;
@@ -15013,7 +15013,7 @@ int32_t codegen_is_libc_conflicting_extern_name(uint8_t * name, int32_t name_len
 }
 int32_t codegen_find_mono_type_for_generic_func(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi, int32_t arg_idx) {
   {
-    uint8_t fn_local[64] = {};
+    uint8_t fn_local[128] = {};
     int32_t fn_len = pipeline_module_func_name_len_at(module, fi);
     int32_t ei = 1;
     if (((((arena ==((struct ast_ASTArena *)(0))) || (module ==((struct ast_Module *)(0)))) || (fi < 0)) || (fi >=(module->num_funcs)))) {
@@ -15115,8 +15115,8 @@ int32_t codegen_call_mono_type_at(struct ast_ASTArena * arena, int32_t ei, int32
 static int32_t codegen_mono_combo_slot_equal(struct ast_ASTArena * arena, int32_t a, int32_t b) {
   int32_t ka;
   int32_t kb;
-  uint8_t na[64];
-  uint8_t nb[64];
+  uint8_t na[128];
+  uint8_t nb[128];
   int32_t la;
   int32_t lb;
   int32_t i;
@@ -15145,7 +15145,7 @@ static int32_t codegen_mono_combo_slot_equal(struct ast_ASTArena * arena, int32_
 }
 int32_t codegen_func_ret_type_param_extra(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi) {
   int32_t ret_ty;
-  uint8_t ret_nm[64];
+  uint8_t ret_nm[128];
   int32_t ret_nl;
   int32_t np;
   int32_t pi;
@@ -15164,7 +15164,7 @@ int32_t codegen_func_ret_type_param_extra(struct ast_ASTArena * arena, struct as
   while (pi < np) {
     int32_t pty = pipeline_module_func_param_type_ref_at(module, fi, pi);
     if (pty > 0 && pipeline_type_kind_ord_at(arena, pty) == 8) {
-      uint8_t pnm[64];
+      uint8_t pnm[128];
       int32_t pnl = pipeline_type_named_name_into(arena, pty, &pnm[0]);
       if (pnl == ret_nl && pnl > 0) {
         int32_t eq = 1;
@@ -15211,7 +15211,7 @@ int32_t codegen_call_ret_type_param_concrete_at(struct ast_ASTArena * arena, int
 }
 int32_t codegen_collect_mono_combos_for_generic_func(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi, int32_t * combos_out, int32_t max_combos, int32_t num_params, int32_t ret_extra) {
   {
-    uint8_t fn_local[64] = {};
+    uint8_t fn_local[128] = {};
     int32_t fn_len = pipeline_module_func_name_len_at(module, fi);
     int32_t combo_count = 0;
     int32_t ei = 1;
@@ -15331,7 +15331,7 @@ int32_t codegen_try_emit_impl_method_mono_call_name(struct codegen_CodegenOutBuf
     int32_t np = 0;
     int32_t p0_ty_raw = 0;
     int32_t p0_ty = 0;
-    uint8_t nm[64];
+    uint8_t nm[128];
     int32_t nl = 0;
     int32_t bare_off = 0;
     int32_t bi = 0;
@@ -15414,7 +15414,7 @@ int32_t codegen_emit_mono_mangled_name(struct codegen_CodegenOutBuf * out, struc
       return -(1);
     }
     while ((mi < num_mono)) {
-      uint8_t suf[64] = {};
+      uint8_t suf[128] = {};
       int32_t ty = (mono_tys)[mi];
       int32_t sl = codegen_type_ref_to_suffix(arena, ty, &((suf)[0]), 64);
       if ((sl <=0)) {
@@ -15466,13 +15466,13 @@ int32_t codegen_mono_subst_type(struct ast_PipelineDepCtx * ctx, struct ast_ASTA
    * Builtin types have no name (returns 0) and skip this fallback.
    * PLATFORM: SHARED — mirrors codegen.x codegen_mono_subst_type. */
   {
-    uint8_t fb_nm[64] = {};
+    uint8_t fb_nm[128] = {};
     int32_t fb_len = pipeline_type_named_name_into(arena, type_ref, &((fb_nm)[0]));
     if ((fb_len > 0)) {
       int32_t mi2 = 0;
       while (((mi2 <(ctx->mono_num_types)) && (mi2 <8))) {
         if ((ctx->mono_concrete_type_refs[mi2] >0)) {
-          uint8_t gnm[64] = {};
+          uint8_t gnm[128] = {};
           int32_t gname_len = pipeline_type_named_name_into(arena, ctx->mono_generic_type_refs[mi2], &((gnm)[0]));
           if (((gname_len == fb_len) && (gname_len > 0))) {
             int32_t names_eq = 1;
@@ -15521,7 +15521,7 @@ int32_t codegen_find_impl_method_for_type(struct ast_Module * module, struct ast
     while ((fi <(module->num_funcs))) {
       int32_t fn_len = pipeline_module_func_name_len_at(module, fi);
       if ((((fn_len == method_name_len) && (fn_len > 0)))) {
-        uint8_t fn_name[64] = {};
+        uint8_t fn_name[128] = {};
         int32_t matched = 1;
         int32_t bi = 0;
         (void)(pipeline_module_func_name_copy64(module, fi, &((fn_name)[0])));
@@ -15550,8 +15550,8 @@ int32_t codegen_find_impl_method_for_type(struct ast_Module * module, struct ast
                * PLATFORM: SHARED host-C — mirrors codegen.x.
                */
               {
-                uint8_t p0_nm[64];
-                uint8_t recv_nm[64];
+                uint8_t p0_nm[128];
+                uint8_t recv_nm[128];
                 int32_t p0_nlen = pipeline_type_named_name_into(arena, p0_ty, p0_nm);
                 int32_t recv_nlen = pipeline_type_named_name_into(arena, receiver_type_ref, recv_nm);
                 if (p0_nlen > 0 && p0_nlen == recv_nlen) {
@@ -15585,8 +15585,8 @@ int32_t codegen_try_emit_generic_identity_mono(struct ast_ASTArena * arena, stru
   {
     int32_t ret_ty = pipeline_module_func_return_type_at(module, fi);
     int32_t p0_ty = pipeline_module_func_param_type_ref_at(module, fi, 0);
-    uint8_t ret_nm[64] = {};
-    uint8_t p0_nm[64] = {};
+    uint8_t ret_nm[128] = {};
+    uint8_t p0_nm[128] = {};
     int32_t ret_nl = pipeline_type_named_name_into(arena, ret_ty, &((ret_nm)[0]));
     int32_t p0_nl = pipeline_type_named_name_into(arena, p0_ty, &((p0_nm)[0]));
     int32_t bi = 0;
@@ -15597,7 +15597,7 @@ int32_t codegen_try_emit_generic_identity_mono(struct ast_ASTArena * arena, stru
     uint8_t comma_space[2] = {44, 32};
     int32_t pn_len = pipeline_module_func_param_name_len_at(module, fi, 0);
     uint8_t pn[32] = {};
-    uint8_t fn_local[64] = {};
+    uint8_t fn_local[128] = {};
     int32_t fn_len = pipeline_module_func_name_len_at(module, fi);
     int32_t mono_sym_pre = codegen_func_c_symbol_prefix_len(module, fi, prefix_len);
     uint8_t open_body[4] = {41, 32, 123, 10};
@@ -16193,12 +16193,12 @@ int32_t codegen_try_emit_generic_impl_method_mono(struct ast_ASTArena * arena, s
     int32_t found_lk = -1;
     int32_t found_pty = 0;
     int32_t found_ntp = 0;
-    uint8_t found_nm[64] = {};
+    uint8_t found_nm[128] = {};
     int32_t found_bare_off = 0;
     int32_t found_bare_len = 0;
     int32_t combos[32] = {};
     int32_t nc = 0;
-    uint8_t fn_local[64] = {};
+    uint8_t fn_local[128] = {};
     int32_t fn_len = 0;
     int32_t mono_sym_pre = 0;
     int32_t ci = 0;
@@ -16250,7 +16250,7 @@ int32_t codegen_try_emit_generic_impl_method_mono(struct ast_ASTArena * arena, s
           continue;
         }
         {
-          uint8_t nm[64] = {};
+          uint8_t nm[128] = {};
           int32_t nl = pipeline_type_named_name_into(arena, pty, &((nm)[0]));
           if ((nl <= 0)) {
             (void)((p = (p + 1)));
@@ -16558,12 +16558,12 @@ static int32_t codegen_try_emit_generic_impl_method_extern_mono(struct ast_ASTAr
     int32_t found_lk = -1;
     int32_t found_pty = 0;
     int32_t found_ntp = 0;
-    uint8_t found_nm[64] = {};
+    uint8_t found_nm[128] = {};
     int32_t found_bare_off = 0;
     int32_t found_bare_len = 0;
     int32_t combos[32] = {};
     int32_t nc = 0;
-    uint8_t fn_local[64] = {};
+    uint8_t fn_local[128] = {};
     int32_t fn_len = 0;
     int32_t mono_sym_pre = 0;
     int32_t ci = 0;
@@ -16610,7 +16610,7 @@ static int32_t codegen_try_emit_generic_impl_method_extern_mono(struct ast_ASTAr
           continue;
         }
         {
-          uint8_t nm[64] = {};
+          uint8_t nm[128] = {};
           int32_t nl = pipeline_type_named_name_into(arena, pty, &((nm)[0]));
           if ((nl <= 0)) {
             (void)((p = (p + 1)));
@@ -16874,7 +16874,7 @@ static int32_t codegen_try_emit_generic_impl_method_extern_mono(struct ast_ASTAr
 }
 int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx) {
   {
-    uint8_t fn_local[64] = {};
+    uint8_t fn_local[128] = {};
     int32_t fn_len = pipeline_module_func_name_len_at(module, fi);
     uint8_t kw[8] = {101, 120, 116, 101, 114, 110, 32, 0};
     int32_t name_prefix_len = prefix_len;
@@ -16969,8 +16969,27 @@ int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct
         w495_mono_set = 1;
       }
     }
-    if ((codegen_emit_type(arena, out, pipeline_module_func_return_type_at(module, fi), prefix, prefix_len, ctx) !=0)) {
-      return -(1);
+    /* wave577 Cap: void main prototype must match definition int32_t main (void→i32 entry rewrite).
+     * Type layout fix made VOID kind trustworthy; without this, `extern void main` + `int32_t main` BLD001. */
+    {
+      int32_t ret_ty_ext = pipeline_module_func_return_type_at(module, fi);
+      int32_t name_is_main_ext = 0;
+      int32_t emit_c_main_ext = 0;
+      if ((fn_len == 4) && ((fn_local)[0] == 109) && ((fn_local)[1] == 97) && ((fn_local)[2] == 105) && ((fn_local)[3] == 110)) {
+        (void)((name_is_main_ext = 1));
+      }
+      /* Entry flag may not be stamped yet at prototype pass; name+VOID is enough (G.7 with emit_func). */
+      if (name_is_main_ext != 0) {
+        (void)((emit_c_main_ext = 1));
+      }
+      if ((emit_c_main_ext != 0) && (pipeline_type_kind_ord_at(arena, ret_ty_ext) == ((int32_t)(16)))) {
+        uint8_t i32_ty[8] = {105, 110, 116, 51, 50, 95, 116, 0};
+        if ((codegen_emit_bytes_8(out, i32_ty, 7) != 0)) {
+          return -(1);
+        }
+      } else if ((codegen_emit_type(arena, out, ret_ty_ext, prefix, prefix_len, ctx) != 0)) {
+        return -(1);
+      }
     }
     if ((codegen_append_byte(out, 32) !=0)) {
       return -(1);
@@ -17114,7 +17133,7 @@ int32_t codegen_emit_import_dep_function_declarations(struct ast_Module * module
     struct ast_ASTArena * saved_arena = (ctx->current_codegen_arena);
     int32_t saved_dep_index = (ctx->current_codegen_dep_index);
     int32_t saved_prefix_len = (ctx->current_codegen_prefix_len);
-    uint8_t saved_prefix[64] = {};
+    uint8_t saved_prefix[128] = {};
     int32_t sp = 0;
     int32_t n_imp = codegen_module_num_imports(module);
     int32_t imp_i = 0;
@@ -17126,13 +17145,13 @@ int32_t codegen_emit_import_dep_function_declarations(struct ast_Module * module
       (void)((sp = (sp + 1)));
     }
     while ((imp_i < n_imp)) {
-      uint8_t dep_path[64] = {};
+      uint8_t dep_path[128] = {};
       int32_t dep_path_len = codegen_module_import_path_len_at(module, imp_i, &((dep_path)[0]));
       if ((dep_path_len > 0)) {
         int32_t seen_before = 0;
         int32_t prev_i = 0;
         while ((prev_i < imp_i)) {
-          uint8_t prev_path[64] = {};
+          uint8_t prev_path[128] = {};
           int32_t prev_len = codegen_module_import_path_len_at(module, prev_i, &((prev_path)[0]));
           if ((prev_len ==dep_path_len)) {
             int eq_prev = 1;
@@ -17220,7 +17239,7 @@ int32_t codegen_emit_import_dep_function_declarations(struct ast_Module * module
   return 0;
 }
 int32_t codegen_x_ast_emit_header(struct codegen_CodegenOutBuf * out) {
-  uint8_t h[64] = {35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 105, 110, 116, 46, 104, 62, 10, 35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 100, 101, 102, 46, 104, 62, 10, 35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 121, 115, 47, 116, 121, 112, 101, 115, 46, 104, 62, 10, 0};
+  uint8_t h[128] = {35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 105, 110, 116, 46, 104, 62, 10, 35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 100, 101, 102, 46, 104, 62, 10, 35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 121, 115, 47, 116, 121, 112, 101, 115, 46, 104, 62, 10, 0};
   return codegen_emit_bytes_64(out, &((h)[0]), 63);
 }
 extern int32_t pipeline_codegen_std_dep_link_only(uint8_t * path);
@@ -17228,7 +17247,7 @@ int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, s
   {
     uint8_t prefix_buf[128] = {};
     int32_t prefix_len = 0;
-    uint8_t dep_path_prefix[64] = {};
+    uint8_t dep_path_prefix[128] = {};
     int32_t dep_path_prefix_len = 0;
     int32_t call_init_globals = 0;
     int32_t i = 0;
@@ -17293,7 +17312,7 @@ int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, s
       }
     }
     while ((i < (module->num_funcs))) {
-      uint8_t skip_name[64] = {};
+      uint8_t skip_name[128] = {};
       int32_t skip_nl = pipeline_module_func_name_len_at(module, i);
       int32_t skip = 0;
       int32_t asm_backend = 0;
@@ -17341,11 +17360,11 @@ int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, s
           while ((ti < (module->num_top_level_lets))) {
             int32_t is_const = pipeline_module_top_level_let_is_const(module, ti);
             int32_t name_len = pipeline_module_top_level_let_name_len(module, ti);
-            if (((name_len <=0) || (name_len > 63))) {
+            if (((name_len <=0) || (name_len > 127))) {
               (void)((ti = (ti + 1)));
               continue;
             }
-            uint8_t tl_name_buf[64] = {};
+            uint8_t tl_name_buf[128] = {};
             int32_t tni = 0;
             while (((tni < name_len) && (tni < 64))) {
               (void)(((tl_name_buf)[tni] = pipeline_module_top_level_let_name_byte_at(module, ti, tni)));
@@ -17459,7 +17478,7 @@ int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, s
             int32_t dep_scan_i = 0;
             int32_t dep_ndep = pipeline_dep_ctx_ndep(ctx);
             while ((dep_scan_i < dep_ndep)) {
-              uint8_t scan_path[64] = {};
+              uint8_t scan_path[128] = {};
               int32_t scan_plen = codegen_dep_import_path_len_at(ctx, dep_scan_i, &((scan_path)[0]));
               if (((scan_plen > 0) && (pipeline_codegen_std_dep_link_only(&((scan_path)[0])) !=0))) {
                 (void)((dep_scan_i = (dep_scan_i + 1)));
@@ -17509,7 +17528,7 @@ int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, s
                 return -(1);
               }
               if (((nlen > 0) && (nlen <=63))) {
-                uint8_t tl_init_name[64] = {};
+                uint8_t tl_init_name[128] = {};
                 int32_t tni2 = 0;
                 while (((tni2 < nlen) && (tni2 < 64))) {
                   (void)(((tl_init_name)[tni2] = pipeline_module_top_level_let_name_byte_at(module, ti, tni2)));
@@ -17536,7 +17555,7 @@ int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, s
               (void)((ndep = pipeline_dep_ctx_ndep(ctx)));
             }
             while ((dep_i < ndep)) {
-              uint8_t lo_path[64] = {};
+              uint8_t lo_path[128] = {};
               int32_t lo_plen = codegen_dep_import_path_len_at(ctx, dep_i, &((lo_path)[0]));
               if (((lo_plen > 0) && (pipeline_codegen_std_dep_link_only(&((lo_path)[0])) !=0))) {
                 (void)((dep_i = (dep_i + 1)));
@@ -17558,7 +17577,7 @@ int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, s
                     }
                     int32_t dnlen = pipeline_module_top_level_let_name_len(dep_mod, dti);
                     if (((dnlen > 0) && (dnlen <=63))) {
-                      uint8_t dtl_name[64] = {};
+                      uint8_t dtl_name[128] = {};
                       int32_t dtni = 0;
                       while (((dtni < dnlen) && (dtni < 64))) {
                         (void)(((dtl_name)[dtni] = pipeline_module_top_level_let_name_byte_at(dep_mod, dti, dtni)));
@@ -17753,7 +17772,7 @@ int32_t codegen_should_skip_later_same_name_body(struct ast_Module * module, int
   int32_t nlen;
   int32_t np;
   int32_t j;
-  uint8_t name[64];
+  uint8_t name[128];
   if ((module == ((struct ast_Module *)(0))) || (fi <= 0)) {
     return 0;
   }
@@ -17761,7 +17780,7 @@ int32_t codegen_should_skip_later_same_name_body(struct ast_Module * module, int
     return 0;
   }
   nlen = pipeline_module_func_name_len_at(module, fi);
-  if ((nlen <= 0) || (nlen > 63)) {
+  if ((nlen <= 0) || (nlen > 127)) {
     return 0;
   }
   (void)(pipeline_module_func_name_copy64(module, fi, &((name)[0])));
@@ -17771,7 +17790,7 @@ int32_t codegen_should_skip_later_same_name_body(struct ast_Module * module, int
     if ((pipeline_module_func_is_extern_at(module, j) == 0)) {
       int32_t jlen = pipeline_module_func_name_len_at(module, j);
       if (((jlen == nlen) && (pipeline_module_func_num_params_at(module, j) == np))) {
-        uint8_t jname[64];
+        uint8_t jname[128];
         int32_t eq = 1;
         int32_t k = 0;
         (void)(pipeline_module_func_name_copy64(module, j, &((jname)[0])));

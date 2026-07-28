@@ -580,7 +580,7 @@ void pipeline_debug_trace_named_func_bodies_impl(const char *phase, void *module
         return;
     nf = pipeline_module_num_funcs(module);
     for (fi = 0; fi < nf; fi++) {
-        uint8_t raw_name[64];
+        uint8_t raw_name[128];
         char name[65];
         int32_t name_len;
         int32_t body_ref;
@@ -2160,7 +2160,7 @@ void xlang_pipeline_one_ctx_for_dep_prerun_map_impl(struct ast_PipelineDepCtx *c
     }
     mapped = 0;
     for (int32_t ii = 0; ii < n_imp; ii++) {
-        uint8_t path_buf[64];
+        uint8_t path_buf[128];
         char path_c[65];
         size_t k = 0;
         int g;
@@ -2804,7 +2804,7 @@ int xlang_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, c
         return load_rc;
     }
     if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
-        uint8_t dep_path_buf[64];
+        uint8_t dep_path_buf[128];
         memset(dep_path_buf, 0, sizeof(dep_path_buf));
         pipeline_dep_ctx_import_path_copy64((struct ast_PipelineDepCtx *)one_ctx, 0, dep_path_buf);
         diag_reportf(NULL, 0, 0, "note", NULL,
@@ -3068,7 +3068,7 @@ int xlang_load_direct_imports_for_asm_layout_impl(void *module, const char **lib
     if (n_imports <= 0)
         return 0;
     for (int i = 0; i < n_imports && i < XLANG_DRIVER_DEP_SLOT_MAX && mi < XLANG_DRIVER_DEP_SLOT_MAX; i++) {
-        uint8_t path_buf[64];
+        uint8_t path_buf[128];
         char path_c[65];
         size_t k = 0;
 
@@ -3138,7 +3138,7 @@ int xlang_merge_direct_then_transitive_deps_impl(void *module, int32_t n_imports
 
     memset(used, 0, sizeof used);
     for (int i = 0; i < n_imports && i < XLANG_DRIVER_DEP_SLOT_MAX && mi < XLANG_DRIVER_DEP_SLOT_MAX; i++) {
-        uint8_t path_buf[64];
+        uint8_t path_buf[128];
         char path_c[65];
         size_t k = 0;
         int found = -1;
@@ -3205,7 +3205,7 @@ int xlang_merge_direct_then_transitive_deps(void *module, int32_t n_imports, cha
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 /* G-02f-234：import path 拷到 C 字符串（供 .x merge pure） */
 void xlang_module_import_path_cstr(void *module, int32_t idx, uint8_t *buf, int32_t cap) {
-    uint8_t path_buf[64];
+    uint8_t path_buf[128];
     int32_t k = 0;
     if (!buf || cap <= 0)
         return;
@@ -3247,7 +3247,7 @@ int xlang_merge_direct_then_transitive_dep_paths_impl(void *module, int32_t n_im
 
     memset(used, 0, sizeof used);
     for (int i = 0; i < n_imports && i < XLANG_DRIVER_DEP_SLOT_MAX && mi < XLANG_DRIVER_DEP_SLOT_MAX; i++) {
-        uint8_t path_buf[64];
+        uint8_t path_buf[128];
         char path_c[65];
         size_t k = 0;
         int found = -1;
@@ -3333,7 +3333,7 @@ int xlang_collect_seed_to_load(void *module, char *to_load[], int *to_load_n) {
     *to_load_n = 0;
     n_imports = xlang_module_num_imports(module);
     for (j = 0; j < n_imports && j < XLANG_DRIVER_DEP_SLOT_MAX && *to_load_n < XLANG_DRIVER_DEP_SLOT_MAX; j++) {
-        uint8_t path_buf[64];
+        uint8_t path_buf[128];
         char path_c[65];
         size_t k = 0;
 
@@ -3386,7 +3386,7 @@ void xlang_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int
     if (n_imp <= 0)
         return;
     for (jj = 0; jj < n_imp && jj < XLANG_DRIVER_DEP_SLOT_MAX && *to_load_n < XLANG_DRIVER_DEP_SLOT_MAX; jj++) {
-        uint8_t sub_buf[64];
+        uint8_t sub_buf[128];
         char sub_c[65];
         size_t kk = 0;
 

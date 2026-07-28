@@ -229,7 +229,7 @@ XLANG_WEAK void parse_into_set_main_index(void *module, int32_t main_idx) {
 /**
  * pipeline 期望 parser_copy_module_import_path64；委托 thin C copy+len。
  */
-int32_t parser_copy_module_import_path64(struct ASTModule *module, int32_t i, uint8_t out[64]) {
+int32_t parser_copy_module_import_path64(struct ASTModule *module, int32_t i, uint8_t out[128]) {
   return parser_asm_copy_module_import_path64_c(module, i, out);
 }
 #endif

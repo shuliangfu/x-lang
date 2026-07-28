@@ -5146,8 +5146,8 @@ uint8_t *typeck_named_scratch64(void) {
   return s;
 }
 
-/** typeck.x：多槽 64 字节 scratch；嵌套 layout/struct_lit 路径须用不同 slot 避免覆盖。 */
-static uint8_t g_typeck_scratch64[16][64];
+/** typeck.x：多槽 128 字节 scratch (wave577 Cap: AST name slots 64→128)；嵌套 layout/struct_lit 路径须用不同 slot 避免覆盖。 */
+static uint8_t g_typeck_scratch64[16][128];
 
 uint8_t *typeck_scratch64_slot(int32_t slot) {
   if (slot < 0 || slot >= 16)

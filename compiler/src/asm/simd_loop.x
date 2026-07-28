@@ -46,9 +46,9 @@ export function glue_expr_same_var_c(arena: *u8, a_ref: i32, b_ref: i32): i32 {
     let blen: i32 = pipeline_expr_var_name_len(arena, b_ref);
     if (alen <= 0) { return 0; }
     if (alen != blen) { return 0; }
-    if (alen > 63) { return 0; }
-    let an: u8[64] = [];
-    let bn: u8[64] = [];
+    if (alen > 127) { return 0; }
+    let an: u8[128] = [];
+    let bn: u8[128] = [];
     pipeline_expr_var_name_into(arena, a_ref, &an[0]);
     pipeline_expr_var_name_into(arena, b_ref, &bn[0]);
     let k: i32 = 0;
@@ -168,15 +168,15 @@ export function glue_block_let_init_lit_c(arena: *u8, block_ref: i32, var_ref: i
     if (pipeline_expr_kind_ord_at(arena, var_ref) != 3) { return 0; }
     let vlen: i32 = pipeline_expr_var_name_len(arena, var_ref);
     if (vlen <= 0) { return 0; }
-    if (vlen > 63) { return 0; }
-    let vbuf: u8[64] = [];
+    if (vlen > 127) { return 0; }
+    let vbuf: u8[128] = [];
     pipeline_expr_var_name_into(arena, var_ref, &vbuf[0]);
     let nlet: i32 = ast_ast_block_num_lets(arena, block_ref);
     let li: i32 = 0;
     while (li < nlet) {
       let llen: i32 = pipeline_block_let_name_len(arena, block_ref, li);
       if (llen == vlen) {
-        let lb: u8[64] = [];
+        let lb: u8[128] = [];
         pipeline_block_let_name_copy64(arena, block_ref, li, &lb[0]);
         let matched: i32 = 1;
         let k: i32 = 0;
@@ -343,8 +343,8 @@ export function glue_simd_local_var_stack_off_c(arena: *u8, ctx: *u8, var_expr_r
   unsafe {
     let vlen: i32 = pipeline_expr_var_name_len(arena, var_expr_ref);
     if (vlen <= 0) { return 0 - 1; }
-    if (vlen > 63) { return 0 - 1; }
-    let vname: u8[64] = [];
+    if (vlen > 127) { return 0 - 1; }
+    let vname: u8[128] = [];
     pipeline_expr_var_name_into(arena, var_expr_ref, &vname[0]);
     let off: i32 = asm_ctx_local_find_offset_scoped(ctx, arena, &vname[0], vlen);
     if (off < 0) { return asm_ctx_local_find_offset(ctx, &vname[0], vlen);
@@ -802,9 +802,9 @@ export extern "C" function simd_enc_x86_movss_xmm0_rbp_disp(elf_ctx: *u8, disp: 
 #[no_mangle]
 export function glue_emit_runtime_strip_loop_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, assign_body_ref: i32, binop_ko: i32, off_i: i32, off_n: i32, off_a: i32, off_b: i32, off_d: i32, array_n: i32, lanes: i32, feats: u32): i32 {
   if (ta != 0) { return 0; }
-  let vec_loop: u8[64] = [];
-  let epi_loop: u8[64] = [];
-  let epi_done: u8[64] = [];
+  let vec_loop: u8[128] = [];
+  let epi_loop: u8[128] = [];
+  let epi_done: u8[128] = [];
   let vec_len: i32 = 0;
   let epi_len: i32 = 0;
   let done_len: i32 = 0;
@@ -893,10 +893,10 @@ export function glue_emit_f32_soa_sum_strip_c(arena: *u8, elf_ctx: *u8, ctx: *u8
   if (lanes != 4) { return 0; }
   // SSE2 = 1
   if ((feats & 1) == 0) { return 0; }
-  let vec_loop: u8[64] = [];
-  let epi_merge: u8[64] = [];
-  let epi_loop: u8[64] = [];
-  let epi_done: u8[64] = [];
+  let vec_loop: u8[128] = [];
+  let epi_merge: u8[128] = [];
+  let epi_loop: u8[128] = [];
+  let epi_done: u8[128] = [];
   let vec_len: i32 = 0;
   let merge_len: i32 = 0;
   let epi_len: i32 = 0;

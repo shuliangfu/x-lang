@@ -125,11 +125,11 @@ static const DiagCodeExplain g_diag_code_table[] = {
      "Typical action: use a supported escape or write the byte as `\\xHH`."},
     {"L011", "lexer error", "Lexer found a string literal that exceeds AST storage capacity.",
      "Used when a decoded string literal (including C-style adjacent concatenation) would exceed "
-     "63 semantic bytes stored in Expr.var_name. Prior soft residual silently truncated. "
+     "127 semantic bytes stored in Expr.var_name. Prior soft residual silently truncated. "
      "Typical action: shorten the literal, split into multiple strings with runtime concat "
      "(std.string), or await a future larger AST string pool."},
     {"L012", "lexer error", "Lexer found an identifier that exceeds AST name storage capacity.",
-     "Used when a non-keyword identifier span is longer than 63 bytes (AST name[64] content cap). "
+     "Used when a non-keyword identifier span is longer than 127 bytes (AST name[128] content cap). "
      "Prior soft residual could silent-clamp names or fail with opaque XP003/typeck mismatch. "
      "Typical action: shorten the identifier, or await a future larger AST name layout."},
     {"IMP001", "import error", "Import path could not be opened from the resolved candidate path.",

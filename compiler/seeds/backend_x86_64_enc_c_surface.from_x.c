@@ -828,7 +828,7 @@ int32_t arch_x86_64_enc_enc_label(uint8_t * elf_ctx, uint8_t * name, int32_t nam
       return 0;
     }
     if (((((pipeline_elf_ctx_macho_leading_underscore(elf_ctx) !=0) && (name_len > 0)) && (name_len <=63)) && ((name)[0] !=95))) {
-      uint8_t mn[64] = {0};
+      uint8_t mn[128] = {0};
       (void)(((mn)[0] = 95));
       int32_t k = 0;
       while (((k < name_len) && (k < 63))) {
@@ -1225,7 +1225,7 @@ int32_t arch_x86_64_enc_enc_call(uint8_t * elf_ctx, uint8_t * name, int32_t name
   {
     int32_t rel32_at = (pipeline_elf_ctx_emit_code_len(elf_ctx) - 4);
     if (((((pipeline_elf_ctx_macho_leading_underscore(elf_ctx) !=0) && (name_len > 0)) && (name_len <=63)) && ((name)[0] !=95))) {
-      uint8_t rn[64] = {0};
+      uint8_t rn[128] = {0};
       (void)(((rn)[0] = 95));
       int32_t k = 0;
       while (((k < name_len) && (k < 63))) {

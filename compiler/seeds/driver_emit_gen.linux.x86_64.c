@@ -29,13 +29,13 @@ struct PipelineDepCtx {
   uint8_t * current_codegen_module;
   uint8_t * current_codegen_arena;
   int32_t current_codegen_dep_index;
-  uint8_t current_codegen_prefix_mirror[64];
+  uint8_t current_codegen_prefix_mirror[128];
   int32_t current_codegen_prefix_len;
   int32_t asm_entry_module_only;
-  uint8_t entry_module_import_path_mirror[64];
+  uint8_t entry_module_import_path_mirror[128];
   int32_t entry_module_import_path_len;
   int32_t typeck_scope_region_len;
-  uint8_t typeck_scope_region_label[64];
+  uint8_t typeck_scope_region_label[128];
 };
 
 struct CodegenOutBuf {

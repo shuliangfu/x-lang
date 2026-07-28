@@ -43,7 +43,7 @@ export struct DriverCompileState {
   /* See implementation. */
   parse_saw_target: i32;
   /* See implementation. */
-  target_cpu_buf: u8[64];
+  target_cpu_buf: u8[128];
   target_cpu_len: i32;
   /* See implementation. */
   target_cpu_features: i32;

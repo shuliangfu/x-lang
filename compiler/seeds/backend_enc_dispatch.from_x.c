@@ -256,7 +256,7 @@ int32_t backend_enc_append_u8_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int3
 /* G-02f-146：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-419：实现体始终 seed；public PREFER 时 thin pure forward */
 int32_t backend_enc_arm64_call_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len) {
-  uint8_t reloc_name[64];
+  uint8_t reloc_name[128];
   int32_t at;
   int32_t reloc_len;
   int32_t i;

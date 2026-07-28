@@ -75,7 +75,7 @@ export function macho_reloc_sym_name_buf(ctx: *ElfCodegenCtx, idx: i32, out: *u8
  */
 export function macho_reloc_sym_defined(ctx: *ElfCodegenCtx, r: i32): i32 {
   let m: i32 = 0;
-  let sym_buf: u8[64] = [];
+  let sym_buf: u8[128] = [];
   macho_reloc_sym_name_buf(ctx, r, &sym_buf[0]);
   while (m < ctx.num_syms) {
 /** See implementation for details. */
@@ -90,13 +90,13 @@ export function macho_reloc_sym_defined(ctx: *ElfCodegenCtx, r: i32): i32 {
 
 /** Exported function `macho_rel_name_eq`.
  * Implements `macho_rel_name_eq`.
- * @param a u8[64]
+ * @param a u8[128]
  * @param a_len i32
  * @param b_ptr *u8
  * @param b_len i32
  * @return i32
  */
-export function macho_rel_name_eq(a: u8[64], a_len: i32, b_ptr: *u8, b_len: i32): i32 {
+export function macho_rel_name_eq(a: u8[128], a_len: i32, b_ptr: *u8, b_len: i32): i32 {
   if (a_len != b_len) {
     return 0;
   }
@@ -149,8 +149,8 @@ export function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): 
     let us: i32 = 0;
     while (us < nu) {
       let sr: i32 = und_src_reloc[us];
-      let rx_buf: u8[64] = [];
-      let sr_buf: u8[64] = [];
+      let rx_buf: u8[128] = [];
+      let sr_buf: u8[128] = [];
       macho_reloc_sym_name_buf(ctx, rx, &rx_buf[0]);
       macho_reloc_sym_name_buf(ctx, sr, &sr_buf[0]);
       if (macho_rel_name_eq(rx_buf, pipeline_elf_ctx_reloc_name_len(ctx as *u8, rx), &sr_buf[0],
@@ -488,7 +488,7 @@ export function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): 
     let sym_idx: i32 = 0;
     let m: i32 = 0;
     let found_def: i32 = 0;
-    let r_sym_buf2: u8[64] = [];
+    let r_sym_buf2: u8[128] = [];
     macho_reloc_sym_name_buf(ctx, r, &r_sym_buf2[0]);
     while (m < ctx.num_syms) {
       if (elf.elf_name_eq_arr_to_pool(r_sym_buf2, pipeline_elf_ctx_reloc_name_len(ctx as
@@ -505,7 +505,7 @@ export function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): 
       let us2: i32 = 0;
       while (us2 < nu) {
         let sr2: i32 = und_src_reloc[us2];
-        let sr2_buf: u8[64] = [];
+        let sr2_buf: u8[128] = [];
         macho_reloc_sym_name_buf(ctx, sr2, &sr2_buf[0]);
         if (macho_rel_name_eq(r_sym_buf2, pipeline_elf_ctx_reloc_name_len(ctx as *u8, r),
         &sr2_buf[0], und_lens[us2]) != 0) {

@@ -49,7 +49,7 @@ struct parser_asm_collect_imports_result {
 struct parser_asm_onefunc_result {
   int32_t ok;
   struct parser_asm_lexer next_lex;
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t num_params;
   int32_t num_generic_params;
@@ -69,9 +69,9 @@ struct parser_asm_onefunc_result {
   int32_t has_unary_neg;
   int32_t return_val;
   int32_t has_call_expr;
-  uint8_t call_callee_name[64];
+  uint8_t call_callee_name[128];
   int32_t call_callee_len;
-  uint8_t return_var_name[64];
+  uint8_t return_var_name[128];
   int32_t return_var_name_len;
   int32_t return_expr_ref;
   int32_t has_final_expr;

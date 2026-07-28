@@ -15,9 +15,9 @@ export extern "C" function diag_report_with_code(
 
 /** Matches PIPELINE_ELF_CTX_TABLE_CAP / seed CAP. */
 export const RT_ELF_CTX_TABLE_CAP: i32 = 16384;
-/** LabelEntry size: name[64]+name_len+offset = 72. */
+/** LabelEntry size: name[128]+name_len+offset = 72. */
 export const RT_ELF_LABEL_ENTRY_SIZE: i32 = 72;
-/** PatchEntry size: rel32+name[64]+name_len+patch_imm = 76. */
+/** PatchEntry size: rel32+name[128]+name_len+patch_imm = 76. */
 export const RT_ELF_PATCH_ENTRY_SIZE: i32 = 76;
 /** Byte offset of labels table (after code_len). */
 export const RT_ELF_LABELS_OFF: i32 = 4;

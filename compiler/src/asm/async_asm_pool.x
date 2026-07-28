@@ -147,7 +147,7 @@ export function asm_pool_expr_is_var_named(a: *u8, er: i32, name: *u8, nlen: i32
     if (pipeline_expr_kind_ord_at(a, er) != 3) { return 0; }
     let vlen: i32 = pipeline_expr_var_name_len(a, er);
     if (vlen != nlen) { return 0; }
-    let vbuf: u8[64] = [];
+    let vbuf: u8[128] = [];
     pipeline_expr_var_name_into(a, er, &vbuf[0]);
     let i: i32 = 0;
     while (i < nlen) {
@@ -293,7 +293,7 @@ export function asm_pool_type_size_bytes(a: *u8, m: *u8, type_ref: i32): i32 {
     if (kind == 7) { return 8; }
     if (kind == 9) { return 8; }
     if (kind == 8) {
-      let name: u8[64] = [];
+      let name: u8[128] = [];
       let nlen: i32 = pipeline_type_named_name_into(a, type_ref, &name[0]);
       if (nlen <= 0) { return 8; }
       if (m == 0) { return 8; }
@@ -357,7 +357,7 @@ export function asm_pool_store_i32_le(p: *u8, off: i32, v: i32): void {
 }
 
 // See implementation.
-// AsyncAsmPoolLiveVar: name[64]@0 name_len@64 size_bytes@68 frame_data_off@72; stride 76
+// AsyncAsmPoolLiveVar: name[128]@0 name_len@128 size_bytes@132 frame_data_off@136; stride 140
 // ASYNC_LIVE_MAX_VARS=64
 /** Exported function `asm_pool_live_add`.
  * Implements `asm_pool_live_add`.
@@ -372,14 +372,14 @@ export function asm_pool_live_add(lay: *u8, name: *u8, nlen: i32, sz: i32): void
   if (lay == 0) { return; }
   if (name == 0) { return; }
   if (nlen <= 0) { return; }
-  if (nlen > 63) { return; }
+  if (nlen > 127) { return; }
   unsafe {
     let num: i32 = asm_pool_load_i32_le(lay, 8);
     if (num >= 64) { return; }
     let i: i32 = 0;
     while (i < num) {
-      let base: i32 = 12 + i * 76;
-      let elen: i32 = asm_pool_load_i32_le(lay, base + 64);
+      let base: i32 = 12 + i * 140;
+      let elen: i32 = asm_pool_load_i32_le(lay, base + 128);
       if (elen == nlen) {
         let eq: i32 = 1;
         let j: i32 = 0;
@@ -397,22 +397,22 @@ export function asm_pool_live_add(lay: *u8, name: *u8, nlen: i32, sz: i32): void
     let off: i32 = 0;
     i = 0;
     while (i < num) {
-      let base2: i32 = 12 + i * 76;
-      off = off + asm_pool_load_i32_le(lay, base2 + 68);
+      let base2: i32 = 12 + i * 140;
+      off = off + asm_pool_load_i32_le(lay, base2 + 132);
       i = i + 1;
     }
-    let slot: i32 = 12 + num * 76;
+    let slot: i32 = 12 + num * 140;
     let k: i32 = 0;
     while (k < nlen) {
       lay[slot + k] = name[k];
       k = k + 1;
     }
     lay[slot + nlen] = 0;
-    asm_pool_store_i32_le(lay, slot + 64, nlen);
+    asm_pool_store_i32_le(lay, slot + 128, nlen);
     let sz2: i32 = sz;
     if (sz2 <= 0) { sz2 = 4; }
-    asm_pool_store_i32_le(lay, slot + 68, sz2);
-    asm_pool_store_i32_le(lay, slot + 72, off);
+    asm_pool_store_i32_le(lay, slot + 132, sz2);
+    asm_pool_store_i32_le(lay, slot + 136, off);
     asm_pool_store_i32_le(lay, 8, num + 1);
   }
 }
@@ -477,8 +477,8 @@ export function async_asm_pool_func_needs_cps(arena: *u8, mod: *u8, func_index: 
  *
  * AsyncAsmPoolLayout byte layout (PLATFORM: SHARED, little-endian host):
  *   fn_id@0 u32, num_awaits@4 i32, num_live@8 i32,
- *   live[64]@12 stride 76 (name[64], name_len@+64, size_bytes@+68, frame_data_off@+72),
- *   await_stmt_idx@4876 i32; total 4880 bytes.
+ *   live[64]@12 stride 140 (name[128], name_len@+128, size_bytes@+132, frame_data_off@+136),
+ *   await_stmt_idx@8972 i32; total 8976 bytes.
  *
  * Stack discipline: cache only let indices (i32[64]), re-fetch names from the AST
  * when needed — avoids a u8[4096] frame that flaked Ubuntu xlang -E (SIGSEGV).
@@ -486,7 +486,7 @@ export function async_asm_pool_func_needs_cps(arena: *u8, mod: *u8, func_index: 
  * @param arena AST arena (opaque)
  * @param mod module (opaque)
  * @param func_index function index in module
- * @param out layout buffer (must be at least 4880 bytes)
+ * @param out layout buffer (must be at least 8976 bytes)
  * @return 0 success with awaits, 1 no CPS needed, -1 bad args
  * PLATFORM: SHARED — pure pool API; product cold seed retains C body until glue unbundle. */
 #[no_mangle]
@@ -495,9 +495,9 @@ export function async_asm_pool_build_layout(arena: *u8, mod: *u8, func_index: i3
   if (mod == 0) { return 0 - 1; }
   if (out == 0) { return 0 - 1; }
   if (func_index < 0) { return 0 - 1; }
-  // Zero entire layout (sizeof AsyncAsmPoolLayout == 4880).
+  // Zero entire layout (sizeof AsyncAsmPoolLayout == 8976; wave577 Cap: name[64]→[128]).
   let zi: i32 = 0;
-  while (zi < 4880) {
+  while (zi < 8976) {
     out[zi] = 0;
     zi = zi + 1;
   }
@@ -505,13 +505,13 @@ export function async_asm_pool_build_layout(arena: *u8, mod: *u8, func_index: i3
     return 1;
   }
   unsafe {
-    let fname: u8[64] = [];
+    let fname: u8[128] = [];
     let fnlen: i32 = pipeline_module_func_name_len_at(mod, func_index);
     pipeline_module_func_name_copy64(mod, func_index, fname);
     let fid: u32 = async_asm_pool_fn_id_from_name(fname, fnlen);
     asm_pool_store_i32_le(out, 0, fid as i32);
     // await_stmt_idx = -1 until first await let is seen
-    asm_pool_store_i32_le(out, 4876, 0 - 1);
+    asm_pool_store_i32_le(out, 8972, 0 - 1);
     let br: i32 = pipeline_module_func_body_ref_at(mod, func_index);
     let nso: i32 = ast_ast_block_num_stmt_order(arena, br);
     // Prior let indices only (re-fetch names via pipeline_block_let_name_*).
@@ -530,9 +530,9 @@ export function async_asm_pool_build_layout(arena: *u8, mod: *u8, func_index: i3
               if (asm_pool_expr_has_await(arena, init) != 0) {
                 let na: i32 = asm_pool_load_i32_le(out, 4);
                 asm_pool_store_i32_le(out, 4, na + 1);
-                let cur_await: i32 = asm_pool_load_i32_le(out, 4876);
+                let cur_await: i32 = asm_pool_load_i32_le(out, 8972);
                 if (cur_await < 0) {
-                  asm_pool_store_i32_le(out, 4876, si);
+                  asm_pool_store_i32_le(out, 8972, si);
                 }
                 // Live-add each previously defined let still referenced after this await.
                 let li: i32 = 0;
@@ -540,8 +540,8 @@ export function async_asm_pool_build_layout(arena: *u8, mod: *u8, func_index: i3
                   let def_idx: i32 = defined_lets[li];
                   let dlen: i32 = pipeline_block_let_name_len(arena, br, def_idx);
                   if (dlen > 0) {
-                    if (dlen <= 63) {
-                      let dname: u8[64] = [];
+                    if (dlen <= 127) {
+                      let dname: u8[128] = [];
                       pipeline_block_let_name_copy64(arena, br, def_idx, dname);
                       if (asm_pool_block_rest_refs_name(arena, br, si, dname, dlen) != 0) {
                         let tref: i32 = pipeline_block_let_type_ref(arena, br, def_idx);
@@ -553,7 +553,7 @@ export function async_asm_pool_build_layout(arena: *u8, mod: *u8, func_index: i3
                   li = li + 1;
                 }
                 // Await let itself if referenced after suspend (same as C static hoist).
-                let cur_nb: u8[64] = [];
+                let cur_nb: u8[128] = [];
                 let cur_len: i32 = pipeline_block_let_name_len(arena, br, idx);
                 if (cur_len > 0) {
                   if (cur_len <= 63) {
@@ -570,7 +570,7 @@ export function async_asm_pool_build_layout(arena: *u8, mod: *u8, func_index: i3
             // Record this let index for later await live-sets.
             let llen: i32 = pipeline_block_let_name_len(arena, br, idx);
             if (llen > 0) {
-              if (llen <= 63) {
+              if (llen <= 127) {
                 if (n_def < 64) {
                   defined_lets[n_def] = idx;
                   n_def = n_def + 1;

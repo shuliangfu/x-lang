@@ -44,14 +44,18 @@ static int32_t parser_asm_type_angle_close_gt_or_rshift_c(struct parser_asm_lexe
   return 0;
 }
 
-/** 与 ast.x Type 布局一致。 */
+/** 与 ast.x Type 布局一致。
+ * wave577 Cap: name/region_label [64]→[128] must match arena Type (ast.x / pipeline_gen).
+ * Wrong local sizeof tore by-value get/set on AArch64 → return type expected ?.
+ * PLATFORM: SHARED — product type_ref path.
+ */
 struct ast_Type {
   int32_t kind;
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t elem_type_ref;
   int32_t array_size;
-  uint8_t region_label[64];
+  uint8_t region_label[128];
   int32_t region_label_len;
 };
 

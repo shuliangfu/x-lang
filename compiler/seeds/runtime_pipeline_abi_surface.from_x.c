@@ -1953,7 +1953,7 @@ int32_t pipeline_sync_one_dep_slot(uint8_t * module, uint8_t * ctx, int32_t dep_
   if ((dep_i < 0)) {
     return -1;
   }
-  uint8_t sync_path[64] = {};
+  uint8_t sync_path[128] = {};
   {
     (void)(memset(&((sync_path)[0]), 0, 64));
     int32_t _pl = parser_copy_module_import_path64(module, dep_i, &((sync_path)[0]));
@@ -2023,7 +2023,7 @@ int32_t pipeline_load_import_from_disk_c(uint8_t * module, uint8_t * arena, uint
   if ((import_idx < 0)) {
     return -1;
   }
-  uint8_t path_buf[64] = {};
+  uint8_t path_buf[128] = {};
   int32_t path_len = 0;
   (void)(memset(&((path_buf)[0]), 0, 64));
   (void)((path_len = parser_copy_module_import_path64(module, import_idx, &((path_buf)[0]))));
@@ -2121,7 +2121,7 @@ int32_t pipeline_load_and_sync_direct_import_deps_c(uint8_t * module, uint8_t * 
   (void)(pipeline_dep_ctx_realign_ndep_for_entry_c(module, ctx));
   int32_t ndep0 = 0;
   (void)((ndep0 = ast_pipeline_dep_ctx_ndep(ctx)));
-  uint8_t path_buf[64] = {};
+  uint8_t path_buf[128] = {};
   int32_t i = 0;
   int32_t rc = 0;
   if ((ndep0 ==0)) {
@@ -4492,7 +4492,7 @@ void pipeline_debug_trace_named_func_bodies_impl(uint8_t * phase, uint8_t * modu
     int32_t nf = pipeline_module_num_funcs(module);
     int32_t fi = 0;
     while ((fi < nf)) {
-      uint8_t raw_name[64] = {};
+      uint8_t raw_name[128] = {};
       uint8_t name[65] = {};
       int32_t ni = 0;
       while ((ni < 64)) {
@@ -4969,7 +4969,7 @@ void pipeline_diag_merge_dep_missing(uint8_t * import_path) {
   uint8_t code[8] = {};
   uint8_t msg[48] = {};
   uint8_t note_k[8] = {};
-  uint8_t note_m[64] = {};
+  uint8_t note_m[128] = {};
   (void)(((kind)[0] = 105));
   (void)(((kind)[1] = 109));
   (void)(((kind)[2] = 112));
@@ -5242,7 +5242,7 @@ void xlang_module_import_path_cstr(uint8_t * module, int32_t idx, uint8_t * buf,
   if ((module ==0)) {
     return;
   }
-  uint8_t path_buf[64] = {};
+  uint8_t path_buf[128] = {};
   (void)(parser_get_module_import_path(module, idx, &((path_buf)[0])));
   int32_t k = 0;
   while ((k < 64)) {

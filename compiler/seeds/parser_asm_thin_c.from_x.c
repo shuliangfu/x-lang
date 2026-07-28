@@ -76,7 +76,7 @@ struct parser_asm_library_parse_result {
   uint8_t ok;
   uint8_t _pad[4];
   struct parser_asm_lexer next_lex;
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   uint8_t _pad_tail[4];
 };
@@ -86,13 +86,13 @@ struct parser_asm_library_parse_scan_result {
   uint8_t ok;
   uint8_t _pad[4];
   struct parser_asm_lexer next_lex;
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   uint8_t param_name[32];
   int32_t param_name_len;
-  uint8_t param_type_name[64];
+  uint8_t param_type_name[128];
   int32_t param_type_len;
-  uint8_t field_name[64];
+  uint8_t field_name[128];
   int32_t field_len;
   uint8_t _pad_tail[4];
   uint8_t _pad_tail2[4];
@@ -106,7 +106,7 @@ struct parser_asm_collect_imports_result {
 /** 与 parser.x ExternParseResult（allow(padding)）布局一致；侧车 grow 池键为 (uint8_t *)out。 */
 struct parser_asm_extern_parse_result {
   struct parser_asm_lexer next_lex;
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t return_ty_ref;
   int32_t num_params;
@@ -117,7 +117,7 @@ struct parser_asm_extern_parse_result {
 
 /** 与 ast.x Func 布局一致（parse_one_extern_and_add C 路径写 arena）。 */
 struct ast_Func {
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t param_base;
   int32_t num_params;
@@ -142,7 +142,7 @@ struct ast_Func {
 struct parser_asm_onefunc_result {
   int32_t ok;
   struct parser_asm_lexer next_lex;
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t num_params;
   int32_t num_generic_params;
@@ -162,9 +162,9 @@ struct parser_asm_onefunc_result {
   int32_t has_unary_neg;
   int32_t return_val;
   int32_t has_call_expr;
-  uint8_t call_callee_name[64];
+  uint8_t call_callee_name[128];
   int32_t call_callee_len;
-  uint8_t return_var_name[64];
+  uint8_t return_var_name[128];
   int32_t return_var_name_len;
   int32_t return_expr_ref;
   int32_t has_final_expr;
@@ -3989,7 +3989,7 @@ struct parser_asm_ast_expr {
   int32_t col;
   int64_t int_val;
   double float_val;
-  uint8_t var_name[64];
+  uint8_t var_name[128];
   int32_t var_name_len;
   int32_t binop_left_ref;
   int32_t binop_right_ref;
@@ -4002,7 +4002,7 @@ struct parser_asm_ast_expr {
   int32_t match_arm_base;
   int32_t match_num_arms;
   int32_t field_access_base_ref;
-  uint8_t field_access_field_name[64];
+  uint8_t field_access_field_name[128];
   int32_t field_access_field_len;
   int32_t field_access_is_enum_variant;
   int32_t field_access_offset;
@@ -4015,14 +4015,14 @@ struct parser_asm_ast_expr {
   int32_t call_num_args;
   int32_t call_num_type_args;
   int32_t method_call_base_ref;
-  uint8_t method_call_name[64];
+  uint8_t method_call_name[128];
   int32_t method_call_name_len;
   int32_t method_call_arg_base;
   int32_t method_call_num_args;
   int32_t const_folded_val;
   int32_t const_folded_valid;
   int32_t index_proven_in_bounds;
-  uint8_t struct_lit_struct_name[64];
+  uint8_t struct_lit_struct_name[128];
   int32_t struct_lit_struct_name_len;
   int32_t struct_lit_field_base;
   int32_t struct_lit_num_fields;
@@ -4048,7 +4048,7 @@ struct ast_Expr {
   int32_t col;
   int64_t int_val;
   double float_val;
-  uint8_t var_name[64];
+  uint8_t var_name[128];
   int32_t var_name_len;
   int32_t binop_left_ref;
   int32_t binop_right_ref;
@@ -4061,7 +4061,7 @@ struct ast_Expr {
   int32_t match_arm_base;
   int32_t match_num_arms;
   int32_t field_access_base_ref;
-  uint8_t field_access_field_name[64];
+  uint8_t field_access_field_name[128];
   int32_t field_access_field_len;
   int32_t field_access_is_enum_variant;
   int32_t field_access_offset;
@@ -4074,14 +4074,14 @@ struct ast_Expr {
   int32_t call_num_args;
   int32_t call_num_type_args;
   int32_t method_call_base_ref;
-  uint8_t method_call_name[64];
+  uint8_t method_call_name[128];
   int32_t method_call_name_len;
   int32_t method_call_arg_base;
   int32_t method_call_num_args;
   int32_t const_folded_val;
   int32_t const_folded_valid;
   int32_t index_proven_in_bounds;
-  uint8_t struct_lit_struct_name[64];
+  uint8_t struct_lit_struct_name[128];
   int32_t struct_lit_struct_name_len;
   int32_t struct_lit_field_base;
   int32_t struct_lit_num_fields;
@@ -4112,11 +4112,11 @@ int labi_pthin_foundation_slice_marker(void);
 /* 布局 / TypeKind 须与 type_ref_slice.inc 一致（as_suffix 等后续 slice 依赖）。 */
 struct ast_Type {
   int32_t kind;
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t elem_type_ref;
   int32_t array_size;
-  uint8_t region_label[64];
+  uint8_t region_label[128];
   int32_t region_label_len;
 };
 enum {

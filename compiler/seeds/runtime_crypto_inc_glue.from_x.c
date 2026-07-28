@@ -140,7 +140,7 @@ void xlang_sha256_block(uint32_t *H, const uint8_t *block) {
 CRYPTO_HOT
 void crypto_sha256_c(const uint8_t * restrict msg, int32_t len, uint8_t * restrict out) {
   uint32_t H[8];
-  uint8_t block[64];
+  uint8_t block[128];
   uint64_t total_bits;
   const uint8_t *p;
   int32_t rem;
@@ -201,7 +201,7 @@ CRYPTO_HOT
 void crypto_hmac_sha256_c(const uint8_t * restrict key, int32_t key_len,
                           const uint8_t * restrict msg, int32_t msg_len, uint8_t * restrict out) {
   uint8_t kbuf[32];
-  uint8_t ko[64];
+  uint8_t ko[128];
   uint8_t inner[4160];
   uint8_t outer[96];
   const uint8_t *kptr = key;

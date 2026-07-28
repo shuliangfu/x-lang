@@ -21,17 +21,17 @@ enum ast_TypeKind { ast_TypeKind_TYPE_I32 };
 enum ast_ExprKind { ast_ExprKind_EXPR_LIT };
 struct ast_Type {
   int32_t kind;
-  uint8_t name[64];
+  uint8_t name[128];
   int32_t name_len;
   int32_t elem_type_ref;
   int32_t array_size;
-  uint8_t region_label[64];
+  uint8_t region_label[128];
   int32_t region_label_len;
 };
 struct ast_Expr { int32_t kind; };
 struct ast_Block { int32_t const_base; int32_t num_consts; };
-struct ast_Func { uint8_t name[64]; int32_t name_len; int32_t param_base; int32_t num_params; };
-struct ast_StructLayout { uint8_t name[64]; int32_t name_len; int32_t field_base; int32_t num_fields; int32_t allow_padding; int32_t soa; int32_t packed; int32_t repr_compatible; int32_t is_export; };
+struct ast_Func { uint8_t name[128]; int32_t name_len; int32_t param_base; int32_t num_params; };
+struct ast_StructLayout { uint8_t name[128]; int32_t name_len; int32_t field_base; int32_t num_fields; int32_t allow_padding; int32_t soa; int32_t packed; int32_t repr_compatible; int32_t is_export; };
 
 /** 瘦身后 Module：import/struct/top_level/enum 在 C grow pool。 */
 struct ast_Module {
@@ -85,13 +85,13 @@ struct ast_PipelineDepCtx {
   struct ast_Module *current_codegen_module;
   struct ast_ASTArena *current_codegen_arena;
   int32_t current_codegen_dep_index;
-  uint8_t current_codegen_prefix_mirror[64];
+  uint8_t current_codegen_prefix_mirror[128];
   int32_t current_codegen_prefix_len;
   int32_t asm_entry_module_only;
-  uint8_t entry_module_import_path_mirror[64];
+  uint8_t entry_module_import_path_mirror[128];
   int32_t entry_module_import_path_len;
   int32_t typeck_scope_region_len;
-  uint8_t typeck_scope_region_label[64];
+  uint8_t typeck_scope_region_label[128];
 };
 
 size_t lsp_diag_pipeline_sizeof_arena(void) { return sizeof(struct ast_ASTArena); }
