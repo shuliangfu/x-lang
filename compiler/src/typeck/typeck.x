@@ -4939,6 +4939,8 @@ export function typeck_diag_fmt_type_at(arena: *ASTArena, ref: i32, out: *u8, cu
     let lit_isize: u8[5] = [105, 115, 105, 122, 101];
     let lit_f32: u8[3] = [102, 51, 50];
     let lit_f64: u8[3] = [102, 54, 52];
+    /* wave663: format TYPE_VOID as "void" (was bare "?"). */
+    let lit_void: u8[4] = [118, 111, 105, 100];
     let star: u8[1] = [42];
     let lbk: u8[1] = [91];
     let rbk: u8[1] = [93];
@@ -5008,7 +5010,7 @@ export function typeck_diag_fmt_type_at(arena: *ASTArena, ref: i32, out: *u8, cu
       return typeck_diag_append_lit(out, cur, cap, &lit_f64[0], 3);
     }
     if (kind == ord_void) {
-      return typeck_diag_append_lit(out, cur, cap, &qmk[0], 1);
+      return typeck_diag_append_lit(out, cur, cap, &lit_void[0], 4);
     }
     if (kind == ord_ptr) {
       elem_ref = pipeline_type_elem_ref_at(arena, ref);
@@ -8320,7 +8322,80 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
 }
 
 /**
- * See implementation.
+ * wave663 Cap residual: hard-fail a value-producing expression used as a statement
+ * or final_expr inside a void function.
+ *
+ * Parser often lowers `return e` / bare `e` in void functions to a non-RETURN
+ * expr_stmt or final_expr; host-C then emits `(void)(e)` without typeck error.
+ * Allow statement-like kinds only: bare RETURN, CALL, METHOD_CALL, ASSIGN*,
+ * BREAK, CONTINUE, PANIC. Pure rvalues hard-fail via return_mismatch.
+ *
+ * @param arena *ASTArena — holds expr_ref and return_type_ref
+ * @param expr_ref i32 — candidate expression (final or expr_stmt)
+ * @param return_type_ref i32 — enclosing function return type
+ * @return i32 — 0 ok (not void, or statement-like), -1 void value rejected
+ * PLATFORM: SHARED — typeck.x + typeck_gen + empty_surface same commit.
+ */
+export function typeck_void_reject_value_expr(arena: *ASTArena, expr_ref: i32,
+return_type_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let void_ord: i32 = 16;
+    let rt_k: i32 = 0;
+    let ek: i32 = 0;
+    let void_stmt_ok: i32 = 0;
+    let got: i32 = 0;
+    let eb: *u8 = 0 as *u8;
+    let gb: *u8 = 0 as *u8;
+    let el: i32 = 0;
+    let gl: i32 = 0;
+    let line: i32 = 0;
+    let col: i32 = 0;
+    if (arena == 0 as * ASTArena || expr_ref <= 0 || ast.ref_is_null(return_type_ref)) {
+      return 0;
+    }
+    rt_k = pipeline_type_kind_ord_at(arena, return_type_ref);
+    if (rt_k != void_ord) {
+      return 0;
+    }
+    ek = pipeline_expr_kind_ord_at(arena, expr_ref);
+    if (ek == 41) {
+      if (ast.ref_is_null(pipeline_expr_unary_operand_ref_at(arena, expr_ref))) {
+        void_stmt_ok = 1;
+      }
+    } else if (ek == 48 || ek == 49 || ek == 39 || ek == 40 || ek == 42) {
+      void_stmt_ok = 1;
+    } else if (ek >= 28 && ek <= 38) {
+      void_stmt_ok = 1;
+    }
+    if (void_stmt_ok != 0) {
+      return 0;
+    }
+    got = expr_type_ref(arena, expr_ref);
+    eb = driver_typeck_diag_scratch_expect();
+    gb = driver_typeck_diag_scratch_found();
+    el = typeck_diag_fmt_type_or_question(arena, return_type_ref, eb);
+    gl = typeck_diag_fmt_type_or_question(arena, got, gb);
+    line = pipeline_expr_line_at(arena, expr_ref);
+    col = pipeline_expr_col_at(arena, expr_ref);
+    driver_diagnostic_typeck_return_mismatch(line, col, eb, el, gb, gl);
+    typeck_emit_return_subexpr_breadcrumb(arena, expr_ref, line, col);
+    driver_diagnostic_typeck_ret_fail(2, expr_ref, return_type_ref, got);
+    return - 1;
+  }
+}
+
+/**
+ * Type-check a block's final expression against the enclosing function return type.
+ * @param module *Module — current module (unused except via check_expr callees)
+ * @param arena *ASTArena — expression/type arena; must hold fin0
+ * @param block_ref i32 — block owning the final (diagnostics / parent links)
+ * @param return_type_ref i32 — function return type; 0 skips match
+ * @param ctx *PipelineDepCtx — typeck context (unsafe depth, current func)
+ * @param fin0 i32 — final_expr ref; null → no-op
+ * @return i32 — 0 ok, -1 type error
+ * wave663: also rejects void value finals via typeck_void_reject_value_expr.
+ * PLATFORM: SHARED — typeck.x + typeck_gen + empty_surface same commit.
  */
 export function typeck_check_block_final(module: *Module, arena: *ASTArena, block_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx, fin0: i32): i32 {
@@ -8339,6 +8414,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx, fin0: i32): i32 {
       return 0;
     }
     if (check_expr(module, arena, fin0, return_type_ref, ctx) != 0) {
+      return - 1;
+    }
+    if (typeck_void_reject_value_expr(arena, fin0, return_type_ref) != 0) {
       return - 1;
     }
     fin_k_tail = pipeline_expr_kind_ord_at(arena, fin0);
@@ -8436,6 +8514,10 @@ nlp: i32, nfp: i32, nif: i32, nreg: i32): i32 {
       if (idx >= 0 && idx < nes) {
         es_ref = ast.ast_block_expr_stmt_ref(arena, block_ref, idx);
         if (check_expr(module, arena, es_ref, return_type_ref, ctx) != 0) {
+          return - 1;
+        }
+        /* wave663: void function expr_stmt value (return e lowered to e). */
+        if (typeck_void_reject_value_expr(arena, es_ref, return_type_ref) != 0) {
           return - 1;
         }
       }
@@ -8538,6 +8620,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx, i: i32, nes: i32): i32 {
   }
   es_ref = ast.ast_block_expr_stmt_ref(arena, block_ref, i);
   if (check_expr(module, arena, es_ref, return_type_ref, ctx) != 0) {
+    return - 1;
+  }
+  /* wave663: void function expr_stmt value (return e lowered to e). */
+  if (typeck_void_reject_value_expr(arena, es_ref, return_type_ref) != 0) {
     return - 1;
   }
   return typeck_check_block_legacy_expr_stmts(module, arena, block_ref, return_type_ref, ctx, i + 1, nes);

@@ -6352,6 +6352,56 @@ int32_t typeck_check_block_one_if(struct ast_Module * module, struct ast_ASTAren
   }
   return 0;
 }
+
+/* wave663 Cap residual: void function must not use pure rvalue as stmt/final.
+ * G.7 authority: typeck.x::typeck_void_reject_value_expr. PLATFORM: SHARED. */
+int32_t typeck_void_reject_value_expr(struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref) {
+  {
+    int32_t void_ord = 16;
+    int32_t rt_k = 0;
+    int32_t ek = 0;
+    int32_t void_stmt_ok = 0;
+    int32_t got = 0;
+    uint8_t * eb = 0;
+    uint8_t * gb = 0;
+    int32_t el = 0;
+    int32_t gl = 0;
+    int32_t line = 0;
+    int32_t col = 0;
+    if ((((arena == 0) || (expr_ref <= 0)) || ast_ref_is_null(return_type_ref))) {
+      return 0;
+    }
+    (void)((rt_k = pipeline_type_kind_ord_at(arena, return_type_ref)));
+    if ((rt_k != void_ord)) {
+      return 0;
+    }
+    (void)((ek = pipeline_expr_kind_ord_at(arena, expr_ref)));
+    if ((ek == 41)) {
+      if (ast_ref_is_null(pipeline_expr_unary_operand_ref_at(arena, expr_ref))) {
+        void_stmt_ok = 1;
+      }
+    } else if ((((((ek == 48) || (ek == 49)) || (ek == 39)) || (ek == 40)) || (ek == 42))) {
+      void_stmt_ok = 1;
+    } else if (((ek >= 28) && (ek <= 38))) {
+      void_stmt_ok = 1;
+    }
+    if ((void_stmt_ok != 0)) {
+      return 0;
+    }
+    (void)((got = typeck_expr_type_ref(arena, expr_ref)));
+    (void)((eb = driver_typeck_diag_scratch_expect()));
+    (void)((gb = driver_typeck_diag_scratch_found()));
+    (void)((el = typeck_diag_fmt_type_or_question(arena, return_type_ref, eb)));
+    (void)((gl = typeck_diag_fmt_type_or_question(arena, got, gb)));
+    (void)((line = pipeline_expr_line_at(arena, expr_ref)));
+    (void)((col = pipeline_expr_col_at(arena, expr_ref)));
+    (void)(driver_diagnostic_typeck_return_mismatch(line, col, eb, el, gb, gl));
+    (void)(typeck_emit_return_subexpr_breadcrumb(arena, expr_ref, line, col));
+    (void)(driver_diagnostic_typeck_ret_fail(2, expr_ref, return_type_ref, got));
+    return -1;
+  }
+}
+
 int32_t typeck_check_block_final(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t fin0) {
   int skip_tail_ty_cmp = 0;
   int32_t fin_k_tail = 0;
@@ -6368,7 +6418,10 @@ int32_t typeck_check_block_final(struct ast_Module * module, struct ast_ASTArena
   if ((check_expr(module, arena, fin0, return_type_ref, ctx) !=0)) {
     return -(1);
   }
-  (void)((fin_k_tail = pipeline_expr_kind_ord_at(arena, fin0)));
+    (void)((fin_k_tail = pipeline_expr_kind_ord_at(arena, fin0)));
+    if ((typeck_void_reject_value_expr(arena, fin0, return_type_ref) != 0)) {
+      return -1;
+    }
   if ((fin_k_tail !=41)) {
     (void)((skip_tail_ty_cmp = 1));
   } else {
@@ -6446,6 +6499,9 @@ int32_t typeck_check_block_stmt_order_one(struct ast_Module * module, struct ast
         if (((idx >=0) && (idx < nes))) {
           (void)((es_ref = ast_ast_block_expr_stmt_ref(arena, block_ref, idx)));
           if ((check_expr(module, arena, es_ref, return_type_ref, ctx) !=0)) {
+            return -(1);
+          }
+          if ((typeck_void_reject_value_expr(arena, es_ref, return_type_ref) != 0)) {
             return -(1);
           }
         }
@@ -6538,6 +6594,9 @@ int32_t typeck_check_block_legacy_expr_stmts(struct ast_Module * module, struct 
   }
   (void)((es_ref = ast_ast_block_expr_stmt_ref(arena, block_ref, i)));
   if ((check_expr(module, arena, es_ref, return_type_ref, ctx) !=0)) {
+    return -(1);
+  }
+  if ((typeck_void_reject_value_expr(arena, es_ref, return_type_ref) != 0)) {
     return -(1);
   }
   return typeck_check_block_legacy_expr_stmts(module, arena, block_ref, return_type_ref, ctx, (i + 1), nes);
