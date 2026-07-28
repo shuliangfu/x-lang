@@ -29,7 +29,7 @@ export enum IO_Result {
 // See implementation.
 export struct Buffer {
   ptr: *u8;
-  len: usize;
+  length: usize;
   handle: usize;
 }
 // See implementation.
@@ -47,7 +47,7 @@ export struct AsyncContext {
  * @return i32
  */
 export function register(buf: Buffer): i32 {
-  return core.xlang_io_register(buf.ptr, buf.len, buf.handle);
+  return core.xlang_io_register(buf.ptr, buf.length, buf.handle);
 }
 // See implementation.
 // See implementation.
@@ -69,7 +69,7 @@ export function submit_register_fixed_buffers_buf(bufs: *Buffer, nr: u32): i32 {
  * @return i32
  */
 export function submit_read(buf: Buffer, timeout_ms: u32): i32 {
-  return core.xlang_io_submit_read(buf.ptr, buf.len, buf.handle, timeout_ms);
+  return core.xlang_io_submit_read(buf.ptr, buf.length, buf.handle, timeout_ms);
 }
 // driver_read_ptr: see function docblock below.
 /** Exported function `driver_read_ptr`.
@@ -127,7 +127,7 @@ export function driver_read_ptr_slice(handle: usize, timeout_ms: u32): u8[]<io_r
  * @return i32
  */
 export function submit_write(buf: Buffer, timeout_ms: u32): i32 {
-  return core.xlang_io_submit_write(buf.ptr, buf.len, buf.handle, timeout_ms);
+  return core.xlang_io_submit_write(buf.ptr, buf.length, buf.handle, timeout_ms);
 }
 // submit_read_batch: see function docblock below.
 /** Exported function `submit_read_batch`.
@@ -139,7 +139,7 @@ export function submit_write(buf: Buffer, timeout_ms: u32): i32 {
  */
 export function submit_read_batch(buffers: Buffer[4], n: i32, timeout_ms: u32): i32 {
   let h: usize = buffers[0].handle;
-  return core.xlang_io_submit_read_batch(buffers[0].ptr, buffers[0].len, buffers[1].ptr, buffers[1].len, buffers[2].ptr, buffers[2].len, buffers[3].ptr, buffers[3].len, h, n, timeout_ms);
+  return core.xlang_io_submit_read_batch(buffers[0].ptr, buffers[0].length, buffers[1].ptr, buffers[1].length, buffers[2].ptr, buffers[2].length, buffers[3].ptr, buffers[3].length, h, n, timeout_ms);
 }
 // submit_write_batch: see function docblock below.
 /** Exported function `submit_write_batch`.
@@ -151,7 +151,7 @@ export function submit_read_batch(buffers: Buffer[4], n: i32, timeout_ms: u32): 
  */
 export function submit_write_batch(buffers: Buffer[4], n: i32, timeout_ms: u32): i32 {
   let h: usize = buffers[0].handle;
-  return core.xlang_io_submit_write_batch(buffers[0].ptr, buffers[0].len, buffers[1].ptr, buffers[1].len, buffers[2].ptr, buffers[2].len, buffers[3].ptr, buffers[3].len, h, n, timeout_ms);
+  return core.xlang_io_submit_write_batch(buffers[0].ptr, buffers[0].length, buffers[1].ptr, buffers[1].length, buffers[2].ptr, buffers[2].length, buffers[3].ptr, buffers[3].length, h, n, timeout_ms);
 }
 // submit_read_batch_buf: see function docblock below.
 /** Exported function `submit_read_batch_buf`.

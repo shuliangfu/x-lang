@@ -37,7 +37,7 @@ MODULES=(
   "token|src/lexer/token.x|token_gen.c||"
   # lsp_diag_pipeline_sizes：三枚 sizeof 门闩；产品 sizes_nostub PREFER_X_O；本条锁 nm / 扩 N
   "lsp_diag_pipeline_sizes|src/lsp/lsp_diag_pipeline_sizes.x|seeds/lsp_diag_pipeline_sizes.from_x.c||"
-  # labi_path_pure R2 full：.x 吃满 58 公共门闩 + count（wave116 try_under + wave146–151 + wave160 compiler_o_path_copy + wave162 repo_root + wave163–166 path ladders + wave180 scheduler_o_for_task_link + wave181 bootstrap_nostdlib_stubs_o_path + wave183 29× thin runtime_*_o_path BSS + wave184 empty_cstr/std_io/compress/effective_link + wave185 rel_o_path） + wave189 set/clear user_o_files；
+  # labi_path_pure R2 full：.x 吃满公共门闩 + count（wave116 try_under + wave146–151 + wave160 compiler_o_path_copy + wave162 repo_root + wave163–166 path ladders + wave180 scheduler_o_for_task_link + wave181 bootstrap_nostdlib_stubs_o_path + wave183 29× thin runtime_*_o_path BSS + wave184 empty_cstr/std_io/compress/effective_link + wave185 rel_o_path） + wave189 set/clear user_o_files + wave253/258 user_env path + push_minimal companion + wave262 private helper short names (no_mangle)；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：Windows #if sep 在 mega 冷路径；bank_push/rel/skip Cap；resolve Cap（wave160/184）；resolve+rel Cap（wave162）；realpath+getcwd+skip Cap（wave163）
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_path_pure.from_x.c 全 C 体
   "labi_path_pure|src/runtime/labi_path_pure.x|seeds/labi_path_pure_surface.from_x.c||"
@@ -46,6 +46,7 @@ MODULES=(
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_gates.from_x.c 全 C 体
   "labi_gates|src/runtime/labi_gates.x|seeds/labi_gates_surface.from_x.c||"
   # labi_invoke_cc_list R2 full：.x 吃满 harden/skip-native/icc rel 纯表 + wave155 harden orch + wave198 early_needs + wave199 std need scan + wave200 ensure-push front + wave201 ensure-push mid + wave202 ensure-push heavy_a + wave203 ensure-push heavy_b
+  # + wave260 g05 L5 default PREFER full .x（历史 cold-seed-only STRING_LIT leave-off 闭）
   # + wave204 heap F-06 + wave205 fork-exec + wave206 argv head + wave207 argv tail + wave208 MINIMAL_CC_LINK tail
   # + wave155 xlang_append_linux_link_harden_impl pure orch；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：getenv 🔒 + mega invoke_cc_impl
@@ -62,10 +63,13 @@ MODULES=(
   # + wave191 labi_std_append_formal_ensure_for_rel pure orch（Cap residual repo_root + ensure_runtime_* + peer push_obj；append_std formal companions）；
   # + wave192 labi_std_append_glue_for_op pure orch（Cap residual ensure_runtime_*_glue + peer path + push_obj；append_std OP_GLUE_*）；
   # + wave193 labi_std_append_primary_for_op + process_argv_if pure orch（Cap residual needs_* + ensure/path + process_argv；append_std PRIMARY/IO_STUBS + complement）；
+  # + wave253/259 PRIMARY_PANIC companion user_env ensure+push（surface re-pin ≡ .x/cold）；
   # + wave194 labi_std_append_task_special pure orch（Cap residual skip/path/bank + formal ensure；append_std TASK_SPECIAL task+scheduler+glue）；
   # + wave195 labi_std_append_op_std pure orch（fk→flag_out map + fk0/fk1–13 gate + formal ensure + push_obj；append_std OP_STD）；
   # + wave196 xlang_asm_ld_append_std_objs_for_user plan shell pure orch（flags/local_have init + plan loop + dispatch wave190–195 leaves + process_argv complement）；
-  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：host_is_apple + needs+ensure+path + resolve_existing_path_impl (wave215 pure thin public) + exports_marker/realpath/rel_o + spawn/ld/cc IO mega + getenv/system shell make
+  # + wave215/255 invoke_cc_argv_resolve_existing_path pure（null/empty+skip_missing；_impl realpath pool only）；
+  # + wave262 private helper short names（labi_std_glue_push_if / op_std_flag_out / glue_have_for_op / need_process_argv no_mangle）；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：host_is_apple + needs+ensure+path + resolve_existing_path_impl (pool only wave255) + exports_marker/realpath/rel_o + spawn/ld/cc IO mega + getenv/system shell make
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_invoke_ld_list.from_x.c 全 C 体
   "labi_invoke_ld_list|src/runtime/labi_invoke_ld_list.x|seeds/labi_invoke_ld_list_surface.from_x.c||"
   # labi_freestanding_list R2 full：.x 吃满 env/io_sym/panic/ensure + wave117 heap/nostdlib + wave136 gen needs + wave137 compress + wave138 core_slice/db + wave139 provides_core_mem/std_heap + wave141 needs_win32/wsa + wave142 needs_core_builtin/mem stub0 + wave143 needs_async_scheduler + wave144 freestanding needs_io/panic + wave159 freestanding_enabled + wave167 ensure_crt0_user_o + wave168 ensure_freestanding_io_o + wave175 contains_substr + wave176 contains_substr_use_line + wave177 any_substr_use_line + wave178 any_substr 纯表+orch；
@@ -79,15 +83,18 @@ MODULES=(
   # labi_ondemand_list R2 full：.x 吃满 simple/kv/arrow/time/queue + rel_* + wave118–135 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api + needs_heap_user_syms + needs_async_scheduler + compress family + labi_user_needs_runtime time_os/random_fill/env_os/process_argv + labi_user_needs_std_task + labi_std_fk0_user_needs_rel + wave140 user_o_provides_core_mem/std_heap 纯表+orch + wave145 link_needs_heap_user_c/std_heap_import 聚合 pure orch + wave190 labi_std_fk_gate_sym_* + labi_std_fk_user_needs (fk1–13 plan gates) + wave197 xlang_asm_ld_append_on_demand_user_objs pure orch（on_demand 产品壳）+ wave210 has_undef_sym pure thin orch + wave211 exports_marker pure thin orch + wave212 needs_undef_sym pure thin orch + wave213 has_defined_sym pure thin orch；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：nm/push/ensure + has_undef_impl / needs_undef_impl / exports_marker_impl / has_defined_impl
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_ondemand_list.from_x.c 全 C 体
+  # wave263: L8b early pure + L8c heavy capacity split (parse-skip of 14 late exports closed)
   "labi_ondemand_list|src/runtime/labi_ondemand_list.x|seeds/labi_ondemand_list_surface.from_x.c||"
-  # labi_ensure_list R2 full：.x 吃满 ensure catalog 纯表（26 条目 stem/out/seed/flags/step_at）
+  "labi_ondemand_heavy|src/runtime/labi_ondemand_heavy.x|seeds/labi_ondemand_heavy_surface.from_x.c||"
+  # labi_ensure_list R2 full：.x 吃满 ensure catalog 纯表（27 条目 stem/out/seed/flags/step_at；wave253 user_env）
   #   + wave173 ensure_from_catalog + wave174 catalog thin + wave169–172/182 special ensure
   #   + wave186 prepare_for_exe_link pure orch
   #   + wave173 link_abi_ensure_from_catalog pure orch
-  #   + wave174 catalog thin ensure wraps pure（26× xlang_ensure_runtime_*_o）
+  #   + wave174 catalog thin ensure wraps pure（27× xlang_ensure_runtime_*_o incl. link_abi_user_env）
   #   + wave169 ensure_runtime_panic_o + wave170 ensure_runtime_heap_user_o
   #   + wave171 ensure_runtime_test_fn_invoke_o + wave172 ensure_runtime_tls_mbedtls_bio_o pure orch
   #   + wave182 ensure_bootstrap_nostdlib_stubs_o pure orch（-fno-builtin one_extra；peer path wave181）；
+  #   + wave253/256: xlang_ensure_runtime_link_abi_user_env_o + prepare companion；surface re-pin gate 27；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：resolve/access/cc/stat (+ one_extra catalog flags)；
   #   panic ensure resolve/access/cc/stat + host linux_x86_64/posix_aarch64；heap_user has_defined_sym + unlink stub；
   #   tls_mbedtls_bio ensure resolve/access/cc_one_extra/stat（homebrew -I）；thin wrap path peers *_o_path
@@ -143,6 +150,304 @@ MODULES=(
   # rest 在 XLANG_L2_RIO_THIN_FROM_X+FROM_X 下无 thin/impl 公共体；Cap residual：4 平台 _impl（mmap/fstat/O_*）
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/runtime_io_abi.from_x.c 全 C 体
   "runtime_io_abi|src/runtime_io_abi.x|seeds/runtime_io_abi_surface.from_x.c||"
+  # runtime_time_os R2 thin+rest：.x 吃满 5 public API 薄壳（monotonic/wall/sleep/rfc3339/local_offset）；
+  # rest 在 XLANG_RUNTIME_TIME_OS_FROM_X 下仅 5 _impl OS 桥（clock_gettime/nanosleep/gmtime_r/QPC/Sleep 等 Cap residual）；
+  # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/runtime_time_os.from_x.c 全 C 体
+  "runtime_time_os|src/asm/runtime_time_os.x|seeds/runtime_time_os_surface.from_x.c||"
+  # runtime_path_fast R2 full DIRECT：.x 吃满 16 path helpers（sep/is_sep/last_sep/last_dot/empty_len/
+  # join/dirname/basename/is_absolute/is_sep/extension/stem/extension_and_stem/clean/resolve）纯计算无 OS 依赖；
+  # DIRECT 模式（无 thin+rest ld -r）；prove 锁 full surface IDENTICAL；
+  # 冷/无 PREFER 仍可走 seeds/runtime_path_fast.from_x.c 全 C 体
+  "runtime_path_fast|src/asm/runtime_path_fast.x|seeds/runtime_path_fast_surface.from_x.c||"
+  # runtime_dynlib_os R2 thin+rest：.x 吃满 7 public API（normalize_path pure compute +
+  # 6 _impl 委托：load_library/copy_last_error/open/sym/close/win_path_smoke）；
+  # rest 在 XLANG_RUNTIME_DYNLIB_OS_FROM_X 下仅 6 _impl OS 桥（LoadLibraryW/dlopen/dlsym/
+  # dlclose/dlerror/FormatMessage 等 Cap residual）；prove 锁 thin surface IDENTICAL；
+  # 冷/无 PREFER 仍可走 seeds/runtime_dynlib_os.from_x.c 全 C 体
+  "runtime_dynlib_os|src/asm/runtime_dynlib_os.x|seeds/runtime_dynlib_os_surface.from_x.c||"
+  # runtime_panic R2 thin+rest：.x 1 public API (xlang_crash_evidence_minimal) + 1 _impl 桥；
+  # rest 在 XLANG_RUNTIME_PANIC_FROM_X 下仅 1 _impl OS 桥（crash evidence minimal）；
+  # prove 锁 thin surface IDENTICAL；x86_64 变体（与 arm64 互斥）
+  "runtime_panic|src/asm/runtime_panic.x|seeds/runtime_panic_surface.from_x.c||"
+  # runtime_panic_arm64 R2 thin+rest：arm64 变体，结构与 runtime_panic 相同；
+  # prove 锁 thin surface IDENTICAL；arm64 变体（与 x86_64 互斥）
+  "runtime_panic_arm64|src/asm/runtime_panic_arm64.x|seeds/runtime_panic_arm64_surface.from_x.c||"
+  # runtime_process_argv R2 thin+rest：.x 1 public API (xlang_process_argv_bind_from_crt) + 1 _impl 桥；
+  # rest 在 XLANG_RUNTIME_PROCESS_ARGV_FROM_X 下仅 1 _impl OS 桥（macOS _NSGetArgc / Linux /proc/self/cmdline）；
+  # prove 锁 thin surface IDENTICAL
+  "runtime_process_argv|src/asm/runtime_process_argv.x|seeds/runtime_process_argv_surface.from_x.c||"
+  # runtime_test_fn_invoke R2 thin+rest：.x 1 public API (test_call_i32_void_c) + 1 _impl 桥；
+  # rest 在 XLANG_RUNTIME_TEST_FN_INVOKE_FROM_X 下仅 1 _impl 桥（uintptr_t → fnptr cast + indirect call）；
+  # Xlang 无法表达 C fnptr cast，故 indirect call 留 rest；prove 锁 thin surface IDENTICAL
+  "runtime_test_fn_invoke|src/asm/runtime_test_fn_invoke.x|seeds/runtime_test_fn_invoke_surface.from_x.c||"
+  # runtime_net_workers R2 thin+rest：.x 2 public API (thread_set_affinity_self_c weak default +
+  #   xlang_net_worker_accept_entry_ptr_c fnptr return) + 1 _impl 桥；
+  # rest 在 XLANG_RUNTIME_NET_WORKERS_FROM_X 下仅 _impl 桥（void*(*)(void*) C ABI 无法 .x 表达）；
+  # prove 锁 thin surface IDENTICAL
+  "runtime_net_workers|src/asm/runtime_net_workers.x|seeds/runtime_net_workers_surface.from_x.c||"
+  # runtime_compress_zlib_glue R2 thin+rest：.x 2 public API (deflateInit2 + inflateInit2 宏 wrapper)
+  #   + 2 _impl 桥；rest #include <zlib.h> + #undef macros + call real deflateInit2_/inflateInit2_；
+  # #[no_mangle] 确保符号名匹配 libz.x extern 声明（无 _c 后缀）；prove 锁 thin surface IDENTICAL
+  "runtime_compress_zlib_glue|src/asm/runtime_compress_zlib_glue.x|seeds/runtime_compress_zlib_glue_surface.from_x.c||"
+  # runtime_arrow_simd_glue R2 thin+rest：.x 4 public API (arrow_f32_sum/dot/i32_sum_valid/f32_sum_valid_kernel)
+  #   + 4 _impl 桥；rest 含 SIMD intrinsics（需 C compiler target attributes）；prove 锁 thin surface IDENTICAL
+  "runtime_arrow_simd_glue|src/asm/runtime_arrow_simd_glue.x|seeds/runtime_arrow_simd_glue_surface.from_x.c||"
+  # runtime_random_fill R2 thin+rest (wave544)：.x 2 public API (random_get_alg + random_fill_bytes_c)
+  #   + 2 _impl 桥；rest 含 OS CSPRNG 调用（Windows BCryptGenRandom / Linux getrandom / macOS getentropy）；
+  #   #[no_mangle] 确保符号名匹配 std/crypto/random.x extern 声明（无 _c 后缀）；prove 锁 thin surface IDENTICAL
+  "runtime_random_fill|src/asm/runtime_random_fill.x|seeds/runtime_random_fill_surface.from_x.c||"
+  # runtime_tls_mbedtls_bio R2 thin+rest (wave544)：.x 2 public API (xlang_mbedtls_bio_send + _recv)
+  #   + 2 _impl 桥；rest 调用 mbedtls BIO send/recv（需 mbedtls 头）；prove 锁 thin surface IDENTICAL
+  "runtime_tls_mbedtls_bio|src/asm/runtime_tls_mbedtls_bio.x|seeds/runtime_tls_mbedtls_bio_surface.from_x.c||"
+  # runtime_ed25519_ref10_glue R2 thin+rest (wave544)：.x 3 public API (ed25519_ref10_create_keypair + _sign + _verify)
+  #   + 3 _impl_c 桥；rest #include 8 个 .inc 文件（sha512/fe/ge/sc/keypair/sign/verify + fixedint.h）经宏重命名发射
+  #   _impl_c 实现；#[no_mangle] 确保符号名匹配 std/crypto/ed25519.x extern 声明（无 _c 后缀）；prove 锁 thin surface IDENTICAL
+  "runtime_ed25519_ref10_glue|src/asm/runtime_ed25519_ref10_glue.x|seeds/runtime_ed25519_ref10_glue_surface.from_x.c||"
+  # runtime_net_udp_batch R2 thin+rest (wave545)：.x 2 public API (xlang_udp_batch_set_addr_port + _poll_readable)
+  #   + 2 _impl 桥；rest 含 sockaddr_in pack + poll/WSAPoll OS 调用；prove 锁 thin surface IDENTICAL
+  "runtime_net_udp_batch|src/asm/runtime_net_udp_batch.x|seeds/runtime_net_udp_batch_surface.from_x.c||"
+  # runtime_net_sock_fast R2 thin+rest (wave545)：.x 2 public API (net_ensure_wsa + net_wsa_ctor)
+  #   + 2 _impl_c 桥；rest 含 Windows WSAStartup + constructor（POSIX no-op stub）；wave545 根修 .x extern
+  #   _impl → _impl_c 匹配 seed；prove 锁 thin surface IDENTICAL
+  "runtime_net_sock_fast|src/asm/runtime_net_sock_fast.x|seeds/runtime_net_sock_fast_surface.from_x.c||"
+  # runtime_net_dns_fast R2 thin+rest (wave545)：.x 3 public API (net_dns_ai_addconfig_c + _map_gai_error_c + _ensure_wsa_c)
+  #   + 3 _impl_c 桥；rest 含 getaddrinfo hints + gai error map + WSA init；wave545 根修 .x extern
+  #   _impl → _impl_c 匹配 seed；prove 锁 thin surface IDENTICAL
+  "runtime_net_dns_fast|src/asm/runtime_net_dns_fast.x|seeds/runtime_net_dns_fast_surface.from_x.c||"
+  # runtime_net_ipv6_fast R2 thin+rest (wave545)：.x 5 public API (net_ipv6_ensure_wsa_c + _close_socket_c +
+  #   _set_nonblock_c + _poll_writable_c + _connect_retry_ok_c) + 5 _impl_c 桥；rest 含 IPv6 socket OS 调用
+  #   (close/fcntl/poll/connect)；wave545 根修 .x extern _impl → _impl_c 匹配 seed；prove 锁 thin surface IDENTICAL
+  "runtime_net_ipv6_fast|src/asm/runtime_net_ipv6_fast.x|seeds/runtime_net_ipv6_fast_surface.from_x.c||"
+  # runtime_net_addr_fast R2 thin+rest (wave546)：.x 1 public API (net_sockaddr_in_pack_addr_port_c)
+  #   thin+rest — .x 1 thin 函数（手动字节解析无 libc）；seed 4 rest 函数（getsockname/getpeername +
+  #   htonl/htons — asm codegen u16 store bug workaround）；ast_ 前缀适配（net_ #[no_mangle] 触发）
+  "runtime_net_addr_fast|src/asm/runtime_net_addr_fast.x|seeds/runtime_net_addr_fast_surface.from_x.c||"
+  # runtime_slice_glue R2 DIRECT (wave546)：.x 6 public API (3 core_slice_*_from_ptr_c + 3 core_subslice_*_c)
+  #   DIRECT — 纯 .x 实现（无 extern 桥，无 OS 调用，纯寄存器运算）；seed 全守卫 #ifndef
+  #   XLANG_RUNTIME_SLICE_GLUE_FROM_X；无 Cap residual；prove 锁 thin surface IDENTICAL
+  "runtime_slice_glue|src/asm/runtime_slice_glue.x|seeds/runtime_slice_glue_surface.from_x.c||"
+  # runtime_crypto_inc_glue R2 thin+rest (wave547)：.x 6 public API (xlang_sha256_block + _rotr32 + _ch + _maj +
+  #   crypto_i32_sub_c + crypto_rotl32_c) + 6 _impl 桥；rest 含 sha256 block/rotr/ch/maj + crypto_i32_sub/rotl32
+  #   纯 C 算术（无 OS 调用）；xlang_/crypto_ 前缀不触发 ast_；prove 锁 thin surface IDENTICAL
+  "runtime_crypto_inc_glue|src/asm/runtime_crypto_inc_glue.x|seeds/runtime_crypto_inc_glue_surface.from_x.c||"
+  # runtime_sync_lock_diag_tls R2 mixed (wave547)：.x 5 public API (sync_lock_diag_find_meta_idx + get_order +
+  #   append_byte + append_lit + append_i32) — 2 thin+rest (find_meta_idx + get_order _impl 桥) +
+  #   3 DIRECT (append_byte/lit/i32 纯计算)；rest 含 pthread_mutexattr protocol lookup；
+  #   sync_ 前缀不触发 ast_；prove 锁 thin surface IDENTICAL
+  "runtime_sync_lock_diag_tls|src/asm/runtime_sync_lock_diag_tls.x|seeds/runtime_sync_lock_diag_tls_surface.from_x.c||"
+  # runtime_std_runtime_fast R2 DIRECT (wave548)：.x 6 public API (std_runtime_crash_evidence_collect +
+  #   runtime_crash_evidence_collect_c + std_runtime_runtime_panic + runtime_panic + std_runtime_runtime_abort +
+  #   runtime_abort) DIRECT — 纯转发到 xlang_panic_/_crash_evidence_collect_c extern 桥；seed 全守卫；
+  #   无 doc_anchor 函数（.x 未定义）；prove 锁 6 #[no_mangle] IDENTICAL
+  "runtime_std_runtime_fast|src/asm/runtime_std_runtime_fast.x|seeds/runtime_std_runtime_fast_surface.from_x.c||"
+  # runtime_atomic_glue R2 thin+rest (wave548)：.x 30 public API (atomic_load/store/cas/fetch_add/fetch_sub ×
+  #   i16/u16/i32/u32/i64/u64 + 3 fence) + 30 _impl 桥；rest 含 C11 stdatomic/GCC __atomic intrinsics；
+  #   atomic_ 前缀不触发 ast_；prove 锁 thin surface IDENTICAL
+  "runtime_atomic_glue|src/asm/runtime_atomic_glue.x|seeds/runtime_atomic_glue_surface.from_x.c||"
+  # runtime_asm_build R2 thin(extern) (wave549)：.x 2 public API (asm_driver_skip_codegen_dep_0_get +
+  #   asm_driver_set_current_dep_path_for_codegen) thin(extern) — 纯转发到 driver_abi extern C 桥；
+  #   seed 全守卫；cap residual: main()（.x 无法表达 char** argv）；无 doc_anchor 函数；
+  #   asm_ 前缀不触发 ast_；prove 锁 2 #[no_mangle] IDENTICAL
+  "runtime_asm_build|src/asm/runtime_asm_build.x|seeds/runtime_asm_build_surface.from_x.c||"
+  # runtime_asm_io_stubs R2 thin+rest (wave549)：.x 3 public API (seed_io_syscall_write +
+  #   seed_io_syscall_read + seed_io_write_fd1) + 3 _impl 桥；rest 含 Linux x86_64 inline asm syscall
+  #   + POSIX write/read；doc_anchor runtime_asm_io_stubs_x_doc_anchor；seed_ 前缀不触发 ast_；
+  #   prove 锁 thin surface IDENTICAL (3 #[no_mangle] + 1 doc_anchor)
+  "runtime_asm_io_stubs|src/asm/runtime_asm_io_stubs.x|seeds/runtime_asm_io_stubs_surface.from_x.c||"
+  # runtime_string_fast R2 DIRECT (wave549)：.x 8 public API (xlang_string_memrchr/memchr/
+  #   portable_memmem/memmem/ptr_at/memcmp/memcmp_at/copy_c) DIRECT — 纯计算 + libc memcmp/memcpy
+  #   extern 桥；seed 全守卫；doc_anchor ast_runtime_string_fast_x_doc_anchor（非 #[no_mangle]
+  #   export function，xlang-c 自动加 ast_ 前缀，同 path_fast/net_sock_fast 规律）；
+  #   prove 锁 8 #[no_mangle] + 1 ast_ doc_anchor IDENTICAL
+  "runtime_string_fast|src/asm/runtime_string_fast.x|seeds/runtime_string_fast_surface.from_x.c||"
+  # runtime_net_io_batch_fast R2 thin+rest (wave550)：.x 8 public API (3 weak io_* defaults +
+  #   3 net_stream_*_batch_c + 2 net_udp_*_many_buf_c) + 2 _impl 桥；rest 含 Linux
+  #   recvmmsg/sendmmsg syscall；doc_anchor ast_runtime_net_io_batch_fast_x_doc_anchor（触发 ast_）；
+  #   net_/io_ 前缀不触发 ast_（仅 doc_anchor 触发）；prove 锁 thin surface IDENTICAL
+  "runtime_net_io_batch_fast|src/asm/runtime_net_io_batch_fast.x|seeds/runtime_net_io_batch_fast_surface.from_x.c||"
+  # runtime_env_os R2 thin+rest (wave550)：.x 10 public API (1 DIRECT env_build_key + 9 thin+rest
+  #   forwards) + 9 _impl 桥；rest 含 POSIX getenv/setenv/unsetenv/environ + Windows
+  #   GetEnvironmentVariableA/_putenv；doc_anchor runtime_env_os_x_doc_anchor（无 ast_）；
+  #   env_ 前缀不触发 ast_；prove 锁 thin surface IDENTICAL
+  "runtime_env_os|src/asm/runtime_env_os.x|seeds/runtime_env_os_surface.from_x.c||"
+  # runtime_http_glue R2 mixed (wave551)：.x 12 public API (11 thin+rest forwards + 1 DIRECT
+  #   http_method_has_body) + 11 _impl 桥；rest 含 POSIX socket + Win32 winsock + TLS bridge；
+  #   doc_anchor runtime_http_glue_x_doc_anchor（无 ast_）；http_/xlang_http_ 前缀不触发 ast_；
+  #   .x 在 asm/http/ 子目录；prove 锁 thin surface IDENTICAL (12 #[no_mangle] + 1 doc_anchor)
+  "runtime_http_glue|src/asm/http/runtime_http_glue.x|seeds/runtime_http_glue_surface.from_x.c||"
+  # runtime_queue_contention R2 mixed (wave551)：.x 13 public API (5 thin+rest queue_os_*_c + 8 DIRECT
+  #   queue_smoke_*/worker/trampoline/smoke_c) + 5 _impl 桥；rest 含 POSIX pthread_mutex_t +
+  #   pthread_create / Windows CRITICAL_SECTION + _beginthreadex；QueueSmokeState struct 5 fields；
+  #   doc_anchor runtime_queue_contention_x_doc_anchor（无 ast_）；queue_ 前缀不触发 ast_；
+  #   prove 锁 thin surface IDENTICAL (13 #[no_mangle] + 1 doc_anchor)
+  "runtime_queue_contention|src/asm/runtime_queue_contention.x|seeds/runtime_queue_contention_surface.from_x.c||"
+  # runtime_backtrace_platform R2 thin+rest (wave552)：.x 15 public API (14 backtrace_*_c forwards +
+  #   1 name_has_gold_anchor DIRECT forward) + 13 _impl 桥；rest 含 execinfo/dladdr/DbgHelp/
+  #   CaptureStackBackTrace；doc_anchor runtime_backtrace_platform_x_doc_anchor（无 ast_）；
+  #   backtrace_/xlang_ 前缀不触发 ast_；prove 锁 thin surface IDENTICAL (15 #[no_mangle] + 1 doc_anchor)
+  "runtime_backtrace_platform|src/asm/runtime_backtrace_platform.x|seeds/runtime_backtrace_platform_surface.from_x.c||"
+  # runtime_sync_os R2 thin+rest (wave552)：.x 16 public API (5 sync_mutex_*_c + 6 sync_rwlock_*_c +
+  #   5 sync_condvar_*_c) + 16 _impl 桥；rest 含 pthread_mutex_t/pthread_rwlock_t/pthread_cond_t
+  #   (POSIX) + CRITICAL_SECTION/SRWLOCK/CONDITION_VARIABLE (Windows)；doc_anchor
+  #   runtime_sync_os_x_doc_anchor（无 ast_）；sync_ 前缀不触发 ast_；
+  #   prove 锁 thin surface IDENTICAL (16 #[no_mangle] + 1 doc_anchor)
+  "runtime_sync_os|src/asm/runtime_sync_os.x|seeds/runtime_sync_os_surface.from_x.c||"
+  # runtime_channel_glue R2 thin+rest (wave553)：.x 17 public API (8 channel_sync_*/lock/unlock/
+  #   signal/broadcast + 4 channel_wait_*/timedwait_* + 1 channel_unbounded_grow + 4 channel_select_*)
+  #   + 17 _impl 桥；rest 含 pthread_mutex_t/pthread_cond_t (POSIX) + CRITICAL_SECTION/
+  #   CONDITION_VARIABLE (Windows)；doc_anchor runtime_channel_glue_x_doc_anchor（无 ast_）；
+  #   channel_ 前缀不触发 ast_；prove 锁 thin surface IDENTICAL (17 #[no_mangle] + 1 doc_anchor)
+  "runtime_channel_glue|src/asm/runtime_channel_glue.x|seeds/runtime_channel_glue_surface.from_x.c||"
+  # runtime_log_os R2 mixed (wave553)：.x 16 public API (7 thin+rest log_apply_env_once/do_rotate/
+  #   write_file_sync/write_sync/async_enqueue/emit_bytes/write_fd + 9 mixed _c bridges:
+  #   log_apply_env_once_c/get_min_level_c + 7 _c thin+rest forwards) + 14 _impl 桥；
+  #   rest 含 _write (Windows)/write (POSIX) + C static state；doc_anchor runtime_log_os_x_doc_anchor
+  #   （无 ast_）；log_ 前缀不触发 ast_；log_emit_bytes_c 用 `null or` 语法被 xlang_asm 静默丢弃
+  #   （编译器 bug，待修）；prove 锁 mixed surface IDENTICAL (16 #[no_mangle] + 1 doc_anchor)
+  "runtime_log_os|src/asm/runtime_log_os.x|seeds/runtime_log_os_surface.from_x.c||"
+  # runtime_scheduler_glue R2 mixed (wave554)：.x 17 public API (10 thin+rest xlang_async_*/coop_*
+  #   + 7 DIRECT: xlang_async_q_occupancy pure compute + 6 env gate using link_abi_getenv) +
+  #   11 _impl 桥 + link_abi_getenv (env bridge)；rest 含 worker/coop frame OS logic；
+  #   env_parse_u32_default export 无 #[no_mangle]，surface 用 static helper 匹配 .x linkage；
+  #   doc_anchor runtime_scheduler_glue_x_doc_anchor（无 ast_）；xlang_ 前缀不触发 ast_；
+  #   prove 锁 mixed surface IDENTICAL (17 #[no_mangle] + 1 doc_anchor)
+  "runtime_scheduler_glue|src/asm/runtime_scheduler_glue.x|seeds/runtime_scheduler_glue_surface.from_x.c||"
+  # runtime_process_os_glue R2 thin+rest (wave554)：.x 22 public API (process_getenv/setenv/
+  #   unsetenv/getpid/getppid/getcwd/getcwd_ptr/getcwd_cached_len/chdir/self_exe_path/
+  #   self_exe_path_ptr/self_exe_path_cached_len/nop_sigchld/spawn/exec/waitpid/spawn_simple/
+  #   exec_simple/dup_stdio_posix/spawn_io/pipe _c) + 22 _impl 桥；rest 含 POSIX getpid/getcwd/
+  #   chdir/execve/waitpid/pipe + Windows _wpgmptr/GetModuleFileName/CreateProcess；
+  #   doc_anchor runtime_process_os_glue_x_doc_anchor（无 ast_）；process_ 前缀不触发 ast_；
+  #   prove 锁 thin surface IDENTICAL (22 #[no_mangle] + 1 doc_anchor)
+  "runtime_process_os_glue|src/asm/runtime_process_os_glue.x|seeds/runtime_process_os_glue_surface.from_x.c||"
+  # asm_backend_compat_stubs R2 DIRECT (wave555)：.x 3 public API (xlang_format_u32_to_buf pure compute +
+  #   xlang_elf_ctx_append_u32_le + xlang_arm64_mov_imm32_to_w0_c via pipeline_elf_ctx_append_bytes extern bridge);
+  #   seed 全守卫 #ifndef XLANG_ASM_BACKEND_COMPAT_STUBS_FROM_X;
+  #   doc_anchor asm_backend_compat_stubs_x_doc_anchor（无 ast_）；xlang_ 前缀不触发 ast_；
+  #   prove 锁 DIRECT surface IDENTICAL (3 #[no_mangle] + 1 doc_anchor)
+  "asm_backend_compat_stubs|src/asm/asm_backend_compat_stubs.x|seeds/asm_backend_compat_stubs_surface.from_x.c||"
+  # runtime_thread_glue R2 thin+rest (wave555)：.x 24 public API (16 thin+rest forwards to _impl:
+  #   2 xlang_cpu_ star + 14 thread_ star + 8 DIRECT std_thread_ star forwards to thread_ star _c);
+  #   rest 含 16 _impl OS bridges (pthread_ star / CreateThread / SetThreadAffinityMask / qos_class);
+  #   doc_anchor runtime_thread_glue_x_doc_anchor（无 ast_）；thread_/std_thread_/xlang_ 前缀不触发 ast_；
+  #   prove 锁 thin surface IDENTICAL (24 #[no_mangle] + 1 doc_anchor)
+  "runtime_thread_glue|src/asm/runtime_thread_glue.x|seeds/runtime_thread_glue_surface.from_x.c||"
+  # bootstrap_nostdlib_stubs R2 mixed (wave556)：.x 6 #[no_mangle] public API
+  #   (5 thin+rest forwards to _impl: heap_grow/syscall3/syscall4/format_double/vfprintf_fd
+  #    + 1 DIRECT pure compute: align16);
+  #   rest 含 5 _impl bridges (bump heap mmap / Linux x86_64 syscall / vsnprintf+write);
+  #   doc_anchor bootstrap_nostdlib_stubs_x_doc_anchor（无 ast_）；bootstrap_ 前缀不触发 ast_；
+  #   prove 锁 mixed surface IDENTICAL (6 #[no_mangle] + 1 doc_anchor)
+  "bootstrap_nostdlib_stubs|src/asm/bootstrap_nostdlib_stubs.x|seeds/bootstrap_nostdlib_stubs_surface.from_x.c||"
+  # backend_seed_mega_fallback R2 DIRECT (wave556)：.x 2 #[no_mangle] public API
+  #   (pipeline_seed_mega_ctx_reset + pipeline_dep_ctx_target_arch_local)
+  #   + 3 non-no_mangle helpers (mega_load_i32_le + mega_store_i32_le + mega_store_ptr_le);
+  #   seed 全守卫 #ifndef XLANG_BACKEND_SEED_MEGA_FALLBACK_FROM_X;
+  #   doc_anchor backend_seed_mega_fallback_x_doc_anchor（无 ast_）；mega_/pipeline_ 前缀不触发 ast_；
+  #   prove 锁 DIRECT surface IDENTICAL (2 #[no_mangle] + 3 helper + 1 doc_anchor)
+  "backend_seed_mega_fallback|src/asm/backend_seed_mega_fallback.x|seeds/backend_seed_mega_fallback_surface.from_x.c||"
+  # parser_asm_parse_expr_link R2 thin+rest (wave557)：.x 1 #[no_mangle] public API
+  #   (parser_asm_parse_expr_debug_enabled thin forward to link_abi_getenv extern bridge);
+  #   rest 含 link_abi_getenv _impl (host getenv);
+  #   prove 锁 thin+rest surface IDENTICAL (1 #[no_mangle] + 1 doc_anchor)
+  "parser_asm_parse_expr_link|src/asm/parser_asm_parse_expr_link.x|seeds/parser_asm_parse_expr_link_surface.from_x.c||"
+  # lsp_diag_stubs_no_c R2 DIRECT (wave557)：.x 4 #[no_mangle] public API
+  #   (lsp_diag_copy_text_impl + json_escape_str_impl + lsp_diag_copy_text + json_escape_str);
+  #   lsp_diag_copy_text/json_escape_str forward to _impl (same module #[no_mangle]);
+  #   prove 锁 DIRECT surface IDENTICAL (4 #[no_mangle] + 1 doc_anchor)
+  "lsp_diag_stubs_no_c|src/lsp/lsp_diag_stubs_no_c.x|seeds/lsp_diag_stubs_no_c_surface.from_x.c||"
+  # build_runtime R2 thin+rest (wave558)：.x 5 #[no_mangle] public API
+  #   (5 thin forwards to _impl: build_runtime_info/warn + build_patch_pipeline_gen_c/driver_gen_c + build_run_legacy_steps);
+  #   rest 含 5 _impl bridges;
+  #   prove 锁 thin+rest surface IDENTICAL (5 #[no_mangle] + 1 doc_anchor)
+  "build_runtime|src/build_runtime.x|seeds/build_runtime_surface.from_x.c||"
+  # user_asm_seed_bridge R2 mixed (wave558)：.x 7 #[no_mangle] public API
+  #   (4 thin+rest forwards to _impl: seed_elf_ctx_set_macho_leading_underscore + seed_asm_reject_empty_elf_text
+  #    + seed_platform_macho_write_macho_o_to_buf + seed_platform_coff_write_coff_o_to_buf
+  #    + 2 DIRECT env gates: seed_asm_debug_enabled + seed_asm_emit_trace_enabled via link_abi_getenv
+  #    + 1 DIRECT pure compute: seed_elf_ctx_code_len);
+  #   rest 含 4 _impl bridges + link_abi_getenv _impl;
+  #   prove 锁 mixed surface IDENTICAL (7 #[no_mangle] + 1 doc_anchor)
+  "user_asm_seed_bridge|src/asm/user_asm_seed_bridge.x|seeds/user_asm_seed_bridge_surface.from_x.c||"
+  # runtime_heap_user R2 DIRECT (wave559)：.x 7 #[no_mangle] public API
+  #   (heap_alloc_c + heap_free_c + heap_realloc_c + heap_alloc_zeroed_c
+  #    + heap_arena_init_c + heap_arena64_alloc_c + heap_arena64_deinit_c);
+  #   DIRECT via extern bridges: malloc/free/realloc/calloc/heap_alloc_aligned_c;
+  #   prove 锁 DIRECT surface IDENTICAL (7 #[no_mangle] + 1 doc_anchor)
+  "runtime_heap_user|src/runtime_heap_user.x|seeds/runtime_heap_user_surface.from_x.c||"
+  # target_cpu_flags R2 DIRECT (wave559)：.x 5 #[no_mangle] public API
+  #   (driver_set/get_pending_target_cpu_features + tcp_tolower + tcp_eq5 + tcp_eq6);
+  #   pure compute + static BSS, no extern bridges;
+  #   prove 锁 DIRECT surface IDENTICAL (5 #[no_mangle] · no doc_anchor)
+  "target_cpu_flags|src/driver/target_cpu_flags.x|seeds/target_cpu_flags_surface.from_x.c||"
+  # parser_asm_thin_c R2 mixed (wave560)：.x 11 #[no_mangle] public API
+  #   (10 thin+rest forwards to _impl: copy_token_bytes_to_buf64 + extern_parse_set_fail_c
+  #    + skip_trait_impl_block_raw_c + skip_one_top_level_let/const_into_slice_c
+  #    + cfg_skip_pending_top_level_into_slice_c + try_skip_const_import_stmt
+  #    + collect_imports_consume_path + write_try_skip_allow_result + lex_from_lr_next_c
+  #    + 1 DIRECT pure compute: is_fn_sig_scalar_type_token_c);
+  #   rest 含 10 _impl bridges;
+  #   prove 锁 mixed surface IDENTICAL (11 #[no_mangle] + 1 doc_anchor)
+  "parser_asm_thin_c|src/asm/parser_asm_thin_c.x|seeds/parser_asm_thin_c_surface.from_x.c||"
+  # runtime_driver_strict_glue_stubs R2 mixed (wave560)：.x 12 #[no_mangle] public API
+  #   (3 thin+rest forwards to driver_*: asm_driver_skip_codegen_dep_0_get
+  #    + asm_driver_set_current_dep_path_for_codegen + typeck_driver_diagnostic_pipe_marker
+  #    + 8 DIRECT via typeck_*_slot extern bridges: typeck_i32_ptr_store/read
+  #    + typeck_layout_metrics_init_slot/init_depth/al_read_depth/sz_read_depth
+  #    + typeck_call_resolve_dep_idx_peek + typeck_call_resolve_func_idx_peek
+  #    + 1 thin+rest forward to append_text_to_codegen_buf_impl);
+  #   rest 含 10 extern bridges;
+  #   prove 锁 mixed surface IDENTICAL (12 #[no_mangle] · no doc_anchor)
+  "runtime_driver_strict_glue_stubs|src/runtime_driver_strict_glue_stubs.x|seeds/runtime_driver_strict_glue_stubs_surface.from_x.c||"
+  # rt_dispatch_thin R2 thin+rest (wave561)：.x 4 #[no_mangle] public API
+  #   (4 thin forwards to _impl: driver_run_asm_backend_c + driver_run_emit_c_path_c
+  #    + driver_run_compiler_full + driver_try_compile_via_shu_c_sibling);
+  #   rest 含 4 _impl bridges;
+  #   prove 锁 thin+rest surface IDENTICAL (4 #[no_mangle] · no doc_anchor)
+  "rt_dispatch_thin|src/runtime/rt_dispatch_thin.x|seeds/rt_dispatch_thin_surface.from_x.c||"
+  # lsp_diag_pipeline_ctx R2 thin+rest (wave561)：.x 14 #[no_mangle] public API
+  #   (14 thin forwards to extern bridges: lsp_diag_x_alloc_dep_ctx_size
+  #    + lsp_build_diagnostics_response + lsp_diag_hover_at + lsp_diag_references_at
+  #    + lsp_hover_at + lsp_references_at + lsp_diag_definition_at
+  #    + lsp_build_semantic_tokens_response + lsp_io_lsp_diag_invalidate_cache
+  #    + lsp_diag_pipeline_ctx_fill_paths + typeck_lsp_main + lsp_write_all
+  #    + lsp_debug_report_sqpoll_env + lsp_apply_default_io_policy);
+  #   rest 含 12 extern bridges (typeck_lsp_* shared by 2 wrappers each);
+  #   prove 锁 thin+rest surface IDENTICAL (14 #[no_mangle] · no doc_anchor)
+  "lsp_diag_pipeline_ctx|src/lsp/lsp_diag_pipeline_ctx.x|seeds/lsp_diag_pipeline_ctx_surface.from_x.c||"
+  # x_seed_bridge R2 mixed (wave562)：.x 14 #[no_mangle] public API
+  #   (5 thin+rest forwards: typeck_preprocess_x_buf + std_heap_alloc_zeroed/zero/free/alloc
+  #    + 9 DIRECT: 8 io_* stubs + 1 forward chain io_register_buffers_buf_i32/xlang_io_register);
+  #   rest 含 4 extern bridges (preprocess_x_buf + typeck_std_heap_alloc + calloc + free);
+  #   prove 锁 mixed surface IDENTICAL (14 #[no_mangle] · no doc_anchor)
+  "x_seed_bridge|src/x_seed_bridge.x|seeds/x_seed_bridge_surface.from_x.c||"
+  # seed_link_compat R2 mixed (wave562)：.x 19 #[no_mangle] public API
+  #   (11 thin+rest forwards: typeck_lsp_alloc/free/is_null/main_impl + typeck_std_heap_alloc/alloc_zeroed/free
+  #    + std_sys_read_file_into + std_heap_free_u8_ptr + ast_pipeline_module_struct_layout_set_packed
+  #    + backend_asm_ctx_slot_offset
+  #    + 5 DIRECT stubs returning -1: lsp_diag_lsp_build_diagnostics/semantic_tokens + lsp_diag_hover/references/definition_at
+  #    + 3 DIRECT compute: xlang_expr_is_func_param_at + xlang_expr_is_param0_field_access + xlang_module_func_index_by_name);
+  #   rest 含 20 extern bridges;
+  #   prove 锁 mixed surface IDENTICAL (19 #[no_mangle] · no doc_anchor)
+  "seed_link_compat|src/seed_link_compat.x|seeds/seed_link_compat_surface.from_x.c||"
+  # simd_loop_thin R2 mixed (wave563)：.x 22 #[no_mangle] public API
+  #   (5 DIRECT compute: glue_f32_slot_rbp_disp32 + glue_soa_f32_col_rbp_disp32
+  #    + glue_simd_loop_pick_lanes_c + glue_var_array_i32_size_c + glue_var_is_array_i32_n_c
+  #    + 17 thin+rest forwards to _impl);
+  #   rest 含 22 extern bridges (5 pipeline_* + 17 *_impl);
+  #   prove 锁 mixed surface IDENTICAL (22 #[no_mangle] · no doc_anchor)
+  "simd_loop_thin|src/asm/simd_loop_thin.x|seeds/simd_loop_thin_surface.from_x.c||"
+  # runtime_math_libm R2 mixed (wave564)：.x 34 #[no_mangle] public API
+  #   (2 DIRECT compute: math_signum_c + math_special_near
+  #    + 32 thin+rest forwards to math_*_impl);
+  #   rest 含 32 extern bridges (math_*_impl);
+  #   prove 锁 mixed surface IDENTICAL (34 #[no_mangle] · no doc_anchor)
+  "runtime_math_libm|src/asm/runtime_math_libm.x|seeds/runtime_math_libm_surface.from_x.c||"
+  # fmt_check_cmd R2 mixed (wave565)：.x 25 #[no_mangle] public API
+  #   (DIRECT compute + thin+rest forwards to _impl);
+  #   rest 含 30 extern bridges (driver_/path_/fmt_/file_/check_/walk_/collect_/parse_);
+  #   prove 锁 mixed surface IDENTICAL (25 #[no_mangle] · no doc_anchor)
+  "fmt_check_cmd|src/driver/fmt_check_cmd.x|seeds/fmt_check_cmd_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
@@ -472,6 +777,25 @@ gen_x_o() {
         -e '/^extern int closedir(/d' \
         -e '/^extern int32_t access(/d' \
         -e '/^extern int access(/d' \
+        -e '/^extern ptrdiff_t io_read_batch(/d' \
+        -e '/^extern ptrdiff_t io_write_batch(/d' \
+        -e '/^extern .*io_read_ptr(/d' \
+        -e '/^extern .*io_read_ptr_len(/d' \
+        -e '/^extern .*io_register_buffer(/d' \
+        -e '/^extern .*io_unregister_buffers(/d' \
+        -e '/^extern .*io_wait_readable(/d' \
+        -e '/^extern .*io_register_buffers_4(/d' \
+        -e '/^extern .*io_register_buffers_buf(/d' \
+        -e '/^extern .*io_register_buffers_buf_i32(/d' \
+        -e '/^#define io_register_buffers_buf(/d' \
+        -e '/^#define std_io_driver_io_register_buffers_buf(/d' \
+        -e '/^#define std_io_core_xlang_io_register_buffers_buf/d' \
+        -e '/^__attribute__((weak)).* io_register_buffers_buf_c(/d' \
+        -e '/^__attribute__((weak)).* io_register_buffers_4(/,/^}/d' \
+        -e '/^__attribute__((weak)).* io_wait_readable(/,/^}/d' \
+        -e '/^__attribute__((weak)).* io_read_batch_buf(/,/^}/d' \
+        -e '/^__attribute__((weak)).* io_write_batch_buf(/,/^}/d' \
+        -e '/^static inline .*io_register_buffers_buf_i32(/d' \
         -e '/^extern uint8_t \* xlang_fmt_opendir(/d' \
         -e '/^extern int32_t xlang_fmt_closedir(/d' \
         -e '/^extern int32_t xlang_fmt_access(/d' \

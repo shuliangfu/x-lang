@@ -5,13 +5,20 @@
 
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+  make -C compiler -q 2>/dev/null || make -C compiler
+fi
 XLANG=${XLANG:-./compiler/xlang}
 # shellcheck source=lib/bootstrap-link-xlang.sh
 . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 LINK_XLANG="$RUN_XLANG"
-if [ -x ./compiler/xlang_asm2 ] && ci_native_xlang ./compiler/xlang_asm2; then
+# PLATFORM: SHARED — product path prefers this-SHA xlang_asm; leftover xlang_asm2
+# only with XLANG_BSTRICT_USE_ASM2=1 (July-14 wrong-binary ban).
+if [ -n "${XLANG_BSTRICT_USE_ASM2:-}" ] && [ -x ./compiler/xlang_asm2 ] &&
+    ci_native_xlang ./compiler/xlang_asm2; then
   LINK_XLANG=./compiler/xlang_asm2
+elif [ -x ./compiler/xlang_asm ] && ci_native_xlang ./compiler/xlang_asm; then
+  LINK_XLANG=./compiler/xlang_asm
 fi
 
 # 测试 1+2 -> 退出码 3

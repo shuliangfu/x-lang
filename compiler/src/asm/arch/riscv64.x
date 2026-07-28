@@ -65,18 +65,18 @@ export function emit_globl(out: *CodegenOutBuf, name: *u8, name_len: i32): i32 {
  */
 export function emit_label(out: *CodegenOutBuf, name: *u8, name_len: i32): i32 {
   let i: i32 = 0;
-  while (i < name_len && out.len < 8388608) {
-    out.data[out.len] = name[i];
-    out.len = out.len + 1;
+  while (i < name_len && out.length < 8388608) {
+    out.data[out.length] = name[i];
+    out.length = out.length + 1;
     i = i + 1;
   }
-  if (out.len < 8388608) {
-    out.data[out.len] = 58;
-    out.len = out.len + 1;
+  if (out.length < 8388608) {
+    out.data[out.length] = 58;
+    out.length = out.length + 1;
   }
-  if (out.len < 8388608) {
-    out.data[out.len] = 10;
-    out.len = out.len + 1;
+  if (out.length < 8388608) {
+    out.data[out.length] = 10;
+    out.length = out.length + 1;
     return 0;
   }
   return -1;

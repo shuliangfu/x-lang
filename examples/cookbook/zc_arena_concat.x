@@ -20,7 +20,7 @@ function main(): i32 {
     cur = string.string_view_concat_arena(&arena, cur, unit);
     i = i + 1;
   }
-  if (string.len(cur) != 8) { heap.arena64_deinit(&arena); return 2; }
+  if (string.length(cur) != 8) { heap.arena64_deinit(&arena); return 2; }
   if (string.string_view_get(cur, 0) != 97) { heap.arena64_deinit(&arena); return 3; }
   heap.arena64_deinit(&arena);
   return 8;

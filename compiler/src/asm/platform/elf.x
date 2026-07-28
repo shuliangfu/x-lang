@@ -501,9 +501,9 @@ export function elf_resolve_patches(ctx: *ElfCodegenCtx): i32 {
  */
 export function elf_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
   let i: i32 = 0;
-  while (i < n && out.len < 9437184) {
-    out.data[out.len] = ptr[i];
-    out.len = out.len + 1;
+  while (i < n && out.length < 9437184) {
+    out.data[out.length] = ptr[i];
+    out.length = out.length + 1;
     i = i + 1;
   }
   if (i < n) {

@@ -9,7 +9,7 @@ const set = import("std.set");
  * @return i32
  */
 function set_has_keys(dst: Set_i32, expect: *i32, n: i32): i32 {
-  if (set.len(dst) != n) { return 0; }
+  if (set.length(dst) != n) { return 0; }
   let i: i32 = 0;
   while (i < n) {
     if (set.contains_key(dst, expect[i]) == 0) { return 0; }

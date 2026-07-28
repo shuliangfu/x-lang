@@ -15,7 +15,7 @@ function main(): i32 {
   let starts2: i32[3] = [10, 11, 12];
   let lens2: i32[3] = [1, 0, 1];
   if (csv.append_row(&w, &blob[0], &starts2[0], &lens2[0], 3) != 0) { return 2; }
-  let total: i32 = csv.len(w);
+  let total: i32 = csv.length(w);
   if (total <= 0) { return 3; }
   let r: StreamCsvReader = csv.reader(&out[0], total);
   let pstarts: i32[4] = [0, 0, 0, 0];

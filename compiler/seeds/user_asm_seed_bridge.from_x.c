@@ -22,7 +22,7 @@
 /** 与 pipeline 生成体一致的 CodegenOutBuf 布局。 */
 struct codegen_CodegenOutBuf {
   uint8_t data[8388608];
-  int32_t len;
+  int32_t length;
 };
 /* G-02f-442 / wave236：thin+rest PREFER_X_O
  *   thin .x provides #[no_mangle] pure:
@@ -444,7 +444,7 @@ int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ct
     if (seed_asm_debug_enabled())
       diag_reportf(NULL, 0, 0, "note", NULL,
                    "asm debug: asm_codegen_elf_o coff_write=%d out_len=%d",
-                   (int)cw, (int)((struct codegen_CodegenOutBuf *)out_buf)->len);
+                   (int)cw, (int)((struct codegen_CodegenOutBuf *)out_buf)->length);
     pipeline_asm_wpo_reach_clear();
     return cw < 0 ? -1 : 0;
   }
@@ -453,7 +453,7 @@ int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ct
     if (seed_asm_debug_enabled())
       diag_reportf(NULL, 0, 0, "note", NULL,
                    "asm debug: asm_codegen_elf_o macho_write=%d out_len=%d",
-                   (int)mw, (int)((struct codegen_CodegenOutBuf *)out_buf)->len);
+                   (int)mw, (int)((struct codegen_CodegenOutBuf *)out_buf)->length);
     pipeline_asm_wpo_reach_clear();
     return mw < 0 ? -1 : 0;
   }
@@ -462,7 +462,7 @@ int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ct
     if (seed_asm_debug_enabled())
       diag_reportf(NULL, 0, 0, "note", NULL,
                    "asm debug: asm_codegen_elf_o elf_write=%d out_len=%d",
-                   (int)ew, (int)((struct codegen_CodegenOutBuf *)out_buf)->len);
+                   (int)ew, (int)((struct codegen_CodegenOutBuf *)out_buf)->length);
     pipeline_asm_wpo_reach_clear();
     return ew < 0 ? -1 : 0;
   }

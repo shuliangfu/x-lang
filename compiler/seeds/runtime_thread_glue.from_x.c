@@ -1,12 +1,19 @@
 /* seeds/runtime_thread_glue.from_x.c — G-02f-18 product TU
  * G-02f-102 helper gates.
- * Product: runtime_thread_glue.o; logic still C until full .x port.
- */
-/**
- * runtime_thread_glue.c — 线程胶层（F-ZC：自 std/thread/thread_glue.c 迁入）
+ * Product: runtime_thread_glue.o; OS bridge logic in rest C; public wrappers
+ * provided by thin runtime_thread_glue.x in R2 mode (XLANG_RUNTIME_THREAD_GLUE_FROM_X).
  *
- * 【文件职责】thread_self/create/join/affinity/QoS 等；与 thread.o 一并链入 exe。
- * 【所属模块】std.thread；Unix 需 -lpthread，Windows 需 kernel32。
+ * runtime_thread_glue.c — Thread glue (migrated from std/thread/thread_glue.c)
+ *
+ * [File role] thread_self/create/join/affinity/QoS/name + worker pool; linked
+ *            alongside thread.o into exe.
+ *            POSIX requires -lpthread; Windows requires kernel32.
+ *
+ * Wave513 (2026-07-27): R2 full migration. All public `_c` wrappers moved to
+ * .x (thin); this file now provides `_impl` OS bridge implementations only,
+ * with cold-mode fallback wrappers under #ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X.
+ *
+ * PLATFORM: SHARED (POSIX pthread + Windows CreateThread + macOS QoS branches)
  */
 
 #if defined(__linux__)
@@ -15,27 +22,23 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/* ========== Linux: cpu_set_t bitmap helpers ========== */
 #if defined(__linux__)
 #include <sched.h>
 #include <string.h>
-/* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
+
+/* Forward declarations for thin-provided _c functions (R2 / FROM_X mode).
+ * In cold mode the _c wrappers are defined below. */
 void xlang_cpu_zero(cpu_set_t *set);
 void xlang_cpu_set(unsigned int cpu, cpu_set_t *set);
-/* 手写 cpu_set 清零与置位，避免依赖 CPU_ZERO/CPU_SET/CPU_ZERO_S/CPU_SET_S 的链接符号（部分 glibc 会未定义） */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_thread_glue.x）提供 public wrapper */
+
+/* R2 rest: _impl implementation; thin (runtime_thread_glue.x) provides public wrapper.
+ * Hand-rolled bitmap to avoid dependency on CPU_ZERO/CPU_SET/CPU_ZERO_S/CPU_SET_S
+ * link symbols (some glibc versions leave them undefined). */
 void xlang_cpu_zero_impl(cpu_set_t *set) {
     memset(set, 0, sizeof(cpu_set_t));
 }
-#ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-void xlang_cpu_zero(cpu_set_t *set) {
-    xlang_cpu_zero_impl(set);
-}
-#endif
 
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_thread_glue.x）提供 public wrapper */
 void xlang_cpu_set_impl(unsigned int cpu, cpu_set_t *set) {
     if (cpu < sizeof(cpu_set_t) * 8) {
         size_t idx = cpu / (8 * sizeof(unsigned long));
@@ -43,19 +46,23 @@ void xlang_cpu_set_impl(unsigned int cpu, cpu_set_t *set) {
         ((unsigned long *)set)[idx] |= (unsigned long)1 << bit;
     }
 }
+
 #ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+/* Cold mode fallback: public wrapper provided by seed. */
+void xlang_cpu_zero(cpu_set_t *set) {
+    xlang_cpu_zero_impl(set);
+}
 void xlang_cpu_set(unsigned int cpu, cpu_set_t *set) {
     xlang_cpu_set_impl(cpu, set);
 }
 #endif
+#endif /* __linux__ */
 
-#endif
-
+/* ========== Platform threading base ========== */
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
 #include <stdlib.h>
-/* Windows：用 CreateThread + WaitForSingleObject；thread_id 存 HANDLE。 */
+/* Windows: CreateThread + WaitForSingleObject; thread_id stores HANDLE. */
 typedef HANDLE xlang_thread_t;
 #define XLANG_THREAD_ID_INVALID ((int64_t)(uintptr_t)NULL)
 #else
@@ -67,15 +74,31 @@ typedef pthread_t xlang_thread_t;
 #endif
 #endif
 
-/** 当前线程 ID；用于区分线程、多核压榨时每线程一 io_uring。POSIX 为 pthread_self() 的数值表示，Windows 为 GetCurrentThreadId()。 */
-int64_t thread_self_c(void) {
-#if defined(_WIN32) || defined(_WIN64)
-    return (int64_t)(intptr_t)GetCurrentThreadId();
-#else
-    return (int64_t)(uintptr_t)pthread_self();
-#endif
-}
+/* Forward declarations for thin-provided _c functions (R2 / FROM_X mode). */
+int64_t thread_self_c(void);
+int64_t thread_create_c(void *entry, void *arg);
+int64_t thread_create_with_stack_c(void *entry, void *arg, size_t stack_size);
+int32_t thread_join_c(int64_t thread_id);
+int32_t thread_set_affinity_self_c(int32_t cpu_index);
+int32_t thread_set_affinity_c(int64_t thread_id, int32_t cpu_index);
+int32_t thread_set_qos_class_self_c(int32_t qos_class);
+int32_t thread_set_name_self_c(const uint8_t *name, int32_t len);
+uintptr_t thread_dummy_entry_ptr_c(void);
+int32_t thread_pool_start_c(int32_t workers);
+int32_t thread_pool_submit_c(uintptr_t entry, uintptr_t arg);
+int32_t thread_pool_drain_c(void);
+int32_t thread_pool_stop_c(void);
+int32_t thread_pool_pending_c(void);
+int64_t std_thread_thread_self_c(void);
+int64_t std_thread_thread_create_c(void *entry, void *arg);
+int64_t std_thread_thread_create_with_stack_c(void *entry, void *arg, size_t stack_size);
+int32_t std_thread_thread_join_c(int64_t thread_id);
+int32_t std_thread_thread_set_affinity_self_c(int32_t cpu_index);
+int32_t std_thread_thread_set_affinity_c(int64_t thread_id, int32_t cpu_index);
+int32_t std_thread_thread_set_qos_class_self_c(int32_t qos_class);
+uintptr_t std_thread_thread_dummy_entry_ptr_c(void);
 
+/* ========== Windows __stdcall trampoline (must stay in rest; .x cannot express stdcall) ========== */
 #if defined(_WIN32) || defined(_WIN64)
 struct xlang_thread_params { void *(*entry)(void *); void *arg; };
 static DWORD WINAPI thread_wrap(LPVOID arg) {
@@ -87,11 +110,20 @@ static DWORD WINAPI thread_wrap(LPVOID arg) {
 }
 #endif
 
-/**
- * 创建新线程；entry 为 C 函数 void* (*)(void*)，arg 传入；成功返回 thread_id（用于 join），失败返回 XLANG_THREAD_ID_INVALID（约定为 0 或 -1）。
- * 调用方保证 entry 非 NULL。
- */
-int64_t thread_create_c(void *entry, void *arg) {
+/* ========== _impl: thread_self ========== */
+int64_t thread_self_impl(void) {
+#if defined(_WIN32) || defined(_WIN64)
+    return (int64_t)(intptr_t)GetCurrentThreadId();
+#else
+    return (int64_t)(uintptr_t)pthread_self();
+#endif
+}
+#ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int64_t thread_self_c(void) { return thread_self_impl(); }
+#endif
+
+/* ========== _impl: thread_create ========== */
+int64_t thread_create_impl(void *entry, void *arg) {
     if (entry == NULL) return XLANG_THREAD_ID_INVALID;
 #if defined(_WIN32) || defined(_WIN64)
     {
@@ -112,12 +144,12 @@ int64_t thread_create_c(void *entry, void *arg) {
     }
 #endif
 }
+#ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int64_t thread_create_c(void *entry, void *arg) { return thread_create_impl(entry, arg); }
+#endif
 
-/**
- * 创建新线程并指定栈大小；stack_size 为 0 表示使用默认栈大小。
- * 多 worker 时可用较小栈（如 262144）省内存。成功返回 thread_id，失败返回 XLANG_THREAD_ID_INVALID。
- */
-int64_t thread_create_with_stack_c(void *entry, void *arg, size_t stack_size) {
+/* ========== _impl: thread_create_with_stack ========== */
+int64_t thread_create_with_stack_impl(void *entry, void *arg, size_t stack_size) {
     if (entry == NULL) return XLANG_THREAD_ID_INVALID;
 #if defined(_WIN32) || defined(_WIN64)
     {
@@ -150,9 +182,14 @@ int64_t thread_create_with_stack_c(void *entry, void *arg, size_t stack_size) {
     }
 #endif
 }
+#ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int64_t thread_create_with_stack_c(void *entry, void *arg, size_t stack_size) {
+    return thread_create_with_stack_impl(entry, arg, stack_size);
+}
+#endif
 
-/** 等待线程结束；thread_id 为 thread_create_c 返回值。返回 0 成功，-1 失败（如已 join 或无效 id）。 */
-int32_t thread_join_c(int64_t thread_id) {
+/* ========== _impl: thread_join ========== */
+int32_t thread_join_impl(int64_t thread_id) {
     if (thread_id == XLANG_THREAD_ID_INVALID) return -1;
 #if defined(_WIN32) || defined(_WIN64)
     {
@@ -169,13 +206,12 @@ int32_t thread_join_c(int64_t thread_id) {
     }
 #endif
 }
+#ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int32_t thread_join_c(int64_t thread_id) { return thread_join_impl(thread_id); }
+#endif
 
-/**
- * 将当前线程绑定到指定 CPU（绑核）；多 worker 时减少迁移与缓存抖动。
- * cpu_index：逻辑 CPU 编号（从 0 开始）。成功返回 0，失败返回 -1。
- * Linux：pthread_setaffinity_np(self, ...)；Windows：SetThreadAffinityMask(GetCurrentThread(), 1<<cpu_index)；macOS/BSD 暂返回 -1。
- */
-int32_t thread_set_affinity_self_c(int32_t cpu_index) {
+/* ========== _impl: thread_set_affinity_self ========== */
+int32_t thread_set_affinity_self_impl(int32_t cpu_index) {
     if (cpu_index < 0) return -1;
 #if defined(_WIN32) || defined(_WIN64)
     {
@@ -193,15 +229,17 @@ int32_t thread_set_affinity_self_c(int32_t cpu_index) {
     }
 #else
     (void)cpu_index;
-    return -1; /* macOS/BSD 暂不实现 */
+    return -1; /* macOS/BSD: unsupported */
 #endif
 }
+#ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int32_t thread_set_affinity_self_c(int32_t cpu_index) {
+    return thread_set_affinity_self_impl(cpu_index);
+}
+#endif
 
-/**
- * 将指定线程绑定到指定 CPU；thread_id 为 thread_create_c 返回值。
- * 成功返回 0，失败返回 -1（如无效 thread_id 或平台不支持）。
- */
-int32_t thread_set_affinity_c(int64_t thread_id, int32_t cpu_index) {
+/* ========== _impl: thread_set_affinity ========== */
+int32_t thread_set_affinity_impl(int64_t thread_id, int32_t cpu_index) {
     if (thread_id == XLANG_THREAD_ID_INVALID || cpu_index < 0) return -1;
 #if defined(_WIN32) || defined(_WIN64)
     {
@@ -223,13 +261,14 @@ int32_t thread_set_affinity_c(int64_t thread_id, int32_t cpu_index) {
     return -1;
 #endif
 }
+#ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int32_t thread_set_affinity_c(int64_t thread_id, int32_t cpu_index) {
+    return thread_set_affinity_impl(thread_id, cpu_index);
+}
+#endif
 
-/**
- * 仅 macOS：设置当前线程的 QoS 等级，提升调度优先级（无法绑核时的替代）。
- * qos_class：0=default，1=user_interactive，2=user_initiated，3=utility，4=background。
- * worker 线程建议传 2（user_initiated）。成功返回 0，失败或非 macOS 返回 -1。
- */
-int32_t thread_set_qos_class_self_c(int32_t qos_class) {
+/* ========== _impl: thread_set_qos_class_self (macOS only) ========== */
+int32_t thread_set_qos_class_self_impl(int32_t qos_class) {
 #if defined(__APPLE__)
     qos_class_t q = QOS_CLASS_DEFAULT;
     switch (qos_class) {
@@ -247,29 +286,84 @@ int32_t thread_set_qos_class_self_c(int32_t qos_class) {
     return -1;
 #endif
 }
+#ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int32_t thread_set_qos_class_self_c(int32_t qos_class) {
+    return thread_set_qos_class_self_impl(qos_class);
+}
+#endif
 
-/** 测试/示例用：供 thread_create_c 的 entry，直接返回 NULL。可用于验证 spawn+join 流程。 */
+/* ========== _impl: thread_set_name_self ========== */
+int32_t thread_set_name_self_impl(const uint8_t *name, int32_t len) {
+    char buf[16];
+    int32_t i;
+    if (!name || len < 0) {
+        return -1;
+    }
+    if (len > 15) {
+        len = 15;
+    }
+    for (i = 0; i < len; i++) {
+        buf[i] = (char)name[i];
+    }
+    buf[len] = '\0';
+#if defined(__linux__)
+    if (pthread_setname_np(pthread_self(), buf) != 0) {
+        return -1;
+    }
+    return 0;
+#elif defined(__APPLE__)
+    if (pthread_setname_np(buf) != 0) {
+        return -1;
+    }
+    return 0;
+#else
+    (void)buf;
+    return -1;
+#endif
+}
+#ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int32_t thread_set_name_self_c(const uint8_t *name, int32_t len) {
+    return thread_set_name_self_impl(name, len);
+}
+#endif
+
+/* ========== thread_dummy_entry (real C function; address-taken via ptr_c) ========== */
 void *thread_dummy_entry(void *arg) {
     (void)arg;
     return NULL;
 }
 
-/** 返回 thread_dummy_entry 的地址（usize），便于 .x 侧无函数指针时仍可测试 thread_create_c(thread_dummy_entry_ptr_c(), 0)。 */
-uintptr_t thread_dummy_entry_ptr_c(void) {
+/* ========== _impl: thread_dummy_entry_ptr (returns address of thread_dummy_entry) ========== */
+uintptr_t thread_dummy_entry_ptr_impl(void) {
     return (uintptr_t)&thread_dummy_entry;
 }
+#ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+uintptr_t thread_dummy_entry_ptr_c(void) {
+    return thread_dummy_entry_ptr_impl();
+}
+#endif
 
-/* ——— .x pipeline 用：codegen 对 std.thread 生成 std_thread_*_c 符号，与 thread.o 链接 ——— */
+/* ========== std.thread pipeline wrappers ========== */
+#ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
 int64_t std_thread_thread_self_c(void) { return thread_self_c(); }
 int64_t std_thread_thread_create_c(void *entry, void *arg) { return thread_create_c(entry, arg); }
-int64_t std_thread_thread_create_with_stack_c(void *entry, void *arg, size_t stack_size) { return thread_create_with_stack_c(entry, arg, stack_size); }
+int64_t std_thread_thread_create_with_stack_c(void *entry, void *arg, size_t stack_size) {
+    return thread_create_with_stack_c(entry, arg, stack_size);
+}
 int32_t std_thread_thread_join_c(int64_t thread_id) { return thread_join_c(thread_id); }
-int32_t std_thread_thread_set_affinity_self_c(int32_t cpu_index) { return thread_set_affinity_self_c(cpu_index); }
-int32_t std_thread_thread_set_affinity_c(int64_t thread_id, int32_t cpu_index) { return thread_set_affinity_c(thread_id, cpu_index); }
-int32_t std_thread_thread_set_qos_class_self_c(int32_t qos_class) { return thread_set_qos_class_self_c(qos_class); }
+int32_t std_thread_thread_set_affinity_self_c(int32_t cpu_index) {
+    return thread_set_affinity_self_c(cpu_index);
+}
+int32_t std_thread_thread_set_affinity_c(int64_t thread_id, int32_t cpu_index) {
+    return thread_set_affinity_c(thread_id, cpu_index);
+}
+int32_t std_thread_thread_set_qos_class_self_c(int32_t qos_class) {
+    return thread_set_qos_class_self_c(qos_class);
+}
 uintptr_t std_thread_thread_dummy_entry_ptr_c(void) { return thread_dummy_entry_ptr_c(); }
+#endif /* XLANG_RUNTIME_THREAD_GLUE_FROM_X */
 
-/* --- STD-043：命名线程与固定 worker 线程池 --- */
+/* ========== Worker thread pool (non-Windows only; global state in rest C) ========== */
 
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <stdlib.h>
@@ -295,7 +389,7 @@ static int g_pool_stop_req;
 static int g_pool_in_flight;
 static pthread_t g_pool_tids[XLANG_THREAD_POOL_MAX_WORKERS];
 
-/** worker 主循环：取队列任务执行，stop 时退出。 */
+/* worker main loop: dequeue jobs, stop flag exits. */
 static void *xlang_thread_pool_worker(void *arg) {
     (void)arg;
     for (;;) {
@@ -325,40 +419,10 @@ static void *xlang_thread_pool_worker(void *arg) {
     }
     return NULL;
 }
-#endif
+#endif /* !Windows */
 
-/** 设置当前线程名（≤15 字节）；成功 0，不支持 -1。 */
-int32_t thread_set_name_self_c(const uint8_t *name, int32_t len) {
-    char buf[16];
-    int32_t i;
-    if (!name || len < 0) {
-        return -1;
-    }
-    if (len > 15) {
-        len = 15;
-    }
-    for (i = 0; i < len; i++) {
-        buf[i] = (char)name[i];
-    }
-    buf[len] = '\0';
-#if defined(__linux__)
-    if (pthread_setname_np(pthread_self(), buf) != 0) {
-        return -1;
-    }
-    return 0;
-#elif defined(__APPLE__)
-    if (pthread_setname_np(buf) != 0) {
-        return -1;
-    }
-    return 0;
-#else
-    (void)buf;
-    return -1;
-#endif
-}
-
-/** 启动固定 worker 线程池；workers 1..8；成功 0。 */
-int32_t thread_pool_start_c(int32_t workers) {
+/* _impl: thread_pool_start */
+int32_t thread_pool_start_impl(int32_t workers) {
 #if defined(_WIN32) || defined(_WIN64)
     (void)workers;
     return -1;
@@ -395,9 +459,12 @@ int32_t thread_pool_start_c(int32_t workers) {
     return 0;
 #endif
 }
+#ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int32_t thread_pool_start_c(int32_t workers) { return thread_pool_start_impl(workers); }
+#endif
 
-/** 向池提交任务；队列满时阻塞；成功 0。 */
-int32_t thread_pool_submit_c(uintptr_t entry, uintptr_t arg) {
+/* _impl: thread_pool_submit */
+int32_t thread_pool_submit_impl(uintptr_t entry, uintptr_t arg) {
 #if defined(_WIN32) || defined(_WIN64)
     (void)entry;
     (void)arg;
@@ -425,9 +492,14 @@ int32_t thread_pool_submit_c(uintptr_t entry, uintptr_t arg) {
     return 0;
 #endif
 }
+#ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int32_t thread_pool_submit_c(uintptr_t entry, uintptr_t arg) {
+    return thread_pool_submit_impl(entry, arg);
+}
+#endif
 
-/** 阻塞直至队列与 in-flight 皆空；成功 0。 */
-int32_t thread_pool_drain_c(void) {
+/* _impl: thread_pool_drain */
+int32_t thread_pool_drain_impl(void) {
 #if defined(_WIN32) || defined(_WIN64)
     return -1;
 #else
@@ -442,9 +514,12 @@ int32_t thread_pool_drain_c(void) {
     return 0;
 #endif
 }
+#ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int32_t thread_pool_drain_c(void) { return thread_pool_drain_impl(); }
+#endif
 
-/** 停止池并 join worker；成功 0。 */
-int32_t thread_pool_stop_c(void) {
+/* _impl: thread_pool_stop */
+int32_t thread_pool_stop_impl(void) {
 #if defined(_WIN32) || defined(_WIN64)
     return -1;
 #else
@@ -471,9 +546,12 @@ int32_t thread_pool_stop_c(void) {
     return 0;
 #endif
 }
+#ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int32_t thread_pool_stop_c(void) { return thread_pool_stop_impl(); }
+#endif
 
-/** 观测 pending（队列 + in-flight）；未启动 -1。 */
-int32_t thread_pool_pending_c(void) {
+/* _impl: thread_pool_pending */
+int32_t thread_pool_pending_impl(void) {
 #if defined(_WIN32) || defined(_WIN64)
     return -1;
 #else
@@ -487,3 +565,6 @@ int32_t thread_pool_pending_c(void) {
     return n;
 #endif
 }
+#ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
+int32_t thread_pool_pending_c(void) { return thread_pool_pending_impl(); }
+#endif

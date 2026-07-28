@@ -19,7 +19,7 @@ const ast = import("ast");
 
 export struct CodegenOutBuf {
   data: u8[64];
-  len: i32;
+  length: i32;
 }
 
 /** Exported function `foo`.

@@ -87,8 +87,8 @@ export struct SliceIter_u64 {
 export function iterator_protocol_version(): i32 { return 1; }
 
 /** `iter_u64_from_buf`: purpose/params/returns per signature; panics or error codes follow local contracts. */
-export function iter_u64_from_buf(ptr: *u64, length: usize): SliceIter_u64 {
-  return SliceIter_u64 { ptr: ptr, length: length, index: 0 as usize };
+export function iter_u64_from_buf(ptr: *u64, len: usize): SliceIter_u64 {
+  return SliceIter_u64 { ptr: ptr, length: len, index: 0 as usize };
 }
 
 /** `next_u64`: purpose/params/returns per signature; panics or error codes follow local contracts. */

@@ -6,8 +6,8 @@
 // See implementation.
 // See implementation.
 
-export extern "C" function net_ensure_wsa_impl(): void;
-export extern "C" function net_wsa_ctor_impl(): void;
+export extern "C" function net_ensure_wsa_impl_c(): void;
+export extern "C" function net_wsa_ctor_impl_c(): void;
 
 /** Exported function `runtime_net_sock_fast_x_doc_anchor`.
  * Implements `runtime_net_sock_fast_x_doc_anchor`.
@@ -22,7 +22,7 @@ export function runtime_net_sock_fast_x_doc_anchor(): i32 {
 #[no_mangle]
 export function net_ensure_wsa(): void {
   unsafe {
-    net_ensure_wsa_impl();
+    net_ensure_wsa_impl_c();
   }
 }
 
@@ -33,6 +33,6 @@ export function net_ensure_wsa(): void {
 #[no_mangle]
 export function net_wsa_ctor(): void {
   unsafe {
-    net_wsa_ctor_impl();
+    net_wsa_ctor_impl_c();
   }
 }

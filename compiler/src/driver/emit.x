@@ -56,12 +56,22 @@ allow(padding) struct PipelineDepCtx {
   entry_module_import_path_len: i32;
   typeck_scope_region_len: i32;
   typeck_scope_region_label: u8[64];
+  /*
+   * wave445 C5: monomorphization type-substitution state for generic function
+   * body emit. When mono_active=1, emit_type replaces any type_ref matching
+   * mono_generic_type_refs[i] with mono_concrete_type_refs[i] (T -> concrete).
+   * PLATFORM: SHARED — mirror of runtime_pipeline_abi.h layout authority.
+   */
+  mono_active: i32;
+  mono_num_types: i32;
+  mono_generic_type_refs: i32[8];
+  mono_concrete_type_refs: i32[8];
 }
 
 /* See implementation. */
 allow(padding) struct CodegenOutBuf {
   data: u8[9437184];
-  len: i32;
+  length: i32;
 }
 
 /* See implementation. */
@@ -385,7 +395,7 @@ export function run_x_emit_x(state: *DriverXEmitState): i32 {
   }
   ctx.num_lib_roots = 0;
   emit_copy_lib_roots_to_ctx(emit_state_key(state), &ctx);
-  let out: CodegenOutBuf = CodegenOutBuf { data: [], len: 0 };
+  let out: CodegenOutBuf = CodegenOutBuf { data: [], length: 0 };
   let source_len: usize = out_len as usize;
   let prep_src: *u8 = ew_preprocess_buf_ptr(&ctx);
   let rc: i32 = 0;
@@ -398,7 +408,7 @@ export function run_x_emit_x(state: *DriverXEmitState): i32 {
     ew_free_source_buffers(&ctx);
     return 1;
   }
-  let len: i32 = out.len;
+  let len: i32 = out.length;
   if (state.out_path_len == 0) {
     ew_print_x_smoke_summary(module_buf, len as usize);
   }

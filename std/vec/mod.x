@@ -42,7 +42,7 @@ export function copy_threshold(): i32 { return 8; }
 /* See implementation. */
 allow(padding) struct Vec_i32 {
   ptr: *i32;
-  len: i32;
+  length: i32;
   cap: i32;
   al: heap.Allocator;
 }
@@ -51,7 +51,7 @@ allow(padding) struct Vec_i32 {
  * @return Vec_i32
  */
 export function new(): Vec_i32 {
-  return Vec_i32 { ptr: 0, len: 0, cap: 0, al: heap.default_alloc() };
+  return Vec_i32 { ptr: 0, length: 0, cap: 0, al: heap.default_alloc() };
 }
 /** Exported function `with_capacity`.
  * Implements `with_capacity`.
@@ -75,7 +75,7 @@ export function with_capacity(v: *Vec_i32, capacity: i32): i32 {
   if (0 == 0) {
     v.ptr = pu as *i32;
     v.cap = capacity;
-    v.len = 0;
+    v.length = 0;
     return 0;
   }
   return -1;
@@ -86,7 +86,7 @@ export function with_capacity(v: *Vec_i32, capacity: i32): i32 {
  * @return i32
  */
 export function reserve(v: *Vec_i32): i32 {
-  if (v.len < v.cap) { return 0; }
+  if (v.length < v.cap) { return 0; }
   let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
   if (want <= 0) { return -1; }
   if (v.al.kind == heap.kind_arena() && v.ptr != 0) { return -1; }
@@ -122,8 +122,8 @@ export function push(v: *Vec_i32, x: i32): i32 {
   if (reserve(v) != 0) {
     return -1;
   } else {
-    v.ptr[v.len] = x;
-    v.len = v.len + 1;
+    v.ptr[v.length] = x;
+    v.length = v.length + 1;
     return 0;
   }
 }
@@ -135,7 +135,7 @@ export function push(v: *Vec_i32, x: i32): i32 {
  * @return i32
  */
 export function push(v: *Vec_i32, x: i32, arena: *heap.Arena64): i32 {
-  if (v.len >= v.cap) {
+  if (v.length >= v.cap) {
     let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
     if (v.ptr != 0) {
       return -1;
@@ -147,8 +147,8 @@ export function push(v: *Vec_i32, x: i32, arena: *heap.Arena64): i32 {
     v.ptr = pu as *i32;
     v.cap = want;
   }
-  v.ptr[v.len] = x;
-  v.len = v.len + 1;
+  v.ptr[v.length] = x;
+  v.length = v.length + 1;
   return 0;
 }
 /** Exported function `pop`.
@@ -160,8 +160,8 @@ export function pop(v: *Vec_i32): i32 {
   /* Root block is a single if so the last stmt is not misread as implicit tail
    * return (see push). */
   if (0 == 0) {
-    v.len = v.len - 1;
-    return v.ptr[v.len];
+    v.length = v.length - 1;
+    return v.ptr[v.length];
   }
   return 0;
 }
@@ -170,7 +170,7 @@ export function pop(v: *Vec_i32): i32 {
  * @param v Vec_i32
  * @return i32
  */
-export function len(v: Vec_i32): i32 { return v.len; }
+export function length(v: Vec_i32): i32 { return v.length; }
 /** Exported function `capacity`.
  * Implements `capacity`.
  * @param v Vec_i32
@@ -198,7 +198,7 @@ export function set(v: *Vec_i32, i: i32, x: i32): void { v.ptr[i] = x; }
  * @return i32
  */
 export function is_empty(v: Vec_i32): i32 {
-  if (v.len <= 0) { return 1; }
+  if (v.length <= 0) { return 1; }
   return 0;
 }
 /** Exported function `clear`.
@@ -206,7 +206,7 @@ export function is_empty(v: Vec_i32): i32 {
  * @param v *Vec_i32
  * @return void
  */
-export function clear(v: *Vec_i32): void { v.len = 0; }
+export function clear(v: *Vec_i32): void { v.length = 0; }
 /** Exported function `truncate`.
  * Implements `truncate`.
  * @param v *Vec_i32
@@ -214,7 +214,7 @@ export function clear(v: *Vec_i32): void { v.len = 0; }
  * @return void
  */
 export function truncate(v: *Vec_i32, new_len: i32): void {
-  if (new_len < v.len) { v.len = new_len; }
+  if (new_len < v.length) { v.length = new_len; }
 }
 /** Exported function `reserve`.
  * Implements `reserve`.
@@ -250,10 +250,10 @@ export function reserve(v: *Vec_i32, new_cap: i32): i32 {
  */
 export function extend(v: *Vec_i32, ptr: *i32, n: i32): i32 {
   if (n <= 0) { return 0; }
-  if (reserve(v, v.len + n) != 0) { return -1; }
-  heap.copy(v.ptr, v.len, ptr, n);
+  if (reserve(v, v.length + n) != 0) { return -1; }
+  heap.copy(v.ptr, v.length, ptr, n);
   if (0 == 0) {
-    v.len = v.len + n;
+    v.length = v.length + n;
     return 0;
   }
 }
@@ -266,13 +266,13 @@ export function extend(v: *Vec_i32, ptr: *i32, n: i32): i32 {
 export function from_slice(ptr: *i32, n: i32): Vec_i32 {
   let v: Vec_i32 = new();
   if (n <= 0) { return v; }
-  if (with_capacity(&v, n) != 0) { return Vec_i32 { ptr: 0, len: -1, cap: 0, al: heap.default_alloc() }; }
+  if (with_capacity(&v, n) != 0) { return Vec_i32 { ptr: 0, length: -1, cap: 0, al: heap.default_alloc() }; }
   heap.copy(v.ptr, 0, ptr, n);
   if (0 == 0) {
-    v.len = n;
+    v.length = n;
     return v;
   }
-  return Vec_i32 { ptr: 0, len: 0, cap: 0, al: heap.default_alloc() };
+  return Vec_i32 { ptr: 0, length: 0, cap: 0, al: heap.default_alloc() };
 }
 /** Exported function `ptr`.
  * Implements `ptr`.
@@ -290,14 +290,14 @@ export function deinit(v: *Vec_i32): void {
     heap.free(v.al, v.ptr as *u8);
     v.ptr = 0;
   }
-  v.len = 0;
+  v.length = 0;
   v.cap = 0;
 }
 // ——— Vec_u8 ———
 /* See implementation. */
 allow(padding) struct Vec_u8 {
   ptr: *u8;
-  len: i32;
+  length: i32;
   cap: i32;
   al: heap.Allocator;
 }
@@ -306,7 +306,7 @@ allow(padding) struct Vec_u8 {
  * @return Vec_u8
  */
 export function new(): Vec_u8 {
-  return Vec_u8 { ptr: 0, len: 0, cap: 0, al: heap.default_alloc() };
+  return Vec_u8 { ptr: 0, length: 0, cap: 0, al: heap.default_alloc() };
 }
 /** Exported function `with_capacity`.
  * Implements `with_capacity`.
@@ -328,7 +328,7 @@ export function with_capacity(v: *Vec_u8, capacity: i32): i32 {
   if (0 == 0) {
     v.ptr = pu;
     v.cap = capacity;
-    v.len = 0;
+    v.length = 0;
     return 0;
   }
   return -1;
@@ -339,7 +339,7 @@ export function with_capacity(v: *Vec_u8, capacity: i32): i32 {
  * @return i32
  */
 export function reserve(v: *Vec_u8): i32 {
-  if (v.len < v.cap) { return 0; }
+  if (v.length < v.cap) { return 0; }
   let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
   if (want <= 0) { return -1; }
   if (v.al.kind == heap.kind_arena() && v.ptr != 0) { return -1; }
@@ -369,8 +369,8 @@ export function push(v: *Vec_u8, x: u8): i32 {
   if (reserve(v) != 0) {
     return -1;
   } else {
-    v.ptr[v.len] = x;
-    v.len = v.len + 1;
+    v.ptr[v.length] = x;
+    v.length = v.length + 1;
     return 0;
   }
 }
@@ -382,7 +382,7 @@ export function push(v: *Vec_u8, x: u8): i32 {
  * @return i32
  */
 export function push(v: *Vec_u8, x: u8, arena: *heap.Arena64): i32 {
-  if (v.len >= v.cap) {
+  if (v.length >= v.cap) {
     let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
     if (v.ptr != 0) {
       return -1;
@@ -394,8 +394,8 @@ export function push(v: *Vec_u8, x: u8, arena: *heap.Arena64): i32 {
     v.ptr = pu;
     v.cap = want;
   }
-  v.ptr[v.len] = x;
-  v.len = v.len + 1;
+  v.ptr[v.length] = x;
+  v.length = v.length + 1;
   return 0;
 }
 /** Exported function `pop`.
@@ -405,8 +405,8 @@ export function push(v: *Vec_u8, x: u8, arena: *heap.Arena64): i32 {
  */
 export function pop(v: *Vec_u8): u8 {
   if (0 == 0) {
-    v.len = v.len - 1;
-    return v.ptr[v.len];
+    v.length = v.length - 1;
+    return v.ptr[v.length];
   }
   return 0 as u8;
 }
@@ -415,13 +415,13 @@ export function pop(v: *Vec_u8): u8 {
  * @param v Vec_u8
  * @return i32
  */
-export function len(v: Vec_u8): i32 { return v.len; }
+export function length(v: Vec_u8): i32 { return v.length; }
 /** Exported function `len_ptr`.
  * Implements `len_ptr`.
  * @param v *Vec_u8
  * @return i32
  */
-export function len_ptr(v: *Vec_u8): i32 { return v.len; }
+export function len_ptr(v: *Vec_u8): i32 { return v.length; }
 /** Exported function `capacity`.
  * Implements `capacity`.
  * @param v Vec_u8
@@ -449,7 +449,7 @@ export function set(v: *Vec_u8, i: i32, x: u8): void { v.ptr[i] = x; }
  * @return i32
  */
 export function is_empty(v: Vec_u8): i32 {
-  if (v.len <= 0) { return 1; }
+  if (v.length <= 0) { return 1; }
   return 0;
 }
 /** Exported function `clear`.
@@ -457,7 +457,7 @@ export function is_empty(v: Vec_u8): i32 {
  * @param v *Vec_u8
  * @return void
  */
-export function clear(v: *Vec_u8): void { v.len = 0; }
+export function clear(v: *Vec_u8): void { v.length = 0; }
 /** Exported function `truncate`.
  * Implements `truncate`.
  * @param v *Vec_u8
@@ -465,7 +465,7 @@ export function clear(v: *Vec_u8): void { v.len = 0; }
  * @return void
  */
 export function truncate(v: *Vec_u8, new_len: i32): void {
-  if (new_len < v.len) { v.len = new_len; }
+  if (new_len < v.length) { v.length = new_len; }
 }
 /** Exported function `reserve`.
  * Implements `reserve`.
@@ -500,10 +500,10 @@ export function reserve(v: *Vec_u8, new_cap: i32): i32 {
  */
 export function extend(v: *Vec_u8, ptr: *u8, n: i32): i32 {
   if (n <= 0) { return 0; }
-  if (reserve(v, v.len + n) != 0) { return -1; }
-  heap.copy(v.ptr, v.len, ptr, n);
+  if (reserve(v, v.length + n) != 0) { return -1; }
+  heap.copy(v.ptr, v.length, ptr, n);
   if (0 == 0) {
-    v.len = v.len + n;
+    v.length = v.length + n;
     return 0;
   }
 }
@@ -516,13 +516,13 @@ export function extend(v: *Vec_u8, ptr: *u8, n: i32): i32 {
 export function from_slice(ptr: *u8, n: i32): Vec_u8 {
   let v: Vec_u8 = new();
   if (n <= 0) { return v; }
-  if (with_capacity(&v, n) != 0) { return Vec_u8 { ptr: 0, len: -1, cap: 0, al: heap.default_alloc() }; }
+  if (with_capacity(&v, n) != 0) { return Vec_u8 { ptr: 0, length: -1, cap: 0, al: heap.default_alloc() }; }
   heap.copy(v.ptr, 0, ptr, n);
   if (0 == 0) {
-    v.len = n;
+    v.length = n;
     return v;
   }
-  return Vec_u8 { ptr: 0, len: 0, cap: 0, al: heap.default_alloc() };
+  return Vec_u8 { ptr: 0, length: 0, cap: 0, al: heap.default_alloc() };
 }
 /** Exported function `ptr`.
  * Implements `ptr`.
@@ -540,7 +540,7 @@ export function deinit(v: *Vec_u8): void {
     heap.free(v.al, v.ptr);
     v.ptr = 0;
   }
-  v.len = 0;
+  v.length = 0;
   v.cap = 0;
 }
 
@@ -590,7 +590,7 @@ export function deinit(v: *Vec_u8, al: heap.Allocator): void {
     heap.free(al, v.ptr);
     v.ptr = 0;
   }
-  v.len = 0;
+  v.length = 0;
   v.cap = 0;
 }
 
@@ -598,7 +598,7 @@ export function deinit(v: *Vec_u8, al: heap.Allocator): void {
 /* See implementation. */
 allow(padding) struct Vec_u16 {
   ptr: *u16;
-  len: i32;
+  length: i32;
   cap: i32;
 }
 
@@ -607,7 +607,7 @@ allow(padding) struct Vec_u16 {
  * @return Vec_u16
  */
 export function new(): Vec_u16 {
-  return Vec_u16 { ptr: 0, len: 0, cap: 0 };
+  return Vec_u16 { ptr: 0, length: 0, cap: 0 };
 }
 
 /** Exported function `reserve`.
@@ -616,7 +616,7 @@ export function new(): Vec_u16 {
  * @return i32
  */
 export function reserve(v: *Vec_u16): i32 {
-  if (v.len < v.cap) { return 0; }
+  if (v.length < v.cap) { return 0; }
   let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
   let bytes: i32 = want * 2;
   let p: *u8 = if (v.ptr == 0) { heap.alloc(bytes) } else { heap.realloc(v.ptr as *u8, bytes) };
@@ -634,8 +634,8 @@ export function reserve(v: *Vec_u16): i32 {
  */
 export function push(v: *Vec_u16, x: u16): i32 {
   if (reserve(v) != 0) { return -1; }
-  v.ptr[v.len] = x;
-  v.len = v.len + 1;
+  v.ptr[v.length] = x;
+  v.length = v.length + 1;
   return 0;
 }
 
@@ -644,7 +644,7 @@ export function push(v: *Vec_u16, x: u16): i32 {
  * @param v Vec_u16
  * @return i32
  */
-export function len(v: Vec_u16): i32 { return v.len; }
+export function length(v: Vec_u16): i32 { return v.length; }
 
 /** Exported function `get`.
  * Implements `get`.
@@ -661,7 +661,7 @@ export function get(v: Vec_u16, i: i32): u16 { return v.ptr[i]; }
  */
 export function deinit(v: *Vec_u16): void {
   if (v.ptr != 0) { heap.free(v.ptr as *u8); v.ptr = 0; }
-  v.len = 0;
+  v.length = 0;
   v.cap = 0;
 }
 
@@ -670,7 +670,7 @@ export function deinit(v: *Vec_u16): void {
 /* See implementation. */
 allow(padding) struct Vec_u64 {
   ptr: *u64;
-  len: i32;
+  length: i32;
   cap: i32;
 }
 
@@ -679,7 +679,7 @@ allow(padding) struct Vec_u64 {
  * @return Vec_u64
  */
 export function new(): Vec_u64 {
-  return Vec_u64 { ptr: 0, len: 0, cap: 0 };
+  return Vec_u64 { ptr: 0, length: 0, cap: 0 };
 }
 
 /** Exported function `with_capacity`.
@@ -702,7 +702,7 @@ export function with_capacity(v: *Vec_u64, capacity: i32): i32 {
   if (0 == 0) {
     v.ptr = p;
     v.cap = capacity;
-    v.len = 0;
+    v.length = 0;
     return 0;
   }
   return -1;
@@ -714,7 +714,7 @@ export function with_capacity(v: *Vec_u64, capacity: i32): i32 {
  * @return i32
  */
 export function reserve_one(v: *Vec_u64): i32 {
-  if (v.len < v.cap) { return 0; }
+  if (v.length < v.cap) { return 0; }
   let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
   if (want <= 0) { return -1; }
   let p: *u64 = if (v.ptr == 0) { heap.alloc(want) } else { heap.realloc(v.ptr, want) };
@@ -754,10 +754,10 @@ export function reserve(v: *Vec_u64, new_cap: i32): i32 {
  */
 export function extend(v: *Vec_u64, ptr: *u64, n: i32): i32 {
   if (n <= 0) { return 0; }
-  if (reserve(v, v.len + n) != 0) { return -1; }
-  heap.copy(v.ptr, v.len, ptr, n);
+  if (reserve(v, v.length + n) != 0) { return -1; }
+  heap.copy(v.ptr, v.length, ptr, n);
   if (0 == 0) {
-    v.len = v.len + n;
+    v.length = v.length + n;
     return 0;
   }
   return -1;
@@ -772,13 +772,13 @@ export function extend(v: *Vec_u64, ptr: *u64, n: i32): i32 {
 export function from_slice(ptr: *u64, n: i32): Vec_u64 {
   let v: Vec_u64 = new();
   if (n <= 0) { return v; }
-  if (with_capacity(&v, n) != 0) { return Vec_u64 { ptr: 0, len: -1, cap: 0 }; }
+  if (with_capacity(&v, n) != 0) { return Vec_u64 { ptr: 0, length: -1, cap: 0 }; }
   heap.copy(v.ptr, 0, ptr, n);
   if (0 == 0) {
-    v.len = n;
+    v.length = n;
     return v;
   }
-  return Vec_u64 { ptr: 0, len: 0, cap: 0 };
+  return Vec_u64 { ptr: 0, length: 0, cap: 0 };
 }
 
 /** Exported function `len`.
@@ -786,7 +786,7 @@ export function from_slice(ptr: *u64, n: i32): Vec_u64 {
  * @param v Vec_u64
  * @return i32
  */
-export function len(v: Vec_u64): i32 { return v.len; }
+export function length(v: Vec_u64): i32 { return v.length; }
 
 /** Exported function `get`.
  * Implements `get`.
@@ -803,7 +803,7 @@ export function get(v: Vec_u64, i: i32): u64 { return v.ptr[i]; }
  */
 export function deinit(v: *Vec_u64): void {
   if (v.ptr != 0) { heap.free(v.ptr); v.ptr = 0; }
-  v.len = 0;
+  v.length = 0;
   v.cap = 0;
 }
 
@@ -812,7 +812,7 @@ export function deinit(v: *Vec_u64): void {
 /* See implementation. */
 allow(padding) struct Vec_f64 {
   ptr: *f64;
-  len: i32;
+  length: i32;
   cap: i32;
 }
 
@@ -821,7 +821,7 @@ allow(padding) struct Vec_f64 {
  * @return Vec_f64
  */
 export function new(): Vec_f64 {
-  return Vec_f64 { ptr: 0, len: 0, cap: 0 };
+  return Vec_f64 { ptr: 0, length: 0, cap: 0 };
 }
 
 /** Exported function `with_capacity`.
@@ -844,7 +844,7 @@ export function with_capacity(v: *Vec_f64, capacity: i32): i32 {
   if (0 == 0) {
     v.ptr = p;
     v.cap = capacity;
-    v.len = 0;
+    v.length = 0;
     return 0;
   }
   return -1;
@@ -856,7 +856,7 @@ export function with_capacity(v: *Vec_f64, capacity: i32): i32 {
  * @return i32
  */
 export function reserve_one(v: *Vec_f64): i32 {
-  if (v.len < v.cap) { return 0; }
+  if (v.length < v.cap) { return 0; }
   let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
   if (want <= 0) { return -1; }
   let p: *f64 = if (v.ptr == 0) { heap.alloc(want) } else { heap.realloc(v.ptr, want) };
@@ -896,10 +896,10 @@ export function reserve(v: *Vec_f64, new_cap: i32): i32 {
  */
 export function extend(v: *Vec_f64, ptr: *f64, n: i32): i32 {
   if (n <= 0) { return 0; }
-  if (reserve(v, v.len + n) != 0) { return -1; }
-  heap.copy(v.ptr, v.len, ptr, n);
+  if (reserve(v, v.length + n) != 0) { return -1; }
+  heap.copy(v.ptr, v.length, ptr, n);
   if (0 == 0) {
-    v.len = v.len + n;
+    v.length = v.length + n;
     return 0;
   }
   return -1;
@@ -914,13 +914,13 @@ export function extend(v: *Vec_f64, ptr: *f64, n: i32): i32 {
 export function from_slice(ptr: *f64, n: i32): Vec_f64 {
   let v: Vec_f64 = new();
   if (n <= 0) { return v; }
-  if (with_capacity(&v, n) != 0) { return Vec_f64 { ptr: 0, len: -1, cap: 0 }; }
+  if (with_capacity(&v, n) != 0) { return Vec_f64 { ptr: 0, length: -1, cap: 0 }; }
   heap.copy(v.ptr, 0, ptr, n);
   if (0 == 0) {
-    v.len = n;
+    v.length = n;
     return v;
   }
-  return Vec_f64 { ptr: 0, len: 0, cap: 0 };
+  return Vec_f64 { ptr: 0, length: 0, cap: 0 };
 }
 
 /** Exported function `len`.
@@ -928,7 +928,7 @@ export function from_slice(ptr: *f64, n: i32): Vec_f64 {
  * @param v Vec_f64
  * @return i32
  */
-export function len(v: Vec_f64): i32 { return v.len; }
+export function length(v: Vec_f64): i32 { return v.length; }
 
 /** Exported function `get`.
  * Implements `get`.
@@ -945,7 +945,7 @@ export function get(v: Vec_f64, i: i32): f64 { return v.ptr[i]; }
  */
 export function deinit(v: *Vec_f64): void {
   if (v.ptr != 0) { heap.free(v.ptr); v.ptr = 0; }
-  v.len = 0;
+  v.length = 0;
   v.cap = 0;
 }
 
@@ -955,13 +955,13 @@ allow(padding) struct Vec3f_soa {
   col_x: *f32;
   col_y: *f32;
   col_z: *f32;
-  len: i32;
+  length: i32;
   cap: i32;
 }
 /* See implementation. */
 allow(padding) struct Vec3f_aos {
   ptr: *f32;
-  len: i32;
+  length: i32;
   cap: i32;
 }
 /** Exported function `vec3f_soa_new`.
@@ -969,7 +969,7 @@ allow(padding) struct Vec3f_aos {
  * @return Vec3f_soa
  */
 export function vec3f_soa_new(): Vec3f_soa {
-  return Vec3f_soa { col_x: 0, col_y: 0, col_z: 0, len: 0, cap: 0 };
+  return Vec3f_soa { col_x: 0, col_y: 0, col_z: 0, length: 0, cap: 0 };
 }
 /** Exported function `vec3f_soa_with_capacity`.
  * Implements `vec3f_soa_with_capacity`.
@@ -1000,7 +1000,7 @@ export function vec3f_soa_with_capacity(v: *Vec3f_soa, capacity: i32): i32 {
     v.col_y = py;
     v.col_z = pz;
     v.cap = capacity;
-    v.len = 0;
+    v.length = 0;
     return 0;
   }
   return -1;
@@ -1011,7 +1011,7 @@ export function vec3f_soa_with_capacity(v: *Vec3f_soa, capacity: i32): i32 {
  * @return i32
  */
 export function vec3f_soa_reserve_one(v: *Vec3f_soa): i32 {
-  if (v.len < v.cap) { return 0; }
+  if (v.length < v.cap) { return 0; }
   let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
   if (want <= 0) { return -1; }
   let px: *f32 = if (v.col_x == 0) { heap.alloc(want) } else { heap.realloc(v.col_x, want) };
@@ -1042,11 +1042,11 @@ export function vec3f_soa_push(v: *Vec3f_soa, x: f32, y: f32, z: f32): i32 {
     return -1;
   }
   if (0 == 0) {
-    let i: i32 = v.len;
+    let i: i32 = v.length;
     v.col_x[i] = x;
     v.col_y[i] = y;
     v.col_z[i] = z;
-    v.len = v.len + 1;
+    v.length = v.length + 1;
     return 0;
   }
   return -1;
@@ -1056,7 +1056,7 @@ export function vec3f_soa_push(v: *Vec3f_soa, x: f32, y: f32, z: f32): i32 {
  * @param v Vec3f_soa
  * @return i32
  */
-export function vec3f_soa_len(v: Vec3f_soa): i32 { return v.len; }
+export function vec3f_soa_len(v: Vec3f_soa): i32 { return v.length; }
 /** Exported function `vec3f_soa_get_x`.
  * Implements `vec3f_soa_get_x`.
  * @param v Vec3f_soa
@@ -1101,7 +1101,7 @@ export function vec3f_soa_set(v: *Vec3f_soa, i: i32, x: f32, y: f32, z: f32): vo
 export function vec3f_soa_sum_x(v: *Vec3f_soa): f32 {
   let s: f32 = 0.0;
   let i: i32 = 0;
-  while (i < v.len) {
+  while (i < v.length) {
     s = s + v.col_x[i];
     i = i + 1;
   }
@@ -1116,7 +1116,7 @@ export function vec3f_soa_deinit(v: *Vec3f_soa): void {
   if (v.col_x != 0) { heap.free(v.col_x); v.col_x = 0; }
   if (v.col_y != 0) { heap.free(v.col_y); v.col_y = 0; }
   if (v.col_z != 0) { heap.free(v.col_z); v.col_z = 0; }
-  v.len = 0;
+  v.length = 0;
   v.cap = 0;
 }
 /** Exported function `vec3f_aos_new`.
@@ -1124,7 +1124,7 @@ export function vec3f_soa_deinit(v: *Vec3f_soa): void {
  * @return Vec3f_aos
  */
 export function vec3f_aos_new(): Vec3f_aos {
-  return Vec3f_aos { ptr: 0, len: 0, cap: 0 };
+  return Vec3f_aos { ptr: 0, length: 0, cap: 0 };
 }
 /** Exported function `vec3f_aos_with_capacity`.
  * Implements `vec3f_aos_with_capacity`.
@@ -1147,7 +1147,7 @@ export function vec3f_aos_with_capacity(v: *Vec3f_aos, capacity: i32): i32 {
   if (0 == 0) {
     v.ptr = p;
     v.cap = capacity;
-    v.len = 0;
+    v.length = 0;
     return 0;
   }
   return -1;
@@ -1158,7 +1158,7 @@ export function vec3f_aos_with_capacity(v: *Vec3f_aos, capacity: i32): i32 {
  * @return i32
  */
 export function vec3f_aos_reserve_one(v: *Vec3f_aos): i32 {
-  if (v.len < v.cap) { return 0; }
+  if (v.length < v.cap) { return 0; }
   let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
   if (want <= 0) { return -1; }
   let words: i32 = want * 3;
@@ -1186,11 +1186,11 @@ export function vec3f_aos_push(v: *Vec3f_aos, x: f32, y: f32, z: f32): i32 {
     return -1;
   }
   if (0 == 0) {
-    let base: i32 = v.len * 3;
+    let base: i32 = v.length * 3;
     v.ptr[base + 0] = x;
     v.ptr[base + 1] = y;
     v.ptr[base + 2] = z;
-    v.len = v.len + 1;
+    v.length = v.length + 1;
     return 0;
   }
   return -1;
@@ -1210,7 +1210,7 @@ export function vec3f_aos_get_x(v: Vec3f_aos, i: i32): f32 { return v.ptr[i * 3 
 export function vec3f_aos_sum_x(v: Vec3f_aos): f32 {
   let s: f32 = 0.0;
   let i: i32 = 0;
-  while (i < v.len) {
+  while (i < v.length) {
     s = s + v.ptr[i * 3 + 0];
     i = i + 1;
   }
@@ -1226,7 +1226,7 @@ export function vec3f_aos_deinit(v: *Vec3f_aos): void {
     heap.free(v.ptr);
     v.ptr = 0;
   }
-  v.len = 0;
+  v.length = 0;
   v.cap = 0;
 }
 /** Exported function `len_empty`.

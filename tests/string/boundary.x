@@ -15,18 +15,18 @@ function main(): i32 {
   if (string.is_empty(string.view(&buf[0], 0)) != 1) { return 1; }
   // See implementation.
   let mid: StrView = string.string_view_subview(full, 2, 3);
-  if (string.len(mid) != 3) { return 2; }
+  if (string.length(mid) != 3) { return 2; }
   // See implementation.
   let empty: StrView = string.string_view_subview(full, 99, 1);
   if (string.is_empty(empty) != 1) { return 3; }
   // See implementation.
   let tail: StrView = string.string_view_subview(full, 5, 99);
-  if (string.len(tail) != 2) { return 4; }
+  if (string.length(tail) != 2) { return 4; }
   // case 5：string_capacity
   if (string.string_capacity() != 256) { return 5; }
   // See implementation.
   let s: String = string.new();
-  if (string.len(s) != 0) { return 6; }
+  if (string.length(s) != 0) { return 6; }
   // See implementation.
   let s2: String = s;
   if (string.string_append_char(&s2, 120) != 0) { return 7; }

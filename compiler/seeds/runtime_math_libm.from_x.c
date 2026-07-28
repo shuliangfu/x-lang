@@ -1,12 +1,11 @@
 /* seeds/runtime_math_libm.from_x.c — G-02f-19 product TU
  * G-02f-119 true .x pure helpers.
  * G-02f-100 math helper gates.
- * Product: runtime_math_libm.o; logic still C until full .x port.
- */
-/**
- * runtime_math_libm.c — libm / fenv 胶层（F-ZC：自 std/math/math_libm_glue.c 迁入）
+ * Product: runtime_math_libm.o; R2 full mode — thin (.x) provides public API, rest (.c) provides OS bridges.
  *
- * floor/sin/sqrt/erf 等 libm 转发与 fenv；常量/signum/special_smoke 在 math.x；与 math.o 一并链入（须 -lm）。
+ * libm：floor/ceil/trunc/round/sin/cos/tan/asin/acos/atan/atan2/
+ *        sqrt/cbrt/pow/exp/log/fabs/signum/fmin/fmax/erf/erfc/log1p/expm1
+ * fenv：mask_to_fe/fe_to_mask/emit_cap_report/available/test/clear/raise/smoke/capability_smoke
  */
 #include <xlang_weak.h>
 #include <stdint.h>
@@ -32,64 +31,78 @@ XLANG_WEAK void diag_reportf(const char *file, int line, int col, const char *ta
 
 #define FENV_NOT_IMPL (-9)
 
-/* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
+/* thin forward declarations: thin functions (.x) called by rest smoke/test */
 int math_special_near(double a, double b, double eps);
 int math_fenv_mask_to_fe(int32_t mask);
 int32_t math_fenv_fe_to_mask(int fe);
 void math_fenv_emit_cap_report(int32_t avail);
 
-/** libm：向下取整。 */
-double math_floor_c(double x) { return floor(x); }
+#ifdef XLANG_RUNTIME_MATH_LIBM_FROM_X
+/* In R2 mode, _c functions are provided by thin (.x); rest needs forward decls */
+double math_erf_c(double x);
+double math_erfc_c(double x);
+double math_log1p_c(double x);
+double math_expm1_c(double x);
+int32_t math_fenv_available_c(void);
+#endif
 
-/** libm：向上取整。 */
-double math_ceil_c(double x) { return ceil(x); }
+/* === libm _impl functions (called by thin .x wrappers) === */
 
-/** libm：截断取整。 */
-double math_trunc_c(double x) { return trunc(x); }
+double math_floor_impl(double x) { return floor(x); }
+double math_ceil_impl(double x) { return ceil(x); }
+double math_trunc_impl(double x) { return trunc(x); }
+double math_round_impl(double x) { return round(x); }
+double math_sin_impl(double x) { return sin(x); }
+double math_cos_impl(double x) { return cos(x); }
+double math_tan_impl(double x) { return tan(x); }
+double math_asin_impl(double x) { return asin(x); }
+double math_acos_impl(double x) { return acos(x); }
+double math_atan_impl(double x) { return atan(x); }
+double math_atan2_impl(double y, double x) { return atan2(y, x); }
+double math_sqrt_impl(double x) { return sqrt(x); }
+double math_cbrt_impl(double x) { return cbrt(x); }
+double math_pow_impl(double base, double exp) { return pow(base, exp); }
+double math_exp_impl(double x) { return exp(x); }
+double math_log_impl(double x) { return log(x); }
+double math_fabs_impl(double x) { return fabs(x); }
+double math_fmin_impl(double a, double b) { return fmin(a, b); }
+double math_fmax_impl(double a, double b) { return fmax(a, b); }
+double math_erf_impl(double x) { return erf(x); }
+double math_erfc_impl(double x) { return erfc(x); }
+double math_log1p_impl(double x) { return log1p(x); }
+double math_expm1_impl(double x) { return expm1(x); }
 
-/** libm：四舍五入。 */
-double math_round_c(double x) { return round(x); }
+/* === libm thin wrappers (only when NOT in R2 from_x mode) === */
 
-/** libm：正弦。 */
-double math_sin_c(double x) { return sin(x); }
+#ifndef XLANG_RUNTIME_MATH_LIBM_FROM_X
+double math_floor_c(double x) { return math_floor_impl(x); }
+double math_ceil_c(double x) { return math_ceil_impl(x); }
+double math_trunc_c(double x) { return math_trunc_impl(x); }
+double math_round_c(double x) { return math_round_impl(x); }
+double math_sin_c(double x) { return math_sin_impl(x); }
+double math_cos_c(double x) { return math_cos_impl(x); }
+double math_tan_c(double x) { return math_tan_impl(x); }
+double math_asin_c(double x) { return math_asin_impl(x); }
+double math_acos_c(double x) { return math_acos_impl(x); }
+double math_atan_c(double x) { return math_atan_impl(x); }
+double math_atan2_c(double y, double x) { return math_atan2_impl(y, x); }
+double math_sqrt_c(double x) { return math_sqrt_impl(x); }
+double math_cbrt_c(double x) { return math_cbrt_impl(x); }
+double math_pow_c(double base, double exp) { return math_pow_impl(base, exp); }
+double math_exp_c(double x) { return math_exp_impl(x); }
+double math_log_c(double x) { return math_log_impl(x); }
+double math_fabs_c(double x) { return math_fabs_impl(x); }
+double math_fmin_c(double a, double b) { return math_fmin_impl(a, b); }
+double math_fmax_c(double a, double b) { return math_fmax_impl(a, b); }
+double math_erf_c(double x) { return math_erf_impl(x); }
+double math_erfc_c(double x) { return math_erfc_impl(x); }
+double math_log1p_c(double x) { return math_log1p_impl(x); }
+double math_expm1_c(double x) { return math_expm1_impl(x); }
+#endif
 
-/** libm：余弦。 */
-double math_cos_c(double x) { return cos(x); }
+/* === signum: thin provides full .x impl; rest keeps C copy for cold path === */
 
-/** libm：正切。 */
-double math_tan_c(double x) { return tan(x); }
-
-/** libm：反正弦。 */
-double math_asin_c(double x) { return asin(x); }
-
-/** libm：反余弦。 */
-double math_acos_c(double x) { return acos(x); }
-
-/** libm：反正切。 */
-double math_atan_c(double x) { return atan(x); }
-
-/** libm：双参数反正切。 */
-double math_atan2_c(double y, double x) { return atan2(y, x); }
-
-/** libm：平方根。 */
-double math_sqrt_c(double x) { return sqrt(x); }
-
-/** libm：立方根。 */
-double math_cbrt_c(double x) { return cbrt(x); }
-
-/** libm：幂。 */
-double math_pow_c(double base, double exp) { return pow(base, exp); }
-
-/** libm：自然指数。 */
-double math_exp_c(double x) { return exp(x); }
-
-/** libm：自然对数。 */
-double math_log_c(double x) { return log(x); }
-
-/** libm：绝对值。 */
-double math_fabs_c(double x) { return fabs(x); }
-
-/** signum：x>0→1，x<0→-1，x==0→0（自 math.x 迁至 libm 胶层，供 -E 构建 math.o）。 */
+#ifndef XLANG_RUNTIME_MATH_LIBM_FROM_X
 double math_signum_c(double x) {
   if (x > 0.0) {
     return 1.0;
@@ -99,28 +112,10 @@ double math_signum_c(double x) {
   }
   return 0.0;
 }
+#endif
 
-/** libm：较小值。 */
-double math_fmin_c(double a, double b) { return fmin(a, b); }
+/* === special_near: thin provides full .x impl; rest keeps C copy for cold path === */
 
-/** libm：较大值。 */
-double math_fmax_c(double a, double b) { return fmax(a, b); }
-
-/** libm：误差函数 erf。 */
-double math_erf_c(double x) { return erf(x); }
-
-/** libm：互补误差函数 erfc。 */
-double math_erfc_c(double x) { return erfc(x); }
-
-/** libm：log(1+x)。 */
-double math_log1p_c(double x) { return log1p(x); }
-
-/** libm：exp(x)-1。 */
-double math_expm1_c(double x) { return expm1(x); }
-
-/** 近似相等；1 是，0 否（STD-115 special_smoke 金样）。 */
-/* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：DIRECT 模式，thin（src/asm/runtime_math_libm.x）提供完整实现 */
 #ifndef XLANG_RUNTIME_MATH_LIBM_FROM_X
 int math_special_near(double a, double b, double eps) {
   double d = a - b;
@@ -131,10 +126,8 @@ int math_special_near(double a, double b, double eps) {
 }
 #endif
 
+/* === special_smoke_c: test function, always provided by seed === */
 
-
-
-/** STD-115 烟测：erf/log1p/expm1 金样；0 成功。 */
 int32_t math_special_smoke_c(void) {
   if (!math_special_near(math_erf_c(0.0), 0.0, 1.0e-12)) {
     return 1;
@@ -154,10 +147,11 @@ int32_t math_special_smoke_c(void) {
   return 0;
 }
 
+/* === fenv functions === */
+
 #if XLANG_MATH_HAVE_FENV
-/** 将 Xlang fenv 掩码转为 FE_* 位。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_math_libm.x）提供 public wrapper */
+
+/* fenv_mask_to_fe_impl: thin calls this via bridge declaration */
 int math_fenv_mask_to_fe_impl(int32_t mask) {
   int fe = 0;
   if (mask & 1) fe |= FE_INVALID;
@@ -168,19 +162,14 @@ int math_fenv_mask_to_fe_impl(int32_t mask) {
   return fe;
 }
 
+/* fenv_mask_to_fe: thin wrapper in .x; rest keeps C copy for cold path */
 #ifndef XLANG_RUNTIME_MATH_LIBM_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int math_fenv_mask_to_fe(int32_t mask) {
     return math_fenv_mask_to_fe_impl(mask);
 }
 #endif
 
-
-
-
-/** 将 FE_* 位转为 Xlang fenv 掩码。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_math_libm.x）提供 public wrapper */
+/* fenv_fe_to_mask_impl: thin calls this via bridge declaration */
 int32_t math_fenv_fe_to_mask_impl(int fe) {
   int32_t m = 0;
   if (fe & FE_INVALID) m |= 1;
@@ -191,20 +180,14 @@ int32_t math_fenv_fe_to_mask_impl(int fe) {
   return m;
 }
 
+/* fenv_fe_to_mask: thin wrapper in .x; rest keeps C copy for cold path */
 #ifndef XLANG_RUNTIME_MATH_LIBM_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t math_fenv_fe_to_mask(int fe) {
     return math_fenv_fe_to_mask_impl(fe);
 }
 #endif
 
-
-
-#endif
-
-/** 输出 STD-149 fenv 能力报告行到 stderr。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_math_libm.x）提供 public wrapper */
+/* fenv_emit_cap_report_impl: thin calls this via bridge declaration */
 void math_fenv_emit_cap_report_impl(int32_t avail) {
   const char *plat = "Unknown";
 #if defined(__APPLE__)
@@ -219,21 +202,18 @@ void math_fenv_emit_cap_report_impl(int32_t avail) {
                plat, (int)avail);
 }
 
+/* fenv_emit_cap_report: thin wrapper in .x; rest keeps C copy for cold path */
 #ifndef XLANG_RUNTIME_MATH_LIBM_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 void math_fenv_emit_cap_report(int32_t avail) {
     math_fenv_emit_cap_report_impl(avail);
 }
 #endif
 
+#endif /* XLANG_MATH_HAVE_FENV */
 
+/* === fenv public API _impl functions (called by thin .x wrappers) === */
 
-
-/**
- * 当前平台是否支持 fenv API。
- * 返回值：1 支持，0 不支持。
- */
-int32_t math_fenv_available_c(void) {
+int32_t math_fenv_available_impl_c(void) {
 #if XLANG_MATH_HAVE_FENV
   math_fenv_emit_cap_report(1);
   return 1;
@@ -243,10 +223,19 @@ int32_t math_fenv_available_c(void) {
 #endif
 }
 
-/**
- * 测试浮点异常标志；返回当前掩码，不支持时 FENV_NOT_IMPL。
- */
-int32_t math_fenv_test_c(int32_t mask) {
+#ifndef XLANG_RUNTIME_MATH_LIBM_FROM_X
+int32_t math_fenv_available_c(void) {
+#if XLANG_MATH_HAVE_FENV
+  math_fenv_emit_cap_report(1);
+  return 1;
+#else
+  math_fenv_emit_cap_report(0);
+  return 0;
+#endif
+}
+#endif
+
+int32_t math_fenv_test_impl_c(int32_t mask) {
 #if XLANG_MATH_HAVE_FENV
   return math_fenv_fe_to_mask(fetestexcept(math_fenv_mask_to_fe(mask)));
 #else
@@ -255,10 +244,18 @@ int32_t math_fenv_test_c(int32_t mask) {
 #endif
 }
 
-/**
- * 清除浮点异常标志；成功 0，失败 1，不支持 FENV_NOT_IMPL。
- */
-int32_t math_fenv_clear_c(int32_t mask) {
+#ifndef XLANG_RUNTIME_MATH_LIBM_FROM_X
+int32_t math_fenv_test_c(int32_t mask) {
+#if XLANG_MATH_HAVE_FENV
+  return math_fenv_fe_to_mask(fetestexcept(math_fenv_mask_to_fe(mask)));
+#else
+  (void)mask;
+  return FENV_NOT_IMPL;
+#endif
+}
+#endif
+
+int32_t math_fenv_clear_impl_c(int32_t mask) {
 #if XLANG_MATH_HAVE_FENV
   return feclearexcept(math_fenv_mask_to_fe(mask)) == 0 ? 0 : 1;
 #else
@@ -267,10 +264,18 @@ int32_t math_fenv_clear_c(int32_t mask) {
 #endif
 }
 
-/**
- * 触发浮点异常标志；成功 0，失败 1，不支持 FENV_NOT_IMPL。
- */
-int32_t math_fenv_raise_c(int32_t mask) {
+#ifndef XLANG_RUNTIME_MATH_LIBM_FROM_X
+int32_t math_fenv_clear_c(int32_t mask) {
+#if XLANG_MATH_HAVE_FENV
+  return feclearexcept(math_fenv_mask_to_fe(mask)) == 0 ? 0 : 1;
+#else
+  (void)mask;
+  return FENV_NOT_IMPL;
+#endif
+}
+#endif
+
+int32_t math_fenv_raise_impl_c(int32_t mask) {
 #if XLANG_MATH_HAVE_FENV
   return feraiseexcept(math_fenv_mask_to_fe(mask)) == 0 ? 0 : 1;
 #else
@@ -279,10 +284,18 @@ int32_t math_fenv_raise_c(int32_t mask) {
 #endif
 }
 
-/**
- * STD-059 fenv 烟测：invalid/overflow 往返；不支持返回 FENV_NOT_IMPL。
- */
-int32_t math_fenv_smoke_c(void) {
+#ifndef XLANG_RUNTIME_MATH_LIBM_FROM_X
+int32_t math_fenv_raise_c(int32_t mask) {
+#if XLANG_MATH_HAVE_FENV
+  return feraiseexcept(math_fenv_mask_to_fe(mask)) == 0 ? 0 : 1;
+#else
+  (void)mask;
+  return FENV_NOT_IMPL;
+#endif
+}
+#endif
+
+int32_t math_fenv_smoke_impl_c(void) {
 #if XLANG_MATH_HAVE_FENV
   feclearexcept(FE_ALL_EXCEPT);
   volatile double nan_val = 0.0 / 0.0;
@@ -299,8 +312,33 @@ int32_t math_fenv_smoke_c(void) {
 #endif
 }
 
-/** STD-149 能力烟测：输出 cap 报告行。 */
+#ifndef XLANG_RUNTIME_MATH_LIBM_FROM_X
+int32_t math_fenv_smoke_c(void) {
+#if XLANG_MATH_HAVE_FENV
+  feclearexcept(FE_ALL_EXCEPT);
+  volatile double nan_val = 0.0 / 0.0;
+  (void)nan_val;
+  if ((fetestexcept(FE_INVALID) & FE_INVALID) == 0) return 1;
+  if (feclearexcept(FE_INVALID) != 0) return 2;
+  if ((fetestexcept(FE_INVALID) & FE_INVALID) != 0) return 3;
+  if (feraiseexcept(FE_OVERFLOW) != 0) return 4;
+  if ((fetestexcept(FE_OVERFLOW) & FE_OVERFLOW) == 0) return 5;
+  feclearexcept(FE_ALL_EXCEPT);
+  return 0;
+#else
+  return FENV_NOT_IMPL;
+#endif
+}
+#endif
+
+int32_t math_fenv_capability_smoke_impl_c(void) {
+  (void)math_fenv_available_c();
+  return 0;
+}
+
+#ifndef XLANG_RUNTIME_MATH_LIBM_FROM_X
 int32_t math_fenv_capability_smoke_c(void) {
   (void)math_fenv_available_c();
   return 0;
 }
+#endif

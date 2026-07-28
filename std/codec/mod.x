@@ -278,7 +278,7 @@ export function encode_into_bytes(e: Encoder, src: *u8, src_len: i32, b: *Bytes)
   if (bytes.grow(b, need) != 0) { return err_buffer(); }
   let n: i32 = encoder_encode(e, src, src_len, b.ptr, b.cap);
   if (n < 0) { return n; }
-  b.len = n;
+  b.length = n;
   return n;
 }
 
@@ -291,10 +291,10 @@ export function encode_into_bytes(e: Encoder, src: *u8, src_len: i32, b: *Bytes)
  */
 export function decode_from_bytes(d: Decoder, src: Bytes, b: *Bytes): i32 {
   bytes.clear(b);
-  if (bytes.grow(b, src.len) != 0) { return err_buffer(); }
-  let n: i32 = decoder_decode(d, src.ptr, src.len, b.ptr, b.cap);
+  if (bytes.grow(b, src.length) != 0) { return err_buffer(); }
+  let n: i32 = decoder_decode(d, src.ptr, src.length, b.ptr, b.cap);
   if (n < 0) { return n; }
-  b.len = n;
+  b.length = n;
   return n;
 }
 

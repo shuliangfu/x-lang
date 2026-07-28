@@ -1113,15 +1113,20 @@ int xlang_import_path_is_file_path(const char *import_path) {
  */
 /* wave79: hybrid pure owns xlang_path_try_realpath_inplace (g05 realpath_opaque + stack 1024 +
  * pipe_cstr_copy); cold twin under #ifndef FROM_X.
- * PLATFORM: SHARED — POSIX/APPLE realpath+snprintf; non-POSIX no-op (same as pure harness null). */
+ * wave261 G.7: cold twin uses public pure thin link_abi_realpath_cap (wave218 → _impl host
+ * realpath), not raw libc realpath — align with product link_abi face (pure still uses
+ * xlang_driver_realpath_opaque for -E *u8/char* cast residual under g05 harness).
+ * PLATFORM: SHARED — POSIX/APPLE realpath face+snprintf; non-POSIX no-op (same as pure harness null). */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* Forward: defined in labi_path_io / mega rest (same product bag). */
+extern char *link_abi_realpath_cap(const char *path, char *out);
 void xlang_path_try_realpath_inplace(char *path, size_t path_size) {
     if (!path || path_size == 0)
         return;
 #if defined(_POSIX_VERSION) || defined(__APPLE__)
     {
         char resolved[1024];
-        if (realpath(path, resolved) != NULL)
+        if (link_abi_realpath_cap(path, resolved) != NULL)
             (void)snprintf(path, path_size, "%s", resolved);
     }
 #else

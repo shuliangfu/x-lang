@@ -6,7 +6,7 @@ license = "Apache-2.0"
 readme = "README.md"
 keywords = ["incremental", "parsing", "tree-sitter", "xlang"]
 categories = ["parsing", "text-editors"]
-repository = "https://github.com/shuliangfu/xlang"
+repository = "https://github.com/shuliangfu/x-lang"
 edition = "2021"
 autoexamples = false
 

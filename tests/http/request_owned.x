@@ -14,19 +14,19 @@ function main(): i32 {
 
   let owned: HttpRequestOwned = HttpRequestOwned {
     method: Method.POST,
-    url: HttpUrlOwned { ptr: 0, len: 0 },
-    body: HttpBodyOwned { ptr: 0, len: 0 },
+    url: HttpUrlOwned { ptr: 0, length: 0 },
+    body: HttpBodyOwned { ptr: 0, length: 0 },
     timeout_ms: 0
   };
   if (http.url_owned_from_slice(&url_buf[0], 24, &owned.url) != 24) { return 2; }
-  if (owned.url.len != 24) { return 3; }
+  if (owned.url.length != 24) { return 3; }
 
   let view: HttpRequest = HttpRequest {
     method: owned.method,
     url: owned.url.ptr,
-    url_len: owned.url.len,
+    url_len: owned.url.length,
     body: owned.body.ptr,
-    body_len: owned.body.len,
+    body_len: owned.body.length,
     timeout_ms: 0
   };
   if (view.url_len != 24) { return 4; }

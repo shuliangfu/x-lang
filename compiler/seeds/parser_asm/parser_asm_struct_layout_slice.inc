@@ -61,6 +61,13 @@ static int parser_asm_tok_is_modifier_soa(struct parser_asm_lexer_result *r,
 extern int32_t parser_asm_parse_type_ref_for_arena_into_slice_c(void *arena, struct parser_asm_lexer lex,
                                                                   struct parser_asm_slice_u8 *source,
                                                                   struct parser_asm_lexer *out_lex);
+/** wave466: skip `struct Name<...>` type-param angle list before body (fallback). */
+extern void parser_asm_skip_generic_angle_list_into_slice_c(struct parser_asm_lexer *out,
+                                                            struct parser_asm_lexer lex,
+                                                            struct parser_asm_slice_u8 *source);
+/** wave467: register type-param names on layout (`struct Pair<T,U>`). */
+extern int32_t pipeline_module_struct_layout_append_type_param(void *module, int32_t li, uint8_t *name,
+                                                              int32_t name_len);
 extern struct parser_asm_lexer parser_asm_skip_balanced_braces_slice_c(struct parser_asm_lexer lex,
                                                                          struct parser_asm_slice_u8 *source);
 extern int32_t parser_struct_field_name_from_tok_glue(struct parser_asm_lexer_result r,
@@ -974,46 +981,119 @@ int32_t parser_asm_parse_struct_record_layout_into_slice_c(void *arena, void *mo
   is_soa = force_soa;
   is_packed = 0;
   lexer_next_into(&r, lex, source);
-  if (parser_asm_tok_is_modifier_packed(&r, source)) {
-    is_packed = 1;
-    parser_asm_lex_from_result_val_into(&lex, r);
-    lexer_next_into(&r, lex, source);
-  }
-  if (parser_asm_tok_is_modifier_soa(&r, source)) {
-    is_soa = 1;
-    parser_asm_lex_from_result_val_into(&lex, r);
-    lexer_next_into(&r, lex, source);
-  }
-  if (is_packed && is_soa)
-    return -1;
-  if (r.tok.kind != (int32_t)TOKEN_LBRACE)
-    return -1;
-  lex = r.next_lex;
-  dup = parser_asm_struct_layout_name_exists_arr_c(module, sname_buf, sname_len);
-  weak_idx = parser_asm_struct_layout_placeholder_idx_c(module, sname_buf, sname_len);
-  replace_idx = -1;
-  if (dup) {
-    if (weak_idx < 0) {
-      replace_idx = parser_asm_struct_layout_first_name_match_idx_c(module, sname_buf, sname_len);
-      if (replace_idx < 0) {
-        lex = parser_asm_skip_balanced_braces_slice_c(lex, source);
-        out_lex->pos = lex.pos;
-        out_lex->line = lex.line;
-        out_lex->col = lex.col;
-        return 0;
+  /*
+   * wave466/467 Cap residual pure: `struct Name<T>` / `struct Name<T,U>` (docs/02).
+   * Prior: only packed/soa then `{` — `Wrap<T>{...}` hit TOKEN_LT and returned -1.
+   * wave466: skip angles so field loop records `v: T`.
+   * wave467: capture type-param IDENT names (optional `: Bound` soft-skip) into
+   * layout sidecar so multi mono maps field type `T`/`U` → type-arg slots.
+   * PLATFORM: SHARED parse.
+   */
+  {
+    uint8_t tp_names[8][64];
+    int32_t tp_lens[8];
+    int32_t n_tp;
+    int32_t tpi;
+    n_tp = 0;
+    if (r.tok.kind == (int32_t)TOKEN_LT) {
+      parser_asm_lex_from_result_val_into(&lex, r);
+      for (;;) {
+        lexer_next_into(&r, lex, source);
+        if (r.tok.kind != (int32_t)TOKEN_IDENT || r.tok.ident_len <= 0 || r.tok.ident_len > 63) {
+          /* Malformed angle list — fall back to skip so layout still registers. */
+          parser_asm_skip_generic_angle_list_into_slice_c(&lex, lex, source);
+          n_tp = 0;
+          lexer_next_into(&r, lex, source);
+          break;
+        }
+        if (n_tp < 8) {
+          int32_t k;
+          for (k = 0; k < 64; k++)
+            tp_names[n_tp][k] = 0;
+          parser_asm_copy_slice_to_name64_at_end_slice_c(source, r.next_lex.pos, r.tok.ident_len,
+                                                         tp_names[n_tp]);
+          tp_lens[n_tp] = r.tok.ident_len;
+          n_tp = n_tp + 1;
+        }
+        parser_asm_lex_from_result_val_into(&lex, r);
+        lexer_next_into(&r, lex, source);
+        /* Optional bound: `: Trait` / `: Trait + Other` — soft-skip idents and `+`. */
+        if (r.tok.kind == (int32_t)TOKEN_COLON) {
+          parser_asm_lex_from_result_val_into(&lex, r);
+          for (;;) {
+            lexer_next_into(&r, lex, source);
+            if (r.tok.kind == (int32_t)TOKEN_IDENT) {
+              parser_asm_lex_from_result_val_into(&lex, r);
+              lexer_next_into(&r, lex, source);
+              if (r.tok.kind == (int32_t)TOKEN_PLUS) {
+                parser_asm_lex_from_result_val_into(&lex, r);
+                continue;
+              }
+            }
+            break;
+          }
+        }
+        if (r.tok.kind == (int32_t)TOKEN_COMMA) {
+          parser_asm_lex_from_result_val_into(&lex, r);
+          continue;
+        }
+        if (r.tok.kind == (int32_t)TOKEN_GT) {
+          parser_asm_lex_from_result_val_into(&lex, r);
+          lexer_next_into(&r, lex, source);
+          break;
+        }
+        /* Unexpected token in angle list — skip remainder. */
+        parser_asm_skip_generic_angle_list_into_slice_c(&lex, lex, source);
+        n_tp = 0;
+        lexer_next_into(&r, lex, source);
+        break;
       }
-    } else {
-      replace_idx = weak_idx;
+    }
+    if (parser_asm_tok_is_modifier_packed(&r, source)) {
+      is_packed = 1;
+      parser_asm_lex_from_result_val_into(&lex, r);
+      lexer_next_into(&r, lex, source);
+    }
+    if (parser_asm_tok_is_modifier_soa(&r, source)) {
+      is_soa = 1;
+      parser_asm_lex_from_result_val_into(&lex, r);
+      lexer_next_into(&r, lex, source);
+    }
+    if (is_packed && is_soa)
+      return -1;
+    if (r.tok.kind != (int32_t)TOKEN_LBRACE)
+      return -1;
+    lex = r.next_lex;
+    dup = parser_asm_struct_layout_name_exists_arr_c(module, sname_buf, sname_len);
+    weak_idx = parser_asm_struct_layout_placeholder_idx_c(module, sname_buf, sname_len);
+    replace_idx = -1;
+    if (dup) {
+      if (weak_idx < 0) {
+        replace_idx = parser_asm_struct_layout_first_name_match_idx_c(module, sname_buf, sname_len);
+        if (replace_idx < 0) {
+          lex = parser_asm_skip_balanced_braces_slice_c(lex, source);
+          out_lex->pos = lex.pos;
+          out_lex->line = lex.line;
+          out_lex->col = lex.col;
+          return 0;
+        }
+      } else {
+        replace_idx = weak_idx;
+      }
+    }
+    layout_idx = replace_idx;
+    if (layout_idx < 0) {
+      layout_idx = pipeline_module_struct_layout_alloc(module);
+      if (layout_idx < 0)
+        return -1;
+    }
+    pipeline_module_struct_layout_reset_slot(module, layout_idx);
+    pipeline_module_struct_layout_set_name(module, layout_idx, sname_buf, sname_len);
+    for (tpi = 0; tpi < n_tp; tpi++) {
+      (void)pipeline_module_struct_layout_append_type_param(module, layout_idx, &tp_names[tpi][0],
+                                                            tp_lens[tpi]);
     }
   }
-  layout_idx = replace_idx;
-  if (layout_idx < 0) {
-    layout_idx = pipeline_module_struct_layout_alloc(module);
-    if (layout_idx < 0)
-      return -1;
-  }
-  pipeline_module_struct_layout_reset_slot(module, layout_idx);
-  pipeline_module_struct_layout_set_name(module, layout_idx, sname_buf, sname_len);
   nf = 0;
   for (;;) {
     lexer_next_into(&r, lex, source);
@@ -1065,7 +1145,18 @@ int32_t parser_asm_parse_struct_record_layout_into_slice_c(void *arena, void *mo
       pipeline_module_struct_layout_set_field_align(module, layout_idx, nf, field_align_req);
     nf++;
     lexer_next_into(&r, lex, source);
-    if (r.tok.kind == (int32_t)TOKEN_SEMICOLON) {
+    /*
+     * PLATFORM: SHARED — field list separators.
+     * wave355 Cap residual pure: accept TOKEN_COMMA as well as TOKEN_SEMICOLON.
+     * Prior: only `;` was consumed; `,` → return -1 after field 0 was already
+     * written (set_field bumps num_fields). Caller then skip_one_struct without
+     * clearing the slot → nf=1 incomplete layout pollution. Scalar STRUCT_LIT
+     * could be repaired by typeck ensure_struct_layout_from_struct_lit; array
+     * lit of STRUCT_LIT (`let a: Pt[N] = [Pt { x, y }]`) did not → host-C emit
+     * of only the first field (BLD001 missing later fields). Authority: this
+     * field-loop (G.7); docs/02 aligned to allow both separators.
+     */
+    if (r.tok.kind == (int32_t)TOKEN_SEMICOLON || r.tok.kind == (int32_t)TOKEN_COMMA) {
       parser_asm_lex_from_result_val_into(&lex, r);
     } else if (r.tok.kind == (int32_t)TOKEN_RBRACE) {
       parser_asm_lex_from_result_val_into(&lex, r);

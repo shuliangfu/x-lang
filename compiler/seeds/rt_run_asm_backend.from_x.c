@@ -28,6 +28,14 @@
 #include "runtime_proc_abi.h"
 #include "token.h"
 
+/* wave239 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED — cold seed residual raw getenv call sites migrate to this face
+ * (XLANG_DEBUG_PIPE / XLANG_ASM_DEBUG / XLANG_ASM_ENTRY_ONLY_DEBUG /
+ *  XLANG_ASM_SKIP_C_TYPECK_PRECHECK). Header may already declare; explicit for cold TU.
+ */
+extern char *link_abi_getenv(const char *name);
+
 #ifndef XLANG_TMP_PREFIX
 #if !defined(_WIN32) && !defined(_WIN64)
 #define XLANG_TMP_PREFIX "/tmp/xlang_"
@@ -50,7 +58,7 @@
 #define X_CODEGEN_OUTBUF_CAP (9 * 1024 * 1024)
 struct codegen_CodegenOutBuf {
   unsigned char data[X_CODEGEN_OUTBUF_CAP];
-  int32_t len;
+  int32_t length;
 };
 
 struct parser_ParseIntoResult {
@@ -224,7 +232,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     }
     parser_parse_into_set_main_index(module, pr_imp.main_idx);
     driver_set_pipeline_entry_source_len(src_len);
-    if (getenv("XLANG_DEBUG_PIPE"))
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: driver_first_parse num_funcs=%d src_len=%zu",
                      driver_get_module_num_funcs(module), src_len);
@@ -554,7 +562,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
              */
             int ec_loop;
             if (asm_smoke_only) {
-                if (getenv("XLANG_ASM_DEBUG"))
+                if (link_abi_getenv("XLANG_ASM_DEBUG"))
                     diag_reportf(NULL, 0, 0, "note", NULL,
                                  "asm debug: dep_prerun[%d] path=%s len=%zu", (int)j,
                                  dep_paths[j] ? dep_paths[j] : "?", (size_t)dep_lens[j]);
@@ -634,19 +642,19 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         /* === XLANG_ASM_ENTRY_ONLY_DEBUG: 分段日志，定位 segfault === */
         const char *entry_name = input_path ? strrchr(input_path, '/') : NULL;
         entry_name = entry_name ? entry_name + 1 : input_path;
-        if (getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
+        if (link_abi_getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "asm entry debug: entry=%s n_deps=%d",
                          entry_name ? entry_name : "?", n_deps);
         }
         /* 1. 预检：当前文件长度 */
-        if (getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
+        if (link_abi_getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "asm entry debug: src_len=%zu entry_funcs=%d",
                          src_len, driver_get_module_num_funcs(module));
         }
         /* 2. 调 pipeline_run_x_pipeline */
-        if (getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
+        if (link_abi_getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
             diag_report(NULL, 0, 0, "note",
                         "asm entry debug: BEFORE pipeline_run_x_pipeline", NULL);
         }
@@ -656,7 +664,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
          * 再 skip pipeline 内 .x typeck（第 2+ CALL 实参仍可能 SIGSEGV）。
          */
         if (!driver_asm_build_skip_typeck()) {
-            const char *skip_c_precheck = getenv("XLANG_ASM_SKIP_C_TYPECK_PRECHECK");
+            const char *skip_c_precheck = link_abi_getenv("XLANG_ASM_SKIP_C_TYPECK_PRECHECK");
             if (skip_c_precheck == NULL || skip_c_precheck[0] == '\0' || skip_c_precheck[0] == '0') {
                 if (driver_c_typeck_entry_large_stack(input_path, src, lib_roots_arr, n_lib_roots, 0) != 0) {
                     free(out_buf);
@@ -709,10 +717,10 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         ec = xlang_pipeline_run_x_pipeline_large_stack(module, arena, (const uint8_t *)src, src_len, (void *)out_buf, (void *)pctx);
         driver_x_pipeline_skip_typeck_set(0);
         driver_x_pipeline_skip_codegen_set(0);
-        if (getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
+        if (link_abi_getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "asm entry debug: AFTER pipeline_run_x_pipeline ec=%d funcs=%d out_len=%zu",
-                         ec, driver_get_module_num_funcs(module), (size_t)out_buf->len);
+                         ec, driver_get_module_num_funcs(module), (size_t)out_buf->length);
         }
         /* 3. 如果是 segfault，上面的 fprintf 不会执行；需要更前置的分段日志 */
         if (ec != 0 && !driver_check_diag_emitted_get()) {
@@ -721,10 +729,10 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         }
     }
     pctx->use_asm_backend = 1;
-    if (getenv("XLANG_ASM_DEBUG")) {
+    if (link_abi_getenv("XLANG_ASM_DEBUG")) {
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "asm debug: backend after pipeline ec=%d num_funcs=%d out_asm_len=%zu",
-                     ec, driver_get_module_num_funcs(module), (size_t)out_buf->len);
+                     ec, driver_get_module_num_funcs(module), (size_t)out_buf->length);
         pipeline_debug_module_funcs(module);
     }
     if (asm_smoke_only) {
@@ -755,11 +763,11 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 /* check 已有更具体失败诊断时，不再冒充 parse/typeck 成功摘要。 */
             }
             else if (driver_check_only_get()) {
-                driver_print_x_smoke_summary(module, (size_t)out_buf->len);
+                driver_print_x_smoke_summary(module, (size_t)out_buf->length);
                 if (input_path)
                     driver_print_check_ok(input_path);
             } else
-                driver_print_x_smoke_summary(module, (size_t)out_buf->len);
+                driver_print_x_smoke_summary(module, (size_t)out_buf->length);
             free(out_buf);
             pipeline_dep_ctx_heap_destroy(pctx);
             free(arena);
@@ -786,8 +794,8 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             return 0;
         }
     }
-    if (ec == 0 && (out_buf->len > 0 || emit_elf_o)) {
-        if (emit_elf_o && elf_ctx_ptr && !xlang_asm_out_buf_is_object(out_buf ? out_buf->data : NULL, out_buf ? (size_t)out_buf->len : 0)) {
+    if (ec == 0 && (out_buf->length > 0 || emit_elf_o)) {
+        if (emit_elf_o && elf_ctx_ptr && !xlang_asm_out_buf_is_object(out_buf ? out_buf->data : NULL, out_buf ? (size_t)out_buf->length : 0)) {
             /*
              * pipeline_run 后 driver_dep_seeded_clear_all 仅清全局槽；须把 dep 模块重新写入 pctx，
              * 且对用户多文件关闭 ENTRY_MODULE_ONLY，否则 asm_codegen_elf_o 只编 main、ld 缺 _foo_bar。
@@ -814,15 +822,15 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             }
             xlang_driver_asm_prepare_entry_elf_emit(module, arena, pctx);
             int32_t elf_ec = xlang_asm_codegen_elf_o_large_stack(module, arena, (void *)pctx, (struct platform_elf_ElfCodegenCtx *)elf_ctx_ptr, (void *)out_buf);
-            if (getenv("XLANG_ASM_DEBUG")) {
+            if (link_abi_getenv("XLANG_ASM_DEBUG")) {
                 diag_reportf(NULL, 0, 0, "note", NULL,
                              "asm debug: asm_codegen_elf_o elf_ec=%d elf_len=%zu",
-                             (int)elf_ec, (size_t)out_buf->len);
+                             (int)elf_ec, (size_t)out_buf->length);
             }
-            if (elf_ec != 0 || out_buf->len <= 0) {
+            if (elf_ec != 0 || out_buf->length <= 0) {
                 diag_reportf_with_code(input_path, 0, 0, "codegen error", XLANG_DIAG_CODE_CODEGEN_CG002, NULL,
                                        "asm_codegen_elf_o failed (elf_ec=%d, out_len=%zu, num_funcs=%d)",
-                                       (int)elf_ec, (size_t)out_buf->len, driver_get_module_num_funcs(module));
+                                       (int)elf_ec, (size_t)out_buf->length, driver_get_module_num_funcs(module));
                 if (elf_ec == XLANG_ASM_CODEGEN_ELF_EMPTY_TEXT_RC)
                     diag_report(NULL, 0, 0, "note",
                                 "asm backend produced no object text; empty .o emission was rejected", NULL);
@@ -841,7 +849,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 return 1;
             }
         }
-        fwrite(out_buf->data, 1, (size_t)out_buf->len, asm_out ? asm_out : stdout);
+        fwrite(out_buf->data, 1, (size_t)out_buf->length, asm_out ? asm_out : stdout);
         if (!asm_out)
             fflush(stdout);
         driver_asm_fclose_asm_out(asm_out);

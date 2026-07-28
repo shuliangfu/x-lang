@@ -26,7 +26,7 @@
 | **C1-null** | `cstr_len` | 若传 null，接受 -1 | 不解引用 null |
 | **C2-empty** | `cstr_len` | 缓冲须 NUL 结尾 | 空串返回 0 |
 | **C3-owned** | `cstring_new` | `len≥0`；`ptr` 可 null 当 len=0 | 分配 len+1 字节并写 NUL |
-| **C4-copy** | `cstring_new` | `ptr[0..len)` 可读 | 复制后独立 owned |
+| **C4-copy** | `cstring_new` | `ptr[0..length)` 可读 | 复制后独立 owned |
 | **C5-free** | `cstring_free` | 仅释放 `cstring_new` 指针 | `null` 为 no-op |
 | **C6-lifetime** | new/free | 每条 owned 指针 **恰好 free 一次** | 不 double-free |
 | **C7-extern** | `extern` C 符号 | 调用方保证 ABI/参数合法 | 编译器不校验 C 侧 |

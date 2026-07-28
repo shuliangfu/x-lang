@@ -64,6 +64,7 @@ export extern "C" function xlang_runtime_time_os_o_path(argv0: *u8): *u8;
 export extern "C" function xlang_runtime_queue_contention_o_path(argv0: *u8): *u8;
 export extern "C" function xlang_runtime_dynlib_os_o_path(argv0: *u8): *u8;
 export extern "C" function xlang_runtime_env_os_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_link_abi_user_env_o_path(argv0: *u8): *u8;
 export extern "C" function xlang_runtime_backtrace_platform_o_path(argv0: *u8): *u8;
 export extern "C" function xlang_runtime_log_os_o_path(argv0: *u8): *u8;
 export extern "C" function xlang_runtime_math_libm_o_path(argv0: *u8): *u8;
@@ -110,7 +111,7 @@ export extern "C" function xlang_debug_hello_stage1_report(hypothesis_id: *u8, l
  */
 #[no_mangle]
 export function labi_ensure_catalog_count(): i32 {
-  return 26;
+  return 27;
 }
 
 /** Exported function `labi_ensure_catalog_stem`.
@@ -225,6 +226,10 @@ export function labi_ensure_catalog_stem(i: i32): *u8 {
   }
   if (i == 25) {
     let p: *u8 = "runtime_ed25519_ref10_glue";
+    return p;
+  }
+  if (i == 26) {
+    let p: *u8 = "runtime_link_abi_user_env";
     return p;
   }
   return 0 as *u8;
@@ -344,6 +349,10 @@ export function labi_ensure_catalog_out_base(i: i32): *u8 {
     let p: *u8 = "runtime_ed25519_ref10_glue.o";
     return p;
   }
+  if (i == 26) {
+    let p: *u8 = "runtime_link_abi_user_env.o";
+    return p;
+  }
   return 0 as *u8;
 }
 
@@ -461,6 +470,10 @@ export function labi_ensure_catalog_seed_base(i: i32): *u8 {
     let p: *u8 = "runtime_ed25519_ref10_glue.from_x.c";
     return p;
   }
+  if (i == 26) {
+    let p: *u8 = "runtime_link_abi_user_env.from_x.c";
+    return p;
+  }
   return 0 as *u8;
 }
 
@@ -483,7 +496,7 @@ export function labi_ensure_catalog_flags(i: i32): i32 {
   if (i == 23) {
     return 2; // LABI_ENS_FLAG_SQLITE
   }
-  if (i >= 26) {
+  if (i >= 27) {
     return 0;
   }
   return 0;
@@ -503,7 +516,7 @@ export function labi_ensure_catalog_step_at(
   if (i < 0) {
     return 0;
   }
-  if (i >= 26) {
+  if (i >= 27) {
     return 0;
   }
   let s: *u8 = labi_ensure_catalog_stem(i);
@@ -2374,6 +2387,23 @@ export function xlang_ensure_runtime_ed25519_ref10_glue_o(argv0: *u8): i32 {
 }
 
 /**
+ * Catalog thin ensure wrap for runtime_link_abi_user_env.o (wave253).
+ * @param argv0 *u8 — optional product host path; may be null
+ * @return i32 — 0 success, non-zero ensure failure
+ * PLATFORM: SHARED — user-domain residual face companion; never g05 host bag.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function xlang_ensure_runtime_link_abi_user_env_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = xlang_runtime_link_abi_user_env_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 26, p);
+}
+
+
+/**
  * Prepare runtime objects and freestanding gates before asm -o exe link (invoke_ld path).
  * Pure orch over peer ensure_* / freestanding / user_needs; Cap residual debug report +
  * freestanding_unsupported only. Order and gates ≡ historical mega C body.
@@ -2426,6 +2456,14 @@ export function xlang_asm_ld_prepare_for_exe_link(link_eff: *u8, user_o: *u8, dr
       if (prc != 0) {
         return 0 - 1;
       }
+      // wave253: companion user-domain face (weak) with freestanding panic.
+      let ue1: i32 = 0;
+      unsafe {
+        ue1 = xlang_ensure_runtime_link_abi_user_env_o(link_eff);
+      }
+      if (ue1 != 0) {
+        return 0 - 1;
+      }
     }
   } else {
     let prc2: i32 = 0;
@@ -2433,6 +2471,14 @@ export function xlang_asm_ld_prepare_for_exe_link(link_eff: *u8, user_o: *u8, dr
       prc2 = xlang_ensure_runtime_panic_o(link_eff);
     }
     if (prc2 != 0) {
+      return 0 - 1;
+    }
+    // wave253: companion user-domain face for residual declare-only / Linux .s panic.
+    let ue2: i32 = 0;
+    unsafe {
+      ue2 = xlang_ensure_runtime_link_abi_user_env_o(link_eff);
+    }
+    if (ue2 != 0) {
       return 0 - 1;
     }
   }

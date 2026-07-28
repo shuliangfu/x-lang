@@ -6,6 +6,11 @@
  * G-02f-106 helper gates.
  * G-02f-105 helper gates.
  * Logic still C until full .x port.
+ *
+ * wave252 G.7: XLANG_HTTPS_SMOKE_PORT via public face link_abi_getenv (not raw getenv).
+ * wave253: face body in runtime_link_abi_user_env.o (declaration only here).
+ * Weak user-domain twin; strong may come from runtime_panic C seed (wave251).
+ * PLATFORM: SHARED — user/STD_AND_PANIC residual face; never g05 host bag.
  */
 /**
  * runtime_http_glue.c — F-ZC：自 std/http/http_glue.c 迁入 — HTTP 客户端胶层（F-http v1）：最小 HTTP 客户端（P4 可选；对标 Zig std.http、Rust reqwest 最小子集）
@@ -18,6 +23,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+/* wave253: declaration only — face body in runtime_link_abi_user_env.o (weak; panic C strong wins). */
+#include <xlang_user_link_abi_getenv.h>
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <winsock2.h>
@@ -737,7 +744,8 @@ int32_t http_is_https_available_c(void) { return net_tls_is_available_c(); }
 
 /** HTTPS GET 烟测：须 XLANG_HTTPS_SMOKE_PORT + net-o-openssl；桩后端返回 0（SKIP）。 */
 int32_t http_https_smoke_c(void) {
-  const char *port_env = getenv("XLANG_HTTPS_SMOKE_PORT");
+  /* wave252 G.7: env via public face link_abi_getenv (not raw libc getenv). */
+  const char *port_env = link_abi_getenv("XLANG_HTTPS_SMOKE_PORT");
   char url[128];
   uint8_t buf[512];
   int32_t n;

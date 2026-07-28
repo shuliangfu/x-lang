@@ -28,13 +28,19 @@ static inline uint32_t xlang_builtin_rotr_u32(uint32_t x, uint32_t c) {
   c &= 31; return c == 0 ? x : (x >> c) | (x << (32 - c));
 }
 #endif
+/* wave245 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED orch / host getenv residual via single face.
+ * Compiler-only gen seed pin (CRASH_EVIDENCE inline) — not user program template
+ * (runtime.from_x.c fprintf CRASH_EVIDENCE user C templates use link_abi_getenv since wave254). */
+extern char *link_abi_getenv(const char *name);
 extern int getpid(void);
 static inline void xlang_crash_evidence_collect_inline(int has_msg, int msg_val) {
-  const char *_ev = getenv("XLANG_CRASH_EVIDENCE");
+  const char *_ev = link_abi_getenv("XLANG_CRASH_EVIDENCE");
   if (!_ev || _ev[0] != '1') return;
   int _pid = (int)getpid();
   fprintf(stderr, "note: crash evidence: panic=%d msg=%d frames=0 pid=%d\n", has_msg, msg_val, _pid);
-  const char *_dir = getenv("XLANG_CRASH_EVIDENCE_DIR");
+  const char *_dir = link_abi_getenv("XLANG_CRASH_EVIDENCE_DIR");
   if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, "%s/xlang-crash-%d.txt", _dir, _pid);
     FILE *_f = fopen(_p, "w"); if (_f) { fprintf(_f, "panic_has_msg=%d\npanic_msg=%d\nframes=0\npid=%d\n", has_msg, msg_val, _pid); fclose(_f);
       fprintf(stderr, "note: crash evidence: bundle=%s\n", _p); } } }
@@ -63,7 +69,7 @@ struct ast_StructLayout { uint8_t name[64]; int32_t name_len; int32_t field_base
 struct ast_Module { int32_t num_funcs; int32_t main_func_index; int32_t num_imports; int32_t num_top_level_lets; int32_t num_struct_layouts; int32_t pending_allow_padding; int32_t pending_soa_struct; int32_t pending_cfg_skip; int32_t pending_repr_c_struct; int32_t pending_repr_compatible_struct; int32_t pending_used; int32_t pending_naked; int32_t pending_entry; int32_t pending_no_mangle; int32_t pending_interrupt; int32_t pending_export; int32_t num_module_enums; };
 struct ast_ASTArena { int32_t num_types; int32_t num_exprs; int32_t num_blocks; int32_t num_funcs; };
 struct ast_PipelineDepCtx { int32_t ndep; uint8_t entry_dir_buf[512]; int32_t entry_dir_len; int32_t num_lib_roots; uint8_t path_buf[512]; uint8_t loaded_buf[4194304]; ptrdiff_t loaded_len; uint8_t preprocess_buf[4194304]; int32_t preprocess_len; int32_t use_asm_backend; int32_t target_arch; int32_t target_cpu_features; int32_t use_macho_o; int32_t use_coff_o; int32_t current_block_ref; int32_t typeck_loop_depth; int32_t current_func_index; int32_t skip_codegen_dep_0; int32_t entry_already_parsed; int32_t current_func_single_empty_param_index; int32_t current_func_empty_param_count; int32_t current_emit_empty_var_next_index; int32_t emit_expr_as_callee; struct ast_Module * current_codegen_module; struct ast_ASTArena * current_codegen_arena; int32_t current_codegen_dep_index; uint8_t current_codegen_prefix_mirror[64]; int32_t current_codegen_prefix_len; int32_t asm_entry_module_only; uint8_t entry_module_import_path_mirror[64]; int32_t entry_module_import_path_len; int32_t typeck_scope_region_len; uint8_t typeck_scope_region_label[64]; };
-struct codegen_CodegenOutBuf { uint8_t data[9437184]; int32_t len; };
+struct codegen_CodegenOutBuf { uint8_t data[9437184]; int32_t length; };
 /* slim arena grow pool glue (C-04 codegen; linked from pipeline/runtime) */
 extern struct ast_Expr pipeline_arena_expr_get_copy(struct ast_ASTArena *a, int32_t ref);
 extern struct ast_Block pipeline_arena_block_get_copy(struct ast_ASTArena *a, int32_t ref);
@@ -473,13 +479,13 @@ XLANG_LIB_WEAK int32_t main_driver_run_x_emit_x(struct main_DriverXEmitState * s
  }
   ((ctx).num_lib_roots = (0));
   (void)(main_driver_emit_copy_lib_roots_to_ctx(state, (&(ctx))));
-  struct codegen_CodegenOutBuf out = ({ struct codegen_CodegenOutBuf _t = { 0 }; _t.len = 0; _t; });
+  struct codegen_CodegenOutBuf out = ({ struct codegen_CodegenOutBuf _t = { 0 }; _t.length = 0; _t; });
   size_t source_len = ((size_t)(out_len));
   int32_t rc = pipeline_run_x_pipeline_impl(module_buf, arena_buf, preprocess_buf, source_len, (&(out)), (&(ctx)));
   if (rc != 0) {   (void)(driver_pipeline_fail_code(rc, (&(((ctx).path_buf)[0]))));
   return 1;
  }
-  int32_t len = (out).len;
+  int32_t len = (out).length;
   if ((state)->out_path_len == 0) {   (void)(driver_print_x_smoke_summary(module_buf, ((size_t)(len))));
  }
   if ((state)->out_path_len > 0) {   int32_t fd = driver_fs_open_write((state)->out_path_buf, (state)->out_path_len);

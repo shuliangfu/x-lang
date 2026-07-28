@@ -47,6 +47,19 @@ export extern function pipeline_type_named_name_into(arena: *ASTArena, ref: i32,
 export extern function pipeline_type_kind_ord_at(arena: *ASTArena, ref: i32): i32;
 export extern function pipeline_type_elem_ref_at(arena: *ASTArena, ref: i32): i32;
 export extern function pipeline_type_array_size_at(arena: *ASTArena, ref: i32): i32;
+/** wave467: TYPE_NAMED type-pos arg at index (`Name<T,U>` sidecar). */
+export extern function pipeline_type_type_arg_ref_at(arena: *ASTArena, type_ref: i32, idx: i32): i32;
+export extern function pipeline_module_struct_layout_num_type_params_at(module: *Module, li: i32): i32;
+export extern function pipeline_module_struct_layout_type_param_name_len(module: *Module, li: i32, j: i32): i32;
+export extern function pipeline_module_struct_layout_type_param_name_into(module: *Module, li: i32, j: i32, out64: *u8): void;
+/**
+ * Peel `type Alias = Target` for host-C emit (wave376).
+ * @param arena *ASTArena — type pool
+ * @param type_ref i32 — possibly TYPE_NAMED alias
+ * @return i32 — underlying type_ref
+ * PLATFORM: SHARED — needs g_typeck_active_module (set through typeck; kept for codegen).
+ */
+export extern function pipeline_typeck_resolve_type_alias_ref_c(arena: *ASTArena, type_ref: i32): i32;
 /* See implementation. */
 export extern function pipeline_codegen_type_to_c_repr(arena: *ASTArena, scratch: *u8, cap: i32, type_ref: i32, struct_prefix: *u8, struct_prefix_len: i32): i32;
 /* See implementation. */
@@ -100,10 +113,21 @@ export extern function pipeline_expr_is_c_static_const_init(arena: *ASTArena, ex
 export extern function pipeline_expr_resolved_type_ref(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_as_target_type_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_call_arg_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
+/** wave452: CALL turbofish type-arg type_ref (sidecar); 0 if count-only / missing. */
+export extern function pipeline_expr_call_type_arg_ref_at(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
+export extern function pipeline_expr_call_num_type_args_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_call_resolved_dep_index_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_call_resolved_func_index_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_method_call_arg_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
 export extern function pipeline_expr_match_arm_result_ref(arena: *ASTArena, expr_ref: i32, i: i32): i32;
+/** True if match arm i is the `_` wildcard (ends nested-ternary chain). */
+export extern function pipeline_expr_match_arm_is_wildcard(arena: *ASTArena, expr_ref: i32, i: i32): i32;
+/** Integer literal pattern value for match arm i (non-enum, non-wildcard). */
+export extern function pipeline_expr_match_arm_lit_val(arena: *ASTArena, expr_ref: i32, i: i32): i32;
+/** True if match arm i compares against an enum variant tag. */
+export extern function pipeline_expr_match_arm_is_enum_variant(arena: *ASTArena, expr_ref: i32, i: i32): i32;
+/** Enum variant index used as compare value for match arm i. */
+export extern function pipeline_expr_match_arm_variant_index(arena: *ASTArena, expr_ref: i32, i: i32): i32;
 export extern function pipeline_expr_array_lit_elem_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
 export extern function pipeline_expr_array_lit_num_elems_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_struct_lit_field_name_len(arena: *ASTArena, expr_ref: i32, j: i32): i32;
@@ -129,11 +153,27 @@ export extern function pipeline_module_func_param_name_copy32(module: *Module, f
 /* See implementation. */
 export extern function pipeline_module_func_num_params_at(module: *Module, fi: i32): i32;
 export extern function pipeline_module_func_param_name_len_at(module: *Module, fi: i32, pi: i32): i32;
+export extern function pipeline_module_func_param_type_ref_at(module: *Module, fi: i32, pi: i32): i32;
 export extern function pipeline_module_func_name_len_at(module: *Module, fi: i32): i32;
 /* See implementation. */
 export extern function pipeline_module_func_num_generic_params_at(module: *Module, fi: i32): i32;
 export extern function pipeline_module_func_return_type_at(module: *Module, fi: i32): i32;
 export extern function pipeline_module_func_body_ref_at(module: *Module, fi: i32): i32;
+/**
+ * wave343 Cap residual: find `let s: T[] = a` where a is fixed TYPE_ARRAY under
+ * body_ref (top-level and nested if/while/for/region/EXPR_BLOCK). Authority in
+ * pipeline_glue.c (shared with freestanding escape). Soft: reassign; untyped-let.
+ * @param arena *ASTArena — AST arena
+ * @param body_ref i32 — function body block ref
+ * @param vname *u8 — return VAR name bytes
+ * @param vlen i32 — name length
+ * @param out_arr_sz *i32 — fixed array N on success
+ * @param out_elem_tr *i32 — element type ref on success
+ * @param out_arr_init_ref *i32 — init VAR expr ref (may be null)
+ * @return i32 — 1 found; 0 not found
+ * PLATFORM: SHARED
+ */
+export extern function pipeline_find_fixed_array_slice_escape(arena: *ASTArena, body_ref: i32, vname: *u8, vlen: i32, out_arr_sz: *i32, out_elem_tr: *i32, out_arr_init_ref: *i32): i32;
 /* See implementation. */
 export extern function pipeline_dep_ctx_empty_param_reset(ctx: *PipelineDepCtx): void;
 export extern function pipeline_dep_ctx_empty_param_append(ctx: *PipelineDepCtx, pi: i32): i32;
@@ -168,6 +208,14 @@ export extern function pipeline_module_func_ref_at(module: *Module, func_index: 
 export extern function pipeline_asm_resolve_whole_import_qualified_symbol_c(arena: *ASTArena, cur_mod: *Module, callee_expr_ref: i32, sym_flat: *u8, out_match_imp_j: *i32): i32;
 export extern function pipeline_block_stmt_order_kind(arena: *ASTArena, br: i32, si: i32): u8;
 export extern function pipeline_block_stmt_order_idx(arena: *ASTArena, br: i32, si: i32): i32;
+/** wave379: labeled/goto stmt_order kind=7 accessors. PLATFORM: SHARED. */
+export extern function pipeline_block_num_labeled_stmts(arena: *ASTArena, br: i32): i32;
+export extern function pipeline_block_labeled_is_goto(arena: *ASTArena, br: i32, li: i32): i32;
+export extern function pipeline_block_labeled_label_len(arena: *ASTArena, br: i32, li: i32): i32;
+export extern function pipeline_block_labeled_label_copy32(arena: *ASTArena, br: i32, li: i32, dst: *u8): void;
+export extern function pipeline_block_labeled_goto_target_len(arena: *ASTArena, br: i32, li: i32): i32;
+export extern function pipeline_block_labeled_goto_target_copy32(arena: *ASTArena, br: i32, li: i32, dst: *u8): void;
+export extern function pipeline_block_labeled_return_expr_ref(arena: *ASTArena, br: i32, li: i32): i32;
 
 /**
  * See implementation.
@@ -1442,6 +1490,68 @@ export function codegen_should_skip_emit_std_io_trivial_handle(dep_path: *u8, na
 }
 
 /**
+ * wave377 Cap residual pure: same-module true redefinition first-wins body emit.
+ * Host C rejects two strong definitions of the same link name (BLD001). Skip a later
+ * non-extern body only when it is a true redefinition of an earlier non-extern body:
+ * same surface name, same arity, and same param type_refs at every index.
+ * True overloads (e.g. pick(i32) vs pick(i64)) share name+arity but differ in param
+ * types and mangle to distinct host symbols — they must still be emitted (wave383:
+ * name+arity-only skip dropped overload_pick_i64 → types gate link UNDEF).
+ * @param module *Module — current module (null → 0)
+ * @param fi i32 — candidate function index
+ * @return i32 — 1 skip (superseded by earlier same-signature body); 0 emit this body
+ * PLATFORM: SHARED — host-C body emit path; authority: signature match not name alone.
+ */
+export function codegen_should_skip_later_same_name_body(module: *Module, fi: i32): i32 {
+  if (module == 0 as *Module || fi <= 0) {
+    return 0;
+  }
+  if (pipeline_module_func_is_extern_at(module, fi) != 0) {
+    return 0;
+  }
+  let nlen: i32 = pipeline_module_func_name_len_at(module, fi);
+  if (nlen <= 0 || nlen > 63) {
+    return 0;
+  }
+  let name: u8[64] = [];
+  pipeline_module_func_name_copy64(module, fi, &name[0]);
+  let np: i32 = pipeline_module_func_num_params_at(module, fi);
+  let j: i32 = 0;
+  while (j < fi) {
+    if (pipeline_module_func_is_extern_at(module, j) == 0) {
+      let jlen: i32 = pipeline_module_func_name_len_at(module, j);
+      if (jlen == nlen && pipeline_module_func_num_params_at(module, j) == np) {
+        let jname: u8[64] = [];
+        pipeline_module_func_name_copy64(module, j, &jname[0]);
+        let eq: i32 = 1;
+        let k: i32 = 0;
+        while (k < nlen) {
+          if (name[k] != jname[k]) {
+            eq = 0;
+          }
+          k = k + 1;
+        }
+        // Same name+arity is not enough: compare param type_refs (true redef vs overload).
+        if (eq != 0) {
+          let pi: i32 = 0;
+          while (pi < np) {
+            if (pipeline_module_func_param_type_ref_at(module, fi, pi) != pipeline_module_func_param_type_ref_at(module, j, pi)) {
+              eq = 0;
+            }
+            pi = pi + 1;
+          }
+        }
+        if (eq != 0) {
+          return 1;
+        }
+      }
+    }
+    j = j + 1;
+  }
+  return 0;
+}
+
+/**
  * See implementation.
  * See implementation.
  * See implementation.
@@ -2068,11 +2178,190 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
+ * wave463 Cap residual (CORE-001): host-C intrinsic for `size_of<T>()` / `align_of<T>()`.
+ *
+ * Product surface (`core.types`):
+ *   - free: `size_of<i32>()` / `align_of<Pair>()`
+ *   - import-qualified: `types.size_of<i32>()` / `types.align_of<*u8>()`
+ *
+ * Root failure before this wave:
+ *   1. Zero-param generics with type args only (ret is i32, not T) have
+ *      `cw_mono = np + re = 0`, so call-site mono mangling is skipped → bare
+ *      `core_types_size_of()` (undeclared → BLD001 on import path).
+ *   2. Core stub body is `return 0`, so even same-module bare emit is wrong
+ *      for layout (size_of<i32>() must be 4, not 0).
+ *
+ * Authority: expand at the CALL site to host C
+ *   `((int32_t)(sizeof(TYPE)))` or `((int32_t)(_Alignof(TYPE)))`
+ * using the turbofish type_arg type_ref (wave452 sidecar). Do not open a
+ * second mono path for these layout builtins (G.7 single authority).
+ *
+ * @param arena *ASTArena — expr / type_arg sidecar
+ * @param out *CodegenOutBuf — host-C text buffer
+ * @param expr_ref i32 — EXPR_CALL site
+ * @param ctx *PipelineDepCtx — emit_type needs module/struct prefix context
+ * @return i32 — 1 fully emitted; 0 not applicable; -1 emit error
+ * PLATFORM: SHARED host-C (C11 sizeof/_Alignof; gcc/clang product path)
+ */
+export function codegen_try_emit_size_align_of_call(arena: *ASTArena, out: *CodegenOutBuf,
+expr_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+    let callee_ref: i32 = 0;
+    let callee: Expr = e;
+    let name_ptr: *u8 = 0 as *u8;
+    let name_len: i32 = 0;
+    let is_size: i32 = 0;
+    let is_align: i32 = 0;
+    let n_ta: i32 = 0;
+    let ta: i32 = 0;
+    /* ((int32_t)(sizeof( */
+    let open_sz: u8[18] = [40, 40, 105, 110, 116, 51, 50, 95, 116, 41, 40, 115, 105, 122, 101, 111, 102, 40];
+    /* ((int32_t)(_Alignof( */
+    let open_al: u8[20] = [40, 40, 105, 110, 116, 51, 50, 95, 116, 41, 40, 95, 65, 108, 105, 103, 110, 111, 102, 40];
+    /* ))) */
+    let close3: u8[4] = [41, 41, 41, 0];
+    if (arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
+      return 0;
+    }
+    if (expr_ref <= 0 || expr_ref > arena.num_exprs) {
+      return 0;
+    }
+    e = ast.ast_arena_expr_get(arena, expr_ref);
+    /* Zero value args; at least one type arg (turbofish or angle list). */
+    if (e.kind != ExprKind.EXPR_CALL || e.call_num_args != 0) {
+      return 0;
+    }
+    n_ta = pipeline_expr_call_num_type_args_at(arena, expr_ref);
+    if (n_ta < 1) {
+      return 0;
+    }
+    callee_ref = e.call_callee_ref;
+    if (callee_ref <= 0 || callee_ref > arena.num_exprs) {
+      return 0;
+    }
+    callee = ast.ast_arena_expr_get(arena, callee_ref);
+    if (callee.kind == ExprKind.EXPR_FIELD_ACCESS && callee.field_access_field_len > 0) {
+      name_ptr = &callee.field_access_field_name[0];
+      name_len = callee.field_access_field_len;
+    } else if (callee.kind == ExprKind.EXPR_VAR && callee.var_name_len > 0) {
+      name_ptr = &callee.var_name[0];
+      name_len = callee.var_name_len;
+    } else {
+      return 0;
+    }
+    /* Exact bare name: size_of (7) / align_of (8). Not size_of_i32 etc. */
+    if (name_len == 7 && name_ptr[0] == 115 && name_ptr[1] == 105 && name_ptr[2] == 122
+        && name_ptr[3] == 101 && name_ptr[4] == 95 && name_ptr[5] == 111 && name_ptr[6] == 102) {
+      is_size = 1;
+    } else if (name_len == 8 && name_ptr[0] == 97 && name_ptr[1] == 108 && name_ptr[2] == 105
+        && name_ptr[3] == 103 && name_ptr[4] == 110 && name_ptr[5] == 95 && name_ptr[6] == 111
+        && name_ptr[7] == 102) {
+      is_align = 1;
+    } else {
+      return 0;
+    }
+    ta = pipeline_expr_call_type_arg_ref_at(arena, expr_ref, 0);
+    if (ta <= 0) {
+      return 0;
+    }
+    if (is_size != 0) {
+      if (emit_bytes_from_ptr(out, &open_sz[0], 18) != 0) {
+        return -1;
+      }
+    } else if (is_align != 0) {
+      if (emit_bytes_from_ptr(out, &open_al[0], 20) != 0) {
+        return -1;
+      }
+    } else {
+      return 0;
+    }
+    /*
+     * TYPE_ARRAY: bare emit_type lowers to `E *` (pointer decay for params/locals).
+     * sizeof/_Alignof need the true fixed shape `E[N]…` (CORE-001 u8[4] → 4 / align 1).
+     * Reuse wave357 local fixed-array peel + suffix (G.7; no third array emit path).
+     */
+    if (pipeline_type_kind_ord_at(arena, ta) == (TypeKind.TYPE_ARRAY as i32)) {
+      if (emit_local_fixed_array_elem_type(arena, out, ta, ctx) != 0) {
+        return -1;
+      }
+      if (emit_local_fixed_array_suffix(arena, out, ta) != 0) {
+        return -1;
+      }
+    } else {
+      /* Named struct / pointer / scalar — emit_type owns prefix resolve. */
+      if (emit_type(arena, out, ta, 0 as *u8, 0, ctx) != 0) {
+        return -1;
+      }
+    }
+    if (emit_bytes_from_ptr(out, &close3[0], 3) != 0) {
+      return -1;
+    }
+    return 1;
+  }
+}
+
+/**
+ * Host-C: set formal type_ref for the next emit_call_arg_slice_abi invocation.
+ * wave395: TYPE_ARRAY → fat materialize only when formal is TYPE_SLICE (not *T).
+ * Callers must set before each arg and clear (0) after. PLATFORM: SHARED host-C.
+ */
+export extern function codegen_set_host_call_arg_param_ty(param_ty_ref: i32): void;
+
+/** Read host call-arg formal type_ref (0 = unknown / not slice formal). */
+export extern function codegen_get_host_call_arg_param_ty(): i32;
+
+/**
+ * Allocate a unique id for host-C call-site TYPE_ARRAY deep-copy temps (`__xlang_caN`).
+ * wave397: CALL/METHOD returning T[N] as TYPE_SLICE formal must not share callee
+ * `__xlang_ar` across dual args in one call (last-wins → wrong sums).
+ * @return i32 — non-negative monotonic id (wraps at i32 max → 0)
+ * PLATFORM: SHARED host-C counter (seed body).
+ */
+export extern function codegen_next_host_call_array_tmp_id(): i32;
+
+/**
+ * wave409 Cap residual pure: finish TYPE_SLICE let from CALL/METHOD with frame deep-copy.
+ * Type+name already written. Emits `; E __xlang_ldN[1024]; { S __sp = call; copy; name=fat(ld); }`.
+ * Fixes true recursion last-wins on callee static `__xlang_al` (walk 18→36).
+ * Authority body in seed codegen_gen (G.7 twin of freestanding glue reent deep-copy).
+ * @param arena *ASTArena — type/elem lookup
+ * @param out *CodegenOutBuf — host-C text
+ * @param indent i32 — block indent
+ * @param name *u8 — let C name bytes
+ * @param name_len i32 — name length
+ * @param let_type_ref i32 — TYPE_SLICE type ref
+ * @param linit_ref i32 — CALL/METHOD init expr
+ * @param ctx *PipelineDepCtx — emit context
+ * @return i32 — 0 success, -1 fail
+ * PLATFORM: SHARED host-C
+ */
+export extern function codegen_emit_slice_let_reent_finish(arena: *ASTArena, out: *CodegenOutBuf, indent: i32, name: *u8, name_len: i32, let_type_ref: i32, linit_ref: i32, ctx: *PipelineDepCtx): i32;
+
+/**
  * Emit one call argument under seed/glue slice ABI (PLATFORM: SHARED).
  *
  * Why: TYPE_SLICE params lower as `struct xlang_slice_* *`. Locals stay by-value
  * structs, so call sites must pass `&local` (seed: `&(slice)`). Slice params are
  * already pointers — pass through. ADDR_OF is left unchanged.
+ *
+ * wave395: fixed TYPE_ARRAY local (`let a: T[N]`) as slice* formal must materialize
+ * a C fat `{.data=a,.length=N}` then pass its address. Bare `a` is `T*` (array decay),
+ * not `struct xlang_slice_* *` → host reads length from wrong memory (e.g. a[2]=30).
+ * wave396: same for CALL/METHOD return `T[N]` and FIELD_ACCESS of fixed array field
+ * (`len_of(take3(1))` / `sum3(b.a)` bare `E*` as slice* → length half garbage).
+ * wave397: CALL/METHOD `.data` deep-copies into unique `__xlang_caN[N]` so dual
+ * same-call formals do not both alias callee static `__xlang_ar` (host 66→39).
+ * wave400: ARRAY_LIT as TYPE_SLICE formal uses wave345 `__xlang_sp` materialize
+ * (not bare `&(rvalue compound)`) so host-C BLD001 closes; dual lit formals OK.
+ * wave406: CALL/METHOD returning TYPE_SLICE as formal deep-copies payload into
+ * unique `__xlang_sdN[1024]` so dual same-call formals do not both alias callee
+ * static `__xlang_al` (host sum2(take(1),take(2)) 72→69). ARRAY_LIT path stays
+ * fat-only (each lit has its own block-static). Soft residual: true recursion /
+ * heap-free reentrancy beyond dual same-call still last-wins on static temps.
+ * Gate: only when codegen_get_host_call_arg_param_ty is TYPE_SLICE (else bare
+ * emit for *T / Buffer formals — option/hello). G.7: same compound as let-init.
  *
  * Invariant: only for call/method arg positions; never for general emit_expr.
  */
@@ -2126,6 +2415,262 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
         }
       }
     }
+    /*
+     * wave395/396 Cap residual pure: fixed TYPE_ARRAY rvalue → slice* formal.
+     * Emit: &((struct xlang_slice_T){ .data = <arr>, .length = N })
+     * wave395: EXPR_VAR local; wave396: EXPR_CALL / METHOD_CALL / FIELD_ACCESS.
+     * PLATFORM: SHARED host-C (fs: pipeline_asm_emit_expr_elf_for_call_args VAR leaf).
+     */
+    {
+      let arr_sz: i32 = 0;
+      let arr_tr: i32 = 0;
+      let elem_tr: i32 = 0;
+      let is_arr_rvalue: i32 = 0;
+      /* VAR / CALL / METHOD / FIELD — kinds that can carry fixed TYPE_ARRAY. */
+      if (arg.kind == ExprKind.EXPR_VAR && arg.var_name_len > 0) {
+        is_arr_rvalue = 1;
+      } else if (arg.kind == ExprKind.EXPR_CALL || arg.kind == ExprKind.EXPR_METHOD_CALL
+          || arg.kind == ExprKind.EXPR_FIELD_ACCESS) {
+        is_arr_rvalue = 1;
+      }
+      if (is_arr_rvalue != 0) {
+        if (!ast.ref_is_null(arg.resolved_type_ref) && arg.resolved_type_ref > 0
+            && arg.resolved_type_ref <= arena.num_types) {
+          if (pipeline_type_kind_ord_at(arena, arg.resolved_type_ref) == (TypeKind.TYPE_ARRAY as i32)) {
+            arr_tr = arg.resolved_type_ref;
+            arr_sz = pipeline_type_array_size_at(arena, arr_tr);
+          }
+        }
+        /* VAR: resolve from let decl when resolved stamp missing. */
+        if (arr_sz <= 0 && arg.kind == ExprKind.EXPR_VAR && arg.var_name_len > 0
+            && ctx != 0 as *PipelineDepCtx) {
+          let br: i32 = 0;
+          if (ctx.current_codegen_module != 0 as *Module && ctx.current_func_index >= 0) {
+            br = pipeline_module_func_body_ref_at(ctx.current_codegen_module, ctx.current_func_index);
+          }
+          if (ast.ref_is_null(br) || br <= 0 || br > arena.num_blocks) {
+            br = ctx.current_block_ref;
+          }
+          if (!ast.ref_is_null(br) && br > 0 && br <= arena.num_blocks) {
+            let nlets: i32 = ast.ast_block_num_lets(arena, br);
+            let li: i32 = 0;
+            while (li < nlets) {
+              let nl: i32 = pipeline_block_let_name_len(arena, br, li);
+              if (nl == arg.var_name_len && nl > 0) {
+                let nb: u8[64] = [];
+                pipeline_block_let_name_copy64(arena, br, li, &nb[0]);
+                let eq: bool = true;
+                let j2: i32 = 0;
+                while (j2 < nl && j2 < 64) {
+                  if (nb[j2] != arg.var_name[j2]) {
+                    eq = false;
+                    break;
+                  }
+                  j2 = j2 + 1;
+                }
+                if (eq) {
+                  let tr: i32 = pipeline_block_let_type_ref(arena, br, li);
+                  if (pipeline_type_kind_ord_at(arena, tr) == (TypeKind.TYPE_ARRAY as i32)) {
+                    arr_tr = tr;
+                    arr_sz = pipeline_type_array_size_at(arena, tr);
+                  }
+                }
+              }
+              li = li + 1;
+            }
+          }
+        }
+        if (arr_sz > 0) {
+          /*
+           * Only for TYPE_SLICE formals. *u8 / *Buffer / other formals need array
+           * decay (bare `a` / `take()` / `b.a`), not fat compound
+           * (wave395 regression: option/hello).
+           */
+          let formal_ty: i32 = codegen_get_host_call_arg_param_ty();
+          if (formal_ty <= 0
+              || pipeline_type_kind_ord_at(arena, formal_ty) != (TypeKind.TYPE_SLICE as i32)) {
+            return emit_expr(arena, out, arg_ref, ctx);
+          }
+          /* &(( */
+          let open: u8[4] = [38, 40, 40, 0];
+          if (emit_bytes_from_ptr(out, &open[0], 3) != 0) {
+            return -1;
+          }
+          /* struct xlang_slice_<elem>_t — map known elems; default int32_t. */
+          elem_tr = 0;
+          if (arr_tr > 0) {
+            elem_tr = pipeline_type_elem_ref_at(arena, arr_tr);
+          }
+          let ek: i32 = -1;
+          if (elem_tr > 0) {
+            ek = pipeline_type_kind_ord_at(arena, elem_tr);
+          }
+          /* struct xlang_slice_ */
+          let pref: u8[20] = [
+            115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0
+          ];
+          if (emit_bytes_from_ptr(out, &pref[0], 19) != 0) {
+            return -1;
+          }
+          if (ek == (TypeKind.TYPE_U8 as i32)) {
+            let e: u8[8] = [117, 105, 110, 116, 56, 95, 116, 0];
+            if (emit_bytes_from_ptr(out, &e[0], 7) != 0) {
+              return -1;
+            }
+          } else if (ek == (TypeKind.TYPE_U64 as i32)) {
+            let e: u8[10] = [117, 105, 110, 116, 54, 52, 95, 116, 0, 0];
+            if (emit_bytes_from_ptr(out, &e[0], 8) != 0) {
+              return -1;
+            }
+          } else if (ek == (TypeKind.TYPE_USIZE as i32)) {
+            let e: u8[8] = [115, 105, 122, 101, 95, 116, 0, 0];
+            if (emit_bytes_from_ptr(out, &e[0], 6) != 0) {
+              return -1;
+            }
+          } else {
+            /* int32_t (TYPE_I32 and fallback) */
+            let e: u8[10] = [105, 110, 116, 51, 50, 95, 116, 0, 0, 0];
+            if (emit_bytes_from_ptr(out, &e[0], 7) != 0) {
+              return -1;
+            }
+          }
+          /* ){ .data =  */
+          let mid1: u8[14] = [41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 0, 0, 0];
+          if (emit_bytes_from_ptr(out, &mid1[0], 11) != 0) {
+            return -1;
+          }
+          /*
+           * .data = …
+           * VAR: bare name (array decay → durable local E*).
+           * CALL/METHOD: deep-copy into unique static __xlang_caN (wave397).
+           *   Host lowers TYPE_ARRAY return as E* into callee static __xlang_ar;
+           *   dual same-call formals would both alias last write (66 vs 39).
+           * FIELD: emit_expr (address of embedded payload; durable with base).
+           * PLATFORM: SHARED host-C.
+           */
+          if (arg.kind == ExprKind.EXPR_VAR && arg.var_name_len > 0) {
+            if (emit_bytes_64(out, &arg.var_name[0], arg.var_name_len) != 0) {
+              return -1;
+            }
+          } else if (arg.kind == ExprKind.EXPR_CALL || arg.kind == ExprKind.EXPR_METHOD_CALL) {
+            let tid: i32 = codegen_next_host_call_array_tmp_id();
+            /* ({ static  */
+            let ca_open: u8[12] = [40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0];
+            if (emit_bytes_from_ptr(out, &ca_open[0], 10) != 0) {
+              return -1;
+            }
+            /* elem type */
+            if (ast.ref_is_null(elem_tr) || elem_tr <= 0
+                || emit_type(arena, out, elem_tr, 0 as *u8, 0, ctx) != 0) {
+              let fb_e: u8[9] = [105, 110, 116, 51, 50, 95, 116, 0, 0];
+              if (emit_bytes_from_ptr(out, &fb_e[0], 7) != 0) {
+                return -1;
+              }
+            }
+            /*  __xlang_ca */
+            let ca_nm: u8[14] = [32, 95, 95, 120, 108, 97, 110, 103, 95, 99, 97, 0, 0, 0];
+            if (emit_bytes_from_ptr(out, &ca_nm[0], 11) != 0) {
+              return -1;
+            }
+            if (format_int(out, tid as i64) != 0) {
+              return -1;
+            }
+            /* [N];  */
+            if (append_byte(out, 91) != 0) {
+              return -1;
+            }
+            if (format_int(out, arr_sz as i64) != 0) {
+              return -1;
+            }
+            let ca_sz_end: u8[4] = [93, 59, 32, 0];
+            if (emit_bytes_from_ptr(out, &ca_sz_end[0], 3) != 0) {
+              return -1;
+            }
+            /* E *__xlang_rp = <call>;  */
+            if (ast.ref_is_null(elem_tr) || elem_tr <= 0
+                || emit_type(arena, out, elem_tr, 0 as *u8, 0, ctx) != 0) {
+              let fb_rp: u8[9] = [105, 110, 116, 51, 50, 95, 116, 0, 0];
+              if (emit_bytes_from_ptr(out, &fb_rp[0], 7) != 0) {
+                return -1;
+              }
+            }
+            let rp_asg: u8[16] = [32, 42, 95, 95, 120, 108, 97, 110, 103, 95, 114, 112, 32, 61, 32, 0];
+            if (emit_bytes_from_ptr(out, &rp_asg[0], 15) != 0) {
+              return -1;
+            }
+            if (emit_expr(arena, out, arg_ref, ctx) != 0) {
+              return -1;
+            }
+            let rp_sc: u8[4] = [59, 32, 0, 0];
+            if (emit_bytes_4(out, rp_sc, 2) != 0) {
+              return -1;
+            }
+            /* element-wise copy (no memcpy header dependency) */
+            let ai_ca: i32 = 0;
+            while (ai_ca < arr_sz) {
+              /* __xlang_caN[ */
+              let ca_asg: u8[14] = [95, 95, 120, 108, 97, 110, 103, 95, 99, 97, 0, 0, 0, 0];
+              if (emit_bytes_from_ptr(out, &ca_asg[0], 10) != 0) {
+                return -1;
+              }
+              if (format_int(out, tid as i64) != 0) {
+                return -1;
+              }
+              if (append_byte(out, 91) != 0) {
+                return -1;
+              }
+              if (format_int(out, ai_ca as i64) != 0) {
+                return -1;
+              }
+              /* ] = __xlang_rp[ */
+              let ca_mid: u8[16] = [93, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 114, 112, 91, 0];
+              if (emit_bytes_from_ptr(out, &ca_mid[0], 15) != 0) {
+                return -1;
+              }
+              if (format_int(out, ai_ca as i64) != 0) {
+                return -1;
+              }
+              let ca_el_end: u8[4] = [93, 59, 32, 0];
+              if (emit_bytes_from_ptr(out, &ca_el_end[0], 3) != 0) {
+                return -1;
+              }
+              ai_ca = ai_ca + 1;
+            }
+            /* __xlang_caN; }) */
+            let ca_ret: u8[14] = [95, 95, 120, 108, 97, 110, 103, 95, 99, 97, 0, 0, 0, 0];
+            if (emit_bytes_from_ptr(out, &ca_ret[0], 10) != 0) {
+              return -1;
+            }
+            if (format_int(out, tid as i64) != 0) {
+              return -1;
+            }
+            let ca_close: u8[6] = [59, 32, 125, 41, 0, 0];
+            if (emit_bytes_from_ptr(out, &ca_close[0], 4) != 0) {
+              return -1;
+            }
+          } else {
+            /* FIELD_ACCESS etc.: address of embedded array */
+            if (emit_expr(arena, out, arg_ref, ctx) != 0) {
+              return -1;
+            }
+          }
+          /* , .length =  */
+          let mid2: u8[14] = [44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0];
+          if (emit_bytes_from_ptr(out, &mid2[0], 12) != 0) {
+            return -1;
+          }
+          if (format_int(out, arr_sz as i64) != 0) {
+            return -1;
+          }
+          /*  })  — `}` closes compound body; `)` closes outer `&(`  */
+          let close: u8[4] = [32, 125, 41, 0];
+          if (emit_bytes_from_ptr(out, &close[0], 3) != 0) {
+            return -1;
+          }
+          return 0;
+        }
+      }
+    }
     /* Local / rvalue slice → &(arg) for pointer param ABI. */
     let need_addr: i32 = 0;
     if (!ast.ref_is_null(arg.resolved_type_ref) && arg.resolved_type_ref > 0 && arg.resolved_type_ref <= arena.num_types) {
@@ -2174,6 +2719,308 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
       }
     }
     if (need_addr != 0) {
+      /*
+       * wave345: CALL/METHOD rvalue slice cannot take address (`&(take())` is
+       * invalid C). Materialize into a GNU stmt-expr temp then pass its address.
+       * wave400: ARRAY_LIT same — emit_expr yields compound-literal rvalue
+       * `({ static E __xlang_al[]={…}; (struct slice){.data=…,.length=N}; })`;
+       * wrapping `&(...)` is BLD001 "cannot take the address of an rvalue".
+       * Local VAR stays `&(s)`. PLATFORM: SHARED host-C (fs dual-GP call-arg
+       * already materializes — glue wave332).
+       * wave406: CALL/METHOD fat alone is insufficient — callee return ARRAY_LIT
+       * uses one function-static `__xlang_al`; dual same-call formals both point
+       * at last write (72 vs 69). Deep-copy payload into unique `__xlang_sdN`.
+       * Soft residual: true recursion / heap-free reentrancy beyond dual same-call.
+       */
+      if (arg.kind == ExprKind.EXPR_CALL || arg.kind == ExprKind.EXPR_METHOD_CALL) {
+        /*
+         * ({ static S __xlang_spN; static E __xlang_sdN[1024]; size_t __xlang_snN;
+         *    size_t __xlang_siN; __xlang_spN = <call>; __xlang_snN = min(len,1024);
+         *    for (...) __xlang_sdN[i] = __xlang_spN.data[i];
+         *    __xlang_spN.data = __xlang_sdN; __xlang_spN.length = __xlang_snN;
+         *    &__xlang_spN; })
+         * PLATFORM: SHARED host-C. Cap 1024 (wave418; twin freestanding max_n).
+         */
+        let ty_ref: i32 = arg.resolved_type_ref;
+        let tid: i32 = codegen_next_host_call_array_tmp_id();
+        let elem_tr: i32 = 0;
+        if (!ast.ref_is_null(ty_ref) && ty_ref > 0 && ty_ref <= arena.num_types) {
+          elem_tr = pipeline_type_elem_ref_at(arena, ty_ref);
+        }
+        /* ({ static  */
+        let open_stmt: u8[12] = [40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0];
+        if (emit_bytes_from_ptr(out, &open_stmt[0], 10) != 0) {
+          return -1;
+        }
+        if (!ast.ref_is_null(ty_ref) && ty_ref > 0 && ty_ref <= arena.num_types) {
+          if (emit_type(arena, out, ty_ref, 0 as *u8, 0, ctx) != 0) {
+            return -1;
+          }
+        } else {
+          let fb: u8[32] = [
+            115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 105, 110, 116, 51, 50, 95, 116, 0, 0, 0, 0, 0, 0
+          ];
+          if (emit_bytes_from_ptr(out, &fb[0], 26) != 0) {
+            return -1;
+          }
+        }
+        /*  __xlang_sp */
+        let sp_nm: u8[14] = [32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0, 0, 0];
+        if (emit_bytes_from_ptr(out, &sp_nm[0], 11) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* ; static  */
+        let st2: u8[10] = [59, 32, 115, 116, 97, 116, 105, 99, 32, 0];
+        if (emit_bytes_from_ptr(out, &st2[0], 9) != 0) {
+          return -1;
+        }
+        /* elem type for sd buffer */
+        if (ast.ref_is_null(elem_tr) || elem_tr <= 0
+            || emit_type(arena, out, elem_tr, 0 as *u8, 0, ctx) != 0) {
+          let fb_e: u8[9] = [105, 110, 116, 51, 50, 95, 116, 0, 0];
+          if (emit_bytes_from_ptr(out, &fb_e[0], 7) != 0) {
+            return -1;
+          }
+        }
+        /*  __xlang_sd */
+        let sd_nm: u8[14] = [32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 100, 0, 0, 0];
+        if (emit_bytes_from_ptr(out, &sd_nm[0], 11) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* [1024]; size_t __xlang_sn */
+        let sd_mid: u8[28] = [
+          91, 49, 48, 50, 52, 93, 59, 32, 115, 105, 122, 101, 95, 116, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0, 0
+        ];
+        if (emit_bytes_from_ptr(out, &sd_mid[0], 25) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* ; size_t __xlang_si */
+        let si_decl: u8[24] = [
+          59, 32, 115, 105, 122, 101, 95, 116, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105, 0, 0, 0, 0, 0
+        ];
+        if (emit_bytes_from_ptr(out, &si_decl[0], 19) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* ; __xlang_sp */
+        let sp_asg: u8[14] = [59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0, 0];
+        if (emit_bytes_from_ptr(out, &sp_asg[0], 12) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /*  =  */
+        let eq_sp: u8[4] = [32, 61, 32, 0];
+        if (emit_bytes_from_ptr(out, &eq_sp[0], 3) != 0) {
+          return -1;
+        }
+        if (emit_expr(arena, out, arg_ref, ctx) != 0) {
+          return -1;
+        }
+        /* ; __xlang_snN = __xlang_spN.length; if (__xlang_snN > 512) __xlang_snN = 512;  */
+        let sn_asg: u8[14] = [59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0, 0];
+        if (emit_bytes_from_ptr(out, &sn_asg[0], 12) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /*  = __xlang_sp */
+        let sn_eq: u8[14] = [32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0];
+        if (emit_bytes_from_ptr(out, &sn_eq[0], 13) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* .length; if (__xlang_sn */
+        let sn_len: u8[28] = [
+          46, 108, 101, 110, 103, 116, 104, 59, 32, 105, 102, 32, 40, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0, 0, 0, 0, 0
+        ];
+        if (emit_bytes_from_ptr(out, &sn_len[0], 23) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /*  > 1024) __xlang_sn */
+        let sn_cap: u8[20] = [
+          32, 62, 32, 49, 48, 50, 52, 41, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0
+        ];
+        if (emit_bytes_from_ptr(out, &sn_cap[0], 19) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /*  = 1024; for (__xlang_si */
+        let for_open: u8[28] = [
+          32, 61, 32, 49, 48, 50, 52, 59, 32, 102, 111, 114, 32, 40, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105, 0, 0, 0
+        ];
+        if (emit_bytes_from_ptr(out, &for_open[0], 24) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /*  = 0; __xlang_si */
+        let for_mid1: u8[16] = [32, 61, 32, 48, 59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105];
+        /* note: 16 bytes exact — use from_ptr with 16 */
+        if (emit_bytes_from_ptr(out, &for_mid1[0], 16) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /*  < __xlang_sn */
+        let for_mid2: u8[16] = [32, 60, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0, 0, 0];
+        if (emit_bytes_from_ptr(out, &for_mid2[0], 13) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* ; __xlang_si */
+        let for_mid3: u8[14] = [59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105, 0, 0];
+        if (emit_bytes_from_ptr(out, &for_mid3[0], 12) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* ++) __xlang_sd */
+        let for_body: u8[16] = [43, 43, 41, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 100, 0, 0];
+        if (emit_bytes_from_ptr(out, &for_body[0], 14) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* [__xlang_si */
+        let idx_open: u8[14] = [91, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105, 0, 0, 0];
+        if (emit_bytes_from_ptr(out, &idx_open[0], 11) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* ] = __xlang_sp */
+        let copy_mid: u8[16] = [93, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0, 0];
+        if (emit_bytes_from_ptr(out, &copy_mid[0], 14) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* .data[__xlang_si */
+        let data_idx: u8[20] = [
+          46, 100, 97, 116, 97, 91, 95, 95, 120, 108, 97, 110, 103, 95, 115, 105, 0, 0, 0, 0
+        ];
+        if (emit_bytes_from_ptr(out, &data_idx[0], 16) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* ]; __xlang_sp */
+        let after_copy: u8[16] = [93, 59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0, 0, 0];
+        if (emit_bytes_from_ptr(out, &after_copy[0], 13) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* .data = __xlang_sd */
+        let data_asg: u8[20] = [
+          46, 100, 97, 116, 97, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 100, 0, 0
+        ];
+        if (emit_bytes_from_ptr(out, &data_asg[0], 18) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* ; __xlang_sp */
+        let len_asg: u8[14] = [59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0, 0];
+        if (emit_bytes_from_ptr(out, &len_asg[0], 12) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* .length = __xlang_sn */
+        let len_eq: u8[24] = [
+          46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 110, 0, 0, 0, 0
+        ];
+        if (emit_bytes_from_ptr(out, &len_eq[0], 20) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* ; &__xlang_sp */
+        let end_sp: u8[16] = [59, 32, 38, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 0, 0, 0];
+        if (emit_bytes_from_ptr(out, &end_sp[0], 13) != 0) {
+          return -1;
+        }
+        if (format_int(out, tid as i64) != 0) {
+          return -1;
+        }
+        /* ; }) */
+        let close_sp: u8[6] = [59, 32, 125, 41, 0, 0];
+        if (emit_bytes_from_ptr(out, &close_sp[0], 4) != 0) {
+          return -1;
+        }
+        return 0;
+      }
+      if (arg.kind == ExprKind.EXPR_ARRAY_LIT) {
+        let ty_ref: i32 = arg.resolved_type_ref;
+        /* ({ static  — wave400: ARRAY_LIT rvalue needs addressable fat. */
+        let open_stmt: u8[12] = [40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0];
+        if (emit_bytes_from_ptr(out, &open_stmt[0], 10) != 0) {
+          return -1;
+        }
+        if (!ast.ref_is_null(ty_ref) && ty_ref > 0 && ty_ref <= arena.num_types) {
+          if (emit_type(arena, out, ty_ref, 0 as *u8, 0, ctx) != 0) {
+            return -1;
+          }
+        } else {
+          let fb: u8[32] = [
+            115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 105, 110, 116, 51, 50, 95, 116, 0, 0, 0, 0, 0, 0
+          ];
+          if (emit_bytes_from_ptr(out, &fb[0], 26) != 0) {
+            return -1;
+          }
+        }
+        /*  __xlang_sp; __xlang_sp =  */
+        let sp_decl: u8[28] = [
+          32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 59, 32, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 32, 61, 32, 0, 0
+        ];
+        if (emit_bytes_from_ptr(out, &sp_decl[0], 26) != 0) {
+          return -1;
+        }
+        if (emit_expr(arena, out, arg_ref, ctx) != 0) {
+          return -1;
+        }
+        /* ; &__xlang_sp; }) */
+        let end_sp: u8[20] = [59, 32, 38, 95, 95, 120, 108, 97, 110, 103, 95, 115, 112, 59, 32, 125, 41, 0, 0, 0];
+        if (emit_bytes_from_ptr(out, &end_sp[0], 17) != 0) {
+          return -1;
+        }
+        return 0;
+      }
       let pre: u8[3] = [38, 40, 0];
       if (emit_bytes_3(out, pre, 2) != 0) {
         return -1;
@@ -2447,7 +3294,7 @@ export function codegen_c_prefix_redundant_with_name(prefix: *u8, prefix_len: i3
 /* See implementation. */
 export struct CodegenOutBuf {
   data: u8[9437184];
-  len: i32;
+  length: i32;
 }
 
 /** Exported function `append_byte`.
@@ -2457,12 +3304,12 @@ export struct CodegenOutBuf {
  * @return i32
  */
 export function append_byte(out: *CodegenOutBuf, b: i32): i32 {
-  if (out.len >= 9437184) {
+  if (out.length >= 9437184) {
     return -1;
   }
   /* See implementation. */
-  out.data[out.len] = (b & 255) as u8;
-  out.len = out.len + 1;
+  out.data[out.length] = (b & 255) as u8;
+  out.length = out.length + 1;
   return 0;
 }
 
@@ -3134,6 +3981,84 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
       let s: u8[8] = [105, 110, 116, 51, 50, 95, 116, 0];
       return emit_bytes_8(out, s, 7);
     }
+    /*
+     * wave376 Cap residual: host-C must not emit `struct ast_Coord` for
+     * `type Coord = i32` (incomplete type BLD001). Peel aliases to the
+     * underlying TYPE_* / named struct before kind dispatch.
+     * PLATFORM: SHARED — resolve uses active module from typeck phase.
+     */
+    type_ref = pipeline_typeck_resolve_type_alias_ref_c(arena, type_ref);
+    if (ast.ref_is_null(type_ref)) {
+      let s2: u8[8] = [105, 110, 116, 51, 50, 95, 116, 0];
+      return emit_bytes_8(out, s2, 7);
+    }
+    /*
+     * wave445 C5: monomorphization type substitution. When mono_active=1 (emitting a
+     * generic function's mono body), replace any type_ref matching a generic type param
+     * (T, U, ...) with the corresponding concrete type_ref (A, B, ...). This handles
+     * `let y: T` -> `let y: A` and param/return type refs encountered during body walk.
+     *
+     * Two-stage match:
+     *   1. Direct type_ref equality — works when body type_ref shares the param's
+     *      type_ref node (e.g. the param's own declared type).
+     *   2. Name-based fallback — typeck does NOT always reuse the param's type_ref node
+     *      for body occurrences; `let y: T` allocates a fresh TYPE_NAMED with name "T"
+     *      whose type_ref differs from the param's. We compare the type's name against
+     *      each generic param's name and substitute on match. Builtin types (i32, etc.)
+     *      have no name (pipeline_type_named_name_into returns 0), so they skip the
+     *      fallback and rely on direct equality, which is stable for builtins.
+     *
+     * No infinite recursion (wave447): when value params are builtins (i32), mono
+     * maps param type_ref → call-arg type_ref; typeck often reuses the same i32
+     * type_ref node, so generic==concrete. Recursing emit_type on the same ref
+     * stack-overflows (SEGV in resolve_type_alias). Guard: only recurse when
+     * concrete != type_ref. Identity T→A still recurses once then emits A.
+     * PLATFORM: SHARED — mono state in PipelineDepCtx (L4 ABI); gated by mono_active.
+     */
+    if (ctx != 0 as *PipelineDepCtx && ctx.mono_active != 0 && ctx.mono_num_types > 0) {
+      let mi: i32 = 0;
+      while (mi < ctx.mono_num_types && mi < 8) {
+        let conc: i32 = ctx.mono_concrete_type_refs[mi];
+        if (type_ref == ctx.mono_generic_type_refs[mi] && conc > 0 && conc != type_ref) {
+          return emit_type(arena, out, conc, struct_prefix, struct_prefix_len, ctx);
+        }
+        mi = mi + 1;
+      }
+      /*
+       * wave445 C5 name-match fallback: cover body TYPE_NAMED nodes whose type_ref
+       * differs from the param's (e.g. `let y: T`). Compare names; substitute on
+       * equality. Mirrors codegen_find_impl_method_for_type C6 name-match fallback.
+       * wave447: also skip when concrete == type_ref (self-map).
+       */
+      let fb_nm: u8[64] = [];
+      let fb_len: i32 = pipeline_type_named_name_into(arena, type_ref, &fb_nm[0]);
+      if (fb_len > 0) {
+        let mi2: i32 = 0;
+        while (mi2 < ctx.mono_num_types && mi2 < 8) {
+          let conc2: i32 = ctx.mono_concrete_type_refs[mi2];
+          if (conc2 > 0 && conc2 != type_ref) {
+            let gnm: u8[64] = [];
+            let gname_len: i32 = pipeline_type_named_name_into(arena, ctx.mono_generic_type_refs[mi2], &gnm[0]);
+            if (gname_len == fb_len && gname_len > 0) {
+              let names_eq: i32 = 1;
+              let ci: i32 = 0;
+              while (ci < gname_len) {
+                if (gnm[ci] != fb_nm[ci]) {
+                  names_eq = 0;
+                  ci = gname_len;
+                } else {
+                  ci = ci + 1;
+                }
+              }
+              if (names_eq != 0) {
+                return emit_type(arena, out, conc2, struct_prefix, struct_prefix_len, ctx);
+              }
+            }
+          }
+          mi2 = mi2 + 1;
+        }
+      }
+    }
     tk = pipeline_type_kind_ord_at(arena, type_ref);
     elem_ref = pipeline_type_elem_ref_at(arena, type_ref);
     arr_sz = pipeline_type_array_size_at(arena, type_ref);
@@ -3320,6 +4245,16 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
           return -1;
         }
         ci = ci + 1;
+      }
+      /*
+       * wave481: generic struct multi mono C tag — append `__A` / `__i32_i32` when
+       * TYPE_NAMED carries concrete type-pos args (Wrap&lt;A&gt;). Matches mangled defs
+       * from codegen_emit_module_struct_definitions. PLATFORM: SHARED host-C.
+       */
+      if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module) {
+        if (codegen_maybe_emit_generic_struct_mono_suffix_for_type(ctx.current_codegen_module, arena, out, type_ref, ctx) != 0) {
+          return -1;
+        }
       }
       return 0;
     }
@@ -3544,12 +4479,32 @@ export function type_array_elem_is_u8(arena: *ASTArena, type_ref: i32): i32 {
 /**
  * See implementation.
  */
+/**
+ * Host-C: emit the scalar/base type of a fixed TYPE_ARRAY local (peels multi-dim).
+ * wave357 Cap residual pure: `[2][3]i32` must emit `int32_t` not `int32_t *` then `[2]`.
+ * Prior: one-level peel + emit_type(TYPE_ARRAY)→`E *` produced `int32_t * a[2]` (pointer rows).
+ * G.7: same peel loop as codegen_emit_struct_field_decl_x dims path.
+ * @param arena *ASTArena — type pool
+ * @param out *CodegenOutBuf — C text sink
+ * @param type_ref i32 — outermost TYPE_ARRAY
+ * @param ctx *PipelineDepCtx — nested named/struct emit
+ * @return i32 — 0 success
+ * PLATFORM: SHARED host-C emit
+ */
 export function emit_local_fixed_array_elem_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    let inner: i32 = pipeline_type_elem_ref_at(arena, type_ref);
-    if (ast.ref_is_null(inner) || emit_type(arena, out, inner, 0 as *u8, 0, ctx) != 0) {
+    let base_ref: i32 = type_ref;
+    /* Peel all TYPE_ARRAY layers to the scalar/struct leaf (multi-dim C: E a[N][M]). */
+    while (!ast.ref_is_null(base_ref) && pipeline_type_kind_ord_at(arena, base_ref) == TypeKind.TYPE_ARRAY) {
+      let inner: i32 = pipeline_type_elem_ref_at(arena, base_ref);
+      if (ast.ref_is_null(inner)) {
+        break;
+      }
+      base_ref = inner;
+    }
+    if (ast.ref_is_null(base_ref) || emit_type(arena, out, base_ref, 0 as *u8, 0, ctx) != 0) {
       let fb: u8[8] = [105, 110, 116, 51, 50, 95, 116, 0];
       return emit_bytes_8(out, fb, 7);
     }
@@ -3557,37 +4512,156 @@ export function emit_local_fixed_array_elem_type(arena: *ASTArena, out: *Codegen
   }
 }
 
-/** Exported function `emit_local_fixed_array_suffix`.
- * Implements `emit_local_fixed_array_suffix`.
- * @param arena *ASTArena
- * @param out *CodegenOutBuf
- * @param type_ref i32
- * @return i32
+/**
+ * Host-C: emit all `[N][M]…` suffixes for a fixed multi-dim TYPE_ARRAY local.
+ * wave357: C-style `T a[N][M]` matches product type peel order (outer N first).
+ * @param arena *ASTArena — type pool
+ * @param out *CodegenOutBuf — C text sink
+ * @param type_ref i32 — outermost TYPE_ARRAY
+ * @return i32 — 0 success
+ * PLATFORM: SHARED host-C emit
  */
 export function emit_local_fixed_array_suffix(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    let asz: i32 = pipeline_type_array_size_at(arena, type_ref);
-    if (append_byte(out, 91) != 0) {
-      return -1;
+    let dims_ref: i32 = type_ref;
+    let depth: i32 = 0;
+    while (!ast.ref_is_null(dims_ref) && pipeline_type_kind_ord_at(arena, dims_ref) == TypeKind.TYPE_ARRAY
+        && depth < 8) {
+      let asz: i32 = pipeline_type_array_size_at(arena, dims_ref);
+      if (append_byte(out, 91) != 0) {
+        return -1;
+      }
+      if (format_int(out, asz) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 93) != 0) {
+        return -1;
+      }
+      dims_ref = pipeline_type_elem_ref_at(arena, dims_ref);
+      depth = depth + 1;
     }
-    if (format_int(out, asz) != 0) {
-      return -1;
-    }
-    return append_byte(out, 93);
+    return 0;
   }
 }
 
 /**
- * See implementation.
- * See implementation.
+ * Host-C: finish a fixed TYPE_ARRAY local after `E name[N]` has been emitted (no `=` yet).
+ *
+ * - null / zero lit → ` = { 0 };`
+ * - EXPR_ARRAY_LIT → ` = { elems };`
+ * - other rvalue (CALL / METHOD / VAR / FIELD / …) → `;\n` + indent +
+ *   `memcpy((void*)(name), (const void*)(<expr>), sizeof(name));`
+ *
+ * Root (wave353 Cap residual): C forbids `T t[N] = ptr` and `T t[N] = other_array`.
+ * Host lowers TYPE_ARRAY returns as `E*` (wave352 durable static); memcpy once-evals CALL.
+ * G.7: single authority for local fixed-array let init; reuses wave334 memcpy form.
+ *
+ * @param arena *ASTArena — expression pool
+ * @param out *CodegenOutBuf — C text sink
+ * @param indent i32 — indentation for the optional memcpy statement
+ * @param name *u8 — C local identifier bytes (may be placeholder `_lN`)
+ * @param name_len i32 — byte length of name; must match what was just emitted
+ * @param linit_ref i32 — init expression ref; null/invalid → zero brace init
+ * @param ctx *PipelineDepCtx — emit context for nested expr
+ * @return i32 — 0 on success, -1 on hard emit failure
+ * PLATFORM: SHARED host-C emit (string.h memcpy already in product preamble).
+ */
+export function emit_local_fixed_array_let_finish(arena: *ASTArena, out: *CodegenOutBuf, indent: i32, name: *u8, name_len: i32, linit_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    let use_brace: i32 = 0;
+    let use_zero: i32 = 0;
+    if (ast.ref_is_null(linit_ref) || linit_ref <= 0 || linit_ref > arena.num_exprs) {
+      use_zero = 1;
+    } else {
+      let ie: Expr = ast.ast_arena_expr_get(arena, linit_ref);
+      if (ie.kind == ExprKind.EXPR_ARRAY_LIT) {
+        use_brace = 1;
+      } else if (ie.kind == ExprKind.EXPR_LIT && ie.int_val == 0) {
+        use_zero = 1;
+      }
+    }
+    if (use_brace != 0) {
+      let eqb: u8[4] = [32, 61, 32, 0];
+      if (emit_bytes_4(out, eqb, 3) != 0) {
+        return -1;
+      }
+      if (emit_braced_array_lit_init(arena, out, linit_ref, ctx) != 0) {
+        return -1;
+      }
+      let scb: u8[3] = [59, 10, 0];
+      return emit_bytes_3(out, scb, 2);
+    }
+    if (use_zero != 0) {
+      let z: u8[10] = [32, 61, 32, 123, 32, 48, 32, 125, 59, 10];
+      return emit_bytes_from_ptr(out, &z[0], 10);
+    }
+    /* Non-brace rvalue: declare then memcpy (once-eval of CALL/METHOD). */
+    if (append_byte(out, 59) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 10) != 0) {
+      return -1;
+    }
+    if (emit_indent(out, indent) != 0) {
+      return -1;
+    }
+    /* memcpy((void*)( */
+    let pref: u8[16] = [109, 101, 109, 99, 112, 121, 40, 40, 118, 111, 105, 100, 42, 41, 40, 0];
+    if (emit_bytes_from_ptr(out, &pref[0], 15) != 0) {
+      return -1;
+    }
+    if (name_len > 0 && emit_bytes_64(out, name, name_len) != 0) {
+      return -1;
+    }
+    /* ), (const void*)( */
+    let mid: u8[20] = [41, 44, 32, 40, 99, 111, 110, 115, 116, 32, 118, 111, 105, 100, 42, 41, 40, 0, 0, 0];
+    if (emit_bytes_from_ptr(out, &mid[0], 17) != 0) {
+      return -1;
+    }
+    if (emit_expr(arena, out, linit_ref, ctx) != 0) {
+      return -1;
+    }
+    /* ), sizeof( */
+    let mid_sz: u8[12] = [41, 44, 32, 115, 105, 122, 101, 111, 102, 40, 0, 0];
+    if (emit_bytes_from_ptr(out, &mid_sz[0], 10) != 0) {
+      return -1;
+    }
+    if (name_len > 0 && emit_bytes_64(out, name, name_len) != 0) {
+      return -1;
+    }
+    /* ));\n */
+    let tail: u8[4] = [41, 41, 59, 10];
+    return emit_bytes_from_ptr(out, &tail[0], 4);
+  }
+}
+
+/**
+ * Host-C: `let s: T[] = arr` where arr is a fixed TYPE_ARRAY rvalue.
+ * Emits `{ .data = <arr>, .length = N }` (C array decays to pointer).
+ *
+ * Paths (G.7 single authority — complete, do not fork):
+ * - EXPR_VAR: prior `let a: T[N]` local (original Cap residual).
+ * - wave348: EXPR_FIELD_ACCESS with VAR base + fixed TYPE_ARRAY field
+ *   (`let s: T[] = b.a`). Prior: bare `(b.a)` is not a slice compound → host-cc red;
+ *   freestanding dual-GP unwritten → panic/SIGSEGV.
+ *
+ * @param arena *ASTArena — expression/type pool
+ * @param out *CodegenOutBuf — C text sink
+ * @param block_ref i32 — enclosing block (let scan for VAR path)
+ * @param let_idx i32 — current let index; prior lets only for VAR match
+ * @param let_type_ref i32 — must be TYPE_SLICE (kind 11)
+ * @param linit_ref i32 — init expr (VAR or FIELD_ACCESS)
+ * @return i32 — 1 emitted; 0 not applicable; -1 hard fail
+ * PLATFORM: SHARED host-C emit (mirror freestanding glue_emit_slice_from_array_let_init).
  */
 export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, let_idx: i32, let_type_ref: i32, linit_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    /* See implementation. */
     if (ast.ref_is_null(let_type_ref) || pipeline_type_kind_ord_at(arena, let_type_ref) != 11) {
       return 0;
     }
@@ -3595,42 +4669,62 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
       return 0;
     }
     let init_e: Expr = ast.ast_arena_expr_get(arena, linit_ref);
-    if (init_e.kind != ExprKind.EXPR_VAR || init_e.var_name_len <= 0) {
+    let arr_sz: i32 = 0;
+    let is_field: i32 = 0;
+    let base_e: Expr = init_e;
+    let init_ko: i32 = pipeline_expr_kind_ord_at(arena, linit_ref);
+
+    if (init_ko == 3 && init_e.var_name_len > 0) {
+      let li: i32 = 0;
+      while (li < let_idx) {
+        let nlen: i32 = pipeline_block_let_name_len(arena, block_ref, li);
+        if (nlen == init_e.var_name_len && nlen > 0) {
+          let matched: i32 = 1;
+          let nb: u8[64] = [];
+          pipeline_block_let_name_copy64(arena, block_ref, li, &nb[0]);
+          let ci: i32 = 0;
+          while (ci < nlen) {
+            if (nb[ci] != init_e.var_name[ci]) {
+              matched = 0;
+              ci = nlen;
+            } else {
+              ci = ci + 1;
+            }
+          }
+          if (matched != 0) {
+            let tr: i32 = pipeline_block_let_type_ref(arena, block_ref, li);
+            if (pipeline_type_kind_ord_at(arena, tr) == 10) {
+              arr_sz = pipeline_type_array_size_at(arena, tr);
+              li = let_idx;
+            }
+          }
+        }
+        li = li + 1;
+      }
+      if (arr_sz <= 0 && !ast.ref_is_null(init_e.resolved_type_ref) && init_e.resolved_type_ref > 0) {
+        if (pipeline_type_kind_ord_at(arena, init_e.resolved_type_ref) == 10) {
+          arr_sz = pipeline_type_array_size_at(arena, init_e.resolved_type_ref);
+        }
+      }
+    } else if (init_ko == 44
+               && init_e.field_access_field_len > 0
+               && init_e.field_access_base_ref > 0
+               && init_e.field_access_base_ref <= arena.num_exprs) {
+      /* wave348: let s: T[] = b.a — base VAR; N from TYPE_ARRAY or sizeof C idiom. */
+      is_field = 1;
+      base_e = ast.ast_arena_expr_get(arena, init_e.field_access_base_ref);
+      if (base_e.kind != ExprKind.EXPR_VAR || base_e.var_name_len <= 0) {
+        return 0;
+      }
+      if (!ast.ref_is_null(init_e.resolved_type_ref) && init_e.resolved_type_ref > 0) {
+        if (pipeline_type_kind_ord_at(arena, init_e.resolved_type_ref) == 10) {
+          arr_sz = pipeline_type_array_size_at(arena, init_e.resolved_type_ref);
+        }
+      }
+    } else {
       return 0;
     }
-    let arr_sz: i32 = 0;
-    let li: i32 = 0;
-    while (li < let_idx) {
-      let nlen: i32 = pipeline_block_let_name_len(arena, block_ref, li);
-      if (nlen == init_e.var_name_len && nlen > 0) {
-        let matched: i32 = 1;
-        let nb: u8[64] = [];
-        pipeline_block_let_name_copy64(arena, block_ref, li, &nb[0]);
-        let ci: i32 = 0;
-        while (ci < nlen) {
-          if (nb[ci] != init_e.var_name[ci]) {
-            matched = 0;
-            ci = nlen;
-          } else {
-            ci = ci + 1;
-          }
-        }
-        if (matched != 0) {
-          let tr: i32 = pipeline_block_let_type_ref(arena, block_ref, li);
-          if (pipeline_type_kind_ord_at(arena, tr) == 10) {
-            arr_sz = pipeline_type_array_size_at(arena, tr);
-            li = let_idx;
-          }
-        }
-      }
-      li = li + 1;
-    }
-    if (arr_sz <= 0 && !ast.ref_is_null(init_e.resolved_type_ref) && init_e.resolved_type_ref > 0) {
-      if (pipeline_type_kind_ord_at(arena, init_e.resolved_type_ref) == 10) {
-        arr_sz = pipeline_type_array_size_at(arena, init_e.resolved_type_ref);
-      }
-    }
-    if (arr_sz <= 0) {
+    if (arr_sz <= 0 && is_field == 0) {
       return 0;
     }
     if (append_byte(out, 123) != 0) {
@@ -3640,18 +4734,63 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
     if (emit_bytes_from_ptr(out, &d1[0], 9) != 0) {
       return -1;
     }
-    if (emit_bytes_64(out, &init_e.var_name[0], init_e.var_name_len) != 0) {
-      return -1;
+    if (is_field != 0) {
+      if (emit_bytes_64(out, &base_e.var_name[0], base_e.var_name_len) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 46) != 0) {
+        return -1;
+      }
+      if (emit_bytes_64(out, &init_e.field_access_field_name[0], init_e.field_access_field_len) != 0) {
+        return -1;
+      }
+    } else {
+      if (emit_bytes_64(out, &init_e.var_name[0], init_e.var_name_len) != 0) {
+        return -1;
+      }
     }
     let d2: u8[12] = [44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32];
     if (emit_bytes_from_ptr(out, &d2[0], 12) != 0) {
       return -1;
     }
-    if (format_int(out, arr_sz) != 0) {
-      return -1;
+    if (arr_sz > 0) {
+      if (format_int(out, arr_sz) != 0) {
+        return -1;
+      }
+    } else {
+      /* (sizeof(b.a)/sizeof((b.a)[0])) — host-C length when typeck N missing. */
+      let sz0: u8[8] = [40, 115, 105, 122, 101, 111, 102, 40];
+      let sz1: u8[12] = [41, 47, 115, 105, 122, 101, 111, 102, 40, 40, 0, 0];
+      let sz2: u8[8] = [41, 91, 48, 93, 41, 41, 0, 0]; /* )[0])) */
+      if (emit_bytes_from_ptr(out, &sz0[0], 8) != 0) {
+        return -1;
+      }
+      if (emit_bytes_64(out, &base_e.var_name[0], base_e.var_name_len) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 46) != 0) {
+        return -1;
+      }
+      if (emit_bytes_64(out, &init_e.field_access_field_name[0], init_e.field_access_field_len) != 0) {
+        return -1;
+      }
+      if (emit_bytes_from_ptr(out, &sz1[0], 10) != 0) {
+        return -1;
+      }
+      if (emit_bytes_64(out, &base_e.var_name[0], base_e.var_name_len) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 46) != 0) {
+        return -1;
+      }
+      if (emit_bytes_64(out, &init_e.field_access_field_name[0], init_e.field_access_field_len) != 0) {
+        return -1;
+      }
+      if (emit_bytes_from_ptr(out, &sz2[0], 6) != 0) {
+        return -1;
+      }
     }
     let d3: u8[4] = [32, 125, 0, 0];
-    /* See implementation. */
     if (emit_bytes_4(out, d3, 2) != 0) {
       return -1;
     }
@@ -3660,7 +4799,16 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
 }
 
 /**
- * See implementation.
+ * Host-C: emit `{ e0, e1, … }` for ARRAY_LIT (fixed TYPE_ARRAY / vector let-init).
+ * wave357 Cap residual pure: nested ARRAY_LIT rows recurse (multi-dim `{{1,2},{3,4}}`).
+ * Prior: each row went through emit_expr → `(int32_t[]){…}` compound → illegal for `E a[N][M]`.
+ * G.7: single recursive authority; non-ARRAY_LIT elems still emit_expr.
+ * @param arena *ASTArena — expression pool
+ * @param out *CodegenOutBuf — C text sink
+ * @param init_ref i32 — ARRAY_LIT or fallback expr
+ * @param ctx *PipelineDepCtx — nested emit
+ * @return i32 — 0 success
+ * PLATFORM: SHARED host-C emit
  */
 export function emit_braced_array_lit_init(arena: *ASTArena, out: *CodegenOutBuf, init_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3694,8 +4842,14 @@ export function emit_braced_array_lit_init(arena: *ASTArena, out: *CodegenOutBuf
           return -1;
         }
       }
-      /* See implementation. */
-      if (emit_expr(arena, out, pipeline_expr_array_lit_elem_ref(arena, init_ref, ai), ctx) == 0) {
+      let elem_ref: i32 = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
+      /* Nested row: recurse braces; do not emit_expr (that yields (T[]){…} compound). */
+      if (!ast.ref_is_null(elem_ref) && pipeline_expr_kind_ord_at(arena, elem_ref) == (46 as i32)) {
+        if (emit_braced_array_lit_init(arena, out, elem_ref, ctx) != 0) {
+          return -1;
+        }
+        ai = ai + 1;
+      } else if (emit_expr(arena, out, elem_ref, ctx) == 0) {
         ai = ai + 1;
       } else {
         return -1;
@@ -4131,6 +5285,1791 @@ export function codegen_type_dep_enum_prefix_into(ctx: *PipelineDepCtx, arena: *
 }
 
 /**
+ * wave480 Cap residual pure: is type_ref host-C concrete (not a free type param)?
+ *
+ * Builtins / PTR / ARRAY / SLICE / … emit as complete C types. TYPE_NAMED is concrete
+ * only when the name matches a module struct layout (user type A/B). TYPE_NAMED that
+ * does not match any layout is a free type param (T/U) — emitting `struct ast_T` is
+ * incomplete (BLD001).
+ *
+ * Used by codegen_resolve_generic_struct_field_type so mono substitution prefers
+ * Pair&lt;A,B&gt; / Wrap&lt;A&gt; over generic function return Wrap&lt;T&gt; (first-match
+ * used to stamp T and leave incomplete fields).
+ *
+ * @param module *Module — layouts for concrete named types
+ * @param arena *ASTArena
+ * @param ty i32 — type_ref to classify
+ * @return i32 — 1 concrete, 0 free type-param / invalid
+ * PLATFORM: SHARED host-C mono for generic struct fields.
+ */
+/**
+ * wave480/485: host-complete type for generic-struct mono.
+ * wave485: generic layouts require every type-arg host-concrete (recursive);
+ * bare Wrap / Wrap&lt;T&gt; free param is NOT concrete (prevents incomplete Wrap__Wrap_T).
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param ty i32 — type_ref
+ * @return i32 — 1 concrete, 0 free / incomplete generic
+ * PLATFORM: SHARED host-C — G.7 twin of seed
+ */
+function codegen_type_ref_is_host_concrete(module: *Module, arena: *ASTArena, ty: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ty <= 0) {
+      return 0;
+    }
+    let k: i32 = pipeline_type_kind_ord_at(arena, ty);
+    // TYPE_NAMED ord = 8 (ast TypeKind). Non-named kinds are host-complete for fields.
+    if (k != (TypeKind.TYPE_NAMED as i32)) {
+      return 1;
+    }
+    let nm: u8[64] = [];
+    let nl: i32 = pipeline_type_named_name_into(arena, ty, &nm[0]);
+    if (nl <= 0) {
+      return 0;
+    }
+    let sk: i32 = 0;
+    while (sk < module.num_struct_layouts) {
+      let sl: i32 = pipeline_module_struct_layout_name_len(module, sk);
+      if (sl == nl) {
+        let snm: u8[64] = [];
+        pipeline_module_struct_layout_name_into(module, sk, &snm[0]);
+        let bi: i32 = 0;
+        let match: i32 = 1;
+        while (bi < nl) {
+          if (snm[bi] != nm[bi]) {
+            match = 0;
+          }
+          bi = bi + 1;
+        }
+        if (match != 0) {
+          let ntp: i32 = pipeline_module_struct_layout_num_type_params_at(module, sk);
+          if (ntp <= 0) {
+            return 1;
+          }
+          // Generic layout: every type-pos arg must be host-concrete.
+          let ai: i32 = 0;
+          while (ai < ntp && ai < 4) {
+            let arg: i32 = pipeline_type_type_arg_ref_at(arena, ty, ai);
+            if (arg <= 0 && ai == 0) {
+              arg = pipeline_type_elem_ref_at(arena, ty);
+            }
+            if (arg <= 0) {
+              return 0;
+            }
+            if (codegen_type_ref_is_host_concrete(module, arena, arg) == 0) {
+              return 0;
+            }
+            ai = ai + 1;
+          }
+          return 1;
+        }
+      }
+      sk = sk + 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * wave466/467 Cap residual pure: host-C mono for type-param fields on generic structs.
+ * wave480: prefer concrete type-args (skip free T/U from generic fn return types).
+ *
+ * Layout may store `v: T` / `b: U` (TYPE_NAMED type-params). Emitting as `struct ast_T`
+ * is incomplete (BLD001). Resolve a concrete type:
+ *   1) TYPE_NAMED uses of the layout with type-pos args (`Pair<A,B>`): map field type
+ *      name to layout type-param slot (wave467 multi sidecar), else slot0 (wave466);
+ *      **skip** mono that is itself a free type param (wave480)
+ *   2) STRUCT_LIT field init resolved type for matching field name (bare Name);
+ *      same concrete filter (wave480)
+ * PLATFORM: SHARED host-C.
+ *
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param layout_nm *u8 — struct layout name
+ * @param layout_nl i32
+ * @param field_nm *u8 — field name
+ * @param field_nl i32
+ * @param ftr i32 — layout field type_ref
+ * @return i32 — concrete type_ref to emit, or ftr if no mono found
+ */
+export function codegen_resolve_generic_struct_field_type(module: *Module, arena: *ASTArena, layout_nm: *u8, layout_nl: i32, field_nm: *u8, field_nl: i32, ftr: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ftr <= 0) {
+      return ftr;
+    }
+    if (layout_nm == 0 as *u8 || layout_nl <= 0 || field_nm == 0 as *u8 || field_nl <= 0) {
+      return ftr;
+    }
+    // Only substitute unconstrained TYPE_NAMED (type params). Module concrete stays.
+    if (pipeline_type_kind_ord_at(arena, ftr) != TypeKind.TYPE_NAMED) {
+      return ftr;
+    }
+    let ftn: u8[64] = [];
+    let ftnl: i32 = pipeline_type_named_name_into(arena, ftr, &ftn[0]);
+    if (ftnl <= 0) {
+      return ftr;
+    }
+    // If field type name matches a real layout, it is concrete — keep.
+    let sk: i32 = 0;
+    while (sk < module.num_struct_layouts) {
+      let sl: i32 = pipeline_module_struct_layout_name_len(module, sk);
+      if (sl == ftnl) {
+        let snm: u8[64] = [];
+        pipeline_module_struct_layout_name_into(module, sk, &snm[0]);
+        let bi: i32 = 0;
+        let match: i32 = 1;
+        while (bi < ftnl) {
+          if (snm[bi] != ftn[bi]) {
+            match = 0;
+          }
+          bi = bi + 1;
+        }
+        if (match != 0) {
+          return ftr;
+        }
+      }
+      sk = sk + 1;
+    }
+    // Map field type name T/U → type-param slot on layout Pair.
+    let tp_slot: i32 = 0;
+    sk = 0;
+    while (sk < module.num_struct_layouts) {
+      let sl2: i32 = pipeline_module_struct_layout_name_len(module, sk);
+      if (sl2 == layout_nl && layout_nl > 0) {
+        let snm2: u8[64] = [];
+        pipeline_module_struct_layout_name_into(module, sk, &snm2[0]);
+        let eq2: i32 = 1;
+        let bi2: i32 = 0;
+        while (bi2 < layout_nl) {
+          if (snm2[bi2] != layout_nm[bi2]) {
+            eq2 = 0;
+          }
+          bi2 = bi2 + 1;
+        }
+        if (eq2 != 0) {
+          let ntp: i32 = pipeline_module_struct_layout_num_type_params_at(module, sk);
+          if (ntp > 0) {
+            tp_slot = -1;
+            let tj: i32 = 0;
+            while (tj < ntp) {
+              let tpl: i32 = pipeline_module_struct_layout_type_param_name_len(module, sk, tj);
+              if (tpl == ftnl) {
+                let tpn: u8[64] = [];
+                pipeline_module_struct_layout_type_param_name_into(module, sk, tj, &tpn[0]);
+                let peq: i32 = 1;
+                let pi: i32 = 0;
+                while (pi < ftnl) {
+                  if (tpn[pi] != ftn[pi]) {
+                    peq = 0;
+                  }
+                  pi = pi + 1;
+                }
+                if (peq != 0) {
+                  tp_slot = tj;
+                  tj = ntp;
+                }
+              }
+              tj = tj + 1;
+            }
+            if (tp_slot < 0) {
+              return ftr;
+            }
+          }
+          sk = module.num_struct_layouts;
+        }
+      }
+      sk = sk + 1;
+    }
+    // (1) Type-position Pair<A,B>: type-arg at tp_slot (prefer concrete; wave480).
+    let ti: i32 = 1;
+    while (ti <= arena.num_types) {
+      if (pipeline_type_kind_ord_at(arena, ti) == TypeKind.TYPE_NAMED) {
+        let tnm: u8[64] = [];
+        let tnl: i32 = pipeline_type_named_name_into(arena, ti, &tnm[0]);
+        if (tnl == layout_nl && tnl > 0) {
+          let eq: i32 = 1;
+          let ci: i32 = 0;
+          while (ci < tnl) {
+            if (tnm[ci] != layout_nm[ci]) {
+              eq = 0;
+            }
+            ci = ci + 1;
+          }
+          if (eq != 0) {
+            let mono: i32 = pipeline_type_type_arg_ref_at(arena, ti, tp_slot);
+            if (mono <= 0) {
+              if (tp_slot == 0) {
+                mono = pipeline_type_elem_ref_at(arena, ti);
+              }
+            }
+            // wave480: skip free type params (T from Wrap<T> ret); keep scanning for A.
+            if (mono > 0 && codegen_type_ref_is_host_concrete(module, arena, mono) != 0) {
+              return mono;
+            }
+          }
+        }
+      }
+      ti = ti + 1;
+    }
+    // (2) Bare Name + STRUCT_LIT field init by field name (prefer concrete; wave480).
+    let ei: i32 = 1;
+    while (ei <= arena.num_exprs) {
+      if (pipeline_expr_kind_ord_at(arena, ei) == ExprKind.EXPR_STRUCT_LIT) {
+        let e: Expr = ast.ast_arena_expr_get(arena, ei);
+        if (e.struct_lit_struct_name_len == layout_nl && layout_nl > 0) {
+          let seq: i32 = 1;
+          let si: i32 = 0;
+          while (si < layout_nl) {
+            if (e.struct_lit_struct_name[si] != layout_nm[si]) {
+              seq = 0;
+            }
+            si = si + 1;
+          }
+          if (seq != 0) {
+            let nf: i32 = pipeline_expr_struct_lit_num_fields(arena, ei);
+            let fj: i32 = 0;
+            while (fj < nf) {
+              let fl: i32 = pipeline_expr_struct_lit_field_name_len(arena, ei, fj);
+              if (fl == field_nl) {
+                let fnb: u8[64] = [];
+                pipeline_expr_struct_lit_field_name_into(arena, ei, fj, &fnb[0]);
+                let feq: i32 = 1;
+                let fi: i32 = 0;
+                while (fi < fl) {
+                  if (fnb[fi] != field_nm[fi]) {
+                    feq = 0;
+                  }
+                  fi = fi + 1;
+                }
+                if (feq != 0) {
+                  let iref: i32 = pipeline_expr_struct_lit_init_ref(arena, ei, fj);
+                  if (iref > 0) {
+                    let ity: i32 = pipeline_expr_resolved_type_ref(arena, iref);
+                    if (ity > 0 && codegen_type_ref_is_host_concrete(module, arena, ity) != 0) {
+                      return ity;
+                    }
+                  }
+                }
+              }
+              fj = fj + 1;
+            }
+          }
+        }
+      }
+      ei = ei + 1;
+    }
+    return ftr;
+  }
+}
+
+/**
+ * wave481: find module struct layout index by bare name.
+ * @param module *Module
+ * @param layout_nm *u8 — layout bare name
+ * @param layout_nl i32
+ * @return i32 — layout index, or -1
+ * PLATFORM: SHARED
+ */
+function codegen_module_struct_layout_index_by_name(module: *Module, layout_nm: *u8, layout_nl: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (module == 0 as *Module || layout_nm == 0 as *u8 || layout_nl <= 0) {
+      return -1;
+    }
+    let sk: i32 = 0;
+    while (sk < module.num_struct_layouts) {
+      let sl: i32 = pipeline_module_struct_layout_name_len(module, sk);
+      if (sl == layout_nl) {
+        let snm: u8[64] = [];
+        pipeline_module_struct_layout_name_into(module, sk, &snm[0]);
+        let eq: i32 = 1;
+        let bi: i32 = 0;
+        while (bi < layout_nl) {
+          if (snm[bi] != layout_nm[bi]) {
+            eq = 0;
+          }
+          bi = bi + 1;
+        }
+        if (eq != 0) {
+          return sk;
+        }
+      }
+      sk = sk + 1;
+    }
+    return -1;
+  }
+}
+
+/**
+ * wave482: resolve free TYPE_NAMED (T/U) through active function mono map.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param ctx *PipelineDepCtx — may be null
+ * @param ty i32 — candidate type_ref
+ * @return i32 — concrete type_ref or 0
+ * PLATFORM: SHARED host-C — twin of seed
+ */
+function codegen_generic_struct_resolve_arg_via_ctx(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, ty: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ty <= 0) {
+      return 0;
+    }
+    if (codegen_type_ref_is_host_concrete(module, arena, ty) != 0) {
+      return ty;
+    }
+    if (ctx == 0 as *PipelineDepCtx || ctx.mono_active == 0 || ctx.mono_num_types <= 0) {
+      return 0;
+    }
+    let mi: i32 = 0;
+    while (mi < ctx.mono_num_types && mi < 8) {
+      let gen: i32 = ctx.mono_generic_type_refs[mi];
+      let conc: i32 = ctx.mono_concrete_type_refs[mi];
+      if (gen > 0 && conc > 0 && conc != ty && ty == gen) {
+        if (codegen_type_ref_is_host_concrete(module, arena, conc) != 0) {
+          return conc;
+        }
+      }
+      mi = mi + 1;
+    }
+    let fb_nm: u8[64] = [];
+    let fb_len: i32 = pipeline_type_named_name_into(arena, ty, &fb_nm[0]);
+    if (fb_len <= 0) {
+      return 0;
+    }
+    mi = 0;
+    while (mi < ctx.mono_num_types && mi < 8) {
+      let gen2: i32 = ctx.mono_generic_type_refs[mi];
+      let conc2: i32 = ctx.mono_concrete_type_refs[mi];
+      if (gen2 > 0 && conc2 > 0 && conc2 != ty) {
+        let gnm: u8[64] = [];
+        let gnl: i32 = pipeline_type_named_name_into(arena, gen2, &gnm[0]);
+        if (gnl == fb_len && gnl > 0) {
+          let eq: i32 = 1;
+          let bi: i32 = 0;
+          while (bi < gnl) {
+            if (gnm[bi] != fb_nm[bi]) {
+              eq = 0;
+            }
+            bi = bi + 1;
+          }
+          if (eq != 0 && codegen_type_ref_is_host_concrete(module, arena, conc2) != 0) {
+            return conc2;
+          }
+        }
+      }
+      mi = mi + 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * wave482: resolve free type via explicit mono map arrays (collect path).
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param ty i32
+ * @param mono_gen *i32
+ * @param mono_conc *i32
+ * @param nmono i32
+ * @return i32 — concrete or 0
+ * PLATFORM: SHARED
+ */
+function codegen_generic_struct_resolve_arg_via_map(module: *Module, arena: *ASTArena, ty: i32, mono_gen: *i32, mono_conc: *i32, nmono: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ty <= 0 || mono_gen == 0 as *i32 || mono_conc == 0 as *i32 || nmono <= 0) {
+      return 0;
+    }
+    if (codegen_type_ref_is_host_concrete(module, arena, ty) != 0) {
+      return ty;
+    }
+    let mi: i32 = 0;
+    while (mi < nmono && mi < 8) {
+      if (mono_gen[mi] > 0 && mono_conc[mi] > 0 && mono_conc[mi] != ty && ty == mono_gen[mi]) {
+        if (codegen_type_ref_is_host_concrete(module, arena, mono_conc[mi]) != 0) {
+          return mono_conc[mi];
+        }
+      }
+      mi = mi + 1;
+    }
+    let fb_nm: u8[64] = [];
+    let fb_len: i32 = pipeline_type_named_name_into(arena, ty, &fb_nm[0]);
+    if (fb_len <= 0) {
+      return 0;
+    }
+    mi = 0;
+    while (mi < nmono && mi < 8) {
+      if (mono_gen[mi] > 0 && mono_conc[mi] > 0 && mono_conc[mi] != ty) {
+        let gnm: u8[64] = [];
+        let gnl: i32 = pipeline_type_named_name_into(arena, mono_gen[mi], &gnm[0]);
+        if (gnl == fb_len && gnl > 0) {
+          let eq: i32 = 1;
+          let bi: i32 = 0;
+          while (bi < gnl) {
+            if (gnm[bi] != fb_nm[bi]) {
+              eq = 0;
+            }
+            bi = bi + 1;
+          }
+          if (eq != 0 && codegen_type_ref_is_host_concrete(module, arena, mono_conc[mi]) != 0) {
+            return mono_conc[mi];
+          }
+        }
+      }
+      mi = mi + 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * wave481/482: fill concrete type-arg combo for TYPE_NAMED layout use (Wrap&lt;A&gt; / Pair&lt;A,B&gt;).
+ * All ntp slots must resolve to host-concrete types; free T/U via mono map when ctx active.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param type_ref i32 — TYPE_NAMED with type-pos args
+ * @param ntp i32 — layout type-param count
+ * @param mono_out *i32 — length ntp (max 4)
+ * @param ctx *PipelineDepCtx — optional mono map (null OK)
+ * @return i32 — ntp on full concrete combo, else 0
+ * PLATFORM: SHARED host-C generic struct multi mono
+ */
+function codegen_generic_struct_fill_concrete_args(module: *Module, arena: *ASTArena, type_ref: i32, ntp: i32, mono_out: *i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (module == 0 as *Module || arena == 0 as *ASTArena || type_ref <= 0 || mono_out == 0 as *i32) {
+      return 0;
+    }
+    if (ntp <= 0 || ntp > 4) {
+      return 0;
+    }
+    if (pipeline_type_kind_ord_at(arena, type_ref) != TypeKind.TYPE_NAMED) {
+      return 0;
+    }
+    let si: i32 = 0;
+    while (si < ntp) {
+      let mono: i32 = pipeline_type_type_arg_ref_at(arena, type_ref, si);
+      if (mono <= 0 && si == 0) {
+        mono = pipeline_type_elem_ref_at(arena, type_ref);
+      }
+      if (mono > 0 && codegen_type_ref_is_host_concrete(module, arena, mono) == 0) {
+        mono = codegen_generic_struct_resolve_arg_via_ctx(module, arena, ctx, mono);
+      }
+      if (mono <= 0 || codegen_type_ref_is_host_concrete(module, arena, mono) == 0) {
+        return 0;
+      }
+      mono_out[si] = mono;
+      si = si + 1;
+    }
+    return ntp;
+  }
+}
+
+/**
+ * wave481: build mangled generic struct tag `Name__suf0[_suf1…]` into out_nm.
+ * @param arena *ASTArena
+ * @param layout_nm *u8
+ * @param layout_nl i32
+ * @param mono_tys *i32 — concrete combo
+ * @param ntp i32
+ * @param out_nm *u8 — capacity out_cap
+ * @param out_cap i32
+ * @return i32 — mangled length, or 0 on failure
+ * PLATFORM: SHARED — reuses codegen_type_ref_to_suffix (function mono authority)
+ */
+function codegen_generic_struct_mangled_name_into(arena: *ASTArena, layout_nm: *u8, layout_nl: i32, mono_tys: *i32, ntp: i32, out_nm: *u8, out_cap: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || layout_nm == 0 as *u8 || layout_nl <= 0 || mono_tys == 0 as *i32 || out_nm == 0 as *u8) {
+      return 0;
+    }
+    if (ntp <= 0 || out_cap <= layout_nl + 2) {
+      return 0;
+    }
+    let o: i32 = 0;
+    let bi: i32 = 0;
+    while (bi < layout_nl && o < out_cap) {
+      out_nm[o] = layout_nm[bi];
+      o = o + 1;
+      bi = bi + 1;
+    }
+    // "__"
+    if (o + 2 >= out_cap) {
+      return 0;
+    }
+    out_nm[o] = 95;
+    o = o + 1;
+    out_nm[o] = 95;
+    o = o + 1;
+    let mi: i32 = 0;
+    while (mi < ntp) {
+      if (mi > 0) {
+        if (o >= out_cap) {
+          return 0;
+        }
+        out_nm[o] = 95;
+        o = o + 1;
+      }
+      let suf: u8[64] = [];
+      let sl: i32 = codegen_type_ref_to_suffix(arena, mono_tys[mi], &suf[0], 64);
+      if (sl <= 0) {
+        return 0;
+      }
+      let si: i32 = 0;
+      while (si < sl) {
+        if (o >= out_cap) {
+          return 0;
+        }
+        out_nm[o] = suf[si];
+        o = o + 1;
+        si = si + 1;
+      }
+      mi = mi + 1;
+    }
+    return o;
+  }
+}
+
+/**
+ * wave484/485: build mono arg suffix bytes from a field init expression.
+ * STRUCT_LIT recurses into nested field structure (ignores ambient resolved_type_ref).
+ * wave485: leaf free T under mono maps via ctx (T→A) for nest&lt;T&gt; body STRUCT_LIT.
+ * Other inits use codegen_type_ref_to_suffix(resolved/mono-mapped).
+ * @param arena *ASTArena
+ * @param module *Module
+ * @param init_ref i32
+ * @param buf *u8
+ * @param buf_cap i32
+ * @param ctx *PipelineDepCtx — may be null; mono map used when active
+ * @return i32 — bytes written, or 0 on failure
+ * PLATFORM: SHARED host-C — G.7 twin of seed
+ */
+function codegen_mono_suffix_bytes_from_init(arena: *ASTArena, module: *Module, init_ref: i32, buf: *u8, buf_cap: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || module == 0 as *Module || init_ref <= 0 || buf == 0 as *u8 || buf_cap <= 0) {
+      return 0;
+    }
+    if (pipeline_expr_kind_ord_at(arena, init_ref) == ExprKind.EXPR_STRUCT_LIT) {
+      let e: Expr = ast.ast_arena_expr_get(arena, init_ref);
+      let nl: i32 = e.struct_lit_struct_name_len;
+      if (nl <= 0 || nl >= buf_cap) {
+        return 0;
+      }
+      let pos: i32 = 0;
+      let i: i32 = 0;
+      while (i < nl) {
+        buf[pos] = e.struct_lit_struct_name[i];
+        pos = pos + 1;
+        i = i + 1;
+      }
+      let lk: i32 = codegen_module_struct_layout_index_by_name(module, &e.struct_lit_struct_name[0], nl);
+      if (lk < 0) {
+        return pos;
+      }
+      let ntp: i32 = pipeline_module_struct_layout_num_type_params_at(module, lk);
+      if (ntp <= 0) {
+        return pos;
+      }
+      let tj: i32 = 0;
+      while (tj < ntp && tj < 4) {
+        let tpl: i32 = pipeline_module_struct_layout_type_param_name_len(module, lk, tj);
+        let tpn: u8[64] = [];
+        pipeline_module_struct_layout_type_param_name_into(module, lk, tj, &tpn[0]);
+        let found: i32 = 0;
+        let nf: i32 = pipeline_module_struct_layout_num_fields(module, lk);
+        let fj: i32 = 0;
+        while (fj < nf) {
+          let ftr: i32 = pipeline_module_struct_layout_field_type_ref(module, lk, fj);
+          if (pipeline_type_kind_ord_at(arena, ftr) == TypeKind.TYPE_NAMED) {
+            let ftn: u8[64] = [];
+            let ftnl: i32 = pipeline_type_named_name_into(arena, ftr, &ftn[0]);
+            if (ftnl == tpl && ftnl > 0) {
+              let peq: i32 = 1;
+              let pi: i32 = 0;
+              while (pi < ftnl) {
+                if (ftn[pi] != tpn[pi]) {
+                  peq = 0;
+                }
+                pi = pi + 1;
+              }
+              if (peq != 0) {
+                let flen: i32 = pipeline_module_struct_layout_field_name_len(module, lk, fj);
+                let fnm: u8[64] = [];
+                pipeline_module_struct_layout_field_name_into(module, lk, fj, &fnm[0]);
+                let lit_nf: i32 = pipeline_expr_struct_lit_num_fields(arena, init_ref);
+                let li: i32 = 0;
+                while (li < lit_nf) {
+                  let lfl: i32 = pipeline_expr_struct_lit_field_name_len(arena, init_ref, li);
+                  if (lfl == flen && flen > 0) {
+                    let lfn: u8[64] = [];
+                    pipeline_expr_struct_lit_field_name_into(arena, init_ref, li, &lfn[0]);
+                    let feq: i32 = 1;
+                    let fi: i32 = 0;
+                    while (fi < flen) {
+                      if (lfn[fi] != fnm[fi]) {
+                        feq = 0;
+                      }
+                      fi = fi + 1;
+                    }
+                    if (feq != 0) {
+                      let iref: i32 = pipeline_expr_struct_lit_init_ref(arena, init_ref, li);
+                      let asuf: u8[64] = [];
+                      let al: i32 = codegen_mono_suffix_bytes_from_init(arena, module, iref, &asuf[0], 64, ctx);
+                      // wave485: leaf may lack resolved_type under mono body; map layout T via mono.
+                      if (al <= 0 && ctx != 0 as *PipelineDepCtx && ctx.mono_active != 0 && ctx.mono_num_types > 0) {
+                        let mi_f: i32 = 0;
+                        while (mi_f < ctx.mono_num_types && mi_f < 8) {
+                          let gtr_f: i32 = ctx.mono_generic_type_refs[mi_f];
+                          let ctr_f: i32 = ctx.mono_concrete_type_refs[mi_f];
+                          if (gtr_f > 0 && ctr_f > 0) {
+                            let gnm_f: u8[64] = [];
+                            let gnl_f: i32 = pipeline_type_named_name_into(arena, gtr_f, &gnm_f[0]);
+                            if (gnl_f == tpl && gnl_f > 0) {
+                              let geq_f: i32 = 1;
+                              let gi_f: i32 = 0;
+                              while (gi_f < gnl_f) {
+                                if (gnm_f[gi_f] != tpn[gi_f]) {
+                                  geq_f = 0;
+                                }
+                                gi_f = gi_f + 1;
+                              }
+                              if (geq_f != 0 && codegen_type_ref_is_host_concrete(module, arena, ctr_f) != 0) {
+                                al = codegen_type_ref_to_suffix(arena, ctr_f, &asuf[0], 64);
+                                mi_f = ctx.mono_num_types;
+                              }
+                            }
+                          }
+                          mi_f = mi_f + 1;
+                        }
+                      }
+                      if (al <= 0 || pos + 1 + al >= buf_cap) {
+                        return 0;
+                      }
+                      buf[pos] = 95;
+                      pos = pos + 1;
+                      let aj: i32 = 0;
+                      while (aj < al) {
+                        buf[pos] = asuf[aj];
+                        pos = pos + 1;
+                        aj = aj + 1;
+                      }
+                      found = 1;
+                      li = lit_nf;
+                      fj = nf;
+                    }
+                  }
+                  li = li + 1;
+                }
+              }
+            }
+          }
+          fj = fj + 1;
+        }
+        if (found == 0) {
+          return 0;
+        }
+        tj = tj + 1;
+      }
+      return pos;
+    }
+    let rty: i32 = pipeline_expr_resolved_type_ref(arena, init_ref);
+    if (rty <= 0) {
+      // wave485: unstamped INT lit as type-arg slot (Pair { …, b: 1 }) → i32.
+      if (pipeline_expr_kind_ord_at(arena, init_ref) == ExprKind.EXPR_LIT && buf_cap > 3) {
+        buf[0] = 105;
+        buf[1] = 51;
+        buf[2] = 50;
+        return 3;
+      }
+      return 0;
+    }
+    // wave485: free T under mono → concrete via ctx map.
+    let mapped: i32 = codegen_generic_struct_resolve_arg_via_ctx(module, arena, ctx, rty);
+    if (mapped > 0) {
+      rty = mapped;
+    }
+    return codegen_type_ref_to_suffix(arena, rty, buf, buf_cap);
+  }
+}
+
+/**
+ * wave484/485: emit STRUCT_LIT mono `__suf…` from field structure (not ambient type).
+ * @param ctx *PipelineDepCtx — mono map for leaf free type params
+ * @return i32 — 1 emitted, 0 not applicable, -1 fail
+ * PLATFORM: SHARED host-C
+ */
+function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, layout_nm: *u8, layout_nl: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (module == 0 as *Module || arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || expr_ref <= 0) {
+      return 0;
+    }
+    if (layout_nm == 0 as *u8 || layout_nl <= 0) {
+      return 0;
+    }
+    let lk: i32 = codegen_module_struct_layout_index_by_name(module, layout_nm, layout_nl);
+    if (lk < 0) {
+      return 0;
+    }
+    let ntp: i32 = pipeline_module_struct_layout_num_type_params_at(module, lk);
+    if (ntp <= 0 || ntp > 4) {
+      return 0;
+    }
+    // Probe fillable.
+    let tj: i32 = 0;
+    while (tj < ntp) {
+      let asuf: u8[64] = [];
+      let al: i32 = 0;
+      let tpl: i32 = pipeline_module_struct_layout_type_param_name_len(module, lk, tj);
+      let tpn: u8[64] = [];
+      pipeline_module_struct_layout_type_param_name_into(module, lk, tj, &tpn[0]);
+      let found: i32 = 0;
+      let nf: i32 = pipeline_module_struct_layout_num_fields(module, lk);
+      let fj: i32 = 0;
+      while (fj < nf) {
+        let ftr: i32 = pipeline_module_struct_layout_field_type_ref(module, lk, fj);
+        if (pipeline_type_kind_ord_at(arena, ftr) == TypeKind.TYPE_NAMED) {
+          let ftn: u8[64] = [];
+          let ftnl: i32 = pipeline_type_named_name_into(arena, ftr, &ftn[0]);
+          if (ftnl == tpl && ftnl > 0) {
+            let peq: i32 = 1;
+            let pi: i32 = 0;
+            while (pi < ftnl) {
+              if (ftn[pi] != tpn[pi]) {
+                peq = 0;
+              }
+              pi = pi + 1;
+            }
+            if (peq != 0) {
+              let flen: i32 = pipeline_module_struct_layout_field_name_len(module, lk, fj);
+              let fnm: u8[64] = [];
+              pipeline_module_struct_layout_field_name_into(module, lk, fj, &fnm[0]);
+              let lit_nf: i32 = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+              let li: i32 = 0;
+              while (li < lit_nf) {
+                let lfl: i32 = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, li);
+                if (lfl == flen && flen > 0) {
+                  let lfn: u8[64] = [];
+                  pipeline_expr_struct_lit_field_name_into(arena, expr_ref, li, &lfn[0]);
+                  let feq: i32 = 1;
+                  let fi: i32 = 0;
+                  while (fi < flen) {
+                    if (lfn[fi] != fnm[fi]) {
+                      feq = 0;
+                    }
+                    fi = fi + 1;
+                  }
+                  if (feq != 0) {
+                    let iref: i32 = pipeline_expr_struct_lit_init_ref(arena, expr_ref, li);
+                    al = codegen_mono_suffix_bytes_from_init(arena, module, iref, &asuf[0], 64, ctx);
+                    if (al <= 0) {
+                      return 0;
+                    }
+                    found = 1;
+                    li = lit_nf;
+                    fj = nf;
+                  }
+                }
+                li = li + 1;
+              }
+            }
+          }
+        }
+        fj = fj + 1;
+      }
+      if (found == 0) {
+        return 0;
+      }
+      tj = tj + 1;
+    }
+    // Emit __suf0[_suf1…]
+    let sep: u8[2] = [95, 95];
+    if (emit_bytes_from_ptr(out, &sep[0], 2) != 0) {
+      return -1;
+    }
+    let first: i32 = 1;
+    tj = 0;
+    while (tj < ntp) {
+      let tpl2: i32 = pipeline_module_struct_layout_type_param_name_len(module, lk, tj);
+      let tpn2: u8[64] = [];
+      pipeline_module_struct_layout_type_param_name_into(module, lk, tj, &tpn2[0]);
+      let done: i32 = 0;
+      let nf2: i32 = pipeline_module_struct_layout_num_fields(module, lk);
+      let fj2: i32 = 0;
+      while (fj2 < nf2) {
+        let ftr2: i32 = pipeline_module_struct_layout_field_type_ref(module, lk, fj2);
+        if (pipeline_type_kind_ord_at(arena, ftr2) == TypeKind.TYPE_NAMED) {
+          let ftn2: u8[64] = [];
+          let ftnl2: i32 = pipeline_type_named_name_into(arena, ftr2, &ftn2[0]);
+          if (ftnl2 == tpl2 && ftnl2 > 0) {
+            let peq2: i32 = 1;
+            let pi2: i32 = 0;
+            while (pi2 < ftnl2) {
+              if (ftn2[pi2] != tpn2[pi2]) {
+                peq2 = 0;
+              }
+              pi2 = pi2 + 1;
+            }
+            if (peq2 != 0) {
+              let flen2: i32 = pipeline_module_struct_layout_field_name_len(module, lk, fj2);
+              let fnm2: u8[64] = [];
+              pipeline_module_struct_layout_field_name_into(module, lk, fj2, &fnm2[0]);
+              let lit_nf2: i32 = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+              let li2: i32 = 0;
+              while (li2 < lit_nf2) {
+                let lfl2: i32 = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, li2);
+                if (lfl2 == flen2 && flen2 > 0) {
+                  let lfn2: u8[64] = [];
+                  pipeline_expr_struct_lit_field_name_into(arena, expr_ref, li2, &lfn2[0]);
+                  let feq2: i32 = 1;
+                  let fi2: i32 = 0;
+                  while (fi2 < flen2) {
+                    if (lfn2[fi2] != fnm2[fi2]) {
+                      feq2 = 0;
+                    }
+                    fi2 = fi2 + 1;
+                  }
+                  if (feq2 != 0) {
+                    let iref2: i32 = pipeline_expr_struct_lit_init_ref(arena, expr_ref, li2);
+                    let asuf2: u8[64] = [];
+                    let al2: i32 = codegen_mono_suffix_bytes_from_init(arena, module, iref2, &asuf2[0], 64, ctx);
+                    if (al2 <= 0) {
+                      return -1;
+                    }
+                    if (first == 0) {
+                      if (append_byte(out, 95) != 0) {
+                        return -1;
+                      }
+                    }
+                    first = 0;
+                    if (emit_bytes_from_ptr(out, &asuf2[0], al2) != 0) {
+                      return -1;
+                    }
+                    done = 1;
+                    li2 = lit_nf2;
+                    fj2 = nf2;
+                  }
+                }
+                li2 = li2 + 1;
+              }
+            }
+          }
+        }
+        fj2 = fj2 + 1;
+      }
+      if (done == 0) {
+        return -1;
+      }
+      tj = tj + 1;
+    }
+    return 1;
+  }
+}
+
+/**
+ * wave481: emit mono suffix `__suf0[_suf1…]` after a base C struct tag name.
+ * @param out *CodegenOutBuf
+ * @param arena *ASTArena
+ * @param mono_tys *i32
+ * @param ntp i32
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED
+ */
+function codegen_emit_generic_struct_mono_suffix(out: *CodegenOutBuf, arena: *ASTArena, mono_tys: *i32, ntp: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (out == 0 as *CodegenOutBuf || arena == 0 as *ASTArena || mono_tys == 0 as *i32 || ntp <= 0) {
+      return -1;
+    }
+    let sep: u8[2] = [95, 95];
+    if (emit_bytes_from_ptr(out, &sep[0], 2) != 0) {
+      return -1;
+    }
+    let mi: i32 = 0;
+    while (mi < ntp) {
+      if (mi > 0) {
+        if (append_byte(out, 95) != 0) {
+          return -1;
+        }
+      }
+      let suf: u8[64] = [];
+      let sl: i32 = codegen_type_ref_to_suffix(arena, mono_tys[mi], &suf[0], 64);
+      if (sl <= 0) {
+        return -1;
+      }
+      if (emit_bytes_from_ptr(out, &suf[0], sl) != 0) {
+        return -1;
+      }
+      mi = mi + 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * wave481: substitute a layout field type_ref using an explicit mono combo.
+ * TYPE_NAMED matching type-param slot j → mono_tys[j]; else keep ftr.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param layout_k i32 — layout index
+ * @param ftr i32 — layout field type_ref
+ * @param mono_tys *i32
+ * @param ntp i32
+ * @return i32 — concrete type_ref for host emit
+ * PLATFORM: SHARED
+ */
+function codegen_generic_struct_field_type_from_mono(module: *Module, arena: *ASTArena, layout_k: i32, ftr: i32, mono_tys: *i32, ntp: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ftr <= 0 || mono_tys == 0 as *i32 || ntp <= 0) {
+      return ftr;
+    }
+    if (pipeline_type_kind_ord_at(arena, ftr) != TypeKind.TYPE_NAMED) {
+      return ftr;
+    }
+    let ftn: u8[64] = [];
+    let ftnl: i32 = pipeline_type_named_name_into(arena, ftr, &ftn[0]);
+    if (ftnl <= 0) {
+      return ftr;
+    }
+    let tj: i32 = 0;
+    while (tj < ntp) {
+      let tpl: i32 = pipeline_module_struct_layout_type_param_name_len(module, layout_k, tj);
+      if (tpl == ftnl) {
+        let tpn: u8[64] = [];
+        pipeline_module_struct_layout_type_param_name_into(module, layout_k, tj, &tpn[0]);
+        let peq: i32 = 1;
+        let pi: i32 = 0;
+        while (pi < ftnl) {
+          if (tpn[pi] != ftn[pi]) {
+            peq = 0;
+          }
+          pi = pi + 1;
+        }
+        if (peq != 0 && mono_tys[tj] > 0) {
+          return mono_tys[tj];
+        }
+      }
+      tj = tj + 1;
+    }
+    return ftr;
+  }
+}
+
+/**
+ * wave484: structural equality of two type_refs for mono combo dedup.
+ * Name-only equal is insufficient: Wrap&lt;A&gt; and Wrap&lt;Wrap&lt;A&gt;&gt; share name "Wrap".
+ * Recurses into type-pos args via pipeline_type_type_arg_ref_at.
+ * @param arena *ASTArena
+ * @param a i32 — type_ref
+ * @param b i32 — type_ref
+ * @return i32 — 1 if same mono shape, 0 otherwise
+ * PLATFORM: SHARED host-C
+ */
+function codegen_type_refs_same_for_mono(arena: *ASTArena, a: i32, b: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (a == b && a > 0) {
+      return 1;
+    }
+    if (arena == 0 as *ASTArena || a <= 0 || b <= 0) {
+      return 0;
+    }
+    let ka: i32 = pipeline_type_kind_ord_at(arena, a);
+    let kb: i32 = pipeline_type_kind_ord_at(arena, b);
+    if (ka != kb) {
+      return 0;
+    }
+    if (ka == (TypeKind.TYPE_NAMED as i32)) {
+      let nma: u8[64] = [];
+      let nmb: u8[64] = [];
+      let nla: i32 = pipeline_type_named_name_into(arena, a, &nma[0]);
+      let nlb: i32 = pipeline_type_named_name_into(arena, b, &nmb[0]);
+      if (nla <= 0 || nla != nlb) {
+        return 0;
+      }
+      let ni: i32 = 0;
+      while (ni < nla) {
+        if (nma[ni] != nmb[ni]) {
+          return 0;
+        }
+        ni = ni + 1;
+      }
+      let ai: i32 = 0;
+      while (ai < 4) {
+        let aa: i32 = pipeline_type_type_arg_ref_at(arena, a, ai);
+        let bb: i32 = pipeline_type_type_arg_ref_at(arena, b, ai);
+        if (aa <= 0 && bb <= 0) {
+          return 1;
+        }
+        if (aa <= 0 || bb <= 0) {
+          return 0;
+        }
+        if (codegen_type_refs_same_for_mono(arena, aa, bb) == 0) {
+          return 0;
+        }
+        ai = ai + 1;
+      }
+      return 1;
+    }
+    if (ka == (TypeKind.TYPE_PTR as i32)) {
+      return codegen_type_refs_same_for_mono(arena, pipeline_type_elem_ref_at(arena, a), pipeline_type_elem_ref_at(arena, b));
+    }
+    // Non-named builtins of same kind are equal for mono keys.
+    return 1;
+  }
+}
+
+/**
+ * wave484: nesting depth of type-pos args (0 = leaf / no args).
+ * Used to emit shallower mono layouts before deeper ones (avoid incomplete field types).
+ * @param arena *ASTArena
+ * @param ty i32
+ * @return i32 — depth
+ * PLATFORM: SHARED host-C
+ */
+function codegen_type_ref_type_arg_nest_depth(arena: *ASTArena, ty: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || ty <= 0) {
+      return 0;
+    }
+    let maxd: i32 = 0;
+    let ai: i32 = 0;
+    while (ai < 4) {
+      let arg: i32 = pipeline_type_type_arg_ref_at(arena, ty, ai);
+      if (arg <= 0) {
+        ai = 4;
+      } else {
+        let d: i32 = 1 + codegen_type_ref_type_arg_nest_depth(arena, arg);
+        if (d > maxd) {
+          maxd = d;
+        }
+        ai = ai + 1;
+      }
+    }
+    return maxd;
+  }
+}
+
+/**
+ * wave484: max type-arg nest depth across a mono combo (ntp slots).
+ * @param arena *ASTArena
+ * @param mono_tys *i32
+ * @param ntp i32
+ * @return i32
+ * PLATFORM: SHARED
+ */
+function codegen_generic_struct_combo_nest_depth(arena: *ASTArena, mono_tys: *i32, ntp: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || mono_tys == 0 as *i32 || ntp <= 0) {
+      return 0;
+    }
+    let maxd: i32 = 0;
+    let i: i32 = 0;
+    while (i < ntp) {
+      let d: i32 = codegen_type_ref_type_arg_nest_depth(arena, mono_tys[i]);
+      if (d > maxd) {
+        maxd = d;
+      }
+      i = i + 1;
+    }
+    return maxd;
+  }
+}
+
+/**
+ * wave484: sort mono combos by nest depth ascending (in-place bubble, max 8).
+ * Ensures Wrap__A is defined before Wrap__Wrap_A before Wrap__Wrap_Wrap_A.
+ * @param arena *ASTArena
+ * @param combos *i32 — layout combos[c * ntp + slot]
+ * @param ncombo i32
+ * @param ntp i32
+ * @return void
+ * PLATFORM: SHARED host-C
+ */
+function codegen_generic_struct_sort_mono_combos_by_depth(arena: *ASTArena, combos: *i32, ncombo: i32, ntp: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || combos == 0 as *i32 || ncombo <= 1 || ntp <= 0) {
+      return;
+    }
+    let i: i32 = 0;
+    while (i < ncombo) {
+      let j: i32 = i + 1;
+      while (j < ncombo) {
+        let di: i32 = codegen_generic_struct_combo_nest_depth(arena, &combos[i * ntp], ntp);
+        let dj: i32 = codegen_generic_struct_combo_nest_depth(arena, &combos[j * ntp], ntp);
+        if (dj < di) {
+          let s: i32 = 0;
+          while (s < ntp) {
+            let tmp: i32 = combos[i * ntp + s];
+            combos[i * ntp + s] = combos[j * ntp + s];
+            combos[j * ntp + s] = tmp;
+            s = s + 1;
+          }
+        }
+        j = j + 1;
+      }
+      i = i + 1;
+    }
+  }
+}
+
+/**
+ * wave481: collect unique concrete mono combos for a generic struct layout.
+ * Sources: TYPE_NAMED type-pos uses (Wrap&lt;A&gt;) and STRUCT_LIT field-init mapping.
+ * Layout: combos_out[c * ntp + slot]; max_combos cap (typically 8).
+ * wave484: dedup uses structural type_arg equality (not name-only).
+ * @return i32 — number of unique combos
+ * PLATFORM: SHARED host-C multi mono
+ */
+function codegen_collect_generic_struct_mono_combos(module: *Module, arena: *ASTArena, layout_k: i32, layout_nm: *u8, layout_nl: i32, ntp: i32, combos_out: *i32, max_combos: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (module == 0 as *Module || arena == 0 as *ASTArena || layout_nm == 0 as *u8 || combos_out == 0 as *i32) {
+      return 0;
+    }
+    if (ntp <= 0 || ntp > 4 || max_combos <= 0 || layout_nl <= 0) {
+      return 0;
+    }
+    let combo_count: i32 = 0;
+    // (1) TYPE_NAMED uses with concrete type-pos args.
+    let ti: i32 = 1;
+    while (ti <= arena.num_types) {
+      if (pipeline_type_kind_ord_at(arena, ti) == TypeKind.TYPE_NAMED) {
+        let tnm: u8[64] = [];
+        let tnl: i32 = pipeline_type_named_name_into(arena, ti, &tnm[0]);
+        if (tnl == layout_nl && tnl > 0) {
+          let eq: i32 = 1;
+          let ci: i32 = 0;
+          while (ci < tnl) {
+            if (tnm[ci] != layout_nm[ci]) {
+              eq = 0;
+            }
+            ci = ci + 1;
+          }
+          if (eq != 0) {
+            let combo: i32[4] = [];
+            if (codegen_generic_struct_fill_concrete_args(module, arena, ti, ntp, &combo[0], 0 as *PipelineDepCtx) == ntp) {
+              let found: i32 = 0;
+              let c0: i32 = 0;
+              while (c0 < combo_count) {
+                let same: i32 = 1;
+                let s0: i32 = 0;
+                while (s0 < ntp) {
+                  // wave484: structural mono equal (nested type-args), not name-only.
+                  let ca: i32 = combos_out[c0 * ntp + s0];
+                  let cb: i32 = combo[s0];
+                  if (codegen_type_refs_same_for_mono(arena, ca, cb) == 0) {
+                    same = 0;
+                    s0 = ntp;
+                  }
+                  s0 = s0 + 1;
+                }
+                if (same != 0) {
+                  found = 1;
+                  c0 = combo_count;
+                }
+                c0 = c0 + 1;
+              }
+              if (found == 0 && combo_count < max_combos) {
+                let s1: i32 = 0;
+                while (s1 < ntp) {
+                  combos_out[combo_count * ntp + s1] = combo[s1];
+                  s1 = s1 + 1;
+                }
+                combo_count = combo_count + 1;
+              }
+            }
+          }
+        }
+      }
+      ti = ti + 1;
+    }
+    // (2) STRUCT_LIT bare Name { … }: map field type-param slots via init resolved types.
+    let ei: i32 = 1;
+    while (ei <= arena.num_exprs) {
+      if (pipeline_expr_kind_ord_at(arena, ei) == ExprKind.EXPR_STRUCT_LIT) {
+        let e: Expr = ast.ast_arena_expr_get(arena, ei);
+        if (e.struct_lit_struct_name_len == layout_nl && layout_nl > 0) {
+          let seq: i32 = 1;
+          let si: i32 = 0;
+          while (si < layout_nl) {
+            if (e.struct_lit_struct_name[si] != layout_nm[si]) {
+              seq = 0;
+            }
+            si = si + 1;
+          }
+          if (seq != 0) {
+            let combo2: i32[4] = [];
+            let filled: i32 = 0;
+            let ok: i32 = 1;
+            let tj: i32 = 0;
+            while (tj < ntp) {
+              combo2[tj] = 0;
+              tj = tj + 1;
+            }
+            // For each layout field whose type is type-param slot j, take init concrete.
+            let nf: i32 = pipeline_module_struct_layout_num_fields(module, layout_k);
+            let fj: i32 = 0;
+            while (fj < nf) {
+              let ftr: i32 = pipeline_module_struct_layout_field_type_ref(module, layout_k, fj);
+              if (pipeline_type_kind_ord_at(arena, ftr) == TypeKind.TYPE_NAMED) {
+                let ftn: u8[64] = [];
+                let ftnl: i32 = pipeline_type_named_name_into(arena, ftr, &ftn[0]);
+                let slot: i32 = -1;
+                let pj: i32 = 0;
+                while (pj < ntp) {
+                  let tpl: i32 = pipeline_module_struct_layout_type_param_name_len(module, layout_k, pj);
+                  if (tpl == ftnl && ftnl > 0) {
+                    let tpn: u8[64] = [];
+                    pipeline_module_struct_layout_type_param_name_into(module, layout_k, pj, &tpn[0]);
+                    let peq: i32 = 1;
+                    let pi: i32 = 0;
+                    while (pi < ftnl) {
+                      if (tpn[pi] != ftn[pi]) {
+                        peq = 0;
+                      }
+                      pi = pi + 1;
+                    }
+                    if (peq != 0) {
+                      slot = pj;
+                      pj = ntp;
+                    }
+                  }
+                  pj = pj + 1;
+                }
+                if (slot >= 0) {
+                  // Match STRUCT_LIT field by layout field name.
+                  let flen: i32 = pipeline_module_struct_layout_field_name_len(module, layout_k, fj);
+                  let fnm: u8[64] = [];
+                  pipeline_module_struct_layout_field_name_into(module, layout_k, fj, &fnm[0]);
+                  let lit_nf: i32 = pipeline_expr_struct_lit_num_fields(arena, ei);
+                  let li: i32 = 0;
+                  while (li < lit_nf) {
+                    let lfl: i32 = pipeline_expr_struct_lit_field_name_len(arena, ei, li);
+                    if (lfl == flen && flen > 0) {
+                      let lfn: u8[64] = [];
+                      pipeline_expr_struct_lit_field_name_into(arena, ei, li, &lfn[0]);
+                      let feq: i32 = 1;
+                      let fi: i32 = 0;
+                      while (fi < flen) {
+                        if (lfn[fi] != fnm[fi]) {
+                          feq = 0;
+                        }
+                        fi = fi + 1;
+                      }
+                      if (feq != 0) {
+                        let iref: i32 = pipeline_expr_struct_lit_init_ref(arena, ei, li);
+                        if (iref > 0) {
+                          let ity: i32 = pipeline_expr_resolved_type_ref(arena, iref);
+                          if (ity > 0 && codegen_type_ref_is_host_concrete(module, arena, ity) != 0) {
+                            if (combo2[slot] == 0) {
+                              combo2[slot] = ity;
+                              filled = filled + 1;
+                            }
+                          }
+                        }
+                        li = lit_nf;
+                      }
+                    }
+                    li = li + 1;
+                  }
+                }
+              }
+              fj = fj + 1;
+            }
+            // All slots filled?
+            let scheck: i32 = 0;
+            while (scheck < ntp) {
+              if (combo2[scheck] <= 0) {
+                ok = 0;
+              }
+              scheck = scheck + 1;
+            }
+            if (ok != 0 && filled > 0) {
+              let found2: i32 = 0;
+              let c1: i32 = 0;
+              while (c1 < combo_count) {
+                let same2: i32 = 1;
+                let s2: i32 = 0;
+                while (s2 < ntp) {
+                  // wave484: structural mono equal (nested type-args).
+                  let ca2: i32 = combos_out[c1 * ntp + s2];
+                  let cb2: i32 = combo2[s2];
+                  if (codegen_type_refs_same_for_mono(arena, ca2, cb2) == 0) {
+                    same2 = 0;
+                    s2 = ntp;
+                  }
+                  s2 = s2 + 1;
+                }
+                if (same2 != 0) {
+                  found2 = 1;
+                  c1 = combo_count;
+                }
+                c1 = c1 + 1;
+              }
+              if (found2 == 0 && combo_count < max_combos) {
+                let s3: i32 = 0;
+                while (s3 < ntp) {
+                  combos_out[combo_count * ntp + s3] = combo2[s3];
+                  s3 = s3 + 1;
+                }
+                combo_count = combo_count + 1;
+              }
+            }
+          }
+        }
+      }
+      ei = ei + 1;
+    }
+    /*
+     * wave482: harvest combos from generic function mono (bare multi mono).
+     * chain `make_pair(A,B).a` lacks TYPE_NAMED Pair&lt;A,B&gt; type-pos; STRUCT_LIT
+     * inits are free T/U — without this, Pair__A_B def is skipped → BLD001.
+     * PLATFORM: SHARED host-C; twin of seed.
+     */
+    let fi_h: i32 = 0;
+    while (fi_h < module.num_funcs && combo_count < max_combos) {
+      if (pipeline_module_func_num_generic_params_at(module, fi_h) > 0 && pipeline_module_func_is_extern_at(module, fi_h) == 0) {
+        let np_h: i32 = pipeline_module_func_num_params_at(module, fi_h);
+        if (np_h >= 0 && np_h <= 8) {
+          let ret_extra_h: i32 = codegen_func_ret_type_param_extra(arena, module, fi_h);
+          let combo_width_h: i32 = np_h + ret_extra_h;
+          if (combo_width_h > 0 && combo_width_h <= 8) {
+            let combos_fn: i32[128] = [];
+            let ncombo_fn: i32 = codegen_collect_mono_combos_for_generic_func(arena, module, fi_h, &combos_fn[0], 16, np_h, ret_extra_h);
+            let ci_fn: i32 = 0;
+            while (ci_fn < ncombo_fn && combo_count < max_combos) {
+              let mono_gen: i32[8] = [];
+              let mono_conc: i32[8] = [];
+              let nmono: i32 = 0;
+              let ret_ty_fn: i32 = pipeline_module_func_return_type_at(module, fi_h);
+              let pi_h: i32 = 0;
+              while (pi_h < np_h && nmono < 8) {
+                mono_gen[nmono] = pipeline_module_func_param_type_ref_at(module, fi_h, pi_h);
+                mono_conc[nmono] = combos_fn[ci_fn * combo_width_h + pi_h];
+                nmono = nmono + 1;
+                pi_h = pi_h + 1;
+              }
+              if (ret_extra_h != 0 && nmono < 8) {
+                let ta_c: i32 = combos_fn[ci_fn * combo_width_h + np_h];
+                if (ta_c > 0 && ta_c != ret_ty_fn) {
+                  mono_gen[nmono] = ret_ty_fn;
+                  mono_conc[nmono] = ta_c;
+                  nmono = nmono + 1;
+                }
+              }
+              let tr_i: i32 = 0;
+              while (tr_i < np_h + 1) {
+                let try_tr: i32 = ret_ty_fn;
+                if (tr_i < np_h) {
+                  try_tr = pipeline_module_func_param_type_ref_at(module, fi_h, tr_i);
+                }
+                if (try_tr > 0 && pipeline_type_kind_ord_at(arena, try_tr) == TypeKind.TYPE_NAMED) {
+                  let tnm_r: u8[64] = [];
+                  let tnl_r: i32 = pipeline_type_named_name_into(arena, try_tr, &tnm_r[0]);
+                  if (tnl_r == layout_nl && tnl_r > 0) {
+                    let eq_r: i32 = 1;
+                    let bi_r: i32 = 0;
+                    while (bi_r < tnl_r) {
+                      if (tnm_r[bi_r] != layout_nm[bi_r]) {
+                        eq_r = 0;
+                      }
+                      bi_r = bi_r + 1;
+                    }
+                    if (eq_r != 0) {
+                      let combo_r: i32[4] = [];
+                      let filled_r: i32 = 0;
+                      let ok_r: i32 = 1;
+                      let si_r: i32 = 0;
+                      while (si_r < ntp) {
+                        let arg: i32 = pipeline_type_type_arg_ref_at(arena, try_tr, si_r);
+                        if (arg <= 0 && si_r == 0) {
+                          arg = pipeline_type_elem_ref_at(arena, try_tr);
+                        }
+                        if (arg > 0 && codegen_type_ref_is_host_concrete(module, arena, arg) == 0) {
+                          arg = codegen_generic_struct_resolve_arg_via_map(module, arena, arg, &mono_gen[0], &mono_conc[0], nmono);
+                        }
+                        if (arg <= 0 || codegen_type_ref_is_host_concrete(module, arena, arg) == 0) {
+                          ok_r = 0;
+                          si_r = ntp;
+                        } else {
+                          combo_r[si_r] = arg;
+                          filled_r = filled_r + 1;
+                        }
+                        si_r = si_r + 1;
+                      }
+                      if (ok_r == 0 || filled_r != ntp) {
+                        ok_r = 1;
+                        filled_r = 0;
+                        si_r = 0;
+                        while (si_r < ntp) {
+                          let tpl_h: i32 = pipeline_module_struct_layout_type_param_name_len(module, layout_k, si_r);
+                          let tpn_h: u8[64] = [];
+                          pipeline_module_struct_layout_type_param_name_into(module, layout_k, si_r, &tpn_h[0]);
+                          let found_slot: i32 = 0;
+                          let mi_m: i32 = 0;
+                          while (mi_m < nmono && mi_m < 8) {
+                            if (mono_gen[mi_m] > 0 && mono_conc[mi_m] > 0) {
+                              let gnm_h: u8[64] = [];
+                              let gnl_h: i32 = pipeline_type_named_name_into(arena, mono_gen[mi_m], &gnm_h[0]);
+                              if (gnl_h == tpl_h && gnl_h > 0) {
+                                let geq_h: i32 = 1;
+                                let gi_h: i32 = 0;
+                                while (gi_h < gnl_h) {
+                                  if (gnm_h[gi_h] != tpn_h[gi_h]) {
+                                    geq_h = 0;
+                                  }
+                                  gi_h = gi_h + 1;
+                                }
+                                if (geq_h != 0 && codegen_type_ref_is_host_concrete(module, arena, mono_conc[mi_m]) != 0) {
+                                  combo_r[si_r] = mono_conc[mi_m];
+                                  found_slot = 1;
+                                  filled_r = filled_r + 1;
+                                  mi_m = nmono;
+                                }
+                              }
+                            }
+                            mi_m = mi_m + 1;
+                          }
+                          if (found_slot == 0) {
+                            ok_r = 0;
+                            si_r = ntp;
+                          }
+                          si_r = si_r + 1;
+                        }
+                      }
+                      if (ok_r != 0 && filled_r == ntp) {
+                        let found_r: i32 = 0;
+                        let c_r: i32 = 0;
+                        while (c_r < combo_count) {
+                          let same_r: i32 = 1;
+                          let s_r: i32 = 0;
+                          while (s_r < ntp) {
+                            if (codegen_type_refs_same_for_mono(arena, combos_out[c_r * ntp + s_r], combo_r[s_r]) == 0) {
+                              same_r = 0;
+                            }
+                            s_r = s_r + 1;
+                          }
+                          if (same_r != 0) {
+                            found_r = 1;
+                            c_r = combo_count;
+                          }
+                          c_r = c_r + 1;
+                        }
+                        if (found_r == 0 && combo_count < max_combos) {
+                          let s_a: i32 = 0;
+                          while (s_a < ntp) {
+                            combos_out[combo_count * ntp + s_a] = combo_r[s_a];
+                            s_a = s_a + 1;
+                          }
+                          combo_count = combo_count + 1;
+                        }
+                      }
+                    }
+                  }
+                }
+                tr_i = tr_i + 1;
+              }
+              ci_fn = ci_fn + 1;
+            }
+          }
+        }
+      }
+      fi_h = fi_h + 1;
+    }
+    return combo_count;
+  }
+}
+
+/**
+ * wave481/482: if type_ref resolves to a generic layout with concrete args (or mono map),
+ * emit mono C tag suffix onto out. No-op (return 0) when not multi-mono applicable.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param type_ref i32
+ * @param ctx *PipelineDepCtx — optional; mono_active enables free T/U map
+ * @return i32 — 0 ok (incl. no-op), -1 emit error
+ * PLATFORM: SHARED
+ */
+function codegen_maybe_emit_generic_struct_mono_suffix_for_type(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (module == 0 as *Module || arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || type_ref <= 0) {
+      return 0;
+    }
+    if (pipeline_type_kind_ord_at(arena, type_ref) != TypeKind.TYPE_NAMED) {
+      return 0;
+    }
+    let nm: u8[64] = [];
+    let nl: i32 = pipeline_type_named_name_into(arena, type_ref, &nm[0]);
+    if (nl <= 0) {
+      return 0;
+    }
+    // bare name after last '.'
+    let bare_off: i32 = 0;
+    let bi: i32 = 0;
+    while (bi < nl && bi < 64) {
+      if (nm[bi] == 46) {
+        bare_off = bi + 1;
+      }
+      bi = bi + 1;
+    }
+    let bare_len: i32 = nl - bare_off;
+    if (bare_len <= 0) {
+      return 0;
+    }
+    let lk: i32 = codegen_module_struct_layout_index_by_name(module, &nm[bare_off], bare_len);
+    if (lk < 0) {
+      return 0;
+    }
+    let ntp: i32 = pipeline_module_struct_layout_num_type_params_at(module, lk);
+    if (ntp <= 0) {
+      return 0;
+    }
+    let mono: i32[4] = [];
+    if (codegen_generic_struct_fill_concrete_args(module, arena, type_ref, ntp, &mono[0], ctx) == ntp) {
+      return codegen_emit_generic_struct_mono_suffix(out, arena, &mono[0], ntp);
+    }
+    /*
+     * wave482: under mono_active, map layout type-param names through mono map
+     * when type_ref still has free T/U (Pair&lt;T,U&gt; signature of mono instance).
+     */
+    if (ctx != 0 as *PipelineDepCtx && ctx.mono_active != 0 && ctx.mono_num_types > 0 && ntp <= 4) {
+      let tj: i32 = 0;
+      let ok: i32 = 1;
+      while (tj < ntp) {
+        let tpl: i32 = pipeline_module_struct_layout_type_param_name_len(module, lk, tj);
+        let tpn: u8[64] = [];
+        pipeline_module_struct_layout_type_param_name_into(module, lk, tj, &tpn[0]);
+        mono[tj] = 0;
+        let found: i32 = 0;
+        let mi_m: i32 = 0;
+        while (mi_m < ctx.mono_num_types && mi_m < 8) {
+          let gtr: i32 = ctx.mono_generic_type_refs[mi_m];
+          let ctr: i32 = ctx.mono_concrete_type_refs[mi_m];
+          if (gtr > 0 && ctr > 0) {
+            let gnm: u8[64] = [];
+            let gnl: i32 = pipeline_type_named_name_into(arena, gtr, &gnm[0]);
+            if (gnl == tpl && gnl > 0) {
+              let geq: i32 = 1;
+              let gi: i32 = 0;
+              while (gi < gnl) {
+                if (gnm[gi] != tpn[gi]) {
+                  geq = 0;
+                }
+                gi = gi + 1;
+              }
+              if (geq != 0 && codegen_type_ref_is_host_concrete(module, arena, ctr) != 0) {
+                mono[tj] = ctr;
+                found = 1;
+                mi_m = ctx.mono_num_types;
+              }
+            }
+          }
+          mi_m = mi_m + 1;
+        }
+        if (found == 0) {
+          ok = 0;
+          tj = ntp;
+        }
+        tj = tj + 1;
+      }
+      if (ok != 0) {
+        return codegen_emit_generic_struct_mono_suffix(out, arena, &mono[0], ntp);
+      }
+    }
+    /*
+     * wave489 Cap residual: generic-impl method self `Box&lt;T&gt;` / free type-args on a
+     * layout that has exactly one host-concrete mono combo in the module (e.g. only
+     * `Box&lt;i32&gt;` uses). fill_concrete fails on free T; mono_active map is off when
+     * emitting the free function signature (impl methods hoist as free fns, not under
+     * generic-function mono). Reuse collect authority: if unique combo, append that
+     * suffix so host-C matches monomorphized receivers (`struct Box__i32`) instead of
+     * incomplete bare `struct Box` BLD001.
+     * Multi-combo `impl for Box<T>` with Box<A>+Box<B>: wave498 fixed via per-combo
+     * mangled methods emitted by codegen_try_emit_generic_impl_method_mono + call-side
+     * codegen_try_emit_impl_method_mono_call_name (5 call paths: UFCS / dep / C6 /
+     * re-search / PTR overload). No longer soft.
+     * PLATFORM: SHARED host-C.
+     */
+    if (ntp <= 4) {
+      let combos: i32[32] = [];
+      let nc: i32 = codegen_collect_generic_struct_mono_combos(module, arena, lk, &nm[bare_off], bare_len, ntp, &combos[0], 8);
+      if (nc == 1) {
+        return codegen_emit_generic_struct_mono_suffix(out, arena, &combos[0], ntp);
+      }
+      if (nc > 1) {
+        let match_combo: i32[4] = [];
+        let mi: i32 = 0;
+        while (mi < nc) {
+          let matched: i32 = 1;
+          let si: i32 = 0;
+          while (si < ntp) {
+            let arg_ref: i32 = pipeline_type_type_arg_ref_at(arena, type_ref, si);
+            if (arg_ref <= 0) {
+              matched = 0;
+              si = ntp;
+            } else if (codegen_type_refs_same_for_mono(arena, arg_ref, combos[mi * ntp + si]) == 0) {
+              matched = 0;
+              si = ntp;
+            }
+            si = si + 1;
+          }
+          if (matched != 0) {
+            let sj: i32 = 0;
+            while (sj < ntp) {
+              match_combo[sj] = combos[mi * ntp + sj];
+              sj = sj + 1;
+            }
+            return codegen_emit_generic_struct_mono_suffix(out, arena, &match_combo[0], ntp);
+          }
+          mi = mi + 1;
+        }
+      }
+    }
+    return 0;
+  }
+}
+
+/**
+ * wave495: build a type-param-name → concrete type_ref mono map for a function's
+ * params, derived from each generic-struct param's unique mono combo.
+ *
+ * Why: hoisted generic inherent impl methods (`impl Wrap<T> { function get(self: Wrap<T>): T }`)
+ * have num_generic_params == 0 (the <T> is on the impl, not the fn), so they bypass
+ * codegen_try_emit_generic_identity_mono and are emitted by emit_func. Without mono_active,
+ * the return type T emits as `struct T` (incomplete BLD001) while the self param Wrap<T>
+ * is rescued by the wave489 unique-combo suffix mechanism. This helper derives the
+ * T→concrete mapping from the self param's unique combo so emit_func can set mono_active
+ * and let emit_type's name-based fallback (L4033-L4060) substitute T in ret type + body.
+ *
+ * Guards (only handle the unique-combo case; multi-combo stays soft per wave490):
+ *   - skip param if fill_concrete_args succeeds (param already concrete)
+ *   - skip param if collect_combos returns nc != 1
+ *   - skip type-arg slot if pipeline_type_type_arg_ref_at returns <= 0 (bare struct)
+ *   - dedup by formal_arg type_ref (don't double-map same T from two params)
+ *
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param fi i32 — function index
+ * @param gen_refs *i32 — out: formal type-arg type_refs (cap max_entries)
+ * @param conc_refs *i32 — out: concrete combo type_refs (cap max_entries)
+ * @param max_entries i32 — typically 8 (matches PipelineDepCtx.mono_*_type_refs[8])
+ * @return i32 — number of map entries (0..max_entries), or 0 on no-map / error
+ * PLATFORM: SHARED — mirrors seed codegen_gen.linux.x86_64.c same commit.
+ */
+function codegen_build_func_param_mono_map(module: *Module, arena: *ASTArena, fi: i32, gen_refs: *i32, conc_refs: *i32, max_entries: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+
+    if (module == 0 as *Module || arena == 0 as *ASTArena || gen_refs == 0 as *i32 || conc_refs == 0 as *i32 || max_entries <= 0) {
+      return 0;
+    }
+    if (fi < 0 || fi >= module.num_funcs) {
+      return 0;
+    }
+    let map_count: i32 = 0;
+    let num_params: i32 = pipeline_module_func_num_params_at(module, fi);
+    let p: i32 = 0;
+    while (p < num_params) {
+      let pty_raw: i32 = pipeline_module_func_param_type_ref_at(module, fi, p);
+      if (pty_raw <= 0) {
+        p = p + 1;
+        continue;
+      }
+      /* Peel aliases (Cap residual wave376) to reach TYPE_NAMED. */
+      let pty: i32 = pipeline_typeck_resolve_type_alias_ref_c(arena, pty_raw);
+      if (pty <= 0) {
+        p = p + 1;
+        continue;
+      }
+      if (pipeline_type_kind_ord_at(arena, pty) != (TypeKind.TYPE_NAMED as i32)) {
+        p = p + 1;
+        continue;
+      }
+      let nm: u8[64] = [];
+      let nl: i32 = pipeline_type_named_name_into(arena, pty, &nm[0]);
+      if (nl <= 0) {
+        p = p + 1;
+        continue;
+      }
+      /* bare name after last '.' */
+      let bare_off: i32 = 0;
+      let bi: i32 = 0;
+      while (bi < nl && bi < 64) {
+        if (nm[bi] == 46) {
+          bare_off = bi + 1;
+        }
+        bi = bi + 1;
+      }
+      let bare_len: i32 = nl - bare_off;
+      if (bare_len <= 0) {
+        p = p + 1;
+        continue;
+      }
+      let lk: i32 = codegen_module_struct_layout_index_by_name(module, &nm[bare_off], bare_len);
+      if (lk < 0) {
+        p = p + 1;
+        continue;
+      }
+      let ntp: i32 = pipeline_module_struct_layout_num_type_params_at(module, lk);
+      if (ntp <= 0) {
+        p = p + 1;
+        continue;
+      }
+      /* Skip if param is already concrete (e.g. Wrap<i32>); fill_concrete succeeds. */
+      let mono_chk: i32[4] = [];
+      if (codegen_generic_struct_fill_concrete_args(module, arena, pty, ntp, &mono_chk[0], 0 as *PipelineDepCtx) == ntp) {
+        p = p + 1;
+        continue;
+      }
+      /* Has free type-args — collect combos. Only handle unique combo (wave489). */
+      let combos: i32[32] = [];
+      let nc: i32 = codegen_collect_generic_struct_mono_combos(module, arena, lk, &nm[bare_off], bare_len, ntp, &combos[0], 8);
+      if (nc != 1) {
+        p = p + 1;
+        continue;
+      }
+      /* Map each formal type-arg → combo concrete. */
+      let tj: i32 = 0;
+      while (tj < ntp) {
+        let formal_arg: i32 = pipeline_type_type_arg_ref_at(arena, pty, tj);
+        let concrete_arg: i32 = combos[tj];
+        if (formal_arg > 0 && concrete_arg > 0 && map_count < max_entries) {
+          /* Dedup by formal_arg type_ref. */
+          let dup: i32 = 0;
+          let dk: i32 = 0;
+          while (dk < map_count) {
+            if (gen_refs[dk] == formal_arg) {
+              dup = 1;
+              dk = map_count;
+            }
+            dk = dk + 1;
+          }
+          if (dup == 0) {
+            gen_refs[map_count] = formal_arg;
+            conc_refs[map_count] = concrete_arg;
+            map_count = map_count + 1;
+          }
+        }
+        tj = tj + 1;
+      }
+      p = p + 1;
+    }
+    return map_count;
+  }
+}
+
+/**
  * See implementation.
  * See implementation.
  */
@@ -4183,115 +7122,300 @@ export function codegen_emit_struct_field_decl_x(arena: *ASTArena, out: *Codegen
  * See implementation.
  */
 export function codegen_emit_module_struct_definitions(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, struct_prefix: *u8, struct_prefix_len: i32, ctx: *PipelineDepCtx): i32 {
+  /**
+   * Emit host-C `struct` definitions for module layouts.
+   * wave488: two-phase so mono mangled tags (Wrap__A) never precede non-generic
+   * field types (A) — prior layout-order pass caused incomplete type BLD001.
+   * Phase 0: non-generic (and generic with zero mono combos).
+   * Phase 1: collect mono combos globally, sort by type-arg nest depth, emit.
+   * @param module *Module — current module layouts
+   * @param arena *ASTArena — type graph for mono combos / field subst
+   * @param out *CodegenOutBuf — C text buffer
+   * @param struct_prefix *u8 — optional name prefix (dep modules)
+   * @param struct_prefix_len i32 — prefix byte length
+   * @param ctx *PipelineDepCtx — owner / entry vs dep emit gates
+   * @return i32 — 0 ok, -1 emit failure
+   * PLATFORM: SHARED host-C
+   */
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-
-    let k: i32 = 0;
     let cur_di: i32 = -1;
     if (ctx != 0 as *PipelineDepCtx) {
       cur_di = ctx.current_codegen_dep_index;
     }
-    while (k < module.num_struct_layouts) {
-      let nf: i32 = pipeline_module_struct_layout_num_fields(module, k);
-      let nl: i32 = pipeline_module_struct_layout_name_len(module, k);
-      if (nf <= 0 || nl <= 0) {
-        k = k + 1;
-        continue;
-      }
-      let ty_nm: u8[64] = [];
-      pipeline_module_struct_layout_name_into(module, k, &ty_nm[0]);
-      /*
-       * PLATFORM: SHARED — only the defining owner emits full C layout.
-       * Entry (cur_di < 0) must also skip dep-owned names (e.g. Lexer from lexer.x).
-       * Otherwise co-emit re-emits as parser_Lexer; entry prime/merge layouts may have
-       * field_type_ref=0 on later fields → field_decl fail mid-struct (parser M1 residual).
-       * Authority: codegen_type_dep_struct_owner_index (export-first); seed pin same commit.
-       */
-      if (ctx != 0 as *PipelineDepCtx) {
-        let owner: i32 = codegen_type_dep_struct_owner_index(ctx, &ty_nm[0], nl);
-        if (owner >= 0 && owner != cur_di) {
+    let phase: i32 = 0;
+    while (phase < 2) {
+      let k: i32 = 0;
+      let job_k: i32[32] = [];
+      let job_ntp: i32[32] = [];
+      let job_depth: i32[32] = [];
+      let job_mono: i32[128] = [];
+      let njob: i32 = 0;
+      while (k < module.num_struct_layouts) {
+        let nf: i32 = pipeline_module_struct_layout_num_fields(module, k);
+        let nl: i32 = pipeline_module_struct_layout_name_len(module, k);
+        if (nl <= 0) {
           k = k + 1;
           continue;
         }
-      }
-      if (codegen_should_skip_emit_struct_layout_for_abi_dup(&ty_nm[0], nl) != 0) {
-        k = k + 1;
-        continue;
-      }
-      /* See implementation. */
-      let claim_pfx: u8[128] = [];
-      let claim_plen: i32 = 0;
-      if (struct_prefix != 0 as *u8 && struct_prefix_len > 0) {
-        claim_plen = struct_prefix_len;
-        if (claim_plen > 127) {
-          claim_plen = 127;
+        let ty_nm: u8[64] = [];
+        pipeline_module_struct_layout_name_into(module, k, &ty_nm[0]);
+        if (ctx != 0 as *PipelineDepCtx) {
+          let owner: i32 = codegen_type_dep_struct_owner_index(ctx, &ty_nm[0], nl);
+          if (owner >= 0 && owner != cur_di) {
+            k = k + 1;
+            continue;
+          }
         }
-        let ci: i32 = 0;
-        while (ci < claim_plen) {
-          claim_pfx[ci] = struct_prefix[ci];
-          ci = ci + 1;
-        }
-      } else if (!(ctx != 0 as *PipelineDepCtx && ctx.current_codegen_dep_index < 0)) {
-        claim_pfx[0] = 97;
-        claim_pfx[1] = 115;
-        claim_pfx[2] = 116;
-        claim_pfx[3] = 95;
-        claim_plen = 4;
-      }
-      if (pipeline_codegen_struct_tag_try_claim(&claim_pfx[0], claim_plen, &ty_nm[0], nl) == 0) {
-        k = k + 1;
-        continue;
-      }
-      let hdr_top: u8[8] = [115, 116, 114, 117, 99, 116, 32, 0];
-      if (emit_bytes_8(out, hdr_top, 7) != 0) {
-        return -1;
-      }
-      if (struct_prefix != 0 as *u8 && struct_prefix_len > 0) {
-        if (emit_bytes_from_ptr(out, struct_prefix, struct_prefix_len) != 0) {
-          return -1;
-        }
-      } else if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_dep_index < 0) {
-        /* See implementation. */
-      } else {
-        let ast_top: u8[4] = [97, 115, 116, 95];
-        if (emit_bytes_4(out, ast_top, 4) != 0) {
-          return -1;
-        }
-      }
-      if (emit_bytes_from_ptr(out, &ty_nm[0], nl) != 0) {
-        return -1;
-      }
-      let br1: u8[4] = [32, 123, 10, 0];
-      if (emit_bytes_4(out, br1, 3) != 0) {
-        return -1;
-      }
-      let j: i32 = 0;
-      while (j < nf) {
-        let flen: i32 = pipeline_module_struct_layout_field_name_len(module, k, j);
-        let ftr: i32 = pipeline_module_struct_layout_field_type_ref(module, k, j);
-        if (flen <= 0) {
-          j = j + 1;
+        if (codegen_should_skip_emit_struct_layout_for_abi_dup(&ty_nm[0], nl) != 0) {
+          k = k + 1;
           continue;
         }
-        if (emit_indent(out, 2) != 0) {
-          return -1;
+        let claim_pfx: u8[128] = [];
+        let claim_plen: i32 = 0;
+        if (struct_prefix != 0 as *u8 && struct_prefix_len > 0) {
+          claim_plen = struct_prefix_len;
+          if (claim_plen > 127) {
+            claim_plen = 127;
+          }
+          let ci: i32 = 0;
+          while (ci < claim_plen) {
+            claim_pfx[ci] = struct_prefix[ci];
+            ci = ci + 1;
+          }
+        } else if (!(ctx != 0 as *PipelineDepCtx && ctx.current_codegen_dep_index < 0)) {
+          claim_pfx[0] = 97;
+          claim_pfx[1] = 115;
+          claim_pfx[2] = 116;
+          claim_pfx[3] = 95;
+          claim_plen = 4;
         }
-        let fnm: u8[64] = [];
-        pipeline_module_struct_layout_field_name_into(module, k, j, &fnm[0]);
-        if (codegen_emit_struct_field_decl_x(arena, out, ftr, &fnm[0], flen, 0 as *u8, 0, ctx) != 0) {
-          return -1;
+        let ntp_gs: i32 = pipeline_module_struct_layout_num_type_params_at(module, k);
+        let combos_gs: i32[32] = [];
+        let ncombo_gs: i32 = 0;
+        if (ntp_gs > 0 && ntp_gs <= 4 && arena != 0 as *ASTArena) {
+          ncombo_gs = codegen_collect_generic_struct_mono_combos(module, arena, k, &ty_nm[0], nl, ntp_gs, &combos_gs[0], 8);
         }
-        let semi_nl: u8[3] = [59, 10, 0];
-        if (emit_bytes_3(out, semi_nl, 2) != 0) {
-          return -1;
+        if (phase == 0) {
+          // Defer mono mangled defs so A is complete before Wrap__A.
+          if (ncombo_gs > 0) {
+            k = k + 1;
+            continue;
+          }
+          if (pipeline_codegen_struct_tag_try_claim(&claim_pfx[0], claim_plen, &ty_nm[0], nl) == 0) {
+            k = k + 1;
+            continue;
+          }
+          let hdr_top: u8[8] = [115, 116, 114, 117, 99, 116, 32, 0];
+          if (emit_bytes_8(out, hdr_top, 7) != 0) {
+            return -1;
+          }
+          if (struct_prefix != 0 as *u8 && struct_prefix_len > 0) {
+            if (emit_bytes_from_ptr(out, struct_prefix, struct_prefix_len) != 0) {
+              return -1;
+            }
+          } else if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_dep_index < 0) {
+            /* entry module: bare file prefix */
+          } else {
+            let ast_top: u8[4] = [97, 115, 116, 95];
+            if (emit_bytes_4(out, ast_top, 4) != 0) {
+              return -1;
+            }
+          }
+          if (emit_bytes_from_ptr(out, &ty_nm[0], nl) != 0) {
+            return -1;
+          }
+          let br1: u8[4] = [32, 123, 10, 0];
+          if (emit_bytes_4(out, br1, 3) != 0) {
+            return -1;
+          }
+          let j: i32 = 0;
+          while (j < nf) {
+            let flen: i32 = pipeline_module_struct_layout_field_name_len(module, k, j);
+            let ftr: i32 = pipeline_module_struct_layout_field_type_ref(module, k, j);
+            if (flen <= 0) {
+              j = j + 1;
+              continue;
+            }
+            if (emit_indent(out, 2) != 0) {
+              return -1;
+            }
+            let fnm: u8[64] = [];
+            pipeline_module_struct_layout_field_name_into(module, k, j, &fnm[0]);
+            ftr = codegen_resolve_generic_struct_field_type(module, arena, &ty_nm[0], nl, &fnm[0], flen, ftr);
+            if (codegen_emit_struct_field_decl_x(arena, out, ftr, &fnm[0], flen, 0 as *u8, 0, ctx) != 0) {
+              return -1;
+            }
+            let semi_nl: u8[3] = [59, 10, 0];
+            if (emit_bytes_3(out, semi_nl, 2) != 0) {
+              return -1;
+            }
+            j = j + 1;
+          }
+          let close_ty: u8[4] = [125, 59, 10, 10];
+          if (emit_bytes_4(out, close_ty, 4) != 0) {
+            return -1;
+          }
+          k = k + 1;
+          continue;
         }
-        j = j + 1;
+        // phase 1 collect mono jobs
+        if (ncombo_gs > 0) {
+          let cc: i32 = 0;
+          while (cc < ncombo_gs && njob < 32) {
+            let mono_c: i32[4] = [];
+            let ms: i32 = 0;
+            while (ms < ntp_gs) {
+              mono_c[ms] = combos_gs[cc * ntp_gs + ms];
+              ms = ms + 1;
+            }
+            job_k[njob] = k;
+            job_ntp[njob] = ntp_gs;
+            job_depth[njob] = codegen_generic_struct_combo_nest_depth(arena, &mono_c[0], ntp_gs);
+            ms = 0;
+            while (ms < ntp_gs) {
+              job_mono[njob * 4 + ms] = mono_c[ms];
+              ms = ms + 1;
+            }
+            while (ms < 4) {
+              job_mono[njob * 4 + ms] = 0;
+              ms = ms + 1;
+            }
+            njob = njob + 1;
+            cc = cc + 1;
+          }
+        }
+        k = k + 1;
       }
-      let close_ty: u8[4] = [125, 59, 10, 10];
-      if (emit_bytes_4(out, close_ty, 4) != 0) {
-        return -1;
+      if (phase == 1) {
+        // Sort jobs by nest depth ascending (cross-layout: Pair before Wrap of Pair).
+        let i: i32 = 0;
+        while (i < njob) {
+          let j: i32 = i + 1;
+          while (j < njob) {
+            if (job_depth[j] < job_depth[i]) {
+              let tmp: i32 = job_k[i];
+              job_k[i] = job_k[j];
+              job_k[j] = tmp;
+              tmp = job_ntp[i];
+              job_ntp[i] = job_ntp[j];
+              job_ntp[j] = tmp;
+              tmp = job_depth[i];
+              job_depth[i] = job_depth[j];
+              job_depth[j] = tmp;
+              let s: i32 = 0;
+              while (s < 4) {
+                tmp = job_mono[i * 4 + s];
+                job_mono[i * 4 + s] = job_mono[j * 4 + s];
+                job_mono[j * 4 + s] = tmp;
+                s = s + 1;
+              }
+            }
+            j = j + 1;
+          }
+          i = i + 1;
+        }
+        let ji: i32 = 0;
+        while (ji < njob) {
+          let jk: i32 = job_k[ji];
+          let jntp: i32 = job_ntp[ji];
+          let jnf: i32 = pipeline_module_struct_layout_num_fields(module, jk);
+          let jnl: i32 = pipeline_module_struct_layout_name_len(module, jk);
+          if (jnl <= 0 || jntp <= 0) {
+            ji = ji + 1;
+            continue;
+          }
+          let jty: u8[64] = [];
+          pipeline_module_struct_layout_name_into(module, jk, &jty[0]);
+          let mono_c: i32[4] = [];
+          let ms: i32 = 0;
+          while (ms < jntp && ms < 4) {
+            mono_c[ms] = job_mono[ji * 4 + ms];
+            ms = ms + 1;
+          }
+          let claim_pfx2: u8[128] = [];
+          let claim_plen2: i32 = 0;
+          if (struct_prefix != 0 as *u8 && struct_prefix_len > 0) {
+            claim_plen2 = struct_prefix_len;
+            if (claim_plen2 > 127) {
+              claim_plen2 = 127;
+            }
+            let ci2: i32 = 0;
+            while (ci2 < claim_plen2) {
+              claim_pfx2[ci2] = struct_prefix[ci2];
+              ci2 = ci2 + 1;
+            }
+          } else if (!(ctx != 0 as *PipelineDepCtx && ctx.current_codegen_dep_index < 0)) {
+            claim_pfx2[0] = 97;
+            claim_pfx2[1] = 115;
+            claim_pfx2[2] = 116;
+            claim_pfx2[3] = 95;
+            claim_plen2 = 4;
+          }
+          let mangled: u8[96] = [];
+          let mlen: i32 = codegen_generic_struct_mangled_name_into(arena, &jty[0], jnl, &mono_c[0], jntp, &mangled[0], 96);
+          if (mlen <= 0) {
+            ji = ji + 1;
+            continue;
+          }
+          if (pipeline_codegen_struct_tag_try_claim(&claim_pfx2[0], claim_plen2, &mangled[0], mlen) == 0) {
+            ji = ji + 1;
+            continue;
+          }
+          let hdr_m: u8[8] = [115, 116, 114, 117, 99, 116, 32, 0];
+          if (emit_bytes_8(out, hdr_m, 7) != 0) {
+            return -1;
+          }
+          if (struct_prefix != 0 as *u8 && struct_prefix_len > 0) {
+            if (emit_bytes_from_ptr(out, struct_prefix, struct_prefix_len) != 0) {
+              return -1;
+            }
+          } else if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_dep_index < 0) {
+            /* entry bare */
+          } else {
+            let ast_m: u8[4] = [97, 115, 116, 95];
+            if (emit_bytes_4(out, ast_m, 4) != 0) {
+              return -1;
+            }
+          }
+          if (emit_bytes_from_ptr(out, &mangled[0], mlen) != 0) {
+            return -1;
+          }
+          let br_m: u8[4] = [32, 123, 10, 0];
+          if (emit_bytes_4(out, br_m, 3) != 0) {
+            return -1;
+          }
+          let j_m: i32 = 0;
+          while (j_m < jnf) {
+            let flen_m: i32 = pipeline_module_struct_layout_field_name_len(module, jk, j_m);
+            let ftr_m: i32 = pipeline_module_struct_layout_field_type_ref(module, jk, j_m);
+            if (flen_m <= 0) {
+              j_m = j_m + 1;
+              continue;
+            }
+            if (emit_indent(out, 2) != 0) {
+              return -1;
+            }
+            let fnm_m: u8[64] = [];
+            pipeline_module_struct_layout_field_name_into(module, jk, j_m, &fnm_m[0]);
+            ftr_m = codegen_generic_struct_field_type_from_mono(module, arena, jk, ftr_m, &mono_c[0], jntp);
+            if (codegen_emit_struct_field_decl_x(arena, out, ftr_m, &fnm_m[0], flen_m, 0 as *u8, 0, ctx) != 0) {
+              return -1;
+            }
+            let semi_m: u8[3] = [59, 10, 0];
+            if (emit_bytes_3(out, semi_m, 2) != 0) {
+              return -1;
+            }
+            j_m = j_m + 1;
+          }
+          let close_m: u8[4] = [125, 59, 10, 10];
+          if (emit_bytes_4(out, close_m, 4) != 0) {
+            return -1;
+          }
+          ji = ji + 1;
+        }
       }
-      k = k + 1;
+      phase = phase + 1;
     }
     return 0;
   }
@@ -4328,9 +7452,9 @@ export function codegen_emit_module_struct_forward_declarations_ctx(module: *Mod
       cur_di = ctx.current_codegen_dep_index;
     }
     while (k < module.num_struct_layouts) {
-      let nf: i32 = pipeline_module_struct_layout_num_fields(module, k);
       let nl: i32 = pipeline_module_struct_layout_name_len(module, k);
-      if (nf <= 0 || nl <= 0) {
+      /* wave365: forward-declare zero-field layouts too (only need a valid name). */
+      if (nl <= 0) {
         k = k + 1;
         continue;
       }
@@ -4976,8 +8100,383 @@ export function emit_import_module_const_field(arena: *ASTArena, out: *CodegenOu
 }
 
 /**
- * See implementation.
- * See implementation.
+ * wave371: emit match arm result in value position (C ternary).
+ * EXPR_RETURN unwraps to its operand so host `return match { 1 => return 42; … }`
+ * becomes `return (subj==1?(42):…)` instead of illegal `return (…?(return 42):…)`.
+ * wave372: mid-body match with RETURN arms uses statement if/else (see
+ * codegen_emit_match_as_stmt); ternary remains for expression/value position only.
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param res_ref i32 — arm result expr
+ * @param ctx *PipelineDepCtx
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED — host-C match ternary arm value.
+ */
+function codegen_emit_match_arm_value(arena: *ASTArena, out: *CodegenOutBuf, res_ref: i32,
+    ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — host-C match arm value / RETURN unwrap.
+  unsafe {
+    if (ast.ref_is_null(res_ref)) {
+      return append_byte(out, 48);
+    }
+    let re: Expr = ast.ast_arena_expr_get(arena, res_ref);
+    if (re.kind == ExprKind.EXPR_RETURN) {
+      if (ast.ref_is_null(re.unary_operand_ref)) {
+        return append_byte(out, 48);
+      }
+      return emit_expr(arena, out, re.unary_operand_ref, ctx);
+    }
+    return emit_expr(arena, out, res_ref, ctx);
+  }
+}
+
+/**
+ * True if a block contains an explicit `return` statement (expr_stmt, final RETURN,
+ * nested region body, or nested EXPR_BLOCK). Does **not** treat a value final_expr
+ * (e.g. `{ 42 }`) as return — unlike codegen_block_contains_return.
+ * @param arena *ASTArena — expression arena
+ * @param block_ref i32 — block pool ref
+ * @return i32 — 1 if explicit return present, else 0
+ * PLATFORM: SHARED — host-C match stmt form gate (wave374).
+ */
+function codegen_block_has_explicit_return(arena: *ASTArena, block_ref: i32): i32 {
+  // PLATFORM: SHARED — only real return control, not value final_expr.
+  unsafe {
+    if (arena == 0 as *ASTArena || ast.ref_is_null(block_ref)) {
+      return 0;
+    }
+    if (block_ref <= 0 || block_ref > arena.num_blocks) {
+      return 0;
+    }
+    let ji: i32 = 0;
+    let nes: i32 = ast.ast_block_num_expr_stmts(arena, block_ref);
+    while (ji < nes) {
+      let se_ref: i32 = ast.ast_block_expr_stmt_ref(arena, block_ref, ji);
+      let se: Expr = ast.ast_arena_expr_get(arena, se_ref);
+      if (se.kind == ExprKind.EXPR_RETURN) {
+        return 1;
+      }
+      if (se.kind == ExprKind.EXPR_BLOCK && codegen_block_has_explicit_return(arena, se.block_ref) != 0) {
+        return 1;
+      }
+      ji = ji + 1;
+    }
+    let fr: i32 = ast.ast_block_final_expr_ref(arena, block_ref);
+    if (!ast.ref_is_null(fr)) {
+      let fe: Expr = ast.ast_arena_expr_get(arena, fr);
+      if (fe.kind == ExprKind.EXPR_RETURN) {
+        return 1;
+      }
+      if (fe.kind == ExprKind.EXPR_BLOCK && codegen_block_has_explicit_return(arena, fe.block_ref) != 0) {
+        return 1;
+      }
+    }
+    let ri: i32 = 0;
+    let nr: i32 = ast.ast_block_num_regions(arena, block_ref);
+    while (ri < nr) {
+      let rb: i32 = ast.ast_block_region_body_ref(arena, block_ref, ri);
+      if (codegen_block_has_explicit_return(arena, rb) != 0) {
+        return 1;
+      }
+      ri = ri + 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * True if a match arm result is return-control: bare `return e` or `{ … return …; }`.
+ * Value blocks `{ 42 }` are not return-control (stay ternary / final return value).
+ * @param arena *ASTArena
+ * @param res_ref i32 — arm result expr
+ * @return i32 — 1 if return-control, else 0
+ * PLATFORM: SHARED — host-C match stmt form gate (wave374).
+ */
+function codegen_match_arm_result_is_return_control(arena: *ASTArena, res_ref: i32): i32 {
+  // PLATFORM: SHARED — arm root RETURN or block with explicit return.
+  unsafe {
+    if (ast.ref_is_null(res_ref)) {
+      return 0;
+    }
+    let re: Expr = ast.ast_arena_expr_get(arena, res_ref);
+    if (re.kind == ExprKind.EXPR_RETURN) {
+      return 1;
+    }
+    if (re.kind == ExprKind.EXPR_BLOCK) {
+      return codegen_block_has_explicit_return(arena, re.block_ref);
+    }
+    return 0;
+  }
+}
+
+/**
+ * True if any match arm is return-control (needs statement if/else, not ternary).
+ * Covers bare `=> return N` (wave372) and block arms `=> { return N; }` (wave374).
+ * @param arena *ASTArena — expression arena
+ * @param expr_ref i32 — EXPR_MATCH node
+ * @return i32 — 1 if any arm is return-control, else 0
+ * PLATFORM: SHARED — host-C match stmt form gate (wave372/wave374).
+ */
+function codegen_match_has_return_arm(arena: *ASTArena, expr_ref: i32): i32 {
+  // PLATFORM: SHARED — scan arm results for return-control.
+  unsafe {
+    let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+    let n: i32 = e.match_num_arms;
+    let i: i32 = 0;
+    while (i < n) {
+      let res: i32 = pipeline_expr_match_arm_result_ref(arena, expr_ref, i);
+      if (codegen_match_arm_result_is_return_control(arena, res) != 0) {
+        return 1;
+      }
+      i = i + 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Emit one match arm body as a C statement (true `return` or discarded value).
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param res_ref i32 — arm result
+ * @param indent i32 — base indent of the surrounding match stmt
+ * @param ctx *PipelineDepCtx
+ * @param fn_ret_void i32 — current function returns void
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED — host-C match stmt arm body (wave372).
+ */
+function codegen_emit_match_stmt_arm_body(arena: *ASTArena, out: *CodegenOutBuf, res_ref: i32,
+    indent: i32, ctx: *PipelineDepCtx, fn_ret_void: i32): i32 {
+  // PLATFORM: SHARED — RETURN → real return; BLOCK → emit_block; else (void)(value);
+  unsafe {
+    if (!ast.ref_is_null(res_ref)) {
+      let re: Expr = ast.ast_arena_expr_get(arena, res_ref);
+      if (re.kind == ExprKind.EXPR_RETURN) {
+        return emit_return_stmt_with_context(arena, out, indent + 2, re.unary_operand_ref, ctx,
+            fn_ret_void);
+      }
+      /* wave374: block arm `{ return N; … }` as real statements inside if/else body */
+      if (re.kind == ExprKind.EXPR_BLOCK && !ast.ref_is_null(re.block_ref)) {
+        return emit_block(arena, out, re.block_ref, indent + 2, ctx);
+      }
+    }
+    if (emit_indent(out, indent + 2) != 0) {
+      return -1;
+    }
+    let v: u8[9] = [40, 118, 111, 105, 100, 41, 40, 0, 0];
+    if (emit_bytes_9(out, v, 7) != 0) {
+      return -1;
+    }
+    if (ast.ref_is_null(res_ref)) {
+      if (append_byte(out, 48) != 0) {
+        return -1;
+      }
+    } else if (emit_expr(arena, out, res_ref, ctx) != 0) {
+      return -1;
+    }
+    let sc: u8[4] = [41, 59, 10, 0];
+    return emit_bytes_4(out, sc, 3);
+  }
+}
+
+/**
+ * Host-C statement form for mid-body EXPR_MATCH with RETURN arms.
+ * Nested ternary cannot contain `return` and wave371 value-unwrap made following
+ * statements reachable (`(void)((v==1?(42):0)); return 7;` → exit 7).
+ * Emits if/else if/else with real `return` (same shape as bare if return follow).
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param expr_ref i32 — EXPR_MATCH
+ * @param indent i32 — statement indent
+ * @param ctx *PipelineDepCtx
+ * @param fn_ret_void i32 — current function returns void
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED — host-C match early-return stmt (wave372). G.7 single authority.
+ */
+function codegen_emit_match_as_stmt(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32,
+    indent: i32, ctx: *PipelineDepCtx, fn_ret_void: i32): i32 {
+  // PLATFORM: SHARED — if/else chain; seed twin same commit.
+  unsafe {
+    let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+    let n: i32 = e.match_num_arms;
+    let matched: i32 = e.match_matched_ref;
+    let i: i32 = 0;
+    let opened: i32 = 0;
+    let wild_i: i32 = -1;
+    let eq: u8[3] = [61, 61, 0];
+    let if_kw: u8[4] = [105, 102, 32, 0];
+    let else_if: u8[11] = [125, 32, 101, 108, 115, 101, 32, 105, 102, 32, 0];
+    let else_br: u8[9] = [125, 32, 101, 108, 115, 101, 32, 123, 0];
+    let open_br: u8[4] = [41, 32, 123, 0];
+    let close_br: u8[3] = [125, 10, 0];
+    let if1: u8[8] = [105, 102, 32, 40, 49, 41, 32, 0];
+    let cmp_val: i32 = 0;
+    let res: i32 = 0;
+    while (i < n) {
+      if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, i) != 0) {
+        wild_i = i;
+      } else {
+        if (emit_indent(out, indent) != 0) {
+          return -1;
+        }
+        if (opened == 0) {
+          if (emit_bytes_from_ptr(out, &if_kw[0], 3) != 0) {
+            return -1;
+          }
+        } else {
+          if (emit_bytes_from_ptr(out, &else_if[0], 10) != 0) {
+            return -1;
+          }
+        }
+        if (append_byte(out, 40) != 0) {
+          return -1;
+        }
+        if (ast.ref_is_null(matched) || emit_expr(arena, out, matched, ctx) != 0) {
+          return -1;
+        }
+        if (emit_bytes_2(out, eq, 2) != 0) {
+          return -1;
+        }
+        if (pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, i) != 0) {
+          cmp_val = pipeline_expr_match_arm_variant_index(arena, expr_ref, i);
+        } else {
+          cmp_val = pipeline_expr_match_arm_lit_val(arena, expr_ref, i);
+        }
+        if (format_int(out, cmp_val as i64) != 0) {
+          return -1;
+        }
+        if (emit_bytes_from_ptr(out, &open_br[0], 3) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 10) != 0) {
+          return -1;
+        }
+        res = pipeline_expr_match_arm_result_ref(arena, expr_ref, i);
+        if (codegen_emit_match_stmt_arm_body(arena, out, res, indent, ctx, fn_ret_void) != 0) {
+          return -1;
+        }
+        opened = 1;
+      }
+      i = i + 1;
+    }
+    if (wild_i >= 0) {
+      if (emit_indent(out, indent) != 0) {
+        return -1;
+      }
+      if (opened != 0) {
+        /* "} else {\n" */
+        if (emit_bytes_from_ptr(out, &else_br[0], 8) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 10) != 0) {
+          return -1;
+        }
+      } else {
+        /* only wildcard: if (1) {\n body } */
+        if (emit_bytes_from_ptr(out, &if1[0], 7) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 123) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 10) != 0) {
+          return -1;
+        }
+      }
+      res = pipeline_expr_match_arm_result_ref(arena, expr_ref, wild_i);
+      if (codegen_emit_match_stmt_arm_body(arena, out, res, indent, ctx, fn_ret_void) != 0) {
+        return -1;
+      }
+      opened = 1;
+    }
+    if (opened != 0) {
+      if (emit_indent(out, indent) != 0) {
+        return -1;
+      }
+      return emit_bytes_3(out, close_br, 2);
+    }
+    return 0;
+  }
+}
+
+/**
+ * Host-C emit for EXPR_MATCH arms[arm_i..): nested ternary chain.
+ * @param arena *ASTArena — expression arena
+ * @param out *CodegenOutBuf — C text sink
+ * @param expr_ref i32 — EXPR_MATCH node
+ * @param ctx *PipelineDepCtx — emit context (may be null)
+ * @param arm_i i32 — current arm index (0-based)
+ * @return i32 — 0 on success, -1 on emit failure
+ * PLATFORM: SHARED — mirrors freestanding pipeline_asm_emit_match_elf_c semantics
+ * (first match wins; wildcard ends chain). Host C re-emits the subject per arm
+ * (subjects are typically VAR/param). G.7: completes arm-0 residual that only
+ * emitted the first arm result without comparing. wave371: RETURN arm unwrap.
+ */
+function codegen_emit_match_from_arm(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32,
+    ctx: *PipelineDepCtx, arm_i: i32): i32 {
+  // PLATFORM: SHARED — host-C match nested ternary; seed twin same commit.
+  unsafe {
+    let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+    let n: i32 = e.match_num_arms;
+    let matched: i32 = e.match_matched_ref;
+    let res: i32 = 0;
+    let cmp_val: i32 = 0;
+    let eq: u8[3] = [61, 61, 0];
+    if (arm_i >= n) {
+      return append_byte(out, 48);
+    }
+    if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, arm_i) != 0) {
+      res = pipeline_expr_match_arm_result_ref(arena, expr_ref, arm_i);
+      return codegen_emit_match_arm_value(arena, out, res, ctx);
+    }
+    /* (matched==val?(result):(rest)) */
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    if (ast.ref_is_null(matched) || emit_expr(arena, out, matched, ctx) != 0) {
+      return -1;
+    }
+    if (emit_bytes_2(out, eq, 2) != 0) {
+      return -1;
+    }
+    if (pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, arm_i) != 0) {
+      cmp_val = pipeline_expr_match_arm_variant_index(arena, expr_ref, arm_i);
+    } else {
+      cmp_val = pipeline_expr_match_arm_lit_val(arena, expr_ref, arm_i);
+    }
+    if (format_int(out, cmp_val as i64) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 63) != 0) {
+      return -1;
+    }
+    res = pipeline_expr_match_arm_result_ref(arena, expr_ref, arm_i);
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    if (codegen_emit_match_arm_value(arena, out, res, ctx) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 41) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 58) != 0) {
+      return -1;
+    }
+    if (codegen_emit_match_from_arm(arena, out, expr_ref, ctx, arm_i + 1) != 0) {
+      return -1;
+    }
+    return append_byte(out, 41);
+  }
+}
+
+/**
+ * Emit a single expression as C source text into out.
+ * @param arena *ASTArena — expression arena
+ * @param out *CodegenOutBuf — C text sink
+ * @param expr_ref i32 — expression ref
+ * @param ctx *PipelineDepCtx — emit context (may be null)
+ * @return i32 — 0 on success, -1 on failure
  */
 export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -4993,9 +8492,12 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
     /**
      * PLATFORM: SHARED — consume typeck CTFE (const_folded_*). Authority is typeck fold,
      * not emit-side optim; C path mirrors asm mov-imm when typeck folded the tree.
-     * Skip VAR: pool field may be stale; VAR names resolve via const/let slots.
+     * Skip VAR (ord 3): pool field may be stale; VAR names resolve via const/let slots.
+     * Skip FLOAT_LIT (ord 1): wave287 — i32 fold truncates fractions; emit via
+     * pipeline_codegen_emit_float_lit_c on float_val (seed codegen twin same commit).
      */
-    if (e.const_folded_valid != 0 && pipeline_expr_kind_ord_at(arena, expr_ref) != 3) {
+    if (e.const_folded_valid != 0 && pipeline_expr_kind_ord_at(arena, expr_ref) != 3
+    && pipeline_expr_kind_ord_at(arena, expr_ref) != 1) {
       if (format_int(out, e.const_folded_val as i64) != 0) {
         return -1;
       }
@@ -5161,8 +8663,121 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       let fallback: u8[3] = [95, 48, 0];
       return emit_bytes_3(out, fallback, 2);
     }
-    /* See implementation. */
+    /*
+     * wave459 Cap residual pure: host-C aggregate `as` cast.
+     * Root: EXPR_AS always emitted `((TYPE)(op))`. C permits that only for
+     * scalar/pointer targets; `((struct A)(x))` is rejected by host gcc
+     * ("used type 'struct A' where arithmetic or pointer type is required")
+     * → BLD001 (soft leave-off after wave458 multi-T mono / STRUCT_LIT path).
+     * Fix: when target (after alias peel + mono subst) is a module user struct,
+     * emit C99 compound literal `((TYPE){ (op) })` — initializes first field
+     * (remaining fields zero). Matches product intent of `T { v: x }` for the
+     * scalar→single-field-struct monomorphization probes (`as_t<A>(7)`).
+     * Scalar/pointer targets keep the historical C cast path.
+     *
+     * wave461 Cap residual pure: compound literal only when the operand is
+     * NOT already a module user struct. wave459 always wrapped op as the
+     * first field, so `let b: A = a as A` / `a as B` emitted
+     * `((struct A){ (a) })` → host C "initializing int32_t with struct A"
+     * BLD001. Same-type struct op → identity `(op)`.
+     *
+     * wave462 Cap residual pure: struct-valued operand for *different* target
+     * (A→B or struct→scalar) still failed host C — wave461 identity only works
+     * when types match; `struct B b = (a)` is incompatible, `((int32_t)(a))`
+     * needs arithmetic/pointer. Root: no legal host emit for layout-compatible
+     * reinterpret. Fix (same EXPR_AS authority): when op is module user struct
+     * and types are not equal, emit GNU statement-expression type-pun used
+     * elsewhere in host-C (call-array temps): 
+     * `({ OP_TY __xlang_as_o = (op); *(TGT *)(void *)&__xlang_as_o; })`.
+     * Same-type keeps identity; scalar→struct keeps compound; scalar→scalar cast.
+     * G.7: EXPR_AS only; reuse codegen_mono_subst_type +
+     * codegen_type_is_module_user_struct + pipeline_expr_resolved_type_ref +
+     * pipeline_typeck_type_refs_equal_c (no second cast path).
+     * PLATFORM: SHARED host-C emit (GNU stmt-expr; product host gcc/clang).
+     */
     if (e.kind == ExprKind.EXPR_AS) {
+      let as_tgt: i32 = e.as_target_type_ref;
+      if (!ast.ref_is_null(as_tgt)) {
+        as_tgt = pipeline_typeck_resolve_type_alias_ref_c(arena, as_tgt);
+        as_tgt = codegen_mono_subst_type(ctx, arena, as_tgt);
+      }
+      let as_struct: i32 = 0;
+      if (!ast.ref_is_null(as_tgt) && ctx != 0 as *PipelineDepCtx
+          && ctx.current_codegen_module != 0 as *Module
+          && codegen_type_is_module_user_struct(ctx.current_codegen_module, arena, as_tgt) != 0) {
+        as_struct = 1;
+      }
+      /* wave461/462: resolve operand type (alias + mono); detect module user struct. */
+      let op_ty: i32 = 0;
+      let as_op_struct: i32 = 0;
+      if (!ast.ref_is_null(e.as_operand_ref) && ctx != 0 as *PipelineDepCtx
+          && ctx.current_codegen_module != 0 as *Module) {
+        op_ty = pipeline_expr_resolved_type_ref(arena, e.as_operand_ref);
+        if (!ast.ref_is_null(op_ty)) {
+          op_ty = pipeline_typeck_resolve_type_alias_ref_c(arena, op_ty);
+          op_ty = codegen_mono_subst_type(ctx, arena, op_ty);
+          if (!ast.ref_is_null(op_ty)
+              && codegen_type_is_module_user_struct(ctx.current_codegen_module, arena, op_ty) != 0) {
+            as_op_struct = 1;
+          }
+        }
+      }
+      /* Same-type struct op + struct target: identity value copy `(op)`. */
+      if (as_struct != 0 && as_op_struct != 0
+          && !ast.ref_is_null(op_ty) && !ast.ref_is_null(as_tgt)
+          && pipeline_typeck_type_refs_equal_c(arena, op_ty, as_tgt) != 0) {
+        if (append_byte(out, 40) != 0) {
+          return -1;
+        }
+        if (!ast.ref_is_null(e.as_operand_ref) && emit_expr(arena, out, e.as_operand_ref, ctx) != 0) {
+          return -1;
+        }
+        return append_byte(out, 41);
+      }
+      /*
+       * wave462: struct-valued op → different type (A→B or struct→scalar/pointer).
+       * Host cannot cast or assign across struct types; layout-compatible
+       * reinterpret via address-of temp (GNU stmt-expr, already used for
+       * __xlang_ca / __xlang_sp deep-copy paths).
+       * Form: ({ OP_TY __xlang_as_o = (op); *(TGT *)(void *)&__xlang_as_o; })
+       */
+      if (as_op_struct != 0 && !ast.ref_is_null(op_ty)) {
+        /* ({  */
+        let as_pun_open: u8[4] = [40, 123, 32, 0];
+        if (emit_bytes_from_ptr(out, &as_pun_open[0], 3) != 0) {
+          return -1;
+        }
+        if (emit_type(arena, out, op_ty, 0 as *u8, 0, ctx) != 0) {
+          return -1;
+        }
+        /*  __xlang_as_o = ( */
+        let as_pun_nm: u8[20] = [
+          32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 115, 95, 111, 32, 61, 32, 40, 0, 0, 0
+        ];
+        if (emit_bytes_from_ptr(out, &as_pun_nm[0], 17) != 0) {
+          return -1;
+        }
+        if (!ast.ref_is_null(e.as_operand_ref) && emit_expr(arena, out, e.as_operand_ref, ctx) != 0) {
+          return -1;
+        }
+        /* ); *( */
+        let as_pun_mid: u8[8] = [41, 59, 32, 42, 40, 0, 0, 0];
+        if (emit_bytes_from_ptr(out, &as_pun_mid[0], 5) != 0) {
+          return -1;
+        }
+        if (emit_type(arena, out, e.as_target_type_ref, 0 as *u8, 0, ctx) != 0) {
+          return -1;
+        }
+        /*  *)(void *)&__xlang_as_o; }) */
+        let as_pun_end: u8[32] = [
+          32, 42, 41, 40, 118, 111, 105, 100, 32, 42, 41, 38, 95, 95, 120, 108,
+          97, 110, 103, 95, 97, 115, 95, 111, 59, 32, 125, 41, 0, 0, 0, 0
+        ];
+        if (emit_bytes_from_ptr(out, &as_pun_end[0], 28) != 0) {
+          return -1;
+        }
+        return 0;
+      }
       if (append_byte(out, 40) != 0) {
         return -1;
       }
@@ -5174,6 +8789,31 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       if (append_byte(out, 41) != 0) {
         return -1;
+      }
+      if (as_struct != 0) {
+        /* Compound literal: (TYPE){ (op) } — scalar/non-struct op only (wave461). */
+        if (append_byte(out, 123) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 32) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 40) != 0) {
+          return -1;
+        }
+        if (!ast.ref_is_null(e.as_operand_ref) && emit_expr(arena, out, e.as_operand_ref, ctx) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 41) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 32) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 125) != 0) {
+          return -1;
+        }
+        return append_byte(out, 41);
       }
       if (append_byte(out, 40) != 0) {
         return -1;
@@ -5243,6 +8883,53 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       return append_byte(out, 41);
     }
     if (e.kind == ExprKind.EXPR_ASSIGN) {
+      /*
+       * wave334 Cap residual pure: fixed TYPE_ARRAY whole-array assign.
+       * Root: C arrays are not assignable — host gcc rejects
+       *   `int32_t a[3] = {…}; (void)((a = (int32_t[]){…}));`
+       * Emit memcpy into the array storage instead.
+       * Form: (memcpy((void*)(lhs), (const void*)(rhs), sizeof(lhs)))
+       * G.7 single host-C authority; freestanding uses direct slot write in glue.
+       * PLATFORM: SHARED host-C emit.
+       */
+      let lt_ref: i32 = pipeline_expr_resolved_type_ref(arena, e.binop_left_ref);
+      let is_fa: i32 = 0;
+      if (lt_ref > 0 && pipeline_type_kind_ord_at(arena, lt_ref) == (TypeKind.TYPE_ARRAY as i32)) {
+        is_fa = 1;
+      }
+      if (is_fa != 0) {
+        let pref: u8[16] = [109, 101, 109, 99, 112, 121, 40, 40, 118, 111, 105, 100, 42, 41, 40, 0];
+        let mid: u8[20] = [41, 44, 32, 40, 99, 111, 110, 115, 116, 32, 118, 111, 105, 100, 42, 41, 40, 0, 0, 0];
+        let mid_sz: u8[12] = [41, 44, 32, 115, 105, 122, 101, 111, 102, 40, 0, 0];
+        if (append_byte(out, 40) != 0) {
+          return -1;
+        }
+        if (emit_bytes_from_ptr(out, &pref[0], 15) != 0) {
+          return -1;
+        }
+        if (emit_expr(arena, out, e.binop_left_ref, ctx) != 0) {
+          return -1;
+        }
+        if (emit_bytes_from_ptr(out, &mid[0], 17) != 0) {
+          return -1;
+        }
+        if (emit_expr(arena, out, e.binop_right_ref, ctx) != 0) {
+          return -1;
+        }
+        if (emit_bytes_from_ptr(out, &mid_sz[0], 10) != 0) {
+          return -1;
+        }
+        if (emit_expr(arena, out, e.binop_left_ref, ctx) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 41) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 41) != 0) {
+          return -1;
+        }
+        return append_byte(out, 41);
+      }
       if (append_byte(out, 40) != 0) {
         return -1;
       }
@@ -5623,6 +9310,16 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           return -1;
         }
         if (fmt_lit_rc > 0) {
+          return 0;
+        }
+      }
+      /* wave463: size_of<T>/align_of<T> → sizeof/_Alignof (CORE-001; before bare call). */
+      if (ctx != 0 as *PipelineDepCtx) {
+        let sa_rc: i32 = codegen_try_emit_size_align_of_call(arena, out, expr_ref, ctx);
+        if (sa_rc < 0) {
+          return -1;
+        }
+        if (sa_rc > 0) {
           return 0;
         }
       }
@@ -6276,8 +9973,18 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                       if (append_byte(out, 48) != 0) {
                         return -1;
                       }
-                    } else if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx_cur), ctx) != 0) {
-                      return -1;
+                    } else {
+                      /* wave395: pass formal type so TYPE_ARRAY→fat only for TYPE_SLICE. */
+                      let pty_cur: i32 = 0;
+                      if (arg_idx_cur < pipeline_module_func_num_params_at(cur_mod, fi)) {
+                        pty_cur = pipeline_module_func_param_type_ref_at(cur_mod, fi, arg_idx_cur);
+                      }
+                      codegen_set_host_call_arg_param_ty(pty_cur);
+                      if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx_cur), ctx) != 0) {
+                        codegen_set_host_call_arg_param_ty(0);
+                        return -1;
+                      }
+                      codegen_set_host_call_arg_param_ty(0);
                     }
                     ai = ai + 1;
                   }
@@ -6413,8 +10120,20 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           if (append_byte(out, 48) != 0) {
             return -1;
           }
-        } else if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx), ctx) != 0) {
-          return -1;
+        } else {
+          let pty_fb: i32 = 0;
+          let rfi_fb: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+          if (rfi_fb >= 0 && ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module) {
+            if (arg_idx < pipeline_module_func_num_params_at(ctx.current_codegen_module, rfi_fb)) {
+              pty_fb = pipeline_module_func_param_type_ref_at(ctx.current_codegen_module, rfi_fb, arg_idx);
+            }
+          }
+          codegen_set_host_call_arg_param_ty(pty_fb);
+          if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx), ctx) != 0) {
+            codegen_set_host_call_arg_param_ty(0);
+            return -1;
+          }
+          codegen_set_host_call_arg_param_ty(0);
         }
         ai = ai + 1;
       }
@@ -6814,6 +10533,45 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         /* See implementation. */
         return format_int(out, e.enum_variant_tag);
       }
+      /*
+       * wave346 Cap residual pure: fixed TYPE_ARRAY / TYPE_VECTOR `.length` is
+       * compile-time N. C arrays are not structs — never emit `a.length`.
+       * G.7: same authority as typeck field_slice (usize) + freestanding imm N.
+       * PLATFORM: SHARED host-C emit; seed must match this block.
+       */
+      if (e.field_access_field_len == 6
+          && e.field_access_field_name[0] == 108
+          && e.field_access_field_name[1] == 101
+          && e.field_access_field_name[2] == 110
+          && e.field_access_field_name[3] == 103
+          && e.field_access_field_name[4] == 116
+          && e.field_access_field_name[5] == 104
+          && !ast.ref_is_null(e.field_access_base_ref)
+          && e.field_access_base_ref > 0
+          && e.field_access_base_ref <= arena.num_exprs) {
+        let base_e: Expr = ast.ast_arena_expr_get(arena, e.field_access_base_ref);
+        let base_ty: i32 = base_e.resolved_type_ref;
+        if (!ast.ref_is_null(base_ty) && base_ty > 0 && base_ty <= arena.num_types) {
+          let bk: i32 = pipeline_type_kind_ord_at(arena, base_ty);
+          /* TYPE_ARRAY=10, TYPE_VECTOR=13 */
+          if (bk == 10 || bk == 13) {
+            let asz: i32 = pipeline_type_array_size_at(arena, base_ty);
+            if (asz > 0) {
+              /* ((size_t)N) — matches slice .length C type (size_t). */
+              let open_cast: u8[16] = [
+                40, 40, 115, 105, 122, 101, 95, 116, 41, 0, 0, 0, 0, 0, 0, 0
+              ];
+              if (emit_bytes_from_ptr(out, &open_cast[0], 9) != 0) {
+                return -1;
+              }
+              if (format_int(out, asz) != 0) {
+                return -1;
+              }
+              return append_byte(out, 41);
+            }
+          }
+        }
+      }
       /* See implementation. */
       if (ctx != 0 as *PipelineDepCtx && ctx.emit_expr_as_callee != 0 && emit_import_module_field_symbol(arena, out, expr_ref, ctx) == 0) {
         return 0;
@@ -6881,9 +10639,21 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       return append_byte(out, 41);
     }
-    /* See implementation. */
+    /*
+     * EXPR_PANIC → host `xlang_panic_(has_msg, msg_val)`.
+     * ABI: void xlang_panic_(int has_msg, intptr_t msg_val) (runtime_panic / std.runtime).
+     * has_msg: 0=bare, 1=integer payload, 2=NUL-terminated cstr pointer (full width).
+     * Integer msgs (panic(42)) → has_msg=1 + (intptr_t)(expr).
+     * String/*u8 (panic("…") / panic(p: *u8)) → has_msg=2 + (intptr_t)(expr) so LP64
+     * keeps the full pointer; runtime prints the cstr then aborts (wave386).
+     * PLATFORM: SHARED — cast every non-null msg through (intptr_t)(…) for host C;
+     * evidence path still receives (int)truncation of payload.
+     * G.7 authority: this emit only; seed codegen_gen must match.
+     */
     if (e.kind == ExprKind.EXPR_PANIC) {
       let p: u8[23] = [120, 108, 97, 110, 103, 95, 112, 97, 110, 105, 99, 95, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      // "(intptr_t)(" — pointer-width payload (wave386; was (int)(intptr_t) truncating cstr).
+      let cast_open: u8[12] = [40, 105, 110, 116, 112, 116, 114, 95, 116, 41, 40, 0];
       if (emit_bytes_22(out, p, 13) != 0) {
         return -1;
       }
@@ -6898,13 +10668,43 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           return -1;
         }
       } else {
-        if (append_byte(out, 49) != 0) {
-          return -1;
+        // Classify payload: STRING_LIT (59) or TYPE_PTR → cstr (has_msg=2); else integer (1).
+        let is_cstr: i32 = 0;
+        let op_ref: i32 = e.unary_operand_ref;
+        if (pipeline_expr_kind_ord_at(arena, op_ref) == 59) {
+          is_cstr = 1;
+        } else {
+          if (op_ref > 0 && op_ref <= arena.num_exprs) {
+            let op_e: Expr = ast.ast_arena_expr_get(arena, op_ref);
+            if (!ast.ref_is_null(op_e.resolved_type_ref) && op_e.resolved_type_ref > 0
+            && op_e.resolved_type_ref <= arena.num_types) {
+              let oty: Type = ast.ast_arena_type_get(arena, op_e.resolved_type_ref);
+              if (oty.kind == TypeKind.TYPE_PTR) {
+                is_cstr = 1;
+              }
+            }
+          }
+        }
+        // '1' (49) integer · '2' (50) cstr
+        if (is_cstr != 0) {
+          if (append_byte(out, 50) != 0) {
+            return -1;
+          }
+        } else {
+          if (append_byte(out, 49) != 0) {
+            return -1;
+          }
         }
         if (append_byte(out, 44) != 0) {
           return -1;
         }
+        if (emit_bytes_from_ptr(out, &cast_open[0], 11) != 0) {
+          return -1;
+        }
         if (emit_expr(arena, out, e.unary_operand_ref, ctx) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 41) != 0) {
           return -1;
         }
       }
@@ -6927,6 +10727,172 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         }
         if (fmt_mc_rc > 0) {
           return 0;
+        }
+      }
+      /*
+       * wave445 C6: per-mono method call re-resolution. When emitting a mono body,
+       * typeck's call_resolved_func_index for `x.clone()` (x: T generic) points at the
+       * trait method (signature-only, no body) because typeck processed the body with
+       * T unresolved. Re-resolve to the impl method for the concrete receiver type
+       * (e.g., A::clone for x: A in foo__A). Falls through to existing logic if no
+       * impl method found (preserves prior behavior).
+       * PLATFORM: SHARED — mono state in PipelineDepCtx; uses codegen_mono_subst_type
+       * + codegen_find_impl_method_for_type (single resolution authority).
+       */
+      if (ctx != 0 as *PipelineDepCtx && ctx.mono_active != 0
+          && e.method_call_base_ref > 0 && e.method_call_base_ref <= arena.num_exprs
+          && e.method_call_name_len > 0) {
+        let base_mono: Expr = ast.ast_arena_expr_get(arena, e.method_call_base_ref);
+        let recv_ty: i32 = pipeline_expr_resolved_type_ref(arena, e.method_call_base_ref);
+        let mono_mod: *Module = ctx.current_codegen_module;
+        let mono_fi: i32 = ctx.current_func_index;
+        /*
+         * If typeck didn't resolve the base type (generic body, resolved_type_ref=0),
+         * try to infer from a VAR base by matching param names (e.g. x.clone() where
+         * x is the generic param). This covers the common case where the receiver is
+         * a direct parameter reference. Let-binding receiver (y.dup()) needs a separate
+         * let-scan fallback (deferred to wave446).
+         * PLATFORM: SHARED — mirrors seed codegen_gen.linux.x86_64.c C6 branch.
+         */
+        if (recv_ty <= 0 && mono_mod != 0 as *Module && base_mono.kind == 3) {
+          let parm_i: i32 = 0;
+          let nparm: i32 = pipeline_module_func_num_params_at(mono_mod, mono_fi);
+          while (parm_i < nparm) {
+            let pname: u8[32] = [];
+            let pnl: i32 = pipeline_module_func_param_name_len_at(mono_mod, mono_fi, parm_i);
+            pipeline_module_func_param_name_copy32(mono_mod, mono_fi, parm_i, &pname[0]);
+            if (pnl == base_mono.var_name_len && pnl > 0) {
+              let peq: i32 = 1;
+              let pi2: i32 = 0;
+              while (pi2 < pnl) {
+                if (pname[pi2] != base_mono.var_name[pi2]) {
+                  peq = 0;
+                  pi2 = pnl;
+                } else {
+                  pi2 = pi2 + 1;
+                }
+              }
+              if (peq != 0) {
+                recv_ty = pipeline_module_func_param_type_ref_at(mono_mod, mono_fi, parm_i);
+                parm_i = 999;
+              }
+            }
+            parm_i = parm_i + 1;
+          }
+        }
+        /*
+         * wave445 C6 local-let fallback: if recv_ty is still unresolved and the
+         * base is a VAR, scan the current block's let bindings for a name match
+         * to infer the receiver type (e.g. `let y: T = x; y.dup()` — y's type is
+         * T from the let declaration). codegen_mono_subst_type then maps T -> concrete.
+         * Why needed: typeck leaves resolved_type_ref=0 for generic-body VARs whose
+         * type is a generic param (T), so pipeline_expr_resolved_type_ref returns 0.
+         * PLATFORM: SHARED — mirrors seed codegen_gen.linux.x86_64.c C6 local-let.
+         */
+        if (recv_ty <= 0 && base_mono.kind == 3 && ctx.current_block_ref > 0) {
+          let blk: i32 = ctx.current_block_ref;
+          let nlets: i32 = ast.ast_block_num_lets(arena, blk);
+          let li: i32 = 0;
+          while (li < nlets) {
+            let lname: u8[64] = [];
+            let lnl: i32 = pipeline_block_let_name_len(arena, blk, li);
+            pipeline_block_let_name_copy64(arena, blk, li, &lname[0]);
+            if (lnl == base_mono.var_name_len && lnl > 0) {
+              let leq: i32 = 1;
+              let li2: i32 = 0;
+              while (li2 < lnl) {
+                if (lname[li2] != base_mono.var_name[li2]) {
+                  leq = 0;
+                  li2 = lnl;
+                } else {
+                  li2 = li2 + 1;
+                }
+              }
+              if (leq != 0) {
+                recv_ty = pipeline_block_let_type_ref(arena, blk, li);
+                li = 999;
+              }
+            }
+            li = li + 1;
+          }
+        }
+        let concrete_ty: i32 = codegen_mono_subst_type(ctx, arena, recv_ty);
+        if (concrete_ty != recv_ty && concrete_ty > 0) {
+          let cur_mod_mono: *Module = ctx.current_codegen_module;
+          if (cur_mod_mono != 0 as *Module) {
+            let impl_fi: i32 = codegen_find_impl_method_for_type(cur_mod_mono, arena,
+              &e.method_call_name[0], e.method_call_name_len, concrete_ty);
+            if (impl_fi >= 0) {
+              /*
+               * Emit impl method call: <link_name>(<receiver>, <explicit args>).
+               * The receiver (self) is arg 0 — typeck stores it as
+               * method_call_base_ref, NOT in method_call_args. Emit it first,
+               * then each explicit arg with a ", " separator. For 0-arg methods
+               * (e.g., x.clone()), only the receiver is emitted:
+               * <link_name>(<receiver>).
+               * PLATFORM: SHARED — mirrors seed codegen_gen.linux.x86_64.c C6 emit.
+               */
+              /*
+               * Emit module prefix (e.g. w445_let_binding_) before the link name.
+               * codegen_emit_func_link_name emits only the bare name + overload
+               * suffixes; the module prefix is emitted separately, mirroring the
+               * normal CALL path (codegen_func_c_symbol_prefix_len + emit).
+               * The prefix lives in ctx.current_codegen_prefix_mirror (filled
+               * per-module at codegen entry). Without this, `dup(y)` would clash
+               * with libc dup(int) instead of calling w445_let_binding_dup.
+               * PLATFORM: SHARED — mirrors seed codegen_gen.linux.x86_64.c C6 prefix.
+               */
+              if (ctx.current_codegen_prefix_len > 0) {
+                if (emit_bytes_from_ptr(out, &ctx.current_codegen_prefix_mirror[0], ctx.current_codegen_prefix_len) != 0) {
+                  return -1;
+                }
+              }
+              let c6_mono_rc: i32 = codegen_try_emit_impl_method_mono_call_name(out, arena, ctx, cur_mod_mono, impl_fi, concrete_ty);
+              if (c6_mono_rc < 0) {
+                return -1;
+              }
+              if (c6_mono_rc == 0) {
+                if (codegen_emit_func_link_name(out, arena, cur_mod_mono, impl_fi) != 0) {
+                  return -1;
+                }
+              }
+              if (append_byte(out, 40) != 0) {
+                return -1;
+              }
+              /* Emit receiver as arg 0 (self parameter). */
+              if (e.method_call_base_ref <= 0) {
+                if (append_byte(out, 48) != 0) {
+                  return -1;
+                }
+              } else {
+                /* PLATFORM: SHARED — receiver uses same slice pointer ABI as CALL. */
+                if (emit_call_arg_slice_abi(arena, out, e.method_call_base_ref, ctx) != 0) {
+                  return -1;
+                }
+              }
+              /* Emit explicit args (arg 1..N), each preceded by ", ". */
+              let ai_mono: i32 = 0;
+              while (ai_mono < e.method_call_num_args) {
+                let cs_mono: u8[2] = [44, 32];
+                if (emit_bytes_from_ptr(out, &cs_mono[0], 2) != 0) {
+                  return -1;
+                }
+                let dep_arg_mono: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, ai_mono);
+                if (ast.ref_is_null(dep_arg_mono)) {
+                  if (append_byte(out, 48) != 0) {
+                    return -1;
+                  }
+                } else {
+                  /* PLATFORM: SHARED — method args use same slice pointer ABI as CALL. */
+                  if (emit_call_arg_slice_abi(arena, out, dep_arg_mono, ctx) != 0) {
+                    return -1;
+                  }
+                }
+                ai_mono = ai_mono + 1;
+              }
+              return append_byte(out, 41);
+            }
+          }
         }
       }
       if (ctx != 0 as *PipelineDepCtx) {
@@ -7026,8 +10992,23 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
               if (dep_arena == 0 as *ASTArena) {
                 dep_arena = pipeline_dep_ctx_arena_at(ctx, dep_ix);
               }
-              if (fn_len > 0 && codegen_emit_func_link_name(out, dep_arena, dep_mod, func_ix) != 0) {
-                return -1;
+              if (fn_len > 0) {
+                let dep_recv_ty: i32 = 0;
+                if (!ast.ref_is_null(e.method_call_base_ref)) {
+                  dep_recv_ty = pipeline_expr_resolved_type_ref(arena, e.method_call_base_ref);
+                }
+                let dep_mono_rc: i32 = 0;
+                if (dep_recv_ty > 0) {
+                  dep_mono_rc = codegen_try_emit_impl_method_mono_call_name(out, dep_arena, ctx, dep_mod, func_ix, dep_recv_ty);
+                }
+                if (dep_mono_rc < 0) {
+                  return -1;
+                }
+                if (dep_mono_rc == 0) {
+                  if (codegen_emit_func_link_name(out, dep_arena, dep_mod, func_ix) != 0) {
+                    return -1;
+                  }
+                }
               }
             }
             if (append_byte(out, 40) != 0) {
@@ -7147,10 +11128,126 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         }
       }
       /*
-       * See implementation.
-       * See implementation.
-       * See implementation.
-       * See implementation.
+       * wave358 Cap residual pure — host-C UFCS same-module free method.
+       * typeck sets call_resolved dep_ix=-1 + func_ix; freestanding ELF already
+       * places receiver as arg0. Emit free_fn(receiver, args...) with G.7 link name.
+       * PLATFORM: SHARED — mac + Ubuntu L2.
+       */
+      if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module) {
+        let uf_dep: i32 = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
+        let uf_fn: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+        let uf_mod: *Module = ctx.current_codegen_module;
+        if (uf_fn >= 0 && uf_dep < 0 && uf_fn < uf_mod.num_funcs
+            && e.method_call_name_len > 0) {
+          /*
+           * Same-module prefix + link name (align CALL callee2 path).
+           * Do not use codegen_emit_call_func_name alone: it compares nparams to
+           * method_call_num_args (no receiver) and rejects UFCS (nparams=nargs+1),
+           * then falls back to bare name without file prefix → host-cc BLD001.
+           */
+          let cur_pre: u8[128] = [];
+          let cur_dep_path_buf: u8[128] = [];
+          let cur_dep_plen: i32 = codegen_ctx_dep_path_for_current_codegen_module_into(ctx, &cur_dep_path_buf[0]);
+          let pl: i32 = 0;
+          if (cur_dep_plen > 0) {
+            codegen_import_path_to_c_prefix_into(&cur_dep_path_buf[0], &cur_pre[0], 128);
+            while (pl < 128 && cur_pre[pl] != 0 as u8) {
+              pl = pl + 1;
+            }
+          } else if (ctx.current_codegen_prefix_len > 0) {
+            let _cpl: i32 = ctx.current_codegen_prefix_len;
+            let pi: i32 = 0;
+            while (pi < _cpl && pi < 127) {
+              cur_pre[pi] = ctx.current_codegen_prefix_mirror[pi];
+              pi = pi + 1;
+            }
+            cur_pre[pi] = 0 as u8;
+            pl = pi;
+          }
+          if (pipeline_module_func_is_extern_at(uf_mod, uf_fn) != 0
+              || pipeline_module_func_is_no_mangle_at(uf_mod, uf_fn) != 0) {
+            pl = 0;
+          }
+          if (pl > 0 && codegen_c_prefix_redundant_with_name(&cur_pre[0], pl, &e.method_call_name[0], e.method_call_name_len) == 0
+              && emit_bytes_from_ptr(out, &cur_pre[0], pl) != 0) {
+            return -1;
+          }
+          let uf_arena: *ASTArena = arena;
+          if (ctx.current_codegen_arena != 0 as *ASTArena) {
+            uf_arena = ctx.current_codegen_arena;
+          }
+          let uf_bty_mono: i32 = 0;
+          if (!ast.ref_is_null(e.method_call_base_ref)) {
+            uf_bty_mono = pipeline_expr_resolved_type_ref(arena, e.method_call_base_ref);
+          }
+          let uf_mono_rc: i32 = 0;
+          if (uf_bty_mono > 0) {
+            uf_mono_rc = codegen_try_emit_impl_method_mono_call_name(out, uf_arena, ctx, uf_mod, uf_fn, uf_bty_mono);
+          }
+          if (uf_mono_rc < 0) {
+            return -1;
+          }
+          if (uf_mono_rc == 0) {
+            if (codegen_emit_func_link_name(out, uf_arena, uf_mod, uf_fn) != 0) {
+              return -1;
+            }
+          }
+          if (append_byte(out, 40) != 0) {
+            return -1;
+          }
+          if (!ast.ref_is_null(e.method_call_base_ref)) {
+            /*
+             * wave360: UFCS auto-ref — self: *T with value receiver → &receiver.
+             * PLATFORM: SHARED — host-C twin of freestanding lea path.
+             */
+            let uf_are: i32 = 0;
+            let uf_p0: i32 = pipeline_module_func_param_type_ref_at(uf_mod, uf_fn, 0);
+            let uf_bty: i32 = pipeline_expr_resolved_type_ref(arena, e.method_call_base_ref);
+            if (uf_p0 > 0 && uf_bty > 0
+                && pipeline_type_kind_ord_at(uf_arena, uf_p0) == TypeKind.TYPE_PTR as i32) {
+              let uf_pe: i32 = pipeline_type_elem_ref_at(uf_arena, uf_p0);
+              if (uf_pe > 0
+                  && pipeline_typeck_type_refs_equal_c(uf_arena, uf_bty, uf_p0) == 0
+                  && pipeline_typeck_type_refs_equal_c(uf_arena, uf_bty, uf_pe) != 0) {
+                uf_are = 1;
+              }
+            }
+            if (uf_are != 0) {
+              if (append_byte(out, 38) != 0) {
+                return -1;
+              }
+              if (emit_expr(arena, out, e.method_call_base_ref, ctx) != 0) {
+                return -1;
+              }
+            } else if (emit_call_arg_slice_abi(arena, out, e.method_call_base_ref, ctx) != 0) {
+              return -1;
+            }
+          } else {
+            if (append_byte(out, 48) != 0) {
+              return -1;
+            }
+          }
+          let mi_uf: i32 = 0;
+          while (mi_uf < e.method_call_num_args) {
+            let comma_uf: u8[3] = [44, 32, 0];
+            if (emit_bytes_3(out, comma_uf, 2) != 0) {
+              return -1;
+            }
+            let m_arg_uf: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, mi_uf);
+            if (ast.ref_is_null(m_arg_uf)) {
+              if (append_byte(out, 48) != 0) {
+                return -1;
+              }
+            } else if (emit_call_arg_slice_abi(arena, out, m_arg_uf, ctx) != 0) {
+              return -1;
+            }
+            mi_uf = mi_uf + 1;
+          }
+          return append_byte(out, 41);
+        }
+      }
+      /*
+       * bootstrap: i32.double() → (x * 2) when no UFCS free fn.
        */
       if (e.method_call_name_len == 6
           && e.method_call_name[0] == 100 && e.method_call_name[1] == 111
@@ -7210,16 +11307,18 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       return append_byte(out, 41);
     }
-    /* See implementation. */
+    /**
+     * PLATFORM: SHARED — host-C EXPR_MATCH nested ternary (wave326).
+     * Residual: arm 0 only → always first result (e.g. match x {1=>40;2=>42;_=>7}
+     * with x=2 returned 40). Freestanding ELF already complete via
+     * pipeline_asm_emit_match_elf_c; host path must compare subject.
+     * G.7: complete this emit authority; seed codegen_gen twin same commit.
+     */
     if (e.kind == ExprKind.EXPR_MATCH) {
       if (e.match_num_arms <= 0) {
         return append_byte(out, 48);
       }
-      let m0: i32 = pipeline_expr_match_arm_result_ref(arena, expr_ref, 0);
-      if (!ast.ref_is_null(m0) && emit_expr(arena, out, m0, ctx) != 0) {
-        return -1;
-      }
-      return 0;
+      return codegen_emit_match_from_arm(arena, out, expr_ref, ctx, 0);
     }
     /* See implementation. */
     if (e.kind == ExprKind.EXPR_STRUCT_LIT) {
@@ -7367,22 +11466,452 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         }
         /* other abi_dup names: keep sl_pfx from ctx (do not force std_net_) */
       }
+      /*
+       * wave352 Cap residual pure: STRUCT_LIT TYPE_ARRAY field + CALL/METHOD_CALL init.
+       * Root: use_elem_expand emitted `{ fill(n)[0], fill(n)[1], fill(n)[2] }` (N calls;
+       * side effects ×N) and host array return is still a dangling stack compound
+       * (warning + UB if not copied immediately once).
+       * G.7: when any field is CALL/METHOD + fixed TYPE_ARRAY, wrap the whole compound
+       * in a GNU stmt-expr: materialize each such CALL once into `static E __xlang_aaK[N]`,
+       * immediate element copy (captures dangle before clobber), then brace-expand from
+       * the static. Mirrors wave341 durable static / wave345 stmt-expr materialize.
+       * Soft: reentrancy last-wins on static temps; freestanding already wave351.
+       * PLATFORM: SHARED host-C emit (seed pin same commit).
+       */
+      let nf_codegen: i32 = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+      let need_call_mat: i32 = 0;
+      let si_scan: i32 = 0;
+      while (si_scan < nf_codegen) {
+        let iref_s: i32 = pipeline_expr_struct_lit_init_ref(arena, expr_ref, si_scan);
+        if (!ast.ref_is_null(iref_s)) {
+          let ie_s: Expr = ast.ast_arena_expr_get(arena, iref_s);
+          if (ie_s.kind == ExprKind.EXPR_CALL || ie_s.kind == ExprKind.EXPR_METHOD_CALL) {
+            let fnbuf_s: u8[64] = [];
+            pipeline_expr_struct_lit_field_name_into(arena, expr_ref, si_scan, &fnbuf_s[0]);
+            let flen_s: i32 = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, si_scan);
+            if (flen_s > 64) {
+              flen_s = 64;
+            }
+            let ftr_s: i32 = codegen_lookup_struct_field_type_ref(
+              arena, ctx, &e.struct_lit_struct_name[0], e.struct_lit_struct_name_len, &fnbuf_s[0], flen_s);
+            let arr_ty_s: i32 = 0;
+            if (!ast.ref_is_null(ftr_s)
+                && pipeline_type_kind_ord_at(arena, ftr_s) == (TypeKind.TYPE_ARRAY as i32)) {
+              arr_ty_s = ftr_s;
+            } else if (!ast.ref_is_null(ie_s.resolved_type_ref)
+                && pipeline_type_kind_ord_at(arena, ie_s.resolved_type_ref) == (TypeKind.TYPE_ARRAY as i32)) {
+              arr_ty_s = ie_s.resolved_type_ref;
+            }
+            if (!ast.ref_is_null(arr_ty_s)) {
+              let asz_s: i32 = pipeline_type_array_size_at(arena, arr_ty_s);
+              if (asz_s > 0 && asz_s <= 512) {
+                need_call_mat = 1;
+              }
+            }
+          }
+        }
+        si_scan = si_scan + 1;
+      }
+      if (need_call_mat != 0) {
+        /* ({  */
+        let mat_open: u8[4] = [40, 123, 32, 0];
+        if (emit_bytes_4(out, mat_open, 3) != 0) {
+          return -1;
+        }
+        let mi: i32 = 0;
+        while (mi < nf_codegen) {
+          let iref_m: i32 = pipeline_expr_struct_lit_init_ref(arena, expr_ref, mi);
+          if (ast.ref_is_null(iref_m)) {
+            mi = mi + 1;
+            continue;
+          }
+          let ie_m: Expr = ast.ast_arena_expr_get(arena, iref_m);
+          if (ie_m.kind != ExprKind.EXPR_CALL && ie_m.kind != ExprKind.EXPR_METHOD_CALL) {
+            mi = mi + 1;
+            continue;
+          }
+          let fnbuf_m: u8[64] = [];
+          pipeline_expr_struct_lit_field_name_into(arena, expr_ref, mi, &fnbuf_m[0]);
+          let flen_m: i32 = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, mi);
+          if (flen_m > 64) {
+            flen_m = 64;
+          }
+          let ftr_m: i32 = codegen_lookup_struct_field_type_ref(
+            arena, ctx, &e.struct_lit_struct_name[0], e.struct_lit_struct_name_len, &fnbuf_m[0], flen_m);
+          let arr_ty_m: i32 = 0;
+          if (!ast.ref_is_null(ftr_m)
+              && pipeline_type_kind_ord_at(arena, ftr_m) == (TypeKind.TYPE_ARRAY as i32)) {
+            arr_ty_m = ftr_m;
+          } else if (!ast.ref_is_null(ie_m.resolved_type_ref)
+              && pipeline_type_kind_ord_at(arena, ie_m.resolved_type_ref) == (TypeKind.TYPE_ARRAY as i32)) {
+            arr_ty_m = ie_m.resolved_type_ref;
+          }
+          if (ast.ref_is_null(arr_ty_m)) {
+            mi = mi + 1;
+            continue;
+          }
+          let asz_m: i32 = pipeline_type_array_size_at(arena, arr_ty_m);
+          if (asz_m <= 0 || asz_m > 512) {
+            mi = mi + 1;
+            continue;
+          }
+          let elem_m: i32 = pipeline_type_elem_ref_at(arena, arr_ty_m);
+          /* static E __xlang_aaK[N]; E *__xlang_apK = CALL; copy elems */
+          let st_kw: u8[8] = [115, 116, 97, 116, 105, 99, 32, 0];
+          if (emit_bytes_from_ptr(out, &st_kw[0], 7) != 0) {
+            return -1;
+          }
+          if (ast.ref_is_null(elem_m) || emit_type(arena, out, elem_m, 0 as *u8, 0, ctx) != 0) {
+            let fb_i32: u8[9] = [105, 110, 116, 51, 50, 95, 116, 0, 0];
+            if (emit_bytes_from_ptr(out, &fb_i32[0], 7) != 0) {
+              return -1;
+            }
+          }
+          /*  __xlang_aa */
+          let aa_nm: u8[12] = [32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 97, 0];
+          if (emit_bytes_from_ptr(out, &aa_nm[0], 11) != 0) {
+            return -1;
+          }
+          if (format_int(out, mi as i64) != 0) {
+            return -1;
+          }
+          if (append_byte(out, 91) != 0) {
+            return -1;
+          }
+          if (format_int(out, asz_m as i64) != 0) {
+            return -1;
+          }
+          /* ];  */
+          let aa_end: u8[4] = [93, 59, 32, 0];
+          if (emit_bytes_from_ptr(out, &aa_end[0], 3) != 0) {
+            return -1;
+          }
+          if (ast.ref_is_null(elem_m) || emit_type(arena, out, elem_m, 0 as *u8, 0, ctx) != 0) {
+            let fb_i32b: u8[9] = [105, 110, 116, 51, 50, 95, 116, 0, 0];
+            if (emit_bytes_from_ptr(out, &fb_i32b[0], 7) != 0) {
+              return -1;
+            }
+          }
+          /*  *__xlang_ap */
+          let ap_nm: u8[14] = [32, 42, 95, 95, 120, 108, 97, 110, 103, 95, 97, 112, 0, 0];
+          if (emit_bytes_from_ptr(out, &ap_nm[0], 12) != 0) {
+            return -1;
+          }
+          if (format_int(out, mi as i64) != 0) {
+            return -1;
+          }
+          /*  =  */
+          let ap_eq: u8[4] = [32, 61, 32, 0];
+          if (emit_bytes_4(out, ap_eq, 3) != 0) {
+            return -1;
+          }
+          if (emit_expr(arena, out, iref_m, ctx) != 0) {
+            return -1;
+          }
+          /* ;  */
+          let ap_sc: u8[4] = [59, 32, 0, 0];
+          if (emit_bytes_4(out, ap_sc, 2) != 0) {
+            return -1;
+          }
+          let ai_m: i32 = 0;
+          while (ai_m < asz_m) {
+            /* __xlang_aaK[ */
+            let cp_aa: u8[12] = [95, 95, 120, 108, 97, 110, 103, 95, 97, 97, 0, 0];
+            if (emit_bytes_from_ptr(out, &cp_aa[0], 10) != 0) {
+              return -1;
+            }
+            if (format_int(out, mi as i64) != 0) {
+              return -1;
+            }
+            if (append_byte(out, 91) != 0) {
+              return -1;
+            }
+            if (format_int(out, ai_m as i64) != 0) {
+              return -1;
+            }
+            /* ] = __xlang_apK[ */
+            let cp_mid: u8[16] = [93, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 112, 0, 0];
+            if (emit_bytes_from_ptr(out, &cp_mid[0], 14) != 0) {
+              return -1;
+            }
+            if (format_int(out, mi as i64) != 0) {
+              return -1;
+            }
+            if (append_byte(out, 91) != 0) {
+              return -1;
+            }
+            if (format_int(out, ai_m as i64) != 0) {
+              return -1;
+            }
+            /* ];  */
+            let cp_end: u8[4] = [93, 59, 32, 0];
+            if (emit_bytes_from_ptr(out, &cp_end[0], 3) != 0) {
+              return -1;
+            }
+            ai_m = ai_m + 1;
+          }
+          mi = mi + 1;
+        }
+      }
       let open: u8[9] = [40, 115, 116, 114, 117, 99, 116, 32, 0];
       if (emit_bytes_9(out, open, 8) != 0) {
         return -1;
       }
+      /*
+       * wave458: STRUCT_LIT name mono subst (`return T { .v = 7 }` under mono).
+       * emit_type already rewrites TYPE_NAMED T→A for signatures/lets, but
+       * STRUCT_LIT emits the source type name string. When mono_active and the
+       * lit name equals a mapped generic param name, emit the concrete type name
+       * (and keep module prefix) so host C gets `struct …_A` not incomplete T.
+       * PLATFORM: SHARED — G.7 same mono map as emit_type C5.
+       */
+      let sl_emit_name: u8[64] = [];
+      let sl_emit_nlen: i32 = e.struct_lit_struct_name_len;
+      let sl_ni: i32 = 0;
+      while (sl_ni < sl_emit_nlen && sl_ni < 64) {
+        sl_emit_name[sl_ni] = e.struct_lit_struct_name[sl_ni];
+        sl_ni = sl_ni + 1;
+      }
+      if (ctx != 0 as *PipelineDepCtx && ctx.mono_active != 0 && ctx.mono_num_types > 0
+          && sl_emit_nlen > 0) {
+        let mi_sl: i32 = 0;
+        while (mi_sl < ctx.mono_num_types && mi_sl < 8) {
+          let gtr_sl: i32 = ctx.mono_generic_type_refs[mi_sl];
+          let ctr_sl: i32 = ctx.mono_concrete_type_refs[mi_sl];
+          if (gtr_sl > 0 && ctr_sl > 0 && ctr_sl != gtr_sl) {
+            let gnm_sl: u8[64] = [];
+            let gnl_sl: i32 = pipeline_type_named_name_into(arena, gtr_sl, &gnm_sl[0]);
+            if (gnl_sl == sl_emit_nlen && gnl_sl > 0) {
+              let eq_sl: i32 = 1;
+              let bi_sl: i32 = 0;
+              while (bi_sl < gnl_sl) {
+                if (gnm_sl[bi_sl] != sl_emit_name[bi_sl]) {
+                  eq_sl = 0;
+                  bi_sl = gnl_sl;
+                } else {
+                  bi_sl = bi_sl + 1;
+                }
+              }
+              if (eq_sl != 0) {
+                let cnm_sl: u8[64] = [];
+                let cnl_sl: i32 = pipeline_type_named_name_into(arena, ctr_sl, &cnm_sl[0]);
+                if (cnl_sl > 0 && cnl_sl <= 64) {
+                  let ci_sl: i32 = 0;
+                  while (ci_sl < cnl_sl) {
+                    sl_emit_name[ci_sl] = cnm_sl[ci_sl];
+                    ci_sl = ci_sl + 1;
+                  }
+                  sl_emit_nlen = cnl_sl;
+                }
+                mi_sl = ctx.mono_num_types;
+              }
+            }
+          }
+          mi_sl = mi_sl + 1;
+        }
+      }
       if (bare_user_lit == 0 && sl_plen > 0 && emit_bytes_from_ptr(out, &sl_pfx[0], sl_plen) != 0) {
         return -1;
       }
-      if (emit_bytes_64(out, &e.struct_lit_struct_name[0], e.struct_lit_struct_name_len) != 0) {
+      if (emit_bytes_64(out, &sl_emit_name[0], sl_emit_nlen) != 0) {
         return -1;
+      }
+      /*
+       * wave481/484: STRUCT_LIT compound tag must match mono mangled defs.
+       * wave484: **prefer field-init combo first** — nested Wrap { inner: Wrap {…} }
+       * often stamps ambient outer resolved_type_ref on every lit (same Wrap&lt;Wrap&lt;A&gt;&gt;),
+       * which made middle lit emit Wrap__Wrap_A instead of Wrap__A (BLD001).
+       * Field inits encode true nesting; resolved_type_ref is fallback for typed sites.
+       * PLATFORM: SHARED host-C.
+       */
+      if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module) {
+        let mod_sl: *Module = ctx.current_codegen_module;
+        let rty_sl: i32 = e.resolved_type_ref;
+        let did_mono: i32 = 0;
+        // (0) wave484: structural field mono (nested Wrap lit; ignore ambient type).
+        {
+          let st0: i32 = codegen_try_emit_struct_lit_mono_from_fields(mod_sl, arena, out, expr_ref, &sl_emit_name[0], sl_emit_nlen, ctx);
+          if (st0 < 0) {
+            return -1;
+          }
+          if (st0 > 0) {
+            did_mono = 1;
+          }
+        }
+        // (1) Field-init combo via type_ref (legacy path when structural not applicable).
+        if (did_mono == 0) {
+          let lk2: i32 = codegen_module_struct_layout_index_by_name(mod_sl, &sl_emit_name[0], sl_emit_nlen);
+          if (lk2 >= 0) {
+            let ntp2: i32 = pipeline_module_struct_layout_num_type_params_at(mod_sl, lk2);
+            if (ntp2 > 0 && ntp2 <= 4) {
+              let combo_sl: i32[4] = [];
+              let filled_sl: i32 = 0;
+              let ok_sl: i32 = 1;
+              let tj_sl: i32 = 0;
+              while (tj_sl < ntp2) {
+                combo_sl[tj_sl] = 0;
+                tj_sl = tj_sl + 1;
+              }
+              let nf_lay: i32 = pipeline_module_struct_layout_num_fields(mod_sl, lk2);
+              let fj_sl: i32 = 0;
+              while (fj_sl < nf_lay) {
+                let ftr_sl: i32 = pipeline_module_struct_layout_field_type_ref(mod_sl, lk2, fj_sl);
+                if (pipeline_type_kind_ord_at(arena, ftr_sl) == TypeKind.TYPE_NAMED) {
+                  let ftn_sl: u8[64] = [];
+                  let ftnl_sl: i32 = pipeline_type_named_name_into(arena, ftr_sl, &ftn_sl[0]);
+                  let slot_sl: i32 = -1;
+                  let pj_sl: i32 = 0;
+                  while (pj_sl < ntp2) {
+                    let tpl_sl: i32 = pipeline_module_struct_layout_type_param_name_len(mod_sl, lk2, pj_sl);
+                    if (tpl_sl == ftnl_sl && ftnl_sl > 0) {
+                      let tpn_sl: u8[64] = [];
+                      pipeline_module_struct_layout_type_param_name_into(mod_sl, lk2, pj_sl, &tpn_sl[0]);
+                      let peq_sl: i32 = 1;
+                      let pi_sl: i32 = 0;
+                      while (pi_sl < ftnl_sl) {
+                        if (tpn_sl[pi_sl] != ftn_sl[pi_sl]) {
+                          peq_sl = 0;
+                        }
+                        pi_sl = pi_sl + 1;
+                      }
+                      if (peq_sl != 0) {
+                        slot_sl = pj_sl;
+                        pj_sl = ntp2;
+                      }
+                    }
+                    pj_sl = pj_sl + 1;
+                  }
+                  if (slot_sl >= 0) {
+                    let flen_sl: i32 = pipeline_module_struct_layout_field_name_len(mod_sl, lk2, fj_sl);
+                    let fnm_sl: u8[64] = [];
+                    pipeline_module_struct_layout_field_name_into(mod_sl, lk2, fj_sl, &fnm_sl[0]);
+                    let lit_nf_sl: i32 = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+                    let li_sl: i32 = 0;
+                    while (li_sl < lit_nf_sl) {
+                      let lfl_sl: i32 = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, li_sl);
+                      if (lfl_sl == flen_sl && flen_sl > 0) {
+                        let lfn_sl: u8[64] = [];
+                        pipeline_expr_struct_lit_field_name_into(arena, expr_ref, li_sl, &lfn_sl[0]);
+                        let feq_sl: i32 = 1;
+                        let fi_sl: i32 = 0;
+                        while (fi_sl < flen_sl) {
+                          if (lfn_sl[fi_sl] != fnm_sl[fi_sl]) {
+                            feq_sl = 0;
+                          }
+                          fi_sl = fi_sl + 1;
+                        }
+                        if (feq_sl != 0) {
+                          let iref_sl: i32 = pipeline_expr_struct_lit_init_ref(arena, expr_ref, li_sl);
+                          if (iref_sl > 0) {
+                            let ity_sl: i32 = pipeline_expr_resolved_type_ref(arena, iref_sl);
+                            if (ity_sl > 0 && codegen_type_ref_is_host_concrete(mod_sl, arena, ity_sl) != 0) {
+                              if (combo_sl[slot_sl] == 0) {
+                                combo_sl[slot_sl] = ity_sl;
+                                filled_sl = filled_sl + 1;
+                              }
+                            }
+                          }
+                          li_sl = lit_nf_sl;
+                        }
+                      }
+                      li_sl = li_sl + 1;
+                    }
+                  }
+                }
+                fj_sl = fj_sl + 1;
+              }
+              let sc_sl: i32 = 0;
+              while (sc_sl < ntp2) {
+                if (combo_sl[sc_sl] <= 0) {
+                  ok_sl = 0;
+                }
+                sc_sl = sc_sl + 1;
+              }
+              if (ok_sl != 0 && filled_sl > 0) {
+                if (codegen_emit_generic_struct_mono_suffix(out, arena, &combo_sl[0], ntp2) != 0) {
+                  return -1;
+                }
+                did_mono = 1;
+              }
+            }
+          }
+        }
+        // (2) Fallback: resolved_type_ref type-pos args (typed let / ret ambient).
+        if (did_mono == 0 && rty_sl > 0) {
+          if (codegen_maybe_emit_generic_struct_mono_suffix_for_type(mod_sl, arena, out, rty_sl, ctx) != 0) {
+            return -1;
+          }
+          let mono_chk: i32[4] = [];
+          let lk_sl: i32 = codegen_module_struct_layout_index_by_name(mod_sl, &sl_emit_name[0], sl_emit_nlen);
+          if (lk_sl >= 0) {
+            let ntp_sl: i32 = pipeline_module_struct_layout_num_type_params_at(mod_sl, lk_sl);
+            if (ntp_sl > 0 && codegen_generic_struct_fill_concrete_args(mod_sl, arena, rty_sl, ntp_sl, &mono_chk[0], ctx) == ntp_sl) {
+              did_mono = 1;
+            }
+          }
+        }
+        /*
+         * (3) wave481: generic function mono body bare Pair { a: x, b: y } —
+         * map layout type-params through ctx.mono_* (T→A,U→B).
+         * PLATFORM: SHARED host-C mono.
+         */
+        if (did_mono == 0 && ctx.mono_active != 0 && ctx.mono_num_types > 0) {
+          let lk_m: i32 = codegen_module_struct_layout_index_by_name(mod_sl, &sl_emit_name[0], sl_emit_nlen);
+          if (lk_m >= 0) {
+            let ntp_m: i32 = pipeline_module_struct_layout_num_type_params_at(mod_sl, lk_m);
+            if (ntp_m > 0 && ntp_m <= 4) {
+              let combo_m: i32[4] = [];
+              let ok_m: i32 = 1;
+              let tj_m: i32 = 0;
+              while (tj_m < ntp_m) {
+                combo_m[tj_m] = 0;
+                let tpl_m: i32 = pipeline_module_struct_layout_type_param_name_len(mod_sl, lk_m, tj_m);
+                let tpn_m: u8[64] = [];
+                pipeline_module_struct_layout_type_param_name_into(mod_sl, lk_m, tj_m, &tpn_m[0]);
+                let mi_m: i32 = 0;
+                while (mi_m < ctx.mono_num_types && mi_m < 8) {
+                  let gtr_m: i32 = ctx.mono_generic_type_refs[mi_m];
+                  let ctr_m: i32 = ctx.mono_concrete_type_refs[mi_m];
+                  if (gtr_m > 0 && ctr_m > 0) {
+                    let gnm_m: u8[64] = [];
+                    let gnl_m: i32 = pipeline_type_named_name_into(arena, gtr_m, &gnm_m[0]);
+                    if (gnl_m == tpl_m && gnl_m > 0) {
+                      let geq: i32 = 1;
+                      let gi: i32 = 0;
+                      while (gi < gnl_m) {
+                        if (gnm_m[gi] != tpn_m[gi]) {
+                          geq = 0;
+                        }
+                        gi = gi + 1;
+                      }
+                      if (geq != 0) {
+                        combo_m[tj_m] = ctr_m;
+                        mi_m = ctx.mono_num_types;
+                      }
+                    }
+                  }
+                  mi_m = mi_m + 1;
+                }
+                if (combo_m[tj_m] <= 0) {
+                  ok_m = 0;
+                }
+                tj_m = tj_m + 1;
+              }
+              if (ok_m != 0) {
+                if (codegen_emit_generic_struct_mono_suffix(out, arena, &combo_m[0], ntp_m) != 0) {
+                  return -1;
+                }
+                did_mono = 1;
+              }
+            }
+          }
+        }
       }
       let open2: u8[5] = [41, 123, 32, 0, 0];
       if (emit_bytes_5(out, open2, 3) != 0) {
         return -1;
       }
       let fi: i32 = 0;
-      let nf_codegen: i32 = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
       while (fi < nf_codegen) {
         if (fi > 0) {
           let comma: u8[3] = [44, 32, 0];
@@ -7413,6 +11942,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
          * - EXPR_ARRAY_LIT empty → `{ 0 }`; non-empty → emit_braced_array_lit_init
          * - VAR/param (u8[N] or decayed *u8) → expand `.name = { src[0], …, src[N-1] }`
          *   (parser M1 host-cc residual: `.name = z64` / `.name = name64` illegal).
+         * - CALL/METHOD (wave352): brace-expand from materialize static __xlang_aaK
          * Do NOT emit_expr alone for TYPE_ARRAY fields (pointer-to-integer on first elem).
          * PLATFORM: SHARED — seed pin same commit; verify parser.x -E host-cc. */
         let init_ref: i32 = pipeline_expr_struct_lit_init_ref(arena, expr_ref, fi);
@@ -7451,7 +11981,45 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                 use_elem_expand = 1;
               }
             }
-            if (use_elem_expand != 0) {
+            let is_call_init: i32 = 0;
+            if (init_e.kind == ExprKind.EXPR_CALL || init_e.kind == ExprKind.EXPR_METHOD_CALL) {
+              is_call_init = 1;
+            }
+            if (use_elem_expand != 0 && is_call_init != 0 && need_call_mat != 0) {
+              /* { __xlang_aaK[0], …, __xlang_aaK[N-1] } — single materialize above */
+              if (append_byte(out, 123) != 0) {
+                return -1;
+              }
+              let ai_c: i32 = 0;
+              while (ai_c < arr_sz) {
+                if (ai_c > 0) {
+                  let cm_c: u8[3] = [44, 32, 0];
+                  if (emit_bytes_3(out, cm_c, 2) != 0) {
+                    return -1;
+                  }
+                }
+                let aa_rd: u8[12] = [95, 95, 120, 108, 97, 110, 103, 95, 97, 97, 0, 0];
+                if (emit_bytes_from_ptr(out, &aa_rd[0], 10) != 0) {
+                  return -1;
+                }
+                if (format_int(out, fi as i64) != 0) {
+                  return -1;
+                }
+                if (append_byte(out, 91) != 0) {
+                  return -1;
+                }
+                if (format_int(out, ai_c as i64) != 0) {
+                  return -1;
+                }
+                if (append_byte(out, 93) != 0) {
+                  return -1;
+                }
+                ai_c = ai_c + 1;
+              }
+              if (append_byte(out, 125) != 0) {
+                return -1;
+              }
+            } else if (use_elem_expand != 0) {
               if (append_byte(out, 123) != 0) {
                 return -1;
               }
@@ -7488,6 +12056,11 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           }
         }
         fi = fi + 1;
+      }
+      if (need_call_mat != 0) {
+        /*  }; }) */
+        let mat_close: u8[8] = [32, 125, 59, 32, 125, 41, 0, 0];
+        return emit_bytes_from_ptr(out, &mat_close[0], 6);
       }
       let close: u8[4] = [32, 125, 0, 0];
       return emit_bytes_4(out, close, 2);
@@ -7560,7 +12133,165 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         }
       }
       if (is_slice != 0) {
-        let lp: u8[3] = [40, 0, 0];
+        /*
+         * wave335 Cap residual pure: TYPE_SLICE + ARRAY_LIT durable static when all elems
+         * are compile-time LIT/BOOL_LIT (return-safe; matches freestanding text-embed).
+         * wave340: non-const elems cannot be `static E __xlang_al[] = {n,…}` (C rejects
+         * non-constant initializers) — temporarily used block compound.
+         * wave341: non-const also durable via runtime-filled static buffer (return-safe):
+         *   const → ({ static E __xlang_al[]={…}; (slice){.data=__xlang_al,.length=N}; })
+         *   non-const → ({ static E __xlang_al[N]; __xlang_al[i]=ei; …;
+         *                 (slice){.data=__xlang_al,.length=N}; })
+         * Reentrancy: last-call wins (same as const static); Minimal Core OK.
+         * PLATFORM: SHARED host-C emit.
+         */
+        if (n == 0) {
+          /* Empty: null data is durable; no static needed. */
+          if (append_byte(out, 40) != 0) {
+            return -1;
+          }
+          if (emit_type(arena, out, e.resolved_type_ref, 0 as *u8, 0, ctx) != 0) {
+            let fallback: u8[9] = [117, 105, 110, 116, 56, 95, 116, 0, 0];
+            if (emit_bytes_9(out, fallback, 7) != 0) {
+              return -1;
+            }
+          }
+          let empty_tail: u8[40] = [41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 40, 118, 111, 105, 100, 32, 42, 41, 48, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 48, 32, 125, 0, 0, 0, 0, 0];
+          /* ){ .data = (void *)0, .length = 0 } */
+          if (emit_bytes_from_ptr(out, &empty_tail[0], 35) != 0) {
+            return -1;
+          }
+          return 0;
+        }
+        /* All elems EXPR_LIT(0)/BOOL_LIT(2) → durable static (wave335); else block compound. */
+        let all_const: i32 = 1;
+        let ci: i32 = 0;
+        while (ci < n) {
+          let er: i32 = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ci);
+          if (ast.ref_is_null(er)) {
+            all_const = 0;
+          } else {
+            let ek: i32 = pipeline_expr_kind_ord_at(arena, er);
+            if (ek != 0 && ek != 2) {
+              all_const = 0;
+            }
+          }
+          ci = ci + 1;
+        }
+        if (all_const != 0) {
+          /* ({ static  */
+          let open_stmt: u8[12] = [40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0];
+          if (emit_bytes_from_ptr(out, &open_stmt[0], 10) != 0) {
+            return -1;
+          }
+          if (!ast.ref_is_null(elem_type_ref) && emit_type(arena, out, elem_type_ref, 0 as *u8, 0, ctx) != 0) {
+            let fallback: u8[9] = [117, 105, 110, 116, 56, 95, 116, 0, 0];
+            if (emit_bytes_9(out, fallback, 7) != 0) {
+              return -1;
+            }
+          }
+          /*  __xlang_al[] = { */
+          let al_head: u8[18] = [32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 91, 93, 32, 61, 32, 123, 0];
+          if (emit_bytes_from_ptr(out, &al_head[0], 17) != 0) {
+            return -1;
+          }
+          let ai: i32 = 0;
+          while (ai < n) {
+            if (ai > 0) {
+              let comma: u8[3] = [44, 32, 0];
+              if (emit_bytes_3(out, comma, 2) != 0) {
+                return -1;
+              }
+            }
+            if (!ast.ref_is_null(pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai)) && emit_expr(arena, out, pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai), ctx) != 0) {
+              return -1;
+            }
+            ai = ai + 1;
+          }
+          /* }; ( */
+          let mid: u8[6] = [125, 59, 32, 40, 0, 0];
+          if (emit_bytes_from_ptr(out, &mid[0], 4) != 0) {
+            return -1;
+          }
+          if (emit_type(arena, out, e.resolved_type_ref, 0 as *u8, 0, ctx) != 0) {
+            let fallback: u8[9] = [117, 105, 110, 116, 56, 95, 116, 0, 0];
+            if (emit_bytes_9(out, fallback, 7) != 0) {
+              return -1;
+            }
+          }
+          /* ){ .data = __xlang_al, .length =  */
+          let slice_mid: u8[36] = [41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0];
+          if (emit_bytes_from_ptr(out, &slice_mid[0], 33) != 0) {
+            return -1;
+          }
+          if (format_int(out, ai) != 0) {
+            return -1;
+          }
+          /*  }; }) */
+          let slice_end: u8[8] = [32, 125, 59, 32, 125, 41, 0, 0];
+          if (emit_bytes_from_ptr(out, &slice_end[0], 6) != 0) {
+            return -1;
+          }
+          return 0;
+        }
+        /*
+         * wave341 Cap residual pure: non-const TYPE_SLICE + ARRAY_LIT durable static fill.
+         * Root: wave340 block compound `(E[]){n,…}` has automatic duration → return dangles
+         * (Ubuntu/host `return [n,n+10,n+20]` idx garbage; length OK).
+         * G.7: same static authority as const path; runtime stores for non-const elems.
+         * Emit: ({ static E __xlang_al[N]; __xlang_al[i]=ei; …; (slice){.data=__xlang_al,.length=N}; })
+         * PLATFORM: SHARED host-C emit.
+         */
+        /* ({ static  */
+        let nc_open: u8[12] = [40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0];
+        if (emit_bytes_from_ptr(out, &nc_open[0], 10) != 0) {
+          return -1;
+        }
+        if (!ast.ref_is_null(elem_type_ref) && emit_type(arena, out, elem_type_ref, 0 as *u8, 0, ctx) != 0) {
+          let fallback: u8[9] = [117, 105, 110, 116, 56, 95, 116, 0, 0];
+          if (emit_bytes_9(out, fallback, 7) != 0) {
+            return -1;
+          }
+        }
+        /*  __xlang_al[ */
+        let nc_al_br: u8[14] = [32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 91, 0, 0];
+        if (emit_bytes_from_ptr(out, &nc_al_br[0], 12) != 0) {
+          return -1;
+        }
+        if (format_int(out, n) != 0) {
+          return -1;
+        }
+        /* ];  */
+        let nc_sz_end: u8[4] = [93, 59, 32, 0];
+        if (emit_bytes_from_ptr(out, &nc_sz_end[0], 3) != 0) {
+          return -1;
+        }
+        let ai_nc: i32 = 0;
+        while (ai_nc < n) {
+          /* __xlang_al[ */
+          let nc_asg_h: u8[14] = [95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 91, 0, 0, 0];
+          if (emit_bytes_from_ptr(out, &nc_asg_h[0], 11) != 0) {
+            return -1;
+          }
+          if (format_int(out, ai_nc) != 0) {
+            return -1;
+          }
+          /* ] =  */
+          let nc_asg_m: u8[6] = [93, 32, 61, 32, 0, 0];
+          if (emit_bytes_from_ptr(out, &nc_asg_m[0], 4) != 0) {
+            return -1;
+          }
+          if (!ast.ref_is_null(pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai_nc)) && emit_expr(arena, out, pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai_nc), ctx) != 0) {
+            return -1;
+          }
+          /* ;  */
+          let nc_asg_t: u8[4] = [59, 32, 0, 0];
+          if (emit_bytes_from_ptr(out, &nc_asg_t[0], 2) != 0) {
+            return -1;
+          }
+          ai_nc = ai_nc + 1;
+        }
+        /* ( */
         if (append_byte(out, 40) != 0) {
           return -1;
         }
@@ -7570,23 +12301,20 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             return -1;
           }
         }
-        let slice_mid: u8[22] = [41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        if (emit_bytes_22(out, slice_mid, 11) != 0) {
+        /* ){ .data = __xlang_al, .length =  */
+        let nc_slice_mid: u8[36] = [41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 108, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0];
+        if (emit_bytes_from_ptr(out, &nc_slice_mid[0], 33) != 0) {
           return -1;
         }
-        if (append_byte(out, 40) != 0) {
+        if (format_int(out, ai_nc) != 0) {
           return -1;
         }
-        if (!ast.ref_is_null(elem_type_ref) && emit_type(arena, out, elem_type_ref, 0 as *u8, 0, ctx) != 0) {
-          let fallback: u8[9] = [117, 105, 110, 116, 56, 95, 116, 0, 0];
-          if (emit_bytes_9(out, fallback, 7) != 0) {
-            return -1;
-          }
-        }
-        let arr: u8[5] = [91, 93, 41, 123, 0];
-        if (emit_bytes_5(out, arr, 4) != 0) {
+        /*  }; }) */
+        let nc_slice_end: u8[8] = [32, 125, 59, 32, 125, 41, 0, 0];
+        if (emit_bytes_from_ptr(out, &nc_slice_end[0], 6) != 0) {
           return -1;
         }
+        return 0;
       } else {
         /* See implementation. */
         if (append_byte(out, 40) != 0) {
@@ -7615,22 +12343,6 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           return -1;
         }
         ai = ai + 1;
-      }
-      if (is_slice != 0) {
-        let slice_end: u8[22] = [32, 125, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0, 0, 0, 0, 0, 0];
-        if (emit_bytes_22(out, slice_end, 14) != 0) {
-          return -1;
-        }
-        if (format_int(out, ai) != 0) {
-          return -1;
-        }
-        if (append_byte(out, 32) != 0) {
-          return -1;
-        }
-        if (append_byte(out, 125) != 0) {
-          return -1;
-        }
-        return append_byte(out, 41);
       }
       let close: u8[4] = [32, 125, 0, 0];
       return emit_bytes_4(out, close, 2);
@@ -7770,6 +12482,18 @@ export function codegen_current_func_is_named_main(ctx: *PipelineDepCtx): i32 {
 export function emit_return_stmt_with_context(arena: *ASTArena, out: *CodegenOutBuf, indent: i32, operand_ref: i32, ctx: *PipelineDepCtx, fn_ret_void: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
+    /*
+     * wave374: `return match { … => { return N; }; }` — do not nest return in
+     * ternary value position. Emit match as if/else with real returns.
+     * Value-only match arms still use the normal `return (ternary…)` path below.
+     * PLATFORM: SHARED — G.7 codegen_emit_match_as_stmt authority.
+     */
+    if (fn_ret_void == 0 && !ast.ref_is_null(operand_ref)) {
+      let mop: Expr = ast.ast_arena_expr_get(arena, operand_ref);
+      if (mop.kind == ExprKind.EXPR_MATCH && codegen_match_has_return_arm(arena, operand_ref) != 0) {
+        return codegen_emit_match_as_stmt(arena, out, operand_ref, indent, ctx, fn_ret_void);
+      }
+    }
 
     if (fn_ret_void != 0) {
       if (!ast.ref_is_null(operand_ref)) {
@@ -7821,6 +12545,140 @@ export function emit_return_stmt_with_context(arena: *ASTArena, out: *CodegenOut
     if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module
         && ctx.current_func_index >= 0 && ctx.current_func_index < ctx.current_codegen_module.num_funcs) {
       let rty: i32 = pipeline_module_func_return_type_at(ctx.current_codegen_module, ctx.current_func_index);
+      /*
+       * wave352 Cap residual pure: host `return` of fixed TYPE_ARRAY.
+       * Root: emit_type lowers TYPE_ARRAY as `ELEM *`; `return (E[]){…}` is a
+       * stack compound (clang -Wreturn-stack-address; -O2 clobbers → STRUCT_LIT
+       * CALL field init sum garbage even after once-materialize).
+       * G.7: durable static[N] fill then return pointer (wave341 slice static
+       * authority; reentrancy last-wins soft). ARRAY_LIT stores elems; other
+       * rvalues once-eval to pointer then element copy.
+       * PLATFORM: SHARED host-C emit.
+       */
+      if (!ast.ref_is_null(rty) && pipeline_type_kind_ord_at(arena, rty) == (TypeKind.TYPE_ARRAY as i32)
+          && !ast.ref_is_null(operand_ref)) {
+        let arr_sz_r: i32 = pipeline_type_array_size_at(arena, rty);
+        let elem_r: i32 = pipeline_type_elem_ref_at(arena, rty);
+        if (arr_sz_r > 0 && arr_sz_r <= 512) {
+          if (emit_indent(out, indent) != 0) {
+            return -1;
+          }
+          /* return ({ static  */
+          let ar_open: u8[20] = [114, 101, 116, 117, 114, 110, 32, 40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0, 0];
+          if (emit_bytes_from_ptr(out, &ar_open[0], 17) != 0) {
+            return -1;
+          }
+          if (ast.ref_is_null(elem_r) || emit_type(arena, out, elem_r, 0 as *u8, 0, ctx) != 0) {
+            let fb_ar: u8[9] = [105, 110, 116, 51, 50, 95, 116, 0, 0];
+            if (emit_bytes_from_ptr(out, &fb_ar[0], 7) != 0) {
+              return -1;
+            }
+          }
+          /*  __xlang_ar[ */
+          let ar_nm: u8[14] = [32, 95, 95, 120, 108, 97, 110, 103, 95, 97, 114, 91, 0, 0];
+          if (emit_bytes_from_ptr(out, &ar_nm[0], 12) != 0) {
+            return -1;
+          }
+          if (format_int(out, arr_sz_r as i64) != 0) {
+            return -1;
+          }
+          /* ];  */
+          let ar_sz_end: u8[4] = [93, 59, 32, 0];
+          if (emit_bytes_from_ptr(out, &ar_sz_end[0], 3) != 0) {
+            return -1;
+          }
+          let op_k: i32 = pipeline_expr_kind_ord_at(arena, operand_ref);
+          if (op_k == (ExprKind.EXPR_ARRAY_LIT as i32)) {
+            let n_lit: i32 = pipeline_expr_array_lit_num_elems_at(arena, operand_ref);
+            let ai_r: i32 = 0;
+            while (ai_r < arr_sz_r) {
+              /* __xlang_ar[ */
+              let ar_asg: u8[14] = [95, 95, 120, 108, 97, 110, 103, 95, 97, 114, 91, 0, 0, 0];
+              if (emit_bytes_from_ptr(out, &ar_asg[0], 11) != 0) {
+                return -1;
+              }
+              if (format_int(out, ai_r as i64) != 0) {
+                return -1;
+              }
+              /* ] =  */
+              let ar_eq: u8[6] = [93, 32, 61, 32, 0, 0];
+              if (emit_bytes_from_ptr(out, &ar_eq[0], 4) != 0) {
+                return -1;
+              }
+              if (ai_r < n_lit) {
+                let er_r: i32 = pipeline_expr_array_lit_elem_ref(arena, operand_ref, ai_r);
+                if (!ast.ref_is_null(er_r) && emit_expr(arena, out, er_r, ctx) != 0) {
+                  return -1;
+                } else if (ast.ref_is_null(er_r)) {
+                  if (append_byte(out, 48) != 0) {
+                    return -1;
+                  }
+                }
+              } else {
+                if (append_byte(out, 48) != 0) {
+                  return -1;
+                }
+              }
+              /* ;  */
+              let ar_sc: u8[4] = [59, 32, 0, 0];
+              if (emit_bytes_4(out, ar_sc, 2) != 0) {
+                return -1;
+              }
+              ai_r = ai_r + 1;
+            }
+          } else {
+            /* E *__xlang_rp = <operand>; copy */
+            if (ast.ref_is_null(elem_r) || emit_type(arena, out, elem_r, 0 as *u8, 0, ctx) != 0) {
+              let fb_rp: u8[9] = [105, 110, 116, 51, 50, 95, 116, 0, 0];
+              if (emit_bytes_from_ptr(out, &fb_rp[0], 7) != 0) {
+                return -1;
+              }
+            }
+            /*  *__xlang_rp =  */
+            let rp_nm: u8[16] = [32, 42, 95, 95, 120, 108, 97, 110, 103, 95, 114, 112, 32, 61, 32, 0];
+            if (emit_bytes_from_ptr(out, &rp_nm[0], 15) != 0) {
+              return -1;
+            }
+            if (emit_expr(arena, out, operand_ref, ctx) != 0) {
+              return -1;
+            }
+            /* ;  */
+            let rp_sc: u8[4] = [59, 32, 0, 0];
+            if (emit_bytes_4(out, rp_sc, 2) != 0) {
+              return -1;
+            }
+            let ai_c: i32 = 0;
+            while (ai_c < arr_sz_r) {
+              let cp_h: u8[14] = [95, 95, 120, 108, 97, 110, 103, 95, 97, 114, 91, 0, 0, 0];
+              if (emit_bytes_from_ptr(out, &cp_h[0], 11) != 0) {
+                return -1;
+              }
+              if (format_int(out, ai_c as i64) != 0) {
+                return -1;
+              }
+              /* ] = __xlang_rp[ */
+              let cp_m: u8[16] = [93, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 114, 112, 91, 0];
+              if (emit_bytes_from_ptr(out, &cp_m[0], 15) != 0) {
+                return -1;
+              }
+              if (format_int(out, ai_c as i64) != 0) {
+                return -1;
+              }
+              let cp_e: u8[4] = [93, 59, 32, 0];
+              if (emit_bytes_from_ptr(out, &cp_e[0], 3) != 0) {
+                return -1;
+              }
+              ai_c = ai_c + 1;
+            }
+          }
+          /* __xlang_ar; })\n */
+          let ar_end: u8[20] = [95, 95, 120, 108, 97, 110, 103, 95, 97, 114, 59, 32, 125, 41, 59, 10, 0, 0, 0, 0];
+          if (emit_bytes_from_ptr(out, &ar_end[0], 16) != 0) {
+            return -1;
+          }
+          return 0;
+        }
+      }
       if (!ast.ref_is_null(rty) && pipeline_type_kind_ord_at(arena, rty) == (TypeKind.TYPE_NAMED as i32)) {
         let use_struct_zero: i32 = 0;
         if (ast.ref_is_null(operand_ref)) {
@@ -7849,6 +12707,147 @@ export function emit_return_stmt_with_context(arena: *ASTArena, out: *CodegenOut
             return -1;
           }
           return 0;
+        }
+      }
+      /*
+       * wave342–344 Cap residual pure: host `return s` where
+       *   `let a: T[N] = …; let s: T[] = a; …; return s` (body-top or nested block)
+       * Root: try_emit_slice_init_from_array_var emits `{.data=a,.length=N}` (stack view).
+       * Local aliasing is correct; return of the view dangles (run=1 vs 60).
+       * G.7: durable static[N] + memcpy from s.data with runtime min(s.length, N).
+       * wave343: pipeline_find_fixed_array_slice_escape (nested + resolved ARRAY).
+       * wave344: reassign residual — prior used compile-time N for memcpy/length
+       * (after s=[40,50] still length=3 → 340).
+       * wave419: raise host escape cap 256→1024 to match freestanding
+       * GLUE_ARRAY_LIT_MAX_ELEMS / deep-copy max_n (wave415/418). Prior n>256
+       * fell back to bare `return s` (dangling); dual same-call often UB-luck via
+       * call-arg deep-copy until n=1024 SIGSEGV. Soft: untyped-let; trait; true
+       * recursion last-wins on function-static __xlang_esc (no heap yet).
+       * PLATFORM: SHARED host-C emit (matches freestanding COMMON escape).
+       */
+      if (!ast.ref_is_null(rty) && pipeline_type_kind_ord_at(arena, rty) == (TypeKind.TYPE_SLICE as i32)
+          && !ast.ref_is_null(operand_ref)
+          && pipeline_expr_kind_ord_at(arena, operand_ref) == (ExprKind.EXPR_VAR as i32)) {
+        let body_br: i32 = pipeline_module_func_body_ref_at(ctx.current_codegen_module, ctx.current_func_index);
+        if (!ast.ref_is_null(body_br) && body_br > 0) {
+          let op_e: Expr = ast.ast_arena_expr_get(arena, operand_ref);
+          let arr_sz: i32 = 0;
+          let elem_tr: i32 = 0;
+          let arr_init_dummy: i32 = 0;
+          let found_esc: i32 = 0;
+          unsafe {
+            found_esc = pipeline_find_fixed_array_slice_escape(arena, body_br, &op_e.var_name[0], op_e.var_name_len, &arr_sz, &elem_tr, &arr_init_dummy);
+          }
+          if (found_esc != 0 && arr_sz > 0 && arr_sz <= 1024 && !ast.ref_is_null(elem_tr)) {
+            if (emit_indent(out, indent) != 0) {
+              return -1;
+            }
+            /* return ({ static  */
+            let open1: u8[20] = [114, 101, 116, 117, 114, 110, 32, 40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0, 0];
+            if (emit_bytes_from_ptr(out, &open1[0], 17) != 0) {
+              return -1;
+            }
+            if (emit_type(arena, out, elem_tr, 0 as *u8, 0, ctx) != 0) {
+              let fallback: u8[9] = [105, 110, 116, 51, 50, 95, 116, 0, 0];
+              if (emit_bytes_9(out, fallback, 7) != 0) {
+                return -1;
+              }
+            }
+            /*  __xlang_esc[ */
+            let esc_br: u8[16] = [32, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 91, 0, 0, 0];
+            if (emit_bytes_from_ptr(out, &esc_br[0], 13) != 0) {
+              return -1;
+            }
+            if (format_int(out, arr_sz) != 0) {
+              return -1;
+            }
+            /* ]; size_t __xlang_esc_n = (size_t) */
+            let mid1: u8[48] = [
+              93, 59, 32, 115, 105, 122, 101, 95, 116, 32, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 95, 110, 32, 61, 32, 40, 115, 105, 122, 101, 95, 116, 41, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+            ];
+            if (emit_bytes_from_ptr(out, &mid1[0], 34) != 0) {
+              return -1;
+            }
+            if (emit_bytes_64(out, &op_e.var_name[0], op_e.var_name_len) != 0) {
+              return -1;
+            }
+            /* .length; if (__xlang_esc_n > (size_t) */
+            let mid2a: u8[48] = [
+              46, 108, 101, 110, 103, 116, 104, 59, 32, 105, 102, 32, 40, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 95, 110, 32, 62, 32, 40, 115, 105, 122, 101, 95, 116, 41, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+            ];
+            if (emit_bytes_from_ptr(out, &mid2a[0], 37) != 0) {
+              return -1;
+            }
+            if (format_int(out, arr_sz) != 0) {
+              return -1;
+            }
+            /* ) __xlang_esc_n = (size_t) */
+            let mid2b: u8[32] = [
+              41, 32, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 95, 110, 32, 61, 32, 40, 115, 105, 122, 101, 95, 116, 41, 0, 0, 0, 0, 0, 0
+            ];
+            if (emit_bytes_from_ptr(out, &mid2b[0], 26) != 0) {
+              return -1;
+            }
+            if (format_int(out, arr_sz) != 0) {
+              return -1;
+            }
+            /* ; memcpy(__xlang_esc,  */
+            let mid2c: u8[28] = [
+              59, 32, 109, 101, 109, 99, 112, 121, 40, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 44, 32, 0, 0, 0, 0, 0, 0
+            ];
+            if (emit_bytes_from_ptr(out, &mid2c[0], 22) != 0) {
+              return -1;
+            }
+            if (emit_bytes_64(out, &op_e.var_name[0], op_e.var_name_len) != 0) {
+              return -1;
+            }
+            /* .data, __xlang_esc_n * sizeof(__xlang_esc[0])); ( */
+            let mid3: u8[56] = [
+              46, 100, 97, 116, 97, 44, 32, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 95, 110, 32, 42, 32, 115, 105, 122, 101, 111, 102, 40, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 91, 48, 93, 41, 41, 59, 32, 40, 0, 0, 0, 0, 0, 0, 0
+            ];
+            if (emit_bytes_from_ptr(out, &mid3[0], 49) != 0) {
+              return -1;
+            }
+            if (emit_type(arena, out, rty, 0 as *u8, 0, ctx) != 0) {
+              return -1;
+            }
+            /* ){ .data = __xlang_esc, .length = __xlang_esc_n }; })\n */
+            let end1: u8[64] = [
+              41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 95, 110, 32, 125, 59, 32, 125, 41, 59, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0
+            ];
+            if (emit_bytes_from_ptr(out, &end1[0], 55) != 0) {
+              return -1;
+            }
+            return 0;
+          }
+        }
+        /*
+         * wave345 Cap residual pure: host `return s` when `s` is a TYPE_SLICE
+         * formal. C ABI lowers TYPE_SLICE params as `struct xlang_slice_* *`
+         * (G.7 field_access_base_is_pointer_param / call-arg `&local`), but the
+         * function returns the slice by value. Bare `return s` is type-error in
+         * host-cc (`*` vs value). Freestanding already dual-GP-loads fat* (wave332).
+         * G.7: reuse pointer-param classifier; emit `return *s;` when rty is
+         * TYPE_SLICE and operand is that formal (not a local by-value fat).
+         * PLATFORM: SHARED host-C emit. Soft: untyped-let; reentrancy last-wins.
+         */
+        if (field_access_base_is_pointer_param(arena, operand_ref, ctx.current_codegen_module, ctx.current_func_index) != 0) {
+          let op_e2: Expr = ast.ast_arena_expr_get(arena, operand_ref);
+          if (op_e2.var_name_len > 0) {
+            if (emit_indent(out, indent) != 0) {
+              return -1;
+            }
+            /* return * */
+            let ret_star: u8[12] = [114, 101, 116, 117, 114, 110, 32, 42, 0, 0, 0, 0];
+            if (emit_bytes_from_ptr(out, &ret_star[0], 8) != 0) {
+              return -1;
+            }
+            if (emit_bytes_64(out, &op_e2.var_name[0], op_e2.var_name_len) != 0) {
+              return -1;
+            }
+            let sc_star: u8[4] = [59, 10, 0, 0];
+            return emit_bytes_4(out, sc_star, 2);
+          }
         }
       }
     }
@@ -7885,6 +12884,15 @@ export function emit_block_final_expr(arena: *ASTArena, out: *CodegenOutBuf, blo
   }
   if (fe.kind == ExprKind.EXPR_RETURN) {
     return emit_return_stmt_with_context(arena, out, indent, fe.unary_operand_ref, ctx, fn_ret_void);
+  }
+  /*
+   * wave374: function-final `match { … => { return N; }; }` must not become
+   * `return (subj==…?(({ return N; })):…)` (void stmt-expr in value position).
+   * Same gate as mid-body: return-control arms → if/else real return.
+   * PLATFORM: SHARED — host-C match stmt form (G.7 codegen_emit_match_as_stmt).
+   */
+  if (fe.kind == ExprKind.EXPR_MATCH && codegen_match_has_return_arm(arena, final_ref) != 0) {
+    return codegen_emit_match_as_stmt(arena, out, final_ref, indent, ctx, fn_ret_void);
   }
   let parent_br: i32 = 0;
   if (block_ref > 0 && block_ref <= arena.num_blocks) {
@@ -7968,34 +12976,75 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
           if (append_byte(out, 32) != 0) {
             return -1;
           }
+          /* Emit C local name into emit_nm_pre so memcpy finish can reuse it. */
+          let emit_nm_pre: u8[64] = [];
+          let emit_nml_pre: i32 = 0;
           if (lname_len_pre > 0 && (lname_pre[0] > 32)) {
-            if (emit_bytes_64(out, &lname_pre[0], lname_len_pre) != 0) {
-              return -1;
+            let ci: i32 = 0;
+            while (ci < lname_len_pre && ci < 64) {
+              emit_nm_pre[ci] = lname_pre[ci];
+              ci = ci + 1;
             }
+            emit_nml_pre = lname_len_pre;
           } else {
-            let place_pre: u8[4] = [95, 108, 48, 0];
-            if (emit_bytes_4(out, place_pre, 2) != 0) {
-              return -1;
+            emit_nm_pre[0] = 95;
+            emit_nm_pre[1] = 108;
+            emit_nml_pre = 2;
+            let v: i32 = pre_li;
+            let digs: u8[12] = [];
+            let nd: i32 = 0;
+            if (v == 0) {
+              digs[0] = 48;
+              nd = 1;
+            } else {
+              let tmp: i32 = v;
+              while (tmp > 0 && nd < 12) {
+                digs[nd] = ((tmp % 10) + 48) as u8;
+                tmp = tmp / 10;
+                nd = nd + 1;
+              }
+              let a: i32 = 0;
+              let b: i32 = nd - 1;
+              while (a < b) {
+                let sw: u8 = digs[a];
+                digs[a] = digs[b];
+                digs[b] = sw;
+                a = a + 1;
+                b = b - 1;
+              }
             }
-            if (format_int(out, pre_li) != 0) {
-              return -1;
+            let pi: i32 = 0;
+            while (pi < nd && emit_nml_pre < 64) {
+              emit_nm_pre[emit_nml_pre] = digs[pi];
+              emit_nml_pre = emit_nml_pre + 1;
+              pi = pi + 1;
             }
+          }
+          if (emit_bytes_64(out, &emit_nm_pre[0], emit_nml_pre) != 0) {
+            return -1;
           }
           if (use_local_array_pre != 0) {
             if (emit_local_fixed_array_suffix(arena, out, let_type_pre) != 0) {
               return -1;
             }
           }
-          let eq_pre: u8[4] = [32, 61, 32, 0];
-          if (emit_bytes_4(out, eq_pre, 3) != 0) {
-            return -1;
-          }
-          if (emit_expr(arena, out, linit_pre, ctx) != 0) {
-            return -1;
-          }
-          let sc_pre: u8[3] = [59, 10, 0];
-          if (emit_bytes_3(out, sc_pre, 2) != 0) {
-            return -1;
+          /* wave353: fixed TYPE_ARRAY local — brace lit or memcpy (not T t[N]=ptr). */
+          if (use_local_array_pre != 0) {
+            if (emit_local_fixed_array_let_finish(arena, out, indent, &emit_nm_pre[0], emit_nml_pre, linit_pre, ctx) != 0) {
+              return -1;
+            }
+          } else {
+            let eq_pre: u8[4] = [32, 61, 32, 0];
+            if (emit_bytes_4(out, eq_pre, 3) != 0) {
+              return -1;
+            }
+            if (emit_expr(arena, out, linit_pre, ctx) != 0) {
+              return -1;
+            }
+            let sc_pre: u8[3] = [59, 10, 0];
+            if (emit_bytes_3(out, sc_pre, 2) != 0) {
+              return -1;
+            }
           }
         }
         pre_li = pre_li + 1;
@@ -8133,107 +13182,144 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
             if (append_byte(out, 32) != 0) {
               return -1;
             }
-            /* See implementation. */
+            /* Emit C local name into emit_nm so wave353 memcpy finish can reuse it. */
+            let emit_nm: u8[64] = [];
+            let emit_nml: i32 = 0;
             if (lname_len > 0 && (lname_buf[0] > 32)) {
-              if (emit_bytes_64(out, &lname_buf[0], lname_len) != 0) {
-                return -1;
+              let ci2: i32 = 0;
+              while (ci2 < lname_len && ci2 < 64) {
+                emit_nm[ci2] = lname_buf[ci2];
+                ci2 = ci2 + 1;
               }
+              emit_nml = lname_len;
             } else {
-              let place: u8[4] = [95, 108, 48, 0];
-              if (emit_bytes_4(out, place, 2) != 0) {
-                return -1;
+              emit_nm[0] = 95;
+              emit_nm[1] = 108;
+              emit_nml = 2;
+              let v2: i32 = idx;
+              let digs2: u8[12] = [];
+              let nd2: i32 = 0;
+              if (v2 == 0) {
+                digs2[0] = 48;
+                nd2 = 1;
+              } else {
+                let tmp2: i32 = v2;
+                while (tmp2 > 0 && nd2 < 12) {
+                  digs2[nd2] = ((tmp2 % 10) + 48) as u8;
+                  tmp2 = tmp2 / 10;
+                  nd2 = nd2 + 1;
+                }
+                let a2: i32 = 0;
+                let b2: i32 = nd2 - 1;
+                while (a2 < b2) {
+                  let sw2: u8 = digs2[a2];
+                  digs2[a2] = digs2[b2];
+                  digs2[b2] = sw2;
+                  a2 = a2 + 1;
+                  b2 = b2 - 1;
+                }
               }
-              if (format_int(out, idx) != 0) {
-                return -1;
+              let pi2: i32 = 0;
+              while (pi2 < nd2 && emit_nml < 64) {
+                emit_nm[emit_nml] = digs2[pi2];
+                emit_nml = emit_nml + 1;
+                pi2 = pi2 + 1;
               }
+            }
+            if (emit_bytes_64(out, &emit_nm[0], emit_nml) != 0) {
+              return -1;
             }
             if (use_local_array != 0) {
               if (emit_local_fixed_array_suffix(arena, out, let_type_ref) != 0) {
                 return -1;
               }
             }
-            let eq: u8[4] = [32, 61, 32, 0];
-            if (emit_bytes_4(out, eq, 3) != 0) {
-              return -1;
-            }
-            let slice_init: i32 = 0;
-            if (!ast.ref_is_null(linit_ref)) {
-              slice_init = try_emit_slice_init_from_array_var(arena, out, block_ref, idx, let_type_ref, linit_ref);
-            }
-            /* See implementation. */
-            if (ast.ref_is_null(linit_ref)) {
-              let zinit_omit2: u8[6] = [123, 32, 48, 32, 125, 0];
-              if (emit_bytes_6(out, zinit_omit2, 5) != 0) {
+            /*
+             * wave353 Cap residual pure: host fixed TYPE_ARRAY local let.
+             * Root: C rejects `T t[N] = fill()` / `T t[N] = a` (not brace/string).
+             * Authority: emit_local_fixed_array_let_finish — brace lit or memcpy once-eval.
+             */
+            if (use_local_array != 0) {
+              if (emit_local_fixed_array_let_finish(arena, out, indent, &emit_nm[0], emit_nml, linit_ref, ctx) != 0) {
                 return -1;
               }
-            } else if (slice_init == 1) {
-              /* See implementation. */
-            } else if (slice_init < 0) {
-              return -1;
-            } else if (use_local_array != 0 && !ast.ref_is_null(linit_ref) && linit_ref > 0 && linit_ref <= arena.num_exprs) {
-              let init_e2: Expr = ast.ast_arena_expr_get(arena, linit_ref);
-              if (init_e2.kind == ExprKind.EXPR_ARRAY_LIT) {
-                if (emit_braced_array_lit_init(arena, out, linit_ref, ctx) != 0) {
-                  return -1;
-                }
-              } else if (init_e2.kind == ExprKind.EXPR_LIT && init_e2.int_val == 0) {
-                let zinit: u8[6] = [123, 32, 48, 32, 125, 0];
-                if (emit_bytes_6(out, zinit, 5) != 0) {
-                  return -1;
-                }
-              } else {
-                if (emit_expr(arena, out, linit_ref, ctx) != 0) {
-                  return -1;
-                }
+            } else if (!ast.ref_is_null(let_type_ref) && pipeline_type_kind_ord_at(arena, let_type_ref) == 11
+                       && !ast.ref_is_null(linit_ref)
+                       && (pipeline_expr_kind_ord_at(arena, linit_ref) == 48
+                           || pipeline_expr_kind_ord_at(arena, linit_ref) == 49)) {
+              /*
+               * wave409: TYPE_SLICE let from CALL/METHOD — frame deep-copy (true reentrancy).
+               * Type+name already written; finish with ; buffer; { call; copy; name=fat }.
+               */
+              if (codegen_emit_slice_let_reent_finish(arena, out, indent, &emit_nm[0], emit_nml, let_type_ref, linit_ref, ctx) != 0) {
+                return -1;
               }
             } else {
-              /* See implementation. */
-              let use_vec_z: i32 = 0;
-              let use_vec_braced: i32 = 0;
-              if (!ast.ref_is_null(linit_ref) && linit_ref > 0 && linit_ref <= arena.num_exprs
-                  && !ast.ref_is_null(let_type_ref)) {
-                let init_ez: Expr = ast.ast_arena_expr_get(arena, linit_ref);
-                let tk_z: i32 = pipeline_type_kind_ord_at(arena, let_type_ref);
-                let is_vec_ty: i32 = 0;
-                if (tk_z == TypeKind.TYPE_VECTOR) {
-                  is_vec_ty = 1;
-                } else if (tk_z == TypeKind.TYPE_NAMED) {
-                  let vzn: u8[64] = [];
-                  let vzn_l: i32 = pipeline_type_named_name_into(arena, let_type_ref, &vzn[0]);
-                  let vi: i32 = 0;
-                  while (vi < vzn_l) {
-                    if (vzn[vi] == 120) {
-                      is_vec_ty = 1;
-                      vi = vzn_l;
-                    } else {
-                      vi = vi + 1;
+              let eq: u8[4] = [32, 61, 32, 0];
+              if (emit_bytes_4(out, eq, 3) != 0) {
+                return -1;
+              }
+              let slice_init: i32 = 0;
+              if (!ast.ref_is_null(linit_ref)) {
+                slice_init = try_emit_slice_init_from_array_var(arena, out, block_ref, idx, let_type_ref, linit_ref);
+              }
+              if (ast.ref_is_null(linit_ref)) {
+                let zinit_omit2: u8[6] = [123, 32, 48, 32, 125, 0];
+                if (emit_bytes_6(out, zinit_omit2, 5) != 0) {
+                  return -1;
+                }
+              } else if (slice_init == 1) {
+                /* slice compound already written */
+              } else if (slice_init < 0) {
+                return -1;
+              } else {
+                let use_vec_z: i32 = 0;
+                let use_vec_braced: i32 = 0;
+                if (!ast.ref_is_null(linit_ref) && linit_ref > 0 && linit_ref <= arena.num_exprs
+                    && !ast.ref_is_null(let_type_ref)) {
+                  let init_ez: Expr = ast.ast_arena_expr_get(arena, linit_ref);
+                  let tk_z: i32 = pipeline_type_kind_ord_at(arena, let_type_ref);
+                  let is_vec_ty: i32 = 0;
+                  if (tk_z == TypeKind.TYPE_VECTOR) {
+                    is_vec_ty = 1;
+                  } else if (tk_z == TypeKind.TYPE_NAMED) {
+                    let vzn: u8[64] = [];
+                    let vzn_l: i32 = pipeline_type_named_name_into(arena, let_type_ref, &vzn[0]);
+                    let vi: i32 = 0;
+                    while (vi < vzn_l) {
+                      if (vzn[vi] == 120) {
+                        is_vec_ty = 1;
+                        vi = vzn_l;
+                      } else {
+                        vi = vi + 1;
+                      }
+                    }
+                  }
+                  if (is_vec_ty != 0) {
+                    if (init_ez.kind == ExprKind.EXPR_LIT && init_ez.int_val == 0) {
+                      use_vec_z = 1;
+                    } else if (init_ez.kind == ExprKind.EXPR_ARRAY_LIT) {
+                      use_vec_braced = 1;
                     }
                   }
                 }
-                if (is_vec_ty != 0) {
-                  if (init_ez.kind == ExprKind.EXPR_LIT && init_ez.int_val == 0) {
-                    use_vec_z = 1;
-                  } else if (init_ez.kind == ExprKind.EXPR_ARRAY_LIT) {
-                    use_vec_braced = 1;
+                if (use_vec_z != 0) {
+                  let vz: u8[6] = [123, 32, 48, 32, 125, 0];
+                  if (emit_bytes_6(out, vz, 5) != 0) {
+                    return -1;
                   }
+                } else if (use_vec_braced != 0) {
+                  if (emit_braced_array_lit_init(arena, out, linit_ref, ctx) != 0) {
+                    return -1;
+                  }
+                } else if (emit_expr(arena, out, linit_ref, ctx) != 0) {
+                  return -1;
                 }
               }
-              if (use_vec_z != 0) {
-                let vz: u8[6] = [123, 32, 48, 32, 125, 0];
-                if (emit_bytes_6(out, vz, 5) != 0) {
-                  return -1;
-                }
-              } else if (use_vec_braced != 0) {
-                if (emit_braced_array_lit_init(arena, out, linit_ref, ctx) != 0) {
-                  return -1;
-                }
-              } else if (emit_expr(arena, out, linit_ref, ctx) != 0) {
+              let sc: u8[3] = [59, 10, 0];
+              if (emit_bytes_3(out, sc, 2) != 0) {
                 return -1;
               }
-            }
-            let sc: u8[3] = [59, 10, 0];
-            if (emit_bytes_3(out, sc, 2) != 0) {
-              return -1;
             }
           }
         } else if (k == 2) {
@@ -8250,6 +13336,12 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
               }
             } else if (st.kind == ExprKind.EXPR_CONTINUE) {
               if (emit_continue_stmt(out, indent) != 0) {
+                return -1;
+              }
+            } else if (st.kind == ExprKind.EXPR_MATCH
+                && codegen_match_has_return_arm(arena, ex_ref) != 0) {
+              /* wave372: mid-body match + return arms → if/else real early-return */
+              if (codegen_emit_match_as_stmt(arena, out, ex_ref, indent, ctx, fn_ret_void) != 0) {
                 return -1;
               }
             } else {
@@ -8433,6 +13525,64 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
               }
             }
           }
+        } else if (k == 7) {
+          /**
+           * wave379: labeled/goto (docs/03).
+           * is_goto → `goto T;`; else `L:` then optional `return e;`.
+           * PLATFORM: SHARED host-C. wave387: freestanding/default asm kind=7 closed
+           * in pipeline_asm_emit_block_body_sync_elf (G.7 labeled pool + enc_jmp/label).
+           */
+          if (idx >= 0 && idx < pipeline_block_num_labeled_stmts(arena, block_ref)) {
+            let is_g: i32 = pipeline_block_labeled_is_goto(arena, block_ref, idx);
+            if (is_g != 0) {
+              if (emit_indent(out, indent) != 0) {
+                return -1;
+              }
+              /* "goto " */
+              let gkw: u8[6] = [103, 111, 116, 111, 32, 0];
+              if (emit_bytes_from_ptr(out, &gkw[0], 5) != 0) {
+                return -1;
+              }
+              let gt_buf: u8[32] = [];
+              pipeline_block_labeled_goto_target_copy32(arena, block_ref, idx, &gt_buf[0]);
+              let gt_len: i32 = pipeline_block_labeled_goto_target_len(arena, block_ref, idx);
+              if (gt_len > 0 && gt_len <= 32) {
+                if (emit_bytes_from_ptr(out, &gt_buf[0], gt_len) != 0) {
+                  return -1;
+                }
+              }
+              let gend: u8[3] = [59, 10, 0];
+              if (emit_bytes_from_ptr(out, &gend[0], 2) != 0) {
+                return -1;
+              }
+            } else {
+              let lb_buf: u8[32] = [];
+              pipeline_block_labeled_label_copy32(arena, block_ref, idx, &lb_buf[0]);
+              let lb_len: i32 = pipeline_block_labeled_label_len(arena, block_ref, idx);
+              if (lb_len > 0 && lb_len <= 32) {
+                if (emit_indent(out, indent) != 0) {
+                  return -1;
+                }
+                if (emit_bytes_from_ptr(out, &lb_buf[0], lb_len) != 0) {
+                  return -1;
+                }
+                let colon_nl: u8[3] = [58, 10, 0];
+                if (emit_bytes_from_ptr(out, &colon_nl[0], 2) != 0) {
+                  return -1;
+                }
+              }
+              let ret_ref_lab: i32 = pipeline_block_labeled_return_expr_ref(arena, block_ref, idx);
+              if (!ast.ref_is_null(ret_ref_lab) && ret_ref_lab > 0) {
+                if (emit_return_stmt_with_context(arena, out, indent, ret_ref_lab, ctx, fn_ret_void) != 0) {
+                  return -1;
+                }
+              } else if (ret_ref_lab == 0 && lb_len > 0) {
+                /* Pure label or bare `return;` with null operand: if return_expr was
+                 * intentionally empty for labeled bare return, emit `return;` for void. */
+                /* Pure label only — no return. */
+              }
+            }
+          }
         }
         si = si + 1;
       }
@@ -8571,44 +13721,70 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
       if (append_byte(out, 32) != 0) {
         return -1;
       }
-      /* See implementation. */
+      let emit_nm_fb: u8[64] = [];
+      let emit_nml_fb: i32 = 0;
       if (lname_len_fb > 0 && (lname_fb[0] > 32)) {
-        if (emit_bytes_64(out, &lname_fb[0], lname_len_fb) != 0) {
-          return -1;
+        let ci3: i32 = 0;
+        while (ci3 < lname_len_fb && ci3 < 64) {
+          emit_nm_fb[ci3] = lname_fb[ci3];
+          ci3 = ci3 + 1;
         }
+        emit_nml_fb = lname_len_fb;
       } else {
-        let place: u8[4] = [95, 108, 48, 0];
-        if (emit_bytes_4(out, place, 2) != 0) {
-          return -1;
+        emit_nm_fb[0] = 95;
+        emit_nm_fb[1] = 108;
+        emit_nml_fb = 2;
+        let v3: i32 = i;
+        let digs3: u8[12] = [];
+        let nd3: i32 = 0;
+        if (v3 == 0) {
+          digs3[0] = 48;
+          nd3 = 1;
+        } else {
+          let tmp3: i32 = v3;
+          while (tmp3 > 0 && nd3 < 12) {
+            digs3[nd3] = ((tmp3 % 10) + 48) as u8;
+            tmp3 = tmp3 / 10;
+            nd3 = nd3 + 1;
+          }
+          let a3: i32 = 0;
+          let b3: i32 = nd3 - 1;
+          while (a3 < b3) {
+            let sw3: u8 = digs3[a3];
+            digs3[a3] = digs3[b3];
+            digs3[b3] = sw3;
+            a3 = a3 + 1;
+            b3 = b3 - 1;
+          }
         }
-        if (format_int(out, i) != 0) {
-          return -1;
+        let pi3: i32 = 0;
+        while (pi3 < nd3 && emit_nml_fb < 64) {
+          emit_nm_fb[emit_nml_fb] = digs3[pi3];
+          emit_nml_fb = emit_nml_fb + 1;
+          pi3 = pi3 + 1;
         }
+      }
+      if (emit_bytes_64(out, &emit_nm_fb[0], emit_nml_fb) != 0) {
+        return -1;
       }
       if (use_local_array != 0) {
         if (emit_local_fixed_array_suffix(arena, out, let_type_ref) != 0) {
           return -1;
         }
       }
-      let eq: u8[4] = [32, 61, 32, 0];
-      if (emit_bytes_4(out, eq, 3) != 0) {
-        return -1;
-      }
-      /* See implementation. */
-      if (ast.ref_is_null(linit_fb)) {
-        let zinit_omit: u8[6] = [123, 32, 48, 32, 125, 0];
-        if (emit_bytes_6(out, zinit_omit, 5) != 0) {
+      /* wave353: fixed TYPE_ARRAY local let finish (brace or memcpy). */
+      if (use_local_array != 0) {
+        if (emit_local_fixed_array_let_finish(arena, out, indent, &emit_nm_fb[0], emit_nml_fb, linit_fb, ctx) != 0) {
           return -1;
         }
-      } else if (use_local_array != 0 && !ast.ref_is_null(linit_fb) && linit_fb > 0 && linit_fb <= arena.num_exprs) {
-        let init_e3: Expr = ast.ast_arena_expr_get(arena, linit_fb);
-        if (init_e3.kind == ExprKind.EXPR_ARRAY_LIT) {
-          if (emit_braced_array_lit_init(arena, out, linit_fb, ctx) != 0) {
-            return -1;
-          }
-        } else if (init_e3.kind == ExprKind.EXPR_LIT && init_e3.int_val == 0) {
-          let zinit2: u8[6] = [123, 32, 48, 32, 125, 0];
-          if (emit_bytes_6(out, zinit2, 5) != 0) {
+      } else {
+        let eq: u8[4] = [32, 61, 32, 0];
+        if (emit_bytes_4(out, eq, 3) != 0) {
+          return -1;
+        }
+        if (ast.ref_is_null(linit_fb)) {
+          let zinit_omit: u8[6] = [123, 32, 48, 32, 125, 0];
+          if (emit_bytes_6(out, zinit_omit, 5) != 0) {
             return -1;
           }
         } else {
@@ -8616,14 +13792,10 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
             return -1;
           }
         }
-      } else {
-        if (emit_expr(arena, out, linit_fb, ctx) != 0) {
+        let sc: u8[3] = [59, 10, 0];
+        if (emit_bytes_3(out, sc, 2) != 0) {
           return -1;
         }
-      }
-      let sc: u8[3] = [59, 10, 0];
-      if (emit_bytes_3(out, sc, 2) != 0) {
-        return -1;
       }
       i = i + 1;
     }
@@ -8650,6 +13822,12 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
         }
         let co: u8[11] = [99, 111, 110, 116, 105, 110, 117, 101, 59, 10, 0];
         if (emit_bytes_from_ptr(out, &co[0], 10) != 0) {
+          return -1;
+        }
+      } else if (st.kind == ExprKind.EXPR_MATCH
+          && codegen_match_has_return_arm(arena, ex_fb) != 0) {
+        /* wave372: mid-body match + return arms → if/else real early-return */
+        if (codegen_emit_match_as_stmt(arena, out, ex_fb, indent, ctx, fn_ret_void) != 0) {
           return -1;
         }
       } else {
@@ -8778,9 +13956,15 @@ export function emit_suffix_bytes(dst: *u8, src: *u8, len: i32): i32 {
 }
 
 /**
- * See implementation.
- * See implementation.
- * See implementation.
+ * Map a type_ref to a C-safe mangle suffix (overload / mono / generic-struct tags).
+ * wave484: TYPE_NAMED with type-pos args appends nested `_` + recursive arg suffixes
+ * so Wrap&lt;Wrap&lt;A&gt;&gt; ≠ Wrap&lt;A&gt; (name-only collided as "Wrap").
+ * @param arena *ASTArena — type arena
+ * @param type_ref i32 — type to mangle
+ * @param buf *u8 — output buffer
+ * @param buf_cap i32 — capacity
+ * @return i32 — bytes written, or 0 on failure
+ * PLATFORM: SHARED — G.7 single authority with seed codegen_gen
  */
 export function codegen_type_ref_to_suffix(arena: *ASTArena, type_ref: i32, buf: *u8, buf_cap: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -8803,7 +13987,12 @@ export function codegen_type_ref_to_suffix(arena: *ASTArena, type_ref: i32, buf:
       }
       return n;
     }
-    /* See implementation. */
+    /*
+     * TYPE_NAMED: base name, then nested type-pos args as `_` + recursive suffixes.
+     * Examples: A → "A"; Wrap&lt;A&gt; → "Wrap_A"; Wrap&lt;Wrap&lt;A&gt;&gt; → "Wrap_Wrap_A";
+     * Pair&lt;A,B&gt; → "Pair_A_B". Outer mono tags still use Name__… (double underscore).
+     * PLATFORM: SHARED — uses pipeline_type_type_arg_ref_at (wave466/467 sidecar).
+     */
     if (tk == (TypeKind.TYPE_NAMED as i32)) {
       let nl: i32 = pipeline_type_named_name_into(arena, type_ref, buf);
       let si: i32 = 0;
@@ -8811,10 +14000,36 @@ export function codegen_type_ref_to_suffix(arena: *ASTArena, type_ref: i32, buf:
         if (buf[si] == 46) { buf[si] = 95; }
         si = si + 1;
       }
-      if (nl > 0 && nl < buf_cap) {
-        return nl;
+      if (nl <= 0 || nl >= buf_cap) {
+        return 0;
       }
-      return 0;
+      let pos: i32 = nl;
+      let ai: i32 = 0;
+      while (ai < 4) {
+        let arg: i32 = pipeline_type_type_arg_ref_at(arena, type_ref, ai);
+        if (arg <= 0) {
+          ai = 4;
+        } else {
+          let asuf: u8[64] = [];
+          let al: i32 = codegen_type_ref_to_suffix(arena, arg, &asuf[0], 64);
+          if (al <= 0) {
+            ai = 4;
+          } else if (pos + 1 + al >= buf_cap) {
+            ai = 4;
+          } else {
+            buf[pos] = 95;
+            pos = pos + 1;
+            let aj: i32 = 0;
+            while (aj < al) {
+              buf[pos] = asuf[aj];
+              pos = pos + 1;
+              aj = aj + 1;
+            }
+            ai = ai + 1;
+          }
+        }
+      }
+      return pos;
     }
     /* See implementation. */
     if (tk == (TypeKind.TYPE_I32 as i32)) {
@@ -9389,6 +14604,47 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
           }
           if (ok_res != 0) {
             let res_arena: *ASTArena = codegen_arena_for_module(ctx, res_mod, arena);
+            /* wave444: for generic functions, emit mono-mangled symbol matching the
+             * instance emitted by codegen_try_emit_generic_identity_mono. The mangled
+             * name is built from the call site's arg types (via codegen_call_mono_
+             * type_at, the same extraction used on the emit side) so emit-side combo
+             * and consume-side symbol always agree. Non-generic functions keep the
+             * bare link name. If type extraction fails (incomplete call site), fall
+             * back to the bare link name to preserve prior behavior.
+             * wave458: also append uncovered ret type-param concrete (as_t/mk multi). */
+            if (pipeline_module_func_num_generic_params_at(res_mod, func_ix) > 0) {
+              let np_mono: i32 = pipeline_module_func_num_params_at(res_mod, func_ix);
+              let re_mono: i32 = codegen_func_ret_type_param_extra(res_arena, res_mod, func_ix);
+              let cw_mono: i32 = np_mono + re_mono;
+              if (cw_mono > 0 && cw_mono <= 8) {
+                let call_e_mono: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+                let nargs_mono: i32 = call_e_mono.call_num_args;
+                let mono_tys: i32[8] = [];
+                let pi_mono: i32 = 0;
+                let valid_mono: i32 = 1;
+                while (pi_mono < np_mono) {
+                  let ty_mono: i32 = codegen_call_mono_type_at(arena, expr_ref, pi_mono, nargs_mono);
+                  if (ty_mono <= 0) {
+                    valid_mono = 0;
+                    pi_mono = np_mono;
+                  } else {
+                    mono_tys[pi_mono] = ty_mono;
+                  }
+                  pi_mono = pi_mono + 1;
+                }
+                if (valid_mono != 0 && re_mono != 0) {
+                  let rty_mono: i32 = codegen_call_ret_type_param_concrete_at(arena, expr_ref);
+                  if (rty_mono <= 0) {
+                    valid_mono = 0;
+                  } else {
+                    mono_tys[np_mono] = rty_mono;
+                  }
+                }
+                if (valid_mono != 0) {
+                  return codegen_emit_mono_mangled_name(out, arena, res_mod, func_ix, &mono_tys[0], cw_mono);
+                }
+              }
+            }
             return codegen_emit_func_link_name(out, res_arena, res_mod, func_ix);
           }
         }
@@ -9541,6 +14797,22 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
           fi_s = fi_s + 1;
         }
         if (found_count == 1 && found_fi >= 0) {
+          if (is_method != 0) {
+            let recv_ty_fb: i32 = 0;
+            let call_e_fb: Expr = call_e0;
+            if (!ast.ref_is_null(call_e_fb.method_call_base_ref)) {
+              recv_ty_fb = pipeline_expr_resolved_type_ref(arena, call_e_fb.method_call_base_ref);
+            }
+            if (recv_ty_fb > 0) {
+              let fb_mono_rc: i32 = codegen_try_emit_impl_method_mono_call_name(out, search_arena, ctx, search_mod, found_fi, recv_ty_fb);
+              if (fb_mono_rc < 0) {
+                return -1;
+              }
+              if (fb_mono_rc == 1) {
+                return 0;
+              }
+            }
+          }
           return codegen_emit_func_link_name(out, search_arena, search_mod, found_fi);
         }
         /*
@@ -9591,6 +14863,20 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
               fi_p = fi_p + 1;
             }
             if (n_p == 1 && best_p >= 0) {
+              let recv_ty_p: i32 = 0;
+              let call_e_p: Expr = call_e0;
+              if (!ast.ref_is_null(call_e_p.method_call_base_ref)) {
+                recv_ty_p = pipeline_expr_resolved_type_ref(arena, call_e_p.method_call_base_ref);
+              }
+              if (recv_ty_p > 0) {
+                let p_mono_rc: i32 = codegen_try_emit_impl_method_mono_call_name(out, search_arena, ctx, search_mod, best_p, recv_ty_p);
+                if (p_mono_rc < 0) {
+                  return -1;
+                }
+                if (p_mono_rc == 1) {
+                  return 0;
+                }
+              }
               return codegen_emit_func_link_name(out, search_arena, search_mod, best_p);
             }
           }
@@ -9848,6 +15134,42 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
     }
     /* PLATFORM: SHARED — process entry ABI: void main → int32_t main + exit 0. */
     let ret_ty_ref: i32 = pipeline_module_func_return_type_at(module, fi);
+    /*
+     * wave495: generic inherent impl method definition codegen monomorphization.
+     * Why: hoisted impl methods (num_generic_params == 0, <T> on impl not fn)
+     * bypass codegen_try_emit_generic_identity_mono and are emitted here. Their
+     * return type T would emit as `struct T` (incomplete BLD001) because
+     * mono_active is off; the self param Wrap<T> is rescued by the wave489
+     * unique-combo suffix mechanism but the free return type T is not. Build a
+     * T→concrete map from the self param's unique mono combo, set mono_active so
+     * emit_type's name-based fallback substitutes T in ret type + body. Mirrors
+     * codegen_try_emit_generic_identity_mono save/restore (L16145-L16152).
+     * PLATFORM: SHARED — seed codegen_gen.linux.x86_64.c same commit.
+     * Guards: only set when w495_n > 0 (unique combo found); non-generic functions
+     * and multi-combo cases skip this entirely (no behavior change). Restore on
+     * BOTH success return paths (std-io early return + final); error paths abort.
+     */
+    let w495_mono_set: i32 = 0;
+    let w495_saved_active: i32 = 0;
+    let w495_saved_num: i32 = 0;
+    if (ctx != 0 as *PipelineDepCtx) {
+      let w495_gen: i32[8] = [];
+      let w495_conc: i32[8] = [];
+      let w495_n: i32 = codegen_build_func_param_mono_map(module, arena, fi, &w495_gen[0], &w495_conc[0], 8);
+      if (w495_n > 0) {
+        w495_saved_active = ctx.mono_active;
+        w495_saved_num = ctx.mono_num_types;
+        let w495_k: i32 = 0;
+        while (w495_k < w495_n && w495_k < 8) {
+          ctx.mono_generic_type_refs[w495_k] = w495_gen[w495_k];
+          ctx.mono_concrete_type_refs[w495_k] = w495_conc[w495_k];
+          w495_k = w495_k + 1;
+        }
+        ctx.mono_active = 1;
+        ctx.mono_num_types = w495_n;
+        w495_mono_set = 1;
+      }
+    }
     let fn_ret_void_pre: bool = pipeline_type_kind_ord_at(arena, ret_ty_ref) == (TypeKind.TYPE_VOID as i32);
     if (emit_c_main_symbol && fn_ret_void_pre) {
       let i32_ty: u8[8] = [105, 110, 116, 51, 50, 95, 116, 0];
@@ -9971,6 +15293,11 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
     }
     /* See implementation. */
     if (codegen_try_emit_std_io_driver_buf_body(out, module, fi, prefix, prefix_len) != 0) {
+      /* wave495: restore mono_active on early success return (std-io path). */
+      if (w495_mono_set != 0) {
+        ctx.mono_active = w495_saved_active;
+        ctx.mono_num_types = w495_saved_num;
+      }
       return 0;
     }
     /* See implementation. */
@@ -10149,6 +15476,11 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
     let close: u8[3] = [125, 10, 0];
     if (emit_bytes_3(out, close, 2) != 0) {
       return -1;
+    }
+    /* wave495: restore mono_active on final success return. */
+    if (w495_mono_set != 0) {
+      ctx.mono_active = w495_saved_active;
+      ctx.mono_num_types = w495_saved_num;
     }
     return 0;
   }
@@ -10343,7 +15675,7 @@ export function codegen_is_libc_conflicting_extern_name(name: *u8, name_len: i32
  * See implementation.
  * See implementation.
  */
-export function codegen_find_mono_type_for_generic_func(arena: *ASTArena, module: *Module, fi: i32): i32 {
+export function codegen_find_mono_type_for_generic_func(arena: *ASTArena, module: *Module, fi: i32, arg_idx: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
@@ -10380,9 +15712,15 @@ export function codegen_find_mono_type_for_generic_func(arena: *ASTArena, module
           }
         }
         if (matched != 0) {
-          let ty: i32 = e.resolved_type_ref;
-          if (ty <= 0 && e.call_num_args > 0) {
-            let a0: i32 = pipeline_expr_call_arg_ref(arena, ei, 0);
+          let ty: i32 = 0;
+          /* wave443: resolved_type_ref is the call's return type; only valid for
+           * param0 (identity shape: ret == param0). For arg_idx>0, must use the
+           * specific arg's type to get that param's mono type. */
+          if (arg_idx == 0) {
+            ty = e.resolved_type_ref;
+          }
+          if (ty <= 0 && arg_idx >= 0 && arg_idx < e.call_num_args) {
+            let a0: i32 = pipeline_expr_call_arg_ref(arena, ei, arg_idx);
             if (a0 > 0) {
               ty = pipeline_expr_resolved_type_ref(arena, a0);
             }
@@ -10399,9 +15737,665 @@ export function codegen_find_mono_type_for_generic_func(arena: *ASTArena, module
 }
 
 /**
- * See implementation.
- * See implementation.
- * See implementation.
+ * Extract the concrete mono type for call site `ei`'s param at `arg_idx`.
+ *
+ * Why: for identity-shape generics (ret == param0), the call's resolved return
+ * type (`e.resolved_type_ref`) is the authoritative mono type for param0 — it is
+ * set by typeck and avoids relying on the arg expr having a resolved type. For
+ * arg_idx > 0, the arg's own resolved type is used (the call return type only
+ * describes param0 by identity shape).
+ *
+ * Invariant: arg_idx must be < num_args; returns 0 if the type cannot be resolved.
+ * PLATFORM: SHARED — single extraction authority shared by mono-combo collector
+ * (codegen_collect_mono_combos_for_generic_func) and call-site mangled-name
+ * resolver (codegen_emit_call_func_name) so emitted symbol and call-site symbol
+ * always agree.
+ */
+function codegen_call_mono_type_at(arena: *ASTArena, ei: i32, arg_idx: i32, num_args: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || ei <= 0 || arg_idx < 0 || num_args <= 0) {
+      return 0;
+    }
+    let e: Expr = ast.ast_arena_expr_get(arena, ei);
+    if (e.kind != ExprKind.EXPR_CALL) {
+      return 0;
+    }
+    let ty: i32 = 0;
+    /*
+     * wave447: prefer the value-arg's resolved type for every arg_idx, including 0.
+     * wave443 used call e.resolved_type_ref first for arg0 because identity shape
+     * has ret == param0; that breaks non-identity generics such as
+     * `getv<T>(x: T): i32` where the call resolves to i32 but param0 mono type
+     * must be the arg type (A). Identity still works: arg type matches ret type.
+     * Fallback: arg0 only may use call resolved_type_ref when the arg type is
+     * missing (e.g. some integer literals), preserving prior identity behavior.
+     * PLATFORM: SHARED — must agree with combo collector + call-site mangle.
+     */
+    if (arg_idx < num_args) {
+      let a: i32 = pipeline_expr_call_arg_ref(arena, ei, arg_idx);
+      if (a > 0) {
+        ty = pipeline_expr_resolved_type_ref(arena, a);
+      }
+    }
+    if (ty <= 0 && arg_idx == 0) {
+      ty = e.resolved_type_ref;
+    }
+    return ty;
+  }
+}
+
+/**
+ * wave458: 1 when return TYPE_NAMED is a type-param not named on any value formal.
+ *
+ * Why: mono combo keys used only value-arg types (wave444). That collapses
+ * `as_t<A>(7)` and `as_t<B>(9)` to the same key `[i32]` (value formal is i32),
+ * and zero-param `mk<A>()`/`mk<B>()` shared one bare link name. When ret is a
+ * type parameter not covered by formals, the mono key must include the call's
+ * ret concrete (resolved / turbofish) so distinct T get distinct symbols.
+ *
+ * Covered: `id<T>(x: T): T` — ret name equals param0 name → extra=0.
+ * Uncovered: `as_t<T>(x: i32): T`, `mk<T>(): T` → extra=1.
+ *
+ * @param arena *ASTArena
+ * @param module *Module
+ * @param fi i32 — function index
+ * @return i32 — 1 if ret type-param needs an extra mono-key slot, else 0
+ * PLATFORM: SHARED
+ */
+/**
+ * wave458: mono combo slot equality (type_ref id or TYPE_NAMED same name).
+ * Turbofish / fixup allocate distinct TYPE_NAMED nodes for the same A; raw
+ * type_ref equality then fails dedup and emits mk__A four times → redefinition.
+ * @return i32 — 1 equal, 0 unequal
+ * PLATFORM: SHARED
+ */
+function codegen_mono_combo_slot_equal(arena: *ASTArena, a: i32, b: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (a == b) {
+      return 1;
+    }
+    if (a <= 0 || b <= 0 || arena == 0 as *ASTArena) {
+      return 0;
+    }
+    let ka: i32 = pipeline_type_kind_ord_at(arena, a);
+    let kb: i32 = pipeline_type_kind_ord_at(arena, b);
+    if (ka != kb) {
+      return 0;
+    }
+    if (ka == TypeKind.TYPE_NAMED) {
+      let na: u8[64] = [];
+      let nb: u8[64] = [];
+      let la: i32 = pipeline_type_named_name_into(arena, a, &na[0]);
+      let lb: i32 = pipeline_type_named_name_into(arena, b, &nb[0]);
+      if (la <= 0 || la != lb) {
+        return 0;
+      }
+      let i: i32 = 0;
+      while (i < la) {
+        if (na[i] != nb[i]) {
+          return 0;
+        }
+        i = i + 1;
+      }
+      return 1;
+    }
+    return 0;
+  }
+}
+
+function codegen_func_ret_type_param_extra(arena: *ASTArena, module: *Module, fi: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || module == 0 as *Module || fi < 0 || fi >= module.num_funcs) {
+      return 0;
+    }
+    let ret_ty: i32 = pipeline_module_func_return_type_at(module, fi);
+    if (ret_ty <= 0 || pipeline_type_kind_ord_at(arena, ret_ty) != TypeKind.TYPE_NAMED) {
+      return 0;
+    }
+    let ret_nm: u8[64] = [];
+    let ret_nl: i32 = pipeline_type_named_name_into(arena, ret_ty, &ret_nm[0]);
+    if (ret_nl <= 0) {
+      return 0;
+    }
+    let np: i32 = pipeline_module_func_num_params_at(module, fi);
+    let pi: i32 = 0;
+    while (pi < np) {
+      let pty: i32 = pipeline_module_func_param_type_ref_at(module, fi, pi);
+      if (pty > 0 && pipeline_type_kind_ord_at(arena, pty) == TypeKind.TYPE_NAMED) {
+        let pnm: u8[64] = [];
+        let pnl: i32 = pipeline_type_named_name_into(arena, pty, &pnm[0]);
+        if (pnl == ret_nl && pnl > 0) {
+          let eq: i32 = 1;
+          let bi: i32 = 0;
+          while (bi < pnl) {
+            if (pnm[bi] != ret_nm[bi]) {
+              eq = 0;
+              bi = pnl;
+            } else {
+              bi = bi + 1;
+            }
+          }
+          if (eq != 0) {
+            return 0;
+          }
+        }
+      }
+      pi = pi + 1;
+    }
+    return 1;
+  }
+}
+
+/**
+ * wave452: concrete type for a return-position type parameter not present on
+ * any value formal (as_t<T>(i32):T / mk_default<T>():T / mk2u<T,U>():U).
+ *
+ * @param arena *ASTArena
+ * @param ei i32 — EXPR_CALL index
+ * @return i32 — concrete type_ref, or 0
+ * PLATFORM: SHARED
+ *
+ * wave455: prefer typeck-stamped resolved_type_ref over type_arg[0].
+ * wave456: when resolved is unset, only fall back to type_arg[0] for a **sole**
+ * type_arg (n_ta==1). Multi turbofish (`<A,B>`) must not use slot 0 — that is
+ * always T, while ret may be U (type_arg[1]). Unresolved multi calls return 0
+ * so the mono scanner can skip ghost name-only CALL nodes (rfi=-1) and pick the
+ * typeck-resolved site. G.7 authority matches pipeline_glue fixup.
+ */
+function codegen_call_ret_type_param_concrete_at(arena: *ASTArena, ei: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || ei <= 0) {
+      return 0;
+    }
+    let e: Expr = ast.ast_arena_expr_get(arena, ei);
+    if (e.kind != ExprKind.EXPR_CALL) {
+      return 0;
+    }
+    if (e.resolved_type_ref > 0) {
+      return e.resolved_type_ref;
+    }
+    /*
+     * Sole type_arg: slot 0 is the only mono type (mk_default<A>() / as_t<A>(…)).
+     * Multi type_arg without a typeck stamp: fail closed (return 0) — do not
+     * invent type_arg[0] as ret (wave456 mk2u ret-U BLD001 root).
+     */
+    if (e.call_num_type_args == 1) {
+      let ta: i32 = pipeline_expr_call_type_arg_ref_at(arena, ei, 0);
+      if (ta > 0) {
+        return ta;
+      }
+    }
+    return 0;
+  }
+}
+
+/**
+ * Collect all unique mono combos for generic function fi.
+ *
+ * Why: identity mono must emit one instance per distinct type-arg combo (not just
+ * the first call site) so multiple call sites with different types each get their
+ * own mangled symbol. Scans the arena once for EXPR_CALL matching fi, extracts
+ * per-value-param concrete types via codegen_call_mono_type_at, and when
+ * `ret_extra!=0` (wave458) appends the call ret concrete so ret-only type params
+ * (`as_t<T>(i32):T`, `mk<T>():T`) distinguish A vs B.
+ *
+ * Layout: flat combos_out[c * combo_width + slot]; combo_width = num_params + ret_extra.
+ * num_params may be 0 when ret_extra=1 (zero-param ret-only mono).
+ *
+ * Invariant: combos_out holds at most max_combos*combo_width entries; returns the
+ * count of unique combos found (0 if no call sites or all incomplete).
+ * PLATFORM: SHARED — single-pass scan; matching logic mirrors find_mono_type
+ * (call_resolved_func_index==fi OR callee name==fn_local) but collects all
+ * matches instead of returning the first.
+ */
+function codegen_collect_mono_combos_for_generic_func(arena: *ASTArena, module: *Module, fi: i32, combos_out: *i32, max_combos: i32, num_params: i32, ret_extra: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || module == 0 as *Module || fi < 0 || fi >= module.num_funcs) {
+      return 0;
+    }
+    let combo_width: i32 = num_params + ret_extra;
+    if (combos_out == 0 as *i32 || max_combos <= 0 || combo_width <= 0 || combo_width > 8) {
+      return 0;
+    }
+    if (num_params < 0 || ret_extra < 0 || ret_extra > 1) {
+      return 0;
+    }
+    let fn_local: u8[64] = [];
+    codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
+    let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
+    if (fn_len <= 0) {
+      return 0;
+    }
+    let combo_count: i32 = 0;
+    let ei: i32 = 1;
+    while (ei <= arena.num_exprs) {
+      let e: Expr = ast.ast_arena_expr_get(arena, ei);
+      if (e.kind == ExprKind.EXPR_CALL) {
+        let matched: i32 = 0;
+        if (e.call_resolved_func_index == fi) {
+          matched = 1;
+        } else if (!ast.ref_is_null(e.call_callee_ref) && e.call_callee_ref > 0 && e.call_callee_ref <= arena.num_exprs) {
+          let cal: Expr = ast.ast_arena_expr_get(arena, e.call_callee_ref);
+          if (cal.kind == ExprKind.EXPR_VAR && cal.var_name_len == fn_len) {
+            let eq: i32 = 1;
+            let k: i32 = 0;
+            while (k < fn_len) {
+              if (cal.var_name[k] != fn_local[k]) {
+                eq = 0;
+                k = fn_len;
+              } else {
+                k = k + 1;
+              }
+            }
+            matched = eq;
+          }
+        }
+        /* num_params==0: zero-arg calls still match (wave458 ret-only mono). */
+        if (matched != 0 && (num_params == 0 || e.call_num_args >= num_params)) {
+          /* Build this call site's combo via the shared extraction helper. */
+          let combo: i32[8] = [];
+          let pi: i32 = 0;
+          let valid: i32 = 1;
+          while (pi < num_params) {
+            let ty: i32 = codegen_call_mono_type_at(arena, ei, pi, e.call_num_args);
+            if (ty <= 0) {
+              valid = 0;
+              pi = num_params;
+            } else {
+              combo[pi] = ty;
+            }
+            pi = pi + 1;
+          }
+          if (valid != 0 && ret_extra != 0) {
+            let rty: i32 = codegen_call_ret_type_param_concrete_at(arena, ei);
+            if (rty <= 0) {
+              valid = 0;
+            } else {
+              combo[num_params] = rty;
+            }
+          }
+          if (valid != 0) {
+            /* Dedup: scan existing combos for an exact match. */
+            let found: i32 = 0;
+            let ci: i32 = 0;
+            while (ci < combo_count) {
+              let same: i32 = 1;
+              let pi2: i32 = 0;
+              while (pi2 < combo_width) {
+                if (codegen_mono_combo_slot_equal(arena, combos_out[ci * combo_width + pi2], combo[pi2]) == 0) {
+                  same = 0;
+                  pi2 = combo_width;
+                }
+                pi2 = pi2 + 1;
+              }
+              if (same != 0) {
+                found = 1;
+                ci = combo_count;
+              }
+              ci = ci + 1;
+            }
+            if (found == 0 && combo_count < max_combos) {
+              let pi3: i32 = 0;
+              while (pi3 < combo_width) {
+                combos_out[combo_count * combo_width + pi3] = combo[pi3];
+                pi3 = pi3 + 1;
+              }
+              combo_count = combo_count + 1;
+            }
+          }
+        }
+      }
+      ei = ei + 1;
+    }
+    return combo_count;
+  }
+}
+
+/*
+ * wave498: call-side mono mangling for generic inherent impl methods.
+ * Why: define-side codegen_try_emit_generic_impl_method_mono emits mangled
+ * symbols (get__i32, get__bool) for multi-combo impl methods. Call sites must
+ * emit the same mangled name or cc throws "undeclared function". This helper
+ * detects whether func_ix is a generic inherent impl method (first param is a
+ * generic struct with free type-args → nc>1 combos), extracts concrete type
+ * args from the receiver type, and emits the mangled symbol via codegen_emit_
+ * mono_mangled_name. Returns 1 if emitted (caller should skip bare link-name),
+ * 0 if not applicable (caller falls back to bare link_name), -1 on emit error.
+ * PLATFORM: SHARED — seed codegen_gen.linux.x86_64.c same commit.
+ * Guards: only activates when receiver_ty is concrete (fill_concrete succeeds),
+ * func has >=1 param, first param is a named struct with >0 type params, and
+ * the total combo count for that struct layout >1 (nc==1 uses bare link name).
+ */
+function codegen_try_emit_impl_method_mono_call_name(out: *CodegenOutBuf, arena: *ASTArena, ctx: *PipelineDepCtx, module: *Module, fi: i32, receiver_ty: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (out == 0 as *CodegenOutBuf || arena == 0 as *ASTArena || module == 0 as *Module) {
+      return 0;
+    }
+    if (fi < 0 || fi >= module.num_funcs) {
+      return 0;
+    }
+    if (pipeline_module_func_num_generic_params_at(module, fi) > 0) {
+      return 0;
+    }
+    if (receiver_ty <= 0) {
+      return 0;
+    }
+    let np: i32 = pipeline_module_func_num_params_at(module, fi);
+    if (np < 1) {
+      return 0;
+    }
+    let p0_ty_raw: i32 = pipeline_module_func_param_type_ref_at(module, fi, 0);
+    if (p0_ty_raw <= 0) {
+      return 0;
+    }
+    let p0_ty: i32 = pipeline_typeck_resolve_type_alias_ref_c(arena, p0_ty_raw);
+    if (p0_ty <= 0) {
+      return 0;
+    }
+    if (pipeline_type_kind_ord_at(arena, p0_ty) != (TypeKind.TYPE_NAMED as i32)) {
+      return 0;
+    }
+    let nm: u8[64] = [];
+    let nl: i32 = pipeline_type_named_name_into(arena, p0_ty, &nm[0]);
+    if (nl <= 0) {
+      return 0;
+    }
+    let bare_off: i32 = 0;
+    let bi: i32 = 0;
+    while (bi < nl && bi < 64) {
+      if (nm[bi] == 46) {
+        bare_off = bi + 1;
+      }
+      bi = bi + 1;
+    }
+    let bare_len: i32 = nl - bare_off;
+    if (bare_len <= 0) {
+      return 0;
+    }
+    let lk: i32 = codegen_module_struct_layout_index_by_name(module, &nm[bare_off], bare_len);
+    if (lk < 0) {
+      return 0;
+    }
+    let ntp: i32 = pipeline_module_struct_layout_num_type_params_at(module, lk);
+    if (ntp <= 0 || ntp > 8) {
+      return 0;
+    }
+    let mono_chk: i32[8] = [];
+    if (codegen_generic_struct_fill_concrete_args(module, arena, p0_ty, ntp, &mono_chk[0], 0 as *PipelineDepCtx) == ntp) {
+      return 0;
+    }
+    let combos: i32[32] = [];
+    let nc: i32 = codegen_collect_generic_struct_mono_combos(module, arena, lk, &nm[bare_off], bare_len, ntp, &combos[0], 8);
+    if (nc <= 1) {
+      return 0;
+    }
+    let recv_concrete: i32 = receiver_ty;
+    if (ctx != 0 as *PipelineDepCtx && ctx.mono_active != 0) {
+      recv_concrete = codegen_mono_subst_type(ctx, arena, recv_concrete);
+    }
+    let recv_mono: i32[8] = [];
+    if (codegen_generic_struct_fill_concrete_args(module, arena, recv_concrete, ntp, &recv_mono[0], ctx) != ntp) {
+      return 0;
+    }
+    if (codegen_emit_mono_mangled_name(out, arena, module, fi, &recv_mono[0], ntp) != 0) {
+      return -1;
+    }
+    return 1;
+  }
+}
+
+/**
+ * Emit a mono-mangled symbol `<link_name>__<suffix0>[_<suffix1>...]` for generic
+ * function fi with the given mono type-arg combo.
+ *
+ * Why: multiple mono instances of the same generic function need distinct C link
+ * symbols (e.g., `copy__A` vs `copy__i32`) to avoid duplicate-symbol link errors.
+ * The `__` separator distinguishes mono mangling from overload mangling (which
+ * uses single `_` per param suffix via codegen_emit_func_link_name).
+ *
+ * Invariant: mono_tys holds num_mono entries; each suffix is rendered via
+ * codegen_type_ref_to_suffix (reusing the overload-suffix authority). Returns 0
+ * on success, -1 on emit error.
+ * PLATFORM: SHARED — mono symbol authority; called by codegen_try_emit_generic_
+ * identity_mono (emit side) and must agree with call-site mangling in
+ * codegen_emit_call_func_name (consume side).
+ */
+function codegen_emit_mono_mangled_name(out: *CodegenOutBuf, arena: *ASTArena, module: *Module, fi: i32, mono_tys: *i32, num_mono: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (out == 0 as *CodegenOutBuf || arena == 0 as *ASTArena || module == 0 as *Module || mono_tys == 0 as *i32) {
+      return -1;
+    }
+    if (fi < 0 || fi >= module.num_funcs || num_mono <= 0) {
+      return -1;
+    }
+    /* Emit the base link name (bare for non-overloaded generics; overload-mangled
+     * suffix is preserved so mono + overload compose if needed). */
+    if (codegen_emit_func_link_name(out, arena, module, fi) != 0) {
+      return -1;
+    }
+    /* `__` marks this as a mono instance and separates from overload `_` mangling. */
+    let sep: u8[2] = [95, 95];
+    if (emit_bytes_from_ptr(out, &sep[0], 2) != 0) {
+      return -1;
+    }
+    let mi: i32 = 0;
+    while (mi < num_mono) {
+      let suf: u8[64] = [];
+      let ty: i32 = mono_tys[mi];
+      let sl: i32 = codegen_type_ref_to_suffix(arena, ty, &suf[0], 64);
+      if (sl <= 0) {
+        return -1;
+      }
+      if (mi > 0) {
+        if (append_byte(out, 95) != 0) {
+          return -1;
+        }
+      }
+      if (emit_bytes_from_ptr(out, &suf[0], sl) != 0) {
+        return -1;
+      }
+      mi = mi + 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Substitute a type_ref via the active mono substitution map (C5/C6 helper).
+ *
+ * Why: during mono body emit, generic type refs (T, U, ...) must be replaced with
+ * concrete type refs (A, B, ...). This helper checks ctx.mono_generic_type_refs[]
+ * and returns the matching concrete type_ref, or the original type_ref if no match.
+ *
+ * Invariant: returns the original type_ref when mono is inactive or no match found.
+ * PLATFORM: SHARED — single substitution authority used by emit_expr method-call
+ * re-resolution (C6) and consistent with emit_type's own C5 hook.
+ */
+function codegen_mono_subst_type(ctx: *PipelineDepCtx, arena: *ASTArena, type_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (ctx == 0 as *PipelineDepCtx || ctx.mono_active == 0 || ctx.mono_num_types <= 0) {
+      return type_ref;
+    }
+    let mi: i32 = 0;
+    while (mi < ctx.mono_num_types && mi < 8) {
+      if (type_ref == ctx.mono_generic_type_refs[mi] && ctx.mono_concrete_type_refs[mi] > 0) {
+        return ctx.mono_concrete_type_refs[mi];
+      }
+      mi = mi + 1;
+    }
+    /*
+     * Name-match fallback: typeck does NOT always reuse the param's type_ref node
+     * for body occurrences (e.g. `let y: T` allocates a fresh TYPE_NAMED "T").
+     * Compare the type's name against each generic param's name; substitute on
+     * match. Builtin types have no name (returns 0) and skip this fallback.
+     * Single authority: emit_type C5 and C6 both rely on this name match.
+     * PLATFORM: SHARED — mirrors codegen_gen.linux.x86_64.c.
+     */
+    let fb_nm: u8[64] = [];
+    let fb_len: i32 = pipeline_type_named_name_into(arena, type_ref, &fb_nm[0]);
+    if (fb_len > 0) {
+      let mi2: i32 = 0;
+      while (mi2 < ctx.mono_num_types && mi2 < 8) {
+        if (ctx.mono_concrete_type_refs[mi2] > 0) {
+          let gnm: u8[64] = [];
+          let gname_len: i32 = pipeline_type_named_name_into(arena, ctx.mono_generic_type_refs[mi2], &gnm[0]);
+          if (gname_len == fb_len && gname_len > 0) {
+            let names_eq: i32 = 1;
+            let ci: i32 = 0;
+            while (ci < gname_len) {
+              if (gnm[ci] != fb_nm[ci]) {
+                names_eq = 0;
+                ci = gname_len;
+              } else {
+                ci = ci + 1;
+              }
+            }
+            if (names_eq != 0) {
+              return ctx.mono_concrete_type_refs[mi2];
+            }
+          }
+        }
+        mi2 = mi2 + 1;
+      }
+    }
+    return type_ref;
+  }
+}
+
+/**
+ * Find the impl method for a concrete receiver type + method name (C6 helper).
+ *
+ * Why: typeck processes a generic function body once with T unresolved, so
+ * call_resolved_func_index for `x.clone()` (x: T) points at the trait method
+ * (signature-only), not the impl method (A::clone). During mono body emit, the
+ * receiver's concrete type is known (A), so this helper scans the module for a
+ * function matching method_name whose param0 type equals receiver_type_ref.
+ *
+ * Invariant: returns the first matching func index, or -1 if no match.
+ * PLATFORM: SHARED — mirrors codegen_find_module_func_index_by_name_overload name
+ * matching but adds param0 type equality via pipeline_typeck_type_refs_equal_c.
+ */
+function codegen_find_impl_method_for_type(module: *Module, arena: *ASTArena, method_name: *u8, method_name_len: i32, receiver_type_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (module == 0 as *Module || arena == 0 as *ASTArena || method_name == 0 as *u8) {
+      return -1;
+    }
+    if (method_name_len <= 0 || receiver_type_ref <= 0) {
+      return -1;
+    }
+    let fi: i32 = 0;
+    while (fi < module.num_funcs) {
+      let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
+      if (fn_len == method_name_len && fn_len > 0) {
+        let fn_name: u8[64] = [];
+        pipeline_module_func_name_copy64(module, fi, &fn_name[0]);
+        let matched: i32 = 1;
+        let bi: i32 = 0;
+        while (bi < fn_len) {
+          if (fn_name[bi] != method_name[bi]) {
+            matched = 0;
+            bi = fn_len;
+          } else {
+            bi = bi + 1;
+          }
+        }
+        if (matched != 0) {
+          /*
+           * Check param0 type matches the concrete receiver type.
+           * Primary: direct type_ref equality (works when impl and call site share
+           * the same typeck context / arena). Fallback: name-based comparison —
+           * impl method's param0 type_ref and the mono substitution's concrete
+           * type_ref can come from different typeck passes (impl processed
+           * separately from the generic call site), so direct type_ref equality
+           * fails even when both refer to the same named type (e.g., "A").
+           * Mirrors C5 emit_type name-match fallback. Builtin types (i32, etc.)
+           * have no name and rely on direct equality, which is stable for builtins.
+           * PLATFORM: SHARED — mirrors seed codegen_gen.linux.x86_64.c.
+           */
+          let np: i32 = pipeline_module_func_num_params_at(module, fi);
+          if (np > 0) {
+            let p0_ty: i32 = pipeline_module_func_param_type_ref_at(module, fi, 0);
+            if (p0_ty > 0) {
+              if (pipeline_typeck_type_refs_equal_c(arena, p0_ty, receiver_type_ref) != 0) {
+                return fi;
+              }
+              let p0_nm: u8[64] = [];
+              let p0_nlen: i32 = pipeline_type_named_name_into(arena, p0_ty, &p0_nm[0]);
+              let recv_nm: u8[64] = [];
+              let recv_nlen: i32 = pipeline_type_named_name_into(arena, receiver_type_ref, &recv_nm[0]);
+              if (p0_nlen > 0 && p0_nlen == recv_nlen) {
+                let neq: i32 = 1;
+                let ni: i32 = 0;
+                while (ni < p0_nlen) {
+                  if (p0_nm[ni] != recv_nm[ni]) {
+                    neq = 0;
+                    ni = p0_nlen;
+                  } else {
+                    ni = ni + 1;
+                  }
+                }
+                if (neq != 0) {
+                  if (pipeline_type_kind_ord_at(arena, p0_ty) == TypeKind.TYPE_NAMED
+                      && pipeline_type_kind_ord_at(arena, receiver_type_ref) == TypeKind.TYPE_NAMED) {
+                    if (codegen_type_refs_same_for_mono(arena, p0_ty, receiver_type_ref) != 0) {
+                      return fi;
+                    }
+                  } else {
+                    return fi;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      fi = fi + 1;
+    }
+    return -1;
+  }
+}
+
+/**
+ * Emit monomorphized C instances for a generic function (wave443–450).
+ *
+ * wave443–444: multi-arg + mangled combos for identity shape `fn(x: T): T`.
+ * wave445: real body AST walk (method calls / lets) under mono_active.
+ * wave447: drop the hard identity gate (ret and param0 both TYPE_NAMED with the
+ * same name). Non-identity shapes such as `getv<T>(x: T): i32 { return x.v; }`
+ * and `absdiff<T>(x: i32, y: i32): i32 { if ... }` must also emit mono instances
+ * because call sites already mangle with `__suffix`; without a definition, host
+ * C fails BLD001 undeclared. Signature emit now uses the original ret/param
+ * type_refs under mono_active so C5 subst rewrites T→concrete while leaving
+ * builtins (i32, …) unchanged — identity used to emit ret type as mono_ty
+ * (param0 concrete), which is wrong when ret is not T.
+ * wave450: zero value-param generics (`unit_t<T>(): i32`). Parser stores only
+ * `call_num_type_args` (count), not type-arg type_refs; call-site C3 mangling
+ * therefore falls back to the bare link name when `num_params==0`. Prior mono
+ * emit hard-gated `num_params<=0` → no definition → BLD001 undeclared. Root
+ * fix: when `num_params==0` and at least one matching CALL exists, emit the
+ * body once under the bare link name (phantom T; all type-arg combos share
+ * one C function). Leave-off: bare `unit_t()` without turbofish (typeck still
+ * requires type args); zero-arg body/return that need T subst without stored
+ * type-arg refs (ret `T` / `let x: T` mono map).
+ *
+ * @param arena *ASTArena — shared AST arena for type_ref / expr walk
+ * @param out *CodegenOutBuf — C text buffer
+ * @param module *Module — owning module of fi
+ * @param fi i32 — function index (generic; value params 0..8)
+ * @param prefix *u8 — module C prefix bytes
+ * @param prefix_len i32 — prefix length
+ * @param ctx *PipelineDepCtx — mono_active / mono_* type maps (SHARED ABI)
+ * @return i32 — 1 if at least one mono instance was emitted, 0 skip, -1 emit error
+ * PLATFORM: SHARED — seed codegen_gen.linux.x86_64.c must match same commit.
  */
 export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *CodegenOutBuf, module: *Module, fi: i32, prefix: *u8, prefix_len: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -10419,97 +16413,1276 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
     if (pipeline_module_func_is_extern_at(module, fi) != 0) {
       return 0;
     }
-    if (pipeline_module_func_num_params_at(module, fi) != 1) {
+    let num_params: i32 = pipeline_module_func_num_params_at(module, fi);
+    if (num_params < 0 || num_params > 8) {
       return 0;
     }
     let ret_ty: i32 = pipeline_module_func_return_type_at(module, fi);
     let p0_ty: i32 = pipeline_module_func_param_type_ref_at(module, fi, 0);
-    if (ret_ty <= 0 || p0_ty <= 0) {
-      return 0;
-    }
-    if (pipeline_type_kind_ord_at(arena, ret_ty) != TypeKind.TYPE_NAMED) {
-      return 0;
-    }
-    if (pipeline_type_kind_ord_at(arena, p0_ty) != TypeKind.TYPE_NAMED) {
-      return 0;
-    }
-    let ret_nm: u8[64] = [];
-    let p0_nm: u8[64] = [];
-    let ret_nl: i32 = pipeline_type_named_name_into(arena, ret_ty, &ret_nm[0]);
-    let p0_nl: i32 = pipeline_type_named_name_into(arena, p0_ty, &p0_nm[0]);
-    if (ret_nl <= 0 || ret_nl != p0_nl) {
-      return 0;
-    }
-    let bi: i32 = 0;
-    while (bi < ret_nl) {
-      if (ret_nm[bi] != p0_nm[bi]) {
+    /*
+     * wave450 Cap residual: zero value-param generic mono under bare link name
+     * when ret is **not** a type-param (phantom T, e.g. unit_t<T>():i32).
+     * wave458: when ret IS an uncovered type-param (`mk<T>():T`), do **not**
+     * take this bare single-instance path — fall through to multi-combo emit
+     * with ret_extra mono key (mk__A / mk__B). Call-site mangle agrees.
+     * PLATFORM: SHARED — mirrors seed codegen_gen.linux.x86_64.c.
+     */
+    let ret_extra_zp: i32 = codegen_func_ret_type_param_extra(arena, module, fi);
+    if (num_params == 0 && ret_extra_zp == 0) {
+      if (ret_ty <= 0) {
         return 0;
       }
-      bi = bi + 1;
+      let fn_local0: u8[64] = [];
+      codegen_copy_func_name64_from_module(module, fi, &fn_local0[0]);
+      let fn_len0: i32 = pipeline_module_func_name_len_at(module, fi);
+      if (fn_len0 <= 0) {
+        return 0;
+      }
+      let has_call: i32 = 0;
+      let ei0: i32 = 1;
+      while (ei0 <= arena.num_exprs) {
+        let e0: Expr = ast.arena_expr_get(arena, ei0);
+        if (e0.kind == ExprKind.EXPR_CALL) {
+          let matched0: i32 = 0;
+          if (e0.call_resolved_func_index == fi) {
+            matched0 = 1;
+          } else {
+            if (!ast.ref_is_null(e0.call_callee_ref) && e0.call_callee_ref > 0
+                && e0.call_callee_ref <= arena.num_exprs) {
+              let cal0: Expr = ast.arena_expr_get(arena, e0.call_callee_ref);
+              if (cal0.kind == ExprKind.EXPR_VAR && cal0.var_name_len == fn_len0) {
+                let eq0: i32 = 1;
+                let k0: i32 = 0;
+                while (k0 < fn_len0) {
+                  if (cal0.var_name[k0] != fn_local0[k0]) {
+                    eq0 = 0;
+                    k0 = fn_len0;
+                  } else {
+                    k0 = k0 + 1;
+                  }
+                }
+                matched0 = eq0;
+              }
+            }
+          }
+          if (matched0 != 0) {
+            has_call = 1;
+            ei0 = arena.num_exprs;
+          }
+        }
+        ei0 = ei0 + 1;
+      }
+      if (has_call == 0) {
+        return 0;
+      }
+      let mono_sym_pre0: i32 = codegen_func_c_symbol_prefix_len(module, fi, prefix_len);
+      let saved_func_index0: i32 = -1;
+      let saved_block_ref0: i32 = 0;
+      let saved_mono_active0: i32 = 0;
+      let saved_mono_num0: i32 = 0;
+      let ctx_set0: i32 = 0;
+      if (ctx != 0 as *PipelineDepCtx) {
+        saved_func_index0 = ctx.current_func_index;
+        saved_block_ref0 = ctx.current_block_ref;
+        saved_mono_active0 = ctx.mono_active;
+        saved_mono_num0 = ctx.mono_num_types;
+        ctx.current_func_index = fi;
+        /*
+         * wave452: zero-param ret type-param mono (mk_default<T>():T).
+         * Wave450 emitted phantom T without mono_active → host C returns
+         * struct T while body builds concrete A. Map T from turbofish /
+         * call resolved_type_ref of a matching CALL.
+         * wave456: prefer call_resolved_func_index==fi (typeck-resolved site).
+         * Name-only matches with rfi=-1 can be earlier arena ghosts that still
+         * carry turbofish type_args but never received fixup — using them made
+         * `mk2u<T,U>():U` mono map U→type_arg[0] (T) → BLD001. Two-pass scan:
+         * (1) rfi==fi only (2) name match only if concrete_at returns >0.
+         * PLATFORM: SHARED — one bare link name still shared (leave-off:
+         * multi distinct T combos under bare name).
+         */
+        let ret_ord0: i32 = pipeline_type_kind_ord_at(arena, ret_ty);
+        if (ret_ord0 == 8) {
+          let ta0: i32 = 0;
+          let ei_ta: i32 = 1;
+          /* Pass 1: only typeck-resolved call sites (rfi == fi). */
+          while (ei_ta <= arena.num_exprs && ta0 <= 0) {
+            let e_ta: Expr = ast.arena_expr_get(arena, ei_ta);
+            if (e_ta.kind == ExprKind.EXPR_CALL && e_ta.call_resolved_func_index == fi) {
+              ta0 = codegen_call_ret_type_param_concrete_at(arena, ei_ta);
+            }
+            ei_ta = ei_ta + 1;
+          }
+          /* Pass 2: name-only fallback when rfi was never stamped. */
+          if (ta0 <= 0) {
+            ei_ta = 1;
+            while (ei_ta <= arena.num_exprs && ta0 <= 0) {
+              let e_ta2: Expr = ast.arena_expr_get(arena, ei_ta);
+              if (e_ta2.kind == ExprKind.EXPR_CALL && e_ta2.call_resolved_func_index != fi) {
+                if (!ast.ref_is_null(e_ta2.call_callee_ref) && e_ta2.call_callee_ref > 0
+                    && e_ta2.call_callee_ref <= arena.num_exprs) {
+                  let cal_ta: Expr = ast.arena_expr_get(arena, e_ta2.call_callee_ref);
+                  if (cal_ta.kind == ExprKind.EXPR_VAR && cal_ta.var_name_len == fn_len0) {
+                    let eq_ta: i32 = 1;
+                    let k_ta: i32 = 0;
+                    while (k_ta < fn_len0) {
+                      if (cal_ta.var_name[k_ta] != fn_local0[k_ta]) {
+                        eq_ta = 0;
+                        k_ta = fn_len0;
+                      } else {
+                        k_ta = k_ta + 1;
+                      }
+                    }
+                    if (eq_ta != 0) {
+                      ta0 = codegen_call_ret_type_param_concrete_at(arena, ei_ta);
+                    }
+                  }
+                }
+              }
+              ei_ta = ei_ta + 1;
+            }
+          }
+          if (ta0 > 0 && ta0 != ret_ty) {
+            ctx.mono_active = 1;
+            ctx.mono_num_types = 1;
+            ctx.mono_generic_type_refs[0] = ret_ty;
+            ctx.mono_concrete_type_refs[0] = ta0;
+          }
+        }
+        ctx_set0 = 1;
+      }
+      /* Signature: <ret> <link_name>(void) { body } — mono_active when ret is type param. */
+      if (emit_type(arena, out, ret_ty, prefix, prefix_len, ctx) != 0) {
+        if (ctx_set0 != 0) {
+          ctx.current_func_index = saved_func_index0;
+          ctx.current_block_ref = saved_block_ref0;
+          ctx.mono_active = saved_mono_active0;
+          ctx.mono_num_types = saved_mono_num0;
+        }
+        return -1;
+      }
+      if (append_byte(out, 32) != 0) {
+        if (ctx_set0 != 0) {
+          ctx.current_func_index = saved_func_index0;
+          ctx.current_block_ref = saved_block_ref0;
+          ctx.mono_active = saved_mono_active0;
+          ctx.mono_num_types = saved_mono_num0;
+        }
+        return -1;
+      }
+      if (mono_sym_pre0 > 0
+          && codegen_c_prefix_redundant_with_name(prefix, mono_sym_pre0, &fn_local0[0], fn_len0) == 0) {
+        if (emit_bytes_from_ptr(out, prefix, mono_sym_pre0) != 0) {
+          if (ctx_set0 != 0) {
+            ctx.current_func_index = saved_func_index0;
+            ctx.current_block_ref = saved_block_ref0;
+            ctx.mono_active = saved_mono_active0;
+            ctx.mono_num_types = saved_mono_num0;
+          }
+          return -1;
+        }
+      }
+      if (codegen_emit_func_link_name(out, arena, module, fi) != 0) {
+        if (ctx_set0 != 0) {
+          ctx.current_func_index = saved_func_index0;
+          ctx.current_block_ref = saved_block_ref0;
+          ctx.mono_active = saved_mono_active0;
+          ctx.mono_num_types = saved_mono_num0;
+        }
+        return -1;
+      }
+      /* `() {\n` */
+      let open0: u8[4] = [40, 41, 32, 123];
+      if (emit_bytes_from_ptr(out, &open0[0], 4) != 0) {
+        if (ctx_set0 != 0) {
+          ctx.current_func_index = saved_func_index0;
+          ctx.current_block_ref = saved_block_ref0;
+          ctx.mono_active = saved_mono_active0;
+          ctx.mono_num_types = saved_mono_num0;
+        }
+        return -1;
+      }
+      if (append_byte(out, 10) != 0) {
+        if (ctx_set0 != 0) {
+          ctx.current_func_index = saved_func_index0;
+          ctx.current_block_ref = saved_block_ref0;
+          ctx.mono_active = saved_mono_active0;
+          ctx.mono_num_types = saved_mono_num0;
+        }
+        return -1;
+      }
+      let body_walked0: i32 = 0;
+      let body_br0: i32 = pipeline_module_func_body_ref_at(module, fi);
+      let body_er0: i32 = pipeline_module_func_body_expr_ref_at(module, fi);
+      if (!ast.ref_is_null(body_br0) || !ast.ref_is_null(body_er0)) {
+        if (!ast.ref_is_null(body_br0)) {
+          if (ctx_set0 != 0) {
+            ctx.current_block_ref = body_br0;
+          }
+          if (emit_block(arena, out, body_br0, 2, ctx) == 0) {
+            body_walked0 = 1;
+          }
+        } else {
+          if (ctx_set0 != 0) {
+            ctx.current_block_ref = 0;
+          }
+          if (emit_indent(out, 2) == 0) {
+            let ret_kw0: u8[8] = [114, 101, 116, 117, 114, 110, 32, 0];
+            if (emit_bytes_from_ptr(out, &ret_kw0[0], 7) == 0) {
+              if (emit_expr(arena, out, body_er0, ctx) == 0) {
+                let sc_nl0: u8[2] = [59, 10];
+                if (emit_bytes_from_ptr(out, &sc_nl0[0], 2) == 0) {
+                  body_walked0 = 1;
+                }
+              }
+            }
+          }
+        }
+      }
+      if (body_walked0 == 0) {
+        /* Defensive stub if body walk fails (keeps host C compilable). */
+        if (emit_indent(out, 2) != 0) {
+          if (ctx_set0 != 0) {
+            ctx.current_func_index = saved_func_index0;
+            ctx.current_block_ref = saved_block_ref0;
+            ctx.mono_active = saved_mono_active0;
+            ctx.mono_num_types = saved_mono_num0;
+          }
+          return -1;
+        }
+        let ret0z: u8[10] = [114, 101, 116, 117, 114, 110, 32, 48, 59, 10];
+        if (emit_bytes_from_ptr(out, &ret0z[0], 10) != 0) {
+          if (ctx_set0 != 0) {
+            ctx.current_func_index = saved_func_index0;
+            ctx.current_block_ref = saved_block_ref0;
+            ctx.mono_active = saved_mono_active0;
+            ctx.mono_num_types = saved_mono_num0;
+          }
+          return -1;
+        }
+      }
+      if (ctx_set0 != 0) {
+        ctx.current_func_index = saved_func_index0;
+        ctx.current_block_ref = saved_block_ref0;
+        ctx.mono_active = saved_mono_active0;
+        ctx.mono_num_types = saved_mono_num0;
+      }
+      let end0: u8[2] = [125, 10];
+      if (emit_bytes_from_ptr(out, &end0[0], 2) != 0) {
+        return -1;
+      }
+      return 1;
     }
-    let mono_ty: i32 = codegen_find_mono_type_for_generic_func(arena, module, fi);
-    if (mono_ty <= 0) {
+    /* wave458: zero-param ret-only has no p0; only require ret_ty. */
+    if (ret_ty <= 0) {
       return 0;
     }
-    let pn_len: i32 = pipeline_module_func_param_name_len_at(module, fi, 0);
+    if (num_params > 0 && p0_ty <= 0) {
+      return 0;
+    }
+    /*
+     * wave447: no longer require identity shape (ret and p0 both TYPE_NAMED
+     * with equal names). Call-site mono mangling is independent of that shape;
+     * skipping emit here leaves undeclared mangled symbols (BLD001).
+     * Identity shape is still detected later only to choose body fallback.
+     */
+    let is_identity_shape: i32 = 0;
+    if (num_params > 0
+        && pipeline_type_kind_ord_at(arena, ret_ty) == TypeKind.TYPE_NAMED
+        && pipeline_type_kind_ord_at(arena, p0_ty) == TypeKind.TYPE_NAMED) {
+      let ret_nm: u8[64] = [];
+      let p0_nm: u8[64] = [];
+      let ret_nl: i32 = pipeline_type_named_name_into(arena, ret_ty, &ret_nm[0]);
+      let p0_nl: i32 = pipeline_type_named_name_into(arena, p0_ty, &p0_nm[0]);
+      if (ret_nl > 0 && ret_nl == p0_nl) {
+        let bi: i32 = 0;
+        let names_eq: i32 = 1;
+        while (bi < ret_nl) {
+          if (ret_nm[bi] != p0_nm[bi]) {
+            names_eq = 0;
+            bi = ret_nl;
+          } else {
+            bi = bi + 1;
+          }
+        }
+        if (names_eq != 0) {
+          is_identity_shape = 1;
+        }
+      }
+    }
+    /* wave444: collect ALL unique (func, type-args) combos so each call site with
+     * a distinct type gets its own mangled mono instance (e.g., copy<A> + copy<i32>
+     * emit copy__A and copy__i32). Previously only the first call site's type was
+     * emitted with the bare link name, causing duplicate-symbol errors when multiple
+     * type-arg combos targeted the same generic function.
+     * wave458: ret_extra appends uncovered ret type-param concrete to the key
+     * (`as_t__i32_A` vs `as_t__i32_B`; zero-param `mk__A` / `mk__B`). */
+    let ret_extra: i32 = ret_extra_zp;
+    let combo_width: i32 = num_params + ret_extra;
+    if (combo_width <= 0 || combo_width > 8) {
+      return 0;
+    }
+    let combos: i32[128] = [];
+    let combo_count: i32 = codegen_collect_mono_combos_for_generic_func(arena, module, fi, &combos[0], 16, num_params, ret_extra);
+    if (combo_count <= 0) {
+      return 0;
+    }
+    let pn_len: i32 = 1;
     let pn: u8[32] = [];
-    pipeline_module_func_param_name_copy32(module, fi, 0, &pn[0]);
-    if (pn_len <= 0) {
-      /* See implementation. */
-      pn[0] = 120;
-      pn_len = 1;
-    }
-    /* See implementation. */
-    if (emit_type(arena, out, mono_ty, prefix, prefix_len, ctx) != 0) {
-      return -1;
-    }
-    if (append_byte(out, 32) != 0) {
-      return -1;
+    pn[0] = 120;
+    if (num_params > 0) {
+      pn_len = pipeline_module_func_param_name_len_at(module, fi, 0);
+      pipeline_module_func_param_name_copy32(module, fi, 0, &pn[0]);
+      if (pn_len <= 0) {
+        pn[0] = 120;
+        pn_len = 1;
+      }
     }
     let fn_local: u8[64] = [];
     codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
     let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
     let mono_sym_pre: i32 = codegen_func_c_symbol_prefix_len(module, fi, prefix_len);
-    if (mono_sym_pre > 0 && codegen_c_prefix_redundant_with_name(prefix, mono_sym_pre, &fn_local[0], fn_len) == 0) {
-      if (emit_bytes_from_ptr(out, prefix, mono_sym_pre) != 0) {
+    /* wave444/447: one mono instance per unique combo; mangled symbol agrees with
+     * call-site codegen_emit_call_func_name. Signature types use original ret/param
+     * type_refs under mono_active (C5), not identity-only mono_ty for return. */
+    let ci: i32 = 0;
+    while (ci < combo_count) {
+      /*
+       * Activate mono substitution for this combo before signature emit so
+       * emit_type rewrites TYPE_NAMED generic params (T) to concrete types
+       * while leaving i32/bool/… unchanged. Restored after body (or on error
+       * paths that return -1 after this point must restore — we restore after
+       * each combo's body section below).
+       */
+      let saved_mono_active: i32 = 0;
+      let saved_mono_num: i32 = 0;
+      let saved_func_index: i32 = -1;
+      let saved_block_ref: i32 = 0;
+      let mono_ctx_set: i32 = 0;
+      if (ctx != 0 as *PipelineDepCtx) {
+        saved_mono_active = ctx.mono_active;
+        saved_mono_num = ctx.mono_num_types;
+        saved_func_index = ctx.current_func_index;
+        saved_block_ref = ctx.current_block_ref;
+        ctx.mono_active = 1;
+        ctx.mono_num_types = 0;
+        /* Value formals: map each formal type_ref → combo slot (identity T→A). */
+        let sti0: i32 = 0;
+        while (sti0 < num_params && sti0 < 8) {
+          ctx.mono_generic_type_refs[sti0] = pipeline_module_func_param_type_ref_at(module, fi, sti0);
+          ctx.mono_concrete_type_refs[sti0] = combos[ci * combo_width + sti0];
+          sti0 = sti0 + 1;
+        }
+        ctx.mono_num_types = num_params;
+        /*
+         * wave452/458: ret type-param not on any value formal.
+         * When ret_extra=1 the combo already ends with ret concrete — stamp map
+         * from that slot (authoritative per-combo, not first matching CALL).
+         * When ret_extra=0 but ret is still TYPE_NAMED (covered by a formal name),
+         * formals already mapped it. Keep legacy scan only if ret_extra and slot set.
+         * PLATFORM: SHARED
+         */
+        if (ret_extra != 0 && ctx.mono_num_types < 8) {
+          let ta_conc: i32 = combos[ci * combo_width + num_params];
+          if (ta_conc > 0 && ta_conc != ret_ty) {
+            ctx.mono_generic_type_refs[ctx.mono_num_types] = ret_ty;
+            ctx.mono_concrete_type_refs[ctx.mono_num_types] = ta_conc;
+            ctx.mono_num_types = ctx.mono_num_types + 1;
+          }
+        }
+        ctx.current_func_index = fi;
+        mono_ctx_set = 1;
+      }
+      /* Return type: original ret_ty under mono_active (wave447). */
+      if (emit_type(arena, out, ret_ty, prefix, prefix_len, ctx) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
         return -1;
       }
+      if (append_byte(out, 32) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
+        return -1;
+      }
+      if (mono_sym_pre > 0 && codegen_c_prefix_redundant_with_name(prefix, mono_sym_pre, &fn_local[0], fn_len) == 0) {
+        if (emit_bytes_from_ptr(out, prefix, mono_sym_pre) != 0) {
+          if (mono_ctx_set != 0) {
+            ctx.mono_active = saved_mono_active;
+            ctx.mono_num_types = saved_mono_num;
+            ctx.current_func_index = saved_func_index;
+            ctx.current_block_ref = saved_block_ref;
+          }
+          return -1;
+        }
+      }
+      /* wave444/458: mangled mono symbol (link_name + __ + suffix per combo slot). */
+      if (codegen_emit_mono_mangled_name(out, arena, module, fi, &combos[ci * combo_width], combo_width) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
+        return -1;
+      }
+      if (append_byte(out, 40) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
+        return -1;
+      }
+      /* wave458: zero-param ret-only → empty param list; open `(` already emitted. */
+      if (num_params > 0) {
+      /* Param 0 type: original p0_ty under mono_active (T→concrete, i32 stays). */
+      if (emit_type(arena, out, p0_ty, prefix, prefix_len, ctx) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
+        return -1;
+      }
+      if (append_byte(out, 32) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
+        return -1;
+      }
+      if (emit_bytes_from_ptr(out, &pn[0], pn_len) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
+        return -1;
+      }
+      /* Remaining params 1..N-1: original param type_ref under mono_active. */
+      let pi: i32 = 1;
+      while (pi < num_params) {
+        let p_ty: i32 = pipeline_module_func_param_type_ref_at(module, fi, pi);
+        let comma_space: u8[2] = [44, 32];
+        if (emit_bytes_from_ptr(out, &comma_space[0], 2) != 0) {
+          if (mono_ctx_set != 0) {
+            ctx.mono_active = saved_mono_active;
+            ctx.mono_num_types = saved_mono_num;
+            ctx.current_func_index = saved_func_index;
+            ctx.current_block_ref = saved_block_ref;
+          }
+          return -1;
+        }
+        if (p_ty <= 0 || emit_type(arena, out, p_ty, prefix, prefix_len, ctx) != 0) {
+          if (mono_ctx_set != 0) {
+            ctx.mono_active = saved_mono_active;
+            ctx.mono_num_types = saved_mono_num;
+            ctx.current_func_index = saved_func_index;
+            ctx.current_block_ref = saved_block_ref;
+          }
+          return -1;
+        }
+        if (append_byte(out, 32) != 0) {
+          if (mono_ctx_set != 0) {
+            ctx.mono_active = saved_mono_active;
+            ctx.mono_num_types = saved_mono_num;
+            ctx.current_func_index = saved_func_index;
+            ctx.current_block_ref = saved_block_ref;
+          }
+          return -1;
+        }
+        let pni_len: i32 = pipeline_module_func_param_name_len_at(module, fi, pi);
+        let pni: u8[32] = [];
+        pipeline_module_func_param_name_copy32(module, fi, pi, &pni[0]);
+        if (pni_len <= 0) {
+          pni[0] = 120;
+          pni_len = 1;
+        }
+        if (emit_bytes_from_ptr(out, &pni[0], pni_len) != 0) {
+          if (mono_ctx_set != 0) {
+            ctx.mono_active = saved_mono_active;
+            ctx.mono_num_types = saved_mono_num;
+            ctx.current_func_index = saved_func_index;
+            ctx.current_block_ref = saved_block_ref;
+          }
+          return -1;
+        }
+        pi = pi + 1;
+      }
+      } /* num_params > 0 */
+      /* wave445 C4: emit open body `) {\n` (41=`)` 32=space 123=`{` 10=newline). */
+      let open_body: u8[4] = [41, 32, 123, 10];
+      if (emit_bytes_from_ptr(out, &open_body[0], 4) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
+        return -1;
+      }
+      /*
+       * wave445 C4+C5+C6 + wave447: walk the real body AST under mono_active.
+       * Identity-shape fallback `return <param0>;` only when is_identity_shape
+       * (ret and param0 are the same TYPE_NAMED generic). Non-identity shapes
+       * must succeed at body walk or host C would type-mismatch on fallback.
+       * PLATFORM: SHARED — mono context lives in PipelineDepCtx (L4 ABI extension).
+       */
+      let body_walked: i32 = 0;
+      let body_br: i32 = pipeline_module_func_body_ref_at(module, fi);
+      let body_er: i32 = pipeline_module_func_body_expr_ref_at(module, fi);
+      if (mono_ctx_set != 0 && (!ast.ref_is_null(body_br) || !ast.ref_is_null(body_er))) {
+        if (!ast.ref_is_null(body_br)) {
+          ctx.current_block_ref = body_br;
+          if (emit_block(arena, out, body_br, 2, ctx) == 0) {
+            body_walked = 1;
+          }
+        } else {
+          /* single-expr body: emit `  return <expr>;\n`. */
+          ctx.current_block_ref = 0;
+          if (emit_indent(out, 2) == 0) {
+            let ret_kw2: u8[8] = [114, 101, 116, 117, 114, 110, 32, 0];
+            if (emit_bytes_from_ptr(out, &ret_kw2[0], 7) == 0) {
+              if (emit_expr(arena, out, body_er, ctx) == 0) {
+                let sc_nl: u8[2] = [59, 10];
+                if (emit_bytes_from_ptr(out, &sc_nl[0], 2) == 0) {
+                  body_walked = 1;
+                }
+              }
+            }
+          }
+        }
+      }
+      if (body_walked == 0) {
+        if (is_identity_shape != 0) {
+          /* Fallback: identity body `return <param0>;` (wave444 behavior). */
+          if (emit_indent(out, 2) != 0) {
+            if (mono_ctx_set != 0) {
+              ctx.mono_active = saved_mono_active;
+              ctx.mono_num_types = saved_mono_num;
+              ctx.current_func_index = saved_func_index;
+              ctx.current_block_ref = saved_block_ref;
+            }
+            return -1;
+          }
+          let ret_kw: u8[8] = [114, 101, 116, 117, 114, 110, 32, 0];
+          if (emit_bytes_from_ptr(out, &ret_kw[0], 7) != 0) {
+            if (mono_ctx_set != 0) {
+              ctx.mono_active = saved_mono_active;
+              ctx.mono_num_types = saved_mono_num;
+              ctx.current_func_index = saved_func_index;
+              ctx.current_block_ref = saved_block_ref;
+            }
+            return -1;
+          }
+          if (emit_bytes_from_ptr(out, &pn[0], pn_len) != 0) {
+            if (mono_ctx_set != 0) {
+              ctx.mono_active = saved_mono_active;
+              ctx.mono_num_types = saved_mono_num;
+              ctx.current_func_index = saved_func_index;
+              ctx.current_block_ref = saved_block_ref;
+            }
+            return -1;
+          }
+          let semi_nl: u8[2] = [59, 10];
+          if (emit_bytes_from_ptr(out, &semi_nl[0], 2) != 0) {
+            if (mono_ctx_set != 0) {
+              ctx.mono_active = saved_mono_active;
+              ctx.mono_num_types = saved_mono_num;
+              ctx.current_func_index = saved_func_index;
+              ctx.current_block_ref = saved_block_ref;
+            }
+            return -1;
+          }
+        } else {
+          /*
+           * Non-identity body walk failed: still close a stub that returns zero
+           * for scalar C types so the mangled symbol exists (avoids BLD001). Prefer
+           * real body; this path is defensive when emit_block fails unexpectedly.
+           * PLATFORM: SHARED — host-C only stub; freestanding residual separate.
+           */
+          if (emit_indent(out, 2) != 0) {
+            if (mono_ctx_set != 0) {
+              ctx.mono_active = saved_mono_active;
+              ctx.mono_num_types = saved_mono_num;
+              ctx.current_func_index = saved_func_index;
+              ctx.current_block_ref = saved_block_ref;
+            }
+            return -1;
+          }
+          let ret0: u8[12] = [114, 101, 116, 117, 114, 110, 32, 48, 59, 10, 0, 0];
+          if (emit_bytes_from_ptr(out, &ret0[0], 10) != 0) {
+            if (mono_ctx_set != 0) {
+              ctx.mono_active = saved_mono_active;
+              ctx.mono_num_types = saved_mono_num;
+              ctx.current_func_index = saved_func_index;
+              ctx.current_block_ref = saved_block_ref;
+            }
+            return -1;
+          }
+        }
+      }
+      if (mono_ctx_set != 0) {
+        ctx.mono_active = saved_mono_active;
+        ctx.mono_num_types = saved_mono_num;
+        ctx.current_func_index = saved_func_index;
+        ctx.current_block_ref = saved_block_ref;
+      }
+      /* Close function body: `}\n` (125=`}` 10=newline). */
+      let end: u8[2] = [125, 10];
+      if (emit_bytes_from_ptr(out, &end[0], 2) != 0) {
+        return -1;
+      }
+      ci = ci + 1;
     }
-    if (codegen_emit_func_link_name(out, arena, module, fi) != 0) {
-      return -1;
+    return 1;
+  }
+}
+
+/*
+ * wave498: multi-combo generic inherent impl method codegen monomorphization.
+ * Why: hoisted impl methods (num_generic_params == 0, <T> on impl not fn) bypass
+ * codegen_try_emit_generic_identity_mono. wave495 handled the unique-combo case
+ * (nc==1) by setting mono_active in emit_func, but multi-combo (nc>1) still emits
+ * a single generic definition with bare `struct T` return type (BLD001). Collect
+ * all mono combos from the first free-type-arg param (usually self), then emit
+ * one monomorphized definition per combo with a mangled symbol name, matching
+ * call-side mangling. Mirrors the loop structure of codegen_try_emit_generic_
+ * identity_mono but uses struct-layout combos instead of func-generic combos.
+ * PLATFORM: SHARED — seed codegen_gen.linux.x86_64.c same commit.
+ * Guards: only activates when num_generic_params==0 AND a param has free type-args
+ * AND combo_count>1. All other cases return 0 and fall through to normal emit_func
+ * (wave495 unique-combo path or plain emit).
+ */
+export function codegen_try_emit_generic_impl_method_mono(arena: *ASTArena, out: *CodegenOutBuf, module: *Module, fi: i32, prefix: *u8, prefix_len: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || module == 0 as *Module) {
+      return 0;
     }
-    if (append_byte(out, 40) != 0) {
-      return -1;
+    if (fi < 0 || fi >= module.num_funcs) {
+      return 0;
     }
-    if (emit_type(arena, out, mono_ty, prefix, prefix_len, ctx) != 0) {
-      return -1;
+    if (pipeline_module_func_num_generic_params_at(module, fi) > 0) {
+      return 0;
     }
-    if (append_byte(out, 32) != 0) {
-      return -1;
+    if (pipeline_module_func_is_extern_at(module, fi) != 0) {
+      return 0;
     }
-    if (emit_bytes_from_ptr(out, &pn[0], pn_len) != 0) {
-      return -1;
+    let num_params: i32 = pipeline_module_func_num_params_at(module, fi);
+    if (num_params < 0 || num_params > 8) {
+      return 0;
     }
-    let open_body: u8[4] = [41, 32, 123, 10];
-    if (emit_bytes_from_ptr(out, &open_body[0], 4) != 0) {
-      return -1;
+    let ret_ty: i32 = pipeline_module_func_return_type_at(module, fi);
+    if (ret_ty <= 0) {
+      return 0;
     }
-    if (emit_indent(out, 2) != 0) {
-      return -1;
+    /* Find first param with free type-args on a generic struct (usually self). */
+    let p: i32 = 0;
+    let found_lk: i32 = -1;
+    let found_pty: i32 = 0;
+    let found_ntp: i32 = 0;
+    let found_nm: u8[64] = [];
+    let found_bare_off: i32 = 0;
+    let found_bare_len: i32 = 0;
+    while (p < num_params) {
+      let pty_raw: i32 = pipeline_module_func_param_type_ref_at(module, fi, p);
+      if (pty_raw <= 0) {
+        p = p + 1;
+        continue;
+      }
+      let pty: i32 = pipeline_typeck_resolve_type_alias_ref_c(arena, pty_raw);
+      if (pty <= 0) {
+        p = p + 1;
+        continue;
+      }
+      if (pipeline_type_kind_ord_at(arena, pty) != (TypeKind.TYPE_NAMED as i32)) {
+        p = p + 1;
+        continue;
+      }
+      let nm: u8[64] = [];
+      let nl: i32 = pipeline_type_named_name_into(arena, pty, &nm[0]);
+      if (nl <= 0) {
+        p = p + 1;
+        continue;
+      }
+      let bare_off: i32 = 0;
+      let bi: i32 = 0;
+      while (bi < nl && bi < 64) {
+        if (nm[bi] == 46) {
+          bare_off = bi + 1;
+        }
+        bi = bi + 1;
+      }
+      let bare_len: i32 = nl - bare_off;
+      if (bare_len <= 0) {
+        p = p + 1;
+        continue;
+      }
+      let lk: i32 = codegen_module_struct_layout_index_by_name(module, &nm[bare_off], bare_len);
+      if (lk < 0) {
+        p = p + 1;
+        continue;
+      }
+      let ntp: i32 = pipeline_module_struct_layout_num_type_params_at(module, lk);
+      if (ntp <= 0) {
+        p = p + 1;
+        continue;
+      }
+      /* Skip if param is already concrete (e.g. Wrap<i32>); fill_concrete succeeds. */
+      let mono_chk: i32[4] = [];
+      if (codegen_generic_struct_fill_concrete_args(module, arena, pty, ntp, &mono_chk[0], 0 as *PipelineDepCtx) == ntp) {
+        p = p + 1;
+        continue;
+      }
+      /* Has free type-args — this is our target param. */
+      found_lk = lk;
+      found_pty = pty;
+      found_ntp = ntp;
+      let cp_i: i32 = 0;
+      while (cp_i < nl && cp_i < 64) {
+        found_nm[cp_i] = nm[cp_i];
+        cp_i = cp_i + 1;
+      }
+      found_bare_off = bare_off;
+      found_bare_len = bare_len;
+      p = num_params;
     }
-    let ret_kw: u8[8] = [114, 101, 116, 117, 114, 110, 32, 0];
-    if (emit_bytes_from_ptr(out, &ret_kw[0], 7) != 0) {
-      return -1;
+    if (found_lk < 0) {
+      return 0;
     }
-    if (emit_bytes_from_ptr(out, &pn[0], pn_len) != 0) {
-      return -1;
+    /* Collect all unique mono combos for this struct layout. */
+    let combos: i32[32] = [];
+    let nc: i32 = codegen_collect_generic_struct_mono_combos(module, arena, found_lk, &found_nm[found_bare_off], found_bare_len, found_ntp, &combos[0], 8);
+    if (nc <= 1) {
+      return 0;
     }
-    let end: u8[3] = [59, 10, 125];
-    if (emit_bytes_from_ptr(out, &end[0], 3) != 0) {
-      return -1;
+    let fn_local: u8[64] = [];
+    codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
+    let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
+    let mono_sym_pre: i32 = codegen_func_c_symbol_prefix_len(module, fi, prefix_len);
+    /* One mono instance per unique combo; mangled symbol agrees with call-side. */
+    let ci: i32 = 0;
+    while (ci < nc) {
+      /* Activate mono substitution for this combo. */
+      let saved_mono_active: i32 = 0;
+      let saved_mono_num: i32 = 0;
+      let saved_func_index: i32 = -1;
+      let saved_block_ref: i32 = 0;
+      let mono_ctx_set: i32 = 0;
+      if (ctx != 0 as *PipelineDepCtx) {
+        saved_mono_active = ctx.mono_active;
+        saved_mono_num = ctx.mono_num_types;
+        saved_func_index = ctx.current_func_index;
+        saved_block_ref = ctx.current_block_ref;
+        ctx.mono_active = 1;
+        ctx.mono_num_types = 0;
+        /* Map each formal type-arg → combo concrete. */
+        let tj: i32 = 0;
+        while (tj < found_ntp && tj < 8) {
+          let formal_arg: i32 = pipeline_type_type_arg_ref_at(arena, found_pty, tj);
+          let concrete_arg: i32 = combos[ci * found_ntp + tj];
+          if (formal_arg > 0 && concrete_arg > 0) {
+            ctx.mono_generic_type_refs[ctx.mono_num_types] = formal_arg;
+            ctx.mono_concrete_type_refs[ctx.mono_num_types] = concrete_arg;
+            ctx.mono_num_types = ctx.mono_num_types + 1;
+          }
+          tj = tj + 1;
+        }
+        ctx.current_func_index = fi;
+        mono_ctx_set = 1;
+      }
+      /* Return type under mono_active. */
+      if (emit_type(arena, out, ret_ty, prefix, prefix_len, ctx) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
+        return -1;
+      }
+      if (append_byte(out, 32) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
+        return -1;
+      }
+      if (mono_sym_pre > 0
+          && codegen_c_prefix_redundant_with_name(prefix, mono_sym_pre, &fn_local[0], fn_len) == 0) {
+        if (emit_bytes_from_ptr(out, prefix, mono_sym_pre) != 0) {
+          if (mono_ctx_set != 0) {
+            ctx.mono_active = saved_mono_active;
+            ctx.mono_num_types = saved_mono_num;
+            ctx.current_func_index = saved_func_index;
+            ctx.current_block_ref = saved_block_ref;
+          }
+          return -1;
+        }
+      }
+      /* Mangled mono symbol: link_name + __ + suffix per combo slot. */
+      if (codegen_emit_mono_mangled_name(out, arena, module, fi, &combos[ci * found_ntp], found_ntp) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
+        return -1;
+      }
+      if (append_byte(out, 40) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
+        return -1;
+      }
+      /* Emit all params under mono_active. */
+      let pi: i32 = 0;
+      while (pi < num_params) {
+        if (pi > 0) {
+          let cs: u8[2] = [44, 32];
+          if (emit_bytes_from_ptr(out, &cs[0], 2) != 0) {
+            if (mono_ctx_set != 0) {
+              ctx.mono_active = saved_mono_active;
+              ctx.mono_num_types = saved_mono_num;
+              ctx.current_func_index = saved_func_index;
+              ctx.current_block_ref = saved_block_ref;
+            }
+            return -1;
+          }
+        }
+        let p_ty: i32 = pipeline_module_func_param_type_ref_at(module, fi, pi);
+        if (emit_type(arena, out, p_ty, prefix, prefix_len, ctx) != 0) {
+          if (mono_ctx_set != 0) {
+            ctx.mono_active = saved_mono_active;
+            ctx.mono_num_types = saved_mono_num;
+            ctx.current_func_index = saved_func_index;
+            ctx.current_block_ref = saved_block_ref;
+          }
+          return -1;
+        }
+        if (append_byte(out, 32) != 0) {
+          if (mono_ctx_set != 0) {
+            ctx.mono_active = saved_mono_active;
+            ctx.mono_num_types = saved_mono_num;
+            ctx.current_func_index = saved_func_index;
+            ctx.current_block_ref = saved_block_ref;
+          }
+          return -1;
+        }
+        let pname: u8[32] = [];
+        let plen: i32 = pipeline_module_func_param_name_len_at(module, fi, pi);
+        pipeline_module_func_param_name_copy32(module, fi, pi, &pname[0]);
+        if (plen <= 0) {
+          pname[0] = 95;
+          plen = 1;
+        }
+        if (emit_bytes_from_ptr(out, &pname[0], plen) != 0) {
+          if (mono_ctx_set != 0) {
+            ctx.mono_active = saved_mono_active;
+            ctx.mono_num_types = saved_mono_num;
+            ctx.current_func_index = saved_func_index;
+            ctx.current_block_ref = saved_block_ref;
+          }
+          return -1;
+        }
+        pi = pi + 1;
+      }
+      /* `) {\n` */
+      let open_body: u8[4] = [41, 32, 123, 10];
+      if (emit_bytes_from_ptr(out, &open_body[0], 4) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
+        return -1;
+      }
+      /* Emit function body (block or expr). */
+      let body_walked: i32 = 0;
+      let body_br: i32 = pipeline_module_func_body_ref_at(module, fi);
+      let body_er: i32 = pipeline_module_func_body_expr_ref_at(module, fi);
+      if (!ast.ref_is_null(body_br) || !ast.ref_is_null(body_er)) {
+        if (!ast.ref_is_null(body_br)) {
+          if (mono_ctx_set != 0) {
+            ctx.current_block_ref = body_br;
+          }
+          if (emit_block(arena, out, body_br, 2, ctx) == 0) {
+            body_walked = 1;
+          }
+        } else {
+          if (mono_ctx_set != 0) {
+            ctx.current_block_ref = 0;
+          }
+          if (emit_indent(out, 2) == 0) {
+            let ret_kw: u8[8] = [114, 101, 116, 117, 114, 110, 32, 0];
+            if (emit_bytes_from_ptr(out, &ret_kw[0], 7) == 0) {
+              if (emit_expr(arena, out, body_er, ctx) == 0) {
+                let sc_nl: u8[2] = [59, 10];
+                if (emit_bytes_from_ptr(out, &sc_nl[0], 2) == 0) {
+                  body_walked = 1;
+                }
+              }
+            }
+          }
+        }
+      }
+      if (body_walked == 0) {
+        if (emit_indent(out, 2) != 0) {
+          if (mono_ctx_set != 0) {
+            ctx.mono_active = saved_mono_active;
+            ctx.mono_num_types = saved_mono_num;
+            ctx.current_func_index = saved_func_index;
+            ctx.current_block_ref = saved_block_ref;
+          }
+          return -1;
+        }
+        let ret0: u8[10] = [114, 101, 116, 117, 114, 110, 32, 48, 59, 10];
+        if (emit_bytes_from_ptr(out, &ret0[0], 10) != 0) {
+          if (mono_ctx_set != 0) {
+            ctx.mono_active = saved_mono_active;
+            ctx.mono_num_types = saved_mono_num;
+            ctx.current_func_index = saved_func_index;
+            ctx.current_block_ref = saved_block_ref;
+          }
+          return -1;
+        }
+      }
+      if (mono_ctx_set != 0) {
+        ctx.mono_active = saved_mono_active;
+        ctx.mono_num_types = saved_mono_num;
+        ctx.current_func_index = saved_func_index;
+        ctx.current_block_ref = saved_block_ref;
+      }
+      let end: u8[2] = [125, 10];
+      if (emit_bytes_from_ptr(out, &end[0], 2) != 0) {
+        return -1;
+      }
+      ci = ci + 1;
     }
-    if (append_byte(out, 10) != 0) {
-      return -1;
+    return 1;
+  }
+}
+
+/*
+ * wave498: multi-combo generic inherent impl method extern declaration monomorphization.
+ * Why: hoisted impl methods (num_generic_params == 0, <T> on impl not fn) need
+ * forward-declared extern prototypes for each mono combo with mangled symbols,
+ * matching the definitions emitted by codegen_try_emit_generic_impl_method_mono.
+ * Without this, co-emitted TUs calling later generic impl methods get implicit
+ * declaration warnings or wrong types (struct T instead of concrete).
+ * PLATFORM: SHARED — seed codegen_gen.linux.x86_64.c same commit.
+ * Guards: only activates when num_generic_params==0 AND a param has free type-args
+ * AND combo_count>1. All other cases return 0 and fall through to normal
+ * emit_func_extern_declaration (wave495 unique-combo path or plain emit).
+ * @return i32 — 1 if handled (all combos emitted), 0 skip, -1 emit error
+ */
+function codegen_try_emit_generic_impl_method_extern_mono(arena: *ASTArena, out: *CodegenOutBuf, module: *Module, fi: i32, prefix: *u8, prefix_len: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || module == 0 as *Module) {
+      return 0;
+    }
+    if (fi < 0 || fi >= module.num_funcs) {
+      return 0;
+    }
+    if (pipeline_module_func_num_generic_params_at(module, fi) > 0) {
+      return 0;
+    }
+    let num_params: i32 = pipeline_module_func_num_params_at(module, fi);
+    if (num_params < 0 || num_params > 8) {
+      return 0;
+    }
+    let ret_ty: i32 = pipeline_module_func_return_type_at(module, fi);
+    if (ret_ty <= 0) {
+      return 0;
+    }
+    /* Find first param with free type-args on a generic struct (usually self). */
+    let p: i32 = 0;
+    let found_lk: i32 = -1;
+    let found_pty: i32 = 0;
+    let found_ntp: i32 = 0;
+    let found_nm: u8[64] = [];
+    let found_bare_off: i32 = 0;
+    let found_bare_len: i32 = 0;
+    while (p < num_params) {
+      let pty_raw: i32 = pipeline_module_func_param_type_ref_at(module, fi, p);
+      if (pty_raw <= 0) {
+        p = p + 1;
+        continue;
+      }
+      let pty: i32 = pipeline_typeck_resolve_type_alias_ref_c(arena, pty_raw);
+      if (pty <= 0) {
+        p = p + 1;
+        continue;
+      }
+      if (pipeline_type_kind_ord_at(arena, pty) != (TypeKind.TYPE_NAMED as i32)) {
+        p = p + 1;
+        continue;
+      }
+      let nm: u8[64] = [];
+      let nl: i32 = pipeline_type_named_name_into(arena, pty, &nm[0]);
+      if (nl <= 0) {
+        p = p + 1;
+        continue;
+      }
+      let bare_off: i32 = 0;
+      let bi: i32 = 0;
+      while (bi < nl && bi < 64) {
+        if (nm[bi] == 46) {
+          bare_off = bi + 1;
+        }
+        bi = bi + 1;
+      }
+      let bare_len: i32 = nl - bare_off;
+      if (bare_len <= 0) {
+        p = p + 1;
+        continue;
+      }
+      let lk: i32 = codegen_module_struct_layout_index_by_name(module, &nm[bare_off], bare_len);
+      if (lk < 0) {
+        p = p + 1;
+        continue;
+      }
+      let ntp: i32 = pipeline_module_struct_layout_num_type_params_at(module, lk);
+      if (ntp <= 0) {
+        p = p + 1;
+        continue;
+      }
+      /* Skip if param is already concrete (e.g. Wrap<i32>); fill_concrete succeeds. */
+      let mono_chk: i32[4] = [];
+      if (codegen_generic_struct_fill_concrete_args(module, arena, pty, ntp, &mono_chk[0], 0 as *PipelineDepCtx) == ntp) {
+        p = p + 1;
+        continue;
+      }
+      /* Has free type-args — this is our target param. */
+      found_lk = lk;
+      found_pty = pty;
+      found_ntp = ntp;
+      let cp_i: i32 = 0;
+      while (cp_i < nl && cp_i < 64) {
+        found_nm[cp_i] = nm[cp_i];
+        cp_i = cp_i + 1;
+      }
+      found_bare_off = bare_off;
+      found_bare_len = bare_len;
+      p = num_params;
+    }
+    if (found_lk < 0) {
+      return 0;
+    }
+    /* Collect all unique mono combos for this struct layout. */
+    let combos: i32[32] = [];
+    let nc: i32 = codegen_collect_generic_struct_mono_combos(module, arena, found_lk, &found_nm[found_bare_off], found_bare_len, found_ntp, &combos[0], 8);
+    if (nc <= 1) {
+      return 0;
+    }
+    let fn_local: u8[64] = [];
+    codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
+    let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
+    let mono_sym_pre: i32 = codegen_func_c_symbol_prefix_len(module, fi, prefix_len);
+    /* One extern declaration per unique combo; mangled symbol agrees with definition side. */
+    let ci: i32 = 0;
+    while (ci < nc) {
+      /* Activate mono substitution for this combo. */
+      let saved_mono_active: i32 = 0;
+      let saved_mono_num: i32 = 0;
+      let saved_func_index: i32 = -1;
+      let saved_block_ref: i32 = 0;
+      let mono_ctx_set: i32 = 0;
+      if (ctx != 0 as *PipelineDepCtx) {
+        saved_mono_active = ctx.mono_active;
+        saved_mono_num = ctx.mono_num_types;
+        saved_func_index = ctx.current_func_index;
+        saved_block_ref = ctx.current_block_ref;
+        ctx.mono_active = 1;
+        ctx.mono_num_types = 0;
+        /* Map each formal type-arg → combo concrete. */
+        let tj: i32 = 0;
+        while (tj < found_ntp && tj < 8) {
+          let formal_arg: i32 = pipeline_type_type_arg_ref_at(arena, found_pty, tj);
+          let concrete_arg: i32 = combos[ci * found_ntp + tj];
+          if (formal_arg > 0 && concrete_arg > 0) {
+            ctx.mono_generic_type_refs[ctx.mono_num_types] = formal_arg;
+            ctx.mono_concrete_type_refs[ctx.mono_num_types] = concrete_arg;
+            ctx.mono_num_types = ctx.mono_num_types + 1;
+          }
+          tj = tj + 1;
+        }
+        ctx.current_func_index = fi;
+        mono_ctx_set = 1;
+      }
+      /* "extern " */
+      let kw: u8[8] = [101, 120, 116, 101, 114, 110, 32, 0];
+      if (emit_bytes_from_ptr(out, &kw[0], 7) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
+        return -1;
+      }
+      /* Return type under mono_active. */
+      if (emit_type(arena, out, ret_ty, prefix, prefix_len, ctx) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
+        return -1;
+      }
+      if (append_byte(out, 32) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
+        return -1;
+      }
+      if (mono_sym_pre > 0
+          && codegen_c_prefix_redundant_with_name(prefix, mono_sym_pre, &fn_local[0], fn_len) == 0) {
+        if (emit_bytes_from_ptr(out, prefix, mono_sym_pre) != 0) {
+          if (mono_ctx_set != 0) {
+            ctx.mono_active = saved_mono_active;
+            ctx.mono_num_types = saved_mono_num;
+            ctx.current_func_index = saved_func_index;
+            ctx.current_block_ref = saved_block_ref;
+          }
+          return -1;
+        }
+      }
+      /* Mangled mono symbol: link_name + __ + suffix per combo slot. */
+      if (codegen_emit_mono_mangled_name(out, arena, module, fi, &combos[ci * found_ntp], found_ntp) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
+        return -1;
+      }
+      if (append_byte(out, 40) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
+        return -1;
+      }
+      /* Emit all params under mono_active. */
+      let pi: i32 = 0;
+      while (pi < num_params) {
+        if (pi > 0) {
+          let cs: u8[2] = [44, 32];
+          if (emit_bytes_from_ptr(out, &cs[0], 2) != 0) {
+            if (mono_ctx_set != 0) {
+              ctx.mono_active = saved_mono_active;
+              ctx.mono_num_types = saved_mono_num;
+              ctx.current_func_index = saved_func_index;
+              ctx.current_block_ref = saved_block_ref;
+            }
+            return -1;
+          }
+        }
+        let p_ty: i32 = pipeline_module_func_param_type_ref_at(module, fi, pi);
+        if (emit_type(arena, out, p_ty, prefix, prefix_len, ctx) != 0) {
+          if (mono_ctx_set != 0) {
+            ctx.mono_active = saved_mono_active;
+            ctx.mono_num_types = saved_mono_num;
+            ctx.current_func_index = saved_func_index;
+            ctx.current_block_ref = saved_block_ref;
+          }
+          return -1;
+        }
+        /* PLATFORM: SHARED — TYPE_SLICE params as pointers (mirror emit_func_extern_declaration). */
+        if (pipeline_type_kind_ord_at(arena, p_ty) == (TypeKind.TYPE_SLICE as i32)) {
+          if (append_byte(out, 32) != 0) {
+            if (mono_ctx_set != 0) {
+              ctx.mono_active = saved_mono_active;
+              ctx.mono_num_types = saved_mono_num;
+              ctx.current_func_index = saved_func_index;
+              ctx.current_block_ref = saved_block_ref;
+            }
+            return -1;
+          }
+          if (append_byte(out, 42) != 0) {
+            if (mono_ctx_set != 0) {
+              ctx.mono_active = saved_mono_active;
+              ctx.mono_num_types = saved_mono_num;
+              ctx.current_func_index = saved_func_index;
+              ctx.current_block_ref = saved_block_ref;
+            }
+            return -1;
+          }
+        }
+        if (append_byte(out, 32) != 0) {
+          if (mono_ctx_set != 0) {
+            ctx.mono_active = saved_mono_active;
+            ctx.mono_num_types = saved_mono_num;
+            ctx.current_func_index = saved_func_index;
+            ctx.current_block_ref = saved_block_ref;
+          }
+          return -1;
+        }
+        let pname: u8[32] = [];
+        let plen: i32 = pipeline_module_func_param_name_len_at(module, fi, pi);
+        pipeline_module_func_param_name_copy32(module, fi, pi, &pname[0]);
+        if (plen <= 0) {
+          pname[0] = 95;
+          plen = 1;
+        }
+        if (emit_bytes_from_ptr(out, &pname[0], plen) != 0) {
+          if (mono_ctx_set != 0) {
+            ctx.mono_active = saved_mono_active;
+            ctx.mono_num_types = saved_mono_num;
+            ctx.current_func_index = saved_func_index;
+            ctx.current_block_ref = saved_block_ref;
+          }
+          return -1;
+        }
+        pi = pi + 1;
+      }
+      /* ");\n" */
+      let end_proto: u8[3] = [41, 59, 10];
+      if (emit_bytes_from_ptr(out, &end_proto[0], 3) != 0) {
+        if (mono_ctx_set != 0) {
+          ctx.mono_active = saved_mono_active;
+          ctx.mono_num_types = saved_mono_num;
+          ctx.current_func_index = saved_func_index;
+          ctx.current_block_ref = saved_block_ref;
+        }
+        return -1;
+      }
+      if (mono_ctx_set != 0) {
+        ctx.mono_active = saved_mono_active;
+        ctx.mono_num_types = saved_mono_num;
+        ctx.current_func_index = saved_func_index;
+        ctx.current_block_ref = saved_block_ref;
+      }
+      ci = ci + 1;
     }
     return 1;
   }
@@ -10536,6 +17709,21 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
     }
     /* See implementation. */
     if (pipeline_module_func_num_generic_params_at(module, fi) > 0) {
+      return 0;
+    }
+    /*
+     * wave498: multi-combo generic inherent impl method extern declaration.
+     * Why: hoisted impl methods (num_generic_params == 0, <T> on impl not fn)
+     * with multi-combo (nc>1) need one extern declaration per combo with
+     * mangled symbol. Return 1 means handled; fall through to normal path
+     * for unique-combo / plain functions.
+     * PLATFORM: SHARED — seed codegen_gen.linux.x86_64.c same commit.
+     */
+    let w498_ext_rc: i32 = codegen_try_emit_generic_impl_method_extern_mono(arena, out, module, fi, prefix, prefix_len, ctx);
+    if (w498_ext_rc < 0) {
+      return -1;
+    }
+    if (w498_ext_rc > 0) {
       return 0;
     }
     let fn_local: u8[64] = [];
@@ -10569,6 +17757,39 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
     if (pipeline_module_func_is_interrupt_at(module, fi) != 0) {
       let int_attr: u8[31] = [95, 95, 97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 105, 110, 116, 101, 114, 114, 117, 112, 116, 41, 41, 32, 0, 0, 0, 0];
       if (emit_bytes_from_ptr(out, &int_attr[0], 27) != 0) { return -1; }
+    }
+    /*
+     * wave495: generic inherent impl method extern declaration monomorphization.
+     * Why: the extern forward declaration `extern <ret> name(<params>);` is emitted
+     * separately from the function definition. Without mono_active, the return type T
+     * emits as `struct T` (incomplete BLD001) here while the definition (emit_func)
+     * correctly emits `int32_t`. Build the same T→concrete map from params and set
+     * mono_active so emit_type substitutes T in the return type. Mirrors emit_func.
+     * PLATFORM: SHARED — seed codegen_gen.linux.x86_64.c same commit.
+     * Guards: only set when w495_n > 0 (unique combo found); non-generic functions
+     * and multi-combo cases skip this entirely (no behavior change). Restore on
+     * success return; error paths abort.
+     */
+    let w495_mono_set: i32 = 0;
+    let w495_saved_active: i32 = 0;
+    let w495_saved_num: i32 = 0;
+    if (ctx != 0 as *PipelineDepCtx) {
+      let w495_gen: i32[8] = [];
+      let w495_conc: i32[8] = [];
+      let w495_n: i32 = codegen_build_func_param_mono_map(module, arena, fi, &w495_gen[0], &w495_conc[0], 8);
+      if (w495_n > 0) {
+        w495_saved_active = ctx.mono_active;
+        w495_saved_num = ctx.mono_num_types;
+        let w495_k: i32 = 0;
+        while (w495_k < w495_n && w495_k < 8) {
+          ctx.mono_generic_type_refs[w495_k] = w495_gen[w495_k];
+          ctx.mono_concrete_type_refs[w495_k] = w495_conc[w495_k];
+          w495_k = w495_k + 1;
+        }
+        ctx.mono_active = 1;
+        ctx.mono_num_types = w495_n;
+        w495_mono_set = 1;
+      }
     }
     if (emit_type(arena, out, pipeline_module_func_return_type_at(module, fi), prefix, prefix_len, ctx) != 0) {
       return -1;
@@ -10699,6 +17920,11 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
     let end_proto: u8[3] = [41, 59, 10];
     if (emit_bytes_from_ptr(out, &end_proto[0], 3) != 0) {
       return -1;
+    }
+    /* wave495: restore mono_active on success return. */
+    if (w495_mono_set != 0) {
+      ctx.mono_active = w495_saved_active;
+      ctx.mono_num_types = w495_saved_num;
     }
     return 0;
   }
@@ -11288,6 +18514,23 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
         i = i + 1;
         continue;
       }
+      /*
+       * wave498: multi-combo generic inherent impl method codegen monomorphization.
+       * Why: hoisted impl methods (num_generic_params == 0, <T> on impl not fn) bypass
+       * codegen_try_emit_generic_identity_mono. For multi-combo (nc>1) cases, emit one
+       * monomorphized definition per combo with mangled symbol; return 1 means handled.
+       * PLATFORM: SHARED — seed codegen_gen.linux.x86_64.c same commit.
+       * Guards: returns 0 for non-qualifying funcs (nc<=1, no free type-args, etc.),
+       * so fall through to normal emit_func path for unique-combo / plain funcs.
+       */
+      let w498_mono_rc: i32 = codegen_try_emit_generic_impl_method_mono(arena, out, module, i, &prefix_buf[0], prefix_len, ctx);
+      if (w498_mono_rc < 0) {
+        return -1;
+      }
+      if (w498_mono_rc > 0) {
+        i = i + 1;
+        continue;
+      }
       /* See implementation. */
       if (pipeline_module_func_is_extern_at(module, i) != 0) {
         if (emit_func_extern_declaration(arena, out, module, i, &prefix_buf[0], prefix_len, ctx) != 0) {
@@ -11395,6 +18638,10 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
           skip_dep = driver_get_current_dep_path_for_codegen();
         }
         skip = codegen_should_skip_emit_func(skip_dep, 0 as *u8, 0, &skip_name[0], skip_nl);
+      }
+      /* wave377: same-module redef first-wins (host C dual body → redefinition). */
+      if (skip == 0 && asm_backend == 0) {
+        skip = codegen_should_skip_later_same_name_body(module, i);
       }
       if (skip != 0) {
         i = i + 1;

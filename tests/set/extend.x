@@ -13,7 +13,7 @@ function main(): i32 {
   if (set.insert(&su, 2000 as u64) != 0) { return 3; }
   // See implementation.
   if (set.insert(&su, 1000 as u64) != 0) { return 4; }
-  if (set.len(su) != 2) { return 5; }
+  if (set.length(su) != 2) { return 5; }
   if (set.contains_key(su, 1000 as u64) != 1) { return 6; }
   if (set.contains_key(su, 3000 as u64) != 0) { return 7; }
   if (set.remove(&su, 2000 as u64) != 1) { return 8; }

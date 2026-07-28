@@ -78,7 +78,7 @@ function main(): i32 {
     bytes.deinit(&out);
     return 12;
   }
-  if (bytes.len(out) != 3) {
+  if (bytes.length(out) != 3) {
     bytes.deinit(&b);
     bytes.deinit(&out);
     return 13;

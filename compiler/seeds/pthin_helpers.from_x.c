@@ -38,7 +38,7 @@ struct parser_asm_lexer_result {
 
 struct parser_asm_slice_u8 {
   uint8_t *data;
-  size_t length;
+  size_t len;
 };
 
 extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex,

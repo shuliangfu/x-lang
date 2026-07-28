@@ -12,6 +12,15 @@
 #include <xlang_weak.h>
 #include "diag.h"
 
+/* wave246 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED — product ast_pool residual raw getenv call sites migrate to this face
+ * (DEBUG_PIPE / ASM_DEBUG / TRACE / WPO / emit-heavy / bootstrap-emit gates; same G.7
+ * pattern as wave240 pipeline_glue). Textually #include'd into pipeline_glue /
+ * pipeline_glue_standalone; redeclaration is compatible with glue's wave240 extern.
+ */
+extern char *link_abi_getenv(const char *name);
+
 #ifndef AST_POOL_GROW
 #define AST_POOL_GROW 4096
 #endif
@@ -90,6 +99,21 @@ typedef struct {
   /** DOD-CL：字段最小对齐（align(N)）；0 表示仅按类型自然对齐。 */
   int32_t field_align;
 } StructLayoutFieldEntry;
+
+/**
+ * wave467: struct layout type-param name (`struct Pair<T, U>`).
+ * Sidecar only — no StructLayout ABI churn. PLATFORM: SHARED.
+ */
+typedef struct {
+  uint8_t name[64];
+  int32_t name_len;
+} LayoutTypeParamEntry;
+
+/** Meta per layout idx: base into struct_layout_type_params, count of params. */
+typedef struct {
+  int32_t base;  /* -1 = unset */
+  int32_t count;
+} LayoutTypeParamMeta;
 
 /** 顶层 let/const 槽。 */
 typedef struct {
@@ -229,6 +253,26 @@ typedef struct {
   GrowVec stmt_order;
   /** Expr 变长附属：call/method 实参、match 臂、struct lit 字段、array lit 元素 */
   GrowVec expr_call_arg_refs;
+  /**
+   * wave452: CALL turbofish type-arg type_refs (flat pool).
+   * Base per expr is in expr_call_type_arg_bases[expr_ref] (sidecar only —
+   * avoids Expr layout / SHARED ABI churn). count remains Expr.call_num_type_args.
+   * PLATFORM: SHARED — G.7 single authority with pipeline_expr_call_type_arg_* APIs.
+   */
+  GrowVec expr_call_type_arg_refs;
+  /** Index by expr_ref; value is base into expr_call_type_arg_refs, or -1 if unset. */
+  GrowVec expr_call_type_arg_bases;
+  /**
+   * wave467: TYPE_NAMED type-position args `Name<T,U>` (flat pool).
+   * Base per type_ref in type_type_arg_bases; count remains Type.array_size for NAMED.
+   * Slot0 also mirrored in Type.elem_type_ref (wave466 single-arg compat).
+   * PLATFORM: SHARED — G.7 single authority with pipeline_type_type_arg_* APIs.
+   */
+  GrowVec type_type_arg_refs;
+  /** Index by type_ref; value is base into type_type_arg_refs, or -1 if unset. */
+  GrowVec type_type_arg_bases;
+  /** Index by type_ref; number of type-pos args appended (wave467). */
+  GrowVec type_type_arg_counts;
   GrowVec expr_method_call_arg_refs;
   GrowVec expr_match_arms;
   GrowVec expr_struct_lit_fields;
@@ -251,6 +295,12 @@ typedef struct {
   GrowVec import_select_name_lens;
   GrowVec func_params;
   GrowVec struct_layout_fields;
+  /**
+   * wave467: layout type-param names (flat) + per-layout meta (base/count).
+   * PLATFORM: SHARED — G.7 with pipeline_module_struct_layout_*_type_param_* APIs.
+   */
+  GrowVec struct_layout_type_params;
+  GrowVec struct_layout_type_param_meta;
 } ModuleSidecar;
 
 /** M-3：OneFunc 侧车 region 条目。 */
@@ -261,6 +311,21 @@ typedef struct {
   /** MEM-C1：>0 表示 with_arena(cap)；LANG-007：-1 表示 unsafe { body }。 */
   int32_t with_arena_cap_ref;
 } OneFuncRegionEntry;
+
+/**
+ * wave379: OneFunc scratch entry for `goto target;` / `label:` / `label: return expr`.
+ * Mirrors `struct ast_LabeledStmt` (label 32B + is_goto + goto_target 32B + return_expr_ref).
+ * PLATFORM: SHARED — filled into Block.labeled_stmts via fill_labeled_from_onefunc;
+ * stmt_order kind=7 indexes this pool (G.7 single authority with parse_block path).
+ */
+typedef struct {
+  uint8_t label[32];
+  int32_t label_len;
+  int32_t is_goto;
+  uint8_t goto_target[32];
+  int32_t goto_target_len;
+  int32_t return_expr_ref;
+} OneFuncLabeledEntry;
 
 /** parse_one_function_impl 的 scratch 池，按 OneFuncResult* 键控。 */
 typedef struct {
@@ -297,6 +362,8 @@ typedef struct {
   GrowVec regions;
   /** MEM-B0：defer { body } 暂存（parse_one_function_impl → Block 池）。 */
   GrowVec defer_body_refs;
+  /** wave379: goto/label labeled_stmts scratch → Block pool (stmt_order kind=7). */
+  GrowVec labeleds;
 } OneFuncSidecar;
 
 /** PipelineDepCtx 侧车：dep 槽与 -L lib_root 动态 grow（ctx 指针作键）。 */
@@ -480,6 +547,16 @@ static ArenaSidecar *arena_sidecar_get(struct ast_ASTArena *a, int create) {
         return NULL;
       if (!grow_vec_init(&g_arena_sc[i].expr_call_arg_refs, sizeof(int32_t), AST_POOL_INIT_CAP))
         return NULL;
+      if (!grow_vec_init(&g_arena_sc[i].expr_call_type_arg_refs, sizeof(int32_t), AST_POOL_INIT_CAP))
+        return NULL;
+      if (!grow_vec_init(&g_arena_sc[i].expr_call_type_arg_bases, sizeof(int32_t), AST_POOL_INIT_CAP))
+        return NULL;
+      if (!grow_vec_init(&g_arena_sc[i].type_type_arg_refs, sizeof(int32_t), AST_POOL_INIT_CAP))
+        return NULL;
+      if (!grow_vec_init(&g_arena_sc[i].type_type_arg_bases, sizeof(int32_t), AST_POOL_INIT_CAP))
+        return NULL;
+      if (!grow_vec_init(&g_arena_sc[i].type_type_arg_counts, sizeof(int32_t), AST_POOL_INIT_CAP))
+        return NULL;
       if (!grow_vec_init(&g_arena_sc[i].expr_method_call_arg_refs, sizeof(int32_t), AST_POOL_INIT_CAP))
         return NULL;
       if (!grow_vec_init(&g_arena_sc[i].expr_match_arms, sizeof(MatchArmEntry), AST_POOL_INIT_CAP))
@@ -531,6 +608,12 @@ static ModuleSidecar *module_sidecar_get(struct ast_Module *m, int create) {
       if (!grow_vec_init(&g_module_sc[i].func_params, sizeof(FuncParamEntry), AST_POOL_INIT_CAP))
         return NULL;
       if (!grow_vec_init(&g_module_sc[i].struct_layout_fields, sizeof(StructLayoutFieldEntry), AST_POOL_INIT_CAP))
+        return NULL;
+      if (!grow_vec_init(&g_module_sc[i].struct_layout_type_params, sizeof(LayoutTypeParamEntry),
+                         AST_POOL_INIT_CAP))
+        return NULL;
+      if (!grow_vec_init(&g_module_sc[i].struct_layout_type_param_meta, sizeof(LayoutTypeParamMeta),
+                         AST_POOL_INIT_CAP))
         return NULL;
       return &g_module_sc[i];
     }
@@ -608,6 +691,9 @@ static OneFuncSidecar *onefunc_sidecar_get(uint8_t *out, int create) {
         return NULL;
       if (!grow_vec_init(&g_onefunc_sc[i].defer_body_refs, sizeof(int32_t), AST_POOL_INIT_CAP))
         return NULL;
+      /* wave379: goto/label OneFunc scratch (stmt_order kind=7). PLATFORM: SHARED. */
+      if (!grow_vec_init(&g_onefunc_sc[i].labeleds, sizeof(OneFuncLabeledEntry), AST_POOL_INIT_CAP))
+        return NULL;
       return &g_onefunc_sc[i];
     }
   }
@@ -645,6 +731,7 @@ static void onefunc_sidecar_free(OneFuncSidecar *sc) {
   grow_vec_free(&sc->call_arg_vals);
   grow_vec_free(&sc->regions);
   grow_vec_free(&sc->defer_body_refs);
+  grow_vec_free(&sc->labeleds);
   memset(sc, 0, sizeof(*sc));
 }
 
@@ -691,6 +778,11 @@ static void arena_sidecar_free(ArenaSidecar *sc) {
   grow_vec_free(&sc->expr_stmt_refs);
   grow_vec_free(&sc->stmt_order);
   grow_vec_free(&sc->expr_call_arg_refs);
+  grow_vec_free(&sc->expr_call_type_arg_refs);
+  grow_vec_free(&sc->expr_call_type_arg_bases);
+  grow_vec_free(&sc->type_type_arg_refs);
+  grow_vec_free(&sc->type_type_arg_bases);
+  grow_vec_free(&sc->type_type_arg_counts);
   grow_vec_free(&sc->expr_method_call_arg_refs);
   grow_vec_free(&sc->expr_match_arms);
   grow_vec_free(&sc->expr_struct_lit_fields);
@@ -725,6 +817,8 @@ static void module_sidecar_free(ModuleSidecar *sc) {
   grow_vec_free(&sc->import_select_name_lens);
   grow_vec_free(&sc->func_params);
   grow_vec_free(&sc->struct_layout_fields);
+  grow_vec_free(&sc->struct_layout_type_params);
+  grow_vec_free(&sc->struct_layout_type_param_meta);
   memset(sc, 0, sizeof(*sc));
 }
 
@@ -870,9 +964,9 @@ struct ast_Expr pipeline_arena_expr_get_copy(struct ast_ASTArena *a, int32_t ref
 
 void pipeline_arena_expr_set_copy(struct ast_ASTArena *a, int32_t ref, struct ast_Expr e) {
   struct ast_Expr *ep = pipeline_arena_expr_ptr(a, ref);
-  const char *trace_expr = getenv("XLANG_TRACE_EXPR_SET");
-  const char *trace_name = getenv("XLANG_TRACE_EXPR_NAME");
-  const char *trace_type = getenv("XLANG_TRACE_TYPE_REF");
+  const char *trace_expr = link_abi_getenv("XLANG_TRACE_EXPR_SET");
+  const char *trace_name = link_abi_getenv("XLANG_TRACE_EXPR_NAME");
+  const char *trace_type = link_abi_getenv("XLANG_TRACE_TYPE_REF");
   int trace_hit = 0;
   if (trace_expr && *trace_expr && atoi(trace_expr) == ref)
     trace_hit = 1;
@@ -948,7 +1042,7 @@ struct ast_Block pipeline_arena_block_get_copy(struct ast_ASTArena *a, int32_t r
 
 void pipeline_arena_block_set_copy(struct ast_ASTArena *a, int32_t ref, struct ast_Block b) {
   struct ast_Block *bp = pipeline_arena_block_ptr(a, ref);
-  const char *dbg_block_set = getenv("XLANG_DEBUG_BLOCK_SET");
+  const char *dbg_block_set = link_abi_getenv("XLANG_DEBUG_BLOCK_SET");
   if (bp) {
     if (dbg_block_set && dbg_block_set[0] && atoi(dbg_block_set) == ref) {
       diag_reportf(NULL, 0, 0, "note", NULL,
@@ -1159,6 +1253,8 @@ void ast_pool_module_reset(struct ast_Module *m) {
   sc->import_select_name_lens.len = 0;
   sc->func_params.len = 0;
   sc->struct_layout_fields.len = 0;
+  sc->struct_layout_type_params.len = 0;
+  sc->struct_layout_type_param_meta.len = 0;
 }
 
 /**
@@ -1186,6 +1282,11 @@ void ast_pool_arena_reset(struct ast_ASTArena *a) {
   sc->expr_stmt_refs.len = 0;
   sc->stmt_order.len = 0;
   sc->expr_call_arg_refs.len = 0;
+  sc->expr_call_type_arg_refs.len = 0;
+  sc->expr_call_type_arg_bases.len = 0;
+  sc->type_type_arg_refs.len = 0;
+  sc->type_type_arg_bases.len = 0;
+  sc->type_type_arg_counts.len = 0;
   sc->expr_method_call_arg_refs.len = 0;
   sc->expr_match_arms.len = 0;
   sc->expr_struct_lit_fields.len = 0;
@@ -1284,6 +1385,7 @@ void ast_pool_onefunc_reset(uint8_t *out) {
   sc->call_arg_vals.len = 0;
   sc->regions.len = 0;
   sc->defer_body_refs.len = 0;
+  sc->labeleds.len = 0;
 }
 
 void ast_pool_onefunc_release(uint8_t *out) {
@@ -1516,7 +1618,7 @@ int32_t pipeline_visibility_mode(void) {
   const char *e;
   if (cached >= 0)
     return cached;
-  e = getenv("XLANG_VISIBILITY");
+  e = link_abi_getenv("XLANG_VISIBILITY");
   if (!e || !e[0] || strcmp(e, "strict") == 0)
     cached = 0; /* compat: parser doesn't set is_export yet; revert to 2 when fixed */
   else if (strcmp(e, "warn") == 0)
@@ -1591,7 +1693,7 @@ void pipeline_lint_set_source_buf(const uint8_t *data, int32_t len) {
 }
 
 static int pipeline_unused_private_enabled(void) {
-  const char *e = getenv("XLANG_UNUSED_PRIVATE");
+  const char *e = link_abi_getenv("XLANG_UNUSED_PRIVATE");
   if (e && e[0]) {
     if (e[0] == '0' && e[1] == '\0')
       return 0;
@@ -1811,7 +1913,7 @@ void pipeline_module_func_set_num_generic_params(struct ast_Module *m, int32_t f
   struct ast_Func *f = module_func_at(m, fi);
   if (f && n >= 0)
     f->num_generic_params = n;
-  if (f && getenv("XLANG_DEBUG_FUNC_GENERIC_SLOT")) {
+  if (f && link_abi_getenv("XLANG_DEBUG_FUNC_GENERIC_SLOT")) {
     fprintf(stderr, "xlang: [XLANG_DEBUG_FUNC_GENERIC_SLOT] set fi=%d n=%d name=%.*s\n",
             (int)fi, (int)f->num_generic_params, (int)(f->name_len > 0 ? f->name_len : 0), (const char *)f->name);
     fflush(stderr);
@@ -1833,7 +1935,7 @@ int32_t pipeline_module_func_num_generic_params_at(struct ast_Module *m, int32_t
   f = module_func_at(m, func_index);
   if (!f)
     return 0;
-  if (getenv("XLANG_DEBUG_FUNC_GENERIC_SLOT")) {
+  if (link_abi_getenv("XLANG_DEBUG_FUNC_GENERIC_SLOT")) {
     fprintf(stderr, "xlang: [XLANG_DEBUG_FUNC_GENERIC_SLOT] get fi=%d n=%d name=%.*s\n",
             (int)func_index, (int)f->num_generic_params, (int)(f->name_len > 0 ? f->name_len : 0),
             (const char *)f->name);
@@ -2175,7 +2277,7 @@ int32_t pipeline_block_append_let(struct ast_ASTArena *a, int32_t br, uint8_t *n
   const char *dbg_append_block;
   if (!a || !(sc = arena_sidecar_get(a, 1)) || !(b = block_at(a, br)))
     return -1;
-  dbg_append_block = getenv("XLANG_DEBUG_APPEND_BLOCK");
+  dbg_append_block = link_abi_getenv("XLANG_DEBUG_APPEND_BLOCK");
   idx = block_pool_append_pos(a, br, &sc->lets, offsetof(struct ast_Block, let_base), b->num_lets);
   if (idx < 0)
     return -1;
@@ -2505,7 +2607,7 @@ int32_t pipeline_block_append_while(struct ast_ASTArena *a, int32_t br, int32_t 
   memset(wl, 0, sizeof(*wl));
   wl->cond_ref = cond_ref;
   wl->body_ref = body_ref;
-  if (getenv("XLANG_ASM_DEBUG"))
+  if (link_abi_getenv("XLANG_ASM_DEBUG"))
     fprintf(stderr, "xlang: append_while br=%d cond=%d body=%d wi=%d\n", (int)br, (int)cond_ref, (int)body_ref,
             (int)(idx - b->loop_base));
   b->num_loops++;
@@ -2616,6 +2718,155 @@ int32_t pipeline_block_labeled_return_expr_ref(struct ast_ASTArena *a, int32_t b
   return ls ? (int32_t)ls->return_expr_ref : 0;
 }
 
+/** wave379: count of labeled stmts in block (stmt_order kind=7). PLATFORM: SHARED. */
+int32_t pipeline_block_num_labeled_stmts(struct ast_ASTArena *a, int32_t br) {
+  struct ast_Block *b;
+  if (!a || !(b = block_at(a, br)))
+    return 0;
+  return b->num_labeled_stmts;
+}
+
+/**
+ * wave379: is_goto flag for labeled stmt li (1 = bare `goto target;`, 0 = label def / labeled return).
+ * PLATFORM: SHARED — host-C emit stmt_order kind=7.
+ */
+int32_t pipeline_block_labeled_is_goto(struct ast_ASTArena *a, int32_t br, int32_t li) {
+  struct ast_LabeledStmt *ls = pipeline_block_labeled_ptr(a, br, li);
+  return ls ? ls->is_goto : 0;
+}
+
+/** wave379: label name length for `L:` definition (0 when bare goto has empty label). */
+int32_t pipeline_block_labeled_label_len(struct ast_ASTArena *a, int32_t br, int32_t li) {
+  struct ast_LabeledStmt *ls = pipeline_block_labeled_ptr(a, br, li);
+  return ls ? ls->label_len : 0;
+}
+
+/** wave379: copy label name into dst[32] (NUL-padded). */
+void pipeline_block_labeled_label_copy32(struct ast_ASTArena *a, int32_t br, int32_t li, uint8_t *dst) {
+  struct ast_LabeledStmt *ls;
+  if (!dst)
+    return;
+  memset(dst, 0, 32);
+  ls = pipeline_block_labeled_ptr(a, br, li);
+  if (!ls || ls->label_len <= 0)
+    return;
+  {
+    int32_t n = ls->label_len;
+    if (n > 31)
+      n = 31;
+    memcpy(dst, ls->label, (size_t)n);
+  }
+}
+
+/** wave379: goto target name length for `goto T;`. */
+int32_t pipeline_block_labeled_goto_target_len(struct ast_ASTArena *a, int32_t br, int32_t li) {
+  struct ast_LabeledStmt *ls = pipeline_block_labeled_ptr(a, br, li);
+  return ls ? ls->goto_target_len : 0;
+}
+
+/** wave379: copy goto target into dst[32] (NUL-padded). */
+void pipeline_block_labeled_goto_target_copy32(struct ast_ASTArena *a, int32_t br, int32_t li, uint8_t *dst) {
+  struct ast_LabeledStmt *ls;
+  if (!dst)
+    return;
+  memset(dst, 0, 32);
+  ls = pipeline_block_labeled_ptr(a, br, li);
+  if (!ls || ls->goto_target_len <= 0)
+    return;
+  {
+    int32_t n = ls->goto_target_len;
+    if (n > 31)
+      n = 31;
+    memcpy(dst, ls->goto_target, (size_t)n);
+  }
+}
+
+/**
+ * wave379: append labeled entry to OneFunc scratch (goto / label / labeled return).
+ * @return index in onefunc labeled pool, or -1 on failure
+ * PLATFORM: SHARED — G.7 authority with pipeline_block_append_labeled.
+ */
+int32_t pipeline_onefunc_append_labeled(uint8_t *out, uint8_t *label, int32_t label_len, int32_t is_goto,
+                                        uint8_t *goto_target, int32_t goto_target_len, int32_t return_expr_ref) {
+  OneFuncSidecar *sc;
+  OneFuncLabeledEntry *le;
+  if (!out || !(sc = onefunc_sidecar_get(out, 1)))
+    return -1;
+  if (grow_vec_push(&sc->labeleds) < 0)
+    return -1;
+  le = (OneFuncLabeledEntry *)grow_vec_at(&sc->labeleds, sc->labeleds.len - 1);
+  if (!le)
+    return -1;
+  memset(le, 0, sizeof(*le));
+  le->is_goto = is_goto;
+  le->return_expr_ref = return_expr_ref;
+  if (label && label_len > 0) {
+    if (label_len > 31)
+      label_len = 31;
+    memcpy(le->label, label, (size_t)label_len);
+    le->label_len = label_len;
+  }
+  if (goto_target && goto_target_len > 0) {
+    if (goto_target_len > 31)
+      goto_target_len = 31;
+    memcpy(le->goto_target, goto_target, (size_t)goto_target_len);
+    le->goto_target_len = goto_target_len;
+  }
+  return sc->labeleds.len - 1;
+}
+
+int32_t pipeline_onefunc_num_labeleds(uint8_t *out) {
+  OneFuncSidecar *sc = onefunc_sidecar_get(out, 0);
+  return sc ? sc->labeleds.len : 0;
+}
+
+/**
+ * wave379: flush OneFunc labeled pool into Block.labeled_stmts (preserves names).
+ * Resets block num_labeled_stmts first (same pattern as fill_ifs_from_onefunc).
+ * Names are written via labeled_ptr (append only stores lengths).
+ * PLATFORM: SHARED.
+ */
+void pipeline_block_fill_labeled_from_onefunc(struct ast_ASTArena *a, int32_t br, uint8_t *out, int32_t count) {
+  OneFuncSidecar *sc;
+  OneFuncLabeledEntry *le;
+  struct ast_Block *b;
+  struct ast_LabeledStmt *ls;
+  int32_t i;
+  int32_t li;
+  if (!a || !out || !(sc = onefunc_sidecar_get(out, 0)))
+    return;
+  if (br > 0 && (b = block_at(a, br)))
+    b->num_labeled_stmts = 0;
+  for (i = 0; i < count && i < sc->labeleds.len; i++) {
+    le = (OneFuncLabeledEntry *)grow_vec_at(&sc->labeleds, i);
+    if (!le)
+      continue;
+    li = pipeline_block_append_labeled(a, br, le->label_len, le->is_goto, le->goto_target_len,
+                                       le->return_expr_ref);
+    if (li < 0)
+      continue;
+    ls = pipeline_block_labeled_ptr(a, br, li);
+    if (!ls)
+      continue;
+    if (le->label_len > 0) {
+      int32_t n = le->label_len;
+      if (n > 31)
+        n = 31;
+      memcpy(ls->label, le->label, (size_t)n);
+      ls->label[n] = 0;
+      ls->label_len = n;
+    }
+    if (le->goto_target_len > 0) {
+      int32_t n = le->goto_target_len;
+      if (n > 31)
+        n = 31;
+      memcpy(ls->goto_target, le->goto_target, (size_t)n);
+      ls->goto_target[n] = 0;
+      ls->goto_target_len = n;
+    }
+  }
+}
+
 int32_t pipeline_block_const_init_ref(struct ast_ASTArena *a, int32_t br, int32_t ci) {
   struct ast_ConstDecl *cd = block_const_at(a, br, ci);
   return cd ? (int32_t)cd->init_ref : 0;
@@ -2659,6 +2910,20 @@ int32_t pipeline_block_set_let_type_ref(struct ast_ASTArena *a, int32_t br, int3
   if (!ld)
     return -1;
   ld->type_ref = type_ref;
+  return 0;
+}
+
+/**
+ * wave423 Cap residual pure: stamp block const type after inference from init.
+ * Used when parser left type_ref=0 for `const name = init` (docs/06 type-optional).
+ * G.7 twin of pipeline_block_set_let_type_ref; typeck_check_block_one_const calls this.
+ * PLATFORM: SHARED typeck/AST.
+ */
+int32_t pipeline_block_set_const_type_ref(struct ast_ASTArena *a, int32_t br, int32_t ci, int32_t type_ref) {
+  struct ast_ConstDecl *cd = block_const_at(a, br, ci);
+  if (!cd)
+    return -1;
+  cd->type_ref = type_ref;
   return 0;
 }
 
@@ -3427,10 +3692,21 @@ int32_t pipeline_module_struct_layout_alloc(struct ast_Module *m) {
 
 void pipeline_module_struct_layout_reset_slot(struct ast_Module *m, int32_t idx) {
   struct ast_StructLayout *sl = module_layout_at(m, idx);
+  ModuleSidecar *sc;
+  LayoutTypeParamMeta *meta;
   if (!sl)
     return;
   memset(sl, 0, sizeof(*sl));
   sl->field_base = -1;
+  /* wave467: clear type-param meta for this layout slot (pool entries may leak until module reset). */
+  sc = module_sidecar_get(m, 0);
+  if (sc && idx >= 0 && (size_t)idx < sc->struct_layout_type_param_meta.len) {
+    meta = (LayoutTypeParamMeta *)grow_vec_at(&sc->struct_layout_type_param_meta, idx);
+    if (meta) {
+      meta->base = -1;
+      meta->count = 0;
+    }
+  }
 }
 
 void pipeline_module_struct_layout_set_name(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len) {
@@ -3508,6 +3784,127 @@ int32_t pipeline_module_struct_layout_field_name_len(struct ast_Module *m, int32
     return 0;
   fl = fe->name_len;
   return (fl > 0 && fl <= 63) ? fl : 0;
+}
+
+/**
+ * wave467: ensure layout type-param meta cell for layout idx.
+ * PLATFORM: SHARED.
+ */
+static LayoutTypeParamMeta *layout_type_param_meta_at(struct ast_Module *m, int32_t idx, int create) {
+  ModuleSidecar *sc;
+  LayoutTypeParamMeta *meta;
+  if (!m || idx < 0)
+    return NULL;
+  sc = module_sidecar_get(m, create ? 1 : 0);
+  if (!sc)
+    return NULL;
+  if (!create && (size_t)idx >= sc->struct_layout_type_param_meta.len)
+    return NULL;
+  while ((size_t)idx >= sc->struct_layout_type_param_meta.len) {
+    int32_t pi = grow_vec_push(&sc->struct_layout_type_param_meta);
+    if (pi < 0)
+      return NULL;
+    meta = (LayoutTypeParamMeta *)grow_vec_at(&sc->struct_layout_type_param_meta, pi);
+    if (!meta)
+      return NULL;
+    meta->base = -1;
+    meta->count = 0;
+  }
+  return (LayoutTypeParamMeta *)grow_vec_at(&sc->struct_layout_type_param_meta, idx);
+}
+
+/**
+ * wave467: append type-param name for `struct Name<T, U>`.
+ * @return 0 success, -1 failure. PLATFORM: SHARED
+ */
+int32_t pipeline_module_struct_layout_append_type_param(struct ast_Module *m, int32_t li, uint8_t *name,
+                                                       int32_t name_len) {
+  ModuleSidecar *sc;
+  LayoutTypeParamMeta *meta;
+  LayoutTypeParamEntry *ent;
+  int32_t abs;
+  if (!m || li < 0 || !name || name_len <= 0 || name_len > 63)
+    return -1;
+  sc = module_sidecar_get(m, 1);
+  if (!sc)
+    return -1;
+  meta = layout_type_param_meta_at(m, li, 1);
+  if (!meta)
+    return -1;
+  if (meta->base < 0) {
+    meta->base = (int32_t)sc->struct_layout_type_params.len;
+    meta->count = 0;
+  }
+  abs = meta->base + meta->count;
+  while (sc->struct_layout_type_params.len <= (size_t)abs) {
+    int32_t pi = grow_vec_push(&sc->struct_layout_type_params);
+    if (pi < 0)
+      return -1;
+    ent = (LayoutTypeParamEntry *)grow_vec_at(&sc->struct_layout_type_params, pi);
+    if (ent) {
+      memset(ent, 0, sizeof(*ent));
+    }
+  }
+  ent = (LayoutTypeParamEntry *)grow_vec_at(&sc->struct_layout_type_params, abs);
+  if (!ent)
+    return -1;
+  memset(ent, 0, sizeof(*ent));
+  ent->name_len = name_len;
+  memcpy(ent->name, name, (size_t)name_len);
+  meta->count = meta->count + 1;
+  return 0;
+}
+
+/** wave467: number of type params on layout, or 0. PLATFORM: SHARED */
+int32_t pipeline_module_struct_layout_num_type_params_at(struct ast_Module *m, int32_t li) {
+  LayoutTypeParamMeta *meta = layout_type_param_meta_at(m, li, 0);
+  return meta ? meta->count : 0;
+}
+
+/** wave467: type-param name length at index. PLATFORM: SHARED */
+int32_t pipeline_module_struct_layout_type_param_name_len(struct ast_Module *m, int32_t li, int32_t j) {
+  ModuleSidecar *sc;
+  LayoutTypeParamMeta *meta;
+  LayoutTypeParamEntry *ent;
+  int32_t abs;
+  if (!m || li < 0 || j < 0)
+    return 0;
+  sc = module_sidecar_get(m, 0);
+  meta = layout_type_param_meta_at(m, li, 0);
+  if (!sc || !meta || j >= meta->count || meta->base < 0)
+    return 0;
+  abs = meta->base + j;
+  if (abs < 0 || (size_t)abs >= sc->struct_layout_type_params.len)
+    return 0;
+  ent = (LayoutTypeParamEntry *)grow_vec_at(&sc->struct_layout_type_params, abs);
+  if (!ent)
+    return 0;
+  return (ent->name_len > 0 && ent->name_len <= 63) ? ent->name_len : 0;
+}
+
+/** wave467: copy type-param name into out64. PLATFORM: SHARED */
+void pipeline_module_struct_layout_type_param_name_into(struct ast_Module *m, int32_t li, int32_t j,
+                                                       uint8_t *out64) {
+  ModuleSidecar *sc;
+  LayoutTypeParamMeta *meta;
+  LayoutTypeParamEntry *ent;
+  int32_t abs;
+  if (!out64)
+    return;
+  memset(out64, 0, 64);
+  if (!m || li < 0 || j < 0)
+    return;
+  sc = module_sidecar_get(m, 0);
+  meta = layout_type_param_meta_at(m, li, 0);
+  if (!sc || !meta || j >= meta->count || meta->base < 0)
+    return;
+  abs = meta->base + j;
+  if (abs < 0 || (size_t)abs >= sc->struct_layout_type_params.len)
+    return;
+  ent = (LayoutTypeParamEntry *)grow_vec_at(&sc->struct_layout_type_params, abs);
+  if (!ent || ent->name_len <= 0)
+    return;
+  memcpy(out64, ent->name, 64);
 }
 
 void pipeline_module_struct_layout_field_name_into(struct ast_Module *m, int32_t li, int32_t j, uint8_t *out64) {
@@ -3698,6 +4095,21 @@ int32_t pipeline_module_top_level_let_type_ref(struct ast_Module *m, int32_t idx
   return tl ? tl->type_ref : 0;
 }
 
+/**
+ * wave423: stamp top-level const type_ref after inference from init.
+ * G.7 authority for module sidecar; typeck pre-pass uses this.
+ * PLATFORM: SHARED typeck/AST.
+ */
+void pipeline_module_top_level_let_set_type_ref(struct ast_Module *m, int32_t idx, int32_t type_ref) {
+  ModuleSidecar *sc = module_sidecar_get(m, 0);
+  TopLevelLetEntry *tl;
+  if (!sc || idx < 0 || idx >= sc->top_level_lets.len)
+    return;
+  tl = (TopLevelLetEntry *)grow_vec_at(&sc->top_level_lets, idx);
+  if (tl)
+    tl->type_ref = type_ref;
+}
+
 int32_t pipeline_module_top_level_let_init_ref(struct ast_Module *m, int32_t idx) {
   ModuleSidecar *sc = module_sidecar_get(m, 0);
   TopLevelLetEntry *tl;
@@ -3766,7 +4178,7 @@ void pipeline_module_type_alias_set(struct ast_Module *m, int32_t idx, uint8_t *
     ta->name[i] = 0;
   ta->name_len = name_len;
   ta->target_type_ref = target_type_ref;
-  if (getenv("XLANG_DEBUG_PIPE") != NULL) {
+  if (link_abi_getenv("XLANG_DEBUG_PIPE") != NULL) {
     fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] type_alias_set idx=%d len=%d target=%d\n", (int)idx, (int)name_len,
             (int)target_type_ref);
   }
@@ -3972,14 +4384,14 @@ void pipeline_block_with_arena_fixup_stmt_order(struct ast_ASTArena *a, int32_t 
     }
   }
   if (wa_ri < 0 || inner <= 0 || inner == br) {
-    if (getenv("XLANG_ASM_DEBUG") && b->num_regions > 0)
+    if (link_abi_getenv("XLANG_ASM_DEBUG") && b->num_regions > 0)
       fprintf(stderr, "xlang: wa_fixup skip br=%d wa_ri=%d inner=%d nso=%d\n", (int)br, (int)wa_ri, (int)inner,
               (int)b->num_stmt_order);
     return;
   }
   for (i = 0; i < b->num_stmt_order; i++) {
     if (pipeline_block_stmt_order_kind(a, br, i) == 6) {
-      if (getenv("XLANG_ASM_DEBUG")) {
+      if (link_abi_getenv("XLANG_ASM_DEBUG")) {
         struct ast_Block *ib = inner > 0 ? block_at(a, inner) : NULL;
         fprintf(stderr, "xlang: wa_fixup ok br=%d inner=%d in_nso=%d in_nif=%d\n", (int)br, (int)inner,
                 ib ? (int)ib->num_stmt_order : -1, ib ? (int)ib->num_if_stmts : -1);
@@ -3987,7 +4399,7 @@ void pipeline_block_with_arena_fixup_stmt_order(struct ast_ASTArena *a, int32_t 
       return;
     }
   }
-  if (getenv("XLANG_ASM_DEBUG"))
+  if (link_abi_getenv("XLANG_ASM_DEBUG"))
     fprintf(stderr, "xlang: wa_fixup apply br=%d wa_ri=%d inner=%d old_nso=%d\n", (int)br, (int)wa_ri, (int)inner,
             (int)b->num_stmt_order);
   abs = b->stmt_order_base;
@@ -4068,7 +4480,7 @@ void pipeline_block_stmt_order_rebuild_sparse_ifs(struct ast_ASTArena *a, int32_
     if (so)
       *so = neu[i];
   }
-  if (getenv("XLANG_ASM_DEBUG"))
+  if (link_abi_getenv("XLANG_ASM_DEBUG"))
     fprintf(stderr, "xlang: if_rebuild br=%d nif=%d old_if_in_order=%d new_nso=%d\n", (int)br, (int)nif, (int)if_in_order,
             (int)nn);
 }
@@ -4085,7 +4497,7 @@ void pipeline_module_fixup_with_arena_stmt_orders(struct ast_Module *m, struct a
     if (br <= 0)
       continue;
     b = block_at(a, br);
-    if (getenv("XLANG_ASM_DEBUG") && b && b->num_regions > 0)
+    if (link_abi_getenv("XLANG_ASM_DEBUG") && b && b->num_regions > 0)
       fprintf(stderr, "xlang: wa_fixup scan fi=%d br=%d nreg=%d nso=%d\n", (int)fi, (int)br, (int)b->num_regions,
               (int)b->num_stmt_order);
     pipeline_block_with_arena_fixup_stmt_order(a, br);
@@ -4122,7 +4534,7 @@ void pipeline_module_hoist_top_level_lets_into_main(struct ast_Module *m, struct
   struct ast_Block *main_blk;
   if (!m || !a || m->num_top_level_lets <= 0)
     return;
-  dbg_hoist = getenv("XLANG_DEBUG_TOPLEVEL_HOIST");
+  dbg_hoist = link_abi_getenv("XLANG_DEBUG_TOPLEVEL_HOIST");
   mi = m->main_func_index;
   if (mi < 0) {
     /* 库模块 -o .o 无 main：并入首个可 emit 的非 extern 函数体（与 C static 全局等价）。 */
@@ -4283,7 +4695,7 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_c(struct ast_Module *m, struct a
   pipeline_asm_emit_set_dep_pipe(pipeline_ctx);
   pipeline_fill_array_lit_types_for_skipped_typeck(m, a);
   pipeline_fill_soa_field_access_for_asm_emit(m, a);
-  if (getenv("XLANG_ASM_DEBUG"))
+  if (link_abi_getenv("XLANG_ASM_DEBUG"))
     fprintf(stderr, "xlang: backend_asm_codegen fill done, calling mega_body_c\n");
   glue_wpo_mono_reset_pending();
   /** dep+entry 顺序写入同一 elf_ctx：为 tail_join/loop 等局部标签分配唯一 scope。 */
@@ -4292,7 +4704,7 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_c(struct ast_Module *m, struct a
   pipeline_asm_emit_set_module(m);
   pipeline_asm_emit_set_arena(a);
   pipeline_asm_emit_set_elf_ctx(elf_ctx);
-  if (getenv("XLANG_ASM_DEBUG") && m && asm_module_is_parser_emit_heavy(m))
+  if (link_abi_getenv("XLANG_ASM_DEBUG") && m && asm_module_is_parser_emit_heavy(m))
     fprintf(stderr, "xlang: seed_mega parser nfunc=%d elf_ctx=%p code_len=%d\n", (int)m->num_funcs, (void *)elf_ctx,
             elf_ctx ? (int)elf_ctx->code_len : -1);
   rc = pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(m, a, elf_ctx, pipeline_ctx);
@@ -4968,6 +5380,8 @@ void pipeline_onefunc_copy_sidecar(uint8_t *dst, uint8_t *src) {
   grow_vec_copy_append(&dsc->param_name_lens, &ssc->param_name_lens);
   grow_vec_copy_append(&dsc->param_type_refs, &ssc->param_type_refs);
   grow_vec_copy_append(&dsc->call_arg_vals, &ssc->call_arg_vals);
+  /* wave379: labeleds (goto/label) must follow const/let/stmt_order in copy. */
+  grow_vec_copy_append(&dsc->labeleds, &ssc->labeleds);
 }
 
 /** 将第 i 条 const 名拷入 64 字节缓冲（不足补 0）。 */
@@ -5128,7 +5542,7 @@ void pipeline_block_fill_whiles_from_onefunc(struct ast_ASTArena *a, int32_t br,
   for (i = 0; i < count; i++) {
     int32_t cond_ref = pipeline_onefunc_while_cond_ref(out, i);
     int32_t body_ref = pipeline_onefunc_while_body_ref(out, i);
-    if (getenv("XLANG_ASM_DEBUG"))
+    if (link_abi_getenv("XLANG_ASM_DEBUG"))
       fprintf(stderr, "xlang: fill_while_from_onefunc i=%d cond=%d body=%d\n", (int)i, (int)cond_ref, (int)body_ref);
     pipeline_block_append_while(a, br, cond_ref, body_ref);
   }
@@ -5136,7 +5550,7 @@ void pipeline_block_fill_whiles_from_onefunc(struct ast_ASTArena *a, int32_t br,
 
 void pipeline_block_fill_fors_from_onefunc(struct ast_ASTArena *a, int32_t br, uint8_t *out, int32_t count) {
   int32_t i;
-  if (getenv("XLANG_ASM_DEBUG"))
+  if (link_abi_getenv("XLANG_ASM_DEBUG"))
     fprintf(stderr, "xlang: fill_fors br=%d count=%d\n", (int)br, (int)count);
   for (i = 0; i < count; i++) {
     pipeline_block_append_for(a, br, pipeline_onefunc_for_init_ref(out, i), pipeline_onefunc_for_cond_ref(out, i),
@@ -5331,6 +5745,227 @@ int32_t pipeline_expr_call_num_type_args_at(struct ast_ASTArena *a, int32_t expr
   if (!ex)
     return 0;
   return ex->call_num_type_args;
+}
+
+/**
+ * wave452: ensure expr_call_type_arg_bases has a slot for expr_ref; return pointer to base cell.
+ * Unset base is -1. PLATFORM: SHARED — G.7 with append/get type_arg APIs.
+ */
+static int32_t *expr_call_type_arg_base_cell(struct ast_ASTArena *a, int32_t expr_ref, int create) {
+  ArenaSidecar *sc;
+  int32_t *cell;
+  if (!a || expr_ref <= 0)
+    return NULL;
+  sc = arena_sidecar_get(a, create ? 1 : 0);
+  if (!sc)
+    return NULL;
+  if (!create && (size_t)expr_ref >= sc->expr_call_type_arg_bases.len)
+    return NULL;
+  while ((size_t)expr_ref >= sc->expr_call_type_arg_bases.len) {
+    int32_t idx = grow_vec_push(&sc->expr_call_type_arg_bases);
+    if (idx < 0)
+      return NULL;
+    cell = (int32_t *)grow_vec_at(&sc->expr_call_type_arg_bases, idx);
+    if (!cell)
+      return NULL;
+    *cell = -1;
+  }
+  return (int32_t *)grow_vec_at(&sc->expr_call_type_arg_bases, expr_ref);
+}
+
+/**
+ * wave452: append one turbofish type-arg type_ref to CALL expr.
+ * First append fixes base in sidecar; increments call_num_type_args.
+ * Call after CALL node is created; may reset count if base was unset and count
+ * was only a skip-count from legacy path — caller should set count via appends
+ * or set call_num_type_args then fill slots. Here: append owns the count when
+ * base was -1 (resets count to 0 then increments).
+ *
+ * @return 0 on success, -1 on failure.
+ * PLATFORM: SHARED
+ */
+int32_t pipeline_expr_append_call_type_arg(struct ast_ASTArena *a, int32_t expr_ref, int32_t type_ref) {
+  ArenaSidecar *sc;
+  struct ast_Expr *ex;
+  int32_t *base_cell;
+  int32_t base;
+  int32_t abs;
+  int32_t *slot;
+  if (!a || expr_ref <= 0 || type_ref <= 0)
+    return -1;
+  sc = arena_sidecar_get(a, 1);
+  ex = pipeline_arena_expr_ptr(a, expr_ref);
+  if (!sc || !ex)
+    return -1;
+  base_cell = expr_call_type_arg_base_cell(a, expr_ref, 1);
+  if (!base_cell)
+    return -1;
+  if (*base_cell < 0) {
+    *base_cell = (int32_t)sc->expr_call_type_arg_refs.len;
+    ex->call_num_type_args = 0;
+  }
+  base = *base_cell;
+  abs = base + ex->call_num_type_args;
+  while (sc->expr_call_type_arg_refs.len <= (size_t)abs) {
+    if (grow_vec_push(&sc->expr_call_type_arg_refs) < 0)
+      return -1;
+  }
+  slot = (int32_t *)grow_vec_at(&sc->expr_call_type_arg_refs, abs);
+  if (!slot)
+    return -1;
+  *slot = type_ref;
+  ex->call_num_type_args = ex->call_num_type_args + 1;
+  return 0;
+}
+
+/**
+ * wave452: type_ref of CALL turbofish type arg at index, or 0 if missing.
+ * PLATFORM: SHARED
+ */
+int32_t pipeline_expr_call_type_arg_ref_at(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx) {
+  ArenaSidecar *sc;
+  struct ast_Expr *ex;
+  int32_t *base_cell;
+  int32_t base;
+  int32_t abs;
+  int32_t *slot;
+  if (!a || expr_ref <= 0 || idx < 0)
+    return 0;
+  sc = arena_sidecar_get(a, 0);
+  ex = pipeline_arena_expr_ptr(a, expr_ref);
+  if (!sc || !ex)
+    return 0;
+  if (idx >= ex->call_num_type_args)
+    return 0;
+  base_cell = expr_call_type_arg_base_cell(a, expr_ref, 0);
+  if (!base_cell || *base_cell < 0)
+    return 0;
+  base = *base_cell;
+  abs = base + idx;
+  if (abs < 0 || (size_t)abs >= sc->expr_call_type_arg_refs.len)
+    return 0;
+  slot = (int32_t *)grow_vec_at(&sc->expr_call_type_arg_refs, abs);
+  return slot ? *slot : 0;
+}
+
+/**
+ * wave467: ensure type_type_arg_bases/counts have a slot for type_ref.
+ * PLATFORM: SHARED.
+ */
+static int32_t type_type_arg_ensure_meta(struct ast_ASTArena *a, int32_t type_ref, int create,
+                                        int32_t **out_base, int32_t **out_count) {
+  ArenaSidecar *sc;
+  int32_t *bcell;
+  int32_t *ccell;
+  if (!a || type_ref <= 0)
+    return -1;
+  sc = arena_sidecar_get(a, create ? 1 : 0);
+  if (!sc)
+    return -1;
+  if (!create && ((size_t)type_ref >= sc->type_type_arg_bases.len
+                  || (size_t)type_ref >= sc->type_type_arg_counts.len))
+    return -1;
+  while ((size_t)type_ref >= sc->type_type_arg_bases.len) {
+    int32_t idx = grow_vec_push(&sc->type_type_arg_bases);
+    if (idx < 0)
+      return -1;
+    bcell = (int32_t *)grow_vec_at(&sc->type_type_arg_bases, idx);
+    if (!bcell)
+      return -1;
+    *bcell = -1;
+  }
+  while ((size_t)type_ref >= sc->type_type_arg_counts.len) {
+    int32_t idx = grow_vec_push(&sc->type_type_arg_counts);
+    if (idx < 0)
+      return -1;
+    ccell = (int32_t *)grow_vec_at(&sc->type_type_arg_counts, idx);
+    if (!ccell)
+      return -1;
+    *ccell = 0;
+  }
+  if (out_base)
+    *out_base = (int32_t *)grow_vec_at(&sc->type_type_arg_bases, type_ref);
+  if (out_count)
+    *out_count = (int32_t *)grow_vec_at(&sc->type_type_arg_counts, type_ref);
+  return 0;
+}
+
+/**
+ * wave467: append one type-position type arg to TYPE_NAMED (`Name<T,U>`).
+ * First append fixes base; caller sets Type.array_size = n and elem_type_ref = first.
+ * @return 0 success, -1 failure. PLATFORM: SHARED
+ */
+int32_t pipeline_type_append_type_arg(struct ast_ASTArena *a, int32_t type_ref, int32_t arg_ref) {
+  ArenaSidecar *sc;
+  int32_t *base_cell;
+  int32_t *count_cell;
+  int32_t base;
+  int32_t n;
+  int32_t abs;
+  int32_t *slot;
+  if (!a || type_ref <= 0 || arg_ref <= 0)
+    return -1;
+  sc = arena_sidecar_get(a, 1);
+  if (!sc)
+    return -1;
+  if (type_type_arg_ensure_meta(a, type_ref, 1, &base_cell, &count_cell) != 0)
+    return -1;
+  if (!base_cell || !count_cell)
+    return -1;
+  if (*base_cell < 0) {
+    *base_cell = (int32_t)sc->type_type_arg_refs.len;
+    *count_cell = 0;
+  }
+  base = *base_cell;
+  n = *count_cell;
+  abs = base + n;
+  while (sc->type_type_arg_refs.len <= (size_t)abs) {
+    int32_t pi = grow_vec_push(&sc->type_type_arg_refs);
+    if (pi < 0)
+      return -1;
+    slot = (int32_t *)grow_vec_at(&sc->type_type_arg_refs, pi);
+    if (slot)
+      *slot = 0;
+  }
+  slot = (int32_t *)grow_vec_at(&sc->type_type_arg_refs, abs);
+  if (!slot)
+    return -1;
+  *slot = arg_ref;
+  *count_cell = n + 1;
+  return 0;
+}
+
+/**
+ * wave467: type_ref of TYPE_NAMED type-pos arg at index, or 0 if missing.
+ * Slot0 falls back to Type.elem_type_ref when sidecar empty (wave466).
+ * PLATFORM: SHARED
+ */
+int32_t pipeline_type_type_arg_ref_at(struct ast_ASTArena *a, int32_t type_ref, int32_t idx) {
+  ArenaSidecar *sc;
+  int32_t *base_cell;
+  int32_t *count_cell;
+  int32_t base;
+  int32_t abs;
+  int32_t *slot;
+  if (!a || type_ref <= 0 || idx < 0)
+    return 0;
+  sc = arena_sidecar_get(a, 0);
+  if (!sc)
+    return 0;
+  if (type_type_arg_ensure_meta(a, type_ref, 0, &base_cell, &count_cell) == 0
+      && base_cell && count_cell && *base_cell >= 0 && idx < *count_cell) {
+    base = *base_cell;
+    abs = base + idx;
+    if (abs >= 0 && (size_t)abs < sc->type_type_arg_refs.len) {
+      slot = (int32_t *)grow_vec_at(&sc->type_type_arg_refs, abs);
+      if (slot && *slot > 0)
+        return *slot;
+    }
+  }
+  /* wave466 single-arg: only slot0 lives in elem_type_ref. */
+  if (idx == 0)
+    return pipeline_type_elem_ref_at(a, type_ref);
+  return 0;
 }
 
 int32_t pipeline_expr_append_method_call_arg(struct ast_ASTArena *a, int32_t expr_ref, int32_t arg_ref) {
@@ -6595,7 +7230,7 @@ int32_t pipeline_parse_set_main_from_buf_c(struct ast_Module *module, struct ast
   /* L7 / LSP：锚定 unused private 波浪线到定义处 */
   pipeline_lint_set_source_buf(data, len);
   pipeline_parse_into_with_init_buf_scalars(arena, module, data, len, &ok, &main_idx);
-  if (getenv("XLANG_DEBUG_PIPE"))
+  if (link_abi_getenv("XLANG_DEBUG_PIPE"))
     fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] parse_set_main_from_buf_c ok=%d main_idx=%d num_funcs=%d\n", (int)ok,
             (int)main_idx, (int)pipeline_module_num_funcs(module));
   if (ok != 0) {
@@ -6603,7 +7238,7 @@ int32_t pipeline_parse_set_main_from_buf_c(struct ast_Module *module, struct ast
     return -2;
   }
   pipeline_module_set_main_func_index(module, main_idx);
-  if (getenv("XLANG_DEBUG_PIPE"))
+  if (link_abi_getenv("XLANG_DEBUG_PIPE"))
     fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=%d\n",
             (int)pipeline_module_main_func_index(module));
   return 0;
@@ -6623,7 +7258,7 @@ int32_t pipeline_typeck_parsed_module_c(struct ast_Module *module, struct ast_AS
   /** parse 未产出任何函数时 main_func_index 可能仍为 0（memset）；强制走 library typeck 避免 typeck_x_ast -11。 */
   if (pipeline_module_num_funcs(module) == 0)
     pipeline_module_set_main_func_index(module, -1);
-  if (getenv("XLANG_DEBUG_PIPE"))
+  if (link_abi_getenv("XLANG_DEBUG_PIPE"))
     fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] typeck_parsed_module_c main_idx=%d num_funcs=%d\n",
             (int)pipeline_module_main_func_index(module), (int)pipeline_module_num_funcs(module));
   /* 【Why 根源】产品入口 typeck_parsed_module_c 原先未 set active module，
@@ -6634,7 +7269,7 @@ int32_t pipeline_typeck_parsed_module_c(struct ast_Module *module, struct ast_AS
   if (pipeline_module_main_func_index(module) < 0) {
     int32_t tc_lib = typeck_typeck_x_ast_library(module, arena, ctx);
     if (tc_lib != 0) {
-      if (getenv("XLANG_DEBUG_PIPE"))
+      if (link_abi_getenv("XLANG_DEBUG_PIPE"))
         fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] typeck library rc=%d ctx=%p ndep=%d\n", (int)tc_lib, (void *)ctx,
                 (int)pipeline_dep_ctx_ndep(ctx));
       driver_diagnostic_typeck_fail();
@@ -6717,14 +7352,14 @@ XLANG_WEAK void pipeline_dep_ctx_realign_ndep_for_entry_c(struct ast_Module *mod
     return;
   if (ndep > n_imp) {
     /* Closure seed: keep full BFS list; load_and_sync skips entry-index re-pin. */
-    if (getenv("XLANG_DEBUG_PIPE"))
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
       fprintf(stderr,
               "xlang: [XLANG_DEBUG_PIPE] realign keep closure ndep=%d (entry imports=%d)\n",
               (int)ndep, (int)n_imp);
     return;
   }
   /* ndep < n_imp: incomplete — force reload via load_and_sync. */
-  if (getenv("XLANG_DEBUG_PIPE"))
+  if (link_abi_getenv("XLANG_DEBUG_PIPE"))
     fprintf(stderr,
             "xlang: [XLANG_DEBUG_PIPE] realign ndep %d -> entry imports %d (incomplete, zero)\n",
             (int)ndep, (int)n_imp);
@@ -6834,7 +7469,7 @@ XLANG_WEAK int32_t pipeline_load_and_sync_direct_import_deps_c(struct ast_Module
        * (layout drift) so module_at returns NULL even after seed; bind via this
        * TU's pipeline_dep_ctx_set_module (paired with module_at, G.7).
        */
-      if (getenv("XLANG_DEBUG_PIPE"))
+      if (link_abi_getenv("XLANG_DEBUG_PIPE"))
         fprintf(stderr,
                 "xlang: [XLANG_DEBUG_PIPE] keep closure seed ndep=%d (entry imports=%d); rebind from driver slots\n",
                 (int)cur_ndep, (int)n_imports);
@@ -7076,7 +7711,7 @@ int32_t run_x_pipeline_typecheck_entry_emit_c(struct ast_Module *module, struct 
                                                struct ast_PipelineDepCtx *ctx) {
   if (!module || !arena || !ctx)
     return -1;
-  if (getenv("XLANG_DEBUG_PIPE")) {
+  if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
     fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] typecheck_entry_emit ctx=%p ndep=%d num_funcs=%d\n", (void *)ctx,
             (int)pipeline_dep_ctx_ndep(ctx), (int)pipeline_module_num_funcs(module));
     fflush(stderr);
@@ -7123,7 +7758,7 @@ static void pipeline_debug_dump_std_heap_trace_call(struct ast_Module *dep_mod, 
   int32_t n_imp, j, expr_ref;
   if (!dep_mod || !arena || !ctx || !dep_path_buf)
     return;
-  if (!getenv("XLANG_DEBUG_PIPE"))
+  if (!link_abi_getenv("XLANG_DEBUG_PIPE"))
     return;
   if (strcmp((const char *)dep_path_buf, "std.heap") != 0)
     return;
@@ -7260,7 +7895,7 @@ int32_t run_x_pipeline_codegen_one_dep_emit(struct ast_Module *dep_mod, struct c
   if (!out_buf || !ctx || dep_j < 0)
     return -1;
   if (pipeline_dep_ctx_has_earlier_same_import_path_c(ctx, dep_j) != 0) {
-    if (getenv("XLANG_DEBUG_PIPE")) {
+    if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
       memset(dep_path_buf, 0, sizeof(dep_path_buf));
       pipeline_dep_ctx_import_path_copy64(ctx, dep_j, dep_path_buf);
       fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] skip duplicate dep emit j=%d path=%s\n", (int)dep_j,
@@ -7270,13 +7905,13 @@ int32_t run_x_pipeline_codegen_one_dep_emit(struct ast_Module *dep_mod, struct c
   }
   memset(dep_path_buf, 0, sizeof(dep_path_buf));
   pipeline_dep_ctx_import_path_copy64(ctx, dep_j, dep_path_buf);
-  if (getenv("XLANG_DEBUG_PIPE"))
+  if (link_abi_getenv("XLANG_DEBUG_PIPE"))
     fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] dep emit j=%d path=%s use_asm=%d funcs=%d\n", (int)dep_j,
             (char *)dep_path_buf, (int)use_asm_backend,
             dep_mod ? (int)pipeline_module_num_funcs(dep_mod) : -1);
   pipeline_debug_dump_std_heap_trace_call(dep_mod, pipeline_dep_ctx_arena_at(ctx, dep_j), ctx, dep_j, dep_path_buf);
   if (pipeline_codegen_dep_skip_x_bootstrap_partial(dep_path_buf) != 0) {
-    if (getenv("XLANG_DEBUG_PIPE"))
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
       fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] skip dep emit j=%d path=%s\n", (int)dep_j, (char *)dep_path_buf);
     return 0;
   }
@@ -7284,7 +7919,7 @@ int32_t run_x_pipeline_codegen_one_dep_emit(struct ast_Module *dep_mod, struct c
    * 【Why】co-emit wrapper（std_json_* 调 json_*_c）+ 链 json.o → 双权威 duplicate；
    *   仅 co-emit 则缺 _c 桩。base64/csv/heap/http 同形。core.mem 仍 co-emit（mem 测自洽）。 */
   if (pipeline_codegen_std_dep_link_only(dep_path_buf) != 0) {
-    if (getenv("XLANG_DEBUG_PIPE"))
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
       fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] skip dep emit (prebuilt .o) j=%d path=%s\n", (int)dep_j,
               (char *)dep_path_buf);
     return 0;
@@ -7296,13 +7931,13 @@ int32_t run_x_pipeline_codegen_one_dep_emit(struct ast_Module *dep_mod, struct c
     if (use_asm_backend != 0) {
       if (skip_asm_dep_codegen == 0 &&
           asm_asm_codegen_ast(dep_mod, pipeline_dep_ctx_arena_at(ctx, dep_j), out_buf, ctx) != 0) {
-        if (getenv("XLANG_DEBUG_PIPE"))
+        if (link_abi_getenv("XLANG_DEBUG_PIPE"))
           fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] dep emit asm fail j=%d path=%s\n", (int)dep_j,
                   (char *)dep_path_buf);
         return -6;
       }
     } else if (codegen_codegen_x_ast(dep_mod, pipeline_dep_ctx_arena_at(ctx, dep_j), out_buf, ctx, dep_j) != 0) {
-      if (getenv("XLANG_DEBUG_PIPE")) {
+      if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
         fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] dep emit c fail j=%d path=%s last_func_idx=%d out_len=%zu\n",
                 (int)dep_j, (char *)dep_path_buf, (int)ctx->current_func_index, (size_t)out_buf->len);
       }
@@ -7449,12 +8084,12 @@ int32_t run_x_pipeline_codegen_one_dep_c(struct ast_Module *module, struct codeg
   memset(dep_path_buf, 0, sizeof(dep_path_buf));
   pipeline_prepare_dep_codegen_path_c(ctx, dep_j, dep_path_buf);
   dep_mod = pipeline_dep_ctx_module_at(ctx, dep_j);
-  if (getenv("XLANG_DEBUG_PIPE"))
+  if (link_abi_getenv("XLANG_DEBUG_PIPE"))
     fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] dep codegen j=%d path=%s funcs=%d\n", (int)dep_j,
             (char *)dep_path_buf, dep_mod ? (int)pipeline_module_num_funcs(dep_mod) : -1);
   /** bootstrap partial：前端模块勿整库 C emit（符号由 *_x.o 提供）。 */
   if (pipeline_codegen_dep_skip_x_bootstrap_partial(dep_path_buf) != 0) {
-    if (getenv("XLANG_DEBUG_PIPE"))
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
       fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] skip dep codegen j=%d path=%s\n", (int)dep_j,
               (char *)dep_path_buf);
     driver_set_current_dep_path_for_codegen(NULL);
@@ -7520,7 +8155,7 @@ int32_t run_x_pipeline_codegen_deps_c(struct ast_Module *module, struct ast_ASTA
   j = 0;
   while (j < ndep) {
     if (pipeline_dep_ctx_has_earlier_same_import_path_c(ctx, j) != 0) {
-      if (getenv("XLANG_DEBUG_PIPE")) {
+      if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
         uint8_t dup_path_buf[64];
         memset(dup_path_buf, 0, sizeof(dup_path_buf));
         pipeline_dep_ctx_import_path_copy64(ctx, j, dup_path_buf);
@@ -7995,14 +8630,84 @@ extern int32_t pipeline_type_elem_ref_at(struct ast_ASTArena *a, int32_t type_re
 extern int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
 extern int32_t pipeline_type_ensure_by_kind_ord(struct ast_ASTArena *a, int32_t kind_ord);
 
+/* first-class only; binop twin prefers refs path below for NAMED (wave313). */
 static int32_t typeck_integer_widen_ok_ord_c(int32_t dest_kind, int32_t src_kind) {
   if (dest_kind == src_kind)
-    return dest_kind == 0 || dest_kind == 2 || dest_kind == 3 || dest_kind == 4 || dest_kind == 5 || dest_kind == 6;
+    return dest_kind == 0 || dest_kind == 2 || dest_kind == 3 || dest_kind == 4 || dest_kind == 5 ||
+           dest_kind == 6 || dest_kind == 7;
   if (src_kind == 2)
-    return dest_kind == 0 || dest_kind == 3 || dest_kind == 4 || dest_kind == 6;
+    return dest_kind == 0 || dest_kind == 3 || dest_kind == 4 || dest_kind == 5 || dest_kind == 6 ||
+           dest_kind == 7;
   if (src_kind == 0)
-    return dest_kind == 3 || dest_kind == 5 || dest_kind == 6;
-  return src_kind == 3 && dest_kind == 4;
+    return dest_kind == 3 || dest_kind == 4 || dest_kind == 5 || dest_kind == 6 || dest_kind == 7 ||
+           dest_kind == 2;
+  if (src_kind == 3)
+    return dest_kind == 4 || dest_kind == 5 || dest_kind == 6 || dest_kind == 7;
+  if ((src_kind == 6 && dest_kind == 4) || (src_kind == 4 && dest_kind == 6) ||
+      (src_kind == 7 && dest_kind == 5) || (src_kind == 5 && dest_kind == 7))
+    return 1;
+  return 0;
+}
+
+extern int32_t pipeline_type_named_name_into(struct ast_ASTArena *a, int32_t type_ref, uint8_t *out);
+
+/** wave313: G.7 ≡ typeck_integer_widen_ok_refs for binop twin (NAMED i8/i16/u16). */
+static int32_t typeck_integer_widen_ok_refs_c(struct ast_ASTArena *arena, int32_t dest_ref, int32_t src_ref) {
+  int32_t dk;
+  int32_t sk;
+  int32_t df;
+  int32_t sf;
+  uint8_t *buf;
+  int32_t nlen;
+  if (!arena || dest_ref <= 0 || src_ref <= 0)
+    return 0;
+  dk = pipeline_type_kind_ord_at(arena, dest_ref);
+  sk = pipeline_type_kind_ord_at(arena, src_ref);
+  df = -1;
+  sf = -1;
+  if (dk == 0 || dk == 2 || dk == 3 || dk == 4 || dk == 5 || dk == 6 || dk == 7)
+    df = dk;
+  else if (dk == 8) {
+    buf = typeck_scratch64_slot(15);
+    nlen = pipeline_type_named_name_into(arena, dest_ref, buf);
+    if (nlen == 2 && buf[0] == 105 && buf[1] == 56)
+      df = 10;
+    else if (nlen == 3 && buf[0] == 105 && buf[1] == 49 && buf[2] == 54)
+      df = 11;
+    else if (nlen == 3 && buf[0] == 117 && buf[1] == 49 && buf[2] == 54)
+      df = 12;
+  }
+  if (sk == 0 || sk == 2 || sk == 3 || sk == 4 || sk == 5 || sk == 6 || sk == 7)
+    sf = sk;
+  else if (sk == 8) {
+    buf = typeck_scratch64_slot(15);
+    nlen = pipeline_type_named_name_into(arena, src_ref, buf);
+    if (nlen == 2 && buf[0] == 105 && buf[1] == 56)
+      sf = 10;
+    else if (nlen == 3 && buf[0] == 105 && buf[1] == 49 && buf[2] == 54)
+      sf = 11;
+    else if (nlen == 3 && buf[0] == 117 && buf[1] == 49 && buf[2] == 54)
+      sf = 12;
+  }
+  if (df < 0 || sf < 0)
+    return 0;
+  if (df == sf)
+    return 1;
+  if (df <= 7 && sf <= 7)
+    return typeck_integer_widen_ok_ord_c(df, sf);
+  if (sf == 10)
+    return df == 11 || df == 12 || df == 2 || df == 0 || df == 3 || df == 4 || df == 5 || df == 6 || df == 7;
+  if (sf == 11)
+    return df == 12 || df == 2 || df == 0 || df == 3 || df == 4 || df == 5 || df == 6 || df == 7;
+  if (sf == 12)
+    return df == 2 || df == 0 || df == 3 || df == 4 || df == 5 || df == 6 || df == 7;
+  if (df == 10)
+    return sf == 2 || sf == 0 || sf == 11 || sf == 12;
+  if (df == 11)
+    return sf == 2 || sf == 0 || sf == 12 || sf == 3;
+  if (df == 12)
+    return sf == 2 || sf == 0 || sf == 11 || sf == 3;
+  return 0;
 }
 
 /**
@@ -8036,21 +8741,87 @@ void typeck_binop_arith_infer_type_c(struct ast_ASTArena *arena, int32_t expr_re
     else if (expr_kind == 4 && rko == 9 && (lko == 0 || lko == 6 || lko == 7))
       out_ar = rt_ar;
   }
+  /* wave285 Cap residual: G.7 ≡ typeck.x — illegal pointer arithmetic must not
+   * fall through type_refs_equal (host BLD001 soft residual). This helper only
+   * sets resolved type; callers that hard-fail use typeck_check_expr_binop_arith.
+   * Allowed: ptr+int/int+ptr (ADD), ptr-int (SUB→ptr), ptr-ptr (SUB→isize=7). */
+  if (lko == 9 || rko == 9) {
+    if (expr_kind == 4) {
+      if (out_ar != 0) {
+        pipeline_expr_set_resolved_type_ref(arena, expr_ref, out_ar);
+        return;
+      }
+      return; /* leave unresolved; product path hard-fails in typeck_check_expr_binop_arith */
+    }
+    if (expr_kind == 5) {
+      if (lko == 9 && rko == 9) {
+        out_ar = pipeline_type_ensure_by_kind_ord(arena, 7); /* isize */
+        if (out_ar != 0)
+          pipeline_expr_set_resolved_type_ref(arena, expr_ref, out_ar);
+        return;
+      }
+      if (out_ar != 0) {
+        pipeline_expr_set_resolved_type_ref(arena, expr_ref, out_ar);
+        return;
+      }
+      return;
+    }
+    return; /* mul/div/… with ptr: leave unresolved */
+  }
+  /* wave286 Cap residual: G.7 ≡ typeck.x — illegal float bitop/mod/shift must not
+   * promote to f32/f64 (host BLD001 soft residual). Leave unresolved; product path
+   * hard-fails in typeck_check_expr_binop_arith.
+   * expr_kind: MOD=8 SHL=9 SHR=10 BITAND=11 BITOR=12 BITXOR=13; f32=14 f64=15. */
+  if ((lko == 14 || lko == 15 || rko == 14 || rko == 15)
+      && (expr_kind == 8 || expr_kind == 9 || expr_kind == 10 || expr_kind == 11
+          || expr_kind == 12 || expr_kind == 13)) {
+    return;
+  }
   if (lko == 13 && rko == 13 && pipeline_type_array_size_at(arena, lt_ar) == pipeline_type_array_size_at(arena, rt_ar) &&
       pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, lt_ar),
                                         pipeline_type_elem_ref_at(arena, rt_ar)) != 0) {
     out_ar = lt_ar;
   } else if (out_ar == 0 && (lko == 5 || rko == 5)) {
     out_ar = pipeline_type_ensure_by_kind_ord(arena, 5);
+  } else if (out_ar == 0 && lko == 14
+             && (rk_expr == 1 /* EXPR_FLOAT_LIT */ || rk_expr == 22 /* EXPR_NEG */)) {
+    /* wave317 soft-infer twin: f32 + bare FLOAT_LIT / -float stays f32 before f64 widen.
+     * G.7 ≡ typeck.x typeck_coerce_init_float_lit_to_decl (inline stamp; ast_pool is
+     * #include'd before glue coerce body). EXPR_FLOAT_LIT=1, EXPR_NEG=22. */
+    if (rk_expr == 1) {
+      pipeline_expr_set_resolved_type_ref(arena, bop_r, lt_ar);
+      out_ar = lt_ar;
+    } else {
+      int32_t op_r = pipeline_expr_unary_operand_ref_at(arena, bop_r);
+      if (op_r > 0 && pipeline_expr_kind_ord_at(arena, op_r) == 1) {
+        pipeline_expr_set_resolved_type_ref(arena, op_r, lt_ar);
+        pipeline_expr_set_resolved_type_ref(arena, bop_r, lt_ar);
+        out_ar = lt_ar;
+      }
+    }
+  } else if (out_ar == 0 && rko == 14
+             && (lk_expr == 1 || lk_expr == 22)) {
+    if (lk_expr == 1) {
+      pipeline_expr_set_resolved_type_ref(arena, bop_l, rt_ar);
+      out_ar = rt_ar;
+    } else {
+      int32_t op_l = pipeline_expr_unary_operand_ref_at(arena, bop_l);
+      if (op_l > 0 && pipeline_expr_kind_ord_at(arena, op_l) == 1) {
+        pipeline_expr_set_resolved_type_ref(arena, op_l, rt_ar);
+        pipeline_expr_set_resolved_type_ref(arena, bop_l, rt_ar);
+        out_ar = rt_ar;
+      }
+    }
+  } else if (out_ar == 0 && (lko == 15 || rko == 15)) {
+    /* wave296: f64 before f32 (usual arithmetic conversion); G.7 ≡ typeck.x / typeck_gen. */
+    out_ar = pipeline_type_ensure_by_kind_ord(arena, 15);
   } else if (out_ar == 0 && (lko == 14 || rko == 14)) {
     out_ar = pipeline_type_ensure_by_kind_ord(arena, 14);
-  } else if (out_ar == 0 && (lko == 15 || rko == 15)) {
-    out_ar = pipeline_type_ensure_by_kind_ord(arena, 15);
   } else if (out_ar == 0 && pipeline_typeck_type_refs_equal_c(arena, lt_ar, rt_ar) != 0) {
     out_ar = lt_ar;
-  } else if (out_ar == 0 && typeck_integer_widen_ok_ord_c(lko, rko)) {
+  } else if (out_ar == 0 && typeck_integer_widen_ok_refs_c(arena, lt_ar, rt_ar)) {
     out_ar = lt_ar;
-  } else if (out_ar == 0 && typeck_integer_widen_ok_ord_c(rko, lko)) {
+  } else if (out_ar == 0 && typeck_integer_widen_ok_refs_c(arena, rt_ar, lt_ar)) {
     out_ar = rt_ar;
   } else if (out_ar == 0 && lk_expr == 0 && rk_expr != 0) {
     out_ar = rt_ar;
@@ -8247,7 +9018,7 @@ _Static_assert(kPipelineElfCtxCodeDataOff == (int)sizeof(PipelineElfCtxAccess),
 
 /** XLANG_WPO_PGO_HOT=1 时启用 .text.hot 双段 emit。 */
 int32_t pipeline_elf_pgo_hot_enabled(void) {
-  const char *e = getenv("XLANG_WPO_PGO_HOT");
+  const char *e = link_abi_getenv("XLANG_WPO_PGO_HOT");
   if (!e || e[0] == '\0')
     return 0;
   if (e[0] == '0' && (e[1] == '\0' || e[1] == '\n'))
@@ -8368,6 +9139,14 @@ static uint8_t g_pipeline_elf_sym_is_common[PIPELINE_ELF_CTX_TABLE_CAP];
 static int32_t g_pipeline_elf_sym_common_size[PIPELINE_ELF_CTX_TABLE_CAP];
 static int32_t g_pipeline_elf_sym_common_align[PIPELINE_ELF_CTX_TABLE_CAP];
 
+/**
+ * PLATFORM: SHARED — per-reloc type/pcrel sidecar (wave405 arm64 ADRP/PAGEOFF for modlet).
+ * r_type 0 => fall back to call reloc default (Mach-O BRANCH26 / ELF reloc_type_r_pc32).
+ * r_pcrel: -1 = default (1 for call-style); 0/1 explicit (PAGEOFF12 needs pcrel=0).
+ */
+static int32_t g_pipeline_elf_reloc_r_type[PIPELINE_ELF_CTX_TABLE_CAP];
+static int8_t g_pipeline_elf_reloc_r_pcrel[PIPELINE_ELF_CTX_TABLE_CAP];
+
 static void pipeline_elf_common_sidecar_reset(uint8_t *ctx_bytes) {
   g_pipeline_elf_common_owner = ctx_bytes;
   memset(g_pipeline_elf_sym_is_common, 0, sizeof(g_pipeline_elf_sym_is_common));
@@ -8437,6 +9216,8 @@ static void pipeline_elf_reloc_shndx_set(uint8_t *ctx_bytes, int32_t idx, int32_
 void pipeline_elf_ctx_reloc_sidecar_reset(uint8_t *ctx_bytes) {
   g_pipeline_elf_reloc_sidecar_owner = ctx_bytes;
   pipeline_elf_shndx_sidecar_reset(ctx_bytes);
+  memset(g_pipeline_elf_reloc_r_type, 0, sizeof(g_pipeline_elf_reloc_r_type));
+  memset(g_pipeline_elf_reloc_r_pcrel, 0xff, sizeof(g_pipeline_elf_reloc_r_pcrel)); /* -1 default */
 }
 
 /** 读第 idx 条 reloc 的 code offset（内联或 heap sidecar）。 */
@@ -8550,11 +9331,14 @@ static int32_t pipeline_elf_reloc_is_defined(PipelineElfCtxAccess *ctx, uint8_t 
   return 0;
 }
 
-/** x86_64 ELF call 重定位类型：本 TU 已定义符号用 PC32；UND 外部（如 libc putchar）须 PLT32 方能 -pie 链接。 */
+/** x86_64 ELF call 重定位类型：本 TU 已定义符号用 PC32；UND 外部（如 libc putchar）须 PLT32 方能 -pie 链接。
+ * wave405: explicit per-reloc type (ADRP/PAGEOFF) wins when sidecar r_type != 0. */
 static int32_t pipeline_elf_call_reloc_type(PipelineElfCtxAccess *ctx, uint8_t *ctx_bytes, int32_t reloc_idx,
                                             uint8_t *rname, int32_t rlen) {
   if (!ctx)
     return 2;
+  if (reloc_idx >= 0 && reloc_idx < PIPELINE_ELF_CTX_TABLE_CAP && g_pipeline_elf_reloc_r_type[reloc_idx] != 0)
+    return g_pipeline_elf_reloc_r_type[reloc_idx];
   if (ctx->e_machine == 62 && !pipeline_elf_reloc_is_defined(ctx, ctx_bytes, reloc_idx, rname, rlen))
     return 4; /* R_X86_64_PLT32 */
   return ctx->reloc_type_r_pc32;
@@ -9270,18 +10054,38 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
     uint8_t ent[16];
     int32_t off = pipeline_elf_sym_name_off(ctx, s);
     int32_t sym_va = ctx->syms[s].offset;
+    int32_t is_common = 0;
+    int32_t csize = 0;
     memset(ent, 0, sizeof(ent));
     ent[0] = (uint8_t)(str_off & 255);
     ent[1] = (uint8_t)((str_off >> 8) & 255);
     ent[2] = (uint8_t)((str_off >> 16) & 255);
     ent[3] = (uint8_t)((str_off >> 24) & 255);
-    /* N_SECT|N_EXT = 0x0f, n_sect = 1 */
-    ent[4] = 15;
-    ent[5] = 1;
-    ent[8] = (uint8_t)(sym_va & 255);
-    ent[9] = (uint8_t)((sym_va >> 8) & 255);
-    ent[10] = (uint8_t)((sym_va >> 16) & 255);
-    ent[11] = (uint8_t)((sym_va >> 24) & 255);
+    /* wave405: COMMON → N_UNDF|N_EXT + n_value=size (linker BSS). Never N_SECT in __text (RX SEGV). */
+    is_common = (g_pipeline_elf_common_owner == ctx_bytes && s < PIPELINE_ELF_CTX_TABLE_CAP &&
+                 g_pipeline_elf_sym_is_common[s] != 0)
+                    ? 1
+                    : 0;
+    if (is_common != 0) {
+      csize = g_pipeline_elf_sym_common_size[s];
+      if (csize <= 0)
+        csize = 8;
+      /* N_UNDF|N_EXT = 0x01; n_sect=NO_SECT; n_value=size (tentative/common). */
+      ent[4] = 1;
+      ent[5] = 0;
+      ent[8] = (uint8_t)(csize & 255);
+      ent[9] = (uint8_t)((csize >> 8) & 255);
+      ent[10] = (uint8_t)((csize >> 16) & 255);
+      ent[11] = (uint8_t)((csize >> 24) & 255);
+    } else {
+      /* N_SECT|N_EXT = 0x0f, n_sect = 1 */
+      ent[4] = 15;
+      ent[5] = 1;
+      ent[8] = (uint8_t)(sym_va & 255);
+      ent[9] = (uint8_t)((sym_va >> 8) & 255);
+      ent[10] = (uint8_t)((sym_va >> 16) & 255);
+      ent[11] = (uint8_t)((sym_va >> 24) & 255);
+    }
     if (pipeline_elf_out_append(out, ent, 16) != 0)
       return -1;
     str_off = str_off + ctx->syms[s].name_len + pipeline_macho_link_name_extra_byte(sym_pool + off) + 1;
@@ -9340,7 +10144,7 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
     uu = uu + 1;
   }
 
-  /* relocation entries: arm64/x86_64 BRANCH26/BRANCH or UNSIGNED — product uses type 2, length 2 */
+  /* relocation entries: default BRANCH26/BRANCH type 2; wave405 typed PAGE21/PAGEOFF12. */
   rel_type = 2;
   rel_len = 2;
   if (ctx->e_machine == 183) {
@@ -9358,6 +10162,8 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
     int32_t r_sym;
     int32_t word2;
     int32_t roff;
+    int32_t use_type;
+    int32_t use_pcrel;
     pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, r, r_sym_buf);
     rlen = pipeline_elf_ctx_reloc_name_len(ctx_bytes, r);
     while (m < ctx->num_syms) {
@@ -9388,9 +10194,15 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
       }
       sym_idx = ctx->num_syms + uslot;
     }
-    /* r_symbolnum = sym_idx+1 (skip NULL nlist); r_pcrel=1; r_length; r_extern=1; r_type */
+    use_type = rel_type;
+    use_pcrel = 1;
+    if (r < PIPELINE_ELF_CTX_TABLE_CAP && g_pipeline_elf_reloc_r_type[r] != 0)
+      use_type = g_pipeline_elf_reloc_r_type[r];
+    if (r < PIPELINE_ELF_CTX_TABLE_CAP && g_pipeline_elf_reloc_r_pcrel[r] >= 0)
+      use_pcrel = (int32_t)g_pipeline_elf_reloc_r_pcrel[r];
+    /* r_symbolnum = sym_idx+1 (skip NULL nlist); r_pcrel; r_length; r_extern=1; r_type */
     r_sym = sym_idx + 1;
-    word2 = (r_sym & 16777215) | (1 << 24) | (rel_len << 25) | (1 << 27) | (rel_type << 28);
+    word2 = (r_sym & 16777215) | ((use_pcrel & 1) << 24) | (rel_len << 25) | (1 << 27) | (use_type << 28);
     roff = pipeline_elf_ctx_reloc_offset_at(ctx_bytes, r);
     ri[0] = (uint8_t)(roff & 255);
     ri[1] = (uint8_t)((roff >> 8) & 255);
@@ -10406,7 +11218,7 @@ int32_t pipeline_elf_ctx_resolve_patches(uint8_t *ctx_bytes) {
         patch_shndx = PIPELINE_ELF_SHNX_TEXT_HOT;
         target_shndx = PIPELINE_ELF_SHNX_TEXT_HOT;
       } else {
-        if (getenv("XLANG_ASM_DEBUG")) {
+        if (link_abi_getenv("XLANG_ASM_DEBUG")) {
           fprintf(stderr,
                   "xlang: elf patch shndx mismatch p=%d patch_sh=%d target_sh=%d rel=%d tgt=%d code_len=%d hot=%d\n",
                   (int)p, (int)patch_shndx, (int)target_shndx, (int)rel32_offset, (int)target_offset,
@@ -10508,7 +11320,37 @@ int32_t pipeline_elf_ctx_append_reloc(uint8_t *ctx_bytes, int32_t offset, uint8_
     ent->name_len = name_len;
   else if (hent)
     hent->name_len = name_len;
+  /* Default call-style reloc type (0 => writer uses reloc_type_r_pc32 / BRANCH26). */
+  if (ri < PIPELINE_ELF_CTX_TABLE_CAP) {
+    g_pipeline_elf_reloc_r_type[ri] = 0;
+    g_pipeline_elf_reloc_r_pcrel[ri] = (int8_t)-1;
+  }
   ctx->num_relocs = ctx->num_relocs + 1;
+  return 0;
+}
+
+/**
+ * PLATFORM: SHARED — append reloc with explicit Mach-O/ELF r_type and r_pcrel.
+ * wave405: arm64 ADRP (PAGE21, pcrel=1) + ADD (PAGEOFF12, pcrel=0) for modlet COMMON.
+ * @param r_type int32 — Mach-O ARM64_RELOC_* or ELF R_* ; 0 falls back to call default
+ * @param r_pcrel int32 — 0 or 1; negative => default pcrel=1
+ */
+int32_t pipeline_elf_ctx_append_reloc_typed(uint8_t *ctx_bytes, int32_t offset, uint8_t *name, int32_t name_len,
+                                            int32_t r_type, int32_t r_pcrel) {
+  int32_t ri;
+  if (pipeline_elf_ctx_append_reloc(ctx_bytes, offset, name, name_len) != 0)
+    return -1;
+  {
+    PipelineElfCtxAccess *ctx = (PipelineElfCtxAccess *)ctx_bytes;
+    ri = ctx->num_relocs - 1;
+  }
+  if (ri >= 0 && ri < PIPELINE_ELF_CTX_TABLE_CAP) {
+    g_pipeline_elf_reloc_r_type[ri] = r_type;
+    if (r_pcrel < 0)
+      g_pipeline_elf_reloc_r_pcrel[ri] = (int8_t)-1;
+    else
+      g_pipeline_elf_reloc_r_pcrel[ri] = (int8_t)(r_pcrel != 0 ? 1 : 0);
+  }
   return 0;
 }
 
@@ -11613,7 +12455,7 @@ int32_t pipeline_codegen_should_skip_emit_func_by_name(uint8_t *name, int32_t na
   if (name_len == 21 && codegen_name_prefix_eq(name, name_len, "std_string_string_new", 21))
     return 1;
   /** bootstrap -E：seed_mega 体过大；XLANG_EMIT_SEED_MEGA=1 时仍尝试 X emit（build_seed_asm_host）。 */
-  if (!getenv("XLANG_EMIT_SEED_MEGA")) {
+  if (!link_abi_getenv("XLANG_EMIT_SEED_MEGA")) {
     if (name_len == 25 && memcmp(name, "asm_codegen_ast_seed_mega", 25) == 0)
       return 1;
     if (name_len == 32 && memcmp(name, "asm_codegen_ast_to_elf_seed_mega", 32) == 0)
@@ -11624,7 +12466,7 @@ int32_t pipeline_codegen_should_skip_emit_func_by_name(uint8_t *name, int32_t na
 
 /** codegen.x：XLANG_EMIT_SEED_MEGA=1 时 bootstrap -E 仍 emit seed_mega。 */
 int32_t pipeline_codegen_emit_seed_mega_enabled(void) {
-  const char *e = getenv("XLANG_EMIT_SEED_MEGA");
+  const char *e = link_abi_getenv("XLANG_EMIT_SEED_MEGA");
   return (e && e[0] && e[0] != '0') ? 1 : 0;
 }
 
@@ -12038,16 +12880,30 @@ extern int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module, str
                                                   int32_t elem_type_ref, int32_t array_len, int32_t depth);
 extern int32_t typeck_x_type_size_from_layout_glue(struct ast_Module *module, struct ast_ASTArena *arena,
                                                     int32_t li, int32_t depth);
+/* Metrics RC distinguishes true ZST (size 0, rc=0) from metrics failure (rc!=0, size_from_layout also 0). */
+extern int32_t typeck_typeck_struct_layout_metrics(struct ast_Module *module, struct ast_ASTArena *arena, int32_t li,
+                                                   int32_t depth, int32_t check_pad, int32_t *out_sz, int32_t *out_al);
 extern struct ast_PipelineDepCtx *pipeline_asm_emit_dep_pipe_c(void);
 
 static int32_t asm_local_slot_bytes_mod(struct ast_ASTArena *arena, int32_t type_ref, struct ast_Module *mod);
 
 /**
- * 在指定模块内查 TYPE_NAMED struct layout 的栈槽字节数。
- * 【Why】typeck skip 时入口模块无 dep struct（如 PageMmapHeap）的 layout，须遍历 dep_ctx 查找；
- *       否则栈槽算成默认 8B，实际 24B，struct 末字段（off）越界覆盖相邻局部变量。
- * 【Invariant】仅查 mod 的 num_struct_layouts；返回 >0 表示命中并对齐到 8 字节，0 表示未命中。
- * 【Asm/Perf】dep_ctx 遍历仅在入口模块未命中时触发，热路径（入口模块 struct）零开销。
+ * Look up TYPE_NAMED struct layout stack slot bytes in one module.
+ *
+ * Why: typeck-skip entry modules may lack dep layouts (e.g. PageMmapHeap); without
+ * dep walk, slot defaults to 8B while real layout is 24B and trailing fields clobber
+ * neighbors.
+ *
+ * wave369 Cap residual pure (PLATFORM: SHARED freestanding stack layout · LINUX gold):
+ *   typeck_x_type_size_from_layout_glue returns 0 both for true ZST (Empty / empty-of-empty
+ *   Nest, metrics rc==0) and for metrics failure (rc!=0). Prior `sz<=0` invent path used
+ *   last_field_off+fsz → Nest became 8, parent Box became 24, mid Nest field store/load
+ *   offsets garbage (Ubuntu freestanding nest_mid exit ≠ 42; mac arm64 often folded away).
+ *   G.7: call metrics once; rc==0 && sz==0 → return 0 (true ZST, do not invent); rc!=0 keep
+ *   legacy invent for incomplete skip-typeck layouts.
+ *
+ * Invariant: only scans mod->num_struct_layouts. Return >0 hit (padded to 8), 0 miss or ZST.
+ * Asm/Perf: dep walk only when entry miss; entry-module struct hot path is zero-cost.
  */
 static int32_t asm_slot_bytes_named_in_mod(struct ast_ASTArena *arena, int32_t type_ref, struct ast_Module *mod) {
   uint8_t name[64];
@@ -12083,6 +12939,8 @@ static int32_t asm_slot_bytes_named_in_mod(struct ast_ASTArena *arena, int32_t t
     int32_t j;
     int32_t eq = 1;
     int32_t sz;
+    int32_t al;
+    int32_t mrc;
     if (ln != nlen)
       continue;
     for (j = 0; j < nlen; j++) {
@@ -12093,8 +12951,38 @@ static int32_t asm_slot_bytes_named_in_mod(struct ast_ASTArena *arena, int32_t t
     }
     if (!eq)
       continue;
-    sz = typeck_x_type_size_from_layout_glue(mod, arena, k, 0);
-    if (sz <= 0) {
+    /* Prefer metrics RC so size 0 ZST is not confused with metrics failure. */
+    sz = 0;
+    al = 1;
+    mrc = typeck_typeck_struct_layout_metrics(mod, arena, k, 0, 0, &sz, &al);
+    if (link_abi_getenv("XLANG_ASM_EMIT_TRACE")) {
+      uint8_t dbg_nm[64];
+      int32_t dbg_nl = pipeline_module_struct_layout_name_len(mod, k);
+      int32_t dbg_nf = pipeline_module_struct_layout_num_fields(mod, k);
+      int32_t di;
+      if (dbg_nl > 63)
+        dbg_nl = 63;
+      for (di = 0; di < dbg_nl; di++)
+        dbg_nm[di] = pipeline_module_struct_layout_name_byte_at(mod, k, di);
+      dbg_nm[dbg_nl] = 0;
+      fprintf(stderr, "xlang: slot_metrics name=%.*s li=%d nf=%d mrc=%d sz=%d al=%d\n", (int)dbg_nl, dbg_nm,
+              (int)k, (int)dbg_nf, (int)mrc, (int)sz, (int)al);
+      for (di = 0; di < dbg_nf && di < 8; di++) {
+        int32_t ftr = pipeline_module_struct_layout_field_type_ref(mod, k, di);
+        int32_t foff = pipeline_module_struct_layout_field_offset_at(mod, k, di);
+        fprintf(stderr, "xlang:   field[%d] ftr=%d foff=%d\n", (int)di, (int)ftr, (int)foff);
+      }
+    }
+    if (mrc == 0) {
+      /* Metrics OK: sz==0 is legal Empty / empty-of-empty Nest ZST (wave366/368/369). */
+      if (sz <= 0)
+        return 0;
+      if (sz % 8 != 0)
+        sz += 8 - (sz % 8);
+      return sz;
+    }
+    /* Metrics failed (incomplete layout / skip typeck): legacy invent last_off+fsz. */
+    {
       int32_t nf = pipeline_module_struct_layout_num_fields(mod, k);
       if (nf > 0) {
         int32_t last = nf - 1;
@@ -12104,6 +12992,12 @@ static int32_t asm_slot_bytes_named_in_mod(struct ast_ASTArena *arena, int32_t t
         if (fsz <= 0)
           fsz = 4;
         sz = foff + fsz;
+        if (link_abi_getenv("XLANG_ASM_EMIT_TRACE"))
+          fprintf(stderr, "xlang: slot_invent last_foff=%d fty=%d fsz=%d sz=%d\n", (int)foff, (int)fty, (int)fsz,
+                  (int)sz);
+      } else {
+        /* Bare empty layout with failed metrics still ZST. */
+        return 0;
       }
     }
     if (sz > 0) {
@@ -12198,7 +13092,7 @@ static int32_t asm_local_slot_bytes_mod(struct ast_ASTArena *arena, int32_t type
     {
       int32_t sz = asm_slot_bytes_named_in_mod(arena, type_ref, mod);
       if (sz > 0) {
-        if (getenv("XLANG_ASM_EMIT_TRACE")) {
+        if (link_abi_getenv("XLANG_ASM_EMIT_TRACE")) {
           uint8_t nm[64];
           int32_t nl = pipeline_type_named_name_into(arena, type_ref, nm);
           fprintf(stderr, "xlang: local_slot struct %.*s sz=%d\n", (int)nl, nm, (int)sz);
@@ -12238,6 +13132,51 @@ static int32_t asm_local_slot_bytes_mod(struct ast_ASTArena *arena, int32_t type
         if (arr_sz % 8 != 0)
           arr_sz += 8 - (arr_sz % 8);
         return arr_sz;
+      }
+    }
+    /*
+     * wave357 Cap residual pure: multi-dim T[N][M] slot = N × unpadded sizeof(inner).
+     * Prior: elem TYPE_ARRAY fell through esz=4 default → [2][3]i32 slot=8, overflow + SIGSEGV.
+     * Unpadded row stride matches INDEX/init (glue_fixed_array_total_bytes); pad only outer.
+     * PLATFORM: SHARED freestanding stack layout · LINUX gold.
+     */
+    if (elem_ref > 0 && elem_ref <= arena->num_types &&
+        pipeline_type_kind_ord_at(arena, elem_ref) == 10) {
+      /* Recursively peel nested TYPE_ARRAY dims to a scalar esz, product of all sizes. */
+      int32_t cur = type_ref;
+      int32_t prod = 1;
+      int32_t d;
+      int32_t leaf_esz = 4;
+      for (d = 0; d < 8; d++) {
+        struct ast_Type *ct = pipeline_arena_type_ptr(arena, cur);
+        int32_t cn;
+        int32_t ce;
+        if (!ct || pipeline_type_kind_ord_at(arena, cur) != 10)
+          break;
+        cn = ct->array_size;
+        ce = ct->elem_type_ref;
+        if (cn <= 0 || ce <= 0)
+          break;
+        prod *= cn;
+        if (pipeline_type_kind_ord_at(arena, ce) != 10) {
+          int32_t lek = pipeline_type_kind_ord_at(arena, ce);
+          if (lek == 2 || lek == 1)
+            leaf_esz = 1;
+          else if (lek == 15 || lek == 4 || lek == 5 || lek == 6 || lek == 7)
+            leaf_esz = 8;
+          else if (lek == 8) {
+            int32_t ssz = asm_slot_bytes_named_in_mod(arena, ce, mod);
+            leaf_esz = ssz > 0 ? ssz : 8;
+          } else
+            leaf_esz = 4;
+          bytes = prod * leaf_esz;
+          if (bytes < 8)
+            bytes = 8;
+          if (bytes % 8 != 0)
+            bytes = bytes + (8 - (bytes % 8));
+          return bytes;
+        }
+        cur = ce;
       }
     }
     esz = 4;
@@ -12651,7 +13590,7 @@ void asm_diag_trace_func(uint8_t *name, int32_t name_len) {
 
 /** 读 XLANG_ASM_EMIT_ABORT_LO/HI：调试二分定位 Abort 区间（默认见上常量）。 */
 static int32_t asm_emit_heavy_abort_lo(void) {
-  const char *e = getenv("XLANG_ASM_EMIT_ABORT_LO");
+  const char *e = link_abi_getenv("XLANG_ASM_EMIT_ABORT_LO");
   char *end = NULL;
   long v;
   if (!e || e[0] == '\0')
@@ -12663,7 +13602,7 @@ static int32_t asm_emit_heavy_abort_lo(void) {
 }
 
 static int32_t asm_emit_heavy_abort_hi(void) {
-  const char *e = getenv("XLANG_ASM_EMIT_ABORT_HI");
+  const char *e = link_abi_getenv("XLANG_ASM_EMIT_ABORT_HI");
   char *end = NULL;
   long v;
   if (!e || e[0] == '\0')
@@ -12753,13 +13692,13 @@ int32_t asm_module_top_level_const_lit_i32(struct ast_Module *m, struct ast_ASTA
 
 /** XLANG_ASM_BUILD_SKIP_TYPECK=1 时 build_xlang_asm 走桩路径，避免无 typeck 的大模块 asm emit 栈溢出。 */
 static int32_t asm_env_build_skip_typeck(void) {
-  const char *e = getenv("XLANG_ASM_BUILD_SKIP_TYPECK");
+  const char *e = link_abi_getenv("XLANG_ASM_BUILD_SKIP_TYPECK");
   return (e != NULL && e[0] != '\0' && e[0] != '0') ? 1 : 0;
 }
 
 /** XLANG_ASM_STRICT_ORCHESTRATION=1 时 C 编排链才跳过 pipeline 大函数 emit（默认 build_asm 须落真机器码）。 */
 static int32_t asm_env_strict_orchestration(void) {
-  const char *e = getenv("XLANG_ASM_STRICT_ORCHESTRATION");
+  const char *e = link_abi_getenv("XLANG_ASM_STRICT_ORCHESTRATION");
   return (e != NULL && e[0] != '\0' && e[0] != '0') ? 1 : 0;
 }
 
@@ -12821,7 +13760,7 @@ static int32_t asm_skip_typeck_entry_whitelist(struct ast_Module *m, int32_t fun
    * XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1：experimental 编 parser_parse_bootstrap.o 须 parse_into* 真 emit。
    */
   if (asm_module_is_parser_selfhost(m)) {
-    if (getenv("XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT") != NULL) {
+    if (link_abi_getenv("XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT") != NULL) {
       static const asm_boot_parse_sym_t k_boot_parse_minimal[] = {
           {"parse_into_init", 15},
           {"parse_into_set_main_index", 25},
@@ -12836,7 +13775,7 @@ static int32_t asm_skip_typeck_entry_whitelist(struct ast_Module *m, int32_t fun
       const asm_boot_parse_sym_t *k_boot_parse;
       int32_t k_boot_n;
       int32_t bi;
-      if (getenv("XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT_MINIMAL") != NULL) {
+      if (link_abi_getenv("XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT_MINIMAL") != NULL) {
         k_boot_parse = k_boot_parse_minimal;
         k_boot_n = (int32_t)(sizeof(k_boot_parse_minimal) / sizeof(k_boot_parse_minimal[0]));
       } else {
@@ -12893,7 +13832,7 @@ void asm_skip_heavy_set_pipeline_ctx(struct ast_PipelineDepCtx *ctx) {
 
 /** XLANG_ASM_ENTRY_EMIT_HEAVY=1 时 ENTRY_MODULE_ONLY 真 emit（typeck 第二遍）；仅跳过 pipeline typecheck。 */
 static int32_t asm_env_entry_emit_heavy(void) {
-  const char *e = getenv("XLANG_ASM_ENTRY_EMIT_HEAVY");
+  const char *e = link_abi_getenv("XLANG_ASM_ENTRY_EMIT_HEAVY");
   return (e != NULL && e[0] != '\0' && e[0] != '0') ? 1 : 0;
 }
 
@@ -13865,7 +14804,7 @@ static const AsmBackendThinDelegateRow k_asm_parser_thin_delegate[] = {
 static void asm_parser_emit_heavy_dbg_real(struct ast_Module *m, int32_t fi, const char *why) {
   uint8_t fn[64];
   int32_t fl;
-  if (!getenv("XLANG_ASM_DEBUG") || !m || fi < 0 || !why)
+  if (!link_abi_getenv("XLANG_ASM_DEBUG") || !m || fi < 0 || !why)
     return;
   fl = pipeline_module_func_name_len_at(m, fi);
   pipeline_module_func_name_copy64(m, fi, fn);
@@ -13875,13 +14814,13 @@ static void asm_parser_emit_heavy_dbg_real(struct ast_Module *m, int32_t fi, con
 
 /** 调试/二分：XLANG_PARSER_EMIT_HEAVY_BISECT_N=N 上限 func_index；STUB_ONLY=1 仅 delegate 桩。 */
 static int32_t asm_parser_emit_heavy_bisect_max_index(void) {
-  const char *stub = getenv("XLANG_PARSER_EMIT_HEAVY_STUB_ONLY");
+  const char *stub = link_abi_getenv("XLANG_PARSER_EMIT_HEAVY_STUB_ONLY");
   char *end = NULL;
   long v;
   const char *e;
   if (stub != NULL && stub[0] != '\0' && stub[0] != '0')
     return 0;
-  e = getenv("XLANG_PARSER_EMIT_HEAVY_BISECT_N");
+  e = link_abi_getenv("XLANG_PARSER_EMIT_HEAVY_BISECT_N");
   if (!e || e[0] == '\0')
     return 2147483647;
   v = strtol(e, &end, 10);
@@ -13894,7 +14833,7 @@ static int32_t asm_parser_emit_heavy_bisect_max_index(void) {
 
 /** XLANG_PARSER_EMIT_HEAVY_SLOT_MAX=N 覆盖槽位 fallback 上限（默认 8）。 */
 static int32_t asm_parser_emit_heavy_slot_max(void) {
-  const char *e = getenv("XLANG_PARSER_EMIT_HEAVY_SLOT_MAX");
+  const char *e = link_abi_getenv("XLANG_PARSER_EMIT_HEAVY_SLOT_MAX");
   char *end = NULL;
   long v;
   if (!e || e[0] == '\0')
@@ -13916,7 +14855,7 @@ static int32_t asm_parser_mega_bisect_skip_stub(struct ast_Module *m, int32_t fu
   size_t blen;
   if (!m || func_index < 0 || !name || len <= 0)
     return 0;
-  b = getenv("XLANG_ASM_PARSER_MEGA_BISECT");
+  b = link_abi_getenv("XLANG_ASM_PARSER_MEGA_BISECT");
   if (!b || b[0] == '\0')
     return 0;
   blen = strlen(b);
@@ -13946,11 +14885,11 @@ static int32_t asm_parser_bootstrap_mega_emit_allowed(struct ast_Module *m, int3
   const asm_boot_parse_sym_t *k;
   int32_t kn;
   int32_t i;
-  if (!m || func_index < 0 || getenv("XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT") == NULL)
+  if (!m || func_index < 0 || link_abi_getenv("XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT") == NULL)
     return 0;
   if (!pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)name, len))
     return 0;
-  if (getenv("XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT_MINIMAL") != NULL) {
+  if (link_abi_getenv("XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT_MINIMAL") != NULL) {
     k = k_min;
     kn = (int32_t)(sizeof(k_min) / sizeof(k_min[0]));
   } else {
@@ -14962,16 +15901,16 @@ int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTAren
  * XLANG_ASM_ALLOW_START_FUNC=1 时 build 路径也生效（手工二分 emit 用）。
  */
 int32_t asm_diag_start_func_skip(void) {
-  const char *e = getenv("XLANG_ASM_START_FUNC");
-  const char *allow = getenv("XLANG_ASM_ALLOW_START_FUNC");
+  const char *e = link_abi_getenv("XLANG_ASM_START_FUNC");
+  const char *allow = link_abi_getenv("XLANG_ASM_ALLOW_START_FUNC");
   char *end = NULL;
   long v;
   if (!e || e[0] == '\0')
     return 0;
   /* build_xlang_asm 默认清除 START_FUNC；未显式 ALLOW 时 ENTRY skip 模式忽略，避免 pipeline 56 func 全跳过。 */
   if ((allow == NULL || allow[0] == '\0' || allow[0] == '0') && asm_env_build_skip_typeck() != 0 &&
-      getenv("XLANG_ASM_ENTRY_MODULE_ONLY") != NULL) {
-    const char *em = getenv("XLANG_ASM_ENTRY_MODULE_ONLY");
+      link_abi_getenv("XLANG_ASM_ENTRY_MODULE_ONLY") != NULL) {
+    const char *em = link_abi_getenv("XLANG_ASM_ENTRY_MODULE_ONLY");
     if (em && em[0] != '\0' && em[0] != '0')
       return 0;
   }
@@ -14989,7 +15928,7 @@ void asm_diag_trace_func_body(struct ast_ASTArena *arena, int32_t body_ref) {
   struct ast_Block *b;
   if (!arena || body_ref <= 0)
     return;
-  trace = getenv("XLANG_ASM_BODY_TRACE");
+  trace = link_abi_getenv("XLANG_ASM_BODY_TRACE");
   if (!trace || trace[0] == '\0' || trace[0] == '0')
     return;
   b = block_at(arena, body_ref);
@@ -15006,7 +15945,7 @@ void asm_diag_trace_func_body(struct ast_ASTArena *arena, int32_t body_ref) {
 
 /** XLANG_ASM_BODY_TRACE=1：仅打印 body_ref 数值（在 pipeline_asm_module_func_body_ref_at 前后对照）。 */
 void asm_diag_trace_body_ref(int32_t body_ref) {
-  const char *trace = getenv("XLANG_ASM_BODY_TRACE");
+  const char *trace = link_abi_getenv("XLANG_ASM_BODY_TRACE");
   if (!trace || trace[0] == '\0' || trace[0] == '0')
     return;
   fprintf(stderr, "asm_body_ref=%d\n", (int)body_ref);
@@ -15015,7 +15954,7 @@ void asm_diag_trace_body_ref(int32_t body_ref) {
 
 /** XLANG_ASM_BODY_TRACE=1：emit 阶段标记（1=fill 后 2=prologue 后 3=emit_body 后）。 */
 void asm_diag_trace_emit_phase(int32_t phase) {
-  const char *trace = getenv("XLANG_ASM_BODY_TRACE");
+  const char *trace = link_abi_getenv("XLANG_ASM_BODY_TRACE");
   if (!trace || trace[0] == '\0' || trace[0] == '0')
     return;
   fprintf(stderr, "asm_emit_phase=%d\n", (int)phase);
@@ -15027,7 +15966,7 @@ void asm_diag_trace_func_idx(int32_t func_idx, uint8_t *name, int32_t name_len) 
   int32_t i;
   if (!name || name_len <= 0)
     return;
-  trace = getenv("XLANG_ASM_FUNC_TRACE");
+  trace = link_abi_getenv("XLANG_ASM_FUNC_TRACE");
   if (!trace || trace[0] == '\0' || trace[0] == '0')
     return;
   if (func_idx >= 0)
@@ -15530,6 +16469,54 @@ static void asm_wpo_collect_edges_from_expr(struct ast_ASTArena *a, int32_t expr
       asm_wpo_collect_edges_from_expr(a, ex->call_callee_ref, caller_id, caller_mod, ctx, depth + 1);
     return;
   }
+  /*
+   * wave358 Cap residual pure — METHOD_CALL exclusive path (before binop peel).
+   * Root: METHOD_CALL fell through to binop_left/right (union slots) and returned
+   * without UFCS edge → freestanding emit_n skipped free get → ld UNDEF get.
+   * G.7: same-module free method via call_resolved or method name match.
+   * PLATFORM: SHARED freestanding WPO · LINUX gold.
+   */
+  /* kind via accessor (SoA-safe); 49 = EXPR_METHOD_CALL product ordinal. */
+  if (ex->kind == ast_ExprKind_EXPR_METHOD_CALL ||
+      pipeline_expr_kind_ord_at(a, expr_ref) == 49) {
+    int32_t r_fn = pipeline_expr_call_resolved_func_index_at(a, expr_ref);
+    int32_t r_dep = pipeline_expr_call_resolved_dep_index_at(a, expr_ref);
+    int32_t mcid = -1;
+    int32_t mlen = pipeline_expr_method_call_name_len(a, expr_ref);
+    int32_t mbase = pipeline_expr_method_call_base_ref_at(a, expr_ref);
+    int32_t mnargs = pipeline_expr_method_call_num_args_at(a, expr_ref);
+    uint8_t mnm[64];
+    if (r_fn >= 0 && r_dep < 0 && caller_mod)
+      mcid = asm_wpo_func_id_of(caller_mod, r_fn);
+    if (mcid < 0 && mlen > 0 && mlen <= 63) {
+      pipeline_expr_method_call_name_into(a, expr_ref, mnm);
+      mcid = asm_wpo_func_id_in_module(caller_mod, mnm, mlen);
+      if (mcid < 0)
+        mcid = asm_wpo_func_id_by_name(mnm, mlen);
+      /* All same-name overloads: free get may not be first fi registration order. */
+      if (caller_mod && mcid < 0) {
+        int32_t fi_m;
+        int32_t nf_m = pipeline_module_num_funcs(caller_mod);
+        for (fi_m = 0; fi_m < nf_m; fi_m++) {
+          if (pipeline_module_func_name_equal_at(caller_mod, fi_m, mnm, mlen)) {
+            int32_t id_m = asm_wpo_func_id_of(caller_mod, fi_m);
+            if (id_m >= 0)
+              asm_wpo_add_edge(caller_id, id_m);
+          }
+        }
+      }
+    }
+    if (mcid >= 0)
+      asm_wpo_add_edge(caller_id, mcid);
+    if (mbase > 0)
+      asm_wpo_collect_edges_from_expr(a, mbase, caller_id, caller_mod, ctx, depth + 1);
+    for (i = 0; i < mnargs; i++) {
+      arg_slot = expr_method_call_arg_slot(a, expr_ref, i, 0);
+      if (arg_slot && *arg_slot > 0)
+        asm_wpo_collect_edges_from_expr(a, *arg_slot, caller_id, caller_mod, ctx, depth + 1);
+    }
+    return;
+  }
   if (ex->kind == ast_ExprKind_EXPR_RETURN || ex->kind == ast_ExprKind_EXPR_PANIC || ex->kind == ast_ExprKind_EXPR_NEG ||
       ex->kind == ast_ExprKind_EXPR_BITNOT || ex->kind == ast_ExprKind_EXPR_LOGNOT || ex->kind == ast_ExprKind_EXPR_ADDR_OF ||
       ex->kind == ast_ExprKind_EXPR_DEREF || ex->kind == ast_ExprKind_EXPR_AWAIT || ex->kind == ast_ExprKind_EXPR_RUN ||
@@ -15567,14 +16554,34 @@ static void asm_wpo_collect_edges_from_expr(struct ast_ASTArena *a, int32_t expr
       asm_wpo_collect_edges_from_expr(a, ex->binop_right_ref, caller_id, caller_mod, ctx, depth + 1);
     return;
   }
+  /*
+   * wave351 Cap residual pure: STRUCT_LIT field inits and ARRAY_LIT elems must feed
+   * the call graph. Root: `Box { a: fill(n) }` only-call-site left fill unreachable
+   * (emit_n skipped fill → UNDEF). G.7: same collector; walk sidecar field/elem refs.
+   * PLATFORM: SHARED freestanding WPO · LINUX gold.
+   */
+  if (ex->kind == ast_ExprKind_EXPR_STRUCT_LIT) {
+    for (i = 0; i < ex->struct_lit_num_fields; i++) {
+      int32_t iref = pipeline_expr_struct_lit_init_ref(a, expr_ref, i);
+      if (iref > 0)
+        asm_wpo_collect_edges_from_expr(a, iref, caller_id, caller_mod, ctx, depth + 1);
+    }
+    return;
+  }
+  if (ex->kind == ast_ExprKind_EXPR_ARRAY_LIT) {
+    for (i = 0; i < ex->array_lit_num_elems; i++) {
+      int32_t eref = pipeline_expr_array_lit_elem_ref(a, expr_ref, i);
+      if (eref > 0)
+        asm_wpo_collect_edges_from_expr(a, eref, caller_id, caller_mod, ctx, depth + 1);
+    }
+    return;
+  }
   if (ex->field_access_base_ref > 0)
     asm_wpo_collect_edges_from_expr(a, ex->field_access_base_ref, caller_id, caller_mod, ctx, depth + 1);
   if (ex->index_base_ref > 0)
     asm_wpo_collect_edges_from_expr(a, ex->index_base_ref, caller_id, caller_mod, ctx, depth + 1);
   if (ex->index_index_ref > 0)
     asm_wpo_collect_edges_from_expr(a, ex->index_index_ref, caller_id, caller_mod, ctx, depth + 1);
-  if (ex->method_call_base_ref > 0)
-    asm_wpo_collect_edges_from_expr(a, ex->method_call_base_ref, caller_id, caller_mod, ctx, depth + 1);
 }
 
 /**
@@ -15843,7 +16850,27 @@ static int32_t asm_wpo_user_pgo_force_main_callee_edge(struct ast_Module *entry,
       return -1;
     er = op;
   }
-  if (pipeline_expr_kind_ord_at(a, er) != (int32_t)ast_ExprKind_EXPR_CALL)
+  ko = pipeline_expr_kind_ord_at(a, er);
+  /* wave358: UFCS METHOD_CALL same-module free method (not only CALL). */
+  if (ko == (int32_t)ast_ExprKind_EXPR_METHOD_CALL) {
+    int32_t r_fn = pipeline_expr_call_resolved_func_index_at(a, er);
+    int32_t r_dep = pipeline_expr_call_resolved_dep_index_at(a, er);
+    int32_t nlen = pipeline_expr_method_call_name_len(a, er);
+    uint8_t mnm[64];
+    cid = -1;
+    if (r_fn >= 0 && r_dep < 0)
+      cid = asm_wpo_func_id_of(entry, r_fn);
+    if (cid < 0 && nlen > 0 && nlen <= 63) {
+      pipeline_expr_method_call_name_into(a, er, mnm);
+      cid = asm_wpo_func_id_in_module(entry, mnm, nlen);
+      if (cid < 0)
+        cid = asm_wpo_func_id_by_name(mnm, nlen);
+    }
+    if (cid >= 0)
+      asm_wpo_add_edge(main_id, cid);
+    return cid;
+  }
+  if (ko != (int32_t)ast_ExprKind_EXPR_CALL)
     return -1;
   cid = asm_wpo_call_callee_id(a, er, entry, g_asm_wpo.dep_ctx);
   if (cid >= 0)
@@ -16209,9 +17236,9 @@ static int32_t asm_wpo_pgo_depth_of(struct ast_Module *m, int32_t fi) {
 /** 读 XLANG_ASM_WPO_DCE：未设或非 "0" 时启用 asm WPO DCE；设为 0 时关闭（A/B __text bench）。
  * XLANG_WPO_NO_FOLD=1 时亦关闭：对照 bench 须保留 lane0/scale 等 callee 定义，避免 reach 漏边导致 UNDEF。 */
 static int32_t asm_wpo_dce_env_enabled(void) {
-  if (getenv("XLANG_WPO_NO_FOLD"))
+  if (link_abi_getenv("XLANG_WPO_NO_FOLD"))
     return 0;
-  const char *e = getenv("XLANG_ASM_WPO_DCE");
+  const char *e = link_abi_getenv("XLANG_ASM_WPO_DCE");
   if (!e || e[0] == '\0')
     return 1;
   if (e[0] == '0' && (e[1] == '\0' || e[1] == '\n'))

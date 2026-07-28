@@ -1,11 +1,11 @@
 /* seeds/runtime_atomic_glue.from_x.c — G-02f-19 product TU
+ * G-02f-103 helper gates.
  * Product: runtime_atomic_glue.o; logic still C until full .x port.
- */
-/**
- * runtime_atomic_glue.c — 原子操作胶层（F-ZC：自 std/atomic/atomic_glue.c 迁入）
  *
- * 【文件职责】load/store、compare_exchange、fetch_add/sub/and/or/xor（i16/u16/i32/u32/i64/u64）；C11 或 __atomic_* 封装。
- * 【所属模块】std.atomic；与 atomic.o 一并链入 exe（对标 Rust std::sync::atomic、Zig std.atomic）。
+ * wave508 G-7: R2 full mode — thin (.x) provides all public #[no_mangle] APIs;
+ * rest (this file) provides OS bridge _impl implementations.
+ * PLATFORM: SHARED — atomic operations use compiler builtins (__atomic_*)
+ * or C11 <stdatomic.h>; inline fallback for non-atomic platforms.
  */
 
 #include <stdint.h>
@@ -37,18 +37,57 @@
 #define ATOMIC_CAS64(p,e,d) __atomic_compare_exchange_n((p), (e), (d), 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)
 #endif
 
+/* Forward declarations of thin public API functions (provided by .x in R2 mode).
+ * Needed by smoke tests and any function that calls back into public API. */
+int32_t atomic_load_i32_c(int32_t *ptr);
+void atomic_store_i32_c(int32_t *ptr, int32_t val);
+int32_t atomic_compare_exchange_i32_c(int32_t *ptr, int32_t *expected, int32_t desired);
+int32_t atomic_fetch_add_i32_c(int32_t *ptr, int32_t delta);
+int32_t atomic_fetch_sub_i32_c(int32_t *ptr, int32_t delta);
+uint32_t atomic_load_u32_c(uint32_t *ptr);
+void atomic_store_u32_c(uint32_t *ptr, uint32_t val);
+int32_t atomic_compare_exchange_u32_c(uint32_t *ptr, uint32_t *expected, uint32_t desired);
+uint32_t atomic_fetch_add_u32_c(uint32_t *ptr, uint32_t delta);
+int64_t atomic_load_i64_c(int64_t *ptr);
+void atomic_store_i64_c(int64_t *ptr, int64_t val);
+int64_t atomic_fetch_add_i64_c(int64_t *ptr, int64_t delta);
+int64_t atomic_fetch_sub_i64_c(int64_t *ptr, int64_t delta);
+int32_t atomic_compare_exchange_i64_c(int64_t *ptr, int64_t *expected, int64_t desired);
+uint64_t atomic_load_u64_c(uint64_t *ptr);
+void atomic_store_u64_c(uint64_t *ptr, uint64_t val);
+uint64_t atomic_fetch_add_u64_c(uint64_t *ptr, uint64_t delta);
+uint64_t atomic_fetch_sub_u64_c(uint64_t *ptr, uint64_t delta);
+int32_t atomic_compare_exchange_u64_c(uint64_t *ptr, uint64_t *expected, uint64_t desired);
+void atomic_fence_seq_cst_c(void);
+void atomic_fence_acquire_c(void);
+void atomic_fence_release_c(void);
+int16_t atomic_load_i16_c(int16_t *ptr);
+void atomic_store_i16_c(int16_t *ptr, int16_t val);
+int16_t atomic_fetch_add_i16_c(int16_t *ptr, int16_t delta);
+int32_t atomic_compare_exchange_i16_c(int16_t *ptr, int16_t *expected, int16_t desired);
+uint16_t atomic_load_u16_c(uint16_t *ptr);
+void atomic_store_u16_c(uint16_t *ptr, uint16_t val);
+uint16_t atomic_fetch_add_u16_c(uint16_t *ptr, uint16_t delta);
+int32_t atomic_compare_exchange_u16_c(uint16_t *ptr, uint16_t *expected, uint16_t desired);
+
 /* ---------- i32 ---------- */
-int32_t atomic_load_i32_c(const int32_t *ptr) {
+int32_t atomic_load_i32_impl(int32_t *ptr) {
 #if defined(ATOMIC_LOAD32)
-  return (int32_t)ATOMIC_LOAD32((int32_t *)ptr);
+  return (int32_t)ATOMIC_LOAD32(ptr);
 #elif USE_C11_ATOMICS
-  return atomic_load_explicit((const _Atomic int32_t *)ptr, memory_order_seq_cst);
+  return atomic_load_explicit((_Atomic int32_t *)ptr, memory_order_seq_cst);
 #else
   return *ptr;
 #endif
 }
 
-void atomic_store_i32_c(int32_t *ptr, int32_t val) {
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+int32_t atomic_load_i32_c(int32_t *ptr) {
+  return atomic_load_i32_impl(ptr);
+}
+#endif
+
+void atomic_store_i32_impl(int32_t *ptr, int32_t val) {
 #if defined(ATOMIC_STORE32)
   ATOMIC_STORE32(ptr, val);
 #elif USE_C11_ATOMICS
@@ -58,7 +97,13 @@ void atomic_store_i32_c(int32_t *ptr, int32_t val) {
 #endif
 }
 
-int32_t atomic_compare_exchange_i32_c(int32_t *ptr, int32_t *expected, int32_t desired) {
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+void atomic_store_i32_c(int32_t *ptr, int32_t val) {
+  atomic_store_i32_impl(ptr, val);
+}
+#endif
+
+int32_t atomic_compare_exchange_i32_impl(int32_t *ptr, int32_t *expected, int32_t desired) {
 #if defined(ATOMIC_CAS32)
   int32_t e = *expected;
   if (ATOMIC_CAS32(ptr, &e, desired)) return 1;
@@ -76,7 +121,13 @@ int32_t atomic_compare_exchange_i32_c(int32_t *ptr, int32_t *expected, int32_t d
 #endif
 }
 
-int32_t atomic_fetch_add_i32_c(int32_t *ptr, int32_t delta) {
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+int32_t atomic_compare_exchange_i32_c(int32_t *ptr, int32_t *expected, int32_t desired) {
+  return atomic_compare_exchange_i32_impl(ptr, expected, desired);
+}
+#endif
+
+int32_t atomic_fetch_add_i32_impl(int32_t *ptr, int32_t delta) {
 #if defined(ATOMIC_FADD32)
   return (int32_t)ATOMIC_FADD32(ptr, delta);
 #elif USE_C11_ATOMICS
@@ -88,24 +139,42 @@ int32_t atomic_fetch_add_i32_c(int32_t *ptr, int32_t delta) {
 #endif
 }
 
-int32_t atomic_fetch_sub_i32_c(int32_t *ptr, int32_t delta) {
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+int32_t atomic_fetch_add_i32_c(int32_t *ptr, int32_t delta) {
+  return atomic_fetch_add_i32_impl(ptr, delta);
+}
+#endif
+
+int32_t atomic_fetch_sub_i32_impl(int32_t *ptr, int32_t delta) {
 #if defined(ATOMIC_FSUB32)
   return (int32_t)ATOMIC_FSUB32(ptr, delta);
 #else
-  return atomic_fetch_add_i32_c(ptr, -delta);
+  return atomic_fetch_add_i32_impl(ptr, -delta);
 #endif
 }
 
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+int32_t atomic_fetch_sub_i32_c(int32_t *ptr, int32_t delta) {
+  return atomic_fetch_sub_i32_impl(ptr, delta);
+}
+#endif
+
 /* ---------- u32 ---------- */
-uint32_t atomic_load_u32_c(const uint32_t *ptr) {
+uint32_t atomic_load_u32_impl(uint32_t *ptr) {
 #if defined(ATOMIC_LOAD32)
-  return (uint32_t)ATOMIC_LOAD32((uint32_t *)ptr);
+  return (uint32_t)ATOMIC_LOAD32(ptr);
 #else
   return *ptr;
 #endif
 }
 
-void atomic_store_u32_c(uint32_t *ptr, uint32_t val) {
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+uint32_t atomic_load_u32_c(uint32_t *ptr) {
+  return atomic_load_u32_impl(ptr);
+}
+#endif
+
+void atomic_store_u32_impl(uint32_t *ptr, uint32_t val) {
 #if defined(ATOMIC_STORE32)
   ATOMIC_STORE32(ptr, val);
 #else
@@ -113,7 +182,13 @@ void atomic_store_u32_c(uint32_t *ptr, uint32_t val) {
 #endif
 }
 
-int32_t atomic_compare_exchange_u32_c(uint32_t *ptr, uint32_t *expected, uint32_t desired) {
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+void atomic_store_u32_c(uint32_t *ptr, uint32_t val) {
+  atomic_store_u32_impl(ptr, val);
+}
+#endif
+
+int32_t atomic_compare_exchange_u32_impl(uint32_t *ptr, uint32_t *expected, uint32_t desired) {
 #if defined(__GNUC__) || defined(__clang__)
   uint32_t e = *expected;
   if (__atomic_compare_exchange_n(ptr, &e, desired, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)) return 1;
@@ -131,9 +206,15 @@ int32_t atomic_compare_exchange_u32_c(uint32_t *ptr, uint32_t *expected, uint32_
 #endif
 }
 
-uint32_t atomic_fetch_add_u32_c(uint32_t *ptr, uint32_t delta) {
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+int32_t atomic_compare_exchange_u32_c(uint32_t *ptr, uint32_t *expected, uint32_t desired) {
+  return atomic_compare_exchange_u32_impl(ptr, expected, desired);
+}
+#endif
+
+uint32_t atomic_fetch_add_u32_impl(uint32_t *ptr, uint32_t delta) {
 #if defined(ATOMIC_FADD32)
-  return (uint32_t)ATOMIC_FADD32((uint32_t *)ptr, delta);
+  return (uint32_t)ATOMIC_FADD32(ptr, delta);
 #else
   uint32_t old = *ptr;
   *ptr = old + delta;
@@ -141,32 +222,56 @@ uint32_t atomic_fetch_add_u32_c(uint32_t *ptr, uint32_t delta) {
 #endif
 }
 
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+uint32_t atomic_fetch_add_u32_c(uint32_t *ptr, uint32_t delta) {
+  return atomic_fetch_add_u32_impl(ptr, delta);
+}
+#endif
+
 /* ---------- i64 / u64 ---------- */
-int64_t atomic_load_i64_c(const int64_t *ptr) {
+int64_t atomic_load_i64_impl(int64_t *ptr) {
 #if defined(ATOMIC_LOAD64)
-  return (int64_t)ATOMIC_LOAD64((int64_t *)ptr);
+  return (int64_t)ATOMIC_LOAD64(ptr);
 #else
   return *ptr;
 #endif
 }
 
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+int64_t atomic_load_i64_c(int64_t *ptr) {
+  return atomic_load_i64_impl(ptr);
+}
+#endif
+
+void atomic_store_i64_impl(int64_t *ptr, int64_t val) {
+#if defined(ATOMIC_STORE64)
+  ATOMIC_STORE64(ptr, val);
+#else
+  *ptr = val;
+#endif
+}
+
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
 void atomic_store_i64_c(int64_t *ptr, int64_t val) {
-#if defined(ATOMIC_STORE64)
-  ATOMIC_STORE64(ptr, val);
-#else
-  *ptr = val;
-#endif
+  atomic_store_i64_impl(ptr, val);
 }
+#endif
 
-uint64_t atomic_load_u64_c(const uint64_t *ptr) {
+uint64_t atomic_load_u64_impl(uint64_t *ptr) {
 #if defined(ATOMIC_LOAD64)
-  return (uint64_t)ATOMIC_LOAD64((uint64_t *)ptr);
+  return (uint64_t)ATOMIC_LOAD64(ptr);
 #else
   return *ptr;
 #endif
 }
 
-void atomic_store_u64_c(uint64_t *ptr, uint64_t val) {
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+uint64_t atomic_load_u64_c(uint64_t *ptr) {
+  return atomic_load_u64_impl(ptr);
+}
+#endif
+
+void atomic_store_u64_impl(uint64_t *ptr, uint64_t val) {
 #if defined(ATOMIC_STORE64)
   ATOMIC_STORE64(ptr, val);
 #else
@@ -174,7 +279,13 @@ void atomic_store_u64_c(uint64_t *ptr, uint64_t val) {
 #endif
 }
 
-int64_t atomic_fetch_add_i64_c(int64_t *ptr, int64_t delta) {
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+void atomic_store_u64_c(uint64_t *ptr, uint64_t val) {
+  atomic_store_u64_impl(ptr, val);
+}
+#endif
+
+int64_t atomic_fetch_add_i64_impl(int64_t *ptr, int64_t delta) {
 #if defined(ATOMIC_FADD64)
   return (int64_t)ATOMIC_FADD64(ptr, delta);
 #else
@@ -184,50 +295,79 @@ int64_t atomic_fetch_add_i64_c(int64_t *ptr, int64_t delta) {
 #endif
 }
 
-/* --- STD-046：内存栅栏 --- */
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+int64_t atomic_fetch_add_i64_c(int64_t *ptr, int64_t delta) {
+  return atomic_fetch_add_i64_impl(ptr, delta);
+}
+#endif
 
-/** 全序内存栅栏（seq_cst）。 */
-void atomic_fence_seq_cst_c(void) {
+/* --- STD-046: memory fences --- */
+
+void atomic_fence_seq_cst_impl(void) {
 #if defined(__GNUC__) || defined(__clang__)
   __atomic_thread_fence(__ATOMIC_SEQ_CST);
 #elif USE_C11_ATOMICS
   atomic_thread_fence(memory_order_seq_cst);
 #else
-  /* 无原子支持时为空操作。 */
+  /* no-op */
 #endif
 }
 
-/** 获取侧内存栅栏。 */
-void atomic_fence_acquire_c(void) {
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+void atomic_fence_seq_cst_c(void) {
+  atomic_fence_seq_cst_impl();
+}
+#endif
+
+void atomic_fence_acquire_impl(void) {
 #if defined(__GNUC__) || defined(__clang__)
   __atomic_thread_fence(__ATOMIC_ACQUIRE);
 #elif USE_C11_ATOMICS
   atomic_thread_fence(memory_order_acquire);
 #else
+  /* no-op */
 #endif
 }
 
-/** 释放侧内存栅栏。 */
-void atomic_fence_release_c(void) {
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+void atomic_fence_acquire_c(void) {
+  atomic_fence_acquire_impl();
+}
+#endif
+
+void atomic_fence_release_impl(void) {
 #if defined(__GNUC__) || defined(__clang__)
   __atomic_thread_fence(__ATOMIC_RELEASE);
 #elif USE_C11_ATOMICS
   atomic_thread_fence(memory_order_release);
 #else
+  /* no-op */
 #endif
 }
 
-/* --- STD-146：i16/u16 与 i64/u64 扩展 --- */
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+void atomic_fence_release_c(void) {
+  atomic_fence_release_impl();
+}
+#endif
 
-int16_t atomic_load_i16_c(const int16_t *ptr) {
+/* --- STD-146: i16/u16 and i64/u64 extensions --- */
+
+int16_t atomic_load_i16_impl(int16_t *ptr) {
 #if defined(ATOMIC_LOAD16)
-  return (int16_t)ATOMIC_LOAD16((int16_t *)ptr);
+  return (int16_t)ATOMIC_LOAD16(ptr);
 #else
   return *ptr;
 #endif
 }
 
-void atomic_store_i16_c(int16_t *ptr, int16_t val) {
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+int16_t atomic_load_i16_c(int16_t *ptr) {
+  return atomic_load_i16_impl(ptr);
+}
+#endif
+
+void atomic_store_i16_impl(int16_t *ptr, int16_t val) {
 #if defined(ATOMIC_STORE16)
   ATOMIC_STORE16(ptr, val);
 #else
@@ -235,7 +375,13 @@ void atomic_store_i16_c(int16_t *ptr, int16_t val) {
 #endif
 }
 
-int16_t atomic_fetch_add_i16_c(int16_t *ptr, int16_t delta) {
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+void atomic_store_i16_c(int16_t *ptr, int16_t val) {
+  atomic_store_i16_impl(ptr, val);
+}
+#endif
+
+int16_t atomic_fetch_add_i16_impl(int16_t *ptr, int16_t delta) {
 #if defined(ATOMIC_FADD16)
   return (int16_t)ATOMIC_FADD16(ptr, delta);
 #else
@@ -245,7 +391,13 @@ int16_t atomic_fetch_add_i16_c(int16_t *ptr, int16_t delta) {
 #endif
 }
 
-int32_t atomic_compare_exchange_i16_c(int16_t *ptr, int16_t *expected, int16_t desired) {
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+int16_t atomic_fetch_add_i16_c(int16_t *ptr, int16_t delta) {
+  return atomic_fetch_add_i16_impl(ptr, delta);
+}
+#endif
+
+int32_t atomic_compare_exchange_i16_impl(int16_t *ptr, int16_t *expected, int16_t desired) {
 #if defined(ATOMIC_CAS16)
   int16_t e = *expected;
   if (ATOMIC_CAS16(ptr, &e, desired)) return 1;
@@ -258,15 +410,27 @@ int32_t atomic_compare_exchange_i16_c(int16_t *ptr, int16_t *expected, int16_t d
 #endif
 }
 
-uint16_t atomic_load_u16_c(const uint16_t *ptr) {
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+int32_t atomic_compare_exchange_i16_c(int16_t *ptr, int16_t *expected, int16_t desired) {
+  return atomic_compare_exchange_i16_impl(ptr, expected, desired);
+}
+#endif
+
+uint16_t atomic_load_u16_impl(uint16_t *ptr) {
 #if defined(ATOMIC_LOAD16)
-  return (uint16_t)ATOMIC_LOAD16((uint16_t *)ptr);
+  return (uint16_t)ATOMIC_LOAD16(ptr);
 #else
   return *ptr;
 #endif
 }
 
-void atomic_store_u16_c(uint16_t *ptr, uint16_t val) {
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+uint16_t atomic_load_u16_c(uint16_t *ptr) {
+  return atomic_load_u16_impl(ptr);
+}
+#endif
+
+void atomic_store_u16_impl(uint16_t *ptr, uint16_t val) {
 #if defined(ATOMIC_STORE16)
   ATOMIC_STORE16(ptr, val);
 #else
@@ -274,9 +438,15 @@ void atomic_store_u16_c(uint16_t *ptr, uint16_t val) {
 #endif
 }
 
-uint16_t atomic_fetch_add_u16_c(uint16_t *ptr, uint16_t delta) {
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+void atomic_store_u16_c(uint16_t *ptr, uint16_t val) {
+  atomic_store_u16_impl(ptr, val);
+}
+#endif
+
+uint16_t atomic_fetch_add_u16_impl(uint16_t *ptr, uint16_t delta) {
 #if defined(ATOMIC_FADD16)
-  return (uint16_t)ATOMIC_FADD16((uint16_t *)ptr, delta);
+  return (uint16_t)ATOMIC_FADD16(ptr, delta);
 #else
   uint16_t old = *ptr;
   *ptr = (uint16_t)(old + delta);
@@ -284,7 +454,13 @@ uint16_t atomic_fetch_add_u16_c(uint16_t *ptr, uint16_t delta) {
 #endif
 }
 
-int32_t atomic_compare_exchange_u16_c(uint16_t *ptr, uint16_t *expected, uint16_t desired) {
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+uint16_t atomic_fetch_add_u16_c(uint16_t *ptr, uint16_t delta) {
+  return atomic_fetch_add_u16_impl(ptr, delta);
+}
+#endif
+
+int32_t atomic_compare_exchange_u16_impl(uint16_t *ptr, uint16_t *expected, uint16_t desired) {
 #if defined(__GNUC__) || defined(__clang__)
   uint16_t e = *expected;
   if (__atomic_compare_exchange_n(ptr, &e, desired, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)) return 1;
@@ -297,7 +473,13 @@ int32_t atomic_compare_exchange_u16_c(uint16_t *ptr, uint16_t *expected, uint16_
 #endif
 }
 
-int32_t atomic_compare_exchange_i64_c(int64_t *ptr, int64_t *expected, int64_t desired) {
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+int32_t atomic_compare_exchange_u16_c(uint16_t *ptr, uint16_t *expected, uint16_t desired) {
+  return atomic_compare_exchange_u16_impl(ptr, expected, desired);
+}
+#endif
+
+int32_t atomic_compare_exchange_i64_impl(int64_t *ptr, int64_t *expected, int64_t desired) {
 #if defined(ATOMIC_CAS64)
   int64_t e = *expected;
   if (ATOMIC_CAS64(ptr, &e, desired)) return 1;
@@ -315,17 +497,29 @@ int32_t atomic_compare_exchange_i64_c(int64_t *ptr, int64_t *expected, int64_t d
 #endif
 }
 
-int64_t atomic_fetch_sub_i64_c(int64_t *ptr, int64_t delta) {
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+int32_t atomic_compare_exchange_i64_c(int64_t *ptr, int64_t *expected, int64_t desired) {
+  return atomic_compare_exchange_i64_impl(ptr, expected, desired);
+}
+#endif
+
+int64_t atomic_fetch_sub_i64_impl(int64_t *ptr, int64_t delta) {
 #if defined(ATOMIC_FSUB64)
   return (int64_t)ATOMIC_FSUB64(ptr, delta);
 #else
-  return atomic_fetch_add_i64_c(ptr, -delta);
+  return atomic_fetch_add_i64_impl(ptr, -delta);
 #endif
 }
 
-uint64_t atomic_fetch_add_u64_c(uint64_t *ptr, uint64_t delta) {
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+int64_t atomic_fetch_sub_i64_c(int64_t *ptr, int64_t delta) {
+  return atomic_fetch_sub_i64_impl(ptr, delta);
+}
+#endif
+
+uint64_t atomic_fetch_add_u64_impl(uint64_t *ptr, uint64_t delta) {
 #if defined(ATOMIC_FADD64)
-  return (uint64_t)ATOMIC_FADD64((uint64_t *)ptr, delta);
+  return (uint64_t)ATOMIC_FADD64(ptr, delta);
 #else
   uint64_t old = *ptr;
   *ptr = old + delta;
@@ -333,15 +527,27 @@ uint64_t atomic_fetch_add_u64_c(uint64_t *ptr, uint64_t delta) {
 #endif
 }
 
-uint64_t atomic_fetch_sub_u64_c(uint64_t *ptr, uint64_t delta) {
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+uint64_t atomic_fetch_add_u64_c(uint64_t *ptr, uint64_t delta) {
+  return atomic_fetch_add_u64_impl(ptr, delta);
+}
+#endif
+
+uint64_t atomic_fetch_sub_u64_impl(uint64_t *ptr, uint64_t delta) {
 #if defined(ATOMIC_FSUB64)
-  return (uint64_t)ATOMIC_FSUB64((uint64_t *)ptr, delta);
+  return (uint64_t)ATOMIC_FSUB64(ptr, delta);
 #else
-  return atomic_fetch_add_u64_c(ptr, (uint64_t)(0 - delta));
+  return atomic_fetch_add_u64_impl(ptr, (uint64_t)(0 - delta));
 #endif
 }
 
-int32_t atomic_compare_exchange_u64_c(uint64_t *ptr, uint64_t *expected, uint64_t desired) {
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+uint64_t atomic_fetch_sub_u64_c(uint64_t *ptr, uint64_t delta) {
+  return atomic_fetch_sub_u64_impl(ptr, delta);
+}
+#endif
+
+int32_t atomic_compare_exchange_u64_impl(uint64_t *ptr, uint64_t *expected, uint64_t desired) {
 #if defined(ATOMIC_CAS64)
   uint64_t e = *expected;
   if (ATOMIC_CAS64(ptr, &e, desired)) return 1;
@@ -358,3 +564,9 @@ int32_t atomic_compare_exchange_u64_c(uint64_t *ptr, uint64_t *expected, uint64_
   return 0;
 #endif
 }
+
+#ifndef XLANG_RUNTIME_ATOMIC_GLUE_FROM_X
+int32_t atomic_compare_exchange_u64_c(uint64_t *ptr, uint64_t *expected, uint64_t desired) {
+  return atomic_compare_exchange_u64_impl(ptr, expected, desired);
+}
+#endif

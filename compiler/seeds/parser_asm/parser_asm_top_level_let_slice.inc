@@ -68,6 +68,15 @@ void parser_asm_parse_one_top_level_let_into_slice_c(void *arena, void *module, 
   memset(&r, 0, sizeof(r));
   memset(&expr_res, 0, sizeof(expr_res));
   lexer_next_into(&r, lex, source);
+  /* wave385: optional IDENT "mut" after let (not const). PLATFORM: SHARED G.7 with parse_body_lets. */
+  if (is_const == 0 && r.tok.kind == (int32_t)TOKEN_IDENT && r.tok.ident_len == 3) {
+    size_t mut_start = r.token_start;
+    if (source->data && mut_start + 2 < source->length && source->data[mut_start] == 109 &&
+        source->data[mut_start + 1] == 117 && source->data[mut_start + 2] == 116) {
+      parser_lex_from_lexer_result_ptr_into(&lex, &r);
+      lexer_next_into(&r, lex, source);
+    }
+  }
   if (r.tok.kind != (int32_t)TOKEN_IDENT)
     return;
   name_len = r.tok.ident_len;
@@ -77,14 +86,24 @@ void parser_asm_parse_one_top_level_let_into_slice_c(void *arena, void *module, 
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_function_name_audit_c(name_buf, name_len));
   parser_lex_from_lexer_result_ptr_into(&lex, &r);
   lexer_next_into(&r, lex, source);
-  if (r.tok.kind != (int32_t)TOKEN_COLON)
+  /* wave423: const may omit `: Type` when next is `=` (type_ref=0 → typeck infer).
+   * let still requires `: Type` (docs/06 ban inference). PLATFORM: SHARED parse. */
+  type_ref = 0;
+  if (r.tok.kind == (int32_t)TOKEN_COLON) {
+    parser_lex_from_lexer_result_ptr_into(&lex, &r);
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_type_ref_deep_audit_c(lex, source));
+    type_ref = parser_asm_parse_type_ref_for_arena_into_slice_c(arena, lex, source, &lex);
+    if (type_ref == 0)
+      return;
+    lexer_next_into(&r, lex, source);
+  } else if (is_const != 0 && r.tok.kind == (int32_t)TOKEN_ASSIGN) {
+    /* const name = init — type inference; leave type_ref=0. */
+  } else {
+    /* wave422: P010 illegal untyped let / const without `=` (G.7 twin of body lets). */
+    extern void parser_report_untyped_binding_p010_c(int32_t line, int32_t col, int32_t is_let);
+    parser_report_untyped_binding_p010_c((int32_t)r.tok.line, (int32_t)r.tok.col, is_const == 0 ? 1 : 0);
     return;
-  parser_lex_from_lexer_result_ptr_into(&lex, &r);
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_type_ref_deep_audit_c(lex, source));
-  type_ref = parser_asm_parse_type_ref_for_arena_into_slice_c(arena, lex, source, &lex);
-  if (type_ref == 0)
-    return;
-  lexer_next_into(&r, lex, source);
+  }
   if (r.tok.kind != (int32_t)TOKEN_ASSIGN)
     return;
   parser_lex_from_lexer_result_ptr_into(&lex, &r);

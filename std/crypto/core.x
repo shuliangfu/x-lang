@@ -44,29 +44,26 @@ export function crypto_mem_eq_c(a: *u8, b: *u8, len: i32): i32 {
   return 0;
 }
 
-/** Exported function `crypto_sha256_c`.
- * Implements `crypto_sha256_c`.
- * @param msg *u8
- * @param len i32
- * @param out *u8
- * @return void
+/**
+ * C ABI surface for SHA-256 / HMAC-SHA256 lives in runtime_crypto_inc_glue
+ * (seeds/runtime_crypto_inc_glue.from_x.c) — not empty .x stubs.
+ * Empty export bodies here were strong no-ops that beat a weak glue on mac
+ * (exit 3: digest all-zero) and duplicate-symbol'd with strong glue.
+ * @param msg *u8 — message bytes
+ * @param len i32 — byte count
+ * @param out *u8 — 32-byte digest
+ * PLATFORM: SHARED — authority = runtime_crypto_inc_glue; mod.x calls these.
  */
-export function crypto_sha256_c(msg: *u8, len: i32, out: *u8): void {
-  return;
-}
-
-/** Exported function `crypto_hmac_sha256_c`.
- * Implements `crypto_hmac_sha256_c`.
- * @param key *u8
- * @param key_len i32
- * @param msg *u8
- * @param msg_len i32
- * @param out *u8
- * @return void
+extern function crypto_sha256_c(msg: *u8, len: i32, out: *u8): void;
+/**
+ * @param key *u8 — HMAC key
+ * @param key_len i32 — key length
+ * @param msg *u8 — message bytes
+ * @param msg_len i32 — message length
+ * @param out *u8 — 32-byte MAC
+ * PLATFORM: SHARED — same glue authority as crypto_sha256_c.
  */
-export function crypto_hmac_sha256_c(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void {
-  return;
-}
+extern function crypto_hmac_sha256_c(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void;
 
 /** Exported function `crypto_f_sha256_marker_c`.
  * Implements `crypto_f_sha256_marker_c`.

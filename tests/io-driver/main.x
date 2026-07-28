@@ -6,10 +6,10 @@ const driver = import("std.io.driver");
  * @return i32
  */
 function main(): i32 {
-  let b: Buffer = Buffer { ptr: 0, len: 0, handle: 0 };
+  let b: Buffer = Buffer { ptr: 0, length: 0, handle: 0 };
   let r: i32 = driver.register(b);
   let r2: i32 = driver.submit_read(b, 0);
-  let out_buf: Buffer = Buffer { ptr: 0, len: 0, handle: 1 };
+  let out_buf: Buffer = Buffer { ptr: 0, length: 0, handle: 1 };
   let r3: i32 = driver.submit_write(out_buf, 0);
   let arr: Buffer[4] = [out_buf, out_buf, out_buf, out_buf];
   let r4: i32 = driver.submit_write_batch(arr, 1, 0);

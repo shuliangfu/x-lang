@@ -60,7 +60,7 @@ export const REGEX_MIN_ASCII_CAT: u8[128] = [
 /* See implementation. */
 allow(padding) struct RegexMinCapSlot {
   off: i32;
-  len: i32;
+  length: i32;
 }
 
 /* See implementation. */
@@ -345,7 +345,7 @@ export function regex_min_search_literal(state: *RegexMinImpl, text: *u8, len: i
     if (cmp_rc == 0) {
       if (state.caps != 0 && state.ncap > 0) {
         state.caps[0].off = i;
-        state.caps[0].len = plen;
+        state.caps[0].length = plen;
         state.cap_valid = 1;
       }
       return 0;
@@ -542,7 +542,7 @@ export function regex_min_cap_reset(re: *RegexMinImpl): void {
   i = 0;
   while (i < re.ncap) {
     re.caps[i].off = -1;
-    re.caps[i].len = 0;
+    re.caps[i].length = 0;
     i = i + 1;
   }
   re.cap_valid = 0;
@@ -816,7 +816,7 @@ export function regex_min_match_piece(re: *RegexMinImpl, atom_start: *u8, atom_e
     gi = regex_min_group_index(re, atom_start);
     if (gi > 0 && re.caps != 0 && gi < re.ncap) {
       re.caps[gi].off = (gstart - haystack_start) as i32;
-      re.caps[gi].len = (str[0] - gstart) as i32;
+      re.caps[gi].length = (str[0] - gstart) as i32;
     }
     return 1;
   }
@@ -1145,7 +1145,7 @@ export function regex_min_search(re: *RegexMinImpl, text: *u8, len: i32): i32 {
       if (regex_min_match_here(re, &p, pat_end, &s, s_end, text) != 0 && p == pat_end) {
         if (re.caps != 0 && re.ncap > 0) {
           re.caps[0].off = i;
-          re.caps[0].len = (s - (text + i)) as i32;
+          re.caps[0].length = (s - (text + i)) as i32;
           re.cap_valid = 1;
         }
         return 0;
@@ -1163,7 +1163,7 @@ export function regex_min_search(re: *RegexMinImpl, text: *u8, len: i32): i32 {
     if (regex_min_match_here(re, &p, pat_end, &s, s_end, text) != 0 && p == pat_end) {
       if (re.caps != 0 && re.ncap > 0) {
         re.caps[0].off = i;
-        re.caps[0].len = (s - (text + i)) as i32;
+        re.caps[0].length = (s - (text + i)) as i32;
         re.cap_valid = 1;
       }
       return 0;
@@ -1258,7 +1258,7 @@ export function regex_group_length_c(re: *u8, group: i32): i32 {
   if (r == 0 || group < 0) { return -1; }
   if (r.cap_valid == 0 || r.caps == 0 || group >= r.ncap) { return -1; }
   if (r.caps[group].off < 0) { return -1; }
-  return r.caps[group].len;
+  return r.caps[group].length;
 }
 
 /** Exported function `regex_free_c`.

@@ -24,7 +24,7 @@ function main(): i32 {
   let v: ReadPtrView = io.ptr_view(handle, 0);
   if (v.ptr == 0 as *u8) { fs.close(fd_r); return 5; }
   if (io.ptr_view_valid(v) != 1) { fs.close(fd_r); return 6; }
-  if (v.len != 3 || v.ptr[1] != 22) { fs.close(fd_r); return 7; }
+  if (v.length != 3 || v.ptr[1] != 22) { fs.close(fd_r); return 7; }
   if (fs.close(fd_r) != 0) { return 8; }
   return 0;
 }

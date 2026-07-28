@@ -128,6 +128,11 @@ extern int32_t pipeline_module_func_num_params_at(struct ast_Module *m, int32_t 
 extern int32_t pipeline_module_func_param_type_ref_at(struct ast_Module *m, int32_t fi, int32_t pi);
 extern int32_t pipeline_module_func_return_type_at(struct ast_Module *m, int32_t fi);
 extern int32_t pipeline_type_elem_ref_at(struct ast_ASTArena *arena, int32_t type_ref);
+extern int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
+/* ctx is AsmFuncCtx*; void* avoids incomplete-type visibility warning before full layout. */
+extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(struct ast_ASTArena *arena,
+                                                      struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                      int32_t lval_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_type_named_name_into(struct ast_ASTArena *arena, int32_t type_ref, uint8_t *out64);
 extern struct ast_PipelineDepCtx *pipeline_asm_emit_dep_pipe_c(void);
 extern int32_t pipeline_expr_resolved_type_ref(struct ast_ASTArena *a, int32_t expr_ref);
@@ -398,6 +403,9 @@ extern int32_t try_call_wpo_mono_vector_lane_of_binop_call_elf(struct ast_ASTAre
                                                                int32_t ta);
 
 extern int32_t backend_enc_mov_rax_to_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta);
+/* wave359: freestanding i32.double → x*2 (mov+add self). */
+extern int32_t backend_enc_mov_rax_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+extern int32_t backend_enc_add_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_call_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len,
                                      int32_t ta);
 extern int32_t backend_enc_push_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
@@ -642,13 +650,15 @@ static int32_t glue_sysv_place_rax_rdx_arg_regs_elf_c(struct platform_elf_ElfCod
  * Spill rax[+rdx] to a fresh frame slot; leave next_offset advanced.
  * PLATFORM: LINUX+MACOS x86_64 SysV — multi-arg packing: emit all values to memory first so
  * dual-load (uses rdx) does not clobber already-placed higher arg regs (e.g. index in rdx).
+ * wave392: also AAPCS64 (ta==1) for x0-only spill — nested CALL while placing xN
+ * clobbers earlier arg regs (make1 destroys x1 holding make2 → reent2=11).
  * Returns spill offset (low half), or -1.
  */
 static int32_t glue_sysv_spill_rax_rdx_to_frame_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                    struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t gp_units) {
   struct glue_AsmFuncCtxCall *ly;
   int32_t off;
-  if (!elf_ctx || !ctx || ta != 0)
+  if (!elf_ctx || !ctx || (ta != 0 && ta != 1))
     return -1;
   ly = (struct glue_AsmFuncCtxCall *)ctx;
   off = ly->next_offset + 16;
@@ -656,7 +666,8 @@ static int32_t glue_sysv_spill_rax_rdx_to_frame_c(struct platform_elf_ElfCodegen
     off = 16;
   if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0)
     return -1;
-  if (gp_units >= 2) {
+  /* dual-GP high half is SysV x86 only (rdx); AAPCS64 8B args use one Xn. */
+  if (ta == 0 && gp_units >= 2) {
     if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, off - 8, ta) != 0)
       return -1;
   }
@@ -795,7 +806,7 @@ int32_t glue_sysv_x86_call_n_stack_c(struct ast_ASTArena *arena, int32_t call_ex
  *
  * PLATFORM: LINUX+MACOS x86_64 SysV — INTEGER-class aggregates 9–16B pass by value in two
  * consecutive GPRs. Nested CALL already returns them in rax+rdx; converting to a stack pointer
- * (lea) mismatches formal C (e.g. std_string_len_StrView takes rdi=ptr, rsi=len).
+ * (lea) mismatches formal C (e.g. std_string_length_StrView takes rdi=ptr, rsi=len).
  * Authority: leave rax/rdx intact; placement uses mov_rax/mov_rdx_to_arg_reg.
  * (G.7: single path with call-arg VAR dual load in pipeline_glue.)
  */
@@ -1883,7 +1894,7 @@ int32_t glue_asm_append_export_c_suffix(uint8_t *sym, int32_t sym_len, int32_t c
 /**
  * 函数定义/ CALL 导出符号：无 overload 时用裸名+dep 前缀；有 overload 时用 name_t1_t2（如 pick_i32）。
  * PLATFORM: SHARED — G.7 complete authority: named/ptr suffixes + _ret_ when param-sig collides
- * (align codegen_emit_func_link_name). string.len → len_String; vec.new → new_retVec_u8.
+ * (align codegen_emit_func_link_name). string.length → len_String; vec.new → new_retVec_u8.
  */
 /* G-02f-144：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-374 call：实现体始终 seed；public PREFER 时 thin forward */
@@ -2383,18 +2394,38 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
     }
 
     /**
-     * AAPCS64：实参经 x0 中转再 mov 到 xN；须从高序号寄存器实参向低序号 emit，
-     * 避免 emit arg1 覆盖已就位的 arg0（memcmp(pc,pe,16) 曾把 16 误装入 x0 致 SIGSEGV）。
+     * AAPCS64 (wave392): spill-then-load for register args — same discipline as SysV x86.
+     * Root: high-to-low direct place into xN was insufficient when an earlier-placed
+     * arg was a nested CALL (make2 → x1; make1 clobbers x1 as temp → take2 got y=x).
+     * Emit each arg value into x0, spill to frame, then load into final xN.
+     * PLATFORM: MACOS|ARM64 product pure-asm · SHARED frame next_offset.
      */
     if (ta == 1) {
       int32_t reg_n = nargs < eff_reg_max ? nargs : eff_reg_max;
-      for (i = reg_n - 1; i >= 0; i--) {
+      int32_t spill_off_a64[GLUE_ASM_MAX_CALL_ARGS];
+      for (i = 0; i < reg_n; i++)
+        spill_off_a64[i] = -1;
+      for (i = 0; i < reg_n; i++) {
+        int32_t so;
         arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
         if (arg_ref == 0)
           continue;
         if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
           return -1;
-        if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, i + sret_sh, ta) != 0)
+        so = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
+        if (so < 0)
+          return -1;
+        spill_off_a64[i] = so;
+      }
+      /*
+       * Load high→low: AAPCS64 x0 is both spill temp and arg0. Loading arg1 via
+       * x0 then mov x1 would clobber already-placed x0 if done low→high
+       * (reent2 saw both args = make2 → 2+32=34). High-first leaves x0 last.
+       */
+      for (i = reg_n - 1; i >= 0; i--) {
+        if (spill_off_a64[i] < 0)
+          continue;
+        if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off_a64[i], i + sret_sh, 1) != 0)
           return -1;
       }
       for (i = eff_reg_max; i < nargs; i++) {
@@ -3323,6 +3354,29 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
   if (name_len <= 0 || name_len > 63)
     return -1;
   pipeline_expr_method_call_name_into(arena, expr_ref, name);
+  /*
+   * wave359 Cap residual pure — freestanding i32.double() → x*2.
+   * Root: host codegen expands `(x * 2)`; freestanding called bare `double`
+   * → Ubuntu UNDEF (mac often host-C or dead_strip hid).
+   * G.7 authority: same bootstrap leaf as host METHOD_CALL double expand;
+   * only when typeck did NOT resolve UFCS free fn (call_resolved_func_index < 0).
+   * Emit: base → rax; mov rax→rbx; add rax,rbx → 2*base in rax (no new encoder).
+   * PLATFORM: SHARED — mac + Ubuntu freestanding L2.
+   */
+  {
+    int32_t r_fn = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+    if (r_fn < 0 && nargs == 0 && name_len == 6 && base_ref != 0 && name[0] == (uint8_t)'d' &&
+        name[1] == (uint8_t)'o' && name[2] == (uint8_t)'u' && name[3] == (uint8_t)'b' &&
+        name[4] == (uint8_t)'l' && name[5] == (uint8_t)'e') {
+      if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0)
+        return -1;
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_add_rax_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      return 0;
+    }
+  }
   /** import binding：encoding.foo(args) 静态调用，receiver 不入参。 */
   if (mod_ref && base_ref > 0 && pipeline_expr_kind_ord_at(arena, base_ref) == GLUE_EXPR_VAR_ORD) {
     uint8_t base_name[64];
@@ -3356,7 +3410,7 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
           }
           /*
            * PLATFORM: SHARED — import-binding METHOD_CALL mangle (G.7 same authority as CALL).
-           * Parser emits METHOD_CALL for string.len(v); bare pre+name → U std_string_len.
+           * Parser emits METHOD_CALL for string.length(v); bare pre+name → U std_string_len.
            */
           sym_len = glue_asm_mangle_import_binding_call_sym_c(arena, ctx, expr_ref, ly, mod_ref, j, pre_buf,
                                                               pre_len, name, name_len, 1, sym_flat);
@@ -3530,8 +3584,36 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
     }
   }
   if (base_ref != 0) {
-    if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0)
-      return -1;
+    /*
+     * wave360 Cap residual pure — freestanding UFCS auto-ref.
+     * Root: typeck matches value.method when free fn is method(self: *T,...);
+     * emit must pass &receiver (lea), not by-value load.
+     * G.7: when resolved UFCS (dep_ix<0, func_ix>=0) and param0 is *T matching
+     * base_ty's T, use lvalue eff addr; else value emit (wave358).
+     * PLATFORM: SHARED — mac + Ubuntu freestanding L2.
+     */
+    {
+      int32_t need_aref = 0;
+      int32_t r_fn = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+      int32_t r_dep = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
+      if (r_fn >= 0 && r_dep < 0 && mod_ref) {
+        int32_t p0 = pipeline_module_func_param_type_ref_at(mod_ref, r_fn, 0);
+        int32_t bty = pipeline_expr_resolved_type_ref(arena, base_ref);
+        if (p0 > 0 && bty > 0 &&
+            pipeline_type_kind_ord_at(arena, p0) == GLUE_TYPE_PTR_ORD &&
+            pipeline_typeck_type_refs_equal_c(arena, bty, p0) == 0) {
+          int32_t pe = pipeline_type_elem_ref_at(arena, p0);
+          if (pe > 0 && pipeline_typeck_type_refs_equal_c(arena, bty, pe) != 0)
+            need_aref = 1;
+        }
+      }
+      if (need_aref) {
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0)
+          return -1;
+      } else if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, base_ref, ctx, ta) != 0) {
+        return -1;
+      }
+    }
     if (ta != 1 && backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
       return -1;
   }

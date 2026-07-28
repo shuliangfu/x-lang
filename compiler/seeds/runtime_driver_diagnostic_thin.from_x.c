@@ -54,7 +54,7 @@ typedef struct { uint32_t e[4]; } u32x4_t;
 typedef struct { uint32_t e[8]; } u32x8_t;
 typedef struct { uint32_t e[16]; } u32x16_t;
 #endif
-typedef struct { uint8_t *ptr; size_t len; size_t handle; } xlang_batch_buf_t;
+typedef struct { uint8_t *ptr; size_t length; size_t handle; } xlang_batch_buf_t;
 extern int io_register_buffer(uint8_t *ptr, size_t len);
 extern int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr);
 XLANG_WEAK int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }
@@ -77,10 +77,10 @@ extern int32_t xlang_io_read_fixed(size_t handle, uint32_t buf_index, size_t off
 extern int32_t xlang_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);
 extern uint8_t *xlang_io_read_ptr(size_t handle, unsigned timeout_ms);
 extern int32_t xlang_io_read_ptr_len(void);
-typedef struct { void *ptr; size_t len; size_t handle; } xlang_buffer_abi_t;
-static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }
-static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_read)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
-static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_write)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
+typedef struct { void *ptr; size_t length; size_t handle; } xlang_buffer_abi_t;
+static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->length, b->handle); }
+static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_read)((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }
+static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_write)((uint8_t *)b->ptr, b->length, b->handle, (uint32_t)timeout_m); }
 static inline int32_t std_io_driver_submit_read_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return xlang_io_submit_read_buf((intptr_t)buf, (int32_t)timeout_ms); }
 static inline int32_t std_io_driver_submit_write_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return xlang_io_submit_write_buf((intptr_t)buf, (int32_t)timeout_ms); }
 #define xlang_io_register(buf) xlang_io_register_buf(buf)
@@ -90,7 +90,7 @@ static inline int32_t std_io_driver_submit_write_via_ptr(ptrdiff_t buf, uint32_t
 #undef xlang_io_register
 #undef xlang_io_submit_read
 #undef xlang_io_submit_write
-struct std_io_driver_Buffer { void *ptr; size_t len; size_t handle; };
+struct std_io_driver_Buffer { void *ptr; size_t length; size_t handle; };
 typedef struct std_io_driver_Buffer std_io_Buffer;
 #define std_io_Buffer std_io_driver_Buffer
 extern ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);
@@ -278,17 +278,17 @@ extern int32_t net_run_accept_workers_c(int32_t listener_fd, int32_t n_workers, 
 #define std_net_net_close_socket_c(x) net_close_socket_c_real(xlang_io_net_fd(x))
 #define std_net_net_run_accept_workers_c(x, n, t) net_run_accept_workers_c_real(xlang_io_net_fd(x), n, t)
 #define STD_FS_FS_IOVEC_BUF_DEFINED
-struct std_fs_FsIovecBuf { void *ptr; size_t len; size_t handle; };
+struct std_fs_FsIovecBuf { void *ptr; size_t length; size_t handle; };
 #define std_fs_posix_FsIovecBuf std_fs_FsIovecBuf
-struct std_io_sync_Iovec { uint8_t *base; size_t len; };
+struct std_io_sync_Iovec { uint8_t *base; size_t length; };
 #define std_fs_posix_Iovec std_io_sync_Iovec
 struct std_map_Map_i32_i32;
 typedef struct std_io_driver_Buffer std_net_Buffer;
 struct std_error_Error { int32_t code; };
 struct std_error_ErrorChain { int32_t depth; int32_t c0; int32_t c1; int32_t c2; int32_t c3; };
-struct std_string_String { uint8_t data[256]; int32_t len; };
+struct std_string_String { uint8_t data[256]; int32_t length; };
 typedef struct std_string_String String;
-struct std_string_StrView { uint8_t *ptr; int32_t len; };
+struct std_string_StrView { uint8_t *ptr; int32_t length; };
 struct std_heap_Arena64 { uint8_t *chunk; size_t cap; size_t off; };
 struct std_heap_Allocator { int32_t kind; struct std_heap_Arena64 *arena; };
 struct std_vec_Vec_i32;
@@ -365,6 +365,8 @@ extern void driver_diagnostic_typeck_subscript_base(int32_t line, int32_t col);
 extern void driver_diagnostic_typeck_enum_no_variant(int32_t line, int32_t col);
 extern void driver_diagnostic_typeck_try_propagate_bad_enclosing(int32_t line, int32_t col);
 extern void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, int32_t is_break);
+extern void driver_diagnostic_typeck_invalid_ptr_binop(int32_t line, int32_t col);
+extern void driver_diagnostic_typeck_invalid_float_binop(int32_t line, int32_t col);
 extern int32_t parser_is_ident_allow(uint8_t * ident, int32_t len);
 extern void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types);
 extern void driver_diagnostic_codegen_fail(int32_t dep_index, int32_t is_dep);
@@ -713,6 +715,20 @@ void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, 
   } else {
     (void)(lsp_diag_report_typeck(line, col, ((uint8_t *)"\x63\x6f\x6e\x74\x69\x6e\x75\x65\x20\x6f\x6e\x6c\x79\x20\x61\x6c\x6c\x6f\x77\x65\x64\x20\x69\x6e\x73\x69\x64\x65\x20\x61\x20\x6c\x6f\x6f\x70")));
   }
+  (void)(0);
+  return;
+}
+/* wave285/wave289 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_invalid_ptr_binop */
+void driver_diagnostic_typeck_invalid_ptr_binop(int32_t line, int32_t col) {
+  (void)(lsp_diag_report_typeck(line, col,
+      ((uint8_t *)"invalid pointer arithmetic (ptr+ptr / non-offset ops / unary -~ not allowed; use integer offset, std.string, or adjacent string literals)")));
+  (void)(0);
+  return;
+}
+/* wave286/wave289 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_invalid_float_binop */
+void driver_diagnostic_typeck_invalid_float_binop(int32_t line, int32_t col) {
+  (void)(lsp_diag_report_typeck(line, col,
+      ((uint8_t *)"invalid float operation (bitwise / mod / shift / unary ~ not allowed on f32/f64; use + - * / and unary - only)")));
   (void)(0);
   return;
 }

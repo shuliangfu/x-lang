@@ -50,14 +50,14 @@ function main(): i32 {
   let b6: u8[64] = 0;
   let b7: u8[64] = 0;
   let bufs: Buffer[8] = [
-    Buffer { ptr: &b0[0], len: pkt_len, handle: 0 },
-    Buffer { ptr: &b1[0], len: pkt_len, handle: 0 },
-    Buffer { ptr: &b2[0], len: pkt_len, handle: 0 },
-    Buffer { ptr: &b3[0], len: pkt_len, handle: 0 },
-    Buffer { ptr: &b4[0], len: pkt_len, handle: 0 },
-    Buffer { ptr: &b5[0], len: pkt_len, handle: 0 },
-    Buffer { ptr: &b6[0], len: pkt_len, handle: 0 },
-    Buffer { ptr: &b7[0], len: pkt_len, handle: 0 }
+    Buffer { ptr: &b0[0], length: pkt_len, handle: 0 },
+    Buffer { ptr: &b1[0], length: pkt_len, handle: 0 },
+    Buffer { ptr: &b2[0], length: pkt_len, handle: 0 },
+    Buffer { ptr: &b3[0], length: pkt_len, handle: 0 },
+    Buffer { ptr: &b4[0], length: pkt_len, handle: 0 },
+    Buffer { ptr: &b5[0], length: pkt_len, handle: 0 },
+    Buffer { ptr: &b6[0], length: pkt_len, handle: 0 },
+    Buffer { ptr: &b7[0], length: pkt_len, handle: 0 }
   ];
   let out_sizes: i32[8] = [0, 0, 0, 0, 0, 0, 0, 0];
   let out_addrs: u32[8] = [0, 0, 0, 0, 0, 0, 0, 0];

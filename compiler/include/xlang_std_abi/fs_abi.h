@@ -13,7 +13,7 @@
 
 #ifndef STD_FS_FS_IOVEC_BUF_DEFINED
 #define STD_FS_FS_IOVEC_BUF_DEFINED
-struct std_fs_FsIovecBuf { uint8_t *ptr; size_t len; size_t handle; };
+struct std_fs_FsIovecBuf { uint8_t *ptr; size_t length; size_t handle; };
 #endif
 typedef struct std_fs_FsIovecBuf fs_iovec_buf_t;
 

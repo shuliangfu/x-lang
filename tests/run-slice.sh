@@ -23,13 +23,16 @@ LINK_XLANG="$RUN_XLANG"
 # 【Why】xlang-c 不支持 -backend 参数；默认空，仅 xlang_asm/xlang_asm2 需显式 -backend asm。
 SLICE_LINK_BACKEND_ARGS="${XLANG_LINK_BACKEND_ARGS:-}"
 
-# bstrict：-o 优先 xlang_asm(2)，但**禁止清空** SLICE_LINK_BACKEND_ARGS。
-# 旧逻辑置空后 Linux 默认 asm，失败再拼 -E 回退 → 20KiB 截断 + slice 结构体重定义假路径。
+# bstrict：-o 用本波 product xlang_asm；**禁止**默认抢陈旧 xlang_asm2（July-14 wrong-binary）。
+# Stage2 仅 XLANG_BSTRICT_USE_ASM2=1。禁止清空 SLICE_LINK_BACKEND_ARGS（Linux 假路径）。
 # 保留 bootstrap-link-xlang / XLANG_FORCE_LINK_BACKEND 注入的 -backend c。
-if [ -n "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" ] && [ -x ./compiler/xlang_asm2 ]; then
-  LINK_XLANG=./compiler/xlang_asm2
-elif [ -n "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" ] && [ -x ./compiler/xlang_asm ]; then
-  LINK_XLANG=./compiler/xlang_asm
+# PLATFORM: SHARED
+if [ -n "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" ]; then
+  if [ -n "${XLANG_BSTRICT_USE_ASM2:-}" ] && [ -x ./compiler/xlang_asm2 ]; then
+    LINK_XLANG=./compiler/xlang_asm2
+  elif [ -x ./compiler/xlang_asm ]; then
+    LINK_XLANG=./compiler/xlang_asm
+  fi
 fi
 # 产品 xlang_asm -o：Linux 默认 asm 对 slice 不完整；无显式 backend 时走 -backend c（与 Darwin 矩阵一致）。
 case "$(basename "$LINK_XLANG")" in

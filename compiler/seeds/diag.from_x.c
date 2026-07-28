@@ -89,6 +89,49 @@ static const DiagCodeExplain g_diag_code_table[] = {
     {"PP002", "preprocess error", "Preprocessor failed before producing a usable source buffer.",
      "Used for directive errors or generic preprocess failures that are not covered by a more specific code. "
      "Typical action: inspect the reported source file and nearby conditional compilation directives."},
+    {"L001", "lexer error", "Lexer found an unclosed block comment.",
+     "Used when a nested `/* ... */` block comment reaches end-of-file with nesting depth still greater than zero. "
+     "Typical action: add the matching `*/` closers for every true nest-open `/*` (path globs like `src/*.x` do not nest-open)."},
+    {"L002", "lexer error", "Lexer found an unclosed string literal.",
+     "Used when a double-quoted string reaches end-of-file without a closing quote. "
+     "Typical action: add the matching `\"` at the end of the string (multi-line strings are allowed if closed)."},
+    {"L003", "lexer error", "Lexer found an illegal character.",
+     "Used when a source byte is not a recognized token introducer (for example `$`, bare `'`, or other non-ASCII/punct noise). "
+     "Typical action: remove or replace the illegal character; character literals are not part of the product lexical surface."},
+    {"L004", "lexer error", "Lexer found an incomplete hex literal.",
+     "Used when a hex integer introducer `0x` or `0X` is not followed by at least one hex digit (0-9, a-f, A-F). "
+     "Typical action: complete the literal (e.g. `0x0`, `0xFF`) or remove the incomplete `0x` prefix."},
+    {"L005", "lexer error", "Lexer found an incomplete float exponent.",
+     "Used when a float exponent introducer `e` or `E` (optionally followed by `+` or `-`) is not followed by at least one decimal digit. "
+     "Typical action: complete the exponent (e.g. `1e0`, `1.5e+2`) or remove the incomplete exponent suffix."},
+    {"L006", "lexer error", "Lexer found an incomplete binary literal.",
+     "Used when a binary integer introducer `0b` or `0B` is not followed by at least one binary digit (0 or 1). "
+     "Typical action: complete the literal (e.g. `0b0`, `0b1010`) or remove the incomplete `0b` prefix."},
+    {"L007", "lexer error", "Lexer found an incomplete octal literal.",
+     "Used when an octal integer introducer `0o` or `0O` is not followed by at least one octal digit (0-7). "
+     "Typical action: complete the literal (e.g. `0o0`, `0o52`) or remove the incomplete `0o` prefix."},
+    {"L008", "lexer error", "Lexer found an invalid digit separator.",
+     "Used when `_` appears in a numeric literal without a following valid digit for that radix "
+     "(trailing `_`, consecutive `__`, or `_` before a non-digit). "
+     "Typical action: remove the underscore or place it only between digits (e.g. `1_000`, `0x2_A`)."},
+    {"L009", "lexer error", "Lexer found an invalid type suffix on a numeric literal.",
+     "Used when a complete integer or float literal is immediately followed by alphabetic characters "
+     "(for example `42u32`, `0x2Ai64`, `1.5f32`, or `42foo`). The language has no C/Rust-style type "
+     "suffixes on numerics; use context type coerce (e.g. `let n: u32 = 42`) or `as T`. "
+     "Typical action: remove the suffix or rewrite with `as` / annotated `let`."},
+    {"L010", "lexer error", "Lexer found an invalid escape sequence in a string literal.",
+     "Used when a string escape is not one of the product set `\\n \\t \\r \\0 \\\\ \\\" \\xHH` "
+     "(for example `\\q`, incomplete `\\x`, or `\\xG`). "
+     "Typical action: use a supported escape or write the byte as `\\xHH`."},
+    {"L011", "lexer error", "Lexer found a string literal that exceeds AST storage capacity.",
+     "Used when a decoded string literal (including C-style adjacent concatenation) would exceed "
+     "63 semantic bytes stored in Expr.var_name. Prior soft residual silently truncated. "
+     "Typical action: shorten the literal, split into multiple strings with runtime concat "
+     "(std.string), or await a future larger AST string pool."},
+    {"L012", "lexer error", "Lexer found an identifier that exceeds AST name storage capacity.",
+     "Used when a non-keyword identifier span is longer than 63 bytes (AST name[64] content cap). "
+     "Prior soft residual could silent-clamp names or fail with opaque XP003/typeck mismatch. "
+     "Typical action: shorten the identifier, or await a future larger AST name layout."},
     {"IMP001", "import error", "Import path could not be opened from the resolved candidate path.",
      "Used when an import target cannot be opened after path resolution. Typical action: verify the import name, "
      "library roots, and the resolved on-disk file path shown in the diagnostic."},

@@ -15,6 +15,11 @@
 #include <stdlib.h>
 #include <limits.h>
 
+/* wave243 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED orch / host getenv residual via single face. */
+extern char *link_abi_getenv(const char *name);
+
 struct ast_Module;
 struct ast_ASTArena;
 struct ast_PipelineDepCtx;
@@ -127,7 +132,7 @@ int32_t run_x_pipeline_impl(struct ast_Module *module, struct ast_ASTArena *aren
   int32_t skip_asm_dep_codegen;
   if (!module || !arena || !out_buf || !ctx)
     return -1;
-  if (getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
+  if (link_abi_getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
     fprintf(stderr, ">> [ASM_ORCH] parse_entry_if_needed\n");
     fflush(stderr);
   }
@@ -140,7 +145,7 @@ int32_t run_x_pipeline_impl(struct ast_Module *module, struct ast_ASTArena *aren
     /** driver_run_asm_backend 已 collect_deps + prerun + seed 槽；勿再调 build_asm X load/sync（hello 等 SIGSEGV）。 */
     load_rc = 0;
   } else {
-    if (getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
+    if (link_abi_getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
       fprintf(stderr, ">> [ASM_ORCH] load_and_sync_direct_import_deps\n");
       fflush(stderr);
     }
@@ -148,7 +153,7 @@ int32_t run_x_pipeline_impl(struct ast_Module *module, struct ast_ASTArena *aren
   }
   if (load_rc != 0)
     return load_rc;
-  if (getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
+  if (link_abi_getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
     fprintf(stderr, ">> [ASM_ORCH] typecheck_entry (check_only=%d skip_flag=%d skip_codegen=%d build_skip=%d)\n",
             (int)driver_check_only_get(), (int)driver_x_pipeline_skip_typeck_get(),
             (int)driver_x_pipeline_skip_codegen_get(), (int)driver_asm_build_skip_typeck());

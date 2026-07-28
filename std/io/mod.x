@@ -50,7 +50,7 @@ export struct WriteOnlySlice {
  */
 allow(padding) struct ReadPtrView {
   ptr: *u8;
-  len: i32;
+  length: i32;
   gen: u64;
 }
 // See implementation.
@@ -109,7 +109,7 @@ export function from_fd(fd: i32, _unused: i32): usize { return (fd as usize); }
  * @return i32
  */
 export function read(handle: usize, ptr: *u8, len: usize, timeout_ms: u32): i32 {
-  let buf: Buffer = Buffer { ptr: ptr, len: len, handle: handle };
+  let buf: Buffer = Buffer { ptr: ptr, length: len, handle: handle };
   return driver.submit_read(buf, timeout_ms);
 }
 // write: see function docblock below.
@@ -122,7 +122,7 @@ export function read(handle: usize, ptr: *u8, len: usize, timeout_ms: u32): i32 
  * @return i32
  */
 export function write(handle: usize, ptr: *u8, len: usize, timeout_ms: u32): i32 {
-  let buf: Buffer = Buffer { ptr: ptr, len: len, handle: handle };
+  let buf: Buffer = Buffer { ptr: ptr, length: len, handle: handle };
   return driver.submit_write(buf, timeout_ms);
 }
 // See implementation.
@@ -248,7 +248,7 @@ export function ptr_view(handle: usize, timeout_ms: u32): ReadPtrView {
   let p: *u8 = read_ptr(handle, timeout_ms);
   let n: i32 = ptr_len();
   let g: u64 = ptr_gen();
-  return ReadPtrView { ptr: p, len: n, gen: g };
+  return ReadPtrView { ptr: p, length: n, gen: g };
 }
 /** Exported function `ptr_view_valid`.
  * Implements `ptr_view_valid`.
@@ -378,10 +378,10 @@ export function write_fd(fd: i32, ptr: *u8, len: usize): i32 {
 export function read_batch_fd(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, n: i32): i32 {
   let h: usize = from_fd(fd, 0);
   let bufs: Buffer[4] = [
-    Buffer { ptr: p0, len: l0, handle: h },
-    Buffer { ptr: p1, len: l1, handle: h },
-    Buffer { ptr: p2, len: l2, handle: h },
-    Buffer { ptr: p3, len: l3, handle: h }
+    Buffer { ptr: p0, length: l0, handle: h },
+    Buffer { ptr: p1, length: l1, handle: h },
+    Buffer { ptr: p2, length: l2, handle: h },
+    Buffer { ptr: p3, length: l3, handle: h }
   ];
   return driver.submit_read_batch(bufs, n, 0 as u32);
 }
@@ -402,10 +402,10 @@ export function read_batch_fd(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p
 export function write_batch_fd(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, n: i32): i32 {
   let h: usize = from_fd(fd, 0);
   let bufs: Buffer[4] = [
-    Buffer { ptr: p0, len: l0, handle: h },
-    Buffer { ptr: p1, len: l1, handle: h },
-    Buffer { ptr: p2, len: l2, handle: h },
-    Buffer { ptr: p3, len: l3, handle: h }
+    Buffer { ptr: p0, length: l0, handle: h },
+    Buffer { ptr: p1, length: l1, handle: h },
+    Buffer { ptr: p2, length: l2, handle: h },
+    Buffer { ptr: p3, length: l3, handle: h }
   ];
   return driver.submit_write_batch(bufs, n, 0 as u32);
 }

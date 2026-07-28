@@ -1,30 +1,7 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-
-// libc
-export extern "C" function malloc(size: usize): *u8;
-export extern "C" function free(ptr: *u8): void;
-
-// See implementation.
-export extern "C" function queue_os_mutex_create_c(): *u8;
-export extern "C" function queue_os_mutex_destroy_c(mu: *u8): void;
-export extern "C" function queue_os_mutex_lock_c(mu: *u8): void;
-export extern "C" function queue_os_mutex_unlock_c(mu: *u8): void;
-export extern "C" function queue_os_run_two_workers_c(ctx: *u8): i32;
-
-/** See implementation for details. */
-allow(padding) struct QueueSmokeState {
-  mu: *u8;
-  data: *i32;
-  cap: i32;
-  len: i32;
-  head: i32;
-}
+// runtime_queue_contention_x_doc_anchor: see function docblock below.
 
 /** Exported function `runtime_queue_contention_x_doc_anchor`.
  * Implements `runtime_queue_contention_x_doc_anchor`.
@@ -34,14 +11,64 @@ export function runtime_queue_contention_x_doc_anchor(): i32 {
   return 0;
 }
 
-// See implementation.
+/* libc bridge declarations. */
+export extern "C" function malloc(size: usize): *u8;
+export extern "C" function free(ptr: *u8): void;
 
-/** Exported function `queue_smoke_at_impl`.
- * Implements `queue_smoke_at_impl`.
- * @param q *QueueSmokeState
- * @param i i32
- * @return i32
- */
+/* OS bridge declarations — OS-specific _impl functions in runtime_queue_contention.from_x.c.
+ * PLATFORM: SHARED — Windows uses CRITICAL_SECTION + _beginthreadex;
+ *           POSIX uses pthread_mutex_t + pthread_create. */
+export extern "C" function queue_os_mutex_create_impl(): *u8;
+export extern "C" function queue_os_mutex_destroy_impl(mu: *u8): void;
+export extern "C" function queue_os_mutex_lock_impl(mu: *u8): void;
+export extern "C" function queue_os_mutex_unlock_impl(mu: *u8): void;
+export extern "C" function queue_os_run_two_workers_impl(ctx: *u8): i32;
+
+/** Opaque queue smoke state matching C layout (allow(padding) ensures no extra fields). */
+allow(padding) struct QueueSmokeState {
+  mu: *u8;
+  data: *i32;
+  cap: i32;
+  length: i32;
+  head: i32;
+}
+
+/* Public API — thin wrappers that delegate to _impl OS bridges.
+ * PLATFORM: SHARED — same public API on all platforms; platform-specific logic
+ *           isolated in _impl functions in the C seed. */
+
+/** Create OS mutex (pthread_mutex_t / CRITICAL_SECTION). Returns opaque pointer or null. */
+#[no_mangle]
+export function queue_os_mutex_create_c(): *u8 {
+  unsafe { return queue_os_mutex_create_impl(); }
+}
+
+/** Destroy OS mutex and free backing memory. */
+#[no_mangle]
+export function queue_os_mutex_destroy_c(mu: *u8): void {
+  unsafe { queue_os_mutex_destroy_impl(mu); }
+}
+
+/** Lock OS mutex. Blocks until acquired. */
+#[no_mangle]
+export function queue_os_mutex_lock_c(mu: *u8): void {
+  unsafe { queue_os_mutex_lock_impl(mu); }
+}
+
+/** Unlock OS mutex. */
+#[no_mangle]
+export function queue_os_mutex_unlock_c(mu: *u8): void {
+  unsafe { queue_os_mutex_unlock_impl(mu); }
+}
+
+/** Launch two OS worker threads and wait for both to complete.
+ * Returns 0 on success, -1 on failure. */
+#[no_mangle]
+export function queue_os_run_two_workers_c(ctx: *u8): i32 {
+  unsafe { return queue_os_run_two_workers_impl(ctx); }
+}
+
+/** Logical index i -> physical index in circular buffer. */
 #[no_mangle]
 export function queue_smoke_at_impl(q: *QueueSmokeState, i: i32): i32 {
   let idx: i32 = q.head + i;
@@ -51,29 +78,19 @@ export function queue_smoke_at_impl(q: *QueueSmokeState, i: i32): i32 {
   return idx;
 }
 
-/** Exported function `queue_smoke_at`.
- * Implements `queue_smoke_at`.
- * @param q *QueueSmokeState
- * @param i i32
- * @return i32
- */
+/** Public wrapper for queue_smoke_at_impl. */
 #[no_mangle]
 export function queue_smoke_at(q: *QueueSmokeState, i: i32): i32 {
   return queue_smoke_at_impl(q, i);
 }
 
-/** Exported function `queue_smoke_push_back_impl`.
- * Implements `queue_smoke_push_back_impl`.
- * @param q *QueueSmokeState
- * @param x i32
- * @return i32
- */
+/** Push element to queue back; grows buffer when full. Returns 0 on success, -1 on failure. */
 #[no_mangle]
 export function queue_smoke_push_back_impl(q: *QueueSmokeState, x: i32): i32 {
   if (q == 0 as *QueueSmokeState) {
     return -1;
   }
-  if (q.len >= q.cap) {
+  if (q.length >= q.cap) {
     let new_cap: i32 = 8;
     if (q.cap > 0) {
       new_cap = q.cap * 2;
@@ -86,7 +103,7 @@ export function queue_smoke_push_back_impl(q: *QueueSmokeState, x: i32): i32 {
       return -1;
     }
     let i: i32 = 0;
-    while (i < q.len) {
+    while (i < q.length) {
       p[i] = q.data[queue_smoke_at(q, i)];
       i = i + 1;
     }
@@ -99,27 +116,18 @@ export function queue_smoke_push_back_impl(q: *QueueSmokeState, x: i32): i32 {
     q.cap = new_cap;
     q.head = 0;
   }
-  q.data[queue_smoke_at(q, q.len)] = x;
-  q.len = q.len + 1;
+  q.data[queue_smoke_at(q, q.length)] = x;
+  q.length = q.length + 1;
   return 0;
 }
 
-/** Exported function `queue_smoke_push_back`.
- * Implements `queue_smoke_push_back`.
- * @param q *QueueSmokeState
- * @param x i32
- * @return i32
- */
+/** Public wrapper for queue_smoke_push_back_impl. */
 #[no_mangle]
 export function queue_smoke_push_back(q: *QueueSmokeState, x: i32): i32 {
   return queue_smoke_push_back_impl(q, x);
 }
 
-/** Exported function `queue_contention_worker_push_c`.
- * Implements `queue_contention_worker_push_c`.
- * @param ctx *u8
- * @return i32
- */
+/** Worker body: push 500 elements under mutex lock. Returns 0 on success, -1 on null ctx. */
 #[no_mangle]
 export function queue_contention_worker_push_c(ctx: *u8): i32 {
   let q: *QueueSmokeState = ctx as *QueueSmokeState;
@@ -138,38 +146,31 @@ export function queue_contention_worker_push_c(ctx: *u8): i32 {
   return 0;
 }
 
-/** Exported function `queue_os_worker_trampoline_impl`.
- * Implements `queue_os_worker_trampoline_impl`.
- * @param arg *u8
- * @return *u8
- */
+/** POSIX trampoline body for worker threads.
+ *  Note: Windows uses __stdcall trampoline in rest (queue_os_worker_trampoline_win_impl).
+ *  On POSIX this .x trampoline satisfies the symbol; on Windows rest provides the
+ *  stdcall variant and .x's cdecl variant is a fallback (ld -r merges). */
 #[no_mangle]
 export function queue_os_worker_trampoline_impl(arg: *u8): *u8 {
   queue_contention_worker_push_c(arg);
   return 0 as *u8;
 }
 
-/** Exported function `queue_os_worker_trampoline`.
- * Implements `queue_os_worker_trampoline`.
- * @param arg *u8
- * @return *u8
- */
+/** Public trampoline wrapper. */
 #[no_mangle]
 export function queue_os_worker_trampoline(arg: *u8): *u8 {
   return queue_os_worker_trampoline_impl(arg);
 }
 
-/** Exported function `sync_queue_contention_smoke_c`.
- * Implements `sync_queue_contention_smoke_c`.
- * @return i32
- */
+/** STD-048 sync_queue_contention_smoke_c: dual-thread concurrent push smoke test.
+ *  Returns 0 on success (length == 1000), -1 on failure. */
 #[no_mangle]
 export function sync_queue_contention_smoke_c(): i32 {
   let st: QueueSmokeState = QueueSmokeState {
     mu: 0 as *u8,
     data: 0 as *i32,
     cap: 0,
-    len: 0,
+    length: 0,
     head: 0,
   };
   let rc: i32 = -1;
@@ -194,7 +195,7 @@ export function sync_queue_contention_smoke_c(): i32 {
     }
     return -1;
   }
-  if (st.len == 1000) {
+  if (st.length == 1000) {
     rc = 0;
   }
   if (st.data != 0 as *i32) {

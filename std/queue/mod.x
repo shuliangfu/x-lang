@@ -31,7 +31,7 @@ const atomic = import("std.atomic");
 allow(padding) struct Queue_i32 {
   data: *i32;
   cap: i32;
-  len: i32;
+  length: i32;
   head: i32;
 }
 /** Exported function `new`.
@@ -39,7 +39,7 @@ allow(padding) struct Queue_i32 {
  * @return Queue_i32
  */
 export function new(): Queue_i32 {
-  return Queue_i32 { data: 0, cap: 0, len: 0, head: 0 };
+  return Queue_i32 { data: 0, cap: 0, length: 0, head: 0 };
 }
 /** Exported function `with_capacity`.
  * Implements `with_capacity`.
@@ -51,7 +51,7 @@ export function with_capacity(q: *Queue_i32, capacity: i32): i32 {
   if (capacity <= 0) {
     q.data = 0;
     q.cap = 0;
-    q.len = 0;
+    q.length = 0;
     q.head = 0;
     return 0;
   }
@@ -59,7 +59,7 @@ export function with_capacity(q: *Queue_i32, capacity: i32): i32 {
   if (p == 0) { return -1; }
   q.data = p;
   q.cap = capacity;
-  q.len = 0;
+  q.length = 0;
   q.head = 0;
   return 0;
 }
@@ -85,7 +85,7 @@ export function grow(q: *Queue_i32): i32 {
   let p: *i32 = heap_libc.heap_alloc_i32_c(new_cap);
   if (p == 0) { return -1; }
   let i: i32 = 0;
-  while (i < q.len) {
+  while (i < q.length) {
     let idx: i32 = 0;
     unsafe { idx = at(*q, i); }
     p[i] = q.data[idx];
@@ -104,11 +104,11 @@ export function grow(q: *Queue_i32): i32 {
  * @return i32
  */
 export function push_back(q: *Queue_i32, x: i32): i32 {
-  if (q.len >= q.cap && grow(q) != 0) { return -1; }
+  if (q.length >= q.cap && grow(q) != 0) { return -1; }
   let tail: i32 = 0;
-  unsafe { tail = at(*q, q.len); }
+  unsafe { tail = at(*q, q.length); }
   q.data[tail] = x;
-  q.len = q.len + 1;
+  q.length = q.length + 1;
   return 0;
 }
 /** Exported function `push_front`.
@@ -118,11 +118,11 @@ export function push_back(q: *Queue_i32, x: i32): i32 {
  * @return i32
  */
 export function push_front(q: *Queue_i32, x: i32): i32 {
-  if (q.len >= q.cap && grow(q) != 0) { return -1; }
+  if (q.length >= q.cap && grow(q) != 0) { return -1; }
   q.head = q.head - 1;
   if (q.head < 0) { q.head = q.head + q.cap; }
   q.data[q.head] = x;
-  q.len = q.len + 1;
+  q.length = q.length + 1;
   return 0;
 }
 /** Exported function `pop_back`.
@@ -131,10 +131,10 @@ export function push_front(q: *Queue_i32, x: i32): i32 {
  * @return i32
  */
 export function pop_back(q: *Queue_i32): i32 {
-  if (q.len <= 0) { return 0; }
-  q.len = q.len - 1;
+  if (q.length <= 0) { return 0; }
+  q.length = q.length - 1;
   let idx: i32 = 0;
-  unsafe { idx = at(*q, q.len); }
+  unsafe { idx = at(*q, q.length); }
   return q.data[idx];
 }
 /** Exported function `pop_front`.
@@ -143,11 +143,11 @@ export function pop_back(q: *Queue_i32): i32 {
  * @return i32
  */
 export function pop_front(q: *Queue_i32): i32 {
-  if (q.len <= 0) { return 0; }
+  if (q.length <= 0) { return 0; }
   let x: i32 = q.data[q.head];
   q.head = q.head + 1;
   if (q.head >= q.cap) { q.head = 0; }
-  q.len = q.len - 1;
+  q.length = q.length - 1;
   return x;
 }
 /** Exported function `get`.
@@ -157,7 +157,7 @@ export function pop_front(q: *Queue_i32): i32 {
  * @return i32
  */
 export function get(q: Queue_i32, i: i32): i32 {
-  if (i < 0 || i >= q.len) { return 0; }
+  if (i < 0 || i >= q.length) { return 0; }
   return q.data[at(q, i)];
 }
 /** Exported function `len`.
@@ -165,14 +165,14 @@ export function get(q: Queue_i32, i: i32): i32 {
  * @param q Queue_i32
  * @return i32
  */
-export function len(q: Queue_i32): i32 { return q.len; }
+export function length(q: Queue_i32): i32 { return q.length; }
 /** Exported function `is_empty`.
  * Query helper `is_empty`.
  * @param q Queue_i32
  * @return i32
  */
 export function is_empty(q: Queue_i32): i32 {
-  if (q.len <= 0) { return 1; }
+  if (q.length <= 0) { return 1; }
   return 0;
 }
 /** Exported function `clear`.
@@ -181,7 +181,7 @@ export function is_empty(q: Queue_i32): i32 {
  * @return void
  */
 export function clear(q: *Queue_i32): void {
-  q.len = 0;
+  q.length = 0;
   q.head = 0;
 }
 /** Exported function `reserve`.
@@ -195,7 +195,7 @@ export function reserve(q: *Queue_i32, new_cap: i32): i32 {
   let p: *i32 = heap_libc.heap_alloc_i32_c(new_cap);
   if (p == 0) { return -1; }
   let i: i32 = 0;
-  while (i < q.len) {
+  while (i < q.length) {
     let idx: i32 = 0;
     unsafe { idx = at(*q, i); }
     p[i] = q.data[idx];
@@ -215,7 +215,7 @@ export function reserve(q: *Queue_i32, new_cap: i32): i32 {
 export function deinit(q: *Queue_i32): void {
   if (q.data != 0) { heap_libc.heap_free_i32_c(q.data); q.data = 0; }
   q.cap = 0;
-  q.len = 0;
+  q.length = 0;
   q.head = 0;
 }
 
@@ -235,7 +235,7 @@ extern function sync_queue_contention_smoke_c(): i32;
  */
 export function sync_new(): SyncQueue_i32 {
   let lock: *u8 = sync.new_mutex();
-  let q: Queue_i32 = Queue_i32 { data: 0, cap: 0, len: 0, head: 0 };
+  let q: Queue_i32 = Queue_i32 { data: 0, cap: 0, length: 0, head: 0 };
   return SyncQueue_i32 { q: q, lock: lock };
 }
 
@@ -290,7 +290,7 @@ export function sync_try_pop(sq: *SyncQueue_i32, out: *i32): i32 {
  * @param sq SyncQueue_i32
  * @return i32
  */
-export function len(sq: SyncQueue_i32): i32 {
+export function length(sq: SyncQueue_i32): i32 {
   if (sq.lock == 0) { return 0; }
   if (sync.lock(sq.lock) != 0) { return 0; }
   let n: i32 = len(sq.q);
@@ -326,7 +326,7 @@ export function sync_smoke(): i32 {
 allow(padding) struct Queue_u8 {
   data: *u8;
   cap: i32;
-  len: i32;
+  length: i32;
   head: i32;
 }
 
@@ -335,7 +335,7 @@ allow(padding) struct Queue_u8 {
  * @return Queue_u8
  */
 export function new(): Queue_u8 {
-  return Queue_u8 { data: 0, cap: 0, len: 0, head: 0 };
+  return Queue_u8 { data: 0, cap: 0, length: 0, head: 0 };
 }
 
 /** Exported function `at`.
@@ -360,7 +360,7 @@ export function grow(q: *Queue_u8): i32 {
   let p: *u8 = heap_libc.heap_alloc_u8_c(new_cap);
   if (p == 0) { return -1; }
   let i: i32 = 0;
-  while (i < q.len) {
+  while (i < q.length) {
     let idx: i32 = 0;
     unsafe { idx = at(*q, i); }
     p[i] = q.data[idx];
@@ -380,11 +380,11 @@ export function grow(q: *Queue_u8): i32 {
  * @return i32
  */
 export function push_back(q: *Queue_u8, x: u8): i32 {
-  if (q.len >= q.cap && grow(q) != 0) { return -1; }
+  if (q.length >= q.cap && grow(q) != 0) { return -1; }
   let tail: i32 = 0;
-  unsafe { tail = at(*q, q.len); }
+  unsafe { tail = at(*q, q.length); }
   q.data[tail] = x;
-  q.len = q.len + 1;
+  q.length = q.length + 1;
   return 0;
 }
 
@@ -394,11 +394,11 @@ export function push_back(q: *Queue_u8, x: u8): i32 {
  * @return u8
  */
 export function pop_front(q: *Queue_u8): u8 {
-  if (q.len <= 0) { return 0 as u8; }
+  if (q.length <= 0) { return 0 as u8; }
   let x: u8 = q.data[q.head];
   q.head = q.head + 1;
   if (q.head >= q.cap) { q.head = 0; }
-  q.len = q.len - 1;
+  q.length = q.length - 1;
   return x;
 }
 
@@ -407,7 +407,7 @@ export function pop_front(q: *Queue_u8): u8 {
  * @param q Queue_u8
  * @return i32
  */
-export function len(q: Queue_u8): i32 { return q.len; }
+export function length(q: Queue_u8): i32 { return q.length; }
 
 /** Exported function `deinit`.
  * Implements `deinit`.
@@ -417,6 +417,6 @@ export function len(q: Queue_u8): i32 { return q.len; }
 export function deinit(q: *Queue_u8): void {
   if (q.data != 0) { heap_libc.heap_free_u8_c(q.data); q.data = 0; }
   q.cap = 0;
-  q.len = 0;
+  q.length = 0;
   q.head = 0;
 }

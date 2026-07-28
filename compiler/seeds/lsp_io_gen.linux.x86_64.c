@@ -5,13 +5,19 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+/* wave245 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED orch / host getenv residual via single face.
+ * Compiler-only gen seed pin (CRASH_EVIDENCE inline) — not user program template
+ * (runtime.from_x.c fprintf CRASH_EVIDENCE user C templates use link_abi_getenv since wave254). */
+extern char *link_abi_getenv(const char *name);
 extern int getpid(void);
 static inline void xlang_crash_evidence_collect_inline(int has_msg, int msg_val) {
-  const char *_ev = getenv("XLANG_CRASH_EVIDENCE");
+  const char *_ev = link_abi_getenv("XLANG_CRASH_EVIDENCE");
   if (!_ev || _ev[0] != '1') return;
   int _pid = (int)getpid();
   fprintf(stderr, "xlang: [XLANG_CRASH_EVIDENCE] panic=%d msg=%d frames=0 pid=%d\n", has_msg, msg_val, _pid);
-  const char *_dir = getenv("XLANG_CRASH_EVIDENCE_DIR");
+  const char *_dir = link_abi_getenv("XLANG_CRASH_EVIDENCE_DIR");
   if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, "%s/xlang-crash-%d.txt", _dir, _pid);
     FILE *_f = fopen(_p, "w"); if (_f) { fprintf(_f, "panic_has_msg=%d\npanic_msg=%d\nframes=0\npid=%d\n", has_msg, msg_val, _pid); fclose(_f);
       fprintf(stderr, "xlang: [XLANG_CRASH_EVIDENCE] bundle=%s\n", _p); } } }
@@ -21,14 +27,14 @@ static inline void xlang_panic_(int has_msg, int msg_val) {
   if (has_msg) (void)fprintf(stderr, "%d\n", msg_val);
   abort();
 }
-struct std_io_sync_Iovec { uint8_t * base; size_t len; };
+struct std_io_sync_Iovec { uint8_t * base; size_t length; };
 struct std_io_sync_PollFd { int32_t fd; int16_t events; int16_t revents; };
-struct std_io_sync_IoBatchBuf { uint8_t * ptr; size_t len; size_t handle; };
+struct std_io_sync_IoBatchBuf { uint8_t * ptr; size_t length; size_t handle; };
 struct std_io_read_ptr_XlangSliceU8 { uint8_t * data; size_t length; };
-struct std_io_backend_IoBatchBuf { uint8_t * ptr; size_t len; size_t handle; };
+struct std_io_backend_IoBatchBuf { uint8_t * ptr; size_t length; size_t handle; };
 struct std_io_backend_XlangSliceU8 { uint8_t * data; size_t length; };
 enum std_io_driver_IO_Result { std_io_driver_IO_Result_Ok, std_io_driver_IO_Result_Err, std_io_driver_IO_Result_Timeout, std_io_driver_IO_Result_Cancelled };
-struct std_io_driver_Buffer { uint8_t * ptr; size_t len; size_t handle; };
+struct std_io_driver_Buffer { uint8_t * ptr; size_t length; size_t handle; };
 struct std_io_driver_Completion { int32_t tag; };
 struct std_io_driver_AsyncContext { uint32_t flags; };
 struct std_context_Context { int64_t handle; };
@@ -39,7 +45,7 @@ struct std_error_ErrorChain { int32_t depth; int32_t c0; int32_t c1; int32_t c2;
 struct xlang_slice_uint8_t { uint8_t *data; size_t length; };
 struct std_io_ReadOnlySlice { struct xlang_slice_uint8_t data; };
 struct std_io_WriteOnlySlice { struct xlang_slice_uint8_t data; };
-struct std_io_ReadPtrView { uint8_t * ptr; int32_t len; uint64_t gen; };
+struct std_io_ReadPtrView { uint8_t * ptr; int32_t length; uint64_t gen; };
 struct std_heap_libc_Arena64 { uint8_t * chunk; size_t cap; size_t off; };
 struct std_heap_page_mmap_PageMmapHeap { uint8_t * base; size_t cap; size_t off; };
 struct std_heap_Arena64 { uint8_t * chunk; size_t cap; size_t off; };

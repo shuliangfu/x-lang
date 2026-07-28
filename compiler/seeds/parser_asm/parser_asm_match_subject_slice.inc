@@ -222,6 +222,11 @@ void parser_asm_parse_match_subject_into_c(void *arena, struct parser_asm_lexer 
 
 /**
  * parse_match_into：解析 `match expr { pat => result; ... }`；lex 指向 match 关键字。
+ *
+ * PLATFORM: SHARED — arm pattern authority (G.7). wave327: multi-pattern arms
+ * `1 | 2 | 3 => result` expand to one MatchArmEntry per lit/enum (same result_ref).
+ * Docs/04: `|` here is multi-pattern only, not type union. Cap residual pure leaf.
+ * Rebuild: parser_asm_thin_glue.o (includes this .inc) + g05.
  */
 void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                    struct parser_asm_parse_expr_result *out) {
@@ -242,6 +247,13 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
   struct ast_Module *mod_m;
   struct parser_asm_parse_expr_result arm_res;
   int32_t arm_i;
+  /* wave327: multi-pattern arm buffers (docs: `1 | 2 => expr`). Cap 16 patterns per arm. */
+  int32_t pat_is_wc[16];
+  int32_t pat_lit_v[16];
+  int32_t pat_is_ev[16];
+  int32_t pat_var_idx[16];
+  int32_t pat_n;
+  int32_t pat_i;
   if (!arena || !source || !out)
     return;
   out->ok = 0;
@@ -1053,52 +1065,70 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
       lex = r.next_lex;
       break;
     }
-    is_wc = 0;
-    lit_v = 0;
-    is_ev = 0;
-    var_idx = -1;
-    if (r.tok.kind == (int32_t)TOKEN_INT) {
-      lit_v = r.tok.int_val;
-      parser_lex_from_next_into_glue(&lex, r);
-    } else if (r.tok.kind == (int32_t)TOKEN_UNDERSCORE) {
-      is_wc = 1;
-      parser_lex_from_next_into_glue(&lex, r);
-    } else if (r.tok.kind == (int32_t)TOKEN_IDENT) {
-      enum_len = r.tok.ident_len;
-      if (enum_len > 63)
-        enum_len = 63;
-      enum_start = r.token_start;
-      if (enum_start == 0)
-        enum_start = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, enum_len);
-      memset(enum_buf, 0, sizeof(enum_buf));
-      parser_asm_copy_slice_to_name64_slice_c(source, enum_start, enum_len, enum_buf);
-      parser_lex_from_next_into_glue(&lex, r);
-      lexer_next_into(&r, lex, source);
-      if (r.tok.kind != (int32_t)TOKEN_DOT)
+    /* wave327: collect one or more patterns joined by TOKEN_PIPE before =>. */
+    pat_n = 0;
+    for (;;) {
+      if (pat_n >= 16)
         return;
-      parser_lex_from_next_into_glue(&lex, r);
-      lexer_next_into(&r, lex, source);
-      if (r.tok.kind != (int32_t)TOKEN_IDENT)
+      is_wc = 0;
+      lit_v = 0;
+      is_ev = 0;
+      var_idx = -1;
+      if (r.tok.kind == (int32_t)TOKEN_INT) {
+        lit_v = r.tok.int_val;
+        parser_lex_from_next_into_glue(&lex, r);
+      } else if (r.tok.kind == (int32_t)TOKEN_UNDERSCORE) {
+        is_wc = 1;
+        parser_lex_from_next_into_glue(&lex, r);
+      } else if (r.tok.kind == (int32_t)TOKEN_IDENT) {
+        enum_len = r.tok.ident_len;
+        if (enum_len > 63)
+          enum_len = 63;
+        enum_start = r.token_start;
+        if (enum_start == 0)
+          enum_start = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, enum_len);
+        memset(enum_buf, 0, sizeof(enum_buf));
+        parser_asm_copy_slice_to_name64_slice_c(source, enum_start, enum_len, enum_buf);
+        parser_lex_from_next_into_glue(&lex, r);
+        lexer_next_into(&r, lex, source);
+        if (r.tok.kind != (int32_t)TOKEN_DOT)
+          return;
+        parser_lex_from_next_into_glue(&lex, r);
+        lexer_next_into(&r, lex, source);
+        if (r.tok.kind != (int32_t)TOKEN_IDENT)
+          return;
+        variant_len = r.tok.ident_len;
+        if (variant_len > 63)
+          variant_len = 63;
+        variant_start = r.token_start;
+        if (variant_start == 0)
+          variant_start = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, variant_len);
+        memset(variant_buf, 0, sizeof(variant_buf));
+        parser_asm_copy_slice_to_name64_slice_c(source, variant_start, variant_len, variant_buf);
+        parser_lex_from_next_into_glue(&lex, r);
+        is_ev = 1;
+        mod_m = pipeline_parser_get_match_module();
+        if (mod_m)
+          var_idx = pipeline_module_enum_variant_tag_for_names(mod_m, enum_buf, enum_len, variant_buf, variant_len);
+      } else {
         return;
-      variant_len = r.tok.ident_len;
-      if (variant_len > 63)
-        variant_len = 63;
-      variant_start = r.token_start;
-      if (variant_start == 0)
-        variant_start = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, variant_len);
-      memset(variant_buf, 0, sizeof(variant_buf));
-      parser_asm_copy_slice_to_name64_slice_c(source, variant_start, variant_len, variant_buf);
-      parser_lex_from_next_into_glue(&lex, r);
-      is_ev = 1;
-      mod_m = pipeline_parser_get_match_module();
-      if (mod_m)
-        var_idx = pipeline_module_enum_variant_tag_for_names(mod_m, enum_buf, enum_len, variant_buf, variant_len);
-    } else {
-      return;
+      }
+      pat_is_wc[pat_n] = is_wc;
+      pat_lit_v[pat_n] = lit_v;
+      pat_is_ev[pat_n] = is_ev;
+      pat_var_idx[pat_n] = var_idx;
+      pat_n = pat_n + 1;
+      lexer_next_into(&r, lex, source);
+      if (r.tok.kind == (int32_t)TOKEN_PIPE) {
+        /* Multi-pattern: another lit/enum/_ after `|`. Wildcard alone is ok; `_ | 1` is soft-accepted. */
+        parser_lex_from_next_into_glue(&lex, r);
+        lexer_next_into(&r, lex, source);
+        continue;
+      }
+      if (r.tok.kind != (int32_t)TOKEN_FATARROW)
+        return;
+      break;
     }
-    lexer_next_into(&r, lex, source);
-    if (r.tok.kind != (int32_t)TOKEN_FATARROW)
-      return;
     parser_lex_from_next_into_glue(&lex, r);
     memset(&arm_res, 0, sizeof(arm_res));
     arm_res.next_lex = lex;
@@ -1110,9 +1140,13 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
     if (r.tok.kind != (int32_t)TOKEN_SEMICOLON)
       return;
     parser_lex_from_next_into_glue(&lex, r);
-    arm_i = pipeline_expr_append_match_arm(arena, mref, arm_res.expr_ref, is_wc, lit_v, is_ev, var_idx);
-    if (arm_i < 0)
-      return;
+    /* Expand multi-pattern to N arms sharing the same result expr (G.7: reuse MatchArmEntry). */
+    for (pat_i = 0; pat_i < pat_n; pat_i = pat_i + 1) {
+      arm_i = pipeline_expr_append_match_arm(arena, mref, arm_res.expr_ref, pat_is_wc[pat_i],
+                                            pat_lit_v[pat_i], pat_is_ev[pat_i], pat_var_idx[pat_i]);
+      if (arm_i < 0)
+        return;
+    }
   }
   out->ok = 1;
   out->expr_ref = mref;

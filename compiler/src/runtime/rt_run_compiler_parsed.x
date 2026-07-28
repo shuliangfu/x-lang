@@ -13,7 +13,12 @@ export extern "C" function malloc(n: usize): *u8;
 export extern "C" function free(p: *u8): void;
 export extern "C" function memset(p: *u8, c: i32, n: usize): *u8;
 export extern "C" function strlen(s: *u8): usize;
-export extern "C" function getenv(name: *u8): *u8;
+/* wave238 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PRODUCT PREFER: full .x body does not call env here; cold seed twin (below FROM_X)
+ * uses link_abi_getenv for XLANG_KEEP_C / XLANG_DUMP_PREP / XLANG_DEBUG_PIPE.
+ * PLATFORM: SHARED orch / host residual via single face. */
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 export extern "C" function unlink(path: *u8): i32;
 export extern "C" function runtime_read_file_malloc(path: *u8, out_len: *usize): *u8;
 export extern "C" function xlang_preprocess_with_path(

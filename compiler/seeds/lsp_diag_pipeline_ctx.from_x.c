@@ -19,6 +19,12 @@
  *            Historical #ifndef _WIN32 guard removed for safe includes. */
 #include <unistd.h>
 
+/* wave244 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED orch / host getenv residual via single face.
+ * Compiler-only TU (lsp_diag_pipeline_ctx) — not in user STD_AND_PANIC bag. */
+extern char *link_abi_getenv(const char *name);
+
 extern size_t pipeline_sizeof_dep_ctx(void);
 extern int32_t typeck_lsp_build_diagnostics_response(int32_t id_val, uint8_t * source, int32_t source_len, uint8_t * out_buf, int32_t out_cap);
 extern int32_t typeck_lsp_diag_hover_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, uint8_t * out_buf, int32_t out_cap);
@@ -211,8 +217,8 @@ void lsp_debug_report_sqpoll_env(void)
 void lsp_debug_report_sqpoll_env_impl(void)
 #endif
 {
-    const char *dbg = getenv("XLANG_LSP_IO_DEBUG");
-    const char *sq = getenv("XLANG_IO_URING_SQPOLL");
+    const char *dbg = link_abi_getenv("XLANG_LSP_IO_DEBUG");
+    const char *sq = link_abi_getenv("XLANG_IO_URING_SQPOLL");
     if (!dbg || dbg[0] == '\0' || dbg[0] == '0')
         return;
     diag_reportf(NULL, 0, 0, "note", NULL,
@@ -230,7 +236,7 @@ void lsp_apply_default_io_policy(void)
 void lsp_apply_default_io_policy_impl(void)
 #endif
 {
-    const char *sq = getenv("XLANG_IO_URING_SQPOLL");
+    const char *sq = link_abi_getenv("XLANG_IO_URING_SQPOLL");
     if (!sq || sq[0] == '\0')
         (void)setenv("XLANG_IO_URING_SQPOLL", "0", 1);
 }

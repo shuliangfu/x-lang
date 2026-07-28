@@ -15,7 +15,7 @@
 
 struct xlang_slice_uint8_t {
   uint8_t *data;
-  size_t length;
+  size_t len;
 };
 
 /** runtime 与 main.c 统一入口名。 */

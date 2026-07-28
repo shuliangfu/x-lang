@@ -44,7 +44,7 @@ int32_t net_ipv6_connect_retry_ok_c(void);
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_net_ipv6_fast.x）提供 public wrapper */
-int32_t net_ipv6_ensure_wsa_c_impl(void) {
+int32_t net_ipv6_ensure_wsa_c_impl_c(void) {
 #if defined(_WIN32) || defined(_WIN64)
     WSADATA data;
     if (net_ipv6_wsa_done)
@@ -59,14 +59,14 @@ int32_t net_ipv6_ensure_wsa_c_impl(void) {
 #ifndef XLANG_RUNTIME_NET_IPV6_FAST_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t net_ipv6_ensure_wsa_c(void) {
-    return net_ipv6_ensure_wsa_c_impl();
+    return net_ipv6_ensure_wsa_c_impl_c();
 }
 #endif
 
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_net_ipv6_fast.x）提供 public wrapper */
-int32_t net_ipv6_close_socket_c_impl(int32_t fd) {
+int32_t net_ipv6_close_socket_c_impl_c(int32_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
     return closesocket(fd) == 0 ? 0 : -1;
 #else
@@ -77,7 +77,7 @@ int32_t net_ipv6_close_socket_c_impl(int32_t fd) {
 #ifndef XLANG_RUNTIME_NET_IPV6_FAST_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t net_ipv6_close_socket_c(int32_t fd) {
-    return net_ipv6_close_socket_c_impl(fd);
+    return net_ipv6_close_socket_c_impl_c(fd);
 }
 #endif
 
@@ -86,7 +86,7 @@ int32_t net_ipv6_close_socket_c(int32_t fd) {
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_net_ipv6_fast.x）提供 public wrapper */
-int32_t net_ipv6_set_nonblock_c_impl(int32_t fd) {
+int32_t net_ipv6_set_nonblock_c_impl_c(int32_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
     u_long one = 1;
     return ioctlsocket(fd, FIONBIO, &one) == 0 ? 0 : -1;
@@ -101,14 +101,14 @@ int32_t net_ipv6_set_nonblock_c_impl(int32_t fd) {
 #ifndef XLANG_RUNTIME_NET_IPV6_FAST_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t net_ipv6_set_nonblock_c(int32_t fd) {
-    return net_ipv6_set_nonblock_c_impl(fd);
+    return net_ipv6_set_nonblock_c_impl_c(fd);
 }
 #endif
 
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_net_ipv6_fast.x）提供 public wrapper */
-int32_t net_ipv6_poll_writable_c_impl(int32_t fd, uint32_t timeout_ms) {
+int32_t net_ipv6_poll_writable_c_impl_c(int32_t fd, uint32_t timeout_ms) {
 #if defined(_WIN32) || defined(_WIN64)
     (void)fd;
     (void)timeout_ms;
@@ -129,14 +129,14 @@ int32_t net_ipv6_poll_writable_c_impl(int32_t fd, uint32_t timeout_ms) {
 #ifndef XLANG_RUNTIME_NET_IPV6_FAST_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t net_ipv6_poll_writable_c(int32_t fd, uint32_t timeout_ms) {
-    return net_ipv6_poll_writable_c_impl(fd, timeout_ms);
+    return net_ipv6_poll_writable_c_impl_c(fd, timeout_ms);
 }
 #endif
 
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_net_ipv6_fast.x）提供 public wrapper */
-int32_t net_ipv6_connect_retry_ok_c_impl(void) {
+int32_t net_ipv6_connect_retry_ok_c_impl_c(void) {
 #if defined(_WIN32) || defined(_WIN64)
     return 1;
 #else
@@ -147,7 +147,7 @@ int32_t net_ipv6_connect_retry_ok_c_impl(void) {
 #ifndef XLANG_RUNTIME_NET_IPV6_FAST_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t net_ipv6_connect_retry_ok_c(void) {
-    return net_ipv6_connect_retry_ok_c_impl();
+    return net_ipv6_connect_retry_ok_c_impl_c();
 }
 #endif
 

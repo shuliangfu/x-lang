@@ -71,7 +71,7 @@ export function err_buffer(): i32 { return -3; }
 /* See implementation. */
 allow(padding) struct SensitiveBuf {
   ptr: *u8;
-  len: i32;
+  length: i32;
   locked: i32;
 }
 
@@ -168,7 +168,7 @@ export function sensitive_unlock(p: *u8, len: i32): i32 {
 export function sensitive_buf_init(sb: *SensitiveBuf, p: *u8, len: i32, try_lock: i32): i32 {
   if (sb == 0 || p == 0 || len <= 0) { return err_invalid(); }
   sb.ptr = p;
-  sb.len = len;
+  sb.length = len;
   sb.locked = 0;
   if (try_lock != 0) {
     sb.locked = sensitive_lock(p, len);
@@ -186,12 +186,12 @@ export function sensitive_buf_wipe(sb: *SensitiveBuf): void {
   let n: i32 = 0;
   if (sb == 0) { return; }
   p = sb.ptr;
-  n = sb.len;
+  n = sb.length;
   if (sb.locked != 0 && p != 0) {
     sensitive_unlock(p, n);
     sb.locked = 0;
   }
   secure_zero(p, n);
   sb.ptr = 0;
-  sb.len = 0;
+  sb.length = 0;
 }

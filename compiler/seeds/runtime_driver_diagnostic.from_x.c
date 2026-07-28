@@ -616,6 +616,28 @@ void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, 
 }
 #endif
 
+/* wave285/wave289 Cap residual: pure 权威 thin.x driver_diagnostic_typeck_invalid_ptr_binop；
+ * 冷启动全 C；FROM_X 无 pure-dup _impl。wave289 also unary -~ on ptr. PLATFORM: SHARED. */
+#ifndef XLANG_L2_RDD_THIN_FROM_X
+void driver_diagnostic_typeck_invalid_ptr_binop(int32_t line, int32_t col)
+{
+  (void)(lsp_diag_report_typeck(line, col,
+      "invalid pointer arithmetic (ptr+ptr / non-offset ops / unary -~ not allowed; use integer offset, std.string, or adjacent string literals)"));
+  return;
+}
+#endif
+
+/* wave286/wave289 Cap residual: pure 权威 thin.x driver_diagnostic_typeck_invalid_float_binop；
+ * 冷启动全 C；FROM_X 无 pure-dup _impl。wave289 also unary ~ on f32/f64. PLATFORM: SHARED. */
+#ifndef XLANG_L2_RDD_THIN_FROM_X
+void driver_diagnostic_typeck_invalid_float_binop(int32_t line, int32_t col)
+{
+  (void)(lsp_diag_report_typeck(line, col,
+      "invalid float operation (bitwise / mod / shift / unary ~ not allowed on f32/f64; use + - * / and unary - only)"));
+  return;
+}
+#endif
+
 
 /* pure 权威：thin.x driver_diagnostic_typeck_if_condition_not_bool；冷启动全 C；FROM_X 无 pure-dup _impl */
 #ifndef XLANG_L2_RDD_THIN_FROM_X
@@ -900,7 +922,7 @@ void driver_diagnostic_typeck_var_resolution(int32_t expr_ref, const uint8_t *na
 
 
 
-/** -x -E 多文件诊断：codegen 前打印 module.num_funcs 与 out_buf.len，便于排查 dep 产出为空。 */
+/** -x -E 多文件诊断：codegen 前打印 module.num_funcs 与 out_buf.length，便于排查 dep 产出为空。 */
 /** 供 .x 探测 XLANG_DEBUG_PIPE（G-02f-164）。 */
 /* pure 权威：thin.x driver_diag_env_debug_pipe；冷启动保留 _impl + public；FROM_X 剔除 pure-dup（H↓）。 */
 #ifndef XLANG_L2_RDD_THIN_FROM_X
@@ -1148,7 +1170,7 @@ void driver_diagnostic_pipe_marker(int32_t id)
 
 
 
-/** 每个 dep codegen 后打印 j 与 out_buf.len，确认 buffer 是否递增。需要时取消注释 fprintf。 */
+/** 每个 dep codegen 后打印 j 与 out_buf.length，确认 buffer 是否递增。需要时取消注释 fprintf。 */
 #ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_after_dep_codegen(int32_t j, int32_t out_len) {
   (void)(0);

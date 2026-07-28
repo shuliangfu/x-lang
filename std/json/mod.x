@@ -28,7 +28,7 @@
  * on all targets (macOS arm64 / Ubuntu x86_64 / Windows MSYS2).
  *
  * Cursor model:
- *   - JsonCursor { ptr: *u8, len: i32, off: i32 } tracks position
+ *   - JsonCursor { ptr: *u8, length: i32, off: i32 } tracks position
  *     during streaming decode of a JSON document.
  *   - Cursor enter/next/skip/value_type navigate object/array/value
  *     structure without allocating intermediate AST nodes.
@@ -56,7 +56,7 @@
 /* See implementation. */
 export struct JsonCursor {
   ptr: *u8;
-  len: i32;
+  length: i32;
   off: i32;
 }
 
@@ -661,7 +661,7 @@ export function parse_string_view(ptr: *u8, len: i32, out_len: *i32, consumed: *
  * @return JsonCursor
  */
 export function cursor_init(ptr: *u8, len: i32): JsonCursor {
-  let cur: JsonCursor = JsonCursor { ptr: ptr, len: len, off: 0 };
+  let cur: JsonCursor = JsonCursor { ptr: ptr, length: len, off: 0 };
   json_libc_cursor_init_c(&cur, ptr, len);
   return cur;
 }

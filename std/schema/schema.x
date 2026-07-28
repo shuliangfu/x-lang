@@ -88,7 +88,7 @@ export const SCH_LIT_USERS_NAME_ALICE_NAME_BOB: u8[44] = [123, 34, 117, 115, 101
 /* See implementation. */
 export struct JsonCursor {
   ptr: *u8;
-  len: i32;
+  length: i32;
   off: i32;
 }
 
@@ -570,7 +570,7 @@ export function sch_decode_json_scalar(sch: *SchSchema, cur: *JsonCursor, full_k
     return SCH_OK;
   }
   vp = cur.ptr + cur.off;
-  vlen = cur.len - cur.off;
+  vlen = cur.length - cur.off;
   if (sch.fields[idx].type == SCH_TYPE_STRING) {
     unsafe { sl = json_parse_string_c(vp, vlen, &out_buf[0], SCH_VAL_MAX, &consumed); }
     if (sl < 0) {

@@ -20,7 +20,7 @@ export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 export extern "C" function lseek(fd: i32, offset: i64, whence: i32): i64;
 /** munmap for release when needs_munmap (legacy mmap views / cold seed path).
  * PLATFORM: POSIX — product pure read_file_view_impl no longer sets needs_munmap. */
-export extern "C" function munmap(addr: *u8, length: usize): i32;
+export extern "C" function munmap(addr: *u8, len: usize): i32;
 
 // Open-write flag constants (same numeric sources as rt_fs_open.x / std/fs/posix.x).
 // PLATFORM: LINUX | MACOS — O_CREAT/O_TRUNC differ; XLANG_O_BINARY=0 on POSIX.

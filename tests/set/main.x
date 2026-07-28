@@ -12,10 +12,10 @@ function main(): i32 {
   if (set.insert(&s, 20) != 0) { return 3; }
   if (set.contains_key(s, 10) != 1) { return 4; }
   if (set.contains_key(s, 20) != 1) { return 5; }
-  if (set.len(s) != 2) { return 6; }
+  if (set.length(s) != 2) { return 6; }
   if (set.remove(&s, 10) != 1) { return 7; }
   if (set.contains_key(s, 10) != 0) { return 8; }
-  if (set.len(s) != 1) { return 9; }
+  if (set.length(s) != 1) { return 9; }
   set.deinit(&s);
   return 0;
 }

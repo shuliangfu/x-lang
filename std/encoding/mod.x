@@ -239,7 +239,7 @@ export function encode_hex_string(src: *u8, src_len: i32, out: *String): i32 {
     return -1;
   }
   unsafe {
-    out.len = n;
+    out.length = n;
   }
   return 0;
 }
@@ -252,7 +252,7 @@ export function encode_hex_string(src: *u8, src_len: i32, out: *String): i32 {
  * @return i32
  */
 export function decode_hex_string(hex: StrView, out: *u8, out_cap: i32): i32 {
-  return hex_decode(hex.ptr, hex.len, out, out_cap);
+  return hex_decode(hex.ptr, hex.length, out, out_cap);
 }
 
 /** Exported function `encode_base64_string`.
@@ -273,7 +273,7 @@ export function encode_base64_string(src: *u8, src_len: i32, out: *String): i32 
     return -1;
   }
   unsafe {
-    out.len = n;
+    out.length = n;
   }
   return 0;
 }
@@ -286,7 +286,7 @@ export function encode_base64_string(src: *u8, src_len: i32, out: *String): i32 
  * @return i32
  */
 export function decode_base64_string(b64: StrView, out: *u8, out_cap: i32): i32 {
-  return base64_mod.decode_standard(b64.ptr, b64.len, out, out_cap);
+  return base64_mod.decode_standard(b64.ptr, b64.length, out, out_cap);
 }
 
 /* See implementation. */
@@ -365,7 +365,7 @@ export function encode_base32_string(src: *u8, src_len: i32, out: *String): i32 
     return -1;
   }
   unsafe {
-    out.len = n;
+    out.length = n;
   }
   return 0;
 }
@@ -378,7 +378,7 @@ export function encode_base32_string(src: *u8, src_len: i32, out: *String): i32 
  * @return i32
  */
 export function decode_base32_string(b32: StrView, out: *u8, out_cap: i32): i32 {
-  return base32_decode(b32.ptr, b32.len, out, out_cap);
+  return base32_decode(b32.ptr, b32.length, out, out_cap);
 }
 
 /** Exported function `encode_url_base64_string`.
@@ -399,7 +399,7 @@ export function encode_url_base64_string(src: *u8, src_len: i32, out: *String): 
     return -1;
   }
   unsafe {
-    out.len = n;
+    out.length = n;
   }
   return 0;
 }
@@ -412,7 +412,7 @@ export function encode_url_base64_string(src: *u8, src_len: i32, out: *String): 
  * @return i32
  */
 export function decode_url_base64_string(b64: StrView, out: *u8, out_cap: i32): i32 {
-  return base64_mod.decode_url(b64.ptr, b64.len, out, out_cap);
+  return base64_mod.decode_url(b64.ptr, b64.length, out, out_cap);
 }
 
 /** Exported function `extra_smoke`.

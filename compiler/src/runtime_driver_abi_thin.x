@@ -5113,6 +5113,127 @@ export function driver_parser_diag_fail_tok_kind(src: *u8, len: usize): i32 {
  * unpacks parser_ParseIntoResult (ok + main_idx). Cold twin under #ifndef FROM_X.
  * PLATFORM: SHARED — struct return stays seed residual.
  */
+/**
+ * wave269: reset sticky unclosed block-comment state before each product parse.
+ * PLATFORM: SHARED — G.7 single product parse entry.
+ */
+export extern "C" function lexer_unclosed_block_comment_reset(): void;
+/**
+ * wave269: non-zero if lexer saw EOF with block-comment nesting depth > 0.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_unclosed_block_comment_pending(): i32;
+/**
+ * wave271: reset sticky unclosed string state before each product parse.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_unclosed_string_reset(): void;
+/**
+ * wave271: non-zero if lexer saw EOF inside a double-quoted string without closer.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_unclosed_string_pending(): i32;
+/**
+ * wave272: reset sticky illegal-character state before each product parse.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_illegal_char_reset(): void;
+/**
+ * wave272: non-zero if lexer saw an unknown/illegal source byte.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_illegal_char_pending(): i32;
+/**
+ * wave273: reset sticky incomplete-hex state before each product parse.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_incomplete_hex_reset(): void;
+/**
+ * wave273: non-zero if lexer saw `0x`/`0X` with zero hex digits.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_incomplete_hex_pending(): i32;
+/**
+ * wave274: reset sticky incomplete-float-exponent state before each product parse.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_incomplete_exp_reset(): void;
+/**
+ * wave274: non-zero if lexer saw `e`/`E` (optional sign) with zero exponent digits.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_incomplete_exp_pending(): i32;
+/**
+ * wave276: reset sticky incomplete-binary state before each product parse.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_incomplete_bin_reset(): void;
+/**
+ * wave276: non-zero if lexer saw `0b`/`0B` with zero binary digits.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_incomplete_bin_pending(): i32;
+/**
+ * wave276: reset sticky incomplete-octal state before each product parse.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_incomplete_oct_reset(): void;
+/**
+ * wave276: non-zero if lexer saw `0o`/`0O` with zero octal digits.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_incomplete_oct_pending(): i32;
+/**
+ * wave278: reset sticky invalid digit-separator state before each product parse.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_invalid_digit_sep_reset(): void;
+/**
+ * wave278: non-zero if lexer saw trailing/consecutive/`_` not followed by radix digit.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_invalid_digit_sep_pending(): i32;
+/**
+ * wave279: reset sticky invalid type-suffix state before each product parse.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_invalid_type_suffix_reset(): void;
+/**
+ * wave279: non-zero if lexer saw alphabetic type suffix after a complete numeric literal.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_invalid_type_suffix_pending(): i32;
+/**
+ * wave281: reset sticky invalid string-escape state before each product parse.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_invalid_escape_reset(): void;
+/**
+ * wave281: non-zero if lexer saw invalid/incomplete string escape (`\q`, incomplete `\x`).
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_invalid_escape_pending(): i32;
+/**
+ * wave283: reset sticky string-literal capacity overflow (L011) before each product parse.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_string_lit_overflow_reset(): void;
+/**
+ * wave283: non-zero if string decode would exceed Expr.var_name cap 63 (L011).
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_string_lit_overflow_pending(): i32;
+/**
+ * wave284: reset sticky identifier-too-long state (L012) before each product parse.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_ident_too_long_reset(): void;
+/**
+ * wave284: non-zero if non-keyword ident span exceeds AST name cap 63 (L012).
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_ident_too_long_pending(): i32;
+
 #[no_mangle]
 export function driver_parse_into_buf_rc(
   arena: *u8, module: *u8, data: *u8, len: i32, out_main_idx: *i32
@@ -5129,10 +5250,106 @@ export function driver_parse_into_buf_rc(
   if (data == 0 as *u8) {
     return -1;
   }
+  // wave269–wave284: clear sticky L001–L012 state for this entry.
   unsafe {
-    return xlang_parser_parse_into_buf_rc(arena, module, data, len, out_main_idx);
+    lexer_unclosed_block_comment_reset();
+    lexer_unclosed_string_reset();
+    lexer_illegal_char_reset();
+    lexer_incomplete_hex_reset();
+    lexer_incomplete_exp_reset();
+    lexer_incomplete_bin_reset();
+    lexer_incomplete_oct_reset();
+    lexer_invalid_digit_sep_reset();
+    lexer_invalid_type_suffix_reset();
+    lexer_invalid_escape_reset();
+    lexer_string_lit_overflow_reset();
+    lexer_ident_too_long_reset();
   }
-  return -1;
+  let rc: i32 = 0;
+  unsafe {
+    rc = xlang_parser_parse_into_buf_rc(arena, module, data, len, out_main_idx);
+  }
+  // Hard-fail when skip swallowed to EOF with unclosed /* ... (L001 already emitted),
+  // string lex hit EOF without closer (L002), illegal/unknown byte (L003),
+  // incomplete hex (L004), incomplete float exp (L005), incomplete binary (L006),
+  // incomplete octal (L007), invalid digit separator (L008), invalid type suffix (L009),
+  // invalid string escape (L010), string literal capacity overflow (L011),
+  // or identifier too long (L012).
+  unsafe {
+    if (lexer_unclosed_block_comment_pending() != 0) {
+      if (out_main_idx != 0 as *i32) {
+        out_main_idx[0] = -1;
+      }
+      return -1;
+    }
+    if (lexer_unclosed_string_pending() != 0) {
+      if (out_main_idx != 0 as *i32) {
+        out_main_idx[0] = -1;
+      }
+      return -1;
+    }
+    if (lexer_illegal_char_pending() != 0) {
+      if (out_main_idx != 0 as *i32) {
+        out_main_idx[0] = -1;
+      }
+      return -1;
+    }
+    if (lexer_incomplete_hex_pending() != 0) {
+      if (out_main_idx != 0 as *i32) {
+        out_main_idx[0] = -1;
+      }
+      return -1;
+    }
+    if (lexer_incomplete_exp_pending() != 0) {
+      if (out_main_idx != 0 as *i32) {
+        out_main_idx[0] = -1;
+      }
+      return -1;
+    }
+    if (lexer_incomplete_bin_pending() != 0) {
+      if (out_main_idx != 0 as *i32) {
+        out_main_idx[0] = -1;
+      }
+      return -1;
+    }
+    if (lexer_incomplete_oct_pending() != 0) {
+      if (out_main_idx != 0 as *i32) {
+        out_main_idx[0] = -1;
+      }
+      return -1;
+    }
+    if (lexer_invalid_digit_sep_pending() != 0) {
+      if (out_main_idx != 0 as *i32) {
+        out_main_idx[0] = -1;
+      }
+      return -1;
+    }
+    if (lexer_invalid_type_suffix_pending() != 0) {
+      if (out_main_idx != 0 as *i32) {
+        out_main_idx[0] = -1;
+      }
+      return -1;
+    }
+    if (lexer_invalid_escape_pending() != 0) {
+      if (out_main_idx != 0 as *i32) {
+        out_main_idx[0] = -1;
+      }
+      return -1;
+    }
+    if (lexer_string_lit_overflow_pending() != 0) {
+      if (out_main_idx != 0 as *i32) {
+        out_main_idx[0] = -1;
+      }
+      return -1;
+    }
+    if (lexer_ident_too_long_pending() != 0) {
+      if (out_main_idx != 0 as *i32) {
+        out_main_idx[0] = -1;
+      }
+      return -1;
+    }
+  }
+  return rc;
 }
 
 // ---- Wave39 Cap residual pure: stdio stdout + asm fwrite + x_emit fwrite_stdout ----

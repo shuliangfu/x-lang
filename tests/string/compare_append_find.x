@@ -15,7 +15,7 @@ function main(): i32 {
   if (string.string_compare(a, a) != 0) { return 3; }
   let s: String = string.new();
   if (string.string_append_char(&s, 104) != 0) { return 4; }
-  if (string.len(s) != 1) { return 5; }
+  if (string.length(s) != 1) { return 5; }
   let hi: u8[2] = [105, 0];
   if (string.string_append_slice(&s, &hi[0], 1) != 0) { return 6; }
   if (string.string_find_char(s, 104) != 0) { return 7; }

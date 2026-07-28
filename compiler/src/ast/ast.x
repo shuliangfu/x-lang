@@ -442,6 +442,16 @@ allow(padding) struct PipelineDepCtx {
   /* See implementation. */
   typeck_scope_region_len: i32;
   typeck_scope_region_label: u8[64];
+  /*
+   * wave445 C5: monomorphization type-substitution state for generic function
+   * body emit. When mono_active=1, emit_type replaces any type_ref matching
+   * mono_generic_type_refs[i] with mono_concrete_type_refs[i] (T -> concrete).
+   * PLATFORM: SHARED — mirror of runtime_pipeline_abi.h layout authority.
+   */
+  mono_active: i32;
+  mono_num_types: i32;
+  mono_generic_type_refs: i32[8];
+  mono_concrete_type_refs: i32[8];
 }
 
 /* See implementation. */
@@ -978,6 +988,24 @@ export function ast_block_num_regions(a: *ASTArena, br: i32): i32 {
     blk_nr = ast_arena_block_get(a, br);
   }
   return blk_nr.num_regions;
+}
+
+/**
+ * Number of labeled/goto stmts in the block (wave379 stmt_order kind=7).
+ * @param a *ASTArena — arena holding the block
+ * @param br i32 — block ref
+ * @return i32 — count of labeled_stmts (0 if invalid)
+ * PLATFORM: SHARED
+ */
+export function ast_block_num_labeled_stmts(a: *ASTArena, br: i32): i32 {
+  if (br <= 0 || br > a.num_blocks) {
+    return 0;
+  }
+  let blk_nl: Block;
+  unsafe {
+    blk_nl = ast_arena_block_get(a, br);
+  }
+  return blk_nl.num_labeled_stmts;
 }
 
 /** Exported function `ast_block_region_body_ref`.

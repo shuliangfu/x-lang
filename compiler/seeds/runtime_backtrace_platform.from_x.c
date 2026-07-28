@@ -1,14 +1,14 @@
 /* seeds/runtime_backtrace_platform.from_x.c — G-02f-19 product TU
- * G-02f-127 true .x pure helpers.
- * G-02f-106 helper gates.
- * G-02f-101 hex2/gold_anchor gates.
- * Product: runtime_backtrace_platform.o; logic still C until full .x port.
- */
-/**
- * runtime_backtrace_platform.c — 调用栈平台胶层（F-ZC：自 std/backtrace/backtrace_platform_glue.c 迁入）
+ * Product: runtime_backtrace_platform.o; R2 full mode (wave506).
  *
- * execinfo/dladdr/DbgHelp capture/symbolicate；noinline gold_anchor；
- * SAFE-007 crash evidence 落盘。帧辅助与烟测编排在 backtrace.x；与 backtrace.o 一并链入。
+ * R2 full mode: public API in src/asm/runtime_backtrace_platform.x (thin),
+ * OS bridge _impl functions here (rest). Thin+rest linked via ld -r.
+ * Platform-specific: execinfo/dladdr on POSIX/macOS, CaptureStackBackTrace
+ * + DbgHelp on Windows.
+ *
+ * wave252 G.7: CRASH_EVIDENCE env via public face link_abi_getenv (not raw libc getenv).
+ * wave253: face body in runtime_link_abi_user_env.o (declaration only here).
+ * PLATFORM: SHARED
  */
 
 #if defined(__linux__) && !defined(_GNU_SOURCE)
@@ -21,105 +21,110 @@
 #include <string.h>
 #include <stdlib.h>
 #include "diag.h"
+#include <xlang_user_link_abi_getenv.h>
 #if defined(__unix__) || defined(__APPLE__)
-/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
- *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
- *            macOS/Linux delegate to system <unistd.h> via #include_next.
- *            Historical #ifndef _WIN32 guard removed — shim is a no-op
- *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
 #endif
 
 #define BACKTRACE_SYM_NAME_LEN 128
 
-/** 烟测全局状态（原 backtrace.x 全局 let；seed asm 不支持全局写）。 */
 static int32_t g_sym_capture_mode = 0;
 static int32_t g_sym_capture_result = 0;
 
-/** 从 buf 读取第 i 帧地址。 */
-void *backtrace_read_frame_addr_c(const uint8_t *buf, int32_t i) {
+/* Forward declarations of thin public API functions (provided by .x in R2 mode).
+ * Needed by smoke tests and noinline C functions that call back into public API. */
+void *backtrace_read_frame_addr_c(const uint8_t *buf, int32_t i);
+void backtrace_write_frame_addr_c(uint8_t *buf, int32_t i, void *addr);
+int32_t backtrace_copy_sym_name_c(uint8_t *out, int32_t name_cap, const uint8_t *name);
+void backtrace_format_hex_addr_c(uint8_t *out, int32_t cap, void *addr);
+int32_t backtrace_name_has_gold_anchor_c(const uint8_t *name);
+int32_t backtrace_capture_c(uint8_t *buf, int32_t max_frames);
+int32_t backtrace_symbolicate_c(const uint8_t *buf, int32_t len, uint8_t *out_ptrs, uint8_t *out_names, int32_t max);
+void *backtrace_gold_anchor_addr_c(void);
+int32_t backtrace_capture_and_check_gold_c(void);
+const uint8_t *backtrace_xplat_platform_name_c(void);
+int32_t backtrace_xplat_quality_c(void);
+void xlang_crash_evidence_collect_c(int has_msg, int msg_val);
+void backtrace_u8_hex2(uint8_t b, uint8_t *out);
+
+/* === Pure helper _impl functions === */
+
+/** Read the i-th frame address from buffer. */
+void *backtrace_read_frame_addr_impl(const uint8_t *buf, int32_t i) {
   void *p = NULL;
   const uint8_t *src;
   uint8_t *dst;
   size_t k;
-  if (!buf || i < 0) {
-    return NULL;
-  }
+  if (!buf || i < 0) return NULL;
   src = buf + (size_t)i * sizeof(void *);
   dst = (uint8_t *)&p;
-  for (k = 0; k < sizeof(void *); k++) {
-    dst[k] = src[k];
-  }
+  for (k = 0; k < sizeof(void *); k++) dst[k] = src[k];
   return p;
 }
 
-/** 将地址写入 buf 第 i 帧。 */
-void backtrace_write_frame_addr_c(uint8_t *buf, int32_t i, void *addr) {
+#ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+void *backtrace_read_frame_addr_c(const uint8_t *buf, int32_t i) {
+  return backtrace_read_frame_addr_impl(buf, i);
+}
+#endif
+
+/** Write frame address into buffer at position i. */
+void backtrace_write_frame_addr_impl(uint8_t *buf, int32_t i, void *addr) {
   uint8_t *dst;
   const uint8_t *src;
   size_t k;
-  if (!buf || i < 0) {
-    return;
-  }
+  if (!buf || i < 0) return;
   dst = buf + (size_t)i * sizeof(void *);
   src = (const uint8_t *)&addr;
-  for (k = 0; k < sizeof(void *); k++) {
-    dst[k] = src[k];
-  }
-}
-
-/** 单字节转两位小写十六进制。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_backtrace_platform.x）提供 public wrapper */
-void backtrace_u8_hex2_impl(uint8_t b, char *out) {
-  uint8_t hi = (uint8_t)((b >> 4) & 0x0fu);
-  uint8_t lo = (uint8_t)(b & 0x0fu);
-  if (!out) {
-    return;
-  }
-  out[0] = (char)(hi < 10 ? ('0' + hi) : ('a' + hi - 10));
-  out[1] = (char)(lo < 10 ? ('0' + lo) : ('a' + lo - 10));
+  for (k = 0; k < sizeof(void *); k++) dst[k] = src[k];
 }
 
 #ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-void backtrace_u8_hex2(uint8_t b, char *out) {
+void backtrace_write_frame_addr_c(uint8_t *buf, int32_t i, void *addr) {
+  backtrace_write_frame_addr_impl(buf, i, addr);
+}
+#endif
+
+/** Convert single byte to two lowercase hex characters. */
+void backtrace_u8_hex2_impl(uint8_t b, uint8_t *out) {
+  uint8_t hi = (uint8_t)((b >> 4) & 0x0fu);
+  uint8_t lo = (uint8_t)(b & 0x0fu);
+  if (!out) return;
+  out[0] = (uint8_t)(hi < 10 ? ('0' + hi) : ('a' + hi - 10));
+  out[1] = (uint8_t)(lo < 10 ? ('0' + lo) : ('a' + lo - 10));
+}
+
+#ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+void backtrace_u8_hex2(uint8_t b, uint8_t *out) {
   backtrace_u8_hex2_impl(b, out);
 }
 #endif
 
-
-
-
-/** 复制符号名到 out（最多 name_cap-1 字节 + NUL）。 */
-void backtrace_copy_sym_name_c(char *out, int32_t name_cap, const char *name) {
+/** Copy symbol name into output buffer (max name_cap-1 bytes + NUL). */
+void backtrace_copy_sym_name_impl(uint8_t *out, int32_t name_cap, const uint8_t *name) {
   int32_t n;
-  if (!out || name_cap <= 0) {
-    return;
-  }
-  if (!name) {
-    out[0] = '\0';
-    return;
-  }
-  n = (int32_t)strlen(name);
-  if (n >= name_cap) {
-    n = name_cap - 1;
-  }
-  if (n > 0) {
-    memcpy(out, name, (size_t)n);
-  }
+  if (!out || name_cap <= 0) return;
+  if (!name) { out[0] = '\0'; return; }
+  n = (int32_t)strlen((const char *)name);
+  if (n >= name_cap) n = name_cap - 1;
+  if (n > 0) memcpy(out, name, (size_t)n);
   out[n] = '\0';
 }
 
-/** 十六进制回退（不计入成功帧数）。 */
-void backtrace_format_hex_addr_c(char *out, int32_t cap, void *addr) {
-  char tmp[18];
+#ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+int32_t backtrace_copy_sym_name_c(uint8_t *out, int32_t name_cap, const uint8_t *name) {
+  backtrace_copy_sym_name_impl(out, name_cap, name);
+  return 0;
+}
+#endif
+
+/** Format address as hex string into output buffer. */
+void backtrace_format_hex_addr_impl(uint8_t *out, int32_t cap, void *addr) {
+  uint8_t tmp[18];
   uintptr_t v = (uintptr_t)addr;
   int32_t i;
   int32_t pos = 2;
-  if (!out || cap <= 0) {
-    return;
-  }
+  if (!out || cap <= 0) return;
   tmp[0] = '0';
   tmp[1] = 'x';
   for (i = 15; i >= 0; i--) {
@@ -127,20 +132,36 @@ void backtrace_format_hex_addr_c(char *out, int32_t cap, void *addr) {
     backtrace_u8_hex2_impl(nib, &tmp[pos]);
     pos += 2;
   }
-  if (pos >= cap) {
-    pos = cap - 1;
-  }
+  if (pos >= cap) pos = cap - 1;
   memcpy(out, tmp, (size_t)pos);
   out[pos] = '\0';
 }
 
-/** 检查符号名是否含 gold_anchor 子串。 */
-int32_t backtrace_name_has_gold_anchor_c(const uint8_t *name) {
-  if (!name) {
-    return 0;
-  }
+#ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+void backtrace_format_hex_addr_c(uint8_t *out, int32_t cap, void *addr) {
+  backtrace_format_hex_addr_impl(out, cap, addr);
+}
+#endif
+
+/** Check if symbol name contains gold_anchor substring. */
+int32_t backtrace_name_has_gold_anchor_impl(const uint8_t *name) {
+  if (!name) return 0;
   return strstr((const char *)name, "gold_anchor") != NULL ? 1 : 0;
 }
+
+#ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+int32_t backtrace_name_has_gold_anchor_c(const uint8_t *name) {
+  return backtrace_name_has_gold_anchor_impl(name);
+}
+#endif
+
+#ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+int32_t name_has_gold_anchor(const uint8_t *name) {
+  return backtrace_name_has_gold_anchor_impl(name);
+}
+#endif
+
+/* === Platform-specific _impl functions === */
 
 #if (defined(__linux__) && defined(__GLIBC__)) || defined(__APPLE__)
 #include <execinfo.h>
@@ -160,37 +181,15 @@ int32_t backtrace_name_has_gold_anchor_c(const uint8_t *name) {
 #include <dbghelp.h>
 #endif
 
-/**
- * 金样锚点：烟测模式下在栈内 capture。
- * noinline 保证栈帧可被 backtrace 捕获。
- */
-int32_t backtrace_gold_anchor_smoke_enter_c(void);
-#if defined(_MSC_VER)
-__declspec(noinline)
-#else
-__attribute__((noinline))
-#endif
-void backtrace_gold_anchor_c(void);
-
-int32_t backtrace_capture_c(uint8_t *buf, int32_t max_frames);
-int32_t backtrace_symbolicate_c(const uint8_t *buf, int32_t len, uint8_t *out_ptrs, uint8_t *out_names,
-                                int32_t max);
-void *backtrace_gold_anchor_addr_c(void);
-
-/**
- * 将当前调用栈捕获到 buf；每帧 sizeof(void*) 字节。
- * 返回值：捕获帧数；失败 0。
- */
-int32_t backtrace_capture_c(uint8_t *buf, int32_t max_frames) {
-  if (!buf || max_frames <= 0)
-    return 0;
+/** Capture current call stack into buffer. */
+int32_t backtrace_capture_impl(uint8_t *buf, int32_t max_frames) {
+  if (!buf || max_frames <= 0) return 0;
 #if defined(HAVE_EXECINFO)
   {
     void *arr[256];
     int n = backtrace(arr, max_frames > 256 ? 256 : (int)max_frames);
     int i;
-    if (n <= 0)
-      return 0;
+    if (n <= 0) return 0;
     for (i = 0; i < n; i++)
       backtrace_write_frame_addr_c(buf, i, arr[i]);
     return (int32_t)n;
@@ -200,8 +199,7 @@ int32_t backtrace_capture_c(uint8_t *buf, int32_t max_frames) {
     void *arr[256];
     uint32_t n = CaptureStackBackTrace(0, (uint32_t)(max_frames > 256 ? 256 : max_frames), arr, NULL);
     uint32_t i;
-    if (n == 0)
-      return 0;
+    if (n == 0) return 0;
     for (i = 0; i < n; i++)
       backtrace_write_frame_addr_c(buf, (int32_t)i, arr[i]);
     return (int32_t)n;
@@ -213,37 +211,38 @@ int32_t backtrace_capture_c(uint8_t *buf, int32_t max_frames) {
 #endif
 }
 
-/**
- * 将 capture 得到的 buf 符号化；返回成功解析符号的帧数。
- */
-int32_t backtrace_symbolicate_c(const uint8_t *buf, int32_t len, uint8_t *out_ptrs, uint8_t *out_names,
-                                int32_t max) {
+#ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+int32_t backtrace_capture_c(uint8_t *buf, int32_t max_frames) {
+  return backtrace_capture_impl(buf, max_frames);
+}
+#endif
+
+/** Symbolicate captured buffer. */
+int32_t backtrace_symbolicate_impl(const uint8_t *buf, int32_t len, uint8_t *out_ptrs, uint8_t *out_names, int32_t max) {
   int32_t ok = 0;
   int32_t n;
   int32_t i;
-  if (!buf || len <= 0 || !out_names || max <= 0)
-    return 0;
+  if (!buf || len <= 0 || !out_names || max <= 0) return 0;
   n = len < max ? len : max;
   for (i = 0; i < n; i++) {
     void *addr = backtrace_read_frame_addr_c(buf, i);
-    char *name_slot = (char *)(out_names + (size_t)i * BACKTRACE_SYM_NAME_LEN);
-    if (out_ptrs)
-      backtrace_write_frame_addr_c(out_ptrs, i, addr);
+    uint8_t *name_slot = out_names + (size_t)i * BACKTRACE_SYM_NAME_LEN;
+    if (out_ptrs) backtrace_write_frame_addr_c(out_ptrs, i, addr);
 #if defined(HAVE_DLADDR)
     {
       Dl_info info;
       memset(&info, 0, sizeof(info));
       if (dladdr(addr, &info) && info.dli_sname && info.dli_sname[0]) {
-        backtrace_copy_sym_name_c(name_slot, BACKTRACE_SYM_NAME_LEN, info.dli_sname);
+        backtrace_copy_sym_name_impl(name_slot, BACKTRACE_SYM_NAME_LEN, (const uint8_t *)info.dli_sname);
         ok++;
       } else {
-        backtrace_format_hex_addr_c(name_slot, BACKTRACE_SYM_NAME_LEN, addr);
+        backtrace_format_hex_addr_impl(name_slot, BACKTRACE_SYM_NAME_LEN, addr);
       }
     }
 #elif defined(_WIN32) || defined(_WIN64)
     {
       static int sym_init = 0;
-      char undec[BACKTRACE_SYM_NAME_LEN];
+      uint8_t undec[BACKTRACE_SYM_NAME_LEN];
       DWORD64 disp = 0;
       SYMBOL_INFO_PACKAGE pkg;
       if (!sym_init) {
@@ -255,128 +254,92 @@ int32_t backtrace_symbolicate_c(const uint8_t *buf, int32_t len, uint8_t *out_pt
       pkg.si.SizeOfStruct = sizeof(SYMBOL_INFO);
       pkg.si.MaxNameLen = MAX_SYM_NAME;
       if (SymFromAddr(GetCurrentProcess(), (DWORD64)(uintptr_t)addr, &disp, &pkg.si)) {
-        if (UnDecorateSymbolName(pkg.si.Name, undec, (DWORD)sizeof(undec), UNDNAME_COMPLETE)) {
-          backtrace_copy_sym_name_c(name_slot, BACKTRACE_SYM_NAME_LEN, undec);
+        if (UnDecorateSymbolName(pkg.si.Name, (char *)undec, (DWORD)sizeof(undec), UNDNAME_COMPLETE)) {
+          backtrace_copy_sym_name_impl(name_slot, BACKTRACE_SYM_NAME_LEN, undec);
         } else {
-          backtrace_copy_sym_name_c(name_slot, BACKTRACE_SYM_NAME_LEN, pkg.si.Name);
+          backtrace_copy_sym_name_impl(name_slot, BACKTRACE_SYM_NAME_LEN, (const uint8_t *)pkg.si.Name);
         }
         ok++;
       } else {
-        backtrace_format_hex_addr_c(name_slot, BACKTRACE_SYM_NAME_LEN, addr);
+        backtrace_format_hex_addr_impl(name_slot, BACKTRACE_SYM_NAME_LEN, addr);
       }
     }
 #else
-    backtrace_format_hex_addr_c(name_slot, BACKTRACE_SYM_NAME_LEN, addr);
+    backtrace_format_hex_addr_impl(name_slot, BACKTRACE_SYM_NAME_LEN, addr);
 #endif
   }
   return ok;
 }
 
-/** .x 导出：金样锚点函数地址（烟测 symbolicate 用）。 */
-void *backtrace_gold_anchor_addr_c(void) {
-  return (void *)&backtrace_gold_anchor_c;
-}
-
-/** 从当前栈 capture 并检查是否含 gold_anchor 符号。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_backtrace_platform.x）提供 public wrapper */
-int32_t backtrace_capture_and_check_gold_c_impl(void) {
-  uint8_t buf[512];
-  uint8_t names[1024];
-  int32_t n;
-  int32_t sym_n;
-  int32_t i;
-  n = backtrace_capture_c(buf, 8);
-  if (n <= 0) {
-    return 10;
-  }
-  sym_n = backtrace_symbolicate_c(buf, n, buf, names, n);
-  if (sym_n <= 0) {
-    return 11;
-  }
-  for (i = 0; i < n; i++) {
-    const char *slot = (const char *)(names + (size_t)i * BACKTRACE_SYM_NAME_LEN);
-    if (backtrace_name_has_gold_anchor_c((const uint8_t *)slot)) {
-      return 0;
-    }
-  }
-  return 12;
-}
-
 #ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-int32_t backtrace_capture_and_check_gold_c(void) {
-  return backtrace_capture_and_check_gold_c_impl();
+int32_t backtrace_symbolicate_c(const uint8_t *buf, int32_t len, uint8_t *out_ptrs, uint8_t *out_names, int32_t max) {
+  return backtrace_symbolicate_impl(buf, len, out_ptrs, out_names, max);
 }
 #endif
 
-
-
-
-/** platform glue 金样锚点回调：烟测模式下在栈内 capture。 */
-int32_t backtrace_gold_anchor_smoke_enter_c(void) {
-  if (g_sym_capture_mode != 0) {
-    g_sym_capture_result = backtrace_capture_and_check_gold_c_impl();
-    g_sym_capture_mode = 0;
-  }
-  return 0;
-}
-
+/** Get address of gold_anchor function. */
+int32_t backtrace_gold_anchor_smoke_enter_c(void);
 #if defined(_MSC_VER)
 __declspec(noinline)
 #else
 __attribute__((noinline))
 #endif
-void backtrace_gold_anchor_c(void) {
-  (void)backtrace_gold_anchor_smoke_enter_c();
+void backtrace_gold_anchor_c(void);
+
+void *backtrace_gold_anchor_addr_impl(void) {
+  return (void *)&backtrace_gold_anchor_c;
 }
 
-/** STD-052 C 烟测：直接 symbolicate gold_anchor + capture 路径。 */
-int32_t backtrace_symbolicate_smoke_c(void) {
-  uint8_t buf[64];
-  uint8_t names[128];
-  g_sym_capture_result = 12;
-  backtrace_write_frame_addr_c(buf, 0, backtrace_gold_anchor_addr_c());
-  if (backtrace_symbolicate_c(buf, 1, buf, names, 1) <= 0) {
-    return 1;
-  }
-  if (!backtrace_name_has_gold_anchor_c(names)) {
-    return 2;
-  }
-  g_sym_capture_mode = 1;
-  backtrace_gold_anchor_c();
-  return g_sym_capture_result;
-}
-
-/** 返回当前宿主平台名（STD-147）。 */
-const char *backtrace_xplat_platform_name_c(void) {
-#if defined(__APPLE__)
-  return "Darwin";
-#elif defined(_WIN32) || defined(_WIN64)
-  return "Windows";
-#elif defined(__linux__)
-  return "Linux";
-#else
-  return "Unknown";
-#endif
-}
-
-/** 检查符号名是否含 gold_anchor。 */
-/* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：thin（src/asm/runtime_backtrace_platform.x）提供 public wrapper */
 #ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-int32_t name_has_gold_anchor(const char *name) {
-  return backtrace_name_has_gold_anchor_c((const uint8_t *)name);
+void *backtrace_gold_anchor_addr_c(void) {
+  return backtrace_gold_anchor_addr_impl();
 }
 #endif
 
+/** Capture and check for gold_anchor symbol. */
+int32_t backtrace_capture_and_check_gold_c_impl(void) {
+  uint8_t buf[512];
+  uint8_t names[1024];
+  int32_t n, sym_n, i;
+  n = backtrace_capture_c(buf, 8);
+  if (n <= 0) return 10;
+  sym_n = backtrace_symbolicate_c(buf, n, buf, names, n);
+  if (sym_n <= 0) return 11;
+  for (i = 0; i < n; i++) {
+    const uint8_t *slot = names + (size_t)i * BACKTRACE_SYM_NAME_LEN;
+    if (backtrace_name_has_gold_anchor_c(slot)) return 0;
+  }
+  return 12;
+}
 
+#ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+int32_t backtrace_capture_and_check_gold_c(void) {
+  return backtrace_capture_and_check_gold_c_impl();
+}
+#endif
 
+/** Get current platform name. */
+const uint8_t *backtrace_xplat_platform_name_impl(void) {
+#if defined(__APPLE__)
+  return (const uint8_t *)"Darwin";
+#elif defined(_WIN32) || defined(_WIN64)
+  return (const uint8_t *)"Windows";
+#elif defined(__linux__)
+  return (const uint8_t *)"Linux";
+#else
+  return (const uint8_t *)"Unknown";
+#endif
+}
 
-/** STD-147 跨平台符号质量探测。 */
-int32_t backtrace_xplat_quality_c(void) {
-  const char *plat = backtrace_xplat_platform_name_c();
+#ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+const uint8_t *backtrace_xplat_platform_name_c(void) {
+  return backtrace_xplat_platform_name_impl();
+}
+#endif
+
+/** Cross-platform symbol quality probe. */
+int32_t backtrace_xplat_quality_impl(void) {
+  const uint8_t *plat = backtrace_xplat_platform_name_c();
   uint8_t buf[512];
   uint8_t names[32 * BACKTRACE_SYM_NAME_LEN];
   int32_t gold = 0;
@@ -385,41 +348,38 @@ int32_t backtrace_xplat_quality_c(void) {
 
   backtrace_write_frame_addr_c(buf, 0, backtrace_gold_anchor_addr_c());
   if (backtrace_symbolicate_c(buf, 1, buf, names, 1) > 0) {
-    if (backtrace_name_has_gold_anchor_c((const uint8_t *)names))
-      gold = 1;
+    if (backtrace_name_has_gold_anchor_c(names)) gold = 1;
   }
   total = backtrace_capture_c(buf, 32);
-  if (total > 0)
-    resolved = backtrace_symbolicate_c(buf, total, buf, names, total);
-  /* 【Why 根源】runtime 不依赖编译器 diag_reportf（仅 compiler 链入）；用 fprintf 直接输出。 */
+  if (total > 0) resolved = backtrace_symbolicate_c(buf, total, buf, names, total);
   fprintf(stderr, "xlang: [XLANG_BT_XPLAT] backtrace xplat: platform=%s gold=%d resolved=%d total=%d\n",
-          plat, gold, resolved, total);
-  if (gold < 1 || resolved < 1 || total < 1)
-    return 1;
+          (const char *)plat, gold, resolved, total);
+  if (gold < 1 || resolved < 1 || total < 1) return 1;
   return 0;
 }
 
-/**
- * SAFE-007：XLANG_CRASH_EVIDENCE=1 时 capture 栈并 stderr/bundle 落盘。
- * 强符号覆盖 runtime_panic.c 内弱默认实现。
- */
-void xlang_crash_evidence_collect_c(int has_msg, int msg_val) {
-  const char *en = getenv("XLANG_CRASH_EVIDENCE");
+#ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+int32_t backtrace_xplat_quality_c(void) {
+  return backtrace_xplat_quality_impl();
+}
+#endif
+
+/** Collect crash evidence when XLANG_CRASH_EVIDENCE=1. */
+void xlang_crash_evidence_collect_impl(int has_msg, int msg_val) {
+  const char *en = link_abi_getenv("XLANG_CRASH_EVIDENCE");
   uint8_t buf[512];
   int32_t n;
   int32_t pid = 0;
-  if (!en || en[0] != '1')
-    return;
+  if (!en || en[0] != '1') return;
   n = backtrace_capture_c(buf, 32);
 #if defined(__unix__) || defined(__APPLE__)
   pid = (int32_t)getpid();
 #elif defined(_WIN32) || defined(_WIN64)
   pid = (int32_t)GetCurrentProcessId();
 #endif
-  fprintf(stderr, "note: crash evidence: panic=%d msg=%d frames=%d pid=%d\n", has_msg, msg_val,
-          n, pid);
+  fprintf(stderr, "note: crash evidence: panic=%d msg=%d frames=%d pid=%d\n", has_msg, msg_val, n, pid);
   {
-    const char *dir = getenv("XLANG_CRASH_EVIDENCE_DIR");
+    const char *dir = link_abi_getenv("XLANG_CRASH_EVIDENCE_DIR");
     if (dir && dir[0]) {
       char path[1024];
       FILE *f;
@@ -437,4 +397,44 @@ void xlang_crash_evidence_collect_c(int has_msg, int msg_val) {
       }
     }
   }
+}
+
+#ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+void xlang_crash_evidence_collect_c(int has_msg, int msg_val) {
+  xlang_crash_evidence_collect_impl(has_msg, msg_val);
+}
+#endif
+
+/* === Smoke tests + noinline functions (stay in C, no thin wrapper) === */
+
+/** Smoke test mode: capture on stack entry. */
+int32_t backtrace_gold_anchor_smoke_enter_c(void) {
+  if (g_sym_capture_mode != 0) {
+    g_sym_capture_result = backtrace_capture_and_check_gold_c_impl();
+    g_sym_capture_mode = 0;
+  }
+  return 0;
+}
+
+/** noinline gold_anchor function for smoke tests. */
+#if defined(_MSC_VER)
+__declspec(noinline)
+#else
+__attribute__((noinline))
+#endif
+void backtrace_gold_anchor_c(void) {
+  (void)backtrace_gold_anchor_smoke_enter_c();
+}
+
+/** STD-052 C smoke: symbolicate gold_anchor + capture path. */
+int32_t backtrace_symbolicate_smoke_c(void) {
+  uint8_t buf[64];
+  uint8_t names[128];
+  g_sym_capture_result = 12;
+  backtrace_write_frame_addr_c(buf, 0, backtrace_gold_anchor_addr_c());
+  if (backtrace_symbolicate_c(buf, 1, buf, names, 1) <= 0) return 1;
+  if (!backtrace_name_has_gold_anchor_c(names)) return 2;
+  g_sym_capture_mode = 1;
+  backtrace_gold_anchor_c();
+  return g_sym_capture_result;
 }

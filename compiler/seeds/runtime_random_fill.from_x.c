@@ -1,16 +1,28 @@
 /* seeds/runtime_random_fill.from_x.c — G-02f-20 product TU
  * G-02f-104 helper gates.
- * Product: runtime_random_fill.o; logic still C until full .x port.
- */
-/**
- * runtime_random_fill.c — CSPRNG OS 胶层（F-ZC：自 std/random/random_os_glue.c 迁入）
+ * Product: runtime_random_fill.o; OS bridge logic in rest C; public wrappers
+ * provided by thin runtime_random_fill.x in R2 mode (XLANG_RUNTIME_RANDOM_FILL_FROM_X).
  *
- * 提供 random_fill_bytes_c：getrandom / getentropy / BCryptGenRandom。
- * random.x 经 extern 调用；与 random.o 一并链入。
+ * runtime_random_fill.c — CSPRNG OS glue (migrated from std/random/random_os_glue.c)
+ *
+ * [File role] random_fill_bytes_c: getrandom / getentropy / BCryptGenRandom.
+ *             random.x calls via extern; linked alongside random.o into exe.
+ *
+ * Wave514 (2026-07-27): R2 full migration. random_fill_bytes_c business logic
+ * moved to .x (thin); this file now provides _impl OS bridge implementations
+ * only, with cold-mode fallback wrappers under #ifndef XLANG_RUNTIME_RANDOM_FILL_FROM_X.
+ *
+ * PLATFORM: SHARED (Windows BCrypt / Linux getrandom / macOS getentropy)
  */
+
 #include <stdint.h>
 #include <string.h>
 
+/* Forward declarations for thin-provided _c functions (R2 / FROM_X mode). */
+void *random_get_alg(void);
+int32_t random_fill_bytes_c(uint8_t *buf, int32_t len);
+
+/* ========== Platform includes ========== */
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
 #include <bcrypt.h>
@@ -23,11 +35,8 @@
 #if defined(__APPLE__)
 #include <sys/random.h>
 #else
-/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
- *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
- *            macOS/Linux delegate to system <unistd.h> via #include_next.
- *            Historical #ifndef _WIN32 guard removed — shim is a no-op
- *            on POSIX and provides needed declarations on Windows. */
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW.
+ * macOS/Linux delegate to system <unistd.h> via #include_next. */
 #include <unistd.h>
 #endif
 #include <errno.h>
@@ -36,11 +45,10 @@
 #endif
 #endif
 
+/* ========== random_get_alg_impl (Windows: BCrypt lazy init; non-Windows: stub) ========== */
 #if defined(_WIN32) || defined(_WIN64)
 static INIT_ONCE g_random_init_once = INIT_ONCE_STATIC_INIT;
 static BCRYPT_ALG_HANDLE g_random_alg = NULL;
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_random_fill.x）提供 public wrapper */
 
 BOOL CALLBACK random_init_callback(PINIT_ONCE InitOnce, PVOID Parameter, PVOID *Context) {
     (void)InitOnce;
@@ -52,32 +60,28 @@ BOOL CALLBACK random_init_callback(PINIT_ONCE InitOnce, PVOID Parameter, PVOID *
     return TRUE;
 }
 
-
-
-
-/** Windows：懒初始化 BCrypt RNG 算法句柄；失败返回 NULL。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 BCRYPT_ALG_HANDLE random_get_alg_impl(void) {
     if (!InitOnceExecuteOnce(&g_random_init_once, random_init_callback, NULL, (PVOID *)&g_random_alg))
         return NULL;
     return g_random_alg;
 }
+#else
+/* Non-Windows stub: .x thin wrapper calls random_get_alg_impl regardless of
+ * platform; must provide a definition to avoid ld -r undefined reference. */
+void *random_get_alg_impl(void) {
+    return NULL;
+}
+#endif
 
 #ifndef XLANG_RUNTIME_RANDOM_FILL_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-BCRYPT_ALG_HANDLE random_get_alg(void) {
+/* Cold mode fallback: public wrapper provided by seed. */
+void *random_get_alg(void) {
     return random_get_alg_impl();
 }
 #endif
 
-#endif
-
-/**
- * 向 buf 写入 len 字节密码学安全随机数。
- * 参数：buf 输出缓冲；len 字节数（≥0）。
- * 返回值：成功 len，失败 -1（部分写入时返回已写字节数）。
- */
-int32_t random_fill_bytes_c(uint8_t *buf, int32_t len) {
+/* ========== random_fill_bytes_impl ========== */
+int32_t random_fill_bytes_impl(uint8_t *buf, int32_t len) {
     if (!buf || len < 0) return -1;
     if (len == 0) return 0;
 
@@ -116,3 +120,10 @@ int32_t random_fill_bytes_c(uint8_t *buf, int32_t len) {
     }
 #endif
 }
+
+#ifndef XLANG_RUNTIME_RANDOM_FILL_FROM_X
+/* Cold mode fallback: public wrapper provided by seed. */
+int32_t random_fill_bytes_c(uint8_t *buf, int32_t len) {
+    return random_fill_bytes_impl(buf, len);
+}
+#endif

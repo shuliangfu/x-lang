@@ -40,18 +40,18 @@ export enum TargetArch {
  */
 export function append_asm_line(out: *CodegenOutBuf, ptr: *u8, len: i32): i32 {
   let i: i32 = 0;
-  while (i < len && out.len < 8388608) {
-    out.data[out.len] = ptr[i];
-    out.len = out.len + 1;
+  while (i < len && out.length < 8388608) {
+    out.data[out.length] = ptr[i];
+    out.length = out.length + 1;
     i = i + 1;
   }
   if (i < len) {
     return -1;
   }
-  if (out.len < 8388608) {
+  if (out.length < 8388608) {
     let nl: u8[1] = [10];
-    out.data[out.len] = nl[0];
-    out.len = out.len + 1;
+    out.data[out.length] = nl[0];
+    out.length = out.length + 1;
     return 0;
   }
   return -1;

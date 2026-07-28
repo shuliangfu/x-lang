@@ -267,7 +267,7 @@ extern int32_t pipeline_arena_func_cap(void);
 extern int32_t ast_ast_placeholder(void);
 struct CodegenOutBuf {
   uint8_t data[9437184];
-  int32_t len;
+  int32_t length;
 };
 
 static uint8_t expect[14] = {115, 116, 100, 46, 105, 111, 46, 100, 114, 105, 118, 101, 114, 0};

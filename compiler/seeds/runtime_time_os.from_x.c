@@ -1,11 +1,18 @@
 /* seeds/runtime_time_os.from_x.c — G-02f-19 product TU
- * Product: runtime_time_os.o; logic still C until full .x port.
- */
-/**
- * runtime_time_os.c — 时间与睡眠 OS 胶层（F-ZC：自 std/time/time_os_glue.c 迁入）
+ * Product: runtime_time_os.o; logic migrating to .x (wave501 R2).
  *
- * 提供 time_now_monotonic_ns_c / wall / sleep / RFC3339 / 时区偏移；
- * time.x 经 extern 调用；与 time.o 一并链入。
+ * wave501 R2 migration pattern:
+ *   - When XLANG_RUNTIME_TIME_OS_FROM_X is defined:
+ *     This seed file provides ONLY the OS bridge _impl functions
+ *     (time_monotonic_ns_impl, time_wall_ns_impl, time_sleep_ns_impl,
+ *     time_format_rfc3339_impl, time_local_offset_min_impl).
+ *     The public API (time_now_monotonic_ns_c, etc.) comes from
+ *     src/asm/runtime_time_os.x compiled into runtime_time_os_thin.o.
+ *   - When NOT defined (cold bootstrap / fallback):
+ *     This seed provides both _impl bridges AND public API wrappers.
+ *     The .x file exists as source anchor only.
+ *
+ * PLATFORM: SHARED (POSIX clock_gettime + Windows QPC branches)
  */
 #include <stdint.h>
 #include <stdio.h>
@@ -23,11 +30,15 @@
 #include <unistd.h>
 #endif
 
+/* === OS bridge _impl functions (always compiled) === */
+
 /**
- * 单调时钟纳秒；POSIX clock_gettime / Windows QPC。
- * 返回值：纳秒；失败 0。
+ * Bridge: monotonic clock in nanoseconds.
+ * POSIX: clock_gettime(CLOCK_MONOTONIC) → ns
+ * Windows: QueryPerformanceCounter → ns
+ * @return nanoseconds; 0 on failure
  */
-int64_t time_now_monotonic_ns_c(void) {
+int64_t time_monotonic_ns_impl(void) {
 #if defined(_WIN32) || defined(_WIN64)
     static LARGE_INTEGER freq = { { 0 } };
     LARGE_INTEGER counter;
@@ -45,10 +56,12 @@ int64_t time_now_monotonic_ns_c(void) {
 }
 
 /**
- * 墙钟纳秒；Windows 100ns 粒度。
- * 返回值：UTC 纳秒；失败 0。
+ * Bridge: wall clock in nanoseconds (UTC).
+ * POSIX: clock_gettime(CLOCK_REALTIME) → ns
+ * Windows: GetSystemTimePreciseAsFileTime → ns
+ * @return nanoseconds since epoch; 0 on failure
  */
-int64_t time_now_wall_ns_c(void) {
+int64_t time_wall_ns_impl(void) {
 #if defined(_WIN32) || defined(_WIN64)
     FILETIME ft;
     GetSystemTimePreciseAsFileTime(&ft);
@@ -64,10 +77,12 @@ int64_t time_now_wall_ns_c(void) {
 }
 
 /**
- * 睡眠纳秒；可能 spurious wakeup。
- * 参数：ns 睡眠时长（≤0 无操作）。
+ * Bridge: sleep for nanoseconds.
+ * POSIX: nanosleep loop (handles spurious wakeups)
+ * Windows: Sleep (with minimum 1ms clamp)
+ * @param ns duration in nanoseconds; <=0 is no-op
  */
-void time_sleep_ns_c(int64_t ns) {
+void time_sleep_ns_impl(int64_t ns) {
     if (ns <= 0) return;
 #if defined(_WIN32) || defined(_WIN64)
     if (ns < 1000000) ns = 1000000;
@@ -83,20 +98,22 @@ void time_sleep_ns_c(int64_t ns) {
 }
 
 /**
- * UTC 墙钟 RFC3339（末尾 Z）。
- * 参数：buf 输出；cap 容量。
- * 返回值：写入长度；失败 -1。
+ * Bridge: format current UTC wall clock as RFC3339 (trailing Z).
+ * POSIX: gmtime_r + snprintf
+ * Windows: gmtime_s + snprintf
+ * @param buf output buffer
+ * @param cap buffer capacity in bytes
+ * @return written length; -1 on failure
  */
-int32_t time_format_wall_rfc3339_c(uint8_t *buf, int32_t cap) {
+int32_t time_format_rfc3339_impl(uint8_t *buf, int32_t cap) {
+    if (!buf || cap <= 0) return -1;
     time_t now;
     struct tm tm;
     int n;
 #if defined(_WIN32) || defined(_WIN64)
-    if (!buf || cap <= 0) return -1;
     now = time(NULL);
     if (gmtime_s(&tm, &now) != 0) return -1;
 #else
-    if (!buf || cap <= 0) return -1;
     now = time(NULL);
     if (gmtime_r(&now, &tm) == NULL) return -1;
 #endif
@@ -104,14 +121,16 @@ int32_t time_format_wall_rfc3339_c(uint8_t *buf, int32_t cap) {
                  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
                  tm.tm_hour, tm.tm_min, tm.tm_sec);
     if (n <= 0 || n >= cap) return -1;
-    return n;
+    return (int32_t)n;
 }
 
 /**
- * 本地时区相对 UTC 偏移（分钟；东为正）。
- * 返回值：偏移分钟；失败 0。
+ * Bridge: local timezone offset from UTC in minutes (east positive).
+ * POSIX: localtime_r/gmtime_r + mktime diff
+ * Windows: GetTimeZoneInformation.Bias negated
+ * @return offset minutes; 0 on failure
  */
-int32_t time_wall_local_offset_min_c(void) {
+int32_t time_local_offset_min_impl(void) {
 #if defined(_WIN32) || defined(_WIN64)
     TIME_ZONE_INFORMATION tzi;
     DWORD r = GetTimeZoneInformation(&tzi);
@@ -133,3 +152,51 @@ int32_t time_wall_local_offset_min_c(void) {
     return (int32_t)((local_sec - gmt_sec) / 60);
 #endif
 }
+
+/* === Public API wrappers (only when NOT in FROM_X mode) === */
+
+#ifndef XLANG_RUNTIME_TIME_OS_FROM_X
+
+/**
+ * Public: monotonic clock in nanoseconds.
+ * Cold bootstrap wrapper; FROM_X mode uses .x source.
+ */
+int64_t time_now_monotonic_ns_c(void) {
+    return time_monotonic_ns_impl();
+}
+
+/**
+ * Public: wall clock in nanoseconds since epoch (UTC).
+ * Cold bootstrap wrapper; FROM_X mode uses .x source.
+ */
+int64_t time_now_wall_ns_c(void) {
+    return time_wall_ns_impl();
+}
+
+/**
+ * Public: sleep for nanoseconds. No-op if ns <= 0.
+ * Cold bootstrap wrapper; FROM_X mode uses .x source.
+ */
+void time_sleep_ns_c(int64_t ns) {
+    if (ns <= 0) return;
+    time_sleep_ns_impl(ns);
+}
+
+/**
+ * Public: format current UTC wall clock as RFC3339 string.
+ * Cold bootstrap wrapper; FROM_X mode uses .x source.
+ */
+int32_t time_format_wall_rfc3339_c(uint8_t *buf, int32_t cap) {
+    if (!buf || cap <= 0) return -1;
+    return time_format_rfc3339_impl(buf, cap);
+}
+
+/**
+ * Public: local timezone offset from UTC in minutes (east positive).
+ * Cold bootstrap wrapper; FROM_X mode uses .x source.
+ */
+int32_t time_wall_local_offset_min_c(void) {
+    return time_local_offset_min_impl();
+}
+
+#endif /* !XLANG_RUNTIME_TIME_OS_FROM_X */

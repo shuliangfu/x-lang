@@ -274,7 +274,7 @@ export function fs_readv4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2:
 export function fs_writev4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize): i64 {
   return fs_platform.fs_writev4_c(fd, p0, l0, p1, l1, p2, l2, p3, l3);
 }
-allow(padding) struct FsIovecBuf { ptr: *u8; len: usize; handle: usize }
+allow(padding) struct FsIovecBuf { ptr: *u8; length: usize; handle: usize }
 /** Exported function `fs_readv_buf_c`.
  * Read path helper `fs_readv_buf_c`.
  * @param fd i32
@@ -569,10 +569,10 @@ export function read_batch_fd(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p
 *u8, l3: usize, n: i32): i32 {
   let h: usize = io.from_fd(fd, 0);
   let bufs: [4]Buffer = [
-  Buffer { ptr: p0, len: l0, handle: h },
-  Buffer { ptr: p1, len: l1, handle: h },
-  Buffer { ptr: p2, len: l2, handle: h },
-  Buffer { ptr: p3, len: l3, handle: h }
+  Buffer { ptr: p0, length: l0, handle: h },
+  Buffer { ptr: p1, length: l1, handle: h },
+  Buffer { ptr: p2, length: l2, handle: h },
+  Buffer { ptr: p3, length: l3, handle: h }
   ];
   return driver.submit_read_batch(bufs, n, 0 as u32);
 }
@@ -581,10 +581,10 @@ export function write_batch_fd(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, 
 *u8, l3: usize, n: i32): i32 {
   let h: usize = io.from_fd(fd, 0);
   let bufs: [4]Buffer = [
-  Buffer { ptr: p0, len: l0, handle: h },
-  Buffer { ptr: p1, len: l1, handle: h },
-  Buffer { ptr: p2, len: l2, handle: h },
-  Buffer { ptr: p3, len: l3, handle: h }
+  Buffer { ptr: p0, length: l0, handle: h },
+  Buffer { ptr: p1, length: l1, handle: h },
+  Buffer { ptr: p2, length: l2, handle: h },
+  Buffer { ptr: p3, length: l3, handle: h }
   ];
   return driver.submit_write_batch(bufs, n, 0 as u32);
 }
