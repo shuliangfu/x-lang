@@ -15264,6 +15264,16 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
    * fat home + lea (mirror VAR call-arg lea path above / let-init wave329 dual store).
    * G.7: same dual-GP layout data@home length@home-8; payload via emit_array_lit.
    * PLATFORM: SHARED freestanding · LINUX gold (host-C uses compound + & via codegen).
+   *
+   * wave622 Cap residual pure: force_esz from formal TYPE_SLICE elem (≡ let-init wave329).
+   * Root: wave332 only used formal esz for **frame** size; payload still went through
+   * `pipeline_asm_emit_array_lit_elf_c` → `pipeline_asm_array_lit_elem_byte_sz_c`, which
+   * stamps untyped INT_LIT as i32 (esz=4). Then `take([10,32])` for []i64/[]u8 stored
+   * 4-byte elems while INDEX used formal width → s[0] ok/low half, s[1]=0, sum=10
+   * (let a: []i64 = [10,32]; take(a) already green via force_esz durable). f64[] lit
+   * call-arg same class (let green, bare lit call red). Prefer durable + force_esz
+   * (G.7: expand let-init authority; do not invent a second packer).
+   * PLATFORM: SHARED freestanding · LINUX gold + MACOS|ARM64 co-path.
    */
   if (arena && ctx && elf_ctx &&
       pipeline_expr_kind_ord_at(arena, expr_ref) == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT) {
@@ -15279,48 +15289,60 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
       int32_t n_arr;
       int32_t home;
       int32_t base_off;
+      int32_t force_esz = 0;
+      int32_t durable = 0;
       pipeline_glue_AsmFuncCtxLayout *ly = pipeline_asm_ctx_layout(ctx);
       n_arr = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
       if (n_arr < 0 || n_arr > GLUE_ARRAY_LIT_MAX_ELEMS)
         return -1;
       if (!ly)
         return -1;
+      /* force_esz from formal SLICE elem — twin of glue_emit_slice_from_array_let_init. */
+      {
+        int32_t et = pipeline_type_elem_ref_at(arena, slice_ty);
+        if (et > 0) {
+          int32_t ek = pipeline_type_kind_ord_at(arena, et);
+          /* TYPE_U8=2, BOOL=1 → 1; I32/U32/VECTOR/F32 → 4; U64/I64/USIZE/ISIZE/F64 → 8 */
+          if (ek == 2 || ek == 1)
+            force_esz = 1;
+          else if (ek == 0 || ek == 3 || ek == 13 || ek == 14)
+            force_esz = 4;
+          else if (ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 15 || ek == 9)
+            force_esz = 8;
+        }
+      }
       /*
        * Allocate dual-GP home: data@home, length via glue_slice_dual_gp_length_off_c
        * (wave394: arm64 home+8 / x86 home-8 → C fat memory for lea as slice*).
-       * CRITICAL (x86): array-lit writes at increasing addresses from temp base.
-       * Larger rbp-offset = lower address, so payload grows *toward* the fat home.
-       * next_offset must cover length half + payload (G.7 / wave331 temp discipline).
+       * Durable payload lives in text/COMMON — only fat home needs stack room.
+       * Stack fallback: also reserve payload past home (wave331 temp discipline).
        */
       base_off = ly->next_offset;
       if ((base_off % 8) != 0)
         base_off = (base_off + 7) / 8 * 8;
       home = base_off + 16;
       {
-        int32_t esz = 4;
+        int32_t esz = force_esz > 0 ? force_esz : 4;
         int32_t payload_bytes;
         int32_t past;
-        int32_t er = pipeline_type_elem_ref_at(arena, slice_ty);
-        if (er > 0) {
-          int32_t ek = pipeline_type_kind_ord_at(arena, er);
-          if (ek == (int32_t)ast_TypeKind_TYPE_U8 || ek == (int32_t)ast_TypeKind_TYPE_BOOL)
-            esz = 1;
-          else if (ek == (int32_t)ast_TypeKind_TYPE_U64 || ek == (int32_t)ast_TypeKind_TYPE_I64 ||
-                   ek == (int32_t)ast_TypeKind_TYPE_USIZE || ek == (int32_t)ast_TypeKind_TYPE_ISIZE ||
-                   ek == (int32_t)ast_TypeKind_TYPE_PTR || ek == (int32_t)ast_TypeKind_TYPE_F64)
-            esz = 8;
-        }
+        past = (ta == 1) ? (home + 16) : (home + 8);
+        /* Pre-reserve payload for stack fallback; durable will not use it. */
         payload_bytes = n_arr * esz;
         if (payload_bytes < 0)
           payload_bytes = 0;
-        past = (ta == 1) ? (home + 16) : (home + 8);
         if (payload_bytes > 0 && home + payload_bytes > past)
           past = home + payload_bytes;
         ly->next_offset = past;
       }
       glue_align_next_offset(ctx);
-      if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+      /* Prefer durable + force_esz (≡ let-init / return ARRAY_LIT→slice). */
+      if ((ta == 0 || ta == 1) &&
+          glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, expr_ref, force_esz, ta,
+                                                         ctx) == 0) {
+        durable = 1;
+      } else if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
         return -1;
+      }
       if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
         return -1;
       if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta) != 0)
@@ -15328,8 +15350,9 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
       if (backend_enc_store_rax_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(home, ta), ta) !=
           0)
         return -1;
-      if (n_arr > 0)
+      if (durable == 0 && n_arr > 0)
         pipeline_asm_bump_next_offset_for_array_lit(arena, expr_ref, ctx);
+      glue_slice_dual_gp_bump_past_home_c(ctx, home, ta);
       /* Pass &fat (slice* ABI); lea(data) — length at +8 in memory after wave394. */
       if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
         return -1;
