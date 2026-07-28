@@ -369,6 +369,17 @@ MODULES=(
   #   rest 含 4 _impl bridges + link_abi_getenv _impl;
   #   prove 锁 mixed surface IDENTICAL (7 #[no_mangle] + 1 doc_anchor)
   "user_asm_seed_bridge|src/asm/user_asm_seed_bridge.x|seeds/user_asm_seed_bridge_surface.from_x.c||"
+  # runtime_heap_user R2 DIRECT (wave559)：.x 7 #[no_mangle] public API
+  #   (heap_alloc_c + heap_free_c + heap_realloc_c + heap_alloc_zeroed_c
+  #    + heap_arena_init_c + heap_arena64_alloc_c + heap_arena64_deinit_c);
+  #   DIRECT via extern bridges: malloc/free/realloc/calloc/heap_alloc_aligned_c;
+  #   prove 锁 DIRECT surface IDENTICAL (7 #[no_mangle] + 1 doc_anchor)
+  "runtime_heap_user|src/runtime_heap_user.x|seeds/runtime_heap_user_surface.from_x.c||"
+  # target_cpu_flags R2 DIRECT (wave559)：.x 5 #[no_mangle] public API
+  #   (driver_set/get_pending_target_cpu_features + tcp_tolower + tcp_eq5 + tcp_eq6);
+  #   pure compute + static BSS, no extern bridges;
+  #   prove 锁 DIRECT surface IDENTICAL (5 #[no_mangle] · no doc_anchor)
+  "target_cpu_flags|src/driver/target_cpu_flags.x|seeds/target_cpu_flags_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
