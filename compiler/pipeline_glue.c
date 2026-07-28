@@ -3981,26 +3981,54 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
             return -1;
           continue;
         }
-        /* sret_direct: dest is *[sret_home]; emit nest to frame temp then copy fsz. */
+        /*
+         * sret_direct: dest is *[sret_home]; emit nest to frame temp then copy fsz.
+         *
+         * wave597 Cap residual pure: x86 high-end nest temp polarity.
+         * Root: nest_off = next_offset then load_rbp(nest_off+cop) + nest fields via
+         * lea(-nest_off)+foff. On x86, lea -nest(%rbp) is byte0 and +foff grows toward
+         * rbp (lower magnitudes) — Mid2 fsz=16 at nest=24 writes [rbp-24..rbp-8) and
+         * clobbers sret_home@16; copy of cop=8 loaded [rbp-32] (uninit) not [rbp-16].
+         * Ubuntu pure-asm nest4/ptr_nest_call SIGSEGV; arm64 low-end (byte0 grows +off)
+         * stayed green. G.7: same frame geometry as non-sret nest_slot (base-foff).
+         * PLATFORM: LINUX|x86 high-end · MACOS|ARM64 low-end (unchanged +cop).
+         */
         {
           int32_t nest_off;
           int32_t nest_alloc;
           int32_t cop;
           int32_t chunk;
+          int32_t load_off;
           nest_off = ly->next_offset;
           if ((nest_off % 8) != 0)
             nest_off = (nest_off + 7) / 8 * 8;
           nest_alloc = (fsz + 7) & ~7;
           if (nest_alloc < 8)
             nest_alloc = 8;
-          ly->next_offset = nest_off + nest_alloc;
+          if (ta == 1) {
+            /* PLATFORM: MACOS|ARM64 low-end — byte0 @ nest_off, grows +foff. */
+            ly->next_offset = nest_off + nest_alloc;
+          } else {
+            /*
+             * PLATFORM: LINUX|x86 (and macOS x86) high-end — byte0 @ nest_off via
+             * lea -nest(%rbp); field@+foff uses magnitudes nest_off down through
+             * nest_off-fsz+1. Lift base by nest_alloc so the range sits above prior
+             * slots (sret_home lives at a smaller magnitude).
+             */
+            nest_off = nest_off + nest_alloc;
+            ly->next_offset = nest_off;
+          }
           if (pipeline_asm_emit_struct_lit_fields_elf_c(arena, elf_ctx, init_ref, ctx, ta, nest_off) !=
               0)
             return -1;
           cop = 0;
           while (cop < fsz) {
             chunk = (fsz - cop >= 8) ? 8 : ((fsz - cop >= 4) ? 4 : 1);
-            if (backend_enc_load_rbp_to_rax_arch(elf_ctx, nest_off + cop, ta) != 0)
+            /* x86 high-end: byte cop is at magnitude nest_off - cop; arm64: nest_off + cop. */
+            load_off = (ta == 1) ? (nest_off + cop) : (nest_off - cop);
+            if (load_off < 0)
+              return -1;
+            if (backend_enc_load_rbp_to_rax_arch(elf_ctx, load_off, ta) != 0)
               return -1;
             if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
               return -1;
@@ -11858,6 +11886,19 @@ static int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena,
     if (kind_ord == 15 || kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7 ||
         kind_ord == 9)
       return 8;
+    /*
+     * wave597 Cap residual pure: TYPE_NAMED=8 struct/array-of-struct elements.
+     * Root: NAMED fell through to default 4 → `let xs: S[2] = [mk(), mk()]` stored
+     * only 4B per CALL (eax of packed 8B return) at stride 4 → xs[0].a+xs[1].b=10
+     * not 22 on Ubuntu pure-asm (mac freestanding often constant-folds main to 22).
+     * G.7: glue_type_size_simple is the layout authority (same as INDEX named stride).
+     * PLATFORM: SHARED freestanding · LINUX gold.
+     */
+    if (kind_ord == 8 && g_pipeline_asm_emit_module) {
+      int32_t ssz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, elem_ty, 0);
+      if (ssz > 0)
+        return ssz;
+    }
   }
   /* Unstamped multi-dim lit: first elem is nested ARRAY_LIT — infer row width. */
   first_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, 0);
