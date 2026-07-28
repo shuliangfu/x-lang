@@ -19317,13 +19317,16 @@ static int32_t glue_copy_large_struct_from_rax_ptr_elf_c(struct platform_elf_Elf
  * outgoing call stack (matches formal C: full struct on stack, not a pointer in rdi).
  * Authority for asm freestanding/product vec residual (len(Vec) etc.).
  *
- * wave601 Cap residual: complete materialize sources beyond VAR:
- *   - VAR (kind 3): push qwords from local home (low-end polarity: off, off-8, …)
+ * Materialize sources (G.7 single push authority):
+ *   - VAR (kind 3): push qwords from local home (high-end polarity: off, off-8, …)
  *   - CALL/METHOD_CALL (48/49) with >16B return: sret into a fresh frame temp, then push
- *   - else: unsupported (return -1; STRUCT_LIT→let first is the green product pattern)
+ *     (wave601)
+ *   - STRUCT_LIT (45): emit fields into frame temp (high-end home), then push (wave605)
+ *   - FIELD_ACCESS (44): lvalue addr → copy words into frame temp, then push (wave605)
  *
  * Returns bytes pushed (8-aligned), or -1 on error.
- * G.7: single push authority (method import path already calls this; CALL path wave601).
+ * G.7: single push authority (method import path already calls this; CALL path wave601;
+ *   STRUCT_LIT/FIELD wave605 — twin of store_memory arm64).
  */
 int32_t pipeline_asm_push_sysv_memory_by_value_elf_c(struct ast_ASTArena *arena,
                                                      struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -19360,7 +19363,7 @@ int32_t pipeline_asm_push_sysv_memory_by_value_elf_c(struct ast_ASTArena *arena,
     if (ret_sz <= 16)
       return -1;
     ly = (glue_AsmFuncCtxHead *)ctx;
-    /* Low-end home: allocate nbytes contiguous; home = next after bump (≡ dual-GP spill). */
+    /* High-end home: allocate nbytes; home = next after bump (≡ dual-GP spill / let slot). */
     if (ly->next_offset + nbytes < ly->next_offset)
       return -1;
     ly->next_offset += nbytes;
@@ -19375,8 +19378,44 @@ int32_t pipeline_asm_push_sysv_memory_by_value_elf_c(struct ast_ASTArena *arena,
       return -1;
     }
     pipeline_asm_emit_set_call_sret_reg_shift_c(0);
+  } else if (ko == 45) {
+    /*
+     * 3) STRUCT_LIT as MEMORY call-arg: materialize fields into high-end frame temp.
+     * Root wave605: sum(Big{…}) freestanding CG002 (push returned -1); host-C green.
+     * G.7: reuse pipeline_asm_emit_struct_let_init (same as let s = Big{…}).
+     * PLATFORM: LINUX|x86 high-end — byte0 @ off via lea -off(%rbp).
+     */
+    ly = (glue_AsmFuncCtxHead *)ctx;
+    if (ly->next_offset + nbytes < ly->next_offset)
+      return -1;
+    ly->next_offset += nbytes;
+    off = ly->next_offset;
+    if (pipeline_asm_emit_struct_let_init_elf_c(arena, elf_ctx, arg_ref, ctx, ta, off) != 0)
+      return -1;
+  } else if (ko == 44) {
+    /*
+     * 4) FIELD_ACCESS as MEMORY call-arg: copy aggregate from lvalue address into temp.
+     * Root wave605: sum(o.t) freestanding CG002; host-C temporary `.` hid the gap.
+     * G.7: per-word lvalue_eff_addr + load_64_from_rax (SHARED) — do NOT use
+     * load_qword_from_rbx (x86-only; returns -1 for ta!=0 and broke arm64 twin).
+     * PLATFORM: LINUX|x86 high-end — store word i at off-k (k=0,8,…).
+     */
+    ly = (glue_AsmFuncCtxHead *)ctx;
+    if (ly->next_offset + nbytes < ly->next_offset)
+      return -1;
+    ly->next_offset += nbytes;
+    off = ly->next_offset;
+    for (k = 0; k < nbytes; k += 8) {
+      if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, arg_ref, ctx, ta) != 0)
+        return -1;
+      if (k != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, k, ta) != 0)
+        return -1;
+      if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off - k, ta) != 0)
+        return -1;
+    }
   } else {
-    /* STRUCT_LIT / FIELD / … as MEMORY call-arg: materialize via let first (product pattern). */
     return -1;
   }
   /* Push high qwords first so [rsp+0] holds struct byte 0. */
@@ -19390,14 +19429,15 @@ int32_t pipeline_asm_push_sysv_memory_by_value_elf_c(struct ast_ASTArena *arena,
 }
 
 /**
- * wave603/604 Cap residual: AAPCS64 MEMORY by-value call-arg → store words at [sp+#sp_off].
+ * wave603/604/605 Cap residual: AAPCS64 MEMORY by-value call-arg → store words at [sp+#sp_off].
  * PLATFORM: MACOS|ARM64 — low-end home (byte0@off); store low word first at sp_off.
  *
  * Materialize sources (G.7 twin of pipeline_asm_push_sysv_memory_by_value_elf_c):
  *   - VAR (kind 3): copy qwords from local home (wave603)
  *   - CALL/METHOD_CALL (48/49) with >16B return: sret into frame temp (x8), then copy
  *     (wave604; arm64 Indirect Result Location — no GP shift, unlike x86 rdi+shift)
- *   - else: unsupported (STRUCT_LIT/FIELD → let first; product pattern)
+ *   - STRUCT_LIT (45): emit fields into low-end frame temp, then copy (wave605)
+ *   - FIELD_ACCESS (44): lvalue addr → copy words into frame temp, then to SP (wave605)
  *
  * @return nbytes stored, or -1
  */
@@ -19451,8 +19491,48 @@ int32_t pipeline_asm_store_memory_by_value_to_sp_elf_c(struct ast_ASTArena *aren
       return -1;
     if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, arg_ref, ctx, ta) != 0)
       return -1;
+  } else if (ko == 45) {
+    /*
+     * 3) STRUCT_LIT as MEMORY call-arg: materialize fields into low-end frame temp.
+     * Root wave605: sum(Big{…}) freestanding CG002 (store returned -1); host-C green.
+     * G.7: reuse pipeline_asm_emit_struct_let_init (same as let s = Big{…}).
+     * PLATFORM: MACOS|ARM64 low-end — byte0 @ off, fields at off+foff.
+     */
+    ly = (glue_AsmFuncCtxHead *)ctx;
+    off = ly->next_offset;
+    if (off < 16)
+      off = 16;
+    if (off + nbytes < off)
+      return -1;
+    ly->next_offset = off + nbytes;
+    if (pipeline_asm_emit_struct_let_init_elf_c(arena, elf_ctx, arg_ref, ctx, ta, off) != 0)
+      return -1;
+  } else if (ko == 44) {
+    /*
+     * 4) FIELD_ACCESS as MEMORY call-arg: copy aggregate from lvalue address into temp.
+     * Root wave605: sum(o.t) freestanding CG002; host-C temporary `.` hid the gap.
+     * G.7: per-word lvalue_eff_addr + load_64_from_rax (SHARED) — do NOT use
+     * load_qword_from_rbx (x86-only; returns -1 for ta!=0).
+     * PLATFORM: MACOS|ARM64 low-end — store word i at off+k.
+     */
+    ly = (glue_AsmFuncCtxHead *)ctx;
+    off = ly->next_offset;
+    if (off < 16)
+      off = 16;
+    if (off + nbytes < off)
+      return -1;
+    ly->next_offset = off + nbytes;
+    for (k = 0; k < nbytes; k += 8) {
+      if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, arg_ref, ctx, ta) != 0)
+        return -1;
+      if (k != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, k, ta) != 0)
+        return -1;
+      if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off + k, ta) != 0)
+        return -1;
+    }
   } else {
-    /* STRUCT_LIT / FIELD / … as MEMORY call-arg: materialize via let first. */
     return -1;
   }
   for (k = 0; k < nbytes; k += 8) {
