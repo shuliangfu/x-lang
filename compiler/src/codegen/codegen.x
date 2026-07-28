@@ -2532,6 +2532,18 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
             if (emit_bytes_from_ptr(out, &e[0], 6) != 0) {
               return -1;
             }
+          } else if (ek == (TypeKind.TYPE_F32 as i32)) {
+            /* wave618: f32[] call-arg fat — match type_to_c_repr / preamble xlang_slice_float */
+            let e: u8[8] = [102, 108, 111, 97, 116, 0, 0, 0];
+            if (emit_bytes_from_ptr(out, &e[0], 5) != 0) {
+              return -1;
+            }
+          } else if (ek == (TypeKind.TYPE_F64 as i32)) {
+            /* wave618: f64[] call-arg fat — match type_to_c_repr / preamble xlang_slice_double */
+            let e: u8[8] = [100, 111, 117, 98, 108, 101, 0, 0];
+            if (emit_bytes_from_ptr(out, &e[0], 6) != 0) {
+              return -1;
+            }
           } else {
             /* int32_t (TYPE_I32 and fallback) */
             let e: u8[10] = [105, 110, 116, 51, 50, 95, 116, 0, 0, 0];

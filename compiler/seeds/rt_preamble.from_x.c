@@ -135,6 +135,11 @@ const char *const driver_preamble_io_net_lines[] = {
         "struct xlang_slice_int32_t { int32_t *data; size_t length; };\n"
         "struct xlang_slice_uint64_t { uint64_t *data; size_t length; };\n"
         "struct xlang_slice_size_t { size_t *data; size_t length; };\n"
+        /* wave618: type_to_c_repr tags TYPE_SLICE of f32/f64 as xlang_slice_float/double
+         * (elem C name "float"/"double" appended to xlang_slice_). Must match
+         * pipeline_codegen_type_kind_cstr TYPE_F32=14 / TYPE_F64=15. PLATFORM: SHARED. */
+        "struct xlang_slice_float { float *data; size_t length; };\n"
+        "struct xlang_slice_double { double *data; size_t length; };\n"
         /* §10 向量：codegen 发 i32x4_t / f32x4_t 等；与 emit_vector_c_type_out +
          * pipeline_codegen_vector_type_cstr 对齐。f32x{4,8,16} 供 Vec4f 等 F32 向量使用。 */
         "#if defined(__GNUC__) || defined(__clang__)\n"

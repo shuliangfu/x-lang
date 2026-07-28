@@ -3588,7 +3588,8 @@ int32_t codegen_emit_call_arg_slice_abi(struct ast_ASTArena * arena, struct code
           if ((elem_tr > 0)) {
             ek = pipeline_type_kind_ord_at(arena, elem_tr);
           }
-          /* TYPE_U8=2, TYPE_U64=4, TYPE_USIZE=6, else int32_t */
+          /* TYPE_U8=2, TYPE_U64=4, TYPE_USIZE=6, TYPE_F32=14, TYPE_F64=15, else int32_t.
+           * wave618: f32/f64 slice call-arg tags match type_to_c_repr + rt_preamble. */
           if ((ek == 2)) {
             uint8_t e[8] = {117, 105, 110, 116, 56, 95, 116, 0};
             if ((codegen_emit_bytes_from_ptr(out, &((e)[0]), 7) != 0)) {
@@ -3601,6 +3602,18 @@ int32_t codegen_emit_call_arg_slice_abi(struct ast_ASTArena * arena, struct code
             }
           } else if ((ek == 6)) {
             uint8_t e[8] = {115, 105, 122, 101, 95, 116, 0, 0};
+            if ((codegen_emit_bytes_from_ptr(out, &((e)[0]), 6) != 0)) {
+              return -(1);
+            }
+          } else if ((ek == 14)) {
+            /* TYPE_F32 → xlang_slice_float */
+            uint8_t e[8] = {102, 108, 111, 97, 116, 0, 0, 0};
+            if ((codegen_emit_bytes_from_ptr(out, &((e)[0]), 5) != 0)) {
+              return -(1);
+            }
+          } else if ((ek == 15)) {
+            /* TYPE_F64 → xlang_slice_double */
+            uint8_t e[8] = {100, 111, 117, 98, 108, 101, 0, 0};
             if ((codegen_emit_bytes_from_ptr(out, &((e)[0]), 6) != 0)) {
               return -(1);
             }

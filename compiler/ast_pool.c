@@ -11702,7 +11702,19 @@ uint8_t *pipeline_scratch_buf256_slot(int32_t slot) {
   return g_scratch256[slot];
 }
 
-/** codegen.x：TypeKind 内建类型 → C 类型名；返回长度，*out_ptr 指向静态串；不支持则 0。 */
+/**
+ * codegen.x: TypeKind builtin → C type name; length, *out_ptr to static string; 0 if unsupported.
+ * PLATFORM: SHARED — authority for type_to_c_repr / TYPE_SLICE tags (struct xlang_slice_<elemC>).
+ *
+ * wave618 Cap residual pure: F32/F64/VOID ordinals must match ast.x TypeKind:
+ *   0=I32 … 7=ISIZE, 8=NAMED, 9=PTR, 10=ARRAY, 11=SLICE, 12=LINEAR, 13=VECTOR,
+ *   14=F32, 15=F64, 16=VOID.
+ * Prior switch used 11/12/13 for float/double/void (pre-LINEAR/VECTOR enum drift).
+ * TYPE_F32 (14) then fell through default → type_to_c_repr fallback int32_t →
+ * `let a: f32[] = [10.0, 32.0]` emitted `struct xlang_slice_int32_t` while payload
+ * was `static float[]`. host-cc -O2 UB (int loads of float bits + integer add) →
+ * mac host-C run wrong (e.g. 0x41200000+0x42000000). G.7: fix this table only.
+ */
 int32_t pipeline_codegen_type_kind_cstr(int32_t kind, uint8_t **out_ptr) {
   static const char *k_i32 = "int32_t";
   static const char *k_i64 = "int64_t";
@@ -11719,37 +11731,38 @@ int32_t pipeline_codegen_type_kind_cstr(int32_t kind, uint8_t **out_ptr) {
     return 0;
   *out_ptr = NULL;
   switch (kind) {
-  case 0:
+  case 0: /* TYPE_I32 */
     *out_ptr = (uint8_t *)k_i32;
     return 7;
-  case 1:
+  case 1: /* TYPE_BOOL */
     *out_ptr = (uint8_t *)k_bool;
     return 3;
-  case 2:
+  case 2: /* TYPE_U8 */
     *out_ptr = (uint8_t *)k_u8;
     return 7;
-  case 3:
+  case 3: /* TYPE_U32 */
     *out_ptr = (uint8_t *)k_u32;
     return 8;
-  case 4:
+  case 4: /* TYPE_U64 */
     *out_ptr = (uint8_t *)k_u64;
     return 8;
-  case 5:
+  case 5: /* TYPE_I64 */
     *out_ptr = (uint8_t *)k_i64;
     return 7;
-  case 6:
+  case 6: /* TYPE_USIZE */
     *out_ptr = (uint8_t *)k_usize;
     return 6;
-  case 7:
+  case 7: /* TYPE_ISIZE */
     *out_ptr = (uint8_t *)k_isize;
     return 7;
-  case 11:
+  /* 8..13: NAMED/PTR/ARRAY/SLICE/LINEAR/VECTOR — handled in type_to_c_repr_inner */
+  case 14: /* TYPE_F32 — wave618: was wrongly case 11 (TYPE_SLICE) */
     *out_ptr = (uint8_t *)k_f32;
     return 5;
-  case 12:
+  case 15: /* TYPE_F64 — wave618: was wrongly case 12 (TYPE_LINEAR) */
     *out_ptr = (uint8_t *)k_f64;
     return 6;
-  case 13:
+  case 16: /* TYPE_VOID — wave618: was wrongly case 13 (TYPE_VECTOR) */
     *out_ptr = (uint8_t *)k_void;
     return 4;
   default:
