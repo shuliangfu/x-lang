@@ -7948,8 +7948,11 @@ int32_t run_x_pipeline_codegen_one_dep_emit(struct ast_Module *dep_mod, struct c
       }
     } else if (codegen_codegen_x_ast(dep_mod, pipeline_dep_ctx_arena_at(ctx, dep_j), out_buf, ctx, dep_j) != 0) {
       if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
+        /* PLATFORM: SHARED — use codegen_out_buf_len (offset ABI); field name is length
+         * (wave382) not len; direct out_buf->len fails when compiling against seed pipeline_gen. */
         fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] dep emit c fail j=%d path=%s last_func_idx=%d out_len=%zu\n",
-                (int)dep_j, (char *)dep_path_buf, (int)ctx->current_func_index, (size_t)out_buf->len);
+                (int)dep_j, (char *)dep_path_buf, (int)ctx->current_func_index,
+                (size_t)codegen_out_buf_len(out_buf));
       }
       return -6;
     }
@@ -8072,7 +8075,8 @@ int32_t pipeline_prepare_dep_codegen_path_c(struct ast_PipelineDepCtx *ctx, int3
 int32_t pipeline_finish_dep_codegen_diag_c(int32_t dep_j, struct codegen_CodegenOutBuf *out_buf) {
   if (!out_buf)
     return -1;
-  driver_diagnostic_after_dep_codegen(dep_j, (int32_t)out_buf->len);
+  /* PLATFORM: SHARED — length via codegen_out_buf_len (seed field name: length). */
+  driver_diagnostic_after_dep_codegen(dep_j, codegen_out_buf_len(out_buf));
   driver_set_current_dep_path_for_codegen(NULL);
   return 0;
 }
