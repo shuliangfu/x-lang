@@ -3949,6 +3949,58 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
           return -1;
         /* arr_st == -2: unsupported init form → fall through to generic store */
       }
+      /*
+       * wave595 Cap residual pure: nested STRUCT_LIT field must materialize in-place
+       * at parent base+foff (or sret dest+foff via temp copy).
+       *
+       * Root: prior path emitted nested lit via emit_expr_elf_rec with slot_off=-1,
+       * which reused ly->next_offset (== parent base). Nested field stores overwrote
+       * earlier parent fields; then 9–16B dual-GP store of the nested *value* always
+       * wrote 16B at foff (even when fsz=12) → past Outer end → stack smash / SIGSEGV
+       * (Ubuntu pure-asm nest3); arm64 also returned a stack pointer for 9–16B Outer
+       * (dual-GP return was ta==0 only) → wrong field loads.
+       *
+       * G.7: same authority as let_init stack_slot_off path — nested STRUCT_LIT writes
+       * fields at the destination address; no dual-GP value round-trip for the nest.
+       * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
+       */
+      if (pipeline_expr_kind_ord_at(arena, init_ref) == 45) {
+        if (!sret_direct) {
+          if (pipeline_asm_emit_struct_lit_fields_elf_c(arena, elf_ctx, init_ref, ctx, ta,
+                                                         base_off + foff) != 0)
+            return -1;
+          continue;
+        }
+        /* sret_direct: dest is *[sret_home]; emit nest to frame temp then copy fsz. */
+        {
+          int32_t nest_off;
+          int32_t nest_alloc;
+          int32_t cop;
+          int32_t chunk;
+          nest_off = ly->next_offset;
+          if ((nest_off % 8) != 0)
+            nest_off = (nest_off + 7) / 8 * 8;
+          nest_alloc = (fsz + 7) & ~7;
+          if (nest_alloc < 8)
+            nest_alloc = 8;
+          ly->next_offset = nest_off + nest_alloc;
+          if (pipeline_asm_emit_struct_lit_fields_elf_c(arena, elf_ctx, init_ref, ctx, ta, nest_off) !=
+              0)
+            return -1;
+          cop = 0;
+          while (cop < fsz) {
+            chunk = (fsz - cop >= 8) ? 8 : ((fsz - cop >= 4) ? 4 : 1);
+            if (backend_enc_load_rbp_to_rax_arch(elf_ctx, nest_off + cop, ta) != 0)
+              return -1;
+            if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
+              return -1;
+            if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + cop, chunk, ta) != 0)
+              return -1;
+            cop += chunk;
+          }
+          continue;
+        }
+      }
       /** f32 字段 + 浮点字面量：imm32 位型（skip typeck 时常无 resolved_type）。 */
       if (pipeline_expr_kind_ord_at(arena, init_ref) == 1 && fty > 0 &&
           pipeline_type_kind_ord_at(arena, fty) == 14) {
@@ -3962,9 +4014,11 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
        *        不重载则 store 写入子 temp 区而非父栈槽，字段值丢失。
        * 【Invariant】rax（+rdx for 9–16B SysV）含字段值；spill 到 frame 后再重载 rbx。
        * PLATFORM: LINUX+MACOS x86_64 — dual-GP CALL/VAR field init must keep rdx half.
+       * wave595: clamp dual store to fsz (not always 16) so 9–12B fields do not smash.
        */
       if (ta == 0 && fsz > 8 && fsz <= 16) {
         int32_t spill = ly->next_offset + 16;
+        int32_t high_sz;
         if (spill < 16)
           spill = 16;
         if (backend_enc_store_rax_to_rbp_arch(elf_ctx, spill, ta) != 0)
@@ -3984,10 +4038,15 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
           return -1;
         if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, 8, ta) != 0)
           return -1;
-        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill - 8, ta) != 0)
-          return -1;
-        if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + 8, 8, ta) != 0)
-          return -1;
+        high_sz = fsz - 8;
+        if (high_sz > 0) {
+          if (high_sz > 8)
+            high_sz = 8;
+          if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill - 8, ta) != 0)
+            return -1;
+          if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + 8, high_sz, ta) != 0)
+            return -1;
+        }
       } else {
         if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
           return -1;
@@ -4026,13 +4085,29 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
       if (vb == 4)
         return backend_enc_load_32_from_rax_arch(elf_ctx, ta);
     }
-    /** SysV 9–16B struct（Result_i32 等）：rax/rdx 双寄存器返回，勿返回栈局部指针。 */
-    if (vb > 8 && vb <= 16 && ta == 0) {
-      if (backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx, ta) != 0)
-        return -1;
-      if (backend_enc_load_qword_rbx8_to_rdx_arch(elf_ctx, ta) != 0)
-        return -1;
-      return 0;
+    /**
+     * 9–16B dual-GP by value — do not return a stack pointer.
+     * PLATFORM: LINUX+MACOS x86_64 SysV — rax + rdx from [rbx]/[rbx+8].
+     * PLATFORM: MACOS|ARM64 AAPCS64 (wave595) — x0 + x1 from frame home
+     *   (base_off). load_qword_* is x86-only; arm64 rbx==x1 would clobber the
+     *   second return reg if we loaded half2 from [x1+8] after moving base.
+     *   Frame loads: x0=[home], x1=[home+8] via load_rbp_to_rax/rbx.
+     */
+    if (vb > 8 && vb <= 16) {
+      if (ta == 0) {
+        if (backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+        if (backend_enc_load_qword_rbx8_to_rdx_arch(elf_ctx, ta) != 0)
+          return -1;
+        return 0;
+      }
+      if (ta == 1) {
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, base_off, ta) != 0)
+          return -1;
+        if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, base_off + 8, ta) != 0)
+          return -1;
+        return 0;
+      }
     }
     /**
      * >16B sret: already wrote caller dest, or memcpy from stack temp.
