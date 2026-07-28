@@ -8948,6 +8948,11 @@ void typeck_binop_arith_infer_type_c(struct ast_ASTArena *arena, int32_t expr_re
           || expr_kind == 12 || expr_kind == 13)) {
     return;
   }
+  /* wave658 Cap residual: G.7 ≡ typeck.x — ARRAY/SLICE/LINEAR must not fall through
+   * type_refs_equal (host BLD001). VECTOR (13) same-size still allowed below.
+   * Named struct hard-fail needs module layouts — product typeck_check_expr_binop_arith. */
+  if (lko == 10 || lko == 11 || lko == 12 || rko == 10 || rko == 11 || rko == 12)
+    return;
   if (lko == 13 && rko == 13 && pipeline_type_array_size_at(arena, lt_ar) == pipeline_type_array_size_at(arena, rt_ar) &&
       pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, lt_ar),
                                         pipeline_type_elem_ref_at(arena, rt_ar)) != 0) {

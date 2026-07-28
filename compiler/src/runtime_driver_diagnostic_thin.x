@@ -490,9 +490,9 @@ export function driver_diagnostic_typeck_invalid_float_binop(line: i32, col: i32
 }
 
 /**
- * Report illegal aggregate ==/!=/relational (wave657 Cap residual pure leaf).
- * Closes soft residual: typeck stamped bool for struct/slice/array cmp → host-cc BLD001
- * or silent array pointer-identity false green.
+ * Report illegal aggregate binop (wave657 cmp + wave658 arith Cap residual).
+ * Closes soft residual: typeck stamped bool/result for struct/slice/array cmp or arith
+ * → host-cc BLD001 or silent array pointer-identity false green.
  * @param line i32 — 1-based source line of the binop
  * @param col i32 — 1-based source column of the binop
  * @return void
@@ -502,7 +502,7 @@ export function driver_diagnostic_typeck_invalid_float_binop(line: i32, col: i32
 export function driver_diagnostic_typeck_invalid_aggregate_cmp(line: i32, col: i32): void {
   unsafe {
     lsp_diag_report_typeck(line, col,
-      "invalid aggregate comparison (== != < <= > >= not allowed on array/slice/struct; compare scalars or fields)");
+      "invalid aggregate binary operation (cmp/arith not allowed on array/slice/struct; use scalars or fields)");
   }
 }
 

@@ -6218,14 +6218,15 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * Return 1 if ty cannot be an operand of scalar ==/!=/</>/<=/>=.
- * Aggregates: TYPE_ARRAY/SLICE/LINEAR/VECTOR (host-C invalid or array decay pointer-identity
- * false green), and TYPE_NAMED that matches a struct layout (enum/alias scalars still allowed).
+ * Return 1 if ty cannot be an operand of scalar comparison or non-vector arithmetic.
+ * Aggregates: TYPE_ARRAY/SLICE/LINEAR/VECTOR (host-C invalid; array cmp decay pointer-identity
+ * false green; struct/array arith host-cc BLD001), and TYPE_NAMED that matches a struct layout
+ * (enum/alias scalars still allowed for cmp; VECTOR same-size arith is allowed by caller).
  * @param module *Module — current module (struct layout table)
  * @param arena *ASTArena — type arena
- * @param ty_ref i32 — resolved type ref of a cmp operand
- * @return i32 — 1 aggregate / non-scalar-cmp, 0 scalar/ptr/enum/alias-ok or null/unknown
- * PLATFORM: SHARED — wave657 Cap residual; G.7 single helper used only by binop_cmp.
+ * @param ty_ref i32 — resolved type ref of a binop operand
+ * @return i32 — 1 aggregate / non-scalar-binop, 0 scalar/ptr/enum/alias-ok or null/unknown
+ * PLATFORM: SHARED — wave657 cmp + wave658 arith; G.7 single helper for binop_cmp and binop_arith.
  */
 export function typeck_type_is_aggregate_cmp_operand(module: *Module, arena: *ASTArena, ty_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -6471,6 +6472,22 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
           driver_diagnostic_typeck_invalid_float_binop(line_fb, col_fb);
           return -1;
         }
+      }
+      /*
+       * wave658 Cap residual: hard-fail aggregate + - * / % bitops/shifts at typeck.
+       * Root cause: type_refs_equal fallthrough stamped out_ar = lt for struct/array/slice
+       * → host-cc BLD001 (`invalid operands to binary expression`).
+       * G.7 reuse typeck_type_is_aggregate_cmp_operand (wave657). VECTOR same-size pair
+       * still allowed below (SIMD-style path). enum/alias/scalar/ptr paths unchanged.
+       * PLATFORM: SHARED — seed typeck_gen + empty_surface + ast_pool twin same commit.
+       */
+      if ((typeck_type_is_aggregate_cmp_operand(module, arena, lt_ar) != 0
+      || typeck_type_is_aggregate_cmp_operand(module, arena, rt_ar) != 0)
+      && !(lko == ord_type_vector && rko == ord_type_vector)) {
+        let line_aa: i32 = pipeline_expr_line_at(arena, expr_ref);
+        let col_aa: i32 = pipeline_expr_col_at(arena, expr_ref);
+        driver_diagnostic_typeck_invalid_aggregate_cmp(line_aa, col_aa);
+        return -1;
       }
       if (ast.ref_is_null(out_ar)) {
         if ((lko == ord_i32 || lko == ord_u8 || lko == ord_u32 || lko == ord_u64 || lko == ord_i64

@@ -736,7 +736,7 @@ void driver_diagnostic_typeck_invalid_float_binop(int32_t line, int32_t col) {
 /* wave657 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_invalid_aggregate_cmp */
 void driver_diagnostic_typeck_invalid_aggregate_cmp(int32_t line, int32_t col) {
   (void)(lsp_diag_report_typeck(line, col,
-      ((uint8_t *)"invalid aggregate comparison (== != < <= > >= not allowed on array/slice/struct; compare scalars or fields)")));
+      ((uint8_t *)"invalid aggregate binary operation (cmp/arith not allowed on array/slice/struct; use scalars or fields)")));
   (void)(0);
   return;
 }

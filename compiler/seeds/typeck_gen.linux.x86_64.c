@@ -6438,6 +6438,17 @@ int32_t typeck_check_expr_binop_arith(struct ast_Module * module, struct ast_AST
           return -1;
         }
       }
+      /* wave658 Cap residual: hard-fail aggregate arith (G.7 ≡ typeck.x).
+       * type_refs_equal fallthrough → host BLD001 on struct/array/slice + -.
+       * VECTOR same-size pair still allowed below. */
+      if ((((typeck_type_is_aggregate_cmp_operand(module, arena, lt_ar) != 0)
+            || (typeck_type_is_aggregate_cmp_operand(module, arena, rt_ar) != 0))
+           && !((lko == ord_type_vector) && (rko == ord_type_vector)))) {
+        int32_t line_aa = pipeline_expr_line_at(arena, expr_ref);
+        int32_t col_aa = pipeline_expr_col_at(arena, expr_ref);
+        (void)(driver_diagnostic_typeck_invalid_aggregate_cmp(line_aa, col_aa));
+        return -1;
+      }
       if (ast_ref_is_null(out_ar)) {
         if (((((((((lko ==ord_i32) || (lko ==ord_u8)) || (lko ==ord_u32)) || (lko ==ord_u64)) || (lko ==ord_i64)) || (lko ==ord_usize)) || (lko ==ord_isize)) && (((((((rko ==ord_i32) || (rko ==ord_u8)) || (rko ==ord_u32)) || (rko ==ord_u64)) || (rko ==ord_i64)) || (rko ==ord_usize)) || (rko ==ord_isize)))) {
           if (((expr_kind ==ord_shl) || (expr_kind ==ord_shr))) {
