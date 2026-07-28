@@ -241,6 +241,23 @@ export function driver_diagnostic_typeck_call_arity_mismatch(line: i32, col: i32
   }
 }
 
+/**
+ * Report free-function call argument type mismatch (wave661 Cap residual).
+ * Closes soft residual: typeck bound resolved func but never checked arg vs param
+ * types → host-cc BLD001 or silent C conversion false-green (f32/bool→i32).
+ * @param line i32 — 1-based source line of the CALL
+ * @param col i32 — 1-based source column of the CALL
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ thin.x; seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_call_arg_type_mismatch(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "argument type mismatch in function call");
+  }
+}
+
 /** Exported function `driver_diagnostic_typeck_enum_no_variant`.
  * Implements `driver_diagnostic_typeck_enum_no_variant`.
  * @param line i32

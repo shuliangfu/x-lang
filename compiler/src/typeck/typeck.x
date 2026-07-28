@@ -163,6 +163,7 @@ export extern function driver_diagnostic_typeck_invalid_as_cast(line: i32, col: 
  * ignoring arity → host-cc BLD001 (too few / too many arguments).
  */
 export extern function driver_diagnostic_typeck_call_arity_mismatch(line: i32, col: i32): void;
+export extern function driver_diagnostic_typeck_call_arg_type_mismatch(line: i32, col: i32): void;
 export extern function typeck_driver_diagnostic_pipe_marker(id: i32): void;
 export extern function driver_diagnostic_typeck_if_condition_not_bool(line: i32, col: i32): void;
 export extern function driver_diagnostic_typeck_while_condition_not_bool(line: i32, col: i32): void;
@@ -6350,10 +6351,90 @@ ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * Type-check EXPR_CALL: args, resolve, arity (wave660), slice region.
+ * Hard-fail free-function CALL when a resolved arg type does not match the formal param.
+ * wave661 Cap residual: after resolve+arity, typeck never scored arg vs param → host-cc
+ * BLD001 (*u8/struct→i32) or silent C conversion false-green (f32/bool→i32).
+ * Authority score: typeck_overload_arg_param_score (exact / int-lit / string-lit / widen /
+ * array→slice); do not open a second matcher. Soft-skip when arg or param type is unknown
+ * (arg_ty<=0 or param_ty<=0) so incomplete inference is not a hard leaf.
+ * @param module *Module — entry / local module
+ * @param arena *ASTArena
+ * @param expr_ref i32 — EXPR_CALL
+ * @param ctx *PipelineDepCtx — dep module when resolved_dep_index ≥ 0
+ * @return i32 — 0 ok, -1 type mismatch (diagnostic emitted)
+ * PLATFORM: SHARED — G.7 single gate; product path also from pipeline_typeck_check_expr_call_c.
+ */
+export function typeck_check_call_arg_types(module: *Module, arena: *ASTArena, expr_ref: i32,
+ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let num_args: i32 = 0;
+    let fi: i32 = 0;
+    let dep: i32 = 0;
+    let mod: *Module = 0 as * Module;
+    let dm: *Module = 0 as * Module;
+    let ai: i32 = 0;
+    let param_raw: i32 = 0;
+    let sc: i32 = 0;
+    let arg_ref: i32 = 0;
+    let arg_ty: i32 = 0;
+    let line_a: i32 = 0;
+    let col_a: i32 = 0;
+    if (module == 0 as * Module || arena == 0 as * ASTArena || expr_ref <= 0) {
+      return 0;
+    }
+    fi = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+    if (fi < 0) {
+      return 0;
+    }
+    num_args = pipeline_expr_call_num_args_at(arena, expr_ref);
+    dep = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
+    mod = module;
+    if (dep >= 0 && ctx != 0 as * PipelineDepCtx) {
+      dm = pipeline_dep_ctx_module_at(ctx, dep);
+      if (dm != 0 as * Module) {
+        mod = dm;
+      }
+    }
+    ai = 0;
+    while (ai < num_args) {
+      param_raw = pipeline_module_func_param_type_ref_at(mod, fi, ai);
+      /*
+       * Soft-skip untyped / missing formal (param_raw<=0): score would return -1 and
+       * false-red; leave soft residual (not this hard leaf).
+       */
+      if (param_raw > 0) {
+        arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, ai);
+        arg_ty = 0;
+        if (arg_ref > 0) {
+          arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+        }
+        /*
+         * Soft-skip unknown arg type unless score can still match (int/string lit paths
+         * inside typeck_overload_arg_param_score). When arg_ty<=0 and score returns -1,
+         * do not hard-fail — incomplete resolve is not the Cap residual.
+         */
+        sc = typeck_overload_arg_param_score(arena, expr_ref, ai, param_raw, dep, ctx);
+        if (sc < 0) {
+          if (arg_ty > 0) {
+            line_a = pipeline_expr_line_at(arena, expr_ref);
+            col_a = pipeline_expr_col_at(arena, expr_ref);
+            driver_diagnostic_typeck_call_arg_type_mismatch(line_a, col_a);
+            return -1;
+          }
+        }
+      }
+      ai = ai + 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Type-check EXPR_CALL: args, resolve, arity (wave660), arg types (wave661), slice region.
  * Installs expected return (return_type_ref from let/assign/return) for zero-arg overload pick.
  * Note: product seed typeck_check_expr_call may delegate to pipeline_typeck_check_expr_call_c
- * which must call typeck_check_call_arity after resolve (same commit).
+ * which must call typeck_check_call_arity + typeck_check_call_arg_types after resolve (same commit).
  */
 export function typeck_check_expr_call(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
@@ -6379,6 +6460,11 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     }
     /* wave660: hard-fail arity before slice region / codegen. */
     if (typeck_check_call_arity(module, arena, expr_ref, ctx) != 0) {
+      typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0);
+      return -1;
+    }
+    /* wave661: hard-fail arg type vs formal after resolve+arity. */
+    if (typeck_check_call_arg_types(module, arena, expr_ref, ctx) != 0) {
       typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0);
       return -1;
     }

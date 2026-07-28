@@ -38311,6 +38311,21 @@ int32_t pipeline_typeck_check_expr_call_c(struct ast_Module *module, struct ast_
       return -1;
     }
   }
+  /*
+   * wave661 Cap residual: hard-fail free-function call arg types at typeck.
+   * Root: resolve+arity OK but arg vs param never scored → host-cc BLD001 or
+   * silent C conversion false-green. G.7: typeck_check_call_arg_types (reuses
+   * typeck_overload_arg_param_score; soft-skip unknown arg/param types).
+   * PLATFORM: SHARED — product path (seed typeck_check_expr_call → this glue).
+   */
+  {
+    extern int32_t typeck_check_call_arg_types(struct ast_Module *module, struct ast_ASTArena *arena,
+                                              int32_t expr_ref, struct ast_PipelineDepCtx *ctx);
+    if (typeck_check_call_arg_types(module, arena, expr_ref, ctx) != 0) {
+      *typeck_overload_expected_ret_slot() = 0;
+      return -1;
+    }
+  }
   /* Keep expected_ret through generic gate + fixup (wave453); clear after. */
   if (pipeline_typeck_check_call_generic_type_args_c(module, arena, expr_ref, ctx, expect_store) != 0) {
     *typeck_overload_expected_ret_slot() = 0;

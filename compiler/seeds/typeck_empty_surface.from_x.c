@@ -622,6 +622,7 @@ extern int32_t typeck_check_expr_match(struct ast_Module * module, struct ast_AS
 extern int32_t typeck_check_expr_call_arg(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t arg_i, int32_t num_args);
 extern int32_t typeck_check_expr_call_resolve(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t typeck_check_call_arity(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx);
+extern int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
 extern 
 int32_t typeck_check_expr_binop_cmp(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
@@ -729,6 +730,7 @@ extern void driver_diagnostic_typeck_invalid_aggregate_cmp(int32_t line, int32_t
 extern void driver_diagnostic_typeck_invalid_as_cast(int32_t line, int32_t col);
 /* wave660 Cap residual: call arity hard diag (G.7 ≡ typeck.x). */
 extern void driver_diagnostic_typeck_call_arity_mismatch(int32_t line, int32_t col);
+extern void driver_diagnostic_typeck_call_arg_type_mismatch(int32_t line, int32_t col);
 extern void typeck_driver_diagnostic_pipe_marker(int32_t id);
 extern void driver_diagnostic_typeck_if_condition_not_bool(int32_t line, int32_t col);
 extern void driver_diagnostic_typeck_while_condition_not_bool(int32_t line, int32_t col);
@@ -5094,6 +5096,59 @@ int32_t typeck_check_call_arity(struct ast_Module * module, struct ast_ASTArena 
   }
   return 0;
 }
+/* wave661 Cap residual: hard-fail CALL arg types (G.7 ≡ typeck.x typeck_check_call_arg_types). */
+int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx) {
+  int32_t num_args = 0;
+  int32_t fi = 0;
+  int32_t dep = 0;
+  struct ast_Module * mod = 0;
+  struct ast_Module * dm = 0;
+  int32_t ai = 0;
+  int32_t param_raw = 0;
+  int32_t sc = 0;
+  int32_t arg_ref = 0;
+  int32_t arg_ty = 0;
+  int32_t line_a = 0;
+  int32_t col_a = 0;
+  if ((((module ==0) || (arena ==0)) || (expr_ref <=0))) {
+    return 0;
+  }
+  (void)((fi = pipeline_expr_call_resolved_func_index_at(arena, expr_ref)));
+  if ((fi < 0)) {
+    return 0;
+  }
+  (void)((num_args = pipeline_expr_call_num_args_at(arena, expr_ref)));
+  (void)((dep = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref)));
+  (void)((mod = module));
+  if (((dep >=0) && (ctx !=0))) {
+    (void)((dm = pipeline_dep_ctx_module_at(ctx, dep)));
+    if ((dm !=0)) {
+      (void)((mod = dm));
+    }
+  }
+  (void)((ai = 0));
+  while ((ai < num_args)) {
+    (void)((param_raw = pipeline_module_func_param_type_ref_at(mod, fi, ai)));
+    if ((param_raw > 0)) {
+      (void)((arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, ai)));
+      (void)((arg_ty = 0));
+      if ((arg_ref > 0)) {
+        (void)((arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref)));
+      }
+      (void)((sc = typeck_overload_arg_param_score(arena, expr_ref, ai, param_raw, dep, ctx)));
+      if ((sc < 0)) {
+        if ((arg_ty > 0)) {
+          (void)((line_a = pipeline_expr_line_at(arena, expr_ref)));
+          (void)((col_a = pipeline_expr_col_at(arena, expr_ref)));
+          (void)(driver_diagnostic_typeck_call_arg_type_mismatch(line_a, col_a));
+          return -(1);
+        }
+      }
+    }
+    (void)((ai = (ai + 1)));
+  }
+  return 0;
+}
 int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
   if ((pipeline_typeck_check_extern_call_unsafe_boundary_c(module, arena, expr_ref, ctx) !=0)) {
     return -(1);
@@ -5106,6 +5161,9 @@ int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena *
     return -(1);
   }
   if ((typeck_check_call_arity(module, arena, expr_ref, ctx) !=0)) {
+    return -(1);
+  }
+  if ((typeck_check_call_arg_types(module, arena, expr_ref, ctx) !=0)) {
     return -(1);
   }
   if ((pipeline_typeck_check_call_slice_region_c(module, arena, expr_ref, ctx) !=0)) {
