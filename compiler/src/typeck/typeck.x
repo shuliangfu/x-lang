@@ -145,6 +145,15 @@ export extern function driver_diagnostic_typeck_invalid_float_binop(line: i32, c
  * or silent pointer-identity false green (fixed array decay).
  */
 export extern function driver_diagnostic_typeck_invalid_aggregate_cmp(line: i32, col: i32): void;
+/**
+ * Report illegal `as` cast (wave659 Cap residual).
+ * @param line i32 — 1-based source line of the cast expr
+ * @param col i32 — 1-based source column of the cast expr
+ * @return void
+ * PLATFORM: SHARED — closes soft residual: typeck stamped target then host-cc BLD001
+ * (float→ptr) or silent false green (struct/array as scalar).
+ */
+export extern function driver_diagnostic_typeck_invalid_as_cast(line: i32, col: i32): void;
 export extern function typeck_driver_diagnostic_pipe_marker(id: i32): void;
 export extern function driver_diagnostic_typeck_if_condition_not_bool(line: i32, col: i32): void;
 export extern function driver_diagnostic_typeck_while_condition_not_bool(line: i32, col: i32): void;
@@ -6936,7 +6945,164 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * See implementation.
+ * Return 1 when ty_ref is a cast-eligible class for `expr as T` (wave659).
+ * Eligible: first-class integers/bool, floats, pointers, NAMED integer spellings
+ * (i8/i16/u16 via int_family), and TYPE_NAMED enum/alias-of-scalar (non-struct).
+ * Ineligible: ARRAY/SLICE/LINEAR/VECTOR/struct layouts (via aggregate helper).
+ * @param module *Module — struct layout table for named aggregate detection
+ * @param arena *ASTArena — type arena
+ * @param ty_ref i32 — source or target type of an `as` cast
+ * @return i32 — 1 ok class, 0 ineligible or null/unknown
+ * PLATFORM: SHARED — G.7 helper for typeck_as_cast_allowed only.
+ */
+export function typeck_as_cast_type_class_ok(module: *Module, arena: *ASTArena, ty_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let ord_bool: i32 = 1;
+    let ord_named: i32 = 8;
+    let ord_ptr: i32 = 9;
+    let ord_f32: i32 = 14;
+    let ord_f64: i32 = 15;
+    let ord_void: i32 = 16;
+    let ko: i32 = 0;
+    let rty: i32 = 0;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ast.ref_is_null(ty_ref)) {
+      return 0;
+    }
+    /* Aggregate (struct/array/slice/vector/linear) never participates in `as`. */
+    if (typeck_type_is_aggregate_cmp_operand(module, arena, ty_ref) != 0) {
+      return 0;
+    }
+    rty = typeck_resolve_type_alias_ref_local(module, arena, ty_ref, 0);
+    if (ast.ref_is_null(rty)) {
+      rty = ty_ref;
+    }
+    ko = pipeline_type_kind_ord_at(arena, rty);
+    if (ko == ord_void) {
+      return 0;
+    }
+    /* First-class ints / bool / float / ptr. */
+    if (ko == ord_bool || ko == ord_ptr || ko == ord_f32 || ko == ord_f64) {
+      return 1;
+    }
+    if (typeck_int_family_id(arena, rty) >= 0) {
+      return 1;
+    }
+    /* TYPE_NAMED non-struct (enum tags / non-layout names) stay castable like C enums. */
+    if (ko == ord_named) {
+      return 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Return 1 when `src as tgt` is a legal cast (wave659 Cap residual).
+ * Allowed: same type; numeric↔numeric (int/bool/float family); int↔ptr; ptr↔ptr;
+ * enum-like NAMED↔integer. Rejected: any aggregate side; float↔ptr; void; other.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param src_ty i32 — resolved type of cast operand
+ * @param tgt_ty i32 — cast target type ref
+ * @return i32 — 1 allowed, 0 illegal
+ * PLATFORM: SHARED — single authority for typeck_check_expr_as.
+ */
+export function typeck_as_cast_allowed(module: *Module, arena: *ASTArena, src_ty: i32,
+tgt_ty: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let ord_bool: i32 = 1;
+    let ord_named: i32 = 8;
+    let ord_ptr: i32 = 9;
+    let ord_f32: i32 = 14;
+    let ord_f64: i32 = 15;
+    let sk: i32 = 0;
+    let tk: i32 = 0;
+    let s_int: i32 = 0;
+    let t_int: i32 = 0;
+    let s_float: i32 = 0;
+    let t_float: i32 = 0;
+    let s_num: i32 = 0;
+    let t_num: i32 = 0;
+    let src_r: i32 = 0;
+    let tgt_r: i32 = 0;
+    if (module == 0 as *Module || arena == 0 as *ASTArena) {
+      return 0;
+    }
+    if (ast.ref_is_null(src_ty) || ast.ref_is_null(tgt_ty)) {
+      return 0;
+    }
+    if (typeck_as_cast_type_class_ok(module, arena, src_ty) == 0
+    || typeck_as_cast_type_class_ok(module, arena, tgt_ty) == 0) {
+      return 0;
+    }
+    src_r = typeck_resolve_type_alias_ref_local(module, arena, src_ty, 0);
+    if (ast.ref_is_null(src_r)) {
+      src_r = src_ty;
+    }
+    tgt_r = typeck_resolve_type_alias_ref_local(module, arena, tgt_ty, 0);
+    if (ast.ref_is_null(tgt_r)) {
+      tgt_r = tgt_ty;
+    }
+    if (type_refs_equal(arena, src_r, tgt_r)) {
+      return 1;
+    }
+    sk = pipeline_type_kind_ord_at(arena, src_r);
+    tk = pipeline_type_kind_ord_at(arena, tgt_r);
+    s_int = 0;
+    t_int = 0;
+    if (typeck_int_family_id(arena, src_r) >= 0 || sk == ord_bool || sk == ord_named) {
+      s_int = 1;
+    }
+    if (typeck_int_family_id(arena, tgt_r) >= 0 || tk == ord_bool || tk == ord_named) {
+      t_int = 1;
+    }
+    s_float = 0;
+    t_float = 0;
+    if (sk == ord_f32 || sk == ord_f64) {
+      s_float = 1;
+    }
+    if (tk == ord_f32 || tk == ord_f64) {
+      t_float = 1;
+    }
+    /* float ↔ pointer is illegal in C and here (host-cc BLD001 soft residual). */
+    if ((s_float != 0 && tk == ord_ptr) || (t_float != 0 && sk == ord_ptr)) {
+      return 0;
+    }
+    s_num = 0;
+    t_num = 0;
+    if (s_int != 0 || s_float != 0) {
+      s_num = 1;
+    }
+    if (t_int != 0 || t_float != 0) {
+      t_num = 1;
+    }
+    /* numeric ↔ numeric (int/bool/float/enum-like). */
+    if (s_num != 0 && t_num != 0) {
+      return 1;
+    }
+    /* integer ↔ pointer (kernel MMIO / address casts). */
+    if ((s_int != 0 && tk == ord_ptr) || (t_int != 0 && sk == ord_ptr)) {
+      return 1;
+    }
+    /* pointer ↔ pointer (reinterpret pointee). */
+    if (sk == ord_ptr && tk == ord_ptr) {
+      return 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Type-check `operand as TargetType`. Stamps resolved type to target on success.
+ * wave659: hard-fail illegal casts (aggregate / float↔ptr / void) instead of stamping
+ * target and leaving host-cc BLD001 or silent false green.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param expr_ref i32 — EXPR_AS
+ * @param ctx *PipelineDepCtx
+ * @return i32 — 0 ok, -1 hard fail
+ * PLATFORM: SHARED — seed typeck_gen + empty_surface same commit.
  */
 export function typeck_check_expr_as(module: *Module, arena: *ASTArena, expr_ref: i32,
 ctx: *PipelineDepCtx): i32 {
@@ -6944,8 +7110,28 @@ ctx: *PipelineDepCtx): i32 {
   unsafe {
     let op_ref: i32 = pipeline_expr_as_operand_ref_at(arena, expr_ref);
     let tgt: i32 = pipeline_expr_as_target_type_ref_at(arena, expr_ref);
+    let src_ty: i32 = 0;
+    let line_as: i32 = 0;
+    let col_as: i32 = 0;
     if (!ast.ref_is_null(op_ref) && check_expr(module, arena, op_ref, 0, ctx) != 0) {
       return - 1;
+    }
+    /*
+     * wave659 Cap residual: hard-fail illegal `as` at typeck.
+     * Root cause: typeck_check_expr_as only checked the operand then stamped tgt →
+     * struct/array `as i32` false green; float→ptr host-cc BLD001.
+     * G.7: typeck_as_cast_allowed + typeck_type_is_aggregate_cmp_operand (wave657).
+     * Legal: numeric↔numeric, int↔ptr, ptr↔ptr, enum-like NAMED↔int (docs MMIO).
+     * PLATFORM: SHARED — seed typeck_gen + empty_surface + diagnostic twin same commit.
+     */
+    if (!ast.ref_is_null(op_ref) && !ast.ref_is_null(tgt)) {
+      src_ty = pipeline_expr_resolved_type_ref(arena, op_ref);
+      if (!ast.ref_is_null(src_ty) && typeck_as_cast_allowed(module, arena, src_ty, tgt) == 0) {
+        line_as = pipeline_expr_line_at(arena, expr_ref);
+        col_as = pipeline_expr_col_at(arena, expr_ref);
+        driver_diagnostic_typeck_invalid_as_cast(line_as, col_as);
+        return -1;
+      }
     }
     if (!ast.ref_is_null(tgt)) {
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, tgt);

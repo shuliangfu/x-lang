@@ -208,6 +208,23 @@ export function driver_diagnostic_typeck_invalid_aggregate_cmp(line: i32, col: i
   }
 }
 
+/**
+ * Report illegal `as` cast (wave659 Cap residual).
+ * Closes soft residual: typeck stamped cast target for struct/array→scalar (false green)
+ * or float→ptr (host-cc BLD001).
+ * @param line i32 — 1-based source line of the cast
+ * @param col i32 — 1-based source column of the cast
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ thin.x; seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_invalid_as_cast(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "invalid cast (as not allowed for aggregate or float↔pointer; use numeric/ptr casts or fields)");
+  }
+}
+
 /** Exported function `driver_diagnostic_typeck_enum_no_variant`.
  * Implements `driver_diagnostic_typeck_enum_no_variant`.
  * @param line i32

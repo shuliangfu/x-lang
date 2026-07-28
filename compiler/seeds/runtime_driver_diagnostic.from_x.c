@@ -651,6 +651,17 @@ void driver_diagnostic_typeck_invalid_aggregate_cmp(int32_t line, int32_t col)
 }
 #endif
 
+/* wave659 Cap residual: pure authority thin.x driver_diagnostic_typeck_invalid_as_cast;
+ * cold-start full C; FROM_X no pure-dup _impl. PLATFORM: SHARED. */
+#ifndef XLANG_L2_RDD_THIN_FROM_X
+void driver_diagnostic_typeck_invalid_as_cast(int32_t line, int32_t col)
+{
+  (void)(lsp_diag_report_typeck(line, col,
+      "invalid cast (as not allowed for aggregate or float↔pointer; use numeric/ptr casts or fields)"));
+  return;
+}
+#endif
+
 /* pure 权威：thin.x driver_diagnostic_typeck_if_condition_not_bool；冷启动全 C；FROM_X 无 pure-dup _impl */
 #ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_if_condition_not_bool(int32_t line, int32_t col)
