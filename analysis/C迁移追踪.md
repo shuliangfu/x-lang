@@ -1372,7 +1372,8 @@
   - 直接调 `ld` / `lld` / `link.exe`（syscall 或 raw FFI / 过渡 `posix_spawn`）
   - **禁止**默认 `$(CC) -o` 当链接器（避免偷偷拉 cc）
   - ✅ wave745：策略库存 — prefer `xlang_asm_invoke_ld_platform` + direct ld；**命名 residual** `bootstrap_driver_seed_link.sh` `SEED_LINK_CC -o`（列表仍 Makefile export）；`./xbuild linker-policy`
-  - ⬜ 终局：cold phase1/final 纯 ld argv（无 residual `CC -o`）
+  - ✅ wave772：cold phase1/final **pure-ld prefer** — Makefile export `SEED_LINK_LD/MULTIDEF/ENTRY/LD_TAIL/PURE_OK`；`bootstrap_driver_seed_link.sh` 优先 pure ld（Darwin syslibroot）；`--self-test`；**CC residual fallback**（FORCE_CC / pure fail / PURE_OK=0）
+  - ⬜ 终局：去掉 cold CC fallback · g05 `CC -o` pure-ld · 无 residual `CC -o`
 
 🟡 **11.1.5 填实 `build.x` 策略源**
 
@@ -1457,8 +1458,9 @@
   - ✅ wave764：**g05 R3_COLD r3-prefer-family** — 同 catalog 体；full→thin ladder；
     删 g05 双 hybrid
   - ✅ wave765–767：**g05 labi/rt/pipeline_abi/ldpc try-*-prefer** — 单 body；g05/Makefile thin-call
-  - ✅ wave768：**g05 target_cpu try-target-cpu-prefer** — flags.x + rest FROM_X → `$CC -r`；
-    residual other L2 · pure-ld
+  - ✅ wave768：**g05 target_cpu try-target-cpu-prefer** — flags.x + rest FROM_X → `$CC -r`
+  - ✅ wave769–771：**g05 L2-asm / async / other-L2 try-*-prefer** — 表驱动；g05/Makefile thin-call
+  - ✅ wave772：**11.1.4 pure-ld prefer** — cold phase1/final；CC residual fallback
 
 🟡 **11.3.1 路径 · 叶 pattern residual（wave746 库存 · wave747 R4 mode · wave748–755 R1 · wave756 pure-R1 · wave757 R3 cold · wave758 thin_glue · wave759 glue-standalone · wave760 R2 panic cold · wave761 gen/pipeline try-gen-x · 非物理删）**
 
@@ -1474,8 +1476,9 @@
   - ✅ R1 八族 body（wave748–755）+ thin_glue/glue-standalone 并入 seed-map；
     ✅ panic cold try-r2；✅ gen/pipeline try-gen-x；✅ R2 typeck_f64/crt0 try-r2（wave762）；
     ✅ R3 PREFER thin R3_COLD nine try-r3-prefer（wave763）；
-    ✅ g05 R3_COLD r3-prefer-family（wave764）；✅ g05 labi try-labi-prefer（wave765）；
-    ⬜ residual g05 rt multi-slice · pure-ld
+    ✅ g05 R3_COLD r3-prefer-family（wave764）；✅ g05 labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer（wave765–771）；
+    ✅ R6 pure-ld prefer（wave772）；
+    ⬜ residual g05 `CC -o` · cold CC fallback · fmt dual
   - ⬜ 物理删 `compiler/Makefile` 仍 ⬜（下项）
 
 ⬜ **11.3.1 删除 `compiler/Makefile`**

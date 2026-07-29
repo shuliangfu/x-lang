@@ -18,7 +18,8 @@
 #   ./xbuild host-platform | linker-policy [--check|--export]
 #
 # PLATFORM: SHARED — detection portable; leaf ABI stays in mk / product link path.
-# Wave: 745 Track MG · 11.1.3 + 11.1.4 policy slice (not pure-ld endgame).
+# Wave: 745 Track MG · 11.1.3 + 11.1.4 policy slice.
+# Wave: 772 Track MG · 11.1.4 pure-ld prefer in bootstrap_driver_seed_link (CC residual fallback).
 
 set -euo pipefail
 
@@ -177,22 +178,27 @@ EOF
 print_linker() {
   detect_host
   cat <<EOF
-# linker policy inventory (11.1.4 · wave745)
+# linker policy inventory (11.1.4 · wave745 · wave772 pure-ld prefer)
 # Prefer: product xlang_asm_invoke_ld_platform / direct ld|lld|link.exe
-# Residual: named CC -o sites only (G.7 no second link implementation here)
+# Cold phase1/final: pure-ld default when SEED_LINK_PURE_OK=1; CC residual fallback
 
 LINKER_POLICY=prefer_direct_ld_then_named_cc_residual
 LINKER_FORBIDDEN_DEFAULT=silent_cc_as_linker_without_inventory
 
-# Residual host-cc link drivers (body authority stays in these scripts)
+# Cold seed link body (G.7 single authority)
+COLD_SEED_LINK_BODY=scripts/bootstrap_driver_seed_link.sh
+COLD_SEED_LINK_PURE_LD=1
+COLD_SEED_LINK_PURE_LD_VIA=SEED_LINK_LD+MULTIDEF+ENTRY+LD_TAIL_export
+COLD_SEED_LINK_CC_FALLBACK=SEED_LINK_CC_-o_when_PURE_OK_0_or_FORCE_CC_or_pure_fail
 RESIDUAL_CC_LINK_SITE=scripts/bootstrap_driver_seed_link.sh
-RESIDUAL_CC_LINK_ROLE=cold_phase1_final_SEED_LINK_CC
+RESIDUAL_CC_LINK_ROLE=cold_phase1_final_SEED_LINK_CC_fallback
 RESIDUAL_CC_LINK_LIST_AUTHORITY=Makefile_export_bootstrap-driver-seed-export-phase1/final-link
 
 # Preferred direct-ld / product paths (do not reimplement)
 PREFERRED_LD_PARTIAL=scripts/filter_bootstrap_seed_pipeline_o.sh
 PREFERRED_PRODUCT_LD=xlang_asm_invoke_ld_platform
 PREFERRED_G05_RELINK=scripts/g05_relink_xlang.sh
+PREFERRED_COLD_PURE_LD=scripts/bootstrap_driver_seed_link.sh
 
 # Host tool presence (probe only)
 HOST_LD_PRESENT=$([ -n "$XLANG_HOST_LD_BIN" ] && echo 1 || echo 0)
@@ -201,8 +207,8 @@ HOST_CC_PRESENT=$([ -n "$XLANG_HOST_CC_BIN" ] && echo 1 || echo 0)
 HOST_LD_BIN=$XLANG_HOST_LD_BIN
 HOST_CC_BIN=$XLANG_HOST_CC_BIN
 
-# Endgame markers (not closed this wave)
-ENDGAME_COLD_LINK_WITHOUT_CC=0
+# Endgame markers (wave772: cold pure-ld path live; UNAME leaf still Makefile)
+ENDGAME_COLD_LINK_WITHOUT_CC=1
 ENDGAME_MAKEFILE_UNAME_SWALLOWED=0
 EOF
 }
@@ -285,13 +291,20 @@ else
   note "linker inventory dump OK"
 fi
 
-# Residual site body must still exist (G.7: inventory points at real authority)
+# Cold seed link body: pure-ld prefer + CC residual (wave772 · G.7 single body)
 if [ ! -f "$LINK_BODY" ]; then
-  bad "missing residual link body $LINK_BODY"
+  bad "missing cold link body $LINK_BODY"
+elif ! grep -q 'SEED_LINK_PURE_OK\|try_pure_ld\|pure-ld' "$LINK_BODY"; then
+  bad "$LINK_BODY must prefer pure-ld (SEED_LINK_PURE_OK / try_pure_ld) wave772"
 elif ! grep -q 'SEED_LINK_CC' "$LINK_BODY"; then
-  bad "$LINK_BODY must still drive via SEED_LINK_CC export (single residual path)"
+  bad "$LINK_BODY must keep SEED_LINK_CC residual fallback"
 else
-  note "residual cold link body present (SEED_LINK_CC)"
+  note "cold link body pure-ld prefer + CC residual present (wave772)"
+fi
+if ! grep -q 'SEED_LINK_PURE_OK\|SEED_LINK_LD\|SEED_LINK_MULTIDEF' compiler/Makefile; then
+  bad "Makefile export must emit SEED_LINK_LD/MULTIDEF/PURE_OK (wave772 pure-ld)"
+else
+  note "Makefile pure-ld export keys present"
 fi
 
 # Prefer-path scripts present

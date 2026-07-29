@@ -141,6 +141,11 @@ SWALLOWED_G05_OTHER_L2_PREFER=1
 SWALLOWED_G05_OTHER_L2_PREFER_VIA=ensure_host_cc_seed_o.sh_try-other-l2-prefer
 SWALLOWED_G05_OTHER_L2_PREFER_SCOPE=seed_link_compat+strict_glue_stubs+fmt_check_cmd_driver+lsp_diag
 SWALLOWED_G05_OTHER_L2_PREFER_NOTE=g05_makefile_thin_call_no_dual_hybrid_other_l2_four
+# wave772: 11.1.4 pure-ld cold phase1/final prefer (CC residual fallback)
+SWALLOWED_R6_PURE_LD=1
+SWALLOWED_R6_PURE_LD_VIA=bootstrap_driver_seed_link.sh_try_pure_ld
+SWALLOWED_R6_PURE_LD_SCOPE=phase1+final_SEED_LINK_LD_export
+SWALLOWED_R6_PURE_LD_NOTE=PURE_OK_crt0_entry_CC_fallback_FORCE_CC_or_fail
 SWALLOWED_LINK_DRIVER=scripts/bootstrap_driver_seed_link.sh
 SWALLOWED_G05_FAMILY=scripts/g05_*.sh
 SWALLOWED_MIGRATE_GEN=scripts/migrate_x_objs.sh+ensure_*_gen.sh
@@ -240,10 +245,12 @@ RESIDUAL_CLASS_R5=ci_compiler_all_host_cc_graph
 RESIDUAL_CLASS_R5_SURFACE=Makefile_all_OPT_seed
 RESIDUAL_CLASS_R5_ENDGAME=xbuild_compiler_all_shell_body_stage12
 
-RESIDUAL_CLASS_R6=cold_link_seed_link_cc
-RESIDUAL_CLASS_R6_SURFACE=bootstrap_driver_seed_link_SEED_LINK_CC_-o
+RESIDUAL_CLASS_R6=cold_link_pure_ld_prefer
+RESIDUAL_CLASS_R6_SURFACE=bootstrap_driver_seed_link_try_pure_ld
 RESIDUAL_CLASS_R6_TRACK=11.1.4_PLATFORM_LINKER
-RESIDUAL_CLASS_R6_ENDGAME=pure_ld_argv_export
+RESIDUAL_CLASS_R6_SWALLOWED=wave772_pure_ld_export_and_prefer
+RESIDUAL_CLASS_R6_FALLBACK=SEED_LINK_CC_when_PURE_OK_0_or_FORCE_CC_or_pure_fail
+RESIDUAL_CLASS_R6_ENDGAME=drop_CC_fallback_g05_pure_ld_physical_delete
 
 # Live Makefile residual signals (counts only — not a second recipe list)
 MAKEFILE_PATH=compiler/Makefile
@@ -514,7 +521,7 @@ R1_SEED_MAP_SWALLOWED=$r1_seed_map
 R1_OTHER_HOST_CC_STILL_MAKE=1
 ENDGAME_PHYSICAL_DELETE_MAKEFILE=0
 ENDGAME_LEAF_WITHOUT_HOST_CC=0
-ENDGAME_COLD_PURE_LD=0
+ENDGAME_COLD_PURE_LD=1
 EOF
 }
 
@@ -619,8 +626,14 @@ fi
 if ! printf '%s\n' "$_out" | grep -q 'RESIDUAL_CLASS_R4=cold_rebuild_pattern_bodies'; then
   bad "dump missing RESIDUAL_CLASS_R4"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'RESIDUAL_CLASS_R6=cold_link_seed_link_cc'; then
+if ! printf '%s\n' "$_out" | grep -qE 'RESIDUAL_CLASS_R6=cold_link_(seed_link_cc|pure_ld_prefer)'; then
   bad "dump missing RESIDUAL_CLASS_R6 (cross-ref 11.1.4)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R6_PURE_LD=1'; then
+  bad "dump must set SWALLOWED_R6_PURE_LD=1 (wave772 pure-ld)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'ENDGAME_COLD_PURE_LD=1'; then
+  bad "dump ENDGAME_COLD_PURE_LD must be 1 (wave772)"
 fi
 if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_PREREQ_EDGES=scripts/driver_seed_ensure_prereqs.sh'; then
   bad "dump must name swallowed prereq edges (wave744)"
@@ -986,7 +999,21 @@ else
     "$REBUILD_REL"; then
     bad "rebuild_leaves must not hardcode .o list (dual authority)"
   fi
-  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); residual pure-ld · physical delete · fmt_check_cmd.o dual"
+  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld prefer (wave772); residual physical delete · fmt_check_cmd.o dual · g05 CC -o · CC fallback"
+fi
+
+# wave772: cold pure-ld export + prefer body
+if [ ! -f compiler/scripts/bootstrap_driver_seed_link.sh ]; then
+  bad "missing bootstrap_driver_seed_link.sh (wave772)"
+elif ! grep -q 'try_pure_ld\|SEED_LINK_PURE_OK' compiler/scripts/bootstrap_driver_seed_link.sh; then
+  bad "bootstrap_driver_seed_link must prefer pure-ld (wave772)"
+else
+  note "cold pure-ld prefer body present (wave772)"
+fi
+if ! grep -q 'SEED_LINK_PURE_OK\|SEED_LINK_MULTIDEF' compiler/Makefile; then
+  bad "Makefile must export SEED_LINK_PURE_OK/MULTIDEF (wave772 pure-ld)"
+else
+  note "Makefile pure-ld export signal present (wave772)"
 fi
 
 # wave763: ensure try-r3-prefer + Makefile R3_COLD thin-call

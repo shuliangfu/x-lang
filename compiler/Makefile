@@ -2726,21 +2726,62 @@ bootstrap-driver-seed-host-stubs:
 # §5b #11 — phase1 / final link
 # OBJS+CFLAGS: Makefile export only (G.7). Link body: bootstrap_driver_seed_link.sh.
 # KEY=value SEED_LINK_* export for shell parse (no dual .o list in shell).
+# wave772 · 11.1.4 pure-ld: also export SEED_LINK_LD / MULTIDEF / ENTRY / PURE_OK / LD_TAIL.
+#   Lists stay mk (SEED_LINK_OBJS only). Pure-ld platform sysroot is composed in link.sh.
+# PLATFORM: SHARED — PURE_OK when freestanding crt0 entry; WINDOWS residual stays CC.
 bootstrap-driver-seed-export-phase1-link \
 bootstrap-driver-seed-export-final-link \
 bootstrap-driver-seed-phase1-link \
 bootstrap-driver-seed-final-link: DRIVER_SEED_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o
 
+# pure-ld eligibility: freestanding crt0 + -e _start (not main_driver / not PE residual).
+# PLATFORM: LINUX x86_64 · MACOS arm64/x86_64 — pure ld + tail libs; else PURE_OK=0 → CC residual.
+ifeq ($(XLANG_LEGACY_MAIN_C),1)
+SEED_LINK_PURE_OK = 0
+SEED_LINK_ENTRY =
+SEED_LINK_LD_TAIL =
+else ifeq ($(UNAME_S),Linux)
+ifeq ($(UNAME_M),x86_64)
+SEED_LINK_PURE_OK = 1
+SEED_LINK_ENTRY = -e _start
+# nostartfiles-style cold seed still pulls libc via former CC driver; pure-ld needs -lc.
+SEED_LINK_LD_TAIL = -lc
+else
+SEED_LINK_PURE_OK = 0
+SEED_LINK_ENTRY =
+SEED_LINK_LD_TAIL =
+endif
+else ifeq ($(UNAME_S),Darwin)
+SEED_LINK_PURE_OK = 1
+SEED_LINK_ENTRY = -e _start
+# PLATFORM: MACOS — syslibroot/arch/platform_version composed in bootstrap_driver_seed_link.sh
+SEED_LINK_LD_TAIL = -lSystem
+else
+SEED_LINK_PURE_OK = 0
+SEED_LINK_ENTRY =
+SEED_LINK_LD_TAIL =
+endif
+
 # KEY=value lines (first '=' splits). Avoid TAB: some make/shell paths mangle \t.
 bootstrap-driver-seed-export-phase1-link:
 	@printf 'SEED_LINK_CC=%s\n' '$(CC)'
 	@printf 'SEED_LINK_CFLAGS=%s\n' '$(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS)'
+	@printf 'SEED_LINK_LD=%s\n' '$(LD)'
+	@printf 'SEED_LINK_MULTIDEF=%s\n' '$(LD_R_MULTIDEF_FLAGS)'
+	@printf 'SEED_LINK_ENTRY=%s\n' '$(SEED_LINK_ENTRY)'
+	@printf 'SEED_LINK_LD_TAIL=%s\n' '$(SEED_LINK_LD_TAIL)'
+	@printf 'SEED_LINK_PURE_OK=%s\n' '$(SEED_LINK_PURE_OK)'
 	@printf 'SEED_LINK_OUT=%s\n' 'xlang-seed-phase1'
 	@printf 'SEED_LINK_OBJS=%s\n' '$(DRIVER_SEED_GLUE_PREFIX) $(BOOTSTRAP_DRIVER_SEED_LINK_BASE) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS) $(USER_ASM_SEED_HOST_STUBS) build_asm/seed_host/asm_backend_partial.o $(DRIVER_SEED_GLUE_SUFFIX)'
 
 bootstrap-driver-seed-export-final-link:
 	@printf 'SEED_LINK_CC=%s\n' '$(CC)'
 	@printf 'SEED_LINK_CFLAGS=%s\n' '$(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS)'
+	@printf 'SEED_LINK_LD=%s\n' '$(LD)'
+	@printf 'SEED_LINK_MULTIDEF=%s\n' '$(LD_R_MULTIDEF_FLAGS)'
+	@printf 'SEED_LINK_ENTRY=%s\n' '$(SEED_LINK_ENTRY)'
+	@printf 'SEED_LINK_LD_TAIL=%s\n' '$(SEED_LINK_LD_TAIL)'
+	@printf 'SEED_LINK_PURE_OK=%s\n' '$(SEED_LINK_PURE_OK)'
 	@printf 'SEED_LINK_OUT=%s\n' '$(TARGET)'
 	@printf 'SEED_LINK_OBJS=%s\n' '$(DRIVER_SEED_GLUE_PREFIX) $(BOOTSTRAP_DRIVER_SEED_LINK_BASE) $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS) $(DRIVER_SEED_GLUE_SUFFIX)'
 
