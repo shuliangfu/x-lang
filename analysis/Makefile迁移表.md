@@ -644,7 +644,7 @@
 **wave760**：R2 panic cold try-r2 — catalog `DRIVER_SEED_PANIC_OBJS`；stamp+UNAME 选源；panic shell-only；Makefile cold-else 薄转调；typeck_f64/crt0 ✅ wave762 try-r2。  
 **wave763**：R3 PREFER thin try-r3-prefer — catalog `R3_COLD_SEED_OBJS` 九叶；thin+rest 单 body；Makefile thin。  
 **wave764**：g05 R3_COLD r3-prefer-family — 同 catalog；full→thin ladder；删 g05 双 hybrid。  
-**wave765**：g05 labi try-labi-prefer — multi-slice 单 body；g05/Makefile thin-call；residual rt multi-slice · pipeline_abi · ldpc。  
+**wave765**：g05 labi try-labi-prefer · g05 rt try-rt-prefer (wave766) — multi-slice 单 body；g05/Makefile thin-call；residual rt multi-slice · pipeline_abi · ldpc。  
 **wave748**：R1 单族 — `ensure_host_cc_seed_o.sh` + catalog `RT_SEED_SLICE_OBJS`；Makefile 五叶 `rt_*.o` 薄转调；其它 R1 residual。  
 **wave749**：R1 第二族 — 同 body `core-seed` + catalog `R1_CORE_SEED_OBJS`；Makefile 五叶（diag/link_abi/c_import/bridge/compat）薄转调；其它 R1 residual。  
 **wave750**：R1 第三族 — 同 body `frontend-glue` + catalog `R1_FRONTEND_GLUE_OBJS`；basename 错位 seed map（lexer/ast/lsp）；Makefile 三叶薄转调；其它 R1 residual。  

@@ -25,8 +25,9 @@
 #   R3 cold-else, R2 panic cold, and gen residual (try-gen-x) live in
 #   ensure_host_cc_seed_o.sh / ensure_gen_x_o.sh; R3 PREFER thin R3_COLD nine
 #   swallowed wave763 try-r3-prefer + wave764 g05 r3-prefer-family +
-#   wave765 g05 labi multi-slice try-labi-prefer; residual g05 other PREFER
-#   (rt multi-slice · pipeline_abi · ldpc) / pure-ld.
+#   wave765 g05 labi multi-slice try-labi-prefer
+#   wave766 g05 rt multi-slice try-rt-prefer; residual g05 other PREFER
+#   (pipeline_abi · ldpc · target_cpu) / pure-ld.
 #
 # Human map: compiler/docs/LEAF_PATTERN_RESIDUAL.md
 #
@@ -106,6 +107,11 @@ SWALLOWED_G05_LABI_PREFER=1
 SWALLOWED_G05_LABI_PREFER_VIA=ensure_host_cc_seed_o.sh_try-labi-prefer
 SWALLOWED_G05_LABI_PREFER_SCOPE=runtime_link_abi_R1_CORE_member
 SWALLOWED_G05_LABI_PREFER_NOTE=g05_makefile_thin_call_no_dual_hybrid_labi
+# wave766: g05 rt multi-slice product PREFER → try-rt-prefer
+SWALLOWED_G05_RT_PREFER=1
+SWALLOWED_G05_RT_PREFER_VIA=ensure_host_cc_seed_o.sh_try-rt-prefer
+SWALLOWED_G05_RT_PREFER_SCOPE=runtime_driver_no_c_R1_MAIN_RUNTIME_member
+SWALLOWED_G05_RT_PREFER_NOTE=g05_makefile_thin_call_no_dual_hybrid_rt
 SWALLOWED_LINK_DRIVER=scripts/bootstrap_driver_seed_link.sh
 SWALLOWED_G05_FAMILY=scripts/g05_*.sh
 SWALLOWED_MIGRATE_GEN=scripts/migrate_x_objs.sh+ensure_*_gen.sh
@@ -181,8 +187,9 @@ RESIDUAL_CLASS_R3_PREFER_THIN_SCOPE=R3_COLD_SEED_OBJS_nine
 RESIDUAL_CLASS_G05_R3_PREFER=swallowed_wave764_g05_r3_prefer_family
 RESIDUAL_CLASS_G05_R3_PREFER_SCOPE=R3_COLD_SEED_OBJS_nine
 RESIDUAL_CLASS_G05_LABI_PREFER=swallowed_wave765_try_labi_prefer
-RESIDUAL_CLASS_R3_PREFER_THIN_RESIDUAL=g05_other_prefer_rt_pipeline_ldpc
-RESIDUAL_CLASS_R3_ENDGAME=g05_ensure_rt_multi_slice_plus_other_L2
+RESIDUAL_CLASS_G05_RT_PREFER=swallowed_wave766_try_rt_prefer
+RESIDUAL_CLASS_R3_PREFER_THIN_RESIDUAL=g05_other_prefer_pipeline_ldpc_target_cpu
+RESIDUAL_CLASS_R3_ENDGAME=g05_ensure_pipeline_abi_ldpc_other_L2
 
 RESIDUAL_CLASS_R4=cold_rebuild_pattern_bodies
 RESIDUAL_CLASS_R4_SURFACE=sat|lsp|bridge|panic|user-asm|glue|pipeline-x_make_pattern
@@ -220,6 +227,7 @@ print_live_metrics() {
   r3_prefer=0
   g05_r3_prefer=0
   g05_labi_prefer=0
+  g05_rt_prefer=0
   r2_panic=0
   r2_typeck_f64=0
   r2_crt0=0
@@ -274,6 +282,17 @@ print_live_metrics() {
       && ! grep -qE '_labi_l0_seed=seeds/labi_path_pure' \
         "$ROOT/compiler/scripts/g05_ensure_relink_prereqs.sh" 2>/dev/null; then
       g05_labi_prefer=1
+    fi
+    # wave766: g05 rt multi-slice via try-rt-prefer (no dual hybrid)
+    if [ -f "$ROOT/compiler/scripts/g05_ensure_relink_prereqs.sh" ] \
+      && grep -q 'try-rt-prefer\|rt-prefer' \
+        "$ROOT/compiler/scripts/g05_ensure_relink_prereqs.sh" 2>/dev/null \
+      && grep -q 'try_ensure_rt_prefer_one\|ensure_rt_prefer_one' \
+        "$ROOT/compiler/scripts/ensure_host_cc_seed_o.sh" 2>/dev/null \
+      && grep -q 'try-rt-prefer' "$mf" 2>/dev/null \
+      && ! grep -qE '_rt_content_seed=seeds/rt_content' \
+        "$ROOT/compiler/scripts/g05_ensure_relink_prereqs.sh" 2>/dev/null; then
+      g05_rt_prefer=1
     fi
     # wave760: R2 panic cold via try-r2
     if grep -q 'try-r2\|try_ensure_r2' \
@@ -368,6 +387,7 @@ R3_COLD_ELSE_SWALLOWED=$r3_cold
 R3_PREFER_THIN_SWALLOWED=$r3_prefer
 G05_R3_PREFER_SWALLOWED=$g05_r3_prefer
 G05_LABI_PREFER_SWALLOWED=$g05_labi_prefer
+G05_RT_PREFER_SWALLOWED=$g05_rt_prefer
 R2_PANIC_COLD_SWALLOWED=$r2_panic
 R2_TYPECK_F64_SWALLOWED=$r2_typeck_f64
 R2_CRT0_SWALLOWED=$r2_crt0
@@ -612,13 +632,19 @@ fi
 if ! printf '%s\n' "$_out" | grep -q 'G05_LABI_PREFER_SWALLOWED=1'; then
   bad "dump G05_LABI_PREFER_SWALLOWED must be 1 (try-labi-prefer + g05 thin-call)"
 fi
+if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_G05_RT_PREFER=1'; then
+  bad "dump must set SWALLOWED_G05_RT_PREFER=1 (wave766)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'G05_RT_PREFER_SWALLOWED=1'; then
+  bad "dump G05_RT_PREFER_SWALLOWED must be 1 (try-rt-prefer + g05 thin-call)"
+fi
 if ! printf '%s\n' "$_out" | grep -q 'R1_OTHER_HOST_CC_STILL_MAKE=1'; then
   bad "dump must keep R1_OTHER_HOST_CC_STILL_MAKE=1 (honest residual)"
 fi
 if ! printf '%s\n' "$_out" | grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0'; then
   bad "dump missing ENDGAME_PHYSICAL_DELETE_MAKEFILE=0 (not closed)"
 else
-  note "residual class inventory dump OK (wave747–763 + wave764 g05 R3 PREFER)"
+  note "residual class inventory dump OK (wave747–766 + g05 labi/rt PREFER)"
 fi
 
 # Makefile still present (residual reality) + has host-cc heat
@@ -814,7 +840,7 @@ else
     "$REBUILD_REL"; then
     bad "rebuild_leaves must not hardcode .o list (dual authority)"
   fi
-  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi try-labi-prefer (wave765); residual g05 rt multi-slice / pure-ld"
+  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi try-labi-prefer (wave765) + rt try-rt-prefer (wave766); residual g05 pipeline_abi/ldpc / pure-ld"
 fi
 
 # wave763: ensure try-r3-prefer + Makefile R3_COLD thin-call
@@ -864,6 +890,32 @@ if grep -qE '_labi_l0_seed=seeds/labi_path_pure' compiler/scripts/g05_ensure_rel
   bad "g05_ensure still has labi multi-slice dual hybrid (wave765)"
 else
   note "g05 labi dual hybrid body removed (wave765)"
+fi
+
+# wave766: g05 rt multi-slice → try-rt-prefer (no dual hybrid)
+if [ ! -f compiler/scripts/ensure_host_cc_seed_o.sh ]; then
+  bad "ensure_host_cc_seed_o.sh missing (wave766)"
+elif ! grep -q 'try-rt-prefer\|try_ensure_rt_prefer_one' compiler/scripts/ensure_host_cc_seed_o.sh; then
+  bad "ensure_host_cc_seed_o must provide try-rt-prefer (wave766 rt multi-slice)"
+else
+  note "try-rt-prefer present in ensure_host_cc_seed_o (wave766)"
+fi
+if ! grep -q 'try-rt-prefer' compiler/Makefile; then
+  bad "Makefile must thin-call try-rt-prefer for runtime_driver_no_c leaf (wave766)"
+else
+  note "Makefile try-rt-prefer thin-call signal present (wave766)"
+fi
+if [ ! -f compiler/scripts/g05_ensure_relink_prereqs.sh ]; then
+  bad "g05_ensure_relink_prereqs.sh missing (wave766)"
+elif ! grep -q 'try-rt-prefer\|rt-prefer' compiler/scripts/g05_ensure_relink_prereqs.sh; then
+  bad "g05_ensure must thin-call try-rt-prefer (wave766)"
+else
+  note "g05 try-rt-prefer thin-call present (wave766)"
+fi
+if grep -qE '_rt_content_seed=seeds/rt_content' compiler/scripts/g05_ensure_relink_prereqs.sh; then
+  bad "g05_ensure still has rt multi-slice dual hybrid (wave766)"
+else
+  note "g05 rt dual hybrid body removed (wave766)"
 fi
 if grep -qE 'g05_rio_thin|g05_rdabi_thin|g05_simd_enc_thin|G-02f-334：runtime_io_abi' \
   compiler/scripts/g05_ensure_relink_prereqs.sh; then

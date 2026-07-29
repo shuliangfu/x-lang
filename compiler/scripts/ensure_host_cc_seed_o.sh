@@ -34,8 +34,11 @@
 #            surface H=0; fail → thin; fail → cold).
 #   wave765: G.7 g05 labi multi-slice swallow — `try-labi-prefer OUT` for
 #            src/runtime_link_abi.o (L0..L9+L8b+L8c + rest FROM_X → cc -r).
-#            g05_ensure + Makefile thin-call (no dual hybrid body). Residual:
-#            rt multi-slice · pipeline_abi · ldpc · target_cpu · pure-ld · physical delete.
+#            g05_ensure + Makefile thin-call (no dual hybrid body).
+#   wave766: G.7 g05 rt multi-slice swallow — `try-rt-prefer OUT` for
+#            src/runtime_driver_no_c.o (content..dispatch + rest FROM_X → cc -r;
+#            RT_SEED_SLICE external). g05_ensure + Makefile thin-call.
+#            Residual: pipeline_abi · ldpc · target_cpu · pure-ld · physical delete.
 #   wave758: R4 residual pure host-cc thin_glue → R1 seed-map (G.7 有则补全):
 #            parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c +
 #            -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm;
@@ -103,8 +106,9 @@
 #   - ~~R3 Makefile PREFER thin for R3_COLD nine~~ wave763 try-r3-prefer
 #   - ~~g05 R3_COLD nine dual hybrid~~ wave764 → r3-prefer-family
 #   - ~~g05 labi multi-slice~~ wave765 try-labi-prefer
-#   - g05 other PREFER hybrid (rt multi-slice · pipeline_abi · ldpc · target_cpu ·
-#     other L2) · panic PREFER thin · R5 CI all
+#   - ~~g05 rt multi-slice~~ wave766 try-rt-prefer
+#   - g05 other PREFER hybrid (pipeline_abi · ldpc · target_cpu · other L2) ·
+#     panic PREFER thin · R5 CI all
 #   - pure-ld (11.1.4) · physical Makefile delete (11.3.1)
 #   - bootstrap_nostdlib_stubs.o (cc_inc_tu residual) · crt0_user.o cp wrappers
 #
@@ -114,6 +118,7 @@
 #   bash scripts/ensure_host_cc_seed_o.sh try-r3-cold <out.o>
 #   bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer <out.o> # wave763 PREFER thin+rest
 #   bash scripts/ensure_host_cc_seed_o.sh try-labi-prefer <out.o> # wave765 labi multi-slice
+#   bash scripts/ensure_host_cc_seed_o.sh try-rt-prefer <out.o>   # wave766 rt multi-slice
 #   bash scripts/ensure_host_cc_seed_o.sh try-r2 <out.o>   # wave760/762 R2 UNAME leaves
 #   bash scripts/ensure_host_cc_seed_o.sh try-gen-x <out.o> # wave761 gen *_x / pipeline_x
 #   bash scripts/ensure_host_cc_seed_o.sh r2-panic         # DRIVER_SEED_PANIC family
@@ -174,7 +179,7 @@ _DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -1234,6 +1239,1171 @@ try_ensure_labi_prefer_one() {
 }
 
 # ---------------------------------------------------------------------------
+# wave766: try-rt-prefer OUT — g05 rt multi-slice product PREFER (single body).
+#
+# Single leaf: src/runtime_driver_no_c.o (R1_MAIN_RUNTIME; cold twin = ensure_one
+# with RUNTIME_DRIVER_NO_C_CFLAGS).
+# When XLANG_G05_PREFER_X_O=1 and an xlang binary works:
+#   content + util + argv + emit_flags + compile + run + asm + entry + diag +
+#   elf_diag + lib_root + fs + fmt + dispatch* + run_*  prefer thin/full .x
+#   → slice .o (else cold layer seed); rest = seeds/runtime.from_x.c under
+#   XLANG_RT_*_FROM_X for ok layers; merge $CC -r -nostdlib slices + rest → OUT.
+# PLATFORM: SHARED — do NOT merge RT_SEED_SLICE permanent .o into no_c
+#   (arena/emit_state/preamble/stack/parse_diag stay external; FROM_X on rest
+#   leaves them U in no_c — historic Darwin 22× multidef fix).
+# Prefer fail / PREFER≠1 / no xlang → ensure_one cold full seed + NO_C flags.
+# Callers: g05_ensure (wave766) · Makefile src/runtime_driver_no_c.o (unified).
+# Exit codes:
+#   0 — OUT is runtime_driver_no_c.o; prefer or cold body produced OUT
+#   3 — OUT is not src/runtime_driver_no_c.o
+#   1 — cold seed missing / compile failed
+# PLATFORM: SHARED shell body · g05 historic PREFER=1 · cold chain PREFER=0.
+# G.7: no second .o list; layer table is seed-path convention (not product inventory).
+# Residual after: pipeline_abi · ldpc · target_cpu · pure-ld · physical delete.
+# ---------------------------------------------------------------------------
+
+rt_prefer_no_c_cflags() {
+  # stdout: NO_C product flags (Makefile/env or default).
+  if [ -n "${RUNTIME_DRIVER_NO_C_CFLAGS:-}" ]; then
+    printf '%s' "$RUNTIME_DRIVER_NO_C_CFLAGS"
+  else
+    printf '%s' "$_DEFAULT_RUNTIME_DRIVER_NO_C_CFLAGS"
+  fi
+}
+
+rt_prefer_try_x_to_o() {
+  _xsrc="$1"
+  _xout="$2"
+  shift 2
+  _xxlang=""
+  if [ -x ./xlang ]; then
+    _xxlang=./xlang
+  elif [ -x ./xlang-c ]; then
+    _xxlang=./xlang-c
+  elif [ -x ./bootstrap_xlangc ]; then
+    _xxlang=./bootstrap_xlangc
+  else
+    return 1
+  fi
+  if [ ! -f "$_xsrc" ]; then
+    return 1
+  fi
+  mkdir -p "$(dirname "$_xout")"
+  # BSD/macOS mktemp 要求 X 串在模板末尾；勿用 XXXXXX.c
+  _xtmp=$(mktemp "${TMPDIR:-/tmp}/rtpref_x.XXXXXX") || return 1
+  # 优先默认 -E（Linux 上 -backend c -E 可能 SIGSEGV）；再回退 -backend c -E。
+  # Ubuntu 主机偶发 -E SIGSEGV：最多 5 次重试（对齐 prove harness b12bf000）。
+  # PLATFORM: SHARED harness
+  # shellcheck disable=SC2086
+  _e_ok=0
+  for _e_try in 1 2 3 4 5; do
+    if "$_xxlang" -E "$_xsrc" >"$_xtmp" 2>/dev/null && [ -s "$_xtmp" ]; then
+      _e_ok=1
+      break
+    fi
+    : >"$_xtmp"
+    if "$_xxlang" -backend c -E "$_xsrc" >"$_xtmp" 2>/dev/null && [ -s "$_xtmp" ]; then
+      _e_ok=1
+      break
+    fi
+    : >"$_xtmp"
+  done
+  if [ "$_e_ok" != "1" ]; then
+    rm -f "$_xtmp"
+    return 1
+  fi
+  if [ "${G05_X_O_WEAK:-0}" = "1" ]; then
+    # 仅改非 static 的简单返回类型函数定义行（-E 产物形态）
+    # G-02f-335/336：含 uint8_t * / char * / int64_t 返回（diag_color_prefix / get_source_len 等）
+    perl -i -pe 's/^((?:void|int64_t|int32_t|int|size_t|uint32_t|uint64_t|uint8_t \*|uint8_t|const char \*|char \*))\s+(\w+)\s*\(/__attribute__((weak)) $1 $2(/' "$_xtmp" || true
+  fi
+  # G-02f-458: 前端 *_gen.c .o 的符号重命名
+  # 格式：G05_X_O_SYM_RENAME="old1:new1,old2:new2,..."
+  # 将 -E 输出中的 .x 函数名重命名为 gen.c 期望的符号名（模块前缀+函数名）
+  if [ -n "${G05_X_O_SYM_RENAME:-}" ]; then
+    _old_ifs="$IFS"
+    IFS=','
+    for _pair in $G05_X_O_SYM_RENAME; do
+      _old_name="${_pair%%:*}"
+      _new_name="${_pair#*:}"
+      if [ -n "$_old_name" ] && [ -n "$_new_name" ] && [ "$_old_name" != "$_new_name" ]; then
+        perl -i -pe "s/\\b${_old_name}\\b/${_new_name}/g" "$_xtmp" || true
+      fi
+    done
+    IFS="$_old_ifs"
+  fi
+  # G-02f-332/334：-E 缺 ssize_t / open 原型；前置 POSIX 头，并删掉 -E 里冲突的 libc extern
+  {
+    echo '/* rt_prefer_try_x_to_o prologue (G-02f-332/334 + uio/poll) */'
+    echo '#include <stddef.h>'
+    echo '#include <stdint.h>'
+    echo '#include <sys/types.h>'
+    echo '#include <stdlib.h>'
+    echo '#include <string.h>'
+    echo '#include <stdio.h>'
+    echo '#ifndef _WIN32'
+    echo '#include <unistd.h>'
+    echo '#include <fcntl.h>'
+    echo '#include <errno.h>'
+    # PLATFORM: POSIX — -E preamble 内联 xlang_sys_readv/writev/poll 需原型；
+    # 下方 sed 会删掉 -E 自带 #include <poll.h> 等，故在 prologue 补齐。
+    echo '#include <sys/uio.h>'
+    echo '#include <poll.h>'
+    # PLATFORM: POSIX — fmt_check walk/path_stat pure *u8 wrappers (DIR* cast safe).
+    echo '#include <dirent.h>'
+    echo 'static inline uint8_t *xlang_fmt_opendir(uint8_t *name) {'
+    echo '  return (uint8_t *)opendir((const char *)name);'
+    echo '}'
+    echo 'static inline int32_t xlang_fmt_closedir(uint8_t *dirp) {'
+    echo '  return dirp ? (int32_t)closedir((DIR *)(void *)dirp) : (int32_t)-1;'
+    echo '}'
+    echo 'static inline int32_t xlang_fmt_access(uint8_t *path, int32_t mode) {'
+    echo '  return path ? (int32_t)access((const char *)path, (int)mode) : (int32_t)-1;'
+    echo '}'
+    echo 'static inline uint8_t *xlang_fmt_readdir_name(uint8_t *dirp) {'
+    echo '  struct dirent *ent;'
+    echo '  if (!dirp) return (uint8_t *)0;'
+    echo '  ent = readdir((DIR *)(void *)dirp);'
+    echo '  return ent ? (uint8_t *)ent->d_name : (uint8_t *)0;'
+    echo '}'
+    echo '#endif'
+    # PLATFORM: SHARED — wave22 Cap residual: opaque *u8 → FILE* fputs cast.
+    # .x cannot name FILE*; direct fputs(*u8,*u8) trips -Werror=incompatible-pointer-types.
+    # Pure driver_preamble_fputs (runtime_driver_abi_thin.x) calls this harness helper.
+    # Outside _WIN32 guard: stdio fputs is available on Windows host-cc too.
+    echo 'static inline int32_t xlang_driver_fputs_opaque(uint8_t *s, uint8_t *stream) {'
+    echo '  return (int32_t)fputs((const char *)(void *)s, (FILE *)(void *)stream);'
+    echo '}'
+    # PLATFORM: SHARED — wave26 Cap residual: stdout identity + fclose/fwrite for pure
+    # driver_parsed_fclose / fclose_rc / write_out (runtime_driver_abi_thin.x).
+    # .x cannot name FILE* or compare to stdout without these harness casts.
+    echo 'static inline uint8_t *xlang_driver_stdout_ptr(void) {'
+    echo '  return (uint8_t *)(void *)stdout;'
+    echo '}'
+    echo 'static inline int32_t xlang_driver_fclose_opaque(uint8_t *stream) {'
+    echo '  if (!stream) return 0;'
+    echo '  return fclose((FILE *)(void *)stream) == 0 ? 0 : 1;'
+    echo '}'
+    echo 'static inline int32_t xlang_driver_fwrite_opaque(uint8_t *data, int32_t len, uint8_t *stream) {'
+    echo '  size_t n;'
+    echo '  if (!data || len < 0 || !stream) return 1;'
+    echo '  if (len == 0) return 0;'
+    echo '  n = fwrite((const void *)(void *)data, 1, (size_t)len, (FILE *)(void *)stream);'
+    echo '  return n == (size_t)len ? 0 : 1;'
+    echo '}'
+    # PLATFORM: SHARED — wave27 Cap residual: fopen(path,"w") as opaque *u8 for pure
+    # driver_parsed_open_out_file (runtime_driver_abi_thin.x). .x cannot name FILE*.
+    echo 'static inline uint8_t *xlang_driver_fopen_write_opaque(uint8_t *path) {'
+    echo '  if (!path) return (uint8_t *)0;'
+    echo '  return (uint8_t *)(void *)fopen((const char *)(void *)path, "w");'
+    echo '}'
+    # PLATFORM: SHARED — wave40 Cap residual: stderr identity + fflush(stdout) + fopen "wb"
+    # for pure driver_stdio_stderr / driver_asm_fflush_stdout / driver_asm_fopen_wb
+    # (runtime_driver_abi_thin.x). "wb" is intentionally not "w" (binary metric/asm out;
+    # G.7: separate surface from fopen_write_opaque text "w").
+    echo 'static inline uint8_t *xlang_driver_stderr_ptr(void) {'
+    echo '  return (uint8_t *)(void *)stderr;'
+    echo '}'
+    echo 'static inline void xlang_driver_fflush_stdout(void) {'
+    echo '  (void)fflush(stdout);'
+    echo '}'
+    echo 'static inline uint8_t *xlang_driver_fopen_wb_opaque(uint8_t *path) {'
+    echo '  if (!path) return (uint8_t *)0;'
+    echo '  return (uint8_t *)(void *)fopen((const char *)(void *)path, "wb");'
+    echo '}'
+    # PLATFORM: SHARED — wave41 Cap residual: fdopen(fd,"wb") as opaque *u8 for pure
+    # driver_asm_mkstemp_fdopen (runtime_driver_abi_thin.x). .x cannot name FILE*.
+    echo 'static inline uint8_t *xlang_driver_fdopen_wb_opaque(int32_t fd) {'
+    echo '  FILE *fp;'
+    echo '  if (fd < 0) return (uint8_t *)0;'
+    echo '  fp = fdopen((int)fd, "wb");'
+    echo '  return (uint8_t *)(void *)fp;'
+    echo '}'
+    # PLATFORM: SHARED — wave79 Cap residual: libc realpath as opaque *u8 for pure
+    # xlang_path_try_realpath_inplace (runtime_pipeline_abi.x). .x must not name char*
+    # realpath (labi_path_io clash note); non-POSIX returns null → pure leaves path.
+    # POSIX/APPLE: realpath from unistd/stdlib (prologue includes them above).
+    echo '#if defined(_POSIX_VERSION) || defined(__APPLE__)'
+    echo 'static inline uint8_t *xlang_driver_realpath_opaque(uint8_t *path, uint8_t *resolved) {'
+    echo '  char *r;'
+    echo '  if (!path || !resolved) return (uint8_t *)0;'
+    echo '  r = realpath((const char *)(void *)path, (char *)(void *)resolved);'
+    echo '  return (uint8_t *)(void *)r;'
+    echo '}'
+    echo '#else'
+    echo 'static inline uint8_t *xlang_driver_realpath_opaque(uint8_t *path, uint8_t *resolved) {'
+    echo '  (void)path; (void)resolved;'
+    echo '  return (uint8_t *)0;'
+    echo '}'
+    echo '#endif'
+    # PLATFORM: SHARED — wave84 Cap residual: function address as *u8 for pure
+    # pipeline_run_x_thread_fn_ptr / xlang_asm_codegen_elf_o_thread_fn_ptr
+    # (runtime_pipeline_abi.x). .x cannot form function-pointer constants (&fn);
+    # pure thin surface owns the product names; cast residual stays in this harness
+    # (same pattern as stdout_ptr / realpath_opaque). Cold twin under seed #ifndef FROM_X.
+    # Match pure .x export: *u8 arg / *u8 return (not void* — gcc conflicts with pure body).
+    echo 'extern uint8_t *pipeline_run_x_thread_fn(uint8_t *);'
+    echo 'extern uint8_t *xlang_asm_codegen_elf_o_thread_fn(uint8_t *);'
+    echo 'static inline uint8_t *xlang_driver_pipeline_run_x_thread_fn_ptr(void) {'
+    echo '  return (uint8_t *)(void *)pipeline_run_x_thread_fn;'
+    echo '}'
+    echo 'static inline uint8_t *xlang_driver_asm_elf_o_thread_fn_ptr(void) {'
+    echo '  return (uint8_t *)(void *)xlang_asm_codegen_elf_o_thread_fn;'
+    echo '}'
+    # Strip -E #include + libc redecls that clash with prologue headers.
+    # PLATFORM: SHARED harness — G.7 product authority for libc skip is
+    # codegen_is_libc_conflicting_extern_name (codegen.x + seed). After wave30,
+    # mkstemp/rename are in that predicate; sed lines below stay as defense for
+    # cold/old xlang -E, opendir opaque (intentionally NOT in product skip), and
+    # xlang_fmt_*/xlang_driver_* harness helpers defined as static inline above.
+    sed -e '/^#include /d' \
+        -e '/^extern ssize_t read(/d' \
+        -e '/^extern ssize_t write(/d' \
+        -e '/^extern int32_t open(/d' \
+        -e '/^extern int open(/d' \
+        -e '/^extern int32_t fcntl(/d' \
+        -e '/^extern int fcntl(/d' \
+        -e '/^extern int32_t close(/d' \
+        -e '/^extern int close(/d' \
+        -e '/^extern uint8_t \* calloc(/d' \
+        -e '/^extern uint8_t \* malloc(/d' \
+        -e '/^extern void free(/d' \
+        -e '/^extern uint8_t \* memcpy(/d' \
+        -e '/^extern void \* memcpy(/d' \
+        -e '/^extern int32_t memcmp(/d' \
+        -e '/^extern int memcmp(/d' \
+        -e '/^extern char \* getenv(/d' \
+        -e '/^extern uint8_t \* getenv(/d' \
+        -e '/^extern char \* getcwd(/d' \
+        -e '/^extern uint8_t \* getcwd(/d' \
+        -e '/^extern int32_t unlink(/d' \
+        -e '/^extern int unlink(/d' \
+        -e '/^extern size_t strlen(/d' \
+        -e '/^extern int32_t strcmp(/d' \
+        -e '/^extern int strcmp(/d' \
+        -e '/^extern int32_t strncmp(/d' \
+        -e '/^extern int strncmp(/d' \
+        -e '/^extern uint8_t \* strstr(/d' \
+        -e '/^extern char \* strstr(/d' \
+        -e '/^extern uint8_t \* memset(/d' \
+        -e '/^extern void \* memset(/d' \
+        -e '/^extern int32_t setenv(/d' \
+        -e '/^extern int setenv(/d' \
+        -e '/^extern uint8_t \* strerror(/d' \
+        -e '/^extern char \* strerror(/d' \
+        -e '/^extern int32_t system(/d' \
+        -e '/^extern int system(/d' \
+        -e '/^extern int32_t fputs(/d' \
+        -e '/^extern int fputs(/d' \
+        -e '/^extern uint8_t \* opendir(/d' \
+        -e '/^extern void \* opendir(/d' \
+        -e '/^extern DIR \* opendir(/d' \
+        -e '/^extern int32_t closedir(/d' \
+        -e '/^extern int closedir(/d' \
+        -e '/^extern int32_t access(/d' \
+        -e '/^extern int access(/d' \
+        -e '/^extern uint8_t \* xlang_fmt_opendir(/d' \
+        -e '/^extern int32_t xlang_fmt_closedir(/d' \
+        -e '/^extern int32_t xlang_fmt_access(/d' \
+        -e '/^extern uint8_t \* xlang_fmt_readdir_name(/d' \
+        -e '/^extern int32_t xlang_driver_fputs_opaque(/d' \
+        -e '/^extern uint8_t \* xlang_driver_stdout_ptr(/d' \
+        -e '/^extern int32_t xlang_driver_fclose_opaque(/d' \
+        -e '/^extern int32_t xlang_driver_fwrite_opaque(/d' \
+        -e '/^extern uint8_t \* xlang_driver_fopen_write_opaque(/d' \
+        -e '/^extern uint8_t \* xlang_driver_stderr_ptr(/d' \
+        -e '/^extern void xlang_driver_fflush_stdout(/d' \
+        -e '/^extern uint8_t \* xlang_driver_fopen_wb_opaque(/d' \
+        -e '/^extern uint8_t \* xlang_driver_fdopen_wb_opaque(/d' \
+        -e '/^extern uint8_t \* xlang_driver_realpath_opaque(/d' \
+        -e '/^extern uint8_t \* xlang_driver_pipeline_run_x_thread_fn_ptr(/d' \
+        -e '/^extern uint8_t \* xlang_driver_asm_elf_o_thread_fn_ptr(/d' \
+        -e '/^extern int32_t mkstemp(/d' \
+        -e '/^extern int mkstemp(/d' \
+        -e '/^extern int32_t rename(/d' \
+        -e '/^extern int rename(/d' \
+        "$_xtmp"
+  } >"${_xtmp}.full" && mv "${_xtmp}.full" "$_xtmp"
+  # shellcheck disable=SC2086
+  # -x c：mktemp 无扩展名时 clang 否则不当作 C 源
+  if ! $CC $BASE_CFLAGS "$@" -x c -c -o "$_xout" "$_xtmp"; then
+    rm -f "$_xtmp"
+    return 1
+  fi
+  rm -f "$_xtmp"
+  return 0
+}
+
+ensure_rt_prefer_one() {
+  # Prefer multi-slice or cold full seed for src/runtime_driver_no_c.o.
+  local prefer="${XLANG_G05_PREFER_X_O:-0}"
+  local RUNTIME_DRIVER_NO_C_CFLAGS
+  RUNTIME_DRIVER_NO_C_CFLAGS="$(rt_prefer_no_c_cflags)"
+  export RUNTIME_DRIVER_NO_C_CFLAGS
+  # Historic g05 block (paths + hybrid + cold) — leaf OUT is $1.
+    # G-02f-14 / G-02f-261～265 / G-02f-291～297：runtime_driver_no_c.o ← seeds/runtime.from_x.c + NO_C flags
+    # PREFER_X_O=1：R2/R0/R1/R5-lite/R3/R6/R7-lite 切片 hybrid → rest（XLANG_RT_*_FROM_X）
+    # 注：RFC R4 DCE 在 !XLANG_USE_X_DRIVER 下，不进产品 .o；R7 spawn 仍 rest
+    _rt=seeds/runtime.from_x.c
+    _rt_content_x=src/runtime/rt_content.x
+    _rt_content_seed=seeds/rt_content.from_x.c
+    _rt_util_seed=seeds/rt_util.from_x.c
+    _rt_util_x=src/runtime/rt_util.x
+    _rt_argv_seed=seeds/rt_argv.from_x.c
+    _rt_argv_x=src/runtime/rt_argv.x
+    _rt_ef_seed=seeds/rt_emit_flags.from_x.c
+    _rt_ef_x=src/runtime/rt_emit_flags.x
+    _rt_pre_seed=seeds/rt_preamble.from_x.c
+    _rt_pre_x=src/runtime/rt_preamble.x
+    _rt_compile_seed=seeds/rt_compile.from_x.c
+    _rt_compile_x=src/runtime/rt_compile.x
+    _rt_run_seed=seeds/rt_run_exec.from_x.c
+    _rt_run_exec_x=src/runtime/rt_run_exec.x
+    _rt_asm_seed=seeds/rt_asm_stub.from_x.c
+    _rt_asm_stub_x=src/runtime/rt_asm_stub.x
+    _rt_entry_seed=seeds/rt_entry.from_x.c
+    _rt_entry_x=src/runtime/rt_entry.x
+    _rt_diag_seed=seeds/rt_diag_errno.from_x.c
+    _rt_diag_x=src/runtime/rt_diag_errno.x
+    _rt_emit_st_seed=seeds/rt_emit_state.from_x.c
+    _rt_emit_st_x=src/runtime/rt_emit_state.x
+    _rt_elf_diag_seed=seeds/rt_pipeline_elf_diag.from_x.c
+    _rt_elf_diag_x=src/runtime/rt_pipeline_elf_diag.x
+    _rt_lib_root_seed=seeds/rt_lib_root.from_x.c
+    _rt_lib_root_x=src/runtime/rt_lib_root.x
+    _rt_parse_diag_seed=seeds/rt_parse_diag.from_x.c
+    _rt_parse_diag_x=src/runtime/rt_parse_diag.x
+    _rt_fs_open_seed=seeds/rt_fs_open.from_x.c
+    _rt_fs_open_x=src/runtime/rt_fs_open.x
+    _rt_arena_buf_seed=seeds/rt_arena_buf.from_x.c
+    _rt_arena_buf_x=src/runtime/rt_arena_buf.x
+    _rt_fmt_one_seed=seeds/rt_fmt_one.from_x.c
+    _rt_fmt_one_x=src/runtime/rt_fmt_one.x
+    _rt_dispatch_thin_seed=seeds/rt_dispatch_thin.from_x.c
+    _rt_dispatch_thin_x=src/runtime/rt_dispatch_thin.x
+    _rt_dispatch_impl_seed=seeds/rt_dispatch_impl.from_x.c
+    _rt_dispatch_impl_x=src/runtime/rt_dispatch_impl.x
+    _rt_run_x_emit_seed=seeds/rt_run_x_emit.from_x.c
+    _rt_run_x_emit_x=src/runtime/rt_run_x_emit.x
+    _rt_run_asm_backend_seed=seeds/rt_run_asm_backend.from_x.c
+    _rt_run_asm_backend_x=src/runtime/rt_run_asm_backend.x
+    _rt_run_compiler_parsed_seed=seeds/rt_run_compiler_parsed.from_x.c
+    _rt_run_compiler_parsed_x=src/runtime/rt_run_compiler_parsed.x
+    _rt_stack_seed=seeds/rt_stack.from_x.c
+    _rt_stack_x=src/runtime/rt_stack.x
+    _rt_o="$1"
+    if [ -f "$_rt" ]; then
+      if [ ! -f "$_rt_o" ] || [ "$_rt" -nt "$_rt_o" ] \
+        || { [ -f "$_rt_content_seed" ] && [ "$_rt_content_seed" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_util_seed" ] && [ "$_rt_util_seed" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_util_x" ] && [ "$_rt_util_x" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_argv_seed" ] && [ "$_rt_argv_seed" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_argv_x" ] && [ "$_rt_argv_x" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_ef_seed" ] && [ "$_rt_ef_seed" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_ef_x" ] && [ "$_rt_ef_x" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_pre_seed" ] && [ "$_rt_pre_seed" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_pre_x" ] && [ "$_rt_pre_x" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_compile_seed" ] && [ "$_rt_compile_seed" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_compile_x" ] && [ "$_rt_compile_x" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_run_seed" ] && [ "$_rt_run_seed" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_run_exec_x" ] && [ "$_rt_run_exec_x" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_asm_seed" ] && [ "$_rt_asm_seed" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_asm_stub_x" ] && [ "$_rt_asm_stub_x" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_entry_seed" ] && [ "$_rt_entry_seed" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_entry_x" ] && [ "$_rt_entry_x" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_diag_seed" ] && [ "$_rt_diag_seed" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_diag_x" ] && [ "$_rt_diag_x" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_emit_st_seed" ] && [ "$_rt_emit_st_seed" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_emit_st_x" ] && [ "$_rt_emit_st_x" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_elf_diag_seed" ] && [ "$_rt_elf_diag_seed" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_elf_diag_x" ] && [ "$_rt_elf_diag_x" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_lib_root_seed" ] && [ "$_rt_lib_root_seed" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_lib_root_x" ] && [ "$_rt_lib_root_x" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_parse_diag_seed" ] && [ "$_rt_parse_diag_seed" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_parse_diag_x" ] && [ "$_rt_parse_diag_x" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_fs_open_seed" ] && [ "$_rt_fs_open_seed" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_fs_open_x" ] && [ "$_rt_fs_open_x" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_arena_buf_seed" ] && [ "$_rt_arena_buf_seed" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_arena_buf_x" ] && [ "$_rt_arena_buf_x" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_fmt_one_seed" ] && [ "$_rt_fmt_one_seed" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_fmt_one_x" ] && [ "$_rt_fmt_one_x" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_dispatch_thin_seed" ] && [ "$_rt_dispatch_thin_seed" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_dispatch_thin_x" ] && [ "$_rt_dispatch_thin_x" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_dispatch_impl_seed" ] && [ "$_rt_dispatch_impl_seed" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_dispatch_impl_x" ] && [ "$_rt_dispatch_impl_x" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_run_x_emit_seed" ] && [ "$_rt_run_x_emit_seed" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_run_x_emit_x" ] && [ "$_rt_run_x_emit_x" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_run_asm_backend_seed" ] && [ "$_rt_run_asm_backend_seed" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_run_asm_backend_x" ] && [ "$_rt_run_asm_backend_x" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_run_compiler_parsed_seed" ] && [ "$_rt_run_compiler_parsed_seed" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_run_compiler_parsed_x" ] && [ "$_rt_run_compiler_parsed_x" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_stack_seed" ] && [ "$_rt_stack_seed" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_stack_x" ] && [ "$_rt_stack_x" -nt "$_rt_o" ]; } \
+        || { [ -f "$_rt_content_x" ] && [ "$_rt_content_x" -nt "$_rt_o" ]; }; then
+        _rt_done=0
+        if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_content_seed" ]; then
+          _rt_c_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_content.XXXXXX") || true
+          _rt_u_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_util.XXXXXX") || true
+          _rt_a_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_argv.XXXXXX") || true
+          _rt_e_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_eflags.XXXXXX") || true
+          _rt_p_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_pre.XXXXXX") || true
+          _rt_cmp_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_compile.XXXXXX") || true
+          _rt_run_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_run.XXXXXX") || true
+          _rt_asm_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_asm.XXXXXX") || true
+          _rt_ent_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_entry.XXXXXX") || true
+          _rt_diag_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_diag.XXXXXX") || true
+          _rt_est_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_emit_st.XXXXXX") || true
+          _rt_elfd_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_elf_diag.XXXXXX") || true
+          _rt_lr_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_lib_root.XXXXXX") || true
+          _rt_pd_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_parse_diag.XXXXXX") || true
+          _rt_fs_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_fs_open.XXXXXX") || true
+          _rt_ab_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_arena_buf.XXXXXX") || true
+          _rt_fo_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_fmt_one.XXXXXX") || true
+          _rt_dt_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_dispatch_thin.XXXXXX") || true
+          _rt_di_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_dispatch_impl.XXXXXX") || true
+          _rt_xe_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_run_x_emit.XXXXXX") || true
+          _rt_abk_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_run_asm_backend.XXXXXX") || true
+          _rt_rcp_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_run_compiler_parsed.XXXXXX") || true
+          _rt_st_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_stack.XXXXXX") || true
+          _rt_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_rest.XXXXXX") || true
+          _rt_content_ok=0
+          _rt_util_ok=0
+          _rt_argv_ok=0
+          _rt_ef_ok=0
+          _rt_pre_ok=0
+          _rt_compile_ok=0
+          _rt_run_ok=0
+          _rt_asm_ok=0
+          _rt_entry_ok=0
+          _rt_diag_ok=0
+          _rt_est_ok=0
+          _rt_elfd_ok=0
+          _rt_lr_ok=0
+          _rt_pd_ok=0
+          _rt_fs_ok=0
+          _rt_ab_ok=0
+          _rt_fo_ok=0
+          _rt_dt_ok=0
+          _rt_di_ok=0
+          _rt_xe_ok=0
+          _rt_abk_ok=0
+          _rt_rcp_ok=0
+          _rt_st_ok=0
+          if [ -n "$_rt_c_o" ]; then
+            # G-02f-436：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
+            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_content_x" ]; then
+              _rt_content_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_content_thin.XXXXXX") || true
+              _rt_content_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_content_rest.XXXXXX") || true
+              if [ -n "$_rt_content_thin_o" ] && [ -n "$_rt_content_rest_o" ] \
+                && rt_prefer_try_x_to_o "$_rt_content_x" "$_rt_content_thin_o" \
+                && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_CONTENT_FROM_X \
+                     -c -o "$_rt_content_rest_o" "$_rt_content_seed" \
+                && $CC -r -nostdlib -o "$_rt_c_o" "$_rt_content_thin_o" "$_rt_content_rest_o" 2>/dev/null; then
+                _rt_content_ok=1
+                echo "rt-prefer: R2 content ← full .x + rest H=0 (path wrappers in .x)"
+              fi
+              rm -f "$_rt_content_thin_o" "$_rt_content_rest_o"
+            fi
+            if [ "$_rt_content_ok" = "0" ] && [ -f "$_rt_content_seed" ]; then
+              # shellcheck disable=SC2086
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_c_o" "$_rt_content_seed"; then
+                _rt_content_ok=1
+                echo "rt-prefer: R2 content ← $_rt_content_seed (G-02f-261/306 seed slice)"
+              fi
+            fi
+          fi
+          if [ -n "$_rt_u_o" ]; then
+            # G-02f-435：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
+            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_util_x" ]; then
+              _rt_util_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_util_thin.XXXXXX") || true
+              _rt_util_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_util_rest.XXXXXX") || true
+              if [ -n "$_rt_util_thin_o" ] && [ -n "$_rt_util_rest_o" ] \
+                && rt_prefer_try_x_to_o "$_rt_util_x" "$_rt_util_thin_o" \
+                && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_UTIL_FROM_X \
+                     -c -o "$_rt_util_rest_o" "$_rt_util_seed" \
+                && $CC -r -nostdlib -o "$_rt_u_o" "$_rt_util_thin_o" "$_rt_util_rest_o" 2>/dev/null; then
+                _rt_util_ok=1
+                echo "rt-prefer: R0 util ← thin .x + rest (G-02f-435 L2 prefer .x)"
+              fi
+              rm -f "$_rt_util_thin_o" "$_rt_util_rest_o"
+            fi
+            if [ "$_rt_util_ok" = "0" ] && [ -f "$_rt_util_seed" ]; then
+              # shellcheck disable=SC2086
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_u_o" "$_rt_util_seed"; then
+                _rt_util_ok=1
+                echo "rt-prefer: R0 util ← $_rt_util_seed (G-02f-262 seed slice)"
+              fi
+            fi
+          fi
+          if [ -n "$_rt_a_o" ]; then
+            # R2 full：PREFER_X_O=1 时 full .x + rest seed (-D FROM_X 业务 H=0) → cc -r 合并
+            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_argv_x" ]; then
+              _rt_argv_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_argv_thin.XXXXXX") || true
+              _rt_argv_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_argv_rest.XXXXXX") || true
+              if [ -n "$_rt_argv_thin_o" ] && [ -n "$_rt_argv_rest_o" ] \
+                && rt_prefer_try_x_to_o "$_rt_argv_x" "$_rt_argv_thin_o" \
+                && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_ARGV_FROM_X \
+                     -c -o "$_rt_argv_rest_o" "$_rt_argv_seed" \
+                && $CC -r -nostdlib -o "$_rt_a_o" "$_rt_argv_thin_o" "$_rt_argv_rest_o" 2>/dev/null; then
+                _rt_argv_ok=1
+                echo "rt-prefer: R1 argv ← full .x + rest (R2 full H=0; G-02f-431 PREFER_X_O)"
+              fi
+              rm -f "$_rt_argv_thin_o" "$_rt_argv_rest_o"
+            fi
+            if [ "$_rt_argv_ok" = "0" ] && [ -f "$_rt_argv_seed" ]; then
+              # shellcheck disable=SC2086
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_a_o" "$_rt_argv_seed"; then
+                _rt_argv_ok=1
+                echo "rt-prefer: R1 argv ← $_rt_argv_seed (G-02f-263 seed slice)"
+              fi
+            fi
+          fi
+          if [ -n "$_rt_e_o" ] && [ -f "$_rt_ef_seed" ]; then
+            # G-02f-451：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
+            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_ef_x" ]; then
+              _rt_ef_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_emit_flags_thin.XXXXXX") || true
+              _rt_ef_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_emit_flags_rest.XXXXXX") || true
+              if [ -n "$_rt_ef_thin_o" ] && [ -n "$_rt_ef_rest_o" ] \
+                && rt_prefer_try_x_to_o "$_rt_ef_x" "$_rt_ef_thin_o" \
+                && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_EMIT_FLAGS_FROM_X \
+                     -c -o "$_rt_ef_rest_o" "$_rt_ef_seed" \
+                && $CC -r -nostdlib -o "$_rt_e_o" "$_rt_ef_thin_o" "$_rt_ef_rest_o" 2>/dev/null; then
+                _rt_ef_ok=1
+                echo "rt-prefer: R2 emit_flags ← full .x + rest (G-02f R2 prefer .x; FROM_X rest H=0)"
+              fi
+              rm -f "$_rt_ef_thin_o" "$_rt_ef_rest_o"
+            fi
+            if [ "$_rt_ef_ok" = "0" ]; then
+              # shellcheck disable=SC2086
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_e_o" "$_rt_ef_seed"; then
+                _rt_ef_ok=1
+                echo "rt-prefer: R5-lite emit_flags ← $_rt_ef_seed (G-02f-264 seed slice)"
+              fi
+            fi
+          fi
+          if [ -n "$_rt_p_o" ] && [ -f "$_rt_pre_seed" ]; then
+            # R2 full：PREFER_X_O=1 时 full .x + rest seed（表+marker）→ cc -r 合并
+            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_pre_x" ]; then
+              _rt_p_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_pre_thin.XXXXXX") || true
+              _rt_p_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_pre_rest.XXXXXX") || true
+              if [ -n "$_rt_p_thin_o" ] && [ -n "$_rt_p_rest_o" ] \
+                && rt_prefer_try_x_to_o "$_rt_pre_x" "$_rt_p_thin_o" \
+                && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_PREAMBLE_FROM_X \
+                     -c -o "$_rt_p_rest_o" "$_rt_pre_seed" \
+                && $CC -r -nostdlib -o "$_rt_p_o" "$_rt_p_thin_o" "$_rt_p_rest_o" 2>/dev/null; then
+                _rt_pre_ok=1
+                echo "rt-prefer: R3 preamble ← full .x + rest tables/marker (R2 full H=0)"
+              fi
+              rm -f "$_rt_p_thin_o" "$_rt_p_rest_o"
+            fi
+            if [ "$_rt_pre_ok" = "0" ]; then
+              # shellcheck disable=SC2086
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_p_o" "$_rt_pre_seed"; then
+                _rt_pre_ok=1
+                echo "rt-prefer: R3 preamble ← $_rt_pre_seed (G-02f-265 seed slice cold)"
+              fi
+            fi
+          fi
+          if [ -n "$_rt_cmp_o" ] && [ -f "$_rt_compile_seed" ]; then
+            # G-02f-454：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
+            # 门闩：.x -E 可能「假成功」缺关键 T 符号；FROM_X rest 仅前向声明 → 最终 link U。
+            # 合并后必须有 seed 权威入口，否则回退完整 seed 冷编。
+            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_compile_x" ]; then
+              _rt_cmp_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_compile_thin.XXXXXX") || true
+              _rt_cmp_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_compile_rest.XXXXXX") || true
+              if [ -n "$_rt_cmp_thin_o" ] && [ -n "$_rt_cmp_rest_o" ] \
+                && rt_prefer_try_x_to_o "$_rt_compile_x" "$_rt_cmp_thin_o" \
+                && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_COMPILE_FROM_X \
+                     -c -o "$_rt_cmp_rest_o" "$_rt_compile_seed" \
+                && $CC -r -nostdlib -o "$_rt_cmp_o" "$_rt_cmp_thin_o" "$_rt_cmp_rest_o" 2>/dev/null \
+                && nm "$_rt_cmp_o" 2>/dev/null | grep -q " T driver_compile_state_alloc_c$" \
+                && nm "$_rt_cmp_o" 2>/dev/null | grep -q " T driver_deps_are_std_core_closure_only$" \
+                && nm "$_rt_cmp_o" 2>/dev/null | grep -q " T driver_compile_parse_argv_impl_c$"; then
+                _rt_compile_ok=1
+                echo "rt-prefer: R6 compile ← full .x + rest marker (R2 full H=0)"
+              else
+                echo "rt-prefer: R6 compile .x hybrid incomplete (missing T exports) → seed fallback" >&2
+              fi
+              rm -f "$_rt_cmp_thin_o" "$_rt_cmp_rest_o"
+            fi
+            if [ "$_rt_compile_ok" = "0" ]; then
+              # shellcheck disable=SC2086
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_cmp_o" "$_rt_compile_seed"; then
+                _rt_compile_ok=1
+                echo "rt-prefer: R6 compile pure ← $_rt_compile_seed (G-02f-291~296 seed slice)"
+              fi
+            fi
+          fi
+          if [ -n "$_rt_run_o" ]; then
+            # R2 full H=0：PREFER_X_O=1 时 full .x + rest seed (-D，仅 marker) → cc -r 合并
+            # 门闩：.x -E 假成功缺 driver_run_test 时不得标 FROM_X（否则 driver_test_x 链 U）。
+            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_run_exec_x" ]; then
+              _rt_run_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_run_thin.XXXXXX") || true
+              _rt_run_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_run_rest.XXXXXX") || true
+              if [ -n "$_rt_run_thin_o" ] && [ -n "$_rt_run_rest_o" ] \
+                && rt_prefer_try_x_to_o "$_rt_run_exec_x" "$_rt_run_thin_o" \
+                && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_RUN_EXEC_FROM_X \
+                     -c -o "$_rt_run_rest_o" "$_rt_run_seed" \
+                && $CC -r -nostdlib -o "$_rt_run_o" "$_rt_run_thin_o" "$_rt_run_rest_o" 2>/dev/null \
+                && nm "$_rt_run_o" 2>/dev/null | grep -q " T driver_run_test$"; then
+                _rt_run_ok=1
+                echo "rt-prefer: R7 run/exec ← full .x + rest marker (R2 full H=0)"
+              else
+                echo "rt-prefer: R7 run/exec .x hybrid incomplete (missing driver_run_test) → seed fallback" >&2
+              fi
+              rm -f "$_rt_run_thin_o" "$_rt_run_rest_o"
+            fi
+            if [ "$_rt_run_ok" = "0" ] && [ -f "$_rt_run_seed" ]; then
+              # shellcheck disable=SC2086
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_run_o" "$_rt_run_seed"; then
+                _rt_run_ok=1
+                echo "rt-prefer: R7 run/exec ← $_rt_run_seed (G-02f-297~299/311 seed slice)"
+              fi
+            fi
+          fi
+          if [ -n "$_rt_asm_o" ]; then
+            # R2 full H=0：PREFER_X_O=1 时 full .x + rest seed (-D，仅 marker) → cc -r 合并
+            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_asm_stub_x" ]; then
+              _rt_asm_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_asm_thin.XXXXXX") || true
+              _rt_asm_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_asm_rest.XXXXXX") || true
+              if [ -n "$_rt_asm_thin_o" ] && [ -n "$_rt_asm_rest_o" ] \
+                && rt_prefer_try_x_to_o "$_rt_asm_stub_x" "$_rt_asm_thin_o" \
+                && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_ASM_STUB_FROM_X \
+                     -c -o "$_rt_asm_rest_o" "$_rt_asm_seed" \
+                && $CC -r -nostdlib -o "$_rt_asm_o" "$_rt_asm_thin_o" "$_rt_asm_rest_o" 2>/dev/null; then
+                _rt_asm_ok=1
+                echo "rt-prefer: R9 asm stub ← full .x + rest marker (R2 full H=0)"
+              fi
+              rm -f "$_rt_asm_thin_o" "$_rt_asm_rest_o"
+            fi
+            if [ "$_rt_asm_ok" = "0" ] && [ -f "$_rt_asm_seed" ]; then
+              # shellcheck disable=SC2086
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_asm_o" "$_rt_asm_seed"; then
+                _rt_asm_ok=1
+                echo "rt-prefer: R9 asm stub ← $_rt_asm_seed (G-02f-300 seed slice cold)"
+              fi
+            fi
+          fi
+          if [ -n "$_rt_ent_o" ] && [ -f "$_rt_entry_seed" ]; then
+            # R2 full H=0：PREFER_X_O=1 时 full .x + rest seed (-D，仅 marker) → cc -r 合并
+            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_entry_x" ]; then
+              _rt_ent_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_entry_thin.XXXXXX") || true
+              _rt_ent_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_entry_rest.XXXXXX") || true
+              if [ -n "$_rt_ent_thin_o" ] && [ -n "$_rt_ent_rest_o" ] \
+                && rt_prefer_try_x_to_o "$_rt_entry_x" "$_rt_ent_thin_o" \
+                && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_ENTRY_FROM_X \
+                     -c -o "$_rt_ent_rest_o" "$_rt_entry_seed" \
+                && $CC -r -nostdlib -o "$_rt_ent_o" "$_rt_ent_thin_o" "$_rt_ent_rest_o" 2>/dev/null; then
+                _rt_entry_ok=1
+                echo "rt-prefer: R10 entry ← full .x + rest marker (R2 full H=0)"
+              fi
+              rm -f "$_rt_ent_thin_o" "$_rt_ent_rest_o"
+            fi
+            if [ "$_rt_entry_ok" = "0" ]; then
+              # shellcheck disable=SC2086
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_ent_o" "$_rt_entry_seed"; then
+                _rt_entry_ok=1
+                echo "rt-prefer: R10 entry gates ← $_rt_entry_seed (G-02f-301/310 seed slice)"
+              fi
+            fi
+          fi
+          if [ -n "$_rt_diag_o" ] && [ -f "$_rt_diag_seed" ]; then
+            # R2 full H=0：PREFER_X_O=1 时 full .x + rest seed (-D，仅 marker) → cc -r 合并
+            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_diag_x" ]; then
+              _rt_diag_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_diag_thin.XXXXXX") || true
+              _rt_diag_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_diag_rest.XXXXXX") || true
+              if [ -n "$_rt_diag_thin_o" ] && [ -n "$_rt_diag_rest_o" ] \
+                && rt_prefer_try_x_to_o "$_rt_diag_x" "$_rt_diag_thin_o" \
+                && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_DIAG_ERRNO_FROM_X \
+                     -c -o "$_rt_diag_rest_o" "$_rt_diag_seed" \
+                && $CC -r -nostdlib -o "$_rt_diag_o" "$_rt_diag_thin_o" "$_rt_diag_rest_o" 2>/dev/null; then
+                _rt_diag_ok=1
+                echo "rt-prefer: rest diag_errno ← full .x + rest marker (R2 full H=0)"
+              fi
+              rm -f "$_rt_diag_thin_o" "$_rt_diag_rest_o"
+            fi
+            if [ "$_rt_diag_ok" = "0" ]; then
+              # shellcheck disable=SC2086
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_diag_o" "$_rt_diag_seed"; then
+                _rt_diag_ok=1
+                echo "rt-prefer: rest diag errno ← $_rt_diag_seed (G-02f-302 seed slice cold)"
+              fi
+            fi
+          fi
+          if [ -n "$_rt_est_o" ] && [ -f "$_rt_emit_st_seed" ]; then
+            # G-02f-455：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
+            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_emit_st_x" ]; then
+              _rt_est_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_emit_st_thin.XXXXXX") || true
+              _rt_est_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_emit_st_rest.XXXXXX") || true
+              if [ -n "$_rt_est_thin_o" ] && [ -n "$_rt_est_rest_o" ] \
+                && rt_prefer_try_x_to_o "$_rt_emit_st_x" "$_rt_est_thin_o" \
+                && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_EMIT_STATE_FROM_X \
+                     -c -o "$_rt_est_rest_o" "$_rt_emit_st_seed" \
+                && $CC -r -nostdlib -o "$_rt_est_o" "$_rt_est_thin_o" "$_rt_est_rest_o" 2>/dev/null; then
+                _rt_est_ok=1
+                echo "rt-prefer: rest emit state ← full .x + rest BSS+marker (R2 full H=0)"
+              fi
+              rm -f "$_rt_est_thin_o" "$_rt_est_rest_o"
+            fi
+            if [ "$_rt_est_ok" = "0" ]; then
+              # shellcheck disable=SC2086
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_est_o" "$_rt_emit_st_seed"; then
+                _rt_est_ok=1
+                echo "rt-prefer: rest emit state+argv ← $_rt_emit_st_seed (G-02f-303/304 seed slice)"
+              fi
+            fi
+          fi
+          if [ -n "$_rt_elfd_o" ] && [ -f "$_rt_elf_diag_seed" ]; then
+            # G-02f-445：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
+            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_elf_diag_x" ]; then
+              _rt_elfd_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_elf_diag_thin.XXXXXX") || true
+              _rt_elfd_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_elf_diag_rest.XXXXXX") || true
+              if [ -n "$_rt_elfd_thin_o" ] && [ -n "$_rt_elfd_rest_o" ] \
+                && rt_prefer_try_x_to_o "$_rt_elf_diag_x" "$_rt_elfd_thin_o" \
+                && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_PIPELINE_ELF_DIAG_FROM_X \
+                     -c -o "$_rt_elfd_rest_o" "$_rt_elf_diag_seed" \
+                && $CC -r -nostdlib -o "$_rt_elfd_o" "$_rt_elfd_thin_o" "$_rt_elfd_rest_o" 2>/dev/null; then
+                _rt_elfd_ok=1
+                echo "rt-prefer: rest pipeline elf diag ← full .x + rest marker (R2 full H=0)"
+              fi
+              rm -f "$_rt_elfd_thin_o" "$_rt_elfd_rest_o"
+            fi
+            if [ "$_rt_elfd_ok" = "0" ]; then
+              # shellcheck disable=SC2086
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_elfd_o" "$_rt_elf_diag_seed"; then
+                _rt_elfd_ok=1
+                echo "rt-prefer: rest pipeline elf diag ← $_rt_elf_diag_seed (G-02f-304 seed slice)"
+              fi
+            fi
+          fi
+          if [ -n "$_rt_lr_o" ]; then
+            # G-02f-432：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
+            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_lib_root_x" ]; then
+              _rt_lr_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_lr_thin.XXXXXX") || true
+              _rt_lr_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_lr_rest.XXXXXX") || true
+              if [ -n "$_rt_lr_thin_o" ] && [ -n "$_rt_lr_rest_o" ] \
+                && rt_prefer_try_x_to_o "$_rt_lib_root_x" "$_rt_lr_thin_o" \
+                && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_LIB_ROOT_FROM_X \
+                     -c -o "$_rt_lr_rest_o" "$_rt_lib_root_seed" \
+                && $CC -r -nostdlib -o "$_rt_lr_o" "$_rt_lr_thin_o" "$_rt_lr_rest_o" 2>/dev/null; then
+                _rt_lr_ok=1
+                echo "rt-prefer: rest lib_root ← thin .x + rest (G-02f-432 L2 prefer .x)"
+              fi
+              rm -f "$_rt_lr_thin_o" "$_rt_lr_rest_o"
+            fi
+            if [ "$_rt_lr_ok" = "0" ] && [ -f "$_rt_lib_root_seed" ]; then
+              # shellcheck disable=SC2086
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_lr_o" "$_rt_lib_root_seed"; then
+                _rt_lr_ok=1
+                echo "rt-prefer: rest lib_root ← $_rt_lib_root_seed (G-02f-305 seed slice)"
+              fi
+            fi
+          fi
+          if [ -n "$_rt_pd_o" ] && [ -f "$_rt_parse_diag_seed" ]; then
+            # G-02f-448：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
+            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_parse_diag_x" ]; then
+              _rt_pd_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_parse_diag_thin.XXXXXX") || true
+              _rt_pd_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_parse_diag_rest.XXXXXX") || true
+              if [ -n "$_rt_pd_thin_o" ] && [ -n "$_rt_pd_rest_o" ] \
+                && rt_prefer_try_x_to_o "$_rt_parse_diag_x" "$_rt_pd_thin_o" \
+                && $CC $BASE_CFLAGS -I. -Iinclude -Isrc \
+                     -DXLANG_RT_PARSE_DIAG_FROM_X -DXLANG_RT_PARSE_DIAG_PRECISE_BRIDGE \
+                     -c -o "$_rt_pd_rest_o" "$_rt_parse_diag_seed" \
+                && $CC -r -nostdlib -o "$_rt_pd_o" "$_rt_pd_thin_o" "$_rt_pd_rest_o" 2>/dev/null; then
+                _rt_pd_ok=1
+                echo "rt-prefer: rest parse_diag ← thin .x + rest (R2 full H=0; G-02f-448 PREFER_X_O)"
+              fi
+              rm -f "$_rt_pd_thin_o" "$_rt_pd_rest_o"
+            fi
+            if [ "$_rt_pd_ok" = "0" ]; then
+              # shellcheck disable=SC2086
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_pd_o" "$_rt_parse_diag_seed"; then
+                _rt_pd_ok=1
+                echo "rt-prefer: rest parse diag ← $_rt_parse_diag_seed (G-02f-307 seed slice)"
+              fi
+            fi
+          fi
+          if [ -n "$_rt_fs_o" ] && [ -f "$_rt_fs_open_seed" ]; then
+            # G-02f-452：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
+            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_fs_open_x" ]; then
+              _rt_fs_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_fs_open_thin.XXXXXX") || true
+              _rt_fs_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_fs_open_rest.XXXXXX") || true
+              if [ -n "$_rt_fs_thin_o" ] && [ -n "$_rt_fs_rest_o" ] \
+                && rt_prefer_try_x_to_o "$_rt_fs_open_x" "$_rt_fs_thin_o" \
+                && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_FS_OPEN_FROM_X \
+                     -c -o "$_rt_fs_rest_o" "$_rt_fs_open_seed" \
+                && $CC -r -nostdlib -o "$_rt_fs_o" "$_rt_fs_thin_o" "$_rt_fs_rest_o" 2>/dev/null; then
+                _rt_fs_ok=1
+                echo "rt-prefer: rest fs open ← thin .x + rest (R2 full H=0; G-02f-452 PREFER_X_O)"
+              fi
+              rm -f "$_rt_fs_thin_o" "$_rt_fs_rest_o"
+            fi
+            if [ "$_rt_fs_ok" = "0" ]; then
+              # shellcheck disable=SC2086
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_fs_o" "$_rt_fs_open_seed"; then
+                _rt_fs_ok=1
+                echo "rt-prefer: rest fs open ← $_rt_fs_open_seed (G-02f-308 seed slice)"
+              fi
+            fi
+          fi
+          if [ -n "$_rt_ab_o" ] && [ -f "$_rt_arena_buf_seed" ]; then
+            # R2 full H=0：PREFER_X_O=1 时 full .x + rest seed (-D，BSS+marker) → cc -r 合并
+            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_arena_buf_x" ]; then
+              _rt_ab_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_arena_thin.XXXXXX") || true
+              _rt_ab_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_arena_rest.XXXXXX") || true
+              if [ -n "$_rt_ab_thin_o" ] && [ -n "$_rt_ab_rest_o" ] \
+                && rt_prefer_try_x_to_o "$_rt_arena_buf_x" "$_rt_ab_thin_o" \
+                && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_ARENA_BUF_FROM_X \
+                     -c -o "$_rt_ab_rest_o" "$_rt_arena_buf_seed" \
+                && $CC -r -nostdlib -o "$_rt_ab_o" "$_rt_ab_thin_o" "$_rt_ab_rest_o" 2>/dev/null; then
+                _rt_ab_ok=1
+                echo "rt-prefer: rest arena_buf ← full .x + rest BSS+marker (R2 full H=0)"
+              fi
+              rm -f "$_rt_ab_thin_o" "$_rt_ab_rest_o"
+            fi
+            if [ "$_rt_ab_ok" = "0" ]; then
+              # shellcheck disable=SC2086
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_ab_o" "$_rt_arena_buf_seed"; then
+                _rt_ab_ok=1
+                echo "rt-prefer: rest arena_buf ← $_rt_arena_buf_seed (G-02f-309 seed slice)"
+              fi
+            fi
+          fi
+          if [ -n "$_rt_fo_o" ] && [ -f "$_rt_fmt_one_seed" ]; then
+            # R2 full H=0：PREFER_X_O=1 时 full .x + rest seed (-D，仅 marker) → cc -r 合并
+            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_fmt_one_x" ]; then
+              _rt_fo_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_fmt_one_thin.XXXXXX") || true
+              _rt_fo_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_fmt_one_rest.XXXXXX") || true
+              if [ -n "$_rt_fo_thin_o" ] && [ -n "$_rt_fo_rest_o" ] \
+                && rt_prefer_try_x_to_o "$_rt_fmt_one_x" "$_rt_fo_thin_o" \
+                && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_FMT_ONE_FROM_X \
+                     -c -o "$_rt_fo_rest_o" "$_rt_fmt_one_seed" \
+                && $CC -r -nostdlib -o "$_rt_fo_o" "$_rt_fo_thin_o" "$_rt_fo_rest_o" 2>/dev/null; then
+                _rt_fo_ok=1
+                echo "rt-prefer: rest fmt_one ← full .x + rest marker (R2 full H=0)"
+              fi
+              rm -f "$_rt_fo_thin_o" "$_rt_fo_rest_o"
+            fi
+            if [ "$_rt_fo_ok" = "0" ]; then
+              # shellcheck disable=SC2086
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_fo_o" "$_rt_fmt_one_seed"; then
+                _rt_fo_ok=1
+                echo "rt-prefer: rest fmt_one ← $_rt_fmt_one_seed (G-02f-311 seed slice cold)"
+              fi
+            fi
+          fi
+          if [ -n "$_rt_dt_o" ] && [ -f "$_rt_dispatch_thin_seed" ]; then
+            # R2 full H=0：PREFER_X_O=1 时 full .x + rest seed (-D，仅 marker) → cc -r 合并
+            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_dispatch_thin_x" ]; then
+              _rt_dt_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_dispatch_thin_thin.XXXXXX") || true
+              _rt_dt_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_dispatch_thin_rest.XXXXXX") || true
+              if [ -n "$_rt_dt_thin_o" ] && [ -n "$_rt_dt_rest_o" ] \
+                && rt_prefer_try_x_to_o "$_rt_dispatch_thin_x" "$_rt_dt_thin_o" \
+                && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_DISPATCH_THIN_FROM_X \
+                     -c -o "$_rt_dt_rest_o" "$_rt_dispatch_thin_seed" \
+                && $CC -r -nostdlib -o "$_rt_dt_o" "$_rt_dt_thin_o" "$_rt_dt_rest_o" 2>/dev/null; then
+                _rt_dt_ok=1
+                echo "rt-prefer: rest dispatch_thin ← full .x + rest marker (R2 H=0)"
+              fi
+              rm -f "$_rt_dt_thin_o" "$_rt_dt_rest_o"
+            fi
+            if [ "$_rt_dt_ok" = "0" ]; then
+              # shellcheck disable=SC2086
+              # cold / no PREFER：全 C 体；product 冷路径仍带 ASM_USE_COMPILER_IMPL_C 选 full 分派
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_ASM_USE_COMPILER_IMPL_C -c -o "$_rt_dt_o" "$_rt_dispatch_thin_seed"; then
+                _rt_dt_ok=1
+                echo "rt-prefer: rest dispatch_thin ← $_rt_dispatch_thin_seed (G-02f-312 seed slice cold)"
+              fi
+            fi
+          fi
+          if [ -n "$_rt_di_o" ] && [ -f "$_rt_dispatch_impl_seed" ]; then
+            # R2 full H=0：PREFER_X_O=1 时 full .x + rest seed (-D，仅 marker) → cc -r 合并
+            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_dispatch_impl_x" ]; then
+              _rt_di_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_dispatch_impl_thin.XXXXXX") || true
+              _rt_di_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_dispatch_impl_rest.XXXXXX") || true
+              if [ -n "$_rt_di_thin_o" ] && [ -n "$_rt_di_rest_o" ] \
+                && rt_prefer_try_x_to_o "$_rt_dispatch_impl_x" "$_rt_di_thin_o" \
+                && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_DISPATCH_IMPL_FROM_X \
+                     -c -o "$_rt_di_rest_o" "$_rt_dispatch_impl_seed" \
+                && $CC -r -nostdlib -o "$_rt_di_o" "$_rt_di_thin_o" "$_rt_di_rest_o" 2>/dev/null; then
+                _rt_di_ok=1
+                echo "rt-prefer: rest dispatch_impl ← full .x + rest marker (R2 H=0)"
+              fi
+              rm -f "$_rt_di_thin_o" "$_rt_di_rest_o"
+            fi
+            if [ "$_rt_di_ok" = "0" ]; then
+              # shellcheck disable=SC2086
+              # same product NO_C / pipeline / impl flags as runtime rest
+              if $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_di_o" "$_rt_dispatch_impl_seed"; then
+                _rt_di_ok=1
+                echo "rt-prefer: rest dispatch_impl ← $_rt_dispatch_impl_seed (G-02f-313 seed slice)"
+              fi
+            fi
+          fi
+          if [ -n "$_rt_xe_o" ] && [ -f "$_rt_run_x_emit_seed" ]; then
+            # R2 full H=0：PREFER_X_O=1 时 full .x + rest seed (-D，仅 marker) → cc -r 合并
+            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_run_x_emit_x" ]; then
+              _rt_xe_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_run_x_emit_thin.XXXXXX") || true
+              _rt_xe_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_run_x_emit_rest.XXXXXX") || true
+              if [ -n "$_rt_xe_thin_o" ] && [ -n "$_rt_xe_rest_o" ] \
+                && rt_prefer_try_x_to_o "$_rt_run_x_emit_x" "$_rt_xe_thin_o" \
+                && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_RUN_X_EMIT_FROM_X \
+                     -c -o "$_rt_xe_rest_o" "$_rt_run_x_emit_seed" \
+                && $CC -r -nostdlib -o "$_rt_xe_o" "$_rt_xe_thin_o" "$_rt_xe_rest_o" 2>/dev/null; then
+                _rt_xe_ok=1
+                echo "rt-prefer: R2 run_x_emit ← full .x + rest marker (R2 full H=0)"
+              fi
+              rm -f "$_rt_xe_thin_o" "$_rt_xe_rest_o"
+            fi
+            if [ "$_rt_xe_ok" = "0" ]; then
+              # shellcheck disable=SC2086
+              if $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_xe_o" "$_rt_run_x_emit_seed"; then
+                _rt_xe_ok=1
+                echo "rt-prefer: rest run_x_emit ← $_rt_run_x_emit_seed (G-02f-314 seed slice cold)"
+              fi
+            fi
+          fi
+          if [ -n "$_rt_abk_o" ] && [ -f "$_rt_run_asm_backend_seed" ]; then
+            # R2 full H=0：PREFER_X_O=1 时 full .x + rest seed (-D，仅 marker) → cc -r 合并
+            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_run_asm_backend_x" ]; then
+              _rt_abk_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_abk_thin.XXXXXX") || true
+              _rt_abk_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_abk_rest.XXXXXX") || true
+              if [ -n "$_rt_abk_thin_o" ] && [ -n "$_rt_abk_rest_o" ] \
+                && rt_prefer_try_x_to_o "$_rt_run_asm_backend_x" "$_rt_abk_thin_o" \
+                && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_RUN_ASM_BACKEND_FROM_X \
+                     -c -o "$_rt_abk_rest_o" "$_rt_run_asm_backend_seed" \
+                && $CC -r -nostdlib -o "$_rt_abk_o" "$_rt_abk_thin_o" "$_rt_abk_rest_o" 2>/dev/null; then
+                _rt_abk_ok=1
+                echo "rt-prefer: R2 run_asm_backend ← full .x + rest marker (R2 full H=0)"
+              fi
+              rm -f "$_rt_abk_thin_o" "$_rt_abk_rest_o"
+            fi
+            if [ "$_rt_abk_ok" = "0" ]; then
+              # shellcheck disable=SC2086
+              if $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_abk_o" "$_rt_run_asm_backend_seed"; then
+                _rt_abk_ok=1
+                echo "rt-prefer: rest run_asm_backend ← $_rt_run_asm_backend_seed (G-02f-315 seed slice)"
+              fi
+            fi
+          fi
+          if [ -n "$_rt_rcp_o" ] && [ -f "$_rt_run_compiler_parsed_seed" ]; then
+            # R2 full H=0：PREFER_X_O=1 时 full .x + rest seed (-D，仅 marker) → cc -r 合并
+            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_run_compiler_parsed_x" ]; then
+              _rt_rcp_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_rcp_thin.XXXXXX") || true
+              _rt_rcp_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_rcp_rest.XXXXXX") || true
+              if [ -n "$_rt_rcp_thin_o" ] && [ -n "$_rt_rcp_rest_o" ] \
+                && rt_prefer_try_x_to_o "$_rt_run_compiler_parsed_x" "$_rt_rcp_thin_o" \
+                && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_RUN_COMPILER_PARSED_FROM_X \
+                     -c -o "$_rt_rcp_rest_o" "$_rt_run_compiler_parsed_seed" \
+                && $CC -r -nostdlib -o "$_rt_rcp_o" "$_rt_rcp_thin_o" "$_rt_rcp_rest_o" 2>/dev/null; then
+                _rt_rcp_ok=1
+                echo "rt-prefer: R2 run_compiler_parsed ← full .x + rest marker (R2 full H=0)"
+              fi
+              rm -f "$_rt_rcp_thin_o" "$_rt_rcp_rest_o"
+            fi
+            if [ "$_rt_rcp_ok" = "0" ]; then
+              # shellcheck disable=SC2086
+              if $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_rcp_o" "$_rt_run_compiler_parsed_seed"; then
+                _rt_rcp_ok=1
+                echo "rt-prefer: rest run_compiler_parsed ← $_rt_run_compiler_parsed_seed (G-02f-316 seed slice cold)"
+              fi
+            fi
+          fi
+          if [ -n "$_rt_st_o" ] && [ -f "$_rt_stack_seed" ]; then
+            # R2 full H=0：PREFER_X_O=1 时 full .x + rest seed (-D，仅 marker) → cc -r 合并
+            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_stack_x" ]; then
+              _rt_st_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_stack_thin.XXXXXX") || true
+              _rt_st_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_stack_rest.XXXXXX") || true
+              if [ -n "$_rt_st_thin_o" ] && [ -n "$_rt_st_rest_o" ] \
+                && rt_prefer_try_x_to_o "$_rt_stack_x" "$_rt_st_thin_o" \
+                && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_STACK_FROM_X \
+                     -c -o "$_rt_st_rest_o" "$_rt_stack_seed" \
+                && $CC -r -nostdlib -o "$_rt_st_o" "$_rt_st_thin_o" "$_rt_st_rest_o" 2>/dev/null; then
+                _rt_st_ok=1
+                echo "rt-prefer: rest stack esc ← full .x + rest marker (R2 full H=0)"
+              fi
+              rm -f "$_rt_st_thin_o" "$_rt_st_rest_o"
+            fi
+            if [ "$_rt_st_ok" = "0" ]; then
+              # shellcheck disable=SC2086
+              if $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_st_o" "$_rt_stack_seed"; then
+                _rt_st_ok=1
+                echo "rt-prefer: rest stack esc ← $_rt_stack_seed (G-02f-317 seed slice cold)"
+              fi
+            fi
+          fi
+          _rt_rest_defs="-DXLANG_RT_CONTENT_FROM_X"
+          if [ "$_rt_util_ok" = "1" ]; then
+            _rt_rest_defs="$_rt_rest_defs -DXLANG_RT_UTIL_FROM_X"
+          fi
+          if [ "$_rt_argv_ok" = "1" ]; then
+            _rt_rest_defs="$_rt_rest_defs -DXLANG_RT_ARGV_FROM_X"
+          fi
+          if [ "$_rt_ef_ok" = "1" ]; then
+            _rt_rest_defs="$_rt_rest_defs -DXLANG_RT_EMIT_FLAGS_FROM_X"
+          fi
+          if [ "$_rt_pre_ok" = "1" ]; then
+            _rt_rest_defs="$_rt_rest_defs -DXLANG_RT_PREAMBLE_FROM_X"
+          fi
+          if [ "$_rt_compile_ok" = "1" ]; then
+            _rt_rest_defs="$_rt_rest_defs -DXLANG_RT_COMPILE_FROM_X"
+          fi
+          if [ "$_rt_run_ok" = "1" ]; then
+            _rt_rest_defs="$_rt_rest_defs -DXLANG_RT_RUN_EXEC_FROM_X"
+          fi
+          if [ "$_rt_asm_ok" = "1" ]; then
+            _rt_rest_defs="$_rt_rest_defs -DXLANG_RT_ASM_STUB_FROM_X"
+          fi
+          if [ "$_rt_entry_ok" = "1" ]; then
+            _rt_rest_defs="$_rt_rest_defs -DXLANG_RT_ENTRY_FROM_X"
+          fi
+          if [ "$_rt_diag_ok" = "1" ]; then
+            _rt_rest_defs="$_rt_rest_defs -DXLANG_RT_DIAG_ERRNO_FROM_X"
+          fi
+          if [ "$_rt_est_ok" = "1" ]; then
+            _rt_rest_defs="$_rt_rest_defs -DXLANG_RT_EMIT_STATE_FROM_X"
+          fi
+          if [ "$_rt_elfd_ok" = "1" ]; then
+            _rt_rest_defs="$_rt_rest_defs -DXLANG_RT_PIPELINE_ELF_DIAG_FROM_X"
+          fi
+          if [ "$_rt_lr_ok" = "1" ]; then
+            _rt_rest_defs="$_rt_rest_defs -DXLANG_RT_LIB_ROOT_FROM_X"
+          fi
+          if [ "$_rt_pd_ok" = "1" ]; then
+            _rt_rest_defs="$_rt_rest_defs -DXLANG_RT_PARSE_DIAG_FROM_X"
+          fi
+          if [ "$_rt_fs_ok" = "1" ]; then
+            _rt_rest_defs="$_rt_rest_defs -DXLANG_RT_FS_OPEN_FROM_X"
+          fi
+          if [ "$_rt_ab_ok" = "1" ]; then
+            _rt_rest_defs="$_rt_rest_defs -DXLANG_RT_ARENA_BUF_FROM_X"
+          fi
+          if [ "$_rt_fo_ok" = "1" ]; then
+            _rt_rest_defs="$_rt_rest_defs -DXLANG_RT_FMT_ONE_FROM_X"
+          fi
+          if [ "$_rt_dt_ok" = "1" ]; then
+            _rt_rest_defs="$_rt_rest_defs -DXLANG_RT_DISPATCH_THIN_FROM_X"
+          fi
+          if [ "$_rt_di_ok" = "1" ]; then
+            _rt_rest_defs="$_rt_rest_defs -DXLANG_RT_DISPATCH_IMPL_FROM_X"
+          fi
+          if [ "$_rt_xe_ok" = "1" ]; then
+            _rt_rest_defs="$_rt_rest_defs -DXLANG_RT_RUN_X_EMIT_FROM_X"
+          fi
+          if [ "$_rt_abk_ok" = "1" ]; then
+            _rt_rest_defs="$_rt_rest_defs -DXLANG_RT_RUN_ASM_BACKEND_FROM_X"
+          fi
+          if [ "$_rt_rcp_ok" = "1" ]; then
+            _rt_rest_defs="$_rt_rest_defs -DXLANG_RT_RUN_COMPILER_PARSED_FROM_X"
+          fi
+          if [ "$_rt_st_ok" = "1" ]; then
+            _rt_rest_defs="$_rt_rest_defs -DXLANG_RT_STACK_FROM_X"
+          fi
+          # shellcheck disable=SC2086
+          if [ "$_rt_content_ok" = "1" ] && [ -n "$_rt_rest_o" ] \
+            && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc \
+                 $_rt_rest_defs -c -o "$_rt_rest_o" "$_rt"; then
+            _rt_link_objs="$_rt_c_o"
+            if [ "$_rt_util_ok" = "1" ]; then
+              _rt_link_objs="$_rt_link_objs $_rt_u_o"
+            fi
+            if [ "$_rt_argv_ok" = "1" ]; then
+              _rt_link_objs="$_rt_link_objs $_rt_a_o"
+            fi
+            if [ "$_rt_ef_ok" = "1" ]; then
+              _rt_link_objs="$_rt_link_objs $_rt_e_o"
+            fi
+            # PLATFORM: SHARED — do NOT merge RT_SEED_SLICE objs into no_c.
+            # g05_relink_env always links:
+            #   rt_arena_buf / rt_emit_state / rt_preamble / rt_stack / rt_parse_diag
+            # as separate .o. Merging them here caused Darwin 22× duplicate symbols
+            # (parse_diag recovery + arena/emit/preamble/stack). Keep FROM_X on rest
+            # (above) so no_c leaves those symbols U; permanent slice .o provide them.
+            # Still merge non-slice hybrid pieces (content/util/argv/…/fs/fmt/dispatch…).
+            if [ "$_rt_compile_ok" = "1" ]; then
+              _rt_link_objs="$_rt_link_objs $_rt_cmp_o"
+            fi
+            if [ "$_rt_run_ok" = "1" ]; then
+              _rt_link_objs="$_rt_link_objs $_rt_run_o"
+            fi
+            if [ "$_rt_asm_ok" = "1" ]; then
+              _rt_link_objs="$_rt_link_objs $_rt_asm_o"
+            fi
+            if [ "$_rt_entry_ok" = "1" ]; then
+              _rt_link_objs="$_rt_link_objs $_rt_ent_o"
+            fi
+            if [ "$_rt_diag_ok" = "1" ]; then
+              _rt_link_objs="$_rt_link_objs $_rt_diag_o"
+            fi
+            if [ "$_rt_elfd_ok" = "1" ]; then
+              _rt_link_objs="$_rt_link_objs $_rt_elfd_o"
+            fi
+            if [ "$_rt_lr_ok" = "1" ]; then
+              _rt_link_objs="$_rt_link_objs $_rt_lr_o"
+            fi
+            if [ "$_rt_fs_ok" = "1" ]; then
+              _rt_link_objs="$_rt_link_objs $_rt_fs_o"
+            fi
+            if [ "$_rt_fo_ok" = "1" ]; then
+              _rt_link_objs="$_rt_link_objs $_rt_fo_o"
+            fi
+            if [ "$_rt_dt_ok" = "1" ]; then
+              _rt_link_objs="$_rt_link_objs $_rt_dt_o"
+            fi
+            if [ "$_rt_di_ok" = "1" ]; then
+              _rt_link_objs="$_rt_link_objs $_rt_di_o"
+            fi
+            if [ "$_rt_xe_ok" = "1" ]; then
+              _rt_link_objs="$_rt_link_objs $_rt_xe_o"
+            fi
+            if [ "$_rt_abk_ok" = "1" ]; then
+              _rt_link_objs="$_rt_link_objs $_rt_abk_o"
+            fi
+            if [ "$_rt_rcp_ok" = "1" ]; then
+              _rt_link_objs="$_rt_link_objs $_rt_rcp_o"
+            fi
+            # Do NOT cp hybrid temps over permanent RT_SEED_SLICE .o (Makefile/seed
+            # path owns those). Hybrid thin+rest can be incomplete and would
+            # poison product asm codegen (CG002 code_len=0 on Darwin).
+            # shellcheck disable=SC2086
+            if $CC -r -nostdlib -o "$_rt_o" $_rt_link_objs "$_rt_rest_o" 2>/dev/null; then
+              echo "rt-prefer: $_rt_o ← R2..R10/diag/…/parsed + rest (G-02f-317 hybrid; slices external)"
+              _rt_done=1
+            fi
+          fi
+          if [ "$_rt_done" = "0" ]; then
+            echo "rt-prefer: L2 hybrid runtime slices failed; fallback full seed" >&2
+          fi
+          rm -f "$_rt_c_o" "$_rt_u_o" "$_rt_a_o" "$_rt_e_o" "$_rt_p_o" "$_rt_cmp_o" "$_rt_run_o" "$_rt_asm_o" "$_rt_ent_o" "$_rt_diag_o" "$_rt_est_o" "$_rt_elfd_o" "$_rt_lr_o" "$_rt_pd_o" "$_rt_fs_o" "$_rt_ab_o" "$_rt_fo_o" "$_rt_dt_o" "$_rt_di_o" "$_rt_xe_o" "$_rt_abk_o" "$_rt_rcp_o" "$_rt_st_o" "$_rt_rest_o"
+        fi
+        if [ "$_rt_done" = "0" ]; then
+          # PREFER_X_O=0 / hybrid 失败回退：runtime.from_x.c 单 TU。
+          # multi-error recovery 权威在 seeds/rt_parse_diag.from_x.c → 单独链 rt_parse_diag.o
+          # （g05_relink_env RT_SEED_SLICE）；NO_C 已带 XLANG_RT_PARSE_DIAG_FROM_X，禁止再 merge。
+          echo "rt-prefer: runtime_driver_no_c.o ← seed + NO_C (G-02f-14)"
+          # shellcheck disable=SC2086
+          $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_o" "$_rt"
+        fi
+      fi
+    fi
+  return 0
+}
+
+try_ensure_rt_prefer_one() {
+  local o="$1"
+  if [ -z "$o" ]; then
+    echo "ensure_host_cc_seed_o try-rt-prefer: need <out.o>" >&2
+    exit 2
+  fi
+  if [ "$o" != "src/runtime_driver_no_c.o" ]; then
+    return 3
+  fi
+  ensure_rt_prefer_one "$o"
+  return 0
+}
+
+
+# ---------------------------------------------------------------------------
 # wave760: try-r2 OUT — R2 platform-stamp panic cold body (UNAME leaf).
 #
 # Membership = catalog DRIVER_SEED_PANIC_OBJS only (lists = mk; currently
@@ -2153,6 +3323,47 @@ run_check() {
   else
     bad "scripts/g05_ensure_relink_prereqs.sh missing (wave765 g05 gate)"
   fi
+  # wave766: try-rt-prefer rt multi-slice (g05 + Makefile thin-call; no dual hybrid)
+  if ! grep -q 'try_ensure_rt_prefer_one\|try-rt-prefer' "$0"; then
+    bad "try-rt-prefer / try_ensure_rt_prefer_one missing (wave766 rt multi-slice)"
+  else
+    note "try-rt-prefer rt multi-slice helper present (wave766)"
+  fi
+  if ! grep -q 'ensure_rt_prefer_one\|rt_prefer_try_x_to_o' "$0"; then
+    bad "rt prefer body missing (wave766)"
+  else
+    note "rt-prefer multi-slice body present (wave766)"
+  fi
+  if awk '
+    $0 ~ /^src\/runtime_driver_no_c\.o:/ {grab=1; next}
+    grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+    grab {body = body $0 "\n"}
+    END {
+      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-rt-prefer/) exit 0
+      exit 1
+    }
+  ' Makefile; then
+    note "Makefile src/runtime_driver_no_c.o thin-calls ensure try-rt-prefer (wave766)"
+  else
+    bad "Makefile src/runtime_driver_no_c.o must thin-call ensure try-rt-prefer (wave766)"
+  fi
+  if [ -f scripts/g05_ensure_relink_prereqs.sh ]; then
+    if grep -q 'try-rt-prefer\|rt-prefer' scripts/g05_ensure_relink_prereqs.sh \
+      && grep -q 'ensure_host_cc_seed_o.sh' scripts/g05_ensure_relink_prereqs.sh; then
+      note "g05_ensure thin-calls ensure try-rt-prefer (wave766)"
+    else
+      bad "g05_ensure must thin-call ensure try-rt-prefer for rt multi-slice (wave766)"
+    fi
+    # Dual body residual: g05 must not re-open inline rt multi-slice hybrid.
+    if grep -qE '_rt_content_seed=seeds/rt_content|_rt_rest_defs=.*RT_CONTENT_FROM_X|g05_rt_content\.XXXXXX' \
+      scripts/g05_ensure_relink_prereqs.sh; then
+      bad "g05_ensure still has rt multi-slice dual hybrid body (wave766)"
+    else
+      note "g05_ensure rt multi-slice dual hybrid body removed (wave766)"
+    fi
+  else
+    bad "scripts/g05_ensure_relink_prereqs.sh missing (wave766 g05 gate)"
+  fi
   # wave760/762: try-r2 R2 UNAME leaves (panic + typeck_f64 + crt0)
   if ! grep -q 'try_ensure_r2_one\|try-r2' "$0"; then
     bad "try-r2 / try_ensure_r2_one missing (wave760/762 R2 UNAME)"
@@ -2261,6 +3472,19 @@ case "$MODE" in
     _try_out="$1"
     set +e
     try_ensure_labi_prefer_one "$_try_out"
+    _try_rc=$?
+    set -e
+    exit "$_try_rc"
+    ;;
+  try-rt-prefer|try_rt_prefer|rt-prefer|rt-prefer-one|try-rt)
+    # wave766: rt multi-slice PREFER helper — exit 3 if not src/runtime_driver_no_c.o.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o try-rt-prefer: need <out.o>" >&2
+      exit 2
+    fi
+    _try_out="$1"
+    set +e
+    try_ensure_rt_prefer_one "$_try_out"
     _try_rc=$?
     set -e
     exit "$_try_rc"

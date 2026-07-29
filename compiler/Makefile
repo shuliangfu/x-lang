@@ -1171,10 +1171,13 @@ src/lexer/cfg_eval.o: src/lexer/cfg_eval.x seeds/cfg_eval_link_alias.from_x.c se
 
 # runtime.c：不引用 C lexer/parser/typeck/codegen（见 XLANG_NO_C_FRONTEND 包裹的 load_one_import 等）
 # G-02f-14：G05 产品 runtime_driver_no_c
-# wave751 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MAIN_RUNTIME_OBJS).
+# wave751 R1 cold: ensure_one + NO_C · wave766 product PREFER multi-slice → try-rt-prefer.
 src/runtime_driver_no_c.o: seeds/runtime.from_x.c src/runtime.x Makefile scripts/ensure_host_cc_seed_o.sh
+	# wave766: rt multi-slice PREFER → try-rt-prefer (cold full seed + NO_C fallback).
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime.from_x.c $(RUNTIME_DRIVER_NO_C_CFLAGS)
+	  RUNTIME_DRIVER_NO_C_CFLAGS="$(RUNTIME_DRIVER_NO_C_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-rt-prefer $@
 
 # xlang_x 使用带 -DXLANG_USE_X_PIPELINE 编译的 main，否则 #ifdef 块不会生效
 # wave751 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MAIN_RUNTIME_OBJS).
