@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2 · wave763 R3 PREFER thin try-r3-prefer · wave764 g05 R3_COLD r3-prefer-family · wave765 g05 labi try-labi-prefer · wave766 g05 rt try-rt-prefer · wave767 g05 pipeline_abi/ldpc try-*-prefer · wave768 g05 target_cpu try-target-cpu-prefer)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2 · wave763 R3 PREFER thin try-r3-prefer · wave764 g05 R3_COLD r3-prefer-family · wave765 g05 labi try-labi-prefer · wave766 g05 rt try-rt-prefer · wave767 g05 pipeline_abi/ldpc try-*-prefer · wave768 g05 target_cpu try-target-cpu-prefer · wave769 g05 L2 asm try-l2-asm-prefer · wave770 g05 async try-async-prefer · wave771 g05 other L2 try-other-l2-prefer)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -35,8 +35,11 @@
 | **pipeline_abi PREFER** | `ensure_host_cc_seed_o.sh try-pipeline-abi-prefer` | **wave767**: g05 + Makefile thin-call (`runtime_pipeline_abi`) |
 | **ldpc PREFER** | `ensure_host_cc_seed_o.sh try-ldpc-prefer` | **wave767**: g05 + Makefile thin-call (`lsp_diag_pipeline_ctx`) |
 | **target_cpu PREFER** | `ensure_host_cc_seed_o.sh try-target-cpu-prefer` | **wave768**: g05 + Makefile thin-call (`target_cpu`) |
+| **L2 asm three PREFER** | `ensure_host_cc_seed_o.sh try-l2-asm-prefer` | **wave769**: g05 + Makefile thin-call (uasb/bxec/abcs) |
+| **async three PREFER** | `ensure_host_cc_seed_o.sh try-async-prefer` | **wave770**: g05 + Makefile thin-call (liveness/cps/asm_pool) |
+| **other L2 four PREFER** | `ensure_host_cc_seed_o.sh try-other-l2-prefer` | **wave771**: g05 + Makefile thin-call (slc/strict_glue/fmt_driver/lsp_diag) |
 | Phase1/final **link driver** | `bootstrap_driver_seed_link.sh` | residual is `SEED_LINK_CC -o` (11.1.4 · wave745) |
-| g05 ensure / prepare / relink | `g05_*.sh` | **wave764** R3_COLD · **wave765** labi · **wave766** rt · **wave767** pipeline_abi/ldpc · **wave768** target_cpu via ensure; residual other L2 |
+| g05 ensure / prepare / relink | `g05_*.sh` | **wave764**–**wave771** R3_COLD / labi / rt / pipeline_abi / ldpc / target_cpu / L2-asm / async / other-L2 via ensure try-*-prefer; residual pure-ld · physical delete · `fmt_check_cmd.o` Makefile dual |
 | migrate / `*_gen` ensure | `migrate_x_objs.sh` · `ensure_*_gen.sh` | wave735–740 |
 | Host facts / linker policy map | `host_platform_linker.sh` | wave745 |
 | **R1 pure host-cc body · eight families** | `ensure_host_cc_seed_o.sh` | **wave748**–**wave755**; residual non-catalog |
@@ -283,10 +286,43 @@ After (wave768):
 
 | Swallowed | Still residual |
 |-----------|----------------|
-| g05 target_cpu PREFER hybrid (product daily path) | other L2 hybrid · pure-ld · physical delete |
+| g05 target_cpu PREFER hybrid (product daily path) | ~~L2 asm / async / other L2~~ (wave769–771) · pure-ld · physical delete |
 | Second prefer body for target_cpu.o | panic PREFER (if any) · R5 CI |
 
 **Forbidden:** re-open g05 inline target_cpu flags hybrid; second prefer body under a second name; duplicate -E prologue (reuse rt_prefer_try_x_to_o).
+
+### wave769 · g05 L2 asm three PREFER → try-l2-asm-prefer (G.7 有则补全)
+
+Table body for `user_asm_seed_bridge` / `backend_x86_64_enc_c` / `asm_backend_compat_stubs`. g05 + Makefile thin-call. Residual after: ~~async~~ wave770 · ~~other L2~~ wave771.
+
+### wave770 · g05 async three PREFER → try-async-prefer (G.7 有则补全)
+
+Table body for `async_liveness` / `async_cps_codegen` / `async_asm_pool` (full .x + rest FROM_X). g05 + Makefile thin-call. Residual after: ~~other L2~~ wave771.
+
+### wave771 · g05 other L2 four PREFER → try-other-l2-prefer (G.7 有则补全)
+
+```text
+Before (wave770):
+  g05_ensure inline dual hybrid for:
+    seed_link_compat (named-weak 6 stubs + special -E prologue)
+    runtime_driver_strict_glue_stubs (WEAK thin + heap stale)
+    fmt_check_cmd_driver (WEAK thin + USE_X_PIPELINE rest/cold)
+    lsp_diag (WEAK thin runtime_lsp_glue.x + FULL_FROM_X rest)
+  Makefile: ensure one cold (slc/strict/lsp) · dual hybrid (fmt driver)
+
+After (wave771):
+  ensure try-other-l2-prefer owns four PREFER bodies (table-driven)
+    reuses rt_prefer_try_x_to_o; G05_X_O_WEAK_FUNCS for slc6
+  g05_ensure + Makefile thin-call try-other-l2-prefer
+  dual g05 four hybrid bodies deleted
+```
+
+| Swallowed | Still residual |
+|-----------|----------------|
+| g05 other L2 four PREFER hybrids (product daily path) | pure-ld · physical delete · `fmt_check_cmd.o` Makefile dual (non-g05) |
+| Second prefer body for the four leaves | panic PREFER (if any) · R5 CI |
+
+**Forbidden:** re-open g05 inline slc/strict/fmt/lsp hybrid; second prefer body under a second name; dual -E prologue (reuse rt_prefer + WEAK_FUNCS).
 
 ### wave758 · R4 residual thin_glue → R1 seed-map (G.7 有则补全)
 

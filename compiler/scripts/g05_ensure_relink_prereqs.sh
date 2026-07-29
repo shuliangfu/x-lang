@@ -470,8 +470,6 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # wave770 G.7: async three product PREFER → ensure try-async-prefer
   # (table body; full .x + rest FROM_X → cc -r; cold ensure_one).
   # Leaves: async_liveness · async_cps_codegen · async_asm_pool.
-  # residual: other L2 (seed_link_compat / strict_glue / fmt_check / lsp_diag…)
-  #   · pure-ld · physical delete.
   # PLATFORM: SHARED product daily path · default PREFER=1 (g05 historic).
   if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
     for _async_o in \
@@ -486,6 +484,26 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     done
   else
     echo "g05_ensure: missing ensure_host_cc_seed_o.sh; async prefer residual" >&2
+  fi
+  # wave771 G.7: other L2 four product PREFER → ensure try-other-l2-prefer
+  # (table body; thin/full .x + rest FROM_X → cc -r; slc named-weak; cold ensure_one).
+  # Leaves: seed_link_compat · strict_glue_stubs · fmt_check_cmd_driver · lsp_diag.
+  # residual: pure-ld · physical delete · fmt_check_cmd.o Makefile dual (non-g05).
+  # PLATFORM: SHARED product daily path · default PREFER=1 (g05 historic).
+  if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
+    for _ol2_o in \
+      src/seed_link_compat.o \
+      src/runtime_driver_strict_glue_stubs.o \
+      src/driver/fmt_check_cmd_driver.o \
+      src/lsp/lsp_diag.o; do
+      echo "g05_ensure: try-other-l2-prefer $_ol2_o (wave771)"
+      XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
+        CC="$CC" CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}" \
+        bash scripts/ensure_host_cc_seed_o.sh try-other-l2-prefer "$_ol2_o" \
+        || echo "g05_ensure: try-other-l2-prefer failed for $_ol2_o (non-fatal if unused)" >&2
+    done
+  else
+    echo "g05_ensure: missing ensure_host_cc_seed_o.sh; other-l2 prefer residual" >&2
   fi
   # G-02f-11：pipeline_glue_strict_minimal 产品 seed
   _pglue=seeds/pipeline_glue_strict_minimal.from_x.c
@@ -1140,206 +1158,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-440：seed_link_compat thin+rest PREFER_X_O
-  # 特殊：6 个 weak stub 函数（5 lsp_diag_* + typeck_lsp_main_impl）在 .x 中是 #[no_mangle]（强符号），
-  # 但 seed C 中是 __attribute__((weak))，被 lsp_diag_x.o / lsp_diag_pipeline_ctx.o 的强定义覆盖。
-  # 需在 thin C 层面注入 __attribute__((weak)) 以保持链接拓扑。
-  _slc_o="src/seed_link_compat.o"
-  _slc_seed="seeds/seed_link_compat.from_x.c"
-  _slc_x="src/seed_link_compat.x"
-  if [ -f "$_slc_seed" ]; then
-    _slc_need=0
-    if [ ! -f "$_slc_o" ] || [ "$_slc_seed" -nt "$_slc_o" ] \
-      || { [ -f "$_slc_x" ] && [ "$_slc_x" -nt "$_slc_o" ]; }; then
-      _slc_need=1
-    fi
-    if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_slc_x" ] && [ "$_slc_need" = "1" ]; then
-      _slc_thin_c=$(mktemp "${TMPDIR:-/tmp}/g05_slc_c.XXXXXX") || true
-      _slc_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_slc_thin.XXXXXX") || true
-      _slc_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_slc_rest.XXXXXX") || true
-      _slc_ok=0
-      if [ -n "$_slc_thin_c" ] && [ -n "$_slc_thin_o" ] && [ -n "$_slc_rest_o" ]; then
-        _slc_xlang=""
-        if [ -x ./xlang ]; then _slc_xlang=./xlang
-        elif [ -x ./xlang-c ]; then _slc_xlang=./xlang-c
-        elif [ -x ./bootstrap_xlangc ]; then _slc_xlang=./bootstrap_xlangc
-        fi
-        if [ -n "$_slc_xlang" ] && "$_slc_xlang" -E "$_slc_x" >"$_slc_thin_c" 2>/dev/null && [ -s "$_slc_thin_c" ]; then
-          # Weaken 6 stub functions overridden by lsp_diag_x.o / lsp_diag_pipeline_ctx.o
-          sed -i.bak \
-            -e 's/^int32_t lsp_diag_lsp_build_diagnostics_response(/__attribute__((weak)) int32_t lsp_diag_lsp_build_diagnostics_response(/' \
-            -e 's/^int32_t lsp_diag_lsp_build_semantic_tokens_response(/__attribute__((weak)) int32_t lsp_diag_lsp_build_semantic_tokens_response(/' \
-            -e 's/^int32_t lsp_diag_hover_at(/__attribute__((weak)) int32_t lsp_diag_hover_at(/' \
-            -e 's/^int32_t lsp_diag_references_at(/__attribute__((weak)) int32_t lsp_diag_references_at(/' \
-            -e 's/^int32_t lsp_diag_definition_at(/__attribute__((weak)) int32_t lsp_diag_definition_at(/' \
-            -e 's/^int32_t typeck_lsp_main_impl(/__attribute__((weak)) int32_t typeck_lsp_main_impl(/' \
-            "$_slc_thin_c" && rm -f "${_slc_thin_c}.bak"
-          # Add POSIX headers + strip conflicting libc externs (same as g05_try_x_to_o)
-          {
-            echo '/* g05 seed_link_compat thin prologue (G-02f-440 + uio/poll) */'
-            echo '#include <stddef.h>'
-            echo '#include <stdint.h>'
-            echo '#include <sys/types.h>'
-            echo '#include <stdlib.h>'
-            echo '#include <string.h>'
-            echo '#include <stdio.h>'
-            echo '#ifndef _WIN32'
-            echo '#include <unistd.h>'
-            echo '#include <fcntl.h>'
-            echo '#include <errno.h>'
-            # PLATFORM: POSIX — 与 g05_try_x_to_o 同源：readv/writev/poll 原型
-            echo '#include <sys/uio.h>'
-            echo '#include <poll.h>'
-            echo '#endif'
-            sed -e '/^#include /d' \
-                -e '/^extern ssize_t read(/d' \
-                -e '/^extern ssize_t write(/d' \
-                -e '/^extern int32_t open(/d' \
-                -e '/^extern int open(/d' \
-                -e '/^extern int32_t fcntl(/d' \
-                -e '/^extern int fcntl(/d' \
-                -e '/^extern int32_t close(/d' \
-                -e '/^extern int close(/d' \
-                -e '/^extern uint8_t \* calloc(/d' \
-                -e '/^extern uint8_t \* malloc(/d' \
-                -e '/^extern void free(/d' \
-                -e '/^extern int32_t memcmp(/d' \
-                -e '/^extern int memcmp(/d' \
-                -e '/^extern char \* getenv(/d' \
-                -e '/^extern uint8_t \* getenv(/d' \
-                -e '/^extern int32_t unlink(/d' \
-                -e '/^extern int unlink(/d' \
-                -e '/^extern size_t strlen(/d' \
-                -e '/^extern int32_t strcmp(/d' \
-                -e '/^extern int strcmp(/d' \
-                -e '/^extern uint8_t \* strerror(/d' \
-                -e '/^extern char \* strerror(/d' \
-                -e '/^extern int32_t system(/d' \
-                -e '/^extern int system(/d' \
-                -e '/^extern int32_t fputs(/d' \
-                -e '/^extern int fputs(/d' \
-                "$_slc_thin_c"
-          } >"${_slc_thin_c}.full" && mv "${_slc_thin_c}.full" "$_slc_thin_c"
-          # shellcheck disable=SC2086
-          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -x c -c -o "$_slc_thin_o" "$_slc_thin_c" \
-            && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/asm -Isrc/lexer -DXLANG_SEED_LINK_COMPAT_FROM_X \
-                 -c -o "$_slc_rest_o" "$_slc_seed" \
-            && $CC -r -nostdlib -o "$_slc_o" "$_slc_thin_o" "$_slc_rest_o" 2>/dev/null; then
-            echo "g05_ensure: seed_link_compat ← thin .x + rest (G-02f-440 L2 prefer .x)"
-            _slc_ok=1
-          fi
-        fi
-      fi
-      if [ "$_slc_ok" = "0" ]; then
-        # shellcheck disable=SC2086
-        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_slc_o" "$_slc_seed"
-        echo "g05_ensure: seed_link_compat ← $_slc_seed (G-02f-11 fallback)"
-      fi
-      rm -f "$_slc_thin_c" "$_slc_thin_o" "$_slc_rest_o"
-    elif [ "$_slc_need" = "1" ]; then
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_slc_o" "$_slc_seed"
-      echo "g05_ensure: seed_link_compat ← $_slc_seed (G-02f-11)"
-    fi
-  fi
-  # G-02f-11 / G-02f-258：strict_glue_stubs.o
-  # 默认整 seed；PREFER_X_O=1 时 thin.x（asm_driver/i32/metrics peek）+ seed 残体 ld -r
-  _rdss=seeds/runtime_driver_strict_glue_stubs.from_x.c
-  _rdss_thin_x=src/runtime_driver_strict_glue_thin.x
-  _rdss_o=src/runtime_driver_strict_glue_stubs.o
-  if [ -f "$_rdss" ]; then
-    if [ ! -f "$_rdss_o" ] || [ "$_rdss" -nt "$_rdss_o" ] \
-      || { [ -f seeds/runtime_heap_user.from_x.c ] && [ seeds/runtime_heap_user.from_x.c -nt "$_rdss_o" ]; } \
-      || { [ -f "$_rdss_thin_x" ] && [ "$_rdss_thin_x" -nt "$_rdss_o" ]; }; then
-      _rdss_done=0
-      if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rdss_thin_x" ]; then
-        _rdss_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rdss_thin_XXXXXX.o") || true
-        _rdss_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rdss_rest_XXXXXX.o") || true
-        # shellcheck disable=SC2086
-        # thin 符号须 weak，否则与 bootstrap_seed_pipeline_filtered 强符号冲突
-        if [ -n "$_rdss_thin_o" ] && [ -n "$_rdss_rest_o" ] \
-          && G05_X_O_WEAK=1 g05_try_x_to_o "$_rdss_thin_x" "$_rdss_thin_o" \
-          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_STRICT_GLUE_THIN_FROM_X \
-               -c -o "$_rdss_rest_o" "$_rdss" \
-          && $CC -r -nostdlib -o "$_rdss_o" "$_rdss_thin_o" "$_rdss_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_rdss_o ← $_rdss_thin_x + seed-rest (G-02f-258 L2 hybrid thin weak)"
-          _rdss_done=1
-        else
-          echo "g05_ensure: L2 hybrid strict_glue thin failed; fallback full seed" >&2
-        fi
-        rm -f "$_rdss_thin_o" "$_rdss_rest_o"
-      fi
-      if [ "$_rdss_done" = "0" ]; then
-        echo "g05_ensure: runtime_driver_strict_glue_stubs.o ← seed (G-02f-11)"
-        # shellcheck disable=SC2086
-        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rdss_o" "$_rdss"
-      fi
-    fi
-  fi
-  # G-02f-11 / fmt_check R2 thin + Cap residual pure 深迁（续 append_repo + missing_diag pure）：fmt_check_cmd_driver.o
-  # PREFER_X_O=1：thin.x（lit/entry+pure 含 try_walk/resolve_abs/append_repo/missing_diag）+ seed-rest（FROM_X）ld -r
-  _fcc=seeds/fmt_check_cmd.from_x.c
-  _fcc_thin_x=src/driver/fmt_check_cmd_thin.x
-  _fcc_o=src/driver/fmt_check_cmd_driver.o
-  if [ -f "$_fcc" ]; then
-    if [ ! -f "$_fcc_o" ] || [ "$_fcc" -nt "$_fcc_o" ] \
-      || { [ -f "$_fcc_thin_x" ] && [ "$_fcc_thin_x" -nt "$_fcc_o" ]; }; then
-      _fcc_done=0
-      if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_fcc_thin_x" ]; then
-        _fcc_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_fcc_thin.XXXXXX") || true
-        _fcc_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_fcc_rest.XXXXXX") || true
-        # shellcheck disable=SC2086
-        if [ -n "$_fcc_thin_o" ] && [ -n "$_fcc_rest_o" ] \
-          && G05_X_O_WEAK=1 g05_try_x_to_o "$_fcc_thin_x" "$_fcc_thin_o" \
-          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE -DXLANG_L2_FMT_CHECK_THIN_FROM_X \
-               -c -o "$_fcc_rest_o" "$_fcc" \
-          && $CC -r -nostdlib -o "$_fcc_o" "$_fcc_thin_o" "$_fcc_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_fcc_o ← $_fcc_thin_x + seed-rest (G-02f-350/410 R2 hybrid fmt_check thin)"
-          _fcc_done=1
-        else
-          echo "g05_ensure: L2 hybrid fmt_check thin failed; fallback full seed" >&2
-        fi
-        rm -f "$_fcc_thin_o" "$_fcc_rest_o"
-      fi
-      if [ "$_fcc_done" = "0" ]; then
-        echo "g05_ensure: fmt_check_cmd_driver.o ← seed -DXLANG_USE_X_PIPELINE (G-02f-11)"
-        # shellcheck disable=SC2086
-        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE -c -o "$_fcc_o" "$_fcc"
-      fi
-    fi
-  fi
-  # G-02f-15 / wave536：lsp_diag + USER_ASM seed bridges
-  # 默认整 seed；PREFER_X_O=1 时 thin.x（runtime_lsp_glue.x，46 #[no_mangle]，
-  # wave536 统一 thin 源替代 lsp_fmt_pure_thin.x）+ seed-rest
-  # (-DXLANG_L2_LSP_GLUE_FULL_FROM_X，implies FMT_THIN) ld -r → src/lsp/lsp_diag.o
-  _lspg=seeds/runtime_lsp_glue.from_x.c
-  _lspg_thin_x=src/asm/runtime_lsp_glue.x
-  if [ -f "$_lspg" ]; then
-    if [ ! -f src/lsp/lsp_diag.o ] || [ "$_lspg" -nt src/lsp/lsp_diag.o ] \
-      || { [ -f "$_lspg_thin_x" ] && [ "$_lspg_thin_x" -nt src/lsp/lsp_diag.o ]; }; then
-      _lspg_done=0
-      if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_lspg_thin_x" ]; then
-        _lspg_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_lspg_thin_XXXXXX.o") || true
-        _lspg_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_lspg_rest_XXXXXX.o") || true
-        if [ -n "$_lspg_thin_o" ] && [ -n "$_lspg_rest_o" ] \
-          && G05_X_O_WEAK=1 g05_try_x_to_o "$_lspg_thin_x" "$_lspg_thin_o" \
-          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_LSP_GLUE_FULL_FROM_X \
-               -c -o "$_lspg_rest_o" "$_lspg" \
-          && $CC -r -nostdlib -o src/lsp/lsp_diag.o "$_lspg_thin_o" "$_lspg_rest_o" 2>/dev/null; then
-          echo "g05_ensure: src/lsp/lsp_diag.o ← $_lspg_thin_x + seed-rest (wave536 L2 hybrid runtime_lsp_glue full thin)"
-          _lspg_done=1
-        else
-          echo "g05_ensure: L2 hybrid runtime_lsp_glue failed; fallback full seed" >&2
-        fi
-        rm -f "$_lspg_thin_o" "$_lspg_rest_o"
-      fi
-      if [ "$_lspg_done" = "0" ]; then
-        echo "g05_ensure: lsp_diag.o ← runtime_lsp_glue seed (G-02f-15)"
-        # shellcheck disable=SC2086
-        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o src/lsp/lsp_diag.o "$_lspg"
-      fi
-    fi
-  fi
+  # ~~G-02f-440 seed_link_compat dual hybrid~~ wave771 → try-other-l2-prefer above
+  # ~~G-02f-258 strict_glue dual hybrid~~ wave771 → try-other-l2-prefer above
+  # ~~G-02f-350/410 fmt_check_cmd_driver dual hybrid~~ wave771 → try-other-l2-prefer above
+  # ~~G-02f-15 / wave536 lsp_diag dual hybrid~~ wave771 → try-other-l2-prefer above
   # ~~G-02f-442/441/439 L2 asm dual hybrid~~ wave769 → try-l2-asm-prefer above
   # G-02f-16：x_frontend_link_alias 产品 seed
   _xfla=seeds/x_frontend_link_alias.from_x.c

@@ -754,10 +754,12 @@ src/diag.o: seeds/diag.from_x.c src/diag.x include/diag.h scripts/ensure_host_cc
 # G-02a: lsp_diag.c 迁移到 runtime_lsp_glue.inc（24 个符号被 lsp_x.o/fmt_check_cmd*.o/runtime*.o 引用）
 # 全局规则，LEGACY 和默认模式共用。
 # G-02f-15：lsp_diag 产品 seed（原 runtime_lsp_glue）
-# wave750 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_FRONTEND_GLUE_OBJS).
+# wave750 R1 cold: ensure_one · wave771 product PREFER thin+rest → try-other-l2-prefer.
 src/lsp/lsp_diag.o: seeds/runtime_lsp_glue.from_x.c src/asm/runtime_lsp_glue.x src/lsp/lsp_diag.h include/diag.h scripts/ensure_host_cc_seed_o.sh
+	# wave771: other L2 PREFER thin+rest → try-other-l2-prefer (cold plain seed fallback).
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_lsp_glue.from_x.c
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-other-l2-prefer $@
 
 # `xlang-c` 默认模式可能只是 bootstrap_xlangc 的同步副本；凡是依赖 `-E/-E-extern`
 # 生成当前源码对应 C 的目标，必须先强制刷新一次 legacy C frontend，避免继续吃旧语义。
@@ -1022,40 +1024,12 @@ src/driver/fmt_check_cmd.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_check_cm
 		echo "ERROR: no xlang-c and no seed for $@" >&2; exit 1; \
 	fi
 
-src/driver/fmt_check_cmd_driver.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_check_cmd_thin.x src/driver/fmt_check_cmd.x
-	@if [ -x ./xlang-c ] && { \
-		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/fccd.XXXXXX") && \
-		./xlang-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/driver/fmt_check_cmd_thin.x > "$$_tmp.raw" 2>/dev/null && \
-		{ echo '/* makefile fmt_check thin prologue (g05-aligned + dirent wrappers) */'; \
-		  echo '#include <stddef.h>'; echo '#include <stdint.h>'; echo '#include <sys/types.h>'; \
-		  echo '#include <stdlib.h>'; echo '#include <string.h>'; echo '#include <stdio.h>'; \
-		  echo '#ifndef _WIN32'; echo '#include <unistd.h>'; echo '#include <fcntl.h>'; echo '#include <errno.h>'; \
-		  echo '#include <sys/uio.h>'; echo '#include <poll.h>'; echo '#include <dirent.h>'; \
-		  echo 'static inline uint8_t *xlang_fmt_opendir(uint8_t *name) { return (uint8_t *)opendir((const char *)name); }'; \
-		  echo 'static inline int32_t xlang_fmt_closedir(uint8_t *dirp) { return dirp ? (int32_t)closedir((DIR *)(void *)dirp) : (int32_t)-1; }'; \
-		  echo 'static inline int32_t xlang_fmt_access(uint8_t *path, int32_t mode) { return path ? (int32_t)access((const char *)path, (int)mode) : (int32_t)-1; }'; \
-		  echo 'static inline uint8_t *xlang_fmt_readdir_name(uint8_t *dirp) { struct dirent *ent; if (!dirp) return (uint8_t *)0; ent = readdir((DIR *)(void *)dirp); return ent ? (uint8_t *)ent->d_name : (uint8_t *)0; }'; \
-		  echo '#endif'; \
-		  sed -e '/^#include /d' -e '/^extern char \* getcwd(/d' -e '/^extern uint8_t \* getcwd(/d' \
-		      -e '/^extern char \* getenv(/d' -e '/^extern uint8_t \* getenv(/d' \
-		      -e '/^extern int32_t strcmp(/d' -e '/^extern int strcmp(/d' \
-		      -e '/^extern int32_t strncmp(/d' -e '/^extern int strncmp(/d' \
-		      -e '/^extern uint8_t \* strstr(/d' -e '/^extern char \* strstr(/d' \
-		      -e '/^extern uint8_t \* xlang_fmt_opendir(/d' -e '/^extern int32_t xlang_fmt_closedir(/d' \
-		      -e '/^extern int32_t xlang_fmt_access(/d' -e '/^extern uint8_t \* xlang_fmt_readdir_name(/d' "$$_tmp.raw"; \
-		} > "$$_tmp" && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/driver/fmt_check_cmd_driver_thin.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_L2_FMT_CHECK_THIN_FROM_X -DXLANG_USE_X_PIPELINE -c seeds/fmt_check_cmd.from_x.c -o src/driver/fmt_check_cmd_driver_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) src/driver/fmt_check_cmd_driver_thin.o src/driver/fmt_check_cmd_driver_rest.o -o $@ && \
-		rm -f "$$_tmp" "$$_tmp.raw" src/driver/fmt_check_cmd_driver_thin.o src/driver/fmt_check_cmd_driver_rest.o && \
-		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O, driver)"; \
-	}; then :; \
-	elif [ -f seeds/fmt_check_cmd.from_x.c ]; then \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE -c seeds/fmt_check_cmd.from_x.c -o $@ && \
-		echo "phase4: $@ <- seeds/fmt_check_cmd.from_x.c (cold start seed, driver)"; \
-	else \
-		echo "ERROR: no xlang-c and no seed for $@" >&2; exit 1; \
-	fi
+# wave771: product PREFER → ensure try-other-l2-prefer (thin .x WEAK + rest FROM_X + USE_X_PIPELINE; cold seed).
+# PLATFORM: SHARED — product daily path; PREFER=0 cold keeps -DXLANG_USE_X_PIPELINE.
+src/driver/fmt_check_cmd_driver.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_check_cmd_thin.x src/driver/fmt_check_cmd.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-other-l2-prefer $@
 
 # G-02a：C 前端 lexer/ast/parser/typeck/codegen/preprocess/autovec/lsp_diag 已物理删除；见对应 .x。
 
@@ -2321,10 +2295,12 @@ src/lsp/lsp_diag_pipeline_ctx.o: seeds/lsp_diag_pipeline_ctx.from_x.c src/lsp/ls
 	  bash scripts/ensure_host_cc_seed_o.sh try-ldpc-prefer $@
 
 # G-02f-11：runtime_driver_strict_glue_stubs 产品 seed（内含 runtime_heap_user.inc）
-# wave752 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_ALIAS_STUBS_OBJS).
-src/runtime_driver_strict_glue_stubs.o: seeds/runtime_driver_strict_glue_stubs.from_x.c src/runtime_driver_strict_glue_stubs.x seeds/runtime_heap_user.from_x.c scripts/ensure_host_cc_seed_o.sh
+# wave752 R1 cold: ensure_one · wave771 product PREFER thin+rest → try-other-l2-prefer.
+src/runtime_driver_strict_glue_stubs.o: seeds/runtime_driver_strict_glue_stubs.from_x.c src/runtime_driver_strict_glue_stubs.x src/runtime_driver_strict_glue_thin.x seeds/runtime_heap_user.from_x.c scripts/ensure_host_cc_seed_o.sh
+	# wave771: other L2 PREFER thin+rest → try-other-l2-prefer (cold plain seed fallback).
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_driver_strict_glue_stubs.from_x.c
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-other-l2-prefer $@
 
 # G-02a：ast_seed.o 从 runtime_ast_glue.inc 编译（从 src/ast/ast.c 迁移）。
 # 提供 ast_module_free/ast_expr_free/ast_block_free 等 8 个内存管理函数。
@@ -2383,11 +2359,13 @@ lsp_io_gen.c: src/lsp/lsp_io.x
 src/lsp/typeck_lsp_io_stub.o: seeds/typeck_lsp_io_stub.from_x.c scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh seeds/typeck_lsp_io_stub.from_x.c $@
 
-# G-02f-11：seed_link_compat 产品 seed
-# wave749 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_CORE_SEED_OBJS).
+# G-02f-11 / G-02f-440：seed_link_compat 产品 seed（thin named-weak 6 stubs）
+# wave749 R1 cold: ensure_one · wave771 product PREFER thin+rest → try-other-l2-prefer.
 src/seed_link_compat.o: seeds/seed_link_compat.from_x.c src/seed_link_compat.x scripts/ensure_host_cc_seed_o.sh
+	# wave771: other L2 PREFER thin+rest → try-other-l2-prefer (cold plain seed fallback).
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/seed_link_compat.from_x.c
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-other-l2-prefer $@
 
 # wave739: G.7 body → scripts/ensure_lsp_pipeline_gen.sh (lsp_gen + g_lsp_state_buf post)
 lsp_gen.c: src/lsp/lsp.x

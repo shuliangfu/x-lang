@@ -52,8 +52,13 @@
 #   wave770: G.7 g05 async three thin+rest PREFER swallow —
 #            `try-async-prefer OUT` for async_liveness / async_cps_codegen /
 #            async_asm_pool (table-driven; full .x + rest FROM_X → $CC -r;
-#            cold ensure_one). Residual: other L2 (seed_link_compat /
-#            strict_glue / fmt_check / lsp_diag…) · pure-ld · physical delete.
+#            cold ensure_one).
+#   wave771: G.7 g05 other L2 four thin+rest PREFER swallow —
+#            `try-other-l2-prefer OUT` for seed_link_compat / strict_glue_stubs /
+#            fmt_check_cmd_driver / lsp_diag (table-driven; thin/full .x + rest
+#            FROM_X → $CC -r; slc named-weak via G05_X_O_WEAK_FUNCS; cold
+#            ensure_one + fmt USE_X_PIPELINE). Residual: pure-ld · physical
+#            delete · fmt_check_cmd.o Makefile dual (non-g05).
 #   wave758: R4 residual pure host-cc thin_glue → R1 seed-map (G.7 有则补全):
 #            parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c +
 #            -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm;
@@ -126,8 +131,9 @@
 #   - ~~g05 target_cpu PREFER~~ wave768 try-target-cpu-prefer
 #   - ~~g05 L2 asm three (uasb/bxec/abcs)~~ wave769 try-l2-asm-prefer
 #   - ~~g05 async three (liveness/cps/asm_pool)~~ wave770 try-async-prefer
-#   - g05 other PREFER hybrid (seed_link_compat / strict_glue / fmt_check /
-#     lsp_diag…) · panic PREFER thin · R5 CI all
+#   - ~~g05 other L2 four (slc/strict_glue/fmt_check/lsp_diag)~~ wave771
+#     try-other-l2-prefer
+#   - panic PREFER thin · R5 CI all · fmt_check_cmd.o Makefile dual (non-g05)
 #   - pure-ld (11.1.4) · physical Makefile delete (11.3.1)
 #   - bootstrap_nostdlib_stubs.o (cc_inc_tu residual) · crt0_user.o cp wrappers
 #
@@ -143,6 +149,7 @@
 #   bash scripts/ensure_host_cc_seed_o.sh try-target-cpu-prefer <out.o> # wave768 target_cpu
 #   bash scripts/ensure_host_cc_seed_o.sh try-l2-asm-prefer <out.o> # wave769 L2 asm three
 #   bash scripts/ensure_host_cc_seed_o.sh try-async-prefer <out.o> # wave770 async three
+#   bash scripts/ensure_host_cc_seed_o.sh try-other-l2-prefer <out.o> # wave771 other L2 four
 #   bash scripts/ensure_host_cc_seed_o.sh try-r2 <out.o>   # wave760/762 R2 UNAME leaves
 #   bash scripts/ensure_host_cc_seed_o.sh try-gen-x <out.o> # wave761 gen *_x / pipeline_x
 #   bash scripts/ensure_host_cc_seed_o.sh r2-panic         # DRIVER_SEED_PANIC family
@@ -203,7 +210,7 @@ _DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-async-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-async-prefer|try-other-l2-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -1336,7 +1343,21 @@ rt_prefer_try_x_to_o() {
     rm -f "$_xtmp"
     return 1
   fi
-  if [ "${G05_X_O_WEAK:-0}" = "1" ]; then
+  if [ -n "${G05_X_O_WEAK_FUNCS:-}" ]; then
+    # Named weak only (G.7 有则补全 on rt_prefer harness).
+    # wave771 seed_link_compat: 6 stubs must stay weak so lsp_diag_x /
+    # lsp_diag_pipeline_ctx strong defs win; do NOT weak every export.
+    # Format: G05_X_O_WEAK_FUNCS="name1,name2,..." (bare C identifiers).
+    # PLATFORM: SHARED — matches historic g05 sed on ^int32_t name(
+    _old_ifs_w="$IFS"
+    IFS=','
+    for _wfn in $G05_X_O_WEAK_FUNCS; do
+      _wfn="$(printf '%s' "$_wfn" | tr -d '[:space:]')"
+      [ -z "$_wfn" ] && continue
+      perl -i -pe "s/^(int32_t)\\s+${_wfn}\\s*\\(/__attribute__((weak)) \$1 ${_wfn}(/" "$_xtmp" || true
+    done
+    IFS="$_old_ifs_w"
+  elif [ "${G05_X_O_WEAK:-0}" = "1" ]; then
     # 仅改非 static 的简单返回类型函数定义行（-E 产物形态）
     # G-02f-335/336：含 uint8_t * / char * / int64_t 返回（diag_color_prefix / get_source_len 等）
     perl -i -pe 's/^((?:void|int64_t|int32_t|int|size_t|uint32_t|uint64_t|uint8_t \*|uint8_t|const char \*|char \*))\s+(\w+)\s*\(/__attribute__((weak)) $1 $2(/' "$_xtmp" || true
@@ -3003,6 +3024,188 @@ try_ensure_async_prefer_one() {
   return 0
 }
 
+# ---------------------------------------------------------------------------
+# wave771: try-other-l2-prefer OUT — g05 residual other L2 four thin+rest PREFER.
+#
+# Table-driven single body (G.7 有则补全; reuses rt_prefer_try_x_to_o).
+# Leaves (historic g05 dual hybrid; special prologues/weak sed):
+#   src/seed_link_compat.o
+#     x=src/seed_link_compat.x  seed=seeds/seed_link_compat.from_x.c
+#     rest -D=XLANG_SEED_LINK_COMPAT_FROM_X + -Isrc/asm -Isrc/lexer
+#     thin: G05_X_O_WEAK_FUNCS=6 lsp/typeck stubs (not WEAK=all)
+#   src/runtime_driver_strict_glue_stubs.o
+#     x=src/runtime_driver_strict_glue_thin.x
+#     seed=seeds/runtime_driver_strict_glue_stubs.from_x.c
+#     rest -D=XLANG_L2_STRICT_GLUE_THIN_FROM_X
+#     thin: G05_X_O_WEAK=1; stale also on seeds/runtime_heap_user.from_x.c
+#   src/driver/fmt_check_cmd_driver.o
+#     x=src/driver/fmt_check_cmd_thin.x  seed=seeds/fmt_check_cmd.from_x.c
+#     rest -D=XLANG_L2_FMT_CHECK_THIN_FROM_X -DXLANG_USE_X_PIPELINE
+#     thin: G05_X_O_WEAK=1; cold seed also -DXLANG_USE_X_PIPELINE
+#   src/lsp/lsp_diag.o
+#     x=src/asm/runtime_lsp_glue.x  seed=seeds/runtime_lsp_glue.from_x.c
+#     rest -D=XLANG_L2_LSP_GLUE_FULL_FROM_X
+#     thin: G05_X_O_WEAK=1
+# Prefer fail / PREFER≠1 / no xlang → ensure_one cold (fmt keeps USE_X_PIPELINE).
+# Callers: g05_ensure (wave771) · Makefile four leaves (was dual hybrid / one).
+# Exit codes:
+#   0 — OUT is a table member; prefer or cold body produced OUT
+#   3 — OUT is not in the other-L2 prefer table
+#   1 — cold seed missing / compile failed
+# PLATFORM: SHARED shell body · g05 historic PREFER=1 · cold chain PREFER=0.
+# Residual after: pure-ld · physical delete · fmt_check_cmd.o Makefile dual.
+# ---------------------------------------------------------------------------
+
+# Resolve OUT → seed|x_src|from_x_def|weak_mode|leaf_kind (pipe-separated).
+# weak_mode: slc6 | weak
+# leaf_kind: slc | strict | fmt | lsp  (rest/cold extras + extra stale)
+other_l2_prefer_spec_for_out() {
+  case "$1" in
+    src/seed_link_compat.o)
+      printf '%s' "seeds/seed_link_compat.from_x.c|src/seed_link_compat.x|XLANG_SEED_LINK_COMPAT_FROM_X|slc6|slc"
+      ;;
+    src/runtime_driver_strict_glue_stubs.o)
+      printf '%s' "seeds/runtime_driver_strict_glue_stubs.from_x.c|src/runtime_driver_strict_glue_thin.x|XLANG_L2_STRICT_GLUE_THIN_FROM_X|weak|strict"
+      ;;
+    src/driver/fmt_check_cmd_driver.o)
+      printf '%s' "seeds/fmt_check_cmd.from_x.c|src/driver/fmt_check_cmd_thin.x|XLANG_L2_FMT_CHECK_THIN_FROM_X|weak|fmt"
+      ;;
+    src/lsp/lsp_diag.o)
+      printf '%s' "seeds/runtime_lsp_glue.from_x.c|src/asm/runtime_lsp_glue.x|XLANG_L2_LSP_GLUE_FULL_FROM_X|weak|lsp"
+      ;;
+    *)
+      printf '%s' ""
+      ;;
+  esac
+}
+
+# Historic G-02f-440: six weak stubs overridden by lsp_diag_x / pipeline_ctx.
+_OTHER_L2_SLC_WEAK_FUNCS="lsp_diag_lsp_build_diagnostics_response,lsp_diag_lsp_build_semantic_tokens_response,lsp_diag_hover_at,lsp_diag_references_at,lsp_diag_definition_at,typeck_lsp_main_impl"
+
+ensure_other_l2_prefer_one() {
+  local o="$1"
+  local spec seed x_src from_x_def weak_mode leaf_kind rest
+  local prefer="${XLANG_G05_PREFER_X_O:-0}"
+  local stale=0 done=0
+  local thin_o rest_o
+  local rest_extra="" cold_extra=()
+
+  spec="$(other_l2_prefer_spec_for_out "$o")"
+  if [ -z "$spec" ]; then
+    return 3
+  fi
+  seed="${spec%%|*}"
+  rest="${spec#*|}"
+  x_src="${rest%%|*}"
+  rest="${rest#*|}"
+  from_x_def="${rest%%|*}"
+  rest="${rest#*|}"
+  weak_mode="${rest%%|*}"
+  leaf_kind="${rest#*|}"
+
+  if [ ! -f "$seed" ]; then
+    echo "ensure_host_cc_seed_o try-other-l2-prefer: missing seed $seed for $o" >&2
+    return 1
+  fi
+
+  case "$leaf_kind" in
+    slc) rest_extra="-Isrc/asm -Isrc/lexer" ;;
+    fmt)
+      rest_extra="-DXLANG_USE_X_PIPELINE"
+      cold_extra=(-DXLANG_USE_X_PIPELINE)
+      ;;
+    strict|lsp) ;;
+    *)
+      echo "ensure_host_cc_seed_o try-other-l2-prefer: unknown leaf_kind $leaf_kind" >&2
+      return 1
+      ;;
+  esac
+
+  if [ "$FORCE" != "1" ] && [ -f "$o" ]; then
+    stale=0
+    [ "$seed" -nt "$o" ] && stale=1
+    if [ -f "$x_src" ] && [ "$x_src" -nt "$o" ]; then
+      stale=1
+    fi
+    # strict_glue seed #includes runtime_heap_user — refresh when heap seed newer.
+    if [ "$leaf_kind" = "strict" ] \
+      && [ -f seeds/runtime_heap_user.from_x.c ] \
+      && [ seeds/runtime_heap_user.from_x.c -nt "$o" ]; then
+      stale=1
+    fi
+    if [ "$stale" = "0" ]; then
+      log "skip up-to-date $o (other-l2-prefer)"
+      return 0
+    fi
+  fi
+
+  mkdir -p "$(dirname "$o")"
+
+  # PREFER thin/full .x + seed-rest only when PREFER=1 (Darwin cold-chain twin).
+  if [ "$prefer" = "1" ] && [ -f "$x_src" ] \
+    && { [ -x ./xlang ] || [ -x ./xlang-c ] || [ -x ./bootstrap_xlangc ]; }; then
+    thin_o="$(mktemp "${TMPDIR:-/tmp}/ol2_thin.XXXXXX")"
+    rest_o="$(mktemp "${TMPDIR:-/tmp}/ol2_rest.XXXXXX")"
+    _thin_ok=0
+    case "$weak_mode" in
+      slc6)
+        if G05_X_O_WEAK_FUNCS="$_OTHER_L2_SLC_WEAK_FUNCS" \
+          rt_prefer_try_x_to_o "$x_src" "$thin_o"; then
+          _thin_ok=1
+        fi
+        ;;
+      weak)
+        if G05_X_O_WEAK=1 rt_prefer_try_x_to_o "$x_src" "$thin_o"; then
+          _thin_ok=1
+        fi
+        ;;
+      *)
+        if rt_prefer_try_x_to_o "$x_src" "$thin_o"; then
+          _thin_ok=1
+        fi
+        ;;
+    esac
+    # shellcheck disable=SC2086
+    if [ "$_thin_ok" = "1" ] \
+      && $CC $BASE_CFLAGS -I. -Iinclude -Isrc $rest_extra -D"$from_x_def" \
+           -c -o "$rest_o" "$seed" \
+      && $CC -r -nostdlib -o "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+      log "prefer thin.x+rest $o <- $x_src + seed-rest (try-other-l2-prefer/$leaf_kind)"
+      done=1
+    else
+      log "other-l2 hybrid failed for $o ($leaf_kind); fallback full seed"
+    fi
+    rm -f "$thin_o" "$rest_o"
+  fi
+
+  if [ "$done" = "1" ]; then
+    return 0
+  fi
+
+  # Cold full seed (ensure_one twin / PREFER=0). fmt keeps USE_X_PIPELINE.
+  if [ -f "$o" ] && [ "$prefer" = "1" ]; then
+    FORCE=1
+    ensure_one "$o" "$seed" "${cold_extra[@]+"${cold_extra[@]}"}"
+    FORCE=0
+  else
+    ensure_one "$o" "$seed" "${cold_extra[@]+"${cold_extra[@]}"}"
+  fi
+  return 0
+}
+
+try_ensure_other_l2_prefer_one() {
+  local o="$1"
+  if [ -z "$o" ]; then
+    echo "ensure_host_cc_seed_o try-other-l2-prefer: need <out.o>" >&2
+    exit 2
+  fi
+  if [ -z "$(other_l2_prefer_spec_for_out "$o")" ]; then
+    return 3
+  fi
+  ensure_other_l2_prefer_one "$o"
+  return 0
+}
+
 
 # ---------------------------------------------------------------------------
 # wave760: try-r2 OUT — R2 platform-stamp panic cold body (UNAME leaf).
@@ -4163,6 +4366,58 @@ run_check() {
   else
     bad "scripts/g05_ensure_relink_prereqs.sh missing (wave770 g05 gate)"
   fi
+  # wave771: try-other-l2-prefer (g05 + Makefile thin-call; four other L2 leaves)
+  if ! grep -q 'try_ensure_other_l2_prefer_one\|try-other-l2-prefer' "$0"; then
+    bad "try-other-l2-prefer / try_ensure_other_l2_prefer_one missing (wave771)"
+  else
+    note "try-other-l2-prefer helper present (wave771)"
+  fi
+  if ! grep -q 'ensure_other_l2_prefer_one\|other_l2_prefer_spec_for_out' "$0"; then
+    bad "other-l2 prefer body/table missing (wave771)"
+  else
+    note "other-l2-prefer table body present (wave771)"
+  fi
+  if ! grep -q 'G05_X_O_WEAK_FUNCS' "$0"; then
+    bad "G05_X_O_WEAK_FUNCS named-weak missing in rt_prefer (wave771 slc)"
+  else
+    note "G05_X_O_WEAK_FUNCS named-weak present (wave771)"
+  fi
+  for _ol2_leaf in \
+    src/seed_link_compat.o \
+    src/runtime_driver_strict_glue_stubs.o \
+    src/driver/fmt_check_cmd_driver.o \
+    src/lsp/lsp_diag.o; do
+    if awk -v leaf="$_ol2_leaf" '
+      $0 ~ ("^" leaf ":") {grab=1; next}
+      grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+      grab {body = body $0 "\n"}
+      END {
+        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-other-l2-prefer/) exit 0
+        exit 1
+      }
+    ' Makefile; then
+      note "Makefile $_ol2_leaf thin-calls ensure try-other-l2-prefer (wave771)"
+    else
+      bad "Makefile $_ol2_leaf must thin-call ensure try-other-l2-prefer (wave771)"
+    fi
+  done
+  if [ -f scripts/g05_ensure_relink_prereqs.sh ]; then
+    if grep -q 'try-other-l2-prefer\|other-l2-prefer' scripts/g05_ensure_relink_prereqs.sh \
+      && grep -q 'ensure_host_cc_seed_o.sh' scripts/g05_ensure_relink_prereqs.sh; then
+      note "g05_ensure thin-calls ensure try-other-l2-prefer (wave771)"
+    else
+      bad "g05_ensure must thin-call ensure try-other-l2-prefer for other L2 four (wave771)"
+    fi
+    # Dual body residual: g05 must not re-open inline slc/strict/fmt/lsp hybrid.
+    if grep -qE '_slc_o=|_slc_seed=|_rdss=|_rdss_thin_x=|_fcc=|_fcc_thin_x=|_lspg=|_lspg_thin_x=' \
+      scripts/g05_ensure_relink_prereqs.sh; then
+      bad "g05_ensure still has other L2 dual hybrid body (wave771)"
+    else
+      note "g05_ensure other L2 dual hybrid body removed (wave771)"
+    fi
+  else
+    bad "scripts/g05_ensure_relink_prereqs.sh missing (wave771 g05 gate)"
+  fi
   # wave760/762: try-r2 R2 UNAME leaves (panic + typeck_f64 + crt0)
   if ! grep -q 'try_ensure_r2_one\|try-r2' "$0"; then
     bad "try-r2 / try_ensure_r2_one missing (wave760/762 R2 UNAME)"
@@ -4349,6 +4604,19 @@ case "$MODE" in
     _try_out="$1"
     set +e
     try_ensure_async_prefer_one "$_try_out"
+    _try_rc=$?
+    set -e
+    exit "$_try_rc"
+    ;;
+  try-other-l2-prefer|try_other_l2_prefer|other-l2-prefer|other-l2|try-other-l2|ol2-prefer)
+    # wave771: other L2 four PREFER helper — exit 3 if not table member.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o try-other-l2-prefer: need <out.o>" >&2
+      exit 2
+    fi
+    _try_out="$1"
+    set +e
+    try_ensure_other_l2_prefer_one "$_try_out"
     _try_rc=$?
     set -e
     exit "$_try_rc"
