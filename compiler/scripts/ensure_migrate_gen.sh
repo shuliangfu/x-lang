@@ -12,7 +12,8 @@
 #   the gen body). Residual make only when building missing xlang-c for force
 #   -E (until 11.3 swallows that graph).
 #   Name is historical (migrate companions); owns frontend gen leaves only —
-#   driver/preprocess → ensure_driver_gen.sh (wave738); LSP/pipeline residual
+#   driver/preprocess → ensure_driver_gen.sh (wave738)
+#   LSP + pipeline_gen → ensure_lsp_pipeline_gen.sh (wave739)
 #   still Makefile until later MG waves.
 #
 # Usage (cwd = compiler/):

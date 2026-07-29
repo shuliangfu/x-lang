@@ -84,6 +84,11 @@ run_ensure_lexer_gen() {
 run_ensure_driver_gen() {
   (cd compiler && sh scripts/ensure_driver_gen.sh all)
 }
+# product LSP + pipeline *_gen.c pin/seed/-E (wave739).
+# G.7 body = scripts/ensure_lsp_pipeline_gen.sh
+run_ensure_lsp_pipeline_gen() {
+  (cd compiler && sh scripts/ensure_lsp_pipeline_gen.sh all)
+}
 
 
 case "$TARGET" in
@@ -175,6 +180,26 @@ case "$TARGET" in
         ;;
     esac
     (cd compiler && sh scripts/ensure_driver_gen.sh "$_dgen_mode")
+    ;;
+  lsp-gen|ensure-lsp-gen|pipeline-gen|ensure-pipeline-gen|lsp-pipeline-gen|ensure-lsp-pipeline-gen)
+    # Wave739 · 11.1.6: lsp_*_gen.c + pipeline_gen.c via ensure_lsp_pipeline_gen.sh
+    # Optional: ./xbuild lsp-gen lsp|lsp_diag|lsp_io|lsp_gen|pipeline
+    _lp_mode="all"
+    if [ "${2:-}" = "lsp" ] || [ "${2:-}" = "lsp-all" ] || [ "${2:-}" = "lsp_diag" ] \
+      || [ "${2:-}" = "lsp_io" ] || [ "${2:-}" = "lsp_gen" ] || [ "${2:-}" = "pipeline" ] \
+      || [ "${2:-}" = "all" ]; then
+      _lp_mode="$2"
+    fi
+    case "$TARGET" in
+      pipeline-gen|ensure-pipeline-gen) _lp_mode=pipeline ;;
+      lsp-gen|ensure-lsp-gen)
+        if [ -z "${2:-}" ]; then _lp_mode=lsp; fi
+        ;;
+      lsp-pipeline-gen|ensure-lsp-pipeline-gen)
+        if [ -z "${2:-}" ]; then _lp_mode=all; fi
+        ;;
+    esac
+    (cd compiler && sh scripts/ensure_lsp_pipeline_gen.sh "$_lp_mode")
     ;;
 
   # === CI / 冷启动 / 叶 .o（wave730：外层 0× make -C；图仍 Makefile 至 11.3）===
@@ -315,8 +340,11 @@ g05 产品链（wave733–735 · 11.1.6；产品 link 零 make）:
   lexer-gen                     ensure_migrate_gen.sh lexer（wave737）
   driver-gen                    ensure_driver_gen.sh（driver+preprocess _gen.c · wave738）
   preprocess-gen                ensure_driver_gen.sh preprocess
+  lsp-gen                       ensure_lsp_pipeline_gen.sh（lsp trio · wave739）
+  pipeline-gen                  ensure_lsp_pipeline_gen.sh pipeline
+  lsp-pipeline-gen              ensure_lsp_pipeline_gen.sh all
   refresh-gate                  migrate shell + g05 relink + overlay xlang_asm
-                                （lsp/pipeline gen 仍 make 至 11.3；体 refresh_xlang_asm_gate.sh）
+                                （体 refresh_xlang_asm_gate.sh；product *_gen 已 shell）
 
 CI / 冷启动（外层 0× make -C；图仍 Makefile 至 11.3）:
   compiler-all / ci-all      make OPT=1 all（host-cc/seed；≠ 产品 all）

@@ -10,8 +10,8 @@
 #   Makefile thin leaves and ./xbuild driver-gen call this script (0× make for
 #   the gen body). Residual make only when building missing xlang-c for force
 #   -E (until 11.3 swallows that graph).
-#   Frontend leaves remain ensure_migrate_gen.sh (wave736/737). LSP / pipeline
-#   residual still Makefile until later MG waves.
+#   Frontend leaves remain ensure_migrate_gen.sh (wave736/737). Product LSP +
+#   pipeline_gen live in ensure_lsp_pipeline_gen.sh (wave739).
 #
 # Usage (cwd = compiler/):
 #   sh scripts/ensure_driver_gen.sh              # driver + preprocess (default)

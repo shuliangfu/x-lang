@@ -955,6 +955,43 @@ else
   note "driver/preprocess *_gen.c → ensure_driver_gen.sh + xbuild driver-gen|preprocess-gen (11.1.6 wave738)"
 fi
 
+# wave739: product lsp_*_gen.c + pipeline_gen.c → ensure_lsp_pipeline_gen.sh
+if [ ! -f compiler/scripts/ensure_lsp_pipeline_gen.sh ]; then
+  bad "missing compiler/scripts/ensure_lsp_pipeline_gen.sh (11.1.6 wave739)"
+elif ! grep -q 'lsp_diag_gen\.c' compiler/scripts/ensure_lsp_pipeline_gen.sh \
+  || ! grep -q 'lsp_io_gen\.c' compiler/scripts/ensure_lsp_pipeline_gen.sh \
+  || ! grep -q 'lsp_gen\.c' compiler/scripts/ensure_lsp_pipeline_gen.sh \
+  || ! grep -q 'pipeline_gen\.c' compiler/scripts/ensure_lsp_pipeline_gen.sh; then
+  bad "ensure_lsp_pipeline_gen.sh must own lsp_diag/io/lsp + pipeline_gen production"
+elif ! grep -q 'check_pipeline_gen_expr_i64_abi' compiler/scripts/ensure_lsp_pipeline_gen.sh \
+  || ! grep -q 'g_lsp_state_buf\|C-04 -E-extern TU aliases' compiler/scripts/ensure_lsp_pipeline_gen.sh; then
+  bad "ensure_lsp_pipeline_gen.sh must own i64 ABI check + lsp C-04/state_buf posts"
+elif ! grep -q 'ensure_lsp_pipeline_gen\.sh' compiler/Makefile; then
+  bad "Makefile lsp/pipeline gen leaves must call ensure_lsp_pipeline_gen.sh"
+elif ! grep -q 'lsp-gen\|ensure-lsp-gen' xlang-build.sh \
+  || ! grep -q 'ensure_lsp_pipeline_gen\.sh' xlang-build.sh; then
+  bad "xlang-build missing lsp-gen first-class target (wave739)"
+elif ! grep -q 'pipeline-gen\|ensure-pipeline-gen' xlang-build.sh; then
+  bad "xlang-build missing pipeline-gen first-class target (wave739)"
+else
+  for leaf in lsp_diag_gen.c lsp_io_gen.c lsp_gen.c pipeline_gen.c; do
+    leaf_body=$(awk -v leaf="$leaf" '
+      $0 ~ "^" leaf ":" { in_l=1; next }
+      in_l && /^[^#[:space:]	]/ { exit }
+      in_l { print }
+    ' compiler/Makefile)
+    # Ban residual body on non-comment recipe lines only (nearby # comments may mention -E-extern)
+    leaf_code=$(echo "$leaf_body" | grep -vE '^[[:space:]]*#' || true)
+    if echo "$leaf_code" | grep -qE 'cp -f seeds/|-E-extern|g_lsp_state_buf|check-pipeline-gen-expr-i64'; then
+      bad "Makefile $leaf recipe still inlines gen body (must call ensure_lsp_pipeline_gen.sh)"
+    fi
+    if ! echo "$leaf_body" | grep -q 'ensure_lsp_pipeline_gen\.sh'; then
+      bad "Makefile $leaf recipe missing ensure_lsp_pipeline_gen.sh"
+    fi
+  done
+  note "lsp/pipeline *_gen.c → ensure_lsp_pipeline_gen.sh + xbuild lsp-gen|pipeline-gen (11.1.6 wave739)"
+fi
+
 # Product daily `all` must remain g05 (not Makefile all); CI uses compiler-all.
 if grep -n 'all|build|xlang)' xlang-build.sh | head -1 | grep -q . \
   && sed -n '/all|build|xlang)/,/^  [a-zA-Z*]/p' xlang-build.sh | head -8 | grep -q 'run_build_tool'; then

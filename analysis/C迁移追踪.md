@@ -30,7 +30,7 @@
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
 | **Makefile 退役 / xbuild** | 🟡 半路径 | **`./xbuild`→`xlang-build.sh`** 产品入口；根 Makefile **help-only**；叶/组合体→`compiler/mk/*.mk`；**`compiler/Makefile` 仍 ~3445 行权威图**（阶段 11） |
-| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 ✅** tests/** hub · **11.1.6 🟡** g05+refresh+migrate+migrate-gen+lexer-gen → xbuild · **11.1.5 🟡** build.x 策略图 · **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
+| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 ✅** tests/** hub · **11.1.6 🟡** g05+refresh+migrate+migrate-gen+lexer-gen+driver-gen+lsp/pipeline-gen → xbuild · **11.1.5 🟡** build.x 策略图 · **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | ⬜ 0/~4 | ~200 个 .c 文件在零 cc 终局下归属未定 — 阶段 11.5 |
 | **冷启动零 cc 链** | ⬜ 0/4 | 最小 seed + 零 cc 验证 + 双端冷启动 |
 | **终局：无 Makefile + 零 cc + v2==v3** | ⬜ 未达 | 见 §0.1 三义；阶段 13 |
@@ -812,11 +812,11 @@
   - 前端核心：src/codegen/codegen.x
   - 阻塞：codegen mega 去 pin
 
-⬜ **8.2.6 lsp_diag_gen.c** pinned（Makefile L2551）
+🟡 **8.2.6 lsp_diag_gen.c** pin/seed/-E → `ensure_lsp_pipeline_gen.sh`（wave739 · Makefile 薄叶）
 
-⬜ **8.2.7 lsp_io_gen.c** pinned（Makefile L2574）
+🟡 **8.2.7 lsp_io_gen.c** pin/seed/-E → `ensure_lsp_pipeline_gen.sh`（wave739 · Makefile 薄叶）
 
-⬜ **8.2.8 lsp_gen.c** pinned（Makefile L2613）
+🟡 **8.2.8 lsp_gen.c** pin/seed/-E + g_lsp_state_buf post → `ensure_lsp_pipeline_gen.sh`（wave739）
 
 🟡 **8.2.9 driver_gen.c** pin/seed/-E → `ensure_driver_gen.sh`（wave738 · Makefile 薄叶）
 
@@ -827,9 +827,9 @@
 
   - preprocess：src/preprocess/preprocess.x
 
-⬜ **8.2.11 pipeline_gen.c** pinned（Makefile L3325 · bootstrap-pipeline · P0-4 i64 ABI guard）
+🟡 **8.2.11 pipeline_gen.c** pin/seed/-E + i64 ABI → `ensure_lsp_pipeline_gen.sh`（wave739 · Makefile 薄叶）
 
-  - pipeline：src/pipeline/pipeline.x
+  - pipeline：src/pipeline/pipeline.x · post = `check_pipeline_gen_expr_i64_abi.sh`
 
 ⬜ **8.2.12 token_gen.c** pinned（19 行 · seeds/token_gen.linux.x86_64.c）
 
@@ -1375,8 +1375,9 @@
   - ✅ wave735：`migrate_x_objs.sh` 唯一体（parser/typeck/codegen `_x.o`）；`./xbuild migrate`；refresh 0× make migrate；Makefile 薄叶
   - ✅ wave736：`ensure_migrate_gen.sh` 唯一体（parser/typeck/codegen `_gen.c` pin/seed/-E）；`./xbuild migrate-gen`；migrate 0× make gen 体
   - ✅ wave737：`lexer_gen.c` → 同 script mode lexer；`./xbuild lexer-gen`；Makefile 薄叶
-  - ✅ wave738：`ensure_driver_gen.sh` 唯一体（`driver_gen.c` + `preprocess_gen.c`）；`./xbuild driver-gen`；Makefile 薄叶；lsp/pipeline residual
-  - ⬜ 终局：xbuild 内建或单一 `scripts/g05` 族；其余 `*_gen.c` 脱 make；删 Makefile 间接调用（与 11.3 同闸）
+  - ✅ wave738：`ensure_driver_gen.sh` 唯一体（`driver_gen.c` + `preprocess_gen.c`）；`./xbuild driver-gen`；Makefile 薄叶
+  - ✅ wave739：`ensure_lsp_pipeline_gen.sh` 唯一体（`lsp_diag`/`lsp_io`/`lsp_gen` + `pipeline_gen`）；`./xbuild lsp-gen` / `pipeline-gen`；Makefile 薄叶；考古 subcmd gen residual
+  - ⬜ 终局：xbuild 内建或单一 `scripts/g05` 族；考古 `*_gen.c` 脱 make；删 Makefile 间接调用（与 11.3 同闸）
 
 ### 11.2 自举 stage + 测试/CI 编排
 

@@ -43,6 +43,9 @@
 //   ./xbuild lexer-gen           → ensure_migrate_gen.sh lexer (wave737)
 //   ./xbuild driver-gen          → ensure_driver_gen.sh (driver+preprocess · wave738)
 //   ./xbuild preprocess-gen      → ensure_driver_gen.sh preprocess
+//   ./xbuild lsp-gen             → ensure_lsp_pipeline_gen.sh (lsp trio · wave739)
+//   ./xbuild pipeline-gen        → ensure_lsp_pipeline_gen.sh pipeline
+//   ./xbuild lsp-pipeline-gen    → ensure_lsp_pipeline_gen.sh all
 //   ./xbuild refresh-gate        → refresh_xlang_asm_gate.sh
 //       (migrate_x_objs.sh + g05 relink + overlay xlang_asm)
 //   ./xbuild clean               → scripts/clean_compiler.sh
@@ -73,8 +76,9 @@
 // -----------------------------------------------------------------------------
 //   *_gen.c (parser/typeck/codegen/lexer) — shell ensure_migrate_gen.sh (736/737)
 //   *_gen.c (driver/preprocess) — shell ensure_driver_gen.sh (wave738)
+//   *_gen.c (lsp_diag/io/lsp + pipeline) — shell ensure_lsp_pipeline_gen.sh (wave739)
 //   migrate-x-objs / *_x.o compile — shell migrate_x_objs.sh (wave735)
-//   other *_gen.c (lsp/pipeline/…) — residual Makefile until later MG
+//   archaeology *_gen.c (driver subcmd / lsp_io_std_heap) — residual Makefile
 //   bootstrap-driver-seed   — prereq DAG (body already shell)
 //   std / residual .o leaves via ./xbuild compiler-make
 //

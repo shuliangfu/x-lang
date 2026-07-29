@@ -2329,56 +2329,21 @@ src/lexer/cfg_eval_bootstrap_stub.o: seeds/cfg_eval_bootstrap_stub.from_x.c src/
 
 # G-02a: autovec.c 已物理删除（孤立死代码，无任何调用点/include）。
 
+# wave739: G.7 body → scripts/ensure_lsp_pipeline_gen.sh (product LSP gens)
 lsp_diag_gen.c: src/lsp/lsp_diag.x
-	@if [ -s lsp_diag_gen.c ] && [ "$(XLANG_FORCE_REGEN_GEN)" != "1" ]; then \
-	  echo "lsp_diag_gen.c: pinned ($$(wc -c < lsp_diag_gen.c | tr -d ' ') bytes; XLANG_FORCE_REGEN_GEN=1 to regen)"; \
-	elif [ -f seeds/lsp_diag_gen.linux.x86_64.c ] && [ ! -s lsp_diag_gen.c ]; then \
-	  cp -f seeds/lsp_diag_gen.linux.x86_64.c lsp_diag_gen.c; \
-	  echo "lsp_diag_gen.c: restored from seeds/lsp_diag_gen.linux.x86_64.c"; \
-	else \
-	  echo "lsp_diag_gen.c: $(XLANG_C) -E -E-extern (avoid xlang-x -x -E: broken TU for lsp_diag.x)" >&2; \
-	  tmp="$@.tmp"; \
-	  $(MAKE) $(XLANG_C) && \
-	  ./$(XLANG_C) $(LSP_X_E_DIRS) -L src/pipeline src/lsp/lsp_diag.x -E -E-extern > "$$tmp" || \
-	  { rm -f "$$tmp"; if [ -f seeds/lsp_diag_gen.linux.x86_64.c ]; then cp -f seeds/lsp_diag_gen.linux.x86_64.c $@ && echo "lsp_diag_gen.c: fallback seed (xlang-c -E failed)" >&2; else exit 1; fi; }; \
-	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
-	fi
-	@if ! grep -q 'C-04 -E-extern TU aliases' $@ 2>/dev/null; then \
-	  if [ -f seeds/lsp_diag_gen.linux.x86_64.c ]; then cp -f seeds/lsp_diag_gen.linux.x86_64.c $@; \
-	  else echo "lsp_diag_gen.c: FAIL missing C-04 -E-extern TU aliases (need xlang-c -E-extern codegen; no perl fallback)" >&2; exit 1; fi; \
-	fi
+	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
+	  XLANG_C="$(XLANG_C)" XLANG_X="$(XLANG_X)" \
+	  sh scripts/ensure_lsp_pipeline_gen.sh lsp_diag
 
 lsp_diag_x.o: lsp_diag_gen.c
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c lsp_diag_gen.c -o lsp_diag_x.o
 
 # lsp_io.x：C-04 v0 要求 xlang-c 自动生成 import extern；xlang-x 仍走旧块时回退 xlang-c。
+# wave739: G.7 body → scripts/ensure_lsp_pipeline_gen.sh
 lsp_io_gen.c: src/lsp/lsp_io.x
-	@if [ -s lsp_io_gen.c ] && [ "$(XLANG_FORCE_REGEN_GEN)" != "1" ]; then \
-	  echo "lsp_io_gen.c: pinned ($$(wc -c < lsp_io_gen.c | tr -d ' ') bytes)"; \
-	elif [ -f seeds/lsp_io_gen.linux.x86_64.c ] && [ ! -s lsp_io_gen.c ]; then \
-	  cp -f seeds/lsp_io_gen.linux.x86_64.c lsp_io_gen.c; \
-	  echo "lsp_io_gen.c: restored from seeds/lsp_io_gen.linux.x86_64.c"; \
-	elif [ -f $(XLANG_X) ]; then \
-	  echo "lsp_io_gen.c: ./$(XLANG_X) -x -E ..." >&2; \
-	  ./$(XLANG_X) -x -E $(LSP_X_E_DIRS) -E-extern src/lsp/lsp_io.x > $@.tmp 2>/dev/null || true; \
-	  if [ -s $@.tmp ] && ! grep -q 'lsp_io -E-extern stubs (io.o' $@.tmp; then \
-	  mv $@.tmp $@; \
-	  else \
-	  rm -f $@.tmp; \
-	  echo "lsp_io_gen.c: fallback to xlang-c -E -E-extern (C-04)" >&2; \
-	  tmp="$@.tmp"; \
-	  $(MAKE) $(XLANG_C) && \
-	  ./$(XLANG_C) $(LSP_X_E_DIRS) src/lsp/lsp_io.x -E -E-extern > "$$tmp" || \
-	  { rm -f "$$tmp"; if [ -f seeds/lsp_io_gen.linux.x86_64.c ]; then cp -f seeds/lsp_io_gen.linux.x86_64.c $@ && echo "lsp_io_gen.c: fallback seed" >&2; else exit 1; fi; }; \
-	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
-	  fi; \
-	else \
-	  tmp="$@.tmp"; \
-	  $(MAKE) $(XLANG_C) && \
-	  ./$(XLANG_C) $(LSP_X_E_DIRS) src/lsp/lsp_io.x -E -E-extern > "$$tmp" || \
-	  { rm -f "$$tmp"; if [ -f seeds/lsp_io_gen.linux.x86_64.c ]; then cp -f seeds/lsp_io_gen.linux.x86_64.c $@ && echo "lsp_io_gen.c: fallback seed" >&2; else exit 1; fi; }; \
-	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
-	fi
+	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
+	  XLANG_C="$(XLANG_C)" XLANG_X="$(XLANG_X)" \
+	  sh scripts/ensure_lsp_pipeline_gen.sh lsp_io
 
 # LSP 模块：main.x 依赖 lsp；std.io 由 .x codegen 提供（F-03 v2/v3，无 io.o）。
 # LSP state 单独 .c，避免 lsp_main 内大数组导致 state 被覆盖
@@ -2391,35 +2356,11 @@ src/lsp/typeck_lsp_io_stub.o: seeds/typeck_lsp_io_stub.from_x.c scripts/cc_inc_t
 src/seed_link_compat.o: seeds/seed_link_compat.from_x.c src/seed_link_compat.x
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/seed_link_compat.from_x.c -o $@
 
+# wave739: G.7 body → scripts/ensure_lsp_pipeline_gen.sh (lsp_gen + g_lsp_state_buf post)
 lsp_gen.c: src/lsp/lsp.x
-	@if [ -s lsp_gen.c ] && [ "$(XLANG_FORCE_REGEN_GEN)" != "1" ]; then \
-	  echo "lsp_gen.c: pinned ($$(wc -c < lsp_gen.c | tr -d ' ') bytes)"; \
-	elif [ -f seeds/lsp_gen.linux.x86_64.c ] && [ ! -s lsp_gen.c ]; then \
-	  cp -f seeds/lsp_gen.linux.x86_64.c lsp_gen.c; \
-	  echo "lsp_gen.c: restored from seeds/lsp_gen.linux.x86_64.c"; \
-	elif [ -f $(XLANG_X) ]; then \
-	  echo "lsp_gen.c: ./$(XLANG_X) -x -E ..." >&2; \
-	  ./$(XLANG_X) -x -E $(LSP_X_E_DIRS) -E-extern src/lsp/lsp.x > $@.tmp 2>/dev/null || true; \
-	  if [ -s $@.tmp ] && grep -q typeck_lsp_main_impl $@.tmp && ! grep -q 'lsp.x -E-extern stubs (lsp_io_x' $@.tmp; then \
-	  mv $@.tmp $@; \
-	  else \
-	  rm -f $@.tmp; \
-	  echo "lsp_gen.c: xlang-x failed or old extern block, fallback to xlang-c -E -E-extern" >&2; \
-	  tmp="$@.tmp"; \
-	  $(MAKE) $(XLANG_C) && \
-	  ./$(XLANG_C) $(LSP_X_E_DIRS) src/lsp/lsp.x -E -E-extern > "$$tmp" || \
-	  { rm -f "$$tmp"; if [ -f seeds/lsp_gen.linux.x86_64.c ]; then cp -f seeds/lsp_gen.linux.x86_64.c $@ && echo "lsp_gen.c: fallback seed" >&2; else exit 1; fi; }; \
-	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
-	  fi; \
-	else \
-	  tmp="$@.tmp"; \
-	  $(MAKE) $(XLANG_C) && \
-	  ./$(XLANG_C) $(LSP_X_E_DIRS) src/lsp/lsp.x -E -E-extern > "$$tmp" || \
-	  { rm -f "$$tmp"; if [ -f seeds/lsp_gen.linux.x86_64.c ]; then cp -f seeds/lsp_gen.linux.x86_64.c $@ && echo "lsp_gen.c: fallback seed" >&2; else exit 1; fi; }; \
-	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
-	fi
-	@sed -i.bak 's/uint8_t state_buf\[16388\] = { 0 }/extern uint8_t g_lsp_state_buf[16388]/' lsp_gen.c 2>/dev/null || true
-	@sed -i.bak 's/(state_buf)/(g_lsp_state_buf)/g' lsp_gen.c 2>/dev/null || true
+	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
+	  XLANG_C="$(XLANG_C)" XLANG_X="$(XLANG_X)" \
+	  sh scripts/ensure_lsp_pipeline_gen.sh lsp_gen
 
 # Track L：lsp_io_std_heap 叶子退役 — .x→.o（rename 与 prove_module_selfhost 一致）
 # 冷启动仅 seeds/lsp_io_std_heap_gen.linux.x86_64.c；工作区 lsp_io_std_heap_gen.c 仅考古/FORCE_REGEN
@@ -3134,23 +3075,11 @@ check-7.2: bootstrap-self
 # extract → pipeline_glue_types.inc → glue CTFE then truncates INT64_MAX to -1 and
 # folds `0 - lit - 1` to 0 (silent wrong code, exit 1 ≠ 42). After every branch,
 # require `int64_t int_val` in struct ast_Expr or restore the linux.x86_64 seed.
+# wave739: G.7 body → scripts/ensure_lsp_pipeline_gen.sh (pin/seed/-E + i64 ABI check)
 pipeline_gen.c:
-	@if [ "$(XLANG_FORCE_REGEN_GEN)" = "1" ]; then \
-	  $(MAKE) $(XLANG_C) && \
-	  ./$(XLANG_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -E -E-extern src/pipeline/pipeline.x > pipeline_gen.c || exit 1; \
-	  echo "bootstrap-pipeline: pipeline_gen.c (-E-extern thin TU; forced regen)"; \
-	elif [ -s pipeline_gen.c ]; then \
-	  echo "bootstrap-pipeline: pinned pipeline_gen.c ($$(wc -c < pipeline_gen.c | tr -d ' ') bytes; XLANG_FORCE_REGEN_GEN=1 to regen)"; \
-	elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/pipeline_gen.linux.x86_64.c ] && [ ! -s pipeline_gen.c ]; then \
-	  cp -f seeds/pipeline_gen.linux.x86_64.c pipeline_gen.c; \
-	  echo "bootstrap-pipeline: restored from seeds/pipeline_gen.linux.x86_64.c"; \
-	else \
-	  $(MAKE) $(XLANG_C) && \
-	  ./$(XLANG_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -E -E-extern src/pipeline/pipeline.x > pipeline_gen.c || \
-	  { if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/pipeline_gen.linux.x86_64.c ]; then cp -f seeds/pipeline_gen.linux.x86_64.c pipeline_gen.c && echo "bootstrap-pipeline: fallback seed (xlang-c -E failed)" >&2; else exit 1; fi; }; \
-	  echo "bootstrap-pipeline: pipeline_gen.c (-E-extern thin TU; codegen 无 perl 后处理)"; \
-	fi
-	@$(MAKE) check-pipeline-gen-expr-i64-abi
+	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
+	  XLANG_C="$(XLANG_C)" XLANG_X="$(XLANG_X)" \
+	  sh scripts/ensure_lsp_pipeline_gen.sh pipeline
 
 # PLATFORM: SHARED — always-run ABI guard (make may skip pipeline_gen.c recipe when file exists).
 # Stale workspace pipeline_gen.c with int32_t int_val is the P0-4 L4 failure mode on Ubuntu cold.
