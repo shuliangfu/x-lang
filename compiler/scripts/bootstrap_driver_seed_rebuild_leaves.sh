@@ -20,8 +20,10 @@
 #   - R2 panic cold body (platform stamp + UNAME source pick) via ensure
 #     try-r2 (wave760; catalog DRIVER_SEED_PANIC_OBJS). PREFER thin stays
 #     Makefile when residual make still hits panic (product daily path).
-#   - Remaining residual (R2 typeck_f64/crt0, R3 PREFER thin, …)
-#     still invoke make with mode ARGS/VARS.
+#   - Remaining residual (unknown leaves only) still invoke make with mode
+#     ARGS/VARS. wave787 honesty: all seven cold modes (sat/lsp/bridge/panic/
+#     user-asm/glue/pipeline-x) report residual_make=0 on current catalog —
+#     shell-only cold rebuild; heat `make <obj>` thin-call edges stay B7A.
 #     wave758: parser_asm_thin_glue swallowed via R1 seed-map (try-r1).
 #     wave759: pipeline_glue_standalone swallowed via R1 seed-map (try-r1).
 #     wave760: runtime_panic cold swallowed via try-r2 (panic residual_make=0).

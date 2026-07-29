@@ -88,7 +88,7 @@ Edges are **must-precede** (left → right). Outer entry is always `./xbuild`.
 **CI distinct path (not product `all`):**
 
 ```text
-./xbuild compiler-all  →  scripts/compiler_all_ci.sh  →  make xlang (g05 product · wave786 B7D) + xlang-c (seed · wave784 B6; B7A/B residual)
+./xbuild compiler-all  →  scripts/compiler_all_ci.sh  →  make xlang (g05 product · wave786 B7D) + xlang-c (seed · wave784 B6; heat B7A/B residual · cold residual_make=0 wave787)
 ```
 
 ---
@@ -214,8 +214,8 @@ Do **not** grow new free-form recipes. Known residual classes:
 | Residual | Notes |
 |----------|--------|
 | ~~`DRIVER_SEED_PREREQS` make-graph edges~~ | **swallowed wave744** → shell ensure (list still mk) |
-| Leaf `.o` pattern rules (R1–R5) | **named inventory wave746** · … · **B5 try-cfg-eval-ladder wave783** · **B6 R5 compiler_all_ci.sh wave784** · **B7 DAG inventory + archaeology CC thin wave785** · **B7D TARGET→g05 wave786** · residual B7A/B + physical delete after Windows → 11.3.1 |
-| `compiler-all` / Makefile `all` | CI path (R5 · wave784 shell body; `xlang` = g05 wave786; leaf graph B7A/B) |
+| Leaf `.o` pattern rules (R1–R5) | **named inventory wave746** · … · **B5 try-cfg-eval-ladder wave783** · **B6 R5 compiler_all_ci.sh wave784** · **B7 DAG inventory + archaeology CC thin wave785** · **B7D TARGET→g05 wave786** · **B7A cold residual_make=0 + B7B list honesty wave787** · residual heat B7A + B7B make-export + physical delete after Windows → 11.3.1 |
+| `compiler-all` / Makefile `all` | CI path (R5 · wave784 shell body; `xlang` = g05 wave786; heat leaf graph B7A/B) |
 | FULL=1 bstrict make entry | Non-daily |
 | Missing `xlang-c` for force -E | ensure_* gen scripts |
 | Cold `SEED_LINK_CC -o` (R6) | **named wave745** · pure-ld endgame → 11.1.4 |

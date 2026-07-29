@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2 · wave763 R3 PREFER thin try-r3-prefer · wave764 g05 R3_COLD r3-prefer-family · wave765 g05 labi try-labi-prefer · wave766 g05 rt try-rt-prefer · wave767 g05 pipeline_abi/ldpc try-*-prefer · wave768 g05 target_cpu try-target-cpu-prefer · wave769 g05 L2 asm try-l2-asm-prefer · wave770 g05 async try-async-prefer · wave771 g05 other L2 try-other-l2-prefer · wave772 11.1.4 pure-ld cold prefer · wave773 g05 pure-ld prefer · wave774 drop silent CC fallback · wave775 fmt_check_cmd.o dual · wave776 R2 panic PREFER try-r2-prefer · wave777 physical-delete prep inventory · wave778 Windows gate + dual-end verify · wave779 B1 runtime-os try-runtime-os-prefer · wave780 B2 std-core try-std-core-prefer · wave781 B3 lsp-sat try-lsp-sat-prefer · wave782 B4 gen-c-to-o · wave783 B5 cfg-eval-ladder · wave784 B6 R5 compiler_all_ci · wave785 B7 DAG inventory + archaeology CC thin · wave786 B7D host-cc product link g05)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2 · wave763 R3 PREFER thin try-r3-prefer · wave764 g05 R3_COLD r3-prefer-family · wave765 g05 labi try-labi-prefer · wave766 g05 rt try-rt-prefer · wave767 g05 pipeline_abi/ldpc try-*-prefer · wave768 g05 target_cpu try-target-cpu-prefer · wave769 g05 L2 asm try-l2-asm-prefer · wave770 g05 async try-async-prefer · wave771 g05 other L2 try-other-l2-prefer · wave772 11.1.4 pure-ld cold prefer · wave773 g05 pure-ld prefer · wave774 drop silent CC fallback · wave775 fmt_check_cmd.o dual · wave776 R2 panic PREFER try-r2-prefer · wave777 physical-delete prep inventory · wave778 Windows gate + dual-end verify · wave779 B1 runtime-os try-runtime-os-prefer · wave780 B2 std-core try-std-core-prefer · wave781 B3 lsp-sat try-lsp-sat-prefer · wave782 B4 gen-c-to-o · wave783 B5 cfg-eval-ladder · wave784 B6 R5 compiler_all_ci · wave785 B7 DAG inventory + archaeology CC thin · wave786 B7D host-cc product link g05 · wave787 B7A cold residual_make=0 + B7B list honesty)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -59,7 +59,7 @@
 | **R2** | Platform stamp / UNAME leaf | `runtime_panic.$(UNAME_S).$(UNAME_M).stamp` · `typeck_f64_bits` arch `.s` pick · crt0 | shell + host_platform_linker facts; lists stay mk | **panic cold ✅ wave760** · **typeck_f64/crt0 ✅ wave762** (try-r2) · **panic PREFER ✅ wave776** (try-r2-prefer) |
 | **R3** | Thin+rest / PREFER_X_O host-cc rest | thin `.o` + `FROM_X=1` rest `cc -c` + `ld -r` | cold-else shell ensure; PREFER thin product path | **cold-else ✅ wave757** · **Makefile PREFER ✅ wave763** · **g05 R3_COLD ✅ wave764** · **labi multi-slice ✅ wave765** · **rt multi-slice ✅ wave766** · **pipeline_abi/ldpc ✅ wave767** · **target_cpu ✅ wave768**; residual other L2 |
 | **R4** | Cold rebuild **pattern bodies** | sat/lsp/bridge/panic/user-asm/glue/pipeline-x | rebuild without make pattern graph | **mode+list shell wave747** · **pure-R1 wave756** · **R3 cold wave757** · **thin_glue seed-map wave758** · **glue standalone seed-map wave759** · **panic cold try-r2 wave760** · **gen try-gen-x wave761** · **typeck_f64/crt0 try-r2 wave762**; residual PREFER thin / sat non-R1 if any |
-| **R5** | CI / `compiler-all` host-cc graph | Makefile `all` · OPT seed path | `scripts/compiler_all_ci.sh` (wave784); stage 12 = zero host-cc | **body ✅ wave784** · **B7D TARGET→g05 ✅ wave786** · residual B7A/B7B + physical delete |
+| **R5** | CI / `compiler-all` host-cc graph | Makefile `all` · OPT seed path | `scripts/compiler_all_ci.sh` (wave784); stage 12 = zero host-cc | **body ✅ wave784** · **B7D TARGET→g05 ✅ wave786** · **B7A cold residual_make=0 ✅ wave787** · residual heat B7A / B7B lists + physical delete |
 | **R6** | Cold **link** pure-ld + g05 pure-ld | `run_pure_ld_required` + `run_g05_pure_ld_required`; named CC residual FORCE_CC/ineligible only | 11.1.4 · **wave772** cold · **wave773** g05 · **wave774** drop silent fallback; residual physical delete · fmt dual | ~~silent CC after pure fail~~ · ~~residual CC primary~~ · ~~g05 CC-only~~ |
 
 **R1–R5** are the 11.3.1 **leaf pattern** residual. **R6** is tracked under 11.1.4 (wave745).
@@ -1000,13 +1000,46 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - [x] **wave783:** B5 cfg_eval multi-ladder → `try-cfg-eval-ladder` (1 thin-call; not physical delete)
 - [x] **wave784:** B6 R5 CI / `compiler-all` → `compiler_all_ci.sh` (Makefile thin-call; not physical delete)
 - [x] **wave785:** B7 DAG residual **inventory** (B7A–B7D) + B7c archaeology `$(CC) -c` thin (not physical delete)
+- [x] **wave786:** B7D host-cc product `xlang` link → g05
+- [x] **wave787:** B7A cold rebuild residual_make=0 honesty + heat thin-edge inventory + B7B list-stays-mk honesty
 - [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame · **Windows gate**)
 - [ ] Leaf `.o` without host-cc residual (stages 8–9 / 12)
-- [ ] B7 residual endgame: thin-call edges gone / host-cc link complete / physical delete
+- [ ] B7 residual endgame: heat thin-call edges gone / B7B make-export gone / physical delete
+
+### wave787 · B7A cold residual_make=0 + heat inventory + B7B list honesty (G.7)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; heat `make <obj>` ensure thin-call edges; B7B shell mk-parse 0-make.  
+> **This wave:** honesty — cold `rebuild_leaves` seven modes already **shell-only** (`residual_make=0`); name heat B7A residual vs cold; B7B lists stay mk+catalog by design.
+
+```text
+Before (wave786):
+  B7A = opaque “thin-call edges still make”
+  B7B = mk lists (named only)
+  cold rebuild residual_make not machine-named
+
+After (wave787):
+  SWALLOWED_B7A_COLD_REBUILD_0MAKE=1
+  PHYS_DEL_BUCKET_B7A_COLD_0MAKE=1
+  PHYS_DEL_BUCKET_B7A_HEAT_RESIDUAL=1   # ensure thin-call edges heat residual
+  PHYS_DEL_BUCKET_B7A_BODY_SWALLOWED=0  # heat edges remain → not full B7A
+  SWALLOWED_B7B_LIST_AUTHORITY_HONESTY=1
+  PHYS_DEL_BUCKET_B7B_LIST_STAYS_MK=1
+  PHYS_DEL_BUCKET_B7B_BODY_SWALLOWED=0
+  PHYS_DEL_BUCKET_B7_BODY_SWALLOWED=0
+  PHYS_DEL_PREP_NEXT=B7_physical_delete_makefile_after_windows_not_this_wave
+  ENDGAME_PHYSICAL_DELETE_MAKEFILE=0
+```
+
+| Swallowed this wave | Still residual |
+|---------------------|----------------|
+| **B7A cold** (rebuild_leaves sat/lsp/bridge/panic/user-asm/glue/pipeline-x `residual_make=0`) | **B7A heat** ensure thin-call edges · **B7B** make export-obj-catalog · B7c typeck_x_x · physical delete (Windows) |
+| Prior B1–B6 / B7 inventory / B7c thin / B7D g05 | FORCE_CC · Windows PE pure-ld |
+
+**Forbidden:** claim cold residual_make=0 = physical delete / full B7A edge delete; re-list `.o` in residual shells; mac-only wave green.
 
 ### wave786 · B7D host-cc product `xlang` link → g05 (G.7 有则补全)
 
-> **Not this wave:** physical delete of `compiler/Makefile`; B7A thin edges / B7B mk lists endgame.  
+> **Not this wave:** physical delete of `compiler/Makefile`; ~~B7A cold residual_make honesty~~ → **wave787**; B7A heat / B7B mk lists endgame.  
 > **This wave:** default `make xlang` / `$(TARGET)` no longer links incomplete `OBJS_CORE` (UNDEF residual).  
 > **Authority:** existing `scripts/g05_prepare_and_relink.sh` (G05_OBJS mirror of DRIVER_SEED; pure-ld).  
 > **Escape:** `XLANG_HOST_CC_OBJS_CORE=1` restores archaeology incomplete `OBJS_CORE` link (expect UNDEF; not product).
@@ -1028,7 +1061,7 @@ After (wave786):
 
 | Swallowed this wave | Still residual |
 |---------------------|----------------|
-| **B7D body** (default TARGET product link → g05; no second `.o` list) | B7A thin-call edges · B7B mk lists · B7c typeck_x_x archaeology · physical delete (Windows) |
+| **B7D body** (default TARGET product link → g05; no second `.o` list) | ~~B7A cold~~ (wave787) · B7A heat thin-call · B7B mk lists · B7c typeck_x_x archaeology · physical delete (Windows) |
 | Prior B1–B6 / B7 inventory / B7c thin | FORCE_CC · Windows PE pure-ld |
 
 **Forbidden:** re-open incomplete `OBJS_CORE` as default product `xlang`; re-list G05_OBJS in Makefile; claim B7D = physical delete / full B7 endgame; mac-only wave green.
