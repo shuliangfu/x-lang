@@ -62,9 +62,14 @@ run_g05_prepare_and_relink() {
   # $1 = G05_SYNC_ASM (0 = xlang only; 1 = also sync xlang_asm)
   (cd compiler && G05_SYNC_ASM="${1:-1}" sh scripts/g05_prepare_and_relink.sh)
 }
-# P0 asm gate: migrate leaf (make) + g05 relink + overlay xlang_asm (wave734).
+# P0 asm gate: migrate shell + g05 relink + overlay xlang_asm (wave734/735).
 run_refresh_xlang_asm_gate() {
   (cd compiler && sh scripts/refresh_xlang_asm_gate.sh)
+}
+# migrate companions: parser_x.o typeck_x.o codegen_x.o (wave735 · 11.1.6).
+# G.7 body = scripts/migrate_x_objs.sh; *_gen.c residual make if missing.
+run_migrate_x_objs() {
+  (cd compiler && sh scripts/migrate_x_objs.sh all)
 }
 
 case "$TARGET" in
@@ -116,9 +121,13 @@ case "$TARGET" in
     run_g05_prepare_and_relink 1
     ;;
   refresh-gate|refresh-xlang-asm-gate)
-    # P0: migrate-x-objs (Makefile leaf) + g05 relink + cp xlang → xlang_asm
-    # Wave734 · 11.1.6; body = scripts/refresh_xlang_asm_gate.sh (G.7)
+    # P0: migrate-x-objs (shell) + g05 relink + cp xlang → xlang_asm
+    # Wave734/735 · 11.1.6; body = scripts/refresh_xlang_asm_gate.sh (G.7)
     run_refresh_xlang_asm_gate
+    ;;
+  migrate|migrate-x-objs)
+    # Wave735 · 11.1.6: parser/typeck/codegen _x.o via migrate_x_objs.sh
+    run_migrate_x_objs
     ;;
 
   # === CI / 冷启动 / 叶 .o（wave730：外层 0× make -C；图仍 Makefile 至 11.3）===
@@ -249,13 +258,14 @@ xbuild / xlang-build.sh — 统一构建入口（G-05 · G.7 同体）
   first-time           build_tool.sh + 日常构建
   clean                scripts/clean_compiler.sh（无 make）
 
-g05 产品链（wave733–734 · 11.1.6；产品 link 零 make）:
+g05 产品链（wave733–735 · 11.1.6；产品 link 零 make）:
   ensure / g05-ensure           g05_ensure_relink_prereqs.sh
   link-env / g05-export         g05_relink_env.sh（打印/导出链接清单）
   link-product / relink         g05_prepare_and_relink（G05_SYNC_ASM=0）
   link-product-asm              g05_prepare_and_relink（G05_SYNC_ASM=1 → xlang_asm）
-  refresh-gate                  migrate-x-objs + g05 relink + overlay xlang_asm
-                                （migrate 叶仍 make 至 11.3；体 refresh_xlang_asm_gate.sh）
+  migrate / migrate-x-objs      migrate_x_objs.sh（parser/typeck/codegen _x.o）
+  refresh-gate                  migrate shell + g05 relink + overlay xlang_asm
+                                （*_gen.c 仍 make 至 11.3；体 refresh_xlang_asm_gate.sh）
 
 CI / 冷启动（外层 0× make -C；图仍 Makefile 至 11.3）:
   compiler-all / ci-all      make OPT=1 all（host-cc/seed；≠ 产品 all）

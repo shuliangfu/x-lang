@@ -1802,10 +1802,10 @@ parser_gen.c: src/parser/parser.x
 	@echo "parser_gen.c: normalize ast_pipeline onefunc const extern aliases" >&2; \
 	perl -0pi -e 's@^extern int32_t ast_pipeline_onefunc_append_const\(.*\);\n@@mg; s@^extern int32_t ast_pipeline_onefunc_const_init_ref\(.*\);\n@@mg; s@^extern int32_t ast_pipeline_onefunc_const_type_ref\(.*\);\n@@mg; s@/\* C-04 -E-extern TU aliases \*/\n@extern int32_t ast_pipeline_onefunc_append_const(uint8_t * restrict out, uint8_t * restrict name, int32_t name_len, int32_t init_val, int32_t init_ref, int32_t type_ref);\nextern int32_t ast_pipeline_onefunc_const_init_ref(uint8_t * restrict out, int32_t i);\nextern int32_t ast_pipeline_onefunc_const_type_ref(uint8_t * restrict out, int32_t i);\n/* C-04 -E-extern TU aliases */\n@s' $@
 	@echo "parser_gen.c: from parser.x (-E-extern, full TU via xlang-x -x)"
+# wave735: G.7 body → scripts/migrate_x_objs.sh (parser leaf)
 parser_x.o: parser_gen.c
-	@perl scripts/sync_lexer_gen_token_enum.pl parser_gen.c
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -Dstd_io_driver_driver_read_ptr_len=xlang_io_read_ptr_len -Dstd_io_driver_driver_read_ptr=xlang_io_read_ptr -c parser_gen.c -o parser_x.o
-	@echo "parser_x.o OK"
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" \
+	  sh scripts/migrate_x_objs.sh parser
 
 # lexer.x：须 xlang-x -x -E 走 C parser/codegen 全量 TU；xlang-c 无 -x 时仅 ~57 行缺 advance_one/next_body。
 lexer_gen.c: src/lexer/lexer.x
@@ -2083,8 +2083,10 @@ src/asm/asm_experimental_symbol_bridge.o: seeds/asm_experimental_symbol_bridge.f
 	sh scripts/cc_inc_tu.sh seeds/asm_experimental_symbol_bridge.from_x.c $@
 
 # 迁移到 .x：parser/typeck/codegen 独立 -E-extern 产物；pipeline_x.o 仅编排（-E-extern），seed 链 typeck_x.o/codegen_x.o。
-migrate-x-objs: parser_x.o typeck_x.o codegen_x.o
-	@echo "migrate-x-objs OK (parser_x.o typeck_x.o codegen_x.o 已就绪)"
+# wave735: G.7 body → scripts/migrate_x_objs.sh (no inline cc; gen.c still Makefile)
+migrate-x-objs:
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" \
+	  sh scripts/migrate_x_objs.sh all
 
 # ast_gen2.c：fix_slim_arena_gen_c.pl 注入 ast_ast_* 原型（typeck/codegen 单文件编译依赖）
 ast_gen2.c: src/ast/ast.x
@@ -2123,10 +2125,10 @@ typeck_gen.c: src/typeck/typeck.x
 	fi
 	perl scripts/fix_slim_arena_gen_c.pl $@
 
+# wave735: G.7 body → scripts/migrate_x_objs.sh (typeck leaf)
 typeck_x.o: typeck_gen.c
-	@$(PYTHON) scripts/patch_typeck_gen_lang007.py
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c typeck_gen.c -o typeck_x.o
-	@test $$(stat -f%z typeck_x.o 2>/dev/null || stat -c%s typeck_x.o) -gt 10000 || (echo "typeck_x.o too small (corrupt gen? rm typeck_gen.c && make typeck_gen.c typeck_x.o)" >&2; exit 1)
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" \
+	  sh scripts/migrate_x_objs.sh typeck
 
 codegen_gen.c: src/codegen/codegen.x
 	@if [ "$(XLANG_FORCE_REGEN_GEN)" = "1" ]; then \
@@ -2148,9 +2150,10 @@ codegen_gen.c: src/codegen/codegen.x
 	fi
 	perl scripts/fix_slim_arena_gen_c.pl $@
 
+# wave735: G.7 body → scripts/migrate_x_objs.sh (codegen leaf)
 codegen_x.o: codegen_gen.c
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c codegen_gen.c -o codegen_x.o
-	@test $$(stat -f%z codegen_x.o 2>/dev/null || stat -c%s codegen_x.o) -gt 50000 || (echo "codegen_x.o too small (corrupt gen? rm codegen_gen.c && make codegen_gen.c codegen_x.o)" >&2; exit 1)
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" \
+	  sh scripts/migrate_x_objs.sh codegen
 
 # 6.1：.x typeck 入口与 C AST 对接；用 C-only xlang 编译 typeck.x 生成 typeck_gen.c，再链接进 xlang，使 typeck 由 .x 入口转调 C
 bootstrap-typeck: $(TARGET) $(XLANG_C) bootstrap_xlangc $(RELINK_XLANG_PREREQS)
@@ -3223,7 +3226,8 @@ bootstrap-driver-bstrict: bootstrap-driver-seed
 	  sh scripts/bootstrap_driver_bstrict.sh
 
 # P0 asm 门禁：strict xlang_asm 与 seed+migrate-x-objs 对齐（M-3 含 typeck/codegen/ast）；xlang_asm2 仍保留 gen2。
-# wave734: body → scripts/refresh_xlang_asm_gate.sh (G.7); migrate leaf still make inside script.
+# wave734: body → scripts/refresh_xlang_asm_gate.sh (G.7)
+# wave735: migrate → scripts/migrate_x_objs.sh (no make migrate-x-objs inside refresh).
 refresh-xlang-asm-gate:
 	@MAKE="$(MAKE)" TARGET="$(TARGET)" \
 	  XLANG_BSTRICT_NO_REPLACE="$(XLANG_BSTRICT_NO_REPLACE)" \

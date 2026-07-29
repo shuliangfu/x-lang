@@ -7,7 +7,8 @@
 #   bootstrap-driver-seed as prereq and thin-calls this script; xlang-build.sh
 #   calls this script directly (no make -C bootstrap-driver-bstrict).
 #
-#   Object lists for migrate-x-objs still live in Makefile (leaf until 11.3).
+#   migrate companions: scripts/migrate_x_objs.sh (wave735 · G.7);
+#   *_gen.c production still Makefile residual until 11.3.
 #   refresh gate body is scripts/refresh_xlang_asm_gate.sh (wave734 · G.7);
 #   product relink inside that script is g05 (zero make for the link step).
 #
@@ -15,7 +16,7 @@
 #   ./scripts/bootstrap_driver_bstrict.sh
 #
 # Env:
-#   MAKE   — make binary (default: make); residual seed + migrate-x-objs leaves
+#   MAKE   — make binary (default: make); residual seed + gen.c leaves
 #   TARGET — product binary name (default: xlang)
 #   XLANG_BSTRICT_NO_REPLACE — if set, refresh gate leaves $(TARGET) unchanged
 #     (passed through to refresh_xlang_asm_gate.sh)
@@ -24,7 +25,7 @@
 #     Makefile path already has seed as prereq so usually unused)
 #
 # PLATFORM: SHARED shell orchestration; leaf recipes carry platform ABI.
-# Wave: 719 Track MG · wave734 refresh shell · pairs with Makefile thin leaf.
+# Wave: 719 Track MG · wave734 refresh · wave735 migrate shell.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -66,8 +67,8 @@ if [ ! -f xlang_asm ]; then
   exit 1
 fi
 
-# G.7: refresh body is shell (wave734); residual make only for migrate-x-objs
-# inside refresh_xlang_asm_gate.sh. No dual make recipe for the overlay.
+# G.7: refresh body is shell (wave734); migrate via migrate_x_objs.sh (wave735).
+# Residual make only for missing *_gen.c inside migrate. No dual overlay recipe.
 # shellcheck disable=SC2086
 MAKE="$MAKE" TARGET="$TARGET" \
   XLANG_BSTRICT_NO_REPLACE="${XLANG_BSTRICT_NO_REPLACE:-}" \

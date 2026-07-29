@@ -38,8 +38,9 @@
 //   ./xbuild link-env            → g05_relink_env.sh
 //   ./xbuild link-product        → g05_prepare_and_relink (G05_SYNC_ASM=0)
 //   ./xbuild link-product-asm    → g05_prepare_and_relink (G05_SYNC_ASM=1)
+//   ./xbuild migrate             → migrate_x_objs.sh (parser/typeck/codegen _x.o)
 //   ./xbuild refresh-gate        → refresh_xlang_asm_gate.sh
-//       (migrate-x-objs Makefile leaf + g05 relink + overlay xlang_asm)
+//       (migrate_x_objs.sh + g05 relink + overlay xlang_asm)
 //   ./xbuild clean               → scripts/clean_compiler.sh
 //
 // -----------------------------------------------------------------------------
@@ -66,7 +67,8 @@
 // -----------------------------------------------------------------------------
 // D. Residual make leaves (until 11.3)
 // -----------------------------------------------------------------------------
-//   migrate-x-objs          — parser_x.o typeck_x.o codegen_x.o recipes
+//   *_gen.c (parser/typeck/codegen) — -E-extern production still Makefile
+//   migrate-x-objs / *_x.o compile — shell migrate_x_objs.sh (wave735)
 //   bootstrap-driver-seed   — prereq DAG (body already shell)
 //   std / residual .o leaves via ./xbuild compiler-make
 //

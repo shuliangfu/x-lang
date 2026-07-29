@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# refresh_xlang_asm_gate.sh — body of make refresh-xlang-asm-gate (11.1.6 · wave734)
+# refresh_xlang_asm_gate.sh — body of make refresh-xlang-asm-gate (11.1.6 · wave734/735)
 #
 # Authority (G.7):
 #   Single implementation of the P0 asm gate that aligns xlang_asm with
 #   seed + migrate-x companions after a product relink.
 #
 #   Steps (same semantics as the former Makefile recipe):
-#     1) migrate-x-objs  — still Makefile leaf (parser_x.o typeck_x.o codegen_x.o)
+#     1) migrate-x-objs  — scripts/migrate_x_objs.sh (wave735; gen.c residual make)
 #     2) g05 relink      — G05_SYNC_ASM=0 prepare_and_relink (zero make for link)
 #     3) overlay         — cp ./$TARGET → xlang_asm
 #     4) optional        — if XLANG_BSTRICT_NO_REPLACE unset, cp xlang_asm → $TARGET
@@ -19,14 +19,15 @@
 #   make refresh-xlang-asm-gate    # thin Makefile leaf → this script
 #
 # Env:
-#   MAKE     — make binary for residual migrate-x-objs leaf (default: make)
+#   MAKE     — make binary for residual gen.c leaves inside migrate (default: make)
 #   TARGET   — product binary name (default: xlang)
+#   CC/CFLAGS/PYTHON — forwarded to migrate_x_objs.sh when set
 #   XLANG_BSTRICT_NO_REPLACE — if set, do not re-copy xlang_asm → $TARGET
-#   XLANG_REFRESH_SKIP_MIGRATE=1 — skip make migrate-x-objs (caller already did)
+#   XLANG_REFRESH_SKIP_MIGRATE=1 — skip migrate_x_objs.sh (caller already did)
 #   XLANG_REFRESH_SKIP_RELINK=1  — skip g05 relink (caller already did)
 #
 # PLATFORM: SHARED shell orchestration; leaf .o recipes carry platform ABI.
-# Wave: 734 Track MG · pairs with Makefile thin leaf + xbuild first-class target.
+# Wave: 734 Track MG · wave735 migrate shell · pairs with Makefile thin leaf.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -38,10 +39,12 @@ XLANG_REFRESH_SKIP_RELINK="${XLANG_REFRESH_SKIP_RELINK:-0}"
 
 log() { echo "refresh-xlang-asm-gate: $*" >&2; }
 
-# --- 1) migrate-x companions (OBJS graph still Makefile until 11.3) ---
+# --- 1) migrate-x companions (G.7: migrate_x_objs.sh; gen.c still Makefile) ---
 if [ "$XLANG_REFRESH_SKIP_MIGRATE" != "1" ]; then
-  log "migrate-x-objs (Makefile leaf OBJS authority)"
-  "$MAKE" migrate-x-objs
+  log "migrate-x-objs via scripts/migrate_x_objs.sh"
+  # shellcheck disable=SC2086
+  MAKE="$MAKE" CC="${CC:-}" CFLAGS="${CFLAGS:-}" PYTHON="${PYTHON:-}" \
+    sh scripts/migrate_x_objs.sh all
 else
   log "skip migrate-x-objs (XLANG_REFRESH_SKIP_MIGRATE=1)"
 fi

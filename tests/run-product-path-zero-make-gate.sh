@@ -800,7 +800,7 @@ fi
 if [ ! -f compiler/scripts/refresh_xlang_asm_gate.sh ]; then
   bad "missing compiler/scripts/refresh_xlang_asm_gate.sh (11.1.6 wave734)"
 elif ! grep -q 'g05_prepare_and_relink\.sh' compiler/scripts/refresh_xlang_asm_gate.sh \
-  || ! grep -q 'migrate-x-objs' compiler/scripts/refresh_xlang_asm_gate.sh \
+  || ! grep -q 'migrate' compiler/scripts/refresh_xlang_asm_gate.sh \
   || ! grep -q 'xlang_asm' compiler/scripts/refresh_xlang_asm_gate.sh; then
   bad "refresh_xlang_asm_gate.sh must own migrate + g05 relink + xlang_asm overlay"
 elif ! grep -q 'refresh_xlang_asm_gate\.sh' compiler/Makefile; then
@@ -828,6 +828,54 @@ else
     bad "tests/run-refresh-xlang-asm-gate.sh must call ./xbuild refresh-gate"
   else
     note "refresh-xlang-asm-gate → refresh_xlang_asm_gate.sh + xbuild refresh-gate (11.1.6 wave734)"
+  fi
+fi
+
+# wave735: migrate-x-objs → shell body + xbuild first-class; refresh 0× make migrate
+if [ ! -f compiler/scripts/migrate_x_objs.sh ]; then
+  bad "missing compiler/scripts/migrate_x_objs.sh (11.1.6 wave735)"
+elif ! grep -q 'parser_x\.o' compiler/scripts/migrate_x_objs.sh \
+  || ! grep -q 'typeck_x\.o' compiler/scripts/migrate_x_objs.sh \
+  || ! grep -q 'codegen_x\.o' compiler/scripts/migrate_x_objs.sh; then
+  bad "migrate_x_objs.sh must own parser/typeck/codegen _x.o compile"
+elif ! grep -q 'migrate_x_objs\.sh' compiler/Makefile; then
+  bad "Makefile migrate/parser_x/typeck_x/codegen_x leaves must call migrate_x_objs.sh"
+elif ! grep -q 'migrate|migrate-x-objs' xlang-build.sh \
+  || ! grep -q 'run_migrate_x_objs' xlang-build.sh; then
+  bad "xlang-build missing migrate first-class target (wave735)"
+elif ! grep -q 'migrate_x_objs\.sh' compiler/scripts/refresh_xlang_asm_gate.sh; then
+  bad "refresh_xlang_asm_gate must call migrate_x_objs.sh (wave735)"
+elif grep -nE '["\$]MAKE["\s]* migrate-x-objs|make migrate-x-objs' \
+  compiler/scripts/refresh_xlang_asm_gate.sh 2>/dev/null \
+  | grep -vE '^[0-9]+:[ \t]*#' | grep -q .; then
+  bad "refresh_xlang_asm_gate still invokes make migrate-x-objs"
+else
+  migrate_body=$(awk '
+    /^migrate-x-objs:/ { in_m=1; next }
+    in_m && /^[^#[:space:]	]/ { exit }
+    in_m { print }
+  ' compiler/Makefile)
+  # Thin leaf may pass CC="$(CC)" env; ban real compile recipes only.
+  if echo "$migrate_body" | grep -qE '\$\(CC\)[[:space:]]+\$\(CFLAGS\)|-c[[:space:]]+parser_gen\.c|-c[[:space:]]+typeck_gen\.c|-c[[:space:]]+codegen_gen\.c'; then
+    bad "Makefile migrate-x-objs recipe still inlines cc (must be shell)"
+  elif ! echo "$migrate_body" | grep -q 'migrate_x_objs\.sh'; then
+    bad "Makefile migrate-x-objs recipe missing shell call"
+  else
+    # leaf recipes must not inline cc for the three companions
+    for leaf in parser_x.o typeck_x.o codegen_x.o; do
+      leaf_body=$(awk -v leaf="$leaf" '
+        $0 ~ "^" leaf ":" { in_l=1; next }
+        in_l && /^[^#[:space:]	]/ { exit }
+        in_l { print }
+      ' compiler/Makefile)
+      if echo "$leaf_body" | grep -qE '\$\(CC\)[[:space:]]+\$\(CFLAGS\)| -c[[:space:]]+.*_gen\.c'; then
+        bad "Makefile $leaf recipe still inlines cc (must call migrate_x_objs.sh)"
+      fi
+      if ! echo "$leaf_body" | grep -q 'migrate_x_objs\.sh'; then
+        bad "Makefile $leaf recipe missing migrate_x_objs.sh"
+      fi
+    done
+    note "migrate-x-objs → migrate_x_objs.sh + xbuild migrate (11.1.6 wave735)"
   fi
 fi
 
