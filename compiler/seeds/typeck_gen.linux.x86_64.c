@@ -6930,10 +6930,197 @@ int32_t typeck_type_is_free_type_param(struct ast_Module * module, struct ast_AS
   }
   return 1;
 }
+/*
+ * wave686 Cap residual: type tree contains free type-param (G.7 ≡ typeck.x
+ * typeck_type_tree_has_free_type_param). Walk PTR/SLICE/ARRAY/VECTOR + NAMED type-args.
+ * PLATFORM: SHARED typeck helper.
+ */
+int32_t typeck_type_tree_has_free_type_param(struct ast_Module * module, struct ast_ASTArena * arena, int32_t ty_ref, int32_t depth) {
+  int32_t kind = 0;
+  int32_t elem = 0;
+  int32_t n_ta = 0;
+  int32_t i = 0;
+  int32_t ta = 0;
+  int32_t asz = 0;
+  extern int32_t pipeline_type_type_arg_ref_at(struct ast_ASTArena *a, int32_t type_ref, int32_t idx);
+  if ((((module == 0) || (arena == 0)) || (ty_ref <= 0)) || (depth > 12)) {
+    return 0;
+  }
+  if ((typeck_type_is_free_type_param(module, arena, ty_ref) != 0)) {
+    return 1;
+  }
+  (void)((kind = pipeline_type_kind_ord_at(arena, ty_ref)));
+  /* TYPE_PTR=9, TYPE_ARRAY=10, TYPE_SLICE=11, TYPE_VECTOR=13 */
+  if (((((kind == 9) || (kind == 10)) || (kind == 11)) || (kind == 13))) {
+    (void)((elem = pipeline_type_elem_ref_at(arena, ty_ref)));
+    if ((elem > 0)) {
+      return typeck_type_tree_has_free_type_param(module, arena, elem, (depth + 1));
+    }
+    return 0;
+  }
+  if ((kind == 8)) {
+    (void)((asz = pipeline_type_array_size_at(arena, ty_ref)));
+    if (((asz > 0) && (asz <= 8))) {
+      (void)((n_ta = asz));
+    } else {
+      (void)((n_ta = 0));
+      (void)((i = 0));
+      while ((i < 8)) {
+        (void)((ta = pipeline_type_type_arg_ref_at(arena, ty_ref, i)));
+        if ((ta <= 0)) {
+          break;
+        }
+        (void)((n_ta = (i + 1)));
+        (void)((i = (i + 1)));
+      }
+    }
+    (void)((i = 0));
+    while ((i < n_ta)) {
+      (void)((ta = pipeline_type_type_arg_ref_at(arena, ty_ref, i)));
+      if (((ta <= 0) && (i == 0))) {
+        (void)((ta = pipeline_type_elem_ref_at(arena, ty_ref)));
+      }
+      if (((ta > 0) && (typeck_type_tree_has_free_type_param(module, arena, ta, (depth + 1)) != 0))) {
+        return 1;
+      }
+      (void)((i = (i + 1)));
+    }
+  }
+  return 0;
+}
+/*
+ * wave686 Cap residual: structural free-param formal vs concrete arg
+ * (G.7 ≡ typeck.x typeck_generic_formal_matches_arg_type).
+ * PLATFORM: SHARED typeck helper.
+ */
+int32_t typeck_generic_formal_matches_arg_type(struct ast_Module * module, struct ast_ASTArena * arena, int32_t formal_ty, int32_t arg_ty, int32_t depth) {
+  int32_t fk = 0;
+  int32_t ak = 0;
+  int32_t felem = 0;
+  int32_t aelem = 0;
+  int32_t fsz = 0;
+  int32_t asz = 0;
+  uint8_t fnm[128];
+  uint8_t anm[128];
+  int32_t fnlen = 0;
+  int32_t anlen = 0;
+  int32_t n_fta = 0;
+  int32_t n_ata = 0;
+  int32_t i = 0;
+  int32_t fta = 0;
+  int32_t ata = 0;
+  extern int32_t pipeline_type_type_arg_ref_at(struct ast_ASTArena *a, int32_t type_ref, int32_t idx);
+  if (((((module == 0) || (arena == 0)) || (formal_ty <= 0)) || (arg_ty <= 0)) || (depth > 12)) {
+    return 0;
+  }
+  if ((typeck_type_is_free_type_param(module, arena, formal_ty) != 0)) {
+    return 1;
+  }
+  if ((pipeline_typeck_type_refs_equal_c(arena, formal_ty, arg_ty) != 0)) {
+    return 1;
+  }
+  (void)((fk = pipeline_type_kind_ord_at(arena, formal_ty)));
+  (void)((ak = pipeline_type_kind_ord_at(arena, arg_ty)));
+  if (((fk < 0) || (ak < 0))) {
+    return 0;
+  }
+  if ((fk == 8)) {
+    if ((ak != 8)) {
+      return 0;
+    }
+    (void)((fnlen = pipeline_type_named_name_into(arena, formal_ty, &((fnm)[0]))));
+    (void)((anlen = pipeline_type_named_name_into(arena, arg_ty, &((anm)[0]))));
+    if ((((fnlen <= 0) || (anlen <= 0)) || (typeck_name_equal(&((fnm)[0]), fnlen, &((anm)[0]), anlen) == 0))) {
+      return 0;
+    }
+    (void)((asz = pipeline_type_array_size_at(arena, formal_ty)));
+    if (((asz > 0) && (asz <= 8))) {
+      (void)((n_fta = asz));
+    } else {
+      (void)((n_fta = 0));
+      (void)((i = 0));
+      while ((i < 8)) {
+        if ((pipeline_type_type_arg_ref_at(arena, formal_ty, i) <= 0)) {
+          break;
+        }
+        (void)((n_fta = (i + 1)));
+        (void)((i = (i + 1)));
+      }
+    }
+    if ((n_fta <= 0)) {
+      return 1;
+    }
+    (void)((asz = pipeline_type_array_size_at(arena, arg_ty)));
+    if (((asz > 0) && (asz <= 8))) {
+      (void)((n_ata = asz));
+    } else {
+      (void)((n_ata = 0));
+      (void)((i = 0));
+      while ((i < 8)) {
+        if ((pipeline_type_type_arg_ref_at(arena, arg_ty, i) <= 0)) {
+          break;
+        }
+        (void)((n_ata = (i + 1)));
+        (void)((i = (i + 1)));
+      }
+    }
+    if ((n_ata <= 0)) {
+      (void)((aelem = pipeline_type_elem_ref_at(arena, arg_ty)));
+      if ((aelem > 0)) {
+        (void)((n_ata = 1));
+      }
+    }
+    if ((n_ata < n_fta)) {
+      return 0;
+    }
+    (void)((i = 0));
+    while ((i < n_fta)) {
+      (void)((fta = pipeline_type_type_arg_ref_at(arena, formal_ty, i)));
+      if (((fta <= 0) && (i == 0))) {
+        (void)((fta = pipeline_type_elem_ref_at(arena, formal_ty)));
+      }
+      (void)((ata = pipeline_type_type_arg_ref_at(arena, arg_ty, i)));
+      if (((ata <= 0) && (i == 0))) {
+        (void)((ata = pipeline_type_elem_ref_at(arena, arg_ty)));
+      }
+      if (((fta <= 0) || (ata <= 0))) {
+        return 0;
+      }
+      if ((typeck_generic_formal_matches_arg_type(module, arena, fta, ata, (depth + 1)) == 0)) {
+        return 0;
+      }
+      (void)((i = (i + 1)));
+    }
+    return 1;
+  }
+  if (((((fk == 9) || (fk == 10)) || (fk == 11)) || (fk == 13))) {
+    if ((ak != fk)) {
+      return 0;
+    }
+    (void)((felem = pipeline_type_elem_ref_at(arena, formal_ty)));
+    (void)((aelem = pipeline_type_elem_ref_at(arena, arg_ty)));
+    if (((felem <= 0) || (aelem <= 0))) {
+      return 0;
+    }
+    if (((fk == 10) || (fk == 13))) {
+      (void)((fsz = pipeline_type_array_size_at(arena, formal_ty)));
+      (void)((asz = pipeline_type_array_size_at(arena, arg_ty)));
+      if (((((fsz > 0) && (asz > 0)) && (fsz != asz)))) {
+        return 0;
+      }
+    }
+    return typeck_generic_formal_matches_arg_type(module, arena, felem, aelem, (depth + 1));
+  }
+  if ((fk == ak)) {
+    return 1;
+  }
+  return 0;
+}
 /* wave661 Cap residual: hard-fail CALL arg types (G.7 ≡ typeck.x typeck_check_call_arg_types).
  * wave673: score<0 hard-fails even when arg_ty unknown (was soft-skip → BLD001).
  * wave685: free type-param formals (`x: T` on generic callee) accept any present arg
  * (score rejects scalar/lit vs TYPE_NAMED T → id(42) false-red).
+ * wave686: compound free formals *T/[]T/T[N]/Wrap<T> pre-score structural match.
  * Invoked from pipeline_typeck_check_expr_call_c after arity. Reuses typeck_overload_arg_param_score. */
 int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx) {
   int32_t num_args = 0;
@@ -6948,6 +7135,7 @@ int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTAr
   int32_t line_a = 0;
   int32_t col_a = 0;
   int32_t n_gp = 0;
+  int32_t arg_ty = 0;
   if ((((module ==0) || (arena ==0)) || (expr_ref <=0))) {
     return 0;
   }
@@ -6988,6 +7176,16 @@ int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTAr
         }
         (void)((ai = (ai + 1)));
         continue;
+      }
+      /* wave686: compound free formals (*T/[]T/T[N]/Wrap<T>) pre-score structural match. */
+      if (((n_gp > 0) && (arg_ref > 0))) {
+        (void)((arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref)));
+        if ((((arg_ty > 0)
+              && (typeck_type_tree_has_free_type_param(mod, arena, param_raw, 0) != 0))
+             && (typeck_generic_formal_matches_arg_type(mod, arena, param_raw, arg_ty, 0) != 0))) {
+          (void)((ai = (ai + 1)));
+          continue;
+        }
       }
       /* wave673: any score miss with known formal → T001 (unknown arg_ty no longer soft-skipped). */
       (void)((sc = typeck_overload_arg_param_score(arena, expr_ref, ai, param_raw, dep, ctx)));

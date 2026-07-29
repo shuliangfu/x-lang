@@ -89,6 +89,8 @@ export extern function pipeline_type_kind_ord_at(arena: *ASTArena, type_ref: i32
 /* See implementation. */
 export extern function pipeline_type_array_size_at(arena: *ASTArena, type_ref: i32): i32;
 export extern function pipeline_type_elem_ref_at(arena: *ASTArena, type_ref: i32): i32;
+/* wave686: NAMED type-pos args (Wrap<T>) for free-param tree walk / pattern match. */
+export extern function pipeline_type_type_arg_ref_at(arena: *ASTArena, type_ref: i32, idx: i32): i32;
 /* See implementation. */
 export extern function pipeline_typeck_type_refs_equal_c(arena: *ASTArena, a: i32, b: i32): i32;
 /* See implementation. */
@@ -6721,6 +6723,223 @@ export function typeck_type_is_free_type_param(module: *Module, arena: *ASTArena
 }
 
 /**
+ * Return 1 when the type tree contains a free type-param (TYPE_NAMED not a
+ * module struct/alias), walking PTR/SLICE/ARRAY/VECTOR elems and NAMED type-args.
+ * Mirrors glue `glue_typeck_type_tree_has_free_param_c` for typeck.x pre-score.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param ty_ref i32 — formal type tree root
+ * @param depth i32 — recursion depth (cap 12)
+ * @return i32 — 1 if free type-param found, else 0
+ * PLATFORM: SHARED typeck helper (wave686).
+ */
+export function typeck_type_tree_has_free_type_param(module: *Module, arena: *ASTArena, ty_ref: i32,
+depth: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let kind: i32 = 0;
+    let elem: i32 = 0;
+    let n_ta: i32 = 0;
+    let i: i32 = 0;
+    let ta: i32 = 0;
+    let asz: i32 = 0;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ty_ref <= 0 || depth > 12) {
+      return 0;
+    }
+    if (typeck_type_is_free_type_param(module, arena, ty_ref) != 0) {
+      return 1;
+    }
+    kind = pipeline_type_kind_ord_at(arena, ty_ref);
+    /* TYPE_PTR=9, TYPE_ARRAY=10, TYPE_SLICE=11, TYPE_VECTOR=13 */
+    if (kind == 9 || kind == 10 || kind == 11 || kind == 13) {
+      elem = pipeline_type_elem_ref_at(arena, ty_ref);
+      if (elem > 0) {
+        return typeck_type_tree_has_free_type_param(module, arena, elem, depth + 1);
+      }
+      return 0;
+    }
+    /* TYPE_NAMED=8 module type — walk type-pos args if present. */
+    if (kind == 8) {
+      asz = pipeline_type_array_size_at(arena, ty_ref);
+      if (asz > 0 && asz <= 8) {
+        n_ta = asz;
+      } else {
+        n_ta = 0;
+        i = 0;
+        while (i < 8) {
+          ta = pipeline_type_type_arg_ref_at(arena, ty_ref, i);
+          if (ta <= 0) {
+            break;
+          }
+          n_ta = i + 1;
+          i = i + 1;
+        }
+      }
+      i = 0;
+      while (i < n_ta) {
+        ta = pipeline_type_type_arg_ref_at(arena, ty_ref, i);
+        if (ta <= 0 && i == 0) {
+          ta = pipeline_type_elem_ref_at(arena, ty_ref);
+        }
+        if (ta > 0 && typeck_type_tree_has_free_type_param(module, arena, ta, depth + 1) != 0) {
+          return 1;
+        }
+        i = i + 1;
+      }
+    }
+    return 0;
+  }
+}
+
+/**
+ * wave686 Cap residual: structural match of a generic formal type against a
+ * concrete arg type for call_arg pre-score accept.
+ * Bare free type-param T matches any arg_ty. Compound formals *T / []T / T[N]
+ * (and nested) match same-kind arg with recursive elem match; free leaf accepts
+ * any concrete elem; ARRAY sizes must agree when both known.
+ * Shape mirrors glue `glue_typeck_pattern_unify_bind_c` without building a map —
+ * call_arg gate only needs accept/reject; mono bind stays in try_infer / fixup.
+ * @param module *Module — callee module (free-param vs layout names)
+ * @param arena *ASTArena — formal and arg types share caller arena for product calls
+ * @param formal_ty i32 — formal type_ref (may contain free T)
+ * @param arg_ty i32 — concrete arg resolved type_ref
+ * @param depth i32 — recursion depth (cap 12)
+ * @return i32 — 1 match, 0 no match
+ * PLATFORM: SHARED typeck helper.
+ */
+export function typeck_generic_formal_matches_arg_type(module: *Module, arena: *ASTArena,
+formal_ty: i32, arg_ty: i32, depth: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let fk: i32 = 0;
+    let ak: i32 = 0;
+    let felem: i32 = 0;
+    let aelem: i32 = 0;
+    let fsz: i32 = 0;
+    let asz: i32 = 0;
+    let fnm: u8[128] = [];
+    let anm: u8[128] = [];
+    let fnlen: i32 = 0;
+    let anlen: i32 = 0;
+    let n_fta: i32 = 0;
+    let n_ata: i32 = 0;
+    let i: i32 = 0;
+    let fta: i32 = 0;
+    let ata: i32 = 0;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || formal_ty <= 0 || arg_ty <= 0
+    || depth > 12) {
+      return 0;
+    }
+    /* Free type-param leaf: accepts any concrete arg type. */
+    if (typeck_type_is_free_type_param(module, arena, formal_ty) != 0) {
+      return 1;
+    }
+    if (pipeline_typeck_type_refs_equal_c(arena, formal_ty, arg_ty) != 0) {
+      return 1;
+    }
+    fk = pipeline_type_kind_ord_at(arena, formal_ty);
+    ak = pipeline_type_kind_ord_at(arena, arg_ty);
+    if (fk < 0 || ak < 0) {
+      return 0;
+    }
+    /* Module TYPE_NAMED: same name + pairwise type-args (Wrap<T> vs Wrap<i32>). */
+    if (fk == 8) {
+      if (ak != 8) {
+        return 0;
+      }
+      fnlen = pipeline_type_named_name_into(arena, formal_ty, &fnm[0]);
+      anlen = pipeline_type_named_name_into(arena, arg_ty, &anm[0]);
+      if (fnlen <= 0 || anlen <= 0 || name_equal(&fnm[0], fnlen, &anm[0], anlen) == 0) {
+        return 0;
+      }
+      asz = pipeline_type_array_size_at(arena, formal_ty);
+      if (asz > 0 && asz <= 8) {
+        n_fta = asz;
+      } else {
+        n_fta = 0;
+        i = 0;
+        while (i < 8) {
+          if (pipeline_type_type_arg_ref_at(arena, formal_ty, i) <= 0) {
+            break;
+          }
+          n_fta = i + 1;
+          i = i + 1;
+        }
+      }
+      if (n_fta <= 0) {
+        return 1;
+      }
+      asz = pipeline_type_array_size_at(arena, arg_ty);
+      if (asz > 0 && asz <= 8) {
+        n_ata = asz;
+      } else {
+        n_ata = 0;
+        i = 0;
+        while (i < 8) {
+          if (pipeline_type_type_arg_ref_at(arena, arg_ty, i) <= 0) {
+            break;
+          }
+          n_ata = i + 1;
+          i = i + 1;
+        }
+      }
+      if (n_ata <= 0) {
+        aelem = pipeline_type_elem_ref_at(arena, arg_ty);
+        if (aelem > 0) {
+          n_ata = 1;
+        }
+      }
+      if (n_ata < n_fta) {
+        return 0;
+      }
+      i = 0;
+      while (i < n_fta) {
+        fta = pipeline_type_type_arg_ref_at(arena, formal_ty, i);
+        if (fta <= 0 && i == 0) {
+          fta = pipeline_type_elem_ref_at(arena, formal_ty);
+        }
+        ata = pipeline_type_type_arg_ref_at(arena, arg_ty, i);
+        if (ata <= 0 && i == 0) {
+          ata = pipeline_type_elem_ref_at(arena, arg_ty);
+        }
+        if (fta <= 0 || ata <= 0) {
+          return 0;
+        }
+        if (typeck_generic_formal_matches_arg_type(module, arena, fta, ata, depth + 1) == 0) {
+          return 0;
+        }
+        i = i + 1;
+      }
+      return 1;
+    }
+    /* Compound: PTR / ARRAY / SLICE / VECTOR — same kind + elem recurse. */
+    if (fk == 9 || fk == 10 || fk == 11 || fk == 13) {
+      if (ak != fk) {
+        return 0;
+      }
+      felem = pipeline_type_elem_ref_at(arena, formal_ty);
+      aelem = pipeline_type_elem_ref_at(arena, arg_ty);
+      if (felem <= 0 || aelem <= 0) {
+        return 0;
+      }
+      if (fk == 10 || fk == 13) {
+        fsz = pipeline_type_array_size_at(arena, formal_ty);
+        asz = pipeline_type_array_size_at(arena, arg_ty);
+        if (fsz > 0 && asz > 0 && fsz != asz) {
+          return 0;
+        }
+      }
+      return typeck_generic_formal_matches_arg_type(module, arena, felem, aelem, depth + 1);
+    }
+    /* Builtin formal without free tree: kinds must agree. */
+    if (fk == ak) {
+      return 1;
+    }
+    return 0;
+  }
+}
+
+/**
  * Hard-fail free-function CALL when an arg does not match the formal param.
  * wave661 Cap residual: after resolve+arity, typeck never scored arg vs param → host-cc
  * BLD001 (*u8/struct→i32) or silent C conversion false-green (f32/bool→i32).
@@ -6731,6 +6950,10 @@ export function typeck_type_is_free_type_param(module: *Module, arena: *ASTArena
  * TYPE_NAMED vs scalar/lit → -1 false-red (`id(42)` / `id&lt;i32&gt;(42)` / `id(n:i32)`).
  * Same-kind NAMED already weak-scored 1 (struct→T greens). Accept free type-param
  * formals for any present arg; same-name unify stays in try_infer (same(1,true) red).
+ * wave686 Cap residual: compound free formals `*T` / `[]T` / `T[N]` still score-reject
+ * concrete `*i32` / `i32[]` / `i32[N]` (elem equal fails on free T). Pre-score accept via
+ * `typeck_generic_formal_matches_arg_type` when formal tree has free type-param (G.7 twin
+ * of glue pattern-unify shape; not a second score matcher).
  * Authority score: typeck_overload_arg_param_score (exact / int-lit / string-lit / widen /
  * array→slice / null→*T); free-T is a pre-score accept, not a second matcher.
  * @param module *Module — entry / local module
@@ -6756,6 +6979,7 @@ ctx: *PipelineDepCtx): i32 {
     let line_a: i32 = 0;
     let col_a: i32 = 0;
     let n_gp: i32 = 0;
+    let arg_ty: i32 = 0;
     if (module == 0 as * Module || arena == 0 as * ASTArena || expr_ref <= 0) {
       return 0;
     }
@@ -6814,6 +7038,21 @@ ctx: *PipelineDepCtx): i32 {
           }
           ai = ai + 1;
           continue;
+        }
+        /*
+         * wave686: compound free formals (*T / []T / T[N] / Wrap<T>) on generic
+         * callees. Score requires elem type_refs_equal → free T vs i32 fails.
+         * Pre-score structural match when formal tree has free type-param and arg
+         * has a resolved type (lit alone cannot pin *T). Requires n_gp>0.
+         */
+        if (n_gp > 0 && arg_ref > 0) {
+          arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+          if (arg_ty > 0
+          && typeck_type_tree_has_free_type_param(mod, arena, param_raw, 0) != 0
+          && typeck_generic_formal_matches_arg_type(mod, arena, param_raw, arg_ty, 0) != 0) {
+            ai = ai + 1;
+            continue;
+          }
         }
         /*
          * Score covers known arg_ty + lit paths (int/string/null→*T) without requiring
