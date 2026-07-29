@@ -141,6 +141,11 @@ SWALLOWED_G05_OTHER_L2_PREFER=1
 SWALLOWED_G05_OTHER_L2_PREFER_VIA=ensure_host_cc_seed_o.sh_try-other-l2-prefer
 SWALLOWED_G05_OTHER_L2_PREFER_SCOPE=seed_link_compat+strict_glue_stubs+fmt_check_cmd_driver+lsp_diag
 SWALLOWED_G05_OTHER_L2_PREFER_NOTE=g05_makefile_thin_call_no_dual_hybrid_other_l2_four
+# wave775: fmt_check_cmd.o Makefile dual → try-other-l2-prefer (fmt_core, no USE_X_PIPELINE)
+SWALLOWED_FMT_CHECK_CMD_O_DUAL=1
+SWALLOWED_FMT_CHECK_CMD_O_DUAL_VIA=ensure_host_cc_seed_o.sh_try-other-l2-prefer_fmt_core
+SWALLOWED_FMT_CHECK_CMD_O_DUAL_SCOPE=fmt_check_cmd_OBJS_CORE_PIPELINE_X_satellite
+SWALLOWED_FMT_CHECK_CMD_O_DUAL_NOTE=makefile_thin_call_no_dual_hybrid_wave775
 # wave772: 11.1.4 pure-ld cold phase1/final (via pure_ld_shared)
 SWALLOWED_R6_PURE_LD=1
 SWALLOWED_R6_PURE_LD_VIA=bootstrap_driver_seed_link.sh_run_pure_ld_required+pure_ld_shared
@@ -265,7 +270,8 @@ RESIDUAL_CLASS_R6_CC_RESIDUAL=SEED_LINK_CC_when_PURE_OK_0_or_FORCE_CC_only
 RESIDUAL_CLASS_R6_G05=g05_relink_pure_ld_required
 RESIDUAL_CLASS_R6_G05_SWALLOWED=wave773_g05_pure_ld_via_pure_ld_shared
 RESIDUAL_CLASS_R6_G05_DROP_SILENT_FALLBACK=wave774
-RESIDUAL_CLASS_R6_ENDGAME=physical_delete_fmt_dual
+RESIDUAL_CLASS_R6_ENDGAME=physical_delete_makefile
+# wave775: fmt_check_cmd.o dual swallowed (fmt_core)
 
 # Live Makefile residual signals (counts only — not a second recipe list)
 MAKEFILE_PATH=compiler/Makefile
@@ -826,13 +832,16 @@ fi
 if ! printf '%s\n' "$_out" | grep -q 'G05_OTHER_L2_PREFER_SWALLOWED=1'; then
   bad "dump G05_OTHER_L2_PREFER_SWALLOWED must be 1 (try-other-l2-prefer + g05 thin-call)"
 fi
+if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_FMT_CHECK_CMD_O_DUAL=1'; then
+  bad "dump must set SWALLOWED_FMT_CHECK_CMD_O_DUAL=1 (wave775)"
+fi
 if ! printf '%s\n' "$_out" | grep -q 'R1_OTHER_HOST_CC_STILL_MAKE=1'; then
   bad "dump must keep R1_OTHER_HOST_CC_STILL_MAKE=1 (honest residual)"
 fi
 if ! printf '%s\n' "$_out" | grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0'; then
   bad "dump missing ENDGAME_PHYSICAL_DELETE_MAKEFILE=0 (not closed)"
 else
-  note "residual class inventory dump OK (wave747–771 + g05 other L2 PREFER)"
+  note "residual class inventory dump OK (wave747–775 + fmt_check_cmd.o dual)"
 fi
 
 # Makefile still present (residual reality) + has host-cc heat
@@ -1028,7 +1037,7 @@ else
     "$REBUILD_REL"; then
     bad "rebuild_leaves must not hardcode .o list (dual authority)"
   fi
-  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld (wave772/773) + drop silent CC fallback (wave774); residual physical delete · fmt_check_cmd.o dual"
+  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld (wave772/773) + drop silent CC fallback (wave774); fmt_check_cmd.o dual (wave775); residual physical delete"
 fi
 
 # wave772/774: cold pure-ld required when eligible (no silent CC fallback)

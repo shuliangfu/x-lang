@@ -126,16 +126,17 @@ bash compiler/scripts/host_platform_linker.sh linker
 bash compiler/scripts/host_platform_linker.sh --check
 ```
 
-### Endgame (remaining after wave774)
+### Endgame (remaining after wave775)
 
 1. ~~Export pure link argv from Makefile without requiring `CC` as the primary driver~~ (**wave772**).  
 2. ~~Invoke `ld` via shell for freestanding cold phase1/final~~ (**wave772** + self-test).  
 3. ~~g05 product relink pure-ld~~ (**wave773** via `pure_ld_shared`).  
 4. ~~Drop silent CC residual fallback after pure-ld fail~~ (**wave774**; FORCE_CC / ineligible kept).  
-5. Physical delete Makefile residual leaves (11.3.1); optional `fmt_check_cmd.o` dual.  
-6. Later: pure-ld from `build.x` / xbuild without make export leaf; Windows PE pure-ld.
+5. ~~`fmt_check_cmd.o` Makefile dual~~ (**wave775** → try-other-l2-prefer `fmt_core`).  
+6. Physical delete Makefile residual leaves (11.3.1).  
+7. Later: pure-ld from `build.x` / xbuild without make export leaf; Windows PE pure-ld.
 
-## Acceptance (wave745 + wave772 + wave773 + wave774)
+## Acceptance (wave745 + wave772 + wave773 + wave774 + wave775)
 
 - [x] `compiler/docs/PLATFORM_LINKER.md` present (this file)
 - [x] `host_platform_linker.sh` dump/platform/linker/check
@@ -146,8 +147,9 @@ bash compiler/scripts/host_platform_linker.sh --check
 - [x] **wave772:** cold phase1/final pure-ld + `SEED_LINK_*` pure export + `--self-test`
 - [x] **wave773:** `pure_ld_shared.sh` + g05 pure-ld
 - [x] **wave774:** drop silent CC fallback (cold+g05); FORCE_CC / ineligible named residual only
+- [x] **wave775:** `fmt_check_cmd.o` dual → ensure try-other-l2-prefer (`fmt_core`)
 - [ ] Full leaf rules free of Makefile `UNAME` (11.3.1)
-- [ ] Physical delete + optional fmt dual (11.3.1 full endgame)
+- [ ] Physical delete Makefile (11.3.1 full endgame)
 
 **wave746 path note:** leaf pattern residual classes (including UNAME leaf **R2**) are
 named in `LEAF_PATTERN_RESIDUAL.md` / `./xbuild leaf-patterns` — inventory only;

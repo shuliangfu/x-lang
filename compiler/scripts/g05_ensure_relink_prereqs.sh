@@ -488,7 +488,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # wave771 G.7: other L2 four product PREFER → ensure try-other-l2-prefer
   # (table body; thin/full .x + rest FROM_X → cc -r; slc named-weak; cold ensure_one).
   # Leaves: seed_link_compat · strict_glue_stubs · fmt_check_cmd_driver · lsp_diag.
-  # residual: pure-ld · physical delete · fmt_check_cmd.o Makefile dual (non-g05).
+  # residual: physical delete (~~fmt_check_cmd.o dual~~ wave775).
   # PLATFORM: SHARED product daily path · default PREFER=1 (g05 historic).
   if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
     for _ol2_o in \

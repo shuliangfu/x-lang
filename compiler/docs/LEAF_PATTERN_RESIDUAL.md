@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2 · wave763 R3 PREFER thin try-r3-prefer · wave764 g05 R3_COLD r3-prefer-family · wave765 g05 labi try-labi-prefer · wave766 g05 rt try-rt-prefer · wave767 g05 pipeline_abi/ldpc try-*-prefer · wave768 g05 target_cpu try-target-cpu-prefer · wave769 g05 L2 asm try-l2-asm-prefer · wave770 g05 async try-async-prefer · wave771 g05 other L2 try-other-l2-prefer · wave772 11.1.4 pure-ld cold prefer · wave773 g05 pure-ld prefer)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2 · wave763 R3 PREFER thin try-r3-prefer · wave764 g05 R3_COLD r3-prefer-family · wave765 g05 labi try-labi-prefer · wave766 g05 rt try-rt-prefer · wave767 g05 pipeline_abi/ldpc try-*-prefer · wave768 g05 target_cpu try-target-cpu-prefer · wave769 g05 L2 asm try-l2-asm-prefer · wave770 g05 async try-async-prefer · wave771 g05 other L2 try-other-l2-prefer · wave772 11.1.4 pure-ld cold prefer · wave773 g05 pure-ld prefer · wave774 drop silent CC fallback · wave775 fmt_check_cmd.o dual)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -38,8 +38,9 @@
 | **L2 asm three PREFER** | `ensure_host_cc_seed_o.sh try-l2-asm-prefer` | **wave769**: g05 + Makefile thin-call (uasb/bxec/abcs) |
 | **async three PREFER** | `ensure_host_cc_seed_o.sh try-async-prefer` | **wave770**: g05 + Makefile thin-call (liveness/cps/asm_pool) |
 | **other L2 four PREFER** | `ensure_host_cc_seed_o.sh try-other-l2-prefer` | **wave771**: g05 + Makefile thin-call (slc/strict_glue/fmt_driver/lsp_diag) |
+| **fmt_check_cmd.o dual (non-driver)** | `ensure_host_cc_seed_o.sh try-other-l2-prefer` | **wave775**: Makefile thin-call; `leaf_kind=fmt_core` (no `USE_X_PIPELINE`) |
 | Phase1/final **link driver** | `bootstrap_driver_seed_link.sh` | **wave772 pure-ld** + **wave774 no silent fallback** (`SEED_LINK_LD`… via `pure_ld_shared`); named `SEED_LINK_CC` only FORCE_CC / PURE_OK=0 |
-| g05 ensure / prepare / relink | `g05_*.sh` | **wave764**–**wave771** R3_COLD / labi / rt / pipeline_abi / ldpc / target_cpu / L2-asm / async / other-L2 via ensure try-*-prefer; **wave773** g05 final pure-ld (`pure_ld_shared`); **wave774** no silent CC fallback · residual physical delete · `fmt_check_cmd.o` Makefile dual |
+| g05 ensure / prepare / relink | `g05_*.sh` | **wave764**–**wave771** R3_COLD / labi / rt / pipeline_abi / ldpc / target_cpu / L2-asm / async / other-L2 via ensure try-*-prefer; **wave773** g05 final pure-ld (`pure_ld_shared`); **wave774** no silent CC fallback · **wave775** fmt dual · residual physical delete |
 | migrate / `*_gen` ensure | `migrate_x_objs.sh` · `ensure_*_gen.sh` | wave735–740 |
 | Host facts / linker policy map | `host_platform_linker.sh` | wave745 |
 | **R1 pure host-cc body · eight families** | `ensure_host_cc_seed_o.sh` | **wave748**–**wave755**; residual non-catalog |
@@ -319,7 +320,7 @@ After (wave771):
 
 | Swallowed | Still residual |
 |-----------|----------------|
-| g05 other L2 four PREFER hybrids (product daily path) | ~~pure-ld cold~~ (wave772) · ~~g05 pure-ld~~ (wave773) · ~~silent CC fallback~~ (wave774) · physical delete · `fmt_check_cmd.o` Makefile dual (non-g05) |
+| g05 other L2 four PREFER hybrids (product daily path) | ~~pure-ld cold~~ (wave772) · ~~g05 pure-ld~~ (wave773) · ~~silent CC fallback~~ (wave774) · ~~`fmt_check_cmd.o` dual~~ (wave775) · physical delete |
 | Second prefer body for the four leaves | panic PREFER (if any) · R5 CI |
 
 **Forbidden:** re-open g05 inline slc/strict/fmt/lsp hybrid; second prefer body under a second name; dual -E prologue (reuse rt_prefer + WEAK_FUNCS).
@@ -387,10 +388,32 @@ After (wave774):
 
 | Swallowed | Still residual |
 |-----------|----------------|
-| Silent CC after pure-ld fail (cold + g05) | Named CC residual FORCE_CC / ineligible · physical delete · `fmt_check_cmd.o` dual |
+| Silent CC after pure-ld fail (cold + g05) | Named CC residual FORCE_CC / ineligible · physical delete · ~~`fmt_check_cmd.o` dual~~ (wave775) |
 | “prefer + silent fallback” dual success path | Windows PE pure-ld · make export leaf itself |
 
 **Forbidden:** re-introduce silent CC after pure fail; drop FORCE_CC escape without map; second pure-ld platform table.
+
+### wave775 · fmt_check_cmd.o Makefile dual → try-other-l2-prefer (G.7 有则补全)
+
+```text
+Before (wave774):
+  Makefile src/driver/fmt_check_cmd.o: full dual hybrid body
+    (xlang-c -E thin.x + prologue + seed-rest ld -r) else cold seed
+  ensure try-other-l2-prefer only knew fmt_check_cmd_driver.o (leaf_kind=fmt)
+
+After (wave775):
+  other_l2_prefer_spec_for_out += fmt_check_cmd.o
+    leaf_kind=fmt_core — same thin.x + seed; NO -DXLANG_USE_X_PIPELINE
+  Makefile thin-call try-other-l2-prefer (same as driver leaf)
+  Dual hybrid recipe deleted
+```
+
+| Swallowed | Still residual |
+|-----------|----------------|
+| `fmt_check_cmd.o` Makefile dual hybrid (OBJS_CORE / PIPELINE_X satellite) | physical delete · panic PREFER (if any) |
+| Second -E prologue for non-driver fmt leaf | Windows PE pure-ld · FORCE_CC named residual |
+
+**Forbidden:** re-open Makefile dual hybrid for `fmt_check_cmd.o`; merge `fmt`/`fmt_core` flags (driver needs USE_X_PIPELINE); second prefer body name.
 
 ### wave758 · R4 residual thin_glue → R1 seed-map (G.7 有则补全)
 
@@ -964,9 +987,10 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - [x] LEAF dump `SWALLOWED_G05_PURE_LD=1` · `ENDGAME_G05_PURE_LD=1`
 - [x] host/leaf `--check` + pure-ld `--self-test`
 
-- [ ] Drop CC residual fallback (cold + g05) when pure-ld stable
+- [x] **wave774:** drop silent CC residual fallback (FORCE_CC / ineligible kept)
+- [x] **wave775:** `fmt_check_cmd.o` Makefile dual → try-other-l2-prefer `fmt_core`
 - [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame)
-- [ ] `fmt_check_cmd.o` Makefile dual · panic PREFER (if any)
+- [ ] panic PREFER (if any)
 - [ ] Leaf `.o` without host-cc residual (stages 8–9 / 12)
 
 ## References

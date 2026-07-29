@@ -985,44 +985,14 @@ src/runtime_x.o: seeds/runtime.from_x.c src/runtime.x include/diag.h scripts/ens
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime.from_x.c -DXLANG_USE_X_PIPELINE
 
-# G-02f-11 / Phase 4：fmt_check_cmd thin+rest PREFER_X_O
-# 两目标共用 thin.x；driver 变体 rest 编译额外加 -DXLANG_USE_X_PIPELINE
-# PLATFORM: POSIX — thin -E uses getcwd/opendir/readdir/access; wrap with g05-aligned prologue.
-# (raw -E + unistd/dirent conflicts on libc extern redecls; strip like g05_try_x_to_o.)
-src/driver/fmt_check_cmd.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_check_cmd_thin.x src/driver/fmt_check_cmd.x
-	@if [ -x ./xlang-c ] && { \
-		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/fcc.XXXXXX") && \
-		./xlang-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/driver/fmt_check_cmd_thin.x > "$$_tmp.raw" 2>/dev/null && \
-		{ echo '/* makefile fmt_check thin prologue (g05-aligned + dirent wrappers) */'; \
-		  echo '#include <stddef.h>'; echo '#include <stdint.h>'; echo '#include <sys/types.h>'; \
-		  echo '#include <stdlib.h>'; echo '#include <string.h>'; echo '#include <stdio.h>'; \
-		  echo '#ifndef _WIN32'; echo '#include <unistd.h>'; echo '#include <fcntl.h>'; echo '#include <errno.h>'; \
-		  echo '#include <sys/uio.h>'; echo '#include <poll.h>'; echo '#include <dirent.h>'; \
-		  echo 'static inline uint8_t *xlang_fmt_opendir(uint8_t *name) { return (uint8_t *)opendir((const char *)name); }'; \
-		  echo 'static inline int32_t xlang_fmt_closedir(uint8_t *dirp) { return dirp ? (int32_t)closedir((DIR *)(void *)dirp) : (int32_t)-1; }'; \
-		  echo 'static inline int32_t xlang_fmt_access(uint8_t *path, int32_t mode) { return path ? (int32_t)access((const char *)path, (int)mode) : (int32_t)-1; }'; \
-		  echo 'static inline uint8_t *xlang_fmt_readdir_name(uint8_t *dirp) { struct dirent *ent; if (!dirp) return (uint8_t *)0; ent = readdir((DIR *)(void *)dirp); return ent ? (uint8_t *)ent->d_name : (uint8_t *)0; }'; \
-		  echo '#endif'; \
-		  sed -e '/^#include /d' -e '/^extern char \* getcwd(/d' -e '/^extern uint8_t \* getcwd(/d' \
-		      -e '/^extern char \* getenv(/d' -e '/^extern uint8_t \* getenv(/d' \
-		      -e '/^extern int32_t strcmp(/d' -e '/^extern int strcmp(/d' \
-		      -e '/^extern int32_t strncmp(/d' -e '/^extern int strncmp(/d' \
-		      -e '/^extern uint8_t \* strstr(/d' -e '/^extern char \* strstr(/d' \
-		      -e '/^extern uint8_t \* xlang_fmt_opendir(/d' -e '/^extern int32_t xlang_fmt_closedir(/d' \
-		      -e '/^extern int32_t xlang_fmt_access(/d' -e '/^extern uint8_t \* xlang_fmt_readdir_name(/d' "$$_tmp.raw"; \
-		} > "$$_tmp" && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/driver/fmt_check_cmd_thin.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_L2_FMT_CHECK_THIN_FROM_X -c seeds/fmt_check_cmd.from_x.c -o src/driver/fmt_check_cmd_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) src/driver/fmt_check_cmd_thin.o src/driver/fmt_check_cmd_rest.o -o $@ && \
-		rm -f "$$_tmp" "$$_tmp.raw" src/driver/fmt_check_cmd_thin.o src/driver/fmt_check_cmd_rest.o && \
-		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
-	}; then :; \
-	elif [ -f seeds/fmt_check_cmd.from_x.c ]; then \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/fmt_check_cmd.from_x.c -o $@ && \
-		echo "phase4: $@ <- seeds/fmt_check_cmd.from_x.c (cold start seed)"; \
-	else \
-		echo "ERROR: no xlang-c and no seed for $@" >&2; exit 1; \
-	fi
+# wave775: non-driver fmt_check_cmd.o → ensure try-other-l2-prefer (fmt_core).
+# G.7 有则补全 — same body as driver leaf; leaf_kind=fmt_core omits USE_X_PIPELINE
+# (OBJS_CORE / PIPELINE_X satellite: runtime_x has no XLANG_USE_X_DRIVER).
+# PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x WEAK + rest FROM_X.
+src/driver/fmt_check_cmd.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_check_cmd_thin.x src/driver/fmt_check_cmd.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-other-l2-prefer $@
 
 # wave771: product PREFER → ensure try-other-l2-prefer (thin .x WEAK + rest FROM_X + USE_X_PIPELINE; cold seed).
 # PLATFORM: SHARED — product daily path; PREFER=0 cold keeps -DXLANG_USE_X_PIPELINE.

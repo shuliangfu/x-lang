@@ -57,8 +57,10 @@
 #            `try-other-l2-prefer OUT` for seed_link_compat / strict_glue_stubs /
 #            fmt_check_cmd_driver / lsp_diag (table-driven; thin/full .x + rest
 #            FROM_X → $CC -r; slc named-weak via G05_X_O_WEAK_FUNCS; cold
-#            ensure_one + fmt USE_X_PIPELINE). Residual: pure-ld · physical
-#            delete · fmt_check_cmd.o Makefile dual (non-g05).
+#            ensure_one + fmt USE_X_PIPELINE).
+#   wave775: G.7 fmt_check_cmd.o Makefile dual → try-other-l2-prefer (有则补全) —
+#            same table; leaf_kind=fmt_core (no -DXLANG_USE_X_PIPELINE; OBJS_CORE /
+#            PIPELINE_X satellite path). Residual: physical delete · panic PREFER.
 #   wave758: R4 residual pure host-cc thin_glue → R1 seed-map (G.7 有则补全):
 #            parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c +
 #            -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm;
@@ -133,7 +135,8 @@
 #   - ~~g05 async three (liveness/cps/asm_pool)~~ wave770 try-async-prefer
 #   - ~~g05 other L2 four (slc/strict_glue/fmt_check/lsp_diag)~~ wave771
 #     try-other-l2-prefer
-#   - panic PREFER thin · R5 CI all · fmt_check_cmd.o Makefile dual (non-g05)
+#   - ~~fmt_check_cmd.o Makefile dual~~ wave775 → try-other-l2-prefer fmt_core
+#   - panic PREFER thin · R5 CI all
 #   - pure-ld (11.1.4) · physical Makefile delete (11.3.1)
 #   - bootstrap_nostdlib_stubs.o (cc_inc_tu residual) · crt0_user.o cp wrappers
 #
@@ -3025,10 +3028,10 @@ try_ensure_async_prefer_one() {
 }
 
 # ---------------------------------------------------------------------------
-# wave771: try-other-l2-prefer OUT — g05 residual other L2 four thin+rest PREFER.
+# wave771 + wave775: try-other-l2-prefer OUT — other L2 thin+rest PREFER table.
 #
 # Table-driven single body (G.7 有则补全; reuses rt_prefer_try_x_to_o).
-# Leaves (historic g05 dual hybrid; special prologues/weak sed):
+# Leaves (historic dual hybrid; special prologues/weak sed):
 #   src/seed_link_compat.o
 #     x=src/seed_link_compat.x  seed=seeds/seed_link_compat.from_x.c
 #     rest -D=XLANG_SEED_LINK_COMPAT_FROM_X + -Isrc/asm -Isrc/lexer
@@ -3042,23 +3045,27 @@ try_ensure_async_prefer_one() {
 #     x=src/driver/fmt_check_cmd_thin.x  seed=seeds/fmt_check_cmd.from_x.c
 #     rest -D=XLANG_L2_FMT_CHECK_THIN_FROM_X -DXLANG_USE_X_PIPELINE
 #     thin: G05_X_O_WEAK=1; cold seed also -DXLANG_USE_X_PIPELINE
+#   src/driver/fmt_check_cmd.o  (wave775 · non-driver OBJS_CORE / PIPELINE_X)
+#     same thin.x + seed; rest -D=XLANG_L2_FMT_CHECK_THIN_FROM_X only
+#     leaf_kind=fmt_core — NO -DXLANG_USE_X_PIPELINE (runtime_x lacks USE_X_DRIVER;
+#     fmt/check must stay on run_compiler_c stubs)
 #   src/lsp/lsp_diag.o
 #     x=src/asm/runtime_lsp_glue.x  seed=seeds/runtime_lsp_glue.from_x.c
 #     rest -D=XLANG_L2_LSP_GLUE_FULL_FROM_X
 #     thin: G05_X_O_WEAK=1
 # Prefer fail / PREFER≠1 / no xlang → ensure_one cold (fmt keeps USE_X_PIPELINE).
-# Callers: g05_ensure (wave771) · Makefile four leaves (was dual hybrid / one).
+# Callers: g05_ensure (wave771 four) · Makefile five leaves (wave775 adds fmt.o).
 # Exit codes:
 #   0 — OUT is a table member; prefer or cold body produced OUT
 #   3 — OUT is not in the other-L2 prefer table
 #   1 — cold seed missing / compile failed
 # PLATFORM: SHARED shell body · g05 historic PREFER=1 · cold chain PREFER=0.
-# Residual after: pure-ld · physical delete · fmt_check_cmd.o Makefile dual.
+# Residual after: physical delete · panic PREFER (if any).
 # ---------------------------------------------------------------------------
 
 # Resolve OUT → seed|x_src|from_x_def|weak_mode|leaf_kind (pipe-separated).
 # weak_mode: slc6 | weak
-# leaf_kind: slc | strict | fmt | lsp  (rest/cold extras + extra stale)
+# leaf_kind: slc | strict | fmt | fmt_core | lsp  (rest/cold extras + extra stale)
 other_l2_prefer_spec_for_out() {
   case "$1" in
     src/seed_link_compat.o)
@@ -3069,6 +3076,10 @@ other_l2_prefer_spec_for_out() {
       ;;
     src/driver/fmt_check_cmd_driver.o)
       printf '%s' "seeds/fmt_check_cmd.from_x.c|src/driver/fmt_check_cmd_thin.x|XLANG_L2_FMT_CHECK_THIN_FROM_X|weak|fmt"
+      ;;
+    src/driver/fmt_check_cmd.o)
+      # wave775: non-driver dual → same prefer body; no USE_X_PIPELINE.
+      printf '%s' "seeds/fmt_check_cmd.from_x.c|src/driver/fmt_check_cmd_thin.x|XLANG_L2_FMT_CHECK_THIN_FROM_X|weak|fmt_core"
       ;;
     src/lsp/lsp_diag.o)
       printf '%s' "seeds/runtime_lsp_glue.from_x.c|src/asm/runtime_lsp_glue.x|XLANG_L2_LSP_GLUE_FULL_FROM_X|weak|lsp"
@@ -3111,8 +3122,13 @@ ensure_other_l2_prefer_one() {
   case "$leaf_kind" in
     slc) rest_extra="-Isrc/asm -Isrc/lexer" ;;
     fmt)
+      # driver leaf: rest + cold need -DXLANG_USE_X_PIPELINE (product pipeline).
       rest_extra="-DXLANG_USE_X_PIPELINE"
       cold_extra=(-DXLANG_USE_X_PIPELINE)
+      ;;
+    fmt_core)
+      # wave775 non-driver: OBJS_CORE / PIPELINE_X satellite — seed/thin only;
+      # no USE_X_PIPELINE (avoids missing driver_run_compiler_full on runtime_x).
       ;;
     strict|lsp) ;;
     *)
@@ -4366,16 +4382,21 @@ run_check() {
   else
     bad "scripts/g05_ensure_relink_prereqs.sh missing (wave770 g05 gate)"
   fi
-  # wave771: try-other-l2-prefer (g05 + Makefile thin-call; four other L2 leaves)
+  # wave771 + wave775: try-other-l2-prefer (g05 four + Makefile five incl. fmt_core)
   if ! grep -q 'try_ensure_other_l2_prefer_one\|try-other-l2-prefer' "$0"; then
     bad "try-other-l2-prefer / try_ensure_other_l2_prefer_one missing (wave771)"
   else
-    note "try-other-l2-prefer helper present (wave771)"
+    note "try-other-l2-prefer helper present (wave771/775)"
   fi
   if ! grep -q 'ensure_other_l2_prefer_one\|other_l2_prefer_spec_for_out' "$0"; then
     bad "other-l2 prefer body/table missing (wave771)"
   else
-    note "other-l2-prefer table body present (wave771)"
+    note "other-l2-prefer table body present (wave771/775)"
+  fi
+  if ! grep -q 'fmt_core' "$0"; then
+    bad "fmt_core leaf_kind missing (wave775 fmt_check_cmd.o)"
+  else
+    note "fmt_core leaf_kind present (wave775)"
   fi
   if ! grep -q 'G05_X_O_WEAK_FUNCS' "$0"; then
     bad "G05_X_O_WEAK_FUNCS named-weak missing in rt_prefer (wave771 slc)"
@@ -4386,6 +4407,7 @@ run_check() {
     src/seed_link_compat.o \
     src/runtime_driver_strict_glue_stubs.o \
     src/driver/fmt_check_cmd_driver.o \
+    src/driver/fmt_check_cmd.o \
     src/lsp/lsp_diag.o; do
     if awk -v leaf="$_ol2_leaf" '
       $0 ~ ("^" leaf ":") {grab=1; next}
@@ -4396,11 +4418,25 @@ run_check() {
         exit 1
       }
     ' Makefile; then
-      note "Makefile $_ol2_leaf thin-calls ensure try-other-l2-prefer (wave771)"
+      note "Makefile $_ol2_leaf thin-calls ensure try-other-l2-prefer (wave771/775)"
     else
-      bad "Makefile $_ol2_leaf must thin-call ensure try-other-l2-prefer (wave771)"
+      bad "Makefile $_ol2_leaf must thin-call ensure try-other-l2-prefer (wave771/775)"
     fi
   done
+  # wave775: ban re-opened Makefile dual hybrid body for non-driver fmt.o
+  if awk '
+    $0 ~ /^src\/driver\/fmt_check_cmd\.o:/ {grab=1; next}
+    grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+    grab {body = body $0 "\n"}
+    END {
+      if (body ~ /mktemp/ && body ~ /fmt_check_cmd_thin\.o/) exit 0
+      exit 1
+    }
+  ' Makefile; then
+    bad "Makefile fmt_check_cmd.o still has dual hybrid body (wave775)"
+  else
+    note "Makefile fmt_check_cmd.o dual hybrid body removed (wave775)"
+  fi
   if [ -f scripts/g05_ensure_relink_prereqs.sh ]; then
     if grep -q 'try-other-l2-prefer\|other-l2-prefer' scripts/g05_ensure_relink_prereqs.sh \
       && grep -q 'ensure_host_cc_seed_o.sh' scripts/g05_ensure_relink_prereqs.sh; then
