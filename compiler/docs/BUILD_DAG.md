@@ -1,4 +1,4 @@
-# Product + cold-start build DAG (11.1.1 · wave742 · 11.1.2 wave743 · 11.3 prereq edges wave744 · 11.1.3/4 wave745 · 11.3.1 path wave746)
+# Product + cold-start build DAG (11.1.1 · wave742 · 11.1.2 wave743 · 11.3 prereq edges wave744 · 11.1.3/4 wave745 · 11.3.1 path wave746 · R4 mode wave747)
 
 > **Authority (G.7):** this document is the **orchestration dependency map** for Track MG.  
 > Object-list *definitions* stay in `compiler/mk/*.mk` (export via `driver_seed_obj_catalog.sh`).  
@@ -8,8 +8,9 @@
 > Prereq edges (wave744): `driver_seed_ensure_prereqs.sh` (catalog `DRIVER_SEED_PREREQS`).  
 > Platform + linker policy (wave745 · 11.1.3/4): `compiler/docs/PLATFORM_LINKER.md` +  
 > `host_platform_linker.sh` · `./xbuild host-platform` / `linker-policy`.  
-> Leaf pattern residual (wave746 · 11.3.1 path): `compiler/docs/LEAF_PATTERN_RESIDUAL.md` +  
-> `leaf_pattern_residual.sh` · `./xbuild leaf-patterns`.
+> Leaf pattern residual (wave746 · 11.3.1 path · wave747 R4 mode):  
+> `compiler/docs/LEAF_PATTERN_RESIDUAL.md` + `leaf_pattern_residual.sh` ·  
+> `./xbuild leaf-patterns`.
 
 **PLATFORM: SHARED** — same node names on macOS / Ubuntu / Windows host shells; platform ABI lives inside leaf scripts and seed pins.
 
@@ -190,7 +191,7 @@ Do **not** grow new free-form recipes. Known residual classes:
 | Residual | Notes |
 |----------|--------|
 | ~~`DRIVER_SEED_PREREQS` make-graph edges~~ | **swallowed wave744** → shell ensure (list still mk) |
-| Leaf `.o` pattern rules (R1–R5) | **named inventory wave746** · bodies still Makefile → 11.3.1 |
+| Leaf `.o` pattern rules (R1–R5) | **named inventory wave746** · **R4 mode+list shell wave747** · pattern bodies still Makefile → 11.3.1 |
 | `compiler-all` / Makefile `all` | CI host-cc path (R5) |
 | FULL=1 bstrict make entry | Non-daily |
 | Missing `xlang-c` for force -E | ensure_* gen scripts |
@@ -251,6 +252,17 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 - [ ] Physical delete of Makefile / leaf pattern rules (11.3.1 endgame)
 - [ ] Leaf `.o` builds without host-cc residual (stages 8–9 / 12)
 
+### wave747 (11.3.1 · R4 mode-policy swallow)
+
+- [x] `bootstrap_driver_seed_rebuild_leaves.sh` default = catalog KEY + shell mode table
+- [x] Mode ARGS/VARS authority in shell (sat `-B` / PREFER_X_O / PIPELINE_X_FORCE)
+- [x] Lists still mk via `driver_seed_obj_catalog.sh` (no dual `.o`)
+- [x] Pattern bodies still `make` (honest R4 residual)
+- [x] `XLANG_REBUILD_LEAVES_VIA_EXPORT=1` legacy escape
+- [x] LEAF_PATTERN dump `SWALLOWED_R4_MODE_POLICY=1` / `R4_PATTERN_BODY_STILL_MAKE=1`
+- [ ] Rebuild without make pattern graph (R4 endgame)
+- [ ] Physical delete of Makefile (11.3.1 endgame)
+
 ---
 
 ## References
@@ -263,4 +275,5 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 - `compiler/docs/PLATFORM_LINKER.md` (11.1.3/4 · wave745)  
 - `compiler/scripts/driver_seed_obj_catalog.sh` (lists)  
 - `compiler/scripts/driver_seed_ensure_prereqs.sh` (edges · wave744)  
+- `compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh` (R4 mode · wave747)  
 - `compiler/scripts/host_platform_linker.sh` (platform + linker · wave745)

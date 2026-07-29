@@ -16,6 +16,8 @@
 #            (PLATFORM_LINKER.md); this script only cross-checks presence.
 #   wave746: leaf pattern residual inventory → leaf_pattern_residual.sh
 #            (LEAF_PATTERN_RESIDUAL.md); cross-check presence only.
+#   wave747: R4 mode-policy swallow in rebuild_leaves (catalog default);
+#            residual dump flags SWALLOWED_R4_MODE_POLICY=1.
 #
 # Usage (repo root or compiler/):
 #   bash compiler/scripts/product_build_dag.sh              # dump inventory
@@ -461,7 +463,7 @@ else
   fi
 fi
 
-# wave746: leaf pattern residual inventory (11.3.1 path · G.7 no dual .o)
+# wave746–747: leaf pattern residual inventory + R4 mode-policy (11.3.1 path)
 if [ ! -f compiler/docs/LEAF_PATTERN_RESIDUAL.md ]; then
   bad "missing compiler/docs/LEAF_PATTERN_RESIDUAL.md (wave746 11.3.1 path)"
 elif [ ! -f compiler/scripts/leaf_pattern_residual.sh ]; then
@@ -469,21 +471,24 @@ elif [ ! -f compiler/scripts/leaf_pattern_residual.sh ]; then
 elif ! grep -qE 'leaf-patterns|leaf-residual' "$XBUILD_REL" \
   || ! grep -q 'leaf_pattern_residual\.sh' "$XBUILD_REL"; then
   bad "xlang-build.sh must wire leaf-patterns / leaf-residual (wave746)"
-elif ! grep -qE '11\.3\.1|LEAF_PATTERN|leaf_pattern_residual|wave746' "$DOC_REL"; then
-  bad "$DOC_REL must cross-ref wave746 LEAF_PATTERN / 11.3.1"
+elif ! grep -qE '11\.3\.1|LEAF_PATTERN|leaf_pattern_residual|wave746|wave747' "$DOC_REL"; then
+  bad "$DOC_REL must cross-ref wave746/747 LEAF_PATTERN / 11.3.1"
 elif ! grep -qE '11\.3\.1|leaf.pattern|LEAF_PATTERN' build.x; then
   bad "build.x must mention 11.3.1 / leaf pattern residual (wave746)"
+elif ! grep -q 'driver_seed_obj_catalog\.sh' compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh \
+  || ! grep -q 'catalog_key=' compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh; then
+  bad "rebuild_leaves must use catalog mode table (wave747 R4)"
 else
   if ! bash compiler/scripts/leaf_pattern_residual.sh --check \
     >/tmp/leaf_pattern_residual_check.out 2>/tmp/leaf_pattern_residual_check.err; then
-    bad "leaf_pattern_residual.sh --check failed (wave746)"
+    bad "leaf_pattern_residual.sh --check failed (wave747)"
     head -30 /tmp/leaf_pattern_residual_check.err >&2 || true
   else
     if ! grep -q 'CHECK OK' /tmp/leaf_pattern_residual_check.out \
       && ! grep -q 'CHECK OK' /tmp/leaf_pattern_residual_check.err; then
       bad "leaf_pattern_residual --check missing CHECK OK banner"
     else
-      note "leaf_pattern_residual --check OK (wave746 11.3.1 path)"
+      note "leaf_pattern_residual --check OK (wave747 R4 mode + 11.3.1 path)"
     fi
   fi
 fi
@@ -551,5 +556,5 @@ if [ "$fail" -ne 0 ]; then
   echo "product_build_dag: CHECK FAIL" >&2
   exit 1
 fi
-echo "product_build_dag: CHECK OK (11.1.1+11.1.2 wave743 · 11.3 prereq edges wave744 · 11.1.3/4 wave745 · 11.3.1 leaf residual wave746)"
+echo "product_build_dag: CHECK OK (11.1.1+11.1.2 wave743 · 11.3 prereq edges wave744 · 11.1.3/4 wave745 · 11.3.1 leaf residual wave746 · R4 mode wave747)"
 exit 0

@@ -207,14 +207,17 @@ else
   fi
 fi
 
-# wave722/724/725: rebuild leaves (sat/lsp/bridge/panic/user-asm/glue/pipeline-x) → shell via export
+# wave722/724/725 + wave747: rebuild leaves → shell; default catalog mode (R4)
 if [ ! -f compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh ]; then
   bad "missing compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh (11.0.3 wave722+)"
 elif ! grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh' compiler/Makefile; then
   bad "Makefile rebuild leaves must call bootstrap_driver_seed_rebuild_leaves.sh"
+elif ! grep -q 'driver_seed_obj_catalog\.sh' compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh \
+  || ! grep -q 'catalog_key=' compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh; then
+  bad "rebuild_leaves must default to catalog KEY mode table (wave747 R4)"
 elif ! grep -q 'bootstrap-driver-seed-export-sat-rebuild' compiler/Makefile \
   || ! grep -q 'bootstrap-driver-seed-export-lsp-x-objs' compiler/Makefile; then
-  bad "Makefile missing sat/lsp export leaves (G.7 single authority)"
+  bad "Makefile missing sat/lsp export leaves (G.7 inventory mirrors / legacy escape)"
 elif ! grep -q 'bootstrap-driver-seed-export-bridge' compiler/Makefile \
   || ! grep -q 'bootstrap-driver-seed-export-panic' compiler/Makefile \
   || ! grep -q 'bootstrap-driver-seed-export-user-asm' compiler/Makefile \
@@ -294,7 +297,7 @@ else
     compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh; then
     bad "bootstrap_driver_seed_rebuild_leaves.sh must not hardcode .o list (dual authority)"
   else
-    note "rebuild leaves (sat/lsp/bridge/panic/user-asm/glue/pipeline-x) → export + rebuild_leaves.sh"
+    note "rebuild leaves → catalog+mode table (wave747) + make pattern bodies; export leaves inventory"
   fi
 fi
 
@@ -1142,7 +1145,7 @@ elif ! grep -qE '11\.3\.1|leaf.pattern|LEAF_PATTERN' build.x; then
 elif ! grep -qE '11\.3\.1|LEAF_PATTERN|leaf_pattern_residual|wave746' compiler/docs/BUILD_DAG.md; then
   bad "BUILD_DAG.md must cross-ref wave746 LEAF_PATTERN"
 else
-  note "BUILD_DAG + ensure_prereqs + product-dag + PLATFORM_LINKER + LEAF_PATTERN (11.1.1–4 + 11.3.1 path + wave744–746)"
+  note "BUILD_DAG + ensure_prereqs + product-dag + PLATFORM_LINKER + LEAF_PATTERN (11.1.1–4 + 11.3.1 path + wave744–747)"
   if ! bash compiler/scripts/product_build_dag.sh --check; then
     bad "product_build_dag.sh --check failed (wave742–746)"
   else
@@ -1192,19 +1195,23 @@ else
     note "xbuild linker-policy inventory OK (wave745)"
   fi
   if ! ./xbuild leaf-patterns --check >/tmp/xbuild_leaf_patterns_check.out 2>/tmp/xbuild_leaf_patterns_check.err; then
-    bad "xbuild leaf-patterns --check failed (wave746)"
+    bad "xbuild leaf-patterns --check failed (wave747)"
   elif ! grep -q 'CHECK OK' /tmp/xbuild_leaf_patterns_check.out /tmp/xbuild_leaf_patterns_check.err; then
-    bad "xbuild leaf-patterns --check missing CHECK OK (wave746)"
+    bad "xbuild leaf-patterns --check missing CHECK OK (wave747)"
   else
-    note "xbuild leaf-patterns --check OK (wave746)"
+    note "xbuild leaf-patterns --check OK (wave747 R4 mode)"
   fi
   _leaf_out="$(./xbuild leaf-patterns 2>/dev/null || true)"
   if ! printf '%s\n' "$_leaf_out" | grep -q 'RESIDUAL_CLASS_R1=host_cc_seed_from_x_to_o'; then
-    bad "xbuild leaf-patterns dump missing RESIDUAL_CLASS_R1 (wave746)"
+    bad "xbuild leaf-patterns dump missing RESIDUAL_CLASS_R1"
+  elif ! printf '%s\n' "$_leaf_out" | grep -q 'SWALLOWED_R4_MODE_POLICY=1'; then
+    bad "xbuild leaf-patterns dump missing SWALLOWED_R4_MODE_POLICY=1 (wave747)"
+  elif ! printf '%s\n' "$_leaf_out" | grep -q 'R4_PATTERN_BODY_STILL_MAKE=1'; then
+    bad "xbuild leaf-patterns dump missing R4_PATTERN_BODY_STILL_MAKE=1"
   elif ! printf '%s\n' "$_leaf_out" | grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0'; then
-    bad "xbuild leaf-patterns dump missing ENDGAME_PHYSICAL_DELETE_MAKEFILE=0 (wave746)"
+    bad "xbuild leaf-patterns dump missing ENDGAME_PHYSICAL_DELETE_MAKEFILE=0"
   else
-    note "xbuild leaf-patterns inventory OK (wave746)"
+    note "xbuild leaf-patterns inventory OK (wave747 R4 mode-policy swallow)"
   fi
   unset _dag_dry_out _cold_dry_out _plat_out _link_out _leaf_out
 fi
@@ -1256,5 +1263,5 @@ if [ "$fail" -ne 0 ]; then
   echo "FAIL product-path 0-make static gate" >&2
   exit 1
 fi
-echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe; mk OBJS+composites; catalog --check; tests/lib+run-*.sh hub; root help→xbuild; CI/docker → xbuild; build.sh thin; docker/delete-one entry; 11.5 HOST_CC_POLICY; 11.1.1–4 BUILD_DAG + PLATFORM_LINKER; 11.3.1 LEAF_PATTERN)"
+echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe; mk OBJS+composites; catalog --check; tests/lib+run-*.sh hub; root help→xbuild; CI/docker → xbuild; build.sh thin; docker/delete-one entry; 11.5 HOST_CC_POLICY; 11.1.1–4 BUILD_DAG + PLATFORM_LINKER; 11.3.1 LEAF_PATTERN + R4 mode wave747)"
 exit 0

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# leaf_pattern_residual.sh — 11.3.1 path · leaf .o pattern residual inventory (wave746)
+# leaf_pattern_residual.sh — 11.3.1 path · leaf .o pattern residual inventory
+#   wave746: named classes R1–R6
+#   wave747: R4 mode-policy swallow (catalog + shell table; pattern body residual)
 #
 # Authority (G.7):
 #   Single shell authority for *named residual classes* of Makefile leaf pattern /
@@ -16,7 +18,7 @@
 #   ./xbuild leaf-patterns | leaf-residual [--check]
 #
 # PLATFORM: SHARED — inventory portable; leaf ABI stays in Makefile / mk.
-# Wave: 746 Track MG · 11.3.1 path (not physical delete · not pure-ld).
+# Wave: 746–747 Track MG · 11.3.1 path (not physical delete · not pure-ld).
 
 set -euo pipefail
 
@@ -48,16 +50,19 @@ bad() { echo "leaf_pattern_residual: FAIL: $*" >&2; fail=1; }
 # ---------------------------------------------------------------------------
 print_classes() {
   cat <<EOF
-# leaf pattern residual inventory (11.3.1 path · wave746)
-# Lists stay mk/catalog. Bodies stay Makefile until named shell swallow.
+# leaf pattern residual inventory (11.3.1 path · wave746 + wave747 R4 mode)
+# Lists stay mk/catalog. Pattern bodies stay Makefile until named shell swallow.
 
-LEAF_PATTERN_POLICY=inventory_named_classes_only
+LEAF_PATTERN_POLICY=inventory_named_classes_plus_r4_mode_swallow
 LEAF_PATTERN_FORBIDDEN=dual_o_list_or_copy_cc_recipes
 
 # Already shell (orchestration; not residual leaf pattern)
 SWALLOWED_COLD_SEQ=scripts/bootstrap_driver_seed.sh
 SWALLOWED_PREREQ_EDGES=scripts/driver_seed_ensure_prereqs.sh
 SWALLOWED_REBUILD_ORCH=scripts/bootstrap_driver_seed_rebuild_leaves.sh
+SWALLOWED_R4_MODE_POLICY=1
+SWALLOWED_R4_MODE_LIST_SOURCE=driver_seed_obj_catalog.sh
+SWALLOWED_R4_MODE_NOTE=catalog_KEY_plus_shell_ARGS_VARS_default
 SWALLOWED_LINK_DRIVER=scripts/bootstrap_driver_seed_link.sh
 SWALLOWED_G05_FAMILY=scripts/g05_*.sh
 SWALLOWED_MIGRATE_GEN=scripts/migrate_x_objs.sh+ensure_*_gen.sh
@@ -77,7 +82,9 @@ RESIDUAL_CLASS_R3_SURFACE=thin.o+FROM_X_rest_cc+ld_-r
 RESIDUAL_CLASS_R3_ENDGAME=g05_ensure_product_path_complete
 
 RESIDUAL_CLASS_R4=cold_rebuild_pattern_bodies
-RESIDUAL_CLASS_R4_SURFACE=sat|lsp|bridge|panic|user-asm|glue|pipeline-x_make_targets
+RESIDUAL_CLASS_R4_SURFACE=sat|lsp|bridge|panic|user-asm|glue|pipeline-x_make_pattern
+RESIDUAL_CLASS_R4_MODE_POLICY=swallowed_wave747
+RESIDUAL_CLASS_R4_BODY=still_make_pattern
 RESIDUAL_CLASS_R4_ENDGAME=rebuild_leaves_without_make_pattern
 
 RESIDUAL_CLASS_R5=ci_compiler_all_host_cc_graph
@@ -96,21 +103,29 @@ EOF
 
 print_live_metrics() {
   local mf="$ROOT/compiler/Makefile"
-  local cc_c=0 uname_n=0 rebuild_modes=0
+  local cc_c=0 uname_n=0 rebuild_modes=0 catalog_default=0
   if [ -f "$mf" ]; then
     # Count recipe-ish $(CC) ... -c lines (rough residual heat; not authoritative list).
     cc_c=$(grep -cE '\$\(CC\).*-c' "$mf" 2>/dev/null || echo 0)
     uname_n=$(grep -cE 'UNAME_[SM]|\$\(UNAME_' "$mf" 2>/dev/null || echo 0)
   fi
-  # rebuild_leaves modes still call make for pattern bodies
+  # rebuild_leaves modes: catalog_key= table entries (wave747)
   if [ -f "$ROOT/compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh" ]; then
-    rebuild_modes=$(grep -cE 'export_target=' "$ROOT/compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh" 2>/dev/null || echo 0)
+    rebuild_modes=$(grep -cE 'catalog_key=' "$ROOT/compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh" 2>/dev/null || echo 0)
+    if grep -q 'driver_seed_obj_catalog\.sh' \
+      "$ROOT/compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh" \
+      && grep -q 'SWALLOWED_R4\|catalog KEY\|wave747\|catalog_key=' \
+      "$ROOT/compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh"; then
+      catalog_default=1
+    fi
   fi
   cat <<EOF
 MAKEFILE_PRESENT=$([ -f "$mf" ] && echo 1 || echo 0)
 MAKEFILE_CC_C_RECIPE_LINES=$cc_c
 MAKEFILE_UNAME_REF_LINES=$uname_n
-REBUILD_LEAVES_EXPORT_MODES=$rebuild_modes
+REBUILD_LEAVES_MODE_TABLE_ENTRIES=$rebuild_modes
+R4_MODE_POLICY_SWALLOWED=$catalog_default
+R4_PATTERN_BODY_STILL_MAKE=1
 ENDGAME_PHYSICAL_DELETE_MAKEFILE=0
 ENDGAME_LEAF_WITHOUT_HOST_CC=0
 ENDGAME_COLD_PURE_LD=0
@@ -138,6 +153,7 @@ DOC_REL="compiler/docs/LEAF_PATTERN_RESIDUAL.md"
 SCRIPT_REL="compiler/scripts/leaf_pattern_residual.sh"
 XBUILD_REL="xlang-build.sh"
 MF="compiler/Makefile"
+REBUILD_REL="compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh"
 
 if [ ! -f "$DOC_REL" ]; then
   bad "missing $DOC_REL (11.3.1 leaf residual authority map)"
@@ -151,8 +167,11 @@ else
   if ! grep -qiE 'lists stay mk|no dual|\.o list|Do not.*\.o' "$DOC_REL"; then
     bad "$DOC_REL must ban dual .o inventories (G.7)"
   fi
-  if ! grep -qiE 'physical delete|11\.3\.1 endgame|not this wave' "$DOC_REL"; then
+  if ! grep -qiE 'physical delete|11\.3\.1 endgame|not this wave|not closed' "$DOC_REL"; then
     bad "$DOC_REL must mark physical delete as endgame (not this wave)"
+  fi
+  if ! grep -qE 'wave747|R4 mode|mode.policy|catalog' "$DOC_REL"; then
+    bad "$DOC_REL must document wave747 R4 mode-policy swallow"
   fi
   note "doc $DOC_REL present"
 fi
@@ -175,10 +194,19 @@ fi
 if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_PREREQ_EDGES=scripts/driver_seed_ensure_prereqs.sh'; then
   bad "dump must name swallowed prereq edges (wave744)"
 fi
+if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R4_MODE_POLICY=1'; then
+  bad "dump must set SWALLOWED_R4_MODE_POLICY=1 (wave747)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'R4_MODE_POLICY_SWALLOWED=1'; then
+  bad "dump R4_MODE_POLICY_SWALLOWED must be 1 (rebuild_leaves uses catalog)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'R4_PATTERN_BODY_STILL_MAKE=1'; then
+  bad "dump must keep R4_PATTERN_BODY_STILL_MAKE=1 (honest residual)"
+fi
 if ! printf '%s\n' "$_out" | grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0'; then
   bad "dump missing ENDGAME_PHYSICAL_DELETE_MAKEFILE=0 (not closed)"
 else
-  note "residual class inventory dump OK"
+  note "residual class inventory dump OK (wave747 R4 mode)"
 fi
 
 # Makefile still present (residual reality) + has host-cc heat
@@ -186,7 +214,6 @@ if [ ! -f "$MF" ]; then
   bad "missing $MF (unexpected early delete; 11.3.1 not closed)"
 else
   if ! grep -qE '\$\(CC\).*-c' "$MF"; then
-    # Soft warn path: if zero, inventory still valid but heat is 0
     note "Makefile has 0 \$(CC) -c residual lines (heat cleared? keep inventory)"
   else
     note "Makefile still has host-cc -c residual (expected until 11.3.1)"
@@ -203,6 +230,7 @@ for f in \
   compiler/scripts/bootstrap_driver_seed.sh \
   compiler/scripts/driver_seed_ensure_prereqs.sh \
   compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh \
+  compiler/scripts/driver_seed_obj_catalog.sh \
   compiler/scripts/bootstrap_driver_seed_link.sh \
   compiler/scripts/host_platform_linker.sh
 do
@@ -212,12 +240,25 @@ do
 done
 note "swallowed orchestration owners present"
 
-# rebuild_leaves must still go through make export (R4 residual honest)
-if ! grep -q 'SEED_REBUILD_OBJS' compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh \
-  || ! grep -qE '\$MAKE|make ' compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh; then
-  bad "rebuild_leaves must still invoke make for pattern bodies (R4 residual)"
+# wave747: rebuild_leaves default = catalog + mode table; still make for bodies
+if [ ! -f "$REBUILD_REL" ]; then
+  bad "missing $REBUILD_REL"
 else
-  note "R4 rebuild_leaves still make-backed (named residual)"
+  if ! grep -q 'driver_seed_obj_catalog\.sh' "$REBUILD_REL"; then
+    bad "rebuild_leaves must default to driver_seed_obj_catalog (wave747 R4 mode)"
+  fi
+  if ! grep -q 'catalog_key=' "$REBUILD_REL"; then
+    bad "rebuild_leaves must have shell mode table catalog_key= (wave747)"
+  fi
+  if ! grep -qE '\$MAKE|"\$MAKE"|make ' "$REBUILD_REL"; then
+    bad "rebuild_leaves must still invoke make for pattern bodies (R4 body residual)"
+  fi
+  # G.7: no hardcoded product .o paths in rebuild_leaves
+  if grep -qE 'src/diag\.o|lsp_io_x\.o|simd_enc\.o|x_seed_bridge\.o|runtime_panic\.o|user_asm_seed_bridge\.o|pipeline_glue_standalone\.o' \
+    "$REBUILD_REL"; then
+    bad "rebuild_leaves must not hardcode .o list (dual authority)"
+  fi
+  note "R4 mode policy shell + catalog; pattern bodies still make-backed"
 fi
 
 # G.7: this script must not hardcode product .o inventories as code paths
@@ -227,7 +268,6 @@ if grep -nE '[a-zA-Z0-9_./-]+\.o' "$SCRIPT_DIR/leaf_pattern_residual.sh" \
   code_hits=$(grep -nE '[a-zA-Z0-9_./-]+\.o' "$SCRIPT_DIR/leaf_pattern_residual.sh" \
     | grep -vE ':[0-9]+:[[:space:]]*#|inventor|hardcode|catalog|\.mk|lists|dual|not |pattern|thin\.o|from_x|leaf' || true)
   if [ -n "${code_hits:-}" ]; then
-    # Only fail if looks like a path assignment with .o
     if printf '%s\n' "$code_hits" | grep -qE '[= ].*\.o|"[^"]+\.o' ; then
       bad "leaf_pattern_residual.sh must not hardcode .o paths (G.7):"
       echo "$code_hits" | head -10 >&2
@@ -258,8 +298,8 @@ fi
 
 # BUILD_DAG + PLATFORM_LINKER cross-ref
 if [ -f compiler/docs/BUILD_DAG.md ]; then
-  if ! grep -qE '11\.3\.1|LEAF_PATTERN|leaf_pattern_residual|wave746' compiler/docs/BUILD_DAG.md; then
-    bad "BUILD_DAG.md must cross-ref wave746 / LEAF_PATTERN / 11.3.1"
+  if ! grep -qE '11\.3\.1|LEAF_PATTERN|leaf_pattern_residual|wave746|wave747' compiler/docs/BUILD_DAG.md; then
+    bad "BUILD_DAG.md must cross-ref wave746/747 / LEAF_PATTERN / 11.3.1"
   else
     note "BUILD_DAG.md cross-ref OK"
   fi
@@ -277,5 +317,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave746 11.3.1 leaf residual inventory)"
+echo "leaf_pattern_residual: CHECK OK (wave747 R4 mode-policy + 11.3.1 leaf residual inventory)"
 exit 0
