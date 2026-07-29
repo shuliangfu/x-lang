@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2 · wave763 R3 PREFER thin try-r3-prefer · wave764 g05 R3_COLD r3-prefer-family · wave765 g05 labi try-labi-prefer · wave766 g05 rt try-rt-prefer · wave767 g05 pipeline_abi/ldpc try-*-prefer · wave768 g05 target_cpu try-target-cpu-prefer · wave769 g05 L2 asm try-l2-asm-prefer · wave770 g05 async try-async-prefer · wave771 g05 other L2 try-other-l2-prefer · wave772 11.1.4 pure-ld prefer)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2 · wave763 R3 PREFER thin try-r3-prefer · wave764 g05 R3_COLD r3-prefer-family · wave765 g05 labi try-labi-prefer · wave766 g05 rt try-rt-prefer · wave767 g05 pipeline_abi/ldpc try-*-prefer · wave768 g05 target_cpu try-target-cpu-prefer · wave769 g05 L2 asm try-l2-asm-prefer · wave770 g05 async try-async-prefer · wave771 g05 other L2 try-other-l2-prefer · wave772 11.1.4 pure-ld cold prefer · wave773 g05 pure-ld prefer)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -38,8 +38,8 @@
 | **L2 asm three PREFER** | `ensure_host_cc_seed_o.sh try-l2-asm-prefer` | **wave769**: g05 + Makefile thin-call (uasb/bxec/abcs) |
 | **async three PREFER** | `ensure_host_cc_seed_o.sh try-async-prefer` | **wave770**: g05 + Makefile thin-call (liveness/cps/asm_pool) |
 | **other L2 four PREFER** | `ensure_host_cc_seed_o.sh try-other-l2-prefer` | **wave771**: g05 + Makefile thin-call (slc/strict_glue/fmt_driver/lsp_diag) |
-| Phase1/final **link driver** | `bootstrap_driver_seed_link.sh` | **wave772 pure-ld prefer** (`SEED_LINK_LD`…); residual `SEED_LINK_CC` fallback (11.1.4) |
-| g05 ensure / prepare / relink | `g05_*.sh` | **wave764**–**wave771** R3_COLD / labi / rt / pipeline_abi / ldpc / target_cpu / L2-asm / async / other-L2 via ensure try-*-prefer; residual g05 `CC -o` · physical delete · `fmt_check_cmd.o` Makefile dual |
+| Phase1/final **link driver** | `bootstrap_driver_seed_link.sh` | **wave772 pure-ld prefer** (`SEED_LINK_LD`… via `pure_ld_shared`); residual `SEED_LINK_CC` fallback (11.1.4) |
+| g05 ensure / prepare / relink | `g05_*.sh` | **wave764**–**wave771** R3_COLD / labi / rt / pipeline_abi / ldpc / target_cpu / L2-asm / async / other-L2 via ensure try-*-prefer; **wave773** g05 final pure-ld prefer (`pure_ld_shared`); residual CC fallback · physical delete · `fmt_check_cmd.o` Makefile dual |
 | migrate / `*_gen` ensure | `migrate_x_objs.sh` · `ensure_*_gen.sh` | wave735–740 |
 | Host facts / linker policy map | `host_platform_linker.sh` | wave745 |
 | **R1 pure host-cc body · eight families** | `ensure_host_cc_seed_o.sh` | **wave748**–**wave755**; residual non-catalog |
@@ -58,7 +58,7 @@
 | **R3** | Thin+rest / PREFER_X_O host-cc rest | thin `.o` + `FROM_X=1` rest `cc -c` + `ld -r` | cold-else shell ensure; PREFER thin product path | **cold-else ✅ wave757** · **Makefile PREFER ✅ wave763** · **g05 R3_COLD ✅ wave764** · **labi multi-slice ✅ wave765** · **rt multi-slice ✅ wave766** · **pipeline_abi/ldpc ✅ wave767** · **target_cpu ✅ wave768**; residual other L2 |
 | **R4** | Cold rebuild **pattern bodies** | sat/lsp/bridge/panic/user-asm/glue/pipeline-x | rebuild without make pattern graph | **mode+list shell wave747** · **pure-R1 wave756** · **R3 cold wave757** · **thin_glue seed-map wave758** · **glue standalone seed-map wave759** · **panic cold try-r2 wave760** · **gen try-gen-x wave761** · **typeck_f64/crt0 try-r2 wave762**; residual PREFER thin / sat non-R1 if any |
 | **R5** | CI / `compiler-all` host-cc graph | Makefile `all` · OPT seed path | CI entry stays `./xbuild compiler-all` until stage 12 | residual |
-| **R6** | Cold **link** pure-ld prefer | `try_pure_ld` phase1/final; CC fallback | 11.1.4 · **wave772** swallowed prefer; residual drop-fallback / g05 | ~~residual CC primary~~ |
+| **R6** | Cold **link** pure-ld prefer + g05 pure-ld | `try_pure_ld` phase1/final + `try_g05_pure_ld`; CC fallback | 11.1.4 · **wave772** cold · **wave773** g05; residual drop-fallback / physical delete | ~~residual CC primary~~ · ~~g05 CC-only~~ |
 
 **R1–R5** are the 11.3.1 **leaf pattern** residual. **R6** is tracked under 11.1.4 (wave745).
 
@@ -319,8 +319,8 @@ After (wave771):
 
 | Swallowed | Still residual |
 |-----------|----------------|
-| g05 other L2 four PREFER hybrids (product daily path) | ~~pure-ld cold primary~~ (wave772) · physical delete · `fmt_check_cmd.o` Makefile dual (non-g05) |
-| Second prefer body for the four leaves | panic PREFER (if any) · R5 CI · g05 pure-ld · drop CC fallback |
+| g05 other L2 four PREFER hybrids (product daily path) | ~~pure-ld cold primary~~ (wave772) · ~~g05 pure-ld~~ (wave773) · physical delete · `fmt_check_cmd.o` Makefile dual (non-g05) |
+| Second prefer body for the four leaves | panic PREFER (if any) · R5 CI · drop CC fallback |
 
 **Forbidden:** re-open g05 inline slc/strict/fmt/lsp hybrid; second prefer body under a second name; dual -E prologue (reuse rt_prefer + WEAK_FUNCS).
 
@@ -341,10 +341,34 @@ After (wave772):
 
 | Swallowed | Still residual |
 |-----------|----------------|
-| Cold phase1/final pure-ld prefer + pure export keys | CC residual fallback · g05 `CC -o` · physical delete · `fmt_check_cmd.o` dual |
+| Cold phase1/final pure-ld prefer + pure export keys | ~~g05 `CC -o` primary~~ (wave773) · CC residual fallback · physical delete · `fmt_check_cmd.o` dual |
 | R6 primary = pure-ld | Drop fallback; Windows PE pure-ld; make export leaf itself |
 
 **Forbidden:** second cold link body; hardcode `.o` list in shell; dual pure-ld argv tables outside Makefile export + platform prefix helper.
+
+### wave773 · 11.1.4 g05 pure-ld prefer (G.7 有则补全 `pure_ld_shared`)
+
+```text
+Before (wave772):
+  g05_relink_xlang.sh: $CC $CFLAGS -o OUT $OBJS only
+  pure-ld platform helpers only inside bootstrap_driver_seed_link.sh
+
+After (wave773):
+  pure_ld_shared.sh — single pure-ld platform/entry/tail/try authority
+  cold seed_link sources pure_ld_shared (no second platform table)
+  g05_relink_xlang try_g05_pure_ld → pure_ld_try_link
+    freestanding host: pure-ld prefer
+    Linux nostdlib: -static --gc-sections (no -lc)
+    else: -lSystem / -lc
+  residual: $CC $CFLAGS -o (FORCE_CC / pure fail / ineligible)
+```
+
+| Swallowed | Still residual |
+|-----------|----------------|
+| g05 product final pure-ld prefer + shared pure_ld helpers | CC residual fallback (cold + g05) · physical delete · `fmt_check_cmd.o` dual |
+| Dual pure-ld platform tables (cold vs g05) | Drop fallback when pure-ld stable; Windows PE pure-ld |
+
+**Forbidden:** second pure-ld platform table in g05; hardcode `.o` list in pure_ld_shared; drop CC residual without FORCE_CC escape before hosts are stable.
 
 ### wave758 · R4 residual thin_glue → R1 seed-map (G.7 有则补全)
 
@@ -910,8 +934,17 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - [x] LEAF dump `SWALLOWED_R6_PURE_LD=1` · `ENDGAME_COLD_PURE_LD=1`
 - [x] `host_platform_linker` / `PLATFORM_LINKER.md` pure-ld prefer inventory
 
-- [ ] Drop cold CC residual · g05 pure-ld · panic PREFER (if any) · `fmt_check_cmd.o` dual
+### wave773 (11.1.4 g05 pure-ld prefer)
+
+- [x] `pure_ld_shared.sh` single pure-ld platform / try authority
+- [x] cold seed_link sources pure_ld_shared (no second platform table)
+- [x] `g05_relink_xlang.sh` try_g05_pure_ld + CC residual
+- [x] LEAF dump `SWALLOWED_G05_PURE_LD=1` · `ENDGAME_G05_PURE_LD=1`
+- [x] host/leaf `--check` + pure-ld `--self-test`
+
+- [ ] Drop CC residual fallback (cold + g05) when pure-ld stable
 - [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame)
+- [ ] `fmt_check_cmd.o` Makefile dual · panic PREFER (if any)
 - [ ] Leaf `.o` without host-cc residual (stages 8–9 / 12)
 
 ## References

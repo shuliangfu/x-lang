@@ -11,6 +11,8 @@
 #       "$SEED_LINK_LD" [platform] $MULTIDEF $ENTRY -o OUT $OBJS $TAIL
 #     Residual fallback: "$SEED_LINK_CC" $CFLAGS -o OUT $OBJS
 #     Force residual: XLANG_SEED_LINK_FORCE_CC=1
+#   - wave773 · G.7 有则补全: pure-ld platform helpers live in pure_ld_shared.sh
+#     (shared with g05_relink_xlang pure-ld prefer). No second platform table.
 #
 # Usage (compiler directory):
 #   ./scripts/bootstrap_driver_seed_link.sh phase1
@@ -25,9 +27,9 @@
 # PLATFORM: SHARED — link composition identical; Makefile expands platform
 #            crt0 / -e / filtered.o into SEED_LINK_*.
 # PLATFORM: MACOS — pure-ld needs -syslibroot / -arch / -platform_version / -lSystem
-#            (composed here from host facts; not a second .o inventory).
+#            (composed in pure_ld_shared.sh; not a second .o inventory).
 # PLATFORM: LINUX — pure-ld freestanding entry + multidef + -lc (nostartfiles-style).
-# Wave: 721 export body · 772 pure-ld prefer (11.1.4).
+# Wave: 721 export body · 772 pure-ld prefer (11.1.4) · 773 pure_ld_shared extract.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -38,56 +40,9 @@ MODE="${1:-}"
 note() { echo "bootstrap_driver_seed_link: $*" >&2; }
 fail() { echo "bootstrap_driver_seed_link: FAIL: $*" >&2; exit 1; }
 
-# ---------------------------------------------------------------------------
-# pure-ld platform prefix (host facts only — G.7: no second .o list)
-# PLATFORM: MACOS needs SDK root; LINUX/WINDOWS empty prefix.
-# ---------------------------------------------------------------------------
-pure_ld_platform_prefix() {
-  # stdout: space-separated ld flags (may be empty)
-  local os arch sdk ver major
-  os="$(uname -s 2>/dev/null || echo Unknown)"
-  arch="$(uname -m 2>/dev/null || echo unknown)"
-  case "$os" in
-    Darwin)
-      sdk=""
-      if command -v xcrun >/dev/null 2>&1; then
-        sdk="$(xcrun --show-sdk-path 2>/dev/null || true)"
-      fi
-      if [ -z "$sdk" ] || [ ! -d "$sdk" ]; then
-        # Fallback common Xcode SDK layout (dev hosts only).
-        for c in \
-          /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk \
-          /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
-        do
-          if [ -d "$c" ]; then sdk="$c"; break; fi
-        done
-      fi
-      if [ -z "$sdk" ] || [ ! -d "$sdk" ]; then
-        note "pure-ld: Darwin SDK not found (need xcrun --show-sdk-path)"
-        return 1
-      fi
-      ver="$(sw_vers -productVersion 2>/dev/null || echo 14.0)"
-      # platform_version wants major.minor style; keep full productVersion if short.
-      major="${ver%%.*}"
-      case "$arch" in
-        arm64|aarch64) arch=arm64 ;;
-        x86_64|amd64) arch=x86_64 ;;
-      esac
-      # Match clang driver freestanding link shape (dynamic + syslibroot + platform).
-      printf '%s\n' "-syslibroot ${sdk} -dynamic -arch ${arch} -platform_version macos ${ver} ${ver}"
-      return 0
-      ;;
-    Linux)
-      # ELF freestanding entry: no sysroot prefix; multidef/entry/tail from export.
-      printf '%s\n' ""
-      return 0
-      ;;
-    *)
-      note "pure-ld: unsupported host OS=$os (CC residual)"
-      return 1
-      ;;
-  esac
-}
+# G.7: pure-ld platform prefix / resolve / freestanding facts — pure_ld_shared.sh only.
+# shellcheck disable=SC1091
+. scripts/pure_ld_shared.sh
 
 # ---------------------------------------------------------------------------
 # --self-test: pure-ld smoke with tiny host objs (no product .o list)
@@ -112,23 +67,10 @@ int seed_link_selftest_other(void) { return 1; }
 EOF
   "${CC:-cc}" -c -o "$tmpd/a.o" "$tmpd/a.c"
   "${CC:-cc}" -c -o "$tmpd/b.o" "$tmpd/b.c"
-  ld_bin="$(command -v ld 2>/dev/null || true)"
-  [ -n "$ld_bin" ] || fail "self-test: ld not found"
-  plat="$(pure_ld_platform_prefix)" || fail "self-test: pure-ld platform prefix failed"
-  multidef=""
-  case "$(uname -s 2>/dev/null || echo Unknown)" in
-    Darwin) multidef="-multiply_defined suppress" ;;
-    Linux) multidef="--allow-multiple-definition" ;;
-  esac
-  tail=""
-  case "$(uname -s 2>/dev/null || echo Unknown)" in
-    Darwin) tail="-lSystem" ;;
-    Linux) tail="-lc" ;;
-  esac
   out="$tmpd/out.exe"
-  # shellcheck disable=SC2086
-  if ! "$ld_bin" $plat $multidef $entry_flag -o "$out" "$tmpd/a.o" "$tmpd/b.o" $tail 2>"$tmpd/ld.err"; then
-    cat "$tmpd/ld.err" >&2
+  # G.7: pure_ld_try_link is the only pure-ld argv composition path.
+  if ! pure_ld_try_link "$out" "$tmpd/a.o $tmpd/b.o" "$entry_flag" \
+      "$(pure_ld_default_libc_tail)" "" ""; then
     fail "self-test pure-ld failed"
   fi
   [ -f "$out" ] || fail "self-test: missing $out"
@@ -194,7 +136,6 @@ n_objs=$(printf '%s\n' "$SEED_LINK_OBJS" | wc -w | tr -d ' ')
 # Prefer pure-ld (wave772) when export says PURE_OK and not forced to CC.
 # ---------------------------------------------------------------------------
 try_pure_ld() {
-  local plat ld_bin
   if [ "${XLANG_SEED_LINK_FORCE_CC:-0}" = "1" ]; then
     note "pure-ld skipped (XLANG_SEED_LINK_FORCE_CC=1)"
     return 1
@@ -203,23 +144,11 @@ try_pure_ld() {
     note "pure-ld skipped (SEED_LINK_PURE_OK=${SEED_LINK_PURE_OK:-0})"
     return 1
   fi
-  ld_bin="${SEED_LINK_LD:-}"
-  if [ -z "$ld_bin" ]; then
-    ld_bin="$(command -v ld 2>/dev/null || true)"
-  fi
-  if [ -z "$ld_bin" ] || ! command -v "$ld_bin" >/dev/null 2>&1; then
-    # SEED_LINK_LD may be bare "ld"
-    if ! command -v ld >/dev/null 2>&1; then
-      note "pure-ld skipped (ld not found)"
-      return 1
-    fi
-    ld_bin="$(command -v ld)"
-  fi
-  plat="$(pure_ld_platform_prefix)" || return 1
-  note "${MODE} pure-ld → $SEED_LINK_OUT  ($n_objs objs; ld=$(basename "$ld_bin"))"
-  # Word-split MULTIDEF/ENTRY/TAIL/OBJS intentionally (space-separated make expansions).
-  # shellcheck disable=SC2086
-  if "$ld_bin" $plat $SEED_LINK_MULTIDEF $SEED_LINK_ENTRY -o "$SEED_LINK_OUT" $SEED_LINK_OBJS $SEED_LINK_LD_TAIL; then
+  # MULTIDEF from Makefile export is folded into pure_ld_try_link's host multidef
+  # (same Darwin/Linux shape). ENTRY/TAIL still come from Makefile export authority.
+  note "${MODE} pure-ld → $SEED_LINK_OUT  ($n_objs objs via pure_ld_shared)"
+  if pure_ld_try_link "$SEED_LINK_OUT" "$SEED_LINK_OBJS" \
+      "${SEED_LINK_ENTRY:-}" "${SEED_LINK_LD_TAIL:-}" "" "${SEED_LINK_LD:-}"; then
     note "OK pure-ld $SEED_LINK_OUT"
     return 0
   fi

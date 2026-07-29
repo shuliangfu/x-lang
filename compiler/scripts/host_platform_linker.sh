@@ -178,9 +178,10 @@ EOF
 print_linker() {
   detect_host
   cat <<EOF
-# linker policy inventory (11.1.4 · wave745 · wave772 pure-ld prefer)
+# linker policy inventory (11.1.4 · wave745 · wave772 cold pure-ld · wave773 g05 pure-ld)
 # Prefer: product xlang_asm_invoke_ld_platform / direct ld|lld|link.exe
 # Cold phase1/final: pure-ld default when SEED_LINK_PURE_OK=1; CC residual fallback
+# g05 product relink: pure-ld prefer via pure_ld_shared (wave773); CC residual fallback
 
 LINKER_POLICY=prefer_direct_ld_then_named_cc_residual
 LINKER_FORBIDDEN_DEFAULT=silent_cc_as_linker_without_inventory
@@ -188,17 +189,26 @@ LINKER_FORBIDDEN_DEFAULT=silent_cc_as_linker_without_inventory
 # Cold seed link body (G.7 single authority)
 COLD_SEED_LINK_BODY=scripts/bootstrap_driver_seed_link.sh
 COLD_SEED_LINK_PURE_LD=1
-COLD_SEED_LINK_PURE_LD_VIA=SEED_LINK_LD+MULTIDEF+ENTRY+LD_TAIL_export
+COLD_SEED_LINK_PURE_LD_VIA=SEED_LINK_LD+MULTIDEF+ENTRY+LD_TAIL_export+pure_ld_shared
 COLD_SEED_LINK_CC_FALLBACK=SEED_LINK_CC_-o_when_PURE_OK_0_or_FORCE_CC_or_pure_fail
 RESIDUAL_CC_LINK_SITE=scripts/bootstrap_driver_seed_link.sh
 RESIDUAL_CC_LINK_ROLE=cold_phase1_final_SEED_LINK_CC_fallback
 RESIDUAL_CC_LINK_LIST_AUTHORITY=Makefile_export_bootstrap-driver-seed-export-phase1/final-link
+
+# g05 product final link (wave773 pure-ld prefer; G.7 pure_ld_shared)
+G05_RELINK_BODY=scripts/g05_relink_xlang.sh
+G05_RELINK_PURE_LD=1
+G05_RELINK_PURE_LD_VIA=pure_ld_shared.sh
+G05_RELINK_CC_FALLBACK=G05_CC_-o_when_FORCE_CC_or_pure_fail_or_ineligible
+G05_RELINK_LIST_AUTHORITY=g05_relink_env.sh
+PURE_LD_SHARED=scripts/pure_ld_shared.sh
 
 # Preferred direct-ld / product paths (do not reimplement)
 PREFERRED_LD_PARTIAL=scripts/filter_bootstrap_seed_pipeline_o.sh
 PREFERRED_PRODUCT_LD=xlang_asm_invoke_ld_platform
 PREFERRED_G05_RELINK=scripts/g05_relink_xlang.sh
 PREFERRED_COLD_PURE_LD=scripts/bootstrap_driver_seed_link.sh
+PREFERRED_PURE_LD_SHARED=scripts/pure_ld_shared.sh
 
 # Host tool presence (probe only)
 HOST_LD_PRESENT=$([ -n "$XLANG_HOST_LD_BIN" ] && echo 1 || echo 0)
@@ -207,8 +217,9 @@ HOST_CC_PRESENT=$([ -n "$XLANG_HOST_CC_BIN" ] && echo 1 || echo 0)
 HOST_LD_BIN=$XLANG_HOST_LD_BIN
 HOST_CC_BIN=$XLANG_HOST_CC_BIN
 
-# Endgame markers (wave772: cold pure-ld path live; UNAME leaf still Makefile)
+# Endgame markers (wave772 cold + wave773 g05 pure-ld prefer; residual drop-CC / physical delete)
 ENDGAME_COLD_LINK_WITHOUT_CC=1
+ENDGAME_G05_PURE_LD=1
 ENDGAME_MAKEFILE_UNAME_SWALLOWED=0
 EOF
 }
@@ -298,13 +309,41 @@ elif ! grep -q 'SEED_LINK_PURE_OK\|try_pure_ld\|pure-ld' "$LINK_BODY"; then
   bad "$LINK_BODY must prefer pure-ld (SEED_LINK_PURE_OK / try_pure_ld) wave772"
 elif ! grep -q 'SEED_LINK_CC' "$LINK_BODY"; then
   bad "$LINK_BODY must keep SEED_LINK_CC residual fallback"
+elif ! grep -q 'pure_ld_shared' "$LINK_BODY"; then
+  bad "$LINK_BODY must source pure_ld_shared.sh (wave773 G.7 extract)"
 else
-  note "cold link body pure-ld prefer + CC residual present (wave772)"
+  note "cold link body pure-ld prefer + CC residual + pure_ld_shared (wave772/773)"
 fi
 if ! grep -q 'SEED_LINK_PURE_OK\|SEED_LINK_LD\|SEED_LINK_MULTIDEF' compiler/Makefile; then
   bad "Makefile export must emit SEED_LINK_LD/MULTIDEF/PURE_OK (wave772 pure-ld)"
 else
   note "Makefile pure-ld export keys present"
+fi
+
+# wave773: g05 product pure-ld prefer (G.7 pure_ld_shared; no second platform table)
+G05_LINK_BODY=compiler/scripts/g05_relink_xlang.sh
+PURE_LD_SHARED_REL=compiler/scripts/pure_ld_shared.sh
+if [ ! -f "$PURE_LD_SHARED_REL" ]; then
+  bad "missing $PURE_LD_SHARED_REL (wave773 pure-ld authority)"
+elif ! grep -q 'pure_ld_platform_prefix\|pure_ld_try_link' "$PURE_LD_SHARED_REL"; then
+  bad "pure_ld_shared.sh must define pure_ld_platform_prefix / pure_ld_try_link"
+else
+  note "pure_ld_shared authority present (wave773)"
+fi
+if [ ! -f "$G05_LINK_BODY" ]; then
+  bad "missing $G05_LINK_BODY"
+elif ! grep -q 'try_g05_pure_ld\|pure_ld_try_link\|pure_ld_shared' "$G05_LINK_BODY"; then
+  bad "g05_relink_xlang must prefer pure-ld via pure_ld_shared (wave773)"
+elif ! grep -q 'CC residual\|G05_CC\|FORCE_CC' "$G05_LINK_BODY"; then
+  bad "g05_relink_xlang must keep CC residual fallback (wave773)"
+else
+  note "g05 pure-ld prefer + CC residual present (wave773)"
+fi
+if ! printf '%s\n' "$_link_out" | grep -q 'G05_RELINK_PURE_LD=1'; then
+  bad "linker dump must set G05_RELINK_PURE_LD=1 (wave773)"
+fi
+if ! printf '%s\n' "$_link_out" | grep -q 'PURE_LD_SHARED=scripts/pure_ld_shared.sh'; then
+  bad "linker dump must name PURE_LD_SHARED"
 fi
 
 # Prefer-path scripts present
