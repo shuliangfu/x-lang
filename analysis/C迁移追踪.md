@@ -1307,18 +1307,19 @@
   - 在 **不** `make -C compiler` 的前提下：仅 `xlang-build.sh` / g05 完成 `xlang`/`xlang_asm` 链 + 矩阵
   - **静态闸门**：`tests/run-product-path-zero-make-gate.sh`（allowlist 冻结 g05 日常 `make`；防回退）
   - **wave715**：pipeline filtered → shell；**wave716**：其余 3 partial-filter + 共用 `filter_o_export_against_deps.sh`；g05_ensure Darwin trio 纯 shell
-  - **仍非日常 0-make**：FULL=1→make bstrict；`xlang-build.sh` build-tool/clean/test*（13 处 make -C）
+  - **仍非日常 0-make**：FULL=1→make bstrict（g05 白名单）；嵌套 `tests/run-all-*.sh` / ensure 内 make（11.2.3）
   - **未完**：日常 relink 全程 PATH 无 make 的运行时探针
 
-🟡 **11.0.3 冷启动路径减 make**（wave716–719 🟡）
+🟡 **11.0.3 冷启动路径减 make**（wave716–720 🟡）
 
   - ✅ 类 G 全 4 filtered.o 配方 = 纯 shell（冷启动 `$(MAKE) FILTERED_OBJS` 仅依赖图，无内联 nm/ld）
   - ✅ 冷启动 recipe `$(MAKE)` **白名单落盘**：[Makefile迁移表.md](Makefile迁移表.md) §5b
   - ✅ **wave717**：`bootstrap-driver-seed` 编排主体 → `scripts/bootstrap_driver_seed.sh`；Makefile = prereq + 薄叶子（phase1/final link / sat / filtered…）+ 转调
   - ✅ **wave718**：`build_tool.sh` + `clean_compiler.sh`；xlang-build make -C **11→7**（仅 test*/bootstrap-*）；0-make 闸门 sites≤7
   - ✅ **wave719**：`bootstrap_token_lexer_smoke.sh` + `bootstrap_driver_bstrict.sh`；xlang-build make -C **7→4**（仅 test*/bootstrap-verify）；bstrict 白名单 `refresh-xlang-asm-gate`（OBJS 单权威）
+  - ✅ **wave720**：`run_compiler_tests.sh` + `bootstrap_verify_bstrict.sh`；xlang-build make -C **4→0**（产品入口 0-make）；Makefile test*/check-7.2-bstrict 薄转调
   - ⬜ 链接行 `$(CC)` / 对象清单完全脱离 Makefile（须 `xbuild` 导出 CFLAGS/OBJS，防双权威）
-  - ⬜ FULL=1 / xlang-build test*·bootstrap-verify 继续收缩
+  - ⬜ FULL=1 / tests/lib 嵌套 make 继续收缩（11.2.3）
 
 ⬜ **11.0.4 根 Makefile 只保留 help → xbuild**
 

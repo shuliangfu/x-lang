@@ -33,7 +33,7 @@ help:
 clean:
 	./xlang-build.sh clean
 
-# 测试（仍走 compiler/Makefile 兜底）
+# 测试（wave720：xlang-build → scripts/run_compiler_tests.sh，无 make -C）
 test:
 	./xlang-build.sh test
 

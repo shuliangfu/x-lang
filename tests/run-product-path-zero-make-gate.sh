@@ -24,7 +24,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "=== 11.0.2/11.0.3 product-path 0-make static gate (wave714–719) ==="
+echo "=== 11.0.2/11.0.3 product-path 0-make static gate (wave714–720) ==="
 
 fail=0
 note() { echo "  OK  $*"; }
@@ -251,11 +251,61 @@ else
   fi
 fi
 
-# remaining make -C: test* / bootstrap-verify only (hard-fail if >4 after wave719)
+# wave720: test* / bootstrap-verify → shell (xlang-build product entry 0× make -C)
+if [ ! -f compiler/scripts/run_compiler_tests.sh ]; then
+  bad "missing compiler/scripts/run_compiler_tests.sh (11.0.3 wave720)"
+elif ! grep -q 'run_compiler_tests\.sh' compiler/Makefile; then
+  bad "Makefile test_c/test_x must call run_compiler_tests.sh"
+elif ! grep -q 'run_compiler_tests\.sh' xlang-build.sh; then
+  bad "xlang-build.sh must call run_compiler_tests.sh (not make -C test*)"
+elif grep -nE 'make -C compiler test(_c|_x)?' xlang-build.sh | grep -vE '^[0-9]+:[ \t]*#' | grep -q .; then
+  bad "xlang-build.sh still has make -C compiler test* (must be shell)"
+else
+  # Recipe body only for test_c
+  test_c_body=$(awk '
+    /^test_c:/ { in_r=1; next }
+    in_r && /^[^#[:space:]	]/ { exit }
+    in_r { print }
+  ' compiler/Makefile)
+  if echo "$test_c_body" | grep -qE 'run-all-c\.sh' && ! echo "$test_c_body" | grep -q 'run_compiler_tests\.sh'; then
+    bad "Makefile test_c still inlines run-all-c (must be shell)"
+  elif ! echo "$test_c_body" | grep -q 'run_compiler_tests\.sh'; then
+    bad "Makefile test_c recipe missing run_compiler_tests.sh"
+  else
+    note "test_c/test_x/test → run_compiler_tests.sh (Makefile + xlang-build)"
+  fi
+fi
+
+if [ ! -f compiler/scripts/bootstrap_verify_bstrict.sh ]; then
+  bad "missing compiler/scripts/bootstrap_verify_bstrict.sh (11.0.3 wave720)"
+elif ! grep -q 'bootstrap_verify_bstrict\.sh' compiler/Makefile; then
+  bad "Makefile check-7.2-bstrict must call bootstrap_verify_bstrict.sh"
+elif ! grep -q 'bootstrap_verify_bstrict\.sh' xlang-build.sh; then
+  bad "xlang-build.sh bootstrap-verify must call bootstrap_verify_bstrict.sh"
+elif grep -nE 'make -C compiler bootstrap-verify' xlang-build.sh | grep -vE '^[0-9]+:[ \t]*#' | grep -q .; then
+  bad "xlang-build.sh still has make -C compiler bootstrap-verify (must be shell)"
+else
+  verify_body=$(awk '
+    /^check-7\.2-bstrict:/ { in_r=1; next }
+    in_r && /^[^#[:space:]	]/ { exit }
+    in_r { print }
+  ' compiler/Makefile)
+  if echo "$verify_body" | grep -qE 'run-lexer\.sh|verify-selfhost-stage2' && ! echo "$verify_body" | grep -q 'bootstrap_verify_bstrict\.sh'; then
+    bad "Makefile check-7.2-bstrict still inlines stage suite (must be shell)"
+  elif ! echo "$verify_body" | grep -q 'bootstrap_verify_bstrict\.sh'; then
+    bad "Makefile check-7.2-bstrict recipe missing bootstrap_verify_bstrict.sh"
+  else
+    note "bootstrap-verify → bootstrap_verify_bstrict.sh (Makefile + xlang-build)"
+  fi
+fi
+
+# remaining make -C in xlang-build: must be 0 after wave720
 xb_make=$(grep -cE 'make -C compiler' xlang-build.sh || true)
-echo "  INFO xlang-build.sh make -C compiler sites: ${xb_make:-0} (wave719 target ≤4: test*/bootstrap-verify)"
-if [ "${xb_make:-0}" -gt 4 ]; then
-  bad "xlang-build.sh make -C sites ${xb_make} > 4 (expected wave719 shrink: only test*/bootstrap-verify)"
+echo "  INFO xlang-build.sh make -C compiler sites: ${xb_make:-0} (wave720 target = 0)"
+if [ "${xb_make:-0}" -gt 0 ]; then
+  bad "xlang-build.sh make -C sites ${xb_make} > 0 (wave720: product entry must be 0-make)"
+else
+  note "xlang-build.sh product entry: 0× make -C compiler"
 fi
 
 # --- migration table exists and mentions classes ---
@@ -277,5 +327,5 @@ if [ "$fail" -ne 0 ]; then
   echo "FAIL product-path 0-make static gate" >&2
   exit 1
 fi
-echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap shell orchestration)"
+echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make)"
 exit 0

@@ -1679,18 +1679,18 @@ clean:
 # 阶段 1 词法 + 阶段 3 类型检查 + …；依赖 xlang 与全部 std .o、runtime_panic.o，clean 后 test 会先构建再跑脚本
 # test_c：与 ../tests/run-all-c.sh 等价（C 版 xlang-c 跑整份 run-all，不含自举专用脚本）
 # test_x：bootstrap-driver-seed + run-lsp + run-all-x（.x 流水线全量）
+# wave720: bodies → scripts/run_compiler_tests.sh (G.7); prereqs stay make graph.
 # 依赖 $(XLANG_C) 以便 make clean && make test_c 时 xlang-c 存在
 test_c: $(TARGET) $(XLANG_C) $(STD_AND_PANIC_O)
-	@if [ -f ../tests/run-all-c.sh ]; then (cd .. && chmod +x tests/run-all-c.sh && ./tests/run-all-c.sh); else echo "tests/run-all-c.sh missing" >&2; exit 1; fi
-	@echo "Test C OK"
+	@TARGET='$(TARGET)' XLANG_C='$(XLANG_C)' XLANG_TEST_ENSURE=0 \
+	  sh scripts/run_compiler_tests.sh c
 
 # x 自举：bootstrap-driver-seed + LSP + 全量自举（run-all-x：用 xlang_x 跑整份 run-all）
 test_x: bootstrap-driver-seed
-	@if [ -f ../tests/run-lsp.sh ]; then (cd .. && chmod +x tests/run-lsp.sh && ./tests/run-lsp.sh); fi
-	@if [ -f ../tests/run-all-x.sh ]; then (cd .. && chmod +x tests/run-all-x.sh && ./tests/run-all-x.sh); fi
-	@echo "Test X OK"
+	@TARGET='$(TARGET)' XLANG_TEST_ENSURE=0 XLANG_TEST_ENSURE_SEED=0 \
+	  sh scripts/run_compiler_tests.sh x
 
-# 全量：先 C 再 x 自举
+# 全量：先 C 再 x 自举（thin: reuses c/x shells via mode all)
 test: test_c test_x
 	@echo "Test all OK"
 
@@ -3317,29 +3317,21 @@ bootstrap-test: bootstrap-self
 	@echo "Bootstrap tests OK (self-compilation: xlang1 -> xlang2)"
 
 # M9：B-strict 语义自举主路径（xlang_asm→xlang_asm2 + lexer/typeck 烟测）。
+# wave720: check-7.2-bstrict / bootstrap-verify body → scripts/bootstrap_verify_bstrict.sh
+# Prereq bootstrap-driver-bstrict keeps cold graph on make path (ENSURE=0).
 check-7.2-bstrict: bootstrap-driver-bstrict
-	@sh ./verify-selfhost-stage2-bstrict.sh
-	@ROOT=$$(pwd)/..; CDIR=$$(pwd); \
-	for ST in xlang_asm_stage1 xlang_asm2; do \
-	  test -x "$$CDIR/$$ST" || { echo "check-7.2-bstrict: $$ST missing"; exit 1; }; \
-	  cd "$$ROOT" && \
-	  XLANG="$$CDIR/$$ST" ./tests/run-lexer.sh && \
-	  XLANG="$$CDIR/$$ST" ./tests/run-typeck.sh && \
-	  XLANG="$$CDIR/$$ST" ./tests/run-bootstrap-semantic-smoke-vec-map-heap.sh && \
-	  XLANG="$$CDIR/$$ST" ./tests/run-bootstrap-stage2-dogfood-parser-typeck.sh || \
-	  (echo "check-7.2-bstrict FAIL: $$ST"; exit 1); \
-	done && \
-	echo "check-7.2-bstrict OK (xlang_asm gen1/gen2: stage2 + lexer + typeck + vec/map/heap + parser/typeck dogfood)"
+	@MAKE="$(MAKE)" TARGET="$(TARGET)" XLANG_VERIFY_ENSURE_BSTRICT=0 \
+	  sh scripts/bootstrap_verify_bstrict.sh
 
 bootstrap-verify-bstrict: check-7.2-bstrict
-	@echo "bootstrap-verify-bstrict OK"
+	@true
 
 bootstrap-verify-seed: check-7.2
 	@echo "bootstrap-verify-seed OK (seed xlang -> xlang_stage2)"
 
 # 7.3 默认：B-strict / xlang_asm 主路径；-x -E 全模块仍见 bootstrap-verify-seed + verify-selfhost-stage2。
 bootstrap-verify: bootstrap-verify-bstrict
-	@echo "bootstrap-verify OK (B-strict primary; seed path: make bootstrap-verify-seed)"
+	@true
 
 # clangd：生成 compile_commands.json + ide/pipeline_glue_types.inc（IDE 误报 glue 池时运行）
 compile_commands.json:
