@@ -1,11 +1,13 @@
-# Product + cold-start build DAG (11.1.1 · wave742 · 11.1.2 wave743 · 11.3 prereq edges wave744)
+# Product + cold-start build DAG (11.1.1 · wave742 · 11.1.2 wave743 · 11.3 prereq edges wave744 · 11.1.3/4 wave745)
 
 > **Authority (G.7):** this document is the **orchestration dependency map** for Track MG.  
 > Object-list *definitions* stay in `compiler/mk/*.mk` (export via `driver_seed_obj_catalog.sh`).  
 > **Do not** duplicate `.o` inventories here.  
 > Machine-check: `compiler/scripts/product_build_dag.sh --check` · `./xbuild product-dag --check`.  
 > Schedule execute (11.1.2): `./xbuild product-dag --dry-run` / `--run product`.  
-> Prereq edges (wave744): `driver_seed_ensure_prereqs.sh` (catalog `DRIVER_SEED_PREREQS`).
+> Prereq edges (wave744): `driver_seed_ensure_prereqs.sh` (catalog `DRIVER_SEED_PREREQS`).  
+> Platform + linker policy (wave745 · 11.1.3/4): `compiler/docs/PLATFORM_LINKER.md` +  
+> `host_platform_linker.sh` · `./xbuild host-platform` / `linker-policy`.
 
 **PLATFORM: SHARED** — same node names on macOS / Ubuntu / Windows host shells; platform ABI lives inside leaf scripts and seed pins.
 
@@ -17,14 +19,15 @@
 |----------|----------------------|
 | Product daily path nodes + owners (11.1.1) | Full import-scan of user `.x` projects |
 | Cold-start orchestration step order (11.1.1) | Parallel scheduler / ninja emit |
-| Named schedules + dry-run / run (11.1.2) | 11.1.4 direct `ld` without host-cc |
+| Named schedules + dry-run / run (11.1.2) | Full pure-ld cold link without residual `CC -o` |
 | Cold **prereq edge satisfaction** via shell (wave744) | Physical delete of Makefile (11.3 endgame) |
 | Residual make *leaf* pattern rules named | C `build_runtime` step table replace (11.1.5 endgame) |
+| Host platform facts + linker residual inventory (wave745) | Makefile `UNAME` leaf rules fully swallowed |
 | Single authority pointer per node | |
 
 **Not yet:** replacing C `build_runtime` step table (ABI still `build_get_step_*` · 11.1.5).  
 **Not yet:** physical delete of Makefile (11.3.1).  
-**Not yet:** 11.1.3 platform selector nodes / 11.1.4 linker without `$(CC) -o`.
+**wave745:** 11.1.3/4 **policy + shell inventory** (not pure-ld endgame; residual `SEED_LINK_CC -o` named).
 
 ---
 
@@ -168,6 +171,7 @@ bootstrap_driver_seed.sh (ordered):
 |-------|-------------|------|
 | Policy map | root `build.x` | Human strategy + pin-stable `build_get_step_*` ABI |
 | Orchestration DAG | **this doc** + `product_build_dag.sh` | 11.1.1 inventory + 11.1.2 schedules + wave744 edges |
+| Host platform + linker policy | `PLATFORM_LINKER.md` + `host_platform_linker.sh` | 11.1.3 facts · 11.1.4 residual inventory (wave745) |
 | Product entry | `./xbuild` → `xlang-build.sh` | First-class targets |
 | Cold leaf pattern residual | `compiler/Makefile` | Until 11.3 physical delete |
 | Step table (legacy) | C `build_runtime` + `build_get_step_at` | Domain B bootstrap; not user API |
@@ -218,6 +222,16 @@ Do **not** grow new free-form recipes. Known residual classes:
 - [ ] Physical delete of Makefile / leaf pattern rules (11.3.1 endgame)
 - [ ] Leaf `.o` builds without host-cc residual (stages 8–9 / 12)
 
+### wave745 (11.1.3 platform + 11.1.4 linker policy)
+
+- [x] `compiler/docs/PLATFORM_LINKER.md` authority map
+- [x] `host_platform_linker.sh` platform/linker dump + `--check`
+- [x] `./xbuild host-platform` / `linker-policy` first-class
+- [x] build.x §F + this doc cross-ref
+- [x] 0-make gate hard-check + live `--check`
+- [ ] Cold phase1/final without residual `SEED_LINK_CC -o` (11.1.4 endgame)
+- [ ] Makefile `UNAME` leaf rules fully swallowed (with 11.3.1)
+
 ---
 
 ## References
@@ -225,5 +239,7 @@ Do **not** grow new free-form recipes. Known residual classes:
 - `analysis/C迁移追踪.md` §11.1.1–4 · §11.3  
 - `analysis/Makefile迁移表.md` §5b cold whitelist  
 - `build.x` strategy map (11.1.5)  
+- `compiler/docs/PLATFORM_LINKER.md` (11.1.3/4 · wave745)  
 - `compiler/scripts/driver_seed_obj_catalog.sh` (lists)  
-- `compiler/scripts/driver_seed_ensure_prereqs.sh` (edges · wave744)
+- `compiler/scripts/driver_seed_ensure_prereqs.sh` (edges · wave744)  
+- `compiler/scripts/host_platform_linker.sh` (platform + linker · wave745)

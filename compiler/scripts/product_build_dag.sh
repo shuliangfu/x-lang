@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# product_build_dag.sh — 11.1.1 inventory + 11.1.2 schedule + 11.3 prereq edges (wave742–744)
+# product_build_dag.sh — 11.1.1 inventory + 11.1.2 schedule + 11.3 prereq edges
+#                       + 11.1.3/4 platform/linker cross-check (wave742–745)
 #
 # Authority (G.7):
 #   Single machine-checkable view of *orchestration* nodes for product daily
@@ -11,6 +12,8 @@
 #   Execution (11.1.2): this script dry-run/run invokes *existing* body scripts
 #   only — no second compile/link implementation, no dual .o lists.
 #   wave744: cold prereq *edges* → driver_seed_ensure_prereqs.sh (catalog).
+#   wave745: host platform + linker policy → host_platform_linker.sh
+#            (PLATFORM_LINKER.md); this script only cross-checks presence.
 #
 # Usage (repo root or compiler/):
 #   bash compiler/scripts/product_build_dag.sh              # dump inventory
@@ -24,7 +27,7 @@
 #   ./xbuild product-dag --check | --dry-run | --run product
 #
 # PLATFORM: SHARED — paths relative to repo root; bodies carry platform ABI.
-# Wave: 742 inventory · 743 schedule · 744 DRIVER_SEED_PREREQS edge swallow.
+# Wave: 742 inventory · 743 schedule · 744 DRIVER_SEED_PREREQS · 745 platform/linker.
 
 set -euo pipefail
 
@@ -410,6 +413,12 @@ if [ -f build.x ]; then
   if ! grep -qE 'ensure_prereqs|driver_seed_ensure_prereqs|DRIVER_SEED_PREREQS.*shell|wave744|11\.3' build.x; then
     bad "build.x must mention wave744 prereq shell ensure / 11.3 residual"
   fi
+  if ! grep -qE '11\.1\.3|host.platform|PLATFORM_LINKER' build.x; then
+    bad "build.x must mention 11.1.3 / host platform / PLATFORM_LINKER (wave745)"
+  fi
+  if ! grep -qE '11\.1\.4|linker.policy|SEED_LINK_CC|direct.*ld' build.x; then
+    bad "build.x must mention 11.1.4 / linker policy (wave745)"
+  fi
 else
   bad "missing root build.x"
 fi
@@ -423,6 +432,31 @@ else
 fi
 if ! grep -qE 'dry-run|--run|dryrun' "$XBUILD_REL"; then
   bad "xlang-build.sh must wire product-dag --dry-run / --run (wave743 11.1.2)"
+fi
+
+# wave745: platform + linker policy companion (G.7 single host-facts shell)
+if [ ! -f compiler/docs/PLATFORM_LINKER.md ]; then
+  bad "missing compiler/docs/PLATFORM_LINKER.md (wave745 11.1.3/4)"
+elif [ ! -f compiler/scripts/host_platform_linker.sh ]; then
+  bad "missing compiler/scripts/host_platform_linker.sh (wave745)"
+elif ! grep -qE 'host-platform|linker-policy' "$XBUILD_REL" \
+  || ! grep -q 'host_platform_linker\.sh' "$XBUILD_REL"; then
+  bad "xlang-build.sh must wire host-platform / linker-policy (wave745)"
+elif ! grep -qE '11\.1\.3|PLATFORM_LINKER|host_platform_linker|wave745' "$DOC_REL"; then
+  bad "$DOC_REL must cross-ref wave745 PLATFORM_LINKER / 11.1.3"
+else
+  if ! bash compiler/scripts/host_platform_linker.sh --check \
+    >/tmp/host_platform_linker_check.out 2>/tmp/host_platform_linker_check.err; then
+    bad "host_platform_linker.sh --check failed (wave745)"
+    head -30 /tmp/host_platform_linker_check.err >&2 || true
+  else
+    if ! grep -q 'CHECK OK' /tmp/host_platform_linker_check.out \
+      && ! grep -q 'CHECK OK' /tmp/host_platform_linker_check.err; then
+      bad "host_platform_linker --check missing CHECK OK banner"
+    else
+      note "host_platform_linker --check OK (wave745 11.1.3/4)"
+    fi
+  fi
 fi
 
 # Schedule integrity: every schedule id must exist in inventory + body file
@@ -488,5 +522,5 @@ if [ "$fail" -ne 0 ]; then
   echo "product_build_dag: CHECK FAIL" >&2
   exit 1
 fi
-echo "product_build_dag: CHECK OK (11.1.1+11.1.2 wave743 · 11.3 prereq edges wave744)"
+echo "product_build_dag: CHECK OK (11.1.1+11.1.2 wave743 · 11.3 prereq edges wave744 · 11.1.3/4 wave745)"
 exit 0

@@ -96,7 +96,7 @@
 //
 // -----------------------------------------------------------------------------
 // F. Orchestration DAG inventory + schedule (11.1.1 wave742 · 11.1.2 wave743
-//     · 11.3 prereq edges wave744)
+//     · 11.3 prereq edges wave744 · 11.1.3/4 platform+linker wave745)
 // -----------------------------------------------------------------------------
 //   Authority map: compiler/docs/BUILD_DAG.md
 //   Machine check: compiler/scripts/product_build_dag.sh
@@ -117,13 +117,29 @@
 //   ./xbuild driver-seed-prereqs [--dry-run|--check|--run]
 //   G.7: DAG lists orchestration edges/owners only; .o inventories stay in
 //   compiler/mk/*.mk + driver_seed_obj_catalog.sh (no dual lists).
-//   11.1.3–4 (platform / linker) + full .x import graph later; 11.3.1
-//   deletes Makefile residual leaf rules.
+//
+//   11.1.3 host platform (wave745):
+//     Authority map: compiler/docs/PLATFORM_LINKER.md
+//     Machine: compiler/scripts/host_platform_linker.sh
+//     ./xbuild host-platform [--export|--check]
+//     Single shell host OS/arch facts (XLANG_HOST_OS / ARCH / PLATFORM_TAG);
+//     product seed pin = *.linux.x86_64.c (host-portable). Makefile UNAME for
+//     leaf pattern rules residual until 11.3.1 (lists stay mk — G.7).
+//
+//   11.1.4 linker policy (wave745):
+//     Prefer product xlang_asm_invoke_ld_platform + direct ld|lld|link.exe.
+//     Named residual: bootstrap_driver_seed_link.sh SEED_LINK_CC -o (cold
+//     phase1/final; list still Makefile export). Forbidden: silent default
+//     $(CC) -o as linker without inventory. Pure-ld cold endgame later.
+//     ./xbuild linker-policy [--check]
+//
+//   Full .x import graph later; 11.3.1 deletes Makefile residual leaf rules.
 //
 // References:
 //   analysis/C迁移追踪.md §11.1 · §11.5 · analysis/Makefile迁移表.md class I
-//   compiler/docs/SELFHOST.md · compiler/docs/BUILD_DAG.md · tests/HOST_CC_POLICY.md
-//   compiler/scripts/g05_*.sh · compiler/scripts/product_build_dag.sh
+//   compiler/docs/SELFHOST.md · BUILD_DAG.md · PLATFORM_LINKER.md
+//   tests/HOST_CC_POLICY.md · compiler/scripts/g05_*.sh
+//   product_build_dag.sh · host_platform_linker.sh
 // =============================================================================
 
 /**

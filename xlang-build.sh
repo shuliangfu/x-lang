@@ -271,6 +271,40 @@ case "$TARGET" in
     (cd compiler && bash scripts/driver_seed_ensure_prereqs.sh "$_prereq_mode")
     ;;
 
+  # === wave745 · 11.1.3 platform + 11.1.4 linker policy (shell inventory) ===
+  host-platform|platform-host|platform|linker-policy|host-linker|ld-policy)
+    # Host OS/arch facts + named residual CC -o inventory (G.7 no dual link path).
+    # Map: compiler/docs/PLATFORM_LINKER.md
+    # Usage:
+    #   ./xbuild host-platform              # dump platform KEY=value
+    #   ./xbuild host-platform --export     # shell-sourceable exports
+    #   ./xbuild host-platform --check
+    #   ./xbuild linker-policy              # residual + preferred ld inventory
+    #   ./xbuild linker-policy --check
+    _pl_mode="dump"
+    case "${1}" in
+      host-platform|platform-host|platform)
+        _pl_mode="platform"
+        if [ "${2:-}" = "--export" ] || [ "${2:-}" = "export" ] || [ "${2:-}" = "-e" ]; then
+          _pl_mode="export"
+        elif [ "${2:-}" = "--check" ] || [ "${2:-}" = "check" ] || [ "${2:-}" = "-c" ]; then
+          _pl_mode="check"
+        elif [ "${2:-}" = "--dump" ] || [ "${2:-}" = "dump" ]; then
+          _pl_mode="dump"
+        fi
+        ;;
+      linker-policy|host-linker|ld-policy)
+        _pl_mode="linker"
+        if [ "${2:-}" = "--check" ] || [ "${2:-}" = "check" ] || [ "${2:-}" = "-c" ]; then
+          _pl_mode="check"
+        elif [ "${2:-}" = "--dump" ] || [ "${2:-}" = "dump" ]; then
+          _pl_mode="dump"
+        fi
+        ;;
+    esac
+    bash compiler/scripts/host_platform_linker.sh "$_pl_mode"
+    ;;
+
   # === CI / 冷启动 / 叶 .o（wave730：外层 0× make -C；叶 pattern residual 至 11.3）===
   compiler-all|ci-all)
     # Historical CI: `make -C compiler OPT=1 all` (host-cc xlang + xlang-c / seed).
@@ -427,6 +461,16 @@ g05 产品链（wave733–735 · 11.1.6；产品 link 零 make）:
                                        （G.7 禁第二套 .o；run 只调既有 shell 体）
   driver-seed-prereqs                  DRIVER_SEED_PREREQS 边 dry-run/check/run
                                        （wave744 shell ensure；列表仍 mk catalog）
+
+11.1.3/11.1.4 平台 + 链接策略（wave745 · 非 pure-ld 终局）:
+  host-platform / platform             host OS/arch KEY=value
+  host-platform --export               shell-sourceable exports
+  host-platform --check                校验 doc + dump + 接线
+  linker-policy                        命名 residual CC -o + preferred ld 库存
+  linker-policy --check                同上机检
+                                       体 = host_platform_linker.sh
+                                       图 = compiler/docs/PLATFORM_LINKER.md
+                                       （G.7 禁双 .o；禁第二套链接实现）
 
 CI / 冷启动（外层 0× make -C；叶 pattern residual 至 11.3）:
   compiler-all / ci-all      make OPT=1 all（host-cc/seed；≠ 产品 all）

@@ -30,7 +30,7 @@
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
 | **Makefile 退役 / xbuild** | 🟡 半路径 | **`./xbuild`→`xlang-build.sh`** 产品入口；根 Makefile **help-only**；叶/组合体→`compiler/mk/*.mk`；**`compiler/Makefile` 仍 ~3445 行权威图**（阶段 11） |
-| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 ✅** tests/** hub · **11.1.6 🟡** g05+…+archaeology-gen → xbuild · **11.1.5 🟡** build.x · **11.1.1 🟡** BUILD_DAG 库存 · **11.1.2 🟡** schedule dry-run/run · **11.3 🟡** prereq 边 shell（wave744）· **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
+| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 ✅** tests/** hub · **11.1.6 🟡** g05+…+archaeology-gen → xbuild · **11.1.5 🟡** build.x · **11.1.1 🟡** BUILD_DAG 库存 · **11.1.2 🟡** schedule dry-run/run · **11.1.3/4 🟡** 平台+链接策略（wave745）· **11.3 🟡** prereq 边 shell（wave744）· **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | 🟡 4/4 策略 | 11.5.1–4 **策略已裁定**（wave734/741 · `tests/HOST_CC_POLICY.md`）；改写 .x / 卸 cc 属阶段 12 |
 | **冷启动零 cc 链** | ⬜ 0/4 | 最小 seed + 零 cc 验证 + 双端冷启动 |
 | **终局：无 Makefile + 零 cc + v2==v3** | ⬜ 未达 | 见 §0.1 三义；阶段 13 |
@@ -1359,15 +1359,19 @@
   - ✅ wave744：cold 调度首节点 `cold_ensure_prereqs`；live outer 内嵌 shell ensure
   - ⬜ 终局：.x import 增量图 + 并行；冷启动叶不经 make pattern（与 11.3 同闸）
 
-⬜ **11.1.3 平台处理**
+🟡 **11.1.3 平台处理**
 
   - Linux / macOS / Windows 路径·ABI·seed 选择
   - 替代 Makefile `ifeq ($(UNAME)…)` / Alpine 等
+  - ✅ wave745：权威 `compiler/docs/PLATFORM_LINKER.md` + `host_platform_linker.sh`（`XLANG_HOST_OS`/`ARCH`/`PLATFORM_TAG`/Alpine/seed pin）；`./xbuild host-platform`；产品 pin 仍 `*.linux.x86_64.c`（host-portable）
+  - ⬜ 终局：Makefile `UNAME` 叶 pattern 全吞（与 11.3.1 同闸）；禁 shell 第二套 uname 矩阵
 
-⬜ **11.1.4 链接器调用**
+🟡 **11.1.4 链接器调用**
 
   - 直接调 `ld` / `lld` / `link.exe`（syscall 或 raw FFI / 过渡 `posix_spawn`）
   - **禁止**默认 `$(CC) -o` 当链接器（避免偷偷拉 cc）
+  - ✅ wave745：策略库存 — prefer `xlang_asm_invoke_ld_platform` + direct ld；**命名 residual** `bootstrap_driver_seed_link.sh` `SEED_LINK_CC -o`（列表仍 Makefile export）；`./xbuild linker-policy`
+  - ⬜ 终局：cold phase1/final 纯 ld argv（无 residual `CC -o`）
 
 🟡 **11.1.5 填实 `build.x` 策略源**
 
@@ -1375,6 +1379,7 @@
   - ✅ wave742：`build.x` §F 挂 11.1.1 BUILD_DAG / product-dag
   - ✅ wave743：`build.x` §F 挂 11.1.2 dry-run/run schedules
   - ✅ wave744：`build.x` §F 挂 shell ensure_prereqs / driver-seed-prereqs
+  - ✅ wave745：`build.x` §F 挂 11.1.3 host-platform / 11.1.4 linker-policy
   - ⬜ 终局：DAG-as-data 替代 C build_runtime 步表（依赖 11.1.1–4 执行层）
 
 🟡 **11.1.6 吞并 g05 脚本族**

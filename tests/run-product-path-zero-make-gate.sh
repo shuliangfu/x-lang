@@ -1111,12 +1111,28 @@ elif ! grep -qE '11\.1\.2|dry-run|--run|schedule' build.x; then
   bad "build.x must mention 11.1.2 schedule / dry-run / --run (wave743)"
 elif ! grep -qE 'ensure_prereqs|driver_seed_ensure_prereqs|wave744' build.x; then
   bad "build.x must mention wave744 prereq shell ensure"
+elif [ ! -f compiler/docs/PLATFORM_LINKER.md ]; then
+  bad "missing compiler/docs/PLATFORM_LINKER.md (wave745 11.1.3/4)"
+elif ! grep -q '11\.1\.3' compiler/docs/PLATFORM_LINKER.md \
+  || ! grep -q '11\.1\.4' compiler/docs/PLATFORM_LINKER.md; then
+  bad "PLATFORM_LINKER.md must document 11.1.3 and 11.1.4"
+elif [ ! -f compiler/scripts/host_platform_linker.sh ]; then
+  bad "missing compiler/scripts/host_platform_linker.sh (wave745)"
+elif ! grep -qE 'host-platform|linker-policy' xlang-build.sh \
+  || ! grep -q 'host_platform_linker\.sh' xlang-build.sh; then
+  bad "xlang-build missing host-platform / linker-policy (wave745)"
+elif ! grep -qE '11\.1\.3|host.platform|PLATFORM_LINKER' build.x; then
+  bad "build.x must mention 11.1.3 / host platform / PLATFORM_LINKER (wave745)"
+elif ! grep -qE '11\.1\.4|linker.policy|SEED_LINK_CC' build.x; then
+  bad "build.x must mention 11.1.4 / linker policy (wave745)"
+elif ! grep -qE '11\.1\.3|PLATFORM_LINKER|host_platform_linker|wave745' compiler/docs/BUILD_DAG.md; then
+  bad "BUILD_DAG.md must cross-ref wave745 PLATFORM_LINKER"
 else
-  note "BUILD_DAG + ensure_prereqs + product-dag (11.1.1/2/wave744)"
+  note "BUILD_DAG + ensure_prereqs + product-dag + PLATFORM_LINKER (11.1.1/2/3/4 + wave744/745)"
   if ! bash compiler/scripts/product_build_dag.sh --check; then
-    bad "product_build_dag.sh --check failed (wave742/743/744)"
+    bad "product_build_dag.sh --check failed (wave742/743/744/745)"
   else
-    note "product_build_dag.sh --check OK (11.1.1+11.1.2+wave744)"
+    note "product_build_dag.sh --check OK (11.1.1+11.1.2+wave744+wave745)"
   fi
   # Positive dry-run path via xbuild (not only internal --check recursion).
   # Capture full stdout first: under set -o pipefail, `cmd | grep -q` can fail with
@@ -1142,7 +1158,26 @@ else
   else
     note "xbuild driver-seed-prereqs --check OK (wave744)"
   fi
-  unset _dag_dry_out _cold_dry_out
+  if ! ./xbuild host-platform --check >/tmp/xbuild_host_platform_check.out 2>/tmp/xbuild_host_platform_check.err; then
+    bad "xbuild host-platform --check failed (wave745)"
+  elif ! grep -q 'CHECK OK' /tmp/xbuild_host_platform_check.out /tmp/xbuild_host_platform_check.err; then
+    bad "xbuild host-platform --check missing CHECK OK (wave745)"
+  else
+    note "xbuild host-platform --check OK (wave745)"
+  fi
+  _plat_out="$(./xbuild host-platform 2>/dev/null || true)"
+  if ! printf '%s\n' "$_plat_out" | grep -qE '^XLANG_HOST_OS=(linux|darwin|windows|unknown)$'; then
+    bad "xbuild host-platform dump missing XLANG_HOST_OS (wave745)"
+  else
+    note "xbuild host-platform dump OK (wave745)"
+  fi
+  _link_out="$(./xbuild linker-policy 2>/dev/null || true)"
+  if ! printf '%s\n' "$_link_out" | grep -q 'RESIDUAL_CC_LINK_SITE=scripts/bootstrap_driver_seed_link.sh'; then
+    bad "xbuild linker-policy missing residual site (wave745)"
+  else
+    note "xbuild linker-policy inventory OK (wave745)"
+  fi
+  unset _dag_dry_out _cold_dry_out _plat_out _link_out
 fi
 
 # Product daily `all` must remain g05 (not Makefile all); CI uses compiler-all.
@@ -1192,5 +1227,5 @@ if [ "$fail" -ne 0 ]; then
   echo "FAIL product-path 0-make static gate" >&2
   exit 1
 fi
-echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe; mk OBJS+composites; catalog --check; tests/lib+run-*.sh hub; root help→xbuild; CI/docker → xbuild; build.sh thin; docker/delete-one entry; 11.5 HOST_CC_POLICY; 11.1.1/11.1.2 BUILD_DAG schedule)"
+echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe; mk OBJS+composites; catalog --check; tests/lib+run-*.sh hub; root help→xbuild; CI/docker → xbuild; build.sh thin; docker/delete-one entry; 11.5 HOST_CC_POLICY; 11.1.1–4 BUILD_DAG + PLATFORM_LINKER)"
 exit 0
