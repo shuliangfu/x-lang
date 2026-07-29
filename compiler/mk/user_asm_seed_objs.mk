@@ -4,7 +4,8 @@
 # dispatch prereqs. Included by compiler/Makefile after UNAME_S is defined.
 #
 # G.7: Do not re-assign these variables in Makefile body or hardcode the same
-# .o inventory in shell. Export/catalog consumers expand via make only.
+# .o inventory in shell. Catalog expands via shell mk parse (wave788) or make
+# export escape — never a second .o inventory in residual scripts.
 #
 # PLATFORM: SHARED — Darwin branch uses filtered .o; Linux uses plain .o.
 

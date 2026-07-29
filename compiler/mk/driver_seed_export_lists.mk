@@ -5,8 +5,9 @@
 # and DRIVER_SEED_RUNTIME_REBUILD / DRIVER_SEED_PREPROCESS_REBUILD exist.
 #
 # G.7: Definitions live only here (plus user_asm_seed_objs.mk for USER_ASM /
-# filtered). Makefile must include, not re-assign. Shell may only consume via
-# export leaves / bootstrap-driver-seed-export-obj-catalog — never hardcode.
+# filtered + driver_seed_r_lists.mk for R1/R3/RT). Makefile must include, not
+# re-assign. Shell consumes via driver_seed_obj_catalog.sh (wave788 shell
+# primary / make export escape) — never hardcode a second .o inventory.
 #
 # PLATFORM: SHARED — lists are host-portable paths under compiler/.
 

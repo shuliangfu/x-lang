@@ -29,6 +29,7 @@
 #   wave786: B7D host-cc product xlang link → g05_prepare_and_relink (not OBJS_CORE UNDEF)
 #   wave787: B7A cold rebuild residual_make=0 honesty + heat thin-edge inventory
 #            (NOT physical delete; heat ensure edges + B7B lists remain)
+#   wave788: B7B shell-primary catalog (mk parse 0-make; make export escape)
 #
 # Authority (G.7):
 #   Single shell authority for *named residual classes* of Makefile leaf pattern /
@@ -50,7 +51,7 @@
 #   ./xbuild leaf-patterns | leaf-residual [--check]
 #
 # PLATFORM: SHARED — inventory portable; leaf ABI stays in Makefile / mk.
-# Wave: 746–787 Track MG · 11.3.1 path (B7A cold 0-make wave787 · heat B7A/B residual · not physical delete · Windows gate + dual-end).
+# Wave: 746–788 Track MG · 11.3.1 path (B7B shell catalog wave788 · B7A cold 0-make · heat B7A residual · not physical delete · Windows gate + dual-end).
 
 set -euo pipefail
 
@@ -362,12 +363,12 @@ B6_R5_CI_COMPILER_ALL_WAVE=wave784
 # wave785: post B1–B6 honesty inventory + B7c archaeology thin
 # wave786: B7D host-cc product link → g05 (NOT physical delete)
 # wave787: B7A cold rebuild residual_make=0 honesty + heat thin-edge inventory
-#          (heat ensure edges + B7B mk lists still residual; NOT physical delete)
+# wave788: B7B shell-primary catalog (mk parse; make export escape; NOT physical delete)
 PHYS_DEL_BUCKET_B7=makefile_dag_thin_calls
 PHYS_DEL_BUCKET_B7_SCOPE=thin_call_edges+mk_lists+archaeology_phonies+host_cc_link
 PHYS_DEL_BUCKET_B7_INVENTORY=1
 PHYS_DEL_BUCKET_B7_BODY_SWALLOWED=0
-PHYS_DEL_BUCKET_B7_WAVE=wave787
+PHYS_DEL_BUCKET_B7_WAVE=wave788
 SWALLOWED_B7_DAG_INVENTORY=1
 B7_DAG_INVENTORY_SWALLOWED=1
 B7_DAG_INVENTORY_NOTE=named_subbuckets_post_B1_B6_leaf_body_clear
@@ -388,12 +389,19 @@ B7A_COLD_REBUILD_0MAKE_WAVE=wave787
 PHYS_DEL_BUCKET_B7B=mk_list_authority
 PHYS_DEL_BUCKET_B7B_SCOPE=compiler_mk_plus_driver_seed_obj_catalog
 # wave787 honesty: lists intentionally stay mk+catalog (G.7 single list).
-# Catalog still expands via make export-obj-catalog until physical delete / shell mk parse.
+# wave788: catalog default = shell mk parse (0 make); make export = escape / parity.
 PHYS_DEL_BUCKET_B7B_LIST_STAYS_MK=1
+PHYS_DEL_BUCKET_B7B_SHELL_CATALOG=1
+PHYS_DEL_BUCKET_B7B_MAKE_EXPORT_ESCAPE=1
 PHYS_DEL_BUCKET_B7B_BODY_SWALLOWED=0
 SWALLOWED_B7B_LIST_AUTHORITY_HONESTY=1
 B7B_LIST_AUTHORITY_HONESTY_SWALLOWED=1
-B7B_LIST_AUTHORITY_HONESTY_NOTE=lists_stay_mk_catalog_make_export_residual
+B7B_LIST_AUTHORITY_HONESTY_NOTE=lists_stay_mk_catalog_shell_primary_wave788
+SWALLOWED_B7B_SHELL_CATALOG=1
+B7B_SHELL_CATALOG_SWALLOWED=1
+B7B_SHELL_CATALOG_VIA=driver_seed_obj_catalog_shell_mk_parse
+B7B_SHELL_CATALOG_WAVE=wave788
+B7B_SHELL_CATALOG_NOTE=default_0make_mk_parse_make_export_escape_LEGACY
 PHYS_DEL_BUCKET_B7C=archaeology_phony_cc
 PHYS_DEL_BUCKET_B7C_SCOPE=bootstrap_typeck_codegen_self_x_compiler
 PHYS_DEL_BUCKET_B7C_ARCHAEOLOGY_CC_THINNED=1
@@ -407,7 +415,7 @@ PHYS_DEL_BUCKET_B7D_NOTE=default_make_xlang_is_product_g05_escape_OBJS_CORE
 SWALLOWED_B7D_HOST_CC_PRODUCT_LINK=1
 B7D_HOST_CC_PRODUCT_LINK_SWALLOWED=1
 PHYS_DEL_PREP_NEXT=B7_physical_delete_makefile_after_windows_not_this_wave
-PHYS_DEL_PREP_FORBIDDEN=claim_physical_delete|dual_o_list_as_authority|delete_makefile_before_windows_green|claim_B7_inventory_is_delete|claim_B7D_is_physical_delete|claim_B7A_cold_0make_is_physical_delete|claim_B7B_honesty_is_list_delete
+PHYS_DEL_PREP_FORBIDDEN=claim_physical_delete|dual_o_list_as_authority|delete_makefile_before_windows_green|claim_B7_inventory_is_delete|claim_B7D_is_physical_delete|claim_B7A_cold_0make_is_physical_delete|claim_B7B_honesty_is_list_delete|claim_B7B_shell_catalog_is_physical_delete
 # wave778: hard gate — physical delete of compiler/Makefile only AFTER Windows
 # hybrid min-gate green (+ PE pure-ld residual owned). Body swallow (B1–B5) keeps
 # Makefile thin-call edges; it is NOT physical delete. Never rm Makefile casually.
@@ -834,6 +842,9 @@ else
   if ! grep -qE 'wave787|B7A.*cold|residual_make=0|COLD_REBUILD_0MAKE' "$DOC_REL"; then
     bad "$DOC_REL must document wave787 B7A cold residual_make=0 honesty"
   fi
+  if ! grep -qE 'wave788|B7B.*shell|SHELL_CATALOG|shell.primary catalog|mk.parse' "$DOC_REL"; then
+    bad "$DOC_REL must document wave788 B7B shell-primary catalog"
+  fi
   note "doc $DOC_REL present"
 fi
 
@@ -1203,10 +1214,20 @@ fi
 if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7B_BODY_SWALLOWED=0'; then
   bad "dump must set PHYS_DEL_BUCKET_B7B_BODY_SWALLOWED=0 (wave787 lists stay)"
 fi
+# wave788: B7B shell-primary catalog
+if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_B7B_SHELL_CATALOG=1'; then
+  bad "dump must set SWALLOWED_B7B_SHELL_CATALOG=1 (wave788)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7B_SHELL_CATALOG=1'; then
+  bad "dump must set PHYS_DEL_BUCKET_B7B_SHELL_CATALOG=1 (wave788)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7B_MAKE_EXPORT_ESCAPE=1'; then
+  bad "dump must set PHYS_DEL_BUCKET_B7B_MAKE_EXPORT_ESCAPE=1 (wave788)"
+fi
 if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_PREP_NEXT=B7_physical_delete_makefile_after_windows_not_this_wave'; then
-  bad "dump PHYS_DEL_PREP_NEXT must stay physical-delete-after-windows (wave787)"
+  bad "dump PHYS_DEL_PREP_NEXT must stay physical-delete-after-windows (wave788)"
 else
-  note "residual class inventory dump OK (wave747–787 + B7A cold 0-make + Windows + dual-end)"
+  note "residual class inventory dump OK (wave747–788 + B7B shell catalog + Windows + dual-end)"
 fi
 
 # Makefile still present (residual reality) + has host-cc heat
@@ -1311,16 +1332,29 @@ if [ -f "$MF" ]; then
   else
     bad "missing bootstrap_driver_seed_rebuild_leaves.sh (wave787 B7A)"
   fi
-  # wave787 B7B: mk list authority files + catalog still present
+  # wave787/788 B7B: mk list authority + shell-primary catalog
   if [ ! -f "$COMPILER_DIR/mk/driver_seed_export_lists.mk" ]; then
     bad "mk/driver_seed_export_lists.mk must exist (wave787 B7B list authority)"
   fi
+  if [ ! -f "$COMPILER_DIR/mk/driver_seed_r_lists.mk" ]; then
+    bad "mk/driver_seed_r_lists.mk must exist (wave788 B7B R1/R3/RT lists)"
+  fi
   if [ ! -f "$SCRIPT_DIR/driver_seed_obj_catalog.sh" ]; then
-    bad "missing driver_seed_obj_catalog.sh (wave787 B7B)"
+    bad "missing driver_seed_obj_catalog.sh (wave788 B7B)"
+  elif ! grep -q 'catalog_shell_dump\|shell_primary\|catalog_parse_mk' "$SCRIPT_DIR/driver_seed_obj_catalog.sh"; then
+    bad "catalog must shell-parse mk (wave788 B7B shell primary)"
   elif ! grep -q 'export-obj-catalog' "$SCRIPT_DIR/driver_seed_obj_catalog.sh"; then
-    bad "catalog must still consume make export-obj-catalog (wave787 B7B residual honesty)"
+    bad "catalog must keep make export-obj-catalog escape (wave788)"
   else
-    note "B7B list authority mk+catalog (lists stay; make export residual)"
+    note "B7B shell-primary catalog + mk lists (wave788; make export escape)"
+  fi
+  # Live shell catalog --check (keys + shell==make parity)
+  if ! bash "$SCRIPT_DIR/driver_seed_obj_catalog.sh" --check \
+    >/tmp/driver_seed_obj_catalog_check.log 2>/tmp/driver_seed_obj_catalog_check_err.log; then
+    bad "driver_seed_obj_catalog.sh --check failed (wave788)"
+    head -30 /tmp/driver_seed_obj_catalog_check_err.log >&2 || true
+  else
+    note "driver_seed_obj_catalog.sh --check OK (wave788 shell==make)"
   fi
   # residual honesty: bootstrap-x-compiler still has archaeology stage2 $(CC) -c
   if ! grep -A8 '^bootstrap-x-compiler:' "$MF" | grep -qE '\$\(CC\).*-c typeck_x_x'; then
@@ -1361,29 +1395,37 @@ fi
 if ! grep -q 'ensure_host_cc_seed_o\.sh' "$MF"; then
   bad "Makefile must thin-call ensure_host_cc_seed_o.sh for R1 families"
 fi
-if ! grep -q 'R1_CORE_SEED_OBJS' "$MF"; then
-  bad "Makefile must define R1_CORE_SEED_OBJS (wave749 list authority)"
+# wave788: R1/R3/RT list authority lives in mk/driver_seed_r_lists.mk (Makefile includes).
+_r_lists="$COMPILER_DIR/mk/driver_seed_r_lists.mk"
+if [ ! -f "$_r_lists" ]; then
+  bad "missing mk/driver_seed_r_lists.mk (wave788 list authority)"
 fi
-if ! grep -q 'R1_FRONTEND_GLUE_OBJS' "$MF"; then
-  bad "Makefile must define R1_FRONTEND_GLUE_OBJS (wave750 list authority)"
+if ! grep -q 'R1_CORE_SEED_OBJS' "$_r_lists"; then
+  bad "mk/driver_seed_r_lists.mk must define R1_CORE_SEED_OBJS (wave749/788 list authority)"
 fi
-if ! grep -q 'R1_MAIN_RUNTIME_OBJS' "$MF"; then
-  bad "Makefile must define R1_MAIN_RUNTIME_OBJS (wave751 list authority)"
+if ! grep -q 'R1_FRONTEND_GLUE_OBJS' "$_r_lists"; then
+  bad "mk/driver_seed_r_lists.mk must define R1_FRONTEND_GLUE_OBJS (wave750/788)"
 fi
-if ! grep -q 'R1_ALIAS_STUBS_OBJS' "$MF"; then
-  bad "Makefile must define R1_ALIAS_STUBS_OBJS (wave752 list authority)"
+if ! grep -q 'R1_MAIN_RUNTIME_OBJS' "$_r_lists"; then
+  bad "mk/driver_seed_r_lists.mk must define R1_MAIN_RUNTIME_OBJS (wave751/788)"
 fi
-if ! grep -q 'R1_EXTRA_CFLAGS_OBJS' "$MF"; then
-  bad "Makefile must define R1_EXTRA_CFLAGS_OBJS (wave753 list authority)"
+if ! grep -q 'R1_ALIAS_STUBS_OBJS' "$_r_lists"; then
+  bad "mk/driver_seed_r_lists.mk must define R1_ALIAS_STUBS_OBJS (wave752/788)"
 fi
-if ! grep -q 'R1_MISC_BASENAME_OBJS' "$MF"; then
-  bad "Makefile must define R1_MISC_BASENAME_OBJS (wave754 list authority)"
+if ! grep -q 'R1_EXTRA_CFLAGS_OBJS' "$_r_lists"; then
+  bad "mk/driver_seed_r_lists.mk must define R1_EXTRA_CFLAGS_OBJS (wave753/788)"
 fi
-if ! grep -q 'R1_SEED_MAP_OBJS' "$MF"; then
-  bad "Makefile must define R1_SEED_MAP_OBJS (wave755 list authority)"
+if ! grep -q 'R1_MISC_BASENAME_OBJS' "$_r_lists"; then
+  bad "mk/driver_seed_r_lists.mk must define R1_MISC_BASENAME_OBJS (wave754/788)"
 fi
-if ! grep -q 'R3_COLD_SEED_OBJS' "$MF"; then
-  bad "Makefile must define R3_COLD_SEED_OBJS (wave757 list authority)"
+if ! grep -q 'R1_SEED_MAP_OBJS' "$_r_lists"; then
+  bad "mk/driver_seed_r_lists.mk must define R1_SEED_MAP_OBJS (wave755/788)"
+fi
+if ! grep -q 'R3_COLD_SEED_OBJS' "$_r_lists"; then
+  bad "mk/driver_seed_r_lists.mk must define R3_COLD_SEED_OBJS (wave757/788)"
+fi
+if ! grep -q 'driver_seed_r_lists\.mk' "$MF"; then
+  bad "Makefile must include mk/driver_seed_r_lists.mk (wave788)"
 fi
 # wave757: rebuild residual must try try-r3-cold
 if ! grep -q 'try-r3-cold\|try_ensure_r3_cold' "$REBUILD_REL"; then
@@ -1491,7 +1533,7 @@ else
     "$REBUILD_REL"; then
     bad "rebuild_leaves must not hardcode .o list (dual authority)"
   fi
-  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld (wave772/773) + drop silent CC fallback (wave774); fmt_check_cmd.o dual (wave775); R2 panic PREFER try-r2-prefer (wave776); phys-del prep (wave777); Windows+dual-end gate (wave778); B1–B6 swallow (wave779–784); B7 DAG inventory + archaeology CC thin (wave785); B7D host-cc product link g05 (wave786); B7A cold residual_make=0 honesty + B7B list stays mk (wave787); residual physical delete after Windows + heat B7A edges"
+  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld (wave772/773) + drop silent CC fallback (wave774); fmt_check_cmd.o dual (wave775); R2 panic PREFER try-r2-prefer (wave776); phys-del prep (wave777); Windows+dual-end gate (wave778); B1–B6 swallow (wave779–784); B7 DAG inventory + archaeology CC thin (wave785); B7D host-cc product link g05 (wave786); B7A cold residual_make=0 honesty (wave787); B7B shell-primary catalog (wave788); residual physical delete after Windows + heat B7A edges"
 fi
 
 # wave772/774: cold pure-ld required when eligible (no silent CC fallback)

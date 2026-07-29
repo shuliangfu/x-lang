@@ -871,61 +871,9 @@ src/runtime/rt_stack.o: seeds/rt_stack.from_x.c src/runtime/rt_stack.x scripts/e
 src/runtime/rt_parse_diag.o: seeds/rt_parse_diag.from_x.c src/runtime/rt_parse_diag.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS) -I. -Iinclude -Isrc" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/rt_parse_diag.from_x.c
-RT_SEED_SLICE_OBJS = src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o src/runtime/rt_parse_diag.o
-
-# wave749 R1 second family: pure host-cc core seeds (basename → seeds/<leaf>.from_x.c).
-# List authority for ensure_host_cc_seed_o.sh core-seed mode; body = same script as rt-slice.
-# Not dual of DRIVER_SEED_BRIDGE_OBJS (bridge rebuild list); this is pure R1 recipe family only.
-R1_CORE_SEED_OBJS = src/diag.o src/runtime_link_abi.o src/runtime_c_import.o src/x_seed_bridge.o src/seed_link_compat.o
-
-# wave750 R1 third family: frontend glue with basename-mismatch seed map
-# (lexer.o ← runtime_lexer_glue, ast.o ← runtime_ast_glue, lsp_diag.o ← runtime_lsp_glue).
-# List authority for ensure_host_cc_seed_o.sh frontend-glue mode; body = same script.
-# Seed map lives in ensure script (path convention); list stays here (G.7).
-R1_FRONTEND_GLUE_OBJS = src/lexer/lexer.o src/ast/ast.o src/lsp/lsp_diag.o
-
-# wave751 R1 fourth family: main/runtime multi-flag variants (shared seeds, different -D).
-# List authority for ensure_host_cc_seed_o.sh main-runtime mode; body = same script.
-# Seed/flag maps live in ensure script (path convention); list stays here (G.7).
-R1_MAIN_RUNTIME_OBJS = src/main.o src/main_x.o src/main_driver.o src/runtime.o src/runtime_x.o src/runtime_driver.o src/runtime_driver_no_c.o
-
-# wave752 R1 fifth family: pure host-cc link alias / bare / compat stubs
-# (basename → seeds/<leaf>.from_x.c; no extra -D). List authority for
-# ensure_host_cc_seed_o.sh alias-stubs mode; body = same script as rt-slice.
-# Not dual of USER_ASM_SEED_* lists; this is pure R1 recipe family only.
-R1_ALIAS_STUBS_OBJS = x_frontend_link_alias.o ast_asm_bare_link_alias.o backend_asm_bare_link_alias.o backend_asm_strict_fallback_alias.o typeck_c_module_stubs.o src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o src/runtime_driver_strict_glue_stubs.o
-
-# wave753 R1 sixth family: pure host-cc with extra flags / multi-out seeds
-# (pipeline_abi -D, asm_io_stubs -fPIE, sqlite glue+stub, parser link-alias -D).
-# List authority for ensure_host_cc_seed_o.sh extra-cflags mode; body = same script.
-# Seed/flag maps live in ensure script (path convention); list stays here (G.7).
-# Residual (other R1 after wave753): misc pure basename + mismatch/orch.
-R1_EXTRA_CFLAGS_OBJS = src/runtime_pipeline_abi.o runtime_asm_io_stubs.o runtime_sqlite_glue.o runtime_sqlite_glue_stub.o src/asm/parser_asm_parse_expr_link.o
-
-# wave754 R1 seventh family: pure host-cc misc basename (no special -D/-f extras).
-# List authority for ensure_host_cc_seed_o.sh misc-basename mode; body = same script.
-# Basename → seeds/<leaf>.from_x.c.
-R1_MISC_BASENAME_OBJS = runtime_link_abi_user_env.o runtime_channel_glue.o runtime_scheduler_glue.o runtime_kv_mmap_glue.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arm64_enc_c.o src/lsp/lsp_diag_pipeline_ctx.o build_asm/pipeline_glue_strict_minimal.o src/asm/runtime_asm_build.o
-
-# wave755 R1 eighth family: basename-mismatch + bootstrap orch extras.
-# List authority for ensure_host_cc_seed_o.sh seed-map mode; body = same script.
-# Seed/flag maps live in ensure script (path convention); list stays here (G.7).
-# wave758: parser_asm_thin_glue monothin (basename mismatch + monothin -D/-I) joined
-# seed-map family (G.7 有则补全; was R4 residual pure host-cc).
-# wave759: pipeline_glue_standalone (build_asm/ + -Ibuild_asm -Wno-error=return-type)
-# joined seed-map (G.7 有则补全; was R4 residual cc_inc_tu).
-R1_SEED_MAP_OBJS = src/driver/target_cpu.o src/ast/ast_seed.o pipeline_bootstrap_orchestration.o parser_asm_thin_glue.o build_asm/pipeline_glue_standalone.o
-
-# wave757 R3 cold-else family: thin+rest leaves whose cold path (PREFER_X_O≠1 /
-# bootstrap-driver-seed rebuild) is pure host-cc of seeds/<leaf>.from_x.c.
-# List authority for ensure_host_cc_seed_o.sh try-r3-cold / try-r3-prefer /
-# r3-cold-seed modes (G.7 lists = mk only).
-# wave763: PREFER_X_O=1 thin+rest product path also via try-r3-prefer (single
-# shell body; Makefile thin-calls; no inline thin+rest recipes).
-# Residual after wave765: pure-ld · physical delete · g05 rt multi-slice ·
-# ~~panic / typeck_f64 / crt0 R2~~ try-r2 · ~~gen/pipeline~~ try-gen-x ·
-# ~~thin_glue / glue standalone~~ → seed-map · ~~R3_COLD Makefile PREFER~~.
-R3_COLD_SEED_OBJS = src/runtime_io_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/asm/simd_enc.o src/asm/simd_loop.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o
+# wave788 B7B: RT / R1 / R3 pure-literal lists → mk/driver_seed_r_lists.mk
+# (G.7 single list authority; shell catalog parses the same mk; do not re-assign).
+include mk/driver_seed_r_lists.mk
 
 # G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（XLANG_LEGACY_PREPROCESS_C 路径已死）。
 # xlang_x 用：仅 -DXLANG_USE_X_PIPELINE，提供 asm_codegen_ast、pipeline_parse_into_buf、main_entry（弱符号）等
@@ -1879,7 +1827,7 @@ DRIVER_SEED_LINK_FLAGS = -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE
 DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver_no_c.o
 endif
 # pipeline_glue_standalone 与 pipeline_x.o 重复时 glue 置链接末尾且允许多定义（覆盖 pipeline_gen 快照内旧 glue）。
-ASM_GLUE_STANDALONE_O = build_asm/pipeline_glue_standalone.o
+# wave788: ASM_GLUE_STANDALONE_O lives in mk/driver_seed_r_lists.mk (included above).
 # Why: XLANG_WEAK (see include/xlang_weak.h) expands to `__attribute__((weak))` on ELF
 #      (Linux/macOS) but to EMPTY on PE/MinGW (Windows). Seed .from_x.c files contain
 #      XLANG_WEAK stub fallbacks (e.g. process_args_count_c, parse, typeck_module) that

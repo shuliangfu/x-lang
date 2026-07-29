@@ -66,7 +66,7 @@
 | `g05-ensure-relink-prereqs` | 3081 | g05_ensure_relink_prereqs.sh (~3.3k 行) | `xbuild ensure` | 🟢 g05_ensure_relink_prereqs.sh | 热路径 cc；filtered.o 已纯 shell（wave715） |
 | `g05-export-relink` | 3085 | g05_relink_env.sh | `xbuild link-env` | 🟢 g05_relink_env.sh | 链接清单 |
 | `refresh-xlang-asm-gate` | 3172 | shell `refresh_xlang_asm_gate.sh` | `xbuild refresh-gate` | 🟢 wave734 体 shell；**wave735–737** migrate+gen+lexer shell | 11.1.6 |
-| `bootstrap-driver-seed` | ~2995 | **shell 编排** + shell ensure_prereqs（wave744）+ 薄叶子 | `xbuild bootstrap` | 🟡 wave717–787：编排+链接+§5b+prereq 边 shell；叶 pattern 库存→R1–R6 prefer/pure-ld → phys-del prep（wave777）→ Windows/双端闸门（wave778）→ **B1–B6 吞体**（wave779–784）→ **B7 DAG 库存**（wave785）→ **B7D TARGET→g05**（wave786）→ **B7A 冷 residual_make=0 + B7B 诚实**（wave787）；residual 物理删（Windows 绿后）· heat B7A / B7B make-export | L4 必经；列表 mk catalog；冷 rebuild residual_make=0；11.3.1 物理删仍 ⬜ |
+| `bootstrap-driver-seed` | ~2995 | **shell 编排** + shell ensure_prereqs（wave744）+ 薄叶子 | `xbuild bootstrap` | 🟡 wave717–788：编排+链接+§5b+prereq 边 shell；叶 pattern 库存→R1–R6 prefer/pure-ld → phys-del prep（wave777）→ Windows/双端闸门（wave778）→ **B1–B6 吞体**（wave779–784）→ **B7 DAG 库存**（wave785）→ **B7D TARGET→g05**（wave786）→ **B7A 冷 residual_make=0**（wave787）→ **B7B shell catalog**（wave788）；residual 物理删（Windows 绿后）· heat B7A | L4 必经；列表 mk catalog shell 主路径；冷 rebuild residual_make=0；11.3.1 物理删仍 ⬜ |
 | `bootstrap-driver-bstrict` | ~3107 | **shell** `bootstrap_driver_bstrict.sh`；FULL=1 仍 make 入口 | `xbuild bstrict-build` | 🟡 wave719 体 shell；refresh 仍 make | 非日常 |
 | `test` / `test_c` / `test_x` | ~1685 | **shell** `run_compiler_tests.sh` | `xbuild test` | 🟢 wave720 体 shell；prereq 仍 make 图 | 嵌套 run-all 可 make |
 | `bootstrap-verify` / `check-7.2-bstrict` | ~3320 | **shell** `bootstrap_verify_bstrict.sh` | `xbuild verify` | 🟢 wave720 体 shell；prereq bstrict 图 | 阶段2 仍脚本内 make |
@@ -578,7 +578,7 @@
 | `./xbuild test*` | `run_compiler_tests.sh` | 否 | `xbuild test` |
 | `./xbuild clean` | `clean_compiler.sh` | 否 | `xbuild clean` |
 | `./xbuild full` | FULL 可能仍 make bstrict | 非日常 | `xbuild cold-test` 子集 |
-| `./xbuild compiler-all` | `scripts/compiler_all_ci.sh`（wave784） | CI；`xlang`=g05（wave786 B7D）+ `xlang-c` seed；冷 residual_make=0（wave787）；heat 叶图仍 make B7A/B | heat B7A / B7B make-export / 物理删后 0-make |
+| `./xbuild compiler-all` | `scripts/compiler_all_ci.sh`（wave784） | CI；`xlang`=g05（wave786 B7D）+ `xlang-c` seed；冷 residual_make=0（wave787）；catalog shell 0-make（wave788）；heat 叶图仍 make B7A | heat B7A / 物理删后 0-make |
 | `./xbuild bootstrap-driver-seed` | make 图 + shell 编排 | 冷启动 | 11.3 吞图 |
 | `./xbuild compiler-make …` | 叶 .o / CFLAGS 透传 | 残余 | G.7 体 = `tests/lib/compiler-make.sh` |
 | `./xbuild ensure` / `link-env` / `link-product` | g05_*.sh 直调 | **0× make**（wave733） | 11.1.6 产品链一等 |

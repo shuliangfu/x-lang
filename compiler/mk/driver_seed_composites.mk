@@ -12,7 +12,7 @@
 #   USER_ASM_SEED_OBJS, XLANG_C
 #
 # G.7: Definitions live only here. Makefile must include, not re-assign.
-# Shell / xbuild consume via export-obj-catalog (or future xbuild parse).
+# Shell / xbuild consume via driver_seed_obj_catalog.sh (wave788 shell primary).
 #
 # PLATFORM: SHARED — composite paths under compiler/; host-filtered pieces
 # come from already-resolved vars (Darwin filtered pipeline, etc.).

@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
-# driver_seed_obj_catalog.sh — wave726–728 · read-only dump of DRIVER_SEED_* lists
+# driver_seed_obj_catalog.sh — wave726–728 · wave788 B7B shell-primary catalog
 #
 # G.7: Object-list *definitions* live in compiler/mk/*.mk (included by Makefile).
-# This script only invokes `make bootstrap-driver-seed-export-obj-catalog` and
-# prints KEY=value lines. Future xbuild may parse the same leaf; never hardcode
-# a second .o inventory here.
+# wave788: default expansion is **shell parse of mk + product-default host picks**
+# (0 make). `make bootstrap-driver-seed-export-obj-catalog` remains an escape /
+# parity authority via XLANG_CATALOG_VIA_MAKE=1 or LEGACY host flags.
 #
 # Usage (compiler/ directory or with -C):
 #   bash scripts/driver_seed_obj_catalog.sh
+#   bash scripts/driver_seed_obj_catalog.sh --check   # keys present + shell==make
+#   bash scripts/driver_seed_obj_catalog.sh --shell   # force shell path
+#   bash scripts/driver_seed_obj_catalog.sh --make    # force make export
 #   MAKE=gmake bash scripts/driver_seed_obj_catalog.sh
-#   bash scripts/driver_seed_obj_catalog.sh --check   # require known keys
 #
-# PLATFORM: SHARED — thin make export consumer; no compile/link.
+# PLATFORM: SHARED — thin catalog; no compile/link.
+# Wave: 726–728 export · 788 B7B shell-primary (not physical delete).
 
 set -euo pipefail
 ROOT="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
@@ -22,9 +25,22 @@ MAKE="${MAKE:-make}"
 export MAKEFLAGS=""
 
 CHECK=0
-if [ "${1:-}" = "--check" ]; then
-  CHECK=1
-fi
+FORCE_SHELL=0
+FORCE_MAKE=0
+case "${1:-}" in
+  --check) CHECK=1 ;;
+  --shell) FORCE_SHELL=1 ;;
+  --make) FORCE_MAKE=1 ;;
+  "" ) ;;
+  -h|--help)
+    sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'
+    exit 0
+    ;;
+  *)
+    echo "driver_seed_obj_catalog: unknown arg '$1' (use --check|--shell|--make)" >&2
+    exit 2
+    ;;
+esac
 
 # Required keys from export-obj-catalog (must match Makefile recipe + mk lists).
 # wave728: composite keys (LINK_BASE / PREREQS / X_FRONTEND) added.
@@ -60,7 +76,330 @@ REQUIRED_KEYS=(
   R3_COLD_SEED_OBJS
 )
 
-out="$("$MAKE" -s bootstrap-driver-seed-export-obj-catalog)"
+# ---------------------------------------------------------------------------
+# Host / product-default seeds (mirror Makefile default no_c + crt0 pick).
+# Lists themselves stay in mk; these are host *picks* composites need.
+# PLATFORM: SHARED product default; LEGACY flags force make path.
+# ---------------------------------------------------------------------------
+catalog_need_make_escape() {
+  # Non-empty LEGACY / experimental flags diverge from product-default shell picks.
+  if [ -n "${XLANG_LEGACY_C_FRONTEND:-}" ] && [ "${XLANG_LEGACY_C_FRONTEND}" != "0" ]; then
+    return 0
+  fi
+  if [ -n "${XLANG_NO_C_SEED_LINK:-}" ] && [ "${XLANG_NO_C_SEED_LINK}" != "0" ]; then
+    return 0
+  fi
+  if [ -n "${XLANG_LEGACY_MAIN_C:-}" ] && [ "${XLANG_LEGACY_MAIN_C}" != "0" ]; then
+    return 0
+  fi
+  if [ -n "${XLANG_LEGACY_SEED_LEXER_AST:-}" ] && [ "${XLANG_LEGACY_SEED_LEXER_AST}" != "0" ]; then
+    return 0
+  fi
+  if [ "${XLANG_CATALOG_VIA_MAKE:-0}" = "1" ]; then
+    return 0
+  fi
+  return 1
+}
+
+# File-backed KEY=value store (bash 3.2 — no associative arrays).
+_CAT_STORE=""
+
+catalog_set() {
+  local k="$1" v="$2"
+  if [ -n "$_CAT_STORE" ]; then
+    _CAT_STORE=$(printf '%s\n' "$_CAT_STORE" | grep -v "^${k}=" || true)
+  fi
+  _CAT_STORE=$(printf '%s\n%s=%s\n' "$_CAT_STORE" "$k" "$v")
+}
+
+catalog_get() {
+  printf '%s\n' "$_CAT_STORE" | sed -n "s/^${1}=//p" | head -1
+}
+
+# Collapse runs of spaces (make often leaves double spaces from empty $(VAR)).
+catalog_norm_ws() {
+  printf '%s' "$1" | tr -s ' ' | sed 's/^ //;s/ $//'
+}
+
+catalog_expand_value() {
+  # Expand $(NAME) refs using store. Unknown NAME → empty (match make empty).
+  local val="$1"
+  local i=0
+  local pre rest name post rep
+  while [ "$i" -lt 64 ]; do
+    case "$val" in
+      *'$('* ) ;;
+      *) printf '%s' "$val"; return 0 ;;
+    esac
+    pre="${val%%\$\(*}"
+    rest="${val#*\$\(}"
+    name="${rest%%\)*}"
+    post="${rest#*\)}"
+    # If no closing paren, stop
+    if [ "$name" = "$rest" ]; then
+      printf '%s' "$val"
+      return 0
+    fi
+    rep=$(catalog_get "$name")
+    val="${pre}${rep}${post}"
+    i=$((i + 1))
+  done
+  printf '%s' "$val"
+}
+
+catalog_seed_host_defaults() {
+  local uname_s uname_m is_win=0
+  uname_s="$(uname -s 2>/dev/null || echo Unknown)"
+  uname_m="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "${OS:-}" = "Windows_NT" ]; then
+    is_win=1
+  else
+    case "$uname_s" in
+      MINGW*|MSYS*|CYGWIN*) is_win=1 ;;
+    esac
+  fi
+
+  catalog_set UNAME_S "$uname_s"
+  catalog_set UNAME_M "$uname_m"
+  catalog_set XLANG_IS_WIN_HOST "$is_win"
+
+  # Product-default link picks (Makefile else-branch no_c / empty LEGACY).
+  # PLATFORM: SHARED — must match make export under default flags; --check parity.
+  catalog_set PREPROCESS_LINK_O ""
+  catalog_set DRIVER_SEED_PREPROCESS_REBUILD ""
+  catalog_set DRIVER_SEED_RUNTIME_O "src/runtime_driver_no_c.o"
+  catalog_set DRIVER_SEED_RUNTIME_REBUILD "src/runtime_driver_no_c.o"
+  catalog_set DRIVER_SEED_FRONTEND_EXTRA ""
+  catalog_set DRIVER_SEED_SUPPORT_EXTRA "src/async/async_asm_pool.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o"
+  catalog_set LEXER_LINK_O ""
+  catalog_set AST_LINK_O ""
+  catalog_set LSP_DIAG_LINK_O "src/lsp/lsp_diag.o"
+  catalog_set XLANG_C "xlang-c"
+  catalog_set PIPELINE_LIBS ""
+  catalog_set DRIVER_SUBCMD_GEN ""
+  catalog_set DRIVER_SUBCMD_OBJS "driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x.o driver_build_x.o driver_run_x.o driver_emit_x.o"
+
+  # MAIN_LINK_O / MAIN_LINK_REBUILD — mirror Makefile default crt0 pick.
+  # PLATFORM: LINUX x86_64 · MACOS arm64/x86_64 · WINDOWS mingw · else main_driver.
+  local main_o="src/main_driver.o"
+  if [ "$is_win" = "1" ]; then
+    main_o="src/asm/crt0_mingw.o"
+  else
+    case "$uname_s" in
+      Linux)
+        case "$uname_m" in
+          x86_64|amd64) main_o="src/asm/crt0_x86_64.o" ;;
+        esac
+        ;;
+      Darwin)
+        case "$uname_m" in
+          arm64|aarch64) main_o="src/asm/crt0_arm64.o" ;;
+          x86_64|amd64) main_o="src/asm/crt0_darwin_x86_64.o" ;;
+        esac
+        ;;
+    esac
+  fi
+  catalog_set MAIN_LINK_O "$main_o"
+  catalog_set MAIN_LINK_REBUILD "$main_o"
+}
+
+# Parse a single .mk file: simple KEY = value and ifeq ($(VAR),VAL)/else/endif.
+# PLATFORM: SHARED — only simple ifeq forms used in mk/*.mk today.
+catalog_parse_mk() {
+  local path="$1"
+  local line raw key val
+  # skip stack: space-separated 0/1 flags; empty = active root
+  local stack=""
+  local top active cond_var cond_want actual
+
+  if [ ! -f "$path" ]; then
+    echo "driver_seed_obj_catalog: missing $path" >&2
+    return 1
+  fi
+
+  while IFS= read -r raw || [ -n "$raw" ]; do
+    # strip CR
+    raw=${raw%$'\r'}
+    # strip comment (not inside values we care about — mk comments are full-line or trailing after lists rarely)
+    line=$(printf '%s\n' "$raw" | sed 's/#.*//')
+    # trim
+    line=$(printf '%s\n' "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    [ -z "$line" ] && continue
+
+    # Conditionals (avoid case patterns with '(' — bash 3.2 macOS).
+    if printf '%s' "$line" | grep -qE '^(ifeq|ifneq)[[:space:]]'; then
+      # Active only if parent stack all 0
+      active=1
+      for top in $stack; do
+        if [ "$top" != "0" ]; then active=0; break; fi
+      done
+      # Portable parse: ifeq ($(VAR),VAL) / ifneq ($(VAR),VAL)
+      # bash 3.2 — no case patterns with '('; no ${var#$(...)} (cmd-sub).
+      cond_kind=
+      cond_var=
+      cond_want=
+      if [ "${line#ifeq }" != "$line" ]; then
+        cond_kind=ifeq
+        _rest=${line#ifeq }
+      elif [ "${line#ifneq }" != "$line" ]; then
+        cond_kind=ifneq
+        _rest=${line#ifneq }
+      fi
+      # Expect _rest = ($(NAME),VAL)  — strip leading "($(" via byte offset
+      if [ -n "$cond_kind" ] && [ "${#_rest}" -ge 4 ] && [ "${_rest:0:3}" = '($(' ]; then
+        _inner=${_rest:3}
+        cond_var=${_inner%%\)*}
+        _tmp=${_inner#*\)}
+        cond_want=${_tmp#,}
+        cond_want=${cond_want%\)}
+      fi
+      if [ -n "$cond_kind" ] && [ -n "$cond_var" ]; then
+        actual=$(catalog_get "$cond_var")
+        if [ "$cond_kind" = "ifeq" ]; then
+          if [ "$active" -eq 1 ] && [ "$actual" = "$cond_want" ]; then
+            stack="$stack 0"
+          else
+            stack="$stack 1"
+          fi
+        else
+          # ifneq
+          if [ "$active" -eq 1 ] && [ "$actual" != "$cond_want" ]; then
+            stack="$stack 0"
+          else
+            stack="$stack 1"
+          fi
+        fi
+      else
+        # Unsupported conditional form → treat as skip branch (safe for product mk)
+        echo "driver_seed_obj_catalog: unsupported conditional in $path: $line" >&2
+        stack="$stack 1"
+      fi
+      continue
+    fi
+    if [ "$line" = "else" ]; then
+      # invert top of stack
+      if [ -z "$stack" ]; then
+        echo "driver_seed_obj_catalog: else without ifeq in $path" >&2
+        return 1
+      fi
+      top=$(printf '%s\n' "$stack" | awk '{print $NF}')
+      stack=$(printf '%s\n' "$stack" | awk '{$NF=""; print}' | sed 's/[[:space:]]*$//')
+      if [ "$top" = "0" ]; then
+        stack="$stack 1"
+      else
+        stack="$stack 0"
+      fi
+      # trim leading space
+      stack=$(printf '%s' "$stack" | sed 's/^[[:space:]]*//')
+      continue
+    fi
+    if [ "$line" = "endif" ]; then
+      if [ -z "$stack" ]; then
+        echo "driver_seed_obj_catalog: endif without ifeq in $path" >&2
+        return 1
+      fi
+      stack=$(printf '%s\n' "$stack" | awk '{$NF=""; print}' | sed 's/[[:space:]]*$//')
+      stack=$(printf '%s' "$stack" | sed 's/^[[:space:]]*//')
+      continue
+    fi
+
+    # skip inactive branches
+    active=1
+    for top in $stack; do
+      if [ "$top" != "0" ]; then active=0; break; fi
+    done
+    [ "$active" -eq 1 ] || continue
+
+    # KEY = value  or  KEY := value (bash 3.2; no sed \? optional)
+    case "$line" in
+      *'='*)
+        key=
+        val=
+        case "$line" in
+          *':='*)
+            key=${line%%:=*}
+            val=${line#*:=}
+            ;;
+          *)
+            key=${line%%=*}
+            val=${line#*=}
+            ;;
+        esac
+        # trim spaces around key/val
+        key=$(printf '%s' "$key" | sed 's/[[:space:]]*$//;s/^[[:space:]]*//')
+        val=$(printf '%s' "$val" | sed 's/^[[:space:]]*//')
+        case "$key" in
+          [A-Za-z_]*)
+            catalog_set "$key" "$val"
+            ;;
+        esac
+        ;;
+    esac
+  done < "$path"
+}
+
+catalog_expand_all_stored() {
+  # Multi-pass expand every stored value until stable or cap.
+  local pass=0
+  local keys k old new
+  while [ "$pass" -lt 32 ]; do
+    keys=$(printf '%s\n' "$_CAT_STORE" | sed -n 's/^\([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p')
+    local changed=0
+    for k in $keys; do
+      old=$(catalog_get "$k")
+      new=$(catalog_expand_value "$old")
+      if [ "$new" != "$old" ]; then
+        catalog_set "$k" "$new"
+        changed=1
+      fi
+    done
+    [ "$changed" -eq 0 ] && break
+    pass=$((pass + 1))
+  done
+}
+
+catalog_shell_dump() {
+  _CAT_STORE=""
+  catalog_seed_host_defaults
+  # Include order matches make dependency of lists (user_asm → r_lists → export → composites).
+  catalog_parse_mk "mk/user_asm_seed_objs.mk"
+  catalog_parse_mk "mk/driver_seed_r_lists.mk"
+  catalog_parse_mk "mk/driver_seed_export_lists.mk"
+  catalog_parse_mk "mk/driver_seed_composites.mk"
+  catalog_expand_all_stored
+
+  local k v
+  for k in "${REQUIRED_KEYS[@]}"; do
+    v=$(catalog_get "$k")
+    v=$(catalog_norm_ws "$v")
+    printf '%s=%s\n' "$k" "$v"
+  done
+}
+
+catalog_make_dump() {
+  "$MAKE" -s bootstrap-driver-seed-export-obj-catalog
+}
+
+# Decide path
+USE_MAKE=0
+if [ "$FORCE_MAKE" -eq 1 ]; then
+  USE_MAKE=1
+elif [ "$FORCE_SHELL" -eq 1 ]; then
+  USE_MAKE=0
+elif catalog_need_make_escape; then
+  USE_MAKE=1
+else
+  USE_MAKE=0
+fi
+
+if [ "$USE_MAKE" -eq 1 ]; then
+  out="$(catalog_make_dump)"
+  CATALOG_PATH=make
+else
+  out="$(catalog_shell_dump)"
+  CATALOG_PATH=shell
+fi
+
 printf '%s\n' "$out"
 
 if [ "$CHECK" -eq 1 ]; then
@@ -77,8 +416,42 @@ if [ "$CHECK" -eq 1 ]; then
     echo "driver_seed_obj_catalog: USER_ASM_SEED_OBJS empty (mk include broken?)" >&2
     missing=1
   fi
+
+  # wave788: shell vs make parity under product-default flags (when make available).
+  if ! catalog_need_make_escape || [ "$FORCE_SHELL" -eq 1 ]; then
+    if command -v "$MAKE" >/dev/null 2>&1 || command -v make >/dev/null 2>&1; then
+      make_out="$(catalog_make_dump 2>/dev/null || true)"
+      if [ -n "$make_out" ]; then
+        shell_out="$out"
+        if [ "$CATALOG_PATH" = "make" ]; then
+          shell_out="$(FORCE_SHELL=1; catalog_shell_dump)"
+        fi
+        parity_fail=0
+        for k in "${REQUIRED_KEYS[@]}"; do
+          sv=$(printf '%s\n' "$shell_out" | sed -n "s/^${k}=//p" | head -1)
+          mv=$(printf '%s\n' "$make_out" | sed -n "s/^${k}=//p" | head -1)
+          sv=$(catalog_norm_ws "$sv")
+          mv=$(catalog_norm_ws "$mv")
+          if [ "$sv" != "$mv" ]; then
+            echo "driver_seed_obj_catalog: parity FAIL $k" >&2
+            echo "  shell: $sv" >&2
+            echo "  make:  $mv" >&2
+            parity_fail=1
+          fi
+        done
+        if [ "$parity_fail" -ne 0 ]; then
+          missing=1
+        else
+          echo "driver_seed_obj_catalog: shell==make parity OK (${#REQUIRED_KEYS[@]} keys)" >&2
+        fi
+      else
+        echo "driver_seed_obj_catalog: skip parity (make export empty/fail)" >&2
+      fi
+    fi
+  fi
+
   if [ "$missing" -ne 0 ]; then
     exit 1
   fi
-  echo "driver_seed_obj_catalog: --check OK (${#REQUIRED_KEYS[@]} keys)" >&2
+  echo "driver_seed_obj_catalog: --check OK (${#REQUIRED_KEYS[@]} keys; path=$CATALOG_PATH)" >&2
 fi
