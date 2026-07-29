@@ -2027,22 +2027,11 @@ src/lsp/lsp_diag_pipeline_sizes.o: seeds/lsp_diag_pipeline_sizes_weak.from_x.c s
 # G-02f-1 / Phase 4：产品 G05 nostub 真迁 .x（#[no_mangle] 三枚 sizeof）
 # 源：src/lsp/lsp_diag_pipeline_sizes.x
 # 冷启动产物：seeds/lsp_diag_pipeline_sizes.from_x.c（xlang-c 不存在时回退）
-#   regen: ./xlang-c src/lsp/lsp_diag_pipeline_sizes.x -E > seeds/lsp_diag_pipeline_sizes.from_x.c
-# Phase 4：xlang-c 可用时优先从 .x 生成 .o（PREFER_X_O）；冷启动无 xlang-c 时用 seed。
-# bootstrap/relink 同时链 lsp_diag_pipeline_ctx.o；.x 产物无 weak 占位（等同旧 nostub）。
-src/lsp/lsp_diag_pipeline_sizes_nostub.o: src/lsp/lsp_diag_pipeline_sizes.x
-	@if [ -x ./xlang-c ] && { \
-		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/lsp_sizes.XXXXXX") && \
-		./xlang-c -E src/lsp/lsp_diag_pipeline_sizes.x > "$$_tmp" 2>/dev/null && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o $@ && \
-		rm -f "$$_tmp" && echo "phase4: $@ <- src/lsp/lsp_diag_pipeline_sizes.x (PREFER_X_O)"; \
-	}; then :; \
-	elif [ -f seeds/lsp_diag_pipeline_sizes.from_x.c ]; then \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/lsp_diag_pipeline_sizes.from_x.c -o $@ && \
-		echo "phase4: $@ <- seeds/lsp_diag_pipeline_sizes.from_x.c (cold start seed)"; \
-	else \
-		echo "ERROR: no xlang-c and no seed for $@" >&2; exit 1; \
-	fi
+# wave781: B3 product PREFER dual hybrid body → try-lsp-sat-prefer (thin-call only).
+src/lsp/lsp_diag_pipeline_sizes_nostub.o: seeds/lsp_diag_pipeline_sizes.from_x.c src/lsp/lsp_diag_pipeline_sizes.x scripts/ensure_host_cc_seed_o.sh
+	# wave781: B3 lsp-sat PREFER direct_e → try-lsp-sat-prefer (cold seed fallback).
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-lsp-sat-prefer $@
 
 # G-02e-8：lsp_diag_x_alias 已并入本 TU。
 # G-02f-12：lsp_diag_pipeline_ctx 产品 seed
@@ -2279,24 +2268,11 @@ preprocess_x.o: preprocess_gen.c $(PREPROCESS_X_DEPS)
 # XLANG_NO_C_FRONTEND 下 lsp_diag_x.o / lsp_x.o 需要的文档缓冲 + X 管道缓冲桩
 # G-02f-22：lsp_diag_stubs_no_c 产品 seed
 # G-02f-rest：rest→.x 迁移（lsp_diag_copy_text_impl + json_escape_str_impl 真迁 .x）
-#   PREFER_X_O 路径：.x 提供 _impl + wrapper，seed 加 -DXLANG_LSP_DIAG_STUBS_NO_C_FROM_X 跳过 _impl/wrapper，
-#   ld -r 合并 thin.o + rest.o；冷启动无 xlang-c 时回退纯 seed。
-src/lsp/lsp_diag_stubs_no_c.o: seeds/lsp_diag_stubs_no_c.from_x.c src/lsp/lsp_diag_stubs_no_c.x include/diag.h
-	@if [ -x ./xlang-c ] && { \
-		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/ldsn.XXXXXX") && \
-		./xlang-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/lsp/lsp_diag_stubs_no_c.x > "$$_tmp" 2>/dev/null && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/lsp/lsp_diag_stubs_no_c_x.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_LSP_DIAG_STUBS_NO_C_FROM_X -c seeds/lsp_diag_stubs_no_c.from_x.c -o src/lsp/lsp_diag_stubs_no_c_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) src/lsp/lsp_diag_stubs_no_c_x.o src/lsp/lsp_diag_stubs_no_c_rest.o -o $@ && \
-		rm -f "$$_tmp" src/lsp/lsp_diag_stubs_no_c_x.o src/lsp/lsp_diag_stubs_no_c_rest.o && \
-		echo "phase4: $@ <- .x + seed-rest (PREFER_X_O)"; \
-	}; then :; \
-	elif [ -f seeds/lsp_diag_stubs_no_c.from_x.c ]; then \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/lsp_diag_stubs_no_c.from_x.c -o $@ && \
-		echo "phase4: $@ <- seeds/lsp_diag_stubs_no_c.from_x.c (cold start seed)"; \
-	else \
-		echo "ERROR: no xlang-c and no seed for $@" >&2; exit 1; \
-	fi
+# wave781: B3 product PREFER thin+rest dual hybrid body → try-lsp-sat-prefer (thin-call only).
+src/lsp/lsp_diag_stubs_no_c.o: seeds/lsp_diag_stubs_no_c.from_x.c src/lsp/lsp_diag_stubs_no_c.x include/diag.h scripts/ensure_host_cc_seed_o.sh
+	# wave781: B3 lsp-sat PREFER thin_rest_e → try-lsp-sat-prefer (cold seed fallback).
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-lsp-sat-prefer $@
 
 # XLANG_SKIP_SUBSCRIPT_MAKE=1：run-all 入口已链 seed，子脚本 `make` 仅在校验 xlang 缺失时再完整 bootstrap。
 ifeq ($(XLANG_SKIP_SUBSCRIPT_MAKE),1)

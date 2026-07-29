@@ -51,6 +51,8 @@
 **wave767:** g05 pipeline_abi + ldpc → `try-pipeline-abi-prefer` / `try-ldpc-prefer` (g05/Makefile thin-call; dual hybrid deleted); residual target_cpu.  
 **wave768:** g05 target_cpu → `try-target-cpu-prefer` (g05/Makefile thin-call; dual hybrid deleted); residual other L2 · pure-ld.  
 **wave779:** B1 runtime_* OS/glue dual hybrid → `try-runtime-os-prefer` (23 Makefile thin-call; not physical delete).  
+**wave780:** B2 std/core product hybrid → `try-std-core-prefer` (5 Makefile thin-call; not physical delete).  
+**wave781:** B3 LSP satellite hybrid → `try-lsp-sat-prefer` (2 Makefile thin-call; not physical delete).  
 **wave758:** R4 residual thin_glue → R1 seed-map (G.7 有则补全) — `parser_asm_thin_glue` pure host-cc; user-asm shell-only.  
 **wave759:** R4 residual glue standalone → R1 seed-map (G.7 有则补全) — `pipeline_glue_standalone` pure host-cc; glue shell-only.
 
@@ -211,7 +213,7 @@ Do **not** grow new free-form recipes. Known residual classes:
 | Residual | Notes |
 |----------|--------|
 | ~~`DRIVER_SEED_PREREQS` make-graph edges~~ | **swallowed wave744** → shell ensure (list still mk) |
-| Leaf `.o` pattern rules (R1–R5) | **named inventory wave746** · **R4 mode+list shell wave747** · **R1 eight families wave748–755** · **R4 pure-R1 body wave756** · **R3 cold-else wave757** · **thin_glue seed-map wave758** · **glue-standalone seed-map wave759** · **panic PREFER wave776** · **phys-del prep buckets B1–B7 wave777** · **Windows gate + dual-end verify wave778** · **B1 runtime-os try-runtime-os-prefer wave779** · **B2 std-core try-std-core-prefer wave780** · remaining B3–B5 residual Makefile → 11.3.1 |
+| Leaf `.o` pattern rules (R1–R5) | **named inventory wave746** · **R4 mode+list shell wave747** · **R1 eight families wave748–755** · **R4 pure-R1 body wave756** · **R3 cold-else wave757** · **thin_glue seed-map wave758** · **glue-standalone seed-map wave759** · **panic PREFER wave776** · **phys-del prep buckets B1–B7 wave777** · **Windows gate + dual-end verify wave778** · **B1 runtime-os try-runtime-os-prefer wave779** · **B2 std-core try-std-core-prefer wave780** · **B3 lsp-sat try-lsp-sat-prefer wave781** · remaining B4–B5 residual Makefile → 11.3.1 |
 | `compiler-all` / Makefile `all` | CI host-cc path (R5) |
 | FULL=1 bstrict make entry | Non-daily |
 | Missing `xlang-c` for force -E | ensure_* gen scripts |
@@ -383,7 +385,8 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 - [x] g05 target_cpu PREFER (wave768 try-target-cpu-prefer)
 - [x] B1 runtime-os PREFER (wave779 try-runtime-os-prefer · 23 thin-call)
 - [x] B2 std-core PREFER (wave780 try-std-core-prefer · 5 thin-call)
-- [ ] B3–B5 body swallow · physical delete
+- [x] B3 lsp-sat PREFER (wave781 try-lsp-sat-prefer · 2 thin-call)
+- [ ] B4–B5 body swallow · physical delete
 
 ---
 

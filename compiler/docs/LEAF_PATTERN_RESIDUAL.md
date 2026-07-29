@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2 · wave763 R3 PREFER thin try-r3-prefer · wave764 g05 R3_COLD r3-prefer-family · wave765 g05 labi try-labi-prefer · wave766 g05 rt try-rt-prefer · wave767 g05 pipeline_abi/ldpc try-*-prefer · wave768 g05 target_cpu try-target-cpu-prefer · wave769 g05 L2 asm try-l2-asm-prefer · wave770 g05 async try-async-prefer · wave771 g05 other L2 try-other-l2-prefer · wave772 11.1.4 pure-ld cold prefer · wave773 g05 pure-ld prefer · wave774 drop silent CC fallback · wave775 fmt_check_cmd.o dual · wave776 R2 panic PREFER try-r2-prefer · wave777 physical-delete prep inventory · wave778 Windows gate + dual-end verify · wave779 B1 runtime-os try-runtime-os-prefer · wave780 B2 std-core try-std-core-prefer)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2 · wave763 R3 PREFER thin try-r3-prefer · wave764 g05 R3_COLD r3-prefer-family · wave765 g05 labi try-labi-prefer · wave766 g05 rt try-rt-prefer · wave767 g05 pipeline_abi/ldpc try-*-prefer · wave768 g05 target_cpu try-target-cpu-prefer · wave769 g05 L2 asm try-l2-asm-prefer · wave770 g05 async try-async-prefer · wave771 g05 other L2 try-other-l2-prefer · wave772 11.1.4 pure-ld cold prefer · wave773 g05 pure-ld prefer · wave774 drop silent CC fallback · wave775 fmt_check_cmd.o dual · wave776 R2 panic PREFER try-r2-prefer · wave777 physical-delete prep inventory · wave778 Windows gate + dual-end verify · wave779 B1 runtime-os try-runtime-os-prefer · wave780 B2 std-core try-std-core-prefer · wave781 B3 lsp-sat try-lsp-sat-prefer)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -994,12 +994,48 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - [x] **wave777:** physical-delete **prep inventory** (named buckets B1–B7; no body swallow; no Makefile delete)
 - [x] **wave778:** **Windows gate** before Makefile physical delete + **dual-end** (mac + Ubuntu) verify policy
 - [x] **wave779:** B1 runtime_* OS/glue dual hybrid → `try-runtime-os-prefer` (23 thin-call; not physical delete)
+- [x] **wave780:** B2 std/core product hybrid → `try-std-core-prefer` (5 thin-call; not physical delete)
+- [x] **wave781:** B3 LSP satellite hybrid → `try-lsp-sat-prefer` (2 thin-call; not physical delete)
 - [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame)
 - [ ] Leaf `.o` without host-cc residual (stages 8–9 / 12)
 - [ ] R5 CI / compiler-all shell body
-- [ ] B2–B5 Makefile dual hybrid body → ensure (next swallow waves)
+- [ ] B4–B5 Makefile dual hybrid body → ensure (next swallow waves)
 
 
+
+### wave781 · B3 LSP satellite hybrid → try-lsp-sat-prefer (G.7 有则补全)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; B4–B5 body swallow.  
+> **This wave:** swallow **B3** Makefile LSP satellite hybrid bodies into ensure `try-lsp-sat-prefer` (2 leaves); Makefile keeps thin-call edges only.  
+> **Why dedicated (not try-other-l2-prefer):** sizes_nostub is `xlang-c -E → cc -c` direct (no WEAK thin+rest); stubs_no_c is `-E` thin + rest FROM_X + `ld -r` multidef (not `rt_prefer_try_x_to_o` / G05_X_O_WEAK). Extending other-l2 would fork that authority.
+
+```text
+Before (wave780):
+  Makefile 2× LSP satellite hybrid (sizes_nostub · stubs_no_c)
+  PHYS_DEL_PREP_NEXT=B3_lsp_satellite_hybrid_body_swallow_not_delete
+
+After (wave781):
+  ensure try-lsp-sat-prefer OUT
+    table-driven 2 leaves
+    leaf_kind: direct_e | thin_rest_e
+  Makefile 2 leaves: thin-call try-lsp-sat-prefer only
+  SWALLOWED_B3_LSP_SAT_PREFER=1
+  PHYS_DEL_BUCKET_B3_BODY_SWALLOWED=1
+  PHYS_DEL_PREP_NEXT=B4_gen_c_to_o_bootstrap_body_swallow_not_delete
+  ENDGAME_PHYSICAL_DELETE_MAKEFILE=0
+```
+
+| Leaf | leaf_kind | Behavior |
+|------|-----------|----------|
+| `src/lsp/lsp_diag_pipeline_sizes_nostub.o` | `direct_e` | xlang-c `-E` → host-cc `-x c -c` → OUT; else cold seed |
+| `src/lsp/lsp_diag_stubs_no_c.o` | `thin_rest_e` | xlang-c `-E` thin + seed rest `-DXLANG_LSP_DIAG_STUBS_NO_C_FROM_X` → `ld -r` multidef; else cold seed |
+
+| Swallowed this wave | Still residual |
+|---------------------|----------------|
+| **B3 body** (2 LSP satellite hybrid → ensure try-lsp-sat-prefer + Makefile thin-call) | B4–B5 hybrid bodies · B6 R5 · B7 DAG · physical delete |
+| Prior R1–R6 / prefer / pure-ld / prep / Windows+dual-end / B1 / B2 | FORCE_CC · Windows PE pure-ld body |
+
+**Forbidden:** physical delete Makefile; claim B3 swallow = physical delete; re-open dual hybrid body on B3 leaves; mac-only wave green (wave778 gate still holds); fold into try-other-l2 without matching shapes.
 
 ### wave780 · B2 std/core product hybrid → try-std-core-prefer (G.7 有则补全)
 
@@ -1032,7 +1068,7 @@ After (wave780):
 
 | Swallowed this wave | Still residual |
 |---------------------|----------------|
-| **B2 body** (5 product hybrid → ensure try-std-core-prefer + Makefile thin-call) | B3–B5 hybrid bodies · B6 R5 · B7 DAG · physical delete |
+| **B2 body** (5 product hybrid → ensure try-std-core-prefer + Makefile thin-call) | ~~B3~~ (wave781) · B4–B5 hybrid bodies · B6 R5 · B7 DAG · physical delete |
 | Prior R1–R6 / prefer / pure-ld / prep / Windows+dual-end / B1 | FORCE_CC · Windows PE pure-ld body |
 
 **Forbidden:** physical delete Makefile; claim B2 swallow = physical delete; re-open dual hybrid body on B2 leaves; mac-only wave green (wave778 gate still holds).

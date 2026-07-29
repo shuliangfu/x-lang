@@ -77,6 +77,11 @@
 #            process_merge (args seed + argv + os_glue ld -r), net_merge
 #            (sub .x + net_*_fast PREFER + final ld -r). Makefile thin-call only.
 #            Residual: B3–B5 · physical delete.
+#   wave781: G.7 B3 LSP satellite hybrid → `try-lsp-sat-prefer OUT`
+#            (有则补全; dedicated table — shapes differ from try-other-l2-prefer /
+#            try-ldpc: sizes_nostub = xlang-c -E → cc -c direct; stubs_no_c =
+#            xlang-c -E thin + seed rest FROM_X → ld -r multidef). Makefile
+#            thin-call only (NOT physical delete). Residual: B4–B5 · physical delete.
 #   wave758: R4 residual pure host-cc thin_glue → R1 seed-map (G.7 有则补全):
 #            parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c +
 #            -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm;
@@ -155,7 +160,8 @@
 #   - ~~panic PREFER thin~~ wave776 → try-r2-prefer
 #   - ~~B1 runtime_* OS/glue dual hybrid~~ wave779 → try-runtime-os-prefer
 #   - ~~B2 std/core product hybrid~~ wave780 → try-std-core-prefer
-#   - R5 CI all · B3–B5 hybrid · pure-ld residual
+#   - ~~B3 LSP satellite hybrid~~ wave781 → try-lsp-sat-prefer
+#   - R5 CI all · B4–B5 hybrid · pure-ld residual
 #   - pure-ld (11.1.4) · physical Makefile delete (11.3.1)
 #   - bootstrap_nostdlib_stubs.o (cc_inc_tu residual) · crt0_user.o cp wrappers
 #
@@ -175,6 +181,7 @@
 #   bash scripts/ensure_host_cc_seed_o.sh try-r2-prefer <out.o> # wave776 R2 panic PREFER thin
 #   bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer <out.o> # wave779 B1 runtime OS 23
 #   bash scripts/ensure_host_cc_seed_o.sh try-std-core-prefer <out.o> # wave780 B2 std/core 5
+#   bash scripts/ensure_host_cc_seed_o.sh try-lsp-sat-prefer <out.o> # wave781 B3 LSP satellite 2
 #   bash scripts/ensure_host_cc_seed_o.sh try-r2 <out.o>   # wave760/762 R2 UNAME leaves
 #   bash scripts/ensure_host_cc_seed_o.sh try-gen-x <out.o> # wave761 gen *_x / pipeline_x
 #   bash scripts/ensure_host_cc_seed_o.sh r2-panic         # DRIVER_SEED_PANIC family
@@ -235,7 +242,7 @@ _DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-async-prefer|try-other-l2-prefer|try-r2-prefer|try-runtime-os-prefer|try-std-core-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-async-prefer|try-other-l2-prefer|try-r2-prefer|try-runtime-os-prefer|try-std-core-prefer|try-lsp-sat-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -3816,6 +3823,182 @@ try_ensure_std_core_prefer_one() {
 }
 
 # ---------------------------------------------------------------------------
+# wave781: try-lsp-sat-prefer OUT — B3 LSP satellite hybrid table.
+#
+# Table-driven single body (G.7 有则补全). Two Makefile product hybrids that
+# sit *outside* try-other-l2-prefer (lsp_diag.o glue) and try-ldpc-prefer
+# (pipeline_ctx). Shapes differ enough that extending other-l2 would fork
+# authority — dedicated table is the single body for these two leaves.
+#
+# leaf_kind:
+#   direct_e   — PREFER: xlang-c -E .x → host-cc -x c -c → OUT (no rest merge).
+#                cold: seeds/lsp_diag_pipeline_sizes.from_x.c
+#                Historic Makefile: prefer when ./xlang-c exists (no PREFER env).
+#   thin_rest_e — PREFER: xlang-c -E .x → thin.o + seed rest
+#                 -DXLANG_LSP_DIAG_STUBS_NO_C_FROM_X → ld -r multidef.
+#                 cold: seeds/lsp_diag_stubs_no_c.from_x.c
+# Prefer fail / no xlang-c → cold seed. NOT physical delete — Makefile thin-call.
+# Callers: Makefile 2 leaves (wave781).
+# Exit codes:
+#   0 — OUT is a table member; body produced OUT
+#   3 — OUT is not in the lsp-sat prefer table
+#   1 — seed missing / compile failed
+# PLATFORM: SHARED shell body · product dual hybrid historic (xlang-c when present).
+# Residual after: B4–B5 · physical delete · R5.
+# ---------------------------------------------------------------------------
+
+# Spec: seed|x_src|from_x_def|leaf_kind
+# from_x_def empty for direct_e; XLANG_LSP_DIAG_STUBS_NO_C_FROM_X for thin_rest_e.
+lsp_sat_prefer_spec_for_out() {
+  case "$1" in
+    src/lsp/lsp_diag_pipeline_sizes_nostub.o)
+      printf '%s' "seeds/lsp_diag_pipeline_sizes.from_x.c|src/lsp/lsp_diag_pipeline_sizes.x||direct_e"
+      ;;
+    src/lsp/lsp_diag_stubs_no_c.o)
+      printf '%s' "seeds/lsp_diag_stubs_no_c.from_x.c|src/lsp/lsp_diag_stubs_no_c.x|XLANG_LSP_DIAG_STUBS_NO_C_FROM_X|thin_rest_e"
+      ;;
+    *)
+      printf '%s' ""
+      ;;
+  esac
+}
+
+# Historic Makefile xlang-c -E for LSP satellites (stubs uses module -L paths).
+_lsp_sat_xlang_c_e() {
+  local x_src="$1" tmp_c="$2" mode="$3"
+  if [ ! -x ./xlang-c ]; then
+    return 1
+  fi
+  [ -f "$x_src" ] || return 1
+  case "$mode" in
+    direct_e)
+      ./xlang-c -E "$x_src" >"$tmp_c" 2>/dev/null
+      ;;
+    thin_rest_e)
+      ./xlang-c -L .. -L src -L src/asm -L src/ast -L src/parser \
+        -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline \
+        -E "$x_src" >"$tmp_c" 2>/dev/null
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+  [ -s "$tmp_c" ]
+}
+
+ensure_lsp_sat_prefer_one() {
+  local o="$1"
+  local spec seed x_src from_x_def leaf_kind rest
+  local stale=0
+  local tmp_c thin_o rest_o
+
+  spec="$(lsp_sat_prefer_spec_for_out "$o")"
+  if [ -z "$spec" ]; then
+    return 3
+  fi
+  seed="${spec%%|*}"
+  rest="${spec#*|}"
+  x_src="${rest%%|*}"
+  rest="${rest#*|}"
+  from_x_def="${rest%%|*}"
+  leaf_kind="${rest#*|}"
+
+  if [ ! -f "$seed" ]; then
+    echo "ensure_host_cc_seed_o try-lsp-sat-prefer: missing seed $seed for $o" >&2
+    return 1
+  fi
+
+  if [ "$FORCE" != "1" ] && [ -f "$o" ]; then
+    stale=0
+    [ "$seed" -nt "$o" ] && stale=1
+    if [ -f "$x_src" ] && [ "$x_src" -nt "$o" ]; then
+      stale=1
+    fi
+    if [ "$stale" = "0" ]; then
+      log "skip up-to-date $o (lsp-sat-prefer/$leaf_kind)"
+      return 0
+    fi
+  fi
+
+  mkdir -p "$(dirname "$o")"
+
+  case "$leaf_kind" in
+    direct_e)
+      # PLATFORM: SHARED — PREFER xlang-c -E → host-cc; cold seed (Makefile twin).
+      if [ -f "$x_src" ] && [ -x ./xlang-c ]; then
+        tmp_c="$(mktemp "${TMPDIR:-/tmp}/lsp_sizes.XXXXXX")"
+        # shellcheck disable=SC2086
+        if _lsp_sat_xlang_c_e "$x_src" "$tmp_c" direct_e \
+          && $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
+               -x c -c "$tmp_c" -o "$o"; then
+          rm -f "$tmp_c"
+          log "prefer direct_e $o <- $x_src (try-lsp-sat-prefer/direct_e)"
+          return 0
+        fi
+        rm -f "$tmp_c"
+        log "lsp-sat direct_e prefer failed for $o; fallback full seed"
+      fi
+      if [ -f "$o" ]; then
+        FORCE=1
+        ensure_one "$o" "$seed"
+        FORCE=0
+      else
+        ensure_one "$o" "$seed"
+      fi
+      return 0
+      ;;
+
+    thin_rest_e)
+      # PLATFORM: SHARED — PREFER thin -E .x + seed rest FROM_X → ld -r multidef.
+      if [ -f "$x_src" ] && [ -x ./xlang-c ] && [ -n "$from_x_def" ]; then
+        tmp_c="$(mktemp "${TMPDIR:-/tmp}/ldsn.XXXXXX")"
+        thin_o="$(mktemp "${TMPDIR:-/tmp}/ldsn_thin.XXXXXX")"
+        rest_o="$(mktemp "${TMPDIR:-/tmp}/ldsn_rest.XXXXXX")"
+        # shellcheck disable=SC2086
+        if _lsp_sat_xlang_c_e "$x_src" "$tmp_c" thin_rest_e \
+          && $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
+               -x c -c "$tmp_c" -o "$thin_o" \
+          && $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
+               -D"$from_x_def" -c "$seed" -o "$rest_o" \
+          && _std_core_ld_r "$o" "$thin_o" "$rest_o"; then
+          rm -f "$tmp_c" "$thin_o" "$rest_o"
+          log "prefer thin_rest_e $o <- $x_src + seed-rest (try-lsp-sat-prefer/thin_rest_e)"
+          return 0
+        fi
+        rm -f "$tmp_c" "$thin_o" "$rest_o"
+        log "lsp-sat thin_rest_e prefer failed for $o; fallback full seed"
+      fi
+      if [ -f "$o" ]; then
+        FORCE=1
+        ensure_one "$o" "$seed"
+        FORCE=0
+      else
+        ensure_one "$o" "$seed"
+      fi
+      return 0
+      ;;
+
+    *)
+      echo "ensure_host_cc_seed_o try-lsp-sat-prefer: unknown leaf_kind $leaf_kind" >&2
+      return 1
+      ;;
+  esac
+}
+
+try_ensure_lsp_sat_prefer_one() {
+  local o="$1"
+  if [ -z "$o" ]; then
+    echo "ensure_host_cc_seed_o try-lsp-sat-prefer: need <out.o>" >&2
+    exit 2
+  fi
+  if [ -z "$(lsp_sat_prefer_spec_for_out "$o")" ]; then
+    return 3
+  fi
+  ensure_lsp_sat_prefer_one "$o"
+  return 0
+}
+
+# ---------------------------------------------------------------------------
 # wave760: try-r2 OUT — R2 platform-stamp panic cold body (UNAME leaf).
 #
 # Membership = catalog DRIVER_SEED_PANIC_OBJS only (lists = mk; currently
@@ -5365,6 +5548,60 @@ run_check() {
   else
     note "std-core prefer table has 5 members (wave780 B2)"
   fi
+  # wave781: try-lsp-sat-prefer B3 2 LSP satellite hybrid
+  if ! grep -q 'try_ensure_lsp_sat_prefer_one\|try-lsp-sat-prefer' "$0"; then
+    bad "try-lsp-sat-prefer / try_ensure_lsp_sat_prefer_one missing (wave781)"
+  else
+    note "try-lsp-sat-prefer helper present (wave781)"
+  fi
+  if ! grep -q 'lsp_sat_prefer_spec_for_out\|ensure_lsp_sat_prefer_one' "$0"; then
+    bad "lsp-sat prefer body/table missing (wave781)"
+  else
+    note "lsp-sat-prefer table body present (wave781)"
+  fi
+  _ls_n=0
+  for _ls_leaf in \
+    src/lsp/lsp_diag_pipeline_sizes_nostub.o \
+    src/lsp/lsp_diag_stubs_no_c.o; do
+    if [ -n "$(lsp_sat_prefer_spec_for_out "$_ls_leaf")" ]; then
+      _ls_n=$((_ls_n + 1))
+    else
+      bad "lsp_sat_prefer_spec_for_out missing $_ls_leaf (wave781)"
+    fi
+    if awk -v leaf="$_ls_leaf" '
+      $0 ~ ("^" leaf ":") {grab=1; next}
+      grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+      grab {body = body $0 "\n"}
+      END {
+        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-lsp-sat-prefer/) exit 0
+        exit 1
+      }
+    ' Makefile; then
+      note "Makefile $_ls_leaf thin-calls ensure try-lsp-sat-prefer (wave781)"
+    else
+      bad "Makefile $_ls_leaf must thin-call ensure try-lsp-sat-prefer (wave781)"
+    fi
+    # Ban re-opened hybrid: only scan tab-prefixed recipe lines (not # comments).
+    if awk -v leaf="$_ls_leaf" '
+      $0 ~ ("^" leaf ":") {grab=1; next}
+      grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+      grab && /^\t/ {body = body $0 "\n"}
+      END {
+        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-lsp-sat-prefer/ && body !~ /\$\(CC\)/ && body !~ /xlang-c/) exit 1
+        if (body ~ /xlang-c/ && body !~ /ensure_host_cc_seed_o/) exit 0
+        if (body ~ /\$\(CC\)/ && body ~ /-c seeds\//) exit 0
+        if (body ~ /mktemp/ && body ~ /(thin\.o|_thin\.o|rest\.o|_rest\.o)/) exit 0
+        exit 1
+      }
+    ' Makefile; then
+      bad "Makefile $_ls_leaf still has dual hybrid body (wave781)"
+    fi
+  done
+  if [ "$_ls_n" -ne 2 ]; then
+    bad "lsp-sat prefer table size $_ls_n != 2 (wave781 B3 heat)"
+  else
+    note "lsp-sat prefer table has 2 members (wave781 B3)"
+  fi
   # wave760/762: try-r2 R2 UNAME leaves (panic + typeck_f64 + crt0)
   if ! grep -q 'try_ensure_r2_one\|try-r2' "$0"; then
     bad "try-r2 / try_ensure_r2_one missing (wave760/762 R2 UNAME)"
@@ -5603,6 +5840,19 @@ case "$MODE" in
     _try_out="$1"
     set +e
     try_ensure_std_core_prefer_one "$_try_out"
+    _try_rc=$?
+    set -e
+    exit "$_try_rc"
+    ;;
+  try-lsp-sat-prefer|try_lsp_sat_prefer|lsp-sat-prefer|lspsat-prefer|try-lsp-sat|b3-prefer)
+    # wave781: B3 LSP satellite hybrid table; exit 3 if not table member.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o try-lsp-sat-prefer: need <out.o>" >&2
+      exit 2
+    fi
+    _try_out="$1"
+    set +e
+    try_ensure_lsp_sat_prefer_one "$_try_out"
     _try_rc=$?
     set -e
     exit "$_try_rc"
