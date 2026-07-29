@@ -539,12 +539,16 @@ print_live_metrics() {
   r4_gen_x=0
   if [ -f "$mf" ]; then
     # Count recipe-ish $(CC) ... -c lines (rough residual heat; not authoritative list).
-    cc_c=$(grep -cE '\$\(CC\).*-c' "$mf" 2>/dev/null || echo 0)
-    uname_n=$(grep -cE 'UNAME_[SM]|\$\(UNAME_' "$mf" 2>/dev/null || echo 0)
+    # Safe count: grep -c prints 0 + exit 1 on no match; never || echo 0 (→ 0\n0).
+    cc_c=$(grep -cE '\$\(CC\).*-c' "$mf" 2>/dev/null || true)
+    cc_c=${cc_c:-0}
+    uname_n=$(grep -cE 'UNAME_[SM]|\$\(UNAME_' "$mf" 2>/dev/null || true)
+    uname_n=${uname_n:-0}
   fi
   # rebuild_leaves modes: catalog_key= table entries (wave747)
   if [ -f "$ROOT/compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh" ]; then
-    rebuild_modes=$(grep -cE 'catalog_key=' "$ROOT/compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh" 2>/dev/null || echo 0)
+    rebuild_modes=$(grep -cE 'catalog_key=' "$ROOT/compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh" 2>/dev/null || true)
+    rebuild_modes=${rebuild_modes:-0}
     if grep -q 'driver_seed_obj_catalog\.sh' \
       "$ROOT/compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh" \
       && grep -q 'SWALLOWED_R4\|catalog KEY\|wave747\|catalog_key=' \
@@ -1412,21 +1416,28 @@ else
 fi
 # wave790: Makefile heat recipes are try-heat only (historical modes remain in comments)
 # wave791–795: FORCE + ensure script (source prereqs removed for 86 leaves)
+# wave798: dual-end count portability —
+#   PLATFORM: SHARED — GNU grep ERE does NOT treat `\t` as TAB (mac BSD often does).
+#   Always use $'\t' for real tab. Never `grep -c … || echo 0` (no-match prints 0
+#   and exits 1 → "0\n0" breaks `[ n -lt … ]` integer tests on Ubuntu).
 if [ -f "$MF" ]; then
-  _heat_recipe_n=$(grep -cE '^\t.*ensure_host_cc_seed_o\.sh try-heat' "$MF" 2>/dev/null || echo 0)
-  _heat_non_try=$(grep -E '^\t.*ensure_host_cc_seed_o\.sh ' "$MF" 2>/dev/null | grep -vc 'try-heat' || true)
-  if [ "${_heat_recipe_n:-0}" -lt 50 ]; then
+  _heat_recipe_n=$(grep -cE $'^\t.*ensure_host_cc_seed_o\.sh try-heat' "$MF" 2>/dev/null || true)
+  _heat_recipe_n=${_heat_recipe_n:-0}
+  _heat_non_try=$(grep -E $'^\t.*ensure_host_cc_seed_o\.sh ' "$MF" 2>/dev/null | grep -vc 'try-heat' || true)
+  _heat_non_try=${_heat_non_try:-0}
+  if [ "${_heat_recipe_n}" -lt 50 ]; then
     bad "Makefile must thin-call try-heat for ensure recipes (wave790; n=${_heat_recipe_n})"
   else
     note "Makefile heat recipes try-heat unify (n=${_heat_recipe_n}; wave790)"
   fi
-  if [ "${_heat_non_try:-0}" -ne 0 ]; then
+  if [ "${_heat_non_try}" -ne 0 ]; then
     bad "Makefile ensure recipes must not call non-try-heat modes (wave790; n=${_heat_non_try})"
   else
     note "Makefile ensure recipe modes collapsed to try-heat (wave790)"
   fi
-  _force_n=$(grep -cE '^[A-Za-z0-9_./$()].*: FORCE scripts/ensure_host_cc_seed_o\.sh' "$MF" 2>/dev/null || echo 0)
-  if [ "${_force_n:-0}" -lt 113 ]; then
+  _force_n=$(grep -cE '^[A-Za-z0-9_./$()].*: FORCE scripts/ensure_host_cc_seed_o\.sh' "$MF" 2>/dev/null || true)
+  _force_n=${_force_n:-0}
+  if [ "${_force_n}" -lt 113 ]; then
     bad "Makefile wave797 FORCE dep-thin leaves expected >=113 (n=${_force_n})"
   else
     note "Makefile heat dep-edge FORCE thin (n=${_force_n}; wave797)"

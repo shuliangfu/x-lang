@@ -1599,3 +1599,7 @@ Windows re-prove (dual-boot must be Windows / MSYS2):
 | `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `0` |
 
 **Forbidden:** claim preflight = physical delete / Windows green; delete Makefile before Windows min-gate; mac-only wave green.
+
+**Dual-end leaf `--check` portability (same wave):** GNU grep ERE does not treat `\t` as TAB
+(mac BSD often does). Heat recipe counts use `$'\t'` + `grep -c … || true` (never
+`|| echo 0`, which yields `0\n0` on no-match and breaks integer tests on Ubuntu).
