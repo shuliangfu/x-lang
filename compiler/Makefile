@@ -126,11 +126,12 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 # 函数体（16KiB/20KiB），且裸 getcwd/pipe 与 unistd 编译期冲突。截断修通后可改回
 # xlang_compile_std_module --bare-impl process.x（mod.x 仍勿编入 .o，避免双定义）。
 # wave780 B2: hybrid body → ensure try-std-core-prefer (G.7; not physical delete).
+# wave790 B7A: heat recipe unify → try-heat only (mode names in comments; dep edges residual).
 # PLATFORM: SHARED — cold ld -r args seed + runtime_process_argv + os_glue.
 ../std/process/process.o: ../std/process/mod.x ../std/process/process.x seeds/runtime_process_args_thin.from_x.c runtime_process_argv.o runtime_process_os_glue.o scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-std-core-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # std.string：F 闭合 — 产品 -o 完整 emit（-x -E 会截断函数体）。
 # 用 xlang_compile_std_module（与 crypto 等同路径）；优先 xlang_asm/xlang 产品宿主。
@@ -152,7 +153,7 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 ../std/path/path.o: ../std/path/mod.x seeds/runtime_path_fast.from_x.c src/asm/runtime_path_fast.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-std-core-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # std.heap：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + libc + ops）。
 ../std/heap/heap.o: ../std/heap/mod.x ../std/heap/libc.x ../std/heap/ops.x | scripts/xlang_compile_std_module.sh
@@ -225,7 +226,7 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 ../std/runtime/runtime.o: ../std/runtime/runtime.x seeds/runtime_std_runtime_fast.from_x.c src/asm/runtime_std_runtime_fast.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-std-core-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # std.net：F-04 v10～v14 纯 .x（F-ZC）；OS glue 由 runtime_net_*_fast.inc 提供（G-02e-18）。
 # PLATFORM: SHARED — mod.x MUST be compiled into net.o; otherwise std_net_listen /
@@ -241,7 +242,7 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 ../std/net/net.o: ../std/net/mod.x ../std/net/alpn.x ../std/net/dns.x ../std/net/io_batch.x ../std/net/addr.x ../std/net/ipv6.x ../std/net/sock.x ../std/net/udp.x ../std/net/tcp.x ../std/net/udp_batch.x ../std/net/workers.x seeds/runtime_net_dns_fast.from_x.c seeds/runtime_net_io_batch_fast.from_x.c seeds/runtime_net_addr_fast.from_x.c seeds/runtime_net_ipv6_fast.from_x.c seeds/runtime_net_sock_fast.from_x.c scripts/ensure_host_cc_seed_o.sh | scripts/xlang_compile_std_module.sh scripts/xlang_compile_std_x.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG="$(XLANG)" XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-std-core-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 net-o-stub:
 	$(MAKE) ../std/net/net.o
 
@@ -673,7 +674,7 @@ ifeq ($(XLANG_LEGACY_C_FRONTEND),1)
 # wave750 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_FRONTEND_GLUE_OBJS).
 src/lexer/lexer.o: seeds/runtime_lexer_glue.from_x.c src/asm/runtime_lexer_glue.x src/lexer/lexer.h include/token.h scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_lexer_glue.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02a: ast.o 从 runtime_ast_glue.inc 编译（LEGACY 模式 XLANG_LEGACY_C_FRONTEND=1）。
 # LEGACY parser.o 不引用 ast_expr_init_match_enum，安全。
@@ -681,7 +682,7 @@ src/lexer/lexer.o: seeds/runtime_lexer_glue.from_x.c src/asm/runtime_lexer_glue.
 # wave750 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_FRONTEND_GLUE_OBJS).
 src/ast/ast.o: seeds/runtime_ast_glue.from_x.c src/asm/runtime_ast_glue.x include/ast.h scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_ast_glue.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02a: typeck.c 已物理删除；typeck.o 由 typeck.x 生成（typeck_x.o），C 编排由 typeck_c_module_stubs.o 提供。
 
@@ -698,7 +699,7 @@ endif
 # wave749 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_CORE_SEED_OBJS).
 src/diag.o: seeds/diag.from_x.c src/diag.x include/diag.h scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/diag.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02a: lsp_diag.c 迁移到 runtime_lsp_glue.inc（24 个符号被 lsp_x.o/fmt_check_cmd*.o/runtime*.o 引用）
 # 全局规则，LEGACY 和默认模式共用。
@@ -708,7 +709,7 @@ src/lsp/lsp_diag.o: seeds/runtime_lsp_glue.from_x.c src/asm/runtime_lsp_glue.x s
 	# wave771: other L2 PREFER thin+rest → try-other-l2-prefer (cold plain seed fallback).
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-other-l2-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # `xlang-c` 默认模式可能只是 bootstrap_xlangc 的同步副本；凡是依赖 `-E/-E-extern`
 # 生成当前源码对应 C 的目标，必须先强制刷新一次 legacy C frontend，避免继续吃旧语义。
@@ -724,7 +725,7 @@ $(LEGACY_XLANG_C_READY_TARGETS): | legacy-xlang-c-ready
 # wave751 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MAIN_RUNTIME_OBJS).
 src/main.o: seeds/main.from_x.c src/main_c_entry.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/main.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # E-04 v2/v3：argv/target 与 POSIX I/O ABI 薄壳；默认 seed / B-strict 均链入。
 
@@ -735,7 +736,7 @@ src/main.o: seeds/main.from_x.c src/main_c_entry.x scripts/ensure_host_cc_seed_o
 src/runtime_io_abi.o: seeds/runtime_io_abi.from_x.c src/runtime_io_abi.x src/runtime_io_abi.h scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 
 # G-02f-13：runtime_link_abi 产品 seed（G05 hot）
@@ -744,7 +745,7 @@ src/runtime_link_abi.o: seeds/runtime_link_abi.from_x.c src/runtime_link_abi.x s
 	# wave765: labi multi-slice PREFER → try-labi-prefer (cold full seed fallback).
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-labi-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-12 / Phase 4：runtime_driver_abi thin+rest PREFER_X_O
 # PLATFORM: SHARED 冷链 — bootstrap-driver-seed 传 XLANG_G05_PREFER_X_O=0 必须走 seed。
@@ -756,7 +757,7 @@ src/runtime_link_abi.o: seeds/runtime_link_abi.from_x.c src/runtime_link_abi.x s
 src/runtime_driver_abi.o: seeds/runtime_driver_abi.from_x.c src/runtime_driver_abi_thin.x src/runtime_driver_abi.x src/runtime_driver_abi.h scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-12：runtime_pipeline_abi 产品 seed（须 XLANG_USE_X_PIPELINE）
 # wave753 R1 cold: ensure_one + USE_X_PIPELINE · wave767 product PREFER → try-pipeline-abi-prefer.
@@ -765,14 +766,14 @@ src/runtime_pipeline_abi.o: seeds/runtime_pipeline_abi.from_x.c src/runtime_pipe
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  RUNTIME_PIPELINE_ABI_CFLAGS="$(RUNTIME_PIPELINE_ABI_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-pipeline-abi-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 
 # G-02f-22：runtime_c_import 产品 seed
 # wave749 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_CORE_SEED_OBJS).
 src/runtime_c_import.o: seeds/runtime_c_import.from_x.c src/runtime_c_import.x src/runtime_c_import.h scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_c_import.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-18 / R2 product PREFER：async_liveness 独立 TU（非 glue #include）。
 # wave770: product PREFER → ensure try-async-prefer (full .x + rest FROM_X → $CC -r; cold seed).
@@ -780,7 +781,7 @@ src/runtime_c_import.o: seeds/runtime_c_import.from_x.c src/runtime_c_import.x s
 src/async/async_liveness.o: seeds/async_liveness.from_x.c src/async/async_liveness.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-async-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-18 / R2 product PREFER：async_cps_codegen 独立 TU（非 glue #include）。
 # wave770: product PREFER → ensure try-async-prefer (full .x + rest FROM_X → $CC -r; cold seed).
@@ -788,7 +789,7 @@ src/async/async_liveness.o: seeds/async_liveness.from_x.c src/async/async_livene
 src/async/async_cps_codegen.o: seeds/async_cps_codegen.from_x.c src/async/async_cps_codegen.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-async-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # R2 unbundle async_asm_pool from pipeline_glue #include (2026-07-21).
 # wave770: product PREFER → ensure try-async-prefer (full .x + rest FROM_X → $CC -r; cold seed).
@@ -796,7 +797,7 @@ src/async/async_cps_codegen.o: seeds/async_cps_codegen.from_x.c src/async/async_
 src/async/async_asm_pool.o: seeds/async_asm_pool.from_x.c src/asm/async_asm_pool.x include/async_asm_pool.h scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-async-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-12 / Phase 4：runtime_driver_diagnostic thin+rest PREFER_X_O
 # PLATFORM: SHARED 冷链 — 仅 XLANG_G05_PREFER_X_O=1 才 thin（同 simd_enc / runtime_driver_abi）。
@@ -804,14 +805,14 @@ src/async/async_asm_pool.o: seeds/async_asm_pool.from_x.c src/asm/async_asm_pool
 src/runtime_driver_diagnostic.o: seeds/runtime_driver_diagnostic.from_x.c src/runtime_driver_diagnostic_thin.x src/runtime_driver_diagnostic.x src/runtime_driver_diagnostic.h include/diag.h scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # 6.3：runtime.c 提供 run_compiler_c 与弱符号 main_entry；带 .x 入口时用 runtime_driver.o（含 driver_*/pipeline_*）
 # G-02f-14：runtime 产品 seed（多变体）
 # wave751 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MAIN_RUNTIME_OBJS).
 src/runtime.o: seeds/runtime.from_x.c src/runtime.x include/diag.h scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 # Makefile 为 prerequisite：编译宏（如 XLANG_USE_X_PREPROCESS）变更时须重编，否则 runtime_driver.o 缺 preprocess() 导致链接 Undefined _preprocess。
 # XLANG_ASM_USE_COMPILER_IMPL_C：driver_run_compiler_full 走 impl_c（parse_argv+post_parse），避免 compile.x X emit 路径 silent fail（与 B-strict xlang_asm 同）。
 # E-03 v2：XLANG_LEGACY_PREPROCESS_C=1 时 runtime preprocess() 仍调 C preprocess_c_fallback。
@@ -849,7 +850,7 @@ endif
 # Extra flags = $(RUNTIME_DRIVER_CFLAGS) (make expands; shell body only).
 src/runtime_driver.o: seeds/runtime.from_x.c src/runtime.x Makefile include/diag.h scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime.from_x.c $(RUNTIME_DRIVER_CFLAGS)
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f Cap residual slices：driver_abi 跨 TU 数据/thread_fn（arena BSS、emit 扫描槽、preamble 表、stack_esc）。
 # 与 g05_ensure 产品路径同源 seed；冷启动 phase1 必须进 DRIVER_SEED_OBJS。
@@ -857,20 +858,20 @@ src/runtime_driver.o: seeds/runtime.from_x.c src/runtime.x Makefile include/diag
 # List authority remains RT_SEED_SLICE_OBJS; thin leaves only.
 src/runtime/rt_arena_buf.o: seeds/rt_arena_buf.from_x.c src/runtime/rt_arena_buf.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS) -I. -Iinclude -Isrc" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/rt_arena_buf.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 src/runtime/rt_emit_state.o: seeds/rt_emit_state.from_x.c src/runtime/rt_emit_state.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS) -I. -Iinclude -Isrc" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/rt_emit_state.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 src/runtime/rt_preamble.o: seeds/rt_preamble.from_x.c src/runtime/rt_preamble.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS) -I. -Iinclude -Isrc" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/rt_preamble.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 src/runtime/rt_stack.o: seeds/rt_stack.from_x.c src/runtime/rt_stack.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS) -I. -Iinclude -Isrc" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/rt_stack.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 # multi-error recovery 诊断（G-02f-307）；勿仅靠 no_c 内嵌 merge——冷启动 phase1 须显式链入。
 src/runtime/rt_parse_diag.o: seeds/rt_parse_diag.from_x.c src/runtime/rt_parse_diag.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS) -I. -Iinclude -Isrc" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/rt_parse_diag.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 # wave788 B7B: RT / R1 / R3 pure-literal lists → mk/driver_seed_r_lists.mk
 # (G.7 single list authority; shell catalog parses the same mk; do not re-assign).
 include mk/driver_seed_r_lists.mk
@@ -880,7 +881,7 @@ include mk/driver_seed_r_lists.mk
 # wave751 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MAIN_RUNTIME_OBJS).
 src/runtime_x.o: seeds/runtime.from_x.c src/runtime.x include/diag.h scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime.from_x.c -DXLANG_USE_X_PIPELINE
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # wave775: non-driver fmt_check_cmd.o → ensure try-other-l2-prefer (fmt_core).
 # G.7 有则补全 — same body as driver leaf; leaf_kind=fmt_core omits USE_X_PIPELINE
@@ -889,14 +890,14 @@ src/runtime_x.o: seeds/runtime.from_x.c src/runtime.x include/diag.h scripts/ens
 src/driver/fmt_check_cmd.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_check_cmd_thin.x src/driver/fmt_check_cmd.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-other-l2-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # wave771: product PREFER → ensure try-other-l2-prefer (thin .x WEAK + rest FROM_X + USE_X_PIPELINE; cold seed).
 # PLATFORM: SHARED — product daily path; PREFER=0 cold keeps -DXLANG_USE_X_PIPELINE.
 src/driver/fmt_check_cmd_driver.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_check_cmd_thin.x src/driver/fmt_check_cmd.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-other-l2-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02a：C 前端 lexer/ast/parser/typeck/codegen/preprocess/autovec/lsp_diag 已物理删除；见对应 .x。
 
@@ -915,7 +916,7 @@ src/driver/fmt_check_cmd_driver.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_c
 src/lexer/cfg_eval.o: src/lexer/cfg_eval.x seeds/cfg_eval_link_alias.from_x.c seeds/cfg_eval_gen.linux.x86_64.c seeds/cfg_eval_host_lit.from_x.c seeds/cfg_eval_bootstrap_stub.from_x.c scripts/cc_inc_tu.sh scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  LD="$(LD)" LD_RELFLAGS="$(LD_RELFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-cfg-eval-ladder $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02a：preprocess 已迁 preprocess.x；不再编译 preprocess.c。
 
@@ -927,13 +928,13 @@ src/runtime_driver_no_c.o: seeds/runtime.from_x.c src/runtime.x Makefile scripts
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  RUNTIME_DRIVER_NO_C_CFLAGS="$(RUNTIME_DRIVER_NO_C_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-rt-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # xlang_x 使用带 -DXLANG_USE_X_PIPELINE 编译的 main，否则 #ifdef 块不会生效
 # wave751 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MAIN_RUNTIME_OBJS).
 src/main_x.o: seeds/main.from_x.c src/main_c_entry.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/main.from_x.c -DXLANG_USE_X_PIPELINE
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # xlang_x：pipeline_x.o 编排 typeck_x/codegen_x（G-02a: typeck.c + codegen.c 已删；X pipeline 独立）。
 PIPELINE_X_BASE_OBJS = src/main_x.o src/runtime_x.o src/diag.o src/lexer/lexer.o src/ast/ast_seed.o
@@ -972,20 +973,20 @@ ifneq (,$(RUNTIME_PANIC_S))
 runtime_panic.o: src/asm/runtime_panic_x86_64.s $(RUNTIME_PANIC_PLATFORM_STAMP)
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-r2-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 else
 # PLATFORM: LINUX|x86_64 without .s — portable seed cold; PREFER panic.x + from_x.
 runtime_panic.o: seeds/runtime_panic.from_x.c src/asm/runtime_panic.x $(RUNTIME_PANIC_PLATFORM_STAMP)
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-r2-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 endif
 else
 # PLATFORM: LINUX|aarch64 (and similar) — arm64 seed cold; PREFER arm64.x + arm64 rest.
 runtime_panic.o: seeds/runtime_panic_arm64.from_x.c src/asm/runtime_panic_arm64.x $(RUNTIME_PANIC_PLATFORM_STAMP)
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-r2-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 endif
 else
 # PLATFORM: MACOS / non-Linux — cold host pick may use arm64 seed; PREFER historic
@@ -993,7 +994,7 @@ else
 runtime_panic.o: seeds/runtime_panic.from_x.c seeds/runtime_panic_arm64.from_x.c src/asm/runtime_panic.x src/asm/runtime_panic_arm64.x $(RUNTIME_PANIC_PLATFORM_STAMP)
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-r2-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 endif
 
 # seed asm 用户程序：std.io 跳过 .x emit 时的 print/write/read_ptr 链接桩（G-02e-20 .inc）
@@ -1001,7 +1002,7 @@ endif
 # wave753 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_EXTRA_CFLAGS_OBJS).
 runtime_asm_io_stubs.o: seeds/runtime_asm_io_stubs.from_x.c src/asm/runtime_asm_io_stubs.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_asm_io_stubs.from_x.c -fPIE
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 
 # F-ZC：std.test fn-ptr invoke；与 test.o 一并链入（G-02e-16：.inc + cc_inc_tu）
@@ -1012,7 +1013,7 @@ runtime_asm_io_stubs.o: seeds/runtime_asm_io_stubs.from_x.c src/asm/runtime_asm_
 runtime_test_fn_invoke.o: seeds/runtime_test_fn_invoke.from_x.c src/asm/runtime_test_fn_invoke.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：CSPRNG OS fill；与 random.o 一并链入（G-02e-17：.inc + cc_inc_tu）
 # G-02f-20：runtime_random_fill 产品 seed
@@ -1022,7 +1023,7 @@ runtime_test_fn_invoke.o: seeds/runtime_test_fn_invoke.from_x.c src/asm/runtime_
 runtime_random_fill.o: seeds/runtime_random_fill.from_x.c src/asm/runtime_random_fill.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # zlib 宏包装桩；与 compress 同链（G-02e-17：.inc + cc_inc_tu）
 # G-02f-21：runtime_compress_zlib_glue 产品 seed
@@ -1036,7 +1037,7 @@ runtime_random_fill.o: seeds/runtime_random_fill.from_x.c src/asm/runtime_random
 runtime_compress_zlib_glue.o: seeds/runtime_compress_zlib_glue.from_x.c src/asm/runtime_compress_zlib_glue.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：time OS syscall；与 time.o 一并链入（G-02e-18：.inc + cc_inc_tu）
 # G-02f-19：runtime_time_os 产品 seed
@@ -1047,7 +1048,7 @@ runtime_compress_zlib_glue.o: seeds/runtime_compress_zlib_glue.from_x.c src/asm/
 runtime_time_os.o: seeds/runtime_time_os.from_x.c src/asm/runtime_time_os.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：queue 竞争烟测 pthread；与 queue.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 # G-02f-21：runtime_queue_contention 产品 seed
@@ -1058,7 +1059,7 @@ runtime_time_os.o: seeds/runtime_time_os.from_x.c src/asm/runtime_time_os.x scri
 runtime_queue_contention.o: seeds/runtime_queue_contention.from_x.c src/asm/runtime_queue_contention.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：dynlib dlopen/LoadLibrary；与 dynlib.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 # G-02f-20：runtime_dynlib_os 产品 seed
@@ -1069,14 +1070,14 @@ runtime_queue_contention.o: seeds/runtime_queue_contention.from_x.c src/asm/runt
 runtime_dynlib_os.o: seeds/runtime_dynlib_os.from_x.c src/asm/runtime_dynlib_os.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # wave253 G.7: sole user-domain residual face body (weak link_abi_getenv twin).
 # Never g05 host bag; STD_AND_PANIC / product -o companion of PRIMARY_PANIC.
 # wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
 runtime_link_abi_user_env.o: seeds/runtime_link_abi_user_env.from_x.c include/xlang_user_link_abi_getenv.h scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_link_abi_user_env.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：env OS getenv/setenv/iter；与 env.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 # G-02f-19：runtime_env_os 产品 seed
@@ -1085,7 +1086,7 @@ runtime_link_abi_user_env.o: seeds/runtime_link_abi_user_env.from_x.c include/xl
 runtime_env_os.o: seeds/runtime_env_os.from_x.c src/asm/runtime_env_os.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：backtrace capture/symbolicate/crash evidence；与 backtrace.o 一并链入（G-02e-20）
 # G-02f-19：runtime_backtrace_platform 产品 seed；wave506 R2 full mode
@@ -1094,7 +1095,7 @@ runtime_env_os.o: seeds/runtime_env_os.from_x.c src/asm/runtime_env_os.x scripts
 runtime_backtrace_platform.o: seeds/runtime_backtrace_platform.from_x.c src/asm/runtime_backtrace_platform.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：log sink/轮转/异步；与 log.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 # G-02f-19：runtime_log_os 产品 seed；wave505 R2 full mode
@@ -1103,7 +1104,7 @@ runtime_backtrace_platform.o: seeds/runtime_backtrace_platform.from_x.c src/asm/
 runtime_log_os.o: seeds/runtime_log_os.from_x.c src/asm/runtime_log_os.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：math libm/fenv；与 math.o 一并链入（须 -lm；G-02e-19：.inc + cc_inc_tu）
 # G-02f-19：runtime_math_libm 产品 seed；wave511 R2 full mode
@@ -1112,7 +1113,7 @@ runtime_log_os.o: seeds/runtime_log_os.from_x.c src/asm/runtime_log_os.x scripts
 runtime_math_libm.o: seeds/runtime_math_libm.from_x.c src/asm/runtime_math_libm.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：atomic load/store/CAS/fence；与 atomic.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 # G-02f-19：runtime_atomic_glue 产品 seed；wave508 R2 full mode
@@ -1121,14 +1122,14 @@ runtime_math_libm.o: seeds/runtime_math_libm.from_x.c src/asm/runtime_math_libm.
 runtime_atomic_glue.o: seeds/runtime_atomic_glue.from_x.c src/asm/runtime_atomic_glue.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：channel 有界/无界/select；与 channel.o 一并链入（G-02e-20：.inc + cc_inc_tu）
 # G-02f-18：runtime_channel_glue 产品 seed
 # wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
 runtime_channel_glue.o: seeds/runtime_channel_glue.from_x.c src/asm/runtime_channel_glue.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_channel_glue.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：net UDP batch recvmmsg/sendmmsg；与 net.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 # G-02f-20：runtime_net_udp_batch 产品 seed
@@ -1143,7 +1144,7 @@ runtime_channel_glue.o: seeds/runtime_channel_glue.from_x.c src/asm/runtime_chan
 runtime_net_udp_batch.o: seeds/runtime_net_udp_batch.from_x.c src/asm/runtime_net_udp_batch.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：net accept worker 线程入口；与 net.o 一并链入（G-02e-18：.inc + cc_inc_tu）
 # G-02f-20：runtime_net_workers 产品 seed
@@ -1153,7 +1154,7 @@ runtime_net_udp_batch.o: seeds/runtime_net_udp_batch.from_x.c src/asm/runtime_ne
 runtime_net_workers.o: seeds/runtime_net_workers.from_x.c src/asm/runtime_net_workers.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：sync Mutex/RwLock/Condvar + 锁诊断 TLS；与 sync.o 一并链入（G-02e-20）
 # G-02f-19：runtime_sync_os 产品 seed；wave504 R2 full mode
@@ -1162,7 +1163,7 @@ runtime_net_workers.o: seeds/runtime_net_workers.from_x.c src/asm/runtime_net_wo
 runtime_sync_os.o: seeds/runtime_sync_os.from_x.c src/asm/runtime_sync_os.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-19：runtime_sync_lock_diag_tls 产品 seed；wave538 R2 thin+rest pattern
 #   - thin (.x): 5 #[no_mangle] (find_meta_idx/get_order/append_byte/append_lit/append_i32)
@@ -1175,7 +1176,7 @@ runtime_sync_os.o: seeds/runtime_sync_os.from_x.c src/asm/runtime_sync_os.x scri
 runtime_sync_lock_diag_tls.o: seeds/runtime_sync_lock_diag_tls.from_x.c src/asm/runtime_sync_lock_diag_tls.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：thread pthread/CreateThread；与 thread.o 一并链入（G-02e-20）
 # G-02f-18：runtime_thread_glue 产品 seed；wave513 R2 thin+rest pattern
@@ -1184,7 +1185,7 @@ runtime_sync_lock_diag_tls.o: seeds/runtime_sync_lock_diag_tls.from_x.c src/asm/
 runtime_thread_glue.o: seeds/runtime_thread_glue.from_x.c src/asm/runtime_thread_glue.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：async 协作调度 + async_net_fs；与 scheduler.o 一并链入（按需 -pthread）
 # G-02f-18：runtime_scheduler_glue 产品 seed（#include async_net_fs.from_x.c）
@@ -1192,7 +1193,7 @@ runtime_thread_glue.o: seeds/runtime_thread_glue.from_x.c src/asm/runtime_thread
 # Thin passes -Isrc/asm for historical parity with make recipe (include path).
 runtime_scheduler_glue.o: seeds/runtime_scheduler_glue.from_x.c src/asm/runtime_scheduler_glue.x seeds/async_net_fs.from_x.c scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_scheduler_glue.from_x.c -Isrc/asm
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：HTTP 客户端/服务端胶层（含 http2/*.inc.c）；与 http.o 一并链入（G-02e-21）
 # G-02f-21：runtime_http_glue 产品 seed（#include http2/*.inc）；thin 在 src/asm/http/
@@ -1201,7 +1202,7 @@ runtime_scheduler_glue.o: seeds/runtime_scheduler_glue.from_x.c src/asm/runtime_
 runtime_http_glue.o: seeds/runtime_http_glue.from_x.c src/asm/http/runtime_http_glue.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：mbedTLS BIO 胶层；net-o-mbedtls 时 ld -r 并入 tls_mbedtls.o（G-02e-18 .inc）
 # G-02f-21：runtime_tls_mbedtls_bio 产品 seed
@@ -1216,14 +1217,14 @@ runtime_http_glue.o: seeds/runtime_http_glue.from_x.c src/asm/http/runtime_http_
 runtime_tls_mbedtls_bio.o: seeds/runtime_tls_mbedtls_bio.from_x.c src/asm/runtime_tls_mbedtls_bio.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：db.kv mmap 胶层；与 kv.o 按需同链（G-02e-17：.inc + cc_inc_tu）
 # G-02f-21：runtime_kv_mmap_glue 产品 seed
 # wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
 runtime_kv_mmap_glue.o: seeds/runtime_kv_mmap_glue.from_x.c src/asm/runtime_kv_mmap_glue.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_kv_mmap_glue.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：db.arrow SIMD 胶层；与 arrow.o 按需同链（G-02e-19：.inc + cc_inc_tu）
 # G-02f-21：runtime_arrow_simd_glue 产品 seed
@@ -1232,25 +1233,25 @@ runtime_kv_mmap_glue.o: seeds/runtime_kv_mmap_glue.from_x.c src/asm/runtime_kv_m
 runtime_arrow_simd_glue.o: seeds/runtime_arrow_simd_glue.from_x.c src/asm/runtime_arrow_simd_glue.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：db.sqlite 胶层（libsqlite3）；与 sqlite.o 同链（G-02e-20）
 # G-02f-21：runtime_sqlite_glue 产品 seed
 # wave753 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_EXTRA_CFLAGS_OBJS).
 runtime_sqlite_glue.o: seeds/runtime_sqlite_glue.from_x.c src/asm/runtime_sqlite_glue.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_sqlite_glue.from_x.c -DXLANG_DB_USE_SQLITE3
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_sqlite_glue.from_x.c -DXLANG_DB_USE_SQLITE3
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：db.sqlite stub 胶层（无 libsqlite3）；sqlite-o-stub 时 ld -r 并入 sqlite.o（G-02e-20）
 # wave753 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_EXTRA_CFLAGS_OBJS).
 # Multi-out from same seed as runtime_sqlite_glue.o (no -DXLANG_DB_USE_SQLITE3).
 runtime_sqlite_glue_stub.o: seeds/runtime_sqlite_glue.from_x.c src/asm/runtime_sqlite_glue.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_sqlite_glue.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_sqlite_glue.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：crypto SHA-512/HMAC 胶层；与 crypto.o 一并链入（G-02e-20）
 # G-02f-20：runtime_crypto_inc_glue 产品 seed
@@ -1259,7 +1260,7 @@ runtime_sqlite_glue_stub.o: seeds/runtime_sqlite_glue.from_x.c src/asm/runtime_s
 runtime_crypto_inc_glue.o: seeds/runtime_crypto_inc_glue.from_x.c src/asm/runtime_crypto_inc_glue.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：Ed25519 ref10（含 crypto/ed25519/*.c）；与 crypto.o 一并链入（G-02e-17 .inc）
 # G-02f-20：runtime_ed25519_ref10_glue 产品 seed
@@ -1273,7 +1274,7 @@ runtime_crypto_inc_glue.o: seeds/runtime_crypto_inc_glue.from_x.c src/asm/runtim
 runtime_ed25519_ref10_glue.o: seeds/runtime_ed25519_ref10_glue.from_x.c src/asm/runtime_ed25519_ref10_glue.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：codegen 入口 argc/argv 全局；与 process.o 一并链入（G-02e-18：.inc + cc_inc_tu）
 # G-02f-20：runtime_process_argv 产品 seed
@@ -1287,7 +1288,7 @@ runtime_ed25519_ref10_glue.o: seeds/runtime_ed25519_ref10_glue.from_x.c src/asm/
 runtime_process_argv.o: seeds/runtime_process_argv.from_x.c src/asm/runtime_process_argv.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：进程 OS 胶层（getenv/spawn/getcwd 等）；与 process.o 一并链入（G-02e-20）
 # G-02f-18：runtime_process_os_glue 产品 seed；wave507 R2 full mode
@@ -1296,7 +1297,7 @@ runtime_process_argv.o: seeds/runtime_process_argv.from_x.c src/asm/runtime_proc
 runtime_process_os_glue.o: seeds/runtime_process_os_glue.from_x.c src/asm/runtime_process_os_glue.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # 无 C 自举：crt0 提供 _start 与 driver_get_argv_i；链接 asm 版 xlang 时用本 .o 替代 main.o / runtime_asm_build.o
 # wave762 R2: body → ensure_host_cc_seed_o.sh try-r2 (list = DRIVER_SEED_CRT0_OBJS /
@@ -1305,13 +1306,13 @@ runtime_process_os_glue.o: seeds/runtime_process_os_glue.from_x.c src/asm/runtim
 ifeq ($(UNAME_S),Linux)
 ifeq ($(UNAME_M),x86_64)
 src/asm/crt0_x86_64.o: src/asm/crt0_x86_64.s scripts/ensure_host_cc_seed_o.sh
-	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-r2 $@
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 # S4 freestanding 用户程序入口（call _main；见 tests/run-freestanding-hello.sh）
 src/asm/crt0_user_x86_64.o: src/asm/crt0_user_x86_64.s scripts/ensure_host_cc_seed_o.sh
-	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-r2 $@
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 # S4 freestanding syscall write（xlang_sys_write）
 src/asm/freestanding_io_x86_64.o: src/asm/freestanding_io_x86_64.s scripts/ensure_host_cc_seed_o.sh
-	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-r2 $@
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 # runtime.c 链 freestanding 用户程序时在 compiler/ 下查找 crt0_user.o / freestanding_io.o
 crt0_user.o: src/asm/crt0_user_x86_64.o
 	cp $< $@
@@ -1326,10 +1327,10 @@ endif
 ifeq ($(UNAME_S),Darwin)
 ifneq (,$(filter arm64 aarch64,$(UNAME_M)))
 src/asm/crt0_arm64.o: src/asm/crt0_arm64.s scripts/ensure_host_cc_seed_o.sh
-	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-r2 $@
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 else ifneq (,$(filter x86_64 amd64,$(UNAME_M)))
 src/asm/crt0_darwin_x86_64.o: src/asm/crt0_darwin_x86_64.s scripts/ensure_host_cc_seed_o.sh
-	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-r2 $@
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 endif
 endif
 # E-04 v21：Windows/MinGW/MSYS bootstrap 默认 crt0_mingw 替代 main_driver.o
@@ -1337,7 +1338,7 @@ endif
 ifeq ($(XLANG_IS_WIN_HOST),1)
 src/asm/crt0_mingw.o: seeds/crt0_mingw.from_x.c Makefile scripts/ensure_host_cc_seed_o.sh scripts/cc_inc_tu.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" WIN32_O_CFLAGS="$(WIN32_O_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-r2 $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 endif
 
 # asm 链接无 runtime_driver 时：提供 typeck_float64_bits_lo/hi（G-02e：全平台 .s，零 C）。
@@ -1346,21 +1347,21 @@ endif
 ifeq ($(UNAME_S),Linux)
 ifeq ($(UNAME_M),x86_64)
 src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_x86_64.s scripts/ensure_host_cc_seed_o.sh
-	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-r2 $@
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 else ifeq ($(UNAME_M),aarch64)
 src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_aarch64_elf.s scripts/ensure_host_cc_seed_o.sh
-	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-r2 $@
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 else
 $(error typeck_f64_bits: unsupported Linux arch $(UNAME_M); add .s)
 endif
 else ifeq ($(UNAME_S),Darwin)
 ifeq ($(UNAME_M),arm64)
 src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_arm64.s scripts/ensure_host_cc_seed_o.sh
-	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-r2 $@
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 else ifeq ($(UNAME_M),x86_64)
 # Darwin x86_64：SysV .s 无 _ 前缀；clang 汇编 Mach-O 时需额外处理，当前主路径为 arm64。
 src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_x86_64.s scripts/ensure_host_cc_seed_o.sh
-	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-r2 $@
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 else
 $(error typeck_f64_bits: unsupported Darwin arch $(UNAME_M); add .s)
 endif
@@ -1370,7 +1371,7 @@ else ifeq ($(XLANG_IS_WIN_HOST),1)
 # match the SysV variant — see typeck_f64_bits_x86_64_mingw.s docblock).
 ifeq ($(UNAME_M),x86_64)
 src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_x86_64_mingw.s scripts/ensure_host_cc_seed_o.sh
-	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-r2 $@
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 else
 $(error typeck_f64_bits: unsupported Windows arch $(UNAME_M); add .s)
 endif
@@ -1447,38 +1448,38 @@ lexer_gen.c: src/lexer/lexer.x
 # wave782: B4 gen.c → .o bootstrap body → try-gen-c-to-o (thin-call only).
 lexer_x.o: lexer_gen.c scripts/ensure_host_cc_seed_o.sh scripts/ensure_gen_x_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-gen-c-to-o $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-11：x_seed_bridge 产品 seed
 # wave749 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_CORE_SEED_OBJS).
 src/x_seed_bridge.o: seeds/x_seed_bridge.from_x.c src/x_seed_bridge.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/x_seed_bridge.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # pipeline_x.o 仍引用 typeck_typeck_* / codegen_codegen_* / lexer_lexer_*；*_x.o 导出无重复前缀名。
 # G-02f-16：x_frontend_link_alias 产品 seed（G-02e-8 三 alias 并入体）
 # wave752 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_ALIAS_STUBS_OBJS).
 x_frontend_link_alias.o: seeds/x_frontend_link_alias.from_x.c x_frontend_link_alias.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/x_frontend_link_alias.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-17：strict/bootstrap bare alias + typeck stubs seeds
 # wave752 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_ALIAS_STUBS_OBJS).
 ast_asm_bare_link_alias.o: seeds/ast_asm_bare_link_alias.from_x.c ast_asm_bare_link_alias.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/ast_asm_bare_link_alias.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 backend_asm_bare_link_alias.o: seeds/backend_asm_bare_link_alias.from_x.c backend_asm_bare_link_alias.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/backend_asm_bare_link_alias.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 backend_asm_strict_fallback_alias.o: seeds/backend_asm_strict_fallback_alias.from_x.c backend_asm_strict_fallback_alias.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/backend_asm_strict_fallback_alias.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 typeck_c_module_stubs.o: seeds/typeck_c_module_stubs.from_x.c typeck_c_module_stubs.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/typeck_c_module_stubs.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 # wave727 · 11.0.4: USER_ASM / Darwin filtered / ASM_HOST_DISPATCH lists live in
 # mk/user_asm_seed_objs.mk (G.7 single authority; do not re-assign here).
 # Thin leaf bootstrap-driver-seed-asm-host is the cold-orch entry; build-seed-asm-host
@@ -1513,14 +1514,14 @@ $(USER_ASM_SEED_HOST_OBJS): build-seed-asm-host
 src/asm/user_asm_seed_bridge.o: seeds/user_asm_seed_bridge.from_x.c src/asm/user_asm_seed_bridge.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-l2-asm-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-15：asm_backend_compat_stubs 产品 seed
 # wave752 R1 cold: ensure one · wave769 product PREFER → try-l2-asm-prefer.
 src/asm/asm_backend_compat_stubs.o: seeds/asm_backend_compat_stubs.from_x.c src/asm/asm_backend_compat_stubs.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-l2-asm-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-9 / Phase 4：backend_*_dispatch thin+rest PREFER_X_O
 # wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer.
@@ -1528,39 +1529,39 @@ src/asm/asm_backend_compat_stubs.o: seeds/asm_backend_compat_stubs.from_x.c src/
 src/asm/backend_enc_dispatch.o: seeds/backend_enc_dispatch.from_x.c src/asm/backend_enc_dispatch_thin.x src/asm/backend_enc_dispatch.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-15：backend_x86_64_enc_c 产品 seed
 # wave754 R1 cold: ensure one · wave769 product PREFER → try-l2-asm-prefer.
 src/asm/backend_x86_64_enc_c.o: seeds/backend_x86_64_enc_c.from_x.c src/asm/backend_x86_64_enc_c.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-l2-asm-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # CG002：backend_arm64_enc_c 产品 seed（强符号覆盖 seed_link_compat weak -1 桩）
 # PLATFORM: MACOS arm64 pure-asm 必需；其它主机链接无害（ta!=1 不调）。
 # wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
 src/asm/backend_arm64_enc_c.o: seeds/backend_arm64_enc_c.from_x.c scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/backend_arm64_enc_c.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer.
 src/asm/backend_arch_emit_dispatch.o: seeds/backend_arch_emit_dispatch.from_x.c src/asm/backend_arch_emit_dispatch_thin.x src/asm/backend_arch_emit_dispatch.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer.
 src/asm/backend_try_inline_dispatch.o: seeds/backend_try_inline_dispatch.from_x.c src/asm/backend_try_inline_dispatch_thin.x src/asm/backend_try_inline_dispatch.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer.
 src/asm/backend_call_dispatch.o: seeds/backend_call_dispatch.from_x.c src/asm/backend_call_dispatch_thin.x src/asm/backend_call_dispatch.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # parser EMIT_HEAVY thin delegate C 目标：bootstrap xlang 须链入，extern bl 白名单 emit 才不 segfault。
 # 全量 parser_x.o 已含 parse_into_buf / get_module_* 等；禁 seed slice 与重复前缀符号。
@@ -1610,13 +1611,12 @@ parser_asm_thin_glue.o: seeds/parser_asm_thin_c.from_x.c src/asm/parser_asm_thin
  scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  PARSER_ASM_THIN_GLUE_CFLAGS="$(PARSER_ASM_THIN_GLUE_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/parser_asm_thin_c.from_x.c \
-	  $(PARSER_ASM_THIN_GLUE_CFLAGS) -Isrc/lexer -Isrc/asm -Iseeds/parser_asm
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # wave753 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_EXTRA_CFLAGS_OBJS).
 src/asm/parser_asm_parse_expr_link.o: seeds/parser_asm_parse_expr_link.from_x.c src/asm/parser_asm_parse_expr_link.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/parser_asm_parse_expr_link.from_x.c $(PARSER_ASM_LINK_ALIAS_CFLAGS)
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 
 # Authority: scripts/filter_bootstrap_seed_against_partial_o.sh → filter_o_export_against_deps.sh
@@ -1667,7 +1667,7 @@ ast_gen2.c: src/ast/ast.x
 # wave782: B4 gen.c → .o bootstrap body → try-gen-c-to-o (thin-call only).
 ast_gen2.o: ast_gen2.c scripts/ensure_host_cc_seed_o.sh scripts/ensure_gen_x_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-gen-c-to-o $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # wave736: G.7 body → scripts/ensure_migrate_gen.sh (typeck_gen.c seed/pin/-E)
 typeck_gen.c: src/typeck/typeck.x
@@ -1723,7 +1723,7 @@ bootstrap-codegen: $(TARGET) $(XLANG_C) bootstrap_xlangc $(RELINK_XLANG_PREREQS)
 # wave751 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MAIN_RUNTIME_OBJS).
 src/main_driver.o: seeds/main.from_x.c src/main_c_entry.x Makefile scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/main.from_x.c -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 # G-02a: preprocess.c 已物理删除；runtime preprocess() 走 preprocess.x（preprocess_x.o）。
 # G-02f-6：target_cpu.o 单 TU（pure seed 含 OS detect；无 ld -r cold）
 # wave755 R1: pure host-cc body → ensure (list = R1_SEED_MAP_OBJS).
@@ -1733,7 +1733,7 @@ src/driver/target_cpu.o: seeds/target_cpu_pure.from_x.c src/driver/target_cpu_pu
 	# wave768: target_cpu PREFER flags.x + rest → try-target-cpu-prefer (cold pure seed fallback).
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-target-cpu-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 # G-02f-7 / Phase 4：simd_enc thin+rest PREFER_X_O
 # 源：src/asm/simd_enc_thin.x（74 #[no_mangle] thin wrapper）+ seeds/simd_enc.from_x.c（_impl rest）
 # 仅 XLANG_G05_PREFER_X_O=1 且 xlang-c 可用时走 thin；否则 seed 完整编译。
@@ -1745,7 +1745,7 @@ src/driver/target_cpu.o: seeds/target_cpu_pure.from_x.c src/driver/target_cpu_pu
 src/asm/simd_enc.o: seeds/simd_enc.from_x.c src/asm/simd_enc_thin.x src/asm/simd_enc.x include/simd_enc.h include/target_cpu.h scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 # G-02f-8 / Phase 4：simd_loop thin+rest PREFER_X_O
 # 源：src/asm/simd_loop_thin.x（22 #[no_mangle] thin wrapper）+ seeds/simd_loop.from_x.c（17 _impl rest）
 # 仅 XLANG_G05_PREFER_X_O=1 且 xlang-c 可用时走 thin；否则 seed 完整编译（同 simd_enc 冷链纪律）。
@@ -1753,7 +1753,7 @@ src/asm/simd_enc.o: seeds/simd_enc.from_x.c src/asm/simd_enc_thin.x src/asm/simd
 src/asm/simd_loop.o: seeds/simd_loop.from_x.c src/asm/simd_loop_thin.x src/asm/simd_loop.x include/simd_loop.h include/simd_enc.h include/target_cpu.h scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 # G-02a Step 1：默认构建切 no_c 模式；默认 bootstrap 不链 LEXER_LINK_O / AST_LINK_O。
 # C 前端 .c（ast/lexer/parser/typeck/codegen）仍保留，因 build_xlang_asm.sh + relink 脚本仍引用 ast_seed.o 等。
 # bootstrap-driver-seed：pipeline_x.o 为 -E-extern 编排；parser/lexer/typeck/codegen *_x.o 分 TU。
@@ -1964,7 +1964,7 @@ src/lsp/lsp_diag_pipeline_sizes.o: seeds/lsp_diag_pipeline_sizes_weak.from_x.c s
 src/lsp/lsp_diag_pipeline_sizes_nostub.o: seeds/lsp_diag_pipeline_sizes.from_x.c src/lsp/lsp_diag_pipeline_sizes.x scripts/ensure_host_cc_seed_o.sh
 	# wave781: B3 lsp-sat PREFER direct_e → try-lsp-sat-prefer (cold seed fallback).
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-lsp-sat-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02e-8：lsp_diag_x_alias 已并入本 TU。
 # G-02f-12：lsp_diag_pipeline_ctx 产品 seed
@@ -1973,7 +1973,7 @@ src/lsp/lsp_diag_pipeline_ctx.o: seeds/lsp_diag_pipeline_ctx.from_x.c src/lsp/ls
 	# wave767: ldpc PREFER thin+rest → try-ldpc-prefer (cold plain seed fallback).
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-ldpc-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-11：runtime_driver_strict_glue_stubs 产品 seed（内含 runtime_heap_user.inc）
 # wave752 R1 cold: ensure_one · wave771 product PREFER thin+rest → try-other-l2-prefer.
@@ -1981,7 +1981,7 @@ src/runtime_driver_strict_glue_stubs.o: seeds/runtime_driver_strict_glue_stubs.f
 	# wave771: other L2 PREFER thin+rest → try-other-l2-prefer (cold plain seed fallback).
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-other-l2-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02a：ast_seed.o 从 runtime_ast_glue.inc 编译（从 src/ast/ast.c 迁移）。
 # 提供 ast_module_free/ast_expr_free/ast_block_free 等 8 个内存管理函数。
@@ -1990,7 +1990,7 @@ src/runtime_driver_strict_glue_stubs.o: seeds/runtime_driver_strict_glue_stubs.f
 # Seed map: ast_seed.o ← seeds/runtime_ast_glue.from_x.c (basename mismatch).
 src/ast/ast_seed.o: seeds/runtime_ast_glue.from_x.c src/asm/runtime_ast_glue.x include/ast.h scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_ast_glue.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02a: ast_x.o alias — ast_seed.o 提供 C ABI 内存管理实现。
 ast_x.o: src/ast/ast_seed.o
@@ -2003,7 +2003,7 @@ ast_x.o: src/ast/ast_seed.o
 # wave750 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_FRONTEND_GLUE_OBJS).
 src/lexer/lexer.o: seeds/runtime_lexer_glue.from_x.c src/asm/runtime_lexer_glue.x src/lexer/lexer.h include/token.h scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_lexer_glue.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-80：cfg_eval 冷启动 stub；legacy xlang-c 直链需要独立 .o 规则。
 src/lexer/cfg_eval_bootstrap_stub.o: seeds/cfg_eval_bootstrap_stub.from_x.c src/lexer/cfg_eval_bootstrap_stub.x scripts/cc_inc_tu.sh
@@ -2046,7 +2046,7 @@ src/seed_link_compat.o: seeds/seed_link_compat.from_x.c src/seed_link_compat.x s
 	# wave771: other L2 PREFER thin+rest → try-other-l2-prefer (cold plain seed fallback).
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-other-l2-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # wave739: G.7 body → scripts/ensure_lsp_pipeline_gen.sh (lsp_gen + g_lsp_state_buf post)
 lsp_gen.c: src/lsp/lsp.x
@@ -2156,7 +2156,7 @@ driver_emit_gen.c: src/driver/emit.x
 # wave782: B4 gen.c → .o bootstrap body → try-gen-c-to-o (thin-call only).
 _x_stubs2.o: _x_stubs2.c scripts/ensure_host_cc_seed_o.sh scripts/ensure_gen_x_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-gen-c-to-o $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # 须在 pipeline_x.o / bootstrap-pipeline 规则之前定义（Make 解析顺序；后置则 $(PIPELINE_X_DEPS) 为空）。
 # asm 子树经常新增 backend/platform/arch 级别实现；这里用 wildcard 覆盖整棵 .x 依赖，
@@ -2190,7 +2190,7 @@ driver_gen.c: $(MAIN_X_DEPS)
 # wave782: B4 gen.c → .o bootstrap body → try-gen-c-to-o (thin-call only).
 driver_x.o: driver_gen.c $(MAIN_X_DEPS) scripts/ensure_host_cc_seed_o.sh scripts/ensure_gen_x_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-gen-c-to-o $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # preprocess_gen.c / preprocess_x.o：runtime XLANG_USE_X_PREPROCESS 路径。
 # wave738: G.7 body → scripts/ensure_driver_gen.sh preprocess
@@ -2202,7 +2202,7 @@ preprocess_gen.c: $(PREPROCESS_X_DEPS)
 # wave782: B4 gen.c → .o bootstrap body → try-gen-c-to-o (thin-call only).
 preprocess_x.o: preprocess_gen.c $(PREPROCESS_X_DEPS) scripts/ensure_host_cc_seed_o.sh scripts/ensure_gen_x_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-gen-c-to-o $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # XLANG_NO_C_FRONTEND 下 lsp_diag_x.o / lsp_x.o 需要的文档缓冲 + X 管道缓冲桩
 # G-02f-22：lsp_diag_stubs_no_c 产品 seed
@@ -2211,7 +2211,7 @@ preprocess_x.o: preprocess_gen.c $(PREPROCESS_X_DEPS) scripts/ensure_host_cc_see
 src/lsp/lsp_diag_stubs_no_c.o: seeds/lsp_diag_stubs_no_c.from_x.c src/lsp/lsp_diag_stubs_no_c.x include/diag.h scripts/ensure_host_cc_seed_o.sh
 	# wave781: B3 lsp-sat PREFER thin_rest_e → try-lsp-sat-prefer (cold seed fallback).
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-lsp-sat-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # XLANG_SKIP_SUBSCRIPT_MAKE=1：run-all 入口已链 seed，子脚本 `make` 仅在校验 xlang 缺失时再完整 bootstrap。
 ifeq ($(XLANG_SKIP_SUBSCRIPT_MAKE),1)
@@ -2492,8 +2492,7 @@ build_asm/pipeline_glue_types.inc: pipeline_gen.c scripts/extract_pipeline_glue_
 # Extras: -Ibuild_asm -DPIPELINE_BOOTSTRAP_ORCH_NO_PIPELINE_RUN_WRAPPER (prereqs stay make).
 pipeline_bootstrap_orchestration.o: seeds/pipeline_bootstrap_orchestration.from_x.c pipeline_bootstrap_orchestration.x pipeline_gen.c build_asm/pipeline_glue_types.inc scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/pipeline_bootstrap_orchestration.from_x.c \
-	  -Ibuild_asm -DPIPELINE_BOOTSTRAP_ORCH_NO_PIPELINE_RUN_WRAPPER
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # wave759 R1 seed-map: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_SEED_MAP_OBJS).
 # Seed map: build_asm/pipeline_glue_standalone.o ← seeds/pipeline_glue_standalone.from_x.c
@@ -2501,15 +2500,14 @@ pipeline_bootstrap_orchestration.o: seeds/pipeline_bootstrap_orchestration.from_
 $(ASM_GLUE_STANDALONE_O): seeds/pipeline_glue_standalone.from_x.c build_asm/pipeline_glue_types.inc pipeline_glue.c ast_pool.c scripts/ensure_host_cc_seed_o.sh
 	@mkdir -p build_asm
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/pipeline_glue_standalone.from_x.c \
-	  -Wno-error=return-type -Ibuild_asm
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-11：pipeline_glue_strict_minimal 产品 seed
 # wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
 build_asm/pipeline_glue_strict_minimal.o: seeds/pipeline_glue_strict_minimal.from_x.c src/asm/pipeline_glue_strict_minimal.x scripts/ensure_host_cc_seed_o.sh
 	@mkdir -p build_asm
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/pipeline_glue_strict_minimal.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # relink-xlang 与 bootstrap-driver-seed 链接同一组 .o；须声明为 prerequisite，否则冷启动仅 make all 后缺 main_driver.o 等。
 RELINK_XLANG_PREREQS = build-seed-asm-host $(RELINK_XLANG_FILTERED_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(DRIVER_SUBCMD_GEN) \
@@ -2837,10 +2835,10 @@ perf-baseline:
 ../core/slice/slice.o: seeds/runtime_slice_glue.from_x.c src/asm/runtime_slice_glue.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-std-core-prefer $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-22：runtime_asm_build 产品 seed
 # wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
 src/asm/runtime_asm_build.o: seeds/runtime_asm_build.from_x.c src/asm/runtime_asm_build.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_asm_build.from_x.c
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@

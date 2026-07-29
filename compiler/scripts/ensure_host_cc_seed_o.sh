@@ -96,6 +96,10 @@
 #            knowing which Makefile recipe owns them. Makefile thin-call edges
 #            remain residual (make dep graph); this is shell-primary heat body
 #            dispatch only. Residual: Makefile edges · Windows gate physical del.
+#   wave790: B7A heat Makefile thin-call unify — all ensure *recipes* call
+#            `try-heat $@` only (115 leaves; G.7 single heat entry). Historical
+#            try-*/one mode names stay in Makefile comments for archaeology.
+#            Dependency edges still residual (NOT physical delete).
 #   wave758: R4 residual pure host-cc thin_glue → R1 seed-map (G.7 有则补全):
 #            parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c +
 #            -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm;
@@ -5130,13 +5134,13 @@ run_check() {
     in_t && /^[^[:space:]#]/ { in_t=0 }
     in_t { body = body $0 "\n" }
     END {
-      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-r2-prefer|try-r2|r2-panic|try_r2/) exit 0
+      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-r2-prefer|try-r2|r2-panic|try_r2/) exit 0
       exit 1
     }
   ' Makefile; then
     note "Makefile runtime_panic thin-calls ensure try-r2-prefer/try-r2 (wave760/776)"
   else
-    bad "Makefile runtime_panic.o must thin-call ensure try-r2-prefer or try-r2 (wave776)"
+    bad "Makefile runtime_panic.o must thin-call ensure try-heat|try-r2-prefer or try-r2 (wave776)"
   fi
   # wave776: ban dual hybrid (inline xlang-c thin + seed rest + ld -r).
   if awk '
@@ -5166,19 +5170,19 @@ run_check() {
     in_t && /^[^[:space:]#]/ { in_t=0 }
     in_t { body = body $0 "\n" }
     END {
-      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-r2/) exit 0
+      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-r2/) exit 0
       exit 1
     }
   ' Makefile; then
     note "Makefile typeck_f64_bits thin-calls ensure try-r2 (wave762)"
   else
-    bad "Makefile typeck_f64_bits.o must thin-call ensure try-r2 (wave762)"
+    bad "Makefile typeck_f64_bits.o must thin-call ensure try-heat|try-r2 (wave762)"
   fi
   # Host MAIN_LINK crt0 (Darwin arm64 / Linux x86_64 / …) — at least one recipe body.
   if awk '
     /^src\/asm\/crt0_[a-z0-9_]+\.o:/ { in_t=1; body=""; next }
     in_t && /^[^[:space:]#]/ {
-      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-r2/) found=1
+      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-r2/) found=1
       in_t=0
     }
     in_t { body = body $0 "\n" }
@@ -5186,7 +5190,7 @@ run_check() {
   ' Makefile; then
     note "Makefile crt0 leaves thin-call ensure try-r2 (wave762)"
   else
-    bad "Makefile crt0_*.o recipes must thin-call ensure try-r2 (wave762)"
+    bad "Makefile crt0_*.o recipes must thin-call ensure try-heat|try-r2 (wave762)"
   fi
 
   if [ "$fail" -ne 0 ]; then
@@ -5233,13 +5237,13 @@ run_check() {
       grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
       grab {body = body $0 "\n"}
       END {
-        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-r3-prefer/) exit 0
+        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-r3-prefer/) exit 0
         exit 1
       }
     ' Makefile; then
       note "Makefile $leaf thin-calls ensure try-r3-prefer (wave763)"
     else
-      bad "Makefile $leaf must thin-call ensure try-r3-prefer (wave763)"
+      bad "Makefile $leaf must thin-call ensure try-heat|try-r3-prefer (wave763)"
     fi
     # No residual inline ld -r thin+rest in the leaf recipe body.
     if awk -v t="$leaf" '
@@ -5298,20 +5302,20 @@ run_check() {
     grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
     grab {body = body $0 "\n"}
     END {
-      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-labi-prefer/) exit 0
+      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-labi-prefer/) exit 0
       exit 1
     }
   ' Makefile; then
     note "Makefile src/runtime_link_abi.o thin-calls ensure try-labi-prefer (wave765)"
   else
-    bad "Makefile src/runtime_link_abi.o must thin-call ensure try-labi-prefer (wave765)"
+    bad "Makefile src/runtime_link_abi.o must thin-call ensure try-heat|try-labi-prefer (wave765)"
   fi
   if [ -f scripts/g05_ensure_relink_prereqs.sh ]; then
     if grep -q 'try-labi-prefer\|labi-prefer' scripts/g05_ensure_relink_prereqs.sh \
       && grep -q 'ensure_host_cc_seed_o.sh' scripts/g05_ensure_relink_prereqs.sh; then
       note "g05_ensure thin-calls ensure try-labi-prefer (wave765)"
     else
-      bad "g05_ensure must thin-call ensure try-labi-prefer for labi (wave765)"
+      bad "g05_ensure must thin-call ensure try-heat|try-labi-prefer for labi (wave765)"
     fi
     if grep -qE 'g05_labi_l0\.|_labi_l0_seed=seeds/labi_path_pure|_labi_rest_defs=.*LABI_PATH_PURE' \
       scripts/g05_ensure_relink_prereqs.sh; then
@@ -5338,20 +5342,20 @@ run_check() {
     grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
     grab {body = body $0 "\n"}
     END {
-      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-rt-prefer/) exit 0
+      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-rt-prefer/) exit 0
       exit 1
     }
   ' Makefile; then
     note "Makefile src/runtime_driver_no_c.o thin-calls ensure try-rt-prefer (wave766)"
   else
-    bad "Makefile src/runtime_driver_no_c.o must thin-call ensure try-rt-prefer (wave766)"
+    bad "Makefile src/runtime_driver_no_c.o must thin-call ensure try-heat|try-rt-prefer (wave766)"
   fi
   if [ -f scripts/g05_ensure_relink_prereqs.sh ]; then
     if grep -q 'try-rt-prefer\|rt-prefer' scripts/g05_ensure_relink_prereqs.sh \
       && grep -q 'ensure_host_cc_seed_o.sh' scripts/g05_ensure_relink_prereqs.sh; then
       note "g05_ensure thin-calls ensure try-rt-prefer (wave766)"
     else
-      bad "g05_ensure must thin-call ensure try-rt-prefer for rt multi-slice (wave766)"
+      bad "g05_ensure must thin-call ensure try-heat|try-rt-prefer for rt multi-slice (wave766)"
     fi
     # Dual body residual: g05 must not re-open inline rt multi-slice hybrid.
     if grep -qE '_rt_content_seed=seeds/rt_content|_rt_rest_defs=.*RT_CONTENT_FROM_X|g05_rt_content\.XXXXXX' \
@@ -5389,26 +5393,26 @@ run_check() {
     grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
     grab {body = body $0 "\n"}
     END {
-      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-pipeline-abi-prefer/) exit 0
+      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-pipeline-abi-prefer/) exit 0
       exit 1
     }
   ' Makefile; then
     note "Makefile src/runtime_pipeline_abi.o thin-calls ensure try-pipeline-abi-prefer (wave767)"
   else
-    bad "Makefile src/runtime_pipeline_abi.o must thin-call ensure try-pipeline-abi-prefer (wave767)"
+    bad "Makefile src/runtime_pipeline_abi.o must thin-call ensure try-heat|try-pipeline-abi-prefer (wave767)"
   fi
   if awk '
     $0 ~ /^src\/lsp\/lsp_diag_pipeline_ctx\.o:/ {grab=1; next}
     grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
     grab {body = body $0 "\n"}
     END {
-      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-ldpc-prefer/) exit 0
+      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-ldpc-prefer/) exit 0
       exit 1
     }
   ' Makefile; then
     note "Makefile src/lsp/lsp_diag_pipeline_ctx.o thin-calls ensure try-ldpc-prefer (wave767)"
   else
-    bad "Makefile src/lsp/lsp_diag_pipeline_ctx.o must thin-call ensure try-ldpc-prefer (wave767)"
+    bad "Makefile src/lsp/lsp_diag_pipeline_ctx.o must thin-call ensure try-heat|try-ldpc-prefer (wave767)"
   fi
   if [ -f scripts/g05_ensure_relink_prereqs.sh ]; then
     if grep -q 'try-pipeline-abi-prefer\|pipeline-abi-prefer' scripts/g05_ensure_relink_prereqs.sh \
@@ -5416,7 +5420,7 @@ run_check() {
       && grep -q 'ensure_host_cc_seed_o.sh' scripts/g05_ensure_relink_prereqs.sh; then
       note "g05_ensure thin-calls ensure try-pipeline-abi-prefer + try-ldpc-prefer (wave767)"
     else
-      bad "g05_ensure must thin-call ensure try-pipeline-abi-prefer and try-ldpc-prefer (wave767)"
+      bad "g05_ensure must thin-call ensure try-heat|try-pipeline-abi-prefer and try-ldpc-prefer (wave767)"
     fi
     # Dual body residual: g05 must not re-open inline pipeline_abi / ldpc hybrid.
     if grep -qE '_rpabi=seeds/runtime_pipeline_abi\.from_x\.c|_ldpc=seeds/lsp_diag_pipeline_ctx\.from_x\.c' \
@@ -5444,20 +5448,20 @@ run_check() {
     grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
     grab {body = body $0 "\n"}
     END {
-      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-target-cpu-prefer/) exit 0
+      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-target-cpu-prefer/) exit 0
       exit 1
     }
   ' Makefile; then
     note "Makefile src/driver/target_cpu.o thin-calls ensure try-target-cpu-prefer (wave768)"
   else
-    bad "Makefile src/driver/target_cpu.o must thin-call ensure try-target-cpu-prefer (wave768)"
+    bad "Makefile src/driver/target_cpu.o must thin-call ensure try-heat|try-target-cpu-prefer (wave768)"
   fi
   if [ -f scripts/g05_ensure_relink_prereqs.sh ]; then
     if grep -q 'try-target-cpu-prefer\|target-cpu-prefer' scripts/g05_ensure_relink_prereqs.sh \
       && grep -q 'ensure_host_cc_seed_o.sh' scripts/g05_ensure_relink_prereqs.sh; then
       note "g05_ensure thin-calls ensure try-target-cpu-prefer (wave768)"
     else
-      bad "g05_ensure must thin-call ensure try-target-cpu-prefer (wave768)"
+      bad "g05_ensure must thin-call ensure try-heat|try-target-cpu-prefer (wave768)"
     fi
     # Dual body residual: g05 must not re-open inline target_cpu flags hybrid.
     if grep -qE '_tcflags_x=src/driver/target_cpu_flags\.x|_tcpure=seeds/target_cpu_pure\.from_x\.c' \
@@ -5489,13 +5493,13 @@ run_check() {
       grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
       grab {body = body $0 "\n"}
       END {
-        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-l2-asm-prefer/) exit 0
+        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-l2-asm-prefer/) exit 0
         exit 1
       }
     ' Makefile; then
       note "Makefile $_l2_leaf thin-calls ensure try-l2-asm-prefer (wave769)"
     else
-      bad "Makefile $_l2_leaf must thin-call ensure try-l2-asm-prefer (wave769)"
+      bad "Makefile $_l2_leaf must thin-call ensure try-heat|try-l2-asm-prefer (wave769)"
     fi
   done
   if [ -f scripts/g05_ensure_relink_prereqs.sh ]; then
@@ -5503,7 +5507,7 @@ run_check() {
       && grep -q 'ensure_host_cc_seed_o.sh' scripts/g05_ensure_relink_prereqs.sh; then
       note "g05_ensure thin-calls ensure try-l2-asm-prefer (wave769)"
     else
-      bad "g05_ensure must thin-call ensure try-l2-asm-prefer for L2 asm three (wave769)"
+      bad "g05_ensure must thin-call ensure try-heat|try-l2-asm-prefer for L2 asm three (wave769)"
     fi
     # Dual body residual: g05 must not re-open inline uasb/bxec/abcs hybrid.
     if grep -qE '_uasb_seed=|_bxec_seed=|_abcs_seed=|user_asm_seed_bridge ← thin|_bxec_thin_o=|_abcs_thin_o=' \
@@ -5535,13 +5539,13 @@ run_check() {
       grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
       grab {body = body $0 "\n"}
       END {
-        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-async-prefer/) exit 0
+        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-async-prefer/) exit 0
         exit 1
       }
     ' Makefile; then
       note "Makefile $_async_leaf thin-calls ensure try-async-prefer (wave770)"
     else
-      bad "Makefile $_async_leaf must thin-call ensure try-async-prefer (wave770)"
+      bad "Makefile $_async_leaf must thin-call ensure try-heat|try-async-prefer (wave770)"
     fi
   done
   if [ -f scripts/g05_ensure_relink_prereqs.sh ]; then
@@ -5549,7 +5553,7 @@ run_check() {
       && grep -q 'ensure_host_cc_seed_o.sh' scripts/g05_ensure_relink_prereqs.sh; then
       note "g05_ensure thin-calls ensure try-async-prefer (wave770)"
     else
-      bad "g05_ensure must thin-call ensure try-async-prefer for async three (wave770)"
+      bad "g05_ensure must thin-call ensure try-heat|try-async-prefer for async three (wave770)"
     fi
     # Dual body residual: g05 must not re-open inline async hybrid.
     if grep -qE '_aliv_seed=|_acps_seed=|_aap_seed=|async_liveness PREFER|_aliv_x_o=|_acps_x_o=|_aap_x_o=' \
@@ -5593,13 +5597,13 @@ run_check() {
       grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
       grab {body = body $0 "\n"}
       END {
-        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-other-l2-prefer/) exit 0
+        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-other-l2-prefer/) exit 0
         exit 1
       }
     ' Makefile; then
       note "Makefile $_ol2_leaf thin-calls ensure try-other-l2-prefer (wave771/775)"
     else
-      bad "Makefile $_ol2_leaf must thin-call ensure try-other-l2-prefer (wave771/775)"
+      bad "Makefile $_ol2_leaf must thin-call ensure try-heat|try-other-l2-prefer (wave771/775)"
     fi
   done
   # wave775: ban re-opened Makefile dual hybrid body for non-driver fmt.o
@@ -5621,7 +5625,7 @@ run_check() {
       && grep -q 'ensure_host_cc_seed_o.sh' scripts/g05_ensure_relink_prereqs.sh; then
       note "g05_ensure thin-calls ensure try-other-l2-prefer (wave771)"
     else
-      bad "g05_ensure must thin-call ensure try-other-l2-prefer for other L2 four (wave771)"
+      bad "g05_ensure must thin-call ensure try-heat|try-other-l2-prefer for other L2 four (wave771)"
     fi
     # Dual body residual: g05 must not re-open inline slc/strict/fmt/lsp hybrid.
     if grep -qE '_slc_o=|_slc_seed=|_rdss=|_rdss_thin_x=|_fcc=|_fcc_thin_x=|_lspg=|_lspg_thin_x=' \
@@ -5680,13 +5684,13 @@ run_check() {
       grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
       grab {body = body $0 "\n"}
       END {
-        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-runtime-os-prefer/) exit 0
+        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-runtime-os-prefer/) exit 0
         exit 1
       }
     ' Makefile; then
       note "Makefile $_rtos_leaf thin-calls ensure try-runtime-os-prefer (wave779)"
     else
-      bad "Makefile $_rtos_leaf must thin-call ensure try-runtime-os-prefer (wave779)"
+      bad "Makefile $_rtos_leaf must thin-call ensure try-heat|try-runtime-os-prefer (wave779)"
     fi
     # Ban re-opened dual hybrid body (mktemp + thin.o / rest.o inline).
     if awk -v leaf="$_rtos_leaf" '
@@ -5735,13 +5739,13 @@ run_check() {
       grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
       grab {body = body $0 "\n"}
       END {
-        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-std-core-prefer/) exit 0
+        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-std-core-prefer/) exit 0
         exit 1
       }
     ' Makefile; then
       note "Makefile $_sc_leaf thin-calls ensure try-std-core-prefer (wave780)"
     else
-      bad "Makefile $_sc_leaf must thin-call ensure try-std-core-prefer (wave780)"
+      bad "Makefile $_sc_leaf must thin-call ensure try-heat|try-std-core-prefer (wave780)"
     fi
     # Ban re-opened hybrid: only scan recipe lines (leading tab), not following
     # comment blocks (those often mention historic xlang-c / PREFER).
@@ -5750,7 +5754,7 @@ run_check() {
       grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
       grab && /^\t/ {body = body $0 "\n"}
       END {
-        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-std-core-prefer/ && body !~ /xlang_compile_std_x\.sh/ && body !~ /\$\(CC\)/) exit 1
+        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-std-core-prefer/ && body !~ /xlang_compile_std_x\.sh/ && body !~ /\$\(CC\)/) exit 1
         if (body ~ /XLANG_KEEP_C=1/ && body ~ /xlang-c/ && body !~ /ensure_host_cc_seed_o/) exit 0
         if (body ~ /\$\(CC\)/ && body ~ /-c seeds\//) exit 0
         if (body ~ /xlang_compile_std_x\.sh/ && body ~ /net_dns_fast/) exit 0
@@ -5790,13 +5794,13 @@ run_check() {
       grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
       grab {body = body $0 "\n"}
       END {
-        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-lsp-sat-prefer/) exit 0
+        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-lsp-sat-prefer/) exit 0
         exit 1
       }
     ' Makefile; then
       note "Makefile $_ls_leaf thin-calls ensure try-lsp-sat-prefer (wave781)"
     else
-      bad "Makefile $_ls_leaf must thin-call ensure try-lsp-sat-prefer (wave781)"
+      bad "Makefile $_ls_leaf must thin-call ensure try-heat|try-lsp-sat-prefer (wave781)"
     fi
     # Ban re-opened hybrid: only scan tab-prefixed recipe lines (not # comments).
     if awk -v leaf="$_ls_leaf" '
@@ -5804,7 +5808,7 @@ run_check() {
       grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
       grab && /^\t/ {body = body $0 "\n"}
       END {
-        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-lsp-sat-prefer/ && body !~ /\$\(CC\)/ && body !~ /xlang-c/) exit 1
+        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-lsp-sat-prefer/ && body !~ /\$\(CC\)/ && body !~ /xlang-c/) exit 1
         if (body ~ /xlang-c/ && body !~ /ensure_host_cc_seed_o/) exit 0
         if (body ~ /\$\(CC\)/ && body ~ /-c seeds\//) exit 0
         if (body ~ /mktemp/ && body ~ /(thin\.o|_thin\.o|rest\.o|_rest\.o)/) exit 0
@@ -5847,13 +5851,13 @@ run_check() {
       grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
       grab {body = body $0 "\n"}
       END {
-        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-gen-c-to-o/) exit 0
+        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-gen-c-to-o/) exit 0
         exit 1
       }
     ' Makefile; then
       note "Makefile $_b4_leaf thin-calls ensure try-gen-c-to-o (wave782)"
     else
-      bad "Makefile $_b4_leaf must thin-call ensure try-gen-c-to-o (wave782)"
+      bad "Makefile $_b4_leaf must thin-call ensure try-heat|try-gen-c-to-o (wave782)"
     fi
     # Ban re-opened inline $(CC) -c body on recipe lines (comments OK).
     if awk -v leaf="$_b4_leaf" '
@@ -5861,7 +5865,7 @@ run_check() {
       grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
       grab && /^\t/ {body = body $0 "\n"}
       END {
-        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-gen-c-to-o/ && body !~ /\$\(CC\)/) exit 1
+        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-gen-c-to-o/ && body !~ /\$\(CC\)/) exit 1
         if (body ~ /\$\(CC\)/ && body ~ /-c /) exit 0
         if (body ~ /sync_lexer_gen_token_enum/ && body !~ /ensure_host_cc_seed_o/) exit 0
         exit 1
@@ -5901,13 +5905,13 @@ run_check() {
     grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
     grab {body = body $0 "\n"}
     END {
-      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-cfg-eval-ladder/) exit 0
+      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-cfg-eval-ladder/) exit 0
       exit 1
     }
   ' Makefile; then
     note "Makefile src/lexer/cfg_eval.o thin-calls ensure try-cfg-eval-ladder (wave783)"
   else
-    bad "Makefile src/lexer/cfg_eval.o must thin-call ensure try-cfg-eval-ladder (wave783)"
+    bad "Makefile src/lexer/cfg_eval.o must thin-call ensure try-heat|try-cfg-eval-ladder (wave783)"
   fi
   # Ban re-opened multi-ladder: no inline $(CC)/xlang-c/-E-extern on recipe lines.
   if awk '
@@ -5915,7 +5919,7 @@ run_check() {
     grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
     grab && /^\t/ {body = body $0 "\n"}
     END {
-      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-cfg-eval-ladder/ \
+      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-cfg-eval-ladder/ \
           && body !~ /\$\(CC\)/ && body !~ /xlang-c/ && body !~ /-E-extern/) exit 1
       if (body ~ /\$\(CC\)/ && body ~ /-c /) exit 0
       if (body ~ /-E-extern/ && body !~ /ensure_host_cc_seed_o/) exit 0
@@ -5984,7 +5988,7 @@ run_check() {
     echo "ensure_host_cc_seed_o: --check FAILED" >&2
     exit 1
   fi
-  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else + R3 PREFER thin + R2 panic/typeck_f64/crt0 + gen-x residual + try-heat · wave748–789)" >&2
+  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else + R3 PREFER thin + R2 panic/typeck_f64/crt0 + gen-x residual + try-heat · wave748–790)" >&2
 }
 
 # ---------------------------------------------------------------------------

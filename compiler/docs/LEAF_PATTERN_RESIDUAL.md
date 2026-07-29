@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2 · wave763 R3 PREFER thin try-r3-prefer · wave764 g05 R3_COLD r3-prefer-family · wave765 g05 labi try-labi-prefer · wave766 g05 rt try-rt-prefer · wave767 g05 pipeline_abi/ldpc try-*-prefer · wave768 g05 target_cpu try-target-cpu-prefer · wave769 g05 L2 asm try-l2-asm-prefer · wave770 g05 async try-async-prefer · wave771 g05 other L2 try-other-l2-prefer · wave772 11.1.4 pure-ld cold prefer · wave773 g05 pure-ld prefer · wave774 drop silent CC fallback · wave775 fmt_check_cmd.o dual · wave776 R2 panic PREFER try-r2-prefer · wave777 physical-delete prep inventory · wave778 Windows gate + dual-end verify · wave779 B1 runtime-os try-runtime-os-prefer · wave780 B2 std-core try-std-core-prefer · wave781 B3 lsp-sat try-lsp-sat-prefer · wave782 B4 gen-c-to-o · wave783 B5 cfg-eval-ladder · wave784 B6 R5 compiler_all_ci · wave785 B7 DAG inventory + archaeology CC thin · wave786 B7D host-cc product link g05 · wave787 B7A cold residual_make=0 + B7B list honesty · wave788 B7B shell-primary catalog · wave789 B7A heat try-heat shell dispatch)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2 · wave763 R3 PREFER thin try-r3-prefer · wave764 g05 R3_COLD r3-prefer-family · wave765 g05 labi try-labi-prefer · wave766 g05 rt try-rt-prefer · wave767 g05 pipeline_abi/ldpc try-*-prefer · wave768 g05 target_cpu try-target-cpu-prefer · wave769 g05 L2 asm try-l2-asm-prefer · wave770 g05 async try-async-prefer · wave771 g05 other L2 try-other-l2-prefer · wave772 11.1.4 pure-ld cold prefer · wave773 g05 pure-ld prefer · wave774 drop silent CC fallback · wave775 fmt_check_cmd.o dual · wave776 R2 panic PREFER try-r2-prefer · wave777 physical-delete prep inventory · wave778 Windows gate + dual-end verify · wave779 B1 runtime-os try-runtime-os-prefer · wave780 B2 std-core try-std-core-prefer · wave781 B3 lsp-sat try-lsp-sat-prefer · wave782 B4 gen-c-to-o · wave783 B5 cfg-eval-ladder · wave784 B6 R5 compiler_all_ci · wave785 B7 DAG inventory + archaeology CC thin · wave786 B7D host-cc product link g05 · wave787 B7A cold residual_make=0 + B7B list honesty · wave788 B7B shell-primary catalog · wave789 B7A heat try-heat shell dispatch · wave790 B7A heat thin-unify)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -59,7 +59,7 @@
 | **R2** | Platform stamp / UNAME leaf | `runtime_panic.$(UNAME_S).$(UNAME_M).stamp` · `typeck_f64_bits` arch `.s` pick · crt0 | shell + host_platform_linker facts; lists stay mk | **panic cold ✅ wave760** · **typeck_f64/crt0 ✅ wave762** (try-r2) · **panic PREFER ✅ wave776** (try-r2-prefer) |
 | **R3** | Thin+rest / PREFER_X_O host-cc rest | thin `.o` + `FROM_X=1` rest `cc -c` + `ld -r` | cold-else shell ensure; PREFER thin product path | **cold-else ✅ wave757** · **Makefile PREFER ✅ wave763** · **g05 R3_COLD ✅ wave764** · **labi multi-slice ✅ wave765** · **rt multi-slice ✅ wave766** · **pipeline_abi/ldpc ✅ wave767** · **target_cpu ✅ wave768**; residual other L2 |
 | **R4** | Cold rebuild **pattern bodies** | sat/lsp/bridge/panic/user-asm/glue/pipeline-x | rebuild without make pattern graph | **mode+list shell wave747** · **pure-R1 wave756** · **R3 cold wave757** · **thin_glue seed-map wave758** · **glue standalone seed-map wave759** · **panic cold try-r2 wave760** · **gen try-gen-x wave761** · **typeck_f64/crt0 try-r2 wave762**; residual PREFER thin / sat non-R1 if any |
-| **R5** | CI / `compiler-all` host-cc graph | Makefile `all` · OPT seed path | `scripts/compiler_all_ci.sh` (wave784); stage 12 = zero host-cc | **body ✅ wave784** · **B7D TARGET→g05 ✅ wave786** · **B7A cold residual_make=0 ✅ wave787** · **B7B shell catalog ✅ wave788** · **B7A heat try-heat ✅ wave789** · residual Makefile thin-call edges / physical delete |
+| **R5** | CI / `compiler-all` host-cc graph | Makefile `all` · OPT seed path | `scripts/compiler_all_ci.sh` (wave784); stage 12 = zero host-cc | **body ✅ wave784** · **B7D TARGET→g05 ✅ wave786** · **B7A cold residual_make=0 ✅ wave787** · **B7B shell catalog ✅ wave788** · **B7A heat try-heat ✅ wave789** · **B7A heat thin-unify ✅ wave790** · residual Makefile dep edges / physical delete |
 | **R6** | Cold **link** pure-ld + g05 pure-ld | `run_pure_ld_required` + `run_g05_pure_ld_required`; named CC residual FORCE_CC/ineligible only | 11.1.4 · **wave772** cold · **wave773** g05 · **wave774** drop silent fallback; residual physical delete · fmt dual | ~~silent CC after pure fail~~ · ~~residual CC primary~~ · ~~g05 CC-only~~ |
 
 **R1–R5** are the 11.3.1 **leaf pattern** residual. **R6** is tracked under 11.1.4 (wave745).
@@ -1004,9 +1004,19 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - [x] **wave787:** B7A cold rebuild residual_make=0 honesty + heat thin-edge inventory + B7B list-stays-mk honesty
 - [x] **wave788:** B7B shell-primary catalog (mk parse 0-make; make export escape; lists stay mk)
 - [x] **wave789:** B7A heat shell auto-dispatch `try-heat` / `./xbuild heat-o` (Makefile edges still residual)
+- [x] **wave790:** B7A heat Makefile recipes unify → `try-heat` only (dep edges residual; mode names in comments)
 - [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame · **Windows gate**)
 - [ ] Leaf `.o` without host-cc residual (stages 8–9 / 12)
-- [ ] B7 residual endgame: Makefile heat thin-call edges gone / physical delete (try-heat ✅ wave789; edges remain)
+- [ ] B7 residual endgame: Makefile heat **dep** edges gone / physical delete (try-heat ✅ wave789; thin-unify ✅ wave790; dep edges remain)
+
+
+### wave790 · B7A heat thin-unify (Makefile recipes → try-heat)
+
+> **G.7 有则补全 / NOT physical delete.** All 115 Makefile ensure *recipes* call
+> `bash scripts/ensure_host_cc_seed_o.sh try-heat $@` only. Historical try-*/one
+> mode names remain in comments for archaeology and residual greps.
+> Dependency edges on `ensure_host_cc_seed_o.sh` stay residual (make graph).
+> Body dispatch authority remains `try_heat_one` (wave789).
 
 ### wave789 · B7A heat shell auto-dispatch try-heat (G.7 有则补全)
 

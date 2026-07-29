@@ -32,6 +32,8 @@
 #   wave788: B7B shell-primary catalog (mk parse 0-make; make export escape)
 #   wave789: B7A heat shell auto-dispatch try-heat (NOT physical delete;
 #            Makefile thin-call edges remain residual)
+#   wave790: B7A heat Makefile recipes unify → try-heat only (NOT physical delete;
+#            dep edges remain; historical try-* modes stay in comments)
 #
 # Authority (G.7):
 #   Single shell authority for *named residual classes* of Makefile leaf pattern /
@@ -53,7 +55,7 @@
 #   ./xbuild leaf-patterns | leaf-residual [--check]
 #
 # PLATFORM: SHARED — inventory portable; leaf ABI stays in Makefile / mk.
-# Wave: 746–789 Track MG · 11.3.1 path (B7A heat try-heat wave789 · B7B shell catalog · B7A cold 0-make · Makefile edges residual · not physical delete · Windows gate + dual-end).
+# Wave: 746–790 Track MG · 11.3.1 path (B7A heat thin-unify wave790 · try-heat wave789 · B7B shell catalog · B7A cold 0-make · Makefile dep edges residual · not physical delete · Windows gate + dual-end).
 
 set -euo pipefail
 
@@ -367,11 +369,12 @@ B6_R5_CI_COMPILER_ALL_WAVE=wave784
 # wave787: B7A cold rebuild residual_make=0 honesty + heat thin-edge inventory
 # wave788: B7B shell-primary catalog (mk parse; make export escape; NOT physical delete)
 # wave789: B7A heat shell auto-dispatch try-heat (NOT physical delete; edges remain)
+# wave790: B7A heat Makefile recipes unify → try-heat (mode names collapse; deps remain)
 PHYS_DEL_BUCKET_B7=makefile_dag_thin_calls
 PHYS_DEL_BUCKET_B7_SCOPE=thin_call_edges+mk_lists+archaeology_phonies+host_cc_link
 PHYS_DEL_BUCKET_B7_INVENTORY=1
 PHYS_DEL_BUCKET_B7_BODY_SWALLOWED=0
-PHYS_DEL_BUCKET_B7_WAVE=wave789
+PHYS_DEL_BUCKET_B7_WAVE=wave790
 SWALLOWED_B7_DAG_INVENTORY=1
 B7_DAG_INVENTORY_SWALLOWED=1
 B7_DAG_INVENTORY_NOTE=named_subbuckets_post_B1_B6_leaf_body_clear
@@ -379,14 +382,19 @@ B7_DAG_INVENTORY_NOTE=named_subbuckets_post_B1_B6_leaf_body_clear
 PHYS_DEL_BUCKET_B7A=thin_call_edges_only
 PHYS_DEL_BUCKET_B7A_SCOPE=ensure_thin_call_recipe_edges_still_make
 # wave787: cold rebuild_leaves seven modes already residual_make=0 (shell only).
-# Heat residual = Makefile ensure thin-call edges for `make <obj>` / daily heat.
+# Heat residual = Makefile ensure thin-call *dependency* edges for `make <obj>` / daily heat.
 # wave789: shell try-heat auto-dispatch (prefer→R1→R2→gen) for heat without recipe name.
+# wave790: all 115 Makefile ensure *recipes* thin-call try-heat only (G.7 single heat entry);
+#          historical try-*/one mode names stay in comments for archaeology / residual greps.
+#          Dep graph edges remain residual (NOT physical delete).
 PHYS_DEL_BUCKET_B7A_COLD_0MAKE=1
 PHYS_DEL_BUCKET_B7A_COLD_SCOPE=rebuild_leaves_sat_lsp_bridge_panic_user_asm_glue_pipeline_x
 PHYS_DEL_BUCKET_B7A_HEAT_RESIDUAL=1
-PHYS_DEL_BUCKET_B7A_HEAT_SCOPE=makefile_ensure_host_cc_seed_o_thin_call_edges
+PHYS_DEL_BUCKET_B7A_HEAT_SCOPE=makefile_ensure_host_cc_seed_o_dep_edges
 PHYS_DEL_BUCKET_B7A_HEAT_SHELL_DISPATCH=1
 PHYS_DEL_BUCKET_B7A_HEAT_SHELL_DISPATCH_SCOPE=try_heat_prefer_then_r1_r2_gen
+PHYS_DEL_BUCKET_B7A_HEAT_THIN_UNIFY=1
+PHYS_DEL_BUCKET_B7A_HEAT_THIN_UNIFY_SCOPE=makefile_recipes_try_heat_only
 PHYS_DEL_BUCKET_B7A_BODY_SWALLOWED=0
 SWALLOWED_B7A_COLD_REBUILD_0MAKE=1
 B7A_COLD_REBUILD_0MAKE_SWALLOWED=1
@@ -396,7 +404,12 @@ SWALLOWED_B7A_HEAT_SHELL_DISPATCH=1
 B7A_HEAT_SHELL_DISPATCH_SWALLOWED=1
 B7A_HEAT_SHELL_DISPATCH_VIA=ensure_host_cc_seed_o_try_heat
 B7A_HEAT_SHELL_DISPATCH_WAVE=wave789
-B7A_HEAT_SHELL_DISPATCH_NOTE=makefile_thin_call_edges_still_residual_not_physical_delete
+B7A_HEAT_SHELL_DISPATCH_NOTE=makefile_dep_edges_still_residual_not_physical_delete
+SWALLOWED_B7A_HEAT_THIN_UNIFY=1
+B7A_HEAT_THIN_UNIFY_SWALLOWED=1
+B7A_HEAT_THIN_UNIFY_VIA=makefile_try_heat_recipes
+B7A_HEAT_THIN_UNIFY_WAVE=wave790
+B7A_HEAT_THIN_UNIFY_NOTE=recipe_modes_collapsed_dep_edges_remain
 PHYS_DEL_BUCKET_B7B=mk_list_authority
 PHYS_DEL_BUCKET_B7B_SCOPE=compiler_mk_plus_driver_seed_obj_catalog
 # wave787 honesty: lists intentionally stay mk+catalog (G.7 single list).
@@ -426,7 +439,7 @@ PHYS_DEL_BUCKET_B7D_NOTE=default_make_xlang_is_product_g05_escape_OBJS_CORE
 SWALLOWED_B7D_HOST_CC_PRODUCT_LINK=1
 B7D_HOST_CC_PRODUCT_LINK_SWALLOWED=1
 PHYS_DEL_PREP_NEXT=B7_physical_delete_makefile_after_windows_not_this_wave
-PHYS_DEL_PREP_FORBIDDEN=claim_physical_delete|dual_o_list_as_authority|delete_makefile_before_windows_green|claim_B7_inventory_is_delete|claim_B7D_is_physical_delete|claim_B7A_cold_0make_is_physical_delete|claim_B7B_honesty_is_list_delete|claim_B7B_shell_catalog_is_physical_delete|claim_B7A_heat_try_heat_is_physical_delete|claim_B7A_heat_dispatch_removes_makefile_edges
+PHYS_DEL_PREP_FORBIDDEN=claim_physical_delete|dual_o_list_as_authority|delete_makefile_before_windows_green|claim_B7_inventory_is_delete|claim_B7D_is_physical_delete|claim_B7A_cold_0make_is_physical_delete|claim_B7B_honesty_is_list_delete|claim_B7B_shell_catalog_is_physical_delete|claim_B7A_heat_try_heat_is_physical_delete|claim_B7A_heat_dispatch_removes_makefile_edges|claim_B7A_heat_thin_unify_is_physical_delete|claim_try_heat_recipes_remove_dep_edges
 # wave778: hard gate — physical delete of compiler/Makefile only AFTER Windows
 # hybrid min-gate green (+ PE pure-ld residual owned). Body swallow (B1–B5) keeps
 # Makefile thin-call edges; it is NOT physical delete. Never rm Makefile casually.
@@ -1246,23 +1259,54 @@ if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7A_HEAT_SHELL_DISPATCH=1'
   bad "dump must set PHYS_DEL_BUCKET_B7A_HEAT_SHELL_DISPATCH=1 (wave789)"
 fi
 if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7A_HEAT_RESIDUAL=1'; then
-  bad "dump must keep PHYS_DEL_BUCKET_B7A_HEAT_RESIDUAL=1 (wave789 edges remain)"
+  bad "dump must keep PHYS_DEL_BUCKET_B7A_HEAT_RESIDUAL=1 (wave790 dep edges remain)"
 fi
 if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7A_BODY_SWALLOWED=0'; then
-  bad "dump must keep PHYS_DEL_BUCKET_B7A_BODY_SWALLOWED=0 (wave789 not full B7A)"
+  bad "dump must keep PHYS_DEL_BUCKET_B7A_BODY_SWALLOWED=0 (wave790 not full B7A)"
+fi
+# wave790: Makefile ensure recipes unify → try-heat
+if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_B7A_HEAT_THIN_UNIFY=1'; then
+  bad "dump must set SWALLOWED_B7A_HEAT_THIN_UNIFY=1 (wave790)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'B7A_HEAT_THIN_UNIFY_SWALLOWED=1'; then
+  bad "dump B7A_HEAT_THIN_UNIFY_SWALLOWED must be 1 (wave790)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7A_HEAT_THIN_UNIFY=1'; then
+  bad "dump must set PHYS_DEL_BUCKET_B7A_HEAT_THIN_UNIFY=1 (wave790)"
 fi
 if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_PREP_NEXT=B7_physical_delete_makefile_after_windows_not_this_wave'; then
-  bad "dump PHYS_DEL_PREP_NEXT must stay physical-delete-after-windows (wave789)"
+  bad "dump PHYS_DEL_PREP_NEXT must stay physical-delete-after-windows (wave790)"
 else
-  note "residual class inventory dump OK (wave747–789 + B7A heat try-heat + B7B shell catalog + Windows + dual-end)"
+  note "residual class inventory dump OK (wave747–790 + B7A heat thin-unify + try-heat + B7B shell catalog + Windows + dual-end)"
 fi
-# wave789: ensure try-heat wired (G.7 single body; no dual heat dispatcher)
+# wave789/790: ensure try-heat wired (G.7 single body; no dual heat dispatcher)
 if [ ! -f "$ROOT/compiler/scripts/ensure_host_cc_seed_o.sh" ]; then
   bad "missing ensure_host_cc_seed_o.sh (wave789 heat owner)"
 elif ! grep -q 'try_heat_one\|try-heat' "$ROOT/compiler/scripts/ensure_host_cc_seed_o.sh"; then
   bad "ensure_host_cc_seed_o.sh missing try-heat (wave789)"
 else
   note "ensure try-heat present (wave789 B7A heat shell dispatch)"
+fi
+# wave790: Makefile heat recipes are try-heat only (historical modes remain in comments)
+if [ -f "$MF" ]; then
+  _heat_recipe_n=$(grep -cE '^\t.*ensure_host_cc_seed_o\.sh try-heat' "$MF" 2>/dev/null || echo 0)
+  _heat_non_try=$(grep -E '^\t.*ensure_host_cc_seed_o\.sh ' "$MF" 2>/dev/null | grep -vc 'try-heat' || true)
+  if [ "${_heat_recipe_n:-0}" -lt 50 ]; then
+    bad "Makefile must thin-call try-heat for ensure recipes (wave790; n=${_heat_recipe_n})"
+  else
+    note "Makefile heat recipes try-heat unify (n=${_heat_recipe_n}; wave790)"
+  fi
+  if [ "${_heat_non_try:-0}" -ne 0 ]; then
+    bad "Makefile ensure recipes must not call non-try-heat modes (wave790; n=${_heat_non_try})"
+  else
+    note "Makefile ensure recipe modes collapsed to try-heat (wave790)"
+  fi
+  # archaeology: mode names still documented in comments for residual greps
+  if ! grep -q 'try-labi-prefer' "$MF" || ! grep -q 'try-r3-prefer' "$MF"; then
+    bad "Makefile must keep historical try-* mode names in comments (wave790 archaeology)"
+  else
+    note "Makefile comment archaeology retains try-* mode names (wave790)"
+  fi
 fi
 
 # Makefile still present (residual reality) + has host-cc heat
@@ -1568,7 +1612,7 @@ else
     "$REBUILD_REL"; then
     bad "rebuild_leaves must not hardcode .o list (dual authority)"
   fi
-  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld (wave772/773) + drop silent CC fallback (wave774); fmt_check_cmd.o dual (wave775); R2 panic PREFER try-r2-prefer (wave776); phys-del prep (wave777); Windows+dual-end gate (wave778); B1–B6 swallow (wave779–784); B7 DAG inventory + archaeology CC thin (wave785); B7D host-cc product link g05 (wave786); B7A cold residual_make=0 honesty (wave787); B7B shell-primary catalog (wave788); residual physical delete after Windows + heat B7A edges"
+  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld (wave772/773) + drop silent CC fallback (wave774); fmt_check_cmd.o dual (wave775); R2 panic PREFER try-r2-prefer (wave776); phys-del prep (wave777); Windows+dual-end gate (wave778); B1–B6 swallow (wave779–784); B7 DAG inventory + archaeology CC thin (wave785); B7D host-cc product link g05 (wave786); B7A cold residual_make=0 honesty (wave787); B7B shell-primary catalog (wave788); B7A heat try-heat (wave789); B7A heat thin-unify (wave790); residual physical delete after Windows + heat B7A dep edges"
 fi
 
 # wave772/774: cold pure-ld required when eligible (no silent CC fallback)
@@ -1751,5 +1795,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747 R4 mode + wave756 pure-R1 + wave757 R3 cold-else + wave763 R3 PREFER thin + wave764 g05 r3-prefer-family + wave765 labi try-labi-prefer + wave758 thin_glue + wave759 glue-standalone + wave760 R2 panic + wave761 gen-x + wave762 R2 typeck_f64/crt0 + wave748–755 R1 families + 11.3.1 leaf residual inventory)"
+echo "leaf_pattern_residual: CHECK OK (wave747 R4 mode + wave756 pure-R1 + wave757 R3 cold-else + wave763 R3 PREFER thin + wave764 g05 r3-prefer-family + wave765 labi try-labi-prefer + wave758 thin_glue + wave759 glue-standalone + wave760 R2 panic + wave761 gen-x + wave762 R2 typeck_f64/crt0 + wave748–755 R1 families + 11.3.1 leaf residual inventory + wave790 heat thin-unify)"
 exit 0
