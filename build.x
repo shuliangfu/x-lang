@@ -133,13 +133,24 @@
 //     $(CC) -o as linker without inventory. Pure-ld cold endgame later.
 //     ./xbuild linker-policy [--check]
 //
-//   Full .x import graph later; 11.3.1 deletes Makefile residual leaf rules.
+//   11.3.1 leaf pattern residual path (wave746):
+//     Authority map: compiler/docs/LEAF_PATTERN_RESIDUAL.md
+//     Machine: compiler/scripts/leaf_pattern_residual.sh
+//     ./xbuild leaf-patterns | leaf-residual [--check]
+//     Named residual classes R1–R5 (host-cc seed/.o, UNAME stamp, thin+rest,
+//     cold rebuild pattern bodies, CI all). R6 cold CC -o → 11.1.4.
+//     Orchestration already shell (prereq/rebuild_leaves/link); pattern bodies
+//     still Makefile. Physical delete of Makefile = 11.3.1 endgame (not this wave).
+//     G.7: lists stay mk; no dual .o inventory in residual shell.
+//
+//   Full .x import graph later; 11.3.1 endgame deletes Makefile residual leaf rules.
 //
 // References:
-//   analysis/C迁移追踪.md §11.1 · §11.5 · analysis/Makefile迁移表.md class I
+//   analysis/C迁移追踪.md §11.1 · §11.3 · §11.5 · analysis/Makefile迁移表.md class I
 //   compiler/docs/SELFHOST.md · BUILD_DAG.md · PLATFORM_LINKER.md
+//   compiler/docs/LEAF_PATTERN_RESIDUAL.md
 //   tests/HOST_CC_POLICY.md · compiler/scripts/g05_*.sh
-//   product_build_dag.sh · host_platform_linker.sh
+//   product_build_dag.sh · host_platform_linker.sh · leaf_pattern_residual.sh
 // =============================================================================
 
 /**

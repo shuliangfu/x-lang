@@ -119,9 +119,14 @@ bash compiler/scripts/host_platform_linker.sh --check
 - [ ] Full leaf rules free of Makefile `UNAME` (11.3.1)
 - [ ] Cold phase1/final without residual `CC -o` (11.1.4 endgame)
 
+**wave746 path note:** leaf pattern residual classes (including UNAME leaf **R2**) are
+named in `LEAF_PATTERN_RESIDUAL.md` / `./xbuild leaf-patterns` — inventory only;
+swallowing still 11.3.1 endgame.
+
 ## References
 
-- `analysis/C迁移追踪.md` §11.1.3 · §11.1.4  
+- `analysis/C迁移追踪.md` §11.1.3 · §11.1.4 · §11.3.1  
 - `compiler/docs/BUILD_DAG.md`  
+- `compiler/docs/LEAF_PATTERN_RESIDUAL.md` (wave746 · leaf pattern path)  
 - skill G.8 platform boundaries  
 - `tests/HOST_CC_POLICY.md` (host-cc for tests/ only; orthogonal to product linker)

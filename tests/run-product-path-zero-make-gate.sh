@@ -1127,10 +1127,24 @@ elif ! grep -qE '11\.1\.4|linker.policy|SEED_LINK_CC' build.x; then
   bad "build.x must mention 11.1.4 / linker policy (wave745)"
 elif ! grep -qE '11\.1\.3|PLATFORM_LINKER|host_platform_linker|wave745' compiler/docs/BUILD_DAG.md; then
   bad "BUILD_DAG.md must cross-ref wave745 PLATFORM_LINKER"
+elif [ ! -f compiler/docs/LEAF_PATTERN_RESIDUAL.md ]; then
+  bad "missing compiler/docs/LEAF_PATTERN_RESIDUAL.md (wave746 11.3.1 path)"
+elif ! grep -q '11\.3\.1' compiler/docs/LEAF_PATTERN_RESIDUAL.md \
+  || ! grep -qE 'R1|host.cc|from_x' compiler/docs/LEAF_PATTERN_RESIDUAL.md; then
+  bad "LEAF_PATTERN_RESIDUAL.md must document 11.3.1 and residual classes"
+elif [ ! -f compiler/scripts/leaf_pattern_residual.sh ]; then
+  bad "missing compiler/scripts/leaf_pattern_residual.sh (wave746)"
+elif ! grep -qE 'leaf-patterns|leaf-residual' xlang-build.sh \
+  || ! grep -q 'leaf_pattern_residual\.sh' xlang-build.sh; then
+  bad "xlang-build missing leaf-patterns / leaf-residual (wave746)"
+elif ! grep -qE '11\.3\.1|leaf.pattern|LEAF_PATTERN' build.x; then
+  bad "build.x must mention 11.3.1 / leaf pattern residual (wave746)"
+elif ! grep -qE '11\.3\.1|LEAF_PATTERN|leaf_pattern_residual|wave746' compiler/docs/BUILD_DAG.md; then
+  bad "BUILD_DAG.md must cross-ref wave746 LEAF_PATTERN"
 else
-  note "BUILD_DAG + ensure_prereqs + product-dag + PLATFORM_LINKER (11.1.1/2/3/4 + wave744/745)"
+  note "BUILD_DAG + ensure_prereqs + product-dag + PLATFORM_LINKER + LEAF_PATTERN (11.1.1–4 + 11.3.1 path + wave744–746)"
   if ! bash compiler/scripts/product_build_dag.sh --check; then
-    bad "product_build_dag.sh --check failed (wave742/743/744/745)"
+    bad "product_build_dag.sh --check failed (wave742–746)"
   else
     note "product_build_dag.sh --check OK (11.1.1+11.1.2+wave744+wave745)"
   fi
@@ -1177,7 +1191,22 @@ else
   else
     note "xbuild linker-policy inventory OK (wave745)"
   fi
-  unset _dag_dry_out _cold_dry_out _plat_out _link_out
+  if ! ./xbuild leaf-patterns --check >/tmp/xbuild_leaf_patterns_check.out 2>/tmp/xbuild_leaf_patterns_check.err; then
+    bad "xbuild leaf-patterns --check failed (wave746)"
+  elif ! grep -q 'CHECK OK' /tmp/xbuild_leaf_patterns_check.out /tmp/xbuild_leaf_patterns_check.err; then
+    bad "xbuild leaf-patterns --check missing CHECK OK (wave746)"
+  else
+    note "xbuild leaf-patterns --check OK (wave746)"
+  fi
+  _leaf_out="$(./xbuild leaf-patterns 2>/dev/null || true)"
+  if ! printf '%s\n' "$_leaf_out" | grep -q 'RESIDUAL_CLASS_R1=host_cc_seed_from_x_to_o'; then
+    bad "xbuild leaf-patterns dump missing RESIDUAL_CLASS_R1 (wave746)"
+  elif ! printf '%s\n' "$_leaf_out" | grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0'; then
+    bad "xbuild leaf-patterns dump missing ENDGAME_PHYSICAL_DELETE_MAKEFILE=0 (wave746)"
+  else
+    note "xbuild leaf-patterns inventory OK (wave746)"
+  fi
+  unset _dag_dry_out _cold_dry_out _plat_out _link_out _leaf_out
 fi
 
 # Product daily `all` must remain g05 (not Makefile all); CI uses compiler-all.
@@ -1227,5 +1256,5 @@ if [ "$fail" -ne 0 ]; then
   echo "FAIL product-path 0-make static gate" >&2
   exit 1
 fi
-echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe; mk OBJS+composites; catalog --check; tests/lib+run-*.sh hub; root help→xbuild; CI/docker → xbuild; build.sh thin; docker/delete-one entry; 11.5 HOST_CC_POLICY; 11.1.1–4 BUILD_DAG + PLATFORM_LINKER)"
+echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe; mk OBJS+composites; catalog --check; tests/lib+run-*.sh hub; root help→xbuild; CI/docker → xbuild; build.sh thin; docker/delete-one entry; 11.5 HOST_CC_POLICY; 11.1.1–4 BUILD_DAG + PLATFORM_LINKER; 11.3.1 LEAF_PATTERN)"
 exit 0

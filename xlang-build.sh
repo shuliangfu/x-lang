@@ -305,6 +305,25 @@ case "$TARGET" in
     bash compiler/scripts/host_platform_linker.sh "$_pl_mode"
     ;;
 
+  # === wave746 · 11.3.1 path · leaf .o pattern residual inventory ===
+  leaf-patterns|leaf-residual|pattern-residual|leaf-pattern)
+    # Named residual classes for Makefile leaf host-cc / pattern rules (G.7 no dual .o).
+    # Map: compiler/docs/LEAF_PATTERN_RESIDUAL.md
+    # Usage:
+    #   ./xbuild leaf-patterns              # dump class inventory + live metrics
+    #   ./xbuild leaf-patterns --check
+    #   ./xbuild leaf-residual classes
+    _lp_mode="dump"
+    if [ "${2:-}" = "--check" ] || [ "${2:-}" = "check" ] || [ "${2:-}" = "-c" ]; then
+      _lp_mode="check"
+    elif [ "${2:-}" = "classes" ] || [ "${2:-}" = "class" ] || [ "${2:-}" = "--classes" ]; then
+      _lp_mode="classes"
+    elif [ "${2:-}" = "--dump" ] || [ "${2:-}" = "dump" ]; then
+      _lp_mode="dump"
+    fi
+    bash compiler/scripts/leaf_pattern_residual.sh "$_lp_mode"
+    ;;
+
   # === CI / 冷启动 / 叶 .o（wave730：外层 0× make -C；叶 pattern residual 至 11.3）===
   compiler-all|ci-all)
     # Historical CI: `make -C compiler OPT=1 all` (host-cc xlang + xlang-c / seed).
@@ -471,6 +490,11 @@ g05 产品链（wave733–735 · 11.1.6；产品 link 零 make）:
                                        体 = host_platform_linker.sh
                                        图 = compiler/docs/PLATFORM_LINKER.md
                                        （G.7 禁双 .o；禁第二套链接实现）
+  leaf-patterns / leaf-residual        叶 .o pattern residual 库存（11.3.1 路径）
+  leaf-patterns --check                校验 doc + class dump + 接线
+                                       体 = leaf_pattern_residual.sh
+                                       图 = compiler/docs/LEAF_PATTERN_RESIDUAL.md
+                                       （非物理删 make；G.7 禁双 .o 清单）
 
 CI / 冷启动（外层 0× make -C；叶 pattern residual 至 11.3）:
   compiler-all / ci-all      make OPT=1 all（host-cc/seed；≠ 产品 all）

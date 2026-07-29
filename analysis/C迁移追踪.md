@@ -30,7 +30,7 @@
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
 | **Makefile 退役 / xbuild** | 🟡 半路径 | **`./xbuild`→`xlang-build.sh`** 产品入口；根 Makefile **help-only**；叶/组合体→`compiler/mk/*.mk`；**`compiler/Makefile` 仍 ~3445 行权威图**（阶段 11） |
-| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 ✅** tests/** hub · **11.1.6 🟡** g05+…+archaeology-gen → xbuild · **11.1.5 🟡** build.x · **11.1.1 🟡** BUILD_DAG 库存 · **11.1.2 🟡** schedule dry-run/run · **11.1.3/4 🟡** 平台+链接策略（wave745）· **11.3 🟡** prereq 边 shell（wave744）· **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
+| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 ✅** tests/** hub · **11.1.6 🟡** g05+…+archaeology-gen → xbuild · **11.1.5 🟡** build.x · **11.1.1 🟡** BUILD_DAG 库存 · **11.1.2 🟡** schedule dry-run/run · **11.1.3/4 🟡** 平台+链接策略（wave745）· **11.3 🟡** prereq 边 shell（wave744）· **11.3.1 路径 🟡** 叶 pattern residual 库存（wave746）· **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | 🟡 4/4 策略 | 11.5.1–4 **策略已裁定**（wave734/741 · `tests/HOST_CC_POLICY.md`）；改写 .x / 卸 cc 属阶段 12 |
 | **冷启动零 cc 链** | ⬜ 0/4 | 最小 seed + 零 cc 验证 + 双端冷启动 |
 | **终局：无 Makefile + 零 cc + v2==v3** | ⬜ 未达 | 见 §0.1 三义；阶段 13 |
@@ -1364,6 +1364,7 @@
   - Linux / macOS / Windows 路径·ABI·seed 选择
   - 替代 Makefile `ifeq ($(UNAME)…)` / Alpine 等
   - ✅ wave745：权威 `compiler/docs/PLATFORM_LINKER.md` + `host_platform_linker.sh`（`XLANG_HOST_OS`/`ARCH`/`PLATFORM_TAG`/Alpine/seed pin）；`./xbuild host-platform`；产品 pin 仍 `*.linux.x86_64.c`（host-portable）
+  - ✅ wave746 交叉：叶 UNAME residual 类 **R2** 已在 `LEAF_PATTERN_RESIDUAL.md` 命名（库存 only）
   - ⬜ 终局：Makefile `UNAME` 叶 pattern 全吞（与 11.3.1 同闸）；禁 shell 第二套 uname 矩阵
 
 🟡 **11.1.4 链接器调用**
@@ -1432,11 +1433,20 @@
   - ✅ `driver_seed_ensure_prereqs.sh`：catalog 展开 `DRIVER_SEED_PREREQS` + glue companion；`--dry-run` / `--check` / `--run`
   - ✅ `bootstrap_driver_seed.sh` step 0 调 ensure；Makefile `bootstrap-driver-seed` 薄 phony（无 `$(DRIVER_SEED_PREREQS)` make deps）
   - ✅ `./xbuild driver-seed-prereqs`；cold dry-run 印 `PREREQ=` 边
-  - ⬜ 叶 `.o` pattern / host-cc residual 仍 Makefile 至 11.3.1
+  - ⬜ 叶 `.o` pattern / host-cc residual 仍 Makefile 至 11.3.1 物理删
+  - ✅ wave746：**11.3.1 路径库存** — `LEAF_PATTERN_RESIDUAL.md` + `leaf_pattern_residual.sh`
+    （R1–R6 命名；`./xbuild leaf-patterns`；**非**物理删 / **非** pure-ld）
+
+🟡 **11.3.1 路径 · 叶 pattern residual 库存（wave746 · 非物理删）**
+
+  - ✅ 权威图：`compiler/docs/LEAF_PATTERN_RESIDUAL.md`
+  - ✅ 机检：`leaf_pattern_residual.sh` dump/classes/`--check`；`./xbuild leaf-patterns`
+  - ✅ R1 host-cc seed · R2 UNAME stamp · R3 thin+rest · R4 rebuild pattern bodies · R5 CI all · R6→11.1.4
+  - ⬜ 物理删 `compiler/Makefile` 仍 ⬜（下项）
 
 ⬜ **11.3.1 删除 `compiler/Makefile`**
 
-  - 前置：11.0 迁移表 100% 有主；8.3/7/8 白名单 residual 可被 xbuild 编完或已为 0
+  - 前置：11.0 迁移表 100% 有主；8.3/7/8 白名单 residual 可被 xbuild 编完或已为 0；wave746 库存类 R1–R5 有主 shell
   - 验收 grep（全仓 · 不止 tests/analysis/docs）：
     ```
     rg -n 'make -C compiler|compiler/Makefile|\bmake\s+-C|\$\(MAKE\)' \

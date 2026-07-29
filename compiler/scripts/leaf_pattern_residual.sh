@@ -1,0 +1,281 @@
+#!/usr/bin/env bash
+# leaf_pattern_residual.sh — 11.3.1 path · leaf .o pattern residual inventory (wave746)
+#
+# Authority (G.7):
+#   Single shell authority for *named residual classes* of Makefile leaf pattern /
+#   host-cc compile rules that still block physical delete of compiler/Makefile.
+#   Does NOT own .o lists (compiler/mk/*.mk + catalog) and does NOT re-implement
+#   cc -c recipes (bodies remain Makefile / existing ensure shells).
+#
+# Human map: compiler/docs/LEAF_PATTERN_RESIDUAL.md
+#
+# Usage (repo root or compiler/):
+#   bash compiler/scripts/leaf_pattern_residual.sh              # dump inventory
+#   bash compiler/scripts/leaf_pattern_residual.sh classes      # class table only
+#   bash compiler/scripts/leaf_pattern_residual.sh --check
+#   ./xbuild leaf-patterns | leaf-residual [--check]
+#
+# PLATFORM: SHARED — inventory portable; leaf ABI stays in Makefile / mk.
+# Wave: 746 Track MG · 11.3.1 path (not physical delete · not pure-ld).
+
+set -euo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+COMPILER_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)"
+ROOT="$(CDPATH= cd -- "$COMPILER_DIR/.." && pwd)"
+
+MODE="${1:-dump}"
+case "$MODE" in
+  --check|check|-c) MODE=check ;;
+  classes|class|residual|inventory) MODE=classes ;;
+  dump|all|"") MODE=dump ;;
+  help|-h|--help)
+    sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'
+    exit 0
+    ;;
+  *)
+    echo "leaf_pattern_residual: unknown mode '$MODE' (dump|classes|check)" >&2
+    exit 2
+    ;;
+esac
+
+fail=0
+note() { echo "leaf_pattern_residual: $*" >&2; }
+bad() { echo "leaf_pattern_residual: FAIL: $*" >&2; fail=1; }
+
+# ---------------------------------------------------------------------------
+# Inventory dump (KEY=value) — no .o list authority
+# ---------------------------------------------------------------------------
+print_classes() {
+  cat <<EOF
+# leaf pattern residual inventory (11.3.1 path · wave746)
+# Lists stay mk/catalog. Bodies stay Makefile until named shell swallow.
+
+LEAF_PATTERN_POLICY=inventory_named_classes_only
+LEAF_PATTERN_FORBIDDEN=dual_o_list_or_copy_cc_recipes
+
+# Already shell (orchestration; not residual leaf pattern)
+SWALLOWED_COLD_SEQ=scripts/bootstrap_driver_seed.sh
+SWALLOWED_PREREQ_EDGES=scripts/driver_seed_ensure_prereqs.sh
+SWALLOWED_REBUILD_ORCH=scripts/bootstrap_driver_seed_rebuild_leaves.sh
+SWALLOWED_LINK_DRIVER=scripts/bootstrap_driver_seed_link.sh
+SWALLOWED_G05_FAMILY=scripts/g05_*.sh
+SWALLOWED_MIGRATE_GEN=scripts/migrate_x_objs.sh+ensure_*_gen.sh
+SWALLOWED_HOST_LINKER_MAP=scripts/host_platform_linker.sh
+
+# Residual classes still Makefile-owned (R1–R5 = 11.3.1; R6 = 11.1.4)
+RESIDUAL_CLASS_R1=host_cc_seed_from_x_to_o
+RESIDUAL_CLASS_R1_SURFACE=Makefile_\$(CC)_-c_seeds/*.from_x.c
+RESIDUAL_CLASS_R1_ENDGAME=shell_ensure_or_product_E_plus_cc_single_body
+
+RESIDUAL_CLASS_R2=platform_stamp_uname_leaf
+RESIDUAL_CLASS_R2_SURFACE=runtime_panic.stamp+typeck_f64_bits+crt0
+RESIDUAL_CLASS_R2_ENDGAME=shell_plus_host_platform_facts_lists_mk
+
+RESIDUAL_CLASS_R3=thin_rest_prefer_x_o_host_cc
+RESIDUAL_CLASS_R3_SURFACE=thin.o+FROM_X_rest_cc+ld_-r
+RESIDUAL_CLASS_R3_ENDGAME=g05_ensure_product_path_complete
+
+RESIDUAL_CLASS_R4=cold_rebuild_pattern_bodies
+RESIDUAL_CLASS_R4_SURFACE=sat|lsp|bridge|panic|user-asm|glue|pipeline-x_make_targets
+RESIDUAL_CLASS_R4_ENDGAME=rebuild_leaves_without_make_pattern
+
+RESIDUAL_CLASS_R5=ci_compiler_all_host_cc_graph
+RESIDUAL_CLASS_R5_SURFACE=Makefile_all_OPT_seed
+RESIDUAL_CLASS_R5_ENDGAME=xbuild_compiler_all_shell_body_stage12
+
+RESIDUAL_CLASS_R6=cold_link_seed_link_cc
+RESIDUAL_CLASS_R6_SURFACE=bootstrap_driver_seed_link_SEED_LINK_CC_-o
+RESIDUAL_CLASS_R6_TRACK=11.1.4_PLATFORM_LINKER
+RESIDUAL_CLASS_R6_ENDGAME=pure_ld_argv_export
+
+# Live Makefile residual signals (counts only — not a second recipe list)
+MAKEFILE_PATH=compiler/Makefile
+EOF
+}
+
+print_live_metrics() {
+  local mf="$ROOT/compiler/Makefile"
+  local cc_c=0 uname_n=0 rebuild_modes=0
+  if [ -f "$mf" ]; then
+    # Count recipe-ish $(CC) ... -c lines (rough residual heat; not authoritative list).
+    cc_c=$(grep -cE '\$\(CC\).*-c' "$mf" 2>/dev/null || echo 0)
+    uname_n=$(grep -cE 'UNAME_[SM]|\$\(UNAME_' "$mf" 2>/dev/null || echo 0)
+  fi
+  # rebuild_leaves modes still call make for pattern bodies
+  if [ -f "$ROOT/compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh" ]; then
+    rebuild_modes=$(grep -cE 'export_target=' "$ROOT/compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh" 2>/dev/null || echo 0)
+  fi
+  cat <<EOF
+MAKEFILE_PRESENT=$([ -f "$mf" ] && echo 1 || echo 0)
+MAKEFILE_CC_C_RECIPE_LINES=$cc_c
+MAKEFILE_UNAME_REF_LINES=$uname_n
+REBUILD_LEAVES_EXPORT_MODES=$rebuild_modes
+ENDGAME_PHYSICAL_DELETE_MAKEFILE=0
+ENDGAME_LEAF_WITHOUT_HOST_CC=0
+ENDGAME_COLD_PURE_LD=0
+EOF
+}
+
+print_dump() {
+  print_classes
+  print_live_metrics
+}
+
+if [ "$MODE" = classes ]; then
+  print_classes
+  exit 0
+fi
+
+if [ "$MODE" = dump ]; then
+  print_dump
+  exit 0
+fi
+
+# ---- check mode ----
+cd "$ROOT"
+DOC_REL="compiler/docs/LEAF_PATTERN_RESIDUAL.md"
+SCRIPT_REL="compiler/scripts/leaf_pattern_residual.sh"
+XBUILD_REL="xlang-build.sh"
+MF="compiler/Makefile"
+
+if [ ! -f "$DOC_REL" ]; then
+  bad "missing $DOC_REL (11.3.1 leaf residual authority map)"
+else
+  if ! grep -q '11\.3\.1' "$DOC_REL"; then
+    bad "$DOC_REL must document 11.3.1"
+  fi
+  if ! grep -qE 'R1|host.cc|from_x' "$DOC_REL"; then
+    bad "$DOC_REL must name residual class R1 / host-cc seed"
+  fi
+  if ! grep -qiE 'lists stay mk|no dual|\.o list|Do not.*\.o' "$DOC_REL"; then
+    bad "$DOC_REL must ban dual .o inventories (G.7)"
+  fi
+  if ! grep -qiE 'physical delete|11\.3\.1 endgame|not this wave' "$DOC_REL"; then
+    bad "$DOC_REL must mark physical delete as endgame (not this wave)"
+  fi
+  note "doc $DOC_REL present"
+fi
+
+if [ ! -f "$SCRIPT_REL" ]; then
+  bad "missing $SCRIPT_REL"
+fi
+
+# Live dump must name residual classes + endgame flags
+_out="$(bash "$SCRIPT_REL" dump 2>/dev/null || true)"
+if ! printf '%s\n' "$_out" | grep -q 'RESIDUAL_CLASS_R1=host_cc_seed_from_x_to_o'; then
+  bad "dump missing RESIDUAL_CLASS_R1"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'RESIDUAL_CLASS_R4=cold_rebuild_pattern_bodies'; then
+  bad "dump missing RESIDUAL_CLASS_R4"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'RESIDUAL_CLASS_R6=cold_link_seed_link_cc'; then
+  bad "dump missing RESIDUAL_CLASS_R6 (cross-ref 11.1.4)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_PREREQ_EDGES=scripts/driver_seed_ensure_prereqs.sh'; then
+  bad "dump must name swallowed prereq edges (wave744)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0'; then
+  bad "dump missing ENDGAME_PHYSICAL_DELETE_MAKEFILE=0 (not closed)"
+else
+  note "residual class inventory dump OK"
+fi
+
+# Makefile still present (residual reality) + has host-cc heat
+if [ ! -f "$MF" ]; then
+  bad "missing $MF (unexpected early delete; 11.3.1 not closed)"
+else
+  if ! grep -qE '\$\(CC\).*-c' "$MF"; then
+    # Soft warn path: if zero, inventory still valid but heat is 0
+    note "Makefile has 0 \$(CC) -c residual lines (heat cleared? keep inventory)"
+  else
+    note "Makefile still has host-cc -c residual (expected until 11.3.1)"
+  fi
+  if ! grep -q 'UNAME_' "$MF"; then
+    bad "Makefile missing UNAME_ (R2 residual signal)"
+  else
+    note "Makefile UNAME residual signal present (R2)"
+  fi
+fi
+
+# Swallowed owners must still exist (orchestration authority)
+for f in \
+  compiler/scripts/bootstrap_driver_seed.sh \
+  compiler/scripts/driver_seed_ensure_prereqs.sh \
+  compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh \
+  compiler/scripts/bootstrap_driver_seed_link.sh \
+  compiler/scripts/host_platform_linker.sh
+do
+  if [ ! -f "$f" ]; then
+    bad "missing swallowed/orchestration owner $f"
+  fi
+done
+note "swallowed orchestration owners present"
+
+# rebuild_leaves must still go through make export (R4 residual honest)
+if ! grep -q 'SEED_REBUILD_OBJS' compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh \
+  || ! grep -qE '\$MAKE|make ' compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh; then
+  bad "rebuild_leaves must still invoke make for pattern bodies (R4 residual)"
+else
+  note "R4 rebuild_leaves still make-backed (named residual)"
+fi
+
+# G.7: this script must not hardcode product .o inventories as code paths
+if grep -nE '[a-zA-Z0-9_./-]+\.o' "$SCRIPT_DIR/leaf_pattern_residual.sh" \
+  | grep -vE '^\s*#|inventor|hardcode|catalog|\.mk|lists|dual|not |\.o list|thin\.o|from_x|pattern|leaf \.o|how \.o|individual' \
+  | grep -qE '[a-zA-Z0-9_/]+\.o'; then
+  code_hits=$(grep -nE '[a-zA-Z0-9_./-]+\.o' "$SCRIPT_DIR/leaf_pattern_residual.sh" \
+    | grep -vE ':[0-9]+:[[:space:]]*#|inventor|hardcode|catalog|\.mk|lists|dual|not |pattern|thin\.o|from_x|leaf' || true)
+  if [ -n "${code_hits:-}" ]; then
+    # Only fail if looks like a path assignment with .o
+    if printf '%s\n' "$code_hits" | grep -qE '[= ].*\.o|"[^"]+\.o' ; then
+      bad "leaf_pattern_residual.sh must not hardcode .o paths (G.7):"
+      echo "$code_hits" | head -10 >&2
+    fi
+  fi
+fi
+
+# xbuild wiring
+if [ ! -f "$XBUILD_REL" ]; then
+  bad "missing $XBUILD_REL"
+elif ! grep -qE 'leaf-patterns|leaf-residual' "$XBUILD_REL" \
+  || ! grep -q 'leaf_pattern_residual\.sh' "$XBUILD_REL"; then
+  bad "xlang-build.sh must wire leaf-patterns / leaf-residual → leaf_pattern_residual.sh"
+else
+  note "xbuild leaf-patterns / leaf-residual wired"
+fi
+
+# build.x strategy map
+if [ -f build.x ]; then
+  if ! grep -qE '11\.3\.1|leaf.pattern|LEAF_PATTERN' build.x; then
+    bad "build.x must mention 11.3.1 / leaf pattern residual"
+  else
+    note "build.x references 11.3.1 leaf residual"
+  fi
+else
+  bad "missing root build.x"
+fi
+
+# BUILD_DAG + PLATFORM_LINKER cross-ref
+if [ -f compiler/docs/BUILD_DAG.md ]; then
+  if ! grep -qE '11\.3\.1|LEAF_PATTERN|leaf_pattern_residual|wave746' compiler/docs/BUILD_DAG.md; then
+    bad "BUILD_DAG.md must cross-ref wave746 / LEAF_PATTERN / 11.3.1"
+  else
+    note "BUILD_DAG.md cross-ref OK"
+  fi
+else
+  bad "missing compiler/docs/BUILD_DAG.md"
+fi
+
+if [ -f compiler/docs/PLATFORM_LINKER.md ]; then
+  note "PLATFORM_LINKER.md present (R6 / UNAME cross-track)"
+else
+  bad "missing PLATFORM_LINKER.md (wave745 companion for R6)"
+fi
+
+if [ "$fail" -ne 0 ]; then
+  echo "leaf_pattern_residual: CHECK FAILED" >&2
+  exit 1
+fi
+echo "leaf_pattern_residual: CHECK OK (wave746 11.3.1 leaf residual inventory)"
+exit 0

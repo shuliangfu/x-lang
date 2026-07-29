@@ -1,4 +1,4 @@
-# Product + cold-start build DAG (11.1.1 · wave742 · 11.1.2 wave743 · 11.3 prereq edges wave744 · 11.1.3/4 wave745)
+# Product + cold-start build DAG (11.1.1 · wave742 · 11.1.2 wave743 · 11.3 prereq edges wave744 · 11.1.3/4 wave745 · 11.3.1 path wave746)
 
 > **Authority (G.7):** this document is the **orchestration dependency map** for Track MG.  
 > Object-list *definitions* stay in `compiler/mk/*.mk` (export via `driver_seed_obj_catalog.sh`).  
@@ -7,7 +7,9 @@
 > Schedule execute (11.1.2): `./xbuild product-dag --dry-run` / `--run product`.  
 > Prereq edges (wave744): `driver_seed_ensure_prereqs.sh` (catalog `DRIVER_SEED_PREREQS`).  
 > Platform + linker policy (wave745 · 11.1.3/4): `compiler/docs/PLATFORM_LINKER.md` +  
-> `host_platform_linker.sh` · `./xbuild host-platform` / `linker-policy`.
+> `host_platform_linker.sh` · `./xbuild host-platform` / `linker-policy`.  
+> Leaf pattern residual (wave746 · 11.3.1 path): `compiler/docs/LEAF_PATTERN_RESIDUAL.md` +  
+> `leaf_pattern_residual.sh` · `./xbuild leaf-patterns`.
 
 **PLATFORM: SHARED** — same node names on macOS / Ubuntu / Windows host shells; platform ABI lives inside leaf scripts and seed pins.
 
@@ -21,13 +23,15 @@
 | Cold-start orchestration step order (11.1.1) | Parallel scheduler / ninja emit |
 | Named schedules + dry-run / run (11.1.2) | Full pure-ld cold link without residual `CC -o` |
 | Cold **prereq edge satisfaction** via shell (wave744) | Physical delete of Makefile (11.3 endgame) |
-| Residual make *leaf* pattern rules named | C `build_runtime` step table replace (11.1.5 endgame) |
+| Residual make *leaf* pattern rules **named** (wave746) | C `build_runtime` step table replace (11.1.5 endgame) |
 | Host platform facts + linker residual inventory (wave745) | Makefile `UNAME` leaf rules fully swallowed |
+| Leaf pattern residual inventory (wave746 · 11.3.1 path) | Physical delete of Makefile / leaf pattern rules |
 | Single authority pointer per node | |
 
 **Not yet:** replacing C `build_runtime` step table (ABI still `build_get_step_*` · 11.1.5).  
 **Not yet:** physical delete of Makefile (11.3.1).  
-**wave745:** 11.1.3/4 **policy + shell inventory** (not pure-ld endgame; residual `SEED_LINK_CC -o` named).
+**wave745:** 11.1.3/4 **policy + shell inventory** (not pure-ld endgame; residual `SEED_LINK_CC -o` named).  
+**wave746:** 11.3.1 **path + named residual classes R1–R6** (not physical delete; not pure-ld).
 
 ---
 
@@ -172,8 +176,9 @@ bootstrap_driver_seed.sh (ordered):
 | Policy map | root `build.x` | Human strategy + pin-stable `build_get_step_*` ABI |
 | Orchestration DAG | **this doc** + `product_build_dag.sh` | 11.1.1 inventory + 11.1.2 schedules + wave744 edges |
 | Host platform + linker policy | `PLATFORM_LINKER.md` + `host_platform_linker.sh` | 11.1.3 facts · 11.1.4 residual inventory (wave745) |
+| Leaf pattern residual map | `LEAF_PATTERN_RESIDUAL.md` + `leaf_pattern_residual.sh` | 11.3.1 path inventory (wave746) |
 | Product entry | `./xbuild` → `xlang-build.sh` | First-class targets |
-| Cold leaf pattern residual | `compiler/Makefile` | Until 11.3 physical delete |
+| Cold leaf pattern residual | `compiler/Makefile` | Until 11.3.1 physical delete |
 | Step table (legacy) | C `build_runtime` + `build_get_step_at` | Domain B bootstrap; not user API |
 
 ---
@@ -185,10 +190,14 @@ Do **not** grow new free-form recipes. Known residual classes:
 | Residual | Notes |
 |----------|--------|
 | ~~`DRIVER_SEED_PREREQS` make-graph edges~~ | **swallowed wave744** → shell ensure (list still mk) |
-| Leaf `.o` pattern rules | host-cc residual C (stages 8.3/9) |
-| `compiler-all` / Makefile `all` | CI host-cc path |
+| Leaf `.o` pattern rules (R1–R5) | **named inventory wave746** · bodies still Makefile → 11.3.1 |
+| `compiler-all` / Makefile `all` | CI host-cc path (R5) |
 | FULL=1 bstrict make entry | Non-daily |
 | Missing `xlang-c` for force -E | ensure_* gen scripts |
+| Cold `SEED_LINK_CC -o` (R6) | **named wave745** · pure-ld endgame → 11.1.4 |
+
+Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
+`./xbuild leaf-patterns --check`.
 
 ---
 
@@ -232,11 +241,23 @@ Do **not** grow new free-form recipes. Known residual classes:
 - [ ] Cold phase1/final without residual `SEED_LINK_CC -o` (11.1.4 endgame)
 - [ ] Makefile `UNAME` leaf rules fully swallowed (with 11.3.1)
 
+### wave746 (11.3.1 path · leaf pattern residual inventory)
+
+- [x] `compiler/docs/LEAF_PATTERN_RESIDUAL.md` authority map (R1–R6)
+- [x] `leaf_pattern_residual.sh` dump/classes/`--check`
+- [x] `./xbuild leaf-patterns` / `leaf-residual` first-class
+- [x] build.x §F + this doc residual section cross-ref
+- [x] 0-make gate hard-check + live `--check` / dump
+- [ ] Physical delete of Makefile / leaf pattern rules (11.3.1 endgame)
+- [ ] Leaf `.o` builds without host-cc residual (stages 8–9 / 12)
+
 ---
 
 ## References
 
-- `analysis/C迁移追踪.md` §11.1.1–4 · §11.3  
+- `analysis/C迁移追踪.md` §11.1.1–4 · §11.3 · §11.3.1  
+- `compiler/docs/LEAF_PATTERN_RESIDUAL.md`  
+
 - `analysis/Makefile迁移表.md` §5b cold whitelist  
 - `build.x` strategy map (11.1.5)  
 - `compiler/docs/PLATFORM_LINKER.md` (11.1.3/4 · wave745)  
