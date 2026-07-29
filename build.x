@@ -165,7 +165,9 @@
 //       ./xbuild host-cc-seed | rt-seed-slice | core-seed | frontend-glue
 //         | main-runtime | alias-stubs | extra-cflags | misc-basename | seed-map
 //         [--check|--force]
-//       Residual: R3 thin+rest · R4 pattern body · pure-ld · physical delete.
+//     wave756: R4 pure-R1 body — rebuild_leaves → ensure try-r1 for catalog
+//       pure R1 members; non-R1 residual still make (bridge = no make).
+//       Residual: R3 thin+rest · R4 non-R1 body · pure-ld · physical delete.
 //     G.7: lists stay mk; no dual .o inventory in residual shell.
 //
 //   Full .x import graph later; 11.3.1 endgame deletes Makefile residual leaf rules.

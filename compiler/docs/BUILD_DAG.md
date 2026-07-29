@@ -41,7 +41,8 @@
 **wave752:** R1 fifth family **R1_ALIAS_STUBS** (link alias / bare / compat stubs; pure basename) same body.
 **wave753:** R1 sixth family **R1_EXTRA_CFLAGS** (pipeline_abi / -fPIE / sqlite multi-flag / parser extras) same body (other R1 residual).
 **wave754:** R1 seventh family **R1_MISC_BASENAME** (misc pure basename glue/enc/ctx/pipeline_glue/asm_build) same body.  
-**wave755:** R1 eighth family **R1_SEED_MAP** (target_cpu/ast_seed mismatch + bootstrap orch -D) same body (residual R3/R4/pure-ld).
+**wave755:** R1 eighth family **R1_SEED_MAP** (target_cpu/ast_seed mismatch + bootstrap orch -D) same body (residual R3/R4/pure-ld).  
+**wave756:** R4 pure-R1 body — `rebuild_leaves` → `ensure try-r1` for catalog pure R1 members; non-R1 residual still make.
 
 ---
 
@@ -200,7 +201,7 @@ Do **not** grow new free-form recipes. Known residual classes:
 | Residual | Notes |
 |----------|--------|
 | ~~`DRIVER_SEED_PREREQS` make-graph edges~~ | **swallowed wave744** → shell ensure (list still mk) |
-| Leaf `.o` pattern rules (R1–R5) | **named inventory wave746** · **R4 mode+list shell wave747** · **R1 rt-slice wave748** · **R1 core-seed wave749** · **R1 frontend-glue wave750** · **R1 main-runtime wave751** · **R1 alias-stubs wave752** · **R1 extra-cflags wave753** · **R1 misc-basename wave754** · **R1 seed-map wave755** · R3/R4 pattern bodies still Makefile → 11.3.1 |
+| Leaf `.o` pattern rules (R1–R5) | **named inventory wave746** · **R4 mode+list shell wave747** · **R1 eight families wave748–755** · **R4 pure-R1 body wave756** (try-r1) · R3/non-R1 R4 residual still Makefile → 11.3.1 |
 | `compiler-all` / Makefile `all` | CI host-cc path (R5) |
 | FULL=1 bstrict make entry | Non-daily |
 | Missing `xlang-c` for force -E | ensure_* gen scripts |
@@ -335,7 +336,16 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 - [x] Makefile three leaves thin-call ensure (target_cpu / ast_seed / orch)
 - [x] `./xbuild seed-map` · umbrella `host-cc-seed` = eight families
 - [x] LEAF_PATTERN dump `SWALLOWED_R1_SEED_MAP=1` / `R1_SEED_MAP_SWALLOWED=1`
-- [ ] R3 thin+rest · R4 pattern body · pure-ld · physical delete
+- [x] residual after: R3 · R4 body · pure-ld · physical delete
+
+### wave756 (11.3.1 · R4 pure-R1 body)
+
+- [x] `rebuild_leaves` splits pure R1 (`ensure try-r1`) vs residual make
+- [x] `try-r1` membership = catalog eight R1 KEY union (G.7 no dual list)
+- [x] bridge mode pure-R1 only → no make pattern
+- [x] LEAF dump `SWALLOWED_R4_BODY_PURE_R1=1` · `R4_BODY_PURE_R1_SWALLOWED=1`
+- [x] `R4_PATTERN_BODY_STILL_MAKE=1` honest (non-R1 residual)
+- [ ] R3 thin+rest body · full R4 endgame (zero residual make) · pure-ld · physical delete
 
 ---
 
@@ -349,6 +359,6 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 - `compiler/docs/PLATFORM_LINKER.md` (11.1.3/4 · wave745)  
 - `compiler/scripts/driver_seed_obj_catalog.sh` (lists)  
 - `compiler/scripts/driver_seed_ensure_prereqs.sh` (edges · wave744)  
-- `compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh` (R4 mode · wave747)  
-- `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 families wave748–753)  
+- `compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh` (R4 mode · wave747 · pure-R1 body wave756)  
+- `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 families wave748–755 · try-r1 wave756)  
 - `compiler/scripts/host_platform_linker.sh` (platform + linker · wave745)

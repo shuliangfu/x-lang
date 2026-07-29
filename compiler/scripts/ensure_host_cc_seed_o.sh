@@ -13,6 +13,10 @@
 #   wave755: eighth family R1_SEED_MAP (basename-mismatch + orch -D:
 #            target_cpu_pure → target_cpu.o, runtime_ast_glue → ast_seed.o,
 #            pipeline_bootstrap_orchestration + -Ibuild_asm -D)
+#   wave756: R4 pure-R1 body helper — `try-r1 OUT` resolves OUT against the
+#            eight catalog KEY memberships (G.7 lists stay mk) and runs the
+#            same ensure_one body. Used by rebuild_leaves so pure R1 leaves
+#            leave the make pattern graph; non-members exit 3 (caller make).
 #
 # Authority (G.7):
 #   Single shell *recipe body* for pure host-cc compile of seeds/*.from_x.c → .o.
@@ -48,11 +52,12 @@
 #
 # Not in scope (honest residual):
 #   - R3 thin+rest / PREFER_X_O product g05 path (g05_ensure keeps that)
-#   - R2 UNAME stamps, R4 rebuild pattern multi-family, R5 CI all
+#   - R2 UNAME stamps, R4 non-R1 rebuild residual (panic/gen/thin+rest), R5 CI all
 #   - pure-ld (11.1.4) · physical Makefile delete (11.3.1)
 #
 # Usage (cwd = compiler/):
 #   bash scripts/ensure_host_cc_seed_o.sh one <out.o> <seed.from_x.c> [extra cflags...]
+#   bash scripts/ensure_host_cc_seed_o.sh try-r1 <out.o>   # wave756 R4 pure-R1 helper
 #   bash scripts/ensure_host_cc_seed_o.sh rt-slice          # RT_SEED_SLICE family
 #   bash scripts/ensure_host_cc_seed_o.sh core-seed         # R1_CORE_SEED family
 #   bash scripts/ensure_host_cc_seed_o.sh frontend-glue     # R1_FRONTEND_GLUE family
@@ -77,7 +82,7 @@
 #   MAKE — only for catalog list expansion (default: make)
 #
 # PLATFORM: SHARED — shell orchestration; seed pins host-portable C.
-# Wave: 748–755 Track MG · 11.3.1 R1 families (not physical delete · not pure-ld).
+# Wave: 748–756 Track MG · 11.3.1 R1 families + R4 pure-R1 body (not physical delete · not pure-ld).
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -101,7 +106,7 @@ _DEFAULT_PARSER_ASM_LINK_ALIAS_CFLAGS="-DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS"
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|try-r1|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -455,6 +460,134 @@ ensure_all_swallowed() {
 }
 
 # ---------------------------------------------------------------------------
+# wave756: try-r1 OUT — pure R1 body for R4 rebuild without hardcoding .o lists.
+#
+# Resolve OUT by *membership* in catalog KEY families (lists = mk only).
+# Exit codes:
+#   0 — OUT is pure R1; ensure_one ran (or skipped up-to-date)
+#   3 — OUT not in any R1 catalog family (caller should use make residual)
+#   1 — membership found but ensure failed / catalog error
+# PLATFORM: SHARED — same host-cc body as family modes; no dual recipe.
+# ---------------------------------------------------------------------------
+_catalog_blob_cache=""
+catalog_blob() {
+  if [ -z "$_catalog_blob_cache" ]; then
+    if [ ! -f scripts/driver_seed_obj_catalog.sh ]; then
+      echo "ensure_host_cc_seed_o: missing scripts/driver_seed_obj_catalog.sh" >&2
+      exit 1
+    fi
+    _catalog_blob_cache="$(MAKE="$MAKE" bash scripts/driver_seed_obj_catalog.sh)"
+  fi
+  printf '%s\n' "$_catalog_blob_cache"
+}
+
+catalog_key_words() {
+  # $1 = KEY — print space-separated words from cached catalog blob
+  local key="$1"
+  local line
+  line="$(catalog_blob | sed -n "s/^${key}=//p" | head -1)"
+  printf '%s\n' "$line"
+}
+
+list_has_word() {
+  # $1=needle $2=space-separated list
+  local needle="$1"
+  local list="$2"
+  local w
+  # shellcheck disable=SC2086
+  for w in $list; do
+    [ "$w" = "$needle" ] && return 0
+  done
+  return 1
+}
+
+# Print seed_mode for OUT if member of any pure R1 family; else return 1.
+# Order: specific maps first (seed-map / frontend-glue / main-runtime / extra-cflags),
+# then basename families. KEY membership only — no second .o inventory.
+r1_seed_mode_for_o() {
+  local o="$1"
+  local list
+  list="$(catalog_key_words "R1_SEED_MAP_OBJS")"
+  if list_has_word "$o" "$list"; then
+    printf '%s\n' "seed-map"
+    return 0
+  fi
+  list="$(catalog_key_words "R1_FRONTEND_GLUE_OBJS")"
+  if list_has_word "$o" "$list"; then
+    printf '%s\n' "frontend-glue"
+    return 0
+  fi
+  list="$(catalog_key_words "R1_MAIN_RUNTIME_OBJS")"
+  if list_has_word "$o" "$list"; then
+    printf '%s\n' "main-runtime"
+    return 0
+  fi
+  list="$(catalog_key_words "R1_EXTRA_CFLAGS_OBJS")"
+  if list_has_word "$o" "$list"; then
+    printf '%s\n' "extra-cflags"
+    return 0
+  fi
+  list="$(catalog_key_words "RT_SEED_SLICE_OBJS")"
+  if list_has_word "$o" "$list"; then
+    printf '%s\n' "basename"
+    return 0
+  fi
+  list="$(catalog_key_words "R1_CORE_SEED_OBJS")"
+  if list_has_word "$o" "$list"; then
+    printf '%s\n' "basename"
+    return 0
+  fi
+  list="$(catalog_key_words "R1_ALIAS_STUBS_OBJS")"
+  if list_has_word "$o" "$list"; then
+    printf '%s\n' "basename"
+    return 0
+  fi
+  list="$(catalog_key_words "R1_MISC_BASENAME_OBJS")"
+  if list_has_word "$o" "$list"; then
+    printf '%s\n' "basename"
+    return 0
+  fi
+  return 1
+}
+
+try_ensure_r1_one() {
+  local o="$1"
+  local seed_mode seed extras_str
+  if [ -z "$o" ]; then
+    echo "ensure_host_cc_seed_o try-r1: need <out.o>" >&2
+    exit 2
+  fi
+  if ! seed_mode="$(r1_seed_mode_for_o "$o")"; then
+    # Not pure R1 — honest residual for R2/R3/gen/etc.
+    return 3
+  fi
+  case "$seed_mode" in
+    basename) seed="$(seed_for_o "$o")" ;;
+    frontend-glue) seed="$(seed_for_frontend_glue "$o")" ;;
+    main-runtime) seed="$(seed_for_main_runtime "$o")" ;;
+    extra-cflags) seed="$(seed_for_extra_cflags "$o")" ;;
+    seed-map) seed="$(seed_for_seed_map "$o")" ;;
+    *)
+      echo "ensure_host_cc_seed_o try-r1: unknown seed_mode $seed_mode for $o" >&2
+      exit 1
+      ;;
+  esac
+  extras_str=""
+  case "$seed_mode" in
+    main-runtime) extras_str="$(extras_for_main_runtime "$o")" ;;
+    extra-cflags) extras_str="$(extras_for_extra_cflags "$o")" ;;
+    seed-map) extras_str="$(extras_for_seed_map "$o")" ;;
+  esac
+  if [ -n "$extras_str" ]; then
+    # shellcheck disable=SC2086
+    ensure_one "$o" "$seed" $extras_str
+  else
+    ensure_one "$o" "$seed"
+  fi
+  return 0
+}
+
+# ---------------------------------------------------------------------------
 # --check: wiring + catalog keys + convention (no full compile required)
 # ---------------------------------------------------------------------------
 check_family() {
@@ -679,7 +812,14 @@ run_check() {
     echo "ensure_host_cc_seed_o: --check FAILED" >&2
     exit 1
   fi
-  echo "ensure_host_cc_seed_o: CHECK OK (R1 rt-seed-slice + core-seed + frontend-glue + main-runtime + alias-stubs + extra-cflags + misc-basename + seed-map · wave748–755)" >&2
+  # wave756: try-r1 entry must exist (R4 pure-R1 body helper)
+  if ! grep -q 'try_ensure_r1_one\|try-r1' "$0"; then
+    bad "try-r1 / try_ensure_r1_one missing (wave756 R4 pure-R1)"
+  else
+    note "try-r1 pure-R1 helper present (wave756)"
+  fi
+
+  echo "ensure_host_cc_seed_o: CHECK OK (R1 rt-seed-slice + core-seed + frontend-glue + main-runtime + alias-stubs + extra-cflags + misc-basename + seed-map · try-r1 · wave748–756)" >&2
 }
 
 case "$MODE" in
@@ -689,6 +829,20 @@ case "$MODE" in
       exit 2
     fi
     ensure_one "$@"
+    ;;
+  try-r1|try_r1|one-r1|r1-one)
+    # wave756: R4 pure-R1 helper — exit 3 if not pure R1 catalog member.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o try-r1: need <out.o>" >&2
+      exit 2
+    fi
+    # Drop trailing --force tokens already handled via FORCE global.
+    _try_out="$1"
+    set +e
+    try_ensure_r1_one "$_try_out"
+    _try_rc=$?
+    set -e
+    exit "$_try_rc"
     ;;
   rt-slice|rt_slice|rt-seed-slice|family=rt_seed_slice)
     ensure_rt_slice
@@ -726,7 +880,7 @@ case "$MODE" in
     exit 0
     ;;
   *)
-    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|all|--check)" >&2
+    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|try-r1|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|all|--check)" >&2
     exit 2
     ;;
 esac

@@ -1293,6 +1293,10 @@ else
     bad "xbuild leaf-patterns dump missing SWALLOWED_R4_MODE_POLICY=1 (wave747)"
   elif ! printf '%s\n' "$_leaf_out" | grep -q 'R4_PATTERN_BODY_STILL_MAKE=1'; then
     bad "xbuild leaf-patterns dump missing R4_PATTERN_BODY_STILL_MAKE=1"
+  elif ! printf '%s\n' "$_leaf_out" | grep -q 'SWALLOWED_R4_BODY_PURE_R1=1'; then
+    bad "xbuild leaf-patterns dump missing SWALLOWED_R4_BODY_PURE_R1=1 (wave756)"
+  elif ! printf '%s\n' "$_leaf_out" | grep -q 'R4_BODY_PURE_R1_SWALLOWED=1'; then
+    bad "xbuild leaf-patterns dump missing R4_BODY_PURE_R1_SWALLOWED=1 (wave756)"
   elif ! printf '%s\n' "$_leaf_out" | grep -q 'SWALLOWED_R1_RT_SEED_SLICE=1'; then
     bad "xbuild leaf-patterns dump missing SWALLOWED_R1_RT_SEED_SLICE=1 (wave748)"
   elif ! printf '%s\n' "$_leaf_out" | grep -q 'R1_RT_SEED_SLICE_SWALLOWED=1'; then
@@ -1330,14 +1334,20 @@ else
   elif ! printf '%s\n' "$_leaf_out" | grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0'; then
     bad "xbuild leaf-patterns dump missing ENDGAME_PHYSICAL_DELETE_MAKEFILE=0"
   else
-    note "xbuild leaf-patterns inventory OK (wave747 R4 + wave748–755 R1 families)"
+    note "xbuild leaf-patterns inventory OK (wave747 R4 + wave756 pure-R1 + wave748–755 R1)"
+  fi
+  if ! grep -q 'try-r1\|try_r1' compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh \
+    || ! grep -q 'ensure_host_cc_seed_o\.sh' compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh; then
+    bad "rebuild_leaves must use ensure try-r1 for pure R1 (wave756)"
+  else
+    note "rebuild_leaves pure-R1 try-r1 path present (wave756)"
   fi
   if ! ./xbuild host-cc-seed --check >/tmp/xbuild_host_cc_seed_check.out 2>/tmp/xbuild_host_cc_seed_check.err; then
-    bad "xbuild host-cc-seed --check failed (wave755)"
+    bad "xbuild host-cc-seed --check failed (wave756)"
   elif ! grep -q 'CHECK OK' /tmp/xbuild_host_cc_seed_check.out /tmp/xbuild_host_cc_seed_check.err; then
-    bad "xbuild host-cc-seed --check missing CHECK OK (wave755)"
+    bad "xbuild host-cc-seed --check missing CHECK OK (wave756)"
   else
-    note "xbuild host-cc-seed --check OK (wave748–755 R1 families)"
+    note "xbuild host-cc-seed --check OK (wave748–756 R1 + try-r1)"
   fi
   if ! bash compiler/scripts/driver_seed_obj_catalog.sh --check >/tmp/xbuild_catalog_rt.out 2>/tmp/xbuild_catalog_rt.err; then
     bad "driver_seed_obj_catalog --check failed (wave748–755 R1 family keys)"

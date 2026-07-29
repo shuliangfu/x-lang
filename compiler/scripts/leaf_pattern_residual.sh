@@ -10,12 +10,13 @@
 #   wave753: R1 sixth family extra-cflags (pipeline_abi / -fPIE / sqlite / parser)
 #   wave754: R1 seventh family misc-basename (glue/enc/ctx/pipeline_glue/asm_build)
 #   wave755: R1 eighth family seed-map (target_cpu/ast_seed mismatch + orch -D)
+#   wave756: R4 pure-R1 body via rebuild_leaves → ensure try-r1 (non-R1 residual make)
 #
 # Authority (G.7):
 #   Single shell authority for *named residual classes* of Makefile leaf pattern /
 #   host-cc compile rules that still block physical delete of compiler/Makefile.
 #   Does NOT own .o lists (compiler/mk/*.mk + catalog). R1 pure-body families
-#   live in ensure_host_cc_seed_o.sh; R3 thin+rest / R4 body residual.
+#   live in ensure_host_cc_seed_o.sh; R3 thin+rest / R4 non-R1 body residual.
 #
 # Human map: compiler/docs/LEAF_PATTERN_RESIDUAL.md
 #
@@ -26,7 +27,7 @@
 #   ./xbuild leaf-patterns | leaf-residual [--check]
 #
 # PLATFORM: SHARED — inventory portable; leaf ABI stays in Makefile / mk.
-# Wave: 746–755 Track MG · 11.3.1 path (not physical delete · not pure-ld).
+# Wave: 746–756 Track MG · 11.3.1 path (not physical delete · not pure-ld).
 
 set -euo pipefail
 
@@ -58,7 +59,7 @@ bad() { echo "leaf_pattern_residual: FAIL: $*" >&2; fail=1; }
 # ---------------------------------------------------------------------------
 print_classes() {
   cat <<EOF
-# leaf pattern residual inventory (11.3.1 path · wave746–755)
+# leaf pattern residual inventory (11.3.1 path · wave746–756)
 # Lists stay mk/catalog. Pattern bodies stay Makefile until named shell swallow.
 
 LEAF_PATTERN_POLICY=inventory_named_classes_plus_r4_mode_and_r1_families
@@ -71,6 +72,10 @@ SWALLOWED_REBUILD_ORCH=scripts/bootstrap_driver_seed_rebuild_leaves.sh
 SWALLOWED_R4_MODE_POLICY=1
 SWALLOWED_R4_MODE_LIST_SOURCE=driver_seed_obj_catalog.sh
 SWALLOWED_R4_MODE_NOTE=catalog_KEY_plus_shell_ARGS_VARS_default
+# wave756: pure R1 rebuild bodies leave make (try-r1); non-R1 residual still make
+SWALLOWED_R4_BODY_PURE_R1=1
+SWALLOWED_R4_BODY_PURE_R1_VIA=ensure_host_cc_seed_o.sh_try-r1
+SWALLOWED_R4_BODY_NOTE=pure_R1_shell_non_R1_still_make
 SWALLOWED_LINK_DRIVER=scripts/bootstrap_driver_seed_link.sh
 SWALLOWED_G05_FAMILY=scripts/g05_*.sh
 SWALLOWED_MIGRATE_GEN=scripts/migrate_x_objs.sh+ensure_*_gen.sh
@@ -87,7 +92,7 @@ SWALLOWED_R1_EXTRA_CFLAGS=1
 SWALLOWED_R1_MISC_BASENAME=1
 SWALLOWED_R1_SEED_MAP=1
 SWALLOWED_R1_LIST_SOURCE=catalog_RT_SEED_SLICE_OBJS+catalog_R1_CORE_SEED_OBJS+catalog_R1_FRONTEND_GLUE_OBJS+catalog_R1_MAIN_RUNTIME_OBJS+catalog_R1_ALIAS_STUBS_OBJS+catalog_R1_EXTRA_CFLAGS_OBJS+catalog_R1_MISC_BASENAME_OBJS+catalog_R1_SEED_MAP_OBJS
-SWALLOWED_R1_NOTE=pure_cc_body_shell_lists_mk_R3_thin_rest_and_R4_residual
+SWALLOWED_R1_NOTE=pure_cc_body_shell_lists_mk_R3_thin_rest_and_R4_non_R1_residual
 
 # Residual classes still Makefile-owned (R1–R5 = 11.3.1; R6 = 11.1.4)
 RESIDUAL_CLASS_R1=host_cc_seed_from_x_to_o
@@ -114,7 +119,8 @@ RESIDUAL_CLASS_R3_ENDGAME=g05_ensure_product_path_complete
 RESIDUAL_CLASS_R4=cold_rebuild_pattern_bodies
 RESIDUAL_CLASS_R4_SURFACE=sat|lsp|bridge|panic|user-asm|glue|pipeline-x_make_pattern
 RESIDUAL_CLASS_R4_MODE_POLICY=swallowed_wave747
-RESIDUAL_CLASS_R4_BODY=still_make_pattern
+RESIDUAL_CLASS_R4_BODY_PURE_R1=swallowed_wave756_try_r1
+RESIDUAL_CLASS_R4_BODY=non_R1_still_make_pattern
 RESIDUAL_CLASS_R4_ENDGAME=rebuild_leaves_without_make_pattern
 
 RESIDUAL_CLASS_R5=ci_compiler_all_host_cc_graph
@@ -136,6 +142,7 @@ print_live_metrics() {
   local cc_c=0 uname_n=0 rebuild_modes=0 catalog_default=0 r1_rt=0 r1_core=0 r1_glue=0 r1_main=0 r1_alias=0 r1_extra=0
   r1_misc=0
   r1_seed_map=0
+  r4_pure_r1=0
   if [ -f "$mf" ]; then
     # Count recipe-ish $(CC) ... -c lines (rough residual heat; not authoritative list).
     cc_c=$(grep -cE '\$\(CC\).*-c' "$mf" 2>/dev/null || echo 0)
@@ -149,6 +156,13 @@ print_live_metrics() {
       && grep -q 'SWALLOWED_R4\|catalog KEY\|wave747\|catalog_key=' \
       "$ROOT/compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh"; then
       catalog_default=1
+    fi
+    # wave756: pure R1 body via try-r1 (residual non-R1 still make)
+    if grep -q 'try-r1\|try_ensure_r1' \
+      "$ROOT/compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh" 2>/dev/null \
+      && grep -q 'ensure_host_cc_seed_o\.sh' \
+      "$ROOT/compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh" 2>/dev/null; then
+      r4_pure_r1=1
     fi
   fi
   # wave748: R1 rt-seed-slice body + Makefile thin + catalog key
@@ -212,6 +226,7 @@ MAKEFILE_CC_C_RECIPE_LINES=$cc_c
 MAKEFILE_UNAME_REF_LINES=$uname_n
 REBUILD_LEAVES_MODE_TABLE_ENTRIES=$rebuild_modes
 R4_MODE_POLICY_SWALLOWED=$catalog_default
+R4_BODY_PURE_R1_SWALLOWED=$r4_pure_r1
 R4_PATTERN_BODY_STILL_MAKE=1
 R1_RT_SEED_SLICE_SWALLOWED=$r1_rt
 R1_CORE_SEED_SWALLOWED=$r1_core
@@ -293,6 +308,9 @@ else
   if ! grep -qE 'wave755|R1_SEED_MAP|seed-map|seed_map' "$DOC_REL"; then
     bad "$DOC_REL must document wave755 R1 seed-map swallow"
   fi
+  if ! grep -qE 'wave756|try-r1|pure.R1|R4_BODY_PURE' "$DOC_REL"; then
+    bad "$DOC_REL must document wave756 R4 pure-R1 body swallow"
+  fi
   note "doc $DOC_REL present"
 fi
 
@@ -321,7 +339,13 @@ if ! printf '%s\n' "$_out" | grep -q 'R4_MODE_POLICY_SWALLOWED=1'; then
   bad "dump R4_MODE_POLICY_SWALLOWED must be 1 (rebuild_leaves uses catalog)"
 fi
 if ! printf '%s\n' "$_out" | grep -q 'R4_PATTERN_BODY_STILL_MAKE=1'; then
-  bad "dump must keep R4_PATTERN_BODY_STILL_MAKE=1 (honest residual)"
+  bad "dump must keep R4_PATTERN_BODY_STILL_MAKE=1 (honest non-R1 residual)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R4_BODY_PURE_R1=1'; then
+  bad "dump must set SWALLOWED_R4_BODY_PURE_R1=1 (wave756)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'R4_BODY_PURE_R1_SWALLOWED=1'; then
+  bad "dump R4_BODY_PURE_R1_SWALLOWED must be 1 (wave756 try-r1)"
 fi
 if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R1_RT_SEED_SLICE=1'; then
   bad "dump must set SWALLOWED_R1_RT_SEED_SLICE=1 (wave748)"
@@ -531,7 +555,7 @@ if grep -A2 -E '^(src/driver/target_cpu\.o|src/ast/ast_seed\.o|pipeline_bootstra
 fi
 note "R1 rt-seed-slice + core-seed + frontend-glue + main-runtime + alias-stubs + extra-cflags + misc-basename + seed-map shell body + catalog + thin Makefile (wave748–755)"
 
-# wave747: rebuild_leaves default = catalog + mode table; still make for bodies
+# wave747+756: rebuild_leaves = catalog + mode table + pure-R1 try-r1; residual make
 if [ ! -f "$REBUILD_REL" ]; then
   bad "missing $REBUILD_REL"
 else
@@ -541,15 +565,19 @@ else
   if ! grep -q 'catalog_key=' "$REBUILD_REL"; then
     bad "rebuild_leaves must have shell mode table catalog_key= (wave747)"
   fi
+  if ! grep -q 'ensure_host_cc_seed_o\.sh' "$REBUILD_REL" \
+    || ! grep -qE 'try-r1|try_r1' "$REBUILD_REL"; then
+    bad "rebuild_leaves must call ensure try-r1 for pure R1 bodies (wave756)"
+  fi
   if ! grep -qE '\$MAKE|"\$MAKE"|make ' "$REBUILD_REL"; then
-    bad "rebuild_leaves must still invoke make for pattern bodies (R4 body residual)"
+    bad "rebuild_leaves must still invoke make for non-R1 residual bodies (R4 residual)"
   fi
   # G.7: no hardcoded product .o paths in rebuild_leaves
   if grep -qE 'src/diag\.o|lsp_io_x\.o|simd_enc\.o|x_seed_bridge\.o|runtime_panic\.o|user_asm_seed_bridge\.o|pipeline_glue_standalone\.o' \
     "$REBUILD_REL"; then
     bad "rebuild_leaves must not hardcode .o list (dual authority)"
   fi
-  note "R4 mode policy shell + catalog; pattern bodies still make-backed"
+  note "R4 mode policy + pure-R1 try-r1 shell; non-R1 residual still make-backed (wave756)"
 fi
 
 # G.7: this script must not hardcode product .o inventories as code paths
@@ -608,5 +636,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747 R4 + wave748–755 R1 families + 11.3.1 leaf residual inventory)"
+echo "leaf_pattern_residual: CHECK OK (wave747 R4 mode + wave756 pure-R1 body + wave748–755 R1 families + 11.3.1 leaf residual inventory)"
 exit 0

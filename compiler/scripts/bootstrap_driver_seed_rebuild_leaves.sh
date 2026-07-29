@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# bootstrap_driver_seed_rebuild_leaves.sh — §5b rebuild leaf orchestration (11.0.3 · wave747 R4)
+# bootstrap_driver_seed_rebuild_leaves.sh — §5b rebuild leaf orchestration
+#   (11.0.3 · wave747 R4 mode · wave756 R4 pure-R1 body)
 #
 # Authority (G.7):
 #   - Object *lists* live ONLY in compiler/mk/*.mk, expanded via
@@ -9,9 +10,12 @@
 #     lives in this shell (wave747 R4 mode-policy swallow). Makefile
 #     bootstrap-driver-seed-export-* rebuild targets remain as optional
 #     inventory mirrors; cold path does not depend on them.
-#   - Pattern *bodies* (host-cc / platform stamp recipes) remain Makefile
-#     residual until 11.3.1 endgame — this script still invokes make for
-#     the exported targets (honest R4 body residual).
+#   - Pure R1 pattern *bodies* (host-cc seeds/*.from_x.c → .o) run via
+#     ensure_host_cc_seed_o.sh try-r1 (wave756). Catalog membership only —
+#     no dual .o list; same ensure_one body as R1 family modes.
+#   - Non-R1 residual (R2 UNAME panic, R3 thin+rest, gen *_x.o, dispatch
+#     thin+rest, glue standalone, pipeline_x, …) still invoke make with
+#     mode ARGS/VARS (honest R4 residual).
 #
 # Usage (compiler directory):
 #   ./scripts/bootstrap_driver_seed_rebuild_leaves.sh sat
@@ -26,12 +30,13 @@
 #   MAKE — make binary (default: make)
 #   XLANG_REBUILD_LEAVES_VIA_EXPORT=1 — legacy: eval Makefile export-* leaf
 #     instead of catalog (escape hatch / compare; not product default)
+#   CC / CFLAGS / PIPELINE_GEN_CFLAGS — forwarded to ensure try-r1
 #
 # PLATFORM: SHARED — mode table + catalog expansion; Makefile expands
 #            host-specific runtime rebuild lists (no_c vs seed) and platform
-#            USER_ASM sets. Pattern recipe ABI stays Makefile.
+#            USER_ASM sets. Residual non-R1 recipe ABI stays Makefile.
 # Wave: 722 sat/lsp · 724 bridge/panic/user-asm/glue · 725 pipeline-x FORCE ·
-#       747 R4 mode policy + catalog list (no dual SEED_REBUILD export path).
+#       747 R4 mode policy + catalog list · 756 R4 pure-R1 body via try-r1.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -124,9 +129,7 @@ if [ "${XLANG_REBUILD_LEAVES_VIA_EXPORT:-}" = "1" ]; then
         exit 1
         ;;
     esac
-  done <<EOF
-$export_raw
-EOF
+  done <<< "$export_raw"
   list_source="Makefile export $export_target"
 else
   # Default (wave747): single catalog authority for lists.
@@ -147,11 +150,65 @@ fi
 n_objs=$(printf '%s\n' "$SEED_REBUILD_OBJS" | wc -w | tr -d ' ')
 echo "bootstrap-driver-seed: ${MODE} rebuild  ($n_objs targets via $list_source)" >&2
 
-# Word-split intentionally (space-separated make expansions).
-# SEED_REBUILD_MAKE_VARS are make command-line assignments (e.g. XLANG_G05_PREFER_X_O=0),
-# same priority as the pre-wave722 recipe `$(MAKE) -B ... VAR=0`.
-# R4 residual: pattern bodies still Makefile (host-cc / stamp recipes).
-# shellcheck disable=SC2086
-"$MAKE" $SEED_REBUILD_MAKE_ARGS $SEED_REBUILD_OBJS $SEED_REBUILD_MAKE_VARS
+# ---------------------------------------------------------------------------
+# wave756: pure R1 bodies via ensure try-r1 (no make pattern for those leaves).
+# -B (sat) → force recompile pure R1 as well (match former make -B semantics).
+# Residual non-R1 objs still make with SEED_REBUILD_MAKE_ARGS / VARS.
+# G.7: membership via catalog KEY only (try-r1); no hardcoded .o list here.
+# ---------------------------------------------------------------------------
+if [ ! -f scripts/ensure_host_cc_seed_o.sh ]; then
+  echo "bootstrap_driver_seed_rebuild_leaves: missing scripts/ensure_host_cc_seed_o.sh (wave756)" >&2
+  exit 1
+fi
 
-echo "bootstrap_driver_seed_rebuild_leaves: OK ${MODE}" >&2
+force_r1=0
+case " ${SEED_REBUILD_MAKE_ARGS} " in
+  *" -B "*|*" -B") force_r1=1 ;;
+esac
+# Also honor bare -B without surrounding spaces edge cases
+if [ "$SEED_REBUILD_MAKE_ARGS" = "-B" ]; then
+  force_r1=1
+fi
+
+residual_objs=""
+pure_n=0
+residual_n=0
+# Word-split intentionally (space-separated make expansions).
+# shellcheck disable=SC2086
+for o in $SEED_REBUILD_OBJS; do
+  [ -z "$o" ] && continue
+  set +e
+  if [ "$force_r1" = "1" ]; then
+    XLANG_HOST_CC_SEED_FORCE=1 bash scripts/ensure_host_cc_seed_o.sh try-r1 "$o"
+  else
+    bash scripts/ensure_host_cc_seed_o.sh try-r1 "$o"
+  fi
+  rc=$?
+  set -e
+  case "$rc" in
+    0)
+      pure_n=$((pure_n + 1))
+      ;;
+    3)
+      residual_objs="${residual_objs} ${o}"
+      residual_n=$((residual_n + 1))
+      ;;
+    *)
+      echo "bootstrap_driver_seed_rebuild_leaves: try-r1 failed for $o (rc=$rc)" >&2
+      exit 1
+      ;;
+  esac
+done
+
+if [ "$residual_n" -gt 0 ]; then
+  # R4 residual: non-R1 pattern bodies still Makefile (R2/R3/gen/dispatch/…).
+  # SEED_REBUILD_MAKE_VARS are make command-line assignments (e.g. XLANG_G05_PREFER_X_O=0).
+  # shellcheck disable=SC2086
+  echo "bootstrap-driver-seed: ${MODE} residual make ($residual_n objs; pure-R1 shell=$pure_n)" >&2
+  # shellcheck disable=SC2086
+  "$MAKE" $SEED_REBUILD_MAKE_ARGS $residual_objs $SEED_REBUILD_MAKE_VARS
+else
+  echo "bootstrap-driver-seed: ${MODE} pure-R1 only ($pure_n objs; no make pattern)" >&2
+fi
+
+echo "bootstrap_driver_seed_rebuild_leaves: OK ${MODE} (pure_r1=$pure_n residual_make=$residual_n)" >&2
