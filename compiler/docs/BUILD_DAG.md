@@ -45,7 +45,8 @@
 **wave756:** R4 pure-R1 body — `rebuild_leaves` → `ensure try-r1` for catalog pure R1 members; non-R1 residual still make.  
 **wave757:** R3 cold-else body — `rebuild_leaves` residual → `ensure try-r3-cold` (catalog `R3_COLD_SEED_OBJS`).  
 **wave763:** R3 PREFER thin — Makefile nine leaves → `ensure try-r3-prefer` (same catalog).  
-**wave764:** g05 R3_COLD → `r3-prefer-family` (full→thin ladder; dual hybrid deleted); residual labi/rt multi-slice.  
+**wave764:** g05 R3_COLD → `r3-prefer-family` (full→thin ladder; dual hybrid deleted).  
+**wave765:** g05 labi multi-slice → `try-labi-prefer` (g05/Makefile thin-call; dual hybrid deleted); residual rt multi-slice.  
 **wave758:** R4 residual thin_glue → R1 seed-map (G.7 有则补全) — `parser_asm_thin_glue` pure host-cc; user-asm shell-only.  
 **wave759:** R4 residual glue standalone → R1 seed-map (G.7 有则补全) — `pipeline_glue_standalone` pure host-cc; glue shell-only.
 

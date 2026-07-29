@@ -790,8 +790,10 @@ src/runtime_io_abi.o: seeds/runtime_io_abi.from_x.c src/runtime_io_abi.x src/run
 # G-02f-13：runtime_link_abi 产品 seed（G05 hot）
 # wave749 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_CORE_SEED_OBJS).
 src/runtime_link_abi.o: seeds/runtime_link_abi.from_x.c src/runtime_link_abi.x src/runtime_link_abi.h src/runtime_proc_abi.h scripts/ensure_host_cc_seed_o.sh
+	# wave765: labi multi-slice PREFER → try-labi-prefer (cold full seed fallback).
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_link_abi.from_x.c
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-labi-prefer $@
 
 # G-02f-12 / Phase 4：runtime_driver_abi thin+rest PREFER_X_O
 # PLATFORM: SHARED 冷链 — bootstrap-driver-seed 传 XLANG_G05_PREFER_X_O=0 必须走 seed。
@@ -1021,7 +1023,7 @@ R1_SEED_MAP_OBJS = src/driver/target_cpu.o src/ast/ast_seed.o pipeline_bootstrap
 # r3-cold-seed modes (G.7 lists = mk only).
 # wave763: PREFER_X_O=1 thin+rest product path also via try-r3-prefer (single
 # shell body; Makefile thin-calls; no inline thin+rest recipes).
-# Residual after wave764: pure-ld · physical delete · g05 labi/rt multi-slice ·
+# Residual after wave765: pure-ld · physical delete · g05 rt multi-slice ·
 # ~~panic / typeck_f64 / crt0 R2~~ try-r2 · ~~gen/pipeline~~ try-gen-x ·
 # ~~thin_glue / glue standalone~~ → seed-map · ~~R3_COLD Makefile PREFER~~.
 R3_COLD_SEED_OBJS = src/runtime_io_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/asm/simd_enc.o src/asm/simd_loop.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o

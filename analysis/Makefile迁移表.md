@@ -66,7 +66,7 @@
 | `g05-ensure-relink-prereqs` | 3081 | g05_ensure_relink_prereqs.sh (~3.3k 行) | `xbuild ensure` | 🟢 g05_ensure_relink_prereqs.sh | 热路径 cc；filtered.o 已纯 shell（wave715） |
 | `g05-export-relink` | 3085 | g05_relink_env.sh | `xbuild link-env` | 🟢 g05_relink_env.sh | 链接清单 |
 | `refresh-xlang-asm-gate` | 3172 | shell `refresh_xlang_asm_gate.sh` | `xbuild refresh-gate` | 🟢 wave734 体 shell；**wave735–737** migrate+gen+lexer shell | 11.1.6 |
-| `bootstrap-driver-seed` | ~2995 | **shell 编排** + shell ensure_prereqs（wave744）+ 薄叶子 | `xbuild bootstrap` | 🟡 wave717–763：编排+链接+§5b+prereq 边 shell；叶 pattern 库存（wave746）+ **R4 mode catalog**（wave747）+ **R1 八族**（wave748–755）+ **R4 pure-R1 try-r1**（wave756）+ **R3 cold-else try-r3-cold**（wave757）+ **thin_glue seed-map**（wave758）+ **glue-standalone seed-map**（wave759）+ **R2 panic cold try-r2**（wave760）+ **gen/pipeline try-gen-x**（wave761）+ **R2 typeck_f64/crt0 try-r2**（wave762）+ **R3 PREFER thin try-r3-prefer**（wave763）+ **g05 r3-prefer-family**（wave764）；residual g05 labi/rt · pure-ld | L4 必经；列表 mk catalog；make 无 prereq 图；11.3.1 物理删仍 ⬜ |
+| `bootstrap-driver-seed` | ~2995 | **shell 编排** + shell ensure_prereqs（wave744）+ 薄叶子 | `xbuild bootstrap` | 🟡 wave717–763：编排+链接+§5b+prereq 边 shell；叶 pattern 库存（wave746）+ **R4 mode catalog**（wave747）+ **R1 八族**（wave748–755）+ **R4 pure-R1 try-r1**（wave756）+ **R3 cold-else try-r3-cold**（wave757）+ **thin_glue seed-map**（wave758）+ **glue-standalone seed-map**（wave759）+ **R2 panic cold try-r2**（wave760）+ **gen/pipeline try-gen-x**（wave761）+ **R2 typeck_f64/crt0 try-r2**（wave762）+ **R3 PREFER thin try-r3-prefer**（wave763）+ **g05 r3-prefer-family**（wave764）+ **labi try-labi-prefer**（wave765）；residual g05 rt · pure-ld | L4 必经；列表 mk catalog；make 无 prereq 图；11.3.1 物理删仍 ⬜ |
 | `bootstrap-driver-bstrict` | ~3107 | **shell** `bootstrap_driver_bstrict.sh`；FULL=1 仍 make 入口 | `xbuild bstrict-build` | 🟡 wave719 体 shell；refresh 仍 make | 非日常 |
 | `test` / `test_c` / `test_x` | ~1685 | **shell** `run_compiler_tests.sh` | `xbuild test` | 🟢 wave720 体 shell；prereq 仍 make 图 | 嵌套 run-all 可 make |
 | `bootstrap-verify` / `check-7.2-bstrict` | ~3320 | **shell** `bootstrap_verify_bstrict.sh` | `xbuild verify` | 🟢 wave720 体 shell；prereq bstrict 图 | 阶段2 仍脚本内 make |
@@ -643,7 +643,8 @@
 **wave759**：R4 residual glue-standalone → R1 seed-map（G.7 有则补全）— `pipeline_glue_standalone` pure host-cc；glue shell-only；Makefile 薄转调 ensure（去 `cc_inc_tu` residual）。  
 **wave760**：R2 panic cold try-r2 — catalog `DRIVER_SEED_PANIC_OBJS`；stamp+UNAME 选源；panic shell-only；Makefile cold-else 薄转调；typeck_f64/crt0 ✅ wave762 try-r2。  
 **wave763**：R3 PREFER thin try-r3-prefer — catalog `R3_COLD_SEED_OBJS` 九叶；thin+rest 单 body；Makefile thin。  
-**wave764**：g05 R3_COLD r3-prefer-family — 同 catalog；full→thin ladder；删 g05 双 hybrid；residual labi/rt multi-slice · pipeline_abi · ldpc。  
+**wave764**：g05 R3_COLD r3-prefer-family — 同 catalog；full→thin ladder；删 g05 双 hybrid。  
+**wave765**：g05 labi try-labi-prefer — multi-slice 单 body；g05/Makefile thin-call；residual rt multi-slice · pipeline_abi · ldpc。  
 **wave748**：R1 单族 — `ensure_host_cc_seed_o.sh` + catalog `RT_SEED_SLICE_OBJS`；Makefile 五叶 `rt_*.o` 薄转调；其它 R1 residual。  
 **wave749**：R1 第二族 — 同 body `core-seed` + catalog `R1_CORE_SEED_OBJS`；Makefile 五叶（diag/link_abi/c_import/bridge/compat）薄转调；其它 R1 residual。  
 **wave750**：R1 第三族 — 同 body `frontend-glue` + catalog `R1_FRONTEND_GLUE_OBJS`；basename 错位 seed map（lexer/ast/lsp）；Makefile 三叶薄转调；其它 R1 residual。  

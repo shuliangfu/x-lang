@@ -31,9 +31,11 @@
 #   wave764: G.7 g05 dual-hybrid swallow — same try-r3-prefer body owns product
 #            daily path for R3_COLD nine (g05_ensure thin-calls r3-prefer-family).
 #            Leaf map gains optional full.x first ladder (simd/backend R2 full
-#            surface H=0; fail → thin; fail → cold). Residual after: labi multi-
-#            slice · rt multi-slice · pipeline_abi · ldpc · target_cpu · panic
-#            PREFER · pure-ld · physical delete.
+#            surface H=0; fail → thin; fail → cold).
+#   wave765: G.7 g05 labi multi-slice swallow — `try-labi-prefer OUT` for
+#            src/runtime_link_abi.o (L0..L9+L8b+L8c + rest FROM_X → cc -r).
+#            g05_ensure + Makefile thin-call (no dual hybrid body). Residual:
+#            rt multi-slice · pipeline_abi · ldpc · target_cpu · pure-ld · physical delete.
 #   wave758: R4 residual pure host-cc thin_glue → R1 seed-map (G.7 有则补全):
 #            parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c +
 #            -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm;
@@ -100,8 +102,9 @@
 # Not in scope (honest residual):
 #   - ~~R3 Makefile PREFER thin for R3_COLD nine~~ wave763 try-r3-prefer
 #   - ~~g05 R3_COLD nine dual hybrid~~ wave764 → r3-prefer-family
-#   - g05 other PREFER hybrid (labi multi-slice · rt multi-slice · pipeline_abi ·
-#     ldpc · target_cpu · other L2) · panic PREFER thin · R5 CI all
+#   - ~~g05 labi multi-slice~~ wave765 try-labi-prefer
+#   - g05 other PREFER hybrid (rt multi-slice · pipeline_abi · ldpc · target_cpu ·
+#     other L2) · panic PREFER thin · R5 CI all
 #   - pure-ld (11.1.4) · physical Makefile delete (11.3.1)
 #   - bootstrap_nostdlib_stubs.o (cc_inc_tu residual) · crt0_user.o cp wrappers
 #
@@ -110,6 +113,7 @@
 #   bash scripts/ensure_host_cc_seed_o.sh try-r1 <out.o>   # wave756 R4 pure-R1 helper
 #   bash scripts/ensure_host_cc_seed_o.sh try-r3-cold <out.o>
 #   bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer <out.o> # wave763 PREFER thin+rest
+#   bash scripts/ensure_host_cc_seed_o.sh try-labi-prefer <out.o> # wave765 labi multi-slice
 #   bash scripts/ensure_host_cc_seed_o.sh try-r2 <out.o>   # wave760/762 R2 UNAME leaves
 #   bash scripts/ensure_host_cc_seed_o.sh try-gen-x <out.o> # wave761 gen *_x / pipeline_x
 #   bash scripts/ensure_host_cc_seed_o.sh r2-panic         # DRIVER_SEED_PANIC family
@@ -170,7 +174,7 @@ _DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -968,6 +972,265 @@ ensure_r3_prefer() {
   for o in $list; do
     ensure_r3_prefer_one "$o" || return 1
   done
+}
+
+
+# ---------------------------------------------------------------------------
+# wave765: try-labi-prefer OUT — g05 labi multi-slice product PREFER (single body).
+#
+# Single leaf: src/runtime_link_abi.o (in R1_CORE_SEED_OBJS; cold twin = ensure_one).
+# When XLANG_G05_PREFER_X_O=1 and an xlang binary works:
+#   L0..L9 + L8b(+L8c capacity split) prefer .x → .o (else cold layer seed)
+#   rest = seeds/runtime_link_abi.from_x.c with XLANG_LABI_*_FROM_X for ok layers
+#   merge: $CC -r -nostdlib slices + rest → OUT
+# Prefer fail / PREFER≠1 / no xlang → ensure_one cold full seed (same as core-seed).
+# Callers: g05_ensure (wave765) · Makefile src/runtime_link_abi.o (unified).
+# Exit codes:
+#   0 — OUT is runtime_link_abi.o; prefer or cold body produced OUT
+#   3 — OUT is not src/runtime_link_abi.o
+#   1 — membership found but cold seed missing / compile failed
+# PLATFORM: SHARED shell body · g05 historic PREFER=1 · cold chain PREFER=0.
+# G.7: no second .o list; layer table is seed-path convention (not product inventory).
+# Residual after: rt multi-slice · pipeline_abi · ldpc · target_cpu · pure-ld · physical delete.
+# ---------------------------------------------------------------------------
+
+labi_prefer_pick_xlang() {
+  # stdout: first executable product binary.
+  local b
+  for b in ./xlang ./xlang-c ./bootstrap_xlangc; do
+    if [ -x "$b" ]; then
+      printf '%s\n' "$b"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Prefer one layer .x → .o (simple -E harness; fail → caller seed).
+# $1=x_src $2=out.o  Returns 0 on success.
+# PLATFORM: SHARED — retry -E then -backend c -E (Ubuntu SIGSEGV history).
+labi_prefer_try_x_to_o() {
+  local x_src="$1" x_out="$2" xlang_bin tmp e_ok e_try
+  [ -f "$x_src" ] || return 1
+  xlang_bin="$(labi_prefer_pick_xlang)" || return 1
+  mkdir -p "$(dirname "$x_out")"
+  tmp="$(mktemp "${TMPDIR:-/tmp}/labipref.XXXXXX")"
+  e_ok=0
+  for e_try in 1 2 3 4 5; do
+    if "$xlang_bin" -E "$x_src" >"$tmp" 2>/dev/null && [ -s "$tmp" ]; then
+      e_ok=1
+      break
+    fi
+    : >"$tmp"
+    if "$xlang_bin" -backend c -E "$x_src" >"$tmp" 2>/dev/null && [ -s "$tmp" ]; then
+      e_ok=1
+      break
+    fi
+    : >"$tmp"
+  done
+  if [ "$e_ok" != "1" ]; then
+    rm -f "$tmp"
+    return 1
+  fi
+  # shellcheck disable=SC2086
+  if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -x c -c -o "$x_out" "$tmp" 2>/dev/null; then
+    rm -f "$tmp"
+    return 1
+  fi
+  rm -f "$tmp"
+  return 0
+}
+
+# Compile one layer: prefer .x else seed → tmp .o. Sets ok via nameref-ish stdout.
+# $1=label $2=x $3=seed $4=out_tmp  → 0 if layer .o ready.
+labi_prefer_layer() {
+  local label="$1" x_src="$2" seed="$3" out_tmp="$4"
+  local prefer="${XLANG_G05_PREFER_X_O:-0}"
+  if [ "$prefer" = "1" ] && [ -f "$x_src" ]; then
+    if labi_prefer_try_x_to_o "$x_src" "$out_tmp"; then
+      log "labi $label ← $x_src (prefer .x)"
+      return 0
+    fi
+  fi
+  if [ -f "$seed" ]; then
+    # shellcheck disable=SC2086
+    if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$out_tmp" "$seed" 2>/dev/null; then
+      log "labi $label ← $seed (cold seed slice)"
+      return 0
+    fi
+  fi
+  return 1
+}
+
+ensure_labi_prefer_one() {
+  # Prefer multi-slice or cold full seed for src/runtime_link_abi.o (no membership check).
+  local o="$1"
+  local seed="seeds/runtime_link_abi.from_x.c"
+  local prefer="${XLANG_G05_PREFER_X_O:-0}"
+  local stale=0 done=0
+  local l0_o l1_o l2_o l3_o l4_o l5_o l6_o l7_o l8_o l8b_o l8c_o l9_o rest_o
+  local l0_ok=0 l1_ok=0 l2_ok=0 l3_ok=0 l4_ok=0 l5_ok=0 l6_ok=0 l7_ok=0
+  local l8_ok=0 l8b_ok=0 l8c_ok=0 l9_ok=0
+  local l8b_x_ok=0 l8c_x_ok=0
+  local rest_defs link_objs
+  # Layer paths (seed-path convention; not a product .o list).
+  local l0_x=src/runtime/labi_path_pure.x l0_seed=seeds/labi_path_pure.from_x.c
+  local l1_x=src/runtime/labi_diag_pure.x l1_seed=seeds/labi_diag_pure.from_x.c
+  local l2_x=src/runtime/labi_host_lit.x l2_seed=seeds/labi_host_lit.from_x.c
+  local l3_x=src/runtime/labi_path_io.x l3_seed=seeds/labi_path_io.from_x.c
+  local l4_x=src/runtime/labi_ensure_list.x l4_seed=seeds/labi_ensure_list.from_x.c
+  local l5_x=src/runtime/labi_invoke_cc_list.x l5_seed=seeds/labi_invoke_cc_list.from_x.c
+  local l6_x=src/runtime/labi_invoke_ld_list.x l6_seed=seeds/labi_invoke_ld_list.from_x.c
+  local l7_x=src/runtime/labi_freestanding_list.x l7_seed=seeds/labi_freestanding_list.from_x.c
+  local l8_x=src/runtime/labi_std_list.x l8_seed=seeds/labi_std_list.from_x.c
+  local l8b_x=src/runtime/labi_ondemand_list.x l8b_seed=seeds/labi_ondemand_list.from_x.c
+  local l8c_x=src/runtime/labi_ondemand_heavy.x
+  local l9_x=src/runtime/labi_gates.x l9_seed=seeds/labi_gates.from_x.c
+
+  if [ ! -f "$seed" ]; then
+    echo "ensure_host_cc_seed_o try-labi-prefer: missing seed $seed" >&2
+    return 1
+  fi
+
+  # Up-to-date skip: seed + any layer .x / layer seed newer → rebuild.
+  if [ "$FORCE" != "1" ] && [ -f "$o" ]; then
+    stale=0
+    [ "$seed" -nt "$o" ] && stale=1
+    for f in \
+      "$l0_x" "$l0_seed" "$l1_x" "$l1_seed" "$l2_x" "$l2_seed" \
+      "$l3_x" "$l3_seed" "$l4_x" "$l4_seed" "$l5_x" "$l5_seed" \
+      "$l6_x" "$l6_seed" "$l7_x" "$l7_seed" "$l8_x" "$l8_seed" \
+      "$l8b_x" "$l8b_seed" "$l8c_x" "$l9_x" "$l9_seed"
+    do
+      if [ -f "$f" ] && [ "$f" -nt "$o" ]; then
+        stale=1
+        break
+      fi
+    done
+    if [ "$stale" = "0" ]; then
+      log "skip up-to-date $o (labi-prefer)"
+      return 0
+    fi
+  fi
+
+  mkdir -p "$(dirname "$o")"
+
+  # Multi-slice prefer only when PREFER=1 (Darwin cold-chain safety twin of R3).
+  if [ "$prefer" = "1" ] && labi_prefer_pick_xlang >/dev/null 2>&1; then
+    l0_o="$(mktemp "${TMPDIR:-/tmp}/labi_l0.XXXXXX")"
+    l1_o="$(mktemp "${TMPDIR:-/tmp}/labi_l1.XXXXXX")"
+    l2_o="$(mktemp "${TMPDIR:-/tmp}/labi_l2.XXXXXX")"
+    l3_o="$(mktemp "${TMPDIR:-/tmp}/labi_l3.XXXXXX")"
+    l4_o="$(mktemp "${TMPDIR:-/tmp}/labi_l4.XXXXXX")"
+    l5_o="$(mktemp "${TMPDIR:-/tmp}/labi_l5.XXXXXX")"
+    l6_o="$(mktemp "${TMPDIR:-/tmp}/labi_l6.XXXXXX")"
+    l7_o="$(mktemp "${TMPDIR:-/tmp}/labi_l7.XXXXXX")"
+    l8_o="$(mktemp "${TMPDIR:-/tmp}/labi_l8.XXXXXX")"
+    l8b_o="$(mktemp "${TMPDIR:-/tmp}/labi_l8b.XXXXXX")"
+    l8c_o="$(mktemp "${TMPDIR:-/tmp}/labi_l8c.XXXXXX")"
+    l9_o="$(mktemp "${TMPDIR:-/tmp}/labi_l9.XXXXXX")"
+    rest_o="$(mktemp "${TMPDIR:-/tmp}/labi_rest.XXXXXX")"
+
+    labi_prefer_layer L0 "$l0_x" "$l0_seed" "$l0_o" && l0_ok=1
+    labi_prefer_layer L1 "$l1_x" "$l1_seed" "$l1_o" && l1_ok=1
+    labi_prefer_layer L2 "$l2_x" "$l2_seed" "$l2_o" && l2_ok=1
+    labi_prefer_layer L3 "$l3_x" "$l3_seed" "$l3_o" && l3_ok=1
+    labi_prefer_layer L4 "$l4_x" "$l4_seed" "$l4_o" && l4_ok=1
+    labi_prefer_layer L5 "$l5_x" "$l5_seed" "$l5_o" && l5_ok=1
+    labi_prefer_layer L6 "$l6_x" "$l6_seed" "$l6_o" && l6_ok=1
+    labi_prefer_layer L7 "$l7_x" "$l7_seed" "$l7_o" && l7_ok=1
+    labi_prefer_layer L8 "$l8_x" "$l8_seed" "$l8_o" && l8_ok=1
+    labi_prefer_layer L9 "$l9_x" "$l9_seed" "$l9_o" && l9_ok=1
+
+    # wave263: L8b early + L8c heavy must BOTH prefer .x, else full L8b seed covers both.
+    if [ "$prefer" = "1" ] && [ -f "$l8b_x" ] && labi_prefer_try_x_to_o "$l8b_x" "$l8b_o"; then
+      l8b_x_ok=1
+    fi
+    if [ "$prefer" = "1" ] && [ -f "$l8c_x" ] && labi_prefer_try_x_to_o "$l8c_x" "$l8c_o"; then
+      l8c_x_ok=1
+    fi
+    if [ "$l8b_x_ok" = "1" ] && [ "$l8c_x_ok" = "1" ]; then
+      l8b_ok=1
+      l8c_ok=1
+      log "labi L8b+L8c ← $l8b_x + $l8c_x (capacity split)"
+    elif [ -f "$l8b_seed" ]; then
+      # shellcheck disable=SC2086
+      if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$l8b_o" "$l8b_seed" 2>/dev/null; then
+        l8b_ok=1
+        l8c_ok=0
+        log "labi L8b ← $l8b_seed (full seed; L8c unused)"
+      fi
+    fi
+
+    # Rest FROM_X flags (L0 always required for hybrid path).
+    rest_defs="-DXLANG_LABI_PATH_PURE_FROM_X"
+    [ "$l1_ok" = "1" ] && rest_defs="$rest_defs -DXLANG_LABI_DIAG_PURE_FROM_X"
+    [ "$l2_ok" = "1" ] && rest_defs="$rest_defs -DXLANG_LABI_HOST_LIT_FROM_X"
+    [ "$l3_ok" = "1" ] && rest_defs="$rest_defs -DXLANG_LABI_PATH_IO_FROM_X"
+    [ "$l4_ok" = "1" ] && rest_defs="$rest_defs -DXLANG_LABI_ENSURE_LIST_FROM_X"
+    [ "$l5_ok" = "1" ] && rest_defs="$rest_defs -DXLANG_LABI_INVOKE_CC_LIST_FROM_X"
+    [ "$l6_ok" = "1" ] && rest_defs="$rest_defs -DXLANG_LABI_INVOKE_LD_LIST_FROM_X"
+    [ "$l7_ok" = "1" ] && rest_defs="$rest_defs -DXLANG_LABI_FREESTANDING_LIST_FROM_X"
+    [ "$l8_ok" = "1" ] && rest_defs="$rest_defs -DXLANG_LABI_STD_LIST_FROM_X"
+    [ "$l8b_ok" = "1" ] && rest_defs="$rest_defs -DXLANG_LABI_ONDEMAND_LIST_FROM_X"
+    [ "$l9_ok" = "1" ] && rest_defs="$rest_defs -DXLANG_LABI_GATES_FROM_X"
+
+    if [ "$l0_ok" = "1" ]; then
+      # shellcheck disable=SC2086
+      if $CC $BASE_CFLAGS -I. -Iinclude -Isrc $rest_defs -c -o "$rest_o" "$seed" 2>/dev/null; then
+        link_objs="$l0_o"
+        [ "$l1_ok" = "1" ] && link_objs="$link_objs $l1_o"
+        [ "$l2_ok" = "1" ] && link_objs="$link_objs $l2_o"
+        [ "$l3_ok" = "1" ] && link_objs="$link_objs $l3_o"
+        [ "$l4_ok" = "1" ] && link_objs="$link_objs $l4_o"
+        [ "$l5_ok" = "1" ] && link_objs="$link_objs $l5_o"
+        [ "$l6_ok" = "1" ] && link_objs="$link_objs $l6_o"
+        [ "$l7_ok" = "1" ] && link_objs="$link_objs $l7_o"
+        [ "$l8_ok" = "1" ] && link_objs="$link_objs $l8_o"
+        [ "$l8b_ok" = "1" ] && link_objs="$link_objs $l8b_o"
+        [ "$l8c_ok" = "1" ] && link_objs="$link_objs $l8c_o"
+        [ "$l9_ok" = "1" ] && link_objs="$link_objs $l9_o"
+        # shellcheck disable=SC2086
+        # PLATFORM: SHARED — historic g05 used $CC -r -nostdlib (not ld Darwin flags).
+        if $CC -r -nostdlib -o "$o" $link_objs "$rest_o" 2>/dev/null; then
+          log "prefer multi-slice $o <- L0..L9+L8b+L8c + link_abi rest (try-labi-prefer)"
+          done=1
+        fi
+      fi
+    fi
+    rm -f "$l0_o" "$l1_o" "$l2_o" "$l3_o" "$l4_o" "$l5_o" "$l6_o" \
+      "$l7_o" "$l8_o" "$l8b_o" "$l8c_o" "$l9_o" "$rest_o"
+    if [ "$done" = "0" ]; then
+      log "labi multi-slice hybrid failed; fallback full seed"
+    fi
+  fi
+
+  if [ "$done" = "1" ]; then
+    return 0
+  fi
+
+  # Cold full seed (ensure_one twin / PREFER=0).
+  if [ -f "$o" ] && [ "$prefer" = "1" ]; then
+    FORCE=1
+    ensure_one "$o" "$seed"
+    FORCE=0
+  else
+    ensure_one "$o" "$seed"
+  fi
+  return 0
+}
+
+try_ensure_labi_prefer_one() {
+  local o="$1"
+  if [ -z "$o" ]; then
+    echo "ensure_host_cc_seed_o try-labi-prefer: need <out.o>" >&2
+    exit 2
+  fi
+  if [ "$o" != "src/runtime_link_abi.o" ]; then
+    return 3
+  fi
+  ensure_labi_prefer_one "$o"
+  return 0
 }
 
 # ---------------------------------------------------------------------------
@@ -1850,6 +2113,46 @@ run_check() {
   else
     bad "scripts/g05_ensure_relink_prereqs.sh missing (wave764 g05 gate)"
   fi
+  # wave765: try-labi-prefer labi multi-slice (g05 + Makefile thin-call; no dual hybrid)
+  if ! grep -q 'try_ensure_labi_prefer_one\|try-labi-prefer' "$0"; then
+    bad "try-labi-prefer / try_ensure_labi_prefer_one missing (wave765 labi multi-slice)"
+  else
+    note "try-labi-prefer labi multi-slice helper present (wave765)"
+  fi
+  if ! grep -q 'ensure_labi_prefer_one\|labi_prefer_try_x_to_o' "$0"; then
+    bad "labi prefer body missing (wave765)"
+  else
+    note "labi-prefer multi-slice body present (wave765)"
+  fi
+  if awk '
+    $0 ~ /^src\/runtime_link_abi\.o:/ {grab=1; next}
+    grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+    grab {body = body $0 "\n"}
+    END {
+      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-labi-prefer/) exit 0
+      exit 1
+    }
+  ' Makefile; then
+    note "Makefile src/runtime_link_abi.o thin-calls ensure try-labi-prefer (wave765)"
+  else
+    bad "Makefile src/runtime_link_abi.o must thin-call ensure try-labi-prefer (wave765)"
+  fi
+  if [ -f scripts/g05_ensure_relink_prereqs.sh ]; then
+    if grep -q 'try-labi-prefer\|labi-prefer' scripts/g05_ensure_relink_prereqs.sh \
+      && grep -q 'ensure_host_cc_seed_o.sh' scripts/g05_ensure_relink_prereqs.sh; then
+      note "g05_ensure thin-calls ensure try-labi-prefer (wave765)"
+    else
+      bad "g05_ensure must thin-call ensure try-labi-prefer for labi (wave765)"
+    fi
+    if grep -qE 'g05_labi_l0\.|_labi_l0_seed=seeds/labi_path_pure|_labi_rest_defs=.*LABI_PATH_PURE' \
+      scripts/g05_ensure_relink_prereqs.sh; then
+      bad "g05_ensure still has labi multi-slice dual hybrid body (wave765)"
+    else
+      note "g05_ensure labi multi-slice dual hybrid body removed (wave765)"
+    fi
+  else
+    bad "scripts/g05_ensure_relink_prereqs.sh missing (wave765 g05 gate)"
+  fi
   # wave760/762: try-r2 R2 UNAME leaves (panic + typeck_f64 + crt0)
   if ! grep -q 'try_ensure_r2_one\|try-r2' "$0"; then
     bad "try-r2 / try_ensure_r2_one missing (wave760/762 R2 UNAME)"
@@ -1949,6 +2252,19 @@ case "$MODE" in
   r3-prefer-family|r3_prefer_family|prefer-thin-family|family=r3_prefer)
     ensure_r3_prefer
     ;;
+  try-labi-prefer|try_labi_prefer|labi-prefer|labi-prefer-one|try-labi)
+    # wave765: labi multi-slice PREFER helper — exit 3 if not src/runtime_link_abi.o.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o try-labi-prefer: need <out.o>" >&2
+      exit 2
+    fi
+    _try_out="$1"
+    set +e
+    try_ensure_labi_prefer_one "$_try_out"
+    _try_rc=$?
+    set -e
+    exit "$_try_rc"
+    ;;
   try-r2|try_r2|try-r2-panic|r2-one|r2-panic-one)
     # wave760/762: R2 UNAME helper — panic | typeck_f64 | crt0; exit 3 if not member.
     if [ "$#" -lt 1 ]; then
@@ -2026,7 +2342,7 @@ case "$MODE" in
     exit 0
     ;;
   *)
-    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|try-r1|try-r3-cold|try-r3-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check)" >&2
+    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check)" >&2
     exit 2
     ;;
 esac
