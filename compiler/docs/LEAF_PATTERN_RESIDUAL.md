@@ -1650,6 +1650,7 @@ Entry:
   ./xbuild phys-del-gate --run-windows-gate
       # MSYS2 only: runs tests/run-bootstrap-bstrict-windows-gate.sh
       # on exit 0 writes /tmp/xlang_phys_del_windows_proof.txt (or XLANG_PHYS_DEL_WINDOWS_PROOF)
+  # After Windows git pull --ff-only (NEVER scp source tree): transfer PROOF only
   scp windows-server:/tmp/xlang_phys_del_windows_proof.txt /tmp/
   ./xbuild phys-del-gate --verify-windows-proof
       # exit 0 = tip match + RC=0; exit 2 = missing/mismatch

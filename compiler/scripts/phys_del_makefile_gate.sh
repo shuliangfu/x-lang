@@ -301,13 +301,22 @@ PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_DELETE_ALLOWED=0
 PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_NEXT=msys_proof_then_apply_then_honesty_then_commit_then_delete_wave
 PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_FORBIDDEN=claim_honesty_is_flip|claim_honesty_is_delete|set_endgame_1_in_flip_commit|skip_co_change_honesty_greps|delete_makefile_in_flip_commit
 # Human runbook (dual-boot host currently often Ubuntu):
-#   1) reboot dual-boot → Windows/MSYS2 (ssh windows-server)
-#   2) git pull --ff-only origin self-hosting
+#   PLATFORM: WINDOWS repo root (authoritative, 2026-07-30):
+#     C:\Users\shuliangfu\worker\xlang\x-lang
+#     Git Bash: /c/Users/shuliangfu/worker/xlang/x-lang
+#     FORBIDDEN: worker/shu/shux · worker/shu/xlang (legacy renamed away)
+#   SOURCE SYNC: mac git commit+push only → Windows git pull --ff-only
+#     (NEVER scp the working tree as project sync)
+#   1) reboot dual-boot → Windows/MSYS2 or Git Bash (ssh windows-server)
+#   2) cd /c/Users/shuliangfu/worker/xlang/x-lang
+#      git pull --ff-only origin self-hosting   # tip must match mac push
 #   3) ./xbuild phys-del-gate --run-windows-gate   # writes proof stamp on green
 #      or: ./tests/run-bootstrap-bstrict-windows-gate.sh then:
 #          XLANG_PHYS_DEL_WINDOWS_PROOF=/tmp/xlang_phys_del_windows_proof.txt \\
 #            ./xbuild phys-del-gate --run-windows-gate
-#   4) scp windows-server:/tmp/xlang_phys_del_windows_proof.txt /tmp/
+#   4) transfer PROOF ARTIFACT only (not source):
+#        scp windows-server:/tmp/xlang_phys_del_windows_proof.txt /tmp/
+#      or: ssh … 'cat /tmp/xlang_phys_del_windows_proof.txt' > /tmp/…
 #   5) mac: ./xbuild phys-del-gate --verify-windows-proof  # tip SHA must match
 #   6) mac: ./xbuild phys-del-gate --status-flip-preview   # plan only; no edit
 #   7) mac: XLANG_PHYS_DEL_STATUS_FLIP_APPLY=APPLY_STATUS_I_UNDERSTAND \\
