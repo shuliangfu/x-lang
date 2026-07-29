@@ -530,8 +530,21 @@ PHYS_DEL_WINDOWS_PROOF_HARNESS_SCRIPT=compiler/scripts/phys_del_makefile_gate.sh
 PHYS_DEL_WINDOWS_PROOF_DEFAULT_PATH=/tmp/xlang_phys_del_windows_proof.txt
 PHYS_DEL_WINDOWS_PROOF_STATUS_FLIP=0
 PHYS_DEL_WINDOWS_PROOF_DELETE_ALLOWED=0
-PHYS_DEL_WINDOWS_PROOF_NEXT=msys_run_gate_write_stamp_scp_mac_verify_then_reviewed_status_flip
+PHYS_DEL_WINDOWS_PROOF_NEXT=msys_run_gate_write_stamp_scp_mac_verify_then_status_flip_preview
 PHYS_DEL_WINDOWS_PROOF_FORBIDDEN=claim_proof_is_status_green|claim_proof_is_physical_delete|auto_flip_leaf_from_proof|delete_makefile_from_proof_alone
+# wave801: STATUS flip prep — proof-gated preview plan only (NOT flip; NOT delete; ENDGAME stays 0).
+# Body: phys_del_makefile_gate.sh --status-flip-preview. Reviewed mac commit applies STATUS later.
+PHYS_DEL_STATUS_FLIP_PREP=1
+PHYS_DEL_STATUS_FLIP_PREP_WAVE=wave801
+PHYS_DEL_STATUS_FLIP_PREP_NOTE=preview_only_after_verified_proof_not_flip_not_delete
+PHYS_DEL_STATUS_FLIP_PREP_SCRIPT=compiler/scripts/phys_del_makefile_gate.sh
+PHYS_DEL_STATUS_FLIP_PREP_APPLIED=0
+PHYS_DEL_STATUS_FLIP_PREP_REQUIRES_PROOF=1
+PHYS_DEL_STATUS_FLIP_PREP_TARGET_STATUS=reproven_green
+PHYS_DEL_STATUS_FLIP_PREP_ENDGAME_AFTER_FLIP=0
+PHYS_DEL_STATUS_FLIP_PREP_DELETE_ALLOWED=0
+PHYS_DEL_STATUS_FLIP_PREP_NEXT=msys_proof_then_preview_then_reviewed_status_flip_then_delete_wave
+PHYS_DEL_STATUS_FLIP_PREP_FORBIDDEN=auto_edit_leaf|claim_preview_is_flip|claim_preview_is_delete|flip_endgame_with_status|delete_makefile_from_preview
 # wave778: every SHARED MG wave must green on mac + Ubuntu (Ubuntu = gold).
 # Mac-only residual/matrix green is NOT wave green. Push → Ubuntu pull → same check.
 MG_VERIFY_DUAL_END=mac_plus_ubuntu_required
@@ -1450,25 +1463,43 @@ fi
 if ! grep -q 'PHYS_DEL_WINDOWS_PROOF_STATUS_FLIP=0' <<<"$_out"; then
   bad "dump must keep PHYS_DEL_WINDOWS_PROOF_STATUS_FLIP=0 (wave800)"
 fi
+if ! grep -q 'PHYS_DEL_STATUS_FLIP_PREP=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_STATUS_FLIP_PREP=1 (wave801)"
+fi
+if ! grep -q 'PHYS_DEL_STATUS_FLIP_PREP_WAVE=wave801' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_STATUS_FLIP_PREP_WAVE=wave801"
+fi
+if ! grep -q 'PHYS_DEL_STATUS_FLIP_PREP_APPLIED=0' <<<"$_out"; then
+  bad "dump must keep PHYS_DEL_STATUS_FLIP_PREP_APPLIED=0 (wave801)"
+fi
+if ! grep -q 'PHYS_DEL_STATUS_FLIP_PREP_TARGET_STATUS=reproven_green' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_STATUS_FLIP_PREP_TARGET_STATUS=reproven_green (wave801)"
+fi
+if ! grep -q 'PHYS_DEL_STATUS_FLIP_PREP_DELETE_ALLOWED=0' <<<"$_out"; then
+  bad "dump must keep PHYS_DEL_STATUS_FLIP_PREP_DELETE_ALLOWED=0 (wave801)"
+fi
 if [ ! -f "$ROOT/compiler/scripts/phys_del_makefile_gate.sh" ]; then
-  bad "missing compiler/scripts/phys_del_makefile_gate.sh (wave799/800 execute-gate + proof body)"
+  bad "missing compiler/scripts/phys_del_makefile_gate.sh (wave799–801 execute-gate + proof + flip-prep body)"
 else
-  note "phys_del_makefile_gate.sh present (wave799 refuse-delete + wave800 proof harness; not Windows green)"
-  # Self-check execute gate + proof harness (refuse contract + synthetic stamp).
+  note "phys_del_makefile_gate.sh present (wave799 refuse-delete + wave800 proof + wave801 flip-prep; not Windows green)"
+  # Self-check execute gate + proof + status-flip-prep (refuse + synthetic stamp + preview).
   if ! bash "$ROOT/compiler/scripts/phys_del_makefile_gate.sh" --check >/tmp/phys_del_gate_check.$$ 2>&1; then
     cat /tmp/phys_del_gate_check.$$ >&2 || true
-    bad "phys_del_makefile_gate.sh --check failed (wave799/800)"
+    bad "phys_del_makefile_gate.sh --check failed (wave799–801)"
   else
-    note "phys_del_makefile_gate.sh --check OK (wave799/800)"
+    note "phys_del_makefile_gate.sh --check OK (wave799–801)"
   fi
   rm -f /tmp/phys_del_gate_check.$$
 fi
-# Honesty: execute-gate / proof harness must not claim Windows green / delete done.
+# Honesty: execute-gate / proof / flip-prep must not claim Windows green / delete done.
 if ! grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip' <<<"$_out"; then
-  bad "wave800 must keep PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip"
+  bad "wave801 must keep PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip"
 fi
 if ! grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0' <<<"$_out"; then
-  bad "wave800 must keep ENDGAME_PHYSICAL_DELETE_MAKEFILE=0"
+  bad "wave801 must keep ENDGAME_PHYSICAL_DELETE_MAKEFILE=0"
+fi
+if grep -qE 'PHYS_DEL_WINDOWS_GATE_STATUS=green|PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green|ENDGAME_PHYSICAL_DELETE_MAKEFILE=1' <<<"$_out"; then
+  bad "wave801 must not claim Windows green or physical delete complete"
 fi
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \

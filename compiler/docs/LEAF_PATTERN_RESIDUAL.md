@@ -1676,3 +1676,42 @@ After verified evidence + human review:
 `printf large_dump | grep -q` can fail with SIGPIPE(141) even when the key
 matches (grep exits early). Checks use `grep … <<<"$_out"` instead.
 Same for `phys_del_makefile_gate.sh` status/leaf probes.
+
+## wave801 STATUS flip prep / preview (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; flip
+> `PHYS_DEL_WINDOWS_GATE_STATUS` to green; set `ENDGAME_PHYSICAL_DELETE_MAKEFILE=1`.  
+> **This wave:** G.7 **有则补全** on `phys_del_makefile_gate.sh` — after a
+> verified Windows min-gate proof stamp, print a machine-readable *plan* for the
+> reviewed STATUS flip commit. Preview ≠ flip. Preview ≠ physical delete.
+> Preview never edits leaf keys.
+
+```text
+Entry (after scp'd proof on mac/Ubuntu):
+  ./xbuild phys-del-gate --verify-windows-proof
+  ./xbuild phys-del-gate --status-flip-preview
+      # exit 0 + PHYS_DEL_STATUS_FLIP_PREVIEW_READY=1 when tip+RC OK
+      # exit 2 when proof missing/mismatch
+      # APPLIED=0 always; ENDGAME=0 always; no leaf mutation
+
+After preview + human review:
+  mac commit flips PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green
+    (ENDGAME stays 0; honesty --check greps updated in that flip wave)
+  then SEPARATE physical delete wave
+  (never auto-edit leaf from preview / proof alone)
+```
+
+| Key | Value |
+|-----|--------|
+| `PHYS_DEL_STATUS_FLIP_PREP` | `1` |
+| `PHYS_DEL_STATUS_FLIP_PREP_WAVE` | `wave801` |
+| `PHYS_DEL_STATUS_FLIP_PREP_APPLIED` | `0` |
+| `PHYS_DEL_STATUS_FLIP_PREP_TARGET_STATUS` | `reproven_green` |
+| `PHYS_DEL_STATUS_FLIP_PREP_ENDGAME_AFTER_FLIP` | `0` |
+| `PHYS_DEL_STATUS_FLIP_PREP_DELETE_ALLOWED` | `0` |
+| `PHYS_DEL_WINDOWS_GATE_STATUS` | `not_reproven_this_tip` (honest) |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `0` |
+
+**Forbidden:** claim preview = STATUS flip / physical delete; auto-edit leaf from
+preview; set ENDGAME=1 in STATUS flip wave; delete Makefile from preview; mac-only
+wave green.
