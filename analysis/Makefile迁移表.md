@@ -459,7 +459,7 @@
 
 - **xbuild**：`xbuild test / cold-test / prove`
 - **今日**：🟢 §5b 白名单全闭；test*/verify shell；PATH 探针 ✅；**wave727–728** OBJS 叶+组合体→`compiler/mk/*.mk`；tests/lib hub 全迁（0 raw make -C）
-- **优先**：11.0.4 根 help→xbuild；11.2.5 CI
+- **优先**：11.1 xbuild 吞并 g05；11.2.5 CI ✅ wave730
 - **条数**：12
 
 | 行 | Makefile 目标 | 迁移状态 |
@@ -573,6 +573,9 @@
 | `./xbuild test*` | `run_compiler_tests.sh` | 否 | `xbuild test` |
 | `./xbuild clean` | `clean_compiler.sh` | 否 | `xbuild clean` |
 | `./xbuild full` | FULL 可能仍 make bstrict | 非日常 | `xbuild cold-test` 子集 |
+| `./xbuild compiler-all` | `run_compiler_make OPT=1 all` | CI/host-cc；≠ 产品 all | 11.3 后 shell 体 |
+| `./xbuild bootstrap-driver-seed` | make 图 + shell 编排 | 冷启动 | 11.3 吞图 |
+| `./xbuild compiler-make …` | 叶 .o / CFLAGS 透传 | 残余 | 同 hub |
 
 ---
 
@@ -582,13 +585,13 @@
 |------|------|------|
 | `g05_build_xlang_asm.sh` FULL=1 | `exec make bootstrap-driver-bstrict` | 标注非日常；迁 `xbuild bstrict-build` |
 | ~~`g05_ensure` filtered.o~~ | ~~`make -s`~~ | ✅ wave715 pipeline · **wave716 class-G 全 4**（against_partial trio + 核心脚本） |
-| `g05_ensure` 失败提示 | 建议用户 `make bootstrap-driver-seed` | 改提示为 `xbuild bootstrap`（实现后） |
+| `g05_ensure` 失败提示 | 建议用户 `make bootstrap-driver-seed` | 改提示为 `xbuild bootstrap-driver-seed` |
 | ~~`xlang-build.sh` build-tool/first-time/clean~~ | ~~`make -C`~~ | ✅ **wave718** → `build_tool.sh` / `clean_compiler.sh` |
 | ~~`xlang-build.sh` bootstrap-token/lexer/bstrict~~ | ~~`make -C`~~ | ✅ **wave719** → `bootstrap_token_lexer_smoke.sh` / `bootstrap_driver_bstrict.sh` |
 | ~~`xlang-build.sh` test*/bootstrap-verify~~ | ~~`make -C`~~ | ✅ **wave720** → `run_compiler_tests.sh` / `bootstrap_verify_bstrict.sh`（**0× make -C**） |
 | ~~`tests/lib/**` raw make -C~~ | ~~直调 make~~ | ✅ hub `xlang_compiler_make`（0 raw 在 hub 外） |
-| CI `.github/workflows` | make/cc | 阶段 11.2.5 |
-| `scripts/docker-ci-local.sh` | make -C | 阶段 11.4 |
+| ~~CI `.github/workflows` 外层~~ | ~~`make -C`~~ | ✅ **wave730** → `./xbuild compiler-all` 等（hub 内仍 make 图） |
+| ~~`scripts/docker-ci-local.sh` 外层~~ | ~~`make -C`~~ | ✅ **wave730** → `./xbuild` |
 
 ---
 
@@ -630,7 +633,7 @@
 2. **11.0.2** 产品路径 0-make 静态闸门 ✅ + class-G filtered 全 shell ✅（wave714–716）+ **PATH 探针 ✅（wave726）**
 3. **11.0.3** `bootstrap-driver-seed` 规则白名单化 → shell/xbuild 逐步接管（**wave716**–**wave725**：类 G + 编排 + build-tool/clean + token/bstrict + test*/verify 0-make + phase1/final 链接 + sat/lsp + host-stubs + bridge/panic/user-asm/glue + **§5b #1/#2/#8 全 🟢**）
 4. **11.0.4** 根 Makefile help-only → `./xbuild` ✅；OBJS 叶+组合体→`mk/*.mk` ✅；catalog 18 keys ✅  
-5. 并行：**类 C glue 地图** ✅（C迁移 §8.3 消费方）· **11.2.5** CI · **类 B/D 去 pin**  
+5. 并行：**类 C glue 地图** ✅ · **11.2.5/11.4.3** CI+docker 外层 ✅（wave730）· **类 B/D 去 pin**  
 6. **11.1+** 填实 `build.x` / 吞并 g05 → **11.3 物理删**
 
 ---

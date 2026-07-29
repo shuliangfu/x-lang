@@ -27,7 +27,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "=== 11.0.2/11.0.3/11.0.4 product-path 0-make static gate (wave714–729) ==="
+echo "=== 11.0.2/11.0.3/11.0.4 + 11.2.5/11.4 product-path 0-make static gate (wave714–730) ==="
 
 fail=0
 note() { echo "  OK  $*"; }
@@ -500,13 +500,22 @@ else
   fi
 fi
 
-# remaining make -C in xlang-build: must be 0 after wave720
-xb_make=$(grep -cE 'make -C compiler' xlang-build.sh || true)
-echo "  INFO xlang-build.sh make -C compiler sites: ${xb_make:-0} (wave720 target = 0)"
-if [ "${xb_make:-0}" -gt 0 ]; then
-  bad "xlang-build.sh make -C sites ${xb_make} > 0 (wave720: product entry must be 0-make)"
+# remaining make -C in xlang-build:
+#   wave720: product targets 0× make -C
+#   wave730: exactly one hub body `run_compiler_make` may call make -C (CI/cold/leaves)
+xb_make_exec=$(grep -nE 'make -C compiler' xlang-build.sh \
+  | grep -vE '^[0-9]+:[[:space:]]*#' \
+  || true)
+xb_make_n=$(printf '%s\n' "$xb_make_exec" | grep -c . || true)
+echo "  INFO xlang-build.sh executable make -C compiler sites: ${xb_make_n:-0} (wave730 hub = 1)"
+if [ "${xb_make_n:-0}" -eq 0 ]; then
+  bad "xlang-build.sh missing run_compiler_make hub (wave730 expects 1 make -C site)"
+elif [ "${xb_make_n:-0}" -eq 1 ] \
+  && echo "$xb_make_exec" | grep -q 'MAKEFLAGS= make -C compiler' \
+  && grep -q 'run_compiler_make()' xlang-build.sh; then
+  note "xlang-build.sh: 1× make -C only in run_compiler_make hub (product targets 0-make)"
 else
-  note "xlang-build.sh product entry: 0× make -C compiler"
+  bad "xlang-build.sh make -C sites must be exactly hub run_compiler_make; got: $xb_make_exec"
 fi
 
 # --- migration table exists and mentions classes ---
@@ -672,10 +681,63 @@ else
   note "C迁移追踪 has no wave changelog section (authority: 自举进度)"
 fi
 
+# --- wave730: 11.2.5 CI workflows + 11.4.3 docker-ci outer 0× make -C ---
+# Outer CI/docker must call ./xbuild; residual make graph only via run_compiler_make hub.
+if grep -q 'run_compiler_make' xlang-build.sh \
+  && grep -q 'compiler-all|ci-all' xlang-build.sh \
+  && grep -q 'bootstrap-driver-seed)' xlang-build.sh \
+  && grep -q 'compiler-make)' xlang-build.sh; then
+  note "xlang-build CI/cold hub: compiler-all + bootstrap-driver-seed + compiler-make (wave730)"
+else
+  bad "xlang-build missing wave730 CI hub targets (compiler-all / bootstrap-driver-seed / compiler-make)"
+fi
+
+# Product daily `all` must remain g05 (not Makefile all); CI uses compiler-all.
+if grep -n 'all|build|xlang)' xlang-build.sh | head -1 | grep -q . \
+  && sed -n '/all|build|xlang)/,/^  [a-zA-Z*]/p' xlang-build.sh | head -8 | grep -q 'run_build_tool'; then
+  note "product ./xbuild all still g05 (distinct from compiler-all)"
+else
+  bad "product all|build must stay run_build_tool (do not alias to Makefile all)"
+fi
+
+scan_outer_make_c() {
+  # Executable-ish lines only: drop full-line comments and prose that only document the ban.
+  grep -nE 'make[[:space:]]+-C[[:space:]]+compiler' "$@" 2>/dev/null \
+    | grep -vE ':[0-9]+:[[:space:]]*#' \
+    | grep -vE '0×|外层|wave730|must not|禁止|改为|G\.7' \
+    || true
+}
+
+outer_hits=$(scan_outer_make_c .github/workflows/*.yml scripts/docker-ci-local.sh)
+if [ -n "$outer_hits" ]; then
+  bad "CI/docker still has outer make -C compiler (must use ./xbuild); wave730:"
+  echo "$outer_hits" | head -30 >&2
+else
+  note "CI workflows + docker-ci-local: 0× outer make -C compiler (11.2.5 / 11.4.3)"
+fi
+
+# Positive: docker + main workflows must invoke ./xbuild compiler-all / bootstrap paths
+if grep -q '\./xbuild compiler-all' .github/workflows/ci.yml \
+  && grep -q '\./xbuild bootstrap-driver-seed' .github/workflows/ci.yml \
+  && grep -q '\./xbuild compiler-all' scripts/docker-ci-local.sh \
+  && grep -q '\./xbuild bootstrap-driver-seed' scripts/docker-ci-local.sh; then
+  note "ci.yml + docker-ci call ./xbuild compiler-all / bootstrap-driver-seed"
+else
+  bad "ci.yml or docker-ci missing ./xbuild compiler-all / bootstrap-driver-seed (wave730)"
+fi
+
+if grep -q '\./xbuild compiler-all' .github/workflows/ci-nightly.yml \
+  && grep -q '\./xbuild compiler-all' .github/workflows/selfhost-stage2.yml \
+  && grep -q '\./xbuild bootstrap-driver-seed' .github/workflows/release.yml; then
+  note "nightly / selfhost-stage2 / release use ./xbuild entry"
+else
+  bad "nightly/selfhost/release missing ./xbuild migration (wave730)"
+fi
+
 echo "=== gate summary ==="
 if [ "$fail" -ne 0 ]; then
   echo "FAIL product-path 0-make static gate" >&2
   exit 1
 fi
-echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe; mk OBJS+composites; catalog --check; tests/lib hub; root help→xbuild)"
+echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe; mk OBJS+composites; catalog --check; tests/lib hub; root help→xbuild; CI/docker → xbuild)"
 exit 0

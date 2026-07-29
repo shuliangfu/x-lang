@@ -40,10 +40,20 @@ run_build_tool() {
   (cd compiler && ./build_tool ./xlang $1)
 }
 
+# Single residual make hub for CI / cold-start / leaf .o (wave730 · 11.2.5 / 11.4).
+# Outer workflows/docker must call ./xbuild — never raw `make -C compiler`.
+# Dependency graph still lives in compiler/Makefile until 11.3; this is the only
+# product-facing make entry (mirrors tests/lib/compiler-make.sh for POSIX sh).
+# PLATFORM: SHARED
+run_compiler_make() {
+  MAKEFLAGS= make -C compiler "$@"
+}
+
 case "$TARGET" in
   # === 编译器（G-05 日常）===
   all|build|xlang)
     # 默认路径：build_tool → g05 relink；见 build_tool_libc_bridge
+    # NOTE: product `all` ≠ Makefile `all`. CI host-cc/seed path = compiler-all.
     run_build_tool
     ;;
   xlang-asm|asm)
@@ -70,6 +80,29 @@ case "$TARGET" in
   clean)
     # G.7: scripts/clean_compiler.sh（Makefile clean 同调）
     (cd compiler && sh scripts/clean_compiler.sh)
+    ;;
+
+  # === CI / 冷启动 / 叶 .o（wave730：外层 0× make -C；图仍 Makefile 至 11.3）===
+  compiler-all|ci-all)
+    # Historical CI: `make -C compiler OPT=1 all` (host-cc xlang + xlang-c / seed).
+    # Distinct from product `./xbuild all` (g05 relink). OPT defaults to 1.
+    run_compiler_make OPT="${OPT:-1}" all
+    ;;
+  bootstrap-driver-seed)
+    # Cold-start orchestration still via Makefile prereqs → bootstrap_driver_seed.sh
+    run_compiler_make bootstrap-driver-seed
+    ;;
+  compiler-make)
+    # Passthrough for residual leaves: std .o, CFLAGS=…, ASan rebuild, etc.
+    # Usage: ./xbuild compiler-make <make-args...>
+    shift
+    if [ "$#" -eq 0 ]; then
+      echo "Usage: ./xbuild compiler-make <make-args...>" >&2
+      echo "  e.g. ./xbuild compiler-make ../std/io/io.o" >&2
+      echo "       ./xbuild compiler-make all CFLAGS='-O0 -g'" >&2
+      exit 1
+    fi
+    run_compiler_make "$@"
     ;;
 
   # === 编译器测试（wave720：test* / bootstrap-verify 全 shell；无 make -C）===
@@ -175,6 +208,11 @@ xbuild / xlang-build.sh — 统一构建入口（G-05 · G.7 同体）
   build-tool           scripts/build_tool.sh（pinned seeds；无 make）
   first-time           build_tool.sh + 日常构建
   clean                scripts/clean_compiler.sh（无 make）
+
+CI / 冷启动（外层 0× make -C；图仍 Makefile 至 11.3）:
+  compiler-all / ci-all      make OPT=1 all（host-cc/seed；≠ 产品 all）
+  bootstrap-driver-seed      冷启动（prereq 图 → shell 编排）
+  compiler-make <args…>      残余叶透传（std .o / CFLAGS / ASan）
 
 测试 / 自举:
   test / test_c / test_x     scripts/run_compiler_tests.sh

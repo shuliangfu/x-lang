@@ -30,7 +30,7 @@
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
 | **Makefile 退役 / xbuild** | 🟡 半路径 | **`./xbuild`→`xlang-build.sh`** 产品入口；根 Makefile **help-only**；叶/组合体→`compiler/mk/*.mk`；**`compiler/Makefile` 仍 ~3445 行权威图**（阶段 11） |
-| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | 产品 `./xbuild` + tests/lib hub；`scripts/docker-ci-local.sh` / `.github/workflows/` 仍大量 `make -C` — 11.2.5 / 11.4 |
+| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** 外层 `./xbuild`（CI + docker-ci）；残余 make 仅 `run_compiler_make` hub；11.4.1/2/5/6 与零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | ⬜ 0/~4 | ~200 个 .c 文件在零 cc 终局下归属未定 — 阶段 11.5 |
 | **冷启动零 cc 链** | ⬜ 0/4 | 最小 seed + 零 cc 验证 + 双端冷启动 |
 | **终局：无 Makefile + 零 cc + v2==v3** | ⬜ 未达 | 见 §0.1 三义；阶段 13 |
@@ -1384,16 +1384,18 @@
   - `tests/**/*.sh`（含 `tests/lib/*.sh` · `tests/bench/**/*.sh` · `tests/docker/*`）中 `make -C compiler` 清零或改为 `xbuild` / `xlang_compiler_make`
   - **重点**：`tests/lib/` 是全仓 make/cc 调用最密集位置；真正调用在 lib，不在 run-*.sh
   - ✅ `tests/lib/compiler-make.sh` 单入口 `xlang_compiler_make`；tests/lib **0** raw `make -C`（hub 外）；`XLANG_COMPILER_DIR` 支持 nolibc
-  - ⬜ `tests/bench` / docker CI 外层 / 11.2.5 workflow 同步
+  - ⬜ `tests/bench` 同步；docker CI 外层 / 11.2.5 workflow ✅ wave730
 
 ⬜ **11.2.4 Windows 入口**
 
   - 非金标但终局须有 xbuild 路径（MSYS2）；禁止「只 Linux 删了 Makefile」
+  - 🟡 CI Windows job 已 `./xbuild compiler-all`（wave730）；本地 MSYS2 入口仍待 11.2.4 专波
 
-⬜ **11.2.5 `.github/workflows/*.yml` CI 去 make/cc**
+✅ **11.2.5 `.github/workflows/*.yml` CI 去 make/cc（wave730 · 外层）**
 
-  - 5 个 workflow 全部依赖 make/cc：`ci.yml`（11 处 make + CC:cc/gcc）· `ci-nightly.yml`（4 处 make）· `bootstrap-seeds-capture.yml`（gmake）· `selfhost-stage2.yml`（3 处 make）· `release.yml`（make + CC:cc）
-  - 全部改为 `xbuild` 入口；MSYS2/FreeBSD 段同步
+  - `ci.yml` / `ci-nightly.yml` / `selfhost-stage2.yml` / `release.yml`：构建入口 → `./xbuild compiler-all` / `bootstrap-driver-seed` / `compiler-make` / shell `clean`
+  - `bootstrap-seeds-capture.yml`：无 `make -C`（仅装 gmake 包）
+  - 实现层仍经 `xlang-build.sh`→`run_compiler_make` 触 Makefile 图（至 11.3）；guest 仍装 host-cc/make（零 cc 属 12）
 
 ### 11.3 Makefile 物理删除（**终局硬指标**）
 
@@ -1437,21 +1439,18 @@
   - 第 36-38 行：`cc $CFLAGS_BT -c build_gen.c -o build_tool.o` / `-c src/build_runtime.c` / `-o build_tool`
   - 属阶段 12「零 cc 链」的硬障碍；改为 xbuild 或删除
 
-⬜ **11.4.2 `xlang-build.sh` 自身 11 处 `make -C compiler`**
+🟡 **11.4.2 `xlang-build.sh` 产品路径 0× make -C；CI hub 单点**
 
-  - 行 23/54/58/62/67/70/73/76/79/82/85
-  - 11.0 前言把它列为「既有半路径」，但 11.0–11.3 没有子项显式规定何时清零
-  - 改为调 xbuild 子命令
+  - 产品目标（build/clean/test*/bootstrap-* 烟测）已 shell（wave718–720）
+  - wave730：`run_compiler_make` 单 hub 供 `compiler-all` / `bootstrap-driver-seed` / `compiler-make`（CI/冷启动/叶 .o）
+  - 终局 11.3 删 Makefile 后 hub 改 shell 体，外层目标名不变
 
-⬜ **11.4.3 `scripts/docker-ci-local.sh` 31 处 `make -C compiler`**
+✅ **11.4.3 `scripts/docker-ci-local.sh` 外层 0× `make -C`（wave730）**
 
-  - 行 24-206，多个 docker 矩阵段重复
-  - 改为 xbuild 入口
+  - 全矩阵段 → `./xbuild clean|compiler-all|test_*|bootstrap-*|compiler-make …`
+  - 与 11.2.5 同入口；guest 仍需 build-essential（零 cc 属 12）
 
-⬜ **11.4.4 `tools/verify-xlang-migration.sh`**
-
-  - 行 24 提示 `make -C compiler bootstrap-driver-seed`
-  - 改为 xbuild
+✅ **11.4.4 `tools/verify-xlang-migration.sh` 提示 → xbuild（wave730）**
 
 ⬜ **11.4.5 `tests/docker/linux-dev.Dockerfile`**
 
