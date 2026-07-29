@@ -1031,8 +1031,13 @@ R1_ALIAS_STUBS_OBJS = x_frontend_link_alias.o ast_asm_bare_link_alias.o backend_
 # (pipeline_abi -D, asm_io_stubs -fPIE, sqlite glue+stub, parser link-alias -D).
 # List authority for ensure_host_cc_seed_o.sh extra-cflags mode; body = same script.
 # Seed/flag maps live in ensure script (path convention); list stays here (G.7).
-# Residual (other R1): misc pure basename host-cc without special extras.
+# Residual (other R1 after wave753): misc pure basename + mismatch/orch.
 R1_EXTRA_CFLAGS_OBJS = src/runtime_pipeline_abi.o runtime_asm_io_stubs.o runtime_sqlite_glue.o runtime_sqlite_glue_stub.o src/asm/parser_asm_parse_expr_link.o
+
+# wave754 R1 seventh family: pure host-cc misc basename (no special -D/-f extras).
+# List authority for ensure_host_cc_seed_o.sh misc-basename mode; body = same script.
+# Basename → seeds/<leaf>.from_x.c. Residual: target_cpu mismatch / ast_seed / orch -D.
+R1_MISC_BASENAME_OBJS = runtime_link_abi_user_env.o runtime_channel_glue.o runtime_scheduler_glue.o runtime_kv_mmap_glue.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arm64_enc_c.o src/lsp/lsp_diag_pipeline_ctx.o build_asm/pipeline_glue_strict_minimal.o src/asm/runtime_asm_build.o
 
 # G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（XLANG_LEGACY_PREPROCESS_C 路径已死）。
 # xlang_x 用：仅 -DXLANG_USE_X_PIPELINE，提供 asm_codegen_ast、pipeline_parse_into_buf、main_entry（弱符号）等
@@ -1369,8 +1374,10 @@ runtime_dynlib_os.o: seeds/runtime_dynlib_os.from_x.c src/asm/runtime_dynlib_os.
 
 # wave253 G.7: sole user-domain residual face body (weak link_abi_getenv twin).
 # Never g05 host bag; STD_AND_PANIC / product -o companion of PRIMARY_PANIC.
-runtime_link_abi_user_env.o: seeds/runtime_link_abi_user_env.from_x.c include/xlang_user_link_abi_getenv.h
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_link_abi_user_env.from_x.c -o $@
+# wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
+runtime_link_abi_user_env.o: seeds/runtime_link_abi_user_env.from_x.c include/xlang_user_link_abi_getenv.h scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_link_abi_user_env.from_x.c
 
 # F-ZC：env OS getenv/setenv/iter；与 env.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 # G-02f-19：runtime_env_os 产品 seed
@@ -1454,8 +1461,10 @@ runtime_atomic_glue.o: seeds/runtime_atomic_glue.from_x.c src/asm/runtime_atomic
 
 # F-ZC：channel 有界/无界/select；与 channel.o 一并链入（G-02e-20：.inc + cc_inc_tu）
 # G-02f-18：runtime_channel_glue 产品 seed
-runtime_channel_glue.o: seeds/runtime_channel_glue.from_x.c src/asm/runtime_channel_glue.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_channel_glue.from_x.c -o $@
+# wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
+runtime_channel_glue.o: seeds/runtime_channel_glue.from_x.c src/asm/runtime_channel_glue.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_channel_glue.from_x.c
 
 # F-ZC：net UDP batch recvmmsg/sendmmsg；与 net.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 # G-02f-20：runtime_net_udp_batch 产品 seed
@@ -1538,8 +1547,11 @@ runtime_thread_glue.o: seeds/runtime_thread_glue.from_x.c src/asm/runtime_thread
 
 # F-ZC：async 协作调度 + async_net_fs；与 scheduler.o 一并链入（按需 -pthread）
 # G-02f-18：runtime_scheduler_glue 产品 seed（#include async_net_fs.from_x.c）
-runtime_scheduler_glue.o: seeds/runtime_scheduler_glue.from_x.c src/asm/runtime_scheduler_glue.x seeds/async_net_fs.from_x.c
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -Isrc/asm -c seeds/runtime_scheduler_glue.from_x.c -o $@
+# wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
+# Thin passes -Isrc/asm for historical parity with make recipe (include path).
+runtime_scheduler_glue.o: seeds/runtime_scheduler_glue.from_x.c src/asm/runtime_scheduler_glue.x seeds/async_net_fs.from_x.c scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_scheduler_glue.from_x.c -Isrc/asm
 
 # F-ZC：HTTP 客户端/服务端胶层（含 http2/*.inc.c）；与 http.o 一并链入（G-02e-21）
 # G-02f-21：runtime_http_glue 产品 seed（#include http2/*.inc）；thin 在 src/asm/http/
@@ -1575,8 +1587,10 @@ runtime_tls_mbedtls_bio.o: seeds/runtime_tls_mbedtls_bio.from_x.c src/asm/runtim
 
 # F-ZC：db.kv mmap 胶层；与 kv.o 按需同链（G-02e-17：.inc + cc_inc_tu）
 # G-02f-21：runtime_kv_mmap_glue 产品 seed
-runtime_kv_mmap_glue.o: seeds/runtime_kv_mmap_glue.from_x.c src/asm/runtime_kv_mmap_glue.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_kv_mmap_glue.from_x.c -o $@
+# wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
+runtime_kv_mmap_glue.o: seeds/runtime_kv_mmap_glue.from_x.c src/asm/runtime_kv_mmap_glue.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_kv_mmap_glue.from_x.c
 
 # F-ZC：db.arrow SIMD 胶层；与 arrow.o 按需同链（G-02e-19：.inc + cc_inc_tu）
 # G-02f-21：runtime_arrow_simd_glue 产品 seed
@@ -1904,13 +1918,17 @@ src/asm/backend_enc_dispatch.o: seeds/backend_enc_dispatch.from_x.c src/asm/back
 	fi
 
 # G-02f-15：backend_x86_64_enc_c 产品 seed
-src/asm/backend_x86_64_enc_c.o: seeds/backend_x86_64_enc_c.from_x.c src/asm/backend_x86_64_enc_c.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_x86_64_enc_c.from_x.c -o $@
+# wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
+src/asm/backend_x86_64_enc_c.o: seeds/backend_x86_64_enc_c.from_x.c src/asm/backend_x86_64_enc_c.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/backend_x86_64_enc_c.from_x.c
 
 # CG002：backend_arm64_enc_c 产品 seed（强符号覆盖 seed_link_compat weak -1 桩）
 # PLATFORM: MACOS arm64 pure-asm 必需；其它主机链接无害（ta!=1 不调）。
-src/asm/backend_arm64_enc_c.o: seeds/backend_arm64_enc_c.from_x.c
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_arm64_enc_c.from_x.c -o $@
+# wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
+src/asm/backend_arm64_enc_c.o: seeds/backend_arm64_enc_c.from_x.c scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/backend_arm64_enc_c.from_x.c
 
 src/asm/backend_arch_emit_dispatch.o: seeds/backend_arch_emit_dispatch.from_x.c src/asm/backend_arch_emit_dispatch_thin.x src/asm/backend_arch_emit_dispatch.x
 	@if [ -x ./xlang-c ] && { \
@@ -2384,8 +2402,10 @@ src/lsp/lsp_diag_pipeline_sizes_nostub.o: src/lsp/lsp_diag_pipeline_sizes.x
 
 # G-02e-8：lsp_diag_x_alias 已并入本 TU。
 # G-02f-12：lsp_diag_pipeline_ctx 产品 seed
-src/lsp/lsp_diag_pipeline_ctx.o: seeds/lsp_diag_pipeline_ctx.from_x.c src/lsp/lsp_diag_pipeline_ctx.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/lsp_diag_pipeline_ctx.from_x.c -o $@
+# wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
+src/lsp/lsp_diag_pipeline_ctx.o: seeds/lsp_diag_pipeline_ctx.from_x.c src/lsp/lsp_diag_pipeline_ctx.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/lsp_diag_pipeline_ctx.from_x.c
 
 # G-02f-11：runtime_driver_strict_glue_stubs 产品 seed（内含 runtime_heap_user.inc）
 # wave752 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_ALIAS_STUBS_OBJS).
@@ -2721,6 +2741,7 @@ bootstrap-driver-seed-export-obj-catalog:
 	@printf 'R1_MAIN_RUNTIME_OBJS=%s\n' '$(R1_MAIN_RUNTIME_OBJS)'
 	@printf 'R1_ALIAS_STUBS_OBJS=%s\n' '$(R1_ALIAS_STUBS_OBJS)'
 	@printf 'R1_EXTRA_CFLAGS_OBJS=%s\n' '$(R1_EXTRA_CFLAGS_OBJS)'
+	@printf 'R1_MISC_BASENAME_OBJS=%s\n' '$(R1_MISC_BASENAME_OBJS)'
 
 # §5b #2 — pipeline_x.o FORCE recompile on cold start (PIPELINE_X_FORCE_COMPILE=1)
 # Body: bootstrap_driver_seed_rebuild_leaves.sh pipeline-x; list = DRIVER_SEED_PIPELINE_X_OBJS only.
@@ -2872,9 +2893,11 @@ $(ASM_GLUE_STANDALONE_O): seeds/pipeline_glue_standalone.from_x.c build_asm/pipe
 	sh scripts/cc_inc_tu.sh seeds/pipeline_glue_standalone.from_x.c $@ $(PIPELINE_GEN_CFLAGS) -Wno-error=return-type -Ibuild_asm
 
 # G-02f-11：pipeline_glue_strict_minimal 产品 seed
-build_asm/pipeline_glue_strict_minimal.o: seeds/pipeline_glue_strict_minimal.from_x.c src/asm/pipeline_glue_strict_minimal.x
+# wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
+build_asm/pipeline_glue_strict_minimal.o: seeds/pipeline_glue_strict_minimal.from_x.c src/asm/pipeline_glue_strict_minimal.x scripts/ensure_host_cc_seed_o.sh
 	@mkdir -p build_asm
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/pipeline_glue_strict_minimal.from_x.c -o $@
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/pipeline_glue_strict_minimal.from_x.c
 
 # relink-xlang 与 bootstrap-driver-seed 链接同一组 .o；须声明为 prerequisite，否则冷启动仅 make all 后缺 main_driver.o 等。
 RELINK_XLANG_PREREQS = build-seed-asm-host $(RELINK_XLANG_FILTERED_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(DRIVER_SUBCMD_GEN) \
@@ -3205,5 +3228,7 @@ perf-baseline:
 	fi
 
 # G-02f-22：runtime_asm_build 产品 seed
-src/asm/runtime_asm_build.o: seeds/runtime_asm_build.from_x.c src/asm/runtime_asm_build.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_asm_build.from_x.c -o $@
+# wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
+src/asm/runtime_asm_build.o: seeds/runtime_asm_build.from_x.c src/asm/runtime_asm_build.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_asm_build.from_x.c

@@ -7,6 +7,9 @@
 #   wave752: fifth family R1_ALIAS_STUBS (link alias / bare / compat stubs)
 #   wave753: sixth family R1_EXTRA_CFLAGS (pipeline_abi / -fPIE / sqlite multi-flag /
 #            parser link-alias extras)
+#   wave754: seventh family R1_MISC_BASENAME (misc pure basename host-cc:
+#            channel/kv/scheduler glue, backend enc, lsp ctx, pipeline_glue
+#            strict_minimal, runtime_asm_build, link_abi_user_env)
 #
 # Authority (G.7):
 #   Single shell *recipe body* for pure host-cc compile of seeds/*.from_x.c → .o.
@@ -20,6 +23,7 @@
 #     alias-stubs:     basename match (same as core-seed / rt-slice)
 #     extra-cflags:    o→seed map (sqlite_stub shares sqlite seed) +
 #                      o→extra flags (-D / -fPIE; thin passes make vars)
+#     misc-basename:   basename match (same as alias-stubs / core-seed)
 #
 # Families (list authority = catalog KEY):
 #   RT_SEED_SLICE_OBJS     — five Cap residual slices under src/runtime/
@@ -33,10 +37,12 @@
 #                            runtime_driver_strict_glue_stubs
 #   R1_EXTRA_CFLAGS_OBJS   — runtime_pipeline_abi + runtime_asm_io_stubs (-fPIE) +
 #                            runtime_sqlite_glue[+_stub] + parser_asm_parse_expr_link
+#   R1_MISC_BASENAME_OBJS  — pure basename host-cc without special -D/-f extras
+#                            (glue/enc/ctx/pipeline_glue_strict_minimal/asm_build/…)
 #
 # Not in scope (honest residual):
 #   - R3 thin+rest / PREFER_X_O product g05 path (g05_ensure keeps that)
-#   - Other R1 leaves (misc pure basename host-cc without special flags, …)
+#   - Other R1 leaves (basename-mismatch target_cpu/ast_seed, bootstrap orch -D, …)
 #   - R2 UNAME stamps, R4 rebuild pattern multi-family, R5 CI all
 #
 # Usage (cwd = compiler/):
@@ -47,10 +53,11 @@
 #   bash scripts/ensure_host_cc_seed_o.sh main-runtime      # R1_MAIN_RUNTIME family
 #   bash scripts/ensure_host_cc_seed_o.sh alias-stubs       # R1_ALIAS_STUBS family
 #   bash scripts/ensure_host_cc_seed_o.sh extra-cflags      # R1_EXTRA_CFLAGS family
+#   bash scripts/ensure_host_cc_seed_o.sh misc-basename     # R1_MISC_BASENAME family
 #   bash scripts/ensure_host_cc_seed_o.sh all               # all swallowed families
 #   bash scripts/ensure_host_cc_seed_o.sh --check
-#   bash scripts/ensure_host_cc_seed_o.sh extra-cflags --force
-#   ./xbuild host-cc-seed | … | extra-cflags
+#   bash scripts/ensure_host_cc_seed_o.sh misc-basename --force
+#   ./xbuild host-cc-seed | … | extra-cflags | misc-basename
 #
 # Env:
 #   CC — host compiler (default: cc; honor caller CC)
@@ -63,7 +70,7 @@
 #   MAKE — only for catalog list expansion (default: make)
 #
 # PLATFORM: SHARED — shell orchestration; seed pins host-portable C.
-# Wave: 748–753 Track MG · 11.3.1 R1 families (not physical delete · not pure-ld).
+# Wave: 748–754 Track MG · 11.3.1 R1 families (not physical delete · not pure-ld).
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -87,7 +94,7 @@ _DEFAULT_PARSER_ASM_LINK_ALIAS_CFLAGS="-DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS"
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -375,6 +382,11 @@ ensure_extra_cflags() {
   ensure_catalog_family "R1_EXTRA_CFLAGS_OBJS" "extra-cflags" "extra-cflags"
 }
 
+ensure_misc_basename() {
+  # Pure basename host-cc without special extras (glue / enc / ctx / pipeline_glue / …).
+  ensure_catalog_family "R1_MISC_BASENAME_OBJS" "misc-basename" "basename"
+}
+
 ensure_all_swallowed() {
   ensure_rt_slice
   ensure_core_seed
@@ -382,7 +394,8 @@ ensure_all_swallowed() {
   ensure_main_runtime
   ensure_alias_stubs
   ensure_extra_cflags
-  log "all swallowed R1 families OK (rt-slice + core-seed + frontend-glue + main-runtime + alias-stubs + extra-cflags)"
+  ensure_misc_basename
+  log "all swallowed R1 families OK (rt-slice + core-seed + frontend-glue + main-runtime + alias-stubs + extra-cflags + misc-basename)"
 }
 
 # ---------------------------------------------------------------------------
@@ -485,6 +498,10 @@ run_check() {
     && ! grep -q 'R1_EXTRA_CFLAGS_OBJS' mk/*.mk 2>/dev/null; then
     bad "R1_EXTRA_CFLAGS_OBJS not defined in Makefile/mk (wave753)"
   fi
+  if ! grep -q 'R1_MISC_BASENAME_OBJS' Makefile \
+    && ! grep -q 'R1_MISC_BASENAME_OBJS' mk/*.mk 2>/dev/null; then
+    bad "R1_MISC_BASENAME_OBJS not defined in Makefile/mk (wave754)"
+  fi
 
   check_family "RT_SEED_SLICE_OBJS" 5 "rt-slice" "basename" "src/runtime/"
   check_family "R1_CORE_SEED_OBJS" 5 "core-seed" "basename" "src/"
@@ -494,6 +511,8 @@ run_check() {
   check_family "R1_ALIAS_STUBS_OBJS" 8 "alias-stubs" "basename" ""
   # extra-cflags: mixed paths; multi-flag map.
   check_family "R1_EXTRA_CFLAGS_OBJS" 5 "extra-cflags" "extra-cflags" ""
+  # misc-basename: mixed cwd-root / src/ / build_asm/ paths; pure basename.
+  check_family "R1_MISC_BASENAME_OBJS" 9 "misc-basename" "basename" ""
 
   # Makefile thin: recipes must call this script (not inline $(CC) -c for swallowed leaves)
   if ! grep -q 'ensure_host_cc_seed_o\.sh' Makefile; then
@@ -536,6 +555,13 @@ run_check() {
   else
     note "Makefile extra-cflags leaves thin (no inline \$(CC) -c)"
   fi
+  # Misc-basename leaves must not keep inline $(CC) -c recipes.
+  if grep -A2 -E '^(runtime_link_abi_user_env\.o|runtime_channel_glue\.o|runtime_scheduler_glue\.o|runtime_kv_mmap_glue\.o|src/asm/backend_x86_64_enc_c\.o|src/asm/backend_arm64_enc_c\.o|src/lsp/lsp_diag_pipeline_ctx\.o|build_asm/pipeline_glue_strict_minimal\.o|src/asm/runtime_asm_build\.o):' Makefile \
+    | grep -qE '\$\(CC\).*-c seeds/'; then
+    bad "Makefile misc-basename leaves still have inline \$(CC) -c (must thin-call ensure)"
+  else
+    note "Makefile misc-basename leaves thin (no inline \$(CC) -c)"
+  fi
 
   # G.7: list authority is catalog only — no hardcoded assignment of product lists.
   if grep -nE '^(export )?RT_SEED_SLICE_OBJS=' "$0" 2>/dev/null \
@@ -562,12 +588,16 @@ run_check() {
     | grep -vqE '^\s*#|:[0-9]+:\s*#'; then
     bad "must not hardcode R1_EXTRA_CFLAGS_OBJS= in shell body"
   fi
+  if grep -nE '^(export )?R1_MISC_BASENAME_OBJS=' "$0" 2>/dev/null \
+    | grep -vqE '^\s*#|:[0-9]+:\s*#'; then
+    bad "must not hardcode R1_MISC_BASENAME_OBJS= in shell body"
+  fi
 
   if [ "$fail" -ne 0 ]; then
     echo "ensure_host_cc_seed_o: --check FAILED" >&2
     exit 1
   fi
-  echo "ensure_host_cc_seed_o: CHECK OK (R1 rt-seed-slice + core-seed + frontend-glue + main-runtime + alias-stubs + extra-cflags · wave748–753)" >&2
+  echo "ensure_host_cc_seed_o: CHECK OK (R1 rt-seed-slice + core-seed + frontend-glue + main-runtime + alias-stubs + extra-cflags + misc-basename · wave748–754)" >&2
 }
 
 case "$MODE" in
@@ -596,6 +626,9 @@ case "$MODE" in
   extra-cflags|extra_cflags|r1-extra-cflags|r1-extra|pipeline-abi|family=r1_extra_cflags)
     ensure_extra_cflags
     ;;
+  misc-basename|misc_basename|misc|r1-misc-basename|r1-misc|family=r1_misc_basename)
+    ensure_misc_basename
+    ;;
   all|family|families|swallowed)
     # Umbrella: all swallowed pure R1 families on this body.
     ensure_all_swallowed
@@ -608,7 +641,7 @@ case "$MODE" in
     exit 0
     ;;
   *)
-    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|all|--check)" >&2
+    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|all|--check)" >&2
     exit 2
     ;;
 esac
