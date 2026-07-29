@@ -255,37 +255,37 @@ cmd_check() {
 
   local dump
   dump="$(print_status)"
-  printf '%s\n' "$dump" | grep -q 'PHYS_DEL_EXECUTE_GATE=1' || badf "status missing PHYS_DEL_EXECUTE_GATE=1"
-  printf '%s\n' "$dump" | grep -q 'PHYS_DEL_EXECUTE_GATE_WAVE=wave799' || badf "status missing WAVE=wave799"
-  printf '%s\n' "$dump" | grep -q 'PHYS_DEL_EXECUTE_GATE_REFUSES_DELETE=1' || badf "must refuse delete"
-  printf '%s\n' "$dump" | grep -q 'PHYS_DEL_EXECUTE_GATE_DELETE_ALLOWED=0' || badf "DELETE_ALLOWED must be 0 this tip"
-  printf '%s\n' "$dump" | grep -q 'PHYS_DEL_WINDOWS_PROOF_HARNESS=1' \
+  grep -q 'PHYS_DEL_EXECUTE_GATE=1' <<<"$dump" || badf "status missing PHYS_DEL_EXECUTE_GATE=1"
+  grep -q 'PHYS_DEL_EXECUTE_GATE_WAVE=wave799' <<<"$dump" || badf "status missing WAVE=wave799"
+  grep -q 'PHYS_DEL_EXECUTE_GATE_REFUSES_DELETE=1' <<<"$dump" || badf "must refuse delete"
+  grep -q 'PHYS_DEL_EXECUTE_GATE_DELETE_ALLOWED=0' <<<"$dump" || badf "DELETE_ALLOWED must be 0 this tip"
+  grep -q 'PHYS_DEL_WINDOWS_PROOF_HARNESS=1' <<<"$dump" \
     || badf "status missing PHYS_DEL_WINDOWS_PROOF_HARNESS=1 (wave800)"
-  printf '%s\n' "$dump" | grep -q 'PHYS_DEL_WINDOWS_PROOF_HARNESS_WAVE=wave800' \
+  grep -q 'PHYS_DEL_WINDOWS_PROOF_HARNESS_WAVE=wave800' <<<"$dump" \
     || badf "status missing PROOF_HARNESS_WAVE=wave800"
-  printf '%s\n' "$dump" | grep -q 'PHYS_DEL_WINDOWS_PROOF_STATUS_FLIP=0' \
+  grep -q 'PHYS_DEL_WINDOWS_PROOF_STATUS_FLIP=0' <<<"$dump" \
     || badf "proof must keep STATUS_FLIP=0"
-  printf '%s\n' "$dump" | grep -q 'PHYS_DEL_WINDOWS_PROOF_DELETE_ALLOWED=0' \
+  grep -q 'PHYS_DEL_WINDOWS_PROOF_DELETE_ALLOWED=0' <<<"$dump" \
     || badf "proof must keep DELETE_ALLOWED=0"
 
   # Cross-check leaf honesty (Windows still not green; endgame 0).
   local leaf
   leaf="$(leaf_dump)"
-  printf '%s\n' "$leaf" | grep -q 'PHYS_DEL_PREFLIGHT=1' || badf "leaf preflight not live"
-  printf '%s\n' "$leaf" | grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip' \
+  grep -q 'PHYS_DEL_PREFLIGHT=1' <<<"$leaf" || badf "leaf preflight not live"
+  grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip' <<<"$leaf" \
     || badf "leaf must keep WINDOWS_GATE_STATUS=not_reproven_this_tip"
-  printf '%s\n' "$leaf" | grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0' \
+  grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0' <<<"$leaf" \
     || badf "leaf must keep ENDGAME_PHYSICAL_DELETE_MAKEFILE=0"
-  if printf '%s\n' "$leaf" | grep -qE 'PHYS_DEL_WINDOWS_GATE_STATUS=green|ENDGAME_PHYSICAL_DELETE_MAKEFILE=1'; then
+  if grep -qE 'PHYS_DEL_WINDOWS_GATE_STATUS=green|ENDGAME_PHYSICAL_DELETE_MAKEFILE=1' <<<"$leaf"; then
     badf "leaf falsely claims Windows green or physical delete complete"
   fi
-  printf '%s\n' "$leaf" | grep -q 'PHYS_DEL_EXECUTE_GATE=1' \
+  grep -q 'PHYS_DEL_EXECUTE_GATE=1' <<<"$leaf" \
     || badf "leaf dump missing PHYS_DEL_EXECUTE_GATE=1 (wire wave799 keys)"
-  printf '%s\n' "$leaf" | grep -q 'PHYS_DEL_EXECUTE_GATE_WAVE=wave799' \
+  grep -q 'PHYS_DEL_EXECUTE_GATE_WAVE=wave799' <<<"$leaf" \
     || badf "leaf dump missing PHYS_DEL_EXECUTE_GATE_WAVE=wave799"
-  printf '%s\n' "$leaf" | grep -q 'PHYS_DEL_WINDOWS_PROOF_HARNESS=1' \
+  grep -q 'PHYS_DEL_WINDOWS_PROOF_HARNESS=1' <<<"$leaf" \
     || badf "leaf dump missing PHYS_DEL_WINDOWS_PROOF_HARNESS=1 (wave800)"
-  printf '%s\n' "$leaf" | grep -q 'PHYS_DEL_WINDOWS_PROOF_HARNESS_WAVE=wave800' \
+  grep -q 'PHYS_DEL_WINDOWS_PROOF_HARNESS_WAVE=wave800' <<<"$leaf" \
     || badf "leaf dump missing PHYS_DEL_WINDOWS_PROOF_HARNESS_WAVE=wave800"
 
   # Refuse contract: --delete must fail hard on this tip.

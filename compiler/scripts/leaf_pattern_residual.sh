@@ -975,449 +975,449 @@ fi
 
 # Live dump must name residual classes + endgame flags
 _out="$(bash "$SCRIPT_REL" dump 2>/dev/null || true)"
-if ! printf '%s\n' "$_out" | grep -q 'RESIDUAL_CLASS_R1=host_cc_seed_from_x_to_o'; then
+if ! grep -q 'RESIDUAL_CLASS_R1=host_cc_seed_from_x_to_o' <<<"$_out"; then
   bad "dump missing RESIDUAL_CLASS_R1"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'RESIDUAL_CLASS_R4=cold_rebuild_pattern_bodies'; then
+if ! grep -q 'RESIDUAL_CLASS_R4=cold_rebuild_pattern_bodies' <<<"$_out"; then
   bad "dump missing RESIDUAL_CLASS_R4"
 fi
-if ! printf '%s\n' "$_out" | grep -qE 'RESIDUAL_CLASS_R6=cold_link_(seed_link_cc|pure_ld_prefer)'; then
+if ! grep -qE 'RESIDUAL_CLASS_R6=cold_link_(seed_link_cc|pure_ld_prefer)' <<<"$_out"; then
   bad "dump missing RESIDUAL_CLASS_R6 (cross-ref 11.1.4)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R6_PURE_LD=1'; then
+if ! grep -q 'SWALLOWED_R6_PURE_LD=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_R6_PURE_LD=1 (wave772 pure-ld)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'ENDGAME_COLD_PURE_LD=1'; then
+if ! grep -q 'ENDGAME_COLD_PURE_LD=1' <<<"$_out"; then
   bad "dump ENDGAME_COLD_PURE_LD must be 1 (wave772)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_G05_PURE_LD=1'; then
+if ! grep -q 'SWALLOWED_G05_PURE_LD=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_G05_PURE_LD=1 (wave773 g05 pure-ld)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'ENDGAME_G05_PURE_LD=1'; then
+if ! grep -q 'ENDGAME_G05_PURE_LD=1' <<<"$_out"; then
   bad "dump ENDGAME_G05_PURE_LD must be 1 (wave773)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_DROP_CC_FALLBACK=1'; then
+if ! grep -q 'SWALLOWED_DROP_CC_FALLBACK=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_DROP_CC_FALLBACK=1 (wave774)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'ENDGAME_DROP_CC_FALLBACK=1'; then
+if ! grep -q 'ENDGAME_DROP_CC_FALLBACK=1' <<<"$_out"; then
   bad "dump ENDGAME_DROP_CC_FALLBACK must be 1 (wave774)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_PREREQ_EDGES=scripts/driver_seed_ensure_prereqs.sh'; then
+if ! grep -q 'SWALLOWED_PREREQ_EDGES=scripts/driver_seed_ensure_prereqs.sh' <<<"$_out"; then
   bad "dump must name swallowed prereq edges (wave744)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R4_MODE_POLICY=1'; then
+if ! grep -q 'SWALLOWED_R4_MODE_POLICY=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_R4_MODE_POLICY=1 (wave747)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'R4_MODE_POLICY_SWALLOWED=1'; then
+if ! grep -q 'R4_MODE_POLICY_SWALLOWED=1' <<<"$_out"; then
   bad "dump R4_MODE_POLICY_SWALLOWED must be 1 (rebuild_leaves uses catalog)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'R4_PATTERN_BODY_STILL_MAKE=1'; then
+if ! grep -q 'R4_PATTERN_BODY_STILL_MAKE=1' <<<"$_out"; then
   bad "dump must keep R4_PATTERN_BODY_STILL_MAKE=1 (honest non-R1 residual)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R4_BODY_PURE_R1=1'; then
+if ! grep -q 'SWALLOWED_R4_BODY_PURE_R1=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_R4_BODY_PURE_R1=1 (wave756)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'R4_BODY_PURE_R1_SWALLOWED=1'; then
+if ! grep -q 'R4_BODY_PURE_R1_SWALLOWED=1' <<<"$_out"; then
   bad "dump R4_BODY_PURE_R1_SWALLOWED must be 1 (wave756 try-r1)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R4_BODY_THIN_GLUE=1'; then
+if ! grep -q 'SWALLOWED_R4_BODY_THIN_GLUE=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_R4_BODY_THIN_GLUE=1 (wave758 thin_glue seed-map)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R4_BODY_GLUE_STANDALONE=1'; then
+if ! grep -q 'SWALLOWED_R4_BODY_GLUE_STANDALONE=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_R4_BODY_GLUE_STANDALONE=1 (wave759 glue standalone seed-map)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R2_PANIC_COLD=1'; then
+if ! grep -q 'SWALLOWED_R2_PANIC_COLD=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_R2_PANIC_COLD=1 (wave760 R2 panic cold try-r2)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'R2_PANIC_COLD_SWALLOWED=1'; then
+if ! grep -q 'R2_PANIC_COLD_SWALLOWED=1' <<<"$_out"; then
   bad "dump R2_PANIC_COLD_SWALLOWED must be 1 (try-r2 + catalog)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R2_PANIC_PREFER=1'; then
+if ! grep -q 'SWALLOWED_R2_PANIC_PREFER=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_R2_PANIC_PREFER=1 (wave776 R2 panic PREFER try-r2-prefer)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'R2_PANIC_PREFER_SWALLOWED=1'; then
+if ! grep -q 'R2_PANIC_PREFER_SWALLOWED=1' <<<"$_out"; then
   bad "dump R2_PANIC_PREFER_SWALLOWED must be 1 (try-r2-prefer + Makefile thin)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R2_TYPECK_F64=1'; then
+if ! grep -q 'SWALLOWED_R2_TYPECK_F64=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_R2_TYPECK_F64=1 (wave762)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'R2_TYPECK_F64_SWALLOWED=1'; then
+if ! grep -q 'R2_TYPECK_F64_SWALLOWED=1' <<<"$_out"; then
   bad "dump R2_TYPECK_F64_SWALLOWED must be 1 (wave762)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R2_CRT0=1'; then
+if ! grep -q 'SWALLOWED_R2_CRT0=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_R2_CRT0=1 (wave762)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'R2_CRT0_SWALLOWED=1'; then
+if ! grep -q 'R2_CRT0_SWALLOWED=1' <<<"$_out"; then
   bad "dump R2_CRT0_SWALLOWED must be 1 (wave762)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R4_BODY_GEN_X=1'; then
+if ! grep -q 'SWALLOWED_R4_BODY_GEN_X=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_R4_BODY_GEN_X=1 (wave761 gen/pipeline try-gen-x)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'R4_BODY_GEN_X_SWALLOWED=1'; then
+if ! grep -q 'R4_BODY_GEN_X_SWALLOWED=1' <<<"$_out"; then
   bad "dump R4_BODY_GEN_X_SWALLOWED must be 1 (wave761 try-gen-x)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R1_RT_SEED_SLICE=1'; then
+if ! grep -q 'SWALLOWED_R1_RT_SEED_SLICE=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_R1_RT_SEED_SLICE=1 (wave748)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'R1_RT_SEED_SLICE_SWALLOWED=1'; then
+if ! grep -q 'R1_RT_SEED_SLICE_SWALLOWED=1' <<<"$_out"; then
   bad "dump R1_RT_SEED_SLICE_SWALLOWED must be 1 (ensure body + thin Makefile)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R1_CORE_SEED=1'; then
+if ! grep -q 'SWALLOWED_R1_CORE_SEED=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_R1_CORE_SEED=1 (wave749)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'R1_CORE_SEED_SWALLOWED=1'; then
+if ! grep -q 'R1_CORE_SEED_SWALLOWED=1' <<<"$_out"; then
   bad "dump R1_CORE_SEED_SWALLOWED must be 1 (ensure body + catalog + thin)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R1_FRONTEND_GLUE=1'; then
+if ! grep -q 'SWALLOWED_R1_FRONTEND_GLUE=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_R1_FRONTEND_GLUE=1 (wave750)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'R1_FRONTEND_GLUE_SWALLOWED=1'; then
+if ! grep -q 'R1_FRONTEND_GLUE_SWALLOWED=1' <<<"$_out"; then
   bad "dump R1_FRONTEND_GLUE_SWALLOWED must be 1 (ensure body + catalog + thin)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R1_MAIN_RUNTIME=1'; then
+if ! grep -q 'SWALLOWED_R1_MAIN_RUNTIME=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_R1_MAIN_RUNTIME=1 (wave751)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'R1_MAIN_RUNTIME_SWALLOWED=1'; then
+if ! grep -q 'R1_MAIN_RUNTIME_SWALLOWED=1' <<<"$_out"; then
   bad "dump R1_MAIN_RUNTIME_SWALLOWED must be 1 (ensure body + catalog + thin)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R1_ALIAS_STUBS=1'; then
+if ! grep -q 'SWALLOWED_R1_ALIAS_STUBS=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_R1_ALIAS_STUBS=1 (wave752)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'R1_ALIAS_STUBS_SWALLOWED=1'; then
+if ! grep -q 'R1_ALIAS_STUBS_SWALLOWED=1' <<<"$_out"; then
   bad "dump R1_ALIAS_STUBS_SWALLOWED must be 1 (ensure body + catalog + thin)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R1_EXTRA_CFLAGS=1'; then
+if ! grep -q 'SWALLOWED_R1_EXTRA_CFLAGS=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_R1_EXTRA_CFLAGS=1 (wave753)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'R1_EXTRA_CFLAGS_SWALLOWED=1'; then
+if ! grep -q 'R1_EXTRA_CFLAGS_SWALLOWED=1' <<<"$_out"; then
   bad "dump R1_EXTRA_CFLAGS_SWALLOWED must be 1 (ensure body + catalog + thin)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R1_MISC_BASENAME=1'; then
+if ! grep -q 'SWALLOWED_R1_MISC_BASENAME=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_R1_MISC_BASENAME=1 (wave754)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'R1_MISC_BASENAME_SWALLOWED=1'; then
+if ! grep -q 'R1_MISC_BASENAME_SWALLOWED=1' <<<"$_out"; then
   bad "dump R1_MISC_BASENAME_SWALLOWED must be 1 (ensure body + catalog + thin)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R1_SEED_MAP=1'; then
+if ! grep -q 'SWALLOWED_R1_SEED_MAP=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_R1_SEED_MAP=1 (wave755)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'R1_SEED_MAP_SWALLOWED=1'; then
+if ! grep -q 'R1_SEED_MAP_SWALLOWED=1' <<<"$_out"; then
   bad "dump R1_SEED_MAP_SWALLOWED must be 1 (ensure body + catalog + thin)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R3_COLD_ELSE=1'; then
+if ! grep -q 'SWALLOWED_R3_COLD_ELSE=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_R3_COLD_ELSE=1 (wave757)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'R3_COLD_ELSE_SWALLOWED=1'; then
+if ! grep -q 'R3_COLD_ELSE_SWALLOWED=1' <<<"$_out"; then
   bad "dump R3_COLD_ELSE_SWALLOWED must be 1 (try-r3-cold + catalog)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R3_PREFER_THIN=1'; then
+if ! grep -q 'SWALLOWED_R3_PREFER_THIN=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_R3_PREFER_THIN=1 (wave763)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'R3_PREFER_THIN_SWALLOWED=1'; then
+if ! grep -q 'R3_PREFER_THIN_SWALLOWED=1' <<<"$_out"; then
   bad "dump R3_PREFER_THIN_SWALLOWED must be 1 (try-r3-prefer + Makefile thin)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_G05_R3_PREFER=1'; then
+if ! grep -q 'SWALLOWED_G05_R3_PREFER=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_G05_R3_PREFER=1 (wave764)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'G05_R3_PREFER_SWALLOWED=1'; then
+if ! grep -q 'G05_R3_PREFER_SWALLOWED=1' <<<"$_out"; then
   bad "dump G05_R3_PREFER_SWALLOWED must be 1 (g05 r3-prefer-family + full ladder)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_G05_LABI_PREFER=1'; then
+if ! grep -q 'SWALLOWED_G05_LABI_PREFER=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_G05_LABI_PREFER=1 (wave765)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'G05_LABI_PREFER_SWALLOWED=1'; then
+if ! grep -q 'G05_LABI_PREFER_SWALLOWED=1' <<<"$_out"; then
   bad "dump G05_LABI_PREFER_SWALLOWED must be 1 (try-labi-prefer + g05 thin-call)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_G05_RT_PREFER=1'; then
+if ! grep -q 'SWALLOWED_G05_RT_PREFER=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_G05_RT_PREFER=1 (wave766)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'G05_RT_PREFER_SWALLOWED=1'; then
+if ! grep -q 'G05_RT_PREFER_SWALLOWED=1' <<<"$_out"; then
   bad "dump G05_RT_PREFER_SWALLOWED must be 1 (try-rt-prefer + g05 thin-call)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_G05_PIPELINE_ABI_PREFER=1'; then
+if ! grep -q 'SWALLOWED_G05_PIPELINE_ABI_PREFER=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_G05_PIPELINE_ABI_PREFER=1 (wave767)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'G05_PIPELINE_ABI_PREFER_SWALLOWED=1'; then
+if ! grep -q 'G05_PIPELINE_ABI_PREFER_SWALLOWED=1' <<<"$_out"; then
   bad "dump G05_PIPELINE_ABI_PREFER_SWALLOWED must be 1 (try-pipeline-abi-prefer + g05 thin-call)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_G05_LDPC_PREFER=1'; then
+if ! grep -q 'SWALLOWED_G05_LDPC_PREFER=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_G05_LDPC_PREFER=1 (wave767)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'G05_LDPC_PREFER_SWALLOWED=1'; then
+if ! grep -q 'G05_LDPC_PREFER_SWALLOWED=1' <<<"$_out"; then
   bad "dump G05_LDPC_PREFER_SWALLOWED must be 1 (try-ldpc-prefer + g05 thin-call)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_G05_TARGET_CPU_PREFER=1'; then
+if ! grep -q 'SWALLOWED_G05_TARGET_CPU_PREFER=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_G05_TARGET_CPU_PREFER=1 (wave768)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'G05_TARGET_CPU_PREFER_SWALLOWED=1'; then
+if ! grep -q 'G05_TARGET_CPU_PREFER_SWALLOWED=1' <<<"$_out"; then
   bad "dump G05_TARGET_CPU_PREFER_SWALLOWED must be 1 (try-target-cpu-prefer + g05 thin-call)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_G05_L2_ASM_PREFER=1'; then
+if ! grep -q 'SWALLOWED_G05_L2_ASM_PREFER=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_G05_L2_ASM_PREFER=1 (wave769)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'G05_L2_ASM_PREFER_SWALLOWED=1'; then
+if ! grep -q 'G05_L2_ASM_PREFER_SWALLOWED=1' <<<"$_out"; then
   bad "dump G05_L2_ASM_PREFER_SWALLOWED must be 1 (try-l2-asm-prefer + g05 thin-call)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_G05_ASYNC_PREFER=1'; then
+if ! grep -q 'SWALLOWED_G05_ASYNC_PREFER=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_G05_ASYNC_PREFER=1 (wave770)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'G05_ASYNC_PREFER_SWALLOWED=1'; then
+if ! grep -q 'G05_ASYNC_PREFER_SWALLOWED=1' <<<"$_out"; then
   bad "dump G05_ASYNC_PREFER_SWALLOWED must be 1 (try-async-prefer + g05 thin-call)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_G05_OTHER_L2_PREFER=1'; then
+if ! grep -q 'SWALLOWED_G05_OTHER_L2_PREFER=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_G05_OTHER_L2_PREFER=1 (wave771)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'G05_OTHER_L2_PREFER_SWALLOWED=1'; then
+if ! grep -q 'G05_OTHER_L2_PREFER_SWALLOWED=1' <<<"$_out"; then
   bad "dump G05_OTHER_L2_PREFER_SWALLOWED must be 1 (try-other-l2-prefer + g05 thin-call)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_FMT_CHECK_CMD_O_DUAL=1'; then
+if ! grep -q 'SWALLOWED_FMT_CHECK_CMD_O_DUAL=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_FMT_CHECK_CMD_O_DUAL=1 (wave775)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'R1_OTHER_HOST_CC_STILL_MAKE=1'; then
+if ! grep -q 'R1_OTHER_HOST_CC_STILL_MAKE=1' <<<"$_out"; then
   bad "dump must keep R1_OTHER_HOST_CC_STILL_MAKE=1 (honest residual)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_PREP_INVENTORY=1'; then
+if ! grep -q 'PHYS_DEL_PREP_INVENTORY=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREP_INVENTORY=1 (wave777 physical-delete prep)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B1='; then
+if ! grep -q 'PHYS_DEL_BUCKET_B1=' <<<"$_out"; then
   bad "dump must name PHYS_DEL_BUCKET_B1 (wave777 runtime OS hybrid)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B2='; then
+if ! grep -q 'PHYS_DEL_BUCKET_B2=' <<<"$_out"; then
   bad "dump must name PHYS_DEL_BUCKET_B2 (wave777 std/core product hybrid)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B3='; then
+if ! grep -q 'PHYS_DEL_BUCKET_B3=' <<<"$_out"; then
   bad "dump must name PHYS_DEL_BUCKET_B3 (wave777 lsp satellite)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B4='; then
+if ! grep -q 'PHYS_DEL_BUCKET_B4=' <<<"$_out"; then
   bad "dump must name PHYS_DEL_BUCKET_B4 (wave777 gen_c_to_o)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B5='; then
+if ! grep -q 'PHYS_DEL_BUCKET_B5=' <<<"$_out"; then
   bad "dump must name PHYS_DEL_BUCKET_B5 (wave777 cfg_eval ladder)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B6='; then
+if ! grep -q 'PHYS_DEL_BUCKET_B6=' <<<"$_out"; then
   bad "dump must name PHYS_DEL_BUCKET_B6 (wave777 R5 CI)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7='; then
+if ! grep -q 'PHYS_DEL_BUCKET_B7=' <<<"$_out"; then
   bad "dump must name PHYS_DEL_BUCKET_B7 (wave777 makefile DAG)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0'; then
+if ! grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0' <<<"$_out"; then
   bad "dump missing ENDGAME_PHYSICAL_DELETE_MAKEFILE=0 (not closed)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_WINDOWS_GATE=required_before_makefile_delete'; then
+if ! grep -q 'PHYS_DEL_WINDOWS_GATE=required_before_makefile_delete' <<<"$_out"; then
   bad "dump must set PHYS_DEL_WINDOWS_GATE=required_before_makefile_delete (wave778)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_WINDOWS_GATE_FORBIDDEN=physical_delete_makefile_before_windows_green'; then
+if ! grep -q 'PHYS_DEL_WINDOWS_GATE_FORBIDDEN=physical_delete_makefile_before_windows_green' <<<"$_out"; then
   bad "dump must forbid physical delete before Windows green (wave778)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'MG_VERIFY_DUAL_END=mac_plus_ubuntu_required'; then
+if ! grep -q 'MG_VERIFY_DUAL_END=mac_plus_ubuntu_required' <<<"$_out"; then
   bad "dump must set MG_VERIFY_DUAL_END=mac_plus_ubuntu_required (wave778)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'MG_VERIFY_GOLD=ubuntu'; then
+if ! grep -q 'MG_VERIFY_GOLD=ubuntu' <<<"$_out"; then
   bad "dump must set MG_VERIFY_GOLD=ubuntu (wave778)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'MG_VERIFY_FORBIDDEN=mac_only_claim_wave_green'; then
+if ! grep -q 'MG_VERIFY_FORBIDDEN=mac_only_claim_wave_green' <<<"$_out"; then
   bad "dump must forbid mac-only wave-green claims (wave778)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_B1_RUNTIME_OS_PREFER=1'; then
+if ! grep -q 'SWALLOWED_B1_RUNTIME_OS_PREFER=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_B1_RUNTIME_OS_PREFER=1 (wave779)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'B1_RUNTIME_OS_PREFER_SWALLOWED=1'; then
+if ! grep -q 'B1_RUNTIME_OS_PREFER_SWALLOWED=1' <<<"$_out"; then
   bad "dump B1_RUNTIME_OS_PREFER_SWALLOWED must be 1 (wave779 try-runtime-os-prefer)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B1_BODY_SWALLOWED=1'; then
+if ! grep -q 'PHYS_DEL_BUCKET_B1_BODY_SWALLOWED=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_BUCKET_B1_BODY_SWALLOWED=1 (wave779)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_B2_STD_CORE_PREFER=1'; then
+if ! grep -q 'SWALLOWED_B2_STD_CORE_PREFER=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_B2_STD_CORE_PREFER=1 (wave780)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'B2_STD_CORE_PREFER_SWALLOWED=1'; then
+if ! grep -q 'B2_STD_CORE_PREFER_SWALLOWED=1' <<<"$_out"; then
   bad "dump B2_STD_CORE_PREFER_SWALLOWED must be 1 (wave780 try-std-core-prefer)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B2_BODY_SWALLOWED=1'; then
+if ! grep -q 'PHYS_DEL_BUCKET_B2_BODY_SWALLOWED=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_BUCKET_B2_BODY_SWALLOWED=1 (wave780)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_B3_LSP_SAT_PREFER=1'; then
+if ! grep -q 'SWALLOWED_B3_LSP_SAT_PREFER=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_B3_LSP_SAT_PREFER=1 (wave781)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'B3_LSP_SAT_PREFER_SWALLOWED=1'; then
+if ! grep -q 'B3_LSP_SAT_PREFER_SWALLOWED=1' <<<"$_out"; then
   bad "dump B3_LSP_SAT_PREFER_SWALLOWED must be 1 (wave781 try-lsp-sat-prefer)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B3_BODY_SWALLOWED=1'; then
+if ! grep -q 'PHYS_DEL_BUCKET_B3_BODY_SWALLOWED=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_BUCKET_B3_BODY_SWALLOWED=1 (wave781)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_B4_GEN_C_TO_O=1'; then
+if ! grep -q 'SWALLOWED_B4_GEN_C_TO_O=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_B4_GEN_C_TO_O=1 (wave782)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'B4_GEN_C_TO_O_SWALLOWED=1'; then
+if ! grep -q 'B4_GEN_C_TO_O_SWALLOWED=1' <<<"$_out"; then
   bad "dump B4_GEN_C_TO_O_SWALLOWED must be 1 (wave782 try-gen-c-to-o)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B4_BODY_SWALLOWED=1'; then
+if ! grep -q 'PHYS_DEL_BUCKET_B4_BODY_SWALLOWED=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_BUCKET_B4_BODY_SWALLOWED=1 (wave782)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_B5_CFG_EVAL_LADDER=1'; then
+if ! grep -q 'SWALLOWED_B5_CFG_EVAL_LADDER=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_B5_CFG_EVAL_LADDER=1 (wave783)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'B5_CFG_EVAL_LADDER_SWALLOWED=1'; then
+if ! grep -q 'B5_CFG_EVAL_LADDER_SWALLOWED=1' <<<"$_out"; then
   bad "dump B5_CFG_EVAL_LADDER_SWALLOWED must be 1 (wave783 try-cfg-eval-ladder)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B5_BODY_SWALLOWED=1'; then
+if ! grep -q 'PHYS_DEL_BUCKET_B5_BODY_SWALLOWED=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_BUCKET_B5_BODY_SWALLOWED=1 (wave783)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_B6_R5_CI_COMPILER_ALL=1'; then
+if ! grep -q 'SWALLOWED_B6_R5_CI_COMPILER_ALL=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_B6_R5_CI_COMPILER_ALL=1 (wave784)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'B6_R5_CI_COMPILER_ALL_SWALLOWED=1'; then
+if ! grep -q 'B6_R5_CI_COMPILER_ALL_SWALLOWED=1' <<<"$_out"; then
   bad "dump B6_R5_CI_COMPILER_ALL_SWALLOWED must be 1 (wave784 compiler_all_ci.sh)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B6_BODY_SWALLOWED=1'; then
+if ! grep -q 'PHYS_DEL_BUCKET_B6_BODY_SWALLOWED=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_BUCKET_B6_BODY_SWALLOWED=1 (wave784)"
 fi
 # wave785: B7 DAG inventory + archaeology CC thin (NOT physical delete)
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_B7_DAG_INVENTORY=1'; then
+if ! grep -q 'SWALLOWED_B7_DAG_INVENTORY=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_B7_DAG_INVENTORY=1 (wave785)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'B7_DAG_INVENTORY_SWALLOWED=1'; then
+if ! grep -q 'B7_DAG_INVENTORY_SWALLOWED=1' <<<"$_out"; then
   bad "dump B7_DAG_INVENTORY_SWALLOWED must be 1 (wave785)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7_INVENTORY=1'; then
+if ! grep -q 'PHYS_DEL_BUCKET_B7_INVENTORY=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_BUCKET_B7_INVENTORY=1 (wave785)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7_BODY_SWALLOWED=0'; then
+if ! grep -q 'PHYS_DEL_BUCKET_B7_BODY_SWALLOWED=0' <<<"$_out"; then
   bad "dump must set PHYS_DEL_BUCKET_B7_BODY_SWALLOWED=0 (wave785 not delete)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7A='; then
+if ! grep -q 'PHYS_DEL_BUCKET_B7A=' <<<"$_out"; then
   bad "dump must name PHYS_DEL_BUCKET_B7A thin-call edges (wave785)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7B='; then
+if ! grep -q 'PHYS_DEL_BUCKET_B7B=' <<<"$_out"; then
   bad "dump must name PHYS_DEL_BUCKET_B7B mk lists (wave785)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7C='; then
+if ! grep -q 'PHYS_DEL_BUCKET_B7C=' <<<"$_out"; then
   bad "dump must name PHYS_DEL_BUCKET_B7C archaeology phony (wave785)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7D='; then
+if ! grep -q 'PHYS_DEL_BUCKET_B7D=' <<<"$_out"; then
   bad "dump must name PHYS_DEL_BUCKET_B7D host-cc product link (wave785)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7C_ARCHAEOLOGY_CC_THINNED=1'; then
+if ! grep -q 'PHYS_DEL_BUCKET_B7C_ARCHAEOLOGY_CC_THINNED=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_BUCKET_B7C_ARCHAEOLOGY_CC_THINNED=1 (wave785)"
 fi
 # wave786: B7D body swallowed → product g05 (not physical delete)
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_B7D_HOST_CC_PRODUCT_LINK=1'; then
+if ! grep -q 'SWALLOWED_B7D_HOST_CC_PRODUCT_LINK=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_B7D_HOST_CC_PRODUCT_LINK=1 (wave786)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'B7D_HOST_CC_PRODUCT_LINK_SWALLOWED=1'; then
+if ! grep -q 'B7D_HOST_CC_PRODUCT_LINK_SWALLOWED=1' <<<"$_out"; then
   bad "dump B7D_HOST_CC_PRODUCT_LINK_SWALLOWED must be 1 (wave786)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7D_BODY_SWALLOWED=1'; then
+if ! grep -q 'PHYS_DEL_BUCKET_B7D_BODY_SWALLOWED=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_BUCKET_B7D_BODY_SWALLOWED=1 (wave786)"
 fi
 # wave787: B7A cold residual_make=0 honesty + heat residual + B7B list honesty
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_B7A_COLD_REBUILD_0MAKE=1'; then
+if ! grep -q 'SWALLOWED_B7A_COLD_REBUILD_0MAKE=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_B7A_COLD_REBUILD_0MAKE=1 (wave787)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'B7A_COLD_REBUILD_0MAKE_SWALLOWED=1'; then
+if ! grep -q 'B7A_COLD_REBUILD_0MAKE_SWALLOWED=1' <<<"$_out"; then
   bad "dump B7A_COLD_REBUILD_0MAKE_SWALLOWED must be 1 (wave787)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7A_COLD_0MAKE=1'; then
+if ! grep -q 'PHYS_DEL_BUCKET_B7A_COLD_0MAKE=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_BUCKET_B7A_COLD_0MAKE=1 (wave787)"
 fi
 # wave797: heat source-prereq residual closed (was =1 through wave796 orch residual).
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7A_HEAT_RESIDUAL=0'; then
+if ! grep -q 'PHYS_DEL_BUCKET_B7A_HEAT_RESIDUAL=0' <<<"$_out"; then
   bad "dump must set PHYS_DEL_BUCKET_B7A_HEAT_RESIDUAL=0 (wave797 orch source-prereq closed)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7A_BODY_SWALLOWED=0'; then
+if ! grep -q 'PHYS_DEL_BUCKET_B7A_BODY_SWALLOWED=0' <<<"$_out"; then
   bad "dump must set PHYS_DEL_BUCKET_B7A_BODY_SWALLOWED=0 (wave787 not full B7A)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_B7B_LIST_AUTHORITY_HONESTY=1'; then
+if ! grep -q 'SWALLOWED_B7B_LIST_AUTHORITY_HONESTY=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_B7B_LIST_AUTHORITY_HONESTY=1 (wave787)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7B_LIST_STAYS_MK=1'; then
+if ! grep -q 'PHYS_DEL_BUCKET_B7B_LIST_STAYS_MK=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_BUCKET_B7B_LIST_STAYS_MK=1 (wave787)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7B_BODY_SWALLOWED=0'; then
+if ! grep -q 'PHYS_DEL_BUCKET_B7B_BODY_SWALLOWED=0' <<<"$_out"; then
   bad "dump must set PHYS_DEL_BUCKET_B7B_BODY_SWALLOWED=0 (wave787 lists stay)"
 fi
 # wave788: B7B shell-primary catalog
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_B7B_SHELL_CATALOG=1'; then
+if ! grep -q 'SWALLOWED_B7B_SHELL_CATALOG=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_B7B_SHELL_CATALOG=1 (wave788)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7B_SHELL_CATALOG=1'; then
+if ! grep -q 'PHYS_DEL_BUCKET_B7B_SHELL_CATALOG=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_BUCKET_B7B_SHELL_CATALOG=1 (wave788)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7B_MAKE_EXPORT_ESCAPE=1'; then
+if ! grep -q 'PHYS_DEL_BUCKET_B7B_MAKE_EXPORT_ESCAPE=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_BUCKET_B7B_MAKE_EXPORT_ESCAPE=1 (wave788)"
 fi
 # wave789: B7A heat shell auto-dispatch
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_B7A_HEAT_SHELL_DISPATCH=1'; then
+if ! grep -q 'SWALLOWED_B7A_HEAT_SHELL_DISPATCH=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_B7A_HEAT_SHELL_DISPATCH=1 (wave789)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'B7A_HEAT_SHELL_DISPATCH_SWALLOWED=1'; then
+if ! grep -q 'B7A_HEAT_SHELL_DISPATCH_SWALLOWED=1' <<<"$_out"; then
   bad "dump B7A_HEAT_SHELL_DISPATCH_SWALLOWED must be 1 (wave789)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7A_HEAT_SHELL_DISPATCH=1'; then
+if ! grep -q 'PHYS_DEL_BUCKET_B7A_HEAT_SHELL_DISPATCH=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_BUCKET_B7A_HEAT_SHELL_DISPATCH=1 (wave789)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7A_BODY_SWALLOWED=0'; then
+if ! grep -q 'PHYS_DEL_BUCKET_B7A_BODY_SWALLOWED=0' <<<"$_out"; then
   bad "dump must keep PHYS_DEL_BUCKET_B7A_BODY_SWALLOWED=0 (wave790 not full B7A)"
 fi
 # wave790: Makefile ensure recipes unify → try-heat
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_B7A_HEAT_THIN_UNIFY=1'; then
+if ! grep -q 'SWALLOWED_B7A_HEAT_THIN_UNIFY=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_B7A_HEAT_THIN_UNIFY=1 (wave790)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'B7A_HEAT_THIN_UNIFY_SWALLOWED=1'; then
+if ! grep -q 'B7A_HEAT_THIN_UNIFY_SWALLOWED=1' <<<"$_out"; then
   bad "dump B7A_HEAT_THIN_UNIFY_SWALLOWED must be 1 (wave790)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7A_HEAT_THIN_UNIFY=1'; then
+if ! grep -q 'PHYS_DEL_BUCKET_B7A_HEAT_THIN_UNIFY=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_BUCKET_B7A_HEAT_THIN_UNIFY=1 (wave790)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_PREP_NEXT=B7_physical_delete_makefile_after_windows_not_this_wave'; then
+if ! grep -q 'PHYS_DEL_PREP_NEXT=B7_physical_delete_makefile_after_windows_not_this_wave' <<<"$_out"; then
   bad "dump PHYS_DEL_PREP_NEXT must stay physical-delete-after-windows (wave793)"
 fi
 # wave791–797: FORCE dep-edge thin (… · orch last)
-if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_B7A_HEAT_DEP_THIN=1'; then
+if ! grep -q 'SWALLOWED_B7A_HEAT_DEP_THIN=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_B7A_HEAT_DEP_THIN=1 (wave791–797)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'B7A_HEAT_DEP_THIN_SWALLOWED=1'; then
+if ! grep -q 'B7A_HEAT_DEP_THIN_SWALLOWED=1' <<<"$_out"; then
   bad "dump B7A_HEAT_DEP_THIN_SWALLOWED must be 1 (wave791–797)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN=1'; then
+if ! grep -q 'PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN=1 (wave791–797)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN_COUNT=113'; then
+if ! grep -q 'PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN_COUNT=113' <<<"$_out"; then
   bad "dump must set PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN_COUNT=113 (wave797)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7A_HEAT_RESIDUAL=0'; then
+if ! grep -q 'PHYS_DEL_BUCKET_B7A_HEAT_RESIDUAL=0' <<<"$_out"; then
   bad "dump must set PHYS_DEL_BUCKET_B7A_HEAT_RESIDUAL=0 (wave797 orch closed; source-prereq residual done)"
 fi
 # wave798: physical-delete preflight readiness (NOT delete; NOT Windows green)
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_PREFLIGHT=1'; then
+if ! grep -q 'PHYS_DEL_PREFLIGHT=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT=1 (wave798)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_PREFLIGHT_WAVE=wave798'; then
+if ! grep -q 'PHYS_DEL_PREFLIGHT_WAVE=wave798' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_WAVE=wave798"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_PREFLIGHT_HEAT_CLOSED=1'; then
+if ! grep -q 'PHYS_DEL_PREFLIGHT_HEAT_CLOSED=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_HEAT_CLOSED=1 (wave798)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_PREFLIGHT_B1_B6_BODY_SWALLOWED=1'; then
+if ! grep -q 'PHYS_DEL_PREFLIGHT_B1_B6_BODY_SWALLOWED=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_B1_B6_BODY_SWALLOWED=1 (wave798)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113'; then
+if ! grep -q 'PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113 (wave798)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_PREFLIGHT_NEXT=windows_hybrid_min_gate_on_msys2_then_physical_delete'; then
+if ! grep -q 'PHYS_DEL_PREFLIGHT_NEXT=windows_hybrid_min_gate_on_msys2_then_physical_delete' <<<"$_out"; then
   bad "dump PHYS_DEL_PREFLIGHT_NEXT must be windows_hybrid_min_gate_on_msys2_then_physical_delete"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh'; then
+if ! grep -q 'PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh' <<<"$_out"; then
   bad "dump must name Windows min-gate command (wave798)"
 fi
 # Honesty: preflight must NOT claim Windows green or physical delete done.
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip'; then
+if ! grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip' <<<"$_out"; then
   bad "wave798 preflight must keep PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip (no false Windows green)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0'; then
+if ! grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0' <<<"$_out"; then
   bad "wave798 preflight must keep ENDGAME_PHYSICAL_DELETE_MAKEFILE=0"
 fi
-if printf '%s\n' "$_out" | grep -qE 'PHYS_DEL_WINDOWS_GATE_STATUS=green|ENDGAME_PHYSICAL_DELETE_MAKEFILE=1'; then
+if grep -qE 'PHYS_DEL_WINDOWS_GATE_STATUS=green|ENDGAME_PHYSICAL_DELETE_MAKEFILE=1' <<<"$_out"; then
   bad "wave798 must not claim Windows green or physical delete complete"
 fi
 if [ ! -f "$ROOT/tests/run-bootstrap-bstrict-windows-gate.sh" ]; then
@@ -1426,28 +1426,28 @@ else
   note "Windows min-gate script present (wave798 preflight; run on MSYS2 only)"
 fi
 # wave799: physical-delete execute gate (refuse rm; NOT delete; NOT Windows green)
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_EXECUTE_GATE=1'; then
+if ! grep -q 'PHYS_DEL_EXECUTE_GATE=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_EXECUTE_GATE=1 (wave799)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_EXECUTE_GATE_WAVE=wave799'; then
+if ! grep -q 'PHYS_DEL_EXECUTE_GATE_WAVE=wave799' <<<"$_out"; then
   bad "dump must set PHYS_DEL_EXECUTE_GATE_WAVE=wave799"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_EXECUTE_GATE_REFUSES_DELETE=1'; then
+if ! grep -q 'PHYS_DEL_EXECUTE_GATE_REFUSES_DELETE=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_EXECUTE_GATE_REFUSES_DELETE=1 (wave799)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_EXECUTE_GATE_DELETE_ALLOWED=0'; then
+if ! grep -q 'PHYS_DEL_EXECUTE_GATE_DELETE_ALLOWED=0' <<<"$_out"; then
   bad "dump must set PHYS_DEL_EXECUTE_GATE_DELETE_ALLOWED=0 (wave799)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_EXECUTE_GATE_SCRIPT=compiler/scripts/phys_del_makefile_gate.sh'; then
+if ! grep -q 'PHYS_DEL_EXECUTE_GATE_SCRIPT=compiler/scripts/phys_del_makefile_gate.sh' <<<"$_out"; then
   bad "dump must name phys_del_makefile_gate.sh (wave799)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_WINDOWS_PROOF_HARNESS=1'; then
+if ! grep -q 'PHYS_DEL_WINDOWS_PROOF_HARNESS=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_WINDOWS_PROOF_HARNESS=1 (wave800)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_WINDOWS_PROOF_HARNESS_WAVE=wave800'; then
+if ! grep -q 'PHYS_DEL_WINDOWS_PROOF_HARNESS_WAVE=wave800' <<<"$_out"; then
   bad "dump must set PHYS_DEL_WINDOWS_PROOF_HARNESS_WAVE=wave800"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_WINDOWS_PROOF_STATUS_FLIP=0'; then
+if ! grep -q 'PHYS_DEL_WINDOWS_PROOF_STATUS_FLIP=0' <<<"$_out"; then
   bad "dump must keep PHYS_DEL_WINDOWS_PROOF_STATUS_FLIP=0 (wave800)"
 fi
 if [ ! -f "$ROOT/compiler/scripts/phys_del_makefile_gate.sh" ]; then
@@ -1464,10 +1464,10 @@ else
   rm -f /tmp/phys_del_gate_check.$$
 fi
 # Honesty: execute-gate / proof harness must not claim Windows green / delete done.
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip'; then
+if ! grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip' <<<"$_out"; then
   bad "wave800 must keep PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0'; then
+if ! grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0' <<<"$_out"; then
   bad "wave800 must keep ENDGAME_PHYSICAL_DELETE_MAKEFILE=0"
 fi
 # Cross-check swallowed bodies still true for preflight readiness.
@@ -1483,7 +1483,7 @@ for _k in \
   PHYS_DEL_BUCKET_B7A_COLD_0MAKE=1 \
   PHYS_DEL_BUCKET_B7B_SHELL_CATALOG=1
 do
-  if ! printf '%s\n' "$_out" | grep -q "$_k"; then
+  if ! grep -q "$_k" <<<"$_out"; then
     bad "wave798 preflight readiness missing $_k"
   fi
 done
