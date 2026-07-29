@@ -31950,11 +31950,16 @@ static int32_t glue_float_promote_src_ty_ref_c(struct ast_ASTArena *arena, int32
 }
 
 /**
- * typeck.x::typeck_return_operand_matches 的 C 委托：return 操作数与期望返回类型是否匹配。
+ * typeck.x::typeck_return_operand_matches C twin (G.7 single semantic).
+ * Accept equal types, integer widen (wave313), f32→f64 (wave314), linear unwrap.
+ * wave671 Cap residual: do NOT accept BOOL_LIT / LOGNOT as TYPE_I32
+ * (`return true` / `return !x` false-green). Align with wave666 no int↔bool.
+ * Explicit `as i32` stamps target before match. LANG-006 bool→int is let/const
+ * coerce only. PLATFORM: SHARED — product return path often hits this glue twin
+ * (Ubuntu) while typeck.x body is the seed twin; both must match.
  */
 int32_t pipeline_typeck_return_operand_matches_c(struct ast_ASTArena *arena, int32_t op_ref, int32_t expect_ref) {
   int32_t got;
-  int32_t kop;
   int32_t expect_kind;
   int32_t got_kind;
 
@@ -31975,19 +31980,13 @@ int32_t pipeline_typeck_return_operand_matches_c(struct ast_ASTArena *arena, int
   /* wave314: f32→f64 float widen on return. */
   if (pipeline_typeck_float_widen_ok_c(expect_kind, got_kind))
     return 1;
-  /** M-4：return Linear(T) 等同返回内层 T（layout 相同；move 已在 VAR 路径标记）。 */
+  /* M-4: return Linear(T) matches inner T (same layout; move on VAR path). */
   if (got_kind == (int32_t)ast_TypeKind_TYPE_LINEAR) {
     int32_t elem = pipeline_type_elem_ref_at(arena, got);
     if (!ast_ref_is_null(elem) && pipeline_typeck_type_refs_equal_c(arena, elem, expect_ref))
       return 1;
   }
-  if (pipeline_type_kind_ord_at(arena, expect_ref) != (int32_t)ast_TypeKind_TYPE_I32)
-    return 0;
-  if (!pipeline_typeck_type_ref_is_bool_c(arena, got))
-    return 0;
-  kop = pipeline_expr_kind_ord_at(arena, op_ref);
-  if (kop == 2 || kop == 24)
-    return 1;
+  /* wave671: hard-fail bool → non-bool return (removed BOOL_LIT/LOGNOT→i32). */
   return 0;
 }
 
