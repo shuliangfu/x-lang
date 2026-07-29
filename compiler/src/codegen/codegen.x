@@ -128,6 +128,8 @@ export extern function pipeline_expr_match_arm_lit_val(arena: *ASTArena, expr_re
 export extern function pipeline_expr_match_arm_is_enum_variant(arena: *ASTArena, expr_ref: i32, i: i32): i32;
 /** Enum variant index used as compare value for match arm i. */
 export extern function pipeline_expr_match_arm_variant_index(arena: *ASTArena, expr_ref: i32, i: i32): i32;
+/** wave700: optional match-arm guard expr (`pat if cond =>`); 0 = none. */
+export extern function pipeline_expr_match_arm_guard_ref(arena: *ASTArena, expr_ref: i32, i: i32): i32;
 export extern function pipeline_expr_array_lit_elem_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
 export extern function pipeline_expr_array_lit_num_elems_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_struct_lit_field_name_len(arena: *ASTArena, expr_ref: i32, j: i32): i32;
@@ -9090,42 +9092,74 @@ function codegen_emit_match_as_stmt(arena: *ASTArena, out: *CodegenOutBuf, expr_
 function codegen_emit_match_from_arm(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32,
     ctx: *PipelineDepCtx, arm_i: i32): i32 {
   // PLATFORM: SHARED — host-C match nested ternary; seed twin same commit.
+  // wave700: optional guard — wildcard+guard falls through; lit+guard uses &&.
   unsafe {
     let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
     let n: i32 = e.match_num_arms;
     let matched: i32 = e.match_matched_ref;
     let res: i32 = 0;
     let cmp_val: i32 = 0;
+    let guard_ref: i32 = 0;
     let eq: u8[3] = [61, 61, 0];
+    let and_and: u8[3] = [38, 38, 0];
     if (arm_i >= n) {
       return append_byte(out, 48);
     }
-    if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, arm_i) != 0) {
-      res = pipeline_expr_match_arm_result_ref(arena, expr_ref, arm_i);
+    guard_ref = pipeline_expr_match_arm_guard_ref(arena, expr_ref, arm_i);
+    res = pipeline_expr_match_arm_result_ref(arena, expr_ref, arm_i);
+    /* Terminal wildcard (no guard): just the result. */
+    if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, arm_i) != 0
+    && (ast.ref_is_null(guard_ref) || guard_ref <= 0)) {
       return codegen_emit_match_arm_value(arena, out, res, ctx);
     }
-    /* (matched==val?(result):(rest)) */
+    /* (cond?(result):(rest)) where cond is guard-only, lit, or lit&&guard */
     if (append_byte(out, 40) != 0) {
       return -1;
     }
-    if (ast.ref_is_null(matched) || emit_expr(arena, out, matched, ctx) != 0) {
-      return -1;
-    }
-    if (emit_bytes_2(out, eq, 2) != 0) {
-      return -1;
-    }
-    if (pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, arm_i) != 0) {
-      cmp_val = pipeline_expr_match_arm_variant_index(arena, expr_ref, arm_i);
+    if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, arm_i) != 0) {
+      /* Guaranteed guard_ref present (else branch above). */
+      if (emit_expr(arena, out, guard_ref, ctx) != 0) {
+        return -1;
+      }
     } else {
-      cmp_val = pipeline_expr_match_arm_lit_val(arena, expr_ref, arm_i);
-    }
-    if (format_int(out, cmp_val as i64) != 0) {
-      return -1;
+      if (append_byte(out, 40) != 0) {
+        return -1;
+      }
+      if (ast.ref_is_null(matched) || emit_expr(arena, out, matched, ctx) != 0) {
+        return -1;
+      }
+      if (emit_bytes_2(out, eq, 2) != 0) {
+        return -1;
+      }
+      if (pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, arm_i) != 0) {
+        cmp_val = pipeline_expr_match_arm_variant_index(arena, expr_ref, arm_i);
+      } else {
+        cmp_val = pipeline_expr_match_arm_lit_val(arena, expr_ref, arm_i);
+      }
+      if (format_int(out, cmp_val as i64) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 41) != 0) {
+        return -1;
+      }
+      if (!ast.ref_is_null(guard_ref) && guard_ref > 0) {
+        if (emit_bytes_2(out, and_and, 2) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 40) != 0) {
+          return -1;
+        }
+        if (emit_expr(arena, out, guard_ref, ctx) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 41) != 0) {
+          return -1;
+        }
+      }
     }
     if (append_byte(out, 63) != 0) {
       return -1;
     }
-    res = pipeline_expr_match_arm_result_ref(arena, expr_ref, arm_i);
     if (append_byte(out, 40) != 0) {
       return -1;
     }

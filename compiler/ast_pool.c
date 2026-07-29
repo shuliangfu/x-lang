@@ -67,13 +67,16 @@ typedef struct {
   int32_t select_count;
 } ImportEntry;
 
-/** match 单臂（Expr 侧车池）。 */
+/** match 单臂（Expr 侧车池）。
+ * wave700: guard_ref — optional `pat if cond =>` guard expr (0 = none).
+ * PLATFORM: SHARED — product match-guard Cap residual. */
 typedef struct {
   int32_t result_ref;
   int32_t is_wildcard;
   int32_t lit_val;
   int32_t is_enum_variant;
   int32_t variant_index;
+  int32_t guard_ref;
 } MatchArmEntry;
 
 /** struct literal 单字段（Expr 侧车池）。 */
@@ -6292,6 +6295,7 @@ int32_t pipeline_expr_append_match_arm(struct ast_ASTArena *a, int32_t expr_ref,
   arm->lit_val = lit_val;
   arm->is_enum_variant = is_enum_variant;
   arm->variant_index = variant_index;
+  arm->guard_ref = 0; /* wave700: set via pipeline_expr_match_arm_set_guard_ref */
   ex->match_num_arms++;
   return ex->match_num_arms - 1;
 }
@@ -6345,6 +6349,26 @@ void pipeline_expr_match_arm_set_enum_variant(struct ast_ASTArena *a, int32_t ex
     arm->is_enum_variant = is_var;
     arm->variant_index = variant_index;
   }
+}
+
+/**
+ * wave700: set optional match-arm guard expr (`pat if cond =>`).
+ * @param guard_ref — EXPR ref for cond, or 0 to clear
+ * PLATFORM: SHARED
+ */
+void pipeline_expr_match_arm_set_guard_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t i, int32_t guard_ref) {
+  MatchArmEntry *arm = expr_match_arm_at(a, expr_ref, i, 0);
+  if (arm)
+    arm->guard_ref = guard_ref;
+}
+
+/**
+ * wave700: get optional match-arm guard expr ref (0 = no guard).
+ * PLATFORM: SHARED
+ */
+int32_t pipeline_expr_match_arm_guard_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t i) {
+  MatchArmEntry *arm = expr_match_arm_at(a, expr_ref, i, 0);
+  return arm ? arm->guard_ref : 0;
 }
 
 int32_t pipeline_expr_append_struct_lit_field(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *name_bytes,

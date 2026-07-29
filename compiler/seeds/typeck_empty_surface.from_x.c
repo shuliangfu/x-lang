@@ -5022,6 +5022,9 @@ int32_t typeck_check_expr_match_arm(struct ast_Module * module, struct ast_ASTAr
   int32_t is_enum = 0;
   int32_t var_ix = 0;
   int32_t arm_res = 0;
+  int32_t guard_ref = 0;
+  int32_t bool_ty = 0;
+  extern int32_t pipeline_expr_match_arm_guard_ref(struct ast_ASTArena *a, int32_t er, int32_t i);
   if ((arm_i >=num_arms)) {
     return 0;
   }
@@ -5030,6 +5033,14 @@ int32_t typeck_check_expr_match_arm(struct ast_Module * module, struct ast_ASTAr
     (void)((var_ix = pipeline_expr_match_arm_variant_index(arena, expr_ref, arm_i)));
     if ((var_ix < 0)) {
       (void)(driver_diagnostic_typeck_enum_no_variant(line, col));
+      return -(1);
+    }
+  }
+  /* wave700: optional guard as bool ambient (G.7 ≡ typeck.x). */
+  (void)((guard_ref = pipeline_expr_match_arm_guard_ref(arena, expr_ref, arm_i)));
+  if ((!(ast_ref_is_null(guard_ref)) && (guard_ref > 0))) {
+    (void)((bool_ty = ensure_bool_type_ref(arena)));
+    if ((check_expr(module, arena, guard_ref, bool_ty, ctx) !=0)) {
       return -(1);
     }
   }

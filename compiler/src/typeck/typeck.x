@@ -385,6 +385,8 @@ export extern function pipeline_expr_match_arm_result_ref(arena: *ASTArena, expr
 export extern function pipeline_expr_match_arm_is_enum_variant(arena: *ASTArena, expr_ref: i32,
 i: i32): i32;
 export extern function pipeline_expr_match_arm_variant_index(arena: *ASTArena, expr_ref: i32, i: i32): i32;
+/** wave700: optional match-arm guard expr (`pat if cond =>`); 0 = none. */
+export extern function pipeline_expr_match_arm_guard_ref(arena: *ASTArena, expr_ref: i32, i: i32): i32;
 /* See implementation. */
 export extern function pipeline_expr_match_matched_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_match_num_arms_at(arena: *ASTArena, expr_ref: i32): i32;
@@ -6407,6 +6409,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx, arm_i: i32, num_arms: i32, line: i32
     let is_enum: i32 = 0;
     let var_ix: i32 = 0;
     let arm_res: i32 = 0;
+    let guard_ref: i32 = 0;
+    let bool_ty: i32 = 0;
     if (arm_i >= num_arms) {
       return 0;
     }
@@ -6415,6 +6419,14 @@ return_type_ref: i32, ctx: *PipelineDepCtx, arm_i: i32, num_arms: i32, line: i32
       var_ix = pipeline_expr_match_arm_variant_index(arena, expr_ref, arm_i);
       if (var_ix < 0) {
         driver_diagnostic_typeck_enum_no_variant(line, col);
+        return - 1;
+      }
+    }
+    /* wave700: typecheck optional guard as bool ambient. */
+    guard_ref = pipeline_expr_match_arm_guard_ref(arena, expr_ref, arm_i);
+    if (!ast.ref_is_null(guard_ref) && guard_ref > 0) {
+      bool_ty = ensure_bool_type_ref(arena);
+      if (check_expr(module, arena, guard_ref, bool_ty, ctx) != 0) {
         return - 1;
       }
     }

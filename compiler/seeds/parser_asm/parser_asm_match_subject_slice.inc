@@ -125,6 +125,8 @@ extern int32_t pipeline_module_enum_variant_tag_for_names(struct ast_Module *m, 
                                                             uint8_t *variant_name, int32_t variant_len);
 extern int32_t pipeline_expr_append_match_arm(void *arena, int32_t expr_ref, int32_t result_ref, int32_t is_wildcard,
                                               int32_t lit_val, int32_t is_enum_variant, int32_t variant_index);
+/* wave700: optional match-arm guard (`pat if cond =>`). */
+extern void pipeline_expr_match_arm_set_guard_ref(void *arena, int32_t expr_ref, int32_t i, int32_t guard_ref);
 
 /** 与 parser.x ast.expr_init_match_enum 一致。 */
 static void parser_asm_expr_init_match_enum_c(struct ast_Expr *e) {
@@ -255,6 +257,7 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
   int32_t pat_var_idx[16];
   int32_t pat_n;
   int32_t pat_i;
+  int32_t arm_via_guard; /* wave700: 1 = arm fully handled in TOKEN_IF path */
   if (!arena || !source || !out)
     return;
   out->ok = 0;
@@ -1068,6 +1071,7 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
     }
     /* wave327: collect one or more patterns joined by TOKEN_PIPE before =>. */
     pat_n = 0;
+    arm_via_guard = 0;
     for (;;) {
       if (pat_n >= 16)
         return;
@@ -1127,20 +1131,67 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
         lexer_next_into(&r, lex, source);
         continue;
       }
-      if (r.tok.kind != (int32_t)TOKEN_FATARROW)
+      /*
+       * wave700 Cap residual: optional guard `pat if cond => result`.
+       * After the pattern list, TOKEN_IF starts a boolean guard expr, then FATARROW.
+       * PLATFORM: SHARED — G.7 single authority (this parse path + MatchArmEntry.guard_ref).
+       */
+      if (r.tok.kind == (int32_t)TOKEN_IF) {
+        struct parser_asm_parse_expr_result guard_res;
+        parser_lex_from_next_into_glue(&lex, r);
+        memset(&guard_res, 0, sizeof(guard_res));
+        guard_res.next_lex = lex;
+        parse_expr_into(arena, lex, source, &guard_res);
+        if (!guard_res.ok) {
+          return;
+        }
+        lex = guard_res.next_lex;
+        lexer_next_into(&r, lex, source);
+        if (r.tok.kind != (int32_t)TOKEN_FATARROW) {
+          return;
+        }
+        parser_lex_from_next_into_glue(&lex, r);
+        memset(&arm_res, 0, sizeof(arm_res));
+        arm_res.next_lex = lex;
+        parse_expr_into(arena, lex, source, &arm_res);
+        if (!arm_res.ok) {
+          return;
+        }
+        lex = arm_res.next_lex;
+        lexer_next_into(&r, lex, source);
+        if (r.tok.kind != (int32_t)TOKEN_SEMICOLON) {
+          return;
+        }
+        parser_lex_from_next_into_glue(&lex, r);
+        for (pat_i = 0; pat_i < pat_n; pat_i = pat_i + 1) {
+          arm_i = pipeline_expr_append_match_arm(arena, mref, arm_res.expr_ref, pat_is_wc[pat_i],
+                                                pat_lit_v[pat_i], pat_is_ev[pat_i], pat_var_idx[pat_i]);
+          if (arm_i < 0)
+            return;
+          pipeline_expr_match_arm_set_guard_ref(arena, mref, arm_i, guard_res.expr_ref);
+        }
+        arm_via_guard = 1;
+        break; /* leave pattern loop; outer arm loop continues */
+      }
+      if (r.tok.kind != (int32_t)TOKEN_FATARROW) {
         return;
+      }
       break;
     }
+    if (arm_via_guard != 0)
+      continue; /* next outer arm (guard path already appended) */
     parser_lex_from_next_into_glue(&lex, r);
     memset(&arm_res, 0, sizeof(arm_res));
     arm_res.next_lex = lex;
     parse_expr_into(arena, lex, source, &arm_res);
-    if (!arm_res.ok)
+    if (!arm_res.ok) {
       return;
+    }
     lex = arm_res.next_lex;
     lexer_next_into(&r, lex, source);
-    if (r.tok.kind != (int32_t)TOKEN_SEMICOLON)
+    if (r.tok.kind != (int32_t)TOKEN_SEMICOLON) {
       return;
+    }
     parser_lex_from_next_into_glue(&lex, r);
     /* Expand multi-pattern to N arms sharing the same result expr (G.7: reuse MatchArmEntry). */
     for (pat_i = 0; pat_i < pat_n; pat_i = pat_i + 1) {
