@@ -16166,6 +16166,62 @@ int32_t codegen_try_emit_generic_identity_mono(struct ast_ASTArena * arena, stru
             }
           }
           (void)(((ctx->mono_num_types) = num_params));
+          /*
+           * wave688 Cap residual: peel free TYPE_NAMED leaves out of compound
+           * formals (*T / **T / []T / T[N]) into the mono map (G.7 twin of
+           * codegen.x). Without this, ret *T (distinct TYPE_PTR node) emits
+           * `struct T *` while formals already emit `int32_t *`.
+           * PLATFORM: SHARED — host-C mono; rebuild codegen_x.o + seed pin path.
+           */
+          {
+            int32_t peel_src = 0;
+            int32_t peel_n0 = ctx->mono_num_types;
+            while (peel_src < peel_n0 && ctx->mono_num_types < 8) {
+              int32_t gwalk = ctx->mono_generic_type_refs[peel_src];
+              int32_t cwalk = ctx->mono_concrete_type_refs[peel_src];
+              int32_t pdepth = 0;
+              while (gwalk > 0 && cwalk > 0 && pdepth < 4 && ctx->mono_num_types < 8) {
+                int32_t gk = pipeline_type_kind_ord_at(arena, gwalk);
+                int32_t ck = pipeline_type_kind_ord_at(arena, cwalk);
+                if (gk != ck) {
+                  pdepth = 4;
+                } else if (gk == 9 /* TYPE_PTR */ || gk == 11 /* TYPE_SLICE */ || gk == 10 /* TYPE_ARRAY */ ||
+                           gk == 13 /* TYPE_VECTOR */) {
+                  int32_t ge = pipeline_type_elem_ref_at(arena, gwalk);
+                  int32_t ce = pipeline_type_elem_ref_at(arena, cwalk);
+                  if (ge <= 0 || ce <= 0) {
+                    pdepth = 4;
+                  } else if (pipeline_type_kind_ord_at(arena, ge) == 8 /* TYPE_NAMED */) {
+                    int32_t dup_p = 0;
+                    int32_t di_p = 0;
+                    while (di_p < ctx->mono_num_types) {
+                      if (ctx->mono_generic_type_refs[di_p] == ge) {
+                        dup_p = 1;
+                        di_p = ctx->mono_num_types;
+                      } else {
+                        di_p = di_p + 1;
+                      }
+                    }
+                    if (dup_p == 0 && ctx->mono_num_types < 8) {
+                      ctx->mono_generic_type_refs[ctx->mono_num_types] = ge;
+                      ctx->mono_concrete_type_refs[ctx->mono_num_types] = ce;
+                      ctx->mono_num_types = ctx->mono_num_types + 1;
+                    }
+                    gwalk = ge;
+                    cwalk = ce;
+                    pdepth = pdepth + 1;
+                  } else {
+                    gwalk = ge;
+                    cwalk = ce;
+                    pdepth = pdepth + 1;
+                  }
+                } else {
+                  pdepth = 4;
+                }
+              }
+              peel_src = peel_src + 1;
+            }
+          }
           /* wave458: ret_extra slot is authoritative per-combo ret concrete. */
           if (((ret_extra != 0) && ((ctx->mono_num_types) < 8))) {
             int32_t ta_conc = (combos[(ci * combo_width) + num_params]);

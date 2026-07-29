@@ -17194,6 +17194,68 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
         }
         ctx.mono_num_types = num_params;
         /*
+         * wave688 Cap residual: peel free TYPE_NAMED leaves out of compound
+         * formals (*T / **T / []T / T[N]) into the mono map.
+         * Top-level formal→combo alone only rewrites type_ref-equal nodes (the
+         * param decl hits; a distinct ret *T node does not) → emit_type falls
+         * through to `struct T *` while formals already emit `int32_t *`.
+         * Peel walks matching PTR/SLICE/ARRAY/VECTOR pairs and appends
+         * free-elem → concrete-elem so emit_type name-match (wave445 C5) rewrites
+         * nested T in ret + body. Depth cap 4; map cap 8.
+         * PLATFORM: SHARED — seed codegen_gen same commit (G.7).
+         */
+        {
+          let peel_src: i32 = 0;
+          let peel_n0: i32 = ctx.mono_num_types;
+          while (peel_src < peel_n0 && ctx.mono_num_types < 8) {
+            let gwalk: i32 = ctx.mono_generic_type_refs[peel_src];
+            let cwalk: i32 = ctx.mono_concrete_type_refs[peel_src];
+            let pdepth: i32 = 0;
+            while (gwalk > 0 && cwalk > 0 && pdepth < 4 && ctx.mono_num_types < 8) {
+              let gk: i32 = pipeline_type_kind_ord_at(arena, gwalk);
+              let ck: i32 = pipeline_type_kind_ord_at(arena, cwalk);
+              if (gk != ck) {
+                pdepth = 4;
+              } else if (gk == TypeKind.TYPE_PTR || gk == TypeKind.TYPE_SLICE
+                  || gk == TypeKind.TYPE_ARRAY || gk == TypeKind.TYPE_VECTOR) {
+                let ge: i32 = pipeline_type_elem_ref_at(arena, gwalk);
+                let ce: i32 = pipeline_type_elem_ref_at(arena, cwalk);
+                if (ge <= 0 || ce <= 0) {
+                  pdepth = 4;
+                } else if (pipeline_type_kind_ord_at(arena, ge) == TypeKind.TYPE_NAMED) {
+                  /* Free or named leaf: append ge→ce if not already mapped. */
+                  let dup_p: i32 = 0;
+                  let di_p: i32 = 0;
+                  while (di_p < ctx.mono_num_types) {
+                    if (ctx.mono_generic_type_refs[di_p] == ge) {
+                      dup_p = 1;
+                      di_p = ctx.mono_num_types;
+                    } else {
+                      di_p = di_p + 1;
+                    }
+                  }
+                  if (dup_p == 0 && ctx.mono_num_types < 8) {
+                    ctx.mono_generic_type_refs[ctx.mono_num_types] = ge;
+                    ctx.mono_concrete_type_refs[ctx.mono_num_types] = ce;
+                    ctx.mono_num_types = ctx.mono_num_types + 1;
+                  }
+                  /* Keep peeling for **T (ge may itself be PTR). */
+                  gwalk = ge;
+                  cwalk = ce;
+                  pdepth = pdepth + 1;
+                } else {
+                  gwalk = ge;
+                  cwalk = ce;
+                  pdepth = pdepth + 1;
+                }
+              } else {
+                pdepth = 4;
+              }
+            }
+            peel_src = peel_src + 1;
+          }
+        }
+        /*
          * wave452/458: ret type-param not on any value formal.
          * When ret_extra=1 the combo already ends with ret concrete — stamp map
          * from that slot (authoritative per-combo, not first matching CALL).

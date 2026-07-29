@@ -37625,6 +37625,23 @@ int32_t pipeline_typeck_method_call_generic_ufcs_c(struct ast_Module *module, st
   return 0;
 }
 
+/*
+ * wave688 Cap residual: stamp mono CALL ret when the signature return is a
+ * compound tree with free type-params (`*T`, `[]T`, `T[N]`, nested ptr).
+ *
+ * Root (G.1): typeck_check_expr_call_resolve stamps the raw signature ret
+ * (`*T`); let/return assign then reports "expected *i32, found *T". Bare
+ * `: T` worked because the early gate only continued for TYPE_NAMED and the
+ * identity formal path mapped ret name → arg type. Compound free rets are
+ * TYPE_PTR/SLICE/ARRAY/VECTOR, so both the early exit and the
+ * `ret_ty != NAMED` gate aborted before map+subst.
+ *
+ * Authority (G.7): same glue_generic_call_fixup_resolved_type_c — open the
+ * early gate for free-param trees and, for non-NAMED free rets, reuse
+ * glue_typeck_build_value_formal_mono_map_c + glue_typeck_subst_type_ref_c
+ * (already used for module NAMED free trees / method UFCS). No second path.
+ * PLATFORM: SHARED — rebuild pipeline_glue_standalone.o after edit.
+ */
 static int32_t glue_generic_call_fixup_resolved_type_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                        int32_t call_expr_ref, struct ast_PipelineDepCtx *ctx,
                                                        int32_t expected_ret) {
@@ -37654,10 +37671,14 @@ static int32_t glue_generic_call_fixup_resolved_type_c(struct ast_Module *module
 
   if (!module || !arena || call_expr_ref <= 0)
     return 0;
-  /* Already non-NAMED return (concrete mono or builtin) — nothing to fix. */
+  /*
+   * Already fully concrete (no free type-param in tree) — nothing to fix.
+   * wave688: free *T is TYPE_PTR (non-NAMED) but still needs mono stamp;
+   * only skip when the stamped tree has no free params left.
+   */
   {
     int32_t cur = pipeline_expr_resolved_type_ref(arena, call_expr_ref);
-    if (cur > 0 && pipeline_type_kind_ord_at(arena, cur) != ord_named)
+    if (cur > 0 && glue_typeck_type_tree_has_free_param_c(module, arena, cur, 0) == 0)
       return 0;
   }
   callee_ref = pipeline_expr_call_callee_ref_at(arena, call_expr_ref);
@@ -37729,8 +37750,34 @@ static int32_t glue_generic_call_fixup_resolved_type_c(struct ast_Module *module
     return 0;
   ret_ty = pipeline_module_func_return_type_at(search_mod, func_idx);
   /* Return type lives in search_arena; match formals by kind/name. */
-  if (ret_ty <= 0 || pipeline_type_kind_ord_at(search_arena, ret_ty) != ord_named)
+  if (ret_ty <= 0)
     return 0;
+  /*
+   * wave688: non-NAMED return with free type-params (`*T`, `[]T`, `T[N]`).
+   * Build formal→arg mono map (identity + pattern unify for compound formals)
+   * then subst the whole ret tree. Fail-closed if map incomplete or mono still free.
+   */
+  if (pipeline_type_kind_ord_at(search_arena, ret_ty) != ord_named) {
+    int32_t n_map_c;
+    uint8_t map_names_c[W486_MONO_MAX_MAP][128];
+    int32_t map_lens_c[W486_MONO_MAX_MAP];
+    int32_t map_conc_c[W486_MONO_MAX_MAP];
+    int32_t mono_ret_c;
+    if (glue_typeck_type_tree_has_free_param_c(search_mod, search_arena, ret_ty, 0) == 0)
+      return 0;
+    n_map_c = glue_typeck_build_value_formal_mono_map_c(search_mod, search_arena, arena, call_expr_ref, func_idx,
+                                                       map_names_c, map_lens_c, map_conc_c, W486_MONO_MAX_MAP);
+    if (n_map_c <= 0)
+      return 0;
+    mono_ret_c = glue_typeck_subst_type_ref_c(search_mod, search_arena, arena, ret_ty, map_names_c, map_lens_c,
+                                             map_conc_c, n_map_c, 0);
+    if (mono_ret_c <= 0)
+      return 0;
+    if (glue_typeck_type_tree_has_free_param_c(search_mod, arena, mono_ret_c, 0) != 0)
+      return 0;
+    pipeline_expr_set_resolved_type_ref(arena, call_expr_ref, mono_ret_c);
+    return 0;
+  }
   ret_nlen = pipeline_type_named_name_into(search_arena, ret_ty, ret_nm);
   if (ret_nlen <= 0)
     return 0;
