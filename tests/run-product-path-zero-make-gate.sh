@@ -24,7 +24,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "=== 11.0.2/11.0.3 product-path 0-make static gate (wave714–720) ==="
+echo "=== 11.0.2/11.0.3 product-path 0-make static gate (wave714–721) ==="
 
 fail=0
 note() { echo "  OK  $*"; }
@@ -175,6 +175,33 @@ elif grep -A20 '^bootstrap-driver-seed: \$(DRIVER_SEED_PREREQS)' compiler/Makefi
   bad "Makefile bootstrap-driver-seed recipe still inlines phase1/smoke (must be shell)"
 else
   note "bootstrap-driver-seed orchestration → bootstrap_driver_seed.sh (+ thin link leaves)"
+fi
+
+# wave721: phase1/final link body → shell via Makefile OBJS/CFLAGS export (no dual list)
+if [ ! -f compiler/scripts/bootstrap_driver_seed_link.sh ]; then
+  bad "missing compiler/scripts/bootstrap_driver_seed_link.sh (11.0.3 wave721)"
+elif ! grep -q 'bootstrap_driver_seed_link\.sh' compiler/Makefile; then
+  bad "Makefile phase1/final must call bootstrap_driver_seed_link.sh"
+elif ! grep -q 'bootstrap-driver-seed-export-phase1-link' compiler/Makefile \
+  || ! grep -q 'bootstrap-driver-seed-export-final-link' compiler/Makefile; then
+  bad "Makefile missing phase1/final OBJS+CFLAGS export leaves (G.7 single authority)"
+else
+  # Recipe body only: must not inline $(CC) link; must call shell
+  phase1_body=$(awk '
+    /^bootstrap-driver-seed-phase1-link:/ { in_r=1; next }
+    in_r && /^[^#[:space:]	]/ { exit }
+    in_r { print }
+  ' compiler/Makefile)
+  if echo "$phase1_body" | grep -qE '\$\(CC\)|\$\(CFLAGS\)' \
+    && ! echo "$phase1_body" | grep -q 'bootstrap_driver_seed_link\.sh'; then
+    bad "Makefile phase1-link still inlines \$(CC) (must be shell + export)"
+  elif ! echo "$phase1_body" | grep -q 'bootstrap_driver_seed_link\.sh'; then
+    bad "Makefile phase1-link recipe missing bootstrap_driver_seed_link.sh"
+  elif grep -qE '^\s+(src/|\.o|lexer_x\.o|parser_x\.o)' compiler/scripts/bootstrap_driver_seed_link.sh; then
+    bad "bootstrap_driver_seed_link.sh must not hardcode .o list (dual authority)"
+  else
+    note "phase1/final link → export leaves + bootstrap_driver_seed_link.sh (OBJS single authority)"
+  fi
 fi
 
 if [ "$new_hits" -eq 0 ]; then

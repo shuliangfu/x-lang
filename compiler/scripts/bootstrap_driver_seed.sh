@@ -3,9 +3,9 @@
 #
 # Authority (G.7):
 #   This script owns the *step sequence* of cold bootstrap after Make has
-#   satisfied DRIVER_SEED_PREREQS. Leaf .o builds and the two phase link lines
-#   remain Make targets (object lists + CFLAGS single authority) and are
-#   invoked only via the §5b whitelist names below.
+#   satisfied DRIVER_SEED_PREREQS. Leaf .o builds stay Make targets. phase1/final
+#   link *body* is scripts/bootstrap_driver_seed_link.sh (wave721); OBJS/CFLAGS
+#   expand only via Makefile export leaves (no dual .o list). Whitelist §5b.
 #
 # Usage (compiler directory, normally from Makefile):
 #   ./scripts/bootstrap_driver_seed.sh
@@ -16,7 +16,7 @@
 #   TARGET — product binary name (default: xlang); must match Makefile TARGET
 #
 # PLATFORM: SHARED — orchestration identical; leaf recipes carry platform ABI.
-# Wave: 717 Track MG · pairs with Makefile thin prereq + whitelist leaves.
+# Wave: 717 orchestration · 721 phase1/final link body via export+shell.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."

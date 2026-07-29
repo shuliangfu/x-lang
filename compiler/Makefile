@@ -2936,7 +2936,8 @@ $(XLANG_C): $(LEGACY_XLANG_C_PREREQS)
 endif
 
 # 11.0.3 wave717: orchestration authority → scripts/bootstrap_driver_seed.sh
-# Leaf .o builds + phase1/final link stay Makefile (object lists / CFLAGS single authority).
+# 11.0.3 wave721: phase1/final $(CC) body → scripts/bootstrap_driver_seed_link.sh;
+#   Makefile remains sole authority for OBJS/CFLAGS expansions (export leaves only).
 # PLATFORM: SHARED — sequence in shell; Darwin filtered.o still via class-G shell recipes.
 .PHONY: bootstrap-driver-seed-sat-rebuild \
 	bootstrap-driver-seed-lsp-x-objs \
@@ -2944,6 +2945,8 @@ endif
 	bootstrap-driver-seed-asm-glue-standalone \
 	bootstrap-driver-seed-filtered-objs \
 	bootstrap-driver-seed-host-stubs \
+	bootstrap-driver-seed-export-phase1-link \
+	bootstrap-driver-seed-export-final-link \
 	bootstrap-driver-seed-phase1-link \
 	bootstrap-driver-seed-final-link
 
@@ -2968,16 +2971,34 @@ bootstrap-driver-seed-filtered-objs: $(BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS)
 # §5b #9
 bootstrap-driver-seed-host-stubs: $(USER_ASM_SEED_HOST_STUBS)
 
-# §5b #11 — phase1 / final link (object lists stay here; shell only invokes)
-bootstrap-driver-seed-phase1-link bootstrap-driver-seed-final-link: DRIVER_SEED_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o
+# §5b #11 — phase1 / final link
+# OBJS+CFLAGS: Makefile export only (G.7). Link body: bootstrap_driver_seed_link.sh.
+# KEY=value SEED_LINK_* export for shell parse (no dual .o list in shell).
+bootstrap-driver-seed-export-phase1-link \
+bootstrap-driver-seed-export-final-link \
+bootstrap-driver-seed-phase1-link \
+bootstrap-driver-seed-final-link: DRIVER_SEED_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o
+
+# KEY=value lines (first '=' splits). Avoid TAB: some make/shell paths mangle \t.
+bootstrap-driver-seed-export-phase1-link:
+	@printf 'SEED_LINK_CC=%s\n' '$(CC)'
+	@printf 'SEED_LINK_CFLAGS=%s\n' '$(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS)'
+	@printf 'SEED_LINK_OUT=%s\n' 'xlang-seed-phase1'
+	@printf 'SEED_LINK_OBJS=%s\n' '$(DRIVER_SEED_GLUE_PREFIX) $(BOOTSTRAP_DRIVER_SEED_LINK_BASE) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS) $(USER_ASM_SEED_HOST_STUBS) build_asm/seed_host/asm_backend_partial.o $(DRIVER_SEED_GLUE_SUFFIX)'
+
+bootstrap-driver-seed-export-final-link:
+	@printf 'SEED_LINK_CC=%s\n' '$(CC)'
+	@printf 'SEED_LINK_CFLAGS=%s\n' '$(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS)'
+	@printf 'SEED_LINK_OUT=%s\n' '$(TARGET)'
+	@printf 'SEED_LINK_OBJS=%s\n' '$(DRIVER_SEED_GLUE_PREFIX) $(BOOTSTRAP_DRIVER_SEED_LINK_BASE) $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS) $(DRIVER_SEED_GLUE_SUFFIX)'
 
 bootstrap-driver-seed-phase1-link:
-	@echo "bootstrap-driver-seed: phase1 link (+ USER_ASM dispatch/bridge + seed partial) ..."
-	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o xlang-seed-phase1 $(DRIVER_SEED_GLUE_PREFIX) $(BOOTSTRAP_DRIVER_SEED_LINK_BASE) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS) $(USER_ASM_SEED_HOST_STUBS) build_asm/seed_host/asm_backend_partial.o $(DRIVER_SEED_GLUE_SUFFIX)
+	@chmod +x scripts/bootstrap_driver_seed_link.sh 2>/dev/null || true
+	@MAKE="$(MAKE)" ./scripts/bootstrap_driver_seed_link.sh phase1
 
 bootstrap-driver-seed-final-link:
-	@echo "bootstrap-driver-seed: final link (+ USER_ASM partial) ..."
-	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_GLUE_PREFIX) $(BOOTSTRAP_DRIVER_SEED_LINK_BASE) $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS) $(DRIVER_SEED_GLUE_SUFFIX)
+	@chmod +x scripts/bootstrap_driver_seed_link.sh 2>/dev/null || true
+	@MAKE="$(MAKE)" TARGET="$(TARGET)" ./scripts/bootstrap_driver_seed_link.sh final
 
 bootstrap-driver-seed: DRIVER_SEED_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o
 bootstrap-driver-seed: $(DRIVER_SEED_PREREQS) build_asm/pipeline_glue_strict_minimal.o

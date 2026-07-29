@@ -60,24 +60,54 @@ if [ ! -f src/x_seed_bridge.o ]; then
   }
 fi
 
-# 从 make -n 取 phase1 链接命令（去掉 partial 参数）
-LINK_LINE=$(make -n bootstrap-driver-seed 2>/dev/null | grep ' -o xlang-seed-phase1 ' | head -1)
-if [ -z "$LINK_LINE" ]; then
-  echo "gen_g06_phase1_backend_stub: cannot get phase1 link line from make -n" >&2
+# Wave721: phase1 OBJS/CFLAGS from Makefile export only (G.7; no make -n scrape / dual list).
+# Drop asm_backend_partial.o so the probe link surfaces backend UNDEFs for stub gen.
+MAKE="${MAKE:-make}"
+# Clear MAKEFLAGS: parent dry-run must not print export recipes instead of running them.
+export_raw=$(MAKEFLAGS= "$MAKE" -s bootstrap-driver-seed-export-phase1-link 2>/dev/null) || export_raw=
+if [ -z "$export_raw" ]; then
+  echo "gen_g06_phase1_backend_stub: cannot get phase1 export (bootstrap-driver-seed-export-phase1-link)" >&2
   exit 1
 fi
-LINK_NO_PARTIAL=$(printf '%s\n' "$LINK_LINE" | sed 's/ build_asm\/seed_host\/asm_backend_partial.o//')
-
-objs=$(printf '%s\n' "$LINK_NO_PARTIAL" | tr ' ' '\n' | grep -E '\.o$' || true)
-for obj in $objs; do
+SEED_LINK_CC=
+SEED_LINK_CFLAGS=
+SEED_LINK_OUT=
+SEED_LINK_OBJS=
+while IFS= read -r line; do
+  [ -z "${line:-}" ] && continue
+  case "$line" in
+    SEED_LINK_CC=*) SEED_LINK_CC=${line#SEED_LINK_CC=} ;;
+    SEED_LINK_CFLAGS=*) SEED_LINK_CFLAGS=${line#SEED_LINK_CFLAGS=} ;;
+    SEED_LINK_OUT=*) SEED_LINK_OUT=${line#SEED_LINK_OUT=} ;;
+    SEED_LINK_OBJS=*) SEED_LINK_OBJS=${line#SEED_LINK_OBJS=} ;;
+  esac
+done <<EOF
+$export_raw
+EOF
+if [ -z "$SEED_LINK_CC" ] || [ -z "$SEED_LINK_OUT" ] || [ -z "$SEED_LINK_OBJS" ]; then
+  echo "gen_g06_phase1_backend_stub: incomplete phase1 export" >&2
+  exit 1
+fi
+SEED_LINK_OBJS_NO_PARTIAL=
+# shellcheck disable=SC2086
+for obj in $SEED_LINK_OBJS; do
+  case "$obj" in
+    *.o) ;;
+    *) continue ;;
+  esac
+  case "$obj" in
+    build_asm/seed_host/asm_backend_partial.o) continue ;;
+  esac
   if [ ! -f "$obj" ]; then
-    make "$obj" >/dev/null 2>&1 || true
+    "$MAKE" "$obj" >/dev/null 2>&1 || true
   fi
+  SEED_LINK_OBJS_NO_PARTIAL="$SEED_LINK_OBJS_NO_PARTIAL $obj"
 done
 
 # 试链，收集 undefined reference
 rm -f "$LINK_ERR" "$UNDEF"
-eval "$LINK_NO_PARTIAL" 2>"$LINK_ERR" || true
+# shellcheck disable=SC2086
+"$SEED_LINK_CC" $SEED_LINK_CFLAGS -o "$SEED_LINK_OUT" $SEED_LINK_OBJS_NO_PARTIAL 2>"$LINK_ERR" || true
 grep 'undefined reference to' "$LINK_ERR" 2>/dev/null \
   | sed "s/.*undefined reference to \`//; s/'.*//" \
   | sort -u >"$UNDEF" || true
