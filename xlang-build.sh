@@ -1,5 +1,6 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # xlang-build.sh — 仓库根统一构建入口体（G-05 · G.7 权威实现）
+# wave784: shebang bash — body uses arrays (`_hcs_args=()`); xbuild execs bash.
 #
 # 对外首选名：./xbuild（薄转调本脚本；禁止在 xbuild 再写目标体）。
 #
