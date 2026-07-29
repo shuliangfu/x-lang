@@ -20,8 +20,15 @@
 #   wave757: R3 cold-else body helper — `try-r3-cold OUT` resolves OUT against
 #            catalog R3_COLD_SEED_OBJS (thin+rest leaves whose cold path is
 #            pure basename host-cc). Same ensure_one body; exit 3 if not member.
-#            rebuild_leaves residual uses this before make; PREFER_X_O=1 thin
-#            path stays Makefile.
+#            rebuild_leaves residual uses this before make.
+#   wave763: R3 PREFER thin+rest product path — `try-r3-prefer OUT` (same catalog
+#            R3_COLD_SEED_OBJS; G.7 有则补全, no new list). When
+#            XLANG_G05_PREFER_X_O=1 and xlang-c works: thin.x|-E → thin.o +
+#            seed rest (-D FROM_X) → ld -r. Else / fail → ensure_one cold seed
+#            (same body as try-r3-cold). Makefile nine leaves thin-call this
+#            helper (no inline thin+rest recipe). simd_enc/loop keep nm symbol
+#            gates. Remaining residual: g05 product path other PREFER leaves,
+#            panic PREFER (if any), pure-ld, physical delete.
 #   wave758: R4 residual pure host-cc thin_glue → R1 seed-map (G.7 有则补全):
 #            parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c +
 #            -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm;
@@ -86,9 +93,9 @@
 #            rebuild_leaves try-r2 then try-gen-x then residual make.
 
 # Not in scope (honest residual):
-#   - R3 thin+rest / PREFER_X_O product g05 path (g05_ensure keeps that)
-#   - ~~R2 typeck_f64 / crt0~~ wave762 try-r2 · panic PREFER thin still make
-#   - R4 remaining residual (sat non-R1 pattern if any), R5 CI all
+#   - ~~R3 Makefile PREFER thin for R3_COLD nine~~ wave763 try-r3-prefer
+#   - g05_ensure other PREFER hybrid leaves (labi/rt slices; product daily path)
+#   - panic PREFER thin (if any) · R4 remaining sat non-R1 · R5 CI all
 #   - pure-ld (11.1.4) · physical Makefile delete (11.3.1)
 #   - bootstrap_nostdlib_stubs.o (cc_inc_tu residual) · crt0_user.o cp wrappers
 #
@@ -96,6 +103,7 @@
 #   bash scripts/ensure_host_cc_seed_o.sh one <out.o> <seed.from_x.c> [extra cflags...]
 #   bash scripts/ensure_host_cc_seed_o.sh try-r1 <out.o>   # wave756 R4 pure-R1 helper
 #   bash scripts/ensure_host_cc_seed_o.sh try-r3-cold <out.o>
+#   bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer <out.o> # wave763 PREFER thin+rest
 #   bash scripts/ensure_host_cc_seed_o.sh try-r2 <out.o>   # wave760/762 R2 UNAME leaves
 #   bash scripts/ensure_host_cc_seed_o.sh try-gen-x <out.o> # wave761 gen *_x / pipeline_x
 #   bash scripts/ensure_host_cc_seed_o.sh r2-panic         # DRIVER_SEED_PANIC family
@@ -128,9 +136,9 @@
 #   R2 panic body: PLATFORM LINUX|x86_64 (.s) / MACOS|arm64 + LINUX|aarch64
 #   (arm64 seed) / else (from_x seed). PREFER thin stays Makefile.
 #   R2 typeck_f64 / crt0: PLATFORM per host .s / mingw seed (wave762).
-# Wave: 748–762 Track MG · 11.3.1 R1 families + R4 pure-R1 + R3 cold-else +
-#       thin_glue/glue-standalone seed-map + R2 panic/typeck_f64/crt0
-#       (not physical delete · not pure-ld).
+# Wave: 748–763 Track MG · 11.3.1 R1 families + R4 pure-R1 + R3 cold-else +
+#       R3 PREFER thin (try-r3-prefer) + thin_glue/glue-standalone seed-map +
+#       R2 panic/typeck_f64/crt0 (not physical delete · not pure-ld).
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -156,7 +164,7 @@ _DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -707,6 +715,210 @@ try_ensure_r3_cold_one() {
 
 ensure_r3_cold_seed() {
   ensure_catalog_family "R3_COLD_SEED_OBJS" "r3-cold-seed" "basename"
+}
+
+# ---------------------------------------------------------------------------
+# wave763: try-r3-prefer OUT — R3 PREFER thin+rest product path (single body).
+#
+# Membership = catalog R3_COLD_SEED_OBJS only (lists = mk; same KEY as cold).
+# When XLANG_G05_PREFER_X_O=1 and ./xlang-c is executable:
+#   1) xlang-c -E thin.x (or full .x for runtime_io_abi) → temp C
+#   2) cc -c temp → thin.o (sibling of OUT)
+#   3) cc -c seed with leaf rest -D(s) → rest.o
+#   4) ld -r thin.o rest.o → OUT (Darwin: -arch + -multiply_defined suppress;
+#      ELF/PE: --allow-multiple-definition)
+#   5) optional nm symbol gate (simd_enc / simd_loop) — fail → cold fallback
+# Prefer fail / PREFER≠1 / no xlang-c → ensure_one cold seed (try-r3-cold twin).
+# Exit codes:
+#   0 — OUT is R3_COLD member; prefer or cold body produced OUT
+#   3 — OUT not in R3_COLD_SEED_OBJS
+#   1 — membership found but both prefer and cold failed
+# PLATFORM: SHARED shell body · Darwin ld -r arch/multidef · cold chain PREFER=0.
+# G.7: no second .o list; per-leaf x/rest-defs/nm are seed-path conventions.
+# ---------------------------------------------------------------------------
+
+# R3 prefer leaf map — NOT an .o inventory (membership = catalog only).
+# stdout fields (space-separated; rest_defs may be empty for safety use \001?):
+#   x_src | rest_defs (comma-joined -D tokens without -D) | nm_sym (or -)
+# PLATFORM: SHARED — mirrors former Makefile phase4 recipes (wave757 cold twin).
+r3_prefer_leaf_spec() {
+  local o="$1"
+  case "$o" in
+    src/runtime_io_abi.o)
+      # full .x surface (not *_thin.x); dual rest -D historical.
+      printf '%s\n' "src/runtime_io_abi.x|XLANG_L2_RIO_THIN_FROM_X,XLANG_RUNTIME_IO_ABI_FROM_X|-"
+      ;;
+    src/runtime_driver_abi.o)
+      printf '%s\n' "src/runtime_driver_abi_thin.x|XLANG_L2_RDABI_THIN_FROM_X|-"
+      ;;
+    src/runtime_driver_diagnostic.o)
+      printf '%s\n' "src/runtime_driver_diagnostic_thin.x|XLANG_L2_RDD_THIN_FROM_X|-"
+      ;;
+    src/asm/simd_enc.o)
+      printf '%s\n' "src/asm/simd_enc_thin.x|XLANG_L2_SIMD_ENC_THIN_FROM_X|simd_rbp_disp32"
+      ;;
+    src/asm/simd_loop.o)
+      printf '%s\n' "src/asm/simd_loop_thin.x|XLANG_L2_SIMD_LOOP_THIN_FROM_X|glue_simd_loop_pick_lanes_c"
+      ;;
+    src/asm/backend_enc_dispatch.o)
+      printf '%s\n' "src/asm/backend_enc_dispatch_thin.x|XLANG_L2_ENC_DISPATCH_THIN_FROM_X|-"
+      ;;
+    src/asm/backend_arch_emit_dispatch.o)
+      printf '%s\n' "src/asm/backend_arch_emit_dispatch_thin.x|XLANG_L2_ARCH_EMIT_THIN_FROM_X|-"
+      ;;
+    src/asm/backend_try_inline_dispatch.o)
+      printf '%s\n' "src/asm/backend_try_inline_dispatch_thin.x|XLANG_L2_TRY_INLINE_THIN_FROM_X|-"
+      ;;
+    src/asm/backend_call_dispatch.o)
+      printf '%s\n' "src/asm/backend_call_dispatch_thin.x|XLANG_L2_CALL_DISPATCH_THIN_FROM_X|-"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+r3_prefer_ld_r_flags() {
+  # stdout: ld args for partial link (no -o / inputs). PLATFORM: SHARED.
+  local uname_s uname_m
+  uname_s="$(uname -s 2>/dev/null || echo Unknown)"
+  uname_m="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$uname_s" = "Darwin" ]; then
+    case "$uname_m" in
+      arm64|aarch64) printf '%s\n' "-arch arm64 -r -multiply_defined suppress" ;;
+      x86_64|amd64)  printf '%s\n' "-arch x86_64 -r -multiply_defined suppress" ;;
+      *)             printf '%s\n' "-r -multiply_defined suppress" ;;
+    esac
+  else
+    # PLATFORM: LINUX|WINDOWS (ELF/PE) — GNU ld multidef for thin+rest merge.
+    printf '%s\n' "-r --allow-multiple-definition"
+  fi
+}
+
+r3_prefer_nm_has_sym() {
+  # $1=out.o $2=symbol (unadorned). Accepts Darwin leading underscore.
+  local o="$1" sym="$2"
+  [ -z "$sym" ] || [ "$sym" = "-" ] && return 0
+  nm -gU "$o" 2>/dev/null | awk -v s="$sym" '
+    $0 ~ (" " s "$") || $0 ~ (" _" s "$") { found=1 }
+    END { exit !found }
+  '
+}
+
+ensure_r3_prefer_one() {
+  # Prefer thin+rest or cold seed for one R3_COLD member (no membership check).
+  local o="$1"
+  local spec x_src rest_csv nm_sym seed thin_o rest_o tmp_c ld_flags
+  local prefer="${XLANG_G05_PREFER_X_O:-0}"
+  local xlang_bin="./xlang-c"
+  local def d_args=() d
+  local ok=0
+
+  seed="$(seed_for_o "$o")"
+  if ! spec="$(r3_prefer_leaf_spec "$o")"; then
+    echo "ensure_host_cc_seed_o try-r3-prefer: no leaf spec for $o" >&2
+    return 1
+  fi
+  x_src="${spec%%|*}"
+  rest_csv="${spec#*|}"
+  nm_sym="${rest_csv#*|}"
+  rest_csv="${rest_csv%%|*}"
+  # rest_csv may still contain nm if we mis-split; fix with three-field parse:
+  x_src="$(printf '%s' "$spec" | cut -d'|' -f1)"
+  rest_csv="$(printf '%s' "$spec" | cut -d'|' -f2)"
+  nm_sym="$(printf '%s' "$spec" | cut -d'|' -f3)"
+
+  # Up-to-date skip (make already gated rebuild; shell direct calls benefit).
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ -f "$seed" ] && [ -f "$x_src" ] \
+    && [ ! "$seed" -nt "$o" ] && [ ! "$x_src" -nt "$o" ]; then
+    log "skip up-to-date $o (r3-prefer)"
+    return 0
+  fi
+
+  # PLATFORM: SHARED cold-chain — only PREFER=1 may thin (Darwin history: thin
+  # with PREFER=0 left UNDEFs in phase1). Former backend recipes always-tried
+  # thin when xlang-c existed; wave763 unifies gate to PREFER=1 for all nine.
+  if [ "$prefer" = "1" ] && [ -x "$xlang_bin" ] && [ -f "$x_src" ] && [ -f "$seed" ]; then
+    tmp_c="$(mktemp "${TMPDIR:-/tmp}/r3pref.XXXXXX")"
+    thin_o="${o%.o}_prefer_thin.o"
+    rest_o="${o%.o}_prefer_rest.o"
+    mkdir -p "$(dirname "$o")"
+    # shellcheck disable=SC2086
+    if "$xlang_bin" \
+      -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck \
+      -L src/preprocess -L src/codegen -L src/pipeline \
+      -E "$x_src" >"$tmp_c" 2>/dev/null \
+      && [ -s "$tmp_c" ] \
+      && $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -x c -c "$tmp_c" -o "$thin_o" 2>/dev/null; then
+      d_args=()
+      if [ -n "$rest_csv" ] && [ "$rest_csv" != "-" ]; then
+        IFS=',' read -r -a _defs <<< "$rest_csv"
+        for d in "${_defs[@]}"; do
+          [ -n "$d" ] && d_args+=("-D$d")
+        done
+      fi
+      # shellcheck disable=SC2086
+      if $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
+        "${d_args[@]}" -c "$seed" -o "$rest_o" 2>/dev/null; then
+        ld_flags="$(r3_prefer_ld_r_flags)"
+        # shellcheck disable=SC2086
+        if ld $ld_flags -o "$o" "$thin_o" "$rest_o" 2>/dev/null \
+          && r3_prefer_nm_has_sym "$o" "$nm_sym"; then
+          ok=1
+          log "prefer thin+rest $o <- $x_src + $seed (wave763 try-r3-prefer)"
+        fi
+      fi
+    fi
+    rm -f "$tmp_c" "$thin_o" "$rest_o"
+  fi
+
+  if [ "$ok" = "1" ]; then
+    return 0
+  fi
+
+  # Cold fallback — same ensure_one as try-r3-cold.
+  # Force when prefer path may have left a partial/bad OUT (e.g. nm gate fail).
+  if [ ! -f "$seed" ]; then
+    echo "ensure_host_cc_seed_o try-r3-prefer: missing seed $seed for $o" >&2
+    return 1
+  fi
+  if [ -f "$o" ] && [ "$prefer" = "1" ]; then
+    # Prefer attempted: never keep a thin that failed nm / ld semantics.
+    FORCE=1
+    ensure_one "$o" "$seed"
+    FORCE=0
+  else
+    ensure_one "$o" "$seed"
+  fi
+  return 0
+}
+
+try_ensure_r3_prefer_one() {
+  local o="$1"
+  local list
+  if [ -z "$o" ]; then
+    echo "ensure_host_cc_seed_o try-r3-prefer: need <out.o>" >&2
+    exit 2
+  fi
+  list="$(catalog_key_words "R3_COLD_SEED_OBJS")"
+  if ! list_has_word "$o" "$list"; then
+    return 3
+  fi
+  ensure_r3_prefer_one "$o"
+  return 0
+}
+
+ensure_r3_prefer() {
+  # Family mode: all R3_COLD members via prefer-or-cold body.
+  local list o
+  list="$(catalog_key_words "R3_COLD_SEED_OBJS")"
+  if [ -z "$list" ]; then
+    echo "ensure_host_cc_seed_o r3-prefer: empty R3_COLD_SEED_OBJS" >&2
+    exit 1
+  fi
+  for o in $list; do
+    ensure_r3_prefer_one "$o" || return 1
+  done
 }
 
 # ---------------------------------------------------------------------------
@@ -1512,6 +1724,57 @@ run_check() {
   else
     note "try-r3-cold R3 cold-else helper present (wave757)"
   fi
+  # wave763: try-r3-prefer PREFER thin+rest product path
+  if ! grep -q 'try_ensure_r3_prefer_one\|try-r3-prefer' "$0"; then
+    bad "try-r3-prefer / try_ensure_r3_prefer_one missing (wave763 R3 PREFER thin)"
+  else
+    note "try-r3-prefer R3 PREFER thin helper present (wave763)"
+  fi
+  if ! grep -q 'r3_prefer_leaf_spec\|ensure_r3_prefer_one' "$0"; then
+    bad "r3 prefer body missing (wave763)"
+  else
+    note "r3-prefer leaf map + body present (wave763)"
+  fi
+  # Makefile R3_COLD nine must thin-call try-r3-prefer (no inline thin+rest).
+  for leaf in \
+    src/runtime_io_abi.o \
+    src/runtime_driver_abi.o \
+    src/runtime_driver_diagnostic.o \
+    src/asm/simd_enc.o \
+    src/asm/simd_loop.o \
+    src/asm/backend_enc_dispatch.o \
+    src/asm/backend_arch_emit_dispatch.o \
+    src/asm/backend_try_inline_dispatch.o \
+    src/asm/backend_call_dispatch.o
+  do
+    if awk -v t="$leaf" '
+      $0 ~ "^" t ":" {grab=1; next}
+      grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+      grab {body = body $0 "\n"}
+      END {
+        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-r3-prefer/) exit 0
+        exit 1
+      }
+    ' Makefile; then
+      note "Makefile $leaf thin-calls ensure try-r3-prefer (wave763)"
+    else
+      bad "Makefile $leaf must thin-call ensure try-r3-prefer (wave763)"
+    fi
+    # No residual inline ld -r thin+rest in the leaf recipe body.
+    if awk -v t="$leaf" '
+      $0 ~ "^" t ":" {grab=1; next}
+      grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+      grab {body = body $0 "\n"}
+      END {
+        if (body ~ /ld -r/ && body ~ /_rest\.o/) exit 1
+        exit 0
+      }
+    ' Makefile; then
+      :
+    else
+      bad "Makefile $leaf still has inline ld -r thin+rest (wave763)"
+    fi
+  done
   # wave760/762: try-r2 R2 UNAME leaves (panic + typeck_f64 + crt0)
   if ! grep -q 'try_ensure_r2_one\|try-r2' "$0"; then
     bad "try-r2 / try_ensure_r2_one missing (wave760/762 R2 UNAME)"
@@ -1557,7 +1820,7 @@ run_check() {
     echo "ensure_host_cc_seed_o: --check FAILED" >&2
     exit 1
   fi
-  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else + R2 panic/typeck_f64/crt0 + gen-x residual · wave748–762)" >&2
+  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else + R3 PREFER thin + R2 panic/typeck_f64/crt0 + gen-x residual · wave748–763)" >&2
 }
 
 case "$MODE" in
@@ -1594,6 +1857,22 @@ case "$MODE" in
     _try_rc=$?
     set -e
     exit "$_try_rc"
+    ;;
+  try-r3-prefer|try_r3_prefer|r3-prefer|r3-prefer-one|prefer-thin|try-prefer-thin)
+    # wave763: R3 PREFER thin+rest helper — exit 3 if not R3_COLD_SEED_OBJS member.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o try-r3-prefer: need <out.o>" >&2
+      exit 2
+    fi
+    _try_out="$1"
+    set +e
+    try_ensure_r3_prefer_one "$_try_out"
+    _try_rc=$?
+    set -e
+    exit "$_try_rc"
+    ;;
+  r3-prefer-family|r3_prefer_family|prefer-thin-family|family=r3_prefer)
+    ensure_r3_prefer
     ;;
   try-r2|try_r2|try-r2-panic|r2-one|r2-panic-one)
     # wave760/762: R2 UNAME helper — panic | typeck_f64 | crt0; exit 3 if not member.
@@ -1672,7 +1951,7 @@ case "$MODE" in
     exit 0
     ;;
   *)
-    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|try-r1|try-r3-cold|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check)" >&2
+    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|try-r1|try-r3-cold|try-r3-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check)" >&2
     exit 2
     ;;
 esac

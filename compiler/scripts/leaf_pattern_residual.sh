@@ -23,7 +23,8 @@
 #   host-cc compile rules that still block physical delete of compiler/Makefile.
 #   Does NOT own .o lists (compiler/mk/*.mk + catalog). R1 pure-body families,
 #   R3 cold-else, R2 panic cold, and gen residual (try-gen-x) live in
-#   ensure_host_cc_seed_o.sh / ensure_gen_x_o.sh; R3 PREFER thin residual (R2 typeck_f64/crt0 wave762).
+#   ensure_host_cc_seed_o.sh / ensure_gen_x_o.sh; R3 PREFER thin R3_COLD nine
+#   swallowed wave763 try-r3-prefer; residual g05 other PREFER / pure-ld.
 #
 # Human map: compiler/docs/LEAF_PATTERN_RESIDUAL.md
 #
@@ -83,11 +84,16 @@ SWALLOWED_R4_MODE_NOTE=catalog_KEY_plus_shell_ARGS_VARS_default
 SWALLOWED_R4_BODY_PURE_R1=1
 SWALLOWED_R4_BODY_PURE_R1_VIA=ensure_host_cc_seed_o.sh_try-r1
 SWALLOWED_R4_BODY_NOTE=pure_R1_shell_non_R1_still_make
-# wave757: R3 cold-else pure host-cc leave make (try-r3-cold); PREFER thin still make
+# wave757: R3 cold-else pure host-cc leave make (try-r3-cold)
 SWALLOWED_R3_COLD_ELSE=1
 SWALLOWED_R3_COLD_ELSE_VIA=ensure_host_cc_seed_o.sh_try-r3-cold
 SWALLOWED_R3_COLD_ELSE_LIST=catalog_R3_COLD_SEED_OBJS
-SWALLOWED_R3_COLD_ELSE_NOTE=cold_pure_host_cc_shell_PREFER_thin_still_make
+SWALLOWED_R3_COLD_ELSE_NOTE=cold_pure_host_cc_shell
+# wave763: R3 PREFER thin+rest for R3_COLD nine leave make (try-r3-prefer)
+SWALLOWED_R3_PREFER_THIN=1
+SWALLOWED_R3_PREFER_THIN_VIA=ensure_host_cc_seed_o.sh_try-r3-prefer
+SWALLOWED_R3_PREFER_THIN_LIST=catalog_R3_COLD_SEED_OBJS
+SWALLOWED_R3_PREFER_THIN_NOTE=prefer_thin_rest_shell_g05_other_prefer_residual
 SWALLOWED_LINK_DRIVER=scripts/bootstrap_driver_seed_link.sh
 SWALLOWED_G05_FAMILY=scripts/g05_*.sh
 SWALLOWED_MIGRATE_GEN=scripts/migrate_x_objs.sh+ensure_*_gen.sh
@@ -158,7 +164,9 @@ RESIDUAL_CLASS_R2_ENDGAME=shell_plus_host_platform_facts_lists_mk
 RESIDUAL_CLASS_R3=thin_rest_prefer_x_o_host_cc
 RESIDUAL_CLASS_R3_SURFACE=thin.o+FROM_X_rest_cc+ld_-r
 RESIDUAL_CLASS_R3_COLD_ELSE=swallowed_wave757_try_r3_cold
-RESIDUAL_CLASS_R3_PREFER_THIN=residual_product_daily_path
+RESIDUAL_CLASS_R3_PREFER_THIN=swallowed_wave763_try_r3_prefer
+RESIDUAL_CLASS_R3_PREFER_THIN_SCOPE=R3_COLD_SEED_OBJS_nine
+RESIDUAL_CLASS_R3_PREFER_THIN_RESIDUAL=g05_other_prefer_hybrid_leaves
 RESIDUAL_CLASS_R3_ENDGAME=g05_ensure_product_path_complete
 
 RESIDUAL_CLASS_R4=cold_rebuild_pattern_bodies
@@ -194,6 +202,7 @@ print_live_metrics() {
   r1_seed_map=0
   r4_pure_r1=0
   r3_cold=0
+  r3_prefer=0
   r2_panic=0
   r2_typeck_f64=0
   r2_crt0=0
@@ -223,6 +232,13 @@ print_live_metrics() {
     if grep -q 'try-r3-cold\|try_ensure_r3_cold' \
       "$ROOT/compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh" 2>/dev/null; then
       r3_cold=1
+    fi
+    # wave763: R3 PREFER thin via try-r3-prefer (ensure body + Makefile thin)
+    if [ -f "$ROOT/compiler/scripts/ensure_host_cc_seed_o.sh" ] \
+      && grep -q 'try-r3-prefer\|try_ensure_r3_prefer' \
+        "$ROOT/compiler/scripts/ensure_host_cc_seed_o.sh" 2>/dev/null \
+      && grep -q 'try-r3-prefer' "$mf" 2>/dev/null; then
+      r3_prefer=1
     fi
     # wave760: R2 panic cold via try-r2
     if grep -q 'try-r2\|try_ensure_r2' \
@@ -314,6 +330,7 @@ REBUILD_LEAVES_MODE_TABLE_ENTRIES=$rebuild_modes
 R4_MODE_POLICY_SWALLOWED=$catalog_default
 R4_BODY_PURE_R1_SWALLOWED=$r4_pure_r1
 R3_COLD_ELSE_SWALLOWED=$r3_cold
+R3_PREFER_THIN_SWALLOWED=$r3_prefer
 R2_PANIC_COLD_SWALLOWED=$r2_panic
 R2_TYPECK_F64_SWALLOWED=$r2_typeck_f64
 R2_CRT0_SWALLOWED=$r2_crt0
@@ -540,13 +557,19 @@ fi
 if ! printf '%s\n' "$_out" | grep -q 'R3_COLD_ELSE_SWALLOWED=1'; then
   bad "dump R3_COLD_ELSE_SWALLOWED must be 1 (try-r3-cold + catalog)"
 fi
+if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R3_PREFER_THIN=1'; then
+  bad "dump must set SWALLOWED_R3_PREFER_THIN=1 (wave763)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'R3_PREFER_THIN_SWALLOWED=1'; then
+  bad "dump R3_PREFER_THIN_SWALLOWED must be 1 (try-r3-prefer + Makefile thin)"
+fi
 if ! printf '%s\n' "$_out" | grep -q 'R1_OTHER_HOST_CC_STILL_MAKE=1'; then
   bad "dump must keep R1_OTHER_HOST_CC_STILL_MAKE=1 (honest residual)"
 fi
 if ! printf '%s\n' "$_out" | grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0'; then
   bad "dump missing ENDGAME_PHYSICAL_DELETE_MAKEFILE=0 (not closed)"
 else
-  note "residual class inventory dump OK (wave747 R4 + wave748–755 R1 + wave757 R3 cold)"
+  note "residual class inventory dump OK (wave747 R4 + wave748–755 R1 + wave757 R3 cold + wave763 R3 PREFER)"
 fi
 
 # Makefile still present (residual reality) + has host-cc heat
@@ -742,7 +765,21 @@ else
     "$REBUILD_REL"; then
     bad "rebuild_leaves must not hardcode .o list (dual authority)"
   fi
-  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; remaining residual make-backed (post-wave762 PREFER)"
+  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763); residual g05 other PREFER / pure-ld"
+fi
+
+# wave763: ensure try-r3-prefer + Makefile R3_COLD thin-call
+if [ ! -f compiler/scripts/ensure_host_cc_seed_o.sh ]; then
+  bad "missing ensure_host_cc_seed_o.sh"
+elif ! grep -q 'try-r3-prefer\|try_ensure_r3_prefer' compiler/scripts/ensure_host_cc_seed_o.sh; then
+  bad "ensure_host_cc_seed_o must provide try-r3-prefer (wave763 R3 PREFER thin)"
+else
+  note "try-r3-prefer present in ensure_host_cc_seed_o (wave763)"
+fi
+if ! grep -q 'try-r3-prefer' compiler/Makefile; then
+  bad "Makefile must thin-call try-r3-prefer for R3_COLD leaves (wave763)"
+else
+  note "Makefile try-r3-prefer thin-call signal present (wave763)"
 fi
 
 # G.7: this script must not hardcode product .o inventories as code paths
@@ -801,5 +838,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747 R4 mode + wave756 pure-R1 + wave757 R3 cold-else + wave758 thin_glue + wave759 glue-standalone + wave760 R2 panic + wave761 gen-x + wave762 R2 typeck_f64/crt0 + wave748–755 R1 families + 11.3.1 leaf residual inventory)"
+echo "leaf_pattern_residual: CHECK OK (wave747 R4 mode + wave756 pure-R1 + wave757 R3 cold-else + wave763 R3 PREFER thin + wave758 thin_glue + wave759 glue-standalone + wave760 R2 panic + wave761 gen-x + wave762 R2 typeck_f64/crt0 + wave748–755 R1 families + 11.3.1 leaf residual inventory)"
 exit 0

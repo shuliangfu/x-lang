@@ -43,7 +43,8 @@
 **wave754:** R1 seventh family **R1_MISC_BASENAME** (misc pure basename glue/enc/ctx/pipeline_glue/asm_build) same body.  
 **wave755:** R1 eighth family **R1_SEED_MAP** (target_cpu/ast_seed mismatch + bootstrap orch -D) same body (residual R3/R4/pure-ld).  
 **wave756:** R4 pure-R1 body — `rebuild_leaves` → `ensure try-r1` for catalog pure R1 members; non-R1 residual still make.  
-**wave757:** R3 cold-else body — `rebuild_leaves` residual → `ensure try-r3-cold` (catalog `R3_COLD_SEED_OBJS`); PREFER thin residual.  
+**wave757:** R3 cold-else body — `rebuild_leaves` residual → `ensure try-r3-cold` (catalog `R3_COLD_SEED_OBJS`).  
+**wave763:** R3 PREFER thin — Makefile nine leaves → `ensure try-r3-prefer` (same catalog); g05 other PREFER residual.  
 **wave758:** R4 residual thin_glue → R1 seed-map (G.7 有则补全) — `parser_asm_thin_glue` pure host-cc; user-asm shell-only.  
 **wave759:** R4 residual glue standalone → R1 seed-map (G.7 有则补全) — `pipeline_glue_standalone` pure host-cc; glue shell-only.
 
@@ -353,7 +354,8 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 
 - [x] catalog `R3_COLD_SEED_OBJS` (9 objs; G.7 list = mk)
 - [x] `try-r3-cold` + rebuild residual path before make
-- [x] Makefile cold-else thin-call ensure; PREFER thin residual
+- [x] Makefile cold-else thin-call ensure  
+- [x] wave763: try-r3-prefer + Makefile nine thin-call (R3_COLD PREFER)
 - [x] LEAF dump `SWALLOWED_R3_COLD_ELSE=1` · `R3_COLD_ELSE_SWALLOWED=1`
 
 ### wave758 (11.3.1 · R4 residual thin_glue → seed-map)

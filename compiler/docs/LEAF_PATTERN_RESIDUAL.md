@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2 · wave763 R3 PREFER thin try-r3-prefer)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -28,9 +28,10 @@
 | Prereq **edges** | `driver_seed_ensure_prereqs.sh` | wave744; list = catalog |
 | Rebuild leaf **orchestration + mode policy** | `bootstrap_driver_seed_rebuild_leaves.sh` | **wave747**: mode table + catalog KEY in shell |
 | Rebuild leaf **pure-R1 bodies** | `ensure_host_cc_seed_o.sh try-r1` via rebuild_leaves | **wave756**: pure R1 leave make |
-| Rebuild leaf **R3 cold-else bodies** | `ensure_host_cc_seed_o.sh try-r3-cold` via rebuild_leaves | **wave757**: cold pure host-cc leave make; PREFER thin still Makefile |
+| Rebuild leaf **R3 cold-else bodies** | `ensure_host_cc_seed_o.sh try-r3-cold` via rebuild_leaves | **wave757**: cold pure host-cc leave make |
+| **R3 PREFER thin+rest (R3_COLD nine)** | `ensure_host_cc_seed_o.sh try-r3-prefer` | **wave763**: Makefile thin-call; g05 other PREFER residual |
 | Phase1/final **link driver** | `bootstrap_driver_seed_link.sh` | residual is `SEED_LINK_CC -o` (11.1.4 · wave745) |
-| g05 ensure / prepare / relink | `g05_*.sh` | product daily path (R3 PREFER thin still inside) |
+| g05 ensure / prepare / relink | `g05_*.sh` | product daily path (other PREFER hybrid residual) |
 | migrate / `*_gen` ensure | `migrate_x_objs.sh` · `ensure_*_gen.sh` | wave735–740 |
 | Host facts / linker policy map | `host_platform_linker.sh` | wave745 |
 | **R1 pure host-cc body · eight families** | `ensure_host_cc_seed_o.sh` | **wave748**–**wave755**; residual non-catalog |
@@ -46,7 +47,7 @@
 |----|----------------|--------------------------|---------------|--------|
 | **R1** | Host-cc seed/from_x → `.o` | `$(CC) … -c seeds/*.from_x.c -o …` recipes | shell ensure or product `-E`+cc body (stages 8–9); **one** body, multi family lists | **rt-slice ✅ wave748** · … · **seed-map ✅ wave755** (+ **thin_glue wave758** + **glue standalone wave759**); residual non-catalog |
 | **R2** | Platform stamp / UNAME leaf | `runtime_panic.$(UNAME_S).$(UNAME_M).stamp` · `typeck_f64_bits` arch `.s` pick · crt0 | shell + host_platform_linker facts; lists stay mk | **panic cold ✅ wave760** · **typeck_f64/crt0 ✅ wave762** (try-r2); PREFER panic thin residual |
-| **R3** | Thin+rest / PREFER_X_O host-cc rest | thin `.o` + `FROM_X=1` rest `cc -c` + `ld -r` | cold-else shell ensure; PREFER thin product path | **cold-else ✅ wave757** (try-r3-cold); **PREFER thin residual** |
+| **R3** | Thin+rest / PREFER_X_O host-cc rest | thin `.o` + `FROM_X=1` rest `cc -c` + `ld -r` | cold-else shell ensure; PREFER thin product path | **cold-else ✅ wave757** (try-r3-cold); **R3_COLD PREFER ✅ wave763** (try-r3-prefer); residual g05 other PREFER hybrid |
 | **R4** | Cold rebuild **pattern bodies** | sat/lsp/bridge/panic/user-asm/glue/pipeline-x | rebuild without make pattern graph | **mode+list shell wave747** · **pure-R1 wave756** · **R3 cold wave757** · **thin_glue seed-map wave758** · **glue standalone seed-map wave759** · **panic cold try-r2 wave760** · **gen try-gen-x wave761** · **typeck_f64/crt0 try-r2 wave762**; residual PREFER thin / sat non-R1 if any |
 | **R5** | CI / `compiler-all` host-cc graph | Makefile `all` · OPT seed path | CI entry stays `./xbuild compiler-all` until stage 12 | residual |
 | **R6** | Residual cold **link** via CC | `SEED_LINK_CC -o` phase1/final | 11.1.4 pure-ld endgame (orthogonal inventory: PLATFORM_LINKER) | residual |
@@ -137,10 +138,36 @@ R3_COLD_SEED_OBJS (9):
 
 | Swallowed | Still residual |
 |-----------|----------------|
-| Cold pure host-cc for thin+rest leaves (rebuild + Makefile cold-else) | PREFER_X_O=1 thin+rest product path · ~~panic UNAME cold~~ (wave760) · ~~gen `*_x`/pipeline_x~~ (wave761) · ~~hybrid thin_glue~~ (wave758) · ~~glue standalone~~ (wave759) |
-| Dual cold `$(CC) -c seed` vs ensure for the nine objs | Full R3 PREFER endgame · pure-ld · physical delete |
+| Cold pure host-cc for thin+rest leaves (rebuild + Makefile cold-else) | ~~PREFER Makefile thin for nine~~ (wave763) · ~~panic UNAME cold~~ (wave760) · ~~gen `*_x`/pipeline_x~~ (wave761) · ~~hybrid thin_glue~~ (wave758) · ~~glue standalone~~ (wave759) |
+| Dual cold `$(CC) -c seed` vs ensure for the nine objs | g05 other PREFER hybrid · pure-ld · physical delete |
 
-**Forbidden:** hardcoding the nine `.o` paths in shell as list authority (catalog KEY only); copying PREFER thin recipes into shell.
+**Forbidden:** hardcoding the nine `.o` paths in shell as list authority (catalog KEY only); dual PREFER body outside try-r3-prefer.
+
+### wave763 · R3 PREFER thin+rest for R3_COLD nine (try-r3-prefer · G.7 有则补全)
+
+```text
+Before (wave757–762):
+  Makefile phase4 recipes for R3_COLD_SEED_OBJS:
+    if PREFER_X_O=1 && xlang-c: thin.x -E → thin.o + seed rest -D → ld -r
+    else: ensure one (cold)
+  backend_* historically always-tried thin when xlang-c existed (no PREFER gate)
+
+After (wave763):
+  ensure try-r3-prefer OUT
+    membership = catalog R3_COLD_SEED_OBJS (lists = mk; same KEY as cold)
+    leaf map: x_src | rest -D list | optional nm symbol (not .o inventory)
+    PREFER=1 + xlang-c → thin+rest+ld -r; nm gate (simd_enc/loop)
+    else / fail → ensure_one cold (FORCE if prefer wrote bad OUT)
+  Makefile nine leaves: thin-call try-r3-prefer only
+  PREFER gate unified for all nine (cold-chain Darwin safety)
+```
+
+| Swallowed | Still residual |
+|-----------|----------------|
+| Makefile PREFER thin+rest body for R3_COLD nine | g05_ensure other PREFER hybrid (labi/rt slices) · pure-ld · physical delete |
+| Dual inline phase4 thin recipes vs ensure cold | panic PREFER (if any) · R5 CI · fmt_check / async PREFER leaves outside R3_COLD |
+
+**Forbidden:** second `.o` list; re-open inline `ld -r` thin+rest in Makefile for these nine; invent second prefer helper name.
 
 ### wave758 · R4 residual thin_glue → R1 seed-map (G.7 有则补全)
 
@@ -678,7 +705,14 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - [x] g05_ensure + build_xlang_asm converge to try-r2
 - [x] LEAF dump `SWALLOWED_R2_TYPECK_F64=1` · `SWALLOWED_R2_CRT0=1` · live metrics
 
-- [ ] R3 PREFER thin+rest product path · panic PREFER thin
+### wave763 (R3 PREFER thin · R3_COLD nine)
+
+- [x] `try-r3-prefer` membership = catalog `R3_COLD_SEED_OBJS` (G.7 有则补全; no new list)
+- [x] leaf map x/rest-defs/nm (not .o inventory); unified PREFER=1 gate
+- [x] Makefile nine thin-call try-r3-prefer (no inline ld -r thin+rest)
+- [x] LEAF dump `SWALLOWED_R3_PREFER_THIN=1` · `R3_PREFER_THIN_SWALLOWED=1`
+
+- [ ] g05 other PREFER hybrid · panic PREFER (if any) · pure-ld · physical delete
 - [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame)
 - [ ] Leaf `.o` without host-cc residual (stages 8–9 / 12)
 - [ ] Cold phase1/final pure-ld without `SEED_LINK_CC -o` (11.1.4 · separate)

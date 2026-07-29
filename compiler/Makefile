@@ -780,23 +780,11 @@ src/main.o: seeds/main.from_x.c src/main_c_entry.x scripts/ensure_host_cc_seed_o
 # G-02f-12 / Phase 4：runtime_io_abi PREFER_X_O（rest→.x 迁移）
 # 5 个 _impl 真迁 .x（read/malloc/memcpy）；4 个保留 seed（mmap/fstat/O_* flags/平台 #ifdef）
 # PLATFORM: SHARED 冷链纪律 — 仅 XLANG_G05_PREFER_X_O=1 才 thin（同 simd_enc；见下 runtime_driver_abi）。
-# wave757 R3 cold-else: pure host-cc → ensure (list = R3_COLD_SEED_OBJS).
+# wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer (list = R3_COLD_SEED_OBJS).
 src/runtime_io_abi.o: seeds/runtime_io_abi.from_x.c src/runtime_io_abi.x src/runtime_io_abi.h scripts/ensure_host_cc_seed_o.sh
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && { \
-		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/rio.XXXXXX") && \
-		./xlang-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/runtime_io_abi.x > "$$_tmp" 2>/dev/null && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/runtime_io_abi_x.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_L2_RIO_THIN_FROM_X -DXLANG_RUNTIME_IO_ABI_FROM_X -c seeds/runtime_io_abi.from_x.c -o src/runtime_io_abi_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) src/runtime_io_abi_x.o src/runtime_io_abi_rest.o -o $@ && \
-		rm -f "$$_tmp" src/runtime_io_abi_x.o src/runtime_io_abi_rest.o && \
-		echo "phase4: $@ <- .x + seed-rest (PREFER_X_O)"; \
-	}; then :; \
-	elif [ -f seeds/runtime_io_abi.from_x.c ]; then \
-		CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-		  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_io_abi.from_x.c; \
-	else \
-		echo "ERROR: no xlang-c and no seed for $@" >&2; exit 1; \
-	fi
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer $@
 
 
 # G-02f-13：runtime_link_abi 产品 seed（G05 hot）
@@ -811,23 +799,11 @@ src/runtime_link_abi.o: seeds/runtime_link_abi.from_x.c src/runtime_link_abi.x s
 # thin 会 emit process_args_count_c → U process_xlang_argc_get，而 phase1 未链 runtime_process_argv.o
 # → mac phase1 UNDEF；Ubuntu 上 thin -E/cc 常失败回退 seed 故假绿。须与 simd_enc 同源门控。
 # 链闭包：DRIVER_SEED_OBJS 含 runtime_process_argv.o（PREFER=1 时亦须能解析 process_xlang_*）。
-# wave757 R3 cold-else: pure host-cc → ensure (list = R3_COLD_SEED_OBJS).
+# wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer (list = R3_COLD_SEED_OBJS).
 src/runtime_driver_abi.o: seeds/runtime_driver_abi.from_x.c src/runtime_driver_abi_thin.x src/runtime_driver_abi.x src/runtime_driver_abi.h scripts/ensure_host_cc_seed_o.sh
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && { \
-		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/rdabi.XXXXXX") && \
-		./xlang-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/runtime_driver_abi_thin.x > "$$_tmp" 2>/dev/null && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/runtime_driver_abi_thin.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_L2_RDABI_THIN_FROM_X -c seeds/runtime_driver_abi.from_x.c -o src/runtime_driver_abi_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) src/runtime_driver_abi_thin.o src/runtime_driver_abi_rest.o -o $@ && \
-		rm -f "$$_tmp" src/runtime_driver_abi_thin.o src/runtime_driver_abi_rest.o && \
-		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
-	}; then :; \
-	elif [ -f seeds/runtime_driver_abi.from_x.c ]; then \
-		CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-		  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_driver_abi.from_x.c; \
-	else \
-		echo "ERROR: no xlang-c and no seed for $@" >&2; exit 1; \
-	fi
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer $@
 
 # G-02f-12：runtime_pipeline_abi 产品 seed（须 XLANG_USE_X_PIPELINE）
 # wave753 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_EXTRA_CFLAGS_OBJS).
@@ -923,23 +899,11 @@ src/async/async_asm_pool.o: seeds/async_asm_pool.from_x.c src/asm/async_asm_pool
 
 # G-02f-12 / Phase 4：runtime_driver_diagnostic thin+rest PREFER_X_O
 # PLATFORM: SHARED 冷链 — 仅 XLANG_G05_PREFER_X_O=1 才 thin（同 simd_enc / runtime_driver_abi）。
-# wave757 R3 cold-else: pure host-cc → ensure (list = R3_COLD_SEED_OBJS).
+# wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer (list = R3_COLD_SEED_OBJS).
 src/runtime_driver_diagnostic.o: seeds/runtime_driver_diagnostic.from_x.c src/runtime_driver_diagnostic_thin.x src/runtime_driver_diagnostic.x src/runtime_driver_diagnostic.h include/diag.h scripts/ensure_host_cc_seed_o.sh
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && { \
-		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/rdd.XXXXXX") && \
-		./xlang-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/runtime_driver_diagnostic_thin.x > "$$_tmp" 2>/dev/null && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/runtime_driver_diagnostic_thin.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_L2_RDD_THIN_FROM_X -c seeds/runtime_driver_diagnostic.from_x.c -o src/runtime_driver_diagnostic_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) src/runtime_driver_diagnostic_thin.o src/runtime_driver_diagnostic_rest.o -o $@ && \
-		rm -f "$$_tmp" src/runtime_driver_diagnostic_thin.o src/runtime_driver_diagnostic_rest.o && \
-		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
-	}; then :; \
-	elif [ -f seeds/runtime_driver_diagnostic.from_x.c ]; then \
-		CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-		  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_driver_diagnostic.from_x.c; \
-	else \
-		echo "ERROR: no xlang-c and no seed for $@" >&2; exit 1; \
-	fi
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer $@
 
 # 6.3：runtime.c 提供 run_compiler_c 与弱符号 main_entry；带 .x 入口时用 runtime_driver.o（含 driver_*/pipeline_*）
 # G-02f-14：runtime 产品 seed（多变体）
@@ -1053,12 +1017,13 @@ R1_SEED_MAP_OBJS = src/driver/target_cpu.o src/ast/ast_seed.o pipeline_bootstrap
 
 # wave757 R3 cold-else family: thin+rest leaves whose cold path (PREFER_X_O≠1 /
 # bootstrap-driver-seed rebuild) is pure host-cc of seeds/<leaf>.from_x.c.
-# List authority for ensure_host_cc_seed_o.sh try-r3-cold / r3-cold-seed mode.
-# Body = same ensure_one as R1 (basename seed). PREFER_X_O=1 thin+rest stays
-# Makefile (product daily path); cold-else branch thin-calls ensure (G.7).
-# Residual after wave762: pure-ld · physical delete · R3 PREFER thin ·
+# List authority for ensure_host_cc_seed_o.sh try-r3-cold / try-r3-prefer /
+# r3-cold-seed modes (G.7 lists = mk only).
+# wave763: PREFER_X_O=1 thin+rest product path also via try-r3-prefer (single
+# shell body; Makefile thin-calls; no inline thin+rest recipes).
+# Residual after wave763: pure-ld · physical delete · g05 other PREFER leaves ·
 # ~~panic / typeck_f64 / crt0 R2~~ try-r2 · ~~gen/pipeline~~ try-gen-x ·
-# ~~thin_glue / glue standalone~~ → seed-map.
+# ~~thin_glue / glue standalone~~ → seed-map · ~~R3_COLD Makefile PREFER~~.
 R3_COLD_SEED_OBJS = src/runtime_io_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/asm/simd_enc.o src/asm/simd_loop.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o
 
 # G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（XLANG_LEGACY_PREPROCESS_C 路径已死）。
@@ -1944,23 +1909,12 @@ src/asm/asm_backend_compat_stubs.o: seeds/asm_backend_compat_stubs.from_x.c src/
 	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/asm_backend_compat_stubs.from_x.c
 
 # G-02f-9 / Phase 4：backend_*_dispatch thin+rest PREFER_X_O
-# wave757 R3 cold-else: pure host-cc → ensure (list = R3_COLD_SEED_OBJS).
+# wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer.
+# wave763: PREFER gate unified (PREFER=1 only) for cold-chain safety (Darwin).
 src/asm/backend_enc_dispatch.o: seeds/backend_enc_dispatch.from_x.c src/asm/backend_enc_dispatch_thin.x src/asm/backend_enc_dispatch.x scripts/ensure_host_cc_seed_o.sh
-	@if [ -x ./xlang-c ] && { \
-		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/enc_disp.XXXXXX") && \
-		./xlang-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/backend_enc_dispatch_thin.x > "$$_tmp" 2>/dev/null && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/asm/backend_enc_dispatch_thin.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X -c seeds/backend_enc_dispatch.from_x.c -o src/asm/backend_enc_dispatch_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) src/asm/backend_enc_dispatch_thin.o src/asm/backend_enc_dispatch_rest.o -o $@ && \
-		rm -f "$$_tmp" src/asm/backend_enc_dispatch_thin.o src/asm/backend_enc_dispatch_rest.o && \
-		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
-	}; then :; \
-	elif [ -f seeds/backend_enc_dispatch.from_x.c ]; then \
-		CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-		  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/backend_enc_dispatch.from_x.c; \
-	else \
-		echo "ERROR: no xlang-c and no seed for $@" >&2; exit 1; \
-	fi
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer $@
 
 # G-02f-15：backend_x86_64_enc_c 产品 seed
 # wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
@@ -1975,59 +1929,23 @@ src/asm/backend_arm64_enc_c.o: seeds/backend_arm64_enc_c.from_x.c scripts/ensure
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/backend_arm64_enc_c.from_x.c
 
-# wave757 R3 cold-else: pure host-cc → ensure (list = R3_COLD_SEED_OBJS).
+# wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer.
 src/asm/backend_arch_emit_dispatch.o: seeds/backend_arch_emit_dispatch.from_x.c src/asm/backend_arch_emit_dispatch_thin.x src/asm/backend_arch_emit_dispatch.x scripts/ensure_host_cc_seed_o.sh
-	@if [ -x ./xlang-c ] && { \
-		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/arch_disp.XXXXXX") && \
-		./xlang-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/backend_arch_emit_dispatch_thin.x > "$$_tmp" 2>/dev/null && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/asm/backend_arch_emit_dispatch_thin.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_L2_ARCH_EMIT_THIN_FROM_X -c seeds/backend_arch_emit_dispatch.from_x.c -o src/asm/backend_arch_emit_dispatch_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) src/asm/backend_arch_emit_dispatch_thin.o src/asm/backend_arch_emit_dispatch_rest.o -o $@ && \
-		rm -f "$$_tmp" src/asm/backend_arch_emit_dispatch_thin.o src/asm/backend_arch_emit_dispatch_rest.o && \
-		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
-	}; then :; \
-	elif [ -f seeds/backend_arch_emit_dispatch.from_x.c ]; then \
-		CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-		  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/backend_arch_emit_dispatch.from_x.c; \
-	else \
-		echo "ERROR: no xlang-c and no seed for $@" >&2; exit 1; \
-	fi
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer $@
 
-# wave757 R3 cold-else: pure host-cc → ensure (list = R3_COLD_SEED_OBJS).
+# wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer.
 src/asm/backend_try_inline_dispatch.o: seeds/backend_try_inline_dispatch.from_x.c src/asm/backend_try_inline_dispatch_thin.x src/asm/backend_try_inline_dispatch.x scripts/ensure_host_cc_seed_o.sh
-	@if [ -x ./xlang-c ] && { \
-		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/try_inl.XXXXXX") && \
-		./xlang-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/backend_try_inline_dispatch_thin.x > "$$_tmp" 2>/dev/null && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/asm/backend_try_inline_dispatch_thin.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_L2_TRY_INLINE_THIN_FROM_X -c seeds/backend_try_inline_dispatch.from_x.c -o src/asm/backend_try_inline_dispatch_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) src/asm/backend_try_inline_dispatch_thin.o src/asm/backend_try_inline_dispatch_rest.o -o $@ && \
-		rm -f "$$_tmp" src/asm/backend_try_inline_dispatch_thin.o src/asm/backend_try_inline_dispatch_rest.o && \
-		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
-	}; then :; \
-	elif [ -f seeds/backend_try_inline_dispatch.from_x.c ]; then \
-		CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-		  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/backend_try_inline_dispatch.from_x.c; \
-	else \
-		echo "ERROR: no xlang-c and no seed for $@" >&2; exit 1; \
-	fi
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer $@
 
-# wave757 R3 cold-else: pure host-cc → ensure (list = R3_COLD_SEED_OBJS).
+# wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer.
 src/asm/backend_call_dispatch.o: seeds/backend_call_dispatch.from_x.c src/asm/backend_call_dispatch_thin.x src/asm/backend_call_dispatch.x scripts/ensure_host_cc_seed_o.sh
-	@if [ -x ./xlang-c ] && { \
-		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/call_disp.XXXXXX") && \
-		./xlang-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/backend_call_dispatch_thin.x > "$$_tmp" 2>/dev/null && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/asm/backend_call_dispatch_thin.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_L2_CALL_DISPATCH_THIN_FROM_X -c seeds/backend_call_dispatch.from_x.c -o src/asm/backend_call_dispatch_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) src/asm/backend_call_dispatch_thin.o src/asm/backend_call_dispatch_rest.o -o $@ && \
-		rm -f "$$_tmp" src/asm/backend_call_dispatch_thin.o src/asm/backend_call_dispatch_rest.o && \
-		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
-	}; then :; \
-	elif [ -f seeds/backend_call_dispatch.from_x.c ]; then \
-		CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-		  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/backend_call_dispatch.from_x.c; \
-	else \
-		echo "ERROR: no xlang-c and no seed for $@" >&2; exit 1; \
-	fi
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer $@
 
 # parser EMIT_HEAVY thin delegate C 目标：bootstrap xlang 须链入，extern bl 白名单 emit 才不 segfault。
 # 全量 parser_x.o 已含 parse_into_buf / get_module_* 等；禁 seed slice 与重复前缀符号。
@@ -2197,46 +2115,20 @@ src/driver/target_cpu.o: seeds/target_cpu_pure.from_x.c src/driver/target_cpu_pu
 # 【Why 2026-07-16】Darwin 上 bootstrap_xlangc 常在：若仅按「有 xlang-c」走 thin，thin 可能
 # 假成功（能 cc/ld -r 但缺 simd_rbp_disp32 等强符号）→ seed phase1 链失败。
 # Ubuntu 上 thin 生成 C 常编译失败并回退 seed，故冷链绿；mac 须与冷链同源：默认 seed。
-# 验收：nm 须有 simd_rbp_disp32，否则丢弃 thin 回退 seed。
-# wave757 R3 cold-else: pure host-cc → ensure (list = R3_COLD_SEED_OBJS).
+# 验收：nm 须有 simd_rbp_disp32，否则丢弃 thin 回退 seed（body = try-r3-prefer）。
+# wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer.
 src/asm/simd_enc.o: seeds/simd_enc.from_x.c src/asm/simd_enc_thin.x src/asm/simd_enc.x include/simd_enc.h include/target_cpu.h scripts/ensure_host_cc_seed_o.sh
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && { \
-		_tmp_thin=$$(mktemp "$${TMPDIR:-/tmp}/simd_enc_thin.XXXXXX") && \
-		./xlang-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/simd_enc_thin.x > "$$_tmp_thin" 2>/dev/null && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp_thin" -o src/asm/simd_enc_thin.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_L2_SIMD_ENC_THIN_FROM_X -c seeds/simd_enc.from_x.c -o src/asm/simd_enc_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) src/asm/simd_enc_thin.o src/asm/simd_enc_rest.o -o $@ && \
-		rm -f "$$_tmp_thin" src/asm/simd_enc_thin.o src/asm/simd_enc_rest.o && \
-		nm -gU $@ 2>/dev/null | awk '/ simd_rbp_disp32$$| _simd_rbp_disp32$$/ { found=1 } END { exit !found }' && \
-		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
-	}; then :; \
-	elif [ -f seeds/simd_enc.from_x.c ]; then \
-		CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-		  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/simd_enc.from_x.c; \
-	else \
-		echo "ERROR: no xlang-c and no seed for $@" >&2; exit 1; \
-	fi
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer $@
 # G-02f-8 / Phase 4：simd_loop thin+rest PREFER_X_O
 # 源：src/asm/simd_loop_thin.x（22 #[no_mangle] thin wrapper）+ seeds/simd_loop.from_x.c（17 _impl rest）
 # 仅 XLANG_G05_PREFER_X_O=1 且 xlang-c 可用时走 thin；否则 seed 完整编译（同 simd_enc 冷链纪律）。
-# wave757 R3 cold-else: pure host-cc → ensure (list = R3_COLD_SEED_OBJS).
+# wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer.
 src/asm/simd_loop.o: seeds/simd_loop.from_x.c src/asm/simd_loop_thin.x src/asm/simd_loop.x include/simd_loop.h include/simd_enc.h include/target_cpu.h scripts/ensure_host_cc_seed_o.sh
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && { \
-		_tmp_thin=$$(mktemp "$${TMPDIR:-/tmp}/simd_loop_thin.XXXXXX") && \
-		./xlang-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/simd_loop_thin.x > "$$_tmp_thin" 2>/dev/null && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp_thin" -o src/asm/simd_loop_thin.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_L2_SIMD_LOOP_THIN_FROM_X -c seeds/simd_loop.from_x.c -o src/asm/simd_loop_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) src/asm/simd_loop_thin.o src/asm/simd_loop_rest.o -o $@ && \
-		rm -f "$$_tmp_thin" src/asm/simd_loop_thin.o src/asm/simd_loop_rest.o && \
-		nm -gU $@ 2>/dev/null | awk '/ glue_simd_loop_pick_lanes_c$$| _glue_simd_loop_pick_lanes_c$$/ { found=1 } END { exit !found }' && \
-		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
-	}; then :; \
-	elif [ -f seeds/simd_loop.from_x.c ]; then \
-		CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-		  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/simd_loop.from_x.c; \
-	else \
-		echo "ERROR: no xlang-c and no seed for $@" >&2; exit 1; \
-	fi
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer $@
 # G-02a Step 1：默认构建切 no_c 模式；默认 bootstrap 不链 LEXER_LINK_O / AST_LINK_O。
 # C 前端 .c（ast/lexer/parser/typeck/codegen）仍保留，因 build_xlang_asm.sh + relink 脚本仍引用 ast_seed.o 等。
 # bootstrap-driver-seed：pipeline_x.o 为 -E-extern 编排；parser/lexer/typeck/codegen *_x.o 分 TU。
