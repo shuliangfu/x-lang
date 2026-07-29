@@ -27,7 +27,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "=== 11.0.2/11.0.3/11.0.4 + 11.2.3/11.2.5/11.4 product-path 0-make static gate (wave714–732) ==="
+echo "=== 11.0.2/11.0.3/11.0.4 + 11.1.6/11.2.3/11.2.5/11.4 product-path 0-make static gate (wave714–733) ==="
 
 fail=0
 note() { echo "  OK  $*"; }
@@ -502,20 +502,19 @@ fi
 
 # remaining make -C in xlang-build:
 #   wave720: product targets 0× make -C
-#   wave730: exactly one hub body `run_compiler_make` may call make -C (CI/cold/leaves)
+#   wave730: run_compiler_make hub for CI/cold/leaves
+#   wave733: hub body moved to tests/lib/compiler-make.sh (G.7) → xlang-build 0× make -C
 xb_make_exec=$(grep -nE 'make -C compiler' xlang-build.sh \
   | grep -vE '^[0-9]+:[[:space:]]*#' \
   || true)
 xb_make_n=$(printf '%s\n' "$xb_make_exec" | grep -c . || true)
-echo "  INFO xlang-build.sh executable make -C compiler sites: ${xb_make_n:-0} (wave730 hub = 1)"
-if [ "${xb_make_n:-0}" -eq 0 ]; then
-  bad "xlang-build.sh missing run_compiler_make hub (wave730 expects 1 make -C site)"
-elif [ "${xb_make_n:-0}" -eq 1 ] \
-  && echo "$xb_make_exec" | grep -q 'MAKEFLAGS= make -C compiler' \
-  && grep -q 'run_compiler_make()' xlang-build.sh; then
-  note "xlang-build.sh: 1× make -C only in run_compiler_make hub (product targets 0-make)"
+echo "  INFO xlang-build.sh executable make -C compiler sites: ${xb_make_n:-0} (wave733 expects 0; body in compiler-make.sh)"
+if [ "${xb_make_n:-0}" -eq 0 ] \
+  && grep -q 'run_compiler_make()' xlang-build.sh \
+  && grep -q 'tests/lib/compiler-make\.sh' xlang-build.sh; then
+  note "xlang-build.sh: 0× make -C; run_compiler_make → tests/lib/compiler-make.sh (G.7 wave733)"
 else
-  bad "xlang-build.sh make -C sites must be exactly hub run_compiler_make; got: $xb_make_exec"
+  bad "xlang-build.sh must have 0 make -C and delegate via run_compiler_make → compiler-make.sh; got: $xb_make_exec"
 fi
 
 # --- migration table exists and mentions classes ---
@@ -758,6 +757,43 @@ for f in tests/run-all.sh tests/run-all-c.sh tests/run-goto.sh tests/run-without
 done
 if [ "$spot_ok" -eq 1 ]; then
   note "run-all / run-all-c / run-goto / run-without-c use xlang_compiler_make hub"
+fi
+
+# --- wave733: 11.2.3 close — all tests/**/*.sh 0 raw make -C (bench vacuous) ---
+# Only hub body may contain make -C; gate/probe scan make by design.
+tests_all_raw=$(
+  find tests -name '*.sh' \
+    ! -path 'tests/lib/compiler-make.sh' \
+    ! -name 'run-product-path-zero-make-gate.sh' \
+    ! -name 'run-product-path-zero-make-path-probe.sh' \
+    -print0 2>/dev/null \
+    | xargs -0 grep -nE 'make[[:space:]]+-C[[:space:]]+' 2>/dev/null \
+    | grep -vE ':[0-9]+:[[:space:]]*#' \
+    || true
+)
+if [ -n "$tests_all_raw" ]; then
+  bad "tests/**/*.sh still has raw make -C outside hub; wave733 11.2.3:"
+  echo "$tests_all_raw" | head -30 >&2
+else
+  note "tests/**/*.sh: 0 raw make -C outside compiler-make.sh (11.2.3 closed; bench vacuous)"
+fi
+# Hub CLI mode (xbuild run_compiler_make)
+if grep -q 'BASH_SOURCE\[0\]' tests/lib/compiler-make.sh \
+  && grep -q 'xlang_compiler_make "\$@"' tests/lib/compiler-make.sh; then
+  note "compiler-make.sh CLI mode present (source + exec; G.7 wave733)"
+else
+  bad "tests/lib/compiler-make.sh missing CLI entry for xbuild run_compiler_make"
+fi
+# g05 first-class targets on xbuild (11.1.6 slice)
+if grep -q 'ensure|g05-ensure' xlang-build.sh \
+  && grep -q 'link-product|relink' xlang-build.sh \
+  && grep -q 'link-env|g05-export' xlang-build.sh \
+  && grep -q 'run_g05_prepare_and_relink' xlang-build.sh \
+  && grep -q 'g05_ensure_relink_prereqs\.sh' xlang-build.sh \
+  && grep -q 'g05_prepare_and_relink\.sh' xlang-build.sh; then
+  note "xbuild g05 targets: ensure / link-env / link-product (11.1.6 wave733; 0 make)"
+else
+  bad "xlang-build missing wave733 g05 first-class targets (ensure/link-env/link-product)"
 fi
 
 # Product daily `all` must remain g05 (not Makefile all); CI uses compiler-all.

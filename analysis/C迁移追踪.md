@@ -30,7 +30,7 @@
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
 | **Makefile 退役 / xbuild** | 🟡 半路径 | **`./xbuild`→`xlang-build.sh`** 产品入口；根 Makefile **help-only**；叶/组合体→`compiler/mk/*.mk`；**`compiler/Makefile` 仍 ~3445 行权威图**（阶段 11） |
-| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 🟡** lib+run-*.sh hub ✅（bench residual）· **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
+| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 ✅** tests/** hub（lib+run+bench 0 raw make -C）· **11.1.6 🟡** g05 一等目标 → xbuild · **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | ⬜ 0/~4 | ~200 个 .c 文件在零 cc 终局下归属未定 — 阶段 11.5 |
 | **冷启动零 cc 链** | ⬜ 0/4 | 最小 seed + 零 cc 验证 + 双端冷启动 |
 | **终局：无 Makefile + 零 cc + v2==v3** | ⬜ 未达 | 见 §0.1 三义；阶段 13 |
@@ -1364,10 +1364,12 @@
 
   - 今日大量 “See implementation” → 变为 xbuild 可读的构建图（产品矩阵、L4 步骤、std 模块顺序）
 
-⬜ **11.1.6 吞并 g05 脚本族**
+🟡 **11.1.6 吞并 g05 脚本族**
 
   - `g05_ensure_relink_prereqs` / `g05_relink_env` / `g05_relink_xlang` / `g05_prepare_and_relink` / `build_xlang_asm.sh`
-  - 终局：xbuild 内建或单一 `scripts/g05` 由 xbuild 调用；**无 Makefile 间接调用**
+  - ✅ wave733：`./xbuild ensure|link-env|link-product|link-product-asm` 直调 g05 shell（**零 make**）；Makefile 薄兼容入口仍在
+  - ✅ wave733：`run_compiler_make` 与 tests hub 合体 → `tests/lib/compiler-make.sh`（G.7 单 make -C 体）
+  - ⬜ 终局：xbuild 内建或单一 `scripts/g05` 族；删 Makefile 间接调用（与 11.3 同闸）
 
 ### 11.2 自举 stage + 测试/CI 编排
 
@@ -1379,12 +1381,13 @@
 
   - `xbuild cold-test`：全擦 `compiler|std|core` 下 `.o` + 删产品二进制 → seed/g05 或纯 xbuild → 矩阵 → `run-all-bstrict`（`XLANG_BSTRICT_SKIP_BUILD=1`）
 
-🟡 **11.2.3 prove / bstrict / gate 脚本去 make**
+✅ **11.2.3 prove / bstrict / gate 脚本去 make**（wave727–733）
 
   - `tests/**/*.sh`（含 `tests/lib/*.sh` · `tests/bench/**/*.sh` · `tests/docker/*`）中 `make -C compiler` 清零或改为 `xbuild` / `xlang_compiler_make`
   - ✅ `tests/lib/compiler-make.sh` 单入口 `xlang_compiler_make`；tests/lib **0** raw `make -C`（hub 外）；`XLANG_COMPILER_DIR` 支持 nolibc（wave727/728）
   - ✅ `tests/run-*.sh` **0** raw `make -C`（~456 脚本 → hub；wave732）；图仍 Makefile 至 11.3
-  - ⬜ `tests/bench` 同步；docker CI 外层 / 11.2.5 workflow ✅ wave730
+  - ✅ wave733：全仓 `tests/**/*.sh` 0 raw make -C（bench 本无 make -C，vacuous close）；CLI 模式供 xbuild 共用 hub
+  - docker CI 外层 / 11.2.5 workflow ✅ wave730
 
 ⬜ **11.2.4 Windows 入口**
 
@@ -1690,7 +1693,7 @@
 | **B** | pinned `*_gen.c` | 18 | Makefile pin cp | `xbuild pin-gen` | ⬜ 7.4/8.2 |
 | **A** | std/core 模块 .o | 65 | 部分 shell / g05 | `xbuild std` | 🟡 |
 | **G** | `build_asm/*_filtered.o` | 4 | 全 4 🟢 shell | `xbuild build-asm-filter` | ✅ 产品+Makefile 同调 |
-| **J** | test / check / verify | 12 | shell + tests hub | `xbuild test` / `cold-test` | 🟡 11.2.3 lib+run-*.sh ✅ · bench ⬜ |
+| **J** | test / check / verify | 12 | shell + tests hub | `xbuild test` / `cold-test` | 🟢 11.2.3 tests/** hub ✅（wave733） |
 | **K** | seed 工具 | 4 | Makefile | `xbuild seed-tools` | ⬜ 11.0.3 |
 | **L** | std 变体 stub | 10 | Makefile | `xbuild std-variant` | ⬜ |
 | **M** | clean / compile_commands / legacy | 6 | make / 考古 | util 或 🗑 | 🟡 |

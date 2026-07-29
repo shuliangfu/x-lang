@@ -40,13 +40,27 @@ run_build_tool() {
   (cd compiler && ./build_tool ./xlang $1)
 }
 
-# Single residual make hub for CI / cold-start / leaf .o (wave730 · 11.2.5 / 11.4).
+# Residual make hub for CI / cold-start / leaf .o (wave730 · wave733 G.7).
 # Outer workflows/docker must call ./xbuild — never raw `make -C compiler`.
-# Dependency graph still lives in compiler/Makefile until 11.3; this is the only
-# product-facing make entry (mirrors tests/lib/compiler-make.sh for POSIX sh).
+# G.7 single body: tests/lib/compiler-make.sh (same as tests xlang_compiler_make).
+# Dependency graph still lives in compiler/Makefile until 11.3.
 # PLATFORM: SHARED
 run_compiler_make() {
-  MAKEFLAGS= make -C compiler "$@"
+  bash tests/lib/compiler-make.sh "$@"
+}
+
+# g05 product chain — direct shell (wave733 · 11.1.6 first slice).
+# No Makefile: prepare/ensure/env/link already live under compiler/scripts/g05_*.sh.
+# PLATFORM: SHARED
+run_g05_ensure() {
+  (cd compiler && sh scripts/g05_ensure_relink_prereqs.sh)
+}
+run_g05_link_env() {
+  (cd compiler && sh scripts/g05_relink_env.sh)
+}
+run_g05_prepare_and_relink() {
+  # $1 = G05_SYNC_ASM (0 = xlang only; 1 = also sync xlang_asm)
+  (cd compiler && G05_SYNC_ASM="${1:-1}" sh scripts/g05_prepare_and_relink.sh)
 }
 
 case "$TARGET" in
@@ -80,6 +94,22 @@ case "$TARGET" in
   clean)
     # G.7: scripts/clean_compiler.sh（Makefile clean 同调）
     (cd compiler && sh scripts/clean_compiler.sh)
+    ;;
+
+  # === g05 产品链一等目标（wave733 · 11.1.6；零 make）===
+  ensure|g05-ensure|g05-ensure-relink-prereqs)
+    run_g05_ensure
+    ;;
+  link-env|g05-export|g05-export-relink)
+    run_g05_link_env
+    ;;
+  link-product|relink|relink-xlang)
+    # Like `make relink-xlang`: final link only (no xlang_asm sync)
+    run_g05_prepare_and_relink 0
+    ;;
+  link-product-asm|prepare-and-relink)
+    # Like `make xlang_asm`: ensure+link+sync xlang_asm (no build_tool rebuild)
+    run_g05_prepare_and_relink 1
     ;;
 
   # === CI / 冷启动 / 叶 .o（wave730：外层 0× make -C；图仍 Makefile 至 11.3）===
@@ -210,10 +240,17 @@ xbuild / xlang-build.sh — 统一构建入口（G-05 · G.7 同体）
   first-time           build_tool.sh + 日常构建
   clean                scripts/clean_compiler.sh（无 make）
 
+g05 产品链（wave733 · 11.1.6；零 make；已有 .o 时直链）:
+  ensure / g05-ensure           g05_ensure_relink_prereqs.sh
+  link-env / g05-export         g05_relink_env.sh（打印/导出链接清单）
+  link-product / relink         g05_prepare_and_relink（G05_SYNC_ASM=0）
+  link-product-asm              g05_prepare_and_relink（G05_SYNC_ASM=1 → xlang_asm）
+
 CI / 冷启动（外层 0× make -C；图仍 Makefile 至 11.3）:
   compiler-all / ci-all      make OPT=1 all（host-cc/seed；≠ 产品 all）
   bootstrap-driver-seed      冷启动（prereq 图 → shell 编排）
   compiler-make <args…>      残余叶透传（std .o / CFLAGS / ASan）
+                             体 = tests/lib/compiler-make.sh（G.7 单 hub）
 
 测试 / 自举:
   test / test_c / test_x     scripts/run_compiler_tests.sh
@@ -234,8 +271,10 @@ CI / 冷启动（外层 0× make -C；图仍 Makefile 至 11.3）:
   XLANG_G05_LEGACY_SMOKE=1  c08 gate 额外跑 ./build_tool ./xlang legacy（默认跳过）
 
 实现层（用户勿直接依赖）:
+  tests/lib/compiler-make.sh               — 残余 make -C 唯一体（tests + xbuild）
   compiler/scripts/g05_build_xlang_asm.sh  — build_tool 唯一 asm 出口
-  compiler/Makefile                         — relink 依赖图 / 冷启动（至 11.3）
+  compiler/scripts/g05_prepare_and_relink.sh — ensure+env+link 编排
+  compiler/Makefile                         — 冷启动 / 叶 .o 图（至 11.3）
   根 Makefile                               — help-only；勿再加厚
 
 日常优先:
