@@ -1078,32 +1078,45 @@ else
   bad "build.x must mention tests host-cc / HOST_CC_POLICY / 11.5.2 (wave741)"
 fi
 
-# wave742/743: 11.1.1 inventory + 11.1.2 schedule execute (BUILD_DAG)
+# wave742/743/744: 11.1.1 inventory + 11.1.2 schedule + 11.3 prereq edges
 if [ ! -f compiler/docs/BUILD_DAG.md ]; then
   bad "missing compiler/docs/BUILD_DAG.md (11.1.1 wave742)"
 elif ! grep -q '11\.1\.1' compiler/docs/BUILD_DAG.md \
   || ! grep -q 'DRIVER_SEED_PREREQS' compiler/docs/BUILD_DAG.md; then
-  bad "BUILD_DAG.md must document 11.1.1 + DRIVER_SEED_PREREQS residual"
+  bad "BUILD_DAG.md must document 11.1.1 + DRIVER_SEED_PREREQS"
 elif ! grep -q '11\.1\.2' compiler/docs/BUILD_DAG.md \
   || ! grep -qiE 'dry-run|schedule|--run' compiler/docs/BUILD_DAG.md; then
   bad "BUILD_DAG.md must document 11.1.2 schedule dry-run/run (wave743)"
+elif ! grep -qE 'driver_seed_ensure_prereqs|wave744|ensure_prereqs' compiler/docs/BUILD_DAG.md; then
+  bad "BUILD_DAG.md must document wave744 driver_seed_ensure_prereqs"
 elif [ ! -f compiler/scripts/product_build_dag.sh ]; then
   bad "missing compiler/scripts/product_build_dag.sh (11.1.1 wave742)"
+elif [ ! -f compiler/scripts/driver_seed_ensure_prereqs.sh ]; then
+  bad "missing compiler/scripts/driver_seed_ensure_prereqs.sh (wave744)"
+elif ! grep -q 'driver_seed_ensure_prereqs' compiler/scripts/bootstrap_driver_seed.sh; then
+  bad "bootstrap_driver_seed.sh must call driver_seed_ensure_prereqs (wave744)"
+elif grep -nE '^bootstrap-driver-seed:.*DRIVER_SEED_PREREQS' compiler/Makefile \
+  | grep -vE '^[0-9]+:[[:space:]]*#' | grep -q .; then
+  bad "Makefile must not use DRIVER_SEED_PREREQS as make-graph deps (wave744 shell ensure)"
 elif ! grep -q 'product-dag\|build-dag\|cold-dag' xlang-build.sh \
   || ! grep -q 'product_build_dag\.sh' xlang-build.sh; then
   bad "xlang-build missing product-dag first-class target (wave742)"
 elif ! grep -qE 'dry-run|--run|dag-run|dag-dry-run' xlang-build.sh; then
   bad "xlang-build missing product-dag --dry-run / --run (wave743 11.1.2)"
+elif ! grep -qE 'driver-seed-prereqs|ensure-driver-seed-prereqs' xlang-build.sh; then
+  bad "xlang-build missing driver-seed-prereqs target (wave744)"
 elif ! grep -qE '11\.1\.1|BUILD_DAG|product.dag|DAG-as-data' build.x; then
   bad "build.x must mention 11.1.1 / BUILD_DAG / product-dag (wave742)"
 elif ! grep -qE '11\.1\.2|dry-run|--run|schedule' build.x; then
   bad "build.x must mention 11.1.2 schedule / dry-run / --run (wave743)"
+elif ! grep -qE 'ensure_prereqs|driver_seed_ensure_prereqs|wave744' build.x; then
+  bad "build.x must mention wave744 prereq shell ensure"
 else
-  note "BUILD_DAG.md + product_build_dag.sh + xbuild product-dag (11.1.1/2 wave742/743)"
+  note "BUILD_DAG + ensure_prereqs + product-dag (11.1.1/2/wave744)"
   if ! bash compiler/scripts/product_build_dag.sh --check; then
-    bad "product_build_dag.sh --check failed (wave742/743)"
+    bad "product_build_dag.sh --check failed (wave742/743/744)"
   else
-    note "product_build_dag.sh --check OK (11.1.1+11.1.2)"
+    note "product_build_dag.sh --check OK (11.1.1+11.1.2+wave744)"
   fi
   # Positive dry-run path via xbuild (not only internal --check recursion).
   # Capture full stdout first: under set -o pipefail, `cmd | grep -q` can fail with
@@ -1114,7 +1127,22 @@ else
   else
     note "xbuild product-dag --dry-run product OK (wave743)"
   fi
-  unset _dag_dry_out
+  _cold_dry_out="$(./xbuild product-dag --dry-run cold 2>/dev/null || true)"
+  if ! printf '%s\n' "$_cold_dry_out" | grep -q 'NODE=cold_ensure_prereqs'; then
+    bad "xbuild product-dag --dry-run cold missing cold_ensure_prereqs (wave744)"
+  elif ! printf '%s\n' "$_cold_dry_out" | grep -q 'PREREQ='; then
+    bad "xbuild product-dag --dry-run cold missing PREREQ= expansion (wave744)"
+  else
+    note "xbuild product-dag --dry-run cold + PREREQ edges OK (wave744)"
+  fi
+  if ! ./xbuild driver-seed-prereqs --check >/tmp/xbuild_prereq_check.out 2>/tmp/xbuild_prereq_check.err; then
+    bad "xbuild driver-seed-prereqs --check failed (wave744)"
+  elif ! grep -q 'CHECK OK' /tmp/xbuild_prereq_check.out /tmp/xbuild_prereq_check.err; then
+    bad "xbuild driver-seed-prereqs --check missing CHECK OK (wave744)"
+  else
+    note "xbuild driver-seed-prereqs --check OK (wave744)"
+  fi
+  unset _dag_dry_out _cold_dry_out
 fi
 
 # Product daily `all` must remain g05 (not Makefile all); CI uses compiler-all.

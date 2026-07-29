@@ -1,10 +1,11 @@
-# Product + cold-start build DAG (11.1.1 · wave742 · 11.1.2 schedule wave743)
+# Product + cold-start build DAG (11.1.1 · wave742 · 11.1.2 wave743 · 11.3 prereq edges wave744)
 
 > **Authority (G.7):** this document is the **orchestration dependency map** for Track MG.  
 > Object-list *definitions* stay in `compiler/mk/*.mk` (export via `driver_seed_obj_catalog.sh`).  
 > **Do not** duplicate `.o` inventories here.  
 > Machine-check: `compiler/scripts/product_build_dag.sh --check` · `./xbuild product-dag --check`.  
-> Schedule execute (11.1.2): `./xbuild product-dag --dry-run` / `--run product`.
+> Schedule execute (11.1.2): `./xbuild product-dag --dry-run` / `--run product`.  
+> Prereq edges (wave744): `driver_seed_ensure_prereqs.sh` (catalog `DRIVER_SEED_PREREQS`).
 
 **PLATFORM: SHARED** — same node names on macOS / Ubuntu / Windows host shells; platform ABI lives inside leaf scripts and seed pins.
 
@@ -17,11 +18,12 @@
 | Product daily path nodes + owners (11.1.1) | Full import-scan of user `.x` projects |
 | Cold-start orchestration step order (11.1.1) | Parallel scheduler / ninja emit |
 | Named schedules + dry-run / run (11.1.2) | 11.1.4 direct `ld` without host-cc |
-| Residual make *graph* nodes named | Physical delete of Makefile (11.3) |
-| Single authority pointer per node | C `build_runtime` step table replace (11.1.5 endgame) |
+| Cold **prereq edge satisfaction** via shell (wave744) | Physical delete of Makefile (11.3 endgame) |
+| Residual make *leaf* pattern rules named | C `build_runtime` step table replace (11.1.5 endgame) |
+| Single authority pointer per node | |
 
 **Not yet:** replacing C `build_runtime` step table (ABI still `build_get_step_*` · 11.1.5).  
-**Not yet:** physical delete of Makefile (11.3).  
+**Not yet:** physical delete of Makefile (11.3.1).  
 **Not yet:** 11.1.3 platform selector nodes / 11.1.4 linker without `$(CC) -o`.
 
 ---
@@ -89,9 +91,10 @@ refresh_gate
 
 ### 2.3 Profile `cold`
 
-Dry-run prints inventory order (see §3). Live `--run cold` invokes **outer**  
-`./xbuild bootstrap-driver-seed` once (Makefile `DRIVER_SEED_PREREQS` residual → **11.3**).  
-Does **not** re-walk each cold leaf body (orchestrator already does).
+Dry-run prints inventory order (starts with `cold_ensure_prereqs` · wave744).  
+Live `--run cold` invokes **outer** `./xbuild bootstrap-driver-seed` once  
+(orchestrator embeds `driver_seed_ensure_prereqs` + §5b sequence).  
+Does **not** re-walk each cold leaf body.
 
 ### 2.4 CLI
 
@@ -100,6 +103,7 @@ Does **not** re-walk each cold leaf body (orchestrator already does).
 ./xbuild product-dag --run product
 ./xbuild dag-dry-run cold
 ./xbuild dag-run refresh
+./xbuild driver-seed-prereqs             # dry-run/check/run ensure edges
 bash compiler/scripts/product_build_dag.sh dry-run product
 ```
 
@@ -107,28 +111,32 @@ bash compiler/scripts/product_build_dag.sh dry-run product
 
 ## 3. Cold-start path (`bootstrap-driver-seed`)
 
-Two layers until 11.3:
+Two layers after wave744:
 
-1. **Make prereq graph** — `DRIVER_SEED_PREREQS` + thin export leaves (lists in `compiler/mk/*.mk` only).  
-2. **Shell orchestration** — `scripts/bootstrap_driver_seed.sh` (ordered steps below).
+1. **Prereq edge satisfaction (shell)** — `driver_seed_ensure_prereqs.sh` expands  
+   catalog `DRIVER_SEED_PREREQS` (+ glue companion) and invokes Make for those targets.  
+   List authority remains `compiler/mk/driver_seed_composites.mk` (G.7 no dual list).  
+2. **Shell orchestration** — `scripts/bootstrap_driver_seed.sh` (ordered steps below).  
+3. **Leaf pattern rules (residual make)** — host-cc residual C until 11.3 / stage 8–9.
 
 ```text
-Makefile: $(DRIVER_SEED_PREREQS) + pipeline_glue_strict_minimal.o
+driver_seed_ensure_prereqs.sh  ← catalog DRIVER_SEED_PREREQS + pipeline_glue_strict_minimal.o
         │
         ▼
 bootstrap_driver_seed.sh (ordered):
-  1  check_pipeline_gen_expr_i64_abi.sh          (§5b #1 pure shell)
-  2  bootstrap-driver-seed-pipeline-x            (export + rebuild_leaves)
+  0  driver_seed_ensure_prereqs.sh --run     (wave744)
+  1  check_pipeline_gen_expr_i64_abi.sh      (§5b #1 pure shell)
+  2  bootstrap-driver-seed-pipeline-x        (export + rebuild_leaves)
   3  bootstrap-driver-seed-sat-rebuild
   4  bootstrap-driver-seed-lsp-x-objs
   5  bootstrap-driver-seed-bridge
   6  bootstrap-driver-seed-user-asm-seed-objs
   7  bootstrap-driver-seed-asm-glue-standalone
-  8  bootstrap-driver-seed-asm-host              → build_seed_asm_host.sh
-  9  bootstrap-driver-seed-host-stubs            → host_stubs.sh
- 10  bootstrap-driver-seed-filtered-objs         (Darwin class-G; empty Linux)
- 11a bootstrap-driver-seed-phase1-link           → link.sh phase1
- 11b bootstrap-driver-seed-final-link            → link.sh final
+  8  bootstrap-driver-seed-asm-host          → build_seed_asm_host.sh
+  9  bootstrap-driver-seed-host-stubs        → host_stubs.sh
+ 10  bootstrap-driver-seed-filtered-objs     (Darwin class-G; empty Linux)
+ 11a bootstrap-driver-seed-phase1-link       → link.sh phase1
+ 11b bootstrap-driver-seed-final-link        → link.sh final
  12  bootstrap-driver-seed-panic
  13  smoke + product binary aliases
 ```
@@ -136,17 +144,20 @@ bootstrap_driver_seed.sh (ordered):
 | Layer | Authority | Status |
 |-------|-----------|--------|
 | `.o` / composite lists | `compiler/mk/*.mk` + `export-obj-catalog` | ✅ single (G.7) |
+| Prereq **edge satisfaction** | `driver_seed_ensure_prereqs.sh` | ✅ wave744 (shell) |
 | Step **sequence** | `bootstrap_driver_seed.sh` | ✅ shell (wave717+) |
 | Leaf **bodies** | `*_rebuild_leaves` / `*_link` / `*_host_stubs` / … | ✅ shell (§5b) |
-| Prereq **edges** (what must exist before seed) | Makefile `DRIVER_SEED_PREREQS` | 🟡 residual → 11.3 |
-| Outer entry | `./xbuild bootstrap-driver-seed` | ✅ (hub still make for graph) |
-| Schedule dry-run / outer run | `product_build_dag.sh` 11.1.2 | ✅ wave743 |
+| Leaf **pattern rules** (how .o is built) | Makefile residual | 🟡 → 11.3 endgame |
+| Outer entry | `./xbuild bootstrap-driver-seed` | ✅ thin Makefile phony |
+| Schedule dry-run / outer run | `product_build_dag.sh` 11.1.2 | ✅ wave743+744 |
 
 **Obj catalog (read-only, no second list):**
 
 ```text
 ./xbuild compiler-make bootstrap-driver-seed-export-obj-catalog
 # or: (cd compiler && bash scripts/driver_seed_obj_catalog.sh --check)
+# prereq edges dry-run:
+./xbuild driver-seed-prereqs
 ```
 
 ---
@@ -156,20 +167,20 @@ bootstrap_driver_seed.sh (ordered):
 | Layer | File / tool | Role |
 |-------|-------------|------|
 | Policy map | root `build.x` | Human strategy + pin-stable `build_get_step_*` ABI |
-| Orchestration DAG | **this doc** + `product_build_dag.sh` | 11.1.1 inventory + 11.1.2 schedules |
+| Orchestration DAG | **this doc** + `product_build_dag.sh` | 11.1.1 inventory + 11.1.2 schedules + wave744 edges |
 | Product entry | `./xbuild` → `xlang-build.sh` | First-class targets |
-| Cold graph residual | `compiler/Makefile` | Until 11.3 |
+| Cold leaf pattern residual | `compiler/Makefile` | Until 11.3 physical delete |
 | Step table (legacy) | C `build_runtime` + `build_get_step_at` | Domain B bootstrap; not user API |
 
 ---
 
-## 5. Residual make graph (named only · 11.3 swallow)
+## 5. Residual make graph (named · 11.3 endgame)
 
 Do **not** grow new free-form recipes. Known residual classes:
 
 | Residual | Notes |
 |----------|--------|
-| `DRIVER_SEED_PREREQS` edge set | Cold start; lists in mk |
+| ~~`DRIVER_SEED_PREREQS` make-graph edges~~ | **swallowed wave744** → shell ensure (list still mk) |
 | Leaf `.o` pattern rules | host-cc residual C (stages 8.3/9) |
 | `compiler-all` / Makefile `all` | CI host-cc path |
 | FULL=1 bstrict make entry | Non-daily |
@@ -192,11 +203,20 @@ Do **not** grow new free-form recipes. Known residual classes:
 - [x] `--dry-run` prints ordered STEPs for each profile
 - [x] `--run product` invokes existing bodies only (no dual .o / no second linker)
 - [x] product schedule skips archaeology + standalone g05_ensure/link_env
-- [x] cold live run = outer `bootstrap-driver-seed` (prereq residual documented)
+- [x] cold live run = outer `bootstrap-driver-seed`
 - [x] `--check` exercises dry-run all profiles
 - [ ] Full .x import-scan incremental graph (later 11.1.2 endgame)
 - [ ] 11.1.3/4 platform + linker nodes fully non-cc (future)
-- [ ] 11.3 delete Makefile prereq graph (future)
+
+### wave744 (11.3 residual · DRIVER_SEED_PREREQS edge swallow)
+
+- [x] `driver_seed_ensure_prereqs.sh` expands catalog + glue companion (no dual list)
+- [x] `bootstrap_driver_seed.sh` step 0 calls ensure `--run`
+- [x] Makefile `bootstrap-driver-seed` is thin phony (no `$(DRIVER_SEED_PREREQS)` make deps)
+- [x] cold dry-run surfaces `cold_ensure_prereqs` + `PREREQ=` lines
+- [x] `product_build_dag.sh --check` + 0-make gate hard-check ensure
+- [ ] Physical delete of Makefile / leaf pattern rules (11.3.1 endgame)
+- [ ] Leaf `.o` builds without host-cc residual (stages 8–9 / 12)
 
 ---
 
@@ -205,4 +225,5 @@ Do **not** grow new free-form recipes. Known residual classes:
 - `analysis/C迁移追踪.md` §11.1.1–4 · §11.3  
 - `analysis/Makefile迁移表.md` §5b cold whitelist  
 - `build.x` strategy map (11.1.5)  
-- `compiler/scripts/driver_seed_obj_catalog.sh` (lists, not edges)
+- `compiler/scripts/driver_seed_obj_catalog.sh` (lists)  
+- `compiler/scripts/driver_seed_ensure_prereqs.sh` (edges · wave744)

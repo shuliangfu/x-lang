@@ -66,7 +66,7 @@
 | `g05-ensure-relink-prereqs` | 3081 | g05_ensure_relink_prereqs.sh (~3.3k 行) | `xbuild ensure` | 🟢 g05_ensure_relink_prereqs.sh | 热路径 cc；filtered.o 已纯 shell（wave715） |
 | `g05-export-relink` | 3085 | g05_relink_env.sh | `xbuild link-env` | 🟢 g05_relink_env.sh | 链接清单 |
 | `refresh-xlang-asm-gate` | 3172 | shell `refresh_xlang_asm_gate.sh` | `xbuild refresh-gate` | 🟢 wave734 体 shell；**wave735–737** migrate+gen+lexer shell | 11.1.6 |
-| `bootstrap-driver-seed` | ~2995 | **shell 编排** + Makefile prereq/薄叶子 | `xbuild bootstrap` | 🟡 wave717–727：编排+链接+§5b shell；叶清单 mk | L4 必经；叶清单 mk；组合体 make |
+| `bootstrap-driver-seed` | ~2995 | **shell 编排** + shell ensure_prereqs（wave744）+ 薄叶子 | `xbuild bootstrap` | 🟡 wave717–744：编排+链接+§5b+prereq 边 shell；叶 pattern residual | L4 必经；列表 mk catalog；make 无 prereq 图 |
 | `bootstrap-driver-bstrict` | ~3107 | **shell** `bootstrap_driver_bstrict.sh`；FULL=1 仍 make 入口 | `xbuild bstrict-build` | 🟡 wave719 体 shell；refresh 仍 make | 非日常 |
 | `test` / `test_c` / `test_x` | ~1685 | **shell** `run_compiler_tests.sh` | `xbuild test` | 🟢 wave720 体 shell；prereq 仍 make 图 | 嵌套 run-all 可 make |
 | `bootstrap-verify` / `check-7.2-bstrict` | ~3320 | **shell** `bootstrap_verify_bstrict.sh` | `xbuild verify` | 🟢 wave720 体 shell；prereq bstrict 图 | 阶段2 仍脚本内 make |
@@ -614,7 +614,7 @@
 
 > **用途**：冻结冷启动仍调用 make 的显式集合；新加 `$(MAKE)` 须先改本表。  
 > **编排权威（wave717）**：`compiler/scripts/bootstrap_driver_seed.sh`（步序 / seed partial 选择 / smoke / 别名 cp）。  
-> **Makefile 薄壳**：`bootstrap-driver-seed` = prereq 依赖图 + 转调 shell；OBJS/CFLAGS 仅 export leaves；phase1/final 链接体 `bootstrap_driver_seed_link.sh`（G.7 单权威，禁 shell 复制 OBJ 列表）。
+> **Makefile 薄壳（wave744）**：`bootstrap-driver-seed` = 薄 phony 转调 shell；prereq **边满足** = `driver_seed_ensure_prereqs.sh`（catalog）；OBJS/CFLAGS 仅 export leaves；phase1/final 链接体 `bootstrap_driver_seed_link.sh`（G.7 单权威，禁 shell 复制 OBJ 列表）。
 
 | # | recipe 内 make 调用（语义） | 状态 | 备注 |
 |---|------------------------------|------|------|

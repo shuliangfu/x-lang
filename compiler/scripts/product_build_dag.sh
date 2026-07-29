@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# product_build_dag.sh — 11.1.1 inventory + 11.1.2 schedule execute (wave742/743)
+# product_build_dag.sh — 11.1.1 inventory + 11.1.2 schedule + 11.3 prereq edges (wave742–744)
 #
 # Authority (G.7):
 #   Single machine-checkable view of *orchestration* nodes for product daily
@@ -10,6 +10,7 @@
 #   Policy facade: root build.x
 #   Execution (11.1.2): this script dry-run/run invokes *existing* body scripts
 #   only — no second compile/link implementation, no dual .o lists.
+#   wave744: cold prereq *edges* → driver_seed_ensure_prereqs.sh (catalog).
 #
 # Usage (repo root or compiler/):
 #   bash compiler/scripts/product_build_dag.sh              # dump inventory
@@ -18,12 +19,12 @@
 #   bash compiler/scripts/product_build_dag.sh --dry-run [product|refresh|cold]
 #   bash compiler/scripts/product_build_dag.sh --run product   # execute product schedule
 #   bash compiler/scripts/product_build_dag.sh --run refresh
-#   bash compiler/scripts/product_build_dag.sh --run cold      # residual: outer bootstrap
+#   bash compiler/scripts/product_build_dag.sh --run cold      # outer bootstrap (shell prereqs)
 #   ./xbuild product-dag | build-dag | cold-dag
 #   ./xbuild product-dag --check | --dry-run | --run product
 #
 # PLATFORM: SHARED — paths relative to repo root; bodies carry platform ABI.
-# Wave: 742 inventory · 743 schedule execute slice (not full .x import graph).
+# Wave: 742 inventory · 743 schedule · 744 DRIVER_SEED_PREREQS edge swallow.
 
 set -euo pipefail
 
@@ -66,9 +67,10 @@ PRODUCT_NODES=(
   "refresh_gate|refresh-gate|scripts/refresh_xlang_asm_gate.sh"
 )
 
-# Cold-start shell orchestration after Makefile DRIVER_SEED_PREREQS.
+# Cold-start shell orchestration (wave744: prereq edges first via catalog ensure).
 # id|make_or_shell_leaf|body (compiler-relative; "-" = pure make leaf export)
 COLD_NODES=(
+  "cold_ensure_prereqs|driver-seed-prereqs|scripts/driver_seed_ensure_prereqs.sh"
   "cold_check_i64_abi|check-pipeline-gen-expr-i64-abi|scripts/check_pipeline_gen_expr_i64_abi.sh"
   "cold_pipeline_x|bootstrap-driver-seed-pipeline-x|scripts/bootstrap_driver_seed_rebuild_leaves.sh"
   "cold_sat|bootstrap-driver-seed-sat-rebuild|scripts/bootstrap_driver_seed_rebuild_leaves.sh"
@@ -91,8 +93,8 @@ COLD_NODES=(
 #   Skip archaeology (Track L, off product link).
 #   Skip standalone g05_ensure / g05_link_env (embedded in prepare — G.7 no double).
 # refresh: single P0 gate body (migrate + g05 + overlay).
-# cold: inventory order for dry-run; live run uses residual outer bootstrap
-#   (DRIVER_SEED_PREREQS still Makefile → 11.3).
+# cold: dry-run prints inventory order (ensure_prereqs first · wave744);
+#   live run = outer bootstrap-driver-seed (shell ensure + §5b sequence).
 # ---------------------------------------------------------------------------
 PRODUCT_SCHEDULE=(
   ensure_migrate_gen
@@ -107,6 +109,7 @@ REFRESH_SCHEDULE=(
 )
 
 COLD_SCHEDULE=(
+  cold_ensure_prereqs
   cold_check_i64_abi
   cold_pipeline_x
   cold_sat
@@ -181,8 +184,9 @@ dump_product() {
 }
 
 dump_cold() {
-  echo "# cold_bootstrap_driver_seed (11.1.1 inventory · 11.1.2 schedule wave743)"
-  echo "COLD_PREREQ_GRAPH=Makefile DRIVER_SEED_PREREQS (lists: compiler/mk/*.mk)"
+  echo "# cold_bootstrap_driver_seed (11.1.1 inventory · 11.1.2 schedule · 11.3 prereq wave744)"
+  echo "COLD_PREREQ_EDGES=scripts/driver_seed_ensure_prereqs.sh (lists: compiler/mk/*.mk via catalog)"
+  echo "COLD_PREREQ_GRAPH=shell ensure (Makefile thin phony; leaf pattern rules residual → 11.3 endgame)"
   local i=0 ent id leaf body
   for ent in "${COLD_NODES[@]}"; do
     IFS='|' read -r id leaf body <<<"$ent"
@@ -191,7 +195,7 @@ dump_cold() {
   done
   echo "COLD_OUTER=./xbuild bootstrap-driver-seed"
   echo "COLD_OBJ_CATALOG=$CATALOG_REL"
-  echo "# schedule cold (11.1.2 dry-run; live run residual make graph → 11.3)"
+  echo "# schedule cold (11.1.2 dry-run; live = outer bootstrap embeds ensure_prereqs)"
   i=0
   for id in "${COLD_SCHEDULE[@]}"; do
     body="$(lookup_cold_body "$id" || true)"
@@ -229,7 +233,7 @@ schedule_walk() {
       ;;
   esac
 
-  echo "# schedule=$profile action=$action (11.1.2 wave743)"
+  echo "# schedule=$profile action=$action (11.1.2 wave743 · prereq edges wave744)"
   for id in "${ids[@]}"; do
     if [ "$profile" = cold ]; then
       body="$(lookup_cold_body "$id" || true)"
@@ -241,12 +245,18 @@ schedule_walk() {
       return 1
     fi
     printf 'STEP=%d NODE=%s BODY=compiler/%s\n' "$step" "$id" "$body"
+    # cold dry-run: expand prereq edges at STEP 0 (catalog; no rebuild)
+    if [ "$profile" = cold ] && [ "$action" = dry-run ] && [ "$id" = cold_ensure_prereqs ]; then
+      if [ -f "$COMPILER_DIR/scripts/driver_seed_ensure_prereqs.sh" ]; then
+        (cd "$COMPILER_DIR" && bash scripts/driver_seed_ensure_prereqs.sh --dry-run) \
+          || note "ensure_prereqs dry-run non-fatal noise (catalog still required at --check)"
+      fi
+    fi
     if [ "$action" = run ]; then
       if [ "$profile" = cold ]; then
-        # Cold live path still needs Makefile DRIVER_SEED_PREREQS until 11.3.
-        # Single outer authority: bootstrap-driver-seed (do not re-implement leaves).
+        # Single outer authority: bootstrap-driver-seed (embeds ensure_prereqs · wave744).
         if [ "$step" -eq 0 ]; then
-          note "cold run residual: DRIVER_SEED_PREREQS still Makefile (→ 11.3)"
+          note "cold run: prereq edges via shell ensure inside bootstrap_driver_seed (wave744)"
           note "invoking outer ./xbuild bootstrap-driver-seed (G.7 single orchestrator)"
           if [ ! -x "$ROOT/xbuild" ] && [ ! -f "$ROOT/xbuild" ]; then
             echo "product_build_dag: missing $ROOT/xbuild" >&2
@@ -298,7 +308,7 @@ else
     bad "$DOC_REL must document 11.1.1 product daily path"
   fi
   if ! grep -q 'bootstrap-driver-seed' "$DOC_REL" || ! grep -q 'DRIVER_SEED_PREREQS' "$DOC_REL"; then
-    bad "$DOC_REL must document cold-start DRIVER_SEED_PREREQS residual"
+    bad "$DOC_REL must document cold-start DRIVER_SEED_PREREQS"
   fi
   # G.7: doc must ban a second .o inventory (orchestration only)
   if ! grep -qi 'duplicate.*\.o\|\.o invent\|hardcode.*\.o\|Do not.*\.o' "$DOC_REL"; then
@@ -307,6 +317,10 @@ else
   # 11.1.2 schedule execute must be documented
   if ! grep -q '11\.1\.2' "$DOC_REL" || ! grep -qiE 'dry-run|schedule|--run' "$DOC_REL"; then
     bad "$DOC_REL must document 11.1.2 schedule dry-run/run (wave743)"
+  fi
+  # wave744: prereq edge swallow must be documented
+  if ! grep -qE 'driver_seed_ensure_prereqs|ensure_prereqs|wave744|11\.3.*prereq|prereq.*shell' "$DOC_REL"; then
+    bad "$DOC_REL must document wave744 DRIVER_SEED_PREREQS shell ensure"
   fi
   note "doc $DOC_REL present"
 fi
@@ -349,6 +363,28 @@ else
   note "obj catalog companion present (lists ≠ edges)"
 fi
 
+# wave744: shell owns prereq *edge satisfaction* (list still catalog)
+if [ ! -f compiler/scripts/driver_seed_ensure_prereqs.sh ]; then
+  bad "missing compiler/scripts/driver_seed_ensure_prereqs.sh (wave744 11.3 prereq edges)"
+elif ! grep -q 'driver_seed_ensure_prereqs' compiler/scripts/bootstrap_driver_seed.sh; then
+  bad "bootstrap_driver_seed.sh must call driver_seed_ensure_prereqs (wave744)"
+elif grep -nE '^bootstrap-driver-seed:.*DRIVER_SEED_PREREQS' compiler/Makefile \
+  | grep -vE '^[0-9]+:[[:space:]]*#' | grep -q .; then
+  bad "Makefile must not use DRIVER_SEED_PREREQS as make-graph deps (wave744 shell ensure)"
+else
+  if ! bash compiler/scripts/driver_seed_ensure_prereqs.sh --check >/tmp/driver_seed_ensure_prereqs_check.out 2>/tmp/driver_seed_ensure_prereqs_check.err; then
+    bad "driver_seed_ensure_prereqs.sh --check failed"
+    head -20 /tmp/driver_seed_ensure_prereqs_check.err >&2 || true
+  else
+    if ! grep -q 'CHECK OK' /tmp/driver_seed_ensure_prereqs_check.out \
+      && ! grep -q 'CHECK OK' /tmp/driver_seed_ensure_prereqs_check.err; then
+      bad "driver_seed_ensure_prereqs --check missing CHECK OK banner"
+    else
+      note "driver_seed_ensure_prereqs --check OK (wave744 prereq edges)"
+    fi
+  fi
+fi
+
 # G.7: this script must not hardcode .o inventories
 if grep -nE '\.o[[:space:]]|\.o"' "$SCRIPT_DIR/product_build_dag.sh" \
   | grep -vE '^\s*#|inventor|\.o invent|dual \.o|not.*\.o|lists|\.mk|catalog|hardcode' \
@@ -370,6 +406,9 @@ if [ -f build.x ]; then
   fi
   if ! grep -qE '11\.1\.2|dry-run|--run|schedule' build.x; then
     bad "build.x must mention 11.1.2 schedule / dry-run / --run (wave743)"
+  fi
+  if ! grep -qE 'ensure_prereqs|driver_seed_ensure_prereqs|DRIVER_SEED_PREREQS.*shell|wave744|11\.3' build.x; then
+    bad "build.x must mention wave744 prereq shell ensure / 11.3 residual"
   fi
 else
   bad "missing root build.x"
@@ -428,6 +467,19 @@ for _p in product refresh cold; do
         bad "product schedule must not double-run g05_ensure/link_env (embedded in prepare)"
       fi
     fi
+    # cold dry-run must surface ensure_prereqs first (wave744)
+    if [ "$_p" = cold ]; then
+      if ! grep -q 'NODE=cold_ensure_prereqs' /tmp/product_build_dag_dry_${_p}.out; then
+        bad "cold dry-run must include cold_ensure_prereqs (wave744)"
+      fi
+      if ! grep -qE 'PREREQ=|driver_seed_ensure_prereqs: DRY-RUN OK' /tmp/product_build_dag_dry_${_p}.out \
+        && ! grep -qE 'PREREQ=|DRY-RUN OK' /tmp/product_build_dag_dry_${_p}.err; then
+        # PREREQ lines go to stdout from ensure; banner may be mixed
+        if ! grep -q 'PREREQ=' /tmp/product_build_dag_dry_${_p}.out; then
+          bad "cold dry-run must expand PREREQ= lines via ensure_prereqs (wave744)"
+        fi
+      fi
+    fi
     note "dry-run $_p OK"
   fi
 done
@@ -436,5 +488,5 @@ if [ "$fail" -ne 0 ]; then
   echo "product_build_dag: CHECK FAIL" >&2
   exit 1
 fi
-echo "product_build_dag: CHECK OK (11.1.1 inventory + 11.1.2 schedule execute wave743)"
+echo "product_build_dag: CHECK OK (11.1.1+11.1.2 wave743 · 11.3 prereq edges wave744)"
 exit 0

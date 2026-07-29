@@ -30,7 +30,7 @@
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
 | **Makefile 退役 / xbuild** | 🟡 半路径 | **`./xbuild`→`xlang-build.sh`** 产品入口；根 Makefile **help-only**；叶/组合体→`compiler/mk/*.mk`；**`compiler/Makefile` 仍 ~3445 行权威图**（阶段 11） |
-| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 ✅** tests/** hub · **11.1.6 🟡** g05+…+archaeology-gen → xbuild · **11.1.5 🟡** build.x · **11.1.1 🟡** BUILD_DAG 库存 · **11.1.2 🟡** schedule dry-run/run（wave743）· **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
+| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 ✅** tests/** hub · **11.1.6 🟡** g05+…+archaeology-gen → xbuild · **11.1.5 🟡** build.x · **11.1.1 🟡** BUILD_DAG 库存 · **11.1.2 🟡** schedule dry-run/run · **11.3 🟡** prereq 边 shell（wave744）· **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | 🟡 4/4 策略 | 11.5.1–4 **策略已裁定**（wave734/741 · `tests/HOST_CC_POLICY.md`）；改写 .x / 卸 cc 属阶段 12 |
 | **冷启动零 cc 链** | ⬜ 0/4 | 最小 seed + 零 cc 验证 + 双端冷启动 |
 | **终局：无 Makefile + 零 cc + v2==v3** | ⬜ 未达 | 见 §0.1 三义；阶段 13 |
@@ -1348,14 +1348,16 @@
   - 扫描 .x import / seed 输入 / 平台条件；增量重编
   - 对齐 code-review-graph 思路可选，但 **权威在 xbuild**
   - ✅ wave742：编排 DAG **库存** — `compiler/docs/BUILD_DAG.md` + `product_build_dag.sh` dump/`--check`；`./xbuild product-dag`；产品日路径 + 冷启动节点/owner；G.7 禁第二套 `.o`（列表仍 mk/catalog）
-  - ⬜ 终局：import 扫描 + 增量图执行（依赖 11.1.2）；Makefile `DRIVER_SEED_PREREQS` 边集仍 residual → 11.3
+  - ✅ wave744：`DRIVER_SEED_PREREQS` **边满足** → `driver_seed_ensure_prereqs.sh`（catalog 列表 + glue companion）；Makefile 薄 phony 不再挂 make-graph prereq
+  - ⬜ 终局：import 扫描 + 增量图执行（依赖 11.1.2）；叶 `.o` pattern residual → 11.3.1
 
 🟡 **11.1.2 编译调度（.x → .o）**
 
   - 默认 **asm backend**（BC 终局）；过渡期允许显式 `host-cc` 仅编 **白名单 residual C**（清单来自 8.3/9，逐步清空）
   - 并行：线程原语（10.6）就绪前可用进程池 / 外部 ninja 过渡（**过渡须标 temporary**）
-  - ✅ wave743：编排图 **schedule 执行** — `product` / `refresh` / `cold` 命名调度；`--dry-run` / `--run`；`run` 只转调既有 shell 体（G.7 禁双路径）；product 跳过 archaeology 与独立 g05_ensure/link_env；cold live = 外层 `bootstrap-driver-seed`（prereq 图 residual）
-  - ⬜ 终局：.x import 增量图 + 并行；冷启动叶不经 make 图（与 11.3 同闸）
+  - ✅ wave743：编排图 **schedule 执行** — `product` / `refresh` / `cold` 命名调度；`--dry-run` / `--run`；`run` 只转调既有 shell 体（G.7 禁双路径）；product 跳过 archaeology 与独立 g05_ensure/link_env；cold live = 外层 `bootstrap-driver-seed`
+  - ✅ wave744：cold 调度首节点 `cold_ensure_prereqs`；live outer 内嵌 shell ensure
+  - ⬜ 终局：.x import 增量图 + 并行；冷启动叶不经 make pattern（与 11.3 同闸）
 
 ⬜ **11.1.3 平台处理**
 
@@ -1372,6 +1374,7 @@
   - ✅ wave734：根 `build.x` 英文策略图（产品/冷启动/残余叶/xbuild 目标映射）；三函数 ABI 保持 pin-compatible
   - ✅ wave742：`build.x` §F 挂 11.1.1 BUILD_DAG / product-dag
   - ✅ wave743：`build.x` §F 挂 11.1.2 dry-run/run schedules
+  - ✅ wave744：`build.x` §F 挂 shell ensure_prereqs / driver-seed-prereqs
   - ⬜ 终局：DAG-as-data 替代 C build_runtime 步表（依赖 11.1.1–4 执行层）
 
 🟡 **11.1.6 吞并 g05 脚本族**
@@ -1418,6 +1421,13 @@
   - 实现层仍经 `xlang-build.sh`→`run_compiler_make` 触 Makefile 图（至 11.3）；guest 仍装 host-cc/make（零 cc 属 12）
 
 ### 11.3 Makefile 物理删除（**终局硬指标**）
+
+🟡 **11.3 residual · prereq 边吞并（wave744 · 非物理删）**
+
+  - ✅ `driver_seed_ensure_prereqs.sh`：catalog 展开 `DRIVER_SEED_PREREQS` + glue companion；`--dry-run` / `--check` / `--run`
+  - ✅ `bootstrap_driver_seed.sh` step 0 调 ensure；Makefile `bootstrap-driver-seed` 薄 phony（无 `$(DRIVER_SEED_PREREQS)` make deps）
+  - ✅ `./xbuild driver-seed-prereqs`；cold dry-run 印 `PREREQ=` 边
+  - ⬜ 叶 `.o` pattern / host-cc residual 仍 Makefile 至 11.3.1
 
 ⬜ **11.3.1 删除 `compiler/Makefile`**
 

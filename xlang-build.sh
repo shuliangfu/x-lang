@@ -258,14 +258,28 @@ case "$TARGET" in
     fi
     ;;
 
-  # === CI / 冷启动 / 叶 .o（wave730：外层 0× make -C；图仍 Makefile 至 11.3）===
+  # === wave744 · 11.3 residual: DRIVER_SEED_PREREQS edge satisfaction (shell) ===
+  driver-seed-prereqs|ensure-driver-seed-prereqs|seed-prereqs)
+    # Expand catalog DRIVER_SEED_PREREQS (+ glue companion); dry-run/check/run.
+    # List authority: compiler/mk/*.mk via driver_seed_obj_catalog.sh (G.7).
+    # Usage: ./xbuild driver-seed-prereqs [--dry-run|--check|--run]
+    _prereq_mode="${2:---dry-run}"
+    case "$_prereq_mode" in
+      --dry-run|dry-run|dryrun|--check|check|-c|--run|run|ensure) ;;
+      *) _prereq_mode="--dry-run" ;;
+    esac
+    (cd compiler && bash scripts/driver_seed_ensure_prereqs.sh "$_prereq_mode")
+    ;;
+
+  # === CI / 冷启动 / 叶 .o（wave730：外层 0× make -C；叶 pattern residual 至 11.3）===
   compiler-all|ci-all)
     # Historical CI: `make -C compiler OPT=1 all` (host-cc xlang + xlang-c / seed).
     # Distinct from product `./xbuild all` (g05 relink). OPT defaults to 1.
     run_compiler_make OPT="${OPT:-1}" all
     ;;
   bootstrap-driver-seed)
-    # Cold-start orchestration still via Makefile prereqs → bootstrap_driver_seed.sh
+    # Cold-start: thin Makefile phony → bootstrap_driver_seed.sh
+    # (wave744: shell ensure_prereqs then §5b sequence; lists via catalog)
     run_compiler_make bootstrap-driver-seed
     ;;
   compiler-make)
@@ -404,17 +418,19 @@ g05 产品链（wave733–735 · 11.1.6；产品 link 零 make）:
   refresh-gate                  migrate shell + g05 relink + overlay xlang_asm
                                 （体 refresh_xlang_asm_gate.sh；product *_gen 已 shell）
 
-11.1.1/11.1.2 编排 DAG（wave742 库存 · wave743 调度）:
+11.1.1/11.1.2 编排 DAG（wave742 库存 · wave743 调度 · wave744 prereq edges）:
   product-dag / build-dag / cold-dag   product_build_dag.sh dump
   product-dag --check                  校验节点体 + schedule + dry-run 三 profile
   product-dag --dry-run [product|refresh|cold]
   product-dag --run product|refresh|cold
   dag-dry-run / dag-run                同上简写
                                        （G.7 禁第二套 .o；run 只调既有 shell 体）
+  driver-seed-prereqs                  DRIVER_SEED_PREREQS 边 dry-run/check/run
+                                       （wave744 shell ensure；列表仍 mk catalog）
 
-CI / 冷启动（外层 0× make -C；图仍 Makefile 至 11.3）:
+CI / 冷启动（外层 0× make -C；叶 pattern residual 至 11.3）:
   compiler-all / ci-all      make OPT=1 all（host-cc/seed；≠ 产品 all）
-  bootstrap-driver-seed      冷启动（prereq 图 → shell 编排）
+  bootstrap-driver-seed      冷启动（shell ensure_prereqs → §5b 编排）
   compiler-make <args…>      残余叶透传（std .o / CFLAGS / ASan）
                              体 = tests/lib/compiler-make.sh（G.7 单 hub）
 

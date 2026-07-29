@@ -2,9 +2,12 @@
 # bootstrap_driver_seed.sh — cold-start orchestration for bootstrap-driver-seed (11.0.3)
 #
 # Authority (G.7):
-#   This script owns the *step sequence* of cold bootstrap after Make has
-#   satisfied DRIVER_SEED_PREREQS. Leaf .o builds stay Make targets. phase1/final
-#   link *body* is scripts/bootstrap_driver_seed_link.sh (wave721); sat/lsp +
+#   This script owns the *step sequence* of cold bootstrap. wave744: prereq
+#   *edge satisfaction* is scripts/driver_seed_ensure_prereqs.sh (catalog
+#   DRIVER_SEED_PREREQS + glue companion) — Makefile no longer lists
+#   $(DRIVER_SEED_PREREQS) as make-graph deps on this phony. Leaf .o builds
+#   still use Make pattern rules. phase1/final link *body* is
+#   scripts/bootstrap_driver_seed_link.sh (wave721); sat/lsp +
 #   bridge/panic/user-asm/glue/pipeline-x rebuild *body* is
 #   scripts/bootstrap_driver_seed_rebuild_leaves.sh (wave722/724/725);
 #   host-stubs *body* is scripts/bootstrap_driver_seed_host_stubs.sh (wave723);
@@ -19,11 +22,13 @@
 # Env:
 #   MAKE — make binary (default: make)
 #   XLANG_SKIP_SEED_SMOKE=1 — skip post-link smoke
+#   XLANG_SKIP_DRIVER_SEED_PREREQS=1 — skip ensure_prereqs (nested/agent hatch)
 #   TARGET — product binary name (default: xlang); must match Makefile TARGET
 #
 # PLATFORM: SHARED — orchestration identical; leaf recipes carry platform ABI.
 # Wave: 717 orchestration · 721 phase1/final link · 722 sat/lsp · 723 host-stubs ·
-#       724 bridge/panic/user-asm/glue · 725 check-abi/pipeline-x FORCE/asm-host.
+#       724 bridge/panic/user-asm/glue · 725 check-abi/pipeline-x FORCE/asm-host ·
+#       744 DRIVER_SEED_PREREQS edge swallow (shell ensure).
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -39,6 +44,11 @@ mk() {
   # shellcheck disable=SC2086
   "$MAKE" "$@"
 }
+
+# 0) wave744: satisfy DRIVER_SEED_PREREQS edges via catalog (G.7 single list).
+# Makefile phony no longer carries $(DRIVER_SEED_PREREQS) as make-graph deps.
+chmod +x scripts/driver_seed_ensure_prereqs.sh 2>/dev/null || true
+MAKE="$MAKE" ./scripts/driver_seed_ensure_prereqs.sh --run
 
 # 1) P0-4: refuse stale int32_t Expr.int_val before any pipeline_x / glue link
 # §5b #1 wave725: pure shell body (no Makefile-inline restore/fail logic).

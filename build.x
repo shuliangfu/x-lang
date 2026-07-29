@@ -95,7 +95,8 @@
 //   Never inputs to g05 / ./xbuild all / product compiler link.
 //
 // -----------------------------------------------------------------------------
-// F. Orchestration DAG inventory + schedule (11.1.1 wave742 · 11.1.2 wave743)
+// F. Orchestration DAG inventory + schedule (11.1.1 wave742 · 11.1.2 wave743
+//     · 11.3 prereq edges wave744)
 // -----------------------------------------------------------------------------
 //   Authority map: compiler/docs/BUILD_DAG.md
 //   Machine check: compiler/scripts/product_build_dag.sh
@@ -106,12 +107,18 @@
 //   Product schedule (11.1.2): ensure_*_gen → migrate → g05_prepare_and_relink
 //     (prepare embeds ensure+link_env; archaeology off product)
 //   Refresh schedule: refresh_gate alone
-//   Cold schedule: dry-run inventory order; live run → outer bootstrap-driver-seed
-//     (DRIVER_SEED_PREREQS Makefile residual → 11.3)
+//   Cold schedule: dry-run starts with cold_ensure_prereqs; live → outer
+//     bootstrap-driver-seed (embeds driver_seed_ensure_prereqs · wave744)
+//   wave744: DRIVER_SEED_PREREQS *edge satisfaction* is shell
+//     (driver_seed_ensure_prereqs.sh via catalog); Makefile bootstrap-driver-seed
+//     is thin phony (no make-graph $(DRIVER_SEED_PREREQS) deps). List authority
+//     remains compiler/mk/*.mk (G.7 no dual list). Leaf .o pattern rules residual
+//     until 11.3 physical delete.
+//   ./xbuild driver-seed-prereqs [--dry-run|--check|--run]
 //   G.7: DAG lists orchestration edges/owners only; .o inventories stay in
 //   compiler/mk/*.mk + driver_seed_obj_catalog.sh (no dual lists).
-//   11.1.3–4 (platform / linker) + full .x import graph later; 11.3
-//   swallows Makefile prereq residual.
+//   11.1.3–4 (platform / linker) + full .x import graph later; 11.3.1
+//   deletes Makefile residual leaf rules.
 //
 // References:
 //   analysis/C迁移追踪.md §11.1 · §11.5 · analysis/Makefile迁移表.md class I

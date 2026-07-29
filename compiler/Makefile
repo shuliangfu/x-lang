@@ -2742,8 +2742,12 @@ bootstrap-driver-seed-final-link:
 	@chmod +x scripts/bootstrap_driver_seed_link.sh 2>/dev/null || true
 	@MAKE="$(MAKE)" TARGET="$(TARGET)" ./scripts/bootstrap_driver_seed_link.sh final
 
-bootstrap-driver-seed: DRIVER_SEED_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o
-bootstrap-driver-seed: $(DRIVER_SEED_PREREQS) build_asm/pipeline_glue_strict_minimal.o
+# wave744 · 11.3 residual: prereq *edges* satisfied inside bootstrap_driver_seed.sh
+# via scripts/driver_seed_ensure_prereqs.sh (catalog DRIVER_SEED_PREREQS + glue
+# companion). Makefile no longer carries $(DRIVER_SEED_PREREQS) as make-graph
+# deps on this phony (G.7: list still mk only; shell owns edge walk).
+# PLATFORM: SHARED — thin phony leaf; leaf .o pattern rules remain residual.
+bootstrap-driver-seed:
 	@chmod +x scripts/bootstrap_driver_seed.sh 2>/dev/null || true
 	@MAKE="$(MAKE)" TARGET="$(TARGET)" XLANG_C="$(XLANG_C)" \
 		XLANG_SKIP_SEED_SMOKE="$(XLANG_SKIP_SEED_SMOKE)" \
