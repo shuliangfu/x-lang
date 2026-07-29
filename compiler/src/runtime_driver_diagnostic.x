@@ -302,6 +302,23 @@ export function driver_diagnostic_typeck_subscript_index(line: i32, col: i32): v
   }
 }
 
+/**
+ * Report non-bool operand of && / || / ! (wave665 Cap residual).
+ * Closes soft residual: typeck accepted i32/f32 logical operands → freestanding/host
+ * C truthiness false green. Aligns with if/while/for condition bool gate (docs/04).
+ * @param line i32 — 1-based source line of the logical expr
+ * @param col i32 — 1-based source column of the logical expr
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ thin.x; seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_logical_operand_not_bool(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "logical operand must be bool (no implicit int-to-bool)");
+  }
+}
+
 /** Exported function `driver_diagnostic_typeck_try_propagate_bad_enclosing`.
  * Implements `driver_diagnostic_typeck_try_propagate_bad_enclosing`.
  * @param line i32

@@ -567,6 +567,21 @@ export function driver_diagnostic_typeck_subscript_index(line: i32, col: i32): v
   }
 }
 
+/**
+ * Report non-bool operand of && / || / ! (wave665 Cap residual pure leaf).
+ * @param line i32 — 1-based source line of the logical expr
+ * @param col i32 — 1-based source column of the logical expr
+ * @return void
+ * PLATFORM: SHARED — seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X same commit.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_logical_operand_not_bool(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "logical operand must be bool (no implicit int-to-bool)");
+  }
+}
+
 // ---- G-02f-341 pure helpers / remaining gates ----
 
 /** Exported function `parser_is_ident_allow`.

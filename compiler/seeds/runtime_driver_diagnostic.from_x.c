@@ -687,6 +687,15 @@ void driver_diagnostic_typeck_subscript_index(int32_t line, int32_t col)
       "subscript index must be an integer type"));
   return;
 }
+
+/* wave665 Cap residual: pure authority thin.x driver_diagnostic_typeck_logical_operand_not_bool;
+ * cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X. */
+void driver_diagnostic_typeck_logical_operand_not_bool(int32_t line, int32_t col)
+{
+  (void)(lsp_diag_report_typeck(line, col,
+      "logical operand must be bool (no implicit int-to-bool)"));
+  return;
+}
 #endif
 
 /* pure 权威：thin.x driver_diagnostic_typeck_if_condition_not_bool；冷启动全 C；FROM_X 无 pure-dup _impl */

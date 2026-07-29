@@ -770,6 +770,13 @@ void driver_diagnostic_typeck_subscript_index(int32_t line, int32_t col) {
   (void)(0);
   return;
 }
+/* wave665 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_logical_operand_not_bool */
+void driver_diagnostic_typeck_logical_operand_not_bool(int32_t line, int32_t col) {
+  (void)(lsp_diag_report_typeck(line, col,
+      ((uint8_t *)"logical operand must be bool (no implicit int-to-bool)")));
+  (void)(0);
+  return;
+}
 int32_t parser_is_ident_allow(uint8_t * ident, int32_t len) {
   if ((ident ==0)) {
     return 0;

@@ -1706,6 +1706,8 @@ extern void driver_diagnostic_typeck_call_arity_mismatch(int32_t line, int32_t c
 extern void driver_diagnostic_typeck_call_arg_type_mismatch(int32_t line, int32_t col);
 /* wave664 Cap residual: non-integer subscript index hard diag (G.7 ≡ typeck.x). */
 extern void driver_diagnostic_typeck_subscript_index(int32_t line, int32_t col);
+/* wave665 Cap residual: non-bool &&/||/! operand hard diag (G.7 ≡ typeck.x). */
+extern void driver_diagnostic_typeck_logical_operand_not_bool(int32_t line, int32_t col);
 extern void typeck_driver_diagnostic_pipe_marker(int32_t id);
 extern void driver_diagnostic_typeck_if_condition_not_bool(int32_t line, int32_t col);
 extern void driver_diagnostic_typeck_while_condition_not_bool(int32_t line, int32_t col);
@@ -6478,15 +6480,49 @@ int32_t typeck_check_expr_binop_cmp(struct ast_Module * module, struct ast_ASTAr
     int32_t lk_cmp = 0;
     int32_t rk_cmp = 0;
     int32_t ord_f32 = 14;
+    int32_t ord_logand = 20;
+    int32_t ord_logor = 21;
+    int32_t expr_kind_cmp = 0;
+    int32_t is_logical = 0;
+    int32_t line_ac = 0;
+    int32_t col_ac = 0;
     if ((typeck_check_expr(module, arena, bop_l, return_type_ref, ctx) !=0)) {
       return -1;
     }
     if ((typeck_check_expr(module, arena, bop_r, return_type_ref, ctx) !=0)) {
       return -1;
     }
-    /* wave317: f32 peer + bare FLOAT_LIT / -float in cmp (G.7 ≡ typeck.x). */
+    (void)((expr_kind_cmp = pipeline_expr_kind_ord_at(arena, expr_ref)));
+    if (((expr_kind_cmp ==ord_logand) || (expr_kind_cmp ==ord_logor))) {
+      (void)((is_logical = 1));
+    }
     (void)((lt_cmp = pipeline_expr_resolved_type_ref(arena, bop_l)));
     (void)((rt_cmp = pipeline_expr_resolved_type_ref(arena, bop_r)));
+    /* wave665 Cap residual: LOGAND/LOGOR operands must be bool (G.7 ≡ typeck.x). */
+    if ((is_logical != 0)) {
+      if (((!(ast_ref_is_null(lt_cmp)) && (lt_cmp > 0)) && (lt_cmp <=(arena->num_types)))) {
+        if (!(typeck_type_ref_is_bool(arena, lt_cmp))) {
+          (void)((line_ac = pipeline_expr_line_at(arena, expr_ref)));
+          (void)((col_ac = pipeline_expr_col_at(arena, expr_ref)));
+          (void)(driver_diagnostic_typeck_logical_operand_not_bool(line_ac, col_ac));
+          return -1;
+        }
+      }
+      if (((!(ast_ref_is_null(rt_cmp)) && (rt_cmp > 0)) && (rt_cmp <=(arena->num_types)))) {
+        if (!(typeck_type_ref_is_bool(arena, rt_cmp))) {
+          (void)((line_ac = pipeline_expr_line_at(arena, expr_ref)));
+          (void)((col_ac = pipeline_expr_col_at(arena, expr_ref)));
+          (void)(driver_diagnostic_typeck_logical_operand_not_bool(line_ac, col_ac));
+          return -1;
+        }
+      }
+      (void)((bt = typeck_ensure_bool_type_ref(arena)));
+      if ((bt !=0)) {
+        (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, bt));
+      }
+      return 0;
+    }
+    /* wave317: f32 peer + bare FLOAT_LIT / -float in cmp (G.7 ≡ typeck.x). */
     if ((!(ast_ref_is_null(lt_cmp)) && !(ast_ref_is_null(rt_cmp)))) {
       (void)((lko_cmp = pipeline_type_kind_ord_at(arena, lt_cmp)));
       (void)((rko_cmp = pipeline_type_kind_ord_at(arena, rt_cmp)));
@@ -6502,8 +6538,8 @@ int32_t typeck_check_expr_binop_cmp(struct ast_Module * module, struct ast_ASTAr
       /* wave657 Cap residual: hard-fail aggregate ==/!=/relational (G.7 ≡ typeck.x). */
       if ((typeck_type_is_aggregate_cmp_operand(module, arena, lt_cmp) != 0)
           || (typeck_type_is_aggregate_cmp_operand(module, arena, rt_cmp) != 0)) {
-        int32_t line_ac = pipeline_expr_line_at(arena, expr_ref);
-        int32_t col_ac = pipeline_expr_col_at(arena, expr_ref);
+        (void)((line_ac = pipeline_expr_line_at(arena, expr_ref)));
+        (void)((col_ac = pipeline_expr_col_at(arena, expr_ref)));
         (void)(driver_diagnostic_typeck_invalid_aggregate_cmp(line_ac, col_ac));
         return -1;
       }
@@ -6771,6 +6807,15 @@ int32_t typeck_check_expr_unary(struct ast_Module * module, struct ast_ASTArena 
       }
     }
     if ((expr_kind ==ord_lognot)) {
+      /* wave665 Cap residual: LOGNOT operand must be bool (G.7 ≡ typeck.x). */
+      if (((!(ast_ref_is_null(op_tr)) && (op_tr > 0)) && (op_tr <=(arena->num_types)))) {
+        if (!(typeck_type_ref_is_bool(arena, op_tr))) {
+          (void)((line_u = pipeline_expr_line_at(arena, expr_ref)));
+          (void)((col_u = pipeline_expr_col_at(arena, expr_ref)));
+          (void)(driver_diagnostic_typeck_logical_operand_not_bool(line_u, col_u));
+          return -1;
+        }
+      }
       (void)((bt = typeck_ensure_bool_type_ref(arena)));
       if ((bt !=0)) {
         (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, bt));

@@ -174,6 +174,16 @@ export extern function driver_diagnostic_typeck_call_arg_type_mismatch(line: i32
  * silent false green using pointer bits as index.
  */
 export extern function driver_diagnostic_typeck_subscript_index(line: i32, col: i32): void;
+/**
+ * Report non-bool operand of LOGAND/LOGOR/LOGNOT (wave665 Cap residual).
+ * @param line i32 — 1-based source line of the logical expr
+ * @param col i32 — 1-based source column of the logical expr
+ * @return void
+ * PLATFORM: SHARED — docs/04: logical ops require bool; no implicit int-to-bool.
+ * Closes soft residual: `i32 && i32` / `!i32` / `f32 && f32` passed typeck then
+ * freestanding/host false green via C truthiness.
+ */
+export extern function driver_diagnostic_typeck_logical_operand_not_bool(line: i32, col: i32): void;
 export extern function typeck_driver_diagnostic_pipe_marker(id: i32): void;
 export extern function driver_diagnostic_typeck_if_condition_not_bool(line: i32, col: i32): void;
 export extern function driver_diagnostic_typeck_while_condition_not_bool(line: i32, col: i32): void;
@@ -6571,19 +6581,59 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     let lk_cmp: i32 = 0;
     let rk_cmp: i32 = 0;
     let ord_f32: i32 = 14;
+    let ord_logand: i32 = 20;
+    let ord_logor: i32 = 21;
+    let expr_kind_cmp: i32 = 0;
     let line_ac: i32 = 0;
     let col_ac: i32 = 0;
+    let is_logical: i32 = 0;
     if (check_expr(module, arena, bop_l, return_type_ref, ctx) != 0) {
       return - 1;
     }
     if (check_expr(module, arena, bop_r, return_type_ref, ctx) != 0) {
       return - 1;
     }
+    expr_kind_cmp = pipeline_expr_kind_ord_at(arena, expr_ref);
+    if (expr_kind_cmp == ord_logand || expr_kind_cmp == ord_logor) {
+      is_logical = 1;
+    }
+    lt_cmp = pipeline_expr_resolved_type_ref(arena, bop_l);
+    rt_cmp = pipeline_expr_resolved_type_ref(arena, bop_r);
+    /*
+     * wave665 Cap residual: LOGAND/LOGOR operands must be TYPE_BOOL (docs/04).
+     * Root cause: binop_cmp stamped bool for any operands → `i32 && i32` / `f32 && f32`
+     * typeck OK then freestanding/host C truthiness false green; if/while/for already
+     * require bool, but nested `a && b` bypassed that gate.
+     * Soft: unknown/null operand type (incomplete resolve) is not a hard leaf.
+     * G.7: reuse type_ref_is_bool; diag logical_operand_not_bool.
+     * PLATFORM: SHARED — seed typeck_gen + empty_surface + diagnostic twin same commit.
+     */
+    if (is_logical != 0) {
+      if (!ast.ref_is_null(lt_cmp) && lt_cmp > 0 && lt_cmp <= arena.num_types) {
+        if (!type_ref_is_bool(arena, lt_cmp)) {
+          line_ac = pipeline_expr_line_at(arena, expr_ref);
+          col_ac = pipeline_expr_col_at(arena, expr_ref);
+          driver_diagnostic_typeck_logical_operand_not_bool(line_ac, col_ac);
+          return -1;
+        }
+      }
+      if (!ast.ref_is_null(rt_cmp) && rt_cmp > 0 && rt_cmp <= arena.num_types) {
+        if (!type_ref_is_bool(arena, rt_cmp)) {
+          line_ac = pipeline_expr_line_at(arena, expr_ref);
+          col_ac = pipeline_expr_col_at(arena, expr_ref);
+          driver_diagnostic_typeck_logical_operand_not_bool(line_ac, col_ac);
+          return -1;
+        }
+      }
+      bt = ensure_bool_type_ref(arena);
+      if (bt != 0) {
+        pipeline_expr_set_resolved_type_ref(arena, expr_ref, bt);
+      }
+      return 0;
+    }
     /* wave317: f32 peer + bare FLOAT_LIT / `-float` in cmp — G.7 reuse float_lit coerce
      * (same as binop_arith). Else `a:f32 < 6.0` keeps lit as f64 and freestanding/host
      * may mis-compare (Ubuntu while a<6.0 never entered). True f32 vs f64 vars unchanged. */
-    lt_cmp = pipeline_expr_resolved_type_ref(arena, bop_l);
-    rt_cmp = pipeline_expr_resolved_type_ref(arena, bop_r);
     if (!ast.ref_is_null(lt_cmp) && !ast.ref_is_null(rt_cmp)) {
       lko_cmp = pipeline_type_kind_ord_at(arena, lt_cmp);
       rko_cmp = pipeline_type_kind_ord_at(arena, rt_cmp);
@@ -6886,12 +6936,15 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
  * @return i32 — 0 ok, -1 hard fail
  * wave289 Cap residual: hard-fail illegal unary ~ on float/ptr and unary - on ptr.
  * wave662 Cap residual: hard-fail unary -/~/! on aggregates (struct/array/slice).
+ * wave665 Cap residual: hard-fail LOGNOT on non-bool (docs/04: logical requires bool).
  * Root cause (wave289): copied operand type without host-cc validity → BLD001 on
  * `~double`, `~uint8_t*`, `-uint8_t*`.
  * Root cause (wave662): LOGNOT always stamped bool; NEG/BITNOT stamped aggregate
  * type → host-cc BLD001 (`-struct`, `~struct`, `!slice`) without T001.
- * Allowed: ~int, -int, -float, !scalar (LOGNOT→bool). Rejected: ~f32/f64, ~ptr,
- * -ptr, and aggregate operands for -/~/! (G.7 reuse typeck_type_is_aggregate_cmp_operand).
+ * Root cause (wave665): LOGNOT still stamped bool for any non-aggregate scalar
+ * (`!i32`, `!f32`) → C truthiness false green; if/while already require bool.
+ * Allowed: ~int, -int, -float, !bool (LOGNOT→bool). Rejected: ~f32/f64, ~ptr,
+ * -ptr, aggregate -/~/!, and non-bool LOGNOT operands.
  * PLATFORM: SHARED — seed typeck_gen + empty_surface same commit (G.7).
  */
 export function typeck_check_expr_unary(module: *Module, arena: *ASTArena, expr_ref: i32,
@@ -6930,6 +6983,19 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       }
     }
     if (expr_kind == ord_lognot) {
+      /*
+       * wave665 Cap residual: LOGNOT operand must be TYPE_BOOL (docs/04).
+       * Soft: unknown/null op type not hard-failed. G.7: type_ref_is_bool +
+       * driver_diagnostic_typeck_logical_operand_not_bool.
+       */
+      if (!ast.ref_is_null(op_tr) && op_tr > 0 && op_tr <= arena.num_types) {
+        if (!type_ref_is_bool(arena, op_tr)) {
+          line_u = pipeline_expr_line_at(arena, expr_ref);
+          col_u = pipeline_expr_col_at(arena, expr_ref);
+          driver_diagnostic_typeck_logical_operand_not_bool(line_u, col_u);
+          return -1;
+        }
+      }
       bt = ensure_bool_type_ref(arena);
       if (bt != 0) {
         pipeline_expr_set_resolved_type_ref(arena, expr_ref, bt);
