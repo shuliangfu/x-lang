@@ -1671,3 +1671,8 @@ After verified evidence + human review:
 | `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `0` |
 
 **Forbidden:** claim proof = STATUS green / physical delete; auto-flip leaf from stamp; delete Makefile from proof alone; mac-only wave green.
+
+**Dual-end leaf `--check` portability (wave800b):** under `set -o pipefail`,
+`printf large_dump | grep -q` can fail with SIGPIPE(141) even when the key
+matches (grep exits early). Checks use `grep … <<<"$_out"` instead.
+Same for `phys_del_makefile_gate.sh` status/leaf probes.
