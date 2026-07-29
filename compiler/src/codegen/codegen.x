@@ -4518,8 +4518,27 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
           return 0;
         }
       }
+      /*
+       * wave693 Cap residual pure: nested TYPE_SLICE ([][]T / [][]Named) falls
+       * through to type_to_c_repr. Entry-module locals often pass empty
+       * struct_prefix while one-level NAMED slice tags use
+       * codegen_emit_prefix_len_from_ctx (file-stem). Without the same prefix
+       * here, `let m: [][]Cell` becomes incomplete `xlang_slice_xlang_slice_Cell`
+       * while `[]Cell` / formals use `xlang_slice_*_<pfx>Cell`. G.7: same tag
+       * authority as NAMED one-level path above. PLATFORM: SHARED host-C.
+       */
+      let pfx_use: *u8 = struct_prefix;
+      let pfx_len_use: i32 = struct_prefix_len;
+      let cur_pre_sl: u8[128] = [];
+      if ((pfx_use == 0 as *u8 || pfx_len_use <= 0) && ctx != 0 as *PipelineDepCtx) {
+        let pl_sl: i32 = codegen_emit_prefix_len_from_ctx(ctx, &cur_pre_sl[0], 128);
+        if (pl_sl > 0) {
+          pfx_use = &cur_pre_sl[0];
+          pfx_len_use = pl_sl;
+        }
+      }
       let slb: u8[256] = [];
-      let nl: i32 = type_to_c_repr(arena, &slb[0], 256, type_ref, struct_prefix, struct_prefix_len);
+      let nl: i32 = type_to_c_repr(arena, &slb[0], 256, type_ref, pfx_use, pfx_len_use);
       if (nl <= 0) {
         return -1;
       }
@@ -7442,10 +7461,12 @@ export function codegen_emit_struct_field_decl_x(arena: *ASTArena, out: *Codegen
 }
 
 /**
- * Emit companion fat-slice layout for a named struct C tag.
+ * Emit companion fat-slice layouts for a named struct C tag.
  * After `struct TAG { ... };` emit:
- *   `struct xlang_slice_TAG { struct TAG *data; size_t length; };`
- * so host-C `[]Named` lowers to a complete type (wave624 Cap residual pure).
+ *   (1) `struct xlang_slice_TAG { struct TAG *data; size_t length; };`  (wave624 []Named)
+ *   (2) `struct xlang_slice_xlang_slice_TAG {
+ *          struct xlang_slice_TAG *data; size_t length; };`              (wave693 [][]Named)
+ * so host-C nested named slices lower to complete types.
  * @param out *CodegenOutBuf — C text buffer
  * @param pfx *u8 — struct tag prefix (empty for entry bare)
  * @param pfx_len i32 — prefix byte count; 0 means bare tag
@@ -7490,6 +7511,45 @@ export function codegen_emit_companion_named_slice_layout(out: *CodegenOutBuf, p
   let tail: u8[28] = [
     32, 42, 100, 97, 116, 97, 59, 32, 115, 105, 122, 101, 95, 116, 32, 108, 101, 110, 103, 116, 104, 59, 32, 125, 59, 10, 10, 0
   ];
+  if (emit_bytes_from_ptr(out, &tail[0], 27) != 0) {
+    return -1;
+  }
+  /*
+   * wave693: two-level nested [][]Named fat.
+   * Tag = struct xlang_slice_ + strip(type_to_c_repr([]Named)).
+   * PLATFORM: SHARED host-C. G.7: complete same companion authority.
+   */
+  /* "struct xlang_slice_xlang_slice_" = 31 */
+  let h2: u8[32] = [
+    115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0
+  ];
+  if (emit_bytes_from_ptr(out, &h2[0], 31) != 0) {
+    return -1;
+  }
+  if (pfx != 0 as *u8 && pfx_len > 0) {
+    if (emit_bytes_from_ptr(out, pfx, pfx_len) != 0) {
+      return -1;
+    }
+  }
+  if (emit_bytes_from_ptr(out, name, name_len) != 0) {
+    return -1;
+  }
+  /* " { struct xlang_slice_" = 22 */
+  let mid2: u8[24] = [
+    32, 123, 32, 115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0, 0
+  ];
+  if (emit_bytes_from_ptr(out, &mid2[0], 22) != 0) {
+    return -1;
+  }
+  if (pfx != 0 as *u8 && pfx_len > 0) {
+    if (emit_bytes_from_ptr(out, pfx, pfx_len) != 0) {
+      return -1;
+    }
+  }
+  if (emit_bytes_from_ptr(out, name, name_len) != 0) {
+    return -1;
+  }
   if (emit_bytes_from_ptr(out, &tail[0], 27) != 0) {
     return -1;
   }
@@ -18714,7 +18774,8 @@ export function codegen_emit_import_dep_function_declarations(module: *Module, o
  * Emit minimal host-C TU prologue for bare `-E` / codegen_x_ast body path.
  * Includes stdint/stddef/sys/types plus TYPE_SLICE fat layouts (`struct xlang_slice_*`)
  * matching type_to_c_repr / rt_preamble (wave618–619 scalar set + wave691 one-level
- * nested `[][]T` → `struct xlang_slice_xlang_slice_<elem>`). Without layouts,
+ * nested `[][]T` → `struct xlang_slice_xlang_slice_<elem>` + wave693 two-level
+ * nested `[][][]T` → `struct xlang_slice_xlang_slice_xlang_slice_<elem>`). Without layouts,
  * bare `-E` output fails host-cc with incomplete type; full `-o` already injects
  * rt_preamble — both sites use XLANG_SLICE_LAYOUTS so redefinition is safe.
  * @param out *CodegenOutBuf — destination C text buffer
@@ -18951,6 +19012,170 @@ export function codegen_x_ast_emit_header(out: *CodegenOutBuf): i32 {
     108, 101, 110, 103, 116, 104, 59, 32, 125, 59, 10, 0
   ];
   if (emit_bytes_from_ptr(out, &n12[0], 91) != 0) {
+    return -1;
+  }
+  /*
+   * wave693: two-level nested [][][]T fat layouts.
+   * Tag = struct xlang_slice_ + strip(type_to_c_repr([][]T)) =
+   *   struct xlang_slice_xlang_slice_xlang_slice_<elem>
+   * { struct xlang_slice_xlang_slice_<elem> *data; size_t length; };
+   * Lines up to 119 bytes → emit_bytes_from_ptr with 128-byte buffers.
+   * PLATFORM: SHARED host-C. G.7: same set as rt_preamble / seed emit_header.
+   */
+  /* struct xlang_slice_xlang_slice_xlang_slice_uint8_t { struct xlang_slice_xlang_slice_uint8_t *data; size_t length; };\n */
+  let t0: u8[128] = [
+    115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    117, 105, 110, 116, 56, 95, 116, 32, 123, 32, 115, 116, 114, 117, 99, 116, 32,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    117, 105, 110, 116, 56, 95, 116, 32, 42, 100, 97, 116, 97, 59, 32, 115, 105, 122, 101, 95, 116, 32,
+    108, 101, 110, 103, 116, 104, 59, 32, 125, 59, 10, 0
+  ];
+  if (emit_bytes_from_ptr(out, &t0[0], 117) != 0) {
+    return -1;
+  }
+  /* struct xlang_slice_xlang_slice_xlang_slice_int8_t { struct xlang_slice_xlang_slice_int8_t *data; size_t length; };\n */
+  let t1: u8[128] = [
+    115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    105, 110, 116, 56, 95, 116, 32, 123, 32, 115, 116, 114, 117, 99, 116, 32,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    105, 110, 116, 56, 95, 116, 32, 42, 100, 97, 116, 97, 59, 32, 115, 105, 122, 101, 95, 116, 32,
+    108, 101, 110, 103, 116, 104, 59, 32, 125, 59, 10, 0
+  ];
+  if (emit_bytes_from_ptr(out, &t1[0], 115) != 0) {
+    return -1;
+  }
+  /* struct xlang_slice_xlang_slice_xlang_slice_int16_t { struct xlang_slice_xlang_slice_int16_t *data; size_t length; };\n */
+  let t2: u8[128] = [
+    115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    105, 110, 116, 49, 54, 95, 116, 32, 123, 32, 115, 116, 114, 117, 99, 116, 32,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    105, 110, 116, 49, 54, 95, 116, 32, 42, 100, 97, 116, 97, 59, 32, 115, 105, 122, 101, 95, 116, 32,
+    108, 101, 110, 103, 116, 104, 59, 32, 125, 59, 10, 0
+  ];
+  if (emit_bytes_from_ptr(out, &t2[0], 117) != 0) {
+    return -1;
+  }
+  /* struct xlang_slice_xlang_slice_xlang_slice_uint16_t { struct xlang_slice_xlang_slice_uint16_t *data; size_t length; };\n */
+  let t3: u8[128] = [
+    115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    117, 105, 110, 116, 49, 54, 95, 116, 32, 123, 32, 115, 116, 114, 117, 99, 116, 32,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    117, 105, 110, 116, 49, 54, 95, 116, 32, 42, 100, 97, 116, 97, 59, 32, 115, 105, 122, 101, 95, 116, 32,
+    108, 101, 110, 103, 116, 104, 59, 32, 125, 59, 10, 0
+  ];
+  if (emit_bytes_from_ptr(out, &t3[0], 119) != 0) {
+    return -1;
+  }
+  /* struct xlang_slice_xlang_slice_xlang_slice_int { struct xlang_slice_xlang_slice_int *data; size_t length; };\n */
+  let t4: u8[128] = [
+    115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    105, 110, 116, 32, 123, 32, 115, 116, 114, 117, 99, 116, 32,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    105, 110, 116, 32, 42, 100, 97, 116, 97, 59, 32, 115, 105, 122, 101, 95, 116, 32,
+    108, 101, 110, 103, 116, 104, 59, 32, 125, 59, 10, 0
+  ];
+  if (emit_bytes_from_ptr(out, &t4[0], 109) != 0) {
+    return -1;
+  }
+  /* struct xlang_slice_xlang_slice_xlang_slice_int32_t { struct xlang_slice_xlang_slice_int32_t *data; size_t length; };\n */
+  let t5: u8[128] = [
+    115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    105, 110, 116, 51, 50, 95, 116, 32, 123, 32, 115, 116, 114, 117, 99, 116, 32,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    105, 110, 116, 51, 50, 95, 116, 32, 42, 100, 97, 116, 97, 59, 32, 115, 105, 122, 101, 95, 116, 32,
+    108, 101, 110, 103, 116, 104, 59, 32, 125, 59, 10, 0
+  ];
+  if (emit_bytes_from_ptr(out, &t5[0], 117) != 0) {
+    return -1;
+  }
+  /* struct xlang_slice_xlang_slice_xlang_slice_uint32_t { struct xlang_slice_xlang_slice_uint32_t *data; size_t length; };\n */
+  let t6: u8[128] = [
+    115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    117, 105, 110, 116, 51, 50, 95, 116, 32, 123, 32, 115, 116, 114, 117, 99, 116, 32,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    117, 105, 110, 116, 51, 50, 95, 116, 32, 42, 100, 97, 116, 97, 59, 32, 115, 105, 122, 101, 95, 116, 32,
+    108, 101, 110, 103, 116, 104, 59, 32, 125, 59, 10, 0
+  ];
+  if (emit_bytes_from_ptr(out, &t6[0], 119) != 0) {
+    return -1;
+  }
+  /* struct xlang_slice_xlang_slice_xlang_slice_int64_t { struct xlang_slice_xlang_slice_int64_t *data; size_t length; };\n */
+  let t7: u8[128] = [
+    115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    105, 110, 116, 54, 52, 95, 116, 32, 123, 32, 115, 116, 114, 117, 99, 116, 32,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    105, 110, 116, 54, 52, 95, 116, 32, 42, 100, 97, 116, 97, 59, 32, 115, 105, 122, 101, 95, 116, 32,
+    108, 101, 110, 103, 116, 104, 59, 32, 125, 59, 10, 0
+  ];
+  if (emit_bytes_from_ptr(out, &t7[0], 117) != 0) {
+    return -1;
+  }
+  /* struct xlang_slice_xlang_slice_xlang_slice_uint64_t { struct xlang_slice_xlang_slice_uint64_t *data; size_t length; };\n */
+  let t8: u8[128] = [
+    115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    117, 105, 110, 116, 54, 52, 95, 116, 32, 123, 32, 115, 116, 114, 117, 99, 116, 32,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    117, 105, 110, 116, 54, 52, 95, 116, 32, 42, 100, 97, 116, 97, 59, 32, 115, 105, 122, 101, 95, 116, 32,
+    108, 101, 110, 103, 116, 104, 59, 32, 125, 59, 10, 0
+  ];
+  if (emit_bytes_from_ptr(out, &t8[0], 119) != 0) {
+    return -1;
+  }
+  /* struct xlang_slice_xlang_slice_xlang_slice_size_t { struct xlang_slice_xlang_slice_size_t *data; size_t length; };\n */
+  let t9: u8[128] = [
+    115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    115, 105, 122, 101, 95, 116, 32, 123, 32, 115, 116, 114, 117, 99, 116, 32,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    115, 105, 122, 101, 95, 116, 32, 42, 100, 97, 116, 97, 59, 32, 115, 105, 122, 101, 95, 116, 32,
+    108, 101, 110, 103, 116, 104, 59, 32, 125, 59, 10, 0
+  ];
+  if (emit_bytes_from_ptr(out, &t9[0], 115) != 0) {
+    return -1;
+  }
+  /* struct xlang_slice_xlang_slice_xlang_slice_ssize_t { struct xlang_slice_xlang_slice_ssize_t *data; size_t length; };\n */
+  let t10: u8[128] = [
+    115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    115, 115, 105, 122, 101, 95, 116, 32, 123, 32, 115, 116, 114, 117, 99, 116, 32,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    115, 115, 105, 122, 101, 95, 116, 32, 42, 100, 97, 116, 97, 59, 32, 115, 105, 122, 101, 95, 116, 32,
+    108, 101, 110, 103, 116, 104, 59, 32, 125, 59, 10, 0
+  ];
+  if (emit_bytes_from_ptr(out, &t10[0], 117) != 0) {
+    return -1;
+  }
+  /* struct xlang_slice_xlang_slice_xlang_slice_float { struct xlang_slice_xlang_slice_float *data; size_t length; };\n */
+  let t11: u8[128] = [
+    115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    102, 108, 111, 97, 116, 32, 123, 32, 115, 116, 114, 117, 99, 116, 32,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    102, 108, 111, 97, 116, 32, 42, 100, 97, 116, 97, 59, 32, 115, 105, 122, 101, 95, 116, 32,
+    108, 101, 110, 103, 116, 104, 59, 32, 125, 59, 10, 0
+  ];
+  if (emit_bytes_from_ptr(out, &t11[0], 113) != 0) {
+    return -1;
+  }
+  /* struct xlang_slice_xlang_slice_xlang_slice_double { struct xlang_slice_xlang_slice_double *data; size_t length; };\n */
+  let t12: u8[128] = [
+    115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    100, 111, 117, 98, 108, 101, 32, 123, 32, 115, 116, 114, 117, 99, 116, 32,
+    120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95,
+    100, 111, 117, 98, 108, 101, 32, 42, 100, 97, 116, 97, 59, 32, 115, 105, 122, 101, 95, 116, 32,
+    108, 101, 110, 103, 116, 104, 59, 32, 125, 59, 10, 0
+  ];
+  if (emit_bytes_from_ptr(out, &t12[0], 115) != 0) {
     return -1;
   }
   /* #endif\n */
