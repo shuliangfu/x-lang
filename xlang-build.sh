@@ -324,10 +324,10 @@ case "$TARGET" in
     bash compiler/scripts/leaf_pattern_residual.sh "$_lp_mode"
     ;;
 
-  # === wave748–755 · 11.3.1 · R1 host-cc seed body (… + misc-basename + seed-map) ===
-  host-cc-seed|rt-seed-slice|rt-slice|host-cc-seed-o|core-seed|core_seed|r1-core|r1-core-seed|frontend-glue|frontend_glue|r1-frontend-glue|r1-glue|main-runtime|main_runtime|r1-main-runtime|r1-main|alias-stubs|alias_stubs|r1-alias-stubs|r1-alias|extra-cflags|extra_cflags|r1-extra-cflags|r1-extra|pipeline-abi|misc-basename|misc_basename|misc|r1-misc-basename|r1-misc|seed-map|seed_map|r1-seed-map|r1-mismatch|mismatch)
+  # === wave748–757 · 11.3.1 · R1 host-cc seed body + R3 cold-else ===
+  host-cc-seed|rt-seed-slice|rt-slice|host-cc-seed-o|core-seed|core_seed|r1-core|r1-core-seed|frontend-glue|frontend_glue|r1-frontend-glue|r1-glue|main-runtime|main_runtime|r1-main-runtime|r1-main|alias-stubs|alias_stubs|r1-alias-stubs|r1-alias|extra-cflags|extra_cflags|r1-extra-cflags|r1-extra|pipeline-abi|misc-basename|misc_basename|misc|r1-misc-basename|r1-misc|seed-map|seed_map|r1-seed-map|r1-mismatch|mismatch|r3-cold-seed|r3_cold_seed|cold-seed|r3-cold)
     # Pure host-cc seed → .o single body (G.7). Lists = catalog keys only.
-    #   host-cc-seed     → all swallowed families
+    #   host-cc-seed     → all swallowed R1 families
     #   rt-seed-slice    → RT_SEED_SLICE_OBJS only
     #   core-seed        → R1_CORE_SEED_OBJS only (wave749)
     #   frontend-glue    → R1_FRONTEND_GLUE_OBJS only (wave750; basename-mismatch map)
@@ -336,12 +336,13 @@ case "$TARGET" in
     #   extra-cflags     → R1_EXTRA_CFLAGS_OBJS only (wave753; pipeline_abi/-fPIE/sqlite/parser)
     #   misc-basename    → R1_MISC_BASENAME_OBJS only (wave754; glue/enc/ctx/pipeline_glue/…)
     #   seed-map         → R1_SEED_MAP_OBJS only (wave755; target_cpu/ast_seed/orch)
+    #   r3-cold-seed     → R3_COLD_SEED_OBJS only (wave757; thin+rest cold-else)
     # Map: compiler/docs/LEAF_PATTERN_RESIDUAL.md
     # Usage:
     #   ./xbuild host-cc-seed              # all swallowed R1 families
     #   ./xbuild host-cc-seed --check
     #   ./xbuild host-cc-seed --force
-    #   ./xbuild rt-seed-slice | … | misc-basename | seed-map
+    #   ./xbuild rt-seed-slice | … | seed-map | r3-cold-seed
     _hcs_cmd="$1"
     _hcs_args=()
     case "$_hcs_cmd" in
@@ -353,6 +354,7 @@ case "$TARGET" in
       extra-cflags|extra_cflags|r1-extra-cflags|r1-extra|pipeline-abi) _hcs_mode="extra-cflags" ;;
       misc-basename|misc_basename|misc|r1-misc-basename|r1-misc) _hcs_mode="misc-basename" ;;
       seed-map|seed_map|r1-seed-map|r1-mismatch|mismatch) _hcs_mode="seed-map" ;;
+      r3-cold-seed|r3_cold_seed|cold-seed|r3-cold) _hcs_mode="r3-cold-seed" ;;
       *) _hcs_mode="all" ;;  # host-cc-seed umbrella
     esac
     shift || true
@@ -387,6 +389,9 @@ case "$TARGET" in
           ;;
         seed-map|seed_map|r1-seed-map|r1-mismatch|mismatch)
           _hcs_mode="seed-map"
+          ;;
+        r3-cold-seed|r3_cold_seed|cold-seed|r3-cold)
+          _hcs_mode="r3-cold-seed"
           ;;
         all|families)
           _hcs_mode="all"
@@ -425,6 +430,8 @@ case "$TARGET" in
         bash scripts/ensure_host_cc_seed_o.sh misc-basename "${_hcs_args[@]}"
       elif [ "$_hcs_mode" = "seed-map" ]; then
         bash scripts/ensure_host_cc_seed_o.sh seed-map "${_hcs_args[@]}"
+      elif [ "$_hcs_mode" = "r3-cold-seed" ]; then
+        bash scripts/ensure_host_cc_seed_o.sh r3-cold-seed "${_hcs_args[@]}"
       elif [ "$_hcs_mode" = "rt-slice" ]; then
         bash scripts/ensure_host_cc_seed_o.sh rt-slice "${_hcs_args[@]}"
       else
@@ -601,7 +608,7 @@ g05 产品链（wave733–735 · 11.1.6；产品 link 零 make）:
                                        （G.7 禁双 .o；禁第二套链接实现）
   leaf-patterns / leaf-residual        叶 .o pattern residual 库存（11.3.1 路径）
   leaf-patterns --check                校验 doc + class dump + 接线
-  host-cc-seed / rt-seed-slice / core-seed / frontend-glue / main-runtime / alias-stubs / extra-cflags / misc-basename / seed-map
+  host-cc-seed / rt-seed-slice / core-seed / frontend-glue / main-runtime / alias-stubs / extra-cflags / misc-basename / seed-map / r3-cold-seed
                                        R1 host-cc 体（wave748–752 五族）
   host-cc-seed --check                 校验 catalog + thin Makefile + 八族
   host-cc-seed --force                 强制重编已吞 R1 族

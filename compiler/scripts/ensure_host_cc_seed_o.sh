@@ -17,6 +17,11 @@
 #            eight catalog KEY memberships (G.7 lists stay mk) and runs the
 #            same ensure_one body. Used by rebuild_leaves so pure R1 leaves
 #            leave the make pattern graph; non-members exit 3 (caller make).
+#   wave757: R3 cold-else body helper — `try-r3-cold OUT` resolves OUT against
+#            catalog R3_COLD_SEED_OBJS (thin+rest leaves whose cold path is
+#            pure basename host-cc). Same ensure_one body; exit 3 if not member.
+#            rebuild_leaves residual uses this before make; PREFER_X_O=1 thin
+#            path stays Makefile.
 #
 # Authority (G.7):
 #   Single shell *recipe body* for pure host-cc compile of seeds/*.from_x.c → .o.
@@ -48,6 +53,7 @@
 #   R1_MISC_BASENAME_OBJS  — pure basename host-cc without special -D/-f extras
 #                            (glue/enc/ctx/pipeline_glue_strict_minimal/asm_build/…)
 #   R1_SEED_MAP_OBJS       — basename-mismatch + bootstrap orch extras
+#   R3_COLD_SEED_OBJS      — thin+rest cold-else pure host-cc (wave757)
 #                            (target_cpu / ast_seed / pipeline_bootstrap_orchestration)
 #
 # Not in scope (honest residual):
@@ -82,7 +88,7 @@
 #   MAKE — only for catalog list expansion (default: make)
 #
 # PLATFORM: SHARED — shell orchestration; seed pins host-portable C.
-# Wave: 748–756 Track MG · 11.3.1 R1 families + R4 pure-R1 body (not physical delete · not pure-ld).
+# Wave: 748–757 Track MG · 11.3.1 R1 families + R4 pure-R1 + R3 cold-else (not physical delete · not pure-ld).
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -106,7 +112,7 @@ _DEFAULT_PARSER_ASM_LINK_ALIAS_CFLAGS="-DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS"
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|try-r1|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -588,6 +594,37 @@ try_ensure_r1_one() {
 }
 
 # ---------------------------------------------------------------------------
+# wave757: try-r3-cold OUT — R3 cold-else pure host-cc without dual .o lists.
+#
+# Membership = catalog R3_COLD_SEED_OBJS only (lists = mk).
+# Seed = basename convention (seeds/<leaf>.from_x.c); same ensure_one as R1.
+# Exit codes:
+#   0 — OUT is R3 cold-seed member; ensure_one ran (or skipped up-to-date)
+#   3 — OUT not in R3_COLD_SEED_OBJS (caller residual make)
+#   1 — membership found but ensure failed / catalog error
+# PLATFORM: SHARED — cold path body only; PREFER thin+rest remains Makefile.
+# ---------------------------------------------------------------------------
+try_ensure_r3_cold_one() {
+  local o="$1"
+  local list seed
+  if [ -z "$o" ]; then
+    echo "ensure_host_cc_seed_o try-r3-cold: need <out.o>" >&2
+    exit 2
+  fi
+  list="$(catalog_key_words "R3_COLD_SEED_OBJS")"
+  if ! list_has_word "$o" "$list"; then
+    return 3
+  fi
+  seed="$(seed_for_o "$o")"
+  ensure_one "$o" "$seed"
+  return 0
+}
+
+ensure_r3_cold_seed() {
+  ensure_catalog_family "R3_COLD_SEED_OBJS" "r3-cold-seed" "basename"
+}
+
+# ---------------------------------------------------------------------------
 # --check: wiring + catalog keys + convention (no full compile required)
 # ---------------------------------------------------------------------------
 check_family() {
@@ -704,6 +741,10 @@ run_check() {
     && ! grep -q 'R1_SEED_MAP_OBJS' mk/*.mk 2>/dev/null; then
     bad "R1_SEED_MAP_OBJS not defined in Makefile/mk (wave755)"
   fi
+  if ! grep -q 'R3_COLD_SEED_OBJS' Makefile \
+    && ! grep -q 'R3_COLD_SEED_OBJS' mk/*.mk 2>/dev/null; then
+    bad "R3_COLD_SEED_OBJS not defined in Makefile/mk (wave757)"
+  fi
 
   check_family "RT_SEED_SLICE_OBJS" 5 "rt-slice" "basename" "src/runtime/"
   check_family "R1_CORE_SEED_OBJS" 5 "core-seed" "basename" "src/"
@@ -717,6 +758,8 @@ run_check() {
   check_family "R1_MISC_BASENAME_OBJS" 9 "misc-basename" "basename" ""
   # seed-map: mismatch stems + orch extras.
   check_family "R1_SEED_MAP_OBJS" 3 "seed-map" "seed-map" ""
+  # R3 cold-else: thin+rest leaves cold path = pure basename host-cc.
+  check_family "R3_COLD_SEED_OBJS" 9 "r3-cold-seed" "basename" ""
 
   # Makefile thin: recipes must call this script (not inline $(CC) -c for swallowed leaves)
   if ! grep -q 'ensure_host_cc_seed_o\.sh' Makefile; then
@@ -807,6 +850,10 @@ run_check() {
     | grep -vqE '^\s*#|:[0-9]+:\s*#'; then
     bad "must not hardcode R1_SEED_MAP_OBJS= in shell body"
   fi
+  if grep -nE '^(export )?R3_COLD_SEED_OBJS=' "$0" 2>/dev/null \
+    | grep -vqE '^\s*#|:[0-9]+:\s*#'; then
+    bad "must not hardcode R3_COLD_SEED_OBJS= in shell body"
+  fi
 
   if [ "$fail" -ne 0 ]; then
     echo "ensure_host_cc_seed_o: --check FAILED" >&2
@@ -818,8 +865,14 @@ run_check() {
   else
     note "try-r1 pure-R1 helper present (wave756)"
   fi
+  # wave757: try-r3-cold entry must exist (R3 cold-else body helper)
+  if ! grep -q 'try_ensure_r3_cold_one\|try-r3-cold' "$0"; then
+    bad "try-r3-cold / try_ensure_r3_cold_one missing (wave757 R3 cold-else)"
+  else
+    note "try-r3-cold R3 cold-else helper present (wave757)"
+  fi
 
-  echo "ensure_host_cc_seed_o: CHECK OK (R1 rt-seed-slice + core-seed + frontend-glue + main-runtime + alias-stubs + extra-cflags + misc-basename + seed-map · try-r1 · wave748–756)" >&2
+  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else try-r3-cold · wave748–757)" >&2
 }
 
 case "$MODE" in
@@ -843,6 +896,22 @@ case "$MODE" in
     _try_rc=$?
     set -e
     exit "$_try_rc"
+    ;;
+  try-r3-cold|try_r3_cold|r3-cold|r3-cold-one)
+    # wave757: R3 cold-else helper — exit 3 if not R3_COLD_SEED_OBJS member.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o try-r3-cold: need <out.o>" >&2
+      exit 2
+    fi
+    _try_out="$1"
+    set +e
+    try_ensure_r3_cold_one "$_try_out"
+    _try_rc=$?
+    set -e
+    exit "$_try_rc"
+    ;;
+  r3-cold-seed|r3_cold_seed|cold-seed|family=r3_cold_seed)
+    ensure_r3_cold_seed
     ;;
   rt-slice|rt_slice|rt-seed-slice|family=rt_seed_slice)
     ensure_rt_slice
@@ -880,7 +949,7 @@ case "$MODE" in
     exit 0
     ;;
   *)
-    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|try-r1|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|all|--check)" >&2
+    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|try-r1|try-r3-cold|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|all|--check)" >&2
     exit 2
     ;;
 esac

@@ -30,7 +30,7 @@
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
 | **Makefile 退役 / xbuild** | 🟡 半路径 | **`./xbuild`→`xlang-build.sh`** 产品入口；根 Makefile **help-only**；叶/组合体→`compiler/mk/*.mk`；**`compiler/Makefile` 仍 ~3445 行权威图**（阶段 11） |
-| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 ✅** tests/** hub · **11.1.6 🟡** g05+…+archaeology-gen → xbuild · **11.1.5 🟡** build.x · **11.1.1 🟡** BUILD_DAG 库存 · **11.1.2 🟡** schedule dry-run/run · **11.1.3/4 🟡** 平台+链接策略（wave745）· **11.3 🟡** prereq 边 shell（wave744）· **11.3.1 路径 🟡** 叶 pattern 库存（wave746）+ **R4 mode（wave747）** + **R1 八族（wave748–755）** + **R4 pure-R1 try-r1（wave756）** · **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
+| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 ✅** tests/** hub · **11.1.6 🟡** g05+…+archaeology-gen → xbuild · **11.1.5 🟡** build.x · **11.1.1 🟡** BUILD_DAG 库存 · **11.1.2 🟡** schedule dry-run/run · **11.1.3/4 🟡** 平台+链接策略（wave745）· **11.3 🟡** prereq 边 shell（wave744）· **11.3.1 路径 🟡** 叶 pattern 库存（wave746）+ **R4 mode（wave747）** + **R1 八族（wave748–755）** + **R4 pure-R1 try-r1（wave756）** + **R3 cold-else try-r3-cold（wave757）** · **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | 🟡 4/4 策略 | 11.5.1–4 **策略已裁定**（wave734/741 · `tests/HOST_CC_POLICY.md`）；改写 .x / 卸 cc 属阶段 12 |
 | **冷启动零 cc 链** | ⬜ 0/4 | 最小 seed + 零 cc 验证 + 双端冷启动 |
 | **终局：无 Makefile + 零 cc + v2==v3** | ⬜ 未达 | 见 §0.1 三义；阶段 13 |
@@ -1440,17 +1440,20 @@
     pattern 体仍 make（R4 body residual）；export 叶 inventory/legacy
   - ✅ wave748–755：**R1 八族** — `ensure_host_cc_seed_o.sh` 单 body + catalog 八 KEY；
     Makefile 薄转调；`./xbuild host-cc-seed` umbrella
+  - ✅ wave757：**R3 cold-else body** — `rebuild_leaves` residual → `ensure try-r3-cold`
+    （catalog `R3_COLD_SEED_OBJS`）；PREFER thin 仍 make
   - ✅ wave756：**R4 pure-R1 body** — `rebuild_leaves` → `ensure try-r1`（catalog membership）；
     bridge 无 make；non-R1 residual 仍 make
 
-🟡 **11.3.1 路径 · 叶 pattern residual（wave746 库存 · wave747 R4 mode · wave748–755 R1 · wave756 pure-R1 · 非物理删）**
+🟡 **11.3.1 路径 · 叶 pattern residual（wave746 库存 · wave747 R4 mode · wave748–755 R1 · wave756 pure-R1 · wave757 R3 cold · 非物理删）**
 
   - ✅ 权威图：`compiler/docs/LEAF_PATTERN_RESIDUAL.md`
   - ✅ 机检：`leaf_pattern_residual.sh` dump/classes/`--check`；`./xbuild leaf-patterns`
   - ✅ R1 host-cc seed · R2 UNAME stamp · R3 thin+rest · R4 rebuild pattern bodies · R5 CI all · R6→11.1.4
   - ✅ R4 mode+list shell（wave747）；✅ R4 pure-R1 body shell（wave756 try-r1）；
-    ⬜ R4 non-R1 residual 离 make 图（panic/gen/thin+rest/dispatch/glue/pipeline-x）
-  - ✅ R1 八族 body（wave748–755）；⬜ R3 thin+rest body 仍 make/g05
+    ✅ R3 cold-else body shell（wave757 try-r3-cold）；
+    ⬜ R4 remaining residual 离 make 图（panic/gen/hybrid thin_glue/glue/pipeline-x）
+  - ✅ R1 八族 body（wave748–755）；⬜ R3 PREFER thin product path 仍 make/g05
   - ⬜ 物理删 `compiler/Makefile` 仍 ⬜（下项）
 
 ⬜ **11.3.1 删除 `compiler/Makefile`**
