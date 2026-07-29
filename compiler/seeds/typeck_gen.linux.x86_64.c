@@ -5044,10 +5044,11 @@ int typeck_float_widen_ok(int32_t dest_kind, int32_t src_kind) {
   return 0;
 }
 
+/* wave671 Cap residual: G.7 ≡ typeck.x typeck_return_operand_matches —
+ * no BOOL_LIT/LOGNOT → i32 return false-green. */
 int typeck_return_operand_matches(struct ast_ASTArena * arena, int32_t op_ref, int32_t expect_ref) {
   {
     int32_t got = typeck_expr_type_ref(arena, op_ref);
-    int32_t ord_i32 = 0;
     int32_t expect_kind = 0;
     int32_t got_kind = 0;
     if ((ast_ref_is_null(op_ref) || ast_ref_is_null(expect_ref))) {
@@ -5083,13 +5084,7 @@ int typeck_return_operand_matches(struct ast_ASTArena * arena, int32_t op_ref, i
         return 1;
       }
     }
-    if (((pipeline_type_kind_ord_at(arena, expect_ref) !=ord_i32) || !(typeck_type_ref_is_bool(arena, got)))) {
-      return 0;
-    }
-    int32_t kop = pipeline_expr_kind_ord_at(arena, op_ref);
-    if (((kop ==2) || (kop ==24))) {
-      return 1;
-    }
+    /* wave671: bool → non-bool return hard-fail (removed BOOL_LIT/LOGNOT→i32). */
     return 0;
   }
 }

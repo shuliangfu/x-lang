@@ -4231,14 +4231,25 @@ export function typeck_float_widen_ok(dest_kind: i32, src_kind: i32): bool {
 }
 
 /**
-* See implementation.
-* See implementation.
-*/
+ * Whether a return operand type matches the function's declared return type.
+ * Accepts equal types, integer widen (wave313), f32→f64 (wave314), linear unwrap,
+ * and bare INT 0 → pointer (nullish lit). Does not widen bool to integer.
+ * wave671 Cap residual: prior path accepted EXPR_BOOL_LIT / EXPR_LOGNOT when
+ * expect was TYPE_I32 (`return true` / `return !x` false-green while
+ * `return (1==1)` / `return bool_var` already mismatched). Align with wave666
+ * no int↔bool and with EQ/LOGAND return mismatch. Explicit `as i32` still works
+ * (EXPR_AS stamps target before match). LANG-006 bool→int on let/const init is
+ * typeck_coerce_init_bool_to_int_decl only — not return.
+ * @param arena *ASTArena — type/expr arena
+ * @param op_ref i32 — return operand expr
+ * @param expect_ref i32 — declared function return type
+ * @return bool — true when operand may return as expect
+ * PLATFORM: SHARED — G.7 single return match authority (typeck.x + seed twins).
+ */
 export function typeck_return_operand_matches(arena: *ASTArena, op_ref: i32, expect_ref: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let got: i32 = expr_type_ref(arena, op_ref);
-    let ord_i32: i32 = 0;
     let expect_kind: i32 = 0;
     let got_kind: i32 = 0;
     if (ast.ref_is_null(op_ref) || ast.ref_is_null(expect_ref)) {
@@ -4268,7 +4279,6 @@ export function typeck_return_operand_matches(arena: *ASTArena, op_ref: i32, exp
     if (typeck_float_widen_ok(expect_kind, got_kind)) {
       return true;
     }
-    /* See implementation. */
     let ord_linear: i32 = 12;
     if (pipeline_type_kind_ord_at(arena, got) == ord_linear) {
       let elem: i32 = pipeline_type_elem_ref_at(arena, got);
@@ -4276,14 +4286,10 @@ export function typeck_return_operand_matches(arena: *ASTArena, op_ref: i32, exp
         return true;
       }
     }
-    /* See implementation. */
-    if (pipeline_type_kind_ord_at(arena, expect_ref) != ord_i32 || !type_ref_is_bool(arena, got)) {
-      return false;
-    }
-    let kop: i32 = pipeline_expr_kind_ord_at(arena, op_ref);
-    if (kop == 2 || kop == 24) {
-      return true;
-    }
+    /*
+     * wave671 Cap residual: hard-fail bool → non-bool return (no BOOL_LIT/LOGNOT
+     * → i32 exception). Same mismatch path as EQ/LOGAND/bool VAR return.
+     */
     return false;
   }
 }
