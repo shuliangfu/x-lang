@@ -3604,9 +3604,21 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
       PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_layout_deep_buf_audit_c(lex, data, len));
       PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_struct_layout_full_deep_buf_audit_c(lex, data, len));
       PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_struct_layout_mega_full_deep_buf_audit_c(lex, data, len));
-      if (parser_parse_struct_record_layout_into_glue(arena, module, lex, &slice, &out_lex, ap, ps, pc) != 0)
+      if (parser_parse_struct_record_layout_into_glue(arena, module, lex, &slice, &out_lex, ap, ps, pc) != 0) {
+        /*
+         * wave679 Cap residual: P012 duplicate field must not soft-skip+continue.
+         * PLATFORM: SHARED parse.
+         */
+        {
+          extern int32_t parser_sig_type_hard_pending_c(void);
+          if (parser_sig_type_hard_pending_c() != 0) {
+            out.ok = -2;
+            out.main_idx = -1;
+            return out;
+          }
+        }
         parser_skip_one_struct_into_buf_glue(&lex, iter_start, data, len);
-      else
+      } else
         lex = out_lex;
       if (lex.pos == iter_start.pos && lex.pos < (size_t)len)
         lex.pos++;

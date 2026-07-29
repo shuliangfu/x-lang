@@ -3499,13 +3499,35 @@ export extern function parser_report_untyped_binding_p010_c(line: i32, col: i32,
 export extern function parser_report_untyped_formal_p011_c(line: i32, col: i32, kind: i32): void;
 
 /**
- * wave676: clear sticky P011 sig-type hard flag (call at parse_into_buf entry).
+ * wave679: emit parse error[P012] for duplicate function param or struct field name.
+ * Sets sticky sig-type hard flag so parse_into_buf aborts (no silent drop / host BLD001).
+ * G.7: product C authority is parser_report_duplicate_name_p012_c (body_tl_slice).
+ * @param line i32 — 1-based line of the duplicate name token
+ * @param col i32 — 1-based column
+ * @param kind i32 — 0 = function param; 1 = struct field
+ * PLATFORM: SHARED parse.
+ */
+export extern function parser_report_duplicate_name_p012_c(line: i32, col: i32, kind: i32): void;
+
+/**
+ * wave679: 1 if name already among first nparams of OneFunc param pool.
+ * @param pool *u8 — onefunc sidecar pool
+ * @param nparams i32 — params already appended
+ * @param name *u8 — candidate binding name
+ * @param name_len i32 — byte length
+ * @return i32 — 1 duplicate, 0 unique/null
+ * PLATFORM: SHARED parse.
+ */
+export extern function parser_onefunc_param_name_dup_c(pool: *u8, nparams: i32, name: *u8, name_len: i32): i32;
+
+/**
+ * wave676: clear sticky P011/P012 sig-type hard flag (call at parse_into_buf entry).
  * PLATFORM: SHARED parse.
  */
 export extern function parser_sig_type_hard_reset_c(): void;
 
 /**
- * wave676: non-zero if P011 was reported during this parse_into_buf scan.
+ * wave676/679: non-zero if P011/P012 was reported during this parse_into_buf scan.
  * @return i32 — 0 = ok; non-zero = must hard-abort (ok=-2)
  * PLATFORM: SHARED parse.
  */
@@ -5443,6 +5465,15 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       copy_slice_to_param32(source, r.token_start, plen_param, &pname_row[0]);
       /* Names/types go to out sidecar (not impl_snap — merge_pool resets snap). */
       param_pool = onefunc_result_pool_ptr(out);
+      /*
+       * wave679 Cap residual: duplicate param name was parse/typeck green → host
+       * BLD001 redefinition. Hard-fail at definition with P012 + sticky abort.
+       * PLATFORM: SHARED parse.
+       */
+      if (parser_onefunc_param_name_dup_c(param_pool, out.num_params, &pname_row[0], plen_param) != 0) {
+        parser_report_duplicate_name_p012_c(r.tok.line, r.tok.col, 0);
+        set_onefunc_fail(out_ref, lex); return;
+      }
       param_idx = pipeline_onefunc_append_param(param_pool, &pname_row[0], plen_param, 0);
       if (param_idx < 0) {
         set_onefunc_fail(out_ref, lex); return;
@@ -8588,6 +8619,13 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       }
       let nsl_before: i32 = module.num_struct_layouts;
       if (parse_struct_record_layout_into(arena, module, lex, source, &lex, allow_for_repr, ps_struct, pc_struct) != 0) {
+        /*
+         * wave679: P012 duplicate field must not soft-skip the struct (false green).
+         * PLATFORM: SHARED parse.
+         */
+        if (parser_sig_type_hard_pending_c() != 0) {
+          return ParseIntoResult { ok: -2, main_idx: -1 };
+        }
         skip_one_struct_into(&lex, iter_start, source);
       } else if (pe_struct != 0 && module.num_struct_layouts > nsl_before) {
         pipeline_module_struct_layout_set_is_export(module, module.num_struct_layouts - 1, 1);
@@ -10736,6 +10774,13 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       }
       let nsl_before_buf: i32 = module.num_struct_layouts;
       if (parse_struct_record_layout_into_buf(arena, module, lex, data, len, &lex, allow_for_repr_buf, ps_sb, pc_sb) != 0) {
+        /*
+         * wave679: P012 duplicate field must not soft-skip the struct (false green).
+         * PLATFORM: SHARED parse.
+         */
+        if (parser_sig_type_hard_pending_c() != 0) {
+          return ParseIntoResult { ok: -2, main_idx: -1 };
+        }
         skip_one_struct_into_buf(&lex, lex_kw, data, len);
       } else if (pe_sb != 0 && module.num_struct_layouts > nsl_before_buf) {
         pipeline_module_struct_layout_set_is_export(module, module.num_struct_layouts - 1, 1);

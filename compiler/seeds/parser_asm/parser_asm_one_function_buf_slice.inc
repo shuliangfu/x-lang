@@ -927,6 +927,20 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
         }
         parser_asm_copy_slice_to_param32_buf_c(data, len, r.token_start, param_name_len, pname_buf);
       }
+      /*
+       * wave679 Cap residual: duplicate param name → host BLD001. P012 + sticky.
+       * PLATFORM: SHARED parse (buf path twin of parser.x / parser_gen).
+       */
+      {
+        extern int32_t parser_onefunc_param_name_dup_c(uint8_t *pool, int32_t nparams, uint8_t *name,
+                                                      int32_t name_len);
+        extern void parser_report_duplicate_name_p012_c(int32_t line, int32_t col, int32_t kind);
+        if (parser_onefunc_param_name_dup_c(out_pool, out->num_params, pname_buf, param_name_len) != 0) {
+          parser_report_duplicate_name_p012_c((int32_t)r.tok.line, (int32_t)r.tok.col, 0);
+          parser_asm_set_onefunc_fail_c(out, lex);
+          return;
+        }
+      }
       param_idx = pipeline_onefunc_append_param(out_pool, pname_buf, param_name_len, 0);
       if (param_idx < 0) {
         parser_asm_set_onefunc_fail_c(out, lex);

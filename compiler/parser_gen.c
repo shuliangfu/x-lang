@@ -4554,6 +4554,18 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
         }
         (void)(parser_copy_slice_to_param32(source, (r.token_start), plen_param, &((pname_row)[0])));
         (void)((param_pool = parser_onefunc_result_pool_ptr(out)));
+        /* wave679 Cap residual: duplicate param name → P012 hard-fail (host BLD001). PLATFORM: SHARED */
+        {
+          extern int32_t parser_onefunc_param_name_dup_c(uint8_t *pool, int32_t nparams, uint8_t *name,
+                                                        int32_t name_len);
+          extern void parser_report_duplicate_name_p012_c(int32_t line, int32_t col, int32_t kind);
+          if (parser_onefunc_param_name_dup_c(param_pool, (int32_t)(out->num_params), &((pname_row)[0]),
+                                              plen_param) != 0) {
+            (void)(parser_report_duplicate_name_p012_c((int32_t)((r.tok).line), (int32_t)((r.tok).col), 0));
+            (void)(parser_set_onefunc_fail(out_ref, lex));
+            return;
+          }
+        }
         (void)((param_idx = pipeline_onefunc_append_param(param_pool, &((pname_row)[0]), plen_param, 0)));
         if ((param_idx < 0)) {
           (void)(parser_set_onefunc_fail(out_ref, lex));
@@ -6697,6 +6709,13 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
         }
         int32_t nsl_before = (module->num_struct_layouts);
         if ((parser_parse_struct_record_layout_into(arena, module, lex, source, &(lex), allow_for_repr, ps_struct, pc_struct) !=0)) {
+          /* wave679: P012 sticky → hard abort (no soft-skip false green). PLATFORM: SHARED */
+          {
+            extern int32_t parser_sig_type_hard_pending_c(void);
+            if (parser_sig_type_hard_pending_c() != 0) {
+              return (struct parser_ParseIntoResult){ .ok = -(2), .main_idx = -(1) };
+            }
+          }
           (void)(parser_skip_one_struct_into(&(lex), iter_start, source));
         } else {
           if (((pe_struct !=0) && ((module->num_struct_layouts) > nsl_before))) {
@@ -8221,6 +8240,13 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
         }
         int32_t nsl_before_buf = (module->num_struct_layouts);
         if ((parser_parse_struct_record_layout_into_buf(arena, module, lex, data, len, &(lex), allow_for_repr_buf, ps_sb, pc_sb) !=0)) {
+          /* wave679: P012 sticky → hard abort (no soft-skip false green). PLATFORM: SHARED */
+          {
+            extern int32_t parser_sig_type_hard_pending_c(void);
+            if (parser_sig_type_hard_pending_c() != 0) {
+              return (struct parser_ParseIntoResult){ .ok = -(2), .main_idx = -(1) };
+            }
+          }
           (void)(parser_skip_one_struct_into_buf(&(lex), lex_kw, data, len));
         } else {
           if (((pe_sb !=0) && ((module->num_struct_layouts) > nsl_before_buf))) {

@@ -1134,6 +1134,37 @@ int32_t parser_asm_parse_struct_record_layout_into_slice_c(void *arena, void *mo
     fn_len = parser_struct_field_name_from_tok_glue(r, source, fname_buf);
     if (fn_len < 0)
       return -1;
+    /*
+     * wave679 Cap residual: duplicate struct field name was typeck green → host
+     * BLD001 "duplicate member". Hard-fail with P012 + sticky (parse abort).
+     * Scan fields already written this layout (indices 0..nf-1).
+     * PLATFORM: SHARED parse.
+     */
+    {
+      extern int32_t pipeline_module_struct_layout_field_name_len(void *module, int32_t li, int32_t j);
+      extern void pipeline_module_struct_layout_field_name_into(void *module, int32_t li, int32_t j,
+                                                                uint8_t *out128);
+      extern void parser_report_duplicate_name_p012_c(int32_t line, int32_t col, int32_t kind);
+      int32_t fj;
+      int32_t fl;
+      int32_t fk;
+      uint8_t prev_name[128];
+      for (fj = 0; fj < nf; fj++) {
+        fl = pipeline_module_struct_layout_field_name_len(module, layout_idx, fj);
+        if (fl != fn_len)
+          continue;
+        memset(prev_name, 0, sizeof(prev_name));
+        pipeline_module_struct_layout_field_name_into(module, layout_idx, fj, prev_name);
+        for (fk = 0; fk < fn_len; fk++) {
+          if (prev_name[fk] != fname_buf[fk])
+            break;
+        }
+        if (fk == fn_len) {
+          parser_report_duplicate_name_p012_c((int32_t)r.tok.line, (int32_t)r.tok.col, 1);
+          return -1;
+        }
+      }
+    }
     parser_asm_lex_from_result_val_into(&lex, r);
     lexer_next_into(&r, lex, source);
     if (r.tok.kind != (int32_t)TOKEN_COLON)
