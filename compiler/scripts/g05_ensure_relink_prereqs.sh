@@ -365,7 +365,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # wave765 G.7: labi multi-slice product PREFER → ensure try-labi-prefer
   # (single body; L0..L9+L8b+L8c + rest FROM_X → cc -r; cold full seed fallback).
   # Leaf = src/runtime_link_abi.o (R1_CORE cold twin). No dual inline hybrid.
-  # residual: pipeline_abi · ldpc · target_cpu (rt multi-slice → wave766).
+  # residual: ~~pipeline_abi/ldpc~~(wave767) · target_cpu (rt multi-slice → wave766).
   # PLATFORM: SHARED product daily path · default PREFER=1 (g05 historic).
   if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
     echo "g05_ensure: try-labi-prefer src/runtime_link_abi.o (wave765)"
@@ -380,7 +380,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # (single body; content..dispatch + rest FROM_X → cc -r; RT_SEED_SLICE external;
   # cold full seed + NO_C fallback). Leaf = src/runtime_driver_no_c.o
   # (R1_MAIN_RUNTIME cold twin). No dual inline hybrid.
-  # residual: pipeline_abi · ldpc · target_cpu · pure-ld · physical delete.
+  # residual: ~~pipeline_abi/ldpc~~(wave767) · target_cpu · pure-ld · physical delete.
   # PLATFORM: SHARED product daily path · default PREFER=1 (g05 historic).
   if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
     echo "g05_ensure: try-rt-prefer src/runtime_driver_no_c.o (wave766)"
@@ -392,91 +392,26 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   else
     echo "g05_ensure: missing ensure_host_cc_seed_o.sh; rt prefer residual" >&2
   fi
-  # G-02f-12 / wave45–67：runtime_pipeline_abi 产品 PREFER hybrid
-  #   full .x pure + seed-rest under XLANG_RUNTIME_PIPELINE_ABI_FROM_X (Cap residual C).
-  #   wave67: pure pipeline_dep_ctx_path_bufs_reset + copy_entry_dir orch (LP64 offsetof
-  #     + LE store; G.7 set_use_asm_backend thin → driver_pipeline_dep_ctx_set_use_asm).
-  #   wave66: pure pipeline_read_file_stage_prep + commit_prep orch (G.7 pure preprocess
-  #     + Cap residual stage BSS / loaded_import_commit_from_owned).
-  #   wave65: pure pipeline_resolve_path_into_static orch (G.7 pure multi + Cap residual
-  #     entry_dir_get / resolved_path_buf_slot BSS).
-  #   wave63: pure typeck_module_entry_only / with_sidecar / for_ctx_impl orch
-  #   wave64: pure pipeline_parse_into_bytes orch (G.7 driver_parse_into_buf_rc)
-  #     (Cap residual typeck_module + typeck_dep_module_ptrs_base BSS).
-  #   wave62: pure one_ctx_for_dep_prerun_map_impl orch (tmp malloc + parse ok/allow -2
-  #     + import map; G.7 pctx_update / find_loaded / driver_parse_into_buf_rc).
-  #   wave61: pure preprocess_raw_to_malloc_impl orch (scratch + define table + preprocess_x_buf
-  #     + owned dup; Cap residual preprocess_* engine; pure diag helpers).
-  #   wave60: pure dep_prerun_typeck_only_impl orch (parse_set_main + load_sync deps +
-  #     typeck_dep_prerun_module; XLANG_DEBUG_PIPE notes cold-only).
-  #   wave59: pure dep_prerun_parse_only_impl orch (parser_parse_into_init +
-  #     pipeline_parse_set_main_from_buf_c; XLANG_ASM_DEBUG notes cold-only).
-  #   wave58: pure dep_prerun_parse_skip_typeck_impl orch (check_only + skip typeck/codegen
-  #     + G.7 driver_pipeline_dep_ctx_* asm_entry_module_only + pure large_stack).
-  #   wave81: pure xlang_preprocess / quiet / with_path thin public surface
-  #     (G.7 pure raw_to_malloc_impl; product X-pipeline; cold LEGACY under #ifndef FROM_X).
-  #   wave57: pure asm elf_o large-stack _impl orch (AsmElfLargeArgs pack;
-  #     Cap-fn-ptr → wave84 pure thin + g05 &fn cast; product_emit → wave80 pure thin;
-  #     G.7 driver_run_thread_on_large_stack; export-extern asm_asm_codegen_elf_o → bridge).
-  #   wave56: pure pipeline_run_x large-stack _impl orch (PipelineRunSuArgs pack;
-  #     Cap-fn-ptr → wave84 pure thin + g05 &fn cast; G.7 driver_run_thread_on_large_stack).
-  #   wave84: pure Cap-fn-ptr product surfaces (pipeline_run_x_thread_fn_ptr /
-  #     xlang_asm_codegen_elf_o_thread_fn_ptr) via g05 xlang_driver_*_thread_fn_ptr.
-  #   wave55: pure resolve_read_preprocess orch (stack resolved[4096] + FileView u8[32]
-  #     + pure resolve multi + runtime_read_file_view + pure preprocess + release + diags).
-  #   wave54: pure collect strdup thin shell (malloc + scan + byte copy + NUL).
-  #   wave53: pure collect paths_tmp_resolve_parse_enqueue orch (ensure tmp + resolve_read
-  #     + G.7 pure tmp_parse + free prep).
-  #   wave52: pure collect tmp_parse_and_enqueue orch (malloc/memset ensure + parse + G.7 enqueue).
-  #   wave51: pure load_one_direct_import_at + fail_cleanup orch; Cap residual
-  #     xlang_load_one_direct_resolve_read_preprocess; G.7 paths_tmp reuses Cap residual.
-  #   wave50: collect deps/paths transitive_impl pure orch (stack to_load + process_one loop).
-  #   wave49: collect paths_process_one pure orch; Cap residual paths_tmp (wave53 pure);
-  #     G.7 tmp_parse_and_enqueue (wave52 pure).
-  #   wave48: collect deps_process_one pure orch; Cap residual tmp_parse (wave52 pure);
-  #     G.7 load_one_direct_import_at.
-  #   wave47: collect seed_to_load + enqueue pure.
-  #   wave46: ptr/size slots, i32_store, module import cstr, collect_to_load_has, directive diag pure.
-  # Root fix wave45: .x docblock must not embed the two-char end-comment marker inside prose
-  #   (historical "char**/void*" truncated the block → all subsequent export function dropped from AST;
-  #    -E emitted only externs; pure never productized). PLATFORM: SHARED.
-  _rpabi=seeds/runtime_pipeline_abi.from_x.c
-  _rpabi_x=src/runtime_pipeline_abi.x
-  _rpabi_o=src/runtime_pipeline_abi.o
-  if [ -f "$_rpabi" ]; then
-    if [ ! -f "$_rpabi_o" ] || [ "$_rpabi" -nt "$_rpabi_o" ] \
-      || { [ -f "$_rpabi_x" ] && [ "$_rpabi_x" -nt "$_rpabi_o" ]; }; then
-      _rpabi_done=0
-      if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rpabi_x" ]; then
-        _rpabi_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rpabi_thin.XXXXXX") || true
-        _rpabi_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rpabi_rest.XXXXXX") || true
-        # shellcheck disable=SC2086
-        # WEAK pure thin: Darwin ld -r tolerates any residual pure-dup still in rest.
-        if [ -n "$_rpabi_thin_o" ] && [ -n "$_rpabi_rest_o" ] \
-          && G05_X_O_WEAK=1 g05_try_x_to_o "$_rpabi_x" "$_rpabi_thin_o" \
-          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE \
-               -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X \
-               -c -o "$_rpabi_rest_o" "$_rpabi" \
-          && $CC -r -nostdlib -o "$_rpabi_o" "$_rpabi_thin_o" "$_rpabi_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_rpabi_o ← $_rpabi_x + seed-rest (R2 hybrid pipeline_abi pure wave45)"
-          _rpabi_done=1
-        else
-          echo "g05_ensure: L2 hybrid runtime_pipeline_abi failed; fallback full seed" >&2
-        fi
-        rm -f "$_rpabi_thin_o" "$_rpabi_rest_o"
-      fi
-      if [ "$_rpabi_done" = "0" ]; then
-        echo "g05_ensure: $_rpabi_o ← seed -DXLANG_USE_X_PIPELINE (G-02f-12 cold/fallback)"
-        # shellcheck disable=SC2086
-        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE -c -o "$_rpabi_o" "$_rpabi"
-      fi
-    fi
+  # wave767 G.7: pipeline_abi product PREFER → ensure try-pipeline-abi-prefer
+  # (single body; full .x WEAK + rest FROM_X → cc -r; cold + USE_X_PIPELINE).
+  # Leaf = src/runtime_pipeline_abi.o (R1_EXTRA_CFLAGS cold twin). No dual inline hybrid.
+  # residual: target_cpu · other L2 · pure-ld · physical delete.
+  # PLATFORM: SHARED product daily path · default PREFER=1 (g05 historic).
+  if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
+    echo "g05_ensure: try-pipeline-abi-prefer src/runtime_pipeline_abi.o (wave767)"
+    XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
+      CC="$CC" CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}" \
+      RUNTIME_PIPELINE_ABI_CFLAGS="${RUNTIME_PIPELINE_ABI_CFLAGS:--DXLANG_USE_X_PIPELINE}" \
+      bash scripts/ensure_host_cc_seed_o.sh try-pipeline-abi-prefer src/runtime_pipeline_abi.o \
+      || echo "g05_ensure: try-pipeline-abi-prefer failed (non-fatal if unused)" >&2
+  else
+    echo "g05_ensure: missing ensure_host_cc_seed_o.sh; pipeline_abi prefer residual" >&2
   fi
   # wave764 G.7: R3_COLD nine product PREFER → ensure try-r3-prefer family
   # (single body wave763/764; full→thin ladder + cold). No dual inline hybrid
   # for rio / rdabi / rdd / simd_* / backend_* (deleted below / here).
   # Membership = catalog R3_COLD_SEED_OBJS (lists = mk; no second .o list).
-  # residual: labi multi-slice · rt multi-slice · pipeline_abi · ldpc · target_cpu.
+  # residual: ~~labi/rt/pipeline_abi/ldpc~~ · target_cpu.
   # PLATFORM: SHARED product daily path · default PREFER=1 (g05 historic).
   if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
     echo "g05_ensure: r3-prefer-family R3_COLD_SEED_OBJS (wave764)"
@@ -487,38 +422,19 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   else
     echo "g05_ensure: missing ensure_host_cc_seed_o.sh; R3_COLD prefer residual" >&2
   fi
-  # G-02f-12 / G-02f-331：lsp_diag_pipeline_ctx.o
-  # 默认整 seed；PREFER_X_O=1 时 thin.x（别名门闩）+ seed-rest（C 尾 / _impl）ld -r
-  _ldpc=seeds/lsp_diag_pipeline_ctx.from_x.c
-  _ldpc_x=src/lsp/lsp_diag_pipeline_ctx.x
-  _ldpc_o=src/lsp/lsp_diag_pipeline_ctx.o
-  if [ -f "$_ldpc" ]; then
-    if [ ! -f "$_ldpc_o" ] || [ "$_ldpc" -nt "$_ldpc_o" ] \
-      || { [ -f "$_ldpc_x" ] && [ "$_ldpc_x" -nt "$_ldpc_o" ]; }; then
-      _ldpc_done=0
-      if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_ldpc_x" ]; then
-        _ldpc_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_ldpc_thin_XXXXXX.o") || true
-        _ldpc_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_ldpc_rest_XXXXXX.o") || true
-        # shellcheck disable=SC2086
-        # thin 别名 weak，避免与 bootstrap/filtered 强符号冲突（对齐 strict_glue）
-        if [ -n "$_ldpc_thin_o" ] && [ -n "$_ldpc_rest_o" ] \
-          && G05_X_O_WEAK=1 g05_try_x_to_o "$_ldpc_x" "$_ldpc_thin_o" \
-          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_LSP_CTX_THIN_FROM_X \
-               -c -o "$_ldpc_rest_o" "$_ldpc" \
-          && $CC -r -nostdlib -o "$_ldpc_o" "$_ldpc_thin_o" "$_ldpc_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_ldpc_o ← $_ldpc_x + seed-rest (G-02f-331 L2 hybrid ctx thin)"
-          _ldpc_done=1
-        else
-          echo "g05_ensure: L2 hybrid lsp_diag_pipeline_ctx failed; fallback full seed" >&2
-        fi
-        rm -f "$_ldpc_thin_o" "$_ldpc_rest_o"
-      fi
-      if [ "$_ldpc_done" = "0" ]; then
-        echo "g05_ensure: $_ldpc_o ← seed (G-02f-12)"
-        # shellcheck disable=SC2086
-        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_ldpc_o" "$_ldpc"
-      fi
-    fi
+  # wave767 G.7: ldpc product PREFER → ensure try-ldpc-prefer
+  # (single body; thin .x WEAK + rest L2_LSP_CTX → cc -r; cold plain seed).
+  # Leaf = src/lsp/lsp_diag_pipeline_ctx.o (R1_MISC_BASENAME cold twin).
+  # residual: target_cpu · other L2 · pure-ld · physical delete.
+  # PLATFORM: SHARED product daily path · default PREFER=1 (g05 historic).
+  if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
+    echo "g05_ensure: try-ldpc-prefer src/lsp/lsp_diag_pipeline_ctx.o (wave767)"
+    XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
+      CC="$CC" CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}" \
+      bash scripts/ensure_host_cc_seed_o.sh try-ldpc-prefer src/lsp/lsp_diag_pipeline_ctx.o \
+      || echo "g05_ensure: try-ldpc-prefer failed (non-fatal if unused)" >&2
+  else
+    echo "g05_ensure: missing ensure_host_cc_seed_o.sh; ldpc prefer residual" >&2
   fi
   # G-02f-11：pipeline_glue_strict_minimal 产品 seed
   _pglue=seeds/pipeline_glue_strict_minimal.from_x.c

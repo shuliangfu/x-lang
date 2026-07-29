@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2 · wave763 R3 PREFER thin try-r3-prefer · wave764 g05 R3_COLD r3-prefer-family · wave765 g05 labi try-labi-prefer · wave766 g05 rt try-rt-prefer)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2 · wave763 R3 PREFER thin try-r3-prefer · wave764 g05 R3_COLD r3-prefer-family · wave765 g05 labi try-labi-prefer · wave766 g05 rt try-rt-prefer · wave767 g05 pipeline_abi/ldpc try-*-prefer)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -32,8 +32,10 @@
 | **R3 PREFER thin+rest (R3_COLD nine)** | `ensure_host_cc_seed_o.sh try-r3-prefer` | **wave763**: Makefile thin-call · **wave764**: g05 `r3-prefer-family` (full→thin ladder) |
 | **labi multi-slice PREFER** | `ensure_host_cc_seed_o.sh try-labi-prefer` | **wave765**: g05 + Makefile thin-call (L0..L9+L8b+L8c + rest) |
 | **rt multi-slice PREFER** | `ensure_host_cc_seed_o.sh try-rt-prefer` | **wave766**: g05 + Makefile thin-call (`runtime_driver_no_c`; RT_SEED_SLICE external) |
+| **pipeline_abi PREFER** | `ensure_host_cc_seed_o.sh try-pipeline-abi-prefer` | **wave767**: g05 + Makefile thin-call (`runtime_pipeline_abi`) |
+| **ldpc PREFER** | `ensure_host_cc_seed_o.sh try-ldpc-prefer` | **wave767**: g05 + Makefile thin-call (`lsp_diag_pipeline_ctx`) |
 | Phase1/final **link driver** | `bootstrap_driver_seed_link.sh` | residual is `SEED_LINK_CC -o` (11.1.4 · wave745) |
-| g05 ensure / prepare / relink | `g05_*.sh` | **wave764** R3_COLD · **wave765** labi · **wave766** rt via ensure; residual pipeline_abi · ldpc · other L2 |
+| g05 ensure / prepare / relink | `g05_*.sh` | **wave764** R3_COLD · **wave765** labi · **wave766** rt · **wave767** pipeline_abi/ldpc via ensure; residual target_cpu · other L2 |
 | migrate / `*_gen` ensure | `migrate_x_objs.sh` · `ensure_*_gen.sh` | wave735–740 |
 | Host facts / linker policy map | `host_platform_linker.sh` | wave745 |
 | **R1 pure host-cc body · eight families** | `ensure_host_cc_seed_o.sh` | **wave748**–**wave755**; residual non-catalog |
@@ -49,7 +51,7 @@
 |----|----------------|--------------------------|---------------|--------|
 | **R1** | Host-cc seed/from_x → `.o` | `$(CC) … -c seeds/*.from_x.c -o …` recipes | shell ensure or product `-E`+cc body (stages 8–9); **one** body, multi family lists | **rt-slice ✅ wave748** · … · **seed-map ✅ wave755** (+ **thin_glue wave758** + **glue standalone wave759**); residual non-catalog |
 | **R2** | Platform stamp / UNAME leaf | `runtime_panic.$(UNAME_S).$(UNAME_M).stamp` · `typeck_f64_bits` arch `.s` pick · crt0 | shell + host_platform_linker facts; lists stay mk | **panic cold ✅ wave760** · **typeck_f64/crt0 ✅ wave762** (try-r2); PREFER panic thin residual |
-| **R3** | Thin+rest / PREFER_X_O host-cc rest | thin `.o` + `FROM_X=1` rest `cc -c` + `ld -r` | cold-else shell ensure; PREFER thin product path | **cold-else ✅ wave757** · **Makefile PREFER ✅ wave763** · **g05 R3_COLD ✅ wave764** · **labi multi-slice ✅ wave765** · **rt multi-slice ✅ wave766**; residual pipeline_abi · ldpc · target_cpu |
+| **R3** | Thin+rest / PREFER_X_O host-cc rest | thin `.o` + `FROM_X=1` rest `cc -c` + `ld -r` | cold-else shell ensure; PREFER thin product path | **cold-else ✅ wave757** · **Makefile PREFER ✅ wave763** · **g05 R3_COLD ✅ wave764** · **labi multi-slice ✅ wave765** · **rt multi-slice ✅ wave766** · **pipeline_abi/ldpc ✅ wave767**; residual target_cpu · other L2 |
 | **R4** | Cold rebuild **pattern bodies** | sat/lsp/bridge/panic/user-asm/glue/pipeline-x | rebuild without make pattern graph | **mode+list shell wave747** · **pure-R1 wave756** · **R3 cold wave757** · **thin_glue seed-map wave758** · **glue standalone seed-map wave759** · **panic cold try-r2 wave760** · **gen try-gen-x wave761** · **typeck_f64/crt0 try-r2 wave762**; residual PREFER thin / sat non-R1 if any |
 | **R5** | CI / `compiler-all` host-cc graph | Makefile `all` · OPT seed path | CI entry stays `./xbuild compiler-all` until stage 12 | residual |
 | **R6** | Residual cold **link** via CC | `SEED_LINK_CC -o` phase1/final | 11.1.4 pure-ld endgame (orthogonal inventory: PLATFORM_LINKER) | residual |
@@ -232,10 +234,36 @@ After (wave766):
 
 | Swallowed | Still residual |
 |-----------|----------------|
-| g05 rt multi-slice hybrid (product daily path) | pipeline_abi · ldpc · target_cpu · pure-ld · physical delete |
+| g05 rt multi-slice hybrid (product daily path) | ~~pipeline_abi/ldpc~~ (wave767) · target_cpu · pure-ld · physical delete |
 | Second prefer body for runtime_driver_no_c.o | panic PREFER (if any) · R5 CI · other L2 hybrid leaves |
 
 **Forbidden:** re-open g05 inline rt multi-slice hybrid; second multi-slice body under a second name; merge RT_SEED_SLICE permanent .o into no_c.
+
+### wave767 · g05 pipeline_abi + ldpc product PREFER → try-*-prefer (G.7 有则补全)
+
+```text
+Before (wave766):
+  g05_ensure inline full.x WEAK + rest FROM_X hybrid for runtime_pipeline_abi.o
+  g05_ensure inline thin.x WEAK + rest L2_LSP_CTX hybrid for lsp_diag_pipeline_ctx.o
+  Makefile thin-call ensure one (cold seed only)
+
+After (wave767):
+  ensure try-pipeline-abi-prefer owns pipeline_abi PREFER body
+    (G05_X_O_WEAK=1 full .x via rt_prefer_try_x_to_o harness + rest FROM_X → $CC -r;
+     cold ensure_one + USE_X_PIPELINE)
+  ensure try-ldpc-prefer owns ldpc PREFER body
+    (G05_X_O_WEAK=1 thin .x + rest L2_LSP_CTX → $CC -r; cold ensure_one)
+  g05_ensure + Makefile thin-call both helpers
+  dual g05 pipeline_abi / ldpc hybrid bodies deleted
+```
+
+| Swallowed | Still residual |
+|-----------|----------------|
+| g05 pipeline_abi PREFER hybrid (product daily path) | target_cpu · other L2 hybrid · pure-ld · physical delete |
+| g05 ldpc PREFER hybrid (product daily path) | panic PREFER (if any) · R5 CI |
+| Second prefer body for runtime_pipeline_abi.o / lsp_diag_pipeline_ctx.o | |
+
+**Forbidden:** re-open g05 inline pipeline_abi/ldpc hybrid; second prefer body under a second name; duplicate -E prologue (reuse rt_prefer_try_x_to_o).
 
 ### wave758 · R4 residual thin_glue → R1 seed-map (G.7 有则补全)
 
@@ -780,11 +808,14 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - [x] g05 + Makefile thin-call try-labi-prefer; dual labi hybrid deleted
 - [x] `try-rt-prefer` single leaf `src/runtime_driver_no_c.o` multi-slice body (wave766)
 - [x] g05 + Makefile thin-call try-rt-prefer; dual rt hybrid deleted; RT_SEED_SLICE external
+- [x] `try-pipeline-abi-prefer` single leaf `src/runtime_pipeline_abi.o` (wave767)
+- [x] `try-ldpc-prefer` single leaf `src/lsp/lsp_diag_pipeline_ctx.o` (wave767)
+- [x] g05 + Makefile thin-call pipeline_abi/ldpc; dual hybrid deleted
 - [x] leaf map x/rest-defs/nm (not .o inventory); unified PREFER=1 gate
 - [x] Makefile nine thin-call try-r3-prefer (no inline ld -r thin+rest)
 - [x] LEAF dump `SWALLOWED_R3_PREFER_THIN=1` · `R3_PREFER_THIN_SWALLOWED=1`
 
-- [ ] g05 other PREFER hybrid · panic PREFER (if any) · pure-ld · physical delete
+- [ ] g05 other PREFER hybrid (target_cpu · other L2) · panic PREFER (if any) · pure-ld · physical delete
 - [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame)
 - [ ] Leaf `.o` without host-cc residual (stages 8–9 / 12)
 - [ ] Cold phase1/final pure-ld without `SEED_LINK_CC -o` (11.1.4 · separate)

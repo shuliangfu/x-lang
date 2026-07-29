@@ -38,7 +38,11 @@
 #   wave766: G.7 g05 rt multi-slice swallow — `try-rt-prefer OUT` for
 #            src/runtime_driver_no_c.o (content..dispatch + rest FROM_X → cc -r;
 #            RT_SEED_SLICE external). g05_ensure + Makefile thin-call.
-#            Residual: pipeline_abi · ldpc · target_cpu · pure-ld · physical delete.
+#   wave767: G.7 g05 pipeline_abi + ldpc PREFER swallow —
+#            `try-pipeline-abi-prefer OUT` (full .x WEAK + rest FROM_X → cc -r)
+#            · `try-ldpc-prefer OUT` (thin .x WEAK + rest L2_LSP_CTX → cc -r).
+#            g05_ensure + Makefile thin-call. Residual: target_cpu · pure-ld ·
+#            physical delete · other L2 hybrid.
 #   wave758: R4 residual pure host-cc thin_glue → R1 seed-map (G.7 有则补全):
 #            parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c +
 #            -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm;
@@ -107,7 +111,8 @@
 #   - ~~g05 R3_COLD nine dual hybrid~~ wave764 → r3-prefer-family
 #   - ~~g05 labi multi-slice~~ wave765 try-labi-prefer
 #   - ~~g05 rt multi-slice~~ wave766 try-rt-prefer
-#   - g05 other PREFER hybrid (pipeline_abi · ldpc · target_cpu · other L2) ·
+#   - ~~g05 pipeline_abi / ldpc PREFER~~ wave767 try-pipeline-abi-prefer / try-ldpc-prefer
+#   - g05 other PREFER hybrid (target_cpu · other L2) ·
 #     panic PREFER thin · R5 CI all
 #   - pure-ld (11.1.4) · physical Makefile delete (11.3.1)
 #   - bootstrap_nostdlib_stubs.o (cc_inc_tu residual) · crt0_user.o cp wrappers
@@ -119,6 +124,8 @@
 #   bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer <out.o> # wave763 PREFER thin+rest
 #   bash scripts/ensure_host_cc_seed_o.sh try-labi-prefer <out.o> # wave765 labi multi-slice
 #   bash scripts/ensure_host_cc_seed_o.sh try-rt-prefer <out.o>   # wave766 rt multi-slice
+#   bash scripts/ensure_host_cc_seed_o.sh try-pipeline-abi-prefer <out.o> # wave767 pipeline_abi
+#   bash scripts/ensure_host_cc_seed_o.sh try-ldpc-prefer <out.o>  # wave767 ldpc thin+rest
 #   bash scripts/ensure_host_cc_seed_o.sh try-r2 <out.o>   # wave760/762 R2 UNAME leaves
 #   bash scripts/ensure_host_cc_seed_o.sh try-gen-x <out.o> # wave761 gen *_x / pipeline_x
 #   bash scripts/ensure_host_cc_seed_o.sh r2-panic         # DRIVER_SEED_PANIC family
@@ -179,7 +186,7 @@ _DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -1259,7 +1266,7 @@ try_ensure_labi_prefer_one() {
 #   1 — cold seed missing / compile failed
 # PLATFORM: SHARED shell body · g05 historic PREFER=1 · cold chain PREFER=0.
 # G.7: no second .o list; layer table is seed-path convention (not product inventory).
-# Residual after: pipeline_abi · ldpc · target_cpu · pure-ld · physical delete.
+# Residual after: ~~pipeline_abi/ldpc~~(wave767) · target_cpu · pure-ld · physical delete.
 # ---------------------------------------------------------------------------
 
 rt_prefer_no_c_cflags() {
@@ -2402,6 +2409,212 @@ try_ensure_rt_prefer_one() {
   return 0
 }
 
+# ---------------------------------------------------------------------------
+# wave767: try-pipeline-abi-prefer OUT — g05 pipeline_abi product PREFER (single body).
+#
+# Single leaf: src/runtime_pipeline_abi.o (R1_EXTRA_CFLAGS; cold twin = ensure_one
+# with RUNTIME_PIPELINE_ABI_CFLAGS / -DXLANG_USE_X_PIPELINE).
+# When XLANG_G05_PREFER_X_O=1 and an xlang binary works:
+#   full .x → .o via rt_prefer_try_x_to_o with G05_X_O_WEAK=1 (Darwin ld -r
+#     pure-dup tolerance; same harness as wave766 — Cap residual realpath /
+#     thread_fn_ptr prologue required by runtime_pipeline_abi.x)
+#   rest = seeds/runtime_pipeline_abi.from_x.c under
+#     -DXLANG_USE_X_PIPELINE -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#   merge: $CC -r -nostdlib thin + rest → OUT (g05 historic; not ld Darwin flags)
+# Prefer fail / PREFER≠1 / no xlang → ensure_one cold + pipeline ABI cflags.
+# Callers: g05_ensure (wave767) · Makefile src/runtime_pipeline_abi.o (unified).
+# Exit codes:
+#   0 — OUT is runtime_pipeline_abi.o; prefer or cold body produced OUT
+#   3 — OUT is not src/runtime_pipeline_abi.o
+#   1 — cold seed missing / compile failed
+# PLATFORM: SHARED shell body · g05 historic PREFER=1 · cold chain PREFER=0.
+# G.7: reuses rt_prefer_try_x_to_o harness (有则补全; no second -E prologue).
+# Residual after: target_cpu · other L2 · pure-ld · physical delete.
+# ---------------------------------------------------------------------------
+
+pipeline_abi_prefer_cflags() {
+  # stdout: cold seed flags (Makefile/env or default -DXLANG_USE_X_PIPELINE).
+  if [ -n "${RUNTIME_PIPELINE_ABI_CFLAGS:-}" ]; then
+    printf '%s' "$RUNTIME_PIPELINE_ABI_CFLAGS"
+  else
+    printf '%s' "$_DEFAULT_RUNTIME_PIPELINE_ABI_CFLAGS"
+  fi
+}
+
+ensure_pipeline_abi_prefer_one() {
+  local o="$1"
+  local seed="seeds/runtime_pipeline_abi.from_x.c"
+  local x_src="src/runtime_pipeline_abi.x"
+  local prefer="${XLANG_G05_PREFER_X_O:-0}"
+  local stale=0 done=0
+  local thin_o rest_o cold_flags
+
+  if [ ! -f "$seed" ]; then
+    echo "ensure_host_cc_seed_o try-pipeline-abi-prefer: missing seed $seed" >&2
+    return 1
+  fi
+
+  if [ "$FORCE" != "1" ] && [ -f "$o" ]; then
+    stale=0
+    [ "$seed" -nt "$o" ] && stale=1
+    if [ -f "$x_src" ] && [ "$x_src" -nt "$o" ]; then
+      stale=1
+    fi
+    if [ -f src/runtime_pipeline_abi.h ] && [ src/runtime_pipeline_abi.h -nt "$o" ]; then
+      stale=1
+    fi
+    if [ "$stale" = "0" ]; then
+      log "skip up-to-date $o (pipeline-abi-prefer)"
+      return 0
+    fi
+  fi
+
+  mkdir -p "$(dirname "$o")"
+
+  # PREFER thin+rest only when PREFER=1 (Darwin cold-chain safety twin of R3/labi/rt).
+  if [ "$prefer" = "1" ] && [ -f "$x_src" ] \
+    && { [ -x ./xlang ] || [ -x ./xlang-c ] || [ -x ./bootstrap_xlangc ]; }; then
+    thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_thin.XXXXXX")"
+    rest_o="$(mktemp "${TMPDIR:-/tmp}/pabi_rest.XXXXXX")"
+    # WEAK pure thin: Darwin ld -r tolerates residual pure-dup still in rest.
+    # shellcheck disable=SC2086
+    if G05_X_O_WEAK=1 rt_prefer_try_x_to_o "$x_src" "$thin_o" \
+      && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE \
+           -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X \
+           -c -o "$rest_o" "$seed" \
+      && $CC -r -nostdlib -o "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+      log "prefer thin+rest $o <- $x_src + seed-rest (try-pipeline-abi-prefer)"
+      done=1
+    else
+      log "pipeline_abi hybrid failed; fallback full seed"
+    fi
+    rm -f "$thin_o" "$rest_o"
+  fi
+
+  if [ "$done" = "1" ]; then
+    return 0
+  fi
+
+  # Cold full seed (ensure_one twin / PREFER=0) with XLANG_USE_X_PIPELINE.
+  cold_flags="$(pipeline_abi_prefer_cflags)"
+  # shellcheck disable=SC2086
+  if [ -f "$o" ] && [ "$prefer" = "1" ]; then
+    FORCE=1
+    ensure_one "$o" "$seed" $cold_flags
+    FORCE=0
+  else
+    ensure_one "$o" "$seed" $cold_flags
+  fi
+  return 0
+}
+
+try_ensure_pipeline_abi_prefer_one() {
+  local o="$1"
+  if [ -z "$o" ]; then
+    echo "ensure_host_cc_seed_o try-pipeline-abi-prefer: need <out.o>" >&2
+    exit 2
+  fi
+  if [ "$o" != "src/runtime_pipeline_abi.o" ]; then
+    return 3
+  fi
+  ensure_pipeline_abi_prefer_one "$o"
+  return 0
+}
+
+# ---------------------------------------------------------------------------
+# wave767: try-ldpc-prefer OUT — g05 lsp_diag_pipeline_ctx product PREFER.
+#
+# Single leaf: src/lsp/lsp_diag_pipeline_ctx.o (R1_MISC_BASENAME; cold twin =
+# ensure_one plain seed).
+# When XLANG_G05_PREFER_X_O=1 and an xlang binary works:
+#   thin .x → .o via rt_prefer_try_x_to_o with G05_X_O_WEAK=1 (alias weak vs
+#     bootstrap/filtered strong symbols; G-02f-331)
+#   rest = seeds/lsp_diag_pipeline_ctx.from_x.c under
+#     -DXLANG_L2_LSP_CTX_THIN_FROM_X
+#   merge: $CC -r -nostdlib thin + rest → OUT
+# Prefer fail / PREFER≠1 / no xlang → ensure_one cold plain seed.
+# Callers: g05_ensure (wave767) · Makefile src/lsp/lsp_diag_pipeline_ctx.o.
+# Exit codes:
+#   0 — OUT is lsp_diag_pipeline_ctx.o; prefer or cold body produced OUT
+#   3 — OUT is not src/lsp/lsp_diag_pipeline_ctx.o
+#   1 — cold seed missing / compile failed
+# PLATFORM: SHARED shell body · g05 historic PREFER=1 · cold chain PREFER=0.
+# G.7: reuses rt_prefer_try_x_to_o harness (有则补全).
+# Residual after: target_cpu · other L2 · pure-ld · physical delete.
+# ---------------------------------------------------------------------------
+
+ensure_ldpc_prefer_one() {
+  local o="$1"
+  local seed="seeds/lsp_diag_pipeline_ctx.from_x.c"
+  local x_src="src/lsp/lsp_diag_pipeline_ctx.x"
+  local prefer="${XLANG_G05_PREFER_X_O:-0}"
+  local stale=0 done=0
+  local thin_o rest_o
+
+  if [ ! -f "$seed" ]; then
+    echo "ensure_host_cc_seed_o try-ldpc-prefer: missing seed $seed" >&2
+    return 1
+  fi
+
+  if [ "$FORCE" != "1" ] && [ -f "$o" ]; then
+    stale=0
+    [ "$seed" -nt "$o" ] && stale=1
+    if [ -f "$x_src" ] && [ "$x_src" -nt "$o" ]; then
+      stale=1
+    fi
+    if [ "$stale" = "0" ]; then
+      log "skip up-to-date $o (ldpc-prefer)"
+      return 0
+    fi
+  fi
+
+  mkdir -p "$(dirname "$o")"
+
+  if [ "$prefer" = "1" ] && [ -f "$x_src" ] \
+    && { [ -x ./xlang ] || [ -x ./xlang-c ] || [ -x ./bootstrap_xlangc ]; }; then
+    thin_o="$(mktemp "${TMPDIR:-/tmp}/ldpc_thin.XXXXXX")"
+    rest_o="$(mktemp "${TMPDIR:-/tmp}/ldpc_rest.XXXXXX")"
+    # thin 别名 weak，避免与 bootstrap/filtered 强符号冲突（对齐 strict_glue / g05）
+    # shellcheck disable=SC2086
+    if G05_X_O_WEAK=1 rt_prefer_try_x_to_o "$x_src" "$thin_o" \
+      && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_LSP_CTX_THIN_FROM_X \
+           -c -o "$rest_o" "$seed" \
+      && $CC -r -nostdlib -o "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+      log "prefer thin+rest $o <- $x_src + seed-rest (try-ldpc-prefer)"
+      done=1
+    else
+      log "ldpc hybrid failed; fallback full seed"
+    fi
+    rm -f "$thin_o" "$rest_o"
+  fi
+
+  if [ "$done" = "1" ]; then
+    return 0
+  fi
+
+  if [ -f "$o" ] && [ "$prefer" = "1" ]; then
+    FORCE=1
+    ensure_one "$o" "$seed"
+    FORCE=0
+  else
+    ensure_one "$o" "$seed"
+  fi
+  return 0
+}
+
+try_ensure_ldpc_prefer_one() {
+  local o="$1"
+  if [ -z "$o" ]; then
+    echo "ensure_host_cc_seed_o try-ldpc-prefer: need <out.o>" >&2
+    exit 2
+  fi
+  if [ "$o" != "src/lsp/lsp_diag_pipeline_ctx.o" ]; then
+    return 3
+  fi
+  ensure_ldpc_prefer_one "$o"
+  return 0
+}
+
 
 # ---------------------------------------------------------------------------
 # wave760: try-r2 OUT — R2 platform-stamp panic cold body (UNAME leaf).
@@ -3364,6 +3577,71 @@ run_check() {
   else
     bad "scripts/g05_ensure_relink_prereqs.sh missing (wave766 g05 gate)"
   fi
+  # wave767: try-pipeline-abi-prefer + try-ldpc-prefer (g05 + Makefile thin-call)
+  if ! grep -q 'try_ensure_pipeline_abi_prefer_one\|try-pipeline-abi-prefer' "$0"; then
+    bad "try-pipeline-abi-prefer / try_ensure_pipeline_abi_prefer_one missing (wave767)"
+  else
+    note "try-pipeline-abi-prefer helper present (wave767)"
+  fi
+  if ! grep -q 'ensure_pipeline_abi_prefer_one' "$0"; then
+    bad "pipeline_abi prefer body missing (wave767)"
+  else
+    note "pipeline-abi-prefer body present (wave767)"
+  fi
+  if ! grep -q 'try_ensure_ldpc_prefer_one\|try-ldpc-prefer' "$0"; then
+    bad "try-ldpc-prefer / try_ensure_ldpc_prefer_one missing (wave767)"
+  else
+    note "try-ldpc-prefer helper present (wave767)"
+  fi
+  if ! grep -q 'ensure_ldpc_prefer_one' "$0"; then
+    bad "ldpc prefer body missing (wave767)"
+  else
+    note "ldpc-prefer body present (wave767)"
+  fi
+  if awk '
+    $0 ~ /^src\/runtime_pipeline_abi\.o:/ {grab=1; next}
+    grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+    grab {body = body $0 "\n"}
+    END {
+      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-pipeline-abi-prefer/) exit 0
+      exit 1
+    }
+  ' Makefile; then
+    note "Makefile src/runtime_pipeline_abi.o thin-calls ensure try-pipeline-abi-prefer (wave767)"
+  else
+    bad "Makefile src/runtime_pipeline_abi.o must thin-call ensure try-pipeline-abi-prefer (wave767)"
+  fi
+  if awk '
+    $0 ~ /^src\/lsp\/lsp_diag_pipeline_ctx\.o:/ {grab=1; next}
+    grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+    grab {body = body $0 "\n"}
+    END {
+      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-ldpc-prefer/) exit 0
+      exit 1
+    }
+  ' Makefile; then
+    note "Makefile src/lsp/lsp_diag_pipeline_ctx.o thin-calls ensure try-ldpc-prefer (wave767)"
+  else
+    bad "Makefile src/lsp/lsp_diag_pipeline_ctx.o must thin-call ensure try-ldpc-prefer (wave767)"
+  fi
+  if [ -f scripts/g05_ensure_relink_prereqs.sh ]; then
+    if grep -q 'try-pipeline-abi-prefer\|pipeline-abi-prefer' scripts/g05_ensure_relink_prereqs.sh \
+      && grep -q 'try-ldpc-prefer\|ldpc-prefer' scripts/g05_ensure_relink_prereqs.sh \
+      && grep -q 'ensure_host_cc_seed_o.sh' scripts/g05_ensure_relink_prereqs.sh; then
+      note "g05_ensure thin-calls ensure try-pipeline-abi-prefer + try-ldpc-prefer (wave767)"
+    else
+      bad "g05_ensure must thin-call ensure try-pipeline-abi-prefer and try-ldpc-prefer (wave767)"
+    fi
+    # Dual body residual: g05 must not re-open inline pipeline_abi / ldpc hybrid.
+    if grep -qE '_rpabi=seeds/runtime_pipeline_abi\.from_x\.c|_ldpc=seeds/lsp_diag_pipeline_ctx\.from_x\.c' \
+      scripts/g05_ensure_relink_prereqs.sh; then
+      bad "g05_ensure still has pipeline_abi/ldpc dual hybrid body (wave767)"
+    else
+      note "g05_ensure pipeline_abi/ldpc dual hybrid body removed (wave767)"
+    fi
+  else
+    bad "scripts/g05_ensure_relink_prereqs.sh missing (wave767 g05 gate)"
+  fi
   # wave760/762: try-r2 R2 UNAME leaves (panic + typeck_f64 + crt0)
   if ! grep -q 'try_ensure_r2_one\|try-r2' "$0"; then
     bad "try-r2 / try_ensure_r2_one missing (wave760/762 R2 UNAME)"
@@ -3489,6 +3767,32 @@ case "$MODE" in
     set -e
     exit "$_try_rc"
     ;;
+  try-pipeline-abi-prefer|try_pipeline_abi_prefer|pipeline-abi-prefer|pipeline-abi|try-pabi)
+    # wave767: pipeline_abi PREFER helper — exit 3 if not src/runtime_pipeline_abi.o.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o try-pipeline-abi-prefer: need <out.o>" >&2
+      exit 2
+    fi
+    _try_out="$1"
+    set +e
+    try_ensure_pipeline_abi_prefer_one "$_try_out"
+    _try_rc=$?
+    set -e
+    exit "$_try_rc"
+    ;;
+  try-ldpc-prefer|try_ldpc_prefer|ldpc-prefer|ldpc-prefer-one|try-ldpc)
+    # wave767: ldpc PREFER helper — exit 3 if not src/lsp/lsp_diag_pipeline_ctx.o.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o try-ldpc-prefer: need <out.o>" >&2
+      exit 2
+    fi
+    _try_out="$1"
+    set +e
+    try_ensure_ldpc_prefer_one "$_try_out"
+    _try_rc=$?
+    set -e
+    exit "$_try_rc"
+    ;;
   try-r2|try_r2|try-r2-panic|r2-one|r2-panic-one)
     # wave760/762: R2 UNAME helper — panic | typeck_f64 | crt0; exit 3 if not member.
     if [ "$#" -lt 1 ]; then
@@ -3566,7 +3870,7 @@ case "$MODE" in
     exit 0
     ;;
   *)
-    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check)" >&2
+    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check)" >&2
     exit 2
     ;;
 esac
