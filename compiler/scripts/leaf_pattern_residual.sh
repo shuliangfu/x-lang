@@ -48,6 +48,10 @@
 #   wave795: B7A heat dep-edge thin cfg_eval·asm·std direct/process (+15 → 101 FORCE);
 #            cfg_eval multi · crt0/freestanding/typeck_f64 · path/runtime/process;
 #            residual: net multi-merge · panic stamp · gen_x · orch. NOT physical delete.
+#   wave796: B7A heat dep-edge thin net multi-merge · panic stamp · gen_x/B4
+#            residual (+11 → 112 FORCE); shell net_merge multi mtime · panic host
+#            pick/stamp · try-gen-x / try-gen-c-to-o. Residual: orch / physical
+#            delete after Windows. NOT physical delete.
 #
 # Authority (G.7):
 #   Single shell authority for *named residual classes* of Makefile leaf pattern /
@@ -69,7 +73,7 @@
 #   ./xbuild leaf-patterns | leaf-residual [--check]
 #
 # PLATFORM: SHARED — inventory portable; leaf ABI stays in Makefile / mk.
-# Wave: 746–795 Track MG · 11.3.1 path (B7A heat dep-edge thin wave791–795 · thin-unify wave790 · try-heat wave789 · B7B shell catalog · B7A cold 0-make · Makefile dep edges residual · not physical delete · Windows gate + dual-end).
+# Wave: 746–796 Track MG · 11.3.1 path (B7A heat dep-edge thin wave791–796 · thin-unify wave790 · try-heat wave789 · B7B shell catalog · B7A cold 0-make · Makefile dep edges residual · not physical delete · Windows gate + dual-end).
 
 set -euo pipefail
 
@@ -388,7 +392,7 @@ PHYS_DEL_BUCKET_B7=makefile_dag_thin_calls
 PHYS_DEL_BUCKET_B7_SCOPE=thin_call_edges+mk_lists+archaeology_phonies+host_cc_link
 PHYS_DEL_BUCKET_B7_INVENTORY=1
 PHYS_DEL_BUCKET_B7_BODY_SWALLOWED=0
-PHYS_DEL_BUCKET_B7_WAVE=wave795
+PHYS_DEL_BUCKET_B7_WAVE=wave796
 SWALLOWED_B7_DAG_INVENTORY=1
 B7_DAG_INVENTORY_SWALLOWED=1
 B7_DAG_INVENTORY_NOTE=named_subbuckets_post_B1_B6_leaf_body_clear
@@ -424,17 +428,17 @@ B7A_HEAT_THIN_UNIFY_SWALLOWED=1
 B7A_HEAT_THIN_UNIFY_VIA=makefile_try_heat_recipes
 B7A_HEAT_THIN_UNIFY_WAVE=wave790
 B7A_HEAT_THIN_UNIFY_NOTE=recipe_modes_collapsed_dep_edges_remain
-# wave791–795: FORCE + ensure dep-edge thin (pure seed+.x(+.h) · twin · mkflags ·
-# cfg_eval multi · pure asm · std direct/process). Shell owns freshness.
-# Residual heat after wave795: net multi-merge · panic stamp · gen_x · orch.
+# wave791–796: FORCE + ensure dep-edge thin (pure seed+.x(+.h) · twin · mkflags ·
+# cfg_eval multi · pure asm · std · net multi-merge · panic stamp · gen_x/B4).
+# Shell owns freshness. Residual heat after wave796: orch · physical delete.
 PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN=1
-PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN_SCOPE=pure_seed_x_h_twin_mkflags_cfg_asm_std_force_ensure_wave791_795
-PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN_COUNT=101
+PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN_SCOPE=pure_seed_x_h_twin_mkflags_cfg_asm_std_net_panic_gen_x_force_ensure_wave791_796
+PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN_COUNT=112
 SWALLOWED_B7A_HEAT_DEP_THIN=1
 B7A_HEAT_DEP_THIN_SWALLOWED=1
-B7A_HEAT_DEP_THIN_VIA=makefile_force_plus_try_heat_shell_mtime_hdr_twin_mkflags_asm
-B7A_HEAT_DEP_THIN_WAVE=wave795
-B7A_HEAT_DEP_THIN_NOTE=101_force_thin_leaves_source_prereqs_removed_shell_owns_freshness
+B7A_HEAT_DEP_THIN_VIA=makefile_force_plus_try_heat_shell_mtime_hdr_twin_mkflags_asm_net_gen_x
+B7A_HEAT_DEP_THIN_WAVE=wave796
+B7A_HEAT_DEP_THIN_NOTE=112_force_thin_leaves_source_prereqs_removed_shell_owns_freshness
 PHYS_DEL_BUCKET_B7B=mk_list_authority
 PHYS_DEL_BUCKET_B7B_SCOPE=compiler_mk_plus_driver_seed_obj_catalog
 # wave787 honesty: lists intentionally stay mk+catalog (G.7 single list).
@@ -1302,23 +1306,23 @@ fi
 if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_PREP_NEXT=B7_physical_delete_makefile_after_windows_not_this_wave'; then
   bad "dump PHYS_DEL_PREP_NEXT must stay physical-delete-after-windows (wave793)"
 fi
-# wave791–795: FORCE dep-edge thin (pure seed+.x(+.h) · twin · Makefile-flags · leftover)
+# wave791–796: FORCE dep-edge thin (… · net multi-merge · panic stamp · gen_x/B4)
 if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_B7A_HEAT_DEP_THIN=1'; then
-  bad "dump must set SWALLOWED_B7A_HEAT_DEP_THIN=1 (wave791–795)"
+  bad "dump must set SWALLOWED_B7A_HEAT_DEP_THIN=1 (wave791–796)"
 fi
 if ! printf '%s\n' "$_out" | grep -q 'B7A_HEAT_DEP_THIN_SWALLOWED=1'; then
-  bad "dump B7A_HEAT_DEP_THIN_SWALLOWED must be 1 (wave791–795)"
+  bad "dump B7A_HEAT_DEP_THIN_SWALLOWED must be 1 (wave791–796)"
 fi
 if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN=1'; then
-  bad "dump must set PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN=1 (wave791–795)"
+  bad "dump must set PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN=1 (wave791–796)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN_COUNT=101'; then
-  bad "dump must set PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN_COUNT=101 (wave795)"
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN_COUNT=112'; then
+  bad "dump must set PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN_COUNT=112 (wave796)"
 fi
 if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7A_HEAT_RESIDUAL=1'; then
-  bad "dump must keep PHYS_DEL_BUCKET_B7A_HEAT_RESIDUAL=1 (wave795 residual edges)"
+  bad "dump must keep PHYS_DEL_BUCKET_B7A_HEAT_RESIDUAL=1 (wave796 residual orch edges)"
 else
-  note "residual class inventory dump OK (wave747–795 + B7A heat dep-thin + thin-unify + try-heat + B7B shell catalog + Windows + dual-end)"
+  note "residual class inventory dump OK (wave747–796 + B7A heat dep-thin + thin-unify + try-heat + B7B shell catalog + Windows + dual-end)"
 fi
 # wave789/790: ensure try-heat wired (G.7 single body; no dual heat dispatcher)
 if [ ! -f "$ROOT/compiler/scripts/ensure_host_cc_seed_o.sh" ]; then
@@ -1344,10 +1348,10 @@ if [ -f "$MF" ]; then
     note "Makefile ensure recipe modes collapsed to try-heat (wave790)"
   fi
   _force_n=$(grep -cE '^[A-Za-z0-9_./$()].*: FORCE scripts/ensure_host_cc_seed_o\.sh' "$MF" 2>/dev/null || echo 0)
-  if [ "${_force_n:-0}" -lt 101 ]; then
-    bad "Makefile wave795 FORCE dep-thin leaves expected >=101 (n=${_force_n})"
+  if [ "${_force_n:-0}" -lt 112 ]; then
+    bad "Makefile wave796 FORCE dep-thin leaves expected >=112 (n=${_force_n})"
   else
-    note "Makefile heat dep-edge FORCE thin (n=${_force_n}; wave795)"
+    note "Makefile heat dep-edge FORCE thin (n=${_force_n}; wave796)"
   fi
   # archaeology: mode names still documented in comments for residual greps
   if ! grep -q 'try-labi-prefer' "$MF" || ! grep -q 'try-r3-prefer' "$MF"; then
@@ -1660,7 +1664,7 @@ else
     "$REBUILD_REL"; then
     bad "rebuild_leaves must not hardcode .o list (dual authority)"
   fi
-  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld (wave772/773) + drop silent CC fallback (wave774); fmt_check_cmd.o dual (wave775); R2 panic PREFER try-r2-prefer (wave776); phys-del prep (wave777); Windows+dual-end gate (wave778); B1–B6 swallow (wave779–784); B7 DAG inventory + archaeology CC thin (wave785); B7D host-cc product link g05 (wave786); B7A cold residual_make=0 honesty (wave787); B7B shell-primary catalog (wave788); B7A heat try-heat (wave789); B7A heat thin-unify (wave790); B7A heat dep-thin pure seed+.x(+.h) FORCE (wave791–793; 78); residual physical delete after Windows + remaining heat B7A dep edges (twin/c multi/asm/gen)"
+  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld (wave772/773) + drop silent CC fallback (wave774); fmt_check_cmd.o dual (wave775); R2 panic PREFER try-r2-prefer (wave776); phys-del prep (wave777); Windows+dual-end gate (wave778); B1–B6 swallow (wave779–784); B7 DAG inventory + archaeology CC thin (wave785); B7D host-cc product link g05 (wave786); B7A cold residual_make=0 honesty (wave787); B7B shell-primary catalog (wave788); B7A heat try-heat (wave789); B7A heat thin-unify (wave790); B7A heat dep-thin FORCE 112 (wave791–796; net/panic/gen_x); residual physical delete after Windows + orch heat edges"
 fi
 
 # wave772/774: cold pure-ld required when eligible (no silent CC fallback)
@@ -1843,5 +1847,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747 R4 mode + wave756 pure-R1 + wave757 R3 cold-else + wave763 R3 PREFER thin + wave764 g05 r3-prefer-family + wave765 labi try-labi-prefer + wave758 thin_glue + wave759 glue-standalone + wave760 R2 panic + wave761 gen-x + wave762 R2 typeck_f64/crt0 + wave748–755 R1 families + 11.3.1 leaf residual inventory + wave790 heat thin-unify + wave791–795 heat dep-thin FORCE 101)"
+echo "leaf_pattern_residual: CHECK OK (wave747 R4 mode + wave756 pure-R1 + wave757 R3 cold-else + wave763 R3 PREFER thin + wave764 g05 r3-prefer-family + wave765 labi try-labi-prefer + wave758 thin_glue + wave759 glue-standalone + wave760 R2 panic + wave761 gen-x + wave762 R2 typeck_f64/crt0 + wave748–755 R1 families + 11.3.1 leaf residual inventory + wave790 heat thin-unify + wave791–796 heat dep-thin FORCE 112)"
 exit 0

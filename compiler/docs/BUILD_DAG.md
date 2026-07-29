@@ -405,6 +405,14 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 - `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 families · try-r1 · try-r3-cold · thin_glue/glue-standalone seed-map)  
 - `compiler/scripts/host_platform_linker.sh` (platform + linker · wave745)
 
+## wave796 B7A heat dep-edge thin net·panic·gen_x (2026-07-30)
+
+- **Not physical delete.** net multi-merge · panic stamp · gen_x/B4 (+11 → **112 FORCE**).
+- Shell: net_merge multi `.x`/seed mtime · panic host pick+stamp · try-heat → try-gen-x/c-to-o
+  (`PIPELINE_X_DEPS` env; `lsp_io.x`).
+- Residual: orch · physical delete after Windows.
+- LEAF: `DEP_THIN_COUNT=112` · `HEAT_RESIDUAL=1`.
+
 ## wave795 B7A heat dep-edge thin cfg_eval·asm·std (2026-07-30)
 
 - **Not physical delete.** cfg_eval multi · pure asm (crt0/freestanding/typeck_f64) ·

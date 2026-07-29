@@ -122,6 +122,11 @@
 #            · path/runtime/process. Host ifeq for crt0/typeck kept. crt0_mingw
 #            Makefile flags via force_thin_makefile_flags_newer. Residual: net
 #            multi-merge · panic stamp · gen_x · orch. NOT physical delete.
+#   wave796: B7A heat dep-edge thin net multi-merge · panic stamp · gen_x/B4
+#            residual (+11 → 112 FORCE). Shell owns: net_merge multi .x/seed
+#            mtime; panic platform stamp + host pick (already try-r2); gen_x
+#            via try-heat → try-gen-x / try-gen-c-to-o (PIPELINE_X_DEPS env).
+#            Residual: orch / physical delete after Windows. NOT physical delete.
 #   wave758: R4 residual pure host-cc thin_glue → R1 seed-map (G.7 有则补全):
 #            parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c +
 #            -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm;
@@ -3901,6 +3906,32 @@ ensure_std_core_prefer_one() {
         stale=1
       fi
     fi
+    # wave796: net multi-merge source mtime (FORCE thin; G.7 single body).
+    # Mirrors historic Makefile prereqs + net_merge body inputs.
+    if [ "$stale" = "0" ] && [ "$leaf_kind" = "net_merge" ]; then
+      local _net_dep
+      for _net_dep in \
+        ../std/net/mod.x ../std/net/alpn.x ../std/net/dns.x \
+        ../std/net/io_batch.x ../std/net/addr.x ../std/net/ipv6.x \
+        ../std/net/sock.x ../std/net/udp.x ../std/net/tcp.x \
+        ../std/net/udp_batch.x ../std/net/workers.x \
+        seeds/runtime_net_dns_fast.from_x.c \
+        seeds/runtime_net_io_batch_fast.from_x.c \
+        seeds/runtime_net_addr_fast.from_x.c \
+        seeds/runtime_net_ipv6_fast.from_x.c \
+        seeds/runtime_net_sock_fast.from_x.c \
+        src/asm/runtime_net_dns_fast.x \
+        src/asm/runtime_net_io_batch_fast.x \
+        src/asm/runtime_net_addr_fast.x \
+        src/asm/runtime_net_ipv6_fast.x \
+        src/asm/runtime_net_sock_fast.x
+      do
+        if [ -f "$_net_dep" ] && [ "$_net_dep" -nt "$o" ]; then
+          stale=1
+          break
+        fi
+      done
+    fi
     # wave793: project-header mtime (FORCE thin; G.7 single body).
     if [ "$stale" = "0" ] && [ -n "$seed" ] && [ -f "$seed" ]       && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
@@ -3909,7 +3940,7 @@ ensure_std_core_prefer_one() {
     if [ "$stale" = "0" ] && force_thin_makefile_flags_newer "$o"; then
       stale=1
     fi
-    if [ "$stale" = "0" ] && [ "$leaf_kind" != "net_merge" ]; then
+    if [ "$stale" = "0" ]; then
       log "skip up-to-date $o (std-core-prefer/$leaf_kind)"
       return 0
     fi
@@ -6182,17 +6213,22 @@ run_check() {
   else
     note "ensure_gen_x_o.sh present (wave761)"
   fi
-  # Makefile gen residual thin-call ensure_gen_x_o
+  # Makefile gen residual: wave761 ensure_gen_x_o · wave796 FORCE + try-heat
+  # (try-heat → try-gen-x → ensure_gen_x_o body; G.7 single body).
   for leaf in lsp_io_x.o lsp_x.o lsp_diag_x.o pipeline_x.o; do
     if awk -v t="$leaf" '
       $0 ~ "^" t ":" {grab=1; next}
       grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
       grab {body = body $0 "\n"}
-      END { if (body ~ /ensure_gen_x_o\.sh/) exit 0; exit 1 }
+      END {
+        if (body ~ /ensure_gen_x_o\.sh/) exit 0
+        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat/) exit 0
+        exit 1
+      }
     ' Makefile; then
-      note "Makefile $leaf thin-calls ensure_gen_x_o (wave761)"
+      note "Makefile $leaf thin-calls try-heat|ensure_gen_x_o (wave761/796)"
     else
-      bad "Makefile $leaf must thin-call ensure_gen_x_o.sh (wave761)"
+      bad "Makefile $leaf must thin-call try-heat or ensure_gen_x_o.sh (wave761/796)"
     fi
   done
 
@@ -6224,7 +6260,13 @@ run_check() {
     echo "ensure_host_cc_seed_o: --check FAILED" >&2
     exit 1
   fi
-  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else + R3 PREFER thin + R2 panic/typeck_f64/crt0 + gen-x residual + try-heat + hdr/Makefile-flags mtime · wave748–794)" >&2
+  # wave796: net multi-merge FORCE thin requires multi .x/seed mtime loop.
+  if ! grep -q 'udp_batch.x' "$0" || ! grep -q 'runtime_net_sock_fast.from_x.c' "$0"; then
+    bad "net_merge multi-source mtime missing (wave796 B7A FORCE thin)"
+  else
+    note "net_merge multi-source mtime present (wave796 FORCE thin)"
+  fi
+  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else + R3 PREFER thin + R2 panic/typeck_f64/crt0 + gen-x residual + try-heat + hdr/Makefile-flags + net multi-merge mtime · wave748–796)" >&2
 }
 
 # ---------------------------------------------------------------------------

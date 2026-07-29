@@ -1503,6 +1503,7 @@
     ✅ **B7A heat dep-edge thin pure seed+.x+.h residual**（wave793 · +19 → **78 FORCE**；`seed_project_hdrs_newer`；**非**物理删）；
     ✅ **B7A heat dep-edge thin twin·mkflags·leftover**（wave794 · +8 → **86 FORCE**；twin hdr + `force_thin_makefile_flags_newer`；**非**物理删）；
     ✅ **B7A heat dep-edge thin cfg_eval·asm·std**（wave795 · +15 → **101 FORCE**；cfg_eval multi · crt0/typeck_f64 · path/runtime/process；**非**物理删；residual net·stamp·gen_x）；
+    ✅ **B7A heat dep-edge thin net·panic·gen_x**（wave796 · +11 → **112 FORCE**；net multi-merge mtime · panic stamp · gen_x/B4 try-heat；**非**物理删；residual orch / 物理删）；
     ⬜ B7 residual endgame · physical delete / 删 Makefile（须 Windows 绿 + 再缩 hdr·c·asm·twin dep 边等）
   - ⬜ 物理删 `compiler/Makefile` 仍 ⬜（下项）
 

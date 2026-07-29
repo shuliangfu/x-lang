@@ -41,7 +41,9 @@
 #   MAKE — for ensure_lsp_pipeline_gen when gen missing
 #
 # PLATFORM: SHARED shell body; pipeline gen_driver cache is host-portable.
-# Wave: 761 + 782 Track MG · 11.3.1 path (not physical delete · not pure-ld).
+# Wave: 761 + 782 + 796 Track MG · 11.3.1 path (not physical delete · not pure-ld).
+# wave796: Makefile gen leaves FORCE-thin; this script owns gen.c / DEPS / .x
+# mtime skip (lsp_io.x included). PIPELINE_X_DEPS still exported by Makefile recipe.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -108,8 +110,9 @@ ensure_gen_file() {
 
 build_lsp_io_x() {
   ensure_gen_file lsp_io
-  if ! need_rebuild_gen_o lsp_io_x.o lsp_io_gen.c; then
-    log "skip lsp_io_x.o (up-to-date vs lsp_io_gen.c)"
+  # wave796: historic Makefile prereq src/lsp/lsp_io.x (FORCE thin).
+  if ! need_rebuild_gen_o_or_deps lsp_io_x.o lsp_io_gen.c src/lsp/lsp_io.x; then
+    log "skip lsp_io_x.o (up-to-date vs lsp_io_gen.c + lsp_io.x)"
     return 0
   fi
   log "cc -c lsp_io_gen.c → lsp_io_x.o"

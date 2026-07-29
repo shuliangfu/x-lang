@@ -1529,3 +1529,21 @@ After (wave776):
 - Residual after wave791: non-runtime pure seed+.x + hdr/c/asm/stamp + twins.
 - LEAF: `SWALLOWED_B7A_HEAT_DEP_THIN=1` · `PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN=1` · `PHYS_DEL_BUCKET_B7A_HEAT_RESIDUAL=1`.
 - Superseded count by wave792 (59).
+
+
+### wave796 · B7A heat dep-edge thin net multi-merge · panic stamp · gen_x/B4 (G.7 有则补全)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; orch residual edges.
+> **This wave:** fold remaining heat dep edges → **FORCE + try-heat** (+11 → **112 FORCE**).
+
+| Leaf class | Shell freshness |
+|------------|-----------------|
+| `../std/net/net.o` net_merge | multi `.x` + five `runtime_net_*_fast` seed/.x mtime |
+| `runtime_panic.o` | try-r2 host pick + platform stamp (UNAME ifeq prereqs removed) |
+| gen_x catalog + B4 | try-heat → try-gen-x / try-gen-c-to-o (`PIPELINE_X_DEPS` env; `lsp_io.x`) |
+
+| Swallowed | Still residual |
+|-----------|----------------|
+| net multi-merge · panic stamp · gen_x/B4 FORCE thin | orch · physical delete after Windows |
+
+LEAF: `PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN_COUNT=112` · `B7A_HEAT_DEP_THIN_WAVE=wave796`.

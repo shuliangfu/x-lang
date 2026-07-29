@@ -248,7 +248,10 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 # product -dead_strip (net-context BLD001). Pre-wave102 Darwin fell back to xlang-c
 # (code_len=0). Recipe forces ./xlang-c for Darwin net submodules; Linux keeps asm.
 # wave780 B2: multi hybrid → ensure try-std-core-prefer (G.7; not physical delete).
-../std/net/net.o: ../std/net/mod.x ../std/net/alpn.x ../std/net/dns.x ../std/net/io_batch.x ../std/net/addr.x ../std/net/ipv6.x ../std/net/sock.x ../std/net/udp.x ../std/net/tcp.x ../std/net/udp_batch.x ../std/net/workers.x seeds/runtime_net_dns_fast.from_x.c seeds/runtime_net_io_batch_fast.from_x.c seeds/runtime_net_addr_fast.from_x.c seeds/runtime_net_ipv6_fast.from_x.c seeds/runtime_net_sock_fast.from_x.c scripts/ensure_host_cc_seed_o.sh | scripts/xlang_compile_std_module.sh scripts/xlang_compile_std_x.sh
+# wave796 B7A: heat dep-edge thin net multi-merge residual — prereqs → FORCE + ensure;
+# try-heat owns multi .x + five fast seed/.x mtime (net_merge). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+../std/net/net.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG="$(XLANG)" XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
@@ -1052,40 +1055,20 @@ endif
 # fail / PREFER=0 / pure-asm host → cold try-r2 twin). Makefile thin-call only.
 # PLATFORM: LINUX|x86_64 (.s) / MACOS|arm64 + LINUX|aarch64 (arm64 seed) / else (from_x).
 RUNTIME_PANIC_S := $(wildcard src/asm/runtime_panic_x86_64.s)
+# wave796 B7A: heat dep-edge thin panic stamp residual — UNAME prereqs → FORCE + ensure;
+# shell try-r2 / try-r2-prefer owns host source pick + platform stamp mtime.
+# NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+# PLATFORM: LINUX|x86_64 — cold .s when present; arm64 seed; else portable from_x
+# (shell r2_panic_host_pick_src; stamp build_asm/runtime_panic.$(UNAME).$(ARCH).stamp).
 RUNTIME_PANIC_PLATFORM_STAMP = build_asm/runtime_panic.$(UNAME_S).$(UNAME_M).stamp
 $(RUNTIME_PANIC_PLATFORM_STAMP):
 	@mkdir -p build_asm
 	@touch $@
-ifeq ($(UNAME_S),Linux)
-ifeq ($(UNAME_M),x86_64)
-ifneq (,$(RUNTIME_PANIC_S))
-# PLATFORM: LINUX|x86_64 — pure syscall .s; try-r2-prefer falls through to cold.
-runtime_panic.o: src/asm/runtime_panic_x86_64.s $(RUNTIME_PANIC_PLATFORM_STAMP)
+runtime_panic.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-else
-# PLATFORM: LINUX|x86_64 without .s — portable seed cold; PREFER panic.x + from_x.
-runtime_panic.o: seeds/runtime_panic.from_x.c src/asm/runtime_panic.x $(RUNTIME_PANIC_PLATFORM_STAMP)
-	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-endif
-else
-# PLATFORM: LINUX|aarch64 (and similar) — arm64 seed cold; PREFER arm64.x + arm64 rest.
-runtime_panic.o: seeds/runtime_panic_arm64.from_x.c src/asm/runtime_panic_arm64.x $(RUNTIME_PANIC_PLATFORM_STAMP)
-	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-endif
-else
-# PLATFORM: MACOS / non-Linux — cold host pick may use arm64 seed; PREFER historic
-# portable panic.x + from_x (wave776 try-r2-prefer single body).
-runtime_panic.o: seeds/runtime_panic.from_x.c seeds/runtime_panic_arm64.from_x.c src/asm/runtime_panic.x src/asm/runtime_panic_arm64.x $(RUNTIME_PANIC_PLATFORM_STAMP)
-	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-endif
 
 # seed asm 用户程序：std.io 跳过 .x emit 时的 print/write/read_ptr 链接桩（G-02e-20 .inc）
 # G-02f-20：runtime_asm_io_stubs 产品 seed
@@ -1608,7 +1591,10 @@ lexer_gen.c: src/lexer/lexer.x
 	  sh scripts/ensure_migrate_gen.sh lexer
 
 # wave782: B4 gen.c → .o bootstrap body → try-gen-c-to-o (thin-call only).
-lexer_x.o: lexer_gen.c scripts/ensure_host_cc_seed_o.sh scripts/ensure_gen_x_o.sh
+# wave796 B7A: heat dep-edge thin gen_x residual — gen.c prereq → FORCE + ensure;
+# try-heat → try-gen-c-to-o owns lexer_gen.c mtime. NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+lexer_x.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
@@ -1872,7 +1858,10 @@ ast_gen2.c: src/ast/ast.x
 	fi
 
 # wave782: B4 gen.c → .o bootstrap body → try-gen-c-to-o (thin-call only).
-ast_gen2.o: ast_gen2.c scripts/ensure_host_cc_seed_o.sh scripts/ensure_gen_x_o.sh
+# wave796 B7A: heat dep-edge thin gen_x residual — gen.c prereq → FORCE + ensure;
+# try-heat → try-gen-c-to-o owns ast_gen2.c mtime. NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+ast_gen2.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
@@ -2256,9 +2245,12 @@ lsp_diag_gen.c: src/lsp/lsp_diag.x
 	  sh scripts/ensure_lsp_pipeline_gen.sh lsp_diag
 
 # wave761: G.7 body → scripts/ensure_gen_x_o.sh (gen residual; try-gen-x)
-lsp_diag_x.o: lsp_diag_gen.c scripts/ensure_gen_x_o.sh
+# wave796 B7A: heat dep-edge thin gen_x residual — gen.c prereq → FORCE + ensure;
+# try-heat → try-gen-x owns gen.c mtime. NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+lsp_diag_x.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_gen_x_o.sh one $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # lsp_io.x：C-04 v0 要求 xlang-c 自动生成 import extern；xlang-x 仍走旧块时回退 xlang-c。
 # wave739: G.7 body → scripts/ensure_lsp_pipeline_gen.sh
@@ -2305,14 +2297,19 @@ lsp_io_std_heap_gen.c: src/lsp/lsp_io_std_heap.x
 
 # bootstrap-driver-seed / relink-xlang 共用：lsp_io / lsp 生成 C → .o
 # wave761: G.7 body → scripts/ensure_gen_x_o.sh (lsp_io -D renames)
-lsp_io_x.o: lsp_io_gen.c src/lsp/lsp_io.x scripts/ensure_gen_x_o.sh
+# wave796 B7A: heat dep-edge thin gen_x residual — gen.c/.x prereqs → FORCE + ensure;
+# try-heat → try-gen-x owns gen.c + lsp_io.x mtime. NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+lsp_io_x.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_gen_x_o.sh one $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # wave761: G.7 body → scripts/ensure_gen_x_o.sh
-lsp_x.o: lsp_gen.c scripts/ensure_gen_x_o.sh
+# wave796 B7A: heat dep-edge thin gen_x residual — gen.c prereq → FORCE + ensure.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+lsp_x.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_gen_x_o.sh one $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # Driver 子命令 .o：
 #   Track L 已退役叶子：fmt/check/test/build/run/compile/emit + lsp_io_std_heap → PREFER_X_O（.x→.o）
@@ -2391,7 +2388,9 @@ driver_emit_gen.c: src/driver/emit.x
 
 # Stage2 混合链接桩（verify-selfhost-stage2.sh）
 # wave782: B4 gen.c → .o bootstrap body → try-gen-c-to-o (thin-call only).
-_x_stubs2.o: _x_stubs2.c scripts/ensure_host_cc_seed_o.sh scripts/ensure_gen_x_o.sh
+# wave796 B7A: heat dep-edge thin gen_x residual — .c prereq → FORCE + ensure.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+_x_stubs2.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
@@ -2408,12 +2407,16 @@ endif
 # 默认复用 build_asm/gen_driver/pipeline_x.o（fat 编排）；设 PIPELINE_X_FORCE_COMPILE=1 才从 pipeline_gen.c 重编。
 # pipeline_glue.c / ast_pool.c 由 pipeline_glue_standalone.o 覆盖，勿因二者 mtime 触发整 TU 重编（否则与 partial 并列链 parse 塌陷）。
 # wave761: G.7 body → scripts/ensure_gen_x_o.sh (gen_driver STALE + FORCE; DEPS from mk)
-pipeline_x.o: $(PIPELINE_X_FORCE_PREREQ) pipeline_gen.c $(PIPELINE_X_DEPS) scripts/ensure_gen_x_o.sh
+# wave796 B7A: heat dep-edge thin gen_x residual — gen/DEPS prereqs → FORCE + ensure;
+# recipe still exports PIPELINE_X_DEPS for shell STALE; try-heat → try-gen-x.
+# NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+pipeline_x.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  PIPELINE_X_DEPS="$(PIPELINE_X_DEPS)" \
 	  PIPELINE_X_FORCE_COMPILE="$(PIPELINE_X_FORCE_COMPILE)" \
 	  XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
-	  bash scripts/ensure_gen_x_o.sh one $@
+	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 FORCE:
 
 # driver_gen.c / driver_x.o：main.x 驱动入口。
@@ -2425,7 +2428,10 @@ driver_gen.c: $(MAIN_X_DEPS)
 	  sh scripts/ensure_driver_gen.sh driver
 
 # wave782: B4 gen.c → .o bootstrap body → try-gen-c-to-o (thin-call only).
-driver_x.o: driver_gen.c $(MAIN_X_DEPS) scripts/ensure_host_cc_seed_o.sh scripts/ensure_gen_x_o.sh
+# wave796 B7A: heat dep-edge thin gen_x residual — gen/MAIN_X prereqs → FORCE + ensure;
+# try-heat owns driver_gen.c + MAIN_X mtime. NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+driver_x.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
@@ -2437,7 +2443,10 @@ preprocess_gen.c: $(PREPROCESS_X_DEPS)
 	  sh scripts/ensure_driver_gen.sh preprocess
 
 # wave782: B4 gen.c → .o bootstrap body → try-gen-c-to-o (thin-call only).
-preprocess_x.o: preprocess_gen.c $(PREPROCESS_X_DEPS) scripts/ensure_host_cc_seed_o.sh scripts/ensure_gen_x_o.sh
+# wave796 B7A: heat dep-edge thin gen_x residual — gen/PREPROCESS_X prereqs → FORCE + ensure;
+# try-heat owns preprocess_gen.c + preprocess.x mtime. NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+preprocess_x.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
