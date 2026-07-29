@@ -5683,7 +5683,12 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     let else_k: i32 = 0;
     let tv: i32 = 0;
     let ev: i32 = 0;
-    if (check_expr(module, arena, cond_ref, return_type_ref, ctx) != 0) {
+    /*
+     * wave704: if/ternary condition ambient must be 0 (bool), not fn return type.
+     * `if (count <= 0)` in `*i32` fn ambient-stamped lit 0 as *i32 → T001.
+     * PLATFORM: SHARED.
+     */
+    if (check_expr(module, arena, cond_ref, 0, ctx) != 0) {
       return - 1;
     }
     if (!ast.ref_is_null(cond_ref)) {
@@ -9347,7 +9352,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
     let wc: i32 = ast.ast_block_while_cond_ref(arena, block_ref, idx);
     let wb: i32 = ast.ast_block_while_body_ref(arena, block_ref, idx);
     if (!ast.ref_is_null(wc)) {
-      if (check_expr(module, arena, wc, return_type_ref, ctx) != 0) {
+      /* wave704: while cond ambient = 0 (bool). */
+      if (check_expr(module, arena, wc, 0, ctx) != 0) {
         return - 1;
       }
       if (!type_ref_is_bool(arena, expr_type_ref(arena, wc))) {
@@ -9375,7 +9381,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
       return - 1;
     }
     if (!ast.ref_is_null(fc_cr)) {
-      if (check_expr(module, arena, fc_cr, return_type_ref, ctx) != 0) {
+      /* wave704: for cond ambient = 0 (bool). */
+      if (check_expr(module, arena, fc_cr, 0, ctx) != 0) {
         return - 1;
       }
       if (!type_ref_is_bool(arena, expr_type_ref(arena, fc_cr))) {
@@ -9402,7 +9409,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
     let ib_tr: i32 = ast.ast_block_if_then_body_ref(arena, block_ref, idx);
     let ib_er: i32 = 0;
     if (!ast.ref_is_null(ic_cr)) {
-      if (check_expr(module, arena, ic_cr, return_type_ref, ctx) != 0) {
+      /* wave704: block-if cond ambient = 0 (bool). */
+      if (check_expr(module, arena, ic_cr, 0, ctx) != 0) {
         return - 1;
       }
       if (!type_ref_is_bool(arena, expr_type_ref(arena, ic_cr))) {

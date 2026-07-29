@@ -6049,7 +6049,13 @@ int32_t typeck_check_expr_if_ternary(struct ast_Module * module, struct ast_ASTA
     int32_t else_k = 0;
     int32_t tv = 0;
     int32_t ev = 0;
-    if ((typeck_check_expr(module, arena, cond_ref, return_type_ref, ctx) !=0)) {
+    /*
+     * wave704 Cap residual: if/ternary condition ambient must NOT be the
+     * enclosing function return type. `if (count <= 0)` in `*i32` fn was
+     * ambient-stamping lit 0 as *i32 → T001 comparison incompatible.
+     * Cond expected is bool (0 ambient = no wrong stamp). PLATFORM: SHARED.
+     */
+    if ((typeck_check_expr(module, arena, cond_ref, 0, ctx) !=0)) {
       return -1;
     }
     if (!(ast_ref_is_null(cond_ref))) {
@@ -7201,6 +7207,15 @@ int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTAr
       /* wave673: any score miss with known formal → T001 (unknown arg_ty no longer soft-skipped). */
       (void)((sc = typeck_overload_arg_param_score(arena, expr_ref, ai, param_raw, dep, ctx)));
       if ((sc < 0)) {
+        /* wave703: #[repr(compatible)] *A→*B same shape (G.7 pipeline glue). */
+        extern int32_t pipeline_typeck_call_arg_repr_compatible_ok_c(struct ast_Module *module,
+                                                                    struct ast_ASTArena *arena,
+                                                                    int32_t param_ref, int32_t arg_ref);
+        if ((arg_ref > 0) &&
+            (pipeline_typeck_call_arg_repr_compatible_ok_c(mod, arena, param_raw, arg_ref) != 0)) {
+          (void)((ai = (ai + 1)));
+          continue;
+        }
         (void)((line_a = pipeline_expr_line_at(arena, expr_ref)));
         (void)((col_a = pipeline_expr_col_at(arena, expr_ref)));
         (void)(driver_diagnostic_typeck_call_arg_type_mismatch(line_a, col_a));
@@ -7211,11 +7226,39 @@ int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTAr
   }
   return 0;
 }
-int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
+__attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) __attribute__((weak)) int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
   /* LANG-007: always use glue path (enforces S0 extern-in-unsafe). */
   extern int32_t pipeline_typeck_check_expr_call_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
   return pipeline_typeck_check_expr_call_c(module, arena, expr_ref, return_type_ref, ctx);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7909,6 +7952,17 @@ int32_t typeck_check_expr_var(struct ast_Module * module, struct ast_ASTArena * 
       (void)((hint_len = typeck_import_const_binding_hint_at(module, const_dep_ix, hint_buf)));
       (void)(driver_diagnostic_typeck_import_const_must_be_qualified(line, col, vbuf, vnlen, hint_buf, hint_len));
       return -1;
+    }
+    /* wave703: match struct pattern field binds (subject fields as VAR). */
+    if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref))) {
+      extern int32_t pipeline_typeck_match_subject_field_type_c(struct ast_Module *module,
+                                                               struct ast_ASTArena *arena, uint8_t *name,
+                                                               int32_t name_len);
+      int32_t ft = pipeline_typeck_match_subject_field_type_c(module, arena, vbuf, vnlen);
+      if (ft > 0) {
+        (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, ft));
+        return 0;
+      }
     }
     if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref))) {
       return -1;
@@ -8880,7 +8934,8 @@ int32_t typeck_check_block_one_while(struct ast_Module * module, struct ast_ASTA
     int32_t wc = ast_ast_block_while_cond_ref(arena, block_ref, idx);
     int32_t wb = ast_ast_block_while_body_ref(arena, block_ref, idx);
     if (!(ast_ref_is_null(wc))) {
-      if ((typeck_check_expr(module, arena, wc, return_type_ref, ctx) !=0)) {
+      /* wave704: while cond ambient = 0 (bool), not fn return type. */
+      if ((typeck_check_expr(module, arena, wc, 0, ctx) !=0)) {
         return -1;
       }
       if (!(typeck_type_ref_is_bool(arena, typeck_expr_type_ref(arena, wc)))) {
@@ -8901,7 +8956,8 @@ int32_t typeck_check_block_one_for(struct ast_Module * module, struct ast_ASTAre
       return -1;
     }
     if (!(ast_ref_is_null(fc_cr))) {
-      if ((typeck_check_expr(module, arena, fc_cr, return_type_ref, ctx) !=0)) {
+      /* wave704: for cond ambient = 0 (bool), not fn return type. */
+      if ((typeck_check_expr(module, arena, fc_cr, 0, ctx) !=0)) {
         return -1;
       }
       if (!(typeck_type_ref_is_bool(arena, typeck_expr_type_ref(arena, fc_cr)))) {
@@ -8921,7 +8977,8 @@ int32_t typeck_check_block_one_if(struct ast_Module * module, struct ast_ASTAren
     int32_t ib_tr = ast_ast_block_if_then_body_ref(arena, block_ref, idx);
     int32_t ib_er = 0;
     if (!(ast_ref_is_null(ic_cr))) {
-      if ((typeck_check_expr(module, arena, ic_cr, return_type_ref, ctx) !=0)) {
+      /* wave704: block-if cond ambient = 0 (bool), not fn return type. */
+      if ((typeck_check_expr(module, arena, ic_cr, 0, ctx) !=0)) {
         return -1;
       }
       if (!(typeck_type_ref_is_bool(arena, typeck_expr_type_ref(arena, ic_cr)))) {
