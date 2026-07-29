@@ -2022,6 +2022,32 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     out->next_lex = r.next_lex;
     return;
   }
+  /**
+   * wave668 Cap residual: TOKEN_NULL → EXPR_LIT int_val=0 (null pointer literal).
+   * G.7: same shape as TOKEN_INT 0 so typeck 0→*T coerce/cmp/ret/call score apply.
+   * No new ExprKind (avoid ordinal churn). PLATFORM: SHARED.
+   */
+  if (r.tok.kind == (int32_t)TOKEN_NULL) {
+    ref = ast_ast_arena_expr_alloc(arena);
+    if (ref == 0) {
+      out->ok = 0;
+      return;
+    }
+    e = parser_asm_arena_expr_get_c(arena, ref);
+    e.kind = PARSER_ASM_EXPR_LIT;
+    e.line = r.tok.line;
+    e.col = r.tok.col;
+    e.int_val = 0;
+    parser_asm_expr_set_common_zeros_c(&e);
+    parser_asm_arena_expr_set_c(arena, ref, e);
+    out->ok = 1;
+    out->expr_ref = ref;
+    lex = r.next_lex;
+    lexer_next_into(&r, lex, source);
+    parser_asm_primary_ident_suffix_loop_c(arena, source, &lex, &r, out, 1);
+    out->next_lex = lex;
+    return;
+  }
   if (r.tok.kind == (int32_t)TOKEN_BREAK || r.tok.kind == (int32_t)TOKEN_CONTINUE) {
     ref = ast_ast_arena_expr_alloc(arena);
     if (ref == 0) {

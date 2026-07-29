@@ -574,6 +574,10 @@ export function lexer_token_run_len(kind: token.TokenKind): i32 {
   if (kind == token.TokenKind.TOKEN_TRUE) {
     return 4;
   }
+  /* wave668: keyword null — 4 bytes (same span length as true). PLATFORM: SHARED. */
+  if (kind == token.TokenKind.TOKEN_NULL) {
+    return 4;
+  }
   if (kind == token.TokenKind.TOKEN_ENUM) {
     return 4;
   }
@@ -3999,6 +4003,19 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
           ast.ast_arena_expr_set(arena, bool_ref, be);
           let_init_ref = bool_ref;
         }
+        lex_from_result_ptr_into(&lex, &r);
+        lexer.lexer_next_into(&r, lex, source);
+        init_handled = 1;
+      }
+    }
+    /*
+     * wave668 Cap residual: plain `let p: *T = null;` — lower TOKEN_NULL to EXPR_LIT 0
+     * (same as bare integer 0). typeck_coerce_init_lit_to_decl already stamps 0→*T.
+     * G.7: no second null expr kind; reuse INT lit shape. PLATFORM: SHARED.
+     */
+    if (init_handled == 0) {
+      if (r.tok.kind == token.TokenKind.TOKEN_NULL) {
+        let_init_ref = parser_alloc_int_lit(arena, 0);
         lex_from_result_ptr_into(&lex, &r);
         lexer.lexer_next_into(&r, lex, source);
         init_handled = 1;

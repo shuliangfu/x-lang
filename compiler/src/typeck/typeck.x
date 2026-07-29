@@ -2972,6 +2972,15 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
           || pk_lit == 7) {
         return 100;
       }
+      /*
+       * wave668 Cap residual: bare EXPR_LIT 0 (including keyword `null` lowered to lit 0)
+       * weak-matches TYPE_PTR formals — same contract as let/return/cmp 0→*T coerce.
+       * Score 100 < exact 1000. Non-zero lit to *T stays -1. G.7 single score path.
+       * PLATFORM: SHARED — keep strict_minimal arg score aligned.
+       */
+      if (pk_lit == 9 && pipeline_expr_int_val_at(caller_arena, arg_ref) == 0) {
+        return 100;
+      }
     }
     /* See implementation. */
     if (arg_ty > 0) {

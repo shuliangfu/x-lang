@@ -3718,6 +3718,10 @@ int32_t typeck_overload_arg_param_score(struct ast_ASTArena * caller_arena, int3
       if ((((((((pk_lit ==0) || (pk_lit ==2)) || (pk_lit ==3)) || (pk_lit ==4)) || (pk_lit ==5)) || (pk_lit ==6)) || (pk_lit ==7))) {
         return 100;
       }
+      /* wave668 Cap residual: EXPR_LIT 0 / keyword null → TYPE_PTR. G.7 ≡ typeck.x. */
+      if (((pk_lit ==9) && (pipeline_expr_int_val_at(caller_arena, arg_ref) ==0))) {
+        return 100;
+      }
     }
     if ((arg_ty > 0)) {
       int32_t ak = pipeline_type_kind_ord_at(caller_arena, arg_ty);

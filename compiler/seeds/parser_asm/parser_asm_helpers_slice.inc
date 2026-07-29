@@ -166,6 +166,9 @@ int32_t parser_asm_lexer_token_run_len_c(struct parser_asm_token tok) {
     return 4;
   case TOKEN_TRUE:
     return 4;
+  case TOKEN_NULL:
+    /* wave668: keyword null span length. PLATFORM: SHARED. */
+    return 4;
   case TOKEN_ENUM:
     return 4;
   case TOKEN_MATCH:

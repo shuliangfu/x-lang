@@ -994,6 +994,9 @@ static int32_t pipeline_typeck_overload_arg_score_strict_minimal(struct ast_ASTA
     pk = pipeline_type_kind_ord_at(caller_arena, param_ty);
     if (pk == 0 || pk == 2 || pk == 3 || pk == 4 || pk == 5 || pk == 6 || pk == 7)
       return 100;
+    /* wave668: EXPR_LIT 0 / keyword null → *T (TYPE_PTR=9). G.7 ≡ typeck.x score. */
+    if (pk == 9 && pipeline_expr_int64_val_at(caller_arena, arg_ref) == 0)
+      return 100;
   }
   if (arg_ty > 0) {
     ak = pipeline_type_kind_ord_at(caller_arena, arg_ty);

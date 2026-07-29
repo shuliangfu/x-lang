@@ -146,7 +146,14 @@ typedef enum TokenKind {
     TOKEN_AT,       /**< @ SIMD comptime builtin 前缀（@shuffle / @select） */
     TOKEN_STRING,   /**< 字符串字面量（import("path") 路径等） */
     /** 放在枚举末尾：避免挤动 IDENT 等序数（thin 路径大量硬编码 IDENT=59）。 */
-    TOKEN_EXPORT    /**< 关键字 export（模块导出：进入导出表 E(M)，供 import 跨模块使用） */
+    TOKEN_EXPORT,   /**< 关键字 export（模块导出：进入导出表 E(M)，供 import 跨模块使用） */
+    /**
+     * wave668 Cap residual: keyword null (null pointer literal).
+     * Must stay at enum end so IDENT=59 / TRUE=75 / EXPORT=131 ordinals stay stable.
+     * Parser lowers to EXPR_LIT int_val=0; typeck reuses 0→*T coerce (init/cmp/ret/call).
+     * PLATFORM: SHARED.
+     */
+    TOKEN_NULL
 } TokenKind;
 
 /** 单个 Token：类型 + 源码位置 + 可选值（字面量/标识符） */

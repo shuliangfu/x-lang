@@ -189,6 +189,13 @@ export enum TokenKind {
   TOKEN_STRING,
   /* See implementation. */
   TOKEN_EXPORT,
+  /**
+   * wave668 Cap residual: keyword `null` (null pointer literal).
+   * Enum-end only — do not insert before IDENT/TRUE/EXPORT (hardcoded ordinals).
+   * Ordinal 132. Parser → EXPR_LIT 0; typeck reuses 0→*T paths.
+   * PLATFORM: SHARED.
+   */
+  TOKEN_NULL,
 }
 
 // See implementation.

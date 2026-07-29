@@ -2150,6 +2150,23 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
     };
     return t;
   }
+  /*
+   * wave668 Cap residual: keyword `null` → TOKEN_NULL (132, enum-end after EXPORT).
+   * Bytes: n=110 u=117 l=108 l=108. G.7 single keyword table (try_keyword + buf twin).
+   * PLATFORM: SHARED.
+   */
+  if (len == 4 && match_keyword(data, start, 4, [110, 117, 108, 108])) {
+    let t: token.Token = token.Token {
+      kind: 132,
+      line: line0,
+      col: col0,
+      int_val: 0,
+      float_val: 0.0,
+      ident: 0,
+      ident_len: 0
+    };
+    return t;
+  }
   if (len == 3 && match_keyword(data, start, 3, [102, 51, 50])) {
     let t: token.Token = token.Token {
       kind: 77,
@@ -2346,6 +2363,12 @@ i32): token.Token {
   }
   if (len == 5 && match_keyword_buf(data, data_len, start, 5, [102, 97, 108, 115, 101])) {
     let t: token.Token = token.Token { kind: 76, line: line0, col: col0, int_val: 0,
+      float_val: 0.0, ident: 0, ident_len: 0 };
+    return t;
+  }
+  /* wave668: `null` → TOKEN_NULL (132). G.7 ≡ try_keyword. PLATFORM: SHARED. */
+  if (len == 4 && match_keyword_buf(data, data_len, start, 4, [110, 117, 108, 108])) {
+    let t: token.Token = token.Token { kind: 132, line: line0, col: col0, int_val: 0,
       float_val: 0.0, ident: 0, ident_len: 0 };
     return t;
   }
