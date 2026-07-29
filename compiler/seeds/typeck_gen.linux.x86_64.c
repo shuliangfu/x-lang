@@ -6816,6 +6816,7 @@ int32_t typeck_check_call_arity(struct ast_Module * module, struct ast_ASTArena 
   return 0;
 }
 /* wave661 Cap residual: hard-fail CALL arg types (G.7 ≡ typeck.x typeck_check_call_arg_types).
+ * wave673: score<0 hard-fails even when arg_ty unknown (was soft-skip → BLD001).
  * Invoked from pipeline_typeck_check_expr_call_c after arity. Reuses typeck_overload_arg_param_score. */
 int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx) {
   int32_t num_args = 0;
@@ -6827,7 +6828,6 @@ int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTAr
   int32_t param_raw = 0;
   int32_t sc = 0;
   int32_t arg_ref = 0;
-  int32_t arg_ty = 0;
   int32_t line_a = 0;
   int32_t col_a = 0;
   if ((((module ==0) || (arena ==0)) || (expr_ref <=0))) {
@@ -6851,10 +6851,6 @@ int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTAr
     (void)((param_raw = pipeline_module_func_param_type_ref_at(mod, fi, ai)));
     if ((param_raw > 0)) {
       (void)((arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, ai)));
-      (void)((arg_ty = 0));
-      if ((arg_ref > 0)) {
-        (void)((arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref)));
-      }
       /* wave670: hard-fail keyword null→non-ptr BEFORE score (exact-match 1000 can skip lit path). */
       if (((arg_ref > 0) && (typeck_expr_is_null_keyword(arena, arg_ref) != 0)
            && (pipeline_type_kind_ord_at(arena, param_raw) != 9))) {
@@ -6863,15 +6859,13 @@ int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTAr
         (void)(driver_diagnostic_typeck_call_arg_type_mismatch(line_a, col_a));
         return -1;
       }
+      /* wave673: any score miss with known formal → T001 (unknown arg_ty no longer soft-skipped). */
       (void)((sc = typeck_overload_arg_param_score(arena, expr_ref, ai, param_raw, dep, ctx)));
       if ((sc < 0)) {
-        /* wave670: hard-fail keyword null→non-ptr even when arg untyped. */
-        if (((arg_ty > 0) || ((arg_ref > 0) && (typeck_expr_is_null_keyword(arena, arg_ref) != 0)))) {
-          (void)((line_a = pipeline_expr_line_at(arena, expr_ref)));
-          (void)((col_a = pipeline_expr_col_at(arena, expr_ref)));
-          (void)(driver_diagnostic_typeck_call_arg_type_mismatch(line_a, col_a));
-          return -1;
-        }
+        (void)((line_a = pipeline_expr_line_at(arena, expr_ref)));
+        (void)((col_a = pipeline_expr_col_at(arena, expr_ref)));
+        (void)(driver_diagnostic_typeck_call_arg_type_mismatch(line_a, col_a));
+        return -1;
       }
     }
     (void)((ai = (ai + 1)));

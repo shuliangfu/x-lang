@@ -6543,12 +6543,14 @@ ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * Hard-fail free-function CALL when a resolved arg type does not match the formal param.
+ * Hard-fail free-function CALL when an arg does not match the formal param.
  * wave661 Cap residual: after resolve+arity, typeck never scored arg vs param → host-cc
  * BLD001 (*u8/struct→i32) or silent C conversion false-green (f32/bool→i32).
+ * wave673 Cap residual: score&lt;0 with unknown arg_ty (arg_ty&lt;=0) was soft-skipped →
+ * host BLD001 false-green (e.g. f(s.nope), f(g(1)) when g unresolved). Hard-fail any
+ * score miss when the formal is known; soft-skip only untyped formals (param_raw&lt;=0).
  * Authority score: typeck_overload_arg_param_score (exact / int-lit / string-lit / widen /
- * array→slice); do not open a second matcher. Soft-skip when arg or param type is unknown
- * (arg_ty<=0 or param_ty<=0) so incomplete inference is not a hard leaf.
+ * array→slice / null→*T); do not open a second matcher.
  * @param module *Module — entry / local module
  * @param arena *ASTArena
  * @param expr_ref i32 — EXPR_CALL
@@ -6569,7 +6571,6 @@ ctx: *PipelineDepCtx): i32 {
     let param_raw: i32 = 0;
     let sc: i32 = 0;
     let arg_ref: i32 = 0;
-    let arg_ty: i32 = 0;
     let line_a: i32 = 0;
     let col_a: i32 = 0;
     if (module == 0 as * Module || arena == 0 as * ASTArena || expr_ref <= 0) {
@@ -6597,15 +6598,6 @@ ctx: *PipelineDepCtx): i32 {
        */
       if (param_raw > 0) {
         arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, ai);
-        arg_ty = 0;
-        if (arg_ref > 0) {
-          arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
-        }
-        /*
-         * Soft-skip unknown arg type unless score can still match (int/string lit paths
-         * inside typeck_overload_arg_param_score). When arg_ty<=0 and score returns -1,
-         * do not hard-fail — incomplete resolve is not the Cap residual.
-         */
         /*
          * wave670: hard-fail keyword `null`→non-ptr BEFORE score.
          * Root: ambient check_expr may stamp lit as i32; score then returns 1000
@@ -6619,19 +6611,18 @@ ctx: *PipelineDepCtx): i32 {
           driver_diagnostic_typeck_call_arg_type_mismatch(line_a, col_a);
           return -1;
         }
+        /*
+         * Score covers known arg_ty + lit paths (int/string/null→*T) without requiring
+         * a stamped type. wave673: any sc<0 is hard-fail when formal is known — do not
+         * soft-skip unknown arg_ty (that left f(s.missing)/f(unresolved_call()) as BLD001).
+         * Soft residual remains only param_raw<=0 (untyped formals) above.
+         */
         sc = typeck_overload_arg_param_score(arena, expr_ref, ai, param_raw, dep, ctx);
         if (sc < 0) {
-          /*
-           * wave661: hard-fail when arg_ty known.
-           * wave670: also hard-fail keyword `null`→non-ptr (arg stays untyped until
-           * coerce; score already -1 for non-ptr formals). Soft-skip other unknown.
-           */
-          if (arg_ty > 0 || (arg_ref > 0 && typeck_expr_is_null_keyword(arena, arg_ref) != 0)) {
-            line_a = pipeline_expr_line_at(arena, expr_ref);
-            col_a = pipeline_expr_col_at(arena, expr_ref);
-            driver_diagnostic_typeck_call_arg_type_mismatch(line_a, col_a);
-            return -1;
-          }
+          line_a = pipeline_expr_line_at(arena, expr_ref);
+          col_a = pipeline_expr_col_at(arena, expr_ref);
+          driver_diagnostic_typeck_call_arg_type_mismatch(line_a, col_a);
+          return -1;
         }
       }
       ai = ai + 1;
