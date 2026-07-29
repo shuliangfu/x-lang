@@ -1935,13 +1935,12 @@ build-seed-asm-host: src/asm/backend_enc_dispatch.o src/asm/backend_x86_64_enc_c
 	@chmod +x scripts/build_seed_asm_host.sh 2>/dev/null || true
 	@./scripts/build_seed_asm_host.sh
 
-$(USER_ASM_SEED_HOST_STUBS): pipeline_x.o $(ASM_GLUE_STANDALONE_O) $(USER_ASM_SEED_OBJS) scripts/gen_asm_full_link_stubs.pl
-	@mkdir -p $(USER_ASM_SEED_HOST_DIR)
-	@_scan="pipeline_x.o $(ASM_GLUE_STANDALONE_O) $(USER_ASM_SEED_OBJS)"; \
-	  [ -f $(USER_ASM_SEED_HOST_DIR)/asm_full.o ] && _scan="$(USER_ASM_SEED_HOST_DIR)/asm_full.o $$_scan"; \
-	  [ -f $(USER_ASM_SEED_HOST_DIR)/asm_backend_partial.o ] && _scan="$(USER_ASM_SEED_HOST_DIR)/asm_backend_partial.o $$_scan"; \
-	  perl scripts/gen_asm_full_link_stubs.pl $(USER_ASM_SEED_HOST_DIR)/asm_full_link_stubs.c $$_scan && \
-	  $(CC) $(CFLAGS) -c -o $@ $(USER_ASM_SEED_HOST_DIR)/asm_full_link_stubs.c
+# §5b #9 — host stubs body → scripts/bootstrap_driver_seed_host_stubs.sh (wave723).
+# SCAN_BASE / CFLAGS / OUT: Makefile export only (G.7). Optional HOST_DIR peers
+# (asm_full.o, asm_backend_partial.o) remain fixed relative names in shell.
+$(USER_ASM_SEED_HOST_STUBS): pipeline_x.o $(ASM_GLUE_STANDALONE_O) $(USER_ASM_SEED_OBJS) scripts/gen_asm_full_link_stubs.pl scripts/bootstrap_driver_seed_host_stubs.sh
+	@chmod +x scripts/bootstrap_driver_seed_host_stubs.sh 2>/dev/null || true
+	@MAKE="$(MAKE)" ./scripts/bootstrap_driver_seed_host_stubs.sh
 
 $(USER_ASM_SEED_HOST_OBJS): build-seed-asm-host
 
@@ -2938,12 +2937,15 @@ endif
 # 11.0.3 wave717: orchestration authority → scripts/bootstrap_driver_seed.sh
 # 11.0.3 wave721: phase1/final $(CC) body → scripts/bootstrap_driver_seed_link.sh;
 # 11.0.3 wave722: sat/lsp rebuild body → scripts/bootstrap_driver_seed_rebuild_leaves.sh;
+# 11.0.3 wave723: host-stubs body → scripts/bootstrap_driver_seed_host_stubs.sh;
 #   Makefile remains sole authority for OBJS/CFLAGS expansions (export leaves only).
 # PLATFORM: SHARED — sequence in shell; Darwin filtered.o still via class-G shell recipes.
 
 # §5b #3/#4 — single-authority target lists (export + shell; no dual list in shell)
 DRIVER_SEED_SAT_REBUILD_OBJS = src/diag.o src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_REBUILD) $(DRIVER_SEED_PREPROCESS_REBUILD) src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o
 DRIVER_SEED_LSP_X_OBJS = lsp_io_x.o lsp_x.o lsp_diag_x.o src/lsp/lsp_diag_pipeline_ctx.o x_frontend_link_alias.o
+# §5b #9 — scan base for asm_full_link_stubs (export only; no dual list in shell)
+DRIVER_SEED_HOST_STUBS_SCAN_BASE = pipeline_x.o $(ASM_GLUE_STANDALONE_O) $(USER_ASM_SEED_OBJS)
 
 .PHONY: bootstrap-driver-seed-sat-rebuild \
 	bootstrap-driver-seed-lsp-x-objs \
@@ -2953,6 +2955,7 @@ DRIVER_SEED_LSP_X_OBJS = lsp_io_x.o lsp_x.o lsp_diag_x.o src/lsp/lsp_diag_pipeli
 	bootstrap-driver-seed-host-stubs \
 	bootstrap-driver-seed-export-sat-rebuild \
 	bootstrap-driver-seed-export-lsp-x-objs \
+	bootstrap-driver-seed-export-host-stubs \
 	bootstrap-driver-seed-export-phase1-link \
 	bootstrap-driver-seed-export-final-link \
 	bootstrap-driver-seed-phase1-link \
@@ -2988,8 +2991,21 @@ bootstrap-driver-seed-asm-glue-standalone: $(ASM_GLUE_STANDALONE_O)
 # §5b #10 — class-G filtered (Darwin); empty expansion on Linux
 bootstrap-driver-seed-filtered-objs: $(BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS)
 
-# §5b #9
-bootstrap-driver-seed-host-stubs: $(USER_ASM_SEED_HOST_STUBS)
+# §5b #9 — host stubs (always run shell so post-partial refresh is not skipped)
+# SCAN_BASE/CFLAGS/OUT: export leaf only. Body: bootstrap_driver_seed_host_stubs.sh.
+# PHONY thin leaf always regenerates (partial is optional scan peer, not a make prereq).
+bootstrap-driver-seed-export-host-stubs:
+	@printf 'SEED_STUBS_CC=%s\n' '$(CC)'
+	@printf 'SEED_STUBS_CFLAGS=%s\n' '$(CFLAGS)'
+	@printf 'SEED_STUBS_OUT=%s\n' '$(USER_ASM_SEED_HOST_STUBS)'
+	@printf 'SEED_STUBS_HOST_DIR=%s\n' '$(USER_ASM_SEED_HOST_DIR)'
+	@printf 'SEED_STUBS_GEN_C=%s\n' '$(USER_ASM_SEED_HOST_DIR)/asm_full_link_stubs.c'
+	@printf 'SEED_STUBS_SCAN_BASE=%s\n' '$(DRIVER_SEED_HOST_STUBS_SCAN_BASE)'
+	@printf 'SEED_STUBS_PERL=%s\n' 'scripts/gen_asm_full_link_stubs.pl'
+
+bootstrap-driver-seed-host-stubs:
+	@chmod +x scripts/bootstrap_driver_seed_host_stubs.sh 2>/dev/null || true
+	@MAKE="$(MAKE)" ./scripts/bootstrap_driver_seed_host_stubs.sh
 
 # §5b #11 — phase1 / final link
 # OBJS+CFLAGS: Makefile export only (G.7). Link body: bootstrap_driver_seed_link.sh.

@@ -5,7 +5,8 @@
 #   This script owns the *step sequence* of cold bootstrap after Make has
 #   satisfied DRIVER_SEED_PREREQS. Leaf .o builds stay Make targets. phase1/final
 #   link *body* is scripts/bootstrap_driver_seed_link.sh (wave721); sat/lsp
-#   rebuild *body* is scripts/bootstrap_driver_seed_rebuild_leaves.sh (wave722).
+#   rebuild *body* is scripts/bootstrap_driver_seed_rebuild_leaves.sh (wave722);
+#   host-stubs *body* is scripts/bootstrap_driver_seed_host_stubs.sh (wave723).
 #   OBJS/CFLAGS expand only via Makefile export leaves (no dual .o list).
 #   Whitelist §5b.
 #
@@ -18,7 +19,7 @@
 #   TARGET — product binary name (default: xlang); must match Makefile TARGET
 #
 # PLATFORM: SHARED — orchestration identical; leaf recipes carry platform ABI.
-# Wave: 717 orchestration · 721 phase1/final link · 722 sat/lsp rebuild export+shell.
+# Wave: 717 orchestration · 721 phase1/final link · 722 sat/lsp · 723 host-stubs.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."

@@ -24,7 +24,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "=== 11.0.2/11.0.3 product-path 0-make static gate (wave714–722) ==="
+echo "=== 11.0.2/11.0.3 product-path 0-make static gate (wave714–723) ==="
 
 fail=0
 note() { echo "  OK  $*"; }
@@ -240,6 +240,44 @@ else
     bad "bootstrap_driver_seed_rebuild_leaves.sh must not hardcode .o list (dual authority)"
   else
     note "sat/lsp rebuild → export leaves + bootstrap_driver_seed_rebuild_leaves.sh (OBJS single authority)"
+  fi
+fi
+
+# wave723: host-stubs body → shell via Makefile SCAN_BASE/CFLAGS export (no dual list)
+if [ ! -f compiler/scripts/bootstrap_driver_seed_host_stubs.sh ]; then
+  bad "missing compiler/scripts/bootstrap_driver_seed_host_stubs.sh (11.0.3 wave723)"
+elif ! grep -q 'bootstrap_driver_seed_host_stubs\.sh' compiler/Makefile; then
+  bad "Makefile host-stubs must call bootstrap_driver_seed_host_stubs.sh"
+elif ! grep -q 'bootstrap-driver-seed-export-host-stubs' compiler/Makefile; then
+  bad "Makefile missing host-stubs export leaf (G.7 single authority)"
+elif ! grep -q 'DRIVER_SEED_HOST_STUBS_SCAN_BASE' compiler/Makefile; then
+  bad "Makefile missing DRIVER_SEED_HOST_STUBS_SCAN_BASE single-authority scan list"
+else
+  stubs_body=$(awk '
+    /^bootstrap-driver-seed-host-stubs:/ { in_r=1; next }
+    in_r && /^[^#[:space:]	]/ { exit }
+    in_r { print }
+  ' compiler/Makefile)
+  file_rule_body=$(awk '
+    /^\$\(USER_ASM_SEED_HOST_STUBS\):/ { in_r=1; next }
+    in_r && /^[^#[:space:]	]/ { exit }
+    in_r { print }
+  ' compiler/Makefile)
+  if echo "$stubs_body" | grep -qE 'gen_asm_full_link_stubs\.pl|\$\(CC\)' \
+    && ! echo "$stubs_body" | grep -q 'bootstrap_driver_seed_host_stubs\.sh'; then
+    bad "Makefile thin host-stubs still inlines perl/cc (must be shell + export)"
+  elif ! echo "$stubs_body" | grep -q 'bootstrap_driver_seed_host_stubs\.sh'; then
+    bad "Makefile thin host-stubs recipe missing bootstrap_driver_seed_host_stubs.sh"
+  elif echo "$file_rule_body" | grep -qE 'gen_asm_full_link_stubs\.pl|\$\(CC\)' \
+    && ! echo "$file_rule_body" | grep -q 'bootstrap_driver_seed_host_stubs\.sh'; then
+    bad "Makefile \$(USER_ASM_SEED_HOST_STUBS) still inlines perl/cc (must be shell + export)"
+  elif ! echo "$file_rule_body" | grep -q 'bootstrap_driver_seed_host_stubs\.sh'; then
+    bad "Makefile \$(USER_ASM_SEED_HOST_STUBS) missing bootstrap_driver_seed_host_stubs.sh"
+  elif grep -qE 'user_asm_seed_bridge\.o|pipeline_glue_standalone\.o|backend_x86_64_enc_c\.o' \
+    compiler/scripts/bootstrap_driver_seed_host_stubs.sh; then
+    bad "bootstrap_driver_seed_host_stubs.sh must not hardcode SCAN .o list (dual authority)"
+  else
+    note "host-stubs → export leaf + bootstrap_driver_seed_host_stubs.sh (SCAN_BASE single authority)"
   fi
 fi
 
