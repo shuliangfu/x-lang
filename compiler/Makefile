@@ -1097,8 +1097,10 @@ ifeq ($(UNAME_S),Linux)
 endif
 
 # asm 后端 -o <exe> 时链接用：提供 xlang_panic_；Linux x86_64 有 .s 时用纯 syscall .s，否则 .inc（G-02e-20）
-# wave760 R2: cold body → ensure_host_cc_seed_o.sh try-r2 (platform stamp + UNAME
-# source pick; list = DRIVER_SEED_PANIC_OBJS). PREFER thin+rest stays Makefile.
+# wave760 R2: cold body → ensure try-r2 (platform stamp + UNAME source pick;
+# list = DRIVER_SEED_PANIC_OBJS).
+# wave776 R2 PREFER: thin+rest → ensure try-r2-prefer (G.7 single PREFER body;
+# fail / PREFER=0 / pure-asm host → cold try-r2 twin). Makefile thin-call only.
 # PLATFORM: LINUX|x86_64 (.s) / MACOS|arm64 + LINUX|aarch64 (arm64 seed) / else (from_x).
 RUNTIME_PANIC_S := $(wildcard src/asm/runtime_panic_x86_64.s)
 RUNTIME_PANIC_PLATFORM_STAMP = build_asm/runtime_panic.$(UNAME_S).$(UNAME_M).stamp
@@ -1108,58 +1110,32 @@ $(RUNTIME_PANIC_PLATFORM_STAMP):
 ifeq ($(UNAME_S),Linux)
 ifeq ($(UNAME_M),x86_64)
 ifneq (,$(RUNTIME_PANIC_S))
-# PLATFORM: LINUX|x86_64 — pure syscall .s; no PREFER thin (cold-only).
+# PLATFORM: LINUX|x86_64 — pure syscall .s; try-r2-prefer falls through to cold.
 runtime_panic.o: src/asm/runtime_panic_x86_64.s $(RUNTIME_PANIC_PLATFORM_STAMP)
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-r2 $@
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-r2-prefer $@
 else
-# G-02f-22：runtime_panic C 变体 seed
-# wave526 R2 migration: thin (.x) + rest (.from_x.c) thin+rest mode
-# wave760: cold-else → ensure try-r2 (G.7 single cold body)
+# PLATFORM: LINUX|x86_64 without .s — portable seed cold; PREFER panic.x + from_x.
 runtime_panic.o: seeds/runtime_panic.from_x.c src/asm/runtime_panic.x $(RUNTIME_PANIC_PLATFORM_STAMP)
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_panic.x ]; then \
-	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o runtime_panic.thin.o src/asm/runtime_panic.x && \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_PANIC_FROM_X=1 -c seeds/runtime_panic.from_x.c -o runtime_panic.rest.o && \
-	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ runtime_panic.thin.o runtime_panic.rest.o && \
-	  rm -f runtime_panic.thin.o runtime_panic.rest.o; \
-	else \
-	  CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	    bash scripts/ensure_host_cc_seed_o.sh try-r2 $@; \
-	fi
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-r2-prefer $@
 endif
 else
-# G-02f-22：runtime_panic_arm64 seed
-# wave526 R2 migration: thin (.x) + rest (.from_x.c) thin+rest mode
-# wave760: cold-else → ensure try-r2 (G.7 single cold body)
-# PLATFORM: LINUX|aarch64 (and similar) — arm64 seed cold path
+# PLATFORM: LINUX|aarch64 (and similar) — arm64 seed cold; PREFER arm64.x + arm64 rest.
 runtime_panic.o: seeds/runtime_panic_arm64.from_x.c src/asm/runtime_panic_arm64.x $(RUNTIME_PANIC_PLATFORM_STAMP)
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_panic_arm64.x ]; then \
-	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o runtime_panic.thin.o src/asm/runtime_panic_arm64.x && \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_PANIC_ARM64_FROM_X=1 -c seeds/runtime_panic_arm64.from_x.c -o runtime_panic.rest.o && \
-	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ runtime_panic.thin.o runtime_panic.rest.o && \
-	  rm -f runtime_panic.thin.o runtime_panic.rest.o; \
-	else \
-	  CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	    bash scripts/ensure_host_cc_seed_o.sh try-r2 $@; \
-	fi
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-r2-prefer $@
 endif
 else
-# G-02f-22：runtime_panic C 变体 seed
-# wave526 R2 migration: thin (.x) + rest (.from_x.c) thin+rest mode
-# wave760: cold-else → ensure try-r2 (G.7 single cold body; host pick may use
-# arm64 seed on Darwin arm64 — same as build_xlang_asm / verify-selfhost).
-# PREFER thin path: keep historic Makefile pair (runtime_panic.x + from_x seed).
-# PLATFORM: MACOS / non-Linux — PREFER residual; cold shell.
+# PLATFORM: MACOS / non-Linux — cold host pick may use arm64 seed; PREFER historic
+# portable panic.x + from_x (wave776 try-r2-prefer single body).
 runtime_panic.o: seeds/runtime_panic.from_x.c seeds/runtime_panic_arm64.from_x.c src/asm/runtime_panic.x src/asm/runtime_panic_arm64.x $(RUNTIME_PANIC_PLATFORM_STAMP)
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_panic.x ]; then \
-	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o runtime_panic.thin.o src/asm/runtime_panic.x && \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_PANIC_FROM_X=1 -c seeds/runtime_panic.from_x.c -o runtime_panic.rest.o && \
-	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ runtime_panic.thin.o runtime_panic.rest.o && \
-	  rm -f runtime_panic.thin.o runtime_panic.rest.o; \
-	else \
-	  CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	    bash scripts/ensure_host_cc_seed_o.sh try-r2 $@; \
-	fi
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-r2-prefer $@
 endif
 
 # seed asm 用户程序：std.io 跳过 .x emit 时的 print/write/read_ptr 链接桩（G-02e-20 .inc）

@@ -187,11 +187,16 @@ SWALLOWED_R4_BODY_THIN_GLUE_NOTE=parser_asm_thin_glue_seed_map_wave758
 SWALLOWED_R4_BODY_GLUE_STANDALONE=1
 SWALLOWED_R4_BODY_GLUE_STANDALONE_VIA=ensure_host_cc_seed_o.sh_seed-map_try-r1
 SWALLOWED_R4_BODY_GLUE_STANDALONE_NOTE=pipeline_glue_standalone_seed_map_wave759
-# wave760: R2 panic cold body leave make (try-r2); PREFER thin still Makefile
+# wave760: R2 panic cold body leave make (try-r2)
 SWALLOWED_R2_PANIC_COLD=1
 SWALLOWED_R2_PANIC_COLD_VIA=ensure_host_cc_seed_o.sh_try-r2
 SWALLOWED_R2_PANIC_COLD_LIST=catalog_DRIVER_SEED_PANIC_OBJS
-SWALLOWED_R2_PANIC_COLD_NOTE=panic_cold_shell_PREFER_thin_still_make
+SWALLOWED_R2_PANIC_COLD_NOTE=panic_cold_shell_try_r2
+# wave776: R2 panic PREFER thin+rest leave make (try-r2-prefer)
+SWALLOWED_R2_PANIC_PREFER=1
+SWALLOWED_R2_PANIC_PREFER_VIA=ensure_host_cc_seed_o.sh_try-r2-prefer
+SWALLOWED_R2_PANIC_PREFER_SCOPE=runtime_panic_DRIVER_SEED_PANIC_member
+SWALLOWED_R2_PANIC_PREFER_NOTE=makefile_thin_call_no_dual_hybrid_wave776
 # wave762: R2 typeck_f64 + crt0 leave make (try-r2 extend)
 SWALLOWED_R2_TYPECK_F64=1
 SWALLOWED_R2_TYPECK_F64_VIA=ensure_host_cc_seed_o.sh_try-r2
@@ -224,6 +229,7 @@ RESIDUAL_CLASS_R1_ENDGAME=shell_ensure_or_product_E_plus_cc_single_body_all_fami
 RESIDUAL_CLASS_R2=platform_stamp_uname_leaf
 RESIDUAL_CLASS_R2_SURFACE=runtime_panic.stamp+typeck_f64_bits+crt0
 RESIDUAL_CLASS_R2_PANIC_COLD=swallowed_wave760_try_r2
+RESIDUAL_CLASS_R2_PANIC_PREFER=swallowed_wave776_try_r2_prefer
 RESIDUAL_CLASS_R2_OTHER=swallowed_wave762_try_r2_typeck_f64_crt0
 RESIDUAL_CLASS_R2_TYPECK_F64=swallowed_wave762_try_r2
 RESIDUAL_CLASS_R2_CRT0=swallowed_wave762_try_r2
@@ -296,6 +302,7 @@ print_live_metrics() {
   g05_async_prefer=0
   g05_other_l2_prefer=0
   r2_panic=0
+  r2_panic_prefer=0
   r2_typeck_f64=0
   r2_crt0=0
   r4_gen_x=0
@@ -431,6 +438,14 @@ print_live_metrics() {
       "$ROOT/compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh" 2>/dev/null; then
       r2_panic=1
     fi
+    # wave776: R2 panic PREFER via try-r2-prefer (ensure body + Makefile thin)
+    if [ -f "$ROOT/compiler/scripts/ensure_host_cc_seed_o.sh" ] \
+      && grep -q 'try-r2-prefer\|try_ensure_r2_prefer' \
+        "$ROOT/compiler/scripts/ensure_host_cc_seed_o.sh" 2>/dev/null \
+      && grep -q 'try-r2-prefer' "$mf" 2>/dev/null \
+      && ! grep -qE 'runtime_panic\.thin\.o' "$mf" 2>/dev/null; then
+      r2_panic_prefer=1
+    fi
     # wave761: gen residual via try-gen-x + ensure_gen_x_o.sh
     if grep -q 'try-gen-x\|try_ensure_gen_x' \
       "$ROOT/compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh" 2>/dev/null \
@@ -527,6 +542,7 @@ G05_L2_ASM_PREFER_SWALLOWED=$g05_l2_asm_prefer
 G05_ASYNC_PREFER_SWALLOWED=$g05_async_prefer
 G05_OTHER_L2_PREFER_SWALLOWED=$g05_other_l2_prefer
 R2_PANIC_COLD_SWALLOWED=$r2_panic
+R2_PANIC_PREFER_SWALLOWED=$r2_panic_prefer
 R2_TYPECK_F64_SWALLOWED=$r2_typeck_f64
 R2_CRT0_SWALLOWED=$r2_crt0
 R4_BODY_GEN_X_SWALLOWED=$r4_gen_x
@@ -699,6 +715,12 @@ if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R2_PANIC_COLD=1'; then
 fi
 if ! printf '%s\n' "$_out" | grep -q 'R2_PANIC_COLD_SWALLOWED=1'; then
   bad "dump R2_PANIC_COLD_SWALLOWED must be 1 (try-r2 + catalog)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R2_PANIC_PREFER=1'; then
+  bad "dump must set SWALLOWED_R2_PANIC_PREFER=1 (wave776 R2 panic PREFER try-r2-prefer)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'R2_PANIC_PREFER_SWALLOWED=1'; then
+  bad "dump R2_PANIC_PREFER_SWALLOWED must be 1 (try-r2-prefer + Makefile thin)"
 fi
 if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R2_TYPECK_F64=1'; then
   bad "dump must set SWALLOWED_R2_TYPECK_F64=1 (wave762)"
@@ -1037,7 +1059,7 @@ else
     "$REBUILD_REL"; then
     bad "rebuild_leaves must not hardcode .o list (dual authority)"
   fi
-  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld (wave772/773) + drop silent CC fallback (wave774); fmt_check_cmd.o dual (wave775); residual physical delete"
+  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld (wave772/773) + drop silent CC fallback (wave774); fmt_check_cmd.o dual (wave775); R2 panic PREFER try-r2-prefer (wave776); residual physical delete"
 fi
 
 # wave772/774: cold pure-ld required when eligible (no silent CC fallback)

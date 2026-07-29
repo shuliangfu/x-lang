@@ -61,6 +61,11 @@
 #   wave775: G.7 fmt_check_cmd.o Makefile dual → try-other-l2-prefer (有则补全) —
 #            same table; leaf_kind=fmt_core (no -DXLANG_USE_X_PIPELINE; OBJS_CORE /
 #            PIPELINE_X satellite path). Residual: physical delete · panic PREFER.
+#   wave776: G.7 R2 panic PREFER thin+rest → `try-r2-prefer OUT` (有则补全) —
+#            membership = catalog DRIVER_SEED_PANIC_OBJS; PREFER=1 thin.x + seed
+#            rest FROM_X → ld -r (host pick mirrors Makefile ifeq tree); fail /
+#            PREFER≠1 / pure-asm host → ensure_r2_panic_one cold (try-r2 twin).
+#            Makefile runtime_panic.o thin-call; dual hybrid deleted.
 #   wave758: R4 residual pure host-cc thin_glue → R1 seed-map (G.7 有则补全):
 #            parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c +
 #            -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm;
@@ -136,7 +141,8 @@
 #   - ~~g05 other L2 four (slc/strict_glue/fmt_check/lsp_diag)~~ wave771
 #     try-other-l2-prefer
 #   - ~~fmt_check_cmd.o Makefile dual~~ wave775 → try-other-l2-prefer fmt_core
-#   - panic PREFER thin · R5 CI all
+#   - ~~panic PREFER thin~~ wave776 → try-r2-prefer
+#   - R5 CI all
 #   - pure-ld (11.1.4) · physical Makefile delete (11.3.1)
 #   - bootstrap_nostdlib_stubs.o (cc_inc_tu residual) · crt0_user.o cp wrappers
 #
@@ -153,6 +159,7 @@
 #   bash scripts/ensure_host_cc_seed_o.sh try-l2-asm-prefer <out.o> # wave769 L2 asm three
 #   bash scripts/ensure_host_cc_seed_o.sh try-async-prefer <out.o> # wave770 async three
 #   bash scripts/ensure_host_cc_seed_o.sh try-other-l2-prefer <out.o> # wave771 other L2 four
+#   bash scripts/ensure_host_cc_seed_o.sh try-r2-prefer <out.o> # wave776 R2 panic PREFER thin
 #   bash scripts/ensure_host_cc_seed_o.sh try-r2 <out.o>   # wave760/762 R2 UNAME leaves
 #   bash scripts/ensure_host_cc_seed_o.sh try-gen-x <out.o> # wave761 gen *_x / pipeline_x
 #   bash scripts/ensure_host_cc_seed_o.sh r2-panic         # DRIVER_SEED_PANIC family
@@ -183,7 +190,7 @@
 #
 # PLATFORM: SHARED — shell orchestration; seed pins host-portable C.
 #   R2 panic body: PLATFORM LINUX|x86_64 (.s) / MACOS|arm64 + LINUX|aarch64
-#   (arm64 seed) / else (from_x seed). PREFER thin stays Makefile.
+#   (arm64 seed) / else (from_x seed). PREFER thin = try-r2-prefer (wave776).
 #   R2 typeck_f64 / crt0: PLATFORM per host .s / mingw seed (wave762).
 # Wave: 748–763 Track MG · 11.3.1 R1 families + R4 pure-R1 + R3 cold-else +
 #       R3 PREFER thin (try-r3-prefer) + thin_glue/glue-standalone seed-map +
@@ -213,7 +220,7 @@ _DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-async-prefer|try-other-l2-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-async-prefer|try-other-l2-prefer|try-r2-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -3239,7 +3246,7 @@ try_ensure_other_l2_prefer_one() {
 #   3 — OUT not in DRIVER_SEED_PANIC_OBJS (caller residual make)
 #   1 — membership found but compile failed / missing source
 # PLATFORM: SHARED shell body · per-host source pick tagged above.
-# PREFER_X_O=1 thin+rest remains Makefile (not this helper).
+# PREFER_X_O=1 thin+rest → try-r2-prefer (wave776; not this cold helper).
 # ---------------------------------------------------------------------------
 r2_panic_host_pick_src() {
   # stdout: "asm|seed <path>" — host cold source for runtime_panic.o
@@ -3374,6 +3381,172 @@ ensure_r2_panic() {
     n=$((n + 1))
   done
   log "r2-panic OK ($n objs; catalog DRIVER_SEED_PANIC_OBJS)"
+}
+
+# ---------------------------------------------------------------------------
+# wave776: try-r2-prefer OUT — R2 panic PREFER thin+rest product path.
+#
+# Membership = catalog DRIVER_SEED_PANIC_OBJS (lists = mk; currently
+# runtime_panic.o only). G.7 有则补全 on R2 family (parallel try-r3-prefer;
+# not a second list / second cold body).
+#
+# PREFER host pick mirrors historic Makefile ifeq tree (NOT cold pick):
+#   PLATFORM: LINUX|x86_64 + runtime_panic_x86_64.s present
+#     → no PREFER (pure syscall .s; cold only)
+#   PLATFORM: LINUX|arm64|aarch64
+#     → thin src/asm/runtime_panic_arm64.x
+#       + rest seeds/runtime_panic_arm64.from_x.c -DXLANG_RUNTIME_PANIC_ARM64_FROM_X
+#   PLATFORM: LINUX (other, incl. x86_64 without .s) + non-Linux (MACOS/…)
+#     → thin src/asm/runtime_panic.x
+#       + rest seeds/runtime_panic.from_x.c -DXLANG_RUNTIME_PANIC_FROM_X
+#       (Darwin arm64 historic PREFER uses portable panic.x, not arm64.x)
+#
+# When XLANG_G05_PREFER_X_O=1 and xlang-c works and prefer spec non-empty:
+#   thin via historic xlang-c -o (same -L / -lib-name as Makefile dual)
+#   rest = $CC seed -D FROM_X
+#   merge = ld $(r3_prefer_ld_r_flags) thin + rest → OUT
+# Prefer fail / PREFER≠1 / pure-asm host / no xlang-c → ensure_r2_panic_one cold.
+#
+# Callers: Makefile runtime_panic.o (all UNAME branches; was dual hybrid).
+# Exit codes:
+#   0 — OUT is panic catalog member; prefer or cold body produced OUT
+#   3 — OUT not in DRIVER_SEED_PANIC_OBJS
+#   1 — cold compile failed / missing source
+# PLATFORM: SHARED shell body · per-host PREFER pick tagged above.
+# Residual after: R5 CI · physical delete · FORCE_CC named residual.
+# ---------------------------------------------------------------------------
+
+# stdout: "x_src|seed|from_x_def" or empty when PREFER not applicable (pure asm).
+r2_panic_prefer_spec() {
+  local uname_s uname_m
+  uname_s="$(uname -s 2>/dev/null || echo Unknown)"
+  uname_m="$(uname -m 2>/dev/null || echo unknown)"
+  # PLATFORM: LINUX|x86_64 pure-syscall .s — Makefile has no PREFER dual.
+  if [ "$uname_s" = "Linux" ] && [ "$uname_m" = "x86_64" ] \
+    && [ -f src/asm/runtime_panic_x86_64.s ]; then
+    printf '%s' ""
+    return 0
+  fi
+  if [ "$uname_s" = "Linux" ]; then
+    case "$uname_m" in
+      arm64|aarch64)
+        # PLATFORM: LINUX|aarch64 — arm64 thin + arm64 seed rest.
+        if [ -f src/asm/runtime_panic_arm64.x ] \
+          && [ -f seeds/runtime_panic_arm64.from_x.c ]; then
+          printf '%s' "src/asm/runtime_panic_arm64.x|seeds/runtime_panic_arm64.from_x.c|XLANG_RUNTIME_PANIC_ARM64_FROM_X"
+          return 0
+        fi
+        ;;
+    esac
+    # PLATFORM: LINUX other (or aarch64 fallback) — portable panic.x + from_x.
+    if [ -f src/asm/runtime_panic.x ] && [ -f seeds/runtime_panic.from_x.c ]; then
+      printf '%s' "src/asm/runtime_panic.x|seeds/runtime_panic.from_x.c|XLANG_RUNTIME_PANIC_FROM_X"
+      return 0
+    fi
+  else
+    # PLATFORM: MACOS / non-Linux — historic PREFER pair (panic.x + from_x)
+    # even when cold pick uses arm64 seed on Darwin arm64.
+    if [ -f src/asm/runtime_panic.x ] && [ -f seeds/runtime_panic.from_x.c ]; then
+      printf '%s' "src/asm/runtime_panic.x|seeds/runtime_panic.from_x.c|XLANG_RUNTIME_PANIC_FROM_X"
+      return 0
+    fi
+  fi
+  printf '%s' ""
+  return 0
+}
+
+ensure_r2_prefer_one() {
+  # PREFER thin+rest or cold for one DRIVER_SEED_PANIC member (no membership check).
+  local o="$1"
+  local prefer="${XLANG_G05_PREFER_X_O:-0}"
+  local spec x_src seed from_x_def rest
+  local thin_o rest_o ld_flags done=0 stale=0
+
+  if [ -z "$o" ]; then
+    echo "ensure_host_cc_seed_o try-r2-prefer: need <out.o>" >&2
+    return 2
+  fi
+
+  # PREFER thin+rest only when PREFER=1 (Darwin cold-chain safety twin of R3).
+  if [ "$prefer" = "1" ]; then
+    spec="$(r2_panic_prefer_spec)"
+    if [ -n "$spec" ]; then
+      x_src="${spec%%|*}"
+      rest="${spec#*|}"
+      seed="${rest%%|*}"
+      from_x_def="${rest#*|}"
+      if [ -f "$x_src" ] && [ -f "$seed" ] && [ -x ./xlang-c ]; then
+        if [ "$FORCE" != "1" ] && [ -f "$o" ]; then
+          stale=0
+          [ "$seed" -nt "$o" ] && stale=1
+          [ "$x_src" -nt "$o" ] && stale=1
+          if [ "$stale" = "0" ]; then
+            log "skip up-to-date $o (r2-prefer)"
+            return 0
+          fi
+        fi
+        thin_o="$(mktemp "${TMPDIR:-/tmp}/r2pref_thin.XXXXXX")"
+        rest_o="$(mktemp "${TMPDIR:-/tmp}/r2pref_rest.XXXXXX")"
+        ld_flags="$(r3_prefer_ld_r_flags)"
+        # Historic Makefile: XLANG_KEEP_C=1 ./xlang-c -L … -lib-name "" -o thin .x
+        # PLATFORM: SHARED product PREFER path (not -E harness; keep dual fidelity).
+        # shellcheck disable=SC2086
+        if XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" \
+             -o "$thin_o" "$x_src" 2>/dev/null \
+          && $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
+               -D"$from_x_def" -c -o "$rest_o" "$seed" 2>/dev/null \
+          && ld $ld_flags -o "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+          log "prefer thin.x+rest $o <- $x_src + $seed (try-r2-prefer)"
+          done=1
+        else
+          log "r2-prefer hybrid failed for $o; fallback cold try-r2"
+        fi
+        rm -f "$thin_o" "$rest_o"
+      fi
+    fi
+  fi
+
+  if [ "$done" = "1" ]; then
+    # Keep platform stamp fresh (same as cold body).
+    local uname_s uname_m stamp
+    uname_s="$(uname -s 2>/dev/null || echo Unknown)"
+    uname_m="$(uname -m 2>/dev/null || echo unknown)"
+    stamp="build_asm/runtime_panic.${uname_s}.${uname_m}.stamp"
+    mkdir -p build_asm
+    touch "$stamp"
+    return 0
+  fi
+
+  # Cold path = try-r2 / ensure_r2_panic_one (G.7 single cold body).
+  # After failed PREFER, force recompile so a partial thin.o is not left green.
+  if [ "$prefer" = "1" ] && [ -f "$o" ]; then
+    FORCE=1
+    ensure_r2_panic_one "$o" || return 1
+    FORCE=0
+  else
+    ensure_r2_panic_one "$o" || return 1
+  fi
+  return 0
+}
+
+try_ensure_r2_prefer_one() {
+  local o="$1"
+  local list
+  if [ -z "$o" ]; then
+    echo "ensure_host_cc_seed_o try-r2-prefer: need <out.o>" >&2
+    exit 2
+  fi
+  list="$(catalog_key_words "DRIVER_SEED_PANIC_OBJS")"
+  if ! list_has_word "$o" "$list"; then
+    return 3
+  fi
+  case "$o" in
+    runtime_panic.o) ensure_r2_prefer_one "$o"; return 0 ;;
+    *)
+      echo "ensure_host_cc_seed_o try-r2-prefer: no prefer map for panic member $o" >&2
+      return 1
+      ;;
+  esac
 }
 
 # ---------------------------------------------------------------------------
@@ -3965,20 +4138,41 @@ run_check() {
     bad "must not hardcode DRIVER_SEED_CRT0_OBJS= in shell body (wave762)"
   fi
 
-  # wave760: Makefile cold panic body must thin-call try-r2 (PREFER thin may stay).
+  # wave760 + wave776: Makefile runtime_panic must thin-call try-r2-prefer
+  # (PREFER+cold) or try-r2 (cold-only). No inline dual hybrid.
   if awk '
     /^runtime_panic\.o:/ { in_t=1; next }
     in_t && /^[^[:space:]#]/ { in_t=0 }
     in_t { body = body $0 "\n" }
     END {
-      # At least one recipe body must call ensure try-r2 / r2-panic.
-      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-r2|r2-panic|try_r2/) exit 0
+      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-r2-prefer|try-r2|r2-panic|try_r2/) exit 0
       exit 1
     }
   ' Makefile; then
-    note "Makefile runtime_panic cold thin-calls ensure try-r2 (wave760)"
+    note "Makefile runtime_panic thin-calls ensure try-r2-prefer/try-r2 (wave760/776)"
   else
-    bad "Makefile runtime_panic.o cold path must thin-call ensure try-r2 (wave760)"
+    bad "Makefile runtime_panic.o must thin-call ensure try-r2-prefer or try-r2 (wave776)"
+  fi
+  # wave776: ban dual hybrid (inline xlang-c thin + seed rest + ld -r).
+  if awk '
+    /^runtime_panic\.o:/ { in_t=1; next }
+    in_t && /^[^[:space:]#]/ { in_t=0 }
+    in_t { body = body $0 "\n" }
+    END {
+      if (body ~ /runtime_panic\.thin\.o/ && body ~ /runtime_panic\.rest\.o/) exit 1
+      if (body ~ /XLANG_RUNTIME_PANIC_FROM_X/ && body ~ /ld -r/) exit 1
+      if (body ~ /\.\/xlang-c/ && body ~ /runtime_panic/ && body ~ /ld -r/) exit 1
+      exit 0
+    }
+  ' Makefile; then
+    note "Makefile runtime_panic has no dual hybrid body (wave776)"
+  else
+    bad "Makefile runtime_panic.o still has dual hybrid PREFER body (wave776)"
+  fi
+  if ! grep -q 'try_ensure_r2_prefer_one\|try-r2-prefer' "$0"; then
+    bad "try-r2-prefer / try_ensure_r2_prefer_one missing (wave776)"
+  else
+    note "try-r2-prefer helper present (wave776)"
   fi
 
   # wave762: typeck_f64 + host crt0 leaves must thin-call try-r2 (no inline $(CC) -c).
@@ -4657,6 +4851,19 @@ case "$MODE" in
     set -e
     exit "$_try_rc"
     ;;
+  try-r2-prefer|try_r2_prefer|r2-prefer|panic-prefer|try-r2-prefer-panic)
+    # wave776: R2 panic PREFER thin+rest; exit 3 if not DRIVER_SEED_PANIC member.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o try-r2-prefer: need <out.o>" >&2
+      exit 2
+    fi
+    _try_out="$1"
+    set +e
+    try_ensure_r2_prefer_one "$_try_out"
+    _try_rc=$?
+    set -e
+    exit "$_try_rc"
+    ;;
   try-r2|try_r2|try-r2-panic|r2-one|r2-panic-one)
     # wave760/762: R2 UNAME helper — panic | typeck_f64 | crt0; exit 3 if not member.
     if [ "$#" -lt 1 ]; then
@@ -4734,7 +4941,7 @@ case "$MODE" in
     exit 0
     ;;
   *)
-    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check)" >&2
+    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-r2-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check)" >&2
     exit 2
     ;;
 esac

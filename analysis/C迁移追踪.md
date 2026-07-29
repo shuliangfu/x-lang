@@ -1483,6 +1483,7 @@
     ✅ g05 R3_COLD r3-prefer-family（wave764）；✅ g05 labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer（wave765–771）；
     ✅ R6 pure-ld（wave772）；✅ g05 pure-ld（wave773）；
     ✅ drop silent CC fallback（wave774）；✅ fmt dual（wave775 try-other-l2-prefer fmt_core）；
+    ✅ panic PREFER try-r2-prefer（wave776）；
     ⬜ physical delete
   - ⬜ 物理删 `compiler/Makefile` 仍 ⬜（下项）
 
