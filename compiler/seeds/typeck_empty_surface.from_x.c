@@ -639,7 +639,7 @@ extern int32_t typeck_check_expr_method_call_arg(struct ast_Module * module, str
 extern int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t typeck_check_expr_as(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t typeck_check_expr_struct_lit_field(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t field_i, int32_t num_fields);
-extern int32_t typeck_coerce_struct_lit_field_inits_to_layout(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref);
+extern int32_t typeck_coerce_struct_lit_field_inits_to_layout(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t base_ty);
 extern int32_t typeck_check_expr_struct_lit(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t typeck_check_expr_index(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
 extern int typeck_expr_is_any_assign_kind(int32_t kind_ord);
@@ -6075,7 +6075,8 @@ int32_t typeck_check_expr_struct_lit_field(struct ast_Module * module, struct as
   }
   return typeck_check_expr_struct_lit_field(module, arena, expr_ref, return_type_ref, ctx, (field_i + 1), num_fields);
 }
-int32_t typeck_coerce_struct_lit_field_inits_to_layout(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref) {
+extern int32_t pipeline_typeck_mono_field_type_from_base_c(struct ast_Module * module, struct ast_ASTArena * arena, int32_t field_ty, int32_t base_ty);
+int32_t typeck_coerce_struct_lit_field_inits_to_layout(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t base_ty) {
   int32_t num_fields = 0;
   int32_t name_len = 0;
   int32_t j = 0;
@@ -6100,6 +6101,13 @@ int32_t typeck_coerce_struct_lit_field_inits_to_layout(struct ast_Module * modul
       (void)((ftr = get_field_type_ref_from_layout(module, name_buf, name_len, field_buf, flen)));
       (void)((init_r = pipeline_expr_struct_lit_init_ref(arena, expr_ref, j)));
       if (((((!(ast_ref_is_null(init_r)) && (init_r > 0)) && (init_r <=(arena->num_exprs))) && !(ast_ref_is_null(ftr))) && (ftr > 0))) {
+        /* wave682: mono free type-param field types from expected base. */
+        if (base_ty > 0) {
+          int32_t ftr_mono = pipeline_typeck_mono_field_type_from_base_c(module, arena, ftr, base_ty);
+          if (ftr_mono > 0) {
+            ftr = ftr_mono;
+          }
+        }
         (void)(typeck_coerce_init_expr_to_decl(module, arena, init_r, ftr));
       }
     }
@@ -6126,7 +6134,7 @@ int32_t typeck_check_expr_struct_lit(struct ast_Module * module, struct ast_ASTA
   if ((ensure_struct_layout_from_struct_lit(module, arena, expr_ref) !=0)) {
     return -(1);
   }
-  (void)(typeck_coerce_struct_lit_field_inits_to_layout(module, arena, expr_ref));
+  (void)(typeck_coerce_struct_lit_field_inits_to_layout(module, arena, expr_ref, return_type_ref));
   if ((name_len > 127)) {
     return 0;
   }

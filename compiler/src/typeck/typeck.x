@@ -60,6 +60,18 @@ export extern function pipeline_typeck_check_expr_try_propagate_c(module: *Modul
 export extern function pipeline_typeck_check_expr_match_c(module: *Module, arena: *ASTArena, expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
 /* See implementation. */
 export extern function pipeline_typeck_check_expr_field_access_c(module: *Module, arena: *ASTArena, expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
+/**
+ * wave682 Cap residual: mono free type-param field type against base Wrap<T>/Pair.
+ * G.7 authority in pipeline_typeck_field_access.c (field access + STRUCT_LIT coerce).
+ * @param module *Module — layout type-param registry
+ * @param arena *ASTArena — type / type-arg sidecar
+ * @param field_ty i32 — layout field type_ref (often free TYPE_NAMED T/U)
+ * @param base_ty i32 — monomorphized base (`Wrap<i32>`, `*Wrap<i32>`)
+ * @return i32 — mono concrete type_ref, or 0 if no substitution
+ * PLATFORM: SHARED
+ */
+export extern function pipeline_typeck_mono_field_type_from_base_c(module: *Module, arena: *ASTArena,
+field_ty: i32, base_ty: i32): i32;
 /* See implementation. */
 export extern function pipeline_typeck_field_prebind_c(module: *Module, arena: *ASTArena, expr_ref: i32, ctx: *PipelineDepCtx): void;
 export extern function pipeline_typeck_field_known_ptr_types_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, num_layouts: i32): i32;
@@ -7923,14 +7935,18 @@ return_type_ref: i32, ctx: *PipelineDepCtx, field_i: i32, num_fields: i32): i32 
  * for `v: i32` false-green. G.7: reuse lit/float/enum/array/int_binop/slice coerces
  * only — **not** bool→int (LANG-006 is scalar let/const only). Then require equal /
  * integer_widen / float_widen; emit assign_mismatch on known mismatch.
+ * wave682 Cap residual: layout field types may be free type-params (`v: T`). When
+ * expected/base is monomorphized (`Wrap<i32>`), substitute via
+ * pipeline_typeck_mono_field_type_from_base_c before coerce (was expected T, found i32).
  * @param module *Module — layout table
  * @param arena *ASTArena
  * @param expr_ref i32 — EXPR_STRUCT_LIT
+ * @param base_ty i32 — expected/mono base type (let/return `Wrap<i32>`), or 0
  * @return i32 — 0 ok, -1 field type mismatch (diagnostic emitted)
  * PLATFORM: SHARED typeck
  */
 export function typeck_coerce_struct_lit_field_inits_to_layout(module: *Module, arena: *ASTArena,
-expr_ref: i32): i32 {
+expr_ref: i32, base_ty: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let num_fields: i32 = 0;
@@ -7939,11 +7955,13 @@ expr_ref: i32): i32 {
     let flen: i32 = 0;
     let init_r: i32 = 0;
     let ftr: i32 = 0;
+    let ftr_mono: i32 = 0;
     let ftr_kind: i32 = 0;
     let init_kind: i32 = 0;
     let init_ty: i32 = 0;
     let got_kind: i32 = 0;
     let crc: i32 = 0;
+    let mono_base: i32 = 0;
     let eb: *u8 = 0 as *u8;
     let gb: *u8 = 0 as *u8;
     let el: i32 = 0;
@@ -7961,6 +7979,22 @@ expr_ref: i32): i32 {
       return 0;
     }
     pipeline_expr_struct_lit_type_name_into(arena, expr_ref, name_buf);
+    /*
+     * wave682: mono base from expected let/return type when it names the same
+     * generic struct (Wrap / Pair). PTR peel is inside mono helper.
+     */
+    mono_base = 0;
+    if (!ast.ref_is_null(base_ty) && base_ty > 0 && base_ty <= arena.num_types) {
+      if (typeck_named_type_matches_name_or_alias(module, arena, base_ty, name_buf, name_len, 0) != 0) {
+        mono_base = base_ty;
+      } else {
+        let peel: i32 = pipeline_type_elem_ref_at(arena, base_ty);
+        if (!ast.ref_is_null(peel) && peel > 0
+        && typeck_named_type_matches_name_or_alias(module, arena, peel, name_buf, name_len, 0) != 0) {
+          mono_base = peel;
+        }
+      }
+    }
     while (j < num_fields) {
       flen = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, j);
       /* wave583 Cap residual: struct-lit field name content ≤127. */
@@ -7970,6 +8004,16 @@ expr_ref: i32): i32 {
         init_r = pipeline_expr_struct_lit_init_ref(arena, expr_ref, j);
         if (!ast.ref_is_null(init_r) && init_r > 0 && init_r <= arena.num_exprs
         && !ast.ref_is_null(ftr) && ftr > 0) {
+          /*
+           * wave682: substitute free type-param field types (T/U) from mono base.
+           * Layout stores `v: T`; expected Wrap<i32> → ftr becomes i32.
+           */
+          if (mono_base > 0) {
+            ftr_mono = pipeline_typeck_mono_field_type_from_base_c(module, arena, ftr, mono_base);
+            if (ftr_mono > 0) {
+              ftr = ftr_mono;
+            }
+          }
           /*
            * wave672: field-level coerce without LANG-006 bool→int (scalar let/const only).
            * Reuse G.7 authorities per case; array-lit return -1 propagates.
@@ -8062,8 +8106,8 @@ export function typeck_check_expr_struct_lit(
     if (ensure_struct_layout_from_struct_lit(module, arena, expr_ref) != 0) {
       return - 1;
     }
-    /* wave672: field coerce + hard-fail mismatch (return -1). */
-    if (typeck_coerce_struct_lit_field_inits_to_layout(module, arena, expr_ref) != 0) {
+    /* wave672/682: field coerce + mono type-param fields + hard-fail mismatch. */
+    if (typeck_coerce_struct_lit_field_inits_to_layout(module, arena, expr_ref, return_type_ref) != 0) {
       return -1;
     }
     if (name_len > 127) {

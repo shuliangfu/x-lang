@@ -1986,7 +1986,7 @@ extern int32_t typeck_check_expr_method_call_arg(struct ast_Module * module, str
 extern int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t typeck_check_expr_as(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t typeck_check_expr_struct_lit_field(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t field_i, int32_t num_fields);
-extern int32_t typeck_coerce_struct_lit_field_inits_to_layout(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref);
+extern int32_t typeck_coerce_struct_lit_field_inits_to_layout(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t base_ty);
 extern int32_t typeck_check_expr_struct_lit(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t typeck_vector_elem_type_ref(struct ast_ASTArena * arena, int32_t type_ref);
 extern int32_t typeck_check_expr_index(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
@@ -2040,6 +2040,7 @@ extern int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module * modu
 extern int32_t pipeline_typeck_check_expr_try_propagate_c(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t pipeline_typeck_check_expr_match_c(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
+extern int32_t pipeline_typeck_mono_field_type_from_base_c(struct ast_Module * module, struct ast_ASTArena * arena, int32_t field_ty, int32_t base_ty);
 extern void pipeline_typeck_field_prebind_c(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t pipeline_typeck_field_known_ptr_types_c(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t base_ref, int32_t num_layouts);
 extern int32_t pipeline_typeck_field_layout_named_c(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t base_ref, struct ast_PipelineDepCtx * ctx);
@@ -7808,7 +7809,7 @@ int32_t typeck_check_expr_struct_lit_field(struct ast_Module * module, struct as
   }
 }
 /* wave672: field coerce without LANG-006 bool→int; hard-fail known field mismatch. */
-int32_t typeck_coerce_struct_lit_field_inits_to_layout(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref) {
+int32_t typeck_coerce_struct_lit_field_inits_to_layout(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t base_ty) {
   {
     int32_t num_fields = 0;
     int32_t name_len = 0;
@@ -7839,6 +7840,13 @@ int32_t typeck_coerce_struct_lit_field_inits_to_layout(struct ast_Module * modul
         (void)((ftr = typeck_get_field_type_ref_from_layout(module, name_buf, name_len, field_buf, flen)));
         (void)((init_r = pipeline_expr_struct_lit_init_ref(arena, expr_ref, j)));
         if (((((!(ast_ref_is_null(init_r)) && (init_r > 0)) && (init_r <=(arena->num_exprs))) && !(ast_ref_is_null(ftr))) && (ftr > 0))) {
+          /* wave682: mono free type-param field types from expected base. */
+          if (base_ty > 0) {
+            int32_t ftr_mono = pipeline_typeck_mono_field_type_from_base_c(module, arena, ftr, base_ty);
+            if (ftr_mono > 0) {
+              ftr = ftr_mono;
+            }
+          }
           (void)((ftr_kind = pipeline_type_kind_ord_at(arena, ftr)));
           (void)((init_kind = pipeline_expr_kind_ord_at(arena, init_r)));
           (void)(typeck_coerce_init_lit_to_decl(arena, init_r, ftr, ftr_kind, init_kind));
@@ -7907,7 +7915,7 @@ int32_t typeck_check_expr_struct_lit(struct ast_Module * module, struct ast_ASTA
       return -1;
     }
     /* wave672: field coerce + hard-fail mismatch. */
-    if ((typeck_coerce_struct_lit_field_inits_to_layout(module, arena, expr_ref) !=0)) {
+    if ((typeck_coerce_struct_lit_field_inits_to_layout(module, arena, expr_ref, return_type_ref) !=0)) {
       return -1;
     }
     if ((name_len > 127)) {
