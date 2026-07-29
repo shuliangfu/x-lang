@@ -8782,10 +8782,24 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       return 0;
     }
     num_elems = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
+    /*
+     * wave705: ambient SIMD/VECTOR stamps the array lit; elems use ambient 0.
+     * PLATFORM: SHARED — unblocks `let c: i32x4 = [1,2,3,4] + [10,…]`.
+     */
+    if (return_type_ref > 0 && num_elems > 0) {
+      let amb_lanes: i32 = typeck_vector_lanes_of_type(arena, return_type_ref);
+      let amb_kind: i32 = pipeline_type_kind_ord_at(arena, return_type_ref);
+      if (amb_lanes <= 0 && amb_kind == 13) {
+        amb_lanes = pipeline_type_array_size_at(arena, return_type_ref);
+      }
+      if (amb_lanes > 0 && amb_lanes == num_elems) {
+        pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref);
+      }
+    }
     while (i < num_elems) {
       elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, i);
       if (!ast.ref_is_null(elem_ref) && elem_ref > 0) {
-        if (check_expr(module, arena, elem_ref, return_type_ref, ctx) != 0) {
+        if (check_expr(module, arena, elem_ref, 0, ctx) != 0) {
           return -1;
         }
       }

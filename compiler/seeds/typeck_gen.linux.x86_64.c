@@ -8484,10 +8484,28 @@ int32_t typeck_check_expr_array_lit(struct ast_Module * module, struct ast_ASTAr
       return 0;
     }
     (void)((num_elems = pipeline_expr_array_lit_num_elems_at(arena, expr_ref)));
+    /*
+     * wave705 Cap residual: ambient TYPE_VECTOR / SIMD (i32x4) must stamp the
+     * array lit before element typeck. Passing ambient i32x4 into scalar lit
+     * elems broke lanes; inferring TYPE_ARRAY then failed aggregate + between
+     * two array lits in `let c: i32x4 = [1,2,3,4] + [10,…]`. G.7 reuse
+     * typeck_vector_lanes_of_type + set_resolved. PLATFORM: SHARED.
+     */
+    if (((return_type_ref > 0) && (num_elems > 0))) {
+      int32_t amb_lanes = typeck_vector_lanes_of_type(arena, return_type_ref);
+      int32_t amb_kind = pipeline_type_kind_ord_at(arena, return_type_ref);
+      if (((amb_lanes <= 0) && (amb_kind == 13))) {
+        (void)((amb_lanes = pipeline_type_array_size_at(arena, return_type_ref)));
+      }
+      if (((amb_lanes > 0) && (amb_lanes == num_elems))) {
+        (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref));
+      }
+    }
     while ((i < num_elems)) {
       (void)((elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, i)));
       if (((!(ast_ref_is_null(elem_ref))) && (elem_ref > 0))) {
-        if ((typeck_check_expr(module, arena, elem_ref, return_type_ref, ctx) != 0)) {
+        /* Scalar element ambient: do not pass outer VECTOR/ARRAY ambient. */
+        if ((typeck_check_expr(module, arena, elem_ref, 0, ctx) != 0)) {
           return -1;
         }
       }
