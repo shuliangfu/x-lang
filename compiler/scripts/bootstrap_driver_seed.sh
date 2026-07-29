@@ -4,8 +4,9 @@
 # Authority (G.7):
 #   This script owns the *step sequence* of cold bootstrap after Make has
 #   satisfied DRIVER_SEED_PREREQS. Leaf .o builds stay Make targets. phase1/final
-#   link *body* is scripts/bootstrap_driver_seed_link.sh (wave721); sat/lsp
-#   rebuild *body* is scripts/bootstrap_driver_seed_rebuild_leaves.sh (wave722);
+#   link *body* is scripts/bootstrap_driver_seed_link.sh (wave721); sat/lsp +
+#   bridge/panic/user-asm/glue rebuild *body* is
+#   scripts/bootstrap_driver_seed_rebuild_leaves.sh (wave722/724);
 #   host-stubs *body* is scripts/bootstrap_driver_seed_host_stubs.sh (wave723).
 #   OBJS/CFLAGS expand only via Makefile export leaves (no dual .o list).
 #   Whitelist §5b.
@@ -19,7 +20,8 @@
 #   TARGET — product binary name (default: xlang); must match Makefile TARGET
 #
 # PLATFORM: SHARED — orchestration identical; leaf recipes carry platform ABI.
-# Wave: 717 orchestration · 721 phase1/final link · 722 sat/lsp · 723 host-stubs.
+# Wave: 717 orchestration · 721 phase1/final link · 722 sat/lsp · 723 host-stubs ·
+#       724 bridge/panic/user-asm/glue.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -74,13 +76,13 @@ if [ ! -s build_asm/seed_host/asm_backend_partial.o ] && [ -f "$seed_partial" ] 
   fi
 fi
 
-# 5) bridge
-mk src/x_seed_bridge.o
+# 5) bridge (export + shell; §5b #5)
+mk bootstrap-driver-seed-bridge
 
-# 6) USER_ASM seed objs (platform list stays in Makefile)
+# 6) USER_ASM seed objs (list only in Makefile export; §5b #6)
 mk bootstrap-driver-seed-user-asm-seed-objs
 
-# 7) pipeline_glue_standalone.o (arch_*_enc weak stubs provider)
+# 7) pipeline_glue_standalone.o (arch_*_enc weak stubs provider; §5b #7)
 mk bootstrap-driver-seed-asm-glue-standalone
 
 # 8) build-seed-asm-host (half shell already)
@@ -116,8 +118,8 @@ mk bootstrap-driver-seed-host-stubs
 # 11b) final link → xlang
 mk bootstrap-driver-seed-final-link
 
-# 12) runtime_panic.o (post-link satellite)
-mk runtime_panic.o
+# 12) runtime_panic.o (post-link satellite; export + shell; §5b #12)
+mk bootstrap-driver-seed-panic
 
 # 13) smoke + product binary aliases
 if [ "${XLANG_SKIP_SEED_SMOKE:-}" = "1" ]; then

@@ -66,7 +66,7 @@
 | `g05-ensure-relink-prereqs` | 3081 | g05_ensure_relink_prereqs.sh (~3.3k 行) | `xbuild ensure` | 🟢 g05_ensure_relink_prereqs.sh | 热路径 cc；filtered.o 已纯 shell（wave715） |
 | `g05-export-relink` | 3085 | g05_relink_env.sh | `xbuild link-env` | 🟢 g05_relink_env.sh | 链接清单 |
 | `refresh-xlang-asm-gate` | 3172 | Makefile 包装 g05 | `xbuild refresh-gate` | 🟡 仍 make 入口包装 | 应收编 g05 |
-| `bootstrap-driver-seed` | ~2995 | **shell 编排** + Makefile prereq/薄叶子 | `xbuild bootstrap` | 🟡 wave717 编排 + wave721 链接 + wave722 sat/lsp + wave723 host-stubs shell | L4 必经；OBJS 仍 make 导出 |
+| `bootstrap-driver-seed` | ~2995 | **shell 编排** + Makefile prereq/薄叶子 | `xbuild bootstrap` | 🟡 wave717–724：编排+链接+sat/lsp+host-stubs+bridge/panic/user-asm/glue shell | L4 必经；OBJS 仍 make 导出 |
 | `bootstrap-driver-bstrict` | ~3107 | **shell** `bootstrap_driver_bstrict.sh`；FULL=1 仍 make 入口 | `xbuild bstrict-build` | 🟡 wave719 体 shell；refresh 仍 make | 非日常 |
 | `test` / `test_c` / `test_x` | ~1685 | **shell** `run_compiler_tests.sh` | `xbuild test` | 🟢 wave720 体 shell；prereq 仍 make 图 | 嵌套 run-all 可 make |
 | `bootstrap-verify` / `check-7.2-bstrict` | ~3320 | **shell** `bootstrap_verify_bstrict.sh` | `xbuild verify` | 🟢 wave720 体 shell；prereq bstrict 图 | 阶段2 仍脚本内 make |
@@ -458,7 +458,7 @@
 ### 类 J — test / check / verify / baseline
 
 - **xbuild**：`xbuild test / cold-test / prove`
-- **今日**：🟡 phase1/final（wave721）+ sat/lsp（wave722）+ host-stubs（wave723）导出+shell；test*/verify shell（wave720）；tests/lib 仍 make
+- **今日**：🟡 phase1/final（wave721）+ sat/lsp（wave722）+ host-stubs（wave723）+ bridge/panic/user-asm/glue（wave724）导出+shell；test*/verify shell（wave720）；tests/lib 仍 make
 - **优先**：11.0.3 / 11.2.3
 - **条数**：12
 
@@ -602,18 +602,19 @@
 | 2 | `pipeline_x.o` FORCE | 🟡 shell 调 make | `PIPELINE_X_FORCE_COMPILE=1` |
 | 3 | `-B` 卫星 runtime/diag/simd… | 🟢 shell 体 + 导出 | wave722：`bootstrap_driver_seed_rebuild_leaves.sh sat` + `export-sat-rebuild`（`DRIVER_SEED_SAT_REBUILD_OBJS` 单权威） |
 | 4 | `lsp_io_x.o` `lsp_x.o` … | 🟢 shell 体 + 导出 | wave722：`rebuild_leaves.sh lsp` + `export-lsp-x-objs`（`DRIVER_SEED_LSP_X_OBJS` 单权威） |
-| 5 | `src/x_seed_bridge.o` | 🟡 shell 调 make | |
-| 6 | `$(USER_ASM_SEED_OBJS)` | 🟡 薄目标 | `bootstrap-driver-seed-user-asm-seed-objs` |
-| 7 | `$(ASM_GLUE_STANDALONE_O)` | 🟡 薄目标 | `bootstrap-driver-seed-asm-glue-standalone` |
+| 5 | `src/x_seed_bridge.o` | 🟢 shell 体 + 导出 | wave724：`rebuild_leaves.sh bridge` + `export-bridge`（`DRIVER_SEED_BRIDGE_OBJS`） |
+| 6 | `$(USER_ASM_SEED_OBJS)` | 🟢 shell 体 + 导出 | wave724：`rebuild_leaves.sh user-asm` + `export-user-asm`（`DRIVER_SEED_USER_ASM_SEED_OBJS`） |
+| 7 | `$(ASM_GLUE_STANDALONE_O)` | 🟢 shell 体 + 导出 | wave724：`rebuild_leaves.sh glue` + `export-glue`（`DRIVER_SEED_ASM_GLUE_OBJS`） |
 | 8 | `build-seed-asm-host` | 🟡 半 shell | 已有 `build_seed_asm_host.sh` |
 | 9 | `$(USER_ASM_SEED_HOST_STUBS)` | 🟢 shell 体 + 导出 | wave723：`bootstrap_driver_seed_host_stubs.sh` + `export-host-stubs`（`DRIVER_SEED_HOST_STUBS_SCAN_BASE` 单权威；PHONY 恒刷） |
 | 10 | `$(BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS)` | 🟢 shell 体 | wave716 配方纯 shell；wave717 经薄目标 |
 | 11 | phase1/final `$(CC)` 链接 | 🟢 shell 体 + 导出 | wave721：`bootstrap_driver_seed_link.sh` + `export-phase1/final-link`（OBJS 仍 Makefile 单权威） |
-| 12 | `runtime_panic.o` | 🟡 shell 调 make | |
+| 12 | `runtime_panic.o` | 🟢 shell 体 + 导出 | wave724：`rebuild_leaves.sh panic` + `export-panic`（`DRIVER_SEED_PANIC_OBJS`；平台 recipe 仍 Makefile） |
 | 13 | smoke / `bootstrap_xlangc_create` | 🟢 已 shell | smoke + create 由编排脚本转调 |
 
 **wave716**：类 G 四目标无内联 nm/ld。  
-**wave717**：编排主体迁 shell；Makefile 仅 prereq + 薄叶子 + 转调。
+**wave717**：编排主体迁 shell；Makefile 仅 prereq + 薄叶子 + 转调。  
+**wave724**：bridge/panic/user-asm/glue 统一 export + `rebuild_leaves.sh`（禁编排 `mk` 裸 `.o`）。
 
 ---
 
@@ -621,7 +622,7 @@
 
 1. **11.0.1** 本表 ✅（wave714）
 2. **11.0.2** 产品路径 0-make 静态闸门 ✅ + class-G filtered 全 shell ✅（wave714–716）；运行时 PATH 无 make 探针仍可加
-3. **11.0.3** `bootstrap-driver-seed` 规则白名单化 → shell/xbuild 逐步接管（**wave716**–**wave723**：类 G + 编排 + build-tool/clean + token/bstrict + test*/verify 0-make + phase1/final 链接 + sat/lsp rebuild + **host-stubs 导出+shell**；OBJS 变量仍 make）
+3. **11.0.3** `bootstrap-driver-seed` 规则白名单化 → shell/xbuild 逐步接管（**wave716**–**wave724**：类 G + 编排 + build-tool/clean + token/bstrict + test*/verify 0-make + phase1/final 链接 + sat/lsp + host-stubs + **bridge/panic/user-asm/glue 导出+shell**；OBJS 变量仍 make）
 4. **11.0.4** 根 Makefile 仅 help→xbuild；禁止新规则
 5. 并行：**类 C glue 地图**（阶段 8.3）· **类 B/D 去 pin 烟**（7.4）
 6. **11.1+** 填实 `build.x` / 吞并 g05 → **11.3 物理删**
@@ -632,6 +633,7 @@
 
 | 日期 | 波次 | 变更 |
 |------|------|------|
+| 2026-07-29 | **wave724** | 11.0.3 续：§5b #5/#6/#7/#12 bridge/panic/user-asm/glue → `rebuild_leaves.sh` + export；`DRIVER_SEED_BRIDGE/PANIC/USER_ASM/ASM_GLUE_OBJS` 单权威；编排禁裸 `.o`；0-make 闸门硬检；mac 4 叶真跑 OK |
 | 2026-07-29 | **wave723** | 11.0.3 续：`bootstrap_driver_seed_host_stubs.sh` + export-host-stubs；`DRIVER_SEED_HOST_STUBS_SCAN_BASE` 单权威；PHONY 恒刷；file 规则同调；0-make 闸门硬检；mac 13 objs/397 stubs |
 | 2026-07-29 | **wave722** | 11.0.3 续：`bootstrap_driver_seed_rebuild_leaves.sh` + export-sat/lsp；`DRIVER_SEED_SAT_REBUILD_OBJS` / `DRIVER_SEED_LSP_X_OBJS` 单权威；0-make 闸门硬检；dry-run 10+5 targets |
 | 2026-07-29 | **wave721** | 11.0.3 续：`bootstrap_driver_seed_link.sh` + export-phase1/final-link；OBJS/CFLAGS Makefile 单权威；gen_g06 读 export；0-make 闸门硬检；mac phase1 59 objs 真链 |

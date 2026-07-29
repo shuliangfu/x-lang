@@ -24,7 +24,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "=== 11.0.2/11.0.3 product-path 0-make static gate (wave714–723) ==="
+echo "=== 11.0.2/11.0.3 product-path 0-make static gate (wave714–724) ==="
 
 fail=0
 note() { echo "  OK  $*"; }
@@ -204,17 +204,24 @@ else
   fi
 fi
 
-# wave722: sat/lsp rebuild body → shell via Makefile target-list export (no dual list)
+# wave722/724: rebuild leaves (sat/lsp/bridge/panic/user-asm/glue) → shell via export
 if [ ! -f compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh ]; then
-  bad "missing compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh (11.0.3 wave722)"
+  bad "missing compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh (11.0.3 wave722+)"
 elif ! grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh' compiler/Makefile; then
-  bad "Makefile sat/lsp must call bootstrap_driver_seed_rebuild_leaves.sh"
+  bad "Makefile rebuild leaves must call bootstrap_driver_seed_rebuild_leaves.sh"
 elif ! grep -q 'bootstrap-driver-seed-export-sat-rebuild' compiler/Makefile \
   || ! grep -q 'bootstrap-driver-seed-export-lsp-x-objs' compiler/Makefile; then
   bad "Makefile missing sat/lsp export leaves (G.7 single authority)"
+elif ! grep -q 'bootstrap-driver-seed-export-bridge' compiler/Makefile \
+  || ! grep -q 'bootstrap-driver-seed-export-panic' compiler/Makefile \
+  || ! grep -q 'bootstrap-driver-seed-export-user-asm' compiler/Makefile \
+  || ! grep -q 'bootstrap-driver-seed-export-glue' compiler/Makefile; then
+  bad "Makefile missing bridge/panic/user-asm/glue export leaves (wave724)"
 elif ! grep -q 'DRIVER_SEED_SAT_REBUILD_OBJS' compiler/Makefile \
-  || ! grep -q 'DRIVER_SEED_LSP_X_OBJS' compiler/Makefile; then
-  bad "Makefile missing DRIVER_SEED_SAT_REBUILD_OBJS / DRIVER_SEED_LSP_X_OBJS single-authority lists"
+  || ! grep -q 'DRIVER_SEED_LSP_X_OBJS' compiler/Makefile \
+  || ! grep -q 'DRIVER_SEED_BRIDGE_OBJS' compiler/Makefile \
+  || ! grep -q 'DRIVER_SEED_PANIC_OBJS' compiler/Makefile; then
+  bad "Makefile missing DRIVER_SEED_*_OBJS single-authority lists (sat/lsp/bridge/panic)"
 else
   sat_body=$(awk '
     /^bootstrap-driver-seed-sat-rebuild:/ { in_r=1; next }
@@ -226,6 +233,27 @@ else
     in_r && /^[^#[:space:]	]/ { exit }
     in_r { print }
   ' compiler/Makefile)
+  bridge_body=$(awk '
+    /^bootstrap-driver-seed-bridge:/ { in_r=1; next }
+    in_r && /^[^#[:space:]	]/ { exit }
+    in_r { print }
+  ' compiler/Makefile)
+  panic_body=$(awk '
+    /^bootstrap-driver-seed-panic:/ { in_r=1; next }
+    in_r && /^[^#[:space:]	]/ { exit }
+    in_r { print }
+  ' compiler/Makefile)
+  user_asm_body=$(awk '
+    /^bootstrap-driver-seed-user-asm-seed-objs:/ { in_r=1; next }
+    in_r && /^[^#[:space:]	]/ { exit }
+    in_r { print }
+  ' compiler/Makefile)
+  glue_body=$(awk '
+    /^bootstrap-driver-seed-asm-glue-standalone:/ { in_r=1; next }
+    in_r && /^[^#[:space:]	]/ { exit }
+    in_r { print }
+  ' compiler/Makefile)
+  orch_raw_bridge=$(grep -E 'mk (src/x_seed_bridge\.o|runtime_panic\.o)' compiler/scripts/bootstrap_driver_seed.sh || true)
   if echo "$sat_body" | grep -qE 'src/diag\.o|runtime_io_abi' \
     && ! echo "$sat_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
     bad "Makefile sat-rebuild still inlines .o list (must be shell + export)"
@@ -236,10 +264,21 @@ else
     bad "Makefile lsp-x-objs still inlines .o list (must be shell + export)"
   elif ! echo "$lsp_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
     bad "Makefile lsp-x-objs recipe missing bootstrap_driver_seed_rebuild_leaves.sh"
-  elif grep -qE 'src/diag\.o|lsp_io_x\.o|simd_enc\.o' compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh; then
+  elif ! echo "$bridge_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
+    bad "Makefile bridge leaf missing bootstrap_driver_seed_rebuild_leaves.sh"
+  elif ! echo "$panic_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
+    bad "Makefile panic leaf missing bootstrap_driver_seed_rebuild_leaves.sh"
+  elif ! echo "$user_asm_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
+    bad "Makefile user-asm leaf missing bootstrap_driver_seed_rebuild_leaves.sh"
+  elif ! echo "$glue_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
+    bad "Makefile glue leaf missing bootstrap_driver_seed_rebuild_leaves.sh"
+  elif [ -n "$orch_raw_bridge" ]; then
+    bad "bootstrap_driver_seed.sh still mk raw bridge/panic .o (must use thin leaves)"
+  elif grep -qE 'src/diag\.o|lsp_io_x\.o|simd_enc\.o|x_seed_bridge\.o|runtime_panic\.o|user_asm_seed_bridge\.o|pipeline_glue_standalone\.o' \
+    compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh; then
     bad "bootstrap_driver_seed_rebuild_leaves.sh must not hardcode .o list (dual authority)"
   else
-    note "sat/lsp rebuild → export leaves + bootstrap_driver_seed_rebuild_leaves.sh (OBJS single authority)"
+    note "rebuild leaves (sat/lsp/bridge/panic/user-asm/glue) → export + rebuild_leaves.sh"
   fi
 fi
 

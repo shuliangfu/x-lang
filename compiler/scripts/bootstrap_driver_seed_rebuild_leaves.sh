@@ -1,24 +1,26 @@
 #!/usr/bin/env bash
-# bootstrap_driver_seed_rebuild_leaves.sh — §5b sat/lsp rebuild body (11.0.3)
+# bootstrap_driver_seed_rebuild_leaves.sh — §5b make-target leaf body (11.0.3)
 #
 # Authority (G.7):
 #   - Object lists + forced flags live ONLY in compiler/Makefile
-#     (DRIVER_SEED_SAT_REBUILD_OBJS / DRIVER_SEED_LSP_X_OBJS + export leaves).
-#   - This script never hardcodes an .o list. It evals:
-#       make bootstrap-driver-seed-export-sat-rebuild
-#       make bootstrap-driver-seed-export-lsp-x-objs
-#   - Then runs make with exported targets / make-args / env.
+#     (DRIVER_SEED_*_OBJS + export leaves).
+#   - This script never hardcodes an .o list. It evals the matching export
+#     leaf, then runs make with exported targets / make-args / env.
 #
 # Usage (compiler directory):
 #   ./scripts/bootstrap_driver_seed_rebuild_leaves.sh sat
 #   ./scripts/bootstrap_driver_seed_rebuild_leaves.sh lsp
+#   ./scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
+#   ./scripts/bootstrap_driver_seed_rebuild_leaves.sh panic
+#   ./scripts/bootstrap_driver_seed_rebuild_leaves.sh user-asm
+#   ./scripts/bootstrap_driver_seed_rebuild_leaves.sh glue
 #
 # Env:
 #   MAKE — make binary (default: make)
 #
 # PLATFORM: SHARED — rebuild orchestration identical; Makefile expands mode
-#            runtime_rebuild lists (no_c vs seed).
-# Wave: 722 Track MG · pairs with Makefile export + thin sat/lsp leaves.
+#            runtime_rebuild lists (no_c vs seed) and platform USER_ASM sets.
+# Wave: 722 sat/lsp · 724 bridge/panic/user-asm/glue.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -26,14 +28,17 @@ cd "$(dirname "$0")/.."
 MAKE="${MAKE:-make}"
 MODE="${1:-}"
 
-if [ "$MODE" != "sat" ] && [ "$MODE" != "lsp" ]; then
-  echo "bootstrap_driver_seed_rebuild_leaves: usage: $0 sat|lsp" >&2
-  exit 2
-fi
-
 case "$MODE" in
   sat) export_target="bootstrap-driver-seed-export-sat-rebuild" ;;
   lsp) export_target="bootstrap-driver-seed-export-lsp-x-objs" ;;
+  bridge) export_target="bootstrap-driver-seed-export-bridge" ;;
+  panic) export_target="bootstrap-driver-seed-export-panic" ;;
+  user-asm) export_target="bootstrap-driver-seed-export-user-asm" ;;
+  glue) export_target="bootstrap-driver-seed-export-glue" ;;
+  *)
+    echo "bootstrap_driver_seed_rebuild_leaves: usage: $0 sat|lsp|bridge|panic|user-asm|glue" >&2
+    exit 2
+    ;;
 esac
 
 # Makefile single authority. Clear MAKEFLAGS so parent `make -n` / jobserver

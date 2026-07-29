@@ -2938,23 +2938,34 @@ endif
 # 11.0.3 wave721: phase1/final $(CC) body → scripts/bootstrap_driver_seed_link.sh;
 # 11.0.3 wave722: sat/lsp rebuild body → scripts/bootstrap_driver_seed_rebuild_leaves.sh;
 # 11.0.3 wave723: host-stubs body → scripts/bootstrap_driver_seed_host_stubs.sh;
+# 11.0.3 wave724: bridge/panic/user-asm/glue → same rebuild_leaves.sh + export;
 #   Makefile remains sole authority for OBJS/CFLAGS expansions (export leaves only).
 # PLATFORM: SHARED — sequence in shell; Darwin filtered.o still via class-G shell recipes.
 
-# §5b #3/#4 — single-authority target lists (export + shell; no dual list in shell)
+# §5b #3/#4/#5/#6/#7/#12 — single-authority target lists (export + shell; no dual list in shell)
 DRIVER_SEED_SAT_REBUILD_OBJS = src/diag.o src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_REBUILD) $(DRIVER_SEED_PREPROCESS_REBUILD) src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o
 DRIVER_SEED_LSP_X_OBJS = lsp_io_x.o lsp_x.o lsp_diag_x.o src/lsp/lsp_diag_pipeline_ctx.o x_frontend_link_alias.o
+DRIVER_SEED_BRIDGE_OBJS = src/x_seed_bridge.o
+DRIVER_SEED_PANIC_OBJS = runtime_panic.o
+DRIVER_SEED_USER_ASM_SEED_OBJS = $(USER_ASM_SEED_OBJS)
+DRIVER_SEED_ASM_GLUE_OBJS = $(ASM_GLUE_STANDALONE_O)
 # §5b #9 — scan base for asm_full_link_stubs (export only; no dual list in shell)
 DRIVER_SEED_HOST_STUBS_SCAN_BASE = pipeline_x.o $(ASM_GLUE_STANDALONE_O) $(USER_ASM_SEED_OBJS)
 
 .PHONY: bootstrap-driver-seed-sat-rebuild \
 	bootstrap-driver-seed-lsp-x-objs \
+	bootstrap-driver-seed-bridge \
+	bootstrap-driver-seed-panic \
 	bootstrap-driver-seed-user-asm-seed-objs \
 	bootstrap-driver-seed-asm-glue-standalone \
 	bootstrap-driver-seed-filtered-objs \
 	bootstrap-driver-seed-host-stubs \
 	bootstrap-driver-seed-export-sat-rebuild \
 	bootstrap-driver-seed-export-lsp-x-objs \
+	bootstrap-driver-seed-export-bridge \
+	bootstrap-driver-seed-export-panic \
+	bootstrap-driver-seed-export-user-asm \
+	bootstrap-driver-seed-export-glue \
 	bootstrap-driver-seed-export-host-stubs \
 	bootstrap-driver-seed-export-phase1-link \
 	bootstrap-driver-seed-export-final-link \
@@ -2982,11 +2993,46 @@ bootstrap-driver-seed-lsp-x-objs:
 	@chmod +x scripts/bootstrap_driver_seed_rebuild_leaves.sh 2>/dev/null || true
 	@MAKE="$(MAKE)" ./scripts/bootstrap_driver_seed_rebuild_leaves.sh lsp
 
-# §5b #6 — USER_ASM seed objs (list expands per-platform in Makefile only)
-bootstrap-driver-seed-user-asm-seed-objs: $(USER_ASM_SEED_OBJS)
+# §5b #5 — x_seed_bridge.o (list = DRIVER_SEED_BRIDGE_OBJS only)
+bootstrap-driver-seed-export-bridge:
+	@printf 'SEED_REBUILD_OBJS=%s\n' '$(DRIVER_SEED_BRIDGE_OBJS)'
+	@printf 'SEED_REBUILD_MAKE_ARGS=%s\n' ''
+	@printf 'SEED_REBUILD_MAKE_VARS=%s\n' ''
 
-# §5b #7
-bootstrap-driver-seed-asm-glue-standalone: $(ASM_GLUE_STANDALONE_O)
+bootstrap-driver-seed-bridge:
+	@chmod +x scripts/bootstrap_driver_seed_rebuild_leaves.sh 2>/dev/null || true
+	@MAKE="$(MAKE)" ./scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
+
+# §5b #12 — runtime_panic.o (list = DRIVER_SEED_PANIC_OBJS only; platform recipe stays Makefile)
+bootstrap-driver-seed-export-panic:
+	@printf 'SEED_REBUILD_OBJS=%s\n' '$(DRIVER_SEED_PANIC_OBJS)'
+	@printf 'SEED_REBUILD_MAKE_ARGS=%s\n' ''
+	@printf 'SEED_REBUILD_MAKE_VARS=%s\n' ''
+
+bootstrap-driver-seed-panic:
+	@chmod +x scripts/bootstrap_driver_seed_rebuild_leaves.sh 2>/dev/null || true
+	@MAKE="$(MAKE)" ./scripts/bootstrap_driver_seed_rebuild_leaves.sh panic
+
+# §5b #6 — USER_ASM seed objs (list = DRIVER_SEED_USER_ASM_SEED_OBJS → USER_ASM_SEED_OBJS)
+bootstrap-driver-seed-export-user-asm:
+	@printf 'SEED_REBUILD_OBJS=%s\n' '$(DRIVER_SEED_USER_ASM_SEED_OBJS)'
+	@printf 'SEED_REBUILD_MAKE_ARGS=%s\n' ''
+	@printf 'SEED_REBUILD_MAKE_VARS=%s\n' ''
+
+bootstrap-driver-seed-user-asm-seed-objs:
+	@chmod +x scripts/bootstrap_driver_seed_rebuild_leaves.sh 2>/dev/null || true
+	@MAKE="$(MAKE)" ./scripts/bootstrap_driver_seed_rebuild_leaves.sh user-asm
+
+# §5b #7 — pipeline_glue_standalone.o (list = DRIVER_SEED_ASM_GLUE_OBJS)
+bootstrap-driver-seed-export-glue:
+	@printf 'SEED_REBUILD_OBJS=%s\n' '$(DRIVER_SEED_ASM_GLUE_OBJS)'
+	@printf 'SEED_REBUILD_MAKE_ARGS=%s\n' ''
+	@printf 'SEED_REBUILD_MAKE_VARS=%s\n' ''
+
+bootstrap-driver-seed-asm-glue-standalone:
+	@chmod +x scripts/bootstrap_driver_seed_rebuild_leaves.sh 2>/dev/null || true
+	@MAKE="$(MAKE)" ./scripts/bootstrap_driver_seed_rebuild_leaves.sh glue
+
 
 # §5b #10 — class-G filtered (Darwin); empty expansion on Linux
 bootstrap-driver-seed-filtered-objs: $(BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS)
