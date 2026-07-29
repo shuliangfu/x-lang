@@ -84,9 +84,19 @@
 //   bootstrap-driver-seed   — prereq DAG (body already shell)
 //   std / residual .o leaves via ./xbuild compiler-make
 //
+// -----------------------------------------------------------------------------
+// E. tests/ host-cc policy (11.5 · not product — wave734/741)
+// -----------------------------------------------------------------------------
+//   Authority: tests/HOST_CC_POLICY.md
+//   11.5.1 bench/**/*.c     — permanent host-cc whitelist (diff baseline · wave734)
+//   11.5.2 std-*/*.c        — permanent host-cc whitelist (C smoke harness · wave741)
+//   11.5.3 abi|leak|safe|kernel/*.c — permanent host-cc whitelist (probes · wave741)
+//   11.5.4 probes/**/*.c    — tool/generated artifacts; not product residual (wave741)
+//   Never inputs to g05 / ./xbuild all / product compiler link.
+//
 // References:
-//   analysis/C迁移追踪.md §11.1 · analysis/Makefile迁移表.md class I
-//   compiler/docs/SELFHOST.md · compiler/scripts/g05_*.sh
+//   analysis/C迁移追踪.md §11.1 · §11.5 · analysis/Makefile迁移表.md class I
+//   compiler/docs/SELFHOST.md · compiler/scripts/g05_*.sh · tests/HOST_CC_POLICY.md
 // =============================================================================
 
 /**

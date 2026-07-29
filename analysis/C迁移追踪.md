@@ -31,7 +31,7 @@
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
 | **Makefile 退役 / xbuild** | 🟡 半路径 | **`./xbuild`→`xlang-build.sh`** 产品入口；根 Makefile **help-only**；叶/组合体→`compiler/mk/*.mk`；**`compiler/Makefile` 仍 ~3445 行权威图**（阶段 11） |
 | **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 ✅** tests/** hub · **11.1.6 🟡** g05+refresh+migrate+…+lsp/pipeline-gen+archaeology-gen → xbuild · **11.1.5 🟡** build.x 策略图 · **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
-| **tests/ 对照 C 处理策略** | ⬜ 0/~4 | ~200 个 .c 文件在零 cc 终局下归属未定 — 阶段 11.5 |
+| **tests/ 对照 C 处理策略** | 🟡 4/4 策略 | 11.5.1–4 **策略已裁定**（wave734/741 · `tests/HOST_CC_POLICY.md`）；改写 .x / 卸 cc 属阶段 12 |
 | **冷启动零 cc 链** | ⬜ 0/4 | 最小 seed + 零 cc 验证 + 双端冷启动 |
 | **终局：无 Makefile + 零 cc + v2==v3** | ⬜ 未达 | 见 §0.1 三义；阶段 13 |
 
@@ -1484,22 +1484,24 @@
 
   - `loop_i32.c` · `mem_copy.c` · `simd_dot.c` · `struct_param.c` · `call_boundary.c` · `zero_copy_sendfile*.c` · `regex_match_*.c` · `http_bench_server.c` · `net_*.c` · `io_*.c` · `async_*.c` · `diff/d1_int_arith.c` ~ `d6_mem_ops.c`
   - **策略裁定（wave734）**：**永久 host-cc 白名单（仅差分/对照基准）** — 不进产品路径、不进 g05、不经 `./xbuild all`；与 `.x` 对照测时由 bench 脚本显式 `cc`（标 temporary residual 至阶段 12 零 cc 终局复审）。优先路径：有 `.x` 孪生则产品侧只编 `.x`；裸 `.c` 不强制本波改写
+  - 权威清单：`tests/HOST_CC_POLICY.md` §11.5.1
 
-⬜ **11.5.2 `tests/std-*/*.c`（~30 个）std 模块 smoke 测试 C**
+🟡 **11.5.2 `tests/std-*/*.c`（50 个）std 模块 smoke 测试 C**
 
-  - `tests/std-sqlite/*_ok.c`（10 个）· `tests/std-elf/*_ok.c`（5 个）· `tests/std-crypto/*_smoke.c` · `tests/std-math/*_smoke.c` · `tests/std-config/*_smoke.c` · `tests/std-uuid/uuid_smoke_ok.c` · `tests/std-ffi/*_ok.c` · `tests/std-trace/*_ok.c` · `tests/std-context/context_smoke_ok.c` · `tests/std-base64/stream_smoke_ok.c` · `tests/std-tar/extended_ok.c` · `tests/std-task/task_smoke_ok.c` · `tests/std-log/*_ok.c`
-  - 被 `tests/lib/std-*.sh` 用 cc 链接
-  - 策略：改写为 .x（由 xlang_asm 编译）或归为「永久 host-cc 白名单」
+  - `tests/std-sqlite/*_ok.c` · `tests/std-elf/*_ok.c` · `tests/std-crypto/*_smoke*.c` · `tests/std-math/*` · `tests/std-config/*` · `tests/std-uuid/*` · `tests/std-ffi/*` · `tests/std-trace/*` · `tests/std-context/*` · `tests/std-base64/*` · `tests/std-tar/*` · `tests/std-task/*` · `tests/std-log/*` · …
+  - 被 `tests/lib/std-*.sh` 用 host cc 链接 **已编好的** `std/**/*.o`
+  - **策略裁定（wave741）**：**永久 host-cc 白名单（C smoke harness only）** — 不进 g05 / `./xbuild all` / 产品编译器链接；产品绿以 bstrict / `.x` 闸门为准；改写为 `.x` 属阶段 12 复审，不挡 11.3
+  - 权威清单：`tests/HOST_CC_POLICY.md` §11.5.2（50 路径 + 闸门 floor ≥40）
 
-⬜ **11.5.3 `tests/abi|leak|safe|kernel/*.c` 探针 C**
+🟡 **11.5.3 `tests/abi|leak|safe|kernel/*.c` 探针 C**
 
   - `tests/abi/layout_abi.c` · `tests/leak/leak_probe.c`（cc -fsanitize=address）· `tests/safe/race_probe.c` · `tests/kernel/freestanding_stubs.c`
-  - 策略：改写为 .x 或归为「永久 host-cc 白名单（UB/leak 探针需 sanitizer）」
+  - **策略裁定（wave741）**：**永久 host-cc 白名单（ABI / sanitizer / freestanding 探针）** — 依赖 host 工具链能力；不进产品链；权威见 `tests/HOST_CC_POLICY.md` §11.5.3
 
-⬜ **11.5.4 `tests/probes/**/*.c`（~90 个）prove/seed 工具产物**
+🟡 **11.5.4 `tests/probes/**/*.c` prove/seed 工具产物**
 
   - `seed_optional/*/optional_gen.c` · `prove_x_o/*/{*.gen.c,*.raw.c,*.seed.probe.c,*.merged.probe.c,thin.c}` · `bootstrap-parser/{csv_core,json_core}_gen_probe*.c`
-  - 策略：prove 工具产物，随 prove 系统迁 xbuild 后自然消失；或归为「生成物不入库」
+  - **策略裁定（wave741）**：**非产品 residual 类** — 工具/生成物；多数不入库；随 prove→xbuild 收缩；禁止扩成产品 host-cc 债。权威：`tests/HOST_CC_POLICY.md` §11.5.4
 
 ### 11.6 editors/ 与文档去 make（**用户指南同步**）
 

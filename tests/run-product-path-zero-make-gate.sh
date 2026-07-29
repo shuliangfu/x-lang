@@ -27,7 +27,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "=== 11.0.2/11.0.3/11.0.4 + 11.1.6/11.2.3/11.2.5/11.4 product-path 0-make static gate (wave714–733) ==="
+echo "=== 11.0.2/11.0.3/11.0.4 + 11.1.6/11.2.3/11.2.5/11.4/11.5 product-path 0-make static gate (wave714–741) ==="
 
 fail=0
 note() { echo "  OK  $*"; }
@@ -1026,6 +1026,58 @@ else
   note "archaeology *_gen.c → ensure_archaeology_gen.sh + xbuild archaeology-gen (11.1.6 wave740)"
 fi
 
+# wave741: 11.5.2–4 tests/ host-cc policy (authority tests/HOST_CC_POLICY.md)
+if [ ! -f tests/HOST_CC_POLICY.md ]; then
+  bad "missing tests/HOST_CC_POLICY.md (11.5.2–4 wave741)"
+elif ! grep -q '11\.5\.2' tests/HOST_CC_POLICY.md \
+  || ! grep -q '11\.5\.3' tests/HOST_CC_POLICY.md \
+  || ! grep -q '11\.5\.4' tests/HOST_CC_POLICY.md; then
+  bad "HOST_CC_POLICY.md must document 11.5.2 / 11.5.3 / 11.5.4"
+elif ! grep -qi 'permanent host-cc whitelist' tests/HOST_CC_POLICY.md; then
+  bad "HOST_CC_POLICY.md must state permanent host-cc whitelist ruling"
+elif ! grep -qi 'not product' tests/HOST_CC_POLICY.md; then
+  bad "HOST_CC_POLICY.md must state these .c files are not product"
+else
+  note "tests/HOST_CC_POLICY.md present (11.5.2–4 wave741)"
+fi
+
+# Product g05 chain must not compile tests/std-* or abi/leak/safe C harnesses
+g05_tests_c_hits=$(
+  grep -nE 'tests/std-[^[:space:]"]+\.c|tests/abi/layout_abi\.c|tests/leak/leak_probe\.c|tests/safe/race_probe\.c' \
+    compiler/scripts/g05_*.sh 2>/dev/null \
+    | grep -vE ':[0-9]+:[[:space:]]*#' \
+    || true
+)
+if [ -n "$g05_tests_c_hits" ]; then
+  bad "g05_*.sh must not compile tests/ host-cc harness C (11.5; wave741):"
+  echo "$g05_tests_c_hits" | head -20 >&2
+else
+  note "g05_*.sh: 0× tests/std-*|abi|leak|safe harness .c (11.5 not product)"
+fi
+
+std_c_n=$(find tests/std-* -name '*.c' -type f 2>/dev/null | wc -l | tr -d ' ')
+if [ "${std_c_n:-0}" -ge 40 ]; then
+  note "tests/std-*/*.c inventory floor ok (n=${std_c_n} ≥ 40; 11.5.2)"
+else
+  bad "tests/std-*/*.c inventory collapsed (n=${std_c_n}; expect ≥40 for 11.5.2)"
+fi
+
+for f in \
+  tests/abi/layout_abi.c \
+  tests/leak/leak_probe.c \
+  tests/safe/race_probe.c \
+  tests/kernel/freestanding_stubs.c
+do
+  [ -f "$f" ] || bad "missing 11.5.3 probe $f"
+done
+[ "$fail" -eq 0 ] && note "11.5.3 abi|leak|safe|kernel probe .c present"
+
+if grep -q 'HOST_CC_POLICY\|11\.5\.2\|tests host-cc' build.x; then
+  note "build.x strategy map references tests host-cc policy (wave741)"
+else
+  bad "build.x must mention tests host-cc / HOST_CC_POLICY / 11.5.2 (wave741)"
+fi
+
 # Product daily `all` must remain g05 (not Makefile all); CI uses compiler-all.
 if grep -n 'all|build|xlang)' xlang-build.sh | head -1 | grep -q . \
   && sed -n '/all|build|xlang)/,/^  [a-zA-Z*]/p' xlang-build.sh | head -8 | grep -q 'run_build_tool'; then
@@ -1073,5 +1125,5 @@ if [ "$fail" -ne 0 ]; then
   echo "FAIL product-path 0-make static gate" >&2
   exit 1
 fi
-echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe; mk OBJS+composites; catalog --check; tests/lib+run-*.sh hub; root help→xbuild; CI/docker → xbuild; build.sh thin; docker/delete-one entry)"
+echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe; mk OBJS+composites; catalog --check; tests/lib+run-*.sh hub; root help→xbuild; CI/docker → xbuild; build.sh thin; docker/delete-one entry; 11.5 HOST_CC_POLICY)"
 exit 0

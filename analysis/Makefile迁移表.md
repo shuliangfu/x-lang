@@ -649,7 +649,7 @@
 3. **11.0.3** `bootstrap-driver-seed` 规则白名单化 → shell/xbuild 逐步接管（**wave716**–**wave725**：类 G + 编排 + build-tool/clean + token/bstrict + test*/verify 0-make + phase1/final 链接 + sat/lsp + host-stubs + bridge/panic/user-asm/glue + **§5b #1/#2/#8 全 🟢**）
 4. **11.0.4** 根 Makefile help-only → `./xbuild` ✅；OBJS 叶+组合体→`mk/*.mk` ✅；catalog 18 keys ✅  
 5. 并行：**类 C glue 地图** ✅ · **11.2.5/11.4.3** CI+docker 外层 ✅（wave730）· **11.4.1/6** build.sh+delete-one ✅（wave731）· **11.2.3** tests/** hub ✅（wave732–733）· **类 B/D 去 pin**  
-6. **11.1+** build.x 策略图（wave734）· g05+refresh+migrate（wave733–735）→ `*_gen.c` 脱 make → **11.3 物理删**；**11.5** bench 白名单已裁定
+6. **11.1+** build.x 策略图（wave734）· g05+refresh+migrate+gen shells（wave733–740）→ **11.3 物理删**；**11.5.1–4** tests/ host-cc 策略全裁定（wave734/741 · `tests/HOST_CC_POLICY.md`）
 
 ---
 
