@@ -1672,22 +1672,9 @@ else
 $(error typeck_f64_bits: unsupported OS $(UNAME_S); add .s)
 endif
 
+# wave718: clean body → scripts/clean_compiler.sh (G.7 single authority)
 clean:
-	rm -f $(OBJS) src/main_driver.o src/runtime_driver.o src/runtime_driver_no_c.o src/runtime_x.o src/main_x.o src/ast/ast_seed.o src/preprocess_for_driver.o ../std/process/process.o ../std/string/string.o ../std/runtime/runtime.o ../std/net/net.o ../std/thread/thread.o ../std/time/time.o ../std/random/random.o ../std/env/env.o ../std/sync/sync.o ../std/encoding/encoding.o ../std/base64/base64.o ../std/crypto/crypto.o ../std/log/log.o ../std/atomic/atomic.o ../std/channel/channel.o ../std/backtrace/backtrace.o ../std/hash/hash.o ../std/math/math.o ../std/sort/sort.o ../std/ffi/ffi.o ../std/json/json.o ../std/csv/csv.o ../std/regex/regex.o ../std/compress/compress.o ../std/unicode/unicode.o ../std/dynlib/dynlib.o ../std/http/http.o ../std/tar/tar.o ../std/test/test.o src/asm/runtime_asm_build.o src/asm/crt0_x86_64.o src/typeck/typeck_f64_bits.o src/lsp/lsp_diag_pipeline_sizes.o lsp_io_x.o lsp_x.o lsp_diag_x.o lsp_io_std_heap_x.o lsp_io_gen.c lsp_gen.c lsp_diag_gen.c lsp_io_std_heap_gen.c $(TARGET) xlang-x xlang-no-c-frontend $(XLANG_C) $(TARGET)_stage1 $(TARGET)_stage2 $(TARGET)_x $(TARGET)_x_stage2 typeck_gen.c typeck_x.o codegen_gen.c codegen_x.o parser_gen.c parser_x.o driver_gen.c driver_x.o driver_fmt_gen.c driver_check_gen.c driver_test_gen.c driver_fmt_x.o driver_check_x.o driver_test_x.o pipeline_gen.c pipeline_x.o typeck_x_x.c typeck_x_x.o codegen_x_x.c codegen_x_x.o build_gen.c build_runner_gen.c build_runtime_x_gen.c build_tool.o build_runner.o build_runtime.o build_runtime_x.o build_tool runtime_panic.o xlang_asm preprocess_gen.c preprocess_x.o
-	rm -rf build_asm build build_final build_manual build_v5 build_v7
-	rm -f bootstrap_xlang xlang_asm2 xlang_x_dbg xlang_stage1_test a.out
-	rm -f .lldb_* *.bak pipeline_gen.c.bak lsp_gen.c.bak
-	rm -f 0 2>/dev/null || true
-	@for f in _*; do \
-	  case "$$f" in _stubs.c|_x_stubs.inc|_x_stubs2.c) ;; *) rm -rf "$$f" ;; esac; \
-	done 2>/dev/null || true
-	find . -name '*.o' -delete 2>/dev/null || true
-	find . -name '*.o.tmp' -delete 2>/dev/null || true
-	rm -f test_perl.txt test_pre_out.s 2>/dev/null || true
-	rm -f ../rvwbuf.tmp 2>/dev/null || true
-	find . -name '*.x.bak' -delete 2>/dev/null || true
-	rm -rf tmp_bisect 2>/dev/null || true
-	rm -f tmp_* 2>/dev/null || true
+	@TARGET='$(TARGET)' XLANG_C='$(XLANG_C)' sh scripts/clean_compiler.sh
 
 # 阶段 1 词法 + 阶段 3 类型检查 + …；依赖 xlang 与全部 std .o、runtime_panic.o，clean 后 test 会先构建再跑脚本
 # test_c：与 ../tests/run-all-c.sh 等价（C 版 xlang-c 跑整份 run-all，不含自举专用脚本）
@@ -3199,23 +3186,10 @@ first-time: build-tool
 # - 可选：XLANG_BUILD_TOOL_REGEN=1 且 ./xlang 可 -x -E 时尝试刷新 build_gen + build_runtime_x_gen
 # - build_run_asm_build 默认 `make xlang_asm`（与 relink 定稿一致）；FULL=1 → bootstrap-driver-bstrict
 # - main 调用 entry（build_runner.x），非 build_entry
+# wave718: body → scripts/build_tool.sh (G.7; xlang-build calls shell directly)
 build-tool:
-	@if [ "$${XLANG_BUILD_TOOL_REGEN:-0}" = "1" ] && [ -x ./xlang ]; then \
-	  echo "build-tool: regen build_gen + build_runtime_x_gen via ./xlang build -x -E"; \
-	  ./xlang build -x -E -L .. ../build.x > build_gen.c || cp -f seeds/build_gen.c build_gen.c; \
-	  ./xlang build -x -E -L .. ../build_runtime_x.x > build_runtime_x_gen.c || cp -f seeds/build_runtime_x_gen.c build_runtime_x_gen.c; \
-	else \
-	  cp -f seeds/build_gen.c build_gen.c; \
-	  cp -f seeds/build_runtime_x_gen.c build_runtime_x_gen.c; \
-	fi
-	cp -f seeds/build_runner_gen.c build_runner_gen.c
-	$(CC) $(CFLAGS) -Wno-unused -c build_gen.c -o build_tool.o
-	sh scripts/cc_inc_tu.sh seeds/build_tool_libc_bridge.from_x.c build_tool_libc_bridge.o
-	$(CC) $(CFLAGS) -c build_runner_gen.c -o build_runner.o
-	$(CC) $(CFLAGS) -Wno-unused -c build_runtime_x_gen.c -o build_runtime_x.o
-	sh scripts/cc_inc_tu.sh seeds/build_tool_main.from_x.c build_tool_main.o
-	$(CC) $(CFLAGS) -o build_tool build_tool_main.o build_runner.o build_tool.o build_runtime_x.o build_tool_libc_bridge.o -lc
-	@echo "build_tool OK（./build_tool ./xlang [asm|legacy]；G-05 pinned seeds）"
+	@CC='$(CC)' CFLAGS='$(CFLAGS)' XLANG_BUILD_TOOL_REGEN="$${XLANG_BUILD_TOOL_REGEN:-0}" \
+	  sh scripts/build_tool.sh
 
 src/build_tool_main.o: seeds/build_tool_main.from_x.c scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh seeds/build_tool_main.from_x.c $@

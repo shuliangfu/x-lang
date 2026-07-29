@@ -3,10 +3,12 @@
 #
 # 分层：
 #   1) 日常编译器：build.x + compiler/build_tool
-#      → scripts/g05_build_xlang_asm.sh → make xlang_asm（relink 金标准）
+#      → scripts/g05_build_xlang_asm.sh → g05 relink（产品 0-make）
 #   2) 测试 / 内核 / gate：仍委托 compiler/Makefile 或 tests/*.sh
-#   3) compiler/Makefile：冷启动、relink 依赖图、CI 历史目标 — 实现层兜底
+#   3) compiler/Makefile：冷启动依赖图 / 对象清单 — 实现层兜底
 #   4) 根 Makefile：薄包装，委托本脚本（勿再直调 compiler/ 作日常入口）
+#
+# wave718 (11.0.3)：build-tool / clean 直调 shell 权威，不再 make -C 这两项。
 #
 # 用法: ./xlang-build.sh <target>
 # 例:   ./xlang-build.sh build
@@ -18,10 +20,15 @@ cd "$(dirname "$0")"
 
 TARGET="${1:-all}"
 
+# G.7: scripts/build_tool.sh is the only build_tool body (Makefile thin leaf).
+run_build_tool_host() {
+  (cd compiler && sh scripts/build_tool.sh)
+}
+
 ensure_build_tool() {
   if [ ! -x compiler/build_tool ]; then
-    echo "xlang-build: compiler/build_tool missing → make -C compiler build-tool"
-    make -C compiler build-tool
+    echo "xlang-build: compiler/build_tool missing → scripts/build_tool.sh"
+    run_build_tool_host
   fi
 }
 
@@ -34,7 +41,7 @@ run_build_tool() {
 case "$TARGET" in
   # === 编译器（G-05 日常）===
   all|build|xlang)
-    # 默认路径：make xlang_asm（relink 定稿）；见 build_tool_libc_bridge.c
+    # 默认路径：build_tool → g05 relink；见 build_tool_libc_bridge
     run_build_tool
     ;;
   xlang-asm|asm)
@@ -42,7 +49,7 @@ case "$TARGET" in
     run_build_tool asm
     ;;
   full|bstrict)
-    # 全量 B-strict（脚本 + refresh）；较慢
+    # 全量 B-strict（脚本 + refresh）；较慢；FULL 仍可能 make bstrict（非日常）
     ensure_build_tool
     (cd compiler && XLANG_BUILD_TOOL_FULL=1 ./build_tool ./xlang asm)
     ;;
@@ -51,18 +58,19 @@ case "$TARGET" in
     run_build_tool legacy
     ;;
   build-tool)
-    make -C compiler build-tool
+    run_build_tool_host
     ;;
   first-time|bootstrap)
-    # 冷启动：pinned seeds → build_tool，再日常 relink
-    make -C compiler build-tool
+    # pinned seeds → build_tool shell，再日常 relink
+    run_build_tool_host
     run_build_tool
     ;;
   clean)
-    make -C compiler clean
+    # G.7: scripts/clean_compiler.sh（Makefile clean 同调）
+    (cd compiler && sh scripts/clean_compiler.sh)
     ;;
 
-  # === 编译器测试（Makefile 兜底）===
+  # === 编译器测试（Makefile 兜底 — 仍 make：依赖图 + 历史目标）===
   test)
     make -C compiler test
     ;;
@@ -160,9 +168,9 @@ xlang-build.sh — 统一构建入口（G-05）
   xlang-asm / asm       同上，显式 asm 子命令
   full / bstrict       全量 B-strict（XLANG_BUILD_TOOL_FULL=1）
   legacy               build_tool legacy 逐步路径
-  build-tool           仅重建 compiler/build_tool（pinned seeds）
-  first-time           make build-tool + 日常构建
-  clean                make -C compiler clean
+  build-tool           scripts/build_tool.sh（pinned seeds；无 make）
+  first-time           build_tool.sh + 日常构建
+  clean                scripts/clean_compiler.sh（无 make）
 
 测试 / 自举（Makefile 兜底）:
   test / test_c / test_x

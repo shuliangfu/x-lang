@@ -24,7 +24,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "=== 11.0.2/11.0.3 product-path 0-make static gate (wave714–717) ==="
+echo "=== 11.0.2/11.0.3 product-path 0-make static gate (wave714–718) ==="
 
 fail=0
 note() { echo "  OK  $*"; }
@@ -182,16 +182,44 @@ if [ "$new_hits" -eq 0 ]; then
 fi
 
 # --- xlang-build.sh: product default must not hard-require make for build when build_tool exists ---
-# Contract text: build path uses build_tool; make only for build-tool/first-time/clean/test*
+# Contract: daily build via build_tool; wave718 build-tool/clean pure shell
 if grep -q 'run_build_tool' xlang-build.sh || grep -q 'build_tool' xlang-build.sh; then
   note "xlang-build.sh routes daily build via build_tool"
 else
   bad "xlang-build.sh missing build_tool daily path"
 fi
 
-# inventory remaining make -C in xlang-build (informational; not hard-fail yet)
+# wave718: build-tool / clean authority → shell (no make -C for those targets)
+if [ ! -f compiler/scripts/build_tool.sh ]; then
+  bad "missing compiler/scripts/build_tool.sh (11.0.3 wave718)"
+elif ! grep -q 'scripts/build_tool\.sh' compiler/Makefile; then
+  bad "Makefile build-tool must call scripts/build_tool.sh"
+elif ! grep -q 'scripts/build_tool\.sh' xlang-build.sh; then
+  bad "xlang-build.sh must call scripts/build_tool.sh (not make -C build-tool)"
+elif grep -nE 'make -C compiler build-tool' xlang-build.sh | grep -vE '^[0-9]+:[ \t]*#' | grep -q .; then
+  bad "xlang-build.sh still has make -C compiler build-tool (must be shell)"
+else
+  note "build-tool → scripts/build_tool.sh (Makefile + xlang-build)"
+fi
+
+if [ ! -f compiler/scripts/clean_compiler.sh ]; then
+  bad "missing compiler/scripts/clean_compiler.sh (11.0.3 wave718)"
+elif ! grep -q 'scripts/clean_compiler\.sh' compiler/Makefile; then
+  bad "Makefile clean must call scripts/clean_compiler.sh"
+elif ! grep -q 'scripts/clean_compiler\.sh' xlang-build.sh; then
+  bad "xlang-build.sh clean must call scripts/clean_compiler.sh"
+elif grep -nE 'make -C compiler clean' xlang-build.sh | grep -vE '^[0-9]+:[ \t]*#' | grep -q .; then
+  bad "xlang-build.sh still has make -C compiler clean (must be shell)"
+else
+  note "clean → scripts/clean_compiler.sh (Makefile + xlang-build)"
+fi
+
+# remaining make -C: test* / bootstrap-* only (hard-fail if >7 after wave718)
 xb_make=$(grep -cE 'make -C compiler' xlang-build.sh || true)
-echo "  INFO xlang-build.sh make -C compiler sites: ${xb_make:-0} (expected: build-tool/first-time/clean/test*; shrink in 11.0.3)"
+echo "  INFO xlang-build.sh make -C compiler sites: ${xb_make:-0} (wave718 target ≤7: test*/bootstrap-*)"
+if [ "${xb_make:-0}" -gt 7 ]; then
+  bad "xlang-build.sh make -C sites ${xb_make} > 7 (expected wave718 shrink: only test*/bootstrap-*)"
+fi
 
 # --- migration table exists and mentions classes ---
 if grep -q '11.0.1' analysis/Makefile迁移表.md && grep -q 'xbuild link-product' analysis/Makefile迁移表.md; then
