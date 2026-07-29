@@ -935,11 +935,17 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
       out->num_params = param_idx + 1;
       parser_lex_from_next_into_glue(&lex, r);
       r = lexer_next_buf(lex, data, len);
-      if (r.tok.kind == (int32_t)TOKEN_RPAREN) {
-        parser_lex_from_next_into_glue(&lex, r);
-        break;
-      }
+      /*
+       * wave676 Cap residual: do not accept bare `name)` as untyped formal.
+       * Prior soft residual: RPAREN without `: Type` → param_type_ref left 0 →
+       * `function bad(x): i32` compiled green. Require `: Type` always.
+       * wave493 untyped self remains non-product (skip) — still needs `: Type`
+       * or fails here with P011 (clearer than typeck `found ?`).
+       * PLATFORM: SHARED parse.
+       */
       if (r.tok.kind != (int32_t)TOKEN_COLON) {
+        extern void parser_report_untyped_formal_p011_c(int32_t line, int32_t col, int32_t kind);
+        parser_report_untyped_formal_p011_c((int32_t)r.tok.line, (int32_t)r.tok.col, 0);
         parser_asm_set_onefunc_fail_c(out, lex);
         return;
       }
@@ -968,7 +974,10 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
     }
   }
   r = lexer_next_buf(lex, data, len);
+  /* wave676: missing return `: Type` after `)` was silent set_onefunc_fail. */
   if (r.tok.kind != (int32_t)TOKEN_COLON) {
+    extern void parser_report_untyped_formal_p011_c(int32_t line, int32_t col, int32_t kind);
+    parser_report_untyped_formal_p011_c((int32_t)r.tok.line, (int32_t)r.tok.col, 1);
     parser_asm_set_onefunc_fail_c(out, lex);
     return;
   }

@@ -3488,6 +3488,30 @@ export function parse_type_ref_for_arena_into(arena: *ASTArena, lex: Lexer, sour
 export extern function parser_report_untyped_binding_p010_c(line: i32, col: i32, is_let: i32): void;
 
 /**
+ * wave676: emit parse error[P011] for untyped function param or missing return type.
+ * Also sets sticky sig-type hard flag so parse_into_buf aborts (no silent drop).
+ * G.7: product C authority is parser_report_untyped_formal_p011_c (body_tl_slice).
+ * @param line i32 — 1-based line of unexpected token
+ * @param col i32 — 1-based column
+ * @param kind i32 — 0 = param missing `: Type`; 1 = missing return `: Type`
+ * PLATFORM: SHARED parse.
+ */
+export extern function parser_report_untyped_formal_p011_c(line: i32, col: i32, kind: i32): void;
+
+/**
+ * wave676: clear sticky P011 sig-type hard flag (call at parse_into_buf entry).
+ * PLATFORM: SHARED parse.
+ */
+export extern function parser_sig_type_hard_reset_c(): void;
+
+/**
+ * wave676: non-zero if P011 was reported during this parse_into_buf scan.
+ * @return i32 — 0 = ok; non-zero = must hard-abort (ok=-2)
+ * PLATFORM: SHARED parse.
+ */
+export extern function parser_sig_type_hard_pending_c(): i32;
+
+/**
  * Wrapper: bool is_let → C is_let int flag for P010.
  * @param line i32
  * @param col i32
@@ -5426,7 +5450,13 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       out.num_params = param_idx + 1;
       lex_from_next_into(&lex, r);
       lexer.lexer_next_into(&r, lex, source);
+      /*
+       * wave676 Cap residual: param must be `name: Type`. Missing COLON was
+       * silent set_onefunc_fail → function dropped (soft residual). P011 hard.
+       * PLATFORM: SHARED parse.
+       */
       if (r.tok.kind != token.TokenKind.TOKEN_COLON) {
+        parser_report_untyped_formal_p011_c(r.tok.line, r.tok.col, 0);
         set_onefunc_fail(out_ref, lex); return;
       }
       lex_from_next_into(&lex, r);
@@ -5458,7 +5488,12 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     }
   }
   lexer.lexer_next_into(&r, lex, source);
+  /*
+   * wave676: `): Type` required after param list. Missing return type was silent drop.
+   * PLATFORM: SHARED parse.
+   */
   if (r.tok.kind != token.TokenKind.TOKEN_COLON) {
+    parser_report_untyped_formal_p011_c(r.tok.line, r.tok.col, 1);
     set_onefunc_fail(out_ref, lex); return;
   }
   lex_from_next_into(&lex, r);
@@ -10521,6 +10556,8 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
   lexer.lexer_invalid_escape_reset();
   lexer.lexer_string_lit_overflow_reset();
   lexer.lexer_ident_too_long_reset();
+  /* wave676: clear sticky P011 so a prior file cannot poison this parse. */
+  parser_sig_type_hard_reset_c();
   /* wave421/wave425: trait method + impl-seen tables; stash arena for ret kinds. */
   xlang_trait_reg_reset_c(arena);
   let lex: Lexer = lexer.lexer_init();
@@ -10867,9 +10904,22 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     }
     parse_one_function_impl(&res, arena, lex, slice_for_impl);
     if (!res.ok) {
-      parse_one_function_buf_into(&res, arena, lex_at_function_buf, data, len);
+      /* wave676: skip buf retry when P011 already sticky (avoid double diag). */
+      if (parser_sig_type_hard_pending_c() == 0) {
+        parse_one_function_buf_into(&res, arena, lex_at_function_buf, data, len);
+      }
     }
     if (!res.ok) {
+      /*
+       * wave676 Cap residual: P011 untyped formal / missing return type must not
+       * soft-skip the function and continue (was silent drop → false green when
+       * main remains). G.7: sticky from parser_report_untyped_formal_p011_c.
+       * PLATFORM: SHARED parse.
+       */
+      if (parser_sig_type_hard_pending_c() != 0) {
+        ast_pool_onefunc_release(onefunc_result_pool_ptr(&res));
+        return ParseIntoResult { ok: -2, main_idx: -1 };
+      }
       let skip_name: u8[128] = [0];
       let skip_nlen: i32 = parse_peek_function_name_buf(lex_at_function_buf, data, len, &skip_name[0]);
       parser_diagnostic_parse_skip((lex_at_function_buf.pos) as i32, module.num_funcs, skip_nlen, &skip_name[0]);

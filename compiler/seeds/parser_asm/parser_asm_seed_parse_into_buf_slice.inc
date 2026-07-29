@@ -2656,6 +2656,12 @@ static int32_t parser_asm_seed_parse_impl_and_add_c(void *arena, void *module, s
     if (!res.ok)
       parser_asm_parse_one_function_buf_into_c(&res, arena, fn_start, data, len);
     if (!res.ok) {
+      /* wave676: P011 sticky → hard abort (same as main parse_into_buf loop). */
+      {
+        extern int32_t parser_sig_type_hard_pending_c(void);
+        if (parser_sig_type_hard_pending_c() != 0)
+          return -2;
+      }
       parser_skip_one_function_full_into_buf_glue(&body, fn_start, data, len);
       if (body.pos == fn_start.pos && body.pos < (size_t)len)
         body.pos++;
@@ -2689,6 +2695,12 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
   out.main_idx = -1;
   if (!arena || !module || !data || len <= 0)
     return out;
+
+  /* wave676: clear sticky P011 so a prior file cannot poison this parse. */
+  {
+    extern void parser_sig_type_hard_reset_c(void);
+    parser_sig_type_hard_reset_c();
+  }
 
   /* wave421/wave425: per-module trait method registry (+ ret kinds; stash arena). */
   xlang_trait_reg_reset_c(arena);
@@ -3837,9 +3849,27 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
       }
       res = parser_asm_seed_onefunc_wired_c(lex);
       parser_parse_one_function_impl(&res, arena, lex, &slice);
-      if (!res.ok)
-        parser_asm_parse_one_function_buf_into_c(&res, arena, lex_at_function, data, len);
       if (!res.ok) {
+        /* wave676: skip buf retry when P011 already sticky (avoid double diag). */
+        extern int32_t parser_sig_type_hard_pending_c(void);
+        if (parser_sig_type_hard_pending_c() == 0)
+          parser_asm_parse_one_function_buf_into_c(&res, arena, lex_at_function, data, len);
+      }
+      if (!res.ok) {
+        /*
+         * wave676 Cap residual: P011 untyped formal / missing return type must not
+         * soft-skip+continue (silent drop → false green when main remains).
+         * G.7: sticky from parser_report_untyped_formal_p011_c.
+         * PLATFORM: SHARED parse.
+         */
+        {
+          extern int32_t parser_sig_type_hard_pending_c(void);
+          if (parser_sig_type_hard_pending_c() != 0) {
+            out.ok = -2;
+            out.main_idx = -1;
+            return out;
+          }
+        }
         /* 与 parser.x parse_into_buf 一致：跳过前打印函数名，供 A-11 typeck 截断 bisect。 */
         {
           uint8_t skip_name[64];

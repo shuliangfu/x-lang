@@ -38,6 +38,38 @@ void parser_report_untyped_binding_p010_c(int32_t line, int32_t col, int32_t is_
   }
 }
 
+/*
+ * wave676 Cap residual: hard P011 for untyped function formals / missing return type.
+ * Root: parse_one_function set_onefunc_fail with no diag → function dropped from AST;
+ * buf path accepted `fn(x): i32` (RPAREN without param `: Type`) → typeck/codegen green.
+ * G.7 authority: this helper + call sites in parser.x / parser_gen / one_function_buf_slice.
+ * Sticky flag: parse_into_buf must abort (ok=-2) instead of soft-skip+continue.
+ * @param line 1-based source line of the unexpected token
+ * @param col  1-based column
+ * @param kind 0 = param missing `: Type`; 1 = function missing return `: Type`
+ * PLATFORM: SHARED parse.
+ */
+static int32_t g_parser_sig_type_hard = 0;
+
+void parser_sig_type_hard_reset_c(void) { g_parser_sig_type_hard = 0; }
+
+int32_t parser_sig_type_hard_pending_c(void) { return g_parser_sig_type_hard; }
+
+void parser_report_untyped_formal_p011_c(int32_t line, int32_t col, int32_t kind) {
+  extern void diag_report_with_code(const char *file, int32_t line, int32_t col, const char *kind_s,
+                                    const char *code, const char *msg, const char *detail);
+  g_parser_sig_type_hard = 1;
+  if (kind == 0) {
+    diag_report_with_code(NULL, line, col, "parse error", "P011",
+                          "function parameter requires type annotation (write name: Type)",
+                          NULL);
+  } else {
+    diag_report_with_code(NULL, line, col, "parse error", "P011",
+                          "function requires return type annotation (write ): Type { ... })",
+                          NULL);
+  }
+}
+
 /* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t parser_asm_is_fn_sig_scalar_type_token_c(int32_t kind) {
   return kind == (int32_t)TOKEN_I32 || kind == (int32_t)TOKEN_I64 || kind == (int32_t)TOKEN_BOOL

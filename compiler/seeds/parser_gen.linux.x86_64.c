@@ -4562,7 +4562,10 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
         (void)(((out->num_params) = (param_idx + 1)));
         (void)(parser_lex_from_next_into(&(lex), r));
         (void)(lexer_next_into(&(r), lex, source));
+        /* wave676: param requires `: Type`; silent set_onefunc_fail was soft residual. */
         if ((((r.tok).kind) !=91)) {
+          extern void parser_report_untyped_formal_p011_c(int32_t line, int32_t col, int32_t kind);
+          (void)(parser_report_untyped_formal_p011_c((int32_t)((r.tok).line), (int32_t)((r.tok).col), 0));
           (void)(parser_set_onefunc_fail(out_ref, lex));
           return;
         }
@@ -4593,7 +4596,10 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
       }
     }
     (void)(lexer_next_into(&(r), lex, source));
+    /* wave676: `): Type` required; missing return type was silent drop. */
     if ((((r.tok).kind) !=91)) {
+      extern void parser_report_untyped_formal_p011_c(int32_t line, int32_t col, int32_t kind);
+      (void)(parser_report_untyped_formal_p011_c((int32_t)((r.tok).line), (int32_t)((r.tok).col), 1));
       (void)(parser_set_onefunc_fail(out_ref, lex));
       return;
     }
@@ -8023,6 +8029,11 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
     lexer_invalid_escape_reset();
   lexer_string_lit_overflow_reset();
   lexer_ident_too_long_reset();
+    /* wave676: clear sticky P011 so a prior file cannot poison this parse. */
+    {
+      extern void parser_sig_type_hard_reset_c(void);
+      parser_sig_type_hard_reset_c();
+    }
     /* wave421/wave425: trait registry + stash arena for return type kind checks. */
     {
       extern void xlang_trait_reg_reset_c(void *arena);
@@ -8330,9 +8341,21 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
       }
       (void)(parser_parse_one_function_impl(&(res), arena, lex, &(slice_for_impl)));
       if (!((res.ok))) {
-        (void)(parser_parse_one_function_buf_into(&(res), arena, lex_at_function_buf, data, len));
+        /* wave676: if P011 already sticky, skip buf retry (avoids double P011 diag). */
+        extern int32_t parser_sig_type_hard_pending_c(void);
+        if (parser_sig_type_hard_pending_c() == 0) {
+          (void)(parser_parse_one_function_buf_into(&(res), arena, lex_at_function_buf, data, len));
+        }
       }
       if (!((res.ok))) {
+        /* wave676: P011 sticky → hard abort (no soft-skip false green). PLATFORM: SHARED. */
+        {
+          extern int32_t parser_sig_type_hard_pending_c(void);
+          if (parser_sig_type_hard_pending_c() != 0) {
+            (void)(ast_pool_onefunc_release(parser_onefunc_result_pool_ptr(&(res))));
+            return (struct parser_ParseIntoResult){ .ok = -(2), .main_idx = -(1) };
+          }
+        }
         uint8_t skip_name[128] = {0};
         int32_t skip_nlen = parser_parse_peek_function_name_buf(lex_at_function_buf, data, len, &((skip_name)[0]));
         (void)(parser_diagnostic_parse_skip(((int32_t)((lex_at_function_buf.pos))), (module->num_funcs), skip_nlen, &((skip_name)[0])));
