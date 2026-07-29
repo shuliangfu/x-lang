@@ -4305,8 +4305,57 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
      * the layout was `struct Pt` / `struct mod_Pt`, and locals vs formals dual-tagged.
      * Scalar i8/i16/u16 still go through type_to_c_repr (stdint map, wave619).
      * PLATFORM: SHARED host-C. G.7: single tag authority with struct emit.
+     *
+     * wave689 Cap residual: free []T mono ret/body.
+     * Identity map keys the formal's TYPE_SLICE node; ret/body use distinct []T
+     * nodes so C5 type_ref equality fails. TYPE_SLICE NAMED-elem path never
+     * recurses emit_type(elem) (unlike TYPE_PTR), so wave688 free-T peels still
+     * leave ret as incomplete `struct xlang_slice_<mod>_T` (by-value BLD001;
+     * pointer ret is false-green incomplete struct *). Structural match: mono
+     * gen TYPE_SLICE whose free TYPE_NAMED leaf name equals this type_ref's free
+     * leaf → emit concrete ([]i32 → struct xlang_slice_int32_t). G.7: complete
+     * same emit_type authority (not a second subst path).
      */
     if (tk == TypeKind.TYPE_SLICE && !ast.ref_is_null(elem_ref)) {
+      if (ctx != 0 as *PipelineDepCtx && ctx.mono_active != 0 && ctx.mono_num_types > 0) {
+        if (pipeline_type_kind_ord_at(arena, elem_ref) == (TypeKind.TYPE_NAMED as i32)) {
+          let cur_sl_nm: u8[128] = [];
+          let cur_sl_nl: i32 = pipeline_type_named_name_into(arena, elem_ref, &cur_sl_nm[0]);
+          if (cur_sl_nl > 0) {
+            let mi_sl: i32 = 0;
+            while (mi_sl < ctx.mono_num_types && mi_sl < 8) {
+              let g_sl: i32 = ctx.mono_generic_type_refs[mi_sl];
+              let c_sl: i32 = ctx.mono_concrete_type_refs[mi_sl];
+              if (c_sl > 0 && c_sl != type_ref && g_sl > 0
+                  && pipeline_type_kind_ord_at(arena, g_sl) == (TypeKind.TYPE_SLICE as i32)
+                  && pipeline_type_kind_ord_at(arena, c_sl) == (TypeKind.TYPE_SLICE as i32)) {
+                let e_gen_sl: i32 = pipeline_type_elem_ref_at(arena, g_sl);
+                if (e_gen_sl > 0
+                    && pipeline_type_kind_ord_at(arena, e_gen_sl) == (TypeKind.TYPE_NAMED as i32)) {
+                  let g_sl_nm: u8[128] = [];
+                  let g_sl_nl: i32 = pipeline_type_named_name_into(arena, e_gen_sl, &g_sl_nm[0]);
+                  if (g_sl_nl == cur_sl_nl && g_sl_nl > 0) {
+                    let eq_sl: i32 = 1;
+                    let ci_sl: i32 = 0;
+                    while (ci_sl < g_sl_nl) {
+                      if (g_sl_nm[ci_sl] != cur_sl_nm[ci_sl]) {
+                        eq_sl = 0;
+                        ci_sl = g_sl_nl;
+                      } else {
+                        ci_sl = ci_sl + 1;
+                      }
+                    }
+                    if (eq_sl != 0) {
+                      return emit_type(arena, out, c_sl, struct_prefix, struct_prefix_len, ctx);
+                    }
+                  }
+                }
+              }
+              mi_sl = mi_sl + 1;
+            }
+          }
+        }
+      }
       let ek: i32 = pipeline_type_kind_ord_at(arena, elem_ref);
       if (ek == (TypeKind.TYPE_NAMED as i32)) {
         let enm: u8[128] = [];
@@ -17244,6 +17293,28 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
                   cwalk = ce;
                   pdepth = pdepth + 1;
                 } else {
+                  /*
+                   * wave689: also map intermediate free compounds ([]T inside *[]T).
+                   * Without this, mono only has *[]T→*[]i32 and T→i32; ret *[]T peels
+                   * to emit_type([]T) with a distinct free []T node that never identity-
+                   * matches formal's *[]T entry → incomplete `struct xlang_slice_<mod>_T *`.
+                   * PLATFORM: SHARED host-C.
+                   */
+                  let dup_mid: i32 = 0;
+                  let di_mid: i32 = 0;
+                  while (di_mid < ctx.mono_num_types) {
+                    if (ctx.mono_generic_type_refs[di_mid] == ge) {
+                      dup_mid = 1;
+                      di_mid = ctx.mono_num_types;
+                    } else {
+                      di_mid = di_mid + 1;
+                    }
+                  }
+                  if (dup_mid == 0 && ctx.mono_num_types < 8) {
+                    ctx.mono_generic_type_refs[ctx.mono_num_types] = ge;
+                    ctx.mono_concrete_type_refs[ctx.mono_num_types] = ce;
+                    ctx.mono_num_types = ctx.mono_num_types + 1;
+                  }
                   gwalk = ge;
                   cwalk = ce;
                   pdepth = pdepth + 1;

@@ -4989,6 +4989,53 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
       return codegen_append_byte(out, 42);
     }
     if (((tk ==11) && !(ast_ref_is_null(elem_ref)))) {
+      /*
+       * wave689 Cap residual: free []T mono ret/body (G.7 twin of codegen.x).
+       * Identity map keys formal's TYPE_SLICE node; ret/body use distinct []T
+       * nodes so C5 type_ref equality fails. TYPE_SLICE NAMED-elem path never
+       * recurses emit_type(elem) (unlike TYPE_PTR) → incomplete
+       * `struct xlang_slice_<mod>_T` (by-value BLD001; *[]T false-green).
+       * Structural match: mono gen TYPE_SLICE free leaf name == this free leaf
+       * → emit concrete. PLATFORM: SHARED host-C.
+       */
+      if (((ctx != ((struct ast_PipelineDepCtx *)(0))) && (ctx->mono_active != 0) && (ctx->mono_num_types > 0))) {
+        if ((pipeline_type_kind_ord_at(arena, elem_ref) == 8 /* TYPE_NAMED */)) {
+          uint8_t cur_sl_nm[128] = {};
+          int32_t cur_sl_nl = pipeline_type_named_name_into(arena, elem_ref, &((cur_sl_nm)[0]));
+          if ((cur_sl_nl > 0)) {
+            int32_t mi_sl = 0;
+            while (((mi_sl < ctx->mono_num_types) && (mi_sl < 8))) {
+              int32_t g_sl = ctx->mono_generic_type_refs[mi_sl];
+              int32_t c_sl = ctx->mono_concrete_type_refs[mi_sl];
+              if (((c_sl > 0) && (c_sl != type_ref) && (g_sl > 0)
+                  && (pipeline_type_kind_ord_at(arena, g_sl) == 11 /* TYPE_SLICE */)
+                  && (pipeline_type_kind_ord_at(arena, c_sl) == 11 /* TYPE_SLICE */))) {
+                int32_t e_gen_sl = pipeline_type_elem_ref_at(arena, g_sl);
+                if (((e_gen_sl > 0) && (pipeline_type_kind_ord_at(arena, e_gen_sl) == 8 /* TYPE_NAMED */))) {
+                  uint8_t g_sl_nm[128] = {};
+                  int32_t g_sl_nl = pipeline_type_named_name_into(arena, e_gen_sl, &((g_sl_nm)[0]));
+                  if (((g_sl_nl == cur_sl_nl) && (g_sl_nl > 0))) {
+                    int32_t eq_sl = 1;
+                    int32_t ci_sl = 0;
+                    while ((ci_sl < g_sl_nl)) {
+                      if (((g_sl_nm)[ci_sl] != (cur_sl_nm)[ci_sl])) {
+                        eq_sl = 0;
+                        ci_sl = g_sl_nl;
+                      } else {
+                        ci_sl = (ci_sl + 1);
+                      }
+                    }
+                    if ((eq_sl != 0)) {
+                      return codegen_emit_type(arena, out, c_sl, struct_prefix, struct_prefix_len, ctx);
+                    }
+                  }
+                }
+              }
+              mi_sl = (mi_sl + 1);
+            }
+          }
+        }
+      }
       /* wave624: NAMED user elem → ctx-aware fat tag (not empty-prefix ast_). */
       int32_t ek = pipeline_type_kind_ord_at(arena, elem_ref);
       if ((ek == 8)) {
@@ -16211,6 +16258,25 @@ int32_t codegen_try_emit_generic_identity_mono(struct ast_ASTArena * arena, stru
                     cwalk = ce;
                     pdepth = pdepth + 1;
                   } else {
+                    /* wave689: map intermediate free compounds ([]T inside *[]T).
+                     * G.7 twin of codegen.x — without this, *[]T mono only maps
+                     * outer PTR + free T leaf; ret *[]T peels to free []T node
+                     * that never identity-matches. PLATFORM: SHARED host-C. */
+                    int32_t dup_mid = 0;
+                    int32_t di_mid = 0;
+                    while (di_mid < ctx->mono_num_types) {
+                      if (ctx->mono_generic_type_refs[di_mid] == ge) {
+                        dup_mid = 1;
+                        di_mid = ctx->mono_num_types;
+                      } else {
+                        di_mid = di_mid + 1;
+                      }
+                    }
+                    if (dup_mid == 0 && ctx->mono_num_types < 8) {
+                      ctx->mono_generic_type_refs[ctx->mono_num_types] = ge;
+                      ctx->mono_concrete_type_refs[ctx->mono_num_types] = ce;
+                      ctx->mono_num_types = ctx->mono_num_types + 1;
+                    }
                     gwalk = ge;
                     cwalk = ce;
                     pdepth = pdepth + 1;
