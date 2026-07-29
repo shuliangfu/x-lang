@@ -3029,6 +3029,34 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
         }
         return -1;
       }
+      /*
+       * wave672 Cap residual: TYPE_ARRAY (10) / TYPE_SLICE (11) same-kind weak score
+       * must require matching element types. Prior: `ak==pk` returned 1 for bool[2]
+       * vs i32[2] → free-fn call `f([true,false])` false-green after resolve.
+       * G.7: complete this score authority (PTR already checks pointee above).
+       * PLATFORM: SHARED — keep strict_minimal arg score aligned.
+       */
+      if (ak == 10 && pk == 10) {
+        let ae_a: i32 = pipeline_type_elem_ref_at(caller_arena, arg_ty);
+        let pe_a: i32 = pipeline_type_elem_ref_at(caller_arena, param_ty);
+        let asz: i32 = pipeline_type_array_size_at(caller_arena, arg_ty);
+        let psz: i32 = pipeline_type_array_size_at(caller_arena, param_ty);
+        if (ae_a > 0 && pe_a > 0
+        && pipeline_typeck_type_refs_equal_c(caller_arena, ae_a, pe_a) != 0
+        && (asz <= 0 || psz <= 0 || asz == psz)) {
+          return 1000;
+        }
+        return -1;
+      }
+      if (ak == 11 && pk == 11) {
+        let ae_s: i32 = pipeline_type_elem_ref_at(caller_arena, arg_ty);
+        let pe_s: i32 = pipeline_type_elem_ref_at(caller_arena, param_ty);
+        if (ae_s > 0 && pe_s > 0
+        && pipeline_typeck_type_refs_equal_c(caller_arena, ae_s, pe_s) != 0) {
+          return 1000;
+        }
+        return -1;
+      }
       if (ak == pk && ak != 0) {
         return 1;
       }
@@ -4575,11 +4603,12 @@ decl_kind: i32): i32 {
 
 /**
  * Coerce ARRAY_LIT elements to the element type of a fixed array or slice decl.
- * Stamps the literal's resolved_type_ref to decl_ty_ref (TYPE_ARRAY or TYPE_SLICE).
+ * Stamps the literal's resolved_type_ref to decl_ty_ref (TYPE_ARRAY or TYPE_SLICE)
+ * only when every known element matches (or widens into) the element decl type.
  * @param arena *ASTArena — expression/type pool
  * @param init_ref i32 — EXPR_ARRAY_LIT ref
  * @param decl_ty_ref i32 — TYPE_ARRAY (T[N]) or TYPE_SLICE (T[]) declaration type
- * @return i32 — 1 if handled, 0 if not applicable, -1 on nested failure
+ * @return i32 — 1 if handled, 0 if not applicable, -1 on nested failure or elem mismatch
  * PLATFORM: SHARED — wave328: TYPE_SLICE so host emit uses slice compound, not uint8_t[] fallback.
  *
  * wave617 Cap residual pure: also stamp bare FLOAT_LIT / `-float` elems to f32/f64.
@@ -4589,6 +4618,12 @@ decl_kind: i32): i32 {
  * (host-C braces hide; `as f32` cast elems already green via EXPR_AS force_ty).
  * G.7: reuse typeck_coerce_init_float_lit_to_decl (wave316 let/assign/return) — no second
  * float-coerce authority. PLATFORM: SHARED typeck · LINUX pure-asm gold.
+ *
+ * wave672 Cap residual: prior path stamped the outer ARRAY_LIT as decl even when an
+ * element stayed bool/f32/struct after lit/float coerce → let/assign/call false-green
+ * (`let a:i32[2]=[true,false]` run=1). Hard-fail known elem mismatch; do not stamp outer
+ * on failure. Soft-skip still-unknown elem_ty (incomplete resolve). LANG-006 bool→int
+ * is scalar let/const only — not array elems.
  */
 export function typeck_coerce_array_lit_elem_types_to_decl(arena: *ASTArena, init_ref: i32,
 decl_ty_ref: i32): i32 {
@@ -4602,6 +4637,12 @@ decl_ty_ref: i32): i32 {
     let elem_decl_kind: i32 = 0;
     let num_elems: i32 = 0;
     let i: i32 = 0;
+    let eb: *u8 = 0 as *u8;
+    let gb: *u8 = 0 as *u8;
+    let el: i32 = 0;
+    let gl: i32 = 0;
+    let err_line: i32 = 0;
+    let err_col: i32 = 0;
     if (ast.ref_is_null(init_ref) || ast.ref_is_null(decl_ty_ref)) {
       return 0;
     }
@@ -4625,6 +4666,7 @@ decl_ty_ref: i32): i32 {
       let elem_ref: i32 = pipeline_expr_array_lit_elem_ref(arena, init_ref, i);
       let elem_kind: i32 = 0;
       let elem_ty: i32 = 0;
+      let got_kind: i32 = 0;
       if (ast.ref_is_null(elem_ref)) {
         i = i + 1;
         continue;
@@ -4639,10 +4681,25 @@ decl_ty_ref: i32): i32 {
         /* wave617: f32/f64 ARRAY_LIT elems — same stamp as scalar let f32 = 10.0. */
         typeck_coerce_init_float_lit_to_decl(arena, elem_ref, elem_decl_ref, elem_decl_kind, elem_kind);
         elem_ty = expr_type_ref(arena, elem_ref);
-        if (!ast.ref_is_null(elem_ty)) {
+        if (!ast.ref_is_null(elem_ty) && elem_ty > 0) {
+          got_kind = pipeline_type_kind_ord_at(arena, elem_ty);
           if (type_refs_equal(arena, elem_ty, elem_decl_ref)
-          || typeck_integer_widen_ok_refs(arena, elem_decl_ref, elem_ty)) {
+          || typeck_integer_widen_ok_refs(arena, elem_decl_ref, elem_ty)
+          || typeck_float_widen_ok(elem_decl_kind, got_kind)) {
             pipeline_expr_set_resolved_type_ref(arena, elem_ref, elem_decl_ref);
+          } else {
+            /*
+             * wave672: known elem type does not match array/slice element decl.
+             * Do not stamp outer ARRAY_LIT as decl (that was the false-green).
+             */
+            eb = driver_typeck_diag_scratch_expect();
+            gb = driver_typeck_diag_scratch_found();
+            el = typeck_diag_fmt_type_into(arena, elem_decl_ref, eb, 96);
+            gl = typeck_diag_fmt_type_into(arena, elem_ty, gb, 96);
+            err_line = pipeline_expr_line_at(arena, elem_ref);
+            err_col = pipeline_expr_col_at(arena, elem_ref);
+            driver_diagnostic_typeck_assign_mismatch(0, err_line, err_col, eb, el, gb, gl);
+            return -1;
           }
         }
       }
@@ -4934,9 +4991,19 @@ decl_ty_ref: i32): i32 {
     if (typeck_coerce_init_resolved_alias_to_decl(module, arena, init_ref, decl_ty_ref, decl_kind) != 0) {
       return 1;
     }
-    if (typeck_coerce_init_array_vector_lit_to_decl(arena, init_ref, decl_ty_ref, decl_kind,
-    init_kind) != 0) {
-      return 1;
+    /*
+     * wave672: array-lit coerce returns -1 on known elem mismatch — propagate so
+     * let/const do not soft-skip unstamped init_ty and false-green.
+     */
+    {
+      let arr_c: i32 = typeck_coerce_init_array_vector_lit_to_decl(arena, init_ref, decl_ty_ref,
+      decl_kind, init_kind);
+      if (arr_c < 0) {
+        return -1;
+      }
+      if (arr_c != 0) {
+        return 1;
+      }
     }
     if (typeck_coerce_init_vector_binop_to_decl(arena, init_ref, decl_ty_ref, decl_kind,
     init_kind) != 0) {
@@ -7740,9 +7807,17 @@ return_type_ref: i32, ctx: *PipelineDepCtx, field_i: i32, num_fields: i32): i32 
 }
 
 /**
- * See implementation.
- * See implementation.
- * See implementation.
+ * Coerce STRUCT_LIT field inits to layout field types and hard-fail mismatches.
+ * wave672 Cap residual: prior path called typeck_coerce_init_expr_to_decl (incl.
+ * LANG-006 bool→int) and never checked field types → `S { v: true }` / `v: 1.0 as f32`
+ * for `v: i32` false-green. G.7: reuse lit/float/enum/array/int_binop/slice coerces
+ * only — **not** bool→int (LANG-006 is scalar let/const only). Then require equal /
+ * integer_widen / float_widen; emit assign_mismatch on known mismatch.
+ * @param module *Module — layout table
+ * @param arena *ASTArena
+ * @param expr_ref i32 — EXPR_STRUCT_LIT
+ * @return i32 — 0 ok, -1 field type mismatch (diagnostic emitted)
+ * PLATFORM: SHARED typeck
  */
 export function typeck_coerce_struct_lit_field_inits_to_layout(module: *Module, arena: *ASTArena,
 expr_ref: i32): i32 {
@@ -7754,6 +7829,17 @@ expr_ref: i32): i32 {
     let flen: i32 = 0;
     let init_r: i32 = 0;
     let ftr: i32 = 0;
+    let ftr_kind: i32 = 0;
+    let init_kind: i32 = 0;
+    let init_ty: i32 = 0;
+    let got_kind: i32 = 0;
+    let crc: i32 = 0;
+    let eb: *u8 = 0 as *u8;
+    let gb: *u8 = 0 as *u8;
+    let el: i32 = 0;
+    let gl: i32 = 0;
+    let err_line: i32 = 0;
+    let err_col: i32 = 0;
     let name_buf: *u8 = typeck_scratch64_slot(4);
     let field_buf: *u8 = typeck_scratch64_slot(5);
     if (expr_ref <= 0 || expr_ref > arena.num_exprs) {
@@ -7774,7 +7860,42 @@ expr_ref: i32): i32 {
         init_r = pipeline_expr_struct_lit_init_ref(arena, expr_ref, j);
         if (!ast.ref_is_null(init_r) && init_r > 0 && init_r <= arena.num_exprs
         && !ast.ref_is_null(ftr) && ftr > 0) {
-          typeck_coerce_init_expr_to_decl(module, arena, init_r, ftr);
+          /*
+           * wave672: field-level coerce without LANG-006 bool→int (scalar let/const only).
+           * Reuse G.7 authorities per case; array-lit return -1 propagates.
+           */
+          ftr_kind = pipeline_type_kind_ord_at(arena, ftr);
+          init_kind = pipeline_expr_kind_ord_at(arena, init_r);
+          typeck_coerce_init_lit_to_decl(arena, init_r, ftr, ftr_kind, init_kind);
+          typeck_coerce_init_float_lit_to_decl(arena, init_r, ftr, ftr_kind, init_kind);
+          typeck_coerce_init_enum_field_to_decl(module, arena, init_r, ftr, ftr_kind, init_kind);
+          typeck_coerce_init_named_call_to_decl(arena, init_r, ftr, ftr_kind, init_kind);
+          typeck_coerce_init_resolved_alias_to_decl(module, arena, init_r, ftr, ftr_kind);
+          crc = typeck_coerce_init_array_vector_lit_to_decl(arena, init_r, ftr, ftr_kind, init_kind);
+          if (crc < 0) {
+            return -1;
+          }
+          typeck_coerce_init_vector_binop_to_decl(arena, init_r, ftr, ftr_kind, init_kind);
+          typeck_coerce_init_int_binop_to_decl(arena, init_r, ftr, ftr_kind, init_kind);
+          typeck_coerce_init_slice_from_array(arena, init_r, ftr, ftr_kind);
+          init_ty = expr_type_ref(arena, init_r);
+          if (!ast.ref_is_null(init_ty) && init_ty > 0) {
+            got_kind = pipeline_type_kind_ord_at(arena, init_ty);
+            if (type_refs_equal(arena, ftr, init_ty)
+            || typeck_integer_widen_ok_refs(arena, ftr, init_ty)
+            || typeck_float_widen_ok(ftr_kind, got_kind)) {
+              pipeline_expr_set_resolved_type_ref(arena, init_r, ftr);
+            } else {
+              eb = driver_typeck_diag_scratch_expect();
+              gb = driver_typeck_diag_scratch_found();
+              el = typeck_diag_fmt_type_into(arena, ftr, eb, 96);
+              gl = typeck_diag_fmt_type_into(arena, init_ty, gb, 96);
+              err_line = pipeline_expr_line_at(arena, init_r);
+              err_col = pipeline_expr_col_at(arena, init_r);
+              driver_diagnostic_typeck_assign_mismatch(0, err_line, err_col, eb, el, gb, gl);
+              return -1;
+            }
+          }
         }
       }
       j = j + 1;
@@ -7831,8 +7952,10 @@ export function typeck_check_expr_struct_lit(
     if (ensure_struct_layout_from_struct_lit(module, arena, expr_ref) != 0) {
       return - 1;
     }
-    /* See implementation. */
-    typeck_coerce_struct_lit_field_inits_to_layout(module, arena, expr_ref);
+    /* wave672: field coerce + hard-fail mismatch (return -1). */
+    if (typeck_coerce_struct_lit_field_inits_to_layout(module, arena, expr_ref) != 0) {
+      return -1;
+    }
     if (name_len > 127) {
       return 0;
     }
@@ -8513,7 +8636,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
         return - 1;
       }
     } else if (!ast.ref_is_null(cd_ir) && !ast.ref_is_null(cd_tr)) {
-      typeck_coerce_init_expr_to_decl(module, arena, cd_ir, cd_tr);
+      /* wave672: coerce may hard-fail ARRAY_LIT elem mismatch (-1). */
+      if (typeck_coerce_init_expr_to_decl(module, arena, cd_ir, cd_tr) < 0) {
+        return -1;
+      }
       init_ty = expr_type_ref(arena, cd_ir);
       if (!ast.ref_is_null(init_ty) && !type_refs_equal(arena, cd_tr, init_ty)) {
         return - 1;
@@ -8569,7 +8695,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
     /* See implementation. */
     ld_tr = ast.ast_block_let_type_ref(arena, block_ref, idx);
     if (!ast.ref_is_null(ld_ir) && !ast.ref_is_null(ld_tr)) {
-      typeck_coerce_init_expr_to_decl(module, arena, ld_ir, ld_tr);
+      /* wave672: coerce may hard-fail ARRAY_LIT elem mismatch (-1). */
+      if (typeck_coerce_init_expr_to_decl(module, arena, ld_ir, ld_tr) < 0) {
+        return -1;
+      }
       init_ty = expr_type_ref(arena, ld_ir);
       /*
        * wave670 Cap residual: keyword `null` only for TYPE_PTR let-init.

@@ -1112,6 +1112,24 @@ static int32_t pipeline_typeck_overload_arg_score_strict_minimal(struct ast_ASTA
         return 1000;
       return -1;
     }
+    /* wave672: TYPE_ARRAY/SLICE same-kind requires matching elem (bool[N]≠i32[N]). */
+    if (ak == 10 && pk == 10) {
+      int32_t ae = pipeline_type_elem_ref_at(caller_arena, arg_ty);
+      int32_t pe = pipeline_type_elem_ref_at(caller_arena, param_ty);
+      int32_t asz = pipeline_type_array_size_at(caller_arena, arg_ty);
+      int32_t psz = pipeline_type_array_size_at(caller_arena, param_ty);
+      if (ae > 0 && pe > 0 && pipeline_typeck_type_refs_equal_c(caller_arena, ae, pe) != 0
+          && (asz <= 0 || psz <= 0 || asz == psz))
+        return 1000;
+      return -1;
+    }
+    if (ak == 11 && pk == 11) {
+      int32_t ae = pipeline_type_elem_ref_at(caller_arena, arg_ty);
+      int32_t pe = pipeline_type_elem_ref_at(caller_arena, param_ty);
+      if (ae > 0 && pe > 0 && pipeline_typeck_type_refs_equal_c(caller_arena, ae, pe) != 0)
+        return 1000;
+      return -1;
+    }
     if (ak == pk && ak != 0)
       return 1;
     return -1;
