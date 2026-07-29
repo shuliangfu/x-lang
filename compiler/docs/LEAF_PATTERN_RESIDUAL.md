@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2 · wave763 R3 PREFER thin try-r3-prefer · wave764 g05 R3_COLD r3-prefer-family · wave765 g05 labi try-labi-prefer · wave766 g05 rt try-rt-prefer · wave767 g05 pipeline_abi/ldpc try-*-prefer · wave768 g05 target_cpu try-target-cpu-prefer · wave769 g05 L2 asm try-l2-asm-prefer · wave770 g05 async try-async-prefer · wave771 g05 other L2 try-other-l2-prefer · wave772 11.1.4 pure-ld cold prefer · wave773 g05 pure-ld prefer · wave774 drop silent CC fallback · wave775 fmt_check_cmd.o dual · wave776 R2 panic PREFER try-r2-prefer)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2 · wave763 R3 PREFER thin try-r3-prefer · wave764 g05 R3_COLD r3-prefer-family · wave765 g05 labi try-labi-prefer · wave766 g05 rt try-rt-prefer · wave767 g05 pipeline_abi/ldpc try-*-prefer · wave768 g05 target_cpu try-target-cpu-prefer · wave769 g05 L2 asm try-l2-asm-prefer · wave770 g05 async try-async-prefer · wave771 g05 other L2 try-other-l2-prefer · wave772 11.1.4 pure-ld cold prefer · wave773 g05 pure-ld prefer · wave774 drop silent CC fallback · wave775 fmt_check_cmd.o dual · wave776 R2 panic PREFER try-r2-prefer · wave777 physical-delete prep inventory)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -991,10 +991,52 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - [x] **wave774:** drop silent CC residual fallback (FORCE_CC / ineligible kept)
 - [x] **wave775:** `fmt_check_cmd.o` Makefile dual → try-other-l2-prefer `fmt_core`
 - [x] **wave776:** R2 panic PREFER → try-r2-prefer
+- [x] **wave777:** physical-delete **prep inventory** (named buckets B1–B7; no body swallow; no Makefile delete)
 - [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame)
 - [ ] Leaf `.o` without host-cc residual (stages 8–9 / 12)
 - [ ] R5 CI / compiler-all shell body
+- [ ] B1–B5 Makefile dual hybrid body → ensure (next swallow waves)
 
+
+### wave777 · physical-delete prep inventory (named buckets · G.7 inventory only)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; body swallow of B1–B5 hybrids.  
+> **This wave:** name residual **make-owned** host-cc classes that still block 11.3.1 endgame, with heat counts only (not a second `.o` list authority).
+
+Live heat (mac tip · wave777 inventory; counts only):
+
+| Signal | Heat |
+|--------|------|
+| `$(CC) … -c` recipe lines | ~94 |
+| `.o` targets with ensure thin-call | ~79 |
+| `.o` targets with inline `$(CC) -c` (no ensure) | **36** |
+| of which dual/hybrid PREFER shape | ~25 |
+
+#### PHYS_DEL buckets (leaf dump keys)
+
+| Bucket | Key | Heat targets | Surface (scope names only) | Next swallow shape |
+|--------|-----|--------------|----------------------------|--------------------|
+| **B1** | `PHYS_DEL_BUCKET_B1` | **23** | `runtime_*` OS/glue dual hybrid (test_fn_invoke…process_os_glue) | ensure try-*-prefer / seed-map family (G.7 有则补全; catalog first) |
+| **B2** | `PHYS_DEL_BUCKET_B2` | **5** | `std/{process,path,runtime,net}` + `core/slice` product hybrid | std module shell ensure / xlang_compile path |
+| **B3** | `PHYS_DEL_BUCKET_B3` | **2** | `lsp_diag_pipeline_sizes_nostub` · `lsp_diag_stubs_no_c` | extend try-other-l2 / dedicated ensure |
+| **B4** | `PHYS_DEL_BUCKET_B4` | **5** | `lexer_x` · `ast_gen2` · `driver_x` · `preprocess_x` · `_x_stubs2` | gen/bootstrap residual (outside try-gen-x catalog) |
+| **B5** | `PHYS_DEL_BUCKET_B5` | **1** | `src/lexer/cfg_eval.o` multi-ladder | single-authority ensure ladder |
+| **B6** | `PHYS_DEL_BUCKET_B6` | R5 | CI / `compiler-all` host-cc graph | xbuild compiler-all shell body (stage 12 track) |
+| **B7** | `PHYS_DEL_BUCKET_B7` | DAG | Makefile still owns thin-call edges + mk lists | delete only after B1–B6 + BC no forced `$(CC) -c` |
+
+```text
+PHYS_DEL_PREP_INVENTORY=1
+PHYS_DEL_PREP_NEXT=B1_runtime_os_hybrid_or_R5_ci
+ENDGAME_PHYSICAL_DELETE_MAKEFILE=0
+R1_OTHER_HOST_CC_STILL_MAKE=1
+```
+
+| Swallowed this wave | Still residual |
+|---------------------|----------------|
+| **Named prep inventory** (dump + LEAF doc + `--check`) | B1–B5 inline hybrid **bodies** still Makefile |
+| Panic PREFER / fmt dual / pure-ld / R1–R4 shell (prior waves) | B6 R5 CI · B7 Makefile DAG · FORCE_CC · Windows PE pure-ld |
+
+**Forbidden:** claim physical delete; treat heat target names as a second catalog; swallow a body without catalog KEY; batch-delete Makefile recipes before BC residual owned.
 
 ### wave776 · R2 panic PREFER thin+rest → try-r2-prefer (G.7 有则补全)
 
@@ -1014,8 +1056,8 @@ After (wave776):
 
 | Swallowed | Still residual |
 |-----------|----------------|
-| `runtime_panic.o` Makefile PREFER dual hybrid | physical delete · R5 CI · Windows PE pure-ld · FORCE_CC named residual |
-| Second thin+rest body for panic | non-catalog host-cc leaves still make |
+| `runtime_panic.o` Makefile PREFER dual hybrid | ~~physical-delete prep~~ (wave777 named) · R5 CI · Windows PE pure-ld · FORCE_CC named residual |
+| Second thin+rest body for panic | non-catalog host-cc leaves still make (B1–B5) |
 
 **Forbidden:** re-open Makefile dual hybrid for `runtime_panic.o`; second prefer body name; hardcode panic `.o` list in shell (catalog KEY only).
 

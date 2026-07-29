@@ -17,6 +17,7 @@
 #   wave760: R2 panic cold body via rebuild_leaves → ensure try-r2
 #   wave762: R2 typeck_f64 + crt0 via try-r2 (catalog TYPECK_F64 + CRT0)
 #   wave761: R4 residual gen *_x + pipeline_x via try-gen-x / ensure_gen_x_o.sh
+#   wave777: physical-delete prep inventory (named buckets B1–B7; no body swallow)
 #
 # Authority (G.7):
 #   Single shell authority for *named residual classes* of Makefile leaf pattern /
@@ -38,7 +39,7 @@
 #   ./xbuild leaf-patterns | leaf-residual [--check]
 #
 # PLATFORM: SHARED — inventory portable; leaf ABI stays in Makefile / mk.
-# Wave: 746–761 Track MG · 11.3.1 path (not physical delete · not pure-ld).
+# Wave: 746–777 Track MG · 11.3.1 path (not physical delete · prep inventory wave777).
 
 set -euo pipefail
 
@@ -278,6 +279,41 @@ RESIDUAL_CLASS_R6_G05_SWALLOWED=wave773_g05_pure_ld_via_pure_ld_shared
 RESIDUAL_CLASS_R6_G05_DROP_SILENT_FALLBACK=wave774
 RESIDUAL_CLASS_R6_ENDGAME=physical_delete_makefile
 # wave775: fmt_check_cmd.o dual swallowed (fmt_core)
+# wave776: R2 panic PREFER swallowed (try-r2-prefer)
+
+# wave777: physical-delete prep inventory (named buckets; NOT body swallow; NOT delete Makefile)
+# Heat counts are live Makefile signals only — not a second .o list authority (G.7).
+PHYS_DEL_PREP_INVENTORY=1
+PHYS_DEL_PREP_WAVE=wave777
+PHYS_DEL_PREP_NOTE=named_buckets_only_no_body_swallow_no_makefile_delete
+# B1: top-level runtime_* OS/glue dual hybrid still Makefile (thin+rest / PREFER; not ensure)
+PHYS_DEL_BUCKET_B1=runtime_os_hybrid_makefile
+PHYS_DEL_BUCKET_B1_SCOPE=runtime_test_fn_invoke..process_os_glue_non_ensure
+PHYS_DEL_BUCKET_B1_HEAT_TARGETS=23
+# B2: product std/core modules with inline host-cc hybrid
+PHYS_DEL_BUCKET_B2=std_core_product_hybrid
+PHYS_DEL_BUCKET_B2_SCOPE=std_process_path_runtime_net_core_slice
+PHYS_DEL_BUCKET_B2_HEAT_TARGETS=5
+# B3: LSP satellite hybrid leaves outside try-other-l2-prefer / try-ldpc
+PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
+PHYS_DEL_BUCKET_B3_SCOPE=lsp_diag_pipeline_sizes_nostub+lsp_diag_stubs_no_c
+PHYS_DEL_BUCKET_B3_HEAT_TARGETS=2
+# B4: gen.c → .o bootstrap / stage stubs (not try-gen-x catalog)
+PHYS_DEL_BUCKET_B4=gen_c_to_o_bootstrap
+PHYS_DEL_BUCKET_B4_SCOPE=lexer_x+ast_gen2+driver_x+preprocess_x+_x_stubs2
+PHYS_DEL_BUCKET_B4_HEAT_TARGETS=5
+# B5: multi-ladder / one-off (cfg_eval)
+PHYS_DEL_BUCKET_B5=cfg_eval_multi_ladder
+PHYS_DEL_BUCKET_B5_SCOPE=src_lexer_cfg_eval_o
+PHYS_DEL_BUCKET_B5_HEAT_TARGETS=1
+# B6: R5 CI / compiler-all host-cc graph (orchestration residual)
+PHYS_DEL_BUCKET_B6=r5_ci_compiler_all
+PHYS_DEL_BUCKET_B6_SCOPE=Makefile_all_OPT_seed_xbuild_compiler_all
+# B7: Makefile still owns DAG thin-calls + lists (cannot delete until B1–B6 + BC)
+PHYS_DEL_BUCKET_B7=makefile_dag_thin_calls
+PHYS_DEL_BUCKET_B7_SCOPE=ensure_thin_call_targets_plus_mk_lists
+PHYS_DEL_PREP_NEXT=B1_runtime_os_hybrid_or_R5_ci
+PHYS_DEL_PREP_FORBIDDEN=claim_physical_delete|dual_o_list_as_authority|swallow_body_this_wave
 
 # Live Makefile residual signals (counts only — not a second recipe list)
 MAKEFILE_PATH=compiler/Makefile
@@ -556,6 +592,8 @@ R1_EXTRA_CFLAGS_SWALLOWED=$r1_extra
 R1_MISC_BASENAME_SWALLOWED=$r1_misc
 R1_SEED_MAP_SWALLOWED=$r1_seed_map
 R1_OTHER_HOST_CC_STILL_MAKE=1
+# wave777: physical-delete prep inventory present (buckets above; body residual honest)
+PHYS_DEL_PREP_INVENTORY_LIVE=1
 ENDGAME_PHYSICAL_DELETE_MAKEFILE=0
 ENDGAME_LEAF_WITHOUT_HOST_CC=0
 ENDGAME_COLD_PURE_LD=1
@@ -649,6 +687,12 @@ else
   fi
   if ! grep -qE 'wave761|try-gen-x|ensure_gen_x_o|gen.\*_x|pipeline_x' "$DOC_REL"; then
     bad "$DOC_REL must document wave761 gen *_x / pipeline_x try-gen-x swallow"
+  fi
+  if ! grep -qE 'wave777|PHYS_DEL_PREP|physical.delete prep|phys-del prep' "$DOC_REL"; then
+    bad "$DOC_REL must document wave777 physical-delete prep inventory"
+  fi
+  if ! grep -qE 'PHYS_DEL_BUCKET_B1|runtime_os_hybrid|B1.*runtime' "$DOC_REL"; then
+    bad "$DOC_REL must name wave777 PHYS_DEL_BUCKET B1 runtime OS hybrid"
   fi
   note "doc $DOC_REL present"
 fi
@@ -860,10 +904,34 @@ fi
 if ! printf '%s\n' "$_out" | grep -q 'R1_OTHER_HOST_CC_STILL_MAKE=1'; then
   bad "dump must keep R1_OTHER_HOST_CC_STILL_MAKE=1 (honest residual)"
 fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_PREP_INVENTORY=1'; then
+  bad "dump must set PHYS_DEL_PREP_INVENTORY=1 (wave777 physical-delete prep)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B1='; then
+  bad "dump must name PHYS_DEL_BUCKET_B1 (wave777 runtime OS hybrid)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B2='; then
+  bad "dump must name PHYS_DEL_BUCKET_B2 (wave777 std/core product hybrid)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B3='; then
+  bad "dump must name PHYS_DEL_BUCKET_B3 (wave777 lsp satellite)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B4='; then
+  bad "dump must name PHYS_DEL_BUCKET_B4 (wave777 gen_c_to_o)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B5='; then
+  bad "dump must name PHYS_DEL_BUCKET_B5 (wave777 cfg_eval ladder)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B6='; then
+  bad "dump must name PHYS_DEL_BUCKET_B6 (wave777 R5 CI)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7='; then
+  bad "dump must name PHYS_DEL_BUCKET_B7 (wave777 makefile DAG)"
+fi
 if ! printf '%s\n' "$_out" | grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0'; then
   bad "dump missing ENDGAME_PHYSICAL_DELETE_MAKEFILE=0 (not closed)"
 else
-  note "residual class inventory dump OK (wave747–775 + fmt_check_cmd.o dual)"
+  note "residual class inventory dump OK (wave747–777 + phys-del prep buckets)"
 fi
 
 # Makefile still present (residual reality) + has host-cc heat
@@ -1059,7 +1127,7 @@ else
     "$REBUILD_REL"; then
     bad "rebuild_leaves must not hardcode .o list (dual authority)"
   fi
-  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld (wave772/773) + drop silent CC fallback (wave774); fmt_check_cmd.o dual (wave775); R2 panic PREFER try-r2-prefer (wave776); residual physical delete"
+  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld (wave772/773) + drop silent CC fallback (wave774); fmt_check_cmd.o dual (wave775); R2 panic PREFER try-r2-prefer (wave776); phys-del prep inventory (wave777); residual physical delete body + R5"
 fi
 
 # wave772/774: cold pure-ld required when eligible (no silent CC fallback)

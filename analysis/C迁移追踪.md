@@ -1484,12 +1484,13 @@
     ✅ R6 pure-ld（wave772）；✅ g05 pure-ld（wave773）；
     ✅ drop silent CC fallback（wave774）；✅ fmt dual（wave775 try-other-l2-prefer fmt_core）；
     ✅ panic PREFER try-r2-prefer（wave776）；
-    ⬜ physical delete
+    ✅ **phys-del prep inventory**（wave777：B1–B7 命名桶 · 非删 Makefile · 非吞体）；
+    ⬜ physical delete body / 删 Makefile
   - ⬜ 物理删 `compiler/Makefile` 仍 ⬜（下项）
 
 ⬜ **11.3.1 删除 `compiler/Makefile`**
 
-  - 前置：11.0 迁移表 100% 有主；8.3/7/8 白名单 residual 可被 xbuild 编完或已为 0；wave746 库存类 R1–R5 有主 shell
+  - 前置：11.0 迁移表 100% 有主；8.3/7/8 白名单 residual 可被 xbuild 编完或已为 0；wave746 库存类 R1–R5 有主 shell；**wave777 prep 桶 B1–B7 有主后再删**
   - 验收 grep（全仓 · 不止 tests/analysis/docs）：
     ```
     rg -n 'make -C compiler|compiler/Makefile|\bmake\s+-C|\$\(MAKE\)' \
