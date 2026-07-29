@@ -2605,6 +2605,143 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
             (void)((for_past_init_semi = 1));
             (void)(lexer_next_into(&(r), lex_cur, source));
           } else {
+            /* wave701: range-for in block path (nested for). G.7 ≡ onefunc desugar. */
+            int range_for_done_blk = 0;
+            if ((((r.tok).kind) == token_TokenKind_TOKEN_IDENT)) {
+              struct lexer_LexerResult r_peek_b;
+              (void)(lexer_next_into(&(r_peek_b), (r.next_lex), source));
+              if ((((r_peek_b.tok).kind) == token_TokenKind_TOKEN_COLON)) {
+                uint8_t rf_name[128];
+                int32_t rf_nlen = ((r.tok).ident_len);
+                size_t rf_nstart = (r.token_start);
+                int32_t rf_ni = 0;
+                int32_t lo_ref = 0;
+                int32_t hi_ref = 0;
+                int32_t v1 = 0;
+                int32_t v2 = 0;
+                int32_t v3 = 0;
+                int32_t one_ref = 0;
+                int32_t lt_ref = 0;
+                int32_t add_ref = 0;
+                int32_t asg_ref = 0;
+                int32_t i32ty = 0;
+                int32_t let_i = 0;
+                struct ast_Expr ve;
+                if (rf_nlen > 127) rf_nlen = 127;
+                for (rf_ni = 0; rf_ni < 128; rf_ni++) rf_name[rf_ni] = 0;
+                for (rf_ni = 0; rf_ni < rf_nlen && rf_nstart + (size_t)rf_ni < (source->length); rf_ni++)
+                  rf_name[rf_ni] = (source->data)[rf_nstart + rf_ni];
+                (void)((lex_cur = (r_peek_b.next_lex)));
+                (void)((expr_res_fi = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex_cur }));
+                (void)(parser_parse_expr_into(arena, lex_cur, source, &(expr_res_fi)));
+                if (!((expr_res_fi.ok))) { (void)(((out->ok) = 0)); return; }
+                lo_ref = (expr_res_fi.expr_ref);
+                (void)((lex_cur = (expr_res_fi.next_lex)));
+                (void)(lexer_next_into(&(r), lex_cur, source));
+                if ((((r.tok).kind) == token_TokenKind_TOKEN_DOTDOT)) {
+                  (void)((lex_cur = (r.next_lex)));
+                } else if ((((r.tok).kind) == token_TokenKind_TOKEN_DOT)) {
+                  (void)((lex_cur = (r.next_lex)));
+                  (void)(lexer_next_into(&(r), lex_cur, source));
+                  if ((((r.tok).kind) == token_TokenKind_TOKEN_DOT)) {
+                    (void)((lex_cur = (r.next_lex)));
+                  } else {
+                    int32_t run = 1;
+                    if ((((r.tok).kind) == token_TokenKind_TOKEN_IDENT)) run = ((r.tok).ident_len);
+                    if ((r.token_start) > 0)
+                      (void)((lex_cur = (struct lexer_Lexer){ .pos = (r.token_start), .line = ((r.tok).line), .col = ((r.tok).col) }));
+                    else
+                      (void)((lex_cur = (struct lexer_Lexer){ .pos = parser_lexer_pos_before_run(((r.next_lex).pos), run), .line = ((r.tok).line), .col = ((r.tok).col) }));
+                  }
+                } else {
+                  (void)(((out->ok) = 0)); return;
+                }
+                (void)((expr_res_fc = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex_cur }));
+                (void)(parser_parse_expr_into(arena, lex_cur, source, &(expr_res_fc)));
+                if (!((expr_res_fc.ok))) { (void)(((out->ok) = 0)); return; }
+                hi_ref = (expr_res_fc.expr_ref);
+                (void)((lex_cur = (expr_res_fc.next_lex)));
+                (void)(lexer_next_into(&(r), lex_cur, source));
+                if ((((r.tok).kind) !=83)) { (void)(((out->ok) = 0)); return; }
+                (void)((lex_cur = (r.next_lex)));
+                (void)(lexer_next_into(&(r), lex_cur, source));
+                if ((((r.tok).kind) !=84)) { (void)(((out->ok) = 0)); return; }
+                (void)((lex_cur = (r.next_lex)));
+                (void)((block_res = (struct parser_ParseBlockResult){ .ok = 0, .block_ref = 0, .next_lex = lex_cur }));
+                (void)(parser_parse_block_into(arena, lex_cur, source, type_ref, &(block_res)));
+                if (!((block_res.ok))) { (void)(((out->ok) = 0)); return; }
+                i32ty = ast_ast_arena_type_alloc(arena);
+                if (i32ty > 0) {
+                  struct ast_Type ti32 = ast_ast_arena_type_get(arena, i32ty);
+                  ti32.kind = ast_TypeKind_TYPE_I32;
+                  (void)(ast_ast_arena_type_set(arena, i32ty, ti32));
+                }
+                let_i = (b.num_lets);
+                if (pipeline_block_append_let(arena, block_ref, rf_name, rf_nlen, i32ty, lo_ref) < 0) {
+                  (void)(((out->ok) = 0)); return;
+                }
+                (void)((b = ast_ast_arena_block_get(arena, block_ref)));
+                if (pipeline_block_append_stmt_order(arena, block_ref, 1, let_i) < 0) {
+                  (void)(((out->ok) = 0)); return;
+                }
+                v1 = ast_ast_arena_expr_alloc(arena);
+                v2 = ast_ast_arena_expr_alloc(arena);
+                v3 = ast_ast_arena_expr_alloc(arena);
+                one_ref = ast_ast_arena_expr_alloc(arena);
+                lt_ref = ast_ast_arena_expr_alloc(arena);
+                add_ref = ast_ast_arena_expr_alloc(arena);
+                asg_ref = ast_ast_arena_expr_alloc(arena);
+                if (!(v1 && v2 && v3 && one_ref && lt_ref && add_ref && asg_ref)) {
+                  (void)(((out->ok) = 0)); return;
+                }
+                ve = ast_ast_arena_expr_get(arena, v1);
+                ve.kind = 3; ve.var_name_len = rf_nlen;
+                for (rf_ni = 0; rf_ni < rf_nlen; rf_ni++) ve.var_name[rf_ni] = rf_name[rf_ni];
+                for (; rf_ni < 128; rf_ni++) ve.var_name[rf_ni] = 0;
+                ve.line = 0; ve.col = 0; ve.binop_left_ref = 0; ve.binop_right_ref = 0;
+                ast_ast_arena_expr_set(arena, v1, ve);
+                ve = ast_ast_arena_expr_get(arena, v2);
+                ve.kind = 3; ve.var_name_len = rf_nlen;
+                for (rf_ni = 0; rf_ni < rf_nlen; rf_ni++) ve.var_name[rf_ni] = rf_name[rf_ni];
+                for (; rf_ni < 128; rf_ni++) ve.var_name[rf_ni] = 0;
+                ve.line = 0; ve.col = 0; ve.binop_left_ref = 0; ve.binop_right_ref = 0;
+                ast_ast_arena_expr_set(arena, v2, ve);
+                ve = ast_ast_arena_expr_get(arena, v3);
+                ve.kind = 3; ve.var_name_len = rf_nlen;
+                for (rf_ni = 0; rf_ni < rf_nlen; rf_ni++) ve.var_name[rf_ni] = rf_name[rf_ni];
+                for (; rf_ni < 128; rf_ni++) ve.var_name[rf_ni] = 0;
+                ve.line = 0; ve.col = 0; ve.binop_left_ref = 0; ve.binop_right_ref = 0;
+                ast_ast_arena_expr_set(arena, v3, ve);
+                ve = ast_ast_arena_expr_get(arena, one_ref);
+                ve.kind = 0; ve.int_val = 1; ve.line = 0; ve.col = 0;
+                ve.binop_left_ref = 0; ve.binop_right_ref = 0;
+                ast_ast_arena_expr_set(arena, one_ref, ve);
+                ve = ast_ast_arena_expr_get(arena, lt_ref);
+                ve.kind = 16; ve.binop_left_ref = v1; ve.binop_right_ref = hi_ref;
+                ve.line = 0; ve.col = 0; ve.int_val = 0;
+                ast_ast_arena_expr_set(arena, lt_ref, ve);
+                ve = ast_ast_arena_expr_get(arena, add_ref);
+                ve.kind = 4; ve.binop_left_ref = v2; ve.binop_right_ref = one_ref;
+                ve.line = 0; ve.col = 0; ve.int_val = 0;
+                ast_ast_arena_expr_set(arena, add_ref, ve);
+                ve = ast_ast_arena_expr_get(arena, asg_ref);
+                ve.kind = 28; ve.binop_left_ref = v3; ve.binop_right_ref = add_ref;
+                ve.line = 0; ve.col = 0; ve.int_val = 0;
+                ast_ast_arena_expr_set(arena, asg_ref, ve);
+                for_idx = pipeline_block_append_for(arena, block_ref, 0, lt_ref, asg_ref, (block_res.block_ref));
+                if (for_idx < 0) { (void)(((out->ok) = 0)); return; }
+                if (pipeline_block_append_stmt_order(arena, block_ref, 4, for_idx) < 0) {
+                  (void)(((out->ok) = 0)); return;
+                }
+                (void)((b = ast_ast_arena_block_get(arena, block_ref)));
+                (void)((lex_cur = (block_res.next_lex)));
+                (void)((stmt_tok_ready = 0));
+                range_for_done_blk = 1;
+              }
+            }
+            if (range_for_done_blk) {
+              continue;
+            }
             (void)((expr_res_fi = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex_cur }));
             (void)(parser_parse_expr_into(arena, lex_cur, source, &(expr_res_fi)));
             if (!((expr_res_fi.ok))) {
@@ -5168,6 +5305,156 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
               (void)((for_past_init_semi_fn = 1));
               (void)(lexer_next_into(&(r), lex, source));
             } else {
+              /*
+               * wave701: range-for `for (i : lo .. hi) { body }` desugar.
+               * TOKEN_IDENT then TOKEN_COLON → let i=lo; for (; i<hi; i=i+1) body.
+               * PLATFORM: SHARED — Cap residual; G.7 with parser.x twin when regenerated.
+               */
+              int range_for_done = 0;
+              if ((((r.tok).kind) == token_TokenKind_TOKEN_IDENT)) {
+                struct lexer_LexerResult r_peek;
+                (void)(lexer_next_into(&(r_peek), (r.next_lex), source));
+                if ((((r_peek.tok).kind) == token_TokenKind_TOKEN_COLON)) {
+                  uint8_t rf_name[128];
+                  int32_t rf_nlen = ((r.tok).ident_len);
+                  size_t rf_nstart = (r.token_start);
+                  int32_t rf_ni = 0;
+                  int32_t lo_ref = 0;
+                  int32_t hi_ref = 0;
+                  int32_t v1 = 0;
+                  int32_t v2 = 0;
+                  int32_t v3 = 0;
+                  int32_t one_ref = 0;
+                  int32_t lt_ref = 0;
+                  int32_t add_ref = 0;
+                  int32_t asg_ref = 0;
+                  int32_t i32ty = 0;
+                  int32_t let_i = 0;
+                  struct ast_Expr ve;
+                  if (rf_nlen > 127) rf_nlen = 127;
+                  for (rf_ni = 0; rf_ni < 128; rf_ni++) rf_name[rf_ni] = 0;
+                  for (rf_ni = 0; rf_ni < rf_nlen && rf_nstart + (size_t)rf_ni < (source->length); rf_ni++)
+                    rf_name[rf_ni] = (source->data)[rf_nstart + rf_ni];
+                  (void)((lex = (r_peek.next_lex)));
+                  (void)((expr_res_fi = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex }));
+                  (void)(parser_parse_expr_into(arena, lex, source, &(expr_res_fi)));
+                  if (!((expr_res_fi.ok))) { (void)(parser_set_onefunc_fail(out, lex)); return; }
+                  lo_ref = (expr_res_fi.expr_ref);
+                  (void)((lex = (expr_res_fi.next_lex)));
+                  (void)(lexer_next_into(&(r), lex, source));
+                  /*
+                   * Range separator `..`:
+                   * - TOKEN_DOTDOT (preferred), or
+                   * - two TOKEN_DOT, or
+                   * - single TOKEN_DOT when lexer already fused/skipped (product residual).
+                   */
+                  if ((((r.tok).kind) == token_TokenKind_TOKEN_DOTDOT)) {
+                    (void)((lex = (r.next_lex)));
+                  } else if ((((r.tok).kind) == token_TokenKind_TOKEN_DOT)) {
+                    (void)((lex = (r.next_lex)));
+                    (void)(lexer_next_into(&(r), lex, source));
+                    if ((((r.tok).kind) == token_TokenKind_TOKEN_DOT)) {
+                      (void)((lex = (r.next_lex)));
+                    } else {
+                      /* Single-DOT residual: r is first token of hi expr — restart lex at that token. */
+                      int32_t run = 1;
+                      if ((((r.tok).kind) == token_TokenKind_TOKEN_IDENT))
+                        run = ((r.tok).ident_len);
+                      else if ((((r.tok).kind) == token_TokenKind_TOKEN_INT))
+                        run = 1; /* length recovered below via token_start if set */
+                      if ((r.token_start) > 0) {
+                        (void)((lex = (struct lexer_Lexer){ .pos = (r.token_start), .line = ((r.tok).line), .col = ((r.tok).col) }));
+                      } else {
+                        (void)((lex = (struct lexer_Lexer){ .pos = parser_lexer_pos_before_run(((r.next_lex).pos), run),
+                            .line = ((r.tok).line), .col = ((r.tok).col) }));
+                      }
+                    }
+                  } else {
+                    (void)(parser_set_onefunc_fail(out, lex)); return;
+                  }
+                  (void)((expr_res_fc = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex }));
+                  (void)(parser_parse_expr_into(arena, lex, source, &(expr_res_fc)));
+                  if (!((expr_res_fc.ok))) { (void)(parser_set_onefunc_fail(out, lex)); return; }
+                  hi_ref = (expr_res_fc.expr_ref);
+                  (void)((lex = (expr_res_fc.next_lex)));
+                  (void)(lexer_next_into(&(r), lex, source));
+                  if ((((r.tok).kind) !=83)) { (void)(parser_set_onefunc_fail(out, lex)); return; }
+                  (void)((lex = (r.next_lex)));
+                  (void)(lexer_next_into(&(r), lex, source));
+                  if ((((r.tok).kind) !=84)) { (void)(parser_set_onefunc_fail(out, lex)); return; }
+                  (void)((lex = (r.next_lex)));
+                  (void)((block_res_f = (struct parser_ParseBlockResult){ .ok = 0, .block_ref = 0, .next_lex = lex }));
+                  (void)(parser_parse_block_into(arena, lex, source, ret_type_ref, &(block_res_f)));
+                  if (!((block_res_f.ok))) { (void)(parser_set_onefunc_fail(out, lex)); return; }
+                  i32ty = ast_ast_arena_type_alloc(arena);
+                  if (i32ty > 0) {
+                    struct ast_Type ti32 = ast_ast_arena_type_get(arena, i32ty);
+                    ti32.kind = ast_TypeKind_TYPE_I32;
+                    (void)(ast_ast_arena_type_set(arena, i32ty, ti32));
+                  }
+                  let_i = pipeline_onefunc_num_lets(parser_onefunc_result_pool_ptr(out));
+                  if (pipeline_onefunc_append_let(parser_onefunc_result_pool_ptr(out), rf_name, rf_nlen, 0, lo_ref, i32ty) < 0) {
+                    (void)(parser_set_onefunc_fail(out, lex)); return;
+                  }
+                  (void)(((out->num_lets) = pipeline_onefunc_num_lets(parser_onefunc_result_pool_ptr(out))));
+                  (void)(parser_onefunc_push_src_stmt(out, 1, let_i));
+                  /* cond: i < hi ; step: i = i + 1  (ExprKind VAR=3 ADD=4 LT=16 ASSIGN=28) */
+                  v1 = ast_ast_arena_expr_alloc(arena);
+                  v2 = ast_ast_arena_expr_alloc(arena);
+                  v3 = ast_ast_arena_expr_alloc(arena);
+                  one_ref = ast_ast_arena_expr_alloc(arena);
+                  lt_ref = ast_ast_arena_expr_alloc(arena);
+                  add_ref = ast_ast_arena_expr_alloc(arena);
+                  asg_ref = ast_ast_arena_expr_alloc(arena);
+                  if (!(v1 && v2 && v3 && one_ref && lt_ref && add_ref && asg_ref)) {
+                    (void)(parser_set_onefunc_fail(out, lex)); return;
+                  }
+                  ve = ast_ast_arena_expr_get(arena, v1);
+                  ve.kind = 3; ve.var_name_len = rf_nlen;
+                  for (rf_ni = 0; rf_ni < rf_nlen; rf_ni++) ve.var_name[rf_ni] = rf_name[rf_ni];
+                  for (; rf_ni < 128; rf_ni++) ve.var_name[rf_ni] = 0;
+                  ve.line = 0; ve.col = 0; ve.binop_left_ref = 0; ve.binop_right_ref = 0;
+                  ast_ast_arena_expr_set(arena, v1, ve);
+                  ve = ast_ast_arena_expr_get(arena, v2);
+                  ve.kind = 3; ve.var_name_len = rf_nlen;
+                  for (rf_ni = 0; rf_ni < rf_nlen; rf_ni++) ve.var_name[rf_ni] = rf_name[rf_ni];
+                  for (; rf_ni < 128; rf_ni++) ve.var_name[rf_ni] = 0;
+                  ve.line = 0; ve.col = 0; ve.binop_left_ref = 0; ve.binop_right_ref = 0;
+                  ast_ast_arena_expr_set(arena, v2, ve);
+                  ve = ast_ast_arena_expr_get(arena, v3);
+                  ve.kind = 3; ve.var_name_len = rf_nlen;
+                  for (rf_ni = 0; rf_ni < rf_nlen; rf_ni++) ve.var_name[rf_ni] = rf_name[rf_ni];
+                  for (; rf_ni < 128; rf_ni++) ve.var_name[rf_ni] = 0;
+                  ve.line = 0; ve.col = 0; ve.binop_left_ref = 0; ve.binop_right_ref = 0;
+                  ast_ast_arena_expr_set(arena, v3, ve);
+                  ve = ast_ast_arena_expr_get(arena, one_ref);
+                  ve.kind = 0; ve.int_val = 1; ve.line = 0; ve.col = 0;
+                  ve.binop_left_ref = 0; ve.binop_right_ref = 0;
+                  ast_ast_arena_expr_set(arena, one_ref, ve);
+                  ve = ast_ast_arena_expr_get(arena, lt_ref);
+                  ve.kind = 16; ve.binop_left_ref = v1; ve.binop_right_ref = hi_ref;
+                  ve.line = 0; ve.col = 0; ve.int_val = 0;
+                  ast_ast_arena_expr_set(arena, lt_ref, ve);
+                  ve = ast_ast_arena_expr_get(arena, add_ref);
+                  ve.kind = 4; ve.binop_left_ref = v2; ve.binop_right_ref = one_ref;
+                  ve.line = 0; ve.col = 0; ve.int_val = 0;
+                  ast_ast_arena_expr_set(arena, add_ref, ve);
+                  ve = ast_ast_arena_expr_get(arena, asg_ref);
+                  ve.kind = 28; ve.binop_left_ref = v3; ve.binop_right_ref = add_ref;
+                  ve.line = 0; ve.col = 0; ve.int_val = 0;
+                  ast_ast_arena_expr_set(arena, asg_ref, ve);
+                  for_idx = pipeline_onefunc_append_for(parser_onefunc_result_pool_ptr(out), 0, lt_ref, asg_ref, (block_res_f.block_ref));
+                  if (for_idx < 0) { (void)(parser_set_onefunc_fail(out, lex)); return; }
+                  (void)(((impl_snap.num_for_loops) = pipeline_onefunc_num_fors(parser_onefunc_result_pool_ptr(out))));
+                  (void)(parser_onefunc_push_src_stmt(out, 4, for_idx));
+                  (void)((lex = (block_res_f.next_lex)));
+                  (void)((stmt_tok_ready = 0));
+                  range_for_done = 1;
+                }
+              }
+              if (range_for_done) {
+                continue;
+              }
               (void)((expr_res_fi = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex }));
               (void)(parser_parse_expr_into(arena, lex, source, &(expr_res_fi)));
               if (!((expr_res_fi.ok))) {
