@@ -71,6 +71,12 @@
 #            Makefile thin-call only (NOT physical delete). Special leaf_kinds:
 #            http (-Iseeds/http), ed25519 (-Isrc/asm), tls (mbedtls -I fallback),
 #            net_udp (Linux-only PREFER). Residual: B2–B5 · physical delete.
+#   wave780: G.7 B2 std/core product hybrid → `try-std-core-prefer OUT`
+#            (有则补全; 5 leaves: process/path/runtime/net + core/slice).
+#            leaf_kind: direct (path/runtime/slice R2 DIRECT xlang-c -lib-name),
+#            process_merge (args seed + argv + os_glue ld -r), net_merge
+#            (sub .x + net_*_fast PREFER + final ld -r). Makefile thin-call only.
+#            Residual: B3–B5 · physical delete.
 #   wave758: R4 residual pure host-cc thin_glue → R1 seed-map (G.7 有则补全):
 #            parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c +
 #            -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm;
@@ -148,7 +154,8 @@
 #   - ~~fmt_check_cmd.o Makefile dual~~ wave775 → try-other-l2-prefer fmt_core
 #   - ~~panic PREFER thin~~ wave776 → try-r2-prefer
 #   - ~~B1 runtime_* OS/glue dual hybrid~~ wave779 → try-runtime-os-prefer
-#   - R5 CI all · B2–B5 hybrid · pure-ld residual
+#   - ~~B2 std/core product hybrid~~ wave780 → try-std-core-prefer
+#   - R5 CI all · B3–B5 hybrid · pure-ld residual
 #   - pure-ld (11.1.4) · physical Makefile delete (11.3.1)
 #   - bootstrap_nostdlib_stubs.o (cc_inc_tu residual) · crt0_user.o cp wrappers
 #
@@ -167,6 +174,7 @@
 #   bash scripts/ensure_host_cc_seed_o.sh try-other-l2-prefer <out.o> # wave771 other L2 four
 #   bash scripts/ensure_host_cc_seed_o.sh try-r2-prefer <out.o> # wave776 R2 panic PREFER thin
 #   bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer <out.o> # wave779 B1 runtime OS 23
+#   bash scripts/ensure_host_cc_seed_o.sh try-std-core-prefer <out.o> # wave780 B2 std/core 5
 #   bash scripts/ensure_host_cc_seed_o.sh try-r2 <out.o>   # wave760/762 R2 UNAME leaves
 #   bash scripts/ensure_host_cc_seed_o.sh try-gen-x <out.o> # wave761 gen *_x / pipeline_x
 #   bash scripts/ensure_host_cc_seed_o.sh r2-panic         # DRIVER_SEED_PANIC family
@@ -227,7 +235,7 @@ _DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-async-prefer|try-other-l2-prefer|try-r2-prefer|try-runtime-os-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-async-prefer|try-other-l2-prefer|try-r2-prefer|try-runtime-os-prefer|try-std-core-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -3490,6 +3498,323 @@ try_ensure_runtime_os_prefer_one() {
 }
 
 
+
+# ---------------------------------------------------------------------------
+# wave780: try-std-core-prefer OUT — B2 std/core product hybrid table.
+#
+# Table-driven single body (G.7 有则补全). Five product leaves that still had
+# Makefile inline host-cc / PREFER hybrid (process · path · runtime · net ·
+# core/slice glue). NOT physical delete — Makefile keeps thin-call edges + prereqs.
+#
+# leaf_kind:
+#   direct        — R2 DIRECT: PREFER=1 + xlang-c → -lib-name "" -o OUT from .x;
+#                   else / fail → cold seed (path / runtime / slice)
+#   process_merge — cold only: cc args_thin seed + ld -r with runtime_process_argv.o
+#                   + runtime_process_os_glue.o (B1 already try-runtime-os-prefer)
+#   net_merge     — multi sub .x + net_*_fast PREFER thin+rest + final ld -r
+#                   PLATFORM: MACOS force xlang-c for net submodules (dead_strip UNDEF)
+# Prefer fail / PREFER≠1 / no xlang → cold seed (direct) or process/net cold path.
+# Callers: Makefile 5 leaves (wave780).
+# Exit codes:
+#   0 — OUT is a table member; body produced OUT
+#   3 — OUT is not in the std-core prefer table
+#   1 — seed missing / compile failed
+# PLATFORM: SHARED shell body · g05 historic PREFER=1 · cold chain PREFER=0.
+# Residual after: B3–B5 · physical delete · R5.
+# ---------------------------------------------------------------------------
+
+# Normalize OUT path variants to a canonical key used by the table.
+# Accepts: ../std/path/path.o | std/path/path.o | absolute …/std/path/path.o
+std_core_prefer_key_for_out() {
+  local o="$1"
+  case "$o" in
+    ../std/process/process.o|std/process/process.o|*std/process/process.o)
+      printf '%s' "std/process/process.o" ;;
+    ../std/path/path.o|std/path/path.o|*std/path/path.o)
+      printf '%s' "std/path/path.o" ;;
+    ../std/runtime/runtime.o|std/runtime/runtime.o|*std/runtime/runtime.o)
+      printf '%s' "std/runtime/runtime.o" ;;
+    ../std/net/net.o|std/net/net.o|*std/net/net.o)
+      printf '%s' "std/net/net.o" ;;
+    ../core/slice/slice.o|core/slice/slice.o|*core/slice/slice.o)
+      printf '%s' "core/slice/slice.o" ;;
+    *)
+      printf '%s' ""
+      ;;
+  esac
+}
+
+# Spec: seed|x_src|leaf_kind
+std_core_prefer_spec_for_out() {
+  local key
+  key="$(std_core_prefer_key_for_out "$1")"
+  case "$key" in
+    std/path/path.o)
+      printf '%s' "seeds/runtime_path_fast.from_x.c|src/asm/runtime_path_fast.x|direct"
+      ;;
+    std/runtime/runtime.o)
+      printf '%s' "seeds/runtime_std_runtime_fast.from_x.c|src/asm/runtime_std_runtime_fast.x|direct"
+      ;;
+    core/slice/slice.o)
+      printf '%s' "seeds/runtime_slice_glue.from_x.c|src/asm/runtime_slice_glue.x|direct"
+      ;;
+    std/process/process.o)
+      printf '%s' "seeds/runtime_process_args_thin.from_x.c||process_merge"
+      ;;
+    std/net/net.o)
+      printf '%s' "||net_merge"
+      ;;
+    *)
+      printf '%s' ""
+      ;;
+  esac
+}
+
+# Prefer: historic Makefile used xlang-c -lib-name "" (R2 DIRECT), not -E rest.
+_std_core_try_xlang_c_direct() {
+  local x_src="$1" out_o="$2"
+  local xx=""
+  if [ -x ./xlang-c ]; then
+    xx=./xlang-c
+  elif [ -x ./xlang ]; then
+    xx=./xlang
+  elif [ -x ./bootstrap_xlangc ]; then
+    xx=./bootstrap_xlangc
+  else
+    return 1
+  fi
+  [ -f "$x_src" ] || return 1
+  mkdir -p "$(dirname "$out_o")"
+  # PLATFORM: SHARED — R2 DIRECT pure-compute / thin wrappers via -lib-name "".
+  XLANG_KEEP_C=1 "$xx" -L .. -L src -L src/asm -lib-name "" -o "$out_o" "$x_src"
+}
+
+# ld -r multi-obj merge with platform multidef (Makefile LD_R_MULTIDEF twin).
+# PLATFORM: DARWIN -multiply_defined suppress · LINUX/PE --allow-multiple-definition
+_std_core_ld_r() {
+  local out="$1"
+  shift
+  local uname_s
+  uname_s="$(uname -s 2>/dev/null || echo Unknown)"
+  if [ "$uname_s" = "Darwin" ]; then
+    ld -r -multiply_defined suppress -o "$out" "$@"
+  else
+    if ld -r --allow-multiple-definition -o "$out" "$@" 2>/dev/null; then
+      return 0
+    fi
+    ld -r -o "$out" "$@"
+  fi
+}
+
+# One net_*_fast PREFER or cold seed piece.
+# $1=fast_o $2=seed $3=x_src $4=from_x_def $5=mode (thin_rest|direct) $6=xlang_bin
+_std_core_net_fast_one() {
+  local fast_o="$1" seed="$2" x_src="$3" from_x_def="$4" mode="$5" xbin="${6:-}"
+  local prefer="${XLANG_G05_PREFER_X_O:-0}"
+  local thin_o rest_o dir
+  dir="$(dirname "$fast_o")"
+  mkdir -p "$dir"
+  if [ "$prefer" = "1" ] && [ -f "$x_src" ] && [ -n "$xbin" ] && [ -x "$xbin" ]; then
+    if [ "$mode" = "direct" ]; then
+      if XLANG_KEEP_C=1 "$xbin" -L .. -L src -L src/asm -lib-name "" -o "$fast_o" "$x_src" 2>/dev/null; then
+        return 0
+      fi
+    else
+      thin_o="${fast_o%.o}_thin.o"
+      rest_o="${fast_o%.o}_rest.o"
+      # shellcheck disable=SC2086
+      if XLANG_KEEP_C=1 "$xbin" -L .. -L src -L src/asm -lib-name "" -o "$thin_o" "$x_src" 2>/dev/null \
+        && $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -D"$from_x_def" -c "$seed" -o "$rest_o" 2>/dev/null \
+        && _std_core_ld_r "$fast_o" "$thin_o" "$rest_o"; then
+        rm -f "$thin_o" "$rest_o"
+        return 0
+      fi
+      rm -f "$thin_o" "$rest_o"
+    fi
+  fi
+  # shellcheck disable=SC2086
+  $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$fast_o"
+}
+
+ensure_std_core_prefer_one() {
+  local o="$1"
+  local key spec seed x_src leaf_kind rest
+  local prefer="${XLANG_G05_PREFER_X_O:-0}"
+  local stale=0
+  local uname_s xlang net_sub_xlang objs x
+  local tmp_args
+
+  key="$(std_core_prefer_key_for_out "$o")"
+  spec="$(std_core_prefer_spec_for_out "$o")"
+  if [ -z "$spec" ] || [ -z "$key" ]; then
+    return 3
+  fi
+  # Force canonical OUT under compiler/ parent layout (../std|core/...).
+  case "$key" in
+    std/*|core/*) o="../$key" ;;
+  esac
+
+  seed="${spec%%|*}"
+  rest="${spec#*|}"
+  x_src="${rest%%|*}"
+  leaf_kind="${rest#*|}"
+
+  if [ "$FORCE" != "1" ] && [ -f "$o" ]; then
+    stale=0
+    if [ -n "$seed" ] && [ -f "$seed" ] && [ "$seed" -nt "$o" ]; then
+      stale=1
+    fi
+    if [ -n "$x_src" ] && [ -f "$x_src" ] && [ "$x_src" -nt "$o" ]; then
+      stale=1
+    fi
+    if [ "$leaf_kind" = "process_merge" ]; then
+      if [ -f runtime_process_argv.o ] && [ runtime_process_argv.o -nt "$o" ]; then
+        stale=1
+      fi
+      if [ -f runtime_process_os_glue.o ] && [ runtime_process_os_glue.o -nt "$o" ]; then
+        stale=1
+      fi
+    fi
+    if [ "$stale" = "0" ] && [ "$leaf_kind" != "net_merge" ]; then
+      log "skip up-to-date $o (std-core-prefer/$leaf_kind)"
+      return 0
+    fi
+  fi
+
+  mkdir -p "$(dirname "$o")"
+
+  case "$leaf_kind" in
+    direct)
+      if [ ! -f "$seed" ]; then
+        echo "ensure_host_cc_seed_o try-std-core-prefer: missing seed $seed for $o" >&2
+        return 1
+      fi
+      if [ "$prefer" = "1" ] && [ -f "$x_src" ]; then
+        if _std_core_try_xlang_c_direct "$x_src" "$o"; then
+          log "prefer direct.x $o <- $x_src (try-std-core-prefer/direct)"
+          return 0
+        fi
+        log "std-core direct prefer failed for $o; fallback full seed"
+      fi
+      if [ -f "$o" ] && [ "$prefer" = "1" ]; then
+        FORCE=1
+        ensure_one "$o" "$seed"
+        FORCE=0
+      else
+        ensure_one "$o" "$seed"
+      fi
+      return 0
+      ;;
+
+    process_merge)
+      if [ ! -f "$seed" ]; then
+        echo "ensure_host_cc_seed_o try-std-core-prefer: missing seed $seed for $o" >&2
+        return 1
+      fi
+      if [ ! -f runtime_process_argv.o ]; then
+        try_ensure_runtime_os_prefer_one runtime_process_argv.o \
+          || ensure_one runtime_process_argv.o seeds/runtime_process_argv.from_x.c \
+          || return 1
+      fi
+      if [ ! -f runtime_process_os_glue.o ]; then
+        try_ensure_runtime_os_prefer_one runtime_process_os_glue.o \
+          || ensure_one runtime_process_os_glue.o seeds/runtime_process_os_glue.from_x.c \
+          || return 1
+      fi
+      tmp_args="$(mktemp "${TMPDIR:-/tmp}/proc_args.XXXXXX")"
+      # shellcheck disable=SC2086
+      if ! $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$tmp_args"; then
+        rm -f "$tmp_args"
+        return 1
+      fi
+      if ! _std_core_ld_r "$o" "$tmp_args" runtime_process_argv.o runtime_process_os_glue.o; then
+        rm -f "$tmp_args"
+        return 1
+      fi
+      rm -f "$tmp_args"
+      log "process_merge $o <- $seed + argv + os_glue (try-std-core-prefer)"
+      return 0
+      ;;
+
+    net_merge)
+      # PLATFORM: SHARED net.o — mod.x + alpn/udp/tcp/udp_batch/workers + five fast
+      # pieces. PLATFORM: MACOS — force xlang-c for net submodules (post-wave102
+      # pure-asm arm64 leaves tls_stub/tcp_pool UNDEFs under product -dead_strip).
+      xlang="${XLANG:-}"
+      if [ -z "$xlang" ] || [ ! -x "$xlang" ]; then
+        if [ -x ./xlang_asm ]; then xlang=./xlang_asm
+        elif [ -x ./xlang ]; then xlang=./xlang
+        elif [ -x ./xlang-c ]; then xlang=./xlang-c
+        else xlang=; fi
+      fi
+      if [ -z "$xlang" ]; then
+        echo "net.o: need xlang-c to merge net_*.x" >&2
+        # Historic Makefile exited 0 here (soft). Keep soft for cold trees.
+        return 0
+      fi
+      net_sub_xlang="$xlang"
+      uname_s="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$uname_s" in
+        Darwin)
+          if [ -x ./xlang-c ]; then net_sub_xlang=./xlang-c
+          elif [ -x ./xlang ]; then net_sub_xlang=./xlang; fi
+          ;;
+      esac
+      objs=""
+      for x in alpn udp tcp udp_batch workers; do
+        sh scripts/xlang_compile_std_x.sh "$net_sub_xlang" "../std/net/$x.x" "../std/net/$x.o" || return 1
+        objs="$objs ../std/net/$x.o"
+      done
+      sh scripts/xlang_compile_std_module.sh ../std/net/mod.o ../std/net/mod.x || return 1
+      objs="$objs ../std/net/mod.o"
+      _std_core_net_fast_one ../std/net/net_dns_fast.o \
+        seeds/runtime_net_dns_fast.from_x.c src/asm/runtime_net_dns_fast.x \
+        XLANG_RUNTIME_NET_DNS_FAST_FROM_X thin_rest "$net_sub_xlang" || return 1
+      _std_core_net_fast_one ../std/net/net_io_batch_fast.o \
+        seeds/runtime_net_io_batch_fast.from_x.c src/asm/runtime_net_io_batch_fast.x \
+        XLANG_RUNTIME_NET_IO_BATCH_FAST_FROM_X thin_rest "$net_sub_xlang" || return 1
+      _std_core_net_fast_one ../std/net/net_addr_fast.o \
+        seeds/runtime_net_addr_fast.from_x.c src/asm/runtime_net_addr_fast.x \
+        XLANG_RUNTIME_NET_ADDR_FAST_FROM_X direct "$net_sub_xlang" || return 1
+      _std_core_net_fast_one ../std/net/net_ipv6_fast.o \
+        seeds/runtime_net_ipv6_fast.from_x.c src/asm/runtime_net_ipv6_fast.x \
+        XLANG_RUNTIME_NET_IPV6_FAST_FROM_X thin_rest "$net_sub_xlang" || return 1
+      _std_core_net_fast_one ../std/net/net_sock_fast.o \
+        seeds/runtime_net_sock_fast.from_x.c src/asm/runtime_net_sock_fast.x \
+        XLANG_RUNTIME_NET_SOCK_FAST_FROM_X thin_rest "$net_sub_xlang" || return 1
+      # shellcheck disable=SC2086
+      if ! _std_core_ld_r "$o" $objs \
+        ../std/net/net_dns_fast.o ../std/net/net_io_batch_fast.o \
+        ../std/net/net_addr_fast.o ../std/net/net_ipv6_fast.o \
+        ../std/net/net_sock_fast.o; then
+        return 1
+      fi
+      rm -f ../std/net/mod.o ../std/net/net_dns_fast.o ../std/net/net_io_batch_fast.o \
+        ../std/net/net_addr_fast.o ../std/net/net_ipv6_fast.o ../std/net/net_sock_fast.o
+      log "net_merge $o <- sub.x + mod + five fast (try-std-core-prefer)"
+      return 0
+      ;;
+
+    *)
+      echo "ensure_host_cc_seed_o try-std-core-prefer: unknown leaf_kind $leaf_kind" >&2
+      return 1
+      ;;
+  esac
+}
+
+try_ensure_std_core_prefer_one() {
+  local o="$1"
+  if [ -z "$o" ]; then
+    echo "ensure_host_cc_seed_o try-std-core-prefer: need <out.o>" >&2
+    exit 2
+  fi
+  if [ -z "$(std_core_prefer_spec_for_out "$o")" ]; then
+    return 3
+  fi
+  ensure_std_core_prefer_one "$o"
+  return 0
+}
+
 # ---------------------------------------------------------------------------
 # wave760: try-r2 OUT — R2 platform-stamp panic cold body (UNAME leaf).
 #
@@ -4982,6 +5307,64 @@ run_check() {
   else
     note "runtime-os prefer table has 23 members (wave779 B1)"
   fi
+  # wave780: try-std-core-prefer B2 5 std/core product hybrid
+  if ! grep -q 'try_ensure_std_core_prefer_one\|try-std-core-prefer' "$0"; then
+    bad "try-std-core-prefer / try_ensure_std_core_prefer_one missing (wave780)"
+  else
+    note "try-std-core-prefer helper present (wave780)"
+  fi
+  if ! grep -q 'std_core_prefer_spec_for_out\|ensure_std_core_prefer_one' "$0"; then
+    bad "std-core prefer body/table missing (wave780)"
+  else
+    note "std-core-prefer table body present (wave780)"
+  fi
+  _sc_n=0
+  for _sc_leaf in \
+    ../std/process/process.o \
+    ../std/path/path.o \
+    ../std/runtime/runtime.o \
+    ../std/net/net.o \
+    ../core/slice/slice.o; do
+    if [ -n "$(std_core_prefer_spec_for_out "$_sc_leaf")" ]; then
+      _sc_n=$((_sc_n + 1))
+    else
+      bad "std_core_prefer_spec_for_out missing $_sc_leaf (wave780)"
+    fi
+    if awk -v leaf="$_sc_leaf" '
+      $0 ~ ("^" leaf ":") {grab=1; next}
+      grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+      grab {body = body $0 "\n"}
+      END {
+        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-std-core-prefer/) exit 0
+        exit 1
+      }
+    ' Makefile; then
+      note "Makefile $_sc_leaf thin-calls ensure try-std-core-prefer (wave780)"
+    else
+      bad "Makefile $_sc_leaf must thin-call ensure try-std-core-prefer (wave780)"
+    fi
+    # Ban re-opened hybrid: only scan recipe lines (leading tab), not following
+    # comment blocks (those often mention historic xlang-c / PREFER).
+    if awk -v leaf="$_sc_leaf" '
+      $0 ~ ("^" leaf ":") {grab=1; next}
+      grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+      grab && /^\t/ {body = body $0 "\n"}
+      END {
+        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-std-core-prefer/ && body !~ /xlang_compile_std_x\.sh/ && body !~ /\$\(CC\)/) exit 1
+        if (body ~ /XLANG_KEEP_C=1/ && body ~ /xlang-c/ && body !~ /ensure_host_cc_seed_o/) exit 0
+        if (body ~ /\$\(CC\)/ && body ~ /-c seeds\//) exit 0
+        if (body ~ /xlang_compile_std_x\.sh/ && body ~ /net_dns_fast/) exit 0
+        exit 1
+      }
+    ' Makefile; then
+      bad "Makefile $_sc_leaf still has dual hybrid body (wave780)"
+    fi
+  done
+  if [ "$_sc_n" -ne 5 ]; then
+    bad "std-core prefer table size $_sc_n != 5 (wave780 B2 heat)"
+  else
+    note "std-core prefer table has 5 members (wave780 B2)"
+  fi
   # wave760/762: try-r2 R2 UNAME leaves (panic + typeck_f64 + crt0)
   if ! grep -q 'try_ensure_r2_one\|try-r2' "$0"; then
     bad "try-r2 / try_ensure_r2_one missing (wave760/762 R2 UNAME)"
@@ -5207,6 +5590,19 @@ case "$MODE" in
     _try_out="$1"
     set +e
     try_ensure_runtime_os_prefer_one "$_try_out"
+    _try_rc=$?
+    set -e
+    exit "$_try_rc"
+    ;;
+  try-std-core-prefer|try_std_core_prefer|std-core-prefer|stdcore-prefer|try-std-core|b2-prefer)
+    # wave780: B2 std/core product hybrid table; exit 3 if not table member.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o try-std-core-prefer: need <out.o>" >&2
+      exit 2
+    fi
+    _try_out="$1"
+    set +e
+    try_ensure_std_core_prefer_one "$_try_out"
     _try_rc=$?
     set -e
     exit "$_try_rc"

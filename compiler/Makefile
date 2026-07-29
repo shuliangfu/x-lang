@@ -125,10 +125,12 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 # 【Why 不 -E mod.x/process.x】产品 -x -E 对无 main 库模块当前会在巨型 preamble 后截断
 # 函数体（16KiB/20KiB），且裸 getcwd/pipe 与 unistd 编译期冲突。截断修通后可改回
 # xlang_compile_std_module --bare-impl process.x（mod.x 仍勿编入 .o，避免双定义）。
-../std/process/process.o: ../std/process/mod.x ../std/process/process.x seeds/runtime_process_args_thin.from_x.c runtime_process_argv.o runtime_process_os_glue.o
-	@$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_process_args_thin.from_x.c -o $@.args && \
-	ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ $@.args runtime_process_argv.o runtime_process_os_glue.o && \
-	rm -f $@.args
+# wave780 B2: hybrid body → ensure try-std-core-prefer (G.7; not physical delete).
+# PLATFORM: SHARED — cold ld -r args seed + runtime_process_argv + os_glue.
+../std/process/process.o: ../std/process/mod.x ../std/process/process.x seeds/runtime_process_args_thin.from_x.c runtime_process_argv.o runtime_process_os_glue.o scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-std-core-prefer $@
 
 # std.string：F 闭合 — 产品 -o 完整 emit（-x -E 会截断函数体）。
 # 用 xlang_compile_std_module（与 crypto 等同路径）；优先 xlang_asm/xlang 产品宿主。
@@ -146,16 +148,11 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 # PLATFORM: SHARED path — pure compute (pointer scan + min), no OS dependency.
 #   Note: .x path_sep_c always returns '/' (47) per posix gate; seed Win branch
 #   returns '\' (92) but is skipped in R2 mode.
-../std/path/path.o: ../std/path/mod.x seeds/runtime_path_fast.from_x.c src/asm/runtime_path_fast.x scripts/cc_inc_tu.sh
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_path_fast.x ]; then \
-	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o ../std/path/path_core.o src/asm/runtime_path_fast.x && \
-	  ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/path/path.o ../std/path/path_core.o && \
-	  rm -f ../std/path/path_core.o; \
-	else \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_path_fast.from_x.c -o ../std/path/path_core.o && \
-	  ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/path/path.o ../std/path/path_core.o && \
-	  rm -f ../std/path/path_core.o; \
-	fi
+# wave780 B2: dual hybrid → ensure try-std-core-prefer (G.7; not physical delete).
+../std/path/path.o: ../std/path/mod.x seeds/runtime_path_fast.from_x.c src/asm/runtime_path_fast.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-std-core-prefer $@
 
 # std.heap：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + libc + ops）。
 ../std/heap/heap.o: ../std/heap/mod.x ../std/heap/libc.x ../std/heap/ops.x | scripts/xlang_compile_std_module.sh
@@ -224,16 +221,11 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 #   xlang-c -lib-name "". Seed .from_x.c guarded by XLANG_RUNTIME_STD_RUNTIME_FAST_FROM_X
 #   for cold path fallback only.
 # PLATFORM: SHARED runtime — pure thin wrappers to panic; no OS dependency.
-../std/runtime/runtime.o: ../std/runtime/runtime.x seeds/runtime_std_runtime_fast.from_x.c src/asm/runtime_std_runtime_fast.x
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_std_runtime_fast.x ]; then \
-	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o ../std/runtime/runtime_core.o src/asm/runtime_std_runtime_fast.x && \
-	  ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/runtime/runtime.o ../std/runtime/runtime_core.o && \
-	  rm -f ../std/runtime/runtime_core.o; \
-	else \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_std_runtime_fast.from_x.c -o ../std/runtime/runtime_core.o && \
-	  ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/runtime/runtime.o ../std/runtime/runtime_core.o && \
-	  rm -f ../std/runtime/runtime_core.o; \
-	fi
+# wave780 B2: dual hybrid → ensure try-std-core-prefer (G.7; not physical delete).
+../std/runtime/runtime.o: ../std/runtime/runtime.x seeds/runtime_std_runtime_fast.from_x.c src/asm/runtime_std_runtime_fast.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-std-core-prefer $@
 
 # std.net：F-04 v10～v14 纯 .x（F-ZC）；OS glue 由 runtime_net_*_fast.inc 提供（G-02e-18）。
 # PLATFORM: SHARED — mod.x MUST be compiled into net.o; otherwise std_net_listen /
@@ -245,71 +237,11 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 # alpn/tcp/...; ld -r with C mod.o leaves tls_stub/tcp_pool/io UNDEFs live under
 # product -dead_strip (net-context BLD001). Pre-wave102 Darwin fell back to xlang-c
 # (code_len=0). Recipe forces ./xlang-c for Darwin net submodules; Linux keeps asm.
-../std/net/net.o: ../std/net/mod.x ../std/net/alpn.x ../std/net/dns.x ../std/net/io_batch.x ../std/net/addr.x ../std/net/ipv6.x ../std/net/sock.x ../std/net/udp.x ../std/net/tcp.x ../std/net/udp_batch.x ../std/net/workers.x seeds/runtime_net_dns_fast.from_x.c seeds/runtime_net_io_batch_fast.from_x.c seeds/runtime_net_addr_fast.from_x.c seeds/runtime_net_ipv6_fast.from_x.c seeds/runtime_net_sock_fast.from_x.c scripts/cc_inc_tu.sh | scripts/xlang_compile_std_module.sh
-	@objs=""; \
-	xlang="$${XLANG:-}"; \
-	if [ -z "$$xlang" ] || [ ! -x "$$xlang" ]; then \
-	  if [ -x ./xlang_asm ]; then xlang=./xlang_asm; \
-	  elif [ -x ./xlang ]; then xlang=./xlang; \
-	  elif [ -x ./xlang-c ]; then xlang=./xlang-c; \
-	  else xlang=; fi; \
-	fi; \
-	if [ -n "$$xlang" ]; then \
-	  net_sub_xlang="$$xlang"; \
-	  case "$$(uname -s 2>/dev/null)" in \
-	    Darwin) \
-	      if [ -x ./xlang-c ]; then net_sub_xlang=./xlang-c; \
-	      elif [ -x ./xlang ]; then net_sub_xlang=./xlang; fi ;; \
-	  esac; \
-	  for x in alpn udp tcp udp_batch workers; do \
-	  sh scripts/xlang_compile_std_x.sh $$net_sub_xlang ../std/net/$$x.x ../std/net/$$x.o || exit 1; \
-	  objs="$$objs ../std/net/$$x.o"; \
-	  done; \
-	  sh scripts/xlang_compile_std_module.sh ../std/net/mod.o ../std/net/mod.x || exit 1; \
-	  objs="$$objs ../std/net/mod.o"; \
-	  if [ "$$XLANG_G05_PREFER_X_O" = "1" ] && [ -f src/asm/runtime_net_dns_fast.x ]; then \
-	    XLANG_KEEP_C=1 $$net_sub_xlang -L .. -L src -L src/asm -lib-name "" -o ../std/net/net_dns_thin.o src/asm/runtime_net_dns_fast.x && \
-	    $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_NET_DNS_FAST_FROM_X=1 -c seeds/runtime_net_dns_fast.from_x.c -o ../std/net/net_dns_rest.o && \
-	    ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/net/net_dns_fast.o ../std/net/net_dns_thin.o ../std/net/net_dns_rest.o && \
-	    rm -f ../std/net/net_dns_thin.o ../std/net/net_dns_rest.o; \
-	  else \
-	    $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_dns_fast.from_x.c -o ../std/net/net_dns_fast.o; \
-	  fi && \
-	  if [ "$$XLANG_G05_PREFER_X_O" = "1" ] && [ -f src/asm/runtime_net_io_batch_fast.x ]; then \
-	    XLANG_KEEP_C=1 $$net_sub_xlang -L .. -L src -L src/asm -lib-name "" -o ../std/net/net_io_batch_thin.o src/asm/runtime_net_io_batch_fast.x && \
-	    $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_NET_IO_BATCH_FAST_FROM_X=1 -c seeds/runtime_net_io_batch_fast.from_x.c -o ../std/net/net_io_batch_rest.o && \
-	    ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/net/net_io_batch_fast.o ../std/net/net_io_batch_thin.o ../std/net/net_io_batch_rest.o && \
-	    rm -f ../std/net/net_io_batch_thin.o ../std/net/net_io_batch_rest.o; \
-	  else \
-	    $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_io_batch_fast.from_x.c -o ../std/net/net_io_batch_fast.o; \
-	  fi && \
-	  if [ "$$XLANG_G05_PREFER_X_O" = "1" ] && [ -f src/asm/runtime_net_addr_fast.x ]; then \
-	    XLANG_KEEP_C=1 $$net_sub_xlang -L .. -L src -L src/asm -lib-name "" -o ../std/net/net_addr_fast.o src/asm/runtime_net_addr_fast.x; \
-	  else \
-	    $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_addr_fast.from_x.c -o ../std/net/net_addr_fast.o; \
-	  fi && \
-	  if [ "$$XLANG_G05_PREFER_X_O" = "1" ] && [ -f src/asm/runtime_net_ipv6_fast.x ]; then \
-	    XLANG_KEEP_C=1 $$net_sub_xlang -L .. -L src -L src/asm -lib-name "" -o ../std/net/net_ipv6_thin.o src/asm/runtime_net_ipv6_fast.x && \
-	    $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_NET_IPV6_FAST_FROM_X=1 -c seeds/runtime_net_ipv6_fast.from_x.c -o ../std/net/net_ipv6_rest.o && \
-	    ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/net/net_ipv6_fast.o ../std/net/net_ipv6_thin.o ../std/net/net_ipv6_rest.o && \
-	    rm -f ../std/net/net_ipv6_thin.o ../std/net/net_ipv6_rest.o; \
-	  else \
-	    $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_ipv6_fast.from_x.c -o ../std/net/net_ipv6_fast.o; \
-	  fi && \
-	  if [ "$$XLANG_G05_PREFER_X_O" = "1" ] && [ -f src/asm/runtime_net_sock_fast.x ]; then \
-	    XLANG_KEEP_C=1 $$net_sub_xlang -L .. -L src -L src/asm -lib-name "" -o ../std/net/net_sock_thin.o src/asm/runtime_net_sock_fast.x && \
-	    $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_NET_SOCK_FAST_FROM_X=1 -c seeds/runtime_net_sock_fast.from_x.c -o ../std/net/net_sock_rest.o && \
-	    ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/net/net_sock_fast.o ../std/net/net_sock_thin.o ../std/net/net_sock_rest.o && \
-	    rm -f ../std/net/net_sock_thin.o ../std/net/net_sock_rest.o; \
-	  else \
-	    $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_sock_fast.from_x.c -o ../std/net/net_sock_fast.o; \
-	  fi && \
-	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ $$objs ../std/net/net_dns_fast.o ../std/net/net_io_batch_fast.o ../std/net/net_addr_fast.o ../std/net/net_ipv6_fast.o ../std/net/net_sock_fast.o && \
-	  rm -f ../std/net/mod.o ../std/net/net_dns_fast.o ../std/net/net_io_batch_fast.o ../std/net/net_addr_fast.o ../std/net/net_ipv6_fast.o ../std/net/net_sock_fast.o; \
-	else \
-	  echo "net.o: need xlang-c to merge net_*.x"; exit 0; \
-	fi
-
+# wave780 B2: multi hybrid → ensure try-std-core-prefer (G.7; not physical delete).
+../std/net/net.o: ../std/net/mod.x ../std/net/alpn.x ../std/net/dns.x ../std/net/io_batch.x ../std/net/addr.x ../std/net/ipv6.x ../std/net/sock.x ../std/net/udp.x ../std/net/tcp.x ../std/net/udp_batch.x ../std/net/workers.x seeds/runtime_net_dns_fast.from_x.c seeds/runtime_net_io_batch_fast.from_x.c seeds/runtime_net_addr_fast.from_x.c seeds/runtime_net_ipv6_fast.from_x.c seeds/runtime_net_sock_fast.from_x.c scripts/ensure_host_cc_seed_o.sh | scripts/xlang_compile_std_module.sh scripts/xlang_compile_std_x.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG="$(XLANG)" XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-std-core-prefer $@
 net-o-stub:
 	$(MAKE) ../std/net/net.o
 
@@ -2985,12 +2917,11 @@ perf-baseline:
 #   via xlang-c -lib-name "" without thin+rest ld -r. Seed .from_x.c guarded
 #   by XLANG_RUNTIME_SLICE_GLUE_FROM_X for cold path fallback only.
 # PLATFORM: SHARED slice — pure compute, no OS dependency.
-../core/slice/slice.o: seeds/runtime_slice_glue.from_x.c src/asm/runtime_slice_glue.x
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_slice_glue.x ]; then \
-	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o $@ src/asm/runtime_slice_glue.x; \
-	else \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_slice_glue.from_x.c -o $@; \
-	fi
+# wave780 B2: dual hybrid → ensure try-std-core-prefer (G.7; not physical delete).
+../core/slice/slice.o: seeds/runtime_slice_glue.from_x.c src/asm/runtime_slice_glue.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-std-core-prefer $@
 
 # G-02f-22：runtime_asm_build 产品 seed
 # wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).

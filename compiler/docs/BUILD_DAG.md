@@ -211,7 +211,7 @@ Do **not** grow new free-form recipes. Known residual classes:
 | Residual | Notes |
 |----------|--------|
 | ~~`DRIVER_SEED_PREREQS` make-graph edges~~ | **swallowed wave744** → shell ensure (list still mk) |
-| Leaf `.o` pattern rules (R1–R5) | **named inventory wave746** · **R4 mode+list shell wave747** · **R1 eight families wave748–755** · **R4 pure-R1 body wave756** · **R3 cold-else wave757** · **thin_glue seed-map wave758** · **glue-standalone seed-map wave759** · **panic PREFER wave776** · **phys-del prep buckets B1–B7 wave777** · **Windows gate + dual-end verify wave778** · **B1 runtime-os try-runtime-os-prefer wave779** · remaining B2–B5 residual Makefile → 11.3.1 |
+| Leaf `.o` pattern rules (R1–R5) | **named inventory wave746** · **R4 mode+list shell wave747** · **R1 eight families wave748–755** · **R4 pure-R1 body wave756** · **R3 cold-else wave757** · **thin_glue seed-map wave758** · **glue-standalone seed-map wave759** · **panic PREFER wave776** · **phys-del prep buckets B1–B7 wave777** · **Windows gate + dual-end verify wave778** · **B1 runtime-os try-runtime-os-prefer wave779** · **B2 std-core try-std-core-prefer wave780** · remaining B3–B5 residual Makefile → 11.3.1 |
 | `compiler-all` / Makefile `all` | CI host-cc path (R5) |
 | FULL=1 bstrict make entry | Non-daily |
 | Missing `xlang-c` for force -E | ensure_* gen scripts |
@@ -382,7 +382,8 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 - [x] g05 pipeline_abi + ldpc PREFER (wave767 try-pipeline-abi-prefer / try-ldpc-prefer)
 - [x] g05 target_cpu PREFER (wave768 try-target-cpu-prefer)
 - [x] B1 runtime-os PREFER (wave779 try-runtime-os-prefer · 23 thin-call)
-- [ ] B2–B5 body swallow · physical delete
+- [x] B2 std-core PREFER (wave780 try-std-core-prefer · 5 thin-call)
+- [ ] B3–B5 body swallow · physical delete
 
 ---
 

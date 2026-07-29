@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2 · wave763 R3 PREFER thin try-r3-prefer · wave764 g05 R3_COLD r3-prefer-family · wave765 g05 labi try-labi-prefer · wave766 g05 rt try-rt-prefer · wave767 g05 pipeline_abi/ldpc try-*-prefer · wave768 g05 target_cpu try-target-cpu-prefer · wave769 g05 L2 asm try-l2-asm-prefer · wave770 g05 async try-async-prefer · wave771 g05 other L2 try-other-l2-prefer · wave772 11.1.4 pure-ld cold prefer · wave773 g05 pure-ld prefer · wave774 drop silent CC fallback · wave775 fmt_check_cmd.o dual · wave776 R2 panic PREFER try-r2-prefer · wave777 physical-delete prep inventory · wave778 Windows gate + dual-end verify · wave779 B1 runtime-os try-runtime-os-prefer)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2 · wave763 R3 PREFER thin try-r3-prefer · wave764 g05 R3_COLD r3-prefer-family · wave765 g05 labi try-labi-prefer · wave766 g05 rt try-rt-prefer · wave767 g05 pipeline_abi/ldpc try-*-prefer · wave768 g05 target_cpu try-target-cpu-prefer · wave769 g05 L2 asm try-l2-asm-prefer · wave770 g05 async try-async-prefer · wave771 g05 other L2 try-other-l2-prefer · wave772 11.1.4 pure-ld cold prefer · wave773 g05 pure-ld prefer · wave774 drop silent CC fallback · wave775 fmt_check_cmd.o dual · wave776 R2 panic PREFER try-r2-prefer · wave777 physical-delete prep inventory · wave778 Windows gate + dual-end verify · wave779 B1 runtime-os try-runtime-os-prefer · wave780 B2 std-core try-std-core-prefer)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -1000,6 +1000,43 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - [ ] B2–B5 Makefile dual hybrid body → ensure (next swallow waves)
 
 
+
+### wave780 · B2 std/core product hybrid → try-std-core-prefer (G.7 有则补全)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; B3–B5 body swallow.  
+> **This wave:** swallow **B2** Makefile product hybrid bodies into ensure `try-std-core-prefer` (5 leaves); Makefile keeps thin-call edges only.
+
+```text
+Before (wave779):
+  Makefile 5× std/core product hybrid (process/path/runtime/net + core/slice)
+  PHYS_DEL_PREP_NEXT=B2_std_core_product_hybrid_body_swallow_not_delete
+
+After (wave780):
+  ensure try-std-core-prefer OUT
+    table-driven 5 leaves
+    leaf_kind: direct | process_merge | net_merge
+  Makefile 5 leaves: thin-call try-std-core-prefer only
+  SWALLOWED_B2_STD_CORE_PREFER=1
+  PHYS_DEL_BUCKET_B2_BODY_SWALLOWED=1
+  PHYS_DEL_PREP_NEXT=B3_lsp_satellite_hybrid_body_swallow_not_delete
+  ENDGAME_PHYSICAL_DELETE_MAKEFILE=0
+```
+
+| Leaf | leaf_kind | Behavior |
+|------|-----------|----------|
+| `../std/path/path.o` | `direct` | PREFER=1 xlang-c `-lib-name ""` → OUT; else cold seed |
+| `../std/runtime/runtime.o` | `direct` | same R2 DIRECT |
+| `../core/slice/slice.o` | `direct` | same R2 DIRECT (glue; formal API stays `mod.o` via xlang_compile) |
+| `../std/process/process.o` | `process_merge` | cold: args seed + argv + os_glue `ld -r` |
+| `../std/net/net.o` | `net_merge` | sub `.x` + five `net_*_fast` PREFER + final `ld -r`; **PLATFORM: MACOS** force xlang-c for net subs |
+
+| Swallowed this wave | Still residual |
+|---------------------|----------------|
+| **B2 body** (5 product hybrid → ensure try-std-core-prefer + Makefile thin-call) | B3–B5 hybrid bodies · B6 R5 · B7 DAG · physical delete |
+| Prior R1–R6 / prefer / pure-ld / prep / Windows+dual-end / B1 | FORCE_CC · Windows PE pure-ld body |
+
+**Forbidden:** physical delete Makefile; claim B2 swallow = physical delete; re-open dual hybrid body on B2 leaves; mac-only wave green (wave778 gate still holds).
+
 ### wave779 · B1 runtime_* OS/glue dual hybrid → try-runtime-os-prefer (G.7 有则补全)
 
 > **Not this wave:** physical delete of `compiler/Makefile`; B2–B5 body swallow.  
@@ -1030,7 +1067,7 @@ After (wave779):
 
 | Swallowed this wave | Still residual |
 |---------------------|----------------|
-| **B1 body** (23 dual hybrid → ensure try-runtime-os-prefer + Makefile thin-call) | B2–B5 hybrid bodies · B6 R5 · B7 DAG · physical delete |
+| **B1 body** (23 dual hybrid → ensure try-runtime-os-prefer + Makefile thin-call) | B2–B5 hybrid bodies · B6 R5 · B7 DAG · physical delete (B2 → wave780) |
 | Prior R1–R6 / prefer / pure-ld / prep / Windows+dual-end keys | FORCE_CC · Windows PE pure-ld body |
 
 **Forbidden:** physical delete Makefile; claim B1 swallow = physical delete; re-open dual hybrid body on B1 leaves; mac-only wave green (wave778 gate still holds).
