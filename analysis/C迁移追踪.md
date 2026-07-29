@@ -1310,11 +1310,12 @@
   - **仍非日常 0-make**：FULL=1→make bstrict；`xlang-build.sh` build-tool/clean/test*（13 处 make -C）
   - **未完**：日常 relink 全程 PATH 无 make 的运行时探针
 
-🟡 **11.0.3 冷启动路径减 make**（wave716 起点 🟡）
+🟡 **11.0.3 冷启动路径减 make**（wave716–717 🟡）
 
   - ✅ 类 G 全 4 filtered.o 配方 = 纯 shell（冷启动 `$(MAKE) FILTERED_OBJS` 仅依赖图，无内联 nm/ld）
   - ✅ 冷启动 recipe `$(MAKE)` **白名单落盘**：[Makefile迁移表.md](Makefile迁移表.md) §5b
-  - ⬜ `bootstrap-driver-seed` 主体迁 `scripts/bootstrap_driver_seed.sh`；Makefile 仅白名单 prereq / 转调
+  - ✅ **wave717**：`bootstrap-driver-seed` 编排主体 → `scripts/bootstrap_driver_seed.sh`；Makefile = prereq + 薄叶子（phase1/final link / sat / filtered…）+ 转调
+  - ⬜ 链接行 `$(CC)` / 对象清单完全脱离 Makefile（须 `xbuild` 导出 CFLAGS/OBJS，防双权威）
   - ⬜ FULL=1 / build-tool / xlang-build 13× make -C 继续收缩
 
 ⬜ **11.0.4 根 Makefile 只保留 help → xbuild**
@@ -1693,6 +1694,7 @@
 | 2026-07-29 | **审计补全** | 对照仓库补：**§0.1 终局三义（MG/BC/PC）**；**§0.2 删 Makefile DAG**；**阶段 7.4 typeck/codegen 去 pin**；**阶段 8.3 非 gen 产品 C（glue~40k/ast_pool~18k/桩）**；**阶段 11.0 瘦身可并行** + 既有 G-05/`build.x`/`xlang-build.sh`；11.2 测试/CI 去 make；12/13 验收对齐「物理删 Makefile」；附录 D 进度下调至 ~40–45%；**附录 E 迁移表骨架**；纠正 6.1.5「永久边界」措辞 |
 | 2026-07-29 | **二轮深度核查** | 阶段 4.2 补 4 项遗漏 Cap soft（impl method on INDEX / `*T[N]` 解析序 / fixed return S24[2] / 未知 arg_ty）；阶段 8.3 补 3 项（`build_asm/gen_driver/*.c` 10 个 / `analysis/_debug_io_ctx_gen.c` 孤儿 / `editors/tree-sitter-xlang/` 第三方）；**阶段 11 大幅补充**：11.2.5 CI workflow（5 个 .yml）+ 11.4 根脚本/tools/docker（build.sh/xlang-build.sh/scripts/docker-ci-local.sh/tools//tests/docker/Dockerfile/delete-one-c-files.sh）+ 11.5 tests/ 对照 C 处理策略（~200 个 .c 归属）+ 11.6 editors/README 用户指南；修正 11.2.3/11.3.1/11.3.4 验收 grep 措辞过窄（tests/run-*.sh → tests/**/*.sh；仅 make → make+cc） |
 | 2026-07-29 | **wave714 · 11.0.1** | 盘点 `compiler/Makefile` → [`Makefile迁移表.md`](Makefile迁移表.md)（类 A–O · ~288 目标）；附录 E 填实摘要；勾选 11.0.1；列出产品路径 make 泄漏供 11.0.2；新增 `tests/run-product-path-zero-make-gate.sh` 静态闸门 |
+| 2026-07-29 | **wave717 · 11.0.3 编排迁 shell** | `bootstrap_driver_seed.sh` 冷启动编排权威；Makefile 薄壳 prereq + §5b 薄叶子（sat/lsp/user-asm/glue/filtered/host-stubs/phase1/final link）；0-make 闸门硬检 shell 转调。OBJS/CFLAGS 仍 make（G.7 防双权威）。**不升钉** |
 | 2026-07-29 | **wave716 · 11.0.3 起点** | 类 G 全闭：`filter_o_export_against_deps.sh` + against_partial 包装；pipeline 转调核心；g05_ensure Darwin USER_ASM trio 纯 shell；冷启动 make 白名单 §5b；0-make 闸门硬检 Makefile 无内联 nm/ld。**不升钉** |
 | 2026-07-29 | **wave715 · 11.0.2 residual** | 产品路径 filtered.o 去 make：权威 `compiler/scripts/filter_bootstrap_seed_pipeline_o.sh`；`g05_ensure` + Makefile 同调；0-make 闸门要求纯 shell、WARN 清零；类 G pipeline 行 🟢 |
 

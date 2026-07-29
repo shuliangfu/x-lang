@@ -2949,65 +2949,56 @@ $(XLANG_C): $(LEGACY_XLANG_C_PREREQS)
 	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $@ $(LEGACY_XLANG_C_LINK_BASE) $(LEGACY_XLANG_C_USER_ASM_LINK) $(DRIVER_SEED_GLUE_SUFFIX) ast_gen2.o
 endif
 
-bootstrap-driver-seed: DRIVER_SEED_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o
-bootstrap-driver-seed: $(DRIVER_SEED_PREREQS) build_asm/pipeline_glue_strict_minimal.o
-	@# PLATFORM: SHARED — P0-4: refuse stale int32_t Expr.int_val before any pipeline_x / glue link.
-	@$(MAKE) check-pipeline-gen-expr-i64-abi
-	@# 冷启动：保留已提交的 ast_gen2.c，避免旧 seed 对 ast.x 重新 -E 失败。
-	@if [ -f ast_gen2.c ] && [ -s ast_gen2.c ]; then touch -r ast_gen2.c src/ast/ast.x 2>/dev/null || true; fi
-	@$(MAKE) pipeline_x.o PIPELINE_X_FORCE_COMPILE=1
-	@# 冷链强制 seed 路径编 phase4 卫星 .o（勿 PREFER thin 假成功；见 simd_enc.o recipe）。
+# 11.0.3 wave717: orchestration authority → scripts/bootstrap_driver_seed.sh
+# Leaf .o builds + phase1/final link stay Makefile (object lists / CFLAGS single authority).
+# PLATFORM: SHARED — sequence in shell; Darwin filtered.o still via class-G shell recipes.
+.PHONY: bootstrap-driver-seed-sat-rebuild \
+	bootstrap-driver-seed-lsp-x-objs \
+	bootstrap-driver-seed-user-asm-seed-objs \
+	bootstrap-driver-seed-asm-glue-standalone \
+	bootstrap-driver-seed-filtered-objs \
+	bootstrap-driver-seed-host-stubs \
+	bootstrap-driver-seed-phase1-link \
+	bootstrap-driver-seed-final-link
+
+# §5b #3 — satellite runtime/diag/simd forced seed path (XLANG_G05_PREFER_X_O=0)
+bootstrap-driver-seed-sat-rebuild:
 	$(MAKE) -B src/diag.o src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_REBUILD) $(DRIVER_SEED_PREPROCESS_REBUILD) src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o \
 		XLANG_G05_PREFER_X_O=0
+
+# §5b #4
+bootstrap-driver-seed-lsp-x-objs:
 	$(MAKE) lsp_io_x.o lsp_x.o lsp_diag_x.o src/lsp/lsp_diag_pipeline_ctx.o x_frontend_link_alias.o
-	@# 冷启动：phase1 须链 dispatch/bridge + partial（seed 或 gen_g06_phase1_backend_stub 弱桩）。
-	@chmod +x scripts/build_seed_asm_host.sh scripts/gen_g06_phase1_backend_stub.sh 2>/dev/null || true
-	@os=$$(uname -s | tr '[:upper:]' '[:lower:]'); arch=$$(uname -m 2>/dev/null | tr '[:upper:]' '[:lower:]'); \
-	  case "$$arch" in x86_64|amd64) arch=x86_64 ;; aarch64|arm64) arch=arm64 ;; esac; \
-	  case "$$os" in darwin) os=darwin ;; linux) os=linux ;; msys_nt*|mingw*_nt*|mingw*|cygwin*) os=windows ;; esac; \
-	  seed_partial="seeds/asm_backend_partial.$${os}.$${arch}.o"; \
-	  if [ ! -s build_asm/seed_host/asm_backend_partial.o ] && [ -f "$$seed_partial" ] && [ -s "$$seed_partial" ]; then \
-	  if nm "$$seed_partial" 2>/dev/null | awk '/ T / { s=$$3; sub(/^_/, "", s); if (s=="backend_asm_codegen_ast_seed_mega") found=1 } END { exit !found }'; then \
-	  mkdir -p build_asm/seed_host; cp -f "$$seed_partial" build_asm/seed_host/asm_backend_partial.o; \
-	  echo "bootstrap-driver-seed: seed partial <- $$seed_partial" >&2; \
-	  else \
-	  echo "bootstrap-driver-seed: ignore non-real seed partial $$seed_partial (missing strong seed_mega)" >&2; \
-	  fi; \
-	  fi
-	@$(MAKE) src/x_seed_bridge.o
-	@$(MAKE) $(USER_ASM_SEED_OBJS)
-	@# pipeline_x.o / pipeline_glue_standalone.o 引用的 arch_*_enc_enc_* 须 weak 桩；真 partial 导出不含时由 stubs.o 补齐。
-	@$(MAKE) $(ASM_GLUE_STANDALONE_O)
-	@$(MAKE) build-seed-asm-host
-	@if [ ! -s build_asm/seed_host/asm_backend_partial.o ]; then \
-	  echo "bootstrap-driver-seed: no seed partial, gen phase1 backend stub ..." >&2; \
-	  ./scripts/gen_g06_phase1_backend_stub.sh; \
-	fi
-	@mkdir -p build_asm/seed_host
-	@rm -f $(USER_ASM_SEED_HOST_STUBS) $(USER_ASM_SEED_HOST_DIR)/asm_full_link_stubs.c
-	@$(MAKE) $(USER_ASM_SEED_HOST_STUBS)
-	@$(MAKE) $(BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS)
+
+# §5b #6 — USER_ASM seed objs (list expands per-platform in Makefile only)
+bootstrap-driver-seed-user-asm-seed-objs: $(USER_ASM_SEED_OBJS)
+
+# §5b #7
+bootstrap-driver-seed-asm-glue-standalone: $(ASM_GLUE_STANDALONE_O)
+
+# §5b #10 — class-G filtered (Darwin); empty expansion on Linux
+bootstrap-driver-seed-filtered-objs: $(BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS)
+
+# §5b #9
+bootstrap-driver-seed-host-stubs: $(USER_ASM_SEED_HOST_STUBS)
+
+# §5b #11 — phase1 / final link (object lists stay here; shell only invokes)
+bootstrap-driver-seed-phase1-link bootstrap-driver-seed-final-link: DRIVER_SEED_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o
+
+bootstrap-driver-seed-phase1-link:
 	@echo "bootstrap-driver-seed: phase1 link (+ USER_ASM dispatch/bridge + seed partial) ..."
 	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o xlang-seed-phase1 $(DRIVER_SEED_GLUE_PREFIX) $(BOOTSTRAP_DRIVER_SEED_LINK_BASE) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS) $(USER_ASM_SEED_HOST_STUBS) build_asm/seed_host/asm_backend_partial.o $(DRIVER_SEED_GLUE_SUFFIX)
-	@echo "bootstrap-driver-seed: build-seed-asm-host via xlang-seed-phase1 ..."
-	@XLANG_E=./xlang-seed-phase1 ./scripts/build_seed_asm_host.sh || \
-	  (./scripts/gen_g06_phase1_backend_stub.sh && echo "bootstrap-driver-seed: WARN asm.x -E failed, final link uses phase1 stub partial" >&2)
-	@$(MAKE) $(USER_ASM_SEED_HOST_STUBS)
+
+bootstrap-driver-seed-final-link:
 	@echo "bootstrap-driver-seed: final link (+ USER_ASM partial) ..."
 	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_GLUE_PREFIX) $(BOOTSTRAP_DRIVER_SEED_LINK_BASE) $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS) $(DRIVER_SEED_GLUE_SUFFIX)
-	@$(MAKE) runtime_panic.o
-ifeq ($(XLANG_SKIP_SEED_SMOKE),1)
-	@echo "bootstrap-driver-seed: skip seed smoke (XLANG_SKIP_SEED_SMOKE=1)" >&2
-else
-	@chmod +x scripts/bootstrap_driver_seed_smoke.sh 2>/dev/null || true
-	@./scripts/bootstrap_driver_seed_smoke.sh ./$(TARGET)
-endif
-	cp -f $(TARGET) xlang-x
-	cp -f $(TARGET) $(XLANG_C)
-	cp -f $(TARGET) bootstrap_xlangc
-	@chmod +x scripts/bootstrap_xlangc_create.sh scripts/capture_bootstrap_seeds.sh 2>/dev/null || true
-	@./scripts/bootstrap_xlangc_create.sh ./$(TARGET) 2>/dev/null || cp -f $(TARGET) bootstrap_xlangc
-	@echo "bootstrap-driver-seed OK (C-06 *_x.o; G-06 two-phase seed + USER_ASM partial; xlang-c synced)"
+
+bootstrap-driver-seed: DRIVER_SEED_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o
+bootstrap-driver-seed: $(DRIVER_SEED_PREREQS) build_asm/pipeline_glue_strict_minimal.o
+	@chmod +x scripts/bootstrap_driver_seed.sh 2>/dev/null || true
+	@MAKE="$(MAKE)" TARGET="$(TARGET)" XLANG_C="$(XLANG_C)" \
+		XLANG_SKIP_SEED_SMOKE="$(XLANG_SKIP_SEED_SMOKE)" \
+		./scripts/bootstrap_driver_seed.sh
 endif
 
 # 与 bootstrap-driver-seed 相同；保留别名供脚本引用

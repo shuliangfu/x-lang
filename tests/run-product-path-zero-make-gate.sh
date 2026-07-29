@@ -24,7 +24,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "=== 11.0.2 product-path 0-make static gate (wave714–716) ==="
+echo "=== 11.0.2/11.0.3 product-path 0-make static gate (wave714–717) ==="
 
 fail=0
 note() { echo "  OK  $*"; }
@@ -162,6 +162,21 @@ else
   note "Makefile class-G filtered recipes → shell scripts"
 fi
 
+# wave717: bootstrap-driver-seed orchestration must live in shell (11.0.3)
+if [ ! -x compiler/scripts/bootstrap_driver_seed.sh ] && [ ! -f compiler/scripts/bootstrap_driver_seed.sh ]; then
+  bad "missing compiler/scripts/bootstrap_driver_seed.sh (11.0.3 authority)"
+elif ! grep -q 'bootstrap_driver_seed\.sh' compiler/Makefile; then
+  bad "Makefile bootstrap-driver-seed must call scripts/bootstrap_driver_seed.sh"
+elif ! grep -q 'bootstrap-driver-seed-phase1-link' compiler/Makefile \
+  || ! grep -q 'bootstrap-driver-seed-final-link' compiler/Makefile; then
+  bad "Makefile missing thin phase1/final link leaves for bootstrap_driver_seed.sh"
+elif grep -A20 '^bootstrap-driver-seed: \$(DRIVER_SEED_PREREQS)' compiler/Makefile 2>/dev/null \
+  | grep -E 'xlang-seed-phase1|bootstrap_driver_seed_smoke' | grep -q .; then
+  bad "Makefile bootstrap-driver-seed recipe still inlines phase1/smoke (must be shell)"
+else
+  note "bootstrap-driver-seed orchestration → bootstrap_driver_seed.sh (+ thin link leaves)"
+fi
+
 if [ "$new_hits" -eq 0 ]; then
   note "g05 daily scripts: no make outside allowlist"
 fi
@@ -197,5 +212,5 @@ if [ "$fail" -ne 0 ]; then
   echo "FAIL product-path 0-make static gate" >&2
   exit 1
 fi
-echo "OK product-path 0-make static gate (allowlist frozen; class-G filtered pure shell)"
+echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap shell orchestration)"
 exit 0

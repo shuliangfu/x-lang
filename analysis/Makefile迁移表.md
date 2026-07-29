@@ -66,7 +66,7 @@
 | `g05-ensure-relink-prereqs` | 3081 | g05_ensure_relink_prereqs.sh (~3.3k 行) | `xbuild ensure` | 🟢 g05_ensure_relink_prereqs.sh | 热路径 cc；filtered.o 已纯 shell（wave715） |
 | `g05-export-relink` | 3085 | g05_relink_env.sh | `xbuild link-env` | 🟢 g05_relink_env.sh | 链接清单 |
 | `refresh-xlang-asm-gate` | 3172 | Makefile 包装 g05 | `xbuild refresh-gate` | 🟡 仍 make 入口包装 | 应收编 g05 |
-| `bootstrap-driver-seed` | 2957 | Makefile 冷启动权威 | `xbuild bootstrap` | ⬜ 冷启动 Makefile 权威 | L4 必经；11.0.3 |
+| `bootstrap-driver-seed` | ~2995 | **shell 编排** + Makefile prereq/薄叶子 | `xbuild bootstrap` | 🟡 wave717 编排迁 shell | L4 必经；11.0.3 续：OBJS/CFLAGS 仍 make |
 | `bootstrap-driver-bstrict` | 3155 | Makefile；FULL=1 走此 | `xbuild bstrict-build` | ⬜ FULL=1 仍 make | 非日常 |
 | `bootstrap-driver-bstrict-relink` | 3179 | Makefile | `xbuild bstrict-relink` | ⬜ make |  |
 | `bootstrap-driver` | 3193 | Makefile 历史 | `xbuild bootstrap-driver` | ⬜ make | 考古/过渡 |
@@ -586,29 +586,30 @@
 
 ---
 
-## 5b. 冷启动 `bootstrap-driver-seed` recipe 内 `$(MAKE)` 白名单（11.0.3 起点 · wave716）
+## 5b. 冷启动 `bootstrap-driver-seed` recipe 内 `$(MAKE)` 白名单（11.0.3 · wave716–717）
 
-> **用途**：冻结冷启动 recipe 仍调用 make 的显式集合；新加 `$(MAKE)` 须先改本表。  
-> **权威目标仍在 Makefile**（`bootstrap-driver-seed` ~L2968）；本波只把 **类 G 过滤**从「make 内联 nm/ld」降为「make 调 shell」。  
-> **下一刀**：recipe 主体迁 `scripts/bootstrap_driver_seed.sh`，下列目标改由 shell 白名单 `make -C . <target>` 或 g05/cc 直调。
+> **用途**：冻结冷启动仍调用 make 的显式集合；新加 `$(MAKE)` 须先改本表。  
+> **编排权威（wave717）**：`compiler/scripts/bootstrap_driver_seed.sh`（步序 / seed partial 选择 / smoke / 别名 cp）。  
+> **Makefile 薄壳**：`bootstrap-driver-seed` = prereq 依赖图 + 转调 shell；叶子目标仅对象清单 / CFLAGS / `$(CC)` 链接行（G.7 单权威，禁 shell 复制 OBJ 列表）。
 
 | # | recipe 内 make 调用（语义） | 状态 | 备注 |
 |---|------------------------------|------|------|
-| 1 | `check-pipeline-gen-expr-i64-abi` | ⬜ make | P0-4 守卫 |
-| 2 | `pipeline_x.o` FORCE | ⬜ make | 冷链强制重编 |
-| 3 | `-B` 卫星 runtime/diag/simd… | ⬜ make | seed 路径 PREFER=0 |
-| 4 | `lsp_io_x.o` `lsp_x.o` `lsp_diag_x.o` … | ⬜ make | |
-| 5 | `src/x_seed_bridge.o` | ⬜ make | |
-| 6 | `$(USER_ASM_SEED_OBJS)` | ⬜ make | |
-| 7 | `$(ASM_GLUE_STANDALONE_O)` | ⬜ make | |
+| 1 | `check-pipeline-gen-expr-i64-abi` | 🟡 shell 调 make | shell 白名单 `mk` |
+| 2 | `pipeline_x.o` FORCE | 🟡 shell 调 make | `PIPELINE_X_FORCE_COMPILE=1` |
+| 3 | `-B` 卫星 runtime/diag/simd… | 🟡 薄目标 | `bootstrap-driver-seed-sat-rebuild` |
+| 4 | `lsp_io_x.o` `lsp_x.o` … | 🟡 薄目标 | `bootstrap-driver-seed-lsp-x-objs` |
+| 5 | `src/x_seed_bridge.o` | 🟡 shell 调 make | |
+| 6 | `$(USER_ASM_SEED_OBJS)` | 🟡 薄目标 | `bootstrap-driver-seed-user-asm-seed-objs` |
+| 7 | `$(ASM_GLUE_STANDALONE_O)` | 🟡 薄目标 | `bootstrap-driver-seed-asm-glue-standalone` |
 | 8 | `build-seed-asm-host` | 🟡 半 shell | 已有 `build_seed_asm_host.sh` |
-| 9 | `$(USER_ASM_SEED_HOST_STUBS)` | ⬜ make | |
-| 10 | `$(BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS)` | 🟢 shell 体 | wave716：filtered 配方 = 纯 shell；**仍经 make 依赖图** |
-| 11 | phase1/final `$(CC)` 链接 | ⬜ make 变量 | 终迁 shell 须导出 CFLAGS/OBJS |
-| 12 | `runtime_panic.o` | ⬜ make | |
-| 13 | smoke / `bootstrap_xlangc_create` | 🟢 已 shell | `bootstrap_driver_seed_smoke.sh` 等 |
+| 9 | `$(USER_ASM_SEED_HOST_STUBS)` | 🟡 薄目标 | `bootstrap-driver-seed-host-stubs` |
+| 10 | `$(BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS)` | 🟢 shell 体 | wave716 配方纯 shell；wave717 经薄目标 |
+| 11 | phase1/final `$(CC)` 链接 | 🟡 薄目标 | `bootstrap-driver-seed-phase1-link` / `…-final-link`（OBJS 仍 Makefile） |
+| 12 | `runtime_panic.o` | 🟡 shell 调 make | |
+| 13 | smoke / `bootstrap_xlangc_create` | 🟢 已 shell | smoke + create 由编排脚本转调 |
 
-**wave716 已减 make 逻辑量**：类 G 四目标不再在 Makefile 内嵌 nm/ld；产品 g05 重建 trio 不再需要冷 make。
+**wave716**：类 G 四目标无内联 nm/ld。  
+**wave717**：编排主体迁 shell；Makefile 仅 prereq + 薄叶子 + 转调。
 
 ---
 
@@ -616,7 +617,7 @@
 
 1. **11.0.1** 本表 ✅（wave714）
 2. **11.0.2** 产品路径 0-make 静态闸门 ✅ + class-G filtered 全 shell ✅（wave714–716）；运行时 PATH 无 make 探针仍可加
-3. **11.0.3** `bootstrap-driver-seed` 规则白名单化 → shell/xbuild 逐步接管（**wave716**：§5b 白名单 + 类 G 闭）
+3. **11.0.3** `bootstrap-driver-seed` 规则白名单化 → shell/xbuild 逐步接管（**wave716** 白名单+类 G；**wave717** 编排→`bootstrap_driver_seed.sh`）
 4. **11.0.4** 根 Makefile 仅 help→xbuild；禁止新规则
 5. 并行：**类 C glue 地图**（阶段 8.3）· **类 B/D 去 pin 烟**（7.4）
 6. **11.1+** 填实 `build.x` / 吞并 g05 → **11.3 物理删**
@@ -627,6 +628,7 @@
 
 | 日期 | 波次 | 变更 |
 |------|------|------|
+| 2026-07-29 | **wave717** | 11.0.3 续：`bootstrap_driver_seed.sh` 编排权威；Makefile 薄壳 prereq + §5b 薄叶子（sat/lsp/user-asm/glue/filtered/host-stubs/phase1/final link）；0-make 闸门硬检 shell 转调；OBJS/CFLAGS 仍 make（防双权威） |
 | 2026-07-29 | **wave716** | 11.0.3 起点：类 G 全 4 纯 shell（`filter_o_export_against_deps.sh` + against_partial 包装）；g05_ensure Darwin trio；§5b 冷启动 make 白名单；0-make 闸门硬检 Makefile 无内联 nm/ld |
 | 2026-07-29 | **wave715** | 11.0.2 residual：`filter_bootstrap_seed_pipeline_o.sh` 为 pipeline filtered.o 唯一权威；g05_ensure 去 `make -s`；Makefile 同调；0-make 闸门 WARN 清零 |
 | 2026-07-29 | wave714 | 11.0.1 初版：289 目标分类 A–O + 关键 phony 表 + 泄漏清单 |
