@@ -50,6 +50,7 @@ REQUIRED_KEYS=(
   RT_SEED_SLICE_OBJS
   R1_CORE_SEED_OBJS
   R1_FRONTEND_GLUE_OBJS
+  R1_MAIN_RUNTIME_OBJS
 )
 
 out="$("$MAKE" -s bootstrap-driver-seed-export-obj-catalog)"

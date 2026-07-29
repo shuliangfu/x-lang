@@ -3,24 +3,29 @@
 #   wave748: first family RT_SEED_SLICE
 #   wave749: second family R1_CORE_SEED (diag / link_abi / c_import / bridge / seed_link_compat)
 #   wave750: third family R1_FRONTEND_GLUE (lexer/ast/lsp basename-mismatch map)
+#   wave751: fourth family R1_MAIN_RUNTIME (main/runtime multi-flag variants)
 #
 # Authority (G.7):
 #   Single shell *recipe body* for pure host-cc compile of seeds/*.from_x.c → .o.
 #   Object *lists* stay in Makefile / mk (catalog export keys).
 #   This script never hardcodes a second product .o inventory as authority.
-#   Seed path conventions (not .o lists):
+#   Seed / flag path conventions (not .o lists):
 #     basename match:  <dir>/<leaf>.o  ←  seeds/<leaf>.from_x.c
 #     frontend-glue:   fixed o→seed map (leaf stem ≠ seed stem)
+#     main-runtime:    o→seed map (main_* ← main; runtime_* ← runtime) +
+#                      o→extra -D flags (thin Makefile passes expanded make vars)
 #
 # Families (list authority = catalog KEY):
 #   RT_SEED_SLICE_OBJS     — five Cap residual slices under src/runtime/
 #   R1_CORE_SEED_OBJS      — diag + runtime_link_abi + runtime_c_import +
 #                            x_seed_bridge + seed_link_compat
 #   R1_FRONTEND_GLUE_OBJS  — lexer.o / ast.o / lsp_diag.o (runtime_*_glue seeds)
+#   R1_MAIN_RUNTIME_OBJS   — main / main_x / main_driver / runtime / runtime_x /
+#                            runtime_driver / runtime_driver_no_c
 #
 # Not in scope (honest residual):
 #   - R3 thin+rest / PREFER_X_O product g05 path (g05_ensure keeps that)
-#   - Other R1 leaves (extra cflags, main/runtime variants, …)
+#   - Other R1 leaves (extra-cflags pure basename, alias stubs, …)
 #   - R2 UNAME stamps, R4 rebuild pattern multi-family, R5 CI all
 #
 # Usage (cwd = compiler/):
@@ -28,20 +33,23 @@
 #   bash scripts/ensure_host_cc_seed_o.sh rt-slice          # RT_SEED_SLICE family
 #   bash scripts/ensure_host_cc_seed_o.sh core-seed         # R1_CORE_SEED family
 #   bash scripts/ensure_host_cc_seed_o.sh frontend-glue     # R1_FRONTEND_GLUE family
+#   bash scripts/ensure_host_cc_seed_o.sh main-runtime      # R1_MAIN_RUNTIME family
 #   bash scripts/ensure_host_cc_seed_o.sh all               # all swallowed families
 #   bash scripts/ensure_host_cc_seed_o.sh --check
-#   bash scripts/ensure_host_cc_seed_o.sh frontend-glue --force
-#   ./xbuild host-cc-seed | rt-seed-slice | core-seed | frontend-glue [--check|--force]
+#   bash scripts/ensure_host_cc_seed_o.sh main-runtime --force
+#   ./xbuild host-cc-seed | rt-seed-slice | core-seed | frontend-glue | main-runtime
 #
 # Env:
 #   CC — host compiler (default: cc; honor caller CC)
 #   CFLAGS — base flags (default: -Wall -Wextra -I. -Iinclude -Isrc)
 #   PIPELINE_GEN_CFLAGS — optional silence flags (Makefile exports when thin)
+#   RUNTIME_DRIVER_CFLAGS / RUNTIME_DRIVER_NO_C_CFLAGS — multi-flag variants
+#     (Makefile thin expands make vars; family mode uses env or defaults below)
 #   XLANG_HOST_CC_SEED_FORCE=1 — force recompile (same as --force)
 #   MAKE — only for catalog list expansion (default: make)
 #
 # PLATFORM: SHARED — shell orchestration; seed pins host-portable C.
-# Wave: 748–750 Track MG · 11.3.1 R1 families (not physical delete · not pure-ld).
+# Wave: 748–751 Track MG · 11.3.1 R1 families (not physical delete · not pure-ld).
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -53,9 +61,16 @@ PIPELINE_GEN_CFLAGS="${PIPELINE_GEN_CFLAGS:-}"
 MAKE="${MAKE:-make}"
 FORCE="${XLANG_HOST_CC_SEED_FORCE:-0}"
 
+# Default multi-flag mirrors for family mode when env empty.
+# PLATFORM: SHARED — must stay aligned with Makefile RUNTIME_DRIVER_*_CFLAGS
+# (without optional XLANG_LEGACY_PREPROCESS_C). Thin leaves pass make-expanded vars.
+_DEFAULT_RT_SLICE_CFLAGS="-DXLANG_RT_ARENA_BUF_FROM_X -DXLANG_RT_EMIT_STATE_FROM_X -DXLANG_RT_PREAMBLE_FROM_X -DXLANG_RT_STACK_FROM_X -DXLANG_RT_PARSE_DIAG_FROM_X"
+_DEFAULT_RUNTIME_DRIVER_CFLAGS="-DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_PREPROCESS -DXLANG_NO_C_FRONTEND -DXLANG_ASM_USE_COMPILER_IMPL_C ${_DEFAULT_RT_SLICE_CFLAGS}"
+_DEFAULT_RUNTIME_DRIVER_NO_C_CFLAGS="-DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_PREPROCESS -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN -DXLANG_NO_C_FRONTEND -DXLANG_ASM_USE_COMPILER_IMPL_C ${_DEFAULT_RT_SLICE_CFLAGS}"
+
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|rt-slice|core-seed|frontend-glue|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|rt-slice|core-seed|frontend-glue|main-runtime|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -99,8 +114,8 @@ ensure_one() {
   mkdir -p "$(dirname "$out")"
 
   if [ "$FORCE" != "1" ] && [ -f "$out" ] && [ ! "$seed" -nt "$out" ]; then
-    # Sibling .x deps: out path stem, and seed-stem under src/asm or src/
-    # (frontend glue: out=src/lexer/lexer.o, seed=runtime_lexer_glue → src/asm/…).
+    # Sibling .x deps: out path stem, seed-stem under src/asm or src/,
+    # and main_c_entry.x for main family (Makefile dep name).
     local need=0
     local xsrc stem cand
     xsrc="${out%.o}.x"
@@ -108,7 +123,7 @@ ensure_one() {
       need=1
     fi
     stem="$(basename "$seed" .from_x.c)"
-    for cand in "src/asm/${stem}.x" "src/${stem}.x"; do
+    for cand in "src/asm/${stem}.x" "src/${stem}.x" "src/main_c_entry.x"; do
       if [ -f "$cand" ] && [ "$cand" -nt "$out" ]; then
         need=1
         break
@@ -173,13 +188,66 @@ seed_for_frontend_glue() {
   esac
 }
 
+# seed convention (main-runtime multi-out from shared seeds).
+# PLATFORM: SHARED — map is path convention only; list authority = catalog KEY.
+seed_for_main_runtime() {
+  local o="$1"
+  case "$o" in
+    src/main.o|src/main_x.o|src/main_driver.o)
+      printf 'seeds/main.from_x.c\n'
+      ;;
+    src/runtime.o|src/runtime_x.o|src/runtime_driver.o|src/runtime_driver_no_c.o)
+      printf 'seeds/runtime.from_x.c\n'
+      ;;
+    *)
+      echo "ensure_host_cc_seed_o: no main-runtime seed map for $o" >&2
+      exit 1
+      ;;
+  esac
+}
+
+# Extra -D flags for main-runtime family (stdout, space-separated; may be empty).
+# Thin Makefile leaves pass make-expanded vars as extras to `one` (authority).
+# Family mode: use env when set, else defaults aligned with Makefile base flags.
+extras_for_main_runtime() {
+  local o="$1"
+  case "$o" in
+    src/main.o|src/runtime.o)
+      ;;
+    src/main_x.o|src/runtime_x.o)
+      printf '%s' '-DXLANG_USE_X_PIPELINE'
+      ;;
+    src/main_driver.o)
+      printf '%s' '-DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE'
+      ;;
+    src/runtime_driver.o)
+      if [ -n "${RUNTIME_DRIVER_CFLAGS:-}" ]; then
+        printf '%s' "$RUNTIME_DRIVER_CFLAGS"
+      else
+        printf '%s' "$_DEFAULT_RUNTIME_DRIVER_CFLAGS"
+      fi
+      ;;
+    src/runtime_driver_no_c.o)
+      if [ -n "${RUNTIME_DRIVER_NO_C_CFLAGS:-}" ]; then
+        printf '%s' "$RUNTIME_DRIVER_NO_C_CFLAGS"
+      else
+        printf '%s' "$_DEFAULT_RUNTIME_DRIVER_NO_C_CFLAGS"
+      fi
+      ;;
+    *)
+      echo "ensure_host_cc_seed_o: no main-runtime extras map for $o" >&2
+      exit 1
+      ;;
+  esac
+}
+
 # Ensure every .o in catalog KEY via pure host-cc body.
-# $1=KEY $2=label $3=seed_mode (basename|frontend-glue)
+# $1=KEY $2=label $3=seed_mode (basename|frontend-glue|main-runtime)
 ensure_catalog_family() {
   local key="$1"
   local label="$2"
   local seed_mode="${3:-basename}"
-  local list n=0 o seed
+  local list n=0 o seed extras_str
   list="$(catalog_key_list "$key")"
   # Word-split intentionally (space-separated make expansion).
   # shellcheck disable=SC2086
@@ -188,12 +256,23 @@ ensure_catalog_family() {
     case "$seed_mode" in
       basename) seed="$(seed_for_o "$o")" ;;
       frontend-glue) seed="$(seed_for_frontend_glue "$o")" ;;
+      main-runtime) seed="$(seed_for_main_runtime "$o")" ;;
       *)
         echo "ensure_host_cc_seed_o: unknown seed_mode $seed_mode" >&2
         exit 2
         ;;
     esac
-    ensure_one "$o" "$seed"
+    if [ "$seed_mode" = "main-runtime" ]; then
+      extras_str="$(extras_for_main_runtime "$o")"
+      if [ -n "$extras_str" ]; then
+        # shellcheck disable=SC2086
+        ensure_one "$o" "$seed" $extras_str
+      else
+        ensure_one "$o" "$seed"
+      fi
+    else
+      ensure_one "$o" "$seed"
+    fi
     n=$((n + 1))
   done
   log "$label OK ($n objs via catalog $key)"
@@ -211,11 +290,16 @@ ensure_frontend_glue() {
   ensure_catalog_family "R1_FRONTEND_GLUE_OBJS" "frontend-glue" "frontend-glue"
 }
 
+ensure_main_runtime() {
+  ensure_catalog_family "R1_MAIN_RUNTIME_OBJS" "main-runtime" "main-runtime"
+}
+
 ensure_all_swallowed() {
   ensure_rt_slice
   ensure_core_seed
   ensure_frontend_glue
-  log "all swallowed R1 families OK (rt-slice + core-seed + frontend-glue)"
+  ensure_main_runtime
+  log "all swallowed R1 families OK (rt-slice + core-seed + frontend-glue + main-runtime)"
 }
 
 # ---------------------------------------------------------------------------
@@ -243,6 +327,16 @@ check_family() {
         if ! seed="$(seed_for_frontend_glue "$o" 2>/dev/null)"; then
           bad "frontend-glue map missing for catalog member $o"
           continue
+        fi
+        ;;
+      main-runtime)
+        if ! seed="$(seed_for_main_runtime "$o" 2>/dev/null)"; then
+          bad "main-runtime map missing for catalog member $o"
+          continue
+        fi
+        # extras map must also resolve (fail closed)
+        if ! extras_for_main_runtime "$o" >/dev/null 2>&1; then
+          bad "main-runtime extras map missing for catalog member $o"
         fi
         ;;
       *) bad "unknown seed_mode $seed_mode for $label"; continue ;;
@@ -287,10 +381,15 @@ run_check() {
     && ! grep -q 'R1_FRONTEND_GLUE_OBJS' mk/*.mk 2>/dev/null; then
     bad "R1_FRONTEND_GLUE_OBJS not defined in Makefile/mk (wave750)"
   fi
+  if ! grep -q 'R1_MAIN_RUNTIME_OBJS' Makefile \
+    && ! grep -q 'R1_MAIN_RUNTIME_OBJS' mk/*.mk 2>/dev/null; then
+    bad "R1_MAIN_RUNTIME_OBJS not defined in Makefile/mk (wave751)"
+  fi
 
   check_family "RT_SEED_SLICE_OBJS" 5 "rt-slice" "basename" "src/runtime/"
   check_family "R1_CORE_SEED_OBJS" 5 "core-seed" "basename" "src/"
   check_family "R1_FRONTEND_GLUE_OBJS" 3 "frontend-glue" "frontend-glue" "src/"
+  check_family "R1_MAIN_RUNTIME_OBJS" 7 "main-runtime" "main-runtime" "src/"
 
   # Makefile thin: recipes must call this script (not inline $(CC) -c for swallowed leaves)
   if ! grep -q 'ensure_host_cc_seed_o\.sh' Makefile; then
@@ -312,6 +411,13 @@ run_check() {
   else
     note "Makefile frontend-glue leaves thin (no inline \$(CC) -c)"
   fi
+  # Main-runtime leaves must not keep inline $(CC) -c recipes.
+  if grep -A1 -E '^(src/main\.o|src/main_x\.o|src/main_driver\.o|src/runtime\.o|src/runtime_x\.o|src/runtime_driver\.o|src/runtime_driver_no_c\.o):' Makefile \
+    | grep -qE '\$\(CC\).*-c seeds/'; then
+    bad "Makefile main-runtime leaves still have inline \$(CC) -c (must thin-call ensure)"
+  else
+    note "Makefile main-runtime leaves thin (no inline \$(CC) -c)"
+  fi
 
   # G.7: list authority is catalog only — no hardcoded assignment of product lists.
   if grep -nE '^(export )?RT_SEED_SLICE_OBJS=' "$0" 2>/dev/null \
@@ -326,12 +432,16 @@ run_check() {
     | grep -vqE '^\s*#|:[0-9]+:\s*#'; then
     bad "must not hardcode R1_FRONTEND_GLUE_OBJS= in shell body"
   fi
+  if grep -nE '^(export )?R1_MAIN_RUNTIME_OBJS=' "$0" 2>/dev/null \
+    | grep -vqE '^\s*#|:[0-9]+:\s*#'; then
+    bad "must not hardcode R1_MAIN_RUNTIME_OBJS= in shell body"
+  fi
 
   if [ "$fail" -ne 0 ]; then
     echo "ensure_host_cc_seed_o: --check FAILED" >&2
     exit 1
   fi
-  echo "ensure_host_cc_seed_o: CHECK OK (R1 rt-seed-slice + core-seed + frontend-glue · wave748–750)" >&2
+  echo "ensure_host_cc_seed_o: CHECK OK (R1 rt-seed-slice + core-seed + frontend-glue + main-runtime · wave748–751)" >&2
 }
 
 case "$MODE" in
@@ -351,6 +461,9 @@ case "$MODE" in
   frontend-glue|frontend_glue|glue|r1-frontend-glue|r1-glue|family=r1_frontend_glue)
     ensure_frontend_glue
     ;;
+  main-runtime|main_runtime|r1-main-runtime|r1-main|family=r1_main_runtime)
+    ensure_main_runtime
+    ;;
   all|family|families|swallowed)
     # Umbrella: all swallowed pure R1 families on this body.
     ensure_all_swallowed
@@ -359,11 +472,11 @@ case "$MODE" in
     run_check
     ;;
   help|-h|--help)
-    sed -n '2,55p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,60p' "$0" | sed 's/^# \{0,1\}//'
     exit 0
     ;;
   *)
-    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|rt-slice|core-seed|frontend-glue|all|--check)" >&2
+    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|rt-slice|core-seed|frontend-glue|main-runtime|all|--check)" >&2
     exit 2
     ;;
 esac

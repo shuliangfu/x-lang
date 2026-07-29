@@ -148,8 +148,10 @@
 //       x_seed_bridge/seed_link_compat); same body; catalog R1_CORE_SEED_OBJS.
 //     wave750: R1 third family R1_FRONTEND_GLUE (lexer/ast/lsp basename-
 //       mismatch seed map); same body; catalog R1_FRONTEND_GLUE_OBJS.
+//     wave751: R1 fourth family R1_MAIN_RUNTIME (main/runtime multi-flag
+//       variants); same body; catalog R1_MAIN_RUNTIME_OBJS.
 //       ./xbuild host-cc-seed | rt-seed-slice | core-seed | frontend-glue
-//       [--check|--force]
+//         | main-runtime [--check|--force]
 //       Other R1 leaves residual. Physical delete of Makefile = 11.3.1 endgame.
 //     G.7: lists stay mk; no dual .o inventory in residual shell.
 //

@@ -770,8 +770,10 @@ LEGACY_XLANG_C_READY_TARGETS = build-tool
 $(LEGACY_XLANG_C_READY_TARGETS): | legacy-xlang-c-ready
 
 # G-02f-16：main 产品 seed（LEGACY 极简入口）
-src/main.o: seeds/main.from_x.c src/main_c_entry.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/main.from_x.c -o $@
+# wave751 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MAIN_RUNTIME_OBJS).
+src/main.o: seeds/main.from_x.c src/main_c_entry.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/main.from_x.c
 
 # E-04 v2/v3：argv/target 与 POSIX I/O ABI 薄壳；默认 seed / B-strict 均链入。
 
@@ -935,8 +937,10 @@ src/runtime_driver_diagnostic.o: seeds/runtime_driver_diagnostic.from_x.c src/ru
 
 # 6.3：runtime.c 提供 run_compiler_c 与弱符号 main_entry；带 .x 入口时用 runtime_driver.o（含 driver_*/pipeline_*）
 # G-02f-14：runtime 产品 seed（多变体）
-src/runtime.o: seeds/runtime.from_x.c src/runtime.x include/diag.h
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime.from_x.c -o $@
+# wave751 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MAIN_RUNTIME_OBJS).
+src/runtime.o: seeds/runtime.from_x.c src/runtime.x include/diag.h scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime.from_x.c
 # Makefile 为 prerequisite：编译宏（如 XLANG_USE_X_PREPROCESS）变更时须重编，否则 runtime_driver.o 缺 preprocess() 导致链接 Undefined _preprocess。
 # XLANG_ASM_USE_COMPILER_IMPL_C：driver_run_compiler_full 走 impl_c（parse_argv+post_parse），避免 compile.x X emit 路径 silent fail（与 B-strict xlang_asm 同）。
 # E-03 v2：XLANG_LEGACY_PREPROCESS_C=1 时 runtime preprocess() 仍调 C preprocess_c_fallback。
@@ -970,8 +974,11 @@ RUNTIME_PIPELINE_ABI_CFLAGS = -DXLANG_USE_X_PIPELINE
 ifeq ($(XLANG_LEGACY_PREPROCESS_C),1)
 RUNTIME_PIPELINE_ABI_CFLAGS += -DXLANG_LEGACY_PREPROCESS_C
 endif
-src/runtime_driver.o: seeds/runtime.from_x.c src/runtime.x Makefile include/diag.h
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) $(RUNTIME_DRIVER_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime.from_x.c -o $@
+# wave751 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MAIN_RUNTIME_OBJS).
+# Extra flags = $(RUNTIME_DRIVER_CFLAGS) (make expands; shell body only).
+src/runtime_driver.o: seeds/runtime.from_x.c src/runtime.x Makefile include/diag.h scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime.from_x.c $(RUNTIME_DRIVER_CFLAGS)
 
 # G-02f Cap residual slices：driver_abi 跨 TU 数据/thread_fn（arena BSS、emit 扫描槽、preamble 表、stack_esc）。
 # 与 g05_ensure 产品路径同源 seed；冷启动 phase1 必须进 DRIVER_SEED_OBJS。
@@ -1006,10 +1013,17 @@ R1_CORE_SEED_OBJS = src/diag.o src/runtime_link_abi.o src/runtime_c_import.o src
 # Seed map lives in ensure script (path convention); list stays here (G.7).
 R1_FRONTEND_GLUE_OBJS = src/lexer/lexer.o src/ast/ast.o src/lsp/lsp_diag.o
 
+# wave751 R1 fourth family: main/runtime multi-flag variants (shared seeds, different -D).
+# List authority for ensure_host_cc_seed_o.sh main-runtime mode; body = same script.
+# Seed/flag maps live in ensure script (path convention); list stays here (G.7).
+R1_MAIN_RUNTIME_OBJS = src/main.o src/main_x.o src/main_driver.o src/runtime.o src/runtime_x.o src/runtime_driver.o src/runtime_driver_no_c.o
+
 # G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（XLANG_LEGACY_PREPROCESS_C 路径已死）。
 # xlang_x 用：仅 -DXLANG_USE_X_PIPELINE，提供 asm_codegen_ast、pipeline_parse_into_buf、main_entry（弱符号）等
-src/runtime_x.o: seeds/runtime.from_x.c src/runtime.x include/diag.h
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE -c seeds/runtime.from_x.c -o $@
+# wave751 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MAIN_RUNTIME_OBJS).
+src/runtime_x.o: seeds/runtime.from_x.c src/runtime.x include/diag.h scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime.from_x.c -DXLANG_USE_X_PIPELINE
 
 # G-02f-11 / Phase 4：fmt_check_cmd thin+rest PREFER_X_O
 # 两目标共用 thin.x；driver 变体 rest 编译额外加 -DXLANG_USE_X_PIPELINE
@@ -1147,12 +1161,16 @@ src/lexer/cfg_eval.o: src/lexer/cfg_eval.x seeds/cfg_eval_link_alias.from_x.c se
 
 # runtime.c：不引用 C lexer/parser/typeck/codegen（见 XLANG_NO_C_FRONTEND 包裹的 load_one_import 等）
 # G-02f-14：G05 产品 runtime_driver_no_c
-src/runtime_driver_no_c.o: seeds/runtime.from_x.c src/runtime.x Makefile
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) $(RUNTIME_DRIVER_NO_C_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime.from_x.c -o $@
+# wave751 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MAIN_RUNTIME_OBJS).
+src/runtime_driver_no_c.o: seeds/runtime.from_x.c src/runtime.x Makefile scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime.from_x.c $(RUNTIME_DRIVER_NO_C_CFLAGS)
 
 # xlang_x 使用带 -DXLANG_USE_X_PIPELINE 编译的 main，否则 #ifdef 块不会生效
-src/main_x.o: seeds/main.from_x.c src/main_c_entry.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE -c seeds/main.from_x.c -o $@
+# wave751 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MAIN_RUNTIME_OBJS).
+src/main_x.o: seeds/main.from_x.c src/main_c_entry.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/main.from_x.c -DXLANG_USE_X_PIPELINE
 
 # xlang_x：pipeline_x.o 编排 typeck_x/codegen_x（G-02a: typeck.c + codegen.c 已删；X pipeline 独立）。
 PIPELINE_X_BASE_OBJS = src/main_x.o src/runtime_x.o src/diag.o src/lexer/lexer.o src/ast/ast_seed.o
@@ -2047,8 +2065,10 @@ bootstrap-codegen: $(TARGET) $(XLANG_C) bootstrap_xlangc $(RELINK_XLANG_PREREQS)
 
 # 6.3/6.4：入口在 main.x；链接时用 main_driver.o（带 XLANG_USE_X_DRIVER/PIPELINE 以启用 -backend asm）+ runtime_driver.o + ...
 # G-02f-16：main_driver 与 main 同源 seed
-src/main_driver.o: seeds/main.from_x.c src/main_c_entry.x Makefile
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -c seeds/main.from_x.c -o $@
+# wave751 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MAIN_RUNTIME_OBJS).
+src/main_driver.o: seeds/main.from_x.c src/main_c_entry.x Makefile scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/main.from_x.c -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE
 # G-02a: preprocess.c 已物理删除；runtime preprocess() 走 preprocess.x（preprocess_x.o）。
 # G-02f-6：target_cpu.o 单 TU（pure seed 含 OS detect；无 ld -r）
 src/driver/target_cpu.o: seeds/target_cpu_pure.from_x.c src/driver/target_cpu_pure.x include/target_cpu.h
@@ -2654,6 +2674,7 @@ bootstrap-driver-seed-export-obj-catalog:
 	@printf 'RT_SEED_SLICE_OBJS=%s\n' '$(RT_SEED_SLICE_OBJS)'
 	@printf 'R1_CORE_SEED_OBJS=%s\n' '$(R1_CORE_SEED_OBJS)'
 	@printf 'R1_FRONTEND_GLUE_OBJS=%s\n' '$(R1_FRONTEND_GLUE_OBJS)'
+	@printf 'R1_MAIN_RUNTIME_OBJS=%s\n' '$(R1_MAIN_RUNTIME_OBJS)'
 
 # §5b #2 — pipeline_x.o FORCE recompile on cold start (PIPELINE_X_FORCE_COMPILE=1)
 # Body: bootstrap_driver_seed_rebuild_leaves.sh pipeline-x; list = DRIVER_SEED_PIPELINE_X_OBJS only.
