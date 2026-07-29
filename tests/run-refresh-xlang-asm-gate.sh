@@ -21,7 +21,8 @@ chmod +x tests/run-migrate-x-gen-gate.sh
 XLANG_FORCE_REFRESH_ASM_GATE="${XLANG_FORCE_REFRESH_ASM_GATE:-0}" ./tests/run-migrate-x-gen-gate.sh
 
 # 不覆盖 release xlang；仅 cp xlang -> xlang_asm 供 asm struct mk 门禁对齐
-XLANG_BSTRICT_NO_REPLACE=1 xlang_compiler_make refresh-xlang-asm-gate
+# wave734: G.7 body = scripts/refresh_xlang_asm_gate.sh (xbuild first-class; no make recipe body)
+XLANG_BSTRICT_NO_REPLACE=1 ./xbuild refresh-gate
 
 echo "refresh xlang asm gate: verify xlang import std.async + 0x const ..."
 out_import=$(./compiler/xlang build -L . -E tests/parser/import_std_async.x 2>&1) || {

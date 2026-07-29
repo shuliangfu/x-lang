@@ -3223,10 +3223,11 @@ bootstrap-driver-bstrict: bootstrap-driver-seed
 	  sh scripts/bootstrap_driver_bstrict.sh
 
 # P0 asm 门禁：strict xlang_asm 与 seed+migrate-x-objs 对齐（M-3 含 typeck/codegen/ast）；xlang_asm2 仍保留 gen2。
-refresh-xlang-asm-gate: migrate-x-objs relink-xlang
-	@cp -f $(TARGET) xlang_asm
-	@echo "refresh-xlang-asm-gate OK (xlang_asm <- seed+migrate-x-objs)"
-	@if [ -n "$$XLANG_BSTRICT_NO_REPLACE" ]; then echo "bootstrap-driver-bstrict OK (xlang_asm=seed+parser_x; $(TARGET) unchanged)"; else cp -f xlang_asm $(TARGET) && echo "bootstrap-driver-bstrict OK (xlang_asm -> $(TARGET), release default B-strict)"; fi
+# wave734: body → scripts/refresh_xlang_asm_gate.sh (G.7); migrate leaf still make inside script.
+refresh-xlang-asm-gate:
+	@MAKE="$(MAKE)" TARGET="$(TARGET)" \
+	  XLANG_BSTRICT_NO_REPLACE="$(XLANG_BSTRICT_NO_REPLACE)" \
+	  sh scripts/refresh_xlang_asm_gate.sh
 
 # 日常快路径：仅 strict relink（前提 build_asm/*.o 已由 prior bootstrap 产出；改 glue/runtime/link 时用，~30s）。
 # 等价：./scripts/relink_xlang_asm_bstrict_runtime_objs.sh（附带 bridge/Docker skip 环境）。

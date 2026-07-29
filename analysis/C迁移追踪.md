@@ -30,7 +30,7 @@
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
 | **Makefile 退役 / xbuild** | 🟡 半路径 | **`./xbuild`→`xlang-build.sh`** 产品入口；根 Makefile **help-only**；叶/组合体→`compiler/mk/*.mk`；**`compiler/Makefile` 仍 ~3445 行权威图**（阶段 11） |
-| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 ✅** tests/** hub（lib+run+bench 0 raw make -C）· **11.1.6 🟡** g05 一等目标 → xbuild · **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
+| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 ✅** tests/** hub · **11.1.6 🟡** g05+refresh-gate → xbuild · **11.1.5 🟡** build.x 策略图 · **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | ⬜ 0/~4 | ~200 个 .c 文件在零 cc 终局下归属未定 — 阶段 11.5 |
 | **冷启动零 cc 链** | ⬜ 0/4 | 最小 seed + 零 cc 验证 + 双端冷启动 |
 | **终局：无 Makefile + 零 cc + v2==v3** | ⬜ 未达 | 见 §0.1 三义；阶段 13 |
@@ -1360,16 +1360,18 @@
   - 直接调 `ld` / `lld` / `link.exe`（syscall 或 raw FFI / 过渡 `posix_spawn`）
   - **禁止**默认 `$(CC) -o` 当链接器（避免偷偷拉 cc）
 
-⬜ **11.1.5 填实 `build.x` 策略源**
+🟡 **11.1.5 填实 `build.x` 策略源**
 
-  - 今日大量 “See implementation” → 变为 xbuild 可读的构建图（产品矩阵、L4 步骤、std 模块顺序）
+  - ✅ wave734：根 `build.x` 英文策略图（产品/冷启动/残余叶/xbuild 目标映射）；三函数 ABI 保持 pin-compatible
+  - ⬜ 终局：DAG-as-data 替代 C build_runtime 步表（依赖 11.1.1–4）
 
 🟡 **11.1.6 吞并 g05 脚本族**
 
   - `g05_ensure_relink_prereqs` / `g05_relink_env` / `g05_relink_xlang` / `g05_prepare_and_relink` / `build_xlang_asm.sh`
   - ✅ wave733：`./xbuild ensure|link-env|link-product|link-product-asm` 直调 g05 shell（**零 make**）；Makefile 薄兼容入口仍在
   - ✅ wave733：`run_compiler_make` 与 tests hub 合体 → `tests/lib/compiler-make.sh`（G.7 单 make -C 体）
-  - ⬜ 终局：xbuild 内建或单一 `scripts/g05` 族；删 Makefile 间接调用（与 11.3 同闸）
+  - ✅ wave734：`refresh_xlang_asm_gate.sh` 唯一体；`./xbuild refresh-gate`；bstrict/run-refresh 脱 make recipe；migrate 叶仍 make 至 11.3
+  - ⬜ 终局：xbuild 内建或单一 `scripts/g05` 族；migrate 叶脱 make；删 Makefile 间接调用（与 11.3 同闸）
 
 ### 11.2 自举 stage + 测试/CI 编排
 
@@ -1469,10 +1471,10 @@
 
 > **背景**：`tests/` 下有 ~200 个 .c 文件（bench/、std-*/、abi/、leak/、safe/、kernel/），当前需 host cc 编译做对照/smoke。阶段 8.3 只管 compiler/ 内 residual C，**完全没覆盖 tests/ 下的对照 C**。零 cc 终局下必须决定它们的归属。
 
-⬜ **11.5.1 `tests/bench/**/*.c`（~50 个）对照基准 C**
+🟡 **11.5.1 `tests/bench/**/*.c`（~50 个）对照基准 C**
 
   - `loop_i32.c` · `mem_copy.c` · `simd_dot.c` · `struct_param.c` · `call_boundary.c` · `zero_copy_sendfile*.c` · `regex_match_*.c` · `http_bench_server.c` · `net_*.c` · `io_*.c` · `async_*.c` · `diff/d1_int_arith.c` ~ `d6_mem_ops.c`
-  - 策略：改写为 .x（用 xlang_asm 编译对照）或归为「永久 host-cc 白名单（仅差分测试）」
+  - **策略裁定（wave734）**：**永久 host-cc 白名单（仅差分/对照基准）** — 不进产品路径、不进 g05、不经 `./xbuild all`；与 `.x` 对照测时由 bench 脚本显式 `cc`（标 temporary residual 至阶段 12 零 cc 终局复审）。优先路径：有 `.x` 孪生则产品侧只编 `.x`；裸 `.c` 不强制本波改写
 
 ⬜ **11.5.2 `tests/std-*/*.c`（~30 个）std 模块 smoke 测试 C**
 

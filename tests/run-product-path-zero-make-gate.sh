@@ -796,6 +796,41 @@ else
   bad "xlang-build missing wave733 g05 first-class targets (ensure/link-env/link-product)"
 fi
 
+# wave734: refresh-xlang-asm-gate → shell body + xbuild first-class
+if [ ! -f compiler/scripts/refresh_xlang_asm_gate.sh ]; then
+  bad "missing compiler/scripts/refresh_xlang_asm_gate.sh (11.1.6 wave734)"
+elif ! grep -q 'g05_prepare_and_relink\.sh' compiler/scripts/refresh_xlang_asm_gate.sh \
+  || ! grep -q 'migrate-x-objs' compiler/scripts/refresh_xlang_asm_gate.sh \
+  || ! grep -q 'xlang_asm' compiler/scripts/refresh_xlang_asm_gate.sh; then
+  bad "refresh_xlang_asm_gate.sh must own migrate + g05 relink + xlang_asm overlay"
+elif ! grep -q 'refresh_xlang_asm_gate\.sh' compiler/Makefile; then
+  bad "Makefile refresh-xlang-asm-gate must call refresh_xlang_asm_gate.sh"
+elif ! grep -q 'refresh-gate|refresh-xlang-asm-gate' xlang-build.sh \
+  || ! grep -q 'run_refresh_xlang_asm_gate' xlang-build.sh; then
+  bad "xlang-build missing refresh-gate first-class target (wave734)"
+elif ! grep -q 'refresh_xlang_asm_gate\.sh' compiler/scripts/bootstrap_driver_bstrict.sh; then
+  bad "bootstrap_driver_bstrict must call refresh_xlang_asm_gate.sh (not make refresh)"
+elif grep -nE '["\$]MAKE["\s]* refresh-xlang-asm-gate|make refresh-xlang-asm-gate' \
+  compiler/scripts/bootstrap_driver_bstrict.sh 2>/dev/null \
+  | grep -vE '^[0-9]+:[ \t]*#' | grep -q .; then
+  bad "bootstrap_driver_bstrict still invokes make refresh-xlang-asm-gate"
+else
+  refresh_body=$(awk '
+    /^refresh-xlang-asm-gate:/ { in_r=1; next }
+    in_r && /^[^#[:space:]	]/ { exit }
+    in_r { print }
+  ' compiler/Makefile)
+  if echo "$refresh_body" | grep -qE 'cp -f|g05_prepare|migrate-x-objs'; then
+    bad "Makefile refresh-xlang-asm-gate recipe still inlines body (must be shell)"
+  elif ! echo "$refresh_body" | grep -q 'refresh_xlang_asm_gate\.sh'; then
+    bad "Makefile refresh-xlang-asm-gate recipe missing shell call"
+  elif ! grep -q '\./xbuild refresh-gate' tests/run-refresh-xlang-asm-gate.sh; then
+    bad "tests/run-refresh-xlang-asm-gate.sh must call ./xbuild refresh-gate"
+  else
+    note "refresh-xlang-asm-gate → refresh_xlang_asm_gate.sh + xbuild refresh-gate (11.1.6 wave734)"
+  fi
+fi
+
 # Product daily `all` must remain g05 (not Makefile all); CI uses compiler-all.
 if grep -n 'all|build|xlang)' xlang-build.sh | head -1 | grep -q . \
   && sed -n '/all|build|xlang)/,/^  [a-zA-Z*]/p' xlang-build.sh | head -8 | grep -q 'run_build_tool'; then

@@ -7,23 +7,24 @@
 #   bootstrap-driver-seed as prereq and thin-calls this script; xlang-build.sh
 #   calls this script directly (no make -C bootstrap-driver-bstrict).
 #
-#   Object lists / migrate-x-objs / relink still live in Makefile via the
-#   whitelist leaf `refresh-xlang-asm-gate` (no dual authority for OBJS).
+#   Object lists for migrate-x-objs still live in Makefile (leaf until 11.3).
+#   refresh gate body is scripts/refresh_xlang_asm_gate.sh (wave734 · G.7);
+#   product relink inside that script is g05 (zero make for the link step).
 #
 # Usage (cwd = compiler/):
 #   ./scripts/bootstrap_driver_bstrict.sh
 #
 # Env:
-#   MAKE   — make binary (default: make)
+#   MAKE   — make binary (default: make); residual seed + migrate-x-objs leaves
 #   TARGET — product binary name (default: xlang)
 #   XLANG_BSTRICT_NO_REPLACE — if set, refresh gate leaves $(TARGET) unchanged
-#     (passed through to make refresh-xlang-asm-gate)
+#     (passed through to refresh_xlang_asm_gate.sh)
 #   XLANG_BSTRICT_ENSURE_SEED=1 — if ./$TARGET missing, run
 #     `make bootstrap-driver-seed` (default on for direct xlang-build calls;
 #     Makefile path already has seed as prereq so usually unused)
 #
 # PLATFORM: SHARED shell orchestration; leaf recipes carry platform ABI.
-# Wave: 719 Track MG · pairs with Makefile thin leaf + xlang-build direct call.
+# Wave: 719 Track MG · wave734 refresh shell · pairs with Makefile thin leaf.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -65,6 +66,9 @@ if [ ! -f xlang_asm ]; then
   exit 1
 fi
 
-# Leaf still owns migrate-x-objs + relink-xlang object authority (Makefile).
+# G.7: refresh body is shell (wave734); residual make only for migrate-x-objs
+# inside refresh_xlang_asm_gate.sh. No dual make recipe for the overlay.
 # shellcheck disable=SC2086
-"$MAKE" refresh-xlang-asm-gate
+MAKE="$MAKE" TARGET="$TARGET" \
+  XLANG_BSTRICT_NO_REPLACE="${XLANG_BSTRICT_NO_REPLACE:-}" \
+  sh scripts/refresh_xlang_asm_gate.sh

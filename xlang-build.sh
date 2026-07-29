@@ -62,6 +62,10 @@ run_g05_prepare_and_relink() {
   # $1 = G05_SYNC_ASM (0 = xlang only; 1 = also sync xlang_asm)
   (cd compiler && G05_SYNC_ASM="${1:-1}" sh scripts/g05_prepare_and_relink.sh)
 }
+# P0 asm gate: migrate leaf (make) + g05 relink + overlay xlang_asm (wave734).
+run_refresh_xlang_asm_gate() {
+  (cd compiler && sh scripts/refresh_xlang_asm_gate.sh)
+}
 
 case "$TARGET" in
   # === 编译器（G-05 日常）===
@@ -110,6 +114,11 @@ case "$TARGET" in
   link-product-asm|prepare-and-relink)
     # Like `make xlang_asm`: ensure+link+sync xlang_asm (no build_tool rebuild)
     run_g05_prepare_and_relink 1
+    ;;
+  refresh-gate|refresh-xlang-asm-gate)
+    # P0: migrate-x-objs (Makefile leaf) + g05 relink + cp xlang → xlang_asm
+    # Wave734 · 11.1.6; body = scripts/refresh_xlang_asm_gate.sh (G.7)
+    run_refresh_xlang_asm_gate
     ;;
 
   # === CI / 冷启动 / 叶 .o（wave730：外层 0× make -C；图仍 Makefile 至 11.3）===
@@ -240,11 +249,13 @@ xbuild / xlang-build.sh — 统一构建入口（G-05 · G.7 同体）
   first-time           build_tool.sh + 日常构建
   clean                scripts/clean_compiler.sh（无 make）
 
-g05 产品链（wave733 · 11.1.6；零 make；已有 .o 时直链）:
+g05 产品链（wave733–734 · 11.1.6；产品 link 零 make）:
   ensure / g05-ensure           g05_ensure_relink_prereqs.sh
   link-env / g05-export         g05_relink_env.sh（打印/导出链接清单）
   link-product / relink         g05_prepare_and_relink（G05_SYNC_ASM=0）
   link-product-asm              g05_prepare_and_relink（G05_SYNC_ASM=1 → xlang_asm）
+  refresh-gate                  migrate-x-objs + g05 relink + overlay xlang_asm
+                                （migrate 叶仍 make 至 11.3；体 refresh_xlang_asm_gate.sh）
 
 CI / 冷启动（外层 0× make -C；图仍 Makefile 至 11.3）:
   compiler-all / ci-all      make OPT=1 all（host-cc/seed；≠ 产品 all）
@@ -274,6 +285,7 @@ CI / 冷启动（外层 0× make -C；图仍 Makefile 至 11.3）:
   tests/lib/compiler-make.sh               — 残余 make -C 唯一体（tests + xbuild）
   compiler/scripts/g05_build_xlang_asm.sh  — build_tool 唯一 asm 出口
   compiler/scripts/g05_prepare_and_relink.sh — ensure+env+link 编排
+  compiler/scripts/refresh_xlang_asm_gate.sh — P0 refresh 门禁体（wave734）
   compiler/Makefile                         — 冷启动 / 叶 .o 图（至 11.3）
   根 Makefile                               — help-only；勿再加厚
 
