@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748 R1 rt-slice)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–749 R1 families)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -31,13 +31,13 @@
 | g05 ensure / prepare / relink | `g05_*.sh` | product daily path (R3 thin+rest still inside) |
 | migrate / `*_gen` ensure | `migrate_x_objs.sh` · `ensure_*_gen.sh` | wave735–740 |
 | Host facts / linker policy map | `host_platform_linker.sh` | wave745 |
-| **R1 pure host-cc body · RT_SEED_SLICE family** | `ensure_host_cc_seed_o.sh` | **wave748**: list = catalog `RT_SEED_SLICE_OBJS`; other R1 leaves residual |
+| **R1 pure host-cc body · RT_SEED_SLICE + CORE_SEED** | `ensure_host_cc_seed_o.sh` | **wave748** rt-slice · **wave749** core-seed; other R1 residual |
 
 ## Named residual classes (Makefile still owns body)
 
 | ID | Residual class | Typical Makefile surface | Endgame owner | Status |
 |----|----------------|--------------------------|---------------|--------|
-| **R1** | Host-cc seed/from_x → `.o` | `$(CC) … -c seeds/*.from_x.c -o …` recipes | shell ensure or product `-E`+cc body (stages 8–9); **one** body per leaf family | **rt-seed-slice family ✅ wave748**; other leaves residual |
+| **R1** | Host-cc seed/from_x → `.o` | `$(CC) … -c seeds/*.from_x.c -o …` recipes | shell ensure or product `-E`+cc body (stages 8–9); **one** body, multi family lists | **rt-slice ✅ wave748** · **core-seed ✅ wave749**; other leaves residual |
 | **R2** | Platform stamp / UNAME leaf | `runtime_panic.$(UNAME_S).$(UNAME_M).stamp` · `typeck_f64_bits` arch `.s` pick · crt0 | shell + host_platform_linker facts; lists stay mk | residual |
 | **R3** | Thin+rest / PREFER_X_O host-cc rest | thin `.o` + `FROM_X=1` rest `cc -c` + `ld -r` | g05_ensure / product path (already partial shell) | residual |
 | **R4** | Cold rebuild **pattern bodies** | sat/lsp/bridge/panic/user-asm/glue/pipeline-x still invoke make for `.o` recipes | rebuild without make pattern graph | **mode+list shell wave747**; body residual |
@@ -95,13 +95,40 @@ Catalog: RT_SEED_SLICE_OBJS exported via bootstrap-driver-seed-export-obj-catalo
 
 **Forbidden:** re-listing the five `.o` paths inside `ensure_host_cc_seed_o.sh` as a second inventory.
 
+### wave749 · R1 second family: CORE_SEED
+
+```text
+Family: R1_CORE_SEED_OBJS (Makefile list authority)
+  src/diag.o
+  src/runtime_link_abi.o
+  src/runtime_c_import.o
+  src/x_seed_bridge.o
+  src/seed_link_compat.o
+
+Body (G.7 same as rt-slice):
+  scripts/ensure_host_cc_seed_o.sh one OUT seeds/<leaf>.from_x.c
+  scripts/ensure_host_cc_seed_o.sh core-seed   # catalog list + basename convention
+  scripts/ensure_host_cc_seed_o.sh all         # rt-slice + core-seed
+
+Makefile: thin leaves call the script (no inline $(CC) -c for these five).
+Catalog: R1_CORE_SEED_OBJS exported via bootstrap-driver-seed-export-obj-catalog.
+```
+
+| Swallowed | Still residual |
+|-----------|----------------|
+| Pure host-cc for diag / link_abi / c_import / bridge / seed_link_compat | Other R1 (lexer/ast glue basename mismatch, extra cflags, main/runtime variants, …) |
+| Dual list for this family (script uses catalog only) | R3 thin+rest / R4 pattern body / pure-ld |
+
+**Forbidden:** re-listing core-seed `.o` paths inside `ensure_host_cc_seed_o.sh` as a second inventory.
+
 ## CLI
 
 ```text
 ./xbuild leaf-patterns                 # dump residual class inventory KEY=value
 ./xbuild leaf-patterns --check
 ./xbuild leaf-residual                 # alias
-./xbuild host-cc-seed | rt-seed-slice  # wave748 R1 family ensure
+./xbuild host-cc-seed                  # all swallowed R1 families (wave749)
+./xbuild rt-seed-slice | core-seed     # single family ensure
 ./xbuild host-cc-seed --check
 ./xbuild host-cc-seed --force
 bash compiler/scripts/leaf_pattern_residual.sh
@@ -109,6 +136,8 @@ bash compiler/scripts/leaf_pattern_residual.sh --check
 bash compiler/scripts/leaf_pattern_residual.sh classes
 # R1 live body (compiler/):
 bash compiler/scripts/ensure_host_cc_seed_o.sh rt-slice
+bash compiler/scripts/ensure_host_cc_seed_o.sh core-seed
+bash compiler/scripts/ensure_host_cc_seed_o.sh all
 bash compiler/scripts/ensure_host_cc_seed_o.sh --check
 # R4 live body (compiler/):
 bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
@@ -122,10 +151,11 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
      name single shell body → Makefile thin phony only
 3. wave747: R4 mode policy + catalog list path ✅
 4. wave748: R1 pure host-cc body for RT_SEED_SLICE family ✅
-5. Next: more R1 families / R4 pattern bodies off make / 11.1.4 pure-ld
-6. When no recipe needs make pattern graph:
+5. wave749: R1 pure host-cc body for CORE_SEED family ✅
+6. Next: more R1 families / R4 pattern bodies off make / 11.1.4 pure-ld
+7. When no recipe needs make pattern graph:
      delete compiler/Makefile (11.3.1) + root Makefile (11.3.2)
-7. Zero host-cc product path → stage 12 (Docker unload gcc/make)
+8. Zero host-cc product path → stage 12 (Docker unload gcc/make)
 ```
 
 **Forbidden shortcuts:** bulk-copy every `$(CC) -c` into a mega shell list; dual `.o` tables; pure-ld rewrite under this inventory without 11.1.4 map.
@@ -156,7 +186,15 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - [x] Makefile five `src/runtime/rt_*.o` thin-call the script
 - [x] `./xbuild host-cc-seed` / `rt-seed-slice` + `--check`
 - [x] leaf residual dump `SWALLOWED_R1_RT_SEED_SLICE=1` / `R1_OTHER_HOST_CC_STILL_MAKE=1`
-- [ ] All R1 families swallowed (diag / bridge / …)
+
+### wave749 (R1 core-seed family)
+
+- [x] Same body + `core-seed` / `all` modes
+- [x] List from catalog `R1_CORE_SEED_OBJS` (no dual inventory in shell)
+- [x] Makefile five core leaves thin-call the script (diag/link_abi/c_import/bridge/compat)
+- [x] `./xbuild core-seed` · `host-cc-seed` umbrella = all swallowed families
+- [x] leaf residual dump `SWALLOWED_R1_CORE_SEED=1` / `R1_CORE_SEED_SWALLOWED=1`
+- [ ] All R1 families swallowed (lexer/ast glue, extra-cflags, main/runtime variants, …)
 - [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame)
 - [ ] Leaf `.o` without host-cc residual (stages 8–9 / 12)
 - [ ] Cold phase1/final pure-ld without `SEED_LINK_CC -o` (11.1.4 · separate)
@@ -167,5 +205,5 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - `compiler/docs/BUILD_DAG.md` §5 residual make graph  
 - `compiler/docs/PLATFORM_LINKER.md` (R6 / UNAME leaf cross-ref)  
 - `compiler/scripts/driver_seed_obj_catalog.sh` (list authority)  
-- `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 rt-slice body)  
+- `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 rt-slice + core-seed body)  
 - skill G.7 single authority · G.8 platform tags  

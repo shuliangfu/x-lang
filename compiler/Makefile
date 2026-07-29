@@ -742,8 +742,10 @@ $(XLANG_C): bootstrap_xlangc
 endif
 
 # G-02f-11：diag 产品 seed（全局规则，LEGACY 与默认共用）
-src/diag.o: seeds/diag.from_x.c src/diag.x include/diag.h
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/diag.from_x.c -o $@
+# wave749 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_CORE_SEED_OBJS).
+src/diag.o: seeds/diag.from_x.c src/diag.x include/diag.h scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/diag.from_x.c
 
 # G-02a: lsp_diag.c 迁移到 runtime_lsp_glue.inc（24 个符号被 lsp_x.o/fmt_check_cmd*.o/runtime*.o 引用）
 # 全局规则，LEGACY 和默认模式共用。
@@ -789,8 +791,10 @@ src/runtime_io_abi.o: seeds/runtime_io_abi.from_x.c src/runtime_io_abi.x src/run
 
 
 # G-02f-13：runtime_link_abi 产品 seed（G05 hot）
-src/runtime_link_abi.o: seeds/runtime_link_abi.from_x.c src/runtime_link_abi.x src/runtime_link_abi.h src/runtime_proc_abi.h
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_link_abi.from_x.c -o $@
+# wave749 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_CORE_SEED_OBJS).
+src/runtime_link_abi.o: seeds/runtime_link_abi.from_x.c src/runtime_link_abi.x src/runtime_link_abi.h src/runtime_proc_abi.h scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_link_abi.from_x.c
 
 # G-02f-12 / Phase 4：runtime_driver_abi thin+rest PREFER_X_O
 # PLATFORM: SHARED 冷链 — bootstrap-driver-seed 传 XLANG_G05_PREFER_X_O=0 必须走 seed。
@@ -820,8 +824,10 @@ src/runtime_pipeline_abi.o: seeds/runtime_pipeline_abi.from_x.c src/runtime_pipe
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) $(RUNTIME_PIPELINE_ABI_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_pipeline_abi.from_x.c -o $@
 
 # G-02f-22：runtime_c_import 产品 seed
-src/runtime_c_import.o: seeds/runtime_c_import.from_x.c src/runtime_c_import.x src/runtime_c_import.h
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_c_import.from_x.c -o $@
+# wave749 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_CORE_SEED_OBJS).
+src/runtime_c_import.o: seeds/runtime_c_import.from_x.c src/runtime_c_import.x src/runtime_c_import.h scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_c_import.from_x.c
 
 # G-02f-18 / R2 product PREFER：async_liveness 独立 TU（非 glue #include）。
 # Cold (PREFER_X_O≠1): full seed C. PREFER: full .x + rest (-DXLANG_ASYNC_LIVENESS_FROM_X, marker) ld -r.
@@ -982,6 +988,11 @@ src/runtime/rt_parse_diag.o: seeds/rt_parse_diag.from_x.c src/runtime/rt_parse_d
 	@CC="$(CC)" CFLAGS="$(CFLAGS) -I. -Iinclude -Isrc" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/rt_parse_diag.from_x.c
 RT_SEED_SLICE_OBJS = src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o src/runtime/rt_parse_diag.o
+
+# wave749 R1 second family: pure host-cc core seeds (basename → seeds/<leaf>.from_x.c).
+# List authority for ensure_host_cc_seed_o.sh core-seed mode; body = same script as rt-slice.
+# Not dual of DRIVER_SEED_BRIDGE_OBJS (bridge rebuild list); this is pure R1 recipe family only.
+R1_CORE_SEED_OBJS = src/diag.o src/runtime_link_abi.o src/runtime_c_import.o src/x_seed_bridge.o src/seed_link_compat.o
 
 # G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（XLANG_LEGACY_PREPROCESS_C 路径已死）。
 # xlang_x 用：仅 -DXLANG_USE_X_PIPELINE，提供 asm_codegen_ast、pipeline_parse_into_buf、main_entry（弱符号）等
@@ -1746,8 +1757,10 @@ lexer_x.o: lexer_gen.c
 	@echo "lexer_x.o OK"
 
 # G-02f-11：x_seed_bridge 产品 seed
-src/x_seed_bridge.o: seeds/x_seed_bridge.from_x.c src/x_seed_bridge.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/x_seed_bridge.from_x.c -o $@
+# wave749 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_CORE_SEED_OBJS).
+src/x_seed_bridge.o: seeds/x_seed_bridge.from_x.c src/x_seed_bridge.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/x_seed_bridge.from_x.c
 
 # pipeline_x.o 仍引用 typeck_typeck_* / codegen_codegen_* / lexer_lexer_*；*_x.o 导出无重复前缀名。
 # G-02f-16：x_frontend_link_alias 产品 seed（G-02e-8 三 alias 并入体）
@@ -2355,8 +2368,10 @@ src/lsp/typeck_lsp_io_stub.o: seeds/typeck_lsp_io_stub.from_x.c scripts/cc_inc_t
 	sh scripts/cc_inc_tu.sh seeds/typeck_lsp_io_stub.from_x.c $@
 
 # G-02f-11：seed_link_compat 产品 seed
-src/seed_link_compat.o: seeds/seed_link_compat.from_x.c src/seed_link_compat.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/seed_link_compat.from_x.c -o $@
+# wave749 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_CORE_SEED_OBJS).
+src/seed_link_compat.o: seeds/seed_link_compat.from_x.c src/seed_link_compat.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/seed_link_compat.from_x.c
 
 # wave739: G.7 body → scripts/ensure_lsp_pipeline_gen.sh (lsp_gen + g_lsp_state_buf post)
 lsp_gen.c: src/lsp/lsp.x
@@ -2623,6 +2638,7 @@ bootstrap-driver-seed-export-obj-catalog:
 	@printf 'USER_ASM_SEED_OBJS=%s\n' '$(USER_ASM_SEED_OBJS)'
 	@printf 'ASM_GLUE_STANDALONE_O=%s\n' '$(ASM_GLUE_STANDALONE_O)'
 	@printf 'RT_SEED_SLICE_OBJS=%s\n' '$(RT_SEED_SLICE_OBJS)'
+	@printf 'R1_CORE_SEED_OBJS=%s\n' '$(R1_CORE_SEED_OBJS)'
 
 # §5b #2 — pipeline_x.o FORCE recompile on cold start (PIPELINE_X_FORCE_COMPILE=1)
 # Body: bootstrap_driver_seed_rebuild_leaves.sh pipeline-x; list = DRIVER_SEED_PIPELINE_X_OBJS only.

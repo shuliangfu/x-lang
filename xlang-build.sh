@@ -324,18 +324,25 @@ case "$TARGET" in
     bash compiler/scripts/leaf_pattern_residual.sh "$_lp_mode"
     ;;
 
-  # === wave748 · 11.3.1 · R1 host-cc seed body (first family: RT_SEED_SLICE) ===
-  host-cc-seed|rt-seed-slice|rt-slice|host-cc-seed-o)
-    # Pure host-cc seed → .o single body for Cap residual RT_SEED_SLICE family.
-    # List authority = catalog RT_SEED_SLICE_OBJS (G.7). Other R1 leaves residual.
+  # === wave748–749 · 11.3.1 · R1 host-cc seed body (rt-slice + core-seed) ===
+  host-cc-seed|rt-seed-slice|rt-slice|host-cc-seed-o|core-seed|core_seed|r1-core|r1-core-seed)
+    # Pure host-cc seed → .o single body (G.7). Lists = catalog keys only.
+    #   host-cc-seed     → all swallowed families (rt-slice + core-seed)
+    #   rt-seed-slice    → RT_SEED_SLICE_OBJS only
+    #   core-seed        → R1_CORE_SEED_OBJS only (wave749)
     # Map: compiler/docs/LEAF_PATTERN_RESIDUAL.md
     # Usage:
-    #   ./xbuild host-cc-seed              # ensure all five rt_* .o
+    #   ./xbuild host-cc-seed              # all swallowed R1 families
     #   ./xbuild host-cc-seed --check
     #   ./xbuild host-cc-seed --force
-    #   ./xbuild rt-seed-slice
+    #   ./xbuild rt-seed-slice | core-seed
+    _hcs_cmd="$1"
     _hcs_args=()
-    _hcs_mode="rt-slice"
+    case "$_hcs_cmd" in
+      rt-seed-slice|rt-slice) _hcs_mode="rt-slice" ;;
+      core-seed|core_seed|r1-core|r1-core-seed) _hcs_mode="core-seed" ;;
+      *) _hcs_mode="all" ;;  # host-cc-seed umbrella
+    esac
     shift || true
     while [ "$#" -gt 0 ]; do
       case "$1" in
@@ -344,6 +351,15 @@ case "$TARGET" in
           ;;
         --force|-f|force)
           _hcs_args+=(--force)
+          ;;
+        rt-slice|rt-seed-slice)
+          _hcs_mode="rt-slice"
+          ;;
+        core-seed|core|core_seed|r1-core)
+          _hcs_mode="core-seed"
+          ;;
+        all|families)
+          _hcs_mode="all"
           ;;
         one)
           # Passthrough: ./xbuild host-cc-seed one OUT SEED [flags...]
@@ -365,8 +381,12 @@ case "$TARGET" in
         bash scripts/ensure_host_cc_seed_o.sh --check
       elif [ "$_hcs_mode" = "one" ]; then
         bash scripts/ensure_host_cc_seed_o.sh one "${_hcs_args[@]}"
-      else
+      elif [ "$_hcs_mode" = "core-seed" ]; then
+        bash scripts/ensure_host_cc_seed_o.sh core-seed "${_hcs_args[@]}"
+      elif [ "$_hcs_mode" = "rt-slice" ]; then
         bash scripts/ensure_host_cc_seed_o.sh rt-slice "${_hcs_args[@]}"
+      else
+        bash scripts/ensure_host_cc_seed_o.sh all "${_hcs_args[@]}"
       fi
     )
     ;;
@@ -539,9 +559,10 @@ g05 产品链（wave733–735 · 11.1.6；产品 link 零 make）:
                                        （G.7 禁双 .o；禁第二套链接实现）
   leaf-patterns / leaf-residual        叶 .o pattern residual 库存（11.3.1 路径）
   leaf-patterns --check                校验 doc + class dump + 接线
-  host-cc-seed / rt-seed-slice         R1 单族 RT_SEED_SLICE host-cc 体（wave748）
-  host-cc-seed --check                 校验 catalog + thin Makefile + 体
-  host-cc-seed --force                 强制重编五叶 rt_*.o
+  host-cc-seed / rt-seed-slice / core-seed
+                                       R1 host-cc 体（wave748 rt-slice · wave749 core-seed）
+  host-cc-seed --check                 校验 catalog + thin Makefile + 双族
+  host-cc-seed --force                 强制重编已吞 R1 族
                                        体 = leaf_pattern_residual.sh
                                        图 = compiler/docs/LEAF_PATTERN_RESIDUAL.md
                                        （非物理删 make；G.7 禁双 .o 清单）

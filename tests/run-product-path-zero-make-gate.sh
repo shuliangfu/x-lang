@@ -1145,22 +1145,32 @@ elif ! grep -qE '11\.3\.1|leaf.pattern|LEAF_PATTERN' build.x; then
 elif ! grep -qE '11\.3\.1|LEAF_PATTERN|leaf_pattern_residual|wave746' compiler/docs/BUILD_DAG.md; then
   bad "BUILD_DAG.md must cross-ref wave746 LEAF_PATTERN"
 elif [ ! -f compiler/scripts/ensure_host_cc_seed_o.sh ]; then
-  bad "missing compiler/scripts/ensure_host_cc_seed_o.sh (wave748 R1 rt-slice)"
+  bad "missing compiler/scripts/ensure_host_cc_seed_o.sh (wave748–749 R1 families)"
 elif ! grep -q 'ensure_host_cc_seed_o\.sh' compiler/Makefile; then
-  bad "Makefile must thin-call ensure_host_cc_seed_o.sh (wave748)"
+  bad "Makefile must thin-call ensure_host_cc_seed_o.sh (wave748–749)"
 elif ! grep -q 'RT_SEED_SLICE_OBJS' compiler/scripts/driver_seed_obj_catalog.sh; then
   bad "driver_seed_obj_catalog must require RT_SEED_SLICE_OBJS (wave748)"
-elif ! grep -qE 'host-cc-seed|rt-seed-slice' xlang-build.sh \
+elif ! grep -q 'R1_CORE_SEED_OBJS' compiler/scripts/driver_seed_obj_catalog.sh; then
+  bad "driver_seed_obj_catalog must require R1_CORE_SEED_OBJS (wave749)"
+elif ! grep -q 'R1_CORE_SEED_OBJS' compiler/Makefile; then
+  bad "Makefile must define R1_CORE_SEED_OBJS (wave749)"
+elif ! grep -qE 'host-cc-seed|rt-seed-slice|core-seed' xlang-build.sh \
   || ! grep -q 'ensure_host_cc_seed_o\.sh' xlang-build.sh; then
-  bad "xlang-build missing host-cc-seed / rt-seed-slice (wave748)"
+  bad "xlang-build missing host-cc-seed / rt-seed-slice / core-seed (wave748–749)"
 elif ! grep -qE 'wave748|R1.*rt.seed|ensure_host_cc_seed_o|RT_SEED_SLICE' compiler/docs/LEAF_PATTERN_RESIDUAL.md; then
   bad "LEAF_PATTERN_RESIDUAL.md must document wave748 R1 rt-seed-slice"
+elif ! grep -qE 'wave749|R1_CORE_SEED|core-seed' compiler/docs/LEAF_PATTERN_RESIDUAL.md; then
+  bad "LEAF_PATTERN_RESIDUAL.md must document wave749 R1 core-seed"
 elif ! grep -qE 'wave748|R1 rt|ensure_host_cc_seed_o|RT_SEED_SLICE' compiler/docs/BUILD_DAG.md; then
   bad "BUILD_DAG.md must cross-ref wave748 R1 rt-slice"
+elif ! grep -qE 'wave749|core-seed|R1_CORE_SEED' compiler/docs/BUILD_DAG.md; then
+  bad "BUILD_DAG.md must cross-ref wave749 R1 core-seed"
 elif ! grep -qE 'wave748|host-cc-seed|rt-seed-slice|RT_SEED_SLICE' build.x; then
   bad "build.x must mention wave748 / host-cc-seed / RT_SEED_SLICE"
+elif ! grep -qE 'wave749|core-seed|R1_CORE_SEED' build.x; then
+  bad "build.x must mention wave749 / core-seed / R1_CORE_SEED"
 else
-  note "BUILD_DAG + ensure_prereqs + product-dag + PLATFORM_LINKER + LEAF_PATTERN + R1 rt-slice (wave744–748)"
+  note "BUILD_DAG + ensure_prereqs + product-dag + PLATFORM_LINKER + LEAF_PATTERN + R1 families (wave744–749)"
   if ! bash compiler/scripts/product_build_dag.sh --check; then
     bad "product_build_dag.sh --check failed (wave742–746)"
   else
@@ -1210,11 +1220,11 @@ else
     note "xbuild linker-policy inventory OK (wave745)"
   fi
   if ! ./xbuild leaf-patterns --check >/tmp/xbuild_leaf_patterns_check.out 2>/tmp/xbuild_leaf_patterns_check.err; then
-    bad "xbuild leaf-patterns --check failed (wave748)"
+    bad "xbuild leaf-patterns --check failed (wave749)"
   elif ! grep -q 'CHECK OK' /tmp/xbuild_leaf_patterns_check.out /tmp/xbuild_leaf_patterns_check.err; then
-    bad "xbuild leaf-patterns --check missing CHECK OK (wave748)"
+    bad "xbuild leaf-patterns --check missing CHECK OK (wave749)"
   else
-    note "xbuild leaf-patterns --check OK (wave747 R4 + wave748 R1)"
+    note "xbuild leaf-patterns --check OK (wave747 R4 + wave748–749 R1)"
   fi
   _leaf_out="$(./xbuild leaf-patterns 2>/dev/null || true)"
   if ! printf '%s\n' "$_leaf_out" | grep -q 'RESIDUAL_CLASS_R1=host_cc_seed_from_x_to_o'; then
@@ -1227,24 +1237,28 @@ else
     bad "xbuild leaf-patterns dump missing SWALLOWED_R1_RT_SEED_SLICE=1 (wave748)"
   elif ! printf '%s\n' "$_leaf_out" | grep -q 'R1_RT_SEED_SLICE_SWALLOWED=1'; then
     bad "xbuild leaf-patterns dump missing R1_RT_SEED_SLICE_SWALLOWED=1 (wave748)"
+  elif ! printf '%s\n' "$_leaf_out" | grep -q 'SWALLOWED_R1_CORE_SEED=1'; then
+    bad "xbuild leaf-patterns dump missing SWALLOWED_R1_CORE_SEED=1 (wave749)"
+  elif ! printf '%s\n' "$_leaf_out" | grep -q 'R1_CORE_SEED_SWALLOWED=1'; then
+    bad "xbuild leaf-patterns dump missing R1_CORE_SEED_SWALLOWED=1 (wave749)"
   elif ! printf '%s\n' "$_leaf_out" | grep -q 'R1_OTHER_HOST_CC_STILL_MAKE=1'; then
     bad "xbuild leaf-patterns dump missing R1_OTHER_HOST_CC_STILL_MAKE=1"
   elif ! printf '%s\n' "$_leaf_out" | grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0'; then
     bad "xbuild leaf-patterns dump missing ENDGAME_PHYSICAL_DELETE_MAKEFILE=0"
   else
-    note "xbuild leaf-patterns inventory OK (wave747 R4 + wave748 R1 rt-slice)"
+    note "xbuild leaf-patterns inventory OK (wave747 R4 + wave748–749 R1 families)"
   fi
   if ! ./xbuild host-cc-seed --check >/tmp/xbuild_host_cc_seed_check.out 2>/tmp/xbuild_host_cc_seed_check.err; then
-    bad "xbuild host-cc-seed --check failed (wave748)"
+    bad "xbuild host-cc-seed --check failed (wave749)"
   elif ! grep -q 'CHECK OK' /tmp/xbuild_host_cc_seed_check.out /tmp/xbuild_host_cc_seed_check.err; then
-    bad "xbuild host-cc-seed --check missing CHECK OK (wave748)"
+    bad "xbuild host-cc-seed --check missing CHECK OK (wave749)"
   else
-    note "xbuild host-cc-seed --check OK (wave748 R1 rt-slice)"
+    note "xbuild host-cc-seed --check OK (wave748–749 R1 families)"
   fi
   if ! bash compiler/scripts/driver_seed_obj_catalog.sh --check >/tmp/xbuild_catalog_rt.out 2>/tmp/xbuild_catalog_rt.err; then
-    bad "driver_seed_obj_catalog --check failed (wave748 RT_SEED_SLICE key)"
+    bad "driver_seed_obj_catalog --check failed (wave749 RT_SEED_SLICE + R1_CORE_SEED keys)"
   else
-    note "driver_seed_obj_catalog --check OK (includes RT_SEED_SLICE_OBJS)"
+    note "driver_seed_obj_catalog --check OK (includes RT_SEED_SLICE + R1_CORE_SEED)"
   fi
   unset _dag_dry_out _cold_dry_out _plat_out _link_out _leaf_out
 fi
@@ -1296,5 +1310,5 @@ if [ "$fail" -ne 0 ]; then
   echo "FAIL product-path 0-make static gate" >&2
   exit 1
 fi
-echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe; mk OBJS+composites; catalog --check; tests/lib+run-*.sh hub; root help→xbuild; CI/docker → xbuild; build.sh thin; docker/delete-one entry; 11.5 HOST_CC_POLICY; 11.1.1–4 BUILD_DAG + PLATFORM_LINKER; 11.3.1 LEAF_PATTERN + R4 mode wave747 + R1 rt-slice wave748)"
+echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe; mk OBJS+composites; catalog --check; tests/lib+run-*.sh hub; root help→xbuild; CI/docker → xbuild; build.sh thin; docker/delete-one entry; 11.5 HOST_CC_POLICY; 11.1.1–4 BUILD_DAG + PLATFORM_LINKER; 11.3.1 LEAF_PATTERN + R4 mode wave747 + R1 rt-slice wave748 + R1 core-seed wave749)"
 exit 0
