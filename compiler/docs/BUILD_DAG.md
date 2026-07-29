@@ -405,6 +405,16 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 - `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 families · try-r1 · try-r3-cold · thin_glue/glue-standalone seed-map)  
 - `compiler/scripts/host_platform_linker.sh` (platform + linker · wave745)
 
+## wave794 B7A heat dep-edge thin twin·Makefile-flags·pure leftover (2026-07-30)
+
+- **Not physical delete.** Twin / Makefile-flags / pure leftover residual (+8 → **86 FORCE**):
+  `runtime_scheduler_glue` · `runtime_driver_strict_glue_stubs` · `pipeline_glue_standalone` ·
+  `core/slice` · `main_driver` · `runtime_driver{,_no_c}` · `runtime_pipeline_abi`.
+- Shell: `seed_project_hdrs_newer` (twin #include first-hop) + `force_thin_makefile_flags_newer`
+  (Makefile mtime only for flag-sensitive leaves).
+- Residual: cfg_eval multi · asm/gen · stamp · std merge · gen_x.
+- LEAF: `DEP_THIN_COUNT=86` · `HEAT_RESIDUAL=1`.
+
 ## wave793 B7A heat dep-edge thin pure seed+.x+.h residual (2026-07-30)
 
 - **Not physical delete.** Pure seed+.x+.h residual (+19 → **78 FORCE**): Makefile prereqs → FORCE + ensure; shell `seed_project_hdrs_newer` owns project-header mtime (with seed/.x).

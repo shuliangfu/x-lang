@@ -785,7 +785,10 @@ src/runtime_driver_abi.o: FORCE scripts/ensure_host_cc_seed_o.sh
 
 # G-02f-12：runtime_pipeline_abi 产品 seed（须 XLANG_USE_X_PIPELINE）
 # wave753 R1 cold: ensure_one + USE_X_PIPELINE · wave767 product PREFER → try-pipeline-abi-prefer.
-src/runtime_pipeline_abi.o: seeds/runtime_pipeline_abi.from_x.c src/runtime_pipeline_abi.x src/runtime_pipeline_abi.h Makefile scripts/ensure_host_cc_seed_o.sh
+src/runtime_pipeline_abi.o: FORCE scripts/ensure_host_cc_seed_o.sh
+# wave794 B7A: heat dep-edge thin Makefile-flags residual — prereqs → FORCE + ensure;
+# try-heat owns seed/.x/hdr + Makefile flag mtime (force_thin_makefile_flags_newer).
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 	# wave767: pipeline_abi PREFER thin+rest → try-pipeline-abi-prefer (cold + USE_X_PIPELINE fallback).
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
@@ -890,7 +893,10 @@ RUNTIME_PIPELINE_ABI_CFLAGS += -DXLANG_LEGACY_PREPROCESS_C
 endif
 # wave751 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MAIN_RUNTIME_OBJS).
 # Extra flags = $(RUNTIME_DRIVER_CFLAGS) (make expands; shell body only).
-src/runtime_driver.o: seeds/runtime.from_x.c src/runtime.x Makefile include/diag.h scripts/ensure_host_cc_seed_o.sh
+src/runtime_driver.o: FORCE scripts/ensure_host_cc_seed_o.sh
+# wave794 B7A: heat dep-edge thin Makefile-flags residual — prereqs → FORCE + ensure;
+# try-heat owns seed/.x/diag.h + Makefile flag mtime (force_thin_makefile_flags_newer).
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
@@ -989,7 +995,10 @@ src/lexer/cfg_eval.o: src/lexer/cfg_eval.x seeds/cfg_eval_link_alias.from_x.c se
 # runtime.c：不引用 C lexer/parser/typeck/codegen（见 XLANG_NO_C_FRONTEND 包裹的 load_one_import 等）
 # G-02f-14：G05 产品 runtime_driver_no_c
 # wave751 R1 cold: ensure_one + NO_C · wave766 product PREFER multi-slice → try-rt-prefer.
-src/runtime_driver_no_c.o: seeds/runtime.from_x.c src/runtime.x Makefile scripts/ensure_host_cc_seed_o.sh
+src/runtime_driver_no_c.o: FORCE scripts/ensure_host_cc_seed_o.sh
+# wave794 B7A: heat dep-edge thin Makefile-flags residual — prereqs → FORCE + ensure;
+# try-heat owns seed/.x + Makefile flag mtime (force_thin_makefile_flags_newer).
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 	# wave766: rt multi-slice PREFER → try-rt-prefer (cold full seed + NO_C fallback).
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  RUNTIME_DRIVER_NO_C_CFLAGS="$(RUNTIME_DRIVER_NO_C_CFLAGS)" \
@@ -1301,7 +1310,10 @@ runtime_thread_glue.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # G-02f-18：runtime_scheduler_glue 产品 seed（#include async_net_fs.from_x.c）
 # wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
 # Thin passes -Isrc/asm for historical parity with make recipe (include path).
-runtime_scheduler_glue.o: seeds/runtime_scheduler_glue.from_x.c src/asm/runtime_scheduler_glue.x seeds/async_net_fs.from_x.c scripts/ensure_host_cc_seed_o.sh
+runtime_scheduler_glue.o: FORCE scripts/ensure_host_cc_seed_o.sh
+# wave794 B7A: heat dep-edge thin twin residual — prereqs → FORCE + ensure;
+# try-heat owns seed/.x + async_net_fs #include (seed_project_hdrs_newer first-hop).
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
@@ -1891,7 +1903,10 @@ bootstrap-codegen: $(TARGET) $(XLANG_C) bootstrap_xlangc $(RELINK_XLANG_PREREQS)
 # 6.3/6.4：入口在 main.x；链接时用 main_driver.o（带 XLANG_USE_X_DRIVER/PIPELINE 以启用 -backend asm）+ runtime_driver.o + ...
 # G-02f-16：main_driver 与 main 同源 seed
 # wave751 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MAIN_RUNTIME_OBJS).
-src/main_driver.o: seeds/main.from_x.c src/main_c_entry.x Makefile scripts/ensure_host_cc_seed_o.sh
+src/main_driver.o: FORCE scripts/ensure_host_cc_seed_o.sh
+# wave794 B7A: heat dep-edge thin Makefile-flags residual — prereqs → FORCE + ensure;
+# try-heat owns seed/main_c_entry.x + Makefile flag mtime (force_thin_makefile_flags_newer).
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 # G-02a: preprocess.c 已物理删除；runtime preprocess() 走 preprocess.x（preprocess_x.o）。
@@ -2162,7 +2177,10 @@ src/lsp/lsp_diag_pipeline_ctx.o: FORCE scripts/ensure_host_cc_seed_o.sh
 
 # G-02f-11：runtime_driver_strict_glue_stubs 产品 seed（内含 runtime_heap_user.inc）
 # wave752 R1 cold: ensure_one · wave771 product PREFER thin+rest → try-other-l2-prefer.
-src/runtime_driver_strict_glue_stubs.o: seeds/runtime_driver_strict_glue_stubs.from_x.c src/runtime_driver_strict_glue_stubs.x src/runtime_driver_strict_glue_thin.x seeds/runtime_heap_user.from_x.c scripts/ensure_host_cc_seed_o.sh
+src/runtime_driver_strict_glue_stubs.o: FORCE scripts/ensure_host_cc_seed_o.sh
+# wave794 B7A: heat dep-edge thin twin residual — prereqs → FORCE + ensure;
+# try-heat owns seed/stubs.x/thin.x + heap_user #include (seed_project_hdrs_newer).
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 	# wave771: other L2 PREFER thin+rest → try-other-l2-prefer (cold plain seed fallback).
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
@@ -2694,7 +2712,10 @@ pipeline_bootstrap_orchestration.o: seeds/pipeline_bootstrap_orchestration.from_
 # wave759 R1 seed-map: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_SEED_MAP_OBJS).
 # Seed map: build_asm/pipeline_glue_standalone.o ← seeds/pipeline_glue_standalone.from_x.c
 # (path under build_asm/ + -Ibuild_asm; was cc_inc_tu residual; G.7 有则补全 seed-map).
-$(ASM_GLUE_STANDALONE_O): seeds/pipeline_glue_standalone.from_x.c build_asm/pipeline_glue_types.inc pipeline_glue.c ast_pool.c scripts/ensure_host_cc_seed_o.sh
+$(ASM_GLUE_STANDALONE_O): FORCE scripts/ensure_host_cc_seed_o.sh
+# wave794 B7A: heat dep-edge thin multi-c residual — prereqs → FORCE + ensure;
+# try-heat/ensure_one owns glue.c/ast_pool/types.inc (wave759 twin) + seed mtime.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 	@mkdir -p build_asm
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
@@ -3032,7 +3053,10 @@ perf-baseline:
 #   by XLANG_RUNTIME_SLICE_GLUE_FROM_X for cold path fallback only.
 # PLATFORM: SHARED slice — pure compute, no OS dependency.
 # wave780 B2: dual hybrid → ensure try-std-core-prefer (G.7; not physical delete).
-../core/slice/slice.o: seeds/runtime_slice_glue.from_x.c src/asm/runtime_slice_glue.x scripts/ensure_host_cc_seed_o.sh
+../core/slice/slice.o: FORCE scripts/ensure_host_cc_seed_o.sh
+# wave794 B7A: heat dep-edge thin pure seed+.x leftover — prereqs → FORCE + ensure;
+# try-heat owns seed/.x mtime (try-std-core-prefer).
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@

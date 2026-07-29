@@ -1500,7 +1500,7 @@
     ✅ **B7A heat thin-unify**（wave790 · Makefile 115 ensure recipes → `try-heat` only；mode 名注释考古；dep 边 residual；**非**物理删）；
     ✅ **B7A heat dep-edge thin**（wave791 · 28 pure `runtime_*` prereq → FORCE+ensure；shell mtime；**非**物理删）；
     ✅ **B7A heat dep-edge thin pure seed+.x residual**（wave792 · +31 → **59 FORCE**；排除 hdr/twin/cfg_eval/asm/gen；**非**物理删）；
-    ✅ **B7A heat dep-edge thin pure seed+.x+.h residual**（wave793 · +19 → **78 FORCE**；`seed_project_hdrs_newer`；**非**物理删；twin·c multi·asm·gen residual）；
+    ✅ **B7A heat dep-edge thin pure seed+.x+.h residual**（wave794 · +19 → **86 FORCE**；`seed_project_hdrs_newer`；**非**物理删；twin·c multi·asm·gen residual）；
     ⬜ B7 residual endgame · physical delete / 删 Makefile（须 Windows 绿 + 再缩 hdr·c·asm·twin dep 边等）
   - ⬜ 物理删 `compiler/Makefile` 仍 ⬜（下项）
 

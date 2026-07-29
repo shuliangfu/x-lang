@@ -110,6 +110,13 @@
 #            ensure_one + prefer skip paths own project-header mtime via
 #            seed_project_hdrs_newer (quoted/angle #include under .|include|src,
 #            depth-capped BFS). NOT physical delete; residual twin/c multi/asm/gen.
+#   wave794: B7A heat dep-edge thin — twin · Makefile-flags · pure leftover → FORCE
+#            (+8 → 86). scheduler_glue (async_net_fs #include) · strict_glue_stubs
+#            (heap_user #include + thin.x prefer) · glue_standalone multi-c ·
+#            slice pure seed+.x · main_driver/runtime_driver{,_no_c}/pipeline_abi
+#            (Makefile macro flags via force_thin_makefile_flags_newer).
+#            Residual: cfg_eval multi · asm/gen · stamp · std merge · gen_x.
+#            NOT physical delete.
 #   wave758: R4 residual pure host-cc thin_glue → R1 seed-map (G.7 有则补全):
 #            parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c +
 #            -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm;
@@ -297,6 +304,8 @@ log() { echo "ensure-host-cc-seed: $*" >&2; }
 # and resolve under dirname(seed), include/, src/, and .  Depth-capped BFS so
 # transitive project headers (e.g. lexer.h → token.h) refresh the .o.
 # System headers (not found under project paths) are ignored.
+# First-hop also catches twin seed embeds (#include "seeds/async_net_fs.from_x.c",
+# runtime_heap_user.from_x.c) — wave794 twin FORCE thin relies on this.
 # Exit 0 if any resolved project header is newer than OUT; else 1.
 # PLATFORM: SHARED — portable shell; no make graph.
 # ---------------------------------------------------------------------------
@@ -354,6 +363,29 @@ seed_project_hdrs_newer() {
 $(sed -n 's/^[[:space:]]*#[[:space:]]*include[[:space:]]*[<"]\([^>"]*\)[>"].*/\1/p' "$f" 2>/dev/null || true)
 EOF
   done
+  return 1
+}
+
+# ---------------------------------------------------------------------------
+# wave794: Makefile mtime for flag-sensitive FORCE-thin leaves (G.7 single body).
+#
+# These leaves historically listed Makefile as a make prereq so CFLAGS / -D
+# macro changes (USE_X_PIPELINE / USE_X_DRIVER / NO_C / …) forced recompile.
+# FORCE thin removes that edge; shell must mirror it here only for the leaves
+# that still need flag freshness (not every FORCE leaf — Makefile edits must
+# not mass-rebuild pure seed+.x leaves).
+# Exit 0 if Makefile is newer than OUT for a flag-sensitive leaf; else 1.
+# PLATFORM: SHARED — portable shell; no make graph.
+# ---------------------------------------------------------------------------
+force_thin_makefile_flags_newer() {
+  local out="$1"
+  case "$out" in
+    src/main_driver.o|src/runtime_driver.o|src/runtime_driver_no_c.o|src/runtime_pipeline_abi.o)
+      if [ -f Makefile ] && [ Makefile -nt "$out" ]; then
+        return 0
+      fi
+      ;;
+  esac
   return 1
 }
 
@@ -424,6 +456,10 @@ ensure_one() {
     fi
     # wave793: project headers (Makefile .h prereqs) — single body for FORCE thin.
     if [ "$need" -eq 0 ] && seed_project_hdrs_newer "$seed" "$out"; then
+      need=1
+    fi
+    # wave794: Makefile flag-sensitive FORCE thin (main/runtime/pipeline_abi).
+    if [ "$need" -eq 0 ] && force_thin_makefile_flags_newer "$out"; then
       need=1
     fi
     if [ "$need" -eq 0 ]; then
@@ -1078,6 +1114,10 @@ ensure_r3_prefer_one() {
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
     fi
+    # wave794: Makefile flag-sensitive FORCE thin (main/runtime/pipeline_abi).
+    if [ "$stale" = "0" ] && force_thin_makefile_flags_newer "$o"; then
+      stale=1
+    fi
     if [ "$stale" = "0" ]; then
       log "skip up-to-date $o (r3-prefer)"
       return 0
@@ -1286,6 +1326,10 @@ ensure_labi_prefer_one() {
     done
     # wave793: project-header mtime (FORCE thin; G.7 single body).
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
+      stale=1
+    fi
+    # wave794: Makefile flag-sensitive FORCE thin (main/runtime/pipeline_abi).
+    if [ "$stale" = "0" ] && force_thin_makefile_flags_newer "$o"; then
       stale=1
     fi
     if [ "$stale" = "0" ]; then
@@ -2650,6 +2694,10 @@ ensure_pipeline_abi_prefer_one() {
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
     fi
+    # wave794: Makefile flag-sensitive FORCE thin (main/runtime/pipeline_abi).
+    if [ "$stale" = "0" ] && force_thin_makefile_flags_newer "$o"; then
+      stale=1
+    fi
     if [ "$stale" = "0" ]; then
       log "skip up-to-date $o (pipeline-abi-prefer)"
       return 0
@@ -2751,6 +2799,10 @@ ensure_ldpc_prefer_one() {
     fi
     # wave793: project-header mtime (FORCE thin; G.7 single body).
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
+      stale=1
+    fi
+    # wave794: Makefile flag-sensitive FORCE thin (main/runtime/pipeline_abi).
+    if [ "$stale" = "0" ] && force_thin_makefile_flags_newer "$o"; then
       stale=1
     fi
     if [ "$stale" = "0" ]; then
@@ -2857,6 +2909,10 @@ ensure_target_cpu_prefer_one() {
     fi
     # wave793: project-header mtime (FORCE thin; G.7 single body).
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
+      stale=1
+    fi
+    # wave794: Makefile flag-sensitive FORCE thin (main/runtime/pipeline_abi).
+    if [ "$stale" = "0" ] && force_thin_makefile_flags_newer "$o"; then
       stale=1
     fi
     if [ "$stale" = "0" ]; then
@@ -3000,6 +3056,10 @@ ensure_l2_asm_prefer_one() {
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
     fi
+    # wave794: Makefile flag-sensitive FORCE thin (main/runtime/pipeline_abi).
+    if [ "$stale" = "0" ] && force_thin_makefile_flags_newer "$o"; then
+      stale=1
+    fi
     if [ "$stale" = "0" ]; then
       log "skip up-to-date $o (l2-asm-prefer)"
       return 0
@@ -3133,6 +3193,10 @@ ensure_async_prefer_one() {
     fi
     # wave793: project-header mtime (FORCE thin; G.7 single body).
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
+      stale=1
+    fi
+    # wave794: Makefile flag-sensitive FORCE thin (main/runtime/pipeline_abi).
+    if [ "$stale" = "0" ] && force_thin_makefile_flags_newer "$o"; then
       stale=1
     fi
     if [ "$stale" = "0" ]; then
@@ -3313,6 +3377,10 @@ ensure_other_l2_prefer_one() {
     fi
     # wave793: project-header mtime (FORCE thin; G.7 single body).
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
+      stale=1
+    fi
+    # wave794: Makefile flag-sensitive FORCE thin (main/runtime/pipeline_abi).
+    if [ "$stale" = "0" ] && force_thin_makefile_flags_newer "$o"; then
       stale=1
     fi
     if [ "$stale" = "0" ]; then
@@ -3565,6 +3633,10 @@ ensure_runtime_os_prefer_one() {
     fi
     # wave793: project-header mtime (FORCE thin; G.7 single body).
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
+      stale=1
+    fi
+    # wave794: Makefile flag-sensitive FORCE thin (main/runtime/pipeline_abi).
+    if [ "$stale" = "0" ] && force_thin_makefile_flags_newer "$o"; then
       stale=1
     fi
     if [ "$stale" = "0" ]; then
@@ -3827,6 +3899,10 @@ ensure_std_core_prefer_one() {
     if [ "$stale" = "0" ] && [ -n "$seed" ] && [ -f "$seed" ]       && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
     fi
+    # wave794: Makefile flag-sensitive FORCE thin (main/runtime/pipeline_abi).
+    if [ "$stale" = "0" ] && force_thin_makefile_flags_newer "$o"; then
+      stale=1
+    fi
     if [ "$stale" = "0" ] && [ "$leaf_kind" != "net_merge" ]; then
       log "skip up-to-date $o (std-core-prefer/$leaf_kind)"
       return 0
@@ -4061,6 +4137,10 @@ ensure_lsp_sat_prefer_one() {
     fi
     # wave793: project-header mtime (FORCE thin; G.7 single body).
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
+      stale=1
+    fi
+    # wave794: Makefile flag-sensitive FORCE thin (main/runtime/pipeline_abi).
+    if [ "$stale" = "0" ] && force_thin_makefile_flags_newer "$o"; then
       stale=1
     fi
     if [ "$stale" = "0" ]; then
@@ -6118,6 +6198,11 @@ run_check() {
   else
     note "seed_project_hdrs_newer present (wave793 project-header freshness)"
   fi
+  if ! grep -q 'force_thin_makefile_flags_newer' "$0"; then
+    bad "force_thin_makefile_flags_newer missing (wave794 Makefile-flags FORCE thin)"
+  else
+    note "force_thin_makefile_flags_newer present (wave794 flag-sensitive leaves)"
+  fi
   if ! grep -q 'try_ensure_runtime_os_prefer_one' "$0" \
     || ! grep -q 'try_ensure_r1_one' "$0" \
     || ! grep -q 'try_ensure_gen_x_one' "$0"; then
@@ -6130,7 +6215,7 @@ run_check() {
     echo "ensure_host_cc_seed_o: --check FAILED" >&2
     exit 1
   fi
-  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else + R3 PREFER thin + R2 panic/typeck_f64/crt0 + gen-x residual + try-heat + hdr mtime · wave748–793)" >&2
+  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else + R3 PREFER thin + R2 panic/typeck_f64/crt0 + gen-x residual + try-heat + hdr/Makefile-flags mtime · wave748–794)" >&2
 }
 
 # ---------------------------------------------------------------------------
@@ -6145,9 +6230,10 @@ run_check() {
 #   1/2 — matching mode hard-failed
 # PLATFORM: SHARED — orchestration only; no second recipe body / no .o list.
 # NOT physical delete: Makefile thin-call edges remain for make dep graph.
-# wave791–793: pure seed+.x(+.h) leaves use FORCE (no source prereqs); this ladder
-# still owns seed/.x/project-hdr (and prefer-table) freshness — cheap skip when
-# up-to-date (seed_project_hdrs_newer).
+# wave791–794: FORCE-thin leaves (pure seed+.x(+.h) + twin + Makefile-flags +
+# pure leftover) still use this ladder for seed/.x/project-hdr/Makefile-flags
+# (and prefer-table) freshness — cheap skip when up-to-date
+# (seed_project_hdrs_newer · force_thin_makefile_flags_newer).
 # ---------------------------------------------------------------------------
 try_heat_one() {
   local o="$1"
