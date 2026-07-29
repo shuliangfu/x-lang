@@ -11,6 +11,8 @@
 #   XLANG_NET_RUNS=1                    — CI=1 时 run-perf-net 默认已为 1
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DO_PERF=0
 for arg in "$@"; do
@@ -30,9 +32,9 @@ done
 chmod +x tests/run-provided-buffers.sh tests/lib/io-uring-probe.sh 2>/dev/null || true
 if [ "$DO_PERF" -eq 1 ]; then
   chmod +x tests/run-perf-net.sh 2>/dev/null || true
-  make -C compiler -q 2>/dev/null || make -C compiler
-  make -C compiler ../std/net/net.o ../std/thread/thread.o ../std/io/io.o -q 2>/dev/null \
-    || make -C compiler ../std/net/net.o ../std/thread/thread.o ../std/io/io.o
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+  xlang_compiler_make ../std/net/net.o ../std/thread/thread.o ../std/io/io.o -q 2>/dev/null \
+    || xlang_compiler_make ../std/net/net.o ../std/thread/thread.o ../std/io/io.o
 fi
 
 echo "=== ZC-1: provided buffers smoke ==="

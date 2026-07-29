@@ -5,6 +5,8 @@
 #   BUILD_LOG=/tmp/build_bstrict.log ./tests/run-strict-smoke-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || ulimit -s 16384 2>/dev/null || true
 
@@ -15,7 +17,7 @@ STRICT_FAILED="$BUILD_DIR/xlang_asm.strict_failed"
 BUILD_LOG="${BUILD_LOG:-}"
 
 if [ ! -x "$XLANG_ASM" ]; then
-  echo "strict-smoke gate FAIL: $XLANG_ASM build missing (make -C compiler bootstrap-driver-bstrict)" >&2
+  echo "strict-smoke gate FAIL: $XLANG_ASM build missing (xlang_compiler_make bootstrap-driver-bstrict)" >&2
   exit 1
 fi
 

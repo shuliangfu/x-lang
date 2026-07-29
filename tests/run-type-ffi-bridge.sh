@@ -4,6 +4,8 @@
 # 用法：./tests/run-type-ffi-bridge.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # shellcheck source=tests/lib/type-ffi-bridge.sh
 . tests/lib/type-ffi-bridge.sh
@@ -26,7 +28,7 @@ if [ -z "$XLANG_BIN" ] || ! type_ffi_native_xlang "$XLANG_BIN"; then
   exit 0
 fi
 
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
 echo "=== TYPE-004: FFI bridge smoke (XLANG=$XLANG_BIN) ==="
 

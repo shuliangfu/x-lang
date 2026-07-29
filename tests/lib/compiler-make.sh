@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# compiler-make.sh — wave727/728 · 11.2.3
+# compiler-make.sh — wave727/728/732 · 11.2.3
 #
-# Single entry for tests/lib → `make -C compiler …`. Future xbuild can replace
-# the body without touching every gate script (G.7 single call path).
+# Single entry for tests/** → `make -C compiler …` (lib + run-*.sh). Future
+# xbuild can replace the body without touching every gate script (G.7 single
+# call path). wave732: all tests/run-*.sh use this hub (0 raw make -C outside).
 #
 # Usage (from repo root or after setting XLANG_REPO_ROOT):
 #   . tests/lib/compiler-make.sh

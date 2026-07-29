@@ -7,6 +7,8 @@
 #   XLANG_LEAK_FAIL_ON_LEAK=1 — 任一用例泄漏则 exit 1（CI 默认）
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 MANIFEST="${XLANG_LEAK_MANIFEST:-tests/baseline/safe-leak-nightly.tsv}"
 # shellcheck source=tests/lib/safe-leak.sh
@@ -55,7 +57,7 @@ if [ -z "$XLANG_BIN" ] || ! native_xlang "$XLANG_BIN"; then
   exit 0
 fi
 
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 # shellcheck source=tests/lib/build-std-c-o.sh
 . tests/lib/build-std-c-o.sh
 # F-03 v2：heap 已纯 .x，不再 ensure heap.o

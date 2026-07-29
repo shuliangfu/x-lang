@@ -2,7 +2,9 @@
 # asm 7.3：INDEX 变量下标 assign 直 scratch 缩放寻址，main 内无 mov x2。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 XLANG=${XLANG:-./compiler/xlang}
 
 run_one() {

@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-net-tls-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_NET_TLS_DOC:-analysis/std-net-tls-v1.md}"
 MANIFEST="${XLANG_STD_NET_TLS_TSV:-tests/baseline/std-net-tls.tsv}"
@@ -96,8 +98,8 @@ if [ -n "$XLANG_BIN" ]; then
   echo "=== STD-030: typeck + stub smoke (XLANG=$XLANG_BIN) ==="
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
-  make -C compiler net-o-stub >/dev/null 2>&1 || ensure_std_c_o ../std/net/net.o
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make net-o-stub >/dev/null 2>&1 || ensure_std_c_o ../std/net/net.o
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   if ! "$XLANG_BIN" check -L . "$STUB_X" >/dev/null 2>&1; then
     echo "std-net-tls gate FAIL: typeck $STUB_X" >&2
     "$XLANG_BIN" check -L . "$STUB_X" 2>&1 | tail -10 >&2 || true
@@ -148,7 +150,7 @@ if std_net_tls_probe_openssl; then
   if openssl req -x509 -newkey rsa:2048 -keyout "$TLS_KEY" -out "$TLS_CERT" -days 1 -nodes \
     -subj "/CN=localhost" >/dev/null 2>&1; then
     if std_net_tls_build_openssl_o && std_net_tls_start_s_server "$TLS_PID" "$TLS_PORT" "$TLS_CERT" "$TLS_KEY"; then
-      make -C compiler ../std/net/net.o >/dev/null 2>&1 || true
+      xlang_compiler_make ../std/net/net.o >/dev/null 2>&1 || true
       export XLANG_TLS_SMOKE_PORT="$TLS_PORT"
       if std_net_tls_run_openssl_c_smoke; then OPENSSL_OK=1; fi
       std_net_tls_stop_s_server "$TLS_PID"
@@ -170,7 +172,7 @@ if std_net_tls_probe_mbedtls; then
   if openssl req -x509 -newkey rsa:2048 -keyout "$TLS_KEY_MB" -out "$TLS_CERT_MB" -days 1 -nodes \
     -subj "/CN=localhost" >/dev/null 2>&1; then
     if std_net_tls_build_mbedtls_o && std_net_tls_start_s_server "$TLS_PID_MB" "$TLS_PORT_MB" "$TLS_CERT_MB" "$TLS_KEY_MB"; then
-      make -C compiler ../std/net/net.o >/dev/null 2>&1 || true
+      xlang_compiler_make ../std/net/net.o >/dev/null 2>&1 || true
       export XLANG_TLS_SMOKE_PORT="$TLS_PORT_MB"
       if std_net_tls_run_mbedtls_c_smoke; then MBEDTLS_OK=1; fi
       std_net_tls_stop_s_server "$TLS_PID_MB"

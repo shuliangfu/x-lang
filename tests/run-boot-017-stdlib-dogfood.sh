@@ -7,7 +7,9 @@
 #   XLANG_BOOT017_FAIL_ON_REGRESSION=1 ./tests/run-boot-017-stdlib-dogfood.sh
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
 MATRIX="${XLANG_BOOT017_MATRIX:-tests/baseline/stdlib-check-matrix.tsv}"
 BASELINE="${XLANG_BOOT017_BASELINE:-tests/baseline/stdlib-dogfood.tsv}"

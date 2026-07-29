@@ -2,6 +2,8 @@
 # xlang fmt 子命令：格式化 .x 后仍能通过 check。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 XLANG=${XLANG:-./compiler/xlang}
 # 产品冷链：fmt/check 用当前 XLANG（xlang_asm→xlang 已静默 check）。
 # 旧逻辑在 XLANG_RUN_ALL_BOOTSTRAP_XLANG 下强绑 pin xlang-c → CHK001 假红。
@@ -12,9 +14,9 @@ fi
 # 直接用 xlang-c 执行 fmt/check；不再回退到 seed xlang（seed 无 _O_BINARY 修复）。
 if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   if [ -n "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" ]; then
-    make -C compiler bootstrap-driver-seed -q 2>/dev/null || make -C compiler bootstrap-driver-seed
+    xlang_compiler_make bootstrap-driver-seed -q 2>/dev/null || xlang_compiler_make bootstrap-driver-seed
   else
-    make -C compiler -q 2>/dev/null || make -C compiler all
+    xlang_compiler_make -q 2>/dev/null || xlang_compiler_make all
   fi
 fi
 

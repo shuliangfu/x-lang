@@ -5,13 +5,15 @@
 # 更新：XLANG_PERF_UPDATE_WPO_S2_BASELINE=1 ./tests/run-perf-wpo-s2.sh --bench
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/wpo-main-disasm.sh
 . tests/lib/wpo-main-disasm.sh
 
 XLANG=${XLANG:-./compiler/xlang_asm}
 # 已有可执行 xlang_asm 时勿 make all（会触发 bootstrap 且可能破坏刚 build 的产物）
 if [ ! -x "$XLANG" ]; then
-  make -C compiler bootstrap-driver-seed 2>/dev/null || make -C compiler xlang-c
+  xlang_compiler_make bootstrap-driver-seed 2>/dev/null || xlang_compiler_make xlang-c
 fi
 SRC="tests/bench/wpo_scale_loop.x"
 SRC_VEC="tests/bench/wpo_vec_lane0_loop.x"

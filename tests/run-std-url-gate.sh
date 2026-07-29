@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-url-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_URL_DOC:-analysis/std-url-v1.md}"
 MANIFEST="${XLANG_STD_URL_MANIFEST:-tests/baseline/std-url-manifest.tsv}"
@@ -76,7 +78,7 @@ SKIP=0
 
 echo "=== STD-076: url c smoke ==="
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/url/url.o >/dev/null 2>&1
+  xlang_compiler_make ../std/url/url.o >/dev/null 2>&1
   if cc -std=c11 -O1 -o /tmp/xlang_url_smoke \
     "$SMOKE_C" std/url/url.o 2>/dev/null; then
     if /tmp/xlang_url_smoke >/dev/null 2>&1; then

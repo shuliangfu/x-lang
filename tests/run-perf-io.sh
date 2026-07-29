@@ -7,8 +7,10 @@
 #   XLANG_PERF_UPDATE_BASELINE=1 — 用本次 median 刷新 io-perf.tsv
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
-make -C compiler ../std/io/io.o ../std/net/net.o -q 2>/dev/null || make -C compiler ../std/io/io.o ../std/net/net.o
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+xlang_compiler_make ../std/io/io.o ../std/net/net.o -q 2>/dev/null || xlang_compiler_make ../std/io/io.o ../std/net/net.o
 
 # PERF-001：Zig 对标基线共享工具
 # shellcheck source=tests/lib/zig-baseline.sh

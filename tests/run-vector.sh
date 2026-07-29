@@ -2,10 +2,12 @@
 # 向量 i32x4/u32x4：0 初始化、数组字面量、逐分量加法
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
 # vec_add_verify 引用 xlang_string_memcmp_c；purge 后须显式编 std/string/string.o。
-make -C compiler -q ../std/string/string.o 2>/dev/null \
-  || make -C compiler ../std/string/string.o
+xlang_compiler_make -q ../std/string/string.o 2>/dev/null \
+  || xlang_compiler_make ../std/string/string.o
 
 # shellcheck source=lib/bootstrap-link-xlang.sh
 . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"

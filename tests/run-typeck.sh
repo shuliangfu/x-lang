@@ -7,6 +7,8 @@
 
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 XLANG_TYPECK_TIMEOUT="${XLANG_TYPECK_TIMEOUT:-20}"
 
@@ -175,8 +177,8 @@ if [ -n "$XLANG" ]; then
   done
 else
   if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-    make -C compiler -q 2>/dev/null || make -C compiler
-    make -C compiler xlang-c 2>/dev/null || true
+    xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+    xlang_compiler_make xlang-c 2>/dev/null || true
   fi
   if [ -f ./compiler/xlang-c ]; then
     TYPECK_XLANG=./compiler/xlang-c

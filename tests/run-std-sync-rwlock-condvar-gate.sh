@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-sync-rwlock-condvar-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_SYNC_RWLOCK_CONDVAR_DOC:-analysis/std-sync-rwlock-condvar-v1.md}"
 MANIFEST="${XLANG_STD_SYNC_RWLOCK_CONDVAR_TSV:-tests/baseline/std-sync-rwlock-condvar.tsv}"
@@ -103,7 +105,7 @@ fi
 
 if [ -n "$XLANG_BIN" ]; then
   echo "=== STD-045: typeck + smoke (XLANG=$XLANG_BIN) ==="
-  make -C compiler -q 2>/dev/null || make -C compiler
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/sync/sync.o

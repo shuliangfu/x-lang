@@ -7,6 +7,8 @@
 #   XLANG_PERF_UPDATE_HTTP_BASELINE=1 — 刷新基线
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # shellcheck source=tests/lib/perf-http.sh
 . tests/lib/perf-http.sh
@@ -61,7 +63,7 @@ if [ "$DO_BENCH" -eq 0 ]; then
   exit 0
 fi
 
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 ensure_std_c_o ../std/http/http.o
 
 SERVER_BIN="/tmp/http_bench_server_$$"

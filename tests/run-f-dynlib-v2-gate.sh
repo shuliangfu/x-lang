@@ -2,6 +2,8 @@
 # F-dynlib v2：std.dynlib F-ZC（dynlib_os_glue.c → runtime_dynlib_os.inc）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_DYNLIB_V2_FAIL:-0}
 DOC="analysis/phase-f-dynlib-v2.md"
 MANIFEST="tests/baseline/f-dynlib-v2-closure.tsv"
@@ -28,7 +30,7 @@ grep -q 'dynlib_os_open_c' compiler/seeds/runtime_dynlib_os.from_x.c || die "run
 grep -q 'dynlib_glue.c' compiler/Makefile && die "Makefile still references dynlib_glue.c"
 grep -q 'runtime_dynlib_os' compiler/Makefile || die "Makefile missing runtime_dynlib_os.o"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/dynlib/dynlib.o >/dev/null 2>&1 || die "make dynlib.o failed"
+  xlang_compiler_make ../std/dynlib/dynlib.o >/dev/null 2>&1 || die "make dynlib.o failed"
 else
   echo "f-dynlib-v2 SKIP dynlib.o build (no xlang-c)" >&2
 fi

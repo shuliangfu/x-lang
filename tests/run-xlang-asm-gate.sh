@@ -6,10 +6,12 @@
 
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 XLANG="${XLANG:-./compiler/xlang_asm}"
 
 if [ ! -x "$XLANG" ]; then
-  echo "run-xlang-asm-gate: $XLANG build not executable (run: make -C compiler bootstrap-driver-bstrict)" >&2
+  echo "run-xlang-asm-gate: $XLANG build not executable (run: xlang_compiler_make bootstrap-driver-bstrict)" >&2
   exit 127
 fi
 
@@ -19,7 +21,7 @@ export XLANG_BSTRICT_RUN_ALL=1
 export XLANG_SKIP_SUBSCRIPT_MAKE=1
 # 子脚本 -o 链接：check/typeck 仍用 $XLANG（xlang_asm）；可执行链接用 xlang-c（ubuntu 全链路 -o 易 SIGSEGV）。
 export XLANG_LINK_XLANG=./compiler/xlang-c
-make -C compiler xlang-c -q 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+xlang_compiler_make xlang-c -q 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
 ulimit -s 16384 2>/dev/null || true
 
 # shellcheck source=tests/lib/bootstrap-link-xlang.sh

@@ -2,7 +2,9 @@
 # MEM-B1：owned 早 return 路径 deinit（xlang_cleanup + heap_free）。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
 XLANG="${XLANG:-./compiler/xlang-c}"
 SRC="tests/mem/owned_return_early.x"
 OUT="/tmp/xlang_owned_return_$$"

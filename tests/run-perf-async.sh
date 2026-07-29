@@ -5,8 +5,10 @@
 # 更新：XLANG_PERF_UPDATE_ASYNC_BASELINE=1 ./tests/run-perf-async.sh --bench
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
-make -C compiler ../std/async/scheduler.o -q 2>/dev/null || make -C compiler ../std/async/scheduler.o
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+xlang_compiler_make ../std/async/scheduler.o -q 2>/dev/null || xlang_compiler_make ../std/async/scheduler.o
 
 # 与 run-async.sh 一致：外部已设 XLANG（CI macOS 传 xlang-c）时保留；否则 xlang 优先。
 if [ -z "${XLANG:-}" ]; then

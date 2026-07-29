@@ -3,8 +3,10 @@
 # 含 import/spawn/IO 全链路的 .x 编译：import/hex 优先 xlang（refresh 后），否则回退 xlang-c。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
-make -C compiler ../std/async/scheduler.o -q 2>/dev/null || make -C compiler ../std/async/scheduler.o
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+xlang_compiler_make ../std/async/scheduler.o -q 2>/dev/null || xlang_compiler_make ../std/async/scheduler.o
 
 # Linux：链 std/io/io.o 时须 -luring -lpthread（与 invoke_cc / run-io-multishot 一致）
 XLANG_IO_CC_LIBS=""
@@ -319,8 +321,8 @@ echo "$out_await" | grep -q 'bytes=12 awaits=1' || {
 echo "async struct await liveness OK"
 
 echo "async CPS yield: XLANG_ASYNC_YIELD=1 double poll ..."
-make -C compiler ../std/async/scheduler.o -q 2>/dev/null \
-  || make -C compiler ../std/async/scheduler.o
+xlang_compiler_make ../std/async/scheduler.o -q 2>/dev/null \
+  || xlang_compiler_make ../std/async/scheduler.o
 if [ -f compiler/../std/async/scheduler.o ] || [ -f std/async/scheduler.o ]; then
   # 须用 relink 后 xlang（runtime 按需链 scheduler.o）；xlang-c 链接路径缺 xlang_async_cps_suspend。
   XLANG_ASYNC_YIELD=1 async_host_compile_o tests/parser/async_cps_yield.x /tmp/xlang_async_cps_yield 2>&1 || {
@@ -506,7 +508,7 @@ echo "async await IO dual OK"
 
 # io_uring harness 链 std/io/io.o；probe 通过时先确保 io.o 已编译。
 if ! async_io_uring_unavailable; then
-  make -C compiler ../std/io/io.o -q 2>/dev/null || make -C compiler ../std/io/io.o
+  xlang_compiler_make ../std/io/io.o -q 2>/dev/null || xlang_compiler_make ../std/io/io.o
 fi
 
 echo "io read async: submit_read_async + complete (C harness) ..."
@@ -606,7 +608,7 @@ echo "$out" | grep -q '__xlang_frame.__phase = 0' || {
   echo "async scheduler drain FAIL: missing __phase reset on return"
   exit 1
 }
-if make -C compiler ../std/async/scheduler.o -q 2>/dev/null; then
+if xlang_compiler_make ../std/async/scheduler.o -q 2>/dev/null; then
   # 部分平台 xlang 链 run+drain 仍可能崩溃；-E 烟测已通过，run 失败则 skip（CI 不 grep drain run OK）。
   if XLANG_ASYNC_YIELD=1 "$COMPILE_XLANG" -L . tests/parser/async_scheduler_drain.x -o /tmp/xlang_async_sched_drain 2>/tmp/xlang_async_sched_drain.log; then
     if file /tmp/xlang_async_sched_drain 2>/dev/null | grep -q "executable"; then
@@ -659,7 +661,7 @@ else
   echo "run async v1 FAIL: run arg count mismatch should be rejected"
   exit 1
 fi
-if make -C compiler ../std/async/scheduler.o -q 2>/dev/null; then
+if xlang_compiler_make ../std/async/scheduler.o -q 2>/dev/null; then
   "$COMPILE_XLANG" -L . tests/parser/run_async_arg.x -o /tmp/xlang_run_async_arg 2>&1 || {
     echo "run async v1 FAIL: compile run_async_arg.x"
     exit 1
@@ -711,7 +713,7 @@ else
   echo "run async v2 FAIL: run with three args to one-param fn should be rejected"
   exit 1
 fi
-if make -C compiler ../std/async/scheduler.o -q 2>/dev/null; then
+if xlang_compiler_make ../std/async/scheduler.o -q 2>/dev/null; then
   "$COMPILE_XLANG" -L . tests/parser/run_async_arg2.x -o /tmp/xlang_run_async_arg2 2>&1 || {
     echo "run async v2 FAIL: compile run_async_arg2.x"
     exit 1
@@ -823,11 +825,11 @@ if [ -x ./compiler/xlang-c ]; then
   if async_io_uring_unavailable; then
     echo "async linux full: IO run N/A (io_uring unavailable on this kernel)"
     ASYNC_LINUX_FULL_IO=0
-    make -C compiler ../std/async/scheduler.o -q 2>/dev/null \
-      || make -C compiler ../std/async/scheduler.o
+    xlang_compiler_make ../std/async/scheduler.o -q 2>/dev/null \
+      || xlang_compiler_make ../std/async/scheduler.o
   else
-    make -C compiler ../std/io/io.o ../std/async/scheduler.o -q 2>/dev/null \
-      || make -C compiler ../std/io/io.o ../std/async/scheduler.o
+    xlang_compiler_make ../std/io/io.o ../std/async/scheduler.o -q 2>/dev/null \
+      || xlang_compiler_make ../std/io/io.o ../std/async/scheduler.o
   fi
 
   ./compiler/xlang-c -L . tests/parser/run_async_arg.x -o /tmp/xlang_run_async_arg_full 2>&1 || {

@@ -5,6 +5,8 @@
 #   XLANG=./compiler/xlang_asm ./tests/run-zc3-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 XLANG_BIN="${XLANG:-}"
 case "$XLANG_BIN" in
@@ -50,7 +52,7 @@ rm -f "$REGION_OUT"
 echo "=== ZC-3: compile-time slice region + array→slice smoke ==="
 
 if [ -z "$CHECK_XLANG" ]; then
-  if make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null; then
+  if xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null; then
     if [ -x ./compiler/xlang-c ]; then
       CHECK_XLANG=./compiler/xlang-c
     fi
@@ -73,8 +75,8 @@ XLANG="$CHECK_XLANG" ./tests/run-slice-field.sh
 echo "zc3: slice field OK"
 
 # M-5：read_ptr_slice 运行时 + slice 字段 codegen
-make -C compiler -q ../std/process/process.o ../std/io/io.o 2>/dev/null \
-  || make -C compiler ../std/process/process.o ../std/io/io.o
+xlang_compiler_make -q ../std/process/process.o ../std/io/io.o 2>/dev/null \
+  || xlang_compiler_make ../std/process/process.o ../std/io/io.o
 chmod +x tests/run-io-read-ptr-slice.sh
 XLANG="$CHECK_XLANG" ./tests/run-io-read-ptr-slice.sh
 echo "zc3: read_ptr_slice OK"

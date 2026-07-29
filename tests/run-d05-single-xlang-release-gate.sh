@@ -8,6 +8,8 @@
 #   XLANG=./compiler/xlang      — 默认发布二进制
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 FAIL=${XLANG_D05_FAIL:-0}
 DOC="analysis/phase-d-d05-v1.md"
@@ -110,7 +112,7 @@ if [ -x "$XLANG_ASM" ] && d05_native_exe "$XLANG_ASM" && [ -x "./compiler/xlang"
     H1=$(shasum -a 256 "./compiler/xlang" | awk '{print $1}')
     H2=$(shasum -a 256 "$XLANG_ASM" | awk '{print $1}')
     if [ "$H1" != "$H2" ]; then
-      echo "d05 note: xlang != xlang_asm hash (sync: make -C compiler xlang_asm 或 cp xlang xlang_asm)" >&2
+      echo "d05 note: xlang != xlang_asm hash (sync: xlang_compiler_make xlang_asm 或 cp xlang xlang_asm)" >&2
       if [ "${XLANG_D05_REQUIRE_ASM_HASH:-0}" = "1" ]; then
         die "xlang and xlang_asm differ (XLANG_D05_REQUIRE_ASM_HASH=1)"
       fi

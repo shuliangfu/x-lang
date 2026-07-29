@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-crypto-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_CRYPTO_DOC:-analysis/std-crypto-min-v1.md}"
 MANIFEST="${XLANG_STD_CRYPTO_MANIFEST:-tests/baseline/std-crypto-manifest.tsv}"
@@ -125,7 +127,7 @@ fi
 
 XLANG_BIN=""
 if XLANG_BIN="$(std_crypto_resolve_shu)"; then
-  make -C compiler -q 2>/dev/null || make -C compiler
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
   echo "=== STD-006: runnable report (XLANG=$XLANG_BIN) ==="
   FAILS=0
   while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do

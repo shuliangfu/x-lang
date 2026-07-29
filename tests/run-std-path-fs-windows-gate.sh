@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-path-fs-windows-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_PFW_DOC:-analysis/std-path-fs-windows-v1.md}"
 MANIFEST="${XLANG_STD_PFW_TSV:-tests/baseline/std-path-fs-windows.tsv}"
@@ -70,8 +72,8 @@ resolve_shu() {
 
 if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
   echo "=== STD-021/022: typeck (XLANG=$XLANG_BIN) ==="
-  make -C compiler -q ../std/path/path.o 2>/dev/null || make -C compiler ../std/path/path.o 2>/dev/null || true
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q ../std/path/path.o 2>/dev/null || xlang_compiler_make ../std/path/path.o 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   if "$XLANG_BIN" check -L . "$PATH_TEST" >/dev/null 2>&1; then
     PATH_OK=1
   else

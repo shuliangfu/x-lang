@@ -2,7 +2,9 @@
 # WPO v0 烟测：codegen DCE 剔除 dead export（单文件 + 跨 import 库）
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler xlang-c -q 2>/dev/null || make -C compiler xlang-c
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make xlang-c -q 2>/dev/null || xlang_compiler_make xlang-c
 
 # 单文件 intra-module
 out=$(./compiler/xlang-c -E tests/wpo/dead_fn.x 2>/dev/null)
@@ -47,7 +49,7 @@ echo "$out3" | grep -q 'core_option_some_i32(int32_t x) {' || {
   echo "WPO if-block reach FAIL: core_option_some_i32 body not emitted (DCE regression)" >&2
   exit 1
 }
-make -C compiler -q ../std/process/process.o 2>/dev/null || make -C compiler ../std/process/process.o
+xlang_compiler_make -q ../std/process/process.o 2>/dev/null || xlang_compiler_make ../std/process/process.o
 ./compiler/xlang-c -L . tests/wpo/if_block_reach.x -o /tmp/xlang_wpo_if_block_reach >/dev/null
 rc=0; /tmp/xlang_wpo_if_block_reach >/dev/null 2>&1 || rc=$?
 [ "$rc" = "0" ] || { echo "WPO if-block reach FAIL: run exit=$rc want 0"; exit 1; }

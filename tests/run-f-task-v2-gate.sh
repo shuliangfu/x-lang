@@ -2,6 +2,8 @@
 # F-task v2：std.task TaskGroup/JoinSet 逻辑全量 .x（删除 task_async_glue.c）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_TASK_V2_FAIL:-0}
 DOC="analysis/phase-f-task-v2.md"
 MANIFEST="tests/baseline/f-task-v2-closure.tsv"
@@ -31,7 +33,7 @@ grep -q 'xlang_async_spawn_i32' std/task/task.x || die "task.x missing spawn ext
 grep -q 'task_echo_fn_ptr_c()' std/task/task.x || die "task.x smoke should use task_echo_fn_ptr_c"
 grep -q 'F-task v2' compiler/Makefile || die "Makefile missing F-task v2 note"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/task/task.o >/dev/null 2>&1 || die "make task.o failed"
+  xlang_compiler_make ../std/task/task.o >/dev/null 2>&1 || die "make task.o failed"
 else
   echo "f-task-v2 SKIP task.o build (no xlang-c)" >&2
 fi

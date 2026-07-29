@@ -2,6 +2,8 @@
 # F-cache v1：std.cache 去 C（cache.c → cache.x；v2 后逻辑全在 cache.x）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_CACHE_V1_FAIL:-0}
 DOC="analysis/phase-f-cache-v1.md"
 MANIFEST="tests/baseline/f-cache-v1-closure.tsv"
@@ -21,7 +23,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'cache.x' compiler/Makefile || die "Makefile missing cache.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/cache/cache.o >/dev/null 2>&1 || die "make cache.o failed"
+  xlang_compiler_make ../std/cache/cache.o >/dev/null 2>&1 || die "make cache.o failed"
 else
   echo "f-cache-v1 SKIP cache.o build (no xlang-c)" >&2
 fi

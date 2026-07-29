@@ -6,6 +6,8 @@
 #       XLANG_C07_TRY_RUN=1 时在 typeck_ok 通过后额外尝试 -o 运行（需 liburing 等）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 FAIL=${XLANG_C07_FAIL:-0}
 TRY_RUN=${XLANG_C07_TRY_RUN:-0}
@@ -20,7 +22,7 @@ for f in "$MATRIX" "$DOC" tests/lib/c07-frontend-parity.sh; do
   [ -f "$f" ] || { echo "c07 gate FAIL: missing $f" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 done
 
-make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
 
 rc_resolve=0
 c07_resolve_compilers || rc_resolve=$?

@@ -4,8 +4,10 @@
 # 已知问题：部分环境（如 CI）下 -x -E 多文件只产出片段（如 "42   ()"）缺 bar，根因待查（pipeline 先 dep 再 main 的 codegen/写缓冲顺序）；CI 下该情况会 SKIP 以保 run-all 通过。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
 # 可移植超时：执行命令，超时秒数 $1，超时返回 124
 run_timeout() {
@@ -20,7 +22,7 @@ run_timeout() {
 
 # 显式构建 xlang_x（不再 2>/dev/null 吞错），便于 CI 看到 bootstrap-pipeline / xlang-x-pipeline 失败原因
 make_ret=0
-run_timeout 120 bash -c 'make -C compiler bootstrap-pipeline && make -C compiler xlang-x-pipeline' || make_ret=$?
+run_timeout 120 bash -c 'xlang_compiler_make bootstrap-pipeline && xlang_compiler_make xlang-x-pipeline' || make_ret=$?
 if [ "$make_ret" -eq 124 ]; then
   echo "run-x-multi-file SKIP (make xlang-x-pipeline timed out after 120s)"
   exit 0

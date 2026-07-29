@@ -4,6 +4,8 @@
 # 用法：./tests/run-layout-overflow-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 HEADER="compiler/include/xlang_layout_arith.h"
 # typeck.c 已删；布局权威在 typeck.x（compute_struct_layouts / §11.1 padding）。
@@ -30,7 +32,7 @@ echo "layout-overflow manifest OK"
 chmod +x tests/run-repr-c-layout-gate.sh
 XLANG="${XLANG:-./compiler/xlang-c}"
 if [ ! -x "$XLANG" ]; then
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
   XLANG=./compiler/xlang-c
 fi
 XLANG_REPR_C_LAYOUT_FAIL=1 XLANG="$XLANG" ./tests/run-repr-c-layout-gate.sh

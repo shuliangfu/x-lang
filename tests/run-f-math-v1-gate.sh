@@ -2,6 +2,8 @@
 # F-math v1：std.math 去 C（math.c → math.x + seeds/runtime_math_libm.from_x.c）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_MATH_V1_FAIL:-0}
 DOC="analysis/phase-f-math-v1.md"
 MANIFEST="tests/baseline/f-math-v1-closure.tsv"
@@ -25,7 +27,7 @@ done < "$MANIFEST"
 grep -q 'runtime_math_libm' compiler/Makefile || die "Makefile missing runtime_math_libm"
 if grep -q 'std/math/math\.c' compiler/Makefile 2>/dev/null; then die "Makefile still references math.c"; fi
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/math/math.o >/dev/null 2>&1 || die "make math.o failed"
+  xlang_compiler_make ../std/math/math.o >/dev/null 2>&1 || die "make math.o failed"
 else
   echo "f-math-v1 SKIP math.o build (no xlang-c)" >&2
 fi

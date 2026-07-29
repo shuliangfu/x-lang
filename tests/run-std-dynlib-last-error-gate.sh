@@ -2,6 +2,8 @@
 # STD-096：std.dynlib last_error 文本诊断门禁
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
@@ -57,7 +59,7 @@ if [ -n "$XLANG_BIN" ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/dynlib/dynlib.o
-  make -C compiler runtime_dynlib_os.o >/dev/null 2>&1 || true
+  xlang_compiler_make runtime_dynlib_os.o >/dev/null 2>&1 || true
   ld_extra=""
   case "$(uname -s)" in
     Linux*) ld_extra="-ldl" ;;

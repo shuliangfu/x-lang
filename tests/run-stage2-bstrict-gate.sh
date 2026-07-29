@@ -6,6 +6,8 @@
 #   XLANG_STAGE2_SKIP_BOOTSTRAP=0 ./tests/run-stage2-bstrict-gate.sh   # 含 Step 0 全量 bootstrap
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || ulimit -s 16384 2>/dev/null || true
 
@@ -24,7 +26,7 @@ if [ ! -x compiler/xlang_asm ] || ! comp_riscv64_native_xlang compiler/xlang_asm
 fi
 
 if [ ! -x compiler/xlang ] && [ ! -x compiler/xlang-x ]; then
-  echo "stage2-bstrict-gate FAIL: seed xlang missing (make -C compiler OPT=1 all)" >&2
+  echo "stage2-bstrict-gate FAIL: seed xlang missing (xlang_compiler_make OPT=1 all)" >&2
   exit 1
 fi
 

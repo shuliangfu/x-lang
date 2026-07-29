@@ -9,12 +9,14 @@
 #   XLANG_PERF_UPDATE_NET_BASELINE=1 — 用本次 median 刷新 net-perf.tsv / net-perf-latency.tsv
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/zig-baseline.sh
 . "$(dirname "$0")/lib/zig-baseline.sh"
 # shellcheck source=tests/lib/perf-net-zc.sh
 . "$(dirname "$0")/lib/perf-net-zc.sh"
-make -C compiler -q 2>/dev/null || make -C compiler
-make -C compiler ../std/net/net.o ../std/thread/thread.o -q 2>/dev/null || make -C compiler ../std/net/net.o ../std/thread/thread.o
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+xlang_compiler_make ../std/net/net.o ../std/thread/thread.o -q 2>/dev/null || xlang_compiler_make ../std/net/net.o ../std/thread/thread.o
 
 NET_BENCH_PORT_DEFAULT=38456
 NET_ECHO_PORT_DEFAULT=38457

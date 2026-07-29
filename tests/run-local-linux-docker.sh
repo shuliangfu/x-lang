@@ -3,6 +3,8 @@
 # 用法（仓库根）：./tests/run-local-linux-docker.sh [run-all|ci-full|both]
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 MODE="${1:-both}"
 LOG_DIR="${XLANG_LOCAL_TEST_LOG_DIR:-/tmp/xlang-local-test}"
@@ -56,7 +58,7 @@ run_in_container() {
 
 DEPS='apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq gcc make liburing-dev zlib1g-dev libzstd-dev libbrotli-dev libsqlite3-dev curl xz-utils file python3 >/dev/null'
 
-BUILD='find . -name "*.o" -delete 2>/dev/null || true; make -C compiler clean >/dev/null 2>&1 || true; make -C compiler -j4 all'
+BUILD='find . -name "*.o" -delete 2>/dev/null || true; xlang_compiler_make clean >/dev/null 2>&1 || true; xlang_compiler_make -j4 all'
 
 case "$MODE" in
   portable)

@@ -7,6 +7,8 @@
 # 非 Windows MSYS2：SKIP exit 0
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DO_BENCH=0
 [ "${1:-}" = "--bench" ] && DO_BENCH=1
@@ -69,8 +71,8 @@ if [ "$DO_BENCH" -eq 0 ]; then
   exit 0
 fi
 
-make -C compiler -q 2>/dev/null || make -C compiler
-make -C compiler ../std/io/io.o -q 2>/dev/null || make -C compiler ../std/io/io.o
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+xlang_compiler_make ../std/io/io.o -q 2>/dev/null || xlang_compiler_make ../std/io/io.o
 
 OUT="/tmp/xlang_iocp_pipe_loop"
 if ! cc -O2 -Wall tests/bench/iocp_pipe_loop.c std/io/io.o -o "$OUT" 2>/dev/null; then

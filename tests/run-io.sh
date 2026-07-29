@@ -2,8 +2,10 @@
 # 测试 std.io：print_i32 输出 42，print_u32 输出 100
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  make -C compiler -q xlang-c 2>/dev/null || XLANG_LEGACY_C_FRONTEND=1 make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || XLANG_LEGACY_C_FRONTEND=1 xlang_compiler_make xlang-c 2>/dev/null || true
 fi
 
 # run-all 默认 C 流水线（RUN_ALL_USE_C=1）时用 xlang-c，避免 seed -o 在非 x86_64 挂起。
@@ -20,8 +22,8 @@ else
 fi
 
 if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  make -C compiler -q ../std/process/process.o 2>/dev/null \
-    || make -C compiler ../std/process/process.o 2>/dev/null \
+  xlang_compiler_make -q ../std/process/process.o 2>/dev/null \
+    || xlang_compiler_make ../std/process/process.o 2>/dev/null \
     || true
 fi
 # F-03 v3：io 纯 .x，不再 build ../std/io/io.o

@@ -4,6 +4,8 @@
 # 用法：./tests/run-core-types-i16-u16-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_CORE_TYPES_I16_U16_DOC:-analysis/core-types-i16-u16-v1.md}"
 MANIFEST="${XLANG_CORE_TYPES_I16_U16_TSV:-tests/baseline/core-types-i16-u16.tsv}"
@@ -107,7 +109,7 @@ if [ -z "$XLANG_BIN" ]; then
   done
 fi
 if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
-  make -C compiler -q 2>/dev/null || make -C compiler
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
   if "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1 \
     && "$XLANG_BIN" check -L . "$SCALAR" >/dev/null 2>&1; then
     CHECK_OK=1

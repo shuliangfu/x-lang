@@ -2,6 +2,8 @@
 # std.db kv + arrow 门禁：manifest + typeck + C 烟测 + 可选 .x 链接运行
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 MOD_KV="std/db/kv/mod.x"
 MOD_ARROW="std/db/arrow/mod.x"
@@ -50,7 +52,7 @@ if [ -n "$XLANG_BIN" ] && [ -x "$XLANG_BIN" ]; then
   fi
 fi
 
-make -C compiler ../std/db/kv/kv.o ../std/db/arrow/arrow.o runtime_kv_mmap_glue.o runtime_arrow_simd_glue.o >/dev/null 2>&1
+xlang_compiler_make ../std/db/kv/kv.o ../std/db/arrow/arrow.o runtime_kv_mmap_glue.o runtime_arrow_simd_glue.o >/dev/null 2>&1
 # F-02 v1：mmap 已纯 .x；F-05 v1：arrow 已纯 .x + 胶层；F-05 v2：kv 已纯 .x + mmap 胶层
 
 TMP=$(mktemp -d)

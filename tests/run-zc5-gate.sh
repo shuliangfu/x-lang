@@ -5,6 +5,8 @@
 #   XLANG=./compiler/xlang_asm ./tests/run-zc5-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # shellcheck source=tests/lib/perf-syscall-batch.sh
 . "$(dirname "$0")/lib/perf-syscall-batch.sh"
@@ -53,7 +55,7 @@ rm -f "$SMOKE_OUT" "$BENCH_OUT"
 echo "=== ZC-5: fs_pipe_splice smoke + bench ==="
 
 if [ -z "$CHECK_XLANG" ]; then
-  if make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null; then
+  if xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null; then
     [ -x ./compiler/xlang-c ] && CHECK_XLANG=./compiler/xlang-c
   fi
 fi

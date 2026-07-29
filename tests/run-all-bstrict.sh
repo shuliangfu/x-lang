@@ -10,6 +10,8 @@
 
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # Wall-clock total for this suite (minutes + seconds at exit).
 # PLATFORM: SHARED — date +%s is portable on macOS / Linux / Git Bash.
@@ -56,7 +58,7 @@ fi
 
 if [ -z "${XLANG_L4_COLD:-}" ]; then
   if [ ! -f compiler/xlang_asm ] || [ ! -x compiler/xlang_asm ]; then
-    echo "run-all-bstrict: build xlang_asm first: make -C compiler bootstrap-driver-bstrict" >&2
+    echo "run-all-bstrict: build xlang_asm first: xlang_compiler_make bootstrap-driver-bstrict" >&2
     exit 127
   fi
 fi
@@ -76,7 +78,7 @@ if [ -n "${XLANG_BSTRICT_SKIP_BUILD:-}" ]; then
   fi
 else
   echo "run-all-bstrict: bootstrap-driver-bstrict (M7: xlang_asm -> xlang by default) ..."
-  make -C compiler bootstrap-driver-bstrict
+  xlang_compiler_make bootstrap-driver-bstrict
 fi
 
 export XLANG=./compiler/xlang
@@ -442,7 +444,7 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
     _max_attempts=1
   fi
   while [ "$attempt" -le "$_max_attempts" ]; do
-    # 前序脚本内 make -C compiler 会把 xlang 刷回 seed；-o 须保持本波产品快照。
+    # 前序脚本内 xlang_compiler_make 会把 xlang 刷回 seed；-o 须保持本波产品快照。
     # 默认 xlang_asm；仅 XLANG_BSTRICT_USE_ASM2=1 时用 gen2（禁 Stage2 freestanding 残留冒充）。
     if [ -n "${XLANG_BSTRICT_USE_ASM2:-}" ] && [ -x compiler/xlang_asm2 ]; then
       cp -f compiler/xlang_asm2 compiler/xlang 2>/dev/null || true

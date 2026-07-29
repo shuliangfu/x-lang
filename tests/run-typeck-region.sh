@@ -3,6 +3,8 @@
 # 用法：./tests/run-typeck-region.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
@@ -14,7 +16,7 @@ elif [ -x ./compiler/xlang-c ]; then
 elif [ -x ./compiler/xlang ]; then
   TYPECK_XLANG=./compiler/xlang
 else
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
   TYPECK_XLANG=./compiler/xlang-c
 fi
 

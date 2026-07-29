@@ -7,8 +7,10 @@
 # 用法：./tests/run-portable-c.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
-make -C compiler -q all 2>/dev/null || make -C compiler all
+xlang_compiler_make -q all 2>/dev/null || xlang_compiler_make all
 if [ ! -x ./compiler/xlang-c ]; then
   echo "run-portable-c FAIL: compiler/xlang-c missing" >&2
   exit 1

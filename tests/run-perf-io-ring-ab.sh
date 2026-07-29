@@ -3,7 +3,9 @@
 # 用法：./tests/run-perf-io-ring-ab.sh
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
 BENCH_MMAP_FILE="tests/bench/.io_mmap_bench_tmp"
 BENCH_MB="${XLANG_IO_BENCH_MB:-16}"

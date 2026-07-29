@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-async-io-cps-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_ASYNC_IO_CPS_DOC:-analysis/std-async-io-cps-v1.md}"
 MANIFEST="${XLANG_STD_ASYNC_IO_CPS_TSV:-tests/baseline/std-async-io-cps.tsv}"
@@ -98,8 +100,8 @@ fi
 
 if [ -n "$XLANG_BIN" ]; then
   echo "=== STD-042: typeck + smoke + emit (XLANG=$XLANG_BIN) ==="
-  make -C compiler -q ../std/async/scheduler.o 2>/dev/null || make -C compiler ../std/async/scheduler.o 2>/dev/null || true
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q ../std/async/scheduler.o 2>/dev/null || xlang_compiler_make ../std/async/scheduler.o 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   if ! "$XLANG_BIN" check -L . "$ALIGN_X" >/dev/null 2>&1; then
     echo "std-async-io-cps gate FAIL: typeck $ALIGN_X" >&2
     "$XLANG_BIN" check -L . "$ALIGN_X" 2>&1 | tail -10 >&2 || true

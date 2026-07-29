@@ -8,6 +8,8 @@
 # 用法：./tests/run-obs-async-runtime-trace-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_OBS_ASYNC_TRACE_DOC:-analysis/obs-async-runtime-trace-v1.md}"
 MANIFEST="${XLANG_OBS_ASYNC_TRACE_TSV:-tests/baseline/obs-async-runtime-trace.tsv}"
@@ -108,7 +110,7 @@ done
 echo "obs-async-runtime-trace manifest OK (items=${FOUND})"
 
 echo "=== OBS-002: smoke harness ==="
-make -C compiler ../std/async/scheduler.o -q 2>/dev/null || make -C compiler ../std/async/scheduler.o
+xlang_compiler_make ../std/async/scheduler.o -q 2>/dev/null || xlang_compiler_make ../std/async/scheduler.o
 if [ ! -f "$SCHED_O" ]; then
   echo "obs-async-runtime-trace gate FAIL: missing $SCHED_O" >&2
   exit 1

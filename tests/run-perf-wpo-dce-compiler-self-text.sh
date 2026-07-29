@@ -6,6 +6,8 @@
 #   XLANG_PERF_UPDATE_BASELINE=1 ./tests/run-perf-wpo-dce-compiler-self-text.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/wpo-ab-proxy.sh
 . "$(dirname "$0")/lib/wpo-ab-proxy.sh"
 
@@ -26,7 +28,7 @@ MAIN_TIMEOUT="${XLANG_WPO_MAIN_ASM_TIMEOUT:-180}"
 [ "${XLANG_PERF_FAIL_ON_WPO_COMPILER_SELF_TEXT:-0}" = "1" ] && FAIL_REGRESS=1
 [ "${XLANG_PERF_UPDATE_BASELINE:-0}" = "1" ] && UPDATE_BASELINE=1
 
-make -C compiler xlang-c -q 2>/dev/null || make -C compiler xlang-c
+xlang_compiler_make xlang-c -q 2>/dev/null || xlang_compiler_make xlang-c
 
 MIN_GRAPH_PCT=$(awk -F'\t' '$1=="min_dead_pct_graph" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
 MIN_MULTI_BYTES=$(awk -F'\t' '$1=="dead_multi_min_text_save_bytes" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")

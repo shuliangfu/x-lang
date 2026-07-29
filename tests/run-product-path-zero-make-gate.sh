@@ -27,7 +27,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "=== 11.0.2/11.0.3/11.0.4 + 11.2.5/11.4 product-path 0-make static gate (wave714–731) ==="
+echo "=== 11.0.2/11.0.3/11.0.4 + 11.2.3/11.2.5/11.4 product-path 0-make static gate (wave714–732) ==="
 
 fail=0
 note() { echo "  OK  $*"; }
@@ -730,6 +730,36 @@ else
   bad "missing tests/docker/linux-dev.Dockerfile"
 fi
 
+# --- wave732: 11.2.3 tests/run-*.sh → xlang_compiler_make (0 raw make -C) ---
+# Exclude this gate + PATH probe (they document/scan make -C by design).
+# Use a file list so the gate itself is not grepped.
+run_raw=$(
+  find tests -maxdepth 1 -name 'run-*.sh' ! -name 'run-product-path-zero-make-gate.sh' \
+    ! -name 'run-product-path-zero-make-path-probe.sh' -print0 2>/dev/null \
+    | xargs -0 grep -nE 'make[[:space:]]+-C[[:space:]]+' 2>/dev/null \
+    | grep -vE ':[0-9]+:[[:space:]]*#' \
+    || true
+)
+if [ -n "$run_raw" ]; then
+  bad "tests/run-*.sh still has raw make -C (must use xlang_compiler_make); wave732:"
+  echo "$run_raw" | head -30 >&2
+else
+  note "tests/run-*.sh: 0 raw make -C (hub xlang_compiler_make; 11.2.3 wave732)"
+fi
+# Spot-check high-traffic entry scripts source the hub
+spot_ok=1
+for f in tests/run-all.sh tests/run-all-c.sh tests/run-goto.sh tests/run-without-c.sh; do
+  if [ -f "$f" ] && grep -q 'compiler-make\.sh' "$f" && grep -q 'xlang_compiler_make' "$f"; then
+    :
+  else
+    bad "$f must source tests/lib/compiler-make.sh and call xlang_compiler_make (wave732)"
+    spot_ok=0
+  fi
+done
+if [ "$spot_ok" -eq 1 ]; then
+  note "run-all / run-all-c / run-goto / run-without-c use xlang_compiler_make hub"
+fi
+
 # Product daily `all` must remain g05 (not Makefile all); CI uses compiler-all.
 if grep -n 'all|build|xlang)' xlang-build.sh | head -1 | grep -q . \
   && sed -n '/all|build|xlang)/,/^  [a-zA-Z*]/p' xlang-build.sh | head -8 | grep -q 'run_build_tool'; then
@@ -777,5 +807,5 @@ if [ "$fail" -ne 0 ]; then
   echo "FAIL product-path 0-make static gate" >&2
   exit 1
 fi
-echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe; mk OBJS+composites; catalog --check; tests/lib hub; root help→xbuild; CI/docker → xbuild; build.sh thin; docker/delete-one entry)"
+echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe; mk OBJS+composites; catalog --check; tests/lib+run-*.sh hub; root help→xbuild; CI/docker → xbuild; build.sh thin; docker/delete-one entry)"
 exit 0

@@ -5,6 +5,8 @@
 # Docker：XLANG_DOCKER_TIMEOUT_SEC=600 ./tests/lib/docker-linux-run.sh './tests/run-rename-verify.sh'
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 chmod +x compiler/xlang-c compiler/xlang_asm_stage1 2>/dev/null || true
 export XLANG="${XLANG:-./compiler/xlang-c}"
@@ -108,6 +110,6 @@ grep -q '../std/net/tcp.x' compiler/Makefile || die "Makefile missing tcp.x"
 gate_progress "OK: F-03 static rename checks"
 
 gate_progress "rename-verify: 6/6 Makefile 编译 heap.o（net.o 待 extern-unsafe 闭合）"
-make -C compiler ../std/heap/heap.o -j4
+xlang_compiler_make ../std/heap/heap.o -j4
 
 gate_progress "rename-verify: ALL OK"

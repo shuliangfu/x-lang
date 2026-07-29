@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-uuid-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_UUID_DOC:-analysis/std-uuid-v1.md}"
 MANIFEST="${XLANG_STD_UUID_MANIFEST:-tests/baseline/std-uuid-manifest.tsv}"
@@ -77,9 +79,9 @@ X_OK=0
 SKIP=0
 
 echo "=== STD-075: uuid smoke ==="
-make -C compiler ../std/random/random.o ../std/time/time.o runtime_time_os.o runtime_random_fill.o >/dev/null 2>&1 || true
+xlang_compiler_make ../std/random/random.o ../std/time/time.o runtime_time_os.o runtime_random_fill.o >/dev/null 2>&1 || true
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/uuid/uuid.o >/dev/null 2>&1 || true
+  xlang_compiler_make ../std/uuid/uuid.o >/dev/null 2>&1 || true
 fi
 if [ -f std/uuid/uuid.o ] && strings std/uuid/uuid.o 2>/dev/null | grep -q 'uuid_smoke'; then
   if cc -std=c11 -O1 -o /tmp/xlang_uuid_smoke \

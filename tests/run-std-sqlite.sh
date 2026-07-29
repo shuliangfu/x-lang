@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-sqlite.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 MANIFEST="${XLANG_STD_SQLITE_MANIFEST:-tests/baseline/std-sqlite-manifest.tsv}"
 MOD_X="${XLANG_STD_SQLITE_MOD:-std/db/sqlite/mod.x}"
@@ -37,7 +39,7 @@ done < "$MANIFEST"
 
 XLANG_BIN=""
 if XLANG_BIN="$(std_sqlite_resolve_shu 2>/dev/null)"; then
-  make -C compiler -q 2>/dev/null || make -C compiler
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
   if std_sqlite_run_typeck "$XLANG_BIN" tests/std-sqlite/draft_typeck.x draft_typeck; then
     TYPECK_STATUS="ok"
   else

@@ -5,11 +5,13 @@
 
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 XLANG="${XLANG:-./compiler/xlang}"
 
 # 默认重建 bootstrap driver（.x pipeline 链 xlang）；CI 与本地门禁一致。
 if [ -z "${SKIP_BOOTSTRAP_DRIVER_SEED:-}" ]; then
-  make -C compiler bootstrap-driver-seed
+  xlang_compiler_make bootstrap-driver-seed
   XLANG=./compiler/xlang
 fi
 

@@ -3,6 +3,8 @@
 # 用法：./tests/run-io-read-ptr-slice.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 if [ -n "$XLANG" ]; then
   :
@@ -11,7 +13,7 @@ elif [ -x ./compiler/xlang ]; then
 elif [ -x ./compiler/xlang-c ]; then
   XLANG=./compiler/xlang-c
 else
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
   XLANG=./compiler/xlang-c
 fi
 
@@ -19,8 +21,8 @@ fi
 # shellcheck source=lib/bootstrap-link-xlang.sh
 . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 
-make -C compiler -q ../std/process/process.o ../std/io/io.o 2>/dev/null \
-  || make -C compiler ../std/process/process.o ../std/io/io.o
+xlang_compiler_make -q ../std/process/process.o ../std/io/io.o 2>/dev/null \
+  || xlang_compiler_make ../std/process/process.o ../std/io/io.o
 
 $RUN_XLANG build -L . tests/io/read_ptr_slice.x -o /tmp/xlang_io_read_ptr_slice 2>&1
 echo -n "AB" | /tmp/xlang_io_read_ptr_slice

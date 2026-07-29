@@ -6,6 +6,8 @@
 #   XLANG_SIZE_ATTRIB_REPORT=/tmp/report.tsv ./tests/run-comp-size-attrib.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # shellcheck source=tests/lib/comp-size-attrib.sh
 . tests/lib/comp-size-attrib.sh
@@ -63,7 +65,7 @@ while IFS=$'\t' read -r art_id kind rel policy _notes; do
 done < "$MATRIX"
 
 if [ "$COUNT" -lt 1 ]; then
-  echo "comp-size-attrib SKIP (no artifacts present; run make -C compiler first?)"
+  echo "comp-size-attrib SKIP (no artifacts present; run xlang_compiler_make first?)"
   echo "comp-size-attrib OK"
   exit 0
 fi

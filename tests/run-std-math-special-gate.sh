@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-math-special-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD115_DOC:-analysis/std-math-special-v1.md}"
 MANIFEST="${XLANG_STD115_TSV:-tests/baseline/std-math-special.tsv}"
@@ -92,7 +94,7 @@ fi
 
 if [ -x ./compiler/xlang-c ]; then
   echo "=== STD-115: .x smoke (XLANG=./compiler/xlang-c) ==="
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   if ! ./compiler/xlang-c check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-math-special gate FAIL: typeck $SMOKE_X" >&2
     std_math_special_emit_report "fail" "$C_OK" 0 0

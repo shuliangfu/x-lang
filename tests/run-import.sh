@@ -5,6 +5,8 @@
 
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 XLANG="${XLANG:-./compiler/xlang}"
 # shellcheck source=lib/bootstrap-link-xlang.sh
 . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
@@ -12,9 +14,9 @@ LINK_XLANG="$RUN_XLANG"
 # run-all 入口已 make 时跳过（XLANG_SKIP_SUBSCRIPT_MAKE=1），避免反复链接 xlang。
 if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   if [ -n "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" ]; then
-    make -C compiler bootstrap-driver-seed -q 2>/dev/null || make -C compiler bootstrap-driver-seed
+    xlang_compiler_make bootstrap-driver-seed -q 2>/dev/null || xlang_compiler_make bootstrap-driver-seed
   else
-    make -C compiler -q 2>/dev/null || make -C compiler
+    xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
   fi
 fi
 rm -f /tmp/xlang_import_hello /tmp/xlang_import_const_binding /tmp/xlang_import_const_select /tmp/xlang_import_bad

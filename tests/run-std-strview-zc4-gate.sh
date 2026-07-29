@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-strview-zc4-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_SV_ZC4_DOC:-analysis/std-strview-zc4-v1.md}"
 MANIFEST="${XLANG_STD_SV_ZC4_TSV:-tests/baseline/std-strview-zc4.tsv}"
@@ -63,7 +65,7 @@ TYPECK_OK=0
 ZC4_SKIP=1
 if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
   echo "=== STD-016: typeck (XLANG=$XLANG_BIN) ==="
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   for x in "$LIFECYCLE_X" tests/string/view_subview_smoke.x tests/string/arena_concat_smoke.x tests/string/stack_str_sso_smoke.x; do
     if ! "$XLANG_BIN" check -L . "$x" >/dev/null 2>&1; then
       echo "std-strview-zc4 gate FAIL: typeck $x" >&2

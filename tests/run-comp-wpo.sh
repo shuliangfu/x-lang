@@ -4,6 +4,8 @@
 # 用法：./tests/run-comp-wpo.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # shellcheck source=tests/lib/comp-wpo.sh
 . tests/lib/comp-wpo.sh
@@ -21,7 +23,7 @@ if ! comp_wpo_native_exe "$XLANG_C"; then
   exit 0
 fi
 
-make -C compiler xlang-c -q 2>/dev/null || make -C compiler xlang-c
+xlang_compiler_make xlang-c -q 2>/dev/null || xlang_compiler_make xlang-c
 
 echo "=== COMP-004: WPO smoke (XLANG=$XLANG_C) ==="
 chmod +x tests/run-wpo-dce-emit.sh tests/run-wpo-s1.sh

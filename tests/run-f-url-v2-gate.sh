@@ -2,6 +2,8 @@
 # F-url v2：std.url 逻辑下沉（parse/build/query/resolve → url.x；F-ZC 纯 .x 无 inet glue）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_URL_V2_FAIL:-0}
 DOC="analysis/phase-f-url-v2.md"
 MANIFEST="tests/baseline/f-url-v2-closure.tsv"
@@ -29,7 +31,7 @@ grep -q 'url_inet_pton6_c' std/url/url.x || die "url.x missing inet_pton"
 grep -q 'inet_ntop' std/url/url.x || die "url.x missing inet_ntop extern"
 grep -q 'url.x' compiler/Makefile || die "Makefile missing url.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/url/url.o >/dev/null 2>&1 || die "make url.o failed"
+  xlang_compiler_make ../std/url/url.o >/dev/null 2>&1 || die "make url.o failed"
 else
   echo "f-url-v2 SKIP url.o build (no xlang-c)" >&2
 fi

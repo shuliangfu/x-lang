@@ -2,7 +2,9 @@
 # asm 7.3：VAR+VAR 向量逐 lane binop 直 ldr（无 push/pop）；基于 vec_add_check.x。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 XLANG=${XLANG:-./compiler/xlang}
 
 $XLANG build tests/vector/vec_add_check.x -o /tmp/xlang_asm_vector_var 2>&1

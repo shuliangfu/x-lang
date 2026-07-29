@@ -4,11 +4,13 @@
 # 前置：compiler/xlang_asm 或 build_asm/pipeline_wpo.o 已存在（ensure-wpo 或 bootstrap-driver-bstrict）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 
 if [ ! -x compiler/xlang ] && [ ! -x compiler/xlang-x ]; then
-  echo "pipeline-wpo-optin: SKIP (no seed xlang; make -C compiler all)" >&2
+  echo "pipeline-wpo-optin: SKIP (no seed xlang; xlang_compiler_make all)" >&2
   exit 0
 fi
 

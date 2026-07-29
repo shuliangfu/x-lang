@@ -4,6 +4,8 @@
 # 用法：./tests/run-tool-fmt-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_TOOL_FMT_DOC:-analysis/tool-fmt-style-v1.md}"
 MANIFEST="${XLANG_TOOL_FMT_MANIFEST:-tests/baseline/tool-fmt-style.tsv}"
@@ -133,7 +135,7 @@ if [ -z "$XLANG_BIN" ]; then
 fi
 
 if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
-  make -C compiler -q 2>/dev/null || make -C compiler
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
   echo "=== TOOL-001: fmt hooks (XLANG=$XLANG_BIN) ==="
   chmod +x tests/run-fmt-cmd.sh tests/run-fmt-check-cmd.sh tests/run-fmt-wrap.sh
   XLANG="$XLANG_BIN" ./tests/run-fmt-cmd.sh

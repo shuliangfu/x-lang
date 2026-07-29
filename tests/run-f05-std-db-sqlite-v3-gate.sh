@@ -5,6 +5,8 @@
 # 环境：XLANG_F05_DB_SQLITE_V3_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 FAIL=${XLANG_F05_DB_SQLITE_V3_FAIL:-0}
 DOC="analysis/phase-f-f05-v3.md"
@@ -32,7 +34,7 @@ fi
 
 [ ! -f std/db/sqlite/sqlite_glue.c ] || die "sqlite_glue.c should be deleted (F-ZC)"
 grep -q 'runtime_sqlite_glue' compiler/Makefile || die "Makefile missing runtime_sqlite_glue"
-make -C compiler ../std/db/sqlite/sqlite.o runtime_sqlite_glue.o >/dev/null 2>&1 || die "make sqlite.o failed"
+xlang_compiler_make ../std/db/sqlite/sqlite.o runtime_sqlite_glue.o >/dev/null 2>&1 || die "make sqlite.o failed"
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT

@@ -3,30 +3,32 @@
 # 再用 xlang_asm 跑全量测试，验证「运行时不依赖 C 逻辑」。
 #
 # 用法：在仓库根目录执行 ./tests/run-without-c.sh
-# 前提：compiler 下已有 xlang（含 driver 或种子）与 build_tool（make -C compiler 会产出 xlang+xlang-c；若无 build_tool 则 make -C compiler build-tool，其仅依赖 xlang-c -E）。
-# 本脚本会先确保存在支持 -backend asm 的 xlang（make -C compiler bootstrap-driver），再执行 asm 构建。
+# 前提：compiler 下已有 xlang（含 driver 或种子）与 build_tool（xlang_compiler_make 会产出 xlang+xlang-c；若无 build_tool 则 xlang_compiler_make build-tool，其仅依赖 xlang-c -E）。
+# 本脚本会先确保存在支持 -backend asm 的 xlang（xlang_compiler_make bootstrap-driver），再执行 asm 构建。
 #
 # 说明：不删除任何 .c 文件；仅验证 asm 产出的 xlang_asm 能通过全部测试，为日后执行第 5 步（删除 .c）做准备。
 # 见：analysis/完全自举-无C无Makefile.md §脱离对C的依赖测试。
 
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 COMPILER_DIR="compiler"
 XLANG="${COMPILER_DIR}/xlang"
 BUILD_TOOL="${COMPILER_DIR}/build_tool"
 XLANG_ASM="${COMPILER_DIR}/xlang_asm"
 
-# 1) 确保有 xlang 与 build_tool（默认 make 即可）
-make -C "$COMPILER_DIR" -q 2>/dev/null || make -C "$COMPILER_DIR"
+# 1) 确保有 xlang 与 build_tool（via tests/lib hub → make graph until 11.3）
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 if [ ! -x "$XLANG" ]; then
-  echo "run-without-c: no $XLANG; run 'make -C compiler' first."
+  echo "run-without-c: no $XLANG; run 'xlang_compiler_make' first."
   exit 1
 fi
 if [ ! -x "$BUILD_TOOL" ]; then
-  make -C "$COMPILER_DIR" build-tool 2>/dev/null || true
+  xlang_compiler_make build-tool 2>/dev/null || true
 fi
 if [ ! -x "$BUILD_TOOL" ]; then
-  echo "run-without-c: no $BUILD_TOOL; run 'make -C compiler build-tool' first."
+  echo "run-without-c: no $BUILD_TOOL; run 'xlang_compiler_make build-tool' first."
   exit 1
 fi
 
@@ -37,7 +39,7 @@ XLANG_ASM_CHECK=$(mktemp)
 if ! (cd "$COMPILER_DIR" && ./xlang build -backend asm -o /dev/null -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -L src/pipeline "$XLANG_ASM_CHECK_INPUT") 2>"$XLANG_ASM_CHECK"; then
   if grep -q "not available in this build" "$XLANG_ASM_CHECK" 2>/dev/null; then
     echo "run-without-c: building bootstrap-driver (xlang with -backend asm) ..."
-    make -C "$COMPILER_DIR" bootstrap-driver 2>/dev/null || true
+    xlang_compiler_make bootstrap-driver 2>/dev/null || true
   fi
 fi
 rm -f "$XLANG_ASM_CHECK"
@@ -46,7 +48,7 @@ rm -f "$XLANG_ASM_CHECK"
 # 若上一步已成功执行 bootstrap-driver，则此处失败可能是该环境下 driver 运行 -backend asm 仍失败（依赖/路径/平台）。
 SECOND_CHECK_ERR=$(mktemp)
 if ! (cd "$COMPILER_DIR" && ./xlang build -backend asm -o /dev/null -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -L src/pipeline "$XLANG_ASM_CHECK_INPUT") 2>"$SECOND_CHECK_ERR"; then
-  echo "run-without-c SKIP (xlang -backend asm check failed; run 'make -C compiler bootstrap-driver' for full no-C path)"
+  echo "run-without-c SKIP (xlang -backend asm check failed; run 'xlang_compiler_make bootstrap-driver' for full no-C path)"
   [ -s "$SECOND_CHECK_ERR" ] && { echo "--- xlang build -backend asm stderr ---"; cat "$SECOND_CHECK_ERR"; }
   rm -f "$SECOND_CHECK_ERR"
   exit 0

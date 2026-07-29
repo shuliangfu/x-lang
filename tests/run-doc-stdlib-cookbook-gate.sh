@@ -8,6 +8,8 @@
 # 用法：./tests/run-doc-stdlib-cookbook-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_DOC_COOKBOOK:-analysis/doc-stdlib-cookbook-v1.md}"
 MANIFEST="${XLANG_DOC_COOKBOOK_TSV:-tests/baseline/doc-stdlib-cookbook.tsv}"
@@ -129,7 +131,7 @@ fi
 
 if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
   echo "=== DOC-001: recipe typeck smoke ==="
-  make -C compiler -q 2>/dev/null || make -C compiler
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
   CHECK_FAIL=0
   while IFS=$'\t' read -r item_id kind anchor _notes; do
     [ "$kind" = "recipe" ] || continue

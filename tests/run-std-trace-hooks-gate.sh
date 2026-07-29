@@ -2,6 +2,8 @@
 # STD-118：std.trace 关键路径挂钩门禁（F-trace v2：纯 trace.x）
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="analysis/std-trace-hooks-v1.md"
 MANIFEST="tests/baseline/std-trace-hooks-manifest.tsv"
@@ -65,7 +67,7 @@ else
 fi
 
 if [ -x ./compiler/xlang-c ]; then
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   ./compiler/xlang-c check -L . "$SMOKE_X" >/dev/null
   std_trace_hooks_run_x_smoke ./compiler/xlang-c "$SMOKE_X" && X_OK=1 || exit 1
 else

@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-process-xplat-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="analysis/std-process-xplat-v1.md"
 MANIFEST="tests/baseline/std-process-xplat-manifest.tsv"
@@ -45,7 +47,7 @@ if ! std_process_xplat_vectors_ok "$VECTORS" "$MIN_VECTORS"; then
 fi
 echo "std-process-xplat registry OK"
 
-make -C compiler -q ../std/process/process.o 2>/dev/null || make -C compiler ../std/process/process.o 2>/dev/null || true
+xlang_compiler_make -q ../std/process/process.o 2>/dev/null || xlang_compiler_make ../std/process/process.o 2>/dev/null || true
 
 X_OK=0
 SKIP=0

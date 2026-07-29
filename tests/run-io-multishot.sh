@@ -2,13 +2,15 @@
 # IO-A4 multishot accept Linux 烟测（B-NET 前置门禁）
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 if [ "$(uname -s)" != "Linux" ]; then
   echo "io multishot: skip (not Linux)"
   exit 0
 fi
 
-make -C compiler ../std/io/io.o -q 2>/dev/null || make -C compiler ../std/io/io.o
+xlang_compiler_make ../std/io/io.o -q 2>/dev/null || xlang_compiler_make ../std/io/io.o
 
 if ! cc -std=c11 -Wall -Wextra -o /tmp/xlang_io_multishot_accept_smoke \
   tests/bench/io_multishot_accept_smoke.c std/io/io.o -luring -lpthread 2>/dev/null; then

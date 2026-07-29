@@ -5,6 +5,8 @@
 # 用法：./tests/run-std-fs-crossplatform-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
@@ -45,9 +47,9 @@ if [ ! -f "$MATRIX" ]; then
   exit 1
 fi
 
-make -C compiler -q 2>/dev/null || make -C compiler
-make -C compiler ../std/io/io.o -q 2>/dev/null \
-  || make -C compiler ../std/io/io.o
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+xlang_compiler_make ../std/io/io.o -q 2>/dev/null \
+  || xlang_compiler_make ../std/io/io.o
 
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then

@@ -2,6 +2,8 @@
 # F-backtrace v2：std.backtrace 帧辅助/烟测下沉 + F-ZC 平台胶层迁入 compiler runtime。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_BACKTRACE_V2_FAIL:-0}
 DOC="analysis/phase-f-backtrace-v2.md"
 MANIFEST="tests/baseline/f-backtrace-v2-closure.tsv"
@@ -29,7 +31,7 @@ grep -q 'backtrace_gold_anchor_c' compiler/seeds/runtime_backtrace_platform.from
 grep -q 'backtrace_glue.c' compiler/Makefile && die "Makefile still references backtrace_glue.c"
 grep -q 'runtime_backtrace_platform' compiler/Makefile || die "Makefile missing runtime_backtrace_platform"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/backtrace/backtrace.o >/dev/null 2>&1 || die "make backtrace.o failed"
+  xlang_compiler_make ../std/backtrace/backtrace.o >/dev/null 2>&1 || die "make backtrace.o failed"
 else
   echo "f-backtrace-v2 SKIP backtrace.o build (no xlang-c)" >&2
 fi

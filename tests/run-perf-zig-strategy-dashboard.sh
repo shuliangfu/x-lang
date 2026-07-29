@@ -7,6 +7,8 @@
 #   XLANG_ZIG_STRATEGY_RECORD=1 ./tests/run-perf-zig-strategy-dashboard.sh --record
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # shellcheck source=tests/lib/zig-baseline.sh
 . tests/lib/zig-baseline.sh
@@ -100,7 +102,7 @@ if ! command -v zig >/dev/null 2>&1; then
   exit 0
 fi
 
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
 HARD_FAIL=0
 CASE_OK=0

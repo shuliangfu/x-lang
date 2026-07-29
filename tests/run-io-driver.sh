@@ -3,7 +3,9 @@
 # 执行前自动构建 compiler/xlang 及全部 std/**.o（Makefile all = TARGET + STD_AND_PANIC_O），make clean 后单独跑本脚本也可链入。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 XLANG=${XLANG:-./compiler/xlang}
 
 $XLANG build -L . tests/io-driver/main.x -o /tmp/xlang_io_driver 2>&1

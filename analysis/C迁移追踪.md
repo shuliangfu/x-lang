@@ -30,7 +30,7 @@
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
 | **Makefile 退役 / xbuild** | 🟡 半路径 | **`./xbuild`→`xlang-build.sh`** 产品入口；根 Makefile **help-only**；叶/组合体→`compiler/mk/*.mk`；**`compiler/Makefile` 仍 ~3445 行权威图**（阶段 11） |
-| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；hub + 零 cc 仍 ⬜ |
+| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 🟡** lib+run-*.sh hub ✅（bench residual）· **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | ⬜ 0/~4 | ~200 个 .c 文件在零 cc 终局下归属未定 — 阶段 11.5 |
 | **冷启动零 cc 链** | ⬜ 0/4 | 最小 seed + 零 cc 验证 + 双端冷启动 |
 | **终局：无 Makefile + 零 cc + v2==v3** | ⬜ 未达 | 见 §0.1 三义；阶段 13 |
@@ -1382,8 +1382,8 @@
 🟡 **11.2.3 prove / bstrict / gate 脚本去 make**
 
   - `tests/**/*.sh`（含 `tests/lib/*.sh` · `tests/bench/**/*.sh` · `tests/docker/*`）中 `make -C compiler` 清零或改为 `xbuild` / `xlang_compiler_make`
-  - **重点**：`tests/lib/` 是全仓 make/cc 调用最密集位置；真正调用在 lib，不在 run-*.sh
-  - ✅ `tests/lib/compiler-make.sh` 单入口 `xlang_compiler_make`；tests/lib **0** raw `make -C`（hub 外）；`XLANG_COMPILER_DIR` 支持 nolibc
+  - ✅ `tests/lib/compiler-make.sh` 单入口 `xlang_compiler_make`；tests/lib **0** raw `make -C`（hub 外）；`XLANG_COMPILER_DIR` 支持 nolibc（wave727/728）
+  - ✅ `tests/run-*.sh` **0** raw `make -C`（~456 脚本 → hub；wave732）；图仍 Makefile 至 11.3
   - ⬜ `tests/bench` 同步；docker CI 外层 / 11.2.5 workflow ✅ wave730
 
 ⬜ **11.2.4 Windows 入口**
@@ -1690,7 +1690,7 @@
 | **B** | pinned `*_gen.c` | 18 | Makefile pin cp | `xbuild pin-gen` | ⬜ 7.4/8.2 |
 | **A** | std/core 模块 .o | 65 | 部分 shell / g05 | `xbuild std` | 🟡 |
 | **G** | `build_asm/*_filtered.o` | 4 | 全 4 🟢 shell | `xbuild build-asm-filter` | ✅ 产品+Makefile 同调 |
-| **J** | test / check / verify | 12 | shell + tests/lib hub | `xbuild test` / `cold-test` | 🟡 11.2.3 lib ✅ · bench/CI ⬜ |
+| **J** | test / check / verify | 12 | shell + tests hub | `xbuild test` / `cold-test` | 🟡 11.2.3 lib+run-*.sh ✅ · bench ⬜ |
 | **K** | seed 工具 | 4 | Makefile | `xbuild seed-tools` | ⬜ 11.0.3 |
 | **L** | std 变体 stub | 10 | Makefile | `xbuild std-variant` | ⬜ |
 | **M** | clean / compile_commands / legacy | 6 | make / 考古 | util 或 🗑 | 🟡 |

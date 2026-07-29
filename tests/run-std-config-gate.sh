@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-config-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_CONFIG_DOC:-analysis/std-config-v1.md}"
 MANIFEST="${XLANG_STD_CONFIG_MANIFEST:-tests/baseline/std-config-manifest.tsv}"
@@ -67,7 +69,7 @@ SKIP=0
 
 echo "=== STD-086: config c smoke ==="
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/config/config.o ../std/env/env.o ../std/process/process.o runtime_process_argv.o runtime_process_os_glue.o runtime_env_os.o >/dev/null 2>&1
+  xlang_compiler_make ../std/config/config.o ../std/env/env.o ../std/process/process.o runtime_process_argv.o runtime_process_os_glue.o runtime_env_os.o >/dev/null 2>&1
   if cc -std=c11 -O1 -o /tmp/xlang_config_smoke \
     "$SMOKE_C" std/config/config.o std/env/env.o std/process/process.o compiler/runtime_process_argv.o compiler/runtime_process_os_glue.o compiler/runtime_env_os.o 2>/dev/null; then
     if /tmp/xlang_config_smoke >/dev/null 2>&1; then C_OK=1; fi

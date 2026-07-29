@@ -2,7 +2,9 @@
 # 验证 bool 类型与 true/false 字面量；if 条件须为 bool。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 XLANG=${XLANG:-./compiler/xlang}
 
 # let ok: bool = true; if ok { 42 } else { 0 } -> 42（test_c 传 XLANG=./compiler/xlang-c 时用 C 流水线）

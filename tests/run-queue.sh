@@ -2,14 +2,16 @@
 # 测试 std.queue：Queue_i32 push/pop/len/deinit（link_only → 须预编 queue.o）
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 # shellcheck source=lib/build-std-c-o.sh
 . "$(dirname "$0")/lib/build-std-c-o.sh"
 if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
 fi
 # link_only：用户 C 仅 extern std_queue_*，须存在预编 .o（与 run-set / run-vec 同权威）
-make -C compiler -q ../std/heap/heap.o ../std/queue/queue.o 2>/dev/null \
-  || make -C compiler ../std/heap/heap.o ../std/queue/queue.o
+xlang_compiler_make -q ../std/heap/heap.o ../std/queue/queue.o 2>/dev/null \
+  || xlang_compiler_make ../std/heap/heap.o ../std/queue/queue.o
 ensure_runtime_panic_o
 # shellcheck source=lib/bootstrap-link-xlang.sh
 . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"

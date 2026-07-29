@@ -9,6 +9,8 @@
 # 用法：./tests/run-lang-unsafe-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 MATRIX="${XLANG_LANG_UNSAFE_TSV:-tests/baseline/lang-unsafe-api.tsv}"
 
@@ -57,7 +59,7 @@ if [ -n "${XLANG:-}" ] && [ -x "${XLANG}" ]; then
   XLANG_BIN="${XLANG}"
 else
   # 仅在未指定 XLANG 时尝试轻量 ensure xlang-c（-q 已最新则不重建）
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
   for cand in ./compiler/xlang_asm2 ./compiler/xlang_asm ./compiler/xlang; do
     if [ -x "$cand" ] && native_xlang "$cand"; then
       if [ -z "$XLANG_BIN" ] || [ "$cand" -nt "$XLANG_BIN" ]; then

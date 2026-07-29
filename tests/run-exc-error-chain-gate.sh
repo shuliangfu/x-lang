@@ -8,6 +8,8 @@
 # 用法：./tests/run-exc-error-chain-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_EXC_ERROR_CHAIN_DOC:-analysis/exc-error-chain-v1.md}"
 MATRIX="${XLANG_EXC_ERROR_CHAIN_TSV:-tests/baseline/exc-error-chain.tsv}"
@@ -85,7 +87,7 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "exc-error-chain manifest OK (items=${FOUND})"
 
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 
 XLANG_BIN="${XLANG:-}"

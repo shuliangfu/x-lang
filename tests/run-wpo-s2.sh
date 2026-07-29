@@ -2,10 +2,12 @@
 # WPO-S2 烟测：call graph v2 导出全常量实参 call site + wpo_const_spec 断言（NEXT §4.1 WPO-S2）
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/wpo-main-disasm.sh
 . tests/lib/wpo-main-disasm.sh
 ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || true
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
 GRAPH="/tmp/xlang_wpo_const_spec.json"
 rm -f "$GRAPH"

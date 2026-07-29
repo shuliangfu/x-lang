@@ -5,8 +5,10 @@
 
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
-make -C compiler bootstrap-driver-seed
+xlang_compiler_make bootstrap-driver-seed
 export XLANG=./compiler/xlang
 export XLANG_RUN_ALL_BOOTSTRAP_XLANG=1
 

@@ -5,6 +5,8 @@
 # 环境：XLANG_F_PROCESS_V1_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 FAIL=${XLANG_F_PROCESS_V1_FAIL:-0}
 DOC="analysis/phase-f-process-v1.md"
@@ -47,10 +49,10 @@ if grep -q 'std/process/process\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references std/process/process.c"
 fi
 
-make -C compiler -q runtime_process_os_glue.o 2>/dev/null || make -C compiler runtime_process_os_glue.o >/dev/null 2>&1 || die "runtime_process_os_glue.o build failed"
+xlang_compiler_make -q runtime_process_os_glue.o 2>/dev/null || xlang_compiler_make runtime_process_os_glue.o >/dev/null 2>&1 || die "runtime_process_os_glue.o build failed"
 
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler runtime_process_argv.o ../std/process/process.o >/dev/null 2>&1 || die "make process.o failed"
+  xlang_compiler_make runtime_process_argv.o ../std/process/process.o >/dev/null 2>&1 || die "make process.o failed"
 else
   echo "f-process-v1 SKIP process.o build (no xlang-c)" >&2
 fi

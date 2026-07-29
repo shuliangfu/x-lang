@@ -2,6 +2,8 @@
 # F-hash v1：std.hash 去 C（hash.c → hash.x；v2 后逻辑全在 hash.x）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_HASH_V1_FAIL:-0}
 DOC="analysis/phase-f-hash-v1.md"
 MANIFEST="tests/baseline/f-hash-v1-closure.tsv"
@@ -21,7 +23,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'hash.x' compiler/Makefile || die "Makefile missing hash.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/hash/hash.o >/dev/null 2>&1 || die "make hash.o failed"
+  xlang_compiler_make ../std/hash/hash.o >/dev/null 2>&1 || die "make hash.o failed"
 else
   echo "f-hash-v1 SKIP hash.o build (no xlang-c)" >&2
 fi

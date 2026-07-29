@@ -5,6 +5,8 @@
 # 环境：XLANG_F04_CRYPTO_CLOSURE_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 FAIL=${XLANG_F04_CRYPTO_CLOSURE_FAIL:-0}
 DOC="analysis/phase-f-f04-v21-closure.md"
@@ -43,7 +45,7 @@ if grep -q 'aes_gcm\.inc\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references aes_gcm.inc.c"
 fi
 
-make -C compiler ../std/crypto/crypto.o >/dev/null 2>&1 || die "make crypto.o failed"
+xlang_compiler_make ../std/crypto/crypto.o >/dev/null 2>&1 || die "make crypto.o failed"
 
 for sub in run-f04-std-crypto-v16-gate.sh run-f04-std-crypto-v17-gate.sh \
   run-f04-std-crypto-v18-gate.sh run-f04-std-crypto-v19-gate.sh; do

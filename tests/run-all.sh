@@ -5,6 +5,8 @@
 
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # Wall-clock total for this suite (minutes + seconds at exit).
 # PLATFORM: SHARED — date +%s is portable on macOS / Linux / Git Bash.
@@ -68,7 +70,7 @@ esac
 if [ -n "${RUN_ALL_PORTABLE:-}" ]; then
     export RUN_ALL_USE_C=1
     export XLANG_SKIP_SUBSCRIPT_MAKE=1
-    make -C compiler -q all 2>/dev/null || make -C compiler all
+    xlang_compiler_make -q all 2>/dev/null || xlang_compiler_make all
     if [ -x ./compiler/xlang-c ]; then
         export XLANG=./compiler/xlang-c
     fi
@@ -86,9 +88,9 @@ if [ -n "$XLANG" ]; then
         export XLANG_RUN_ALL_BOOTSTRAP_XLANG=1
         export XLANG_LINK_XLANG="${XLANG_LINK_XLANG:-$XLANG}"
         # 非白名单脚本仍走 xlang-c，须确保 xlang-c 已构建。
-        make -C compiler xlang-c -q 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+        xlang_compiler_make xlang-c -q 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
     else
-    # 子脚本内 `make -C compiler` 走 bootstrap-driver-seed，避免默认 all 用 C-only xlang 覆盖 .x pipeline 链。
+    # 子脚本内 `xlang_compiler_make` 走 bootstrap-driver-seed，避免默认 all 用 C-only xlang 覆盖 .x pipeline 链。
     # 【Why 根源治理 Windows seed 不可用】Windows 上 bootstrap_xlangc.exe 是旧版本（7月4日），
     # typeck 对大 u32 字面量（如 ARM64 指令编码 2847898621）报 "no matching overload"，
     # 导致 make bootstrap-driver-seed 失败。且 seeds/ 无 Windows 版本 seed。
@@ -96,7 +98,7 @@ if [ -n "$XLANG" ]; then
     case "$(uname -s 2>/dev/null)" in
       MINGW*|MSYS*|CYGWIN*)
         # Windows：seed 不可用，不设 XLANG_RUN_ALL_BOOTSTRAP_XLANG，所有测试走 xlang-c。
-        make -B -C compiler XLANG_LEGACY_C_FRONTEND=1 xlang-c 2>/dev/null || true
+        xlang_compiler_make -B XLANG_LEGACY_C_FRONTEND=1 xlang-c 2>/dev/null || true
         export XLANG_SKIP_SUBSCRIPT_MAKE=1
         ;;
       *)
@@ -106,17 +108,17 @@ if [ -n "$XLANG" ]; then
     # 会把真正的 C 前端 xlang-c 覆盖成 bootstrap_xlangc 副本（.x pipeline，3.9MB），
     # 导致 62+ 测试因用错 xlang-c 而失败。修复：先 -B 构建真正 C 前端，
     # 再 export XLANG_SKIP_SUBSCRIPT_MAKE=1 阻止 bootstrap-driver-seed 覆盖它。
-    make -B -C compiler XLANG_LEGACY_C_FRONTEND=1 xlang-c 2>/dev/null || true
+    xlang_compiler_make -B XLANG_LEGACY_C_FRONTEND=1 xlang-c 2>/dev/null || true
     export XLANG_SKIP_SUBSCRIPT_MAKE=1
     # 子脚本不再各自 make，避免长回归中反复链接 xlang 产生竞态；入口统一构建一次 seed。
-    make -C compiler bootstrap-driver-seed -q 2>/dev/null || make -C compiler bootstrap-driver-seed
+    xlang_compiler_make bootstrap-driver-seed -q 2>/dev/null || xlang_compiler_make bootstrap-driver-seed
         ;;
     esac
     fi
     if [ -z "${XLANG_BSTRICT_RUN_ALL:-}" ]; then
         # stdlib-import 等用 xlang-c 链多模块可执行；seed 仅 check/typeck。
         # -B 重建确保 xlang-c 是真正 C 前端（bootstrap-driver-seed 可能触发依赖重建覆盖）。
-        make -B -C compiler XLANG_LEGACY_C_FRONTEND=1 xlang-c 2>/dev/null || true
+        xlang_compiler_make -B XLANG_LEGACY_C_FRONTEND=1 xlang-c 2>/dev/null || true
         # 可执行链接/退出码回归优先 xlang-c；typeck/check 仍用 XLANG（seed）。
         if [ -x ./compiler/xlang-c ]; then
             export XLANG_LINK_XLANG=./compiler/xlang-c
@@ -130,9 +132,9 @@ if [ -n "$XLANG" ]; then
     export XLANG_COMPILE_STD_USE_C=1
     find std -name '*.o' -delete 2>/dev/null || true
     # 预编译所有 std .o（XLANG_COMPILE_STD_USE_C=1 强制用 xlang-c）；失败不中断，后续按需 ensure
-    make -C compiler std-objs XLANG_COMPILE_STD_USE_C=1 2>/dev/null || true
+    xlang_compiler_make std-objs XLANG_COMPILE_STD_USE_C=1 2>/dev/null || true
     # 预编译 core .o（XLANG_SKIP_SUBSCRIPT_MAKE=1 时子脚本跳过 make，需入口预构建）
-    make -C compiler ../core/slice/slice.o 2>/dev/null || true
+    xlang_compiler_make ../core/slice/slice.o 2>/dev/null || true
     # XLANG 与 compiler/xlang 为同一inode 时不能做「先 mv 再 cp」：mv 会破坏 cp 的源路径（常见：XLANG=./compiler/xlang）。
     if [ -f compiler/xlang ] && [ compiler/xlang -ef "$XLANG" ]; then
         :
@@ -147,13 +149,13 @@ if [ -n "$XLANG" ]; then
 else
     # 无 XLANG 时默认使用 C 流水线：仅构建 all（C 版 xlang），子脚本不构建 bootstrap-driver-seed
     export RUN_ALL_USE_C=1
-    make -C compiler -q all 2>/dev/null || make -C compiler all
+    xlang_compiler_make -q all 2>/dev/null || xlang_compiler_make all
     # 与 Makefile test_c 一致：子脚本用 xlang-c 走纯 C 前端，避免本机 compiler/xlang 已是
     # bootstrap-driver-seed（链 .x pipeline）时仍当「默认 C 回归」却误走 .x typeck 失败
     # 额外构建真正的 C 前端（XLANG_LEGACY_C_FRONTEND=1），避免 .x pipeline mangling 缺失导致重载冲突。
     # 用 -B 强制重建：`make all` 可能已把 xlang-c 当作副产品生成（默认 cp bootstrap_xlangc），
     # 时间戳较新会导致后续 `make xlang-c` 误判 up-to-date 而跳过真正 C 前端的构建。
-    make -B -C compiler XLANG_LEGACY_C_FRONTEND=1 xlang-c 2>/dev/null || true
+    xlang_compiler_make -B XLANG_LEGACY_C_FRONTEND=1 xlang-c 2>/dev/null || true
     if [ -x "./compiler/xlang-c" ]; then
         export XLANG=./compiler/xlang-c
     fi
@@ -163,12 +165,12 @@ else
     # 【Why 根源治理 .o 污染】同 XLANG 分支：强制 std .o 用 xlang-c 编译，清理旧 .o 并预编译。
     export XLANG_COMPILE_STD_USE_C=1
     find std -name '*.o' -delete 2>/dev/null || true
-    make -C compiler std-objs XLANG_COMPILE_STD_USE_C=1 2>/dev/null || true
+    xlang_compiler_make std-objs XLANG_COMPILE_STD_USE_C=1 2>/dev/null || true
 fi
 
 # 无 xlang 则直接失败，避免整次跑完仍打印 all tests OK
 if [ ! -f compiler/xlang ] || [ ! -x compiler/xlang ]; then
-    echo "run-all.sh: compiler/xlang not found or not executable (run 'make -C compiler' first)." >&2
+    echo "run-all.sh: compiler/xlang not found or not executable (run 'xlang_compiler_make' first)." >&2
     exit 127
 fi
 

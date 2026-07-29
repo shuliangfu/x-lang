@@ -2,6 +2,8 @@
 # STD-077：std.cli 门禁
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_CLI_DOC:-analysis/std-cli-v1.md}"
 MANIFEST="${XLANG_STD_CLI_MANIFEST:-tests/baseline/std-cli-manifest.tsv}"
@@ -66,7 +68,7 @@ SKIP=0
 
 echo "=== STD-077: cli c smoke ==="
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  if make -C compiler ../std/cli/cli.o >/dev/null 2>&1 && \
+  if xlang_compiler_make ../std/cli/cli.o >/dev/null 2>&1 && \
      cc -std=c11 -O1 -o /tmp/xlang_cli_smoke "$SMOKE_C" std/cli/cli.o 2>/dev/null; then
     if /tmp/xlang_cli_smoke >/dev/null 2>&1; then C_OK=1; fi
     rm -f /tmp/xlang_cli_smoke

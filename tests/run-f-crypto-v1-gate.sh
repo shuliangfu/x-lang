@@ -2,6 +2,8 @@
 # F-crypto v1：std.crypto 纳入 F 聚合 batch（F-04 v16～v21 已闭合）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_CRYPTO_V1_FAIL:-0}
 DOC="analysis/phase-f-crypto-v1.md"
 MANIFEST="tests/baseline/f-crypto-v1-closure.tsv"
@@ -18,7 +20,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
   esac
 done < "$MANIFEST"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/crypto/crypto.o >/dev/null 2>&1 || die "make crypto.o failed"
+  xlang_compiler_make ../std/crypto/crypto.o >/dev/null 2>&1 || die "make crypto.o failed"
 else
   echo "f-crypto-v1 SKIP crypto.o build (no xlang-c)" >&2
 fi

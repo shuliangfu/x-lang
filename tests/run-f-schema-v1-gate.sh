@@ -2,6 +2,8 @@
 # F-schema v1：std.schema 去 C（schema.c → schema.x；v2 逻辑亦在 schema.x）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 FAIL=${XLANG_F_SCHEMA_V1_FAIL:-0}
 DOC="analysis/phase-f-schema-v1.md"
 MANIFEST="tests/baseline/f-schema-v1-closure.tsv"
@@ -23,7 +25,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'schema.x' compiler/Makefile || die "Makefile missing schema.x"
 if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  make -C compiler ../std/schema/schema.o >/dev/null 2>&1 || die "make schema.o failed"
+  xlang_compiler_make ../std/schema/schema.o >/dev/null 2>&1 || die "make schema.o failed"
 else
   echo "f-schema-v1 SKIP schema.o build (no xlang-c)" >&2
 fi

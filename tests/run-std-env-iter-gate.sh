@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-env-iter-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_ENV_ITER_DOC:-analysis/std-env-iter-v1.md}"
 MANIFEST="${XLANG_STD_ENV_ITER_TSV:-tests/baseline/std-env-iter.tsv}"
@@ -76,8 +78,8 @@ if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
     exit 1
   fi
   SKIP=0
-  make -C compiler -q ../std/env/env.o 2>/dev/null || make -C compiler ../std/env/env.o
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  xlang_compiler_make -q ../std/env/env.o 2>/dev/null || xlang_compiler_make ../std/env/env.o
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
   # shellcheck source=tests/lib/bootstrap-link-xlang.sh
   . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
   if $RUN_XLANG build -L . "$SMOKE" -o /tmp/xlang_std_env_iter 2>/tmp/xlang_std_env_iter_build.log; then

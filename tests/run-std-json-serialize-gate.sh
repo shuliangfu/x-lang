@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-json-serialize-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_JSZ_DOC:-analysis/std-json-serialize-v1.md}"
 MANIFEST="${XLANG_STD_JSZ_TSV:-tests/baseline/std-json-serialize.tsv}"
@@ -65,8 +67,8 @@ fi
 
 if [ -n "$XLANG_BIN" ]; then
   echo "=== STD-035: typeck + round-trip smoke (XLANG=$XLANG_BIN) ==="
-  make -C compiler -q ../std/json/json.o 2>/dev/null || make -C compiler ../std/json/json.o 2>/dev/null || true
-  make -C compiler -q xlang-c 2>/dev/null || XLANG_LEGACY_C_FRONTEND=1 make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q ../std/json/json.o 2>/dev/null || xlang_compiler_make ../std/json/json.o 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || XLANG_LEGACY_C_FRONTEND=1 xlang_compiler_make xlang-c 2>/dev/null || true
   if ! "$XLANG_BIN" check -L . "$RT_X" >/dev/null 2>&1; then
     echo "std-json-serialize gate FAIL: typeck $RT_X" >&2
     "$XLANG_BIN" check -L . "$RT_X" 2>&1 | tail -10 >&2 || true

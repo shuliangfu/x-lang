@@ -6,7 +6,9 @@
 #   XLANG_PERF_FAIL_ON_C_O3=1 — default asm 中位数 ≤ XLANG_PERF_C_O3_RATIO× C -O3（B-CMP/L2；无 cc 则跳过）
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
 # PERF-001：Zig 编译参数与版本 pin 见 tests/lib/zig-baseline.sh
 # shellcheck source=tests/lib/zig-baseline.sh

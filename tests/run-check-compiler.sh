@@ -2,8 +2,10 @@
 # xlang check compiler/src：产品编译器树须能通过 C 前端 typeck（-L . -L compiler/src 由 driver 注入）。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  make -C compiler -q 2>/dev/null || make -C compiler xlang-c 2>/dev/null || make -C compiler relink-xlang
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || xlang_compiler_make relink-xlang
 fi
 XLANG=${XLANG:-./compiler/xlang}
 ROOT=$(pwd)

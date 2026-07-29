@@ -4,6 +4,8 @@
 # 用法：./tests/run-lsp-diag-perf.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # shellcheck source=tests/lib/tool-lsp-diag-perf.sh
 . tests/lib/tool-lsp-diag-perf.sh
@@ -15,7 +17,7 @@ MAX_WALL_MS="${XLANG_LSP_DIAG_MAX_WALL_MS:-15000}"
 MIN_FUNCS="${XLANG_LSP_DIAG_MIN_FUNCS:-30}"
 
 if ! "$XLANG" --help 2>/dev/null | grep -q '\-\-lsp'; then
-  make -C compiler bootstrap-driver-seed 2>/dev/null || make -C compiler
+  xlang_compiler_make bootstrap-driver-seed 2>/dev/null || xlang_compiler_make
   XLANG=./compiler/xlang
 fi
 

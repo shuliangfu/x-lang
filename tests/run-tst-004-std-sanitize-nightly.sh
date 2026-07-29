@@ -6,6 +6,8 @@
 #   XLANG_TST004_FAIL_ON_ERROR=1 — 任一案失败则 exit 1（默认）
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 MANIFEST="${XLANG_TST004_TSV:-tests/baseline/tst-004-std-sanitize.tsv}"
 LIB="tests/lib/tst-004-std-sanitize.sh"
@@ -54,7 +56,7 @@ if [ "$(uname -s)" = "Darwin" ] && [ -d /opt/homebrew/lib ]; then
   export LIBRARY_PATH="/opt/homebrew/lib${LIBRARY_PATH:+:$LIBRARY_PATH}"
 fi
 
-make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
 
 OK=0
 FAIL=0

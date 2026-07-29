@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-compress-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_COMPRESS_DOC:-analysis/std-compress-v1.md}"
 MANIFEST="${XLANG_STD_COMPRESS_MANIFEST:-tests/baseline/std-compress-manifest.tsv}"
@@ -120,7 +122,7 @@ fi
 echo "std-compress manifest OK (apis=${API_N} layers=${LAYER_N})"
 
 if XLANG_BIN="$(std_compress_resolve_shu)"; then
-  make -C compiler -q 2>/dev/null || make -C compiler
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
   std_compress_try_libs
   echo "=== STD-007: runnable report (XLANG=$XLANG_BIN) ==="
   FAILS=0

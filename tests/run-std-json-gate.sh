@@ -8,6 +8,8 @@
 # 用法：./tests/run-std-json-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_STD_JSON_DOC:-analysis/std-json-zc-v1.md}"
 MANIFEST="${XLANG_STD_JSON_MANIFEST:-tests/baseline/std-json-manifest.tsv}"
@@ -138,7 +140,7 @@ fi
 
 if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
   echo "=== STD-008: std.json smoke (XLANG=$XLANG_BIN) ==="
-  make -C compiler -q xlang-c 2>/dev/null || XLANG_LEGACY_C_FRONTEND=1 make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || XLANG_LEGACY_C_FRONTEND=1 xlang_compiler_make xlang-c 2>/dev/null || true
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/json/json.o

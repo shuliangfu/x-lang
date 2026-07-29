@@ -5,16 +5,18 @@
 # Mac 无 refresh：./scripts/docker-ci-local.sh ubuntu-gates
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
-make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
 # Docker 产物为 Linux ELF 时 Mac 无法 exec
 if [ "$(uname -s)" = "Darwin" ] && [ -f ./compiler/xlang-c ] && file ./compiler/xlang-c | grep -q 'ELF'; then
-  echo "pre-push P5: xlang-c is Linux ELF (from docker); on Mac run: make -C compiler clean && make -C compiler xlang-c" >&2
+  echo "pre-push P5: xlang-c is Linux ELF (from docker); on Mac run: xlang_compiler_make clean && xlang_compiler_make xlang-c" >&2
   echo "hint: or ./scripts/docker-ci-local.sh ubuntu-gates" >&2
   exit 1
 fi
-make -C compiler -q ../std/process/process.o ../std/io/io.o 2>/dev/null \
-  || make -C compiler ../std/process/process.o ../std/io/io.o
+xlang_compiler_make -q ../std/process/process.o ../std/io/io.o 2>/dev/null \
+  || xlang_compiler_make ../std/process/process.o ../std/io/io.o
 
 echo "=== P5: B-CMP codegen-fair 1.0× (xlang-c) ==="
 chmod +x tests/run-bcmp-gate.sh
@@ -50,7 +52,7 @@ chmod +x tests/run-wpo-dce-emit.sh tests/run-wpo-s1.sh tests/run-wpo-s2.sh tests
 echo "=== P5: WPO-S3 struct stack promote + await asm (xlang-c typeck; xlang_asm 时跑 exit 10/0) ==="
 chmod +x tests/run-wpo-s3-gate.sh tests/lib/wpo-s3-disasm.sh tests/lib/wpo-main-disasm.sh
 if [ -x ./compiler/xlang_asm ] && { [ "$(uname -s)" = "Linux" ] || file ./compiler/xlang_asm 2>/dev/null | grep -q Mach-O; }; then
-  make -C compiler ../std/async/scheduler.o -q 2>/dev/null || make -C compiler ../std/async/scheduler.o
+  xlang_compiler_make ../std/async/scheduler.o -q 2>/dev/null || xlang_compiler_make ../std/async/scheduler.o
   XLANG=./compiler/xlang_asm ./tests/run-wpo-s3-gate.sh | tee /tmp/xlang_wpo_s3_p5.log
   grep -q 'wpo-s3 await asm OK' /tmp/xlang_wpo_s3_p5.log
   grep -q 'wpo-s3 await_yield asm OK' /tmp/xlang_wpo_s3_p5.log
@@ -146,7 +148,7 @@ chmod +x tests/run-zc1-gate.sh tests/run-iocp-gate.sh tests/run-perf-iocp.sh
 
 if [ "$(uname -s)" = "Linux" ]; then
   echo "=== P5: refresh xlang_asm gate (Linux X path) ==="
-  make -C compiler -q OPT=1 2>/dev/null || make -C compiler OPT=1
+  xlang_compiler_make -q OPT=1 2>/dev/null || xlang_compiler_make OPT=1
   chmod +x tests/run-refresh-xlang-asm-gate.sh tests/run-size-xlang-asm-gate.sh
   ./tests/run-refresh-xlang-asm-gate.sh
   if [ -x ./compiler/xlang_asm ]; then

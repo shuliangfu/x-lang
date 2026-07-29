@@ -2,7 +2,9 @@
 # run-boundary-encodings.sh — base64/json/csv 边界输入（非法/空/往返）
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 XLANG="${XLANG:-./compiler/xlang}"
 
 run_case() {

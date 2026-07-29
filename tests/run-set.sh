@@ -2,10 +2,12 @@
 # 测试 std.set：Set_i32 insert、contains、remove、len、deinit
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 # shellcheck source=lib/build-std-c-o.sh
 . "$(dirname "$0")/lib/build-std-c-o.sh"
-make -C compiler -q ../std/heap/heap.o ../std/set/set.o 2>/dev/null \
-  || make -C compiler ../std/heap/heap.o ../std/set/set.o
+xlang_compiler_make -q ../std/heap/heap.o ../std/set/set.o 2>/dev/null \
+  || xlang_compiler_make ../std/heap/heap.o ../std/set/set.o
 ensure_runtime_panic_o
 ensure_runtime_process_argv_o
 # shellcheck source=lib/bootstrap-link-xlang.sh

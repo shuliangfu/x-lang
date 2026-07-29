@@ -8,7 +8,9 @@
 #   XLANG_PERF_UPDATE_BASELINE=1 ./tests/run-perf-compile-dogfood.sh   # 刷新 tests/baseline/compile-dogfood.tsv
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
 XLANG="${XLANG:-./compiler/xlang}"
 # CI make all 产出 C-only xlang；dogfood 编译耗时统一用 xlang-c，与 run-perf-io/run-perf-baseline 一致。

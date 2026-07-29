@@ -5,6 +5,8 @@
 # 环境：XLANG_F05_DB_KV_V2_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 FAIL=${XLANG_F05_DB_KV_V2_FAIL:-0}
 DOC="analysis/phase-f-f05-v2.md"
@@ -31,7 +33,7 @@ if grep -q 'std/db/kv/kv\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references kv.c"
 fi
 
-make -C compiler ../std/db/kv/kv.o runtime_kv_mmap_glue.o >/dev/null 2>&1 || die "make kv.o failed"
+xlang_compiler_make ../std/db/kv/kv.o runtime_kv_mmap_glue.o >/dev/null 2>&1 || die "make kv.o failed"
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT

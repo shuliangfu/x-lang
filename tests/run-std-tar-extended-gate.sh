@@ -4,6 +4,8 @@
 # 用法：./tests/run-std-tar-extended-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="analysis/std-tar-extended-v1.md"
 MANIFEST="tests/baseline/std-tar-extended.tsv"
@@ -88,7 +90,7 @@ if [ -n "$XLANG_BIN" ]; then
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/tar/tar.o
   TAR_O="$(cd compiler && pwd)/../std/tar/tar.o"
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-tar-extended gate FAIL: typeck" >&2
     "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true

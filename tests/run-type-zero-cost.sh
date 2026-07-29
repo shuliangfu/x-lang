@@ -4,6 +4,8 @@
 # 用法：./tests/run-type-zero-cost.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 BENCH="${XLANG_TYPE_ZC_BENCH:-tests/baseline/type-zero-cost-bench.tsv}"
 
@@ -26,7 +28,7 @@ if [ -z "$XLANG_BIN" ] || ! type_zero_cost_native_xlang "$XLANG_BIN"; then
   exit 0
 fi
 
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
 echo "=== TYPE-005: zero-cost smoke (XLANG=$XLANG_BIN) ==="
 FAILS=0

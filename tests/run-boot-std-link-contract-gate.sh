@@ -4,6 +4,8 @@
 # 用法：./tests/run-boot-std-link-contract-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_BOOT_LINK_DOC:-analysis/boot-std-link-contract-v1.md}"
 MANIFEST="${XLANG_BOOT_LINK_TSV:-tests/baseline/boot-std-link-contract.tsv}"
@@ -100,10 +102,10 @@ resolve_shu() {
 
 if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
   echo "=== BOOT-014: link smoke (XLANG=$XLANG_BIN) ==="
-  make -C compiler -q ../std/json/json.o 2>/dev/null || make -C compiler ../std/json/json.o 2>/dev/null || true
-  make -C compiler -q ../std/async/scheduler.o 2>/dev/null || make -C compiler ../std/async/scheduler.o 2>/dev/null || true
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q ../std/json/json.o 2>/dev/null || xlang_compiler_make ../std/json/json.o 2>/dev/null || true
+  xlang_compiler_make -q ../std/async/scheduler.o 2>/dev/null || xlang_compiler_make ../std/async/scheduler.o 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   if boot_link_contract_run_smoke "$XLANG_BIN" "$JSON_X" "/tmp/xlang_boot_link_json"; then
     SMOKE_OK=1
   else

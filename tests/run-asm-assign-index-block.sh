@@ -2,7 +2,9 @@
 # asm 7.3：块内连续 INDEX assign（字面量/VAR/嵌套下标）+ return 求和，main 内无 mov x2。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 XLANG=${XLANG:-./compiler/xlang}
 
 run_one() {

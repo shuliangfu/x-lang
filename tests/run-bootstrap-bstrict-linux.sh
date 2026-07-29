@@ -5,6 +5,8 @@
 
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 if [ "$(uname -s 2>/dev/null)" != "Linux" ]; then
   echo "run-bootstrap-bstrict-linux: skip (host is not Linux; crt0 仅 glibc Linux x86_64)"
@@ -18,7 +20,7 @@ fi
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || ulimit -s 16384 2>/dev/null || true
 
 if [ ! -x compiler/xlang ]; then
-  echo "run-bootstrap-bstrict-linux: need seed xlang (make -C compiler OPT=1 all)" >&2
+  echo "run-bootstrap-bstrict-linux: need seed xlang (xlang_compiler_make OPT=1 all)" >&2
   exit 127
 fi
 
@@ -28,7 +30,7 @@ if [ -n "${XLANG_BSTRICT_SKIP_BUILD:-}" ] && [ -x compiler/xlang_asm ]; then
   echo "run-bootstrap-bstrict-linux: reuse bstrict xlang_asm (XLANG_BSTRICT_SKIP_BUILD=1, skip crt0 rebuild)"
 else
   echo "run-bootstrap-bstrict-linux: make bootstrap-driver-crt0 ..."
-  make -C compiler bootstrap-driver-crt0
+  xlang_compiler_make bootstrap-driver-crt0
 fi
 
 if [ ! -x compiler/xlang_asm ]; then

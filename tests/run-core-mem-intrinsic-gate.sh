@@ -4,6 +4,8 @@
 # 用法：./tests/run-core-mem-intrinsic-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_CORE_MEM_INTRINSIC_DOC:-analysis/core-mem-intrinsic-v1.md}"
 MANIFEST="${XLANG_CORE_MEM_INTRINSIC_TSV:-tests/baseline/core-mem-intrinsic.tsv}"
@@ -76,7 +78,7 @@ resolve_emit_shu() {
 EMIT_TOTAL=4
 if XLANG_BIN="$(resolve_emit_shu 2>/dev/null)"; then
   echo "=== CORE-008: runnable XLANG_DEBUG_C emit (XLANG=$XLANG_BIN) ==="
-  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
   if ! stdlib_cm_native_xlang "$XLANG_BIN"; then
     XLANG_BIN="$(resolve_emit_shu 2>/dev/null || true)"
   fi

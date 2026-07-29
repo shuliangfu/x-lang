@@ -4,6 +4,8 @@
 # 用法：./tests/run-comp-incr-compile.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 # shellcheck source=tests/lib/comp-incr-compile.sh
 . tests/lib/comp-incr-compile.sh
@@ -52,7 +54,7 @@ if [ -z "$XLANG_BIN" ]; then
   exit 0
 fi
 
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
 FAILS=0
 
@@ -109,7 +111,7 @@ while IFS=$'\t' read -r bench_id fixture cmd_kind max_r _target _notes; do
       continue
       ;;
     make_q)
-      if make -C compiler -q 2>/dev/null; then
+      if xlang_compiler_make -q 2>/dev/null; then
         echo "comp-incr-compile OK $bench_id (make -q)"
       else
         echo "comp-incr-compile FAIL: $bench_id make -q" >&2

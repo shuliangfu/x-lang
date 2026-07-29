@@ -8,6 +8,8 @@
 # 用法：./tests/run-obs-compile-phase-timing-gate.sh
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 
 DOC="${XLANG_OBS_PHASE_TIMING_DOC:-analysis/obs-compile-phase-timing-v1.md}"
 MANIFEST="${XLANG_OBS_PHASE_TIMING_TSV:-tests/baseline/obs-compile-phase-timing.tsv}"
@@ -122,7 +124,7 @@ if [ -z "$XLANG_BIN" ]; then
   exit 0
 fi
 
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
 LOG=/tmp/xlang_obs_phase_timing.log
 if ! XLANG_COMPILE_PHASE_TIMING=1 "$XLANG_BIN" check "$SMOKE_FIX" >"$LOG" 2>&1; then

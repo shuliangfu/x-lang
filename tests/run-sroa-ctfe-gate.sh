@@ -2,7 +2,9 @@
 # MEM-D3：SROA/ASP CTFE 链 — 多步 i32 折叠 + 块内别名 fold。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
 XLANG="${XLANG:-./compiler/xlang-c}"
 
 check_ctfe() {

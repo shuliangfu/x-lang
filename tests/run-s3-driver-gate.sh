@@ -7,7 +7,9 @@
 # 可选：XLANG_S3_DRIVER_UPDATE_BASELINE=1 — 更新 tests/baseline/s3-driver-o.tsv
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler xlang-c -q 2>/dev/null || make -C compiler xlang-c
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
+xlang_compiler_make xlang-c -q 2>/dev/null || xlang_compiler_make xlang-c
 
 XLANG=${XLANG:-./compiler/xlang-c}
 COMPILE_X="compiler/src/driver/compile.x"
@@ -120,7 +122,7 @@ if [ -f "$DRIVER_COMPILE_O" ]; then
   fi
   for sym in driver_compile_dispatch_asm_backend driver_compile_dispatch_emit_c_path; do
     if ! nm "$DRIVER_COMPILE_O" 2>/dev/null | grep -q " T _${sym}$"; then
-      echo "s3 driver gate: $DRIVER_COMPILE_O missing symbol $sym (regenerate: make -C compiler driver_compile_x.o)" >&2
+      echo "s3 driver gate: $DRIVER_COMPILE_O missing symbol $sym (regenerate: xlang_compiler_make driver_compile_x.o)" >&2
       exit 1
     fi
   done
@@ -129,7 +131,7 @@ if [ -f "$DRIVER_COMPILE_O" ]; then
     echo "s3 driver gate: driver_run_compiler_full_x + dispatch_* present in $DRIVER_COMPILE_O"
   fi
 elif [ "${XLANG_S3_DRIVER_REQUIRE_COMPILE_O:-0}" = "1" ]; then
-  echo "s3 driver gate: missing $DRIVER_COMPILE_O (make -C compiler driver_compile_x.o)" >&2
+  echo "s3 driver gate: missing $DRIVER_COMPILE_O (xlang_compiler_make driver_compile_x.o)" >&2
   exit 1
 fi
 

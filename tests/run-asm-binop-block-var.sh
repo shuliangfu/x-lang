@@ -2,9 +2,11 @@
 # asm 7.3：块内连续 VAR binop 复用 rbx 右操作数槽；return 四～十四元链验 x10–x15 spill。
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/compiler-make.sh
+. tests/lib/compiler-make.sh
 # shellcheck source=tests/lib/wpo-main-disasm.sh
 . tests/lib/wpo-main-disasm.sh
-make -C compiler -q 2>/dev/null || make -C compiler
+xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 XLANG=${XLANG:-./compiler/xlang}
 
 # x10/x11 spill 与 ldur 门禁：仅非 Darwin 的 arm64（Darwin 产品 -o 走 C，见 wpo_asm_disasm_gate_host）。
