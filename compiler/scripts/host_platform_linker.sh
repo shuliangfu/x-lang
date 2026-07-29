@@ -19,7 +19,7 @@
 #
 # PLATFORM: SHARED — detection portable; leaf ABI stays in mk / product link path.
 # Wave: 745 Track MG · 11.1.3 + 11.1.4 policy slice.
-# Wave: 772 Track MG · 11.1.4 pure-ld prefer in bootstrap_driver_seed_link (CC residual fallback).
+# Wave: 772 pure-ld cold · 773 g05 pure-ld · 774 drop silent CC residual fallback.
 
 set -euo pipefail
 
@@ -178,28 +178,32 @@ EOF
 print_linker() {
   detect_host
   cat <<EOF
-# linker policy inventory (11.1.4 · wave745 · wave772 cold pure-ld · wave773 g05 pure-ld)
+# linker policy inventory (11.1.4 · wave745 · 772 cold · 773 g05 · 774 drop silent fallback)
 # Prefer: product xlang_asm_invoke_ld_platform / direct ld|lld|link.exe
-# Cold phase1/final: pure-ld default when SEED_LINK_PURE_OK=1; CC residual fallback
-# g05 product relink: pure-ld prefer via pure_ld_shared (wave773); CC residual fallback
+# Cold phase1/final: pure-ld required when SEED_LINK_PURE_OK=1 (wave774 hard fail on miss)
+# g05 product relink: pure-ld required when freestanding (wave774); named CC residual only
+# Named CC residual: FORCE_CC=1 or pure-ld ineligible host (not silent after pure fail)
 
 LINKER_POLICY=prefer_direct_ld_then_named_cc_residual
 LINKER_FORBIDDEN_DEFAULT=silent_cc_as_linker_without_inventory
+LINKER_FORBIDDEN_SILENT_CC_AFTER_PURE_FAIL=1
 
 # Cold seed link body (G.7 single authority)
 COLD_SEED_LINK_BODY=scripts/bootstrap_driver_seed_link.sh
 COLD_SEED_LINK_PURE_LD=1
 COLD_SEED_LINK_PURE_LD_VIA=SEED_LINK_LD+MULTIDEF+ENTRY+LD_TAIL_export+pure_ld_shared
-COLD_SEED_LINK_CC_FALLBACK=SEED_LINK_CC_-o_when_PURE_OK_0_or_FORCE_CC_or_pure_fail
+COLD_SEED_LINK_CC_RESIDUAL=SEED_LINK_CC_-o_when_PURE_OK_0_or_FORCE_CC_only
+COLD_SEED_LINK_DROP_SILENT_FALLBACK=1
 RESIDUAL_CC_LINK_SITE=scripts/bootstrap_driver_seed_link.sh
-RESIDUAL_CC_LINK_ROLE=cold_phase1_final_SEED_LINK_CC_fallback
+RESIDUAL_CC_LINK_ROLE=cold_phase1_final_SEED_LINK_CC_named_residual_only
 RESIDUAL_CC_LINK_LIST_AUTHORITY=Makefile_export_bootstrap-driver-seed-export-phase1/final-link
 
-# g05 product final link (wave773 pure-ld prefer; G.7 pure_ld_shared)
+# g05 product final link (wave773 pure-ld; wave774 no silent fallback; G.7 pure_ld_shared)
 G05_RELINK_BODY=scripts/g05_relink_xlang.sh
 G05_RELINK_PURE_LD=1
 G05_RELINK_PURE_LD_VIA=pure_ld_shared.sh
-G05_RELINK_CC_FALLBACK=G05_CC_-o_when_FORCE_CC_or_pure_fail_or_ineligible
+G05_RELINK_CC_RESIDUAL=G05_CC_-o_when_FORCE_CC_or_ineligible_only
+G05_RELINK_DROP_SILENT_FALLBACK=1
 G05_RELINK_LIST_AUTHORITY=g05_relink_env.sh
 PURE_LD_SHARED=scripts/pure_ld_shared.sh
 
@@ -217,9 +221,10 @@ HOST_CC_PRESENT=$([ -n "$XLANG_HOST_CC_BIN" ] && echo 1 || echo 0)
 HOST_LD_BIN=$XLANG_HOST_LD_BIN
 HOST_CC_BIN=$XLANG_HOST_CC_BIN
 
-# Endgame markers (wave772 cold + wave773 g05 pure-ld prefer; residual drop-CC / physical delete)
+# Endgame markers (wave772/773 pure-ld + wave774 drop silent fallback; residual physical delete)
 ENDGAME_COLD_LINK_WITHOUT_CC=1
 ENDGAME_G05_PURE_LD=1
+ENDGAME_DROP_CC_FALLBACK=1
 ENDGAME_MAKEFILE_UNAME_SWALLOWED=0
 EOF
 }
@@ -302,17 +307,19 @@ else
   note "linker inventory dump OK"
 fi
 
-# Cold seed link body: pure-ld prefer + CC residual (wave772 · G.7 single body)
+# Cold seed link body: pure-ld required when eligible; named CC residual only (wave774)
 if [ ! -f "$LINK_BODY" ]; then
   bad "missing cold link body $LINK_BODY"
-elif ! grep -q 'SEED_LINK_PURE_OK\|try_pure_ld\|pure-ld' "$LINK_BODY"; then
-  bad "$LINK_BODY must prefer pure-ld (SEED_LINK_PURE_OK / try_pure_ld) wave772"
+elif ! grep -q 'SEED_LINK_PURE_OK\|run_pure_ld_required\|pure-ld' "$LINK_BODY"; then
+  bad "$LINK_BODY must require pure-ld when eligible (SEED_LINK_PURE_OK / run_pure_ld_required) wave774"
 elif ! grep -q 'SEED_LINK_CC' "$LINK_BODY"; then
-  bad "$LINK_BODY must keep SEED_LINK_CC residual fallback"
+  bad "$LINK_BODY must keep SEED_LINK_CC named residual (FORCE_CC / ineligible)"
 elif ! grep -q 'pure_ld_shared' "$LINK_BODY"; then
   bad "$LINK_BODY must source pure_ld_shared.sh (wave773 G.7 extract)"
+elif grep -qE 'falling back to.*(CC|SEED_LINK_CC)' "$LINK_BODY"; then
+  bad "$LINK_BODY must not silently fall back to CC after pure-ld fail (wave774)"
 else
-  note "cold link body pure-ld prefer + CC residual + pure_ld_shared (wave772/773)"
+  note "cold link body pure-ld required + named CC residual + pure_ld_shared (wave772/774)"
 fi
 if ! grep -q 'SEED_LINK_PURE_OK\|SEED_LINK_LD\|SEED_LINK_MULTIDEF' compiler/Makefile; then
   bad "Makefile export must emit SEED_LINK_LD/MULTIDEF/PURE_OK (wave772 pure-ld)"
@@ -320,7 +327,7 @@ else
   note "Makefile pure-ld export keys present"
 fi
 
-# wave773: g05 product pure-ld prefer (G.7 pure_ld_shared; no second platform table)
+# wave773/774: g05 product pure-ld required; no silent CC fallback
 G05_LINK_BODY=compiler/scripts/g05_relink_xlang.sh
 PURE_LD_SHARED_REL=compiler/scripts/pure_ld_shared.sh
 if [ ! -f "$PURE_LD_SHARED_REL" ]; then
@@ -332,18 +339,26 @@ else
 fi
 if [ ! -f "$G05_LINK_BODY" ]; then
   bad "missing $G05_LINK_BODY"
-elif ! grep -q 'try_g05_pure_ld\|pure_ld_try_link\|pure_ld_shared' "$G05_LINK_BODY"; then
-  bad "g05_relink_xlang must prefer pure-ld via pure_ld_shared (wave773)"
-elif ! grep -q 'CC residual\|G05_CC\|FORCE_CC' "$G05_LINK_BODY"; then
-  bad "g05_relink_xlang must keep CC residual fallback (wave773)"
+elif ! grep -q 'run_g05_pure_ld_required\|pure_ld_try_link\|pure_ld_shared' "$G05_LINK_BODY"; then
+  bad "g05_relink_xlang must require pure-ld via pure_ld_shared (wave774)"
+elif ! grep -q 'CC residual\|FORCE_CC' "$G05_LINK_BODY"; then
+  bad "g05_relink_xlang must keep named CC residual for FORCE_CC/ineligible (wave774)"
+elif grep -qE 'falling back to CC residual' "$G05_LINK_BODY"; then
+  bad "g05_relink_xlang must not silently fall back to CC (wave774)"
 else
-  note "g05 pure-ld prefer + CC residual present (wave773)"
+  note "g05 pure-ld required + named CC residual only (wave774)"
 fi
 if ! printf '%s\n' "$_link_out" | grep -q 'G05_RELINK_PURE_LD=1'; then
   bad "linker dump must set G05_RELINK_PURE_LD=1 (wave773)"
 fi
 if ! printf '%s\n' "$_link_out" | grep -q 'PURE_LD_SHARED=scripts/pure_ld_shared.sh'; then
   bad "linker dump must name PURE_LD_SHARED"
+fi
+if ! printf '%s\n' "$_link_out" | grep -q 'ENDGAME_DROP_CC_FALLBACK=1'; then
+  bad "linker dump must set ENDGAME_DROP_CC_FALLBACK=1 (wave774)"
+fi
+if ! printf '%s\n' "$_link_out" | grep -q 'COLD_SEED_LINK_DROP_SILENT_FALLBACK=1'; then
+  bad "linker dump must set COLD_SEED_LINK_DROP_SILENT_FALLBACK=1 (wave774)"
 fi
 
 # Prefer-path scripts present

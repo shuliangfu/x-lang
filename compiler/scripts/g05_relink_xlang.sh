@@ -4,9 +4,11 @@
 # 由 g05_prepare_and_relink.sh 在依赖齐备后调用（G05_* 来自 g05_relink_env.sh）。
 # 目的：最终链接 + 同步 xlang-c/bootstrap_xlangc 仅在本脚本（G-05 100% 产品路径）。
 #
-# wave773 · 11.1.4 pure-ld prefer (G.7 有则补全 pure_ld_shared.sh):
-#   When freestanding-eligible (Darwin / Linux x86_64 crt0), try pure ld first.
-#   Residual: $CC $CFLAGS -o OUT $OBJS (FORCE_CC / pure fail / ineligible host).
+# wave773 · 11.1.4 pure-ld (G.7 有则补全 pure_ld_shared.sh):
+#   When freestanding-eligible (Darwin / Linux x86_64 crt0), pure-ld first.
+# wave774 · 11.1.4 endgame slice: NO silent CC fallback after pure-ld fail.
+#   · freestanding-eligible + not FORCE_CC → pure-ld required (hard fail on miss)
+#   · FORCE_CC=1 or host ineligible → named $CC $CFLAGS -o residual only
 #   Object list authority remains g05_relink_env (no second .o inventory).
 #
 # 环境变量（g05_relink_env.sh 注入）：
@@ -24,9 +26,10 @@
 # 用法（compiler/ 目录）：
 #   eval "$(sh scripts/g05_relink_env.sh)" && sh scripts/g05_relink_xlang.sh
 #
-# PLATFORM: SHARED — pure-ld prefer when freestanding; Windows stays CC residual.
+# PLATFORM: SHARED — pure-ld required when freestanding; Windows stays CC residual.
 # PLATFORM: LINUX — nostdlib product drops -lc (static freestanding); libc cold uses -lc.
 # PLATFORM: MACOS — pure_ld_shared syslibroot + -lSystem.
+# Wave: 773 pure-ld prefer · 774 drop silent CC fallback.
 
 set -e
 cd "$(dirname "$0")/.."
@@ -56,20 +59,22 @@ g05_force_cc() {
   [ "${XLANG_G05_FORCE_CC:-0}" = "1" ] || [ "${XLANG_SEED_LINK_FORCE_CC:-0}" = "1" ]
 }
 
-# Prefer pure-ld when freestanding-eligible and not forced to CC residual.
-try_g05_pure_ld() {
+# Named CC residual only (FORCE_CC escape or pure-ld ineligible host).
+# wave774: not used as silent fallback after pure-ld failure.
+run_g05_cc_residual() {
+  # shellcheck disable=SC2086
+  echo "g05_relink_xlang: $CC ... -o $OUT  ($n_objs objs; CC residual)"
+  # shellcheck disable=SC2086
+  $CC $CFLAGS -o "$OUT" $OBJS
+  echo "g05_relink_xlang: OK CC residual $OUT" >&2
+}
+
+# pure-ld required when freestanding-eligible and not forced to CC residual.
+run_g05_pure_ld_required() {
   entry=""
   tail=""
   extra=""
 
-  if g05_force_cc; then
-    echo "g05_relink_xlang: pure-ld skipped (FORCE_CC)" >&2
-    return 1
-  fi
-  if ! pure_ld_freestanding_ok; then
-    echo "g05_relink_xlang: pure-ld skipped (host not freestanding-eligible)" >&2
-    return 1
-  fi
   # Product freestanding entry (matches MAIN_LINK_FLAGS / cold SEED_LINK_ENTRY).
   entry="$(pure_ld_default_entry)"
   if bootstrap_wants_nostdlib; then
@@ -86,17 +91,22 @@ try_g05_pure_ld() {
     echo "g05_relink_xlang: OK pure-ld $OUT" >&2
     return 0
   fi
-  echo "g05_relink_xlang: pure-ld failed; falling back to CC residual" >&2
-  return 1
+  echo "g05_relink_xlang: FAIL pure-ld for $OUT (no silent CC fallback; set XLANG_G05_FORCE_CC=1 for escape)" >&2
+  exit 1
 }
 
-if ! try_g05_pure_ld; then
-  # Residual: host CC driver (wave721/772 named residual shape).
-  # shellcheck disable=SC2086
-  echo "g05_relink_xlang: $CC ... -o $OUT  ($n_objs objs; CC residual)"
-  # shellcheck disable=SC2086
-  $CC $CFLAGS -o "$OUT" $OBJS
-  echo "g05_relink_xlang: OK CC residual $OUT" >&2
+# Decision tree (wave774):
+#   FORCE_CC=1              → named CC residual only
+#   !freestanding_ok        → named CC residual only (ineligible host)
+#   else                    → pure-ld required (hard fail on miss)
+if g05_force_cc; then
+  echo "g05_relink_xlang: pure-ld skipped (FORCE_CC) → CC residual only" >&2
+  run_g05_cc_residual
+elif ! pure_ld_freestanding_ok; then
+  echo "g05_relink_xlang: pure-ld ineligible (host not freestanding) → CC residual only" >&2
+  run_g05_cc_residual
+else
+  run_g05_pure_ld_required
 fi
 
 cp -f "$OUT" "$XLANG_C"

@@ -74,8 +74,8 @@ seeds/codegen_gen.linux.x86_64.c
 |------------|------|------|
 | **1. Product user `-o`** | Product path: `xlang_asm_invoke_ld_platform` / `xlang_invoke_ld_*` (already not raw Makefile `$(CC) -o` for user programs) | Daily product |
 | **2. Direct host `ld` / `lld` / `link.exe`** | Partial link (`ld -r`), filter export, pure-asm objects; **cold phase1/final pure-ld** (wave772); **g05 product pure-ld** (wave773) | Preferred for shell orchestration |
-| **3. Residual host `$(CC) -o`** | Cold / g05 **fallback** when pure-ld ineligible, pure-ld fails, or `FORCE_CC=1` | Named residual (wave772/773) |
-| **Forbidden endgame** | Silent default “always `cc -o` because Makefile did” without inventory | Stage 11.1.4 endgame / stage 12 |
+| **3. Named residual host `$(CC) -o`** | Cold / g05 **only** when pure-ld ineligible or `FORCE_CC=1` | Named residual (wave772/773; **wave774** no silent after pure fail) |
+| **Forbidden** | Silent CC after pure-ld fail; default “always `cc -o` because Makefile did” without inventory | Stage 11.1.4 endgame / stage 12 |
 
 ### Cold phase1 / final (wave772 pure-ld)
 
@@ -86,16 +86,16 @@ seeds/codegen_gen.linux.x86_64.c
 | `SEED_LINK_PURE_OK` | `1` when freestanding crt0 entry (Linux x86_64 / Darwin); else `0` |
 | `SEED_LINK_CC` / `SEED_LINK_CFLAGS` | Residual CC driver path |
 
-**Body:** `scripts/bootstrap_driver_seed_link.sh` prefers pure-ld when `PURE_OK=1`.  
+**Body:** `scripts/bootstrap_driver_seed_link.sh` **requires** pure-ld when `PURE_OK=1` (wave774 hard fail on pure miss).  
 **G.7 platform helpers:** `scripts/pure_ld_shared.sh` (syslibroot/arch on Darwin; freestanding eligibility; `pure_ld_try_link`). Smoke: `./scripts/bootstrap_driver_seed_link.sh --self-test`.
 
-### g05 product relink (wave773 pure-ld)
+### g05 product relink (wave773 pure-ld · wave774 no silent fallback)
 
 | Authority | Role |
 |-----------|------|
 | `g05_relink_env.sh` | Single `G05_OBJS` / `G05_CFLAGS` list (shell mirror; not a second pure-ld argv table) |
 | `pure_ld_shared.sh` | Same pure-ld platform prefix / freestanding facts as cold |
-| `g05_relink_xlang.sh` | Prefer pure-ld when freestanding-eligible; Linux nostdlib → `-static --gc-sections` (no `-lc`); else `-lSystem`/`-lc` |
+| `g05_relink_xlang.sh` | **Require** pure-ld when freestanding-eligible; Linux nostdlib → `-static --gc-sections` (no `-lc`); else `-lSystem`/`-lc`; hard fail on pure miss (wave774) |
 
 Force residual: `XLANG_G05_FORCE_CC=1` or `XLANG_SEED_LINK_FORCE_CC=1`.
 
@@ -103,8 +103,8 @@ Force residual: `XLANG_G05_FORCE_CC=1` or `XLANG_SEED_LINK_FORCE_CC=1`.
 
 | Site | Path | Notes |
 |------|------|-------|
-| Cold phase1 / final **fallback** | `scripts/bootstrap_driver_seed_link.sh` | After pure-ld miss / force-CC; still reads `SEED_LINK_CC` / `CFLAGS` / `OBJS` |
-| g05 product relink **fallback** | `g05_relink_xlang.sh` | After pure-ld miss / force-CC / ineligible host (wave773) |
+| Cold phase1 / final **named residual** | `scripts/bootstrap_driver_seed_link.sh` | Only `FORCE_CC=1` or `PURE_OK=0`; **not** after pure-ld fail (wave774) |
+| g05 product relink **named residual** | `g05_relink_xlang.sh` | Only `FORCE_CC=1` or ineligible host; **not** after pure-ld fail (wave774) |
 | CI `compiler-all` | Makefile `all` / host-cc seed path | Not product `./xbuild all` |
 | Leaf host-cc `.o` | Makefile pattern rules | Compile, not link of product binaries |
 
@@ -126,15 +126,16 @@ bash compiler/scripts/host_platform_linker.sh linker
 bash compiler/scripts/host_platform_linker.sh --check
 ```
 
-### Endgame (remaining after wave773)
+### Endgame (remaining after wave774)
 
 1. ~~Export pure link argv from Makefile without requiring `CC` as the primary driver~~ (**wave772**).  
-2. ~~Invoke `ld` via shell for freestanding cold phase1/final~~ (**wave772** prefer + self-test).  
-3. ~~g05 product relink pure-ld prefer~~ (**wave773** via `pure_ld_shared`).  
-4. Drop CC residual fallback when all hosts pure-ld-stable; physical delete Makefile (11.3.1).  
-5. Later: pure-ld from `build.x` / xbuild without make export leaf.
+2. ~~Invoke `ld` via shell for freestanding cold phase1/final~~ (**wave772** + self-test).  
+3. ~~g05 product relink pure-ld~~ (**wave773** via `pure_ld_shared`).  
+4. ~~Drop silent CC residual fallback after pure-ld fail~~ (**wave774**; FORCE_CC / ineligible kept).  
+5. Physical delete Makefile residual leaves (11.3.1); optional `fmt_check_cmd.o` dual.  
+6. Later: pure-ld from `build.x` / xbuild without make export leaf; Windows PE pure-ld.
 
-## Acceptance (wave745 + wave772 + wave773)
+## Acceptance (wave745 + wave772 + wave773 + wave774)
 
 - [x] `compiler/docs/PLATFORM_LINKER.md` present (this file)
 - [x] `host_platform_linker.sh` dump/platform/linker/check
@@ -142,10 +143,11 @@ bash compiler/scripts/host_platform_linker.sh --check
 - [x] `build.x` §F documents 11.1.3–4
 - [x] `BUILD_DAG.md` references platform/linker policy
 - [x] 0-make gate hard-checks doc + script + xbuild + live `--check`
-- [x] **wave772:** cold phase1/final pure-ld prefer + `SEED_LINK_*` pure export + `--self-test`
-- [x] **wave773:** `pure_ld_shared.sh` + g05 pure-ld prefer + CC residual fallback
+- [x] **wave772:** cold phase1/final pure-ld + `SEED_LINK_*` pure export + `--self-test`
+- [x] **wave773:** `pure_ld_shared.sh` + g05 pure-ld
+- [x] **wave774:** drop silent CC fallback (cold+g05); FORCE_CC / ineligible named residual only
 - [ ] Full leaf rules free of Makefile `UNAME` (11.3.1)
-- [ ] Drop CC residual + physical delete (11.1.4 / 11.3.1 full endgame)
+- [ ] Physical delete + optional fmt dual (11.3.1 full endgame)
 
 **wave746 path note:** leaf pattern residual classes (including UNAME leaf **R2**) are
 named in `LEAF_PATTERN_RESIDUAL.md` / `./xbuild leaf-patterns` — inventory only;

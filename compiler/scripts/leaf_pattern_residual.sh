@@ -141,16 +141,21 @@ SWALLOWED_G05_OTHER_L2_PREFER=1
 SWALLOWED_G05_OTHER_L2_PREFER_VIA=ensure_host_cc_seed_o.sh_try-other-l2-prefer
 SWALLOWED_G05_OTHER_L2_PREFER_SCOPE=seed_link_compat+strict_glue_stubs+fmt_check_cmd_driver+lsp_diag
 SWALLOWED_G05_OTHER_L2_PREFER_NOTE=g05_makefile_thin_call_no_dual_hybrid_other_l2_four
-# wave772: 11.1.4 pure-ld cold phase1/final prefer (CC residual fallback)
+# wave772: 11.1.4 pure-ld cold phase1/final (via pure_ld_shared)
 SWALLOWED_R6_PURE_LD=1
-SWALLOWED_R6_PURE_LD_VIA=bootstrap_driver_seed_link.sh_try_pure_ld+pure_ld_shared
+SWALLOWED_R6_PURE_LD_VIA=bootstrap_driver_seed_link.sh_run_pure_ld_required+pure_ld_shared
 SWALLOWED_R6_PURE_LD_SCOPE=phase1+final_SEED_LINK_LD_export
-SWALLOWED_R6_PURE_LD_NOTE=PURE_OK_crt0_entry_CC_fallback_FORCE_CC_or_fail
-# wave773: 11.1.4 g05 product pure-ld prefer (same pure_ld_shared; CC residual)
+SWALLOWED_R6_PURE_LD_NOTE=PURE_OK_required_no_silent_CC_fallback_wave774
+# wave773: 11.1.4 g05 product pure-ld (same pure_ld_shared)
 SWALLOWED_G05_PURE_LD=1
-SWALLOWED_G05_PURE_LD_VIA=g05_relink_xlang.sh_try_g05_pure_ld+pure_ld_shared
+SWALLOWED_G05_PURE_LD_VIA=g05_relink_xlang.sh_run_g05_pure_ld_required+pure_ld_shared
 SWALLOWED_G05_PURE_LD_SCOPE=product_final_xlang_relink
-SWALLOWED_G05_PURE_LD_NOTE=freestanding_prefer_CC_fallback_FORCE_CC_or_fail_or_nostdlib_static
+SWALLOWED_G05_PURE_LD_NOTE=freestanding_required_no_silent_CC_fallback_wave774
+# wave774: drop silent CC residual fallback after pure-ld fail (FORCE_CC / ineligible kept)
+SWALLOWED_DROP_CC_FALLBACK=1
+SWALLOWED_DROP_CC_FALLBACK_VIA=cold_seed_link+g05_relink_xlang
+SWALLOWED_DROP_CC_FALLBACK_SCOPE=pure_ld_fail_hard_FORCE_CC_or_ineligible_CC_only
+SWALLOWED_DROP_CC_FALLBACK_NOTE=no_silent_CC_after_pure_fail_wave774
 SWALLOWED_PURE_LD_SHARED=scripts/pure_ld_shared.sh
 SWALLOWED_LINK_DRIVER=scripts/bootstrap_driver_seed_link.sh
 SWALLOWED_G05_FAMILY=scripts/g05_*.sh
@@ -252,13 +257,15 @@ RESIDUAL_CLASS_R5_SURFACE=Makefile_all_OPT_seed
 RESIDUAL_CLASS_R5_ENDGAME=xbuild_compiler_all_shell_body_stage12
 
 RESIDUAL_CLASS_R6=cold_link_pure_ld_prefer
-RESIDUAL_CLASS_R6_SURFACE=bootstrap_driver_seed_link_try_pure_ld
+RESIDUAL_CLASS_R6_SURFACE=bootstrap_driver_seed_link_run_pure_ld_required
 RESIDUAL_CLASS_R6_TRACK=11.1.4_PLATFORM_LINKER
 RESIDUAL_CLASS_R6_SWALLOWED=wave772_pure_ld_export_and_prefer
-RESIDUAL_CLASS_R6_FALLBACK=SEED_LINK_CC_when_PURE_OK_0_or_FORCE_CC_or_pure_fail
-RESIDUAL_CLASS_R6_G05=g05_relink_pure_ld_prefer
+RESIDUAL_CLASS_R6_DROP_SILENT_FALLBACK=wave774
+RESIDUAL_CLASS_R6_CC_RESIDUAL=SEED_LINK_CC_when_PURE_OK_0_or_FORCE_CC_only
+RESIDUAL_CLASS_R6_G05=g05_relink_pure_ld_required
 RESIDUAL_CLASS_R6_G05_SWALLOWED=wave773_g05_pure_ld_via_pure_ld_shared
-RESIDUAL_CLASS_R6_ENDGAME=drop_CC_fallback_physical_delete
+RESIDUAL_CLASS_R6_G05_DROP_SILENT_FALLBACK=wave774
+RESIDUAL_CLASS_R6_ENDGAME=physical_delete_fmt_dual
 
 # Live Makefile residual signals (counts only — not a second recipe list)
 MAKEFILE_PATH=compiler/Makefile
@@ -531,6 +538,7 @@ ENDGAME_PHYSICAL_DELETE_MAKEFILE=0
 ENDGAME_LEAF_WITHOUT_HOST_CC=0
 ENDGAME_COLD_PURE_LD=1
 ENDGAME_G05_PURE_LD=1
+ENDGAME_DROP_CC_FALLBACK=1
 EOF
 }
 
@@ -649,6 +657,12 @@ if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_G05_PURE_LD=1'; then
 fi
 if ! printf '%s\n' "$_out" | grep -q 'ENDGAME_G05_PURE_LD=1'; then
   bad "dump ENDGAME_G05_PURE_LD must be 1 (wave773)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_DROP_CC_FALLBACK=1'; then
+  bad "dump must set SWALLOWED_DROP_CC_FALLBACK=1 (wave774)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'ENDGAME_DROP_CC_FALLBACK=1'; then
+  bad "dump ENDGAME_DROP_CC_FALLBACK must be 1 (wave774)"
 fi
 if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_PREREQ_EDGES=scripts/driver_seed_ensure_prereqs.sh'; then
   bad "dump must name swallowed prereq edges (wave744)"
@@ -1014,18 +1028,20 @@ else
     "$REBUILD_REL"; then
     bad "rebuild_leaves must not hardcode .o list (dual authority)"
   fi
-  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld prefer (wave772) + g05 pure-ld (wave773); residual physical delete · fmt_check_cmd.o dual · CC fallback"
+  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld (wave772/773) + drop silent CC fallback (wave774); residual physical delete · fmt_check_cmd.o dual"
 fi
 
-# wave772: cold pure-ld export + prefer body
+# wave772/774: cold pure-ld required when eligible (no silent CC fallback)
 if [ ! -f compiler/scripts/bootstrap_driver_seed_link.sh ]; then
   bad "missing bootstrap_driver_seed_link.sh (wave772)"
-elif ! grep -q 'try_pure_ld\|SEED_LINK_PURE_OK' compiler/scripts/bootstrap_driver_seed_link.sh; then
-  bad "bootstrap_driver_seed_link must prefer pure-ld (wave772)"
+elif ! grep -q 'run_pure_ld_required\|SEED_LINK_PURE_OK' compiler/scripts/bootstrap_driver_seed_link.sh; then
+  bad "bootstrap_driver_seed_link must require pure-ld when eligible (wave774)"
 elif ! grep -q 'pure_ld_shared' compiler/scripts/bootstrap_driver_seed_link.sh; then
   bad "bootstrap_driver_seed_link must source pure_ld_shared (wave773)"
+elif grep -qE 'falling back to.*(CC|SEED_LINK_CC)' compiler/scripts/bootstrap_driver_seed_link.sh; then
+  bad "bootstrap_driver_seed_link must not silently fall back to CC (wave774)"
 else
-  note "cold pure-ld prefer body + pure_ld_shared present (wave772/773)"
+  note "cold pure-ld required + no silent CC fallback + pure_ld_shared (wave772/774)"
 fi
 if ! grep -q 'SEED_LINK_PURE_OK\|SEED_LINK_MULTIDEF' compiler/Makefile; then
   bad "Makefile must export SEED_LINK_PURE_OK/MULTIDEF (wave772 pure-ld)"
@@ -1033,7 +1049,7 @@ else
   note "Makefile pure-ld export signal present (wave772)"
 fi
 
-# wave773: g05 pure-ld prefer + shared pure_ld authority
+# wave773/774: g05 pure-ld required when freestanding; FORCE_CC / ineligible keep CC residual
 if [ ! -f compiler/scripts/pure_ld_shared.sh ]; then
   bad "missing pure_ld_shared.sh (wave773)"
 elif ! grep -q 'pure_ld_try_link' compiler/scripts/pure_ld_shared.sh; then
@@ -1043,12 +1059,14 @@ else
 fi
 if [ ! -f compiler/scripts/g05_relink_xlang.sh ]; then
   bad "missing g05_relink_xlang.sh"
-elif ! grep -q 'try_g05_pure_ld\|pure_ld_try_link' compiler/scripts/g05_relink_xlang.sh; then
-  bad "g05_relink_xlang must prefer pure-ld (wave773)"
+elif ! grep -q 'run_g05_pure_ld_required\|pure_ld_try_link' compiler/scripts/g05_relink_xlang.sh; then
+  bad "g05_relink_xlang must require pure-ld when freestanding (wave774)"
 elif ! grep -q 'CC residual\|FORCE_CC' compiler/scripts/g05_relink_xlang.sh; then
-  bad "g05_relink_xlang must keep CC residual (wave773)"
+  bad "g05_relink_xlang must keep named CC residual for FORCE_CC/ineligible (wave774)"
+elif grep -qE 'falling back to CC residual' compiler/scripts/g05_relink_xlang.sh; then
+  bad "g05_relink_xlang must not silently fall back to CC (wave774)"
 else
-  note "g05 pure-ld prefer + CC residual present (wave773)"
+  note "g05 pure-ld required + named CC residual only (FORCE_CC/ineligible) wave774"
 fi
 
 # wave763: ensure try-r3-prefer + Makefile R3_COLD thin-call

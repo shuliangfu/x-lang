@@ -7,12 +7,12 @@
 #   - This script never hardcodes an .o list. It evals export leaves:
 #       make bootstrap-driver-seed-export-phase1-link
 #       make bootstrap-driver-seed-export-final-link
-#   - wave772 · 11.1.4 pure-ld (default when SEED_LINK_PURE_OK=1):
+#   - wave772 · 11.1.4 pure-ld when SEED_LINK_PURE_OK=1:
 #       "$SEED_LINK_LD" [platform] $MULTIDEF $ENTRY -o OUT $OBJS $TAIL
-#     Residual fallback: "$SEED_LINK_CC" $CFLAGS -o OUT $OBJS
-#     Force residual: XLANG_SEED_LINK_FORCE_CC=1
-#   - wave773 · G.7 有则补全: pure-ld platform helpers live in pure_ld_shared.sh
-#     (shared with g05_relink_xlang pure-ld prefer). No second platform table.
+#   - wave773 · G.7 有则补全: pure-ld platform helpers in pure_ld_shared.sh
+#   - wave774 · 11.1.4 endgame slice: NO silent CC fallback after pure-ld fail.
+#       · pure-ld eligible + not FORCE_CC → pure-ld required (hard fail on miss)
+#       · FORCE_CC=1 or PURE_OK=0 (ineligible) → named CC residual only
 #
 # Usage (compiler directory):
 #   ./scripts/bootstrap_driver_seed_link.sh phase1
@@ -22,14 +22,15 @@
 # Env:
 #   MAKE   — make binary (default: make)
 #   TARGET — final product name when mode=final (default: xlang); must match Makefile
-#   XLANG_SEED_LINK_FORCE_CC=1 — skip pure-ld; use SEED_LINK_CC residual only
+#   XLANG_SEED_LINK_FORCE_CC=1 — skip pure-ld; use SEED_LINK_CC residual only (escape)
 #
 # PLATFORM: SHARED — link composition identical; Makefile expands platform
 #            crt0 / -e / filtered.o into SEED_LINK_*.
 # PLATFORM: MACOS — pure-ld needs -syslibroot / -arch / -platform_version / -lSystem
 #            (composed in pure_ld_shared.sh; not a second .o inventory).
 # PLATFORM: LINUX — pure-ld freestanding entry + multidef + -lc (nostartfiles-style).
-# Wave: 721 export body · 772 pure-ld prefer (11.1.4) · 773 pure_ld_shared extract.
+# PLATFORM: WINDOWS — PURE_OK=0 → CC residual only (no pure-ld eligibility).
+# Wave: 721 export body · 772 pure-ld prefer · 773 pure_ld_shared · 774 drop silent fallback.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -133,40 +134,50 @@ fi
 n_objs=$(printf '%s\n' "$SEED_LINK_OBJS" | wc -w | tr -d ' ')
 
 # ---------------------------------------------------------------------------
-# Prefer pure-ld (wave772) when export says PURE_OK and not forced to CC.
+# CC residual only path (FORCE_CC escape or pure-ld ineligible host).
+# wave774: not used as silent fallback after pure-ld failure.
 # ---------------------------------------------------------------------------
-try_pure_ld() {
-  if [ "${XLANG_SEED_LINK_FORCE_CC:-0}" = "1" ]; then
-    note "pure-ld skipped (XLANG_SEED_LINK_FORCE_CC=1)"
-    return 1
+run_cc_residual() {
+  if [ -z "$SEED_LINK_CC" ]; then
+    fail "CC residual needed but SEED_LINK_CC empty"
   fi
-  if [ "${SEED_LINK_PURE_OK:-0}" != "1" ]; then
-    note "pure-ld skipped (SEED_LINK_PURE_OK=${SEED_LINK_PURE_OK:-0})"
-    return 1
-  fi
-  # MULTIDEF from Makefile export is folded into pure_ld_try_link's host multidef
-  # (same Darwin/Linux shape). ENTRY/TAIL still come from Makefile export authority.
+  note "${MODE} link (CC residual) → $SEED_LINK_OUT  ($n_objs objs via Makefile export)"
+  # Word-split CFLAGS and OBJS intentionally (space-separated make expansions).
+  # shellcheck disable=SC2086
+  "$SEED_LINK_CC" $SEED_LINK_CFLAGS -o "$SEED_LINK_OUT" $SEED_LINK_OBJS
+  note "OK CC residual $SEED_LINK_OUT"
+}
+
+# ---------------------------------------------------------------------------
+# pure-ld required path when eligible (wave772/774).
+# MULTIDEF from Makefile export is folded into pure_ld_try_link's host multidef
+# (same Darwin/Linux shape). ENTRY/TAIL still come from Makefile export authority.
+# ---------------------------------------------------------------------------
+run_pure_ld_required() {
   note "${MODE} pure-ld → $SEED_LINK_OUT  ($n_objs objs via pure_ld_shared)"
   if pure_ld_try_link "$SEED_LINK_OUT" "$SEED_LINK_OBJS" \
       "${SEED_LINK_ENTRY:-}" "${SEED_LINK_LD_TAIL:-}" "" "${SEED_LINK_LD:-}"; then
     note "OK pure-ld $SEED_LINK_OUT"
     return 0
   fi
-  note "pure-ld failed; falling back to SEED_LINK_CC residual"
-  return 1
+  fail "pure-ld failed for $SEED_LINK_OUT (no silent CC fallback; set XLANG_SEED_LINK_FORCE_CC=1 for escape)"
 }
 
-if try_pure_ld; then
+# Decision tree (wave774):
+#   FORCE_CC=1        → named CC residual only
+#   PURE_OK!=1        → named CC residual only (ineligible host)
+#   else              → pure-ld required (hard fail on miss)
+if [ "${XLANG_SEED_LINK_FORCE_CC:-0}" = "1" ]; then
+  note "pure-ld skipped (XLANG_SEED_LINK_FORCE_CC=1) → CC residual only"
+  run_cc_residual
   exit 0
 fi
 
-# Residual: host CC driver (wave721 named residual; still valid when pure-ld ineligible)
-if [ -z "$SEED_LINK_CC" ]; then
-  fail "CC residual needed but SEED_LINK_CC empty"
+if [ "${SEED_LINK_PURE_OK:-0}" != "1" ]; then
+  note "pure-ld ineligible (SEED_LINK_PURE_OK=${SEED_LINK_PURE_OK:-0}) → CC residual only"
+  run_cc_residual
+  exit 0
 fi
-note "${MODE} link (CC residual) → $SEED_LINK_OUT  ($n_objs objs via Makefile export)"
-# Word-split CFLAGS and OBJS intentionally (space-separated make expansions).
-# shellcheck disable=SC2086
-"$SEED_LINK_CC" $SEED_LINK_CFLAGS -o "$SEED_LINK_OUT" $SEED_LINK_OBJS
 
-note "OK CC residual $SEED_LINK_OUT"
+run_pure_ld_required
+exit 0

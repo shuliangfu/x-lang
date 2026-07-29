@@ -8,12 +8,14 @@
 # PLATFORM: SHARED — freestanding eligibility + multidef / entry composition
 # PLATFORM: MACOS  — syslibroot / -dynamic / -arch / -platform_version / -lSystem
 # PLATFORM: LINUX  — multidef + -lc (libc freestanding) or nostdlib static (g05)
-# PLATFORM: WINDOWS — pure-ld not eligible (caller keeps CC residual)
+# PLATFORM: WINDOWS — pure-ld not eligible (caller uses named CC residual only)
 #
 # G.7: Do not open a second pure-ld platform table in cold or g05.
 # Object lists stay at the caller (Makefile export / g05_relink_env).
+# wave774: callers must not silently fall back to CC after pure_ld_try_link fails;
+#          FORCE_CC / ineligible host are the only named CC residual entries.
 #
-# Wave: 772 platform prefix in seed_link · 773 extract + g05 prefer.
+# Wave: 772 platform prefix in seed_link · 773 extract + g05 prefer · 774 drop silent fallback.
 
 # ---------------------------------------------------------------------------
 # pure_ld_platform_prefix — stdout: space-separated ld flags (may be empty)
