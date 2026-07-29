@@ -24,7 +24,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "=== 11.0.2 product-path 0-make static gate (wave714/715) ==="
+echo "=== 11.0.2 product-path 0-make static gate (wave714–716) ==="
 
 fail=0
 note() { echo "  OK  $*"; }
@@ -131,20 +131,35 @@ for f in "${G05_DAILY[@]}"; do
   done < <(scan_make_lines "$f")
 done
 
-# wave715: filtered.o must be pure shell (no make -s)
+# wave715/716: class-G filtered.o must be pure shell (no make -s)
 if grep -nE 'make[[:space:]]+-s|make[[:space:]]+"?\$_filt' compiler/scripts/g05_ensure_relink_prereqs.sh 2>/dev/null \
   | grep -vE '^[0-9]+:[[:space:]]*#' | grep -q .; then
-  bad "g05_ensure still has make -s filtered.o leak (must use filter_bootstrap_seed_pipeline_o.sh)"
-elif grep -q 'filter_bootstrap_seed_pipeline_o' compiler/scripts/g05_ensure_relink_prereqs.sh; then
-  note "g05_ensure filtered.o → filter_bootstrap_seed_pipeline_o.sh (no make)"
+  bad "g05_ensure still has make -s filtered.o leak (must use filter_* shell scripts)"
+elif grep -q 'filter_bootstrap_seed_pipeline_o' compiler/scripts/g05_ensure_relink_prereqs.sh \
+  && grep -q 'filter_bootstrap_seed_against_partial_o' compiler/scripts/g05_ensure_relink_prereqs.sh; then
+  note "g05_ensure class-G filtered.o → filter_* shell (pipeline + partial trio; no make)"
 else
-  bad "g05_ensure missing filter_bootstrap_seed_pipeline_o.sh authority"
+  bad "g05_ensure missing class-G filter shell authority (pipeline + against_partial)"
 fi
 
-if [ ! -f compiler/scripts/filter_bootstrap_seed_pipeline_o.sh ]; then
-  bad "missing compiler/scripts/filter_bootstrap_seed_pipeline_o.sh"
+for f in \
+  compiler/scripts/filter_o_export_against_deps.sh \
+  compiler/scripts/filter_bootstrap_seed_pipeline_o.sh \
+  compiler/scripts/filter_bootstrap_seed_against_partial_o.sh
+do
+  if [ ! -f "$f" ]; then
+    bad "missing $f"
+  else
+    note "$(basename "$f") present"
+  fi
+done
+
+# wave716: Makefile class-G recipes must call shell, not inline nm/ld
+if grep -nE 'build_asm/bootstrap_seed_.*_filtered\.o:' -A6 compiler/Makefile 2>/dev/null \
+  | grep -E '^\s+nm |ld -r \$\(LD_FILTER' | grep -q .; then
+  bad "Makefile class-G filtered recipes still inline nm/ld (must call filter_*.sh)"
 else
-  note "filter_bootstrap_seed_pipeline_o.sh present"
+  note "Makefile class-G filtered recipes → shell scripts"
 fi
 
 if [ "$new_hits" -eq 0 ]; then
@@ -182,5 +197,5 @@ if [ "$fail" -ne 0 ]; then
   echo "FAIL product-path 0-make static gate" >&2
   exit 1
 fi
-echo "OK product-path 0-make static gate (allowlist frozen; filtered.o pure shell)"
+echo "OK product-path 0-make static gate (allowlist frozen; class-G filtered pure shell)"
 exit 0

@@ -2092,40 +2092,24 @@ parser_asm_thin_glue.o: seeds/parser_asm_thin_c.from_x.c src/asm/parser_asm_thin
 src/asm/parser_asm_parse_expr_link.o: seeds/parser_asm_parse_expr_link.from_x.c src/asm/parser_asm_parse_expr_link.x
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) $(PARSER_ASM_LINK_ALIAS_CFLAGS) -I. -Iinclude -Isrc -c seeds/parser_asm_parse_expr_link.from_x.c -o $@
 
+# Authority: scripts/filter_bootstrap_seed_against_partial_o.sh → filter_o_export_against_deps.sh
+# (G.7 single path; g05_ensure same). PLATFORM: SHARED — Darwin product USER_ASM_LINK.
 build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o: src/asm/backend_x86_64_enc_c.o build_asm/seed_host/asm_backend_partial.o
-	@mkdir -p build_asm
-	@src_syms=build_asm/bootstrap_seed_backend_x86_64_enc_c.syms; \
-	  part_syms=build_asm/bootstrap_seed_backend_partial.syms; \
-	  keep_syms=build_asm/bootstrap_seed_backend_x86_64_enc_c.keep; \
-	  nm src/asm/backend_x86_64_enc_c.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$src_syms"; \
-	  nm build_asm/seed_host/asm_backend_partial.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$part_syms"; \
-	  comm -23 "$$src_syms" "$$part_syms" | sed 's/^/_/' > "$$keep_syms"; \
-	  if [ "$(LD_FILTER_USE_VER)" = "1" ]; then printf '{ global:\n' > $@.ver; sed 's/.*/  &;/' "$$keep_syms" >> $@.ver; printf '  *;\n};\n' >> $@.ver; ld -r $(LD_FILTER_EXPORT) $@.ver -o $@ src/asm/backend_x86_64_enc_c.o; else ld -r $(LD_FILTER_EXPORT) "$$keep_syms" -o $@ src/asm/backend_x86_64_enc_c.o; fi
+	@chmod +x scripts/filter_bootstrap_seed_against_partial_o.sh scripts/filter_o_export_against_deps.sh 2>/dev/null || true
+	@./scripts/filter_bootstrap_seed_against_partial_o.sh src/asm/backend_x86_64_enc_c.o $@ bootstrap_seed_backend_x86_64_enc_c
 
 build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o: src/asm/user_asm_seed_bridge.o build_asm/seed_host/asm_backend_partial.o
-	@mkdir -p build_asm
-	@src_syms=build_asm/bootstrap_seed_user_asm_seed_bridge.syms; \
-	  part_syms=build_asm/bootstrap_seed_backend_partial.syms; \
-	  keep_syms=build_asm/bootstrap_seed_user_asm_seed_bridge.keep; \
-	  nm src/asm/user_asm_seed_bridge.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$src_syms"; \
-	  nm build_asm/seed_host/asm_backend_partial.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$part_syms"; \
-	  comm -23 "$$src_syms" "$$part_syms" | sed 's/^/_/' > "$$keep_syms"; \
-	  if [ "$(LD_FILTER_USE_VER)" = "1" ]; then printf '{ global:\n' > $@.ver; sed 's/.*/  &;/' "$$keep_syms" >> $@.ver; printf '  *;\n};\n' >> $@.ver; ld -r $(LD_FILTER_EXPORT) $@.ver -o $@ src/asm/user_asm_seed_bridge.o; else ld -r $(LD_FILTER_EXPORT) "$$keep_syms" -o $@ src/asm/user_asm_seed_bridge.o; fi
+	@chmod +x scripts/filter_bootstrap_seed_against_partial_o.sh scripts/filter_o_export_against_deps.sh 2>/dev/null || true
+	@./scripts/filter_bootstrap_seed_against_partial_o.sh src/asm/user_asm_seed_bridge.o $@ bootstrap_seed_user_asm_seed_bridge
 
 build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o: src/asm/asm_backend_compat_stubs.o build_asm/seed_host/asm_backend_partial.o
-	@mkdir -p build_asm
-	@src_syms=build_asm/bootstrap_seed_asm_backend_compat_stubs.syms; \
-	  part_syms=build_asm/bootstrap_seed_backend_partial.syms; \
-	  keep_syms=build_asm/bootstrap_seed_asm_backend_compat_stubs.keep; \
-	  nm src/asm/asm_backend_compat_stubs.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$src_syms"; \
-	  nm build_asm/seed_host/asm_backend_partial.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$part_syms"; \
-	  comm -23 "$$src_syms" "$$part_syms" | sed 's/^/_/' > "$$keep_syms"; \
-	  if [ "$(LD_FILTER_USE_VER)" = "1" ]; then printf '{ global:\n' > $@.ver; sed 's/.*/  &;/' "$$keep_syms" >> $@.ver; printf '  *;\n};\n' >> $@.ver; ld -r $(LD_FILTER_EXPORT) $@.ver -o $@ src/asm/asm_backend_compat_stubs.o; else ld -r $(LD_FILTER_EXPORT) "$$keep_syms" -o $@ src/asm/asm_backend_compat_stubs.o; fi
+	@chmod +x scripts/filter_bootstrap_seed_against_partial_o.sh scripts/filter_o_export_against_deps.sh 2>/dev/null || true
+	@./scripts/filter_bootstrap_seed_against_partial_o.sh src/asm/asm_backend_compat_stubs.o $@ bootstrap_seed_asm_backend_compat_stubs
 
-# Authority: scripts/filter_bootstrap_seed_pipeline_o.sh (G.7 single path; g05_ensure same).
-# PLATFORM: SHARED — Darwin product link primary; Linux may build for hygiene.
+# Authority: scripts/filter_bootstrap_seed_pipeline_o.sh → filter_o_export_against_deps.sh
+# (G.7 single path; g05_ensure same). PLATFORM: SHARED — Darwin product link primary.
 build_asm/bootstrap_seed_pipeline_filtered.o: pipeline_x.o build_asm/seed_host/asm_backend_partial.o build_asm/pipeline_glue_strict_minimal.o
-	@chmod +x scripts/filter_bootstrap_seed_pipeline_o.sh 2>/dev/null || true
+	@chmod +x scripts/filter_bootstrap_seed_pipeline_o.sh scripts/filter_o_export_against_deps.sh 2>/dev/null || true
 	@./scripts/filter_bootstrap_seed_pipeline_o.sh pipeline_x.o $@
 
 src/asm/asm_experimental_symbol_bridge.o: seeds/asm_experimental_symbol_bridge.from_x.c scripts/cc_inc_tu.sh

@@ -33,7 +33,7 @@
 | **D** | 前端 *_x.o（parser/typeck/codegen/driver…） | 20 | `xbuild frontend` | 🟡 g05 ensure 热路径 | 阶段 7–8 |
 | **E** | compiler/src 宿主 .o（runtime/driver/asm…） | 59 | `xbuild runtime-src` | 🟡 g05 ensure 热路径 | 11.0/BC |
 | **F** | runtime_* residual 宿主 .o | 31 | `xbuild residual-c（白名单）` | 🟡 g05 ensure | 阶段 9 |
-| **G** | build_asm/ 过滤 .o | 4 | `xbuild build-asm-filter` | 🟡 pipeline 已 shell；另 3 个仍 Makefile | 11.0.2+ |
+| **G** | build_asm/ 过滤 .o | 4 | `xbuild build-asm-filter` | 🟢 全 4 纯 shell（wave715/716） | 11.0.2/3 |
 | **H** | bootstrap / 产品二进制 phony | 35 | `xbuild bootstrap / link-product` | 🟡 冷=make；产品=g05 | 11.0.3 |
 | **I** | g05 / relink / build-tool 入口 | 9 | `xbuild link-product` | 🟢 产品已 shell；build-tool 仍 make | 11.0.2 |
 | **J** | test / check / verify / baseline | 12 | `xbuild test / cold-test / prove` | ⬜ 多 make -C | 11.2.3 |
@@ -374,17 +374,20 @@
 ### 类 G — build_asm/ 过滤 .o
 
 - **xbuild**：`xbuild build-asm-filter`
-- **今日**：🟡 pipeline 已 shell；其余 3 个仍 Makefile（冷/bstrict 路径）
-- **优先**：11.0.2 产品泄漏已清；其余 3 可随 11.0.3 / build-asm-filter
+- **今日**：🟢 **全 4 纯 shell**（wave715 pipeline · wave716 partial trio + 共用核心）
+- **优先**：已闭；bstrict 路径 `ensure_bstrict_filtered_*` 仍为 build_xlang_asm 内副本（follow-up 可收敛）
 - **条数**：4
-- **权威**：`compiler/scripts/filter_bootstrap_seed_pipeline_o.sh`（pipeline 过滤；Makefile + g05 同调）
+- **权威（G.7）**：
+  - 核心：`compiler/scripts/filter_o_export_against_deps.sh`
+  - 命名包装：`filter_bootstrap_seed_pipeline_o.sh` · `filter_bootstrap_seed_against_partial_o.sh`
+  - 调用方：Makefile 类 G 四目标 + `g05_ensure`（Darwin 产品卫生）
 
 | 行 | Makefile 目标 | 迁移状态 |
 |----|---------------|----------|
-| 2095 | `build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o` | ⬜ |
-| 2105 | `build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o` | ⬜ |
-| 2115 | `build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o` | ⬜ |
-| 2125 | `build_asm/bootstrap_seed_pipeline_filtered.o` | 🟢 `filter_bootstrap_seed_pipeline_o.sh`（wave715） |
+| 2095 | `build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o` | 🟢 against_partial（wave716） |
+| 2105 | `build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o` | 🟢 against_partial（wave716） |
+| 2115 | `build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o` | 🟢 against_partial（wave716） |
+| 2125 | `build_asm/bootstrap_seed_pipeline_filtered.o` | 🟢 pipeline wrapper（wave715/716 转调核心） |
 
 ### 类 H — bootstrap / 产品二进制 phony
 
@@ -575,21 +578,47 @@
 | 位置 | 现象 | 处置 |
 |------|------|------|
 | `g05_build_xlang_asm.sh` FULL=1 | `exec make bootstrap-driver-bstrict` | 标注非日常；迁 `xbuild bstrict-build` |
-| ~~`g05_ensure` filtered.o~~ | ~~`make -s`~~ | ✅ wave715 → `filter_bootstrap_seed_pipeline_o.sh` |
+| ~~`g05_ensure` filtered.o~~ | ~~`make -s`~~ | ✅ wave715 pipeline · **wave716 class-G 全 4**（against_partial trio + 核心脚本） |
 | `g05_ensure` 失败提示 | 建议用户 `make bootstrap-driver-seed` | 改提示为 `xbuild bootstrap`（实现后） |
-| `xlang-build.sh` build-tool/first-time/clean/test* | 直接 `make -C compiler` | 11.0.3 逐项替换 |
+| `xlang-build.sh` build-tool/first-time/clean/test* | 直接 `make -C compiler` | 11.0.3+ 逐项替换 |
 | `tests/lib/**` 等 ~31+ 文件 | `make -C compiler` | 阶段 11.2.3 |
 | CI `.github/workflows` | make/cc | 阶段 11.2.5 |
+
+---
+
+## 5b. 冷启动 `bootstrap-driver-seed` recipe 内 `$(MAKE)` 白名单（11.0.3 起点 · wave716）
+
+> **用途**：冻结冷启动 recipe 仍调用 make 的显式集合；新加 `$(MAKE)` 须先改本表。  
+> **权威目标仍在 Makefile**（`bootstrap-driver-seed` ~L2968）；本波只把 **类 G 过滤**从「make 内联 nm/ld」降为「make 调 shell」。  
+> **下一刀**：recipe 主体迁 `scripts/bootstrap_driver_seed.sh`，下列目标改由 shell 白名单 `make -C . <target>` 或 g05/cc 直调。
+
+| # | recipe 内 make 调用（语义） | 状态 | 备注 |
+|---|------------------------------|------|------|
+| 1 | `check-pipeline-gen-expr-i64-abi` | ⬜ make | P0-4 守卫 |
+| 2 | `pipeline_x.o` FORCE | ⬜ make | 冷链强制重编 |
+| 3 | `-B` 卫星 runtime/diag/simd… | ⬜ make | seed 路径 PREFER=0 |
+| 4 | `lsp_io_x.o` `lsp_x.o` `lsp_diag_x.o` … | ⬜ make | |
+| 5 | `src/x_seed_bridge.o` | ⬜ make | |
+| 6 | `$(USER_ASM_SEED_OBJS)` | ⬜ make | |
+| 7 | `$(ASM_GLUE_STANDALONE_O)` | ⬜ make | |
+| 8 | `build-seed-asm-host` | 🟡 半 shell | 已有 `build_seed_asm_host.sh` |
+| 9 | `$(USER_ASM_SEED_HOST_STUBS)` | ⬜ make | |
+| 10 | `$(BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS)` | 🟢 shell 体 | wave716：filtered 配方 = 纯 shell；**仍经 make 依赖图** |
+| 11 | phase1/final `$(CC)` 链接 | ⬜ make 变量 | 终迁 shell 须导出 CFLAGS/OBJS |
+| 12 | `runtime_panic.o` | ⬜ make | |
+| 13 | smoke / `bootstrap_xlangc_create` | 🟢 已 shell | `bootstrap_driver_seed_smoke.sh` 等 |
+
+**wave716 已减 make 逻辑量**：类 G 四目标不再在 Makefile 内嵌 nm/ld；产品 g05 重建 trio 不再需要冷 make。
 
 ---
 
 ## 6. 建议迁移顺序（11.0 内）
 
 1. **11.0.1** 本表 ✅（wave714）
-2. **11.0.2** 产品路径 0-make 静态闸门 ✅ + filtered.o 纯 shell ✅（wave714/715）；运行时 PATH 无 make 探针仍可加
-3. **11.0.3** `bootstrap-driver-seed` 规则白名单化 → shell/xbuild 逐步接管
+2. **11.0.2** 产品路径 0-make 静态闸门 ✅ + class-G filtered 全 shell ✅（wave714–716）；运行时 PATH 无 make 探针仍可加
+3. **11.0.3** `bootstrap-driver-seed` 规则白名单化 → shell/xbuild 逐步接管（**wave716**：§5b 白名单 + 类 G 闭）
 4. **11.0.4** 根 Makefile 仅 help→xbuild；禁止新规则
-5. 并行：**类 C glue 地图**（阶段 8.3）· **类 B/D 去 pin 烟**（7.4）· 类 G 其余 3 filtered.o
+5. 并行：**类 C glue 地图**（阶段 8.3）· **类 B/D 去 pin 烟**（7.4）
 6. **11.1+** 填实 `build.x` / 吞并 g05 → **11.3 物理删**
 
 ---
@@ -598,6 +627,7 @@
 
 | 日期 | 波次 | 变更 |
 |------|------|------|
+| 2026-07-29 | **wave716** | 11.0.3 起点：类 G 全 4 纯 shell（`filter_o_export_against_deps.sh` + against_partial 包装）；g05_ensure Darwin trio；§5b 冷启动 make 白名单；0-make 闸门硬检 Makefile 无内联 nm/ld |
 | 2026-07-29 | **wave715** | 11.0.2 residual：`filter_bootstrap_seed_pipeline_o.sh` 为 pipeline filtered.o 唯一权威；g05_ensure 去 `make -s`；Makefile 同调；0-make 闸门 WARN 清零 |
 | 2026-07-29 | wave714 | 11.0.1 初版：289 目标分类 A–O + 关键 phony 表 + 泄漏清单 |
 

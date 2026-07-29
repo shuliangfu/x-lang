@@ -1969,15 +1969,37 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         -Wno-error=return-type -Ibuild_asm
     fi
   fi
-  # Darwin product link uses filtered pipeline; must drop stale pool T after unbundle.
-  # Authority: scripts/filter_bootstrap_seed_pipeline_o.sh (pure shell; no make).
-  # PLATFORM: SHARED — product g05 hygiene; Darwin link consumes filtered.o (g05_relink_env).
+  # Darwin product link uses filtered pipeline + filtered USER_ASM trio; drop
+  # stale TDS after unbundle / partial refresh. Pure shell (no make).
+  # Authority: filter_bootstrap_seed_*_o.sh → filter_o_export_against_deps.sh (G.7).
+  # PLATFORM: SHARED hygiene; PLATFORM: MACOS product link consumes these (g05_relink_env).
   _filt=build_asm/bootstrap_seed_pipeline_filtered.o
   if [ -f pipeline_x.o ] && { [ ! -f "$_filt" ] || [ pipeline_x.o -nt "$_filt" ]; }; then
     echo "g05_ensure: $_filt ← filter_bootstrap_seed_pipeline_o.sh (pipeline_x newer; no make)"
     if ! sh scripts/filter_bootstrap_seed_pipeline_o.sh pipeline_x.o "$_filt"; then
       echo "g05_ensure: WARN filter $_filt failed (Darwin may dual-def pool)" >&2
     fi
+  fi
+  # Class-G trio: filter against seed_host partial only (same as Makefile recipes).
+  # Do not use `set --` here (would clobber script positional args).
+  _partial=build_asm/seed_host/asm_backend_partial.o
+  if [ -f "$_partial" ]; then
+    for _spec in \
+      "src/asm/user_asm_seed_bridge.o|build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o|bootstrap_seed_user_asm_seed_bridge" \
+      "src/asm/asm_backend_compat_stubs.o|build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o|bootstrap_seed_asm_backend_compat_stubs" \
+      "src/asm/backend_x86_64_enc_c.o|build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o|bootstrap_seed_backend_x86_64_enc_c"
+    do
+      _src="${_spec%%|*}"
+      _rest="${_spec#*|}"
+      _out="${_rest%%|*}"
+      _stem="${_rest#*|}"
+      if [ -f "$_src" ] && { [ ! -f "$_out" ] || [ "$_src" -nt "$_out" ] || [ "$_partial" -nt "$_out" ]; }; then
+        echo "g05_ensure: $_out ← filter_bootstrap_seed_against_partial_o.sh (no make)"
+        if ! sh scripts/filter_bootstrap_seed_against_partial_o.sh "$_src" "$_out" "$_stem" "$_partial"; then
+          echo "g05_ensure: WARN filter $_out failed (Darwin USER_ASM dual-def risk)" >&2
+        fi
+      fi
+    done
   fi
   # G-02f-7 / R2 full：simd_enc.o
   # PREFER：full.x 真迁业务 + rest (-DXLANG_SIMD_ENC_FROM_X，仅 marker) ld -r
