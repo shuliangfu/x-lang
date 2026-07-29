@@ -74,11 +74,15 @@
 #                            + glue standalone (target_cpu / ast_seed / orch /
 #                            parser_asm_thin_glue · pipeline_glue_standalone · wave758/759)
 #   R3_COLD_SEED_OBJS      — thin+rest cold-else pure host-cc (wave757)
-#
+#   wave761: R4 residual gen *_x + pipeline_x — `try-gen-x OUT`
+#            membership = catalog LSP_X / PIPELINE_X keys;
+#            body = scripts/ensure_gen_x_o.sh (G.7 有则补全).
+#            rebuild_leaves try-r2 then try-gen-x then residual make.
+
 # Not in scope (honest residual):
 #   - R3 thin+rest / PREFER_X_O product g05 path (g05_ensure keeps that)
 #   - R2 other UNAME leaves (typeck_f64_bits · crt0) — panic cold only wave760
-#   - R4 residual (gen *_x · pipeline_x), R5 CI all
+#   - R4 remaining residual (if any after wave761 gen/pipeline shell), R5 CI all
 #   - pure-ld (11.1.4) · physical Makefile delete (11.3.1)
 #
 # Usage (cwd = compiler/):
@@ -86,6 +90,7 @@
 #   bash scripts/ensure_host_cc_seed_o.sh try-r1 <out.o>   # wave756 R4 pure-R1 helper
 #   bash scripts/ensure_host_cc_seed_o.sh try-r3-cold <out.o>
 #   bash scripts/ensure_host_cc_seed_o.sh try-r2 <out.o>   # wave760 R2 panic cold
+#   bash scripts/ensure_host_cc_seed_o.sh try-gen-x <out.o> # wave761 gen *_x / pipeline_x
 #   bash scripts/ensure_host_cc_seed_o.sh r2-panic         # DRIVER_SEED_PANIC family
 #   bash scripts/ensure_host_cc_seed_o.sh rt-slice          # RT_SEED_SLICE family
 #   bash scripts/ensure_host_cc_seed_o.sh core-seed         # R1_CORE_SEED family
@@ -141,7 +146,7 @@ _DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r2|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|gen-x|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -832,6 +837,63 @@ ensure_r2_panic() {
   log "r2-panic OK ($n objs; catalog DRIVER_SEED_PANIC_OBJS)"
 }
 
+
+# ---------------------------------------------------------------------------
+# wave761: try-gen-x OUT — residual gen *_x.o + pipeline_x.o (R4 pattern body).
+#
+# Membership (catalog only; G.7 no dual .o list):
+#   lsp_io_x.o | lsp_x.o | lsp_diag_x.o ∈ DRIVER_SEED_LSP_X_OBJS
+#   pipeline_x.o ∈ DRIVER_SEED_PIPELINE_X_OBJS
+# Body: scripts/ensure_gen_x_o.sh one OUT (compile map + gen_driver STALE).
+# Exit codes:
+#   0 — OUT is gen residual member; body ran (or skipped up-to-date)
+#   3 — OUT not in gen residual map / catalog
+#   1 — membership found but compile failed
+# PLATFORM: SHARED shell · PIPELINE_X_DEPS / FORCE from env (Makefile expands).
+# ---------------------------------------------------------------------------
+try_ensure_gen_x_one() {
+  local o="$1"
+  local list
+  if [ -z "$o" ]; then
+    echo "ensure_host_cc_seed_o try-gen-x: need <out.o>" >&2
+    exit 2
+  fi
+  case "$o" in
+    lsp_io_x.o|lsp_x.o|lsp_diag_x.o)
+      list="$(catalog_key_words "DRIVER_SEED_LSP_X_OBJS")"
+      if ! list_has_word "$o" "$list"; then
+        return 3
+      fi
+      ;;
+    pipeline_x.o)
+      list="$(catalog_key_words "DRIVER_SEED_PIPELINE_X_OBJS")"
+      if ! list_has_word "$o" "$list"; then
+        return 3
+      fi
+      ;;
+    *)
+      return 3
+      ;;
+  esac
+  if [ ! -f scripts/ensure_gen_x_o.sh ]; then
+    echo "ensure_host_cc_seed_o try-gen-x: missing scripts/ensure_gen_x_o.sh (wave761)" >&2
+    return 1
+  fi
+  # Propagate FORCE into gen body (same global FORCE used by ensure_one).
+  if [ "$FORCE" = "1" ]; then
+    XLANG_GEN_X_FORCE=1 XLANG_HOST_CC_SEED_FORCE=1 \
+      bash scripts/ensure_gen_x_o.sh one "$o" || return 1
+  else
+    bash scripts/ensure_gen_x_o.sh one "$o" || return 1
+  fi
+  return 0
+}
+
+ensure_gen_x_residual() {
+  # Family runner: all gen residual maps (lsp trio + pipeline).
+  bash scripts/ensure_gen_x_o.sh residual-all
+}
+
 # ---------------------------------------------------------------------------
 # --check: wiring + catalog keys + convention (no full compile required)
 # ---------------------------------------------------------------------------
@@ -1147,8 +1209,36 @@ run_check() {
   else
     note "try-r2 R2 panic cold helper present (wave760)"
   fi
+  # wave761: try-gen-x gen residual helper
+  if ! grep -q 'try_ensure_gen_x_one\|try-gen-x' "$0"; then
+    bad "try-gen-x / try_ensure_gen_x_one missing (wave761 gen residual)"
+  else
+    note "try-gen-x gen residual helper present (wave761)"
+  fi
+  if [ ! -f scripts/ensure_gen_x_o.sh ]; then
+    bad "scripts/ensure_gen_x_o.sh missing (wave761)"
+  else
+    note "ensure_gen_x_o.sh present (wave761)"
+  fi
+  # Makefile gen residual thin-call ensure_gen_x_o
+  for leaf in lsp_io_x.o lsp_x.o lsp_diag_x.o pipeline_x.o; do
+    if awk -v t="$leaf" '
+      $0 ~ "^" t ":" {grab=1; next}
+      grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+      grab {body = body $0 "\n"}
+      END { if (body ~ /ensure_gen_x_o\.sh/) exit 0; exit 1 }
+    ' Makefile; then
+      note "Makefile $leaf thin-calls ensure_gen_x_o (wave761)"
+    else
+      bad "Makefile $leaf must thin-call ensure_gen_x_o.sh (wave761)"
+    fi
+  done
 
-  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else + R2 panic cold + thin_glue/glue-standalone seed-map · wave748–760)" >&2
+  if [ "$fail" -ne 0 ]; then
+    echo "ensure_host_cc_seed_o: --check FAILED" >&2
+    exit 1
+  fi
+  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else + R2 panic + gen-x residual · wave748–761)" >&2
 }
 
 case "$MODE" in
@@ -1199,11 +1289,27 @@ case "$MODE" in
     set -e
     exit "$_try_rc"
     ;;
+  try-gen-x|try_gen_x|try-gen|gen-x-one|r4-gen-one)
+    # wave761: gen residual helper — exit 3 if not gen map + catalog member.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o try-gen-x: need <out.o>" >&2
+      exit 2
+    fi
+    _try_out="$1"
+    set +e
+    try_ensure_gen_x_one "$_try_out"
+    _try_rc=$?
+    set -e
+    exit "$_try_rc"
+    ;;
   r3-cold-seed|r3_cold_seed|cold-seed|family=r3_cold_seed)
     ensure_r3_cold_seed
     ;;
   r2-panic|r2_panic|panic-cold|family=r2_panic|family=driver_seed_panic)
     ensure_r2_panic
+    ;;
+  gen-x|gen_x|residual-gen|family=gen_x|family=r4_gen_x)
+    ensure_gen_x_residual
     ;;
   rt-slice|rt_slice|rt-seed-slice|family=rt_seed_slice)
     ensure_rt_slice
@@ -1241,7 +1347,7 @@ case "$MODE" in
     exit 0
     ;;
   *)
-    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|try-r1|try-r3-cold|try-r2|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|all|--check)" >&2
+    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|try-r1|try-r3-cold|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|gen-x|all|--check)" >&2
     exit 2
     ;;
 esac

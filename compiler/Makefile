@@ -2504,8 +2504,10 @@ lsp_diag_gen.c: src/lsp/lsp_diag.x
 	  XLANG_C="$(XLANG_C)" XLANG_X="$(XLANG_X)" \
 	  sh scripts/ensure_lsp_pipeline_gen.sh lsp_diag
 
-lsp_diag_x.o: lsp_diag_gen.c
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c lsp_diag_gen.c -o lsp_diag_x.o
+# wave761: G.7 body → scripts/ensure_gen_x_o.sh (gen residual; try-gen-x)
+lsp_diag_x.o: lsp_diag_gen.c scripts/ensure_gen_x_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_gen_x_o.sh one $@
 
 # lsp_io.x：C-04 v0 要求 xlang-c 自动生成 import extern；xlang-x 仍走旧块时回退 xlang-c。
 # wave739: G.7 body → scripts/ensure_lsp_pipeline_gen.sh
@@ -2546,16 +2548,15 @@ lsp_io_std_heap_gen.c: src/lsp/lsp_io_std_heap.x
 	  sh scripts/ensure_archaeology_gen.sh lsp_io_std_heap
 
 # bootstrap-driver-seed / relink-xlang 共用：lsp_io / lsp 生成 C → .o
-lsp_io_x.o: lsp_io_gen.c src/lsp/lsp_io.x Makefile
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. \
-	  -Dstd_io_read=io_read -Dstd_io_write=io_write \
-	  -Dstd_heap_alloc_usize=typeck_std_heap_alloc -Dstd_heap_free_u8_ptr=typeck_std_heap_free \
-	  -Dtypeck_std_heap_alloc=lsp_io_std_heap_std_heap_alloc \
-	  -Dtypeck_std_heap_free=lsp_io_std_heap_std_heap_free \
-	  -c lsp_io_gen.c -o lsp_io_x.o
+# wave761: G.7 body → scripts/ensure_gen_x_o.sh (lsp_io -D renames)
+lsp_io_x.o: lsp_io_gen.c src/lsp/lsp_io.x scripts/ensure_gen_x_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_gen_x_o.sh one $@
 
-lsp_x.o: lsp_gen.c
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -c lsp_gen.c -o lsp_x.o
+# wave761: G.7 body → scripts/ensure_gen_x_o.sh
+lsp_x.o: lsp_gen.c scripts/ensure_gen_x_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_gen_x_o.sh one $@
 
 # Driver 子命令 .o：
 #   Track L 已退役叶子：fmt/check/test/build/run/compile/emit + lsp_io_std_heap → PREFER_X_O（.x→.o）
@@ -2648,24 +2649,13 @@ endif
 # pipeline_x.o：与 pipeline_gen.c 及 PIPELINE_X_DEPS 绑定；parser/backend 等 .x 变更须重编，避免 seed 仍用旧 pipeline 逻辑（entry 消失等）。
 # 默认复用 build_asm/gen_driver/pipeline_x.o（fat 编排）；设 PIPELINE_X_FORCE_COMPILE=1 才从 pipeline_gen.c 重编。
 # pipeline_glue.c / ast_pool.c 由 pipeline_glue_standalone.o 覆盖，勿因二者 mtime 触发整 TU 重编（否则与 partial 并列链 parse 塌陷）。
-pipeline_x.o: $(PIPELINE_X_FORCE_PREREQ) pipeline_gen.c $(PIPELINE_X_DEPS)
-	@perl scripts/sync_lexer_gen_token_enum.pl pipeline_gen.c
-	@GEN_DRV=build_asm/gen_driver/pipeline_x.o; \
-	STALE=0; \
-	if [ "$(XLANG_FORCE_REGEN_GEN)" = "1" ] || [ "$(PIPELINE_X_FORCE_COMPILE)" = "1" ]; then STALE=1; fi; \
-	if [ -f "$$GEN_DRV" ]; then \
-	  for dep in pipeline_gen.c $(PIPELINE_X_DEPS); do \
-	  if [ "$$dep" -nt "$$GEN_DRV" ]; then STALE=1; break; fi; \
-	  done; \
-	else \
-	  STALE=1; \
-	fi; \
-	if [ "$$STALE" -eq 0 ] && [ -f "$$GEN_DRV" ]; then \
-	  cp "$$GEN_DRV" $@ && echo "pipeline_x.o: from build_asm/gen_driver"; \
-	else \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -DXLANG_PIPELINE_GLUE_OMIT_X_DUP_EXPORTS -I.. -Dstd_io_driver_driver_read_ptr_len=xlang_io_read_ptr_len -Dstd_io_driver_driver_read_ptr=xlang_io_read_ptr -c pipeline_gen.c -o $@ && \
-	  mkdir -p build_asm/gen_driver && cp $@ "$$GEN_DRV"; \
-	fi
+# wave761: G.7 body → scripts/ensure_gen_x_o.sh (gen_driver STALE + FORCE; DEPS from mk)
+pipeline_x.o: $(PIPELINE_X_FORCE_PREREQ) pipeline_gen.c $(PIPELINE_X_DEPS) scripts/ensure_gen_x_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  PIPELINE_X_DEPS="$(PIPELINE_X_DEPS)" \
+	  PIPELINE_X_FORCE_COMPILE="$(PIPELINE_X_FORCE_COMPILE)" \
+	  XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
+	  bash scripts/ensure_gen_x_o.sh one $@
 FORCE:
 
 # driver_gen.c / driver_x.o：main.x 驱动入口。

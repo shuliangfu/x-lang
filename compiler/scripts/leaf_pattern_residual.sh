@@ -15,13 +15,14 @@
 #   wave758: R4 residual thin_glue pure host-cc → R1 seed-map (G.7 有则补全)
 #   wave759: R4 residual glue standalone → R1 seed-map (G.7 有则补全)
 #   wave760: R2 panic cold body via rebuild_leaves → ensure try-r2
+#   wave761: R4 residual gen *_x + pipeline_x via try-gen-x / ensure_gen_x_o.sh
 #
 # Authority (G.7):
 #   Single shell authority for *named residual classes* of Makefile leaf pattern /
 #   host-cc compile rules that still block physical delete of compiler/Makefile.
 #   Does NOT own .o lists (compiler/mk/*.mk + catalog). R1 pure-body families,
-#   R3 cold-else, and R2 panic cold live in ensure_host_cc_seed_o.sh; R3 PREFER
-#   thin + R4 remaining residual (gen/pipeline-x) still make; R2 typeck_f64/crt0 residual.
+#   R3 cold-else, R2 panic cold, and gen residual (try-gen-x) live in
+#   ensure_host_cc_seed_o.sh / ensure_gen_x_o.sh; R3 PREFER thin + R2 typeck_f64/crt0 residual.
 #
 # Human map: compiler/docs/LEAF_PATTERN_RESIDUAL.md
 #
@@ -32,7 +33,7 @@
 #   ./xbuild leaf-patterns | leaf-residual [--check]
 #
 # PLATFORM: SHARED — inventory portable; leaf ABI stays in Makefile / mk.
-# Wave: 746–760 Track MG · 11.3.1 path (not physical delete · not pure-ld).
+# Wave: 746–761 Track MG · 11.3.1 path (not physical delete · not pure-ld).
 
 set -euo pipefail
 
@@ -64,7 +65,7 @@ bad() { echo "leaf_pattern_residual: FAIL: $*" >&2; fail=1; }
 # ---------------------------------------------------------------------------
 print_classes() {
   cat <<EOF
-# leaf pattern residual inventory (11.3.1 path · wave746–760)
+# leaf pattern residual inventory (11.3.1 path · wave746–761)
 # Lists stay mk/catalog. Pattern bodies stay Makefile until named shell swallow.
 
 LEAF_PATTERN_POLICY=inventory_named_classes_plus_r4_mode_and_r1_families
@@ -116,6 +117,11 @@ SWALLOWED_R2_PANIC_COLD=1
 SWALLOWED_R2_PANIC_COLD_VIA=ensure_host_cc_seed_o.sh_try-r2
 SWALLOWED_R2_PANIC_COLD_LIST=catalog_DRIVER_SEED_PANIC_OBJS
 SWALLOWED_R2_PANIC_COLD_NOTE=panic_cold_shell_PREFER_thin_still_make_typeck_f64_crt0_residual
+# wave761: R4 residual gen *_x + pipeline_x leave make (try-gen-x)
+SWALLOWED_R4_BODY_GEN_X=1
+SWALLOWED_R4_BODY_GEN_X_VIA=ensure_gen_x_o.sh_try-gen-x
+SWALLOWED_R4_BODY_GEN_X_LIST=catalog_DRIVER_SEED_LSP_X_OBJS+DRIVER_SEED_PIPELINE_X_OBJS
+SWALLOWED_R4_BODY_GEN_X_NOTE=lsp_io_x_lsp_x_lsp_diag_x_pipeline_x_shell
 
 # Residual classes still Makefile-owned (R1–R5 = 11.3.1; R6 = 11.1.4)
 RESIDUAL_CLASS_R1=host_cc_seed_from_x_to_o
@@ -151,7 +157,8 @@ RESIDUAL_CLASS_R4_BODY_R3_COLD=swallowed_wave757_try_r3_cold
 RESIDUAL_CLASS_R4_BODY_THIN_GLUE=swallowed_wave758_seed_map
 RESIDUAL_CLASS_R4_BODY_GLUE_STANDALONE=swallowed_wave759_seed_map
 RESIDUAL_CLASS_R4_BODY_R2_PANIC=swallowed_wave760_try_r2
-RESIDUAL_CLASS_R4_BODY=non_R1_non_R3_cold_still_make_pattern
+RESIDUAL_CLASS_R4_BODY_GEN_X=swallowed_wave761_try_gen_x
+RESIDUAL_CLASS_R4_BODY=other_non_shell_pattern_if_any
 RESIDUAL_CLASS_R4_ENDGAME=rebuild_leaves_without_make_pattern
 
 RESIDUAL_CLASS_R5=ci_compiler_all_host_cc_graph
@@ -176,6 +183,7 @@ print_live_metrics() {
   r4_pure_r1=0
   r3_cold=0
   r2_panic=0
+  r4_gen_x=0
   if [ -f "$mf" ]; then
     # Count recipe-ish $(CC) ... -c lines (rough residual heat; not authoritative list).
     cc_c=$(grep -cE '\$\(CC\).*-c' "$mf" 2>/dev/null || echo 0)
@@ -206,6 +214,12 @@ print_live_metrics() {
     if grep -q 'try-r2\|try_ensure_r2' \
       "$ROOT/compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh" 2>/dev/null; then
       r2_panic=1
+    fi
+    # wave761: gen residual via try-gen-x + ensure_gen_x_o.sh
+    if grep -q 'try-gen-x\|try_ensure_gen_x' \
+      "$ROOT/compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh" 2>/dev/null \
+      && [ -f "$ROOT/compiler/scripts/ensure_gen_x_o.sh" ]; then
+      r4_gen_x=1
     fi
   fi
   # wave748: R1 rt-seed-slice body + Makefile thin + catalog key
@@ -272,6 +286,7 @@ R4_MODE_POLICY_SWALLOWED=$catalog_default
 R4_BODY_PURE_R1_SWALLOWED=$r4_pure_r1
 R3_COLD_ELSE_SWALLOWED=$r3_cold
 R2_PANIC_COLD_SWALLOWED=$r2_panic
+R4_BODY_GEN_X_SWALLOWED=$r4_gen_x
 R4_PATTERN_BODY_STILL_MAKE=1
 R1_RT_SEED_SLICE_SWALLOWED=$r1_rt
 R1_CORE_SEED_SWALLOWED=$r1_core
@@ -368,6 +383,9 @@ else
   if ! grep -qE 'wave760|try-r2|R2.panic|panic.cold|DRIVER_SEED_PANIC' "$DOC_REL"; then
     bad "$DOC_REL must document wave760 R2 panic cold try-r2 swallow"
   fi
+  if ! grep -qE 'wave761|try-gen-x|ensure_gen_x_o|gen.\*_x|pipeline_x' "$DOC_REL"; then
+    bad "$DOC_REL must document wave761 gen *_x / pipeline_x try-gen-x swallow"
+  fi
   note "doc $DOC_REL present"
 fi
 
@@ -415,6 +433,12 @@ if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R2_PANIC_COLD=1'; then
 fi
 if ! printf '%s\n' "$_out" | grep -q 'R2_PANIC_COLD_SWALLOWED=1'; then
   bad "dump R2_PANIC_COLD_SWALLOWED must be 1 (try-r2 + catalog)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R4_BODY_GEN_X=1'; then
+  bad "dump must set SWALLOWED_R4_BODY_GEN_X=1 (wave761 gen/pipeline try-gen-x)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'R4_BODY_GEN_X_SWALLOWED=1'; then
+  bad "dump R4_BODY_GEN_X_SWALLOWED must be 1 (wave761 try-gen-x)"
 fi
 if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R1_RT_SEED_SLICE=1'; then
   bad "dump must set SWALLOWED_R1_RT_SEED_SLICE=1 (wave748)"
@@ -672,7 +696,7 @@ else
     "$REBUILD_REL"; then
     bad "rebuild_leaves must not hardcode .o list (dual authority)"
   fi
-  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic try-r2; remaining residual make-backed (wave756/757/759/760)"
+  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic try-r2; remaining residual make-backed (post-wave761 PREFER/typeck_f64)"
 fi
 
 # G.7: this script must not hardcode product .o inventories as code paths
@@ -731,5 +755,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747 R4 mode + wave756 pure-R1 + wave757 R3 cold-else + wave758 thin_glue + wave759 glue-standalone + wave760 R2 panic cold + wave748–755 R1 families + 11.3.1 leaf residual inventory)"
+echo "leaf_pattern_residual: CHECK OK (wave747 R4 mode + wave756 pure-R1 + wave757 R3 cold-else + wave758 thin_glue + wave759 glue-standalone + wave760 R2 panic cold + wave761 gen-x + wave748–755 R1 families + 11.3.1 leaf residual inventory)"
 exit 0

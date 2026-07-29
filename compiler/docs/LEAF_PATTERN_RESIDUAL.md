@@ -101,7 +101,7 @@ try-r1 (ensure_host_cc_seed_o.sh):
 
 | Swallowed | Still residual |
 |-----------|----------------|
-| Pure R1 rebuild bodies in every mode (bridge full; sat/lsp/user-asm partial) | R2 panic UNAME · R3 thin+rest · gen `*_x.o` · dispatch · glue · pipeline_x |
+| Pure R1 rebuild bodies in every mode (bridge full; sat/lsp/user-asm partial) | R2 typeck_f64/crt0 · R3 PREFER thin · ~~gen/pipeline_x~~ (wave761) · pure-ld |
 | Dual path of make-for-pure-R1 vs thin ensure | Full R4 endgame · pure-ld · physical delete |
 
 **Forbidden:** hardcoding product `.o` paths inside `rebuild_leaves` / `try-r1` as a second inventory (membership via catalog KEY only).
@@ -136,7 +136,7 @@ R3_COLD_SEED_OBJS (9):
 
 | Swallowed | Still residual |
 |-----------|----------------|
-| Cold pure host-cc for thin+rest leaves (rebuild + Makefile cold-else) | PREFER_X_O=1 thin+rest product path · panic UNAME · gen `*_x` · ~~hybrid thin_glue~~ (wave758) · ~~glue standalone~~ (wave759) · pipeline_x |
+| Cold pure host-cc for thin+rest leaves (rebuild + Makefile cold-else) | PREFER_X_O=1 thin+rest product path · ~~panic UNAME cold~~ (wave760) · ~~gen `*_x`/pipeline_x~~ (wave761) · ~~hybrid thin_glue~~ (wave758) · ~~glue standalone~~ (wave759) |
 | Dual cold `$(CC) -c seed` vs ensure for the nine objs | Full R3 PREFER endgame · pure-ld · physical delete |
 
 **Forbidden:** hardcoding the nine `.o` paths in shell as list authority (catalog KEY only); copying PREFER thin recipes into shell.
@@ -159,7 +159,7 @@ After (wave758):
 
 | Swallowed | Still residual |
 |-----------|----------------|
-| `parser_asm_thin_glue.o` pure host-cc monothin body (rebuild + Makefile thin) | panic UNAME · gen `*_x` · ~~glue standalone~~ (wave759) · pipeline_x · pure-ld · physical delete |
+| `parser_asm_thin_glue.o` pure host-cc monothin body (rebuild + Makefile thin) | ~~panic UNAME~~ · ~~gen/pipeline~~ · ~~glue standalone~~ · pure-ld · physical delete |
 | Dual inline `$(CC) -c thin_c.from_x` vs ensure for this leaf | R3 PREFER thin product path · R5 CI |
 
 **Forbidden:** second `.o` list in shell; drop `.inc` freshness (stale monothin → Ubuntu UNDEF history).
@@ -185,7 +185,7 @@ After (wave759):
 
 | Swallowed | Still residual |
 |-----------|----------------|
-| `build_asm/pipeline_glue_standalone.o` pure host-cc body (rebuild + Makefile thin) | ~~panic UNAME cold~~ (wave760) · gen `*_x` · pipeline_x · pure-ld · physical delete |
+| `build_asm/pipeline_glue_standalone.o` pure host-cc body (rebuild + Makefile thin) | ~~panic UNAME cold~~ · ~~gen/pipeline~~ (wave761) · pure-ld · physical delete |
 | Dual `cc_inc_tu` vs ensure for this leaf | R3 PREFER thin product path · R5 CI |
 
 **Forbidden:** second `.o` list in shell; drop glue/ast_pool/types.inc freshness (stale standalone → dual-def / missing symbols).
@@ -213,10 +213,27 @@ After (wave760):
 
 | Swallowed | Still residual |
 |-----------|----------------|
-| `runtime_panic.o` cold platform-stamp body (rebuild + Makefile cold-else + build_xlang_asm) | PREFER thin panic · typeck_f64_bits · crt0 · gen `*_x` · pipeline_x · pure-ld · physical delete |
+| `runtime_panic.o` cold platform-stamp body (rebuild + Makefile cold-else + build_xlang_asm) | PREFER thin panic · typeck_f64_bits · crt0 · ~~gen `*_x` / pipeline_x~~ (wave761) · pure-ld · physical delete |
 | Dual inline cold `cc -c` panic vs ensure | R3 PREFER product path · R5 CI |
 
 **Forbidden:** second `.o` list in shell; invent second platform table outside try-r2 host pick + host_platform_linker facts; drop stamp on platform switch.
+
+### wave761 · R4 residual gen `*_x` + pipeline_x → try-gen-x (G.7 有则补全)
+
+| 项 | 说明 |
+|----|------|
+| 触发 | lsp residual_make=3（`lsp_io_x`/`lsp_x`/`lsp_diag_x`）· pipeline-x residual_make=1 |
+| 权威 | catalog **`DRIVER_SEED_LSP_X_OBJS`** / **`DRIVER_SEED_PIPELINE_X_OBJS`** 成员 + gen map；体 = **`scripts/ensure_gen_x_o.sh`**；入口 `ensure try-gen-x` |
+| 链 | rebuild_leaves try-r1 → try-r3-cold → try-r2 → **try-gen-x** → residual make |
+| Makefile | 四叶 thin 转调 `ensure_gen_x_o.sh one`（pipeline 传 `PIPELINE_X_DEPS` / FORCE） |
+| 闸门 | leaf `--check` · host-cc-seed `--check` · lsp/pipeline-x residual_make=0 |
+| 非本波 | R2 typeck_f64/crt0 · R3 PREFER thin · pure-ld · 物理删 |
+| LEAF | `SWALLOWED_R4_BODY_GEN_X=1` · `R4_BODY_GEN_X_SWALLOWED=1` |
+
+| 已吞 | 仍 residual |
+|------|-------------|
+| lsp trio gen→.o + `pipeline_x.o`（rebuild + Makefile thin） | PREFER thin · typeck_f64/crt0 · pure-ld · physical delete · sat 等 non-R1 pattern 若仍 make |
+
 
 ### wave748 · R1 first family: RT_SEED_SLICE
 
