@@ -6710,6 +6710,40 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     if (check_expr(module, arena, bop_r, return_type_ref, ctx) != 0) {
       return - 1;
     }
+    /*
+     * wave670 Cap residual: keyword `null` only compares with pointers (or null).
+     * Runs immediately after operand check_expr — before LOGAND/typed gates —
+     * so untyped null (type_ref 0) still hard-fails against non-ptr peers.
+     * `null == null` both keyword → green; `null == p` / `p == null` peer ptr.
+     * PLATFORM: SHARED — seed typeck_gen same commit.
+     */
+    if (typeck_expr_is_null_keyword(arena, bop_l) != 0
+    && typeck_expr_is_null_keyword(arena, bop_r) == 0) {
+      rt_cmp = pipeline_expr_resolved_type_ref(arena, bop_r);
+      rko_cmp = 0;
+      if (rt_cmp > 0) {
+        rko_cmp = pipeline_type_kind_ord_at(arena, rt_cmp);
+      }
+      if (rt_cmp > 0 && rko_cmp != 9) {
+        line_ac = pipeline_expr_line_at(arena, expr_ref);
+        col_ac = pipeline_expr_col_at(arena, expr_ref);
+        driver_diagnostic_typeck_comparison_type_mismatch(line_ac, col_ac);
+        return -1;
+      }
+    } else if (typeck_expr_is_null_keyword(arena, bop_r) != 0
+    && typeck_expr_is_null_keyword(arena, bop_l) == 0) {
+      lt_cmp = pipeline_expr_resolved_type_ref(arena, bop_l);
+      lko_cmp = 0;
+      if (lt_cmp > 0) {
+        lko_cmp = pipeline_type_kind_ord_at(arena, lt_cmp);
+      }
+      if (lt_cmp > 0 && lko_cmp != 9) {
+        line_ac = pipeline_expr_line_at(arena, expr_ref);
+        col_ac = pipeline_expr_col_at(arena, expr_ref);
+        driver_diagnostic_typeck_comparison_type_mismatch(line_ac, col_ac);
+        return -1;
+      }
+    }
     expr_kind_cmp = pipeline_expr_kind_ord_at(arena, expr_ref);
     if (expr_kind_cmp == ord_logand || expr_kind_cmp == ord_logor) {
       is_logical = 1;
@@ -6792,37 +6826,6 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
        */
       lt_cmp = pipeline_expr_resolved_type_ref(arena, bop_l);
       rt_cmp = pipeline_expr_resolved_type_ref(arena, bop_r);
-      /*
-       * wave670: keyword `null` only compares with pointers (or null).
-       * Must run even when one side is still untyped (null leaves type 0 until
-       * ptr peer coerce) — otherwise `null == i32` soft-skips and false greens
-       * (Ubuntu gold). `null == null` both keyword → green; `null == p` peer ptr.
-       */
-      if (typeck_expr_is_null_keyword(arena, bop_l) != 0
-      && typeck_expr_is_null_keyword(arena, bop_r) == 0) {
-        rko_cmp = 0;
-        if (rt_cmp > 0) {
-          rko_cmp = pipeline_type_kind_ord_at(arena, rt_cmp);
-        }
-        if (rt_cmp > 0 && rko_cmp != 9) {
-          line_ac = pipeline_expr_line_at(arena, expr_ref);
-          col_ac = pipeline_expr_col_at(arena, expr_ref);
-          driver_diagnostic_typeck_comparison_type_mismatch(line_ac, col_ac);
-          return -1;
-        }
-      } else if (typeck_expr_is_null_keyword(arena, bop_r) != 0
-      && typeck_expr_is_null_keyword(arena, bop_l) == 0) {
-        lko_cmp = 0;
-        if (lt_cmp > 0) {
-          lko_cmp = pipeline_type_kind_ord_at(arena, lt_cmp);
-        }
-        if (lt_cmp > 0 && lko_cmp != 9) {
-          line_ac = pipeline_expr_line_at(arena, expr_ref);
-          col_ac = pipeline_expr_col_at(arena, expr_ref);
-          driver_diagnostic_typeck_comparison_type_mismatch(line_ac, col_ac);
-          return -1;
-        }
-      }
       if (!ast.ref_is_null(lt_cmp) && !ast.ref_is_null(rt_cmp)) {
         lko_cmp = pipeline_type_kind_ord_at(arena, lt_cmp);
         rko_cmp = pipeline_type_kind_ord_at(arena, rt_cmp);
