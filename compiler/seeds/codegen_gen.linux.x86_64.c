@@ -7457,6 +7457,24 @@ int32_t codegen_emit_companion_named_slice_layout(struct codegen_CodegenOutBuf *
       97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95,
       115, 108, 105, 99, 101, 95, 0, 0
   };
+  /* wave698: seven-level "struct xlang_slice_…×7_" = 91 */
+  static const uint8_t h7[96] = {
+      115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105,
+      99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120,
+      108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103,
+      95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105,
+      99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120,
+      108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0, 0, 0, 0, 0
+  };
+  /* " { struct xlang_slice_…×6_" = 82 */
+  static const uint8_t mid7[88] = {
+      32, 123, 32, 115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95,
+      115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99,
+      101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108,
+      97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95,
+      115, 108, 105, 99, 101, 95, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99,
+      101, 95, 0, 0, 0, 0, 0, 0
+  };
   if (((out == ((struct codegen_CodegenOutBuf *)(0))) || (name == ((uint8_t *)(0))) || (name_len <= 0))) {
     return -(1);
   }
@@ -7526,6 +7544,18 @@ int32_t codegen_emit_companion_named_slice_layout(struct codegen_CodegenOutBuf *
   }
   if ((codegen_emit_bytes_from_ptr(out, name, name_len) != 0)) return -(1);
   if ((codegen_emit_bytes_from_ptr(out, (uint8_t *)mid6, 70) != 0)) return -(1);
+  if (((pfx != ((uint8_t *)(0))) && (pfx_len > 0))) {
+    if ((codegen_emit_bytes_from_ptr(out, pfx, pfx_len) != 0)) return -(1);
+  }
+  if ((codegen_emit_bytes_from_ptr(out, name, name_len) != 0)) return -(1);
+  if ((codegen_emit_bytes_from_ptr(out, (uint8_t *)tail, 27) != 0)) return -(1);
+  /* wave698: seven-level nested [][][][][][][]Named fat layout. */
+  if ((codegen_emit_bytes_from_ptr(out, (uint8_t *)h7, 91) != 0)) return -(1);
+  if (((pfx != ((uint8_t *)(0))) && (pfx_len > 0))) {
+    if ((codegen_emit_bytes_from_ptr(out, pfx, pfx_len) != 0)) return -(1);
+  }
+  if ((codegen_emit_bytes_from_ptr(out, name, name_len) != 0)) return -(1);
+  if ((codegen_emit_bytes_from_ptr(out, (uint8_t *)mid7, 82) != 0)) return -(1);
   if (((pfx != ((uint8_t *)(0))) && (pfx_len > 0))) {
     if ((codegen_emit_bytes_from_ptr(out, pfx, pfx_len) != 0)) return -(1);
   }
@@ -17895,6 +17925,7 @@ int32_t codegen_emit_import_dep_function_declarations(struct ast_Module * module
  * wave695: four-level nested [][][][][]T layouts (xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_<elem>).
  * wave696: five-level nested [][][][][][]T layouts (xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_<elem>).
  * wave697: six-level nested [][][][][][][]T layouts (xlang_slice×7_<elem>).
+ * wave698: seven-level nested [][][][][][][][]T layouts (xlang_slice×8_<elem>).
  * Authority: G.7 expand codegen_x_ast_emit_header; keep codegen.x same commit. */
 int32_t codegen_x_ast_emit_header(struct codegen_CodegenOutBuf * out) {
   static const char hdr[] =
@@ -17994,6 +18025,19 @@ int32_t codegen_x_ast_emit_header(struct codegen_CodegenOutBuf * out) {
       "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_ssize_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_ssize_t *data; size_t length; };\n"
       "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_float { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_float *data; size_t length; };\n"
       "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_double { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_double *data; size_t length; };\n"
+      "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint8_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint8_t *data; size_t length; };\n"
+      "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int8_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int8_t *data; size_t length; };\n"
+      "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int16_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int16_t *data; size_t length; };\n"
+      "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint16_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint16_t *data; size_t length; };\n"
+      "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int *data; size_t length; };\n"
+      "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int32_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int32_t *data; size_t length; };\n"
+      "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint32_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint32_t *data; size_t length; };\n"
+      "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int64_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_int64_t *data; size_t length; };\n"
+      "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint64_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint64_t *data; size_t length; };\n"
+      "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_size_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_size_t *data; size_t length; };\n"
+      "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_ssize_t { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_ssize_t *data; size_t length; };\n"
+      "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_float { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_float *data; size_t length; };\n"
+      "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_double { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_double *data; size_t length; };\n"
       "#endif\n";
   return codegen_emit_bytes_64(out, (uint8_t *)(uintptr_t)hdr, (int32_t)(sizeof(hdr) - 1u));
 }
