@@ -13798,6 +13798,59 @@ int32_t codegen_type_ref_to_suffix(struct ast_ASTArena * arena, int32_t type_ref
       uint8_t s[6] = {105, 115, 105, 122, 101, 0};
       return codegen_emit_suffix_bytes(buf, &((s)[0]), 5);
     }
+    /* wave687 Cap residual: TYPE_ARRAY(10) → <elem>_a<N> (i32_a2). Mono mangle
+     * for formals T[N] / call-arg i32[N]. PLATFORM: SHARED — twin of codegen.x. */
+    if ((tk ==((int32_t)(10)))) {
+      int32_t elem_ref = pipeline_type_elem_ref_at(arena, type_ref);
+      int32_t asz = pipeline_type_array_size_at(arena, type_ref);
+      int32_t n = codegen_type_ref_to_suffix(arena, elem_ref, buf, buf_cap);
+      int32_t digs[8];
+      int32_t nd = 0;
+      int32_t v;
+      int32_t di;
+      if ((n <= 0) || (asz <= 0)) {
+        return 0;
+      }
+      if ((n + 2) >= buf_cap) {
+        return 0;
+      }
+      buf[n] = 95;
+      buf[n + 1] = 97;
+      n = n + 2;
+      v = asz;
+      while ((v > 0) && (nd < 6)) {
+        digs[nd] = (v % 10) + 48;
+        nd = nd + 1;
+        v = v / 10;
+      }
+      if (nd <= 0) {
+        return 0;
+      }
+      if ((n + nd) >= buf_cap) {
+        return 0;
+      }
+      di = nd - 1;
+      while (di >= 0) {
+        buf[n] = (uint8_t)digs[di];
+        n = n + 1;
+        di = di - 1;
+      }
+      return n;
+    }
+    /* wave687 Cap residual: TYPE_SLICE(11) → <elem>_slc (i32_slc). Mono mangle
+     * for formals []T. PLATFORM: SHARED — twin of codegen.x. */
+    if ((tk ==((int32_t)(11)))) {
+      int32_t elem_ref = pipeline_type_elem_ref_at(arena, type_ref);
+      int32_t n = codegen_type_ref_to_suffix(arena, elem_ref, buf, buf_cap);
+      if ((n > 0) && ((n + 4) < buf_cap)) {
+        buf[n] = 95;
+        buf[n + 1] = 115;
+        buf[n + 2] = 108;
+        buf[n + 3] = 99;
+        return n + 4;
+      }
+      return 0;
+    }
     return 0;
   }
   return 0;
@@ -16184,6 +16237,27 @@ int32_t codegen_try_emit_generic_identity_mono(struct ast_ASTArena * arena, stru
           }
           return -(1);
         }
+        /* wave687: TYPE_SLICE(11) formals → pointer ABI (emit_func twin). PLATFORM: SHARED. */
+        if ((pipeline_type_kind_ord_at(arena, p0_ty) == 11)) {
+          if ((codegen_append_byte(out, 32) !=0)) {
+            if ((mono_ctx_set != 0)) {
+              (void)(((ctx->mono_active) = saved_mono_active));
+              (void)(((ctx->mono_num_types) = saved_mono_num));
+              (void)(((ctx->current_func_index) = saved_func_index));
+              (void)(((ctx->current_block_ref) = saved_block_ref));
+            }
+            return -(1);
+          }
+          if ((codegen_append_byte(out, 42) !=0)) {
+            if ((mono_ctx_set != 0)) {
+              (void)(((ctx->mono_active) = saved_mono_active));
+              (void)(((ctx->mono_num_types) = saved_mono_num));
+              (void)(((ctx->current_func_index) = saved_func_index));
+              (void)(((ctx->current_block_ref) = saved_block_ref));
+            }
+            return -(1);
+          }
+        }
         if ((codegen_append_byte(out, 32) !=0)) {
           if ((mono_ctx_set != 0)) {
             (void)(((ctx->mono_active) = saved_mono_active));
@@ -16222,6 +16296,27 @@ int32_t codegen_try_emit_generic_identity_mono(struct ast_ASTArena * arena, stru
               (void)(((ctx->current_block_ref) = saved_block_ref));
             }
             return -(1);
+          }
+          /* wave687: TYPE_SLICE formal → pointer (param0 twin). PLATFORM: SHARED. */
+          if (((p_ty > 0) && (pipeline_type_kind_ord_at(arena, p_ty) == 11))) {
+            if ((codegen_append_byte(out, 32) !=0)) {
+              if ((mono_ctx_set != 0)) {
+                (void)(((ctx->mono_active) = saved_mono_active));
+                (void)(((ctx->mono_num_types) = saved_mono_num));
+                (void)(((ctx->current_func_index) = saved_func_index));
+                (void)(((ctx->current_block_ref) = saved_block_ref));
+              }
+              return -(1);
+            }
+            if ((codegen_append_byte(out, 42) !=0)) {
+              if ((mono_ctx_set != 0)) {
+                (void)(((ctx->mono_active) = saved_mono_active));
+                (void)(((ctx->mono_num_types) = saved_mono_num));
+                (void)(((ctx->current_func_index) = saved_func_index));
+                (void)(((ctx->current_block_ref) = saved_block_ref));
+              }
+              return -(1);
+            }
           }
           if ((codegen_append_byte(out, 32) !=0)) {
             if ((mono_ctx_set != 0)) {

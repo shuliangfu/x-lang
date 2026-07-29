@@ -14425,6 +14425,68 @@ export function codegen_type_ref_to_suffix(arena: *ASTArena, type_ref: i32, buf:
       let s: u8[6] = [105, 115, 105, 122, 101, 0];
       return emit_suffix_bytes(buf, &s[0], 5);
     }
+    /*
+     * wave687 Cap residual: TYPE_ARRAY → `<elem>_a<N>` (e.g. i32_a2 for i32[2]).
+     * Multi-dim peels via recursive elem suffix (`i32_a3_a2` for i32[2][3] outer=2).
+     * Why: generic formals `T[N]` bind call-arg concrete `i32[N]` as mono combo keys;
+     * codegen_emit_mono_mangled_name requires a non-empty suffix. Prior fall-through
+     * returned 0 → mono emit -1 → XP003 entry-module fail (typeck already green after
+     * wave686). Mirrors TYPE_PTR (`_ptr`) / TYPE_VECTOR (`xN`) style.
+     * PLATFORM: SHARED — G.7 single authority; seed twin must match.
+     */
+    if (tk == (TypeKind.TYPE_ARRAY as i32)) {
+      let elem_ref: i32 = pipeline_type_elem_ref_at(arena, type_ref);
+      let asz: i32 = pipeline_type_array_size_at(arena, type_ref);
+      let n: i32 = codegen_type_ref_to_suffix(arena, elem_ref, buf, buf_cap);
+      if (n <= 0 || asz <= 0) {
+        return 0;
+      }
+      /* `_a` then decimal size (up to 6 digits). */
+      if (n + 2 >= buf_cap) {
+        return 0;
+      }
+      buf[n] = 95;
+      buf[n + 1] = 97;
+      n = n + 2;
+      let digs: u8[8] = [];
+      let nd: i32 = 0;
+      let v: i32 = asz;
+      while (v > 0 && nd < 6) {
+        digs[nd] = ((v % 10) + 48) as u8;
+        nd = nd + 1;
+        v = v / 10;
+      }
+      if (nd <= 0) {
+        return 0;
+      }
+      if (n + nd >= buf_cap) {
+        return 0;
+      }
+      let di: i32 = nd - 1;
+      while (di >= 0) {
+        buf[n] = digs[di];
+        n = n + 1;
+        di = di - 1;
+      }
+      return n;
+    }
+    /*
+     * wave687 Cap residual: TYPE_SLICE → `<elem>_slc` (e.g. i32_slc for []i32).
+     * Same mono-mangle authority gap as TYPE_ARRAY; formals `[]T` use call-arg
+     * `[]i32` as combo keys. PLATFORM: SHARED — seed twin must match.
+     */
+    if (tk == (TypeKind.TYPE_SLICE as i32)) {
+      let elem_ref: i32 = pipeline_type_elem_ref_at(arena, type_ref);
+      let n: i32 = codegen_type_ref_to_suffix(arena, elem_ref, buf, buf_cap);
+      if (n > 0 && n + 4 < buf_cap) {
+        buf[n] = 95;
+        buf[n + 1] = 115;
+        buf[n + 2] = 108;
+        buf[n + 3] = 99;
+        return n + 4;
+      }
+      return 0;
+    }
     return 0;
   }
 }
@@ -17211,6 +17273,31 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
         }
         return -1;
       }
+      /*
+       * wave687: TYPE_SLICE formals lower as C pointers (`struct xlang_slice_T * name`),
+       * matching emit_func / call-arg ABI. Mono previously emitted by-value struct →
+       * body `s->data` and call `&(local)` BLD001. PLATFORM: SHARED host-C.
+       */
+      if (pipeline_type_kind_ord_at(arena, p0_ty) == (TypeKind.TYPE_SLICE as i32)) {
+        if (append_byte(out, 32) != 0) {
+          if (mono_ctx_set != 0) {
+            ctx.mono_active = saved_mono_active;
+            ctx.mono_num_types = saved_mono_num;
+            ctx.current_func_index = saved_func_index;
+            ctx.current_block_ref = saved_block_ref;
+          }
+          return -1;
+        }
+        if (append_byte(out, 42) != 0) {
+          if (mono_ctx_set != 0) {
+            ctx.mono_active = saved_mono_active;
+            ctx.mono_num_types = saved_mono_num;
+            ctx.current_func_index = saved_func_index;
+            ctx.current_block_ref = saved_block_ref;
+          }
+          return -1;
+        }
+      }
       if (append_byte(out, 32) != 0) {
         if (mono_ctx_set != 0) {
           ctx.mono_active = saved_mono_active;
@@ -17251,6 +17338,27 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
             ctx.current_block_ref = saved_block_ref;
           }
           return -1;
+        }
+        /* wave687: TYPE_SLICE formal → pointer (same as param0). PLATFORM: SHARED. */
+        if (p_ty > 0 && pipeline_type_kind_ord_at(arena, p_ty) == (TypeKind.TYPE_SLICE as i32)) {
+          if (append_byte(out, 32) != 0) {
+            if (mono_ctx_set != 0) {
+              ctx.mono_active = saved_mono_active;
+              ctx.mono_num_types = saved_mono_num;
+              ctx.current_func_index = saved_func_index;
+              ctx.current_block_ref = saved_block_ref;
+            }
+            return -1;
+          }
+          if (append_byte(out, 42) != 0) {
+            if (mono_ctx_set != 0) {
+              ctx.mono_active = saved_mono_active;
+              ctx.mono_num_types = saved_mono_num;
+              ctx.current_func_index = saved_func_index;
+              ctx.current_block_ref = saved_block_ref;
+            }
+            return -1;
+          }
         }
         if (append_byte(out, 32) != 0) {
           if (mono_ctx_set != 0) {
