@@ -329,11 +329,13 @@ case "$TARGET" in
   phys-del-gate|phys-del|physical-delete-gate|makefile-delete-gate)
     # G.7 single body: compiler/scripts/phys_del_makefile_gate.sh
     # Hard-refuses rm of compiler/Makefile until Windows min-gate re-proven.
+    # wave800: --run-windows-gate writes proof stamp; --verify-windows-proof checks tip.
     # Usage:
     #   ./xbuild phys-del-gate
     #   ./xbuild phys-del-gate --check
     #   ./xbuild phys-del-gate --dry-run-delete
-    #   ./xbuild phys-del-gate --run-windows-gate   # MSYS2 only
+    #   ./xbuild phys-del-gate --run-windows-gate          # MSYS2 only; writes proof
+    #   ./xbuild phys-del-gate --verify-windows-proof [p]  # tip SHA match (scp'd stamp)
     # PLATFORM: SHARED shell; Windows gate body only on MSYS2
     shift
     bash compiler/scripts/phys_del_makefile_gate.sh "$@"
@@ -652,10 +654,11 @@ g05 产品链（wave733–735 · 11.1.6；产品 link 零 make）:
                                        （G.7 禁双 .o；禁第二套链接实现）
   leaf-patterns / leaf-residual        叶 .o pattern residual 库存（11.3.1 路径）
   leaf-patterns --check                校验 doc + class dump + 接线
-  phys-del-gate / phys-del             物理删 Makefile 执行闸门（wave799；非物理删）
-  phys-del-gate --check                硬拒删 + preflight 诚实
+  phys-del-gate / phys-del             物理删 Makefile 执行闸门（wave799/800；非物理删）
+  phys-del-gate --check                硬拒删 + preflight 诚实 + proof harness
   phys-del-gate --dry-run-delete       仅列将删面
-  phys-del-gate --run-windows-gate     MSYS2 上跑 hybrid min-gate
+  phys-del-gate --run-windows-gate     MSYS2 上跑 hybrid min-gate 并写 proof stamp
+  phys-del-gate --verify-windows-proof 校验 proof tip 与 HEAD（非 STATUS 翻转）
                                        体 = phys_del_makefile_gate.sh
   host-cc-seed / rt-seed-slice / core-seed / frontend-glue / main-runtime / alias-stubs / extra-cflags / misc-basename / seed-map / r3-cold-seed
                                        R1 host-cc 体（wave748–752 五族）

@@ -405,10 +405,18 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 - `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 families · try-r1 · try-r3-cold · thin_glue/glue-standalone seed-map)  
 - `compiler/scripts/host_platform_linker.sh` (platform + linker · wave745)
 
+## wave800 Windows min-gate proof stamp harness (2026-07-30)
+
+- **Not physical delete · not Windows green · not STATUS flip.** Evidence stamp only.
+- Body: same `phys_del_makefile_gate.sh` — `--run-windows-gate` writes stamp on MSYS green;
+  `--verify-windows-proof` checks tip SHA (scp stamp mac←Windows).
+- Default path: `/tmp/xlang_phys_del_windows_proof.txt` (or `XLANG_PHYS_DEL_WINDOWS_PROOF`).
+- LEAF: `PHYS_DEL_WINDOWS_PROOF_HARNESS=1` · `STATUS_FLIP=0` · `DELETE_ALLOWED=0`.
+
 ## wave799 physical-delete execute gate (2026-07-30)
 
 - **Not physical delete · not Windows green.** Hard-refuse `rm Makefile` without Windows re-prove.
-- Body: `compiler/scripts/phys_del_makefile_gate.sh` · `./xbuild phys-del-gate [--check|--dry-run-delete|--run-windows-gate]`.
+- Body: `compiler/scripts/phys_del_makefile_gate.sh` · `./xbuild phys-del-gate [--check|--dry-run-delete|--run-windows-gate|--verify-windows-proof]`.
 - LEAF: `PHYS_DEL_EXECUTE_GATE=1` · `REFUSES_DELETE=1` · `DELETE_ALLOWED=0` · `WINDOWS_GATE_STATUS=not_reproven_this_tip`.
 
 ## wave798 physical-delete preflight (2026-07-30)

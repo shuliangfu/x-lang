@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2 · wave763 R3 PREFER thin try-r3-prefer · wave764 g05 R3_COLD r3-prefer-family · wave765 g05 labi try-labi-prefer · wave766 g05 rt try-rt-prefer · wave767 g05 pipeline_abi/ldpc try-*-prefer · wave768 g05 target_cpu try-target-cpu-prefer · wave769 g05 L2 asm try-l2-asm-prefer · wave770 g05 async try-async-prefer · wave771 g05 other L2 try-other-l2-prefer · wave772 11.1.4 pure-ld cold prefer · wave773 g05 pure-ld prefer · wave774 drop silent CC fallback · wave775 fmt_check_cmd.o dual · wave776 R2 panic PREFER try-r2-prefer · wave777 physical-delete prep inventory · wave778 Windows gate + dual-end verify · wave779 B1 runtime-os try-runtime-os-prefer · wave780 B2 std-core try-std-core-prefer · wave781 B3 lsp-sat try-lsp-sat-prefer · wave782 B4 gen-c-to-o · wave783 B5 cfg-eval-ladder · wave784 B6 R5 compiler_all_ci · wave785 B7 DAG inventory + archaeology CC thin · wave786 B7D host-cc product link g05 · wave787 B7A cold residual_make=0 + B7B list honesty · wave788 B7B shell-primary catalog · wave789 B7A heat try-heat shell dispatch · wave790 B7A heat thin-unify)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2 · wave763 R3 PREFER thin try-r3-prefer · wave764 g05 R3_COLD r3-prefer-family · wave765 g05 labi try-labi-prefer · wave766 g05 rt try-rt-prefer · wave767 g05 pipeline_abi/ldpc try-*-prefer · wave768 g05 target_cpu try-target-cpu-prefer · wave769 g05 L2 asm try-l2-asm-prefer · wave770 g05 async try-async-prefer · wave771 g05 other L2 try-other-l2-prefer · wave772 11.1.4 pure-ld cold prefer · wave773 g05 pure-ld prefer · wave774 drop silent CC fallback · wave775 fmt_check_cmd.o dual · wave776 R2 panic PREFER try-r2-prefer · wave777 physical-delete prep inventory · wave778 Windows gate + dual-end verify · wave779 B1 runtime-os try-runtime-os-prefer · wave780 B2 std-core try-std-core-prefer · wave799 execute-gate · wave800 Windows proof harness · wave781 B3 lsp-sat try-lsp-sat-prefer · wave782 B4 gen-c-to-o · wave783 B5 cfg-eval-ladder · wave784 B6 R5 compiler_all_ci · wave785 B7 DAG inventory + archaeology CC thin · wave786 B7D host-cc product link g05 · wave787 B7A cold residual_make=0 + B7B list honesty · wave788 B7B shell-primary catalog · wave789 B7A heat try-heat shell dispatch · wave790 B7A heat thin-unify)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -1007,6 +1007,7 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - [x] **wave790:** B7A heat Makefile recipes unify → `try-heat` only (dep edges residual; mode names in comments)
 - [x] **wave798:** physical-delete **preflight** readiness (named blockers; Windows min-gate cmd; NOT green; NOT delete)
 - [x] **wave799:** physical-delete **execute gate** (`phys_del_makefile_gate.sh` refuse-delete + dry-run; NOT green; NOT delete)
+- [x] **wave800:** Windows min-gate **proof stamp** harness (`--run-windows-gate` writes stamp; `--verify-windows-proof`; NOT STATUS green; NOT delete)
 - [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame · **Windows gate**)
 - [ ] Leaf `.o` without host-cc residual (stages 8–9 / 12)
 - [ ] B7 residual endgame: Makefile heat **dep** edges gone / physical delete (try-heat ✅ wave789; thin-unify ✅ wave790; source-prereq closed wave797; thin-call edges remain until phys del)
@@ -1636,3 +1637,37 @@ After Windows green (human dual-boot reboot → MSYS2 min-gate):
 | `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `0` |
 
 **Forbidden:** claim execute-gate = physical delete / Windows green; delete Makefile before Windows min-gate; mac-only wave green.
+
+## wave800 Windows min-gate proof stamp harness (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; flip `PHYS_DEL_WINDOWS_GATE_STATUS` to green.  
+> **This wave:** G.7 **有则补全** on `phys_del_makefile_gate.sh` — machine-checkable *evidence*
+> stamp after MSYS2 hybrid min-gate green. Proof ≠ STATUS flip. Proof ≠ physical delete.
+> Mac/Ubuntu can `--verify-windows-proof` a stamp scp'd from Windows (tip SHA must match HEAD).
+
+```text
+Entry:
+  ./xbuild phys-del-gate --run-windows-gate
+      # MSYS2 only: runs tests/run-bootstrap-bstrict-windows-gate.sh
+      # on exit 0 writes /tmp/xlang_phys_del_windows_proof.txt (or XLANG_PHYS_DEL_WINDOWS_PROOF)
+  scp windows-server:/tmp/xlang_phys_del_windows_proof.txt /tmp/
+  ./xbuild phys-del-gate --verify-windows-proof
+      # exit 0 = tip match + RC=0; exit 2 = missing/mismatch
+      # does NOT flip PHYS_DEL_WINDOWS_GATE_STATUS
+
+After verified evidence + human review:
+  mac commit flips PHYS_DEL_WINDOWS_GATE_STATUS + physical delete wave
+  (never auto-flip leaf keys from stamp alone)
+```
+
+| Key | Value |
+|-----|--------|
+| `PHYS_DEL_WINDOWS_PROOF_HARNESS` | `1` |
+| `PHYS_DEL_WINDOWS_PROOF_HARNESS_WAVE` | `wave800` |
+| `PHYS_DEL_WINDOWS_PROOF_DEFAULT_PATH` | `/tmp/xlang_phys_del_windows_proof.txt` |
+| `PHYS_DEL_WINDOWS_PROOF_STATUS_FLIP` | `0` |
+| `PHYS_DEL_WINDOWS_PROOF_DELETE_ALLOWED` | `0` |
+| `PHYS_DEL_WINDOWS_GATE_STATUS` | `not_reproven_this_tip` (honest) |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `0` |
+
+**Forbidden:** claim proof = STATUS green / physical delete; auto-flip leaf from stamp; delete Makefile from proof alone; mac-only wave green.

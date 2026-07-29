@@ -62,6 +62,9 @@
 #   wave799: physical-delete *execute* gate (phys_del_makefile_gate.sh) —
 #            hard-refuse rm Makefile without Windows green; dry-run inventory.
 #            NOT physical delete; does NOT mark Windows green.
+#   wave800: Windows min-gate *proof stamp* harness (same phys_del script) —
+#            --run-windows-gate writes stamp; --verify-windows-proof checks tip.
+#            Evidence only: NOT STATUS flip; NOT physical delete.
 #
 # Authority (G.7):
 #   Single shell authority for *named residual classes* of Makefile leaf pattern /
@@ -83,7 +86,7 @@
 #   ./xbuild leaf-patterns | leaf-residual [--check]
 #
 # PLATFORM: SHARED — inventory portable; leaf ABI stays in Makefile / mk.
-# Wave: 746–799 Track MG · 11.3.1 path (B7A heat dep-edge thin wave791–797 · preflight wave798 · execute-gate wave799 · thin-unify wave790 · try-heat wave789 · B7B shell catalog · B7A cold 0-make · heat source-prereq closed · not physical delete · Windows gate + dual-end).
+# Wave: 746–800 Track MG · 11.3.1 path (B7A heat dep-edge thin wave791–797 · preflight wave798 · execute-gate wave799 · Windows proof harness wave800 · thin-unify wave790 · try-heat wave789 · B7B shell catalog · B7A cold 0-make · heat source-prereq closed · not physical delete · Windows gate + dual-end).
 
 set -euo pipefail
 
@@ -402,7 +405,7 @@ PHYS_DEL_BUCKET_B7=makefile_dag_thin_calls
 PHYS_DEL_BUCKET_B7_SCOPE=thin_call_edges+mk_lists+archaeology_phonies+host_cc_link
 PHYS_DEL_BUCKET_B7_INVENTORY=1
 PHYS_DEL_BUCKET_B7_BODY_SWALLOWED=0
-PHYS_DEL_BUCKET_B7_WAVE=wave799
+PHYS_DEL_BUCKET_B7_WAVE=wave800
 SWALLOWED_B7_DAG_INVENTORY=1
 B7_DAG_INVENTORY_SWALLOWED=1
 B7_DAG_INVENTORY_NOTE=named_subbuckets_post_B1_B6_leaf_body_clear
@@ -481,7 +484,7 @@ PHYS_DEL_BUCKET_B7D_NOTE=default_make_xlang_is_product_g05_escape_OBJS_CORE
 SWALLOWED_B7D_HOST_CC_PRODUCT_LINK=1
 B7D_HOST_CC_PRODUCT_LINK_SWALLOWED=1
 PHYS_DEL_PREP_NEXT=B7_physical_delete_makefile_after_windows_not_this_wave
-PHYS_DEL_PREP_FORBIDDEN=claim_physical_delete|dual_o_list_as_authority|delete_makefile_before_windows_green|claim_B7_inventory_is_delete|claim_B7D_is_physical_delete|claim_B7A_cold_0make_is_physical_delete|claim_B7B_honesty_is_list_delete|claim_B7B_shell_catalog_is_physical_delete|claim_B7A_heat_try_heat_is_physical_delete|claim_B7A_heat_dispatch_removes_makefile_edges|claim_B7A_heat_thin_unify_is_physical_delete|claim_try_heat_recipes_remove_dep_edges|claim_B7A_heat_dep_thin_is_physical_delete|claim_all_dep_edges_gone|claim_preflight_is_physical_delete|claim_preflight_is_windows_green|claim_execute_gate_is_physical_delete|claim_execute_gate_is_windows_green
+PHYS_DEL_PREP_FORBIDDEN=claim_physical_delete|dual_o_list_as_authority|delete_makefile_before_windows_green|claim_B7_inventory_is_delete|claim_B7D_is_physical_delete|claim_B7A_cold_0make_is_physical_delete|claim_B7B_honesty_is_list_delete|claim_B7B_shell_catalog_is_physical_delete|claim_B7A_heat_try_heat_is_physical_delete|claim_B7A_heat_dispatch_removes_makefile_edges|claim_B7A_heat_thin_unify_is_physical_delete|claim_try_heat_recipes_remove_dep_edges|claim_B7A_heat_dep_thin_is_physical_delete|claim_all_dep_edges_gone|claim_preflight_is_physical_delete|claim_preflight_is_windows_green|claim_execute_gate_is_physical_delete|claim_execute_gate_is_windows_green|claim_proof_is_status_green|claim_proof_is_physical_delete|auto_flip_leaf_from_proof
 # wave778: hard gate — physical delete of compiler/Makefile only AFTER Windows
 # hybrid min-gate green (+ PE pure-ld residual owned). Body swallow (B1–B5) keeps
 # Makefile thin-call edges; it is NOT physical delete. Never rm Makefile casually.
@@ -517,7 +520,18 @@ PHYS_DEL_EXECUTE_GATE_REFUSES_DELETE=1
 PHYS_DEL_EXECUTE_GATE_DELETE_ALLOWED=0
 PHYS_DEL_EXECUTE_GATE_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_EXECUTE_GATE_NEXT=windows_hybrid_min_gate_on_msys2_then_physical_delete
-PHYS_DEL_EXECUTE_GATE_FORBIDDEN=claim_execute_gate_is_physical_delete|claim_execute_gate_is_windows_green|delete_makefile_before_windows_green
+PHYS_DEL_EXECUTE_GATE_FORBIDDEN=claim_execute_gate_is_physical_delete|claim_execute_gate_is_windows_green|delete_makefile_before_windows_green|claim_proof_is_status_green|claim_proof_is_physical_delete|auto_flip_leaf_from_proof
+# wave800: Windows min-gate proof stamp harness (evidence only; NOT STATUS green; NOT delete).
+# Authority body: phys_del_makefile_gate.sh --run-windows-gate writes stamp; --verify-windows-proof.
+PHYS_DEL_WINDOWS_PROOF_HARNESS=1
+PHYS_DEL_WINDOWS_PROOF_HARNESS_WAVE=wave800
+PHYS_DEL_WINDOWS_PROOF_HARNESS_NOTE=evidence_stamp_after_msys_min_gate_not_status_flip
+PHYS_DEL_WINDOWS_PROOF_HARNESS_SCRIPT=compiler/scripts/phys_del_makefile_gate.sh
+PHYS_DEL_WINDOWS_PROOF_DEFAULT_PATH=/tmp/xlang_phys_del_windows_proof.txt
+PHYS_DEL_WINDOWS_PROOF_STATUS_FLIP=0
+PHYS_DEL_WINDOWS_PROOF_DELETE_ALLOWED=0
+PHYS_DEL_WINDOWS_PROOF_NEXT=msys_run_gate_write_stamp_scp_mac_verify_then_reviewed_status_flip
+PHYS_DEL_WINDOWS_PROOF_FORBIDDEN=claim_proof_is_status_green|claim_proof_is_physical_delete|auto_flip_leaf_from_proof|delete_makefile_from_proof_alone
 # wave778: every SHARED MG wave must green on mac + Ubuntu (Ubuntu = gold).
 # Mac-only residual/matrix green is NOT wave green. Push → Ubuntu pull → same check.
 MG_VERIFY_DUAL_END=mac_plus_ubuntu_required
@@ -915,6 +929,9 @@ else
   fi
   if ! grep -qE 'wave799|PHYS_DEL_EXECUTE_GATE|phys-del execute|phys_del_makefile_gate' "$DOC_REL"; then
     bad "$DOC_REL must document wave799 physical-delete execute gate"
+  fi
+  if ! grep -qE 'wave800|PROOF_HARNESS|proof stamp|verify-windows-proof|WINDOWS_PROOF' "$DOC_REL"; then
+    bad "$DOC_REL must document wave800 Windows proof harness"
   fi
   if ! grep -qE 'MG_VERIFY_DUAL_END|mac_plus_ubuntu|dual.end|双端' "$DOC_REL"; then
     bad "$DOC_REL must document wave778 dual-end mac+Ubuntu verify policy"
@@ -1424,25 +1441,34 @@ fi
 if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_EXECUTE_GATE_SCRIPT=compiler/scripts/phys_del_makefile_gate.sh'; then
   bad "dump must name phys_del_makefile_gate.sh (wave799)"
 fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_WINDOWS_PROOF_HARNESS=1'; then
+  bad "dump must set PHYS_DEL_WINDOWS_PROOF_HARNESS=1 (wave800)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_WINDOWS_PROOF_HARNESS_WAVE=wave800'; then
+  bad "dump must set PHYS_DEL_WINDOWS_PROOF_HARNESS_WAVE=wave800"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_WINDOWS_PROOF_STATUS_FLIP=0'; then
+  bad "dump must keep PHYS_DEL_WINDOWS_PROOF_STATUS_FLIP=0 (wave800)"
+fi
 if [ ! -f "$ROOT/compiler/scripts/phys_del_makefile_gate.sh" ]; then
-  bad "missing compiler/scripts/phys_del_makefile_gate.sh (wave799 execute-gate body)"
+  bad "missing compiler/scripts/phys_del_makefile_gate.sh (wave799/800 execute-gate + proof body)"
 else
-  note "phys_del_makefile_gate.sh present (wave799; refuse-delete; not Windows green)"
-  # Self-check execute gate (refuse contract + preflight honesty).
+  note "phys_del_makefile_gate.sh present (wave799 refuse-delete + wave800 proof harness; not Windows green)"
+  # Self-check execute gate + proof harness (refuse contract + synthetic stamp).
   if ! bash "$ROOT/compiler/scripts/phys_del_makefile_gate.sh" --check >/tmp/phys_del_gate_check.$$ 2>&1; then
     cat /tmp/phys_del_gate_check.$$ >&2 || true
-    bad "phys_del_makefile_gate.sh --check failed (wave799)"
+    bad "phys_del_makefile_gate.sh --check failed (wave799/800)"
   else
-    note "phys_del_makefile_gate.sh --check OK (wave799)"
+    note "phys_del_makefile_gate.sh --check OK (wave799/800)"
   fi
   rm -f /tmp/phys_del_gate_check.$$
 fi
-# Honesty: execute-gate must not claim Windows green / delete done either.
+# Honesty: execute-gate / proof harness must not claim Windows green / delete done.
 if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip'; then
-  bad "wave799 must keep PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip"
+  bad "wave800 must keep PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip"
 fi
 if ! printf '%s\n' "$_out" | grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0'; then
-  bad "wave799 must keep ENDGAME_PHYSICAL_DELETE_MAKEFILE=0"
+  bad "wave800 must keep ENDGAME_PHYSICAL_DELETE_MAKEFILE=0"
 fi
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
@@ -1823,7 +1849,7 @@ else
     "$REBUILD_REL"; then
     bad "rebuild_leaves must not hardcode .o list (dual authority)"
   fi
-  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld (wave772/773) + drop silent CC fallback (wave774); fmt_check_cmd.o dual (wave775); R2 panic PREFER try-r2-prefer (wave776); phys-del prep (wave777); Windows+dual-end gate (wave778); B1–B6 swallow (wave779–784); B7 DAG inventory + archaeology CC thin (wave785); B7D host-cc product link g05 (wave786); B7A cold residual_make=0 honesty (wave787); B7B shell-primary catalog (wave788); B7A heat try-heat (wave789); B7A heat thin-unify (wave790); B7A heat dep-thin FORCE 113 (wave791–797; orch closed); phys-del preflight (wave798); phys-del execute-gate (wave799); residual Windows min-gate then physical delete"
+  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld (wave772/773) + drop silent CC fallback (wave774); fmt_check_cmd.o dual (wave775); R2 panic PREFER try-r2-prefer (wave776); phys-del prep (wave777); Windows+dual-end gate (wave778); B1–B6 swallow (wave779–784); B7 DAG inventory + archaeology CC thin (wave785); B7D host-cc product link g05 (wave786); B7A cold residual_make=0 honesty (wave787); B7B shell-primary catalog (wave788); B7A heat try-heat (wave789); B7A heat thin-unify (wave790); B7A heat dep-thin FORCE 113 (wave791–797; orch closed); phys-del preflight (wave798); phys-del execute-gate (wave799); Windows proof harness (wave800); residual Windows min-gate then physical delete"
 fi
 
 # wave772/774: cold pure-ld required when eligible (no silent CC fallback)
@@ -2006,5 +2032,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747 R4 mode + wave756 pure-R1 + wave757 R3 cold-else + wave763 R3 PREFER thin + wave764 g05 r3-prefer-family + wave765 labi try-labi-prefer + wave758 thin_glue + wave759 glue-standalone + wave760 R2 panic + wave761 gen-x + wave762 R2 typeck_f64/crt0 + wave748–755 R1 families + 11.3.1 leaf residual inventory + wave790 heat thin-unify + wave791–797 heat dep-thin FORCE 113 orch closed + wave798 phys-del preflight + wave799 phys-del execute-gate)"
+echo "leaf_pattern_residual: CHECK OK (wave747 R4 mode + wave756 pure-R1 + wave757 R3 cold-else + wave763 R3 PREFER thin + wave764 g05 r3-prefer-family + wave765 labi try-labi-prefer + wave758 thin_glue + wave759 glue-standalone + wave760 R2 panic + wave761 gen-x + wave762 R2 typeck_f64/crt0 + wave748–755 R1 families + 11.3.1 leaf residual inventory + wave790 heat thin-unify + wave791–797 heat dep-thin FORCE 113 orch closed + wave798 phys-del preflight + wave799 phys-del execute-gate + wave800 Windows proof harness)"
 exit 0

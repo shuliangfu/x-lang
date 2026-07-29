@@ -1507,12 +1507,13 @@
     ✅ **B7A heat dep-edge thin orch**（wave797 · +1 → **113 FORCE**；orch seed/.x + `pipeline_gen.c` + types.inc mtime；**HEAT_RESIDUAL=0**；**非**物理删；residual 物理删 only）；
     ✅ **phys-del preflight**（wave798 · readiness 机检 · blockers 命名 · Windows min-gate 命令权威；**非**物理删 · **非** Windows 绿 · `WINDOWS_GATE_STATUS=not_reproven_this_tip`）；
     ✅ **phys-del execute-gate**（wave799 · `phys_del_makefile_gate.sh` / `./xbuild phys-del-gate` 硬拒删 · dry-run · MSYS runbook；**非**物理删 · **非** Windows 绿 · `DELETE_ALLOWED=0`）；
+    ✅ **Windows proof stamp harness**（wave800 · `--run-windows-gate` 写 stamp · `--verify-windows-proof` tip 校验；**非** STATUS 翻转 · **非**物理删 · `PROOF_STATUS_FLIP=0`）；
     ⬜ B7 residual endgame · physical delete / 删 Makefile（**仅**须 Windows hybrid min-gate 绿；heat source-prereq 已 closed）
   - ⬜ 物理删 `compiler/Makefile` 仍 ⬜（下项）
 
 ⬜ **11.3.1 删除 `compiler/Makefile`**
 
-  - 前置：11.0 迁移表 100% 有主；8.3/7/8 白名单 residual 可被 xbuild 编完或已为 0；wave746 库存类 R1–R5 有主 shell；**wave777 prep 桶 B1–B7 有主**；**wave797 heat source-prereq closed**；**wave798 preflight**；**wave799 execute-gate 硬拒删**；**wave778 Windows hybrid min-gate 绿**（tip 重跑）后再删
+  - 前置：11.0 迁移表 100% 有主；8.3/7/8 白名单 residual 可被 xbuild 编完或已为 0；wave746 库存类 R1–R5 有主 shell；**wave777 prep 桶 B1–B7 有主**；**wave797 heat source-prereq closed**；**wave798 preflight**；**wave799 execute-gate 硬拒删**；**wave800 proof stamp harness**；**wave778 Windows hybrid min-gate 绿**（tip 重跑 + proof verify）后再删
   - 验收 grep（全仓 · 不止 tests/analysis/docs）：
     ```
     rg -n 'make -C compiler|compiler/Makefile|\bmake\s+-C|\$\(MAKE\)' \
