@@ -405,6 +405,11 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 - `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 families · try-r1 · try-r3-cold · thin_glue/glue-standalone seed-map)  
 - `compiler/scripts/host_platform_linker.sh` (platform + linker · wave745)
 
+## wave793 B7A heat dep-edge thin pure seed+.x+.h residual (2026-07-30)
+
+- **Not physical delete.** Pure seed+.x+.h residual (+19 → **78 FORCE**): Makefile prereqs → FORCE + ensure; shell `seed_project_hdrs_newer` owns project-header mtime (with seed/.x).
+- Residual: twin/c multi/asm/gen/Makefile/stamp leaves.
+
 ## wave792 B7A heat dep-edge thin pure seed+.x residual (2026-07-30)
 
 - **Not physical delete.** Pure seed+.x residual (+31 → **59 FORCE** with wave791): R1/async/rt/alias/L2/lsp/… → FORCE + ensure; shell mtime.

@@ -59,7 +59,7 @@
 | **R2** | Platform stamp / UNAME leaf | `runtime_panic.$(UNAME_S).$(UNAME_M).stamp` · `typeck_f64_bits` arch `.s` pick · crt0 | shell + host_platform_linker facts; lists stay mk | **panic cold ✅ wave760** · **typeck_f64/crt0 ✅ wave762** (try-r2) · **panic PREFER ✅ wave776** (try-r2-prefer) |
 | **R3** | Thin+rest / PREFER_X_O host-cc rest | thin `.o` + `FROM_X=1` rest `cc -c` + `ld -r` | cold-else shell ensure; PREFER thin product path | **cold-else ✅ wave757** · **Makefile PREFER ✅ wave763** · **g05 R3_COLD ✅ wave764** · **labi multi-slice ✅ wave765** · **rt multi-slice ✅ wave766** · **pipeline_abi/ldpc ✅ wave767** · **target_cpu ✅ wave768**; residual other L2 |
 | **R4** | Cold rebuild **pattern bodies** | sat/lsp/bridge/panic/user-asm/glue/pipeline-x | rebuild without make pattern graph | **mode+list shell wave747** · **pure-R1 wave756** · **R3 cold wave757** · **thin_glue seed-map wave758** · **glue standalone seed-map wave759** · **panic cold try-r2 wave760** · **gen try-gen-x wave761** · **typeck_f64/crt0 try-r2 wave762**; residual PREFER thin / sat non-R1 if any |
-| **R5** | CI / `compiler-all` host-cc graph | Makefile `all` · OPT seed path | `scripts/compiler_all_ci.sh` (wave784); stage 12 = zero host-cc | **body ✅ wave784** · **B7D TARGET→g05 ✅ wave786** · **B7A cold residual_make=0 ✅ wave787** · **B7B shell catalog ✅ wave788** · **B7A heat try-heat ✅ wave789** · **B7A heat thin-unify ✅ wave790** · **B7A heat dep-thin pure seed+.x 59 FORCE ✅ wave791–792** · residual hdr/c/asm/twin dep / physical delete |
+| **R5** | CI / `compiler-all` host-cc graph | Makefile `all` · OPT seed path | `scripts/compiler_all_ci.sh` (wave784); stage 12 = zero host-cc | **body ✅ wave784** · **B7D TARGET→g05 ✅ wave786** · **B7A cold residual_make=0 ✅ wave787** · **B7B shell catalog ✅ wave788** · **B7A heat try-heat ✅ wave789** · **B7A heat thin-unify ✅ wave790** · **B7A heat dep-thin pure seed+.x(+.h) 78 FORCE ✅ wave791–793** · residual twin/c multi/asm/gen dep / physical delete |
 | **R6** | Cold **link** pure-ld + g05 pure-ld | `run_pure_ld_required` + `run_g05_pure_ld_required`; named CC residual FORCE_CC/ineligible only | 11.1.4 · **wave772** cold · **wave773** g05 · **wave774** drop silent fallback; residual physical delete · fmt dual | ~~silent CC after pure fail~~ · ~~residual CC primary~~ · ~~g05 CC-only~~ |
 
 **R1–R5** are the 11.3.1 **leaf pattern** residual. **R6** is tracked under 11.1.4 (wave745).
@@ -1507,6 +1507,13 @@ After (wave776):
 - `compiler/scripts/driver_seed_obj_catalog.sh` (list authority)  
 - `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 families + try-r1 + R3 cold-else + thin_glue/glue-standalone + R2 panic/typeck_f64/crt0 try-r2)  
 - skill G.7 single authority · G.8 platform tags
+
+## wave793 B7A heat dep-edge thin pure seed+.x+.h residual (2026-07-30)
+
+- **Not physical delete.** Pure seed+.x+.h residual (+19 → **78 FORCE** total): R1/core/frontend/labi/async/target_cpu/simd/lsp… → `FORCE` + ensure.
+- Shell owns seed/.x/**project-header** mtime via `seed_project_hdrs_newer` (depth-capped #include BFS under `.|include|src`) in `ensure_one` + prefer skip paths.
+- Residual after wave793: twin (scheduler·strict_glue_stubs) · multi-seed (cfg_eval) · Makefile-prereq · asm/gen · std merge · panic stamp.
+- LEAF: `DEP_THIN_COUNT=78` · `HEAT_RESIDUAL=1` · `PHYS_DEL_PREP_NEXT=…windows…`.
 
 ## wave792 B7A heat dep-edge thin pure seed+.x residual (2026-07-30)
 

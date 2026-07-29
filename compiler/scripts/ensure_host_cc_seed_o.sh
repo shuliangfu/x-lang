@@ -106,6 +106,10 @@
 #   wave792: B7A heat dep-edge thin — pure seed+.x residual (R1/async/rt/alias/L2/
 #            lsp/strict_minimal; +31 → 59 FORCE) same FORCE+ensure pattern.
 #            Exclude hdr/twin (scheduler·strict_glue_stubs)/cfg_eval multi/asm/gen.
+#   wave793: B7A heat dep-edge thin — pure seed+.x+.h residual → FORCE (+19 → 78).
+#            ensure_one + prefer skip paths own project-header mtime via
+#            seed_project_hdrs_newer (quoted/angle #include under .|include|src,
+#            depth-capped BFS). NOT physical delete; residual twin/c multi/asm/gen.
 #   wave758: R4 residual pure host-cc thin_glue → R1 seed-map (G.7 有则补全):
 #            parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c +
 #            -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm;
@@ -285,6 +289,74 @@ done
 
 log() { echo "ensure-host-cc-seed: $*" >&2; }
 
+
+# ---------------------------------------------------------------------------
+# wave793: project-header freshness (G.7 single body for FORCE thin).
+#
+# Mirror Makefile .h prereqs without dual lists: scan seed #include "..." / <...>
+# and resolve under dirname(seed), include/, src/, and .  Depth-capped BFS so
+# transitive project headers (e.g. lexer.h → token.h) refresh the .o.
+# System headers (not found under project paths) are ignored.
+# Exit 0 if any resolved project header is newer than OUT; else 1.
+# PLATFORM: SHARED — portable shell; no make graph.
+# ---------------------------------------------------------------------------
+seed_project_hdrs_newer() {
+  local seed="$1"
+  local out="$2"
+  local f inc cand resolved dir n=0 max_n=64
+  local queue="" seen=" "
+  if [ -z "$seed" ] || [ -z "$out" ] || [ ! -f "$seed" ] || [ ! -f "$out" ]; then
+    return 1
+  fi
+  queue="$seed"
+  seen=" $seed "
+  while [ -n "$queue" ] && [ "$n" -lt "$max_n" ]; do
+    f="${queue%% *}"
+    if [ "$queue" = "$f" ]; then
+      queue=""
+    else
+      queue="${queue#* }"
+    fi
+    n=$((n + 1))
+    [ -f "$f" ] || continue
+    dir="$(dirname "$f")"
+    # shellcheck disable=SC2016
+    while IFS= read -r inc || [ -n "$inc" ]; do
+      [ -z "$inc" ] && continue
+      # Skip obvious libc / system basenames when not present in project tree.
+      resolved=""
+      for cand in "$dir/$inc" "include/$inc" "src/$inc" "$inc"; do
+        if [ -f "$cand" ]; then
+          resolved="$cand"
+          break
+        fi
+      done
+      [ -z "$resolved" ] && continue
+      if [ "$resolved" -nt "$out" ]; then
+        return 0
+      fi
+      case "$seen" in
+        *" $resolved "*) ;;
+        *)
+          seen="$seen$resolved "
+          case "$resolved" in
+            *.h|*.hpp|*.inc)
+              if [ -z "$queue" ]; then
+                queue="$resolved"
+              else
+                queue="$queue $resolved"
+              fi
+              ;;
+          esac
+          ;;
+      esac
+    done <<EOF
+$(sed -n 's/^[[:space:]]*#[[:space:]]*include[[:space:]]*[<"]\([^>"]*\)[>"].*/\1/p' "$f" 2>/dev/null || true)
+EOF
+  done
+  return 1
+}
+
 # ---------------------------------------------------------------------------
 # one OUT SEED [extra cflags...]
 # PLATFORM: SHARED — pure host-cc body; no make graph.
@@ -349,6 +421,10 @@ ensure_one() {
           break
         fi
       done
+    fi
+    # wave793: project headers (Makefile .h prereqs) — single body for FORCE thin.
+    if [ "$need" -eq 0 ] && seed_project_hdrs_newer "$seed" "$out"; then
+      need=1
     fi
     if [ "$need" -eq 0 ]; then
       log "skip $out (up-to-date vs $seed)"
@@ -998,6 +1074,10 @@ ensure_r3_prefer_one() {
     if [ -n "$full_x" ] && [ "$full_x" != "-" ] && [ -f "$full_x" ] && [ "$full_x" -nt "$o" ]; then
       stale=1
     fi
+    # wave793: project-header mtime (FORCE thin; G.7 single body).
+    if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
+      stale=1
+    fi
     if [ "$stale" = "0" ]; then
       log "skip up-to-date $o (r3-prefer)"
       return 0
@@ -1204,6 +1284,10 @@ ensure_labi_prefer_one() {
         break
       fi
     done
+    # wave793: project-header mtime (FORCE thin; G.7 single body).
+    if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
+      stale=1
+    fi
     if [ "$stale" = "0" ]; then
       log "skip up-to-date $o (labi-prefer)"
       return 0
@@ -2562,6 +2646,10 @@ ensure_pipeline_abi_prefer_one() {
     if [ -f src/runtime_pipeline_abi.h ] && [ src/runtime_pipeline_abi.h -nt "$o" ]; then
       stale=1
     fi
+    # wave793: project-header mtime (FORCE thin; G.7 single body).
+    if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
+      stale=1
+    fi
     if [ "$stale" = "0" ]; then
       log "skip up-to-date $o (pipeline-abi-prefer)"
       return 0
@@ -2659,6 +2747,10 @@ ensure_ldpc_prefer_one() {
     stale=0
     [ "$seed" -nt "$o" ] && stale=1
     if [ -f "$x_src" ] && [ "$x_src" -nt "$o" ]; then
+      stale=1
+    fi
+    # wave793: project-header mtime (FORCE thin; G.7 single body).
+    if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
     fi
     if [ "$stale" = "0" ]; then
@@ -2761,6 +2853,10 @@ ensure_target_cpu_prefer_one() {
       stale=1
     fi
     if [ -f "$hdr" ] && [ "$hdr" -nt "$o" ]; then
+      stale=1
+    fi
+    # wave793: project-header mtime (FORCE thin; G.7 single body).
+    if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
     fi
     if [ "$stale" = "0" ]; then
@@ -2900,6 +2996,10 @@ ensure_l2_asm_prefer_one() {
     if [ -f "$x_src" ] && [ "$x_src" -nt "$o" ]; then
       stale=1
     fi
+    # wave793: project-header mtime (FORCE thin; G.7 single body).
+    if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
+      stale=1
+    fi
     if [ "$stale" = "0" ]; then
       log "skip up-to-date $o (l2-asm-prefer)"
       return 0
@@ -3029,6 +3129,10 @@ ensure_async_prefer_one() {
     stale=0
     [ "$seed" -nt "$o" ] && stale=1
     if [ -f "$x_src" ] && [ "$x_src" -nt "$o" ]; then
+      stale=1
+    fi
+    # wave793: project-header mtime (FORCE thin; G.7 single body).
+    if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
     fi
     if [ "$stale" = "0" ]; then
@@ -3205,6 +3309,10 @@ ensure_other_l2_prefer_one() {
     if [ "$leaf_kind" = "strict" ] \
       && [ -f seeds/runtime_heap_user.from_x.c ] \
       && [ seeds/runtime_heap_user.from_x.c -nt "$o" ]; then
+      stale=1
+    fi
+    # wave793: project-header mtime (FORCE thin; G.7 single body).
+    if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
     fi
     if [ "$stale" = "0" ]; then
@@ -3453,6 +3561,10 @@ ensure_runtime_os_prefer_one() {
     stale=0
     [ "$seed" -nt "$o" ] && stale=1
     if [ -f "$x_src" ] && [ "$x_src" -nt "$o" ]; then
+      stale=1
+    fi
+    # wave793: project-header mtime (FORCE thin; G.7 single body).
+    if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
     fi
     if [ "$stale" = "0" ]; then
@@ -3711,6 +3823,10 @@ ensure_std_core_prefer_one() {
         stale=1
       fi
     fi
+    # wave793: project-header mtime (FORCE thin; G.7 single body).
+    if [ "$stale" = "0" ] && [ -n "$seed" ] && [ -f "$seed" ]       && seed_project_hdrs_newer "$seed" "$o"; then
+      stale=1
+    fi
     if [ "$stale" = "0" ] && [ "$leaf_kind" != "net_merge" ]; then
       log "skip up-to-date $o (std-core-prefer/$leaf_kind)"
       return 0
@@ -3943,6 +4059,10 @@ ensure_lsp_sat_prefer_one() {
     if [ -f "$x_src" ] && [ "$x_src" -nt "$o" ]; then
       stale=1
     fi
+    # wave793: project-header mtime (FORCE thin; G.7 single body).
+    if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
+      stale=1
+    fi
     if [ "$stale" = "0" ]; then
       log "skip up-to-date $o (lsp-sat-prefer/$leaf_kind)"
       return 0
@@ -4150,6 +4270,13 @@ ensure_cfg_eval_ladder_one() {
         break
       fi
     done
+    # wave793: project-header mtime (FORCE thin; G.7 single body).
+    # cfg-eval multi-seed: scan pin + alias + stub for #include freshness.
+    if [ "$stale" = "0" ]; then
+      if seed_project_hdrs_newer "$pin" "$o"         || seed_project_hdrs_newer "$alias_seed" "$o"         || seed_project_hdrs_newer "$stub_seed" "$o"; then
+        stale=1
+      fi
+    fi
     if [ "$stale" = "0" ]; then
       log "skip up-to-date $o (cfg-eval-ladder)"
       return 0
@@ -4475,6 +4602,10 @@ ensure_r2_prefer_one() {
           stale=0
           [ "$seed" -nt "$o" ] && stale=1
           [ "$x_src" -nt "$o" ] && stale=1
+          # wave793: project-header mtime (FORCE thin; G.7 single body).
+          if [ "$stale" = "0" ] && [ -n "$seed" ] && [ -f "$seed" ]             && seed_project_hdrs_newer "$seed" "$o"; then
+            stale=1
+          fi
           if [ "$stale" = "0" ]; then
             log "skip up-to-date $o (r2-prefer)"
             return 0
@@ -5982,6 +6113,11 @@ run_check() {
   else
     note "try-heat B7A heat auto-dispatch present (wave789)"
   fi
+  if ! grep -q 'seed_project_hdrs_newer' "$0"; then
+    bad "seed_project_hdrs_newer missing (wave793 B7A hdr mtime for FORCE thin)"
+  else
+    note "seed_project_hdrs_newer present (wave793 project-header freshness)"
+  fi
   if ! grep -q 'try_ensure_runtime_os_prefer_one' "$0" \
     || ! grep -q 'try_ensure_r1_one' "$0" \
     || ! grep -q 'try_ensure_gen_x_one' "$0"; then
@@ -5994,7 +6130,7 @@ run_check() {
     echo "ensure_host_cc_seed_o: --check FAILED" >&2
     exit 1
   fi
-  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else + R3 PREFER thin + R2 panic/typeck_f64/crt0 + gen-x residual + try-heat · wave748–790)" >&2
+  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else + R3 PREFER thin + R2 panic/typeck_f64/crt0 + gen-x residual + try-heat + hdr mtime · wave748–793)" >&2
 }
 
 # ---------------------------------------------------------------------------
@@ -6009,8 +6145,9 @@ run_check() {
 #   1/2 — matching mode hard-failed
 # PLATFORM: SHARED — orchestration only; no second recipe body / no .o list.
 # NOT physical delete: Makefile thin-call edges remain for make dep graph.
-# wave791–792: pure seed+.x leaves use FORCE (no source prereqs); this ladder
-# still owns seed/.x (and prefer-table) freshness — cheap skip when up-to-date.
+# wave791–793: pure seed+.x(+.h) leaves use FORCE (no source prereqs); this ladder
+# still owns seed/.x/project-hdr (and prefer-table) freshness — cheap skip when
+# up-to-date (seed_project_hdrs_newer).
 # ---------------------------------------------------------------------------
 try_heat_one() {
   local o="$1"
