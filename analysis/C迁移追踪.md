@@ -30,7 +30,7 @@
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
 | **Makefile 退役 / xbuild** | 🟡 半路径 | **`./xbuild`→`xlang-build.sh`** 产品入口；根 Makefile **help-only**；叶/组合体→`compiler/mk/*.mk`；**`compiler/Makefile` 仍 ~3445 行权威图**（阶段 11） |
-| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** 外层 `./xbuild`（CI + docker-ci）；残余 make 仅 `run_compiler_make` hub；11.4.1/2/5/6 与零 cc 仍 ⬜ |
+| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；hub + 零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | ⬜ 0/~4 | ~200 个 .c 文件在零 cc 终局下归属未定 — 阶段 11.5 |
 | **冷启动零 cc 链** | ⬜ 0/4 | 最小 seed + 零 cc 验证 + 双端冷启动 |
 | **终局：无 Makefile + 零 cc + v2==v3** | ⬜ 未达 | 见 §0.1 三义；阶段 13 |
@@ -1434,10 +1434,11 @@
 
 > **背景**：阶段 11.0–11.3 只点 Makefile 与 tests/，**漏了根脚本、tools/、scripts/、docker/ 中的 make/cc 调用**。这些是「零 cc 链」的硬障碍。
 
-⬜ **11.4.1 `build.sh`（根目录）直接调 cc**
+✅ **11.4.1 `build.sh`（根目录）薄转发 `./xbuild`（wave731）**
 
-  - 第 36-38 行：`cc $CFLAGS_BT -c build_gen.c -o build_tool.o` / `-c src/build_runtime.c` / `-o build_tool`
-  - 属阶段 12「零 cc 链」的硬障碍；改为 xbuild 或删除
+  - 旧体：直接 `cc` 链 `build_tool`（双权威 + 已坏变量 `$LINK_SHU`）
+  - 现体：默认 `./xbuild build`；参数透传任意 xbuild 目标；**0× host-cc**
+  - host-cc residual 仅 `compiler/scripts/build_tool.sh`（至阶段 12）
 
 🟡 **11.4.2 `xlang-build.sh` 产品路径 0× make -C；CI hub 单点**
 
@@ -1452,16 +1453,15 @@
 
 ✅ **11.4.4 `tools/verify-xlang-migration.sh` 提示 → xbuild（wave730）**
 
-⬜ **11.4.5 `tests/docker/linux-dev.Dockerfile`**
+🟡 **11.4.5 `tests/docker/linux-dev.Dockerfile`（wave731 入口文档）**
 
-  - 行 10 `apt-get install gcc make perl binutils`
-  - 终局 Docker 镜像不装 gcc/make（或仅装 xbuild 运行时依赖）
+  - ✅ `XLANG_PREFERRED_ENTRY=./xbuild` + `org.xlang.entry` label
+  - ⬜ 仍装 `gcc make`（build_tool / seed / bench 差分 residual；**卸包装 = 阶段 12**）
 
-⬜ **11.4.6 `tests/lib/delete-one-c-files.sh`**
+✅ **11.4.6 `tests/lib/delete-one-c-file.sh` → `./xbuild`（wave731）**
 
-  - 行 50-56 `apt-get install -y gcc make` + `make -C compiler bootstrap-driver-bstrict`
-  - 改为 xbuild
-
+  - host + Docker 回归：`./xbuild bootstrap-driver-bstrict`（无 raw `make -C`）
+  - bare ubuntu guest 仍可 apt residual gcc/make（至阶段 12）
 ### 11.5 tests/ 对照 C 文件处理策略（**零 cc 终局下的归属**）
 
 > **背景**：`tests/` 下有 ~200 个 .c 文件（bench/、std-*/、abi/、leak/、safe/、kernel/），当前需 host cc 编译做对照/smoke。阶段 8.3 只管 compiler/ 内 residual C，**完全没覆盖 tests/ 下的对照 C**。零 cc 终局下必须决定它们的归属。

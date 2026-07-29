@@ -199,6 +199,7 @@ case "$TARGET" in
 xbuild / xlang-build.sh — 统一构建入口（G-05 · G.7 同体）
 
 推荐: ./xbuild <target>   （根 Makefile 仅 help→本入口）
+别名: ./build.sh [target]  （wave731 · 11.4.1 薄转发本入口；默认 build）
 
 编译器（推荐日常）:
   all / build / xlang   增量构建（build_tool → g05 relink 金标准）

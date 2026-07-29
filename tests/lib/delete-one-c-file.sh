@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
-# delete-one-c-file.sh — 阶段 G 单文件删 C/H + 快速回归 + 单文件 git commit
+# delete-one-c-file.sh — stage G single-file drop C/H + quick regress + optional commit
 #
-# 用法（仓库根）：
+# Usage (repo root):
 #   ./tests/lib/delete-one-c-file.sh compiler/src/lexer/lexer.c "lexer.x self-host"
 #   XLANG_DELETE_C_SKIP_GIT=1 ./tests/lib/delete-one-c-file.sh path/to/file.c "reason"
 #   XLANG_DELETE_C_SKIP_REGRESS=1 ./tests/lib/delete-one-c-file.sh path/to/file.c "reason"
 #
-# 环境：
-#   XLANG_DELETE_C_SKIP_GIT=1       — 不 git commit
-#   XLANG_DELETE_C_SKIP_REGRESS=1   — 不跑 E-soft / D-03
-#   XLANG_DELETE_C_DOCKER=1         — 在 Linux amd64 Docker 内跑回归
+# Env:
+#   XLANG_DELETE_C_SKIP_GIT=1       — skip git commit
+#   XLANG_DELETE_C_SKIP_REGRESS=1   — skip E-soft / D-03
+#   XLANG_DELETE_C_DOCKER=1         — run regress inside Linux amd64 Docker
+#
+# wave731 · 11.4.6: outer build entry is ./xbuild (G.7). Residual make graph
+# only via xbuild → run_compiler_make / build_tool.sh until stage 11.3/12.
+# PLATFORM: SHARED shell entry · host-cc packages residual until stage 12.
 
-# shellcheck source=compiler-make.sh
-. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -42,22 +44,26 @@ run_regress() {
     progress "SKIP regress (XLANG_DELETE_C_SKIP_REGRESS=1)"
     return 0
   fi
-  chmod +x "$PROGRESS" tests/run-e-soft-retire-gate.sh tests/run-d03-stage2-hash-gate.sh 2>/dev/null || true
+  chmod +x "$PROGRESS" ./xbuild ./xlang-build.sh \
+    tests/run-e-soft-retire-gate.sh tests/run-d03-stage2-hash-gate.sh 2>/dev/null || true
   progress "regress E-soft ..."
   XLANG_E_SOFT_FAIL=1 ./tests/run-e-soft-retire-gate.sh
   if [ "${XLANG_DELETE_C_DOCKER:-0}" = "1" ]; then
-    progress "regress Docker bootstrap + D-03 ..."
+    progress "regress Docker bootstrap + D-03 (./xbuild) ..."
+    # Bare ubuntu: residual host-cc/make until stage 12 (seed graph / build_tool).
+    # Prefer prebuilt xlang-linux-dev image when available (packages preinstalled).
     docker run --rm --platform linux/amd64 -v "$(pwd):/src" -w /src ubuntu:22.04 bash -lc '
       set -e
-      apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq gcc make >/dev/null
-      # shellcheck disable=SC1091
-      . /src/tests/lib/compiler-make.sh
-      xlang_compiler_make bootstrap-driver-bstrict
+      if ! command -v cc >/dev/null 2>&1 || ! command -v make >/dev/null 2>&1; then
+        apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq gcc make >/dev/null
+      fi
+      chmod +x ./xbuild ./xlang-build.sh
+      ./xbuild bootstrap-driver-bstrict
       XLANG_D03_FAIL=1 ./tests/run-d03-stage2-hash-gate.sh
     '
   else
-    progress "regress bootstrap-driver-bstrict (host) ..."
-    xlang_compiler_make bootstrap-driver-bstrict -q 2>/dev/null || xlang_compiler_make bootstrap-driver-bstrict
+    progress "regress bootstrap-driver-bstrict via ./xbuild (host) ..."
+    ./xbuild bootstrap-driver-bstrict
     progress "regress D-03 ..."
     XLANG_D03_FAIL=1 ./tests/run-d03-stage2-hash-gate.sh
   fi

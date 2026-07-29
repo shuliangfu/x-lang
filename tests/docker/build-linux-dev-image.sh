@@ -40,5 +40,6 @@ else
 fi
 
 progress "build-linux-dev-image OK: $IMAGE"
-echo "  快验: ./tests/run-g06-preflight-docker.sh"
-echo "  通用: ./tests/lib/docker-linux-run.sh compiler './scripts/preflight_g06_coldstart.sh'"
+echo "  entry:  docker … -w /src $IMAGE ./xbuild help   (G.7 preferred; wave731)"
+echo "  快验:   ./tests/run-g06-preflight-docker.sh"
+echo "  通用:   ./tests/lib/docker-linux-run.sh compiler './scripts/preflight_g06_coldstart.sh'"

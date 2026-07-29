@@ -27,7 +27,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "=== 11.0.2/11.0.3/11.0.4 + 11.2.5/11.4 product-path 0-make static gate (wave714–730) ==="
+echo "=== 11.0.2/11.0.3/11.0.4 + 11.2.5/11.4 product-path 0-make static gate (wave714–731) ==="
 
 fail=0
 note() { echo "  OK  $*"; }
@@ -692,6 +692,44 @@ else
   bad "xlang-build missing wave730 CI hub targets (compiler-all / bootstrap-driver-seed / compiler-make)"
 fi
 
+# --- wave731: 11.4.1 build.sh thin → xbuild; 11.4.5/6 docker + delete-one outer entry ---
+# build.sh must not host-cc assemble build_tool (G.7: only build_tool.sh residual).
+if [ -x build.sh ] || [ -f build.sh ]; then
+  if grep -qE 'exec sh "\$ROOT/xbuild"|exec .*xbuild' build.sh \
+    && ! grep -nE '[[:space:]]cc[[:space:]]|\$CC' build.sh | grep -vE '^[0-9]+:[[:space:]]*#' | grep -q .; then
+    note "build.sh thin-forwards ./xbuild (no host-cc; wave731 11.4.1)"
+  else
+    bad "build.sh must thin-forward ./xbuild and must not invoke host-cc (wave731 11.4.1)"
+  fi
+else
+  bad "missing build.sh (legacy alias required until docs/LICENSE migrate)"
+fi
+
+# delete-one-c-file: outer bootstrap via ./xbuild (not raw make -C / xlang_compiler_make dual)
+if [ -f tests/lib/delete-one-c-file.sh ]; then
+  if grep -q '\./xbuild bootstrap-driver-bstrict' tests/lib/delete-one-c-file.sh \
+    && ! grep -nE 'make[[:space:]]+-C[[:space:]]+compiler' tests/lib/delete-one-c-file.sh \
+      | grep -vE '^[0-9]+:[[:space:]]*#' | grep -q .; then
+    note "delete-one-c-file uses ./xbuild bootstrap-driver-bstrict (11.4.6)"
+  else
+    bad "delete-one-c-file must call ./xbuild bootstrap-driver-bstrict (wave731 11.4.6)"
+  fi
+else
+  bad "missing tests/lib/delete-one-c-file.sh"
+fi
+
+# Dockerfile documents preferred ./xbuild entry (packages residual until stage 12)
+if [ -f tests/docker/linux-dev.Dockerfile ]; then
+  if grep -q 'XLANG_PREFERRED_ENTRY=\./xbuild' tests/docker/linux-dev.Dockerfile \
+    && grep -q 'org.xlang.entry="./xbuild"' tests/docker/linux-dev.Dockerfile; then
+    note "linux-dev.Dockerfile documents ./xbuild preferred entry (11.4.5)"
+  else
+    bad "linux-dev.Dockerfile missing ./xbuild entry labels/env (wave731 11.4.5)"
+  fi
+else
+  bad "missing tests/docker/linux-dev.Dockerfile"
+fi
+
 # Product daily `all` must remain g05 (not Makefile all); CI uses compiler-all.
 if grep -n 'all|build|xlang)' xlang-build.sh | head -1 | grep -q . \
   && sed -n '/all|build|xlang)/,/^  [a-zA-Z*]/p' xlang-build.sh | head -8 | grep -q 'run_build_tool'; then
@@ -739,5 +777,5 @@ if [ "$fail" -ne 0 ]; then
   echo "FAIL product-path 0-make static gate" >&2
   exit 1
 fi
-echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe; mk OBJS+composites; catalog --check; tests/lib hub; root help→xbuild; CI/docker → xbuild)"
+echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe; mk OBJS+composites; catalog --check; tests/lib hub; root help→xbuild; CI/docker → xbuild; build.sh thin; docker/delete-one entry)"
 exit 0

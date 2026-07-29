@@ -36,7 +36,7 @@ RUNTIME_DRIVER_NO_C_CFLAGS="-DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_
 
 if [ ! -f "${G05_BOOTSTRAP:-bootstrap_xlangc}" ] && [ ! -f xlang ] && [ ! -f xlang-c ]; then
   echo "g05_ensure_relink_prereqs: missing bootstrap binary (bootstrap_xlangc/xlang/xlang-c)" >&2
-  echo "  cold-start: make -C compiler bootstrap-driver-seed   # Makefile 冷启动实现层" >&2
+  echo "  cold-start: ./xbuild bootstrap-driver-seed   # preferred (hub→Makefile graph until 11.3)" >&2
   exit 1
 fi
 
@@ -3320,9 +3320,9 @@ done
 if [ "$miss" -ne 0 ]; then
   echo "g05_ensure_relink_prereqs: $miss object(s) missing" >&2
   echo "  G-05 产品路径不调用 make 编 .o；请先冷启动补齐依赖图：" >&2
-  echo "    make -C compiler bootstrap-driver-seed" >&2
-  echo "    # 或已有完整 build_asm/ 时：" >&2
-  echo "    make -C compiler build-seed-asm-host pipeline_x.o driver_x.o" >&2
+  echo "    ./xbuild bootstrap-driver-seed" >&2
+  echo "    # 或叶透传（已有 build_asm/ 时）：" >&2
+  echo "    ./xbuild compiler-make build-seed-asm-host pipeline_x.o driver_x.o" >&2
   exit 1
 fi
 
