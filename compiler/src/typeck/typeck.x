@@ -213,9 +213,36 @@ export extern function driver_diagnostic_typeck_invalid_void_binop(line: i32, co
  */
 export extern function driver_diagnostic_typeck_invalid_bool_binop(line: i32, col: i32): void;
 export extern function driver_diagnostic_typeck_assign_to_const(line: i32, col: i32): void;
+/**
+ * Report same-block let/const redecl or function-body param clash (wave680 Cap residual).
+ * @param line i32 — 1-based source line of the second declaration
+ * @param col i32 — 1-based source column of the second declaration
+ * @return void
+ * PLATFORM: SHARED — closes soft residual: host-C BLD001 redefinition of local.
+ */
+export extern function driver_diagnostic_typeck_duplicate_local(line: i32, col: i32): void;
 export extern function pipeline_block_name_binding_kind(arena: *ASTArena, block_ref: i32, vname: *u8,
 vlen: i32): i32;
 export extern function pipeline_module_top_level_name_is_const(module: *Module, vname: *u8, vlen: i32): i32;
+/**
+ * wave680: 1 if name conflicts with another same-block let/const or function-body param.
+ * @param arena *ASTArena
+ * @param block_ref i32
+ * @param vname *u8
+ * @param vlen i32
+ * @param kind i32 — 0=let at idx, 1=const at idx
+ * @param idx i32
+ * @param module *Module
+ * @param func_index i32 — -1 skips param scan
+ * @return i32 — 1 conflict, 0 ok
+ * PLATFORM: SHARED — G.7 authority in ast_pool.c
+ */
+export extern function pipeline_block_local_name_redecl_c(arena: *ASTArena, block_ref: i32, vname: *u8,
+vlen: i32, kind: i32, idx: i32, module: *Module, func_index: i32): i32;
+export extern function pipeline_block_let_name_len(arena: *ASTArena, br: i32, li: i32): i32;
+export extern function pipeline_block_let_name_copy64(arena: *ASTArena, br: i32, li: i32, dst: *u8): void;
+export extern function pipeline_block_const_name_len(arena: *ASTArena, br: i32, ci: i32): i32;
+export extern function pipeline_block_const_name_copy64(arena: *ASTArena, br: i32, ci: i32, dst: *u8): void;
 export extern function typeck_driver_diagnostic_pipe_marker(id: i32): void;
 export extern function driver_diagnostic_typeck_if_condition_not_bool(line: i32, col: i32): void;
 export extern function driver_diagnostic_typeck_while_condition_not_bool(line: i32, col: i32): void;
@@ -8685,6 +8712,30 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
     let cd_tr: i32 = ast.ast_block_const_type_ref(arena, block_ref, idx);
     let init_ty: i32 = 0;
     let init_ctx: i32 = 0;
+    let cname_buf: u8[128];
+    let cname_len: i32 = 0;
+    let func_ix: i32 = 0;
+    /*
+     * wave680 Cap residual: same-block const redecl / clash with let / body-param.
+     * Host-C BLD001 redefinition soft residual. Nested shadow OK.
+     * G.7: pipeline_block_local_name_redecl_c + diag duplicate_local.
+     */
+    cname_len = pipeline_block_const_name_len(arena, block_ref, idx);
+    if (cname_len > 0 && cname_len < 128) {
+      pipeline_block_const_name_copy64(arena, block_ref, idx, &cname_buf[0]);
+      func_ix = pipeline_dep_ctx_current_func_index(ctx);
+      if (pipeline_block_local_name_redecl_c(arena, block_ref, &cname_buf[0], cname_len, 1, idx, module,
+          func_ix) != 0) {
+        let err_line: i32 = 0;
+        let err_col: i32 = 0;
+        if (!ast.ref_is_null(cd_ir)) {
+          err_line = pipeline_expr_line_at(arena, cd_ir);
+          err_col = pipeline_expr_col_at(arena, cd_ir);
+        }
+        driver_diagnostic_typeck_duplicate_local(err_line, err_col);
+        return -1;
+      }
+    }
     /* See implementation. */
     if (!ast.ref_is_null(cd_ir)) {
       if (pipeline_typeck_block_const_init_is_const_c(arena, block_ref, idx) == 0) {
@@ -8751,6 +8802,30 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
     let gb: *u8 = 0 as *u8;
     let el: i32 = 0;
     let gl: i32 = 0;
+    let lname_buf: u8[128];
+    let lname_len: i32 = 0;
+    let func_ix_l: i32 = 0;
+    /*
+     * wave680 Cap residual: same-block let redecl / clash with const / body-param.
+     * Host-C BLD001 redefinition soft residual. Nested shadow OK.
+     * G.7: pipeline_block_local_name_redecl_c + diag duplicate_local.
+     */
+    lname_len = pipeline_block_let_name_len(arena, block_ref, idx);
+    if (lname_len > 0 && lname_len < 128) {
+      pipeline_block_let_name_copy64(arena, block_ref, idx, &lname_buf[0]);
+      func_ix_l = pipeline_dep_ctx_current_func_index(ctx);
+      if (pipeline_block_local_name_redecl_c(arena, block_ref, &lname_buf[0], lname_len, 0, idx, module,
+          func_ix_l) != 0) {
+        let err_line: i32 = 0;
+        let err_col: i32 = 0;
+        if (!ast.ref_is_null(ld_ir)) {
+          err_line = pipeline_expr_line_at(arena, ld_ir);
+          err_col = pipeline_expr_col_at(arena, ld_ir);
+        }
+        driver_diagnostic_typeck_duplicate_local(err_line, err_col);
+        return -1;
+      }
+    }
     /* See implementation. */
     if (!ast.ref_is_null(ld_ir)) {
       init_ctx = return_type_ref;

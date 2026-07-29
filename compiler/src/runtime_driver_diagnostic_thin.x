@@ -662,6 +662,22 @@ export function driver_diagnostic_typeck_assign_to_const(line: i32, col: i32): v
   }
 }
 
+/**
+ * Report same-block let/const redecl or function-body param name clash (wave680 Cap residual).
+ * @param line i32 — 1-based source line of the second declaration
+ * @param col i32 — 1-based source column of the second declaration
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ runtime_driver_diagnostic.x.
+ * Nested-block shadowing remains allowed; only same block / param+body local conflict.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_duplicate_local(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "duplicate local binding in the same block (redeclaration of let/const or parameter name)");
+  }
+}
+
 // ---- G-02f-341 pure helpers / remaining gates ----
 
 /** Exported function `parser_is_ident_allow`.

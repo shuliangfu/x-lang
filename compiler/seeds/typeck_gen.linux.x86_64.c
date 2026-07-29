@@ -8398,6 +8398,32 @@ int32_t typeck_check_block_one_const(struct ast_Module * module, struct ast_ASTA
     int32_t init_ty = 0;
     int32_t init_ctx = 0;
     extern int32_t pipeline_block_set_const_type_ref(struct ast_ASTArena *a, int32_t br, int32_t ci, int32_t type_ref);
+    /* wave680 Cap residual: same-block const redecl / clash with let / body-param. */
+    {
+      extern int32_t pipeline_block_const_name_len(struct ast_ASTArena *a, int32_t br, int32_t ci);
+      extern void pipeline_block_const_name_copy64(struct ast_ASTArena *a, int32_t br, int32_t ci, uint8_t *dst);
+      extern int32_t pipeline_block_local_name_redecl_c(struct ast_ASTArena *a, int32_t block_ref, uint8_t *vname,
+          int32_t vlen, int32_t kind, int32_t idx, struct ast_Module *m, int32_t func_index);
+      extern int32_t pipeline_dep_ctx_current_func_index(struct ast_PipelineDepCtx *ctx);
+      extern void driver_diagnostic_typeck_duplicate_local(int32_t line, int32_t col);
+      uint8_t cname_buf[128];
+      int32_t cname_len = pipeline_block_const_name_len(arena, block_ref, idx);
+      if (cname_len > 0 && cname_len < 128) {
+        int32_t func_ix;
+        pipeline_block_const_name_copy64(arena, block_ref, idx, cname_buf);
+        func_ix = pipeline_dep_ctx_current_func_index(ctx);
+        if (pipeline_block_local_name_redecl_c(arena, block_ref, cname_buf, cname_len, 1, idx, module, func_ix) != 0) {
+          int32_t err_line = 0;
+          int32_t err_col = 0;
+          if (!(ast_ref_is_null(cd_ir))) {
+            err_line = pipeline_expr_line_at(arena, cd_ir);
+            err_col = pipeline_expr_col_at(arena, cd_ir);
+          }
+          driver_diagnostic_typeck_duplicate_local(err_line, err_col);
+          return -1;
+        }
+      }
+    }
     if (!(ast_ref_is_null(cd_ir))) {
       if ((pipeline_typeck_block_const_init_is_const_c(arena, block_ref, idx) ==0)) {
         int32_t err_line = pipeline_expr_line_at(arena, cd_ir);
@@ -8447,6 +8473,32 @@ int32_t typeck_check_block_one_let(struct ast_Module * module, struct ast_ASTAre
     int32_t ld_tr = ast_ast_block_let_type_ref(arena, block_ref, idx);
     int32_t init_ty = 0;
     int32_t init_ctx = 0;
+    /* wave680 Cap residual: same-block let redecl / clash with const / body-param. */
+    {
+      extern int32_t pipeline_block_let_name_len(struct ast_ASTArena *a, int32_t br, int32_t li);
+      extern void pipeline_block_let_name_copy64(struct ast_ASTArena *a, int32_t br, int32_t li, uint8_t *dst);
+      extern int32_t pipeline_block_local_name_redecl_c(struct ast_ASTArena *a, int32_t block_ref, uint8_t *vname,
+          int32_t vlen, int32_t kind, int32_t idx, struct ast_Module *m, int32_t func_index);
+      extern int32_t pipeline_dep_ctx_current_func_index(struct ast_PipelineDepCtx *ctx);
+      extern void driver_diagnostic_typeck_duplicate_local(int32_t line, int32_t col);
+      uint8_t lname_buf[128];
+      int32_t lname_len = pipeline_block_let_name_len(arena, block_ref, idx);
+      if (lname_len > 0 && lname_len < 128) {
+        int32_t func_ix_l;
+        pipeline_block_let_name_copy64(arena, block_ref, idx, lname_buf);
+        func_ix_l = pipeline_dep_ctx_current_func_index(ctx);
+        if (pipeline_block_local_name_redecl_c(arena, block_ref, lname_buf, lname_len, 0, idx, module, func_ix_l) != 0) {
+          int32_t err_line = 0;
+          int32_t err_col = 0;
+          if (!(ast_ref_is_null(ld_ir))) {
+            err_line = pipeline_expr_line_at(arena, ld_ir);
+            err_col = pipeline_expr_col_at(arena, ld_ir);
+          }
+          driver_diagnostic_typeck_duplicate_local(err_line, err_col);
+          return -1;
+        }
+      }
+    }
     uint8_t * eb = 0;
     uint8_t * gb = 0;
     int32_t el = 0;

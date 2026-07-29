@@ -3315,6 +3315,93 @@ int32_t pipeline_module_top_level_name_is_const(struct ast_Module *m, uint8_t *v
 }
 
 /**
+ * wave680 Cap residual: same-block local name redecl (let/const) or param clash.
+ *
+ * Host-C redefinition soft residual: typeck accepted `let x; let x` / `const x` twice /
+ * `let`+`const` same name / function-body `let` shadowing a formal → BLD001.
+ * Nested-block shadowing stays legal (C nested scopes).
+ *
+ * @param a *ASTArena
+ * @param block_ref i32 — block containing the declaration under check
+ * @param vname *u8 — declaration name
+ * @param vlen i32 — name length
+ * @param kind i32 — 0 = checking a let at idx; 1 = checking a const at idx
+ * @param idx i32 — index of the current let/const in that block
+ * @param m *Module — optional; when non-null with func_index>=0, also reject
+ *   name equal to a formal of that function **only if** block_ref is that
+ *   function's body (not a nested if/while block).
+ * @param func_index i32 — current function index, or -1 to skip param scan
+ * @return i32 — 1 conflict (hard-fail), 0 ok
+ * PLATFORM: SHARED — G.7 single authority for typeck one_let/one_const gates.
+ */
+int32_t pipeline_block_local_name_redecl_c(struct ast_ASTArena *a, int32_t block_ref, uint8_t *vname,
+                                          int32_t vlen, int32_t kind, int32_t idx, struct ast_Module *m,
+                                          int32_t func_index) {
+  struct ast_Block *b;
+  int32_t i;
+  int32_t nl;
+  int32_t nlet;
+  int32_t nconst;
+  if (!a || !vname || vlen <= 0 || block_ref <= 0)
+    return 0;
+  b = block_at(a, block_ref);
+  if (!b)
+    return 0;
+  nlet = b->num_lets;
+  nconst = b->num_consts;
+  /* Prior / peer same-block lets and consts (exclude self). */
+  for (i = 0; i < nlet; i++) {
+    struct ast_LetDecl *ld;
+    if (kind == 0 && i == idx)
+      continue;
+    ld = block_let_at(a, block_ref, i);
+    if (!ld || ld->name_len != vlen)
+      continue;
+    if (memcmp(ld->name, vname, (size_t)vlen) == 0)
+      return 1;
+  }
+  for (i = 0; i < nconst; i++) {
+    struct ast_ConstDecl *cd;
+    if (kind == 1 && i == idx)
+      continue;
+    cd = block_const_at(a, block_ref, i);
+    if (!cd || cd->name_len != vlen)
+      continue;
+    if (memcmp(cd->name, vname, (size_t)vlen) == 0)
+      return 1;
+  }
+  /* Function body only: param and body local share C scope (no shadow). */
+  if (m && func_index >= 0) {
+    int32_t body = pipeline_module_func_body_ref_at(m, func_index);
+    int32_t np;
+    int32_t pi;
+    if (body == block_ref) {
+      np = pipeline_module_func_num_params_at(m, func_index);
+      for (pi = 0; pi < np; pi++) {
+        nl = pipeline_module_func_param_name_len_at(m, func_index, pi);
+        if (nl != vlen)
+          continue;
+        {
+          /* wave585: copy32 ABI buffer is 128 bytes. */
+          uint8_t pbuf[128];
+          int32_t k;
+          if (nl > 127)
+            nl = 127;
+          pipeline_module_func_param_name_copy32(m, func_index, pi, pbuf);
+          for (k = 0; k < nl; k++) {
+            if (pbuf[k] != vname[k])
+              break;
+          }
+          if (k == nl)
+            return 1;
+        }
+      }
+    }
+  }
+  return 0;
+}
+
+/**
  * 按名查块内 const/let 的**声明块** ref（自 block_ref 沿 parent 链向内层优先匹配）。
  * 与 pipeline_block_resolve_var_type_ref 遍历顺序一致，但返回 block ref 而非 type ref。
  */

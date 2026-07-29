@@ -801,6 +801,12 @@ void driver_diagnostic_typeck_assign_to_const(int32_t line, int32_t col) {
       "cannot assign to const binding (const is immutable; use let for a mutable variable)"));
   return;
 }
+/* wave680 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_duplicate_local */
+void driver_diagnostic_typeck_duplicate_local(int32_t line, int32_t col) {
+  (void)(lsp_diag_report_typeck(line, col,
+      "duplicate local binding in the same block (redeclaration of let/const or parameter name)"));
+  return;
+}
 
 /* wave665 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_logical_operand_not_bool */
 void driver_diagnostic_typeck_logical_operand_not_bool(int32_t line, int32_t col) {

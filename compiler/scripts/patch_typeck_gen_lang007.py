@@ -32,8 +32,10 @@ int typeck_get_allow_legacy_extern_calls(void) {
 }
 """
 
+# wave680 / Darwin product link: bootstrap_seed_pipeline_filtered.o also exports
+# these three symbols strongly; typeck_x wrappers must be weak to avoid dual-def.
 CALL_BODY = """\
-int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
+__attribute__((weak)) int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
   /* LANG-007: always use glue path (enforces S0 extern-in-unsafe). */
   extern int32_t pipeline_typeck_check_expr_call_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
   return pipeline_typeck_check_expr_call_c(module, arena, expr_ref, return_type_ref, ctx);
@@ -41,7 +43,7 @@ int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena *
 """
 
 DEREF_BODY = """\
-int32_t typeck_check_expr_deref(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
+__attribute__((weak)) int32_t typeck_check_expr_deref(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
   /* LANG-007: always use glue path (S0 deref requires unsafe). */
   extern int32_t pipeline_typeck_check_expr_deref_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
   return pipeline_typeck_check_expr_deref_c(module, arena, expr_ref, return_type_ref, ctx);
@@ -49,13 +51,14 @@ int32_t typeck_check_expr_deref(struct ast_Module * module, struct ast_ASTArena 
 """
 
 METHOD_CALL_BODY = """\
-int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
+__attribute__((weak)) int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
   /*
    * PLATFORM: SHARED — authority matches typeck.x: only pipeline_typeck_check_expr_method_call_c.
    * Do NOT re-dispatch by import index as dep index: multi-import closure (ndep > n_imports)
    * maps entry import ii for "heap" to a wrong dep (Linux inserts page_mmap so ii=2 → libc).
    * That overwrote free(*u8) with libc free → bare std_heap_free / http.o fail.
    * method_call_c already path-resolves dep + scores overloads + expected_ret.
+   * wave680: weak vs bootstrap_seed_pipeline_filtered strong export (Darwin dual-def).
    */
   extern int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
   return pipeline_typeck_check_expr_method_call_c(module, arena, expr_ref, return_type_ref, ctx);
