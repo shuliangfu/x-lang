@@ -44,7 +44,8 @@
 **wave755:** R1 eighth family **R1_SEED_MAP** (target_cpu/ast_seed mismatch + bootstrap orch -D) same body (residual R3/R4/pure-ld).  
 **wave756:** R4 pure-R1 body — `rebuild_leaves` → `ensure try-r1` for catalog pure R1 members; non-R1 residual still make.  
 **wave757:** R3 cold-else body — `rebuild_leaves` residual → `ensure try-r3-cold` (catalog `R3_COLD_SEED_OBJS`); PREFER thin residual.  
-**wave758:** R4 residual thin_glue → R1 seed-map (G.7 有则补全) — `parser_asm_thin_glue` pure host-cc; user-asm shell-only.
+**wave758:** R4 residual thin_glue → R1 seed-map (G.7 有则补全) — `parser_asm_thin_glue` pure host-cc; user-asm shell-only.  
+**wave759:** R4 residual glue standalone → R1 seed-map (G.7 有则补全) — `pipeline_glue_standalone` pure host-cc; glue shell-only.
 
 ---
 
@@ -203,7 +204,7 @@ Do **not** grow new free-form recipes. Known residual classes:
 | Residual | Notes |
 |----------|--------|
 | ~~`DRIVER_SEED_PREREQS` make-graph edges~~ | **swallowed wave744** → shell ensure (list still mk) |
-| Leaf `.o` pattern rules (R1–R5) | **named inventory wave746** · **R4 mode+list shell wave747** · **R1 eight families wave748–755** · **R4 pure-R1 body wave756** · **R3 cold-else wave757** · **thin_glue seed-map wave758** · remaining residual Makefile → 11.3.1 |
+| Leaf `.o` pattern rules (R1–R5) | **named inventory wave746** · **R4 mode+list shell wave747** · **R1 eight families wave748–755** · **R4 pure-R1 body wave756** · **R3 cold-else wave757** · **thin_glue seed-map wave758** · **glue-standalone seed-map wave759** · remaining residual Makefile → 11.3.1 |
 | `compiler-all` / Makefile `all` | CI host-cc path (R5) |
 | FULL=1 bstrict make entry | Non-daily |
 | Missing `xlang-c` for force -E | ensure_* gen scripts |
@@ -361,7 +362,14 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 - [x] seed/extras map + `*.inc` freshness; Makefile thin-call ensure
 - [x] user-asm shell-only (residual_make=0)
 - [x] LEAF dump `SWALLOWED_R4_BODY_THIN_GLUE=1`
-- [ ] R3 PREFER thin · R4 remaining (panic/gen/glue/pipeline-x) · pure-ld · physical delete
+
+### wave759 (11.3.1 · R4 residual glue standalone → seed-map)
+
+- [x] `build_asm/pipeline_glue_standalone.o` on `R1_SEED_MAP_OBJS` (G.7 有则补全)
+- [x] seed/extras map + glue/ast_pool/types.inc freshness; Makefile thin-call ensure
+- [x] glue shell-only (residual_make=0)
+- [x] LEAF dump `SWALLOWED_R4_BODY_GLUE_STANDALONE=1`
+- [ ] R3 PREFER thin · R4 remaining (panic/gen/pipeline-x) · pure-ld · physical delete
 
 ---
 
@@ -375,6 +383,6 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 - `compiler/docs/PLATFORM_LINKER.md` (11.1.3/4 · wave745)  
 - `compiler/scripts/driver_seed_obj_catalog.sh` (lists)  
 - `compiler/scripts/driver_seed_ensure_prereqs.sh` (edges · wave744)  
-- `compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh` (R4 mode · pure-R1 · R3 cold · thin_glue)  
-- `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 families · try-r1 · try-r3-cold · thin_glue seed-map)  
+- `compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh` (R4 mode · pure-R1 · R3 cold · thin_glue · glue-standalone)  
+- `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 families · try-r1 · try-r3-cold · thin_glue/glue-standalone seed-map)  
 - `compiler/scripts/host_platform_linker.sh` (platform + linker · wave745)

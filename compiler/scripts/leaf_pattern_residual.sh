@@ -13,13 +13,14 @@
 #   wave756: R4 pure-R1 body via rebuild_leaves → ensure try-r1 (non-R1 residual make)
 #   wave757: R3 cold-else body via rebuild_leaves → ensure try-r3-cold
 #   wave758: R4 residual thin_glue pure host-cc → R1 seed-map (G.7 有则补全)
+#   wave759: R4 residual glue standalone → R1 seed-map (G.7 有则补全)
 #
 # Authority (G.7):
 #   Single shell authority for *named residual classes* of Makefile leaf pattern /
 #   host-cc compile rules that still block physical delete of compiler/Makefile.
 #   Does NOT own .o lists (compiler/mk/*.mk + catalog). R1 pure-body families
 #   and R3 cold-else live in ensure_host_cc_seed_o.sh; R3 PREFER thin + R4
-#   remaining residual (panic/gen/glue/pipeline-x) still make.
+#   remaining residual (panic/gen/pipeline-x) still make.
 #
 # Human map: compiler/docs/LEAF_PATTERN_RESIDUAL.md
 #
@@ -30,7 +31,7 @@
 #   ./xbuild leaf-patterns | leaf-residual [--check]
 #
 # PLATFORM: SHARED — inventory portable; leaf ABI stays in Makefile / mk.
-# Wave: 746–758 Track MG · 11.3.1 path (not physical delete · not pure-ld).
+# Wave: 746–759 Track MG · 11.3.1 path (not physical delete · not pure-ld).
 
 set -euo pipefail
 
@@ -62,7 +63,7 @@ bad() { echo "leaf_pattern_residual: FAIL: $*" >&2; fail=1; }
 # ---------------------------------------------------------------------------
 print_classes() {
   cat <<EOF
-# leaf pattern residual inventory (11.3.1 path · wave746–758)
+# leaf pattern residual inventory (11.3.1 path · wave746–759)
 # Lists stay mk/catalog. Pattern bodies stay Makefile until named shell swallow.
 
 LEAF_PATTERN_POLICY=inventory_named_classes_plus_r4_mode_and_r1_families
@@ -105,6 +106,10 @@ SWALLOWED_R1_NOTE=pure_cc_body_shell_lists_mk_R3_prefer_thin_and_R4_non_R1_resid
 SWALLOWED_R4_BODY_THIN_GLUE=1
 SWALLOWED_R4_BODY_THIN_GLUE_VIA=ensure_host_cc_seed_o.sh_seed-map_try-r1
 SWALLOWED_R4_BODY_THIN_GLUE_NOTE=parser_asm_thin_glue_seed_map_wave758
+# wave759: glue standalone pure host-cc joined R1 seed-map (was R4 residual cc_inc_tu)
+SWALLOWED_R4_BODY_GLUE_STANDALONE=1
+SWALLOWED_R4_BODY_GLUE_STANDALONE_VIA=ensure_host_cc_seed_o.sh_seed-map_try-r1
+SWALLOWED_R4_BODY_GLUE_STANDALONE_NOTE=pipeline_glue_standalone_seed_map_wave759
 
 # Residual classes still Makefile-owned (R1–R5 = 11.3.1; R6 = 11.1.4)
 RESIDUAL_CLASS_R1=host_cc_seed_from_x_to_o
@@ -135,6 +140,8 @@ RESIDUAL_CLASS_R4_SURFACE=sat|lsp|bridge|panic|user-asm|glue|pipeline-x_make_pat
 RESIDUAL_CLASS_R4_MODE_POLICY=swallowed_wave747
 RESIDUAL_CLASS_R4_BODY_PURE_R1=swallowed_wave756_try_r1
 RESIDUAL_CLASS_R4_BODY_R3_COLD=swallowed_wave757_try_r3_cold
+RESIDUAL_CLASS_R4_BODY_THIN_GLUE=swallowed_wave758_seed_map
+RESIDUAL_CLASS_R4_BODY_GLUE_STANDALONE=swallowed_wave759_seed_map
 RESIDUAL_CLASS_R4_BODY=non_R1_non_R3_cold_still_make_pattern
 RESIDUAL_CLASS_R4_ENDGAME=rebuild_leaves_without_make_pattern
 
@@ -339,6 +346,9 @@ else
   if ! grep -qE 'wave758|thin_glue|parser_asm_thin_glue|seed-map.*thin' "$DOC_REL"; then
     bad "$DOC_REL must document wave758 thin_glue seed-map swallow"
   fi
+  if ! grep -qE 'wave759|glue.standalone|pipeline_glue_standalone|seed-map.*glue' "$DOC_REL"; then
+    bad "$DOC_REL must document wave759 glue standalone seed-map swallow"
+  fi
   note "doc $DOC_REL present"
 fi
 
@@ -377,6 +387,9 @@ if ! printf '%s\n' "$_out" | grep -q 'R4_BODY_PURE_R1_SWALLOWED=1'; then
 fi
 if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R4_BODY_THIN_GLUE=1'; then
   bad "dump must set SWALLOWED_R4_BODY_THIN_GLUE=1 (wave758 thin_glue seed-map)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R4_BODY_GLUE_STANDALONE=1'; then
+  bad "dump must set SWALLOWED_R4_BODY_GLUE_STANDALONE=1 (wave759 glue standalone seed-map)"
 fi
 if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R1_RT_SEED_SLICE=1'; then
   bad "dump must set SWALLOWED_R1_RT_SEED_SLICE=1 (wave748)"
@@ -627,7 +640,7 @@ else
     "$REBUILD_REL"; then
     bad "rebuild_leaves must not hardcode .o list (dual authority)"
   fi
-  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold; remaining residual make-backed (wave756/757)"
+  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold; remaining residual make-backed (wave756/757/759 glue shell)"
 fi
 
 # G.7: this script must not hardcode product .o inventories as code paths
@@ -686,5 +699,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747 R4 mode + wave756 pure-R1 + wave757 R3 cold-else + wave748–755 R1 families + 11.3.1 leaf residual inventory)"
+echo "leaf_pattern_residual: CHECK OK (wave747 R4 mode + wave756 pure-R1 + wave757 R3 cold-else + wave758 thin_glue + wave759 glue-standalone + wave748–755 R1 families + 11.3.1 leaf residual inventory)"
 exit 0

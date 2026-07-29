@@ -1047,15 +1047,17 @@ R1_MISC_BASENAME_OBJS = runtime_link_abi_user_env.o runtime_channel_glue.o runti
 # Seed/flag maps live in ensure script (path convention); list stays here (G.7).
 # wave758: parser_asm_thin_glue monothin (basename mismatch + monothin -D/-I) joined
 # seed-map family (G.7 有则补全; was R4 residual pure host-cc).
-R1_SEED_MAP_OBJS = src/driver/target_cpu.o src/ast/ast_seed.o pipeline_bootstrap_orchestration.o parser_asm_thin_glue.o
+# wave759: pipeline_glue_standalone (build_asm/ + -Ibuild_asm -Wno-error=return-type)
+# joined seed-map (G.7 有则补全; was R4 residual cc_inc_tu).
+R1_SEED_MAP_OBJS = src/driver/target_cpu.o src/ast/ast_seed.o pipeline_bootstrap_orchestration.o parser_asm_thin_glue.o build_asm/pipeline_glue_standalone.o
 
 # wave757 R3 cold-else family: thin+rest leaves whose cold path (PREFER_X_O≠1 /
 # bootstrap-driver-seed rebuild) is pure host-cc of seeds/<leaf>.from_x.c.
 # List authority for ensure_host_cc_seed_o.sh try-r3-cold / r3-cold-seed mode.
 # Body = same ensure_one as R1 (basename seed). PREFER_X_O=1 thin+rest stays
 # Makefile (product daily path); cold-else branch thin-calls ensure (G.7).
-# Residual after wave758: panic UNAME · gen *_x · glue standalone · pipeline_x ·
-# pure-ld · physical delete (~~thin_glue~~ → seed-map).
+# Residual after wave759: panic UNAME · gen *_x · pipeline_x · pure-ld ·
+# physical delete (~~thin_glue~~ · ~~glue standalone~~ → seed-map).
 R3_COLD_SEED_OBJS = src/runtime_io_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/asm/simd_enc.o src/asm/simd_loop.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o
 
 # G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（XLANG_LEGACY_PREPROCESS_C 路径已死）。
@@ -2932,9 +2934,14 @@ pipeline_bootstrap_orchestration.o: seeds/pipeline_bootstrap_orchestration.from_
 	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/pipeline_bootstrap_orchestration.from_x.c \
 	  -Ibuild_asm -DPIPELINE_BOOTSTRAP_ORCH_NO_PIPELINE_RUN_WRAPPER
 
-$(ASM_GLUE_STANDALONE_O): seeds/pipeline_glue_standalone.from_x.c build_asm/pipeline_glue_types.inc pipeline_glue.c ast_pool.c scripts/cc_inc_tu.sh
+# wave759 R1 seed-map: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_SEED_MAP_OBJS).
+# Seed map: build_asm/pipeline_glue_standalone.o ← seeds/pipeline_glue_standalone.from_x.c
+# (path under build_asm/ + -Ibuild_asm; was cc_inc_tu residual; G.7 有则补全 seed-map).
+$(ASM_GLUE_STANDALONE_O): seeds/pipeline_glue_standalone.from_x.c build_asm/pipeline_glue_types.inc pipeline_glue.c ast_pool.c scripts/ensure_host_cc_seed_o.sh
 	@mkdir -p build_asm
-	sh scripts/cc_inc_tu.sh seeds/pipeline_glue_standalone.from_x.c $@ $(PIPELINE_GEN_CFLAGS) -Wno-error=return-type -Ibuild_asm
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/pipeline_glue_standalone.from_x.c \
+	  -Wno-error=return-type -Ibuild_asm
 
 # G-02f-11：pipeline_glue_strict_minimal 产品 seed
 # wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).

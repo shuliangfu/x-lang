@@ -26,6 +26,12 @@
 #            parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c +
 #            -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm;
 #            ensure_one also refreshes on seeds/parser_asm/*.inc (Makefile prereq twin).
+#   wave759: R4 residual glue standalone → R1 seed-map (G.7 有则补全):
+#            build_asm/pipeline_glue_standalone.o ← seeds/pipeline_glue_standalone.from_x.c
+#            + -Wno-error=return-type -Ibuild_asm; ensure_one refreshes on
+#            pipeline_glue.c / ast_pool.c / build_asm/pipeline_glue_types.inc
+#            (Makefile prereq twin). Body = ensure_one direct cc (seed accepts
+#            cc -c; former Makefile/g05 used cc_inc_tu wrap — same seed TU).
 #
 # Authority (G.7):
 #   Single shell *recipe body* for pure host-cc compile of seeds/*.from_x.c → .o.
@@ -57,12 +63,13 @@
 #   R1_MISC_BASENAME_OBJS  — pure basename host-cc without special -D/-f extras
 #                            (glue/enc/ctx/pipeline_glue_strict_minimal/asm_build/…)
 #   R1_SEED_MAP_OBJS       — basename-mismatch + bootstrap orch extras + thin_glue
-#                            (target_cpu / ast_seed / orch / parser_asm_thin_glue · wave758)
+#                            + glue standalone (target_cpu / ast_seed / orch /
+#                            parser_asm_thin_glue · pipeline_glue_standalone · wave758/759)
 #   R3_COLD_SEED_OBJS      — thin+rest cold-else pure host-cc (wave757)
 #
 # Not in scope (honest residual):
 #   - R3 thin+rest / PREFER_X_O product g05 path (g05_ensure keeps that)
-#   - R2 UNAME stamps, R4 residual (panic/gen/glue/pipeline-x), R5 CI all
+#   - R2 UNAME stamps, R4 residual (panic/gen/pipeline-x), R5 CI all
 #   - pure-ld (11.1.4) · physical Makefile delete (11.3.1)
 #
 # Usage (cwd = compiler/):
@@ -92,8 +99,8 @@
 #   MAKE — only for catalog list expansion (default: make)
 #
 # PLATFORM: SHARED — shell orchestration; seed pins host-portable C.
-# Wave: 748–758 Track MG · 11.3.1 R1 families + R4 pure-R1 + R3 cold-else + thin_glue seed-map
-#       (not physical delete · not pure-ld).
+# Wave: 748–759 Track MG · 11.3.1 R1 families + R4 pure-R1 + R3 cold-else +
+#       thin_glue/glue-standalone seed-map (not physical delete · not pure-ld).
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -183,6 +190,16 @@ ensure_one() {
     if [ "$need" -eq 0 ] && [ "$stem" = "parser_asm_thin_c" ]; then
       for inc in seeds/parser_asm/*.inc; do
         if [ -f "$inc" ] && [ "$inc" -nt "$out" ]; then
+          need=1
+          break
+        fi
+      done
+    fi
+    # wave759: pipeline_glue_standalone embeds pipeline_glue.c + ast_pool + types.inc;
+    # Makefile lists them as prereqs — mirror freshness here (G.7 single body).
+    if [ "$need" -eq 0 ] && [ "$stem" = "pipeline_glue_standalone" ]; then
+      for cand in pipeline_glue.c ast_pool.c build_asm/pipeline_glue_types.inc; do
+        if [ -f "$cand" ] && [ "$cand" -nt "$out" ]; then
           need=1
           break
         fi
@@ -373,6 +390,10 @@ seed_for_seed_map() {
     parser_asm_thin_glue.o)
       printf 'seeds/parser_asm_thin_c.from_x.c\n'
       ;;
+    # wave759: R4 residual glue standalone (build_asm/ path; basename seed).
+    build_asm/pipeline_glue_standalone.o)
+      printf 'seeds/pipeline_glue_standalone.from_x.c\n'
+      ;;
     *)
       echo "ensure_host_cc_seed_o: no seed-map seed map for $o" >&2
       exit 1
@@ -383,7 +404,7 @@ seed_for_seed_map() {
 # Extra flags for seed-map family (stdout, space-separated; may be empty).
 # Thin Makefile leaves pass make-expanded extras to `one` (authority).
 # Family mode: orch needs -Ibuild_asm + -D; thin_glue needs NO_SEED_PARSE + -I;
-# target_cpu/ast_seed pure base.
+# glue standalone needs -Wno-error=return-type -Ibuild_asm; target_cpu/ast_seed pure.
 extras_for_seed_map() {
   local o="$1"
   case "$o" in
@@ -399,6 +420,10 @@ extras_for_seed_map() {
       else
         printf '%s' "$_DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS"
       fi
+      ;;
+    # wave759: match Makefile/g05 cc_inc_tu extras (types.inc under build_asm/).
+    build_asm/pipeline_glue_standalone.o)
+      printf '%s' '-Wno-error=return-type -Ibuild_asm'
       ;;
     *)
       echo "ensure_host_cc_seed_o: no seed-map extras map for $o" >&2
@@ -786,8 +811,8 @@ run_check() {
   check_family "R1_EXTRA_CFLAGS_OBJS" 5 "extra-cflags" "extra-cflags" ""
   # misc-basename: mixed cwd-root / src/ / build_asm/ paths; pure basename.
   check_family "R1_MISC_BASENAME_OBJS" 9 "misc-basename" "basename" ""
-  # seed-map: mismatch stems + orch extras + thin_glue (wave758).
-  check_family "R1_SEED_MAP_OBJS" 4 "seed-map" "seed-map" ""
+  # seed-map: mismatch stems + orch extras + thin_glue (wave758) + glue standalone (wave759).
+  check_family "R1_SEED_MAP_OBJS" 5 "seed-map" "seed-map" ""
   # R3 cold-else: thin+rest leaves cold path = pure basename host-cc.
   check_family "R3_COLD_SEED_OBJS" 9 "r3-cold-seed" "basename" ""
 
@@ -846,6 +871,21 @@ run_check() {
   else
     note "Makefile seed-map leaves thin (no inline \$(CC) -c; wave758 thin_glue)"
   fi
+  # wave759: glue standalone target is $(ASM_GLUE_STANDALONE_O) — recipe must call ensure,
+  # not residual cc_inc_tu (G.7 single body via ensure_one).
+  if awk '
+    /^\$\(ASM_GLUE_STANDALONE_O\):|^build_asm\/pipeline_glue_standalone\.o:/ { in_t=1; next }
+    in_t && /^[^[:space:]#]/ { in_t=0 }
+    in_t { body = body $0 "\n" }
+    END {
+      if (body ~ /ensure_host_cc_seed_o\.sh/ && body !~ /cc_inc_tu\.sh/) exit 0
+      exit 1
+    }
+  ' Makefile; then
+    note "Makefile glue standalone thin (ensure; no cc_inc_tu; wave759)"
+  else
+    bad "Makefile ASM_GLUE_STANDALONE / pipeline_glue_standalone must thin-call ensure (wave759; no cc_inc_tu)"
+  fi
 
   # G.7: list authority is catalog only — no hardcoded assignment of product lists.
   if grep -nE '^(export )?RT_SEED_SLICE_OBJS=' "$0" 2>/dev/null \
@@ -902,7 +942,7 @@ run_check() {
     note "try-r3-cold R3 cold-else helper present (wave757)"
   fi
 
-  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else + thin_glue seed-map · wave748–758)" >&2
+  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else + thin_glue/glue-standalone seed-map · wave748–759)" >&2
 }
 
 case "$MODE" in

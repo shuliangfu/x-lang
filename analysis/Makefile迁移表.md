@@ -66,7 +66,7 @@
 | `g05-ensure-relink-prereqs` | 3081 | g05_ensure_relink_prereqs.sh (~3.3k 行) | `xbuild ensure` | 🟢 g05_ensure_relink_prereqs.sh | 热路径 cc；filtered.o 已纯 shell（wave715） |
 | `g05-export-relink` | 3085 | g05_relink_env.sh | `xbuild link-env` | 🟢 g05_relink_env.sh | 链接清单 |
 | `refresh-xlang-asm-gate` | 3172 | shell `refresh_xlang_asm_gate.sh` | `xbuild refresh-gate` | 🟢 wave734 体 shell；**wave735–737** migrate+gen+lexer shell | 11.1.6 |
-| `bootstrap-driver-seed` | ~2995 | **shell 编排** + shell ensure_prereqs（wave744）+ 薄叶子 | `xbuild bootstrap` | 🟡 wave717–758：编排+链接+§5b+prereq 边 shell；叶 pattern 库存（wave746）+ **R4 mode catalog**（wave747）+ **R1 八族**（wave748–755）+ **R4 pure-R1 try-r1**（wave756）+ **R3 cold-else try-r3-cold**（wave757）+ **thin_glue seed-map**（wave758）；R4 remaining 体仍 make | L4 必经；列表 mk catalog；make 无 prereq 图；11.3.1 物理删仍 ⬜ |
+| `bootstrap-driver-seed` | ~2995 | **shell 编排** + shell ensure_prereqs（wave744）+ 薄叶子 | `xbuild bootstrap` | 🟡 wave717–759：编排+链接+§5b+prereq 边 shell；叶 pattern 库存（wave746）+ **R4 mode catalog**（wave747）+ **R1 八族**（wave748–755）+ **R4 pure-R1 try-r1**（wave756）+ **R3 cold-else try-r3-cold**（wave757）+ **thin_glue seed-map**（wave758）+ **glue-standalone seed-map**（wave759）；R4 remaining 体仍 make | L4 必经；列表 mk catalog；make 无 prereq 图；11.3.1 物理删仍 ⬜ |
 | `bootstrap-driver-bstrict` | ~3107 | **shell** `bootstrap_driver_bstrict.sh`；FULL=1 仍 make 入口 | `xbuild bstrict-build` | 🟡 wave719 体 shell；refresh 仍 make | 非日常 |
 | `test` / `test_c` / `test_x` | ~1685 | **shell** `run_compiler_tests.sh` | `xbuild test` | 🟢 wave720 体 shell；prereq 仍 make 图 | 嵌套 run-all 可 make |
 | `bootstrap-verify` / `check-7.2-bstrict` | ~3320 | **shell** `bootstrap_verify_bstrict.sh` | `xbuild verify` | 🟢 wave720 体 shell；prereq bstrict 图 | 阶段2 仍脚本内 make |
@@ -624,7 +624,7 @@
 | 4 | `lsp_io_x.o` `lsp_x.o` … | 🟢 shell 体 + catalog | wave722+747：`rebuild_leaves.sh lsp`；list=`DRIVER_SEED_LSP_X_OBJS` |
 | 5 | `src/x_seed_bridge.o` | 🟢 shell 体 + catalog | wave724+747：`rebuild_leaves.sh bridge`；list=`DRIVER_SEED_BRIDGE_OBJS` |
 | 6 | `$(USER_ASM_SEED_OBJS)` | 🟢 shell 体 + catalog | wave724+747：`rebuild_leaves.sh user-asm`；list=`DRIVER_SEED_USER_ASM_SEED_OBJS` |
-| 7 | `$(ASM_GLUE_STANDALONE_O)` | 🟢 shell 体 + catalog | wave724+747：`rebuild_leaves.sh glue`；list=`DRIVER_SEED_ASM_GLUE_OBJS` |
+| 7 | `$(ASM_GLUE_STANDALONE_O)` | 🟢 shell 体 + catalog + seed-map | wave724+747+**759**：`rebuild_leaves.sh glue` shell-only；list=`DRIVER_SEED_ASM_GLUE_OBJS`；body=`R1_SEED_MAP` try-r1 |
 | 8 | `build-seed-asm-host` | 🟢 shell 体 + 薄叶 | wave725：`bootstrap-driver-seed-asm-host` + `DRIVER_SEED_ASM_HOST_DISPATCH_OBJS`；体 `build_seed_asm_host.sh`；`build-seed-asm-host` 历史别名 |
 | 9 | `$(USER_ASM_SEED_HOST_STUBS)` | 🟢 shell 体 + 导出 | wave723：`bootstrap_driver_seed_host_stubs.sh` + `export-host-stubs`（`DRIVER_SEED_HOST_STUBS_SCAN_BASE` 单权威；PHONY 恒刷） |
 | 10 | `$(BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS)` | 🟢 shell 体 | wave716 配方纯 shell；wave717 经薄目标 |
@@ -640,6 +640,7 @@
 **wave756**：R4 pure-R1 body — `rebuild_leaves` → `ensure try-r1`（catalog 八族 membership）；non-R1 residual 仍 make；bridge 无 make。  
 **wave757**：R3 cold-else body — residual → `ensure try-r3-cold`（catalog `R3_COLD_SEED_OBJS`）；Makefile cold-else 薄转调；PREFER thin residual。  
 **wave758**：R4 residual thin_glue → R1 seed-map（G.7 有则补全）— `parser_asm_thin_glue` pure host-cc；user-asm shell-only；Makefile 薄转调 ensure。  
+**wave759**：R4 residual glue-standalone → R1 seed-map（G.7 有则补全）— `pipeline_glue_standalone` pure host-cc；glue shell-only；Makefile 薄转调 ensure（去 `cc_inc_tu` residual）。  
 **wave748**：R1 单族 — `ensure_host_cc_seed_o.sh` + catalog `RT_SEED_SLICE_OBJS`；Makefile 五叶 `rt_*.o` 薄转调；其它 R1 residual。  
 **wave749**：R1 第二族 — 同 body `core-seed` + catalog `R1_CORE_SEED_OBJS`；Makefile 五叶（diag/link_abi/c_import/bridge/compat）薄转调；其它 R1 residual。  
 **wave750**：R1 第三族 — 同 body `frontend-glue` + catalog `R1_FRONTEND_GLUE_OBJS`；basename 错位 seed map（lexer/ast/lsp）；Makefile 三叶薄转调；其它 R1 residual。  
