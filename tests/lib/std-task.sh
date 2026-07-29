@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # std-task.sh — STD-089 manifest 与烟测辅助（F-task v2：纯 task.x）
 
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_TASK_PREFIX="${XLANG_STD_TASK_PREFIX:-xlang: [XLANG_STD_TASK]}"
 
 # 校验 manifest；symbol 在 task.x。
@@ -55,7 +57,7 @@ std_task_run_c_smoke() {
     echo "std-task FAIL: missing $task_o" >&2
     return 1
   fi
-  make -C compiler runtime_time_os.o >/dev/null 2>&1 || true
+  xlang_compiler_make runtime_time_os.o >/dev/null 2>&1 || true
   if ! cc -std=c11 -O1 -o "$out" "$src" "$task_o" std/async/scheduler.o std/context/context.o std/time/time.o compiler/runtime_time_os.o 2>/dev/null; then
     echo "std-task FAIL: compile c smoke" >&2
     return 1

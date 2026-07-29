@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # std-datetime-timezone.sh — STD-135 manifest 与烟测辅助
 
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_DATETIME_TIMEZONE_PREFIX="${XLANG_STD135_DATETIME_TIMEZONE_PREFIX:-xlang: [XLANG_STD135_DATETIME_TIMEZONE]}"
 
 # 校验 manifest 条目；echo 缺失数。
@@ -78,7 +80,7 @@ std_datetime_timezone_run_c_smoke() {
       'extern int32_t datetime_timezone_smoke_c(void);' \
       'int main(void) { return datetime_timezone_smoke_c() != 0; }' > "$src"
   fi
-  make -C compiler runtime_time_os.o >/dev/null 2>&1 || true
+  xlang_compiler_make runtime_time_os.o >/dev/null 2>&1 || true
   if ! cc -std=c11 -O1 -o "$out" "$src" "$dt_o" "$time_o" compiler/runtime_time_os.o 2>/dev/null; then
     echo "std-datetime-timezone FAIL: link C smoke" >&2
     return 1

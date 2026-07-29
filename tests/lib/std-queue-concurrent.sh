@@ -6,6 +6,8 @@
 #   std_queue_conc_run_smoke XLANG_BIN X TAG
 #   std_queue_conc_emit_report status sync_ok main_ok smoke_ok skip
 
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_QUEUE_CONC_PREFIX="${XLANG_STD_QUEUE_CONCURRENT_PREFIX:-xlang: [XLANG_STD_QUEUE_CONCURRENT]}"
 
 std_queue_conc_symbols_ok() {
@@ -89,7 +91,7 @@ std_queue_conc_run_c_smoke() {
     echo "std-queue-concurrent FAIL: missing $queue_o" >&2
     return 1
   fi
-  make -C compiler runtime_queue_contention.o >/dev/null 2>&1 || true
+  xlang_compiler_make runtime_queue_contention.o >/dev/null 2>&1 || true
   if ! cc -std=c11 -O1 -o "$out" "$src" "$queue_o" compiler/runtime_queue_contention.o -lpthread 2>/dev/null; then
     echo "std-queue-concurrent FAIL: compile $src" >&2
     return 1

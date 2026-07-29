@@ -1324,14 +1324,14 @@
   - ✅ **wave724**：§5b #5/#6/#7/#12 bridge·panic·user-asm·glue → 同 `rebuild_leaves.sh` + export（`DRIVER_SEED_BRIDGE/PANIC/USER_ASM/ASM_GLUE_OBJS`）；编排禁 `mk` 裸 `.o`
   - ✅ **wave725**：§5b #1 check-abi 纯 shell；#2 pipeline_x FORCE export+rebuild_leaves；#8 asm-host 命名薄叶 + DISPATCH 单权威；§5b 白名单 **全 🟢**
   - ✅ **wave727**：§5b / USER_ASM 叶清单定义 → `compiler/mk/*.mk`（include；G.7 单权威）
-  - ⬜ `DRIVER_SEED_OBJS` 等组合体仍 Makefile 模式块
-  - ⬜ FULL=1 / tests/lib 其余文件继续收缩（11.2.3）
+  - ✅ **wave728**：`DRIVER_SEED_OBJS` / LINK_BASE / PREREQS / X_FRONTEND 组合体 → `mk/driver_seed_composites.mk`
+  - ⬜ FULL=1 冷路径仍经 make 白名单叶（编排已 shell）
 
-🟡 **11.0.4 根 Makefile 只保留 help → xbuild**（wave726–727）
+🟡 **11.0.4 根 Makefile 只保留 help → xbuild**（wave726–728）
 
   - ✅ **wave726**：`bootstrap-driver-seed-export-obj-catalog` + `driver_seed_obj_catalog.sh` — xbuild 可读 KEY=value dump（禁 shell 双清单）
   - ✅ **wave727**：OBJS 叶定义迁出 → `mk/user_asm_seed_objs.mk` + `mk/driver_seed_export_lists.mk`；catalog `--check` 14 keys；闸门禁 Makefile 双 assign
-  - ⬜ `DRIVER_SEED_OBJS` / LINK_BASE / PREREQS 组合体进 mk 或 xbuild 解析
+  - ✅ **wave728**：组合体 → `mk/driver_seed_composites.mk`；catalog 18 keys + LINK_BASE/PREREQS 非空 sanity
   - ⬜ 根 Makefile 仅 help→xbuild；禁止再加厚包装逻辑
 
 ### 11.1 核心功能
@@ -1375,13 +1375,13 @@
 
   - `xbuild cold-test`：全擦 `compiler|std|core` 下 `.o` + 删产品二进制 → seed/g05 或纯 xbuild → 矩阵 → `run-all-bstrict`（`XLANG_BSTRICT_SKIP_BUILD=1`）
 
-🟡 **11.2.3 prove / bstrict / gate 脚本去 make**（wave727 起步）
+🟡 **11.2.3 prove / bstrict / gate 脚本去 make**（wave727–728）
 
   - `tests/**/*.sh`（含 `tests/lib/*.sh` · `tests/bench/**/*.sh` · `tests/docker/*`）中 `make -C compiler` 清零或改为 `xbuild` / `xlang_compiler_make`
   - **重点**：`tests/lib/` 是全仓 make/cc 调用最密集位置（50+ 文件），原措辞「tests/run-*.sh」错位 — run-*.sh 自身不调 make，真正调用全在 tests/lib/
   - ✅ **wave727**：`tests/lib/compiler-make.sh` 单入口 `xlang_compiler_make`；高扇入 `build-std-c-o.sh` 全量改调
-  - ⬜ 其余 ~30 lib 文件 + delete-one-c / ensure-compiler-seed 等改 hub
-  - CI workflow 同步（见 11.2.5）
+  - ✅ **wave728**：tests/lib 全量迁 hub（0 raw `make -C` 在 hub 外）；`XLANG_COMPILER_DIR` 支持 nolibc 另树；ensure / delete-one / std-* 等齐迁
+  - ⬜ `tests/bench` / docker CI 外层 / 11.2.5 workflow 同步
 
 ⬜ **11.2.4 Windows 入口**
 
@@ -1708,6 +1708,7 @@
 | 2026-07-29 | **审计补全** | 对照仓库补：**§0.1 终局三义（MG/BC/PC）**；**§0.2 删 Makefile DAG**；**阶段 7.4 typeck/codegen 去 pin**；**阶段 8.3 非 gen 产品 C（glue~40k/ast_pool~18k/桩）**；**阶段 11.0 瘦身可并行** + 既有 G-05/`build.x`/`xlang-build.sh`；11.2 测试/CI 去 make；12/13 验收对齐「物理删 Makefile」；附录 D 进度下调至 ~40–45%；**附录 E 迁移表骨架**；纠正 6.1.5「永久边界」措辞 |
 | 2026-07-29 | **二轮深度核查** | 阶段 4.2 补 4 项遗漏 Cap soft（impl method on INDEX / `*T[N]` 解析序 / fixed return S24[2] / 未知 arg_ty）；阶段 8.3 补 3 项（`build_asm/gen_driver/*.c` 10 个 / `analysis/_debug_io_ctx_gen.c` 孤儿 / `editors/tree-sitter-xlang/` 第三方）；**阶段 11 大幅补充**：11.2.5 CI workflow（5 个 .yml）+ 11.4 根脚本/tools/docker（build.sh/xlang-build.sh/scripts/docker-ci-local.sh/tools//tests/docker/Dockerfile/delete-one-c-files.sh）+ 11.5 tests/ 对照 C 处理策略（~200 个 .c 归属）+ 11.6 editors/README 用户指南；修正 11.2.3/11.3.1/11.3.4 验收 grep 措辞过窄（tests/run-*.sh → tests/**/*.sh；仅 make → make+cc） |
 | 2026-07-29 | **wave714 · 11.0.1** | 盘点 `compiler/Makefile` → [`Makefile迁移表.md`](Makefile迁移表.md)（类 A–O · ~288 目标）；附录 E 填实摘要；勾选 11.0.1；列出产品路径 make 泄漏供 11.0.2；新增 `tests/run-product-path-zero-make-gate.sh` 静态闸门 |
+| 2026-07-29 | **wave728 · 11.0.4 composites→mk + 11.2.3 tests/lib hub** | `mk/driver_seed_composites.mk`（OBJS/LINK_BASE/PREREQS/X_FRONTEND）；catalog 18 keys；tests/lib 0 raw make -C；0-make 闸门硬检。11.0.4 续 · 11.2.3 lib 全迁。**不升钉** |
 | 2026-07-29 | **wave727 · 11.0.4 OBJS→mk + 11.2.3 make hub** | `compiler/mk/user_asm_seed_objs.mk` + `driver_seed_export_lists.mk` include；catalog `--check`；`tests/lib/compiler-make.sh` + build-std-c-o 迁 hub；0-make 闸门硬检。11.0.4 续 · 11.2.3 起步。**不升钉** |
 | 2026-07-29 | **wave726 · 11.0.2 PATH 探针 + 11.0.4 catalog** | `run-product-path-zero-make-path-probe.sh`（shadow make；g05 prepare 0-exec）；`export-obj-catalog` + `driver_seed_obj_catalog.sh`；0-make 闸门硬检+真跑。11.0.2 ✅ · 11.0.4 读接口起步。**不升钉** |
 | 2026-07-29 | **wave725 · 11.0.3 §5b #1/#2/#8 闭** | `check_pipeline_gen_expr_i64_abi.sh`；`export-pipeline-x` + rebuild_leaves；`bootstrap-driver-seed-asm-host` + DISPATCH_OBJS。§5b 全 🟢。0-make 闸门硬检。**不升钉** |

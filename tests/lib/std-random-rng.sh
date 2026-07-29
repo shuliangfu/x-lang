@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # std-random-rng.sh — STD-130 manifest 与烟测辅助
 
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_RANDOM_RNG_PREFIX="${XLANG_STD130_RANDOM_RNG_PREFIX:-xlang: [XLANG_STD130_RANDOM_RNG]}"
 
 # 校验 manifest 条目。
@@ -77,7 +79,7 @@ std_random_rng_run_c_smoke() {
   elif [ -f "$(cd compiler && pwd)/runtime_random_fill.o" ]; then
     fill_o="$(cd compiler && pwd)/runtime_random_fill.o"
   else
-    make -C compiler runtime_random_fill.o >/dev/null 2>&1 || true
+    xlang_compiler_make runtime_random_fill.o >/dev/null 2>&1 || true
     fill_o="compiler/runtime_random_fill.o"
   fi
   if [ ! -f "$fill_o" ]; then

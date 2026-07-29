@@ -2408,11 +2408,9 @@ MAIN_LINK_O = src/main_driver.o
 MAIN_LINK_REBUILD = src/main_driver.o
 MAIN_LINK_FLAGS =
 endif
-# PLATFORM: SHARED — process_xlang_argc/argv_get 权威在 runtime_process_argv.o；
-# PREFER thin 的 process_args_* 与 std/process 均依赖之；phase1/final seed 链必须显式入闭包。
-DRIVER_SEED_OBJS = $(MAIN_LINK_O) src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_O) $(RT_SEED_SLICE_OBJS) runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $(PREPROCESS_LINK_O) $(LEXER_LINK_O) $(AST_LINK_O) $(DRIVER_SEED_X_FRONTEND_OBJS) $(DRIVER_SEED_FRONTEND_EXTRA) $(DRIVER_SEED_SUPPORT_EXTRA) src/x_seed_bridge.o src/seed_link_compat.o
-DRIVER_SEED_X_OBJS = parser_x.o typeck_x.o codegen_x.o
-DRIVER_SEED_X_FRONTEND_OBJS = lexer_x.o $(DRIVER_SEED_X_OBJS) x_frontend_link_alias.o
+# wave728 · 11.0.4: DRIVER_SEED_OBJS / X_FRONTEND / LINK_BASE / PREREQS composites
+# live in mk/driver_seed_composites.mk (include after DRIVER_SUBCMD_OBJS + USER_ASM).
+# Do not re-assign here (G.7). Recipes above expand vars at recipe time.
 
 # 阶段 10.4 实验：链 typeck_x.o/codegen_x.o 替代 C 前端（不含 pipeline_x.o，无 XLANG_USE_X_PIPELINE）。
 # 勿复用 DRIVER_SEED_X_FRONTEND_OBJS 名：bootstrap-driver-seed 链依赖 parser_x.o/lexer_x.o（见上 §1280）。
@@ -2899,11 +2897,8 @@ bootstrap-driver-seed:
 	@test -x '$(TARGET)' || $(MAKE) bootstrap-driver-seed XLANG_SKIP_SUBSCRIPT_MAKE= XLANG_RUN_ALL_BOOTSTRAP_XLANG=1
 else
 # G-06 两阶段 seed：先无 USER_ASM 链 xlang-seed-phase1，再用其跑 asm.x -E 生成 partial，最后全量链 xlang。
-DRIVER_SEED_LINK_BASE = $(DRIVER_SEED_OBJS) driver_x.o pipeline_x.o lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS)
-BOOTSTRAP_DRIVER_SEED_LINK_BASE = $(DRIVER_SEED_OBJS) driver_x.o $(BOOTSTRAP_DRIVER_SEED_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS)
-
-# lsp_io_std_heap：Track L 退役，产品链只依赖 lsp_io_std_heap_x.o（.x→.o），不 pin workspace gen
-DRIVER_SEED_PREREQS = $(XLANG_C) pipeline_x.o parser_x.o lexer_x.o typeck_x.o codegen_x.o x_frontend_link_alias.o driver_x.o preprocess_x.o lsp_io_gen.c lsp_gen.c lsp_diag_gen.c $(DRIVER_SUBCMD_GEN) $(MAIN_LINK_REBUILD) src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_O) $(RT_SEED_SLICE_OBJS) runtime_process_argv.o src/driver/fmt_check_cmd_driver.o $(PREPROCESS_LINK_O) $(LEXER_LINK_O) $(AST_LINK_O) $(DRIVER_SEED_FRONTEND_EXTRA) $(DRIVER_SEED_SUPPORT_EXTRA) src/x_seed_bridge.o src/seed_link_compat.o src/runtime_driver_strict_glue_stubs.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(DRIVER_SUBCMD_OBJS) $(USER_ASM_SEED_OBJS)
+# wave728: composites (DRIVER_SEED_OBJS / LINK_BASE / PREREQS) → mk only (G.7).
+include mk/driver_seed_composites.mk
 
 # legacy xlang-c 复用 bootstrap-driver-seed 的现有权威闭包，避免手写对象清单与 pinned seed 漂移。
 LEGACY_XLANG_C_LINK_BASE := $(BOOTSTRAP_DRIVER_SEED_LINK_BASE)
@@ -2922,9 +2917,9 @@ endif
 # 11.0.3 wave723: host-stubs body → scripts/bootstrap_driver_seed_host_stubs.sh;
 # 11.0.3 wave724: bridge/panic/user-asm/glue → same rebuild_leaves.sh + export;
 # 11.0.3 wave725: §5b #1 check-abi shell · #2 pipeline_x FORCE export+shell · #8 asm-host thin leaf;
-# 11.0.3/11.0.4 wave726–727: export-obj-catalog = single KEY=value dump of DRIVER_SEED_* lists
-#   (xbuild read API). wave727: list *definitions* live in mk/driver_seed_export_lists.mk
-#   (+ mk/user_asm_seed_objs.mk); Makefile only includes + export leaves (G.7 no dual list).
+# 11.0.3/11.0.4 wave726–728: export-obj-catalog = single KEY=value dump of DRIVER_SEED_* lists
+#   (xbuild read API). wave727: §5b/USER_ASM leaves in mk; wave728: composites in
+#   mk/driver_seed_composites.mk; Makefile only includes + export leaves (G.7).
 # PLATFORM: SHARED — sequence in shell; Darwin filtered.o still via class-G shell recipes.
 
 include mk/driver_seed_export_lists.mk
@@ -2952,10 +2947,10 @@ include mk/driver_seed_export_lists.mk
 	bootstrap-driver-seed-phase1-link \
 	bootstrap-driver-seed-final-link
 
-# wave726–727 · 11.0.4: one leaf dumps all §5b / link object lists (expanded).
-# Authority: mk/driver_seed_export_lists.mk + mk/user_asm_seed_objs.mk (+ DRIVER_SEED_OBJS
-# still composed in Makefile mode blocks). This is read-only export for xbuild /
-# inventory; shell must not hardcode a second copy of any list.
+# wave726–728 · 11.0.4: one leaf dumps all §5b / link / composite object lists (expanded).
+# Authority: mk/driver_seed_export_lists.mk + mk/user_asm_seed_objs.mk +
+# mk/driver_seed_composites.mk. Read-only export for xbuild / inventory;
+# shell must not hardcode a second copy of any list.
 # PLATFORM: SHARED — KEY=value; no compile/link side effects.
 bootstrap-driver-seed-export-obj-catalog:
 	@printf 'DRIVER_SEED_PIPELINE_X_OBJS=%s\n' '$(DRIVER_SEED_PIPELINE_X_OBJS)'
@@ -2968,6 +2963,10 @@ bootstrap-driver-seed-export-obj-catalog:
 	@printf 'DRIVER_SEED_HOST_STUBS_SCAN_BASE=%s\n' '$(DRIVER_SEED_HOST_STUBS_SCAN_BASE)'
 	@printf 'DRIVER_SEED_ASM_HOST_DISPATCH_OBJS=%s\n' '$(DRIVER_SEED_ASM_HOST_DISPATCH_OBJS)'
 	@printf 'DRIVER_SEED_OBJS=%s\n' '$(DRIVER_SEED_OBJS)'
+	@printf 'DRIVER_SEED_LINK_BASE=%s\n' '$(DRIVER_SEED_LINK_BASE)'
+	@printf 'BOOTSTRAP_DRIVER_SEED_LINK_BASE=%s\n' '$(BOOTSTRAP_DRIVER_SEED_LINK_BASE)'
+	@printf 'DRIVER_SEED_PREREQS=%s\n' '$(DRIVER_SEED_PREREQS)'
+	@printf 'DRIVER_SEED_X_FRONTEND_OBJS=%s\n' '$(DRIVER_SEED_X_FRONTEND_OBJS)'
 	@printf 'BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS=%s\n' '$(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS)'
 	@printf 'BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS=%s\n' '$(BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS)'
 	@printf 'USER_ASM_SEED_OBJS=%s\n' '$(USER_ASM_SEED_OBJS)'

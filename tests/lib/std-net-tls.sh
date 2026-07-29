@@ -6,6 +6,8 @@
 #   std_net_tls_run_smoke XLANG_BIN X TAG
 #   std_net_tls_emit_report status stub_ok typeck_ok skip
 
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_NET_TLS_PREFIX="${XLANG_STD_NET_TLS_PREFIX:-xlang: [XLANG_STD_NET_TLS]}"
 
 # 校验 manifest symbol/api/file；echo 缺失数。
@@ -143,7 +145,7 @@ std_net_tls_mbedtls_ldflags() {
 
 # 构建 net.o（mbedTLS TLS）。
 std_net_tls_build_mbedtls_o() {
-  if ! make -C compiler net-o-mbedtls >/dev/null 2>&1; then
+  if ! xlang_compiler_make net-o-mbedtls >/dev/null 2>&1; then
     echo "std-net-tls FAIL: make net-o-mbedtls" >&2
     return 1
   fi
@@ -152,7 +154,7 @@ std_net_tls_build_mbedtls_o() {
 
 # 构建 net.o（OpenSSL TLS .x + stub net.o）。
 std_net_tls_build_openssl_o() {
-  if ! make -C compiler net-o-openssl >/dev/null 2>&1; then
+  if ! xlang_compiler_make net-o-openssl >/dev/null 2>&1; then
     echo "std-net-tls FAIL: make net-o-openssl (tls_openssl.x)" >&2
     return 1
   fi
@@ -161,7 +163,7 @@ std_net_tls_build_openssl_o() {
 
 # 恢复 stub net.o。
 std_net_tls_restore_stub_o() {
-  make -C compiler net-o-stub >/dev/null 2>&1 || make -C compiler ../std/net/net.o >/dev/null 2>&1 || true
+  xlang_compiler_make net-o-stub >/dev/null 2>&1 || xlang_compiler_make ../std/net/net.o >/dev/null 2>&1 || true
 }
 
 # 启动 openssl s_server 于 127.0.0.1:PORT；echo pid > $1。

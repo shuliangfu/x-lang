@@ -11,6 +11,8 @@
 #   XLANG_DELETE_C_SKIP_REGRESS=1   — 不跑 E-soft / D-03
 #   XLANG_DELETE_C_DOCKER=1         — 在 Linux amd64 Docker 内跑回归
 
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -48,12 +50,14 @@ run_regress() {
     docker run --rm --platform linux/amd64 -v "$(pwd):/src" -w /src ubuntu:22.04 bash -lc '
       set -e
       apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq gcc make >/dev/null
-      make -C compiler bootstrap-driver-bstrict
+      # shellcheck disable=SC1091
+      . /src/tests/lib/compiler-make.sh
+      xlang_compiler_make bootstrap-driver-bstrict
       XLANG_D03_FAIL=1 ./tests/run-d03-stage2-hash-gate.sh
     '
   else
     progress "regress bootstrap-driver-bstrict (host) ..."
-    make -C compiler bootstrap-driver-bstrict -q 2>/dev/null || make -C compiler bootstrap-driver-bstrict
+    xlang_compiler_make bootstrap-driver-bstrict -q 2>/dev/null || xlang_compiler_make bootstrap-driver-bstrict
     progress "regress D-03 ..."
     XLANG_D03_FAIL=1 ./tests/run-d03-stage2-hash-gate.sh
   fi

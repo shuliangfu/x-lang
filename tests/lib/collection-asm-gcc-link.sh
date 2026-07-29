@@ -9,6 +9,9 @@
 #   collection_asm_gcc_link ./compiler/xlang_asm tests/set/main.x /tmp/xlang_set set
 
 # shellcheck source=tests/lib/build-std-c-o.sh
+
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 . "$(dirname "${BASH_SOURCE[0]:-$0}")/build-std-c-o.sh"
 
 # 用 xlang_asm emit 用户 .o（-o *.o 只生成对象，不触发旧 link_abi 缺陷路径）。
@@ -24,17 +27,17 @@ collection_ensure_std_objs() {
   local kind="$1"
   case "$kind" in
     set)
-      make -C compiler -q ../std/heap/heap.o ../std/heap/page_mmap.o ../std/set/set.o 2>/dev/null \
-        || make -C compiler ../std/heap/heap.o ../std/heap/page_mmap.o ../std/set/set.o
+      xlang_compiler_make -q ../std/heap/heap.o ../std/heap/page_mmap.o ../std/set/set.o 2>/dev/null \
+        || xlang_compiler_make ../std/heap/heap.o ../std/heap/page_mmap.o ../std/set/set.o
       ;;
     heap)
-      make -C compiler -q ../std/heap/heap.o ../std/heap/page_mmap.o 2>/dev/null \
-        || make -C compiler ../std/heap/heap.o ../std/heap/page_mmap.o
+      xlang_compiler_make -q ../std/heap/heap.o ../std/heap/page_mmap.o 2>/dev/null \
+        || xlang_compiler_make ../std/heap/heap.o ../std/heap/page_mmap.o
       ;;
     map)
       # map.o → heap；heap.o → page_mmap + process_xlang_*（与 run-map/run-heap 一致）
-      make -C compiler -q ../std/map/map.o ../std/heap/heap.o ../std/heap/page_mmap.o 2>/dev/null \
-        || make -C compiler ../std/map/map.o ../std/heap/heap.o ../std/heap/page_mmap.o
+      xlang_compiler_make -q ../std/map/map.o ../std/heap/heap.o ../std/heap/page_mmap.o 2>/dev/null \
+        || xlang_compiler_make ../std/map/map.o ../std/heap/heap.o ../std/heap/page_mmap.o
       ;;
     *)
       echo "collection_asm_gcc_link: unknown kind $kind" >&2

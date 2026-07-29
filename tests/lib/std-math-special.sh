@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # std-math-special.sh — STD-115 manifest 与烟测辅助
 
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_MATH_SPECIAL_PREFIX="${XLANG_STD115_MATH_SPECIAL_PREFIX:-xlang: [XLANG_STD115_MATH_SPECIAL]}"
 
 # 校验 manifest 中 api/symbol/file/smoke。
@@ -66,10 +68,10 @@ std_math_special_run_c_smoke() {
   local rt_o="compiler/runtime_math_libm.o"
   local pav_o="compiler/runtime_process_argv.o"
   if [ ! -f "$rt_o" ]; then
-    make -C compiler -q runtime_math_libm.o 2>/dev/null || make -C compiler runtime_math_libm.o >/dev/null 2>&1 || true
+    xlang_compiler_make -q runtime_math_libm.o 2>/dev/null || xlang_compiler_make runtime_math_libm.o >/dev/null 2>&1 || true
   fi
   if [ ! -f "$pav_o" ]; then
-    make -C compiler -q runtime_process_argv.o 2>/dev/null || make -C compiler runtime_process_argv.o >/dev/null 2>&1 || true
+    xlang_compiler_make -q runtime_process_argv.o 2>/dev/null || xlang_compiler_make runtime_process_argv.o >/dev/null 2>&1 || true
   fi
   if [ ! -f "$rt_o" ]; then
     echo "std-math-special FAIL: missing $rt_o" >&2

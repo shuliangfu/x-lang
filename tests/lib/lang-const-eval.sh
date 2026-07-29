@@ -4,6 +4,9 @@
 # 用法：
 #   ./tests/lib/lang-const-eval.sh           # 全量 case（需 native xlang）
 #   ./tests/lib/lang-const-eval.sh case_id   # 单 case（manifest item_id）
+
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 set -e
 cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.."
 
@@ -81,7 +84,7 @@ lang_const_eval_main() {
     return 2
   fi
 
-  make -C compiler -q 2>/dev/null || make -C compiler
+  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 
   local FAILS=0
   local RAN=0

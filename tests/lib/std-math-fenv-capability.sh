@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # std-math-fenv-capability.sh — STD-149 manifest 与烟测辅助
 
+# shellcheck source=compiler-make.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD149_PREFIX="${XLANG_STD149_MATH_FENV_CAP_PREFIX:-xlang: [XLANG_STD149_MATH_FENV_CAP]}"
 
 # 校验 manifest；echo 缺失数。
@@ -85,7 +87,7 @@ std_math_fenv_cap_run_c_smoke() {
   local err="/tmp/xlang_math_fenv_cap_err_$$.log"
   local rt_o="compiler/runtime_math_libm.o"
   if [ ! -f "$rt_o" ]; then
-    make -C compiler -q runtime_math_libm.o 2>/dev/null || make -C compiler runtime_math_libm.o >/dev/null 2>&1 || true
+    xlang_compiler_make -q runtime_math_libm.o 2>/dev/null || xlang_compiler_make runtime_math_libm.o >/dev/null 2>&1 || true
   fi
   if [ ! -f "$rt_o" ]; then
     echo "std-math-fenv-cap FAIL: missing $rt_o" >&2

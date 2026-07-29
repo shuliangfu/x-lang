@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# driver_seed_obj_catalog.sh — wave726/727 · read-only dump of DRIVER_SEED_* lists
+# driver_seed_obj_catalog.sh — wave726–728 · read-only dump of DRIVER_SEED_* lists
 #
 # G.7: Object-list *definitions* live in compiler/mk/*.mk (included by Makefile).
 # This script only invokes `make bootstrap-driver-seed-export-obj-catalog` and
@@ -27,6 +27,7 @@ if [ "${1:-}" = "--check" ]; then
 fi
 
 # Required keys from export-obj-catalog (must match Makefile recipe + mk lists).
+# wave728: composite keys (LINK_BASE / PREREQS / X_FRONTEND) added.
 REQUIRED_KEYS=(
   DRIVER_SEED_PIPELINE_X_OBJS
   DRIVER_SEED_SAT_REBUILD_OBJS
@@ -38,6 +39,10 @@ REQUIRED_KEYS=(
   DRIVER_SEED_HOST_STUBS_SCAN_BASE
   DRIVER_SEED_ASM_HOST_DISPATCH_OBJS
   DRIVER_SEED_OBJS
+  DRIVER_SEED_LINK_BASE
+  BOOTSTRAP_DRIVER_SEED_LINK_BASE
+  DRIVER_SEED_PREREQS
+  DRIVER_SEED_X_FRONTEND_OBJS
   BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS
   BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS
   USER_ASM_SEED_OBJS
