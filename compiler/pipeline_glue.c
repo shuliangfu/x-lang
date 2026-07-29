@@ -31937,6 +31937,7 @@ extern void driver_diagnostic_typeck_assign_mismatch(int32_t is_compound, int32_
                                                      uint8_t *expect_buf, int32_t expect_len, uint8_t *found_buf,
                                                      int32_t found_len);
 extern void driver_diagnostic_typeck_subscript_base(int32_t line, int32_t col);
+extern void driver_diagnostic_typeck_subscript_index(int32_t line, int32_t col);
 extern void driver_diagnostic_typeck_try_propagate_bad_enclosing(int32_t line, int32_t col);
 extern uint8_t *driver_typeck_diag_scratch_expect(void);
 extern uint8_t *driver_typeck_diag_scratch_found(void);
@@ -32706,6 +32707,20 @@ int32_t pipeline_typeck_check_expr_index_c(struct ast_Module *module, struct ast
       bt_kind != (int32_t)ast_TypeKind_TYPE_PTR) {
     driver_diagnostic_typeck_subscript_base(line, col);
     return -1;
+  }
+  /*
+   * wave664 Cap residual: hard-fail non-integer INDEX index.
+   * G.7: call typeck_type_is_valid_subscript_index (single authority in typeck.x/seed).
+   * Soft-skip unknown inside helper. PLATFORM: SHARED.
+   */
+  if (!ast_ref_is_null(index_ref) && index_ref > 0 && index_ref <= arena->num_exprs) {
+    int32_t index_ty = pipeline_expr_resolved_type_ref(arena, index_ref);
+    extern int32_t typeck_type_is_valid_subscript_index(struct ast_Module *module,
+                                                       struct ast_ASTArena *arena, int32_t ty_ref);
+    if (typeck_type_is_valid_subscript_index(module, arena, index_ty) == 0) {
+      driver_diagnostic_typeck_subscript_index(line, col);
+      return -1;
+    }
   }
   elem_ty = pipeline_type_elem_ref_at(arena, base_ty);
   if (ast_ref_is_null(elem_ty)) {

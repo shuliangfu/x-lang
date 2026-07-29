@@ -763,6 +763,13 @@ void driver_diagnostic_typeck_call_arg_type_mismatch(int32_t line, int32_t col) 
   (void)(0);
   return;
 }
+/* wave664 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_subscript_index */
+void driver_diagnostic_typeck_subscript_index(int32_t line, int32_t col) {
+  (void)(lsp_diag_report_typeck(line, col,
+      ((uint8_t *)"subscript index must be an integer type")));
+  (void)(0);
+  return;
+}
 int32_t parser_is_ident_allow(uint8_t * ident, int32_t len) {
   if ((ident ==0)) {
     return 0;

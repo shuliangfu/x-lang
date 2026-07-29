@@ -285,6 +285,23 @@ export function driver_diagnostic_typeck_subscript_base(line: i32, col: i32): vo
   }
 }
 
+/**
+ * Report non-integer array/slice/pointer subscript index (wave664 Cap residual).
+ * Closes soft residual: typeck accepted ptr/float/struct/bool indices → host-cc
+ * BLD001 ("array subscript is not an integer") or freestanding silent false green.
+ * @param line i32 — 1-based source line of the INDEX
+ * @param col i32 — 1-based source column of the INDEX
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ thin.x; seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_subscript_index(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "subscript index must be an integer type");
+  }
+}
+
 /** Exported function `driver_diagnostic_typeck_try_propagate_bad_enclosing`.
  * Implements `driver_diagnostic_typeck_try_propagate_bad_enclosing`.
  * @param line i32

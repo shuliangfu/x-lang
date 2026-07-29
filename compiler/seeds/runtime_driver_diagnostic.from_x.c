@@ -678,6 +678,15 @@ void driver_diagnostic_typeck_call_arg_type_mismatch(int32_t line, int32_t col)
       "argument type mismatch in function call"));
   return;
 }
+
+/* wave664 Cap residual: pure authority thin.x driver_diagnostic_typeck_subscript_index;
+ * cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X. */
+void driver_diagnostic_typeck_subscript_index(int32_t line, int32_t col)
+{
+  (void)(lsp_diag_report_typeck(line, col,
+      "subscript index must be an integer type"));
+  return;
+}
 #endif
 
 /* pure 权威：thin.x driver_diagnostic_typeck_if_condition_not_bool；冷启动全 C；FROM_X 无 pure-dup _impl */

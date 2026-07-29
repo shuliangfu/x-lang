@@ -1704,6 +1704,8 @@ extern void driver_diagnostic_typeck_invalid_as_cast(int32_t line, int32_t col);
 /* wave660 Cap residual: call arity hard diag (G.7 ≡ typeck.x). */
 extern void driver_diagnostic_typeck_call_arity_mismatch(int32_t line, int32_t col);
 extern void driver_diagnostic_typeck_call_arg_type_mismatch(int32_t line, int32_t col);
+/* wave664 Cap residual: non-integer subscript index hard diag (G.7 ≡ typeck.x). */
+extern void driver_diagnostic_typeck_subscript_index(int32_t line, int32_t col);
 extern void typeck_driver_diagnostic_pipe_marker(int32_t id);
 extern void driver_diagnostic_typeck_if_condition_not_bool(int32_t line, int32_t col);
 extern void driver_diagnostic_typeck_while_condition_not_bool(int32_t line, int32_t col);
@@ -7274,6 +7276,47 @@ int32_t typeck_vector_elem_type_ref(struct ast_ASTArena * arena, int32_t type_re
     return typeck_ensure_i32_type_ref(arena);
   }
 }
+/* wave664 Cap residual: G.7 ≡ typeck.x typeck_type_is_valid_subscript_index. */
+int32_t typeck_type_is_valid_subscript_index(struct ast_Module * module, struct ast_ASTArena * arena, int32_t ty_ref) {
+  {
+    int32_t ord_i32 = 0;
+    int32_t ord_bool = 1;
+    int32_t ord_u8 = 2;
+    int32_t ord_u32 = 3;
+    int32_t ord_u64 = 4;
+    int32_t ord_i64 = 5;
+    int32_t ord_usize = 6;
+    int32_t ord_isize = 7;
+    int32_t ord_named = 8;
+    int32_t rty = 0;
+    int32_t ko = 0;
+    if (((arena == ((struct ast_ASTArena *)(uintptr_t)(uint64_t)0ULL)) || ast_ref_is_null(ty_ref) || (ty_ref <= 0))) {
+      return 1;
+    }
+    (void)((rty = ty_ref));
+    if ((module != ((struct ast_Module *)(uintptr_t)(uint64_t)0ULL))) {
+      (void)((rty = typeck_resolve_type_alias_ref_local(module, arena, ty_ref, 0)));
+      if ((ast_ref_is_null(rty) || (rty <= 0))) {
+        (void)((rty = ty_ref));
+      }
+    }
+    (void)((ko = pipeline_type_kind_ord_at(arena, rty)));
+    if (((((((ko == ord_i32) || (ko == ord_u8)) || (ko == ord_u32)) || (ko == ord_u64)) || (ko == ord_i64))
+        || (ko == ord_usize)) || (ko == ord_isize)) {
+      return 1;
+    }
+    if ((ko == ord_named)) {
+      if ((typeck_type_is_aggregate_cmp_operand(module, arena, rty) != 0)) {
+        return 0;
+      }
+      return 1;
+    }
+    if ((ko == ord_bool)) {
+      return 0;
+    }
+    return 0;
+  }
+}
 int32_t typeck_check_expr_index(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
   {
     int32_t ord_lit = 0;
@@ -7291,6 +7334,7 @@ int32_t typeck_check_expr_index(struct ast_Module * module, struct ast_ASTArena 
     int32_t array_sz = 0;
     int32_t vec_lanes = 0;
     int32_t is_vec_base = 0;
+    int32_t index_ty = 0;
     if ((typeck_check_expr(module, arena, base_ref, return_type_ref, ctx) !=0)) {
       return -1;
     }
@@ -7314,6 +7358,14 @@ int32_t typeck_check_expr_index(struct ast_Module * module, struct ast_ASTArena 
     if (((((bt_kind !=ord_array) && (bt_kind !=ord_slice)) && (bt_kind !=ord_ptr)) && (is_vec_base ==0))) {
       (void)(driver_diagnostic_typeck_subscript_base(line, col));
       return -1;
+    }
+    /* wave664: hard-fail non-integer index (G.7 ≡ typeck.x). */
+    if (((!(ast_ref_is_null(index_ref)) && (index_ref > 0)) && (index_ref <= (arena->num_exprs)))) {
+      (void)((index_ty = pipeline_expr_resolved_type_ref(arena, index_ref)));
+      if ((typeck_type_is_valid_subscript_index(module, arena, index_ty) == 0)) {
+        (void)(driver_diagnostic_typeck_subscript_index(line, col));
+        return -1;
+      }
     }
     if ((is_vec_base !=0)) {
       (void)((elem_ty = typeck_vector_elem_type_ref(arena, base_ty)));

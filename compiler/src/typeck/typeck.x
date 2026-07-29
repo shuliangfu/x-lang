@@ -164,6 +164,16 @@ export extern function driver_diagnostic_typeck_invalid_as_cast(line: i32, col: 
  */
 export extern function driver_diagnostic_typeck_call_arity_mismatch(line: i32, col: i32): void;
 export extern function driver_diagnostic_typeck_call_arg_type_mismatch(line: i32, col: i32): void;
+/**
+ * Report non-integer array/slice/pointer subscript index (wave664 Cap residual).
+ * @param line i32 — 1-based source line of the INDEX expr
+ * @param col i32 — 1-based source column of the INDEX expr
+ * @return void
+ * PLATFORM: SHARED — closes soft residual: typeck accepted ptr/float/struct/bool
+ * indices → host-cc BLD001 ("array subscript is not an integer") or freestanding
+ * silent false green using pointer bits as index.
+ */
+export extern function driver_diagnostic_typeck_subscript_index(line: i32, col: i32): void;
 export extern function typeck_driver_diagnostic_pipe_marker(id: i32): void;
 export extern function driver_diagnostic_typeck_if_condition_not_bool(line: i32, col: i32): void;
 export extern function driver_diagnostic_typeck_while_condition_not_bool(line: i32, col: i32): void;
@@ -7613,8 +7623,72 @@ export function typeck_vector_elem_type_ref(arena: *ASTArena, type_ref: i32): i3
 }
 
 /**
- * See implementation.
+ * True when ty_ref is a legal INDEX subscript (integer-like).
+ * First-class ints (i32/u8/u32/u64/i64/usize/isize) and non-struct TYPE_NAMED
+ * (i8/i16/u16 aliases, enum tags) are ok. Rejects bool/ptr/float/aggregate/void.
+ * Soft: unknown/null ty_ref returns 1 so incomplete resolve is not a hard leaf.
+ * @param module *Module — for struct-layout NAMED check (via aggregate helper)
+ * @param arena *ASTArena — type pool
+ * @param ty_ref i32 — resolved type of the index expression
+ * @return i32 — 1 allowed (or soft-unknown), 0 hard-reject
+ * PLATFORM: SHARED — wave664 Cap residual; G.7 single helper for INDEX index gate.
+ */
+export function typeck_type_is_valid_subscript_index(module: *Module, arena: *ASTArena, ty_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let ord_i32: i32 = 0;
+    let ord_bool: i32 = 1;
+    let ord_u8: i32 = 2;
+    let ord_u32: i32 = 3;
+    let ord_u64: i32 = 4;
+    let ord_i64: i32 = 5;
+    let ord_usize: i32 = 6;
+    let ord_isize: i32 = 7;
+    let ord_named: i32 = 8;
+    let rty: i32 = 0;
+    let ko: i32 = 0;
+    if (arena == 0 as * ASTArena || ast.ref_is_null(ty_ref) || ty_ref <= 0) {
+      return 1;
+    }
+    /* Peel aliases so `type Idx = i32` stays integer-like. */
+    rty = ty_ref;
+    if (module != 0 as * Module) {
+      rty = typeck_resolve_type_alias_ref_local(module, arena, ty_ref, 0);
+      if (ast.ref_is_null(rty) || rty <= 0) {
+        rty = ty_ref;
+      }
+    }
+    ko = pipeline_type_kind_ord_at(arena, rty);
+    if (ko == ord_i32 || ko == ord_u8 || ko == ord_u32 || ko == ord_u64 || ko == ord_i64
+    || ko == ord_usize || ko == ord_isize) {
+      return 1;
+    }
+    if (ko == ord_named) {
+      /* Enum / i8/i16/u16 aliases: allow. Product struct layouts: reject. */
+      if (typeck_type_is_aggregate_cmp_operand(module, arena, rty) != 0) {
+        return 0;
+      }
+      return 1;
+    }
+    /* bool, ptr, float, array/slice/vector/linear, void, other: hard reject. */
+    if (ko == ord_bool) {
+      return 0;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Type-check EXPR_INDEX: base must be array/slice/ptr/vector; index must be integer-like.
  * Accepts TYPE_ARRAY / SLICE / PTR / VECTOR and TYPE_NAMED SIMD spellings (i32x4…).
+ * wave664 Cap residual: hard-fail non-integer index (ptr/float/struct/bool) that
+ * formerly passed typeck then host-cc BLD001 or freestanding silent false green.
+ * @param module *Module — current module
+ * @param arena *ASTArena — expr/type pool
+ * @param expr_ref i32 — EXPR_INDEX
+ * @param return_type_ref i32 — ambient expected type for nested check_expr
+ * @param ctx *PipelineDepCtx — typeck context
+ * @return i32 — 0 ok, -1 hard fail
  * PLATFORM: SHARED — product INDEX path for vector lane extract (WPO-S2 lane0).
  */
 export function typeck_check_expr_index(module: *Module, arena: *ASTArena, expr_ref: i32,
@@ -7636,6 +7710,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     let array_sz: i32 = 0;
     let vec_lanes: i32 = 0;
     let is_vec_base: i32 = 0;
+    let index_ty: i32 = 0;
     if (check_expr(module, arena, base_ref, return_type_ref, ctx) != 0) {
       return - 1;
     }
@@ -7659,6 +7734,17 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     if (bt_kind != ord_array && bt_kind != ord_slice && bt_kind != ord_ptr && is_vec_base == 0) {
       driver_diagnostic_typeck_subscript_base(line, col);
       return - 1;
+    }
+    /*
+     * wave664: hard-fail non-integer index after index expr is type-checked.
+     * Soft-skip unknown index_ty (<=0) inside helper; known bad kinds → T001.
+     */
+    if (!ast.ref_is_null(index_ref) && index_ref > 0 && index_ref <= arena.num_exprs) {
+      index_ty = pipeline_expr_resolved_type_ref(arena, index_ref);
+      if (typeck_type_is_valid_subscript_index(module, arena, index_ty) == 0) {
+        driver_diagnostic_typeck_subscript_index(line, col);
+        return - 1;
+      }
     }
     if (is_vec_base != 0) {
       elem_ty = typeck_vector_elem_type_ref(arena, base_ty);
