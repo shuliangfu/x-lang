@@ -49,6 +49,8 @@ void driver_diagnostic_typeck_subscript_base(int32_t line, int32_t col);
 void driver_diagnostic_typeck_subscript_index(int32_t line, int32_t col);
 /** wave665 Cap residual: &&/||/! operands must be bool (no implicit int-to-bool). */
 void driver_diagnostic_typeck_logical_operand_not_bool(int32_t line, int32_t col);
+/** wave666 Cap residual: ==/!=/</>/<=/>= operands must have equal types after lit coerce. */
+void driver_diagnostic_typeck_comparison_type_mismatch(int32_t line, int32_t col);
 void driver_diagnostic_typeck_struct_padding_before(const uint8_t *sname, int32_t sname_len, int32_t gap,
                                                     const uint8_t *fname, int32_t fname_len);
 void driver_diagnostic_typeck_struct_padding_trailing(const uint8_t *sname, int32_t sname_len, int32_t gap);

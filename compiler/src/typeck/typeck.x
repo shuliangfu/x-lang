@@ -184,6 +184,15 @@ export extern function driver_diagnostic_typeck_subscript_index(line: i32, col: 
  * freestanding/host false green via C truthiness.
  */
 export extern function driver_diagnostic_typeck_logical_operand_not_bool(line: i32, col: i32): void;
+/**
+ * Report incompatible comparison operand types (wave666 Cap residual).
+ * @param line i32 — 1-based source line of the ==/!=/</>/<=/>= expr
+ * @param col i32 — 1-based source column of the comparison expr
+ * @return void
+ * PLATFORM: SHARED — closes soft residual: typeck stamped bool for mixed
+ * i32/f32/i64/bool/ptr-pointee pairs then freestanding/host false green.
+ */
+export extern function driver_diagnostic_typeck_comparison_type_mismatch(line: i32, col: i32): void;
 export extern function typeck_driver_diagnostic_pipe_marker(id: i32): void;
 export extern function driver_diagnostic_typeck_if_condition_not_bool(line: i32, col: i32): void;
 export extern function driver_diagnostic_typeck_while_condition_not_bool(line: i32, col: i32): void;
@@ -6559,6 +6568,7 @@ export function typeck_type_is_aggregate_cmp_operand(module: *Module, arena: *AS
 /**
  * Type-check comparison binops (== != < <= > >=). Stamps result as bool.
  * wave317: f32 peer + bare FLOAT_LIT coerce. wave657: hard-fail aggregate operands.
+ * wave665: LOGAND/LOGOR require bool. wave666: mixed operand types hard-fail.
  * @param module *Module
  * @param arena *ASTArena
  * @param expr_ref i32 — EQ/NE/LT/LE/GT/GE expr
@@ -6580,6 +6590,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     let rko_cmp: i32 = 0;
     let lk_cmp: i32 = 0;
     let rk_cmp: i32 = 0;
+    let ord_lit: i32 = 0;
     let ord_f32: i32 = 14;
     let ord_logand: i32 = 20;
     let ord_logor: i32 = 21;
@@ -6659,6 +6670,42 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         col_ac = pipeline_expr_col_at(arena, expr_ref);
         driver_diagnostic_typeck_invalid_aggregate_cmp(line_ac, col_ac);
         return -1;
+      }
+      /*
+       * wave666 Cap residual: hard-fail mixed-type comparison at typeck.
+       * Root cause: after aggregate gate, binop_cmp still stamped bool for any
+       * remaining operands → `i32 == f32` / `i32 == i64` / `i32 == bool` /
+       * `*i32 == *u8` typeck OK then freestanding/host C promotion false green
+       * (or host warning-only for distinct pointer types).
+       * Policy (strict, Cap residual): operands must be equal after peer lit coerce
+       * (G.7 reuse typeck_coerce_init_lit_to_decl for bare INT_LIT / 0→ptr; float lit
+       * already coerced above). No integer widen, no float widen, no int↔bool.
+       * Soft: unknown/null operand type (incomplete resolve) is not a hard leaf.
+       * G.7: type_refs_equal; diag comparison_type_mismatch.
+       * PLATFORM: SHARED — seed typeck_gen + empty_surface + diagnostic twin same commit.
+       */
+      lt_cmp = pipeline_expr_resolved_type_ref(arena, bop_l);
+      rt_cmp = pipeline_expr_resolved_type_ref(arena, bop_r);
+      if (!ast.ref_is_null(lt_cmp) && !ast.ref_is_null(rt_cmp)) {
+        lko_cmp = pipeline_type_kind_ord_at(arena, lt_cmp);
+        rko_cmp = pipeline_type_kind_ord_at(arena, rt_cmp);
+        lk_cmp = pipeline_expr_kind_ord_at(arena, bop_l);
+        rk_cmp = pipeline_expr_kind_ord_at(arena, bop_r);
+        /* Peer integer/0-null lit coerce so `a:i32 == 1` and `p:*T == 0` stay green. */
+        if (rk_cmp == ord_lit && typeck_coerce_init_lit_to_decl(arena, bop_r, lt_cmp, lko_cmp, rk_cmp) != 0) {
+          rt_cmp = pipeline_expr_resolved_type_ref(arena, bop_r);
+        } else if (lk_cmp == ord_lit
+        && typeck_coerce_init_lit_to_decl(arena, bop_l, rt_cmp, rko_cmp, lk_cmp) != 0) {
+          lt_cmp = pipeline_expr_resolved_type_ref(arena, bop_l);
+        }
+        if (lt_cmp > 0 && rt_cmp > 0 && lt_cmp <= arena.num_types && rt_cmp <= arena.num_types) {
+          if (!type_refs_equal(arena, lt_cmp, rt_cmp)) {
+            line_ac = pipeline_expr_line_at(arena, expr_ref);
+            col_ac = pipeline_expr_col_at(arena, expr_ref);
+            driver_diagnostic_typeck_comparison_type_mismatch(line_ac, col_ac);
+            return -1;
+          }
+        }
       }
     }
     bt = ensure_bool_type_ref(arena);

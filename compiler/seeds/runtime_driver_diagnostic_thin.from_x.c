@@ -770,6 +770,13 @@ void driver_diagnostic_typeck_subscript_index(int32_t line, int32_t col) {
   (void)(0);
   return;
 }
+/* wave666 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_comparison_type_mismatch */
+void driver_diagnostic_typeck_comparison_type_mismatch(int32_t line, int32_t col) {
+  (void)(lsp_diag_report_typeck(line, col,
+      "comparison operands have incompatible types"));
+  return;
+}
+
 /* wave665 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_logical_operand_not_bool */
 void driver_diagnostic_typeck_logical_operand_not_bool(int32_t line, int32_t col) {
   (void)(lsp_diag_report_typeck(line, col,

@@ -582,6 +582,21 @@ export function driver_diagnostic_typeck_logical_operand_not_bool(line: i32, col
   }
 }
 
+/**
+ * Report incompatible comparison operand types (wave666 Cap residual pure leaf).
+ * @param line i32 — 1-based source line of the comparison
+ * @param col i32 — 1-based source column of the comparison
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ runtime_driver_diagnostic.x.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_comparison_type_mismatch(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "comparison operands have incompatible types");
+  }
+}
+
 // ---- G-02f-341 pure helpers / remaining gates ----
 
 /** Exported function `parser_is_ident_allow`.

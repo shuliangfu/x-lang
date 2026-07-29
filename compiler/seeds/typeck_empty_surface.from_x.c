@@ -735,6 +735,7 @@ extern void driver_diagnostic_typeck_call_arg_type_mismatch(int32_t line, int32_
 extern void driver_diagnostic_typeck_subscript_index(int32_t line, int32_t col);
 /* wave665 Cap residual: non-bool &&/||/! operand hard diag (G.7 ≡ typeck.x). */
 extern void driver_diagnostic_typeck_logical_operand_not_bool(int32_t line, int32_t col);
+extern void driver_diagnostic_typeck_comparison_type_mismatch(int32_t line, int32_t col);
 extern void typeck_driver_diagnostic_pipe_marker(int32_t id);
 extern void driver_diagnostic_typeck_if_condition_not_bool(int32_t line, int32_t col);
 extern void driver_diagnostic_typeck_while_condition_not_bool(int32_t line, int32_t col);
@@ -5292,6 +5293,34 @@ int32_t typeck_check_expr_binop_cmp(struct ast_Module * module, struct ast_ASTAr
       (void)((col_ac = pipeline_expr_col_at(arena, expr_ref)));
       (void)(driver_diagnostic_typeck_invalid_aggregate_cmp(line_ac, col_ac));
       return -(1);
+    }
+    /* wave666 Cap residual: hard-fail mixed-type comparison (G.7 ≡ typeck.x). */
+    (void)((lt_cmp = pipeline_expr_resolved_type_ref(arena, bop_l)));
+    (void)((rt_cmp = pipeline_expr_resolved_type_ref(arena, bop_r)));
+    if ((!(ast_ref_is_null(lt_cmp)) && !(ast_ref_is_null(rt_cmp)))) {
+      int32_t ord_lit = 0;
+      (void)((lko_cmp = pipeline_type_kind_ord_at(arena, lt_cmp)));
+      (void)((rko_cmp = pipeline_type_kind_ord_at(arena, rt_cmp)));
+      (void)((lk_cmp = pipeline_expr_kind_ord_at(arena, bop_l)));
+      (void)((rk_cmp = pipeline_expr_kind_ord_at(arena, bop_r)));
+      if (((rk_cmp == ord_lit)
+           && (typeck_coerce_init_lit_to_decl(arena, bop_r, lt_cmp, lko_cmp, rk_cmp) != 0))) {
+        (void)((rt_cmp = pipeline_expr_resolved_type_ref(arena, bop_r)));
+      } else {
+        if (((lk_cmp == ord_lit)
+             && (typeck_coerce_init_lit_to_decl(arena, bop_l, rt_cmp, rko_cmp, lk_cmp) != 0))) {
+          (void)((lt_cmp = pipeline_expr_resolved_type_ref(arena, bop_l)));
+        }
+      }
+      if (((((lt_cmp > 0) && (rt_cmp > 0)) && (lt_cmp <= (arena->num_types)))
+           && (rt_cmp <= (arena->num_types)))) {
+        if (!(type_refs_equal(arena, lt_cmp, rt_cmp))) {
+          (void)((line_ac = pipeline_expr_line_at(arena, expr_ref)));
+          (void)((col_ac = pipeline_expr_col_at(arena, expr_ref)));
+          (void)(driver_diagnostic_typeck_comparison_type_mismatch(line_ac, col_ac));
+          return -(1);
+        }
+      }
     }
   }
   (void)((bt = ensure_bool_type_ref(arena)));

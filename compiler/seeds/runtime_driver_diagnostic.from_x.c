@@ -696,6 +696,15 @@ void driver_diagnostic_typeck_logical_operand_not_bool(int32_t line, int32_t col
       "logical operand must be bool (no implicit int-to-bool)"));
   return;
 }
+
+/* wave666 Cap residual: pure authority thin.x driver_diagnostic_typeck_comparison_type_mismatch;
+ * cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X. */
+void driver_diagnostic_typeck_comparison_type_mismatch(int32_t line, int32_t col)
+{
+  (void)(lsp_diag_report_typeck(line, col,
+      "comparison operands have incompatible types"));
+  return;
+}
 #endif
 
 /* pure 权威：thin.x driver_diagnostic_typeck_if_condition_not_bool；冷启动全 C；FROM_X 无 pure-dup _impl */

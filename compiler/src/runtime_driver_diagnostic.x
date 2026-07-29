@@ -319,6 +319,23 @@ export function driver_diagnostic_typeck_logical_operand_not_bool(line: i32, col
   }
 }
 
+/**
+ * Report incompatible comparison operand types (wave666 Cap residual).
+ * Closes soft residual: typeck stamped bool for mixed i32/f32/i64/bool/ptr
+ * pairs → freestanding/host C promotion false green.
+ * @param line i32 — 1-based source line of the comparison
+ * @param col i32 — 1-based source column of the comparison
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ thin.x; seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_comparison_type_mismatch(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "comparison operands have incompatible types");
+  }
+}
+
 /** Exported function `driver_diagnostic_typeck_try_propagate_bad_enclosing`.
  * Implements `driver_diagnostic_typeck_try_propagate_bad_enclosing`.
  * @param line i32
