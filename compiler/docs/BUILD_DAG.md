@@ -49,6 +49,7 @@
 **wave765:** g05 labi multi-slice → `try-labi-prefer` (g05/Makefile thin-call; dual hybrid deleted).  
 **wave766:** g05 rt multi-slice → `try-rt-prefer` (g05/Makefile thin-call; dual hybrid deleted); residual pipeline_abi/ldpc.  
 **wave767:** g05 pipeline_abi + ldpc → `try-pipeline-abi-prefer` / `try-ldpc-prefer` (g05/Makefile thin-call; dual hybrid deleted); residual target_cpu.  
+**wave768:** g05 target_cpu → `try-target-cpu-prefer` (g05/Makefile thin-call; dual hybrid deleted); residual other L2 · pure-ld.  
 **wave758:** R4 residual thin_glue → R1 seed-map (G.7 有则补全) — `parser_asm_thin_glue` pure host-cc; user-asm shell-only.  
 **wave759:** R4 residual glue standalone → R1 seed-map (G.7 有则补全) — `pipeline_glue_standalone` pure host-cc; glue shell-only.
 
@@ -378,7 +379,8 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 - [x] LEAF dump `SWALLOWED_R4_BODY_GLUE_STANDALONE=1`
 - [x] g05 labi multi-slice PREFER (wave765) · g05 rt multi-slice PREFER (wave766)
 - [x] g05 pipeline_abi + ldpc PREFER (wave767 try-pipeline-abi-prefer / try-ldpc-prefer)
-- [ ] target_cpu PREFER · pure-ld · physical delete
+- [x] g05 target_cpu PREFER (wave768 try-target-cpu-prefer)
+- [ ] other L2 PREFER · pure-ld · physical delete
 
 ---
 

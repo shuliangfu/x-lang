@@ -1456,8 +1456,9 @@
     thin+rest 单 body（prefer 失败 → cold ensure_one）；Makefile thin
   - ✅ wave764：**g05 R3_COLD r3-prefer-family** — 同 catalog 体；full→thin ladder；
     删 g05 双 hybrid
-  - ✅ wave765–767：**g05 labi/rt/pipeline_abi/ldpc try-*-prefer** — 单 body；g05/Makefile thin-call；
-    residual target_cpu · pure-ld
+  - ✅ wave765–767：**g05 labi/rt/pipeline_abi/ldpc try-*-prefer** — 单 body；g05/Makefile thin-call
+  - ✅ wave768：**g05 target_cpu try-target-cpu-prefer** — flags.x + rest FROM_X → `$CC -r`；
+    residual other L2 · pure-ld
 
 🟡 **11.3.1 路径 · 叶 pattern residual（wave746 库存 · wave747 R4 mode · wave748–755 R1 · wave756 pure-R1 · wave757 R3 cold · wave758 thin_glue · wave759 glue-standalone · wave760 R2 panic cold · wave761 gen/pipeline try-gen-x · 非物理删）**
 

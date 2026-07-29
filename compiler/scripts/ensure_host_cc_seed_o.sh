@@ -41,8 +41,11 @@
 #   wave767: G.7 g05 pipeline_abi + ldpc PREFER swallow —
 #            `try-pipeline-abi-prefer OUT` (full .x WEAK + rest FROM_X → cc -r)
 #            · `try-ldpc-prefer OUT` (thin .x WEAK + rest L2_LSP_CTX → cc -r).
-#            g05_ensure + Makefile thin-call. Residual: target_cpu · pure-ld ·
-#            physical delete · other L2 hybrid.
+#            g05_ensure + Makefile thin-call.
+#   wave768: G.7 g05 target_cpu PREFER swallow —
+#            `try-target-cpu-prefer OUT` (flags.x + rest pure FROM_X → cc -r).
+#            g05_ensure + Makefile thin-call. Residual: other L2 · pure-ld ·
+#            physical delete.
 #   wave758: R4 residual pure host-cc thin_glue → R1 seed-map (G.7 有则补全):
 #            parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c +
 #            -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm;
@@ -112,7 +115,8 @@
 #   - ~~g05 labi multi-slice~~ wave765 try-labi-prefer
 #   - ~~g05 rt multi-slice~~ wave766 try-rt-prefer
 #   - ~~g05 pipeline_abi / ldpc PREFER~~ wave767 try-pipeline-abi-prefer / try-ldpc-prefer
-#   - g05 other PREFER hybrid (target_cpu · other L2) ·
+#   - ~~g05 target_cpu PREFER~~ wave768 try-target-cpu-prefer
+#   - g05 other PREFER hybrid (other L2) ·
 #     panic PREFER thin · R5 CI all
 #   - pure-ld (11.1.4) · physical Makefile delete (11.3.1)
 #   - bootstrap_nostdlib_stubs.o (cc_inc_tu residual) · crt0_user.o cp wrappers
@@ -126,6 +130,7 @@
 #   bash scripts/ensure_host_cc_seed_o.sh try-rt-prefer <out.o>   # wave766 rt multi-slice
 #   bash scripts/ensure_host_cc_seed_o.sh try-pipeline-abi-prefer <out.o> # wave767 pipeline_abi
 #   bash scripts/ensure_host_cc_seed_o.sh try-ldpc-prefer <out.o>  # wave767 ldpc thin+rest
+#   bash scripts/ensure_host_cc_seed_o.sh try-target-cpu-prefer <out.o> # wave768 target_cpu
 #   bash scripts/ensure_host_cc_seed_o.sh try-r2 <out.o>   # wave760/762 R2 UNAME leaves
 #   bash scripts/ensure_host_cc_seed_o.sh try-gen-x <out.o> # wave761 gen *_x / pipeline_x
 #   bash scripts/ensure_host_cc_seed_o.sh r2-panic         # DRIVER_SEED_PANIC family
@@ -186,7 +191,7 @@ _DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -2429,7 +2434,7 @@ try_ensure_rt_prefer_one() {
 #   1 — cold seed missing / compile failed
 # PLATFORM: SHARED shell body · g05 historic PREFER=1 · cold chain PREFER=0.
 # G.7: reuses rt_prefer_try_x_to_o harness (有则补全; no second -E prologue).
-# Residual after: target_cpu · other L2 · pure-ld · physical delete.
+# Residual after: ~~target_cpu~~(wave768) · other L2 · pure-ld · physical delete.
 # ---------------------------------------------------------------------------
 
 pipeline_abi_prefer_cflags() {
@@ -2540,7 +2545,7 @@ try_ensure_pipeline_abi_prefer_one() {
 #   1 — cold seed missing / compile failed
 # PLATFORM: SHARED shell body · g05 historic PREFER=1 · cold chain PREFER=0.
 # G.7: reuses rt_prefer_try_x_to_o harness (有则补全).
-# Residual after: target_cpu · other L2 · pure-ld · physical delete.
+# Residual after: ~~target_cpu~~(wave768) · other L2 · pure-ld · physical delete.
 # ---------------------------------------------------------------------------
 
 ensure_ldpc_prefer_one() {
@@ -2612,6 +2617,109 @@ try_ensure_ldpc_prefer_one() {
     return 3
   fi
   ensure_ldpc_prefer_one "$o"
+  return 0
+}
+
+# ---------------------------------------------------------------------------
+# wave768: try-target-cpu-prefer OUT — g05 target_cpu product PREFER (single body).
+#
+# Single leaf: src/driver/target_cpu.o (R1_SEED_MAP; cold twin = ensure_one pure
+# seed seeds/target_cpu_pure.from_x.c).
+# When XLANG_G05_PREFER_X_O=1 and an xlang binary works:
+#   flags.x (pending/tolower/eq5/eq6) → .o via rt_prefer_try_x_to_o
+#     (G.7 有则补全: same harness as pipeline_abi/ldpc/rt; no WEAK — historic
+#     g05 flags helpers are strong and rest omits them under FROM_X)
+#   rest = seeds/target_cpu_pure.from_x.c under -DXLANG_L2_TARGET_CPU_FLAGS_FROM_X
+#   merge: $CC -r -nostdlib flags + rest → OUT (g05 historic)
+# Prefer fail / PREFER≠1 / no xlang → ensure_one cold pure seed (full TU).
+# Callers: g05_ensure (wave768) · Makefile src/driver/target_cpu.o (unified).
+# Exit codes:
+#   0 — OUT is target_cpu.o; prefer or cold body produced OUT
+#   3 — OUT is not src/driver/target_cpu.o
+#   1 — cold seed missing / compile failed
+# PLATFORM: SHARED shell body · g05 historic PREFER=1 · cold chain PREFER=0.
+# G.7: reuses rt_prefer_try_x_to_o harness (有则补全; no second -E prologue).
+# Residual after: other L2 hybrid · pure-ld · physical delete.
+# ---------------------------------------------------------------------------
+
+ensure_target_cpu_prefer_one() {
+  local o="$1"
+  local seed="seeds/target_cpu_pure.from_x.c"
+  local flags_x="src/driver/target_cpu_flags.x"
+  local pure_x="src/driver/target_cpu_pure.x"
+  local hdr="include/target_cpu.h"
+  local prefer="${XLANG_G05_PREFER_X_O:-0}"
+  local stale=0 done=0
+  local thin_o rest_o
+
+  if [ ! -f "$seed" ]; then
+    echo "ensure_host_cc_seed_o try-target-cpu-prefer: missing seed $seed" >&2
+    return 1
+  fi
+
+  if [ "$FORCE" != "1" ] && [ -f "$o" ]; then
+    stale=0
+    [ "$seed" -nt "$o" ] && stale=1
+    if [ -f "$flags_x" ] && [ "$flags_x" -nt "$o" ]; then
+      stale=1
+    fi
+    if [ -f "$pure_x" ] && [ "$pure_x" -nt "$o" ]; then
+      stale=1
+    fi
+    if [ -f "$hdr" ] && [ "$hdr" -nt "$o" ]; then
+      stale=1
+    fi
+    if [ "$stale" = "0" ]; then
+      log "skip up-to-date $o (target-cpu-prefer)"
+      return 0
+    fi
+  fi
+
+  mkdir -p "$(dirname "$o")"
+
+  # PREFER flags.x + seed-rest only when PREFER=1 (Darwin cold-chain safety twin).
+  if [ "$prefer" = "1" ] && [ -f "$flags_x" ] \
+    && { [ -x ./xlang ] || [ -x ./xlang-c ] || [ -x ./bootstrap_xlangc ]; }; then
+    thin_o="$(mktemp "${TMPDIR:-/tmp}/tcpu_flags.XXXXXX")"
+    rest_o="$(mktemp "${TMPDIR:-/tmp}/tcpu_rest.XXXXXX")"
+    # shellcheck disable=SC2086
+    if rt_prefer_try_x_to_o "$flags_x" "$thin_o" \
+      && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_TARGET_CPU_FLAGS_FROM_X \
+           -c -o "$rest_o" "$seed" \
+      && $CC -r -nostdlib -o "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+      log "prefer thin+rest $o <- $flags_x + seed-rest (try-target-cpu-prefer)"
+      done=1
+    else
+      log "target_cpu hybrid failed; fallback full seed"
+    fi
+    rm -f "$thin_o" "$rest_o"
+  fi
+
+  if [ "$done" = "1" ]; then
+    return 0
+  fi
+
+  # Cold full pure seed (ensure_one twin / PREFER=0).
+  if [ -f "$o" ] && [ "$prefer" = "1" ]; then
+    FORCE=1
+    ensure_one "$o" "$seed"
+    FORCE=0
+  else
+    ensure_one "$o" "$seed"
+  fi
+  return 0
+}
+
+try_ensure_target_cpu_prefer_one() {
+  local o="$1"
+  if [ -z "$o" ]; then
+    echo "ensure_host_cc_seed_o try-target-cpu-prefer: need <out.o>" >&2
+    exit 2
+  fi
+  if [ "$o" != "src/driver/target_cpu.o" ]; then
+    return 3
+  fi
+  ensure_target_cpu_prefer_one "$o"
   return 0
 }
 
@@ -3642,6 +3750,47 @@ run_check() {
   else
     bad "scripts/g05_ensure_relink_prereqs.sh missing (wave767 g05 gate)"
   fi
+  # wave768: try-target-cpu-prefer (g05 + Makefile thin-call)
+  if ! grep -q 'try_ensure_target_cpu_prefer_one\|try-target-cpu-prefer' "$0"; then
+    bad "try-target-cpu-prefer / try_ensure_target_cpu_prefer_one missing (wave768)"
+  else
+    note "try-target-cpu-prefer helper present (wave768)"
+  fi
+  if ! grep -q 'ensure_target_cpu_prefer_one' "$0"; then
+    bad "target_cpu prefer body missing (wave768)"
+  else
+    note "target-cpu-prefer body present (wave768)"
+  fi
+  if awk '
+    $0 ~ /^src\/driver\/target_cpu\.o:/ {grab=1; next}
+    grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+    grab {body = body $0 "\n"}
+    END {
+      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-target-cpu-prefer/) exit 0
+      exit 1
+    }
+  ' Makefile; then
+    note "Makefile src/driver/target_cpu.o thin-calls ensure try-target-cpu-prefer (wave768)"
+  else
+    bad "Makefile src/driver/target_cpu.o must thin-call ensure try-target-cpu-prefer (wave768)"
+  fi
+  if [ -f scripts/g05_ensure_relink_prereqs.sh ]; then
+    if grep -q 'try-target-cpu-prefer\|target-cpu-prefer' scripts/g05_ensure_relink_prereqs.sh \
+      && grep -q 'ensure_host_cc_seed_o.sh' scripts/g05_ensure_relink_prereqs.sh; then
+      note "g05_ensure thin-calls ensure try-target-cpu-prefer (wave768)"
+    else
+      bad "g05_ensure must thin-call ensure try-target-cpu-prefer (wave768)"
+    fi
+    # Dual body residual: g05 must not re-open inline target_cpu flags hybrid.
+    if grep -qE '_tcflags_x=src/driver/target_cpu_flags\.x|_tcpure=seeds/target_cpu_pure\.from_x\.c' \
+      scripts/g05_ensure_relink_prereqs.sh; then
+      bad "g05_ensure still has target_cpu dual hybrid body (wave768)"
+    else
+      note "g05_ensure target_cpu dual hybrid body removed (wave768)"
+    fi
+  else
+    bad "scripts/g05_ensure_relink_prereqs.sh missing (wave768 g05 gate)"
+  fi
   # wave760/762: try-r2 R2 UNAME leaves (panic + typeck_f64 + crt0)
   if ! grep -q 'try_ensure_r2_one\|try-r2' "$0"; then
     bad "try-r2 / try_ensure_r2_one missing (wave760/762 R2 UNAME)"
@@ -3793,6 +3942,19 @@ case "$MODE" in
     set -e
     exit "$_try_rc"
     ;;
+  try-target-cpu-prefer|try_target_cpu_prefer|target-cpu-prefer|tcpu-prefer|try-tcpu)
+    # wave768: target_cpu PREFER helper — exit 3 if not src/driver/target_cpu.o.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o try-target-cpu-prefer: need <out.o>" >&2
+      exit 2
+    fi
+    _try_out="$1"
+    set +e
+    try_ensure_target_cpu_prefer_one "$_try_out"
+    _try_rc=$?
+    set -e
+    exit "$_try_rc"
+    ;;
   try-r2|try_r2|try-r2-panic|r2-one|r2-panic-one)
     # wave760/762: R2 UNAME helper — panic | typeck_f64 | crt0; exit 3 if not member.
     if [ "$#" -lt 1 ]; then
@@ -3870,7 +4032,7 @@ case "$MODE" in
     exit 0
     ;;
   *)
-    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check)" >&2
+    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check)" >&2
     exit 2
     ;;
 esac

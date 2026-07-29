@@ -2111,12 +2111,15 @@ src/main_driver.o: seeds/main.from_x.c src/main_c_entry.x Makefile scripts/ensur
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/main.from_x.c -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE
 # G-02a: preprocess.c 已物理删除；runtime preprocess() 走 preprocess.x（preprocess_x.o）。
-# G-02f-6：target_cpu.o 单 TU（pure seed 含 OS detect；无 ld -r）
-# wave755 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_SEED_MAP_OBJS).
+# G-02f-6：target_cpu.o 单 TU（pure seed 含 OS detect；无 ld -r cold）
+# wave755 R1: pure host-cc body → ensure (list = R1_SEED_MAP_OBJS).
+# wave768 product PREFER flags.x + rest → try-target-cpu-prefer (cold pure seed fallback).
 # Seed map: target_cpu.o ← seeds/target_cpu_pure.from_x.c (basename mismatch).
-src/driver/target_cpu.o: seeds/target_cpu_pure.from_x.c src/driver/target_cpu_pure.x include/target_cpu.h scripts/ensure_host_cc_seed_o.sh
+src/driver/target_cpu.o: seeds/target_cpu_pure.from_x.c src/driver/target_cpu_pure.x src/driver/target_cpu_flags.x include/target_cpu.h scripts/ensure_host_cc_seed_o.sh
+	# wave768: target_cpu PREFER flags.x + rest → try-target-cpu-prefer (cold pure seed fallback).
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/target_cpu_pure.from_x.c
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-target-cpu-prefer $@
 # G-02f-7 / Phase 4：simd_enc thin+rest PREFER_X_O
 # 源：src/asm/simd_enc_thin.x（74 #[no_mangle] thin wrapper）+ seeds/simd_enc.from_x.c（_impl rest）
 # 仅 XLANG_G05_PREFER_X_O=1 且 xlang-c 可用时走 thin；否则 seed 完整编译。

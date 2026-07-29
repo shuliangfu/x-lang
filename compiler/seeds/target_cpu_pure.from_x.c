@@ -56,8 +56,9 @@ uint8_t tcp_tolower(uint8_t c) {
 }
 #else
 /* wave577 Cap fix: under FROM_X only 5 flag helpers come from target_cpu_flags.x;
- * remaining business funcs (tcp_eq_at/parse_named/resolve/simd_*/append_feat_name/
- * flags_has_token) always compile in this TU so hybrid ld -r does not lose symbols. */
+ * remaining business funcs (tcp_eq_at, parse_named, resolve, simd_star helpers,
+ * append_feat_name, flags_has_token) always compile in this TU so hybrid ld -r
+ * does not lose symbols. (Avoid star-slash sequences inside this block comment.) */
 extern void driver_set_pending_target_cpu_features(uint32_t features);
 extern uint32_t driver_get_pending_target_cpu_features(void);
 extern uint8_t tcp_tolower(uint8_t c);

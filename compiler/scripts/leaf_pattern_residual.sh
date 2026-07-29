@@ -27,7 +27,7 @@
 #   swallowed wave763 try-r3-prefer + wave764 g05 r3-prefer-family +
 #   wave765 g05 labi multi-slice try-labi-prefer
 #   wave766 g05 rt multi-slice try-rt-prefer; residual g05 other PREFER
-#   (~~pipeline_abi/ldpc~~ wave767 · target_cpu) / pure-ld.
+#   (~~pipeline_abi/ldpc~~ wave767 · ~~target_cpu~~ wave768) / pure-ld · other L2.
 #
 # Human map: compiler/docs/LEAF_PATTERN_RESIDUAL.md
 #
@@ -121,6 +121,11 @@ SWALLOWED_G05_LDPC_PREFER=1
 SWALLOWED_G05_LDPC_PREFER_VIA=ensure_host_cc_seed_o.sh_try-ldpc-prefer
 SWALLOWED_G05_LDPC_PREFER_SCOPE=lsp_diag_pipeline_ctx_R1_MISC_BASENAME_member
 SWALLOWED_G05_LDPC_PREFER_NOTE=g05_makefile_thin_call_no_dual_hybrid_ldpc
+# wave768: g05 target_cpu product PREFER → try-target-cpu-prefer
+SWALLOWED_G05_TARGET_CPU_PREFER=1
+SWALLOWED_G05_TARGET_CPU_PREFER_VIA=ensure_host_cc_seed_o.sh_try-target-cpu-prefer
+SWALLOWED_G05_TARGET_CPU_PREFER_SCOPE=target_cpu_R1_SEED_MAP_member
+SWALLOWED_G05_TARGET_CPU_PREFER_NOTE=g05_makefile_thin_call_no_dual_hybrid_target_cpu
 SWALLOWED_LINK_DRIVER=scripts/bootstrap_driver_seed_link.sh
 SWALLOWED_G05_FAMILY=scripts/g05_*.sh
 SWALLOWED_MIGRATE_GEN=scripts/migrate_x_objs.sh+ensure_*_gen.sh
@@ -199,8 +204,9 @@ RESIDUAL_CLASS_G05_LABI_PREFER=swallowed_wave765_try_labi_prefer
 RESIDUAL_CLASS_G05_RT_PREFER=swallowed_wave766_try_rt_prefer
 RESIDUAL_CLASS_G05_PIPELINE_ABI_PREFER=swallowed_wave767_try_pipeline_abi_prefer
 RESIDUAL_CLASS_G05_LDPC_PREFER=swallowed_wave767_try_ldpc_prefer
-RESIDUAL_CLASS_R3_PREFER_THIN_RESIDUAL=g05_other_prefer_target_cpu_other_L2
-RESIDUAL_CLASS_R3_ENDGAME=g05_ensure_target_cpu_other_L2
+RESIDUAL_CLASS_G05_TARGET_CPU_PREFER=swallowed_wave768_try_target_cpu_prefer
+RESIDUAL_CLASS_R3_PREFER_THIN_RESIDUAL=g05_other_prefer_other_L2
+RESIDUAL_CLASS_R3_ENDGAME=g05_ensure_other_L2
 
 RESIDUAL_CLASS_R4=cold_rebuild_pattern_bodies
 RESIDUAL_CLASS_R4_SURFACE=sat|lsp|bridge|panic|user-asm|glue|pipeline-x_make_pattern
@@ -241,6 +247,7 @@ print_live_metrics() {
   g05_rt_prefer=0
   g05_pipeline_abi_prefer=0
   g05_ldpc_prefer=0
+  g05_target_cpu_prefer=0
   r2_panic=0
   r2_typeck_f64=0
   r2_crt0=0
@@ -327,6 +334,17 @@ print_live_metrics() {
       && ! grep -qE '_ldpc=seeds/lsp_diag_pipeline_ctx\.from_x\.c' \
         "$ROOT/compiler/scripts/g05_ensure_relink_prereqs.sh" 2>/dev/null; then
       g05_ldpc_prefer=1
+    fi
+    # wave768: g05 target_cpu via try-target-cpu-prefer (no dual hybrid)
+    if [ -f "$ROOT/compiler/scripts/g05_ensure_relink_prereqs.sh" ] \
+      && grep -q 'try-target-cpu-prefer\|target-cpu-prefer' \
+        "$ROOT/compiler/scripts/g05_ensure_relink_prereqs.sh" 2>/dev/null \
+      && grep -q 'try_ensure_target_cpu_prefer_one\|ensure_target_cpu_prefer_one' \
+        "$ROOT/compiler/scripts/ensure_host_cc_seed_o.sh" 2>/dev/null \
+      && grep -q 'try-target-cpu-prefer' "$mf" 2>/dev/null \
+      && ! grep -qE '_tcflags_x=src/driver/target_cpu_flags\.x|_tcpure=seeds/target_cpu_pure\.from_x\.c' \
+        "$ROOT/compiler/scripts/g05_ensure_relink_prereqs.sh" 2>/dev/null; then
+      g05_target_cpu_prefer=1
     fi
     # wave760: R2 panic cold via try-r2
     if grep -q 'try-r2\|try_ensure_r2' \
@@ -424,6 +442,7 @@ G05_LABI_PREFER_SWALLOWED=$g05_labi_prefer
 G05_RT_PREFER_SWALLOWED=$g05_rt_prefer
 G05_PIPELINE_ABI_PREFER_SWALLOWED=$g05_pipeline_abi_prefer
 G05_LDPC_PREFER_SWALLOWED=$g05_ldpc_prefer
+G05_TARGET_CPU_PREFER_SWALLOWED=$g05_target_cpu_prefer
 R2_PANIC_COLD_SWALLOWED=$r2_panic
 R2_TYPECK_F64_SWALLOWED=$r2_typeck_f64
 R2_CRT0_SWALLOWED=$r2_crt0
@@ -686,13 +705,19 @@ fi
 if ! printf '%s\n' "$_out" | grep -q 'G05_LDPC_PREFER_SWALLOWED=1'; then
   bad "dump G05_LDPC_PREFER_SWALLOWED must be 1 (try-ldpc-prefer + g05 thin-call)"
 fi
+if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_G05_TARGET_CPU_PREFER=1'; then
+  bad "dump must set SWALLOWED_G05_TARGET_CPU_PREFER=1 (wave768)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'G05_TARGET_CPU_PREFER_SWALLOWED=1'; then
+  bad "dump G05_TARGET_CPU_PREFER_SWALLOWED must be 1 (try-target-cpu-prefer + g05 thin-call)"
+fi
 if ! printf '%s\n' "$_out" | grep -q 'R1_OTHER_HOST_CC_STILL_MAKE=1'; then
   bad "dump must keep R1_OTHER_HOST_CC_STILL_MAKE=1 (honest residual)"
 fi
 if ! printf '%s\n' "$_out" | grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0'; then
   bad "dump missing ENDGAME_PHYSICAL_DELETE_MAKEFILE=0 (not closed)"
 else
-  note "residual class inventory dump OK (wave747–767 + g05 pipeline_abi/ldpc PREFER)"
+  note "residual class inventory dump OK (wave747–768 + g05 target_cpu PREFER)"
 fi
 
 # Makefile still present (residual reality) + has host-cc heat
@@ -888,7 +913,7 @@ else
     "$REBUILD_REL"; then
     bad "rebuild_leaves must not hardcode .o list (dual authority)"
   fi
-  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi try-labi-prefer (wave765) + rt try-rt-prefer (wave766) + pipeline_abi/ldpc try-*-prefer (wave767); residual g05 target_cpu / pure-ld"
+  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi try-labi-prefer (wave765) + rt try-rt-prefer (wave766) + pipeline_abi/ldpc try-*-prefer (wave767) + target_cpu try-target-cpu-prefer (wave768); residual other L2 / pure-ld"
 fi
 
 # wave763: ensure try-r3-prefer + Makefile R3_COLD thin-call

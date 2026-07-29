@@ -425,7 +425,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # wave767 G.7: ldpc product PREFER → ensure try-ldpc-prefer
   # (single body; thin .x WEAK + rest L2_LSP_CTX → cc -r; cold plain seed).
   # Leaf = src/lsp/lsp_diag_pipeline_ctx.o (R1_MISC_BASENAME cold twin).
-  # residual: target_cpu · other L2 · pure-ld · physical delete.
+  # residual: ~~target_cpu~~(wave768) · other L2 · pure-ld · physical delete.
   # PLATFORM: SHARED product daily path · default PREFER=1 (g05 historic).
   if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
     echo "g05_ensure: try-ldpc-prefer src/lsp/lsp_diag_pipeline_ctx.o (wave767)"
@@ -435,6 +435,20 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || echo "g05_ensure: try-ldpc-prefer failed (non-fatal if unused)" >&2
   else
     echo "g05_ensure: missing ensure_host_cc_seed_o.sh; ldpc prefer residual" >&2
+  fi
+  # wave768 G.7: target_cpu product PREFER → ensure try-target-cpu-prefer
+  # (single body; flags.x + rest pure FROM_X → cc -r; cold pure seed).
+  # Leaf = src/driver/target_cpu.o (R1_SEED_MAP cold twin). No dual inline hybrid.
+  # residual: other L2 · pure-ld · physical delete.
+  # PLATFORM: SHARED product daily path · default PREFER=1 (g05 historic).
+  if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
+    echo "g05_ensure: try-target-cpu-prefer src/driver/target_cpu.o (wave768)"
+    XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
+      CC="$CC" CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}" \
+      bash scripts/ensure_host_cc_seed_o.sh try-target-cpu-prefer src/driver/target_cpu.o \
+      || echo "g05_ensure: try-target-cpu-prefer failed (non-fatal if unused)" >&2
+  else
+    echo "g05_ensure: missing ensure_host_cc_seed_o.sh; target_cpu prefer residual" >&2
   fi
   # G-02f-11：pipeline_glue_strict_minimal 产品 seed
   _pglue=seeds/pipeline_glue_strict_minimal.from_x.c
@@ -473,40 +487,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     src/lsp/lsp_diag_pipeline_sizes.x \
     seeds/lsp_diag_pipeline_sizes.from_x.c \
     "sizes_nostub"
-  # G-02f-6 / G-02f-257：target_cpu.o
-  # 默认：整文件 pure seed（含 OS detect）
-  # PREFER_X_O=1：flags.x（pending/tolower/eq5/eq6）+ seed 残体 ld -r
-  _tcpure=seeds/target_cpu_pure.from_x.c
-  _tcflags_x=src/driver/target_cpu_flags.x
-  _tc_o=src/driver/target_cpu.o
-  if [ -f "$_tcpure" ]; then
-    if [ ! -f "$_tc_o" ] || [ "$_tcpure" -nt "$_tc_o" ] \
-      || { [ -f src/driver/target_cpu_pure.x ] && [ src/driver/target_cpu_pure.x -nt "$_tc_o" ]; } \
-      || { [ -f "$_tcflags_x" ] && [ "$_tcflags_x" -nt "$_tc_o" ]; }; then
-      _tc_done=0
-      if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_tcflags_x" ]; then
-        _tc_flags_o=$(mktemp "${TMPDIR:-/tmp}/g05_tc_flags_XXXXXX.o") || true
-        _tc_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_tc_rest_XXXXXX.o") || true
-        # shellcheck disable=SC2086
-        if [ -n "$_tc_flags_o" ] && [ -n "$_tc_rest_o" ] \
-          && g05_try_x_to_o "$_tcflags_x" "$_tc_flags_o" \
-          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_TARGET_CPU_FLAGS_FROM_X \
-               -c -o "$_tc_rest_o" "$_tcpure" \
-          && $CC -r -nostdlib -o "$_tc_o" "$_tc_flags_o" "$_tc_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_tc_o ← $_tcflags_x + seed-rest (G-02f-257 L2 hybrid flags)"
-          _tc_done=1
-        else
-          echo "g05_ensure: L2 hybrid target_cpu flags failed; fallback full seed" >&2
-        fi
-        rm -f "$_tc_flags_o" "$_tc_rest_o"
-      fi
-      if [ "$_tc_done" = "0" ]; then
-        echo "g05_ensure: target_cpu.o ← pure.from_x (G-02f-6 single TU)"
-        # shellcheck disable=SC2086
-        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_tc_o" "$_tcpure"
-      fi
-    fi
-  fi
+  # ~~G-02f-6 / G-02f-257 target_cpu dual hybrid~~ wave768 → try-target-cpu-prefer above
   # R2 product PREFER：async_liveness.o（独立 TU；非 glue #include）
   # PREFER：full .x + rest (-DXLANG_ASYNC_LIVENESS_FROM_X，仅 slice_marker) ld -r
   # 冷路径：整 seed C。PLATFORM: SHARED
