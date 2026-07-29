@@ -66,7 +66,7 @@
 | `g05-ensure-relink-prereqs` | 3081 | g05_ensure_relink_prereqs.sh (~3.3k 行) | `xbuild ensure` | 🟢 g05_ensure_relink_prereqs.sh | 热路径 cc；filtered.o 已纯 shell（wave715） |
 | `g05-export-relink` | 3085 | g05_relink_env.sh | `xbuild link-env` | 🟢 g05_relink_env.sh | 链接清单 |
 | `refresh-xlang-asm-gate` | 3172 | shell `refresh_xlang_asm_gate.sh` | `xbuild refresh-gate` | 🟢 wave734 体 shell；**wave735–737** migrate+gen+lexer shell | 11.1.6 |
-| `bootstrap-driver-seed` | ~2995 | **shell 编排** + shell ensure_prereqs（wave744）+ 薄叶子 | `xbuild bootstrap` | 🟡 wave717–784：编排+链接+§5b+prereq 边 shell；叶 pattern 库存→R1–R6 prefer/pure-ld → phys-del prep（wave777）→ Windows/双端闸门（wave778）→ **B1–B6 吞体**（wave779–784：… / **cfg-eval-ladder** / **compiler_all_ci**）；residual B7 DAG · 物理删 | L4 必经；列表 mk catalog；make 无 prereq 图；11.3.1 物理删仍 ⬜ |
+| `bootstrap-driver-seed` | ~2995 | **shell 编排** + shell ensure_prereqs（wave744）+ 薄叶子 | `xbuild bootstrap` | 🟡 wave717–785：编排+链接+§5b+prereq 边 shell；叶 pattern 库存→R1–R6 prefer/pure-ld → phys-del prep（wave777）→ Windows/双端闸门（wave778）→ **B1–B6 吞体**（wave779–784）→ **B7 DAG 库存 + 考古 CC thin**（wave785）；residual 物理删（Windows 绿后）· B7D host-cc link | L4 必经；列表 mk catalog；make 无 prereq 图；11.3.1 物理删仍 ⬜ |
 | `bootstrap-driver-bstrict` | ~3107 | **shell** `bootstrap_driver_bstrict.sh`；FULL=1 仍 make 入口 | `xbuild bstrict-build` | 🟡 wave719 体 shell；refresh 仍 make | 非日常 |
 | `test` / `test_c` / `test_x` | ~1685 | **shell** `run_compiler_tests.sh` | `xbuild test` | 🟢 wave720 体 shell；prereq 仍 make 图 | 嵌套 run-all 可 make |
 | `bootstrap-verify` / `check-7.2-bstrict` | ~3320 | **shell** `bootstrap_verify_bstrict.sh` | `xbuild verify` | 🟢 wave720 体 shell；prereq bstrict 图 | 阶段2 仍脚本内 make |
@@ -410,8 +410,8 @@
 | 1703 | `bootstrap-lexer` | 🟢 wave719 shell |
 | 1720 | `bootstrap-parser` | ⬜ |
 | 1725 | `bootstrap-parse-file` | ⬜ |
-| 2215 | `bootstrap-typeck` | ⬜ |
-| 2224 | `bootstrap-codegen` | ⬜ |
+| 2215 | `bootstrap-typeck` | 🟡 wave785 B7c：.o→migrate_x_objs；link residual |
+| 2224 | `bootstrap-codegen` | 🟡 wave785 B7c：.o→migrate_x_objs；link residual |
 | 2479 | `bootstrap-driver-seed-x-frontend` | ⬜ |
 | 2957 | `bootstrap-driver-seed` | ⬜ 冷启动 Makefile 权威 |
 | 3093 | `xlang_asm` | 🟢 g05 shell（日常） |
@@ -431,7 +431,7 @@
 | 3209 | `build-user-asm-backend` | ⬜ |
 | 3213 | `bootstrap-asm` | ⬜ |
 | 3216 | `bootstrap-asm-full` | ⬜ |
-| 3270 | `bootstrap-self` | ⬜ |
+| 3270 | `bootstrap-self` | 🟡 wave785 B7c：lsp thin leaves；stage2 link residual |
 | 3359 | `bootstrap-pipeline` | ⬜ |
 | 3370 | `xlang-x-pipeline` | ⬜ |
 | 3380 | `bootstrap-x-compiler` | ⬜ |

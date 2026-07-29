@@ -88,7 +88,7 @@ Edges are **must-precede** (left → right). Outer entry is always `./xbuild`.
 **CI distinct path (not product `all`):**
 
 ```text
-./xbuild compiler-all  →  scripts/compiler_all_ci.sh  →  make xlang xlang-c (host-cc/seed · wave784 B6)
+./xbuild compiler-all  →  scripts/compiler_all_ci.sh  →  make xlang xlang-c (host-cc/seed · wave784 B6; B7 inventory wave785)
 ```
 
 ---
@@ -214,8 +214,8 @@ Do **not** grow new free-form recipes. Known residual classes:
 | Residual | Notes |
 |----------|--------|
 | ~~`DRIVER_SEED_PREREQS` make-graph edges~~ | **swallowed wave744** → shell ensure (list still mk) |
-| Leaf `.o` pattern rules (R1–R5) | **named inventory wave746** · … · **B5 try-cfg-eval-ladder wave783** · **B6 R5 compiler_all_ci.sh wave784** · residual B7 DAG / physical delete → 11.3.1 |
-| `compiler-all` / Makefile `all` | CI host-cc path (R5 · wave784 shell body) |
+| Leaf `.o` pattern rules (R1–R5) | **named inventory wave746** · … · **B5 try-cfg-eval-ladder wave783** · **B6 R5 compiler_all_ci.sh wave784** · **B7 DAG inventory + archaeology CC thin wave785** · residual physical delete after Windows → 11.3.1 |
+| `compiler-all` / Makefile `all` | CI host-cc path (R5 · wave784 shell body; leaf graph B7) |
 | FULL=1 bstrict make entry | Non-daily |
 | Missing `xlang-c` for force -E | ensure_* gen scripts |
 | Cold `SEED_LINK_CC -o` (R6) | **named wave745** · pure-ld endgame → 11.1.4 |

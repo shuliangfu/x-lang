@@ -1732,15 +1732,18 @@ codegen_x.o: codegen_gen.c
 	  sh scripts/migrate_x_objs.sh codegen
 
 # 6.1：.x typeck 入口与 C AST 对接；用 C-only xlang 编译 typeck.x 生成 typeck_gen.c，再链接进 xlang，使 typeck 由 .x 入口转调 C
+# wave785 B7c: gen -E stays archaeology; typeck_x.o → migrate_x_objs (G.7 有则补全; no dual $(CC) -c)
 bootstrap-typeck: $(TARGET) $(XLANG_C) bootstrap_xlangc $(RELINK_XLANG_PREREQS)
 	@tmp=typeck_gen.c.tmp.$$$$; rm -f "$$tmp"; \
 	./$(XLANG_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -E -E-extern src/typeck/typeck.x > "$$tmp" || { rc=$$?; rm -f "$$tmp"; exit $$rc; }; \
 	mv "$$tmp" typeck_gen.c
-	$(CC) $(CFLAGS) -c typeck_gen.c -o typeck_x.o
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" XLANG_MIGRATE_FORCE=1 \
+	  sh scripts/migrate_x_objs.sh typeck
 	$(CC) $(CFLAGS) -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_TYPECK $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_OBJS) driver_x.o $(RELINK_XLANG_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS) $(RELINK_XLANG_USER_ASM_LINK) $(RELINK_XLANG_GLUE_SUFFIX)
 	@echo "bootstrap-typeck OK"
 
 # 6.2：.x codegen 入口与 C AST 对接；编译 typeck.x + codegen.x 生成 _gen.c，链接进 xlang，使 typeck 与 codegen 均由 .x 入口转调 C
+# wave785 B7c: typeck/codegen .o → migrate_x_objs (G.7; no dual $(CC) -c)
 bootstrap-codegen: $(TARGET) $(XLANG_C) bootstrap_xlangc $(RELINK_XLANG_PREREQS)
 	@tmp=typeck_gen.c.tmp.$$$$; rm -f "$$tmp"; \
 	./$(XLANG_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -E -E-extern src/typeck/typeck.x > "$$tmp" || { rc=$$?; rm -f "$$tmp"; exit $$rc; }; \
@@ -1748,8 +1751,10 @@ bootstrap-codegen: $(TARGET) $(XLANG_C) bootstrap_xlangc $(RELINK_XLANG_PREREQS)
 	@tmp=codegen_gen.c.tmp.$$$$; rm -f "$$tmp"; \
 	./$(XLANG_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -E -E-extern src/codegen/codegen.x > "$$tmp" || { rc=$$?; rm -f "$$tmp"; exit $$rc; }; \
 	mv "$$tmp" codegen_gen.c
-	$(CC) $(CFLAGS) -c typeck_gen.c -o typeck_x.o
-	$(CC) $(CFLAGS) -c codegen_gen.c -o codegen_x.o
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" XLANG_MIGRATE_FORCE=1 \
+	  sh scripts/migrate_x_objs.sh typeck
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" XLANG_MIGRATE_FORCE=1 \
+	  sh scripts/migrate_x_objs.sh codegen
 	$(CC) $(CFLAGS) -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_OBJS) driver_x.o $(RELINK_XLANG_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS) $(RELINK_XLANG_USER_ASM_LINK) $(RELINK_XLANG_GLUE_SUFFIX)
 	@echo "bootstrap-codegen OK"
 
@@ -2734,12 +2739,11 @@ build-via-tool: build-tool
 # 注：asm 链接就绪（Goal 2）后可改为 bootstrap-driver，则 xlang₁ 为 asm 版，实现「无 C 生成」自举。
 # 与 bootstrap-driver-seed 一致；std.io 纯 .x（F-03 v2/v3）。
 # bootstrap-self 末尾：stage2 对 return-value -o /tmp/out_self 可与 run-return-value.sh 一致产出 Mach-O/ELF；若为 C 源码则用 cc -x c 链出临时 bin（勿假定 -o *.c 必为 C）。
+# wave785 B7c: lsp_io_x/lsp_x/lsp_io_std_heap_x via existing thin leaves (ensure_gen_x_o / driver_leaf);
+#   no dual archaeology $(CC) -c (G.7 有则补全). Link residual stays B7d.
 bootstrap-self: bootstrap-driver-seed
 	@cp $(TARGET) $(TARGET)_stage1 && \
-	$(MAKE) -s pipeline_x.o driver_x.o preprocess_x.o lsp_io_gen.c lsp_gen.c lsp_io_std_heap_gen.c 2>/dev/null || true && \
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Dstd_io_read=io_read -Dstd_io_write=io_write -c lsp_io_gen.c -o lsp_io_x.o && \
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -c lsp_gen.c -o lsp_x.o && \
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c lsp_io_std_heap_gen.c -o lsp_io_std_heap_x.o && \
+	$(MAKE) -s pipeline_x.o driver_x.o preprocess_x.o lsp_io_x.o lsp_x.o lsp_io_std_heap_x.o 2>/dev/null || true && \
 	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET)_stage2 $(DRIVER_SEED_OBJS) driver_x.o pipeline_x.o lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS) $(USER_ASM_LINK) && \
 	rm -f /tmp/out_self /tmp/out_self.bin && \
 	./$(TARGET)_stage2 ../tests/return-value/main.x -o /tmp/out_self && \
@@ -2819,6 +2823,8 @@ xlang-x-pipeline: bootstrap-pipeline migrate-x-objs $(PIPELINE_X_BASE_OBJS) pipe
 
 # 4.5（.x 流水线编译 compiler 自身）：用 xlang_x 的 -x -E 生成 typeck.x / codegen.x 对应的 C，再由 cc 链接得到新的 xlang_x_stage2。
 # 这一目标的目的，是验证「完整前端（parse_into + typeck_x_ast + codegen_x_ast）」全部跑在 .x 上时，仍能产出能工作的编译器。
+# wave785 B7c residual: typeck_x_x / codegen_x_x are *not* migrate_x_objs (different TU names);
+#   still archaeology $(CC) -c (B7C residual heat; not product path). NOT physical delete.
 bootstrap-x-compiler: xlang-x-pipeline
 	./$(TARGET)_x -x -E src/typeck/typeck.x > typeck_x_x.c
 	./$(TARGET)_x -x -E src/codegen/codegen.x > codegen_x_x.c

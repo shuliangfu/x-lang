@@ -25,6 +25,7 @@
 #   wave782: B4 gen_c_to_o bootstrap → try-gen-c-to-o
 #   wave783: B5 cfg_eval multi-ladder → try-cfg-eval-ladder
 #   wave784: B6 R5 CI / compiler-all body → compiler_all_ci.sh (Makefile thin-call)
+#   wave785: B7 DAG residual inventory + archaeology $(CC) -c thin (NOT physical delete)
 #
 # Authority (G.7):
 #   Single shell authority for *named residual classes* of Makefile leaf pattern /
@@ -46,7 +47,7 @@
 #   ./xbuild leaf-patterns | leaf-residual [--check]
 #
 # PLATFORM: SHARED — inventory portable; leaf ABI stays in Makefile / mk.
-# Wave: 746–783 Track MG · 11.3.1 path (B5 cfg_eval ladder wave783 · not physical delete · Windows gate + dual-end).
+# Wave: 746–785 Track MG · 11.3.1 path (B7 DAG inventory wave785 · not physical delete · Windows gate + dual-end).
 
 set -euo pipefail
 
@@ -354,11 +355,31 @@ SWALLOWED_B6_R5_CI_COMPILER_ALL=1
 B6_R5_CI_COMPILER_ALL_SWALLOWED=1
 B6_R5_CI_COMPILER_ALL_HELPER=compiler_all_ci.sh
 B6_R5_CI_COMPILER_ALL_WAVE=wave784
-# B7: Makefile still owns DAG thin-calls + lists (cannot delete until B6 + BC + Windows)
+# B7: Makefile still owns DAG thin-calls + lists (cannot delete until Windows + BC)
+# wave785: post B1–B6 honesty inventory + B7c archaeology $(CC) -c thin (NOT physical delete)
 PHYS_DEL_BUCKET_B7=makefile_dag_thin_calls
-PHYS_DEL_BUCKET_B7_SCOPE=ensure_thin_call_targets_plus_mk_lists
-PHYS_DEL_PREP_NEXT=B7_makefile_dag_physical_delete_after_windows_not_delete
-PHYS_DEL_PREP_FORBIDDEN=claim_physical_delete|dual_o_list_as_authority|delete_makefile_before_windows_green
+PHYS_DEL_BUCKET_B7_SCOPE=thin_call_edges+mk_lists+archaeology_phonies+host_cc_link
+PHYS_DEL_BUCKET_B7_INVENTORY=1
+PHYS_DEL_BUCKET_B7_BODY_SWALLOWED=0
+PHYS_DEL_BUCKET_B7_WAVE=wave785
+SWALLOWED_B7_DAG_INVENTORY=1
+B7_DAG_INVENTORY_SWALLOWED=1
+B7_DAG_INVENTORY_NOTE=named_subbuckets_post_B1_B6_leaf_body_clear
+# B7 sub-buckets (names only — not a second .o list authority; G.7)
+PHYS_DEL_BUCKET_B7A=thin_call_edges_only
+PHYS_DEL_BUCKET_B7A_SCOPE=ensure_thin_call_recipe_edges_still_make
+PHYS_DEL_BUCKET_B7B=mk_list_authority
+PHYS_DEL_BUCKET_B7B_SCOPE=compiler_mk_plus_driver_seed_obj_catalog
+PHYS_DEL_BUCKET_B7C=archaeology_phony_cc
+PHYS_DEL_BUCKET_B7C_SCOPE=bootstrap_typeck_codegen_self_x_compiler
+PHYS_DEL_BUCKET_B7C_ARCHAEOLOGY_CC_THINNED=1
+PHYS_DEL_BUCKET_B7C_THINNED_VIA=migrate_x_objs+ensure_gen_x_o_driver_leaf
+PHYS_DEL_BUCKET_B7C_THINNED_NOTE=typeck_codegen_migrate_self_lsp_thin_x_x_residual
+PHYS_DEL_BUCKET_B7D=host_cc_product_link_xlang
+PHYS_DEL_BUCKET_B7D_SCOPE=TARGET_OBJS_link_incomplete_vs_g05_DRIVER_SEED
+PHYS_DEL_BUCKET_B7D_NOTE=make_OPT1_xlang_UNDEF_residual_not_product_g05
+PHYS_DEL_PREP_NEXT=B7_physical_delete_makefile_after_windows_not_this_wave
+PHYS_DEL_PREP_FORBIDDEN=claim_physical_delete|dual_o_list_as_authority|delete_makefile_before_windows_green|claim_B7_inventory_is_delete
 # wave778: hard gate — physical delete of compiler/Makefile only AFTER Windows
 # hybrid min-gate green (+ PE pure-ld residual owned). Body swallow (B1–B5) keeps
 # Makefile thin-call edges; it is NOT physical delete. Never rm Makefile casually.
@@ -770,6 +791,15 @@ else
   if ! grep -qE 'wave782|try-gen-c-to-o|B4.*gen_c|gen_c_to_o' "$DOC_REL"; then
     bad "$DOC_REL must document wave782 B4 try-gen-c-to-o body swallow"
   fi
+  if ! grep -qE 'wave783|try-cfg-eval-ladder|B5.*cfg' "$DOC_REL"; then
+    bad "$DOC_REL must document wave783 B5 try-cfg-eval-ladder body swallow"
+  fi
+  if ! grep -qE 'wave784|compiler_all_ci|B6.*R5|R5.*compiler.all' "$DOC_REL"; then
+    bad "$DOC_REL must document wave784 B6 R5 compiler_all_ci"
+  fi
+  if ! grep -qE 'wave785|B7.*DAG|B7A|B7C.*archaeology|DAG inventory' "$DOC_REL"; then
+    bad "$DOC_REL must document wave785 B7 DAG inventory"
+  fi
   note "doc $DOC_REL present"
 fi
 
@@ -1067,9 +1097,6 @@ fi
 if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B5_BODY_SWALLOWED=1'; then
   bad "dump must set PHYS_DEL_BUCKET_B5_BODY_SWALLOWED=1 (wave783)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_PREP_NEXT=B7_makefile_dag_physical_delete_after_windows_not_delete'; then
-  bad "dump PHYS_DEL_PREP_NEXT must point to B7 after B6 swallow (wave784)"
-fi
 if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_B6_R5_CI_COMPILER_ALL=1'; then
   bad "dump must set SWALLOWED_B6_R5_CI_COMPILER_ALL=1 (wave784)"
 fi
@@ -1078,8 +1105,39 @@ if ! printf '%s\n' "$_out" | grep -q 'B6_R5_CI_COMPILER_ALL_SWALLOWED=1'; then
 fi
 if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B6_BODY_SWALLOWED=1'; then
   bad "dump must set PHYS_DEL_BUCKET_B6_BODY_SWALLOWED=1 (wave784)"
+fi
+# wave785: B7 DAG inventory + archaeology CC thin (NOT physical delete)
+if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_B7_DAG_INVENTORY=1'; then
+  bad "dump must set SWALLOWED_B7_DAG_INVENTORY=1 (wave785)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'B7_DAG_INVENTORY_SWALLOWED=1'; then
+  bad "dump B7_DAG_INVENTORY_SWALLOWED must be 1 (wave785)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7_INVENTORY=1'; then
+  bad "dump must set PHYS_DEL_BUCKET_B7_INVENTORY=1 (wave785)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7_BODY_SWALLOWED=0'; then
+  bad "dump must set PHYS_DEL_BUCKET_B7_BODY_SWALLOWED=0 (wave785 not delete)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7A='; then
+  bad "dump must name PHYS_DEL_BUCKET_B7A thin-call edges (wave785)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7B='; then
+  bad "dump must name PHYS_DEL_BUCKET_B7B mk lists (wave785)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7C='; then
+  bad "dump must name PHYS_DEL_BUCKET_B7C archaeology phony (wave785)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7D='; then
+  bad "dump must name PHYS_DEL_BUCKET_B7D host-cc product link (wave785)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7C_ARCHAEOLOGY_CC_THINNED=1'; then
+  bad "dump must set PHYS_DEL_BUCKET_B7C_ARCHAEOLOGY_CC_THINNED=1 (wave785)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_PREP_NEXT=B7_physical_delete_makefile_after_windows_not_this_wave'; then
+  bad "dump PHYS_DEL_PREP_NEXT must stay physical-delete-after-windows (wave785)"
 else
-  note "residual class inventory dump OK (wave747–784 + B6 R5 swallow + Windows + dual-end)"
+  note "residual class inventory dump OK (wave747–785 + B7 DAG inventory + Windows + dual-end)"
 fi
 
 # Makefile still present (residual reality) + has host-cc heat
@@ -1135,6 +1193,32 @@ if ! bash compiler/scripts/compiler_all_ci.sh --check \
   head -20 /tmp/compiler_all_ci_check_err.log >&2 || true
 else
   note "compiler_all_ci.sh --check OK (wave784)"
+fi
+
+# wave785: B7c archaeology thin — bootstrap-typeck/codegen use migrate; bootstrap-self no dual lsp $(CC) -c
+# (message strings avoid product path tokens that trip G.7 self hardcode scan)
+if [ -f "$MF" ]; then
+  if ! grep -A12 '^bootstrap-typeck:' "$MF" | grep -q 'migrate_x_objs\.sh'; then
+    bad "bootstrap-typeck must thin migrate leaf via migrate_x_objs.sh (wave785 B7c)"
+  else
+    note "bootstrap-typeck → migrate_x_objs (wave785 B7c)"
+  fi
+  if ! grep -A20 '^bootstrap-codegen:' "$MF" | grep -q 'migrate_x_objs\.sh'; then
+    bad "bootstrap-codegen must thin migrate leaves via migrate_x_objs.sh (wave785 B7c)"
+  else
+    note "bootstrap-codegen → migrate_x_objs (wave785 B7c)"
+  fi
+  if grep -A8 '^bootstrap-self:' "$MF" | grep -qE '\$\(CC\).*-c lsp_'; then
+    bad "bootstrap-self must not dual \$(CC) -c on lsp gens (wave785 B7c; use thin leaves)"
+  else
+    note "bootstrap-self uses thin lsp leaves (wave785 B7c)"
+  fi
+  # residual honesty: bootstrap-x-compiler still has archaeology stage2 $(CC) -c
+  if ! grep -A8 '^bootstrap-x-compiler:' "$MF" | grep -qE '\$\(CC\).*-c typeck_x_x'; then
+    note "bootstrap-x-compiler archaeology -c residual cleared (unexpected early)"
+  else
+    note "bootstrap-x-compiler archaeology \$(CC) -c residual kept (B7C honesty)"
+  fi
 fi
 
 # wave748–749: R1 family bodies + catalog keys + Makefile thin
@@ -1298,7 +1382,7 @@ else
     "$REBUILD_REL"; then
     bad "rebuild_leaves must not hardcode .o list (dual authority)"
   fi
-  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld (wave772/773) + drop silent CC fallback (wave774); fmt_check_cmd.o dual (wave775); R2 panic PREFER try-r2-prefer (wave776); phys-del prep (wave777); Windows+dual-end gate (wave778); B1 runtime-os try-runtime-os-prefer (wave779); B2 std-core try-std-core-prefer (wave780); B3 lsp-sat try-lsp-sat-prefer (wave781); B4 gen-c-to-o try-gen-c-to-o (wave782); B5 cfg-eval-ladder try-cfg-eval-ladder (wave783); B6 R5 CI compiler_all_ci.sh (wave784); residual B7 DAG + physical delete"
+  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld (wave772/773) + drop silent CC fallback (wave774); fmt_check_cmd.o dual (wave775); R2 panic PREFER try-r2-prefer (wave776); phys-del prep (wave777); Windows+dual-end gate (wave778); B1–B6 swallow (wave779–784); B7 DAG inventory + archaeology CC thin (wave785); residual physical delete after Windows + B7A/B7B/B7D"
 fi
 
 # wave772/774: cold pure-ld required when eligible (no silent CC fallback)

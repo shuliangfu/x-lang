@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2 · wave763 R3 PREFER thin try-r3-prefer · wave764 g05 R3_COLD r3-prefer-family · wave765 g05 labi try-labi-prefer · wave766 g05 rt try-rt-prefer · wave767 g05 pipeline_abi/ldpc try-*-prefer · wave768 g05 target_cpu try-target-cpu-prefer · wave769 g05 L2 asm try-l2-asm-prefer · wave770 g05 async try-async-prefer · wave771 g05 other L2 try-other-l2-prefer · wave772 11.1.4 pure-ld cold prefer · wave773 g05 pure-ld prefer · wave774 drop silent CC fallback · wave775 fmt_check_cmd.o dual · wave776 R2 panic PREFER try-r2-prefer · wave777 physical-delete prep inventory · wave778 Windows gate + dual-end verify · wave779 B1 runtime-os try-runtime-os-prefer · wave780 B2 std-core try-std-core-prefer · wave781 B3 lsp-sat try-lsp-sat-prefer · wave782 B4 gen-c-to-o · wave783 B5 cfg-eval-ladder · wave784 B6 R5 compiler_all_ci)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2 · wave763 R3 PREFER thin try-r3-prefer · wave764 g05 R3_COLD r3-prefer-family · wave765 g05 labi try-labi-prefer · wave766 g05 rt try-rt-prefer · wave767 g05 pipeline_abi/ldpc try-*-prefer · wave768 g05 target_cpu try-target-cpu-prefer · wave769 g05 L2 asm try-l2-asm-prefer · wave770 g05 async try-async-prefer · wave771 g05 other L2 try-other-l2-prefer · wave772 11.1.4 pure-ld cold prefer · wave773 g05 pure-ld prefer · wave774 drop silent CC fallback · wave775 fmt_check_cmd.o dual · wave776 R2 panic PREFER try-r2-prefer · wave777 physical-delete prep inventory · wave778 Windows gate + dual-end verify · wave779 B1 runtime-os try-runtime-os-prefer · wave780 B2 std-core try-std-core-prefer · wave781 B3 lsp-sat try-lsp-sat-prefer · wave782 B4 gen-c-to-o · wave783 B5 cfg-eval-ladder · wave784 B6 R5 compiler_all_ci · wave785 B7 DAG inventory + archaeology CC thin)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -59,7 +59,7 @@
 | **R2** | Platform stamp / UNAME leaf | `runtime_panic.$(UNAME_S).$(UNAME_M).stamp` · `typeck_f64_bits` arch `.s` pick · crt0 | shell + host_platform_linker facts; lists stay mk | **panic cold ✅ wave760** · **typeck_f64/crt0 ✅ wave762** (try-r2) · **panic PREFER ✅ wave776** (try-r2-prefer) |
 | **R3** | Thin+rest / PREFER_X_O host-cc rest | thin `.o` + `FROM_X=1` rest `cc -c` + `ld -r` | cold-else shell ensure; PREFER thin product path | **cold-else ✅ wave757** · **Makefile PREFER ✅ wave763** · **g05 R3_COLD ✅ wave764** · **labi multi-slice ✅ wave765** · **rt multi-slice ✅ wave766** · **pipeline_abi/ldpc ✅ wave767** · **target_cpu ✅ wave768**; residual other L2 |
 | **R4** | Cold rebuild **pattern bodies** | sat/lsp/bridge/panic/user-asm/glue/pipeline-x | rebuild without make pattern graph | **mode+list shell wave747** · **pure-R1 wave756** · **R3 cold wave757** · **thin_glue seed-map wave758** · **glue standalone seed-map wave759** · **panic cold try-r2 wave760** · **gen try-gen-x wave761** · **typeck_f64/crt0 try-r2 wave762**; residual PREFER thin / sat non-R1 if any |
-| **R5** | CI / `compiler-all` host-cc graph | Makefile `all` · OPT seed path | `scripts/compiler_all_ci.sh` (wave784); stage 12 = zero host-cc | **body ✅ wave784** · residual B7 leaf graph |
+| **R5** | CI / `compiler-all` host-cc graph | Makefile `all` · OPT seed path | `scripts/compiler_all_ci.sh` (wave784); stage 12 = zero host-cc | **body ✅ wave784** · residual B7 DAG (wave785 inventory) |
 | **R6** | Cold **link** pure-ld + g05 pure-ld | `run_pure_ld_required` + `run_g05_pure_ld_required`; named CC residual FORCE_CC/ineligible only | 11.1.4 · **wave772** cold · **wave773** g05 · **wave774** drop silent fallback; residual physical delete · fmt dual | ~~silent CC after pure fail~~ · ~~residual CC primary~~ · ~~g05 CC-only~~ |
 
 **R1–R5** are the 11.3.1 **leaf pattern** residual. **R6** is tracked under 11.1.4 (wave745).
@@ -999,11 +999,44 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - [x] **wave782:** B4 gen_c_to_o bootstrap → `try-gen-c-to-o` (5 thin-call; not physical delete)
 - [x] **wave783:** B5 cfg_eval multi-ladder → `try-cfg-eval-ladder` (1 thin-call; not physical delete)
 - [x] **wave784:** B6 R5 CI / `compiler-all` → `compiler_all_ci.sh` (Makefile thin-call; not physical delete)
-- [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame)
+- [x] **wave785:** B7 DAG residual **inventory** (B7A–B7D) + B7c archaeology `$(CC) -c` thin (not physical delete)
+- [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame · **Windows gate**)
 - [ ] Leaf `.o` without host-cc residual (stages 8–9 / 12)
-- [ ] B7 Makefile DAG / physical delete
+- [ ] B7 residual endgame: thin-call edges gone / host-cc link complete / physical delete
 
+### wave785 · B7 DAG residual inventory + archaeology CC thin (G.7 有则补全)
 
+> **Not this wave:** physical delete of `compiler/Makefile`; host-cc `make OPT=1 xlang` complete link (B7D).  
+> **This wave:** post B1–B6 honesty — **name B7 sub-buckets** and thin archaeology dual `$(CC) -c` into existing migrate/ensure/leaf authorities.
+
+```text
+Before (wave784):
+  PHYS_DEL_PREP_NEXT=B7_makefile_dag_physical_delete_after_windows_not_delete
+  B7 = one opaque “DAG thin-calls + lists” residual
+  bootstrap-typeck/codegen: dual $(CC) -c typeck_gen/codegen_gen
+  bootstrap-self: dual $(CC) -c lsp_io_gen/lsp_gen/lsp_io_std_heap_gen
+
+After (wave785):
+  SWALLOWED_B7_DAG_INVENTORY=1
+  PHYS_DEL_BUCKET_B7_INVENTORY=1
+  PHYS_DEL_BUCKET_B7_BODY_SWALLOWED=0   # NOT physical delete
+  B7A thin_call_edges_only
+  B7B mk_list_authority (mk + catalog)
+  B7C archaeology_phony_cc
+    → typeck/codegen .o via migrate_x_objs.sh
+    → bootstrap-self lsp_* via thin leaves (ensure_gen_x_o / driver_leaf)
+    → bootstrap-x-compiler typeck_x_x residual $(CC) -c kept (honesty)
+  B7D host_cc_product_link_xlang (TARGET:OBJS incomplete vs g05; UNDEF residual)
+  PHYS_DEL_PREP_NEXT=B7_physical_delete_makefile_after_windows_not_this_wave
+  ENDGAME_PHYSICAL_DELETE_MAKEFILE=0
+```
+
+| Swallowed this wave | Still residual |
+|---------------------|----------------|
+| **B7 inventory** (named B7A–B7D + dump/`--check`) | Physical delete (Windows gate) |
+| **B7c partial** (archaeology dual `-c` → migrate / thin leaves) | B7c `bootstrap-x-compiler` typeck_x_x · B7A edges · B7B lists · **B7D host-cc xlang link** |
+
+**Forbidden:** physical delete Makefile; claim B7 inventory = physical delete; re-open dual `$(CC) -c` on typeck/codegen/bootstrap-self lsp; mac-only wave green; treat B7D UNDEF as product g05 failure.
 
 ### wave784 · B6 R5 CI / compiler-all → compiler_all_ci.sh (G.7 有则补全)
 
@@ -1036,7 +1069,7 @@ After (wave784):
 
 | Swallowed this wave | Still residual |
 |---------------------|----------------|
-| **B6 body** (R5 CI policy/sequence → compiler_all_ci.sh + Makefile/xbuild thin) | B7 DAG thin-call edges + mk lists · physical delete |
+| **B6 body** (R5 CI policy/sequence → compiler_all_ci.sh + Makefile/xbuild thin) | ~~B7 inventory~~ (wave785) · physical delete after Windows |
 | Prior R1–R6 / prefer / pure-ld / prep / Windows+dual-end / B1–B5 | FORCE_CC · Windows PE pure-ld · stage 12 unload gcc |
 
 **Forbidden:** physical delete Makefile; claim B6 swallow = physical delete / stage 12 done; re-open bare `run_compiler_make OPT=1 all` as dual authority; mac-only wave green.
