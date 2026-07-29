@@ -369,6 +369,24 @@ export function driver_diagnostic_typeck_invalid_void_binop(line: i32, col: i32)
   }
 }
 
+/**
+ * Report bool used in arithmetic / bitops / shifts or unary -/~ (wave677 Cap residual).
+ * Closes soft residual: typeck promoted bool→i32 in binop arith (allow_i32_fallback)
+ * and stamped unary -/ ~ on bool → freestanding/host false green.
+ * @param line i32 — 1-based source line of the op
+ * @param col i32 — 1-based source column of the op
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ thin.x; seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X.
+ * LANG-006 let/const scalar bool→int is product-retained and not covered here.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_invalid_bool_binop(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "invalid bool operation (bool cannot be used in arithmetic, bitops, shifts, or unary -/~; use logical ops or `as`)");
+  }
+}
+
 /** Exported function `driver_diagnostic_typeck_try_propagate_bad_enclosing`.
  * Implements `driver_diagnostic_typeck_try_propagate_bad_enclosing`.
  * @param line i32

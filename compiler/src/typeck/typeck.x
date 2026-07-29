@@ -203,6 +203,15 @@ export extern function driver_diagnostic_typeck_comparison_type_mismatch(line: i
  * or unary -/~ typeck OK then host-cc BLD001 invalid operands / argument type.
  */
 export extern function driver_diagnostic_typeck_invalid_void_binop(line: i32, col: i32): void;
+/**
+ * Report bool used as arithmetic/bitop/shift/unary -/~ operand (wave677 Cap residual).
+ * @param line i32 — 1-based source line of the op
+ * @param col i32 — 1-based source column of the op
+ * @return void
+ * PLATFORM: SHARED — closes soft residual: binop bool→i32 promotion + unary -true
+ * freestanding/host false green. LANG-006 let/const scalar bool→int retained.
+ */
+export extern function driver_diagnostic_typeck_invalid_bool_binop(line: i32, col: i32): void;
 export extern function typeck_driver_diagnostic_pipe_marker(id: i32): void;
 export extern function driver_diagnostic_typeck_if_condition_not_bool(line: i32, col: i32): void;
 export extern function driver_diagnostic_typeck_while_condition_not_bool(line: i32, col: i32): void;
@@ -7020,6 +7029,21 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         driver_diagnostic_typeck_invalid_void_binop(line_vb, col_vb);
         return -1;
       }
+      /*
+       * wave677 Cap residual: hard-fail bool arithmetic / bitops / shifts at typeck.
+       * Root cause: allow_i32_fallback rewrote bool operands to i32 (`true+false`,
+       * `x<<true`, `true&false`) → freestanding/host false green; contradicts
+       * wave671 (return bool→i32 hard) and LANG-006 scope (let/const only).
+       * Soft: null/unknown types not hard-failed. G.7: invalid_bool_binop;
+       * remove bool→i32 promotion block below.
+       * PLATFORM: SHARED — seed typeck_gen + empty_surface + diagnostic twin same commit.
+       */
+      if (lko == ord_bool || rko == ord_bool) {
+        let line_bb: i32 = pipeline_expr_line_at(arena, expr_ref);
+        let col_bb: i32 = pipeline_expr_col_at(arena, expr_ref);
+        driver_diagnostic_typeck_invalid_bool_binop(line_bb, col_bb);
+        return -1;
+      }
       /* Pointer ± integer is the only legal pointer arithmetic (C-like). */
       if (expr_kind == ord_add || expr_kind == ord_sub) {
         if (lko == ord_ptr && (rko == ord_i32 || rko == ord_usize || rko == ord_isize)) {
@@ -7166,11 +7190,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       if (ast.ref_is_null(out_ar) && lko != ord_type_vector && rko != ord_type_vector && allow_i32_fallback != 0) {
         out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_i32);
       }
-      if (allow_i32_fallback != 0 && lko != ord_ptr && rko != ord_ptr
-      && (pipeline_type_kind_ord_at(arena, lt_ar) == ord_bool
-      || pipeline_type_kind_ord_at(arena, rt_ar) == ord_bool)) {
-        out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_i32);
-      }
+      /* wave677: bool→i32 arith promotion removed (hard-fail above). LANG-006 let/const only. */
       if (!ast.ref_is_null(out_ar)) {
         pipeline_expr_set_resolved_type_ref(arena, expr_ref, out_ar);
       }
@@ -7226,14 +7246,17 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
  * wave662 Cap residual: hard-fail unary -/~/! on aggregates (struct/array/slice).
  * wave665 Cap residual: hard-fail LOGNOT on non-bool (docs/04: logical requires bool).
  * wave667 Cap residual: hard-fail unary -/~ on void (void call result).
+ * wave677 Cap residual: hard-fail unary -/~ on bool (no implicit bool→int).
  * Root cause (wave289): copied operand type without host-cc validity → BLD001 on
  * `~double`, `~uint8_t*`, `-uint8_t*`.
  * Root cause (wave662): LOGNOT always stamped bool; NEG/BITNOT stamped aggregate
  * type → host-cc BLD001 (`-struct`, `~struct`, `!slice`) without T001.
  * Root cause (wave665): LOGNOT still stamped bool for any non-aggregate scalar
  * (`!i32`, `!f32`) → C truthiness false green; if/while already require bool.
+ * Root cause (wave677): unary -true stamped bool then host/fs treated as int
+ * false green; ~true fell to return mismatch. G.7: invalid_bool_binop.
  * Allowed: ~int, -int, -float, !bool (LOGNOT→bool). Rejected: ~f32/f64, ~ptr,
- * -ptr, aggregate -/~/!, and non-bool LOGNOT operands.
+ * -ptr, -bool, ~bool, aggregate -/~/!, and non-bool LOGNOT operands.
  * PLATFORM: SHARED — seed typeck_gen + empty_surface same commit (G.7).
  */
 export function typeck_check_expr_unary(module: *Module, arena: *ASTArena, expr_ref: i32,
@@ -7304,6 +7327,18 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         line_u = pipeline_expr_line_at(arena, expr_ref);
         col_u = pipeline_expr_col_at(arena, expr_ref);
         driver_diagnostic_typeck_invalid_void_binop(line_u, col_u);
+        return -1;
+      }
+      /*
+       * wave677 Cap residual: hard-fail unary -/~ on bool at typeck.
+       * Soft residual: -true / ~true typeck OK (stamp bool) → host/fs int false green
+       * or late return mismatch. G.7: invalid_bool_binop (same as arith).
+       * PLATFORM: SHARED — seed typeck_gen + empty_surface same commit.
+       */
+      if ((expr_kind == ord_neg || expr_kind == ord_bitnot) && op_ko == 1) {
+        line_u = pipeline_expr_line_at(arena, expr_ref);
+        col_u = pipeline_expr_col_at(arena, expr_ref);
+        driver_diagnostic_typeck_invalid_bool_binop(line_u, col_u);
         return -1;
       }
       /* wave289: reject ~float, ~ptr, -ptr at typeck (reuse wave285/286 diags — G.7). */

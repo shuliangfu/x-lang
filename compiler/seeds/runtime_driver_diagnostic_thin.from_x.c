@@ -789,6 +789,12 @@ void driver_diagnostic_typeck_invalid_void_binop(int32_t line, int32_t col) {
       "invalid void operation (void cannot be used in arithmetic or unary -/~)"));
   return;
 }
+/* wave677 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_invalid_bool_binop */
+void driver_diagnostic_typeck_invalid_bool_binop(int32_t line, int32_t col) {
+  (void)(lsp_diag_report_typeck(line, col,
+      "invalid bool operation (bool cannot be used in arithmetic, bitops, shifts, or unary -/~; use logical ops or `as`)"));
+  return;
+}
 
 /* wave665 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_logical_operand_not_bool */
 void driver_diagnostic_typeck_logical_operand_not_bool(int32_t line, int32_t col) {

@@ -629,6 +629,23 @@ export function driver_diagnostic_typeck_invalid_void_binop(line: i32, col: i32)
   }
 }
 
+/**
+ * Report bool used in arithmetic / bitops / shifts or unary -/~ (wave677 Cap residual).
+ * @param line i32 — 1-based source line of the op
+ * @param col i32 — 1-based source column of the op
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ runtime_driver_diagnostic.x.
+ * LANG-006 scalar let/const bool→int remains allowed; this rejects bool as an
+ * arithmetic/bit operand (true+false, x<<true, -true, ~true, true&false).
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_invalid_bool_binop(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "invalid bool operation (bool cannot be used in arithmetic, bitops, shifts, or unary -/~; use logical ops or `as`)");
+  }
+}
+
 // ---- G-02f-341 pure helpers / remaining gates ----
 
 /** Exported function `parser_is_ident_allow`.
