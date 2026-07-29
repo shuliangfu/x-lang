@@ -2738,8 +2738,11 @@ build_asm/pipeline_glue_types.inc: pipeline_gen.c scripts/extract_pipeline_glue_
 
 # G-02f-17：pipeline_bootstrap_orchestration 产品 seed
 # wave755 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_SEED_MAP_OBJS).
-# Extras: -Ibuild_asm -DPIPELINE_BOOTSTRAP_ORCH_NO_PIPELINE_RUN_WRAPPER (prereqs stay make).
-pipeline_bootstrap_orchestration.o: seeds/pipeline_bootstrap_orchestration.from_x.c pipeline_bootstrap_orchestration.x pipeline_gen.c build_asm/pipeline_glue_types.inc scripts/ensure_host_cc_seed_o.sh
+# Extras: -Ibuild_asm -DPIPELINE_BOOTSTRAP_ORCH_NO_PIPELINE_RUN_WRAPPER.
+# wave797 B7A: heat dep-edge thin orch residual — prereqs → FORCE + ensure;
+# try-heat/ensure_one owns seed/.x + pipeline_gen.c + build_asm/pipeline_glue_types.inc mtime.
+# NOT physical delete. PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+pipeline_bootstrap_orchestration.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 

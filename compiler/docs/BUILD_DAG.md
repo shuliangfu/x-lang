@@ -405,6 +405,13 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 - `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 families · try-r1 · try-r3-cold · thin_glue/glue-standalone seed-map)  
 - `compiler/scripts/host_platform_linker.sh` (platform + linker · wave745)
 
+## wave797 B7A heat dep-edge thin orch (2026-07-30)
+
+- **Not physical delete.** Last heat source-prereq leaf orch (+1 → **113 FORCE**).
+- Shell: `ensure_one` owns orch seed/.x + `pipeline_gen.c` + `build_asm/pipeline_glue_types.inc`.
+- Residual: **physical delete after Windows only** (source-prereq residual closed).
+- LEAF: `DEP_THIN_COUNT=113` · `HEAT_RESIDUAL=0`.
+
 ## wave796 B7A heat dep-edge thin net·panic·gen_x (2026-07-30)
 
 - **Not physical delete.** net multi-merge · panic stamp · gen_x/B4 (+11 → **112 FORCE**).

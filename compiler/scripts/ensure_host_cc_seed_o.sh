@@ -127,6 +127,9 @@
 #            mtime; panic platform stamp + host pick (already try-r2); gen_x
 #            via try-heat → try-gen-x / try-gen-c-to-o (PIPELINE_X_DEPS env).
 #            Residual: orch / physical delete after Windows. NOT physical delete.
+#   wave797: B7A heat dep-edge thin orch residual (+1 → 113 FORCE).
+#            Shell owns: orch seed/.x + pipeline_gen.c + pipeline_glue_types.inc.
+#            Residual: physical delete after Windows only. NOT physical delete.
 #   wave758: R4 residual pure host-cc thin_glue → R1 seed-map (G.7 有则补全):
 #            parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c +
 #            -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm;
@@ -459,6 +462,17 @@ ensure_one() {
     # Makefile lists them as prereqs — mirror freshness here (G.7 single body).
     if [ "$need" -eq 0 ] && [ "$stem" = "pipeline_glue_standalone" ]; then
       for cand in pipeline_glue.c ast_pool.c build_asm/pipeline_glue_types.inc; do
+        if [ -f "$cand" ] && [ "$cand" -nt "$out" ]; then
+          need=1
+          break
+        fi
+      done
+    fi
+    # wave797: pipeline_bootstrap_orchestration historically rebuilt when pipeline_gen.c
+    # or build_asm/pipeline_glue_types.inc changed (Makefile prereq twin). Mirror here
+    # so FORCE + try-heat can drop source prereqs (G.7 single body; not physical delete).
+    if [ "$need" -eq 0 ] && [ "$stem" = "pipeline_bootstrap_orchestration" ]; then
+      for cand in pipeline_gen.c build_asm/pipeline_glue_types.inc; do
         if [ -f "$cand" ] && [ "$cand" -nt "$out" ]; then
           need=1
           break

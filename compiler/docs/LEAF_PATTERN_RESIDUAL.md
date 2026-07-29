@@ -1547,3 +1547,18 @@ After (wave776):
 | net multi-merge · panic stamp · gen_x/B4 FORCE thin | orch · physical delete after Windows |
 
 LEAF: `PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN_COUNT=112` · `B7A_HEAT_DEP_THIN_WAVE=wave796`.
+
+## wave797 B7A heat dep-edge thin orch (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile` (Windows hybrid min-gate still required).
+> **This wave:** last heat source-prereq leaf → **FORCE + try-heat** (+1 → **113 FORCE**).
+
+| Leaf class | Shell freshness |
+|------------|-----------------|
+| `pipeline_bootstrap_orchestration.o` | seed/.x + `pipeline_gen.c` + `build_asm/pipeline_glue_types.inc` (ensure_one twin) |
+
+| Swallowed | Still residual |
+|-----------|----------------|
+| orch FORCE thin · all heat source-prereq edges | physical delete after Windows only |
+
+LEAF: `PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN_COUNT=113` · `HEAT_RESIDUAL=0` · `B7A_HEAT_DEP_THIN_WAVE=wave797`.
