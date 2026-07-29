@@ -4997,6 +4997,11 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
        * `struct xlang_slice_<mod>_T` (by-value BLD001; *[]T false-green).
        * Structural match: mono gen TYPE_SLICE free leaf name == this free leaf
        * → emit concrete. PLATFORM: SHARED host-C.
+       *
+       * wave690 Cap residual: free []T when mono maps bare T only (G.7 twin).
+       * take_two<T>(a:T,b:T):[]T formals are TYPE_NAMED T→i32; wave689 only
+       * matches gen TYPE_SLICE. Match free NAMED elem vs mono gen TYPE_NAMED →
+       * wrap type_to_c_repr(concrete) as fat tag. PLATFORM: SHARED host-C.
        */
       if (((ctx != ((struct ast_PipelineDepCtx *)(0))) && (ctx->mono_active != 0) && (ctx->mono_num_types > 0))) {
         if ((pipeline_type_kind_ord_at(arena, elem_ref) == 8 /* TYPE_NAMED */)) {
@@ -5032,6 +5037,62 @@ int32_t codegen_emit_type(struct ast_ASTArena * arena, struct codegen_CodegenOut
                 }
               }
               mi_sl = (mi_sl + 1);
+            }
+            /* wave690: bare free T formals (map gen TYPE_NAMED, not TYPE_SLICE). */
+            {
+              int32_t mi_bt = 0;
+              while (((mi_bt < ctx->mono_num_types) && (mi_bt < 8))) {
+                int32_t g_bt = ctx->mono_generic_type_refs[mi_bt];
+                int32_t c_bt = ctx->mono_concrete_type_refs[mi_bt];
+                if (((c_bt > 0) && (c_bt != type_ref) && (g_bt > 0)
+                    && (pipeline_type_kind_ord_at(arena, g_bt) == 8 /* TYPE_NAMED */))) {
+                  uint8_t g_bt_nm[128] = {};
+                  int32_t g_bt_nl = pipeline_type_named_name_into(arena, g_bt, &((g_bt_nm)[0]));
+                  if (((g_bt_nl == cur_sl_nl) && (g_bt_nl > 0))) {
+                    int32_t eq_bt = 1;
+                    int32_t ci_bt = 0;
+                    while ((ci_bt < g_bt_nl)) {
+                      if (((g_bt_nm)[ci_bt] != (cur_sl_nm)[ci_bt])) {
+                        eq_bt = 0;
+                        ci_bt = g_bt_nl;
+                      } else {
+                        ci_bt = (ci_bt + 1);
+                      }
+                    }
+                    if ((eq_bt != 0)) {
+                      uint8_t eb_bt[256] = {};
+                      int32_t n_bt = codegen_type_to_c_repr(arena, &((eb_bt)[0]), 256, c_bt, struct_prefix, struct_prefix_len);
+                      if ((n_bt > 0)) {
+                        int32_t sp_bt = 0;
+                        if (((n_bt >= 7) && ((eb_bt)[0] == 115) && ((eb_bt)[1] == 116) && ((eb_bt)[2] == 114)
+                            && ((eb_bt)[3] == 117) && ((eb_bt)[4] == 99) && ((eb_bt)[5] == 116) && ((eb_bt)[6] == 32))) {
+                          sp_bt = 7;
+                          while (((sp_bt < n_bt) && ((eb_bt)[sp_bt] == 32))) {
+                            sp_bt = (sp_bt + 1);
+                          }
+                        }
+                        {
+                          int32_t plen_bt = (n_bt - sp_bt);
+                          if ((plen_bt > 0)) {
+                            static const uint8_t hdr_bt[20] = {
+                                115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0};
+                            if ((codegen_emit_bytes_from_ptr(out, (uint8_t *)hdr_bt, 19) != 0)) return -(1);
+                            {
+                              int32_t pi_bt = 0;
+                              while ((pi_bt < plen_bt)) {
+                                if ((codegen_append_byte_u8(out, (eb_bt)[(sp_bt + pi_bt)]) != 0)) return -(1);
+                                pi_bt = (pi_bt + 1);
+                              }
+                            }
+                            return 0;
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                mi_bt = (mi_bt + 1);
+              }
             }
           }
         }

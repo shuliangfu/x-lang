@@ -4315,6 +4315,14 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
      * gen TYPE_SLICE whose free TYPE_NAMED leaf name equals this type_ref's free
      * leaf → emit concrete ([]i32 → struct xlang_slice_int32_t). G.7: complete
      * same emit_type authority (not a second subst path).
+     *
+     * wave690 Cap residual: free []T when mono maps bare T only.
+     * take_two<T>(a:T,b:T):[]T formals are TYPE_NAMED T→i32; wave689 only matches
+     * gen TYPE_SLICE (formal was []T). Ret/body distinct []T + ARRAY_LIT fat still
+     * emit incomplete `struct xlang_slice_<mod>_T` / `struct xlang_slice_T`.
+     * Match free NAMED elem against mono gen TYPE_NAMED → wrap type_to_c_repr(concrete)
+     * as fat tag (same construction as pipeline_codegen_type_to_c_repr SLICE).
+     * G.7: complete same emit_type (not a second subst). PLATFORM: SHARED host-C.
      */
     if (tk == TypeKind.TYPE_SLICE && !ast.ref_is_null(elem_ref)) {
       if (ctx != 0 as *PipelineDepCtx && ctx.mono_active != 0 && ctx.mono_num_types > 0) {
@@ -4352,6 +4360,68 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
                 }
               }
               mi_sl = mi_sl + 1;
+            }
+            /*
+             * wave690: bare free T formals (map gen is TYPE_NAMED, not TYPE_SLICE).
+             * Prefer wave689 gen-SLICE match above when present.
+             */
+            let mi_bt: i32 = 0;
+            while (mi_bt < ctx.mono_num_types && mi_bt < 8) {
+              let g_bt: i32 = ctx.mono_generic_type_refs[mi_bt];
+              let c_bt: i32 = ctx.mono_concrete_type_refs[mi_bt];
+              if (c_bt > 0 && c_bt != type_ref && g_bt > 0
+                  && pipeline_type_kind_ord_at(arena, g_bt) == (TypeKind.TYPE_NAMED as i32)) {
+                let g_bt_nm: u8[128] = [];
+                let g_bt_nl: i32 = pipeline_type_named_name_into(arena, g_bt, &g_bt_nm[0]);
+                if (g_bt_nl == cur_sl_nl && g_bt_nl > 0) {
+                  let eq_bt: i32 = 1;
+                  let ci_bt: i32 = 0;
+                  while (ci_bt < g_bt_nl) {
+                    if (g_bt_nm[ci_bt] != cur_sl_nm[ci_bt]) {
+                      eq_bt = 0;
+                      ci_bt = g_bt_nl;
+                    } else {
+                      ci_bt = ci_bt + 1;
+                    }
+                  }
+                  if (eq_bt != 0) {
+                    /*
+                     * Fat tag = "struct xlang_slice_" + type_to_c_repr(concrete)
+                     * with optional leading "struct " stripped (ast_pool twin).
+                     */
+                    let eb_bt: u8[256] = [];
+                    let n_bt: i32 = type_to_c_repr(arena, &eb_bt[0], 256, c_bt, struct_prefix, struct_prefix_len);
+                    if (n_bt > 0) {
+                      let sp_bt: i32 = 0;
+                      if (n_bt >= 7 && eb_bt[0] == 115 && eb_bt[1] == 116 && eb_bt[2] == 114
+                          && eb_bt[3] == 117 && eb_bt[4] == 99 && eb_bt[5] == 116 && eb_bt[6] == 32) {
+                        sp_bt = 7;
+                        while (sp_bt < n_bt && eb_bt[sp_bt] == 32) {
+                          sp_bt = sp_bt + 1;
+                        }
+                      }
+                      let plen_bt: i32 = n_bt - sp_bt;
+                      if (plen_bt > 0) {
+                        let hdr_bt: u8[20] = [
+                          115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 115, 108, 105, 99, 101, 95, 0
+                        ];
+                        if (emit_bytes_from_ptr(out, &hdr_bt[0], 19) != 0) {
+                          return -1;
+                        }
+                        let pi_bt: i32 = 0;
+                        while (pi_bt < plen_bt) {
+                          if (append_byte_u8(out, eb_bt[sp_bt + pi_bt]) != 0) {
+                            return -1;
+                          }
+                          pi_bt = pi_bt + 1;
+                        }
+                        return 0;
+                      }
+                    }
+                  }
+                }
+              }
+              mi_bt = mi_bt + 1;
             }
           }
         }
