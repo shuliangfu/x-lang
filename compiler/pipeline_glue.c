@@ -2011,6 +2011,9 @@ static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *
  * PLATFORM: SHARED freestanding · LINUX gold + MACOS|ARM64.
  */
 static int32_t glue_array_lit_force_esz_from_elem_type_c(struct ast_ASTArena *arena, int32_t et);
+/* wave692: used by durable TYPE_SLICE fat pack before full defs later in TU. */
+static int32_t glue_slice_dual_gp_length_off_c(int32_t data_home, int32_t ta);
+static void glue_align_next_offset(struct backend_AsmFuncCtx *ctx);
 /* wave632: durable large NAMED bulk fill needs struct let-init + spill bulk copy. */
 static int32_t glue_emit_struct_type_let_init_elf_c(struct ast_ASTArena *arena,
                                                     struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t init_ref,
@@ -2413,6 +2416,74 @@ static int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(struct ast_ASTArena
     if (!ly)
       return -1;
     elem_ty = pipeline_asm_array_lit_elem_type_ref(arena, expr_ref);
+    /*
+     * wave692 Cap residual pure: TYPE_SLICE fat elements (nested `[][]T` lit).
+     * Root: esz=16 bulk path called glue_emit_struct_type_let_init (STRUCT only)
+     * → fail or scalar fallthrough wrote mov eax half of .data into COMMON
+     * (Ubuntu pure-asm nested INDEX SIGSEGV; host-C green).
+     * G.7: emit dual-GP (data@rax length@rdx) → temp dual-GP home → bulk 16 to
+     * COMMON (same COMMON face as large NAMED; C fat memory order data@0 len@8).
+     * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
+     */
+    if (elem_ty > 0 &&
+        pipeline_type_kind_ord_at(arena, elem_ty) == (int32_t)ast_TypeKind_TYPE_SLICE && esz == 16) {
+      int32_t data_spill;
+      int32_t len_spill;
+      if (ly->next_offset + 48 < ly->next_offset)
+        return -1;
+      ly->next_offset += 16;
+      data_spill = ly->next_offset;
+      ly->next_offset += 16;
+      len_spill = ly->next_offset;
+      ly->next_offset += 16;
+      src_spill = ly->next_offset;
+      ly->next_offset += 16;
+      dst_spill = ly->next_offset;
+      temp_home = ly->next_offset + 16;
+      ly->next_offset = temp_home + 16;
+      glue_align_next_offset(ctx);
+      for (ai = 0; ai < n_arr; ai++) {
+        elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai);
+        if (elem_ref <= 0)
+          return -1;
+        if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, elem_ref, ctx, ta) != 0)
+          return -1;
+        /* Spill dual-GP halves (rdx store may be arch-specific — use frame). */
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, data_spill, ta) != 0)
+          return -1;
+        if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, len_spill, ta) != 0)
+          return -1;
+        /* Materialize dual-GP fat at temp_home (arch-aware length half → contiguous 16B). */
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, data_spill, ta) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, temp_home, ta) != 0)
+          return -1;
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, len_spill, ta) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbp_arch(
+                elf_ctx, glue_slice_dual_gp_length_off_c(temp_home, ta), ta) != 0)
+          return -1;
+        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_home, ta) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, src_spill, ta) != 0)
+          return -1;
+        if (ta == 1) {
+          if (glue_asm_lea_rax_common_adrp_arm64(elf_ctx, label, llen) != 0)
+            return -1;
+        } else if (glue_asm_lea_rax_common_rip_x86(elf_ctx, label, llen) != 0) {
+          return -1;
+        }
+        if (ai * esz != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, ai * esz, ta) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, dst_spill, ta) != 0)
+          return -1;
+        if (glue_emit_bulk_mem_copy_spills_elf_c(elf_ctx, src_spill, dst_spill, 16, ta) != 0)
+          return -1;
+      }
+      if (ta == 1)
+        return glue_asm_lea_rax_common_adrp_arm64(elf_ctx, label, llen);
+      return glue_asm_lea_rax_common_rip_x86(elf_ctx, label, llen);
+    }
     /* Two pointer spills (src, dst); 16B each for dual-GP slot alignment. */
     if (ly->next_offset + 32 < ly->next_offset)
       return -1;
@@ -7323,6 +7394,13 @@ static int32_t glue_index_elem_byte_sz_from_type_ref_c(struct ast_ASTArena *aren
         if (asz > 0)
           return asz;
       }
+      /*
+       * wave692 Cap residual pure: T[] / T[N] element is TYPE_SLICE (nested `[][]T`) —
+       * stride = fat 16, not peel to scalar. G.7 twin of force_esz / size_simple(SLICE).
+       * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
+       */
+      if (kind_ord == GLUE_TYPE_KIND_SLICE)
+        return 16;
       if (kind_ord == 8 && g_pipeline_asm_emit_module) {
         int32_t ssz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, pointee, 0);
         if (ssz > 0)
@@ -7336,6 +7414,13 @@ static int32_t glue_index_elem_byte_sz_from_type_ref_c(struct ast_ASTArena *aren
     return 4;
   if (kind_ord == 15 || kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7)
     return 8;
+  /*
+   * wave692: bare TYPE_SLICE tr (INDEX result of nested outer) — fat width 16.
+   * Prior peel path above only fires when tr is ARRAY/SLICE-of-X; bare SLICE fell
+   * to default 8 → half fat load. PLATFORM: SHARED freestanding.
+   */
+  if (kind_ord == GLUE_TYPE_KIND_SLICE)
+    return 16;
   /*
    * wave598 Cap residual pure: TYPE_NAMED element stride for INDEX.
    * Root: INDEX `xs[i]` of `S[N]` resolves to named S; prior fell through to default 8
@@ -12971,6 +13056,14 @@ static int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena,
         kind_ord == 9)
       return 8;
     /*
+     * wave692 Cap residual pure: TYPE_SLICE fat element of nested `[][]T` lit —
+     * element width 16 (data+length), not peel-to-scalar 4. G.7 twin of
+     * glue_array_lit_force_esz_from_elem_type_c / glue_type_size_simple(SLICE).
+     * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
+     */
+    if (kind_ord == GLUE_TYPE_KIND_SLICE)
+      return 16;
+    /*
      * wave597 Cap residual pure: TYPE_NAMED=8 struct/array-of-struct elements.
      * Root: NAMED fell through to default 4 → `let xs: S[2] = [mk(), mk()]` stored
      * only 4B per CALL (eax of packed 8B return) at stride 4 → xs[0].a+xs[1].b=10
@@ -13132,6 +13225,36 @@ static int32_t pipeline_asm_emit_array_lit_force_esz_elf_c(struct ast_ASTArena *
        * wave598/626: >8B struct homes + STRUCT_LIT at any esz (G.7 same as vector_let_init).
        * wave626: ≤8B STRUCT_LIT rvalue next_offset aliases high-end temp_base byte0.
        */
+      /*
+       * wave692: TYPE_SLICE fat elem (esz=16) — dual-GP → C fat at elem_home.
+       * High-end polarity: elem_home = temp_base - ai*esz (byte0 of fat).
+       * Memory order always data@home, length@home+8 (C fat; not dual-GP frame).
+       */
+      if (esz == 16 && elem_ty > 0 &&
+          pipeline_type_kind_ord_at(arena, elem_ty) == GLUE_TYPE_KIND_SLICE) {
+        int32_t elem_home;
+        int32_t len_spill;
+        pipeline_glue_AsmFuncCtxLayout *ly2 = pipeline_asm_ctx_layout(ctx);
+        elem_home = (ta == 1) ? (temp_base + ai * esz) : (temp_base - ai * esz);
+        if (elem_home < 0 || !ly2)
+          return -1;
+        if (ly2->next_offset + 16 < ly2->next_offset)
+          return -1;
+        ly2->next_offset += 16;
+        len_spill = ly2->next_offset;
+        if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, elem_ref, ctx, ta) != 0)
+          return -1;
+        if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, len_spill, ta) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, elem_home, ta) != 0)
+          return -1;
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, len_spill, ta) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbp_arch(
+                elf_ctx, glue_slice_dual_gp_length_off_c(elem_home, ta), ta) != 0)
+          return -1;
+        continue;
+      }
       if (esz > 8 || pipeline_expr_kind_ord_at(arena, elem_ref) == 45) {
         int32_t elem_home;
         int32_t st;
@@ -13269,6 +13392,17 @@ static int32_t pipeline_asm_index_elem_byte_sz_c(struct ast_ASTArena *arena, int
      */
     if (pipeline_type_kind_ord_at(arena, tr) == GLUE_TYPE_KIND_PTR)
       return 8;
+    /*
+     * wave692 Cap residual pure: INDEX result TYPE_SLICE means the *element* is a
+     * fat slice (`[][]i32` → rows[i] has type []i32). Stride/load width = 16.
+     * glue_index_elem_byte_sz_from_type_ref peels []T→sizeof(T) for slice-base
+     * s[i] only — must not peel when tr is the INDEX element type itself.
+     * Root: Ubuntu pure-asm nested INDEX used esz=4 → mov eax half-pointer SEGV;
+     * host-C braces green; mac arm64 CTFE often hid. G.7 twin of TYPE_PTR=8 /
+     * TYPE_ARRAY total_bytes. PLATFORM: SHARED freestanding · LINUX gold.
+     */
+    if (pipeline_type_kind_ord_at(arena, tr) == GLUE_TYPE_KIND_SLICE)
+      return 16;
     esz_res = glue_index_elem_byte_sz_from_type_ref_c(arena, tr);
     /** v.ptr[v.len]：INDEX resolved_type 误落 i64/usize(8) 时仍按 *u8 基址步长 1。 */
     if (esz_res >= 8) {
@@ -13339,6 +13473,9 @@ static int32_t pipeline_asm_index_elem_byte_sz_c(struct ast_ASTArena *arena, int
         if (asz > 0)
           return asz;
       }
+      /* wave692: array/slice of TYPE_SLICE — fat element width 16. */
+      if (kind_ord == GLUE_TYPE_KIND_SLICE)
+        return 16;
       /** Struct[N] AoS：步长为 layout 槽宽（勿误落默认 8 → 错位/栈破坏）。 */
       if (kind_ord == 8 && g_pipeline_asm_emit_module) {
         int32_t esz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, pointee, 0);
@@ -13403,6 +13540,30 @@ int32_t pipeline_asm_emit_index_elf_c(struct ast_ASTArena *arena, struct platfor
   res_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
   if (res_ty > 0 && pipeline_type_kind_ord_at(arena, res_ty) == 10)
     return 0;
+  /*
+   * wave692 Cap residual pure: INDEX result TYPE_SLICE (nested `rows[i]` of `[][]T`).
+   * eff_addr left fat element home in the outer payload (stride 16). Load dual-GP
+   * rvalue data@rax length@rdx so nested INDEX / let-alias matches VAR TYPE_SLICE.
+   * Prior: esz=4 loaded eax half-pointer → Ubuntu SEGV; leave-addr alone left fat*
+   * while length path for non-CALL assumed dual-GP or fat inconsistently.
+   * G.7: complete same emit_index authority (TYPE_ARRAY leave / PTR load 8 twin).
+   * Memory fat order: data@+0, length@+8 (C layout; both arches).
+   * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
+   */
+  if (res_ty > 0 && pipeline_type_kind_ord_at(arena, res_ty) == GLUE_TYPE_KIND_SLICE) {
+    /* rax = &fat; length first → arg_reg 2 (rdx/x1), then data@rax. */
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0)
+      return -1;
+    if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+  }
   /* Large non-scalar esz (nested row) without TYPE_ARRAY stamp: keep address. */
   if (esz != 1 && esz != 2 && esz != 4 && esz != 8)
     return 0;
@@ -15044,8 +15205,14 @@ static int32_t glue_try_index_rvalue_slice_once_elf_c(struct ast_ASTArena *arena
   if (!arena || !elf_ctx || !ctx || base_ref <= 0 || idx_ref <= 0)
     return -2;
   base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
-  /* CALL=48 METHOD_CALL=49 — only rvalues that re-emit full base for length+data. */
-  if (base_ko != 48 && base_ko != 49)
+  /*
+   * CALL=48 METHOD_CALL=49 — rvalues that re-emit full base for length+data.
+   * wave692: INDEX=47 base with TYPE_SLICE result (nested `rows[i][j]`) also
+   * materializes dual-GP once — outer INDEX loads fat→data@rax length@rdx
+   * (emit_index TYPE_SLICE arm); re-emitting for length path would double-eval
+   * and the non-CALL length path assumes fat* not dual-GP.
+   */
+  if (base_ko != 48 && base_ko != 49 && base_ko != 47)
     return -2;
   bty = pipeline_expr_resolved_type_ref(arena, base_ref);
   if (bty <= 0 || pipeline_type_kind_ord_at(arena, bty) != (int32_t)ast_TypeKind_TYPE_SLICE)
@@ -15053,10 +15220,11 @@ static int32_t glue_try_index_rvalue_slice_once_elf_c(struct ast_ASTArena *arena
   /*
    * dual-GP: freestanding TYPE_SLICE return (wave333/335); CALL only when
    * needs_rax_deref==0. METHOD_CALL TYPE_SLICE treated as dual-GP (wave336).
+   * wave692: INDEX of nested outer yields dual-GP (emit_index TYPE_SLICE load).
    * Else fat* in rax (length at [rax+8], data at [rax]).
    */
   dual_gp = 0;
-  if (base_ko == 49)
+  if (base_ko == 49 || base_ko == 47)
     dual_gp = 1;
   else if (base_ko == 48 && glue_call_struct16_ret_needs_rax_deref_c(arena, base_ref) == 0)
     dual_gp = 1;
@@ -20738,6 +20906,16 @@ static int32_t glue_array_lit_force_esz_from_elem_type_c(struct ast_ASTArena *ar
     if (ssz > 0)
       return ssz;
   }
+  /*
+   * wave692 Cap residual pure: TYPE_SLICE=11 element of nested `[][]T` is a fat
+   * pointer {data,length}=16B (glue_type_size_simple). Prior fell through → force_esz=0
+   * → lit-inferred esz=4 → durable COMMON stored only eax of .data (Ubuntu pure-asm
+   * nested INDEX SIGSEGV; host-C braces green; mac arm64 CTFE often hid).
+   * G.7: same force_esz authority as scalar/NAMED — no second pack path.
+   * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
+   */
+  if (ek == GLUE_TYPE_KIND_SLICE)
+    return 16;
   return 0;
 }
 
