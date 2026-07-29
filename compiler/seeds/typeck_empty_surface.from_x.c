@@ -623,6 +623,7 @@ extern int32_t typeck_check_expr_call_arg(struct ast_Module * module, struct ast
 extern int32_t typeck_check_expr_call_resolve(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t typeck_check_call_arity(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx);
+extern int32_t typeck_expr_is_null_keyword(struct ast_ASTArena * arena, int32_t expr_ref);
 extern int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
 extern 
 int32_t typeck_check_expr_binop_cmp(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
@@ -2647,10 +2648,16 @@ int32_t typeck_overload_arg_param_score(struct ast_ASTArena * caller_arena, int3
   }
   if ((pipeline_expr_kind_ord_at(caller_arena, arg_ref) ==0)) {
     int32_t pk_lit = pipeline_type_kind_ord_at(caller_arena, param_ty);
+    /* wave670: keyword null only scores for TYPE_PTR. Bare INT 0 keeps integer+ptr. */
+    if ((typeck_expr_is_null_keyword(caller_arena, arg_ref) != 0)) {
+      if ((pk_lit == 9))
+        return 100;
+      return -1;
+    }
     if ((((((((pk_lit ==0) || (pk_lit ==2)) || (pk_lit ==3)) || (pk_lit ==4)) || (pk_lit ==5)) || (pk_lit ==6)) || (pk_lit ==7))) {
       return 100;
     }
-    /* wave668 Cap residual: EXPR_LIT 0 / keyword null → TYPE_PTR. G.7 ≡ typeck.x. */
+    /* wave668 Cap residual: bare EXPR_LIT 0 → TYPE_PTR. G.7 ≡ typeck.x. */
     if (((pk_lit ==9) && (pipeline_expr_int_val_at(caller_arena, arg_ref) ==0))) {
       return 100;
     }
@@ -3577,6 +3584,13 @@ int typeck_return_operand_matches(struct ast_ASTArena * arena, int32_t op_ref, i
   }
   return 0;
 }
+/* wave670 Cap residual: keyword null — G.7 ≡ typeck.x → pipeline_expr_is_null_keyword_c. */
+extern int32_t pipeline_expr_is_null_keyword_c(struct ast_ASTArena * arena, int32_t expr_ref);
+int32_t typeck_expr_is_null_keyword(struct ast_ASTArena * arena, int32_t expr_ref) {
+  if ((((arena == 0) || (expr_ref <= 0))))
+    return 0;
+  return pipeline_expr_is_null_keyword_c(arena, expr_ref);
+}
 /* wave307 Cap residual pure: full i64 lit coerce for u64/usize. */
 int32_t typeck_coerce_init_lit_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind) {
   int64_t int_val = 0;
@@ -3597,6 +3611,14 @@ int32_t typeck_coerce_init_lit_to_decl(struct ast_ASTArena * arena, int32_t init
     return 0;
   }
   (void)((int_val = pipeline_expr_int64_val_at(arena, init_ref)));
+  /* wave670: keyword null only → TYPE_PTR. Bare INT 0 keeps integer/float coerce. */
+  if ((typeck_expr_is_null_keyword(arena, init_ref) != 0)) {
+    if ((decl_kind == ord_ptr)) {
+      (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
+      return 1;
+    }
+    return 0;
+  }
   if (((decl_kind ==ord_ptr) && (int_val ==0))) {
     (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
     return 1;
@@ -5146,9 +5168,18 @@ int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTAr
       if ((arg_ref > 0)) {
         (void)((arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref)));
       }
+      /* wave670: hard-fail null→non-ptr before score (exact 1000 can skip lit path). */
+      if (((arg_ref > 0) && (typeck_expr_is_null_keyword(arena, arg_ref) != 0)
+           && (pipeline_type_kind_ord_at(arena, param_raw) != 9))) {
+        (void)((line_a = pipeline_expr_line_at(arena, expr_ref)));
+        (void)((col_a = pipeline_expr_col_at(arena, expr_ref)));
+        (void)(driver_diagnostic_typeck_call_arg_type_mismatch(line_a, col_a));
+        return -(1);
+      }
       (void)((sc = typeck_overload_arg_param_score(arena, expr_ref, ai, param_raw, dep, ctx)));
       if ((sc < 0)) {
-        if ((arg_ty > 0)) {
+        /* wave670: hard-fail keyword null→non-ptr even when arg untyped. */
+        if (((arg_ty > 0) || ((arg_ref > 0) && (typeck_expr_is_null_keyword(arena, arg_ref) != 0)))) {
           (void)((line_a = pipeline_expr_line_at(arena, expr_ref)));
           (void)((col_a = pipeline_expr_col_at(arena, expr_ref)));
           (void)(driver_diagnostic_typeck_call_arg_type_mismatch(line_a, col_a));

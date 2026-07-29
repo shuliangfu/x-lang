@@ -1357,6 +1357,39 @@ export function parser_alloc_int_lit(arena: *ASTArena, ival: i64): i32 {
 }
 
 /**
+ * Allocate keyword `null` as EXPR_LIT 0 tagged var_name="null" (wave670).
+ * Bare INT 0 keeps var_name_len=0; typeck_expr_is_null_keyword distinguishes them.
+ * @param arena *ASTArena — expression arena; null/exhausted → 0
+ * @return i32 — expr ref, or 0 on alloc failure
+ * PLATFORM: SHARED — G.7 single null AST shape with primary_slice TOKEN_NULL.
+ */
+export function parser_alloc_null_lit(arena: *ASTArena): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let ref: i32 = 0;
+    let e: Expr = Expr { kind: ExprKind.EXPR_LIT, int_val: 0, line: 0, col: 0 };
+    let zi: i32 = 0;
+    ref = parser_alloc_int_lit(arena, 0);
+    if (ref == 0) {
+      return 0;
+    }
+    e = ast.ast_arena_expr_get(arena, ref);
+    e.var_name[0] = 110;
+    e.var_name[1] = 117;
+    e.var_name[2] = 108;
+    e.var_name[3] = 108;
+    e.var_name_len = 4;
+    zi = 4;
+    while (zi < 128) {
+      e.var_name[zi] = 0;
+      zi = zi + 1;
+    }
+    ast.ast_arena_expr_set(arena, ref, e);
+    return ref;
+  }
+}
+
+/**
  * See implementation.
  * See implementation.
  * See implementation.
@@ -4009,13 +4042,13 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
       }
     }
     /*
-     * wave668 Cap residual: plain `let p: *T = null;` — lower TOKEN_NULL to EXPR_LIT 0
-     * (same as bare integer 0). typeck_coerce_init_lit_to_decl already stamps 0→*T.
-     * G.7: no second null expr kind; reuse INT lit shape. PLATFORM: SHARED.
+     * wave668 Cap residual: plain `let p: *T = null;` — lower TOKEN_NULL to EXPR_LIT 0.
+     * wave670: use parser_alloc_null_lit (var_name tag) so typeck rejects null→non-ptr.
+     * Bare INT 0 still uses parser_alloc_int_lit. G.7 single null shape. PLATFORM: SHARED.
      */
     if (init_handled == 0) {
       if (r.tok.kind == token.TokenKind.TOKEN_NULL) {
-        let_init_ref = parser_alloc_int_lit(arena, 0);
+        let_init_ref = parser_alloc_null_lit(arena);
         lex_from_result_ptr_into(&lex, &r);
         lexer.lexer_next_into(&r, lex, source);
         init_handled = 1;

@@ -2968,15 +2968,25 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
      */
     if (pipeline_expr_kind_ord_at(caller_arena, arg_ref) == 0) {
       let pk_lit: i32 = pipeline_type_kind_ord_at(caller_arena, param_ty);
+      /*
+       * wave670 Cap residual: keyword `null` only scores for TYPE_PTR formals.
+       * Bare INT 0 still weak-matches integers + ptr. G.7 single score path.
+       * PLATFORM: SHARED — keep strict_minimal arg score aligned.
+       */
+      if (typeck_expr_is_null_keyword(caller_arena, arg_ref) != 0) {
+        if (pk_lit == 9) {
+          return 100;
+        }
+        return -1;
+      }
       if (pk_lit == 0 || pk_lit == 2 || pk_lit == 3 || pk_lit == 4 || pk_lit == 5 || pk_lit == 6
           || pk_lit == 7) {
         return 100;
       }
       /*
-       * wave668 Cap residual: bare EXPR_LIT 0 (including keyword `null` lowered to lit 0)
-       * weak-matches TYPE_PTR formals — same contract as let/return/cmp 0→*T coerce.
-       * Score 100 < exact 1000. Non-zero lit to *T stays -1. G.7 single score path.
-       * PLATFORM: SHARED — keep strict_minimal arg score aligned.
+       * wave668 Cap residual: bare EXPR_LIT 0 weak-matches TYPE_PTR formals —
+       * same contract as let/return/cmp 0→*T coerce. Score 100 < exact 1000.
+       * Non-zero lit to *T stays -1.
        */
       if (pk_lit == 9 && pipeline_expr_int_val_at(caller_arena, arg_ref) == 0) {
         return 100;
@@ -4283,6 +4293,27 @@ export function typeck_return_operand_matches(arena: *ASTArena, op_ref: i32, exp
 * See implementation.
 */
 /**
+ * True when expr is keyword `null` (wave668 EXPR_LIT 0 tagged var_name="null").
+ * Bare INT_LIT 0 has var_name_len=0 (arena alloc zero). No new ExprKind.
+ * @param arena *ASTArena — expr pool
+ * @param expr_ref i32 — candidate lit ref
+ * @return i32 — 1 if null keyword, 0 otherwise
+ * PLATFORM: SHARED — wave670 Cap residual.
+ * G.7: delegates to pipeline_expr_is_null_keyword_c (var_name_len is VAR-only).
+ */
+export extern function pipeline_expr_is_null_keyword_c(arena: *ASTArena, expr_ref: i32): i32;
+
+export function typeck_expr_is_null_keyword(arena: *ASTArena, expr_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as * ASTArena || expr_ref <= 0) {
+      return 0;
+    }
+    return pipeline_expr_is_null_keyword_c(arena, expr_ref);
+  }
+}
+
+/**
  * Coerce bare EXPR_LIT into a declared let/const type.
  * @param arena *ASTArena — type/expr arena
  * @param init_ref i32 — initializer EXPR_LIT ref
@@ -4296,6 +4327,7 @@ export function typeck_return_operand_matches(arena: *ASTArena, op_ref: i32, exp
  * Unsuffixed lits in 2^63..2^64-1 wrap to negative i64 two's-complement but
  * remain valid u64/usize bit patterns; accept any EXPR_LIT for u64/usize
  * (mirrors u32 full-bit accept). Unary `-N` is EXPR_NEG, not bare LIT.
+ * wave670: keyword `null` only coerces to TYPE_PTR (not i32/f32/array/…).
  */
 export function typeck_coerce_init_lit_to_decl(arena: *ASTArena, init_ref: i32, decl_ty_ref: i32,
 decl_kind: i32, init_kind: i32): i32 {
@@ -4320,6 +4352,18 @@ decl_kind: i32, init_kind: i32): i32 {
     }
     /* Full i64: u64max/i64max must not pass through i32 truncation. */
     int_val = pipeline_expr_int64_val_at(arena, init_ref);
+    /*
+     * wave670 Cap residual: keyword `null` is pointer-context only.
+     * Bare INT 0 still coerces to integers/floats/ptr (docs/06).
+     * G.7: single coerce authority; reject non-ptr early before f32/array zero.
+     */
+    if (typeck_expr_is_null_keyword(arena, init_ref) != 0) {
+      if (decl_kind == ord_ptr) {
+        pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+        return 1;
+      }
+      return 0;
+    }
     if (decl_kind == ord_ptr && int_val == 0) {
       pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
       return 1;
@@ -5839,6 +5883,18 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
           typeck_coerce_init_int_binop_to_decl(arena, right_ref, lt, lt_kind, rhs_kind);
         }
       }
+      /*
+       * wave670: keyword `null` only for TYPE_PTR assign RHS. Unstamped null
+       * would soft-skip the lt/rt equal check below.
+       */
+      if (typeck_expr_is_null_keyword(arena, right_ref) != 0 && lt_kind != ord_ptr) {
+        eb = driver_typeck_diag_scratch_expect();
+        gb = driver_typeck_diag_scratch_found();
+        el = typeck_diag_fmt_type_into(arena, lt, eb, 96);
+        gl = typeck_diag_append_lit(gb, 0, 96, "null", 4);
+        driver_diagnostic_typeck_assign_mismatch(compound_flag, line, col, eb, el, gb, gl);
+        return -1;
+      }
     }
     rt = expr_type_ref(arena, right_ref);
     if (!ast.ref_is_null(lt) && !ast.ref_is_null(rt) && !type_refs_equal(arena, lt, rt)) {
@@ -6057,22 +6113,36 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       if (typeck_coerce_init_enum_field_to_decl(module, arena, op_ref, return_type_ref, rk_ret, ok_ret) != 0) {
         /* stamped */
       }
+      /*
+       * wave670: keyword `null` only valid when function returns TYPE_PTR.
+       * Bare INT 0 still widens to i64/u32/u64 below.
+       */
+      if (typeck_expr_is_null_keyword(arena, op_ref) != 0 && rk_ret != 9) {
+        got = expr_type_ref(arena, op_ref);
+        driver_diagnostic_typeck_ret_fail(2, op_ref, return_type_ref, got);
+        return -1;
+      }
     }
     if (!ast.ref_is_null(op_ref) && !ast.ref_is_null(return_type_ref)) {
       op_kind = pipeline_expr_kind_ord_at(arena, op_ref);
       if (op_kind == ord_lit) {
         rt_kind = pipeline_type_kind_ord_at(arena, return_type_ref);
-        if (rt_kind == ord_i64) {
-          pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref);
-        } else {
-          int_val = pipeline_expr_int_val_at(arena, op_ref);
-          if (int_val == 0 && rt_kind == ord_ptr) {
+        /* wave670: never widen keyword null via i64/unsigned lit path. */
+        if (typeck_expr_is_null_keyword(arena, op_ref) == 0) {
+          if (rt_kind == ord_i64) {
             pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref);
-          } else if (int_val >= 0) {
-            if (rt_kind == ord_usize || rt_kind == ord_u32 || rt_kind == ord_u64) {
+          } else {
+            int_val = pipeline_expr_int_val_at(arena, op_ref);
+            if (int_val == 0 && rt_kind == ord_ptr) {
               pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref);
+            } else if (int_val >= 0) {
+              if (rt_kind == ord_usize || rt_kind == ord_u32 || rt_kind == ord_u64) {
+                pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref);
+              }
             }
           }
+        } else if (rt_kind == ord_ptr) {
+          pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref);
         }
       }
     }
@@ -6463,9 +6533,27 @@ ctx: *PipelineDepCtx): i32 {
          * inside typeck_overload_arg_param_score). When arg_ty<=0 and score returns -1,
          * do not hard-fail — incomplete resolve is not the Cap residual.
          */
+        /*
+         * wave670: hard-fail keyword `null`→non-ptr BEFORE score.
+         * Root: ambient check_expr may stamp lit as i32; score then returns 1000
+         * exact match and never hits the lit/is_null branch → call false green.
+         * G.7: same gate as let/assign; only TYPE_PTR formals accept null.
+         */
+        if (arg_ref > 0 && typeck_expr_is_null_keyword(arena, arg_ref) != 0
+        && pipeline_type_kind_ord_at(arena, param_raw) != 9) {
+          line_a = pipeline_expr_line_at(arena, expr_ref);
+          col_a = pipeline_expr_col_at(arena, expr_ref);
+          driver_diagnostic_typeck_call_arg_type_mismatch(line_a, col_a);
+          return -1;
+        }
         sc = typeck_overload_arg_param_score(arena, expr_ref, ai, param_raw, dep, ctx);
         if (sc < 0) {
-          if (arg_ty > 0) {
+          /*
+           * wave661: hard-fail when arg_ty known.
+           * wave670: also hard-fail keyword `null`→non-ptr (arg stays untyped until
+           * coerce; score already -1 for non-ptr formals). Soft-skip other unknown.
+           */
+          if (arg_ty > 0 || (arg_ref > 0 && typeck_expr_is_null_keyword(arena, arg_ref) != 0)) {
             line_a = pipeline_expr_line_at(arena, expr_ref);
             col_a = pipeline_expr_col_at(arena, expr_ref);
             driver_diagnostic_typeck_call_arg_type_mismatch(line_a, col_a);
@@ -6715,6 +6803,27 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         } else if (lk_cmp == ord_lit
         && typeck_coerce_init_lit_to_decl(arena, bop_l, rt_cmp, rko_cmp, lk_cmp) != 0) {
           lt_cmp = pipeline_expr_resolved_type_ref(arena, bop_l);
+        }
+        /*
+         * wave670: keyword `null` only compares with pointers (or null).
+         * `null == i32` / `i32 == null` hard-fail; `null == p` / `null == null` green.
+         */
+        if (typeck_expr_is_null_keyword(arena, bop_l) != 0
+        && typeck_expr_is_null_keyword(arena, bop_r) == 0) {
+          if (rt_cmp > 0 && rko_cmp != 9) {
+            line_ac = pipeline_expr_line_at(arena, expr_ref);
+            col_ac = pipeline_expr_col_at(arena, expr_ref);
+            driver_diagnostic_typeck_comparison_type_mismatch(line_ac, col_ac);
+            return -1;
+          }
+        } else if (typeck_expr_is_null_keyword(arena, bop_r) != 0
+        && typeck_expr_is_null_keyword(arena, bop_l) == 0) {
+          if (lt_cmp > 0 && lko_cmp != 9) {
+            line_ac = pipeline_expr_line_at(arena, expr_ref);
+            col_ac = pipeline_expr_col_at(arena, expr_ref);
+            driver_diagnostic_typeck_comparison_type_mismatch(line_ac, col_ac);
+            return -1;
+          }
         }
         if (lt_cmp > 0 && rt_cmp > 0 && lt_cmp <= arena.num_types && rt_cmp <= arena.num_types) {
           if (!type_refs_equal(arena, lt_cmp, rt_cmp)) {
@@ -8443,6 +8552,24 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
     if (!ast.ref_is_null(ld_ir) && !ast.ref_is_null(ld_tr)) {
       typeck_coerce_init_expr_to_decl(module, arena, ld_ir, ld_tr);
       init_ty = expr_type_ref(arena, ld_ir);
+      /*
+       * wave670 Cap residual: keyword `null` only for TYPE_PTR let-init.
+       * Coerce leaves untyped null when decl is non-ptr → must hard-fail (init_ty=0
+       * would soft-skip the equal check below). Bare INT 0 still coerces.
+       */
+      if (typeck_expr_is_null_keyword(arena, ld_ir) != 0
+      && pipeline_type_kind_ord_at(arena, ld_tr) != 9) {
+        eb = driver_typeck_diag_scratch_expect();
+        gb = driver_typeck_diag_scratch_found();
+        el = typeck_diag_fmt_type_into(arena, ld_tr, eb, 96);
+        gl = typeck_diag_append_lit(gb, 0, 96, "null", 4);
+        {
+          let err_line: i32 = pipeline_expr_line_at(arena, ld_ir);
+          let err_col: i32 = pipeline_expr_col_at(arena, ld_ir);
+          driver_diagnostic_typeck_assign_mismatch(0, err_line, err_col, eb, el, gb, gl);
+        }
+        return -1;
+      }
       /* See implementation. */
       if (!ast.ref_is_null(init_ty) && !type_refs_equal(arena, ld_tr, init_ty)) {
         /* wave313: refs path closes NAMED i8/i16/u16 let-init widen (e.g. i16→i32). */

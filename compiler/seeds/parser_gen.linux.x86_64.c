@@ -3713,10 +3713,22 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
           (void)((init_handled = 1));
         }
       }
-      /* wave668 Cap residual: let p:*T = null → EXPR_LIT 0 (TOKEN_NULL ordinal 132). */
+      /* wave668/wave670: let p:*T = null → EXPR_LIT 0 tagged var_name="null". */
       if ((init_handled ==0)) {
         if ((((r.tok).kind) ==132)) {
           (void)((let_init_ref = parser_alloc_int_lit(arena, 0)));
+          if ((let_init_ref != 0)) {
+            struct ast_Expr ne = ast_ast_arena_expr_get(arena, let_init_ref);
+            int32_t zi;
+            ne.var_name[0] = (uint8_t)'n';
+            ne.var_name[1] = (uint8_t)'u';
+            ne.var_name[2] = (uint8_t)'l';
+            ne.var_name[3] = (uint8_t)'l';
+            ne.var_name_len = 4;
+            for (zi = 4; zi < 128; zi++)
+              ne.var_name[zi] = 0;
+            (void)(ast_ast_arena_expr_set(arena, let_init_ref, ne));
+          }
           (void)(parser_lex_from_result_ptr_into(&(lex), &(r)));
           (void)(lexer_next_into(&(r), lex, source));
           (void)((init_handled = 1));

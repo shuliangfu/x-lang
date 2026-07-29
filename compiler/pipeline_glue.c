@@ -22113,6 +22113,15 @@ int32_t pipeline_typeck_check_expr_int_lit_c(struct ast_ASTArena *arena, int32_t
   ex = glue_arena_expr_at_ref(arena, expr_ref);
   if (!ex || ex->resolved_type_ref != 0)
     return 0;
+  /*
+   * wave670 Cap residual: keyword `null` is EXPR_LIT 0 tagged var_name="null".
+   * Do not default-stamp as i32 — only TYPE_PTR coerce (typeck.x) may retype it.
+   * Bare INT 0 still stamps i32/i64. PLATFORM: SHARED freestanding+host.
+   */
+  if (ex->int_val == 0 && ex->var_name_len == 4 &&
+      ex->var_name[0] == (uint8_t)'n' && ex->var_name[1] == (uint8_t)'u' &&
+      ex->var_name[2] == (uint8_t)'l' && ex->var_name[3] == (uint8_t)'l')
+    return 0;
   v = ex->int_val;
   if (v > (int64_t)INT32_MAX || v < (int64_t)INT32_MIN)
     ty = pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_I64);
@@ -22206,6 +22215,26 @@ int32_t pipeline_expr_var_name_len(struct ast_ASTArena *a, int32_t expr_ref) {
     return 0;
   return ex->var_name_len;
 }
+
+/**
+ * wave670 Cap residual: keyword `null` is EXPR_LIT int_val=0 tagged
+ * var_name="null"/len=4 (parser_alloc_null_lit / primary TOKEN_NULL).
+ * Do not use pipeline_expr_var_name_len (VAR-only). G.7 single null face.
+ * PLATFORM: SHARED.
+ */
+int32_t pipeline_expr_is_null_keyword_c(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex || (int32_t)ex->kind != 0 /* EXPR_LIT */)
+    return 0;
+  if (ex->int_val != 0 || ex->var_name_len != 4)
+    return 0;
+  if (ex->var_name[0] == (uint8_t)'n' && ex->var_name[1] == (uint8_t)'u' &&
+      ex->var_name[2] == (uint8_t)'l' && ex->var_name[3] == (uint8_t)'l')
+    return 1;
+  return 0;
+}
+
+/* Debug helper removed after wave670 green. */
 
 /** 读 expr.binop_left_ref；无效 ref 返回 0。 */
 int32_t pipeline_expr_binop_left_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {

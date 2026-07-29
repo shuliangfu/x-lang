@@ -992,9 +992,18 @@ static int32_t pipeline_typeck_overload_arg_score_strict_minimal(struct ast_ASTA
    */
   if (pipeline_expr_kind_ord_at(caller_arena, arg_ref) == 0) {
     pk = pipeline_type_kind_ord_at(caller_arena, param_ty);
+    /* wave670: keyword null only → *T (G.7 ≡ typeck.x / pipeline_expr_is_null_keyword_c). */
+    {
+      extern int32_t pipeline_expr_is_null_keyword_c(struct ast_ASTArena *a, int32_t expr_ref);
+      if (pipeline_expr_is_null_keyword_c(caller_arena, arg_ref) != 0) {
+        if (pk == 9)
+          return 100;
+        return -1;
+      }
+    }
     if (pk == 0 || pk == 2 || pk == 3 || pk == 4 || pk == 5 || pk == 6 || pk == 7)
       return 100;
-    /* wave668: EXPR_LIT 0 / keyword null → *T (TYPE_PTR=9). G.7 ≡ typeck.x score. */
+    /* wave668: bare EXPR_LIT 0 → *T (TYPE_PTR=9). */
     if (pk == 9 && pipeline_expr_int64_val_at(caller_arena, arg_ref) == 0)
       return 100;
   }
@@ -2355,11 +2364,21 @@ XLANG_WEAK int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t
 XLANG_WEAK int32_t pipeline_typeck_check_expr_int_lit_c(struct ast_ASTArena *arena, int32_t expr_ref) {
   int64_t value;
   int32_t ty;
+  int32_t nlen;
+  uint8_t nbuf[8];
   if (!arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
     return 0;
   if (pipeline_expr_resolved_type_ref(arena, expr_ref) != 0)
     return 0;
+  /* wave670: keyword null — do not default-stamp i32. G.7 ≡ pipeline_glue. */
   value = pipeline_expr_int64_val_at(arena, expr_ref);
+  nlen = pipeline_expr_var_name_len(arena, expr_ref);
+  if (value == 0 && nlen == 4) {
+    pipeline_expr_var_name_into(arena, expr_ref, nbuf);
+    if (nbuf[0] == (uint8_t)'n' && nbuf[1] == (uint8_t)'u' &&
+        nbuf[2] == (uint8_t)'l' && nbuf[3] == (uint8_t)'l')
+      return 0;
+  }
   if (value > (int64_t)INT32_MAX || value < (int64_t)INT32_MIN)
     ty = pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_I64);
   else

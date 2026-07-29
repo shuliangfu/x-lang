@@ -2024,8 +2024,10 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
   }
   /**
    * wave668 Cap residual: TOKEN_NULL → EXPR_LIT int_val=0 (null pointer literal).
-   * G.7: same shape as TOKEN_INT 0 so typeck 0→*T coerce/cmp/ret/call score apply.
-   * No new ExprKind (avoid ordinal churn). PLATFORM: SHARED.
+   * wave670: tag keyword null via var_name="null"/len=4 so typeck can hard-fail
+   * null→non-ptr while bare INT 0 stays integer-coercible. Still EXPR_LIT 0 for
+   * emit (no new ExprKind / ordinal churn). G.7 single primary path.
+   * PLATFORM: SHARED.
    */
   if (r.tok.kind == (int32_t)TOKEN_NULL) {
     ref = ast_ast_arena_expr_alloc(arena);
@@ -2039,6 +2041,17 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     e.col = r.tok.col;
     e.int_val = 0;
     parser_asm_expr_set_common_zeros_c(&e);
+    /* Keyword tag: typeck_expr_is_null_keyword reads var_name on EXPR_LIT. */
+    e.var_name[0] = (uint8_t)'n';
+    e.var_name[1] = (uint8_t)'u';
+    e.var_name[2] = (uint8_t)'l';
+    e.var_name[3] = (uint8_t)'l';
+    e.var_name_len = 4;
+    {
+      int32_t zi;
+      for (zi = 4; zi < 128; zi++)
+        e.var_name[zi] = 0;
+    }
     parser_asm_arena_expr_set_c(arena, ref, e);
     out->ok = 1;
     out->expr_ref = ref;

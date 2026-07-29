@@ -1552,6 +1552,7 @@ extern int typeck_float_widen_ok(int32_t dest_kind, int32_t src_kind);
 
 int typeck_return_operand_matches(struct ast_ASTArena * arena, int32_t op_ref, int32_t expect_ref);
 extern int32_t typeck_coerce_init_lit_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
+extern int32_t typeck_expr_is_null_keyword(struct ast_ASTArena * arena, int32_t expr_ref);
 extern int32_t typeck_coerce_init_float_lit_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
 extern int32_t typeck_coerce_init_enum_field_to_decl(struct ast_Module * module, struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
 extern int32_t typeck_coerce_init_named_call_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
@@ -3715,10 +3716,16 @@ int32_t typeck_overload_arg_param_score(struct ast_ASTArena * caller_arena, int3
     }
     if ((pipeline_expr_kind_ord_at(caller_arena, arg_ref) ==0)) {
       int32_t pk_lit = pipeline_type_kind_ord_at(caller_arena, param_ty);
+      /* wave670: keyword null only scores for TYPE_PTR. Bare INT 0 keeps integer+ptr. */
+      if ((typeck_expr_is_null_keyword(caller_arena, arg_ref) != 0)) {
+        if ((pk_lit == 9))
+          return 100;
+        return -1;
+      }
       if ((((((((pk_lit ==0) || (pk_lit ==2)) || (pk_lit ==3)) || (pk_lit ==4)) || (pk_lit ==5)) || (pk_lit ==6)) || (pk_lit ==7))) {
         return 100;
       }
-      /* wave668 Cap residual: EXPR_LIT 0 / keyword null → TYPE_PTR. G.7 ≡ typeck.x. */
+      /* wave668 Cap residual: bare EXPR_LIT 0 → TYPE_PTR. G.7 ≡ typeck.x. */
       if (((pk_lit ==9) && (pipeline_expr_int_val_at(caller_arena, arg_ref) ==0))) {
         return 100;
       }
@@ -4709,6 +4716,13 @@ int typeck_return_operand_matches(struct ast_ASTArena * arena, int32_t op_ref, i
     return 0;
   }
 }
+/* wave670 Cap residual: keyword null — G.7 ≡ typeck.x → pipeline_expr_is_null_keyword_c. */
+extern int32_t pipeline_expr_is_null_keyword_c(struct ast_ASTArena * arena, int32_t expr_ref);
+int32_t typeck_expr_is_null_keyword(struct ast_ASTArena * arena, int32_t expr_ref) {
+  if ((((arena == 0) || (expr_ref <= 0))))
+    return 0;
+  return pipeline_expr_is_null_keyword_c(arena, expr_ref);
+}
 /* wave307 Cap residual pure: full i64 lit coerce for u64/usize (no i32 truncate / >=0 gate). */
 int32_t typeck_coerce_init_lit_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind) {
   {
@@ -4730,6 +4744,14 @@ int32_t typeck_coerce_init_lit_to_decl(struct ast_ASTArena * arena, int32_t init
       return 0;
     }
     (void)((int_val = pipeline_expr_int64_val_at(arena, init_ref)));
+    /* wave670: keyword null only → TYPE_PTR. Bare INT 0 keeps integer/float coerce. */
+    if ((typeck_expr_is_null_keyword(arena, init_ref) != 0)) {
+      if ((decl_kind == ord_ptr)) {
+        (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
+        return 1;
+      }
+      return 0;
+    }
     if (((decl_kind ==ord_ptr) && (int_val ==0))) {
       (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
       return 1;
@@ -5896,6 +5918,15 @@ int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena
           (void)(typeck_coerce_init_int_binop_to_decl(arena, right_ref, lt, lt_kind, rhs_kind));
         }
       }
+      /* wave670: keyword null only for TYPE_PTR assign RHS. */
+      if (((typeck_expr_is_null_keyword(arena, right_ref) != 0) && (lt_kind != ord_ptr))) {
+        (void)((eb = driver_typeck_diag_scratch_expect()));
+        (void)((gb = driver_typeck_diag_scratch_found()));
+        (void)((el = typeck_diag_fmt_type_into(arena, lt, eb, 96)));
+        (void)((gl = typeck_diag_append_lit(gb, 0, 96, (uint8_t *)"null", 4)));
+        (void)(driver_diagnostic_typeck_assign_mismatch(compound_flag, line, col, eb, el, gb, gl));
+        return -1;
+      }
     }
     (void)((rt = typeck_expr_type_ref(arena, right_ref)));
     if (((!(ast_ref_is_null(lt)) && !(ast_ref_is_null(rt))) && !(typeck_type_refs_equal(arena, lt, rt)))) {
@@ -6087,24 +6118,34 @@ int32_t typeck_check_expr_return(struct ast_Module * module, struct ast_ASTArena
       (void)(typeck_coerce_init_float_lit_to_decl(arena, op_ref, return_type_ref, rk_ret, ok_ret));
       if ((typeck_coerce_init_enum_field_to_decl(module, arena, op_ref, return_type_ref, rk_ret, ok_ret) !=0)) {
       }
+      /* wave670: keyword null only when return is TYPE_PTR. */
+      if (((typeck_expr_is_null_keyword(arena, op_ref) != 0) && (rk_ret != 9))) {
+        (void)((got = typeck_expr_type_ref(arena, op_ref)));
+        (void)(driver_diagnostic_typeck_ret_fail(2, op_ref, return_type_ref, got));
+        return -1;
+      }
     }
     if ((!(ast_ref_is_null(op_ref)) && !(ast_ref_is_null(return_type_ref)))) {
       (void)((op_kind = pipeline_expr_kind_ord_at(arena, op_ref)));
       if ((op_kind ==ord_lit)) {
         (void)((rt_kind = pipeline_type_kind_ord_at(arena, return_type_ref)));
-        if ((rt_kind ==ord_i64)) {
-          (void)(pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref));
-        } else {
-          (void)((int_val = pipeline_expr_int_val_at(arena, op_ref)));
-          if (((int_val ==0) && (rt_kind ==ord_ptr))) {
+        if ((typeck_expr_is_null_keyword(arena, op_ref) == 0)) {
+          if ((rt_kind ==ord_i64)) {
             (void)(pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref));
           } else {
-            if ((int_val >=0)) {
-              if ((((rt_kind ==ord_usize) || (rt_kind ==ord_u32)) || (rt_kind ==ord_u64))) {
-                (void)(pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref));
+            (void)((int_val = pipeline_expr_int_val_at(arena, op_ref)));
+            if (((int_val ==0) && (rt_kind ==ord_ptr))) {
+              (void)(pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref));
+            } else {
+              if ((int_val >=0)) {
+                if ((((rt_kind ==ord_usize) || (rt_kind ==ord_u32)) || (rt_kind ==ord_u64))) {
+                  (void)(pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref));
+                }
               }
             }
           }
+        } else if ((rt_kind == ord_ptr)) {
+          (void)(pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref));
         }
       }
     }
@@ -6403,9 +6444,18 @@ int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTAr
       if ((arg_ref > 0)) {
         (void)((arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref)));
       }
+      /* wave670: hard-fail keyword null→non-ptr BEFORE score (exact-match 1000 can skip lit path). */
+      if (((arg_ref > 0) && (typeck_expr_is_null_keyword(arena, arg_ref) != 0)
+           && (pipeline_type_kind_ord_at(arena, param_raw) != 9))) {
+        (void)((line_a = pipeline_expr_line_at(arena, expr_ref)));
+        (void)((col_a = pipeline_expr_col_at(arena, expr_ref)));
+        (void)(driver_diagnostic_typeck_call_arg_type_mismatch(line_a, col_a));
+        return -1;
+      }
       (void)((sc = typeck_overload_arg_param_score(arena, expr_ref, ai, param_raw, dep, ctx)));
       if ((sc < 0)) {
-        if ((arg_ty > 0)) {
+        /* wave670: hard-fail keyword null→non-ptr even when arg untyped. */
+        if (((arg_ty > 0) || ((arg_ref > 0) && (typeck_expr_is_null_keyword(arena, arg_ref) != 0)))) {
           (void)((line_a = pipeline_expr_line_at(arena, expr_ref)));
           (void)((col_a = pipeline_expr_col_at(arena, expr_ref)));
           (void)(driver_diagnostic_typeck_call_arg_type_mismatch(line_a, col_a));
@@ -6422,6 +6472,14 @@ int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena *
   extern int32_t pipeline_typeck_check_expr_call_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
   return pipeline_typeck_check_expr_call_c(module, arena, expr_ref, return_type_ref, ctx);
 }
+
+
+
+
+
+
+
+
 
 
 
@@ -6570,6 +6628,24 @@ int32_t typeck_check_expr_binop_cmp(struct ast_Module * module, struct ast_ASTAr
           if (((lk_cmp == ord_lit)
                && (typeck_coerce_init_lit_to_decl(arena, bop_l, rt_cmp, rko_cmp, lk_cmp) != 0))) {
             (void)((lt_cmp = pipeline_expr_resolved_type_ref(arena, bop_l)));
+          }
+        }
+        /* wave670: keyword null only compares with pointers (or null). */
+        if (((typeck_expr_is_null_keyword(arena, bop_l) != 0)
+             && (typeck_expr_is_null_keyword(arena, bop_r) == 0))) {
+          if (((rt_cmp > 0) && (rko_cmp != 9))) {
+            (void)((line_ac = pipeline_expr_line_at(arena, expr_ref)));
+            (void)((col_ac = pipeline_expr_col_at(arena, expr_ref)));
+            (void)(driver_diagnostic_typeck_comparison_type_mismatch(line_ac, col_ac));
+            return -1;
+          }
+        } else if (((typeck_expr_is_null_keyword(arena, bop_r) != 0)
+                    && (typeck_expr_is_null_keyword(arena, bop_l) == 0))) {
+          if (((lt_cmp > 0) && (lko_cmp != 9))) {
+            (void)((line_ac = pipeline_expr_line_at(arena, expr_ref)));
+            (void)((col_ac = pipeline_expr_col_at(arena, expr_ref)));
+            (void)(driver_diagnostic_typeck_comparison_type_mismatch(line_ac, col_ac));
+            return -1;
           }
         }
         if (((((lt_cmp > 0) && (rt_cmp > 0)) && (lt_cmp <= (arena->num_types)))
@@ -7870,6 +7946,20 @@ int32_t typeck_check_block_one_let(struct ast_Module * module, struct ast_ASTAre
     if ((!(ast_ref_is_null(ld_ir)) && !(ast_ref_is_null(ld_tr)))) {
       (void)(typeck_coerce_init_expr_to_decl(module, arena, ld_ir, ld_tr));
       (void)((init_ty = typeck_expr_type_ref(arena, ld_ir)));
+      /* wave670: keyword null only for TYPE_PTR let-init. */
+      if (((typeck_expr_is_null_keyword(arena, ld_ir) != 0)
+           && (pipeline_type_kind_ord_at(arena, ld_tr) != 9))) {
+        (void)((eb = driver_typeck_diag_scratch_expect()));
+        (void)((gb = driver_typeck_diag_scratch_found()));
+        (void)((el = typeck_diag_fmt_type_into(arena, ld_tr, eb, 96)));
+        (void)((gl = typeck_diag_append_lit(gb, 0, 96, (uint8_t *)"null", 4)));
+        {
+          int32_t err_line = pipeline_expr_line_at(arena, ld_ir);
+          int32_t err_col = pipeline_expr_col_at(arena, ld_ir);
+          (void)(driver_diagnostic_typeck_assign_mismatch(0, err_line, err_col, eb, el, gb, gl));
+        }
+        return -1;
+      }
       if ((!(ast_ref_is_null(init_ty)) && !(typeck_type_refs_equal(arena, ld_tr, init_ty)))) {
         int32_t decl_k = pipeline_type_kind_ord_at(arena, ld_tr);
         int32_t init_k = pipeline_type_kind_ord_at(arena, init_ty);
