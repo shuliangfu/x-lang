@@ -1132,52 +1132,58 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
                 struct ast_Expr fe, le, ee;
                 parser_lex_from_next_into_glue(&lex, r);
                 lexer_next_into(&r, lex, source);
-                if (r.tok.kind != (int32_t)TOKEN_INT)
-                  return;
-                fval = r.tok.int_val;
-                parser_lex_from_next_into_glue(&lex, r);
-                lexer_next_into(&r, lex, source); /* wave708: get next token (, or }) */
-                /* construct FIELD_ACCESS: subject.field */
-                fref = ast_ast_arena_expr_alloc(arena);
-                if (fref == 0) return;
-                fe = ast_ast_arena_expr_get(arena, fref);
-                memset(&fe, 0, sizeof(fe));
-                fe.kind = 44; /* EXPR_FIELD_ACCESS */
-                fe.field_access_base_ref = matched_res.expr_ref;
-                memcpy(fe.field_access_field_name, fname, (size_t)flen);
-                fe.field_access_field_len = flen;
-                ast_ast_arena_expr_set(arena, fref, fe);
-                /* construct INT_LIT: val */
-                lit_ref = ast_ast_arena_expr_alloc(arena);
-                if (lit_ref == 0) return;
-                le = ast_ast_arena_expr_get(arena, lit_ref);
-                memset(&le, 0, sizeof(le));
-                le.kind = 0; /* EXPR_LIT */
-                le.int_val = (int64_t)fval;
-                ast_ast_arena_expr_set(arena, lit_ref, le);
-                /* construct EQ: field == val */
-                eq_ref = ast_ast_arena_expr_alloc(arena);
-                if (eq_ref == 0) return;
-                ee = ast_ast_arena_expr_get(arena, eq_ref);
-                memset(&ee, 0, sizeof(ee));
-                ee.kind = 14; /* EXPR_EQ */
-                ee.binop_left_ref = fref;
-                ee.binop_right_ref = lit_ref;
-                ast_ast_arena_expr_set(arena, eq_ref, ee);
-                /* chain with LOGAND */
-                if (field_guard == 0) {
-                  field_guard = eq_ref;
+                /* wave709: `field: _` — wildcard field value, skip (no guard). */
+                if (r.tok.kind == (int32_t)TOKEN_UNDERSCORE) {
+                  parser_lex_from_next_into_glue(&lex, r);
+                  lexer_next_into(&r, lex, source);
                 } else {
-                  int32_t and_ref = ast_ast_arena_expr_alloc(arena);
-                  struct ast_Expr ae;
-                  if (and_ref == 0) return;
-                  ae = ast_ast_arena_expr_get(arena, and_ref);
-                  memset(&ae, 0, sizeof(ae));
-                  ae.kind = 20; /* EXPR_LOGAND */
-                  ae.binop_left_ref = field_guard;
-                  ae.binop_right_ref = eq_ref;
-                  ast_ast_arena_expr_set(arena, and_ref, ae);
-                  field_guard = and_ref;
+                  if (r.tok.kind != (int32_t)TOKEN_INT)
+                    return;
+                  fval = r.tok.int_val;
+                  parser_lex_from_next_into_glue(&lex, r);
+                  lexer_next_into(&r, lex, source); /* wave708: get next token (, or }) */
+                  /* construct FIELD_ACCESS: subject.field */
+                  fref = ast_ast_arena_expr_alloc(arena);
+                  if (fref == 0) return;
+                  fe = ast_ast_arena_expr_get(arena, fref);
+                  memset(&fe, 0, sizeof(fe));
+                  fe.kind = 44; /* EXPR_FIELD_ACCESS */
+                  fe.field_access_base_ref = matched_res.expr_ref;
+                  memcpy(fe.field_access_field_name, fname, (size_t)flen);
+                  fe.field_access_field_len = flen;
+                  ast_ast_arena_expr_set(arena, fref, fe);
+                  /* construct INT_LIT: val */
+                  lit_ref = ast_ast_arena_expr_alloc(arena);
+                  if (lit_ref == 0) return;
+                  le = ast_ast_arena_expr_get(arena, lit_ref);
+                  memset(&le, 0, sizeof(le));
+                  le.kind = 0; /* EXPR_LIT */
+                  le.int_val = (int64_t)fval;
+                  ast_ast_arena_expr_set(arena, lit_ref, le);
+                  /* construct EQ: field == val */
+                  eq_ref = ast_ast_arena_expr_alloc(arena);
+                  if (eq_ref == 0) return;
+                  ee = ast_ast_arena_expr_get(arena, eq_ref);
+                  memset(&ee, 0, sizeof(ee));
+                  ee.kind = 14; /* EXPR_EQ */
+                  ee.binop_left_ref = fref;
+                  ee.binop_right_ref = lit_ref;
+                  ast_ast_arena_expr_set(arena, eq_ref, ee);
+                  /* chain with LOGAND */
+                  if (field_guard == 0) {
+                    field_guard = eq_ref;
+                  } else {
+                    int32_t and_ref = ast_ast_arena_expr_alloc(arena);
+                    struct ast_Expr ae;
+                    if (and_ref == 0) return;
+                    ae = ast_ast_arena_expr_get(arena, and_ref);
+                    memset(&ae, 0, sizeof(ae));
+                    ae.kind = 20; /* EXPR_LOGAND */
+                    ae.binop_left_ref = field_guard;
+                    ae.binop_right_ref = eq_ref;
+                    ast_ast_arena_expr_set(arena, and_ref, ae);
+                    field_guard = and_ref;
+                  }
                 }
               }
               /* `field` bind mode — skip (wave707 field bind handles) */
