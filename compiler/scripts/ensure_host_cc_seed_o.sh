@@ -100,6 +100,9 @@
 #            `try-heat $@` only (115 leaves; G.7 single heat entry). Historical
 #            try-*/one mode names stay in Makefile comments for archaeology.
 #            Dependency edges still residual (NOT physical delete).
+#   wave791: B7A heat dep-edge thin — pure runtime_* (seed+.x) Makefile prereqs
+#            collapse to FORCE + ensure script; try-heat owns seed/.x mtime.
+#            NOT physical delete; hdr/c/asm/stamp leaves keep full edges.
 #   wave758: R4 residual pure host-cc thin_glue → R1 seed-map (G.7 有则补全):
 #            parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c +
 #            -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm;
@@ -6003,6 +6006,8 @@ run_check() {
 #   1/2 — matching mode hard-failed
 # PLATFORM: SHARED — orchestration only; no second recipe body / no .o list.
 # NOT physical delete: Makefile thin-call edges remain for make dep graph.
+# wave791: some pure runtime_* leaves use FORCE (no source prereqs); this ladder
+# still owns seed/.x (and prefer-table) freshness — cheap skip when up-to-date.
 # ---------------------------------------------------------------------------
 try_heat_one() {
   local o="$1"

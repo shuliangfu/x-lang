@@ -1506,4 +1506,11 @@ After (wave776):
 - `compiler/docs/PLATFORM_LINKER.md` (R6 / UNAME leaf cross-ref)  
 - `compiler/scripts/driver_seed_obj_catalog.sh` (list authority)  
 - `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 families + try-r1 + R3 cold-else + thin_glue/glue-standalone + R2 panic/typeck_f64/crt0 try-r2)  
-- skill G.7 single authority · G.8 platform tags  
+- skill G.7 single authority · G.8 platform tags
+
+## wave791 B7A heat dep-edge thin (2026-07-30)
+
+- **Not physical delete.** Pure `runtime_*` seed+.x leaves (28): Makefile prereqs → `FORCE` + `ensure_host_cc_seed_o.sh`; `try-heat` owns seed/.x mtime.
+- Residual: hdr/c/asm/stamp leaves + `runtime_scheduler_glue` (async_net_fs twin) + full make graph for non-pilot.
+- LEAF: `SWALLOWED_B7A_HEAT_DEP_THIN=1` · `PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN=1` · `PHYS_DEL_BUCKET_B7A_HEAT_RESIDUAL=1`.
+- Next: Windows hybrid green → physical delete Makefile; or thin remaining dep edges.

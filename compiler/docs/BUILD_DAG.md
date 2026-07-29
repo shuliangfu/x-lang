@@ -404,3 +404,10 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 - `compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh` (R4 mode · pure-R1 · R3 cold · thin_glue · glue-standalone)  
 - `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 families · try-r1 · try-r3-cold · thin_glue/glue-standalone seed-map)  
 - `compiler/scripts/host_platform_linker.sh` (platform + linker · wave745)
+
+## wave791 B7A heat dep-edge thin (2026-07-30)
+
+- **Not physical delete.** Pure `runtime_*` seed+.x leaves (28): Makefile prereqs → `FORCE` + `ensure_host_cc_seed_o.sh`; `try-heat` owns seed/.x mtime.
+- Residual: hdr/c/asm/stamp leaves + `runtime_scheduler_glue` (async_net_fs twin) + full make graph for non-pilot.
+- LEAF: `SWALLOWED_B7A_HEAT_DEP_THIN=1` · `PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN=1` · `PHYS_DEL_BUCKET_B7A_HEAT_RESIDUAL=1`.
+- Next: Windows hybrid green → physical delete Makefile; or thin remaining dep edges.

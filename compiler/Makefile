@@ -1000,7 +1000,10 @@ endif
 # seed asm 用户程序：std.io 跳过 .x emit 时的 print/write/read_ptr 链接桩（G-02e-20 .inc）
 # G-02f-20：runtime_asm_io_stubs 产品 seed
 # wave753 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_EXTRA_CFLAGS_OBJS).
-runtime_asm_io_stubs.o: seeds/runtime_asm_io_stubs.from_x.c src/asm/runtime_asm_io_stubs.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_asm_io_stubs.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
@@ -1010,9 +1013,11 @@ runtime_asm_io_stubs.o: seeds/runtime_asm_io_stubs.from_x.c src/asm/runtime_asm_
 # wave518 R2 migration: thin (.x) + rest (.from_x.c) thin+rest mode
 # wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
 # PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
-runtime_test_fn_invoke.o: seeds/runtime_test_fn_invoke.from_x.c src/asm/runtime_test_fn_invoke.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_test_fn_invoke.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：CSPRNG OS fill；与 random.o 一并链入（G-02e-17：.inc + cc_inc_tu）
@@ -1020,9 +1025,11 @@ runtime_test_fn_invoke.o: seeds/runtime_test_fn_invoke.from_x.c src/asm/runtime_
 # G-02f-20：runtime_random_fill 产品 seed；wave514 R2 thin+rest pattern
 # wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
 # PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
-runtime_random_fill.o: seeds/runtime_random_fill.from_x.c src/asm/runtime_random_fill.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_random_fill.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # zlib 宏包装桩；与 compress 同链（G-02e-17：.inc + cc_inc_tu）
@@ -1034,9 +1041,11 @@ runtime_random_fill.o: seeds/runtime_random_fill.from_x.c src/asm/runtime_random
 #     deflateInit2_/inflateInit2_ with ZLIB_VERSION and sizeof(z_stream)
 # wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
 # PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
-runtime_compress_zlib_glue.o: seeds/runtime_compress_zlib_glue.from_x.c src/asm/runtime_compress_zlib_glue.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_compress_zlib_glue.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：time OS syscall；与 time.o 一并链入（G-02e-18：.inc + cc_inc_tu）
@@ -1045,9 +1054,11 @@ runtime_compress_zlib_glue.o: seeds/runtime_compress_zlib_glue.from_x.c src/asm/
 # 否则冷启动 seed C（完整实现含 public API）。
 # wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
 # PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
-runtime_time_os.o: seeds/runtime_time_os.from_x.c src/asm/runtime_time_os.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_time_os.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：queue 竞争烟测 pthread；与 queue.o 一并链入（G-02e-19：.inc + cc_inc_tu）
@@ -1056,9 +1067,11 @@ runtime_time_os.o: seeds/runtime_time_os.from_x.c src/asm/runtime_time_os.x scri
 # 否则冷启动 seed C（完整实现含 public API）。
 # wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
 # PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
-runtime_queue_contention.o: seeds/runtime_queue_contention.from_x.c src/asm/runtime_queue_contention.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_queue_contention.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：dynlib dlopen/LoadLibrary；与 dynlib.o 一并链入（G-02e-19：.inc + cc_inc_tu）
@@ -1067,9 +1080,11 @@ runtime_queue_contention.o: seeds/runtime_queue_contention.from_x.c src/asm/runt
 # 否则冷启动 seed C（完整实现含 public API）。
 # wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
 # PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
-runtime_dynlib_os.o: seeds/runtime_dynlib_os.from_x.c src/asm/runtime_dynlib_os.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_dynlib_os.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # wave253 G.7: sole user-domain residual face body (weak link_abi_getenv twin).
@@ -1083,51 +1098,64 @@ runtime_link_abi_user_env.o: seeds/runtime_link_abi_user_env.from_x.c include/xl
 # G-02f-19：runtime_env_os 产品 seed
 # wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
 # PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
-runtime_env_os.o: seeds/runtime_env_os.from_x.c src/asm/runtime_env_os.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_env_os.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：backtrace capture/symbolicate/crash evidence；与 backtrace.o 一并链入（G-02e-20）
 # G-02f-19：runtime_backtrace_platform 产品 seed；wave506 R2 full mode
 # wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
 # PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
-runtime_backtrace_platform.o: seeds/runtime_backtrace_platform.from_x.c src/asm/runtime_backtrace_platform.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_backtrace_platform.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：log sink/轮转/异步；与 log.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 # G-02f-19：runtime_log_os 产品 seed；wave505 R2 full mode
 # wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
 # PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
-runtime_log_os.o: seeds/runtime_log_os.from_x.c src/asm/runtime_log_os.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_log_os.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：math libm/fenv；与 math.o 一并链入（须 -lm；G-02e-19：.inc + cc_inc_tu）
 # G-02f-19：runtime_math_libm 产品 seed；wave511 R2 full mode
 # wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
 # PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
-runtime_math_libm.o: seeds/runtime_math_libm.from_x.c src/asm/runtime_math_libm.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_math_libm.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：atomic load/store/CAS/fence；与 atomic.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 # G-02f-19：runtime_atomic_glue 产品 seed；wave508 R2 full mode
 # wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
 # PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
-runtime_atomic_glue.o: seeds/runtime_atomic_glue.from_x.c src/asm/runtime_atomic_glue.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_atomic_glue.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：channel 有界/无界/select；与 channel.o 一并链入（G-02e-20：.inc + cc_inc_tu）
 # G-02f-18：runtime_channel_glue 产品 seed
 # wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
-runtime_channel_glue.o: seeds/runtime_channel_glue.from_x.c src/asm/runtime_channel_glue.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_channel_glue.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
@@ -1141,9 +1169,11 @@ runtime_channel_glue.o: seeds/runtime_channel_glue.from_x.c src/asm/runtime_chan
 #   - PLATFORM: LINUX — R2 path gated on UNAME_S=Linux; macOS stays cold (empty)
 # wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
 # PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
-runtime_net_udp_batch.o: seeds/runtime_net_udp_batch.from_x.c src/asm/runtime_net_udp_batch.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_net_udp_batch.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：net accept worker 线程入口；与 net.o 一并链入（G-02e-18：.inc + cc_inc_tu）
@@ -1151,18 +1181,22 @@ runtime_net_udp_batch.o: seeds/runtime_net_udp_batch.from_x.c src/asm/runtime_ne
 # wave517 R2 migration: thin (.x) + rest (.from_x.c) thin+rest mode
 # wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
 # PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
-runtime_net_workers.o: seeds/runtime_net_workers.from_x.c src/asm/runtime_net_workers.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_net_workers.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：sync Mutex/RwLock/Condvar + 锁诊断 TLS；与 sync.o 一并链入（G-02e-20）
 # G-02f-19：runtime_sync_os 产品 seed；wave504 R2 full mode
 # wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
 # PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
-runtime_sync_os.o: seeds/runtime_sync_os.from_x.c src/asm/runtime_sync_os.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_sync_os.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-19：runtime_sync_lock_diag_tls 产品 seed；wave538 R2 thin+rest pattern
@@ -1173,18 +1207,22 @@ runtime_sync_os.o: seeds/runtime_sync_os.from_x.c src/asm/runtime_sync_os.x scri
 #   PLATFORM: SHARED — pure C + __thread (POSIX) / __declspec(thread) (MSVC)
 # wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
 # PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
-runtime_sync_lock_diag_tls.o: seeds/runtime_sync_lock_diag_tls.from_x.c src/asm/runtime_sync_lock_diag_tls.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_sync_lock_diag_tls.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：thread pthread/CreateThread；与 thread.o 一并链入（G-02e-20）
 # G-02f-18：runtime_thread_glue 产品 seed；wave513 R2 thin+rest pattern
 # wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
 # PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
-runtime_thread_glue.o: seeds/runtime_thread_glue.from_x.c src/asm/runtime_thread_glue.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_thread_glue.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：async 协作调度 + async_net_fs；与 scheduler.o 一并链入（按需 -pthread）
@@ -1199,9 +1237,11 @@ runtime_scheduler_glue.o: seeds/runtime_scheduler_glue.from_x.c src/asm/runtime_
 # G-02f-21：runtime_http_glue 产品 seed（#include http2/*.inc）；thin 在 src/asm/http/
 # wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
 # PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
-runtime_http_glue.o: seeds/runtime_http_glue.from_x.c src/asm/http/runtime_http_glue.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_http_glue.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：mbedTLS BIO 胶层；net-o-mbedtls 时 ld -r 并入 tls_mbedtls.o（G-02e-18 .inc）
@@ -1214,15 +1254,20 @@ runtime_http_glue.o: seeds/runtime_http_glue.from_x.c src/asm/http/runtime_http_
 #     wrappers via forward declaration); needs mbedtls/ssl.h include
 # wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
 # PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
-runtime_tls_mbedtls_bio.o: seeds/runtime_tls_mbedtls_bio.from_x.c src/asm/runtime_tls_mbedtls_bio.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_tls_mbedtls_bio.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：db.kv mmap 胶层；与 kv.o 按需同链（G-02e-17：.inc + cc_inc_tu）
 # G-02f-21：runtime_kv_mmap_glue 产品 seed
 # wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
-runtime_kv_mmap_glue.o: seeds/runtime_kv_mmap_glue.from_x.c src/asm/runtime_kv_mmap_glue.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_kv_mmap_glue.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
@@ -1230,36 +1275,38 @@ runtime_kv_mmap_glue.o: seeds/runtime_kv_mmap_glue.from_x.c src/asm/runtime_kv_m
 # G-02f-21：runtime_arrow_simd_glue 产品 seed
 # wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
 # PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
-runtime_arrow_simd_glue.o: seeds/runtime_arrow_simd_glue.from_x.c src/asm/runtime_arrow_simd_glue.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_arrow_simd_glue.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：db.sqlite 胶层（libsqlite3）；与 sqlite.o 同链（G-02e-20）
 # G-02f-21：runtime_sqlite_glue 产品 seed
 # wave753 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_EXTRA_CFLAGS_OBJS).
-runtime_sqlite_glue.o: seeds/runtime_sqlite_glue.from_x.c src/asm/runtime_sqlite_glue.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_sqlite_glue.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-
-	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-
-# F-ZC：db.sqlite stub 胶层（无 libsqlite3）；sqlite-o-stub 时 ld -r 并入 sqlite.o（G-02e-20）
 # wave753 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_EXTRA_CFLAGS_OBJS).
 # Multi-out from same seed as runtime_sqlite_glue.o (no -DXLANG_DB_USE_SQLITE3).
-runtime_sqlite_glue_stub.o: seeds/runtime_sqlite_glue.from_x.c src/asm/runtime_sqlite_glue.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_sqlite_glue_stub.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-
-	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-
-# F-ZC：crypto SHA-512/HMAC 胶层；与 crypto.o 一并链入（G-02e-20）
 # G-02f-20：runtime_crypto_inc_glue 产品 seed
 # wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
 # PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
-runtime_crypto_inc_glue.o: seeds/runtime_crypto_inc_glue.from_x.c src/asm/runtime_crypto_inc_glue.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_crypto_inc_glue.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：Ed25519 ref10（含 crypto/ed25519/*.c）；与 crypto.o 一并链入（G-02e-17 .inc）
@@ -1271,9 +1318,11 @@ runtime_crypto_inc_glue.o: seeds/runtime_crypto_inc_glue.from_x.c src/asm/runtim
 #     stays as ed25519_ref10_sha512* (consumed by runtime_crypto_inc_glue)
 # wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
 # PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
-runtime_ed25519_ref10_glue.o: seeds/runtime_ed25519_ref10_glue.from_x.c src/asm/runtime_ed25519_ref10_glue.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_ed25519_ref10_glue.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：codegen 入口 argc/argv 全局；与 process.o 一并链入（G-02e-18：.inc + cc_inc_tu）
@@ -1285,18 +1334,22 @@ runtime_ed25519_ref10_glue.o: seeds/runtime_ed25519_ref10_glue.from_x.c src/asm/
 #     fallbacks; all always compiled (constructor/getters/weak are C-only)
 # wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
 # PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
-runtime_process_argv.o: seeds/runtime_process_argv.from_x.c src/asm/runtime_process_argv.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_process_argv.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # F-ZC：进程 OS 胶层（getenv/spawn/getcwd 等）；与 process.o 一并链入（G-02e-20）
 # G-02f-18：runtime_process_os_glue 产品 seed；wave507 R2 full mode
 # wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
 # PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
-runtime_process_os_glue.o: seeds/runtime_process_os_glue.from_x.c src/asm/runtime_process_os_glue.x scripts/ensure_host_cc_seed_o.sh
+# wave791 B7A: heat dep-edge thin — prereqs → FORCE + ensure script only;
+# shell owns seed/.x freshness (try-heat → prefer/R1 ensure). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+runtime_process_os_glue.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # 无 C 自举：crt0 提供 _start 与 driver_get_argv_i；链接 asm 版 xlang 时用本 .o 替代 main.o / runtime_asm_build.o
