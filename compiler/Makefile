@@ -632,14 +632,19 @@ endif
 endif
 
 # 同时链出 xlang-c：与 pipeline/lsp/build_gen 的 -E 生成及 test_c 前置一致，避免仅 make all 后缺少 xlang-c。
-# XLANG_RUN_ALL_BOOTSTRAP_XLANG=1：run-all 显式 XLANG=seed 时子脚本 `make -C compiler` 须保持 bootstrap 链，禁止 C-only all 覆盖 xlang。
+# XLANG_RUN_ALL_BOOTSTRAP_XLANG=1：run-all 显式 XLANG=seed 时子脚本须保持 bootstrap 链，禁止 C-only all 覆盖 xlang。
 # 默认 all 不构建 STD_AND_PANIC_O（xlang-c 无 -backend 解析；按需 `make std-objs` 或单条 ../std/*/*.o）。
-ifeq ($(XLANG_RUN_ALL_BOOTSTRAP_XLANG),1)
-all: bootstrap-driver-seed
-else
-all: $(TARGET) $(XLANG_C)
+# wave784: B6 R5 CI / compiler-all body → scripts/compiler_all_ci.sh (thin-call only).
+# Policy/sequence shell-owned; leaf .o + link still make graph (B7). NOT physical delete.
+# PLATFORM: SHARED — orchestration in shell; leaf recipes keep platform ABI.
+.PHONY: all
+all:
+	@OPT="$(OPT)" MAKE="$(MAKE)" TARGET="$(TARGET)" XLANG_C="$(XLANG_C)" \
+	  XLANG_RUN_ALL_BOOTSTRAP_XLANG="$(XLANG_RUN_ALL_BOOTSTRAP_XLANG)" \
+	  XLANG_SKIP_SUBSCRIPT_MAKE="$(XLANG_SKIP_SUBSCRIPT_MAKE)" \
+	  bash scripts/compiler_all_ci.sh
+
 std-objs: $(STD_AND_PANIC_O)
-endif
 
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $^ $(WIN_LDFLAGS)

@@ -24,6 +24,7 @@
 #   wave781: B3 LSP satellite hybrid body → try-lsp-sat-prefer
 #   wave782: B4 gen_c_to_o bootstrap → try-gen-c-to-o
 #   wave783: B5 cfg_eval multi-ladder → try-cfg-eval-ladder
+#   wave784: B6 R5 CI / compiler-all body → compiler_all_ci.sh (Makefile thin-call)
 #
 # Authority (G.7):
 #   Single shell authority for *named residual classes* of Makefile leaf pattern /
@@ -272,7 +273,9 @@ RESIDUAL_CLASS_R4_ENDGAME=rebuild_leaves_without_make_pattern
 
 RESIDUAL_CLASS_R5=ci_compiler_all_host_cc_graph
 RESIDUAL_CLASS_R5_SURFACE=Makefile_all_OPT_seed
-RESIDUAL_CLASS_R5_ENDGAME=xbuild_compiler_all_shell_body_stage12
+RESIDUAL_CLASS_R5_BODY=swallowed_wave784_compiler_all_ci_sh
+RESIDUAL_CLASS_R5_BODY_VIA=scripts/compiler_all_ci.sh
+RESIDUAL_CLASS_R5_ENDGAME=stage12_zero_host_cc_unload_gcc_make
 
 RESIDUAL_CLASS_R6=cold_link_pure_ld_prefer
 RESIDUAL_CLASS_R6_SURFACE=bootstrap_driver_seed_link_run_pure_ld_required
@@ -342,13 +345,19 @@ SWALLOWED_B5_CFG_EVAL_LADDER=1
 B5_CFG_EVAL_LADDER_SWALLOWED=1
 B5_CFG_EVAL_LADDER_HELPER=try-cfg-eval-ladder
 B5_CFG_EVAL_LADDER_WAVE=wave783
-# B6: R5 CI / compiler-all host-cc graph (orchestration residual)
+# B6: ~~R5 CI / compiler-all body~~ wave784 → compiler_all_ci.sh
+#     (Makefile all thin-call; leaf graph still B7; NOT physical delete)
 PHYS_DEL_BUCKET_B6=r5_ci_compiler_all
-PHYS_DEL_BUCKET_B6_SCOPE=Makefile_all_OPT_seed_xbuild_compiler_all
-# B7: Makefile still owns DAG thin-calls + lists (cannot delete until B2–B6 + BC)
+PHYS_DEL_BUCKET_B6_SCOPE=Makefile_all_OPT_seed_xbuild_compiler_all_thin_call
+PHYS_DEL_BUCKET_B6_BODY_SWALLOWED=1
+SWALLOWED_B6_R5_CI_COMPILER_ALL=1
+B6_R5_CI_COMPILER_ALL_SWALLOWED=1
+B6_R5_CI_COMPILER_ALL_HELPER=compiler_all_ci.sh
+B6_R5_CI_COMPILER_ALL_WAVE=wave784
+# B7: Makefile still owns DAG thin-calls + lists (cannot delete until B6 + BC + Windows)
 PHYS_DEL_BUCKET_B7=makefile_dag_thin_calls
 PHYS_DEL_BUCKET_B7_SCOPE=ensure_thin_call_targets_plus_mk_lists
-PHYS_DEL_PREP_NEXT=B6_r5_ci_compiler_all_body_swallow_not_delete
+PHYS_DEL_PREP_NEXT=B7_makefile_dag_physical_delete_after_windows_not_delete
 PHYS_DEL_PREP_FORBIDDEN=claim_physical_delete|dual_o_list_as_authority|delete_makefile_before_windows_green
 # wave778: hard gate — physical delete of compiler/Makefile only AFTER Windows
 # hybrid min-gate green (+ PE pure-ld residual owned). Body swallow (B1–B5) keeps
@@ -1049,9 +1058,6 @@ fi
 if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B4_BODY_SWALLOWED=1'; then
   bad "dump must set PHYS_DEL_BUCKET_B4_BODY_SWALLOWED=1 (wave782)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_PREP_NEXT=B6_r5_ci_compiler_all_body_swallow_not_delete'; then
-  bad "dump PHYS_DEL_PREP_NEXT must point to B6 after B5 swallow (wave783)"
-fi
 if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_B5_CFG_EVAL_LADDER=1'; then
   bad "dump must set SWALLOWED_B5_CFG_EVAL_LADDER=1 (wave783)"
 fi
@@ -1060,8 +1066,20 @@ if ! printf '%s\n' "$_out" | grep -q 'B5_CFG_EVAL_LADDER_SWALLOWED=1'; then
 fi
 if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B5_BODY_SWALLOWED=1'; then
   bad "dump must set PHYS_DEL_BUCKET_B5_BODY_SWALLOWED=1 (wave783)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_PREP_NEXT=B7_makefile_dag_physical_delete_after_windows_not_delete'; then
+  bad "dump PHYS_DEL_PREP_NEXT must point to B7 after B6 swallow (wave784)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_B6_R5_CI_COMPILER_ALL=1'; then
+  bad "dump must set SWALLOWED_B6_R5_CI_COMPILER_ALL=1 (wave784)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'B6_R5_CI_COMPILER_ALL_SWALLOWED=1'; then
+  bad "dump B6_R5_CI_COMPILER_ALL_SWALLOWED must be 1 (wave784 compiler_all_ci.sh)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B6_BODY_SWALLOWED=1'; then
+  bad "dump must set PHYS_DEL_BUCKET_B6_BODY_SWALLOWED=1 (wave784)"
 else
-  note "residual class inventory dump OK (wave747–783 + B5 swallow + Windows + dual-end)"
+  note "residual class inventory dump OK (wave747–784 + B6 R5 swallow + Windows + dual-end)"
 fi
 
 # Makefile still present (residual reality) + has host-cc heat
@@ -1088,13 +1106,36 @@ for f in \
   compiler/scripts/driver_seed_obj_catalog.sh \
   compiler/scripts/bootstrap_driver_seed_link.sh \
   compiler/scripts/host_platform_linker.sh \
-  compiler/scripts/ensure_host_cc_seed_o.sh
+  compiler/scripts/ensure_host_cc_seed_o.sh \
+  compiler/scripts/compiler_all_ci.sh
 do
   if [ ! -f "$f" ]; then
     bad "missing swallowed/orchestration owner $f"
   fi
 done
 note "swallowed orchestration owners present"
+
+# wave784: B6 R5 CI body live checks (xbuild + Makefile thin + script --check)
+if ! grep -q 'compiler_all_ci\.sh' "$XBUILD_REL"; then
+  bad "xlang-build.sh must wire compiler-all → compiler_all_ci.sh (wave784)"
+else
+  note "xbuild compiler-all → compiler_all_ci.sh (wave784)"
+fi
+if [ -f "$MF" ]; then
+  if ! grep -q 'compiler_all_ci\.sh' "$MF"; then
+    bad "Makefile all must thin-call compiler_all_ci.sh (wave784)"
+  else
+    note "Makefile all thin-calls compiler_all_ci.sh (wave784)"
+  fi
+fi
+# Temp names avoid bare ".o" substrings (G.7 inventory forbids hardcoded .o paths in this script).
+if ! bash compiler/scripts/compiler_all_ci.sh --check \
+  >/tmp/compiler_all_ci_check.log 2>/tmp/compiler_all_ci_check_err.log; then
+  bad "compiler_all_ci.sh --check failed (wave784)"
+  head -20 /tmp/compiler_all_ci_check_err.log >&2 || true
+else
+  note "compiler_all_ci.sh --check OK (wave784)"
+fi
 
 # wave748–749: R1 family bodies + catalog keys + Makefile thin
 if ! grep -q 'RT_SEED_SLICE_OBJS' compiler/scripts/driver_seed_obj_catalog.sh; then
@@ -1257,7 +1298,7 @@ else
     "$REBUILD_REL"; then
     bad "rebuild_leaves must not hardcode .o list (dual authority)"
   fi
-  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld (wave772/773) + drop silent CC fallback (wave774); fmt_check_cmd.o dual (wave775); R2 panic PREFER try-r2-prefer (wave776); phys-del prep (wave777); Windows+dual-end gate (wave778); B1 runtime-os try-runtime-os-prefer (wave779); B2 std-core try-std-core-prefer (wave780); B3 lsp-sat try-lsp-sat-prefer (wave781); B4 gen-c-to-o try-gen-c-to-o (wave782); B5 cfg-eval-ladder try-cfg-eval-ladder (wave783); residual B6 R5 + physical delete"
+  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld (wave772/773) + drop silent CC fallback (wave774); fmt_check_cmd.o dual (wave775); R2 panic PREFER try-r2-prefer (wave776); phys-del prep (wave777); Windows+dual-end gate (wave778); B1 runtime-os try-runtime-os-prefer (wave779); B2 std-core try-std-core-prefer (wave780); B3 lsp-sat try-lsp-sat-prefer (wave781); B4 gen-c-to-o try-gen-c-to-o (wave782); B5 cfg-eval-ladder try-cfg-eval-ladder (wave783); B6 R5 CI compiler_all_ci.sh (wave784); residual B7 DAG + physical delete"
 fi
 
 # wave772/774: cold pure-ld required when eligible (no silent CC fallback)

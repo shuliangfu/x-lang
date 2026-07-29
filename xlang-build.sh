@@ -442,9 +442,14 @@ case "$TARGET" in
 
   # === CI / 冷启动 / 叶 .o（wave730：外层 0× make -C；叶 pattern residual 至 11.3）===
   compiler-all|ci-all)
-    # Historical CI: `make -C compiler OPT=1 all` (host-cc xlang + xlang-c / seed).
+    # wave784 B6: R5 CI host-cc body = scripts/compiler_all_ci.sh (G.7 single body).
+    # Historical: `make -C compiler OPT=1 all` (xlang + xlang-c / seed).
     # Distinct from product `./xbuild all` (g05 relink). OPT defaults to 1.
-    run_compiler_make OPT="${OPT:-1}" all
+    # Residual: leaf .o graph still make (B7); NOT physical delete of Makefile.
+    # PLATFORM: SHARED
+    if [ -z "${OPT+set}" ]; then OPT=1; fi
+    export OPT
+    (cd compiler && bash scripts/compiler_all_ci.sh)
     ;;
   bootstrap-driver-seed)
     # Cold-start: thin Makefile phony → bootstrap_driver_seed.sh
@@ -617,7 +622,7 @@ g05 产品链（wave733–735 · 11.1.6；产品 link 零 make）:
                                        （非物理删 make；G.7 禁双 .o 清单）
 
 CI / 冷启动（外层 0× make -C；叶 pattern residual 至 11.3）:
-  compiler-all / ci-all      make OPT=1 all（host-cc/seed；≠ 产品 all）
+  compiler-all / ci-all      scripts/compiler_all_ci.sh（CI host-cc；≠ 产品 all；wave784）
   bootstrap-driver-seed      冷启动（shell ensure_prereqs → §5b 编排）
   compiler-make <args…>      残余叶透传（std .o / CFLAGS / ASan）
                              体 = tests/lib/compiler-make.sh（G.7 单 hub）

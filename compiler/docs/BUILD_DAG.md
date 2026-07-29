@@ -88,7 +88,7 @@ Edges are **must-precede** (left → right). Outer entry is always `./xbuild`.
 **CI distinct path (not product `all`):**
 
 ```text
-./xbuild compiler-all  →  tests/lib/compiler-make.sh  →  Makefile `all` (host-cc/seed)
+./xbuild compiler-all  →  scripts/compiler_all_ci.sh  →  make xlang xlang-c (host-cc/seed · wave784 B6)
 ```
 
 ---
@@ -214,8 +214,8 @@ Do **not** grow new free-form recipes. Known residual classes:
 | Residual | Notes |
 |----------|--------|
 | ~~`DRIVER_SEED_PREREQS` make-graph edges~~ | **swallowed wave744** → shell ensure (list still mk) |
-| Leaf `.o` pattern rules (R1–R5) | **named inventory wave746** · **R4 mode+list shell wave747** · **R1 eight families wave748–755** · **R4 pure-R1 body wave756** · **R3 cold-else wave757** · **thin_glue seed-map wave758** · **glue-standalone seed-map wave759** · **panic PREFER wave776** · **phys-del prep buckets B1–B7 wave777** · **Windows gate + dual-end verify wave778** · **B1 runtime-os try-runtime-os-prefer wave779** · **B2 std-core try-std-core-prefer wave780** · **B3 lsp-sat try-lsp-sat-prefer wave781** · **B4 gen-c-to-o try-gen-c-to-o wave782** · remaining B5 residual Makefile → 11.3.1 |
-| `compiler-all` / Makefile `all` | CI host-cc path (R5) |
+| Leaf `.o` pattern rules (R1–R5) | **named inventory wave746** · … · **B5 try-cfg-eval-ladder wave783** · **B6 R5 compiler_all_ci.sh wave784** · residual B7 DAG / physical delete → 11.3.1 |
+| `compiler-all` / Makefile `all` | CI host-cc path (R5 · wave784 shell body) |
 | FULL=1 bstrict make entry | Non-daily |
 | Missing `xlang-c` for force -E | ensure_* gen scripts |
 | Cold `SEED_LINK_CC -o` (R6) | **named wave745** · pure-ld endgame → 11.1.4 |

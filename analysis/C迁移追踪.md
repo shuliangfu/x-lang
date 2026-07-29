@@ -1491,7 +1491,8 @@
     ✅ **B3** try-lsp-sat-prefer（wave781 · 2 thin-call）；
     ✅ **B4** try-gen-c-to-o（wave782 · 5 thin-call；body=`ensure_gen_x_o.sh` 扩展；**非** try-gen-x catalog）；
     ✅ **B5** try-cfg-eval-ladder（wave783 · 1 thin-call；cfg_eval multi-ladder）；
-    ⬜ B6 R5 CI body swallow · physical delete / 删 Makefile
+    ✅ **B6** R5 CI `compiler_all_ci.sh`（wave784 · xbuild/Makefile thin-call；叶图仍 B7）；
+    ⬜ B7 Makefile DAG · physical delete / 删 Makefile
   - ⬜ 物理删 `compiler/Makefile` 仍 ⬜（下项）
 
 ⬜ **11.3.1 删除 `compiler/Makefile`**

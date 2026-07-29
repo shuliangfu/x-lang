@@ -173,7 +173,7 @@ dump_product() {
     i=$((i + 1))
   done
   echo "PRODUCT_ENTRY=all|build|xlang BODY=build_tool→g05_build_xlang_asm.sh"
-  echo "CI_ENTRY=compiler-all BODY=tests/lib/compiler-make.sh→Makefile all"
+  echo "CI_ENTRY=compiler-all BODY=scripts/compiler_all_ci.sh→make_xlang_xlang_c_B7"
   echo "# schedule product (11.1.2)"
   i=0
   for id in "${PRODUCT_SCHEDULE[@]}"; do
