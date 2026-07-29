@@ -175,7 +175,12 @@ catalog_seed_host_defaults() {
   catalog_set AST_LINK_O ""
   catalog_set LSP_DIAG_LINK_O "src/lsp/lsp_diag.o"
   catalog_set XLANG_C "xlang-c"
-  catalog_set PIPELINE_LIBS ""
+  # PLATFORM: LINUX — Makefile PIPELINE_LIBS := -lpthread (net/thread); else empty.
+  if [ "$uname_s" = "Linux" ]; then
+    catalog_set PIPELINE_LIBS "-lpthread"
+  else
+    catalog_set PIPELINE_LIBS ""
+  fi
   catalog_set DRIVER_SUBCMD_GEN ""
   catalog_set DRIVER_SUBCMD_OBJS "driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x.o driver_build_x.o driver_run_x.o driver_emit_x.o"
 
