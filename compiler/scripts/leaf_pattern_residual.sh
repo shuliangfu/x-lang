@@ -15,6 +15,7 @@
 #   wave758: R4 residual thin_glue pure host-cc → R1 seed-map (G.7 有则补全)
 #   wave759: R4 residual glue standalone → R1 seed-map (G.7 有则补全)
 #   wave760: R2 panic cold body via rebuild_leaves → ensure try-r2
+#   wave762: R2 typeck_f64 + crt0 via try-r2 (catalog TYPECK_F64 + CRT0)
 #   wave761: R4 residual gen *_x + pipeline_x via try-gen-x / ensure_gen_x_o.sh
 #
 # Authority (G.7):
@@ -22,7 +23,7 @@
 #   host-cc compile rules that still block physical delete of compiler/Makefile.
 #   Does NOT own .o lists (compiler/mk/*.mk + catalog). R1 pure-body families,
 #   R3 cold-else, R2 panic cold, and gen residual (try-gen-x) live in
-#   ensure_host_cc_seed_o.sh / ensure_gen_x_o.sh; R3 PREFER thin + R2 typeck_f64/crt0 residual.
+#   ensure_host_cc_seed_o.sh / ensure_gen_x_o.sh; R3 PREFER thin residual (R2 typeck_f64/crt0 wave762).
 #
 # Human map: compiler/docs/LEAF_PATTERN_RESIDUAL.md
 #
@@ -116,7 +117,16 @@ SWALLOWED_R4_BODY_GLUE_STANDALONE_NOTE=pipeline_glue_standalone_seed_map_wave759
 SWALLOWED_R2_PANIC_COLD=1
 SWALLOWED_R2_PANIC_COLD_VIA=ensure_host_cc_seed_o.sh_try-r2
 SWALLOWED_R2_PANIC_COLD_LIST=catalog_DRIVER_SEED_PANIC_OBJS
-SWALLOWED_R2_PANIC_COLD_NOTE=panic_cold_shell_PREFER_thin_still_make_typeck_f64_crt0_residual
+SWALLOWED_R2_PANIC_COLD_NOTE=panic_cold_shell_PREFER_thin_still_make
+# wave762: R2 typeck_f64 + crt0 leave make (try-r2 extend)
+SWALLOWED_R2_TYPECK_F64=1
+SWALLOWED_R2_TYPECK_F64_VIA=ensure_host_cc_seed_o.sh_try-r2
+SWALLOWED_R2_TYPECK_F64_LIST=catalog_DRIVER_SEED_TYPECK_F64_OBJS
+SWALLOWED_R2_TYPECK_F64_NOTE=typeck_f64_bits_host_pick_s
+SWALLOWED_R2_CRT0=1
+SWALLOWED_R2_CRT0_VIA=ensure_host_cc_seed_o.sh_try-r2
+SWALLOWED_R2_CRT0_LIST=catalog_DRIVER_SEED_CRT0_OBJS
+SWALLOWED_R2_CRT0_NOTE=crt0_freestanding_s_mingw_seed
 # wave761: R4 residual gen *_x + pipeline_x leave make (try-gen-x)
 SWALLOWED_R4_BODY_GEN_X=1
 SWALLOWED_R4_BODY_GEN_X_VIA=ensure_gen_x_o.sh_try-gen-x
@@ -140,7 +150,9 @@ RESIDUAL_CLASS_R1_ENDGAME=shell_ensure_or_product_E_plus_cc_single_body_all_fami
 RESIDUAL_CLASS_R2=platform_stamp_uname_leaf
 RESIDUAL_CLASS_R2_SURFACE=runtime_panic.stamp+typeck_f64_bits+crt0
 RESIDUAL_CLASS_R2_PANIC_COLD=swallowed_wave760_try_r2
-RESIDUAL_CLASS_R2_OTHER=typeck_f64_bits+crt0_residual
+RESIDUAL_CLASS_R2_OTHER=swallowed_wave762_try_r2_typeck_f64_crt0
+RESIDUAL_CLASS_R2_TYPECK_F64=swallowed_wave762_try_r2
+RESIDUAL_CLASS_R2_CRT0=swallowed_wave762_try_r2
 RESIDUAL_CLASS_R2_ENDGAME=shell_plus_host_platform_facts_lists_mk
 
 RESIDUAL_CLASS_R3=thin_rest_prefer_x_o_host_cc
@@ -183,6 +195,8 @@ print_live_metrics() {
   r4_pure_r1=0
   r3_cold=0
   r2_panic=0
+  r2_typeck_f64=0
+  r2_crt0=0
   r4_gen_x=0
   if [ -f "$mf" ]; then
     # Count recipe-ish $(CC) ... -c lines (rough residual heat; not authoritative list).
@@ -221,6 +235,21 @@ print_live_metrics() {
       && [ -f "$ROOT/compiler/scripts/ensure_gen_x_o.sh" ]; then
       r4_gen_x=1
     fi
+  fi
+  # wave762: R2 typeck_f64 + crt0 via try-r2 + catalog keys + Makefile thin
+  if [ -f "$ROOT/compiler/scripts/ensure_host_cc_seed_o.sh" ] \
+    && grep -q 'DRIVER_SEED_TYPECK_F64_OBJS' "$mf" 2>/dev/null \
+    && grep -q 'ensure_r2_typeck_f64\|r2_typeck_f64_host_pick' \
+      "$ROOT/compiler/scripts/ensure_host_cc_seed_o.sh" 2>/dev/null \
+    && grep -q 'try-r2' "$mf" 2>/dev/null; then
+    r2_typeck_f64=1
+  fi
+  if [ -f "$ROOT/compiler/scripts/ensure_host_cc_seed_o.sh" ] \
+    && grep -q 'DRIVER_SEED_CRT0_OBJS' "$mf" 2>/dev/null \
+    && grep -q 'ensure_r2_crt0\|r2_crt0_src_for_out' \
+      "$ROOT/compiler/scripts/ensure_host_cc_seed_o.sh" 2>/dev/null \
+    && grep -q 'try-r2' "$mf" 2>/dev/null; then
+    r2_crt0=1
   fi
   # wave748: R1 rt-seed-slice body + Makefile thin + catalog key
   if [ -f "$ROOT/compiler/scripts/ensure_host_cc_seed_o.sh" ] \
@@ -286,6 +315,8 @@ R4_MODE_POLICY_SWALLOWED=$catalog_default
 R4_BODY_PURE_R1_SWALLOWED=$r4_pure_r1
 R3_COLD_ELSE_SWALLOWED=$r3_cold
 R2_PANIC_COLD_SWALLOWED=$r2_panic
+R2_TYPECK_F64_SWALLOWED=$r2_typeck_f64
+R2_CRT0_SWALLOWED=$r2_crt0
 R4_BODY_GEN_X_SWALLOWED=$r4_gen_x
 R4_PATTERN_BODY_STILL_MAKE=1
 R1_RT_SEED_SLICE_SWALLOWED=$r1_rt
@@ -383,6 +414,9 @@ else
   if ! grep -qE 'wave760|try-r2|R2.panic|panic.cold|DRIVER_SEED_PANIC' "$DOC_REL"; then
     bad "$DOC_REL must document wave760 R2 panic cold try-r2 swallow"
   fi
+  if ! grep -qE 'wave762|typeck_f64|DRIVER_SEED_TYPECK_F64|DRIVER_SEED_CRT0' "$DOC_REL"; then
+    bad "$DOC_REL must document wave762 R2 typeck_f64/crt0 try-r2 swallow"
+  fi
   if ! grep -qE 'wave761|try-gen-x|ensure_gen_x_o|gen.\*_x|pipeline_x' "$DOC_REL"; then
     bad "$DOC_REL must document wave761 gen *_x / pipeline_x try-gen-x swallow"
   fi
@@ -433,6 +467,18 @@ if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R2_PANIC_COLD=1'; then
 fi
 if ! printf '%s\n' "$_out" | grep -q 'R2_PANIC_COLD_SWALLOWED=1'; then
   bad "dump R2_PANIC_COLD_SWALLOWED must be 1 (try-r2 + catalog)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R2_TYPECK_F64=1'; then
+  bad "dump must set SWALLOWED_R2_TYPECK_F64=1 (wave762)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'R2_TYPECK_F64_SWALLOWED=1'; then
+  bad "dump R2_TYPECK_F64_SWALLOWED must be 1 (wave762)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R2_CRT0=1'; then
+  bad "dump must set SWALLOWED_R2_CRT0=1 (wave762)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'R2_CRT0_SWALLOWED=1'; then
+  bad "dump R2_CRT0_SWALLOWED must be 1 (wave762)"
 fi
 if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R4_BODY_GEN_X=1'; then
   bad "dump must set SWALLOWED_R4_BODY_GEN_X=1 (wave761 gen/pipeline try-gen-x)"
@@ -696,7 +742,7 @@ else
     "$REBUILD_REL"; then
     bad "rebuild_leaves must not hardcode .o list (dual authority)"
   fi
-  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic try-r2; remaining residual make-backed (post-wave761 PREFER/typeck_f64)"
+  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; remaining residual make-backed (post-wave762 PREFER)"
 fi
 
 # G.7: this script must not hardcode product .o inventories as code paths
@@ -755,5 +801,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747 R4 mode + wave756 pure-R1 + wave757 R3 cold-else + wave758 thin_glue + wave759 glue-standalone + wave760 R2 panic cold + wave761 gen-x + wave748–755 R1 families + 11.3.1 leaf residual inventory)"
+echo "leaf_pattern_residual: CHECK OK (wave747 R4 mode + wave756 pure-R1 + wave757 R3 cold-else + wave758 thin_glue + wave759 glue-standalone + wave760 R2 panic + wave761 gen-x + wave762 R2 typeck_f64/crt0 + wave748–755 R1 families + 11.3.1 leaf residual inventory)"
 exit 0

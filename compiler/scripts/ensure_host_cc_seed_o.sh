@@ -40,6 +40,12 @@
 #            build_asm/runtime_panic.$(uname -s).$(uname -m).stamp, then
 #            ensure_one (seed) or plain cc -c (.s). PREFER thin+rest stays
 #            Makefile. rebuild_leaves residual uses try-r2 before make.
+#   wave762: R2 typeck_f64 + crt0 — extend try-r2 membership to catalog
+#            DRIVER_SEED_TYPECK_F64_OBJS + DRIVER_SEED_CRT0_OBJS (lists = mk).
+#            typeck_f64_bits.o: host picks platform .s (Linux/Darwin/Windows).
+#            crt0*.o / freestanding_io_x86_64.o: fixed o→.s map; crt0_mingw.o
+#            uses seeds/crt0_mingw.from_x.c via cc_inc_tu (+ WIN32_O_CFLAGS).
+#            G.7 有则补全 on try-r2 (no second helper name).
 #
 # Authority (G.7):
 #   Single shell *recipe body* for pure host-cc compile of seeds/*.from_x.c → .o.
@@ -81,17 +87,20 @@
 
 # Not in scope (honest residual):
 #   - R3 thin+rest / PREFER_X_O product g05 path (g05_ensure keeps that)
-#   - R2 other UNAME leaves (typeck_f64_bits · crt0) — panic cold only wave760
-#   - R4 remaining residual (if any after wave761 gen/pipeline shell), R5 CI all
+#   - ~~R2 typeck_f64 / crt0~~ wave762 try-r2 · panic PREFER thin still make
+#   - R4 remaining residual (sat non-R1 pattern if any), R5 CI all
 #   - pure-ld (11.1.4) · physical Makefile delete (11.3.1)
+#   - bootstrap_nostdlib_stubs.o (cc_inc_tu residual) · crt0_user.o cp wrappers
 #
 # Usage (cwd = compiler/):
 #   bash scripts/ensure_host_cc_seed_o.sh one <out.o> <seed.from_x.c> [extra cflags...]
 #   bash scripts/ensure_host_cc_seed_o.sh try-r1 <out.o>   # wave756 R4 pure-R1 helper
 #   bash scripts/ensure_host_cc_seed_o.sh try-r3-cold <out.o>
-#   bash scripts/ensure_host_cc_seed_o.sh try-r2 <out.o>   # wave760 R2 panic cold
+#   bash scripts/ensure_host_cc_seed_o.sh try-r2 <out.o>   # wave760/762 R2 UNAME leaves
 #   bash scripts/ensure_host_cc_seed_o.sh try-gen-x <out.o> # wave761 gen *_x / pipeline_x
 #   bash scripts/ensure_host_cc_seed_o.sh r2-panic         # DRIVER_SEED_PANIC family
+#   bash scripts/ensure_host_cc_seed_o.sh r2-typeck-f64    # DRIVER_SEED_TYPECK_F64 family
+#   bash scripts/ensure_host_cc_seed_o.sh r2-crt0          # DRIVER_SEED_CRT0 family
 #   bash scripts/ensure_host_cc_seed_o.sh rt-slice          # RT_SEED_SLICE family
 #   bash scripts/ensure_host_cc_seed_o.sh core-seed         # R1_CORE_SEED family
 #   bash scripts/ensure_host_cc_seed_o.sh frontend-glue     # R1_FRONTEND_GLUE family
@@ -118,8 +127,9 @@
 # PLATFORM: SHARED — shell orchestration; seed pins host-portable C.
 #   R2 panic body: PLATFORM LINUX|x86_64 (.s) / MACOS|arm64 + LINUX|aarch64
 #   (arm64 seed) / else (from_x seed). PREFER thin stays Makefile.
-# Wave: 748–760 Track MG · 11.3.1 R1 families + R4 pure-R1 + R3 cold-else +
-#       thin_glue/glue-standalone seed-map + R2 panic cold
+#   R2 typeck_f64 / crt0: PLATFORM per host .s / mingw seed (wave762).
+# Wave: 748–762 Track MG · 11.3.1 R1 families + R4 pure-R1 + R3 cold-else +
+#       thin_glue/glue-standalone seed-map + R2 panic/typeck_f64/crt0
 #       (not physical delete · not pure-ld).
 
 set -euo pipefail
@@ -146,7 +156,7 @@ _DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|gen-x|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -798,27 +808,42 @@ ensure_r2_panic_one() {
 }
 
 try_ensure_r2_one() {
+  # wave760 panic + wave762 typeck_f64/crt0 — single try-r2 entry (G.7 有则补全).
   local o="$1"
   local list
   if [ -z "$o" ]; then
     echo "ensure_host_cc_seed_o try-r2: need <out.o>" >&2
     exit 2
   fi
+  # 1) panic catalog
   list="$(catalog_key_words "DRIVER_SEED_PANIC_OBJS")"
-  if ! list_has_word "$o" "$list"; then
-    return 3
+  if list_has_word "$o" "$list"; then
+    case "$o" in
+      runtime_panic.o) ensure_r2_panic_one "$o"; return 0 ;;
+      *)
+        echo "ensure_host_cc_seed_o try-r2: no cold map for panic member $o" >&2
+        return 1
+        ;;
+    esac
   fi
-  # Only runtime_panic.o is defined today; refuse unknown future members
-  # until a source map is extended (fail closed — no silent wrong seed).
-  case "$o" in
-    runtime_panic.o) ;;
-    *)
-      echo "ensure_host_cc_seed_o try-r2: no cold map for panic member $o" >&2
-      return 1
-      ;;
-  esac
-  ensure_r2_panic_one "$o"
-  return 0
+  # 2) typeck_f64 catalog
+  list="$(catalog_key_words "DRIVER_SEED_TYPECK_F64_OBJS")"
+  if list_has_word "$o" "$list"; then
+    case "$o" in
+      src/typeck/typeck_f64_bits.o) ensure_r2_typeck_f64_one "$o"; return 0 ;;
+      *)
+        echo "ensure_host_cc_seed_o try-r2: no cold map for typeck_f64 member $o" >&2
+        return 1
+        ;;
+    esac
+  fi
+  # 3) crt0 catalog
+  list="$(catalog_key_words "DRIVER_SEED_CRT0_OBJS")"
+  if list_has_word "$o" "$list"; then
+    ensure_r2_crt0_one "$o" || return 1
+    return 0
+  fi
+  return 3
 }
 
 ensure_r2_panic() {
@@ -835,6 +860,216 @@ ensure_r2_panic() {
     n=$((n + 1))
   done
   log "r2-panic OK ($n objs; catalog DRIVER_SEED_PANIC_OBJS)"
+}
+
+# ---------------------------------------------------------------------------
+# wave762: R2 typeck_f64_bits — host picks platform pure-.s source.
+# Membership = catalog DRIVER_SEED_TYPECK_F64_OBJS (lists = mk).
+# PLATFORM: LINUX|x86_64 / LINUX|aarch64 / DARWIN|arm64 / DARWIN|x86_64 /
+#           WINDOWS|x86_64 mingw .s. Mirrors g05_ensure + Makefile (G.7 one body).
+# ---------------------------------------------------------------------------
+r2_typeck_f64_host_pick_src() {
+  # stdout: path to .s for typeck_f64_bits.o on this host
+  local uname_s uname_m
+  uname_s="$(uname -s 2>/dev/null || echo Unknown)"
+  uname_m="$(uname -m 2>/dev/null || echo unknown)"
+  # PLATFORM: WINDOWS — MSYS/MinGW uname often MINGW64_NT-* / MSYS_NT-*.
+  case "$uname_s" in
+    MINGW*|MSYS*|CYGWIN*)
+      if [ -f src/typeck/typeck_f64_bits_x86_64_mingw.s ]; then
+        printf '%s\n' "src/typeck/typeck_f64_bits_x86_64_mingw.s"
+        return 0
+      fi
+      ;;
+  esac
+  if [ "${XLANG_IS_WIN_HOST:-0}" = "1" ]; then
+    if [ -f src/typeck/typeck_f64_bits_x86_64_mingw.s ]; then
+      printf '%s\n' "src/typeck/typeck_f64_bits_x86_64_mingw.s"
+      return 0
+    fi
+  fi
+  case "${uname_s}/${uname_m}" in
+    Linux/x86_64)
+      printf '%s\n' "src/typeck/typeck_f64_bits_x86_64.s" ;;
+    Linux/aarch64)
+      printf '%s\n' "src/typeck/typeck_f64_bits_aarch64_elf.s" ;;
+    Darwin/arm64|Darwin/aarch64)
+      printf '%s\n' "src/typeck/typeck_f64_bits_arm64.s" ;;
+    Darwin/x86_64|Darwin/amd64)
+      printf '%s\n' "src/typeck/typeck_f64_bits_x86_64.s" ;;
+    *)
+      echo "ensure_host_cc_seed_o r2-typeck-f64: unsupported host $uname_s/$uname_m" >&2
+      return 1
+      ;;
+  esac
+  return 0
+}
+
+ensure_r2_typeck_f64_one() {
+  local o="$1"
+  local src
+  src="$(r2_typeck_f64_host_pick_src)" || return 1
+  if [ ! -f "$src" ]; then
+    echo "ensure_host_cc_seed_o r2-typeck-f64: missing $src" >&2
+    return 1
+  fi
+  mkdir -p "$(dirname "$o")"
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$src" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $src)"
+    return 0
+  fi
+  log "cc -c $src → $o"
+  # shellcheck disable=SC2086
+  $CC -c -o "$o" "$src"
+}
+
+ensure_r2_typeck_f64() {
+  local list n=0 o
+  list="$(catalog_key_words "DRIVER_SEED_TYPECK_F64_OBJS")"
+  if [ -z "${list// /}" ]; then
+    echo "ensure_host_cc_seed_o: empty DRIVER_SEED_TYPECK_F64_OBJS" >&2
+    exit 1
+  fi
+  # shellcheck disable=SC2086
+  for o in $list; do
+    [ -z "$o" ] && continue
+    ensure_r2_typeck_f64_one "$o" || exit 1
+    n=$((n + 1))
+  done
+  log "r2-typeck-f64 OK ($n objs; catalog DRIVER_SEED_TYPECK_F64_OBJS)"
+}
+
+# ---------------------------------------------------------------------------
+# wave762: R2 crt0 / freestanding platform leaves — fixed o→src map.
+# Membership = catalog DRIVER_SEED_CRT0_OBJS. Most are plain .s; mingw is seed
+# via cc_inc_tu (+ WIN32_O_CFLAGS from env/make).
+# PLATFORM: LINUX crt0_x86_64 + freestanding · MACOS arm64/darwin_x86_64 ·
+#           WINDOWS crt0_mingw seed.
+# ---------------------------------------------------------------------------
+r2_crt0_src_for_out() {
+  # stdout: "asm|seed|cc_inc_tu <path>" for OUT; fail closed if unknown.
+  local o="$1"
+  case "$o" in
+    src/asm/crt0_x86_64.o)
+      printf '%s\n' "asm src/asm/crt0_x86_64.s" ;;
+    src/asm/crt0_arm64.o)
+      printf '%s\n' "asm src/asm/crt0_arm64.s" ;;
+    src/asm/crt0_darwin_x86_64.o)
+      printf '%s\n' "asm src/asm/crt0_darwin_x86_64.s" ;;
+    src/asm/crt0_user_x86_64.o)
+      printf '%s\n' "asm src/asm/crt0_user_x86_64.s" ;;
+    src/asm/freestanding_io_x86_64.o)
+      printf '%s\n' "asm src/asm/freestanding_io_x86_64.s" ;;
+    src/asm/crt0_mingw.o)
+      # PLATFORM: WINDOWS — seed via cc_inc_tu (Makefile twin).
+      printf '%s\n' "cc_inc_tu seeds/crt0_mingw.from_x.c" ;;
+    *)
+      echo "ensure_host_cc_seed_o r2-crt0: no source map for $o" >&2
+      return 1
+      ;;
+  esac
+  return 0
+}
+
+ensure_r2_crt0_one() {
+  local o="$1"
+  local pick kind src
+  pick="$(r2_crt0_src_for_out "$o")" || return 1
+  kind="${pick%% *}"
+  src="${pick#* }"
+  if [ ! -f "$src" ]; then
+    echo "ensure_host_cc_seed_o r2-crt0: missing $src" >&2
+    return 1
+  fi
+  mkdir -p "$(dirname "$o")"
+  case "$kind" in
+    asm)
+      if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$src" -nt "$o" ]; then
+        log "skip $o (up-to-date vs $src)"
+        return 0
+      fi
+      log "cc -c $src → $o"
+      # shellcheck disable=SC2086
+      $CC -c -o "$o" "$src"
+      ;;
+    cc_inc_tu)
+      # PLATFORM: WINDOWS — same wrap as Makefile (WIN32_O_CFLAGS from env).
+      if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$src" -nt "$o" ]; then
+        log "skip $o (up-to-date vs $src)"
+        return 0
+      fi
+      if [ ! -f scripts/cc_inc_tu.sh ]; then
+        echo "ensure_host_cc_seed_o r2-crt0: missing scripts/cc_inc_tu.sh" >&2
+        return 1
+      fi
+      log "cc_inc_tu $src → $o"
+      # shellcheck disable=SC2086
+      sh scripts/cc_inc_tu.sh "$src" "$o" ${WIN32_O_CFLAGS:-}
+      ;;
+    *)
+      echo "ensure_host_cc_seed_o r2-crt0: unknown kind $kind" >&2
+      return 1
+      ;;
+  esac
+  return 0
+}
+
+r2_crt0_host_relevant() {
+  # Family-mode filter: catalog lists all platforms, but .s for other OS/ISA
+  # live in-tree and must not be assembled by the host toolchain.
+  # try-r2 OUT still runs ensure_r2_crt0_one for any member (Makefile only
+  # requests the host MAIN_LINK / freestanding leaf).
+  # PLATFORM: per-leaf gate below.
+  local o="$1" uname_s uname_m
+  uname_s="$(uname -s 2>/dev/null || echo Unknown)"
+  uname_m="$(uname -m 2>/dev/null || echo unknown)"
+  case "$o" in
+    src/asm/crt0_x86_64.o|src/asm/crt0_user_x86_64.o|src/asm/freestanding_io_x86_64.o)
+      [ "$uname_s" = "Linux" ] && [ "$uname_m" = "x86_64" ]
+      ;;
+    src/asm/crt0_arm64.o)
+      [ "$uname_s" = "Darwin" ] && { [ "$uname_m" = "arm64" ] || [ "$uname_m" = "aarch64" ]; }
+      ;;
+    src/asm/crt0_darwin_x86_64.o)
+      [ "$uname_s" = "Darwin" ] && { [ "$uname_m" = "x86_64" ] || [ "$uname_m" = "amd64" ]; }
+      ;;
+    src/asm/crt0_mingw.o)
+      case "$uname_s" in
+        MINGW*|MSYS*|CYGWIN*) return 0 ;;
+      esac
+      [ "${XLANG_IS_WIN_HOST:-0}" = "1" ]
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+ensure_r2_crt0() {
+  # Family runner: only host-relevant leaves (source present + host gate).
+  local list n=0 o pick src
+  list="$(catalog_key_words "DRIVER_SEED_CRT0_OBJS")"
+  if [ -z "${list// /}" ]; then
+    echo "ensure_host_cc_seed_o: empty DRIVER_SEED_CRT0_OBJS" >&2
+    exit 1
+  fi
+  # shellcheck disable=SC2086
+  for o in $list; do
+    [ -z "$o" ] && continue
+    if ! r2_crt0_host_relevant "$o"; then
+      log "r2-crt0 skip $o (not host MAIN_LINK/freestanding leaf)"
+      continue
+    fi
+    pick="$(r2_crt0_src_for_out "$o")" || continue
+    src="${pick#* }"
+    if [ ! -f "$src" ]; then
+      log "r2-crt0 skip $o (source $src missing)"
+      continue
+    fi
+    ensure_r2_crt0_one "$o" || exit 1
+    n=$((n + 1))
+  done
+  log "r2-crt0 OK ($n host-relevant objs; catalog DRIVER_SEED_CRT0_OBJS)"
 }
 
 
@@ -1057,6 +1292,43 @@ run_check() {
       fi
     fi
   }
+  # wave762: typeck_f64 + crt0 catalogs + host pick / map
+  {
+    local f64_list f64_n=0 fo f64_src crt0_list crt0_n=0 co
+    if ! f64_list="$(catalog_key_list "DRIVER_SEED_TYPECK_F64_OBJS" 2>/dev/null)"; then
+      bad "catalog cannot expand DRIVER_SEED_TYPECK_F64_OBJS (wave762)"
+    else
+      # shellcheck disable=SC2086
+      for fo in $f64_list; do
+        [ -z "$fo" ] && continue
+        f64_n=$((f64_n + 1))
+      done
+      if [ "$f64_n" -lt 1 ]; then
+        bad "DRIVER_SEED_TYPECK_F64_OBJS empty (wave762)"
+      else
+        note "catalog DRIVER_SEED_TYPECK_F64_OBJS n=$f64_n (r2-typeck-f64)"
+      fi
+      if ! f64_src="$(r2_typeck_f64_host_pick_src 2>/dev/null)"; then
+        bad "r2_typeck_f64_host_pick_src failed on this host (wave762)"
+      else
+        note "r2-typeck-f64 host pick: $f64_src"
+      fi
+    fi
+    if ! crt0_list="$(catalog_key_list "DRIVER_SEED_CRT0_OBJS" 2>/dev/null)"; then
+      bad "catalog cannot expand DRIVER_SEED_CRT0_OBJS (wave762)"
+    else
+      # shellcheck disable=SC2086
+      for co in $crt0_list; do
+        [ -z "$co" ] && continue
+        crt0_n=$((crt0_n + 1))
+      done
+      if [ "$crt0_n" -lt 1 ]; then
+        bad "DRIVER_SEED_CRT0_OBJS empty (wave762)"
+      else
+        note "catalog DRIVER_SEED_CRT0_OBJS n=$crt0_n (r2-crt0)"
+      fi
+    fi
+  }
 
   # Makefile thin: recipes must call this script (not inline $(CC) -c for swallowed leaves)
   if ! grep -q 'ensure_host_cc_seed_o\.sh' Makefile; then
@@ -1170,6 +1442,14 @@ run_check() {
     | grep -vqE '^\s*#|:[0-9]+:\s*#'; then
     bad "must not hardcode DRIVER_SEED_PANIC_OBJS= in shell body (wave760)"
   fi
+  if grep -nE '^(export )?DRIVER_SEED_TYPECK_F64_OBJS=' "$0" 2>/dev/null \
+    | grep -vqE '^\s*#|:[0-9]+:\s*#'; then
+    bad "must not hardcode DRIVER_SEED_TYPECK_F64_OBJS= in shell body (wave762)"
+  fi
+  if grep -nE '^(export )?DRIVER_SEED_CRT0_OBJS=' "$0" 2>/dev/null \
+    | grep -vqE '^\s*#|:[0-9]+:\s*#'; then
+    bad "must not hardcode DRIVER_SEED_CRT0_OBJS= in shell body (wave762)"
+  fi
 
   # wave760: Makefile cold panic body must thin-call try-r2 (PREFER thin may stay).
   if awk '
@@ -1185,6 +1465,35 @@ run_check() {
     note "Makefile runtime_panic cold thin-calls ensure try-r2 (wave760)"
   else
     bad "Makefile runtime_panic.o cold path must thin-call ensure try-r2 (wave760)"
+  fi
+
+  # wave762: typeck_f64 + host crt0 leaves must thin-call try-r2 (no inline $(CC) -c).
+  if awk '
+    /^src\/typeck\/typeck_f64_bits\.o:/ { in_t=1; next }
+    in_t && /^[^[:space:]#]/ { in_t=0 }
+    in_t { body = body $0 "\n" }
+    END {
+      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-r2/) exit 0
+      exit 1
+    }
+  ' Makefile; then
+    note "Makefile typeck_f64_bits thin-calls ensure try-r2 (wave762)"
+  else
+    bad "Makefile typeck_f64_bits.o must thin-call ensure try-r2 (wave762)"
+  fi
+  # Host MAIN_LINK crt0 (Darwin arm64 / Linux x86_64 / …) — at least one recipe body.
+  if awk '
+    /^src\/asm\/crt0_[a-z0-9_]+\.o:/ { in_t=1; body=""; next }
+    in_t && /^[^[:space:]#]/ {
+      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-r2/) found=1
+      in_t=0
+    }
+    in_t { body = body $0 "\n" }
+    END { if (found) exit 0; exit 1 }
+  ' Makefile; then
+    note "Makefile crt0 leaves thin-call ensure try-r2 (wave762)"
+  else
+    bad "Makefile crt0_*.o recipes must thin-call ensure try-r2 (wave762)"
   fi
 
   if [ "$fail" -ne 0 ]; then
@@ -1203,11 +1512,21 @@ run_check() {
   else
     note "try-r3-cold R3 cold-else helper present (wave757)"
   fi
-  # wave760: try-r2 panic cold helper
+  # wave760/762: try-r2 R2 UNAME leaves (panic + typeck_f64 + crt0)
   if ! grep -q 'try_ensure_r2_one\|try-r2' "$0"; then
-    bad "try-r2 / try_ensure_r2_one missing (wave760 R2 panic cold)"
+    bad "try-r2 / try_ensure_r2_one missing (wave760/762 R2 UNAME)"
   else
-    note "try-r2 R2 panic cold helper present (wave760)"
+    note "try-r2 R2 UNAME helper present (wave760 panic + wave762 typeck_f64/crt0)"
+  fi
+  if ! grep -q 'ensure_r2_typeck_f64_one\|r2_typeck_f64_host_pick' "$0"; then
+    bad "r2 typeck_f64 body missing (wave762)"
+  else
+    note "r2-typeck-f64 body present (wave762)"
+  fi
+  if ! grep -q 'ensure_r2_crt0_one\|r2_crt0_src_for_out' "$0"; then
+    bad "r2 crt0 body missing (wave762)"
+  else
+    note "r2-crt0 body present (wave762)"
   fi
   # wave761: try-gen-x gen residual helper
   if ! grep -q 'try_ensure_gen_x_one\|try-gen-x' "$0"; then
@@ -1238,7 +1557,7 @@ run_check() {
     echo "ensure_host_cc_seed_o: --check FAILED" >&2
     exit 1
   fi
-  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else + R2 panic + gen-x residual · wave748–761)" >&2
+  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else + R2 panic/typeck_f64/crt0 + gen-x residual · wave748–762)" >&2
 }
 
 case "$MODE" in
@@ -1277,7 +1596,7 @@ case "$MODE" in
     exit "$_try_rc"
     ;;
   try-r2|try_r2|try-r2-panic|r2-one|r2-panic-one)
-    # wave760: R2 panic cold helper — exit 3 if not DRIVER_SEED_PANIC_OBJS member.
+    # wave760/762: R2 UNAME helper — panic | typeck_f64 | crt0; exit 3 if not member.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o try-r2: need <out.o>" >&2
       exit 2
@@ -1307,6 +1626,12 @@ case "$MODE" in
     ;;
   r2-panic|r2_panic|panic-cold|family=r2_panic|family=driver_seed_panic)
     ensure_r2_panic
+    ;;
+  r2-typeck-f64|r2_typeck_f64|typeck-f64|typeck_f64|family=r2_typeck_f64|family=driver_seed_typeck_f64)
+    ensure_r2_typeck_f64
+    ;;
+  r2-crt0|r2_crt0|crt0|family=r2_crt0|family=driver_seed_crt0)
+    ensure_r2_crt0
     ;;
   gen-x|gen_x|residual-gen|family=gen_x|family=r4_gen_x)
     ensure_gen_x_residual
@@ -1347,7 +1672,7 @@ case "$MODE" in
     exit 0
     ;;
   *)
-    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|try-r1|try-r3-cold|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|gen-x|all|--check)" >&2
+    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|try-r1|try-r3-cold|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check)" >&2
     exit 2
     ;;
 esac

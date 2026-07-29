@@ -641,7 +641,7 @@
 **wave757**：R3 cold-else body — residual → `ensure try-r3-cold`（catalog `R3_COLD_SEED_OBJS`）；Makefile cold-else 薄转调；PREFER thin residual。  
 **wave758**：R4 residual thin_glue → R1 seed-map（G.7 有则补全）— `parser_asm_thin_glue` pure host-cc；user-asm shell-only；Makefile 薄转调 ensure。  
 **wave759**：R4 residual glue-standalone → R1 seed-map（G.7 有则补全）— `pipeline_glue_standalone` pure host-cc；glue shell-only；Makefile 薄转调 ensure（去 `cc_inc_tu` residual）。  
-**wave760**：R2 panic cold try-r2 — catalog `DRIVER_SEED_PANIC_OBJS`；stamp+UNAME 选源；panic shell-only；Makefile cold-else 薄转调；PREFER thin residual；typeck_f64/crt0 residual。  
+**wave760**：R2 panic cold try-r2 — catalog `DRIVER_SEED_PANIC_OBJS`；stamp+UNAME 选源；panic shell-only；Makefile cold-else 薄转调；PREFER thin residual；typeck_f64/crt0 ✅ wave762 try-r2。  
 **wave748**：R1 单族 — `ensure_host_cc_seed_o.sh` + catalog `RT_SEED_SLICE_OBJS`；Makefile 五叶 `rt_*.o` 薄转调；其它 R1 residual。  
 **wave749**：R1 第二族 — 同 body `core-seed` + catalog `R1_CORE_SEED_OBJS`；Makefile 五叶（diag/link_abi/c_import/bridge/compat）薄转调；其它 R1 residual。  
 **wave750**：R1 第三族 — 同 body `frontend-glue` + catalog `R1_FRONTEND_GLUE_OBJS`；basename 错位 seed map（lexer/ast/lsp）；Makefile 三叶薄转调；其它 R1 residual。  

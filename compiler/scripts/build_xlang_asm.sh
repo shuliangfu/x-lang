@@ -4541,21 +4541,24 @@ asm_bootstrap_support_extra_link() {
 }
 
 # 确保 typeck_f64_bits.o 存在（pipeline_x / parser 浮点字面量位拆分）。
+# wave762 G.7: body = ensure_host_cc_seed_o.sh try-r2 (catalog DRIVER_SEED_TYPECK_F64_OBJS).
 ensure_typeck_f64_bits_obj() {
+  if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
+  echo " ensure try-r2 src/typeck/typeck_f64_bits.o (wave762 R2 typeck_f64)"
+  CC="$CC" CFLAGS="$CFLAGS" bash scripts/ensure_host_cc_seed_o.sh try-r2 src/typeck/typeck_f64_bits.o \
+  || { echo "ensure_typeck_f64_bits_obj: try-r2 failed" >&2; return 1; }
+  return 0
+  fi
+  # Fallback only if ensure script missing (should not happen on product tree).
   UNAME_S=$(uname -s 2>/dev/null || echo Unknown)
   UNAME_M=$(uname -m 2>/dev/null || echo Unknown)
-  # G-02e：全平台 .s，不再回退 typeck_f64_bits.c
   if [ "$UNAME_S" = "Linux" ] && [ "$UNAME_M" = "x86_64" ] && [ -f src/typeck/typeck_f64_bits_x86_64.s ]; then
-  echo " cc -c src/typeck/typeck_f64_bits.o <- typeck_f64_bits_x86_64.s"
   "$CC" -c -o src/typeck/typeck_f64_bits.o src/typeck/typeck_f64_bits_x86_64.s
   elif [ "$UNAME_S" = "Linux" ] && [ "$UNAME_M" = "aarch64" ] && [ -f src/typeck/typeck_f64_bits_aarch64_elf.s ]; then
-  echo " cc -c src/typeck/typeck_f64_bits.o <- typeck_f64_bits_aarch64_elf.s"
   "$CC" -c -o src/typeck/typeck_f64_bits.o src/typeck/typeck_f64_bits_aarch64_elf.s
   elif [ "$UNAME_S" = "Darwin" ] && [ "$UNAME_M" = "arm64" ] && [ -f src/typeck/typeck_f64_bits_arm64.s ]; then
-  echo " cc -c src/typeck/typeck_f64_bits.o <- typeck_f64_bits_arm64.s"
   "$CC" -c -o src/typeck/typeck_f64_bits.o src/typeck/typeck_f64_bits_arm64.s
   elif [ "$UNAME_S" = "Darwin" ] && [ "$UNAME_M" = "x86_64" ] && [ -f src/typeck/typeck_f64_bits_x86_64.s ]; then
-  echo " cc -c src/typeck/typeck_f64_bits.o <- typeck_f64_bits_x86_64.s"
   "$CC" -c -o src/typeck/typeck_f64_bits.o src/typeck/typeck_f64_bits_x86_64.s
   else
   echo "ensure_typeck_f64_bits_obj: missing platform .s for $UNAME_S/$UNAME_M" >&2
@@ -4580,8 +4583,7 @@ ensure_typeck_asm_bare_link_alias_obj() {
 }
 
 # 确保 runtime_panic.o / crt0 / typeck_f64_bits 存在。
-# wave760 G.7: runtime_panic cold body = ensure_host_cc_seed_o.sh try-r2 only
-# (no second inline cc -c recipe here). crt0 / typeck_f64 still local residual.
+# wave760/762 G.7: all three via ensure_host_cc_seed_o.sh try-r2 (catalog lists = mk).
 ensure_asm_link_objs() {
   UNAME_S=$(uname -s 2>/dev/null || echo Unknown)
   ALPINE=0
@@ -4590,6 +4592,23 @@ ensure_asm_link_objs() {
     echo " ensure try-r2 runtime_panic.o (wave760 R2 cold body)"
     CC="$CC" CFLAGS="$CFLAGS" bash scripts/ensure_host_cc_seed_o.sh try-r2 runtime_panic.o \
       || { echo "ensure_asm_link_objs: try-r2 runtime_panic.o failed" >&2; return 1; }
+    # PLATFORM: LINUX — product crt0 path; other hosts use MAIN_LINK via g05/make.
+    if [ "$UNAME_S" = "Linux" ] && [ -f src/asm/crt0_x86_64.s ]; then
+      echo " ensure try-r2 src/asm/crt0_x86_64.o (wave762 R2 crt0)"
+      CC="$CC" CFLAGS="$CFLAGS" bash scripts/ensure_host_cc_seed_o.sh try-r2 src/asm/crt0_x86_64.o \
+        || { echo "ensure_asm_link_objs: try-r2 crt0_x86_64.o failed" >&2; return 1; }
+    elif [ "$UNAME_S" = "Darwin" ]; then
+      UNAME_M=$(uname -m 2>/dev/null || echo unknown)
+      if { [ "$UNAME_M" = "arm64" ] || [ "$UNAME_M" = "aarch64" ]; } && [ -f src/asm/crt0_arm64.s ]; then
+        echo " ensure try-r2 src/asm/crt0_arm64.o (wave762 R2 crt0)"
+        CC="$CC" CFLAGS="$CFLAGS" bash scripts/ensure_host_cc_seed_o.sh try-r2 src/asm/crt0_arm64.o \
+          || { echo "ensure_asm_link_objs: try-r2 crt0_arm64.o failed" >&2; return 1; }
+      elif [ -f src/asm/crt0_darwin_x86_64.s ]; then
+        echo " ensure try-r2 src/asm/crt0_darwin_x86_64.o (wave762 R2 crt0)"
+        CC="$CC" CFLAGS="$CFLAGS" bash scripts/ensure_host_cc_seed_o.sh try-r2 src/asm/crt0_darwin_x86_64.o \
+          || { echo "ensure_asm_link_objs: try-r2 crt0_darwin_x86_64.o failed" >&2; return 1; }
+      fi
+    fi
   else
     # Fallback only if ensure script missing (should not happen on product tree).
     if [ "$UNAME_S" = "Linux" ] && [ "$(uname -m 2>/dev/null)" = "x86_64" ] && [ -f src/asm/runtime_panic_x86_64.s ]; then
@@ -4602,10 +4621,10 @@ ensure_asm_link_objs() {
       echo " cc -c runtime_panic.o <- seeds/runtime_panic.from_x.c"
       $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_panic.from_x.c -o runtime_panic.o
     fi
-  fi
-  if [ "$UNAME_S" = "Linux" ] && [ -f src/asm/crt0_x86_64.s ]; then
-  echo " cc -c src/asm/crt0_x86_64.o <- src/asm/crt0_x86_64.s"
-  "$CC" -c -o src/asm/crt0_x86_64.o src/asm/crt0_x86_64.s
+    if [ "$UNAME_S" = "Linux" ] && [ -f src/asm/crt0_x86_64.s ]; then
+      echo " cc -c src/asm/crt0_x86_64.o <- src/asm/crt0_x86_64.s"
+      "$CC" -c -o src/asm/crt0_x86_64.o src/asm/crt0_x86_64.s
+    fi
   fi
   ensure_typeck_f64_bits_obj
   # atoi: G.7 authority = scripts/bootstrap_nostdlib_shared.sh ensure_atoi_stub_obj.

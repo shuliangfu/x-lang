@@ -1056,9 +1056,9 @@ R1_SEED_MAP_OBJS = src/driver/target_cpu.o src/ast/ast_seed.o pipeline_bootstrap
 # List authority for ensure_host_cc_seed_o.sh try-r3-cold / r3-cold-seed mode.
 # Body = same ensure_one as R1 (basename seed). PREFER_X_O=1 thin+rest stays
 # Makefile (product daily path); cold-else branch thin-calls ensure (G.7).
-# Residual after wave760: gen *_x · pipeline_x · pure-ld · physical delete ·
-# R3 PREFER thin · R2 typeck_f64/crt0 (~~panic cold~~ try-r2; ~~thin_glue~~ ·
-# ~~glue standalone~~ → seed-map).
+# Residual after wave762: pure-ld · physical delete · R3 PREFER thin ·
+# ~~panic / typeck_f64 / crt0 R2~~ try-r2 · ~~gen/pipeline~~ try-gen-x ·
+# ~~thin_glue / glue standalone~~ → seed-map.
 R3_COLD_SEED_OBJS = src/runtime_io_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/asm/simd_enc.o src/asm/simd_loop.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o
 
 # G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（XLANG_LEGACY_PREPROCESS_C 路径已死）。
@@ -1722,22 +1722,25 @@ runtime_process_os_glue.o: seeds/runtime_process_os_glue.from_x.c src/asm/runtim
 	fi
 
 # 无 C 自举：crt0 提供 _start 与 driver_get_argv_i；链接 asm 版 xlang 时用本 .o 替代 main.o / runtime_asm_build.o
+# wave762 R2: body → ensure_host_cc_seed_o.sh try-r2 (list = DRIVER_SEED_CRT0_OBJS /
+# DRIVER_SEED_TYPECK_F64_OBJS). UNAME ifeq only selects which target is defined on
+# this host; recipe body is shell (G.7 single cold body). PLATFORM tags in ensure.
 ifeq ($(UNAME_S),Linux)
 ifeq ($(UNAME_M),x86_64)
-src/asm/crt0_x86_64.o: src/asm/crt0_x86_64.s
-	$(CC) -c -o $@ $<
+src/asm/crt0_x86_64.o: src/asm/crt0_x86_64.s scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-r2 $@
 # S4 freestanding 用户程序入口（call _main；见 tests/run-freestanding-hello.sh）
-src/asm/crt0_user_x86_64.o: src/asm/crt0_user_x86_64.s
-	$(CC) -c -o $@ $<
+src/asm/crt0_user_x86_64.o: src/asm/crt0_user_x86_64.s scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-r2 $@
 # S4 freestanding syscall write（xlang_sys_write）
-src/asm/freestanding_io_x86_64.o: src/asm/freestanding_io_x86_64.s
-	$(CC) -c -o $@ $<
+src/asm/freestanding_io_x86_64.o: src/asm/freestanding_io_x86_64.s scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-r2 $@
 # runtime.c 链 freestanding 用户程序时在 compiler/ 下查找 crt0_user.o / freestanding_io.o
 crt0_user.o: src/asm/crt0_user_x86_64.o
 	cp $< $@
 freestanding_io.o: src/asm/freestanding_io_x86_64.o
 	cp $< $@
-# NL-07 v2：bootstrap crt0 nostdlib 最小 libc 桩
+# NL-07 v2：bootstrap crt0 nostdlib 最小 libc 桩（cc_inc_tu residual — not R2 try-r2)
 src/asm/bootstrap_nostdlib_stubs.o: seeds/bootstrap_nostdlib_stubs.from_x.c scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh seeds/bootstrap_nostdlib_stubs.from_x.c $@
 endif
@@ -1745,38 +1748,42 @@ endif
 # E-04 v20：Darwin bootstrap 默认 crt0（arm64 / x86_64 Mach-O）
 ifeq ($(UNAME_S),Darwin)
 ifneq (,$(filter arm64 aarch64,$(UNAME_M)))
-src/asm/crt0_arm64.o: src/asm/crt0_arm64.s
-	$(CC) -c -o $@ $<
+src/asm/crt0_arm64.o: src/asm/crt0_arm64.s scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-r2 $@
 else ifneq (,$(filter x86_64 amd64,$(UNAME_M)))
-src/asm/crt0_darwin_x86_64.o: src/asm/crt0_darwin_x86_64.s
-	$(CC) -c -o $@ $<
+src/asm/crt0_darwin_x86_64.o: src/asm/crt0_darwin_x86_64.s scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-r2 $@
 endif
 endif
 # E-04 v21：Windows/MinGW/MSYS bootstrap 默认 crt0_mingw 替代 main_driver.o
+# wave762: try-r2 body (cc_inc_tu + WIN32_O_CFLAGS inside ensure; list = DRIVER_SEED_CRT0)
 ifeq ($(XLANG_IS_WIN_HOST),1)
-src/asm/crt0_mingw.o: seeds/crt0_mingw.from_x.c Makefile scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh seeds/crt0_mingw.from_x.c $@ $(WIN32_O_CFLAGS)
+src/asm/crt0_mingw.o: seeds/crt0_mingw.from_x.c Makefile scripts/ensure_host_cc_seed_o.sh scripts/cc_inc_tu.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" WIN32_O_CFLAGS="$(WIN32_O_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-r2 $@
 endif
 
 # asm 链接无 runtime_driver 时：提供 typeck_float64_bits_lo/hi（G-02e：全平台 .s，零 C）。
+# wave762 R2: body → ensure try-r2 (host pick .s; list = DRIVER_SEED_TYPECK_F64_OBJS).
+# UNAME ifeq keeps unsupported-arch hard error surface; recipe is shell.
 ifeq ($(UNAME_S),Linux)
 ifeq ($(UNAME_M),x86_64)
-src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_x86_64.s
-	$(CC) -c -o $@ $<
+src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_x86_64.s scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-r2 $@
 else ifeq ($(UNAME_M),aarch64)
-src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_aarch64_elf.s
-	$(CC) -c -o $@ $<
+src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_aarch64_elf.s scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-r2 $@
 else
 $(error typeck_f64_bits: unsupported Linux arch $(UNAME_M); add .s)
 endif
 else ifeq ($(UNAME_S),Darwin)
 ifeq ($(UNAME_M),arm64)
-src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_arm64.s
-	$(CC) -c -o $@ $<
+src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_arm64.s scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-r2 $@
 else ifeq ($(UNAME_M),x86_64)
 # Darwin x86_64：SysV .s 无 _ 前缀；clang 汇编 Mach-O 时需额外处理，当前主路径为 arm64。
-src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_x86_64.s
-	$(CC) -c -o $@ $<
+src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_x86_64.s scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-r2 $@
 else
 $(error typeck_f64_bits: unsupported Darwin arch $(UNAME_M); add .s)
 endif
@@ -1785,8 +1792,8 @@ else ifeq ($(XLANG_IS_WIN_HOST),1)
 # use _mingw variant (x64 PE COFF doesn't add underscore prefix, so symbol names
 # match the SysV variant — see typeck_f64_bits_x86_64_mingw.s docblock).
 ifeq ($(UNAME_M),x86_64)
-src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_x86_64_mingw.s
-	$(CC) -c -o $@ $<
+src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_x86_64_mingw.s scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-r2 $@
 else
 $(error typeck_f64_bits: unsupported Windows arch $(UNAME_M); add .s)
 endif
@@ -2768,6 +2775,8 @@ bootstrap-driver-seed-export-obj-catalog:
 	@printf 'DRIVER_SEED_LSP_X_OBJS=%s\n' '$(DRIVER_SEED_LSP_X_OBJS)'
 	@printf 'DRIVER_SEED_BRIDGE_OBJS=%s\n' '$(DRIVER_SEED_BRIDGE_OBJS)'
 	@printf 'DRIVER_SEED_PANIC_OBJS=%s\n' '$(DRIVER_SEED_PANIC_OBJS)'
+	@printf 'DRIVER_SEED_TYPECK_F64_OBJS=%s\n' '$(DRIVER_SEED_TYPECK_F64_OBJS)'
+	@printf 'DRIVER_SEED_CRT0_OBJS=%s\n' '$(DRIVER_SEED_CRT0_OBJS)'
 	@printf 'DRIVER_SEED_USER_ASM_SEED_OBJS=%s\n' '$(DRIVER_SEED_USER_ASM_SEED_OBJS)'
 	@printf 'DRIVER_SEED_ASM_GLUE_OBJS=%s\n' '$(DRIVER_SEED_ASM_GLUE_OBJS)'
 	@printf 'DRIVER_SEED_HOST_STUBS_SCAN_BASE=%s\n' '$(DRIVER_SEED_HOST_STUBS_SCAN_BASE)'

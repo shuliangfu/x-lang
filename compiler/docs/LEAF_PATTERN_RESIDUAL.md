@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -38,15 +38,16 @@
 | **R4 residual thin_glue pure host-cc** | `ensure_host_cc_seed_o.sh` seed-map / try-r1 | **wave758**: `parser_asm_thin_glue` → R1 seed-map (G.7 有则补全) |
 | **R4 residual glue standalone pure host-cc** | `ensure_host_cc_seed_o.sh` seed-map / try-r1 | **wave759**: `pipeline_glue_standalone` → R1 seed-map (G.7 有则补全; was `cc_inc_tu`) |
 | **R2 panic cold (UNAME stamp leaf)** | `ensure_host_cc_seed_o.sh` try-r2 / r2-panic | **wave760**: `runtime_panic.o` cold via catalog `DRIVER_SEED_PANIC_OBJS`; PREFER thin residual |
+| **R2 typeck_f64 + crt0 (UNAME leaf)** | `ensure_host_cc_seed_o.sh` try-r2 / r2-typeck-f64 / r2-crt0 | **wave762**: catalog `DRIVER_SEED_TYPECK_F64_OBJS` + `DRIVER_SEED_CRT0_OBJS`; host pick `.s` / mingw seed |
 
 ## Named residual classes (Makefile still owns body)
 
 | ID | Residual class | Typical Makefile surface | Endgame owner | Status |
 |----|----------------|--------------------------|---------------|--------|
 | **R1** | Host-cc seed/from_x → `.o` | `$(CC) … -c seeds/*.from_x.c -o …` recipes | shell ensure or product `-E`+cc body (stages 8–9); **one** body, multi family lists | **rt-slice ✅ wave748** · … · **seed-map ✅ wave755** (+ **thin_glue wave758** + **glue standalone wave759**); residual non-catalog |
-| **R2** | Platform stamp / UNAME leaf | `runtime_panic.$(UNAME_S).$(UNAME_M).stamp` · `typeck_f64_bits` arch `.s` pick · crt0 | shell + host_platform_linker facts; lists stay mk | **panic cold ✅ wave760** (try-r2); residual typeck_f64/crt0 · PREFER panic thin |
+| **R2** | Platform stamp / UNAME leaf | `runtime_panic.$(UNAME_S).$(UNAME_M).stamp` · `typeck_f64_bits` arch `.s` pick · crt0 | shell + host_platform_linker facts; lists stay mk | **panic cold ✅ wave760** · **typeck_f64/crt0 ✅ wave762** (try-r2); PREFER panic thin residual |
 | **R3** | Thin+rest / PREFER_X_O host-cc rest | thin `.o` + `FROM_X=1` rest `cc -c` + `ld -r` | cold-else shell ensure; PREFER thin product path | **cold-else ✅ wave757** (try-r3-cold); **PREFER thin residual** |
-| **R4** | Cold rebuild **pattern bodies** | sat/lsp/bridge/panic/user-asm/glue/pipeline-x | rebuild without make pattern graph | **mode+list shell wave747** · **pure-R1 wave756** · **R3 cold wave757** · **thin_glue seed-map wave758** · **glue standalone seed-map wave759** · **panic cold try-r2 wave760**; residual gen/pipeline-x |
+| **R4** | Cold rebuild **pattern bodies** | sat/lsp/bridge/panic/user-asm/glue/pipeline-x | rebuild without make pattern graph | **mode+list shell wave747** · **pure-R1 wave756** · **R3 cold wave757** · **thin_glue seed-map wave758** · **glue standalone seed-map wave759** · **panic cold try-r2 wave760** · **gen try-gen-x wave761** · **typeck_f64/crt0 try-r2 wave762**; residual PREFER thin / sat non-R1 if any |
 | **R5** | CI / `compiler-all` host-cc graph | Makefile `all` · OPT seed path | CI entry stays `./xbuild compiler-all` until stage 12 | residual |
 | **R6** | Residual cold **link** via CC | `SEED_LINK_CC -o` phase1/final | 11.1.4 pure-ld endgame (orthogonal inventory: PLATFORM_LINKER) | residual |
 
@@ -101,7 +102,7 @@ try-r1 (ensure_host_cc_seed_o.sh):
 
 | Swallowed | Still residual |
 |-----------|----------------|
-| Pure R1 rebuild bodies in every mode (bridge full; sat/lsp/user-asm partial) | R2 typeck_f64/crt0 · R3 PREFER thin · ~~gen/pipeline_x~~ (wave761) · pure-ld |
+| Pure R1 rebuild bodies in every mode (bridge full; sat/lsp/user-asm partial) | ~~R2 typeck_f64/crt0~~ (wave762) · R3 PREFER thin · ~~gen/pipeline_x~~ (wave761) · pure-ld |
 | Dual path of make-for-pure-R1 vs thin ensure | Full R4 endgame · pure-ld · physical delete |
 
 **Forbidden:** hardcoding product `.o` paths inside `rebuild_leaves` / `try-r1` as a second inventory (membership via catalog KEY only).
@@ -213,7 +214,7 @@ After (wave760):
 
 | Swallowed | Still residual |
 |-----------|----------------|
-| `runtime_panic.o` cold platform-stamp body (rebuild + Makefile cold-else + build_xlang_asm) | PREFER thin panic · typeck_f64_bits · crt0 · ~~gen `*_x` / pipeline_x~~ (wave761) · pure-ld · physical delete |
+| `runtime_panic.o` cold platform-stamp body (rebuild + Makefile cold-else + build_xlang_asm) | PREFER thin panic · ~~typeck_f64/crt0~~ (wave762) · ~~gen `*_x` / pipeline_x~~ (wave761) · pure-ld · physical delete |
 | Dual inline cold `cc -c` panic vs ensure | R3 PREFER product path · R5 CI |
 
 **Forbidden:** second `.o` list in shell; invent second platform table outside try-r2 host pick + host_platform_linker facts; drop stamp on platform switch.
@@ -227,7 +228,33 @@ After (wave760):
 | 链 | rebuild_leaves try-r1 → try-r3-cold → try-r2 → **try-gen-x** → residual make |
 | Makefile | 四叶 thin 转调 `ensure_gen_x_o.sh one`（pipeline 传 `PIPELINE_X_DEPS` / FORCE） |
 | 闸门 | leaf `--check` · host-cc-seed `--check` · lsp/pipeline-x residual_make=0 |
-| 非本波 | R2 typeck_f64/crt0 · R3 PREFER thin · pure-ld · 物理删 |
+| 非本波 | ~~R2 typeck_f64/crt0~~ (wave762) · R3 PREFER thin · pure-ld · 物理删 |
+
+### wave762 · R2 typeck_f64 + crt0 (try-r2 extend · G.7 有则补全)
+
+```text
+Before (wave760–761):
+  typeck_f64_bits.o / crt0_*.o  — Makefile UNAME ifeq + inline $(CC) -c .s
+  g05_ensure / build_xlang_asm  — second/third host-pick recipes (dual body)
+
+After (wave762):
+  catalog DRIVER_SEED_TYPECK_F64_OBJS + DRIVER_SEED_CRT0_OBJS (lists = mk)
+  try-r2 OUT  → membership panic | typeck_f64 | crt0
+  typeck_f64  → host pick platform .s (Linux/Darwin/Windows mingw)
+  crt0        → fixed o→.s map; crt0_mingw → cc_inc_tu + WIN32_O_CFLAGS
+  Makefile    → thin-call ensure try-r2 (UNAME ifeq only gates which target exists)
+  g05 / build_xlang_asm → try-r2 (no inline dual recipe)
+```
+
+| Swallowed | Still residual |
+|-----------|----------------|
+| `src/typeck/typeck_f64_bits.o` host-pick body | PREFER thin panic · bootstrap_nostdlib_stubs (cc_inc_tu) · crt0_user.o `cp` wrappers |
+| `src/asm/crt0_{x86_64,arm64,darwin_x86_64,mingw,user_x86_64}.o` · `freestanding_io_x86_64.o` | R3 PREFER thin product path · pure-ld · physical delete |
+
+| 本波 | 非本波 |
+|------|--------|
+| R2 typeck_f64/crt0 shell body + catalog + Makefile thin + g05/build_xlang_asm converge | R3 PREFER thin · pure-ld · 物理删 · panic PREFER thin |
+
 | LEAF | `SWALLOWED_R4_BODY_GEN_X=1` · `R4_BODY_GEN_X_SWALLOWED=1` |
 
 | 已吞 | 仍 residual |
@@ -632,7 +659,26 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - [x] Makefile thin-call ensure (no residual `cc_inc_tu` body)
 - [x] glue rebuild shell-only (`pure_r1=1`; residual_make=0)
 - [x] LEAF dump `SWALLOWED_R4_BODY_GLUE_STANDALONE=1`
-- [ ] R3 PREFER thin+rest product path · R4 remaining (panic/gen/pipeline-x)
+### wave760 (R2 panic cold)
+
+- [x] catalog `DRIVER_SEED_PANIC_OBJS` + try-r2 cold body + stamp
+- [x] Makefile cold thin-call try-r2; PREFER thin residual
+- [x] LEAF dump `SWALLOWED_R2_PANIC_COLD=1`
+
+### wave761 (R4 gen *_x + pipeline_x)
+
+- [x] `ensure_gen_x_o.sh` + try-gen-x + Makefile thin
+- [x] LEAF dump `SWALLOWED_R4_BODY_GEN_X=1`
+
+### wave762 (R2 typeck_f64 + crt0)
+
+- [x] catalog `DRIVER_SEED_TYPECK_F64_OBJS` + `DRIVER_SEED_CRT0_OBJS` (mk)
+- [x] try-r2 membership extend (G.7 有则补全; no second helper name)
+- [x] Makefile typeck_f64 + crt0 thin-call try-r2
+- [x] g05_ensure + build_xlang_asm converge to try-r2
+- [x] LEAF dump `SWALLOWED_R2_TYPECK_F64=1` · `SWALLOWED_R2_CRT0=1` · live metrics
+
+- [ ] R3 PREFER thin+rest product path · panic PREFER thin
 - [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame)
 - [ ] Leaf `.o` without host-cc residual (stages 8–9 / 12)
 - [ ] Cold phase1/final pure-ld without `SEED_LINK_CC -o` (11.1.4 · separate)
@@ -643,5 +689,5 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - `compiler/docs/BUILD_DAG.md` §5 residual make graph  
 - `compiler/docs/PLATFORM_LINKER.md` (R6 / UNAME leaf cross-ref)  
 - `compiler/scripts/driver_seed_obj_catalog.sh` (list authority)  
-- `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 families + try-r1 + R3 cold-else + thin_glue/glue-standalone seed-map)  
+- `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 families + try-r1 + R3 cold-else + thin_glue/glue-standalone + R2 panic/typeck_f64/crt0 try-r2)  
 - skill G.7 single authority · G.8 platform tags  

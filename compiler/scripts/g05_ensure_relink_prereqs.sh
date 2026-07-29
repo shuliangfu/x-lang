@@ -1787,18 +1787,25 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o build_asm/pipeline_glue_strict_minimal.o "$_pglue"
     fi
   fi
-  # G-02e：typeck_f64_bits 纯 .s
-  _f64s=""
-  case "${G05_UNAME_S:-$(uname -s)}/${G05_UNAME_M:-$(uname -m)}" in
-    Linux/x86_64) _f64s=src/typeck/typeck_f64_bits_x86_64.s ;;
-    Linux/aarch64) _f64s=src/typeck/typeck_f64_bits_aarch64_elf.s ;;
-    Darwin/arm64) _f64s=src/typeck/typeck_f64_bits_arm64.s ;;
-    Darwin/x86_64) _f64s=src/typeck/typeck_f64_bits_x86_64.s ;;
-  esac
-  if [ -n "$_f64s" ] && [ -f "$_f64s" ]; then
-    if [ ! -f src/typeck/typeck_f64_bits.o ] || [ "$_f64s" -nt src/typeck/typeck_f64_bits.o ]; then
-      echo "g05_ensure: cc -c $_f64s → src/typeck/typeck_f64_bits.o"
-      $CC -c -o src/typeck/typeck_f64_bits.o "$_f64s"
+  # G-02e / wave762 G.7: typeck_f64_bits pure .s via try-r2 (single R2 body).
+  if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
+    echo "g05_ensure: try-r2 src/typeck/typeck_f64_bits.o (wave762)"
+    CC="$CC" CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}" \
+      bash scripts/ensure_host_cc_seed_o.sh try-r2 src/typeck/typeck_f64_bits.o \
+      || echo "g05_ensure: try-r2 typeck_f64_bits failed (non-fatal if unused)" >&2
+  else
+    _f64s=""
+    case "${G05_UNAME_S:-$(uname -s)}/${G05_UNAME_M:-$(uname -m)}" in
+      Linux/x86_64) _f64s=src/typeck/typeck_f64_bits_x86_64.s ;;
+      Linux/aarch64) _f64s=src/typeck/typeck_f64_bits_aarch64_elf.s ;;
+      Darwin/arm64) _f64s=src/typeck/typeck_f64_bits_arm64.s ;;
+      Darwin/x86_64) _f64s=src/typeck/typeck_f64_bits_x86_64.s ;;
+    esac
+    if [ -n "$_f64s" ] && [ -f "$_f64s" ]; then
+      if [ ! -f src/typeck/typeck_f64_bits.o ] || [ "$_f64s" -nt src/typeck/typeck_f64_bits.o ]; then
+        echo "g05_ensure: cc -c $_f64s → src/typeck/typeck_f64_bits.o"
+        $CC -c -o src/typeck/typeck_f64_bits.o "$_f64s"
+      fi
     fi
   fi
   # G-02f-256/257 L2 表：1:1 pure TUs（默认 seed；PREFER_X_O=1 优先 .x）
