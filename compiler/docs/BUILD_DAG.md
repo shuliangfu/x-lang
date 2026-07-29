@@ -405,6 +405,15 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 - `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 families · try-r1 · try-r3-cold · thin_glue/glue-standalone seed-map)  
 - `compiler/scripts/host_platform_linker.sh` (platform + linker · wave745)
 
+## wave803 STATUS flip commit honesty (2026-07-30)
+
+- **Not physical delete · tree STATUS still not_reproven · not Windows green claim.**
+- Body: same `phys_del_makefile_gate.sh` — `--status-flip-commit-honesty` prints
+  pre-flip co-change inventory or post-flip contract (`STATUS=reproven_green` +
+  `ENDGAME=0` + `--delete` still refused). Never edits leaf. Never deletes Makefile.
+- LEAF: `PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY=1` · `DELETE_ALLOWED=0` · `ENDGAME_REQUIRED=0`.
+- Flip commit must co-change honesty greps that hard-require `not_reproven` (listed by mode).
+
 ## wave802 STATUS flip apply harness (2026-07-30)
 
 - **Not physical delete · tree STATUS still not_reproven · not Windows green claim.**
@@ -432,7 +441,7 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 ## wave799 physical-delete execute gate (2026-07-30)
 
 - **Not physical delete · not Windows green.** Hard-refuse `rm Makefile` without Windows re-prove.
-- Body: `compiler/scripts/phys_del_makefile_gate.sh` · `./xbuild phys-del-gate [--check|--dry-run-delete|--run-windows-gate|--verify-windows-proof|--status-flip-preview|--status-flip-apply]`.
+- Body: `compiler/scripts/phys_del_makefile_gate.sh` · `./xbuild phys-del-gate [--check|--dry-run-delete|--run-windows-gate|--verify-windows-proof|--status-flip-preview|--status-flip-apply|--status-flip-commit-honesty]`.
 - LEAF: `PHYS_DEL_EXECUTE_GATE=1` · `REFUSES_DELETE=1` · `DELETE_ALLOWED=0` · `WINDOWS_GATE_STATUS=not_reproven_this_tip`.
 
 ## wave798 physical-delete preflight (2026-07-30)

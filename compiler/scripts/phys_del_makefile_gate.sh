@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # phys_del_makefile_gate.sh — wave799 execute-gate + wave800 proof + wave801 STATUS
-# flip prep + wave802 STATUS flip *apply harness* (confirm-gated; tree not flipped
-# on this tip without real Windows proof + explicit human confirm).
+# flip prep + wave802 STATUS flip *apply harness* + wave803 STATUS flip *commit
+# honesty* (inventory + post-apply contract; tree not flipped on this tip without
+# real Windows proof + explicit human confirm).
 #
 # PLATFORM: SHARED shell orchestration (macOS / Ubuntu / Windows MSYS2).
 # Windows min-gate body runs only on MSYS2 (tests/run-bootstrap-bstrict-windows-gate.sh).
@@ -30,6 +31,14 @@
 #   refuse (exit 2). Never sets ENDGAME=1. Never rm Makefile. Tree on this tip
 #   stays not_reproven unless a human runs apply after real Windows proof.
 #
+# wave803 (G.7 有则补全 on this script):
+#   --status-flip-commit-honesty: machine-readable *commit checklist* for the
+#   STATUS flip mac commit (co-change surfaces + post-apply contract). Does NOT
+#   edit leaf. Does NOT delete Makefile. Pre-flip (tree not_reproven): inventory
+#   only. Post-flip (temp leaf / future tip): require STATUS=reproven_green AND
+#   ENDGAME=0 AND --delete still refused. Honesty greps that hard-require
+#   not_reproven must co-change in the same flip commit (listed here).
+#
 # Modes:
 #   status | --status          Dump readiness + host + Windows gate honesty + proof
 #   --check | check            Machine-check gate wiring + refuse + proof + flip
@@ -44,6 +53,9 @@
 #   --status-flip-apply [path]
 #                              Proof + confirm-gated STATUS key edit (wave802);
 #                              without confirm exit 2; ENDGAME stays 0; not delete
+#   --status-flip-commit-honesty
+#                              Commit checklist / post-apply honesty (wave803);
+#                              never edits; never deletes
 #   --delete                   HARD refuse unless Windows green + confirm env
 #                              (this tip keeps STATUS=not_reproven → always refuse)
 #
@@ -54,7 +66,8 @@
 #   bash compiler/scripts/phys_del_makefile_gate.sh --verify-windows-proof [/path]
 #   bash compiler/scripts/phys_del_makefile_gate.sh --status-flip-preview [/path]
 #   bash compiler/scripts/phys_del_makefile_gate.sh --status-flip-apply [/path]
-#   ./xbuild phys-del-gate [--check|--dry-run-delete|--run-windows-gate|--verify-windows-proof|--status-flip-preview|--status-flip-apply]
+#   bash compiler/scripts/phys_del_makefile_gate.sh --status-flip-commit-honesty
+#   ./xbuild phys-del-gate [--check|--dry-run-delete|--run-windows-gate|--verify-windows-proof|--status-flip-preview|--status-flip-apply|--status-flip-commit-honesty]
 #
 # Env:
 #   XLANG_PHYS_DEL_WINDOWS_PROOF=/path/to/proof   default /tmp/xlang_phys_del_windows_proof.txt
@@ -62,7 +75,7 @@
 #   XLANG_PHYS_DEL_LEAF_FILE=/path/to/leaf_copy   (test override; default leaf script)
 #   XLANG_PHYS_DEL_CONFIRM=DELETE_MAKEFILE_I_UNDERSTAND  (delete path only; still refused)
 #
-# Wave: 799–802 Track MG · 11.3.1 · NOT physical delete · tree STATUS still not_reproven
+# Wave: 799–803 Track MG · 11.3.1 · NOT physical delete · tree STATUS still not_reproven
 #       · NOT Windows green claim without MSYS proof + reviewed apply
 
 set -euo pipefail
@@ -276,6 +289,17 @@ PHYS_DEL_STATUS_FLIP_APPLY_TARGET_STATUS=reproven_green
 PHYS_DEL_STATUS_FLIP_APPLY_ENDGAME_AFTER=0
 PHYS_DEL_STATUS_FLIP_APPLY_DELETE_ALLOWED=0
 PHYS_DEL_STATUS_FLIP_APPLY_FORBIDDEN=apply_without_proof|apply_without_confirm|set_endgame_1|delete_makefile_from_apply|claim_apply_is_physical_delete|auto_flip_from_proof_alone
+# wave803: STATUS flip *commit honesty* (inventory + post-apply contract; not edit; not delete)
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY=1
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_WAVE=wave803
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_NOTE=commit_checklist_and_post_apply_contract_not_delete
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_SCRIPT=compiler/scripts/phys_del_makefile_gate.sh
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_MODE=--status-flip-commit-honesty
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_TREE_STATUS=${win_status:-?}
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_ENDGAME_REQUIRED=0
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_DELETE_ALLOWED=0
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_NEXT=msys_proof_then_apply_then_honesty_then_commit_then_delete_wave
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_FORBIDDEN=claim_honesty_is_flip|claim_honesty_is_delete|set_endgame_1_in_flip_commit|skip_co_change_honesty_greps|delete_makefile_in_flip_commit
 # Human runbook (dual-boot host currently often Ubuntu):
 #   1) reboot dual-boot → Windows/MSYS2 (ssh windows-server)
 #   2) git pull --ff-only origin self-hosting
@@ -288,9 +312,11 @@ PHYS_DEL_STATUS_FLIP_APPLY_FORBIDDEN=apply_without_proof|apply_without_confirm|s
 #   6) mac: ./xbuild phys-del-gate --status-flip-preview   # plan only; no edit
 #   7) mac: XLANG_PHYS_DEL_STATUS_FLIP_APPLY=APPLY_STATUS_I_UNDERSTAND \\
 #            ./xbuild phys-del-gate --status-flip-apply     # leaf STATUS only
-#      then commit (ENDGAME stays 0); separate physical delete wave after
-#   8) NEVER rm compiler/Makefile on this tip while STATUS=not_reproven_this_tip
-#   9) NEVER auto-edit leaf from preview / proof alone (confirm env required)
+#   8) mac: ./xbuild phys-del-gate --status-flip-commit-honesty  # wave803 checklist
+#      then same commit: honesty greps + progress triad (ENDGAME stays 0)
+#   9) NEVER rm compiler/Makefile on this tip while STATUS=not_reproven_this_tip
+#  10) NEVER auto-edit leaf from preview / proof alone (confirm env required)
+#  11) physical delete is a SEPARATE wave after STATUS flip commit
 EOF
 }
 
@@ -338,6 +364,14 @@ cmd_check() {
     || badf "status flip apply harness must keep DELETE_ALLOWED=0"
   grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_ENDGAME_AFTER=0' <<<"$dump" \
     || badf "status flip apply harness must keep ENDGAME_AFTER=0"
+  grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY=1' <<<"$dump" \
+    || badf "status missing PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY=1 (wave803)"
+  grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_WAVE=wave803' <<<"$dump" \
+    || badf "status missing STATUS_FLIP_COMMIT_HONESTY_WAVE=wave803"
+  grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_DELETE_ALLOWED=0' <<<"$dump" \
+    || badf "status flip commit honesty must keep DELETE_ALLOWED=0"
+  grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_ENDGAME_REQUIRED=0' <<<"$dump" \
+    || badf "status flip commit honesty must keep ENDGAME_REQUIRED=0"
 
   # Cross-check leaf honesty (Windows still not green; endgame 0).
   local leaf
@@ -370,6 +404,12 @@ cmd_check() {
     || badf "leaf dump missing PHYS_DEL_STATUS_FLIP_APPLY_HARNESS_WAVE=wave802"
   grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED=0' <<<"$leaf" \
     || badf "leaf dump must keep STATUS_FLIP_APPLY_TREE_APPLIED=0"
+  grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY=1' <<<"$leaf" \
+    || badf "leaf dump missing PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY=1 (wave803)"
+  grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_WAVE=wave803' <<<"$leaf" \
+    || badf "leaf dump missing PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_WAVE=wave803"
+  grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_DELETE_ALLOWED=0' <<<"$leaf" \
+    || badf "leaf dump must keep STATUS_FLIP_COMMIT_HONESTY_DELETE_ALLOWED=0"
 
   # Refuse contract: --delete must fail hard on this tip.
   if bash "$SCRIPT_DIR/phys_del_makefile_gate.sh" --delete >/tmp/phys_del_refuse_out.$$ 2>/tmp/phys_del_refuse_err.$$; then
@@ -518,10 +558,64 @@ cmd_check() {
     badf "wave802 harness mutated tree leaf toward green (forbidden)"
   fi
 
+  # wave803: commit honesty — pre-flip inventory on tree; post-flip contract on temp leaf.
+  if ! bash "$SCRIPT_DIR/phys_del_makefile_gate.sh" --status-flip-commit-honesty \
+      >/tmp/phys_del_hon_pre.$$ 2>&1; then
+    cat /tmp/phys_del_hon_pre.$$ >&2 || true
+    badf "tree --status-flip-commit-honesty must exit 0 (pre-flip inventory)"
+  else
+    if ! grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_PHASE=pre_flip' /tmp/phys_del_hon_pre.$$; then
+      badf "pre-flip honesty must print PHASE=pre_flip"
+    elif ! grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_CO_CHANGE=1' /tmp/phys_del_hon_pre.$$; then
+      badf "pre-flip honesty must list CO_CHANGE surfaces"
+    elif ! grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_DELETE_ALLOWED=0' /tmp/phys_del_hon_pre.$$; then
+      badf "pre-flip honesty must keep DELETE_ALLOWED=0"
+    else
+      note "tree pre-flip --status-flip-commit-honesty OK (wave803 harness)"
+    fi
+  fi
+  # Post-flip contract on the temp leaf already flipped by wave802 harness above.
+  # Re-apply if leaf_tmp was cleaned early: rebuild temp green leaf for honesty.
+  if [ ! -f "$leaf_tmp" ] || ! grep -qE '^PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green$' "$leaf_tmp" 2>/dev/null; then
+    leaf_tmp="/tmp/xlang_phys_del_leaf_copy.$$"
+    cp "$LEAF_SH" "$leaf_tmp"
+    if ! XLANG_PHYS_DEL_STATUS_FLIP_APPLY=APPLY_STATUS_I_UNDERSTAND \
+        XLANG_PHYS_DEL_LEAF_FILE="$leaf_tmp" \
+        bash "$SCRIPT_DIR/phys_del_makefile_gate.sh" --status-flip-apply "$synth" \
+        >/tmp/phys_del_apply_ok2.$$ 2>&1; then
+      cat /tmp/phys_del_apply_ok2.$$ >&2 || true
+      badf "wave803 rebuild temp apply failed (need green leaf for post-flip honesty)"
+    fi
+  fi
+  if ! XLANG_PHYS_DEL_LEAF_FILE="$leaf_tmp" \
+      bash "$SCRIPT_DIR/phys_del_makefile_gate.sh" --status-flip-commit-honesty \
+      >/tmp/phys_del_hon_post.$$ 2>&1; then
+    cat /tmp/phys_del_hon_post.$$ >&2 || true
+    badf "post-flip temp leaf --status-flip-commit-honesty must exit 0"
+  else
+    if ! grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_PHASE=post_flip' /tmp/phys_del_hon_post.$$; then
+      badf "post-flip honesty must print PHASE=post_flip"
+    elif ! grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_POST_OK=1' /tmp/phys_del_hon_post.$$; then
+      badf "post-flip honesty must print POST_OK=1"
+    elif ! grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_ENDGAME=0' /tmp/phys_del_hon_post.$$; then
+      badf "post-flip honesty must keep ENDGAME=0"
+    elif ! grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_DELETE_STILL_REFUSED=1' /tmp/phys_del_hon_post.$$; then
+      badf "post-flip honesty must keep DELETE_STILL_REFUSED=1"
+    else
+      note "temp post-flip --status-flip-commit-honesty OK (wave803 harness)"
+    fi
+  fi
+  # Honesty mode must not mutate tree STATUS.
+  leaf="$(leaf_dump)"
+  if ! grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip' <<<"$leaf"; then
+    badf "wave803 honesty must not flip tree leaf STATUS"
+  fi
+
   rm -f "$synth" "$bad_synth" "$leaf_tmp" /tmp/phys_del_vfy_ok.$$ /tmp/phys_del_vfy_bad.$$ \
     /tmp/phys_del_vfy_miss.$$ /tmp/phys_del_flip_miss.$$ /tmp/phys_del_flip_bad.$$ \
     /tmp/phys_del_flip_ok.$$ /tmp/phys_del_apply_miss.$$ /tmp/phys_del_apply_bad.$$ \
-    /tmp/phys_del_apply_noconfirm.$$ /tmp/phys_del_apply_ok.$$
+    /tmp/phys_del_apply_noconfirm.$$ /tmp/phys_del_apply_ok.$$ /tmp/phys_del_apply_ok2.$$ \
+    /tmp/phys_del_hon_pre.$$ /tmp/phys_del_hon_post.$$
 
   # Non-MSYS: windows-gate script skip path must be honest (exit 0 skip).
   if ! is_msys; then
@@ -532,7 +626,7 @@ cmd_check() {
     echo "phys-del-makefile-gate: CHECK FAILED" >&2
     exit 1
   fi
-  echo "phys-del-makefile-gate: CHECK OK (wave799 execute-gate + wave800 proof + wave801 status-flip-prep + wave802 status-flip-apply harness; refuse-delete; not Windows green; tree STATUS not flipped; not physical delete)"
+  echo "phys-del-makefile-gate: CHECK OK (wave799 execute-gate + wave800 proof + wave801 status-flip-prep + wave802 status-flip-apply + wave803 commit-honesty harness; refuse-delete; not Windows green; tree STATUS not flipped; not physical delete)"
   exit 0
 }
 
@@ -562,6 +656,7 @@ NEXT_HUMAN:
   reboot dual-boot to Windows/MSYS2 → ./xbuild phys-del-gate --run-windows-gate
   → scp proof → mac --verify-windows-proof → --status-flip-preview
   → XLANG_PHYS_DEL_STATUS_FLIP_APPLY=APPLY_STATUS_I_UNDERSTAND --status-flip-apply
+  → --status-flip-commit-honesty (wave803 checklist + co-change greps)
   → commit STATUS flip (ENDGAME=0) → separate delete wave
 EOF
 }
@@ -773,7 +868,123 @@ PHYS_DEL_STATUS_FLIP_APPLY_FORBIDDEN=set_endgame_1|delete_makefile_in_same_commi
 EOF
   log "status-flip-apply APPLIED STATUS=reproven_green leaf=$leaf_target tip=$cur_tip"
   log "  ENDGAME stays 0; DELETE is a separate wave; commit this leaf edit on mac only"
+  log "  next: ./xbuild phys-del-gate --status-flip-commit-honesty (wave803) then commit"
   exit 0
+}
+
+# wave803: STATUS flip *commit honesty* — inventory + post-apply contract.
+# Never edits leaf. Never deletes Makefile.
+# Exit: 0 = pre_flip inventory ready OR post_flip contract OK; 1 = contract fail.
+cmd_status_flip_commit_honesty() {
+  local win_status endgame leaf_target cur_tip del_refused
+  leaf_target="${XLANG_PHYS_DEL_LEAF_FILE:-$LEAF_SH}"
+  cur_tip="$(tip_short)"
+
+  if [ ! -f "$leaf_target" ]; then
+    die "status-flip-commit-honesty: leaf file missing: $leaf_target"
+  fi
+
+  # Prefer KEY=value lines from the leaf *file* (supports temp flipped copies).
+  win_status="$(grep -E '^PHYS_DEL_WINDOWS_GATE_STATUS=' "$leaf_target" | head -1 | sed 's/^PHYS_DEL_WINDOWS_GATE_STATUS=//' || true)"
+  endgame="$(grep -E '^ENDGAME_PHYSICAL_DELETE_MAKEFILE=' "$leaf_target" | head -1 | sed 's/^ENDGAME_PHYSICAL_DELETE_MAKEFILE=//' || true)"
+
+  # --delete must still hard-refuse after STATUS flip while ENDGAME=0.
+  del_refused=0
+  if bash "$SCRIPT_DIR/phys_del_makefile_gate.sh" --delete \
+      >/tmp/phys_del_hon_del_out.$$ 2>/tmp/phys_del_hon_del_err.$$; then
+    del_refused=0
+  else
+    del_refused=1
+  fi
+  rm -f /tmp/phys_del_hon_del_out.$$ /tmp/phys_del_hon_del_err.$$
+
+  if [ "${win_status:-}" = "not_reproven_this_tip" ]; then
+    # Pre-flip: print commit checklist only (tree honesty greps still require not_reproven).
+    cat <<EOF
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_READY=1
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_PHASE=pre_flip
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_WAVE=wave803
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_TIP=$cur_tip
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_LEAF=$leaf_target
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_CURRENT_STATUS=${win_status:-?}
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_TARGET_STATUS=reproven_green
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_ENDGAME=${endgame:-?}
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_ENDGAME_REQUIRED=0
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_DELETE_ALLOWED=0
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_DELETE_STILL_REFUSED=$del_refused
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_CO_CHANGE=1
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_CO_CHANGE_LIST=compiler/scripts/leaf_pattern_residual.sh|compiler/scripts/phys_del_makefile_gate.sh|--check_greps_hard_require_not_reproven|analysis/自举进度.md|analysis/C迁移追踪.md|analysis/Makefile迁移表.md|compiler/docs/LEAF_PATTERN_RESIDUAL.md
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_MUST_UPDATE=PHYS_DEL_WINDOWS_GATE_STATUS→reproven_green|PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED→1|honesty_--check_expect_reproven_green|progress_triad_wave_note
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_MUST_NOT=ENDGAME_PHYSICAL_DELETE_MAKEFILE=1|rm_compiler/Makefile|claim_physical_delete_done|skip_dual_end_L2
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_NOTE=run_apply_then_same_commit_update_honesty_greps_ENDGAME_stays_0
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_FORBIDDEN=claim_honesty_is_flip|claim_honesty_is_delete|set_endgame_1_in_flip_commit|delete_makefile_in_flip_commit
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_NEXT=msys_proof_then_apply_then_this_mode_then_commit_then_delete_wave
+EOF
+    log "status-flip-commit-honesty PHASE=pre_flip tip=$cur_tip (inventory only; no edit)"
+    log "  flip commit must co-change honesty greps that hard-require not_reproven"
+    log "  ENDGAME stays 0; physical delete is a SEPARATE wave"
+    if [ "$del_refused" -ne 1 ]; then
+      die "pre-flip honesty: --delete must still refuse (got exit 0)"
+    fi
+    exit 0
+  fi
+
+  if [ "${win_status:-}" = "reproven_green" ]; then
+    # Post-flip contract (temp leaf after apply, or future tip after real apply).
+    if [ "${endgame:-}" != "0" ]; then
+      cat <<EOF
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_READY=0
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_PHASE=post_flip
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_POST_OK=0
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_WAVE=wave803
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_FAIL=endgame_not_0
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_ENDGAME=${endgame:-?}
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_DELETE_ALLOWED=0
+EOF
+      log "status-flip-commit-honesty FAIL: ENDGAME must stay 0 after STATUS flip (got '${endgame:-empty}')"
+      exit 1
+    fi
+    if [ "$del_refused" -ne 1 ]; then
+      cat <<EOF
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_READY=0
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_PHASE=post_flip
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_POST_OK=0
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_WAVE=wave803
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_FAIL=delete_not_refused
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_DELETE_ALLOWED=0
+EOF
+      log "status-flip-commit-honesty FAIL: --delete must still refuse while ENDGAME=0"
+      exit 1
+    fi
+    cat <<EOF
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_READY=1
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_PHASE=post_flip
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_POST_OK=1
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_WAVE=wave803
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_TIP=$cur_tip
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_LEAF=$leaf_target
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_STATUS=reproven_green
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_ENDGAME=0
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_ENDGAME_REQUIRED=0
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_DELETE_ALLOWED=0
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_DELETE_STILL_REFUSED=1
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_CO_CHANGE=1
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_CO_CHANGE_LIST=compiler/scripts/leaf_pattern_residual.sh|compiler/scripts/phys_del_makefile_gate.sh|--check_greps_hard_require_not_reproven|analysis/自举进度.md|analysis/C迁移追踪.md|analysis/Makefile迁移表.md|compiler/docs/LEAF_PATTERN_RESIDUAL.md
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_MUST_UPDATE=PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED→1|honesty_--check_expect_reproven_green|progress_triad_wave_note
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_MUST_NOT=ENDGAME_PHYSICAL_DELETE_MAKEFILE=1|rm_compiler/Makefile|claim_physical_delete_done|same_commit_as_physical_delete
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_NOTE=STATUS_green_ENDGAME_0_delete_still_refused_commit_honesty_greps_then_separate_delete_wave
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_FORBIDDEN=set_endgame_1_in_flip_commit|delete_makefile_in_flip_commit|claim_honesty_is_delete
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_NEXT=commit_then_separate_physical_delete_wave
+EOF
+    log "status-flip-commit-honesty PHASE=post_flip POST_OK=1 tip=$cur_tip leaf=$leaf_target"
+    log "  STATUS=reproven_green ENDGAME=0 --delete still refused (expected)"
+    log "  same commit must update honesty greps + progress triad; then SEPARATE delete wave"
+    exit 0
+  fi
+
+  log "status-flip-commit-honesty: unexpected STATUS='${win_status:-empty}' in $leaf_target"
+  log "  expected not_reproven_this_tip (pre_flip) or reproven_green (post_flip)"
+  exit 1
 }
 
 cmd_run_windows_gate() {
@@ -851,17 +1062,25 @@ cmd_verify_windows_proof() {
 }
 
 cmd_delete() {
-  local win_status endgame
-  win_status="$(leaf_get PHYS_DEL_WINDOWS_GATE_STATUS)"
-  endgame="$(leaf_get ENDGAME_PHYSICAL_DELETE_MAKEFILE)"
+  local win_status endgame leaf_target
+  # wave803: honor XLANG_PHYS_DEL_LEAF_FILE so post-flip honesty can prove
+  # STATUS=reproven_green + ENDGAME=0 still refuses delete (temp leaf copies).
+  leaf_target="${XLANG_PHYS_DEL_LEAF_FILE:-$LEAF_SH}"
+  if [ -f "$leaf_target" ]; then
+    win_status="$(grep -E '^PHYS_DEL_WINDOWS_GATE_STATUS=' "$leaf_target" | head -1 | sed 's/^PHYS_DEL_WINDOWS_GATE_STATUS=//' || true)"
+    endgame="$(grep -E '^ENDGAME_PHYSICAL_DELETE_MAKEFILE=' "$leaf_target" | head -1 | sed 's/^ENDGAME_PHYSICAL_DELETE_MAKEFILE=//' || true)"
+  else
+    win_status="$(leaf_get PHYS_DEL_WINDOWS_GATE_STATUS)"
+    endgame="$(leaf_get ENDGAME_PHYSICAL_DELETE_MAKEFILE)"
+  fi
 
   log "REFUSED physical delete of compiler/Makefile"
   log "  PHYS_DEL_WINDOWS_GATE_STATUS=${win_status:-?}"
   log "  ENDGAME_PHYSICAL_DELETE_MAKEFILE=${endgame:-?}"
   log "  host=$(host_label) is_msys=$(is_msys && echo 1 || echo 0)"
-  log "  reason: Windows hybrid min-gate not re-proven on this tip (wave778/798–802)"
-  log "  runbook: reboot → MSYS2 → --run-windows-gate → scp proof → --verify → --status-flip-preview → confirm --status-flip-apply → commit → delete wave"
-  log "  forbidden: delete_makefile_before_windows_green|claim_proof_is_physical_delete|claim_preview_is_delete|claim_apply_is_physical_delete"
+  log "  reason: Windows hybrid min-gate not re-proven on this tip (wave778/798–803)"
+  log "  runbook: reboot → MSYS2 → --run-windows-gate → scp proof → --verify → --status-flip-preview → confirm --status-flip-apply → commit-honesty → commit → delete wave"
+  log "  forbidden: delete_makefile_before_windows_green|claim_proof_is_physical_delete|claim_preview_is_delete|claim_apply_is_physical_delete|claim_honesty_is_delete"
 
   # Even if someone forges leaf keys later, require explicit confirm AND green.
   if [ "${win_status:-}" != "green" ] && [ "${win_status:-}" != "reproven_green" ]; then
@@ -899,13 +1118,16 @@ case "$MODE" in
   --status-flip-apply|status-flip-apply|apply-status-flip|flip-apply)
     cmd_status_flip_apply "$MODE_ARG2"
     ;;
+  --status-flip-commit-honesty|status-flip-commit-honesty|commit-honesty|flip-commit-honesty)
+    cmd_status_flip_commit_honesty
+    ;;
   --delete|delete)
     cmd_delete
     ;;
   -h|--help|help)
-    sed -n '2,70p' "$0"
+    sed -n '2,80p' "$0"
     ;;
   *)
-    die "unknown mode '$MODE' (status|--check|--dry-run-delete|--run-windows-gate|--verify-windows-proof|--status-flip-preview|--status-flip-apply|--delete)"
+    die "unknown mode '$MODE' (status|--check|--dry-run-delete|--run-windows-gate|--verify-windows-proof|--status-flip-preview|--status-flip-apply|--status-flip-commit-honesty|--delete)"
     ;;
 esac

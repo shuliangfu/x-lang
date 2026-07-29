@@ -1719,6 +1719,43 @@ mac-only wave green.
 Env: `XLANG_PHYS_DEL_STATUS_FLIP_APPLY=APPLY_STATUS_I_UNDERSTAND` · optional
 `XLANG_PHYS_DEL_LEAF_FILE=` (test override).
 
+## wave803 STATUS flip commit honesty (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; flip tree
+> `PHYS_DEL_WINDOWS_GATE_STATUS` to green; set `ENDGAME_PHYSICAL_DELETE_MAKEFILE=1`.  
+> **This wave:** G.7 **有则补全** on `phys_del_makefile_gate.sh` — machine-readable
+> **commit checklist** for the STATUS flip mac commit (`--status-flip-commit-honesty`).
+> Pre-flip (tree `not_reproven`): inventory of co-change surfaces + MUST_UPDATE/MUST_NOT.
+> Post-flip (temp leaf after apply / future tip): require `STATUS=reproven_green` +
+> `ENDGAME=0` + `--delete` still refused. Honesty greps that hard-require
+> `not_reproven` must co-change in the same flip commit. Honesty ≠ flip. Honesty ≠ delete.
+
+```text
+Entry:
+  ./xbuild phys-del-gate --status-flip-commit-honesty
+      # PHASE=pre_flip when tree STATUS=not_reproven_this_tip
+      # PHASE=post_flip POST_OK=1 after apply (temp leaf / flipped tip)
+      # always DELETE_ALLOWED=0; ENDGAME_REQUIRED=0; never edits leaf
+
+After real Windows proof + apply (future flip commit):
+  1) apply STATUS → reproven_green (ENDGAME stays 0)
+  2) --status-flip-commit-honesty → POST_OK=1
+  3) same commit: update honesty --check greps + TREE_APPLIED=1 + progress triad
+  4) dual-end L2; then SEPARATE physical delete wave
+```
+
+| Key | Value |
+|-----|--------|
+| `PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY` | `1` |
+| `PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_WAVE` | `wave803` |
+| `PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_ENDGAME_REQUIRED` | `0` |
+| `PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_DELETE_ALLOWED` | `0` |
+| `PHYS_DEL_WINDOWS_GATE_STATUS` | `not_reproven_this_tip` (honest this tip) |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `0` |
+
+**Forbidden:** claim honesty = STATUS flip / physical delete; set ENDGAME=1 in flip
+commit; delete Makefile in flip commit; skip co-change honesty greps; mac-only wave green.
+
 ## wave801 STATUS flip prep / preview (2026-07-30)
 
 > **Not this wave:** physical delete of `compiler/Makefile`; flip

@@ -332,6 +332,7 @@ case "$TARGET" in
     # wave800: --run-windows-gate writes proof stamp; --verify-windows-proof checks tip.
     # wave801: --status-flip-preview proof-gated plan only (NOT flip; NOT delete).
     # wave802: --status-flip-apply proof+confirm leaf STATUS edit (NOT delete; ENDGAME=0).
+    # wave803: --status-flip-commit-honesty inventory + post-apply contract (NOT edit; NOT delete).
     # Usage:
     #   ./xbuild phys-del-gate
     #   ./xbuild phys-del-gate --check
@@ -340,6 +341,7 @@ case "$TARGET" in
     #   ./xbuild phys-del-gate --verify-windows-proof [p]  # tip SHA match (scp'd stamp)
     #   ./xbuild phys-del-gate --status-flip-preview [p]   # plan only after proof (wave801)
     #   ./xbuild phys-del-gate --status-flip-apply [p]     # confirm-gated apply (wave802)
+    #   ./xbuild phys-del-gate --status-flip-commit-honesty # commit checklist (wave803)
     # PLATFORM: SHARED shell; Windows gate body only on MSYS2
     shift
     bash compiler/scripts/phys_del_makefile_gate.sh "$@"
