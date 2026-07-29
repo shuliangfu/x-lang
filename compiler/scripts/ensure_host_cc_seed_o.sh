@@ -4,6 +4,7 @@
 #   wave749: second family R1_CORE_SEED (diag / link_abi / c_import / bridge / seed_link_compat)
 #   wave750: third family R1_FRONTEND_GLUE (lexer/ast/lsp basename-mismatch map)
 #   wave751: fourth family R1_MAIN_RUNTIME (main/runtime multi-flag variants)
+#   wave752: fifth family R1_ALIAS_STUBS (link alias / bare / compat stubs)
 #
 # Authority (G.7):
 #   Single shell *recipe body* for pure host-cc compile of seeds/*.from_x.c → .o.
@@ -14,6 +15,7 @@
 #     frontend-glue:   fixed o→seed map (leaf stem ≠ seed stem)
 #     main-runtime:    o→seed map (main_* ← main; runtime_* ← runtime) +
 #                      o→extra -D flags (thin Makefile passes expanded make vars)
+#     alias-stubs:     basename match (same as core-seed / rt-slice)
 #
 # Families (list authority = catalog KEY):
 #   RT_SEED_SLICE_OBJS     — five Cap residual slices under src/runtime/
@@ -22,10 +24,13 @@
 #   R1_FRONTEND_GLUE_OBJS  — lexer.o / ast.o / lsp_diag.o (runtime_*_glue seeds)
 #   R1_MAIN_RUNTIME_OBJS   — main / main_x / main_driver / runtime / runtime_x /
 #                            runtime_driver / runtime_driver_no_c
+#   R1_ALIAS_STUBS_OBJS    — x_frontend_link_alias + bare aliases + typeck stubs +
+#                            user_asm_seed_bridge + asm_backend_compat_stubs +
+#                            runtime_driver_strict_glue_stubs
 #
 # Not in scope (honest residual):
 #   - R3 thin+rest / PREFER_X_O product g05 path (g05_ensure keeps that)
-#   - Other R1 leaves (extra-cflags pure basename, alias stubs, …)
+#   - Other R1 leaves (extra-cflags pure basename e.g. pipeline_abi, -fPIE, …)
 #   - R2 UNAME stamps, R4 rebuild pattern multi-family, R5 CI all
 #
 # Usage (cwd = compiler/):
@@ -34,10 +39,11 @@
 #   bash scripts/ensure_host_cc_seed_o.sh core-seed         # R1_CORE_SEED family
 #   bash scripts/ensure_host_cc_seed_o.sh frontend-glue     # R1_FRONTEND_GLUE family
 #   bash scripts/ensure_host_cc_seed_o.sh main-runtime      # R1_MAIN_RUNTIME family
+#   bash scripts/ensure_host_cc_seed_o.sh alias-stubs       # R1_ALIAS_STUBS family
 #   bash scripts/ensure_host_cc_seed_o.sh all               # all swallowed families
 #   bash scripts/ensure_host_cc_seed_o.sh --check
-#   bash scripts/ensure_host_cc_seed_o.sh main-runtime --force
-#   ./xbuild host-cc-seed | rt-seed-slice | core-seed | frontend-glue | main-runtime
+#   bash scripts/ensure_host_cc_seed_o.sh alias-stubs --force
+#   ./xbuild host-cc-seed | rt-seed-slice | core-seed | frontend-glue | main-runtime | alias-stubs
 #
 # Env:
 #   CC — host compiler (default: cc; honor caller CC)
@@ -49,7 +55,7 @@
 #   MAKE — only for catalog list expansion (default: make)
 #
 # PLATFORM: SHARED — shell orchestration; seed pins host-portable C.
-# Wave: 748–751 Track MG · 11.3.1 R1 families (not physical delete · not pure-ld).
+# Wave: 748–752 Track MG · 11.3.1 R1 families (not physical delete · not pure-ld).
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -70,7 +76,7 @@ _DEFAULT_RUNTIME_DRIVER_NO_C_CFLAGS="-DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|rt-slice|core-seed|frontend-glue|main-runtime|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -294,12 +300,18 @@ ensure_main_runtime() {
   ensure_catalog_family "R1_MAIN_RUNTIME_OBJS" "main-runtime" "main-runtime"
 }
 
+ensure_alias_stubs() {
+  # Basename convention — same seed_mode as core-seed / rt-slice.
+  ensure_catalog_family "R1_ALIAS_STUBS_OBJS" "alias-stubs" "basename"
+}
+
 ensure_all_swallowed() {
   ensure_rt_slice
   ensure_core_seed
   ensure_frontend_glue
   ensure_main_runtime
-  log "all swallowed R1 families OK (rt-slice + core-seed + frontend-glue + main-runtime)"
+  ensure_alias_stubs
+  log "all swallowed R1 families OK (rt-slice + core-seed + frontend-glue + main-runtime + alias-stubs)"
 }
 
 # ---------------------------------------------------------------------------
@@ -385,11 +397,17 @@ run_check() {
     && ! grep -q 'R1_MAIN_RUNTIME_OBJS' mk/*.mk 2>/dev/null; then
     bad "R1_MAIN_RUNTIME_OBJS not defined in Makefile/mk (wave751)"
   fi
+  if ! grep -q 'R1_ALIAS_STUBS_OBJS' Makefile \
+    && ! grep -q 'R1_ALIAS_STUBS_OBJS' mk/*.mk 2>/dev/null; then
+    bad "R1_ALIAS_STUBS_OBJS not defined in Makefile/mk (wave752)"
+  fi
 
   check_family "RT_SEED_SLICE_OBJS" 5 "rt-slice" "basename" "src/runtime/"
   check_family "R1_CORE_SEED_OBJS" 5 "core-seed" "basename" "src/"
   check_family "R1_FRONTEND_GLUE_OBJS" 3 "frontend-glue" "frontend-glue" "src/"
   check_family "R1_MAIN_RUNTIME_OBJS" 7 "main-runtime" "main-runtime" "src/"
+  # alias-stubs: mixed cwd-root and src/ paths; no single path prefix.
+  check_family "R1_ALIAS_STUBS_OBJS" 8 "alias-stubs" "basename" ""
 
   # Makefile thin: recipes must call this script (not inline $(CC) -c for swallowed leaves)
   if ! grep -q 'ensure_host_cc_seed_o\.sh' Makefile; then
@@ -418,6 +436,13 @@ run_check() {
   else
     note "Makefile main-runtime leaves thin (no inline \$(CC) -c)"
   fi
+  # Alias-stubs leaves must not keep inline $(CC) -c recipes.
+  if grep -A1 -E '^(x_frontend_link_alias\.o|ast_asm_bare_link_alias\.o|backend_asm_bare_link_alias\.o|backend_asm_strict_fallback_alias\.o|typeck_c_module_stubs\.o|src/asm/user_asm_seed_bridge\.o|src/asm/asm_backend_compat_stubs\.o|src/runtime_driver_strict_glue_stubs\.o):' Makefile \
+    | grep -qE '\$\(CC\).*-c seeds/'; then
+    bad "Makefile alias-stubs leaves still have inline \$(CC) -c (must thin-call ensure)"
+  else
+    note "Makefile alias-stubs leaves thin (no inline \$(CC) -c)"
+  fi
 
   # G.7: list authority is catalog only — no hardcoded assignment of product lists.
   if grep -nE '^(export )?RT_SEED_SLICE_OBJS=' "$0" 2>/dev/null \
@@ -436,12 +461,16 @@ run_check() {
     | grep -vqE '^\s*#|:[0-9]+:\s*#'; then
     bad "must not hardcode R1_MAIN_RUNTIME_OBJS= in shell body"
   fi
+  if grep -nE '^(export )?R1_ALIAS_STUBS_OBJS=' "$0" 2>/dev/null \
+    | grep -vqE '^\s*#|:[0-9]+:\s*#'; then
+    bad "must not hardcode R1_ALIAS_STUBS_OBJS= in shell body"
+  fi
 
   if [ "$fail" -ne 0 ]; then
     echo "ensure_host_cc_seed_o: --check FAILED" >&2
     exit 1
   fi
-  echo "ensure_host_cc_seed_o: CHECK OK (R1 rt-seed-slice + core-seed + frontend-glue + main-runtime · wave748–751)" >&2
+  echo "ensure_host_cc_seed_o: CHECK OK (R1 rt-seed-slice + core-seed + frontend-glue + main-runtime + alias-stubs · wave748–752)" >&2
 }
 
 case "$MODE" in
@@ -464,6 +493,9 @@ case "$MODE" in
   main-runtime|main_runtime|r1-main-runtime|r1-main|family=r1_main_runtime)
     ensure_main_runtime
     ;;
+  alias-stubs|alias_stubs|r1-alias-stubs|r1-alias|family=r1_alias_stubs)
+    ensure_alias_stubs
+    ;;
   all|family|families|swallowed)
     # Umbrella: all swallowed pure R1 families on this body.
     ensure_all_swallowed
@@ -472,11 +504,11 @@ case "$MODE" in
     run_check
     ;;
   help|-h|--help)
-    sed -n '2,60p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,65p' "$0" | sed 's/^# \{0,1\}//'
     exit 0
     ;;
   *)
-    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|rt-slice|core-seed|frontend-glue|main-runtime|all|--check)" >&2
+    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|all|--check)" >&2
     exit 2
     ;;
 esac

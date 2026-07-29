@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–751 R1 families)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–752 R1 families)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -31,13 +31,13 @@
 | g05 ensure / prepare / relink | `g05_*.sh` | product daily path (R3 thin+rest still inside) |
 | migrate / `*_gen` ensure | `migrate_x_objs.sh` · `ensure_*_gen.sh` | wave735–740 |
 | Host facts / linker policy map | `host_platform_linker.sh` | wave745 |
-| **R1 pure host-cc body · RT_SEED_SLICE + CORE_SEED + FRONTEND_GLUE + MAIN_RUNTIME** | `ensure_host_cc_seed_o.sh` | **wave748** rt-slice · **wave749** core-seed · **wave750** frontend-glue · **wave751** main-runtime; other R1 residual |
+| **R1 pure host-cc body · RT_SEED_SLICE + CORE_SEED + FRONTEND_GLUE + MAIN_RUNTIME + ALIAS_STUBS** | `ensure_host_cc_seed_o.sh` | **wave748** rt-slice · **wave749** core-seed · **wave750** frontend-glue · **wave751** main-runtime · **wave752** alias-stubs; other R1 residual |
 
 ## Named residual classes (Makefile still owns body)
 
 | ID | Residual class | Typical Makefile surface | Endgame owner | Status |
 |----|----------------|--------------------------|---------------|--------|
-| **R1** | Host-cc seed/from_x → `.o` | `$(CC) … -c seeds/*.from_x.c -o …` recipes | shell ensure or product `-E`+cc body (stages 8–9); **one** body, multi family lists | **rt-slice ✅ wave748** · **core-seed ✅ wave749** · **frontend-glue ✅ wave750** · **main-runtime ✅ wave751**; other leaves residual |
+| **R1** | Host-cc seed/from_x → `.o` | `$(CC) … -c seeds/*.from_x.c -o …` recipes | shell ensure or product `-E`+cc body (stages 8–9); **one** body, multi family lists | **rt-slice ✅ wave748** · **core-seed ✅ wave749** · **frontend-glue ✅ wave750** · **main-runtime ✅ wave751** · **alias-stubs ✅ wave752**; other leaves residual |
 | **R2** | Platform stamp / UNAME leaf | `runtime_panic.$(UNAME_S).$(UNAME_M).stamp` · `typeck_f64_bits` arch `.s` pick · crt0 | shell + host_platform_linker facts; lists stay mk | residual |
 | **R3** | Thin+rest / PREFER_X_O host-cc rest | thin `.o` + `FROM_X=1` rest `cc -c` + `ld -r` | g05_ensure / product path (already partial shell) | residual |
 | **R4** | Cold rebuild **pattern bodies** | sat/lsp/bridge/panic/user-asm/glue/pipeline-x still invoke make for `.o` recipes | rebuild without make pattern graph | **mode+list shell wave747**; body residual |
@@ -173,10 +173,39 @@ Catalog: R1_MAIN_RUNTIME_OBJS exported via bootstrap-driver-seed-export-obj-cata
 
 | Swallowed | Still residual |
 |-----------|----------------|
-| Pure host-cc for main/runtime multi-flag variants (shared seeds) | Other R1 (extra-cflags pure basename, alias stubs, pipeline_abi, …) |
+| Pure host-cc for main/runtime multi-flag variants (shared seeds) | Other R1 (extra-cflags pure basename, pipeline_abi, -fPIE, …) |
 | Dual list for this family (script uses catalog only) | R3 thin+rest / R4 pattern body / pure-ld |
 
 **Forbidden:** re-listing main-runtime `.o` paths inside `ensure_host_cc_seed_o.sh` as a second inventory (map keys only resolve catalog members).
+
+### wave752 · R1 fifth family: ALIAS_STUBS (pure basename link alias / stubs)
+
+```text
+Family: R1_ALIAS_STUBS_OBJS (Makefile list authority)
+  x_frontend_link_alias.o
+  ast_asm_bare_link_alias.o
+  backend_asm_bare_link_alias.o
+  backend_asm_strict_fallback_alias.o
+  typeck_c_module_stubs.o
+  src/asm/user_asm_seed_bridge.o
+  src/asm/asm_backend_compat_stubs.o
+  src/runtime_driver_strict_glue_stubs.o
+  → seeds/<basename>.from_x.c  (no extra -D)
+
+Body (G.7 same ensure_host_cc_seed_o.sh):
+  scripts/ensure_host_cc_seed_o.sh one OUT SEED
+  scripts/ensure_host_cc_seed_o.sh alias-stubs  # catalog list + basename convention
+  scripts/ensure_host_cc_seed_o.sh all          # five families
+
+Catalog: R1_ALIAS_STUBS_OBJS exported via bootstrap-driver-seed-export-obj-catalog.
+```
+
+| Swallowed | Still residual |
+|-----------|----------------|
+| Pure host-cc for link alias / bare / compat stubs (basename) | Other R1 (extra-cflags pure basename e.g. pipeline_abi, -fPIE stubs, misc pure host-cc) |
+| Dual list for this family (script uses catalog only) | R3 thin+rest / R4 pattern body / pure-ld |
+
+**Forbidden:** re-listing alias-stubs `.o` paths inside `ensure_host_cc_seed_o.sh` as a second inventory.
 
 ## CLI
 
@@ -184,8 +213,8 @@ Catalog: R1_MAIN_RUNTIME_OBJS exported via bootstrap-driver-seed-export-obj-cata
 ./xbuild leaf-patterns                 # dump residual class inventory KEY=value
 ./xbuild leaf-patterns --check
 ./xbuild leaf-residual                 # alias
-./xbuild host-cc-seed                  # all swallowed R1 families (wave751)
-./xbuild rt-seed-slice | core-seed | frontend-glue | main-runtime
+./xbuild host-cc-seed                  # all swallowed R1 families (wave752)
+./xbuild rt-seed-slice | core-seed | frontend-glue | main-runtime | alias-stubs
 ./xbuild host-cc-seed --check
 ./xbuild host-cc-seed --force
 bash compiler/scripts/leaf_pattern_residual.sh
@@ -196,6 +225,7 @@ bash compiler/scripts/ensure_host_cc_seed_o.sh rt-slice
 bash compiler/scripts/ensure_host_cc_seed_o.sh core-seed
 bash compiler/scripts/ensure_host_cc_seed_o.sh frontend-glue
 bash compiler/scripts/ensure_host_cc_seed_o.sh main-runtime
+bash compiler/scripts/ensure_host_cc_seed_o.sh alias-stubs
 bash compiler/scripts/ensure_host_cc_seed_o.sh all
 bash compiler/scripts/ensure_host_cc_seed_o.sh --check
 # R4 live body (compiler/):
@@ -213,10 +243,11 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 5. wave749: R1 pure host-cc body for CORE_SEED family ✅
 6. wave750: R1 pure host-cc body for FRONTEND_GLUE family ✅
 7. wave751: R1 pure host-cc body for MAIN_RUNTIME multi-flag family ✅
-8. Next: more R1 (extra-cflags / alias stubs) / R4 pattern bodies off make / 11.1.4 pure-ld
-9. When no recipe needs make pattern graph:
+8. wave752: R1 pure host-cc body for ALIAS_STUBS family ✅
+9. Next: more R1 (extra-cflags / pipeline_abi) / R4 pattern bodies off make / 11.1.4 pure-ld
+10. When no recipe needs make pattern graph:
      delete compiler/Makefile (11.3.1) + root Makefile (11.3.2)
-10. Zero host-cc product path → stage 12 (Docker unload gcc/make)
+11. Zero host-cc product path → stage 12 (Docker unload gcc/make)
 ```
 
 **Forbidden shortcuts:** bulk-copy every `$(CC) -c` into a mega shell list; dual `.o` tables; pure-ld rewrite under this inventory without 11.1.4 map.
@@ -263,7 +294,23 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - [x] Makefile three glue leaves thin-call the script (lexer/ast/lsp_diag; both lexer rule sites)
 - [x] `./xbuild frontend-glue` · `host-cc-seed` umbrella = three families
 - [x] leaf residual dump `SWALLOWED_R1_FRONTEND_GLUE=1` / `R1_FRONTEND_GLUE_SWALLOWED=1`
-- [ ] All R1 families swallowed (extra-cflags, main/runtime variants, …)
+
+### wave751 (R1 main-runtime family)
+
+- [x] Same body + `main-runtime` / `all` modes (multi-flag o→seed + o→-D map)
+- [x] List from catalog `R1_MAIN_RUNTIME_OBJS` (no dual inventory in shell)
+- [x] Makefile seven main/runtime leaves thin-call the script
+- [x] `./xbuild main-runtime` · umbrella = four families
+- [x] leaf residual dump `SWALLOWED_R1_MAIN_RUNTIME=1` / `R1_MAIN_RUNTIME_SWALLOWED=1`
+
+### wave752 (R1 alias-stubs family)
+
+- [x] Same body + `alias-stubs` / `all` modes (pure basename)
+- [x] List from catalog `R1_ALIAS_STUBS_OBJS` (no dual inventory in shell)
+- [x] Makefile eight alias/stub leaves thin-call the script
+- [x] `./xbuild alias-stubs` · umbrella `host-cc-seed` = five families
+- [x] leaf residual dump `SWALLOWED_R1_ALIAS_STUBS=1` / `R1_ALIAS_STUBS_SWALLOWED=1`
+- [ ] All R1 families swallowed (extra-cflags pipeline_abi / -fPIE / misc pure host-cc, …)
 - [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame)
 - [ ] Leaf `.o` without host-cc residual (stages 8–9 / 12)
 - [ ] Cold phase1/final pure-ld without `SEED_LINK_CC -o` (11.1.4 · separate)
@@ -274,5 +321,5 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - `compiler/docs/BUILD_DAG.md` §5 residual make graph  
 - `compiler/docs/PLATFORM_LINKER.md` (R6 / UNAME leaf cross-ref)  
 - `compiler/scripts/driver_seed_obj_catalog.sh` (list authority)  
-- `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 rt-slice + core-seed body)  
+- `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 families wave748–752)  
 - skill G.7 single authority · G.8 platform tags  

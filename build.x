@@ -150,8 +150,10 @@
 //       mismatch seed map); same body; catalog R1_FRONTEND_GLUE_OBJS.
 //     wave751: R1 fourth family R1_MAIN_RUNTIME (main/runtime multi-flag
 //       variants); same body; catalog R1_MAIN_RUNTIME_OBJS.
+//     wave752: R1 fifth family R1_ALIAS_STUBS (link alias / bare / compat
+//       stubs; pure basename); same body; catalog R1_ALIAS_STUBS_OBJS.
 //       ./xbuild host-cc-seed | rt-seed-slice | core-seed | frontend-glue
-//         | main-runtime [--check|--force]
+//         | main-runtime | alias-stubs [--check|--force]
 //       Other R1 leaves residual. Physical delete of Makefile = 11.3.1 endgame.
 //     G.7: lists stay mk; no dual .o inventory in residual shell.
 //

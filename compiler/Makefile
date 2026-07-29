@@ -1018,6 +1018,13 @@ R1_FRONTEND_GLUE_OBJS = src/lexer/lexer.o src/ast/ast.o src/lsp/lsp_diag.o
 # Seed/flag maps live in ensure script (path convention); list stays here (G.7).
 R1_MAIN_RUNTIME_OBJS = src/main.o src/main_x.o src/main_driver.o src/runtime.o src/runtime_x.o src/runtime_driver.o src/runtime_driver_no_c.o
 
+# wave752 R1 fifth family: pure host-cc link alias / bare / compat stubs
+# (basename → seeds/<leaf>.from_x.c; no extra -D). List authority for
+# ensure_host_cc_seed_o.sh alias-stubs mode; body = same script as rt-slice.
+# Not dual of USER_ASM_SEED_* lists; this is pure R1 recipe family only.
+# Residual (other R1): pipeline_abi extra-cflags, -fPIE stubs, misc pure host-cc.
+R1_ALIAS_STUBS_OBJS = x_frontend_link_alias.o ast_asm_bare_link_alias.o backend_asm_bare_link_alias.o backend_asm_strict_fallback_alias.o typeck_c_module_stubs.o src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o src/runtime_driver_strict_glue_stubs.o
+
 # G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（XLANG_LEGACY_PREPROCESS_C 路径已死）。
 # xlang_x 用：仅 -DXLANG_USE_X_PIPELINE，提供 asm_codegen_ast、pipeline_parse_into_buf、main_entry（弱符号）等
 # wave751 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MAIN_RUNTIME_OBJS).
@@ -1794,21 +1801,28 @@ src/x_seed_bridge.o: seeds/x_seed_bridge.from_x.c src/x_seed_bridge.x scripts/en
 
 # pipeline_x.o 仍引用 typeck_typeck_* / codegen_codegen_* / lexer_lexer_*；*_x.o 导出无重复前缀名。
 # G-02f-16：x_frontend_link_alias 产品 seed（G-02e-8 三 alias 并入体）
-x_frontend_link_alias.o: seeds/x_frontend_link_alias.from_x.c x_frontend_link_alias.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/x_frontend_link_alias.from_x.c -o $@
+# wave752 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_ALIAS_STUBS_OBJS).
+x_frontend_link_alias.o: seeds/x_frontend_link_alias.from_x.c x_frontend_link_alias.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/x_frontend_link_alias.from_x.c
 
 # G-02f-17：strict/bootstrap bare alias + typeck stubs seeds
-ast_asm_bare_link_alias.o: seeds/ast_asm_bare_link_alias.from_x.c ast_asm_bare_link_alias.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/ast_asm_bare_link_alias.from_x.c -o $@
+# wave752 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_ALIAS_STUBS_OBJS).
+ast_asm_bare_link_alias.o: seeds/ast_asm_bare_link_alias.from_x.c ast_asm_bare_link_alias.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/ast_asm_bare_link_alias.from_x.c
 
-backend_asm_bare_link_alias.o: seeds/backend_asm_bare_link_alias.from_x.c backend_asm_bare_link_alias.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_asm_bare_link_alias.from_x.c -o $@
+backend_asm_bare_link_alias.o: seeds/backend_asm_bare_link_alias.from_x.c backend_asm_bare_link_alias.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/backend_asm_bare_link_alias.from_x.c
 
-backend_asm_strict_fallback_alias.o: seeds/backend_asm_strict_fallback_alias.from_x.c backend_asm_strict_fallback_alias.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_asm_strict_fallback_alias.from_x.c -o $@
+backend_asm_strict_fallback_alias.o: seeds/backend_asm_strict_fallback_alias.from_x.c backend_asm_strict_fallback_alias.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/backend_asm_strict_fallback_alias.from_x.c
 
-typeck_c_module_stubs.o: seeds/typeck_c_module_stubs.from_x.c typeck_c_module_stubs.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/typeck_c_module_stubs.from_x.c -o $@
+typeck_c_module_stubs.o: seeds/typeck_c_module_stubs.from_x.c typeck_c_module_stubs.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/typeck_c_module_stubs.from_x.c
 # wave727 · 11.0.4: USER_ASM / Darwin filtered / ASM_HOST_DISPATCH lists live in
 # mk/user_asm_seed_objs.mk (G.7 single authority; do not re-assign here).
 # Thin leaf bootstrap-driver-seed-asm-host is the cold-orch entry; build-seed-asm-host
@@ -1839,12 +1853,16 @@ $(USER_ASM_SEED_HOST_STUBS): pipeline_x.o $(ASM_GLUE_STANDALONE_O) $(USER_ASM_SE
 $(USER_ASM_SEED_HOST_OBJS): build-seed-asm-host
 
 # G-02f-15：user_asm_seed_bridge 产品 seed
-src/asm/user_asm_seed_bridge.o: seeds/user_asm_seed_bridge.from_x.c src/asm/user_asm_seed_bridge.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/user_asm_seed_bridge.from_x.c -o $@
+# wave752 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_ALIAS_STUBS_OBJS).
+src/asm/user_asm_seed_bridge.o: seeds/user_asm_seed_bridge.from_x.c src/asm/user_asm_seed_bridge.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/user_asm_seed_bridge.from_x.c
 
 # G-02f-15：asm_backend_compat_stubs 产品 seed
-src/asm/asm_backend_compat_stubs.o: seeds/asm_backend_compat_stubs.from_x.c src/asm/asm_backend_compat_stubs.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/asm_backend_compat_stubs.from_x.c -o $@
+# wave752 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_ALIAS_STUBS_OBJS).
+src/asm/asm_backend_compat_stubs.o: seeds/asm_backend_compat_stubs.from_x.c src/asm/asm_backend_compat_stubs.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/asm_backend_compat_stubs.from_x.c
 
 # G-02f-9 / Phase 4：backend_*_dispatch thin+rest PREFER_X_O
 src/asm/backend_enc_dispatch.o: seeds/backend_enc_dispatch.from_x.c src/asm/backend_enc_dispatch_thin.x src/asm/backend_enc_dispatch.x
@@ -2346,8 +2364,10 @@ src/lsp/lsp_diag_pipeline_ctx.o: seeds/lsp_diag_pipeline_ctx.from_x.c src/lsp/ls
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/lsp_diag_pipeline_ctx.from_x.c -o $@
 
 # G-02f-11：runtime_driver_strict_glue_stubs 产品 seed（内含 runtime_heap_user.inc）
-src/runtime_driver_strict_glue_stubs.o: seeds/runtime_driver_strict_glue_stubs.from_x.c src/runtime_driver_strict_glue_stubs.x seeds/runtime_heap_user.from_x.c
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_driver_strict_glue_stubs.from_x.c -o $@
+# wave752 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_ALIAS_STUBS_OBJS).
+src/runtime_driver_strict_glue_stubs.o: seeds/runtime_driver_strict_glue_stubs.from_x.c src/runtime_driver_strict_glue_stubs.x seeds/runtime_heap_user.from_x.c scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_driver_strict_glue_stubs.from_x.c
 
 # G-02a：ast_seed.o 从 runtime_ast_glue.inc 编译（从 src/ast/ast.c 迁移）。
 # 提供 ast_module_free/ast_expr_free/ast_block_free 等 8 个内存管理函数。
@@ -2675,6 +2695,7 @@ bootstrap-driver-seed-export-obj-catalog:
 	@printf 'R1_CORE_SEED_OBJS=%s\n' '$(R1_CORE_SEED_OBJS)'
 	@printf 'R1_FRONTEND_GLUE_OBJS=%s\n' '$(R1_FRONTEND_GLUE_OBJS)'
 	@printf 'R1_MAIN_RUNTIME_OBJS=%s\n' '$(R1_MAIN_RUNTIME_OBJS)'
+	@printf 'R1_ALIAS_STUBS_OBJS=%s\n' '$(R1_ALIAS_STUBS_OBJS)'
 
 # §5b #2 — pipeline_x.o FORCE recompile on cold start (PIPELINE_X_FORCE_COMPILE=1)
 # Body: bootstrap_driver_seed_rebuild_leaves.sh pipeline-x; list = DRIVER_SEED_PIPELINE_X_OBJS only.

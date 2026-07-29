@@ -1,4 +1,4 @@
-# Product + cold-start build DAG (11.1.1 · wave742 · 11.1.2 wave743 · 11.3 prereq edges wave744 · 11.1.3/4 wave745 · 11.3.1 path wave746 · R4 mode wave747 · R1 families wave748–751)
+# Product + cold-start build DAG (11.1.1 · wave742 · 11.1.2 wave743 · 11.3 prereq edges wave744 · 11.1.3/4 wave745 · 11.3.1 path wave746 · R4 mode wave747 · R1 families wave748–752)
 
 > **Authority (G.7):** this document is the **orchestration dependency map** for Track MG.  
 > Object-list *definitions* stay in `compiler/mk/*.mk` (export via `driver_seed_obj_catalog.sh`).  
@@ -8,9 +8,9 @@
 > Prereq edges (wave744): `driver_seed_ensure_prereqs.sh` (catalog `DRIVER_SEED_PREREQS`).  
 > Platform + linker policy (wave745 · 11.1.3/4): `compiler/docs/PLATFORM_LINKER.md` +  
 > `host_platform_linker.sh` · `./xbuild host-platform` / `linker-policy`.  
-> Leaf pattern residual (wave746 · 11.3.1 path · wave747 R4 mode · wave748–751 R1 families):  
+> Leaf pattern residual (wave746 · 11.3.1 path · wave747 R4 mode · wave748–752 R1 families):  
 > `compiler/docs/LEAF_PATTERN_RESIDUAL.md` + `leaf_pattern_residual.sh` ·  
-> `./xbuild leaf-patterns` · `./xbuild host-cc-seed` / `core-seed` / `frontend-glue` / `main-runtime`.
+> `./xbuild leaf-patterns` · `./xbuild host-cc-seed` / `core-seed` / `frontend-glue` / `main-runtime` / `alias-stubs`.
 
 **PLATFORM: SHARED** — same node names on macOS / Ubuntu / Windows host shells; platform ABI lives inside leaf scripts and seed pins.
 
@@ -37,7 +37,8 @@
 **wave748:** R1 first family **RT_SEED_SLICE** pure host-cc body → `ensure_host_cc_seed_o.sh`.  
 **wave749:** R1 second family **R1_CORE_SEED** (diag/link_abi/c_import/bridge/compat) same body.  
 **wave750:** R1 third family **R1_FRONTEND_GLUE** (lexer/ast/lsp basename-mismatch map) same body.  
-**wave751:** R1 fourth family **R1_MAIN_RUNTIME** (main/runtime multi-flag variants) same body (other R1 residual).
+**wave751:** R1 fourth family **R1_MAIN_RUNTIME** (main/runtime multi-flag variants) same body.  
+**wave752:** R1 fifth family **R1_ALIAS_STUBS** (link alias / bare / compat stubs; pure basename) same body (other R1 residual).
 
 ---
 
@@ -196,7 +197,7 @@ Do **not** grow new free-form recipes. Known residual classes:
 | Residual | Notes |
 |----------|--------|
 | ~~`DRIVER_SEED_PREREQS` make-graph edges~~ | **swallowed wave744** → shell ensure (list still mk) |
-| Leaf `.o` pattern rules (R1–R5) | **named inventory wave746** · **R4 mode+list shell wave747** · **R1 rt-slice wave748** · **R1 core-seed wave749** · **R1 frontend-glue wave750** · **R1 main-runtime wave751** · other pattern bodies still Makefile → 11.3.1 |
+| Leaf `.o` pattern rules (R1–R5) | **named inventory wave746** · **R4 mode+list shell wave747** · **R1 rt-slice wave748** · **R1 core-seed wave749** · **R1 frontend-glue wave750** · **R1 main-runtime wave751** · **R1 alias-stubs wave752** · other pattern bodies still Makefile → 11.3.1 |
 | `compiler-all` / Makefile `all` | CI host-cc path (R5) |
 | FULL=1 bstrict make entry | Non-daily |
 | Missing `xlang-c` for force -E | ensure_* gen scripts |
@@ -299,7 +300,15 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 - [x] Makefile seven leaves thin-call (main / main_x / main_driver / runtime / runtime_x / runtime_driver / runtime_driver_no_c)
 - [x] `./xbuild main-runtime` · umbrella `host-cc-seed` = four families
 - [x] LEAF_PATTERN dump `SWALLOWED_R1_MAIN_RUNTIME=1` / `R1_MAIN_RUNTIME_SWALLOWED=1`
-- [ ] Remaining R1 host-cc leaves (extra-cflags pure basename, alias stubs, …)
+
+### wave752 (11.3.1 · R1 fifth family alias-stubs)
+
+- [x] Same body + `alias-stubs` / `all` modes (pure basename)
+- [x] List authority = catalog `R1_ALIAS_STUBS_OBJS` (export + REQUIRED_KEYS)
+- [x] Makefile eight leaves thin-call (frontend/bare aliases + typeck stubs + user_asm bridge + backend compat + strict glue stubs)
+- [x] `./xbuild alias-stubs` · umbrella `host-cc-seed` = five families
+- [x] LEAF_PATTERN dump `SWALLOWED_R1_ALIAS_STUBS=1` / `R1_ALIAS_STUBS_SWALLOWED=1`
+- [ ] Remaining R1 host-cc leaves (extra-cflags pipeline_abi / -fPIE / misc pure host-cc, …)
 - [ ] Physical delete of Makefile (11.3.1 endgame)
 
 ---
@@ -315,5 +324,5 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 - `compiler/scripts/driver_seed_obj_catalog.sh` (lists)  
 - `compiler/scripts/driver_seed_ensure_prereqs.sh` (edges · wave744)  
 - `compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh` (R4 mode · wave747)  
-- `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 rt-slice + core-seed + frontend-glue + main-runtime · wave748–751)  
+- `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 families wave748–752)  
 - `compiler/scripts/host_platform_linker.sh` (platform + linker · wave745)
