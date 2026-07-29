@@ -828,8 +828,11 @@ src/runtime_driver_abi.o: seeds/runtime_driver_abi.from_x.c src/runtime_driver_a
 	fi
 
 # G-02f-12：runtime_pipeline_abi 产品 seed（须 XLANG_USE_X_PIPELINE）
-src/runtime_pipeline_abi.o: seeds/runtime_pipeline_abi.from_x.c src/runtime_pipeline_abi.x src/runtime_pipeline_abi.h Makefile
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) $(RUNTIME_PIPELINE_ABI_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_pipeline_abi.from_x.c -o $@
+# wave753 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_EXTRA_CFLAGS_OBJS).
+src/runtime_pipeline_abi.o: seeds/runtime_pipeline_abi.from_x.c src/runtime_pipeline_abi.x src/runtime_pipeline_abi.h Makefile scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_pipeline_abi.from_x.c $(RUNTIME_PIPELINE_ABI_CFLAGS)
+
 
 # G-02f-22：runtime_c_import 产品 seed
 # wave749 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_CORE_SEED_OBJS).
@@ -1022,8 +1025,14 @@ R1_MAIN_RUNTIME_OBJS = src/main.o src/main_x.o src/main_driver.o src/runtime.o s
 # (basename → seeds/<leaf>.from_x.c; no extra -D). List authority for
 # ensure_host_cc_seed_o.sh alias-stubs mode; body = same script as rt-slice.
 # Not dual of USER_ASM_SEED_* lists; this is pure R1 recipe family only.
-# Residual (other R1): pipeline_abi extra-cflags, -fPIE stubs, misc pure host-cc.
 R1_ALIAS_STUBS_OBJS = x_frontend_link_alias.o ast_asm_bare_link_alias.o backend_asm_bare_link_alias.o backend_asm_strict_fallback_alias.o typeck_c_module_stubs.o src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o src/runtime_driver_strict_glue_stubs.o
+
+# wave753 R1 sixth family: pure host-cc with extra flags / multi-out seeds
+# (pipeline_abi -D, asm_io_stubs -fPIE, sqlite glue+stub, parser link-alias -D).
+# List authority for ensure_host_cc_seed_o.sh extra-cflags mode; body = same script.
+# Seed/flag maps live in ensure script (path convention); list stays here (G.7).
+# Residual (other R1): misc pure basename host-cc without special extras.
+R1_EXTRA_CFLAGS_OBJS = src/runtime_pipeline_abi.o runtime_asm_io_stubs.o runtime_sqlite_glue.o runtime_sqlite_glue_stub.o src/asm/parser_asm_parse_expr_link.o
 
 # G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（XLANG_LEGACY_PREPROCESS_C 路径已死）。
 # xlang_x 用：仅 -DXLANG_USE_X_PIPELINE，提供 asm_codegen_ast、pipeline_parse_into_buf、main_entry（弱符号）等
@@ -1251,8 +1260,11 @@ endif
 
 # seed asm 用户程序：std.io 跳过 .x emit 时的 print/write/read_ptr 链接桩（G-02e-20 .inc）
 # G-02f-20：runtime_asm_io_stubs 产品 seed
-runtime_asm_io_stubs.o: seeds/runtime_asm_io_stubs.from_x.c src/asm/runtime_asm_io_stubs.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -fPIE -c seeds/runtime_asm_io_stubs.from_x.c -o $@
+# wave753 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_EXTRA_CFLAGS_OBJS).
+runtime_asm_io_stubs.o: seeds/runtime_asm_io_stubs.from_x.c src/asm/runtime_asm_io_stubs.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_asm_io_stubs.from_x.c -fPIE
+
 
 # F-ZC：std.test fn-ptr invoke；与 test.o 一并链入（G-02e-16：.inc + cc_inc_tu）
 # G-02f-21：runtime_test_fn_invoke 产品 seed
@@ -1580,12 +1592,21 @@ runtime_arrow_simd_glue.o: seeds/runtime_arrow_simd_glue.from_x.c src/asm/runtim
 
 # F-ZC：db.sqlite 胶层（libsqlite3）；与 sqlite.o 同链（G-02e-20）
 # G-02f-21：runtime_sqlite_glue 产品 seed
-runtime_sqlite_glue.o: seeds/runtime_sqlite_glue.from_x.c src/asm/runtime_sqlite_glue.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_DB_USE_SQLITE3 -c seeds/runtime_sqlite_glue.from_x.c -o $@
+# wave753 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_EXTRA_CFLAGS_OBJS).
+runtime_sqlite_glue.o: seeds/runtime_sqlite_glue.from_x.c src/asm/runtime_sqlite_glue.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_sqlite_glue.from_x.c -DXLANG_DB_USE_SQLITE3
+
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_sqlite_glue.from_x.c -DXLANG_DB_USE_SQLITE3
 
 # F-ZC：db.sqlite stub 胶层（无 libsqlite3）；sqlite-o-stub 时 ld -r 并入 sqlite.o（G-02e-20）
-runtime_sqlite_glue_stub.o: seeds/runtime_sqlite_glue.from_x.c src/asm/runtime_sqlite_glue.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_sqlite_glue.from_x.c -o $@
+# wave753 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_EXTRA_CFLAGS_OBJS).
+# Multi-out from same seed as runtime_sqlite_glue.o (no -DXLANG_DB_USE_SQLITE3).
+runtime_sqlite_glue_stub.o: seeds/runtime_sqlite_glue.from_x.c src/asm/runtime_sqlite_glue.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_sqlite_glue.from_x.c
+
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_sqlite_glue.from_x.c
 
 # F-ZC：crypto SHA-512/HMAC 胶层；与 crypto.o 一并链入（G-02e-20）
 # G-02f-20：runtime_crypto_inc_glue 产品 seed
@@ -1986,8 +2007,11 @@ parser_asm_thin_glue.o: seeds/parser_asm_thin_c.from_x.c src/asm/parser_asm_thin
  seeds/parser_asm/parser_asm_glue_tail_slice.inc
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) $(PARSER_ASM_THIN_GLUE_CFLAGS) -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm -c seeds/parser_asm_thin_c.from_x.c -o $@
 
-src/asm/parser_asm_parse_expr_link.o: seeds/parser_asm_parse_expr_link.from_x.c src/asm/parser_asm_parse_expr_link.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) $(PARSER_ASM_LINK_ALIAS_CFLAGS) -I. -Iinclude -Isrc -c seeds/parser_asm_parse_expr_link.from_x.c -o $@
+# wave753 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_EXTRA_CFLAGS_OBJS).
+src/asm/parser_asm_parse_expr_link.o: seeds/parser_asm_parse_expr_link.from_x.c src/asm/parser_asm_parse_expr_link.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/parser_asm_parse_expr_link.from_x.c $(PARSER_ASM_LINK_ALIAS_CFLAGS)
+
 
 # Authority: scripts/filter_bootstrap_seed_against_partial_o.sh → filter_o_export_against_deps.sh
 # (G.7 single path; g05_ensure same). PLATFORM: SHARED — Darwin product USER_ASM_LINK.
@@ -2696,6 +2720,7 @@ bootstrap-driver-seed-export-obj-catalog:
 	@printf 'R1_FRONTEND_GLUE_OBJS=%s\n' '$(R1_FRONTEND_GLUE_OBJS)'
 	@printf 'R1_MAIN_RUNTIME_OBJS=%s\n' '$(R1_MAIN_RUNTIME_OBJS)'
 	@printf 'R1_ALIAS_STUBS_OBJS=%s\n' '$(R1_ALIAS_STUBS_OBJS)'
+	@printf 'R1_EXTRA_CFLAGS_OBJS=%s\n' '$(R1_EXTRA_CFLAGS_OBJS)'
 
 # §5b #2 — pipeline_x.o FORCE recompile on cold start (PIPELINE_X_FORCE_COMPILE=1)
 # Body: bootstrap_driver_seed_rebuild_leaves.sh pipeline-x; list = DRIVER_SEED_PIPELINE_X_OBJS only.

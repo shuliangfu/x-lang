@@ -10,7 +10,7 @@
 > `host_platform_linker.sh` · `./xbuild host-platform` / `linker-policy`.  
 > Leaf pattern residual (wave746 · 11.3.1 path · wave747 R4 mode · wave748–752 R1 families):  
 > `compiler/docs/LEAF_PATTERN_RESIDUAL.md` + `leaf_pattern_residual.sh` ·  
-> `./xbuild leaf-patterns` · `./xbuild host-cc-seed` / `core-seed` / `frontend-glue` / `main-runtime` / `alias-stubs`.
+> `./xbuild leaf-patterns` · `./xbuild host-cc-seed` / `core-seed` / `frontend-glue` / `main-runtime` / `alias-stubs` / `extra-cflags`.
 
 **PLATFORM: SHARED** — same node names on macOS / Ubuntu / Windows host shells; platform ABI lives inside leaf scripts and seed pins.
 
@@ -38,7 +38,8 @@
 **wave749:** R1 second family **R1_CORE_SEED** (diag/link_abi/c_import/bridge/compat) same body.  
 **wave750:** R1 third family **R1_FRONTEND_GLUE** (lexer/ast/lsp basename-mismatch map) same body.  
 **wave751:** R1 fourth family **R1_MAIN_RUNTIME** (main/runtime multi-flag variants) same body.  
-**wave752:** R1 fifth family **R1_ALIAS_STUBS** (link alias / bare / compat stubs; pure basename) same body (other R1 residual).
+**wave752:** R1 fifth family **R1_ALIAS_STUBS** (link alias / bare / compat stubs; pure basename) same body.
+**wave753:** R1 sixth family **R1_EXTRA_CFLAGS** (pipeline_abi / -fPIE / sqlite multi-flag / parser extras) same body (other R1 residual).
 
 ---
 
@@ -197,7 +198,7 @@ Do **not** grow new free-form recipes. Known residual classes:
 | Residual | Notes |
 |----------|--------|
 | ~~`DRIVER_SEED_PREREQS` make-graph edges~~ | **swallowed wave744** → shell ensure (list still mk) |
-| Leaf `.o` pattern rules (R1–R5) | **named inventory wave746** · **R4 mode+list shell wave747** · **R1 rt-slice wave748** · **R1 core-seed wave749** · **R1 frontend-glue wave750** · **R1 main-runtime wave751** · **R1 alias-stubs wave752** · other pattern bodies still Makefile → 11.3.1 |
+| Leaf `.o` pattern rules (R1–R5) | **named inventory wave746** · **R4 mode+list shell wave747** · **R1 rt-slice wave748** · **R1 core-seed wave749** · **R1 frontend-glue wave750** · **R1 main-runtime wave751** · **R1 alias-stubs wave752** · **R1 extra-cflags wave753** · other pattern bodies still Makefile → 11.3.1 |
 | `compiler-all` / Makefile `all` | CI host-cc path (R5) |
 | FULL=1 bstrict make entry | Non-daily |
 | Missing `xlang-c` for force -E | ensure_* gen scripts |
@@ -308,7 +309,15 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 - [x] Makefile eight leaves thin-call (frontend/bare aliases + typeck stubs + user_asm bridge + backend compat + strict glue stubs)
 - [x] `./xbuild alias-stubs` · umbrella `host-cc-seed` = five families
 - [x] LEAF_PATTERN dump `SWALLOWED_R1_ALIAS_STUBS=1` / `R1_ALIAS_STUBS_SWALLOWED=1`
-- [ ] Remaining R1 host-cc leaves (extra-cflags pipeline_abi / -fPIE / misc pure host-cc, …)
+
+### wave753 (11.3.1 · R1 sixth family extra-cflags)
+
+- [x] Same body + `extra-cflags` / `all` modes (o→seed + o→extra flag map)
+- [x] List authority = catalog `R1_EXTRA_CFLAGS_OBJS` (export + REQUIRED_KEYS)
+- [x] Makefile five leaves thin (pipeline_abi / -fPIE / sqlite×2 / parser)
+- [x] `./xbuild extra-cflags` · umbrella `host-cc-seed` = six families
+- [x] LEAF_PATTERN dump `SWALLOWED_R1_EXTRA_CFLAGS=1` / `R1_EXTRA_CFLAGS_SWALLOWED=1`
+- [ ] Remaining R1 host-cc leaves (misc pure basename, …)
 - [ ] Physical delete of Makefile (11.3.1 endgame)
 
 ---
@@ -324,5 +333,5 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 - `compiler/scripts/driver_seed_obj_catalog.sh` (lists)  
 - `compiler/scripts/driver_seed_ensure_prereqs.sh` (edges · wave744)  
 - `compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh` (R4 mode · wave747)  
-- `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 families wave748–752)  
+- `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 families wave748–753)  
 - `compiler/scripts/host_platform_linker.sh` (platform + linker · wave745)

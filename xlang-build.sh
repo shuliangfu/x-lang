@@ -324,8 +324,8 @@ case "$TARGET" in
     bash compiler/scripts/leaf_pattern_residual.sh "$_lp_mode"
     ;;
 
-  # === wave748–752 · 11.3.1 · R1 host-cc seed body (rt-slice + core-seed + frontend-glue + main-runtime + alias-stubs) ===
-  host-cc-seed|rt-seed-slice|rt-slice|host-cc-seed-o|core-seed|core_seed|r1-core|r1-core-seed|frontend-glue|frontend_glue|r1-frontend-glue|r1-glue|main-runtime|main_runtime|r1-main-runtime|r1-main|alias-stubs|alias_stubs|r1-alias-stubs|r1-alias)
+  # === wave748–753 · 11.3.1 · R1 host-cc seed body (… + alias-stubs + extra-cflags) ===
+  host-cc-seed|rt-seed-slice|rt-slice|host-cc-seed-o|core-seed|core_seed|r1-core|r1-core-seed|frontend-glue|frontend_glue|r1-frontend-glue|r1-glue|main-runtime|main_runtime|r1-main-runtime|r1-main|alias-stubs|alias_stubs|r1-alias-stubs|r1-alias|extra-cflags|extra_cflags|r1-extra-cflags|r1-extra|pipeline-abi)
     # Pure host-cc seed → .o single body (G.7). Lists = catalog keys only.
     #   host-cc-seed     → all swallowed families
     #   rt-seed-slice    → RT_SEED_SLICE_OBJS only
@@ -333,12 +333,13 @@ case "$TARGET" in
     #   frontend-glue    → R1_FRONTEND_GLUE_OBJS only (wave750; basename-mismatch map)
     #   main-runtime     → R1_MAIN_RUNTIME_OBJS only (wave751; multi-flag map)
     #   alias-stubs      → R1_ALIAS_STUBS_OBJS only (wave752; pure basename)
+    #   extra-cflags     → R1_EXTRA_CFLAGS_OBJS only (wave753; pipeline_abi/-fPIE/sqlite/parser)
     # Map: compiler/docs/LEAF_PATTERN_RESIDUAL.md
     # Usage:
     #   ./xbuild host-cc-seed              # all swallowed R1 families
     #   ./xbuild host-cc-seed --check
     #   ./xbuild host-cc-seed --force
-    #   ./xbuild rt-seed-slice | core-seed | frontend-glue | main-runtime | alias-stubs
+    #   ./xbuild rt-seed-slice | core-seed | frontend-glue | main-runtime | alias-stubs | extra-cflags
     _hcs_cmd="$1"
     _hcs_args=()
     case "$_hcs_cmd" in
@@ -347,6 +348,7 @@ case "$TARGET" in
       frontend-glue|frontend_glue|r1-frontend-glue|r1-glue) _hcs_mode="frontend-glue" ;;
       main-runtime|main_runtime|r1-main-runtime|r1-main) _hcs_mode="main-runtime" ;;
       alias-stubs|alias_stubs|r1-alias-stubs|r1-alias) _hcs_mode="alias-stubs" ;;
+      extra-cflags|extra_cflags|r1-extra-cflags|r1-extra|pipeline-abi) _hcs_mode="extra-cflags" ;;
       *) _hcs_mode="all" ;;  # host-cc-seed umbrella
     esac
     shift || true
@@ -372,6 +374,9 @@ case "$TARGET" in
           ;;
         alias-stubs|alias_stubs|r1-alias-stubs|r1-alias)
           _hcs_mode="alias-stubs"
+          ;;
+        extra-cflags|extra_cflags|r1-extra-cflags|r1-extra|pipeline-abi)
+          _hcs_mode="extra-cflags"
           ;;
         all|families)
           _hcs_mode="all"
@@ -404,6 +409,8 @@ case "$TARGET" in
         bash scripts/ensure_host_cc_seed_o.sh main-runtime "${_hcs_args[@]}"
       elif [ "$_hcs_mode" = "alias-stubs" ]; then
         bash scripts/ensure_host_cc_seed_o.sh alias-stubs "${_hcs_args[@]}"
+      elif [ "$_hcs_mode" = "extra-cflags" ]; then
+        bash scripts/ensure_host_cc_seed_o.sh extra-cflags "${_hcs_args[@]}"
       elif [ "$_hcs_mode" = "rt-slice" ]; then
         bash scripts/ensure_host_cc_seed_o.sh rt-slice "${_hcs_args[@]}"
       else
@@ -580,9 +587,9 @@ g05 产品链（wave733–735 · 11.1.6；产品 link 零 make）:
                                        （G.7 禁双 .o；禁第二套链接实现）
   leaf-patterns / leaf-residual        叶 .o pattern residual 库存（11.3.1 路径）
   leaf-patterns --check                校验 doc + class dump + 接线
-  host-cc-seed / rt-seed-slice / core-seed / frontend-glue / main-runtime / alias-stubs
+  host-cc-seed / rt-seed-slice / core-seed / frontend-glue / main-runtime / alias-stubs / extra-cflags
                                        R1 host-cc 体（wave748–752 五族）
-  host-cc-seed --check                 校验 catalog + thin Makefile + 五族
+  host-cc-seed --check                 校验 catalog + thin Makefile + 六族
   host-cc-seed --force                 强制重编已吞 R1 族
                                        体 = leaf_pattern_residual.sh
                                        图 = compiler/docs/LEAF_PATTERN_RESIDUAL.md

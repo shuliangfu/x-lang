@@ -52,6 +52,7 @@ REQUIRED_KEYS=(
   R1_FRONTEND_GLUE_OBJS
   R1_MAIN_RUNTIME_OBJS
   R1_ALIAS_STUBS_OBJS
+  R1_EXTRA_CFLAGS_OBJS
 )
 
 out="$("$MAKE" -s bootstrap-driver-seed-export-obj-catalog)"
