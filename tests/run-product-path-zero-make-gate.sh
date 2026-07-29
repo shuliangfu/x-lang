@@ -24,7 +24,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "=== 11.0.2/11.0.3 product-path 0-make static gate (wave714–721) ==="
+echo "=== 11.0.2/11.0.3 product-path 0-make static gate (wave714–722) ==="
 
 fail=0
 note() { echo "  OK  $*"; }
@@ -201,6 +201,45 @@ else
     bad "bootstrap_driver_seed_link.sh must not hardcode .o list (dual authority)"
   else
     note "phase1/final link → export leaves + bootstrap_driver_seed_link.sh (OBJS single authority)"
+  fi
+fi
+
+# wave722: sat/lsp rebuild body → shell via Makefile target-list export (no dual list)
+if [ ! -f compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh ]; then
+  bad "missing compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh (11.0.3 wave722)"
+elif ! grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh' compiler/Makefile; then
+  bad "Makefile sat/lsp must call bootstrap_driver_seed_rebuild_leaves.sh"
+elif ! grep -q 'bootstrap-driver-seed-export-sat-rebuild' compiler/Makefile \
+  || ! grep -q 'bootstrap-driver-seed-export-lsp-x-objs' compiler/Makefile; then
+  bad "Makefile missing sat/lsp export leaves (G.7 single authority)"
+elif ! grep -q 'DRIVER_SEED_SAT_REBUILD_OBJS' compiler/Makefile \
+  || ! grep -q 'DRIVER_SEED_LSP_X_OBJS' compiler/Makefile; then
+  bad "Makefile missing DRIVER_SEED_SAT_REBUILD_OBJS / DRIVER_SEED_LSP_X_OBJS single-authority lists"
+else
+  sat_body=$(awk '
+    /^bootstrap-driver-seed-sat-rebuild:/ { in_r=1; next }
+    in_r && /^[^#[:space:]	]/ { exit }
+    in_r { print }
+  ' compiler/Makefile)
+  lsp_body=$(awk '
+    /^bootstrap-driver-seed-lsp-x-objs:/ { in_r=1; next }
+    in_r && /^[^#[:space:]	]/ { exit }
+    in_r { print }
+  ' compiler/Makefile)
+  if echo "$sat_body" | grep -qE 'src/diag\.o|runtime_io_abi' \
+    && ! echo "$sat_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
+    bad "Makefile sat-rebuild still inlines .o list (must be shell + export)"
+  elif ! echo "$sat_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
+    bad "Makefile sat-rebuild recipe missing bootstrap_driver_seed_rebuild_leaves.sh"
+  elif echo "$lsp_body" | grep -qE 'lsp_io_x\.o|lsp_x\.o' \
+    && ! echo "$lsp_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
+    bad "Makefile lsp-x-objs still inlines .o list (must be shell + export)"
+  elif ! echo "$lsp_body" | grep -q 'bootstrap_driver_seed_rebuild_leaves\.sh'; then
+    bad "Makefile lsp-x-objs recipe missing bootstrap_driver_seed_rebuild_leaves.sh"
+  elif grep -qE 'src/diag\.o|lsp_io_x\.o|simd_enc\.o' compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh; then
+    bad "bootstrap_driver_seed_rebuild_leaves.sh must not hardcode .o list (dual authority)"
+  else
+    note "sat/lsp rebuild → export leaves + bootstrap_driver_seed_rebuild_leaves.sh (OBJS single authority)"
   fi
 fi
 

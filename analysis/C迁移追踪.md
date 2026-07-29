@@ -1310,7 +1310,7 @@
   - **仍非日常 0-make**：FULL=1→make bstrict（g05 白名单）；嵌套 `tests/run-all-*.sh` / ensure 内 make（11.2.3）
   - **未完**：日常 relink 全程 PATH 无 make 的运行时探针
 
-🟡 **11.0.3 冷启动路径减 make**（wave716–721 🟡）
+🟡 **11.0.3 冷启动路径减 make**（wave716–722 🟡）
 
   - ✅ 类 G 全 4 filtered.o 配方 = 纯 shell（冷启动 `$(MAKE) FILTERED_OBJS` 仅依赖图，无内联 nm/ld）
   - ✅ 冷启动 recipe `$(MAKE)` **白名单落盘**：[Makefile迁移表.md](Makefile迁移表.md) §5b
@@ -1319,7 +1319,8 @@
   - ✅ **wave719**：`bootstrap_token_lexer_smoke.sh` + `bootstrap_driver_bstrict.sh`；xlang-build make -C **7→4**（仅 test*/bootstrap-verify）；bstrict 白名单 `refresh-xlang-asm-gate`（OBJS 单权威）
   - ✅ **wave720**：`run_compiler_tests.sh` + `bootstrap_verify_bstrict.sh`；xlang-build make -C **4→0**（产品入口 0-make）；Makefile test*/check-7.2-bstrict 薄转调
   - ✅ **wave721**：phase1/final **链接体** → `bootstrap_driver_seed_link.sh`；OBJS/CFLAGS **仅** Makefile export leaves（禁 shell 双清单）；`gen_g06` 改读 export
-  - ⬜ 对象清单变量定义本身迁出 Makefile / 由 xbuild 吞并（更深层；仍 G.7 单权威）
+  - ✅ **wave722**：§5b #3/#4 sat/lsp **rebuild 体** → `bootstrap_driver_seed_rebuild_leaves.sh`；`DRIVER_SEED_SAT_REBUILD_OBJS` / `DRIVER_SEED_LSP_X_OBJS` 单权威 + export
+  - ⬜ host-stubs 配方体 / bridge·panic 等 shell 白名单 make；对象清单变量定义本身迁出 Makefile / 由 xbuild 吞并（更深层；仍 G.7 单权威）
   - ⬜ FULL=1 / tests/lib 嵌套 make 继续收缩（11.2.3）
 
 ⬜ **11.0.4 根 Makefile 只保留 help → xbuild**
@@ -1698,6 +1699,7 @@
 | 2026-07-29 | **审计补全** | 对照仓库补：**§0.1 终局三义（MG/BC/PC）**；**§0.2 删 Makefile DAG**；**阶段 7.4 typeck/codegen 去 pin**；**阶段 8.3 非 gen 产品 C（glue~40k/ast_pool~18k/桩）**；**阶段 11.0 瘦身可并行** + 既有 G-05/`build.x`/`xlang-build.sh`；11.2 测试/CI 去 make；12/13 验收对齐「物理删 Makefile」；附录 D 进度下调至 ~40–45%；**附录 E 迁移表骨架**；纠正 6.1.5「永久边界」措辞 |
 | 2026-07-29 | **二轮深度核查** | 阶段 4.2 补 4 项遗漏 Cap soft（impl method on INDEX / `*T[N]` 解析序 / fixed return S24[2] / 未知 arg_ty）；阶段 8.3 补 3 项（`build_asm/gen_driver/*.c` 10 个 / `analysis/_debug_io_ctx_gen.c` 孤儿 / `editors/tree-sitter-xlang/` 第三方）；**阶段 11 大幅补充**：11.2.5 CI workflow（5 个 .yml）+ 11.4 根脚本/tools/docker（build.sh/xlang-build.sh/scripts/docker-ci-local.sh/tools//tests/docker/Dockerfile/delete-one-c-files.sh）+ 11.5 tests/ 对照 C 处理策略（~200 个 .c 归属）+ 11.6 editors/README 用户指南；修正 11.2.3/11.3.1/11.3.4 验收 grep 措辞过窄（tests/run-*.sh → tests/**/*.sh；仅 make → make+cc） |
 | 2026-07-29 | **wave714 · 11.0.1** | 盘点 `compiler/Makefile` → [`Makefile迁移表.md`](Makefile迁移表.md)（类 A–O · ~288 目标）；附录 E 填实摘要；勾选 11.0.1；列出产品路径 make 泄漏供 11.0.2；新增 `tests/run-product-path-zero-make-gate.sh` 静态闸门 |
+| 2026-07-29 | **wave722 · 11.0.3 sat/lsp rebuild 导出+shell** | `bootstrap_driver_seed_rebuild_leaves.sh` + export-sat/lsp；`DRIVER_SEED_SAT_REBUILD_OBJS` / `DRIVER_SEED_LSP_X_OBJS` 单权威；shell 只 `make -B/…`。dry-run 10+5 OK。0-make 闸门硬检。**不升钉** |
 | 2026-07-29 | **wave721 · 11.0.3 phase1/final 链接导出+shell** | `bootstrap_driver_seed_link.sh` + export leaves；OBJS/CFLAGS Makefile 单权威；shell 只 `$(CC) -o`；gen_g06 读 export。mac phase1 59 objs 真链 OK。0-make 闸门硬检。**不升钉** |
 | 2026-07-29 | **wave720 · 11.0.3 test*/verify shell · xlang-build 0-make** | `run_compiler_tests.sh` + `bootstrap_verify_bstrict.sh`；xlang-build make -C 4→0。0-make 闸门 sites=0。**不升钉** |
 | 2026-07-29 | **wave719 · 11.0.3 token/lexer/bstrict shell** | `bootstrap_token_lexer_smoke.sh` + `bootstrap_driver_bstrict.sh`；Makefile 薄转调；xlang-build sites 7→4（仅 test*/bootstrap-verify）。0-make 闸门硬检 sites≤4。**不升钉** |

@@ -2937,27 +2937,47 @@ endif
 
 # 11.0.3 wave717: orchestration authority → scripts/bootstrap_driver_seed.sh
 # 11.0.3 wave721: phase1/final $(CC) body → scripts/bootstrap_driver_seed_link.sh;
+# 11.0.3 wave722: sat/lsp rebuild body → scripts/bootstrap_driver_seed_rebuild_leaves.sh;
 #   Makefile remains sole authority for OBJS/CFLAGS expansions (export leaves only).
 # PLATFORM: SHARED — sequence in shell; Darwin filtered.o still via class-G shell recipes.
+
+# §5b #3/#4 — single-authority target lists (export + shell; no dual list in shell)
+DRIVER_SEED_SAT_REBUILD_OBJS = src/diag.o src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_REBUILD) $(DRIVER_SEED_PREPROCESS_REBUILD) src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o
+DRIVER_SEED_LSP_X_OBJS = lsp_io_x.o lsp_x.o lsp_diag_x.o src/lsp/lsp_diag_pipeline_ctx.o x_frontend_link_alias.o
+
 .PHONY: bootstrap-driver-seed-sat-rebuild \
 	bootstrap-driver-seed-lsp-x-objs \
 	bootstrap-driver-seed-user-asm-seed-objs \
 	bootstrap-driver-seed-asm-glue-standalone \
 	bootstrap-driver-seed-filtered-objs \
 	bootstrap-driver-seed-host-stubs \
+	bootstrap-driver-seed-export-sat-rebuild \
+	bootstrap-driver-seed-export-lsp-x-objs \
 	bootstrap-driver-seed-export-phase1-link \
 	bootstrap-driver-seed-export-final-link \
 	bootstrap-driver-seed-phase1-link \
 	bootstrap-driver-seed-final-link
 
 # §5b #3 — satellite runtime/diag/simd forced seed path (XLANG_G05_PREFER_X_O=0)
-bootstrap-driver-seed-sat-rebuild:
-	$(MAKE) -B src/diag.o src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_REBUILD) $(DRIVER_SEED_PREPROCESS_REBUILD) src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o \
-		XLANG_G05_PREFER_X_O=0
+# Body: bootstrap_driver_seed_rebuild_leaves.sh sat; list = DRIVER_SEED_SAT_REBUILD_OBJS only.
+bootstrap-driver-seed-export-sat-rebuild:
+	@printf 'SEED_REBUILD_OBJS=%s\n' '$(DRIVER_SEED_SAT_REBUILD_OBJS)'
+	@printf 'SEED_REBUILD_MAKE_ARGS=%s\n' '-B'
+	@printf 'SEED_REBUILD_MAKE_VARS=%s\n' 'XLANG_G05_PREFER_X_O=0'
 
-# §5b #4
+bootstrap-driver-seed-sat-rebuild:
+	@chmod +x scripts/bootstrap_driver_seed_rebuild_leaves.sh 2>/dev/null || true
+	@MAKE="$(MAKE)" ./scripts/bootstrap_driver_seed_rebuild_leaves.sh sat
+
+# §5b #4 — lsp / frontend alias objs (list = DRIVER_SEED_LSP_X_OBJS only)
+bootstrap-driver-seed-export-lsp-x-objs:
+	@printf 'SEED_REBUILD_OBJS=%s\n' '$(DRIVER_SEED_LSP_X_OBJS)'
+	@printf 'SEED_REBUILD_MAKE_ARGS=%s\n' ''
+	@printf 'SEED_REBUILD_MAKE_VARS=%s\n' ''
+
 bootstrap-driver-seed-lsp-x-objs:
-	$(MAKE) lsp_io_x.o lsp_x.o lsp_diag_x.o src/lsp/lsp_diag_pipeline_ctx.o x_frontend_link_alias.o
+	@chmod +x scripts/bootstrap_driver_seed_rebuild_leaves.sh 2>/dev/null || true
+	@MAKE="$(MAKE)" ./scripts/bootstrap_driver_seed_rebuild_leaves.sh lsp
 
 # §5b #6 — USER_ASM seed objs (list expands per-platform in Makefile only)
 bootstrap-driver-seed-user-asm-seed-objs: $(USER_ASM_SEED_OBJS)
