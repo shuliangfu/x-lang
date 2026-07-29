@@ -134,7 +134,7 @@
 //     ./xbuild linker-policy [--check]
 //
 //   11.3.1 leaf pattern residual path (wave746 inventory · wave747 R4 mode ·
-//   wave748–749 R1 families):
+//   wave748–750 R1 families):
 //     Authority map: compiler/docs/LEAF_PATTERN_RESIDUAL.md
 //     Machine: compiler/scripts/leaf_pattern_residual.sh
 //     ./xbuild leaf-patterns | leaf-residual [--check]
@@ -146,7 +146,10 @@
 //       (ensure_host_cc_seed_o.sh; list = catalog RT_SEED_SLICE_OBJS).
 //     wave749: R1 second family R1_CORE_SEED (diag/link_abi/c_import/
 //       x_seed_bridge/seed_link_compat); same body; catalog R1_CORE_SEED_OBJS.
-//       ./xbuild host-cc-seed | rt-seed-slice | core-seed [--check|--force]
+//     wave750: R1 third family R1_FRONTEND_GLUE (lexer/ast/lsp basename-
+//       mismatch seed map); same body; catalog R1_FRONTEND_GLUE_OBJS.
+//       ./xbuild host-cc-seed | rt-seed-slice | core-seed | frontend-glue
+//       [--check|--force]
 //       Other R1 leaves residual. Physical delete of Makefile = 11.3.1 endgame.
 //     G.7: lists stay mk; no dual .o inventory in residual shell.
 //

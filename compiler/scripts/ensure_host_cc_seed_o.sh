@@ -2,32 +2,36 @@
 # ensure_host_cc_seed_o.sh — R1 host-cc seed/from_x → .o single body
 #   wave748: first family RT_SEED_SLICE
 #   wave749: second family R1_CORE_SEED (diag / link_abi / c_import / bridge / seed_link_compat)
+#   wave750: third family R1_FRONTEND_GLUE (lexer/ast/lsp basename-mismatch map)
 #
 # Authority (G.7):
 #   Single shell *recipe body* for pure host-cc compile of seeds/*.from_x.c → .o.
 #   Object *lists* stay in Makefile / mk (catalog export keys).
 #   This script never hardcodes a second product .o inventory as authority.
-#   Seed path convention for pure R1 families (basename match):
-#     <dir>/<leaf>.o  ←  seeds/<leaf>.from_x.c
+#   Seed path conventions (not .o lists):
+#     basename match:  <dir>/<leaf>.o  ←  seeds/<leaf>.from_x.c
+#     frontend-glue:   fixed o→seed map (leaf stem ≠ seed stem)
 #
 # Families (list authority = catalog KEY):
-#   RT_SEED_SLICE_OBJS  — five Cap residual slices under src/runtime/
-#   R1_CORE_SEED_OBJS   — diag + runtime_link_abi + runtime_c_import +
-#                         x_seed_bridge + seed_link_compat
+#   RT_SEED_SLICE_OBJS     — five Cap residual slices under src/runtime/
+#   R1_CORE_SEED_OBJS      — diag + runtime_link_abi + runtime_c_import +
+#                            x_seed_bridge + seed_link_compat
+#   R1_FRONTEND_GLUE_OBJS  — lexer.o / ast.o / lsp_diag.o (runtime_*_glue seeds)
 #
 # Not in scope (honest residual):
 #   - R3 thin+rest / PREFER_X_O product g05 path (g05_ensure keeps that)
-#   - Other R1 leaves (lexer/ast glue basename mismatch, extra cflags, …)
+#   - Other R1 leaves (extra cflags, main/runtime variants, …)
 #   - R2 UNAME stamps, R4 rebuild pattern multi-family, R5 CI all
 #
 # Usage (cwd = compiler/):
 #   bash scripts/ensure_host_cc_seed_o.sh one <out.o> <seed.from_x.c> [extra cflags...]
 #   bash scripts/ensure_host_cc_seed_o.sh rt-slice          # RT_SEED_SLICE family
 #   bash scripts/ensure_host_cc_seed_o.sh core-seed         # R1_CORE_SEED family
-#   bash scripts/ensure_host_cc_seed_o.sh all               # both swallowed families
+#   bash scripts/ensure_host_cc_seed_o.sh frontend-glue     # R1_FRONTEND_GLUE family
+#   bash scripts/ensure_host_cc_seed_o.sh all               # all swallowed families
 #   bash scripts/ensure_host_cc_seed_o.sh --check
-#   bash scripts/ensure_host_cc_seed_o.sh rt-slice --force
-#   ./xbuild host-cc-seed | rt-seed-slice | core-seed [--check|--force]
+#   bash scripts/ensure_host_cc_seed_o.sh frontend-glue --force
+#   ./xbuild host-cc-seed | rt-seed-slice | core-seed | frontend-glue [--check|--force]
 #
 # Env:
 #   CC — host compiler (default: cc; honor caller CC)
@@ -37,7 +41,7 @@
 #   MAKE — only for catalog list expansion (default: make)
 #
 # PLATFORM: SHARED — shell orchestration; seed pins host-portable C.
-# Wave: 748–749 Track MG · 11.3.1 R1 families (not physical delete · not pure-ld).
+# Wave: 748–750 Track MG · 11.3.1 R1 families (not physical delete · not pure-ld).
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -51,7 +55,7 @@ FORCE="${XLANG_HOST_CC_SEED_FORCE:-0}"
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|rt-slice|core-seed|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|rt-slice|core-seed|frontend-glue|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -95,11 +99,22 @@ ensure_one() {
   mkdir -p "$(dirname "$out")"
 
   if [ "$FORCE" != "1" ] && [ -f "$out" ] && [ ! "$seed" -nt "$out" ]; then
-    # Sibling .x (Makefile dep): same path with .x suffix; rebuild if newer.
-    local xsrc="${out%.o}.x"
+    # Sibling .x deps: out path stem, and seed-stem under src/asm or src/
+    # (frontend glue: out=src/lexer/lexer.o, seed=runtime_lexer_glue → src/asm/…).
+    local need=0
+    local xsrc stem cand
+    xsrc="${out%.o}.x"
     if [ -f "$xsrc" ] && [ "$xsrc" -nt "$out" ]; then
-      :
-    else
+      need=1
+    fi
+    stem="$(basename "$seed" .from_x.c)"
+    for cand in "src/asm/${stem}.x" "src/${stem}.x"; do
+      if [ -f "$cand" ] && [ "$cand" -nt "$out" ]; then
+        need=1
+        break
+      fi
+    done
+    if [ "$need" -eq 0 ]; then
       log "skip $out (up-to-date vs $seed)"
       return 0
     fi
@@ -134,7 +149,7 @@ catalog_key_list() {
   printf '%s\n' "$key_line"
 }
 
-# seed convention: basename of .o → seeds/<basename>.from_x.c
+# seed convention (basename match): basename of .o → seeds/<basename>.from_x.c
 seed_for_o() {
   local o="$1"
   local base
@@ -142,18 +157,42 @@ seed_for_o() {
   printf 'seeds/%s.from_x.c\n' "$base"
 }
 
+# seed convention (frontend-glue basename mismatch): o path → seed path.
+# PLATFORM: SHARED — map is path convention only; list authority = catalog KEY.
+# Not a second .o inventory: unknown catalog members fail closed.
+seed_for_frontend_glue() {
+  local o="$1"
+  case "$o" in
+    src/lexer/lexer.o)   printf 'seeds/runtime_lexer_glue.from_x.c\n' ;;
+    src/ast/ast.o)       printf 'seeds/runtime_ast_glue.from_x.c\n' ;;
+    src/lsp/lsp_diag.o)  printf 'seeds/runtime_lsp_glue.from_x.c\n' ;;
+    *)
+      echo "ensure_host_cc_seed_o: no frontend-glue seed map for $o" >&2
+      exit 1
+      ;;
+  esac
+}
+
 # Ensure every .o in catalog KEY via pure host-cc body.
+# $1=KEY $2=label $3=seed_mode (basename|frontend-glue)
 ensure_catalog_family() {
-  # $1 = KEY  $2 = human family label (for log)
   local key="$1"
   local label="$2"
+  local seed_mode="${3:-basename}"
   local list n=0 o seed
   list="$(catalog_key_list "$key")"
   # Word-split intentionally (space-separated make expansion).
   # shellcheck disable=SC2086
   for o in $list; do
     [ -z "$o" ] && continue
-    seed="$(seed_for_o "$o")"
+    case "$seed_mode" in
+      basename) seed="$(seed_for_o "$o")" ;;
+      frontend-glue) seed="$(seed_for_frontend_glue "$o")" ;;
+      *)
+        echo "ensure_host_cc_seed_o: unknown seed_mode $seed_mode" >&2
+        exit 2
+        ;;
+    esac
     ensure_one "$o" "$seed"
     n=$((n + 1))
   done
@@ -161,28 +200,34 @@ ensure_catalog_family() {
 }
 
 ensure_rt_slice() {
-  ensure_catalog_family "RT_SEED_SLICE_OBJS" "rt-slice"
+  ensure_catalog_family "RT_SEED_SLICE_OBJS" "rt-slice" "basename"
 }
 
 ensure_core_seed() {
-  ensure_catalog_family "R1_CORE_SEED_OBJS" "core-seed"
+  ensure_catalog_family "R1_CORE_SEED_OBJS" "core-seed" "basename"
+}
+
+ensure_frontend_glue() {
+  ensure_catalog_family "R1_FRONTEND_GLUE_OBJS" "frontend-glue" "frontend-glue"
 }
 
 ensure_all_swallowed() {
   ensure_rt_slice
   ensure_core_seed
-  log "all swallowed R1 families OK (rt-slice + core-seed)"
+  ensure_frontend_glue
+  log "all swallowed R1 families OK (rt-slice + core-seed + frontend-glue)"
 }
 
 # ---------------------------------------------------------------------------
 # --check: wiring + catalog keys + convention (no full compile required)
 # ---------------------------------------------------------------------------
 check_family() {
-  # $1=KEY $2=min_count $3=label $4=optional path prefix pattern (e.g. src/)
+  # $1=KEY $2=min_count $3=label $4=seed_mode $5=optional path prefix pattern
   local key="$1"
   local min_n="$2"
   local label="$3"
-  local path_pfx="${4:-}"
+  local seed_mode="${4:-basename}"
+  local path_pfx="${5:-}"
   local list n=0 o seed
   if ! list="$(catalog_key_list "$key" 2>/dev/null)"; then
     bad "catalog cannot expand $key (add export key)"
@@ -192,7 +237,16 @@ check_family() {
   for o in $list; do
     [ -z "$o" ] && continue
     n=$((n + 1))
-    seed="$(seed_for_o "$o")"
+    case "$seed_mode" in
+      basename) seed="$(seed_for_o "$o")" ;;
+      frontend-glue)
+        if ! seed="$(seed_for_frontend_glue "$o" 2>/dev/null)"; then
+          bad "frontend-glue map missing for catalog member $o"
+          continue
+        fi
+        ;;
+      *) bad "unknown seed_mode $seed_mode for $label"; continue ;;
+    esac
     if [ ! -f "$seed" ]; then
       bad "missing seed for $o → $seed ($label)"
     fi
@@ -229,9 +283,14 @@ run_check() {
     && ! grep -q 'R1_CORE_SEED_OBJS' mk/*.mk 2>/dev/null; then
     bad "R1_CORE_SEED_OBJS not defined in Makefile/mk (wave749)"
   fi
+  if ! grep -q 'R1_FRONTEND_GLUE_OBJS' Makefile \
+    && ! grep -q 'R1_FRONTEND_GLUE_OBJS' mk/*.mk 2>/dev/null; then
+    bad "R1_FRONTEND_GLUE_OBJS not defined in Makefile/mk (wave750)"
+  fi
 
-  check_family "RT_SEED_SLICE_OBJS" 5 "rt-slice" "src/runtime/"
-  check_family "R1_CORE_SEED_OBJS" 5 "core-seed" "src/"
+  check_family "RT_SEED_SLICE_OBJS" 5 "rt-slice" "basename" "src/runtime/"
+  check_family "R1_CORE_SEED_OBJS" 5 "core-seed" "basename" "src/"
+  check_family "R1_FRONTEND_GLUE_OBJS" 3 "frontend-glue" "frontend-glue" "src/"
 
   # Makefile thin: recipes must call this script (not inline $(CC) -c for swallowed leaves)
   if ! grep -q 'ensure_host_cc_seed_o\.sh' Makefile; then
@@ -240,15 +299,18 @@ run_check() {
     note "Makefile thin-call present"
   fi
   # Core-seed leaves must not keep inline $(CC) -c recipes (thin only).
-  if grep -nE 'src/diag\.o:|src/runtime_link_abi\.o:|src/runtime_c_import\.o:|src/x_seed_bridge\.o:|src/seed_link_compat\.o:' Makefile \
-    | head -1 >/dev/null; then
-    # Check recipe lines under those targets still don't use bare $(CC) -c for seeds
-    if grep -A1 -E '^(src/diag\.o|src/runtime_link_abi\.o|src/runtime_c_import\.o|src/x_seed_bridge\.o|src/seed_link_compat\.o):' Makefile \
-      | grep -qE '\$\(CC\).*-c seeds/'; then
-      bad "Makefile core-seed leaves still have inline \$(CC) -c (must thin-call ensure)"
-    else
-      note "Makefile core-seed leaves thin (no inline \$(CC) -c)"
-    fi
+  if grep -A1 -E '^(src/diag\.o|src/runtime_link_abi\.o|src/runtime_c_import\.o|src/x_seed_bridge\.o|src/seed_link_compat\.o):' Makefile \
+    | grep -qE '\$\(CC\).*-c seeds/'; then
+    bad "Makefile core-seed leaves still have inline \$(CC) -c (must thin-call ensure)"
+  else
+    note "Makefile core-seed leaves thin (no inline \$(CC) -c)"
+  fi
+  # Frontend-glue leaves must not keep inline $(CC) -c recipes.
+  if grep -A1 -E '^(src/lexer/lexer\.o|src/ast/ast\.o|src/lsp/lsp_diag\.o):' Makefile \
+    | grep -qE '\$\(CC\).*-c seeds/'; then
+    bad "Makefile frontend-glue leaves still have inline \$(CC) -c (must thin-call ensure)"
+  else
+    note "Makefile frontend-glue leaves thin (no inline \$(CC) -c)"
   fi
 
   # G.7: list authority is catalog only — no hardcoded assignment of product lists.
@@ -260,12 +322,16 @@ run_check() {
     | grep -vqE '^\s*#|:[0-9]+:\s*#'; then
     bad "must not hardcode R1_CORE_SEED_OBJS= in shell body"
   fi
+  if grep -nE '^(export )?R1_FRONTEND_GLUE_OBJS=' "$0" 2>/dev/null \
+    | grep -vqE '^\s*#|:[0-9]+:\s*#'; then
+    bad "must not hardcode R1_FRONTEND_GLUE_OBJS= in shell body"
+  fi
 
   if [ "$fail" -ne 0 ]; then
     echo "ensure_host_cc_seed_o: --check FAILED" >&2
     exit 1
   fi
-  echo "ensure_host_cc_seed_o: CHECK OK (R1 rt-seed-slice + core-seed · wave748–749)" >&2
+  echo "ensure_host_cc_seed_o: CHECK OK (R1 rt-seed-slice + core-seed + frontend-glue · wave748–750)" >&2
 }
 
 case "$MODE" in
@@ -282,6 +348,9 @@ case "$MODE" in
   core-seed|core_seed|core|r1-core|r1-core-seed|family=r1_core_seed)
     ensure_core_seed
     ;;
+  frontend-glue|frontend_glue|glue|r1-frontend-glue|r1-glue|family=r1_frontend_glue)
+    ensure_frontend_glue
+    ;;
   all|family|families|swallowed)
     # Umbrella: all swallowed pure R1 families on this body.
     ensure_all_swallowed
@@ -290,11 +359,11 @@ case "$MODE" in
     run_check
     ;;
   help|-h|--help)
-    sed -n '2,50p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,55p' "$0" | sed 's/^# \{0,1\}//'
     exit 0
     ;;
   *)
-    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|rt-slice|core-seed|all|--check)" >&2
+    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|rt-slice|core-seed|frontend-glue|all|--check)" >&2
     exit 2
     ;;
 esac

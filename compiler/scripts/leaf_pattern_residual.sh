@@ -4,6 +4,7 @@
 #   wave747: R4 mode-policy swallow (catalog + shell table; pattern body residual)
 #   wave748: R1 first family rt-seed-slice body → ensure_host_cc_seed_o.sh
 #   wave749: R1 second family core-seed (diag/link_abi/c_import/bridge/compat)
+#   wave750: R1 third family frontend-glue (lexer/ast/lsp basename-mismatch map)
 #
 # Authority (G.7):
 #   Single shell authority for *named residual classes* of Makefile leaf pattern /
@@ -20,7 +21,7 @@
 #   ./xbuild leaf-patterns | leaf-residual [--check]
 #
 # PLATFORM: SHARED — inventory portable; leaf ABI stays in Makefile / mk.
-# Wave: 746–749 Track MG · 11.3.1 path (not physical delete · not pure-ld).
+# Wave: 746–750 Track MG · 11.3.1 path (not physical delete · not pure-ld).
 
 set -euo pipefail
 
@@ -52,7 +53,7 @@ bad() { echo "leaf_pattern_residual: FAIL: $*" >&2; fail=1; }
 # ---------------------------------------------------------------------------
 print_classes() {
   cat <<EOF
-# leaf pattern residual inventory (11.3.1 path · wave746–749)
+# leaf pattern residual inventory (11.3.1 path · wave746–750)
 # Lists stay mk/catalog. Pattern bodies stay Makefile until named shell swallow.
 
 LEAF_PATTERN_POLICY=inventory_named_classes_plus_r4_mode_and_r1_families
@@ -69,12 +70,13 @@ SWALLOWED_LINK_DRIVER=scripts/bootstrap_driver_seed_link.sh
 SWALLOWED_G05_FAMILY=scripts/g05_*.sh
 SWALLOWED_MIGRATE_GEN=scripts/migrate_x_objs.sh+ensure_*_gen.sh
 SWALLOWED_HOST_LINKER_MAP=scripts/host_platform_linker.sh
-# wave748–749: R1 pure host-cc body (shared ensure_host_cc_seed_o.sh)
+# wave748–750: R1 pure host-cc body (shared ensure_host_cc_seed_o.sh)
 SWALLOWED_R1_HOST_CC_SEED_BODY=scripts/ensure_host_cc_seed_o.sh
-SWALLOWED_R1_FAMILY=rt_seed_slice+core_seed
+SWALLOWED_R1_FAMILY=rt_seed_slice+core_seed+frontend_glue
 SWALLOWED_R1_RT_SEED_SLICE=1
 SWALLOWED_R1_CORE_SEED=1
-SWALLOWED_R1_LIST_SOURCE=catalog_RT_SEED_SLICE_OBJS+catalog_R1_CORE_SEED_OBJS
+SWALLOWED_R1_FRONTEND_GLUE=1
+SWALLOWED_R1_LIST_SOURCE=catalog_RT_SEED_SLICE_OBJS+catalog_R1_CORE_SEED_OBJS+catalog_R1_FRONTEND_GLUE_OBJS
 SWALLOWED_R1_NOTE=pure_cc_body_shell_lists_mk_other_R1_residual
 
 # Residual classes still Makefile-owned (R1–R5 = 11.3.1; R6 = 11.1.4)
@@ -82,6 +84,7 @@ RESIDUAL_CLASS_R1=host_cc_seed_from_x_to_o
 RESIDUAL_CLASS_R1_SURFACE=Makefile_\$(CC)_-c_seeds/*.from_x.c
 RESIDUAL_CLASS_R1_FAMILY_RT_SLICE=swallowed_wave748
 RESIDUAL_CLASS_R1_FAMILY_CORE_SEED=swallowed_wave749
+RESIDUAL_CLASS_R1_FAMILY_FRONTEND_GLUE=swallowed_wave750
 RESIDUAL_CLASS_R1_OTHER_LEAVES=residual
 RESIDUAL_CLASS_R1_ENDGAME=shell_ensure_or_product_E_plus_cc_single_body_all_families
 
@@ -115,7 +118,7 @@ EOF
 
 print_live_metrics() {
   local mf="$ROOT/compiler/Makefile"
-  local cc_c=0 uname_n=0 rebuild_modes=0 catalog_default=0 r1_rt=0 r1_core=0
+  local cc_c=0 uname_n=0 rebuild_modes=0 catalog_default=0 r1_rt=0 r1_core=0 r1_glue=0
   if [ -f "$mf" ]; then
     # Count recipe-ish $(CC) ... -c lines (rough residual heat; not authoritative list).
     cc_c=$(grep -cE '\$\(CC\).*-c' "$mf" 2>/dev/null || echo 0)
@@ -144,6 +147,13 @@ print_live_metrics() {
       "$ROOT/compiler/scripts/ensure_host_cc_seed_o.sh" 2>/dev/null; then
     r1_core=1
   fi
+  # wave750: R1 frontend-glue body + catalog key + basename-mismatch map
+  if [ -f "$ROOT/compiler/scripts/ensure_host_cc_seed_o.sh" ] \
+    && grep -q 'R1_FRONTEND_GLUE_OBJS' "$mf" 2>/dev/null \
+    && grep -q 'frontend-glue\|R1_FRONTEND_GLUE' \
+      "$ROOT/compiler/scripts/ensure_host_cc_seed_o.sh" 2>/dev/null; then
+    r1_glue=1
+  fi
   cat <<EOF
 MAKEFILE_PRESENT=$([ -f "$mf" ] && echo 1 || echo 0)
 MAKEFILE_CC_C_RECIPE_LINES=$cc_c
@@ -153,6 +163,7 @@ R4_MODE_POLICY_SWALLOWED=$catalog_default
 R4_PATTERN_BODY_STILL_MAKE=1
 R1_RT_SEED_SLICE_SWALLOWED=$r1_rt
 R1_CORE_SEED_SWALLOWED=$r1_core
+R1_FRONTEND_GLUE_SWALLOWED=$r1_glue
 R1_OTHER_HOST_CC_STILL_MAKE=1
 ENDGAME_PHYSICAL_DELETE_MAKEFILE=0
 ENDGAME_LEAF_WITHOUT_HOST_CC=0
@@ -207,6 +218,9 @@ else
   if ! grep -qE 'wave749|R1_CORE_SEED|core-seed|core_seed' "$DOC_REL"; then
     bad "$DOC_REL must document wave749 R1 core-seed swallow"
   fi
+  if ! grep -qE 'wave750|R1_FRONTEND_GLUE|frontend-glue|frontend_glue' "$DOC_REL"; then
+    bad "$DOC_REL must document wave750 R1 frontend-glue swallow"
+  fi
   note "doc $DOC_REL present"
 fi
 
@@ -249,13 +263,19 @@ fi
 if ! printf '%s\n' "$_out" | grep -q 'R1_CORE_SEED_SWALLOWED=1'; then
   bad "dump R1_CORE_SEED_SWALLOWED must be 1 (ensure body + catalog + thin)"
 fi
+if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R1_FRONTEND_GLUE=1'; then
+  bad "dump must set SWALLOWED_R1_FRONTEND_GLUE=1 (wave750)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'R1_FRONTEND_GLUE_SWALLOWED=1'; then
+  bad "dump R1_FRONTEND_GLUE_SWALLOWED must be 1 (ensure body + catalog + thin)"
+fi
 if ! printf '%s\n' "$_out" | grep -q 'R1_OTHER_HOST_CC_STILL_MAKE=1'; then
   bad "dump must keep R1_OTHER_HOST_CC_STILL_MAKE=1 (honest residual)"
 fi
 if ! printf '%s\n' "$_out" | grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0'; then
   bad "dump missing ENDGAME_PHYSICAL_DELETE_MAKEFILE=0 (not closed)"
 else
-  note "residual class inventory dump OK (wave747 R4 + wave748–749 R1 families)"
+  note "residual class inventory dump OK (wave747 R4 + wave748–750 R1 families)"
 fi
 
 # Makefile still present (residual reality) + has host-cc heat
@@ -297,11 +317,17 @@ fi
 if ! grep -q 'R1_CORE_SEED_OBJS' compiler/scripts/driver_seed_obj_catalog.sh; then
   bad "driver_seed_obj_catalog must require R1_CORE_SEED_OBJS (wave749)"
 fi
+if ! grep -q 'R1_FRONTEND_GLUE_OBJS' compiler/scripts/driver_seed_obj_catalog.sh; then
+  bad "driver_seed_obj_catalog must require R1_FRONTEND_GLUE_OBJS (wave750)"
+fi
 if ! grep -q 'ensure_host_cc_seed_o\.sh' "$MF"; then
   bad "Makefile must thin-call ensure_host_cc_seed_o.sh for R1 families"
 fi
 if ! grep -q 'R1_CORE_SEED_OBJS' "$MF"; then
   bad "Makefile must define R1_CORE_SEED_OBJS (wave749 list authority)"
+fi
+if ! grep -q 'R1_FRONTEND_GLUE_OBJS' "$MF"; then
+  bad "Makefile must define R1_FRONTEND_GLUE_OBJS (wave750 list authority)"
 fi
 # G.7: ensure script must not hardcode product .o assignment list (export-style)
 if grep -nE '^(export )?RT_SEED_SLICE_OBJS=' compiler/scripts/ensure_host_cc_seed_o.sh \
@@ -312,12 +338,21 @@ if grep -nE '^(export )?R1_CORE_SEED_OBJS=' compiler/scripts/ensure_host_cc_seed
   | grep -vqE '^\s*#|:[0-9]+:\s*#'; then
   bad "ensure_host_cc_seed_o.sh must not hardcode R1_CORE_SEED_OBJS= (G.7)"
 fi
+if grep -nE '^(export )?R1_FRONTEND_GLUE_OBJS=' compiler/scripts/ensure_host_cc_seed_o.sh \
+  | grep -vqE '^\s*#|:[0-9]+:\s*#'; then
+  bad "ensure_host_cc_seed_o.sh must not hardcode R1_FRONTEND_GLUE_OBJS= (G.7)"
+fi
 # Core-seed leaves must not keep inline $(CC) -c seed recipes
 if grep -A1 -E '^(src/diag\.o|src/runtime_link_abi\.o|src/runtime_c_import\.o|src/x_seed_bridge\.o|src/seed_link_compat\.o):' "$MF" \
   | grep -qE '\$\(CC\).*-c seeds/'; then
   bad "Makefile core-seed leaves still have inline \$(CC) -c (wave749 thin required)"
 fi
-note "R1 rt-seed-slice + core-seed shell body + catalog + thin Makefile (wave748–749)"
+# Frontend-glue leaves must not keep inline $(CC) -c seed recipes
+if grep -A1 -E '^(src/lexer/lexer\.o|src/ast/ast\.o|src/lsp/lsp_diag\.o):' "$MF" \
+  | grep -qE '\$\(CC\).*-c seeds/'; then
+  bad "Makefile frontend-glue leaves still have inline \$(CC) -c (wave750 thin required)"
+fi
+note "R1 rt-seed-slice + core-seed + frontend-glue shell body + catalog + thin Makefile (wave748–750)"
 
 # wave747: rebuild_leaves default = catalog + mode table; still make for bodies
 if [ ! -f "$REBUILD_REL" ]; then
@@ -396,5 +431,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747 R4 + wave748–749 R1 families + 11.3.1 leaf residual inventory)"
+echo "leaf_pattern_residual: CHECK OK (wave747 R4 + wave748–750 R1 families + 11.3.1 leaf residual inventory)"
 exit 0
