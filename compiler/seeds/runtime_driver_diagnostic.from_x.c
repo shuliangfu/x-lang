@@ -679,6 +679,15 @@ void driver_diagnostic_typeck_call_arg_type_mismatch(int32_t line, int32_t col)
   return;
 }
 
+/* wave675 Cap residual: pure authority thin.x driver_diagnostic_typeck_call_unresolved;
+ * cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X. */
+void driver_diagnostic_typeck_call_unresolved(int32_t line, int32_t col)
+{
+  (void)(lsp_diag_report_typeck(line, col,
+      "unresolved function call (no matching function)"));
+  return;
+}
+
 /* wave664 Cap residual: pure authority thin.x driver_diagnostic_typeck_subscript_index;
  * cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X. */
 void driver_diagnostic_typeck_subscript_index(int32_t line, int32_t col)

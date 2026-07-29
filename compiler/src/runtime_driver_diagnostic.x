@@ -258,6 +258,23 @@ export function driver_diagnostic_typeck_call_arg_type_mismatch(line: i32, col: 
   }
 }
 
+/**
+ * Report unresolved free-function CALL (wave675 Cap residual).
+ * Closes soft residual: bare VAR callee with no module name hit left typeck OK → host BLD001
+ * undeclared function (also covers silent parse-drop of bad formals + call).
+ * @param line i32 — 1-based source line of the CALL
+ * @param col i32 — 1-based source column of the CALL
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ thin.x; seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_call_unresolved(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "unresolved function call (no matching function)");
+  }
+}
+
 /** Exported function `driver_diagnostic_typeck_enum_no_variant`.
  * Implements `driver_diagnostic_typeck_enum_no_variant`.
  * @param line i32

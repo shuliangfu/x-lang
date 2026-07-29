@@ -732,6 +732,7 @@ extern void driver_diagnostic_typeck_invalid_as_cast(int32_t line, int32_t col);
 /* wave660 Cap residual: call arity hard diag (G.7 ≡ typeck.x). */
 extern void driver_diagnostic_typeck_call_arity_mismatch(int32_t line, int32_t col);
 extern void driver_diagnostic_typeck_call_arg_type_mismatch(int32_t line, int32_t col);
+extern void driver_diagnostic_typeck_call_unresolved(int32_t line, int32_t col);
 /* wave664 Cap residual: non-integer subscript index hard diag (G.7 ≡ typeck.x). */
 extern void driver_diagnostic_typeck_subscript_index(int32_t line, int32_t col);
 /* wave665 Cap residual: non-bool &&/||/! operand hard diag (G.7 ≡ typeck.x). */
@@ -5073,7 +5074,8 @@ int32_t typeck_check_expr_call_resolve(struct ast_Module * module, struct ast_AS
   }
   return 0;
 }
-/* wave660 Cap residual: hard-fail CALL arity (G.7 ≡ typeck.x). */
+/* wave660 Cap residual: hard-fail CALL arity (G.7 ≡ typeck.x).
+ * wave675: also hard-fail unresolved bare VAR callee (name_hits==0). */
 int32_t typeck_check_call_arity(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx) {
   int32_t num_args = 0;
   int32_t fi = 0;
@@ -5135,6 +5137,9 @@ int32_t typeck_check_call_arity(struct ast_Module * module, struct ast_ASTArena 
     return 0;
   }
   (void)(pipeline_expr_var_name_into(arena, callee_eff, &((cnm)[0])));
+  if ((pipeline_typeck_is_read_ptr_slice_callee_c(&((cnm)[0]), cnml) !=0)) {
+    return 0;
+  }
   (void)((name_hits = 0));
   (void)((arity_hits = 0));
   (void)((j = 0));
@@ -5151,6 +5156,13 @@ int32_t typeck_check_call_arity(struct ast_Module * module, struct ast_ASTArena 
     (void)((line_a = pipeline_expr_line_at(arena, expr_ref)));
     (void)((col_a = pipeline_expr_col_at(arena, expr_ref)));
     (void)(driver_diagnostic_typeck_call_arity_mismatch(line_a, col_a));
+    return -(1);
+  }
+  /* wave675: completely unknown bare name → hard-fail (was BLD001 undeclared). */
+  if ((name_hits ==0)) {
+    (void)((line_a = pipeline_expr_line_at(arena, expr_ref)));
+    (void)((col_a = pipeline_expr_col_at(arena, expr_ref)));
+    (void)(driver_diagnostic_typeck_call_unresolved(line_a, col_a));
     return -(1);
   }
   return 0;

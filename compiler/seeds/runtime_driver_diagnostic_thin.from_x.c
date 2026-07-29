@@ -763,6 +763,13 @@ void driver_diagnostic_typeck_call_arg_type_mismatch(int32_t line, int32_t col) 
   (void)(0);
   return;
 }
+/* wave675 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_call_unresolved */
+void driver_diagnostic_typeck_call_unresolved(int32_t line, int32_t col) {
+  (void)(lsp_diag_report_typeck(line, col,
+      ((uint8_t *)"unresolved function call (no matching function)")));
+  (void)(0);
+  return;
+}
 /* wave664 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_subscript_index */
 void driver_diagnostic_typeck_subscript_index(int32_t line, int32_t col) {
   (void)(lsp_diag_report_typeck(line, col,

@@ -164,6 +164,7 @@ export extern function driver_diagnostic_typeck_invalid_as_cast(line: i32, col: 
  */
 export extern function driver_diagnostic_typeck_call_arity_mismatch(line: i32, col: i32): void;
 export extern function driver_diagnostic_typeck_call_arg_type_mismatch(line: i32, col: i32): void;
+export extern function driver_diagnostic_typeck_call_unresolved(line: i32, col: i32): void;
 /**
  * Report non-integer array/slice/pointer subscript index (wave664 Cap residual).
  * @param line i32 — 1-based source line of the INDEX expr
@@ -6440,14 +6441,18 @@ ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * Hard-fail free-function CALL when argument count ≠ resolved (or name-matched) arity.
+ * Hard-fail free-function CALL when argument count ≠ resolved (or name-matched) arity,
+ * or when a bare VAR callee name resolves to no function at all.
  * wave660 Cap residual: overload pick used to bind first same-name func ignoring arity
  * → typeck OK then host-cc BLD001. Also covers pure miss after first_idx gate.
+ * wave675 Cap residual: unresolved bare VAR callee (name_hits==0) was soft-skipped →
+ * host BLD001 undeclared function (typos, silent parse-drop of bad formals + call).
+ * Soft-skip: non-VAR callee (fn ptr / method path), special read_ptr_slice intrinsics.
  * @param module *Module — entry / local module
  * @param arena *ASTArena
  * @param expr_ref i32 — EXPR_CALL
  * @param ctx *PipelineDepCtx — for dep module when resolved_dep_index ≥ 0
- * @return i32 — 0 ok, -1 arity mismatch (diagnostic emitted)
+ * @return i32 — 0 ok, -1 arity mismatch or unresolved (diagnostic emitted)
  * PLATFORM: SHARED — G.7 single gate; product path also invoked from
  * pipeline_typeck_check_expr_call_c after resolve (seed typeck_check_expr_call delegates).
  */
@@ -6497,9 +6502,12 @@ ctx: *PipelineDepCtx): i32 {
       return 0;
     }
     /*
-     * Unresolved CALL: if callee is a bare VAR name that exists in the local module
-     * but no same-name func has nparams==num_args, hard-fail (after wave660 first_idx
-     * gate, pure arity miss returns no resolve but codegen still emits by name).
+     * Unresolved CALL (fi < 0 after resolve):
+     * - name exists locally but no nparams==num_args → arity T001 (wave660)
+     * - bare VAR name has zero local hits → unresolved T001 (wave675)
+     * Special read_ptr_slice callees stamp ret without fi → soft-skip.
+     * Non-VAR callee (fn pointer / complex) → soft (not this hard leaf).
+     * Dep-resolved calls set fi ≥ 0 above; import-only names without import stay red.
      */
     callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
     if (ast.ref_is_null(callee_ref)) {
@@ -6520,6 +6528,10 @@ ctx: *PipelineDepCtx): i32 {
       return 0;
     }
     pipeline_expr_var_name_into(arena, callee_eff, &cnm[0]);
+    /* PLATFORM: SHARED — product intrinsics that type without module fi. */
+    if (pipeline_typeck_is_read_ptr_slice_callee_c(&cnm[0], cnml) != 0) {
+      return 0;
+    }
     name_hits = 0;
     arity_hits = 0;
     j = 0;
@@ -6536,6 +6548,13 @@ ctx: *PipelineDepCtx): i32 {
       line_a = pipeline_expr_line_at(arena, expr_ref);
       col_a = pipeline_expr_col_at(arena, expr_ref);
       driver_diagnostic_typeck_call_arity_mismatch(line_a, col_a);
+      return -1;
+    }
+    /* wave675: completely unknown bare name → hard-fail (was BLD001 undeclared). */
+    if (name_hits == 0) {
+      line_a = pipeline_expr_line_at(arena, expr_ref);
+      col_a = pipeline_expr_col_at(arena, expr_ref);
+      driver_diagnostic_typeck_call_unresolved(line_a, col_a);
       return -1;
     }
     return 0;
