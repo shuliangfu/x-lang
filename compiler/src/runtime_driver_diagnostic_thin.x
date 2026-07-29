@@ -597,6 +597,21 @@ export function driver_diagnostic_typeck_comparison_type_mismatch(line: i32, col
   }
 }
 
+/**
+ * Report void used in arithmetic or unary -/~ (wave667 Cap residual pure leaf).
+ * @param line i32 — 1-based source line of the op
+ * @param col i32 — 1-based source column of the op
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ runtime_driver_diagnostic.x.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_invalid_void_binop(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "invalid void operation (void cannot be used in arithmetic or unary -/~)");
+  }
+}
+
 // ---- G-02f-341 pure helpers / remaining gates ----
 
 /** Exported function `parser_is_ident_allow`.

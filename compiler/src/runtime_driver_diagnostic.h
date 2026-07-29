@@ -51,6 +51,8 @@ void driver_diagnostic_typeck_subscript_index(int32_t line, int32_t col);
 void driver_diagnostic_typeck_logical_operand_not_bool(int32_t line, int32_t col);
 /** wave666 Cap residual: ==/!=/</>/<=/>= operands must have equal types after lit coerce. */
 void driver_diagnostic_typeck_comparison_type_mismatch(int32_t line, int32_t col);
+/** wave667 Cap residual: void cannot be used in arithmetic or unary -/~. */
+void driver_diagnostic_typeck_invalid_void_binop(int32_t line, int32_t col);
 void driver_diagnostic_typeck_struct_padding_before(const uint8_t *sname, int32_t sname_len, int32_t gap,
                                                     const uint8_t *fname, int32_t fname_len);
 void driver_diagnostic_typeck_struct_padding_trailing(const uint8_t *sname, int32_t sname_len, int32_t gap);

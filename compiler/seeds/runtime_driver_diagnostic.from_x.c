@@ -705,6 +705,15 @@ void driver_diagnostic_typeck_comparison_type_mismatch(int32_t line, int32_t col
       "comparison operands have incompatible types"));
   return;
 }
+
+/* wave667 Cap residual: pure authority thin.x driver_diagnostic_typeck_invalid_void_binop;
+ * cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X. */
+void driver_diagnostic_typeck_invalid_void_binop(int32_t line, int32_t col)
+{
+  (void)(lsp_diag_report_typeck(line, col,
+      "invalid void operation (void cannot be used in arithmetic or unary -/~)"));
+  return;
+}
 #endif
 
 /* pure 权威：thin.x driver_diagnostic_typeck_if_condition_not_bool；冷启动全 C；FROM_X 无 pure-dup _impl */

@@ -776,6 +776,12 @@ void driver_diagnostic_typeck_comparison_type_mismatch(int32_t line, int32_t col
       "comparison operands have incompatible types"));
   return;
 }
+/* wave667 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_invalid_void_binop */
+void driver_diagnostic_typeck_invalid_void_binop(int32_t line, int32_t col) {
+  (void)(lsp_diag_report_typeck(line, col,
+      "invalid void operation (void cannot be used in arithmetic or unary -/~)"));
+  return;
+}
 
 /* wave665 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_logical_operand_not_bool */
 void driver_diagnostic_typeck_logical_operand_not_bool(int32_t line, int32_t col) {

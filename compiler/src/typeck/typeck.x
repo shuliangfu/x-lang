@@ -193,6 +193,15 @@ export extern function driver_diagnostic_typeck_logical_operand_not_bool(line: i
  * i32/f32/i64/bool/ptr-pointee pairs then freestanding/host false green.
  */
 export extern function driver_diagnostic_typeck_comparison_type_mismatch(line: i32, col: i32): void;
+/**
+ * Report void used as arithmetic/unary operand (wave667 Cap residual).
+ * @param line i32 — 1-based source line of the binop or unary expr
+ * @param col i32 — 1-based source column of the op
+ * @return void
+ * PLATFORM: SHARED — closes soft residual: void call result in + - * / % bitops
+ * or unary -/~ typeck OK then host-cc BLD001 invalid operands / argument type.
+ */
+export extern function driver_diagnostic_typeck_invalid_void_binop(line: i32, col: i32): void;
 export extern function typeck_driver_diagnostic_pipe_marker(id: i32): void;
 export extern function driver_diagnostic_typeck_if_condition_not_bool(line: i32, col: i32): void;
 export extern function driver_diagnostic_typeck_while_condition_not_bool(line: i32, col: i32): void;
@@ -6743,6 +6752,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     let ord_i64: i32 = 5;
     let ord_f32: i32 = 14;
     let ord_f64: i32 = 15;
+    let ord_void: i32 = 16;
     let ord_bool: i32 = 1;
     let ord_i32: i32 = 0;
     let ord_ptr: i32 = 9;
@@ -6779,6 +6789,23 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       dbg_left, dbg_left_len, dbg_right, dbg_right_len);
       lko = pipeline_type_kind_ord_at(arena, lt_ar);
       rko = pipeline_type_kind_ord_at(arena, rt_ar);
+      /*
+       * wave667 Cap residual: hard-fail void arithmetic at typeck.
+       * Root cause: type_refs_equal / left-type / i32-fallback fallthrough stamped a
+       * result type when either operand was TYPE_VOID (void call result + int, etc.)
+       * → typeck OK then host-cc BLD001 `invalid operands to binary expression
+       * ('void' and 'int')`. Soft residual after wave663 void-return gate.
+       * Reject any + - * / % << >> & | ^ with a void operand. Soft: null/unknown
+       * types (incomplete resolve) not hard-failed here.
+       * G.7: driver_diagnostic_typeck_invalid_void_binop; unary -/~ void same diag.
+       * PLATFORM: SHARED — seed typeck_gen + empty_surface + diagnostic twin same commit.
+       */
+      if (lko == ord_void || rko == ord_void) {
+        let line_vb: i32 = pipeline_expr_line_at(arena, expr_ref);
+        let col_vb: i32 = pipeline_expr_col_at(arena, expr_ref);
+        driver_diagnostic_typeck_invalid_void_binop(line_vb, col_vb);
+        return -1;
+      }
       /* Pointer ± integer is the only legal pointer arithmetic (C-like). */
       if (expr_kind == ord_add || expr_kind == ord_sub) {
         if (lko == ord_ptr && (rko == ord_i32 || rko == ord_usize || rko == ord_isize)) {
@@ -6984,6 +7011,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
  * wave289 Cap residual: hard-fail illegal unary ~ on float/ptr and unary - on ptr.
  * wave662 Cap residual: hard-fail unary -/~/! on aggregates (struct/array/slice).
  * wave665 Cap residual: hard-fail LOGNOT on non-bool (docs/04: logical requires bool).
+ * wave667 Cap residual: hard-fail unary -/~ on void (void call result).
  * Root cause (wave289): copied operand type without host-cc validity → BLD001 on
  * `~double`, `~uint8_t*`, `-uint8_t*`.
  * Root cause (wave662): LOGNOT always stamped bool; NEG/BITNOT stamped aggregate
@@ -7051,6 +7079,19 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     }
     if (!ast.ref_is_null(op_tr) && op_tr > 0 && op_tr <= arena.num_types) {
       op_ko = pipeline_type_kind_ord_at(arena, op_tr);
+      /*
+       * wave667 Cap residual: hard-fail unary -/~ on void at typeck.
+       * Root cause: stamped op type for void call result → host-cc BLD001
+       * `invalid argument type 'void' to unary expression`. LOGNOT already
+       * rejected via wave665 non-bool. G.7: invalid_void_binop (same as arith).
+       * PLATFORM: SHARED — seed typeck_gen + empty_surface same commit.
+       */
+      if ((expr_kind == ord_neg || expr_kind == ord_bitnot) && op_ko == 16) {
+        line_u = pipeline_expr_line_at(arena, expr_ref);
+        col_u = pipeline_expr_col_at(arena, expr_ref);
+        driver_diagnostic_typeck_invalid_void_binop(line_u, col_u);
+        return -1;
+      }
       /* wave289: reject ~float, ~ptr, -ptr at typeck (reuse wave285/286 diags — G.7). */
       if (expr_kind == ord_bitnot) {
         if (op_ko == ord_f32 || op_ko == ord_f64) {

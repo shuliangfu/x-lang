@@ -736,6 +736,8 @@ extern void driver_diagnostic_typeck_subscript_index(int32_t line, int32_t col);
 /* wave665 Cap residual: non-bool &&/||/! operand hard diag (G.7 ≡ typeck.x). */
 extern void driver_diagnostic_typeck_logical_operand_not_bool(int32_t line, int32_t col);
 extern void driver_diagnostic_typeck_comparison_type_mismatch(int32_t line, int32_t col);
+/* wave667 Cap residual: void arith/unary hard diag (G.7 ≡ typeck.x). */
+extern void driver_diagnostic_typeck_invalid_void_binop(int32_t line, int32_t col);
 extern void typeck_driver_diagnostic_pipe_marker(int32_t id);
 extern void driver_diagnostic_typeck_if_condition_not_bool(int32_t line, int32_t col);
 extern void driver_diagnostic_typeck_while_condition_not_bool(int32_t line, int32_t col);
@@ -5350,6 +5352,7 @@ int32_t typeck_check_expr_binop_arith(struct ast_Module * module, struct ast_AST
   int32_t ord_i64 = 5;
   int32_t ord_f32 = 14;
   int32_t ord_f64 = 15;
+  int32_t ord_void = 16;
   int32_t ord_bool = 1;
   int32_t ord_i32 = 0;
   int32_t ord_ptr = 9;
@@ -5384,6 +5387,13 @@ int32_t typeck_check_expr_binop_arith(struct ast_Module * module, struct ast_AST
     (void)(driver_diagnostic_typeck_binop_operands(expr_ref, bop_l, bop_r, lk_expr, rk_expr, pipeline_expr_block_ref_at(arena, bop_l), pipeline_expr_block_ref_at(arena, bop_r), lt_ar, rt_ar, dbg_left, dbg_left_len, dbg_right, dbg_right_len));
     (void)((lko = pipeline_type_kind_ord_at(arena, lt_ar)));
     (void)((rko = pipeline_type_kind_ord_at(arena, rt_ar)));
+    /* wave667 Cap residual: hard-fail void arithmetic (G.7 ≡ typeck.x). */
+    if (((lko == ord_void) || (rko == ord_void))) {
+      int32_t line_vb = pipeline_expr_line_at(arena, expr_ref);
+      int32_t col_vb = pipeline_expr_col_at(arena, expr_ref);
+      (void)(driver_diagnostic_typeck_invalid_void_binop(line_vb, col_vb));
+      return -(1);
+    }
     if (((expr_kind ==ord_add) || (expr_kind ==ord_sub))) {
       if (((lko ==ord_ptr) && (((rko ==ord_i32) || (rko ==ord_usize)) || (rko ==ord_isize)))) {
         (void)((out_ar = lt_ar));
@@ -5594,6 +5604,13 @@ int32_t typeck_check_expr_unary(struct ast_Module * module, struct ast_ASTArena 
   }
   if (((!(ast_ref_is_null(op_tr)) && (op_tr > 0)) && (op_tr <=(arena->num_types)))) {
     (void)((op_ko = pipeline_type_kind_ord_at(arena, op_tr)));
+    /* wave667 Cap residual: hard-fail unary -/~ on void (G.7 ≡ typeck.x). */
+    if ((((expr_kind == ord_neg) || (expr_kind == ord_bitnot)) && (op_ko == 16))) {
+      (void)((line_u = pipeline_expr_line_at(arena, expr_ref)));
+      (void)((col_u = pipeline_expr_col_at(arena, expr_ref)));
+      (void)(driver_diagnostic_typeck_invalid_void_binop(line_u, col_u));
+      return -(1);
+    }
     if ((expr_kind ==ord_bitnot)) {
       if (((op_ko ==ord_f32) || (op_ko ==ord_f64))) {
         (void)((line_u = pipeline_expr_line_at(arena, expr_ref)));
