@@ -1279,8 +1279,18 @@ int32_t pipeline_typeck_field_unknown_hard_fail_c(struct ast_Module *module, str
           break;
       }
     }
-    if (!has_struct && !has_enum)
-      return 0; /* soft: type-param / incomplete named type */
+    /*
+     * wave684 Cap residual: free type-param / incomplete TYPE_NAMED had soft
+     * return 0 here → generic bodies (historically skipped) and bare `x: T`
+     * could write `x.nope` with typeck green. No layout ⇒ no fields; hard-fail
+     * same diagnostic as concrete unknown field. PLATFORM: SHARED.
+     */
+    if (!has_struct && !has_enum) {
+      line_f = pipeline_expr_line_at(arena, expr_ref);
+      col_f = pipeline_expr_col_at(arena, expr_ref);
+      lsp_diag_report_typeck((int)line_f, (int)col_f, "unknown field on this type");
+      return -1;
+    }
     line_f = pipeline_expr_line_at(arena, expr_ref);
     col_f = pipeline_expr_col_at(arena, expr_ref);
     if (has_enum && !has_struct) {

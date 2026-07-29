@@ -9468,10 +9468,14 @@ export function typeck_x_ast_check_one_func(module: *Module, arena: *ASTArena, c
     pipeline_module_func_name_copy64(module, func_idx, typeck_scratch64_slot(0));
     driver_diagnostic_typeck_fn_enter(func_idx, typeck_scratch64_slot(0), fn_name_len);
     pipeline_typeck_linear_reset_c();
+    /* wave684 Cap residual: typecheck generic function bodies too.
+     * Prior skip (num_generic_params > 0 → return 0) left free-T / Wrap<T>
+     * bodies unchecked: unknown fields, concrete S.nope, and other typeck
+     * errors soft-greened until (if ever) monomorphized. Free type-params
+     * stay TYPE_NAMED without layout; field gate hard-fails them (wave684).
+     * Keep checking: id/geta/return of T, Wrap.val mono, concrete layouts. */
     num_generic_params = pipeline_module_func_num_generic_params_at(module, func_idx);
-    if (num_generic_params > 0) {
-      return 0;
-    }
+    (void)num_generic_params;
     body_ref = pipeline_module_func_body_ref_at(module, func_idx);
     if (ast.ref_is_null(body_ref) || pipeline_module_func_is_extern_at(module, func_idx) != 0) {
       return 0;
@@ -9528,11 +9532,9 @@ func_i: i32, num_funcs: i32): i32 {
     fn_name_len = pipeline_module_func_name_len_at(module, func_i);
     pipeline_module_func_name_copy64(module, func_i, typeck_scratch64_slot(0));
     driver_diagnostic_typeck_fn_enter(func_i, typeck_scratch64_slot(0), fn_name_len);
+    /* wave684: do not skip generic bodies (see typeck_x_ast_check_one_func). */
     num_generic_params = pipeline_module_func_num_generic_params_at(module, func_i);
-    if (num_generic_params > 0) {
-      pipeline_dep_ctx_set_current_func_index(ctx, no_func_ix);
-      return typeck_x_ast_check_all_funcs_loop(module, arena, ctx, func_i + 1, num_funcs);
-    }
+    (void)num_generic_params;
     body_ref = pipeline_module_func_body_ref_at(module, func_i);
     if (!ast.ref_is_null(body_ref) && pipeline_module_func_is_extern_at(module, func_i) == 0) {
       ret_ty_ref = pipeline_module_func_return_type_at(module, func_i);

@@ -7008,10 +7008,9 @@ int32_t typeck_x_ast_check_one_func(struct ast_Module * module, struct ast_ASTAr
   (void)(pipeline_module_func_name_copy64(module, func_idx, typeck_scratch64_slot(0)));
   (void)(driver_diagnostic_typeck_fn_enter(func_idx, typeck_scratch64_slot(0), fn_name_len));
   (void)(pipeline_typeck_linear_reset_c());
+  /* wave684 Cap residual: typecheck generic function bodies (was skip). */
   (void)((num_generic_params = pipeline_module_func_num_generic_params_at(module, func_idx)));
-  if ((num_generic_params > 0)) {
-    return 0;
-  }
+  (void)num_generic_params;
   (void)((body_ref = pipeline_module_func_body_ref_at(module, func_idx)));
   if ((ast_ref_is_null(body_ref) || (pipeline_module_func_is_extern_at(module, func_idx) !=0))) {
     return 0;
@@ -7058,11 +7057,9 @@ int32_t typeck_x_ast_check_all_funcs_loop(struct ast_Module * module, struct ast
   (void)((fn_name_len = pipeline_module_func_name_len_at(module, func_i)));
   (void)(pipeline_module_func_name_copy64(module, func_i, typeck_scratch64_slot(0)));
   (void)(driver_diagnostic_typeck_fn_enter(func_i, typeck_scratch64_slot(0), fn_name_len));
+  /* wave684: do not skip generic bodies. */
   (void)((num_generic_params = pipeline_module_func_num_generic_params_at(module, func_i)));
-  if ((num_generic_params > 0)) {
-    (void)(pipeline_dep_ctx_set_current_func_index(ctx, no_func_ix));
-    return typeck_x_ast_check_all_funcs_loop(module, arena, ctx, (func_i + 1), num_funcs);
-  }
+  (void)num_generic_params;
   (void)((body_ref = pipeline_module_func_body_ref_at(module, func_i)));
   if ((!(ast_ref_is_null(body_ref)) && (pipeline_module_func_is_extern_at(module, func_i) ==0))) {
     (void)((ret_ty_ref = pipeline_module_func_return_type_at(module, func_i)));

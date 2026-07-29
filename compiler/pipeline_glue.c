@@ -39072,12 +39072,9 @@ int32_t pipeline_typeck_x_ast_impl_c(struct ast_Module *module, struct ast_ASTAr
 
     pipeline_dep_ctx_set_current_func_index(ctx, i);
     pipeline_typeck_linear_reset_c();
+    /* wave684 Cap residual: typecheck generic bodies (was skip num_generic_params). */
     num_generic_params = pipeline_module_func_num_generic_params_at(module, i);
-    if (num_generic_params > 0) {
-      pipeline_dep_ctx_set_current_func_index(ctx, -1);
-      i = i + 1;
-      continue;
-    }
+    (void)num_generic_params;
     body_ref = pipeline_module_func_body_ref_at(module, i);
     if (!ast_ref_is_null(body_ref) && pipeline_module_func_is_extern_at(module, i) == 0) {
       ret_ty_ref = pipeline_module_func_return_type_at(module, i);
@@ -39142,12 +39139,9 @@ int32_t pipeline_typeck_x_ast_library_c(struct ast_Module *module, struct ast_AS
 
     pipeline_dep_ctx_set_current_func_index(ctx, i);
     pipeline_typeck_linear_reset_c();
+    /* wave684 Cap residual: typecheck generic bodies (was skip num_generic_params). */
     num_generic_params = pipeline_module_func_num_generic_params_at(module, i);
-    if (num_generic_params > 0) {
-      pipeline_dep_ctx_set_current_func_index(ctx, -1);
-      i = i + 1;
-      continue;
-    }
+    (void)num_generic_params;
     body_ref = pipeline_module_func_body_ref_at(module, i);
     if (!ast_ref_is_null(body_ref) && pipeline_module_func_is_extern_at(module, i) == 0) {
       ret_ty_ref = pipeline_module_func_return_type_at(module, i);
