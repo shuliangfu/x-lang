@@ -14,13 +14,14 @@
 #   ./scripts/bootstrap_driver_seed_rebuild_leaves.sh panic
 #   ./scripts/bootstrap_driver_seed_rebuild_leaves.sh user-asm
 #   ./scripts/bootstrap_driver_seed_rebuild_leaves.sh glue
+#   ./scripts/bootstrap_driver_seed_rebuild_leaves.sh pipeline-x
 #
 # Env:
 #   MAKE — make binary (default: make)
 #
 # PLATFORM: SHARED — rebuild orchestration identical; Makefile expands mode
 #            runtime_rebuild lists (no_c vs seed) and platform USER_ASM sets.
-# Wave: 722 sat/lsp · 724 bridge/panic/user-asm/glue.
+# Wave: 722 sat/lsp · 724 bridge/panic/user-asm/glue · 725 pipeline-x FORCE.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -35,8 +36,9 @@ case "$MODE" in
   panic) export_target="bootstrap-driver-seed-export-panic" ;;
   user-asm) export_target="bootstrap-driver-seed-export-user-asm" ;;
   glue) export_target="bootstrap-driver-seed-export-glue" ;;
+  pipeline-x) export_target="bootstrap-driver-seed-export-pipeline-x" ;;
   *)
-    echo "bootstrap_driver_seed_rebuild_leaves: usage: $0 sat|lsp|bridge|panic|user-asm|glue" >&2
+    echo "bootstrap_driver_seed_rebuild_leaves: usage: $0 sat|lsp|bridge|panic|user-asm|glue|pipeline-x" >&2
     exit 2
     ;;
 esac

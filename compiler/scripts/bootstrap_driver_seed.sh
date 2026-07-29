@@ -5,9 +5,11 @@
 #   This script owns the *step sequence* of cold bootstrap after Make has
 #   satisfied DRIVER_SEED_PREREQS. Leaf .o builds stay Make targets. phase1/final
 #   link *body* is scripts/bootstrap_driver_seed_link.sh (wave721); sat/lsp +
-#   bridge/panic/user-asm/glue rebuild *body* is
-#   scripts/bootstrap_driver_seed_rebuild_leaves.sh (wave722/724);
-#   host-stubs *body* is scripts/bootstrap_driver_seed_host_stubs.sh (wave723).
+#   bridge/panic/user-asm/glue/pipeline-x rebuild *body* is
+#   scripts/bootstrap_driver_seed_rebuild_leaves.sh (wave722/724/725);
+#   host-stubs *body* is scripts/bootstrap_driver_seed_host_stubs.sh (wave723);
+#   check-abi *body* is scripts/check_pipeline_gen_expr_i64_abi.sh (wave725);
+#   asm-host *body* is scripts/build_seed_asm_host.sh via thin leaf (wave725).
 #   OBJS/CFLAGS expand only via Makefile export leaves (no dual .o list).
 #   Whitelist §5b.
 #
@@ -21,7 +23,7 @@
 #
 # PLATFORM: SHARED — orchestration identical; leaf recipes carry platform ABI.
 # Wave: 717 orchestration · 721 phase1/final link · 722 sat/lsp · 723 host-stubs ·
-#       724 bridge/panic/user-asm/glue.
+#       724 bridge/panic/user-asm/glue · 725 check-abi/pipeline-x FORCE/asm-host.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -39,15 +41,17 @@ mk() {
 }
 
 # 1) P0-4: refuse stale int32_t Expr.int_val before any pipeline_x / glue link
-mk check-pipeline-gen-expr-i64-abi
+# §5b #1 wave725: pure shell body (no Makefile-inline restore/fail logic).
+chmod +x scripts/check_pipeline_gen_expr_i64_abi.sh 2>/dev/null || true
+./scripts/check_pipeline_gen_expr_i64_abi.sh
 
 # Keep committed ast_gen2.c; avoid old seed re -E of ast.x
 if [ -f ast_gen2.c ] && [ -s ast_gen2.c ]; then
   touch -r ast_gen2.c src/ast/ast.x 2>/dev/null || true
 fi
 
-# 2) Force pipeline_x.o recompile on cold start
-mk pipeline_x.o PIPELINE_X_FORCE_COMPILE=1
+# 2) Force pipeline_x.o recompile on cold start (§5b #2 export + rebuild_leaves)
+mk bootstrap-driver-seed-pipeline-x
 
 # 3) Satellite runtime/diag/simd .o forced seed path (PREFER=0)
 mk bootstrap-driver-seed-sat-rebuild
@@ -85,8 +89,8 @@ mk bootstrap-driver-seed-user-asm-seed-objs
 # 7) pipeline_glue_standalone.o (arch_*_enc weak stubs provider; §5b #7)
 mk bootstrap-driver-seed-asm-glue-standalone
 
-# 8) build-seed-asm-host (half shell already)
-mk build-seed-asm-host
+# 8) build-seed-asm-host (§5b #8 thin leaf → build_seed_asm_host.sh)
+mk bootstrap-driver-seed-asm-host
 
 if [ ! -s build_asm/seed_host/asm_backend_partial.o ]; then
   log "no seed partial, gen phase1 backend stub ..."

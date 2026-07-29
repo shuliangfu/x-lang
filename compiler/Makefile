@@ -1924,16 +1924,25 @@ RELINK_XLANG_USER_ASM_LINK = $(USER_ASM_LINK)
 RELINK_XLANG_FILTERED_OBJS =
 endif
 
-.PHONY: build-seed-asm-host
+# §5b #8 — build-seed-asm-host body is scripts/build_seed_asm_host.sh (wave725).
+# Dispatch prereqs: Makefile single-authority list DRIVER_SEED_ASM_HOST_DISPATCH_OBJS.
+# Thin leaf bootstrap-driver-seed-asm-host is the cold-orch entry; build-seed-asm-host
+# remains the historical alias (g05 hints / external callers).
+DRIVER_SEED_ASM_HOST_DISPATCH_OBJS = src/asm/backend_enc_dispatch.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o
+
+.PHONY: build-seed-asm-host bootstrap-driver-seed-asm-host
 # partial export 须先 nm dispatch .o 剔除重复符号；冷启动时 dispatch 可能尚未编译。
 .PHONY: parser-legacy-text-o
 parser-legacy-text-o:
 	@chmod +x scripts/extract_parser_legacy_text.sh 2>/dev/null || true
 	@./scripts/extract_parser_legacy_text.sh
 
-build-seed-asm-host: src/asm/backend_enc_dispatch.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o
+bootstrap-driver-seed-asm-host: $(DRIVER_SEED_ASM_HOST_DISPATCH_OBJS)
 	@chmod +x scripts/build_seed_asm_host.sh 2>/dev/null || true
 	@./scripts/build_seed_asm_host.sh
+
+# Historical alias → thin leaf (G.7 single body; no second recipe).
+build-seed-asm-host: bootstrap-driver-seed-asm-host
 
 # §5b #9 — host stubs body → scripts/bootstrap_driver_seed_host_stubs.sh (wave723).
 # SCAN_BASE / CFLAGS / OUT: Makefile export only (G.7). Optional HOST_DIR peers
@@ -2939,10 +2948,12 @@ endif
 # 11.0.3 wave722: sat/lsp rebuild body → scripts/bootstrap_driver_seed_rebuild_leaves.sh;
 # 11.0.3 wave723: host-stubs body → scripts/bootstrap_driver_seed_host_stubs.sh;
 # 11.0.3 wave724: bridge/panic/user-asm/glue → same rebuild_leaves.sh + export;
+# 11.0.3 wave725: §5b #1 check-abi shell · #2 pipeline_x FORCE export+shell · #8 asm-host thin leaf;
 #   Makefile remains sole authority for OBJS/CFLAGS expansions (export leaves only).
 # PLATFORM: SHARED — sequence in shell; Darwin filtered.o still via class-G shell recipes.
 
-# §5b #3/#4/#5/#6/#7/#12 — single-authority target lists (export + shell; no dual list in shell)
+# §5b #2/#3/#4/#5/#6/#7/#12 — single-authority target lists (export + shell; no dual list in shell)
+DRIVER_SEED_PIPELINE_X_OBJS = pipeline_x.o
 DRIVER_SEED_SAT_REBUILD_OBJS = src/diag.o src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_REBUILD) $(DRIVER_SEED_PREPROCESS_REBUILD) src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o
 DRIVER_SEED_LSP_X_OBJS = lsp_io_x.o lsp_x.o lsp_diag_x.o src/lsp/lsp_diag_pipeline_ctx.o x_frontend_link_alias.o
 DRIVER_SEED_BRIDGE_OBJS = src/x_seed_bridge.o
@@ -2958,6 +2969,7 @@ DRIVER_SEED_HOST_STUBS_SCAN_BASE = pipeline_x.o $(ASM_GLUE_STANDALONE_O) $(USER_
 	bootstrap-driver-seed-panic \
 	bootstrap-driver-seed-user-asm-seed-objs \
 	bootstrap-driver-seed-asm-glue-standalone \
+	bootstrap-driver-seed-pipeline-x \
 	bootstrap-driver-seed-filtered-objs \
 	bootstrap-driver-seed-host-stubs \
 	bootstrap-driver-seed-export-sat-rebuild \
@@ -2966,11 +2978,23 @@ DRIVER_SEED_HOST_STUBS_SCAN_BASE = pipeline_x.o $(ASM_GLUE_STANDALONE_O) $(USER_
 	bootstrap-driver-seed-export-panic \
 	bootstrap-driver-seed-export-user-asm \
 	bootstrap-driver-seed-export-glue \
+	bootstrap-driver-seed-export-pipeline-x \
 	bootstrap-driver-seed-export-host-stubs \
 	bootstrap-driver-seed-export-phase1-link \
 	bootstrap-driver-seed-export-final-link \
 	bootstrap-driver-seed-phase1-link \
 	bootstrap-driver-seed-final-link
+
+# §5b #2 — pipeline_x.o FORCE recompile on cold start (PIPELINE_X_FORCE_COMPILE=1)
+# Body: bootstrap_driver_seed_rebuild_leaves.sh pipeline-x; list = DRIVER_SEED_PIPELINE_X_OBJS only.
+bootstrap-driver-seed-export-pipeline-x:
+	@printf 'SEED_REBUILD_OBJS=%s\n' '$(DRIVER_SEED_PIPELINE_X_OBJS)'
+	@printf 'SEED_REBUILD_MAKE_ARGS=%s\n' ''
+	@printf 'SEED_REBUILD_MAKE_VARS=%s\n' 'PIPELINE_X_FORCE_COMPILE=1'
+
+bootstrap-driver-seed-pipeline-x:
+	@chmod +x scripts/bootstrap_driver_seed_rebuild_leaves.sh 2>/dev/null || true
+	@MAKE="$(MAKE)" ./scripts/bootstrap_driver_seed_rebuild_leaves.sh pipeline-x
 
 # §5b #3 — satellite runtime/diag/simd forced seed path (XLANG_G05_PREFER_X_O=0)
 # Body: bootstrap_driver_seed_rebuild_leaves.sh sat; list = DRIVER_SEED_SAT_REBUILD_OBJS only.
@@ -3366,24 +3390,11 @@ pipeline_gen.c:
 
 # PLATFORM: SHARED — always-run ABI guard (make may skip pipeline_gen.c recipe when file exists).
 # Stale workspace pipeline_gen.c with int32_t int_val is the P0-4 L4 failure mode on Ubuntu cold.
+# §5b #1 wave725: body → scripts/check_pipeline_gen_expr_i64_abi.sh (G.7 single authority).
 .PHONY: check-pipeline-gen-expr-i64-abi
 check-pipeline-gen-expr-i64-abi:
-	@if [ ! -s pipeline_gen.c ]; then \
-	  if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/pipeline_gen.linux.x86_64.c ]; then \
-	    cp -f seeds/pipeline_gen.linux.x86_64.c pipeline_gen.c; \
-	    echo "check-pipeline-gen-expr-i64-abi: restored empty pipeline_gen.c from seed" >&2; \
-	  else \
-	    echo "check-pipeline-gen-expr-i64-abi: FAIL missing pipeline_gen.c" >&2; exit 1; \
-	  fi; \
-	fi
-	@if ! grep -q 'struct ast_Expr {.*int64_t int_val' pipeline_gen.c 2>/dev/null; then \
-	  if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/pipeline_gen.linux.x86_64.c ]; then \
-	    cp -f seeds/pipeline_gen.linux.x86_64.c pipeline_gen.c; \
-	    echo "check-pipeline-gen-expr-i64-abi: restored seed (Expr.int_val must be int64_t; P0-4 / i64-ctfe)" >&2; \
-	  else \
-	    echo "check-pipeline-gen-expr-i64-abi: FAIL Expr.int_val is not int64_t and no seed" >&2; exit 1; \
-	  fi; \
-	fi
+	@chmod +x scripts/check_pipeline_gen_expr_i64_abi.sh 2>/dev/null || true
+	@./scripts/check_pipeline_gen_expr_i64_abi.sh
 
 .PHONY: bootstrap-pipeline
 bootstrap-pipeline: pipeline_gen.c
