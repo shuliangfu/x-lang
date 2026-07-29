@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# phys_del_makefile_gate.sh — wave799 execute-gate + wave800 proof + wave801 STATUS flip prep
+# phys_del_makefile_gate.sh — wave799 execute-gate + wave800 proof + wave801 STATUS
+# flip prep + wave802 STATUS flip *apply harness* (confirm-gated; tree not flipped
+# on this tip without real Windows proof + explicit human confirm).
 #
 # PLATFORM: SHARED shell orchestration (macOS / Ubuntu / Windows MSYS2).
 # Windows min-gate body runs only on MSYS2 (tests/run-bootstrap-bstrict-windows-gate.sh).
@@ -8,7 +10,8 @@
 #   Single shell authority that *refuses* physical delete of compiler/Makefile
 #   until Windows hybrid min-gate is re-proven on this tip. Complements
 #   leaf_pattern_residual.sh preflight keys (wave798). Does NOT delete Makefile.
-#   Does NOT flip PHYS_DEL_WINDOWS_GATE_STATUS (that stays a code-reviewed leaf key).
+#   STATUS flip of PHYS_DEL_WINDOWS_GATE_STATUS is confirm-gated leaf edit only
+#   (wave802); never auto-flip from proof alone; ENDGAME stays 0 on flip.
 #
 # wave800 (G.7 有则补全 on this script):
 #   Machine-checkable *evidence* stamp after MSYS min-gate green.
@@ -20,9 +23,16 @@
 #   a reviewed mac commit would apply. Preview never edits files. Preview ≠ flip.
 #   Preview ≠ physical delete. ENDGAME stays 0 until a separate delete wave.
 #
+# wave802 (G.7 有则补全 on this script):
+#   --status-flip-apply: proof + XLANG_PHYS_DEL_STATUS_FLIP_APPLY confirm env
+#   required to rewrite PHYS_DEL_WINDOWS_GATE_STATUS → reproven_green in leaf
+#   (or XLANG_PHYS_DEL_LEAF_FILE override for harness tests). Without confirm:
+#   refuse (exit 2). Never sets ENDGAME=1. Never rm Makefile. Tree on this tip
+#   stays not_reproven unless a human runs apply after real Windows proof.
+#
 # Modes:
 #   status | --status          Dump readiness + host + Windows gate honesty + proof
-#   --check | check            Machine-check gate wiring + refuse + proof + flip-prep
+#   --check | check            Machine-check gate wiring + refuse + proof + flip
 #   --dry-run-delete           List what physical delete *would* touch; never rm
 #   --run-windows-gate         Run min-gate (MSYS2 only; non-MSYS skip exit 0);
 #                              on success write proof stamp (wave800)
@@ -31,6 +41,9 @@
 #   --status-flip-preview [path]
 #                              Proof-gated plan for reviewed STATUS flip (wave801);
 #                              never edits leaf; exit 0 plan ready, 2 no/bad proof
+#   --status-flip-apply [path]
+#                              Proof + confirm-gated STATUS key edit (wave802);
+#                              without confirm exit 2; ENDGAME stays 0; not delete
 #   --delete                   HARD refuse unless Windows green + confirm env
 #                              (this tip keeps STATUS=not_reproven → always refuse)
 #
@@ -40,13 +53,17 @@
 #   bash compiler/scripts/phys_del_makefile_gate.sh --dry-run-delete
 #   bash compiler/scripts/phys_del_makefile_gate.sh --verify-windows-proof [/path]
 #   bash compiler/scripts/phys_del_makefile_gate.sh --status-flip-preview [/path]
-#   ./xbuild phys-del-gate [--check|--dry-run-delete|--run-windows-gate|--verify-windows-proof|--status-flip-preview]
+#   bash compiler/scripts/phys_del_makefile_gate.sh --status-flip-apply [/path]
+#   ./xbuild phys-del-gate [--check|--dry-run-delete|--run-windows-gate|--verify-windows-proof|--status-flip-preview|--status-flip-apply]
 #
 # Env:
 #   XLANG_PHYS_DEL_WINDOWS_PROOF=/path/to/proof   default /tmp/xlang_phys_del_windows_proof.txt
+#   XLANG_PHYS_DEL_STATUS_FLIP_APPLY=APPLY_STATUS_I_UNDERSTAND  (apply path only)
+#   XLANG_PHYS_DEL_LEAF_FILE=/path/to/leaf_copy   (test override; default leaf script)
 #   XLANG_PHYS_DEL_CONFIRM=DELETE_MAKEFILE_I_UNDERSTAND  (delete path only; still refused)
 #
-# Wave: 799–801 Track MG · 11.3.1 · NOT physical delete · NOT STATUS flip · NOT Windows green claim
+# Wave: 799–802 Track MG · 11.3.1 · NOT physical delete · tree STATUS still not_reproven
+#       · NOT Windows green claim without MSYS proof + reviewed apply
 
 set -euo pipefail
 
@@ -247,6 +264,18 @@ PHYS_DEL_STATUS_FLIP_PREP_TARGET_STATUS=reproven_green
 PHYS_DEL_STATUS_FLIP_PREP_ENDGAME_AFTER_FLIP=0
 PHYS_DEL_STATUS_FLIP_PREP_DELETE_ALLOWED=0
 PHYS_DEL_STATUS_FLIP_PREP_FORBIDDEN=auto_edit_leaf|claim_preview_is_flip|claim_preview_is_delete|flip_endgame_with_status
+# wave802: STATUS flip *apply harness* (proof + confirm env; not delete; tree not auto-flipped)
+PHYS_DEL_STATUS_FLIP_APPLY_HARNESS=1
+PHYS_DEL_STATUS_FLIP_APPLY_HARNESS_WAVE=wave802
+PHYS_DEL_STATUS_FLIP_APPLY_HARNESS_NOTE=proof_and_confirm_gated_leaf_status_edit_not_delete
+PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED=0
+PHYS_DEL_STATUS_FLIP_APPLY_REQUIRES_PROOF=1
+PHYS_DEL_STATUS_FLIP_APPLY_REQUIRES_CONFIRM=1
+PHYS_DEL_STATUS_FLIP_APPLY_CONFIRM_ENV=XLANG_PHYS_DEL_STATUS_FLIP_APPLY=APPLY_STATUS_I_UNDERSTAND
+PHYS_DEL_STATUS_FLIP_APPLY_TARGET_STATUS=reproven_green
+PHYS_DEL_STATUS_FLIP_APPLY_ENDGAME_AFTER=0
+PHYS_DEL_STATUS_FLIP_APPLY_DELETE_ALLOWED=0
+PHYS_DEL_STATUS_FLIP_APPLY_FORBIDDEN=apply_without_proof|apply_without_confirm|set_endgame_1|delete_makefile_from_apply|claim_apply_is_physical_delete|auto_flip_from_proof_alone
 # Human runbook (dual-boot host currently often Ubuntu):
 #   1) reboot dual-boot → Windows/MSYS2 (ssh windows-server)
 #   2) git pull --ff-only origin self-hosting
@@ -257,10 +286,11 @@ PHYS_DEL_STATUS_FLIP_PREP_FORBIDDEN=auto_edit_leaf|claim_preview_is_flip|claim_p
 #   4) scp windows-server:/tmp/xlang_phys_del_windows_proof.txt /tmp/
 #   5) mac: ./xbuild phys-del-gate --verify-windows-proof  # tip SHA must match
 #   6) mac: ./xbuild phys-del-gate --status-flip-preview   # plan only; no edit
-#   7) on green evidence + review: mac commit flips PHYS_DEL_WINDOWS_GATE_STATUS
-#      (ENDGAME stays 0); then separate physical delete wave
+#   7) mac: XLANG_PHYS_DEL_STATUS_FLIP_APPLY=APPLY_STATUS_I_UNDERSTAND \\
+#            ./xbuild phys-del-gate --status-flip-apply     # leaf STATUS only
+#      then commit (ENDGAME stays 0); separate physical delete wave after
 #   8) NEVER rm compiler/Makefile on this tip while STATUS=not_reproven_this_tip
-#   9) NEVER auto-edit leaf from preview / proof alone
+#   9) NEVER auto-edit leaf from preview / proof alone (confirm env required)
 EOF
 }
 
@@ -298,6 +328,16 @@ cmd_check() {
     || badf "status flip prep must keep DELETE_ALLOWED=0"
   grep -q 'PHYS_DEL_STATUS_FLIP_PREP_TARGET_STATUS=reproven_green' <<<"$dump" \
     || badf "status flip prep target must be reproven_green"
+  grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_HARNESS=1' <<<"$dump" \
+    || badf "status missing PHYS_DEL_STATUS_FLIP_APPLY_HARNESS=1 (wave802)"
+  grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_HARNESS_WAVE=wave802' <<<"$dump" \
+    || badf "status missing STATUS_FLIP_APPLY_HARNESS_WAVE=wave802"
+  grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED=0' <<<"$dump" \
+    || badf "status flip apply harness must keep TREE_APPLIED=0 on this tip"
+  grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_DELETE_ALLOWED=0' <<<"$dump" \
+    || badf "status flip apply harness must keep DELETE_ALLOWED=0"
+  grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_ENDGAME_AFTER=0' <<<"$dump" \
+    || badf "status flip apply harness must keep ENDGAME_AFTER=0"
 
   # Cross-check leaf honesty (Windows still not green; endgame 0).
   local leaf
@@ -324,6 +364,12 @@ cmd_check() {
     || badf "leaf dump missing PHYS_DEL_STATUS_FLIP_PREP_WAVE=wave801"
   grep -q 'PHYS_DEL_STATUS_FLIP_PREP_APPLIED=0' <<<"$leaf" \
     || badf "leaf dump must keep STATUS_FLIP_PREP_APPLIED=0"
+  grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_HARNESS=1' <<<"$leaf" \
+    || badf "leaf dump missing PHYS_DEL_STATUS_FLIP_APPLY_HARNESS=1 (wave802)"
+  grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_HARNESS_WAVE=wave802' <<<"$leaf" \
+    || badf "leaf dump missing PHYS_DEL_STATUS_FLIP_APPLY_HARNESS_WAVE=wave802"
+  grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED=0' <<<"$leaf" \
+    || badf "leaf dump must keep STATUS_FLIP_APPLY_TREE_APPLIED=0"
 
   # Refuse contract: --delete must fail hard on this tip.
   if bash "$SCRIPT_DIR/phys_del_makefile_gate.sh" --delete >/tmp/phys_del_refuse_out.$$ 2>/tmp/phys_del_refuse_err.$$; then
@@ -408,9 +454,74 @@ cmd_check() {
     badf "status-flip-preview mutated leaf toward green (forbidden)"
   fi
 
-  rm -f "$synth" "$bad_synth" /tmp/phys_del_vfy_ok.$$ /tmp/phys_del_vfy_bad.$$ \
+  # wave802: status-flip-apply — proof + confirm; temp leaf only in harness.
+  if bash "$SCRIPT_DIR/phys_del_makefile_gate.sh" \
+      --status-flip-apply "/tmp/xlang_phys_del_proof_missing_$$" \
+      >/tmp/phys_del_apply_miss.$$ 2>&1; then
+    badf "missing proof must not --status-flip-apply exit 0"
+  else
+    note "missing proof --status-flip-apply non-zero OK (wave802)"
+  fi
+  if bash "$SCRIPT_DIR/phys_del_makefile_gate.sh" --status-flip-apply "$bad_synth" \
+      >/tmp/phys_del_apply_bad.$$ 2>&1; then
+    badf "mismatched-tip proof must not --status-flip-apply exit 0"
+  else
+    note "mismatched-tip proof --status-flip-apply refuses OK (wave802)"
+  fi
+  # Good proof WITHOUT confirm env → refuse write (exit 2); tree leaf untouched.
+  if bash "$SCRIPT_DIR/phys_del_makefile_gate.sh" --status-flip-apply "$synth" \
+      >/tmp/phys_del_apply_noconfirm.$$ 2>&1; then
+    badf "status-flip-apply without confirm env must not exit 0"
+  else
+    if ! grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_REFUSED=missing_confirm_env' \
+        /tmp/phys_del_apply_noconfirm.$$ 2>/dev/null \
+      && ! grep -q 'missing_confirm_env\|APPLY_STATUS_I_UNDERSTAND' \
+        /tmp/phys_del_apply_noconfirm.$$ 2>/dev/null; then
+      # Still OK if stderr/stdout mention confirm; hard-require non-zero above.
+      :
+    fi
+    note "good proof without confirm --status-flip-apply refuses OK (wave802)"
+  fi
+  leaf="$(leaf_dump)"
+  if ! grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip' <<<"$leaf"; then
+    badf "status-flip-apply without confirm must not edit tree leaf STATUS"
+  fi
+  # Good proof + confirm on TEMP leaf copy only (never real tree).
+  leaf_tmp="/tmp/xlang_phys_del_leaf_copy.$$"
+  cp "$LEAF_SH" "$leaf_tmp"
+  if ! XLANG_PHYS_DEL_STATUS_FLIP_APPLY=APPLY_STATUS_I_UNDERSTAND \
+      XLANG_PHYS_DEL_LEAF_FILE="$leaf_tmp" \
+      bash "$SCRIPT_DIR/phys_del_makefile_gate.sh" --status-flip-apply "$synth" \
+      >/tmp/phys_del_apply_ok.$$ 2>&1; then
+    cat /tmp/phys_del_apply_ok.$$ >&2 || true
+    badf "synthetic proof + confirm on temp leaf must --status-flip-apply exit 0"
+  else
+    # Anchor KEY=value lines — leaf script body also *mentions* these strings in --check greps.
+    if ! grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_APPLIED=1' /tmp/phys_del_apply_ok.$$; then
+      badf "status-flip-apply must print PHYS_DEL_STATUS_FLIP_APPLY_APPLIED=1"
+    elif ! grep -qE '^PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green$' "$leaf_tmp"; then
+      badf "temp leaf after apply must have STATUS=reproven_green"
+    elif ! grep -qE '^ENDGAME_PHYSICAL_DELETE_MAKEFILE=0$' "$leaf_tmp"; then
+      badf "temp leaf after apply must keep ENDGAME=0"
+    elif grep -qE '^ENDGAME_PHYSICAL_DELETE_MAKEFILE=1$' "$leaf_tmp"; then
+      badf "temp leaf after apply must not set ENDGAME=1"
+    else
+      note "synthetic proof + confirm temp-leaf --status-flip-apply OK (wave802 harness)"
+    fi
+  fi
+  # Real tree leaf must remain not_reproven after harness apply on copy.
+  leaf="$(leaf_dump)"
+  if ! grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip' <<<"$leaf"; then
+    badf "wave802 harness must not leave tree leaf STATUS flipped"
+  fi
+  if grep -qE 'PHYS_DEL_WINDOWS_GATE_STATUS=green|PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green' <<<"$leaf"; then
+    badf "wave802 harness mutated tree leaf toward green (forbidden)"
+  fi
+
+  rm -f "$synth" "$bad_synth" "$leaf_tmp" /tmp/phys_del_vfy_ok.$$ /tmp/phys_del_vfy_bad.$$ \
     /tmp/phys_del_vfy_miss.$$ /tmp/phys_del_flip_miss.$$ /tmp/phys_del_flip_bad.$$ \
-    /tmp/phys_del_flip_ok.$$
+    /tmp/phys_del_flip_ok.$$ /tmp/phys_del_apply_miss.$$ /tmp/phys_del_apply_bad.$$ \
+    /tmp/phys_del_apply_noconfirm.$$ /tmp/phys_del_apply_ok.$$
 
   # Non-MSYS: windows-gate script skip path must be honest (exit 0 skip).
   if ! is_msys; then
@@ -421,7 +532,7 @@ cmd_check() {
     echo "phys-del-makefile-gate: CHECK FAILED" >&2
     exit 1
   fi
-  echo "phys-del-makefile-gate: CHECK OK (wave799 execute-gate + wave800 proof + wave801 status-flip-prep; refuse-delete; not Windows green; not STATUS flip; not physical delete)"
+  echo "phys-del-makefile-gate: CHECK OK (wave799 execute-gate + wave800 proof + wave801 status-flip-prep + wave802 status-flip-apply harness; refuse-delete; not Windows green; tree STATUS not flipped; not physical delete)"
   exit 0
 }
 
@@ -450,7 +561,8 @@ BLOCKERS_STILL_NAMED:
 NEXT_HUMAN:
   reboot dual-boot to Windows/MSYS2 → ./xbuild phys-del-gate --run-windows-gate
   → scp proof → mac --verify-windows-proof → --status-flip-preview
-  → reviewed STATUS flip commit (ENDGAME=0) → separate delete wave
+  → XLANG_PHYS_DEL_STATUS_FLIP_APPLY=APPLY_STATUS_I_UNDERSTAND --status-flip-apply
+  → commit STATUS flip (ENDGAME=0) → separate delete wave
 EOF
 }
 
@@ -509,13 +621,12 @@ PHYS_DEL_STATUS_FLIP_PREVIEW_DELETE_ALLOWED=0
 PHYS_DEL_STATUS_FLIP_PREVIEW_NOTE=plan_only_reviewed_mac_commit_required
 PHYS_DEL_STATUS_FLIP_PREVIEW_FORBIDDEN=auto_edit_leaf|claim_preview_is_flip|claim_preview_is_delete|set_endgame_1_in_status_flip
 
-# Reviewed mac commit plan (wave802+; NOT applied by this command):
-# 1) leaf_pattern_residual.sh dump keys:
-#      PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip
-#        → PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green
-#      keep ENDGAME_PHYSICAL_DELETE_MAKEFILE=0
-#      update honesty --check greps that hard-require not_reproven
-# 2) phys_del_makefile_gate.sh --check greps: accept reproven_green after flip wave
+# Reviewed mac path (wave802 apply harness; NOT run by preview):
+# 1) XLANG_PHYS_DEL_STATUS_FLIP_APPLY=APPLY_STATUS_I_UNDERSTAND \\
+#      ./xbuild phys-del-gate --status-flip-apply
+#    → leaf PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip → reproven_green
+#    → keep ENDGAME_PHYSICAL_DELETE_MAKEFILE=0
+# 2) update honesty --check greps that hard-require not_reproven (same flip commit)
 # 3) progress triad only (自举进度 + C迁移 + Makefile迁移表); LEAF_PATTERN_RESIDUAL.md
 # 4) dual-end L2: leaf --check + phys-del --check (mac + Ubuntu)
 # 5) physical delete is a SEPARATE wave after STATUS flip; never same commit as flip
@@ -528,7 +639,140 @@ PROOF_UTC=$(proof_get "$path" PHYS_DEL_WINDOWS_PROOF_UTC)
 EOF
   log "status-flip-preview READY for tip=$cur_tip (proof=$path)"
   log "  TARGET STATUS=reproven_green; ENDGAME stays 0; APPLIED=0 (no leaf edit)"
-  log "  next: human-reviewed mac commit for STATUS flip only; then delete wave"
+  log "  next: --status-flip-apply with confirm env (wave802) → commit; then delete wave"
+  exit 0
+}
+
+# wave802: proof + confirm-gated STATUS key edit. Never sets ENDGAME=1. Never rm Makefile.
+# Exit: 0 = applied (or already green); 2 = missing/bad proof or missing confirm; 1 = harness error.
+cmd_status_flip_apply() {
+  local path tip_p tip_h rc_field win_status endgame cur_tip leaf_target tmp
+  path="$(proof_path "${1:-}")"
+  win_status="$(leaf_get PHYS_DEL_WINDOWS_GATE_STATUS)"
+  endgame="$(leaf_get ENDGAME_PHYSICAL_DELETE_MAKEFILE)"
+  cur_tip="$(tip_short)"
+  leaf_target="${XLANG_PHYS_DEL_LEAF_FILE:-$LEAF_SH}"
+
+  if [ ! -f "$path" ]; then
+    log "status-flip-apply: no proof stamp at $path"
+    log "  on MSYS2: ./xbuild phys-del-gate --run-windows-gate"
+    log "  then scp + --verify-windows-proof + --status-flip-preview first"
+    exit 2
+  fi
+  if ! grep -qE '^PHYS_DEL_WINDOWS_PROOF=1' "$path"; then
+    log "status-flip-apply: file is not a PHYS_DEL_WINDOWS_PROOF=1 stamp: $path"
+    exit 2
+  fi
+  rc_field="$(proof_get "$path" PHYS_DEL_WINDOWS_PROOF_RC)"
+  if [ "${rc_field:-}" != "0" ]; then
+    log "status-flip-apply: stamp RC field is '${rc_field:-empty}' (need 0)"
+    exit 2
+  fi
+  tip_p="$(proof_get "$path" PHYS_DEL_WINDOWS_PROOF_TIP_FULL)"
+  tip_h="$(tip_full)"
+  if [ -z "$tip_p" ] || [ "$tip_p" = "unknown" ]; then
+    tip_p="$(proof_get "$path" PHYS_DEL_WINDOWS_PROOF_TIP_SHORT)"
+  fi
+  if [ -z "$tip_p" ] || [ "$tip_p" = "unknown" ]; then
+    log "status-flip-apply: stamp missing TIP_FULL/SHORT"
+    exit 2
+  fi
+  if ! { [ "$tip_p" = "$tip_h" ] || [ "$tip_p" = "$cur_tip" ] \
+      || { [ "${#tip_p}" -ge 7 ] && [ "${tip_h#"$tip_p"}" != "$tip_h" ]; }; }; then
+    log "status-flip-apply FAIL: tip mismatch stamp='$tip_p' HEAD='$tip_h' (short=$cur_tip)"
+    log "  re-run min-gate on MSYS2 at this tip, or pull matching tip before apply"
+    exit 2
+  fi
+
+  # Proof OK — still refuse write without explicit confirm (never auto-flip from proof).
+  if [ "${XLANG_PHYS_DEL_STATUS_FLIP_APPLY:-}" != "APPLY_STATUS_I_UNDERSTAND" ]; then
+    cat <<EOF
+PHYS_DEL_STATUS_FLIP_APPLY_READY=1
+PHYS_DEL_STATUS_FLIP_APPLY_WAVE=wave802
+PHYS_DEL_STATUS_FLIP_APPLY_TIP=$cur_tip
+PHYS_DEL_STATUS_FLIP_APPLY_PROOF_PATH=$path
+PHYS_DEL_STATUS_FLIP_APPLY_PROOF_RC=0
+PHYS_DEL_STATUS_FLIP_APPLY_CURRENT_STATUS=${win_status:-?}
+PHYS_DEL_STATUS_FLIP_APPLY_TARGET=reproven_green
+PHYS_DEL_STATUS_FLIP_APPLY_APPLIED=0
+PHYS_DEL_STATUS_FLIP_APPLY_REFUSED=missing_confirm_env
+PHYS_DEL_STATUS_FLIP_APPLY_ENDGAME=0
+PHYS_DEL_STATUS_FLIP_APPLY_DELETE_ALLOWED=0
+PHYS_DEL_STATUS_FLIP_APPLY_LEAF_TARGET=$leaf_target
+PHYS_DEL_STATUS_FLIP_APPLY_NOTE=set_XLANG_PHYS_DEL_STATUS_FLIP_APPLY=APPLY_STATUS_I_UNDERSTAND
+PHYS_DEL_STATUS_FLIP_APPLY_FORBIDDEN=apply_without_confirm|set_endgame_1|delete_makefile_from_apply
+EOF
+    log "status-flip-apply REFUSED: missing confirm env (proof OK tip=$cur_tip)"
+    log "  set XLANG_PHYS_DEL_STATUS_FLIP_APPLY=APPLY_STATUS_I_UNDERSTAND to edit leaf STATUS only"
+    log "  ENDGAME stays 0; not physical delete; tree not edited"
+    exit 2
+  fi
+
+  if [ ! -f "$leaf_target" ]; then
+    die "status-flip-apply: leaf file missing: $leaf_target"
+  fi
+
+  # Idempotent: already green in target leaf.
+  if grep -qE '^PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green$' "$leaf_target" \
+    && ! grep -qE '^PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip$' "$leaf_target"; then
+    cat <<EOF
+PHYS_DEL_STATUS_FLIP_APPLY_READY=1
+PHYS_DEL_STATUS_FLIP_APPLY_WAVE=wave802
+PHYS_DEL_STATUS_FLIP_APPLY_TIP=$cur_tip
+PHYS_DEL_STATUS_FLIP_APPLY_PROOF_PATH=$path
+PHYS_DEL_STATUS_FLIP_APPLY_APPLIED=1
+PHYS_DEL_STATUS_FLIP_APPLY_ALREADY=1
+PHYS_DEL_STATUS_FLIP_APPLY_NEW_STATUS=reproven_green
+PHYS_DEL_STATUS_FLIP_APPLY_ENDGAME=0
+PHYS_DEL_STATUS_FLIP_APPLY_DELETE_ALLOWED=0
+PHYS_DEL_STATUS_FLIP_APPLY_LEAF_TARGET=$leaf_target
+EOF
+    log "status-flip-apply: already reproven_green in $leaf_target (idempotent)"
+    exit 0
+  fi
+
+  if ! grep -qE '^PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip$' "$leaf_target"; then
+    die "status-flip-apply: leaf lacks PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip ($leaf_target)"
+  fi
+
+  tmp="${leaf_target}.phys_del_status_flip.$$"
+  # PLATFORM: SHARED — only the STATUS line; never touch ENDGAME in this path.
+  sed 's/^PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip$/PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green/' \
+    "$leaf_target" >"$tmp" || {
+    rm -f "$tmp"
+    die "status-flip-apply: sed rewrite failed"
+  }
+  if ! grep -qE '^PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green$' "$tmp"; then
+    rm -f "$tmp"
+    die "status-flip-apply: STATUS flip did not take effect"
+  fi
+  if ! grep -qE '^ENDGAME_PHYSICAL_DELETE_MAKEFILE=0$' "$tmp"; then
+    rm -f "$tmp"
+    die "status-flip-apply safety: ENDGAME must remain 0 after STATUS flip"
+  fi
+  if grep -qE '^ENDGAME_PHYSICAL_DELETE_MAKEFILE=1$' "$tmp"; then
+    rm -f "$tmp"
+    die "status-flip-apply safety: must not set ENDGAME=1"
+  fi
+  mv "$tmp" "$leaf_target"
+
+  cat <<EOF
+PHYS_DEL_STATUS_FLIP_APPLY_READY=1
+PHYS_DEL_STATUS_FLIP_APPLY_WAVE=wave802
+PHYS_DEL_STATUS_FLIP_APPLY_TIP=$cur_tip
+PHYS_DEL_STATUS_FLIP_APPLY_PROOF_PATH=$path
+PHYS_DEL_STATUS_FLIP_APPLY_PROOF_RC=0
+PHYS_DEL_STATUS_FLIP_APPLY_PREV_STATUS=not_reproven_this_tip
+PHYS_DEL_STATUS_FLIP_APPLY_NEW_STATUS=reproven_green
+PHYS_DEL_STATUS_FLIP_APPLY_APPLIED=1
+PHYS_DEL_STATUS_FLIP_APPLY_ENDGAME=0
+PHYS_DEL_STATUS_FLIP_APPLY_DELETE_ALLOWED=0
+PHYS_DEL_STATUS_FLIP_APPLY_LEAF_TARGET=$leaf_target
+PHYS_DEL_STATUS_FLIP_APPLY_NOTE=commit_leaf_on_mac_then_separate_delete_wave
+PHYS_DEL_STATUS_FLIP_APPLY_FORBIDDEN=set_endgame_1|delete_makefile_in_same_commit_as_flip
+EOF
+  log "status-flip-apply APPLIED STATUS=reproven_green leaf=$leaf_target tip=$cur_tip"
+  log "  ENDGAME stays 0; DELETE is a separate wave; commit this leaf edit on mac only"
   exit 0
 }
 
@@ -615,9 +859,9 @@ cmd_delete() {
   log "  PHYS_DEL_WINDOWS_GATE_STATUS=${win_status:-?}"
   log "  ENDGAME_PHYSICAL_DELETE_MAKEFILE=${endgame:-?}"
   log "  host=$(host_label) is_msys=$(is_msys && echo 1 || echo 0)"
-  log "  reason: Windows hybrid min-gate not re-proven on this tip (wave778/798–801)"
-  log "  runbook: reboot → MSYS2 → --run-windows-gate → scp proof → --verify → --status-flip-preview → reviewed STATUS flip → delete wave"
-  log "  forbidden: delete_makefile_before_windows_green|claim_proof_is_physical_delete|claim_preview_is_delete"
+  log "  reason: Windows hybrid min-gate not re-proven on this tip (wave778/798–802)"
+  log "  runbook: reboot → MSYS2 → --run-windows-gate → scp proof → --verify → --status-flip-preview → confirm --status-flip-apply → commit → delete wave"
+  log "  forbidden: delete_makefile_before_windows_green|claim_proof_is_physical_delete|claim_preview_is_delete|claim_apply_is_physical_delete"
 
   # Even if someone forges leaf keys later, require explicit confirm AND green.
   if [ "${win_status:-}" != "green" ] && [ "${win_status:-}" != "reproven_green" ]; then
@@ -652,13 +896,16 @@ case "$MODE" in
   --status-flip-preview|status-flip-preview|prepare-status-flip|flip-preview)
     cmd_status_flip_preview "$MODE_ARG2"
     ;;
+  --status-flip-apply|status-flip-apply|apply-status-flip|flip-apply)
+    cmd_status_flip_apply "$MODE_ARG2"
+    ;;
   --delete|delete)
     cmd_delete
     ;;
   -h|--help|help)
-    sed -n '2,50p' "$0"
+    sed -n '2,70p' "$0"
     ;;
   *)
-    die "unknown mode '$MODE' (status|--check|--dry-run-delete|--run-windows-gate|--verify-windows-proof|--status-flip-preview|--delete)"
+    die "unknown mode '$MODE' (status|--check|--dry-run-delete|--run-windows-gate|--verify-windows-proof|--status-flip-preview|--status-flip-apply|--delete)"
     ;;
 esac

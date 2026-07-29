@@ -1677,6 +1677,48 @@ After verified evidence + human review:
 matches (grep exits early). Checks use `grep … <<<"$_out"` instead.
 Same for `phys_del_makefile_gate.sh` status/leaf probes.
 
+## wave802 STATUS flip apply harness (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; set
+> `ENDGAME_PHYSICAL_DELETE_MAKEFILE=1`; claim Windows green without MSYS proof.  
+> **This wave:** G.7 **有则补全** on `phys_del_makefile_gate.sh` —
+> `--status-flip-apply` rewrites `PHYS_DEL_WINDOWS_GATE_STATUS` only when
+> (1) proof tip+RC verified and (2) confirm env is set. Without confirm → exit 2.
+> Harness `--check` applies only to a **temp leaf copy**; tree STATUS stays
+> `not_reproven_this_tip` until a human runs apply after real Windows proof.
+
+```text
+Entry (after scp'd proof on mac):
+  ./xbuild phys-del-gate --verify-windows-proof
+  ./xbuild phys-del-gate --status-flip-preview
+  XLANG_PHYS_DEL_STATUS_FLIP_APPLY=APPLY_STATUS_I_UNDERSTAND \
+    ./xbuild phys-del-gate --status-flip-apply
+      # exit 0 + PHYS_DEL_STATUS_FLIP_APPLY_APPLIED=1
+      # only STATUS key → reproven_green; ENDGAME stays 0
+      # missing confirm / bad proof → exit 2
+
+Then: mac commit of leaf STATUS flip (honesty greps for not_reproven updated
+in that commit) → SEPARATE physical delete wave
+```
+
+| Key | Value |
+|-----|--------|
+| `PHYS_DEL_STATUS_FLIP_APPLY_HARNESS` | `1` |
+| `PHYS_DEL_STATUS_FLIP_APPLY_HARNESS_WAVE` | `wave802` |
+| `PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED` | `0` (tree not flipped this tip) |
+| `PHYS_DEL_STATUS_FLIP_APPLY_TARGET_STATUS` | `reproven_green` |
+| `PHYS_DEL_STATUS_FLIP_APPLY_ENDGAME_AFTER` | `0` |
+| `PHYS_DEL_STATUS_FLIP_APPLY_DELETE_ALLOWED` | `0` |
+| `PHYS_DEL_WINDOWS_GATE_STATUS` | `not_reproven_this_tip` (honest) |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `0` |
+
+**Forbidden:** apply without proof / without confirm; set ENDGAME=1; delete
+Makefile from apply; claim apply = physical delete; auto-flip from proof alone;
+mac-only wave green.
+
+Env: `XLANG_PHYS_DEL_STATUS_FLIP_APPLY=APPLY_STATUS_I_UNDERSTAND` · optional
+`XLANG_PHYS_DEL_LEAF_FILE=` (test override).
+
 ## wave801 STATUS flip prep / preview (2026-07-30)
 
 > **Not this wave:** physical delete of `compiler/Makefile`; flip
@@ -1695,8 +1737,9 @@ Entry (after scp'd proof on mac/Ubuntu):
       # APPLIED=0 always; ENDGAME=0 always; no leaf mutation
 
 After preview + human review:
-  mac commit flips PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green
-    (ENDGAME stays 0; honesty --check greps updated in that flip wave)
+  XLANG_PHYS_DEL_STATUS_FLIP_APPLY=APPLY_STATUS_I_UNDERSTAND \
+    ./xbuild phys-del-gate --status-flip-apply   # wave802 harness
+  mac commit (ENDGAME stays 0; honesty --check greps updated in that flip wave)
   then SEPARATE physical delete wave
   (never auto-edit leaf from preview / proof alone)
 ```

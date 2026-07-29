@@ -65,6 +65,12 @@
 #   wave800: Windows min-gate *proof stamp* harness (same phys_del script) —
 #            --run-windows-gate writes stamp; --verify-windows-proof checks tip.
 #            Evidence only: NOT STATUS flip; NOT physical delete.
+#   wave801: STATUS flip *preview* (same phys_del script) — plan only after
+#            verified proof; never edits leaf. NOT STATUS flip; NOT delete.
+#   wave802: STATUS flip *apply harness* (same phys_del script) — proof +
+#            confirm env can rewrite STATUS on leaf (or LEAF_FILE override);
+#            tree on this tip stays not_reproven until human apply after real
+#            Windows proof. NOT physical delete; ENDGAME stays 0 on flip.
 #
 # Authority (G.7):
 #   Single shell authority for *named residual classes* of Makefile leaf pattern /
@@ -86,7 +92,7 @@
 #   ./xbuild leaf-patterns | leaf-residual [--check]
 #
 # PLATFORM: SHARED — inventory portable; leaf ABI stays in Makefile / mk.
-# Wave: 746–800 Track MG · 11.3.1 path (B7A heat dep-edge thin wave791–797 · preflight wave798 · execute-gate wave799 · Windows proof harness wave800 · thin-unify wave790 · try-heat wave789 · B7B shell catalog · B7A cold 0-make · heat source-prereq closed · not physical delete · Windows gate + dual-end).
+# Wave: 746–802 Track MG · 11.3.1 path (B7A heat dep-edge thin wave791–797 · preflight wave798 · execute-gate wave799 · Windows proof harness wave800 · status-flip-preview wave801 · status-flip-apply harness wave802 · thin-unify wave790 · try-heat wave789 · B7B shell catalog · B7A cold 0-make · heat source-prereq closed · not physical delete · Windows gate + dual-end).
 
 set -euo pipefail
 
@@ -533,7 +539,7 @@ PHYS_DEL_WINDOWS_PROOF_DELETE_ALLOWED=0
 PHYS_DEL_WINDOWS_PROOF_NEXT=msys_run_gate_write_stamp_scp_mac_verify_then_status_flip_preview
 PHYS_DEL_WINDOWS_PROOF_FORBIDDEN=claim_proof_is_status_green|claim_proof_is_physical_delete|auto_flip_leaf_from_proof|delete_makefile_from_proof_alone
 # wave801: STATUS flip prep — proof-gated preview plan only (NOT flip; NOT delete; ENDGAME stays 0).
-# Body: phys_del_makefile_gate.sh --status-flip-preview. Reviewed mac commit applies STATUS later.
+# Body: phys_del_makefile_gate.sh --status-flip-preview. Apply path is wave802 harness.
 PHYS_DEL_STATUS_FLIP_PREP=1
 PHYS_DEL_STATUS_FLIP_PREP_WAVE=wave801
 PHYS_DEL_STATUS_FLIP_PREP_NOTE=preview_only_after_verified_proof_not_flip_not_delete
@@ -543,8 +549,23 @@ PHYS_DEL_STATUS_FLIP_PREP_REQUIRES_PROOF=1
 PHYS_DEL_STATUS_FLIP_PREP_TARGET_STATUS=reproven_green
 PHYS_DEL_STATUS_FLIP_PREP_ENDGAME_AFTER_FLIP=0
 PHYS_DEL_STATUS_FLIP_PREP_DELETE_ALLOWED=0
-PHYS_DEL_STATUS_FLIP_PREP_NEXT=msys_proof_then_preview_then_reviewed_status_flip_then_delete_wave
+PHYS_DEL_STATUS_FLIP_PREP_NEXT=msys_proof_then_preview_then_confirm_apply_then_delete_wave
 PHYS_DEL_STATUS_FLIP_PREP_FORBIDDEN=auto_edit_leaf|claim_preview_is_flip|claim_preview_is_delete|flip_endgame_with_status|delete_makefile_from_preview
+# wave802: STATUS flip apply harness — proof + confirm env; TREE not flipped this tip without human apply.
+# Body: phys_del_makefile_gate.sh --status-flip-apply. ENDGAME stays 0; NOT physical delete.
+PHYS_DEL_STATUS_FLIP_APPLY_HARNESS=1
+PHYS_DEL_STATUS_FLIP_APPLY_HARNESS_WAVE=wave802
+PHYS_DEL_STATUS_FLIP_APPLY_HARNESS_NOTE=proof_and_confirm_gated_leaf_status_edit_not_delete
+PHYS_DEL_STATUS_FLIP_APPLY_HARNESS_SCRIPT=compiler/scripts/phys_del_makefile_gate.sh
+PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED=0
+PHYS_DEL_STATUS_FLIP_APPLY_REQUIRES_PROOF=1
+PHYS_DEL_STATUS_FLIP_APPLY_REQUIRES_CONFIRM=1
+PHYS_DEL_STATUS_FLIP_APPLY_CONFIRM_ENV=XLANG_PHYS_DEL_STATUS_FLIP_APPLY=APPLY_STATUS_I_UNDERSTAND
+PHYS_DEL_STATUS_FLIP_APPLY_TARGET_STATUS=reproven_green
+PHYS_DEL_STATUS_FLIP_APPLY_ENDGAME_AFTER=0
+PHYS_DEL_STATUS_FLIP_APPLY_DELETE_ALLOWED=0
+PHYS_DEL_STATUS_FLIP_APPLY_NEXT=msys_proof_then_confirm_apply_commit_then_delete_wave
+PHYS_DEL_STATUS_FLIP_APPLY_FORBIDDEN=apply_without_proof|apply_without_confirm|set_endgame_1|delete_makefile_from_apply|claim_apply_is_physical_delete|auto_flip_from_proof_alone
 # wave778: every SHARED MG wave must green on mac + Ubuntu (Ubuntu = gold).
 # Mac-only residual/matrix green is NOT wave green. Push → Ubuntu pull → same check.
 MG_VERIFY_DUAL_END=mac_plus_ubuntu_required
@@ -945,6 +966,12 @@ else
   fi
   if ! grep -qE 'wave800|PROOF_HARNESS|proof stamp|verify-windows-proof|WINDOWS_PROOF' "$DOC_REL"; then
     bad "$DOC_REL must document wave800 Windows proof harness"
+  fi
+  if ! grep -qE 'wave801|status-flip-preview|STATUS_FLIP_PREP|flip.preview' "$DOC_REL"; then
+    bad "$DOC_REL must document wave801 STATUS flip preview"
+  fi
+  if ! grep -qE 'wave802|status-flip-apply|STATUS_FLIP_APPLY|flip.apply' "$DOC_REL"; then
+    bad "$DOC_REL must document wave802 STATUS flip apply harness"
   fi
   if ! grep -qE 'MG_VERIFY_DUAL_END|mac_plus_ubuntu|dual.end|双端' "$DOC_REL"; then
     bad "$DOC_REL must document wave778 dual-end mac+Ubuntu verify policy"
@@ -1478,28 +1505,43 @@ fi
 if ! grep -q 'PHYS_DEL_STATUS_FLIP_PREP_DELETE_ALLOWED=0' <<<"$_out"; then
   bad "dump must keep PHYS_DEL_STATUS_FLIP_PREP_DELETE_ALLOWED=0 (wave801)"
 fi
+if ! grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_HARNESS=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_STATUS_FLIP_APPLY_HARNESS=1 (wave802)"
+fi
+if ! grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_HARNESS_WAVE=wave802' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_STATUS_FLIP_APPLY_HARNESS_WAVE=wave802"
+fi
+if ! grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED=0' <<<"$_out"; then
+  bad "dump must keep PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED=0 (wave802)"
+fi
+if ! grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_DELETE_ALLOWED=0' <<<"$_out"; then
+  bad "dump must keep PHYS_DEL_STATUS_FLIP_APPLY_DELETE_ALLOWED=0 (wave802)"
+fi
+if ! grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_ENDGAME_AFTER=0' <<<"$_out"; then
+  bad "dump must keep PHYS_DEL_STATUS_FLIP_APPLY_ENDGAME_AFTER=0 (wave802)"
+fi
 if [ ! -f "$ROOT/compiler/scripts/phys_del_makefile_gate.sh" ]; then
-  bad "missing compiler/scripts/phys_del_makefile_gate.sh (wave799–801 execute-gate + proof + flip-prep body)"
+  bad "missing compiler/scripts/phys_del_makefile_gate.sh (wave799–802 execute-gate + proof + flip body)"
 else
-  note "phys_del_makefile_gate.sh present (wave799 refuse-delete + wave800 proof + wave801 flip-prep; not Windows green)"
-  # Self-check execute gate + proof + status-flip-prep (refuse + synthetic stamp + preview).
+  note "phys_del_makefile_gate.sh present (wave799–802 refuse-delete + proof + flip-prep + flip-apply harness; not Windows green)"
+  # Self-check execute gate + proof + flip-prep + flip-apply harness.
   if ! bash "$ROOT/compiler/scripts/phys_del_makefile_gate.sh" --check >/tmp/phys_del_gate_check.$$ 2>&1; then
     cat /tmp/phys_del_gate_check.$$ >&2 || true
-    bad "phys_del_makefile_gate.sh --check failed (wave799–801)"
+    bad "phys_del_makefile_gate.sh --check failed (wave799–802)"
   else
-    note "phys_del_makefile_gate.sh --check OK (wave799–801)"
+    note "phys_del_makefile_gate.sh --check OK (wave799–802)"
   fi
   rm -f /tmp/phys_del_gate_check.$$
 fi
-# Honesty: execute-gate / proof / flip-prep must not claim Windows green / delete done.
+# Honesty: execute-gate / proof / flip harness must not claim Windows green / delete done.
 if ! grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip' <<<"$_out"; then
-  bad "wave801 must keep PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip"
+  bad "wave802 must keep PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip"
 fi
 if ! grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0' <<<"$_out"; then
-  bad "wave801 must keep ENDGAME_PHYSICAL_DELETE_MAKEFILE=0"
+  bad "wave802 must keep ENDGAME_PHYSICAL_DELETE_MAKEFILE=0"
 fi
 if grep -qE 'PHYS_DEL_WINDOWS_GATE_STATUS=green|PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green|ENDGAME_PHYSICAL_DELETE_MAKEFILE=1' <<<"$_out"; then
-  bad "wave801 must not claim Windows green or physical delete complete"
+  bad "wave802 must not claim Windows green or physical delete complete"
 fi
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
@@ -1880,7 +1922,7 @@ else
     "$REBUILD_REL"; then
     bad "rebuild_leaves must not hardcode .o list (dual authority)"
   fi
-  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld (wave772/773) + drop silent CC fallback (wave774); fmt_check_cmd.o dual (wave775); R2 panic PREFER try-r2-prefer (wave776); phys-del prep (wave777); Windows+dual-end gate (wave778); B1–B6 swallow (wave779–784); B7 DAG inventory + archaeology CC thin (wave785); B7D host-cc product link g05 (wave786); B7A cold residual_make=0 honesty (wave787); B7B shell-primary catalog (wave788); B7A heat try-heat (wave789); B7A heat thin-unify (wave790); B7A heat dep-thin FORCE 113 (wave791–797; orch closed); phys-del preflight (wave798); phys-del execute-gate (wave799); Windows proof harness (wave800); residual Windows min-gate then physical delete"
+  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld (wave772/773) + drop silent CC fallback (wave774); fmt_check_cmd.o dual (wave775); R2 panic PREFER try-r2-prefer (wave776); phys-del prep (wave777); Windows+dual-end gate (wave778); B1–B6 swallow (wave779–784); B7 DAG inventory + archaeology CC thin (wave785); B7D host-cc product link g05 (wave786); B7A cold residual_make=0 honesty (wave787); B7B shell-primary catalog (wave788); B7A heat try-heat (wave789); B7A heat thin-unify (wave790); B7A heat dep-thin FORCE 113 (wave791–797; orch closed); phys-del preflight (wave798); phys-del execute-gate (wave799); Windows proof harness (wave800); status-flip-preview (wave801); status-flip-apply harness (wave802); residual Windows min-gate then physical delete"
 fi
 
 # wave772/774: cold pure-ld required when eligible (no silent CC fallback)
@@ -2063,5 +2105,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747 R4 mode + wave756 pure-R1 + wave757 R3 cold-else + wave763 R3 PREFER thin + wave764 g05 r3-prefer-family + wave765 labi try-labi-prefer + wave758 thin_glue + wave759 glue-standalone + wave760 R2 panic + wave761 gen-x + wave762 R2 typeck_f64/crt0 + wave748–755 R1 families + 11.3.1 leaf residual inventory + wave790 heat thin-unify + wave791–797 heat dep-thin FORCE 113 orch closed + wave798 phys-del preflight + wave799 phys-del execute-gate + wave800 Windows proof harness)"
+echo "leaf_pattern_residual: CHECK OK (wave747 R4 mode + wave756 pure-R1 + wave757 R3 cold-else + wave763 R3 PREFER thin + wave764 g05 r3-prefer-family + wave765 labi try-labi-prefer + wave758 thin_glue + wave759 glue-standalone + wave760 R2 panic + wave761 gen-x + wave762 R2 typeck_f64/crt0 + wave748–755 R1 families + 11.3.1 leaf residual inventory + wave790 heat thin-unify + wave791–797 heat dep-thin FORCE 113 orch closed + wave798 phys-del preflight + wave799 phys-del execute-gate + wave800 Windows proof harness + wave801 status-flip-preview + wave802 status-flip-apply harness)"
 exit 0

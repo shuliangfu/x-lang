@@ -1509,12 +1509,13 @@
     ✅ **phys-del execute-gate**（wave799 · `phys_del_makefile_gate.sh` / `./xbuild phys-del-gate` 硬拒删 · dry-run · MSYS runbook；**非**物理删 · **非** Windows 绿 · `DELETE_ALLOWED=0`）；
     ✅ **Windows proof stamp harness**（wave800 · `--run-windows-gate` 写 stamp · `--verify-windows-proof` tip 校验；**非** STATUS 翻转 · **非**物理删 · `PROOF_STATUS_FLIP=0`）；
     ✅ **STATUS flip prep / preview**（wave801 · `--status-flip-preview` 有 proof 后打印翻转计划；**非** STATUS 翻转 · **非**物理删 · `APPLIED=0` · TARGET=`reproven_green` · ENDGAME 保持 0）；
+    ✅ **STATUS flip apply harness**（wave802 · `--status-flip-apply` 需 proof + confirm env；`--check` 仅 temp leaf；**树 STATUS 仍 not_reproven** · **非**物理删 · `TREE_APPLIED=0` · ENDGAME 保持 0）；
     ⬜ B7 residual endgame · physical delete / 删 Makefile（**仅**须 Windows hybrid min-gate 绿；heat source-prereq 已 closed）
   - ⬜ 物理删 `compiler/Makefile` 仍 ⬜（下项）
 
 ⬜ **11.3.1 删除 `compiler/Makefile`**
 
-  - 前置：11.0 迁移表 100% 有主；8.3/7/8 白名单 residual 可被 xbuild 编完或已为 0；wave746 库存类 R1–R5 有主 shell；**wave777 prep 桶 B1–B7 有主**；**wave797 heat source-prereq closed**；**wave798 preflight**；**wave799 execute-gate 硬拒删**；**wave800 proof stamp harness**；**wave801 status-flip-preview**；**wave778 Windows hybrid min-gate 绿**（tip 重跑 + proof verify + preview）+ 审阅 STATUS flip 后再删
+  - 前置：11.0 迁移表 100% 有主；8.3/7/8 白名单 residual 可被 xbuild 编完或已为 0；wave746 库存类 R1–R5 有主 shell；**wave777 prep 桶 B1–B7 有主**；**wave797 heat source-prereq closed**；**wave798 preflight**；**wave799 execute-gate 硬拒删**；**wave800 proof stamp harness**；**wave801 status-flip-preview**；**wave802 status-flip-apply harness**；**wave778 Windows hybrid min-gate 绿**（tip 重跑 + proof verify + preview + confirm apply + commit）后再删
   - 验收 grep（全仓 · 不止 tests/analysis/docs）：
     ```
     rg -n 'make -C compiler|compiler/Makefile|\bmake\s+-C|\$\(MAKE\)' \
