@@ -6468,10 +6468,13 @@ int32_t typeck_check_expr_index(struct ast_Module * module, struct ast_ASTArena 
   int32_t elem_ty = 0;
   int32_t array_sz = 0;
   int32_t index_ty = 0;
+  /* wave699: index ambient = i32, not outer return_type_ref (G.7 ≡ typeck.x).
+   * PLATFORM: SHARED — &buf[0] under expected *T must not type lit 0 as pointer. */
+  int32_t idx_ambient = ensure_i32_type_ref(arena);
   if ((check_expr(module, arena, base_ref, return_type_ref, ctx) !=0)) {
     return -(1);
   }
-  if ((check_expr(module, arena, index_ref, return_type_ref, ctx) !=0)) {
+  if ((check_expr(module, arena, index_ref, idx_ambient, ctx) !=0)) {
     return -(1);
   }
   if (((ast_ref_is_null(base_ref) || (base_ref <=0)) || (base_ref > (arena->num_exprs)))) {

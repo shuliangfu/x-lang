@@ -8589,10 +8589,13 @@ export function typeck_type_is_valid_subscript_index(module: *Module, arena: *AS
  * Accepts TYPE_ARRAY / SLICE / PTR / VECTOR and TYPE_NAMED SIMD spellings (i32x4…).
  * wave664 Cap residual: hard-fail non-integer index (ptr/float/struct/bool) that
  * formerly passed typeck then host-cc BLD001 or freestanding silent false green.
+ * wave699: index ambient is i32, NOT outer return_type_ref. Outer *T (e.g. let p: *u8 =
+ * &buf[0]) must not contextual-type the lit index as pointer — that false-T001
+ * red'd ptr_arith_i32 and all &arr[lit] under L4 cold product.
  * @param module *Module — current module
  * @param arena *ASTArena — expr/type pool
  * @param expr_ref i32 — EXPR_INDEX
- * @param return_type_ref i32 — ambient expected type for nested check_expr
+ * @param return_type_ref i32 — ambient for base only (INDEX result type is elem)
  * @param ctx *PipelineDepCtx — typeck context
  * @return i32 — 0 ok, -1 hard fail
  * PLATFORM: SHARED — product INDEX path for vector lane extract (WPO-S2 lane0).
@@ -8617,10 +8620,12 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     let vec_lanes: i32 = 0;
     let is_vec_base: i32 = 0;
     let index_ty: i32 = 0;
+    // Index ambient: always integer-like (i32). Do not pass outer return_type_ref.
+    let idx_ambient: i32 = ensure_i32_type_ref(arena);
     if (check_expr(module, arena, base_ref, return_type_ref, ctx) != 0) {
       return - 1;
     }
-    if (check_expr(module, arena, index_ref, return_type_ref, ctx) != 0) {
+    if (check_expr(module, arena, index_ref, idx_ambient, ctx) != 0) {
       return - 1;
     }
     if (ast.ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena.num_exprs) {

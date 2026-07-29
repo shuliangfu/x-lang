@@ -33016,8 +33016,16 @@ int32_t pipeline_typeck_check_expr_index_c(struct ast_Module *module, struct ast
   col = pipeline_expr_col_at(arena, expr_ref);
   if (pipeline_typeck_check_expr_c(module, arena, base_ref, return_type_ref, ctx) != 0)
     return -1;
-  if (pipeline_typeck_check_expr_c(module, arena, index_ref, return_type_ref, ctx) != 0)
-    return -1;
+  /*
+   * wave699: index ambient = i32, not outer return_type_ref (G.7 ≡ typeck.x).
+   * PLATFORM: SHARED — &buf[0] under expected *T must not type lit 0 as pointer.
+   */
+  {
+    extern int32_t typeck_ensure_i32_type_ref(struct ast_ASTArena *a);
+    int32_t idx_ambient = typeck_ensure_i32_type_ref(arena);
+    if (pipeline_typeck_check_expr_c(module, arena, index_ref, idx_ambient, ctx) != 0)
+      return -1;
+  }
   if (ast_ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena->num_exprs)
     return 0;
   base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
