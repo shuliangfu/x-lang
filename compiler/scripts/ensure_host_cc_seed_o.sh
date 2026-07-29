@@ -22,6 +22,10 @@
 #            pure basename host-cc). Same ensure_one body; exit 3 if not member.
 #            rebuild_leaves residual uses this before make; PREFER_X_O=1 thin
 #            path stays Makefile.
+#   wave758: R4 residual pure host-cc thin_glue → R1 seed-map (G.7 有则补全):
+#            parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c +
+#            -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm;
+#            ensure_one also refreshes on seeds/parser_asm/*.inc (Makefile prereq twin).
 #
 # Authority (G.7):
 #   Single shell *recipe body* for pure host-cc compile of seeds/*.from_x.c → .o.
@@ -52,13 +56,13 @@
 #                            runtime_sqlite_glue[+_stub] + parser_asm_parse_expr_link
 #   R1_MISC_BASENAME_OBJS  — pure basename host-cc without special -D/-f extras
 #                            (glue/enc/ctx/pipeline_glue_strict_minimal/asm_build/…)
-#   R1_SEED_MAP_OBJS       — basename-mismatch + bootstrap orch extras
+#   R1_SEED_MAP_OBJS       — basename-mismatch + bootstrap orch extras + thin_glue
+#                            (target_cpu / ast_seed / orch / parser_asm_thin_glue · wave758)
 #   R3_COLD_SEED_OBJS      — thin+rest cold-else pure host-cc (wave757)
-#                            (target_cpu / ast_seed / pipeline_bootstrap_orchestration)
 #
 # Not in scope (honest residual):
 #   - R3 thin+rest / PREFER_X_O product g05 path (g05_ensure keeps that)
-#   - R2 UNAME stamps, R4 non-R1 rebuild residual (panic/gen/thin+rest), R5 CI all
+#   - R2 UNAME stamps, R4 residual (panic/gen/glue/pipeline-x), R5 CI all
 #   - pure-ld (11.1.4) · physical Makefile delete (11.3.1)
 #
 # Usage (cwd = compiler/):
@@ -88,7 +92,8 @@
 #   MAKE — only for catalog list expansion (default: make)
 #
 # PLATFORM: SHARED — shell orchestration; seed pins host-portable C.
-# Wave: 748–757 Track MG · 11.3.1 R1 families + R4 pure-R1 + R3 cold-else (not physical delete · not pure-ld).
+# Wave: 748–758 Track MG · 11.3.1 R1 families + R4 pure-R1 + R3 cold-else + thin_glue seed-map
+#       (not physical delete · not pure-ld).
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -109,6 +114,8 @@ _DEFAULT_RUNTIME_DRIVER_NO_C_CFLAGS="-DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE
 # PLATFORM: SHARED — defaults aligned with Makefile (without optional LEGACY).
 _DEFAULT_RUNTIME_PIPELINE_ABI_CFLAGS="-DXLANG_USE_X_PIPELINE"
 _DEFAULT_PARSER_ASM_LINK_ALIAS_CFLAGS="-DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS"
+# PLATFORM: SHARED — aligned with Makefile PARSER_ASM_THIN_GLUE_CFLAGS + -I paths.
+_DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm"
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
@@ -159,7 +166,7 @@ ensure_one() {
     # Sibling .x deps: out path stem, seed-stem under src/asm or src/,
     # and main_c_entry.x for main family (Makefile dep name).
     local need=0
-    local xsrc stem cand
+    local xsrc stem cand inc
     xsrc="${out%.o}.x"
     if [ -f "$xsrc" ] && [ "$xsrc" -nt "$out" ]; then
       need=1
@@ -171,6 +178,16 @@ ensure_one() {
         break
       fi
     done
+    # wave758: parser_asm_thin_glue monothin includes many seeds/parser_asm/*.inc;
+    # Makefile lists them as prereqs — mirror freshness here (G.7 single body).
+    if [ "$need" -eq 0 ] && [ "$stem" = "parser_asm_thin_c" ]; then
+      for inc in seeds/parser_asm/*.inc; do
+        if [ -f "$inc" ] && [ "$inc" -nt "$out" ]; then
+          need=1
+          break
+        fi
+      done
+    fi
     if [ "$need" -eq 0 ]; then
       log "skip $out (up-to-date vs $seed)"
       return 0
@@ -352,6 +369,10 @@ seed_for_seed_map() {
     pipeline_bootstrap_orchestration.o)
       printf 'seeds/pipeline_bootstrap_orchestration.from_x.c\n'
       ;;
+    # wave758: R4 residual pure host-cc monothin (basename mismatch).
+    parser_asm_thin_glue.o)
+      printf 'seeds/parser_asm_thin_c.from_x.c\n'
+      ;;
     *)
       echo "ensure_host_cc_seed_o: no seed-map seed map for $o" >&2
       exit 1
@@ -361,7 +382,8 @@ seed_for_seed_map() {
 
 # Extra flags for seed-map family (stdout, space-separated; may be empty).
 # Thin Makefile leaves pass make-expanded extras to `one` (authority).
-# Family mode: orch needs -Ibuild_asm + -D; target_cpu/ast_seed pure base.
+# Family mode: orch needs -Ibuild_asm + -D; thin_glue needs NO_SEED_PARSE + -I;
+# target_cpu/ast_seed pure base.
 extras_for_seed_map() {
   local o="$1"
   case "$o" in
@@ -369,6 +391,14 @@ extras_for_seed_map() {
       ;;
     pipeline_bootstrap_orchestration.o)
       printf '%s' '-Ibuild_asm -DPIPELINE_BOOTSTRAP_ORCH_NO_PIPELINE_RUN_WRAPPER'
+      ;;
+    parser_asm_thin_glue.o)
+      if [ -n "${PARSER_ASM_THIN_GLUE_CFLAGS:-}" ]; then
+        # Makefile thin may export only -D; always append monothin -I paths.
+        printf '%s %s' "$PARSER_ASM_THIN_GLUE_CFLAGS" "-Isrc/lexer -Isrc/asm -Iseeds/parser_asm"
+      else
+        printf '%s' "$_DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS"
+      fi
       ;;
     *)
       echo "ensure_host_cc_seed_o: no seed-map extras map for $o" >&2
@@ -756,8 +786,8 @@ run_check() {
   check_family "R1_EXTRA_CFLAGS_OBJS" 5 "extra-cflags" "extra-cflags" ""
   # misc-basename: mixed cwd-root / src/ / build_asm/ paths; pure basename.
   check_family "R1_MISC_BASENAME_OBJS" 9 "misc-basename" "basename" ""
-  # seed-map: mismatch stems + orch extras.
-  check_family "R1_SEED_MAP_OBJS" 3 "seed-map" "seed-map" ""
+  # seed-map: mismatch stems + orch extras + thin_glue (wave758).
+  check_family "R1_SEED_MAP_OBJS" 4 "seed-map" "seed-map" ""
   # R3 cold-else: thin+rest leaves cold path = pure basename host-cc.
   check_family "R3_COLD_SEED_OBJS" 9 "r3-cold-seed" "basename" ""
 
@@ -809,12 +839,12 @@ run_check() {
   else
     note "Makefile misc-basename leaves thin (no inline \$(CC) -c)"
   fi
-  # Seed-map leaves must not keep inline $(CC) -c recipes.
-  if grep -A2 -E '^(src/driver/target_cpu\.o|src/ast/ast_seed\.o|pipeline_bootstrap_orchestration\.o):' Makefile \
+  # Seed-map leaves must not keep inline $(CC) -c recipes (incl. thin_glue wave758).
+  if grep -A2 -E '^(src/driver/target_cpu\.o|src/ast/ast_seed\.o|pipeline_bootstrap_orchestration\.o|parser_asm_thin_glue\.o):' Makefile \
     | grep -qE '\$\(CC\).*-c seeds/'; then
     bad "Makefile seed-map leaves still have inline \$(CC) -c (must thin-call ensure)"
   else
-    note "Makefile seed-map leaves thin (no inline \$(CC) -c)"
+    note "Makefile seed-map leaves thin (no inline \$(CC) -c; wave758 thin_glue)"
   fi
 
   # G.7: list authority is catalog only — no hardcoded assignment of product lists.
@@ -872,7 +902,7 @@ run_check() {
     note "try-r3-cold R3 cold-else helper present (wave757)"
   fi
 
-  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else try-r3-cold · wave748–757)" >&2
+  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else + thin_glue seed-map · wave748–758)" >&2
 }
 
 case "$MODE" in

@@ -1045,15 +1045,17 @@ R1_MISC_BASENAME_OBJS = runtime_link_abi_user_env.o runtime_channel_glue.o runti
 # wave755 R1 eighth family: basename-mismatch + bootstrap orch extras.
 # List authority for ensure_host_cc_seed_o.sh seed-map mode; body = same script.
 # Seed/flag maps live in ensure script (path convention); list stays here (G.7).
-R1_SEED_MAP_OBJS = src/driver/target_cpu.o src/ast/ast_seed.o pipeline_bootstrap_orchestration.o
+# wave758: parser_asm_thin_glue monothin (basename mismatch + monothin -D/-I) joined
+# seed-map family (G.7 有则补全; was R4 residual pure host-cc).
+R1_SEED_MAP_OBJS = src/driver/target_cpu.o src/ast/ast_seed.o pipeline_bootstrap_orchestration.o parser_asm_thin_glue.o
 
 # wave757 R3 cold-else family: thin+rest leaves whose cold path (PREFER_X_O≠1 /
 # bootstrap-driver-seed rebuild) is pure host-cc of seeds/<leaf>.from_x.c.
 # List authority for ensure_host_cc_seed_o.sh try-r3-cold / r3-cold-seed mode.
 # Body = same ensure_one as R1 (basename seed). PREFER_X_O=1 thin+rest stays
 # Makefile (product daily path); cold-else branch thin-calls ensure (G.7).
-# Residual after this: panic UNAME · gen *_x · parser_asm_thin_glue hybrid ·
-# glue standalone · pipeline_x · pure-ld · physical delete.
+# Residual after wave758: panic UNAME · gen *_x · glue standalone · pipeline_x ·
+# pure-ld · physical delete (~~thin_glue~~ → seed-map).
 R3_COLD_SEED_OBJS = src/runtime_io_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/asm/simd_enc.o src/asm/simd_loop.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o
 
 # G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（XLANG_LEGACY_PREPROCESS_C 路径已死）。
@@ -2010,6 +2012,9 @@ PARSER_ASM_LINK_ALIAS_CFLAGS = -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS
 # PLATFORM: SHARED — thin glue monothin includes many parser_asm/*.inc; list ALL
 # of them so make rebuilds when glue_tail/library_wrap/etc. change (stale .o caused
 # Ubuntu UNDEF parser_skip_one_top_level_let_into_glue after M2 re-pin).
+# wave758 R1 seed-map: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_SEED_MAP_OBJS).
+# Seed map: parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c (basename mismatch).
+# ensure_one also refreshes on seeds/parser_asm/*.inc (G.7 single body twin of prereqs).
 parser_asm_thin_glue.o: seeds/parser_asm_thin_c.from_x.c src/asm/parser_asm_thin_c.x \
  seeds/parser_asm/parser_asm_lex_skip_slice.inc \
  seeds/parser_asm/parser_asm_helpers_slice.inc \
@@ -2043,8 +2048,12 @@ parser_asm_thin_glue.o: seeds/parser_asm_thin_c.from_x.c src/asm/parser_asm_thin
  seeds/parser_asm/parser_asm_diag_late_slice.inc \
  seeds/parser_asm/parser_asm_try_skip_allow_slice.inc \
  seeds/parser_asm/parser_asm_library_wrap_slice.inc \
- seeds/parser_asm/parser_asm_glue_tail_slice.inc
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) $(PARSER_ASM_THIN_GLUE_CFLAGS) -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm -c seeds/parser_asm_thin_c.from_x.c -o $@
+ seeds/parser_asm/parser_asm_glue_tail_slice.inc \
+ scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  PARSER_ASM_THIN_GLUE_CFLAGS="$(PARSER_ASM_THIN_GLUE_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/parser_asm_thin_c.from_x.c \
+	  $(PARSER_ASM_THIN_GLUE_CFLAGS) -Isrc/lexer -Isrc/asm -Iseeds/parser_asm
 
 # wave753 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_EXTRA_CFLAGS_OBJS).
 src/asm/parser_asm_parse_expr_link.o: seeds/parser_asm_parse_expr_link.from_x.c src/asm/parser_asm_parse_expr_link.x scripts/ensure_host_cc_seed_o.sh

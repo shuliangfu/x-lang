@@ -171,7 +171,11 @@
 //       (catalog R3_COLD_SEED_OBJS; 9 thin+rest cold pure host-cc leaves);
 //       Makefile cold-else thin-call ensure; PREFER thin still Makefile.
 //       ./xbuild r3-cold-seed [--force]
-//       Residual: R3 PREFER thin · panic/gen/hybrid/glue/pipeline-x · pure-ld
+//     wave758: R4 residual thin_glue → R1 seed-map (G.7 有则补全) —
+//       parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c + monothin
+//       -D/-I; ensure_one refreshes on seeds/parser_asm/*.inc; user-asm
+//       rebuild shell-only; Makefile thin-call ensure.
+//       Residual: R3 PREFER thin · panic/gen/glue/pipeline-x · pure-ld
 //       · physical delete.
 //     G.7: lists stay mk; no dual .o inventory in residual shell.
 //

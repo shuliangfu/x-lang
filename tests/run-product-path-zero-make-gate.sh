@@ -1203,6 +1203,8 @@ elif ! grep -qE 'wave755|R1_SEED_MAP|seed-map' compiler/docs/LEAF_PATTERN_RESIDU
   bad "LEAF_PATTERN_RESIDUAL.md must document wave755 R1 seed-map"
 elif ! grep -qE 'wave757|try-r3-cold|R3_COLD|cold.else' compiler/docs/LEAF_PATTERN_RESIDUAL.md; then
   bad "LEAF_PATTERN_RESIDUAL.md must document wave757 R3 cold-else"
+elif ! grep -qE 'wave758|thin_glue|parser_asm_thin_glue' compiler/docs/LEAF_PATTERN_RESIDUAL.md; then
+  bad "LEAF_PATTERN_RESIDUAL.md must document wave758 thin_glue seed-map"
 elif ! grep -qE 'wave748|R1 rt|ensure_host_cc_seed_o|RT_SEED_SLICE' compiler/docs/BUILD_DAG.md; then
   bad "BUILD_DAG.md must cross-ref wave748 R1 rt-slice"
 elif ! grep -qE 'wave749|core-seed|R1_CORE_SEED' compiler/docs/BUILD_DAG.md; then
@@ -1221,6 +1223,8 @@ elif ! grep -qE 'wave755|seed-map|R1_SEED_MAP' compiler/docs/BUILD_DAG.md; then
   bad "BUILD_DAG.md must cross-ref wave755 R1 seed-map"
 elif ! grep -qE 'wave757|try-r3-cold|R3_COLD|cold.else' compiler/docs/BUILD_DAG.md; then
   bad "BUILD_DAG.md must cross-ref wave757 R3 cold-else"
+elif ! grep -qE 'wave758|thin_glue|parser_asm_thin_glue' compiler/docs/BUILD_DAG.md; then
+  bad "BUILD_DAG.md must cross-ref wave758 thin_glue seed-map"
 elif ! grep -qE 'wave748|host-cc-seed|rt-seed-slice|RT_SEED_SLICE' build.x; then
   bad "build.x must mention wave748 / host-cc-seed / RT_SEED_SLICE"
 elif ! grep -qE 'wave749|core-seed|R1_CORE_SEED' build.x; then
@@ -1239,8 +1243,16 @@ elif ! grep -qE 'wave755|seed-map|R1_SEED_MAP' build.x; then
   bad "build.x must mention wave755 / seed-map / R1_SEED_MAP"
 elif ! grep -qE 'wave757|try-r3-cold|R3_COLD|r3-cold-seed' build.x; then
   bad "build.x must mention wave757 / try-r3-cold / R3_COLD"
+elif ! grep -qE 'wave758|thin_glue|parser_asm_thin_glue' build.x; then
+  bad "build.x must mention wave758 / thin_glue seed-map"
+elif ! grep -q 'parser_asm_thin_glue' compiler/Makefile \
+  || ! grep -q 'R1_SEED_MAP_OBJS' compiler/Makefile; then
+  bad "Makefile must list parser_asm_thin_glue on R1_SEED_MAP (wave758)"
+elif ! grep -q 'parser_asm_thin_glue' compiler/Makefile \
+  || ! awk '/^parser_asm_thin_glue\.o:/{found=1} found&&/ensure_host_cc_seed_o\.sh/{ok=1; exit} found&&/^[a-zA-Z_].*:/{if(!/parser_asm_thin_glue/)exit} END{exit !ok}' compiler/Makefile; then
+  bad "Makefile parser_asm_thin_glue must thin-call ensure (wave758)"
 else
-  note "BUILD_DAG + ensure_prereqs + product-dag + PLATFORM_LINKER + LEAF_PATTERN + R1 + R3 cold (wave744–757)"
+  note "BUILD_DAG + ensure_prereqs + product-dag + PLATFORM_LINKER + LEAF_PATTERN + R1 + R3 cold + thin_glue (wave744–758)"
   if ! bash compiler/scripts/product_build_dag.sh --check; then
     bad "product_build_dag.sh --check failed (wave742–746)"
   else
@@ -1307,6 +1319,8 @@ else
     bad "xbuild leaf-patterns dump missing SWALLOWED_R4_BODY_PURE_R1=1 (wave756)"
   elif ! printf '%s\n' "$_leaf_out" | grep -q 'R4_BODY_PURE_R1_SWALLOWED=1'; then
     bad "xbuild leaf-patterns dump missing R4_BODY_PURE_R1_SWALLOWED=1 (wave756)"
+  elif ! printf '%s\n' "$_leaf_out" | grep -q 'SWALLOWED_R4_BODY_THIN_GLUE=1'; then
+    bad "xbuild leaf-patterns dump missing SWALLOWED_R4_BODY_THIN_GLUE=1 (wave758)"
   elif ! printf '%s\n' "$_leaf_out" | grep -q 'SWALLOWED_R1_RT_SEED_SLICE=1'; then
     bad "xbuild leaf-patterns dump missing SWALLOWED_R1_RT_SEED_SLICE=1 (wave748)"
   elif ! printf '%s\n' "$_leaf_out" | grep -q 'R1_RT_SEED_SLICE_SWALLOWED=1'; then

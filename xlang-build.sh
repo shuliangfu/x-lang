@@ -335,7 +335,7 @@ case "$TARGET" in
     #   alias-stubs      → R1_ALIAS_STUBS_OBJS only (wave752; pure basename)
     #   extra-cflags     → R1_EXTRA_CFLAGS_OBJS only (wave753; pipeline_abi/-fPIE/sqlite/parser)
     #   misc-basename    → R1_MISC_BASENAME_OBJS only (wave754; glue/enc/ctx/pipeline_glue/…)
-    #   seed-map         → R1_SEED_MAP_OBJS only (wave755; target_cpu/ast_seed/orch)
+    #   seed-map         → R1_SEED_MAP_OBJS only (wave755/758; target_cpu/ast_seed/orch/thin_glue)
     #   r3-cold-seed     → R3_COLD_SEED_OBJS only (wave757; thin+rest cold-else)
     # Map: compiler/docs/LEAF_PATTERN_RESIDUAL.md
     # Usage:

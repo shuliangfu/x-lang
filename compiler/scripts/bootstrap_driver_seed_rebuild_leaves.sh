@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # bootstrap_driver_seed_rebuild_leaves.sh — §5b rebuild leaf orchestration
-#   (11.0.3 · wave747 R4 mode · wave756 R4 pure-R1 · wave757 R3 cold-else)
+#   (11.0.3 · wave747 R4 mode · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map)
 #
 # Authority (G.7):
 #   - Object *lists* live ONLY in compiler/mk/*.mk, expanded via
@@ -15,8 +15,9 @@
 #     no dual .o list; same ensure_one body as R1 family modes.
 #   - R3 cold-else bodies (thin+rest leaves whose cold path is pure host-cc)
 #     run via ensure try-r3-cold (wave757; catalog R3_COLD_SEED_OBJS).
-#   - Remaining residual (R2 UNAME panic, gen *_x.o, hybrid thin_glue,
-#     glue standalone, pipeline_x, …) still invoke make with mode ARGS/VARS.
+#   - Remaining residual (R2 UNAME panic, gen *_x.o, glue standalone,
+#     pipeline_x, …) still invoke make with mode ARGS/VARS.
+#     wave758: parser_asm_thin_glue swallowed via R1 seed-map (try-r1).
 #
 # Usage (compiler directory):
 #   ./scripts/bootstrap_driver_seed_rebuild_leaves.sh sat
@@ -38,7 +39,7 @@
 #            USER_ASM sets. Residual non-R1 recipe ABI stays Makefile.
 # Wave: 722 sat/lsp · 724 bridge/panic/user-asm/glue · 725 pipeline-x FORCE ·
 #       747 R4 mode policy + catalog list · 756 R4 pure-R1 body via try-r1 ·
-#       757 R3 cold-else body via try-r3-cold.
+#       757 R3 cold-else body via try-r3-cold · 758 thin_glue via seed-map (try-r1).
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -228,7 +229,8 @@ for o in $SEED_REBUILD_OBJS; do
 done
 
 if [ "$residual_n" -gt 0 ]; then
-  # R4 residual: still Makefile (R2 panic, gen *_x, hybrid thin_glue, glue, pipeline_x…).
+  # R4 residual: still Makefile (R2 panic, gen *_x, glue, pipeline_x…).
+  # wave758: thin_glue is pure-R1 seed-map (not residual).
   # SEED_REBUILD_MAKE_VARS are make command-line assignments (e.g. XLANG_G05_PREFER_X_O=0).
   # shellcheck disable=SC2086
   echo "bootstrap-driver-seed: ${MODE} residual make ($residual_n objs; pure-R1=$pure_n r3-cold=$r3_cold_n)" >&2

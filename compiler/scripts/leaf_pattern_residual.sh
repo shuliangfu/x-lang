@@ -12,6 +12,7 @@
 #   wave755: R1 eighth family seed-map (target_cpu/ast_seed mismatch + orch -D)
 #   wave756: R4 pure-R1 body via rebuild_leaves → ensure try-r1 (non-R1 residual make)
 #   wave757: R3 cold-else body via rebuild_leaves → ensure try-r3-cold
+#   wave758: R4 residual thin_glue pure host-cc → R1 seed-map (G.7 有则补全)
 #
 # Authority (G.7):
 #   Single shell authority for *named residual classes* of Makefile leaf pattern /
@@ -29,7 +30,7 @@
 #   ./xbuild leaf-patterns | leaf-residual [--check]
 #
 # PLATFORM: SHARED — inventory portable; leaf ABI stays in Makefile / mk.
-# Wave: 746–757 Track MG · 11.3.1 path (not physical delete · not pure-ld).
+# Wave: 746–758 Track MG · 11.3.1 path (not physical delete · not pure-ld).
 
 set -euo pipefail
 
@@ -61,7 +62,7 @@ bad() { echo "leaf_pattern_residual: FAIL: $*" >&2; fail=1; }
 # ---------------------------------------------------------------------------
 print_classes() {
   cat <<EOF
-# leaf pattern residual inventory (11.3.1 path · wave746–756)
+# leaf pattern residual inventory (11.3.1 path · wave746–758)
 # Lists stay mk/catalog. Pattern bodies stay Makefile until named shell swallow.
 
 LEAF_PATTERN_POLICY=inventory_named_classes_plus_r4_mode_and_r1_families
@@ -100,6 +101,10 @@ SWALLOWED_R1_MISC_BASENAME=1
 SWALLOWED_R1_SEED_MAP=1
 SWALLOWED_R1_LIST_SOURCE=catalog_RT_SEED_SLICE_OBJS+catalog_R1_CORE_SEED_OBJS+catalog_R1_FRONTEND_GLUE_OBJS+catalog_R1_MAIN_RUNTIME_OBJS+catalog_R1_ALIAS_STUBS_OBJS+catalog_R1_EXTRA_CFLAGS_OBJS+catalog_R1_MISC_BASENAME_OBJS+catalog_R1_SEED_MAP_OBJS
 SWALLOWED_R1_NOTE=pure_cc_body_shell_lists_mk_R3_prefer_thin_and_R4_non_R1_residual
+# wave758: thin_glue pure host-cc joined R1 seed-map (was R4 residual)
+SWALLOWED_R4_BODY_THIN_GLUE=1
+SWALLOWED_R4_BODY_THIN_GLUE_VIA=ensure_host_cc_seed_o.sh_seed-map_try-r1
+SWALLOWED_R4_BODY_THIN_GLUE_NOTE=parser_asm_thin_glue_seed_map_wave758
 
 # Residual classes still Makefile-owned (R1–R5 = 11.3.1; R6 = 11.1.4)
 RESIDUAL_CLASS_R1=host_cc_seed_from_x_to_o
@@ -331,6 +336,9 @@ else
   if ! grep -qE 'wave757|try-r3-cold|R3_COLD|cold.else' "$DOC_REL"; then
     bad "$DOC_REL must document wave757 R3 cold-else body swallow"
   fi
+  if ! grep -qE 'wave758|thin_glue|parser_asm_thin_glue|seed-map.*thin' "$DOC_REL"; then
+    bad "$DOC_REL must document wave758 thin_glue seed-map swallow"
+  fi
   note "doc $DOC_REL present"
 fi
 
@@ -366,6 +374,9 @@ if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R4_BODY_PURE_R1=1'; then
 fi
 if ! printf '%s\n' "$_out" | grep -q 'R4_BODY_PURE_R1_SWALLOWED=1'; then
   bad "dump R4_BODY_PURE_R1_SWALLOWED must be 1 (wave756 try-r1)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R4_BODY_THIN_GLUE=1'; then
+  bad "dump must set SWALLOWED_R4_BODY_THIN_GLUE=1 (wave758 thin_glue seed-map)"
 fi
 if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_R1_RT_SEED_SLICE=1'; then
   bad "dump must set SWALLOWED_R1_RT_SEED_SLICE=1 (wave748)"
