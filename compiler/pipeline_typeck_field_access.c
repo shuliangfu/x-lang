@@ -29,6 +29,8 @@ extern int32_t typeck_expr_inline_array_field_type_ref(struct ast_ASTArena *aren
                                                        int32_t field_name_len);
 extern int32_t pipeline_module_top_level_let_is_const(struct ast_Module *m, int32_t idx);
 extern int32_t pipeline_module_top_level_let_type_ref(struct ast_Module *m, int32_t idx);
+extern int32_t pipeline_module_top_level_let_name_len(struct ast_Module *m, int32_t idx);
+extern uint8_t pipeline_module_top_level_let_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
 extern int32_t typeck_top_level_let_name_equal(struct ast_Module *module, int32_t tl_idx, uint8_t *name,
                                                int32_t name_len);
 extern void lsp_diag_report_typeck(int line, int col, const char *fmt, ...);
@@ -371,10 +373,30 @@ int32_t pipeline_typeck_field_layout_named_c(struct ast_Module *module, struct a
   base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
   if (ast_ref_is_null(base_ty) || base_ty <= 0 || base_ty > arena->num_types)
     return 0;
+  /*
+   * wave702 Cap residual: peel type aliases before layout/name lookup.
+   * `type P = Point; let p: P = ...; p.x` must use Point's struct layout, not NAMED "P".
+   * G.7: typeck_resolve_type_alias_ref_local (same authority as assign/call).
+   * PLATFORM: SHARED.
+   */
+  {
+    extern int32_t typeck_resolve_type_alias_ref_local(struct ast_Module *m, struct ast_ASTArena *a,
+                                                       int32_t ty, int32_t depth);
+    int32_t peeled = typeck_resolve_type_alias_ref_local(module, arena, base_ty, 0);
+    if (!ast_ref_is_null(peeled) && peeled > 0 && peeled <= arena->num_types)
+      base_ty = peeled;
+  }
   bt_kind = pipeline_type_kind_ord_at(arena, base_ty);
   layout_named_ref = 0;
   if (bt_kind == (int32_t)ast_TypeKind_TYPE_PTR) {
     elem_ty = pipeline_type_elem_ref_at(arena, base_ty);
+    if (!ast_ref_is_null(elem_ty) && elem_ty > 0) {
+      extern int32_t typeck_resolve_type_alias_ref_local(struct ast_Module *m, struct ast_ASTArena *a,
+                                                         int32_t ty, int32_t depth);
+      int32_t peeled_e = typeck_resolve_type_alias_ref_local(module, arena, elem_ty, 0);
+      if (!ast_ref_is_null(peeled_e) && peeled_e > 0 && peeled_e <= arena->num_types)
+        elem_ty = peeled_e;
+    }
     if (!ast_ref_is_null(elem_ty) && pipeline_type_kind_ord_at(arena, elem_ty) == (int32_t)ast_TypeKind_TYPE_NAMED)
       layout_named_ref = elem_ty;
   } else if (bt_kind == (int32_t)ast_TypeKind_TYPE_NAMED) {
@@ -797,6 +819,51 @@ int32_t pipeline_typeck_field_import_binding_resolve_c(struct ast_Module *module
       }
     }
   }
+  /*
+   * wave702: also match `const async_mod = import("std.async")` style bindings.
+   * Top-level const name equals base; scan all deps for field const (import list may
+   * not register binding_name for const-import sugar). PLATFORM: SHARED.
+   */
+  {
+    int32_t ntl = module->num_top_level_lets;
+    int32_t tl;
+    int32_t nd;
+    int32_t di;
+    for (tl = 0; tl < ntl; tl++) {
+      int32_t tlen;
+      int32_t k;
+      int32_t match = 1;
+      if (!pipeline_module_top_level_let_is_const(module, tl))
+        continue;
+      tlen = pipeline_module_top_level_let_name_len(module, tl);
+      if (tlen != base_name_len || tlen <= 0)
+        continue;
+      for (k = 0; k < tlen && match; k++) {
+        if (pipeline_module_top_level_let_name_byte_at(module, tl, k) != base_name[k])
+          match = 0;
+      }
+      if (!match)
+        continue;
+      if (!ctx)
+        continue;
+      nd = pipeline_dep_ctx_ndep(ctx);
+      for (di = 0; di < nd; di++) {
+        struct ast_Module *dep_mod = pipeline_dep_ctx_module_at(ctx, di);
+        int32_t const_ty = 0;
+        if (!dep_mod)
+          continue;
+        if (pipeline_typeck_dep_top_level_const_match(dep_mod, &field_name[0], field_name_len, &const_ty)) {
+          pipeline_expr_set_resolved_type_ref(arena, expr_ref, const_ty);
+          if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, base_ref))) {
+            int32_t nt = typeck_find_or_alloc_named_type_ref(arena, &base_name[0], base_name_len);
+            if (nt != 0)
+              pipeline_expr_set_resolved_type_ref(arena, base_ref, nt);
+          }
+          return 1;
+        }
+      }
+    }
+  }
   return 0;
 }
 
@@ -1173,6 +1240,14 @@ int32_t pipeline_typeck_field_unknown_hard_fail_c(struct ast_Module *module, str
   base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
   if (ast_ref_is_null(base_ty) || base_ty <= 0 || base_ty > arena->num_types)
     return 0; /* soft: unknown base type */
+  /* wave702: peel type aliases so `type P = Point` is concrete for unknown-field gate. */
+  {
+    extern int32_t typeck_resolve_type_alias_ref_local(struct ast_Module *m, struct ast_ASTArena *a,
+                                                       int32_t ty, int32_t depth);
+    int32_t peeled = typeck_resolve_type_alias_ref_local(module, arena, base_ty, 0);
+    if (!ast_ref_is_null(peeled) && peeled > 0 && peeled <= arena->num_types)
+      base_ty = peeled;
+  }
   bt_kind = pipeline_type_kind_ord_at(arena, base_ty);
   check_ty = base_ty;
   /* Peel *S → S for layout/enum concrete check. */
@@ -1183,6 +1258,13 @@ int32_t pipeline_typeck_field_unknown_hard_fail_c(struct ast_Module *module, str
       col_f = pipeline_expr_col_at(arena, expr_ref);
       lsp_diag_report_typeck((int)line_f, (int)col_f, "unknown field on this type");
       return -1;
+    }
+    {
+      extern int32_t typeck_resolve_type_alias_ref_local(struct ast_Module *m, struct ast_ASTArena *a,
+                                                         int32_t ty, int32_t depth);
+      int32_t peeled_e = typeck_resolve_type_alias_ref_local(module, arena, elem_ty, 0);
+      if (!ast_ref_is_null(peeled_e) && peeled_e > 0 && peeled_e <= arena->num_types)
+        elem_ty = peeled_e;
     }
     check_ty = elem_ty;
     bt_kind = pipeline_type_kind_ord_at(arena, check_ty);
