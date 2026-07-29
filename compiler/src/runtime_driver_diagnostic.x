@@ -387,6 +387,22 @@ export function driver_diagnostic_typeck_invalid_bool_binop(line: i32, col: i32)
   }
 }
 
+/**
+ * Report assignment / compound-assign to a const binding (wave678 Cap residual).
+ * @param line i32 — 1-based source line of the assign
+ * @param col i32 — 1-based source column of the assign
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ thin.x; seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X.
+ * docs/06: const is immutable; let reassignment remains allowed.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_assign_to_const(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "cannot assign to const binding (const is immutable; use let for a mutable variable)");
+  }
+}
+
 /** Exported function `driver_diagnostic_typeck_try_propagate_bad_enclosing`.
  * Implements `driver_diagnostic_typeck_try_propagate_bad_enclosing`.
  * @param line i32

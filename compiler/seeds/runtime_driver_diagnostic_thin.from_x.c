@@ -795,6 +795,12 @@ void driver_diagnostic_typeck_invalid_bool_binop(int32_t line, int32_t col) {
       "invalid bool operation (bool cannot be used in arithmetic, bitops, shifts, or unary -/~; use logical ops or `as`)"));
   return;
 }
+/* wave678 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_assign_to_const */
+void driver_diagnostic_typeck_assign_to_const(int32_t line, int32_t col) {
+  (void)(lsp_diag_report_typeck(line, col,
+      "cannot assign to const binding (const is immutable; use let for a mutable variable)"));
+  return;
+}
 
 /* wave665 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_logical_operand_not_bool */
 void driver_diagnostic_typeck_logical_operand_not_bool(int32_t line, int32_t col) {

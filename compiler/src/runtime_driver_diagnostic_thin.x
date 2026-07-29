@@ -646,6 +646,22 @@ export function driver_diagnostic_typeck_invalid_bool_binop(line: i32, col: i32)
   }
 }
 
+/**
+ * Report assignment / compound-assign to a const binding (wave678 Cap residual).
+ * @param line i32 — 1-based source line of the assign
+ * @param col i32 — 1-based source column of the assign
+ * @return void
+ * PLATFORM: SHARED — G.7 ≡ runtime_driver_diagnostic.x.
+ * docs/06: const bindings are immutable; let remains reassignable (mut is spelling only).
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_assign_to_const(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "cannot assign to const binding (const is immutable; use let for a mutable variable)");
+  }
+}
+
 // ---- G-02f-341 pure helpers / remaining gates ----
 
 /** Exported function `parser_is_ident_allow`.

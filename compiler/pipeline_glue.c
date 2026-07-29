@@ -32480,6 +32480,39 @@ int32_t pipeline_typeck_check_expr_assign_c(struct ast_Module *module, struct as
    */
   if (pipeline_typeck_check_expr_c(module, arena, left_ref, 0, ctx) != 0)
     return -1;
+  /*
+   * wave678 Cap residual: const binding is immutable (docs/06). Prior assign
+   * path never checked const vs let → `const x: i32 = 1; x = 2` typeck-green
+   * (host-C may even rewrite a non-const local). G.7: single gate on product
+   * mega assign — VAR LHS only; block parent chain (inner-first) then top-level
+   * const. let remains reassignable; mut is spelling-only (wave385).
+   * Twin: typeck.x + seed typeck_gen same commit. PLATFORM: SHARED.
+   */
+  {
+    int32_t lhs_kind_c = pipeline_expr_kind_ord_at(arena, left_ref);
+    if (lhs_kind_c == (int32_t)ast_ExprKind_EXPR_VAR) {
+      uint8_t vbuf_c[128];
+      int32_t vnlen_c = pipeline_expr_var_name_len(arena, left_ref);
+      int32_t bind_kind = -1;
+      extern int32_t pipeline_block_name_binding_kind(struct ast_ASTArena *a, int32_t block_ref,
+                                                     uint8_t *vname, int32_t vlen);
+      extern int32_t pipeline_module_top_level_name_is_const(struct ast_Module *m, uint8_t *vname,
+                                                            int32_t vlen);
+      extern void driver_diagnostic_typeck_assign_to_const(int32_t line, int32_t col);
+      if (vnlen_c > 0 && vnlen_c < 128) {
+        memset(vbuf_c, 0, sizeof(vbuf_c));
+        pipeline_expr_var_name_into(arena, left_ref, &vbuf_c[0]);
+        if (ctx && ctx->current_block_ref > 0)
+          bind_kind = pipeline_block_name_binding_kind(arena, ctx->current_block_ref, &vbuf_c[0], vnlen_c);
+        if (bind_kind < 0 && module)
+          bind_kind = pipeline_module_top_level_name_is_const(module, &vbuf_c[0], vnlen_c) != 0 ? 1 : -1;
+        if (bind_kind == 1) {
+          driver_diagnostic_typeck_assign_to_const(line, col);
+          return -1;
+        }
+      }
+    }
+  }
   lt = pipeline_typeck_expr_type_ref_c(arena, left_ref);
   {
     int32_t rhs_ctx = return_type_ref;

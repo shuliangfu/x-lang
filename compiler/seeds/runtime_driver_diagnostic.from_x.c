@@ -736,6 +736,16 @@ void driver_diagnostic_typeck_invalid_bool_binop(int32_t line, int32_t col)
 }
 #endif
 
+/* wave678 Cap residual: pure authority thin.x driver_diagnostic_typeck_assign_to_const. */
+#ifndef XLANG_L2_RDD_THIN_FROM_X
+void driver_diagnostic_typeck_assign_to_const(int32_t line, int32_t col)
+{
+  (void)(lsp_diag_report_typeck(line, col,
+      "cannot assign to const binding (const is immutable; use let for a mutable variable)"));
+  return;
+}
+#endif
+
 /* pure 权威：thin.x driver_diagnostic_typeck_if_condition_not_bool；冷启动全 C；FROM_X 无 pure-dup _impl */
 #ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_if_condition_not_bool(int32_t line, int32_t col)

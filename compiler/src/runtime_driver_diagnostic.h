@@ -55,6 +55,8 @@ void driver_diagnostic_typeck_comparison_type_mismatch(int32_t line, int32_t col
 void driver_diagnostic_typeck_invalid_void_binop(int32_t line, int32_t col);
 /** wave677 Cap residual: bool cannot be used in arithmetic/bitops/shifts or unary -/~. */
 void driver_diagnostic_typeck_invalid_bool_binop(int32_t line, int32_t col);
+/** wave678 Cap residual: cannot assign / compound-assign to a const binding. */
+void driver_diagnostic_typeck_assign_to_const(int32_t line, int32_t col);
 void driver_diagnostic_typeck_struct_padding_before(const uint8_t *sname, int32_t sname_len, int32_t gap,
                                                     const uint8_t *fname, int32_t fname_len);
 void driver_diagnostic_typeck_struct_padding_trailing(const uint8_t *sname, int32_t sname_len, int32_t gap);

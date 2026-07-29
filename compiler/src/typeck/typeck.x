@@ -212,6 +212,10 @@ export extern function driver_diagnostic_typeck_invalid_void_binop(line: i32, co
  * freestanding/host false green. LANG-006 let/const scalar bool→int retained.
  */
 export extern function driver_diagnostic_typeck_invalid_bool_binop(line: i32, col: i32): void;
+export extern function driver_diagnostic_typeck_assign_to_const(line: i32, col: i32): void;
+export extern function pipeline_block_name_binding_kind(arena: *ASTArena, block_ref: i32, vname: *u8,
+vlen: i32): i32;
+export extern function pipeline_module_top_level_name_is_const(module: *Module, vname: *u8, vlen: i32): i32;
 export extern function typeck_driver_diagnostic_pipe_marker(id: i32): void;
 export extern function driver_diagnostic_typeck_if_condition_not_bool(line: i32, col: i32): void;
 export extern function driver_diagnostic_typeck_while_condition_not_bool(line: i32, col: i32): void;
@@ -5896,6 +5900,40 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      */
     if (check_expr(module, arena, left_ref, 0, ctx) != 0) {
       return - 1;
+    }
+    /*
+     * wave678 Cap residual: const is immutable (docs/06). VAR LHS only;
+     * block parent chain then top-level const. G.7 twin of product
+     * pipeline_typeck_check_expr_assign_c. PLATFORM: SHARED.
+     */
+    {
+      let lhs_kind_c: i32 = pipeline_expr_kind_ord_at(arena, left_ref);
+      if (lhs_kind_c == ord_var) {
+        let vbuf_c: u8[128] = [];
+        let vnlen_c: i32 = pipeline_expr_var_name_len(arena, left_ref);
+        let bind_kind: i32 = -1;
+        let br_c: i32 = 0;
+        let bi: i32 = 0;
+        if (vnlen_c > 0 && vnlen_c < 128) {
+          pipeline_expr_var_name_into(arena, left_ref, &vbuf_c[0]);
+          if (ctx != 0 as *PipelineDepCtx) {
+            br_c = pipeline_dep_ctx_current_block_ref_at(ctx);
+            if (br_c > 0) {
+              bind_kind = pipeline_block_name_binding_kind(arena, br_c, &vbuf_c[0], vnlen_c);
+            }
+          }
+          if (bind_kind < 0) {
+            bi = pipeline_module_top_level_name_is_const(module, &vbuf_c[0], vnlen_c);
+            if (bi != 0) {
+              bind_kind = 1;
+            }
+          }
+          if (bind_kind == 1) {
+            driver_diagnostic_typeck_assign_to_const(line, col);
+            return -1;
+          }
+        }
+      }
     }
     lt = expr_type_ref(arena, left_ref);
     rhs_ctx = return_type_ref;

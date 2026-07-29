@@ -3240,6 +3240,81 @@ int32_t pipeline_block_resolve_var_type_ref(struct ast_ASTArena *a, int32_t bloc
 }
 
 /**
+ * wave678 Cap residual: classify first name match on the block parent chain.
+ * Walk order matches pipeline_block_resolve_var_type_ref (inner-first; const
+ * before let within a block). Used by assign hard-fail so `const x = …; x = 1`
+ * cannot typeck-green (docs/06: const is immutable).
+ *
+ * @param a *ASTArena
+ * @param block_ref i32 — current block (0 → not found)
+ * @param vname *u8 — binding name bytes
+ * @param vlen i32 — name length
+ * @return i32 — 1 const binding, 0 let binding, -1 not found in block chain
+ * PLATFORM: SHARED — typeck assign authority helper; dual L2 mac+Ubuntu.
+ */
+int32_t pipeline_block_name_binding_kind(struct ast_ASTArena *a, int32_t block_ref, uint8_t *vname,
+                                         int32_t vlen) {
+  struct ast_Block *b;
+  int32_t cur;
+  int32_t depth;
+  if (!a || !vname || vlen <= 0)
+    return -1;
+  cur = block_ref;
+  depth = 0;
+  while (cur > 0 && cur <= a->num_blocks && depth < 128) {
+    int32_t i;
+    b = block_at(a, cur);
+    if (!b)
+      break;
+    for (i = 0; i < b->num_consts; i++) {
+      struct ast_ConstDecl *cd = block_const_at(a, cur, i);
+      /* Name match only (type_ref may still be 0 before stamp); still const. */
+      if (cd && cd->name_len == vlen && memcmp(cd->name, vname, (size_t)vlen) == 0)
+        return 1;
+    }
+    for (i = 0; i < b->num_lets; i++) {
+      struct ast_LetDecl *ld = block_let_at(a, cur, i);
+      if (ld && ld->name_len == vlen && memcmp(ld->name, vname, (size_t)vlen) == 0)
+        return 0;
+    }
+    cur = b->parent_block_ref;
+    depth++;
+  }
+  return -1;
+}
+
+/**
+ * wave678 Cap residual: 1 if a module top-level let/const slot has this name and
+ * is_const (top-level `const N = …`). 0 if missing or non-const top let.
+ * @param m *Module
+ * @param vname *u8
+ * @param vlen i32
+ * @return i32 — 1 const top-level, 0 otherwise
+ * PLATFORM: SHARED
+ */
+int32_t pipeline_module_top_level_name_is_const(struct ast_Module *m, uint8_t *vname, int32_t vlen) {
+  int32_t n;
+  int32_t i;
+  int32_t nl;
+  int32_t k;
+  if (!m || !vname || vlen <= 0)
+    return 0;
+  n = m->num_top_level_lets;
+  for (i = 0; i < n; i++) {
+    nl = pipeline_module_top_level_let_name_len(m, i);
+    if (nl != vlen)
+      continue;
+    for (k = 0; k < vlen; k++) {
+      if (pipeline_module_top_level_let_name_byte_at(m, i, k) != vname[k])
+        break;
+    }
+    if (k == vlen)
+      return pipeline_module_top_level_let_is_const(m, i) != 0 ? 1 : 0;
+  }
+  return 0;
+}
+
+/**
  * 按名查块内 const/let 的**声明块** ref（自 block_ref 沿 parent 链向内层优先匹配）。
  * 与 pipeline_block_resolve_var_type_ref 遍历顺序一致，但返回 block ref 而非 type ref。
  */

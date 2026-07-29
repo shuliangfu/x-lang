@@ -4676,6 +4676,41 @@ int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena
   if ((check_expr(module, arena, left_ref, 0, ctx) !=0)) {
     return -(1);
   }
+  /* wave678 Cap residual: const immutable (docs/06). G.7 ≡ typeck.x / pipeline assign. */
+  {
+    int32_t lhs_kind_c = pipeline_expr_kind_ord_at(arena, left_ref);
+    extern int32_t pipeline_block_name_binding_kind(struct ast_ASTArena *a, int32_t block_ref,
+                                                   uint8_t *vname, int32_t vlen);
+    extern int32_t pipeline_module_top_level_name_is_const(struct ast_Module *m, uint8_t *vname,
+                                                          int32_t vlen);
+    extern void driver_diagnostic_typeck_assign_to_const(int32_t line, int32_t col);
+    extern int32_t pipeline_dep_ctx_current_block_ref_at(struct ast_PipelineDepCtx *ctx);
+    if (lhs_kind_c == 3 /* EXPR_VAR */) {
+      uint8_t vbuf_c[128];
+      int32_t vnlen_c = pipeline_expr_var_name_len(arena, left_ref);
+      int32_t bind_kind = -1;
+      int32_t br_c = 0;
+      int32_t bi = 0;
+      if (vnlen_c > 0 && vnlen_c < 128) {
+        /* No memset — seed TU may omit string.h; name_into writes vnlen bytes. */
+        pipeline_expr_var_name_into(arena, left_ref, &vbuf_c[0]);
+        if (ctx) {
+          br_c = pipeline_dep_ctx_current_block_ref_at(ctx);
+          if (br_c > 0)
+            bind_kind = pipeline_block_name_binding_kind(arena, br_c, &vbuf_c[0], vnlen_c);
+        }
+        if (bind_kind < 0) {
+          bi = pipeline_module_top_level_name_is_const(module, &vbuf_c[0], vnlen_c);
+          if (bi != 0)
+            bind_kind = 1;
+        }
+        if (bind_kind == 1) {
+          driver_diagnostic_typeck_assign_to_const(line, col);
+          return -(1);
+        }
+      }
+    }
+  }
   (void)((lt = expr_type_ref(arena, left_ref)));
   (void)((rhs_ctx = return_type_ref));
   if (!(ast_ref_is_null(lt))) {
