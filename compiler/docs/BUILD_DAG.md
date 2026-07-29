@@ -53,6 +53,7 @@
 **wave779:** B1 runtime_* OS/glue dual hybrid → `try-runtime-os-prefer` (23 Makefile thin-call; not physical delete).  
 **wave780:** B2 std/core product hybrid → `try-std-core-prefer` (5 Makefile thin-call; not physical delete).  
 **wave781:** B3 LSP satellite hybrid → `try-lsp-sat-prefer` (2 Makefile thin-call; not physical delete).  
+**wave782:** B4 gen_c_to_o bootstrap → `try-gen-c-to-o` (5 Makefile thin-call; body `ensure_gen_x_o.sh`; not physical delete).  
 **wave758:** R4 residual thin_glue → R1 seed-map (G.7 有则补全) — `parser_asm_thin_glue` pure host-cc; user-asm shell-only.  
 **wave759:** R4 residual glue standalone → R1 seed-map (G.7 有则补全) — `pipeline_glue_standalone` pure host-cc; glue shell-only.
 
@@ -213,7 +214,7 @@ Do **not** grow new free-form recipes. Known residual classes:
 | Residual | Notes |
 |----------|--------|
 | ~~`DRIVER_SEED_PREREQS` make-graph edges~~ | **swallowed wave744** → shell ensure (list still mk) |
-| Leaf `.o` pattern rules (R1–R5) | **named inventory wave746** · **R4 mode+list shell wave747** · **R1 eight families wave748–755** · **R4 pure-R1 body wave756** · **R3 cold-else wave757** · **thin_glue seed-map wave758** · **glue-standalone seed-map wave759** · **panic PREFER wave776** · **phys-del prep buckets B1–B7 wave777** · **Windows gate + dual-end verify wave778** · **B1 runtime-os try-runtime-os-prefer wave779** · **B2 std-core try-std-core-prefer wave780** · **B3 lsp-sat try-lsp-sat-prefer wave781** · remaining B4–B5 residual Makefile → 11.3.1 |
+| Leaf `.o` pattern rules (R1–R5) | **named inventory wave746** · **R4 mode+list shell wave747** · **R1 eight families wave748–755** · **R4 pure-R1 body wave756** · **R3 cold-else wave757** · **thin_glue seed-map wave758** · **glue-standalone seed-map wave759** · **panic PREFER wave776** · **phys-del prep buckets B1–B7 wave777** · **Windows gate + dual-end verify wave778** · **B1 runtime-os try-runtime-os-prefer wave779** · **B2 std-core try-std-core-prefer wave780** · **B3 lsp-sat try-lsp-sat-prefer wave781** · **B4 gen-c-to-o try-gen-c-to-o wave782** · remaining B5 residual Makefile → 11.3.1 |
 | `compiler-all` / Makefile `all` | CI host-cc path (R5) |
 | FULL=1 bstrict make entry | Non-daily |
 | Missing `xlang-c` for force -E | ensure_* gen scripts |

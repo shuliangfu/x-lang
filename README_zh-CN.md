@@ -11,7 +11,7 @@
 | **源文件后缀** | `.x` |
 | **构建配置** | `build.x` — 用 X 语言描述的项目构建策略（步骤、目标、产物）；由 `xlang build` / `build_tool` / `xlang-build.sh` 执行 |
 | **现阶段（2026-07-20）** | **产品 L4 钉盘 `deaf773b`**（双端真冷 + bstrict **125/125** + Windows hybrid gate）。tip **`0c9458ed`**：CLI help 美化（Deno 风格），双端 L2 绿（**≠** tip L4 升钉）。**尚未完全自举**（冷启动仍需 seed / 过渡 C） |
-| **进度仪表盘** | [`analysis/自举进度.md`](analysis/自举进度.md) · 当天快照 [`analysis/当前进度.md`](analysis/当前进度.md) |
+| **进度仪表盘** | [`analysis/自举进度.md`](analysis/自举进度.md) · 终局债 [`analysis/C迁移追踪.md`](analysis/C迁移追踪.md) · Makefile 映射 [`analysis/Makefile迁移表.md`](analysis/Makefile迁移表.md) |
 | **English** | [README.md](README.md) |
 
 ---
@@ -267,7 +267,7 @@ xlang/
 ├── README.md / README_zh-CN.md
 ├── LICENSE · LICENSE.AGPL-3.0 · LICENSE.Apache-2.0 · NOTICE · CONTRIBUTING.md
 ├── build.x / xlang-build.sh
-├── analysis/                 # 过程文档 + RFC（当前进度 / 自举方法 / 自举步骤 / 问题分析 / 自举进度 …）
+├── analysis/                 # 过程文档 + RFC（自举进度 / C迁移追踪 / Makefile迁移表 / 自举方法 / 自举步骤 …）
 ├── docs/                     # 语言语法（面向用户）
 ├── compiler/                 # 编译器（.x + seed C / glue）
 │   ├── src/                  # lexer / parser / typeck / codegen / asm / pipeline / driver / lsp
@@ -351,7 +351,7 @@ xlang/
 
 ## 八、自举状态（摘要 · 2026-07-20）
 
-> **实时数字以** [`analysis/自举进度.md`](analysis/自举进度.md) · 当天 [`analysis/当前进度.md`](analysis/当前进度.md) **为准**。  
+> **实时数字以** [`analysis/自举进度.md`](analysis/自举进度.md) · 终局债 [`analysis/C迁移追踪.md`](analysis/C迁移追踪.md) **为准**。  
 > README 只给摘要；**禁止**把 Stage2 / prove / WPO / **日常 L2 绿**写成 tip L4 重钉或「完全自举」。
 
 ### 产品轨
@@ -434,7 +434,8 @@ xlang/
 | 文档 | 内容 |
 |------|------|
 | [`analysis/自举进度.md`](analysis/自举进度.md) | **KPI 仪表盘**（每波必改） |
-| [`analysis/当前进度.md`](analysis/当前进度.md) | 当天快照 / 前排 |
+| [`analysis/C迁移追踪.md`](analysis/C迁移追踪.md) | 终局债地图（MG / 删 Makefile DAG） |
+| [`analysis/Makefile迁移表.md`](analysis/Makefile迁移表.md) | Makefile → xbuild 叶映射 |
 | [`analysis/自举方法.md`](analysis/自举方法.md) | Cap / R / L / M 方法 |
 | [`analysis/自举步骤.md`](analysis/自举步骤.md) | 可执行闸门 |
 | [`docs/README.md`](docs/README.md) | 语言文档目录 |

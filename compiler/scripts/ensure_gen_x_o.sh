@@ -1,18 +1,26 @@
 #!/usr/bin/env bash
-# ensure_gen_x_o.sh — body of residual gen *_x.o + pipeline_x.o compile (11.3.1 · wave761)
+# ensure_gen_x_o.sh — body of residual gen *.c → .o compile (11.3.1 · wave761 + wave782)
 #
 # Authority (G.7 有则补全):
-#   Single host-cc body for product leaves that compile pinned/generated *_gen.c:
-#     lsp_io_x.o   ← lsp_io_gen.c   (+ lsp_io -D renames)
-#     lsp_x.o      ← lsp_gen.c
-#     lsp_diag_x.o ← lsp_diag_gen.c
-#     pipeline_x.o ← pipeline_gen.c (+ gen_driver cache / FORCE / PIPELINE_X_DEPS)
-#   Membership for rebuild_leaves is catalog-owned:
+#   Single host-cc body for product leaves that compile pinned/generated C:
+#     wave761 (try-gen-x catalog):
+#       lsp_io_x.o   ← lsp_io_gen.c   (+ lsp_io -D renames)
+#       lsp_x.o      ← lsp_gen.c
+#       lsp_diag_x.o ← lsp_diag_gen.c
+#       pipeline_x.o ← pipeline_gen.c (+ gen_driver cache / FORCE / PIPELINE_X_DEPS)
+#     wave782 (try-gen-c-to-o B4 bootstrap; NOT try-gen-x catalog):
+#       lexer_x.o      ← lexer_gen.c (+ token enum sync)
+#       ast_gen2.o     ← ast_gen2.c
+#       driver_x.o     ← driver_gen.c (+ x_stubs + fs -D renames)
+#       preprocess_x.o ← preprocess_gen.c
+#       _x_stubs2.o    ← _x_stubs2.c (stage2 hybrid stubs)
+#   Membership for rebuild_leaves try-gen-x is catalog-owned:
 #     DRIVER_SEED_LSP_X_OBJS · DRIVER_SEED_PIPELINE_X_OBJS
-#   (pure-R1 members of LSP list still go try-r1; only these gen maps use this body).
+#   B4 membership = try-gen-c-to-o table (ensure_host_cc_seed_o.sh); body here.
 #
-#   *_gen.c production remains ensure_lsp_pipeline_gen.sh (wave739) — this script
-#   may call it when gen is missing; it does not own -E regen policy.
+#   *_gen.c production remains ensure_lsp_pipeline_gen / ensure_driver_gen /
+#   ensure_migrate_gen — this script may call lsp/pipeline gen when missing;
+#   it does not own -E regen policy for B4 (Makefile keeps gen.c prereqs).
 #
 #   migrate_x_objs.sh stays the authority for parser/typeck/codegen migrate leaves
 #   (wave735); do not fork a second migrate path here.
@@ -20,8 +28,9 @@
 # Usage (cwd = compiler/):
 #   bash scripts/ensure_gen_x_o.sh one <out.o>
 #   bash scripts/ensure_gen_x_o.sh lsp-io|lsp|lsp-diag|pipeline
+#   bash scripts/ensure_gen_x_o.sh lexer-x|ast-gen2|driver-x|preprocess-x|x-stubs2
 #   bash scripts/ensure_gen_x_o.sh lsp-all     # three LSP gen objs
-#   bash scripts/ensure_gen_x_o.sh residual-all  # lsp trio + pipeline_x
+#   bash scripts/ensure_gen_x_o.sh residual-all  # lsp trio + pipeline_x (not B4)
 #
 # Env:
 #   CC / CFLAGS / PIPELINE_GEN_CFLAGS — host compile (match Makefile)
@@ -32,7 +41,7 @@
 #   MAKE — for ensure_lsp_pipeline_gen when gen missing
 #
 # PLATFORM: SHARED shell body; pipeline gen_driver cache is host-portable.
-# Wave: 761 Track MG · 11.3.1 path (not physical delete · not pure-ld).
+# Wave: 761 + 782 Track MG · 11.3.1 path (not physical delete · not pure-ld).
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -180,6 +189,117 @@ build_pipeline_x() {
   cp pipeline_x.o "$gen_drv"
 }
 
+# ---------------------------------------------------------------------------
+# wave782 B4: gen.c → .o bootstrap / stage stubs (outside try-gen-x catalog)
+# Historic Makefile: pure host-cc -c on generated/pinned C (not PREFER hybrid).
+# PLATFORM: SHARED shell · flags mirror Makefile leaf recipes.
+# ---------------------------------------------------------------------------
+
+need_rebuild_gen_o_or_deps() {
+  # $1=out.o $2=gen.c $3...=optional extra deps (e.g. MAIN_X .x paths)
+  local o="$1" g="$2"
+  shift 2
+  local dep
+  if need_rebuild_gen_o "$o" "$g"; then
+    return 0
+  fi
+  for dep in "$@"; do
+    [ -z "$dep" ] && continue
+    if [ -e "$dep" ] && [ "$dep" -nt "$o" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+build_lexer_x() {
+  # Makefile: perl sync_lexer_gen_token_enum + PIPELINE_GEN_CFLAGS -I triad.
+  if [ ! -f lexer_gen.c ]; then
+    log "missing lexer_gen.c (run ensure_migrate_gen lexer / make lexer_gen.c first)"
+    return 1
+  fi
+  if ! need_rebuild_gen_o lexer_x.o lexer_gen.c; then
+    log "skip lexer_x.o (up-to-date vs lexer_gen.c)"
+    return 0
+  fi
+  if [ -f scripts/sync_lexer_gen_token_enum.pl ]; then
+    perl scripts/sync_lexer_gen_token_enum.pl lexer_gen.c
+  fi
+  log "cc -c lexer_gen.c → lexer_x.o"
+  # shellcheck disable=SC2086
+  $CC $CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -c lexer_gen.c -o lexer_x.o
+  log "lexer_x.o OK"
+}
+
+build_ast_gen2() {
+  if [ ! -f ast_gen2.c ]; then
+    log "missing ast_gen2.c"
+    return 1
+  fi
+  if ! need_rebuild_gen_o ast_gen2.o ast_gen2.c; then
+    log "skip ast_gen2.o (up-to-date vs ast_gen2.c)"
+    return 0
+  fi
+  log "cc -c ast_gen2.c → ast_gen2.o"
+  # shellcheck disable=SC2086
+  $CC $CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -c ast_gen2.c -o ast_gen2.o
+}
+
+build_driver_x() {
+  # Makefile: -include x_stubs.h + fs_* → fs_posix_* renames (MAIN_X_DEPS stale).
+  if [ ! -f driver_gen.c ]; then
+    log "missing driver_gen.c (run ensure_driver_gen driver / make driver_gen.c first)"
+    return 1
+  fi
+  if ! need_rebuild_gen_o_or_deps driver_x.o driver_gen.c \
+    src/main.x src/codegen/codegen.x src/ast/ast.x src/preprocess/preprocess.x; then
+    log "skip driver_x.o (up-to-date vs driver_gen.c + MAIN_X_DEPS)"
+    return 0
+  fi
+  log "cc -c driver_gen.c → driver_x.o"
+  # shellcheck disable=SC2086
+  $CC $CFLAGS $PIPELINE_GEN_CFLAGS \
+    -include src/x_stubs.h \
+    -Dstd_fs_fs_read=fs_posix_read_c \
+    -Dstd_fs_fs_write=fs_posix_write_c \
+    -Dstd_fs_fs_close=fs_posix_close_c \
+    -Dfs_read=fs_posix_read_c \
+    -Dfs_write=fs_posix_write_c \
+    -Dfs_close=fs_posix_close_c \
+    -c driver_gen.c -o driver_x.o
+}
+
+build_preprocess_x() {
+  # Makefile: plain CFLAGS -c (no PIPELINE_GEN_CFLAGS on this leaf).
+  if [ ! -f preprocess_gen.c ]; then
+    log "missing preprocess_gen.c (run ensure_driver_gen preprocess first)"
+    return 1
+  fi
+  if ! need_rebuild_gen_o_or_deps preprocess_x.o preprocess_gen.c \
+    src/preprocess/preprocess.x; then
+    log "skip preprocess_x.o (up-to-date vs preprocess_gen.c + PREPROCESS_X_DEPS)"
+    return 0
+  fi
+  log "cc -c preprocess_gen.c → preprocess_x.o"
+  # shellcheck disable=SC2086
+  $CC $CFLAGS -c preprocess_gen.c -o preprocess_x.o
+}
+
+build_x_stubs2() {
+  # Stage2 hybrid link stubs (verify-selfhost-stage2); plain host-cc.
+  if [ ! -f _x_stubs2.c ]; then
+    log "missing _x_stubs2.c"
+    return 1
+  fi
+  if ! need_rebuild_gen_o _x_stubs2.o _x_stubs2.c; then
+    log "skip _x_stubs2.o (up-to-date vs _x_stubs2.c)"
+    return 0
+  fi
+  log "cc -c _x_stubs2.c → _x_stubs2.o"
+  # shellcheck disable=SC2086
+  $CC $CFLAGS -c _x_stubs2.c -o _x_stubs2.o
+}
+
 ensure_one_out() {
   local o="$1"
   case "$o" in
@@ -187,8 +307,13 @@ ensure_one_out() {
     lsp_x.o) build_lsp_x ;;
     lsp_diag_x.o) build_lsp_diag_x ;;
     pipeline_x.o) build_pipeline_x ;;
+    lexer_x.o) build_lexer_x ;;
+    ast_gen2.o) build_ast_gen2 ;;
+    driver_x.o) build_driver_x ;;
+    preprocess_x.o) build_preprocess_x ;;
+    _x_stubs2.o) build_x_stubs2 ;;
     *)
-      log "no gen map for $o (only lsp_io_x|lsp_x|lsp_diag_x|pipeline_x)"
+      log "no gen map for $o (lsp_io_x|lsp_x|lsp_diag_x|pipeline_x|lexer_x|ast_gen2|driver_x|preprocess_x|_x_stubs2)"
       return 3
       ;;
   esac
@@ -215,6 +340,21 @@ case "$MODE" in
   pipeline|pipeline_x|pipeline_x.o)
     build_pipeline_x
     ;;
+  lexer-x|lexer_x|lexer_x.o)
+    build_lexer_x
+    ;;
+  ast-gen2|ast_gen2|ast_gen2.o)
+    build_ast_gen2
+    ;;
+  driver-x|driver_x|driver_x.o)
+    build_driver_x
+    ;;
+  preprocess-x|preprocess_x|preprocess_x.o)
+    build_preprocess_x
+    ;;
+  x-stubs2|_x_stubs2|_x_stubs2.o|stubs2)
+    build_x_stubs2
+    ;;
   lsp-all|lsp_all)
     build_lsp_io_x
     build_lsp_x
@@ -229,11 +369,11 @@ case "$MODE" in
     log "residual-all OK (lsp trio + pipeline_x)"
     ;;
   help|-h|--help)
-    sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,50p' "$0" | sed 's/^# \{0,1\}//'
     exit 0
     ;;
   *)
-    echo "ensure_gen_x_o: unknown mode '$MODE' (one|lsp-io|lsp|lsp-diag|pipeline|lsp-all|residual-all)" >&2
+    echo "ensure_gen_x_o: unknown mode '$MODE' (one|lsp-io|lsp|lsp-diag|pipeline|lexer-x|ast-gen2|driver-x|preprocess-x|x-stubs2|lsp-all|residual-all)" >&2
     exit 2
     ;;
 esac

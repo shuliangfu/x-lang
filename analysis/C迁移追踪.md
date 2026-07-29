@@ -7,7 +7,7 @@
 > **用途**：全面列出 C 逻辑迁移到 .X 的所有步骤，按自举顺序排列。每完成一步打勾。已完成的打 ✅，未完成的打 ⬜，部分完成打 🟡。  
 > **路线**：路线 A（纯 .x + 内建能力重写）— 详见「路线选择」章节。  
 > **方法**：[自举方法.md](自举方法.md)（Cap / R / L / M）+ Track L2（语言能力）+ Track X（xbuild）+ Track C0（冷启动零 cc）+ Track MG（Makefile 退役）  
-> **进度数字**：[自举进度.md](自举进度.md) · [当前进度.md](当前进度.md) · skill `xlang-selfhost-product-gate`  
+> **进度数字**：[自举进度.md](自举进度.md) · skill `xlang-selfhost-product-gate` · Makefile 映射：[Makefile迁移表.md](Makefile迁移表.md)  
 > **维护约定**：本文只维护 **待办勾选 / 状态表 / 债地图**；**波次变更记录只写 [自举进度.md](自举进度.md)**（禁止在本文追加 changelog 段）。  
 > **权威钉盘**（与本文附录 C 同步）：**`53fd80927`**（wave710）。
 
@@ -1486,7 +1486,11 @@
     ✅ panic PREFER try-r2-prefer（wave776）；
     ✅ **phys-del prep inventory**（wave777：B1–B7 命名桶 · 非删 Makefile · 非吞体）；
     ✅ **Windows gate + dual-end verify**（wave778：`PHYS_DEL_WINDOWS_GATE` · `MG_VERIFY_DUAL_END=mac_plus_ubuntu_required` · 金标 Ubuntu；**禁** mac 单端宣称波绿；**禁** Windows 未绿就物理删 Makefile）；
-    ⬜ B1–B5 hybrid body swallow · physical delete / 删 Makefile
+    ✅ **B1** try-runtime-os-prefer（wave779 · 23 thin-call）；
+    ✅ **B2** try-std-core-prefer（wave780 · 5 thin-call）；
+    ✅ **B3** try-lsp-sat-prefer（wave781 · 2 thin-call）；
+    ✅ **B4** try-gen-c-to-o（wave782 · 5 thin-call；body=`ensure_gen_x_o.sh` 扩展；**非** try-gen-x catalog）；
+    ⬜ B5 cfg_eval multi-ladder body swallow · B6 R5 · physical delete / 删 Makefile
   - ⬜ 物理删 `compiler/Makefile` 仍 ⬜（下项）
 
 ⬜ **11.3.1 删除 `compiler/Makefile`**

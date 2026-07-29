@@ -996,12 +996,49 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - [x] **wave779:** B1 runtime_* OS/glue dual hybrid → `try-runtime-os-prefer` (23 thin-call; not physical delete)
 - [x] **wave780:** B2 std/core product hybrid → `try-std-core-prefer` (5 thin-call; not physical delete)
 - [x] **wave781:** B3 LSP satellite hybrid → `try-lsp-sat-prefer` (2 thin-call; not physical delete)
+- [x] **wave782:** B4 gen_c_to_o bootstrap → `try-gen-c-to-o` (5 thin-call; not physical delete)
 - [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame)
 - [ ] Leaf `.o` without host-cc residual (stages 8–9 / 12)
 - [ ] R5 CI / compiler-all shell body
-- [ ] B4–B5 Makefile dual hybrid body → ensure (next swallow waves)
+- [ ] B5 Makefile multi-ladder body → ensure (next swallow wave)
 
 
+
+### wave782 · B4 gen_c_to_o bootstrap → try-gen-c-to-o (G.7 有则补全)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; B5 body swallow.  
+> **This wave:** swallow **B4** Makefile pure host-cc gen.c→.o bodies into ensure `try-gen-c-to-o` (5 leaves); body maps live in `ensure_gen_x_o.sh` (same authority as wave761 gen maps; **outside** try-gen-x catalog). Makefile keeps thin-call edges only.  
+> **Why not fold into try-gen-x:** try-gen-x membership = catalog `DRIVER_SEED_LSP_X_OBJS` / `PIPELINE_X` only; B4 bootstrap leaves are not catalog members.
+
+```text
+Before (wave781):
+  Makefile 5× gen.c → .o bootstrap (lexer_x · ast_gen2 · driver_x · preprocess_x · _x_stubs2)
+  PHYS_DEL_PREP_NEXT=B4_gen_c_to_o_bootstrap_body_swallow_not_delete
+
+After (wave782):
+  ensure try-gen-c-to-o OUT
+    table-driven 5 leaves → ensure_gen_x_o.sh one
+  Makefile 5 leaves: thin-call try-gen-c-to-o only
+  SWALLOWED_B4_GEN_C_TO_O=1
+  PHYS_DEL_BUCKET_B4_BODY_SWALLOWED=1
+  PHYS_DEL_PREP_NEXT=B5_cfg_eval_multi_ladder_body_swallow_not_delete
+  ENDGAME_PHYSICAL_DELETE_MAKEFILE=0
+```
+
+| Leaf | Gen / source | Behavior |
+|------|--------------|----------|
+| `lexer_x.o` | `lexer_gen.c` | token enum sync + `PIPELINE_GEN_CFLAGS` `-I` triad |
+| `ast_gen2.o` | `ast_gen2.c` | `PIPELINE_GEN_CFLAGS` `-I` triad |
+| `driver_x.o` | `driver_gen.c` | `-include x_stubs.h` + fs `-D` renames; MAIN_X_DEPS stale |
+| `preprocess_x.o` | `preprocess_gen.c` | plain `CFLAGS -c` |
+| `_x_stubs2.o` | `_x_stubs2.c` | plain `CFLAGS -c` (stage2 stubs) |
+
+| Swallowed this wave | Still residual |
+|---------------------|----------------|
+| **B4 body** (5 gen bootstrap → ensure try-gen-c-to-o + Makefile thin-call) | B5 cfg_eval · B6 R5 · B7 DAG · physical delete |
+| Prior R1–R6 / prefer / pure-ld / prep / Windows+dual-end / B1–B3 | FORCE_CC · Windows PE pure-ld body |
+
+**Forbidden:** physical delete Makefile; claim B4 swallow = physical delete; re-open inline `$(CC) -c` on B4 leaves; mac-only wave green; fold B4 into try-gen-x catalog without list authority.
 
 ### wave781 · B3 LSP satellite hybrid → try-lsp-sat-prefer (G.7 有则补全)
 
@@ -1032,7 +1069,7 @@ After (wave781):
 
 | Swallowed this wave | Still residual |
 |---------------------|----------------|
-| **B3 body** (2 LSP satellite hybrid → ensure try-lsp-sat-prefer + Makefile thin-call) | B4–B5 hybrid bodies · B6 R5 · B7 DAG · physical delete |
+| **B3 body** (2 LSP satellite hybrid → ensure try-lsp-sat-prefer + Makefile thin-call) | ~~B4~~ (wave782) · B5 hybrid bodies · B6 R5 · B7 DAG · physical delete |
 | Prior R1–R6 / prefer / pure-ld / prep / Windows+dual-end / B1 / B2 | FORCE_CC · Windows PE pure-ld body |
 
 **Forbidden:** physical delete Makefile; claim B3 swallow = physical delete; re-open dual hybrid body on B3 leaves; mac-only wave green (wave778 gate still holds); fold into try-other-l2 without matching shapes.

@@ -66,7 +66,7 @@
 | `g05-ensure-relink-prereqs` | 3081 | g05_ensure_relink_prereqs.sh (~3.3k 行) | `xbuild ensure` | 🟢 g05_ensure_relink_prereqs.sh | 热路径 cc；filtered.o 已纯 shell（wave715） |
 | `g05-export-relink` | 3085 | g05_relink_env.sh | `xbuild link-env` | 🟢 g05_relink_env.sh | 链接清单 |
 | `refresh-xlang-asm-gate` | 3172 | shell `refresh_xlang_asm_gate.sh` | `xbuild refresh-gate` | 🟢 wave734 体 shell；**wave735–737** migrate+gen+lexer shell | 11.1.6 |
-| `bootstrap-driver-seed` | ~2995 | **shell 编排** + shell ensure_prereqs（wave744）+ 薄叶子 | `xbuild bootstrap` | 🟡 wave717–763：编排+链接+§5b+prereq 边 shell；叶 pattern 库存（wave746）+ **R4 mode catalog**（wave747）+ **R1 八族**（wave748–755）+ **R4 pure-R1 try-r1**（wave756）+ **R3 cold-else try-r3-cold**（wave757）+ **thin_glue seed-map**（wave758）+ **glue-standalone seed-map**（wave759）+ **R2 panic cold try-r2**（wave760）+ **gen/pipeline try-gen-x**（wave761）+ **R2 typeck_f64/crt0 try-r2**（wave762）+ **R3 PREFER thin try-r3-prefer**（wave763）+ **g05 r3-prefer-family**（wave764）+ **labi try-labi-prefer**（wave765）+ **rt try-rt-prefer**（wave766）+ **pipeline_abi/ldpc try-*-prefer**（wave767）+ **target_cpu try-target-cpu-prefer**（wave768）；residual other L2 · pure-ld | L4 必经；列表 mk catalog；make 无 prereq 图；11.3.1 物理删仍 ⬜ |
+| `bootstrap-driver-seed` | ~2995 | **shell 编排** + shell ensure_prereqs（wave744）+ 薄叶子 | `xbuild bootstrap` | 🟡 wave717–782：编排+链接+§5b+prereq 边 shell；叶 pattern 库存→R1–R6 prefer/pure-ld → phys-del prep（wave777）→ Windows/双端闸门（wave778）→ **B1–B4 吞体**（wave779–782：try-runtime-os / std-core / lsp-sat / **gen-c-to-o**）；residual B5 cfg_eval · R5 · 物理删 | L4 必经；列表 mk catalog；make 无 prereq 图；11.3.1 物理删仍 ⬜ |
 | `bootstrap-driver-bstrict` | ~3107 | **shell** `bootstrap_driver_bstrict.sh`；FULL=1 仍 make 入口 | `xbuild bstrict-build` | 🟡 wave719 体 shell；refresh 仍 make | 非日常 |
 | `test` / `test_c` / `test_x` | ~1685 | **shell** `run_compiler_tests.sh` | `xbuild test` | 🟢 wave720 体 shell；prereq 仍 make 图 | 嵌套 run-all 可 make |
 | `bootstrap-verify` / `check-7.2-bstrict` | ~3320 | **shell** `bootstrap_verify_bstrict.sh` | `xbuild verify` | 🟢 wave720 体 shell；prereq bstrict 图 | 阶段2 仍脚本内 make |
@@ -249,7 +249,7 @@
 | 986 | `src/runtime_x.o` | ⬜ |
 | 1129 | `src/main_x.o` | ⬜ |
 | 1819 | `parser_x.o` | 🟡 g05 / Makefile pin |
-| 1888 | `lexer_x.o` | ⬜ |
+| 1888 | `lexer_x.o` | 🟡 wave782 try-gen-c-to-o thin |
 | 2185 | `typeck_x.o` | 🟡 pin seed |
 | 2210 | `codegen_x.o` | 🟡 pin seed |
 | 2529 | `ast_x.o` | ⬜ |
@@ -264,8 +264,8 @@
 | 2697 | `driver_run_x.o` | ⬜ |
 | 2703 | `driver_compile_x.o` | ⬜ |
 | 2707 | `driver_emit_x.o` | ⬜ |
-| 2912 | `driver_x.o` | ⬜ |
-| 2930 | `preprocess_x.o` | ⬜ |
+| 2912 | `driver_x.o` | 🟡 wave782 try-gen-c-to-o thin |
+| 2930 | `preprocess_x.o` | 🟡 wave782 try-gen-c-to-o thin |
 
 ### 类 E — compiler/src 宿主 .o（runtime/driver/asm…）
 
@@ -547,8 +547,8 @@
 | 1909 | `backend_asm_strict_fallback_alias.o` | ⬜ |
 | 1912 | `typeck_c_module_stubs.o` | ⬜ |
 | 2056 | `parser_asm_thin_glue.o` | 🟡 wave758 seed-map thin |
-| 2164 | `ast_gen2.o` | ⬜ |
-| 2808 | `_x_stubs2.o` | ⬜ |
+| 2164 | `ast_gen2.o` | 🟡 wave782 try-gen-c-to-o thin |
+| 2808 | `_x_stubs2.o` | 🟡 wave782 try-gen-c-to-o thin |
 | 3048 | `pipeline_bootstrap_orchestration.o` | ⬜ |
 
 ### 类 O — 未分类 / 死规则候选

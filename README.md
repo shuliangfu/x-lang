@@ -11,7 +11,7 @@
 | **Source extension** | `.x` |
 | **Build config** | `build.x` — project build strategy in X language (steps, targets, products); entry via `xlang build` / `build_tool` / `xlang-build.sh` |
 | **Status (2026-07-20)** | **Product L4 pin `deaf773b`** (dual-host true cold + bstrict **125/125** + Windows hybrid gate). Tip **`0c9458ed`**: CLI help beautify (Deno-style), dual L2 green (**≠** tip L4 re-pin). **Self-host not finished** (seed / hybrid C still required for cold start) |
-| **Live dashboard** | [`analysis/自举进度.md`](analysis/自举进度.md) · daily snapshot [`analysis/当前进度.md`](analysis/当前进度.md) |
+| **Live dashboard** | [`analysis/自举进度.md`](analysis/自举进度.md) · debt map [`analysis/C迁移追踪.md`](analysis/C迁移追踪.md) · Makefile map [`analysis/Makefile迁移表.md`](analysis/Makefile迁移表.md) |
 | **中文** | [README_zh-CN.md](README_zh-CN.md) |
 
 ---
@@ -267,7 +267,7 @@ xlang/
 ├── README.md / README_zh-CN.md
 ├── LICENSE · LICENSE.AGPL-3.0 · LICENSE.Apache-2.0 · NOTICE · CONTRIBUTING.md
 ├── build.x / xlang-build.sh
-├── analysis/                 # process docs + RFCs (当前进度 / 自举方法 / 自举步骤 / 问题分析 / 自举进度 …)
+├── analysis/                 # process docs + RFCs (自举进度 / C迁移追踪 / Makefile迁移表 / 自举方法 / 自举步骤 …)
 ├── docs/                     # language syntax (user-facing)
 ├── compiler/                 # compiler (.x + seed C / glue)
 │   ├── src/                  # lexer, parser, typeck, codegen, asm, pipeline, driver, lsp
@@ -351,7 +351,7 @@ Link is **on demand** (unused modules stay out of the final link when possible).
 
 ## 8. Self-host status (snapshot · 2026-07-20)
 
-> **Authoritative live numbers**: [`analysis/自举进度.md`](analysis/自举进度.md) · daily [`analysis/当前进度.md`](analysis/当前进度.md).  
+> **Authoritative live numbers**: [`analysis/自举进度.md`](analysis/自举进度.md) · debt [`analysis/C迁移追踪.md`](analysis/C迁移追踪.md).  
 > README only summarizes; **do not** treat Stage2 / prove / WPO / daily L2 green as a tip L4 re-pin or as “self-host done”.
 
 ### Product track
@@ -435,7 +435,8 @@ Methodology: Cap / R / L / M → [`analysis/自举方法.md`](analysis/自举方
 | Document | Role |
 |----------|------|
 | [`analysis/自举进度.md`](analysis/自举进度.md) | **KPI dashboard** (must update each wave) |
-| [`analysis/当前进度.md`](analysis/当前进度.md) | Daily snapshot / front row |
+| [`analysis/C迁移追踪.md`](analysis/C迁移追踪.md) | Endgame debt map (MG / delete Makefile DAG) |
+| [`analysis/Makefile迁移表.md`](analysis/Makefile迁移表.md) | Makefile → xbuild leaf map |
 | [`analysis/自举方法.md`](analysis/自举方法.md) | Cap / R / L / M method |
 | [`analysis/自举步骤.md`](analysis/自举步骤.md) | Executable gates |
 | [`docs/README.md`](docs/README.md) | Language docs index |

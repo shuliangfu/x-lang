@@ -82,6 +82,10 @@
 #            try-ldpc: sizes_nostub = xlang-c -E → cc -c direct; stubs_no_c =
 #            xlang-c -E thin + seed rest FROM_X → ld -r multidef). Makefile
 #            thin-call only (NOT physical delete). Residual: B4–B5 · physical delete.
+#   wave782: G.7 B4 gen.c → .o bootstrap → `try-gen-c-to-o OUT`
+#            (有则补全; body = ensure_gen_x_o.sh maps for lexer_x / ast_gen2 /
+#            driver_x / preprocess_x / _x_stubs2 — outside try-gen-x catalog).
+#            Makefile thin-call only (NOT physical delete). Residual: B5 · physical delete.
 #   wave758: R4 residual pure host-cc thin_glue → R1 seed-map (G.7 有则补全):
 #            parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c +
 #            -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm;
@@ -161,7 +165,8 @@
 #   - ~~B1 runtime_* OS/glue dual hybrid~~ wave779 → try-runtime-os-prefer
 #   - ~~B2 std/core product hybrid~~ wave780 → try-std-core-prefer
 #   - ~~B3 LSP satellite hybrid~~ wave781 → try-lsp-sat-prefer
-#   - R5 CI all · B4–B5 hybrid · pure-ld residual
+#   - ~~B4 gen_c_to_o bootstrap~~ wave782 → try-gen-c-to-o
+#   - R5 CI all · B5 hybrid · pure-ld residual
 #   - pure-ld (11.1.4) · physical Makefile delete (11.3.1)
 #   - bootstrap_nostdlib_stubs.o (cc_inc_tu residual) · crt0_user.o cp wrappers
 #
@@ -182,6 +187,7 @@
 #   bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer <out.o> # wave779 B1 runtime OS 23
 #   bash scripts/ensure_host_cc_seed_o.sh try-std-core-prefer <out.o> # wave780 B2 std/core 5
 #   bash scripts/ensure_host_cc_seed_o.sh try-lsp-sat-prefer <out.o> # wave781 B3 LSP satellite 2
+#   bash scripts/ensure_host_cc_seed_o.sh try-gen-c-to-o <out.o> # wave782 B4 gen.c→.o bootstrap 5
 #   bash scripts/ensure_host_cc_seed_o.sh try-r2 <out.o>   # wave760/762 R2 UNAME leaves
 #   bash scripts/ensure_host_cc_seed_o.sh try-gen-x <out.o> # wave761 gen *_x / pipeline_x
 #   bash scripts/ensure_host_cc_seed_o.sh r2-panic         # DRIVER_SEED_PANIC family
@@ -242,7 +248,7 @@ _DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-async-prefer|try-other-l2-prefer|try-r2-prefer|try-runtime-os-prefer|try-std-core-prefer|try-lsp-sat-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-async-prefer|try-other-l2-prefer|try-r2-prefer|try-runtime-os-prefer|try-std-core-prefer|try-lsp-sat-prefer|try-gen-c-to-o|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -3844,7 +3850,7 @@ try_ensure_std_core_prefer_one() {
 #   3 — OUT is not in the lsp-sat prefer table
 #   1 — seed missing / compile failed
 # PLATFORM: SHARED shell body · product dual hybrid historic (xlang-c when present).
-# Residual after: B4–B5 · physical delete · R5.
+# Residual after: ~~B4~~ (wave782) · B5 · physical delete · R5.
 # ---------------------------------------------------------------------------
 
 # Spec: seed|x_src|from_x_def|leaf_kind
@@ -3995,6 +4001,58 @@ try_ensure_lsp_sat_prefer_one() {
     return 3
   fi
   ensure_lsp_sat_prefer_one "$o"
+  return 0
+}
+
+# ---------------------------------------------------------------------------
+# wave782: try-gen-c-to-o OUT — B4 gen.c → .o bootstrap / stage stubs.
+#
+# Table-driven membership (G.7 有则补全). Five Makefile pure host-cc leaves
+# outside try-gen-x catalog (lsp trio + pipeline_x). Body = ensure_gen_x_o.sh
+# one OUT (same authority as wave761 gen maps; extended for B4).
+#
+# Leaves: lexer_x.o · ast_gen2.o · driver_x.o · preprocess_x.o · _x_stubs2.o
+# Prefer fail N/A — cold gen.c / _x_stubs2.c only (historic Makefile).
+# Callers: Makefile 5 leaves (wave782). NOT physical delete.
+# Exit codes:
+#   0 — OUT is a B4 table member; body produced OUT (or skip up-to-date)
+#   3 — OUT is not in the gen-c-to-o table
+#   1 — gen missing / compile failed
+# PLATFORM: SHARED shell body.
+# Residual after: B5 · physical delete · R5.
+# ---------------------------------------------------------------------------
+
+gen_c_to_o_spec_for_out() {
+  # stdout non-empty iff B4 member (value = gen source path for --check).
+  case "$1" in
+    lexer_x.o) printf '%s' "lexer_gen.c" ;;
+    ast_gen2.o) printf '%s' "ast_gen2.c" ;;
+    driver_x.o) printf '%s' "driver_gen.c" ;;
+    preprocess_x.o) printf '%s' "preprocess_gen.c" ;;
+    _x_stubs2.o) printf '%s' "_x_stubs2.c" ;;
+    *) printf '%s' "" ;;
+  esac
+}
+
+try_ensure_gen_c_to_o_one() {
+  local o="$1"
+  if [ -z "$o" ]; then
+    echo "ensure_host_cc_seed_o try-gen-c-to-o: need <out.o>" >&2
+    exit 2
+  fi
+  if [ -z "$(gen_c_to_o_spec_for_out "$o")" ]; then
+    return 3
+  fi
+  if [ ! -f scripts/ensure_gen_x_o.sh ]; then
+    echo "ensure_host_cc_seed_o try-gen-c-to-o: missing scripts/ensure_gen_x_o.sh (wave782)" >&2
+    return 1
+  fi
+  if [ "$FORCE" = "1" ]; then
+    XLANG_GEN_X_FORCE=1 XLANG_HOST_CC_SEED_FORCE=1 \
+      bash scripts/ensure_gen_x_o.sh one "$o" || return 1
+  else
+    bash scripts/ensure_gen_x_o.sh one "$o" || return 1
+  fi
   return 0
 }
 
@@ -5602,6 +5660,62 @@ run_check() {
   else
     note "lsp-sat prefer table has 2 members (wave781 B3)"
   fi
+  # wave782: try-gen-c-to-o B4 5 gen.c → .o bootstrap
+  if ! grep -q 'try_ensure_gen_c_to_o_one\|try-gen-c-to-o' "$0"; then
+    bad "try-gen-c-to-o / try_ensure_gen_c_to_o_one missing (wave782)"
+  else
+    note "try-gen-c-to-o helper present (wave782)"
+  fi
+  if ! grep -q 'gen_c_to_o_spec_for_out' "$0"; then
+    bad "gen_c_to_o table missing (wave782)"
+  else
+    note "gen-c-to-o table present (wave782)"
+  fi
+  if ! grep -q 'build_lexer_x\|lexer_x.o' scripts/ensure_gen_x_o.sh; then
+    bad "ensure_gen_x_o.sh missing B4 lexer_x map (wave782)"
+  else
+    note "ensure_gen_x_o B4 maps present (wave782)"
+  fi
+  _b4_n=0
+  for _b4_leaf in lexer_x.o ast_gen2.o driver_x.o preprocess_x.o _x_stubs2.o; do
+    if [ -n "$(gen_c_to_o_spec_for_out "$_b4_leaf")" ]; then
+      _b4_n=$((_b4_n + 1))
+    else
+      bad "gen_c_to_o_spec_for_out missing $_b4_leaf (wave782)"
+    fi
+    if awk -v leaf="$_b4_leaf" '
+      $0 ~ ("^" leaf ":") {grab=1; next}
+      grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+      grab {body = body $0 "\n"}
+      END {
+        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-gen-c-to-o/) exit 0
+        exit 1
+      }
+    ' Makefile; then
+      note "Makefile $_b4_leaf thin-calls ensure try-gen-c-to-o (wave782)"
+    else
+      bad "Makefile $_b4_leaf must thin-call ensure try-gen-c-to-o (wave782)"
+    fi
+    # Ban re-opened inline $(CC) -c body on recipe lines (comments OK).
+    if awk -v leaf="$_b4_leaf" '
+      $0 ~ ("^" leaf ":") {grab=1; next}
+      grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+      grab && /^\t/ {body = body $0 "\n"}
+      END {
+        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-gen-c-to-o/ && body !~ /\$\(CC\)/) exit 1
+        if (body ~ /\$\(CC\)/ && body ~ /-c /) exit 0
+        if (body ~ /sync_lexer_gen_token_enum/ && body !~ /ensure_host_cc_seed_o/) exit 0
+        exit 1
+      }
+    ' Makefile; then
+      bad "Makefile $_b4_leaf still has inline host-cc body (wave782)"
+    fi
+  done
+  if [ "$_b4_n" -ne 5 ]; then
+    bad "gen-c-to-o table size $_b4_n != 5 (wave782 B4 heat)"
+  else
+    note "gen-c-to-o table has 5 members (wave782 B4)"
+  fi
   # wave760/762: try-r2 R2 UNAME leaves (panic + typeck_f64 + crt0)
   if ! grep -q 'try_ensure_r2_one\|try-r2' "$0"; then
     bad "try-r2 / try_ensure_r2_one missing (wave760/762 R2 UNAME)"
@@ -5853,6 +5967,19 @@ case "$MODE" in
     _try_out="$1"
     set +e
     try_ensure_lsp_sat_prefer_one "$_try_out"
+    _try_rc=$?
+    set -e
+    exit "$_try_rc"
+    ;;
+  try-gen-c-to-o|try_gen_c_to_o|gen-c-to-o|genc2o|try-gen-c|b4-gen|b4-prefer)
+    # wave782: B4 gen.c → .o bootstrap table; exit 3 if not table member.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o try-gen-c-to-o: need <out.o>" >&2
+      exit 2
+    fi
+    _try_out="$1"
+    set +e
+    try_ensure_gen_c_to_o_one "$_try_out"
     _try_rc=$?
     set -e
     exit "$_try_rc"

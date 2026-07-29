@@ -1518,10 +1518,10 @@ lexer_gen.c: src/lexer/lexer.x
 	  XLANG_C="$(XLANG_C)" XLANG_X="$(XLANG_X)" \
 	  sh scripts/ensure_migrate_gen.sh lexer
 
-lexer_x.o: lexer_gen.c
-	@perl scripts/sync_lexer_gen_token_enum.pl lexer_gen.c
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c lexer_gen.c -o lexer_x.o
-	@echo "lexer_x.o OK"
+# wave782: B4 gen.c → .o bootstrap body → try-gen-c-to-o (thin-call only).
+lexer_x.o: lexer_gen.c scripts/ensure_host_cc_seed_o.sh scripts/ensure_gen_x_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-gen-c-to-o $@
 
 # G-02f-11：x_seed_bridge 产品 seed
 # wave749 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_CORE_SEED_OBJS).
@@ -1738,8 +1738,10 @@ ast_gen2.c: src/ast/ast.x
 	  perl scripts/fix_slim_arena_gen_c.pl $@; \
 	fi
 
-ast_gen2.o: ast_gen2.c
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c ast_gen2.c -o ast_gen2.o
+# wave782: B4 gen.c → .o bootstrap body → try-gen-c-to-o (thin-call only).
+ast_gen2.o: ast_gen2.c scripts/ensure_host_cc_seed_o.sh scripts/ensure_gen_x_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-gen-c-to-o $@
 
 # wave736: G.7 body → scripts/ensure_migrate_gen.sh (typeck_gen.c seed/pin/-E)
 typeck_gen.c: src/typeck/typeck.x
@@ -2220,8 +2222,10 @@ driver_emit_gen.c: src/driver/emit.x
 # 中 _preprocess / preprocess_preprocess_x_buf 解析顺序导致 Undefined _preprocess。
 
 # Stage2 混合链接桩（verify-selfhost-stage2.sh）
-_x_stubs2.o: _x_stubs2.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+# wave782: B4 gen.c → .o bootstrap body → try-gen-c-to-o (thin-call only).
+_x_stubs2.o: _x_stubs2.c scripts/ensure_host_cc_seed_o.sh scripts/ensure_gen_x_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-gen-c-to-o $@
 
 # 须在 pipeline_x.o / bootstrap-pipeline 规则之前定义（Make 解析顺序；后置则 $(PIPELINE_X_DEPS) 为空）。
 # asm 子树经常新增 backend/platform/arch 级别实现；这里用 wildcard 覆盖整棵 .x 依赖，
@@ -2252,8 +2256,10 @@ driver_gen.c: $(MAIN_X_DEPS)
 	  XLANG_C="$(XLANG_C)" XLANG_X="$(XLANG_X)" \
 	  sh scripts/ensure_driver_gen.sh driver
 
-driver_x.o: driver_gen.c $(MAIN_X_DEPS)
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -include src/x_stubs.h -Dstd_fs_fs_read=fs_posix_read_c -Dstd_fs_fs_write=fs_posix_write_c -Dstd_fs_fs_close=fs_posix_close_c -Dfs_read=fs_posix_read_c -Dfs_write=fs_posix_write_c -Dfs_close=fs_posix_close_c -c driver_gen.c -o driver_x.o
+# wave782: B4 gen.c → .o bootstrap body → try-gen-c-to-o (thin-call only).
+driver_x.o: driver_gen.c $(MAIN_X_DEPS) scripts/ensure_host_cc_seed_o.sh scripts/ensure_gen_x_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-gen-c-to-o $@
 
 # preprocess_gen.c / preprocess_x.o：runtime XLANG_USE_X_PREPROCESS 路径。
 # wave738: G.7 body → scripts/ensure_driver_gen.sh preprocess
@@ -2262,8 +2268,10 @@ preprocess_gen.c: $(PREPROCESS_X_DEPS)
 	  XLANG_C="$(XLANG_C)" XLANG_X="$(XLANG_X)" \
 	  sh scripts/ensure_driver_gen.sh preprocess
 
-preprocess_x.o: preprocess_gen.c $(PREPROCESS_X_DEPS)
-	$(CC) $(CFLAGS) -c preprocess_gen.c -o preprocess_x.o
+# wave782: B4 gen.c → .o bootstrap body → try-gen-c-to-o (thin-call only).
+preprocess_x.o: preprocess_gen.c $(PREPROCESS_X_DEPS) scripts/ensure_host_cc_seed_o.sh scripts/ensure_gen_x_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-gen-c-to-o $@
 
 # XLANG_NO_C_FRONTEND 下 lsp_diag_x.o / lsp_x.o 需要的文档缓冲 + X 管道缓冲桩
 # G-02f-22：lsp_diag_stubs_no_c 产品 seed

@@ -319,10 +319,16 @@ SWALLOWED_B3_LSP_SAT_PREFER=1
 B3_LSP_SAT_PREFER_SWALLOWED=1
 B3_LSP_SAT_PREFER_HELPER=try-lsp-sat-prefer
 B3_LSP_SAT_PREFER_WAVE=wave781
-# B4: gen.c → .o bootstrap / stage stubs (not try-gen-x catalog)
+# B4: ~~gen.c → .o bootstrap body~~ wave782 → try-gen-c-to-o
+#     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B4=gen_c_to_o_bootstrap
-PHYS_DEL_BUCKET_B4_SCOPE=lexer_x+ast_gen2+driver_x+preprocess_x+_x_stubs2
+PHYS_DEL_BUCKET_B4_SCOPE=lexer_x+ast_gen2+driver_x+preprocess_x+_x_stubs2_thin_call
 PHYS_DEL_BUCKET_B4_HEAT_TARGETS=5
+PHYS_DEL_BUCKET_B4_BODY_SWALLOWED=1
+SWALLOWED_B4_GEN_C_TO_O=1
+B4_GEN_C_TO_O_SWALLOWED=1
+B4_GEN_C_TO_O_HELPER=try-gen-c-to-o
+B4_GEN_C_TO_O_WAVE=wave782
 # B5: multi-ladder / one-off (cfg_eval)
 PHYS_DEL_BUCKET_B5=cfg_eval_multi_ladder
 PHYS_DEL_BUCKET_B5_SCOPE=src_lexer_cfg_eval_o
@@ -333,7 +339,7 @@ PHYS_DEL_BUCKET_B6_SCOPE=Makefile_all_OPT_seed_xbuild_compiler_all
 # B7: Makefile still owns DAG thin-calls + lists (cannot delete until B2–B6 + BC)
 PHYS_DEL_BUCKET_B7=makefile_dag_thin_calls
 PHYS_DEL_BUCKET_B7_SCOPE=ensure_thin_call_targets_plus_mk_lists
-PHYS_DEL_PREP_NEXT=B4_gen_c_to_o_bootstrap_body_swallow_not_delete
+PHYS_DEL_PREP_NEXT=B5_cfg_eval_multi_ladder_body_swallow_not_delete
 PHYS_DEL_PREP_FORBIDDEN=claim_physical_delete|dual_o_list_as_authority|delete_makefile_before_windows_green
 # wave778: hard gate — physical delete of compiler/Makefile only AFTER Windows
 # hybrid min-gate green (+ PE pure-ld residual owned). Body swallow (B1–B5) keeps
@@ -743,6 +749,9 @@ else
   if ! grep -qE 'wave781|try-lsp-sat-prefer|B3.*lsp|lsp_sat.*prefer' "$DOC_REL"; then
     bad "$DOC_REL must document wave781 B3 try-lsp-sat-prefer body swallow"
   fi
+  if ! grep -qE 'wave782|try-gen-c-to-o|B4.*gen_c|gen_c_to_o' "$DOC_REL"; then
+    bad "$DOC_REL must document wave782 B4 try-gen-c-to-o body swallow"
+  fi
   note "doc $DOC_REL present"
 fi
 
@@ -1013,9 +1022,6 @@ fi
 if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B2_BODY_SWALLOWED=1'; then
   bad "dump must set PHYS_DEL_BUCKET_B2_BODY_SWALLOWED=1 (wave780)"
 fi
-if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_PREP_NEXT=B4_gen_c_to_o_bootstrap_body_swallow_not_delete'; then
-  bad "dump PHYS_DEL_PREP_NEXT must point to B4 after B3 swallow (wave781)"
-fi
 if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_B3_LSP_SAT_PREFER=1'; then
   bad "dump must set SWALLOWED_B3_LSP_SAT_PREFER=1 (wave781)"
 fi
@@ -1024,8 +1030,20 @@ if ! printf '%s\n' "$_out" | grep -q 'B3_LSP_SAT_PREFER_SWALLOWED=1'; then
 fi
 if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B3_BODY_SWALLOWED=1'; then
   bad "dump must set PHYS_DEL_BUCKET_B3_BODY_SWALLOWED=1 (wave781)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_PREP_NEXT=B5_cfg_eval_multi_ladder_body_swallow_not_delete'; then
+  bad "dump PHYS_DEL_PREP_NEXT must point to B5 after B4 swallow (wave782)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_B4_GEN_C_TO_O=1'; then
+  bad "dump must set SWALLOWED_B4_GEN_C_TO_O=1 (wave782)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'B4_GEN_C_TO_O_SWALLOWED=1'; then
+  bad "dump B4_GEN_C_TO_O_SWALLOWED must be 1 (wave782 try-gen-c-to-o)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B4_BODY_SWALLOWED=1'; then
+  bad "dump must set PHYS_DEL_BUCKET_B4_BODY_SWALLOWED=1 (wave782)"
 else
-  note "residual class inventory dump OK (wave747–781 + B3 swallow + Windows + dual-end)"
+  note "residual class inventory dump OK (wave747–782 + B4 swallow + Windows + dual-end)"
 fi
 
 # Makefile still present (residual reality) + has host-cc heat
@@ -1221,7 +1239,7 @@ else
     "$REBUILD_REL"; then
     bad "rebuild_leaves must not hardcode .o list (dual authority)"
   fi
-  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld (wave772/773) + drop silent CC fallback (wave774); fmt_check_cmd.o dual (wave775); R2 panic PREFER try-r2-prefer (wave776); phys-del prep (wave777); Windows+dual-end gate (wave778); B1 runtime-os try-runtime-os-prefer (wave779); B2 std-core try-std-core-prefer (wave780); B3 lsp-sat try-lsp-sat-prefer (wave781); residual B4–B5 swallow body + R5 + physical delete"
+  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld (wave772/773) + drop silent CC fallback (wave774); fmt_check_cmd.o dual (wave775); R2 panic PREFER try-r2-prefer (wave776); phys-del prep (wave777); Windows+dual-end gate (wave778); B1 runtime-os try-runtime-os-prefer (wave779); B2 std-core try-std-core-prefer (wave780); B3 lsp-sat try-lsp-sat-prefer (wave781); B4 gen-c-to-o try-gen-c-to-o (wave782); residual B5 swallow body + R5 + physical delete"
 fi
 
 # wave772/774: cold pure-ld required when eligible (no silent CC fallback)
