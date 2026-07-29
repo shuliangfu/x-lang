@@ -1,10 +1,15 @@
 # C → .X 迁移追踪（自举全程待办地图）
 
-> **创建**：2026-07-29（wave710 tip L4 钉盘 `53fd80927` 双端 129 全绿后）
-> **用途**：全面列出 C 逻辑迁移到 .X 的所有步骤，按自举顺序排列。每完成一步打勾。已完成的打 ✅，未完成的打 ⬜，永久边界（不可迁）打 🔒，部分完成打 🟡。
-> **方法**：[自举方法.md](自举方法.md)（Cap / R / L / M 四轨）
-> **进度数字**：[自举进度.md](自举进度.md) · [当前进度.md](当前进度.md)
-> **维护约定**：每完成一波自举，更新本文对应待办项的勾选状态 + 日期/波次标注。
+> **创建**：2026-07-29（wave710 tip L4 钉盘 `53fd80927` 双端 129 全绿后）  
+> **审计补全**：2026-07-29（对照仓库实况：非 gen 产品 C / 零 cc 三义 / G-05·build.x 半路径 / Makefile 删除关键路径）  
+> **终局目标**（wave713 升级 · **用户硬指标**）：**去掉 Makefile** 为主闸门，并收口 **零 cc/gcc/clang + v2==v3**。  
+>   即：日常与冷启动编排 **不再依赖 `make` / `compiler/Makefile` / 顶层 `Makefile`**；编译器自举链与产品默认路径 **不再 exec 外部 C 编译器**。  
+> **用途**：全面列出 C 逻辑迁移到 .X 的所有步骤，按自举顺序排列。每完成一步打勾。已完成的打 ✅，未完成的打 ⬜，部分完成打 🟡。  
+> **路线**：路线 A（纯 .x + 内建能力重写）— 详见「路线选择」章节。  
+> **方法**：[自举方法.md](自举方法.md)（Cap / R / L / M）+ Track L2（语言能力）+ Track X（xbuild）+ Track C0（冷启动零 cc）+ Track MG（Makefile 退役）  
+> **进度数字**：[自举进度.md](自举进度.md) · [当前进度.md](当前进度.md) · skill `xlang-selfhost-product-gate`  
+> **维护约定**：每完成一波自举，更新本文对应待办项的勾选状态 + 日期/波次标注。  
+> **权威钉盘**（与本文附录 C 同步）：**`53fd80927`**（wave710）。
 
 ---
 
@@ -15,24 +20,68 @@
 | **库层（std+core）.x 化** | ✅ 100% | 178 文件 / 75,007 行 .x · 0 行 .c |
 | **Thin 退役（T）** | ✅ 18/18 | 18 号结案 |
 | **Prove 注册（N）** | ✅ 111/111 IDENTICAL | MODULES 数组实际 128 条（17 条后期新增未计入 KPI） |
-| **R2 真迁退役** | 🟡 ~85% | 128 prove 模块中 ~120 已 R2；Cap residual 永久边界 ~8 模块 |
+| **R2 真迁退役** | 🟡 ~85% | 128 prove 模块中 ~120 已 R2；Cap residual 待消灭 ~8 模块 |
 | **Mega 拆分（M1-M3）** | ✅ 3/3 mega 拆分完成 | runtime 24/24 · parser 21/21 · link_abi 11/11 切片 |
-| **Mega 去 pin（M4）** | ⬜ 0/3 | runtime / parser / link_abi 均 pinned |
-| **Pinned gen.c 退役** | 🟡 8/19 | Track L 退役 8 个；仍 pinned 11 个（前端核心） |
+| **Mega 去 pin（M4）** | ⬜ 0/5 | runtime / parser / link_abi + **typeck / codegen** 前端 pin 均未关（见阶段 7.4） |
+| **Pinned gen.c 退役** | 🟡 8/30 | Track L 退役 8 个；仍 pinned 22 个（前端核心 + 工具链 + 测试） |
+| **非 gen 产品 C（glue/ast 池）** | ⬜ 0/~10 | **`pipeline_glue.c` ~40k + `ast_pool.c` ~18k** 等；阶段 8.3（**删 Makefile 前最大体积债**） |
 | **Cap 能力解锁** | 🟡 持续 | 已闭多波；untyped self 待治；LANG-006 保留 |
 | **产品 L4 放行** | ✅ 钉盘 `53fd80927` | 双端 L4 真冷 + 129 bstrict |
-| **终局 v2==v3** | ⬜ 未达 | 需 mega 去 pin + pinned gen.c 退役后 |
+| **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
+| **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
+| **Makefile 退役 / xbuild** | 🟡 半路径 | G-05 shell + `xlang-build.sh` + `build.x` 策略稿已有；**`compiler/Makefile` 仍 ~3445 行权威图**（阶段 11） |
+| **冷启动零 cc 链** | ⬜ 0/4 | 最小 seed + 零 cc 验证 + 双端冷启动 |
+| **终局：无 Makefile + 零 cc + v2==v3** | ⬜ 未达 | 见 §0.1 三义；阶段 13 |
+
+### 0.1 终局三义（禁止混谈「零 cc」）
+
+去掉 Makefile 与「零 cc」常被混为一谈。**自举终局须同时满足下列三层**（缺一层仍不能宣称终局）：
+
+| 层 | 含义 | 今日状态 | 失败时的假绿 |
+|----|------|----------|--------------|
+| **MG · 编排层** | 不依赖 `make` / `compiler/Makefile` / 顶层 `Makefile` 完成 build / L4 / bootstrap | 🟡 日常可走 `xlang-build.sh`→g05 shell；冷启动/依赖图/`*.o` 规则仍大量在 Makefile | 只删入口 Makefile、实现层仍 `make -C compiler` |
+| **BC · 自举编译层** | 编译器自身 TU **不**再被 host `cc/gcc/clang` 编译（.x→纯 asm `.o` 或等价） | ⬜ 大量 pin `*_gen.c` / glue / seed 仍 `$(CC) -c` | seed 用 xlang `-E` 出 C 再交给 gcc |
+| **PC · 产品默认后端** | 用户程序默认 **`-backend asm`**（或纯自研目标）；**不**默认 emit C 再 `exec` host-cc；`labi_invoke_cc*` 退役或仅 opt-in | ⬜ `-backend c` 与 labi invoke_cc 仍在产品面 | 自举绿但用户 `-o` 仍调 gcc |
+
+> **用户主目标对齐**：以 **去掉 Makefile（MG）** 为终局叙事主闸门；MG 物理删除的**前置**是 BC 足够小（glue/gen 可被 xbuild 用 xlang 编）且编排逻辑迁到 xbuild / g05 已覆盖的 shell·.x。  
+> **禁止**：只完成 MG 包装层、底层仍 `make`；或只宣称 v2==v3 而 Makefile 仍是冷启动权威。
+
+### 0.2 删 Makefile 关键路径（依赖 DAG · 顺序不可跳）
+
+```text
+[阶段 10 语言能力 L2] ──► [阶段 9 residual 消灭] ──┐
+                                                    ├─► [阶段 8.3 glue/ast 池 .x 化]
+[阶段 7 M4 mega 去 pin] ──► [阶段 8 gen.c 退役] ───┤
+                                                    ├─► [阶段 11.0–11.2 xbuild 吃掉 Makefile 规则]
+[现有 G-05 / build.x / xlang-build.sh] ────────────┘
+                                                    │
+                                                    ▼
+                              [11.3 物理删 Makefile] + [12 冷启动零 cc] + [13 v2==v3]
+```
+
+| 顺序陷阱 | 说明 |
+|----------|------|
+| 先删 Makefile、glue 仍 40k C | xbuild 只能 `cc -c pipeline_glue.c` → **BC 未满足** |
+| 先写满 xbuild、仍 pin seed | 编排绿但双权威 / 冷启动仍读 `*_gen.c` |
+| 只迁顶层 Makefile | 根 `Makefile` 已是薄包装；**真正权威在 `compiler/Makefile`** |
+| 忽略 tests/CI `make` | 产品入口无 make，gate 脚本仍 make → 终局叙事假绿 |
 
 ---
 
 ## 阶段 0：基建与方法论（已完成）
 
-- [x] **0.1 自举方法论确立**（Cap/R/L/M 四轨）✅ 2026-07-14
-- [x] **0.2 工程轨 vs 产品轨分清**（禁止工程轨绿当自举完成）✅ 2026-07-15
-- [x] **0.3 日常真测 vs 真冷全测节奏**（L2/L3 日常 · L4 整波收口）✅ 2026-07-16
-- [x] **0.4 双端验证纪律**（macOS 开发 + Ubuntu 金标）✅
-- [x] **0.5 git 锚点机制**（每波前建 tag，可秒级回退）✅
-- [x] **0.6 产品闸门 skill**（`xlang-selfhost-product-gate`）✅
+✅ **0.1 自举方法论确立**（Cap/R/L/M 四轨）2026-07-14
+
+✅ **0.2 工程轨 vs 产品轨分清**（禁止工程轨绿当自举完成）2026-07-15
+
+✅ **0.3 日常真测 vs 真冷全测节奏**（L2/L3 日常 · L4 整波收口）2026-07-16
+
+✅ **0.4 双端验证纪律**（macOS 开发 + Ubuntu 金标）
+
+✅ **0.5 git 锚点机制**（每波前建 tag，可秒级回退）
+
+✅ **0.6 产品闸门 skill**（`xlang-selfhost-product-gate`）
+
 
 ---
 
@@ -40,23 +89,37 @@
 
 ### 1.1 std/ 标准库
 
-- [x] **1.1.1 std/ 全目录 .x 化** ✅ 166 文件 / 72,941 行 .x · 0 行 .c
-- [x] **1.1.2 std/io/** ✅
-- [x] **1.1.3 std/fmt/** ✅
-- [x] **1.1.4 std/string/** ✅
-- [x] **1.1.5 std/sync/** ✅
-- [x] **1.1.6 std/result/** ✅
-- [x] **1.1.7 std/option/** ✅
-- [x] **1.1.8 std/crypto/** ✅
-- [x] **1.1.9 std/net/** ✅
-- [x] **1.1.10 std/其余子目录** ✅
+✅ **1.1.1 std/ 全目录 .x 化** 166 文件 / 72,941 行 .x · 0 行 .c
+
+✅ **1.1.2 std/io/**
+
+✅ **1.1.3 std/fmt/**
+
+✅ **1.1.4 std/string/**
+
+✅ **1.1.5 std/sync/**
+
+✅ **1.1.6 std/result/**
+
+✅ **1.1.7 std/option/**
+
+✅ **1.1.8 std/crypto/**
+
+✅ **1.1.9 std/net/**
+
+✅ **1.1.10 std/其余子目录**
+
 
 ### 1.2 core/ 核心库
 
-- [x] **1.2.1 core/ 全目录 .x 化** ✅ 12 文件 / 2,066 行 .x · 0 行 .c
-- [x] **1.2.2 core/fmt** ✅
-- [x] **1.2.3 core/result** ✅
-- [x] **1.2.4 core/其余** ✅
+✅ **1.2.1 core/ 全目录 .x 化** 12 文件 / 2,066 行 .x · 0 行 .c
+
+✅ **1.2.2 core/fmt**
+
+✅ **1.2.3 core/result**
+
+✅ **1.2.4 core/其余**
+
 
 ---
 
@@ -65,8 +128,10 @@
 > **定义**：hybrid 模块 thin 切片 prove IDENTICAL，构建切换至 thin.x。
 > **结案**：18/18 ✅
 
-- [x] **2.1 T-001 ~ T-018 全部 thin 退役** ✅ 18 号结案
-- [x] **2.2 T 降为维护指标**（不占前排）✅
+✅ **2.1 T-001 ~ T-018 全部 thin 退役** 18 号结案
+
+✅ **2.2 T 降为维护指标**（不占前排）
+
 
 ---
 
@@ -78,159 +143,288 @@
 
 ### 3.1 driver 组（11 条）
 
-- [x] **3.1.1 fmt** ✅ Track L 退役
-- [x] **3.1.2 check** ✅ Track L 退役（archaeology）
-- [x] **3.1.3 test** ✅ Track L 退役（archaeology）
-- [x] **3.1.4 build** ✅ Track L 退役（archaeology）
-- [x] **3.1.5 run** ✅ Track L 退役（archaeology）
-- [x] **3.1.6 compile** ✅ R2 真迁（Track L 退役）
-- [x] **3.1.7 emit** ✅ R2 真迁（Track L 退役）
-- [x] **3.1.8 lsp_io_std_heap** ✅ Track L 退役叶子
-- [x] **3.1.9 target_cpu_flags** ✅ R2 DIRECT（wave559）
-- [x] **3.1.10 fmt_check_cmd** ✅ R2 mixed（wave565）
-- [x] **3.1.11 fmt_check** ✅ R2 thin + Cap residual pure 深迁
+✅ **3.1.1 fmt** Track L 退役
+
+✅ **3.1.2 check** Track L 退役（archaeology）
+
+✅ **3.1.3 test** Track L 退役（archaeology）
+
+✅ **3.1.4 build** Track L 退役（archaeology）
+
+✅ **3.1.5 run** Track L 退役（archaeology）
+
+✅ **3.1.6 compile** R2 真迁（Track L 退役）
+
+✅ **3.1.7 emit** R2 真迁（Track L 退役）
+
+✅ **3.1.8 lsp_io_std_heap** Track L 退役叶子
+
+✅ **3.1.9 target_cpu_flags** R2 DIRECT（wave559）
+
+✅ **3.1.10 fmt_check_cmd** R2 mixed（wave565）
+
+✅ **3.1.11 fmt_check** R2 thin + Cap residual pure 深迁
+
 
 ### 3.2 lexer 组（1 条）
 
-- [x] **3.2.1 token** ✅ prove 锁 nm 面
+✅ **3.2.1 token** prove 锁 nm 面
+
 
 ### 3.3 lsp 组（4 条）
 
-- [x] **3.3.1 lsp_diag_pipeline_sizes** ✅
-- [x] **3.3.2 lsp_diag_stubs_no_c** ✅ R2 DIRECT（wave557）
-- [x] **3.3.3 lsp_diag_pipeline_ctx** ✅ R2 thin+rest（wave561）
-- [x] **3.3.4 lsp_io_std_heap** ✅（见 driver 组）
+✅ **3.3.1 lsp_diag_pipeline_sizes**
+
+✅ **3.3.2 lsp_diag_stubs_no_c** R2 DIRECT（wave557）
+
+✅ **3.3.3 lsp_diag_pipeline_ctx** R2 thin+rest（wave561）
+
+✅ **3.3.4 lsp_io_std_heap**（见 driver 组）
+
 
 ### 3.4 runtime 组 — labi_* 切片（12 条，link_abi mega）
 
-- [x] **3.4.1 labi_path_pure** ✅ R2 full（L0）
-- [x] **3.4.2 labi_diag_pure** ✅ R2 full（L1）
-- [x] **3.4.3 labi_host_lit** ✅ R2 full（L2）
-- [x] **3.4.4 labi_path_io** ✅ R2 full（L3 · Cap: stat/realpath 🔒）
-- [x] **3.4.5 labi_ensure_list** ✅ R2 full（L4）
-- [x] **3.4.6 labi_invoke_cc_list** ✅ R2 full（L5 · Cap: getenv 🔒）
-- [x] **3.4.7 labi_invoke_ld_list** ✅ R2 full（L6 · Cap: spawn/ld 🔒）
-- [x] **3.4.8 labi_freestanding_list** ✅ R2 full（L7）
-- [x] **3.4.9 labi_std_list** ✅ R2 full（L8）
-- [x] **3.4.10 labi_ondemand_list** ✅ R2 full（L8b）
-- [x] **3.4.11 labi_ondemand_heavy** ✅ R2 full（L8b heavy）
-- [x] **3.4.12 labi_gates** ✅ R2 full（L9）
+✅ **3.4.1 labi_path_pure** R2 full（L0）
+
+✅ **3.4.2 labi_diag_pure** R2 full（L1）
+
+✅ **3.4.3 labi_host_lit** R2 full（L2）
+
+✅ **3.4.4 labi_path_io** R2 full（L3 · Cap: stat/realpath 🔒）
+
+✅ **3.4.5 labi_ensure_list** R2 full（L4）
+
+✅ **3.4.6 labi_invoke_cc_list** R2 full（L5 · Cap: getenv 🔒）
+
+✅ **3.4.7 labi_invoke_ld_list** R2 full（L6 · Cap: spawn/ld 🔒）
+
+✅ **3.4.8 labi_freestanding_list** R2 full（L7）
+
+✅ **3.4.9 labi_std_list** R2 full（L8）
+
+✅ **3.4.10 labi_ondemand_list** R2 full（L8b）
+
+✅ **3.4.11 labi_ondemand_heavy** R2 full（L8b heavy）
+
+✅ **3.4.12 labi_gates** R2 full（L9）
+
 
 ### 3.5 runtime 组 — rt_* 切片（23 条，runtime mega）
 
-- [x] **3.5.1 rt_dispatch_thin** ✅ R2 thin+rest（wave561）
-- [x] **3.5.2 rt_dispatch_impl** ✅ R2 full
-- [x] **3.5.3 rt_asm_stub** ✅ R2 full
-- [x] **3.5.4 rt_fmt_one** ✅ R2 full
-- [x] **3.5.5 rt_pipeline_elf_diag** ✅ R2 full
-- [x] **3.5.6 rt_run_x_emit** ✅ R2 full
-- [x] **3.5.7 rt_parse_diag** ✅ R2 full
-- [x] **3.5.8 rt_diag_errno** ✅ R2 full
-- [x] **3.5.9 rt_fs_open** ✅ R2 full
-- [x] **3.5.10 rt_arena_buf** ✅ R2 full（Cap-global-bss 🔒）
-- [x] **3.5.11 rt_preamble** ✅ R2 full（Cap-giant-string 🔒）
-- [x] **3.5.12 rt_stack** ✅ R2 full（Cap-fn-ptr 🔒）
-- [x] **3.5.13 rt_lib_root** ✅ R2 full
-- [x] **3.5.14 rt_emit_flags** ✅ R2 full
-- [x] **3.5.15 rt_emit_state** ✅ R2 full（Cap-global-bss 🔒）
-- [x] **3.5.16 rt_content** ✅ R2 full
-- [x] **3.5.17 rt_util** ✅ R2 full
-- [x] **3.5.18 rt_argv** ✅ R2 full
-- [x] **3.5.19 rt_entry** ✅ R2 full
-- [x] **3.5.20 rt_compile** ✅ R2 full
-- [x] **3.5.21 rt_run_exec** ✅ R2 full
-- [x] **3.5.22 rt_run_asm_backend** ✅ R2 full
-- [x] **3.5.23 rt_run_compiler_parsed** ✅ R2 full
+✅ **3.5.1 rt_dispatch_thin** R2 thin+rest（wave561）
+
+✅ **3.5.2 rt_dispatch_impl** R2 full
+
+✅ **3.5.3 rt_asm_stub** R2 full
+
+✅ **3.5.4 rt_fmt_one** R2 full
+
+✅ **3.5.5 rt_pipeline_elf_diag** R2 full
+
+✅ **3.5.6 rt_run_x_emit** R2 full
+
+✅ **3.5.7 rt_parse_diag** R2 full
+
+✅ **3.5.8 rt_diag_errno** R2 full
+
+✅ **3.5.9 rt_fs_open** R2 full
+
+✅ **3.5.10 rt_arena_buf** R2 full（Cap-global-bss 🔒）
+
+✅ **3.5.11 rt_preamble** R2 full（Cap-giant-string 🔒）
+
+✅ **3.5.12 rt_stack** R2 full（Cap-fn-ptr 🔒）
+
+✅ **3.5.13 rt_lib_root** R2 full
+
+✅ **3.5.14 rt_emit_flags** R2 full
+
+✅ **3.5.15 rt_emit_state** R2 full（Cap-global-bss 🔒）
+
+✅ **3.5.16 rt_content** R2 full
+
+✅ **3.5.17 rt_util** R2 full
+
+✅ **3.5.18 rt_argv** R2 full
+
+✅ **3.5.19 rt_entry** R2 full
+
+✅ **3.5.20 rt_compile** R2 full
+
+✅ **3.5.21 rt_run_exec** R2 full
+
+✅ **3.5.22 rt_run_asm_backend** R2 full
+
+✅ **3.5.23 rt_run_compiler_parsed** R2 full
+
 
 ### 3.6 asm 组 — runtime_* 切片（41 条，asm OS 桥）
 
-- [x] **3.6.1 runtime_time_os** ✅ R2 thin+rest（Cap: clock_gettime 🔒）
-- [x] **3.6.2 runtime_path_fast** ✅ R2 DIRECT
-- [x] **3.6.3 runtime_dynlib_os** ✅ R2 thin+rest（Cap: dlopen 🔒）
-- [x] **3.6.4 runtime_panic** ✅ R2 thin+rest
-- [x] **3.6.5 runtime_panic_arm64** ✅ R2 thin+rest
-- [x] **3.6.6 runtime_process_argv** ✅ R2 thin+rest
-- [x] **3.6.7 runtime_test_fn_invoke** ✅ R2 thin+rest（Cap: fnptr 🔒）
-- [x] **3.6.8 runtime_net_workers** ✅ R2 thin+rest（Cap: fnptr 🔒）
-- [x] **3.6.9 runtime_compress_zlib_glue** ✅ R2 thin+rest（Cap: zlib.h 🔒）
-- [x] **3.6.10 runtime_arrow_simd_glue** ✅ R2 thin+rest（Cap: SIMD 🔒）
-- [x] **3.6.11 runtime_random_fill** ✅ R2 thin+rest wave544（Cap: getrandom 🔒）
-- [x] **3.6.12 runtime_tls_mbedtls_bio** ✅ R2 thin+rest wave544（Cap: mbedtls 🔒）
-- [x] **3.6.13 runtime_ed25519_ref10_glue** ✅ R2 thin+rest wave544（Cap: .inc 宏 🔒）
-- [x] **3.6.14 runtime_net_udp_batch** ✅ R2 thin+rest wave545
-- [x] **3.6.15 runtime_net_sock_fast** ✅ R2 thin+rest wave545
-- [x] **3.6.16 runtime_net_dns_fast** ✅ R2 thin+rest wave545（Cap: getaddrinfo 🔒）
-- [x] **3.6.17 runtime_net_ipv6_fast** ✅ R2 thin+rest wave545
-- [x] **3.6.18 runtime_net_addr_fast** ✅ R2 thin+rest wave546
-- [x] **3.6.19 runtime_slice_glue** ✅ R2 DIRECT wave546
-- [x] **3.6.20 runtime_crypto_inc_glue** ✅ R2 thin+rest wave547
-- [x] **3.6.21 runtime_sync_lock_diag_tls** ✅ R2 mixed wave547
-- [x] **3.6.22 runtime_std_runtime_fast** ✅ R2 DIRECT wave548
-- [x] **3.6.23 runtime_atomic_glue** ✅ R2 thin+rest wave548（Cap: stdatomic 🔒）
-- [x] **3.6.24 runtime_asm_build** ✅ R2 thin wave549（Cap: char** argv 🔒）
-- [x] **3.6.25 runtime_asm_io_stubs** ✅ R2 thin+rest wave549（Cap: syscall 🔒）
-- [x] **3.6.26 runtime_string_fast** ✅ R2 DIRECT wave549
-- [x] **3.6.27 runtime_net_io_batch_fast** ✅ R2 thin+rest wave550
-- [x] **3.6.28 runtime_env_os** ✅ R2 thin+rest wave550（Cap: getenv 🔒）
-- [x] **3.6.29 runtime_http_glue** ✅ R2 mixed wave551
-- [x] **3.6.30 runtime_queue_contention** ✅ R2 mixed wave551（Cap: pthread 🔒）
-- [x] **3.6.31 runtime_backtrace_platform** ✅ R2 thin+rest wave552（Cap: execinfo 🔒）
-- [x] **3.6.32 runtime_sync_os** ✅ R2 thin+rest wave552（Cap: pthread 🔒）
-- [x] **3.6.33 runtime_channel_glue** ✅ R2 thin+rest wave553（Cap: pthread 🔒）
-- [x] **3.6.34 runtime_log_os** ✅ R2 mixed wave553（Cap: write 🔒）
-- [x] **3.6.35 runtime_scheduler_glue** ✅ R2 mixed wave554
-- [x] **3.6.36 runtime_process_os_glue** ✅ R2 thin+rest wave554（Cap: execve 🔒）
-- [x] **3.6.37 runtime_thread_glue** ✅ R2 thin+rest wave555（Cap: pthread 🔒）
-- [x] **3.6.38 runtime_math_libm** ✅ R2 mixed wave564（Cap: libm 🔒）
-- [x] **3.6.39 runtime_lsp_glue** ✅ R2 mixed wave566
-- [x] **3.6.40 runtime_kv_mmap_glue** ✅（未在 prove 注册）
-- [x] **3.6.41 runtime_ast_glue / runtime_lexer_glue / runtime_sqlite_glue** ✅（未在 prove 注册）
+✅ **3.6.1 runtime_time_os** R2 thin+rest（Cap: clock_gettime 🔒）
+
+✅ **3.6.2 runtime_path_fast** R2 DIRECT
+
+✅ **3.6.3 runtime_dynlib_os** R2 thin+rest（Cap: dlopen 🔒）
+
+✅ **3.6.4 runtime_panic** R2 thin+rest
+
+✅ **3.6.5 runtime_panic_arm64** R2 thin+rest
+
+✅ **3.6.6 runtime_process_argv** R2 thin+rest
+
+✅ **3.6.7 runtime_test_fn_invoke** R2 thin+rest（Cap: fnptr 🔒）
+
+✅ **3.6.8 runtime_net_workers** R2 thin+rest（Cap: fnptr 🔒）
+
+✅ **3.6.9 runtime_compress_zlib_glue** R2 thin+rest（Cap: zlib.h 🔒）
+
+✅ **3.6.10 runtime_arrow_simd_glue** R2 thin+rest（Cap: SIMD 🔒）
+
+✅ **3.6.11 runtime_random_fill** R2 thin+rest wave544（Cap: getrandom 🔒）
+
+✅ **3.6.12 runtime_tls_mbedtls_bio** R2 thin+rest wave544（Cap: mbedtls 🔒）
+
+✅ **3.6.13 runtime_ed25519_ref10_glue** R2 thin+rest wave544（Cap: .inc 宏 🔒）
+
+✅ **3.6.14 runtime_net_udp_batch** R2 thin+rest wave545
+
+✅ **3.6.15 runtime_net_sock_fast** R2 thin+rest wave545
+
+✅ **3.6.16 runtime_net_dns_fast** R2 thin+rest wave545（Cap: getaddrinfo 🔒）
+
+✅ **3.6.17 runtime_net_ipv6_fast** R2 thin+rest wave545
+
+✅ **3.6.18 runtime_net_addr_fast** R2 thin+rest wave546
+
+✅ **3.6.19 runtime_slice_glue** R2 DIRECT wave546
+
+✅ **3.6.20 runtime_crypto_inc_glue** R2 thin+rest wave547
+
+✅ **3.6.21 runtime_sync_lock_diag_tls** R2 mixed wave547
+
+✅ **3.6.22 runtime_std_runtime_fast** R2 DIRECT wave548
+
+✅ **3.6.23 runtime_atomic_glue** R2 thin+rest wave548（Cap: stdatomic 🔒）
+
+✅ **3.6.24 runtime_asm_build** R2 thin wave549（Cap: char** argv 🔒）
+
+✅ **3.6.25 runtime_asm_io_stubs** R2 thin+rest wave549（Cap: syscall 🔒）
+
+✅ **3.6.26 runtime_string_fast** R2 DIRECT wave549
+
+✅ **3.6.27 runtime_net_io_batch_fast** R2 thin+rest wave550
+
+✅ **3.6.28 runtime_env_os** R2 thin+rest wave550（Cap: getenv 🔒）
+
+✅ **3.6.29 runtime_http_glue** R2 mixed wave551
+
+✅ **3.6.30 runtime_queue_contention** R2 mixed wave551（Cap: pthread 🔒）
+
+✅ **3.6.31 runtime_backtrace_platform** R2 thin+rest wave552（Cap: execinfo 🔒）
+
+✅ **3.6.32 runtime_sync_os** R2 thin+rest wave552（Cap: pthread 🔒）
+
+✅ **3.6.33 runtime_channel_glue** R2 thin+rest wave553（Cap: pthread 🔒）
+
+✅ **3.6.34 runtime_log_os** R2 mixed wave553（Cap: write 🔒）
+
+✅ **3.6.35 runtime_scheduler_glue** R2 mixed wave554
+
+✅ **3.6.36 runtime_process_os_glue** R2 thin+rest wave554（Cap: execve 🔒）
+
+✅ **3.6.37 runtime_thread_glue** R2 thin+rest wave555（Cap: pthread 🔒）
+
+✅ **3.6.38 runtime_math_libm** R2 mixed wave564（Cap: libm 🔒）
+
+✅ **3.6.39 runtime_lsp_glue** R2 mixed wave566
+
+✅ **3.6.40 runtime_kv_mmap_glue**（未在 prove 注册）
+
+✅ **3.6.41 runtime_ast_glue / runtime_lexer_glue / runtime_sqlite_glue**（未在 prove 注册）
+
 
 ### 3.7 asm 组 — backend/simd/parser 切片
 
-- [x] **3.7.1 asm_backend_compat_stubs** ✅ R2 DIRECT wave555
-- [x] **3.7.2 bootstrap_nostdlib_stubs** ✅ R2 mixed wave556
-- [x] **3.7.3 backend_seed_mega_fallback** ✅ R2 DIRECT wave556
-- [x] **3.7.4 parser_asm_parse_expr_link** ✅ R2 thin+rest wave557
-- [x] **3.7.5 user_asm_seed_bridge** ✅ R2 mixed wave558
-- [x] **3.7.6 parser_asm_thin_c** ✅ R2 mixed wave560
-- [x] **3.7.7 simd_loop_thin** ✅ R2 mixed wave563
-- [x] **3.7.8 simd_enc_thin** ✅ R2 mixed wave568
-- [x] **3.7.9 simd_loop** ✅ R2 full
-- [x] **3.7.10 simd_enc** ✅ R2 full
-- [x] **3.7.11 backend_enc_dispatch_thin** ✅ R2 thin full wave574
-- [x] **3.7.12 backend_enc_dispatch** ✅ R2 full
-- [x] **3.7.13 backend_arch_emit_dispatch_thin** ✅ R2 mixed wave567
-- [x] **3.7.14 backend_arch_emit_dispatch** ✅ R2 full
-- [x] **3.7.15 backend_try_inline_dispatch_thin** ✅ R2 mixed wave566
-- [x] **3.7.16 backend_try_inline_dispatch** ✅ R2 full
-- [x] **3.7.17 backend_call_dispatch_thin** ✅ R2 mixed wave567
-- [x] **3.7.18 backend_call_dispatch** ✅ R2 full
-- [x] **3.7.19 backend_x86_64_enc_c** ✅ R2 mixed wave570
-- [x] **3.7.20 async_asm_pool** ✅ R2 full
+✅ **3.7.1 asm_backend_compat_stubs** R2 DIRECT wave555
+
+✅ **3.7.2 bootstrap_nostdlib_stubs** R2 mixed wave556
+
+✅ **3.7.3 backend_seed_mega_fallback** R2 DIRECT wave556
+
+✅ **3.7.4 parser_asm_parse_expr_link** R2 thin+rest wave557
+
+✅ **3.7.5 user_asm_seed_bridge** R2 mixed wave558
+
+✅ **3.7.6 parser_asm_thin_c** R2 mixed wave560
+
+✅ **3.7.7 simd_loop_thin** R2 mixed wave563
+
+✅ **3.7.8 simd_enc_thin** R2 mixed wave568
+
+✅ **3.7.9 simd_loop** R2 full
+
+✅ **3.7.10 simd_enc** R2 full
+
+✅ **3.7.11 backend_enc_dispatch_thin** R2 thin full wave574
+
+✅ **3.7.12 backend_enc_dispatch** R2 full
+
+✅ **3.7.13 backend_arch_emit_dispatch_thin** R2 mixed wave567
+
+✅ **3.7.14 backend_arch_emit_dispatch** R2 full
+
+✅ **3.7.15 backend_try_inline_dispatch_thin** R2 mixed wave566
+
+✅ **3.7.16 backend_try_inline_dispatch** R2 full
+
+✅ **3.7.17 backend_call_dispatch_thin** R2 mixed wave567
+
+✅ **3.7.18 backend_call_dispatch** R2 full
+
+✅ **3.7.19 backend_x86_64_enc_c** R2 mixed wave570
+
+✅ **3.7.20 async_asm_pool** R2 full
+
 
 ### 3.8 src 根组（15 条）
 
-- [x] **3.8.1 runtime_io_abi** ✅ R2 full（Cap: mmap/fstat 🔒）
-- [x] **3.8.2 runtime_driver_diagnostic_thin** ✅ R2 thin + Cap residual pure
-- [x] **3.8.3 runtime_driver_abi_thin** ✅ R2 thin + pure 深迁
-- [x] **3.8.4 runtime_driver_strict_glue_stubs** ✅ R2 mixed wave560
-- [x] **3.8.5 runtime_driver_strict_glue_thin** ✅ R2 mixed wave568
-- [x] **3.8.6 runtime_driver_abi** ✅ R2 mixed wave569
-- [x] **3.8.7 diag_thin** ✅ R2 mixed wave569
-- [x] **3.8.8 diag** ✅ R2 mixed wave571
-- [x] **3.8.9 runtime** ✅ R2 mixed wave572（mega 主名）
-- [x] **3.8.10 runtime_link_abi** ✅ R2 mixed wave573（mega 主名）
-- [x] **3.8.11 runtime_pipeline_abi** ✅ R2 full wave575
-- [x] **3.8.12 runtime_heap_user** ✅ R2 DIRECT wave559
-- [x] **3.8.13 build_runtime** ✅ R2 thin+rest wave558
-- [x] **3.8.14 x_seed_bridge** ✅ R2 mixed wave562
-- [x] **3.8.15 seed_link_compat** ✅ R2 mixed wave562
+✅ **3.8.1 runtime_io_abi** R2 full（Cap: mmap/fstat 🔒）
+
+✅ **3.8.2 runtime_driver_diagnostic_thin** R2 thin + Cap residual pure
+
+✅ **3.8.3 runtime_driver_abi_thin** R2 thin + pure 深迁
+
+✅ **3.8.4 runtime_driver_strict_glue_stubs** R2 mixed wave560
+
+✅ **3.8.5 runtime_driver_strict_glue_thin** R2 mixed wave568
+
+✅ **3.8.6 runtime_driver_abi** R2 mixed wave569
+
+✅ **3.8.7 diag_thin** R2 mixed wave569
+
+✅ **3.8.8 diag** R2 mixed wave571
+
+✅ **3.8.9 runtime** R2 mixed wave572（mega 主名）
+
+✅ **3.8.10 runtime_link_abi** R2 mixed wave573（mega 主名）
+
+✅ **3.8.11 runtime_pipeline_abi** R2 full wave575
+
+✅ **3.8.12 runtime_heap_user** R2 DIRECT wave559
+
+✅ **3.8.13 build_runtime** R2 thin+rest wave558
+
+✅ **3.8.14 x_seed_bridge** R2 mixed wave562
+
+✅ **3.8.15 seed_link_compat** R2 mixed wave562
+
 
 ### 3.9 async 组（2 条）
 
-- [x] **3.9.1 async_liveness** ✅ R2 pure + Cap residual pure
-- [x] **3.9.2 async_cps_codegen** ✅ R2 pure + Cap residual pure
+✅ **3.9.1 async_liveness** R2 pure + Cap residual pure
+
+✅ **3.9.2 async_cps_codegen** R2 pure + Cap residual pure
+
 
 ---
 
@@ -240,59 +434,113 @@
 
 ### 4.1 已闭合的 Cap 波次
 
-- [x] **4.1.1 Cap-empty-str**（空串字面量 typeck/codegen）✅
-- [x] **4.1.2 Cap-string-pool**（串池 >64 封顶）✅
-- [x] **4.1.3 Cap-global-bss**（u8[N] 全局/static BSS）✅
-- [x] **4.1.4 Cap-va-reportf**（reportf / va_list 深路径）✅ wave6
-- [x] **4.1.5 Cap-regen-sync**（.x 改了 pin/patch 未同源）✅
-- [x] **4.1.6 Cap-fn-ptr**（函数指针类型表达）✅ 部分（driver_run_stack_esc_gate 仍 🔒）
-- [x] **4.1.7 Cap-giant-string**（巨型字串数据）✅ rt_preamble
-- [x] **4.1.8 wave668 fs lit-left ptr cmp**（freestanding null==p / 0==p 假绿）✅ wave669
-- [x] **4.1.9 wave677 bool→i32 算术提升**（binop/unary 假绿）✅ wave677
-- [x] **4.1.10 wave311 i32→u64 widen**（true widen hole）✅
-- [x] **4.1.11 wave311 i32→u8 窄存储**（var init/assign/return）✅ wave712 验证已闭
-- [x] **4.1.12 wave421 impl Trait for T 缺方法**（false-green）✅ wave421
-- [x] **4.1.13 wave450 零值参泛型 mono**（phantom T）✅ wave450
-- [x] **4.1.14 wave459 host-C aggregate as cast**（compound literal / GNU stmt-expr）✅ wave459-462
-- [x] **4.1.15 wave406 dual same-call 形参别名**（callee 静态 __xlang_al）✅ wave406
-- [x] **4.1.16 wave284 标识符 >63 字节 honest-fail**（sticky overflow）✅ wave284
-- [x] **4.1.17 wave707-709 match struct 模式链**（field bind + lit guard + wildcard + 显式 guard）✅ wave710 tip L4
-- [x] **4.1.18 wave711 freestanding match field bind**（fs asm backend 4-arm 全组合）✅ wave711 验证已闭
-- [x] **4.1.19 wave698 host-C 八层 scalar / 七层 NAMED fat**（nested slice 布局）✅ wave698
-- [x] **4.1.20 wave677 LANG-007 unsafe block 诊断**（*T 解引用 + extern 调用须 unsafe）✅
+✅ **4.1.1 Cap-empty-str**（空串字面量 typeck/codegen）
+
+✅ **4.1.2 Cap-string-pool**（串池 >64 封顶）
+
+✅ **4.1.3 Cap-global-bss**（u8[N] 全局/static BSS）
+
+✅ **4.1.4 Cap-va-reportf**（reportf / va_list **深路径子集**已闭）wave6 — **注意**：完整 va_list 语言能力仍见阶段 **10.7**；libc `vsnprintf` 桥仍见 **9.5.3/9.5.4**
+
+✅ **4.1.5 Cap-regen-sync**（.x 改了 pin/patch 未同源）
+
+✅ **4.1.6 Cap-fn-ptr**（函数指针类型表达）部分（driver_run_stack_esc_gate 仍 🔒）
+
+✅ **4.1.7 Cap-giant-string**（巨型字串数据）rt_preamble
+
+✅ **4.1.8 wave668 fs lit-left ptr cmp**（freestanding null==p / 0==p 假绿）wave669
+
+✅ **4.1.9 wave677 bool→i32 算术提升**（binop/unary 假绿）wave677
+
+✅ **4.1.10 wave311 i32→u64 widen**（true widen hole）
+
+✅ **4.1.11 wave311 i32→u8 窄存储**（var init/assign/return）wave712 验证已闭
+
+✅ **4.1.12 wave421 impl Trait for T 缺方法**（false-green）wave421
+
+✅ **4.1.13 wave450 零值参泛型 mono**（phantom T）wave450
+
+✅ **4.1.14 wave459 host-C aggregate as cast**（compound literal / GNU stmt-expr）wave459-462
+
+✅ **4.1.15 wave406 dual same-call 形参别名**（callee 静态 __xlang_al）wave406
+
+✅ **4.1.16 wave284 标识符 >63 字节 honest-fail**（sticky overflow）wave284
+
+✅ **4.1.17 wave707-709 match struct 模式链**（field bind + lit guard + wildcard + 显式 guard）wave710 tip L4
+
+✅ **4.1.18 wave711 freestanding match field bind**（fs asm backend 4-arm 全组合）wave711 验证已闭
+
+✅ **4.1.19 wave698 host-C 八层 scalar / 七层 NAMED fat**（nested slice 布局）wave698
+
+✅ **4.1.20 wave677 LANG-007 unsafe block 诊断**（*T 解引用 + extern 调用须 unsafe）
+
 
 ### 4.2 当前前排 Cap 待办
 
-- [ ] **4.2.1 untyped `self` 形参 skip** ⬜ **下一硬叶候选**
+⬜ **4.2.1 untyped `self` 形参 skip** **下一硬叶候选**
+
   - 症状：无类型标注的 `self` 形参（`fn m(self) {...}`）被 typeck/parser skip，未硬失败
   - LANG-006 标量 bool→int 保留不动（不当糊绿目标）
   - 日常 L2 推进
 
-- [ ] **4.2.2 trait bounds / dyn Trait soft** ⬜
+⬜ **4.2.2 trait bounds / dyn Trait soft**
+
   - 症状：wave421 闭 missing-method，但 trait bounds 与 dyn Trait 仍 soft
   - typeck 不硬失败，留作后续收口
 
-- [ ] **4.2.3 八层+ nested slice fat 布局 / 深 lit typeck** ⬜ soft
+⬜ **4.2.3 八层+ nested slice fat 布局 / 深 lit typeck** soft
+
   - wave698 闭 8 层 scalar / 7 层 NAMED；更深仍 soft
 
-- [ ] **4.2.4 bare `unit_t()` 无 turbofish + 零参 T subst** ⬜ leave-off
+⬜ **4.2.4 bare `unit_t()` 无 turbofish + 零参 T subst** leave-off
+
   - typeck 仍要求类型参数；零参 body/return T 替换无存储 type-arg refs
 
-- [ ] **4.2.5 多 T 组合共享 bare link name** ⬜ leave-off
+⬜ **4.2.5 多 T 组合共享 bare link name** leave-off
+
   - 不同 T 组合（`unit_t<A>()` vs `unit_t<B>()`）共用一个 C 函数
 
-- [ ] **4.2.6 泛型方法 let-binding 接收者推断** ⬜ deferred
+⬜ **4.2.6 泛型方法 let-binding 接收者推断** deferred
+
   - `y.dup()` 而非 `x.clone()` 的类型推断需 let-scan fallback
   - deferred to wave446，但 wave446 闭的是 parser 角列表，此项未见关闭
 
-- [ ] **4.2.7 TYPE_SLICE call-arg 真递归 / 无堆重入 last-wins** ⬜ soft
+⬜ **4.2.7 TYPE_SLICE call-arg 真递归 / 无堆重入 last-wins** soft
+
   - wave406 闭 dual same-call；超出范围仍 last-wins 于静态 temp
 
-- [ ] **4.2.8 AST name 槽 128 字节 layout raise** ⬜ leave-off
+⬜ **4.2.8 AST name 槽 128 字节 layout raise** leave-off
+
   - wave284 honest-fail 已绿；布局升维（fixed name[128] → 可变长度）仍 leave-off
 
-- [ ] **4.2.9 LANG-006 标量 bool→int 保留** ⬜ **有意保留 soft**
+⬜ **4.2.9 LANG-006 标量 bool→int 保留** **有意保留 soft**
+
   - `let x: i32 = true` 仍合法；显式保留的语言契约，非 bug
+
+⬜ **4.2.10 `take(W.xs)` f32[2]→[]f32 fs CG002** 疑似已闭待核查
+
+  - 来源：wave648 soft · wave649 探针含「f32 host+fs=42」
+  - 疑似已被 wave649 关闭，但文档未明确标记关闭
+
+⬜ **4.2.11 `i64[]` call-arg fs** 疑似已闭待核查
+
+  - 来源：wave619 soft · wave622 探针含「pure+fs i64 idx1=32·sum=42」
+  - 疑似已被 wave622 关闭，但文档未明确标记关闭
+
+⬜ **4.2.12 fs multi-method mangle** 疑似已闭待核查
+
+  - 来源：wave681/682 soft · wave683 修了 freestanding multi-method bare `get` UNDEF
+  - 其后 soft 不再列此项，疑似关闭
+
+⬜ **4.2.13 dup_func first-wins** 疑似已闭待核查
+
+  - 来源：wave679/680 soft · wave681 修了有参 redef
+  - 其后 soft 不再列此项，疑似关闭
+
+⬜ **4.2.14 bare type-param field** 疑似已闭待核查
+
+  - 来源：wave683 soft · wave684 探针「t/s/w_nope T001」疑似关闭
+  - field_unknown 硬失败，但未明确标记关闭
 
 ---
 
@@ -305,27 +553,63 @@
 
 > 详见阶段 3 的 128 prove 模块列表。其中 ~120 个已 R2 真迁（rest 业务 H=0），仅保留 Cap residual _impl 桥或 marker。
 
-- [x] **5.1.1 全部 labi_* 切片（12 个）R2 full** ✅
-- [x] **5.1.2 全部 rt_* 切片（23 个）R2 full** ✅
-- [x] **5.1.3 全部 runtime_* asm 切片（41 个）R2 thin+rest / DIRECT** ✅
-- [x] **5.1.4 全部 backend/simd 切片（20 个）R2 mixed/full** ✅
-- [x] **5.1.5 src 根组（15 个）R2 mixed/full** ✅
-- [x] **5.1.6 async 组（2 个）R2 pure** ✅
-- [x] **5.1.7 driver 组（11 个）R2 / Track L 退役** ✅
-- [x] **5.1.8 lsp 组（4 个）R2** ✅
-- [x] **5.1.9 lexer 组（1 个）prove 锁** ✅
+✅ **5.1.1 全部 labi_* 切片（12 个）R2 full**
+
+✅ **5.1.2 全部 rt_* 切片（23 个）R2 full**
+
+✅ **5.1.3 全部 runtime_* asm 切片（41 个）R2 thin+rest / DIRECT**
+
+✅ **5.1.4 全部 backend/simd 切片（20 个）R2 mixed/full**
+
+✅ **5.1.5 src 根组（15 个）R2 mixed/full**
+
+✅ **5.1.6 async 组（2 个）R2 pure**
+
+✅ **5.1.7 driver 组（11 个）R2 / Track L 退役**
+
+✅ **5.1.8 lsp 组（4 个）R2**
+
+✅ **5.1.9 lexer 组（1 个）prove 锁**
+
 
 ### 5.2 R2 待收口项
 
-- [ ] **5.2.1 wave445 SHARED ABI mono 字段 tip L4 收口** ⬜
+⬜ **5.2.1 wave445 SHARED ABI mono 字段 tip L4 收口**
+
   - 日常 L2 已过，tip L4 升钉未含此
   - 下一阶段收口时跑 L4
 
-- [ ] **5.2.2 Darwin stage2 rv / strict multi-def** ⬜ 平台债
+⬜ **5.2.2 Darwin stage2 rv / strict multi-def** 平台债
+
   - macOS stage2 riscv 与 strict 多重定义路径
 
-- [ ] **5.2.3 host `_impl` 后缀命名** ⬜ leave-off
+⬜ **5.2.3 host `_impl` 后缀命名** leave-off
+
   - host-C 路径的 `_impl` 后缀命名（与 R2 真迁相关）
+
+⬜ **5.2.4 Darwin `int64_t main` 硬要求 int** 平台债
+
+  - 来源：wave623 soft 项
+  - macOS 平台硬性要求 main 返回 int，与 int64_t 冲突
+  - 未在任何后续 wave 中明确关闭
+
+⬜ **5.2.5 Windows MSYS2 继承 hybrid 未重跑** 平台债
+
+  - 来源：自举进度.md 双端/平台表
+  - Windows MSYS2 仍继承 hybrid，本波未重跑
+  - 需补做 Windows 双端 L4 验证
+
+⬜ **5.2.6 mac CTFE 常 fold 假绿** 工程债
+
+  - 来源：wave620/645/646/647/648 反复出现
+  - mac 上 pure-asm 路径 CTFE 折叠常导致假绿，掩盖真问题
+  - 需治本或列入长期约束
+
+⬜ **5.2.7 mac `-dead_strip` 假绿当 Ubuntu 全链已过** 工程纪律债
+
+  - 来源：自举进度.md §7 禁止清单
+  - 禁止把 mac `-dead_strip` 假绿当 Ubuntu 全链已过
+  - 需列入长期约束文档
 
 ---
 
@@ -335,210 +619,839 @@
 
 ### 6.1 runtime mega 拆分（RFC: G-02f-P2-runtime-mega）
 
-- [x] **6.1.1 R0–R10 全部落地** ✅ 11 册
-- [x] **6.1.2 13 个 rest sub-slice 落地** ✅（rt_dispatch_impl / rt_asm_stub / rt_fmt_one / rt_pipeline_elf_diag / rt_run_x_emit / rt_parse_diag / rt_diag_errno / rt_fs_open / rt_arena_buf / rt_preamble / rt_stack / rt_lib_root / rt_emit_flags / rt_emit_state / rt_content / rt_compile / rt_run_exec / rt_run_asm_backend / rt_run_compiler_parsed）
-- [x] **6.1.3 f-317 里程碑** ✅ product rest 业务 T 符号 = 0
-- [x] **6.1.4 切片完成度** ✅ 24/24
-- [x] **6.1.5 rest 仅 marker + Cap residual** ✅（R7/R8 OS/pthread 🔒 永久 seed 边界）
+✅ **6.1.1 R0–R10 全部落地** 11 册
+
+✅ **6.1.2 19 个 rest sub-slice 落地**（详见 3.5 rt_* 切片）
+
+✅ **6.1.3 f-317 里程碑** product rest 业务 T 符号 = 0
+
+✅ **6.1.4 切片完成度** 24/24
+
+✅ **6.1.5 rest 仅 marker + Cap residual**（R7/R8 OS/pthread 等 **原**标 🔒；wave713 起归阶段 9 **必须消灭**，非永久 seed 边界）
+
 
 ### 6.2 parser thin mega 拆分（RFC: G-02f-P2-parser-thin-mega）
 
-- [x] **6.2.1 P0–P9 原计划落地** ✅ 10 册
-- [x] **6.2.2 P10–P20 扩展落地** ✅ 11 册（f-318–f-329）
-- [x] **6.2.3 f-329 P20 foundation** ✅ rest T=0
-- [x] **6.2.4 f-330 omit empty rest** ✅ 全产品切片齐时跳过 mega rest cc -c
-- [x] **6.2.5 24 个 pthin_*.x 切片** ✅
-- [x] **6.2.6 切片完成度** ✅ 21/21
+✅ **6.2.1 P0–P9 原计划落地** 10 册
+
+✅ **6.2.2 P10–P20 扩展落地** 11 册（f-318–f-329）
+
+✅ **6.2.3 f-329 P20 foundation** rest T=0
+
+✅ **6.2.4 f-330 omit empty rest** 全产品切片齐时跳过 mega rest cc -c
+
+✅ **6.2.5 24 个 pthin_*.x 切片**
+
+✅ **6.2.6 切片完成度** 21/21
+
 
 ### 6.3 link_abi mega 拆分（RFC: G-02f-P2-link-abi-mega）
 
-- [x] **6.3.1 L0–L9 全部落地** ✅ 10 册
-- [x] **6.3.2 L8b ondemand 拆分** ✅（f-272）
-- [x] **6.3.3 f-277 里程碑** ✅ link_abi L0–L9 十册 hybrid 齐
-- [x] **6.3.4 12 个 labi_*.x 切片** ✅
-- [x] **6.3.5 切片完成度** ✅ 11/11
-- [x] **6.3.6 L3+ 含 stat/spawn/cc/ld → 🔒** ✅ 只做薄门闩或后移
+✅ **6.3.1 L0–L9 全部落地** 10 册
+
+✅ **6.3.2 L8b ondemand 拆分**（f-272）
+
+✅ **6.3.3 f-277 里程碑** link_abi L0–L9 十册 hybrid 齐
+
+✅ **6.3.4 12 个 labi_*.x 切片**
+
+✅ **6.3.5 切片完成度** 11/11
+
+✅ **6.3.6 L3+ 含 stat/spawn/cc/ld** 历史曾标 🔒 薄门闩；wave713 起 **invoke_cc/ld 本体归阶段 9/12–13 必须消灭或 opt-in 隔离**（删 Makefile 后产品默认不得再 `exec` host-cc）
+
 
 ---
 
-## 阶段 7：Mega 去 pin Track M4（未开始 · 0/3）
+## 阶段 7：Mega 去 pin Track M4（未开始 · 0/5）
 
-> **定义**：M4 关 pin / 空 patch；冷启动可从「上一代 xlang -E」重建。
-> **当前**：三大 mega 拆分完成（M1-M3），但 pinned *_gen.c 仍是产品链权威，去 pin 未开始。
+> **定义**：M4 关 pin / 空 patch；冷启动可从「上一代 xlang -E」或 **纯 .x 产品路径**重建。  
+> **当前**：三大 mega 拆分完成（M1-M3），但 pinned `*_gen.c` / mega seed 仍是产品链权威，去 pin 未开始。  
+> **补遗**：前端 **typeck / codegen** 亦是 pin 权威（产品链 `typeck_x.o` / `codegen_x.o` 常来自 pin seed），原 0/3 仪表盘漏计，现计 **0/5**。
 
 ### 7.1 runtime mega 去 pin
 
-- [ ] **7.1.1 关闭 runtime pinned seed** ⬜
+⬜ **7.1.1 关闭 runtime pinned seed**
+
   - 当前：seeds/runtime.from_x.c（~7,320 LOC）仍是冷启动 seed
   - 目标：冷启动可从 .x 重建，不再依赖 pinned seed
-- [ ] **7.1.2 runtime_driver_no_c.o 产品链去 pin** ⬜
+
+⬜ **7.1.2 runtime_driver_no_c.o 产品链去 pin**
+
   - 当前：RUNTIME_DRIVER_NO_C_CFLAGS 编译 pinned seed
   - 目标：产品 .o 全部来自 .x→.o
-- [ ] **7.1.3 M3 Stage2 / D-03 验证** ⬜
+
+⬜ **7.1.3 M3 Stage2 / D-03 验证**
+
 
 ### 7.2 parser mega 去 pin
 
-- [ ] **7.2.1 关闭 parser pinned seed** ⬜
+⬜ **7.2.1 关闭 parser pinned seed**
+
   - 当前：seeds/parser_asm_thin_c.from_x.c（~21,935 LOC）仍是冷启动 seed
   - 目标：冷启动可从 pthin_*.x 重建
-- [ ] **7.2.2 parser_gen.c 去 pin** ⬜
-  - 当前：Makefile L1760 pinned
-  - 目标：regen parser_x.o 替换 pinned
-- [ ] **7.2.3 M3 Stage2 / D-03 验证** ⬜
+
+⬜ **7.2.2 parser_gen.c 去 pin**
+
+  - 当前：Makefile 规则 pinned；`XLANG_FORCE_REGGEN=1` 才 regen
+  - 目标：regen parser_x.o 替换 pinned；冷启动不读 pin 体
+
+⬜ **7.2.3 M3 Stage2 / D-03 验证**
+
 
 ### 7.3 link_abi mega 去 pin
 
-- [ ] **7.3.1 关闭 link_abi pinned seed** ⬜
+⬜ **7.3.1 关闭 link_abi pinned seed**
+
   - 当前：seeds/runtime_link_abi.from_x.c（~6,920 LOC）仍是冷启动 seed
   - 目标：冷启动可从 labi_*.x 重建
-- [ ] **7.3.2 runtime_link_abi_gen.c 去 pin** ⬜（如存在独立 pin）
-- [ ] **7.3.3 M3 Stage2 / D-03 验证** ⬜
+
+⬜ **7.3.2 runtime_link_abi_gen.c 去 pin**（如存在独立 pin）
+
+⬜ **7.3.3 M3 Stage2 / D-03 验证**
+
+
+### 7.4 前端 mega 去 pin（typeck / codegen · 原文档漏项）
+
+> **为何独立成 7.4**：M1–M3 历史只拆 runtime/parser/link_abi 三 mega；但产品 L4 链上 **`typeck_gen.c` / `codegen_gen.c` pin** 与 `.x` 双权威问题同等严重（改 `.x` 不改 seed = 假绿）。删 Makefile 前必须可「上一代 xlang 直接编 typeck.x/codegen.x」而不读 pin。
+
+⬜ **7.4.1 typeck 去 pin**
+
+  - 当前：`compiler/typeck_gen.c` + `seeds/typeck_gen.linux.x86_64.c`（~490kB 级）为产品/冷启动权威孪生
+  - 目标：`typeck_x.o` 仅由 `src/typeck/typeck.x`（+ empty_surface 策略若仍需） regen；pin 仅考古
+
+⬜ **7.4.2 codegen 去 pin**
+
+  - 当前：`compiler/codegen_gen.c` + `seeds/codegen_gen.linux.x86_64.c` 产品 pin
+  - 目标：同 7.4.1；与 wave70x seed 同 commit 纪律收敛为「仅 .x 权威」
+
+⬜ **7.4.3 lexer / preprocess / pipeline 去 pin 对齐**
+
+  - 与阶段 8.2.2 / 8.2.10 / 8.2.11 联动；前端「能自 regen」再谈删 Makefile 冷启动规则
+
+⬜ **7.4.4 双权威禁令验收**
+
+  - 合入闸门：任意 touch `*.x` 产品面 → 同 commit 无「只改 seed」；CI 可 diff pin 与 `-E` 漂移（可选）
+
 
 ---
 
-## 阶段 8：Pinned gen.c 退役（部分完成 · 8/19）
+## 阶段 8：Pinned gen.c 退役（部分完成 · 8/30）
 
 > **定义**：compiler/ 顶层的 *_gen.c 是 pinned 生成器，产品链权威。Track L 退役 = 构建改用 *_x.o，pinned gen 仅考古。
 
 ### 8.1 已退役的 pinned gen.c（8 个）
 
-- [x] **8.1.1 lsp_io_std_heap_gen.c** ✅ Track L 退役（构建用 lsp_io_std_heap_x.o）
-- [x] **8.1.2 driver_fmt_gen.c** ✅ Track L 退役（构建用 driver_fmt_x.o）
-- [x] **8.1.3 driver_check_gen.c** ✅ Track L 退役（archaeology）
-- [x] **8.1.4 driver_test_gen.c** ✅ Track L 退役（archaeology）
-- [x] **8.1.5 driver_build_gen.c** ✅ Track L 退役（archaeology）
-- [x] **8.1.6 driver_run_gen.c** ✅ Track L 退役（archaeology）
-- [x] **8.1.7 driver_emit_gen.c** ✅ Track L 退役（构建用 driver_emit_x.o）
-- [x] **8.1.8 driver_compile_gen.c** ✅ R2 真迁（构建用 driver_compile_x.o，gen 仍 pinned 但产品不读）
+✅ **8.1.1 lsp_io_std_heap_gen.c** Track L 退役（构建用 lsp_io_std_heap_x.o）
 
-### 8.2 仍需退役的 pinned gen.c（11 个 · 前端核心）
+✅ **8.1.2 driver_fmt_gen.c** Track L 退役（构建用 driver_fmt_x.o）
 
-- [ ] **8.2.1 parser_gen.c** ⬜ pinned（Makefile L1760 · XLANG_FORCE_REGGEN=1 to regen）
+✅ **8.1.3 driver_check_gen.c** Track L 退役（archaeology）
+
+✅ **8.1.4 driver_test_gen.c** Track L 退役（archaeology）
+
+✅ **8.1.5 driver_build_gen.c** Track L 退役（archaeology）
+
+✅ **8.1.6 driver_run_gen.c** Track L 退役（archaeology）
+
+✅ **8.1.7 driver_emit_gen.c** Track L 退役（构建用 driver_emit_x.o）
+
+✅ **8.1.8 driver_compile_gen.c** R2 真迁（构建用 driver_compile_x.o，gen 仍 pinned 但产品不读）
+
+
+### 8.2 仍需退役的 pinned gen.c（22 个 · 前端核心 + 工具链 + 测试）
+
+⬜ **8.2.1 parser_gen.c** pinned（Makefile L1760 · XLANG_FORCE_REGGEN=1 to regen）
+
   - 前端核心：src/parser/parser.x
   - 阻塞：parser mega 去 pin（阶段 7.2）
-- [ ] **8.2.2 lexer_gen.c** ⬜ pinned（Makefile L1843）
+
+⬜ **8.2.2 lexer_gen.c** pinned（Makefile L1843）
+
   - 前端核心：src/lexer/lexer.x
-- [ ] **8.2.3 ast_gen2.c** ⬜ pinned（Makefile L2155）
+
+⬜ **8.2.3 ast_gen2.c** pinned（Makefile L2155）
+
   - AST 池：src/ast/ast.x（typeck/codegen 单 TU 依赖）
-- [ ] **8.2.4 typeck_gen.c** ⬜ pinned（Makefile L2172）
+
+⬜ **8.2.4 typeck_gen.c** pinned（Makefile L2172）
+
   - 前端核心：src/typeck/typeck.x
   - 阻塞：typeck mega 去 pin
-- [ ] **8.2.5 codegen_gen.c** ⬜ pinned（Makefile L2199）
+
+⬜ **8.2.5 codegen_gen.c** pinned（Makefile L2199）
+
   - 前端核心：src/codegen/codegen.x
   - 阻塞：codegen mega 去 pin
-- [ ] **8.2.6 lsp_diag_gen.c** ⬜ pinned（Makefile L2551）
-- [ ] **8.2.7 lsp_io_gen.c** ⬜ pinned（Makefile L2574）
-- [ ] **8.2.8 lsp_gen.c** ⬜ pinned（Makefile L2613）
-- [ ] **8.2.9 driver_gen.c** ⬜ pinned（Makefile L2870 · up-to-date with MAIN_X_DEPS）
+
+⬜ **8.2.6 lsp_diag_gen.c** pinned（Makefile L2551）
+
+⬜ **8.2.7 lsp_io_gen.c** pinned（Makefile L2574）
+
+⬜ **8.2.8 lsp_gen.c** pinned（Makefile L2613）
+
+⬜ **8.2.9 driver_gen.c** pinned（Makefile L2870 · up-to-date with MAIN_X_DEPS）
+
   - driver main：src/main.x
-- [ ] **8.2.10 preprocess_gen.c** ⬜ pinned（Makefile L2918）
+
+⬜ **8.2.10 preprocess_gen.c** pinned（Makefile L2918）
+
   - preprocess：src/preprocess/preprocess.x
-- [ ] **8.2.11 pipeline_gen.c** ⬜ pinned（Makefile L3325 · bootstrap-pipeline · P0-4 i64 ABI guard）
+
+⬜ **8.2.11 pipeline_gen.c** pinned（Makefile L3325 · bootstrap-pipeline · P0-4 i64 ABI guard）
+
   - pipeline：src/pipeline/pipeline.x
 
+⬜ **8.2.12 token_gen.c** pinned（19 行 · seeds/token_gen.linux.x86_64.c）
+
+  - token：src/lexer/token.x（prove 锁 nm 面 · 见 3.2.1）
+
+⬜ **8.2.13 ast_gen.c** pinned（808 行 · seeds/ast_gen.linux.x86_64.c）
+
+  - AST 池 v1：src/ast/ast.x
+  - 注意：与 ast_gen2.c 并存（双版本），需统一去 pin
+
+⬜ **8.2.14 build_gen.c** pinned（40 行 · seeds/build_gen.c）
+
+  - build 工具生成器
+
+⬜ **8.2.15 build_runner_gen.c** pinned（93 行 · seeds/build_runner_gen.c）
+
+  - build runner 生成器
+
+⬜ **8.2.16 build_runtime_x_gen.c** pinned（245 行 · seeds/build_runtime_x_gen.c）
+
+  - build runtime 生成器
+
+⬜ **8.2.17 cfg_eval_gen.c** pinned（src/lexer/ · 973 行 · seeds/cfg_eval_gen.linux.x86_64.c）
+
+  - cfg_eval：src/lexer/cfg_eval.x
+  - src/ 下唯一未迁移的 .c 文件
+
+⬜ **8.2.18 lsp_gen_full.c** pinned（1072 行 · 非 *_gen.c 命名但属 pinned 生成器）
+
+  - lsp 完整版变体
+
+⬜ **8.2.19 token_gen2.c** pinned（466 行 · gen2 变体）
+
+  - token v2：与 token_gen.c 并存
+
+⬜ **8.2.20 lexer_gen2.c** 空文件（0 行 · gen2 变体占位）
+
+  - 待删除或填充
+
+⬜ **8.2.21 parser_gen_test.c** pinned（5383 行 · 测试用 pinned）
+
+  - parser 测试生成器
+
+⬜ **8.2.22 typeck_gen_test.c** pinned（249 行 · 测试用 pinned）
+
+  - typeck 测试生成器
+
+### 8.3 非 gen 产品 C / 链接桩（原文档大漏 · **删 Makefile 体积主债**）
+
+> **定义**：不叫 `*_gen.c`，但 **产品链 / bootstrap-driver-seed / g05** 仍 `$(CC) -c` 的 C 体与符号桩。  
+> **规模（2026-07-29 仓库实测）**：仅 glue+ast_pool 系 **~60k LOC**，远大于多数 gen 单文件；不迁完则 xbuild **无法**在 BC 层摆脱 host-cc。  
+> **G.7**：glue 与 typeck.x / codegen.x 禁止长期双权威；迁时同 commit 收敛。
+
+| 文件（compiler/） | ~LOC | 角色 | 状态 |
+|-------------------|------|------|------|
+| `pipeline_glue.c` | ~40,096 | 产品 mega glue（typeck/codegen/asm/match…） | ⬜ |
+| `ast_pool.c` | ~18,109 | AST 池 / MatchArm / sidecar | ⬜ |
+| `pipeline_typeck_field_access.c` | ~1,477 | field_access 权威切片（常被 glue 拉入） | ⬜ |
+| `pipeline_typeck_soa.c` | ~255 | typeck SOA 辅助 | ⬜ |
+| `ast_pool_bootstrap_glue.c` | ~632 | 冷启动 ast 桥 | ⬜ |
+| `pipeline_bootstrap_orchestration.c` | ~5 | 编排占位 | ⬜ |
+| `pipeline_glue_strict_minimal`（seed → `.o`） | — | 产品 weak 孪生 | ⬜ |
+| bare link alias / stubs 族 | 小 | `*_bare_link_alias.c` · `_stubs.c` · `xlang_x_stubs.c` · `typeck_c_module_stubs.c` 等 | ⬜ |
+
+⬜ **8.3.1 `pipeline_glue.c` → .x（或按域切 thin + 唯一权威）**
+
+  - 爆炸半径：几乎所有 typeck/codegen/asm 产品路径
+  - 验收：产品链不再 `cc -c pipeline_glue.c`；Ubuntu L4 + 129
+
+⬜ **8.3.2 `ast_pool.c` → .x / 已有 ast.x 权威收敛**
+
+  - MatchArm / GrowVec / module sidecar 与 parser pin 同生命周期
+
+⬜ **8.3.3 `pipeline_typeck_field_access.c` / `pipeline_typeck_soa.c` 并入 typeck 权威**
+
+  - 禁止 glue 旁路第二套 field resolve
+
+⬜ **8.3.4 bootstrap glue / orchestration 折叠进 8.3.1–8.3.2 或删**
+
+⬜ **8.3.5 链接桩 / bare alias 退役**
+
+  - `ast_asm_bare_link_alias.c` · `backend_asm_*_alias.c` · `typeck_asm_bare_link_alias.c` · `x_frontend_link_alias.c` · `_stubs.c` · `_x_stubs2.c` · `xlang_x_stubs.c` · `typeck_c_module_stubs.c`
+  - 目标：符号面由 .x `#[no_mangle]` / 单一 mangle 权威提供，无「为让 ld 安静」的永久 C 桩
+
+⬜ **8.3.6 `seeds/*.from_x.c` 全表退役策略**
+
+  - 今日 **~329** 个 seeds `.c`：分 **产品 pin** / **prove surface** / **EMPTY surface** / **strict_minimal**
+  - 终局：冷启动不读 from_x 业务体；surface 仅考古或生成物不入库（策略二选一写清）
+
+⬜ **8.3.7 scripts 下 asm stub C**
+
+  - `compiler/scripts/asm_text_stub.c` · `asm_xlang_lsp_diag_stub.c` 等 — 随 xbuild/g05 迁走或删
+
+
 ---
 
-## 阶段 9：Cap residual 永久边界（不可迁 · 🔒）
+## 阶段 9：Cap residual 边界消灭（路线 A · 必须消除）
 
-> **定义**：OS 系统调用 / 第三方库头依赖 / 宏展开 / C ABI 限制，Xlang 无法表达，留作永久 seed 边界。
-> **性质**：这些不是"欠债"，是语言边界。列出供参考，不打勾。
+> **定义**：OS 系统调用 / 第三方库头依赖 / 宏展开 / C ABI 限制，当前 Xlang 无法表达，以 .c 形式残留。
+> **性质变更**（2026-07-29）：原标记为「永久边界 🔒 不可迁」，现**降级为必须消灭的边界 ⬜**。
+> **原因**：自举终局目标升级为「零 Makefile + 零 cc/gcc」（见阶段 13），只要这些 residual 还以 .c 源文件形式存在，就必然需要 cc/gcc 来编译它们。因此必须通过路线 A（语言能力补齐 + 纯 .x 重写）逐个消灭。
+> **消灭顺序**：syscall 层（9.1）→ 文件/网络/线程（9.4/9.5）→ 第三方库 glue（9.2）→ 宏展开（9.3）→ 数据布局（9.6）→ driver_abi 平台层（9.7）。
+> **前置**：阶段 10 语言能力补齐（syscall / raw FFI / inline asm / fnptr / va_list / 线程原语）是消灭这些 residual 的前提。
 
-### 9.1 OS 系统调用类
+### 9.1 OS 系统调用类（消灭优先级 P0 · 最底层）
 
-- 🔒 **9.1.1 getenv / setenv / unsetenv / environ** — labi_invoke_cc/ld · labi_diag · rt_entry · runtime_env_os · runtime_scheduler_glue · parser_asm_parse_expr_link
-- 🔒 **9.1.2 stat / access / realpath** — labi_path_io · labi_ensure_list · labi_freestanding_list · labi_invoke_ld_list · fmt_check
-- 🔒 **9.1.3 getcwd / chdir / getpid / getppid** — runtime_process_os_glue · labi_invoke_ld_list
-- 🔒 **9.1.4 execve / waitpid / pipe / spawn / system** — runtime_process_os_glue · labi_invoke_ld_list · labi_diag_pure · rt_entry
-- 🔒 **9.1.5 clock_gettime / nanosleep / gmtime_r / QPC / Sleep** — runtime_time_os
-- 🔒 **9.1.6 getrandom / getentropy / BCryptGenRandom** — runtime_random_fill
-- 🔒 **9.1.7 getaddrinfo / WSAStartup / socket / connect / poll / recvmmsg / sendmmsg** — runtime_net_* · runtime_http_glue
-- 🔒 **9.1.8 _write / write** — runtime_log_os
-- 🔒 **9.1.9 inline asm syscall（Linux x86_64）** — runtime_asm_io_stubs
-- 🔒 **9.1.10 opendir / readdir / closedir** — fmt_check
-- 🔒 **9.1.11 execinfo / dladdr / DbgHelp / CaptureStackBackTrace** — runtime_backtrace_platform
-- 🔒 **9.1.12 sysctl / proc/#if** — target_cpu_pure
+> **消灭路径**：为 Xlang 增加 syscall 内建（Linux x86_64 / arm64 syscall 号 + Windows NT API），用 .x 直接发 syscall，不再经 libc 包装。
+> **依赖**：阶段 10.1 syscall / raw FFI。
 
-### 9.2 第三方库依赖
+⬜ **9.1.1 getenv / setenv / unsetenv / environ**
+  - labi_invoke_cc/ld
+  - labi_diag
+  - rt_entry
+  - runtime_env_os
+  - runtime_scheduler_glue
+  - parser_asm_parse_expr_link
 
-- 🔒 **9.2.1 mbedtls BIO send/recv** — runtime_tls_mbedtls_bio（需 #include <mbedtls/ssl.h>）
-- 🔒 **9.2.2 zlib deflateInit2_ / inflateInit2_** — runtime_compress_zlib_glue（需 #include <zlib.h> + #undef macros）
-- 🔒 **9.2.3 ed25519 ref10 实现** — runtime_ed25519_ref10_glue（8 个 .inc 文件宏展开）
-- 🔒 **9.2.4 libm math_*_impl** — runtime_math_libm（32 个 libm 函数桥）
-- 🔒 **9.2.5 arrow SIMD kernels** — runtime_arrow_simd_glue（需 C target attributes）
-- 🔒 **9.2.6 sqlite3** — runtime_sqlite_glue（sqlite3 C API）
+⬜ **9.1.2 stat / access / realpath**
+  - labi_path_io
+  - labi_ensure_list
+  - labi_freestanding_list
+  - labi_invoke_ld_list
+  - fmt_check
 
-### 9.3 宏展开类
+⬜ **9.1.3 getcwd / chdir / getpid / getppid**
+  - runtime_process_os_glue
+  - labi_invoke_ld_list
 
-- 🔒 **9.3.1 ed25519 ref10 宏重命名** — 8 个 .inc 经宏发射 _impl_c
-- 🔒 **9.3.2 zlib macros #undef** — rest #include + #undef + call real
-- 🔒 **9.3.3 #if host 字面量** — labi_host_lit · target_cpu_pure · runtime_panic_arm64
-- 🔒 **9.3.4 C11 stdatomic / GCC __atomic intrinsics** — runtime_atomic_glue（30 个原子操作）
-- 🔒 **9.3.5 SIMD intrinsics** — runtime_arrow_simd_glue（ARM SVE / x86 AVX）
+⬜ **9.1.4 execve / waitpid / pipe / spawn / system**
+  - runtime_process_os_glue
+  - labi_invoke_ld_list
+  - labi_diag_pure
+  - rt_entry
 
-### 9.4 C ABI / fnptr 表达限制
+⬜ **9.1.5 clock_gettime / nanosleep / gmtime_r / QPC / Sleep**
+  - runtime_time_os
 
-- 🔒 **9.4.1 uintptr_t → fnptr cast + indirect call** — runtime_test_fn_invoke
-- 🔒 **9.4.2 void*(*)(void*) C ABI** — runtime_net_workers
-- 🔒 **9.4.3 main() char** argv — runtime_asm_build
-- 🔒 **9.4.4 pthread_mutex_t / pthread_cond_t / pthread_create** — runtime_sync_os · runtime_channel_glue · runtime_queue_contention · runtime_thread_glue · runtime_sync_lock_diag_tls
-- 🔒 **9.4.5 CRITICAL_SECTION / SRWLOCK / CONDITION_VARIABLE / CreateThread / _beginthreadex** — 同上 Windows 侧
-- 🔒 **9.4.6 SetThreadAffinityMask / qos_class** — runtime_thread_glue
+⬜ **9.1.6 getrandom / getentropy / BCryptGenRandom**
+  - runtime_random_fill
 
-### 9.5 FILE* / fprintf / fputs / va_list
+⬜ **9.1.7 getaddrinfo / WSAStartup / socket / connect / poll / recvmmsg / sendmmsg**
+  - runtime_net_*
+  - runtime_http_glue
 
-- 🔒 **9.5.1 driver_preamble_fputs（G.7）** — async_liveness · async_cps_codegen
-- 🔒 **9.5.2 xlang_target_cpu_print（FILE/fprintf）** — target_cpu_pure
-- 🔒 **9.5.3 reportf / va_list** — diagnostic 深路径
-- 🔒 **9.5.4 vsnprintf + write** — bootstrap_nostdlib_stubs
+⬜ **9.1.8 _write / write**
+  - runtime_log_os
 
-### 9.6 全局/static BSS / 巨型字串数据
+⬜ **9.1.9 inline asm syscall（Linux x86_64）**
+  - runtime_asm_io_stubs
 
-- 🔒 **9.6.1 u8[N] 全局/static BSS** — rt_arena_buf · rt_emit_state（Cap-global-bss）
-- 🔒 **9.6.2 巨型字串表数据** — rt_preamble（Cap-giant-string）
-- 🔒 **9.6.3 static 共享状态** — 各 mega rest 切片
+⬜ **9.1.10 opendir / readdir / closedir**
+  - fmt_check
 
-### 9.7 driver_abi 平台层集中点
+⬜ **9.1.11 execinfo / dladdr / DbgHelp / CaptureStackBackTrace**
+  - runtime_backtrace_platform
 
-- 🔒 **9.7.1 FILE/pctx/host/defines/work 槽** — rt_run_asm_backend · rt_run_compiler_parsed · rt_run_x_emit · rt_dispatch_impl · rt_asm_stub
-- 🔒 **9.7.2 lib_roots 槽 + Parsed 填表** — rt_dispatch_impl
-- 🔒 **9.7.3 GAS 行表 + OutBuf append** — rt_asm_stub
-- 🔒 **9.7.4 driver_stdio_* + driver_entry_*_slot** — rt_entry
-- 🔒 **9.7.5 usage_write + compiled_body** — rt_run_exec
-- 🔒 **9.7.6 driver_run_stack_esc_gate** — rt_stack（pthread）
-- 🔒 **9.7.7 driver_run_thread_on_large_stack_pthread** — rt_stack
+⬜ **9.1.12 sysctl / proc/#if**
+  - target_cpu_pure
+
+### 9.2 第三方库依赖（消灭优先级 P2 · 自实现子集或桥接）
+
+> **消灭路径**：能纯 .x 重写的重写（如 ed25519 / 部分libm）；不能重写的放弃或自实现子集；TLS / zlib 等大库走 .x 绑定层 + 预置二进制 .a（但不再走 cc 编译源码）。
+> **依赖**：阶段 10.1 syscall / raw FFI · 阶段 10.2 inline asm（SIMD）。
+
+⬜ **9.2.1 mbedtls BIO send/recv**（需 #include <mbedtls/ssl.h>）
+  - runtime_tls_mbedtls_bio
+
+⬜ **9.2.2 zlib deflateInit2_ / inflateInit2_**（需 #include <zlib.h> + #undef macros）
+  - runtime_compress_zlib_glue
+
+⬜ **9.2.3 ed25519 ref10 实现**（8 个 .inc 文件宏展开）
+  - runtime_ed25519_ref10_glue
+
+⬜ **9.2.4 libm math_*_impl**（32 个 libm 函数桥）
+  - runtime_math_libm
+
+⬜ **9.2.5 arrow SIMD kernels**（需 C target attributes）
+  - runtime_arrow_simd_glue
+
+⬜ **9.2.6 sqlite3**（sqlite3 C API）
+  - runtime_sqlite_glue
+
+### 9.3 宏展开类（消灭优先级 P2 · .x 内建替代）
+
+> **消灭路径**：stdatomic → .x 原子内建；SIMD intrinsics → .x SIMD 内建；ed25519/zlib 宏 → .x 模板/过程化展开。
+> **依赖**：阶段 10.2 inline asm · 阶段 10.4 原子内建 · 阶段 10.5 SIMD 内建。
+
+⬜ **9.3.1 ed25519 ref10 宏重命名**
+  - 8 个 .inc 经宏发射 _impl_c
+
+⬜ **9.3.2 zlib macros #undef**
+  - rest #include + #undef + call real
+
+⬜ **9.3.3 #if host 字面量**
+  - labi_host_lit
+  - target_cpu_pure
+  - runtime_panic_arm64
+
+⬜ **9.3.4 C11 stdatomic / GCC __atomic intrinsics**
+  - runtime_atomic_glue（30 个原子操作）
+
+⬜ **9.3.5 SIMD intrinsics**
+  - runtime_arrow_simd_glue（ARM SVE / x86 AVX）
+
+### 9.4 C ABI / fnptr 表达限制（消灭优先级 P1 · 平台线程原语）
+
+> **消灭路径**：fnptr → 阶段 10.3 完整 fnptr 支持；pthread/Win32 → 阶段 10.6 平台线程原语内建（.x 直接调 syscall/NT API）。
+> **依赖**：阶段 10.3 fnptr · 阶段 10.6 线程原语。
+
+⬜ **9.4.1 uintptr_t → fnptr cast + indirect call**
+  - runtime_test_fn_invoke
+
+⬜ **9.4.2 void*(*)(void*) C ABI**
+  - runtime_net_workers
+
+⬜ **9.4.3 main() char** argv
+  - runtime_asm_build
+
+⬜ **9.4.4 pthread_mutex_t / pthread_cond_t / pthread_create**
+  - runtime_sync_os
+  - runtime_channel_glue
+  - runtime_queue_contention
+  - runtime_thread_glue
+  - runtime_sync_lock_diag_tls
+
+⬜ **9.4.5 CRITICAL_SECTION / SRWLOCK / CONDITION_VARIABLE / CreateThread / _beginthreadex**
+  - 同 9.4.4 Windows 侧
+
+⬜ **9.4.6 SetThreadAffinityMask / qos_class**
+  - runtime_thread_glue
+
+### 9.5 FILE* / fprintf / fputs / va_list（消灭优先级 P1 · va_list + 格式化）
+
+> **消灭路径**：FILE* → .x 自己的 I/O 流（基于 syscall write）；va_list → 阶段 10.7 可变参数内建；vsnprintf → .x 自实现格式化器。
+> **依赖**：阶段 10.1 syscall · 阶段 10.7 va_list。
+
+⬜ **9.5.1 driver_preamble_fputs（G.7）**
+  - async_liveness
+  - async_cps_codegen
+
+⬜ **9.5.2 xlang_target_cpu_print（FILE/fprintf）**
+  - target_cpu_pure
+
+⬜ **9.5.3 reportf / va_list**
+  - diagnostic 深路径
+
+⬜ **9.5.4 vsnprintf + write**
+  - bootstrap_nostdlib_stubs
+
+### 9.6 全局/static BSS / 巨型字串数据（消灭优先级 P1 · Cap 已部分闭）
+
+> **消灭路径**：Cap-global-bss / Cap-giant-string 已部分闭合（见 4.1.3 / 4.1.7）；剩余用 .x 全局数据表达。
+> **依赖**：Cap-global-bss / Cap-giant-string 完全闭合。
+
+⬜ **9.6.1 u8[N] 全局/static BSS**（Cap-global-bss）
+  - rt_arena_buf
+  - rt_emit_state
+
+⬜ **9.6.2 巨型字串表数据**（Cap-giant-string）
+  - rt_preamble
+
+⬜ **9.6.3 static 共享状态**
+  - 各 mega rest 切片
+
+### 9.7 driver_abi 平台层集中点（消灭优先级 P3 · 最上层）
+
+> **消灭路径**：driver_abi 平台槽位全部用 .x 表达；FILE/pctx/host/defines/work 槽 → .x 结构体；GAS 行表 → .x OutBuf。
+> **依赖**：阶段 9.1-9.6 全部消灭后，此层自然消失。
+
+⬜ **9.7.1 FILE/pctx/host/defines/work 槽**
+  - rt_run_asm_backend
+  - rt_run_compiler_parsed
+  - rt_run_x_emit
+  - rt_dispatch_impl
+  - rt_asm_stub
+
+⬜ **9.7.2 lib_roots 槽 + Parsed 填表**
+  - rt_dispatch_impl
+
+⬜ **9.7.3 GAS 行表 + OutBuf append**
+  - rt_asm_stub
+
+⬜ **9.7.4 driver_stdio_* + driver_entry_*_slot**
+  - rt_entry
+
+⬜ **9.7.5 usage_write + compiled_body**
+  - rt_run_exec
+
+⬜ **9.7.6 driver_run_stack_esc_gate**（pthread）
+  - rt_stack
+
+⬜ **9.7.7 driver_run_thread_on_large_stack_pthread**
+  - rt_stack
 
 ---
 
-## 阶段 10：终局 — 自举完成（未达）
+## 路线选择：零 Makefile + 零 cc/gcc 的实现路径
 
-> **定义**：`xlang_v2 == xlang_v3` / D-03 哈希；冷启动可从上一代 xlang -E 重建；无双权威 pin 糊弄。
-> **前置**：bstrict 全绿 + mega 去 pin + pinned gen.c 退役。
+> **背景**（2026-07-29）：自举终局目标从「v2==v3 + 无 pin」升级为「零 Makefile + 零外部 C 编译器」。阶段 9 的 residual C 只要以 .c 源文件形式存在，就必然需要 cc/gcc 编译。因此必须选定一条路线彻底消灭 .c 源文件依赖。
 
-- [ ] **10.1 三大 mega 去 pin 完成** ⬜（阶段 7）
-- [ ] **10.2 11 个 pinned gen.c 退役完成** ⬜（阶段 8）
-- [ ] **10.3 v2 == v3 语义自举验证** ⬜
+### 路线对比
+
+| 路线 | 做法 | 优点 | 缺点 | 是否采用 |
+|------|------|------|------|----------|
+| **A · 纯 .x + 内建能力重写** | 为 Xlang 增加 syscall / FFI / inline asm / fnptr / va_list / 线程原语内建；阶段 9 全部用 .x 重写或自实现子集；纯 .x 写 xbuild 替代 Makefile | 最干净；真正零 cc；终局最纯 | 工作量大；需补语言底层能力 | ✅ **采用** |
+| B · 预置二进制 blob | residual C 提前编译成 .o/.a；运行时只链接；冷启动仍需一次 cc | 工作量小 | 严格说 cc 仍参与过；不够纯；跨平台二进制管理复杂 | ❌ 不采用 |
+| C · Xlang 实现 C 编译器前端 | 在 Xlang 里写一个足够用的 C 编译器 | 可兼容遗留 C 代码 | 工作量巨大；几乎再做一个编译器 | ❌ 不采用 |
+
+### 路线 A 落地顺序
+
+```
+1. 更新追踪文档（本文）— 删 Makefile + 零 cc 三义 + 8.3 glue 债入图 ✅（本审计）
+2. 语言能力补齐（阶段 10）— syscall / raw FFI / inline asm / fnptr / va_list / 线程原语
+3. 消灭阶段 9 residual + 阶段 8.3 glue/ast 池 — 从底向上
+4. 阶段 7/8 去 pin + gen 退役 — 前端 typeck/codegen 与三 mega
+5. xbuild 吃掉 Makefile（阶段 11.0 可与 2–4 并行：先搬编排、后断 cc）
+6. 冷启动路径重设计（阶段 12）— 最小 seed → xlang → xbuild → 完整产品
+7. 终局验证（阶段 13）— 物理删 Makefile + 零 cc 三义 + v2==v3
+```
+
+### 与「已有半路径」的关系（禁止从零幻想）
+
+| 已有资产 | 路径 | 今日角色 | 终局角色 |
+|----------|------|----------|----------|
+| 顶层 `Makefile` | 仓库根 | **薄包装** → `./xlang-build.sh` | **删除** |
+| `compiler/Makefile` | ~3445 行 | **实现层权威**：.o 规则 / bootstrap / CI 历史目标 | **删除**（规则迁 xbuild） |
+| `xlang-build.sh` | 根 | G-05 用户入口 | 可保留为 xbuild 的 shell shim 或删 |
+| `scripts/g05_*.sh` | compiler/scripts | **产品 relink 编排已在 shell**（注释写明 Makefile 不参与产品路径） | 由 xbuild 调用或 .x 重写 |
+| `build.x` | 仓库根 | **策略稿**（what/order）；实现大量 “See implementation” | 填实为 xbuild 策略源 |
+| `compiler/src/driver/build.x` | driver | build 子命令相关 | 与 xbuild 合并为单一权威 |
+| `build_tool` / seeds/build_* | 历史 | 仍可能 `make xlang_asm` 兜底 | 断 make 依赖 |
+
+---
+
+## 阶段 10：语言能力补齐 Track L2（路线 A 前置 · 消灭 residual 的前提）
+
+> **定义**：为 Xlang 增加底层能力，使其能表达 OS 系统调用 / inline asm / 函数指针 / 可变参数 / 平台线程原语。
+> **性质**：这是消灭阶段 9 residual 的**前提**。没有这些能力，阶段 9 的 .c 无法用 .x 重写。
+> **优先级**：P0（最高）— 阻塞所有阶段 9 消灭工作。
+
+### 10.1 syscall / raw FFI 内建
+
+⬜ **10.1.1 Linux x86_64 syscall 内建**
+
+  - 支持 `syscall(nr, args...)` 直接发系统调用
+  - 覆盖：read/write/open/close/stat/mmap/munmap/exit/getpid/...
+
+⬜ **10.1.2 Linux arm64 syscall 内建**
+
+  - 同上，arm64 syscall 号表
+
+⬜ **10.1.3 Windows NT API 内建**
+
+  - NtCreateFile / NtWriteFile / NtReadFile / NtClose / NtQuerySystemTime...
+  - 或经 ntdll.dll 符号绑定
+
+⬜ **10.1.4 raw FFI（ extern "C" 调用约定）**
+
+  - 支持 .x 直接声明 extern 符号 + 调用（不需 .c 桥）
+  - 覆盖：dlsym 加载 / 函数指针 cast / 平台 ABI
+
+### 10.2 inline asm 内建
+
+⬜ **10.2.1 x86_64 inline asm**
+
+  - 支持 `asm!("syscall", in("rax") nr, in("rdi") a0, ...)` 语法
+  - 覆盖：syscall 指令 / cpuid / rdtsc / mfence / barrier
+
+⬜ **10.2.2 arm64 inline asm**
+
+  - 同上，arm64 指令
+
+⬜ **10.2.3 Windows inline asm（或等价 intrinsics）**
+
+  - Windows 不支持 inline asm（MSVC），用 intrinsic 或纯 asm 文件替代
+
+### 10.3 函数指针完整支持
+
+⬜ **10.3.1 fnptr 类型表达**
+
+  - `let f: fn(i32) -> i32` 类型完整支持
+  - 与 Cap-fn-ptr（4.1.6）合并收口
+
+⬜ **10.3.2 fnptr cast + indirect call**
+
+  - `uintptr_t → fnptr` cast 合法化
+  - 间接调用 `(*f)(args)`
+
+⬜ **10.3.3 fnptr 作为参数 / 返回值 / 结构体字段**
+
+  - 全场景支持（C ABI 兼容）
+
+### 10.4 原子操作内建
+
+⬜ **10.4.1 atomic_load / atomic_store / atomic_cas**
+
+  - .x 原子内建，替代 C11 stdatomic / GCC __atomic
+
+⬜ **10.4.2 内存屏障内建**
+
+  - acquire / release / seq_cst 语义
+
+### 10.5 SIMD 内建
+
+⬜ **10.5.1 x86 AVX / SSE 内建**
+
+  - .x SIMD 向量类型 + 内建操作
+
+⬜ **10.5.2 ARM SVE / NEON 内建**
+
+  - 同上，arm64
+
+### 10.6 平台线程原语内建
+
+⬜ **10.6.1 Linux futex / clone / mmap 栈**
+
+  - .x 直接调 syscall 实现线程，不经 libpthread
+
+⬜ **10.6.2 Windows CreateThread / WaitForSingleObject**
+
+  - .x 直接调 NT API
+
+⬜ **10.6.3 互斥锁 / 条件变量 / 信号量**
+
+  - 基于 10.6.1/10.6.2 实现 .x 线程原语
+
+### 10.7 可变参数 va_list 内建
+
+⬜ **10.7.1 va_list 类型 + va_start / va_arg / va_end**
+
+  - .x 可变参数支持
+  - 用于 reportf / vsnprintf / 诊断深路径
+
+⬜ **10.7.2 .x 自实现 vsnprintf**
+
+  - 替代 libc vsnprintf
+
+---
+
+## 阶段 11：xbuild + Makefile 退役 Track MG（**用户终局主闸门**）
+
+> **定义**：用 **xbuild（纯 .x + 必要极薄 shim）** 接管依赖分析、编译、链接、自举 stage、L4/bstrict 编排，**物理删除 Makefile**。  
+> **前置（硬）**：阶段 8.3 glue/ast 与阶段 7/8 pin **不必 100% 完成才允许启动 11.0**；但 **11.3 物理删除** 前必须 BC 层不再强制 `$(CC) -c` 业务 C。  
+> **目标入口**：`xbuild build` / `xbuild test` / `xbuild bootstrap` / `xbuild cold-test` 替代 `make` / `make -C compiler …`。  
+> **既有半路径**：`xlang-build.sh` · `g05_*.sh` · `build.x`（策略）· 根 Makefile 薄包装 — **应收敛进 xbuild，禁止再开第三套编排**。
+
+### 11.0 Makefile 瘦身（可与阶段 7–10 **并行** · 早启动）
+
+> **目的**：在 residual C 仍存在时，先把「编排权威」从 Makefile 挪走，避免终局时一次性改 3445 行。
+
+⬜ **11.0.1 盘点 `compiler/Makefile` 规则 → 迁移表**
+
+  - 分类：冷启动 bootstrap / `*_x.o` / seed pin cp / g05 已覆盖 / 测试·prove / Windows / 死规则
+  - 产出：`analysis/Makefile迁移表.md`（或本文附录 E）每条规则的 xbuild 目标名
+
+⬜ **11.0.2 产品路径 0-make 验收**
+
+  - 在 **不** `make -C compiler` 的前提下：仅 `xlang-build.sh` / g05 完成 `xlang`/`xlang_asm` 链 + 矩阵
+  - 今日：g05 注释已宣称产品路径零 make — **需自动化闸门**防回退
+
+⬜ **11.0.3 冷启动路径减 make**
+
+  - `bootstrap-driver-seed` 逐步改为 shell/xbuild；Makefile 仅保留「未迁规则」白名单
+
+⬜ **11.0.4 根 Makefile 只保留 help → xbuild**
+
+  - 已接近；禁止再加厚包装逻辑
+
+### 11.1 核心功能
+
+⬜ **11.1.1 依赖图分析**
+
+  - 扫描 .x import / seed 输入 / 平台条件；增量重编
+  - 对齐 code-review-graph 思路可选，但 **权威在 xbuild**
+
+⬜ **11.1.2 编译调度（.x → .o）**
+
+  - 默认 **asm backend**（BC 终局）；过渡期允许显式 `host-cc` 仅编 **白名单 residual C**（清单来自 8.3/9，逐步清空）
+  - 并行：线程原语（10.6）就绪前可用进程池 / 外部 ninja 过渡（**过渡须标 temporary**）
+
+⬜ **11.1.3 平台处理**
+
+  - Linux / macOS / Windows 路径·ABI·seed 选择
+  - 替代 Makefile `ifeq ($(UNAME)…)` / Alpine 等
+
+⬜ **11.1.4 链接器调用**
+
+  - 直接调 `ld` / `lld` / `link.exe`（syscall 或 raw FFI / 过渡 `posix_spawn`）
+  - **禁止**默认 `$(CC) -o` 当链接器（避免偷偷拉 cc）
+
+⬜ **11.1.5 填实 `build.x` 策略源**
+
+  - 今日大量 “See implementation” → 变为 xbuild 可读的构建图（产品矩阵、L4 步骤、std 模块顺序）
+
+⬜ **11.1.6 吞并 g05 脚本族**
+
+  - `g05_ensure_relink_prereqs` / `g05_relink_env` / `g05_relink_xlang` / `g05_prepare_and_relink` / `build_xlang_asm.sh`
+  - 终局：xbuild 内建或单一 `scripts/g05` 由 xbuild 调用；**无 Makefile 间接调用**
+
+### 11.2 自举 stage + 测试/CI 编排
+
+⬜ **11.2.1 stage1 → stage2 → stage3 编排**
+
+  - seed_xlang → xlang_v1 → xlang_v2 → xlang_v3；自动 v2==v3
+
+⬜ **11.2.2 L4 真冷全测集成**
+
+  - `xbuild cold-test`：全擦 `compiler|std|core` 下 `.o` + 删产品二进制 → seed/g05 或纯 xbuild → 矩阵 → `run-all-bstrict`（`XLANG_BSTRICT_SKIP_BUILD=1`）
+
+⬜ **11.2.3 prove / bstrict / gate 脚本去 make**
+
+  - `tests/run-*.sh` 中 `make -C compiler` 清零或改为 `xbuild`
+  - CI（若有）workflow 同步
+
+⬜ **11.2.4 Windows 入口**
+
+  - 非金标但终局须有 xbuild 路径（MSYS2）；禁止「只 Linux 删了 Makefile」
+
+### 11.3 Makefile 物理删除（**终局硬指标**）
+
+⬜ **11.3.1 删除 `compiler/Makefile`**
+
+  - 前置：11.0 迁移表 100% 有主；8.3/7/8 白名单 residual 可被 xbuild 编完或已为 0
+  - 验收：全仓 `rg -n 'make -C compiler|compiler/Makefile' tests analysis docs` 仅考古
+
+⬜ **11.3.2 删除仓库根 `Makefile`**
+
+  - 入口改为 `./xbuild` 或 `./xlang-build.sh` → xbuild
+
+⬜ **11.3.3 删除/归档其它 make 碎片**
+
+  - 子目录 Makefile、生成 compile_commands 对 make 的依赖等
+
+⬜ **11.3.4 「无 make」CI 闸门**
+
+  - `PATH` 无 make 或 `make` 被 stub 拒绝时，xbuild cold-test + 129 仍绿
+
+
+---
+
+## 阶段 12：冷启动路径重设计（零 cc 链 · BC 层）
+
+> **定义**：从最小 seed 到完整产品，**不出现 host cc/gcc/clang**（§0.1 BC + 编排 MG）。  
+> **前置**：阶段 10 + 阶段 9 + 阶段 8.3 足够；阶段 11 xbuild 可驱动冷启动。  
+> **目标**：`最小 seed → xlang → xbuild → 完整产品`。
+
+### 12.1 最小 seed 设计
+
+⬜ **12.1.1 手写 asm seed（或极简二进制）**
+
+  - 不依赖 cc 编译的 seed
+  - 选项 A：手写 x86_64/arm64 asm，经 **xlang 自带 assembler** 装配
+  - 选项 B：预置极简二进制（版本钉死、可复现下载/校验）
+
+⬜ **12.1.2 seed 能产出 xlang_v1（无需 -E→cc）**
+
+  - 优先：seed **直接** asm-codegen 出 v1  
+  - 若过渡仍 `-E`：生成物不得经 host-cc（与终局 BC 冲突 → 仅临时）
+
+⬜ **12.1.3 与 pin 退役衔接**
+
+  - 冷启动输入是 **`.x` + 最小 seed**，不是 `seeds/*_gen.linux*.c` 业务体
+
+### 12.2 链路验证
+
+⬜ **12.2.1 零 cc 验证（BC+PC）**
+
+  - 构建与默认产品路径：`strace`/`dtruss` 无 `execve(cc|gcc|clang)`
+  - 可选：`XLANG_FORBID_HOST_CC=1` 运行时硬失败
+
+⬜ **12.2.2 双端冷启动验证**
+
+  - macOS + Ubuntu；Windows 探针按 G.8
+
+⬜ **12.2.3 产品默认后端**
+
+  - 文档与 CLI 默认 `-backend asm`；host-C 标 **deprecated / opt-in only**
+
+
+---
+
+## 阶段 13：终局 — 自举完成（**无 Makefile** + 零 cc 三义 + v2==v3）
+
+> **定义**：  
+> 1. **MG**：仓库无 Makefile 权威，xbuild 为唯一编排入口；  
+> 2. **BC/PC**：自举与默认产品路径零 host-cc；  
+> 3. **语义**：`xlang_v2 == xlang_v3`（及可选 D-03）；  
+> 4. **无 pin 糊弄**：阶段 7/8/8.3 完成。  
+> **前置**：阶段 7–12。  
+> **节奏**：整波 Cap/R/M 收口 → L4；日终兜底见 skill §3.3。
+
+### 13.1 语义自举验证
+
+⬜ **13.1.1 阶段 7 M4 完成**（含 7.4 typeck/codegen）
+
+⬜ **13.1.2 阶段 8 gen + 8.3 glue/ast/桩 完成**
+
+⬜ **13.1.3 阶段 9 residual 全部消灭**
+
+⬜ **13.1.4 v2 == v3 语义自举验证**
+
   ```
-  seed_xlang -E compiler/*.x   →  xlang_v1
-  xlang_v1   -E compiler/*.x   →  xlang_v2
-  xlang_v2   -E compiler/*.x   →  xlang_v3
-  assert xlang_v2 == xlang_v3   →  语义自举成立
+  seed_xlang  …  →  xlang_v1   （无 host-cc）
+  xlang_v1    …  →  xlang_v2
+  xlang_v2    …  →  xlang_v3
+  assert xlang_v2 == xlang_v3
   ```
-- [ ] **10.4 D-03 bit-identical 验证（可选更强）** ⬜
-- [ ] **10.5 双端 L4 真冷 + 129 bstrict 全绿（终局）** ⬜
-- [ ] **10.6 物理删 seed（冷启动考古归档）** ⬜
-- [ ] **10.7 宣布自举完成** ⬜
+
+⬜ **13.1.5 D-03 bit-identical 验证（可选更强）**
+
+### 13.2 零 Makefile / 零 cc 验证（**主验收**）
+
+⬜ **13.2.1 双端 L4 真冷 + 129 bstrict（xbuild 驱动 · 零 make · 零 host-cc）**
+
+⬜ **13.2.2 Makefile 物理删除验收**
+
+  - `test ! -e Makefile && test ! -e compiler/Makefile`
+  - 文档/脚本无「请 make -C compiler」作为唯一路径
+
+⬜ **13.2.3 零 cc 三义验收**（§0.1 MG+BC+PC）
+
+  - strace 无 make/cc/gcc/clang（或 make 仅用户 PATH 偶然存在但从未被调用）
+
+⬜ **13.2.4 labi_invoke_cc / `-backend c` 退役或隔离**
+
+  - 产品默认不 exec host-cc；历史 C 后端进 experimental 或删除
+
+### 13.3 收尾
+
+⬜ **13.3.1 物理删 seed 业务体（考古归档）**
+
+  - pin/from_x 业务 C 出主链；最小 seed 单独归档
+
+⬜ **13.3.2 宣布自举完成**
+
+  - 公告：**Xlang 自举完成 — 无 Makefile + 零 host-cc + v2==v3**
+
 
 ---
 
-## 附录 A：代码量分布
+## 附录 A：代码量分布（快照 · wave713 文档创建时；审计后补 glue 列）
 
-| 维度 | .x 行数 | .c 行数 | .x 占比 |
-|------|---------|---------|---------|
+| 维度 | .x 行数 | .c 行数 | 备注 |
+|------|---------|---------|------|
 | std/ + core/（库） | 75,007 | 0 | 100% ✅ |
 | compiler/src/（产品源） | 176,729 | — | — |
-| compiler/ 非 seed .c（pinned gen） | — | 372,826 | — |
-| compiler/seeds/ .c（.x 衍生 seed） | — | 209,657 | — |
-| **全项目 .x vs 全 .c** | **251,736** | **582,483** | **30.2%** |
+| compiler/ 非 seed .c（含 gen+glue） | — | 372,826* | *原统计；**含** glue 巨头 |
+| 其中 glue/ast 池系（2026-07-29 实测） | — | **~60,574** | pipeline_glue+ast_pool+field_access+soa+bootstrap 等 |
+| compiler/seeds/ .c | — | 209,657 | ~329 文件 |
+| **全项目 .x vs 全 .c** | **251,736** | **582,483** | **~30.2% .x** |
+
+> 终局看的不是 .x 占比，而是 **BC 层是否还有必须 host-cc 的 .c** 与 **是否还有 Makefile 权威**。
 
 ## 附录 B：三大 mega rest 规模
 
@@ -547,6 +1460,8 @@
 | parser_asm_thin_c | ~21,935 | 21/21 ✅ | 拆分完成 · 去 pin ⬜ |
 | runtime | ~7,320 | 24/24 ✅ | 拆分完成 · 去 pin ⬜ |
 | runtime_link_abi | ~6,920 | 11/11 ✅ | 拆分完成 · 去 pin ⬜ |
+
+另：**typeck / codegen pin** 见阶段 7.4（非本表三 mega，但是删 Makefile 同级债）。
 
 ## 附录 C：当前 L4 钉盘状态
 
@@ -562,24 +1477,50 @@
 | 工程轨 KPI | T 18/18 · N 111/111 IDENTICAL |
 | git 锚点 | `anchor-pre-wave710-l4` · `anchor-pre-wave712-cap` |
 
-## 附录 D：综合迁移进度
+## 附录 D：综合迁移进度（终局 = **无 Makefile** + 零 cc 三义）
 
 ```
-迁移进度 = (N 模块完成度 × 0.35)  111/111 = 100%  → 35%
-        + (std/core 完成度 × 0.20)  100%            → 20%
-        + (compiler/src .x 化 × 0.25)  32%          → 8%
-        + (mega 拆分 × 0.15)  100% (M1-M3) / 0% (M4) = 50% → 7.5%
-        + (Cap 治理 × 0.05)  ~80%                    → 4%
-                                                    ≈ 74.5%
+旧终局（v2==v3 + 无 pin）≈ 74.5%（历史权重，见变更记录）
+
+新终局权重（2026-07-29 审计修订）：
+  库+T+N+R2+M拆分+Cap≈         0.40 × ~85%  → ~34%
+  阶段 7/8 gen 去 pin            0.10 × ~25%  → ~2.5%
+  阶段 8.3 glue/ast（新）        0.12 × 0%    → 0%
+  阶段 9 residual                0.12 × 0%    → 0%
+  阶段 10 语言 L2                0.10 × 0%    → 0%
+  阶段 11 Makefile 退役/xbuild   0.12 × ~15%  → ~2%   （G-05/shell/build.x 半路径）
+  阶段 12–13 冷启动+终局验收     0.04 × 0%    → 0%
+                                 合计 ≈ 38–45%
 ```
 
-**综合迁移进度：约 74%**
+**综合迁移进度（修订）：约 40–45%**  
+（原写 ~50% 略乐观：漏计 **8.3 glue ~60k** 与 **typeck/codegen pin**，且根 Makefile 薄包装 ≠ compiler/Makefile 已退役。）
 
-剩余 26% 集中在：
-1. 三大 mega 去 pin（M4）— 阶段 7
-2. 11 个 pinned gen.c 退役 — 阶段 8
-3. Cap 前排硬叶（untyped self 等）— 阶段 4.2
-4. 终局 v2==v3 验证 — 阶段 10
+剩余工作按 **删 Makefile** 优先级：
+
+1. **阶段 11.0** Makefile 规则迁移表 + 产品路径 0-make 闸门（可立即开）  
+2. **阶段 8.3** pipeline_glue / ast_pool 等非 gen 产品 C  
+3. **阶段 7.4 + 8.2** typeck/codegen/parser… 去 pin  
+4. **阶段 10 → 9** 语言能力 + residual 消灭  
+5. **阶段 11.1–11.3** xbuild 填实 + **物理删 Makefile**  
+6. **阶段 12–13** 冷启动零 cc 三义 + v2==v3 + 公告  
+
+## 附录 E：compiler/Makefile 迁移表（骨架 · 待填）
+
+> 11.0.1 产出物。每完成一行迁移到 xbuild，在「xbuild 目标」列打 ✅。
+
+| Makefile 主题（示例） | 今日落点 | xbuild 目标（拟定） | 状态 |
+|----------------------|----------|---------------------|------|
+| 产品 relink xlang/xlang_asm | g05_*.sh | `xbuild link-product` | 🟡 已在 shell |
+| bootstrap-driver-seed | compiler/Makefile | `xbuild bootstrap` | ⬜ |
+| parser_x.o / typeck_x.o / codegen_x.o | Makefile + pin cp | `xbuild frontend` | ⬜ |
+| pipeline_glue / ast_pool .o | Makefile / standalone | `xbuild glue`（过渡 cc 白名单） | ⬜ |
+| std 模块 .o | xlang_compile_std_module.sh | `xbuild std` | 🟡 部分 shell |
+| L4 全擦 + bstrict | 人工 / 多脚本 | `xbuild cold-test` | ⬜ |
+| prove MODULES | tests/prove_*.sh | `xbuild prove` | ⬜ |
+| Windows / Alpine 分支 | Makefile ifeq | xbuild 平台后端 | ⬜ |
+| 死规则 / archaeology | Makefile | 删除不迁 | ⬜ |
+
 
 ---
 
@@ -588,7 +1529,11 @@
 | 日期 | 波次 | 变更 |
 |------|------|------|
 | 2026-07-29 | wave712 | 创建文档；全面列出 C→.X 迁移全程待办；标记已完成项 |
+| 2026-07-29 | wave712+ | 深度核查补遗：阶段 8.2 补 11 个遗漏 pinned gen.c；阶段 5.2 平台债；阶段 4.2 疑似已闭 Cap；阶段 10 节奏 |
+| 2026-07-29 | wave713 | **终局升级**：零 Makefile + 零 cc；阶段 9 必须消灭；阶段 10–13 新增 |
+| 2026-07-29 | **审计补全** | 对照仓库补：**§0.1 终局三义（MG/BC/PC）**；**§0.2 删 Makefile DAG**；**阶段 7.4 typeck/codegen 去 pin**；**阶段 8.3 非 gen 产品 C（glue~40k/ast_pool~18k/桩）**；**阶段 11.0 瘦身可并行** + 既有 G-05/`build.x`/`xlang-build.sh`；11.2 测试/CI 去 make；12/13 验收对齐「物理删 Makefile」；附录 D 进度下调至 ~40–45%；**附录 E 迁移表骨架**；纠正 6.1.5「永久边界」措辞 |
 
 ---
 
-> **使用方式**：每完成一波自举，找到对应待办项，将 `⬜` 改为 `✅` 并标注日期/波次。新增的待办项追加到对应阶段末尾。
+> **使用方式**：每完成一波自举，找到对应待办项，将 `⬜` 改为 `✅` 并标注日期/波次。新增待办追加到对应阶段末尾。  
+> **删 Makefile 自检**：动构建系统前先更新附录 E；宣称「无 Makefile」前跑 13.2.2–13.2.4。
