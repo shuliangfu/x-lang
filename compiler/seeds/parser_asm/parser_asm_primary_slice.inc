@@ -2041,18 +2041,15 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     e.col = r.tok.col;
     e.int_val = 0;
     parser_asm_expr_set_common_zeros_c(&e);
-    /* Keyword tag: typeck_expr_is_null_keyword reads var_name on EXPR_LIT. */
-    e.var_name[0] = (uint8_t)'n';
-    e.var_name[1] = (uint8_t)'u';
-    e.var_name[2] = (uint8_t)'l';
-    e.var_name[3] = (uint8_t)'l';
-    e.var_name_len = 4;
-    {
-      int32_t zi;
-      for (zi = 4; zi < 128; zi++)
-        e.var_name[zi] = 0;
-    }
     parser_asm_arena_expr_set_c(arena, ref, e);
+    /*
+     * Tag on live ast_Expr (G.7 pipeline_expr_tag_null_keyword_c) so
+     * parser_asm_ast_expr memcpy layout drift cannot drop the keyword mark.
+     */
+    {
+      extern void pipeline_expr_tag_null_keyword_c(void *arena, int32_t expr_ref);
+      pipeline_expr_tag_null_keyword_c(arena, ref);
+    }
     out->ok = 1;
     out->expr_ref = ref;
     lex = r.next_lex;

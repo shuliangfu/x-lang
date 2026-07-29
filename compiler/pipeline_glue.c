@@ -22234,7 +22234,27 @@ int32_t pipeline_expr_is_null_keyword_c(struct ast_ASTArena *a, int32_t expr_ref
   return 0;
 }
 
-/* Debug helper removed after wave670 green. */
+/**
+ * Tag EXPR_LIT 0 as keyword null on the live arena expr (ast_Expr layout).
+ * Use after parser_asm primary set — avoids parser_asm_ast_expr↔ast_Expr
+ * memcpy layout drift (mac vs gcc) losing var_name tag.
+ * PLATFORM: SHARED.
+ */
+void pipeline_expr_tag_null_keyword_c(struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
+  int32_t zi;
+  if (!ex)
+    return;
+  ex->kind = ast_ExprKind_EXPR_LIT;
+  ex->int_val = 0;
+  ex->var_name[0] = (uint8_t)'n';
+  ex->var_name[1] = (uint8_t)'u';
+  ex->var_name[2] = (uint8_t)'l';
+  ex->var_name[3] = (uint8_t)'l';
+  ex->var_name_len = 4;
+  for (zi = 4; zi < 128; zi++)
+    ex->var_name[zi] = 0;
+}
 
 /** 读 expr.binop_left_ref；无效 ref 返回 0。 */
 int32_t pipeline_expr_binop_left_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
