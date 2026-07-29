@@ -452,8 +452,6 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # wave769 G.7: L2 asm three product PREFER → ensure try-l2-asm-prefer
   # (table body; thin .x + rest FROM_X → cc -r; cold ensure_one).
   # Leaves: user_asm_seed_bridge · backend_x86_64_enc_c · asm_backend_compat_stubs.
-  # residual: other L2 (seed_link_compat / strict_glue / fmt_check / lsp_diag /
-  #   async…) · pure-ld · physical delete.
   # PLATFORM: SHARED product daily path · default PREFER=1 (g05 historic).
   if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
     for _l2_asm_o in \
@@ -468,6 +466,26 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     done
   else
     echo "g05_ensure: missing ensure_host_cc_seed_o.sh; L2 asm prefer residual" >&2
+  fi
+  # wave770 G.7: async three product PREFER → ensure try-async-prefer
+  # (table body; full .x + rest FROM_X → cc -r; cold ensure_one).
+  # Leaves: async_liveness · async_cps_codegen · async_asm_pool.
+  # residual: other L2 (seed_link_compat / strict_glue / fmt_check / lsp_diag…)
+  #   · pure-ld · physical delete.
+  # PLATFORM: SHARED product daily path · default PREFER=1 (g05 historic).
+  if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
+    for _async_o in \
+      src/async/async_liveness.o \
+      src/async/async_cps_codegen.o \
+      src/async/async_asm_pool.o; do
+      echo "g05_ensure: try-async-prefer $_async_o (wave770)"
+      XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
+        CC="$CC" CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}" \
+        bash scripts/ensure_host_cc_seed_o.sh try-async-prefer "$_async_o" \
+        || echo "g05_ensure: try-async-prefer failed for $_async_o (non-fatal if unused)" >&2
+    done
+  else
+    echo "g05_ensure: missing ensure_host_cc_seed_o.sh; async prefer residual" >&2
   fi
   # G-02f-11：pipeline_glue_strict_minimal 产品 seed
   _pglue=seeds/pipeline_glue_strict_minimal.from_x.c
@@ -507,109 +525,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     seeds/lsp_diag_pipeline_sizes.from_x.c \
     "sizes_nostub"
   # ~~G-02f-6 / G-02f-257 target_cpu dual hybrid~~ wave768 → try-target-cpu-prefer above
-  # R2 product PREFER：async_liveness.o（独立 TU；非 glue #include）
-  # PREFER：full .x + rest (-DXLANG_ASYNC_LIVENESS_FROM_X，仅 slice_marker) ld -r
-  # 冷路径：整 seed C。PLATFORM: SHARED
-  _aliv_seed=seeds/async_liveness.from_x.c
-  _aliv_x=src/async/async_liveness.x
-  _aliv_o=src/async/async_liveness.o
-  if [ -f "$_aliv_seed" ]; then
-    if [ ! -f "$_aliv_o" ] || [ "$_aliv_seed" -nt "$_aliv_o" ] \
-      || { [ -f "$_aliv_x" ] && [ "$_aliv_x" -nt "$_aliv_o" ]; }; then
-      _aliv_done=0
-      mkdir -p src/async
-      if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_aliv_x" ]; then
-        _aliv_x_o=$(mktemp "${TMPDIR:-/tmp}/g05_aliv_x.XXXXXX") || true
-        _aliv_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_aliv_rest.XXXXXX") || true
-        # shellcheck disable=SC2086
-        if [ -n "$_aliv_x_o" ] && [ -n "$_aliv_rest_o" ] \
-          && g05_try_x_to_o "$_aliv_x" "$_aliv_x_o" \
-          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_ASYNC_LIVENESS_FROM_X \
-               -c -o "$_aliv_rest_o" "$_aliv_seed" \
-          && $CC -r -nostdlib -o "$_aliv_o" "$_aliv_x_o" "$_aliv_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_aliv_o ← $_aliv_x + rest marker (R2 pure+Cap residual PREFER)"
-          _aliv_done=1
-        else
-          echo "g05_ensure: R2 async_liveness PREFER failed; fallback full seed" >&2
-        fi
-        rm -f "$_aliv_x_o" "$_aliv_rest_o"
-      fi
-      if [ "$_aliv_done" = "0" ]; then
-        echo "g05_ensure: $_aliv_o ← async_liveness.from_x (cold seed)"
-        # shellcheck disable=SC2086
-        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_aliv_o" "$_aliv_seed"
-      fi
-    fi
-  fi
-  # R2 product PREFER：async_cps_codegen.o（独立 TU；非 glue #include）
-  # PREFER：full .x + rest (-DXLANG_ASYNC_CPS_CODEGEN_FROM_X，仅 slice_marker) ld -r
-  # 冷路径：整 seed C。PLATFORM: SHARED
-  _acps_seed=seeds/async_cps_codegen.from_x.c
-  _acps_x=src/async/async_cps_codegen.x
-  _acps_o=src/async/async_cps_codegen.o
-  if [ -f "$_acps_seed" ]; then
-    if [ ! -f "$_acps_o" ] || [ "$_acps_seed" -nt "$_acps_o" ] \
-      || { [ -f "$_acps_x" ] && [ "$_acps_x" -nt "$_acps_o" ]; }; then
-      _acps_done=0
-      mkdir -p src/async
-      if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_acps_x" ]; then
-        _acps_x_o=$(mktemp "${TMPDIR:-/tmp}/g05_acps_x.XXXXXX") || true
-        _acps_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_acps_rest.XXXXXX") || true
-        # shellcheck disable=SC2086
-        if [ -n "$_acps_x_o" ] && [ -n "$_acps_rest_o" ] \
-          && g05_try_x_to_o "$_acps_x" "$_acps_x_o" \
-          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_ASYNC_CPS_CODEGEN_FROM_X \
-               -c -o "$_acps_rest_o" "$_acps_seed" \
-          && $CC -r -nostdlib -o "$_acps_o" "$_acps_x_o" "$_acps_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_acps_o ← $_acps_x + rest marker (R2 pure wave1–5 PREFER)"
-          _acps_done=1
-        else
-          echo "g05_ensure: R2 async_cps_codegen PREFER failed; fallback full seed" >&2
-        fi
-        rm -f "$_acps_x_o" "$_acps_rest_o"
-      fi
-      if [ "$_acps_done" = "0" ]; then
-        echo "g05_ensure: $_acps_o ← async_cps_codegen.from_x (cold seed)"
-        # shellcheck disable=SC2086
-        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_acps_o" "$_acps_seed"
-      fi
-    fi
-  fi
-  # R2 unbundle：async_asm_pool.o（从 pipeline_glue #include 拆出独立 TU）
-  # PREFER：full .x + rest (-DXLANG_ASYNC_ASM_POOL_FROM_X，仅 slice_marker) ld -r
-  # 冷路径：整 seed C。产品 glue 只 #include 头，符号由本 .o 提供。
-  # PLATFORM: SHARED
-  _aap_seed=seeds/async_asm_pool.from_x.c
-  _aap_x=src/asm/async_asm_pool.x
-  _aap_o=src/async/async_asm_pool.o
-  if [ -f "$_aap_seed" ]; then
-    if [ ! -f "$_aap_o" ] || [ "$_aap_seed" -nt "$_aap_o" ] \
-      || { [ -f "$_aap_x" ] && [ "$_aap_x" -nt "$_aap_o" ]; }; then
-      _aap_done=0
-      mkdir -p src/async
-      if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_aap_x" ]; then
-        _aap_x_o=$(mktemp "${TMPDIR:-/tmp}/g05_aap_x.XXXXXX") || true
-        _aap_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_aap_rest.XXXXXX") || true
-        # shellcheck disable=SC2086
-        if [ -n "$_aap_x_o" ] && [ -n "$_aap_rest_o" ] \
-          && g05_try_x_to_o "$_aap_x" "$_aap_x_o" \
-          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_ASYNC_ASM_POOL_FROM_X \
-               -c -o "$_aap_rest_o" "$_aap_seed" \
-          && $CC -r -nostdlib -o "$_aap_o" "$_aap_x_o" "$_aap_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_aap_o ← $_aap_x + rest marker (R2 full async_asm_pool H=0; glue unbundled)"
-          _aap_done=1
-        else
-          echo "g05_ensure: R2 full async_asm_pool PREFER failed; fallback full seed" >&2
-        fi
-        rm -f "$_aap_x_o" "$_aap_rest_o"
-      fi
-      if [ "$_aap_done" = "0" ]; then
-        echo "g05_ensure: $_aap_o ← async_asm_pool.from_x (cold seed; unbundled)"
-        # shellcheck disable=SC2086
-        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_aap_o" "$_aap_seed"
-      fi
-    fi
-  fi
+  # ~~R2 async three dual hybrid~~ wave770 → try-async-prefer above
   # Unbundle hygiene：pipeline_glue.c 变更后，旧 pipeline_x / filtered / standalone
   # 仍可能内嵌 pool T → Darwin 与 pool.o 双定义红。产品 g05 无 make 时在此重建。
   # PLATFORM: SHARED — Linux 允许多定义时也应以无内嵌为真值。

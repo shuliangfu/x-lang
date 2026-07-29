@@ -824,83 +824,28 @@ src/runtime_c_import.o: seeds/runtime_c_import.from_x.c src/runtime_c_import.x s
 	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_c_import.from_x.c
 
 # G-02f-18 / R2 product PREFER：async_liveness 独立 TU（非 glue #include）。
-# Cold (PREFER_X_O≠1): full seed C. PREFER: full .x + rest (-DXLANG_ASYNC_LIVENESS_FROM_X, marker) ld -r.
-# -E 产物缺 stdlib/string 声明；与 g05_try_x_to_o 对齐：编译前塞 prologue。
+# wave770: product PREFER → ensure try-async-prefer (full .x + rest FROM_X → $CC -r; cold seed).
 # PLATFORM: SHARED — product link via DRIVER_SEED_SUPPORT_EXTRA (legacy mode).
-src/async/async_liveness.o: seeds/async_liveness.from_x.c src/async/async_liveness.x
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && { \
-		_raw=$$(mktemp "$${TMPDIR:-/tmp}/aliv.XXXXXX") && \
-		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/alivp.XXXXXX") && \
-		_ok=0; for _try in 1 2 3 4 5; do \
-		  ./xlang-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/async/async_liveness.x > "$$_raw" 2>/dev/null \
-		    && [ -s "$$_raw" ] && _ok=1 && break; \
-		  : > "$$_raw"; \
-		done; \
-		[ "$$_ok" = "1" ] && \
-		{ printf '%s\n' '/* PREFER prologue (match g05_try_x_to_o) */' \
-			'#include <stddef.h>' '#include <stdint.h>' '#include <stdlib.h>' \
-			'#include <string.h>' '#include <stdio.h>'; cat "$$_raw"; } > "$$_tmp" && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/async/async_liveness_x.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_ASYNC_LIVENESS_FROM_X -c seeds/async_liveness.from_x.c -o src/async/async_liveness_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) src/async/async_liveness_x.o src/async/async_liveness_rest.o -o $@ && \
-		rm -f "$$_raw" "$$_tmp" src/async/async_liveness_x.o src/async/async_liveness_rest.o && \
-		echo "phase4: $@ <- full .x + rest marker (PREFER_X_O; R2 pure+Cap residual)"; \
-	}; then :; \
-	elif [ -f seeds/async_liveness.from_x.c ]; then \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/async_liveness.from_x.c -o $@ && \
-		echo "phase4: $@ <- seeds/async_liveness.from_x.c (cold seed)"; \
-	else \
-		echo "ERROR: no xlang-c and no seed for $@" >&2; exit 1; \
-	fi
+src/async/async_liveness.o: seeds/async_liveness.from_x.c src/async/async_liveness.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-async-prefer $@
 
 # G-02f-18 / R2 product PREFER：async_cps_codegen 独立 TU（非 glue #include）。
-# Cold (PREFER_X_O≠1): full seed C. PREFER: full .x + rest (-DXLANG_ASYNC_CPS_CODEGEN_FROM_X, marker) ld -r.
+# wave770: product PREFER → ensure try-async-prefer (full .x + rest FROM_X → $CC -r; cold seed).
 # PLATFORM: SHARED — product link via DRIVER_SEED_SUPPORT_EXTRA (legacy mode).
-src/async/async_cps_codegen.o: seeds/async_cps_codegen.from_x.c src/async/async_cps_codegen.x
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && { \
-		_raw=$$(mktemp "$${TMPDIR:-/tmp}/acps.XXXXXX") && \
-		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/acpsp.XXXXXX") && \
-		_ok=0; for _try in 1 2 3 4 5; do \
-		  ./xlang-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/async/async_cps_codegen.x > "$$_raw" 2>/dev/null \
-		    && [ -s "$$_raw" ] && _ok=1 && break; \
-		  : > "$$_raw"; \
-		done; \
-		[ "$$_ok" = "1" ] && \
-		{ printf '%s\n' '/* PREFER prologue (match g05_try_x_to_o) */' \
-			'#include <stddef.h>' '#include <stdint.h>' '#include <stdlib.h>' \
-			'#include <string.h>' '#include <stdio.h>'; cat "$$_raw"; } > "$$_tmp" && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/async/async_cps_codegen_x.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_ASYNC_CPS_CODEGEN_FROM_X -c seeds/async_cps_codegen.from_x.c -o src/async/async_cps_codegen_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) src/async/async_cps_codegen_x.o src/async/async_cps_codegen_rest.o -o $@ && \
-		rm -f "$$_raw" "$$_tmp" src/async/async_cps_codegen_x.o src/async/async_cps_codegen_rest.o && \
-		echo "phase4: $@ <- full .x + rest marker (PREFER_X_O; R2 pure wave1–5)"; \
-	}; then :; \
-	elif [ -f seeds/async_cps_codegen.from_x.c ]; then \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/async_cps_codegen.from_x.c -o $@ && \
-		echo "phase4: $@ <- seeds/async_cps_codegen.from_x.c (cold seed)"; \
-	else \
-		echo "ERROR: no xlang-c and no seed for $@" >&2; exit 1; \
-	fi
+src/async/async_cps_codegen.o: seeds/async_cps_codegen.from_x.c src/async/async_cps_codegen.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-async-prefer $@
 
 # R2 unbundle async_asm_pool from pipeline_glue #include (2026-07-21).
-# Cold (PREFER_X_O≠1): full seed C. PREFER: full .x + rest (-DXLANG_ASYNC_ASM_POOL_FROM_X, marker only) ld -r.
+# wave770: product PREFER → ensure try-async-prefer (full .x + rest FROM_X → $CC -r; cold seed).
 # PLATFORM: SHARED — product link via DRIVER_SEED_SUPPORT_EXTRA (all modes).
-src/async/async_asm_pool.o: seeds/async_asm_pool.from_x.c src/asm/async_asm_pool.x include/async_asm_pool.h
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && { \
-		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/aap.XXXXXX") && \
-		./xlang-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/async_asm_pool.x > "$$_tmp" 2>/dev/null && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/async/async_asm_pool_x.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_ASYNC_ASM_POOL_FROM_X -c seeds/async_asm_pool.from_x.c -o src/async/async_asm_pool_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) src/async/async_asm_pool_x.o src/async/async_asm_pool_rest.o -o $@ && \
-		rm -f "$$_tmp" src/async/async_asm_pool_x.o src/async/async_asm_pool_rest.o && \
-		echo "phase4: $@ <- full .x + rest marker (PREFER_X_O; pipeline_glue unbundled)"; \
-	}; then :; \
-	elif [ -f seeds/async_asm_pool.from_x.c ]; then \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/async_asm_pool.from_x.c -o $@ && \
-		echo "phase4: $@ <- seeds/async_asm_pool.from_x.c (cold seed; unbundled)"; \
-	else \
-		echo "ERROR: no xlang-c and no seed for $@" >&2; exit 1; \
-	fi
+src/async/async_asm_pool.o: seeds/async_asm_pool.from_x.c src/asm/async_asm_pool.x include/async_asm_pool.h scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-async-prefer $@
 
 # G-02f-12 / Phase 4：runtime_driver_diagnostic thin+rest PREFER_X_O
 # PLATFORM: SHARED 冷链 — 仅 XLANG_G05_PREFER_X_O=1 才 thin（同 simd_enc / runtime_driver_abi）。

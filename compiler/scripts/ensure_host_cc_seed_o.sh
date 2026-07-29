@@ -48,9 +48,12 @@
 #   wave769: G.7 g05 L2 asm three thin+rest PREFER swallow —
 #            `try-l2-asm-prefer OUT` for user_asm_seed_bridge /
 #            backend_x86_64_enc_c / asm_backend_compat_stubs (table-driven;
-#            thin .x + rest FROM_X → $CC -r; cold ensure_one). Residual:
-#            other L2 (seed_link_compat / strict_glue / fmt_check / lsp_diag /
-#            async…) · pure-ld · physical delete.
+#            thin .x + rest FROM_X → $CC -r; cold ensure_one).
+#   wave770: G.7 g05 async three thin+rest PREFER swallow —
+#            `try-async-prefer OUT` for async_liveness / async_cps_codegen /
+#            async_asm_pool (table-driven; full .x + rest FROM_X → $CC -r;
+#            cold ensure_one). Residual: other L2 (seed_link_compat /
+#            strict_glue / fmt_check / lsp_diag…) · pure-ld · physical delete.
 #   wave758: R4 residual pure host-cc thin_glue → R1 seed-map (G.7 有则补全):
 #            parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c +
 #            -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm;
@@ -122,8 +125,9 @@
 #   - ~~g05 pipeline_abi / ldpc PREFER~~ wave767 try-pipeline-abi-prefer / try-ldpc-prefer
 #   - ~~g05 target_cpu PREFER~~ wave768 try-target-cpu-prefer
 #   - ~~g05 L2 asm three (uasb/bxec/abcs)~~ wave769 try-l2-asm-prefer
+#   - ~~g05 async three (liveness/cps/asm_pool)~~ wave770 try-async-prefer
 #   - g05 other PREFER hybrid (seed_link_compat / strict_glue / fmt_check /
-#     lsp_diag / async…) · panic PREFER thin · R5 CI all
+#     lsp_diag…) · panic PREFER thin · R5 CI all
 #   - pure-ld (11.1.4) · physical Makefile delete (11.3.1)
 #   - bootstrap_nostdlib_stubs.o (cc_inc_tu residual) · crt0_user.o cp wrappers
 #
@@ -138,6 +142,7 @@
 #   bash scripts/ensure_host_cc_seed_o.sh try-ldpc-prefer <out.o>  # wave767 ldpc thin+rest
 #   bash scripts/ensure_host_cc_seed_o.sh try-target-cpu-prefer <out.o> # wave768 target_cpu
 #   bash scripts/ensure_host_cc_seed_o.sh try-l2-asm-prefer <out.o> # wave769 L2 asm three
+#   bash scripts/ensure_host_cc_seed_o.sh try-async-prefer <out.o> # wave770 async three
 #   bash scripts/ensure_host_cc_seed_o.sh try-r2 <out.o>   # wave760/762 R2 UNAME leaves
 #   bash scripts/ensure_host_cc_seed_o.sh try-gen-x <out.o> # wave761 gen *_x / pipeline_x
 #   bash scripts/ensure_host_cc_seed_o.sh r2-panic         # DRIVER_SEED_PANIC family
@@ -198,7 +203,7 @@ _DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-async-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -2761,8 +2766,8 @@ try_ensure_target_cpu_prefer_one() {
 #   3 — OUT is not in the L2 asm prefer table
 #   1 — cold seed missing / compile failed
 # PLATFORM: SHARED shell body · g05 historic PREFER=1 · cold chain PREFER=0.
-# Residual after: other L2 (seed_link_compat / strict_glue / fmt_check /
-#   lsp_diag / async…) · pure-ld · physical delete.
+# Residual after: ~~async three~~ (wave770) · other L2 (seed_link_compat /
+#   strict_glue / fmt_check / lsp_diag…) · pure-ld · physical delete.
 # ---------------------------------------------------------------------------
 
 # Resolve OUT → seed|x_src|from_x_def|rest_extra_incs (pipe-separated).
@@ -2864,6 +2869,137 @@ try_ensure_l2_asm_prefer_one() {
     return 3
   fi
   ensure_l2_asm_prefer_one "$o"
+  return 0
+}
+
+# ---------------------------------------------------------------------------
+# wave770: try-async-prefer OUT — g05 async three full.x+rest product PREFER.
+#
+# Table-driven single body (G.7 有则补全; no second -E prologue; reuses
+# rt_prefer_try_x_to_o). Leaves (historic g05 R2 dual hybrid / glue unbundle):
+#   src/async/async_liveness.o
+#     x=src/async/async_liveness.x
+#     seed=seeds/async_liveness.from_x.c
+#     rest -D=XLANG_ASYNC_LIVENESS_FROM_X
+#   src/async/async_cps_codegen.o
+#     x=src/async/async_cps_codegen.x
+#     seed=seeds/async_cps_codegen.from_x.c
+#     rest -D=XLANG_ASYNC_CPS_CODEGEN_FROM_X
+#   src/async/async_asm_pool.o
+#     x=src/asm/async_asm_pool.x
+#     seed=seeds/async_asm_pool.from_x.c
+#     rest -D=XLANG_ASYNC_ASM_POOL_FROM_X
+# When XLANG_G05_PREFER_X_O=1 and an xlang binary works:
+#   full .x → .o via rt_prefer_try_x_to_o (no WEAK — historic g05 strong thin)
+#   rest = seed under FROM_X -D (slice_marker only)
+#   merge: $CC -r -nostdlib thin + rest → OUT
+# Prefer fail / PREFER≠1 / no xlang → ensure_one cold plain seed.
+# Callers: g05_ensure (wave770) · Makefile three leaves (was dual hybrid).
+# Exit codes:
+#   0 — OUT is a table member; prefer or cold body produced OUT
+#   3 — OUT is not in the async prefer table
+#   1 — cold seed missing / compile failed
+# PLATFORM: SHARED shell body · g05 historic PREFER=1 · cold chain PREFER=0.
+# Residual after: other L2 (seed_link_compat / strict_glue / fmt_check /
+#   lsp_diag…) · pure-ld · physical delete.
+# ---------------------------------------------------------------------------
+
+# Resolve OUT → seed|x_src|from_x_def (pipe-separated). Empty = non-member.
+async_prefer_spec_for_out() {
+  case "$1" in
+    src/async/async_liveness.o)
+      printf '%s' "seeds/async_liveness.from_x.c|src/async/async_liveness.x|XLANG_ASYNC_LIVENESS_FROM_X"
+      ;;
+    src/async/async_cps_codegen.o)
+      printf '%s' "seeds/async_cps_codegen.from_x.c|src/async/async_cps_codegen.x|XLANG_ASYNC_CPS_CODEGEN_FROM_X"
+      ;;
+    src/async/async_asm_pool.o)
+      printf '%s' "seeds/async_asm_pool.from_x.c|src/asm/async_asm_pool.x|XLANG_ASYNC_ASM_POOL_FROM_X"
+      ;;
+    *)
+      printf '%s' ""
+      ;;
+  esac
+}
+
+ensure_async_prefer_one() {
+  local o="$1"
+  local spec seed x_src from_x_def rest
+  local prefer="${XLANG_G05_PREFER_X_O:-0}"
+  local stale=0 done=0
+  local thin_o rest_o
+
+  spec="$(async_prefer_spec_for_out "$o")"
+  if [ -z "$spec" ]; then
+    return 3
+  fi
+  seed="${spec%%|*}"
+  rest="${spec#*|}"
+  x_src="${rest%%|*}"
+  from_x_def="${rest#*|}"
+
+  if [ ! -f "$seed" ]; then
+    echo "ensure_host_cc_seed_o try-async-prefer: missing seed $seed for $o" >&2
+    return 1
+  fi
+
+  if [ "$FORCE" != "1" ] && [ -f "$o" ]; then
+    stale=0
+    [ "$seed" -nt "$o" ] && stale=1
+    if [ -f "$x_src" ] && [ "$x_src" -nt "$o" ]; then
+      stale=1
+    fi
+    if [ "$stale" = "0" ]; then
+      log "skip up-to-date $o (async-prefer)"
+      return 0
+    fi
+  fi
+
+  mkdir -p "$(dirname "$o")"
+
+  # PREFER full .x + seed-rest only when PREFER=1 (Darwin cold-chain safety twin).
+  if [ "$prefer" = "1" ] && [ -f "$x_src" ] \
+    && { [ -x ./xlang ] || [ -x ./xlang-c ] || [ -x ./bootstrap_xlangc ]; }; then
+    thin_o="$(mktemp "${TMPDIR:-/tmp}/async_thin.XXXXXX")"
+    rest_o="$(mktemp "${TMPDIR:-/tmp}/async_rest.XXXXXX")"
+    # shellcheck disable=SC2086
+    if rt_prefer_try_x_to_o "$x_src" "$thin_o" \
+      && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -D"$from_x_def" \
+           -c -o "$rest_o" "$seed" \
+      && $CC -r -nostdlib -o "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+      log "prefer full.x+rest $o <- $x_src + seed-rest (try-async-prefer)"
+      done=1
+    else
+      log "async hybrid failed for $o; fallback full seed"
+    fi
+    rm -f "$thin_o" "$rest_o"
+  fi
+
+  if [ "$done" = "1" ]; then
+    return 0
+  fi
+
+  # Cold full seed (ensure_one twin / PREFER=0).
+  if [ -f "$o" ] && [ "$prefer" = "1" ]; then
+    FORCE=1
+    ensure_one "$o" "$seed"
+    FORCE=0
+  else
+    ensure_one "$o" "$seed"
+  fi
+  return 0
+}
+
+try_ensure_async_prefer_one() {
+  local o="$1"
+  if [ -z "$o" ]; then
+    echo "ensure_host_cc_seed_o try-async-prefer: need <out.o>" >&2
+    exit 2
+  fi
+  if [ -z "$(async_prefer_spec_for_out "$o")" ]; then
+    return 3
+  fi
+  ensure_async_prefer_one "$o"
   return 0
 }
 
@@ -3981,6 +4117,52 @@ run_check() {
   else
     bad "scripts/g05_ensure_relink_prereqs.sh missing (wave769 g05 gate)"
   fi
+  # wave770: try-async-prefer (g05 + Makefile thin-call; three async leaves)
+  if ! grep -q 'try_ensure_async_prefer_one\|try-async-prefer' "$0"; then
+    bad "try-async-prefer / try_ensure_async_prefer_one missing (wave770)"
+  else
+    note "try-async-prefer helper present (wave770)"
+  fi
+  if ! grep -q 'ensure_async_prefer_one\|async_prefer_spec_for_out' "$0"; then
+    bad "async prefer body/table missing (wave770)"
+  else
+    note "async-prefer table body present (wave770)"
+  fi
+  for _async_leaf in \
+    src/async/async_liveness.o \
+    src/async/async_cps_codegen.o \
+    src/async/async_asm_pool.o; do
+    if awk -v leaf="$_async_leaf" '
+      $0 ~ ("^" leaf ":") {grab=1; next}
+      grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+      grab {body = body $0 "\n"}
+      END {
+        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-async-prefer/) exit 0
+        exit 1
+      }
+    ' Makefile; then
+      note "Makefile $_async_leaf thin-calls ensure try-async-prefer (wave770)"
+    else
+      bad "Makefile $_async_leaf must thin-call ensure try-async-prefer (wave770)"
+    fi
+  done
+  if [ -f scripts/g05_ensure_relink_prereqs.sh ]; then
+    if grep -q 'try-async-prefer\|async-prefer' scripts/g05_ensure_relink_prereqs.sh \
+      && grep -q 'ensure_host_cc_seed_o.sh' scripts/g05_ensure_relink_prereqs.sh; then
+      note "g05_ensure thin-calls ensure try-async-prefer (wave770)"
+    else
+      bad "g05_ensure must thin-call ensure try-async-prefer for async three (wave770)"
+    fi
+    # Dual body residual: g05 must not re-open inline async hybrid.
+    if grep -qE '_aliv_seed=|_acps_seed=|_aap_seed=|async_liveness PREFER|_aliv_x_o=|_acps_x_o=|_aap_x_o=' \
+      scripts/g05_ensure_relink_prereqs.sh; then
+      bad "g05_ensure still has async dual hybrid body (wave770)"
+    else
+      note "g05_ensure async dual hybrid body removed (wave770)"
+    fi
+  else
+    bad "scripts/g05_ensure_relink_prereqs.sh missing (wave770 g05 gate)"
+  fi
   # wave760/762: try-r2 R2 UNAME leaves (panic + typeck_f64 + crt0)
   if ! grep -q 'try_ensure_r2_one\|try-r2' "$0"; then
     bad "try-r2 / try_ensure_r2_one missing (wave760/762 R2 UNAME)"
@@ -4154,6 +4336,19 @@ case "$MODE" in
     _try_out="$1"
     set +e
     try_ensure_l2_asm_prefer_one "$_try_out"
+    _try_rc=$?
+    set -e
+    exit "$_try_rc"
+    ;;
+  try-async-prefer|try_async_prefer|async-prefer|async|try-async)
+    # wave770: async three PREFER helper — exit 3 if not table member.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o try-async-prefer: need <out.o>" >&2
+      exit 2
+    fi
+    _try_out="$1"
+    set +e
+    try_ensure_async_prefer_one "$_try_out"
     _try_rc=$?
     set -e
     exit "$_try_rc"
