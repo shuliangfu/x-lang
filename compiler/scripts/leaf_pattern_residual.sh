@@ -24,7 +24,8 @@
 #   Does NOT own .o lists (compiler/mk/*.mk + catalog). R1 pure-body families,
 #   R3 cold-else, R2 panic cold, and gen residual (try-gen-x) live in
 #   ensure_host_cc_seed_o.sh / ensure_gen_x_o.sh; R3 PREFER thin R3_COLD nine
-#   swallowed wave763 try-r3-prefer; residual g05 other PREFER / pure-ld.
+#   swallowed wave763 try-r3-prefer + wave764 g05 r3-prefer-family; residual
+#   g05 other PREFER (labi/rt multi-slice · pipeline_abi · ldpc) / pure-ld.
 #
 # Human map: compiler/docs/LEAF_PATTERN_RESIDUAL.md
 #
@@ -93,7 +94,12 @@ SWALLOWED_R3_COLD_ELSE_NOTE=cold_pure_host_cc_shell
 SWALLOWED_R3_PREFER_THIN=1
 SWALLOWED_R3_PREFER_THIN_VIA=ensure_host_cc_seed_o.sh_try-r3-prefer
 SWALLOWED_R3_PREFER_THIN_LIST=catalog_R3_COLD_SEED_OBJS
-SWALLOWED_R3_PREFER_THIN_NOTE=prefer_thin_rest_shell_g05_other_prefer_residual
+SWALLOWED_R3_PREFER_THIN_NOTE=prefer_thin_rest_shell_Makefile_thin
+# wave764: g05 product daily path same body (r3-prefer-family; full→thin ladder)
+SWALLOWED_G05_R3_PREFER=1
+SWALLOWED_G05_R3_PREFER_VIA=ensure_host_cc_seed_o.sh_r3-prefer-family
+SWALLOWED_G05_R3_PREFER_LIST=catalog_R3_COLD_SEED_OBJS
+SWALLOWED_G05_R3_PREFER_NOTE=g05_thin_call_no_dual_hybrid_R3_COLD
 SWALLOWED_LINK_DRIVER=scripts/bootstrap_driver_seed_link.sh
 SWALLOWED_G05_FAMILY=scripts/g05_*.sh
 SWALLOWED_MIGRATE_GEN=scripts/migrate_x_objs.sh+ensure_*_gen.sh
@@ -166,8 +172,10 @@ RESIDUAL_CLASS_R3_SURFACE=thin.o+FROM_X_rest_cc+ld_-r
 RESIDUAL_CLASS_R3_COLD_ELSE=swallowed_wave757_try_r3_cold
 RESIDUAL_CLASS_R3_PREFER_THIN=swallowed_wave763_try_r3_prefer
 RESIDUAL_CLASS_R3_PREFER_THIN_SCOPE=R3_COLD_SEED_OBJS_nine
-RESIDUAL_CLASS_R3_PREFER_THIN_RESIDUAL=g05_other_prefer_hybrid_leaves
-RESIDUAL_CLASS_R3_ENDGAME=g05_ensure_product_path_complete
+RESIDUAL_CLASS_G05_R3_PREFER=swallowed_wave764_g05_r3_prefer_family
+RESIDUAL_CLASS_G05_R3_PREFER_SCOPE=R3_COLD_SEED_OBJS_nine
+RESIDUAL_CLASS_R3_PREFER_THIN_RESIDUAL=g05_other_prefer_labi_rt_pipeline_ldpc
+RESIDUAL_CLASS_R3_ENDGAME=g05_ensure_labi_rt_multi_slice_plus_other_L2
 
 RESIDUAL_CLASS_R4=cold_rebuild_pattern_bodies
 RESIDUAL_CLASS_R4_SURFACE=sat|lsp|bridge|panic|user-asm|glue|pipeline-x_make_pattern
@@ -203,6 +211,7 @@ print_live_metrics() {
   r4_pure_r1=0
   r3_cold=0
   r3_prefer=0
+  g05_r3_prefer=0
   r2_panic=0
   r2_typeck_f64=0
   r2_crt0=0
@@ -239,6 +248,14 @@ print_live_metrics() {
         "$ROOT/compiler/scripts/ensure_host_cc_seed_o.sh" 2>/dev/null \
       && grep -q 'try-r3-prefer' "$mf" 2>/dev/null; then
       r3_prefer=1
+    fi
+    # wave764: g05 r3-prefer-family (same catalog body; no dual hybrid R3_COLD)
+    if [ -f "$ROOT/compiler/scripts/g05_ensure_relink_prereqs.sh" ] \
+      && grep -q 'r3-prefer-family\|r3_prefer_family' \
+        "$ROOT/compiler/scripts/g05_ensure_relink_prereqs.sh" 2>/dev/null \
+      && grep -q 'r3_prefer_try_step\|XLANG_SIMD_ENC_FROM_X' \
+        "$ROOT/compiler/scripts/ensure_host_cc_seed_o.sh" 2>/dev/null; then
+      g05_r3_prefer=1
     fi
     # wave760: R2 panic cold via try-r2
     if grep -q 'try-r2\|try_ensure_r2' \
@@ -331,6 +348,7 @@ R4_MODE_POLICY_SWALLOWED=$catalog_default
 R4_BODY_PURE_R1_SWALLOWED=$r4_pure_r1
 R3_COLD_ELSE_SWALLOWED=$r3_cold
 R3_PREFER_THIN_SWALLOWED=$r3_prefer
+G05_R3_PREFER_SWALLOWED=$g05_r3_prefer
 R2_PANIC_COLD_SWALLOWED=$r2_panic
 R2_TYPECK_F64_SWALLOWED=$r2_typeck_f64
 R2_CRT0_SWALLOWED=$r2_crt0
@@ -563,13 +581,19 @@ fi
 if ! printf '%s\n' "$_out" | grep -q 'R3_PREFER_THIN_SWALLOWED=1'; then
   bad "dump R3_PREFER_THIN_SWALLOWED must be 1 (try-r3-prefer + Makefile thin)"
 fi
+if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_G05_R3_PREFER=1'; then
+  bad "dump must set SWALLOWED_G05_R3_PREFER=1 (wave764)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'G05_R3_PREFER_SWALLOWED=1'; then
+  bad "dump G05_R3_PREFER_SWALLOWED must be 1 (g05 r3-prefer-family + full ladder)"
+fi
 if ! printf '%s\n' "$_out" | grep -q 'R1_OTHER_HOST_CC_STILL_MAKE=1'; then
   bad "dump must keep R1_OTHER_HOST_CC_STILL_MAKE=1 (honest residual)"
 fi
 if ! printf '%s\n' "$_out" | grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0'; then
   bad "dump missing ENDGAME_PHYSICAL_DELETE_MAKEFILE=0 (not closed)"
 else
-  note "residual class inventory dump OK (wave747 R4 + wave748–755 R1 + wave757 R3 cold + wave763 R3 PREFER)"
+  note "residual class inventory dump OK (wave747–763 + wave764 g05 R3 PREFER)"
 fi
 
 # Makefile still present (residual reality) + has host-cc heat
@@ -765,7 +789,7 @@ else
     "$REBUILD_REL"; then
     bad "rebuild_leaves must not hardcode .o list (dual authority)"
   fi
-  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763); residual g05 other PREFER / pure-ld"
+  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764); residual g05 labi/rt / pure-ld"
 fi
 
 # wave763: ensure try-r3-prefer + Makefile R3_COLD thin-call
@@ -780,6 +804,26 @@ if ! grep -q 'try-r3-prefer' compiler/Makefile; then
   bad "Makefile must thin-call try-r3-prefer for R3_COLD leaves (wave763)"
 else
   note "Makefile try-r3-prefer thin-call signal present (wave763)"
+fi
+
+# wave764: g05 R3_COLD product path → r3-prefer-family (no dual hybrid)
+if [ ! -f compiler/scripts/g05_ensure_relink_prereqs.sh ]; then
+  bad "missing g05_ensure_relink_prereqs.sh (wave764)"
+elif ! grep -q 'r3-prefer-family\|r3_prefer_family' compiler/scripts/g05_ensure_relink_prereqs.sh; then
+  bad "g05_ensure must thin-call r3-prefer-family (wave764)"
+else
+  note "g05 r3-prefer-family thin-call present (wave764)"
+fi
+if grep -qE 'g05_rio_thin|g05_rdabi_thin|g05_simd_enc_thin|G-02f-334：runtime_io_abi' \
+  compiler/scripts/g05_ensure_relink_prereqs.sh; then
+  bad "g05_ensure still has R3_COLD dual hybrid body (wave764)"
+else
+  note "g05 R3_COLD dual hybrid body removed (wave764)"
+fi
+if ! grep -q 'r3_prefer_try_step\|XLANG_SIMD_ENC_FROM_X' compiler/scripts/ensure_host_cc_seed_o.sh; then
+  bad "try-r3-prefer must gain full→thin ladder (wave764)"
+else
+  note "try-r3-prefer full→thin ladder present (wave764)"
 fi
 
 # G.7: this script must not hardcode product .o inventories as code paths
@@ -838,5 +882,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747 R4 mode + wave756 pure-R1 + wave757 R3 cold-else + wave763 R3 PREFER thin + wave758 thin_glue + wave759 glue-standalone + wave760 R2 panic + wave761 gen-x + wave762 R2 typeck_f64/crt0 + wave748–755 R1 families + 11.3.1 leaf residual inventory)"
+echo "leaf_pattern_residual: CHECK OK (wave747 R4 mode + wave756 pure-R1 + wave757 R3 cold-else + wave763 R3 PREFER thin + wave764 g05 r3-prefer-family + wave758 thin_glue + wave759 glue-standalone + wave760 R2 panic + wave761 gen-x + wave762 R2 typeck_f64/crt0 + wave748–755 R1 families + 11.3.1 leaf residual inventory)"
 exit 0

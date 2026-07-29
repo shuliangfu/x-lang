@@ -1021,7 +1021,7 @@ R1_SEED_MAP_OBJS = src/driver/target_cpu.o src/ast/ast_seed.o pipeline_bootstrap
 # r3-cold-seed modes (G.7 lists = mk only).
 # wave763: PREFER_X_O=1 thin+rest product path also via try-r3-prefer (single
 # shell body; Makefile thin-calls; no inline thin+rest recipes).
-# Residual after wave763: pure-ld · physical delete · g05 other PREFER leaves ·
+# Residual after wave764: pure-ld · physical delete · g05 labi/rt multi-slice ·
 # ~~panic / typeck_f64 / crt0 R2~~ try-r2 · ~~gen/pipeline~~ try-gen-x ·
 # ~~thin_glue / glue standalone~~ → seed-map · ~~R3_COLD Makefile PREFER~~.
 R3_COLD_SEED_OBJS = src/runtime_io_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/asm/simd_enc.o src/asm/simd_loop.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o
