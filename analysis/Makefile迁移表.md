@@ -458,8 +458,8 @@
 ### 类 J — test / check / verify / baseline
 
 - **xbuild**：`xbuild test / cold-test / prove`
-- **今日**：🟢 §5b 白名单全闭（wave716–725：phase1/final/sat/lsp/host-stubs/bridge/panic/user-asm/glue/check-abi/pipeline-x/asm-host）；test*/verify shell（wave720）；OBJS 变量仍 make；tests/lib 仍 make
-- **优先**：11.0.3 / 11.2.3
+- **今日**：🟢 §5b 白名单全闭（wave716–725）；test*/verify shell（wave720）；**wave726** PATH 探针 ✅ · export-obj-catalog 起步；OBJS 定义仍 make；tests/lib 仍 make
+- **优先**：11.0.4 / 11.2.3
 - **条数**：12
 
 | 行 | Makefile 目标 | 迁移状态 |
@@ -615,16 +615,17 @@
 **wave716**：类 G 四目标无内联 nm/ld。  
 **wave717**：编排主体迁 shell；Makefile 仅 prereq + 薄叶子 + 转调。  
 **wave724**：bridge/panic/user-asm/glue 统一 export + `rebuild_leaves.sh`（禁编排 `mk` 裸 `.o`）。  
-**wave725**：§5b #1/#2/#8 闭 → 冷启动 recipe 白名单 **全 🟢**。
+**wave725**：§5b #1/#2/#8 闭 → 冷启动 recipe 白名单 **全 🟢**。  
+**wave726**：11.0.2 PATH 探针 ✅；`export-obj-catalog` 读接口起步（11.0.4）。
 
 ---
 
 ## 6. 建议迁移顺序（11.0 内）
 
 1. **11.0.1** 本表 ✅（wave714）
-2. **11.0.2** 产品路径 0-make 静态闸门 ✅ + class-G filtered 全 shell ✅（wave714–716）；运行时 PATH 无 make 探针仍可加
+2. **11.0.2** 产品路径 0-make 静态闸门 ✅ + class-G filtered 全 shell ✅（wave714–716）+ **PATH 探针 ✅（wave726）**
 3. **11.0.3** `bootstrap-driver-seed` 规则白名单化 → shell/xbuild 逐步接管（**wave716**–**wave725**：类 G + 编排 + build-tool/clean + token/bstrict + test*/verify 0-make + phase1/final 链接 + sat/lsp + host-stubs + bridge/panic/user-asm/glue + **§5b #1/#2/#8 全 🟢**；OBJS 变量仍 make）
-4. **11.0.4** 根 Makefile 仅 help→xbuild；禁止新规则；OBJS 变量由 xbuild 吞并
+4. **11.0.4** 根 Makefile 仅 help→xbuild；禁止新规则；OBJS 变量由 xbuild 吞并（**wave726**：export-obj-catalog 读 API 起步）
 5. 并行：**类 C glue 地图**（阶段 8.3）· **类 B/D 去 pin 烟**（7.4）
 6. **11.1+** 填实 `build.x` / 吞并 g05 → **11.3 物理删**
 
@@ -634,6 +635,7 @@
 
 | 日期 | 波次 | 变更 |
 |------|------|------|
+| 2026-07-29 | **wave726** | 11.0.2 PATH 探针 `run-product-path-zero-make-path-probe.sh`；export-obj-catalog + `driver_seed_obj_catalog.sh`；0-make 闸门硬检+真跑；11.0.2 ✅ · 11.0.4 起步 |
 | 2026-07-29 | **wave725** | 11.0.3 闭 §5b #1/#2/#8：`check_pipeline_gen_expr_i64_abi.sh`；export-pipeline-x + rebuild_leaves；`bootstrap-driver-seed-asm-host` + DISPATCH_OBJS；§5b 白名单全 🟢；0-make 闸门硬检 |
 | 2026-07-29 | **wave724** | 11.0.3 续：§5b #5/#6/#7/#12 bridge/panic/user-asm/glue → `rebuild_leaves.sh` + export；`DRIVER_SEED_BRIDGE/PANIC/USER_ASM/ASM_GLUE_OBJS` 单权威；编排禁裸 `.o`；0-make 闸门硬检；mac 4 叶真跑 OK |
 | 2026-07-29 | **wave723** | 11.0.3 续：`bootstrap_driver_seed_host_stubs.sh` + export-host-stubs；`DRIVER_SEED_HOST_STUBS_SCAN_BASE` 单权威；PHONY 恒刷；file 规则同调；0-make 闸门硬检；mac 13 objs/397 stubs |

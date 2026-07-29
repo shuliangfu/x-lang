@@ -1302,15 +1302,15 @@
   - 产出：**[`analysis/Makefile迁移表.md`](Makefile迁移表.md)**（288 唯一目标 · 类 A–O）+ 本文附录 E 摘要
   - xbuild 拟目标命名已挂表；迁移完成定义见迁移表 §0
 
-🟡 **11.0.2 产品路径 0-make 验收**（wave714 静态 ✅ · wave715/716 class-G filtered ✅ · 运行时 PATH 探针 ⬜）
+✅ **11.0.2 产品路径 0-make 验收**（wave714 静态 ✅ · wave715/716 class-G filtered ✅ · **wave726 PATH 探针 ✅**）
 
   - 在 **不** `make -C compiler` 的前提下：仅 `xlang-build.sh` / g05 完成 `xlang`/`xlang_asm` 链 + 矩阵
   - **静态闸门**：`tests/run-product-path-zero-make-gate.sh`（allowlist 冻结 g05 日常 `make`；防回退）
   - **wave715**：pipeline filtered → shell；**wave716**：其余 3 partial-filter + 共用 `filter_o_export_against_deps.sh`；g05_ensure Darwin trio 纯 shell
+  - **wave726 运行时 PATH 探针**：`tests/run-product-path-zero-make-path-probe.sh` — shadow make/gmake；help + g05_relink_env + ensure/prepare 须 **0-exec** make；闸门硬检并真跑
   - **仍非日常 0-make**：FULL=1→make bstrict（g05 白名单）；嵌套 `tests/run-all-*.sh` / ensure 内 make（11.2.3）
-  - **未完**：日常 relink 全程 PATH 无 make 的运行时探针
 
-🟡 **11.0.3 冷启动路径减 make**（wave716–724 🟡）
+🟡 **11.0.3 冷启动路径减 make**（wave716–725 §5b 全 🟢；OBJS 定义仍 make）
 
   - ✅ 类 G 全 4 filtered.o 配方 = 纯 shell（冷启动 `$(MAKE) FILTERED_OBJS` 仅依赖图，无内联 nm/ld）
   - ✅ 冷启动 recipe `$(MAKE)` **白名单落盘**：[Makefile迁移表.md](Makefile迁移表.md) §5b
@@ -1323,12 +1323,14 @@
   - ✅ **wave723**：§5b #9 host-stubs **体** → `bootstrap_driver_seed_host_stubs.sh`；`DRIVER_SEED_HOST_STUBS_SCAN_BASE` + export；PHONY 恒刷
   - ✅ **wave724**：§5b #5/#6/#7/#12 bridge·panic·user-asm·glue → 同 `rebuild_leaves.sh` + export（`DRIVER_SEED_BRIDGE/PANIC/USER_ASM/ASM_GLUE_OBJS`）；编排禁 `mk` 裸 `.o`
   - ✅ **wave725**：§5b #1 check-abi 纯 shell；#2 pipeline_x FORCE export+rebuild_leaves；#8 asm-host 命名薄叶 + DISPATCH 单权威；§5b 白名单 **全 🟢**
-  - ⬜ 对象清单变量定义本身迁出 Makefile / 由 xbuild 吞并（更深层；仍 G.7 单权威）；PATH 探针；tests/lib make -C
+  - ⬜ 对象清单变量定义本身迁出 Makefile 本体（仍 G.7 单权威）
   - ⬜ FULL=1 / tests/lib 嵌套 make 继续收缩（11.2.3）
 
-⬜ **11.0.4 根 Makefile 只保留 help → xbuild**
+🟡 **11.0.4 根 Makefile 只保留 help → xbuild**（wave726 起步）
 
-  - 已接近；禁止再加厚包装逻辑
+  - ✅ **wave726**：`bootstrap-driver-seed-export-obj-catalog` + `driver_seed_obj_catalog.sh` — xbuild 可读 KEY=value dump（定义仍 Makefile；禁 shell 双清单）
+  - ⬜ OBJS 定义迁出 Makefile 本体（include 碎片或由 xbuild 解析 catalog 后单权威）
+  - ⬜ 根 Makefile 仅 help→xbuild；禁止再加厚包装逻辑
 
 ### 11.1 核心功能
 
@@ -1702,6 +1704,7 @@
 | 2026-07-29 | **审计补全** | 对照仓库补：**§0.1 终局三义（MG/BC/PC）**；**§0.2 删 Makefile DAG**；**阶段 7.4 typeck/codegen 去 pin**；**阶段 8.3 非 gen 产品 C（glue~40k/ast_pool~18k/桩）**；**阶段 11.0 瘦身可并行** + 既有 G-05/`build.x`/`xlang-build.sh`；11.2 测试/CI 去 make；12/13 验收对齐「物理删 Makefile」；附录 D 进度下调至 ~40–45%；**附录 E 迁移表骨架**；纠正 6.1.5「永久边界」措辞 |
 | 2026-07-29 | **二轮深度核查** | 阶段 4.2 补 4 项遗漏 Cap soft（impl method on INDEX / `*T[N]` 解析序 / fixed return S24[2] / 未知 arg_ty）；阶段 8.3 补 3 项（`build_asm/gen_driver/*.c` 10 个 / `analysis/_debug_io_ctx_gen.c` 孤儿 / `editors/tree-sitter-xlang/` 第三方）；**阶段 11 大幅补充**：11.2.5 CI workflow（5 个 .yml）+ 11.4 根脚本/tools/docker（build.sh/xlang-build.sh/scripts/docker-ci-local.sh/tools//tests/docker/Dockerfile/delete-one-c-files.sh）+ 11.5 tests/ 对照 C 处理策略（~200 个 .c 归属）+ 11.6 editors/README 用户指南；修正 11.2.3/11.3.1/11.3.4 验收 grep 措辞过窄（tests/run-*.sh → tests/**/*.sh；仅 make → make+cc） |
 | 2026-07-29 | **wave714 · 11.0.1** | 盘点 `compiler/Makefile` → [`Makefile迁移表.md`](Makefile迁移表.md)（类 A–O · ~288 目标）；附录 E 填实摘要；勾选 11.0.1；列出产品路径 make 泄漏供 11.0.2；新增 `tests/run-product-path-zero-make-gate.sh` 静态闸门 |
+| 2026-07-29 | **wave726 · 11.0.2 PATH 探针 + 11.0.4 catalog** | `run-product-path-zero-make-path-probe.sh`（shadow make；g05 prepare 0-exec）；`export-obj-catalog` + `driver_seed_obj_catalog.sh`；0-make 闸门硬检+真跑。11.0.2 ✅ · 11.0.4 读接口起步。**不升钉** |
 | 2026-07-29 | **wave725 · 11.0.3 §5b #1/#2/#8 闭** | `check_pipeline_gen_expr_i64_abi.sh`；`export-pipeline-x` + rebuild_leaves；`bootstrap-driver-seed-asm-host` + DISPATCH_OBJS。§5b 全 🟢。0-make 闸门硬检。**不升钉** |
 | 2026-07-29 | **wave724 · 11.0.3 bridge/panic/user-asm/glue 导出+shell** | 扩 `rebuild_leaves.sh` 模式 bridge|panic|user-asm|glue；`DRIVER_SEED_BRIDGE/PANIC/USER_ASM/ASM_GLUE_OBJS` + export；编排 `mk` 薄叶子。mac 真跑 4 叶 OK。0-make 闸门硬检。**不升钉** |
 | 2026-07-29 | **wave723 · 11.0.3 host-stubs 导出+shell** | `bootstrap_driver_seed_host_stubs.sh` + export-host-stubs；`DRIVER_SEED_HOST_STUBS_SCAN_BASE` 单权威；PHONY 恒刷；file 规则同调。mac 13 objs/397 stubs OK。0-make 闸门硬检。**不升钉** |

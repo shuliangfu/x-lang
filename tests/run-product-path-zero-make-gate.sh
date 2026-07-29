@@ -14,6 +14,9 @@
 #   - tests/lib/** make -C (stage 11.2.3)
 #   - CI workflows (stage 11.2.5)
 #
+# Runtime companion (wave726):
+#   ./tests/run-product-path-zero-make-path-probe.sh  — PATH shadow make; daily g05 0-exec
+#
 # Usage (repo root):
 #   ./tests/run-product-path-zero-make-gate.sh
 # Exit: 0 = OK, 1 = new make invocation outside allowlist or missing product entry
@@ -24,7 +27,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "=== 11.0.2/11.0.3 product-path 0-make static gate (wave714–725) ==="
+echo "=== 11.0.2/11.0.3 product-path 0-make static gate (wave714–726) ==="
 
 fail=0
 note() { echo "  OK  $*"; }
@@ -520,10 +523,37 @@ else
   bad "C迁移追踪.md missing 11.0.1 / migration table link"
 fi
 
+# --- wave726: PATH runtime probe present + obj-catalog export (11.0.4 start) ---
+if [ -f tests/run-product-path-zero-make-path-probe.sh ] \
+  && grep -q 'PATH-PROBE' tests/run-product-path-zero-make-path-probe.sh \
+  && grep -q 'g05_prepare_and_relink' tests/run-product-path-zero-make-path-probe.sh; then
+  note "PATH 0-make runtime probe script present (wave726)"
+else
+  bad "missing tests/run-product-path-zero-make-path-probe.sh (wave726 PATH probe)"
+fi
+
+if grep -q 'bootstrap-driver-seed-export-obj-catalog' compiler/Makefile \
+  && grep -q 'DRIVER_SEED_PIPELINE_X_OBJS=' compiler/Makefile \
+  && [ -f compiler/scripts/driver_seed_obj_catalog.sh ]; then
+  note "export-obj-catalog + driver_seed_obj_catalog.sh (OBJS read API, G.7)"
+else
+  bad "missing bootstrap-driver-seed-export-obj-catalog / driver_seed_obj_catalog.sh (wave726)"
+fi
+
+# Hard-run PATH probe (daily product path must not exec make)
+if [ -x tests/run-product-path-zero-make-path-probe.sh ] || [ -f tests/run-product-path-zero-make-path-probe.sh ]; then
+  chmod +x tests/run-product-path-zero-make-path-probe.sh 2>/dev/null || true
+  if bash tests/run-product-path-zero-make-path-probe.sh; then
+    note "PATH 0-make runtime probe executed OK"
+  else
+    bad "PATH 0-make runtime probe failed"
+  fi
+fi
+
 echo "=== gate summary ==="
 if [ "$fail" -ne 0 ]; then
   echo "FAIL product-path 0-make static gate" >&2
   exit 1
 fi
-echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make)"
+echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe)"
 exit 0

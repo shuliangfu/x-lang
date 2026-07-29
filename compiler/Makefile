@@ -2949,6 +2949,8 @@ endif
 # 11.0.3 wave723: host-stubs body → scripts/bootstrap_driver_seed_host_stubs.sh;
 # 11.0.3 wave724: bridge/panic/user-asm/glue → same rebuild_leaves.sh + export;
 # 11.0.3 wave725: §5b #1 check-abi shell · #2 pipeline_x FORCE export+shell · #8 asm-host thin leaf;
+# 11.0.3/11.0.4 wave726: export-obj-catalog = single KEY=value dump of all DRIVER_SEED_* lists
+#   (xbuild read API; definitions still Makefile-only — G.7 no dual list in shell).
 #   Makefile remains sole authority for OBJS/CFLAGS expansions (export leaves only).
 # PLATFORM: SHARED — sequence in shell; Darwin filtered.o still via class-G shell recipes.
 
@@ -2982,8 +2984,29 @@ DRIVER_SEED_HOST_STUBS_SCAN_BASE = pipeline_x.o $(ASM_GLUE_STANDALONE_O) $(USER_
 	bootstrap-driver-seed-export-host-stubs \
 	bootstrap-driver-seed-export-phase1-link \
 	bootstrap-driver-seed-export-final-link \
+	bootstrap-driver-seed-export-obj-catalog \
 	bootstrap-driver-seed-phase1-link \
 	bootstrap-driver-seed-final-link
+
+# wave726 · 11.0.4 start: one leaf dumps all §5b / link object lists (expanded).
+# Authority remains the Makefile variables above — this is read-only export for
+# xbuild / inventory; shell must not hardcode a second copy of any list.
+# PLATFORM: SHARED — KEY=value; no compile/link side effects.
+bootstrap-driver-seed-export-obj-catalog:
+	@printf 'DRIVER_SEED_PIPELINE_X_OBJS=%s\n' '$(DRIVER_SEED_PIPELINE_X_OBJS)'
+	@printf 'DRIVER_SEED_SAT_REBUILD_OBJS=%s\n' '$(DRIVER_SEED_SAT_REBUILD_OBJS)'
+	@printf 'DRIVER_SEED_LSP_X_OBJS=%s\n' '$(DRIVER_SEED_LSP_X_OBJS)'
+	@printf 'DRIVER_SEED_BRIDGE_OBJS=%s\n' '$(DRIVER_SEED_BRIDGE_OBJS)'
+	@printf 'DRIVER_SEED_PANIC_OBJS=%s\n' '$(DRIVER_SEED_PANIC_OBJS)'
+	@printf 'DRIVER_SEED_USER_ASM_SEED_OBJS=%s\n' '$(DRIVER_SEED_USER_ASM_SEED_OBJS)'
+	@printf 'DRIVER_SEED_ASM_GLUE_OBJS=%s\n' '$(DRIVER_SEED_ASM_GLUE_OBJS)'
+	@printf 'DRIVER_SEED_HOST_STUBS_SCAN_BASE=%s\n' '$(DRIVER_SEED_HOST_STUBS_SCAN_BASE)'
+	@printf 'DRIVER_SEED_ASM_HOST_DISPATCH_OBJS=%s\n' '$(DRIVER_SEED_ASM_HOST_DISPATCH_OBJS)'
+	@printf 'DRIVER_SEED_OBJS=%s\n' '$(DRIVER_SEED_OBJS)'
+	@printf 'BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS=%s\n' '$(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS)'
+	@printf 'BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS=%s\n' '$(BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS)'
+	@printf 'USER_ASM_SEED_OBJS=%s\n' '$(USER_ASM_SEED_OBJS)'
+	@printf 'ASM_GLUE_STANDALONE_O=%s\n' '$(ASM_GLUE_STANDALONE_O)'
 
 # §5b #2 — pipeline_x.o FORCE recompile on cold start (PIPELINE_X_FORCE_COMPILE=1)
 # Body: bootstrap_driver_seed_rebuild_leaves.sh pipeline-x; list = DRIVER_SEED_PIPELINE_X_OBJS only.
