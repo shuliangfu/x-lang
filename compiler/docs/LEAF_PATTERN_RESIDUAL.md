@@ -1006,6 +1006,7 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - [x] **wave789:** B7A heat shell auto-dispatch `try-heat` / `./xbuild heat-o` (Makefile edges still residual)
 - [x] **wave790:** B7A heat Makefile recipes unify → `try-heat` only (dep edges residual; mode names in comments)
 - [x] **wave798:** physical-delete **preflight** readiness (named blockers; Windows min-gate cmd; NOT green; NOT delete)
+- [x] **wave799:** physical-delete **execute gate** (`phys_del_makefile_gate.sh` refuse-delete + dry-run; NOT green; NOT delete)
 - [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame · **Windows gate**)
 - [ ] Leaf `.o` without host-cc residual (stages 8–9 / 12)
 - [ ] B7 residual endgame: Makefile heat **dep** edges gone / physical delete (try-heat ✅ wave789; thin-unify ✅ wave790; source-prereq closed wave797; thin-call edges remain until phys del)
@@ -1603,3 +1604,35 @@ Windows re-prove (dual-boot must be Windows / MSYS2):
 **Dual-end leaf `--check` portability (same wave):** GNU grep ERE does not treat `\t` as TAB
 (mac BSD often does). Heat recipe counts use `$'\t'` + `grep -c … || true` (never
 `|| echo 0`, which yields `0\n0` on no-match and breaks integer tests on Ubuntu).
+
+## wave799 physical-delete execute gate (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; Windows hybrid min-gate re-prove.  
+> **This wave:** G.7 **execute gate** body — `compiler/scripts/phys_del_makefile_gate.sh`.
+> Hard-refuses `rm` of Makefile while `PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip`.
+> Dry-run inventory + MSYS2 runbook. Does **not** flip Windows green; does **not** delete.
+
+```text
+Entry:
+  ./xbuild phys-del-gate                 # status dump
+  ./xbuild phys-del-gate --check         # refuse contract + preflight honesty
+  ./xbuild phys-del-gate --dry-run-delete
+  ./xbuild phys-del-gate --run-windows-gate   # MSYS2 only; non-MSYS skip 0
+  ./xbuild phys-del-gate --delete        # always refuse this tip
+
+After Windows green (human dual-boot reboot → MSYS2 min-gate):
+  mac commit flips PHYS_DEL_WINDOWS_GATE_STATUS + physical delete wave
+  (execute-gate still never auto-rm without reviewed ENDGAME=1 + confirm env)
+```
+
+| Key | Value |
+|-----|--------|
+| `PHYS_DEL_EXECUTE_GATE` | `1` |
+| `PHYS_DEL_EXECUTE_GATE_WAVE` | `wave799` |
+| `PHYS_DEL_EXECUTE_GATE_SCRIPT` | `compiler/scripts/phys_del_makefile_gate.sh` |
+| `PHYS_DEL_EXECUTE_GATE_REFUSES_DELETE` | `1` |
+| `PHYS_DEL_EXECUTE_GATE_DELETE_ALLOWED` | `0` |
+| `PHYS_DEL_WINDOWS_GATE_STATUS` | `not_reproven_this_tip` (honest) |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `0` |
+
+**Forbidden:** claim execute-gate = physical delete / Windows green; delete Makefile before Windows min-gate; mac-only wave green.
