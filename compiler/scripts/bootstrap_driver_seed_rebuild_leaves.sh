@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # bootstrap_driver_seed_rebuild_leaves.sh — §5b rebuild leaf orchestration
 #   (11.0.3 · wave747 R4 mode · wave756 R4 pure-R1 · wave757 R3 cold-else ·
-#    wave758 thin_glue seed-map · wave759 glue-standalone seed-map)
+#    wave758 thin_glue seed-map · wave759 glue-standalone seed-map ·
+#    wave760 R2 panic cold try-r2)
 #
 # Authority (G.7):
 #   - Object *lists* live ONLY in compiler/mk/*.mk, expanded via
@@ -16,10 +17,14 @@
 #     no dual .o list; same ensure_one body as R1 family modes.
 #   - R3 cold-else bodies (thin+rest leaves whose cold path is pure host-cc)
 #     run via ensure try-r3-cold (wave757; catalog R3_COLD_SEED_OBJS).
-#   - Remaining residual (R2 UNAME panic, gen *_x.o, pipeline_x, …) still
-#     invoke make with mode ARGS/VARS.
+#   - R2 panic cold body (platform stamp + UNAME source pick) via ensure
+#     try-r2 (wave760; catalog DRIVER_SEED_PANIC_OBJS). PREFER thin stays
+#     Makefile when residual make still hits panic (product daily path).
+#   - Remaining residual (gen *_x.o, pipeline_x, R2 typeck_f64/crt0, …)
+#     still invoke make with mode ARGS/VARS.
 #     wave758: parser_asm_thin_glue swallowed via R1 seed-map (try-r1).
 #     wave759: pipeline_glue_standalone swallowed via R1 seed-map (try-r1).
+#     wave760: runtime_panic cold swallowed via try-r2 (panic residual_make=0).
 #
 # Usage (compiler directory):
 #   ./scripts/bootstrap_driver_seed_rebuild_leaves.sh sat
@@ -34,7 +39,7 @@
 #   MAKE — make binary (default: make)
 #   XLANG_REBUILD_LEAVES_VIA_EXPORT=1 — legacy: eval Makefile export-* leaf
 #     instead of catalog (escape hatch / compare; not product default)
-#   CC / CFLAGS / PIPELINE_GEN_CFLAGS — forwarded to ensure try-r1
+#   CC / CFLAGS / PIPELINE_GEN_CFLAGS — forwarded to ensure try-r1 / try-r2
 #
 # PLATFORM: SHARED — mode table + catalog expansion; Makefile expands
 #            host-specific runtime rebuild lists (no_c vs seed) and platform
@@ -42,7 +47,7 @@
 # Wave: 722 sat/lsp · 724 bridge/panic/user-asm/glue · 725 pipeline-x FORCE ·
 #       747 R4 mode policy + catalog list · 756 R4 pure-R1 body via try-r1 ·
 #       757 R3 cold-else body via try-r3-cold · 758 thin_glue via seed-map ·
-#       759 glue-standalone via seed-map (try-r1).
+#       759 glue-standalone via seed-map (try-r1) · 760 R2 panic try-r2.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -159,12 +164,13 @@ echo "bootstrap-driver-seed: ${MODE} rebuild  ($n_objs targets via $list_source)
 # ---------------------------------------------------------------------------
 # wave756: pure R1 bodies via ensure try-r1 (no make pattern for those leaves).
 # wave757: R3 cold-else via try-r3-cold when try-r1 exits 3 (catalog membership).
-# -B (sat) → force recompile pure R1 + R3 cold as well (match make -B semantics).
+# wave760: R2 panic cold via try-r2 when try-r3-cold exits 3 (DRIVER_SEED_PANIC).
+# -B (sat) → force recompile pure R1 + R3 cold + R2 as well (match make -B).
 # Remaining residual still make with SEED_REBUILD_MAKE_ARGS / VARS.
 # G.7: membership via catalog KEY only; no hardcoded .o list here.
 # ---------------------------------------------------------------------------
 if [ ! -f scripts/ensure_host_cc_seed_o.sh ]; then
-  echo "bootstrap_driver_seed_rebuild_leaves: missing scripts/ensure_host_cc_seed_o.sh (wave756/757)" >&2
+  echo "bootstrap_driver_seed_rebuild_leaves: missing scripts/ensure_host_cc_seed_o.sh (wave756/757/760)" >&2
   exit 1
 fi
 
@@ -180,6 +186,7 @@ fi
 residual_objs=""
 pure_n=0
 r3_cold_n=0
+r2_n=0
 residual_n=0
 # Word-split intentionally (space-separated make expansions).
 # shellcheck disable=SC2086
@@ -214,9 +221,30 @@ for o in $SEED_REBUILD_OBJS; do
           continue
           ;;
         3)
-          residual_objs="${residual_objs} ${o}"
-          residual_n=$((residual_n + 1))
-          continue
+          # Not R3 cold — try R2 panic cold (wave760).
+          set +e
+          if [ "$force_shell" = "1" ]; then
+            XLANG_HOST_CC_SEED_FORCE=1 bash scripts/ensure_host_cc_seed_o.sh try-r2 "$o"
+          else
+            bash scripts/ensure_host_cc_seed_o.sh try-r2 "$o"
+          fi
+          rc2=$?
+          set -e
+          case "$rc2" in
+            0)
+              r2_n=$((r2_n + 1))
+              continue
+              ;;
+            3)
+              residual_objs="${residual_objs} ${o}"
+              residual_n=$((residual_n + 1))
+              continue
+              ;;
+            *)
+              echo "bootstrap_driver_seed_rebuild_leaves: try-r2 failed for $o (rc=$rc2)" >&2
+              exit 1
+              ;;
+          esac
           ;;
         *)
           echo "bootstrap_driver_seed_rebuild_leaves: try-r3-cold failed for $o (rc=$rc3)" >&2
@@ -232,16 +260,17 @@ for o in $SEED_REBUILD_OBJS; do
 done
 
 if [ "$residual_n" -gt 0 ]; then
-  # R4 residual: still Makefile (R2 panic, gen *_x, pipeline_x…).
+  # R4 residual: still Makefile (gen *_x, pipeline_x, …).
   # wave758: thin_glue is pure-R1 seed-map (not residual).
   # wave759: glue standalone is pure-R1 seed-map (not residual).
+  # wave760: panic cold is try-r2 (not residual when rebuild path hits cold).
   # SEED_REBUILD_MAKE_VARS are make command-line assignments (e.g. XLANG_G05_PREFER_X_O=0).
   # shellcheck disable=SC2086
-  echo "bootstrap-driver-seed: ${MODE} residual make ($residual_n objs; pure-R1=$pure_n r3-cold=$r3_cold_n)" >&2
+  echo "bootstrap-driver-seed: ${MODE} residual make ($residual_n objs; pure-R1=$pure_n r3-cold=$r3_cold_n r2=$r2_n)" >&2
   # shellcheck disable=SC2086
   "$MAKE" $SEED_REBUILD_MAKE_ARGS $residual_objs $SEED_REBUILD_MAKE_VARS
 else
-  echo "bootstrap-driver-seed: ${MODE} shell only (pure-R1=$pure_n r3-cold=$r3_cold_n; no make pattern)" >&2
+  echo "bootstrap-driver-seed: ${MODE} shell only (pure-R1=$pure_n r3-cold=$r3_cold_n r2=$r2_n; no make pattern)" >&2
 fi
 
-echo "bootstrap_driver_seed_rebuild_leaves: OK ${MODE} (pure_r1=$pure_n r3_cold=$r3_cold_n residual_make=$residual_n)" >&2
+echo "bootstrap_driver_seed_rebuild_leaves: OK ${MODE} (pure_r1=$pure_n r3_cold=$r3_cold_n r2=$r2_n residual_make=$residual_n)" >&2

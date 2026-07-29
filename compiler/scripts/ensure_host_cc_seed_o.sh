@@ -32,6 +32,14 @@
 #            pipeline_glue.c / ast_pool.c / build_asm/pipeline_glue_types.inc
 #            (Makefile prereq twin). Body = ensure_one direct cc (seed accepts
 #            cc -c; former Makefile/g05 used cc_inc_tu wrap — same seed TU).
+#   wave760: R2 panic cold body — `try-r2 OUT` resolves OUT against catalog
+#            DRIVER_SEED_PANIC_OBJS (lists = mk). Cold path selects source by
+#            host uname (Linux x86_64 → runtime_panic_x86_64.s when present;
+#            arm64/aarch64 → runtime_panic_arm64.from_x.c; else
+#            runtime_panic.from_x.c), touches platform stamp
+#            build_asm/runtime_panic.$(uname -s).$(uname -m).stamp, then
+#            ensure_one (seed) or plain cc -c (.s). PREFER thin+rest stays
+#            Makefile. rebuild_leaves residual uses try-r2 before make.
 #
 # Authority (G.7):
 #   Single shell *recipe body* for pure host-cc compile of seeds/*.from_x.c → .o.
@@ -69,12 +77,16 @@
 #
 # Not in scope (honest residual):
 #   - R3 thin+rest / PREFER_X_O product g05 path (g05_ensure keeps that)
-#   - R2 UNAME stamps, R4 residual (panic/gen/pipeline-x), R5 CI all
+#   - R2 other UNAME leaves (typeck_f64_bits · crt0) — panic cold only wave760
+#   - R4 residual (gen *_x · pipeline_x), R5 CI all
 #   - pure-ld (11.1.4) · physical Makefile delete (11.3.1)
 #
 # Usage (cwd = compiler/):
 #   bash scripts/ensure_host_cc_seed_o.sh one <out.o> <seed.from_x.c> [extra cflags...]
 #   bash scripts/ensure_host_cc_seed_o.sh try-r1 <out.o>   # wave756 R4 pure-R1 helper
+#   bash scripts/ensure_host_cc_seed_o.sh try-r3-cold <out.o>
+#   bash scripts/ensure_host_cc_seed_o.sh try-r2 <out.o>   # wave760 R2 panic cold
+#   bash scripts/ensure_host_cc_seed_o.sh r2-panic         # DRIVER_SEED_PANIC family
 #   bash scripts/ensure_host_cc_seed_o.sh rt-slice          # RT_SEED_SLICE family
 #   bash scripts/ensure_host_cc_seed_o.sh core-seed         # R1_CORE_SEED family
 #   bash scripts/ensure_host_cc_seed_o.sh frontend-glue     # R1_FRONTEND_GLUE family
@@ -86,7 +98,7 @@
 #   bash scripts/ensure_host_cc_seed_o.sh all               # all swallowed families
 #   bash scripts/ensure_host_cc_seed_o.sh --check
 #   bash scripts/ensure_host_cc_seed_o.sh seed-map --force
-#   ./xbuild host-cc-seed | … | misc-basename | seed-map
+#   ./xbuild host-cc-seed | … | misc-basename | seed-map | r2-panic
 #
 # Env:
 #   CC — host compiler (default: cc; honor caller CC)
@@ -99,8 +111,11 @@
 #   MAKE — only for catalog list expansion (default: make)
 #
 # PLATFORM: SHARED — shell orchestration; seed pins host-portable C.
-# Wave: 748–759 Track MG · 11.3.1 R1 families + R4 pure-R1 + R3 cold-else +
-#       thin_glue/glue-standalone seed-map (not physical delete · not pure-ld).
+#   R2 panic body: PLATFORM LINUX|x86_64 (.s) / MACOS|arm64 + LINUX|aarch64
+#   (arm64 seed) / else (from_x seed). PREFER thin stays Makefile.
+# Wave: 748–760 Track MG · 11.3.1 R1 families + R4 pure-R1 + R3 cold-else +
+#       thin_glue/glue-standalone seed-map + R2 panic cold
+#       (not physical delete · not pure-ld).
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -126,7 +141,7 @@ _DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r2|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -680,6 +695,144 @@ ensure_r3_cold_seed() {
 }
 
 # ---------------------------------------------------------------------------
+# wave760: try-r2 OUT — R2 platform-stamp panic cold body (UNAME leaf).
+#
+# Membership = catalog DRIVER_SEED_PANIC_OBJS only (lists = mk; currently
+# runtime_panic.o). Cold source selection mirrors Makefile / build_xlang_asm:
+#   PLATFORM: LINUX|x86_64 — cc -c src/asm/runtime_panic_x86_64.s when present
+#   PLATFORM: MACOS|arm64 / LINUX|aarch64 — seeds/runtime_panic_arm64.from_x.c
+#   else — seeds/runtime_panic.from_x.c
+# Platform stamp: build_asm/runtime_panic.$(uname -s).$(uname -m).stamp
+# (create if missing; force rebuild when stamp was missing so platform switch
+# cannot leave a stale .o without a matching stamp).
+# Exit codes:
+#   0 — OUT is panic catalog member; cold body ran (or skipped up-to-date)
+#   3 — OUT not in DRIVER_SEED_PANIC_OBJS (caller residual make)
+#   1 — membership found but compile failed / missing source
+# PLATFORM: SHARED shell body · per-host source pick tagged above.
+# PREFER_X_O=1 thin+rest remains Makefile (not this helper).
+# ---------------------------------------------------------------------------
+r2_panic_host_pick_src() {
+  # stdout: "asm|seed <path>" — host cold source for runtime_panic.o
+  # PLATFORM: LINUX|x86_64 prefer pure-syscall .s; arm64/aarch64 arm64 seed;
+  #           else portable from_x seed (incl. Darwin x86_64 / Windows).
+  local uname_s uname_m
+  uname_s="$(uname -s 2>/dev/null || echo Unknown)"
+  uname_m="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$uname_s" = "Linux" ] && [ "$uname_m" = "x86_64" ] \
+    && [ -f src/asm/runtime_panic_x86_64.s ]; then
+    printf '%s\n' "asm src/asm/runtime_panic_x86_64.s"
+    return 0
+  fi
+  case "$uname_m" in
+    arm64|aarch64)
+      if [ -f seeds/runtime_panic_arm64.from_x.c ]; then
+        printf '%s\n' "seed seeds/runtime_panic_arm64.from_x.c"
+        return 0
+      fi
+      ;;
+  esac
+  if [ -f seeds/runtime_panic.from_x.c ]; then
+    printf '%s\n' "seed seeds/runtime_panic.from_x.c"
+    return 0
+  fi
+  echo "ensure_host_cc_seed_o r2-panic: no runtime_panic cold source for $uname_s/$uname_m" >&2
+  return 1
+}
+
+ensure_r2_panic_one() {
+  # Cold body for a DRIVER_SEED_PANIC_OBJS member (no membership check).
+  local o="$1"
+  local pick kind src stamp uname_s uname_m need=0 cand
+  uname_s="$(uname -s 2>/dev/null || echo Unknown)"
+  uname_m="$(uname -m 2>/dev/null || echo unknown)"
+  stamp="build_asm/runtime_panic.${uname_s}.${uname_m}.stamp"
+  mkdir -p build_asm
+  if [ ! -f "$stamp" ]; then
+    touch "$stamp"
+    need=1
+  fi
+  pick="$(r2_panic_host_pick_src)" || return 1
+  kind="${pick%% *}"
+  src="${pick#* }"
+  if [ ! -f "$src" ]; then
+    echo "ensure_host_cc_seed_o r2-panic: missing source $src" >&2
+    return 1
+  fi
+  case "$kind" in
+    seed)
+      # Sibling .x freshness is inside ensure_one; stamp-missing forces compile.
+      # FORCE is script-global (read at ensure_one); temporarily raise when stamp was new.
+      if [ "$need" = "1" ] && [ "$FORCE" != "1" ]; then
+        FORCE=1
+        ensure_one "$o" "$src"
+        FORCE=0
+      else
+        ensure_one "$o" "$src"
+      fi
+      ;;
+    asm)
+      # PLATFORM: LINUX|x86_64 — plain cc -c .s (no PIPELINE_GEN_CFLAGS).
+      if [ "$FORCE" != "1" ] && [ "$need" = "0" ] && [ -f "$o" ] \
+        && [ ! "$src" -nt "$o" ]; then
+        log "skip $o (up-to-date vs $src)"
+        return 0
+      fi
+      log "cc -c $src → $o"
+      # shellcheck disable=SC2086
+      $CC -c -o "$o" "$src"
+      ;;
+    *)
+      echo "ensure_host_cc_seed_o r2-panic: unknown kind $kind" >&2
+      return 1
+      ;;
+  esac
+  # Keep stamp mtime after successful compile so make prereq stays satisfied.
+  touch "$stamp"
+  return 0
+}
+
+try_ensure_r2_one() {
+  local o="$1"
+  local list
+  if [ -z "$o" ]; then
+    echo "ensure_host_cc_seed_o try-r2: need <out.o>" >&2
+    exit 2
+  fi
+  list="$(catalog_key_words "DRIVER_SEED_PANIC_OBJS")"
+  if ! list_has_word "$o" "$list"; then
+    return 3
+  fi
+  # Only runtime_panic.o is defined today; refuse unknown future members
+  # until a source map is extended (fail closed — no silent wrong seed).
+  case "$o" in
+    runtime_panic.o) ;;
+    *)
+      echo "ensure_host_cc_seed_o try-r2: no cold map for panic member $o" >&2
+      return 1
+      ;;
+  esac
+  ensure_r2_panic_one "$o"
+  return 0
+}
+
+ensure_r2_panic() {
+  local list n=0 o
+  list="$(catalog_key_words "DRIVER_SEED_PANIC_OBJS")"
+  if [ -z "${list// /}" ]; then
+    echo "ensure_host_cc_seed_o: empty DRIVER_SEED_PANIC_OBJS" >&2
+    exit 1
+  fi
+  # shellcheck disable=SC2086
+  for o in $list; do
+    [ -z "$o" ] && continue
+    ensure_r2_panic_one "$o" || exit 1
+    n=$((n + 1))
+  done
+  log "r2-panic OK ($n objs; catalog DRIVER_SEED_PANIC_OBJS)"
+}
+
+# ---------------------------------------------------------------------------
 # --check: wiring + catalog keys + convention (no full compile required)
 # ---------------------------------------------------------------------------
 check_family() {
@@ -800,6 +953,10 @@ run_check() {
     && ! grep -q 'R3_COLD_SEED_OBJS' mk/*.mk 2>/dev/null; then
     bad "R3_COLD_SEED_OBJS not defined in Makefile/mk (wave757)"
   fi
+  if ! grep -q 'DRIVER_SEED_PANIC_OBJS' Makefile \
+    && ! grep -q 'DRIVER_SEED_PANIC_OBJS' mk/*.mk 2>/dev/null; then
+    bad "DRIVER_SEED_PANIC_OBJS not defined in Makefile/mk (wave760 R2 panic list)"
+  fi
 
   check_family "RT_SEED_SLICE_OBJS" 5 "rt-slice" "basename" "src/runtime/"
   check_family "R1_CORE_SEED_OBJS" 5 "core-seed" "basename" "src/"
@@ -815,6 +972,29 @@ run_check() {
   check_family "R1_SEED_MAP_OBJS" 5 "seed-map" "seed-map" ""
   # R3 cold-else: thin+rest leaves cold path = pure basename host-cc.
   check_family "R3_COLD_SEED_OBJS" 9 "r3-cold-seed" "basename" ""
+  # R2 panic: catalog list must resolve; seed/asm pick must work on this host.
+  {
+    local panic_list panic_n=0 po pick
+    if ! panic_list="$(catalog_key_list "DRIVER_SEED_PANIC_OBJS" 2>/dev/null)"; then
+      bad "catalog cannot expand DRIVER_SEED_PANIC_OBJS (wave760)"
+    else
+      # shellcheck disable=SC2086
+      for po in $panic_list; do
+        [ -z "$po" ] && continue
+        panic_n=$((panic_n + 1))
+      done
+      if [ "$panic_n" -lt 1 ]; then
+        bad "DRIVER_SEED_PANIC_OBJS empty (wave760)"
+      else
+        note "catalog DRIVER_SEED_PANIC_OBJS n=$panic_n (r2-panic)"
+      fi
+      if ! pick="$(r2_panic_host_pick_src 2>/dev/null)"; then
+        bad "r2_panic_host_pick_src failed on this host (wave760)"
+      else
+        note "r2-panic host pick: $pick"
+      fi
+    fi
+  }
 
   # Makefile thin: recipes must call this script (not inline $(CC) -c for swallowed leaves)
   if ! grep -q 'ensure_host_cc_seed_o\.sh' Makefile; then
@@ -924,6 +1104,26 @@ run_check() {
     | grep -vqE '^\s*#|:[0-9]+:\s*#'; then
     bad "must not hardcode R3_COLD_SEED_OBJS= in shell body"
   fi
+  if grep -nE '^(export )?DRIVER_SEED_PANIC_OBJS=' "$0" 2>/dev/null \
+    | grep -vqE '^\s*#|:[0-9]+:\s*#'; then
+    bad "must not hardcode DRIVER_SEED_PANIC_OBJS= in shell body (wave760)"
+  fi
+
+  # wave760: Makefile cold panic body must thin-call try-r2 (PREFER thin may stay).
+  if awk '
+    /^runtime_panic\.o:/ { in_t=1; next }
+    in_t && /^[^[:space:]#]/ { in_t=0 }
+    in_t { body = body $0 "\n" }
+    END {
+      # At least one recipe body must call ensure try-r2 / r2-panic.
+      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-r2|r2-panic|try_r2/) exit 0
+      exit 1
+    }
+  ' Makefile; then
+    note "Makefile runtime_panic cold thin-calls ensure try-r2 (wave760)"
+  else
+    bad "Makefile runtime_panic.o cold path must thin-call ensure try-r2 (wave760)"
+  fi
 
   if [ "$fail" -ne 0 ]; then
     echo "ensure_host_cc_seed_o: --check FAILED" >&2
@@ -941,8 +1141,14 @@ run_check() {
   else
     note "try-r3-cold R3 cold-else helper present (wave757)"
   fi
+  # wave760: try-r2 panic cold helper
+  if ! grep -q 'try_ensure_r2_one\|try-r2' "$0"; then
+    bad "try-r2 / try_ensure_r2_one missing (wave760 R2 panic cold)"
+  else
+    note "try-r2 R2 panic cold helper present (wave760)"
+  fi
 
-  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else + thin_glue/glue-standalone seed-map · wave748–759)" >&2
+  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else + R2 panic cold + thin_glue/glue-standalone seed-map · wave748–760)" >&2
 }
 
 case "$MODE" in
@@ -980,8 +1186,24 @@ case "$MODE" in
     set -e
     exit "$_try_rc"
     ;;
+  try-r2|try_r2|try-r2-panic|r2-one|r2-panic-one)
+    # wave760: R2 panic cold helper — exit 3 if not DRIVER_SEED_PANIC_OBJS member.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o try-r2: need <out.o>" >&2
+      exit 2
+    fi
+    _try_out="$1"
+    set +e
+    try_ensure_r2_one "$_try_out"
+    _try_rc=$?
+    set -e
+    exit "$_try_rc"
+    ;;
   r3-cold-seed|r3_cold_seed|cold-seed|family=r3_cold_seed)
     ensure_r3_cold_seed
+    ;;
+  r2-panic|r2_panic|panic-cold|family=r2_panic|family=driver_seed_panic)
+    ensure_r2_panic
     ;;
   rt-slice|rt_slice|rt-seed-slice|family=rt_seed_slice)
     ensure_rt_slice
@@ -1019,7 +1241,7 @@ case "$MODE" in
     exit 0
     ;;
   *)
-    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|try-r1|try-r3-cold|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|all|--check)" >&2
+    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|try-r1|try-r3-cold|try-r2|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|all|--check)" >&2
     exit 2
     ;;
 esac

@@ -4579,20 +4579,29 @@ ensure_typeck_asm_bare_link_alias_obj() {
   fi
 }
 
-# 确保 runtime_panic.o / crt0 / typeck_f64_bits 存在（逻辑与 compiler/Makefile 中对应规则一致）
+# 确保 runtime_panic.o / crt0 / typeck_f64_bits 存在。
+# wave760 G.7: runtime_panic cold body = ensure_host_cc_seed_o.sh try-r2 only
+# (no second inline cc -c recipe here). crt0 / typeck_f64 still local residual.
 ensure_asm_link_objs() {
   UNAME_S=$(uname -s 2>/dev/null || echo Unknown)
   ALPINE=0
   test -f /etc/alpine-release && ALPINE=1
-  if [ "$UNAME_S" = "Linux" ] && [ "$(uname -m 2>/dev/null)" = "x86_64" ] && [ -f src/asm/runtime_panic_x86_64.s ]; then
-  echo " cc -c runtime_panic.o <- src/asm/runtime_panic_x86_64.s"
-  "$CC" -c -o runtime_panic.o src/asm/runtime_panic_x86_64.s
-  elif [ -f seeds/runtime_panic_arm64.from_x.c ] && { [ "$(uname -m 2>/dev/null)" = "aarch64" ] || [ "$(uname -m 2>/dev/null)" = "arm64" ]; }; then
-  echo " cc_inc_tu runtime_panic.o <- seeds/runtime_panic_arm64.from_x.c"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_panic_arm64.from_x.c -o runtime_panic.o
+  if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
+    echo " ensure try-r2 runtime_panic.o (wave760 R2 cold body)"
+    CC="$CC" CFLAGS="$CFLAGS" bash scripts/ensure_host_cc_seed_o.sh try-r2 runtime_panic.o \
+      || { echo "ensure_asm_link_objs: try-r2 runtime_panic.o failed" >&2; return 1; }
   else
-  echo " cc_inc_tu runtime_panic.o <- seeds/runtime_panic.from_x.c"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_panic.from_x.c -o runtime_panic.o
+    # Fallback only if ensure script missing (should not happen on product tree).
+    if [ "$UNAME_S" = "Linux" ] && [ "$(uname -m 2>/dev/null)" = "x86_64" ] && [ -f src/asm/runtime_panic_x86_64.s ]; then
+      echo " cc -c runtime_panic.o <- src/asm/runtime_panic_x86_64.s"
+      "$CC" -c -o runtime_panic.o src/asm/runtime_panic_x86_64.s
+    elif [ -f seeds/runtime_panic_arm64.from_x.c ] && { [ "$(uname -m 2>/dev/null)" = "aarch64" ] || [ "$(uname -m 2>/dev/null)" = "arm64" ]; }; then
+      echo " cc -c runtime_panic.o <- seeds/runtime_panic_arm64.from_x.c"
+      $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_panic_arm64.from_x.c -o runtime_panic.o
+    else
+      echo " cc -c runtime_panic.o <- seeds/runtime_panic.from_x.c"
+      $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_panic.from_x.c -o runtime_panic.o
+    fi
   fi
   if [ "$UNAME_S" = "Linux" ] && [ -f src/asm/crt0_x86_64.s ]; then
   echo " cc -c src/asm/crt0_x86_64.o <- src/asm/crt0_x86_64.s"
