@@ -1485,12 +1485,13 @@
     ✅ drop silent CC fallback（wave774）；✅ fmt dual（wave775 try-other-l2-prefer fmt_core）；
     ✅ panic PREFER try-r2-prefer（wave776）；
     ✅ **phys-del prep inventory**（wave777：B1–B7 命名桶 · 非删 Makefile · 非吞体）；
-    ⬜ physical delete body / 删 Makefile
+    ✅ **Windows gate + dual-end verify**（wave778：`PHYS_DEL_WINDOWS_GATE` · `MG_VERIFY_DUAL_END=mac_plus_ubuntu_required` · 金标 Ubuntu；**禁** mac 单端宣称波绿；**禁** Windows 未绿就物理删 Makefile）；
+    ⬜ B1–B5 hybrid body swallow · physical delete / 删 Makefile
   - ⬜ 物理删 `compiler/Makefile` 仍 ⬜（下项）
 
 ⬜ **11.3.1 删除 `compiler/Makefile`**
 
-  - 前置：11.0 迁移表 100% 有主；8.3/7/8 白名单 residual 可被 xbuild 编完或已为 0；wave746 库存类 R1–R5 有主 shell；**wave777 prep 桶 B1–B7 有主后再删**
+  - 前置：11.0 迁移表 100% 有主；8.3/7/8 白名单 residual 可被 xbuild 编完或已为 0；wave746 库存类 R1–R5 有主 shell；**wave777 prep 桶 B1–B7 有主**；**wave778 Windows hybrid min-gate 绿**后再删
   - 验收 grep（全仓 · 不止 tests/analysis/docs）：
     ```
     rg -n 'make -C compiler|compiler/Makefile|\bmake\s+-C|\$\(MAKE\)' \

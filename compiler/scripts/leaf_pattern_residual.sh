@@ -18,6 +18,7 @@
 #   wave762: R2 typeck_f64 + crt0 via try-r2 (catalog TYPECK_F64 + CRT0)
 #   wave761: R4 residual gen *_x + pipeline_x via try-gen-x / ensure_gen_x_o.sh
 #   wave777: physical-delete prep inventory (named buckets B1–B7; no body swallow)
+#   wave778: Windows hard gate before Makefile delete + dual-end (mac+Ubuntu) verify policy
 #
 # Authority (G.7):
 #   Single shell authority for *named residual classes* of Makefile leaf pattern /
@@ -39,7 +40,7 @@
 #   ./xbuild leaf-patterns | leaf-residual [--check]
 #
 # PLATFORM: SHARED — inventory portable; leaf ABI stays in Makefile / mk.
-# Wave: 746–777 Track MG · 11.3.1 path (not physical delete · prep inventory wave777).
+# Wave: 746–778 Track MG · 11.3.1 path (not physical delete · Windows gate + dual-end wave778).
 
 set -euo pipefail
 
@@ -312,8 +313,21 @@ PHYS_DEL_BUCKET_B6_SCOPE=Makefile_all_OPT_seed_xbuild_compiler_all
 # B7: Makefile still owns DAG thin-calls + lists (cannot delete until B1–B6 + BC)
 PHYS_DEL_BUCKET_B7=makefile_dag_thin_calls
 PHYS_DEL_BUCKET_B7_SCOPE=ensure_thin_call_targets_plus_mk_lists
-PHYS_DEL_PREP_NEXT=B1_runtime_os_hybrid_or_R5_ci
-PHYS_DEL_PREP_FORBIDDEN=claim_physical_delete|dual_o_list_as_authority|swallow_body_this_wave
+PHYS_DEL_PREP_NEXT=B1_runtime_os_hybrid_body_swallow_not_delete
+PHYS_DEL_PREP_FORBIDDEN=claim_physical_delete|dual_o_list_as_authority|delete_makefile_before_windows_green
+# wave778: hard gate — physical delete of compiler/Makefile only AFTER Windows
+# hybrid min-gate green (+ PE pure-ld residual owned). Body swallow (B1–B5) keeps
+# Makefile thin-call edges; it is NOT physical delete. Never rm Makefile casually.
+PHYS_DEL_WINDOWS_GATE=required_before_makefile_delete
+PHYS_DEL_WINDOWS_GATE_SCOPE=MSYS2_B_hybrid_min_gate_plus_PE_pure_ld_residual
+PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip
+PHYS_DEL_WINDOWS_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
+PHYS_DEL_WINDOWS_GATE_FORBIDDEN=physical_delete_makefile_before_windows_green
+# wave778: every SHARED MG wave must green on mac + Ubuntu (Ubuntu = gold).
+# Mac-only residual/matrix green is NOT wave green. Push → Ubuntu pull → same check.
+MG_VERIFY_DUAL_END=mac_plus_ubuntu_required
+MG_VERIFY_GOLD=ubuntu
+MG_VERIFY_FORBIDDEN=mac_only_claim_wave_green|skip_ubuntu_sync_green
 
 # Live Makefile residual signals (counts only — not a second recipe list)
 MAKEFILE_PATH=compiler/Makefile
@@ -694,6 +708,12 @@ else
   if ! grep -qE 'PHYS_DEL_BUCKET_B1|runtime_os_hybrid|B1.*runtime' "$DOC_REL"; then
     bad "$DOC_REL must name wave777 PHYS_DEL_BUCKET B1 runtime OS hybrid"
   fi
+  if ! grep -qE 'wave778|PHYS_DEL_WINDOWS_GATE|Windows.*gate|before.*Makefile.*delete' "$DOC_REL"; then
+    bad "$DOC_REL must document wave778 Windows gate before Makefile delete"
+  fi
+  if ! grep -qE 'MG_VERIFY_DUAL_END|mac_plus_ubuntu|dual.end|双端' "$DOC_REL"; then
+    bad "$DOC_REL must document wave778 dual-end mac+Ubuntu verify policy"
+  fi
   note "doc $DOC_REL present"
 fi
 
@@ -930,8 +950,23 @@ if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7='; then
 fi
 if ! printf '%s\n' "$_out" | grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0'; then
   bad "dump missing ENDGAME_PHYSICAL_DELETE_MAKEFILE=0 (not closed)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_WINDOWS_GATE=required_before_makefile_delete'; then
+  bad "dump must set PHYS_DEL_WINDOWS_GATE=required_before_makefile_delete (wave778)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_WINDOWS_GATE_FORBIDDEN=physical_delete_makefile_before_windows_green'; then
+  bad "dump must forbid physical delete before Windows green (wave778)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'MG_VERIFY_DUAL_END=mac_plus_ubuntu_required'; then
+  bad "dump must set MG_VERIFY_DUAL_END=mac_plus_ubuntu_required (wave778)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'MG_VERIFY_GOLD=ubuntu'; then
+  bad "dump must set MG_VERIFY_GOLD=ubuntu (wave778)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'MG_VERIFY_FORBIDDEN=mac_only_claim_wave_green'; then
+  bad "dump must forbid mac-only wave-green claims (wave778)"
 else
-  note "residual class inventory dump OK (wave747–777 + phys-del prep buckets)"
+  note "residual class inventory dump OK (wave747–778 + phys-del prep + Windows + dual-end)"
 fi
 
 # Makefile still present (residual reality) + has host-cc heat
@@ -1127,7 +1162,7 @@ else
     "$REBUILD_REL"; then
     bad "rebuild_leaves must not hardcode .o list (dual authority)"
   fi
-  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld (wave772/773) + drop silent CC fallback (wave774); fmt_check_cmd.o dual (wave775); R2 panic PREFER try-r2-prefer (wave776); phys-del prep inventory (wave777); residual physical delete body + R5"
+  note "R4 mode + pure-R1 try-r1 + R3 cold try-r3-cold + R2 panic/typeck_f64/crt0 try-r2; R3 PREFER thin try-r3-prefer (wave763) + g05 r3-prefer-family (wave764) + labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer (wave765–771); R6 pure-ld (wave772/773) + drop silent CC fallback (wave774); fmt_check_cmd.o dual (wave775); R2 panic PREFER try-r2-prefer (wave776); phys-del prep (wave777); Windows+dual-end gate (wave778); residual B1 swallow body + R5 + physical delete"
 fi
 
 # wave772/774: cold pure-ld required when eligible (no silent CC fallback)

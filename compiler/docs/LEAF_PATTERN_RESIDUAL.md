@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2 · wave763 R3 PREFER thin try-r3-prefer · wave764 g05 R3_COLD r3-prefer-family · wave765 g05 labi try-labi-prefer · wave766 g05 rt try-rt-prefer · wave767 g05 pipeline_abi/ldpc try-*-prefer · wave768 g05 target_cpu try-target-cpu-prefer · wave769 g05 L2 asm try-l2-asm-prefer · wave770 g05 async try-async-prefer · wave771 g05 other L2 try-other-l2-prefer · wave772 11.1.4 pure-ld cold prefer · wave773 g05 pure-ld prefer · wave774 drop silent CC fallback · wave775 fmt_check_cmd.o dual · wave776 R2 panic PREFER try-r2-prefer · wave777 physical-delete prep inventory)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2 · wave763 R3 PREFER thin try-r3-prefer · wave764 g05 R3_COLD r3-prefer-family · wave765 g05 labi try-labi-prefer · wave766 g05 rt try-rt-prefer · wave767 g05 pipeline_abi/ldpc try-*-prefer · wave768 g05 target_cpu try-target-cpu-prefer · wave769 g05 L2 asm try-l2-asm-prefer · wave770 g05 async try-async-prefer · wave771 g05 other L2 try-other-l2-prefer · wave772 11.1.4 pure-ld cold prefer · wave773 g05 pure-ld prefer · wave774 drop silent CC fallback · wave775 fmt_check_cmd.o dual · wave776 R2 panic PREFER try-r2-prefer · wave777 physical-delete prep inventory · wave778 Windows gate + dual-end verify)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -992,11 +992,60 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - [x] **wave775:** `fmt_check_cmd.o` Makefile dual → try-other-l2-prefer `fmt_core`
 - [x] **wave776:** R2 panic PREFER → try-r2-prefer
 - [x] **wave777:** physical-delete **prep inventory** (named buckets B1–B7; no body swallow; no Makefile delete)
+- [x] **wave778:** **Windows gate** before Makefile physical delete + **dual-end** (mac + Ubuntu) verify policy
 - [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame)
 - [ ] Leaf `.o` without host-cc residual (stages 8–9 / 12)
 - [ ] R5 CI / compiler-all shell body
 - [ ] B1–B5 Makefile dual hybrid body → ensure (next swallow waves)
 
+
+### wave778 · Windows gate + dual-end verify (policy only · G.7 inventory)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; B1–B5 body swallow.  
+> **This wave:** hard-gate documentation + dump keys so agents never claim wave green on mac only, and never delete Makefile before Windows hybrid is green.
+
+#### Windows gate (before physical delete)
+
+| Key | Value |
+|-----|--------|
+| `PHYS_DEL_WINDOWS_GATE` | `required_before_makefile_delete` |
+| `PHYS_DEL_WINDOWS_GATE_SCOPE` | MSYS2 B-hybrid min-gate + PE pure-ld residual owned |
+| `PHYS_DEL_WINDOWS_GATE_STATUS` | `not_reproven_this_tip` (re-run when dual-boot is Windows) |
+| `PHYS_DEL_WINDOWS_GATE_DOC` | `analysis/Windows兼容时序-删种子前后.md` |
+| `PHYS_DEL_WINDOWS_GATE_FORBIDDEN` | `physical_delete_makefile_before_windows_green` |
+
+**Allowed without Windows re-prove:** B1–B5 **body swallow** (ensure try-*-prefer / thin-call edges stay; Makefile still present).  
+**Forbidden without Windows green:** `rm` / empty / claim endgame delete of `compiler/Makefile`.
+
+#### Dual-end verify (every SHARED MG wave)
+
+| Key | Value |
+|-----|--------|
+| `MG_VERIFY_DUAL_END` | `mac_plus_ubuntu_required` |
+| `MG_VERIFY_GOLD` | `ubuntu` |
+| `MG_VERIFY_FORBIDDEN` | `mac_only_claim_wave_green` · `skip_ubuntu_sync_green` |
+
+**Policy (skill G.8 · product gate):**
+
+1. mac residual/matrix green alone is **not** wave green.  
+2. After mac commit: `git push` → Ubuntu `git pull --ff-only` → **same** `leaf_pattern_residual.sh --check` (and product L2/L4 when product surface moves).  
+3. Ubuntu is the **gold** host for link integrity (mac `-dead_strip` can hide UNDEF).  
+4. Windows is **not** the daily MG gold host; it is the **hard gate only before Makefile physical delete**.
+
+```text
+PHYS_DEL_WINDOWS_GATE=required_before_makefile_delete
+MG_VERIFY_DUAL_END=mac_plus_ubuntu_required
+MG_VERIFY_GOLD=ubuntu
+ENDGAME_PHYSICAL_DELETE_MAKEFILE=0
+PHYS_DEL_PREP_NEXT=B1_runtime_os_hybrid_body_swallow_not_delete
+```
+
+| Swallowed this wave | Still residual |
+|---------------------|----------------|
+| **Policy keys** (Windows gate + dual-end; dump + LEAF + `--check`) | B1–B5 hybrid **bodies** · B6 R5 · B7 DAG · physical delete |
+| Prior R1–R6 / prefer / pure-ld / prep inventory | FORCE_CC · Windows PE pure-ld body |
+
+**Forbidden:** mac-only “本波绿”; physical delete before Windows min-gate; body swallow claimed as physical delete.
 
 ### wave777 · physical-delete prep inventory (named buckets · G.7 inventory only)
 
@@ -1026,7 +1075,7 @@ Live heat (mac tip · wave777 inventory; counts only):
 
 ```text
 PHYS_DEL_PREP_INVENTORY=1
-PHYS_DEL_PREP_NEXT=B1_runtime_os_hybrid_or_R5_ci
+PHYS_DEL_PREP_NEXT=B1_runtime_os_hybrid_body_swallow_not_delete
 ENDGAME_PHYSICAL_DELETE_MAKEFILE=0
 R1_OTHER_HOST_CC_STILL_MAKE=1
 ```
