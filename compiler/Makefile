@@ -128,7 +128,10 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 # wave780 B2: hybrid body → ensure try-std-core-prefer (G.7; not physical delete).
 # wave790 B7A: heat recipe unify → try-heat only (mode names in comments; dep edges residual).
 # PLATFORM: SHARED — cold ld -r args seed + runtime_process_argv + os_glue.
-../std/process/process.o: ../std/process/mod.x ../std/process/process.x seeds/runtime_process_args_thin.from_x.c runtime_process_argv.o runtime_process_os_glue.o scripts/ensure_host_cc_seed_o.sh
+../std/process/process.o: FORCE scripts/ensure_host_cc_seed_o.sh
+# wave795 B7A: heat dep-edge thin std merge process residual — prereqs → FORCE + ensure;
+# try-heat owns seed/peer .o mtime (process_merge). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
@@ -150,7 +153,10 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 #   Note: .x path_sep_c always returns '/' (47) per posix gate; seed Win branch
 #   returns '\' (92) but is skipped in R2 mode.
 # wave780 B2: dual hybrid → ensure try-std-core-prefer (G.7; not physical delete).
-../std/path/path.o: ../std/path/mod.x seeds/runtime_path_fast.from_x.c src/asm/runtime_path_fast.x scripts/ensure_host_cc_seed_o.sh
+../std/path/path.o: FORCE scripts/ensure_host_cc_seed_o.sh
+# wave795 B7A: heat dep-edge thin std direct path residual — prereqs → FORCE + ensure;
+# try-heat owns seed/.x mtime (std-core-prefer/direct). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
@@ -223,7 +229,10 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 #   for cold path fallback only.
 # PLATFORM: SHARED runtime — pure thin wrappers to panic; no OS dependency.
 # wave780 B2: dual hybrid → ensure try-std-core-prefer (G.7; not physical delete).
-../std/runtime/runtime.o: ../std/runtime/runtime.x seeds/runtime_std_runtime_fast.from_x.c src/asm/runtime_std_runtime_fast.x scripts/ensure_host_cc_seed_o.sh
+../std/runtime/runtime.o: FORCE scripts/ensure_host_cc_seed_o.sh
+# wave795 B7A: heat dep-edge thin std direct runtime residual — prereqs → FORCE + ensure;
+# try-heat owns seed/.x mtime (std-core-prefer/direct). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
@@ -985,7 +994,10 @@ src/driver/fmt_check_cmd_driver.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # Deps: link_alias + linux pin gen (Ubuntu gold) + host lit + bootstrap stub seed.
 # wave98: do NOT use plain -E — bare -E emits dangling BSS → SEGV on complex #if.
 # wave783 B5: multi-ladder body → ensure try-cfg-eval-ladder (G.7; not physical delete).
-src/lexer/cfg_eval.o: src/lexer/cfg_eval.x seeds/cfg_eval_link_alias.from_x.c seeds/cfg_eval_gen.linux.x86_64.c seeds/cfg_eval_host_lit.from_x.c seeds/cfg_eval_bootstrap_stub.from_x.c scripts/cc_inc_tu.sh scripts/ensure_host_cc_seed_o.sh
+src/lexer/cfg_eval.o: FORCE scripts/ensure_host_cc_seed_o.sh
+# wave795 B7A: heat dep-edge thin cfg_eval multi residual — prereqs → FORCE + ensure;
+# try-heat owns multi-seed/.x + hdr mtime (try-cfg-eval-ladder). NOT physical delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  LD="$(LD)" LD_RELFLAGS="$(LD_RELFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
@@ -1440,15 +1452,17 @@ runtime_process_os_glue.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # wave762 R2: body → ensure_host_cc_seed_o.sh try-r2 (list = DRIVER_SEED_CRT0_OBJS /
 # DRIVER_SEED_TYPECK_F64_OBJS). UNAME ifeq only selects which target is defined on
 # this host; recipe body is shell (G.7 single cold body). PLATFORM tags in ensure.
+# wave795 B7A: heat dep-edge thin pure asm residual — .s prereqs → FORCE + ensure;
+# try-heat owns .s/seed mtime (try-r2). Host ifeq gate kept. NOT physical delete.
 ifeq ($(UNAME_S),Linux)
 ifeq ($(UNAME_M),x86_64)
-src/asm/crt0_x86_64.o: src/asm/crt0_x86_64.s scripts/ensure_host_cc_seed_o.sh
+src/asm/crt0_x86_64.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 # S4 freestanding 用户程序入口（call _main；见 tests/run-freestanding-hello.sh）
-src/asm/crt0_user_x86_64.o: src/asm/crt0_user_x86_64.s scripts/ensure_host_cc_seed_o.sh
+src/asm/crt0_user_x86_64.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 # S4 freestanding syscall write（xlang_sys_write）
-src/asm/freestanding_io_x86_64.o: src/asm/freestanding_io_x86_64.s scripts/ensure_host_cc_seed_o.sh
+src/asm/freestanding_io_x86_64.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 # runtime.c 链 freestanding 用户程序时在 compiler/ 下查找 crt0_user.o / freestanding_io.o
 crt0_user.o: src/asm/crt0_user_x86_64.o
@@ -1463,17 +1477,17 @@ endif
 # E-04 v20：Darwin bootstrap 默认 crt0（arm64 / x86_64 Mach-O）
 ifeq ($(UNAME_S),Darwin)
 ifneq (,$(filter arm64 aarch64,$(UNAME_M)))
-src/asm/crt0_arm64.o: src/asm/crt0_arm64.s scripts/ensure_host_cc_seed_o.sh
+src/asm/crt0_arm64.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 else ifneq (,$(filter x86_64 amd64,$(UNAME_M)))
-src/asm/crt0_darwin_x86_64.o: src/asm/crt0_darwin_x86_64.s scripts/ensure_host_cc_seed_o.sh
+src/asm/crt0_darwin_x86_64.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 endif
 endif
 # E-04 v21：Windows/MinGW/MSYS bootstrap 默认 crt0_mingw 替代 main_driver.o
 # wave762: try-r2 body (cc_inc_tu + WIN32_O_CFLAGS inside ensure; list = DRIVER_SEED_CRT0)
 ifeq ($(XLANG_IS_WIN_HOST),1)
-src/asm/crt0_mingw.o: seeds/crt0_mingw.from_x.c Makefile scripts/ensure_host_cc_seed_o.sh scripts/cc_inc_tu.sh
+src/asm/crt0_mingw.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" WIN32_O_CFLAGS="$(WIN32_O_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 endif
@@ -1481,23 +1495,32 @@ endif
 # asm 链接无 runtime_driver 时：提供 typeck_float64_bits_lo/hi（G-02e：全平台 .s，零 C）。
 # wave762 R2: body → ensure try-r2 (host pick .s; list = DRIVER_SEED_TYPECK_F64_OBJS).
 # UNAME ifeq keeps unsupported-arch hard error surface; recipe is shell.
+# wave795 B7A: .s prereqs → FORCE; shell owns freshness (try-r2). NOT physical delete.
 ifeq ($(UNAME_S),Linux)
 ifeq ($(UNAME_M),x86_64)
-src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_x86_64.s scripts/ensure_host_cc_seed_o.sh
+src/typeck/typeck_f64_bits.o: FORCE scripts/ensure_host_cc_seed_o.sh
+# wave795 B7A: heat dep-edge thin pure asm residual — .s prereq → FORCE + ensure;
+# try-heat owns host-picked .s mtime (r2-typeck-f64). NOT physical delete.
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 else ifeq ($(UNAME_M),aarch64)
-src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_aarch64_elf.s scripts/ensure_host_cc_seed_o.sh
+src/typeck/typeck_f64_bits.o: FORCE scripts/ensure_host_cc_seed_o.sh
+# wave795 B7A: heat dep-edge thin pure asm residual — .s prereq → FORCE + ensure;
+# try-heat owns host-picked .s mtime (r2-typeck-f64). NOT physical delete.
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 else
 $(error typeck_f64_bits: unsupported Linux arch $(UNAME_M); add .s)
 endif
 else ifeq ($(UNAME_S),Darwin)
 ifeq ($(UNAME_M),arm64)
-src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_arm64.s scripts/ensure_host_cc_seed_o.sh
+src/typeck/typeck_f64_bits.o: FORCE scripts/ensure_host_cc_seed_o.sh
+# wave795 B7A: heat dep-edge thin pure asm residual — .s prereq → FORCE + ensure;
+# try-heat owns host-picked .s mtime (r2-typeck-f64). NOT physical delete.
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 else ifeq ($(UNAME_M),x86_64)
 # Darwin x86_64：SysV .s 无 _ 前缀；clang 汇编 Mach-O 时需额外处理，当前主路径为 arm64。
-src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_x86_64.s scripts/ensure_host_cc_seed_o.sh
+src/typeck/typeck_f64_bits.o: FORCE scripts/ensure_host_cc_seed_o.sh
+# wave795 B7A: heat dep-edge thin pure asm residual — .s prereq → FORCE + ensure;
+# try-heat owns host-picked .s mtime (r2-typeck-f64). NOT physical delete.
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 else
 $(error typeck_f64_bits: unsupported Darwin arch $(UNAME_M); add .s)
@@ -1507,7 +1530,9 @@ else ifeq ($(XLANG_IS_WIN_HOST),1)
 # use _mingw variant (x64 PE COFF doesn't add underscore prefix, so symbol names
 # match the SysV variant — see typeck_f64_bits_x86_64_mingw.s docblock).
 ifeq ($(UNAME_M),x86_64)
-src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_x86_64_mingw.s scripts/ensure_host_cc_seed_o.sh
+src/typeck/typeck_f64_bits.o: FORCE scripts/ensure_host_cc_seed_o.sh
+# wave795 B7A: heat dep-edge thin pure asm residual — .s prereq → FORCE + ensure;
+# try-heat owns host-picked .s mtime (r2-typeck-f64). NOT physical delete.
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 else
 $(error typeck_f64_bits: unsupported Windows arch $(UNAME_M); add .s)

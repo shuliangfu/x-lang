@@ -405,6 +405,15 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 - `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 families · try-r1 · try-r3-cold · thin_glue/glue-standalone seed-map)  
 - `compiler/scripts/host_platform_linker.sh` (platform + linker · wave745)
 
+## wave795 B7A heat dep-edge thin cfg_eval·asm·std (2026-07-30)
+
+- **Not physical delete.** cfg_eval multi · pure asm (crt0/freestanding/typeck_f64) ·
+  std direct path/runtime · process merge (+15 → **101 FORCE**). Host ifeq for crt0/typeck kept.
+- Shell: try-cfg-eval-ladder multi-seed mtime · try-r2 .s/seed · std-core-prefer seed/.x/peer ·
+  `force_thin_makefile_flags_newer` includes `crt0_mingw`.
+- Residual: net multi-merge · panic stamp · gen_x · orch.
+- LEAF: `DEP_THIN_COUNT=101` · `HEAT_RESIDUAL=1`.
+
 ## wave794 B7A heat dep-edge thin twin·Makefile-flags·pure leftover (2026-07-30)
 
 - **Not physical delete.** Twin / Makefile-flags / pure leftover residual (+8 → **86 FORCE**):

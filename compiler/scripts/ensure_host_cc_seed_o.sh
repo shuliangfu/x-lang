@@ -117,6 +117,11 @@
 #            (Makefile macro flags via force_thin_makefile_flags_newer).
 #            Residual: cfg_eval multi · asm/gen · stamp · std merge · gen_x.
 #            NOT physical delete.
+#   wave795: B7A heat dep-edge thin — cfg_eval multi · pure asm · std direct/process
+#            → FORCE (+15 → 101). cfg_eval multi-seed · crt0/freestanding/typeck_f64
+#            · path/runtime/process. Host ifeq for crt0/typeck kept. crt0_mingw
+#            Makefile flags via force_thin_makefile_flags_newer. Residual: net
+#            multi-merge · panic stamp · gen_x · orch. NOT physical delete.
 #   wave758: R4 residual pure host-cc thin_glue → R1 seed-map (G.7 有则补全):
 #            parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c +
 #            -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm;
@@ -380,7 +385,8 @@ EOF
 force_thin_makefile_flags_newer() {
   local out="$1"
   case "$out" in
-    src/main_driver.o|src/runtime_driver.o|src/runtime_driver_no_c.o|src/runtime_pipeline_abi.o)
+    # wave794: main/runtime/pipeline macro flags · wave795: crt0_mingw WIN32_O_CFLAGS
+    src/main_driver.o|src/runtime_driver.o|src/runtime_driver_no_c.o|src/runtime_pipeline_abi.o|src/asm/crt0_mingw.o)
       if [ -f Makefile ] && [ Makefile -nt "$out" ]; then
         return 0
       fi
@@ -4877,7 +4883,8 @@ ensure_r2_crt0_one() {
   mkdir -p "$(dirname "$o")"
   case "$kind" in
     asm)
-      if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$src" -nt "$o" ]; then
+      if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$src" -nt "$o" ] \
+        && ! force_thin_makefile_flags_newer "$o"; then
         log "skip $o (up-to-date vs $src)"
         return 0
       fi
@@ -4887,7 +4894,9 @@ ensure_r2_crt0_one() {
       ;;
     cc_inc_tu)
       # PLATFORM: WINDOWS — same wrap as Makefile (WIN32_O_CFLAGS from env).
-      if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$src" -nt "$o" ]; then
+      # wave795: Makefile mtime for WIN32_O_CFLAGS (force_thin_makefile_flags_newer).
+      if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$src" -nt "$o" ] \
+        && ! force_thin_makefile_flags_newer "$o"; then
         log "skip $o (up-to-date vs $src)"
         return 0
       fi
