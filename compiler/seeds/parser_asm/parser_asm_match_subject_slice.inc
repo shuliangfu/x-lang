@@ -258,6 +258,9 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
   int32_t pat_n;
   int32_t pat_i;
   int32_t arm_via_guard; /* wave700: 1 = arm fully handled in TOKEN_IF path */
+  /* wave708: implicit guard expr for struct field lit patterns (`Point { x: 0, y: 0 }`).
+   * 0 = no guard; >0 = expr_ref to `subject.field == val && ...` chain. */
+  int32_t pat_guard_ref[16];
   if (!arena || !source || !out)
     return;
   out->ok = 0;
@@ -1079,6 +1082,7 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
       lit_v = 0;
       is_ev = 0;
       var_idx = -1;
+      pat_guard_ref[pat_n] = 0; /* wave708: reset implicit guard */
       if (r.tok.kind == (int32_t)TOKEN_INT) {
         lit_v = r.tok.int_val;
         parser_lex_from_next_into_glue(&lex, r);
@@ -1098,29 +1102,99 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
         parser_lex_from_next_into_glue(&lex, r);
         lexer_next_into(&r, lex, source);
         /*
-         * wave703 Cap residual: struct pattern `Point { x: 0, y: _ }` / `Point { x, y }`.
+         * wave708: struct field pattern `Point { x: 0, y: 0 }` / `Point { x, y }`.
          * After type name IDENT, TOKEN_LBRACE starts field patterns (not enum DOT).
-         * Store as wildcard arm for now; typeck binds field names from match subject
-         * type during arm result check (G.7 twin of match enum path).
+         * For `field: lit_val`, build implicit guard `subject.field == lit_val`
+         * chained with LOGAND. For `field` (bind), skip (wave707 field bind handles).
+         * Arm stays wildcard; guard_ref carries field lit comparisons.
          * PLATFORM: SHARED — parser_asm match arm authority.
          */
         if (r.tok.kind == (int32_t)TOKEN_LBRACE) {
-          int32_t brace_depth = 1;
+          int32_t field_guard = 0; /* 0 = no guard yet; >0 = expr_ref */
           parser_lex_from_next_into_glue(&lex, r);
-          while (brace_depth > 0) {
-            lexer_next_into(&r, lex, source);
-            if (r.tok.kind == (int32_t)TOKEN_EOF)
-              return;
-            if (r.tok.kind == (int32_t)TOKEN_LBRACE)
-              brace_depth = brace_depth + 1;
-            else if (r.tok.kind == (int32_t)TOKEN_RBRACE)
-              brace_depth = brace_depth - 1;
-            if (brace_depth > 0)
+          lexer_next_into(&r, lex, source);
+          while (r.tok.kind != (int32_t)TOKEN_RBRACE && r.tok.kind != (int32_t)TOKEN_EOF) {
+            if (r.tok.kind == (int32_t)TOKEN_IDENT) {
+              uint8_t fname[128];
+              int32_t flen = r.tok.ident_len;
+              size_t fstart = r.token_start;
+              int32_t fi;
+              if (flen > 127) flen = 127;
+              memset(fname, 0, sizeof(fname));
+              for (fi = 0; fi < flen && fstart + (size_t)fi < source->length; fi++)
+                fname[fi] = source->data[fstart + fi];
               parser_lex_from_next_into_glue(&lex, r);
+              lexer_next_into(&r, lex, source);
+              if (r.tok.kind == (int32_t)TOKEN_COLON) {
+                /* `field: lit_val` — literal comparison */
+                int32_t fval;
+                int32_t fref, lit_ref, eq_ref;
+                struct ast_Expr fe, le, ee;
+                parser_lex_from_next_into_glue(&lex, r);
+                lexer_next_into(&r, lex, source);
+                if (r.tok.kind != (int32_t)TOKEN_INT)
+                  return;
+                fval = r.tok.int_val;
+                parser_lex_from_next_into_glue(&lex, r);
+                lexer_next_into(&r, lex, source); /* wave708: get next token (, or }) */
+                /* construct FIELD_ACCESS: subject.field */
+                fref = ast_ast_arena_expr_alloc(arena);
+                if (fref == 0) return;
+                fe = ast_ast_arena_expr_get(arena, fref);
+                memset(&fe, 0, sizeof(fe));
+                fe.kind = 44; /* EXPR_FIELD_ACCESS */
+                fe.field_access_base_ref = matched_res.expr_ref;
+                memcpy(fe.field_access_field_name, fname, (size_t)flen);
+                fe.field_access_field_len = flen;
+                ast_ast_arena_expr_set(arena, fref, fe);
+                /* construct INT_LIT: val */
+                lit_ref = ast_ast_arena_expr_alloc(arena);
+                if (lit_ref == 0) return;
+                le = ast_ast_arena_expr_get(arena, lit_ref);
+                memset(&le, 0, sizeof(le));
+                le.kind = 0; /* EXPR_LIT */
+                le.int_val = (int64_t)fval;
+                ast_ast_arena_expr_set(arena, lit_ref, le);
+                /* construct EQ: field == val */
+                eq_ref = ast_ast_arena_expr_alloc(arena);
+                if (eq_ref == 0) return;
+                ee = ast_ast_arena_expr_get(arena, eq_ref);
+                memset(&ee, 0, sizeof(ee));
+                ee.kind = 14; /* EXPR_EQ */
+                ee.binop_left_ref = fref;
+                ee.binop_right_ref = lit_ref;
+                ast_ast_arena_expr_set(arena, eq_ref, ee);
+                /* chain with LOGAND */
+                if (field_guard == 0) {
+                  field_guard = eq_ref;
+                } else {
+                  int32_t and_ref = ast_ast_arena_expr_alloc(arena);
+                  struct ast_Expr ae;
+                  if (and_ref == 0) return;
+                  ae = ast_ast_arena_expr_get(arena, and_ref);
+                  memset(&ae, 0, sizeof(ae));
+                  ae.kind = 20; /* EXPR_LOGAND */
+                  ae.binop_left_ref = field_guard;
+                  ae.binop_right_ref = eq_ref;
+                  ast_ast_arena_expr_set(arena, and_ref, ae);
+                  field_guard = and_ref;
+                }
+              }
+              /* `field` bind mode — skip (wave707 field bind handles) */
+              /* skip comma */
+              if (r.tok.kind == (int32_t)TOKEN_COMMA) {
+                parser_lex_from_next_into_glue(&lex, r);
+                lexer_next_into(&r, lex, source);
+              }
+            } else {
+              return;
+            }
           }
           /* consume closing RBRACE */
-          parser_lex_from_next_into_glue(&lex, r);
+          if (r.tok.kind == (int32_t)TOKEN_RBRACE)
+            parser_lex_from_next_into_glue(&lex, r);
           is_wc = 1;
+          pat_guard_ref[pat_n] = field_guard;
         } else if (r.tok.kind == (int32_t)TOKEN_DOT) {
           parser_lex_from_next_into_glue(&lex, r);
           lexer_next_into(&r, lex, source);
@@ -1226,6 +1300,9 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
                                             pat_lit_v[pat_i], pat_is_ev[pat_i], pat_var_idx[pat_i]);
       if (arm_i < 0)
         return;
+      /* wave708: set implicit guard for struct field lit patterns */
+      if (pat_guard_ref[pat_i] > 0)
+        pipeline_expr_match_arm_set_guard_ref(arena, mref, arm_i, pat_guard_ref[pat_i]);
     }
   }
   out->ok = 1;

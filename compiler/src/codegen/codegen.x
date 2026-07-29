@@ -9107,6 +9107,9 @@ function codegen_emit_match_as_stmt(arena: *ASTArena, out: *CodegenOutBuf, expr_
     let if1: u8[8] = [105, 102, 32, 40, 49, 41, 32, 0];
     let cmp_val: i32 = 0;
     let res: i32 = 0;
+    /* wave708: guard support in stmt path (struct field lit patterns). */
+    let guard_ref: i32 = 0;
+    let and_and: u8[3] = [38, 38, 0];
     let prev_mod: *Module = pipeline_codegen_match_mod_c();
     let prev_mref: i32 = pipeline_codegen_match_matched_ref_c();
     let prev_ty: i32 = pipeline_codegen_match_subject_ty_c();
@@ -9118,7 +9121,9 @@ function codegen_emit_match_as_stmt(arena: *ASTArena, out: *CodegenOutBuf, expr_
       codegen_match_push_subject(cur_mod, matched, arena);
     }
     while (i < n) {
-      if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, i) != 0) {
+      guard_ref = pipeline_expr_match_arm_guard_ref(arena, expr_ref, i);
+      if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, i) != 0
+      && (ast.ref_is_null(guard_ref) || guard_ref <= 0)) {
         wild_i = i;
       } else {
         if (emit_indent(out, indent) != 0) {
@@ -9136,19 +9141,41 @@ function codegen_emit_match_as_stmt(arena: *ASTArena, out: *CodegenOutBuf, expr_
         if (append_byte(out, 40) != 0) {
           return -1;
         }
-        if (ast.ref_is_null(matched) || emit_expr(arena, out, matched, ctx) != 0) {
-          return -1;
-        }
-        if (emit_bytes_2(out, eq, 2) != 0) {
-          return -1;
-        }
-        if (pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, i) != 0) {
-          cmp_val = pipeline_expr_match_arm_variant_index(arena, expr_ref, i);
+        if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, i) != 0) {
+          /* wave708: wildcard + guard — condition is the guard expression. */
+          if (emit_expr(arena, out, guard_ref, ctx) != 0) {
+            return -1;
+          }
         } else {
-          cmp_val = pipeline_expr_match_arm_lit_val(arena, expr_ref, i);
-        }
-        if (format_int(out, cmp_val as i64) != 0) {
-          return -1;
+          if (ast.ref_is_null(matched) || emit_expr(arena, out, matched, ctx) != 0) {
+            return -1;
+          }
+          if (emit_bytes_2(out, eq, 2) != 0) {
+            return -1;
+          }
+          if (pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, i) != 0) {
+            cmp_val = pipeline_expr_match_arm_variant_index(arena, expr_ref, i);
+          } else {
+            cmp_val = pipeline_expr_match_arm_lit_val(arena, expr_ref, i);
+          }
+          if (format_int(out, cmp_val as i64) != 0) {
+            return -1;
+          }
+          /* wave708: non-wildcard + guard — append `&& (guard_expr)`. */
+          if (!ast.ref_is_null(guard_ref) && guard_ref > 0) {
+            if (emit_bytes_2(out, and_and, 2) != 0) {
+              return -1;
+            }
+            if (append_byte(out, 40) != 0) {
+              return -1;
+            }
+            if (emit_expr(arena, out, guard_ref, ctx) != 0) {
+              return -1;
+            }
+            if (append_byte(out, 41) != 0) {
+              return -1;
+            }
+          }
         }
         if (emit_bytes_from_ptr(out, &open_br[0], 3) != 0) {
           return -1;

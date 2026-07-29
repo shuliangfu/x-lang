@@ -8561,6 +8561,7 @@ static int32_t codegen_emit_match_as_stmt(struct ast_ASTArena *arena, struct cod
   int32_t wild_i;
   int32_t cmp_val;
   int32_t res;
+  int32_t guard_ref; /* wave708: struct field lit pattern guard */
   uint8_t eq[3] = {61, 61, 0};
   uint8_t if_kw[4] = {105, 102, 32, 0};
   uint8_t else_if[11] = {125, 32, 101, 108, 115, 101, 32, 105, 102, 32, 0};
@@ -8568,13 +8569,17 @@ static int32_t codegen_emit_match_as_stmt(struct ast_ASTArena *arena, struct cod
   uint8_t open_br[4] = {41, 32, 123, 0};
   uint8_t close_br[3] = {125, 10, 0};
   uint8_t if1[8] = {105, 102, 32, 40, 49, 41, 32, 0};
+  uint8_t and_and[3] = {38, 38, 0}; /* wave708: `&&` for guard chain */
+  extern int32_t pipeline_expr_match_arm_guard_ref(struct ast_ASTArena *a, int32_t er, int32_t i);
   e = ast_ast_arena_expr_get(arena, expr_ref);
   n = e.match_num_arms;
   matched = e.match_matched_ref;
   opened = 0;
   wild_i = -1;
   for (i = 0; i < n; i++) {
-    if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, i) != 0) {
+    guard_ref = pipeline_expr_match_arm_guard_ref(arena, expr_ref, i);
+    if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, i) != 0
+        && (ast_ref_is_null(guard_ref) || guard_ref <= 0)) {
       wild_i = i;
       continue;
     }
@@ -8589,16 +8594,33 @@ static int32_t codegen_emit_match_as_stmt(struct ast_ASTArena *arena, struct cod
     }
     if (codegen_append_byte(out, 40) != 0)
       return -1;
-    if (ast_ref_is_null(matched) || codegen_emit_expr(arena, out, matched, ctx) != 0)
-      return -1;
-    if (codegen_emit_bytes_2(out, eq, 2) != 0)
-      return -1;
-    if (pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, i) != 0)
-      cmp_val = pipeline_expr_match_arm_variant_index(arena, expr_ref, i);
-    else
-      cmp_val = pipeline_expr_match_arm_lit_val(arena, expr_ref, i);
-    if (codegen_format_int(out, (int64_t)cmp_val) != 0)
-      return -1;
+    if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, i) != 0) {
+      /* wave708: wildcard + guard — condition is the guard expression. */
+      if (codegen_emit_expr(arena, out, guard_ref, ctx) != 0)
+        return -1;
+    } else {
+      if (ast_ref_is_null(matched) || codegen_emit_expr(arena, out, matched, ctx) != 0)
+        return -1;
+      if (codegen_emit_bytes_2(out, eq, 2) != 0)
+        return -1;
+      if (pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, i) != 0)
+        cmp_val = pipeline_expr_match_arm_variant_index(arena, expr_ref, i);
+      else
+        cmp_val = pipeline_expr_match_arm_lit_val(arena, expr_ref, i);
+      if (codegen_format_int(out, (int64_t)cmp_val) != 0)
+        return -1;
+      /* wave708: non-wildcard + guard — append `&& (guard_expr)`. */
+      if (!(ast_ref_is_null(guard_ref)) && guard_ref > 0) {
+        if (codegen_emit_bytes_2(out, and_and, 2) != 0)
+          return -1;
+        if (codegen_append_byte(out, 40) != 0)
+          return -1;
+        if (codegen_emit_expr(arena, out, guard_ref, ctx) != 0)
+          return -1;
+        if (codegen_append_byte(out, 41) != 0)
+          return -1;
+      }
+    }
     if (codegen_emit_bytes_from_ptr(out, &open_br[0], 3) != 0)
       return -1;
     if (codegen_append_byte(out, 10) != 0)
