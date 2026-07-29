@@ -7,8 +7,9 @@
 #   Distinct from product `./xbuild all` (g05 relink via build_tool).
 #
 #   Residual after this wave (honest):
-#     - Leaf .o builds and host-cc link still use the Makefile graph (B7)
-#     - Physical delete of compiler/Makefile still blocked (Windows gate + B7)
+#     - Leaf .o builds still use the Makefile graph (B7A/B7B)
+#     - wave786 B7D: default `make xlang` → g05_prepare_and_relink (product link)
+#     - Physical delete of compiler/Makefile still blocked (Windows gate + B7A/B)
 #   This wave is NOT physical delete and does NOT re-list .o paths.
 #
 # Entry points (single body):
@@ -137,10 +138,10 @@ if [ "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" = "1" ]; then
   note "XLANG_RUN_ALL_BOOTSTRAP_XLANG=1 → bootstrap-driver-seed"
   mk bootstrap-driver-seed
 else
-  # Default CI host-cc path: produce xlang + xlang-c with OPT (historical OPT=1).
-  # Leaf .o + link recipes remain Makefile residual (B7).
-  note "host-cc CI → OPT=${OPT:-} $TARGET $XLANG_C (B7 leaf graph still make)"
-  # Pass OPT on the make command line so Makefile ifeq ($(OPT),1) CFLAGS+=-O2 applies.
+  # Default CI path: product `xlang` via g05 (wave786 B7D) + xlang-c seed copy.
+  # Leaf .o graph for other targets remains Makefile residual (B7A/B7B).
+  # OPT still forwarded for any host-cc leaf recipes that honor Makefile OPT=1.
+  note "CI → OPT=${OPT:-} $TARGET (g05 product link · wave786 B7D) + $XLANG_C"
   if [ -n "${OPT}" ]; then
     mk OPT="$OPT" "$TARGET" "$XLANG_C"
   else
@@ -148,4 +149,4 @@ else
   fi
 fi
 
-note "done (xlang host-cc CI path; not product g05)"
+note "done (xlang product g05 link · xlang-c seed; B7A/B residual)"

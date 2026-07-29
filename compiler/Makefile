@@ -646,8 +646,20 @@ all:
 
 std-objs: $(STD_AND_PANIC_O)
 
+# wave786 B7D: host-cc product `xlang` link = g05 authority (G.7 有则补全).
+# Before: $(TARGET): $(OBJS) with OBJS_CORE only → UNDEF (parser/typeck/pipeline missing).
+# Product list + pure-ld live in g05_relink_env / g05_relink_xlang; do NOT re-list .o here.
+# PLATFORM: SHARED — same g05 path on mac/Ubuntu/Windows host (Windows LEGACY env still via g05).
+# Escape (archaeology only): XLANG_HOST_CC_OBJS_CORE=1 restores incomplete OBJS_CORE link
+# (expect UNDEF residual; not product). Cold tree without product .o: run bootstrap-driver-seed first.
+ifeq ($(XLANG_HOST_CC_OBJS_CORE),1)
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $^ $(WIN_LDFLAGS)
+else
+.PHONY: $(TARGET)
+$(TARGET):
+	@bash scripts/g05_prepare_and_relink.sh
+endif
 
 # G-06：默认 xlang-c = bootstrap_xlangc 预编译种子（无 cc 编 OBJS_CORE）；考古：XLANG_LEGACY_C_FRONTEND=1。
 bootstrap_xlangc: scripts/bootstrap_xlangc_create.sh scripts/select_bootstrap_xlangc.sh
