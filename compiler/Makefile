@@ -1149,32 +1149,22 @@ runtime_asm_io_stubs.o: seeds/runtime_asm_io_stubs.from_x.c src/asm/runtime_asm_
 # F-ZC：std.test fn-ptr invoke；与 test.o 一并链入（G-02e-16：.inc + cc_inc_tu）
 # G-02f-21：runtime_test_fn_invoke 产品 seed
 # wave518 R2 migration: thin (.x) + rest (.from_x.c) thin+rest mode
-runtime_test_fn_invoke.o: seeds/runtime_test_fn_invoke.from_x.c src/asm/runtime_test_fn_invoke.x
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_test_fn_invoke.x ]; then \
-	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o runtime_test_fn_invoke.thin.o src/asm/runtime_test_fn_invoke.x && \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_TEST_FN_INVOKE_FROM_X=1 -c seeds/runtime_test_fn_invoke.from_x.c -o runtime_test_fn_invoke.rest.o && \
-	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ runtime_test_fn_invoke.thin.o runtime_test_fn_invoke.rest.o && \
-	  rm -f runtime_test_fn_invoke.thin.o runtime_test_fn_invoke.rest.o; \
-	else \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_test_fn_invoke.from_x.c -o $@; \
-	fi
+# wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
+# PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
+runtime_test_fn_invoke.o: seeds/runtime_test_fn_invoke.from_x.c src/asm/runtime_test_fn_invoke.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
 
 # F-ZC：CSPRNG OS fill；与 random.o 一并链入（G-02e-17：.inc + cc_inc_tu）
 # G-02f-20：runtime_random_fill 产品 seed
 # G-02f-20：runtime_random_fill 产品 seed；wave514 R2 thin+rest pattern
-runtime_random_fill.o: seeds/runtime_random_fill.from_x.c src/asm/runtime_random_fill.x
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_random_fill.x ]; then \
-		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/random.XXXXXX") && \
-		./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_random_fill.x > "$$_tmp" 2>/dev/null && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o runtime_random_fill_thin.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_RANDOM_FILL_FROM_X -c seeds/runtime_random_fill.from_x.c -o runtime_random_fill_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) runtime_random_fill_thin.o runtime_random_fill_rest.o -o $@ && \
-		rm -f "$$_tmp" runtime_random_fill_thin.o runtime_random_fill_rest.o && \
-		echo "phase4: $@ <- runtime_random_fill.x + seed-rest (PREFER_X_O R2)"; \
-	else \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_random_fill.from_x.c -o $@ && \
-		echo "phase4: $@ <- seeds/runtime_random_fill.from_x.c (cold start seed)"; \
-	fi
+# wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
+# PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
+runtime_random_fill.o: seeds/runtime_random_fill.from_x.c src/asm/runtime_random_fill.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
 
 # zlib 宏包装桩；与 compress 同链（G-02e-17：.inc + cc_inc_tu）
 # G-02f-21：runtime_compress_zlib_glue 产品 seed
@@ -1183,69 +1173,45 @@ runtime_random_fill.o: seeds/runtime_random_fill.from_x.c src/asm/runtime_random
 #     libz.x extern declarations)
 #   - rest (.from_x.c): _impl_c bridges that #include <zlib.h> and call real
 #     deflateInit2_/inflateInit2_ with ZLIB_VERSION and sizeof(z_stream)
-runtime_compress_zlib_glue.o: seeds/runtime_compress_zlib_glue.from_x.c src/asm/runtime_compress_zlib_glue.x
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_compress_zlib_glue.x ]; then \
-	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o runtime_compress_zlib_glue.thin.o src/asm/runtime_compress_zlib_glue.x && \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_COMPRESS_ZLIB_GLUE_FROM_X=1 -c seeds/runtime_compress_zlib_glue.from_x.c -o runtime_compress_zlib_glue.rest.o && \
-	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ runtime_compress_zlib_glue.thin.o runtime_compress_zlib_glue.rest.o && \
-	  rm -f runtime_compress_zlib_glue.thin.o runtime_compress_zlib_glue.rest.o; \
-	else \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_compress_zlib_glue.from_x.c -o $@; \
-	fi
+# wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
+# PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
+runtime_compress_zlib_glue.o: seeds/runtime_compress_zlib_glue.from_x.c src/asm/runtime_compress_zlib_glue.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
 
 # F-ZC：time OS syscall；与 time.o 一并链入（G-02e-18：.inc + cc_inc_tu）
 # G-02f-19：runtime_time_os 产品 seed
 # wave501 R2 migration: PREFER_X_O=1 时 .x → thin.o + seed-rest → ld -r；
 # 否则冷启动 seed C（完整实现含 public API）。
-runtime_time_os.o: seeds/runtime_time_os.from_x.c src/asm/runtime_time_os.x
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_time_os.x ]; then \
-		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/rtos.XXXXXX") && \
-		./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_time_os.x > "$$_tmp" 2>/dev/null && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o runtime_time_os_thin.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_TIME_OS_FROM_X -c seeds/runtime_time_os.from_x.c -o runtime_time_os_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) runtime_time_os_thin.o runtime_time_os_rest.o -o $@ && \
-		rm -f "$$_tmp" runtime_time_os_thin.o runtime_time_os_rest.o && \
-		echo "phase4: $@ <- runtime_time_os.x + seed-rest (PREFER_X_O R2)"; \
-	else \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_time_os.from_x.c -o $@ && \
-		echo "phase4: $@ <- seeds/runtime_time_os.from_x.c (cold start seed)"; \
-	fi
+# wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
+# PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
+runtime_time_os.o: seeds/runtime_time_os.from_x.c src/asm/runtime_time_os.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
 
 # F-ZC：queue 竞争烟测 pthread；与 queue.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 # G-02f-21：runtime_queue_contention 产品 seed
 # wave512 R2 migration: PREFER_X_O=1 时 .x → thin.o + seed-rest → ld -r；
 # 否则冷启动 seed C（完整实现含 public API）。
-runtime_queue_contention.o: seeds/runtime_queue_contention.from_x.c src/asm/runtime_queue_contention.x
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_queue_contention.x ]; then \
-		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/queue.XXXXXX") && \
-		./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_queue_contention.x > "$$_tmp" 2>/dev/null && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o runtime_queue_contention_thin.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_QUEUE_CONTENTION_FROM_X -c seeds/runtime_queue_contention.from_x.c -o runtime_queue_contention_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) runtime_queue_contention_thin.o runtime_queue_contention_rest.o -o $@ && \
-		rm -f "$$_tmp" runtime_queue_contention_thin.o runtime_queue_contention_rest.o && \
-		echo "phase4: $@ <- runtime_queue_contention.x + seed-rest (PREFER_X_O R2)"; \
-	else \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_queue_contention.from_x.c -o $@ && \
-		echo "phase4: $@ <- seeds/runtime_queue_contention.from_x.c (cold start seed)"; \
-	fi
+# wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
+# PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
+runtime_queue_contention.o: seeds/runtime_queue_contention.from_x.c src/asm/runtime_queue_contention.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
 
 # F-ZC：dynlib dlopen/LoadLibrary；与 dynlib.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 # G-02f-20：runtime_dynlib_os 产品 seed
 # wave502 R2 migration: PREFER_X_O=1 时 .x → thin.o + seed-rest → ld -r；
 # 否则冷启动 seed C（完整实现含 public API）。
-runtime_dynlib_os.o: seeds/runtime_dynlib_os.from_x.c src/asm/runtime_dynlib_os.x
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_dynlib_os.x ]; then \
-		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/dyntest.XXXXXX") && \
-		./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_dynlib_os.x > "$$_tmp" 2>/dev/null && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o runtime_dynlib_os_thin.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_DYNLIB_OS_FROM_X -c seeds/runtime_dynlib_os.from_x.c -o runtime_dynlib_os_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) runtime_dynlib_os_thin.o runtime_dynlib_os_rest.o -o $@ && \
-		rm -f "$$_tmp" runtime_dynlib_os_thin.o runtime_dynlib_os_rest.o && \
-		echo "phase4: $@ <- runtime_dynlib_os.x + seed-rest (PREFER_X_O R2)"; \
-	else \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_dynlib_os.from_x.c -o $@ && \
-		echo "phase4: $@ <- seeds/runtime_dynlib_os.from_x.c (cold start seed)"; \
-	fi
+# wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
+# PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
+runtime_dynlib_os.o: seeds/runtime_dynlib_os.from_x.c src/asm/runtime_dynlib_os.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
 
 # wave253 G.7: sole user-domain residual face body (weak link_abi_getenv twin).
 # Never g05 host bag; STD_AND_PANIC / product -o companion of PRIMARY_PANIC.
@@ -1256,83 +1222,48 @@ runtime_link_abi_user_env.o: seeds/runtime_link_abi_user_env.from_x.c include/xl
 
 # F-ZC：env OS getenv/setenv/iter；与 env.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 # G-02f-19：runtime_env_os 产品 seed
-runtime_env_os.o: seeds/runtime_env_os.from_x.c src/asm/runtime_env_os.x
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_env_os.x ]; then \
-		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/reos.XXXXXX") && \
-		./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_env_os.x > "$$_tmp" 2>/dev/null && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o runtime_env_os_thin.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_ENV_OS_FROM_X -c seeds/runtime_env_os.from_x.c -o runtime_env_os_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) runtime_env_os_thin.o runtime_env_os_rest.o -o $@ && \
-		rm -f "$$_tmp" runtime_env_os_thin.o runtime_env_os_rest.o && \
-		echo "phase4: $@ <- runtime_env_os.x + seed-rest (PREFER_X_O R2)"; \
-	else \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_env_os.from_x.c -o $@ && \
-		echo "phase4: $@ <- seeds/runtime_env_os.from_x.c (cold start seed)"; \
-	fi
+# wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
+# PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
+runtime_env_os.o: seeds/runtime_env_os.from_x.c src/asm/runtime_env_os.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
 
 # F-ZC：backtrace capture/symbolicate/crash evidence；与 backtrace.o 一并链入（G-02e-20）
 # G-02f-19：runtime_backtrace_platform 产品 seed；wave506 R2 full mode
-runtime_backtrace_platform.o: seeds/runtime_backtrace_platform.from_x.c src/asm/runtime_backtrace_platform.x
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_backtrace_platform.x ]; then \
-		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/rbtp.XXXXXX") && \
-		./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_backtrace_platform.x > "$$_tmp" 2>/dev/null && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o runtime_backtrace_platform_thin.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X -c seeds/runtime_backtrace_platform.from_x.c -o runtime_backtrace_platform_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) runtime_backtrace_platform_thin.o runtime_backtrace_platform_rest.o -o $@ && \
-		rm -f "$$_tmp" runtime_backtrace_platform_thin.o runtime_backtrace_platform_rest.o && \
-		echo "phase4: $@ <- runtime_backtrace_platform.x + seed-rest (PREFER_X_O R2)"; \
-	else \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_backtrace_platform.from_x.c -o $@ && \
-		echo "phase4: $@ <- seeds/runtime_backtrace_platform.from_x.c (cold start seed)"; \
-	fi
+# wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
+# PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
+runtime_backtrace_platform.o: seeds/runtime_backtrace_platform.from_x.c src/asm/runtime_backtrace_platform.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
 
 # F-ZC：log sink/轮转/异步；与 log.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 # G-02f-19：runtime_log_os 产品 seed；wave505 R2 full mode
-runtime_log_os.o: seeds/runtime_log_os.from_x.c src/asm/runtime_log_os.x
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_log_os.x ]; then \
-		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/rlog.XXXXXX") && \
-		./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_log_os.x > "$$_tmp" 2>/dev/null && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o runtime_log_os_thin.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_LOG_OS_FROM_X -c seeds/runtime_log_os.from_x.c -o runtime_log_os_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) runtime_log_os_thin.o runtime_log_os_rest.o -o $@ && \
-		rm -f "$$_tmp" runtime_log_os_thin.o runtime_log_os_rest.o && \
-		echo "phase4: $@ <- runtime_log_os.x + seed-rest (PREFER_X_O R2)"; \
-	else \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_log_os.from_x.c -o $@ && \
-		echo "phase4: $@ <- seeds/runtime_log_os.from_x.c (cold start seed)"; \
-	fi
+# wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
+# PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
+runtime_log_os.o: seeds/runtime_log_os.from_x.c src/asm/runtime_log_os.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
 
 # F-ZC：math libm/fenv；与 math.o 一并链入（须 -lm；G-02e-19：.inc + cc_inc_tu）
 # G-02f-19：runtime_math_libm 产品 seed；wave511 R2 full mode
-runtime_math_libm.o: seeds/runtime_math_libm.from_x.c src/asm/runtime_math_libm.x
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_math_libm.x ]; then \
-		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/rmath.XXXXXX") && \
-		./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_math_libm.x > "$$_tmp" 2>/dev/null && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o runtime_math_libm_thin.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_MATH_LIBM_FROM_X -c seeds/runtime_math_libm.from_x.c -o runtime_math_libm_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) runtime_math_libm_thin.o runtime_math_libm_rest.o -o $@ && \
-		rm -f "$$_tmp" runtime_math_libm_thin.o runtime_math_libm_rest.o && \
-		echo "phase4: $@ <- runtime_math_libm.x + seed-rest (PREFER_X_O R2)"; \
-	else \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_math_libm.from_x.c -o $@ && \
-		echo "phase4: $@ <- seeds/runtime_math_libm.from_x.c (cold start seed)"; \
-	fi
+# wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
+# PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
+runtime_math_libm.o: seeds/runtime_math_libm.from_x.c src/asm/runtime_math_libm.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
 
 # F-ZC：atomic load/store/CAS/fence；与 atomic.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 # G-02f-19：runtime_atomic_glue 产品 seed；wave508 R2 full mode
-runtime_atomic_glue.o: seeds/runtime_atomic_glue.from_x.c src/asm/runtime_atomic_glue.x
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_atomic_glue.x ]; then \
-		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/ratomic.XXXXXX") && \
-		./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_atomic_glue.x > "$$_tmp" 2>/dev/null && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o runtime_atomic_glue_thin.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_ATOMIC_GLUE_FROM_X -c seeds/runtime_atomic_glue.from_x.c -o runtime_atomic_glue_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) runtime_atomic_glue_thin.o runtime_atomic_glue_rest.o -o $@ && \
-		rm -f "$$_tmp" runtime_atomic_glue_thin.o runtime_atomic_glue_rest.o && \
-		echo "phase4: $@ <- runtime_atomic_glue.x + seed-rest (PREFER_X_O R2)"; \
-	else \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_atomic_glue.from_x.c -o $@ && \
-		echo "phase4: $@ <- seeds/runtime_atomic_glue.from_x.c (cold start seed)"; \
-	fi
+# wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
+# PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
+runtime_atomic_glue.o: seeds/runtime_atomic_glue.from_x.c src/asm/runtime_atomic_glue.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
 
 # F-ZC：channel 有界/无界/select；与 channel.o 一并链入（G-02e-20：.inc + cc_inc_tu）
 # G-02f-18：runtime_channel_glue 产品 seed
@@ -1349,44 +1280,31 @@ runtime_channel_glue.o: seeds/runtime_channel_glue.from_x.c src/asm/runtime_chan
 #   - rest (.from_x.c): _impl (sockaddr/poll) + 4 recvmmsg/sendmmsg weak APIs;
 #     whole TU guarded by #if __linux__ && __GLIBC__ → macOS cold = empty .o
 #   - PLATFORM: LINUX — R2 path gated on UNAME_S=Linux; macOS stays cold (empty)
-runtime_net_udp_batch.o: seeds/runtime_net_udp_batch.from_x.c src/asm/runtime_net_udp_batch.x
-	@if [ "$(UNAME_S)" = "Linux" ] && [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_net_udp_batch.x ]; then \
-	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o runtime_net_udp_batch.thin.o src/asm/runtime_net_udp_batch.x && \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_NET_UDP_BATCH_FROM_X=1 -c seeds/runtime_net_udp_batch.from_x.c -o runtime_net_udp_batch.rest.o && \
-	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ runtime_net_udp_batch.thin.o runtime_net_udp_batch.rest.o && \
-	  rm -f runtime_net_udp_batch.thin.o runtime_net_udp_batch.rest.o; \
-	else \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_udp_batch.from_x.c -o $@; \
-	fi
+# wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
+# PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
+runtime_net_udp_batch.o: seeds/runtime_net_udp_batch.from_x.c src/asm/runtime_net_udp_batch.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
 
 # F-ZC：net accept worker 线程入口；与 net.o 一并链入（G-02e-18：.inc + cc_inc_tu）
 # G-02f-20：runtime_net_workers 产品 seed
 # wave517 R2 migration: thin (.x) + rest (.from_x.c) thin+rest mode
-runtime_net_workers.o: seeds/runtime_net_workers.from_x.c src/asm/runtime_net_workers.x
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_net_workers.x ]; then \
-	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o runtime_net_workers.thin.o src/asm/runtime_net_workers.x && \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_NET_WORKERS_FROM_X=1 -c seeds/runtime_net_workers.from_x.c -o runtime_net_workers.rest.o && \
-	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ runtime_net_workers.thin.o runtime_net_workers.rest.o && \
-	  rm -f runtime_net_workers.thin.o runtime_net_workers.rest.o; \
-	else \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_workers.from_x.c -o $@; \
-	fi
+# wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
+# PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
+runtime_net_workers.o: seeds/runtime_net_workers.from_x.c src/asm/runtime_net_workers.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
 
 # F-ZC：sync Mutex/RwLock/Condvar + 锁诊断 TLS；与 sync.o 一并链入（G-02e-20）
 # G-02f-19：runtime_sync_os 产品 seed；wave504 R2 full mode
-runtime_sync_os.o: seeds/runtime_sync_os.from_x.c src/asm/runtime_sync_os.x
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_sync_os.x ]; then \
-		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/rsync.XXXXXX") && \
-		./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_sync_os.x > "$$_tmp" 2>/dev/null && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o runtime_sync_os_thin.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_SYNC_OS_FROM_X -c seeds/runtime_sync_os.from_x.c -o runtime_sync_os_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) runtime_sync_os_thin.o runtime_sync_os_rest.o -o $@ && \
-		rm -f "$$_tmp" runtime_sync_os_thin.o runtime_sync_os_rest.o && \
-		echo "phase4: $@ <- runtime_sync_os.x + seed-rest (PREFER_X_O R2)"; \
-	else \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_sync_os.from_x.c -o $@ && \
-		echo "phase4: $@ <- seeds/runtime_sync_os.from_x.c (cold start seed)"; \
-	fi
+# wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
+# PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
+runtime_sync_os.o: seeds/runtime_sync_os.from_x.c src/asm/runtime_sync_os.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
 
 # G-02f-19：runtime_sync_lock_diag_tls 产品 seed；wave538 R2 thin+rest pattern
 #   - thin (.x): 5 #[no_mangle] (find_meta_idx/get_order/append_byte/append_lit/append_i32)
@@ -1394,31 +1312,21 @@ runtime_sync_os.o: seeds/runtime_sync_os.from_x.c src/asm/runtime_sync_os.x
 #   - rest (.from_x.c): _impl (find_meta_idx/get_order) + static state; guarded by
 #     XLANG_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X
 #   PLATFORM: SHARED — pure C + __thread (POSIX) / __declspec(thread) (MSVC)
-runtime_sync_lock_diag_tls.o: seeds/runtime_sync_lock_diag_tls.from_x.c src/asm/runtime_sync_lock_diag_tls.x
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_sync_lock_diag_tls.x ]; then \
-		XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o runtime_sync_lock_diag_tls.thin.o src/asm/runtime_sync_lock_diag_tls.x && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X=1 -c seeds/runtime_sync_lock_diag_tls.from_x.c -o runtime_sync_lock_diag_tls.rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ runtime_sync_lock_diag_tls.thin.o runtime_sync_lock_diag_tls.rest.o && \
-		rm -f runtime_sync_lock_diag_tls.thin.o runtime_sync_lock_diag_tls.rest.o; \
-	else \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_sync_lock_diag_tls.from_x.c -o $@; \
-	fi
+# wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
+# PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
+runtime_sync_lock_diag_tls.o: seeds/runtime_sync_lock_diag_tls.from_x.c src/asm/runtime_sync_lock_diag_tls.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
 
 # F-ZC：thread pthread/CreateThread；与 thread.o 一并链入（G-02e-20）
 # G-02f-18：runtime_thread_glue 产品 seed；wave513 R2 thin+rest pattern
-runtime_thread_glue.o: seeds/runtime_thread_glue.from_x.c src/asm/runtime_thread_glue.x
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_thread_glue.x ]; then \
-		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/thread.XXXXXX") && \
-		./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_thread_glue.x > "$$_tmp" 2>/dev/null && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o runtime_thread_glue_thin.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_THREAD_GLUE_FROM_X -c seeds/runtime_thread_glue.from_x.c -o runtime_thread_glue_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) runtime_thread_glue_thin.o runtime_thread_glue_rest.o -o $@ && \
-		rm -f "$$_tmp" runtime_thread_glue_thin.o runtime_thread_glue_rest.o && \
-		echo "phase4: $@ <- runtime_thread_glue.x + seed-rest (PREFER_X_O R2)"; \
-	else \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_thread_glue.from_x.c -o $@ && \
-		echo "phase4: $@ <- seeds/runtime_thread_glue.from_x.c (cold start seed)"; \
-	fi
+# wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
+# PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
+runtime_thread_glue.o: seeds/runtime_thread_glue.from_x.c src/asm/runtime_thread_glue.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
 
 # F-ZC：async 协作调度 + async_net_fs；与 scheduler.o 一并链入（按需 -pthread）
 # G-02f-18：runtime_scheduler_glue 产品 seed（#include async_net_fs.from_x.c）
@@ -1430,15 +1338,12 @@ runtime_scheduler_glue.o: seeds/runtime_scheduler_glue.from_x.c src/asm/runtime_
 
 # F-ZC：HTTP 客户端/服务端胶层（含 http2/*.inc.c）；与 http.o 一并链入（G-02e-21）
 # G-02f-21：runtime_http_glue 产品 seed（#include http2/*.inc）；thin 在 src/asm/http/
-runtime_http_glue.o: seeds/runtime_http_glue.from_x.c src/asm/http/runtime_http_glue.x
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/http/runtime_http_glue.x ]; then \
-	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o runtime_http_glue.thin.o src/asm/http/runtime_http_glue.x && \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -Iseeds/http -DXLANG_RUNTIME_HTTP_GLUE_FROM_X=1 -c seeds/runtime_http_glue.from_x.c -o runtime_http_glue.rest.o && \
-	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ runtime_http_glue.thin.o runtime_http_glue.rest.o && \
-	  rm -f runtime_http_glue.thin.o runtime_http_glue.rest.o; \
-	else \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -Iseeds/http -c seeds/runtime_http_glue.from_x.c -o $@; \
-	fi
+# wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
+# PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
+runtime_http_glue.o: seeds/runtime_http_glue.from_x.c src/asm/http/runtime_http_glue.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
 
 # F-ZC：mbedTLS BIO 胶层；net-o-mbedtls 时 ld -r 并入 tls_mbedtls.o（G-02e-18 .inc）
 # G-02f-21：runtime_tls_mbedtls_bio 产品 seed
@@ -1448,17 +1353,12 @@ runtime_http_glue.o: seeds/runtime_http_glue.from_x.c src/asm/http/runtime_http_
 #   - rest (.from_x.c): _impl (send/recv syscalls + errno→mbedTLS mapping) +
 #     xlang_mbedtls_ssl_bind_fd_c (always compiled, takes fn address of thin
 #     wrappers via forward declaration); needs mbedtls/ssl.h include
-runtime_tls_mbedtls_bio.o: seeds/runtime_tls_mbedtls_bio.from_x.c src/asm/runtime_tls_mbedtls_bio.x
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_tls_mbedtls_bio.x ]; then \
-	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o runtime_tls_mbedtls_bio.thin.o src/asm/runtime_tls_mbedtls_bio.x && \
-	  { $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -I/opt/homebrew/opt/mbedtls/include -DXLANG_RUNTIME_TLS_MBEDTLS_BIO_FROM_X=1 -c seeds/runtime_tls_mbedtls_bio.from_x.c -o runtime_tls_mbedtls_bio.rest.o 2>/dev/null \
-	    || $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_TLS_MBEDTLS_BIO_FROM_X=1 -c seeds/runtime_tls_mbedtls_bio.from_x.c -o runtime_tls_mbedtls_bio.rest.o; } && \
-	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ runtime_tls_mbedtls_bio.thin.o runtime_tls_mbedtls_bio.rest.o && \
-	  rm -f runtime_tls_mbedtls_bio.thin.o runtime_tls_mbedtls_bio.rest.o; \
-	else \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -I/opt/homebrew/opt/mbedtls/include -c seeds/runtime_tls_mbedtls_bio.from_x.c -o $@ 2>/dev/null \
-	    || $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_tls_mbedtls_bio.from_x.c -o $@; \
-	fi
+# wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
+# PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
+runtime_tls_mbedtls_bio.o: seeds/runtime_tls_mbedtls_bio.from_x.c src/asm/runtime_tls_mbedtls_bio.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
 
 # F-ZC：db.kv mmap 胶层；与 kv.o 按需同链（G-02e-17：.inc + cc_inc_tu）
 # G-02f-21：runtime_kv_mmap_glue 产品 seed
@@ -1469,15 +1369,12 @@ runtime_kv_mmap_glue.o: seeds/runtime_kv_mmap_glue.from_x.c src/asm/runtime_kv_m
 
 # F-ZC：db.arrow SIMD 胶层；与 arrow.o 按需同链（G-02e-19：.inc + cc_inc_tu）
 # G-02f-21：runtime_arrow_simd_glue 产品 seed
-runtime_arrow_simd_glue.o: seeds/runtime_arrow_simd_glue.from_x.c src/asm/runtime_arrow_simd_glue.x
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_arrow_simd_glue.x ]; then \
-	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o runtime_arrow_simd_glue.thin.o src/asm/runtime_arrow_simd_glue.x && \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_ARROW_SIMD_GLUE_FROM_X=1 -c seeds/runtime_arrow_simd_glue.from_x.c -o runtime_arrow_simd_glue.rest.o && \
-	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ runtime_arrow_simd_glue.thin.o runtime_arrow_simd_glue.rest.o && \
-	  rm -f runtime_arrow_simd_glue.thin.o runtime_arrow_simd_glue.rest.o; \
-	else \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_arrow_simd_glue.from_x.c -o $@; \
-	fi
+# wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
+# PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
+runtime_arrow_simd_glue.o: seeds/runtime_arrow_simd_glue.from_x.c src/asm/runtime_arrow_simd_glue.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
 
 # F-ZC：db.sqlite 胶层（libsqlite3）；与 sqlite.o 同链（G-02e-20）
 # G-02f-21：runtime_sqlite_glue 产品 seed
@@ -1499,15 +1396,12 @@ runtime_sqlite_glue_stub.o: seeds/runtime_sqlite_glue.from_x.c src/asm/runtime_s
 
 # F-ZC：crypto SHA-512/HMAC 胶层；与 crypto.o 一并链入（G-02e-20）
 # G-02f-20：runtime_crypto_inc_glue 产品 seed
-runtime_crypto_inc_glue.o: seeds/runtime_crypto_inc_glue.from_x.c src/asm/runtime_crypto_inc_glue.x
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_crypto_inc_glue.x ]; then \
-	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o runtime_crypto_inc_glue.thin.o src/asm/runtime_crypto_inc_glue.x && \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_CRYPTO_INC_GLUE_FROM_X=1 -c seeds/runtime_crypto_inc_glue.from_x.c -o runtime_crypto_inc_glue.rest.o && \
-	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ runtime_crypto_inc_glue.thin.o runtime_crypto_inc_glue.rest.o && \
-	  rm -f runtime_crypto_inc_glue.thin.o runtime_crypto_inc_glue.rest.o; \
-	else \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_crypto_inc_glue.from_x.c -o $@; \
-	fi
+# wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
+# PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
+runtime_crypto_inc_glue.o: seeds/runtime_crypto_inc_glue.from_x.c src/asm/runtime_crypto_inc_glue.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
 
 # F-ZC：Ed25519 ref10（含 crypto/ed25519/*.c）；与 crypto.o 一并链入（G-02e-17 .inc）
 # G-02f-20：runtime_ed25519_ref10_glue 产品 seed
@@ -1516,15 +1410,12 @@ runtime_crypto_inc_glue.o: seeds/runtime_crypto_inc_glue.from_x.c src/asm/runtim
 #     suffix to match ed25519.x extern declarations)
 #   - rest (.from_x.c): .inc files emit *_impl_c via macro rename; sha512
 #     stays as ed25519_ref10_sha512* (consumed by runtime_crypto_inc_glue)
-runtime_ed25519_ref10_glue.o: seeds/runtime_ed25519_ref10_glue.from_x.c src/asm/runtime_ed25519_ref10_glue.x
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_ed25519_ref10_glue.x ]; then \
-	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o runtime_ed25519_ref10_glue.thin.o src/asm/runtime_ed25519_ref10_glue.x && \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -Isrc/asm -DXLANG_RUNTIME_ED25519_REF10_GLUE_FROM_X=1 -c seeds/runtime_ed25519_ref10_glue.from_x.c -o runtime_ed25519_ref10_glue.rest.o && \
-	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ runtime_ed25519_ref10_glue.thin.o runtime_ed25519_ref10_glue.rest.o && \
-	  rm -f runtime_ed25519_ref10_glue.thin.o runtime_ed25519_ref10_glue.rest.o; \
-	else \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -Isrc/asm -c seeds/runtime_ed25519_ref10_glue.from_x.c -o $@; \
-	fi
+# wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
+# PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
+runtime_ed25519_ref10_glue.o: seeds/runtime_ed25519_ref10_glue.from_x.c src/asm/runtime_ed25519_ref10_glue.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
 
 # F-ZC：codegen 入口 argc/argv 全局；与 process.o 一并链入（G-02e-18：.inc + cc_inc_tu）
 # G-02f-20：runtime_process_argv 产品 seed
@@ -1533,31 +1424,21 @@ runtime_ed25519_ref10_glue.o: seeds/runtime_ed25519_ref10_glue.from_x.c src/asm/
 #     to match extern declarations) forwarding to _impl
 #   - rest (.from_x.c): _impl (CRT bind logic) + constructor + getters + weak
 #     fallbacks; all always compiled (constructor/getters/weak are C-only)
-runtime_process_argv.o: seeds/runtime_process_argv.from_x.c src/asm/runtime_process_argv.x
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_process_argv.x ]; then \
-	  XLANG_KEEP_C=1 ./xlang-c -L .. -L src -L src/asm -lib-name "" -o runtime_process_argv.thin.o src/asm/runtime_process_argv.x && \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_PROCESS_ARGV_FROM_X=1 -c seeds/runtime_process_argv.from_x.c -o runtime_process_argv.rest.o && \
-	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ runtime_process_argv.thin.o runtime_process_argv.rest.o && \
-	  rm -f runtime_process_argv.thin.o runtime_process_argv.rest.o; \
-	else \
-	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_process_argv.from_x.c -o $@; \
-	fi
+# wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
+# PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
+runtime_process_argv.o: seeds/runtime_process_argv.from_x.c src/asm/runtime_process_argv.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
 
 # F-ZC：进程 OS 胶层（getenv/spawn/getcwd 等）；与 process.o 一并链入（G-02e-20）
 # G-02f-18：runtime_process_os_glue 产品 seed；wave507 R2 full mode
-runtime_process_os_glue.o: seeds/runtime_process_os_glue.from_x.c src/asm/runtime_process_os_glue.x
-	@if [ "$(XLANG_G05_PREFER_X_O)" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_process_os_glue.x ]; then \
-		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/rposglue.XXXXXX") && \
-		./xlang-c -L .. -L src -L src/asm -E src/asm/runtime_process_os_glue.x > "$$_tmp" 2>/dev/null && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o runtime_process_os_glue_thin.o && \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DXLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X -c seeds/runtime_process_os_glue.from_x.c -o runtime_process_os_glue_rest.o && \
-		ld -r $(LD_R_MULTIDEF_FLAGS) runtime_process_os_glue_thin.o runtime_process_os_glue_rest.o -o $@ && \
-		rm -f "$$_tmp" runtime_process_os_glue_thin.o runtime_process_os_glue_rest.o && \
-		echo "phase4: $@ <- runtime_process_os_glue.x + seed-rest (PREFER_X_O R2)"; \
-	else \
-		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_process_os_glue.from_x.c -o $@ && \
-		echo "phase4: $@ <- seeds/runtime_process_os_glue.from_x.c (cold start seed)"; \
-	fi
+# wave779 B1: dual hybrid → ensure try-runtime-os-prefer (G.7; not physical delete).
+# PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x + rest FROM_X.
+runtime_process_os_glue.o: seeds/runtime_process_os_glue.from_x.c src/asm/runtime_process_os_glue.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer $@
 
 # 无 C 自举：crt0 提供 _start 与 driver_get_argv_i；链接 asm 版 xlang 时用本 .o 替代 main.o / runtime_asm_build.o
 # wave762 R2: body → ensure_host_cc_seed_o.sh try-r2 (list = DRIVER_SEED_CRT0_OBJS /

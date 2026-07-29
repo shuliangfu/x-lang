@@ -66,6 +66,11 @@
 #            rest FROM_X → ld -r (host pick mirrors Makefile ifeq tree); fail /
 #            PREFER≠1 / pure-asm host → ensure_r2_panic_one cold (try-r2 twin).
 #            Makefile runtime_panic.o thin-call; dual hybrid deleted.
+#   wave779: G.7 B1 runtime_* OS/glue dual hybrid → `try-runtime-os-prefer OUT`
+#            (有则补全; table-driven 23 leaves; reuses rt_prefer_try_x_to_o).
+#            Makefile thin-call only (NOT physical delete). Special leaf_kinds:
+#            http (-Iseeds/http), ed25519 (-Isrc/asm), tls (mbedtls -I fallback),
+#            net_udp (Linux-only PREFER). Residual: B2–B5 · physical delete.
 #   wave758: R4 residual pure host-cc thin_glue → R1 seed-map (G.7 有则补全):
 #            parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c +
 #            -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm;
@@ -142,7 +147,8 @@
 #     try-other-l2-prefer
 #   - ~~fmt_check_cmd.o Makefile dual~~ wave775 → try-other-l2-prefer fmt_core
 #   - ~~panic PREFER thin~~ wave776 → try-r2-prefer
-#   - R5 CI all
+#   - ~~B1 runtime_* OS/glue dual hybrid~~ wave779 → try-runtime-os-prefer
+#   - R5 CI all · B2–B5 hybrid · pure-ld residual
 #   - pure-ld (11.1.4) · physical Makefile delete (11.3.1)
 #   - bootstrap_nostdlib_stubs.o (cc_inc_tu residual) · crt0_user.o cp wrappers
 #
@@ -160,6 +166,7 @@
 #   bash scripts/ensure_host_cc_seed_o.sh try-async-prefer <out.o> # wave770 async three
 #   bash scripts/ensure_host_cc_seed_o.sh try-other-l2-prefer <out.o> # wave771 other L2 four
 #   bash scripts/ensure_host_cc_seed_o.sh try-r2-prefer <out.o> # wave776 R2 panic PREFER thin
+#   bash scripts/ensure_host_cc_seed_o.sh try-runtime-os-prefer <out.o> # wave779 B1 runtime OS 23
 #   bash scripts/ensure_host_cc_seed_o.sh try-r2 <out.o>   # wave760/762 R2 UNAME leaves
 #   bash scripts/ensure_host_cc_seed_o.sh try-gen-x <out.o> # wave761 gen *_x / pipeline_x
 #   bash scripts/ensure_host_cc_seed_o.sh r2-panic         # DRIVER_SEED_PANIC family
@@ -220,7 +227,7 @@ _DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-async-prefer|try-other-l2-prefer|try-r2-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-async-prefer|try-other-l2-prefer|try-r2-prefer|try-runtime-os-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -3229,6 +3236,259 @@ try_ensure_other_l2_prefer_one() {
   return 0
 }
 
+# ---------------------------------------------------------------------------
+# wave779: try-runtime-os-prefer OUT — B1 runtime_* OS/glue dual hybrid table.
+#
+# Table-driven single body (G.7 有则补全; reuses rt_prefer_try_x_to_o).
+# 23 top-level runtime_*.o leaves that still had Makefile thin+rest PREFER dual
+# (test_fn_invoke … process_os_glue). NOT physical delete — Makefile keeps
+# thin-call edges + prereqs.
+#
+# Spec: seed|x_src|from_x_def|leaf_kind
+# leaf_kind:
+#   std          — default -I. -Iinclude -Isrc only
+#   http         — rest/cold + -Iseeds/http; x under src/asm/http/
+#   ed25519      — rest/cold + -Isrc/asm
+#   tls          — rest/cold try homebrew mbedtls -I then plain (PLATFORM: MACOS
+#                  homebrew path optional; LINUX often plain)
+#   net_udp      — PLATFORM: LINUX only PREFER; non-Linux always cold seed
+# Prefer fail / PREFER≠1 / no xlang → ensure_one cold (with leaf extras).
+# Callers: Makefile 23 leaves (wave779).
+# Exit codes:
+#   0 — OUT is a table member; prefer or cold body produced OUT
+#   3 — OUT is not in the runtime-os prefer table
+#   1 — cold seed missing / compile failed
+# PLATFORM: SHARED shell body · g05 historic PREFER=1 · cold chain PREFER=0.
+# Residual after: B2–B5 · physical delete · R5.
+# ---------------------------------------------------------------------------
+
+# Resolve OUT → seed|x_src|from_x_def|leaf_kind (pipe-separated).
+runtime_os_prefer_spec_for_out() {
+  case "$1" in
+    runtime_test_fn_invoke.o)
+      printf '%s' "seeds/runtime_test_fn_invoke.from_x.c|src/asm/runtime_test_fn_invoke.x|XLANG_RUNTIME_TEST_FN_INVOKE_FROM_X|std"
+      ;;
+    runtime_random_fill.o)
+      printf '%s' "seeds/runtime_random_fill.from_x.c|src/asm/runtime_random_fill.x|XLANG_RUNTIME_RANDOM_FILL_FROM_X|std"
+      ;;
+    runtime_compress_zlib_glue.o)
+      printf '%s' "seeds/runtime_compress_zlib_glue.from_x.c|src/asm/runtime_compress_zlib_glue.x|XLANG_RUNTIME_COMPRESS_ZLIB_GLUE_FROM_X|std"
+      ;;
+    runtime_time_os.o)
+      printf '%s' "seeds/runtime_time_os.from_x.c|src/asm/runtime_time_os.x|XLANG_RUNTIME_TIME_OS_FROM_X|std"
+      ;;
+    runtime_queue_contention.o)
+      printf '%s' "seeds/runtime_queue_contention.from_x.c|src/asm/runtime_queue_contention.x|XLANG_RUNTIME_QUEUE_CONTENTION_FROM_X|std"
+      ;;
+    runtime_dynlib_os.o)
+      printf '%s' "seeds/runtime_dynlib_os.from_x.c|src/asm/runtime_dynlib_os.x|XLANG_RUNTIME_DYNLIB_OS_FROM_X|std"
+      ;;
+    runtime_env_os.o)
+      printf '%s' "seeds/runtime_env_os.from_x.c|src/asm/runtime_env_os.x|XLANG_RUNTIME_ENV_OS_FROM_X|std"
+      ;;
+    runtime_backtrace_platform.o)
+      printf '%s' "seeds/runtime_backtrace_platform.from_x.c|src/asm/runtime_backtrace_platform.x|XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X|std"
+      ;;
+    runtime_log_os.o)
+      printf '%s' "seeds/runtime_log_os.from_x.c|src/asm/runtime_log_os.x|XLANG_RUNTIME_LOG_OS_FROM_X|std"
+      ;;
+    runtime_math_libm.o)
+      printf '%s' "seeds/runtime_math_libm.from_x.c|src/asm/runtime_math_libm.x|XLANG_RUNTIME_MATH_LIBM_FROM_X|std"
+      ;;
+    runtime_atomic_glue.o)
+      printf '%s' "seeds/runtime_atomic_glue.from_x.c|src/asm/runtime_atomic_glue.x|XLANG_RUNTIME_ATOMIC_GLUE_FROM_X|std"
+      ;;
+    runtime_net_udp_batch.o)
+      # PLATFORM: LINUX — PREFER gated in ensure body; macOS cold = empty TU.
+      printf '%s' "seeds/runtime_net_udp_batch.from_x.c|src/asm/runtime_net_udp_batch.x|XLANG_RUNTIME_NET_UDP_BATCH_FROM_X|net_udp"
+      ;;
+    runtime_net_workers.o)
+      printf '%s' "seeds/runtime_net_workers.from_x.c|src/asm/runtime_net_workers.x|XLANG_RUNTIME_NET_WORKERS_FROM_X|std"
+      ;;
+    runtime_sync_os.o)
+      printf '%s' "seeds/runtime_sync_os.from_x.c|src/asm/runtime_sync_os.x|XLANG_RUNTIME_SYNC_OS_FROM_X|std"
+      ;;
+    runtime_sync_lock_diag_tls.o)
+      printf '%s' "seeds/runtime_sync_lock_diag_tls.from_x.c|src/asm/runtime_sync_lock_diag_tls.x|XLANG_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X|std"
+      ;;
+    runtime_thread_glue.o)
+      printf '%s' "seeds/runtime_thread_glue.from_x.c|src/asm/runtime_thread_glue.x|XLANG_RUNTIME_THREAD_GLUE_FROM_X|std"
+      ;;
+    runtime_http_glue.o)
+      printf '%s' "seeds/runtime_http_glue.from_x.c|src/asm/http/runtime_http_glue.x|XLANG_RUNTIME_HTTP_GLUE_FROM_X|http"
+      ;;
+    runtime_tls_mbedtls_bio.o)
+      # PLATFORM: MACOS homebrew mbedtls -I optional; LINUX often plain.
+      printf '%s' "seeds/runtime_tls_mbedtls_bio.from_x.c|src/asm/runtime_tls_mbedtls_bio.x|XLANG_RUNTIME_TLS_MBEDTLS_BIO_FROM_X|tls"
+      ;;
+    runtime_arrow_simd_glue.o)
+      printf '%s' "seeds/runtime_arrow_simd_glue.from_x.c|src/asm/runtime_arrow_simd_glue.x|XLANG_RUNTIME_ARROW_SIMD_GLUE_FROM_X|std"
+      ;;
+    runtime_crypto_inc_glue.o)
+      printf '%s' "seeds/runtime_crypto_inc_glue.from_x.c|src/asm/runtime_crypto_inc_glue.x|XLANG_RUNTIME_CRYPTO_INC_GLUE_FROM_X|std"
+      ;;
+    runtime_ed25519_ref10_glue.o)
+      printf '%s' "seeds/runtime_ed25519_ref10_glue.from_x.c|src/asm/runtime_ed25519_ref10_glue.x|XLANG_RUNTIME_ED25519_REF10_GLUE_FROM_X|ed25519"
+      ;;
+    runtime_process_argv.o)
+      printf '%s' "seeds/runtime_process_argv.from_x.c|src/asm/runtime_process_argv.x|XLANG_RUNTIME_PROCESS_ARGV_FROM_X|std"
+      ;;
+    runtime_process_os_glue.o)
+      printf '%s' "seeds/runtime_process_os_glue.from_x.c|src/asm/runtime_process_os_glue.x|XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X|std"
+      ;;
+    *)
+      printf '%s' ""
+      ;;
+  esac
+}
+
+# Compile rest/cold seed with leaf extras. stdout unused; sets rest_o/out via args.
+# $1=out_o  $2=seed  $3=from_x_def_or_empty  $4=leaf_kind
+# from_x_def empty → cold path (no FROM_X).
+_runtime_os_cc_seed() {
+  local out_o="$1" seed="$2" from_x_def="$3" leaf_kind="$4"
+  local def_flag=() rest_extra=()
+  if [ -n "$from_x_def" ]; then
+    def_flag=(-D"$from_x_def")
+  fi
+  case "$leaf_kind" in
+    http) rest_extra=(-Iseeds/http) ;;
+    ed25519) rest_extra=(-Isrc/asm) ;;
+    tls)
+      # PLATFORM: MACOS — try homebrew mbedtls include first; fall back plain.
+      # shellcheck disable=SC2086
+      if $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
+           -I/opt/homebrew/opt/mbedtls/include \
+           "${def_flag[@]+"${def_flag[@]}"}" \
+           -c -o "$out_o" "$seed" 2>/dev/null; then
+        return 0
+      fi
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
+        "${def_flag[@]+"${def_flag[@]}"}" \
+        -c -o "$out_o" "$seed"
+      return $?
+      ;;
+    std|net_udp) ;;
+    *)
+      echo "ensure_host_cc_seed_o try-runtime-os-prefer: unknown leaf_kind $leaf_kind" >&2
+      return 1
+      ;;
+  esac
+  # shellcheck disable=SC2086
+  $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
+    "${rest_extra[@]+"${rest_extra[@]}"}" \
+    "${def_flag[@]+"${def_flag[@]}"}" \
+    -c -o "$out_o" "$seed"
+}
+
+ensure_runtime_os_prefer_one() {
+  local o="$1"
+  local spec seed x_src from_x_def leaf_kind rest
+  local prefer="${XLANG_G05_PREFER_X_O:-0}"
+  local stale=0 done=0
+  local thin_o rest_o uname_s
+
+  spec="$(runtime_os_prefer_spec_for_out "$o")"
+  if [ -z "$spec" ]; then
+    return 3
+  fi
+  seed="${spec%%|*}"
+  rest="${spec#*|}"
+  x_src="${rest%%|*}"
+  rest="${rest#*|}"
+  from_x_def="${rest%%|*}"
+  leaf_kind="${rest#*|}"
+
+  if [ ! -f "$seed" ]; then
+    echo "ensure_host_cc_seed_o try-runtime-os-prefer: missing seed $seed for $o" >&2
+    return 1
+  fi
+
+  if [ "$FORCE" != "1" ] && [ -f "$o" ]; then
+    stale=0
+    [ "$seed" -nt "$o" ] && stale=1
+    if [ -f "$x_src" ] && [ "$x_src" -nt "$o" ]; then
+      stale=1
+    fi
+    if [ "$stale" = "0" ]; then
+      log "skip up-to-date $o (runtime-os-prefer)"
+      return 0
+    fi
+  fi
+
+  mkdir -p "$(dirname "$o")"
+
+  # PLATFORM: LINUX — net_udp PREFER only on Linux (macOS cold = empty .o).
+  uname_s="$(uname -s 2>/dev/null || echo Unknown)"
+  _do_prefer=0
+  if [ "$prefer" = "1" ] && [ -f "$x_src" ] \
+    && { [ -x ./xlang ] || [ -x ./xlang-c ] || [ -x ./bootstrap_xlangc ]; }; then
+    if [ "$leaf_kind" = "net_udp" ] && [ "$uname_s" != "Linux" ]; then
+      _do_prefer=0
+    else
+      _do_prefer=1
+    fi
+  fi
+
+  if [ "$_do_prefer" = "1" ]; then
+    thin_o="$(mktemp "${TMPDIR:-/tmp}/rtos_thin.XXXXXX")"
+    rest_o="$(mktemp "${TMPDIR:-/tmp}/rtos_rest.XXXXXX")"
+    if rt_prefer_try_x_to_o "$x_src" "$thin_o" \
+      && _runtime_os_cc_seed "$rest_o" "$seed" "$from_x_def" "$leaf_kind" \
+      && $CC -r -nostdlib -o "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+      log "prefer thin.x+rest $o <- $x_src + seed-rest (try-runtime-os-prefer/$leaf_kind)"
+      done=1
+    else
+      log "runtime-os hybrid failed for $o ($leaf_kind); fallback full seed"
+    fi
+    rm -f "$thin_o" "$rest_o"
+  fi
+
+  if [ "$done" = "1" ]; then
+    return 0
+  fi
+
+  # Cold full seed (ensure_one twin / PREFER=0 / net_udp non-Linux).
+  # tls needs mbedtls fallback — use _runtime_os_cc_seed for cold too.
+  if [ "$leaf_kind" = "tls" ] || [ "$leaf_kind" = "http" ] || [ "$leaf_kind" = "ed25519" ]; then
+    if [ -f "$o" ] && [ "$prefer" = "1" ]; then
+      FORCE=1
+    fi
+    if [ "$FORCE" = "1" ] || [ ! -f "$o" ] || [ "$seed" -nt "$o" ] \
+      || { [ -f "$x_src" ] && [ "$x_src" -nt "$o" ]; }; then
+      _runtime_os_cc_seed "$o" "$seed" "" "$leaf_kind" || return 1
+      log "cold seed $o <- $seed (try-runtime-os-prefer/$leaf_kind)"
+    else
+      log "skip up-to-date $o (runtime-os-prefer cold)"
+    fi
+    FORCE="${XLANG_HOST_CC_SEED_FORCE:-0}"
+    return 0
+  fi
+
+  if [ -f "$o" ] && [ "$prefer" = "1" ]; then
+    FORCE=1
+    ensure_one "$o" "$seed"
+    FORCE=0
+  else
+    ensure_one "$o" "$seed"
+  fi
+  return 0
+}
+
+try_ensure_runtime_os_prefer_one() {
+  local o="$1"
+  if [ -z "$o" ]; then
+    echo "ensure_host_cc_seed_o try-runtime-os-prefer: need <out.o>" >&2
+    exit 2
+  fi
+  if [ -z "$(runtime_os_prefer_spec_for_out "$o")" ]; then
+    return 3
+  fi
+  ensure_runtime_os_prefer_one "$o"
+  return 0
+}
+
 
 # ---------------------------------------------------------------------------
 # wave760: try-r2 OUT — R2 platform-stamp panic cold body (UNAME leaf).
@@ -4648,6 +4908,80 @@ run_check() {
   else
     bad "scripts/g05_ensure_relink_prereqs.sh missing (wave771 g05 gate)"
   fi
+  # wave779: try-runtime-os-prefer B1 23 runtime_* OS/glue dual hybrid
+  if ! grep -q 'try_ensure_runtime_os_prefer_one\|try-runtime-os-prefer' "$0"; then
+    bad "try-runtime-os-prefer / try_ensure_runtime_os_prefer_one missing (wave779)"
+  else
+    note "try-runtime-os-prefer helper present (wave779)"
+  fi
+  if ! grep -q 'runtime_os_prefer_spec_for_out\|ensure_runtime_os_prefer_one' "$0"; then
+    bad "runtime-os prefer body/table missing (wave779)"
+  else
+    note "runtime-os-prefer table body present (wave779)"
+  fi
+  # Count table members (must stay 23 — heat inventory wave777 B1).
+  _rtos_n=0
+  for _rtos_leaf in \
+    runtime_test_fn_invoke.o \
+    runtime_random_fill.o \
+    runtime_compress_zlib_glue.o \
+    runtime_time_os.o \
+    runtime_queue_contention.o \
+    runtime_dynlib_os.o \
+    runtime_env_os.o \
+    runtime_backtrace_platform.o \
+    runtime_log_os.o \
+    runtime_math_libm.o \
+    runtime_atomic_glue.o \
+    runtime_net_udp_batch.o \
+    runtime_net_workers.o \
+    runtime_sync_os.o \
+    runtime_sync_lock_diag_tls.o \
+    runtime_thread_glue.o \
+    runtime_http_glue.o \
+    runtime_tls_mbedtls_bio.o \
+    runtime_arrow_simd_glue.o \
+    runtime_crypto_inc_glue.o \
+    runtime_ed25519_ref10_glue.o \
+    runtime_process_argv.o \
+    runtime_process_os_glue.o; do
+    if [ -n "$(runtime_os_prefer_spec_for_out "$_rtos_leaf")" ]; then
+      _rtos_n=$((_rtos_n + 1))
+    else
+      bad "runtime_os_prefer_spec_for_out missing $_rtos_leaf (wave779)"
+    fi
+    if awk -v leaf="$_rtos_leaf" '
+      $0 ~ ("^" leaf ":") {grab=1; next}
+      grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+      grab {body = body $0 "\n"}
+      END {
+        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-runtime-os-prefer/) exit 0
+        exit 1
+      }
+    ' Makefile; then
+      note "Makefile $_rtos_leaf thin-calls ensure try-runtime-os-prefer (wave779)"
+    else
+      bad "Makefile $_rtos_leaf must thin-call ensure try-runtime-os-prefer (wave779)"
+    fi
+    # Ban re-opened dual hybrid body (mktemp + thin.o / rest.o inline).
+    if awk -v leaf="$_rtos_leaf" '
+      $0 ~ ("^" leaf ":") {grab=1; next}
+      grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+      grab {body = body $0 "\n"}
+      END {
+        if (body ~ /mktemp/ && body ~ /(thin\.o|_thin\.o|rest\.o|_rest\.o)/) exit 0
+        if (body ~ /XLANG_KEEP_C=1/ && body ~ /xlang-c/) exit 0
+        exit 1
+      }
+    ' Makefile; then
+      bad "Makefile $_rtos_leaf still has dual hybrid body (wave779)"
+    fi
+  done
+  if [ "$_rtos_n" -ne 23 ]; then
+    bad "runtime-os prefer table size $_rtos_n != 23 (wave779 B1 heat)"
+  else
+    note "runtime-os prefer table has 23 members (wave779 B1)"
+  fi
   # wave760/762: try-r2 R2 UNAME leaves (panic + typeck_f64 + crt0)
   if ! grep -q 'try_ensure_r2_one\|try-r2' "$0"; then
     bad "try-r2 / try_ensure_r2_one missing (wave760/762 R2 UNAME)"
@@ -4860,6 +5194,19 @@ case "$MODE" in
     _try_out="$1"
     set +e
     try_ensure_r2_prefer_one "$_try_out"
+    _try_rc=$?
+    set -e
+    exit "$_try_rc"
+    ;;
+  try-runtime-os-prefer|try_runtime_os_prefer|runtime-os-prefer|rtos-prefer|try-runtime-os|b1-prefer)
+    # wave779: B1 runtime_* OS/glue PREFER table; exit 3 if not table member.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o try-runtime-os-prefer: need <out.o>" >&2
+      exit 2
+    fi
+    _try_out="$1"
+    set +e
+    try_ensure_runtime_os_prefer_one "$_try_out"
     _try_rc=$?
     set -e
     exit "$_try_rc"
