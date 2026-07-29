@@ -4147,8 +4147,40 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
       }
     }
 
-    if (glue_asm_enc_call_redirected(elf_ctx, name, name_len, ta) != 0)
-      return -1;
+    /*
+     * wave683 Cap residual pure — freestanding multi-method call-site mangle.
+     * Root: def side glue_asm_build_func_export_sym_c emits get_S / get_T when
+     * overload_count>1 (two impl methods share bare name "get"); UFCS METHOD_CALL
+     * still called bare "get" → Ubuntu ld UNDEF get (mac -c .o same U _get; host-C
+     * uses codegen_emit_func_link_name and was green).
+     * G.7: complete same export-sym authority as def/free CALL mid — no third mangle.
+     * Prefer typeck call_resolved_func_index (UFCS stamp, r_dep=-1 local module).
+     * Fallback bare method name when unresolved (unique-name / bootstrap leaves).
+     * PLATFORM: SHARED freestanding · LINUX gold full link · MACOS -c exposes U get.
+     */
+    {
+      int32_t r_fn_call = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+      int32_t r_dep_call = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
+      uint8_t call_sym[128];
+      int32_t call_sym_len = -1;
+      if (r_fn_call >= 0 && r_dep_call < 0 && mod_ref) {
+        call_sym_len = glue_asm_build_func_export_sym_c(mod_ref, arena, r_fn_call, call_sym, 128);
+      } else if (r_fn_call >= 0 && r_dep_call >= 0 && ly && ly->dep_pipe) {
+        struct ast_Module *dm = pipeline_dep_ctx_module_at(ly->dep_pipe, r_dep_call);
+        struct ast_ASTArena *da = pipeline_dep_ctx_arena_at(ly->dep_pipe, r_dep_call);
+        if (dm) {
+          if (!da)
+            da = arena;
+          call_sym_len = glue_asm_build_func_export_sym_c(dm, da, r_fn_call, call_sym, 128);
+        }
+      }
+      if (call_sym_len > 0) {
+        if (glue_asm_enc_call_redirected(elf_ctx, call_sym, call_sym_len, ta) != 0)
+          return -1;
+      } else if (glue_asm_enc_call_redirected(elf_ctx, name, name_len, ta) != 0) {
+        return -1;
+      }
+    }
     {
       int32_t cln = mem_stack;
       if (cln > 0 && backend_enc_call_stack_cleanup_arch(elf_ctx, cln, ta) != 0)
