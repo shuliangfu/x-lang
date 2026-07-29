@@ -1005,9 +1005,10 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - [x] **wave788:** B7B shell-primary catalog (mk parse 0-make; make export escape; lists stay mk)
 - [x] **wave789:** B7A heat shell auto-dispatch `try-heat` / `./xbuild heat-o` (Makefile edges still residual)
 - [x] **wave790:** B7A heat Makefile recipes unify → `try-heat` only (dep edges residual; mode names in comments)
+- [x] **wave798:** physical-delete **preflight** readiness (named blockers; Windows min-gate cmd; NOT green; NOT delete)
 - [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame · **Windows gate**)
 - [ ] Leaf `.o` without host-cc residual (stages 8–9 / 12)
-- [ ] B7 residual endgame: Makefile heat **dep** edges gone / physical delete (try-heat ✅ wave789; thin-unify ✅ wave790; dep edges remain)
+- [ ] B7 residual endgame: Makefile heat **dep** edges gone / physical delete (try-heat ✅ wave789; thin-unify ✅ wave790; source-prereq closed wave797; thin-call edges remain until phys del)
 
 
 ### wave790 · B7A heat thin-unify (Makefile recipes → try-heat)
@@ -1562,3 +1563,39 @@ LEAF: `PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN_COUNT=112` · `B7A_HEAT_DEP_THIN_WAVE=w
 | orch FORCE thin · all heat source-prereq edges | physical delete after Windows only |
 
 LEAF: `PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN_COUNT=113` · `HEAT_RESIDUAL=0` · `B7A_HEAT_DEP_THIN_WAVE=wave797`.
+
+## wave798 physical-delete preflight readiness (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; Windows hybrid min-gate re-prove.  
+> **This wave:** G.7 **readiness inventory** after heat source-prereq closed (wave797). Names blockers
+> and the Windows min-gate authority command. Does **not** flip `PHYS_DEL_WINDOWS_GATE_STATUS`
+> (stays `not_reproven_this_tip`) and does **not** set `ENDGAME_PHYSICAL_DELETE_MAKEFILE=1`.
+
+```text
+Ready (prep closed):
+  B1–B6 body swallowed · B7D g05 · B7A cold residual_make=0 · B7B shell catalog
+  B7A heat try-heat / thin-unify / dep-thin FORCE 113 · HEAT_RESIDUAL=0
+
+Blockers (PHYS_DEL_PREFLIGHT_BLOCKERS):
+  windows_min_gate_not_reproven
+  makefile_thin_call_edges          # intentional until phys del
+  b7b_lists_in_mk                   # G.7 list authority stays mk
+  std_core_product_make_graph       # std/core product .o still Makefile
+
+Windows re-prove (dual-boot must be Windows / MSYS2):
+  git pull --ff-only
+  ./tests/run-bootstrap-bstrict-windows-gate.sh   # B-hybrid default
+  # then flip PHYS_DEL_WINDOWS_GATE_STATUS + dual-end residual --check
+  # only then physical delete of compiler/Makefile
+```
+
+| Key | Value |
+|-----|--------|
+| `PHYS_DEL_PREFLIGHT` | `1` |
+| `PHYS_DEL_PREFLIGHT_WAVE` | `wave798` |
+| `PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN` | `113` |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `windows_hybrid_min_gate_on_msys2_then_physical_delete` |
+| `PHYS_DEL_WINDOWS_GATE_STATUS` | `not_reproven_this_tip` (honest) |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `0` |
+
+**Forbidden:** claim preflight = physical delete / Windows green; delete Makefile before Windows min-gate; mac-only wave green.

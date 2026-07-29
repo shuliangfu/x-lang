@@ -405,6 +405,13 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 - `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 families · try-r1 · try-r3-cold · thin_glue/glue-standalone seed-map)  
 - `compiler/scripts/host_platform_linker.sh` (platform + linker · wave745)
 
+## wave798 physical-delete preflight (2026-07-30)
+
+- **Not physical delete · not Windows green.** Readiness inventory after heat closed.
+- Blockers named: Windows min-gate not re-proven · thin-call edges · B7B lists in mk · std/core make graph.
+- Authority cmd: `tests/run-bootstrap-bstrict-windows-gate.sh` (MSYS2 only; dual-boot reboot).
+- LEAF: `PHYS_DEL_PREFLIGHT=1` · `WINDOWS_GATE_STATUS=not_reproven_this_tip` · `ENDGAME_PHYSICAL_DELETE_MAKEFILE=0`.
+
 ## wave797 B7A heat dep-edge thin orch (2026-07-30)
 
 - **Not physical delete.** Last heat source-prereq leaf orch (+1 → **113 FORCE**).
