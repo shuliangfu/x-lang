@@ -94,8 +94,6 @@ run_ensure_lsp_pipeline_gen() {
 run_ensure_archaeology_gen() {
   (cd compiler && sh scripts/ensure_archaeology_gen.sh all)
 }
-
-
 case "$TARGET" in
   # === 编译器（G-05 日常）===
   all|build|xlang)
@@ -224,6 +222,19 @@ case "$TARGET" in
         ;;
     esac
     (cd compiler && sh scripts/ensure_archaeology_gen.sh "$_arch_mode")
+    ;;
+
+  # === 11.1.1 orchestration DAG (wave742 · inventory; not full scheduler) ===
+  product-dag|build-dag|cold-dag|ensure-product-dag)
+    # Dump or check product + cold orchestration nodes.
+    # Usage: ./xbuild product-dag | ./xbuild product-dag --check
+    # Body: compiler/scripts/product_build_dag.sh · map: compiler/docs/BUILD_DAG.md
+    # G.7: no second .o list here (lists stay in compiler/mk + obj catalog).
+    _dag_mode="dump"
+    if [ "${2:-}" = "--check" ] || [ "${2:-}" = "check" ] || [ "${2:-}" = "-c" ]; then
+      _dag_mode="check"
+    fi
+    bash compiler/scripts/product_build_dag.sh "$_dag_mode"
     ;;
 
   # === CI / 冷启动 / 叶 .o（wave730：外层 0× make -C；图仍 Makefile 至 11.3）===
@@ -371,6 +382,11 @@ g05 产品链（wave733–735 · 11.1.6；产品 link 零 make）:
   driver-subcmd-gen             ensure_archaeology_gen.sh driver-all
   refresh-gate                  migrate shell + g05 relink + overlay xlang_asm
                                 （体 refresh_xlang_asm_gate.sh；product *_gen 已 shell）
+
+11.1.1 编排 DAG（wave742 · 清单/校验；非完整调度器）:
+  product-dag / build-dag / cold-dag   product_build_dag.sh dump
+  product-dag --check                  校验节点体 + xbuild 接线 + BUILD_DAG.md
+                                       （G.7 禁第二套 .o 清单；列表仍 mk/catalog）
 
 CI / 冷启动（外层 0× make -C；图仍 Makefile 至 11.3）:
   compiler-all / ci-all      make OPT=1 all（host-cc/seed；≠ 产品 all）

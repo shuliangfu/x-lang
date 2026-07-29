@@ -1078,6 +1078,28 @@ else
   bad "build.x must mention tests host-cc / HOST_CC_POLICY / 11.5.2 (wave741)"
 fi
 
+# wave742: 11.1.1 product + cold orchestration DAG-as-data inventory
+if [ ! -f compiler/docs/BUILD_DAG.md ]; then
+  bad "missing compiler/docs/BUILD_DAG.md (11.1.1 wave742)"
+elif ! grep -q '11\.1\.1' compiler/docs/BUILD_DAG.md \
+  || ! grep -q 'DRIVER_SEED_PREREQS' compiler/docs/BUILD_DAG.md; then
+  bad "BUILD_DAG.md must document 11.1.1 + DRIVER_SEED_PREREQS residual"
+elif [ ! -f compiler/scripts/product_build_dag.sh ]; then
+  bad "missing compiler/scripts/product_build_dag.sh (11.1.1 wave742)"
+elif ! grep -q 'product-dag\|build-dag\|cold-dag' xlang-build.sh \
+  || ! grep -q 'product_build_dag\.sh' xlang-build.sh; then
+  bad "xlang-build missing product-dag first-class target (wave742)"
+elif ! grep -qE '11\.1\.1|BUILD_DAG|product.dag|DAG-as-data' build.x; then
+  bad "build.x must mention 11.1.1 / BUILD_DAG / product-dag (wave742)"
+else
+  note "BUILD_DAG.md + product_build_dag.sh + xbuild product-dag (11.1.1 wave742)"
+  if ! bash compiler/scripts/product_build_dag.sh --check; then
+    bad "product_build_dag.sh --check failed (wave742)"
+  else
+    note "product_build_dag.sh --check OK (wave742)"
+  fi
+fi
+
 # Product daily `all` must remain g05 (not Makefile all); CI uses compiler-all.
 if grep -n 'all|build|xlang)' xlang-build.sh | head -1 | grep -q . \
   && sed -n '/all|build|xlang)/,/^  [a-zA-Z*]/p' xlang-build.sh | head -8 | grep -q 'run_build_tool'; then
@@ -1125,5 +1147,5 @@ if [ "$fail" -ne 0 ]; then
   echo "FAIL product-path 0-make static gate" >&2
   exit 1
 fi
-echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe; mk OBJS+composites; catalog --check; tests/lib+run-*.sh hub; root help→xbuild; CI/docker → xbuild; build.sh thin; docker/delete-one entry; 11.5 HOST_CC_POLICY)"
+echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe; mk OBJS+composites; catalog --check; tests/lib+run-*.sh hub; root help→xbuild; CI/docker → xbuild; build.sh thin; docker/delete-one entry; 11.5 HOST_CC_POLICY; 11.1.1 BUILD_DAG)"
 exit 0

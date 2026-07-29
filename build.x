@@ -94,9 +94,24 @@
 //   11.5.4 probes/**/*.c    — tool/generated artifacts; not product residual (wave741)
 //   Never inputs to g05 / ./xbuild all / product compiler link.
 //
+// -----------------------------------------------------------------------------
+// F. Orchestration DAG inventory (11.1.1 · wave742 — not full scheduler)
+// -----------------------------------------------------------------------------
+//   Authority map: compiler/docs/BUILD_DAG.md
+//   Machine check: compiler/scripts/product_build_dag.sh
+//   ./xbuild product-dag | build-dag | cold-dag
+//   ./xbuild product-dag --check
+//   Product daily nodes: ensure_*_gen → migrate → g05 ensure/link → refresh-gate
+//   Cold nodes: DRIVER_SEED_PREREQS (Makefile residual) → bootstrap_driver_seed.sh
+//   G.7: DAG lists orchestration edges/owners only; .o inventories stay in
+//   compiler/mk/*.mk + driver_seed_obj_catalog.sh (no dual lists).
+//   11.1.2–4 (schedule / platform / linker) execute this graph later; 11.3
+//   swallows Makefile prereq residual.
+//
 // References:
 //   analysis/C迁移追踪.md §11.1 · §11.5 · analysis/Makefile迁移表.md class I
-//   compiler/docs/SELFHOST.md · compiler/scripts/g05_*.sh · tests/HOST_CC_POLICY.md
+//   compiler/docs/SELFHOST.md · compiler/docs/BUILD_DAG.md · tests/HOST_CC_POLICY.md
+//   compiler/scripts/g05_*.sh · compiler/scripts/product_build_dag.sh
 // =============================================================================
 
 /**
