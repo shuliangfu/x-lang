@@ -4104,8 +4104,8 @@ export function type_refs_equal(arena: *ASTArena, a: i32, b: i32): bool {
  * i32→usize; matches pipeline_typeck_integer_widen_ok_c — G.7 dual-authority).
  * Prior omit left `let a:isize = -1` / `a = -1` as found i32 (EXPR_NEG/binop).
  * wave311 Cap residual: i32→u64 (true widen; prior hole vs i32→usize on LP64)
- * and i32→u8 (narrow store of low 8 bits — leave-off residual for var init/
- * assign/return; lit coerce already green). Call single-candidate was lax.
+ * and i32→u8 (narrow store of low 8 bits — var init/assign/return path verified
+ * green wave712; lit coerce already green). Call single-candidate was lax.
  * wave312 Cap residual: complete first-class integer family —
  *   u8→i64/isize; u32→i64/usize/isize (plus prior u32→u64);
  *   isize↔i64 and usize↔u64 (LP64 same-width store / true widen on ILP32).
