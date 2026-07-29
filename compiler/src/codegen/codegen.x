@@ -1490,19 +1490,28 @@ export function codegen_should_skip_emit_std_io_trivial_handle(dep_path: *u8, na
 }
 
 /**
- * wave377 Cap residual pure: same-module true redefinition first-wins body emit.
+ * wave377/wave681 Cap residual pure: same-module true redefinition first-wins body emit.
  * Host C rejects two strong definitions of the same link name (BLD001). Skip a later
  * non-extern body only when it is a true redefinition of an earlier non-extern body:
- * same surface name, same arity, and same param type_refs at every index.
+ * same surface name, same arity, structurally equal param types, and structurally equal
+ * return type.
  * True overloads (e.g. pick(i32) vs pick(i64)) share name+arity but differ in param
  * types and mangle to distinct host symbols — they must still be emitted (wave383:
  * name+arity-only skip dropped overload_pick_i64 → types gate link UNDEF).
+ *
+ * wave681 root fix: each parse site allocates a distinct type_ref slot even for the same
+ * surface type (`i32`, `S`). Comparing type_ref **identity** only worked for zero-param
+ * redefs; one-param free funcs and same-impl methods both emitted host bodies → BLD001.
+ * Authority: `pipeline_typeck_type_refs_equal_c` structural equality (G.7 complete same
+ * helper; no second type-compare path).
+ *
+ * @param arena *ASTArena — type pool for structural type_refs_equal (null → identity fallback)
  * @param module *Module — current module (null → 0)
  * @param fi i32 — candidate function index
  * @return i32 — 1 skip (superseded by earlier same-signature body); 0 emit this body
- * PLATFORM: SHARED — host-C body emit path; authority: signature match not name alone.
+ * PLATFORM: SHARED — host-C body emit path; methods and free funcs share this gate.
  */
-export function codegen_should_skip_later_same_name_body(module: *Module, fi: i32): i32 {
+export function codegen_should_skip_later_same_name_body(arena: *ASTArena, module: *Module, fi: i32): i32 {
   if (module == 0 as *Module || fi <= 0) {
     return 0;
   }
@@ -1516,6 +1525,7 @@ export function codegen_should_skip_later_same_name_body(module: *Module, fi: i3
   let name: u8[128] = [];
   pipeline_module_func_name_copy64(module, fi, &name[0]);
   let np: i32 = pipeline_module_func_num_params_at(module, fi);
+  let ret_fi: i32 = pipeline_module_func_return_type_at(module, fi);
   let j: i32 = 0;
   while (j < fi) {
     if (pipeline_module_func_is_extern_at(module, j) == 0) {
@@ -1531,14 +1541,38 @@ export function codegen_should_skip_later_same_name_body(module: *Module, fi: i3
           }
           k = k + 1;
         }
-        // Same name+arity is not enough: compare param type_refs (true redef vs overload).
+        // Same name+arity is not enough: compare param types (true redef vs overload).
+        // wave681: structural equality — identity of type_ref slots is not stable across
+        // two parse sites of the same surface type (method get(self:S) twice, f(x:i32) twice).
         if (eq != 0) {
           let pi: i32 = 0;
           while (pi < np) {
-            if (pipeline_module_func_param_type_ref_at(module, fi, pi) != pipeline_module_func_param_type_ref_at(module, j, pi)) {
-              eq = 0;
+            let ta: i32 = pipeline_module_func_param_type_ref_at(module, fi, pi);
+            let tb: i32 = pipeline_module_func_param_type_ref_at(module, j, pi);
+            if (arena != 0 as *ASTArena) {
+              if (pipeline_typeck_type_refs_equal_c(arena, ta, tb) == 0) {
+                eq = 0;
+              }
+            } else {
+              if (ta != tb) {
+                eq = 0;
+              }
             }
             pi = pi + 1;
+          }
+        }
+        // Return type must also match for true redefinition (host mangle may omit ret
+        // when only one param-sig overload exists — same link name if params equal).
+        if (eq != 0) {
+          let ret_j: i32 = pipeline_module_func_return_type_at(module, j);
+          if (arena != 0 as *ASTArena) {
+            if (pipeline_typeck_type_refs_equal_c(arena, ret_fi, ret_j) == 0) {
+              eq = 0;
+            }
+          } else {
+            if (ret_fi != ret_j) {
+              eq = 0;
+            }
           }
         }
         if (eq != 0) {
@@ -19049,9 +19083,10 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
         }
         skip = codegen_should_skip_emit_func(skip_dep, 0 as *u8, 0, &skip_name[0], skip_nl);
       }
-      /* wave377: same-module redef first-wins (host C dual body → redefinition). */
+      /* wave377/wave681: same-module redef first-wins (host C dual body → redefinition).
+       * Structural param/ret equality so methods and one-param free redefs skip later body. */
       if (skip == 0 && asm_backend == 0) {
-        skip = codegen_should_skip_later_same_name_body(module, i);
+        skip = codegen_should_skip_later_same_name_body(arena, module, i);
       }
       if (skip != 0) {
         i = i + 1;

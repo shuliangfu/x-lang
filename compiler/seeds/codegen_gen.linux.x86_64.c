@@ -1589,7 +1589,7 @@ extern int32_t codegen_x_ast_emit_header(struct codegen_CodegenOutBuf * out);
 extern int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_PipelineDepCtx * ctx, int32_t dep_index);
 extern int32_t codegen_should_skip_emit_func_by_name(uint8_t * name, int32_t name_len);
 /* wave377 Cap residual pure: same-module redef first-wins body emit. */
-extern int32_t codegen_should_skip_later_same_name_body(struct ast_Module * module, int32_t fi);
+extern int32_t codegen_should_skip_later_same_name_body(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi);
 extern int32_t codegen_is_submit_batch_buf_call(uint8_t * name, int32_t name_len);
 extern int32_t codegen_force_param_i32(uint8_t * prefix, int32_t prefix_len, uint8_t * name, int32_t name_len, int32_t param_index);
 extern int32_t codegen_should_skip_emit_func_core_read_ptr(uint8_t * name, int32_t name_len);
@@ -17974,7 +17974,7 @@ int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, s
       }
       /* wave377: same-module redef first-wins (host C dual body → redefinition). */
       if (((skip == 0) && (asm_backend == 0))) {
-        (void)((skip = codegen_should_skip_later_same_name_body(module, i)));
+        (void)((skip = codegen_should_skip_later_same_name_body(arena, module, i)));
       }
       if ((skip !=0)) {
         (void)((i = (i + 1)));
@@ -18032,16 +18032,20 @@ int32_t codegen_should_skip_emit_func_by_name(uint8_t * name, int32_t name_len) 
   return 0;
 }
 /*
- * wave377 Cap residual pure: same-module true redefinition first-wins body emit.
- * Skip later non-extern body only when name + arity + all param type_refs match
- * an earlier body. True overloads (pick(i32) vs pick(i64)) must still emit —
- * name+arity-only skip dropped overload_pick_i64 (wave383 types gate UNDEF).
+ * wave377/wave681 Cap residual pure: same-module true redefinition first-wins body emit.
+ * Skip later non-extern body only when name + arity + structural param types + structural
+ * return type match an earlier body. True overloads (pick(i32) vs pick(i64)) must still
+ * emit — name+arity-only skip dropped overload_pick_i64 (wave383 types gate UNDEF).
+ *
+ * wave681: type_ref identity fails for one-param free redefs and same-impl methods
+ * (each parse site allocates a new slot). Use pipeline_typeck_type_refs_equal_c.
  * PLATFORM: SHARED — mirror codegen.x codegen_should_skip_later_same_name_body.
  */
-int32_t codegen_should_skip_later_same_name_body(struct ast_Module * module, int32_t fi) {
+int32_t codegen_should_skip_later_same_name_body(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi) {
   int32_t nlen;
   int32_t np;
   int32_t j;
+  int32_t ret_fi;
   uint8_t name[128];
   if ((module == ((struct ast_Module *)(0))) || (fi <= 0)) {
     return 0;
@@ -18055,6 +18059,7 @@ int32_t codegen_should_skip_later_same_name_body(struct ast_Module * module, int
   }
   (void)(pipeline_module_func_name_copy64(module, fi, &((name)[0])));
   np = pipeline_module_func_num_params_at(module, fi);
+  ret_fi = pipeline_module_func_return_type_at(module, fi);
   j = 0;
   while ((j < fi)) {
     if ((pipeline_module_func_is_extern_at(module, j) == 0)) {
@@ -18070,15 +18075,35 @@ int32_t codegen_should_skip_later_same_name_body(struct ast_Module * module, int
           }
           (void)((k = (k + 1)));
         }
-        /* Same name+arity is not enough: compare param type_refs (redef vs overload). */
+        /* Same name+arity is not enough: structural param types (redef vs overload). */
         if ((eq != 0)) {
           int32_t pi = 0;
           while ((pi < np)) {
-            if ((pipeline_module_func_param_type_ref_at(module, fi, pi) !=
-                 pipeline_module_func_param_type_ref_at(module, j, pi))) {
-              (void)((eq = 0));
+            int32_t ta = pipeline_module_func_param_type_ref_at(module, fi, pi);
+            int32_t tb = pipeline_module_func_param_type_ref_at(module, j, pi);
+            if ((arena != ((struct ast_ASTArena *)(0)))) {
+              if ((pipeline_typeck_type_refs_equal_c(arena, ta, tb) == 0)) {
+                (void)((eq = 0));
+              }
+            } else {
+              if ((ta != tb)) {
+                (void)((eq = 0));
+              }
             }
             (void)((pi = (pi + 1)));
+          }
+        }
+        /* Return type structural match for true redefinition. */
+        if ((eq != 0)) {
+          int32_t ret_j = pipeline_module_func_return_type_at(module, j);
+          if ((arena != ((struct ast_ASTArena *)(0)))) {
+            if ((pipeline_typeck_type_refs_equal_c(arena, ret_fi, ret_j) == 0)) {
+              (void)((eq = 0));
+            }
+          } else {
+            if ((ret_fi != ret_j)) {
+              (void)((eq = 0));
+            }
           }
         }
         if ((eq != 0)) {
