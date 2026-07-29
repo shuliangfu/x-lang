@@ -14638,6 +14638,14 @@ static int32_t glue_try_binop_left_rax_right_rbx_elf_c(struct ast_ASTArena *aren
 
 /**
  * 7.3：比较 binop — 左 rbx、右 rax（enc_cmp_rbx_rax）；0=就绪，-1=错，-2=需 slow。
+ *
+ * wave669 Cap residual pure: freestanding lit-left `0==p` / `null==p` false green.
+ * Root: when left cannot fast-load to rbx, this path loads right VAR → rax (caches
+ * valid_rax), then emit left imm clobbers rax without invalidating the VAR slot
+ * cache; reload right hits cache and skips the second load → cmp 0,0 → equal.
+ * Fix: invalidate rax before emit-left, invalidate rbx after mov left into rbx,
+ * then reload right. G.7: same try path authority (no second cmp loader).
+ * PLATFORM: SHARED freestanding dual-slot; LINUX x86_64 exposes (host-C hid).
  */
 static int32_t glue_try_binop_cmp_rbx_rax_elf_c(struct ast_ASTArena *arena,
                                                   struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -14673,10 +14681,14 @@ static int32_t glue_try_binop_cmp_rbx_rax_elf_c(struct ast_ASTArena *arena,
     return -1;
   r = glue_try_binop_load_operand_elf_c(arena, elf_ctx, right_ref, ctx, ta, 0);
   if (r == 0) {
+    /* emit left writes rax — drop stale "right VAR still in rax" cache hit. */
+    glue_binop_var_slot_cache_invalidate_rax();
     if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, left_ref, ctx, ta) != 0)
       return -1;
     if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
       return -1;
+    /* rbx now holds left (often a lit), not a cached right VAR slot. */
+    glue_binop_var_slot_cache_invalidate_rbx();
     return glue_try_binop_load_operand_elf_c(arena, elf_ctx, right_ref, ctx, ta, 0);
   }
   if (r == -1)
@@ -22382,6 +22394,27 @@ int32_t pipeline_asm_emit_cmp_elf(struct ast_ASTArena *arena, struct platform_el
     }
   }
   /**
+   * wave669 Cap residual: lit-left `0==p` / `null==p` — left LIT may still be i32-shaped
+   * before peer coerce stamp is visible here; take 64-bit cmp from right when right is
+   * ptr/i64/… so REX.W is not lost on the lit-left fast path.
+   * G.7: same glue_type_kind_is_64bit_int authority; no second width table.
+   */
+  if (is_cmp_64bit == 0 && right_ref > 0) {
+    struct ast_Expr *re = pipeline_arena_expr_ptr(arena, right_ref);
+    if (re) {
+      int32_t rt_ref = re->resolved_type_ref;
+      if (rt_ref > 0) {
+        int32_t rt_kind = pipeline_type_kind_ord_at(arena, rt_ref);
+        is_cmp_64bit = glue_type_kind_is_64bit_int(rt_kind);
+      }
+    }
+    if (is_cmp_64bit == 0 && pipeline_expr_kind_ord_at(arena, right_ref) == 48) {
+      int32_t rk = pipeline_asm_call_return_type_kind_ord_c(arena, right_ref);
+      if (rk == 5 || rk == 4 || rk == 6 || rk == 7 || rk == 9)
+        is_cmp_64bit = 1;
+    }
+  }
+  /**
    * CALL 与字面量 0 比较（while/if 内 pipeline_loop_* / sync_one 等）：
    * 勿 mov rax→rbx + imm 0 cmp（CALL 后 tear/patch 易失败）；test eax + setcc 归一化 bool。
    */
@@ -22451,6 +22484,37 @@ int32_t pipeline_asm_emit_cmp_elf(struct ast_ASTArena *arena, struct platform_el
     cc = pipeline_asm_cmp_cc_for_expr_kind_ord(pipeline_expr_kind_ord_at(arena, cmp_expr_ref));
     if (cc < 0)
       return -1;
+    return glue_emit_cmp_finish_rbx_rax_elf_c(arena, ctx, elf_ctx, left_ref, right_ref, is_cmp_64bit, cc, ta);
+  }
+  /**
+   * wave669 Cap residual pure: freestanding lit-left ptr/int cmp (`null==p`, `0==p`).
+   * Mirror the right-lit fast path: left imm → rbx, right value → rax (enc_cmp order).
+   * Skip when right is also lit (handled above) or either side is scalar float.
+   * G.7: single emit_cmp authority expanded; seed path is this C file (standalone glue).
+   * PLATFORM: SHARED freestanding; LINUX x86_64 false-green exposed; host-C hid.
+   */
+  if (left_ref > 0 && right_ref > 0 &&
+      !glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref) &&
+      !glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref) &&
+      !glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
+      !glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
+      pipeline_asm_expr_lit_i32_at_c(arena, left_ref, &lit_imm)) {
+    int32_t var_off = -1;
+    if (pipeline_expr_kind_ord_at(arena, right_ref) == GLUE_EXPR_KIND_VAR)
+      var_off = glue_var_expr_stack_off_elf_c(arena, ctx, right_ref);
+    cc = pipeline_asm_cmp_cc_for_expr_kind_ord(cmp_ko);
+    if (cc < 0)
+      return -1;
+    if (var_off >= 0) {
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, var_off, ta) != 0)
+        return -1;
+    } else {
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, right_ref, ctx, ta) != 0)
+        return -1;
+    }
+    if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, lit_imm, ta) != 0)
+      return -1;
+    glue_binop_var_slot_cache_invalidate_rbx();
     return glue_emit_cmp_finish_rbx_rax_elf_c(arena, ctx, elf_ctx, left_ref, right_ref, is_cmp_64bit, cc, ta);
   }
   {
