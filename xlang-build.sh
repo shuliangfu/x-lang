@@ -324,6 +324,53 @@ case "$TARGET" in
     bash compiler/scripts/leaf_pattern_residual.sh "$_lp_mode"
     ;;
 
+  # === wave748 · 11.3.1 · R1 host-cc seed body (first family: RT_SEED_SLICE) ===
+  host-cc-seed|rt-seed-slice|rt-slice|host-cc-seed-o)
+    # Pure host-cc seed → .o single body for Cap residual RT_SEED_SLICE family.
+    # List authority = catalog RT_SEED_SLICE_OBJS (G.7). Other R1 leaves residual.
+    # Map: compiler/docs/LEAF_PATTERN_RESIDUAL.md
+    # Usage:
+    #   ./xbuild host-cc-seed              # ensure all five rt_* .o
+    #   ./xbuild host-cc-seed --check
+    #   ./xbuild host-cc-seed --force
+    #   ./xbuild rt-seed-slice
+    _hcs_args=()
+    _hcs_mode="rt-slice"
+    shift || true
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --check|check|-c)
+          _hcs_mode="--check"
+          ;;
+        --force|-f|force)
+          _hcs_args+=(--force)
+          ;;
+        one)
+          # Passthrough: ./xbuild host-cc-seed one OUT SEED [flags...]
+          _hcs_mode="one"
+          shift
+          _hcs_args+=("$@")
+          set --
+          break
+          ;;
+        *)
+          _hcs_args+=("$1")
+          ;;
+      esac
+      shift || true
+    done
+    (
+      cd compiler
+      if [ "$_hcs_mode" = "--check" ]; then
+        bash scripts/ensure_host_cc_seed_o.sh --check
+      elif [ "$_hcs_mode" = "one" ]; then
+        bash scripts/ensure_host_cc_seed_o.sh one "${_hcs_args[@]}"
+      else
+        bash scripts/ensure_host_cc_seed_o.sh rt-slice "${_hcs_args[@]}"
+      fi
+    )
+    ;;
+
   # === CI / 冷启动 / 叶 .o（wave730：外层 0× make -C；叶 pattern residual 至 11.3）===
   compiler-all|ci-all)
     # Historical CI: `make -C compiler OPT=1 all` (host-cc xlang + xlang-c / seed).
@@ -492,6 +539,9 @@ g05 产品链（wave733–735 · 11.1.6；产品 link 零 make）:
                                        （G.7 禁双 .o；禁第二套链接实现）
   leaf-patterns / leaf-residual        叶 .o pattern residual 库存（11.3.1 路径）
   leaf-patterns --check                校验 doc + class dump + 接线
+  host-cc-seed / rt-seed-slice         R1 单族 RT_SEED_SLICE host-cc 体（wave748）
+  host-cc-seed --check                 校验 catalog + thin Makefile + 体
+  host-cc-seed --force                 强制重编五叶 rt_*.o
                                        体 = leaf_pattern_residual.sh
                                        图 = compiler/docs/LEAF_PATTERN_RESIDUAL.md
                                        （非物理删 make；G.7 禁双 .o 清单）

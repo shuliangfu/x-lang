@@ -47,6 +47,7 @@ REQUIRED_KEYS=(
   BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS
   USER_ASM_SEED_OBJS
   ASM_GLUE_STANDALONE_O
+  RT_SEED_SLICE_OBJS
 )
 
 out="$("$MAKE" -s bootstrap-driver-seed-export-obj-catalog)"

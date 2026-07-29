@@ -1,4 +1,4 @@
-# Product + cold-start build DAG (11.1.1 · wave742 · 11.1.2 wave743 · 11.3 prereq edges wave744 · 11.1.3/4 wave745 · 11.3.1 path wave746 · R4 mode wave747)
+# Product + cold-start build DAG (11.1.1 · wave742 · 11.1.2 wave743 · 11.3 prereq edges wave744 · 11.1.3/4 wave745 · 11.3.1 path wave746 · R4 mode wave747 · R1 rt-slice wave748)
 
 > **Authority (G.7):** this document is the **orchestration dependency map** for Track MG.  
 > Object-list *definitions* stay in `compiler/mk/*.mk` (export via `driver_seed_obj_catalog.sh`).  
@@ -8,7 +8,7 @@
 > Prereq edges (wave744): `driver_seed_ensure_prereqs.sh` (catalog `DRIVER_SEED_PREREQS`).  
 > Platform + linker policy (wave745 · 11.1.3/4): `compiler/docs/PLATFORM_LINKER.md` +  
 > `host_platform_linker.sh` · `./xbuild host-platform` / `linker-policy`.  
-> Leaf pattern residual (wave746 · 11.3.1 path · wave747 R4 mode):  
+> Leaf pattern residual (wave746 · 11.3.1 path · wave747 R4 mode · wave748 R1 rt-slice):  
 > `compiler/docs/LEAF_PATTERN_RESIDUAL.md` + `leaf_pattern_residual.sh` ·  
 > `./xbuild leaf-patterns`.
 
@@ -32,7 +32,9 @@
 **Not yet:** replacing C `build_runtime` step table (ABI still `build_get_step_*` · 11.1.5).  
 **Not yet:** physical delete of Makefile (11.3.1).  
 **wave745:** 11.1.3/4 **policy + shell inventory** (not pure-ld endgame; residual `SEED_LINK_CC -o` named).  
-**wave746:** 11.3.1 **path + named residual classes R1–R6** (not physical delete; not pure-ld).
+**wave746:** 11.3.1 **path + named residual classes R1–R6** (not physical delete; not pure-ld).  
+**wave747:** R4 mode-policy + catalog list in `rebuild_leaves` (pattern bodies still make).  
+**wave748:** R1 first family **RT_SEED_SLICE** pure host-cc body → `ensure_host_cc_seed_o.sh` (other R1 residual).
 
 ---
 
@@ -191,7 +193,7 @@ Do **not** grow new free-form recipes. Known residual classes:
 | Residual | Notes |
 |----------|--------|
 | ~~`DRIVER_SEED_PREREQS` make-graph edges~~ | **swallowed wave744** → shell ensure (list still mk) |
-| Leaf `.o` pattern rules (R1–R5) | **named inventory wave746** · **R4 mode+list shell wave747** · pattern bodies still Makefile → 11.3.1 |
+| Leaf `.o` pattern rules (R1–R5) | **named inventory wave746** · **R4 mode+list shell wave747** · **R1 rt-slice body wave748** · other pattern bodies still Makefile → 11.3.1 |
 | `compiler-all` / Makefile `all` | CI host-cc path (R5) |
 | FULL=1 bstrict make entry | Non-daily |
 | Missing `xlang-c` for force -E | ensure_* gen scripts |
@@ -263,6 +265,16 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 - [ ] Rebuild without make pattern graph (R4 endgame)
 - [ ] Physical delete of Makefile (11.3.1 endgame)
 
+### wave748 (11.3.1 · R1 first family rt-seed-slice)
+
+- [x] `ensure_host_cc_seed_o.sh` pure host-cc body (`one` + `rt-slice`)
+- [x] List authority = catalog `RT_SEED_SLICE_OBJS` (export + REQUIRED_KEYS)
+- [x] Makefile five `src/runtime/rt_*.o` thin-call the script
+- [x] `./xbuild host-cc-seed` / `rt-seed-slice` + `--check`
+- [x] LEAF_PATTERN dump `SWALLOWED_R1_RT_SEED_SLICE=1` / `R1_OTHER_HOST_CC_STILL_MAKE=1`
+- [ ] Remaining R1 host-cc leaves (diag / bridge / …)
+- [ ] Physical delete of Makefile (11.3.1 endgame)
+
 ---
 
 ## References
@@ -276,4 +288,5 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 - `compiler/scripts/driver_seed_obj_catalog.sh` (lists)  
 - `compiler/scripts/driver_seed_ensure_prereqs.sh` (edges · wave744)  
 - `compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh` (R4 mode · wave747)  
+- `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 rt-slice body · wave748)  
 - `compiler/scripts/host_platform_linker.sh` (platform + linker · wave745)

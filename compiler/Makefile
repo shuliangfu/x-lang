@@ -963,22 +963,24 @@ src/runtime_driver.o: seeds/runtime.from_x.c src/runtime.x Makefile include/diag
 
 # G-02f Cap residual slices：driver_abi 跨 TU 数据/thread_fn（arena BSS、emit 扫描槽、preamble 表、stack_esc）。
 # 与 g05_ensure 产品路径同源 seed；冷启动 phase1 必须进 DRIVER_SEED_OBJS。
-src/runtime/rt_arena_buf.o: seeds/rt_arena_buf.from_x.c src/runtime/rt_arena_buf.x
-	@mkdir -p src/runtime
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/rt_arena_buf.from_x.c -o $@
-src/runtime/rt_emit_state.o: seeds/rt_emit_state.from_x.c src/runtime/rt_emit_state.x
-	@mkdir -p src/runtime
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/rt_emit_state.from_x.c -o $@
-src/runtime/rt_preamble.o: seeds/rt_preamble.from_x.c src/runtime/rt_preamble.x
-	@mkdir -p src/runtime
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/rt_preamble.from_x.c -o $@
-src/runtime/rt_stack.o: seeds/rt_stack.from_x.c src/runtime/rt_stack.x
-	@mkdir -p src/runtime
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/rt_stack.from_x.c -o $@
+# wave748 R1: pure host-cc body → scripts/ensure_host_cc_seed_o.sh (G.7 single body).
+# List authority remains RT_SEED_SLICE_OBJS; thin leaves only.
+src/runtime/rt_arena_buf.o: seeds/rt_arena_buf.from_x.c src/runtime/rt_arena_buf.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS) -I. -Iinclude -Isrc" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/rt_arena_buf.from_x.c
+src/runtime/rt_emit_state.o: seeds/rt_emit_state.from_x.c src/runtime/rt_emit_state.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS) -I. -Iinclude -Isrc" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/rt_emit_state.from_x.c
+src/runtime/rt_preamble.o: seeds/rt_preamble.from_x.c src/runtime/rt_preamble.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS) -I. -Iinclude -Isrc" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/rt_preamble.from_x.c
+src/runtime/rt_stack.o: seeds/rt_stack.from_x.c src/runtime/rt_stack.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS) -I. -Iinclude -Isrc" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/rt_stack.from_x.c
 # multi-error recovery 诊断（G-02f-307）；勿仅靠 no_c 内嵌 merge——冷启动 phase1 须显式链入。
-src/runtime/rt_parse_diag.o: seeds/rt_parse_diag.from_x.c src/runtime/rt_parse_diag.x
-	@mkdir -p src/runtime
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/rt_parse_diag.from_x.c -o $@
+src/runtime/rt_parse_diag.o: seeds/rt_parse_diag.from_x.c src/runtime/rt_parse_diag.x scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS) -I. -Iinclude -Isrc" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/rt_parse_diag.from_x.c
 RT_SEED_SLICE_OBJS = src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o src/runtime/rt_parse_diag.o
 
 # G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（XLANG_LEGACY_PREPROCESS_C 路径已死）。
@@ -2620,6 +2622,7 @@ bootstrap-driver-seed-export-obj-catalog:
 	@printf 'BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS=%s\n' '$(BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS)'
 	@printf 'USER_ASM_SEED_OBJS=%s\n' '$(USER_ASM_SEED_OBJS)'
 	@printf 'ASM_GLUE_STANDALONE_O=%s\n' '$(ASM_GLUE_STANDALONE_O)'
+	@printf 'RT_SEED_SLICE_OBJS=%s\n' '$(RT_SEED_SLICE_OBJS)'
 
 # §5b #2 — pipeline_x.o FORCE recompile on cold start (PIPELINE_X_FORCE_COMPILE=1)
 # Body: bootstrap_driver_seed_rebuild_leaves.sh pipeline-x; list = DRIVER_SEED_PIPELINE_X_OBJS only.

@@ -133,14 +133,19 @@
 //     $(CC) -o as linker without inventory. Pure-ld cold endgame later.
 //     ./xbuild linker-policy [--check]
 //
-//   11.3.1 leaf pattern residual path (wave746 inventory · wave747 R4 mode):
+//   11.3.1 leaf pattern residual path (wave746 inventory · wave747 R4 mode ·
+//   wave748 R1 rt-seed-slice):
 //     Authority map: compiler/docs/LEAF_PATTERN_RESIDUAL.md
 //     Machine: compiler/scripts/leaf_pattern_residual.sh
 //     ./xbuild leaf-patterns | leaf-residual [--check]
 //     Named residual classes R1–R5 (host-cc seed/.o, UNAME stamp, thin+rest,
 //     cold rebuild pattern bodies, CI all). R6 cold CC -o → 11.1.4.
 //     wave747: R4 mode policy + catalog list in rebuild_leaves (default);
-//     pattern bodies still make. Physical delete of Makefile = 11.3.1 endgame.
+//     pattern bodies still make.
+//     wave748: R1 pure host-cc body for RT_SEED_SLICE family
+//       (ensure_host_cc_seed_o.sh; list = catalog RT_SEED_SLICE_OBJS).
+//       ./xbuild host-cc-seed | rt-seed-slice [--check|--force]
+//       Other R1 leaves residual. Physical delete of Makefile = 11.3.1 endgame.
 //     G.7: lists stay mk; no dual .o inventory in residual shell.
 //
 //   Full .x import graph later; 11.3.1 endgame deletes Makefile residual leaf rules.
