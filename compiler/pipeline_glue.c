@@ -32259,6 +32259,81 @@ int32_t pipeline_typeck_check_expr_panic_c(struct ast_Module *module, struct ast
 /**
  * typeck.x::typeck_check_expr_match 的 C 委托：检查 matched 与各 arm result；迭代遍历 arm 避免 X 递归 SIGSEGV。
  */
+/* wave703: match arm field binds from subject type (struct pattern as wildcard). */
+static int32_t g_typeck_match_subject_ty = 0;
+static struct ast_Module *g_typeck_match_subject_mod = 0;
+
+/** wave703: set match subject type for field-bind VAR resolve (strict_minimal twin). */
+int32_t pipeline_typeck_match_set_subject_c(struct ast_Module *module, int32_t ty) {
+  g_typeck_match_subject_mod = module;
+  g_typeck_match_subject_ty = ty;
+  return 0;
+}
+
+/** wave703: clear match subject field-bind context. */
+void pipeline_typeck_match_clear_subject_c(void) {
+  g_typeck_match_subject_mod = 0;
+  g_typeck_match_subject_ty = 0;
+}
+
+int32_t pipeline_typeck_match_subject_field_type_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                   uint8_t *name, int32_t name_len) {
+  int32_t ty;
+  int32_t k;
+  int32_t nsl;
+  int32_t fi;
+  int32_t nf;
+  int32_t fl;
+  int32_t j;
+  uint8_t tnm[128];
+  uint8_t fnm[128];
+  int32_t tnl;
+  if (!module || !arena || !name || name_len <= 0)
+    return 0;
+  ty = g_typeck_match_subject_ty;
+  if (ty <= 0 || g_typeck_match_subject_mod != module)
+    return 0;
+  if (pipeline_type_kind_ord_at(arena, ty) != (int32_t)ast_TypeKind_TYPE_NAMED)
+    return 0;
+  tnl = pipeline_type_named_name_into(arena, ty, tnm);
+  if (tnl <= 0)
+    return 0;
+  nsl = module->num_struct_layouts;
+  for (k = 0; k < nsl; k++) {
+    fl = pipeline_module_struct_layout_name_len(module, k);
+    if (fl != tnl)
+      continue;
+    {
+      int32_t match = 1;
+      int32_t bi;
+      for (bi = 0; bi < fl && match; bi++) {
+        if (pipeline_module_struct_layout_name_byte_at(module, k, bi) != tnm[bi])
+          match = 0;
+      }
+      if (!match)
+        continue;
+    }
+    nf = pipeline_module_struct_layout_num_fields(module, k);
+    for (fi = 0; fi < nf; fi++) {
+      int32_t fnl = pipeline_module_struct_layout_field_name_len(module, k, fi);
+      if (fnl != name_len)
+        continue;
+      memset(fnm, 0, sizeof(fnm));
+      pipeline_module_struct_layout_field_name_into(module, k, fi, fnm);
+      {
+        int32_t match = 1;
+        for (j = 0; j < fnl && match; j++) {
+          if (fnm[j] != name[j])
+            match = 0;
+        }
+        if (match)
+          return pipeline_module_struct_layout_field_type_ref(module, k, fi);
+      }
+    }
+  }
+  return 0;
+}
+
 int32_t pipeline_typeck_check_expr_match_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                            int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
   int32_t matched_ref;
@@ -32269,6 +32344,10 @@ int32_t pipeline_typeck_check_expr_match_c(struct ast_Module *module, struct ast
   int32_t arm_res;
   int32_t line;
   int32_t col;
+  int32_t matched_ty;
+  int32_t saved_subj_ty;
+  struct ast_Module *saved_subj_mod;
+  int32_t guard_ref;
 
   (void)module;
   if (!arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
@@ -32279,21 +32358,40 @@ int32_t pipeline_typeck_check_expr_match_c(struct ast_Module *module, struct ast
   col = pipeline_expr_col_at(arena, expr_ref);
   if (pipeline_typeck_check_expr_c(module, arena, matched_ref, return_type_ref, ctx) != 0)
     return -1;
+  matched_ty = pipeline_expr_resolved_type_ref(arena, matched_ref);
+  saved_subj_ty = g_typeck_match_subject_ty;
+  saved_subj_mod = g_typeck_match_subject_mod;
+  g_typeck_match_subject_ty = matched_ty;
+  g_typeck_match_subject_mod = module;
   arm_i = 0;
   while (arm_i < num_arms) {
     is_enum = pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, arm_i);
     if (is_enum != 0) {
       var_ix = pipeline_expr_match_arm_variant_index(arena, expr_ref, arm_i);
       if (var_ix < 0) {
+        g_typeck_match_subject_ty = saved_subj_ty;
+        g_typeck_match_subject_mod = saved_subj_mod;
         driver_diagnostic_typeck_enum_no_variant(line, col);
         return -1;
       }
     }
-    arm_res = pipeline_expr_match_arm_result_ref(arena, expr_ref, arm_i);
-    if (pipeline_typeck_check_expr_c(module, arena, arm_res, return_type_ref, ctx) != 0)
+    /* wave700: typecheck optional guard under subject field binds. */
+    guard_ref = pipeline_expr_match_arm_guard_ref(arena, expr_ref, arm_i);
+    if (guard_ref > 0 && pipeline_typeck_check_expr_c(module, arena, guard_ref, 0, ctx) != 0) {
+      g_typeck_match_subject_ty = saved_subj_ty;
+      g_typeck_match_subject_mod = saved_subj_mod;
       return -1;
+    }
+    arm_res = pipeline_expr_match_arm_result_ref(arena, expr_ref, arm_i);
+    if (pipeline_typeck_check_expr_c(module, arena, arm_res, return_type_ref, ctx) != 0) {
+      g_typeck_match_subject_ty = saved_subj_ty;
+      g_typeck_match_subject_mod = saved_subj_mod;
+      return -1;
+    }
     arm_i = arm_i + 1;
   }
+  g_typeck_match_subject_ty = saved_subj_ty;
+  g_typeck_match_subject_mod = saved_subj_mod;
   if (!ast_ref_is_null(return_type_ref))
     pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref);
   return 0;
@@ -33174,6 +33272,21 @@ int32_t pipeline_typeck_check_expr_var_c(struct ast_Module *module, struct ast_A
   }
   if (pipeline_typeck_reject_bare_import_const_c(module, arena, expr_ref, ctx, vbuf, vnlen))
     return -1;
+  /*
+   * wave703: struct match pattern field bind — `Point { x, y } => x + y` arms are
+   * stored as wildcards; resolve unbound VAR names as fields of match subject type.
+   * PLATFORM: SHARED — G.7 with pipeline_typeck_match_subject_field_type_c.
+   */
+  if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref))) {
+    extern int32_t pipeline_typeck_match_subject_field_type_c(struct ast_Module *module,
+                                                             struct ast_ASTArena *arena, uint8_t *name,
+                                                             int32_t name_len);
+    int32_t ft = pipeline_typeck_match_subject_field_type_c(module, arena, vbuf, vnlen);
+    if (ft > 0) {
+      pipeline_expr_set_resolved_type_ref(arena, expr_ref, ft);
+      return 0;
+    }
+  }
   if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref)))
     return -1;
   return 0;
@@ -35999,17 +36112,21 @@ static int32_t typeck_struct_layouts_same_shape_c(struct ast_Module *m, struct a
   return 1;
 }
 
-/** MOD-02：*Struct 形参 vs 实参（含 &local）点ee 类型是否可接受；失败时打印 typeck error。 */
-static int32_t typeck_check_call_ptr_struct_compat_c(struct ast_Module *module, struct ast_ASTArena *arena,
-                                                     int32_t call_expr_ref, int32_t param_ref, int32_t arg_ref) {
+/**
+ * wave703 / MOD-02: 1 if *StructA vs *StructB (or &StructB) may coerce under
+ * #[repr(compatible)] + same field shape. 0 if not applicable or not ok.
+ * G.7 single authority for positive coerce; typeck_check_call_arg_types and
+ * overload score gate through this (not a second layout walker).
+ * PLATFORM: SHARED.
+ */
+int32_t pipeline_typeck_call_arg_repr_compatible_ok_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                      int32_t param_ref, int32_t arg_ref) {
   int32_t param_elem;
   int32_t arg_elem;
   int32_t arg_ty;
   int32_t arg_kind;
   int32_t la;
   int32_t lb;
-  int32_t line;
-  int32_t col;
   if (!module || !arena || param_ref <= 0 || arg_ref <= 0)
     return 0;
   if (pipeline_type_kind_ord_at(arena, param_ref) != (int32_t)ast_TypeKind_TYPE_PTR)
@@ -36035,22 +36152,59 @@ static int32_t typeck_check_call_ptr_struct_compat_c(struct ast_Module *module, 
   }
   if (arg_elem <= 0 || !typeck_type_is_named_struct_c(module, arena, arg_elem))
     return 0;
-  if (param_elem == arg_elem)
-    return 0;
   param_elem = pipeline_typeck_resolve_type_alias_ref_c(arena, param_elem);
   arg_elem = pipeline_typeck_resolve_type_alias_ref_c(arena, arg_elem);
   if (param_elem == arg_elem)
-    return 0;
+    return 1;
   la = typeck_layout_index_for_named_type_c(module, arena, param_elem);
   lb = typeck_layout_index_for_named_type_c(module, arena, arg_elem);
   if (la < 0 || lb < 0)
     return 0;
-  /** 同一 module 内已登记的 layout 下标：extern 形参 TYPE_NAMED 与局部 struct 常为不同 ref。 */
   if (la == lb)
-    return 0;
+    return 1;
   if (typeck_struct_layouts_same_shape_c(module, arena, la, lb) &&
       pipeline_module_struct_layout_repr_compatible_at(module, la) &&
       pipeline_module_struct_layout_repr_compatible_at(module, lb))
+    return 1;
+  return 0;
+}
+
+/** MOD-02：*Struct 形参 vs 实参（含 &local）点ee 类型是否可接受；失败时打印 typeck error。 */
+static int32_t typeck_check_call_ptr_struct_compat_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                     int32_t call_expr_ref, int32_t param_ref, int32_t arg_ref) {
+  int32_t line;
+  int32_t col;
+  if (!module || !arena || param_ref <= 0 || arg_ref <= 0)
+    return 0;
+  if (pipeline_type_kind_ord_at(arena, param_ref) != (int32_t)ast_TypeKind_TYPE_PTR)
+    return 0;
+  {
+    int32_t param_elem = pipeline_type_elem_ref_at(arena, param_ref);
+    int32_t arg_ty;
+    int32_t arg_kind;
+    int32_t arg_elem;
+    if (param_elem <= 0 || !typeck_type_is_named_struct_c(module, arena, param_elem))
+      return 0;
+    arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+    arg_kind = pipeline_expr_kind_ord_at(arena, arg_ref);
+    if (arg_ty <= 0 && arg_kind == (int32_t)ast_ExprKind_EXPR_ADDR_OF) {
+      int32_t op = pipeline_expr_unary_operand_ref_at(arena, arg_ref);
+      if (op > 0)
+        arg_ty = pipeline_expr_resolved_type_ref(arena, op);
+    }
+    if (arg_ty <= 0)
+      return 0;
+    if (pipeline_type_kind_ord_at(arena, arg_ty) == (int32_t)ast_TypeKind_TYPE_NAMED)
+      arg_elem = arg_ty;
+    else if (pipeline_type_kind_ord_at(arena, arg_ty) == (int32_t)ast_TypeKind_TYPE_PTR)
+      arg_elem = pipeline_type_elem_ref_at(arena, arg_ty);
+    else
+      return 0;
+    if (arg_elem <= 0 || !typeck_type_is_named_struct_c(module, arena, arg_elem))
+      return 0;
+  }
+  /* wave703: G.7 positive path shared with call_arg_types / score. */
+  if (pipeline_typeck_call_arg_repr_compatible_ok_c(module, arena, param_ref, arg_ref))
     return 0;
   line = pipeline_expr_line_at(arena, call_expr_ref);
   col = pipeline_expr_col_at(arena, call_expr_ref);

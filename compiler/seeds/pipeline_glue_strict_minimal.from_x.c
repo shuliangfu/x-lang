@@ -2410,6 +2410,13 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_int_lit_c(struct ast_ASTArena *are
 #ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-219：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/*
+ * wave703: product live match typeck (weak). Sets match-subject field binds via
+ * heavy pipeline_typeck_check_expr_match_c when linked strong; here mirror subject
+ * type into the same static used by pipeline_typeck_match_subject_field_type_c.
+ * Prefer calling the strong body when available — but weak wins on g05, so keep
+ * logic here and call match_subject setup + guards. PLATFORM: SHARED.
+ */
 XLANG_WEAK int32_t pipeline_typeck_check_expr_match_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                                  int32_t expr_ref, int32_t return_type_ref,
                                                                  struct ast_PipelineDepCtx *ctx) {
@@ -2418,6 +2425,11 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_match_c(struct ast_Module *module,
   int32_t arm_i;
   int32_t line;
   int32_t col;
+  int32_t matched_ty;
+  int32_t guard_ref;
+  extern int32_t pipeline_typeck_match_set_subject_c(struct ast_Module *module, int32_t ty);
+  extern void pipeline_typeck_match_clear_subject_c(void);
+  extern int32_t pipeline_expr_match_arm_guard_ref(struct ast_ASTArena *arena, int32_t expr_ref, int32_t i);
   if (!arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
     return 0;
   matched_ref = pipeline_expr_match_matched_ref_at(arena, expr_ref);
@@ -2426,17 +2438,28 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_match_c(struct ast_Module *module,
   col = pipeline_expr_col_at(arena, expr_ref);
   if (typeck_check_expr(module, arena, matched_ref, return_type_ref, ctx) != 0)
     return -1;
+  matched_ty = pipeline_expr_resolved_type_ref(arena, matched_ref);
+  pipeline_typeck_match_set_subject_c(module, matched_ty);
   for (arm_i = 0; arm_i < num_arms; arm_i++) {
     int32_t arm_res;
     if (pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, arm_i) != 0 &&
         pipeline_expr_match_arm_variant_index(arena, expr_ref, arm_i) < 0) {
+      pipeline_typeck_match_clear_subject_c();
       driver_diagnostic_typeck_enum_no_variant(line, col);
       return -1;
     }
-    arm_res = pipeline_expr_match_arm_result_ref(arena, expr_ref, arm_i);
-    if (typeck_check_expr(module, arena, arm_res, return_type_ref, ctx) != 0)
+    guard_ref = pipeline_expr_match_arm_guard_ref(arena, expr_ref, arm_i);
+    if (guard_ref > 0 && typeck_check_expr(module, arena, guard_ref, 0, ctx) != 0) {
+      pipeline_typeck_match_clear_subject_c();
       return -1;
+    }
+    arm_res = pipeline_expr_match_arm_result_ref(arena, expr_ref, arm_i);
+    if (typeck_check_expr(module, arena, arm_res, return_type_ref, ctx) != 0) {
+      pipeline_typeck_match_clear_subject_c();
+      return -1;
+    }
   }
+  pipeline_typeck_match_clear_subject_c();
   if (return_type_ref > 0)
     pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref);
   return 0;
@@ -3132,6 +3155,16 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *
   base_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
   if (ast_ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena->num_exprs)
     return -1;
+  /*
+   * wave703 Cap residual: product path is THIS weak twin (g05 links
+   * pipeline_glue_strict_minimal.o; heavy check_expr_field_access_c is not
+   * the live symbol). Call heavy import-binding resolve for
+   * `const m = import(...); m.CONST` / `import m = "..."; m.fn` field types.
+   * G.7: single authority pipeline_typeck_field_import_binding_resolve_c —
+   * no second const-lookup implementation here. PLATFORM: SHARED.
+   */
+  if (pipeline_typeck_field_import_binding_resolve_c(module, arena, expr_ref, base_ref, ctx))
+    return 0;
   if (pipeline_expr_kind_ord_at(arena, base_ref) == (int32_t)ast_ExprKind_EXPR_VAR &&
       ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, base_ref))) {
     prebind_len = pipeline_expr_var_name_len(arena, base_ref);

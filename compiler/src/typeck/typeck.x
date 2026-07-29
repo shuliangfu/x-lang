@@ -93,6 +93,18 @@ export extern function pipeline_type_elem_ref_at(arena: *ASTArena, type_ref: i32
 export extern function pipeline_type_type_arg_ref_at(arena: *ASTArena, type_ref: i32, idx: i32): i32;
 /* See implementation. */
 export extern function pipeline_typeck_type_refs_equal_c(arena: *ASTArena, a: i32, b: i32): i32;
+/**
+ * wave703: 1 if *StructA arg may coerce to *StructB formal under #[repr(compatible)]
+ * + same field shape. G.7 authority in pipeline_glue.c.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param param_ref i32 — formal type_ref (must be TYPE_PTR to named struct)
+ * @param arg_ref i32 — call argument expr
+ * @return i32 — 1 ok coerce, 0 not applicable / reject
+ * PLATFORM: SHARED
+ */
+export extern function pipeline_typeck_call_arg_repr_compatible_ok_c(module: *Module, arena: *ASTArena,
+param_ref: i32, arg_ref: i32): i32;
 /* See implementation. */
 export extern function pipeline_typeck_resolve_type_alias_ref_c(arena: *ASTArena, type_ref: i32): i32;
 export extern function pipeline_module_num_type_aliases_at(module: *Module): i32;
@@ -7074,6 +7086,16 @@ ctx: *PipelineDepCtx): i32 {
          */
         sc = typeck_overload_arg_param_score(arena, expr_ref, ai, param_raw, dep, ctx);
         if (sc < 0) {
+          /*
+           * wave703 Cap residual: #[repr(compatible)] *PairA → *PairB when same
+           * field shape. Score treats distinct TYPE_NAMED pointees as mismatch.
+           * G.7: pipeline_typeck_call_arg_repr_compatible_ok_c (single layout gate).
+           * PLATFORM: SHARED.
+           */
+          if (arg_ref > 0 && pipeline_typeck_call_arg_repr_compatible_ok_c(mod, arena, param_raw, arg_ref) != 0) {
+            ai = ai + 1;
+            continue;
+          }
           line_a = pipeline_expr_line_at(arena, expr_ref);
           col_a = pipeline_expr_col_at(arena, expr_ref);
           driver_diagnostic_typeck_call_arg_type_mismatch(line_a, col_a);

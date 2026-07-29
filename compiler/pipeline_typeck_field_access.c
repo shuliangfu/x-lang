@@ -43,7 +43,9 @@ extern uint8_t pipeline_module_import_binding_name_byte_at(struct ast_Module *mo
 extern int32_t pipeline_typeck_field_soa_index_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                                 int32_t base_ref);
 
-/** dep 模块顶层 const 是否匹配 name；命中时写出 type_ref。 */
+/** dep 模块顶层 const 是否匹配 name；命中时写出 type_ref。
+ * When type_ref is 0 (const without `: Type`), still match and write 0 so the
+ * caller can stamp i32 from its arena (wave703). */
 static int32_t pipeline_typeck_dep_top_level_const_match(struct ast_Module *dep_mod, uint8_t *name, int32_t name_len,
                                                          int32_t *out_type_ref) {
   int32_t tl;
@@ -58,8 +60,7 @@ static int32_t pipeline_typeck_dep_top_level_const_match(struct ast_Module *dep_
     if (!typeck_top_level_let_name_equal(dep_mod, tl, name, name_len))
       continue;
     tr = pipeline_module_top_level_let_type_ref(dep_mod, tl);
-    if (tr <= 0)
-      continue;
+    /* Allow tr==0: caller fills default (i32) in its arena. */
     *out_type_ref = tr;
     return 1;
   }
@@ -809,7 +810,11 @@ int32_t pipeline_typeck_field_import_binding_resolve_c(struct ast_Module *module
     {
       int32_t const_ty = 0;
       if (pipeline_typeck_dep_top_level_const_match(dep_mod, &field_name[0], field_name_len, &const_ty)) {
-        pipeline_expr_set_resolved_type_ref(arena, expr_ref, const_ty);
+        /* wave703: untyped dep const (type_ref=0) → stamp i32 in caller arena. */
+        if (const_ty <= 0)
+          const_ty = typeck_ensure_i32_type_ref(arena);
+        if (const_ty > 0)
+          pipeline_expr_set_resolved_type_ref(arena, expr_ref, const_ty);
         if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, base_ref))) {
           int32_t nt = typeck_find_or_alloc_named_type_ref(arena, &base_name[0], base_name_len);
           if (nt != 0)
@@ -853,7 +858,11 @@ int32_t pipeline_typeck_field_import_binding_resolve_c(struct ast_Module *module
         if (!dep_mod)
           continue;
         if (pipeline_typeck_dep_top_level_const_match(dep_mod, &field_name[0], field_name_len, &const_ty)) {
-          pipeline_expr_set_resolved_type_ref(arena, expr_ref, const_ty);
+          /* wave703: untyped dep const → i32 in caller arena. */
+          if (const_ty <= 0)
+            const_ty = typeck_ensure_i32_type_ref(arena);
+          if (const_ty > 0)
+            pipeline_expr_set_resolved_type_ref(arena, expr_ref, const_ty);
           if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, base_ref))) {
             int32_t nt = typeck_find_or_alloc_named_type_ref(arena, &base_name[0], base_name_len);
             if (nt != 0)

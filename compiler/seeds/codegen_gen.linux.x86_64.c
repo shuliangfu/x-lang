@@ -8419,7 +8419,24 @@ int32_t codegen_emit_import_module_const_field(struct ast_ASTArena * arena, stru
         (void)((ti = (ti + 1)));
         continue;
       }
-      return codegen_emit_import_module_field_symbol(arena, out, expr_ref, ctx);
+      /* wave703: emit INT_LIT init or bare name; not path-prefixed symbol (BLD001). */
+      {
+        int32_t init_ref = pipeline_module_top_level_let_init_ref(dep_mod, ti);
+        if (((init_ref > 0) && (init_ref <= (arena->num_exprs)))
+            && (pipeline_expr_kind_ord_at(arena, init_ref) == 0)) {
+          struct ast_Expr ie = ast_ast_arena_expr_get(arena, init_ref);
+          if ((codegen_format_int(out, (int64_t)ie.int_val) != 0)) {
+            return -(1);
+          }
+          return 0;
+        }
+        if ((((e.field_access_field_len) > 0)
+             && (codegen_emit_bytes_from_ptr(out, &(((e.field_access_field_name))[0]),
+                                            (e.field_access_field_len)) != 0))) {
+          return -(1);
+        }
+        return 0;
+      }
     }
     return -(1);
   }

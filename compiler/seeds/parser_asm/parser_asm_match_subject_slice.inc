@@ -1097,25 +1097,52 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
         parser_asm_copy_slice_to_name64_slice_c(source, enum_start, enum_len, enum_buf);
         parser_lex_from_next_into_glue(&lex, r);
         lexer_next_into(&r, lex, source);
-        if (r.tok.kind != (int32_t)TOKEN_DOT)
+        /*
+         * wave703 Cap residual: struct pattern `Point { x: 0, y: _ }` / `Point { x, y }`.
+         * After type name IDENT, TOKEN_LBRACE starts field patterns (not enum DOT).
+         * Store as wildcard arm for now; typeck binds field names from match subject
+         * type during arm result check (G.7 twin of match enum path).
+         * PLATFORM: SHARED — parser_asm match arm authority.
+         */
+        if (r.tok.kind == (int32_t)TOKEN_LBRACE) {
+          int32_t brace_depth = 1;
+          parser_lex_from_next_into_glue(&lex, r);
+          while (brace_depth > 0) {
+            lexer_next_into(&r, lex, source);
+            if (r.tok.kind == (int32_t)TOKEN_EOF)
+              return;
+            if (r.tok.kind == (int32_t)TOKEN_LBRACE)
+              brace_depth = brace_depth + 1;
+            else if (r.tok.kind == (int32_t)TOKEN_RBRACE)
+              brace_depth = brace_depth - 1;
+            if (brace_depth > 0)
+              parser_lex_from_next_into_glue(&lex, r);
+          }
+          /* consume closing RBRACE */
+          parser_lex_from_next_into_glue(&lex, r);
+          is_wc = 1;
+        } else if (r.tok.kind == (int32_t)TOKEN_DOT) {
+          parser_lex_from_next_into_glue(&lex, r);
+          lexer_next_into(&r, lex, source);
+          if (r.tok.kind != (int32_t)TOKEN_IDENT)
+            return;
+          variant_len = r.tok.ident_len;
+          if (variant_len > 127)
+            variant_len = 127;
+          variant_start = r.token_start;
+          if (variant_start == 0)
+            variant_start = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, variant_len);
+          memset(variant_buf, 0, sizeof(variant_buf));
+          parser_asm_copy_slice_to_name64_slice_c(source, variant_start, variant_len, variant_buf);
+          parser_lex_from_next_into_glue(&lex, r);
+          is_ev = 1;
+          mod_m = pipeline_parser_get_match_module();
+          if (mod_m)
+            var_idx = pipeline_module_enum_variant_tag_for_names(mod_m, enum_buf, enum_len, variant_buf,
+                                                                variant_len);
+        } else {
           return;
-        parser_lex_from_next_into_glue(&lex, r);
-        lexer_next_into(&r, lex, source);
-        if (r.tok.kind != (int32_t)TOKEN_IDENT)
-          return;
-        variant_len = r.tok.ident_len;
-        if (variant_len > 127)
-          variant_len = 127;
-        variant_start = r.token_start;
-        if (variant_start == 0)
-          variant_start = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, variant_len);
-        memset(variant_buf, 0, sizeof(variant_buf));
-        parser_asm_copy_slice_to_name64_slice_c(source, variant_start, variant_len, variant_buf);
-        parser_lex_from_next_into_glue(&lex, r);
-        is_ev = 1;
-        mod_m = pipeline_parser_get_match_module();
-        if (mod_m)
-          var_idx = pipeline_module_enum_variant_tag_for_names(mod_m, enum_buf, enum_len, variant_buf, variant_len);
+        }
       } else {
         return;
       }

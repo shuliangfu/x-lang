@@ -8719,8 +8719,16 @@ export function emit_import_module_field_symbol(arena: *ASTArena, out: *CodegenO
 }
 
 /**
- * See implementation.
- * See implementation.
+ * Emit C for `binding.CONST` when CONST is a dep-module top-level const.
+ * Prefer the const init literal (INT_LIT → decimal digits) so host C does not
+ * need a mangled symbol that never matches file-static `static const int32_t NAME`.
+ * Fallback: bare field name (matches dep const emit without module prefix).
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param expr_ref i32 — EXPR_FIELD_ACCESS
+ * @param ctx *PipelineDepCtx
+ * @return i32 — 0 ok, -1 not an import-module const field
+ * PLATFORM: SHARED — G.7 single emit path for import const fields.
  */
 export function emit_import_module_const_field(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -8770,7 +8778,25 @@ export function emit_import_module_const_field(arena: *ASTArena, out: *CodegenOu
         ti = ti + 1;
         continue;
       }
-      return emit_import_module_field_symbol(arena, out, expr_ref, ctx);
+      /*
+       * wave703: dep top-level const is emitted as file-static bare name
+       * (`static const int32_t POLL_PENDING = 0`), not `std_async_POLL_PENDING`.
+       * Prior emit_import_module_field_symbol prefixed the path → BLD001 undeclared.
+       * Prefer INT_LIT init value; else bare field name. PLATFORM: SHARED.
+       */
+      let init_ref: i32 = pipeline_module_top_level_let_init_ref(dep_mod, ti);
+      if (init_ref > 0 && init_ref <= arena.num_exprs
+      && pipeline_expr_kind_ord_at(arena, init_ref) == 0) {
+        if (format_int(out, pipeline_expr_int_val_at(arena, init_ref) as i64) != 0) {
+          return -1;
+        }
+        return 0;
+      }
+      if (e.field_access_field_len > 0
+      && emit_bytes_from_ptr(out, &e.field_access_field_name[0], e.field_access_field_len) != 0) {
+        return -1;
+      }
+      return 0;
     }
     return -1;
   }
