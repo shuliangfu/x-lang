@@ -326,6 +326,29 @@ case "$TARGET" in
     ;;
 
   # === wave748–757 · 11.3.1 · R1 host-cc seed body + R3 cold-else ===
+  heat-o|try-heat|heat|b7a-heat)
+    # wave789: B7A heat shell auto-dispatch (G.7 有则补全; NOT physical delete).
+    #   ./xbuild heat-o src/diag.o
+    #   ./xbuild try-heat src/runtime_link_abi.o
+    # Ladder prefer→R1→R2→gen via ensure try-heat; exit 3 = not ensure-owned.
+    if [ "$#" -lt 2 ]; then
+      echo "xbuild heat-o: need <out.o>  (e.g. ./xbuild heat-o src/diag.o)" >&2
+      exit 2
+    fi
+    shift
+    _heat_out="$1"
+    shift || true
+    _heat_args=()
+    while [ "$#" -gt 0 ]; do
+      _heat_args+=("$1")
+      shift || true
+    done
+    (
+      cd compiler
+      bash scripts/ensure_host_cc_seed_o.sh try-heat "$_heat_out" "${_heat_args[@]}"
+    )
+    ;;
+
   host-cc-seed|rt-seed-slice|rt-slice|host-cc-seed-o|core-seed|core_seed|r1-core|r1-core-seed|frontend-glue|frontend_glue|r1-frontend-glue|r1-glue|main-runtime|main_runtime|r1-main-runtime|r1-main|alias-stubs|alias_stubs|r1-alias-stubs|r1-alias|extra-cflags|extra_cflags|r1-extra-cflags|r1-extra|pipeline-abi|misc-basename|misc_basename|misc|r1-misc-basename|r1-misc|seed-map|seed_map|r1-seed-map|r1-mismatch|mismatch|r3-cold-seed|r3_cold_seed|cold-seed|r3-cold)
     # Pure host-cc seed → .o single body (G.7). Lists = catalog keys only.
     #   host-cc-seed     → all swallowed R1 families
@@ -344,6 +367,7 @@ case "$TARGET" in
     #   ./xbuild host-cc-seed --check
     #   ./xbuild host-cc-seed --force
     #   ./xbuild rt-seed-slice | … | seed-map | r3-cold-seed
+    #   ./xbuild heat-o OUT.o              # wave789 B7A heat try-heat (separate case)
     _hcs_cmd="$1"
     _hcs_args=()
     case "$_hcs_cmd" in
@@ -618,6 +642,7 @@ g05 产品链（wave733–735 · 11.1.6；产品 link 零 make）:
                                        R1 host-cc 体（wave748–752 五族）
   host-cc-seed --check                 校验 catalog + thin Makefile + 八族
   host-cc-seed --force                 强制重编已吞 R1 族
+  heat-o / try-heat OUT.o              B7A heat shell 自动分发（wave789；非物理删）
                                        体 = leaf_pattern_residual.sh
                                        图 = compiler/docs/LEAF_PATTERN_RESIDUAL.md
                                        （非物理删 make；G.7 禁双 .o 清单）

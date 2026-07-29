@@ -90,6 +90,12 @@
 #            (有则补全; single leaf src/lexer/cfg_eval.o; rungs: -E-extern±L →
 #            linux pin gen + link_alias ld -r → bootstrap stub). Makefile
 #            thin-call only (NOT physical delete). Residual: B6 R5 · physical delete.
+#   wave789: B7A heat shell auto-dispatch — `try-heat OUT` (有则补全; NOT physical
+#            delete). Ladder existing try-* membership helpers (prefer before
+#            pure R1/R2/gen) so heat can rebuild ensure-owned leaves without
+#            knowing which Makefile recipe owns them. Makefile thin-call edges
+#            remain residual (make dep graph); this is shell-primary heat body
+#            dispatch only. Residual: Makefile edges · Windows gate physical del.
 #   wave758: R4 residual pure host-cc thin_glue → R1 seed-map (G.7 有则补全):
 #            parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c +
 #            -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm;
@@ -194,6 +200,7 @@
 #   bash scripts/ensure_host_cc_seed_o.sh try-lsp-sat-prefer <out.o> # wave781 B3 LSP satellite 2
 #   bash scripts/ensure_host_cc_seed_o.sh try-gen-c-to-o <out.o> # wave782 B4 gen.c→.o bootstrap 5
 #   bash scripts/ensure_host_cc_seed_o.sh try-cfg-eval-ladder <out.o> # wave783 B5 cfg_eval multi-ladder 1
+#   bash scripts/ensure_host_cc_seed_o.sh try-heat <out.o>  # wave789 B7A heat auto-dispatch ladder
 #   bash scripts/ensure_host_cc_seed_o.sh try-r2 <out.o>   # wave760/762 R2 UNAME leaves
 #   bash scripts/ensure_host_cc_seed_o.sh try-gen-x <out.o> # wave761 gen *_x / pipeline_x
 #   bash scripts/ensure_host_cc_seed_o.sh r2-panic         # DRIVER_SEED_PANIC family
@@ -254,7 +261,7 @@ _DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-async-prefer|try-other-l2-prefer|try-r2-prefer|try-runtime-os-prefer|try-std-core-prefer|try-lsp-sat-prefer|try-gen-c-to-o|try-cfg-eval-ladder|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-async-prefer|try-other-l2-prefer|try-r2-prefer|try-runtime-os-prefer|try-std-core-prefer|try-lsp-sat-prefer|try-gen-c-to-o|try-cfg-eval-ladder|try-heat|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -5959,11 +5966,123 @@ run_check() {
     fi
   done
 
+  # wave789: B7A heat auto-dispatch entry must exist (shell ladder; no second body).
+  if ! grep -q 'try_heat_one\|try-heat' "$0"; then
+    bad "try-heat / try_heat_one missing (wave789 B7A heat shell dispatch)"
+  else
+    note "try-heat B7A heat auto-dispatch present (wave789)"
+  fi
+  if ! grep -q 'try_ensure_runtime_os_prefer_one' "$0" \
+    || ! grep -q 'try_ensure_r1_one' "$0" \
+    || ! grep -q 'try_ensure_gen_x_one' "$0"; then
+    bad "try-heat ladder requires existing try-* helpers (wave789 G.7 有则补全)"
+  else
+    note "try-heat ladder deps present (prefer/R1/gen; wave789)"
+  fi
+
   if [ "$fail" -ne 0 ]; then
     echo "ensure_host_cc_seed_o: --check FAILED" >&2
     exit 1
   fi
-  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else + R3 PREFER thin + R2 panic/typeck_f64/crt0 + gen-x residual · wave748–763)" >&2
+  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else + R3 PREFER thin + R2 panic/typeck_f64/crt0 + gen-x residual + try-heat · wave748–789)" >&2
+}
+
+# ---------------------------------------------------------------------------
+# wave789: try-heat OUT — B7A heat shell auto-dispatch (G.7 有则补全).
+#
+# Single heat entry that ladders *existing* membership helpers only.
+# Prefer/hybrid product modes run before pure R1/R2/gen so heat matches
+# Makefile product thin-call semantics (labi/rt/pipeline_abi/… before R1).
+# Exit codes:
+#   0 — some mode claimed OUT and ensure body ran (or skipped up-to-date)
+#   3 — no ensure mode claims OUT (caller residual make / non-ensure leaf)
+#   1/2 — matching mode hard-failed
+# PLATFORM: SHARED — orchestration only; no second recipe body / no .o list.
+# NOT physical delete: Makefile thin-call edges remain for make dep graph.
+# ---------------------------------------------------------------------------
+try_heat_one() {
+  local o="$1"
+  local rc
+  if [ -z "$o" ]; then
+    echo "ensure_host_cc_seed_o try-heat: need <out.o>" >&2
+    exit 2
+  fi
+  # Prefer / hybrid first (heat product path), then pure R1, R2 UNAME, gen-x.
+  # Each helper exits 3 when OUT is not a member — cheap membership only.
+  set +e
+  try_ensure_runtime_os_prefer_one "$o"; rc=$?; set -e
+  [ "$rc" -eq 0 ] && return 0
+  [ "$rc" -ne 3 ] && return "$rc"
+  set +e
+  try_ensure_std_core_prefer_one "$o"; rc=$?; set -e
+  [ "$rc" -eq 0 ] && return 0
+  [ "$rc" -ne 3 ] && return "$rc"
+  set +e
+  try_ensure_lsp_sat_prefer_one "$o"; rc=$?; set -e
+  [ "$rc" -eq 0 ] && return 0
+  [ "$rc" -ne 3 ] && return "$rc"
+  set +e
+  try_ensure_gen_c_to_o_one "$o"; rc=$?; set -e
+  [ "$rc" -eq 0 ] && return 0
+  [ "$rc" -ne 3 ] && return "$rc"
+  set +e
+  try_ensure_cfg_eval_ladder_one "$o"; rc=$?; set -e
+  [ "$rc" -eq 0 ] && return 0
+  [ "$rc" -ne 3 ] && return "$rc"
+  set +e
+  try_ensure_r3_prefer_one "$o"; rc=$?; set -e
+  [ "$rc" -eq 0 ] && return 0
+  [ "$rc" -ne 3 ] && return "$rc"
+  set +e
+  try_ensure_labi_prefer_one "$o"; rc=$?; set -e
+  [ "$rc" -eq 0 ] && return 0
+  [ "$rc" -ne 3 ] && return "$rc"
+  set +e
+  try_ensure_rt_prefer_one "$o"; rc=$?; set -e
+  [ "$rc" -eq 0 ] && return 0
+  [ "$rc" -ne 3 ] && return "$rc"
+  set +e
+  try_ensure_pipeline_abi_prefer_one "$o"; rc=$?; set -e
+  [ "$rc" -eq 0 ] && return 0
+  [ "$rc" -ne 3 ] && return "$rc"
+  set +e
+  try_ensure_ldpc_prefer_one "$o"; rc=$?; set -e
+  [ "$rc" -eq 0 ] && return 0
+  [ "$rc" -ne 3 ] && return "$rc"
+  set +e
+  try_ensure_target_cpu_prefer_one "$o"; rc=$?; set -e
+  [ "$rc" -eq 0 ] && return 0
+  [ "$rc" -ne 3 ] && return "$rc"
+  set +e
+  try_ensure_l2_asm_prefer_one "$o"; rc=$?; set -e
+  [ "$rc" -eq 0 ] && return 0
+  [ "$rc" -ne 3 ] && return "$rc"
+  set +e
+  try_ensure_async_prefer_one "$o"; rc=$?; set -e
+  [ "$rc" -eq 0 ] && return 0
+  [ "$rc" -ne 3 ] && return "$rc"
+  set +e
+  try_ensure_other_l2_prefer_one "$o"; rc=$?; set -e
+  [ "$rc" -eq 0 ] && return 0
+  [ "$rc" -ne 3 ] && return "$rc"
+  set +e
+  try_ensure_r2_prefer_one "$o"; rc=$?; set -e
+  [ "$rc" -eq 0 ] && return 0
+  [ "$rc" -ne 3 ] && return "$rc"
+  set +e
+  try_ensure_r1_one "$o"; rc=$?; set -e
+  [ "$rc" -eq 0 ] && return 0
+  [ "$rc" -ne 3 ] && return "$rc"
+  set +e
+  try_ensure_r2_one "$o"; rc=$?; set -e
+  [ "$rc" -eq 0 ] && return 0
+  [ "$rc" -ne 3 ] && return "$rc"
+  set +e
+  try_ensure_gen_x_one "$o"; rc=$?; set -e
+  [ "$rc" -eq 0 ] && return 0
+  [ "$rc" -ne 3 ] && return "$rc"
+  # Honest residual: not an ensure-owned leaf (make graph / non-catalog).
+  return 3
 }
 
 case "$MODE" in
@@ -6199,6 +6318,19 @@ case "$MODE" in
     set -e
     exit "$_try_rc"
     ;;
+  try-heat|try_heat|heat|heat-one|try-auto|auto|b7a-heat)
+    # wave789: B7A heat shell auto-dispatch; exit 3 if no ensure mode claims OUT.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o try-heat: need <out.o>" >&2
+      exit 2
+    fi
+    _try_out="$1"
+    set +e
+    try_heat_one "$_try_out"
+    _try_rc=$?
+    set -e
+    exit "$_try_rc"
+    ;;
   try-r2|try_r2|try-r2-panic|r2-one|r2-panic-one)
     # wave760/762: R2 UNAME helper — panic | typeck_f64 | crt0; exit 3 if not member.
     if [ "$#" -lt 1 ]; then
@@ -6276,7 +6408,7 @@ case "$MODE" in
     exit 0
     ;;
   *)
-    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-r2-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check)" >&2
+    echo "ensure_host_cc_seed_o: unknown mode '$MODE' (one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-r2-prefer|try-heat|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check)" >&2
     exit 2
     ;;
 esac

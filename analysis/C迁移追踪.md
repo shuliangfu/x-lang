@@ -1496,7 +1496,8 @@
     ✅ **B7D host-cc product link**（wave786 · 默认 `make xlang` → g05_prepare_and_relink；禁 OBJS_CORE UNDEF；**非**物理删）；
     ✅ **B7A cold residual_make=0 + B7B list honesty**（wave787 · 冷七模式 shell only；heat thin-edge residual；列表仍 mk+catalog；**非**物理删）；
     ✅ **B7B shell-primary catalog**（wave788 · mk 解析 0-make；make export 逃生；R1/R3/RT → `mk/driver_seed_r_lists.mk`；**非**物理删）；
-    ⬜ B7 residual endgame · physical delete / 删 Makefile（须 Windows 绿 + heat B7A 等）
+    ✅ **B7A heat try-heat**（wave789 · shell auto-dispatch prefer→R1→R2→gen；`./xbuild heat-o`；Makefile thin-call 边仍 residual；**非**物理删）；
+    ⬜ B7 residual endgame · physical delete / 删 Makefile（须 Windows 绿 + 缩 Makefile thin-call 边等）
   - ⬜ 物理删 `compiler/Makefile` 仍 ⬜（下项）
 
 ⬜ **11.3.1 删除 `compiler/Makefile`**

@@ -30,6 +30,8 @@
 #   wave787: B7A cold rebuild residual_make=0 honesty + heat thin-edge inventory
 #            (NOT physical delete; heat ensure edges + B7B lists remain)
 #   wave788: B7B shell-primary catalog (mk parse 0-make; make export escape)
+#   wave789: B7A heat shell auto-dispatch try-heat (NOT physical delete;
+#            Makefile thin-call edges remain residual)
 #
 # Authority (G.7):
 #   Single shell authority for *named residual classes* of Makefile leaf pattern /
@@ -51,7 +53,7 @@
 #   ./xbuild leaf-patterns | leaf-residual [--check]
 #
 # PLATFORM: SHARED — inventory portable; leaf ABI stays in Makefile / mk.
-# Wave: 746–788 Track MG · 11.3.1 path (B7B shell catalog wave788 · B7A cold 0-make · heat B7A residual · not physical delete · Windows gate + dual-end).
+# Wave: 746–789 Track MG · 11.3.1 path (B7A heat try-heat wave789 · B7B shell catalog · B7A cold 0-make · Makefile edges residual · not physical delete · Windows gate + dual-end).
 
 set -euo pipefail
 
@@ -364,11 +366,12 @@ B6_R5_CI_COMPILER_ALL_WAVE=wave784
 # wave786: B7D host-cc product link → g05 (NOT physical delete)
 # wave787: B7A cold rebuild residual_make=0 honesty + heat thin-edge inventory
 # wave788: B7B shell-primary catalog (mk parse; make export escape; NOT physical delete)
+# wave789: B7A heat shell auto-dispatch try-heat (NOT physical delete; edges remain)
 PHYS_DEL_BUCKET_B7=makefile_dag_thin_calls
 PHYS_DEL_BUCKET_B7_SCOPE=thin_call_edges+mk_lists+archaeology_phonies+host_cc_link
 PHYS_DEL_BUCKET_B7_INVENTORY=1
 PHYS_DEL_BUCKET_B7_BODY_SWALLOWED=0
-PHYS_DEL_BUCKET_B7_WAVE=wave788
+PHYS_DEL_BUCKET_B7_WAVE=wave789
 SWALLOWED_B7_DAG_INVENTORY=1
 B7_DAG_INVENTORY_SWALLOWED=1
 B7_DAG_INVENTORY_NOTE=named_subbuckets_post_B1_B6_leaf_body_clear
@@ -377,15 +380,23 @@ PHYS_DEL_BUCKET_B7A=thin_call_edges_only
 PHYS_DEL_BUCKET_B7A_SCOPE=ensure_thin_call_recipe_edges_still_make
 # wave787: cold rebuild_leaves seven modes already residual_make=0 (shell only).
 # Heat residual = Makefile ensure thin-call edges for `make <obj>` / daily heat.
+# wave789: shell try-heat auto-dispatch (prefer→R1→R2→gen) for heat without recipe name.
 PHYS_DEL_BUCKET_B7A_COLD_0MAKE=1
 PHYS_DEL_BUCKET_B7A_COLD_SCOPE=rebuild_leaves_sat_lsp_bridge_panic_user_asm_glue_pipeline_x
 PHYS_DEL_BUCKET_B7A_HEAT_RESIDUAL=1
 PHYS_DEL_BUCKET_B7A_HEAT_SCOPE=makefile_ensure_host_cc_seed_o_thin_call_edges
+PHYS_DEL_BUCKET_B7A_HEAT_SHELL_DISPATCH=1
+PHYS_DEL_BUCKET_B7A_HEAT_SHELL_DISPATCH_SCOPE=try_heat_prefer_then_r1_r2_gen
 PHYS_DEL_BUCKET_B7A_BODY_SWALLOWED=0
 SWALLOWED_B7A_COLD_REBUILD_0MAKE=1
 B7A_COLD_REBUILD_0MAKE_SWALLOWED=1
 B7A_COLD_REBUILD_0MAKE_VIA=bootstrap_driver_seed_rebuild_leaves
 B7A_COLD_REBUILD_0MAKE_WAVE=wave787
+SWALLOWED_B7A_HEAT_SHELL_DISPATCH=1
+B7A_HEAT_SHELL_DISPATCH_SWALLOWED=1
+B7A_HEAT_SHELL_DISPATCH_VIA=ensure_host_cc_seed_o_try_heat
+B7A_HEAT_SHELL_DISPATCH_WAVE=wave789
+B7A_HEAT_SHELL_DISPATCH_NOTE=makefile_thin_call_edges_still_residual_not_physical_delete
 PHYS_DEL_BUCKET_B7B=mk_list_authority
 PHYS_DEL_BUCKET_B7B_SCOPE=compiler_mk_plus_driver_seed_obj_catalog
 # wave787 honesty: lists intentionally stay mk+catalog (G.7 single list).
@@ -415,7 +426,7 @@ PHYS_DEL_BUCKET_B7D_NOTE=default_make_xlang_is_product_g05_escape_OBJS_CORE
 SWALLOWED_B7D_HOST_CC_PRODUCT_LINK=1
 B7D_HOST_CC_PRODUCT_LINK_SWALLOWED=1
 PHYS_DEL_PREP_NEXT=B7_physical_delete_makefile_after_windows_not_this_wave
-PHYS_DEL_PREP_FORBIDDEN=claim_physical_delete|dual_o_list_as_authority|delete_makefile_before_windows_green|claim_B7_inventory_is_delete|claim_B7D_is_physical_delete|claim_B7A_cold_0make_is_physical_delete|claim_B7B_honesty_is_list_delete|claim_B7B_shell_catalog_is_physical_delete
+PHYS_DEL_PREP_FORBIDDEN=claim_physical_delete|dual_o_list_as_authority|delete_makefile_before_windows_green|claim_B7_inventory_is_delete|claim_B7D_is_physical_delete|claim_B7A_cold_0make_is_physical_delete|claim_B7B_honesty_is_list_delete|claim_B7B_shell_catalog_is_physical_delete|claim_B7A_heat_try_heat_is_physical_delete|claim_B7A_heat_dispatch_removes_makefile_edges
 # wave778: hard gate — physical delete of compiler/Makefile only AFTER Windows
 # hybrid min-gate green (+ PE pure-ld residual owned). Body swallow (B1–B5) keeps
 # Makefile thin-call edges; it is NOT physical delete. Never rm Makefile casually.
@@ -1224,10 +1235,34 @@ fi
 if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7B_MAKE_EXPORT_ESCAPE=1'; then
   bad "dump must set PHYS_DEL_BUCKET_B7B_MAKE_EXPORT_ESCAPE=1 (wave788)"
 fi
+# wave789: B7A heat shell auto-dispatch (Makefile edges still residual)
+if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_B7A_HEAT_SHELL_DISPATCH=1'; then
+  bad "dump must set SWALLOWED_B7A_HEAT_SHELL_DISPATCH=1 (wave789)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'B7A_HEAT_SHELL_DISPATCH_SWALLOWED=1'; then
+  bad "dump B7A_HEAT_SHELL_DISPATCH_SWALLOWED must be 1 (wave789)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7A_HEAT_SHELL_DISPATCH=1'; then
+  bad "dump must set PHYS_DEL_BUCKET_B7A_HEAT_SHELL_DISPATCH=1 (wave789)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7A_HEAT_RESIDUAL=1'; then
+  bad "dump must keep PHYS_DEL_BUCKET_B7A_HEAT_RESIDUAL=1 (wave789 edges remain)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_BUCKET_B7A_BODY_SWALLOWED=0'; then
+  bad "dump must keep PHYS_DEL_BUCKET_B7A_BODY_SWALLOWED=0 (wave789 not full B7A)"
+fi
 if ! printf '%s\n' "$_out" | grep -q 'PHYS_DEL_PREP_NEXT=B7_physical_delete_makefile_after_windows_not_this_wave'; then
-  bad "dump PHYS_DEL_PREP_NEXT must stay physical-delete-after-windows (wave788)"
+  bad "dump PHYS_DEL_PREP_NEXT must stay physical-delete-after-windows (wave789)"
 else
-  note "residual class inventory dump OK (wave747–788 + B7B shell catalog + Windows + dual-end)"
+  note "residual class inventory dump OK (wave747–789 + B7A heat try-heat + B7B shell catalog + Windows + dual-end)"
+fi
+# wave789: ensure try-heat wired (G.7 single body; no dual heat dispatcher)
+if [ ! -f "$ROOT/compiler/scripts/ensure_host_cc_seed_o.sh" ]; then
+  bad "missing ensure_host_cc_seed_o.sh (wave789 heat owner)"
+elif ! grep -q 'try_heat_one\|try-heat' "$ROOT/compiler/scripts/ensure_host_cc_seed_o.sh"; then
+  bad "ensure_host_cc_seed_o.sh missing try-heat (wave789)"
+else
+  note "ensure try-heat present (wave789 B7A heat shell dispatch)"
 fi
 
 # Makefile still present (residual reality) + has host-cc heat

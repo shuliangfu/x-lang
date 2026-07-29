@@ -23,7 +23,8 @@
 #   - Remaining residual (unknown leaves only) still invoke make with mode
 #     ARGS/VARS. wave787 honesty: all seven cold modes (sat/lsp/bridge/panic/
 #     user-asm/glue/pipeline-x) report residual_make=0 on current catalog —
-#     shell-only cold rebuild; heat `make <obj>` thin-call edges stay B7A.
+#     shell-only cold rebuild; heat `make <obj>` thin-call edges stay B7A residual
+#     (wave789: shell try-heat / xbuild heat-o auto-dispatch without recipe name).
 #     wave788: catalog list expansion default shell mk parse (0 make; make escape).
 #     wave758: parser_asm_thin_glue swallowed via R1 seed-map (try-r1).
 #     wave759: pipeline_glue_standalone swallowed via R1 seed-map (try-r1).
