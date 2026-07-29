@@ -405,9 +405,13 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 - `compiler/scripts/ensure_host_cc_seed_o.sh` (R1 families · try-r1 · try-r3-cold · thin_glue/glue-standalone seed-map)  
 - `compiler/scripts/host_platform_linker.sh` (platform + linker · wave745)
 
+## wave792 B7A heat dep-edge thin pure seed+.x residual (2026-07-30)
+
+- **Not physical delete.** Pure seed+.x residual (+31 → **59 FORCE** with wave791): R1/async/rt/alias/L2/lsp/… → FORCE + ensure; shell mtime.
+- Residual heat: hdr/c/asm/stamp/twin (scheduler · strict_glue_stubs) / cfg_eval multi / gen.
+- LEAF: `DEP_THIN_COUNT=59` · `HEAT_RESIDUAL=1`.
+
 ## wave791 B7A heat dep-edge thin (2026-07-30)
 
 - **Not physical delete.** Pure `runtime_*` seed+.x leaves (28): Makefile prereqs → `FORCE` + `ensure_host_cc_seed_o.sh`; `try-heat` owns seed/.x mtime.
-- Residual: hdr/c/asm/stamp leaves + `runtime_scheduler_glue` (async_net_fs twin) + full make graph for non-pilot.
-- LEAF: `SWALLOWED_B7A_HEAT_DEP_THIN=1` · `PHYS_DEL_BUCKET_B7A_HEAT_DEP_THIN=1` · `PHYS_DEL_BUCKET_B7A_HEAT_RESIDUAL=1`.
-- Next: Windows hybrid green → physical delete Makefile; or thin remaining dep edges.
+- Superseded count by wave792 (59 total FORCE pure seed+.x).
