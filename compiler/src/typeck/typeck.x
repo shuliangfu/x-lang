@@ -6792,6 +6792,37 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
        */
       lt_cmp = pipeline_expr_resolved_type_ref(arena, bop_l);
       rt_cmp = pipeline_expr_resolved_type_ref(arena, bop_r);
+      /*
+       * wave670: keyword `null` only compares with pointers (or null).
+       * Must run even when one side is still untyped (null leaves type 0 until
+       * ptr peer coerce) — otherwise `null == i32` soft-skips and false greens
+       * (Ubuntu gold). `null == null` both keyword → green; `null == p` peer ptr.
+       */
+      if (typeck_expr_is_null_keyword(arena, bop_l) != 0
+      && typeck_expr_is_null_keyword(arena, bop_r) == 0) {
+        rko_cmp = 0;
+        if (rt_cmp > 0) {
+          rko_cmp = pipeline_type_kind_ord_at(arena, rt_cmp);
+        }
+        if (rt_cmp > 0 && rko_cmp != 9) {
+          line_ac = pipeline_expr_line_at(arena, expr_ref);
+          col_ac = pipeline_expr_col_at(arena, expr_ref);
+          driver_diagnostic_typeck_comparison_type_mismatch(line_ac, col_ac);
+          return -1;
+        }
+      } else if (typeck_expr_is_null_keyword(arena, bop_r) != 0
+      && typeck_expr_is_null_keyword(arena, bop_l) == 0) {
+        lko_cmp = 0;
+        if (lt_cmp > 0) {
+          lko_cmp = pipeline_type_kind_ord_at(arena, lt_cmp);
+        }
+        if (lt_cmp > 0 && lko_cmp != 9) {
+          line_ac = pipeline_expr_line_at(arena, expr_ref);
+          col_ac = pipeline_expr_col_at(arena, expr_ref);
+          driver_diagnostic_typeck_comparison_type_mismatch(line_ac, col_ac);
+          return -1;
+        }
+      }
       if (!ast.ref_is_null(lt_cmp) && !ast.ref_is_null(rt_cmp)) {
         lko_cmp = pipeline_type_kind_ord_at(arena, lt_cmp);
         rko_cmp = pipeline_type_kind_ord_at(arena, rt_cmp);
@@ -6803,27 +6834,6 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         } else if (lk_cmp == ord_lit
         && typeck_coerce_init_lit_to_decl(arena, bop_l, rt_cmp, rko_cmp, lk_cmp) != 0) {
           lt_cmp = pipeline_expr_resolved_type_ref(arena, bop_l);
-        }
-        /*
-         * wave670: keyword `null` only compares with pointers (or null).
-         * `null == i32` / `i32 == null` hard-fail; `null == p` / `null == null` green.
-         */
-        if (typeck_expr_is_null_keyword(arena, bop_l) != 0
-        && typeck_expr_is_null_keyword(arena, bop_r) == 0) {
-          if (rt_cmp > 0 && rko_cmp != 9) {
-            line_ac = pipeline_expr_line_at(arena, expr_ref);
-            col_ac = pipeline_expr_col_at(arena, expr_ref);
-            driver_diagnostic_typeck_comparison_type_mismatch(line_ac, col_ac);
-            return -1;
-          }
-        } else if (typeck_expr_is_null_keyword(arena, bop_r) != 0
-        && typeck_expr_is_null_keyword(arena, bop_l) == 0) {
-          if (lt_cmp > 0 && lko_cmp != 9) {
-            line_ac = pipeline_expr_line_at(arena, expr_ref);
-            col_ac = pipeline_expr_col_at(arena, expr_ref);
-            driver_diagnostic_typeck_comparison_type_mismatch(line_ac, col_ac);
-            return -1;
-          }
         }
         if (lt_cmp > 0 && rt_cmp > 0 && lt_cmp <= arena.num_types && rt_cmp <= arena.num_types) {
           if (!type_refs_equal(arena, lt_cmp, rt_cmp)) {

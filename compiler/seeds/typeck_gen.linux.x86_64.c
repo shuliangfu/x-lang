@@ -638,6 +638,15 @@ struct ast_ASTArena {
   int32_t num_funcs;
 };
 
+/* ast gen2 single-prefix externs */
+extern int32_t ast_block_num_expr_stmts(struct ast_ASTArena * a, int32_t br);
+extern int32_t ast_block_num_stmt_order(struct ast_ASTArena * a, int32_t br);
+extern int32_t ast_block_final_expr_ref(struct ast_ASTArena * a, int32_t body_ref);
+extern uint8_t ast_block_stmt_order_kind(struct ast_ASTArena * a, int32_t br, int32_t si);
+extern int32_t ast_block_stmt_order_idx(struct ast_ASTArena * a, int32_t br, int32_t si);
+extern int32_t ast_block_num_regions(struct ast_ASTArena * a, int32_t br);
+extern int32_t ast_block_expr_stmt_ref(struct ast_ASTArena * a, int32_t br, int32_t ei);
+
 /* pipeline call aliases (ast_pipeline_* extern, pipeline_* call) */
 #define ast_arena_init ast_ast_arena_init
 #define ast_arena_type_alloc ast_ast_arena_type_alloc
@@ -653,6 +662,10 @@ struct ast_ASTArena {
 #define ast_arena_func_alloc ast_ast_arena_func_alloc
 #define ast_arena_func_get ast_ast_arena_func_get
 #define ast_arena_func_set ast_ast_arena_func_set
+#define typeck_typeck_set_allow_legacy_extern_calls typeck_set_allow_legacy_extern_calls
+#define typeck_typeck_get_allow_legacy_extern_calls typeck_get_allow_legacy_extern_calls
+#define typeck_typeck_return_operand_matches typeck_return_operand_matches
+#define typeck_typeck_check_expr_binop_cmp typeck_check_expr_binop_cmp
 #define typeck_typeck_type_kind_ordinal typeck_type_kind_ordinal
 #define typeck_typeck_name_equal typeck_name_equal
 #define typeck_typeck_resolve_type_alias_ref_local typeck_resolve_type_alias_ref_local
@@ -676,6 +689,7 @@ struct ast_ASTArena {
 #define typeck_typeck_x_named_builtin_align typeck_x_named_builtin_align
 #define typeck_typeck_x_named_builtin_size typeck_x_named_builtin_size
 #define typeck_typeck_x_type_align typeck_x_type_align
+#define typeck_typeck_type_is_empty_struct typeck_type_is_empty_struct
 #define typeck_typeck_x_type_size typeck_x_type_size
 #define typeck_typeck_struct_layout_metrics typeck_struct_layout_metrics
 #define typeck_typeck_validate_struct_layouts_zero_padding typeck_validate_struct_layouts_zero_padding
@@ -736,7 +750,10 @@ struct ast_ASTArena {
 #define typeck_typeck_type_refs_equal_impl typeck_type_refs_equal_impl
 #define typeck_typeck_type_refs_equal typeck_type_refs_equal
 #define typeck_typeck_integer_widen_ok typeck_integer_widen_ok
-#define typeck_typeck_return_operand_matches typeck_return_operand_matches
+#define typeck_typeck_int_family_id typeck_int_family_id
+#define typeck_typeck_integer_widen_ok_refs typeck_integer_widen_ok_refs
+#define typeck_typeck_float_widen_ok typeck_float_widen_ok
+#define typeck_typeck_expr_is_null_keyword typeck_expr_is_null_keyword
 #define typeck_typeck_coerce_init_lit_to_decl typeck_coerce_init_lit_to_decl
 #define typeck_typeck_coerce_init_float_lit_to_decl typeck_coerce_init_float_lit_to_decl
 #define typeck_typeck_coerce_init_enum_field_to_decl typeck_coerce_init_enum_field_to_decl
@@ -772,8 +789,10 @@ struct ast_ASTArena {
 #define typeck_typeck_check_expr_match typeck_check_expr_match
 #define typeck_typeck_check_expr_call_arg typeck_check_expr_call_arg
 #define typeck_typeck_check_expr_call_resolve typeck_check_expr_call_resolve
+#define typeck_typeck_check_call_arity typeck_check_call_arity
+#define typeck_typeck_check_call_arg_types typeck_check_call_arg_types
 #define typeck_typeck_check_expr_call typeck_check_expr_call
-#define typeck_typeck_check_expr_binop_cmp typeck_check_expr_binop_cmp
+#define typeck_typeck_type_is_aggregate_cmp_operand typeck_type_is_aggregate_cmp_operand
 #define typeck_typeck_check_expr_binop_arith typeck_check_expr_binop_arith
 #define typeck_typeck_check_expr_binop typeck_check_expr_binop
 #define typeck_typeck_check_expr_field_access typeck_check_expr_field_access
@@ -784,13 +803,17 @@ struct ast_ASTArena {
 #define typeck_typeck_check_expr_var typeck_check_expr_var
 #define typeck_typeck_check_expr_method_call_arg typeck_check_expr_method_call_arg
 #define typeck_typeck_check_expr_method_call typeck_check_expr_method_call
+#define typeck_typeck_as_cast_type_class_ok typeck_as_cast_type_class_ok
+#define typeck_typeck_as_cast_allowed typeck_as_cast_allowed
 #define typeck_typeck_check_expr_as typeck_check_expr_as
 #define typeck_typeck_check_expr_struct_lit_field typeck_check_expr_struct_lit_field
 #define typeck_typeck_coerce_struct_lit_field_inits_to_layout typeck_coerce_struct_lit_field_inits_to_layout
 #define typeck_typeck_check_expr_struct_lit typeck_check_expr_struct_lit
 #define typeck_typeck_vector_elem_type_ref typeck_vector_elem_type_ref
+#define typeck_typeck_type_is_valid_subscript_index typeck_type_is_valid_subscript_index
 #define typeck_typeck_check_expr_index typeck_check_expr_index
 #define typeck_typeck_expr_is_any_assign_kind typeck_expr_is_any_assign_kind
+#define typeck_typeck_check_expr_array_lit typeck_check_expr_array_lit
 #define typeck_typeck_check_expr_impl_mega typeck_check_expr_impl_mega
 #define typeck_typeck_check_expr_impl typeck_check_expr_impl
 #define typeck_typeck_check_expr typeck_check_expr
@@ -803,6 +826,7 @@ struct ast_ASTArena {
 #define typeck_typeck_check_block_one_while typeck_check_block_one_while
 #define typeck_typeck_check_block_one_for typeck_check_block_one_for
 #define typeck_typeck_check_block_one_if typeck_check_block_one_if
+#define typeck_typeck_void_reject_value_expr typeck_void_reject_value_expr
 #define typeck_typeck_check_block_final typeck_check_block_final
 #define typeck_typeck_check_block_one_region typeck_check_block_one_region
 #define typeck_typeck_check_block_stmt_order_one typeck_check_block_stmt_order_one
@@ -1213,6 +1237,359 @@ struct ast_PipelineDepCtx {
   int32_t typeck_scope_region_len;
   uint8_t typeck_scope_region_label[128];
 };
+
+/* pipeline glue usage aliases */
+extern int32_t ast_pipeline_arena_block_alloc(struct ast_ASTArena *a);
+extern int32_t ast_pipeline_arena_block_cap(void);
+extern struct ast_Block ast_pipeline_arena_block_get_copy(struct ast_ASTArena *a, int32_t ref);
+extern void ast_pipeline_arena_block_set_copy(struct ast_ASTArena *a, int32_t ref, struct ast_Block b);
+extern int32_t ast_pipeline_arena_expr_alloc(struct ast_ASTArena *a);
+extern int32_t ast_pipeline_arena_expr_cap(void);
+extern struct ast_Expr ast_pipeline_arena_expr_get_copy(struct ast_ASTArena *a, int32_t ref);
+extern void ast_pipeline_arena_expr_set_copy(struct ast_ASTArena *a, int32_t ref, struct ast_Expr e);
+extern int32_t ast_pipeline_arena_func_alloc(struct ast_ASTArena *a);
+extern int32_t ast_pipeline_arena_func_cap(void);
+extern struct ast_Func ast_pipeline_arena_func_get_copy(struct ast_ASTArena *a, int32_t ref);
+extern void ast_pipeline_arena_func_set_copy(struct ast_ASTArena *a, int32_t ref, struct ast_Func f);
+extern int32_t ast_pipeline_arena_type_alloc(struct ast_ASTArena *a);
+extern int32_t ast_pipeline_arena_type_cap(void);
+extern struct ast_Type ast_pipeline_arena_type_get_copy(struct ast_ASTArena *a, int32_t ref);
+extern void ast_pipeline_arena_type_set_copy(struct ast_ASTArena *a, int32_t ref, struct ast_Type t);
+extern int32_t ast_pipeline_block_append_const(struct ast_ASTArena *a, int32_t br, uint8_t *name, int32_t name_len,
+                                        int32_t type_ref, int32_t init_ref);
+extern int32_t ast_pipeline_block_append_expr_stmt(struct ast_ASTArena *a, int32_t br, int32_t expr_ref);
+extern int32_t ast_pipeline_block_append_for(struct ast_ASTArena *a, int32_t br, int32_t init_ref, int32_t cond_ref,
+                                      int32_t step_ref, int32_t body_ref);
+extern int32_t ast_pipeline_block_append_if(struct ast_ASTArena *a, int32_t br, int32_t cond_ref, int32_t then_ref,
+                                     int32_t else_ref);
+extern int32_t ast_pipeline_block_append_labeled(struct ast_ASTArena *a, int32_t br, int32_t label_len, int32_t is_goto,
+                                           int32_t goto_target_len, int32_t return_expr_ref);
+extern int32_t ast_pipeline_block_append_let(struct ast_ASTArena *a, int32_t br, uint8_t *name, int32_t name_len,
+                                      int32_t type_ref, int32_t init_ref);
+extern int32_t ast_pipeline_block_append_region(struct ast_ASTArena *a, int32_t br, uint8_t *label, int32_t label_len,
+                                         int32_t body_ref);
+extern int32_t ast_pipeline_block_append_stmt_order(struct ast_ASTArena *a, int32_t br, uint8_t kind, int32_t idx);
+extern int32_t ast_pipeline_block_append_unsafe(struct ast_ASTArena *a, int32_t br, int32_t body_ref);
+extern int32_t ast_pipeline_block_append_while(struct ast_ASTArena *a, int32_t br, int32_t cond_ref, int32_t body_ref);
+extern int32_t ast_pipeline_block_const_init_ref(struct ast_ASTArena *a, int32_t br, int32_t ci);
+extern void ast_pipeline_block_const_name_copy64(struct ast_ASTArena *a, int32_t br, int32_t ci, uint8_t *dst);
+extern int32_t ast_pipeline_block_const_name_len(struct ast_ASTArena *a, int32_t br, int32_t ci);
+extern int32_t ast_pipeline_block_const_type_ref(struct ast_ASTArena *a, int32_t br, int32_t ci);
+extern int32_t ast_pipeline_block_expr_stmt_ref(struct ast_ASTArena *a, int32_t br, int32_t ei);
+extern void ast_pipeline_block_fill_expr_stmts_from_onefunc(struct ast_ASTArena *a, int32_t br, uint8_t *out, int32_t count);
+extern void ast_pipeline_block_fill_fors_from_onefunc(struct ast_ASTArena *a, int32_t br, uint8_t *out, int32_t count);
+extern void ast_pipeline_block_fill_ifs_from_onefunc(struct ast_ASTArena *a, int32_t br, uint8_t *out, int32_t count);
+extern void ast_pipeline_block_fill_stmt_order_from_onefunc(struct ast_ASTArena *a, int32_t br, uint8_t *out, int32_t count);
+extern void ast_pipeline_block_fill_whiles_from_onefunc(struct ast_ASTArena *a, int32_t br, uint8_t *out, int32_t count);
+extern int32_t ast_pipeline_block_if_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t ii);
+extern int32_t ast_pipeline_block_if_else_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ii);
+extern int32_t ast_pipeline_block_if_then_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ii);
+extern int32_t ast_pipeline_block_labeled_return_expr_ref(struct ast_ASTArena *a, int32_t br, int32_t li);
+extern int32_t ast_pipeline_block_let_init_ref(struct ast_ASTArena *a, int32_t br, int32_t li);
+extern void ast_pipeline_block_let_name_copy64(struct ast_ASTArena *a, int32_t br, int32_t li, uint8_t *dst);
+extern int32_t ast_pipeline_block_let_name_len(struct ast_ASTArena *a, int32_t br, int32_t li);
+extern int32_t ast_pipeline_block_let_type_ref(struct ast_ASTArena *a, int32_t br, int32_t li);
+extern int32_t ast_pipeline_block_resolve_var_type_ref(struct ast_ASTArena *a, int32_t block_ref, uint8_t *vname,
+                                                 int32_t vlen);
+extern int32_t ast_pipeline_block_stmt_order_idx(struct ast_ASTArena *a, int32_t br, int32_t si);
+extern uint8_t ast_pipeline_block_stmt_order_kind(struct ast_ASTArena *a, int32_t br, int32_t si);
+extern int32_t ast_pipeline_ctx_append_lib_root(struct ast_PipelineDepCtx *ctx, uint8_t *path, int32_t len);
+extern void ast_pipeline_ctx_lib_root_copy(struct ast_PipelineDepCtx *ctx, int32_t i, uint8_t *dst, int32_t cap);
+extern int32_t ast_pipeline_ctx_lib_root_count(struct ast_PipelineDepCtx *ctx);
+extern int32_t ast_pipeline_ctx_lib_root_len(struct ast_PipelineDepCtx *ctx, int32_t i);
+extern int32_t ast_pipeline_dep_ctx_current_func_index(struct ast_PipelineDepCtx *ctx);
+extern void ast_pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx *ctx, int32_t idx, uint8_t *dst);
+extern int32_t ast_pipeline_dep_ctx_import_path_len(struct ast_PipelineDepCtx *ctx, int32_t idx);
+extern int32_t ast_pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *ctx);
+extern void ast_pipeline_dep_ctx_set_arena(struct ast_PipelineDepCtx *ctx, int32_t idx, struct ast_ASTArena *a);
+extern void ast_pipeline_dep_ctx_set_current_func_index(struct ast_PipelineDepCtx *ctx, int32_t ix);
+extern void ast_pipeline_dep_ctx_set_import_path(struct ast_PipelineDepCtx *ctx, int32_t idx, uint8_t *bytes, int32_t len);
+extern void ast_pipeline_dep_ctx_set_module(struct ast_PipelineDepCtx *ctx, int32_t idx, struct ast_Module *m);
+extern void ast_pipeline_dep_ctx_set_ndep(struct ast_PipelineDepCtx *ctx, int32_t n);
+extern int32_t ast_pipeline_expr_append_array_lit_elem(struct ast_ASTArena *a, int32_t expr_ref, int32_t elem_ref);
+extern int32_t ast_pipeline_expr_append_call_arg(struct ast_ASTArena *a, int32_t expr_ref, int32_t arg_ref);
+extern int32_t ast_pipeline_expr_append_match_arm(struct ast_ASTArena *a, int32_t expr_ref, int32_t result_ref,
+                                           int32_t is_wildcard, int32_t lit_val, int32_t is_enum_variant,
+                                           int32_t variant_index);
+extern int32_t ast_pipeline_expr_append_method_call_arg(struct ast_ASTArena *a, int32_t expr_ref, int32_t arg_ref);
+extern int32_t ast_pipeline_expr_append_struct_lit_field(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *name_bytes,
+                                                  int32_t name_len, int32_t init_ref);
+extern void ast_pipeline_expr_apply_call_resolve(struct ast_ASTArena *a, int32_t expr_ref, int32_t dep_ix,
+                                         int32_t func_ix);
+extern int32_t ast_pipeline_expr_array_lit_elem_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx);
+extern int32_t ast_pipeline_expr_array_lit_num_elems_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t ast_pipeline_expr_as_operand_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t ast_pipeline_expr_block_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t ast_pipeline_expr_call_arg_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx);
+extern int32_t ast_pipeline_expr_call_callee_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t ast_pipeline_expr_call_num_args_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t ast_pipeline_expr_field_access_is_enum_variant(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t ast_pipeline_expr_if_cond_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t ast_pipeline_expr_if_else_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t ast_pipeline_expr_if_then_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t ast_pipeline_expr_index_base_ref(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t ast_pipeline_expr_index_index_ref(struct ast_ASTArena *a, int32_t expr_ref);
+extern void ast_pipeline_expr_init_call_resolve_at_ref(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t ast_pipeline_expr_match_arm_is_enum_variant(struct ast_ASTArena *a, int32_t expr_ref, int32_t i);
+extern int32_t ast_pipeline_expr_match_arm_is_wildcard(struct ast_ASTArena *a, int32_t expr_ref, int32_t i);
+extern int32_t ast_pipeline_expr_match_arm_lit_val(struct ast_ASTArena *a, int32_t expr_ref, int32_t i);
+extern int32_t ast_pipeline_expr_match_arm_result_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t i);
+extern void ast_pipeline_expr_match_arm_set_enum_variant(struct ast_ASTArena *a, int32_t expr_ref, int32_t i,
+                                                  int32_t is_var, int32_t variant_index);
+extern void ast_pipeline_expr_match_arm_set_lit_val(struct ast_ASTArena *a, int32_t expr_ref, int32_t i, int32_t v);
+extern void ast_pipeline_expr_match_arm_set_wildcard(struct ast_ASTArena *a, int32_t expr_ref, int32_t i, int32_t v);
+extern int32_t ast_pipeline_expr_match_arm_variant_index(struct ast_ASTArena *a, int32_t expr_ref, int32_t i);
+extern int32_t ast_pipeline_expr_match_matched_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t ast_pipeline_expr_match_num_arms_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t ast_pipeline_expr_method_call_arg_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx);
+extern int32_t ast_pipeline_expr_method_call_base_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern void ast_pipeline_expr_method_call_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out64);
+extern int32_t ast_pipeline_expr_method_call_name_len(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t ast_pipeline_expr_method_call_num_args_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t ast_pipeline_module_enum_alloc(struct ast_Module *m);
+extern uint8_t ast_pipeline_module_enum_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
+extern int32_t ast_pipeline_module_enum_name_len(struct ast_Module *m, int32_t idx);
+extern void ast_pipeline_module_enum_set_name(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len);
+extern int32_t ast_pipeline_module_enum_variant_tag_for_names(struct ast_Module *m, uint8_t *enum_name,
+                                                         int32_t enum_len, uint8_t *variant_name,
+                                                         int32_t variant_len);
+extern int32_t ast_pipeline_module_func_alloc_slot(struct ast_Module *m);
+extern int32_t ast_pipeline_module_func_body_expr_ref_at(struct ast_Module *m, int32_t fi);
+extern uint8_t ast_pipeline_module_func_name_byte_at(struct ast_Module *m, int32_t fi, int32_t i);
+extern int32_t ast_pipeline_module_func_name_equal_at(struct ast_Module *m, int32_t fi, uint8_t *name, int32_t name_len);
+extern int32_t ast_pipeline_module_func_num_generic_params_at(struct ast_Module *m, int32_t fi);
+extern int32_t ast_pipeline_module_func_ref_at(struct ast_Module *m, int32_t func_index);
+extern void ast_pipeline_module_func_ref_set(struct ast_Module *m, int32_t fi, int32_t func_ref);
+extern int32_t ast_pipeline_module_func_return_type_at(struct ast_Module *m, int32_t fi);
+extern void ast_pipeline_module_func_set_body_expr_ref(struct ast_Module *m, int32_t fi, int32_t body_expr_ref);
+extern void ast_pipeline_module_func_set_body_ref(struct ast_Module *m, int32_t fi, int32_t body_ref);
+extern void ast_pipeline_module_func_set_is_extern(struct ast_Module *m, int32_t fi, int32_t is_extern);
+extern void ast_pipeline_module_func_set_num_params(struct ast_Module *m, int32_t fi, int32_t n);
+extern void ast_pipeline_module_func_set_return_type(struct ast_Module *m, int32_t fi, int32_t type_ref);
+extern int32_t ast_pipeline_module_import_alloc(struct ast_Module *m);
+extern int32_t ast_pipeline_module_import_append_select_name(struct ast_Module *m, int32_t idx, uint8_t *bytes,
+                                                      int32_t len);
+extern uint8_t ast_pipeline_module_import_binding_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
+extern int32_t ast_pipeline_module_import_binding_name_len(struct ast_Module *m, int32_t idx);
+extern int32_t ast_pipeline_module_import_kind_at(struct ast_Module *m, int32_t idx);
+extern uint8_t ast_pipeline_module_import_path_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
+extern void ast_pipeline_module_import_path_copy(struct ast_Module *m, int32_t idx, uint8_t *dst, int32_t dst_cap);
+extern int32_t ast_pipeline_module_import_path_len(struct ast_Module *m, int32_t idx);
+extern int32_t ast_pipeline_module_import_select_count_at(struct ast_Module *m, int32_t idx);
+extern uint8_t ast_pipeline_module_import_select_name_byte_at(struct ast_Module *m, int32_t idx, int32_t sel, int32_t off);
+extern int32_t ast_pipeline_module_import_select_name_len(struct ast_Module *m, int32_t idx, int32_t sel);
+extern void ast_pipeline_module_import_set_binding_name(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len);
+extern void ast_pipeline_module_import_set_kind(struct ast_Module *m, int32_t idx, int32_t kind);
+extern void ast_pipeline_module_import_set_path(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len);
+extern void ast_pipeline_module_import_set_select_count(struct ast_Module *m, int32_t idx, int32_t n);
+extern int32_t ast_pipeline_module_struct_layout_alloc(struct ast_Module *m);
+extern int32_t ast_pipeline_module_struct_layout_allow_padding_at(struct ast_Module *m, int32_t idx);
+extern void ast_pipeline_module_struct_layout_field_name_into(struct ast_Module *m, int32_t li, int32_t j, uint8_t *out64);
+extern int32_t ast_pipeline_module_struct_layout_field_name_len(struct ast_Module *m, int32_t li, int32_t j);
+extern int32_t ast_pipeline_module_struct_layout_field_offset_at(struct ast_Module *m, int32_t li, int32_t j);
+extern int32_t ast_pipeline_module_struct_layout_field_type_ref(struct ast_Module *m, int32_t li, int32_t j);
+extern uint8_t ast_pipeline_module_struct_layout_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
+extern void ast_pipeline_module_struct_layout_name_into(struct ast_Module *m, int32_t idx, uint8_t *out64);
+extern int32_t ast_pipeline_module_struct_layout_name_len(struct ast_Module *m, int32_t idx);
+extern int32_t ast_pipeline_module_struct_layout_num_fields(struct ast_Module *m, int32_t idx);
+extern void ast_pipeline_module_struct_layout_reset_slot(struct ast_Module *m, int32_t idx);
+extern void ast_pipeline_module_struct_layout_set_allow_padding(struct ast_Module *m, int32_t idx, int32_t v);
+extern void ast_pipeline_module_struct_layout_set_field(struct ast_Module *m, int32_t li, int32_t j, uint8_t *fname_bytes,
+                                                 int32_t fname_len, int32_t ftype_ref, int32_t foff);
+extern void ast_pipeline_module_struct_layout_set_name(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len);
+extern void ast_pipeline_module_struct_layout_set_num_fields(struct ast_Module *m, int32_t idx, int32_t nf);
+extern int32_t ast_pipeline_module_top_level_let_alloc(struct ast_Module *m);
+extern int32_t ast_pipeline_module_top_level_let_init_ref(struct ast_Module *m, int32_t idx);
+extern int32_t ast_pipeline_module_top_level_let_is_const(struct ast_Module *m, int32_t idx);
+extern uint8_t ast_pipeline_module_top_level_let_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
+extern int32_t ast_pipeline_module_top_level_let_name_len(struct ast_Module *m, int32_t idx);
+extern void ast_pipeline_module_top_level_let_set(struct ast_Module *m, int32_t idx, uint8_t *name, int32_t name_len,
+                                            int32_t type_ref, int32_t init_ref, int32_t is_const);
+extern int32_t ast_pipeline_module_top_level_let_type_ref(struct ast_Module *m, int32_t idx);
+extern int32_t ast_pipeline_onefunc_append_for(uint8_t *out, int32_t init_ref, int32_t cond_ref, int32_t step_ref,
+                                        int32_t body_ref);
+extern int32_t ast_pipeline_onefunc_append_let(uint8_t *out, uint8_t *name, int32_t name_len, int32_t init_val, int32_t init_ref,
+                                        int32_t type_ref);
+extern int32_t ast_pipeline_onefunc_append_while(uint8_t *out, int32_t cond_ref, int32_t body_ref);
+extern int32_t ast_pipeline_onefunc_const_init_val(uint8_t *out, int32_t i);
+extern void ast_pipeline_onefunc_const_name_copy64(uint8_t *out, int32_t i, uint8_t *dst);
+extern int32_t ast_pipeline_onefunc_const_name_len(uint8_t *out, int32_t i);
+extern void ast_pipeline_onefunc_copy_sidecar(uint8_t *dst, uint8_t *src);
+extern int32_t ast_pipeline_onefunc_let_init_ref(uint8_t *out, int32_t i);
+extern int32_t ast_pipeline_onefunc_let_init_val(uint8_t *out, int32_t i);
+extern void ast_pipeline_onefunc_let_name_copy64(uint8_t *out, int32_t i, uint8_t *dst);
+extern int32_t ast_pipeline_onefunc_let_name_len(uint8_t *out, int32_t i);
+extern int32_t ast_pipeline_onefunc_let_type_ref(uint8_t *out, int32_t i);
+extern int32_t ast_pipeline_onefunc_num_consts(uint8_t *out);
+extern int32_t ast_pipeline_onefunc_num_fors(uint8_t *out);
+extern int32_t ast_pipeline_onefunc_num_lets(uint8_t *out);
+extern int32_t ast_pipeline_onefunc_num_whiles(uint8_t *out);
+#define pipeline_arena_block_alloc ast_pipeline_arena_block_alloc
+#define pipeline_arena_block_cap ast_pipeline_arena_block_cap
+#define pipeline_arena_block_get_copy ast_pipeline_arena_block_get_copy
+#define pipeline_arena_block_set_copy ast_pipeline_arena_block_set_copy
+#define pipeline_arena_expr_alloc ast_pipeline_arena_expr_alloc
+#define pipeline_arena_expr_cap ast_pipeline_arena_expr_cap
+#define pipeline_arena_expr_get_copy ast_pipeline_arena_expr_get_copy
+#define pipeline_arena_expr_set_copy ast_pipeline_arena_expr_set_copy
+#define pipeline_arena_func_alloc ast_pipeline_arena_func_alloc
+#define pipeline_arena_func_cap ast_pipeline_arena_func_cap
+#define pipeline_arena_func_get_copy ast_pipeline_arena_func_get_copy
+#define pipeline_arena_func_set_copy ast_pipeline_arena_func_set_copy
+#define pipeline_arena_type_alloc ast_pipeline_arena_type_alloc
+#define pipeline_arena_type_cap ast_pipeline_arena_type_cap
+#define pipeline_arena_type_get_copy ast_pipeline_arena_type_get_copy
+#define pipeline_arena_type_set_copy ast_pipeline_arena_type_set_copy
+#define pipeline_block_append_const ast_pipeline_block_append_const
+#define pipeline_block_append_expr_stmt ast_pipeline_block_append_expr_stmt
+#define pipeline_block_append_for ast_pipeline_block_append_for
+#define pipeline_block_append_if ast_pipeline_block_append_if
+#define pipeline_block_append_labeled ast_pipeline_block_append_labeled
+#define pipeline_block_append_let ast_pipeline_block_append_let
+#define pipeline_block_append_region ast_pipeline_block_append_region
+#define pipeline_block_append_stmt_order ast_pipeline_block_append_stmt_order
+#define pipeline_block_append_unsafe ast_pipeline_block_append_unsafe
+#define pipeline_block_append_while ast_pipeline_block_append_while
+#define pipeline_block_const_init_ref ast_pipeline_block_const_init_ref
+#define pipeline_block_const_name_copy64 ast_pipeline_block_const_name_copy64
+#define pipeline_block_const_name_len ast_pipeline_block_const_name_len
+#define pipeline_block_const_type_ref ast_pipeline_block_const_type_ref
+#define pipeline_block_expr_stmt_ref ast_pipeline_block_expr_stmt_ref
+#define pipeline_block_fill_expr_stmts_from_onefunc ast_pipeline_block_fill_expr_stmts_from_onefunc
+#define pipeline_block_fill_fors_from_onefunc ast_pipeline_block_fill_fors_from_onefunc
+#define pipeline_block_fill_ifs_from_onefunc ast_pipeline_block_fill_ifs_from_onefunc
+#define pipeline_block_fill_stmt_order_from_onefunc ast_pipeline_block_fill_stmt_order_from_onefunc
+#define pipeline_block_fill_whiles_from_onefunc ast_pipeline_block_fill_whiles_from_onefunc
+#define pipeline_block_if_cond_ref ast_pipeline_block_if_cond_ref
+#define pipeline_block_if_else_body_ref ast_pipeline_block_if_else_body_ref
+#define pipeline_block_if_then_body_ref ast_pipeline_block_if_then_body_ref
+#define pipeline_block_labeled_return_expr_ref ast_pipeline_block_labeled_return_expr_ref
+#define pipeline_block_let_init_ref ast_pipeline_block_let_init_ref
+#define pipeline_block_let_name_copy64 ast_pipeline_block_let_name_copy64
+#define pipeline_block_let_name_len ast_pipeline_block_let_name_len
+#define pipeline_block_let_type_ref ast_pipeline_block_let_type_ref
+#define pipeline_block_resolve_var_type_ref ast_pipeline_block_resolve_var_type_ref
+#define pipeline_block_stmt_order_idx ast_pipeline_block_stmt_order_idx
+#define pipeline_block_stmt_order_kind ast_pipeline_block_stmt_order_kind
+#define pipeline_ctx_append_lib_root ast_pipeline_ctx_append_lib_root
+#define pipeline_ctx_lib_root_copy ast_pipeline_ctx_lib_root_copy
+#define pipeline_ctx_lib_root_count ast_pipeline_ctx_lib_root_count
+#define pipeline_ctx_lib_root_len ast_pipeline_ctx_lib_root_len
+#define pipeline_dep_ctx_current_func_index ast_pipeline_dep_ctx_current_func_index
+#define pipeline_dep_ctx_import_path_copy64 ast_pipeline_dep_ctx_import_path_copy64
+#define pipeline_dep_ctx_import_path_len ast_pipeline_dep_ctx_import_path_len
+#define pipeline_dep_ctx_ndep ast_pipeline_dep_ctx_ndep
+#define pipeline_dep_ctx_set_arena ast_pipeline_dep_ctx_set_arena
+#define pipeline_dep_ctx_set_current_func_index ast_pipeline_dep_ctx_set_current_func_index
+#define pipeline_dep_ctx_set_import_path ast_pipeline_dep_ctx_set_import_path
+#define pipeline_dep_ctx_set_module ast_pipeline_dep_ctx_set_module
+#define pipeline_dep_ctx_set_ndep ast_pipeline_dep_ctx_set_ndep
+#define pipeline_expr_append_array_lit_elem ast_pipeline_expr_append_array_lit_elem
+#define pipeline_expr_append_call_arg ast_pipeline_expr_append_call_arg
+#define pipeline_expr_append_match_arm ast_pipeline_expr_append_match_arm
+#define pipeline_expr_append_method_call_arg ast_pipeline_expr_append_method_call_arg
+#define pipeline_expr_append_struct_lit_field ast_pipeline_expr_append_struct_lit_field
+#define pipeline_expr_apply_call_resolve ast_pipeline_expr_apply_call_resolve
+#define pipeline_expr_array_lit_elem_ref ast_pipeline_expr_array_lit_elem_ref
+#define pipeline_expr_array_lit_num_elems_at ast_pipeline_expr_array_lit_num_elems_at
+#define pipeline_expr_as_operand_ref_at ast_pipeline_expr_as_operand_ref_at
+#define pipeline_expr_block_ref_at ast_pipeline_expr_block_ref_at
+#define pipeline_expr_call_arg_ref ast_pipeline_expr_call_arg_ref
+#define pipeline_expr_call_callee_ref_at ast_pipeline_expr_call_callee_ref_at
+#define pipeline_expr_call_num_args_at ast_pipeline_expr_call_num_args_at
+#define pipeline_expr_field_access_is_enum_variant ast_pipeline_expr_field_access_is_enum_variant
+#define pipeline_expr_if_cond_ref_at ast_pipeline_expr_if_cond_ref_at
+#define pipeline_expr_if_else_ref_at ast_pipeline_expr_if_else_ref_at
+#define pipeline_expr_if_then_ref_at ast_pipeline_expr_if_then_ref_at
+#define pipeline_expr_index_base_ref ast_pipeline_expr_index_base_ref
+#define pipeline_expr_index_index_ref ast_pipeline_expr_index_index_ref
+#define pipeline_expr_init_call_resolve_at_ref ast_pipeline_expr_init_call_resolve_at_ref
+#define pipeline_expr_match_arm_is_enum_variant ast_pipeline_expr_match_arm_is_enum_variant
+#define pipeline_expr_match_arm_is_wildcard ast_pipeline_expr_match_arm_is_wildcard
+#define pipeline_expr_match_arm_lit_val ast_pipeline_expr_match_arm_lit_val
+#define pipeline_expr_match_arm_result_ref ast_pipeline_expr_match_arm_result_ref
+#define pipeline_expr_match_arm_set_enum_variant ast_pipeline_expr_match_arm_set_enum_variant
+#define pipeline_expr_match_arm_set_lit_val ast_pipeline_expr_match_arm_set_lit_val
+#define pipeline_expr_match_arm_set_wildcard ast_pipeline_expr_match_arm_set_wildcard
+#define pipeline_expr_match_arm_variant_index ast_pipeline_expr_match_arm_variant_index
+#define pipeline_expr_match_matched_ref_at ast_pipeline_expr_match_matched_ref_at
+#define pipeline_expr_match_num_arms_at ast_pipeline_expr_match_num_arms_at
+#define pipeline_expr_method_call_arg_ref ast_pipeline_expr_method_call_arg_ref
+#define pipeline_expr_method_call_base_ref_at ast_pipeline_expr_method_call_base_ref_at
+#define pipeline_expr_method_call_name_into ast_pipeline_expr_method_call_name_into
+#define pipeline_expr_method_call_name_len ast_pipeline_expr_method_call_name_len
+#define pipeline_expr_method_call_num_args_at ast_pipeline_expr_method_call_num_args_at
+#define pipeline_module_enum_alloc ast_pipeline_module_enum_alloc
+#define pipeline_module_enum_name_byte_at ast_pipeline_module_enum_name_byte_at
+#define pipeline_module_enum_name_len ast_pipeline_module_enum_name_len
+#define pipeline_module_enum_set_name ast_pipeline_module_enum_set_name
+#define pipeline_module_enum_variant_tag_for_names ast_pipeline_module_enum_variant_tag_for_names
+#define pipeline_module_func_alloc_slot ast_pipeline_module_func_alloc_slot
+#define pipeline_module_func_body_expr_ref_at ast_pipeline_module_func_body_expr_ref_at
+#define pipeline_module_func_name_byte_at ast_pipeline_module_func_name_byte_at
+#define pipeline_module_func_name_equal_at ast_pipeline_module_func_name_equal_at
+#define pipeline_module_func_num_generic_params_at ast_pipeline_module_func_num_generic_params_at
+#define pipeline_module_func_ref_at ast_pipeline_module_func_ref_at
+#define pipeline_module_func_ref_set ast_pipeline_module_func_ref_set
+#define pipeline_module_func_return_type_at ast_pipeline_module_func_return_type_at
+#define pipeline_module_func_set_body_expr_ref ast_pipeline_module_func_set_body_expr_ref
+#define pipeline_module_func_set_body_ref ast_pipeline_module_func_set_body_ref
+#define pipeline_module_func_set_is_extern ast_pipeline_module_func_set_is_extern
+#define pipeline_module_func_set_num_params ast_pipeline_module_func_set_num_params
+#define pipeline_module_func_set_return_type ast_pipeline_module_func_set_return_type
+#define pipeline_module_import_alloc ast_pipeline_module_import_alloc
+#define pipeline_module_import_append_select_name ast_pipeline_module_import_append_select_name
+#define pipeline_module_import_binding_name_byte_at ast_pipeline_module_import_binding_name_byte_at
+#define pipeline_module_import_binding_name_len ast_pipeline_module_import_binding_name_len
+#define pipeline_module_import_kind_at ast_pipeline_module_import_kind_at
+#define pipeline_module_import_path_byte_at ast_pipeline_module_import_path_byte_at
+#define pipeline_module_import_path_copy ast_pipeline_module_import_path_copy
+#define pipeline_module_import_path_len ast_pipeline_module_import_path_len
+#define pipeline_module_import_select_count_at ast_pipeline_module_import_select_count_at
+#define pipeline_module_import_select_name_byte_at ast_pipeline_module_import_select_name_byte_at
+#define pipeline_module_import_select_name_len ast_pipeline_module_import_select_name_len
+#define pipeline_module_import_set_binding_name ast_pipeline_module_import_set_binding_name
+#define pipeline_module_import_set_kind ast_pipeline_module_import_set_kind
+#define pipeline_module_import_set_path ast_pipeline_module_import_set_path
+#define pipeline_module_import_set_select_count ast_pipeline_module_import_set_select_count
+#define pipeline_module_struct_layout_alloc ast_pipeline_module_struct_layout_alloc
+#define pipeline_module_struct_layout_allow_padding_at ast_pipeline_module_struct_layout_allow_padding_at
+#define pipeline_module_struct_layout_field_name_into ast_pipeline_module_struct_layout_field_name_into
+#define pipeline_module_struct_layout_field_name_len ast_pipeline_module_struct_layout_field_name_len
+#define pipeline_module_struct_layout_field_offset_at ast_pipeline_module_struct_layout_field_offset_at
+#define pipeline_module_struct_layout_field_type_ref ast_pipeline_module_struct_layout_field_type_ref
+#define pipeline_module_struct_layout_name_byte_at ast_pipeline_module_struct_layout_name_byte_at
+#define pipeline_module_struct_layout_name_into ast_pipeline_module_struct_layout_name_into
+#define pipeline_module_struct_layout_name_len ast_pipeline_module_struct_layout_name_len
+#define pipeline_module_struct_layout_num_fields ast_pipeline_module_struct_layout_num_fields
+#define pipeline_module_struct_layout_reset_slot ast_pipeline_module_struct_layout_reset_slot
+#define pipeline_module_struct_layout_set_allow_padding ast_pipeline_module_struct_layout_set_allow_padding
+#define pipeline_module_struct_layout_set_field ast_pipeline_module_struct_layout_set_field
+#define pipeline_module_struct_layout_set_name ast_pipeline_module_struct_layout_set_name
+#define pipeline_module_struct_layout_set_num_fields ast_pipeline_module_struct_layout_set_num_fields
+#define pipeline_module_top_level_let_alloc ast_pipeline_module_top_level_let_alloc
+#define pipeline_module_top_level_let_init_ref ast_pipeline_module_top_level_let_init_ref
+#define pipeline_module_top_level_let_is_const ast_pipeline_module_top_level_let_is_const
+#define pipeline_module_top_level_let_name_byte_at ast_pipeline_module_top_level_let_name_byte_at
+#define pipeline_module_top_level_let_name_len ast_pipeline_module_top_level_let_name_len
+#define pipeline_module_top_level_let_set ast_pipeline_module_top_level_let_set
+#define pipeline_module_top_level_let_type_ref ast_pipeline_module_top_level_let_type_ref
+#define pipeline_onefunc_append_for ast_pipeline_onefunc_append_for
+#define pipeline_onefunc_append_let ast_pipeline_onefunc_append_let
+#define pipeline_onefunc_append_while ast_pipeline_onefunc_append_while
+#define pipeline_onefunc_const_init_val ast_pipeline_onefunc_const_init_val
+#define pipeline_onefunc_const_name_copy64 ast_pipeline_onefunc_const_name_copy64
+#define pipeline_onefunc_const_name_len ast_pipeline_onefunc_const_name_len
+#define pipeline_onefunc_copy_sidecar ast_pipeline_onefunc_copy_sidecar
+#define pipeline_onefunc_let_init_ref ast_pipeline_onefunc_let_init_ref
+#define pipeline_onefunc_let_init_val ast_pipeline_onefunc_let_init_val
+#define pipeline_onefunc_let_name_copy64 ast_pipeline_onefunc_let_name_copy64
+#define pipeline_onefunc_let_name_len ast_pipeline_onefunc_let_name_len
+#define pipeline_onefunc_let_type_ref ast_pipeline_onefunc_let_type_ref
+#define pipeline_onefunc_num_consts ast_pipeline_onefunc_num_consts
+#define pipeline_onefunc_num_fors ast_pipeline_onefunc_num_fors
+#define pipeline_onefunc_num_lets ast_pipeline_onefunc_num_lets
+#define pipeline_onefunc_num_whiles ast_pipeline_onefunc_num_whiles
 
 struct ast_Type;
 struct ast_Expr;
@@ -6490,6 +6867,8 @@ int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena *
 
 
 
+
+
 /* wave657 Cap residual: return 1 if ty cannot be scalar ==/!=/relational operand.
  * PLATFORM: SHARED — G.7 ≡ typeck.x typeck_type_is_aggregate_cmp_operand. */
 int32_t typeck_type_is_aggregate_cmp_operand(struct ast_Module * module, struct ast_ASTArena * arena, int32_t ty_ref) {
@@ -6615,6 +6994,32 @@ int32_t typeck_check_expr_binop_cmp(struct ast_Module * module, struct ast_ASTAr
        */
       (void)((lt_cmp = pipeline_expr_resolved_type_ref(arena, bop_l)));
       (void)((rt_cmp = pipeline_expr_resolved_type_ref(arena, bop_r)));
+      /* wave670: null cmp gate OUTSIDE both-typed check (null often type 0). */
+      if (((typeck_expr_is_null_keyword(arena, bop_l) != 0)
+           && (typeck_expr_is_null_keyword(arena, bop_r) == 0))) {
+        (void)((rko_cmp = 0));
+        if ((rt_cmp > 0)) {
+          (void)((rko_cmp = pipeline_type_kind_ord_at(arena, rt_cmp)));
+        }
+        if (((rt_cmp > 0) && (rko_cmp != 9))) {
+          (void)((line_ac = pipeline_expr_line_at(arena, expr_ref)));
+          (void)((col_ac = pipeline_expr_col_at(arena, expr_ref)));
+          (void)(driver_diagnostic_typeck_comparison_type_mismatch(line_ac, col_ac));
+          return -1;
+        }
+      } else if (((typeck_expr_is_null_keyword(arena, bop_r) != 0)
+                  && (typeck_expr_is_null_keyword(arena, bop_l) == 0))) {
+        (void)((lko_cmp = 0));
+        if ((lt_cmp > 0)) {
+          (void)((lko_cmp = pipeline_type_kind_ord_at(arena, lt_cmp)));
+        }
+        if (((lt_cmp > 0) && (lko_cmp != 9))) {
+          (void)((line_ac = pipeline_expr_line_at(arena, expr_ref)));
+          (void)((col_ac = pipeline_expr_col_at(arena, expr_ref)));
+          (void)(driver_diagnostic_typeck_comparison_type_mismatch(line_ac, col_ac));
+          return -1;
+        }
+      }
       if ((!(ast_ref_is_null(lt_cmp)) && !(ast_ref_is_null(rt_cmp)))) {
         int32_t ord_lit = 0;
         (void)((lko_cmp = pipeline_type_kind_ord_at(arena, lt_cmp)));
@@ -6628,24 +7033,6 @@ int32_t typeck_check_expr_binop_cmp(struct ast_Module * module, struct ast_ASTAr
           if (((lk_cmp == ord_lit)
                && (typeck_coerce_init_lit_to_decl(arena, bop_l, rt_cmp, rko_cmp, lk_cmp) != 0))) {
             (void)((lt_cmp = pipeline_expr_resolved_type_ref(arena, bop_l)));
-          }
-        }
-        /* wave670: keyword null only compares with pointers (or null). */
-        if (((typeck_expr_is_null_keyword(arena, bop_l) != 0)
-             && (typeck_expr_is_null_keyword(arena, bop_r) == 0))) {
-          if (((rt_cmp > 0) && (rko_cmp != 9))) {
-            (void)((line_ac = pipeline_expr_line_at(arena, expr_ref)));
-            (void)((col_ac = pipeline_expr_col_at(arena, expr_ref)));
-            (void)(driver_diagnostic_typeck_comparison_type_mismatch(line_ac, col_ac));
-            return -1;
-          }
-        } else if (((typeck_expr_is_null_keyword(arena, bop_r) != 0)
-                    && (typeck_expr_is_null_keyword(arena, bop_l) == 0))) {
-          if (((lt_cmp > 0) && (lko_cmp != 9))) {
-            (void)((line_ac = pipeline_expr_line_at(arena, expr_ref)));
-            (void)((col_ac = pipeline_expr_col_at(arena, expr_ref)));
-            (void)(driver_diagnostic_typeck_comparison_type_mismatch(line_ac, col_ac));
-            return -1;
           }
         }
         if (((((lt_cmp > 0) && (rt_cmp > 0)) && (lt_cmp <= (arena->num_types)))
