@@ -12045,8 +12045,17 @@ extern int32_t pipeline_type_named_name_into(struct ast_ASTArena *arena, int32_t
 static int32_t pipeline_codegen_type_to_c_repr_inner(struct ast_ASTArena *arena, uint8_t *scratch, int32_t cap,
                                                      int32_t type_ref, uint8_t *struct_prefix,
                                                      int32_t struct_prefix_len) {
-  static uint8_t inner[256];
-  static uint8_t eb[256];
+  /*
+   * wave691 Cap residual pure: recursive TYPE_SLICE/TYPE_PTR must use stack
+   * scratch for the elem walk. Prior static inner/eb re-entered when building
+   * [][]T: outer called with scratch=eb, inner TYPE_SLICE wrote hdr into the
+   * same buffer while still reading elem C name → tag became
+   * `struct xlang_slice_xlang_slice_struct` (incomplete) instead of
+   * `struct xlang_slice_xlang_slice_int32_t`. G.7: single type_to_c_repr authority.
+   * PLATFORM: SHARED host-C.
+   */
+  uint8_t inner[256];
+  uint8_t eb[256];
   int32_t tk;
   int32_t elem_ref;
   int32_t arr_sz;
