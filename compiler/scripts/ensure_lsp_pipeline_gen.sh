@@ -12,8 +12,8 @@
 #   (0× make for the gen body). Residual make only when building missing
 #   xlang-c for force -E (until 11.3 swallows that graph).
 #   Frontend = ensure_migrate_gen.sh; driver path = ensure_driver_gen.sh.
-#   Archaeology gens (lsp_io_std_heap_gen, driver_*_gen subcmds) stay Makefile
-#   until a later MG slice (Track L retired product path).
+#   Archaeology gens (lsp_io_std_heap_gen, driver_*_gen subcmds) =
+#   ensure_archaeology_gen.sh (wave740; Track L retired product path).
 #
 # Usage (cwd = compiler/):
 #   sh scripts/ensure_lsp_pipeline_gen.sh              # product all (default)

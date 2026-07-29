@@ -11,7 +11,8 @@
 #   the gen body). Residual make only when building missing xlang-c for force
 #   -E (until 11.3 swallows that graph).
 #   Frontend leaves remain ensure_migrate_gen.sh (wave736/737). Product LSP +
-#   pipeline_gen live in ensure_lsp_pipeline_gen.sh (wave739).
+#   pipeline_gen live in ensure_lsp_pipeline_gen.sh (wave739). Archaeology
+#   subcmd gens live in ensure_archaeology_gen.sh (wave740).
 #
 # Usage (cwd = compiler/):
 #   sh scripts/ensure_driver_gen.sh              # driver + preprocess (default)

@@ -2368,20 +2368,11 @@ LSP_IO_STD_HEAP_RENAME = std_heap_alloc:lsp_io_std_heap_std_heap_alloc,std_heap_
 lsp_io_std_heap_x.o: src/lsp/lsp_io_std_heap.x scripts/driver_leaf_x_to_o.sh
 	@DRIVER_SUBCMD_DIRS="$(LSP_X_E_DIRS)" BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
 	  bash scripts/driver_leaf_x_to_o.sh src/lsp/lsp_io_std_heap.x $@ '$(LSP_IO_STD_HEAP_RENAME)' seeds/lsp_io_std_heap_gen.linux.x86_64.c
-# 考古：FORCE_REGEN / 手工对照用；产品链不依赖工作区 pinned gen
+# wave740: G.7 body → scripts/ensure_archaeology_gen.sh (Track L archaeology only)
 lsp_io_std_heap_gen.c: src/lsp/lsp_io_std_heap.x
-	@if [ -s lsp_io_std_heap_gen.c ] && [ "$(XLANG_FORCE_REGEN_GEN)" != "1" ]; then \
-	  echo "lsp_io_std_heap_gen.c: pinned ($$(wc -c < lsp_io_std_heap_gen.c | tr -d ' ') bytes; Track L 退役，构建用 lsp_io_std_heap_x.o)"; \
-	elif [ -f seeds/lsp_io_std_heap_gen.linux.x86_64.c ] && [ ! -s lsp_io_std_heap_gen.c ]; then \
-	  cp -f seeds/lsp_io_std_heap_gen.linux.x86_64.c lsp_io_std_heap_gen.c; \
-	  echo "lsp_io_std_heap_gen.c: restored from seed (archaeology)"; \
-	elif [ -f $(XLANG_C) ] || $(MAKE) $(XLANG_C); then \
-	  tmp="$@.tmp"; \
-	  ./$(XLANG_C) $(LSP_X_E_DIRS) src/lsp/lsp_io_std_heap.x -E -E-extern > "$$tmp" || \
-	  { rm -f "$$tmp"; if [ -f seeds/lsp_io_std_heap_gen.linux.x86_64.c ]; then cp -f seeds/lsp_io_std_heap_gen.linux.x86_64.c $@; else exit 1; fi; }; \
-	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
-	fi
-	@sed -i.bak '/^extern uint8_t \* malloc/d; /^extern void free(/d; /^extern uint8_t \* calloc/d' $@ 2>/dev/null || true
+	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
+	  XLANG_C="$(XLANG_C)" \
+	  sh scripts/ensure_archaeology_gen.sh lsp_io_std_heap
 
 # bootstrap-driver-seed / relink-xlang 共用：lsp_io / lsp 生成 C → .o
 lsp_io_x.o: lsp_io_gen.c src/lsp/lsp_io.x Makefile
@@ -2433,94 +2424,36 @@ driver_emit_x.o: src/driver/emit.x scripts/driver_leaf_x_to_o.sh
 	  BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
 	  bash scripts/driver_leaf_x_to_o.sh src/driver/emit.x $@ '$(DRIVER_EMIT_RENAME)' seeds/driver_emit_gen.linux.x86_64.c
 
-# 考古：可选再生成工作区 *_gen.c（不进 DRIVER_SEED_PREREQS；叶子已退役）
+# wave740: G.7 body → scripts/ensure_archaeology_gen.sh
+# 考古：可选再生成工作区 *_gen.c（不进 DRIVER_SEED_PREREQS；叶子已退役；产品用 *_x.o）
 driver_fmt_gen.c: src/driver/fmt.x
-	@if [ -s driver_fmt_gen.c ] && [ "$(XLANG_FORCE_REGEN_GEN)" != "1" ]; then \
-	  echo "driver_fmt_gen.c: pinned ($$(wc -c < driver_fmt_gen.c | tr -d ' ') bytes; Track L 退役，构建用 driver_fmt_x.o)"; \
-	elif [ -f seeds/driver_fmt_gen.linux.x86_64.c ] && [ ! -s driver_fmt_gen.c ]; then \
-	  cp -f seeds/driver_fmt_gen.linux.x86_64.c driver_fmt_gen.c; \
-	  echo "driver_fmt_gen.c: restored from seed (archaeology)"; \
-	else \
-	  tmp="$@.tmp"; \
-	  $(MAKE) $(XLANG_C) && \
-	  ./$(XLANG_C) $(DRIVER_SUBCMD_DIRS) -E -E-extern src/driver/fmt.x > "$$tmp" || \
-	  { rm -f "$$tmp"; if [ -f seeds/driver_fmt_gen.linux.x86_64.c ]; then cp -f seeds/driver_fmt_gen.linux.x86_64.c $@; else exit 1; fi; }; \
-	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
-	fi
+	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
+	  XLANG_C="$(XLANG_C)" \
+	  sh scripts/ensure_archaeology_gen.sh fmt
 driver_check_gen.c: src/driver/check.x
-	@if [ -s driver_check_gen.c ] && [ "$(XLANG_FORCE_REGEN_GEN)" != "1" ]; then \
-	  echo "driver_check_gen.c: pinned (archaeology)"; \
-	elif [ -f seeds/driver_check_gen.linux.x86_64.c ] && [ ! -s driver_check_gen.c ]; then \
-	  cp -f seeds/driver_check_gen.linux.x86_64.c driver_check_gen.c; \
-	else \
-	  tmp="$@.tmp"; \
-	  $(MAKE) $(XLANG_C) && \
-	  ./$(XLANG_C) $(DRIVER_SUBCMD_DIRS) -E -E-extern src/driver/check.x > "$$tmp" || \
-	  { rm -f "$$tmp"; if [ -f seeds/driver_check_gen.linux.x86_64.c ]; then cp -f seeds/driver_check_gen.linux.x86_64.c $@; else exit 1; fi; }; \
-	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
-	fi
+	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
+	  XLANG_C="$(XLANG_C)" \
+	  sh scripts/ensure_archaeology_gen.sh check
 driver_test_gen.c: src/driver/test.x
-	@if [ -s driver_test_gen.c ] && [ "$(XLANG_FORCE_REGEN_GEN)" != "1" ]; then \
-	  echo "driver_test_gen.c: pinned (archaeology)"; \
-	elif [ -f seeds/driver_test_gen.linux.x86_64.c ] && [ ! -s driver_test_gen.c ]; then \
-	  cp -f seeds/driver_test_gen.linux.x86_64.c driver_test_gen.c; \
-	else \
-	  tmp="$@.tmp"; \
-	  $(MAKE) $(XLANG_C) && \
-	  ./$(XLANG_C) $(DRIVER_SUBCMD_DIRS) -E -E-extern src/driver/test.x > "$$tmp" || \
-	  { rm -f "$$tmp"; if [ -f seeds/driver_test_gen.linux.x86_64.c ]; then cp -f seeds/driver_test_gen.linux.x86_64.c $@; else exit 1; fi; }; \
-	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
-	fi
+	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
+	  XLANG_C="$(XLANG_C)" \
+	  sh scripts/ensure_archaeology_gen.sh test
 driver_compile_gen.c: src/driver/compile.x
-	@if [ -s driver_compile_gen.c ] && [ "$(XLANG_FORCE_REGEN_GEN)" != "1" ]; then \
-	  echo "driver_compile_gen.c: pinned ($$(wc -c < driver_compile_gen.c | tr -d ' ') bytes)"; \
-	elif [ -f seeds/driver_compile_gen.linux.x86_64.c ] && [ ! -s driver_compile_gen.c ]; then \
-	  cp -f seeds/driver_compile_gen.linux.x86_64.c driver_compile_gen.c; \
-	  echo "driver_compile_gen.c: restored from seed"; \
-	else \
-	  tmp="$@.tmp"; \
-	  $(MAKE) $(XLANG_C) && \
-	  ./$(XLANG_C) $(DRIVER_SUBCMD_DIRS) -E -E-extern src/driver/compile.x > "$$tmp" || \
-	  { rm -f "$$tmp"; if [ -f seeds/driver_compile_gen.linux.x86_64.c ]; then cp -f seeds/driver_compile_gen.linux.x86_64.c $@; else exit 1; fi; }; \
-	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
-	fi
+	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
+	  XLANG_C="$(XLANG_C)" \
+	  sh scripts/ensure_archaeology_gen.sh compile
 driver_build_gen.c: src/driver/build.x
-	@if [ -s driver_build_gen.c ] && [ "$(XLANG_FORCE_REGEN_GEN)" != "1" ]; then \
-	  echo "driver_build_gen.c: pinned (archaeology)"; \
-	elif [ -f seeds/driver_build_gen.linux.x86_64.c ] && [ ! -s driver_build_gen.c ]; then \
-	  cp -f seeds/driver_build_gen.linux.x86_64.c driver_build_gen.c; \
-	else \
-	  tmp="$@.tmp"; \
-	  $(MAKE) $(XLANG_C) && \
-	  ./$(XLANG_C) $(DRIVER_SUBCMD_DIRS) -E -E-extern src/driver/build.x > "$$tmp" || \
-	  { rm -f "$$tmp"; if [ -f seeds/driver_build_gen.linux.x86_64.c ]; then cp -f seeds/driver_build_gen.linux.x86_64.c $@; else exit 1; fi; }; \
-	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
-	fi
+	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
+	  XLANG_C="$(XLANG_C)" \
+	  sh scripts/ensure_archaeology_gen.sh build
 driver_run_gen.c: src/driver/run.x
-	@if [ -s driver_run_gen.c ] && [ "$(XLANG_FORCE_REGEN_GEN)" != "1" ]; then \
-	  echo "driver_run_gen.c: pinned (archaeology)"; \
-	elif [ -f seeds/driver_run_gen.linux.x86_64.c ] && [ ! -s driver_run_gen.c ]; then \
-	  cp -f seeds/driver_run_gen.linux.x86_64.c driver_run_gen.c; \
-	else \
-	  tmp="$@.tmp"; \
-	  $(MAKE) $(XLANG_C) && \
-	  ./$(XLANG_C) $(DRIVER_SUBCMD_DIRS) -E -E-extern src/driver/run.x > "$$tmp" || \
-	  { rm -f "$$tmp"; if [ -f seeds/driver_run_gen.linux.x86_64.c ]; then cp -f seeds/driver_run_gen.linux.x86_64.c $@; else exit 1; fi; }; \
-	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
-	fi
+	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
+	  XLANG_C="$(XLANG_C)" \
+	  sh scripts/ensure_archaeology_gen.sh run
 driver_emit_gen.c: src/driver/emit.x
-	@if [ -s driver_emit_gen.c ] && [ "$(XLANG_FORCE_REGEN_GEN)" != "1" ]; then \
-	  echo "driver_emit_gen.c: pinned ($$(wc -c < driver_emit_gen.c | tr -d ' ') bytes; Track L 退役，构建用 driver_emit_x.o)"; \
-	elif [ -f seeds/driver_emit_gen.linux.x86_64.c ] && [ ! -s driver_emit_gen.c ]; then \
-	  cp -f seeds/driver_emit_gen.linux.x86_64.c driver_emit_gen.c; \
-	  echo "driver_emit_gen.c: restored from seed (archaeology)"; \
-	else \
-	  tmp="$@.tmp"; \
-	  $(MAKE) $(XLANG_C) && \
-	  ./$(XLANG_C) $(DRIVER_SUBCMD_DIRS) -L ../std/fs -L src/preprocess -L src/pipeline -L src/codegen -E -E-extern src/driver/emit.x > "$$tmp" || \
-	  { rm -f "$$tmp"; if [ -f seeds/driver_emit_gen.linux.x86_64.c ]; then cp -f seeds/driver_emit_gen.linux.x86_64.c $@; else exit 1; fi; }; \
-	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
-	fi
+	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
+	  XLANG_C="$(XLANG_C)" \
+	  sh scripts/ensure_archaeology_gen.sh emit
 
 # driver_emit_x.o：见上文 Track L 叶子规则（.x→.o）；勿再从 pinned gen.c 覆盖
 

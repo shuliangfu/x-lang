@@ -89,6 +89,11 @@ run_ensure_driver_gen() {
 run_ensure_lsp_pipeline_gen() {
   (cd compiler && sh scripts/ensure_lsp_pipeline_gen.sh all)
 }
+# Track L archaeology *_gen.c pin/seed/-E (wave740; product link does not use).
+# G.7 body = scripts/ensure_archaeology_gen.sh
+run_ensure_archaeology_gen() {
+  (cd compiler && sh scripts/ensure_archaeology_gen.sh all)
+}
 
 
 case "$TARGET" in
@@ -200,6 +205,25 @@ case "$TARGET" in
         ;;
     esac
     (cd compiler && sh scripts/ensure_lsp_pipeline_gen.sh "$_lp_mode")
+    ;;
+  archaeology-gen|ensure-archaeology-gen|driver-subcmd-gen|ensure-driver-subcmd-gen)
+    # Wave740 · 11.1.6: Track L archaeology driver_*_gen + lsp_io_std_heap_gen
+    # Product link does not consume these (PREFER_X_O). Optional sub-mode:
+    #   ./xbuild archaeology-gen all|driver-all|fmt|check|…|emit|lsp_io_std_heap
+    _arch_mode="all"
+    if [ -n "${2:-}" ]; then
+      case "$2" in
+        all|driver-all|driver_all|subcmd-all|subcmds|fmt|check|test|compile|build|run|emit|lsp_io_std_heap|std_heap|heap)
+          _arch_mode="$2"
+          ;;
+      esac
+    fi
+    case "$TARGET" in
+      driver-subcmd-gen|ensure-driver-subcmd-gen)
+        if [ -z "${2:-}" ]; then _arch_mode=driver-all; fi
+        ;;
+    esac
+    (cd compiler && sh scripts/ensure_archaeology_gen.sh "$_arch_mode")
     ;;
 
   # === CI / 冷启动 / 叶 .o（wave730：外层 0× make -C；图仍 Makefile 至 11.3）===
@@ -343,6 +367,8 @@ g05 产品链（wave733–735 · 11.1.6；产品 link 零 make）:
   lsp-gen                       ensure_lsp_pipeline_gen.sh（lsp trio · wave739）
   pipeline-gen                  ensure_lsp_pipeline_gen.sh pipeline
   lsp-pipeline-gen              ensure_lsp_pipeline_gen.sh all
+  archaeology-gen               ensure_archaeology_gen.sh（Track L 考古 gen · wave740）
+  driver-subcmd-gen             ensure_archaeology_gen.sh driver-all
   refresh-gate                  migrate shell + g05 relink + overlay xlang_asm
                                 （体 refresh_xlang_asm_gate.sh；product *_gen 已 shell）
 

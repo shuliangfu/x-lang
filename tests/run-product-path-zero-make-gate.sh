@@ -992,6 +992,40 @@ else
   note "lsp/pipeline *_gen.c → ensure_lsp_pipeline_gen.sh + xbuild lsp-gen|pipeline-gen (11.1.6 wave739)"
 fi
 
+# wave740: archaeology driver_*_gen + lsp_io_std_heap_gen → ensure_archaeology_gen.sh
+if [ ! -f compiler/scripts/ensure_archaeology_gen.sh ]; then
+  bad "missing compiler/scripts/ensure_archaeology_gen.sh (11.1.6 wave740)"
+elif ! grep -q 'driver_fmt_gen\.c' compiler/scripts/ensure_archaeology_gen.sh \
+  || ! grep -q 'driver_emit_gen\.c' compiler/scripts/ensure_archaeology_gen.sh \
+  || ! grep -q 'lsp_io_std_heap_gen\.c' compiler/scripts/ensure_archaeology_gen.sh; then
+  bad "ensure_archaeology_gen.sh must own driver_*_gen + lsp_io_std_heap_gen production"
+elif ! grep -q 'Track L\|archaeology' compiler/scripts/ensure_archaeology_gen.sh; then
+  bad "ensure_archaeology_gen.sh must document Track L archaeology (not product link path)"
+elif ! grep -q 'ensure_archaeology_gen\.sh' compiler/Makefile; then
+  bad "Makefile archaeology gen leaves must call ensure_archaeology_gen.sh"
+elif ! grep -q 'archaeology-gen\|ensure-archaeology-gen' xlang-build.sh \
+  || ! grep -q 'ensure_archaeology_gen\.sh' xlang-build.sh; then
+  bad "xlang-build missing archaeology-gen first-class target (wave740)"
+else
+  for leaf in driver_fmt_gen.c driver_check_gen.c driver_test_gen.c \
+    driver_compile_gen.c driver_build_gen.c driver_run_gen.c driver_emit_gen.c \
+    lsp_io_std_heap_gen.c; do
+    leaf_body=$(awk -v leaf="$leaf" '
+      $0 ~ "^" leaf ":" { in_l=1; next }
+      in_l && /^[^#[:space:]	]/ { exit }
+      in_l { print }
+    ' compiler/Makefile)
+    leaf_code=$(echo "$leaf_body" | grep -vE '^[[:space:]]*#' || true)
+    if echo "$leaf_code" | grep -qE 'cp -f seeds/|-E-extern|DRIVER_SUBCMD_DIRS|LSP_X_E_DIRS'; then
+      bad "Makefile $leaf recipe still inlines gen body (must call ensure_archaeology_gen.sh)"
+    fi
+    if ! echo "$leaf_body" | grep -q 'ensure_archaeology_gen\.sh'; then
+      bad "Makefile $leaf recipe missing ensure_archaeology_gen.sh"
+    fi
+  done
+  note "archaeology *_gen.c → ensure_archaeology_gen.sh + xbuild archaeology-gen (11.1.6 wave740)"
+fi
+
 # Product daily `all` must remain g05 (not Makefile all); CI uses compiler-all.
 if grep -n 'all|build|xlang)' xlang-build.sh | head -1 | grep -q . \
   && sed -n '/all|build|xlang)/,/^  [a-zA-Z*]/p' xlang-build.sh | head -8 | grep -q 'run_build_tool'; then

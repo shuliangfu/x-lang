@@ -35,7 +35,7 @@
 | **F** | runtime_* residual 宿主 .o | 31 | `xbuild residual-c（白名单）` | 🟡 g05 ensure | 阶段 9 |
 | **G** | build_asm/ 过滤 .o | 4 | `xbuild build-asm-filter` | 🟢 全 4 纯 shell（wave715/716） | 11.0.2/3 |
 | **H** | bootstrap / 产品二进制 phony | 35 | `xbuild bootstrap / link-product` | 🟡 冷编排/链接体 shell；叶+组合体→mk；产品=g05 | 11.0.3/4 |
-| **I** | g05 / relink / build-tool 入口 | 9 | `xbuild link-product` | 🟢 产品+build-tool shell；根 `./xbuild`；**wave733** ensure/link-*；**wave734** refresh-gate；**wave735** migrate；**wave736** migrate-gen；**wave737** lexer-gen；**wave738** driver-gen；**wave739** lsp/pipeline-gen | 11.0.2/3/4 · 11.1.6 |
+| **I** | g05 / relink / build-tool 入口 | 9 | `xbuild link-product` | 🟢 产品+build-tool shell；根 `./xbuild`；**wave733** ensure/link-*；**wave734** refresh-gate；**wave735** migrate；**wave736** migrate-gen；**wave737** lexer-gen；**wave738** driver-gen；**wave739** lsp/pipeline-gen；**wave740** archaeology-gen | 11.0.2/3/4 · 11.1.6 |
 | **J** | test / check / verify / baseline | 12 | `xbuild test / cold-test / prove` | 🟢 test*/verify shell；tests/** hub 全迁（wave732–733；bench vacuous） | 11.0.3/11.2.3 ✅ |
 | **K** | seed 工具（asm host / regen） | 3 | `xbuild seed-tools` | ⬜ Makefile | 11.0.3 |
 | **L** | std 变体（sqlite/net/compress stub） | 10 | `xbuild std-variant` | ⬜ Makefile | 并行 |
@@ -109,7 +109,8 @@
 | `migrate-x-objs` | 2145 | shell `migrate_x_objs.sh` | `xbuild migrate` | 🟢 wave735 体 shell；gen→wave736 | 11.1.6 |
 | `parser_gen.c` / `typeck_gen.c` / `codegen_gen.c` / `lexer_gen.c` | ~1723 | shell `ensure_migrate_gen.sh` | `xbuild migrate-gen` / `lexer-gen` | 🟢 wave736/737 体 shell | 11.1.6 |
 | `driver_gen.c` / `preprocess_gen.c` | ~2626 | shell `ensure_driver_gen.sh` | `xbuild driver-gen` / `preprocess-gen` | 🟢 wave738 体 shell | 11.1.6 |
-| `lsp_diag_gen.c` / `lsp_io_gen.c` / `lsp_gen.c` / `pipeline_gen.c` | ~2332 | shell `ensure_lsp_pipeline_gen.sh` | `xbuild lsp-gen` / `pipeline-gen` | 🟢 wave739 体 shell；考古 subcmd residual | 11.1.6 |
+| `lsp_diag_gen.c` / `lsp_io_gen.c` / `lsp_gen.c` / `pipeline_gen.c` | ~2332 | shell `ensure_lsp_pipeline_gen.sh` | `xbuild lsp-gen` / `pipeline-gen` | 🟢 wave739 体 shell | 11.1.6 |
+| `driver_*_gen.c` (fmt/check/test/compile/build/run/emit) / `lsp_io_std_heap_gen.c` | ~2366 | shell `ensure_archaeology_gen.sh` | `xbuild archaeology-gen` | 🟢 wave740 体 shell；产品不消费（Track L） | 11.1.6 |
 | `legacy-xlang-c-ready` | 757 | Makefile | `🗑` | ⬜ Makefile | LEGACY 考古 |
 | `FORCE` | 2841 | Makefile 强制重编 | `xbuild --force` | ⬜ Makefile | 机制非产品 |
 
@@ -208,20 +209,20 @@
 | 1825 | `lexer_gen.c` | 🟢 wave737 shell |
 | 2167 | `typeck_gen.c` | 🟢 wave736 shell |
 | 2190 | `codegen_gen.c` | 🟢 wave736 shell |
-| 2549 | `lsp_diag_gen.c` | ⬜ |
-| 2572 | `lsp_io_gen.c` | ⬜ |
-| 2611 | `lsp_gen.c` | ⬜ |
-| 2648 | `lsp_io_std_heap_gen.c` | ⬜ |
-| 2713 | `driver_fmt_gen.c` | ⬜ |
-| 2726 | `driver_check_gen.c` | ⬜ |
-| 2738 | `driver_test_gen.c` | ⬜ |
-| 2750 | `driver_compile_gen.c` | ⬜ |
-| 2763 | `driver_build_gen.c` | ⬜ |
-| 2775 | `driver_run_gen.c` | ⬜ |
-| 2787 | `driver_emit_gen.c` | ⬜ |
-| 2855 | `driver_gen.c` | 🟡 wave738 `ensure_driver_gen.sh` 薄叶 |
-| 2916 | `preprocess_gen.c` | 🟡 wave738 `ensure_driver_gen.sh` 薄叶 |
-| 3319 | `pipeline_gen.c` | ⬜ |
+| 2549 | `lsp_diag_gen.c` | 🟢 wave739 shell |
+| 2572 | `lsp_io_gen.c` | 🟢 wave739 shell |
+| 2611 | `lsp_gen.c` | 🟢 wave739 shell |
+| 2648 | `lsp_io_std_heap_gen.c` | 🟢 wave740 archaeology shell |
+| 2713 | `driver_fmt_gen.c` | 🟢 wave740 archaeology shell |
+| 2726 | `driver_check_gen.c` | 🟢 wave740 archaeology shell |
+| 2738 | `driver_test_gen.c` | 🟢 wave740 archaeology shell |
+| 2750 | `driver_compile_gen.c` | 🟢 wave740 archaeology shell |
+| 2763 | `driver_build_gen.c` | 🟢 wave740 archaeology shell |
+| 2775 | `driver_run_gen.c` | 🟢 wave740 archaeology shell |
+| 2787 | `driver_emit_gen.c` | 🟢 wave740 archaeology shell |
+| 2855 | `driver_gen.c` | 🟢 wave738 shell |
+| 2916 | `preprocess_gen.c` | 🟢 wave738 shell |
+| 3319 | `pipeline_gen.c` | 🟢 wave739 shell |
 
 ### 类 C — pipeline_glue / pipeline_x / strict_minimal
 
@@ -584,7 +585,10 @@
 | `./xbuild migrate` | `migrate_x_objs.sh` | `_x.o` **0× make**；gen→ensure_migrate_gen（wave735/736） | 11.1.6 迁移叶 |
 | `./xbuild migrate-gen` | `ensure_migrate_gen.sh` | parser/typeck/codegen `_gen.c` **0× make**（wave736） | 11.1.6 迁移 gen |
 | `./xbuild lexer-gen` | `ensure_migrate_gen.sh lexer` | `lexer_gen.c` **0× make**（wave737） | 11.1.6 前端 gen |
-| `./xbuild refresh-gate` | `refresh_xlang_asm_gate.sh` | migrate shell + link **0× make**（wave734–737） | 11.1.6 P0 门禁 |
+| `./xbuild driver-gen` / `preprocess-gen` | `ensure_driver_gen.sh` | driver/preprocess `_gen.c` **0× make**（wave738） | 11.1.6 |
+| `./xbuild lsp-gen` / `pipeline-gen` | `ensure_lsp_pipeline_gen.sh` | lsp/pipeline `_gen.c` **0× make**（wave739） | 11.1.6 |
+| `./xbuild archaeology-gen` | `ensure_archaeology_gen.sh` | Track L 考古 `_gen.c` **0× make**（wave740） | 11.1.6 |
+| `./xbuild refresh-gate` | `refresh_xlang_asm_gate.sh` | migrate shell + link **0× make**（wave734–740） | 11.1.6 P0 门禁 |
 
 ---
 
