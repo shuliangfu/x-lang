@@ -38094,6 +38094,47 @@ static int32_t pipeline_typeck_named_is_module_type_c(struct ast_Module *mod, st
  * xlang_generic_bound_check_type_args_c.
  * PLATFORM: SHARED — rebuild pipeline_glue_standalone.o after edit.
  */
+/*
+ * wave685 Cap residual: effective type of a CALL arg for generic inference.
+ * Bare INT/BOOL/FLOAT/STRING lits often lack resolved_type_ref until stamp;
+ * prior try_infer required arg_ty>0 → id(42) fell through to requires_type_args
+ * even after free-T formals were accepted by call_arg_types.
+ * G.7: single effective-type helper for value_ok + same-name unify.
+ * @return type_ref >0, or 0 if arg cannot pin a mono type
+ * PLATFORM: SHARED typeck.
+ */
+static int32_t pipeline_typeck_call_arg_effective_type_c(struct ast_ASTArena *arena, int32_t arg_ref) {
+  int32_t arg_ty;
+  int32_t ek;
+  extern int32_t typeck_expr_is_null_keyword(struct ast_ASTArena *a, int32_t expr_ref);
+  if (!arena || arg_ref <= 0)
+    return 0;
+  arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+  if (arg_ty > 0)
+    return arg_ty;
+  ek = pipeline_expr_kind_ord_at(arena, arg_ref);
+  /* EXPR_LIT=0: bare int lit (not keyword null) → i32 for mono pin. */
+  if (ek == 0) {
+    if (typeck_expr_is_null_keyword(arena, arg_ref) != 0)
+      return 0; /* null alone cannot pin free T */
+    return pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_I32);
+  }
+  /* EXPR_FLOAT_LIT=1 → f64 (product default float lit width). */
+  if (ek == 1)
+    return pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_F64);
+  /* EXPR_BOOL_LIT=2 → bool. */
+  if (ek == 2)
+    return pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_BOOL);
+  /* EXPR_STRING_LIT=59 → *u8 (C interop default for string lit). */
+  if (ek == 59) {
+    int32_t u8t = pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_U8);
+    if (u8t <= 0)
+      return 0;
+    return pipeline_type_find_or_alloc_compound(arena, (int32_t)ast_TypeKind_TYPE_PTR, u8t, 0);
+  }
+  return 0;
+}
+
 static int32_t pipeline_typeck_try_infer_generic_call_from_args_c(struct ast_Module *callee_mod,
                                                                  struct ast_ASTArena *arena,
                                                                  int32_t expr_ref, int32_t func_ix,
@@ -38114,7 +38155,8 @@ static int32_t pipeline_typeck_try_infer_generic_call_from_args_c(struct ast_Mod
   nargs = pipeline_expr_call_num_args_at(arena, expr_ref);
   ord_named = (int32_t)ast_TypeKind_TYPE_NAMED;
 
-  /* Value-arg path (wave448): all formals present and typed + same-name unify. */
+  /* Value-arg path (wave448 + wave685 lit effective types): formals present +
+   * each arg has resolved type OR bare lit effective type + same-name unify. */
   if (np > 0 && nargs >= np) {
     int32_t value_ok = 1;
     for (i = 0; i < np; i++) {
@@ -38124,7 +38166,7 @@ static int32_t pipeline_typeck_try_infer_generic_call_from_args_c(struct ast_Mod
         value_ok = 0;
         break;
       }
-      arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+      arg_ty = pipeline_typeck_call_arg_effective_type_c(arena, arg_ref);
       if (arg_ty <= 0) {
         value_ok = 0;
         break;
@@ -38139,10 +38181,19 @@ static int32_t pipeline_typeck_try_infer_generic_call_from_args_c(struct ast_Mod
         int32_t ai_ty;
         if (pi_ty <= 0 || pipeline_type_kind_ord_at(arena, pi_ty) != ord_named)
           continue;
-        pi_nlen = pipeline_type_named_name_into(arena, pi_ty, pi_nm);
-        if (pi_nlen <= 0)
-          continue;
-        ai_ty = pipeline_expr_resolved_type_ref(arena, pipeline_expr_call_arg_ref(arena, expr_ref, i));
+        /* Only free type-params participate in same-name unify (not struct Wrap). */
+        {
+          memset(pi_nm, 0, sizeof(pi_nm));
+          pi_nlen = pipeline_type_named_name_into(arena, pi_ty, pi_nm);
+          if (pi_nlen <= 0)
+            continue;
+          if (pipeline_typeck_named_is_module_type_c(callee_mod, arena, pi_nm, pi_nlen) != 0)
+            continue;
+        }
+        ai_ty = pipeline_typeck_call_arg_effective_type_c(
+            arena, pipeline_expr_call_arg_ref(arena, expr_ref, i));
+        if (ai_ty <= 0)
+          return -1;
         for (j = i + 1; j < np; j++) {
           int32_t pj_ty = pipeline_module_func_param_type_ref_at(callee_mod, func_ix, j);
           uint8_t pj_nm[128];
@@ -38152,6 +38203,7 @@ static int32_t pipeline_typeck_try_infer_generic_call_from_args_c(struct ast_Mod
           int32_t same_name;
           if (pj_ty <= 0 || pipeline_type_kind_ord_at(arena, pj_ty) != ord_named)
             continue;
+          memset(pj_nm, 0, sizeof(pj_nm));
           pj_nlen = pipeline_type_named_name_into(arena, pj_ty, pj_nm);
           if (pj_nlen != pi_nlen)
             continue;
@@ -38164,8 +38216,9 @@ static int32_t pipeline_typeck_try_infer_generic_call_from_args_c(struct ast_Mod
           }
           if (!same_name)
             continue;
-          aj_ty = pipeline_expr_resolved_type_ref(arena, pipeline_expr_call_arg_ref(arena, expr_ref, j));
-          if (pipeline_typeck_type_refs_equal_c(arena, ai_ty, aj_ty) == 0)
+          aj_ty = pipeline_typeck_call_arg_effective_type_c(
+              arena, pipeline_expr_call_arg_ref(arena, expr_ref, j));
+          if (aj_ty <= 0 || pipeline_typeck_type_refs_equal_c(arena, ai_ty, aj_ty) == 0)
             return -1;
         }
       }

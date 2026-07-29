@@ -6866,8 +6866,74 @@ int32_t typeck_check_call_arity(struct ast_Module * module, struct ast_ASTArena 
   }
   return 0;
 }
+/*
+ * wave685 Cap residual: TYPE_NAMED formal is free type-param when name is not a
+ * module struct layout or type alias (G.7 ≡ typeck.x typeck_type_is_free_type_param).
+ * PLATFORM: SHARED typeck helper.
+ */
+int32_t typeck_type_is_free_type_param(struct ast_Module * module, struct ast_ASTArena * arena, int32_t ty_ref) {
+  uint8_t nm[128];
+  int32_t nlen = 0;
+  int32_t nsl = 0;
+  int32_t si = 0;
+  int32_t snlen = 0;
+  uint8_t * snm = 0;
+  int32_t n_alias = 0;
+  int32_t ai = 0;
+  int32_t alen = 0;
+  int32_t off = 0;
+  int32_t same = 0;
+  if ((((module == 0) || (arena == 0)) || (ty_ref <= 0))) {
+    return 0;
+  }
+  /* TYPE_NAMED ord == 8 */
+  if ((pipeline_type_kind_ord_at(arena, ty_ref) != 8)) {
+    return 0;
+  }
+  /* No memset — seed TU may omit string.h; name_into writes nlen bytes. */
+  (void)((nlen = pipeline_type_named_name_into(arena, ty_ref, &((nm)[0]))));
+  if (((nlen <= 0) || (nlen > 127))) {
+    return 0;
+  }
+  (void)((nsl = pipeline_module_num_struct_layouts_at(module)));
+  (void)((si = 0));
+  while ((si < nsl)) {
+    (void)((snlen = pipeline_module_struct_layout_name_len(module, si)));
+    if (((snlen == nlen) && (snlen > 0))) {
+      (void)((snm = typeck_scratch64_slot(2)));
+      pipeline_module_struct_layout_name_into(module, si, snm);
+      if (typeck_name_equal(snm, snlen, &((nm)[0]), nlen)) {
+        return 0;
+      }
+    }
+    (void)((si = (si + 1)));
+  }
+  (void)((n_alias = pipeline_module_num_type_aliases_at(module)));
+  (void)((ai = 0));
+  while ((ai < n_alias)) {
+    (void)((alen = pipeline_module_type_alias_name_len(module, ai)));
+    if ((((alen == nlen) && (alen > 0)) && (alen <= 127))) {
+      (void)((same = 1));
+      (void)((off = 0));
+      while ((off < alen)) {
+        if ((pipeline_module_type_alias_name_byte_at(module, ai, off) != nm[off])) {
+          (void)((same = 0));
+          break;
+        }
+        (void)((off = (off + 1)));
+      }
+      if ((same != 0)) {
+        return 0;
+      }
+    }
+    (void)((ai = (ai + 1)));
+  }
+  return 1;
+}
 /* wave661 Cap residual: hard-fail CALL arg types (G.7 ≡ typeck.x typeck_check_call_arg_types).
  * wave673: score<0 hard-fails even when arg_ty unknown (was soft-skip → BLD001).
+ * wave685: free type-param formals (`x: T` on generic callee) accept any present arg
+ * (score rejects scalar/lit vs TYPE_NAMED T → id(42) false-red).
  * Invoked from pipeline_typeck_check_expr_call_c after arity. Reuses typeck_overload_arg_param_score. */
 int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx) {
   int32_t num_args = 0;
@@ -6881,6 +6947,7 @@ int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTAr
   int32_t arg_ref = 0;
   int32_t line_a = 0;
   int32_t col_a = 0;
+  int32_t n_gp = 0;
   if ((((module ==0) || (arena ==0)) || (expr_ref <=0))) {
     return 0;
   }
@@ -6897,6 +6964,7 @@ int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTAr
       (void)((mod = dm));
     }
   }
+  (void)((n_gp = pipeline_module_func_num_generic_params_at(mod, fi)));
   (void)((ai = 0));
   while ((ai < num_args)) {
     (void)((param_raw = pipeline_module_func_param_type_ref_at(mod, fi, ai)));
@@ -6909,6 +6977,17 @@ int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTAr
         (void)((col_a = pipeline_expr_col_at(arena, expr_ref)));
         (void)(driver_diagnostic_typeck_call_arg_type_mismatch(line_a, col_a));
         return -1;
+      }
+      /* wave685: free type-param on generic callee — pre-score accept (not a second matcher). */
+      if (((n_gp > 0) && (typeck_type_is_free_type_param(mod, arena, param_raw) != 0))) {
+        if ((arg_ref <= 0)) {
+          (void)((line_a = pipeline_expr_line_at(arena, expr_ref)));
+          (void)((col_a = pipeline_expr_col_at(arena, expr_ref)));
+          (void)(driver_diagnostic_typeck_call_arg_type_mismatch(line_a, col_a));
+          return -1;
+        }
+        (void)((ai = (ai + 1)));
+        continue;
       }
       /* wave673: any score miss with known formal → T001 (unknown arg_ty no longer soft-skipped). */
       (void)((sc = typeck_overload_arg_param_score(arena, expr_ref, ai, param_raw, dep, ctx)));

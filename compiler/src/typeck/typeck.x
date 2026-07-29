@@ -6648,14 +6648,91 @@ ctx: *PipelineDepCtx): i32 {
 }
 
 /**
+ * Return 1 when TYPE_NAMED ty is a free type-param (name is not a module
+ * struct layout or type alias). Mirrors glue
+ * `pipeline_typeck_named_is_module_type_c` inverted — G.7 twin for typeck.x.
+ * Used by call arg gate so formals `x: T` on `id&lt;T&gt;` accept concrete args.
+ * @param module *Module — callee module (layouts / aliases)
+ * @param arena *ASTArena
+ * @param ty_ref i32 — candidate formal type_ref
+ * @return i32 — 1 free type-param, 0 concrete/unknown/non-named
+ * PLATFORM: SHARED typeck helper.
+ */
+export function typeck_type_is_free_type_param(module: *Module, arena: *ASTArena, ty_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let nm: u8[128] = [];
+    let nlen: i32 = 0;
+    let nsl: i32 = 0;
+    let si: i32 = 0;
+    let snlen: i32 = 0;
+    let snm: *u8 = 0 as *u8;
+    let n_alias: i32 = 0;
+    let ai: i32 = 0;
+    let alen: i32 = 0;
+    let off: i32 = 0;
+    let same: i32 = 0;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || ty_ref <= 0) {
+      return 0;
+    }
+    /* TYPE_NAMED ord == 8 */
+    if (pipeline_type_kind_ord_at(arena, ty_ref) != 8) {
+      return 0;
+    }
+    nlen = pipeline_type_named_name_into(arena, ty_ref, &nm[0]);
+    if (nlen <= 0 || nlen > 127) {
+      return 0;
+    }
+    nsl = pipeline_module_num_struct_layouts_at(module);
+    si = 0;
+    while (si < nsl) {
+      snlen = pipeline_module_struct_layout_name_len(module, si);
+      if (snlen == nlen && snlen > 0) {
+        snm = typeck_scratch64_slot(2);
+        pipeline_module_struct_layout_name_into(module, si, snm);
+        if (name_equal(snm, snlen, &nm[0], nlen)) {
+          return 0;
+        }
+      }
+      si = si + 1;
+    }
+    n_alias = pipeline_module_num_type_aliases_at(module);
+    ai = 0;
+    while (ai < n_alias) {
+      alen = pipeline_module_type_alias_name_len(module, ai);
+      if (alen == nlen && alen > 0 && alen <= 127) {
+        same = 1;
+        off = 0;
+        while (off < alen) {
+          if (pipeline_module_type_alias_name_byte_at(module, ai, off) != nm[off]) {
+            same = 0;
+            break;
+          }
+          off = off + 1;
+        }
+        if (same != 0) {
+          return 0;
+        }
+      }
+      ai = ai + 1;
+    }
+    return 1;
+  }
+}
+
+/**
  * Hard-fail free-function CALL when an arg does not match the formal param.
  * wave661 Cap residual: after resolve+arity, typeck never scored arg vs param → host-cc
  * BLD001 (*u8/struct→i32) or silent C conversion false-green (f32/bool→i32).
  * wave673 Cap residual: score&lt;0 with unknown arg_ty (arg_ty&lt;=0) was soft-skipped →
  * host BLD001 false-green (e.g. f(s.nope), f(g(1)) when g unresolved). Hard-fail any
  * score miss when the formal is known; soft-skip only untyped formals (param_raw&lt;=0).
+ * wave685 Cap residual: free type-param formals (`x: T` on `id&lt;T&gt;`) score as
+ * TYPE_NAMED vs scalar/lit → -1 false-red (`id(42)` / `id&lt;i32&gt;(42)` / `id(n:i32)`).
+ * Same-kind NAMED already weak-scored 1 (struct→T greens). Accept free type-param
+ * formals for any present arg; same-name unify stays in try_infer (same(1,true) red).
  * Authority score: typeck_overload_arg_param_score (exact / int-lit / string-lit / widen /
- * array→slice / null→*T); do not open a second matcher.
+ * array→slice / null→*T); free-T is a pre-score accept, not a second matcher.
  * @param module *Module — entry / local module
  * @param arena *ASTArena
  * @param expr_ref i32 — EXPR_CALL
@@ -6678,6 +6755,7 @@ ctx: *PipelineDepCtx): i32 {
     let arg_ref: i32 = 0;
     let line_a: i32 = 0;
     let col_a: i32 = 0;
+    let n_gp: i32 = 0;
     if (module == 0 as * Module || arena == 0 as * ASTArena || expr_ref <= 0) {
       return 0;
     }
@@ -6694,6 +6772,7 @@ ctx: *PipelineDepCtx): i32 {
         mod = dm;
       }
     }
+    n_gp = pipeline_module_func_num_generic_params_at(mod, fi);
     ai = 0;
     while (ai < num_args) {
       param_raw = pipeline_module_func_param_type_ref_at(mod, fi, ai);
@@ -6708,6 +6787,8 @@ ctx: *PipelineDepCtx): i32 {
          * Root: ambient check_expr may stamp lit as i32; score then returns 1000
          * exact match and never hits the lit/is_null branch → call false green.
          * G.7: same gate as let/assign; only TYPE_PTR formals accept null.
+         * Free type-param formals are not TYPE_PTR — null still hard-fails here
+         * (mono may later bind T=*U only with a typed non-null arg).
          */
         if (arg_ref > 0 && typeck_expr_is_null_keyword(arena, arg_ref) != 0
         && pipeline_type_kind_ord_at(arena, param_raw) != 9) {
@@ -6715,6 +6796,24 @@ ctx: *PipelineDepCtx): i32 {
           col_a = pipeline_expr_col_at(arena, expr_ref);
           driver_diagnostic_typeck_call_arg_type_mismatch(line_a, col_a);
           return -1;
+        }
+        /*
+         * wave685: free type-param formal on a generic callee (`x: T`) accepts any
+         * present arg. Score treats T as TYPE_NAMED and rejects i32/bool/lit
+         * (only same-kind NAMED weak-matches). Do not open a second score path —
+         * pre-score accept only; concrete formals still use score below.
+         * Requires n_gp>0 so a user type named like a param is not mis-accepted
+         * on non-generic callees.
+         */
+        if (n_gp > 0 && typeck_type_is_free_type_param(mod, arena, param_raw) != 0) {
+          if (arg_ref <= 0) {
+            line_a = pipeline_expr_line_at(arena, expr_ref);
+            col_a = pipeline_expr_col_at(arena, expr_ref);
+            driver_diagnostic_typeck_call_arg_type_mismatch(line_a, col_a);
+            return -1;
+          }
+          ai = ai + 1;
+          continue;
         }
         /*
          * Score covers known arg_ty + lit paths (int/string/null→*T) without requiring
