@@ -126,6 +126,11 @@ SWALLOWED_G05_TARGET_CPU_PREFER=1
 SWALLOWED_G05_TARGET_CPU_PREFER_VIA=ensure_host_cc_seed_o.sh_try-target-cpu-prefer
 SWALLOWED_G05_TARGET_CPU_PREFER_SCOPE=target_cpu_R1_SEED_MAP_member
 SWALLOWED_G05_TARGET_CPU_PREFER_NOTE=g05_makefile_thin_call_no_dual_hybrid_target_cpu
+# wave769: g05 L2 asm three product PREFER → try-l2-asm-prefer
+SWALLOWED_G05_L2_ASM_PREFER=1
+SWALLOWED_G05_L2_ASM_PREFER_VIA=ensure_host_cc_seed_o.sh_try-l2-asm-prefer
+SWALLOWED_G05_L2_ASM_PREFER_SCOPE=user_asm_seed_bridge+backend_x86_64_enc_c+asm_backend_compat_stubs
+SWALLOWED_G05_L2_ASM_PREFER_NOTE=g05_makefile_thin_call_no_dual_hybrid_l2_asm_three
 SWALLOWED_LINK_DRIVER=scripts/bootstrap_driver_seed_link.sh
 SWALLOWED_G05_FAMILY=scripts/g05_*.sh
 SWALLOWED_MIGRATE_GEN=scripts/migrate_x_objs.sh+ensure_*_gen.sh
@@ -205,6 +210,7 @@ RESIDUAL_CLASS_G05_RT_PREFER=swallowed_wave766_try_rt_prefer
 RESIDUAL_CLASS_G05_PIPELINE_ABI_PREFER=swallowed_wave767_try_pipeline_abi_prefer
 RESIDUAL_CLASS_G05_LDPC_PREFER=swallowed_wave767_try_ldpc_prefer
 RESIDUAL_CLASS_G05_TARGET_CPU_PREFER=swallowed_wave768_try_target_cpu_prefer
+RESIDUAL_CLASS_G05_L2_ASM_PREFER=swallowed_wave769_try_l2_asm_prefer
 RESIDUAL_CLASS_R3_PREFER_THIN_RESIDUAL=g05_other_prefer_other_L2
 RESIDUAL_CLASS_R3_ENDGAME=g05_ensure_other_L2
 
@@ -248,6 +254,7 @@ print_live_metrics() {
   g05_pipeline_abi_prefer=0
   g05_ldpc_prefer=0
   g05_target_cpu_prefer=0
+  g05_l2_asm_prefer=0
   r2_panic=0
   r2_typeck_f64=0
   r2_crt0=0
@@ -346,6 +353,17 @@ print_live_metrics() {
         "$ROOT/compiler/scripts/g05_ensure_relink_prereqs.sh" 2>/dev/null; then
       g05_target_cpu_prefer=1
     fi
+    # wave769: g05 L2 asm three via try-l2-asm-prefer (no dual hybrid)
+    if [ -f "$ROOT/compiler/scripts/g05_ensure_relink_prereqs.sh" ] \
+      && grep -q 'try-l2-asm-prefer\|l2-asm-prefer' \
+        "$ROOT/compiler/scripts/g05_ensure_relink_prereqs.sh" 2>/dev/null \
+      && grep -q 'try_ensure_l2_asm_prefer_one\|ensure_l2_asm_prefer_one' \
+        "$ROOT/compiler/scripts/ensure_host_cc_seed_o.sh" 2>/dev/null \
+      && grep -q 'try-l2-asm-prefer' "$mf" 2>/dev/null \
+      && ! grep -qE '_uasb_seed=|_bxec_seed=|_abcs_seed=' \
+        "$ROOT/compiler/scripts/g05_ensure_relink_prereqs.sh" 2>/dev/null; then
+      g05_l2_asm_prefer=1
+    fi
     # wave760: R2 panic cold via try-r2
     if grep -q 'try-r2\|try_ensure_r2' \
       "$ROOT/compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh" 2>/dev/null; then
@@ -443,6 +461,7 @@ G05_RT_PREFER_SWALLOWED=$g05_rt_prefer
 G05_PIPELINE_ABI_PREFER_SWALLOWED=$g05_pipeline_abi_prefer
 G05_LDPC_PREFER_SWALLOWED=$g05_ldpc_prefer
 G05_TARGET_CPU_PREFER_SWALLOWED=$g05_target_cpu_prefer
+G05_L2_ASM_PREFER_SWALLOWED=$g05_l2_asm_prefer
 R2_PANIC_COLD_SWALLOWED=$r2_panic
 R2_TYPECK_F64_SWALLOWED=$r2_typeck_f64
 R2_CRT0_SWALLOWED=$r2_crt0
@@ -710,6 +729,12 @@ if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_G05_TARGET_CPU_PREFER=1'; then
 fi
 if ! printf '%s\n' "$_out" | grep -q 'G05_TARGET_CPU_PREFER_SWALLOWED=1'; then
   bad "dump G05_TARGET_CPU_PREFER_SWALLOWED must be 1 (try-target-cpu-prefer + g05 thin-call)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'SWALLOWED_G05_L2_ASM_PREFER=1'; then
+  bad "dump must set SWALLOWED_G05_L2_ASM_PREFER=1 (wave769)"
+fi
+if ! printf '%s\n' "$_out" | grep -q 'G05_L2_ASM_PREFER_SWALLOWED=1'; then
+  bad "dump G05_L2_ASM_PREFER_SWALLOWED must be 1 (try-l2-asm-prefer + g05 thin-call)"
 fi
 if ! printf '%s\n' "$_out" | grep -q 'R1_OTHER_HOST_CC_STILL_MAKE=1'; then
   bad "dump must keep R1_OTHER_HOST_CC_STILL_MAKE=1 (honest residual)"

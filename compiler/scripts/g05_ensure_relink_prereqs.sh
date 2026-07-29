@@ -439,7 +439,6 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # wave768 G.7: target_cpu product PREFER → ensure try-target-cpu-prefer
   # (single body; flags.x + rest pure FROM_X → cc -r; cold pure seed).
   # Leaf = src/driver/target_cpu.o (R1_SEED_MAP cold twin). No dual inline hybrid.
-  # residual: other L2 · pure-ld · physical delete.
   # PLATFORM: SHARED product daily path · default PREFER=1 (g05 historic).
   if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
     echo "g05_ensure: try-target-cpu-prefer src/driver/target_cpu.o (wave768)"
@@ -449,6 +448,26 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || echo "g05_ensure: try-target-cpu-prefer failed (non-fatal if unused)" >&2
   else
     echo "g05_ensure: missing ensure_host_cc_seed_o.sh; target_cpu prefer residual" >&2
+  fi
+  # wave769 G.7: L2 asm three product PREFER → ensure try-l2-asm-prefer
+  # (table body; thin .x + rest FROM_X → cc -r; cold ensure_one).
+  # Leaves: user_asm_seed_bridge · backend_x86_64_enc_c · asm_backend_compat_stubs.
+  # residual: other L2 (seed_link_compat / strict_glue / fmt_check / lsp_diag /
+  #   async…) · pure-ld · physical delete.
+  # PLATFORM: SHARED product daily path · default PREFER=1 (g05 historic).
+  if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
+    for _l2_asm_o in \
+      src/asm/user_asm_seed_bridge.o \
+      src/asm/backend_x86_64_enc_c.o \
+      src/asm/asm_backend_compat_stubs.o; do
+      echo "g05_ensure: try-l2-asm-prefer $_l2_asm_o (wave769)"
+      XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
+        CC="$CC" CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}" \
+        bash scripts/ensure_host_cc_seed_o.sh try-l2-asm-prefer "$_l2_asm_o" \
+        || echo "g05_ensure: try-l2-asm-prefer failed for $_l2_asm_o (non-fatal if unused)" >&2
+    done
+  else
+    echo "g05_ensure: missing ensure_host_cc_seed_o.sh; L2 asm prefer residual" >&2
   fi
   # G-02f-11：pipeline_glue_strict_minimal 产品 seed
   _pglue=seeds/pipeline_glue_strict_minimal.from_x.c
@@ -1405,98 +1424,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-442：user_asm_seed_bridge thin+rest PREFER_X_O
-  _uasb_o="src/asm/user_asm_seed_bridge.o"
-  _uasb_seed="seeds/user_asm_seed_bridge.from_x.c"
-  _uasb_x="src/asm/user_asm_seed_bridge.x"
-  if [ -f "$_uasb_seed" ]; then
-    _uasb_need=0
-    if [ ! -f "$_uasb_o" ] || [ "$_uasb_seed" -nt "$_uasb_o" ] \
-      || { [ -f "$_uasb_x" ] && [ "$_uasb_x" -nt "$_uasb_o" ]; }; then
-      _uasb_need=1
-    fi
-    if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_uasb_x" ] && [ "$_uasb_need" = "1" ]; then
-      _uasb_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_uasb_thin.XXXXXX") || true
-      _uasb_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_uasb_rest.XXXXXX") || true
-      if [ -n "$_uasb_thin_o" ] && [ -n "$_uasb_rest_o" ] \
-        && g05_try_x_to_o "$_uasb_x" "$_uasb_thin_o" \
-        && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_USER_ASM_SEED_BRIDGE_FROM_X \
-             -c -o "$_uasb_rest_o" "$_uasb_seed" \
-        && $CC -r -nostdlib -o "$_uasb_o" "$_uasb_thin_o" "$_uasb_rest_o" 2>/dev/null; then
-        echo "g05_ensure: user_asm_seed_bridge ← thin .x + rest (G-02f-442 L2 prefer .x)"
-      else
-        # shellcheck disable=SC2086
-        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_uasb_o" "$_uasb_seed"
-        echo "g05_ensure: user_asm_seed_bridge ← $_uasb_seed (G-02f-15 fallback)"
-      fi
-      rm -f "$_uasb_thin_o" "$_uasb_rest_o"
-    elif [ "$_uasb_need" = "1" ]; then
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_uasb_o" "$_uasb_seed"
-      echo "g05_ensure: user_asm_seed_bridge ← $_uasb_seed (G-02f-15)"
-    fi
-  fi
-  # G-02f-441：backend_x86_64_enc_c thin+rest PREFER_X_O
-  _bxec_o="src/asm/backend_x86_64_enc_c.o"
-  _bxec_seed="seeds/backend_x86_64_enc_c.from_x.c"
-  _bxec_x="src/asm/backend_x86_64_enc_c.x"
-  if [ -f "$_bxec_seed" ]; then
-    _bxec_need=0
-    if [ ! -f "$_bxec_o" ] || [ "$_bxec_seed" -nt "$_bxec_o" ] \
-      || { [ -f "$_bxec_x" ] && [ "$_bxec_x" -nt "$_bxec_o" ]; }; then
-      _bxec_need=1
-    fi
-    if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_bxec_x" ] && [ "$_bxec_need" = "1" ]; then
-      _bxec_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_bxec_thin.XXXXXX") || true
-      _bxec_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_bxec_rest.XXXXXX") || true
-      if [ -n "$_bxec_thin_o" ] && [ -n "$_bxec_rest_o" ] \
-        && g05_try_x_to_o "$_bxec_x" "$_bxec_thin_o" \
-        && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_BACKEND_X86_64_ENC_C_FROM_X \
-             -c -o "$_bxec_rest_o" "$_bxec_seed" \
-        && $CC -r -nostdlib -o "$_bxec_o" "$_bxec_thin_o" "$_bxec_rest_o" 2>/dev/null; then
-        echo "g05_ensure: backend_x86_64_enc_c ← thin .x + rest (G-02f-441 L2 prefer .x)"
-      else
-        # shellcheck disable=SC2086
-        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_bxec_o" "$_bxec_seed"
-        echo "g05_ensure: backend_x86_64_enc_c ← $_bxec_seed (G-02f-15 fallback)"
-      fi
-      rm -f "$_bxec_thin_o" "$_bxec_rest_o"
-    elif [ "$_bxec_need" = "1" ]; then
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_bxec_o" "$_bxec_seed"
-      echo "g05_ensure: backend_x86_64_enc_c ← $_bxec_seed (G-02f-15)"
-    fi
-  fi
-  # G-02f-439：asm_backend_compat_stubs thin+rest PREFER_X_O
-  _abcs_o="src/asm/asm_backend_compat_stubs.o"
-  _abcs_seed="seeds/asm_backend_compat_stubs.from_x.c"
-  _abcs_x="src/asm/asm_backend_compat_stubs.x"
-  if [ -f "$_abcs_seed" ]; then
-    _abcs_need=0
-    if [ ! -f "$_abcs_o" ] || [ "$_abcs_seed" -nt "$_abcs_o" ]; then
-      _abcs_need=1
-    fi
-    if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_abcs_x" ] && [ "$_abcs_need" = "1" ]; then
-      _abcs_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_abcs_thin.XXXXXX") || true
-      _abcs_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_abcs_rest.XXXXXX") || true
-      if [ -n "$_abcs_thin_o" ] && [ -n "$_abcs_rest_o" ] \
-        && g05_try_x_to_o "$_abcs_x" "$_abcs_thin_o" \
-        && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/asm -Isrc/lexer -DXLANG_ASM_BACKEND_COMPAT_STUBS_FROM_X \
-             -c -o "$_abcs_rest_o" "$_abcs_seed" \
-        && $CC -r -nostdlib -o "$_abcs_o" "$_abcs_thin_o" "$_abcs_rest_o" 2>/dev/null; then
-        echo "g05_ensure: asm_backend_compat_stubs ← thin .x + rest (G-02f-439 L2 prefer .x)"
-      else
-        # shellcheck disable=SC2086
-        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_abcs_o" "$_abcs_seed"
-        echo "g05_ensure: asm_backend_compat_stubs ← $_abcs_seed (G-02f-15 fallback)"
-      fi
-      rm -f "$_abcs_thin_o" "$_abcs_rest_o"
-    elif [ "$_abcs_need" = "1" ]; then
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_abcs_o" "$_abcs_seed"
-      echo "g05_ensure: asm_backend_compat_stubs ← $_abcs_seed (G-02f-15)"
-    fi
-  fi
+  # ~~G-02f-442/441/439 L2 asm dual hybrid~~ wave769 → try-l2-asm-prefer above
   # G-02f-16：x_frontend_link_alias 产品 seed
   _xfla=seeds/x_frontend_link_alias.from_x.c
   if [ -f "$_xfla" ]; then

@@ -1905,16 +1905,18 @@ $(USER_ASM_SEED_HOST_STUBS): pipeline_x.o $(ASM_GLUE_STANDALONE_O) $(USER_ASM_SE
 $(USER_ASM_SEED_HOST_OBJS): build-seed-asm-host
 
 # G-02f-15：user_asm_seed_bridge 产品 seed
-# wave752 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_ALIAS_STUBS_OBJS).
+# wave752 R1 cold: ensure one · wave769 product PREFER → try-l2-asm-prefer.
 src/asm/user_asm_seed_bridge.o: seeds/user_asm_seed_bridge.from_x.c src/asm/user_asm_seed_bridge.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/user_asm_seed_bridge.from_x.c
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-l2-asm-prefer $@
 
 # G-02f-15：asm_backend_compat_stubs 产品 seed
-# wave752 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_ALIAS_STUBS_OBJS).
+# wave752 R1 cold: ensure one · wave769 product PREFER → try-l2-asm-prefer.
 src/asm/asm_backend_compat_stubs.o: seeds/asm_backend_compat_stubs.from_x.c src/asm/asm_backend_compat_stubs.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/asm_backend_compat_stubs.from_x.c
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-l2-asm-prefer $@
 
 # G-02f-9 / Phase 4：backend_*_dispatch thin+rest PREFER_X_O
 # wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer.
@@ -1925,10 +1927,11 @@ src/asm/backend_enc_dispatch.o: seeds/backend_enc_dispatch.from_x.c src/asm/back
 	  bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer $@
 
 # G-02f-15：backend_x86_64_enc_c 产品 seed
-# wave754 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_MISC_BASENAME_OBJS).
+# wave754 R1 cold: ensure one · wave769 product PREFER → try-l2-asm-prefer.
 src/asm/backend_x86_64_enc_c.o: seeds/backend_x86_64_enc_c.from_x.c src/asm/backend_x86_64_enc_c.x scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/backend_x86_64_enc_c.from_x.c
+	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-l2-asm-prefer $@
 
 # CG002：backend_arm64_enc_c 产品 seed（强符号覆盖 seed_link_compat weak -1 桩）
 # PLATFORM: MACOS arm64 pure-asm 必需；其它主机链接无害（ta!=1 不调）。

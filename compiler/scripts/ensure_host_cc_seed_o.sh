@@ -44,8 +44,13 @@
 #            g05_ensure + Makefile thin-call.
 #   wave768: G.7 g05 target_cpu PREFER swallow —
 #            `try-target-cpu-prefer OUT` (flags.x + rest pure FROM_X → cc -r).
-#            g05_ensure + Makefile thin-call. Residual: other L2 · pure-ld ·
-#            physical delete.
+#            g05_ensure + Makefile thin-call.
+#   wave769: G.7 g05 L2 asm three thin+rest PREFER swallow —
+#            `try-l2-asm-prefer OUT` for user_asm_seed_bridge /
+#            backend_x86_64_enc_c / asm_backend_compat_stubs (table-driven;
+#            thin .x + rest FROM_X → $CC -r; cold ensure_one). Residual:
+#            other L2 (seed_link_compat / strict_glue / fmt_check / lsp_diag /
+#            async…) · pure-ld · physical delete.
 #   wave758: R4 residual pure host-cc thin_glue → R1 seed-map (G.7 有则补全):
 #            parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c +
 #            -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm;
@@ -116,8 +121,9 @@
 #   - ~~g05 rt multi-slice~~ wave766 try-rt-prefer
 #   - ~~g05 pipeline_abi / ldpc PREFER~~ wave767 try-pipeline-abi-prefer / try-ldpc-prefer
 #   - ~~g05 target_cpu PREFER~~ wave768 try-target-cpu-prefer
-#   - g05 other PREFER hybrid (other L2) ·
-#     panic PREFER thin · R5 CI all
+#   - ~~g05 L2 asm three (uasb/bxec/abcs)~~ wave769 try-l2-asm-prefer
+#   - g05 other PREFER hybrid (seed_link_compat / strict_glue / fmt_check /
+#     lsp_diag / async…) · panic PREFER thin · R5 CI all
 #   - pure-ld (11.1.4) · physical Makefile delete (11.3.1)
 #   - bootstrap_nostdlib_stubs.o (cc_inc_tu residual) · crt0_user.o cp wrappers
 #
@@ -131,6 +137,7 @@
 #   bash scripts/ensure_host_cc_seed_o.sh try-pipeline-abi-prefer <out.o> # wave767 pipeline_abi
 #   bash scripts/ensure_host_cc_seed_o.sh try-ldpc-prefer <out.o>  # wave767 ldpc thin+rest
 #   bash scripts/ensure_host_cc_seed_o.sh try-target-cpu-prefer <out.o> # wave768 target_cpu
+#   bash scripts/ensure_host_cc_seed_o.sh try-l2-asm-prefer <out.o> # wave769 L2 asm three
 #   bash scripts/ensure_host_cc_seed_o.sh try-r2 <out.o>   # wave760/762 R2 UNAME leaves
 #   bash scripts/ensure_host_cc_seed_o.sh try-gen-x <out.o> # wave761 gen *_x / pipeline_x
 #   bash scripts/ensure_host_cc_seed_o.sh r2-panic         # DRIVER_SEED_PANIC family
@@ -191,7 +198,7 @@ _DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -2723,6 +2730,143 @@ try_ensure_target_cpu_prefer_one() {
   return 0
 }
 
+# ---------------------------------------------------------------------------
+# wave769: try-l2-asm-prefer OUT — g05 L2 asm three thin+rest product PREFER.
+#
+# Table-driven single body (G.7 有则补全; no second -E prologue; reuses
+# rt_prefer_try_x_to_o). Leaves (historic g05 G-02f-439/441/442 dual hybrid):
+#   src/asm/user_asm_seed_bridge.o
+#     x=src/asm/user_asm_seed_bridge.x
+#     seed=seeds/user_asm_seed_bridge.from_x.c
+#     rest -D=XLANG_USER_ASM_SEED_BRIDGE_FROM_X
+#     rest -I=default
+#   src/asm/backend_x86_64_enc_c.o
+#     x=src/asm/backend_x86_64_enc_c.x
+#     seed=seeds/backend_x86_64_enc_c.from_x.c
+#     rest -D=XLANG_BACKEND_X86_64_ENC_C_FROM_X
+#     rest -I=default
+#   src/asm/asm_backend_compat_stubs.o
+#     x=src/asm/asm_backend_compat_stubs.x
+#     seed=seeds/asm_backend_compat_stubs.from_x.c
+#     rest -D=XLANG_ASM_BACKEND_COMPAT_STUBS_FROM_X
+#     rest -I=default + -Isrc/asm -Isrc/lexer
+# When XLANG_G05_PREFER_X_O=1 and an xlang binary works:
+#   thin .x → .o via rt_prefer_try_x_to_o (no WEAK — historic g05 strong thin)
+#   rest = seed under FROM_X -D (+ optional -I)
+#   merge: $CC -r -nostdlib thin + rest → OUT
+# Prefer fail / PREFER≠1 / no xlang → ensure_one cold plain seed.
+# Callers: g05_ensure (wave769) · Makefile three leaves (was ensure one cold).
+# Exit codes:
+#   0 — OUT is a table member; prefer or cold body produced OUT
+#   3 — OUT is not in the L2 asm prefer table
+#   1 — cold seed missing / compile failed
+# PLATFORM: SHARED shell body · g05 historic PREFER=1 · cold chain PREFER=0.
+# Residual after: other L2 (seed_link_compat / strict_glue / fmt_check /
+#   lsp_diag / async…) · pure-ld · physical delete.
+# ---------------------------------------------------------------------------
+
+# Resolve OUT → seed|x_src|from_x_def|rest_extra_incs (pipe-separated).
+# Empty string means non-member.
+l2_asm_prefer_spec_for_out() {
+  case "$1" in
+    src/asm/user_asm_seed_bridge.o)
+      printf '%s' "seeds/user_asm_seed_bridge.from_x.c|src/asm/user_asm_seed_bridge.x|XLANG_USER_ASM_SEED_BRIDGE_FROM_X|"
+      ;;
+    src/asm/backend_x86_64_enc_c.o)
+      printf '%s' "seeds/backend_x86_64_enc_c.from_x.c|src/asm/backend_x86_64_enc_c.x|XLANG_BACKEND_X86_64_ENC_C_FROM_X|"
+      ;;
+    src/asm/asm_backend_compat_stubs.o)
+      printf '%s' "seeds/asm_backend_compat_stubs.from_x.c|src/asm/asm_backend_compat_stubs.x|XLANG_ASM_BACKEND_COMPAT_STUBS_FROM_X|-Isrc/asm -Isrc/lexer"
+      ;;
+    *)
+      printf '%s' ""
+      ;;
+  esac
+}
+
+ensure_l2_asm_prefer_one() {
+  local o="$1"
+  local spec seed x_src from_x_def rest_extra rest
+  local prefer="${XLANG_G05_PREFER_X_O:-0}"
+  local stale=0 done=0
+  local thin_o rest_o
+
+  spec="$(l2_asm_prefer_spec_for_out "$o")"
+  if [ -z "$spec" ]; then
+    return 3
+  fi
+  seed="${spec%%|*}"
+  rest="${spec#*|}"
+  x_src="${rest%%|*}"
+  rest="${rest#*|}"
+  from_x_def="${rest%%|*}"
+  rest_extra="${rest#*|}"
+
+  if [ ! -f "$seed" ]; then
+    echo "ensure_host_cc_seed_o try-l2-asm-prefer: missing seed $seed for $o" >&2
+    return 1
+  fi
+
+  if [ "$FORCE" != "1" ] && [ -f "$o" ]; then
+    stale=0
+    [ "$seed" -nt "$o" ] && stale=1
+    if [ -f "$x_src" ] && [ "$x_src" -nt "$o" ]; then
+      stale=1
+    fi
+    if [ "$stale" = "0" ]; then
+      log "skip up-to-date $o (l2-asm-prefer)"
+      return 0
+    fi
+  fi
+
+  mkdir -p "$(dirname "$o")"
+
+  # PREFER thin.x + seed-rest only when PREFER=1 (Darwin cold-chain safety twin).
+  if [ "$prefer" = "1" ] && [ -f "$x_src" ] \
+    && { [ -x ./xlang ] || [ -x ./xlang-c ] || [ -x ./bootstrap_xlangc ]; }; then
+    thin_o="$(mktemp "${TMPDIR:-/tmp}/l2asm_thin.XXXXXX")"
+    rest_o="$(mktemp "${TMPDIR:-/tmp}/l2asm_rest.XXXXXX")"
+    # shellcheck disable=SC2086
+    if rt_prefer_try_x_to_o "$x_src" "$thin_o" \
+      && $CC $BASE_CFLAGS -I. -Iinclude -Isrc $rest_extra -D"$from_x_def" \
+           -c -o "$rest_o" "$seed" \
+      && $CC -r -nostdlib -o "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+      log "prefer thin+rest $o <- $x_src + seed-rest (try-l2-asm-prefer)"
+      done=1
+    else
+      log "l2-asm hybrid failed for $o; fallback full seed"
+    fi
+    rm -f "$thin_o" "$rest_o"
+  fi
+
+  if [ "$done" = "1" ]; then
+    return 0
+  fi
+
+  # Cold full seed (ensure_one twin / PREFER=0).
+  if [ -f "$o" ] && [ "$prefer" = "1" ]; then
+    FORCE=1
+    ensure_one "$o" "$seed"
+    FORCE=0
+  else
+    ensure_one "$o" "$seed"
+  fi
+  return 0
+}
+
+try_ensure_l2_asm_prefer_one() {
+  local o="$1"
+  if [ -z "$o" ]; then
+    echo "ensure_host_cc_seed_o try-l2-asm-prefer: need <out.o>" >&2
+    exit 2
+  fi
+  if [ -z "$(l2_asm_prefer_spec_for_out "$o")" ]; then
+    return 3
+  fi
+  ensure_l2_asm_prefer_one "$o"
+  return 0
+}
+
 
 # ---------------------------------------------------------------------------
 # wave760: try-r2 OUT — R2 platform-stamp panic cold body (UNAME leaf).
@@ -3791,6 +3935,52 @@ run_check() {
   else
     bad "scripts/g05_ensure_relink_prereqs.sh missing (wave768 g05 gate)"
   fi
+  # wave769: try-l2-asm-prefer (g05 + Makefile thin-call; three L2 asm leaves)
+  if ! grep -q 'try_ensure_l2_asm_prefer_one\|try-l2-asm-prefer' "$0"; then
+    bad "try-l2-asm-prefer / try_ensure_l2_asm_prefer_one missing (wave769)"
+  else
+    note "try-l2-asm-prefer helper present (wave769)"
+  fi
+  if ! grep -q 'ensure_l2_asm_prefer_one\|l2_asm_prefer_spec_for_out' "$0"; then
+    bad "l2-asm prefer body/table missing (wave769)"
+  else
+    note "l2-asm-prefer table body present (wave769)"
+  fi
+  for _l2_leaf in \
+    src/asm/user_asm_seed_bridge.o \
+    src/asm/backend_x86_64_enc_c.o \
+    src/asm/asm_backend_compat_stubs.o; do
+    if awk -v leaf="$_l2_leaf" '
+      $0 ~ ("^" leaf ":") {grab=1; next}
+      grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+      grab {body = body $0 "\n"}
+      END {
+        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-l2-asm-prefer/) exit 0
+        exit 1
+      }
+    ' Makefile; then
+      note "Makefile $_l2_leaf thin-calls ensure try-l2-asm-prefer (wave769)"
+    else
+      bad "Makefile $_l2_leaf must thin-call ensure try-l2-asm-prefer (wave769)"
+    fi
+  done
+  if [ -f scripts/g05_ensure_relink_prereqs.sh ]; then
+    if grep -q 'try-l2-asm-prefer\|l2-asm-prefer' scripts/g05_ensure_relink_prereqs.sh \
+      && grep -q 'ensure_host_cc_seed_o.sh' scripts/g05_ensure_relink_prereqs.sh; then
+      note "g05_ensure thin-calls ensure try-l2-asm-prefer (wave769)"
+    else
+      bad "g05_ensure must thin-call ensure try-l2-asm-prefer for L2 asm three (wave769)"
+    fi
+    # Dual body residual: g05 must not re-open inline uasb/bxec/abcs hybrid.
+    if grep -qE '_uasb_seed=|_bxec_seed=|_abcs_seed=|user_asm_seed_bridge ← thin|_bxec_thin_o=|_abcs_thin_o=' \
+      scripts/g05_ensure_relink_prereqs.sh; then
+      bad "g05_ensure still has L2 asm dual hybrid body (wave769)"
+    else
+      note "g05_ensure L2 asm dual hybrid body removed (wave769)"
+    fi
+  else
+    bad "scripts/g05_ensure_relink_prereqs.sh missing (wave769 g05 gate)"
+  fi
   # wave760/762: try-r2 R2 UNAME leaves (panic + typeck_f64 + crt0)
   if ! grep -q 'try_ensure_r2_one\|try-r2' "$0"; then
     bad "try-r2 / try_ensure_r2_one missing (wave760/762 R2 UNAME)"
@@ -3951,6 +4141,19 @@ case "$MODE" in
     _try_out="$1"
     set +e
     try_ensure_target_cpu_prefer_one "$_try_out"
+    _try_rc=$?
+    set -e
+    exit "$_try_rc"
+    ;;
+  try-l2-asm-prefer|try_l2_asm_prefer|l2-asm-prefer|l2-asm|try-l2-asm)
+    # wave769: L2 asm three PREFER helper — exit 3 if not table member.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o try-l2-asm-prefer: need <out.o>" >&2
+      exit 2
+    fi
+    _try_out="$1"
+    set +e
+    try_ensure_l2_asm_prefer_one "$_try_out"
     _try_rc=$?
     set -e
     exit "$_try_rc"
