@@ -27,7 +27,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "=== 11.0.2/11.0.3/11.0.4 product-path 0-make static gate (wave714–728) ==="
+echo "=== 11.0.2/11.0.3/11.0.4 product-path 0-make static gate (wave714–729) ==="
 
 fail=0
 note() { echo "  OK  $*"; }
@@ -630,10 +630,52 @@ else
   cat /tmp/wave728_obj_catalog.err >&2 || true
 fi
 
+# --- wave729: root Makefile help-only → ./xbuild (11.0.4); G.7 xbuild body = xlang-build.sh ---
+if [ -x ./xbuild ] || [ -f ./xbuild ]; then
+  if head -20 ./xbuild | grep -q 'xlang-build\.sh' \
+    && ! grep -qE 'run_build_tool|make -C' ./xbuild; then
+    note "./xbuild thin-forward to xlang-build.sh only (G.7)"
+  else
+    bad "./xbuild must only forward to xlang-build.sh (no second body)"
+  fi
+else
+  bad "missing ./xbuild product entry (wave729 11.0.4)"
+fi
+
+if grep -q 'help-only' Makefile \
+  && grep -q '\./xbuild' Makefile \
+  && grep -q '\.DEFAULT_GOAL := help' Makefile; then
+  # Must not re-list full target recipes that call xlang-build by name for each target
+  # (compat % forward is OK; explicit multi-recipe wrappers are the old thick style).
+  if grep -nE '^\t\./xlang-build\.sh ' Makefile | grep -v help | grep -q .; then
+    bad "root Makefile still has explicit xlang-build recipes (must be help-only + % → xbuild)"
+  else
+    note "root Makefile help-only → ./xbuild (11.0.4 wave729)"
+  fi
+else
+  bad "root Makefile not help-only / missing ./xbuild (wave729)"
+fi
+
+# 8.3 glue map present in C迁移追踪 (inventory, not changelog)
+if grep -q '### 8.3' analysis/C迁移追踪.md \
+  && grep -q 'pipeline_glue.c' analysis/C迁移追踪.md \
+  && grep -q '消费方' analysis/C迁移追踪.md; then
+  note "8.3 glue map + consumers present in C迁移追踪"
+else
+  bad "C迁移追踪 8.3 glue map missing consumer section (wave729)"
+fi
+
+# Changelog lives only in 自举进度 (not C迁移追踪)
+if grep -qE '^## 变更记录' analysis/C迁移追踪.md; then
+  bad "C迁移追踪.md must not carry ## 变更记录 (write waves in 自举进度 only)"
+else
+  note "C迁移追踪 has no wave changelog section (authority: 自举进度)"
+fi
+
 echo "=== gate summary ==="
 if [ "$fail" -ne 0 ]; then
   echo "FAIL product-path 0-make static gate" >&2
   exit 1
 fi
-echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe; mk OBJS+composites; catalog --check; tests/lib hub)"
+echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe; mk OBJS+composites; catalog --check; tests/lib hub; root help→xbuild)"
 exit 0

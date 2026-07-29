@@ -1,0 +1,17 @@
+#!/bin/sh
+# xbuild — preferred product-path entry name (Track MG 11.0.4).
+#
+# G.7 single authority: body is ONLY xlang-build.sh in this repo root.
+# Do not reimplement targets here. compiler/Makefile remains the
+# implementation-layer dep graph until 11.3; daily work must not depend on
+# the root Makefile (which is help-only).
+#
+# Usage:
+#   ./xbuild build
+#   ./xbuild help
+#   ./xbuild test
+# PLATFORM: SHARED (shell entry)
+
+set -e
+ROOT="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+exec sh "$ROOT/xlang-build.sh" "$@"

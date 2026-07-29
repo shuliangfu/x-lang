@@ -1,21 +1,21 @@
 #!/bin/sh
-# xlang-build.sh — 仓库根统一构建入口（G-05）
+# xlang-build.sh — 仓库根统一构建入口体（G-05 · G.7 权威实现）
+#
+# 对外首选名：./xbuild（薄转调本脚本；禁止在 xbuild 再写目标体）。
 #
 # 分层：
 #   1) 日常编译器：build.x + compiler/build_tool
 #      → scripts/g05_build_xlang_asm.sh → g05 relink（产品 0-make）
-#   2) 测试 / 内核 / gate：仍委托 compiler/Makefile 或 tests/*.sh
-#   3) compiler/Makefile：冷启动依赖图 / 对象清单 — 实现层兜底
-#   4) 根 Makefile：薄包装，委托本脚本（勿再直调 compiler/ 作日常入口）
+#   2) 测试 / 内核 / gate：委托 compiler/scripts 或 tests/*.sh
+#   3) compiler/Makefile：冷启动依赖图 / 对象清单 — 实现层兜底（至 11.3）
+#   4) 根 Makefile：help-only（11.0.4）；兼容转发 ./xbuild，勿加厚
 #
-# wave718 (11.0.3)：build-tool / clean 直调 shell 权威，不再 make -C 这两项。
-# wave719 (11.0.3)：bootstrap-token/lexer + bootstrap-driver-bstrict 直调 shell。
-# wave720 (11.0.3)：test* / bootstrap-verify 直调 shell；xlang-build 产品入口 0× make -C。
+# 产品入口 0× make -C（build-tool/clean/test*/bootstrap-* 均 shell 权威）。
 #
-# 用法: ./xlang-build.sh <target>
-# 例:   ./xlang-build.sh build
-#       ./xlang-build.sh xlang-asm
-#       XLANG_BUILD_TOOL_FULL=1 ./xlang-build.sh full
+# 用法: ./xbuild <target>   或   ./xlang-build.sh <target>
+# 例:   ./xbuild build
+#       ./xbuild xlang-asm
+#       XLANG_BUILD_TOOL_FULL=1 ./xbuild full
 
 set -e
 cd "$(dirname "$0")"
@@ -163,10 +163,12 @@ case "$TARGET" in
 
   help|--help|-h)
     cat <<'EOF'
-xlang-build.sh — 统一构建入口（G-05）
+xbuild / xlang-build.sh — 统一构建入口（G-05 · G.7 同体）
+
+推荐: ./xbuild <target>   （根 Makefile 仅 help→本入口）
 
 编译器（推荐日常）:
-  all / build / xlang   增量构建（build_tool → make xlang_asm / relink 金标准）
+  all / build / xlang   增量构建（build_tool → g05 relink 金标准）
   xlang-asm / asm       同上，显式 asm 子命令
   full / bstrict       全量 B-strict（XLANG_BUILD_TOOL_FULL=1）
   legacy               build_tool legacy 逐步路径
@@ -194,14 +196,16 @@ xlang-build.sh — 统一构建入口（G-05）
 
 实现层（用户勿直接依赖）:
   compiler/scripts/g05_build_xlang_asm.sh  — build_tool 唯一 asm 出口
-  compiler/Makefile                         — relink 依赖图 / 冷启动
+  compiler/Makefile                         — relink 依赖图 / 冷启动（至 11.3）
+  根 Makefile                               — help-only；勿再加厚
 
-日常优先本脚本或:
+日常优先:
+  ./xbuild build
   cd compiler && ./build_tool ./xlang
 EOF
     ;;
   *)
-    echo "Unknown target: $TARGET (try: ./xlang-build.sh help)" >&2
+    echo "Unknown target: $TARGET (try: ./xbuild help)" >&2
     exit 1
     ;;
 esac

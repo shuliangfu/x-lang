@@ -34,9 +34,9 @@
 | **E** | compiler/src 宿主 .o（runtime/driver/asm…） | 59 | `xbuild runtime-src` | 🟡 g05 ensure 热路径 | 11.0/BC |
 | **F** | runtime_* residual 宿主 .o | 31 | `xbuild residual-c（白名单）` | 🟡 g05 ensure | 阶段 9 |
 | **G** | build_asm/ 过滤 .o | 4 | `xbuild build-asm-filter` | 🟢 全 4 纯 shell（wave715/716） | 11.0.2/3 |
-| **H** | bootstrap / 产品二进制 phony | 35 | `xbuild bootstrap / link-product` | 🟡 冷编排/链接体 shell；叶+组合体→mk（wave727–728）；产品=g05 | 11.0.3/4 |
-| **I** | g05 / relink / build-tool 入口 | 9 | `xbuild link-product` | 🟢 产品+build-tool shell（wave718） | 11.0.2/3 |
-| **J** | test / check / verify / baseline | 12 | `xbuild test / cold-test / prove` | 🟡 test*/verify shell（wave720）；tests/lib hub 全迁（wave728）；bench/CI 仍 make | 11.0.3/11.2.3 |
+| **H** | bootstrap / 产品二进制 phony | 35 | `xbuild bootstrap / link-product` | 🟡 冷编排/链接体 shell；叶+组合体→mk；产品=g05 | 11.0.3/4 |
+| **I** | g05 / relink / build-tool 入口 | 9 | `xbuild link-product` | 🟢 产品+build-tool shell；根 `./xbuild` | 11.0.2/3/4 |
+| **J** | test / check / verify / baseline | 12 | `xbuild test / cold-test / prove` | 🟡 test*/verify shell；tests/lib hub 全迁；bench/CI 仍 make | 11.0.3/11.2.3 |
 | **K** | seed 工具（asm host / regen） | 3 | `xbuild seed-tools` | ⬜ Makefile | 11.0.3 |
 | **L** | std 变体（sqlite/net/compress stub） | 10 | `xbuild std-variant` | ⬜ Makefile | 并行 |
 | **M** | clean / compile_commands / legacy | 6 | `xbuild util 或删除` | 🟡 clean→shell（wave718）；其余 make | 11.0.3/4 |
@@ -561,17 +561,18 @@
 
 ---
 
-## 4. 根 `Makefile` / `xlang-build.sh` 对照
+## 4. 根 `Makefile` / `./xbuild` / `xlang-build.sh` 对照
 
-| 根入口 | 委托 | 是否仍 make | 终局 |
-|--------|------|-------------|------|
-| `make all/build/xlang` | `./xlang-build.sh build` | build-tool 缺失时 **shell**；日常 g05 | `xbuild build` |
-| `make full/bstrict` | `xlang-build.sh full` | FULL→make bstrict | `xbuild cold-test` 子集 |
-| `make build-tool` | xlang-build → `build_tool.sh` | **否**（wave718） | `xbuild build-tool` |
-| `make test*` | xlang-build | **是** `make -C compiler test*` | `xbuild test` |
-| `make kernel*` | tests/kernel/*.sh | 否（已 shell） | `xbuild kernel` |
-| `make clean` | xlang-build → `clean_compiler.sh` | **否**（wave718） | `xbuild clean` |
-| `./xlang-build.sh build` | build_tool → g05 | 产品链 0-make；**wave720** 入口 0× make -C | 收敛为 xbuild 唯一 |
+> **11.0.4**：根 Makefile **help-only**；首选 **`./xbuild <target>`**（G.7 体 = `xlang-build.sh`）。`make <target>` 仅兼容转发。
+
+| 根入口 | 委托 | 是否仍 make（compiler） | 终局 |
+|--------|------|-------------------------|------|
+| `make` / `make help` | 打印 help + `./xbuild help` | 否 | 保留至 11.3 删根 Makefile |
+| `make <any>`（兼容） | `./xbuild <any>`（stderr 提示） | 同 `./xbuild` | 用户改敲 `./xbuild` |
+| `./xbuild build` / `./xlang-build.sh build` | build_tool → g05 | 产品链 0× make -C | `xbuild build` 唯一名 |
+| `./xbuild test*` | `run_compiler_tests.sh` | 否 | `xbuild test` |
+| `./xbuild clean` | `clean_compiler.sh` | 否 | `xbuild clean` |
+| `./xbuild full` | FULL 可能仍 make bstrict | 非日常 | `xbuild cold-test` 子集 |
 
 ---
 
@@ -585,8 +586,9 @@
 | ~~`xlang-build.sh` build-tool/first-time/clean~~ | ~~`make -C`~~ | ✅ **wave718** → `build_tool.sh` / `clean_compiler.sh` |
 | ~~`xlang-build.sh` bootstrap-token/lexer/bstrict~~ | ~~`make -C`~~ | ✅ **wave719** → `bootstrap_token_lexer_smoke.sh` / `bootstrap_driver_bstrict.sh` |
 | ~~`xlang-build.sh` test*/bootstrap-verify~~ | ~~`make -C`~~ | ✅ **wave720** → `run_compiler_tests.sh` / `bootstrap_verify_bstrict.sh`（**0× make -C**） |
-| `tests/lib/**` 等 ~31+ 文件 | `make -C compiler` | 阶段 11.2.3 |
+| ~~`tests/lib/**` raw make -C~~ | ~~直调 make~~ | ✅ hub `xlang_compiler_make`（0 raw 在 hub 外） |
 | CI `.github/workflows` | make/cc | 阶段 11.2.5 |
+| `scripts/docker-ci-local.sh` | make -C | 阶段 11.4 |
 
 ---
 
@@ -627,29 +629,11 @@
 1. **11.0.1** 本表 ✅（wave714）
 2. **11.0.2** 产品路径 0-make 静态闸门 ✅ + class-G filtered 全 shell ✅（wave714–716）+ **PATH 探针 ✅（wave726）**
 3. **11.0.3** `bootstrap-driver-seed` 规则白名单化 → shell/xbuild 逐步接管（**wave716**–**wave725**：类 G + 编排 + build-tool/clean + token/bstrict + test*/verify 0-make + phase1/final 链接 + sat/lsp + host-stubs + bridge/panic/user-asm/glue + **§5b #1/#2/#8 全 🟢**）
-4. **11.0.4** 根 Makefile 仅 help→xbuild；OBJS 由 mk/xbuild 吞并（**wave726** catalog · **wave727** 叶 · **wave728** 组合体→`mk/*.mk`；help-only 待续）
-5. 并行：**类 C glue 地图**（阶段 8.3）· **类 B/D 去 pin 烟**（7.4）· **11.2.3** tests/lib hub ✅ wave728 · **11.2.5** CI
+4. **11.0.4** 根 Makefile help-only → `./xbuild` ✅；OBJS 叶+组合体→`mk/*.mk` ✅；catalog 18 keys ✅  
+5. 并行：**类 C glue 地图** ✅（C迁移 §8.3 消费方）· **11.2.5** CI · **类 B/D 去 pin**  
 6. **11.1+** 填实 `build.x` / 吞并 g05 → **11.3 物理删**
 
 ---
 
-## 7. 变更记录
-
-| 日期 | 波次 | 变更 |
-|------|------|------|
-| 2026-07-29 | **wave728** | 组合体→`mk/driver_seed_composites.mk`；catalog 18 keys；tests/lib 全量 `xlang_compiler_make`；0-make 闸门硬检；11.0.4 续 · 11.2.3 lib 全迁 |
-| 2026-07-29 | **wave727** | OBJS 叶清单→`mk/user_asm_seed_objs.mk` + `driver_seed_export_lists.mk`；catalog `--check`；`tests/lib/compiler-make.sh` + build-std-c-o hub；0-make 闸门硬检；11.0.4 续 · 11.2.3 起步 |
-| 2026-07-29 | **wave726** | 11.0.2 PATH 探针 `run-product-path-zero-make-path-probe.sh`；export-obj-catalog + `driver_seed_obj_catalog.sh`；0-make 闸门硬检+真跑；11.0.2 ✅ · 11.0.4 起步 |
-| 2026-07-29 | **wave725** | 11.0.3 闭 §5b #1/#2/#8：`check_pipeline_gen_expr_i64_abi.sh`；export-pipeline-x + rebuild_leaves；`bootstrap-driver-seed-asm-host` + DISPATCH_OBJS；§5b 白名单全 🟢；0-make 闸门硬检 |
-| 2026-07-29 | **wave724** | 11.0.3 续：§5b #5/#6/#7/#12 bridge/panic/user-asm/glue → `rebuild_leaves.sh` + export；`DRIVER_SEED_BRIDGE/PANIC/USER_ASM/ASM_GLUE_OBJS` 单权威；编排禁裸 `.o`；0-make 闸门硬检；mac 4 叶真跑 OK |
-| 2026-07-29 | **wave723** | 11.0.3 续：`bootstrap_driver_seed_host_stubs.sh` + export-host-stubs；`DRIVER_SEED_HOST_STUBS_SCAN_BASE` 单权威；PHONY 恒刷；file 规则同调；0-make 闸门硬检；mac 13 objs/397 stubs |
-| 2026-07-29 | **wave722** | 11.0.3 续：`bootstrap_driver_seed_rebuild_leaves.sh` + export-sat/lsp；`DRIVER_SEED_SAT_REBUILD_OBJS` / `DRIVER_SEED_LSP_X_OBJS` 单权威；0-make 闸门硬检；dry-run 10+5 targets |
-| 2026-07-29 | **wave721** | 11.0.3 续：`bootstrap_driver_seed_link.sh` + export-phase1/final-link；OBJS/CFLAGS Makefile 单权威；gen_g06 读 export；0-make 闸门硬检；mac phase1 59 objs 真链 |
-| 2026-07-29 | **wave720** | 11.0.3 续：`run_compiler_tests.sh` + `bootstrap_verify_bstrict.sh`；Makefile 薄转调；xlang-build make -C **4→0**；0-make 闸门硬检 sites=0 |
-| 2026-07-29 | **wave719** | 11.0.3 续：`bootstrap_token_lexer_smoke.sh` + `bootstrap_driver_bstrict.sh`；Makefile 薄转调；xlang-build make -C 7→4；0-make 闸门硬检 sites≤4 |
-| 2026-07-29 | **wave718** | 11.0.3 续：`build_tool.sh` + `clean_compiler.sh`；Makefile 薄转调；xlang-build make -C 11→7；0-make 闸门硬检 sites≤7 |
-| 2026-07-29 | **wave717** | 11.0.3 续：`bootstrap_driver_seed.sh` 编排权威；Makefile 薄壳 prereq + §5b 薄叶子（sat/lsp/user-asm/glue/filtered/host-stubs/phase1/final link）；0-make 闸门硬检 shell 转调；OBJS/CFLAGS 仍 make（防双权威） |
-| 2026-07-29 | **wave716** | 11.0.3 起点：类 G 全 4 纯 shell（`filter_o_export_against_deps.sh` + against_partial 包装）；g05_ensure Darwin trio；§5b 冷启动 make 白名单；0-make 闸门硬检 Makefile 无内联 nm/ld |
-| 2026-07-29 | **wave715** | 11.0.2 residual：`filter_bootstrap_seed_pipeline_o.sh` 为 pipeline filtered.o 唯一权威；g05_ensure 去 `make -s`；Makefile 同调；0-make 闸门 WARN 清零 |
-| 2026-07-29 | wave714 | 11.0.1 初版：289 目标分类 A–O + 关键 phony 表 + 泄漏清单 |
+> **波次变更记录**：只写 [`自举进度.md`](自举进度.md)。本表只维护迁移状态与白名单。
 
