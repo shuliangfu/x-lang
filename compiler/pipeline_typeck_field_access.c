@@ -1094,6 +1094,182 @@ static void pipeline_typeck_field_apply_mono_type_arg_c(struct ast_Module *modul
   pipeline_expr_set_resolved_type_ref(arena, expr_ref, mono_ty);
 }
 
+/**
+ * wave674 Cap residual: hard-fail unknown field when base type is known field-bearing.
+ *
+ * Prior: layout miss left field type null; assign LHS then stamped RHS onto the
+ * unresolved FIELD → typeck green, host-C BLD001 (`no member named 'nope'`).
+ * Same false-green on compound assign / nested / *S / slice.nope / E.Nope.
+ *
+ * Soft residual (still return 0): base type unknown; TYPE_NAMED type-param with
+ * no struct/enum layout in module+deps (generic mono path).
+ *
+ * G.7 single gate — called from heavy check_expr_field_access and the
+ * strict_minimal weak twin so product link order cannot skip the fail.
+ *
+ * @param module *Module — entry module (struct/enum layouts)
+ * @param arena *ASTArena
+ * @param expr_ref i32 — EXPR_FIELD_ACCESS
+ * @param base_ref i32 — field base expr
+ * @param ctx *PipelineDepCtx — optional dep modules for cross-module layouts
+ * @return i32 — 0 ok (resolved or soft-skip), -1 unknown field (diag emitted)
+ * PLATFORM: SHARED — typeck field resolve; dual L2 mac+Ubuntu.
+ */
+int32_t pipeline_typeck_field_unknown_hard_fail_c(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                 int32_t expr_ref, int32_t base_ref,
+                                                 struct ast_PipelineDepCtx *ctx) {
+  int32_t got_ty;
+  int32_t base_ty;
+  int32_t bt_kind;
+  int32_t check_ty;
+  int32_t elem_ty;
+  int32_t line_f;
+  int32_t col_f;
+  int32_t nlen;
+  uint8_t nbuf[128];
+  int32_t has_struct;
+  int32_t has_enum;
+  int32_t di;
+  int32_t nd;
+  struct ast_Module *dm;
+  extern void driver_diagnostic_typeck_enum_no_variant(int32_t line, int32_t col);
+
+  if (!module || !arena || expr_ref <= 0 || base_ref <= 0)
+    return 0;
+  got_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+  /* Resolved field type → already known member / enum variant / slice .length/.data. */
+  if (!ast_ref_is_null(got_ty) && got_ty > 0 && got_ty <= arena->num_types)
+    return 0;
+  base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+  if (ast_ref_is_null(base_ty) || base_ty <= 0 || base_ty > arena->num_types)
+    return 0; /* soft: unknown base type */
+  bt_kind = pipeline_type_kind_ord_at(arena, base_ty);
+  check_ty = base_ty;
+  /* Peel *S → S for layout/enum concrete check. */
+  if (bt_kind == (int32_t)ast_TypeKind_TYPE_PTR) {
+    elem_ty = pipeline_type_elem_ref_at(arena, base_ty);
+    if (ast_ref_is_null(elem_ty) || elem_ty <= 0 || elem_ty > arena->num_types) {
+      line_f = pipeline_expr_line_at(arena, expr_ref);
+      col_f = pipeline_expr_col_at(arena, expr_ref);
+      lsp_diag_report_typeck((int)line_f, (int)col_f, "unknown field on this type");
+      return -1;
+    }
+    check_ty = elem_ty;
+    bt_kind = pipeline_type_kind_ord_at(arena, check_ty);
+  }
+  /* Slice / fixed array / vector: only .length / .data (slice) resolve above. */
+  if (bt_kind == (int32_t)ast_TypeKind_TYPE_SLICE || bt_kind == (int32_t)ast_TypeKind_TYPE_ARRAY
+      || bt_kind == (int32_t)ast_TypeKind_TYPE_VECTOR) {
+    line_f = pipeline_expr_line_at(arena, expr_ref);
+    col_f = pipeline_expr_col_at(arena, expr_ref);
+    lsp_diag_report_typeck((int)line_f, (int)col_f, "unknown field on this type");
+    return -1;
+  }
+  if (bt_kind == (int32_t)ast_TypeKind_TYPE_NAMED) {
+    memset(nbuf, 0, sizeof(nbuf));
+    nlen = pipeline_type_named_name_into(arena, check_ty, &nbuf[0]);
+    if (nlen <= 0 || nlen > 127)
+      return 0;
+    has_struct = 0;
+    has_enum = 0;
+    /* Local module concrete? */
+    {
+      int32_t k;
+      int32_t nsl = module->num_struct_layouts;
+      int32_t ne = module->num_module_enums;
+      for (k = 0; k < nsl; k++) {
+        int32_t sl = pipeline_module_struct_layout_name_len(module, k);
+        uint8_t snm[128];
+        if (sl != nlen)
+          continue;
+        memset(snm, 0, sizeof(snm));
+        pipeline_module_struct_layout_name_into(module, k, &snm[0]);
+        if (typeck_name_equal(&snm[0], sl, &nbuf[0], nlen)) {
+          has_struct = 1;
+          break;
+        }
+      }
+      for (k = 0; k < ne; k++) {
+        int32_t el = pipeline_module_enum_name_len(module, k);
+        int32_t bi;
+        if (el != nlen)
+          continue;
+        for (bi = 0; bi < el; bi++) {
+          if (pipeline_module_enum_name_byte_at(module, k, bi) != nbuf[bi])
+            break;
+        }
+        if (bi == el) {
+          has_enum = 1;
+          break;
+        }
+      }
+    }
+    /* Dep modules (import structs/enums). */
+    if ((!has_struct || !has_enum) && ctx) {
+      nd = pipeline_dep_ctx_ndep(ctx);
+      for (di = 0; di < nd; di++) {
+        dm = pipeline_dep_ctx_module_at(ctx, di);
+        if (!dm)
+          continue;
+        if (!has_struct) {
+          int32_t k;
+          int32_t nsl = dm->num_struct_layouts;
+          for (k = 0; k < nsl; k++) {
+            int32_t sl = pipeline_module_struct_layout_name_len(dm, k);
+            uint8_t snm[128];
+            if (sl != nlen)
+              continue;
+            memset(snm, 0, sizeof(snm));
+            pipeline_module_struct_layout_name_into(dm, k, &snm[0]);
+            if (typeck_name_equal(&snm[0], sl, &nbuf[0], nlen)) {
+              has_struct = 1;
+              break;
+            }
+          }
+        }
+        if (!has_enum) {
+          int32_t k;
+          int32_t ne = dm->num_module_enums;
+          for (k = 0; k < ne; k++) {
+            int32_t el = pipeline_module_enum_name_len(dm, k);
+            int32_t bi;
+            if (el != nlen)
+              continue;
+            for (bi = 0; bi < el; bi++) {
+              if (pipeline_module_enum_name_byte_at(dm, k, bi) != nbuf[bi])
+                break;
+            }
+            if (bi == el) {
+              has_enum = 1;
+              break;
+            }
+          }
+        }
+        if (has_struct && has_enum)
+          break;
+      }
+    }
+    if (!has_struct && !has_enum)
+      return 0; /* soft: type-param / incomplete named type */
+    line_f = pipeline_expr_line_at(arena, expr_ref);
+    col_f = pipeline_expr_col_at(arena, expr_ref);
+    if (has_enum && !has_struct) {
+      driver_diagnostic_typeck_enum_no_variant(line_f, col_f);
+      return -1;
+    }
+    lsp_diag_report_typeck((int)line_f, (int)col_f, "unknown field on this type");
+    return -1;
+  }
+  /*
+   * Scalar / other first-class types (i32, bool, ptr already peeled, …): no fields.
+   * Hard-fail so `x.nope` cannot stamp through assign.
+   */
+  line_f = pipeline_expr_line_at(arena, expr_ref);
+  col_f = pipeline_expr_col_at(arena, expr_ref);
+  lsp_diag_report_typeck((int)line_f, (int)col_f, "unknown field on this type");
+  return -1;
+}
+
 /*
  * G.7 / wave465: mega pipeline_x (OMIT_X_DUP, no STANDALONE_TU) keeps a local
  * copy only — product export must come from pipeline_glue_standalone.o so daily
@@ -1163,5 +1339,8 @@ int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *module, str
   pipeline_typeck_field_lexer_fallback_c(module, arena, expr_ref, base_ref, ctx);
   pipeline_typeck_field_apply_mono_type_arg_c(module, arena, expr_ref, base_ty);
   pipeline_typeck_field_apply_ambient_for_type_param_c(module, arena, expr_ref, return_type_ref);
+  /* wave674: hard-fail unresolved field on known base (G.7 single gate). */
+  if (pipeline_typeck_field_unknown_hard_fail_c(module, arena, expr_ref, base_ref, ctx) != 0)
+    return -1;
   return 0;
 }

@@ -3181,6 +3181,39 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *
           arena, expr_ref, pipeline_type_find_or_alloc_compound(arena, (int32_t)ast_TypeKind_TYPE_PTR, elem_ty, 0));
       return 0;
     }
+    /*
+     * wave674: unknown field on TYPE_SLICE (not .length/.data). Prior path fell
+     * through to non-NAMED early return 0 → host-C BLD001. G.7 hard_fail gate.
+     */
+    {
+      extern int32_t pipeline_typeck_field_unknown_hard_fail_c(struct ast_Module *module,
+                                                              struct ast_ASTArena *arena, int32_t expr_ref,
+                                                              int32_t base_ref, struct ast_PipelineDepCtx *ctx);
+      if (pipeline_typeck_field_unknown_hard_fail_c(module, arena, expr_ref, base_ref, ctx) != 0)
+        return -1;
+    }
+    return 0;
+  }
+  /*
+   * wave674: fixed array / vector .length is handled in heavy twin; this weak
+   * path only had TYPE_SLICE. Unknown field on TYPE_ARRAY/VECTOR must hard-fail
+   * before the non-NAMED soft return below.
+   */
+  if (bt_kind == (int32_t)ast_TypeKind_TYPE_ARRAY || bt_kind == (int32_t)ast_TypeKind_TYPE_VECTOR) {
+    if (field_name_equal_strict_minimal(field_name, field_len, "length")
+        && pipeline_type_array_size_at(arena, base_ty) > 0) {
+      pipeline_expr_set_resolved_type_ref(arena, expr_ref,
+                                          pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_USIZE));
+      return 0;
+    }
+    {
+      extern int32_t pipeline_typeck_field_unknown_hard_fail_c(struct ast_Module *module,
+                                                              struct ast_ASTArena *arena, int32_t expr_ref,
+                                                              int32_t base_ref, struct ast_PipelineDepCtx *ctx);
+      if (pipeline_typeck_field_unknown_hard_fail_c(module, arena, expr_ref, base_ref, ctx) != 0)
+        return -1;
+    }
+    return 0;
   }
   elem_ty = 0;
   if (bt_kind == (int32_t)ast_TypeKind_TYPE_PTR) {
@@ -3188,8 +3221,19 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *
     if (elem_ty > 0 && pipeline_type_kind_ord_at(arena, elem_ty) == (int32_t)ast_TypeKind_TYPE_NAMED)
       base_ty = elem_ty;
   }
-  if (pipeline_type_kind_ord_at(arena, base_ty) != (int32_t)ast_TypeKind_TYPE_NAMED)
+  /*
+   * wave674: non-NAMED base (scalar / ptr-to-scalar / …) after peel — hard-fail
+   * unknown field (was soft return 0 → assign false-green / host-C BLD001).
+   * G.7: pipeline_typeck_field_unknown_hard_fail_c.
+   */
+  if (pipeline_type_kind_ord_at(arena, base_ty) != (int32_t)ast_TypeKind_TYPE_NAMED) {
+    extern int32_t pipeline_typeck_field_unknown_hard_fail_c(struct ast_Module *module,
+                                                            struct ast_ASTArena *arena, int32_t expr_ref,
+                                                            int32_t base_ref, struct ast_PipelineDepCtx *ctx);
+    if (pipeline_typeck_field_unknown_hard_fail_c(module, arena, expr_ref, base_ref, ctx) != 0)
+      return -1;
     return 0;
+  }
   /*
    * wave479 Cap residual pure: user enum TypeName.Variant (Method.POST).
    * Heavy pipeline_typeck_field_access.c resolves via field_layout_named_c →
@@ -3434,6 +3478,19 @@ XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *
     }
     if (use_ambient)
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref);
+  }
+  /*
+   * wave674 Cap residual: hard-fail unknown field on known base.
+   * G.7: single gate pipeline_typeck_field_unknown_hard_fail_c (heavy field_access.c);
+   * do not open a second matcher here. Soft: type-param / unknown base.
+   * PLATFORM: SHARED — product weak twin must call the same gate.
+   */
+  {
+    extern int32_t pipeline_typeck_field_unknown_hard_fail_c(struct ast_Module *module,
+                                                            struct ast_ASTArena *arena, int32_t expr_ref,
+                                                            int32_t base_ref, struct ast_PipelineDepCtx *ctx);
+    if (pipeline_typeck_field_unknown_hard_fail_c(module, arena, expr_ref, base_ref, ctx) != 0)
+      return -1;
   }
   return 0;
 }
