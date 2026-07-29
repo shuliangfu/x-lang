@@ -34,9 +34,9 @@
 | **E** | compiler/src 宿主 .o（runtime/driver/asm…） | 59 | `xbuild runtime-src` | 🟡 g05 ensure 热路径 | 11.0/BC |
 | **F** | runtime_* residual 宿主 .o | 31 | `xbuild residual-c（白名单）` | 🟡 g05 ensure | 阶段 9 |
 | **G** | build_asm/ 过滤 .o | 4 | `xbuild build-asm-filter` | 🟢 全 4 纯 shell（wave715/716） | 11.0.2/3 |
-| **H** | bootstrap / 产品二进制 phony | 35 | `xbuild bootstrap / link-product` | 🟡 冷=make；产品=g05 | 11.0.3 |
+| **H** | bootstrap / 产品二进制 phony | 35 | `xbuild bootstrap / link-product` | 🟡 冷=make；bstrict 体 shell（wave719）；产品=g05 | 11.0.3 |
 | **I** | g05 / relink / build-tool 入口 | 9 | `xbuild link-product` | 🟢 产品+build-tool shell（wave718） | 11.0.2/3 |
-| **J** | test / check / verify / baseline | 12 | `xbuild test / cold-test / prove` | ⬜ 多 make -C | 11.2.3 |
+| **J** | test / check / verify / baseline | 12 | `xbuild test / cold-test / prove` | 🟡 token/lexer shell（wave719）；test* 仍 make | 11.0.3/11.2.3 |
 | **K** | seed 工具（asm host / regen） | 3 | `xbuild seed-tools` | ⬜ Makefile | 11.0.3 |
 | **L** | std 变体（sqlite/net/compress stub） | 10 | `xbuild std-variant` | ⬜ Makefile | 并行 |
 | **M** | clean / compile_commands / legacy | 6 | `xbuild util 或删除` | 🟡 clean→shell（wave718）；其余 make | 11.0.3/4 |
@@ -67,7 +67,7 @@
 | `g05-export-relink` | 3085 | g05_relink_env.sh | `xbuild link-env` | 🟢 g05_relink_env.sh | 链接清单 |
 | `refresh-xlang-asm-gate` | 3172 | Makefile 包装 g05 | `xbuild refresh-gate` | 🟡 仍 make 入口包装 | 应收编 g05 |
 | `bootstrap-driver-seed` | ~2995 | **shell 编排** + Makefile prereq/薄叶子 | `xbuild bootstrap` | 🟡 wave717 编排迁 shell | L4 必经；11.0.3 续：OBJS/CFLAGS 仍 make |
-| `bootstrap-driver-bstrict` | 3155 | Makefile；FULL=1 走此 | `xbuild bstrict-build` | ⬜ FULL=1 仍 make | 非日常 |
+| `bootstrap-driver-bstrict` | ~3107 | **shell** `bootstrap_driver_bstrict.sh`；FULL=1 仍 make 入口 | `xbuild bstrict-build` | 🟡 wave719 体 shell；refresh 仍 make | 非日常 |
 | `bootstrap-driver-bstrict-relink` | 3179 | Makefile | `xbuild bstrict-relink` | ⬜ make |  |
 | `bootstrap-driver` | 3193 | Makefile 历史 | `xbuild bootstrap-driver` | ⬜ make | 考古/过渡 |
 | `bootstrap-driver-bstrict-windows` | 3196 | Makefile WINDOWS | `xbuild bootstrap-win` | ⬜ Makefile | PLATFORM: WINDOWS |
@@ -392,7 +392,7 @@
 ### 类 H — bootstrap / 产品二进制 phony
 
 - **xbuild**：`xbuild bootstrap / link-product`
-- **今日**：🟡 冷=make；产品=g05
+- **今日**：🟡 冷=make；bstrict 体 shell（wave719）；产品=g05
 - **优先**：11.0.3
 - **条数**：35
 
@@ -400,8 +400,8 @@
 |----|---------------|----------|
 | 706 | `all` | 🟡 xlang-build→g05；依赖已有 .o |
 | 716 | `bootstrap_xlangc` | ⬜ |
-| 1712 | `bootstrap-token` | ⬜ |
-| 1716 | `bootstrap-lexer` | ⬜ |
+| 1699 | `bootstrap-token` | 🟢 wave719 shell |
+| 1703 | `bootstrap-lexer` | 🟢 wave719 shell |
 | 1720 | `bootstrap-parser` | ⬜ |
 | 1725 | `bootstrap-parse-file` | ⬜ |
 | 2215 | `bootstrap-typeck` | ⬜ |
@@ -417,7 +417,7 @@
 | 3146 | `bootstrap-driver-hybrid` | ⬜ |
 | 3146 | `bootstrap-driver-asm` | ⬜ |
 | 3151 | `bootstrap-driver-asm-only` | ⬜ |
-| 3155 | `bootstrap-driver-bstrict` | ⬜ FULL=1 仍 make |
+| ~3107 | `bootstrap-driver-bstrict` | 🟡 wave719 体 shell；refresh 仍 make |
 | 3179 | `bootstrap-driver-bstrict-relink` | ⬜ make |
 | 3193 | `bootstrap-driver` | ⬜ make |
 | 3196 | `bootstrap-driver-bstrict-windows` | ⬜ |
@@ -456,8 +456,8 @@
 ### 类 J — test / check / verify / baseline
 
 - **xbuild**：`xbuild test / cold-test / prove`
-- **今日**：⬜ 多 make -C
-- **优先**：11.2.3
+- **今日**：🟡 token/lexer shell（wave719）；test*/verify 仍 make
+- **优先**：11.0.3 / 11.2.3
 - **条数**：12
 
 | 行 | Makefile 目标 | 迁移状态 |
@@ -581,7 +581,8 @@
 | ~~`g05_ensure` filtered.o~~ | ~~`make -s`~~ | ✅ wave715 pipeline · **wave716 class-G 全 4**（against_partial trio + 核心脚本） |
 | `g05_ensure` 失败提示 | 建议用户 `make bootstrap-driver-seed` | 改提示为 `xbuild bootstrap`（实现后） |
 | ~~`xlang-build.sh` build-tool/first-time/clean~~ | ~~`make -C`~~ | ✅ **wave718** → `build_tool.sh` / `clean_compiler.sh` |
-| `xlang-build.sh` test*/bootstrap-* | 仍 `make -C compiler`（7 处） | 11.0.3 续 |
+| ~~`xlang-build.sh` bootstrap-token/lexer/bstrict~~ | ~~`make -C`~~ | ✅ **wave719** → `bootstrap_token_lexer_smoke.sh` / `bootstrap_driver_bstrict.sh` |
+| `xlang-build.sh` test*/bootstrap-verify | 仍 `make -C compiler`（4 处） | 11.0.3 续 |
 | `tests/lib/**` 等 ~31+ 文件 | `make -C compiler` | 阶段 11.2.3 |
 | CI `.github/workflows` | make/cc | 阶段 11.2.5 |
 
@@ -618,7 +619,7 @@
 
 1. **11.0.1** 本表 ✅（wave714）
 2. **11.0.2** 产品路径 0-make 静态闸门 ✅ + class-G filtered 全 shell ✅（wave714–716）；运行时 PATH 无 make 探针仍可加
-3. **11.0.3** `bootstrap-driver-seed` 规则白名单化 → shell/xbuild 逐步接管（**wave716** 白名单+类 G；**wave717** 编排→`bootstrap_driver_seed.sh`；**wave718** build-tool/clean shell）
+3. **11.0.3** `bootstrap-driver-seed` 规则白名单化 → shell/xbuild 逐步接管（**wave716** 白名单+类 G；**wave717** 编排→`bootstrap_driver_seed.sh`；**wave718** build-tool/clean shell；**wave719** token/lexer/bstrict shell）
 4. **11.0.4** 根 Makefile 仅 help→xbuild；禁止新规则
 5. 并行：**类 C glue 地图**（阶段 8.3）· **类 B/D 去 pin 烟**（7.4）
 6. **11.1+** 填实 `build.x` / 吞并 g05 → **11.3 物理删**
@@ -629,6 +630,7 @@
 
 | 日期 | 波次 | 变更 |
 |------|------|------|
+| 2026-07-29 | **wave719** | 11.0.3 续：`bootstrap_token_lexer_smoke.sh` + `bootstrap_driver_bstrict.sh`；Makefile 薄转调；xlang-build make -C 7→4；0-make 闸门硬检 sites≤4 |
 | 2026-07-29 | **wave718** | 11.0.3 续：`build_tool.sh` + `clean_compiler.sh`；Makefile 薄转调；xlang-build make -C 11→7；0-make 闸门硬检 sites≤7 |
 | 2026-07-29 | **wave717** | 11.0.3 续：`bootstrap_driver_seed.sh` 编排权威；Makefile 薄壳 prereq + §5b 薄叶子（sat/lsp/user-asm/glue/filtered/host-stubs/phase1/final link）；0-make 闸门硬检 shell 转调；OBJS/CFLAGS 仍 make（防双权威） |
 | 2026-07-29 | **wave716** | 11.0.3 起点：类 G 全 4 纯 shell（`filter_o_export_against_deps.sh` + against_partial 包装）；g05_ensure Darwin trio；§5b 冷启动 make 白名单；0-make 闸门硬检 Makefile 无内联 nm/ld |

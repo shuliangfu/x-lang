@@ -24,7 +24,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "=== 11.0.2/11.0.3 product-path 0-make static gate (wave714–718) ==="
+echo "=== 11.0.2/11.0.3 product-path 0-make static gate (wave714–719) ==="
 
 fail=0
 note() { echo "  OK  $*"; }
@@ -214,11 +214,48 @@ else
   note "clean → scripts/clean_compiler.sh (Makefile + xlang-build)"
 fi
 
-# remaining make -C: test* / bootstrap-* only (hard-fail if >7 after wave718)
+# wave719: bootstrap-token/lexer + bootstrap-driver-bstrict → shell
+if [ ! -f compiler/scripts/bootstrap_token_lexer_smoke.sh ]; then
+  bad "missing compiler/scripts/bootstrap_token_lexer_smoke.sh (11.0.3 wave719)"
+elif ! grep -q 'bootstrap_token_lexer_smoke\.sh' compiler/Makefile; then
+  bad "Makefile bootstrap-token/lexer must call bootstrap_token_lexer_smoke.sh"
+elif ! grep -q 'bootstrap_token_lexer_smoke\.sh' xlang-build.sh; then
+  bad "xlang-build.sh must call bootstrap_token_lexer_smoke.sh (not make -C token/lexer)"
+elif grep -nE 'make -C compiler bootstrap-(token|lexer)' xlang-build.sh | grep -vE '^[0-9]+:[ \t]*#' | grep -q .; then
+  bad "xlang-build.sh still has make -C compiler bootstrap-token/lexer (must be shell)"
+else
+  note "bootstrap-token/lexer → bootstrap_token_lexer_smoke.sh (Makefile + xlang-build)"
+fi
+
+if [ ! -f compiler/scripts/bootstrap_driver_bstrict.sh ]; then
+  bad "missing compiler/scripts/bootstrap_driver_bstrict.sh (11.0.3 wave719)"
+elif ! grep -q 'bootstrap_driver_bstrict\.sh' compiler/Makefile; then
+  bad "Makefile bootstrap-driver-bstrict must call bootstrap_driver_bstrict.sh"
+elif ! grep -q 'bootstrap_driver_bstrict\.sh' xlang-build.sh; then
+  bad "xlang-build.sh must call bootstrap_driver_bstrict.sh (not make -C bstrict)"
+elif grep -nE 'make -C compiler bootstrap-driver-bstrict' xlang-build.sh | grep -vE '^[0-9]+:[ \t]*#' | grep -q .; then
+  bad "xlang-build.sh still has make -C compiler bootstrap-driver-bstrict (must be shell)"
+else
+  # Recipe body only (stop at next non-comment target line); must not inline build/refresh
+  bstrict_body=$(awk '
+    /^bootstrap-driver-bstrict: bootstrap-driver-seed$/ { in_r=1; next }
+    in_r && /^[^#[:space:]	]/ { exit }
+    in_r { print }
+  ' compiler/Makefile)
+  if echo "$bstrict_body" | grep -qE 'build_xlang_asm\.sh|refresh-xlang-asm-gate'; then
+    bad "Makefile bootstrap-driver-bstrict recipe still inlines build/refresh (must be shell)"
+  elif ! echo "$bstrict_body" | grep -q 'bootstrap_driver_bstrict\.sh'; then
+    bad "Makefile bootstrap-driver-bstrict recipe missing shell call"
+  else
+    note "bootstrap-driver-bstrict → bootstrap_driver_bstrict.sh (Makefile + xlang-build)"
+  fi
+fi
+
+# remaining make -C: test* / bootstrap-verify only (hard-fail if >4 after wave719)
 xb_make=$(grep -cE 'make -C compiler' xlang-build.sh || true)
-echo "  INFO xlang-build.sh make -C compiler sites: ${xb_make:-0} (wave718 target ≤7: test*/bootstrap-*)"
-if [ "${xb_make:-0}" -gt 7 ]; then
-  bad "xlang-build.sh make -C sites ${xb_make} > 7 (expected wave718 shrink: only test*/bootstrap-*)"
+echo "  INFO xlang-build.sh make -C compiler sites: ${xb_make:-0} (wave719 target ≤4: test*/bootstrap-verify)"
+if [ "${xb_make:-0}" -gt 4 ]; then
+  bad "xlang-build.sh make -C sites ${xb_make} > 4 (expected wave719 shrink: only test*/bootstrap-verify)"
 fi
 
 # --- migration table exists and mentions classes ---

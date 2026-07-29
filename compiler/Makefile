@@ -1694,14 +1694,13 @@ test_x: bootstrap-driver-seed
 test: test_c test_x
 	@echo "Test all OK"
 
-# 自举 9.1：用 xlang 编译 token 模块（库）+ token_standalone.x（入口），验证 .x 前端数据定义可由宿主编译
+# wave719: bootstrap-token/lexer body → scripts/bootstrap_token_lexer_smoke.sh (G.7)
 # 依赖 $(STD_AND_PANIC_O)：-o 链 std/io 等 .o，clean 后仅 make $(TARGET) 会缺这些文件导致 cc 失败。
 bootstrap-token: $(TARGET) $(STD_AND_PANIC_O)
-	./$(TARGET) -L src/lexer src/lexer/token_standalone.x -o /tmp/xlang_token_test && /tmp/xlang_token_test && echo "bootstrap-token OK"
+	@TARGET='$(TARGET)' sh scripts/bootstrap_token_lexer_smoke.sh token
 
-# 自举 9.1：用 xlang 编译 lexer.x（入口，import token），验证多文件 + 跨模块 enum 可编译链接
 bootstrap-lexer: $(TARGET) $(STD_AND_PANIC_O)
-	./$(TARGET) -L src/lexer src/lexer/lexer.x -o /tmp/xlang_lexer_test && /tmp/xlang_lexer_test && echo "bootstrap-lexer OK"
+	@TARGET='$(TARGET)' sh scripts/bootstrap_token_lexer_smoke.sh lexer
 
 # 自举 9.1：用 xlang 编译 parser.x（import lexer + token + ast + std.fs），解析 function main(): i32 { return 0; } 并验证；-L .. 供 std.fs，-L src/lexer 供 token，-L src/ast 供 ast
 bootstrap-parser: relink-xlang $(STD_AND_PANIC_O)
@@ -3103,22 +3102,11 @@ bootstrap-driver-hybrid bootstrap-driver-asm: $(TARGET)
 bootstrap-driver-asm-only: bootstrap-driver-hybrid
 
 # M7 默认自举：B-strict（SKIP_GEN，链接审计无 cc -c pipeline_gen.c）；xlang_asm 默认覆盖 $(TARGET)。
+# wave719: body → scripts/bootstrap_driver_bstrict.sh (G.7); prereq seed 仍 make 图。
 # 仅保留 xlang_asm、不覆盖 seed：XLANG_BSTRICT_NO_REPLACE=1 make bootstrap-driver-bstrict
 bootstrap-driver-bstrict: bootstrap-driver-seed
-	@# 与 Ubuntu 金标相同终点：refresh-xlang-asm-gate 以 seed+migrate 覆盖 xlang_asm。
-	@# build_xlang_asm 为中间实验链；Darwin 上 ld 不允许多定义（-multiply_defined 已废弃），
-	@# 与 Linux --allow-multiple-definition 行为不等价，experimental 可能红。
-	@# seed 冷链已绿时：允许 WARN 后继续 refresh（最终产物路径与 Ubuntu cold49 一致）。
-	@if XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1 XLANG=./$(TARGET) ./scripts/build_xlang_asm.sh; then \
-	  :; \
-	elif [ -x ./$(TARGET) ]; then \
-	  echo "bootstrap-driver-bstrict: WARN build_xlang_asm intermediate failed; seed ./$(TARGET) OK → refresh gate (same final as Ubuntu)" >&2; \
-	  cp -f ./$(TARGET) xlang_asm; \
-	else \
-	  echo "bootstrap-driver-bstrict: xlang_asm build failed (see build_xlang_asm.sh log)" >&2; exit 1; \
-	fi
-	@if [ ! -f xlang_asm ]; then echo "bootstrap-driver-bstrict: xlang_asm missing after build/seed fallback" >&2; exit 1; fi
-	@$(MAKE) refresh-xlang-asm-gate
+	@MAKE="$(MAKE)" TARGET="$(TARGET)" XLANG_BSTRICT_ENSURE_SEED=0 \
+	  sh scripts/bootstrap_driver_bstrict.sh
 
 # P0 asm 门禁：strict xlang_asm 与 seed+migrate-x-objs 对齐（M-3 含 typeck/codegen/ast）；xlang_asm2 仍保留 gen2。
 refresh-xlang-asm-gate: migrate-x-objs relink-xlang

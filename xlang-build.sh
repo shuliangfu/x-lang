@@ -9,6 +9,7 @@
 #   4) 根 Makefile：薄包装，委托本脚本（勿再直调 compiler/ 作日常入口）
 #
 # wave718 (11.0.3)：build-tool / clean 直调 shell 权威，不再 make -C 这两项。
+# wave719 (11.0.3)：bootstrap-token/lexer + bootstrap-driver-bstrict 直调 shell。
 #
 # 用法: ./xlang-build.sh <target>
 # 例:   ./xlang-build.sh build
@@ -70,7 +71,7 @@ case "$TARGET" in
     (cd compiler && sh scripts/clean_compiler.sh)
     ;;
 
-  # === 编译器测试（Makefile 兜底 — 仍 make：依赖图 + 历史目标）===
+  # === 编译器测试（test* / bootstrap-verify 仍 make；token/lexer/bstrict 已 shell）===
   test)
     make -C compiler test
     ;;
@@ -81,16 +82,16 @@ case "$TARGET" in
     make -C compiler test_x
     ;;
   bootstrap-lexer)
-    make -C compiler bootstrap-lexer
+    (cd compiler && sh scripts/bootstrap_token_lexer_smoke.sh lexer)
     ;;
   bootstrap-token)
-    make -C compiler bootstrap-token
+    (cd compiler && sh scripts/bootstrap_token_lexer_smoke.sh token)
     ;;
   bootstrap-verify)
     make -C compiler bootstrap-verify
     ;;
   bootstrap-driver-bstrict)
-    make -C compiler bootstrap-driver-bstrict
+    (cd compiler && sh scripts/bootstrap_driver_bstrict.sh)
     ;;
 
   # === 内核 QEMU 测试 ===
@@ -172,10 +173,11 @@ xlang-build.sh — 统一构建入口（G-05）
   first-time           build_tool.sh + 日常构建
   clean                scripts/clean_compiler.sh（无 make）
 
-测试 / 自举（Makefile 兜底）:
-  test / test_c / test_x
-  bootstrap-verify
-  bootstrap-driver-bstrict
+测试 / 自举:
+  test / test_c / test_x     Makefile 依赖图
+  bootstrap-token / lexer    scripts/bootstrap_token_lexer_smoke.sh
+  bootstrap-driver-bstrict   scripts/bootstrap_driver_bstrict.sh
+  bootstrap-verify           Makefile（仍 make）
 
 内核 (QEMU):
   kernel               全部内核 gate
