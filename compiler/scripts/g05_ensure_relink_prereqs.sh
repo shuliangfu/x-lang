@@ -1970,11 +1970,13 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     fi
   fi
   # Darwin product link uses filtered pipeline; must drop stale pool T after unbundle.
+  # Authority: scripts/filter_bootstrap_seed_pipeline_o.sh (pure shell; no make).
+  # PLATFORM: SHARED — product g05 hygiene; Darwin link consumes filtered.o (g05_relink_env).
   _filt=build_asm/bootstrap_seed_pipeline_filtered.o
   if [ -f pipeline_x.o ] && { [ ! -f "$_filt" ] || [ pipeline_x.o -nt "$_filt" ]; }; then
-    if [ -f Makefile ]; then
-      echo "g05_ensure: make $_filt (pipeline_x newer; drop embedded pool if any)"
-      make -s "$_filt" || echo "g05_ensure: WARN make $_filt failed (Darwin may dual-def pool)" >&2
+    echo "g05_ensure: $_filt ← filter_bootstrap_seed_pipeline_o.sh (pipeline_x newer; no make)"
+    if ! sh scripts/filter_bootstrap_seed_pipeline_o.sh pipeline_x.o "$_filt"; then
+      echo "g05_ensure: WARN filter $_filt failed (Darwin may dual-def pool)" >&2
     fi
   fi
   # G-02f-7 / R2 full：simd_enc.o

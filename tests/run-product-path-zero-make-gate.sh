@@ -24,7 +24,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "=== 11.0.2 product-path 0-make static gate (wave714) ==="
+echo "=== 11.0.2 product-path 0-make static gate (wave714/715) ==="
 
 fail=0
 note() { echo "  OK  $*"; }
@@ -69,9 +69,6 @@ fi
 ALLOW_PATTERNS=(
   # non-daily full rebuild
   'exec make bootstrap-driver-bstrict'
-  # known product leak: Darwin filtered pipeline.o (debt → pure shell ld -r)
-  'make -s "$_filt"'
-  'make -s $_filt'
   # error hints to user for cold start (not product build)
   'make -C compiler bootstrap-driver-seed'
   'make -C compiler build-seed-asm-host'
@@ -119,14 +116,10 @@ G05_DAILY=(
 )
 
 new_hits=0
-known_leak_hits=0
 for f in "${G05_DAILY[@]}"; do
   while IFS= read -r hit; do
     [ -z "$hit" ] && continue
     if is_allowed "$hit"; then
-      if echo "$hit" | grep -q 'make -s'; then
-        known_leak_hits=$((known_leak_hits + 1))
-      fi
       continue
     fi
     # allow "no make" / "零 make" / "不调用 make" contract strings
@@ -138,10 +131,20 @@ for f in "${G05_DAILY[@]}"; do
   done < <(scan_make_lines "$f")
 done
 
-if [ "$known_leak_hits" -gt 0 ]; then
-  warn "known product make leak still present (filtered.o make -s) count=$known_leak_hits — see Makefile迁移表 §5; fix in 11.0.2 residual"
+# wave715: filtered.o must be pure shell (no make -s)
+if grep -nE 'make[[:space:]]+-s|make[[:space:]]+"?\$_filt' compiler/scripts/g05_ensure_relink_prereqs.sh 2>/dev/null \
+  | grep -vE '^[0-9]+:[[:space:]]*#' | grep -q .; then
+  bad "g05_ensure still has make -s filtered.o leak (must use filter_bootstrap_seed_pipeline_o.sh)"
+elif grep -q 'filter_bootstrap_seed_pipeline_o' compiler/scripts/g05_ensure_relink_prereqs.sh; then
+  note "g05_ensure filtered.o → filter_bootstrap_seed_pipeline_o.sh (no make)"
 else
-  note "no make -s filtered.o leak (good if already pure shell)"
+  bad "g05_ensure missing filter_bootstrap_seed_pipeline_o.sh authority"
+fi
+
+if [ ! -f compiler/scripts/filter_bootstrap_seed_pipeline_o.sh ]; then
+  bad "missing compiler/scripts/filter_bootstrap_seed_pipeline_o.sh"
+else
+  note "filter_bootstrap_seed_pipeline_o.sh present"
 fi
 
 if [ "$new_hits" -eq 0 ]; then
@@ -179,5 +182,5 @@ if [ "$fail" -ne 0 ]; then
   echo "FAIL product-path 0-make static gate" >&2
   exit 1
 fi
-echo "OK product-path 0-make static gate (allowlist frozen; known filtered.o leak documented)"
+echo "OK product-path 0-make static gate (allowlist frozen; filtered.o pure shell)"
 exit 0

@@ -33,7 +33,7 @@
 | **D** | 前端 *_x.o（parser/typeck/codegen/driver…） | 20 | `xbuild frontend` | 🟡 g05 ensure 热路径 | 阶段 7–8 |
 | **E** | compiler/src 宿主 .o（runtime/driver/asm…） | 59 | `xbuild runtime-src` | 🟡 g05 ensure 热路径 | 11.0/BC |
 | **F** | runtime_* residual 宿主 .o | 31 | `xbuild residual-c（白名单）` | 🟡 g05 ensure | 阶段 9 |
-| **G** | build_asm/ 过滤 .o | 4 | `xbuild build-asm-filter` | 🟡 g05 偶发 make 回退 | 11.0.2 清零 |
+| **G** | build_asm/ 过滤 .o | 4 | `xbuild build-asm-filter` | 🟡 pipeline 已 shell；另 3 个仍 Makefile | 11.0.2+ |
 | **H** | bootstrap / 产品二进制 phony | 35 | `xbuild bootstrap / link-product` | 🟡 冷=make；产品=g05 | 11.0.3 |
 | **I** | g05 / relink / build-tool 入口 | 9 | `xbuild link-product` | 🟢 产品已 shell；build-tool 仍 make | 11.0.2 |
 | **J** | test / check / verify / baseline | 12 | `xbuild test / cold-test / prove` | ⬜ 多 make -C | 11.2.3 |
@@ -63,7 +63,7 @@
 | `all` | 706 | xlang-build.sh → build_tool → g05_build_xlang_asm | `xbuild build` | 🟡 xlang-build→g05；依赖已有 .o | 默认产品入口；依赖已存在 .o |
 | `xlang_asm` | 3093 | g05_prepare_and_relink（零 make 宣称） | `xbuild link-product` | 🟢 g05 shell | 金标准 relink 出口 |
 | `relink-xlang` | 3089 | g05_relink_xlang.sh | `xbuild link-product` | 🟢 g05_relink_xlang.sh | 与 xlang_asm 同族 |
-| `g05-ensure-relink-prereqs` | 3081 | g05_ensure_relink_prereqs.sh (~3.3k 行) | `xbuild ensure` | 🟢 g05_ensure_relink_prereqs.sh | 热路径 cc；漏 make 见 11.0.2 |
+| `g05-ensure-relink-prereqs` | 3081 | g05_ensure_relink_prereqs.sh (~3.3k 行) | `xbuild ensure` | 🟢 g05_ensure_relink_prereqs.sh | 热路径 cc；filtered.o 已纯 shell（wave715） |
 | `g05-export-relink` | 3085 | g05_relink_env.sh | `xbuild link-env` | 🟢 g05_relink_env.sh | 链接清单 |
 | `refresh-xlang-asm-gate` | 3172 | Makefile 包装 g05 | `xbuild refresh-gate` | 🟡 仍 make 入口包装 | 应收编 g05 |
 | `bootstrap-driver-seed` | 2957 | Makefile 冷启动权威 | `xbuild bootstrap` | ⬜ 冷启动 Makefile 权威 | L4 必经；11.0.3 |
@@ -374,16 +374,17 @@
 ### 类 G — build_asm/ 过滤 .o
 
 - **xbuild**：`xbuild build-asm-filter`
-- **今日**：🟡 g05 偶发 make 回退
-- **优先**：11.0.2 清零
+- **今日**：🟡 pipeline 已 shell；其余 3 个仍 Makefile（冷/bstrict 路径）
+- **优先**：11.0.2 产品泄漏已清；其余 3 可随 11.0.3 / build-asm-filter
 - **条数**：4
+- **权威**：`compiler/scripts/filter_bootstrap_seed_pipeline_o.sh`（pipeline 过滤；Makefile + g05 同调）
 
 | 行 | Makefile 目标 | 迁移状态 |
 |----|---------------|----------|
 | 2095 | `build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o` | ⬜ |
 | 2105 | `build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o` | ⬜ |
 | 2115 | `build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o` | ⬜ |
-| 2125 | `build_asm/bootstrap_seed_pipeline_filtered.o` | ⬜ |
+| 2125 | `build_asm/bootstrap_seed_pipeline_filtered.o` | 🟢 `filter_bootstrap_seed_pipeline_o.sh`（wave715） |
 
 ### 类 H — bootstrap / 产品二进制 phony
 
@@ -569,14 +570,14 @@
 
 ---
 
-## 5. 已知「产品路径仍碰 make」泄漏（11.0.2 输入）
+## 5. 已知「产品路径仍碰 make」泄漏（11.0.2）
 
 | 位置 | 现象 | 处置 |
 |------|------|------|
 | `g05_build_xlang_asm.sh` FULL=1 | `exec make bootstrap-driver-bstrict` | 标注非日常；迁 `xbuild bstrict-build` |
-| `g05_ensure_relink_prereqs.sh` ~L1976 | `make -s` 过滤 `build_asm/*_filtered.o` | **产品 0-make 闸门应抓**；改为纯 shell/`cc` |
+| ~~`g05_ensure` filtered.o~~ | ~~`make -s`~~ | ✅ wave715 → `filter_bootstrap_seed_pipeline_o.sh` |
 | `g05_ensure` 失败提示 | 建议用户 `make bootstrap-driver-seed` | 改提示为 `xbuild bootstrap`（实现后） |
-| `xlang-build.sh` build-tool/first-time/clean/test* | 直接 `make -C compiler` | 11.0.2–11.0.3 逐项替换 |
+| `xlang-build.sh` build-tool/first-time/clean/test* | 直接 `make -C compiler` | 11.0.3 逐项替换 |
 | `tests/lib/**` 等 ~31+ 文件 | `make -C compiler` | 阶段 11.2.3 |
 | CI `.github/workflows` | make/cc | 阶段 11.2.5 |
 
@@ -584,11 +585,11 @@
 
 ## 6. 建议迁移顺序（11.0 内）
 
-1. **11.0.1** 本表 ✅（本波）
-2. **11.0.2** 产品路径 0-make 静态+运行闸门；修 g05 `make -s` 过滤 .o 泄漏
+1. **11.0.1** 本表 ✅（wave714）
+2. **11.0.2** 产品路径 0-make 静态闸门 ✅ + filtered.o 纯 shell ✅（wave714/715）；运行时 PATH 无 make 探针仍可加
 3. **11.0.3** `bootstrap-driver-seed` 规则白名单化 → shell/xbuild 逐步接管
 4. **11.0.4** 根 Makefile 仅 help→xbuild；禁止新规则
-5. 并行：**类 C glue 地图**（阶段 8.3）· **类 B/D 去 pin 烟**（7.4）
+5. 并行：**类 C glue 地图**（阶段 8.3）· **类 B/D 去 pin 烟**（7.4）· 类 G 其余 3 filtered.o
 6. **11.1+** 填实 `build.x` / 吞并 g05 → **11.3 物理删**
 
 ---
@@ -597,5 +598,6 @@
 
 | 日期 | 波次 | 变更 |
 |------|------|------|
+| 2026-07-29 | **wave715** | 11.0.2 residual：`filter_bootstrap_seed_pipeline_o.sh` 为 pipeline filtered.o 唯一权威；g05_ensure 去 `make -s`；Makefile 同调；0-make 闸门 WARN 清零 |
 | 2026-07-29 | wave714 | 11.0.1 初版：289 目标分类 A–O + 关键 phony 表 + 泄漏清单 |
 

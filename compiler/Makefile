@@ -2122,21 +2122,11 @@ build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o: src/asm/asm_backen
 	  comm -23 "$$src_syms" "$$part_syms" | sed 's/^/_/' > "$$keep_syms"; \
 	  if [ "$(LD_FILTER_USE_VER)" = "1" ]; then printf '{ global:\n' > $@.ver; sed 's/.*/  &;/' "$$keep_syms" >> $@.ver; printf '  *;\n};\n' >> $@.ver; ld -r $(LD_FILTER_EXPORT) $@.ver -o $@ src/asm/asm_backend_compat_stubs.o; else ld -r $(LD_FILTER_EXPORT) "$$keep_syms" -o $@ src/asm/asm_backend_compat_stubs.o; fi
 
+# Authority: scripts/filter_bootstrap_seed_pipeline_o.sh (G.7 single path; g05_ensure same).
+# PLATFORM: SHARED — Darwin product link primary; Linux may build for hygiene.
 build_asm/bootstrap_seed_pipeline_filtered.o: pipeline_x.o build_asm/seed_host/asm_backend_partial.o build_asm/pipeline_glue_strict_minimal.o
-	@mkdir -p build_asm
-	@all_syms=build_asm/bootstrap_seed_pipeline.syms; \
-	  keep_syms=build_asm/bootstrap_seed_pipeline.keep; \
-	  omit_syms=build_asm/bootstrap_seed_pipeline.omit; \
-	  : > "$$omit_syms"; \
-	  nm pipeline_x.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$all_syms"; \
-	  for dep_o in typeck_x.o codegen_x.o build_asm/seed_host/asm_backend_partial.o build_asm/pipeline_glue_strict_minimal.o; do \
-	  if [ -f "$$dep_o" ]; then \
-	  nm "$$dep_o" 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' >> "$$omit_syms"; \
-	  fi; \
-	  done; \
-	  sort -u "$$omit_syms" -o "$$omit_syms"; \
-	  comm -23 "$$all_syms" "$$omit_syms" | sed 's/^/_/' > "$$keep_syms"; \
-	  if [ "$(LD_FILTER_USE_VER)" = "1" ]; then printf '{ global:\n' > $@.ver; sed 's/.*/  &;/' "$$keep_syms" >> $@.ver; printf '  *;\n};\n' >> $@.ver; ld -r $(LD_FILTER_EXPORT) $@.ver -o $@ pipeline_x.o; else ld -r $(LD_FILTER_EXPORT) "$$keep_syms" -o $@ pipeline_x.o; fi
+	@chmod +x scripts/filter_bootstrap_seed_pipeline_o.sh 2>/dev/null || true
+	@./scripts/filter_bootstrap_seed_pipeline_o.sh pipeline_x.o $@
 
 src/asm/asm_experimental_symbol_bridge.o: seeds/asm_experimental_symbol_bridge.from_x.c scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh seeds/asm_experimental_symbol_bridge.from_x.c $@
