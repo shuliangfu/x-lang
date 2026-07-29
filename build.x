@@ -95,17 +95,22 @@
 //   Never inputs to g05 / ./xbuild all / product compiler link.
 //
 // -----------------------------------------------------------------------------
-// F. Orchestration DAG inventory (11.1.1 · wave742 — not full scheduler)
+// F. Orchestration DAG inventory + schedule (11.1.1 wave742 · 11.1.2 wave743)
 // -----------------------------------------------------------------------------
 //   Authority map: compiler/docs/BUILD_DAG.md
 //   Machine check: compiler/scripts/product_build_dag.sh
 //   ./xbuild product-dag | build-dag | cold-dag
 //   ./xbuild product-dag --check
-//   Product daily nodes: ensure_*_gen → migrate → g05 ensure/link → refresh-gate
-//   Cold nodes: DRIVER_SEED_PREREQS (Makefile residual) → bootstrap_driver_seed.sh
+//   ./xbuild product-dag --dry-run [product|refresh|cold]
+//   ./xbuild product-dag --run product|refresh|cold
+//   Product schedule (11.1.2): ensure_*_gen → migrate → g05_prepare_and_relink
+//     (prepare embeds ensure+link_env; archaeology off product)
+//   Refresh schedule: refresh_gate alone
+//   Cold schedule: dry-run inventory order; live run → outer bootstrap-driver-seed
+//     (DRIVER_SEED_PREREQS Makefile residual → 11.3)
 //   G.7: DAG lists orchestration edges/owners only; .o inventories stay in
 //   compiler/mk/*.mk + driver_seed_obj_catalog.sh (no dual lists).
-//   11.1.2–4 (schedule / platform / linker) execute this graph later; 11.3
+//   11.1.3–4 (platform / linker) + full .x import graph later; 11.3
 //   swallows Makefile prereq residual.
 //
 // References:

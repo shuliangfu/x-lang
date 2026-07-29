@@ -1078,26 +1078,43 @@ else
   bad "build.x must mention tests host-cc / HOST_CC_POLICY / 11.5.2 (wave741)"
 fi
 
-# wave742: 11.1.1 product + cold orchestration DAG-as-data inventory
+# wave742/743: 11.1.1 inventory + 11.1.2 schedule execute (BUILD_DAG)
 if [ ! -f compiler/docs/BUILD_DAG.md ]; then
   bad "missing compiler/docs/BUILD_DAG.md (11.1.1 wave742)"
 elif ! grep -q '11\.1\.1' compiler/docs/BUILD_DAG.md \
   || ! grep -q 'DRIVER_SEED_PREREQS' compiler/docs/BUILD_DAG.md; then
   bad "BUILD_DAG.md must document 11.1.1 + DRIVER_SEED_PREREQS residual"
+elif ! grep -q '11\.1\.2' compiler/docs/BUILD_DAG.md \
+  || ! grep -qiE 'dry-run|schedule|--run' compiler/docs/BUILD_DAG.md; then
+  bad "BUILD_DAG.md must document 11.1.2 schedule dry-run/run (wave743)"
 elif [ ! -f compiler/scripts/product_build_dag.sh ]; then
   bad "missing compiler/scripts/product_build_dag.sh (11.1.1 wave742)"
 elif ! grep -q 'product-dag\|build-dag\|cold-dag' xlang-build.sh \
   || ! grep -q 'product_build_dag\.sh' xlang-build.sh; then
   bad "xlang-build missing product-dag first-class target (wave742)"
+elif ! grep -qE 'dry-run|--run|dag-run|dag-dry-run' xlang-build.sh; then
+  bad "xlang-build missing product-dag --dry-run / --run (wave743 11.1.2)"
 elif ! grep -qE '11\.1\.1|BUILD_DAG|product.dag|DAG-as-data' build.x; then
   bad "build.x must mention 11.1.1 / BUILD_DAG / product-dag (wave742)"
+elif ! grep -qE '11\.1\.2|dry-run|--run|schedule' build.x; then
+  bad "build.x must mention 11.1.2 schedule / dry-run / --run (wave743)"
 else
-  note "BUILD_DAG.md + product_build_dag.sh + xbuild product-dag (11.1.1 wave742)"
+  note "BUILD_DAG.md + product_build_dag.sh + xbuild product-dag (11.1.1/2 wave742/743)"
   if ! bash compiler/scripts/product_build_dag.sh --check; then
-    bad "product_build_dag.sh --check failed (wave742)"
+    bad "product_build_dag.sh --check failed (wave742/743)"
   else
-    note "product_build_dag.sh --check OK (wave742)"
+    note "product_build_dag.sh --check OK (11.1.1+11.1.2)"
   fi
+  # Positive dry-run path via xbuild (not only internal --check recursion).
+  # Capture full stdout first: under set -o pipefail, `cmd | grep -q` can fail with
+  # SIGPIPE when grep -q exits early (false FAIL).
+  _dag_dry_out="$(./xbuild product-dag --dry-run product 2>/dev/null || true)"
+  if ! printf '%s\n' "$_dag_dry_out" | grep -q 'NODE=g05_prepare_and_relink'; then
+    bad "xbuild product-dag --dry-run product missing g05_prepare_and_relink (wave743)"
+  else
+    note "xbuild product-dag --dry-run product OK (wave743)"
+  fi
+  unset _dag_dry_out
 fi
 
 # Product daily `all` must remain g05 (not Makefile all); CI uses compiler-all.
@@ -1147,5 +1164,5 @@ if [ "$fail" -ne 0 ]; then
   echo "FAIL product-path 0-make static gate" >&2
   exit 1
 fi
-echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe; mk OBJS+composites; catalog --check; tests/lib+run-*.sh hub; root help→xbuild; CI/docker → xbuild; build.sh thin; docker/delete-one entry; 11.5 HOST_CC_POLICY; 11.1.1 BUILD_DAG)"
+echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe; mk OBJS+composites; catalog --check; tests/lib+run-*.sh hub; root help→xbuild; CI/docker → xbuild; build.sh thin; docker/delete-one entry; 11.5 HOST_CC_POLICY; 11.1.1/11.1.2 BUILD_DAG schedule)"
 exit 0

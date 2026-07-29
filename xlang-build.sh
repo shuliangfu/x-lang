@@ -224,17 +224,38 @@ case "$TARGET" in
     (cd compiler && sh scripts/ensure_archaeology_gen.sh "$_arch_mode")
     ;;
 
-  # === 11.1.1 orchestration DAG (wave742 · inventory; not full scheduler) ===
-  product-dag|build-dag|cold-dag|ensure-product-dag)
-    # Dump or check product + cold orchestration nodes.
-    # Usage: ./xbuild product-dag | ./xbuild product-dag --check
+  # === 11.1.1 inventory + 11.1.2 schedule (wave742/743 · not full .x import graph) ===
+  product-dag|build-dag|cold-dag|ensure-product-dag|dag-run|dag-dry-run)
+    # Dump / check / dry-run / run orchestration schedules.
+    # Usage:
+    #   ./xbuild product-dag
+    #   ./xbuild product-dag --check
+    #   ./xbuild product-dag --dry-run [product|refresh|cold]
+    #   ./xbuild product-dag --run product|refresh|cold
     # Body: compiler/scripts/product_build_dag.sh · map: compiler/docs/BUILD_DAG.md
-    # G.7: no second .o list here (lists stay in compiler/mk + obj catalog).
+    # G.7: no second .o list; run only invokes existing body scripts.
     _dag_mode="dump"
-    if [ "${2:-}" = "--check" ] || [ "${2:-}" = "check" ] || [ "${2:-}" = "-c" ]; then
-      _dag_mode="check"
+    _dag_profile="product"
+    case "${1}" in
+      dag-dry-run) _dag_mode="dry-run"; _dag_profile="${2:-product}" ;;
+      dag-run) _dag_mode="run"; _dag_profile="${2:-product}" ;;
+      *)
+        if [ "${2:-}" = "--check" ] || [ "${2:-}" = "check" ] || [ "${2:-}" = "-c" ]; then
+          _dag_mode="check"
+        elif [ "${2:-}" = "--dry-run" ] || [ "${2:-}" = "dry-run" ]; then
+          _dag_mode="dry-run"
+          _dag_profile="${3:-product}"
+        elif [ "${2:-}" = "--run" ] || [ "${2:-}" = "run" ]; then
+          _dag_mode="run"
+          _dag_profile="${3:-product}"
+        fi
+        ;;
+    esac
+    if [ "$_dag_mode" = "dry-run" ] || [ "$_dag_mode" = "run" ]; then
+      bash compiler/scripts/product_build_dag.sh "$_dag_mode" "$_dag_profile"
+    else
+      bash compiler/scripts/product_build_dag.sh "$_dag_mode"
     fi
-    bash compiler/scripts/product_build_dag.sh "$_dag_mode"
     ;;
 
   # === CI / 冷启动 / 叶 .o（wave730：外层 0× make -C；图仍 Makefile 至 11.3）===
@@ -383,10 +404,13 @@ g05 产品链（wave733–735 · 11.1.6；产品 link 零 make）:
   refresh-gate                  migrate shell + g05 relink + overlay xlang_asm
                                 （体 refresh_xlang_asm_gate.sh；product *_gen 已 shell）
 
-11.1.1 编排 DAG（wave742 · 清单/校验；非完整调度器）:
+11.1.1/11.1.2 编排 DAG（wave742 库存 · wave743 调度）:
   product-dag / build-dag / cold-dag   product_build_dag.sh dump
-  product-dag --check                  校验节点体 + xbuild 接线 + BUILD_DAG.md
-                                       （G.7 禁第二套 .o 清单；列表仍 mk/catalog）
+  product-dag --check                  校验节点体 + schedule + dry-run 三 profile
+  product-dag --dry-run [product|refresh|cold]
+  product-dag --run product|refresh|cold
+  dag-dry-run / dag-run                同上简写
+                                       （G.7 禁第二套 .o；run 只调既有 shell 体）
 
 CI / 冷启动（外层 0× make -C；图仍 Makefile 至 11.3）:
   compiler-all / ci-all      make OPT=1 all（host-cc/seed；≠ 产品 all）
