@@ -1720,88 +1720,12 @@ bootstrap-parse-file: $(TARGET) $(STD_AND_PANIC_O) bootstrap-parser
 # 迁移到 .x：parser.x -E-extern + ast 池 getter 补丁 → parser_x.o（提供 parser_parse_into_buf；与瘦 pipeline_x.o 分 TU）。
 # 须 xlang-x -x -E 全量 TU；xlang-c 瘦 gen 缺 copy_module_import_path64 / parse_expr_into 等。
 # ast_gen2.c 仅 typeck/codegen 单 TU 需要；clean worktree 用 pinned parser seed 时不应先触发它。
+# wave736: G.7 body → scripts/ensure_migrate_gen.sh (parser_gen.c seed/pin/-E)
 parser_gen.c: src/parser/parser.x
-	@if [ "$(XLANG_FORCE_REGEN_GEN)" = "1" ]; then \
-	  tmp="$@.tmp"; \
-	  if [ -f $(XLANG_X) ]; then \
-	  echo "parser_gen.c: ./$(XLANG_X) -x -E -E-extern ... [forced regen]" >&2; \
-	  if command -v timeout >/dev/null 2>&1; then \
-	  timeout "${XLANG_PARSER_GEN_TIMEOUT:-120}" ./$(XLANG_X) -x -E -L .. -L src/lexer -L src/ast -E-extern src/parser/parser.x > "$$tmp" 2>/dev/null || true; \
-	  else ./$(XLANG_X) -x -E -L .. -L src/lexer -L src/ast -E-extern src/parser/parser.x > "$$tmp" 2>/dev/null || true; fi; \
-	  if [ -s "$$tmp" ] && grep -q 'parser_copy_module_import_path64' "$$tmp"; then \
-	  mv -f "$$tmp" $@; \
-	  else \
-	  rm -f "$$tmp"; \
-	  $(MAKE) $(XLANG_C) && \
-	  if command -v timeout >/dev/null 2>&1; then \
-	  timeout "${XLANG_PARSER_GEN_TIMEOUT:-120}" ./$(XLANG_C) -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > "$$tmp" || true; \
-	  else ./$(XLANG_C) -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > "$$tmp" || true; fi; \
-	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; else rm -f "$$tmp"; fi; \
-	  fi; \
-	  else \
-	  $(MAKE) $(XLANG_C) && \
-	  ./$(XLANG_C) -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > "$$tmp" && mv -f "$$tmp" $@; \
-	  fi; \
-	elif [ -s parser_gen.c ]; then \
-	  echo "parser_gen.c: pinned ($$(wc -c < parser_gen.c | tr -d ' ') bytes; XLANG_FORCE_REGEN_GEN=1 to regen)"; \
-	elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/parser_gen.linux.x86_64.c ] && [ ! -s parser_gen.c ]; then \
-	  cp -f seeds/parser_gen.linux.x86_64.c parser_gen.c; \
-	  echo "parser_gen.c: restored from seeds/parser_gen.linux.x86_64.c"; \
-	else \
-	  tmp="$@.tmp"; \
-	  if [ -f $(XLANG_X) ]; then \
-	  echo "parser_gen.c: ./$(XLANG_X) -x -E -E-extern ..." >&2; \
-	  if command -v timeout >/dev/null 2>&1; then \
-	  timeout "${XLANG_PARSER_GEN_TIMEOUT:-120}" ./$(XLANG_X) -x -E -L .. -L src/lexer -L src/ast -E-extern src/parser/parser.x > "$$tmp" 2>/dev/null || true; \
-	  else ./$(XLANG_X) -x -E -L .. -L src/lexer -L src/ast -E-extern src/parser/parser.x > "$$tmp" 2>/dev/null || true; fi; \
-	  if [ -s "$$tmp" ] && grep -q 'parser_copy_module_import_path64' "$$tmp"; then \
-	  mv -f "$$tmp" $@; \
-	  else \
-	  echo "parser_gen.c: xlang-x failed or thin output; fallback xlang-c" >&2; \
-	  rm -f "$$tmp" 2>/dev/null || true; \
-	  if $(MAKE) $(XLANG_C) >/dev/null \
-	  && { if command -v timeout >/dev/null 2>&1; then timeout "${XLANG_PARSER_GEN_TIMEOUT:-120}" ./$(XLANG_C) -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > "$$tmp" 2>/dev/null || true; else ./$(XLANG_C) -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > "$$tmp" 2>/dev/null || true; fi; } \
-	  && [ -s "$$tmp" ] && grep -q 'parser_copy_module_import_path64' "$$tmp"; then \
-	  mv -f "$$tmp" $@; \
-	  elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/parser_gen.linux.x86_64.c ]; then \
-	  cp -f seeds/parser_gen.linux.x86_64.c $@; \
-	  echo "parser_gen.c: fallback seeds/parser_gen.linux.x86_64.c (xlang-c -E failed)" >&2; \
-	  else \
-	  rm -f "$$tmp" 2>/dev/null || true; \
-	  echo "parser_gen.c: FAIL (no xlang-x/xlang-c -E and no seed)" >&2; exit 1; \
-	  fi; \
-	  fi; \
-	  else \
-	  if $(MAKE) $(XLANG_C) >/dev/null \
-	  && ./$(XLANG_C) -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > "$$tmp" 2>/dev/null \
-	  && [ -s "$$tmp" ] && grep -q 'parser_copy_module_import_path64' "$$tmp"; then \
-	  mv -f "$$tmp" $@; \
-	  elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/parser_gen.linux.x86_64.c ]; then \
-	  cp -f seeds/parser_gen.linux.x86_64.c $@; \
-	  echo "parser_gen.c: fallback seeds/parser_gen.linux.x86_64.c" >&2; \
-	  else \
-	  rm -f "$$tmp" 2>/dev/null || true; \
-	  echo "parser_gen.c: FAIL (xlang-c -E failed and no seed)" >&2; exit 1; \
-	  fi; \
-	  fi; \
-	fi
-	perl -i -ne 'print unless /^struct xlang_slice_uint8_t/ && $$seen++' $@ 2>/dev/null || true
-	@if ! grep -q 'C-04 -E-extern TU aliases' $@ 2>/dev/null; then \
-	  echo "parser_gen.c: FAIL missing C-04 -E-extern TU aliases (need xlang-c -E-extern codegen; no perl fallback)" >&2; \
-	  exit 1; \
-	fi
-	@if ! grep -q 'C-04 parser: ast_expr_init_match_enum after struct ast_Expr' $@ 2>/dev/null; then \
-	  echo "parser_gen.c: FAIL missing C-04 parser pool marker (need xlang-c -E-extern codegen; no perl fallback)" >&2; \
-	  exit 1; \
-	fi
-	@if ! grep -q 'parser_copy_module_import_path64' $@; then \
-	  echo "parser_gen.c: inject extern parser_copy_module_import_path64 (parser_asm_parse_expr_link/thin_c)" >&2; \
-	  printf '%s\n' '/* pipeline extern parser_copy_module_import_path64 (thin parser_gen TU) */' \
-	  'extern int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t i, uint8_t out[64]);' >> $@; \
-	fi
-	@echo "parser_gen.c: normalize ast_pipeline onefunc const extern aliases" >&2; \
-	perl -0pi -e 's@^extern int32_t ast_pipeline_onefunc_append_const\(.*\);\n@@mg; s@^extern int32_t ast_pipeline_onefunc_const_init_ref\(.*\);\n@@mg; s@^extern int32_t ast_pipeline_onefunc_const_type_ref\(.*\);\n@@mg; s@/\* C-04 -E-extern TU aliases \*/\n@extern int32_t ast_pipeline_onefunc_append_const(uint8_t * restrict out, uint8_t * restrict name, int32_t name_len, int32_t init_val, int32_t init_ref, int32_t type_ref);\nextern int32_t ast_pipeline_onefunc_const_init_ref(uint8_t * restrict out, int32_t i);\nextern int32_t ast_pipeline_onefunc_const_type_ref(uint8_t * restrict out, int32_t i);\n/* C-04 -E-extern TU aliases */\n@s' $@
-	@echo "parser_gen.c: from parser.x (-E-extern, full TU via xlang-x -x)"
+	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
+	  XLANG_PARSER_GEN_TIMEOUT="$(XLANG_PARSER_GEN_TIMEOUT)" \
+	  XLANG_C="$(XLANG_C)" XLANG_X="$(XLANG_X)" \
+	  sh scripts/ensure_migrate_gen.sh parser
 # wave735: G.7 body → scripts/migrate_x_objs.sh (parser leaf)
 parser_x.o: parser_gen.c
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" \
@@ -2083,7 +2007,7 @@ src/asm/asm_experimental_symbol_bridge.o: seeds/asm_experimental_symbol_bridge.f
 	sh scripts/cc_inc_tu.sh seeds/asm_experimental_symbol_bridge.from_x.c $@
 
 # 迁移到 .x：parser/typeck/codegen 独立 -E-extern 产物；pipeline_x.o 仅编排（-E-extern），seed 链 typeck_x.o/codegen_x.o。
-# wave735: G.7 body → scripts/migrate_x_objs.sh (no inline cc; gen.c still Makefile)
+# wave735/736: G.7 body → migrate_x_objs.sh (_x.o) + ensure_migrate_gen.sh (*_gen.c)
 migrate-x-objs:
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" \
 	  sh scripts/migrate_x_objs.sh all
@@ -2107,48 +2031,22 @@ ast_gen2.c: src/ast/ast.x
 ast_gen2.o: ast_gen2.c
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c ast_gen2.c -o ast_gen2.o
 
+# wave736: G.7 body → scripts/ensure_migrate_gen.sh (typeck_gen.c seed/pin/-E)
 typeck_gen.c: src/typeck/typeck.x
-	@if [ "$(XLANG_FORCE_REGEN_GEN)" = "1" ]; then \
-	  tmp="$@.tmp.$$$$"; rm -f "$$tmp"; \
-	  $(MAKE) $(XLANG_C) && \
-	  ./$(XLANG_C) -L .. -L src -L src/lexer -L src/ast -L src/parser src/typeck/typeck.x -E-extern > "$$tmp" && mv "$$tmp" $@; \
-	elif [ -s typeck_gen.c ]; then \
-	  echo "typeck_gen.c: pinned ($$(wc -c < typeck_gen.c | tr -d ' ') bytes; XLANG_FORCE_REGEN_GEN=1 to regen)"; \
-	elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/typeck_gen.linux.x86_64.c ] && [ ! -s typeck_gen.c ]; then \
-	  cp -f seeds/typeck_gen.linux.x86_64.c typeck_gen.c; \
-	  echo "typeck_gen.c: restored from seeds/typeck_gen.linux.x86_64.c"; \
-	else \
-	  tmp="$@.tmp.$$$$"; rm -f "$$tmp"; \
-	  $(MAKE) $(XLANG_C) && \
-	  ./$(XLANG_C) -L .. -L src -L src/lexer -L src/ast -L src/parser src/typeck/typeck.x -E-extern > "$$tmp" && mv "$$tmp" $@ || \
-	  { rm -f "$$tmp"; if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/typeck_gen.linux.x86_64.c ]; then cp -f seeds/typeck_gen.linux.x86_64.c $@ && echo "typeck_gen.c: fallback seed (xlang-c -E failed)" >&2; else exit 1; fi; }; \
-	fi
-	perl scripts/fix_slim_arena_gen_c.pl $@
+	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
+	  XLANG_C="$(XLANG_C)" \
+	  sh scripts/ensure_migrate_gen.sh typeck
 
 # wave735: G.7 body → scripts/migrate_x_objs.sh (typeck leaf)
 typeck_x.o: typeck_gen.c
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" \
 	  sh scripts/migrate_x_objs.sh typeck
 
+# wave736: G.7 body → scripts/ensure_migrate_gen.sh (codegen_gen.c tip seed pin/-E)
 codegen_gen.c: src/codegen/codegen.x
-	@if [ "$(XLANG_FORCE_REGEN_GEN)" = "1" ]; then \
-	  tmp="$@.tmp.$$$$"; rm -f "$$tmp"; \
-	  $(MAKE) $(XLANG_C) && \
-	  ./$(XLANG_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck src/codegen/codegen.x -E-extern > "$$tmp" && mv "$$tmp" $@; \
-	elif [ -f seeds/codegen_gen.linux.x86_64.c ]; then \
-	  if [ ! -s codegen_gen.c ] || ! cmp -s seeds/codegen_gen.linux.x86_64.c codegen_gen.c; then \
-	    cp -f seeds/codegen_gen.linux.x86_64.c codegen_gen.c; \
-	    echo "codegen_gen.c: synced from tip seed pin (PLATFORM SHARED: guard gitignored pin drift)"; \
-	  else \
-	    echo "codegen_gen.c: pinned matches tip seed ($$(wc -c < codegen_gen.c | tr -d ' ') bytes)"; \
-	  fi; \
-	else \
-	  tmp="$@.tmp.$$$$"; rm -f "$$tmp"; \
-	  $(MAKE) $(XLANG_C) && \
-	  ./$(XLANG_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck src/codegen/codegen.x -E-extern > "$$tmp" && mv "$$tmp" $@ || \
-	  { rm -f "$$tmp"; exit 1; }; \
-	fi
-	perl scripts/fix_slim_arena_gen_c.pl $@
+	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
+	  XLANG_C="$(XLANG_C)" \
+	  sh scripts/ensure_migrate_gen.sh codegen
 
 # wave735: G.7 body → scripts/migrate_x_objs.sh (codegen leaf)
 codegen_x.o: codegen_gen.c

@@ -9,9 +9,9 @@
 #   Makefile thin leaves call this script; refresh-gate and xbuild call it
 #   directly (no `make migrate-x-objs` recipe body).
 #
-#   *_gen.c production still lives in Makefile (residual until 11.3). When
-#   this script is invoked without a make prereq and gen is missing, it
-#   restores product seed pins when present, else residual `make <leaf>_gen.c`.
+#   *_gen.c production: G.7 body = scripts/ensure_migrate_gen.sh (wave736).
+#   This script calls ensure_migrate_gen for missing/stale gen (0× make).
+#   Residual make only if ensure_migrate_gen needs a missing xlang-c binary.
 #
 # Usage (cwd = compiler/):
 #   sh scripts/migrate_x_objs.sh              # all three (default)
@@ -23,9 +23,10 @@
 # Env:
 #   CC / CFLAGS / PYTHON / MAKE — host compile (defaults match Makefile)
 #   XLANG_MIGRATE_FORCE=1 — always recompile even if .o is newer than gen
+#   XLANG_FORCE_REGEN_GEN=1 — force ensure_migrate_gen -E path
 #
 # PLATFORM: SHARED shell orchestration; seed pins are host-portable C.
-# Wave: 735 Track MG · pairs with Makefile thin leaves + xbuild migrate.
+# Wave: 735/736 Track MG · pairs with ensure_migrate_gen.sh + Makefile thin leaves.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -74,28 +75,44 @@ need_rebuild() {
   return 1
 }
 
-ensure_gen() {
-  # $1=gen.c $2=optional seed path $3=make target name for residual regen
-  local gen="$1" seed="${2:-}" make_tgt="${3:-}"
-  if [ -s "$gen" ]; then
+ensure_gen_via_shell() {
+  # $1 = all|parser|typeck|codegen — G.7: ensure_migrate_gen.sh (wave736)
+  local mode="$1"
+  if [ ! -f scripts/ensure_migrate_gen.sh ]; then
+    log "missing scripts/ensure_migrate_gen.sh (wave736)"
+    exit 1
+  fi
+  MAKE="$MAKE" XLANG_FORCE_REGEN_GEN="${XLANG_FORCE_REGEN_GEN:-0}" \
+    sh scripts/ensure_migrate_gen.sh "$mode"
+}
+
+# Skip ensure when gen already present (make only re-runs recipe when .x is newer).
+# FORCE always re-ensures. codegen tip seed: re-sync only when local pin is missing
+# or still byte-identical to seed (post fix_slim diverges — do not thrash rebuild).
+want_ensure_gen() {
+  # $1=mode $2=gen.c $3=optional seed
+  local mode="$1" gen="$2" seed="${3:-}"
+  if [ "${XLANG_FORCE_REGEN_GEN:-0}" = "1" ]; then
     return 0
   fi
-  if [ -n "$seed" ] && [ -f "$seed" ]; then
-    cp -f "$seed" "$gen"
-    log "$gen ← $seed (missing pin restore)"
+  if [ ! -s "$gen" ]; then
     return 0
   fi
-  if [ -n "$make_tgt" ]; then
-    log "residual make $make_tgt (no local pin for $gen)"
-    MAKEFLAGS= "$MAKE" "$make_tgt"
-    return 0
+  if [ "$mode" = "codegen" ] && [ -n "$seed" ] && [ -f "$seed" ]; then
+    # Tip pin guard: only when local file still equals raw seed (pre-fix_slim pin).
+    # After ensure_migrate_gen, fix_slim rewrites gen → differs from seed; skip re-copy
+    # so we do not force rebuild every migrate (G.7 single path, no thrash).
+    if cmp -s "$seed" "$gen" 2>/dev/null; then
+      return 0
+    fi
   fi
-  log "missing $gen and no seed/make target"
-  exit 1
+  return 1
 }
 
 build_parser() {
-  ensure_gen parser_gen.c seeds/parser_gen.linux.x86_64.c parser_gen.c
+  if want_ensure_gen parser parser_gen.c seeds/parser_gen.linux.x86_64.c; then
+    ensure_gen_via_shell parser
+  fi
   if ! need_rebuild parser_x.o parser_gen.c; then
     log "parser_x.o up-to-date"
     return 0
@@ -113,7 +130,9 @@ build_parser() {
 }
 
 build_typeck() {
-  ensure_gen typeck_gen.c seeds/typeck_gen.linux.x86_64.c typeck_gen.c
+  if want_ensure_gen typeck typeck_gen.c seeds/typeck_gen.linux.x86_64.c; then
+    ensure_gen_via_shell typeck
+  fi
   # Skip patch+cc when .o is current (patch may rewrite gen even when no-op-ish).
   if ! need_rebuild typeck_x.o typeck_gen.c; then
     log "typeck_x.o up-to-date"
@@ -127,21 +146,15 @@ build_typeck() {
   $CC $CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -c typeck_gen.c -o typeck_x.o
   sz=$(obj_size typeck_x.o)
   if [ "$sz" -le 10000 ]; then
-    log "typeck_x.o too small ($sz; corrupt gen? rm typeck_gen.c && make typeck_gen.c)"
+    log "typeck_x.o too small ($sz; corrupt gen? rm typeck_gen.c && sh scripts/ensure_migrate_gen.sh typeck)"
     exit 1
   fi
   log "typeck_x.o OK ($sz bytes)"
 }
 
 build_codegen() {
-  # Prefer tip seed pin when present (PLATFORM SHARED: guard gitignored pin drift)
-  if [ -f seeds/codegen_gen.linux.x86_64.c ]; then
-    if [ ! -s codegen_gen.c ] || ! cmp -s seeds/codegen_gen.linux.x86_64.c codegen_gen.c; then
-      cp -f seeds/codegen_gen.linux.x86_64.c codegen_gen.c
-      log "codegen_gen.c ← seeds/codegen_gen.linux.x86_64.c (tip seed pin)"
-    fi
-  else
-    ensure_gen codegen_gen.c "" codegen_gen.c
+  if want_ensure_gen codegen codegen_gen.c seeds/codegen_gen.linux.x86_64.c; then
+    ensure_gen_via_shell codegen
   fi
   if ! need_rebuild codegen_x.o codegen_gen.c; then
     log "codegen_x.o up-to-date"
@@ -151,7 +164,7 @@ build_codegen() {
   $CC $CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -c codegen_gen.c -o codegen_x.o
   sz=$(obj_size codegen_x.o)
   if [ "$sz" -le 50000 ]; then
-    log "codegen_x.o too small ($sz; corrupt gen? rm codegen_gen.c && make codegen_gen.c)"
+    log "codegen_x.o too small ($sz; corrupt gen? rm codegen_gen.c && sh scripts/ensure_migrate_gen.sh codegen)"
     exit 1
   fi
   log "codegen_x.o OK ($sz bytes)"

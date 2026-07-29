@@ -67,9 +67,14 @@ run_refresh_xlang_asm_gate() {
   (cd compiler && sh scripts/refresh_xlang_asm_gate.sh)
 }
 # migrate companions: parser_x.o typeck_x.o codegen_x.o (wave735 · 11.1.6).
-# G.7 body = scripts/migrate_x_objs.sh; *_gen.c residual make if missing.
+# G.7 body = scripts/migrate_x_objs.sh; *_gen.c via ensure_migrate_gen.sh (wave736).
 run_migrate_x_objs() {
   (cd compiler && sh scripts/migrate_x_objs.sh all)
+}
+# product migrate *_gen.c pin/seed/-E (wave736 · 11.1.6).
+# G.7 body = scripts/ensure_migrate_gen.sh (parser/typeck/codegen only).
+run_ensure_migrate_gen() {
+  (cd compiler && sh scripts/ensure_migrate_gen.sh all)
 }
 
 case "$TARGET" in
@@ -127,7 +132,22 @@ case "$TARGET" in
     ;;
   migrate|migrate-x-objs)
     # Wave735 · 11.1.6: parser/typeck/codegen _x.o via migrate_x_objs.sh
+    # (wave736: gen ensure is shell; no residual make for *_gen.c body)
     run_migrate_x_objs
+    ;;
+  migrate-gen|ensure-migrate-gen|parser-gen|typeck-gen|codegen-gen)
+    # Wave736 · 11.1.6: parser/typeck/codegen *_gen.c via ensure_migrate_gen.sh
+    # Optional sub-mode: ./xbuild migrate-gen parser|typeck|codegen
+    _gen_mode="all"
+    if [ "${2:-}" = "parser" ] || [ "${2:-}" = "typeck" ] || [ "${2:-}" = "codegen" ]; then
+      _gen_mode="$2"
+    fi
+    case "$TARGET" in
+      parser-gen) _gen_mode=parser ;;
+      typeck-gen) _gen_mode=typeck ;;
+      codegen-gen) _gen_mode=codegen ;;
+    esac
+    (cd compiler && sh scripts/ensure_migrate_gen.sh "$_gen_mode")
     ;;
 
   # === CI / 冷启动 / 叶 .o（wave730：外层 0× make -C；图仍 Makefile 至 11.3）===
@@ -264,6 +284,7 @@ g05 产品链（wave733–735 · 11.1.6；产品 link 零 make）:
   link-product / relink         g05_prepare_and_relink（G05_SYNC_ASM=0）
   link-product-asm              g05_prepare_and_relink（G05_SYNC_ASM=1 → xlang_asm）
   migrate / migrate-x-objs      migrate_x_objs.sh（parser/typeck/codegen _x.o）
+  migrate-gen                   ensure_migrate_gen.sh（parser/typeck/codegen _gen.c）
   refresh-gate                  migrate shell + g05 relink + overlay xlang_asm
                                 （*_gen.c 仍 make 至 11.3；体 refresh_xlang_asm_gate.sh）
 
