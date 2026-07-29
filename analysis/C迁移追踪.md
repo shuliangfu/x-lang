@@ -30,6 +30,8 @@
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
 | **Makefile 退役 / xbuild** | 🟡 半路径 | G-05 shell + `xlang-build.sh` + `build.x` 策略稿已有；**`compiler/Makefile` 仍 ~3445 行权威图**（阶段 11） |
+| **根脚本 / tools / docker / CI 去 make+cc** | ⬜ 0/~20 | `build.sh`/`xlang-build.sh`/`scripts/docker-ci-local.sh`/`tools/`/`tests/lib/`(50+)/`tests/bench/`/`tests/docker/`/`.github/workflows/`(5)/`editors/`/`README` — 阶段 11.4–11.6（**原文档大漏**） |
+| **tests/ 对照 C 处理策略** | ⬜ 0/~4 | ~200 个 .c 文件在零 cc 终局下归属未定 — 阶段 11.5 |
 | **冷启动零 cc 链** | ⬜ 0/4 | 最小 seed + 零 cc 验证 + 双端冷启动 |
 | **终局：无 Makefile + 零 cc + v2==v3** | ⬜ 未达 | 见 §0.1 三义；阶段 13 |
 
@@ -542,6 +544,33 @@
   - 来源：wave683 soft · wave684 探针「t/s/w_nope T001」疑似关闭
   - field_unknown 硬失败，但未明确标记关闭
 
+⬜ **4.2.15 impl method on INDEX** soft 未闭
+
+  - 来源：wave635 soft 项
+  - 症状：在 INDEX 表达式（如 `a[i]`）上调用 impl method 的能力缺口
+  - wave636/637 修的是 PTR-to-fixed-array DEREF / array-of-ptr INDEX esz，未涉及 impl method on INDEX
+  - 未在任何后续波次（wave636–712）中明确关闭
+
+⬜ **4.2.16 `*T[N]` 解析序** **有意保留 soft**（设计决策）
+
+  - 来源：wave635 soft + wave636 描述
+  - 决策：`*T[N]` = array-of-pointers（C 式故意）；pointer-to-array 写 `*[N]T`
+  - 类似 4.2.9 LANG-006，属显式保留的语言契约，非 bug
+
+⬜ **4.2.17 `fixed return S24[2]` fx=11** 疑似已闭待核查
+
+  - 来源：wave632 soft 项
+  - 症状：fixed TYPE_ARRAY 的 return 路径（`return S24[2]`）仍 soft
+  - wave633 修的是 let 路径（let from CALL/VAR bulk），探针含 "fx" 但未明确包含 return 路径
+  - 疑似由 wave633 fx 探针间接覆盖，但文档未明确标记关闭
+
+⬜ **4.2.18 未知 arg_ty soft-skip（param_raw≤0 路径）** 待确认
+
+  - 来源：wave673 描述 + wave660–673 soft 项
+  - 症状：wave673 修复了「形参已知时 sc<0 一律 T001」，但 `param_raw≤0`（形参类型未知）仍 soft-skip
+  - wave676（定义侧 untyped formal）可能间接闭合此路径，但未明确登记
+  - 待确认 wave676 是否覆盖此路径
+
 ---
 
 ## 阶段 5：R2 真迁退役 Track R（大部分完成）
@@ -892,6 +921,23 @@
 ⬜ **8.3.7 scripts 下 asm stub C**
 
   - `compiler/scripts/asm_text_stub.c` · `asm_xlang_lsp_diag_stub.c` 等 — 随 xbuild/g05 迁走或删
+
+⬜ **8.3.8 `build_asm/gen_driver/*.c`（10 个 · 物理在 compiler/ 外）**
+
+  - `build_asm/gen_driver/pipeline_gen.c` · `lsp_io_gen.c` · `driver_check.c` · `preprocess_gen.c` · `driver_fmt.c` · `lsp_gen.c` · `lsp_io_std_heap_gen.c` · `driver_gen.c` · `driver_test.c`
+  - 被 `compiler/Makefile` 行 2821-2839 + `g05_ensure_relink_prereqs.sh` 行 1956-1957 + `build_seed_user_asm_codegen_partial.sh` 引用
+  - 属构建链产物，物理位置在 compiler/ 之外，原 8.3 漏计
+
+⬜ **8.3.9 `analysis/_debug_io_ctx_gen.c` 孤儿 .c**
+
+  - grep 全仓无任何引用，调试残留
+  - 确认后删除
+
+⬜ **8.3.10 `editors/tree-sitter-xlang/` 第三方 .c**
+
+  - `editors/tree-sitter-xlang/src/parser.c` · `bindings/python/tree_sitter_xlang/binding.c` 等
+  - 第三方 tree-sitter grammar，自带 Makefile + binding.gyp + Cargo.toml(cc crate)
+  - 与 xlang 自举链无关，但物理存在于仓库；终局需决定：删除 / git submodule / 独立 release
 
 
 ---
@@ -1311,19 +1357,30 @@
 
 ⬜ **11.2.3 prove / bstrict / gate 脚本去 make**
 
-  - `tests/run-*.sh` 中 `make -C compiler` 清零或改为 `xbuild`
-  - CI（若有）workflow 同步
+  - `tests/**/*.sh`（含 `tests/lib/*.sh` · `tests/bench/**/*.sh` · `tests/docker/*`）中 `make -C compiler` 清零或改为 `xbuild`
+  - **重点**：`tests/lib/` 是全仓 make/cc 调用最密集位置（50+ 文件），原措辞「tests/run-*.sh」错位 — run-*.sh 自身不调 make，真正调用全在 tests/lib/
+  - CI workflow 同步（见 11.2.5）
 
 ⬜ **11.2.4 Windows 入口**
 
   - 非金标但终局须有 xbuild 路径（MSYS2）；禁止「只 Linux 删了 Makefile」
+
+⬜ **11.2.5 `.github/workflows/*.yml` CI 去 make/cc**
+
+  - 5 个 workflow 全部依赖 make/cc：`ci.yml`（11 处 make + CC:cc/gcc）· `ci-nightly.yml`（4 处 make）· `bootstrap-seeds-capture.yml`（gmake）· `selfhost-stage2.yml`（3 处 make）· `release.yml`（make + CC:cc）
+  - 全部改为 `xbuild` 入口；MSYS2/FreeBSD 段同步
 
 ### 11.3 Makefile 物理删除（**终局硬指标**）
 
 ⬜ **11.3.1 删除 `compiler/Makefile`**
 
   - 前置：11.0 迁移表 100% 有主；8.3/7/8 白名单 residual 可被 xbuild 编完或已为 0
-  - 验收：全仓 `rg -n 'make -C compiler|compiler/Makefile' tests analysis docs` 仅考古
+  - 验收 grep（全仓 · 不止 tests/analysis/docs）：
+    ```
+    rg -n 'make -C compiler|compiler/Makefile|\bmake\s+-C|\$\(MAKE\)' \
+       tests scripts tools editors .github analysis build.sh xlang-build.sh
+    ```
+    仅考古引用
 
 ⬜ **11.3.2 删除仓库根 `Makefile`**
 
@@ -1331,11 +1388,98 @@
 
 ⬜ **11.3.3 删除/归档其它 make 碎片**
 
-  - 子目录 Makefile、生成 compile_commands 对 make 的依赖等
+  - 子目录 Makefile（`editors/tree-sitter-xlang/Makefile` 等）
+  - 生成 compile_commands 对 make 的依赖等
 
-⬜ **11.3.4 「无 make」CI 闸门**
+⬜ **11.3.4 「无 make + 无 cc」CI 闸门**
 
-  - `PATH` 无 make 或 `make` 被 stub 拒绝时，xbuild cold-test + 129 仍绿
+  - `PATH` 无 make **且** cc/gcc/clang 被 stub 拒绝时，xbuild cold-test + 129 仍绿
+  - 验收 grep（同时搜 make 和 cc）：
+    ```
+    rg -n 'make -C compiler|compiler/Makefile|\bmake\s+-C|\$\(MAKE\)' \
+       tests scripts tools editors .github analysis build.sh xlang-build.sh
+    rg -n '\bcc\b|\bgcc\b|\bclang\b|\$\(CC\)' \
+       tests scripts tools editors .github analysis build.sh xlang-build.sh
+    ```
+    仅考古或第三方（tree-sitter）
+
+### 11.4 根脚本 / tools / docker 去 make+cc（**原文档大漏**）
+
+> **背景**：阶段 11.0–11.3 只点 Makefile 与 tests/，**漏了根脚本、tools/、scripts/、docker/ 中的 make/cc 调用**。这些是「零 cc 链」的硬障碍。
+
+⬜ **11.4.1 `build.sh`（根目录）直接调 cc**
+
+  - 第 36-38 行：`cc $CFLAGS_BT -c build_gen.c -o build_tool.o` / `-c src/build_runtime.c` / `-o build_tool`
+  - 属阶段 12「零 cc 链」的硬障碍；改为 xbuild 或删除
+
+⬜ **11.4.2 `xlang-build.sh` 自身 11 处 `make -C compiler`**
+
+  - 行 23/54/58/62/67/70/73/76/79/82/85
+  - 11.0 前言把它列为「既有半路径」，但 11.0–11.3 没有子项显式规定何时清零
+  - 改为调 xbuild 子命令
+
+⬜ **11.4.3 `scripts/docker-ci-local.sh` 31 处 `make -C compiler`**
+
+  - 行 24-206，多个 docker 矩阵段重复
+  - 改为 xbuild 入口
+
+⬜ **11.4.4 `tools/verify-xlang-migration.sh`**
+
+  - 行 24 提示 `make -C compiler bootstrap-driver-seed`
+  - 改为 xbuild
+
+⬜ **11.4.5 `tests/docker/linux-dev.Dockerfile`**
+
+  - 行 10 `apt-get install gcc make perl binutils`
+  - 终局 Docker 镜像不装 gcc/make（或仅装 xbuild 运行时依赖）
+
+⬜ **11.4.6 `tests/lib/delete-one-c-files.sh`**
+
+  - 行 50-56 `apt-get install -y gcc make` + `make -C compiler bootstrap-driver-bstrict`
+  - 改为 xbuild
+
+### 11.5 tests/ 对照 C 文件处理策略（**零 cc 终局下的归属**）
+
+> **背景**：`tests/` 下有 ~200 个 .c 文件（bench/、std-*/、abi/、leak/、safe/、kernel/），当前需 host cc 编译做对照/smoke。阶段 8.3 只管 compiler/ 内 residual C，**完全没覆盖 tests/ 下的对照 C**。零 cc 终局下必须决定它们的归属。
+
+⬜ **11.5.1 `tests/bench/**/*.c`（~50 个）对照基准 C**
+
+  - `loop_i32.c` · `mem_copy.c` · `simd_dot.c` · `struct_param.c` · `call_boundary.c` · `zero_copy_sendfile*.c` · `regex_match_*.c` · `http_bench_server.c` · `net_*.c` · `io_*.c` · `async_*.c` · `diff/d1_int_arith.c` ~ `d6_mem_ops.c`
+  - 策略：改写为 .x（用 xlang_asm 编译对照）或归为「永久 host-cc 白名单（仅差分测试）」
+
+⬜ **11.5.2 `tests/std-*/*.c`（~30 个）std 模块 smoke 测试 C**
+
+  - `tests/std-sqlite/*_ok.c`（10 个）· `tests/std-elf/*_ok.c`（5 个）· `tests/std-crypto/*_smoke.c` · `tests/std-math/*_smoke.c` · `tests/std-config/*_smoke.c` · `tests/std-uuid/uuid_smoke_ok.c` · `tests/std-ffi/*_ok.c` · `tests/std-trace/*_ok.c` · `tests/std-context/context_smoke_ok.c` · `tests/std-base64/stream_smoke_ok.c` · `tests/std-tar/extended_ok.c` · `tests/std-task/task_smoke_ok.c` · `tests/std-log/*_ok.c`
+  - 被 `tests/lib/std-*.sh` 用 cc 链接
+  - 策略：改写为 .x（由 xlang_asm 编译）或归为「永久 host-cc 白名单」
+
+⬜ **11.5.3 `tests/abi|leak|safe|kernel/*.c` 探针 C**
+
+  - `tests/abi/layout_abi.c` · `tests/leak/leak_probe.c`（cc -fsanitize=address）· `tests/safe/race_probe.c` · `tests/kernel/freestanding_stubs.c`
+  - 策略：改写为 .x 或归为「永久 host-cc 白名单（UB/leak 探针需 sanitizer）」
+
+⬜ **11.5.4 `tests/probes/**/*.c`（~90 个）prove/seed 工具产物**
+
+  - `seed_optional/*/optional_gen.c` · `prove_x_o/*/{*.gen.c,*.raw.c,*.seed.probe.c,*.merged.probe.c,thin.c}` · `bootstrap-parser/{csv_core,json_core}_gen_probe*.c`
+  - 策略：prove 工具产物，随 prove 系统迁 xbuild 后自然消失；或归为「生成物不入库」
+
+### 11.6 editors/ 与文档去 make（**用户指南同步**）
+
+⬜ **11.6.1 `editors/tree-sitter-xlang/` 第三方 grammar**
+
+  - 自带 Makefile + binding.gyp + Cargo.toml(cc crate) + bindings/rust/build.rs
+  - 策略：git submodule / 独立 release / 删除（与 xlang 自举链解耦）
+
+⬜ **11.6.2 `editors/vscode/` 用户提示语**
+
+  - 15+ 语言文件（package.nls.{json,zh-cn,zh-tw,ja,ko,...}.json · l10n.bundle.*.json · src/lspClient.ts:40 · README.md · editors/LSP接入.md）
+  - 全部提示用户运行 `make -C compiler bootstrap-driver-seed`
+  - 改为 `xbuild bootstrap` 或删除提示
+
+⬜ **11.6.3 `README.md` / `README_zh-CN.md` 用户指南**
+
+  - 行 128/496 指导用户 `make -C compiler build-tool && ./xlang-build.sh first-time`
+  - 改为 `xbuild build`
 
 
 ---
@@ -1436,6 +1580,7 @@
 ⬜ **13.3.2 宣布自举完成**
 
   - 公告：**Xlang 自举完成 — 无 Makefile + 零 host-cc + v2==v3**
+  - **完成后主线**见 [`自举完成后路线图.md`](自举完成后路线图.md)（P0 稳住基线 → P1 `xlang test` T1 → P2 语言/优化/std）
 
 
 ---
@@ -1532,6 +1677,7 @@
 | 2026-07-29 | wave712+ | 深度核查补遗：阶段 8.2 补 11 个遗漏 pinned gen.c；阶段 5.2 平台债；阶段 4.2 疑似已闭 Cap；阶段 10 节奏 |
 | 2026-07-29 | wave713 | **终局升级**：零 Makefile + 零 cc；阶段 9 必须消灭；阶段 10–13 新增 |
 | 2026-07-29 | **审计补全** | 对照仓库补：**§0.1 终局三义（MG/BC/PC）**；**§0.2 删 Makefile DAG**；**阶段 7.4 typeck/codegen 去 pin**；**阶段 8.3 非 gen 产品 C（glue~40k/ast_pool~18k/桩）**；**阶段 11.0 瘦身可并行** + 既有 G-05/`build.x`/`xlang-build.sh`；11.2 测试/CI 去 make；12/13 验收对齐「物理删 Makefile」；附录 D 进度下调至 ~40–45%；**附录 E 迁移表骨架**；纠正 6.1.5「永久边界」措辞 |
+| 2026-07-29 | **二轮深度核查** | 阶段 4.2 补 4 项遗漏 Cap soft（impl method on INDEX / `*T[N]` 解析序 / fixed return S24[2] / 未知 arg_ty）；阶段 8.3 补 3 项（`build_asm/gen_driver/*.c` 10 个 / `analysis/_debug_io_ctx_gen.c` 孤儿 / `editors/tree-sitter-xlang/` 第三方）；**阶段 11 大幅补充**：11.2.5 CI workflow（5 个 .yml）+ 11.4 根脚本/tools/docker（build.sh/xlang-build.sh/scripts/docker-ci-local.sh/tools//tests/docker/Dockerfile/delete-one-c-files.sh）+ 11.5 tests/ 对照 C 处理策略（~200 个 .c 归属）+ 11.6 editors/README 用户指南；修正 11.2.3/11.3.1/11.3.4 验收 grep 措辞过窄（tests/run-*.sh → tests/**/*.sh；仅 make → make+cc） |
 
 ---
 
