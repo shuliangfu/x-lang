@@ -1162,6 +1162,8 @@ elif ! grep -q 'R1_EXTRA_CFLAGS_OBJS' compiler/scripts/driver_seed_obj_catalog.s
   bad "driver_seed_obj_catalog must require R1_EXTRA_CFLAGS_OBJS (wave753)"
 elif ! grep -q 'R1_MISC_BASENAME_OBJS' compiler/scripts/driver_seed_obj_catalog.sh; then
   bad "driver_seed_obj_catalog must require R1_MISC_BASENAME_OBJS (wave754)"
+elif ! grep -q 'R1_SEED_MAP_OBJS' compiler/scripts/driver_seed_obj_catalog.sh; then
+  bad "driver_seed_obj_catalog must require R1_SEED_MAP_OBJS (wave755)"
 elif ! grep -q 'R1_CORE_SEED_OBJS' compiler/Makefile; then
   bad "Makefile must define R1_CORE_SEED_OBJS (wave749)"
 elif ! grep -q 'R1_FRONTEND_GLUE_OBJS' compiler/Makefile; then
@@ -1174,9 +1176,11 @@ elif ! grep -q 'R1_EXTRA_CFLAGS_OBJS' compiler/Makefile; then
   bad "Makefile must define R1_EXTRA_CFLAGS_OBJS (wave753)"
 elif ! grep -q 'R1_MISC_BASENAME_OBJS' compiler/Makefile; then
   bad "Makefile must define R1_MISC_BASENAME_OBJS (wave754)"
-elif ! grep -qE 'host-cc-seed|rt-seed-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename' xlang-build.sh \
+elif ! grep -q 'R1_SEED_MAP_OBJS' compiler/Makefile; then
+  bad "Makefile must define R1_SEED_MAP_OBJS (wave755)"
+elif ! grep -qE 'host-cc-seed|rt-seed-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map' xlang-build.sh \
   || ! grep -q 'ensure_host_cc_seed_o\.sh' xlang-build.sh; then
-  bad "xlang-build missing host-cc-seed / families (wave748–754)"
+  bad "xlang-build missing host-cc-seed / families (wave748–755)"
 elif ! grep -qE 'wave748|R1.*rt.seed|ensure_host_cc_seed_o|RT_SEED_SLICE' compiler/docs/LEAF_PATTERN_RESIDUAL.md; then
   bad "LEAF_PATTERN_RESIDUAL.md must document wave748 R1 rt-seed-slice"
 elif ! grep -qE 'wave749|R1_CORE_SEED|core-seed' compiler/docs/LEAF_PATTERN_RESIDUAL.md; then
@@ -1191,6 +1195,8 @@ elif ! grep -qE 'wave753|R1_EXTRA_CFLAGS|extra-cflags' compiler/docs/LEAF_PATTER
   bad "LEAF_PATTERN_RESIDUAL.md must document wave753 R1 extra-cflags"
 elif ! grep -qE 'wave754|R1_MISC_BASENAME|misc-basename' compiler/docs/LEAF_PATTERN_RESIDUAL.md; then
   bad "LEAF_PATTERN_RESIDUAL.md must document wave754 R1 misc-basename"
+elif ! grep -qE 'wave755|R1_SEED_MAP|seed-map' compiler/docs/LEAF_PATTERN_RESIDUAL.md; then
+  bad "LEAF_PATTERN_RESIDUAL.md must document wave755 R1 seed-map"
 elif ! grep -qE 'wave748|R1 rt|ensure_host_cc_seed_o|RT_SEED_SLICE' compiler/docs/BUILD_DAG.md; then
   bad "BUILD_DAG.md must cross-ref wave748 R1 rt-slice"
 elif ! grep -qE 'wave749|core-seed|R1_CORE_SEED' compiler/docs/BUILD_DAG.md; then
@@ -1205,6 +1211,8 @@ elif ! grep -qE 'wave753|extra-cflags|R1_EXTRA_CFLAGS' compiler/docs/BUILD_DAG.m
   bad "BUILD_DAG.md must cross-ref wave753 R1 extra-cflags"
 elif ! grep -qE 'wave754|misc-basename|R1_MISC_BASENAME' compiler/docs/BUILD_DAG.md; then
   bad "BUILD_DAG.md must cross-ref wave754 R1 misc-basename"
+elif ! grep -qE 'wave755|seed-map|R1_SEED_MAP' compiler/docs/BUILD_DAG.md; then
+  bad "BUILD_DAG.md must cross-ref wave755 R1 seed-map"
 elif ! grep -qE 'wave748|host-cc-seed|rt-seed-slice|RT_SEED_SLICE' build.x; then
   bad "build.x must mention wave748 / host-cc-seed / RT_SEED_SLICE"
 elif ! grep -qE 'wave749|core-seed|R1_CORE_SEED' build.x; then
@@ -1219,8 +1227,10 @@ elif ! grep -qE 'wave753|extra-cflags|R1_EXTRA_CFLAGS' build.x; then
   bad "build.x must mention wave753 / extra-cflags / R1_EXTRA_CFLAGS"
 elif ! grep -qE 'wave754|misc-basename|R1_MISC_BASENAME' build.x; then
   bad "build.x must mention wave754 / misc-basename / R1_MISC_BASENAME"
+elif ! grep -qE 'wave755|seed-map|R1_SEED_MAP' build.x; then
+  bad "build.x must mention wave755 / seed-map / R1_SEED_MAP"
 else
-  note "BUILD_DAG + ensure_prereqs + product-dag + PLATFORM_LINKER + LEAF_PATTERN + R1 families (wave744–753)"
+  note "BUILD_DAG + ensure_prereqs + product-dag + PLATFORM_LINKER + LEAF_PATTERN + R1 families (wave744–755)"
   if ! bash compiler/scripts/product_build_dag.sh --check; then
     bad "product_build_dag.sh --check failed (wave742–746)"
   else
@@ -1311,24 +1321,28 @@ else
     bad "xbuild leaf-patterns dump missing SWALLOWED_R1_MISC_BASENAME=1 (wave754)"
   elif ! printf '%s\n' "$_leaf_out" | grep -q 'R1_MISC_BASENAME_SWALLOWED=1'; then
     bad "xbuild leaf-patterns dump missing R1_MISC_BASENAME_SWALLOWED=1 (wave754)"
+  elif ! printf '%s\n' "$_leaf_out" | grep -q 'SWALLOWED_R1_SEED_MAP=1'; then
+    bad "xbuild leaf-patterns dump missing SWALLOWED_R1_SEED_MAP=1 (wave755)"
+  elif ! printf '%s\n' "$_leaf_out" | grep -q 'R1_SEED_MAP_SWALLOWED=1'; then
+    bad "xbuild leaf-patterns dump missing R1_SEED_MAP_SWALLOWED=1 (wave755)"
   elif ! printf '%s\n' "$_leaf_out" | grep -q 'R1_OTHER_HOST_CC_STILL_MAKE=1'; then
     bad "xbuild leaf-patterns dump missing R1_OTHER_HOST_CC_STILL_MAKE=1"
   elif ! printf '%s\n' "$_leaf_out" | grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0'; then
     bad "xbuild leaf-patterns dump missing ENDGAME_PHYSICAL_DELETE_MAKEFILE=0"
   else
-    note "xbuild leaf-patterns inventory OK (wave747 R4 + wave748–753 R1 families)"
+    note "xbuild leaf-patterns inventory OK (wave747 R4 + wave748–755 R1 families)"
   fi
   if ! ./xbuild host-cc-seed --check >/tmp/xbuild_host_cc_seed_check.out 2>/tmp/xbuild_host_cc_seed_check.err; then
-    bad "xbuild host-cc-seed --check failed (wave754)"
+    bad "xbuild host-cc-seed --check failed (wave755)"
   elif ! grep -q 'CHECK OK' /tmp/xbuild_host_cc_seed_check.out /tmp/xbuild_host_cc_seed_check.err; then
-    bad "xbuild host-cc-seed --check missing CHECK OK (wave754)"
+    bad "xbuild host-cc-seed --check missing CHECK OK (wave755)"
   else
-    note "xbuild host-cc-seed --check OK (wave748–754 R1 families)"
+    note "xbuild host-cc-seed --check OK (wave748–755 R1 families)"
   fi
   if ! bash compiler/scripts/driver_seed_obj_catalog.sh --check >/tmp/xbuild_catalog_rt.out 2>/tmp/xbuild_catalog_rt.err; then
-    bad "driver_seed_obj_catalog --check failed (wave748–753 R1 family keys)"
+    bad "driver_seed_obj_catalog --check failed (wave748–755 R1 family keys)"
   else
-    note "driver_seed_obj_catalog --check OK (includes RT_SEED_SLICE + R1_CORE_SEED + R1_FRONTEND_GLUE + R1_MAIN_RUNTIME + R1_ALIAS_STUBS + R1_EXTRA_CFLAGS + R1_MISC_BASENAME)"
+    note "driver_seed_obj_catalog --check OK (includes RT_SEED_SLICE + R1_CORE_SEED + R1_FRONTEND_GLUE + R1_MAIN_RUNTIME + R1_ALIAS_STUBS + R1_EXTRA_CFLAGS + R1_MISC_BASENAME + R1_SEED_MAP)"
   fi
   unset _dag_dry_out _cold_dry_out _plat_out _link_out _leaf_out
 fi
@@ -1380,5 +1394,5 @@ if [ "$fail" -ne 0 ]; then
   echo "FAIL product-path 0-make static gate" >&2
   exit 1
 fi
-echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe; mk OBJS+composites; catalog --check; tests/lib+run-*.sh hub; root help→xbuild; CI/docker → xbuild; build.sh thin; docker/delete-one entry; 11.5 HOST_CC_POLICY; 11.1.1–4 BUILD_DAG + PLATFORM_LINKER; 11.3.1 LEAF_PATTERN + R4 mode wave747 + R1 rt-slice wave748 + R1 core-seed wave749 + R1 frontend-glue wave750 + R1 main-runtime wave751 + R1 alias-stubs wave752 + R1 extra-cflags wave753 + R1 misc-basename wave754)"
+echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe; mk OBJS+composites; catalog --check; tests/lib+run-*.sh hub; root help→xbuild; CI/docker → xbuild; build.sh thin; docker/delete-one entry; 11.5 HOST_CC_POLICY; 11.1.1–4 BUILD_DAG + PLATFORM_LINKER; 11.3.1 LEAF_PATTERN + R4 mode wave747 + R1 rt-slice wave748 + R1 core-seed wave749 + R1 frontend-glue wave750 + R1 main-runtime wave751 + R1 alias-stubs wave752 + R1 extra-cflags wave753 + R1 misc-basename wave754 + R1 seed-map wave755)"
 exit 0

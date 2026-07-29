@@ -158,10 +158,14 @@
 //     wave754: R1 seventh family R1_MISC_BASENAME (misc pure basename
 //       glue/enc/ctx/pipeline_glue/asm_build/…); same body; catalog
 //       R1_MISC_BASENAME_OBJS.
+//     wave755: R1 eighth family R1_SEED_MAP (basename-mismatch + orch -D:
+//       target_cpu_pure→target_cpu.o, runtime_ast_glue→ast_seed.o,
+//       pipeline_bootstrap_orchestration extras); same body; catalog
+//       R1_SEED_MAP_OBJS.
 //       ./xbuild host-cc-seed | rt-seed-slice | core-seed | frontend-glue
-//         | main-runtime | alias-stubs | extra-cflags | misc-basename
+//         | main-runtime | alias-stubs | extra-cflags | misc-basename | seed-map
 //         [--check|--force]
-//       Other R1 leaves residual. Physical delete of Makefile = 11.3.1 endgame.
+//       Residual: R3 thin+rest · R4 pattern body · pure-ld · physical delete.
 //     G.7: lists stay mk; no dual .o inventory in residual shell.
 //
 //   Full .x import graph later; 11.3.1 endgame deletes Makefile residual leaf rules.

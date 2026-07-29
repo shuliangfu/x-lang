@@ -1036,8 +1036,14 @@ R1_EXTRA_CFLAGS_OBJS = src/runtime_pipeline_abi.o runtime_asm_io_stubs.o runtime
 
 # wave754 R1 seventh family: pure host-cc misc basename (no special -D/-f extras).
 # List authority for ensure_host_cc_seed_o.sh misc-basename mode; body = same script.
-# Basename → seeds/<leaf>.from_x.c. Residual: target_cpu mismatch / ast_seed / orch -D.
+# Basename → seeds/<leaf>.from_x.c.
 R1_MISC_BASENAME_OBJS = runtime_link_abi_user_env.o runtime_channel_glue.o runtime_scheduler_glue.o runtime_kv_mmap_glue.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arm64_enc_c.o src/lsp/lsp_diag_pipeline_ctx.o build_asm/pipeline_glue_strict_minimal.o src/asm/runtime_asm_build.o
+
+# wave755 R1 eighth family: basename-mismatch + bootstrap orch extras.
+# List authority for ensure_host_cc_seed_o.sh seed-map mode; body = same script.
+# Seed/flag maps live in ensure script (path convention); list stays here (G.7).
+# Residual after this: R3 thin+rest · R4 pattern body · pure-ld · physical delete.
+R1_SEED_MAP_OBJS = src/driver/target_cpu.o src/ast/ast_seed.o pipeline_bootstrap_orchestration.o
 
 # G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（XLANG_LEGACY_PREPROCESS_C 路径已死）。
 # xlang_x 用：仅 -DXLANG_USE_X_PIPELINE，提供 asm_codegen_ast、pipeline_parse_into_buf、main_entry（弱符号）等
@@ -2131,8 +2137,11 @@ src/main_driver.o: seeds/main.from_x.c src/main_c_entry.x Makefile scripts/ensur
 	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/main.from_x.c -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE
 # G-02a: preprocess.c 已物理删除；runtime preprocess() 走 preprocess.x（preprocess_x.o）。
 # G-02f-6：target_cpu.o 单 TU（pure seed 含 OS detect；无 ld -r）
-src/driver/target_cpu.o: seeds/target_cpu_pure.from_x.c src/driver/target_cpu_pure.x include/target_cpu.h
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/target_cpu_pure.from_x.c -o $@
+# wave755 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_SEED_MAP_OBJS).
+# Seed map: target_cpu.o ← seeds/target_cpu_pure.from_x.c (basename mismatch).
+src/driver/target_cpu.o: seeds/target_cpu_pure.from_x.c src/driver/target_cpu_pure.x include/target_cpu.h scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/target_cpu_pure.from_x.c
 # G-02f-7 / Phase 4：simd_enc thin+rest PREFER_X_O
 # 源：src/asm/simd_enc_thin.x（74 #[no_mangle] thin wrapper）+ seeds/simd_enc.from_x.c（_impl rest）
 # 仅 XLANG_G05_PREFER_X_O=1 且 xlang-c 可用时走 thin；否则 seed 完整编译。
@@ -2416,8 +2425,11 @@ src/runtime_driver_strict_glue_stubs.o: seeds/runtime_driver_strict_glue_stubs.f
 # G-02a：ast_seed.o 从 runtime_ast_glue.inc 编译（从 src/ast/ast.c 迁移）。
 # 提供 ast_module_free/ast_expr_free/ast_block_free 等 8 个内存管理函数。
 # 不含 ast_expr_init_match_enum（no_c 模式下由 x_seed_bridge.o 提供）。
-src/ast/ast_seed.o: seeds/runtime_ast_glue.from_x.c src/asm/runtime_ast_glue.x include/ast.h
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_ast_glue.from_x.c -o $@
+# wave755 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_SEED_MAP_OBJS).
+# Seed map: ast_seed.o ← seeds/runtime_ast_glue.from_x.c (basename mismatch).
+src/ast/ast_seed.o: seeds/runtime_ast_glue.from_x.c src/asm/runtime_ast_glue.x include/ast.h scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/runtime_ast_glue.from_x.c
 
 # G-02a: ast_x.o alias — ast_seed.o 提供 C ABI 内存管理实现。
 ast_x.o: src/ast/ast_seed.o
@@ -2742,6 +2754,7 @@ bootstrap-driver-seed-export-obj-catalog:
 	@printf 'R1_ALIAS_STUBS_OBJS=%s\n' '$(R1_ALIAS_STUBS_OBJS)'
 	@printf 'R1_EXTRA_CFLAGS_OBJS=%s\n' '$(R1_EXTRA_CFLAGS_OBJS)'
 	@printf 'R1_MISC_BASENAME_OBJS=%s\n' '$(R1_MISC_BASENAME_OBJS)'
+	@printf 'R1_SEED_MAP_OBJS=%s\n' '$(R1_SEED_MAP_OBJS)'
 
 # §5b #2 — pipeline_x.o FORCE recompile on cold start (PIPELINE_X_FORCE_COMPILE=1)
 # Body: bootstrap_driver_seed_rebuild_leaves.sh pipeline-x; list = DRIVER_SEED_PIPELINE_X_OBJS only.
@@ -2885,8 +2898,12 @@ build_asm/pipeline_glue_types.inc: pipeline_gen.c scripts/extract_pipeline_glue_
 	perl scripts/extract_pipeline_glue_types.pl pipeline_gen.c > $@
 
 # G-02f-17：pipeline_bootstrap_orchestration 产品 seed
-pipeline_bootstrap_orchestration.o: seeds/pipeline_bootstrap_orchestration.from_x.c pipeline_bootstrap_orchestration.x pipeline_gen.c build_asm/pipeline_glue_types.inc
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -Ibuild_asm -DPIPELINE_BOOTSTRAP_ORCH_NO_PIPELINE_RUN_WRAPPER -c -o $@ seeds/pipeline_bootstrap_orchestration.from_x.c
+# wave755 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_SEED_MAP_OBJS).
+# Extras: -Ibuild_asm -DPIPELINE_BOOTSTRAP_ORCH_NO_PIPELINE_RUN_WRAPPER (prereqs stay make).
+pipeline_bootstrap_orchestration.o: seeds/pipeline_bootstrap_orchestration.from_x.c pipeline_bootstrap_orchestration.x pipeline_gen.c build_asm/pipeline_glue_types.inc scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh one $@ seeds/pipeline_bootstrap_orchestration.from_x.c \
+	  -Ibuild_asm -DPIPELINE_BOOTSTRAP_ORCH_NO_PIPELINE_RUN_WRAPPER
 
 $(ASM_GLUE_STANDALONE_O): seeds/pipeline_glue_standalone.from_x.c build_asm/pipeline_glue_types.inc pipeline_glue.c ast_pool.c scripts/cc_inc_tu.sh
 	@mkdir -p build_asm
