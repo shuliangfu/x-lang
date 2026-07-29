@@ -8,8 +8,8 @@
 #   calls this script directly (no make -C bootstrap-driver-bstrict).
 #
 #   migrate companions: scripts/migrate_x_objs.sh (wave735 · G.7);
-#   migrate *_gen.c: scripts/ensure_migrate_gen.sh (wave736 · G.7);
-#   *_gen.c production still Makefile residual until 11.3.
+#   frontend *_gen.c: scripts/ensure_migrate_gen.sh (wave736 migrate trio ·
+#     wave737 +lexer); driver/lsp/preprocess gen still Makefile residual.
 #   refresh gate body is scripts/refresh_xlang_asm_gate.sh (wave734 · G.7);
 #   product relink inside that script is g05 (zero make for the link step).
 #
@@ -26,7 +26,7 @@
 #     Makefile path already has seed as prereq so usually unused)
 #
 # PLATFORM: SHARED shell orchestration; leaf recipes carry platform ABI.
-# Wave: 719 Track MG · wave734 refresh · wave735 migrate · wave736 migrate-gen.
+# Wave: 719 Track MG · wave734 refresh · wave735 migrate · wave736/737 gen.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -69,8 +69,8 @@ if [ ! -f xlang_asm ]; then
 fi
 
 # G.7: refresh body is shell (wave734); migrate via migrate_x_objs.sh (wave735);
-# ensure_migrate_gen.sh owns parser/typeck/codegen *_gen.c (wave736).
-# Residual make only for missing *_gen.c inside migrate. No dual overlay recipe.
+# ensure_migrate_gen.sh owns parser/typeck/codegen/lexer *_gen.c (wave736/737).
+# Residual make only for missing xlang-c / other gen leaves. No dual overlay recipe.
 # shellcheck disable=SC2086
 MAKE="$MAKE" TARGET="$TARGET" \
   XLANG_BSTRICT_NO_REPLACE="${XLANG_BSTRICT_NO_REPLACE:-}" \

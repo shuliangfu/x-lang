@@ -71,10 +71,13 @@ run_refresh_xlang_asm_gate() {
 run_migrate_x_objs() {
   (cd compiler && sh scripts/migrate_x_objs.sh all)
 }
-# product migrate *_gen.c pin/seed/-E (wave736 · 11.1.6).
-# G.7 body = scripts/ensure_migrate_gen.sh (parser/typeck/codegen only).
+# product frontend *_gen.c pin/seed/-E (wave736 migrate trio · wave737 +lexer).
+# G.7 body = scripts/ensure_migrate_gen.sh (parser/typeck/codegen; lexer via mode).
 run_ensure_migrate_gen() {
   (cd compiler && sh scripts/ensure_migrate_gen.sh all)
+}
+run_ensure_lexer_gen() {
+  (cd compiler && sh scripts/ensure_migrate_gen.sh lexer)
 }
 
 case "$TARGET" in
@@ -135,17 +138,20 @@ case "$TARGET" in
     # (wave736: gen ensure is shell; no residual make for *_gen.c body)
     run_migrate_x_objs
     ;;
-  migrate-gen|ensure-migrate-gen|parser-gen|typeck-gen|codegen-gen)
-    # Wave736 · 11.1.6: parser/typeck/codegen *_gen.c via ensure_migrate_gen.sh
-    # Optional sub-mode: ./xbuild migrate-gen parser|typeck|codegen
+  migrate-gen|ensure-migrate-gen|parser-gen|typeck-gen|codegen-gen|lexer-gen|ensure-lexer-gen)
+    # Wave736/737 · 11.1.6: frontend *_gen.c via ensure_migrate_gen.sh
+    # Optional sub-mode: ./xbuild migrate-gen parser|typeck|codegen|lexer
+    # ./xbuild lexer-gen | all-frontend
     _gen_mode="all"
-    if [ "${2:-}" = "parser" ] || [ "${2:-}" = "typeck" ] || [ "${2:-}" = "codegen" ]; then
+    if [ "${2:-}" = "parser" ] || [ "${2:-}" = "typeck" ] || [ "${2:-}" = "codegen" ] \
+      || [ "${2:-}" = "lexer" ] || [ "${2:-}" = "all-frontend" ] || [ "${2:-}" = "frontend" ]; then
       _gen_mode="$2"
     fi
     case "$TARGET" in
       parser-gen) _gen_mode=parser ;;
       typeck-gen) _gen_mode=typeck ;;
       codegen-gen) _gen_mode=codegen ;;
+      lexer-gen|ensure-lexer-gen) _gen_mode=lexer ;;
     esac
     (cd compiler && sh scripts/ensure_migrate_gen.sh "$_gen_mode")
     ;;
@@ -285,8 +291,9 @@ g05 产品链（wave733–735 · 11.1.6；产品 link 零 make）:
   link-product-asm              g05_prepare_and_relink（G05_SYNC_ASM=1 → xlang_asm）
   migrate / migrate-x-objs      migrate_x_objs.sh（parser/typeck/codegen _x.o）
   migrate-gen                   ensure_migrate_gen.sh（parser/typeck/codegen _gen.c）
+  lexer-gen                     ensure_migrate_gen.sh lexer（wave737）
   refresh-gate                  migrate shell + g05 relink + overlay xlang_asm
-                                （*_gen.c 仍 make 至 11.3；体 refresh_xlang_asm_gate.sh）
+                                （driver/lsp 等 gen 仍 make 至 11.3；体 refresh_xlang_asm_gate.sh）
 
 CI / 冷启动（外层 0× make -C；图仍 Makefile 至 11.3）:
   compiler-all / ci-all      make OPT=1 all（host-cc/seed；≠ 产品 all）

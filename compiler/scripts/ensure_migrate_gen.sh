@@ -1,22 +1,26 @@
 #!/usr/bin/env bash
-# ensure_migrate_gen.sh — body of make parser_gen.c / typeck_gen.c / codegen_gen.c
-# (11.1.6 · wave736 Track MG)
+# ensure_migrate_gen.sh — body of product frontend *_gen.c leaves
+# (11.1.6 · wave736 migrate trio · wave737 +lexer)
 #
 # Authority (G.7):
-#   Single implementation of product migrate *_gen.c production for:
-#     parser_gen.c   (seed pin / force -E / C-04 post-normalize)
-#     typeck_gen.c   (seed pin / force -E / fix_slim_arena)
-#     codegen_gen.c  (tip seed pin sync / force -E / fix_slim_arena)
+#   Single implementation of product frontend *_gen.c production for:
+#     parser_gen.c   (seed pin / force -E / C-04 post-normalize)     — wave736
+#     typeck_gen.c   (seed pin / force -E / fix_slim_arena)          — wave736
+#     codegen_gen.c  (tip seed pin sync / force -E / fix_slim_arena) — wave736
+#     lexer_gen.c    (seed pin / force -E / slim + token enum sync)  — wave737
 #   Makefile thin leaves and migrate_x_objs.sh call this script (0× make for
 #   the gen body). Residual make only when building missing xlang-c for force
 #   -E (until 11.3 swallows that graph).
+#   Name is historical (migrate companions); owns frontend gen leaves only —
+#   driver/lsp/preprocess residual still Makefile until later MG waves.
 #
 # Usage (cwd = compiler/):
-#   sh scripts/ensure_migrate_gen.sh              # all three (default)
+#   sh scripts/ensure_migrate_gen.sh              # parser+typeck+codegen (default)
 #   sh scripts/ensure_migrate_gen.sh all
-#   sh scripts/ensure_migrate_gen.sh parser|typeck|codegen
-#   ./xbuild migrate-gen                          # repo root
-#   make parser_gen.c | typeck_gen.c | codegen_gen.c  # thin leaves
+#   sh scripts/ensure_migrate_gen.sh all-frontend # +lexer
+#   sh scripts/ensure_migrate_gen.sh parser|typeck|codegen|lexer
+#   ./xbuild migrate-gen | lexer-gen              # repo root
+#   make parser_gen.c | typeck_gen.c | codegen_gen.c | lexer_gen.c  # thin leaves
 #
 # Env:
 #   XLANG_FORCE_REGEN_GEN=1 — force -E regen (ignore local pin)
@@ -25,7 +29,7 @@
 #   XLANG_C / XLANG_X — binary names (default xlang-c / xlang-x)
 #
 # PLATFORM: SHARED shell orchestration; product seed pins are host-portable C.
-# Wave: 736 Track MG · pairs with migrate_x_objs.sh (wave735) + Makefile thin leaves.
+# Wave: 736/737 Track MG · pairs with migrate_x_objs.sh + Makefile thin leaves.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -247,12 +251,106 @@ ensure_codegen_gen() {
   log "codegen_gen.c OK ($(bytes_of codegen_gen.c) bytes)"
 }
 
+# ---------------------------------------------------------------------------
+# lexer_gen.c (wave737)
+# Must use full TU (xlang-x -x -E preferred): thin xlang-c gen lacks
+# lexer_advance_one / next_body. Post: fix_slim_arena + token enum sync.
+# ---------------------------------------------------------------------------
+ensure_lexer_gen() {
+  local tmp seed="seeds/lexer_gen.linux.x86_64.c"
+  tmp="lexer_gen.c.tmp.$$"
+  rm -f "$tmp"
+
+  if [ "$XLANG_FORCE_REGEN_GEN" = "1" ]; then
+    if [ -f "./$XLANG_X" ]; then
+      log "lexer_gen.c: ./$XLANG_X -x -E -E-extern ... [forced regen]"
+      if "./$XLANG_X" -x -E -L src/lexer -E-extern src/lexer/lexer.x >"$tmp" 2>/dev/null \
+        && grep -q 'lexer_advance_one' "$tmp"; then
+        mv -f "$tmp" lexer_gen.c
+      else
+        rm -f "$tmp"
+        ensure_xlang_c
+        "./$XLANG_C" -L src/lexer -E -E-extern src/lexer/lexer.x >"$tmp" \
+          && mv -f "$tmp" lexer_gen.c
+      fi
+    else
+      ensure_xlang_c
+      "./$XLANG_C" -L src/lexer -E -E-extern src/lexer/lexer.x >"$tmp" \
+        && mv -f "$tmp" lexer_gen.c
+    fi
+  elif [ -s lexer_gen.c ]; then
+    log "lexer_gen.c: pinned ($(bytes_of lexer_gen.c) bytes; XLANG_FORCE_REGEN_GEN=1 to regen)"
+  elif seed_ok "$seed" && [ ! -s lexer_gen.c ]; then
+    cp -f "$seed" lexer_gen.c
+    log "lexer_gen.c: restored from $seed"
+  else
+    # cold missing pin: try -E then seed fallback
+    if [ -f "./$XLANG_X" ]; then
+      log "lexer_gen.c: ./$XLANG_X -x -E -E-extern ..."
+      if "./$XLANG_X" -x -E -L src/lexer -E-extern src/lexer/lexer.x >"$tmp" 2>/dev/null \
+        && grep -q 'lexer_advance_one' "$tmp"; then
+        mv -f "$tmp" lexer_gen.c
+      else
+        log "lexer_gen.c: xlang-x failed or thin output; fallback xlang-c"
+        rm -f "$tmp" 2>/dev/null || true
+        if ensure_xlang_c >/dev/null 2>&1 \
+          && "./$XLANG_C" -L src/lexer -E -E-extern src/lexer/lexer.x >"$tmp" 2>/dev/null \
+          && [ -s "$tmp" ] && grep -q 'lexer_advance_one' "$tmp"; then
+          mv -f "$tmp" lexer_gen.c
+        elif seed_ok "$seed"; then
+          cp -f "$seed" lexer_gen.c
+          log "lexer_gen.c: fallback $seed (xlang-c -E failed)"
+        else
+          rm -f "$tmp" 2>/dev/null || true
+          log "lexer_gen.c: FAIL (no xlang-x/xlang-c -E and no seed)"
+          exit 1
+        fi
+      fi
+    else
+      if ensure_xlang_c >/dev/null 2>&1 \
+        && "./$XLANG_C" -L src/lexer -E -E-extern src/lexer/lexer.x >"$tmp" 2>/dev/null \
+        && [ -s "$tmp" ] && grep -q 'lexer_advance_one' "$tmp"; then
+        mv -f "$tmp" lexer_gen.c
+      elif seed_ok "$seed"; then
+        cp -f "$seed" lexer_gen.c
+        log "lexer_gen.c: fallback $seed"
+      else
+        rm -f "$tmp" 2>/dev/null || true
+        log "lexer_gen.c: FAIL (xlang-c -E failed and no seed)"
+        exit 1
+      fi
+    fi
+  fi
+  rm -f "$tmp" 2>/dev/null || true
+
+  # Post-normalize (Makefile parity — runs on pin and regen)
+  if [ -f scripts/fix_slim_arena_gen_c.pl ]; then
+    perl scripts/fix_slim_arena_gen_c.pl lexer_gen.c
+  fi
+  if [ -f scripts/sync_lexer_gen_token_enum.pl ]; then
+    perl scripts/sync_lexer_gen_token_enum.pl lexer_gen.c
+  fi
+  if ! grep -q 'lexer_advance_one' lexer_gen.c; then
+    log "lexer_gen.c: missing lexer_advance_one (need xlang-x -x -E full TU)"
+    exit 1
+  fi
+  log "lexer_gen.c: from lexer.x (-E-extern, full TU via xlang-x -x) OK ($(bytes_of lexer_gen.c) bytes)"
+}
+
 case "$MODE" in
   all|"")
+    # Default: migrate companions only (wave736 ABI for migrate_x_objs / migrate-gen)
     ensure_parser_gen
     ensure_typeck_gen
     ensure_codegen_gen
     echo "ensure-migrate-gen OK (parser_gen.c typeck_gen.c codegen_gen.c ready)"
+    ;;
+  all-frontend|frontend)
+    ensure_parser_gen
+    ensure_typeck_gen
+    ensure_codegen_gen
+    ensure_lexer_gen
+    echo "ensure-migrate-gen OK (parser typeck codegen lexer _gen.c ready)"
     ;;
   parser|parser_gen.c)
     ensure_parser_gen
@@ -263,16 +361,20 @@ case "$MODE" in
   codegen|codegen_gen.c)
     ensure_codegen_gen
     ;;
+  lexer|lexer_gen.c)
+    ensure_lexer_gen
+    ;;
   -h|--help|help)
     cat <<'EOF'
-Usage: ensure_migrate_gen.sh [all|parser|typeck|codegen]
-  all (default)  — ensure parser_gen.c typeck_gen.c codegen_gen.c
-  parser|typeck|codegen — single leaf
+Usage: ensure_migrate_gen.sh [all|all-frontend|parser|typeck|codegen|lexer]
+  all (default)   — ensure parser_gen.c typeck_gen.c codegen_gen.c
+  all-frontend    — above + lexer_gen.c
+  parser|typeck|codegen|lexer — single leaf
 Env: XLANG_FORCE_REGEN_GEN=1 XLANG_PARSER_GEN_TIMEOUT MAKE XLANG_C XLANG_X
 EOF
     ;;
   *)
-    log "unknown mode: $MODE (use all|parser|typeck|codegen)"
+    log "unknown mode: $MODE (use all|all-frontend|parser|typeck|codegen|lexer)"
     exit 2
     ;;
 esac

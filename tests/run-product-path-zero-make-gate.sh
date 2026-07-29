@@ -880,17 +880,23 @@ else
 fi
 
 # wave736: parser/typeck/codegen *_gen.c → ensure_migrate_gen.sh; migrate 0× make gen
+# wave737: lexer_gen.c → same script (mode lexer); Makefile thin leaf
 if [ ! -f compiler/scripts/ensure_migrate_gen.sh ]; then
-  bad "missing compiler/scripts/ensure_migrate_gen.sh (11.1.6 wave736)"
+  bad "missing compiler/scripts/ensure_migrate_gen.sh (11.1.6 wave736/737)"
 elif ! grep -q 'parser_gen\.c' compiler/scripts/ensure_migrate_gen.sh \
   || ! grep -q 'typeck_gen\.c' compiler/scripts/ensure_migrate_gen.sh \
   || ! grep -q 'codegen_gen\.c' compiler/scripts/ensure_migrate_gen.sh; then
   bad "ensure_migrate_gen.sh must own parser/typeck/codegen _gen.c production"
+elif ! grep -q 'ensure_lexer_gen\|lexer_gen\.c' compiler/scripts/ensure_migrate_gen.sh \
+  || ! grep -q 'sync_lexer_gen_token_enum' compiler/scripts/ensure_migrate_gen.sh; then
+  bad "ensure_migrate_gen.sh must own lexer_gen.c (wave737; pin/seed/-E + token enum)"
 elif ! grep -q 'ensure_migrate_gen\.sh' compiler/Makefile; then
-  bad "Makefile parser_gen/typeck_gen/codegen_gen leaves must call ensure_migrate_gen.sh"
+  bad "Makefile parser_gen/typeck_gen/codegen_gen/lexer_gen leaves must call ensure_migrate_gen.sh"
 elif ! grep -q 'migrate-gen\|ensure-migrate-gen' xlang-build.sh \
   || ! grep -q 'ensure_migrate_gen\.sh' xlang-build.sh; then
   bad "xlang-build missing migrate-gen first-class target (wave736)"
+elif ! grep -q 'lexer-gen\|ensure-lexer-gen' xlang-build.sh; then
+  bad "xlang-build missing lexer-gen first-class target (wave737)"
 elif ! grep -q 'ensure_migrate_gen\.sh' compiler/scripts/migrate_x_objs.sh; then
   bad "migrate_x_objs must call ensure_migrate_gen.sh (wave736; 0× make gen body)"
 elif grep -nE '["\$]MAKE["\s]* (parser|typeck|codegen)_gen\.c|make (parser|typeck|codegen)_gen\.c' \
@@ -898,21 +904,21 @@ elif grep -nE '["\$]MAKE["\s]* (parser|typeck|codegen)_gen\.c|make (parser|typec
   | grep -vE '^[0-9]+:[ \t]*#' | grep -q .; then
   bad "migrate_x_objs still invokes make for *_gen.c"
 else
-  for leaf in parser_gen.c typeck_gen.c codegen_gen.c; do
+  for leaf in parser_gen.c typeck_gen.c codegen_gen.c lexer_gen.c; do
     leaf_body=$(awk -v leaf="$leaf" '
       $0 ~ "^" leaf ":" { in_l=1; next }
       in_l && /^[^#[:space:]	]/ { exit }
       in_l { print }
     ' compiler/Makefile)
     # Ban residual force-regen / seed-cp / -E body in Makefile leaf
-    if echo "$leaf_body" | grep -qE 'XLANG_FORCE_REGEN_GEN.*=.*1|cp -f seeds/|-E-extern|fix_slim_arena'; then
+    if echo "$leaf_body" | grep -qE 'XLANG_FORCE_REGEN_GEN.*=.*1|cp -f seeds/|-E-extern|fix_slim_arena|sync_lexer_gen_token_enum'; then
       bad "Makefile $leaf recipe still inlines gen body (must call ensure_migrate_gen.sh)"
     fi
     if ! echo "$leaf_body" | grep -q 'ensure_migrate_gen\.sh'; then
       bad "Makefile $leaf recipe missing ensure_migrate_gen.sh"
     fi
   done
-  note "parser/typeck/codegen *_gen.c → ensure_migrate_gen.sh + xbuild migrate-gen (11.1.6 wave736)"
+  note "parser/typeck/codegen/lexer *_gen.c → ensure_migrate_gen.sh + xbuild migrate-gen|lexer-gen (11.1.6 wave736/737)"
 fi
 
 # Product daily `all` must remain g05 (not Makefile all); CI uses compiler-all.

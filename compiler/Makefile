@@ -1731,69 +1731,12 @@ parser_x.o: parser_gen.c
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" \
 	  sh scripts/migrate_x_objs.sh parser
 
-# lexer.x：须 xlang-x -x -E 走 C parser/codegen 全量 TU；xlang-c 无 -x 时仅 ~57 行缺 advance_one/next_body。
+# lexer.x：须 xlang-x -x -E 全量 TU；xlang-c 无 -x 时缺 advance_one/next_body。
+# wave737: G.7 body → scripts/ensure_migrate_gen.sh lexer (pin/seed/-E + slim + token enum)
 lexer_gen.c: src/lexer/lexer.x
-	@if [ "$(XLANG_FORCE_REGEN_GEN)" = "1" ]; then \
-	  tmp="$@.tmp"; \
-	  if [ -f $(XLANG_X) ]; then \
-	  echo "lexer_gen.c: ./$(XLANG_X) -x -E -E-extern ... [forced regen]" >&2; \
-	  if ./$(XLANG_X) -x -E -L src/lexer -E-extern src/lexer/lexer.x > "$$tmp" 2>/dev/null \
-	  && grep -q 'lexer_advance_one' "$$tmp"; then \
-	  mv -f "$$tmp" $@; \
-	  else \
-	  rm -f "$$tmp"; \
-	  $(MAKE) $(XLANG_C) && \
-	  ./$(XLANG_C) -L src/lexer -E -E-extern src/lexer/lexer.x > "$$tmp" && mv -f "$$tmp" $@; \
-	  fi; \
-	  else \
-	  $(MAKE) $(XLANG_C) && \
-	  ./$(XLANG_C) -L src/lexer -E -E-extern src/lexer/lexer.x > "$$tmp" && mv -f "$$tmp" $@; \
-	  fi; \
-	elif [ -s lexer_gen.c ]; then \
-	  echo "lexer_gen.c: pinned ($$(wc -c < lexer_gen.c | tr -d ' ') bytes; XLANG_FORCE_REGEN_GEN=1 to regen)"; \
-	elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/lexer_gen.linux.x86_64.c ] && [ ! -s lexer_gen.c ]; then \
-	  cp -f seeds/lexer_gen.linux.x86_64.c lexer_gen.c; \
-	  echo "lexer_gen.c: restored from seeds/lexer_gen.linux.x86_64.c"; \
-	else \
-	  tmp="$@.tmp"; \
-	  if [ -f $(XLANG_X) ]; then \
-	  echo "lexer_gen.c: ./$(XLANG_X) -x -E -E-extern ..." >&2; \
-	  if ./$(XLANG_X) -x -E -L src/lexer -E-extern src/lexer/lexer.x > "$$tmp" 2>/dev/null \
-	  && grep -q 'lexer_advance_one' "$$tmp"; then \
-	  mv -f "$$tmp" $@; \
-	  else \
-	  echo "lexer_gen.c: xlang-x failed or thin output; fallback xlang-c" >&2; \
-	  rm -f "$$tmp" 2>/dev/null || true; \
-	  if $(MAKE) $(XLANG_C) >/dev/null \
-	  && ./$(XLANG_C) -L src/lexer -E -E-extern src/lexer/lexer.x > "$$tmp" 2>/dev/null \
-	  && [ -s "$$tmp" ] && grep -q 'lexer_advance_one' "$$tmp"; then \
-	  mv -f "$$tmp" $@; \
-	  elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/lexer_gen.linux.x86_64.c ]; then \
-	  cp -f seeds/lexer_gen.linux.x86_64.c $@; \
-	  echo "lexer_gen.c: fallback seeds/lexer_gen.linux.x86_64.c (xlang-c -E failed)" >&2; \
-	  else \
-	  rm -f "$$tmp" 2>/dev/null || true; \
-	  echo "lexer_gen.c: FAIL (no xlang-x/xlang-c -E and no seed)" >&2; exit 1; \
-	  fi; \
-	  fi; \
-	  else \
-	  if $(MAKE) $(XLANG_C) >/dev/null \
-	  && ./$(XLANG_C) -L src/lexer -E -E-extern src/lexer/lexer.x > "$$tmp" 2>/dev/null \
-	  && [ -s "$$tmp" ] && grep -q 'lexer_advance_one' "$$tmp"; then \
-	  mv -f "$$tmp" $@; \
-	  elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/lexer_gen.linux.x86_64.c ]; then \
-	  cp -f seeds/lexer_gen.linux.x86_64.c $@; \
-	  echo "lexer_gen.c: fallback seeds/lexer_gen.linux.x86_64.c" >&2; \
-	  else \
-	  rm -f "$$tmp" 2>/dev/null || true; \
-	  echo "lexer_gen.c: FAIL (xlang-c -E failed and no seed)" >&2; exit 1; \
-	  fi; \
-	  fi; \
-	fi
-	perl scripts/fix_slim_arena_gen_c.pl $@
-	@perl scripts/sync_lexer_gen_token_enum.pl lexer_gen.c
-	@grep -q 'lexer_advance_one' $@ || (echo "lexer_gen.c: missing lexer_advance_one (need xlang-x -x -E)" >&2; exit 1)
-	@echo "lexer_gen.c: from lexer.x (-E-extern, full TU via xlang-x -x)"
+	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
+	  XLANG_C="$(XLANG_C)" XLANG_X="$(XLANG_X)" \
+	  sh scripts/ensure_migrate_gen.sh lexer
 
 lexer_x.o: lexer_gen.c
 	@perl scripts/sync_lexer_gen_token_enum.pl lexer_gen.c

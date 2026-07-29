@@ -30,7 +30,7 @@
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
 | **Makefile 退役 / xbuild** | 🟡 半路径 | **`./xbuild`→`xlang-build.sh`** 产品入口；根 Makefile **help-only**；叶/组合体→`compiler/mk/*.mk`；**`compiler/Makefile` 仍 ~3445 行权威图**（阶段 11） |
-| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 ✅** tests/** hub · **11.1.6 🟡** g05+refresh+migrate+migrate-gen → xbuild · **11.1.5 🟡** build.x 策略图 · **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
+| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 ✅** tests/** hub · **11.1.6 🟡** g05+refresh+migrate+migrate-gen+lexer-gen → xbuild · **11.1.5 🟡** build.x 策略图 · **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | ⬜ 0/~4 | ~200 个 .c 文件在零 cc 终局下归属未定 — 阶段 11.5 |
 | **冷启动零 cc 链** | ⬜ 0/4 | 最小 seed + 零 cc 验证 + 双端冷启动 |
 | **终局：无 Makefile + 零 cc + v2==v3** | ⬜ 未达 | 见 §0.1 三义；阶段 13 |
@@ -794,7 +794,7 @@
   - 前端核心：src/parser/parser.x
   - 阻塞：parser mega 去 pin（阶段 7.2）
 
-⬜ **8.2.2 lexer_gen.c** pinned（Makefile L1843）
+⬜ **8.2.2 lexer_gen.c** pinned（生产体 shell ensure_migrate_gen · 去 pin 仍 ⬜）
 
   - 前端核心：src/lexer/lexer.x
 
@@ -1372,7 +1372,8 @@
   - ✅ wave733：`run_compiler_make` 与 tests hub 合体 → `tests/lib/compiler-make.sh`（G.7 单 make -C 体）
   - ✅ wave734：`refresh_xlang_asm_gate.sh` 唯一体；`./xbuild refresh-gate`；bstrict/run-refresh 脱 make recipe
   - ✅ wave735：`migrate_x_objs.sh` 唯一体（parser/typeck/codegen `_x.o`）；`./xbuild migrate`；refresh 0× make migrate；Makefile 薄叶
-  - ✅ wave736：`ensure_migrate_gen.sh` 唯一体（parser/typeck/codegen `_gen.c` pin/seed/-E）；`./xbuild migrate-gen`；migrate 0× make gen 体；lexer/driver/lsp residual
+  - ✅ wave736：`ensure_migrate_gen.sh` 唯一体（parser/typeck/codegen `_gen.c` pin/seed/-E）；`./xbuild migrate-gen`；migrate 0× make gen 体
+  - ✅ wave737：`lexer_gen.c` → 同 script mode lexer；`./xbuild lexer-gen`；Makefile 薄叶；driver/lsp/preprocess residual
   - ⬜ 终局：xbuild 内建或单一 `scripts/g05` 族；其余 `*_gen.c` 脱 make；删 Makefile 间接调用（与 11.3 同闸）
 
 ### 11.2 自举 stage + 测试/CI 编排

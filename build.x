@@ -39,7 +39,8 @@
 //   ./xbuild link-product        → g05_prepare_and_relink (G05_SYNC_ASM=0)
 //   ./xbuild link-product-asm    → g05_prepare_and_relink (G05_SYNC_ASM=1)
 //   ./xbuild migrate             → migrate_x_objs.sh (parser/typeck/codegen _x.o)
-//   ./xbuild migrate-gen         → ensure_migrate_gen.sh (*_gen.c pin/seed/-E)
+//   ./xbuild migrate-gen         → ensure_migrate_gen.sh (parser/typeck/codegen)
+//   ./xbuild lexer-gen           → ensure_migrate_gen.sh lexer (wave737)
 //   ./xbuild refresh-gate        → refresh_xlang_asm_gate.sh
 //       (migrate_x_objs.sh + g05 relink + overlay xlang_asm)
 //   ./xbuild clean               → scripts/clean_compiler.sh
@@ -68,9 +69,9 @@
 // -----------------------------------------------------------------------------
 // D. Residual make leaves (until 11.3)
 // -----------------------------------------------------------------------------
-//   *_gen.c (parser/typeck/codegen) — shell ensure_migrate_gen.sh (wave736)
+//   *_gen.c (parser/typeck/codegen/lexer) — shell ensure_migrate_gen.sh (736/737)
 //   migrate-x-objs / *_x.o compile — shell migrate_x_objs.sh (wave735)
-//   other *_gen.c (lexer/driver/lsp/…) — residual Makefile until later MG
+//   other *_gen.c (driver/lsp/preprocess/…) — residual Makefile until later MG
 //   bootstrap-driver-seed   — prereq DAG (body already shell)
 //   std / residual .o leaves via ./xbuild compiler-make
 //
