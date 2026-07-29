@@ -1897,38 +1897,11 @@ backend_asm_strict_fallback_alias.o: seeds/backend_asm_strict_fallback_alias.fro
 
 typeck_c_module_stubs.o: seeds/typeck_c_module_stubs.from_x.c typeck_c_module_stubs.x
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/typeck_c_module_stubs.from_x.c -o $@
-# seed xlang 用户程序 -backend asm：xlang-c -E 编出的 backend/peephole/platform + user_asm_seed_bridge（无 weak 桩、无 C 回退）
-USER_ASM_SEED_HOST_DIR = build_asm/seed_host
-USER_ASM_SEED_HOST_OBJS = $(USER_ASM_SEED_HOST_DIR)/asm_backend_partial.o
-USER_ASM_SEED_HOST_STUBS = $(USER_ASM_SEED_HOST_DIR)/asm_full_link_stubs.o
-USER_ASM_SEED_OBJS = src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o src/asm/backend_enc_dispatch.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arm64_enc_c.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o
-USER_ASM_LINK = $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(USER_ASM_SEED_OBJS)
-ifeq ($(UNAME_S),Darwin)
-BOOTSTRAP_DRIVER_SEED_PIPELINE_LINK_O = build_asm/bootstrap_seed_pipeline_filtered.o
-# PLATFORM: MACOS — backend_arm64_enc_c.o strong arch_arm64_enc_* override seed_link_compat weak -1 (CG002).
-BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS = build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o src/asm/backend_arm64_enc_c.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o
-BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS = $(BOOTSTRAP_DRIVER_SEED_PIPELINE_LINK_O) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS)
-XLANG_X_PIPELINE_LINK_O = $(BOOTSTRAP_DRIVER_SEED_PIPELINE_LINK_O)
-XLANG_X_USER_ASM_OBJS = $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS)
-RELINK_XLANG_PIPELINE_LINK_O = $(BOOTSTRAP_DRIVER_SEED_PIPELINE_LINK_O)
-RELINK_XLANG_USER_ASM_LINK = $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS)
-RELINK_XLANG_FILTERED_OBJS = $(BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS)
-else
-BOOTSTRAP_DRIVER_SEED_PIPELINE_LINK_O = pipeline_x.o
-BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS = $(USER_ASM_SEED_OBJS)
-BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS =
-XLANG_X_PIPELINE_LINK_O = pipeline_x.o
-XLANG_X_USER_ASM_OBJS = $(USER_ASM_SEED_OBJS)
-RELINK_XLANG_PIPELINE_LINK_O = pipeline_x.o
-RELINK_XLANG_USER_ASM_LINK = $(USER_ASM_LINK)
-RELINK_XLANG_FILTERED_OBJS =
-endif
-
-# §5b #8 — build-seed-asm-host body is scripts/build_seed_asm_host.sh (wave725).
-# Dispatch prereqs: Makefile single-authority list DRIVER_SEED_ASM_HOST_DISPATCH_OBJS.
+# wave727 · 11.0.4: USER_ASM / Darwin filtered / ASM_HOST_DISPATCH lists live in
+# mk/user_asm_seed_objs.mk (G.7 single authority; do not re-assign here).
 # Thin leaf bootstrap-driver-seed-asm-host is the cold-orch entry; build-seed-asm-host
 # remains the historical alias (g05 hints / external callers).
-DRIVER_SEED_ASM_HOST_DISPATCH_OBJS = src/asm/backend_enc_dispatch.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o
+include mk/user_asm_seed_objs.mk
 
 .PHONY: build-seed-asm-host bootstrap-driver-seed-asm-host
 # partial export 须先 nm dispatch .o 剔除重复符号；冷启动时 dispatch 可能尚未编译。
@@ -2949,21 +2922,12 @@ endif
 # 11.0.3 wave723: host-stubs body → scripts/bootstrap_driver_seed_host_stubs.sh;
 # 11.0.3 wave724: bridge/panic/user-asm/glue → same rebuild_leaves.sh + export;
 # 11.0.3 wave725: §5b #1 check-abi shell · #2 pipeline_x FORCE export+shell · #8 asm-host thin leaf;
-# 11.0.3/11.0.4 wave726: export-obj-catalog = single KEY=value dump of all DRIVER_SEED_* lists
-#   (xbuild read API; definitions still Makefile-only — G.7 no dual list in shell).
-#   Makefile remains sole authority for OBJS/CFLAGS expansions (export leaves only).
+# 11.0.3/11.0.4 wave726–727: export-obj-catalog = single KEY=value dump of DRIVER_SEED_* lists
+#   (xbuild read API). wave727: list *definitions* live in mk/driver_seed_export_lists.mk
+#   (+ mk/user_asm_seed_objs.mk); Makefile only includes + export leaves (G.7 no dual list).
 # PLATFORM: SHARED — sequence in shell; Darwin filtered.o still via class-G shell recipes.
 
-# §5b #2/#3/#4/#5/#6/#7/#12 — single-authority target lists (export + shell; no dual list in shell)
-DRIVER_SEED_PIPELINE_X_OBJS = pipeline_x.o
-DRIVER_SEED_SAT_REBUILD_OBJS = src/diag.o src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_REBUILD) $(DRIVER_SEED_PREPROCESS_REBUILD) src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o
-DRIVER_SEED_LSP_X_OBJS = lsp_io_x.o lsp_x.o lsp_diag_x.o src/lsp/lsp_diag_pipeline_ctx.o x_frontend_link_alias.o
-DRIVER_SEED_BRIDGE_OBJS = src/x_seed_bridge.o
-DRIVER_SEED_PANIC_OBJS = runtime_panic.o
-DRIVER_SEED_USER_ASM_SEED_OBJS = $(USER_ASM_SEED_OBJS)
-DRIVER_SEED_ASM_GLUE_OBJS = $(ASM_GLUE_STANDALONE_O)
-# §5b #9 — scan base for asm_full_link_stubs (export only; no dual list in shell)
-DRIVER_SEED_HOST_STUBS_SCAN_BASE = pipeline_x.o $(ASM_GLUE_STANDALONE_O) $(USER_ASM_SEED_OBJS)
+include mk/driver_seed_export_lists.mk
 
 .PHONY: bootstrap-driver-seed-sat-rebuild \
 	bootstrap-driver-seed-lsp-x-objs \
@@ -2988,9 +2952,10 @@ DRIVER_SEED_HOST_STUBS_SCAN_BASE = pipeline_x.o $(ASM_GLUE_STANDALONE_O) $(USER_
 	bootstrap-driver-seed-phase1-link \
 	bootstrap-driver-seed-final-link
 
-# wave726 · 11.0.4 start: one leaf dumps all §5b / link object lists (expanded).
-# Authority remains the Makefile variables above — this is read-only export for
-# xbuild / inventory; shell must not hardcode a second copy of any list.
+# wave726–727 · 11.0.4: one leaf dumps all §5b / link object lists (expanded).
+# Authority: mk/driver_seed_export_lists.mk + mk/user_asm_seed_objs.mk (+ DRIVER_SEED_OBJS
+# still composed in Makefile mode blocks). This is read-only export for xbuild /
+# inventory; shell must not hardcode a second copy of any list.
 # PLATFORM: SHARED — KEY=value; no compile/link side effects.
 bootstrap-driver-seed-export-obj-catalog:
 	@printf 'DRIVER_SEED_PIPELINE_X_OBJS=%s\n' '$(DRIVER_SEED_PIPELINE_X_OBJS)'

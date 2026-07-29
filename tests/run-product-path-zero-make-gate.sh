@@ -27,7 +27,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "=== 11.0.2/11.0.3 product-path 0-make static gate (wave714–726) ==="
+echo "=== 11.0.2/11.0.3/11.0.4 product-path 0-make static gate (wave714–727) ==="
 
 fail=0
 note() { echo "  OK  $*"; }
@@ -533,11 +533,57 @@ else
 fi
 
 if grep -q 'bootstrap-driver-seed-export-obj-catalog' compiler/Makefile \
-  && grep -q 'DRIVER_SEED_PIPELINE_X_OBJS=' compiler/Makefile \
   && [ -f compiler/scripts/driver_seed_obj_catalog.sh ]; then
   note "export-obj-catalog + driver_seed_obj_catalog.sh (OBJS read API, G.7)"
 else
   bad "missing bootstrap-driver-seed-export-obj-catalog / driver_seed_obj_catalog.sh (wave726)"
+fi
+
+# --- wave727: OBJS defs in mk/ fragments (11.0.4) + tests/lib make hub (11.2.3 start) ---
+if [ -f compiler/mk/user_asm_seed_objs.mk ] \
+  && [ -f compiler/mk/driver_seed_export_lists.mk ] \
+  && grep -q 'include mk/user_asm_seed_objs.mk' compiler/Makefile \
+  && grep -q 'include mk/driver_seed_export_lists.mk' compiler/Makefile; then
+  note "mk/user_asm_seed_objs.mk + driver_seed_export_lists.mk included (OBJS leave Makefile body)"
+else
+  bad "missing compiler/mk/*.mk includes (wave727 11.0.4 OBJS extract)"
+fi
+
+# G.7: leaf list assignments must not reappear as bare defs in Makefile body
+if grep -nE '^DRIVER_SEED_(PIPELINE_X|SAT_REBUILD|LSP_X|BRIDGE|PANIC)_OBJS[[:space:]]*=' compiler/Makefile \
+  | grep -vE '^[0-9]+:[[:space:]]*#' | grep -q .; then
+  bad "Makefile still assigns DRIVER_SEED_*_OBJS (must live only in mk/driver_seed_export_lists.mk)"
+elif grep -nE '^USER_ASM_SEED_OBJS[[:space:]]*=' compiler/Makefile \
+  | grep -vE '^[0-9]+:[[:space:]]*#' | grep -q .; then
+  bad "Makefile still assigns USER_ASM_SEED_OBJS (must live only in mk/user_asm_seed_objs.mk)"
+elif ! grep -q '^USER_ASM_SEED_OBJS' compiler/mk/user_asm_seed_objs.mk \
+  || ! grep -q '^DRIVER_SEED_SAT_REBUILD_OBJS' compiler/mk/driver_seed_export_lists.mk; then
+  bad "mk fragments missing authoritative USER_ASM / SAT_REBUILD list assignments"
+else
+  note "OBJS list authority → compiler/mk/*.mk only (no dual assign in Makefile)"
+fi
+
+# Authority lists also referenced by earlier gate checks: accept mk/ + Makefile
+if ! grep -q 'DRIVER_SEED_PIPELINE_X_OBJS' compiler/mk/driver_seed_export_lists.mk \
+  || ! grep -q 'DRIVER_SEED_ASM_HOST_DISPATCH_OBJS' compiler/mk/user_asm_seed_objs.mk; then
+  bad "mk fragments missing PIPELINE_X / ASM_HOST_DISPATCH lists"
+else
+  note "§5b catalog keys present in mk fragments"
+fi
+
+if [ -f tests/lib/compiler-make.sh ] \
+  && grep -q 'xlang_compiler_make' tests/lib/compiler-make.sh \
+  && grep -q 'compiler-make\.sh' tests/lib/build-std-c-o.sh \
+  && grep -q 'xlang_compiler_make' tests/lib/build-std-c-o.sh; then
+  # Hub must not reintroduce raw make -C outside compiler-make.sh
+  if grep -nE 'make[[:space:]]+-C[[:space:]]+compiler' tests/lib/build-std-c-o.sh \
+    | grep -vE '^[0-9]+:[[:space:]]*#' | grep -q .; then
+    bad "build-std-c-o.sh still has raw make -C compiler (must use xlang_compiler_make)"
+  else
+    note "tests/lib/compiler-make.sh hub + build-std-c-o.sh migrated (11.2.3 start)"
+  fi
+else
+  bad "missing tests/lib/compiler-make.sh or build-std-c-o.sh not migrated (wave727)"
 fi
 
 # Hard-run PATH probe (daily product path must not exec make)
@@ -550,10 +596,18 @@ if [ -x tests/run-product-path-zero-make-path-probe.sh ] || [ -f tests/run-produ
   fi
 fi
 
+# Hard-run catalog --check (mk include expands correctly)
+if bash compiler/scripts/driver_seed_obj_catalog.sh --check >/tmp/wave727_obj_catalog.out 2>/tmp/wave727_obj_catalog.err; then
+  note "driver_seed_obj_catalog --check OK"
+else
+  bad "driver_seed_obj_catalog --check failed (see /tmp/wave727_obj_catalog.err)"
+  cat /tmp/wave727_obj_catalog.err >&2 || true
+fi
+
 echo "=== gate summary ==="
 if [ "$fail" -ne 0 ]; then
   echo "FAIL product-path 0-make static gate" >&2
   exit 1
 fi
-echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe)"
+echo "OK product-path 0-make static gate (allowlist frozen; class-G + bootstrap + test* shell; xlang-build 0-make; PATH probe; mk OBJS; catalog --check)"
 exit 0
