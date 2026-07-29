@@ -130,6 +130,16 @@ export extern function pipeline_expr_match_arm_is_enum_variant(arena: *ASTArena,
 export extern function pipeline_expr_match_arm_variant_index(arena: *ASTArena, expr_ref: i32, i: i32): i32;
 /** wave700: optional match-arm guard expr (`pat if cond =>`); 0 = none. */
 export extern function pipeline_expr_match_arm_guard_ref(arena: *ASTArena, expr_ref: i32, i: i32): i32;
+/**
+ * wave707: host-C match field-bind emit context (see pipeline_glue.c).
+ * PLATFORM: SHARED — set around match arm/guard emit; clear or restore after.
+ */
+export extern function pipeline_codegen_match_set_subject_c(module: *Module, matched_ref: i32, subject_ty: i32): void;
+export extern function pipeline_codegen_match_clear_subject_c(): void;
+export extern function pipeline_codegen_match_matched_ref_c(): i32;
+export extern function pipeline_codegen_match_subject_ty_c(): i32;
+export extern function pipeline_codegen_match_mod_c(): *Module;
+export extern function pipeline_codegen_match_name_is_subject_field_c(module: *Module, arena: *ASTArena, name: *u8, name_len: i32): i32;
 export extern function pipeline_expr_array_lit_elem_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
 export extern function pipeline_expr_array_lit_num_elems_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_struct_lit_field_name_len(arena: *ASTArena, expr_ref: i32, j: i32): i32;
@@ -8803,6 +8813,87 @@ export function emit_import_module_const_field(arena: *ASTArena, out: *CodegenOu
 }
 
 /**
+ * wave707: if VAR is a match struct field bind (not local/param), emit `(matched).field`.
+ * typeck stores struct patterns as wildcards and resolves field names as subject fields;
+ * host-C must not emit bare undeclared identifiers.
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param ctx *PipelineDepCtx
+ * @param name *u8 — VAR name bytes
+ * @param name_len i32
+ * @return i32 — 0 emitted field access; 1 not a field bind; -1 emit fail
+ * PLATFORM: SHARED — G.7 with pipeline_codegen_match_* glue.
+ */
+function codegen_try_emit_match_field_bind(arena: *ASTArena, out: *CodegenOutBuf, ctx: *PipelineDepCtx,
+    name: *u8, name_len: i32): i32 {
+  // PLATFORM: SHARED — host-C match field bind as subject.field.
+  unsafe {
+    let mod: *Module = 0 as *Module;
+    let matched_ref: i32 = 0;
+    if (arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || name == 0 as *u8 || name_len <= 0) {
+      return 1;
+    }
+    if (ctx != 0 as *PipelineDepCtx) {
+      mod = ctx.current_codegen_module;
+    }
+    if (mod == 0 as *Module) {
+      mod = pipeline_codegen_match_mod_c();
+    }
+    if (mod == 0 as *Module) {
+      return 1;
+    }
+    if (codegen_name_is_local_binding(arena, ctx, name, name_len) != 0) {
+      return 1;
+    }
+    if (pipeline_codegen_match_name_is_subject_field_c(mod, arena, name, name_len) == 0) {
+      return 1;
+    }
+    matched_ref = pipeline_codegen_match_matched_ref_c();
+    if (matched_ref <= 0 || ast.ref_is_null(matched_ref)) {
+      return 1;
+    }
+    /* (subject.field) */
+    if (append_byte(out, 40) != 0) {
+      return 0 - 1;
+    }
+    if (emit_expr(arena, out, matched_ref, ctx) != 0) {
+      return 0 - 1;
+    }
+    if (append_byte(out, 46) != 0) {
+      return 0 - 1;
+    }
+    if (emit_bytes_64(out, name, name_len) != 0) {
+      return 0 - 1;
+    }
+    if (append_byte(out, 41) != 0) {
+      return 0 - 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * wave707: push match subject field-bind context for arm/guard emit (save/restore).
+ * @param module *Module — current codegen module
+ * @param matched_ref i32 — match subject expr
+ * @param arena *ASTArena — for resolved type of subject
+ * @return void — side effect only
+ * PLATFORM: SHARED
+ */
+function codegen_match_push_subject(module: *Module, matched_ref: i32, arena: *ASTArena): void {
+  // PLATFORM: SHARED — set host-C match subject for field binds.
+  unsafe {
+    let ty: i32 = 0;
+    if (module == 0 as *Module || arena == 0 as *ASTArena || matched_ref <= 0 || ast.ref_is_null(matched_ref)) {
+      pipeline_codegen_match_clear_subject_c();
+      return;
+    }
+    ty = pipeline_expr_resolved_type_ref(arena, matched_ref);
+    pipeline_codegen_match_set_subject_c(module, matched_ref, ty);
+  }
+}
+
+/**
  * wave371: emit match arm result in value position (C ternary).
  * EXPR_RETURN unwraps to its operand so host `return match { 1 => return 42; … }`
  * becomes `return (subj==1?(42):…)` instead of illegal `return (…?(return 42):…)`.
@@ -8999,6 +9090,7 @@ function codegen_emit_match_stmt_arm_body(arena: *ASTArena, out: *CodegenOutBuf,
 function codegen_emit_match_as_stmt(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32,
     indent: i32, ctx: *PipelineDepCtx, fn_ret_void: i32): i32 {
   // PLATFORM: SHARED — if/else chain; seed twin same commit.
+  // wave707: subject field-bind context for arm bodies.
   unsafe {
     let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
     let n: i32 = e.match_num_arms;
@@ -9015,6 +9107,16 @@ function codegen_emit_match_as_stmt(arena: *ASTArena, out: *CodegenOutBuf, expr_
     let if1: u8[8] = [105, 102, 32, 40, 49, 41, 32, 0];
     let cmp_val: i32 = 0;
     let res: i32 = 0;
+    let prev_mod: *Module = pipeline_codegen_match_mod_c();
+    let prev_mref: i32 = pipeline_codegen_match_matched_ref_c();
+    let prev_ty: i32 = pipeline_codegen_match_subject_ty_c();
+    let cur_mod: *Module = 0 as *Module;
+    if (ctx != 0 as *PipelineDepCtx) {
+      cur_mod = ctx.current_codegen_module;
+    }
+    if (cur_mod != 0 as *Module) {
+      codegen_match_push_subject(cur_mod, matched, arena);
+    }
     while (i < n) {
       if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, i) != 0) {
         wild_i = i;
@@ -9094,10 +9196,16 @@ function codegen_emit_match_as_stmt(arena: *ASTArena, out: *CodegenOutBuf, expr_
     }
     if (opened != 0) {
       if (emit_indent(out, indent) != 0) {
-        return -1;
+        pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
+        return 0 - 1;
       }
-      return emit_bytes_3(out, close_br, 2);
+      {
+        let brc: i32 = emit_bytes_3(out, close_br, 2);
+        pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
+        return brc;
+      }
     }
+    pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
     return 0;
   }
 }
@@ -9119,6 +9227,7 @@ function codegen_emit_match_from_arm(arena: *ASTArena, out: *CodegenOutBuf, expr
     ctx: *PipelineDepCtx, arm_i: i32): i32 {
   // PLATFORM: SHARED — host-C match nested ternary; seed twin same commit.
   // wave700: optional guard — wildcard+guard falls through; lit+guard uses &&.
+  // wave707: subject field-bind context for arm result/guard VAR emit.
   unsafe {
     let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
     let n: i32 = e.match_num_arms;
@@ -9128,34 +9237,52 @@ function codegen_emit_match_from_arm(arena: *ASTArena, out: *CodegenOutBuf, expr
     let guard_ref: i32 = 0;
     let eq: u8[3] = [61, 61, 0];
     let and_and: u8[3] = [38, 38, 0];
+    let prev_mod: *Module = pipeline_codegen_match_mod_c();
+    let prev_mref: i32 = pipeline_codegen_match_matched_ref_c();
+    let prev_ty: i32 = pipeline_codegen_match_subject_ty_c();
+    let cur_mod: *Module = 0 as *Module;
+    let rc: i32 = 0;
     if (arm_i >= n) {
       return append_byte(out, 48);
+    }
+    if (ctx != 0 as *PipelineDepCtx) {
+      cur_mod = ctx.current_codegen_module;
+    }
+    if (cur_mod != 0 as *Module) {
+      codegen_match_push_subject(cur_mod, matched, arena);
     }
     guard_ref = pipeline_expr_match_arm_guard_ref(arena, expr_ref, arm_i);
     res = pipeline_expr_match_arm_result_ref(arena, expr_ref, arm_i);
     /* Terminal wildcard (no guard): just the result. */
     if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, arm_i) != 0
     && (ast.ref_is_null(guard_ref) || guard_ref <= 0)) {
-      return codegen_emit_match_arm_value(arena, out, res, ctx);
+      rc = codegen_emit_match_arm_value(arena, out, res, ctx);
+      pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
+      return rc;
     }
     /* (cond?(result):(rest)) where cond is guard-only, lit, or lit&&guard */
     if (append_byte(out, 40) != 0) {
-      return -1;
+      pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
+      return 0 - 1;
     }
     if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, arm_i) != 0) {
       /* Guaranteed guard_ref present (else branch above). */
       if (emit_expr(arena, out, guard_ref, ctx) != 0) {
-        return -1;
+        pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
+        return 0 - 1;
       }
     } else {
       if (append_byte(out, 40) != 0) {
-        return -1;
+        pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
+        return 0 - 1;
       }
       if (ast.ref_is_null(matched) || emit_expr(arena, out, matched, ctx) != 0) {
-        return -1;
+        pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
+        return 0 - 1;
       }
       if (emit_bytes_2(out, eq, 2) != 0) {
-        return -1;
+        pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
+        return 0 - 1;
       }
       if (pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, arm_i) != 0) {
         cmp_val = pipeline_expr_match_arm_variant_index(arena, expr_ref, arm_i);
@@ -9163,43 +9290,56 @@ function codegen_emit_match_from_arm(arena: *ASTArena, out: *CodegenOutBuf, expr
         cmp_val = pipeline_expr_match_arm_lit_val(arena, expr_ref, arm_i);
       }
       if (format_int(out, cmp_val as i64) != 0) {
-        return -1;
+        pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
+        return 0 - 1;
       }
       if (append_byte(out, 41) != 0) {
-        return -1;
+        pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
+        return 0 - 1;
       }
       if (!ast.ref_is_null(guard_ref) && guard_ref > 0) {
         if (emit_bytes_2(out, and_and, 2) != 0) {
-          return -1;
+          pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
+          return 0 - 1;
         }
         if (append_byte(out, 40) != 0) {
-          return -1;
+          pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
+          return 0 - 1;
         }
         if (emit_expr(arena, out, guard_ref, ctx) != 0) {
-          return -1;
+          pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
+          return 0 - 1;
         }
         if (append_byte(out, 41) != 0) {
-          return -1;
+          pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
+          return 0 - 1;
         }
       }
     }
     if (append_byte(out, 63) != 0) {
-      return -1;
+      pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
+      return 0 - 1;
     }
     if (append_byte(out, 40) != 0) {
-      return -1;
+      pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
+      return 0 - 1;
     }
     if (codegen_emit_match_arm_value(arena, out, res, ctx) != 0) {
-      return -1;
+      pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
+      return 0 - 1;
     }
     if (append_byte(out, 41) != 0) {
-      return -1;
+      pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
+      return 0 - 1;
     }
     if (append_byte(out, 58) != 0) {
-      return -1;
+      pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
+      return 0 - 1;
     }
+    /* Recurse with parent subject restored so nested match gets clean push. */
+    pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
     if (codegen_emit_match_from_arm(arena, out, expr_ref, ctx, arm_i + 1) != 0) {
-      return -1;
+      return 0 - 1;
     }
     return append_byte(out, 41);
   }
@@ -9353,6 +9493,19 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           if (use_l0) {
             let l0: u8[4] = [95, 108, 48, 0];
             return emit_bytes_4(out, l0, 3);
+          }
+        }
+        /*
+         * wave707: match struct field bind → (subject).field before bare/fn-value emit.
+         * PLATFORM: SHARED — G.7 with pipeline_codegen_match_* subject context.
+         */
+        {
+          let mfb: i32 = codegen_try_emit_match_field_bind(arena, out, ctx, &e.var_name[0], e.var_name_len);
+          if (mfb == 0) {
+            return 0;
+          }
+          if (mfb < 0) {
+            return 0 - 1;
           }
         }
         /*

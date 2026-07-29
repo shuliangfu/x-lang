@@ -8638,7 +8638,8 @@ static int32_t codegen_emit_match_as_stmt(struct ast_ASTArena *arena, struct cod
 }
 /* PLATFORM: SHARED — host-C EXPR_MATCH nested ternary (wave326 + wave700 guards).
  * Completes arm-0 residual; freestanding uses pipeline_asm_emit_match_elf_c.
- * G.7: twin of codegen.x codegen_emit_match_from_arm. */
+ * G.7: twin of codegen.x codegen_emit_match_from_arm.
+ * wave707: match subject field-bind context for arm/guard VAR emit. */
 static int32_t codegen_emit_match_from_arm(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
                                           int32_t expr_ref, struct ast_PipelineDepCtx *ctx, int32_t arm_i) {
   struct ast_Expr e;
@@ -8649,66 +8650,122 @@ static int32_t codegen_emit_match_from_arm(struct ast_ASTArena *arena, struct co
   int32_t guard_ref;
   uint8_t eq[3];
   uint8_t and_and[3];
+  struct ast_Module *prev_mod;
+  int32_t prev_mref;
+  int32_t prev_ty;
+  struct ast_Module *cur_mod;
+  int32_t rc;
+  int32_t subj_ty;
   extern int32_t pipeline_expr_match_arm_guard_ref(struct ast_ASTArena *a, int32_t er, int32_t i);
+  extern void pipeline_codegen_match_set_subject_c(struct ast_Module *module, int32_t matched_ref, int32_t subject_ty);
+  extern void pipeline_codegen_match_clear_subject_c(void);
+  extern int32_t pipeline_codegen_match_matched_ref_c(void);
+  extern int32_t pipeline_codegen_match_subject_ty_c(void);
+  extern struct ast_Module *pipeline_codegen_match_mod_c(void);
+  extern int32_t pipeline_expr_resolved_type_ref(struct ast_ASTArena *a, int32_t expr_ref);
   e = ast_ast_arena_expr_get(arena, expr_ref);
   n = e.match_num_arms;
   matched = e.match_matched_ref;
   if (arm_i >= n)
     return codegen_append_byte(out, 48);
+  prev_mod = pipeline_codegen_match_mod_c();
+  prev_mref = pipeline_codegen_match_matched_ref_c();
+  prev_ty = pipeline_codegen_match_subject_ty_c();
+  cur_mod = (ctx != 0) ? ctx->current_codegen_module : 0;
+  if (cur_mod != 0 && matched > 0 && !ast_ref_is_null(matched)) {
+    subj_ty = pipeline_expr_resolved_type_ref(arena, matched);
+    pipeline_codegen_match_set_subject_c(cur_mod, matched, subj_ty);
+  }
   guard_ref = pipeline_expr_match_arm_guard_ref(arena, expr_ref, arm_i);
   res = pipeline_expr_match_arm_result_ref(arena, expr_ref, arm_i);
   /* Terminal wildcard (no guard): just the result. */
   if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, arm_i) != 0
-      && (ast_ref_is_null(guard_ref) || guard_ref <= 0))
-    return codegen_emit_match_arm_value(arena, out, res, ctx);
+      && (ast_ref_is_null(guard_ref) || guard_ref <= 0)) {
+    rc = codegen_emit_match_arm_value(arena, out, res, ctx);
+    pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
+    return rc;
+  }
   /* (cond?(result):(rest)) — cond is guard-only, lit, or lit&&guard */
-  if (codegen_append_byte(out, 40) != 0)
+  if (codegen_append_byte(out, 40) != 0) {
+    pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
     return -1;
+  }
   if (pipeline_expr_match_arm_is_wildcard(arena, expr_ref, arm_i) != 0) {
-    if (codegen_emit_expr(arena, out, guard_ref, ctx) != 0)
+    if (codegen_emit_expr(arena, out, guard_ref, ctx) != 0) {
+      pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
       return -1;
+    }
   } else {
-    if (codegen_append_byte(out, 40) != 0)
+    if (codegen_append_byte(out, 40) != 0) {
+      pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
       return -1;
-    if (ast_ref_is_null(matched) || codegen_emit_expr(arena, out, matched, ctx) != 0)
+    }
+    if (ast_ref_is_null(matched) || codegen_emit_expr(arena, out, matched, ctx) != 0) {
+      pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
       return -1;
+    }
     eq[0] = 61;
     eq[1] = 61;
     eq[2] = 0;
-    if (codegen_emit_bytes_2(out, eq, 2) != 0)
+    if (codegen_emit_bytes_2(out, eq, 2) != 0) {
+      pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
       return -1;
+    }
     if (pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, arm_i) != 0)
       cmp_val = pipeline_expr_match_arm_variant_index(arena, expr_ref, arm_i);
     else
       cmp_val = pipeline_expr_match_arm_lit_val(arena, expr_ref, arm_i);
-    if (codegen_format_int(out, (int64_t)cmp_val) != 0)
+    if (codegen_format_int(out, (int64_t)cmp_val) != 0) {
+      pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
       return -1;
-    if (codegen_append_byte(out, 41) != 0)
+    }
+    if (codegen_append_byte(out, 41) != 0) {
+      pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
       return -1;
+    }
     if (!(ast_ref_is_null(guard_ref)) && guard_ref > 0) {
       and_and[0] = 38;
       and_and[1] = 38;
       and_and[2] = 0;
-      if (codegen_emit_bytes_2(out, and_and, 2) != 0)
+      if (codegen_emit_bytes_2(out, and_and, 2) != 0) {
+        pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
         return -1;
-      if (codegen_append_byte(out, 40) != 0)
+      }
+      if (codegen_append_byte(out, 40) != 0) {
+        pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
         return -1;
-      if (codegen_emit_expr(arena, out, guard_ref, ctx) != 0)
+      }
+      if (codegen_emit_expr(arena, out, guard_ref, ctx) != 0) {
+        pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
         return -1;
-      if (codegen_append_byte(out, 41) != 0)
+      }
+      if (codegen_append_byte(out, 41) != 0) {
+        pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
         return -1;
+      }
     }
   }
-  if (codegen_append_byte(out, 63) != 0)
+  if (codegen_append_byte(out, 63) != 0) {
+    pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
     return -1;
-  if (codegen_append_byte(out, 40) != 0)
+  }
+  if (codegen_append_byte(out, 40) != 0) {
+    pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
     return -1;
-  if (codegen_emit_match_arm_value(arena, out, res, ctx) != 0)
+  }
+  if (codegen_emit_match_arm_value(arena, out, res, ctx) != 0) {
+    pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
     return -1;
-  if (codegen_append_byte(out, 41) != 0)
+  }
+  if (codegen_append_byte(out, 41) != 0) {
+    pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
     return -1;
-  if (codegen_append_byte(out, 58) != 0)
+  }
+  if (codegen_append_byte(out, 58) != 0) {
+    pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
     return -1;
+  }
+  pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
   if (codegen_emit_match_from_arm(arena, out, expr_ref, ctx, arm_i + 1) != 0)
     return -1;
   return codegen_append_byte(out, 41);
@@ -8835,6 +8892,38 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
           if (use_l0) {
             uint8_t l0[4] = {95, 108, 48, 0};
             return codegen_emit_bytes_4(out, l0, 3);
+          }
+        }
+        /* wave707: match struct field bind → (subject).field before bare/fn-value. */
+        {
+          extern int32_t pipeline_codegen_match_name_is_subject_field_c(struct ast_Module *module,
+              struct ast_ASTArena *arena, uint8_t *name, int32_t name_len);
+          extern int32_t pipeline_codegen_match_matched_ref_c(void);
+          extern struct ast_Module *pipeline_codegen_match_mod_c(void);
+          extern int32_t codegen_name_is_local_binding(struct ast_ASTArena *arena, struct ast_PipelineDepCtx *ctx,
+                                                      uint8_t *name, int32_t name_len);
+          struct ast_Module *mfb_mod = (ctx != 0) ? ctx->current_codegen_module : pipeline_codegen_match_mod_c();
+          int32_t mref;
+          if (mfb_mod == 0)
+            mfb_mod = pipeline_codegen_match_mod_c();
+          if (mfb_mod != 0
+              && codegen_name_is_local_binding(arena, ctx, &(((e.var_name))[0]), (e.var_name_len)) == 0
+              && pipeline_codegen_match_name_is_subject_field_c(mfb_mod, arena, &(((e.var_name))[0]),
+                                                               (e.var_name_len)) != 0) {
+            mref = pipeline_codegen_match_matched_ref_c();
+            if (mref > 0 && !ast_ref_is_null(mref)) {
+              if (codegen_append_byte(out, 40) != 0)
+                return -(1);
+              if (codegen_emit_expr(arena, out, mref, ctx) != 0)
+                return -(1);
+              if (codegen_append_byte(out, 46) != 0)
+                return -(1);
+              if (codegen_emit_bytes_64(out, &(((e.var_name))[0]), (e.var_name_len)) != 0)
+                return -(1);
+              if (codegen_append_byte(out, 41) != 0)
+                return -(1);
+              return 0;
+            }
           }
         }
         /* wave101: same-module fn-as-value → G.7 prefix + link name (not bare source). */
