@@ -142,7 +142,9 @@ const char *const driver_preamble_io_net_lines[] = {
          * wave691: one-level nested [][]T → struct xlang_slice_xlang_slice_<elem>
          * { struct xlang_slice_<elem> *data; size_t length; } (type_to_c_repr nest).
          * wave693: two-level nested [][][]T → struct xlang_slice_xlang_slice_xlang_slice_<elem>
-         * { struct xlang_slice_xlang_slice_<elem> *data; size_t length; }. */
+         * { struct xlang_slice_xlang_slice_<elem> *data; size_t length; }.
+         * wave694: three-level nested [][][][]T → struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_<elem>
+         * { struct xlang_slice_xlang_slice_xlang_slice_<elem> *data; size_t length; }. */
         "#ifndef XLANG_SLICE_LAYOUTS\n"
         "#define XLANG_SLICE_LAYOUTS\n"
         "struct xlang_slice_uint8_t { uint8_t *data; size_t length; };\n"
@@ -184,6 +186,19 @@ const char *const driver_preamble_io_net_lines[] = {
         "struct xlang_slice_xlang_slice_xlang_slice_ssize_t { struct xlang_slice_xlang_slice_ssize_t *data; size_t length; };\n"
         "struct xlang_slice_xlang_slice_xlang_slice_float { struct xlang_slice_xlang_slice_float *data; size_t length; };\n"
         "struct xlang_slice_xlang_slice_xlang_slice_double { struct xlang_slice_xlang_slice_double *data; size_t length; };\n"
+        "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint8_t { struct xlang_slice_xlang_slice_xlang_slice_uint8_t *data; size_t length; };\n"
+        "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_int8_t { struct xlang_slice_xlang_slice_xlang_slice_int8_t *data; size_t length; };\n"
+        "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_int16_t { struct xlang_slice_xlang_slice_xlang_slice_int16_t *data; size_t length; };\n"
+        "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint16_t { struct xlang_slice_xlang_slice_xlang_slice_uint16_t *data; size_t length; };\n"
+        "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_int { struct xlang_slice_xlang_slice_xlang_slice_int *data; size_t length; };\n"
+        "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_int32_t { struct xlang_slice_xlang_slice_xlang_slice_int32_t *data; size_t length; };\n"
+        "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint32_t { struct xlang_slice_xlang_slice_xlang_slice_uint32_t *data; size_t length; };\n"
+        "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_int64_t { struct xlang_slice_xlang_slice_xlang_slice_int64_t *data; size_t length; };\n"
+        "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_uint64_t { struct xlang_slice_xlang_slice_xlang_slice_uint64_t *data; size_t length; };\n"
+        "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_size_t { struct xlang_slice_xlang_slice_xlang_slice_size_t *data; size_t length; };\n"
+        "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_ssize_t { struct xlang_slice_xlang_slice_xlang_slice_ssize_t *data; size_t length; };\n"
+        "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_float { struct xlang_slice_xlang_slice_xlang_slice_float *data; size_t length; };\n"
+        "struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_double { struct xlang_slice_xlang_slice_xlang_slice_double *data; size_t length; };\n"
         "#endif\n"
         /* §10 向量：codegen 发 i32x4_t / f32x4_t 等；与 emit_vector_c_type_out +
          * pipeline_codegen_vector_type_cstr 对齐。f32x{4,8,16} 供 Vec4f 等 F32 向量使用。 */
