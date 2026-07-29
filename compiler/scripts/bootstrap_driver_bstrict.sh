@@ -9,7 +9,8 @@
 #
 #   migrate companions: scripts/migrate_x_objs.sh (wave735 · G.7);
 #   frontend *_gen.c: scripts/ensure_migrate_gen.sh (wave736 migrate trio ·
-#     wave737 +lexer); driver/lsp/preprocess gen still Makefile residual.
+#     wave737 +lexer); driver/preprocess: ensure_driver_gen.sh (wave738);
+#     lsp/pipeline gen still Makefile residual.
 #   refresh gate body is scripts/refresh_xlang_asm_gate.sh (wave734 · G.7);
 #   product relink inside that script is g05 (zero make for the link step).
 #
@@ -70,6 +71,7 @@ fi
 
 # G.7: refresh body is shell (wave734); migrate via migrate_x_objs.sh (wave735);
 # ensure_migrate_gen.sh owns parser/typeck/codegen/lexer *_gen.c (wave736/737).
+# ensure_driver_gen.sh owns driver_gen.c + preprocess_gen.c (wave738).
 # Residual make only for missing xlang-c / other gen leaves. No dual overlay recipe.
 # shellcheck disable=SC2086
 MAKE="$MAKE" TARGET="$TARGET" \

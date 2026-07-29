@@ -818,11 +818,12 @@
 
 ⬜ **8.2.8 lsp_gen.c** pinned（Makefile L2613）
 
-⬜ **8.2.9 driver_gen.c** pinned（Makefile L2870 · up-to-date with MAIN_X_DEPS）
+🟡 **8.2.9 driver_gen.c** pin/seed/-E → `ensure_driver_gen.sh`（wave738 · Makefile 薄叶）
 
   - driver main：src/main.x
+  - MAIN_X_DEPS freshness + `fix_driver_gen_duplicate_main` in shell
 
-⬜ **8.2.10 preprocess_gen.c** pinned（Makefile L2918）
+🟡 **8.2.10 preprocess_gen.c** pin/seed/-E → `ensure_driver_gen.sh`（wave738 · Makefile 薄叶）
 
   - preprocess：src/preprocess/preprocess.x
 
@@ -1373,7 +1374,8 @@
   - ✅ wave734：`refresh_xlang_asm_gate.sh` 唯一体；`./xbuild refresh-gate`；bstrict/run-refresh 脱 make recipe
   - ✅ wave735：`migrate_x_objs.sh` 唯一体（parser/typeck/codegen `_x.o`）；`./xbuild migrate`；refresh 0× make migrate；Makefile 薄叶
   - ✅ wave736：`ensure_migrate_gen.sh` 唯一体（parser/typeck/codegen `_gen.c` pin/seed/-E）；`./xbuild migrate-gen`；migrate 0× make gen 体
-  - ✅ wave737：`lexer_gen.c` → 同 script mode lexer；`./xbuild lexer-gen`；Makefile 薄叶；driver/lsp/preprocess residual
+  - ✅ wave737：`lexer_gen.c` → 同 script mode lexer；`./xbuild lexer-gen`；Makefile 薄叶
+  - ✅ wave738：`ensure_driver_gen.sh` 唯一体（`driver_gen.c` + `preprocess_gen.c`）；`./xbuild driver-gen`；Makefile 薄叶；lsp/pipeline residual
   - ⬜ 终局：xbuild 内建或单一 `scripts/g05` 族；其余 `*_gen.c` 脱 make；删 Makefile 间接调用（与 11.3 同闸）
 
 ### 11.2 自举 stage + 测试/CI 编排

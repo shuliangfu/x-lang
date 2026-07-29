@@ -79,6 +79,12 @@ run_ensure_migrate_gen() {
 run_ensure_lexer_gen() {
   (cd compiler && sh scripts/ensure_migrate_gen.sh lexer)
 }
+# product driver/preprocess *_gen.c pin/seed/-E (wave738).
+# G.7 body = scripts/ensure_driver_gen.sh
+run_ensure_driver_gen() {
+  (cd compiler && sh scripts/ensure_driver_gen.sh all)
+}
+
 
 case "$TARGET" in
   # === 编译器（G-05 日常）===
@@ -154,6 +160,21 @@ case "$TARGET" in
       lexer-gen|ensure-lexer-gen) _gen_mode=lexer ;;
     esac
     (cd compiler && sh scripts/ensure_migrate_gen.sh "$_gen_mode")
+    ;;
+  driver-gen|ensure-driver-gen|preprocess-gen|ensure-preprocess-gen)
+    # Wave738 · 11.1.6: driver_gen.c + preprocess_gen.c via ensure_driver_gen.sh
+    # Optional: ./xbuild driver-gen driver|preprocess
+    _dgen_mode="all"
+    if [ "${2:-}" = "driver" ] || [ "${2:-}" = "preprocess" ] || [ "${2:-}" = "all" ]; then
+      _dgen_mode="$2"
+    fi
+    case "$TARGET" in
+      preprocess-gen|ensure-preprocess-gen) _dgen_mode=preprocess ;;
+      driver-gen|ensure-driver-gen)
+        if [ -z "${2:-}" ]; then _dgen_mode=all; fi
+        ;;
+    esac
+    (cd compiler && sh scripts/ensure_driver_gen.sh "$_dgen_mode")
     ;;
 
   # === CI / 冷启动 / 叶 .o（wave730：外层 0× make -C；图仍 Makefile 至 11.3）===
@@ -292,8 +313,10 @@ g05 产品链（wave733–735 · 11.1.6；产品 link 零 make）:
   migrate / migrate-x-objs      migrate_x_objs.sh（parser/typeck/codegen _x.o）
   migrate-gen                   ensure_migrate_gen.sh（parser/typeck/codegen _gen.c）
   lexer-gen                     ensure_migrate_gen.sh lexer（wave737）
+  driver-gen                    ensure_driver_gen.sh（driver+preprocess _gen.c · wave738）
+  preprocess-gen                ensure_driver_gen.sh preprocess
   refresh-gate                  migrate shell + g05 relink + overlay xlang_asm
-                                （driver/lsp 等 gen 仍 make 至 11.3；体 refresh_xlang_asm_gate.sh）
+                                （lsp/pipeline gen 仍 make 至 11.3；体 refresh_xlang_asm_gate.sh）
 
 CI / 冷启动（外层 0× make -C；图仍 Makefile 至 11.3）:
   compiler-all / ci-all      make OPT=1 all（host-cc/seed；≠ 产品 all）

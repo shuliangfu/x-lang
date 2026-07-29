@@ -35,7 +35,7 @@
 | **F** | runtime_* residual 宿主 .o | 31 | `xbuild residual-c（白名单）` | 🟡 g05 ensure | 阶段 9 |
 | **G** | build_asm/ 过滤 .o | 4 | `xbuild build-asm-filter` | 🟢 全 4 纯 shell（wave715/716） | 11.0.2/3 |
 | **H** | bootstrap / 产品二进制 phony | 35 | `xbuild bootstrap / link-product` | 🟡 冷编排/链接体 shell；叶+组合体→mk；产品=g05 | 11.0.3/4 |
-| **I** | g05 / relink / build-tool 入口 | 9 | `xbuild link-product` | 🟢 产品+build-tool shell；根 `./xbuild`；**wave733** ensure/link-*；**wave734** refresh-gate；**wave735** migrate；**wave736** migrate-gen；**wave737** lexer-gen | 11.0.2/3/4 · 11.1.6 |
+| **I** | g05 / relink / build-tool 入口 | 9 | `xbuild link-product` | 🟢 产品+build-tool shell；根 `./xbuild`；**wave733** ensure/link-*；**wave734** refresh-gate；**wave735** migrate；**wave736** migrate-gen；**wave737** lexer-gen；**wave738** driver-gen | 11.0.2/3/4 · 11.1.6 |
 | **J** | test / check / verify / baseline | 12 | `xbuild test / cold-test / prove` | 🟢 test*/verify shell；tests/** hub 全迁（wave732–733；bench vacuous） | 11.0.3/11.2.3 ✅ |
 | **K** | seed 工具（asm host / regen） | 3 | `xbuild seed-tools` | ⬜ Makefile | 11.0.3 |
 | **L** | std 变体（sqlite/net/compress stub） | 10 | `xbuild std-variant` | ⬜ Makefile | 并行 |
@@ -107,7 +107,8 @@
 | `bootstrap-driver-seed-user-asm` | 3107 | Makefile | `xbuild bootstrap-user-asm` | ⬜ Makefile |  |
 | `regen-lsp-gens-x` | 3118 | Makefile | `xbuild regen-lsp` | ⬜ Makefile | pin 面 |
 | `migrate-x-objs` | 2145 | shell `migrate_x_objs.sh` | `xbuild migrate` | 🟢 wave735 体 shell；gen→wave736 | 11.1.6 |
-| `parser_gen.c` / `typeck_gen.c` / `codegen_gen.c` / `lexer_gen.c` | ~1723 | shell `ensure_migrate_gen.sh` | `xbuild migrate-gen` / `lexer-gen` | 🟢 wave736/737 体 shell；driver/lsp residual | 11.1.6 |
+| `parser_gen.c` / `typeck_gen.c` / `codegen_gen.c` / `lexer_gen.c` | ~1723 | shell `ensure_migrate_gen.sh` | `xbuild migrate-gen` / `lexer-gen` | 🟢 wave736/737 体 shell | 11.1.6 |
+| `driver_gen.c` / `preprocess_gen.c` | ~2626 | shell `ensure_driver_gen.sh` | `xbuild driver-gen` / `preprocess-gen` | 🟢 wave738 体 shell；lsp/pipeline residual | 11.1.6 |
 | `legacy-xlang-c-ready` | 757 | Makefile | `🗑` | ⬜ Makefile | LEGACY 考古 |
 | `FORCE` | 2841 | Makefile 强制重编 | `xbuild --force` | ⬜ Makefile | 机制非产品 |
 
@@ -217,8 +218,8 @@
 | 2763 | `driver_build_gen.c` | ⬜ |
 | 2775 | `driver_run_gen.c` | ⬜ |
 | 2787 | `driver_emit_gen.c` | ⬜ |
-| 2855 | `driver_gen.c` | ⬜ |
-| 2916 | `preprocess_gen.c` | ⬜ |
+| 2855 | `driver_gen.c` | 🟡 wave738 `ensure_driver_gen.sh` 薄叶 |
+| 2916 | `preprocess_gen.c` | 🟡 wave738 `ensure_driver_gen.sh` 薄叶 |
 | 3319 | `pipeline_gen.c` | ⬜ |
 
 ### 类 C — pipeline_glue / pipeline_x / strict_minimal
@@ -439,8 +440,8 @@
 
 ### 类 I — g05 / relink / build-tool 入口
 
-- **xbuild**：`link-product` / `ensure` / `link-env` / `link-product-asm`（wave733）· `refresh-gate`（wave734）· `migrate`（wave735）· `migrate-gen`（wave736）· `lexer-gen`（wave737）
-- **今日**：🟢 产品已 shell；**build-tool shell（wave718）**；**xbuild 直调 g05（wave733）**；**refresh（wave734）**；**migrate（wave735）**；**migrate-gen（wave736）**；**lexer-gen（wave737）**
+- **xbuild**：`link-product` / `ensure` / `link-env` / `link-product-asm`（wave733）· `refresh-gate`（wave734）· `migrate`（wave735）· `migrate-gen`（wave736）· `lexer-gen`（wave737）· `driver-gen`（wave738）
+- **今日**：🟢 产品已 shell；**build-tool shell（wave718）**；**xbuild 直调 g05（wave733）**；**refresh（wave734）**；**migrate（wave735）**；**migrate-gen（wave736）**；**lexer-gen（wave737）**；**driver-gen（wave738）**
 - **优先**：其余 `*_gen.c` 脱 make；11.3 删 Makefile 薄包装
 - **条数**：9
 

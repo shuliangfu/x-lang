@@ -921,6 +921,40 @@ else
   note "parser/typeck/codegen/lexer *_gen.c → ensure_migrate_gen.sh + xbuild migrate-gen|lexer-gen (11.1.6 wave736/737)"
 fi
 
+# wave738: driver_gen.c + preprocess_gen.c → ensure_driver_gen.sh; Makefile thin leaves
+if [ ! -f compiler/scripts/ensure_driver_gen.sh ]; then
+  bad "missing compiler/scripts/ensure_driver_gen.sh (11.1.6 wave738)"
+elif ! grep -q 'driver_gen\.c' compiler/scripts/ensure_driver_gen.sh \
+  || ! grep -q 'preprocess_gen\.c' compiler/scripts/ensure_driver_gen.sh; then
+  bad "ensure_driver_gen.sh must own driver_gen.c + preprocess_gen.c production"
+elif ! grep -q 'fix_driver_gen_duplicate_main' compiler/scripts/ensure_driver_gen.sh \
+  || ! grep -q 'MAIN_X_DEPS\|any_dep_newer' compiler/scripts/ensure_driver_gen.sh; then
+  bad "ensure_driver_gen.sh must own MAIN_X_DEPS freshness + fix_driver_gen_duplicate_main"
+elif ! grep -q 'ensure_driver_gen\.sh' compiler/Makefile; then
+  bad "Makefile driver_gen/preprocess_gen leaves must call ensure_driver_gen.sh"
+elif ! grep -q 'driver-gen\|ensure-driver-gen' xlang-build.sh \
+  || ! grep -q 'ensure_driver_gen\.sh' xlang-build.sh; then
+  bad "xlang-build missing driver-gen first-class target (wave738)"
+elif ! grep -q 'preprocess-gen\|ensure-preprocess-gen' xlang-build.sh; then
+  bad "xlang-build missing preprocess-gen first-class target (wave738)"
+else
+  for leaf in driver_gen.c preprocess_gen.c; do
+    leaf_body=$(awk -v leaf="$leaf" '
+      $0 ~ "^" leaf ":" { in_l=1; next }
+      in_l && /^[^#[:space:]	]/ { exit }
+      in_l { print }
+    ' compiler/Makefile)
+    # Ban residual force-regen / seed-cp / -E body in Makefile leaf
+    if echo "$leaf_body" | grep -qE 'cp -f seeds/|-E-extern|fix_driver_gen_duplicate_main|MAIN_X_E_DIRS'; then
+      bad "Makefile $leaf recipe still inlines gen body (must call ensure_driver_gen.sh)"
+    fi
+    if ! echo "$leaf_body" | grep -q 'ensure_driver_gen\.sh'; then
+      bad "Makefile $leaf recipe missing ensure_driver_gen.sh"
+    fi
+  done
+  note "driver/preprocess *_gen.c → ensure_driver_gen.sh + xbuild driver-gen|preprocess-gen (11.1.6 wave738)"
+fi
+
 # Product daily `all` must remain g05 (not Makefile all); CI uses compiler-all.
 if grep -n 'all|build|xlang)' xlang-build.sh | head -1 | grep -q . \
   && sed -n '/all|build|xlang)/,/^  [a-zA-Z*]/p' xlang-build.sh | head -8 | grep -q 'run_build_tool'; then

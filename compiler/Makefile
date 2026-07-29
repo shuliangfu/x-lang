@@ -2623,92 +2623,23 @@ pipeline_x.o: $(PIPELINE_X_FORCE_PREREQ) pipeline_gen.c $(PIPELINE_X_DEPS)
 	fi
 FORCE:
 
-# driver_gen.c / driver_x.o：main.x 驱动入口；-E 须 xlang-c（C parser stmt_order）。
-# 与 pipeline_gen.c 同理，driver_gen.c 不应把 legacy-xlang-c-ready 作为 Make 前置；
-# 否则只要 make 检查 driver_gen.c，就会先触发一次 -B legacy xlang-c 强刷。
-# 这里保留源码级 freshness 判断，但把 legacy frontend 刷新收进真正 fallback 到
-# xlang-c 重生的分支里，避免 bstrict/relink 链反复为 pinned driver_gen.c 付费。
-#
-# PLATFORM: SHARED — L4 true-cold wipes xlang-x / xlang-c binaries but often leaves a
-# host-local driver_gen.c that is older than MAIN_X_DEPS → need_regen=1. Old recipe
-# only restored seed when the file was empty, then fell into bootstrap xlang-c -E
-# which can burn CPU/RAM for minutes with a 0-byte .tmp (pathological hang). Prefer
-# seeds/driver_gen.linux.x86_64.c whenever need_regen and xlang-x is missing, unless
-# XLANG_FORCE_REGEN_GEN=1 explicitly requests a live -E.
+# driver_gen.c / driver_x.o：main.x 驱动入口。
+# wave738: G.7 body → scripts/ensure_driver_gen.sh (MAIN_X_DEPS freshness / seed / -E + fix dup main)
 driver_gen.c: $(MAIN_X_DEPS)
-	@need_regen=0; \
-	if [ "$(XLANG_FORCE_REGEN_GEN)" = "1" ]; then \
-	  need_regen=1; \
-	elif [ -s $@ ]; then \
-	  for dep in $(MAIN_X_DEPS); do \
-	  if [ "$$dep" -nt $@ ]; then \
-	  need_regen=1; \
-	  break; \
-	  fi; \
-	  done; \
-	else \
-	  need_regen=1; \
-	fi; \
-	if [ "$$need_regen" = "0" ]; then \
-	  echo "driver_gen.c: pinned ($$(wc -c < $@ | tr -d ' ') bytes; up-to-date with MAIN_X_DEPS)"; \
-	elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/driver_gen.linux.x86_64.c ] \
-	  && [ "$(XLANG_FORCE_REGEN_GEN)" != "1" ] && { [ ! -s $@ ] || [ ! -f $(XLANG_X) ]; }; then \
-	  cp -f seeds/driver_gen.linux.x86_64.c $@; \
-	  touch $@; \
-	  echo "driver_gen.c: restored from seeds/driver_gen.linux.x86_64.c (empty or no $(XLANG_X); L4-safe)"; \
-	elif [ -f $(XLANG_X) ]; then \
-	  echo "driver_gen.c: ./$(XLANG_X) -x -E ..." >&2; \
-	  if command -v timeout >/dev/null 2>&1; then \
-	  timeout "${XLANG_DRIVER_GEN_TIMEOUT:-120}" ./$(XLANG_X) -x -E $(MAIN_X_E_DIRS) -E-extern src/main.x > $@.tmp 2>/dev/null || true; \
-	  else \
-	  ./$(XLANG_X) -x -E $(MAIN_X_E_DIRS) -E-extern src/main.x > $@.tmp 2>/dev/null || true; \
-	  fi; \
-	  if [ -s $@.tmp ] && grep -q 'argc < 3' $@.tmp && grep -q 'main_eq_minus_E(arg_buf, len) != 0' $@.tmp; then \
-	  mv $@.tmp $@; \
-	  else \
-	  rm -f $@.tmp; \
-	  echo "driver_gen.c: xlang-x failed or old bare -E block, fallback to xlang-c -E -E-extern" >&2; \
-	  tmp="$@.tmp"; \
-	  $(MAKE) $(XLANG_C) && \
-	  if command -v timeout >/dev/null 2>&1; then \
-	  timeout "${XLANG_DRIVER_GEN_TIMEOUT:-120}" ./$(XLANG_C) $(MAIN_X_E_DIRS) src/main.x -E -E-extern > "$$tmp" || true; \
-	  else \
-	  ./$(XLANG_C) $(MAIN_X_E_DIRS) src/main.x -E -E-extern > "$$tmp" || true; \
-	  fi; \
-	  if [ -s "$$tmp" ]; then mv "$$tmp" $@; \
-	  elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/driver_gen.linux.x86_64.c ]; then cp -f seeds/driver_gen.linux.x86_64.c $@ && touch $@ && echo "driver_gen.c: fallback seed (xlang-c -E failed/empty)" >&2; \
-	  else rm -f "$$tmp"; exit 1; fi; \
-	  fi; \
-	elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/driver_gen.linux.x86_64.c ]; then \
-	  cp -f seeds/driver_gen.linux.x86_64.c $@; \
-	  touch $@; \
-	  echo "driver_gen.c: restored from seeds/driver_gen.linux.x86_64.c (no $(XLANG_X); skip xlang-c -E)"; \
-	else \
-	  tmp="$@.tmp"; \
-	  $(MAKE) $(XLANG_C) && \
-	  ./$(XLANG_C) $(MAIN_X_E_DIRS) src/main.x -E -E-extern > "$$tmp" || \
-	  { rm -f "$$tmp"; if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/driver_gen.linux.x86_64.c ]; then cp -f seeds/driver_gen.linux.x86_64.c $@ && touch $@ && echo "driver_gen.c: fallback seed (xlang-c -E failed)" >&2; else exit 1; fi; }; \
-	  if [ -s "$$tmp" ]; then mv "$$tmp" $@; fi; \
-	fi
-	perl scripts/fix_driver_gen_duplicate_main.pl $@
+	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
+	  XLANG_DRIVER_GEN_TIMEOUT="$(XLANG_DRIVER_GEN_TIMEOUT)" \
+	  XLANG_C="$(XLANG_C)" XLANG_X="$(XLANG_X)" \
+	  sh scripts/ensure_driver_gen.sh driver
 
 driver_x.o: driver_gen.c $(MAIN_X_DEPS)
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -include src/x_stubs.h -Dstd_fs_fs_read=fs_posix_read_c -Dstd_fs_fs_write=fs_posix_write_c -Dstd_fs_fs_close=fs_posix_close_c -Dfs_read=fs_posix_read_c -Dfs_write=fs_posix_write_c -Dfs_close=fs_posix_close_c -c driver_gen.c -o driver_x.o
 
 # preprocess_gen.c / preprocess_x.o：runtime XLANG_USE_X_PREPROCESS 路径。
+# wave738: G.7 body → scripts/ensure_driver_gen.sh preprocess
 preprocess_gen.c: $(PREPROCESS_X_DEPS)
-	@if [ -s preprocess_gen.c ] && [ "$(XLANG_FORCE_REGEN_GEN)" != "1" ]; then \
-	  echo "preprocess_gen.c: pinned ($$(wc -c < preprocess_gen.c | tr -d ' ') bytes; XLANG_FORCE_REGEN_GEN=1 to regen)"; \
-	elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/preprocess_gen.linux.x86_64.c ] && [ ! -s preprocess_gen.c ]; then \
-	  cp -f seeds/preprocess_gen.linux.x86_64.c preprocess_gen.c; \
-	  echo "preprocess_gen.c: restored from seeds/preprocess_gen.linux.x86_64.c"; \
-	else \
-	  tmp="$@.tmp"; \
-	  $(MAKE) $(XLANG_C) && \
-	  ./$(XLANG_C) -L src/lexer -E -E-extern src/preprocess/preprocess.x > "$$tmp" || \
-	  { rm -f "$$tmp"; if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/preprocess_gen.linux.x86_64.c ]; then cp -f seeds/preprocess_gen.linux.x86_64.c $@ && echo "preprocess_gen.c: fallback seed (xlang-c -E failed)" >&2; else exit 1; fi; }; \
-	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
-	fi
+	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
+	  XLANG_C="$(XLANG_C)" XLANG_X="$(XLANG_X)" \
+	  sh scripts/ensure_driver_gen.sh preprocess
 
 preprocess_x.o: preprocess_gen.c $(PREPROCESS_X_DEPS)
 	$(CC) $(CFLAGS) -c preprocess_gen.c -o preprocess_x.o
