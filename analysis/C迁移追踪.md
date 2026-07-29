@@ -1296,15 +1296,18 @@
 
 > **目的**：在 residual C 仍存在时，先把「编排权威」从 Makefile 挪走，避免终局时一次性改 3445 行。
 
-⬜ **11.0.1 盘点 `compiler/Makefile` 规则 → 迁移表**
+✅ **11.0.1 盘点 `compiler/Makefile` 规则 → 迁移表**（2026-07-29 · wave714）
 
   - 分类：冷启动 bootstrap / `*_x.o` / seed pin cp / g05 已覆盖 / 测试·prove / Windows / 死规则
-  - 产出：`analysis/Makefile迁移表.md`（或本文附录 E）每条规则的 xbuild 目标名
+  - 产出：**[`analysis/Makefile迁移表.md`](Makefile迁移表.md)**（288 唯一目标 · 类 A–O）+ 本文附录 E 摘要
+  - xbuild 拟目标命名已挂表；迁移完成定义见迁移表 §0
 
-⬜ **11.0.2 产品路径 0-make 验收**
+🟡 **11.0.2 产品路径 0-make 验收**（wave714 静态闸门 ✅ · 运行时清泄漏 ⬜）
 
   - 在 **不** `make -C compiler` 的前提下：仅 `xlang-build.sh` / g05 完成 `xlang`/`xlang_asm` 链 + 矩阵
-  - 今日：g05 注释已宣称产品路径零 make — **需自动化闸门**防回退
+  - **静态闸门**：`tests/run-product-path-zero-make-gate.sh`（allowlist 冻结 g05 日常 `make`；防回退）
+  - **已知泄漏（迁移表 §5）**：`g05_ensure` ~L1976 `make -s` 过滤 `build_asm/*_filtered.o`（WARN 不红）；FULL=1→make bstrict；`xlang-build.sh` build-tool/clean/test*（13 处 make -C）
+  - **未完**：去掉 filtered.o 的 make；日常 relink 全程 PATH 无 make 的运行时探针；矩阵仍人工/既有 L2
 
 ⬜ **11.0.3 冷启动路径减 make**
 
@@ -1650,21 +1653,28 @@
 5. **阶段 11.1–11.3** xbuild 填实 + **物理删 Makefile**  
 6. **阶段 12–13** 冷启动零 cc 三义 + v2==v3 + 公告  
 
-## 附录 E：compiler/Makefile 迁移表（骨架 · 待填）
+## 附录 E：compiler/Makefile 迁移表（摘要 · 全量见独立文档）
 
-> 11.0.1 产出物。每完成一行迁移到 xbuild，在「xbuild 目标」列打 ✅。
+> **全量权威清单**（11.0.1 · wave714）：[`analysis/Makefile迁移表.md`](Makefile迁移表.md)  
+> 每完成一行迁移到 xbuild，在迁移表「迁移状态」列改 🟢，并回写本摘要若影响仪表盘。
 
-| Makefile 主题（示例） | 今日落点 | xbuild 目标（拟定） | 状态 |
-|----------------------|----------|---------------------|------|
-| 产品 relink xlang/xlang_asm | g05_*.sh | `xbuild link-product` | 🟡 已在 shell |
-| bootstrap-driver-seed | compiler/Makefile | `xbuild bootstrap` | ⬜ |
-| parser_x.o / typeck_x.o / codegen_x.o | Makefile + pin cp | `xbuild frontend` | ⬜ |
-| pipeline_glue / ast_pool .o | Makefile / standalone | `xbuild glue`（过渡 cc 白名单） | ⬜ |
-| std 模块 .o | xlang_compile_std_module.sh | `xbuild std` | 🟡 部分 shell |
-| L4 全擦 + bstrict | 人工 / 多脚本 | `xbuild cold-test` | ⬜ |
-| prove MODULES | tests/prove_*.sh | `xbuild prove` | ⬜ |
-| Windows / Alpine 分支 | Makefile ifeq | xbuild 平台后端 | ⬜ |
-| 死规则 / archaeology | Makefile | 删除不迁 | ⬜ |
+| 类 | 主题 | 条数（约） | 今日落点 | xbuild 拟目标 | 状态 |
+|----|------|------------|----------|---------------|------|
+| **I** | g05 / relink / build-tool 入口 | 9 | g05 shell + make build-tool | `xbuild link-product` | 🟢 产品 shell · 🟡 入口仍 make |
+| **H** | bootstrap / 产品二进制 phony | 34 | 冷=Makefile；日常 xlang_asm→g05 | `xbuild bootstrap` / `link-product` | 🟡 |
+| **D** | 前端 `*_x.o` | 20 | g05 热路径 + Makefile pin | `xbuild frontend` | 🟡 |
+| **E** | `compiler/src` 宿主 .o | 59 | g05 ensure cc | `xbuild runtime-src` | 🟡 |
+| **F** | `runtime_*` residual .o | 31 | g05 ensure | `xbuild residual-c` | 🟡 → 阶段 9 |
+| **C** | glue / pipeline_x / strict_minimal | 3 | Makefile + g05 cc | `xbuild glue` | ⬜ 体积主债 8.3 |
+| **B** | pinned `*_gen.c` | 18 | Makefile pin cp | `xbuild pin-gen` | ⬜ 7.4/8.2 |
+| **A** | std/core 模块 .o | 65 | 部分 shell / g05 | `xbuild std` | 🟡 |
+| **G** | `build_asm/*_filtered.o` | 4 | g05 **偶发 make -s** | `xbuild build-asm-filter` | 🟡 11.0.2 清泄漏 |
+| **J** | test / check / verify | 12 | Makefile → tests | `xbuild test` / `cold-test` | ⬜ 11.2.3 |
+| **K** | seed 工具 | 4 | Makefile | `xbuild seed-tools` | ⬜ 11.0.3 |
+| **L** | std 变体 stub | 10 | Makefile | `xbuild std-variant` | ⬜ |
+| **M** | clean / compile_commands / legacy | 6 | make / 考古 | util 或 🗑 | 🟡 |
+| **N/O** | link alias / 未分类 | ~14 | g05 / 待确认 | stubs 或 🗑 | ⬜ |
+| **Σ** | | **~288** | | | 盘点 ✅ 迁移 ⬜ |
 
 
 ---
@@ -1678,6 +1688,7 @@
 | 2026-07-29 | wave713 | **终局升级**：零 Makefile + 零 cc；阶段 9 必须消灭；阶段 10–13 新增 |
 | 2026-07-29 | **审计补全** | 对照仓库补：**§0.1 终局三义（MG/BC/PC）**；**§0.2 删 Makefile DAG**；**阶段 7.4 typeck/codegen 去 pin**；**阶段 8.3 非 gen 产品 C（glue~40k/ast_pool~18k/桩）**；**阶段 11.0 瘦身可并行** + 既有 G-05/`build.x`/`xlang-build.sh`；11.2 测试/CI 去 make；12/13 验收对齐「物理删 Makefile」；附录 D 进度下调至 ~40–45%；**附录 E 迁移表骨架**；纠正 6.1.5「永久边界」措辞 |
 | 2026-07-29 | **二轮深度核查** | 阶段 4.2 补 4 项遗漏 Cap soft（impl method on INDEX / `*T[N]` 解析序 / fixed return S24[2] / 未知 arg_ty）；阶段 8.3 补 3 项（`build_asm/gen_driver/*.c` 10 个 / `analysis/_debug_io_ctx_gen.c` 孤儿 / `editors/tree-sitter-xlang/` 第三方）；**阶段 11 大幅补充**：11.2.5 CI workflow（5 个 .yml）+ 11.4 根脚本/tools/docker（build.sh/xlang-build.sh/scripts/docker-ci-local.sh/tools//tests/docker/Dockerfile/delete-one-c-files.sh）+ 11.5 tests/ 对照 C 处理策略（~200 个 .c 归属）+ 11.6 editors/README 用户指南；修正 11.2.3/11.3.1/11.3.4 验收 grep 措辞过窄（tests/run-*.sh → tests/**/*.sh；仅 make → make+cc） |
+| 2026-07-29 | **wave714 · 11.0.1** | 盘点 `compiler/Makefile` → [`Makefile迁移表.md`](Makefile迁移表.md)（类 A–O · ~288 目标）；附录 E 填实摘要；勾选 11.0.1；列出产品路径 make 泄漏供 11.0.2；新增 `scripts/check_product_path_zero_make.sh` 静态闸门 |
 
 ---
 
