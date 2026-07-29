@@ -939,57 +939,18 @@ src/driver/fmt_check_cmd_driver.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_c
 # XLANG_NO_C_FRONTEND 实验链接：满足 pipeline 对 codegen_set_* 的引用，无 codegen.c
 
 # G-02-B1：cfg_eval 仅 cfg_eval.x（无 cfg_eval.c 回退）。
-# cold bootstrap 时 xlang-c 默认 pipeline 可能挂起；timeout 后回退 -E-extern / stub。
 # wave98 Cap residual pure: product complex #if must link cfg_eval.x authority
 # (lexer_cfg_eval_expr_c + link_alias → cfg_eval_expr_c), NOT bootstrap stub when -E works.
-# Root cause of long stub pin: $(CC) $(CFLAGS) alone lacked PIPELINE_GEN_CFLAGS so
-# -Werror -Wparentheses-equality (Apple Clang) failed the -E-extern object and silently
-# fell through to stub — pure preprocess_eval_condition_c still called cfg_eval_expr_c,
-# but body was C stub dual-auth vs cfg_eval.x. Fix: compile gen with PIPELINE_GEN_CFLAGS.
-# PLATFORM: SHARED — if -E emits illegal C (e.g. dual cfg-host os lit redefinition on
-# Darwin), cc must not hard-fail the recipe: fall through to bootstrap stub so L4
-# cold bootstrap can finish (true cold-only residual when .x path unusable).
-# Deps: link_alias (mangle + host lit for -E-extern) + linux pin gen (Ubuntu gold).
-# wave98: do NOT use plain -E for product — bare -E emits dangling BSS pointer
-#   (static uint8_t* g = (uint8_t[]){}) → SEGV on complex #if (Ubuntu 金标).
-# Prefer live -E-extern; else pin seeds/cfg_eval_gen.linux.x86_64.c (same as typeck pin).
-src/lexer/cfg_eval.o: src/lexer/cfg_eval.x seeds/cfg_eval_link_alias.from_x.c seeds/cfg_eval_gen.linux.x86_64.c seeds/cfg_eval_host_lit.from_x.c scripts/cc_inc_tu.sh
-	@set -e; \
-	$(MAKE) $(XLANG_C); \
-	rm -f src/lexer/cfg_eval_x.o; \
-	if command -v timeout >/dev/null 2>&1; then \
-	  timeout "${XLANG_CFG_EVAL_ASM_TIMEOUT:-120}" ./$(XLANG_C) -o src/lexer/cfg_eval_x.o -L .. src/lexer/cfg_eval.x 2>/dev/null \
-	  || rm -f src/lexer/cfg_eval_x.o; \
-	else \
-	  ./$(XLANG_C) -o src/lexer/cfg_eval_x.o -L .. src/lexer/cfg_eval.x 2>/dev/null \
-	  || rm -f src/lexer/cfg_eval_x.o; \
-	fi; \
-	if false && [ -s src/lexer/cfg_eval_x.o ]; then \
-	  sh scripts/cc_inc_tu.sh seeds/cfg_eval_link_alias.from_x.c src/lexer/cfg_eval_link_alias.o; \
-	  $(LD) $(LD_RELFLAGS) -r -o $@ src/lexer/cfg_eval_x.o src/lexer/cfg_eval_link_alias.o; \
-	  echo "cfg_eval.o from cfg_eval.x (default pipeline + alias)"; \
-	elif ./$(XLANG_C) -E -E-extern -L .. src/lexer/cfg_eval.x > src/lexer/cfg_eval_gen.c 2>/dev/null \
-	  && [ -s src/lexer/cfg_eval_gen.c ] \
-	  && $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_x.o src/lexer/cfg_eval_gen.c 2>/dev/null; then \
-	  sh scripts/cc_inc_tu.sh seeds/cfg_eval_link_alias.from_x.c src/lexer/cfg_eval_link_alias.o; \
-	  $(LD) $(LD_RELFLAGS) -r -o $@ src/lexer/cfg_eval_x.o src/lexer/cfg_eval_link_alias.o; \
-	  echo "cfg_eval.o from cfg_eval.x (-E-extern + alias)"; \
-	elif ./$(XLANG_C) -E -E-extern src/lexer/cfg_eval.x > src/lexer/cfg_eval_gen.c 2>/dev/null \
-	  && [ -s src/lexer/cfg_eval_gen.c ] \
-	  && $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_x.o src/lexer/cfg_eval_gen.c 2>/dev/null; then \
-	  sh scripts/cc_inc_tu.sh seeds/cfg_eval_link_alias.from_x.c src/lexer/cfg_eval_link_alias.o; \
-	  $(LD) $(LD_RELFLAGS) -r -o $@ src/lexer/cfg_eval_x.o src/lexer/cfg_eval_link_alias.o; \
-	  echo "cfg_eval.o from cfg_eval.x (-E-extern no -L + alias)"; \
-	elif [ -s seeds/cfg_eval_gen.linux.x86_64.c ] \
-	  && $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_x.o seeds/cfg_eval_gen.linux.x86_64.c 2>/dev/null; then \
-	  sh scripts/cc_inc_tu.sh seeds/cfg_eval_link_alias.from_x.c src/lexer/cfg_eval_link_alias.o; \
-	  $(LD) $(LD_RELFLAGS) -r -o $@ src/lexer/cfg_eval_x.o src/lexer/cfg_eval_link_alias.o; \
-	  echo "cfg_eval.o from cfg_eval.x (linux pin gen + alias)"; \
-	else \
-	  sh scripts/cc_inc_tu.sh seeds/cfg_eval_bootstrap_stub.from_x.c src/lexer/cfg_eval_bootstrap_stub.o && \
-	  cp -f src/lexer/cfg_eval_bootstrap_stub.o $@ && \
-	  echo "cfg_eval.o from bootstrap stub (cfg_eval.x unavailable at cold start)"; \
-	fi
+# PIPELINE_GEN_CFLAGS required so Apple Clang -Wparentheses-equality does not kill -E-extern.
+# PLATFORM: SHARED — if -E emits illegal C (e.g. dual cfg-host os lit on Darwin),
+# ladder falls through to bootstrap stub so L4 cold can finish.
+# Deps: link_alias + linux pin gen (Ubuntu gold) + host lit + bootstrap stub seed.
+# wave98: do NOT use plain -E — bare -E emits dangling BSS → SEGV on complex #if.
+# wave783 B5: multi-ladder body → ensure try-cfg-eval-ladder (G.7; not physical delete).
+src/lexer/cfg_eval.o: src/lexer/cfg_eval.x seeds/cfg_eval_link_alias.from_x.c seeds/cfg_eval_gen.linux.x86_64.c seeds/cfg_eval_host_lit.from_x.c seeds/cfg_eval_bootstrap_stub.from_x.c scripts/cc_inc_tu.sh scripts/ensure_host_cc_seed_o.sh
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
+	  LD="$(LD)" LD_RELFLAGS="$(LD_RELFLAGS)" \
+	  bash scripts/ensure_host_cc_seed_o.sh try-cfg-eval-ladder $@
 
 # G-02a：preprocess 已迁 preprocess.x；不再编译 preprocess.c。
 

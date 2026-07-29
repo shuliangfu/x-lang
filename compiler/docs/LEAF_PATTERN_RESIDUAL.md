@@ -997,12 +997,47 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - [x] **wave780:** B2 std/core product hybrid → `try-std-core-prefer` (5 thin-call; not physical delete)
 - [x] **wave781:** B3 LSP satellite hybrid → `try-lsp-sat-prefer` (2 thin-call; not physical delete)
 - [x] **wave782:** B4 gen_c_to_o bootstrap → `try-gen-c-to-o` (5 thin-call; not physical delete)
+- [x] **wave783:** B5 cfg_eval multi-ladder → `try-cfg-eval-ladder` (1 thin-call; not physical delete)
 - [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame)
 - [ ] Leaf `.o` without host-cc residual (stages 8–9 / 12)
-- [ ] R5 CI / compiler-all shell body
-- [ ] B5 Makefile multi-ladder body → ensure (next swallow wave)
+- [ ] R5 CI / compiler-all shell body (B6)
+- [ ] B7 Makefile DAG / physical delete
 
 
+
+### wave783 · B5 cfg_eval multi-ladder → try-cfg-eval-ladder (G.7 有则补全)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; B6 R5 body.  
+> **This wave:** swallow **B5** Makefile multi-ladder body for `src/lexer/cfg_eval.o` into ensure `try-cfg-eval-ladder` (1 leaf). Makefile keeps thin-call edge only.  
+> **Why dedicated:** multi-rung product ladder (-E-extern ±L → pin gen + alias ld -r → bootstrap stub); not catalog try-gen-x / not hybrid prefer.
+
+```text
+Before (wave782):
+  Makefile src/lexer/cfg_eval.o multi-ladder (xlang-c -E-extern / pin / stub)
+  PHYS_DEL_PREP_NEXT=B5_cfg_eval_multi_ladder_body_swallow_not_delete
+
+After (wave783):
+  ensure try-cfg-eval-ladder OUT
+    rungs: -E-extern±L + PIPELINE_GEN_CFLAGS + link_alias ld -r
+         → linux pin gen + alias
+         → bootstrap stub cp
+  Makefile: thin-call try-cfg-eval-ladder only
+  SWALLOWED_B5_CFG_EVAL_LADDER=1
+  PHYS_DEL_BUCKET_B5_BODY_SWALLOWED=1
+  PHYS_DEL_PREP_NEXT=B6_r5_ci_compiler_all_body_swallow_not_delete
+  ENDGAME_PHYSICAL_DELETE_MAKEFILE=0
+```
+
+| Leaf | Rungs |
+|------|-------|
+| `src/lexer/cfg_eval.o` | live -E-extern (+/- `-L ..`) → pin `cfg_eval_gen.linux.x86_64.c` + alias → bootstrap stub |
+
+| Swallowed this wave | Still residual |
+|---------------------|----------------|
+| **B5 body** (cfg_eval multi-ladder → ensure try-cfg-eval-ladder + Makefile thin-call) | B6 R5 · B7 DAG · physical delete |
+| Prior R1–R6 / prefer / pure-ld / prep / Windows+dual-end / B1–B4 | FORCE_CC · Windows PE pure-ld body |
+
+**Forbidden:** physical delete Makefile; claim B5 swallow = physical delete; re-open multi-ladder on this leaf; mac-only wave green.
 
 ### wave782 · B4 gen_c_to_o bootstrap → try-gen-c-to-o (G.7 有则补全)
 
@@ -1035,7 +1070,7 @@ After (wave782):
 
 | Swallowed this wave | Still residual |
 |---------------------|----------------|
-| **B4 body** (5 gen bootstrap → ensure try-gen-c-to-o + Makefile thin-call) | B5 cfg_eval · B6 R5 · B7 DAG · physical delete |
+| **B4 body** (5 gen bootstrap → ensure try-gen-c-to-o + Makefile thin-call) | ~~B5~~ (wave783) · B6 R5 · B7 DAG · physical delete |
 | Prior R1–R6 / prefer / pure-ld / prep / Windows+dual-end / B1–B3 | FORCE_CC · Windows PE pure-ld body |
 
 **Forbidden:** physical delete Makefile; claim B4 swallow = physical delete; re-open inline `$(CC) -c` on B4 leaves; mac-only wave green; fold B4 into try-gen-x catalog without list authority.

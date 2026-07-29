@@ -86,6 +86,10 @@
 #            (有则补全; body = ensure_gen_x_o.sh maps for lexer_x / ast_gen2 /
 #            driver_x / preprocess_x / _x_stubs2 — outside try-gen-x catalog).
 #            Makefile thin-call only (NOT physical delete). Residual: B5 · physical delete.
+#   wave783: G.7 B5 cfg_eval multi-ladder → `try-cfg-eval-ladder OUT`
+#            (有则补全; single leaf src/lexer/cfg_eval.o; rungs: -E-extern±L →
+#            linux pin gen + link_alias ld -r → bootstrap stub). Makefile
+#            thin-call only (NOT physical delete). Residual: B6 R5 · physical delete.
 #   wave758: R4 residual pure host-cc thin_glue → R1 seed-map (G.7 有则补全):
 #            parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c +
 #            -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/lexer -Isrc/asm -Iseeds/parser_asm;
@@ -166,7 +170,8 @@
 #   - ~~B2 std/core product hybrid~~ wave780 → try-std-core-prefer
 #   - ~~B3 LSP satellite hybrid~~ wave781 → try-lsp-sat-prefer
 #   - ~~B4 gen_c_to_o bootstrap~~ wave782 → try-gen-c-to-o
-#   - R5 CI all · B5 hybrid · pure-ld residual
+#   - ~~B5 cfg_eval multi-ladder~~ wave783 → try-cfg-eval-ladder
+#   - R5 CI all · B6 · pure-ld residual
 #   - pure-ld (11.1.4) · physical Makefile delete (11.3.1)
 #   - bootstrap_nostdlib_stubs.o (cc_inc_tu residual) · crt0_user.o cp wrappers
 #
@@ -188,6 +193,7 @@
 #   bash scripts/ensure_host_cc_seed_o.sh try-std-core-prefer <out.o> # wave780 B2 std/core 5
 #   bash scripts/ensure_host_cc_seed_o.sh try-lsp-sat-prefer <out.o> # wave781 B3 LSP satellite 2
 #   bash scripts/ensure_host_cc_seed_o.sh try-gen-c-to-o <out.o> # wave782 B4 gen.c→.o bootstrap 5
+#   bash scripts/ensure_host_cc_seed_o.sh try-cfg-eval-ladder <out.o> # wave783 B5 cfg_eval multi-ladder 1
 #   bash scripts/ensure_host_cc_seed_o.sh try-r2 <out.o>   # wave760/762 R2 UNAME leaves
 #   bash scripts/ensure_host_cc_seed_o.sh try-gen-x <out.o> # wave761 gen *_x / pipeline_x
 #   bash scripts/ensure_host_cc_seed_o.sh r2-panic         # DRIVER_SEED_PANIC family
@@ -248,7 +254,7 @@ _DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-async-prefer|try-other-l2-prefer|try-r2-prefer|try-runtime-os-prefer|try-std-core-prefer|try-lsp-sat-prefer|try-gen-c-to-o|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-async-prefer|try-other-l2-prefer|try-r2-prefer|try-runtime-os-prefer|try-std-core-prefer|try-lsp-sat-prefer|try-gen-c-to-o|try-cfg-eval-ladder|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -4057,6 +4063,152 @@ try_ensure_gen_c_to_o_one() {
 }
 
 # ---------------------------------------------------------------------------
+# wave783: try-cfg-eval-ladder OUT — B5 cfg_eval multi-ladder (single leaf).
+#
+# Authority for src/lexer/cfg_eval.o product body (G.7 有则补全). Historic
+# Makefile multi-ladder: live -E-extern (+/- -L) → cc with PIPELINE_GEN_CFLAGS
+# + link_alias ld -r; else linux pin gen + alias; else bootstrap stub copy.
+# Dead rung dropped: `if false &&` default-pipeline asm path (was permanently
+# disabled). Cold may soft-build xlang-c; pin/stub rungs do not require it.
+#
+# Exit codes:
+#   0 — OUT is B5 member; ladder produced OUT (or skip up-to-date)
+#   3 — OUT is not src/lexer/cfg_eval.o
+#   1 — all rungs failed
+# PLATFORM: SHARED shell body · pin = Ubuntu gold seed; Darwin may fall to stub
+# when -E emits illegal dual host-lit C (historic Makefile twin).
+# Callers: Makefile thin-call (wave783). NOT physical delete.
+# Residual after: B6 R5 · physical delete.
+# ---------------------------------------------------------------------------
+
+cfg_eval_ladder_spec_for_out() {
+  # stdout non-empty iff B5 member.
+  case "$1" in
+    src/lexer/cfg_eval.o) printf '%s' "cfg_eval_multi_ladder" ;;
+    *) printf '%s' "" ;;
+  esac
+}
+
+# Link cfg_eval_x.o + link_alias → OUT (historic Makefile $(LD) -r twin).
+# PLATFORM: SHARED — LD/LD_RELFLAGS from env (Makefile thin expands make vars).
+_cfg_eval_link_x_plus_alias() {
+  local out="$1" x_o="$2"
+  local ld_bin="${LD:-ld}"
+  local ld_rel="${LD_RELFLAGS:-}"
+  if [ ! -f scripts/cc_inc_tu.sh ]; then
+    echo "ensure_host_cc_seed_o try-cfg-eval-ladder: missing scripts/cc_inc_tu.sh" >&2
+    return 1
+  fi
+  if [ ! -f seeds/cfg_eval_link_alias.from_x.c ]; then
+    echo "ensure_host_cc_seed_o try-cfg-eval-ladder: missing seeds/cfg_eval_link_alias.from_x.c" >&2
+    return 1
+  fi
+  sh scripts/cc_inc_tu.sh seeds/cfg_eval_link_alias.from_x.c src/lexer/cfg_eval_link_alias.o || return 1
+  # shellcheck disable=SC2086
+  $ld_bin $ld_rel -r -o "$out" "$x_o" src/lexer/cfg_eval_link_alias.o
+}
+
+ensure_cfg_eval_ladder_one() {
+  local o="$1"
+  local x_src="src/lexer/cfg_eval.x"
+  local pin="seeds/cfg_eval_gen.linux.x86_64.c"
+  local alias_seed="seeds/cfg_eval_link_alias.from_x.c"
+  local stub_seed="seeds/cfg_eval_bootstrap_stub.from_x.c"
+  local host_lit="seeds/cfg_eval_host_lit.from_x.c"
+  local x_o="src/lexer/cfg_eval_x.o"
+  local gen_c="src/lexer/cfg_eval_gen.c"
+  local xlang_c="./xlang-c"
+  local stale=0
+  local d
+
+  if [ -z "$(cfg_eval_ladder_spec_for_out "$o")" ]; then
+    return 3
+  fi
+
+  if [ "$FORCE" != "1" ] && [ -f "$o" ]; then
+    stale=0
+    for d in "$x_src" "$alias_seed" "$pin" "$host_lit" "$stub_seed"; do
+      if [ -f "$d" ] && [ "$d" -nt "$o" ]; then
+        stale=1
+        break
+      fi
+    done
+    if [ "$stale" = "0" ]; then
+      log "skip up-to-date $o (cfg-eval-ladder)"
+      return 0
+    fi
+  fi
+
+  mkdir -p "$(dirname "$o")"
+
+  # Historic Makefile: $(MAKE) xlang-c first. Soft-continue so pin/stub cold
+  # paths still work when xlang-c graph is not ready (L2 residual rebuild).
+  if [ ! -x "$xlang_c" ]; then
+    log "cfg-eval-ladder: xlang-c missing; try soft make (pin/stub fallback if fail)"
+    $MAKE xlang-c 2>/dev/null || true
+  fi
+
+  rm -f "$x_o"
+
+  # Rung 1: live -E -E-extern -L .. + PIPELINE_GEN_CFLAGS + alias
+  # PLATFORM: SHARED — prefer live gen; wave98: bare -E forbidden (dangling BSS).
+  if [ -x "$xlang_c" ] && [ -f "$x_src" ]; then
+    # shellcheck disable=SC2086
+    if "$xlang_c" -E -E-extern -L .. "$x_src" >"$gen_c" 2>/dev/null \
+      && [ -s "$gen_c" ] \
+      && $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -c -o "$x_o" "$gen_c" 2>/dev/null \
+      && _cfg_eval_link_x_plus_alias "$o" "$x_o"; then
+      log "cfg_eval.o from cfg_eval.x (-E-extern + alias)"
+      return 0
+    fi
+    # Rung 2: -E -E-extern without -L (module path residual)
+    # shellcheck disable=SC2086
+    if "$xlang_c" -E -E-extern "$x_src" >"$gen_c" 2>/dev/null \
+      && [ -s "$gen_c" ] \
+      && $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -c -o "$x_o" "$gen_c" 2>/dev/null \
+      && _cfg_eval_link_x_plus_alias "$o" "$x_o"; then
+      log "cfg_eval.o from cfg_eval.x (-E-extern no -L + alias)"
+      return 0
+    fi
+  fi
+
+  # Rung 3: linux pin gen + alias (Ubuntu gold seed; same as typeck pin style)
+  # PLATFORM: LINUX pin source · SHARED host-cc of pin on all platforms.
+  # shellcheck disable=SC2086
+  if [ -s "$pin" ] \
+    && $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -c -o "$x_o" "$pin" 2>/dev/null \
+    && _cfg_eval_link_x_plus_alias "$o" "$x_o"; then
+    log "cfg_eval.o from cfg_eval.x (linux pin gen + alias)"
+    return 0
+  fi
+
+  # Rung 4: bootstrap stub (cold when .x path unusable / -E illegal C)
+  if [ -f "$stub_seed" ] && [ -f scripts/cc_inc_tu.sh ]; then
+    if sh scripts/cc_inc_tu.sh "$stub_seed" src/lexer/cfg_eval_bootstrap_stub.o \
+      && cp -f src/lexer/cfg_eval_bootstrap_stub.o "$o"; then
+      log "cfg_eval.o from bootstrap stub (cfg_eval.x unavailable at cold start)"
+      return 0
+    fi
+  fi
+
+  echo "ensure_host_cc_seed_o try-cfg-eval-ladder: all rungs failed for $o" >&2
+  return 1
+}
+
+try_ensure_cfg_eval_ladder_one() {
+  local o="$1"
+  if [ -z "$o" ]; then
+    echo "ensure_host_cc_seed_o try-cfg-eval-ladder: need <out.o>" >&2
+    exit 2
+  fi
+  if [ -z "$(cfg_eval_ladder_spec_for_out "$o")" ]; then
+    return 3
+  fi
+  ensure_cfg_eval_ladder_one "$o"
+  return $?
+}
+
+# ---------------------------------------------------------------------------
 # wave760: try-r2 OUT — R2 platform-stamp panic cold body (UNAME leaf).
 #
 # Membership = catalog DRIVER_SEED_PANIC_OBJS only (lists = mk; currently
@@ -5716,6 +5868,56 @@ run_check() {
   else
     note "gen-c-to-o table has 5 members (wave782 B4)"
   fi
+  # wave783: try-cfg-eval-ladder B5 multi-ladder (1 leaf)
+  if ! grep -q 'try_ensure_cfg_eval_ladder_one\|try-cfg-eval-ladder' "$0"; then
+    bad "try-cfg-eval-ladder / try_ensure_cfg_eval_ladder_one missing (wave783)"
+  else
+    note "try-cfg-eval-ladder helper present (wave783)"
+  fi
+  if ! grep -q 'cfg_eval_ladder_spec_for_out\|ensure_cfg_eval_ladder_one' "$0"; then
+    bad "cfg_eval ladder table/body missing (wave783)"
+  else
+    note "cfg-eval ladder table present (wave783)"
+  fi
+  if [ -n "$(cfg_eval_ladder_spec_for_out "src/lexer/cfg_eval.o")" ]; then
+    note "cfg_eval_ladder_spec_for_out has src/lexer/cfg_eval.o (wave783 B5)"
+  else
+    bad "cfg_eval_ladder_spec_for_out missing src/lexer/cfg_eval.o (wave783)"
+  fi
+  if [ -z "$(cfg_eval_ladder_spec_for_out "not_a_cfg_eval.o")" ]; then
+    note "cfg_eval_ladder non-member empty (wave783)"
+  else
+    bad "cfg_eval_ladder_spec_for_out must reject non-members (wave783)"
+  fi
+  if awk '
+    $0 ~ /^src\/lexer\/cfg_eval\.o:/ {grab=1; next}
+    grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+    grab {body = body $0 "\n"}
+    END {
+      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-cfg-eval-ladder/) exit 0
+      exit 1
+    }
+  ' Makefile; then
+    note "Makefile src/lexer/cfg_eval.o thin-calls ensure try-cfg-eval-ladder (wave783)"
+  else
+    bad "Makefile src/lexer/cfg_eval.o must thin-call ensure try-cfg-eval-ladder (wave783)"
+  fi
+  # Ban re-opened multi-ladder: no inline $(CC)/xlang-c/-E-extern on recipe lines.
+  if awk '
+    $0 ~ /^src\/lexer\/cfg_eval\.o:/ {grab=1; next}
+    grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+    grab && /^\t/ {body = body $0 "\n"}
+    END {
+      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-cfg-eval-ladder/ \
+          && body !~ /\$\(CC\)/ && body !~ /xlang-c/ && body !~ /-E-extern/) exit 1
+      if (body ~ /\$\(CC\)/ && body ~ /-c /) exit 0
+      if (body ~ /-E-extern/ && body !~ /ensure_host_cc_seed_o/) exit 0
+      if (body ~ /cfg_eval_bootstrap_stub/ && body !~ /ensure_host_cc_seed_o/) exit 0
+      exit 1
+    }
+  ' Makefile; then
+    bad "Makefile src/lexer/cfg_eval.o still has multi-ladder body (wave783)"
+  fi
   # wave760/762: try-r2 R2 UNAME leaves (panic + typeck_f64 + crt0)
   if ! grep -q 'try_ensure_r2_one\|try-r2' "$0"; then
     bad "try-r2 / try_ensure_r2_one missing (wave760/762 R2 UNAME)"
@@ -5980,6 +6182,19 @@ case "$MODE" in
     _try_out="$1"
     set +e
     try_ensure_gen_c_to_o_one "$_try_out"
+    _try_rc=$?
+    set -e
+    exit "$_try_rc"
+    ;;
+  try-cfg-eval-ladder|try_cfg_eval_ladder|cfg-eval-ladder|cfgeval-ladder|try-cfg-eval|b5-cfg|b5-ladder)
+    # wave783: B5 cfg_eval multi-ladder; exit 3 if not member.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o try-cfg-eval-ladder: need <out.o>" >&2
+      exit 2
+    fi
+    _try_out="$1"
+    set +e
+    try_ensure_cfg_eval_ladder_one "$_try_out"
     _try_rc=$?
     set -e
     exit "$_try_rc"
