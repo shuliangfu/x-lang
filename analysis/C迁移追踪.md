@@ -1485,6 +1485,7 @@
 - **wave847** · B7C xlang-no-c-frontend shell-primary（host-cc product link）
 - **wave848** · B7C bootstrap-driver-seed-x-frontend shell-primary（host-cc experiment link）
 - **wave849** · B7C relink-xlang-lexer shell-primary（host-cc product link + XLANG_C sync）
+- **wave850** · B7B RELINK_PRODUCT_LINK bag → composites.mk（BTC/RXL product link 单权威）
 - **open** · thin edges + B2 + mk lists → tip Windows → 双端 L4 → explicit auth 真删
 
 **状态明细**（一行一项）：
@@ -1582,6 +1583,7 @@
 - ✅ **xlang-no-c-frontend shell-primary**（wave847 · 1 叶 · xlang_no_c_frontend.sh · seed gate + host-cc link archaeology no-C-frontend · **非**物理删 · thin edges + B2 + mk lists）
 - ✅ **bootstrap-driver-seed-x-frontend shell-primary**（wave848 · 1 叶 · bootstrap_driver_seed_x_frontend.sh · host-cc link archaeology `$(TARGET)_x_frontend` · **非**物理删 · thin edges + B2 + mk lists）
 - ✅ **relink-xlang-lexer shell-primary**（wave849 · 1 叶 · relink_xlang_lexer.sh · seed gate + host-cc link product TARGET + XLANG_C/bootstrap_xlangc sync · **非**物理删 · thin edges + B2 + mk lists）
+- ✅ **RELINK_PRODUCT_LINK bag → mk**（wave850 · composites.mk · `RELINK_PRODUCT_LINK_BASE/OBJS` · BTC typeck/codegen + RXL relink-lexer 三处 dual bag 收单权威 · fixed BASE **8** · Makefile expand only · **非**物理删 · thin edges + B2 + 其它 mk lists）
 - ⬜ **B7 residual endgame · physical delete / 删 Makefile**
   - **须** lists/thin 残项 + Windows tip 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体
   - 已闭（一行一项，摘要）：
@@ -1652,6 +1654,7 @@
     - wave847 xlang-no-c-frontend shell-primary
     - wave848 bootstrap-driver-seed-x-frontend shell-primary
     - wave849 relink-xlang-lexer shell-primary
+    - wave850 RELINK_PRODUCT_LINK bag → composites.mk
     - **open** · lists/thin 残项 + tip Windows 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体（终局波）
   - 验收 grep（全仓 · 不止 tests/analysis/docs）：
     ```

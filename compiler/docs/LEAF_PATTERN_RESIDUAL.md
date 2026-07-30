@@ -2093,8 +2093,8 @@ ship delete body; mac-only wave green.
     SWALLOWED_B7B_RELINK_PRODUCT_LINK=1
     PHYS_DEL_PREFLIGHT_B7B_RELINK_PRODUCT_LINK=1
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-  dual-end L2: leaf residual CHECK + make -n BTC/RXL expand bag + product
-    relink-xlang-lexer + rv42 (tip after product commit)
+  dual-end L2 green tip: 50666351a (Mac + Ubuntu leaf residual CHECK +
+    make -n BTC/RXL expand bag + product relink-xlang-lexer + rv42)
   next: residual thin/B2/lists (XXL/BS/XNC bags or hybrid) or tip Windows
     re-proof → ship delete body (explicit auth only; tip L4 wave840)
 ```
