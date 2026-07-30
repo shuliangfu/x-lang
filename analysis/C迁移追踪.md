@@ -1624,7 +1624,7 @@
 - ✅ **check-7.2 shell-primary**（wave870 · check-7.2 → check_7_2.sh · G.7 有则补全 dual body · seed stage1/stage2 smoke · **非** bstrict 路径 · **非**物理删 · thin edges + B2 + mk lists） · 双端 L2 tip **`0dc9ae7b3`**
 - ✅ **check-6.4 shell-primary**（wave871 · check-6.4 → check_6_4.sh · G.7 有则补全 dual body · seed emit-C + host-cc + exit 42 · **非**物理删 · thin edges + B2 + mk lists） · 双端 L2 tip **`63ef5a3b5`**
 - ✅ **bootstrap-driver-hybrid shell-primary**（wave872 · hybrid/-asm → bootstrap_driver_hybrid.sh · G.7 有则补全 dual body · B-hybrid no SKIP_GEN + replace/soft-skip · **非**物理删 · thin edges + B2 + mk lists） · 双端 L2 tip **`c784aa7d5`**
-- ✅ **regen-lsp-gens-x shell-primary**（wave873 · regen-lsp-gens-x → regen_lsp_gens_x.sh · G.7 有则补全 dual body · XLANG_X gate + rm four gens + make · **非**物理删 · thin edges + B2 + mk lists） · 双端 L2 tip **`PENDING`**
+- ✅ **regen-lsp-gens-x shell-primary**（wave873 · regen-lsp-gens-x → regen_lsp_gens_x.sh · G.7 有则补全 dual body · XLANG_X gate + rm four gens + make · **非**物理删 · thin edges + B2 + mk lists） · 双端 L2 tip **`e210fa41b`**
 - ⬜ **B7 residual endgame · physical delete / 删 Makefile**
   - **须** lists/thin 残项 + Windows tip 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体
   - 已闭（一行一项，摘要）：
