@@ -34,6 +34,7 @@
 #   wave816: B7B DRIVER_SUBCMD_* list authority → mk/driver_subcmd_objs.mk
 #            (Makefile include only; NOT physical delete; thin edges + other lists remain)
 #   wave817: B7B PIPELINE_X_* + PIPELINE_LIBS list authority → mk/pipeline_x_objs.mk
+#   wave818: B7B DRIVER_SEED mode picks (SUPPORT_EXTRA/RUNTIME_O/…) → mk/driver_seed_mode_objs.mk
 #            (Makefile include only; NOT physical delete; thin edges + other lists remain)
 #   wave781: B3 LSP satellite hybrid body → try-lsp-sat-prefer
 #   wave782: B4 gen_c_to_o bootstrap → try-gen-c-to-o
@@ -462,6 +463,19 @@ SWALLOWED_B7B_PIPELINE_X_LIST=1
 B7B_PIPELINE_X_LIST_SWALLOWED=1
 B7B_PIPELINE_X_LIST_MK=mk/pipeline_x_objs.mk
 B7B_PIPELINE_X_LIST_WAVE=wave817
+# wave818: B7B DRIVER_SEED mode picks → mk/driver_seed_mode_objs.mk (G.7).
+# RUNTIME_O / FRONTEND_EXTRA / SUPPORT_EXTRA / LINK_FLAGS / RUNTIME_REBUILD +
+# C_FRONTEND_LEGACY. NOT physical delete — thin edges + other B7B lists remain.
+# COUNT = product-default DRIVER_SEED_SUPPORT_EXTRA multi-token inventory (3).
+PHYS_DEL_B7B_SEED_MODE_LIST=1
+PHYS_DEL_B7B_SEED_MODE_LIST_WAVE=wave818
+PHYS_DEL_B7B_SEED_MODE_LIST_COUNT=3
+PHYS_DEL_B7B_SEED_MODE_LIST_VIA=mk_driver_seed_mode_objs
+PHYS_DEL_B7B_SEED_MODE_LIST_NOTE=list_authority_mk_include_only_thin_edges_remain
+SWALLOWED_B7B_SEED_MODE_LIST=1
+B7B_SEED_MODE_LIST_SWALLOWED=1
+B7B_SEED_MODE_LIST_MK=mk/driver_seed_mode_objs.mk
+B7B_SEED_MODE_LIST_WAVE=wave818
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -612,7 +626,7 @@ PHYS_DEL_PREFLIGHT_B7A_COLD_0MAKE=1
 PHYS_DEL_PREFLIGHT_B7B_SHELL_CATALOG=1
 PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113
 # wave811–817: std_x / formal_mod / STD_AND_PANIC / driver_leaf / archaeology /
-# DRIVER_SUBCMD / PIPELINE_X list swallowed; blocker name kept (thin edges +
+# DRIVER_SUBCMD / PIPELINE_X / SEED_MODE list swallowed; blocker name kept (thin edges +
 # B2 ensure + remaining B7B mk lists still form make graph).
 PHYS_DEL_PREFLIGHT_BLOCKERS=makefile_thin_call_edges|b7b_lists_in_mk|std_core_product_make_graph
 PHYS_DEL_PREFLIGHT_STD_X_HYBRID_BODY_SWALLOWED=1
@@ -622,8 +636,9 @@ PHYS_DEL_PREFLIGHT_DRIVER_LEAF_SHELL_PRIMARY=1
 PHYS_DEL_PREFLIGHT_ARCH_HOST_PICK_PHONY=1
 PHYS_DEL_PREFLIGHT_B7B_DRIVER_SUBCMD_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_PIPELINE_X_LIST=1
+PHYS_DEL_PREFLIGHT_B7B_SEED_MODE_LIST=1
 PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
+PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_PREFLIGHT_WIN_GATE_HOST=MSYS2_windows-server_dual_boot_reboot_required
 PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
@@ -1233,6 +1248,9 @@ else
   if ! grep -qE 'wave817|PIPELINE_X|pipeline_x_objs' "$DOC_REL"; then
     bad "$DOC_REL must document wave817 B7B PIPELINE_X list → mk"
   fi
+  if ! grep -qE 'wave818|SEED_MODE|driver_seed_mode_objs|SUPPORT_EXTRA' "$DOC_REL"; then
+    bad "$DOC_REL must document wave818 B7B DRIVER_SEED mode list → mk"
+  fi
   note "doc $DOC_REL present"
 fi
 
@@ -1769,6 +1787,21 @@ if ! grep -q 'SWALLOWED_B7B_PIPELINE_X_LIST=1' <<<"$_out"; then
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_B7B_PIPELINE_X_LIST=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_B7B_PIPELINE_X_LIST=1 (wave817)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_SEED_MODE_LIST=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_SEED_MODE_LIST=1 (wave818)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_SEED_MODE_LIST_WAVE=wave818' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_SEED_MODE_LIST_WAVE=wave818"
+fi
+if ! grep -q 'PHYS_DEL_B7B_SEED_MODE_LIST_COUNT=3' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_SEED_MODE_LIST_COUNT=3 (wave818)"
+fi
+if ! grep -q 'SWALLOWED_B7B_SEED_MODE_LIST=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_B7B_SEED_MODE_LIST=1 (wave818)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_B7B_SEED_MODE_LIST=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_B7B_SEED_MODE_LIST=1 (wave818)"
 fi
 if ! grep -q 'PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813"
@@ -2371,6 +2404,77 @@ if grep -nE 'catalog_set PIPELINE_X_SATELLITE_OBJS "' "$_cat_sh" 2>/dev/null | g
   bad "catalog must not hardcode PIPELINE_X_SATELLITE_OBJS (wave817 dual authority)"
 fi
 note "B7B PIPELINE_X_* + PIPELINE_LIBS list authority in mk (satellite 9; wave817; not physical delete)"
+# wave818: B7B DRIVER_SEED mode picks list authority in mk; Makefile include only.
+_SM_MK="compiler/mk/driver_seed_mode_objs.mk"
+if [ ! -f "$_SM_MK" ]; then
+  bad "missing $_SM_MK (wave818 B7B SEED_MODE list authority)"
+fi
+if ! grep -qE '^DRIVER_SEED_SUPPORT_EXTRA\s*=' "$_SM_MK"; then
+  bad "$_SM_MK must define DRIVER_SEED_SUPPORT_EXTRA (wave818)"
+fi
+if ! grep -qE '^DRIVER_SEED_RUNTIME_O\s*=' "$_SM_MK"; then
+  bad "$_SM_MK must define DRIVER_SEED_RUNTIME_O (wave818)"
+fi
+if ! grep -qE '^DRIVER_SEED_LINK_FLAGS\s*=' "$_SM_MK"; then
+  bad "$_SM_MK must define DRIVER_SEED_LINK_FLAGS (wave818)"
+fi
+# Product-default SUPPORT_EXTRA count (non-LEGACY branch; last assignment wins in awk scan of tokens on product lines).
+_sm_n=$(awk '
+  /^DRIVER_SEED_SUPPORT_EXTRA[[:space:]]*=/ {
+    line=$0
+    sub(/^[^=]*=[[:space:]]*/, "", line)
+    gsub(/\\/, "", line)
+    c=0
+    n=split(line, a, /[[:space:]]+/)
+    for (i=1;i<=n;i++) if (a[i] ~ /\.o$/) c++
+    # Keep last assignment (product no_c is second; LEGACY is first with 5).
+    last=c
+  }
+  END { print last+0 }
+' "$_SM_MK")
+if [ "${_sm_n:-0}" -ne 3 ]; then
+  bad "wave818 expected product DRIVER_SEED_SUPPORT_EXTRA count 3 in mk, got ${_sm_n:-0}"
+fi
+if ! grep -qE 'include[[:space:]]+mk/driver_seed_mode_objs\.mk' "$MF"; then
+  bad "Makefile must include mk/driver_seed_mode_objs.mk (wave818)"
+fi
+# Forbid dual authority: inline re-list of product SUPPORT_EXTRA inventory.
+if grep -nE '^DRIVER_SEED_SUPPORT_EXTRA[[:space:]]*=' "$MF" 2>/dev/null | grep -qE 'async_asm_pool\.o'; then
+  bad "Makefile must not re-list DRIVER_SEED_SUPPORT_EXTRA inline (wave818 dual authority)"
+else
+  note "Makefile DRIVER_SEED_SUPPORT_EXTRA has no dual inline product list (wave818)"
+fi
+if grep -nE '^DRIVER_SEED_RUNTIME_O[[:space:]]*=' "$MF" 2>/dev/null | grep -qE 'runtime_driver'; then
+  bad "Makefile must not re-list DRIVER_SEED_RUNTIME_O inline (wave818 dual authority)"
+fi
+# Consumers: composites expand $(DRIVER_SEED_SUPPORT_EXTRA) / RUNTIME_O into
+# DRIVER_SEED_OBJS / PREREQS; Makefile recipes consume those composites.
+_COMP_MK="compiler/mk/driver_seed_composites.mk"
+if [ ! -f "$_COMP_MK" ]; then
+  bad "missing $_COMP_MK (wave818 composites consumer of mode lists)"
+fi
+if ! grep -qE '\$\(DRIVER_SEED_SUPPORT_EXTRA\)' "$_COMP_MK"; then
+  bad "composites must still expand \$(DRIVER_SEED_SUPPORT_EXTRA) (wave818 consumers)"
+fi
+if ! grep -qE '\$\(DRIVER_SEED_RUNTIME_O\)' "$_COMP_MK"; then
+  bad "composites must still expand \$(DRIVER_SEED_RUNTIME_O) (wave818 consumers)"
+fi
+if ! grep -qE '\$\(DRIVER_SEED_OBJS\)' "$MF"; then
+  bad "Makefile must still consume \$(DRIVER_SEED_OBJS) (wave818 composite consumers)"
+fi
+# Catalog must parse mk (no hardcode second inventory).
+_cat_sh="$ROOT/compiler/scripts/driver_seed_obj_catalog.sh"
+[ -f "$_cat_sh" ] || _cat_sh="scripts/driver_seed_obj_catalog.sh"
+if ! grep -q 'mk/driver_seed_mode_objs.mk' "$_cat_sh"; then
+  bad "driver_seed_obj_catalog.sh must parse mk/driver_seed_mode_objs.mk (wave818)"
+fi
+if grep -nE 'catalog_set DRIVER_SEED_SUPPORT_EXTRA "' "$_cat_sh" 2>/dev/null | grep -q 'async_asm_pool'; then
+  bad "catalog must not hardcode DRIVER_SEED_SUPPORT_EXTRA (wave818 dual authority)"
+fi
+if grep -nE 'catalog_set DRIVER_SEED_RUNTIME_O "' "$_cat_sh" 2>/dev/null | grep -q 'runtime_driver'; then
+  bad "catalog must not hardcode DRIVER_SEED_RUNTIME_O (wave818 dual authority)"
+fi
+note "B7B DRIVER_SEED mode picks list authority in mk (SUPPORT_EXTRA 3; wave818; not physical delete)"
 
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
@@ -2934,5 +3038,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747–817: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave812 formal_mod ensure 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave815 archaeology host-pick phonies 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9; Makefile still present; delete body deferred)"
+echo "leaf_pattern_residual: CHECK OK (wave747–818: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave812 formal_mod ensure 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave815 archaeology host-pick phonies 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3; Makefile still present; delete body deferred)"
 exit 0

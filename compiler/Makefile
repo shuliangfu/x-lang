@@ -1904,67 +1904,12 @@ PREPROCESS_LINK_O =
 DRIVER_SEED_PREPROCESS_REBUILD =
 # parser labeled 名写入（parser_x.o / ast_pool_l5_bridge 依赖，不可缺链）。
 AST_POOL_L5_BRIDGE_O = src/runtime_driver_strict_glue_stubs.o
-# G-02a：C 前端已删；XLANG_LEGACY_C_FRONTEND=1 不再支持。
-DRIVER_SEED_C_FRONTEND_LEGACY =
-# G-06：提交 seeds/bootstrap_xlangc.* 由 capture（XLANG_LEGACY_C_FRONTEND=1）生成；默认 bootstrap/relink 须匹配该链接布局。
-# XLANG_NO_C_SEED_LINK=1 时走 E-04 runtime_driver_no_c（实验；与 pinned seed 不兼容）。
-ifeq ($(XLANG_LEGACY_C_FRONTEND),1)
-DRIVER_SEED_RUNTIME_O = src/runtime_driver.o
-DRIVER_SEED_FRONTEND_EXTRA = $(DRIVER_SEED_C_FRONTEND_LEGACY)
-# Why: runtime_driver_strict_glue_stubs.o provides C API weak/strong stubs
-#      (typeck_module, typeck_one_function, parse, preprocess_*, codegen_*,
-#      lsp_*, xlang_c_resolve_and_load_imports, etc.) that satisfy U refs from
-#      runtime_driver.o / rt_preamble.o / lsp_diag.o / parser_x.o / pipeline_x.o /
-#      preprocess_x.o / backend_try_inline_dispatch.o. Without this .o the
-#      link fails on Windows MSYS/MinGW with 40+ "undefined reference" errors.
-#      The default (no_c) branch already includes it; LEGACY mode was missing it.
-#      On MinGW (PE), XLANG_WEAK expands to EMPTY (strong defs) and
-#      -Wl,--allow-multiple-definition resolves conflicts with real impls
-#      from codegen_x.o / parser_x.o / typeck_x.o (first seen wins).
-# PLATFORM: SHARED — same .o needed on all platforms in LEGACY mode.
-# Why: src/runtime_driver_strict_glue_stubs.o MOVED from DRIVER_SEED_SUPPORT_EXTRA
-#      to DRIVER_SEED_GLUE_SUFFIX (link end) on 2026-07-19.
-#      Reason: stubs .o contains BOTH (a) symbols with NO real impl (parse,
-#      lexer_new, typeck_module for the deleted C frontend) AND (b) symbols
-#      WITH real impls in pipeline_x.o / parser_x.o (driver_get_module_num_funcs,
-#      parser_parse_into_init, pipeline_run_x_pipeline, etc.). When the stubs .o
-#      linked BEFORE pipeline_x.o, Windows PE `--allow-multiple-definition` made
-#      FIRST win → stub `driver_get_module_num_funcs` returning 0 shadowed the
-#      real impl, causing `xlang -c file.x` to report `num_funcs=0` and silently
-#      exit. On ELF/Darwin XLANG_WEAK expands to weak attr so real (strong) impl
-#      wins regardless of order — bug was Windows-only.
-#      Moving stubs to link END guarantees: real impls win when present; stubs
-#      only fill in for symbols with no real impl (C frontend API for lsp_diag).
-# Invariant: DRIVER_SEED_SUPPORT_EXTRA retains the non-stub satellites
-#            (async_liveness, async_cps_codegen, async_asm_pool unbundled,
-#             cfg_eval_*, typeck_f64_bits).
-# PLATFORM: SHARED — fix is Windows-critical; no-op on ELF/Darwin (weak already
-#           correct); verified both modes.
-DRIVER_SEED_SUPPORT_EXTRA = src/async/async_liveness.o src/async/async_cps_codegen.o src/async/async_asm_pool.o src/lexer/cfg_eval_bootstrap_stub.o src/typeck/typeck_f64_bits.o
-DRIVER_SEED_LINK_FLAGS = -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN
-DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver.o src/async/async_cps_codegen.o
-else ifeq ($(XLANG_NO_C_SEED_LINK),1)
-# E-04 v1：无 C ast/lexer/runtime_driver（勿用于已提交 G-06 种子的 relink）。
-# runtime_driver_strict_glue_stubs.o：提供 lexer_new/parse/preprocess 等 C API weak 桩，供 lsp_diag.o 等
-# 非 XLANG_NO_C_FRONTEND 编译单元引用（lsp_diag.c 未走 no_c 守卫，仍需符号满足链接）。
-# Stubs .o 链在 DRIVER_SEED_GLUE_SUFFIX（链接末尾），保证 pipeline_x.o 真实实现优先胜出。
-DRIVER_SEED_RUNTIME_O = src/runtime_driver_no_c.o
-DRIVER_SEED_FRONTEND_EXTRA =
-# async_asm_pool: unbundled from pipeline_glue; required for asm CPS layout (all modes).
-DRIVER_SEED_SUPPORT_EXTRA = src/async/async_asm_pool.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o
-DRIVER_SEED_LINK_FLAGS = -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN
-DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver_no_c.o
-else
-# G-02a：默认 no_c 模式（X pipeline 自洽；C 前端 API weak stubs 满足链接但不调用）。
-# 2026-07-08：从 seed-compat 切换到 no_c；macOS arm64 check ✅、compile 走 -E+cc fallback ✅；Linux x86_64 全绿。
-# Stubs .o 链在 DRIVER_SEED_GLUE_SUFFIX（链接末尾），保证 pipeline_x.o 真实实现优先胜出。
-DRIVER_SEED_RUNTIME_O = src/runtime_driver_no_c.o
-DRIVER_SEED_FRONTEND_EXTRA =
-# async_asm_pool: unbundled from pipeline_glue; required for asm CPS layout (all modes).
-DRIVER_SEED_SUPPORT_EXTRA = src/async/async_asm_pool.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o
-DRIVER_SEED_LINK_FLAGS = -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN
-DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver_no_c.o
-endif
+# wave818 B7B: seed mode picks → mk/driver_seed_mode_objs.mk (G.7; not physical delete).
+# Makefile keeps include + consumers (composites / seed link / rebuild);
+# no dual DRIVER_SEED_SUPPORT_EXTRA / RUNTIME_O inventory.
+# G-06：capture 用 XLANG_LEGACY_C_FRONTEND=1；产品默认 no_c；XLANG_NO_C_SEED_LINK
+# 与产品同 inventory（见 mk 注释）。stubs 仍在 GLUE_SUFFIX（link END）。
+include mk/driver_seed_mode_objs.mk
 # pipeline_glue_standalone 与 pipeline_x.o 重复时 glue 置链接末尾且允许多定义（覆盖 pipeline_gen 快照内旧 glue）。
 # wave788: ASM_GLUE_STANDALONE_O lives in mk/driver_seed_r_lists.mk (included above).
 # Why: XLANG_WEAK (see include/xlang_weak.h) expands to `__attribute__((weak))` on ELF
