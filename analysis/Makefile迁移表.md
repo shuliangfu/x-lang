@@ -89,8 +89,8 @@
 | `test_x` | 1701 | Makefile | `xbuild test-x` | ⬜ Makefile |  |
 | `std-objs` | 709 | Makefile 聚合 | `xbuild std` | ⬜ Makefile | g05 按需编 |
 | `compile_commands.json` | 3418 | Makefile | `xbuild compile-commands 或删` | ⬜ Makefile | IDE 辅助 |
-| `size-baseline` | 3422 | Makefile | `xbuild size-baseline 或删` | ⬜ Makefile | 可选 |
-| `perf-baseline` | 3426 | Makefile | `xbuild perf-baseline 或删` | ⬜ Makefile | 可选 |
+| `size-baseline` | 3422 | **shell** `stage8_baseline.sh size` | `xbuild size-baseline 或 tests/` | 🟢 wave875 体 shell；测量权威仍 `tests/run-size-baseline.sh` | 可选 stage-8 |
+| `perf-baseline` | 3426 | **shell** `stage8_baseline.sh perf` | `xbuild perf-baseline 或 tests/` | 🟢 wave875 体 shell；测量权威仍 `tests/run-perf-baseline.sh` | 可选 stage-8 |
 | `verify-selfhost-stage2` | 3131 | Makefile | `xbuild stage2` | ⬜ Makefile | 阶段 11.2.1 |
 | `bootstrap-verify` | 3414 | Makefile | `xbuild bootstrap-verify` | ⬜ Makefile |  |
 | `bootstrap-verify-seed` | 3410 | Makefile | `xbuild bootstrap-verify` | ⬜ Makefile |  |
@@ -477,8 +477,8 @@
 | 3015 | `check-7.2` | 🟢 wave870 shell `check_7_2.sh` |
 | 3340 | `check-pipeline-gen-expr-i64-abi` | ⬜ |
 | ~3320 | `check-7.2-bstrict` / `bootstrap-verify` | 🟢 wave720 shell `bootstrap_verify_bstrict.sh` |
-| 3422 | `size-baseline` | ⬜ |
-| 3426 | `perf-baseline` | ⬜ |
+| 3422 | `size-baseline` | 🟢 wave875 shell `stage8_baseline.sh size` |
+| 3426 | `perf-baseline` | 🟢 wave875 shell `stage8_baseline.sh perf` |
 
 ### 类 K — seed 工具（asm host / regen）
 
