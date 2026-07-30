@@ -1618,7 +1618,7 @@
 - ✅ **archaeology host-pick LD_R_MULTIDEF hygiene**（wave867 · 4 recipes · net-o-stub/openssl/mbedtls + sqlite-o-stub 去 multi-token `LD_R_MULTIDEF_FLAGS=` · shell `arch_ld_r_multidef_flags` uname 默认 · **非**物理删 · thin edges + B2 + mk lists）
 - ✅ **bstrict-relink shell-primary**（wave868 · bootstrap-driver-bstrict-relink → relink_xlang_asm_bstrict_runtime_objs.sh · G.7 有则补全 dual body · **非**物理删 · thin edges + B2 + mk lists） · 双端 L2 tip **`c14777d2b`**
 - ✅ **bootstrap-driver-crt0 shell-primary**（wave869 · bootstrap-driver-crt0 → bootstrap_driver_crt0.sh · G.7 有则补全 dual body · shell 拥 build_xlang_asm + crt0 log gates · **非**物理删 · thin edges + B2 + mk lists） · 双端 L2 tip **`74ebab839`**
-- ✅ **check-7.2 shell-primary**（wave870 · check-7.2 → check_7_2.sh · G.7 有则补全 dual body · seed stage1/stage2 smoke · **非** bstrict 路径 · **非**物理删 · thin edges + B2 + mk lists）
+- ✅ **check-7.2 shell-primary**（wave870 · check-7.2 → check_7_2.sh · G.7 有则补全 dual body · seed stage1/stage2 smoke · **非** bstrict 路径 · **非**物理删 · thin edges + B2 + mk lists） · 双端 L2 tip **`0dc9ae7b3`**
 - ⬜ **B7 residual endgame · physical delete / 删 Makefile**
   - **须** lists/thin 残项 + Windows tip 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体
   - 已闭（一行一项，摘要）：
