@@ -677,9 +677,14 @@ $(TARGET):
 endif
 
 # G-06：默认 xlang-c = bootstrap_xlangc 预编译种子（无 cc 编 OBJS_CORE）；考古：XLANG_LEGACY_C_FRONTEND=1。
-bootstrap_xlangc: scripts/bootstrap_xlangc_create.sh scripts/select_bootstrap_xlangc.sh
+# wave838: FORCE dep-thin — drop bootstrap_xlangc_create.sh make-graph edge (select
+# invokes create only when needed). Prereqs FORCE + select only; shell owns host
+# seed pick / can_run skip / pin copy. Already .PHONY; FORCE matches product leaf
+# pattern so recipe is never make-skipped by stale script mtimes alone.
+# PLATFORM: SHARED — FORCE always invokes select (cheap can_run); bash for Ubuntu dash.
+bootstrap_xlangc: FORCE scripts/select_bootstrap_xlangc.sh
 	@chmod +x scripts/select_bootstrap_xlangc.sh 2>/dev/null || true
-	@./scripts/select_bootstrap_xlangc.sh
+	@bash scripts/select_bootstrap_xlangc.sh
 
 ifeq ($(XLANG_LEGACY_C_FRONTEND),1)
 # G-02a: lexer.o 从 runtime_lexer_glue.inc 编译（G-02e-19：cc_inc_tu）。

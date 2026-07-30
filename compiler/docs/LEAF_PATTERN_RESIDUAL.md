@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · … · wave824 E_DIRS list→mk · wave825 std_x shell-primary catalog · wave826 formal_mod FORCE dep-thin · wave827 std_x FORCE dep-thin · wave828 driver_leaf FORCE dep-thin · wave829 gen.c FORCE dep-thin · wave830 ast_gen2 FORCE dep-thin · wave831 src-edge FORCE dep-thin · wave832 migrate companion FORCE dep-thin · wave833 pipeline_glue_types FORCE dep-thin · wave834 bootstrap-pipeline FORCE shell-primary · wave835 filtered.o FORCE dep-thin · wave836 cp-alias FORCE dep-thin · wave837 pipeline_gen.c FORCE dep-thin · wave747–825 prior swallows · wave799 execute-gate · … · not physical delete)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · … · wave824 E_DIRS list→mk · wave825 std_x shell-primary catalog · wave826 formal_mod FORCE dep-thin · wave827 std_x FORCE dep-thin · wave828 driver_leaf FORCE dep-thin · wave829 gen.c FORCE dep-thin · wave830 ast_gen2 FORCE dep-thin · wave831 src-edge FORCE dep-thin · wave832 migrate companion FORCE dep-thin · wave833 pipeline_glue_types FORCE dep-thin · wave834 bootstrap-pipeline FORCE shell-primary · wave835 filtered.o FORCE dep-thin · wave836 cp-alias FORCE dep-thin · wave837 pipeline_gen.c FORCE dep-thin · wave838 bootstrap_xlangc FORCE dep-thin · wave747–825 prior swallows · wave799 execute-gate · … · not physical delete)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -1977,7 +1977,7 @@ body; mac-only wave green.
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
   dual-end L2 green tip: 22fbf5b47 (Mac + Ubuntu leaf --check;
     FORCE ensure pipeline pin + bootstrap-pipeline OK)
-  next: thin edges / B2 or tip Windows re-proof
+  next: ~~bootstrap_xlangc FORCE~~ (wave838) · thin edges / B2 or tip Windows re-proof
        → Mac+Ubuntu L4 → ship delete body (explicit auth only)
 ```
 
@@ -1994,6 +1994,50 @@ body; mac-only wave green.
 **Forbidden:** claim pipeline_gen FORCE thin = physical delete; re-open empty
 prereq on `pipeline_gen.c`; dual pin policy outside ensure; `rm compiler/Makefile`;
 ship delete body; mac-only wave green.
+
+## wave838 bootstrap_xlangc FORCE dep-thin (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **有则补全** — G-06 cold-egg **file target** residual
+> after wave837 (pipeline_gen empty-prereq closed). `bootstrap_xlangc` drops
+> `bootstrap_xlangc_create.sh` make-graph edge; target is
+> `FORCE scripts/select_bootstrap_xlangc.sh` only; recipe thin-calls
+> `bash … select_bootstrap_xlangc.sh` (dash-safe bash).
+>
+> Body authority remains `select_bootstrap_xlangc.sh` (host OS/arch seed pick /
+> `can_run` skip / optional create via select when no runnable seed). FORCE means
+> make always re-enters; shell still cheap-skips when current egg runs.
+>
+> Honesty COUNT = **1**. Residual after: thin-call edges + B2 + mk lists
+> (`std_core_product_make_graph`). Dual-end L2 required. Blockers **remain**.
+
+```text
+  leaf dump:
+    PHYS_DEL_BOOTSTRAP_XLANGC_FORCE_THIN=1
+    PHYS_DEL_BOOTSTRAP_XLANGC_FORCE_THIN_WAVE=wave838
+    PHYS_DEL_BOOTSTRAP_XLANGC_FORCE_THIN_COUNT=1
+    SWALLOWED_BOOTSTRAP_XLANGC_FORCE_THIN=1
+    PHYS_DEL_PREFLIGHT_BOOTSTRAP_XLANGC_FORCE_THIN=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  dual-end L2: (this tip; Mac + Ubuntu leaf --check + make bootstrap_xlangc)
+  next: thin edges / B2 or tip Windows re-proof
+       → Mac+Ubuntu L4 → ship delete body (explicit auth only)
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_BOOTSTRAP_XLANGC_FORCE_THIN` | `1` |
+| `PHYS_DEL_BOOTSTRAP_XLANGC_FORCE_THIN_COUNT` | `1` |
+| `SWALLOWED_BOOTSTRAP_XLANGC_FORCE_THIN` | `1` |
+| `BOOTSTRAP_XLANGC_FORCE_THIN_HELPER` | `select_bootstrap_xlangc.sh` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+
+**Forbidden:** claim bootstrap_xlangc FORCE thin = physical delete; re-list
+`bootstrap_xlangc_create.sh` on Makefile prereq; dual host-pick outside select;
+`rm compiler/Makefile`; ship delete body; mac-only wave green.
 
 
 ## wave831 src-edge FORCE dep-thin (2026-07-30)
