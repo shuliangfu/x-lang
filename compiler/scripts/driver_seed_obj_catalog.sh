@@ -102,18 +102,37 @@ catalog_need_make_escape() {
 }
 
 # File-backed KEY=value store (bash 3.2 — no associative arrays).
-_CAT_STORE=""
+# PLATFORM: SHARED — must not rebuild a growing in-memory string on every
+# set/get (O(n² · store_bytes)). That path hangs MinGW/Git-Bash long enough
+# that Windows hybrid min-gate looks "stuck forever" (ensure → catalog).
+# Append + last-wins get is O(file size) with cheap I/O; expand still multi-pass.
+_CAT_FILE=""
+
+catalog_store_init() {
+  if [ -n "${_CAT_FILE:-}" ] && [ -f "$_CAT_FILE" ]; then
+    : > "$_CAT_FILE"
+    return 0
+  fi
+  _CAT_FILE=$(mktemp "${TMPDIR:-/tmp}/xlang_driver_seed_cat.XXXXXX" 2>/dev/null || mktemp)
+  # Best-effort cleanup when the catalog process exits.
+  trap 'rm -f "${_CAT_FILE:-}"' EXIT HUP INT TERM
+}
 
 catalog_set() {
   local k="$1" v="$2"
-  if [ -n "$_CAT_STORE" ]; then
-    _CAT_STORE=$(printf '%s\n' "$_CAT_STORE" | grep -v "^${k}=" || true)
+  if [ -z "${_CAT_FILE:-}" ]; then
+    catalog_store_init
   fi
-  _CAT_STORE=$(printf '%s\n%s=%s\n' "$_CAT_STORE" "$k" "$v")
+  # Append; catalog_get takes the last matching line (last-wins).
+  printf '%s=%s\n' "$k" "$v" >> "$_CAT_FILE"
 }
 
 catalog_get() {
-  printf '%s\n' "$_CAT_STORE" | sed -n "s/^${1}=//p" | head -1
+  if [ -z "${_CAT_FILE:-}" ] || [ ! -f "$_CAT_FILE" ]; then
+    return 0
+  fi
+  # Last assignment wins (matches prior overwrite semantics of _CAT_STORE).
+  sed -n "s/^${1}=//p" "$_CAT_FILE" | tail -n 1
 }
 
 # Collapse runs of spaces (make often leaves double spaces from empty $(VAR)).
@@ -348,7 +367,7 @@ catalog_expand_all_stored() {
   local pass=0
   local keys k old new
   while [ "$pass" -lt 32 ]; do
-    keys=$(printf '%s\n' "$_CAT_STORE" | sed -n 's/^\([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p')
+    keys=$(sed -n 's/^\([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p' "$_CAT_FILE" | sort -u)
     local changed=0
     for k in $keys; do
       old=$(catalog_get "$k")
@@ -364,7 +383,7 @@ catalog_expand_all_stored() {
 }
 
 catalog_shell_dump() {
-  _CAT_STORE=""
+  catalog_store_init
   catalog_seed_host_defaults
   # Include order matches make dependency of lists (user_asm → r_lists → export → composites).
   catalog_parse_mk "mk/user_asm_seed_objs.mk"
