@@ -1545,8 +1545,9 @@
 - **wave856** · B7B archaeology LINK_OBJS shell-load via make export leaves（5 bags / 6 shells；nested expand；配方去 multi-token LINK_OBJS env；CFLAGS → wave857）
 - **wave907** · B7B ASYNC_THREE multi-target FORCE thin try-heat（3 → `$(ASYNC_THREE_SEED_OBJS)` in `mk/driver_seed_r_lists.mk` · G.7 有则补全）
 - ✅ **B1_RUNTIME_OS multi-target FORCE thin**（wave908 · 23 · `$(B1_RUNTIME_OS_SEED_OBJS)` 新 list in mk · G.7 有则补全 try-runtime-os-prefer · Makefile multi-target FORCE thin try-heat · **非**物理删）
-- ✅ **GEN_X multi-target FORCE thin**（wave909 · 4 · `$(GEN_X_SEED_OBJS)` 新 list in mk · G.7 try-gen-x map · Makefile multi-target FORCE thin try-heat · **非**物理删 · thin edges + B4 gen-c-to-o hybrid 仍 residual）
-- **open** · thin edges + mk lists hybrid（B4 gen-c-to-o/…）· → tip Windows → 双端 L4 → explicit auth 真删  # post-wave909 GEN_X multi
+- ✅ **GEN_X multi-target FORCE thin**（wave909 · 4 · `$(GEN_X_SEED_OBJS)` 新 list in mk · G.7 try-gen-x map · Makefile multi-target FORCE thin try-heat · **非**物理删）
+- ✅ **GEN_C_TO_O (B4) multi-target FORCE thin**（wave910 · 5 · `$(GEN_C_TO_O_SEED_OBJS)` 新 list in mk · G.7 try-gen-c-to-o map · Makefile multi-target FORCE thin try-heat · **非**物理删 · thin edges + mk lists hybrid 仍 residual）
+- **open** · thin edges + mk lists hybrid（cfg_eval / remaining thin / …）· → tip Windows → 双端 L4 → explicit auth 真删  # post-wave910 GEN_C_TO_O multi
 
 **状态明细**（一行一项）：
 

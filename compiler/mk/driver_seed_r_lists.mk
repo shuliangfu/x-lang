@@ -95,5 +95,13 @@ B1_RUNTIME_OS_SEED_OBJS = runtime_test_fn_invoke.o runtime_random_fill.o runtime
 # Do not re-list in Makefile or residual shells (G.7).
 GEN_X_SEED_OBJS = lsp_io_x.o lsp_x.o lsp_diag_x.o pipeline_x.o
 
+# wave782 B4 gen.c → .o bootstrap family (try-gen-c-to-o table in ensure).
+# List authority for multi-target FORCE thin try-heat (wave910 COUNT=5).
+# Body = ensure try-heat → try-gen-c-to-o → ensure_gen_x_o.sh one OUT (G.7 single body).
+# Membership for rebuild stays gen_c_to_o_spec_for_out table (outside try-gen-x catalog).
+# Leaves: lexer_x · ast_gen2 · driver_x · preprocess_x · _x_stubs2 (top-level product .o).
+# Do not re-list in Makefile or residual shells (G.7).
+GEN_C_TO_O_SEED_OBJS = lexer_x.o ast_gen2.o driver_x.o preprocess_x.o _x_stubs2.o
+
 # pipeline_glue_standalone product leaf (also referenced by composites / export lists).
 ASM_GLUE_STANDALONE_O = build_asm/pipeline_glue_standalone.o

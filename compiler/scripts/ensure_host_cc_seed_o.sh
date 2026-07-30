@@ -5256,9 +5256,10 @@ run_check() {
   note() { echo "ensure_host_cc_seed_o: $*" >&2; }
   bad() { echo "ensure_host_cc_seed_o: FAIL: $*" >&2; fail=1; }
 
-  # wave907–909 G.7: multi-target FORCE try-heat covers many historical per-leaf prefer
-  # checks (R1/R3/ASYNC/B1 runtime OS / GEN_X families). Accept per-leaf OR membership in a multi-target
-  # list whose recipe thin-calls ensure try-heat (prefer / gen-x ladder lives in shell).
+  # wave907–910 G.7: multi-target FORCE try-heat covers many historical per-leaf prefer
+  # checks (R1/R3/ASYNC/B1 runtime OS / GEN_X / GEN_C_TO_O families). Accept per-leaf OR
+  # membership in a multi-target list whose recipe thin-calls ensure try-heat
+  # (prefer / gen-x / gen-c-to-o ladder lives in shell).
   makefile_leaf_try_heat_ok() {
     local leaf="$1"
     local prefer_re="${2:-try-heat}"
@@ -5278,7 +5279,8 @@ run_check() {
     for var in \
       RT_SEED_SLICE_OBJS R1_CORE_SEED_OBJS R1_FRONTEND_GLUE_OBJS R1_MAIN_RUNTIME_OBJS \
       R1_ALIAS_STUBS_OBJS R1_EXTRA_CFLAGS_OBJS R1_MISC_BASENAME_OBJS R1_SEED_MAP_OBJS \
-      R3_COLD_SEED_OBJS ASYNC_THREE_SEED_OBJS B1_RUNTIME_OS_SEED_OBJS GEN_X_SEED_OBJS; do
+      R3_COLD_SEED_OBJS ASYNC_THREE_SEED_OBJS B1_RUNTIME_OS_SEED_OBJS GEN_X_SEED_OBJS \
+      GEN_C_TO_O_SEED_OBJS; do
       if [ ! -f "$mk" ]; then
         continue
       fi
@@ -6270,38 +6272,44 @@ run_check() {
     note "ensure_gen_x_o B4 maps present (wave782)"
   fi
   _b4_n=0
+  # wave910: multi-target $(GEN_C_TO_O_SEED_OBJS): FORCE try-heat covers all five
+  # (no per-leaf dual). Accept multi-target OR historical per-leaf.
+  if grep -qE '\$\(GEN_C_TO_O_SEED_OBJS\):[[:space:]]*FORCE' Makefile \
+    && awk '
+      /\$\(GEN_C_TO_O_SEED_OBJS\):/ { hit=1; next }
+      hit && /^[^#[:space:]\t]/ { exit 1 }
+      hit && /ensure_host_cc_seed_o\.sh/ && /try-heat/ { found=1; exit 0 }
+      END { exit found ? 0 : 1 }
+    ' Makefile; then
+    note "Makefile GEN_C_TO_O multi-target FORCE thin try-heat (wave910; covers five)"
+  fi
   for _b4_leaf in lexer_x.o ast_gen2.o driver_x.o preprocess_x.o _x_stubs2.o; do
     if [ -n "$(gen_c_to_o_spec_for_out "$_b4_leaf")" ]; then
       _b4_n=$((_b4_n + 1))
     else
       bad "gen_c_to_o_spec_for_out missing $_b4_leaf (wave782)"
     fi
-    if awk -v leaf="$_b4_leaf" '
-      $0 ~ ("^" leaf ":") {grab=1; next}
-      grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
-      grab {body = body $0 "\n"}
-      END {
-        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-gen-c-to-o/) exit 0
-        exit 1
-      }
-    ' Makefile; then
-      note "Makefile $_b4_leaf thin-calls ensure try-gen-c-to-o (wave782)"
+    if makefile_leaf_try_heat_ok "$_b4_leaf" 'try-heat|try-gen-c-to-o'; then
+      note "Makefile $_b4_leaf thin-calls try-heat|try-gen-c-to-o (wave782/796/910)"
     else
-      bad "Makefile $_b4_leaf must thin-call ensure try-heat|try-gen-c-to-o (wave782)"
+      bad "Makefile $_b4_leaf must thin-call ensure try-heat|try-gen-c-to-o (wave782/910)"
     fi
     # Ban re-opened inline $(CC) -c body on recipe lines (comments OK).
-    if awk -v leaf="$_b4_leaf" '
-      $0 ~ ("^" leaf ":") {grab=1; next}
-      grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
-      grab && /^\t/ {body = body $0 "\n"}
-      END {
-        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-gen-c-to-o/ && body !~ /\$\(CC\)/) exit 1
-        if (body ~ /\$\(CC\)/ && body ~ /-c /) exit 0
-        if (body ~ /sync_lexer_gen_token_enum/ && body !~ /ensure_host_cc_seed_o/) exit 0
-        exit 1
-      }
-    ' Makefile; then
-      bad "Makefile $_b4_leaf still has inline host-cc body (wave782)"
+    # wave910: multi-target has no per-leaf recipe — only check if per-leaf line exists.
+    if grep -qE "^${_b4_leaf}:" Makefile 2>/dev/null; then
+      if awk -v leaf="$_b4_leaf" '
+        $0 ~ ("^" leaf ":") {grab=1; next}
+        grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+        grab && /^\t/ {body = body $0 "\n"}
+        END {
+          if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-gen-c-to-o/ && body !~ /\$\(CC\)/) exit 1
+          if (body ~ /\$\(CC\)/ && body ~ /-c /) exit 0
+          if (body ~ /sync_lexer_gen_token_enum/ && body !~ /ensure_host_cc_seed_o/) exit 0
+          exit 1
+        }
+      ' Makefile; then
+        bad "Makefile $_b4_leaf still has inline host-cc body (wave782)"
+      fi
     fi
   done
   if [ "$_b4_n" -ne 5 ]; then
