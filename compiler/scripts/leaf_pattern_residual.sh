@@ -36,6 +36,7 @@
 #   wave817: B7B PIPELINE_X_* + PIPELINE_LIBS list authority → mk/pipeline_x_objs.mk
 #   wave818: B7B DRIVER_SEED mode picks (SUPPORT_EXTRA/RUNTIME_O/…) → mk/driver_seed_mode_objs.mk
 #   wave819: B7B seed link picks (MAIN_LINK/LEXER_AST/LSP_DIAG/GLUE/…) → mk/driver_seed_link_picks.mk
+#   wave820: B7B OBJS_CORE archaeology list → mk/objs_core.mk
 #            (Makefile include only; NOT physical delete; thin edges + other lists remain)
 #   wave781: B3 LSP satellite hybrid body → try-lsp-sat-prefer
 #   wave782: B4 gen_c_to_o bootstrap → try-gen-c-to-o
@@ -479,7 +480,7 @@ B7B_SEED_MODE_LIST_MK=mk/driver_seed_mode_objs.mk
 B7B_SEED_MODE_LIST_WAVE=wave818
 # wave819: B7B seed link picks → mk/driver_seed_link_picks.mk (G.7).
 # MAIN_LINK_O/REBUILD/FLAGS + LEXER/AST + LSP_DIAG + PREPROCESS + GLUE_SUFFIX.
-# NOT physical delete — thin edges + OBJS_CORE / other B7B lists remain.
+# NOT physical delete — thin edges + other B7B lists remain.
 # COUNT = product RELINK_XLANG_GLUE_SUFFIX multi-token inventory (2).
 PHYS_DEL_B7B_SEED_LINK_PICKS_LIST=1
 PHYS_DEL_B7B_SEED_LINK_PICKS_LIST_WAVE=wave819
@@ -490,6 +491,19 @@ SWALLOWED_B7B_SEED_LINK_PICKS_LIST=1
 B7B_SEED_LINK_PICKS_LIST_SWALLOWED=1
 B7B_SEED_LINK_PICKS_LIST_MK=mk/driver_seed_link_picks.mk
 B7B_SEED_LINK_PICKS_LIST_WAVE=wave819
+# wave820: B7B OBJS_CORE archaeology inventory → mk/objs_core.mk (G.7).
+# Product incomplete 16 .o + LEGACY C-frontend layout; OBJS alias.
+# NOT physical delete — thin edges + other B7B lists remain.
+# COUNT = product-default OBJS_CORE multi-token inventory (16).
+PHYS_DEL_B7B_OBJS_CORE_LIST=1
+PHYS_DEL_B7B_OBJS_CORE_LIST_WAVE=wave820
+PHYS_DEL_B7B_OBJS_CORE_LIST_COUNT=16
+PHYS_DEL_B7B_OBJS_CORE_LIST_VIA=mk_objs_core
+PHYS_DEL_B7B_OBJS_CORE_LIST_NOTE=list_authority_mk_include_only_thin_edges_remain
+SWALLOWED_B7B_OBJS_CORE_LIST=1
+B7B_OBJS_CORE_LIST_SWALLOWED=1
+B7B_OBJS_CORE_LIST_MK=mk/objs_core.mk
+B7B_OBJS_CORE_LIST_WAVE=wave820
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -639,9 +653,9 @@ PHYS_DEL_PREFLIGHT_B7D_G05=1
 PHYS_DEL_PREFLIGHT_B7A_COLD_0MAKE=1
 PHYS_DEL_PREFLIGHT_B7B_SHELL_CATALOG=1
 PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113
-# wave811–819: std_x / formal_mod / STD_AND_PANIC / driver_leaf / archaeology /
-# DRIVER_SUBCMD / PIPELINE_X / SEED_MODE / SEED_LINK_PICKS list swallowed; blocker name kept
-# (thin edges + B2 ensure + remaining B7B mk lists still form make graph).
+# wave811–820: std_x / formal_mod / STD_AND_PANIC / driver_leaf / archaeology /
+# DRIVER_SUBCMD / PIPELINE_X / SEED_MODE / SEED_LINK_PICKS / OBJS_CORE list swallowed;
+# blocker name kept (thin edges + B2 ensure + remaining B7B mk lists still form make graph).
 PHYS_DEL_PREFLIGHT_BLOCKERS=makefile_thin_call_edges|b7b_lists_in_mk|std_core_product_make_graph
 PHYS_DEL_PREFLIGHT_STD_X_HYBRID_BODY_SWALLOWED=1
 PHYS_DEL_PREFLIGHT_FORMAL_MOD_SHELL_PRIMARY=1
@@ -652,8 +666,9 @@ PHYS_DEL_PREFLIGHT_B7B_DRIVER_SUBCMD_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_PIPELINE_X_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_SEED_MODE_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_SEED_LINK_PICKS_LIST=1
+PHYS_DEL_PREFLIGHT_B7B_OBJS_CORE_LIST=1
 PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
+PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_PREFLIGHT_WIN_GATE_HOST=MSYS2_windows-server_dual_boot_reboot_required
 PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
@@ -1269,6 +1284,9 @@ else
   if ! grep -qE 'wave819|SEED_LINK_PICKS|driver_seed_link_picks|MAIN_LINK' "$DOC_REL"; then
     bad "$DOC_REL must document wave819 B7B seed link picks → mk"
   fi
+  if ! grep -qE 'wave820|OBJS_CORE|objs_core' "$DOC_REL"; then
+    bad "$DOC_REL must document wave820 B7B OBJS_CORE list → mk"
+  fi
   note "doc $DOC_REL present"
 fi
 
@@ -1835,6 +1853,21 @@ if ! grep -q 'SWALLOWED_B7B_SEED_LINK_PICKS_LIST=1' <<<"$_out"; then
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_B7B_SEED_LINK_PICKS_LIST=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_B7B_SEED_LINK_PICKS_LIST=1 (wave819)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_OBJS_CORE_LIST=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_OBJS_CORE_LIST=1 (wave820)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_OBJS_CORE_LIST_WAVE=wave820' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_OBJS_CORE_LIST_WAVE=wave820"
+fi
+if ! grep -q 'PHYS_DEL_B7B_OBJS_CORE_LIST_COUNT=16' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_OBJS_CORE_LIST_COUNT=16 (wave820)"
+fi
+if ! grep -q 'SWALLOWED_B7B_OBJS_CORE_LIST=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_B7B_OBJS_CORE_LIST=1 (wave820)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_B7B_OBJS_CORE_LIST=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_B7B_OBJS_CORE_LIST=1 (wave820)"
 fi
 if ! grep -q 'PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813"
@@ -2583,6 +2616,60 @@ if grep -nE 'catalog_set LSP_DIAG_LINK_O "' "$_cat_sh" 2>/dev/null | grep -q 'ls
   bad "catalog must not hardcode LSP_DIAG_LINK_O (wave819 dual authority)"
 fi
 note "B7B seed link picks list authority in mk (GLUE_SUFFIX 2; wave819; not physical delete)"
+# wave820: B7B OBJS_CORE archaeology list authority in mk; Makefile include only.
+_OC_MK="compiler/mk/objs_core.mk"
+if [ ! -f "$_OC_MK" ]; then
+  bad "missing $_OC_MK (wave820 B7B OBJS_CORE list authority)"
+fi
+if ! grep -qE '^OBJS_CORE\s*=' "$_OC_MK"; then
+  bad "$_OC_MK must define OBJS_CORE (wave820)"
+fi
+if ! grep -qE '^OBJS\s*=' "$_OC_MK"; then
+  bad "$_OC_MK must define OBJS alias (wave820)"
+fi
+# Product-default OBJS_CORE multi-token count (fixed 16 .o; first assignment before ifeq).
+_oc_n=$(awk '
+  /^OBJS_CORE[[:space:]]*=/ {
+    if (seen++) next
+    line=$0
+    sub(/^[^=]*=[[:space:]]*/, "", line)
+    gsub(/\\/, "", line)
+    c=0
+    n=split(line, a, /[[:space:]]+/)
+    for (i=1;i<=n;i++) if (a[i] ~ /\.o$/) c++
+    print c+0
+    exit
+  }
+' "$_OC_MK")
+if [ "${_oc_n:-0}" -ne 16 ]; then
+  bad "wave820 expected product OBJS_CORE count 16 in mk, got ${_oc_n:-0}"
+fi
+if ! grep -qE 'include[[:space:]]+mk/objs_core\.mk' "$MF"; then
+  bad "Makefile must include mk/objs_core.mk (wave820)"
+fi
+# Forbid dual authority: inline re-list of product OBJS_CORE inventory.
+if grep -nE '^OBJS_CORE[[:space:]]*=' "$MF" 2>/dev/null | grep -qE 'runtime_io_abi\.o|main_driver\.o'; then
+  bad "Makefile must not re-list OBJS_CORE inline (wave820 dual authority)"
+else
+  note "Makefile OBJS_CORE has no dual inline product list (wave820)"
+fi
+# Consumers: archaeology escape links $(OBJS); stage2 recipes expand $(OBJS).
+if ! grep -qE '\$\(OBJS\)' "$MF"; then
+  bad "Makefile must still consume \$(OBJS) (wave820 consumers)"
+fi
+if ! grep -q 'XLANG_HOST_CC_OBJS_CORE' "$MF"; then
+  bad "Makefile must keep XLANG_HOST_CC_OBJS_CORE escape (wave820/wave786)"
+fi
+# Catalog must parse mk (no hardcode second inventory).
+_cat_sh="$ROOT/compiler/scripts/driver_seed_obj_catalog.sh"
+[ -f "$_cat_sh" ] || _cat_sh="scripts/driver_seed_obj_catalog.sh"
+if ! grep -q 'mk/objs_core.mk' "$_cat_sh"; then
+  bad "driver_seed_obj_catalog.sh must parse mk/objs_core.mk (wave820)"
+fi
+if grep -nE 'catalog_set OBJS_CORE "' "$_cat_sh" 2>/dev/null | grep -qE 'runtime_io_abi|main_driver'; then
+  bad "catalog must not hardcode OBJS_CORE (wave820 dual authority)"
+fi
+note "B7B OBJS_CORE list authority in mk (product 16; wave820; not physical delete)"
 
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
@@ -3146,5 +3233,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747–819: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave812 formal_mod ensure 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave815 archaeology host-pick phonies 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2; Makefile still present; delete body deferred)"
+echo "leaf_pattern_residual: CHECK OK (wave747–820: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave812 formal_mod ensure 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave815 archaeology host-pick phonies 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2 + wave820 OBJS_CORE list→mk 16; Makefile still present; delete body deferred)"
 exit 0

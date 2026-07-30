@@ -185,6 +185,7 @@ catalog_seed_host_defaults() {
   # wave818: DRIVER_SEED_RUNTIME_O / SUPPORT_EXTRA / FRONTEND_EXTRA /
   # RUNTIME_REBUILD / LINK_FLAGS / C_FRONTEND_LEGACY → mk/driver_seed_mode_objs.mk.
   # wave819: MAIN_LINK / LEXER_AST / LSP_DIAG / PREPROCESS / GLUE → mk/driver_seed_link_picks.mk.
+  # wave820: OBJS_CORE / OBJS archaeology → mk/objs_core.mk.
   # Do not hardcode those lists here — catalog_parse_mk owns them (after env flags).
   catalog_set XLANG_LEGACY_C_FRONTEND "${XLANG_LEGACY_C_FRONTEND:-}"
   catalog_set XLANG_NO_C_SEED_LINK "${XLANG_NO_C_SEED_LINK:-}"
@@ -197,6 +198,7 @@ catalog_seed_host_defaults() {
   # Do not hardcode PIPELINE_LIBS / PIPELINE_X_* here — catalog_parse_mk owns them.
   # wave818: DRIVER_SEED mode picks → mk/driver_seed_mode_objs.mk (G.7).
   # wave819: seed link picks → mk/driver_seed_link_picks.mk (G.7).
+  # wave820: OBJS_CORE archaeology list → mk/objs_core.mk (G.7).
 }
 
 # Parse a single .mk file: simple KEY = value and ifeq ($(VAR),VAL)/else/endif.
@@ -365,6 +367,9 @@ catalog_shell_dump() {
   # wave818: driver_seed_mode_objs.mk before composites (SUPPORT_EXTRA / RUNTIME_O).
   # wave819: driver_seed_link_picks.mk after r_lists (ASM_GLUE for GLUE_SUFFIX)
   #          and before composites (MAIN_LINK / LEXER / AST expand).
+  # wave820: objs_core.mk is independent archaeology inventory (OBJS_CORE / OBJS);
+  #          parse early; no composite deps.
+  catalog_parse_mk "mk/objs_core.mk"
   catalog_parse_mk "mk/user_asm_seed_objs.mk"
   catalog_parse_mk "mk/pipeline_x_objs.mk"
   catalog_parse_mk "mk/driver_seed_r_lists.mk"
