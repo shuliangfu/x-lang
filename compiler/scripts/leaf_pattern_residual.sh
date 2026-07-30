@@ -213,6 +213,7 @@
 #            last cc_inc_tu multi-token -I. -Iinclude -Isrc drop (1; shell default);
 #            NOT physical delete — thin edges + B2 + mk lists remain
 #   wave894: formal_mod product edges list→mk + multi-target FORCE thin (38)
+#   wave895: std_x product edges list→mk + multi-target FORCE thin (22)
 #            wave893: B7B residual verify-selfhost thin-call form hygiene (2 sites) →
 #            body → scripts/verify-selfhost-stage2{,-bstrict}.sh; Makefile pure
 #            @bash scripts/… (drop @bash ./); root shim for CI/tests path compat;
@@ -629,6 +630,16 @@ SWALLOWED_STD_X_FORCE_THIN=1
 STD_X_FORCE_THIN_SWALLOWED=1
 STD_X_FORCE_THIN_HELPER=xlang_compile_std_x.sh
 STD_X_FORCE_THIN_WAVE=wave827
+# wave895: std_x product edges list→mk multi-target FORCE thin (make-graph only).
+# Body authority remains xlang_compile_std_x ensure (wave825/827). NOT physical delete.
+PHYS_DEL_STD_X_LIST_MK=1
+PHYS_DEL_STD_X_LIST_MK_WAVE=wave895
+PHYS_DEL_STD_X_LIST_MK_COUNT=22
+PHYS_DEL_STD_X_LIST_MK_VIA=mk_std_x_product_objs_multi_target_thin
+PHYS_DEL_STD_X_LIST_MK_NOTE=list_to_mk_multi_target_force_thin_edges_remain
+SWALLOWED_STD_X_LIST_MK=1
+STD_X_LIST_MK_SWALLOWED=1
+STD_X_LIST_MK_WAVE=wave895
 # wave813: B7B product STD_AND_PANIC_O inventory → mk/std_and_panic_objs.mk (G.7).
 # Makefile includes mk only; no dual inline re-list. NOT physical delete —
 # thin-call edges + B2 ensure + other mk lists remain residual.
@@ -2487,6 +2498,9 @@ else
   if ! grep -qE 'wave827|std_x FORCE|STD_X_FORCE_THIN' "$DOC_REL"; then
     bad "$DOC_REL must document wave827 std_x FORCE dep-thin"
   fi
+  if ! grep -qE 'wave895|std_x product edges list|STD_X_PRODUCT_OBJS|std_x list' "$DOC_REL"; then
+    bad "$DOC_REL must document wave895 std_x product edges list→mk"
+  fi
   if ! grep -qE 'wave828|driver_leaf FORCE|DRIVER_LEAF_FORCE_THIN' "$DOC_REL"; then
     bad "$DOC_REL must document wave828 driver_leaf FORCE dep-thin"
   fi
@@ -3221,6 +3235,18 @@ if ! grep -q 'SWALLOWED_STD_X_FORCE_THIN=1' <<<"$_out"; then
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_STD_X_FORCE_THIN=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_STD_X_FORCE_THIN=1 (wave827)"
+fi
+if ! grep -q 'PHYS_DEL_STD_X_LIST_MK=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_STD_X_LIST_MK=1 (wave895)"
+fi
+if ! grep -q 'PHYS_DEL_STD_X_LIST_MK_WAVE=wave895' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_STD_X_LIST_MK_WAVE=wave895"
+fi
+if ! grep -q 'PHYS_DEL_STD_X_LIST_MK_COUNT=22' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_STD_X_LIST_MK_COUNT=22 (wave895)"
+fi
+if ! grep -q 'SWALLOWED_STD_X_LIST_MK=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_STD_X_LIST_MK=1 (wave895)"
 fi
 if ! grep -q 'PHYS_DEL_B7B_STD_AND_PANIC_LIST=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_STD_AND_PANIC_LIST=1 (wave813)"
@@ -4415,7 +4441,7 @@ if [ ! -f "$ROOT/compiler/Makefile" ]; then
 else
   note "compiler/Makefile still present after delete-body-commit-honesty keys (wave810; not physical delete)"
 fi
-# wave811+wave825: std_x product body + shell-primary catalog — ensure thin on 22 leaves.
+# wave811+wave825+wave827+wave895: std_x product body + catalog + FORCE + list→mk multi-target.
 if [ ! -f "$COMPILER_DIR/scripts/xlang_compile_std_x.sh" ]; then
   bad "missing xlang_compile_std_x.sh (wave811/wave825 std_x authority)"
 fi
@@ -4431,34 +4457,52 @@ fi
 if ! grep -q 'std_x_check' "$COMPILER_DIR/scripts/xlang_compile_std_x.sh"; then
   bad "xlang_compile_std_x.sh must define std_x_check (wave825)"
 fi
+# wave895: make-graph inventory in mk; multi-target FORCE thin ensure.
+_SX_MK="compiler/mk/std_x_product_objs.mk"
+[ -f "$_SX_MK" ] || _SX_MK="mk/std_x_product_objs.mk"
+if [ ! -f "$_SX_MK" ]; then
+  bad "missing $_SX_MK (wave895 std_x product edges list→mk)"
+fi
+if ! grep -qE '^STD_X_PRODUCT_OBJS\s*=' "$_SX_MK"; then
+  bad "$_SX_MK must define STD_X_PRODUCT_OBJS (wave895)"
+fi
+_sx_list_n=$(
+  tr ' \t\\\n' ' ' < "$_SX_MK" | tr -s ' ' '\n' | grep -cE '\.\./std/.+\.o' || true
+)
+if [ "${_sx_list_n:-0}" -ne 22 ]; then
+  bad "wave895 expected 22 STD_X_PRODUCT_OBJS members, got ${_sx_list_n:-0}"
+fi
+if ! grep -q 'include mk/std_x_product_objs.mk' "$MF"; then
+  bad "Makefile must include mk/std_x_product_objs.mk (wave895)"
+fi
+if ! grep -qE '\$\(STD_X_PRODUCT_OBJS\):[[:space:]]*FORCE' "$MF"; then
+  bad "Makefile must multi-target \$(STD_X_PRODUCT_OBJS): FORCE (wave895)"
+fi
+if ! awk '
+  /\$\(STD_X_PRODUCT_OBJS\):/ { hit=1; next }
+  hit && /^[^#[:space:]\t]/ { exit 1 }
+  hit && /xlang_compile_std_x\.sh/ && /ensure|auto/ { found=1; exit 0 }
+  END { exit found ? 0 : 1 }
+' "$MF"; then
+  bad "Makefile STD_X_PRODUCT_OBJS multi-target must thin-call ensure|auto (wave895)"
+fi
+# Per-leaf individual std_x rules retired (must not reappear as dual authority).
 _stdx_leaves=(
   async/scheduler async/future channel/channel backtrace/backtrace datetime/datetime
   uuid/uuid url/url cli/cli security/security config/config cache/cache
   trace/trace task/task schema/schema db/kv/kv db/arrow/arrow db/sqlite/sqlite
   elf/elf regex/regex unicode/unicode socketio/socketio simd/simd
 )
-_stdx_thin=0
+_stdx_indiv=0
 for _leaf in "${_stdx_leaves[@]}"; do
-  if awk -v leaf="../std/${_leaf}.o" '
-    $0 ~ ("^" leaf ":") { want=1; next }
-    want && /^\t@bash scripts\/xlang_compile_std_x\.sh (ensure|auto) \$@/ { ok=1; exit }
-    want && /^\t@bash scripts\/xlang_compile_std_x\.sh (auto|auto-soft|auto-soft-merge) / { ok=1; exit }
-    want && /^\t/ { next }
-    want && /^[^#\t]/ && $0 !~ /^$/ { exit }
-    END { exit ok ? 0 : 1 }
-  ' "$MF"; then
-    _stdx_thin=$((_stdx_thin + 1))
-  else
-    bad "Makefile ../std/${_leaf}.o must thin-call xlang_compile_std_x ensure (wave825; wave811 body)"
+  if grep -qE "^\\.\\./std/${_leaf}\\.o:" "$MF" 2>/dev/null; then
+    _stdx_indiv=$((_stdx_indiv + 1))
   fi
 done
-if [ "$_stdx_thin" -ne 22 ]; then
-  bad "wave825 expected 22 std_x ensure leaves, got $_stdx_thin"
-else
-  note "Makefile std_x 22 leaves thin-call ensure (wave825 catalog; wave811 body; not physical delete)"
+if [ "$_stdx_indiv" -ne 0 ]; then
+  bad "Makefile still has $_stdx_indiv per-leaf std_x targets (wave895 multi-target only)"
 fi
 # wave825: no explicit mode|path on recipe (catalog owns mode).
-_stdx_explicit=0
 if awk '
   /^\t@(bash|sh) scripts\/xlang_compile_std_x\.sh (auto-soft|auto-soft-merge|auto-merge) / { bad=1; exit }
   /^\t@(bash|sh) scripts\/xlang_compile_std_x\.sh auto \.\./ { bad=1; exit }
@@ -4468,25 +4512,7 @@ if awk '
 else
   note "Makefile std_x free of explicit mode+path recipes (wave825)"
 fi
-# wave827: std_x FORCE dep-thin — target line FORCE only (no dual .x prereqs).
-_stdx_force=0
-for _leaf in "${_stdx_leaves[@]}"; do
-  if awk -v tgt="../std/${_leaf}.o" '
-    $0 ~ ("^" tgt ":") {
-      if ($0 ~ /FORCE/ && $0 !~ /\.x([[:space:]]|$)/) { ok=1; exit 0 }
-      exit 1
-    }
-    END { exit ok ? 0 : 1 }
-  ' "$MF" 2>/dev/null; then
-    _stdx_force=$((_stdx_force + 1))
-  else
-    bad "Makefile ../std/${_leaf}.o must FORCE dep-thin (no .x prereqs; wave827)"
-  fi
-done
-if [ "$_stdx_force" -ne 22 ]; then
-  bad "wave827 expected 22 std_x FORCE thin leaves, got $_stdx_force"
-fi
-note "Makefile std_x 22 leaves FORCE dep-thin (wave827; not physical delete)"
+note "Makefile std_x multi-target FORCE thin ensure + mk list 22 (wave811/825/827/895; not physical delete)"
 _stdx_sh="$COMPILER_DIR/scripts/xlang_compile_std_x.sh"
 if ! grep -q 'FORCE-thin mtime\|skip up-to-date' "$_stdx_sh"; then
   bad "xlang_compile_std_x.sh must own FORCE-thin mtime skip (wave827)"
@@ -4495,9 +4521,9 @@ else
 fi
 # --check resolves ../std sources from compiler/; run with cwd=compiler/.
 if ! ( cd "$COMPILER_DIR" && sh scripts/xlang_compile_std_x.sh --check >/dev/null ); then
-  bad "xlang_compile_std_x.sh --check failed (wave825/wave827)"
+  bad "xlang_compile_std_x.sh --check failed (wave825/827/895)"
 else
-  note "xlang_compile_std_x.sh --check OK (wave827 FORCE thin; not physical delete)"
+  note "xlang_compile_std_x.sh --check OK (wave895 std_x list→mk; not physical delete)"
 fi
 # Product leaf recipes must not keep the historical multi-line host-pick ladder.
 # wave815: archaeology phonies (sqlite-o-stub / net-o-*) also thin — no exclude.

@@ -5,7 +5,7 @@
 # PLATFORM: SHARED — portable product .o paths from compiler/ cwd.
 #
 # NOT physical delete. Residual after: thin edges + B2 try-heat + other
-# std_x product make graph + tip Windows → dual L4 → explicit auth ship delete.
+# mk lists hybrid + tip Windows → dual L4 → explicit auth ship delete.
 #
 # Consumers: Makefile multi-target FORCE thin ensure; std-objs via STD_AND_PANIC_O
 # still lists overlapping members (wave813); this list is formal_mod-only.

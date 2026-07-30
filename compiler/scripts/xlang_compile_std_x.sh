@@ -4,7 +4,7 @@
 # PLATFORM: SHARED — host product path for pure .x std leaves (asm prefer, C fallback).
 # Authority for host pick + -E/cc / -backend asm + per-leaf mode table.
 # Makefile must only thin-call this script (wave811 body; wave825 catalog ensure;
-# wave827 FORCE dep-thin).
+# wave827 FORCE dep-thin; wave895 list→mk multi-target).
 #
 # Usage (cwd = compiler/):
 #   xlang_compile_std_x.sh ensure <out.o>                             # wave825 catalog
@@ -22,12 +22,15 @@
 #
 # wave811 (G.7 有则补全): host pick + soft/hard + socketio merge body here;
 #   Makefile lost multi-line if-ladder (thin-call auto|auto-soft|auto-soft-merge).
-# wave825 (G.7 有则补全): product mode|x_path table lives here; Makefile 22 leaves
-#   thin-call `ensure $@` only. NOT physical delete —
+# wave825 (G.7 有则补全): product mode|x_path table lives here; Makefile thin-call
+#   `ensure $@` only. NOT physical delete —
 #   thin edges + formal_mod + B2 ensure + mk lists still form std_core_product_make_graph.
 # wave827 (G.7 有则补全): FORCE dep-thin — Makefile prereqs are FORCE + script only;
 #   shell owns catalog source mtime (skip up-to-date). NOT physical delete; thin edges
 #   + formal_mod FORCE + B2 try-heat + mk lists still form std_core_product_make_graph residual.
+# wave895 (G.7 有则补全): make-graph inventory → mk/std_x_product_objs.mk;
+#   Makefile multi-target $(STD_X_PRODUCT_OBJS) FORCE thin ensure only.
+#   NOT physical delete; residual thin edges + B2 try-heat + other mk lists hybrid.
 #
 # auto: prefer xlang_asm → xlang → xlang-c (lib modules need asm .o; do not prefer xlang-c
 # unless XLANG_COMPILE_STD_USE_C=1).
@@ -170,9 +173,13 @@ std_x_check() {
     fi
     _tgt="$(std_x_out_for_key "$_k")"
     # Makefile thin-call: ensure|auto only (wave825); FORCE dep-thin (wave827).
-    # Target line must list FORCE (shell owns catalog source mtime); no dual .x prereqs.
+    # wave895: multi-target $(STD_X_PRODUCT_OBJS) + mk list (no per-leaf target line).
+    # Accept A) legacy per-leaf `^OUT:` FORCE+ensure, or B) OUT in mk list + multi-target rule.
     if [ -f "$_mk" ]; then
-      if ! awk -v tgt="$_tgt" '
+      _sx_mk="$_comp/mk/std_x_product_objs.mk"
+      [ -f "$_sx_mk" ] || _sx_mk="$_here/mk/std_x_product_objs.mk"
+      _ok_leaf=0
+      if awk -v tgt="$_tgt" '
         $0 ~ ("^" tgt ":") {
           line=$0
           # wave827: FORCE required (dep-thin); ban dual catalog .x on prereq line.
@@ -185,8 +192,21 @@ std_x_check() {
           if ($0 ~ /ensure|[[:space:]]auto[[:space:]]+\$@/) { found=1; exit 0 }
         }
         END { exit found ? 0 : 1 }
-      ' "$_mk"; then
-        echo "std_x --check: Makefile $_tgt must FORCE + ensure|auto (wave827 FORCE thin)" >&2
+      ' "$_mk" 2>/dev/null; then
+        _ok_leaf=1
+      elif [ -f "$_sx_mk" ] \
+        && grep -qF "$_tgt" "$_sx_mk" \
+        && grep -qE '\$\(STD_X_PRODUCT_OBJS\):[[:space:]]*FORCE' "$_mk" \
+        && awk '
+          /\$\(STD_X_PRODUCT_OBJS\):/ { hit=1; next }
+          hit && /^[^#[:space:]\t]/ { exit 1 }
+          hit && /xlang_compile_std_x\.sh/ && /ensure|auto/ { found=1; exit 0 }
+          END { exit found ? 0 : 1 }
+        ' "$_mk"; then
+        _ok_leaf=1
+      fi
+      if [ "$_ok_leaf" -ne 1 ]; then
+        echo "std_x --check: Makefile/mk $_tgt must FORCE + ensure|auto (wave827/wave895)" >&2
         _bad=1
       fi
     fi
@@ -222,7 +242,7 @@ KEYS
     echo "std_x --check: FAIL" >&2
     return 1
   fi
-  echo "std_x --check: OK (22 leaves; catalog + Makefile FORCE+ensure thin wave827; not physical delete)"
+  echo "std_x --check: OK (22 leaves; catalog + mk list + multi-target FORCE+ensure wave895; not physical delete)"
   return 0
 }
 

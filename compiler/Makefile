@@ -132,6 +132,8 @@ include mk/objs_core.mk
 
 # wave894: formal_mod product edge inventory (make-graph only; body = ensure catalog).
 include mk/formal_mod_product_objs.mk
+# wave895: std_x product edge inventory (make-graph only; body = ensure catalog).
+include mk/std_x_product_objs.mk
 # 注：lsp.x 生成的 lsp_gen 与 lsp_diag 中 lsp_build_* 同名；若把 InitializeResult/response 外壳迁入 .x，
 # 默认 xlang 须链 lsp_x.o、lsp_io_x.o；F-03 v2/v3 std.io 由 .x codegen 提供，无 io.o。
 
@@ -167,10 +169,21 @@ XLANG_X = xlang-x
 # Body authority = scripts/xlang_compile_std_module.sh ensure (wave812 catalog;
 # wave826 shell owns source mtime). Makefile only FORCE + thin-call.
 # PLATFORM: SHARED — not physical delete; residual thin edges + B2 try-heat +
-# std_x product make graph + tip Windows → dual L4 → explicit auth ship delete.
+# other mk lists hybrid + tip Windows → dual L4 → explicit auth ship delete.
 # ---------------------------------------------------------------------------
 $(FORMAL_MOD_PRODUCT_OBJS): FORCE scripts/xlang_compile_std_module.sh
 	@bash scripts/xlang_compile_std_module.sh ensure $@
+
+# ---------------------------------------------------------------------------
+# wave895 B7B: std_x product edges list→mk + multi-target FORCE thin ensure
+# G.7: list authority = mk/std_x_product_objs.mk (COUNT=22).
+# Body authority = scripts/xlang_compile_std_x.sh ensure (wave825 catalog;
+# wave827 shell owns source mtime). Makefile only FORCE + thin-call.
+# PLATFORM: SHARED — not physical delete; residual thin edges + B2 try-heat +
+# other mk lists hybrid + tip Windows → dual L4 → explicit auth ship delete.
+# ---------------------------------------------------------------------------
+$(STD_X_PRODUCT_OBJS): FORCE scripts/xlang_compile_std_x.sh
+	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 
 # std.string：F 闭合 — 产品 -o 完整 emit（-x -E 会截断函数体）。
@@ -270,16 +283,8 @@ net-o-mbedtls: FORCE scripts/archaeology_host_pick_phony.sh
 # std.thread：mod.x 提供 std_thread_* 包装；pthread 胶层在 runtime_thread_glue.o（thread_*_c）。
 # 【Why 勿只编 thread.x】thread.x 仅 marker，link_only 时缺 _std_thread_create 等。
 # std.async：F-async v2 纯 .x（F-ZC）；调度胶层在 runtime_scheduler_glue.o；Unix 按需 -pthread。
-../std/async/scheduler.o: FORCE scripts/xlang_compile_std_x.sh
-# wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
-# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 # std.async：F-async-future v2 纯 .x → future.o（同 hash/cache）。
-../std/async/future.o: FORCE scripts/xlang_compile_std_x.sh
-# wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
-# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 # std.time：F 闭合 — mod.x 内联派生函数（now_monotonic_us/sleep_ms/duration_ns 等），
 # 仅 5 个基础 OS extern 由 runtime_time_os.o 提供。无需 time.x / time_import_alias.c。
@@ -309,16 +314,8 @@ net-o-mbedtls: FORCE scripts/archaeology_host_pick_phony.sh
 # std.atomic：F 闭合 — mod.x（用户 API）+ atomic.x（impl 裸符号）用 -E-extern 编译；
 # 原子胶层在 runtime_atomic_glue.o，最终 exe 链接时按需推入。
 # std.channel：F-channel v2 纯 .x（F-ZC）；channel 胶层在 runtime_channel_glue.o；Unix 需 -lpthread。
-../std/channel/channel.o: FORCE scripts/xlang_compile_std_x.sh
-# wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
-# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 # std.backtrace：F-backtrace v2 纯 .x（F-ZC）；平台胶层在 runtime_backtrace_platform.o。
-../std/backtrace/backtrace.o: FORCE scripts/xlang_compile_std_x.sh
-# wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
-# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 # std.hash：F 闭合 — mod.x（用户 API）+ hash.x（impl 裸符号）用 -E-extern 编译。
 # std.math：F-math v2 纯 .x（F-ZC）；libm 胶层在 runtime_math_libm.o（链接 exe 仍须 -lm）。
@@ -338,81 +335,33 @@ net-o-mbedtls: FORCE scripts/archaeology_host_pick_phony.sh
 # std.error：F-闭合 — mod.x 用 -E-extern 编译。提供 http_err_cancelled/timeout 等错误码 API。
 
 # std.datetime：F-datetime v2 + F-ZC 纯 datetime.x → datetime.o（无 glue；无 xlang 时 exit 0）。
-../std/datetime/datetime.o: FORCE scripts/xlang_compile_std_x.sh
-# wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
-# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 # std.uuid：F-uuid v1 纯 .x（uuid.x）；依赖 random.o + time.o。
-../std/uuid/uuid.o: FORCE scripts/xlang_compile_std_x.sh
-# wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
-# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 # std.url：F-url v2 + F-ZC 纯 url.x → url.o（无 glue；无 xlang 时 exit 0）。
-../std/url/url.o: FORCE scripts/xlang_compile_std_x.sh
-# wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
-# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 # std.cli：命令行解析（std/cli/cli.c）。
 # std.cli：F-cli v1 纯 .x（cli.x）；零胶层 C。
-../std/cli/cli.o: FORCE scripts/xlang_compile_std_x.sh
-# wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
-# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 
 # std.security：F-security v1 + F-ZC 纯 security.x → security.o（无 glue；无 xlang 时 exit 0）。
-../std/security/security.o: FORCE scripts/xlang_compile_std_x.sh
-# wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
-# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 
 # std.config：F-config v2 + F-ZC 纯 config.x → config.o（无 glue；无 xlang 时 exit 0）。
-../std/config/config.o: FORCE scripts/xlang_compile_std_x.sh
-# wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
-# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 # std.cache：F-cache v2 纯 .x（cache.x）；零胶层 C。
-../std/cache/cache.o: FORCE scripts/xlang_compile_std_x.sh
-# wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
-# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 # std.trace：F-trace v2 纯 trace.x → trace.o（无 glue；无 xlang 时 exit 0）。
-../std/trace/trace.o: FORCE scripts/xlang_compile_std_x.sh
-# wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
-# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 
 # std.task：F-task v2 纯 .x → task.o（同 trace/cache v2）。
-../std/task/task.o: FORCE scripts/xlang_compile_std_x.sh
-# wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
-# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 
 # std.schema：F-schema v2 纯 .x → schema.o（同 cache/encoding）。
-../std/schema/schema.o: FORCE scripts/xlang_compile_std_x.sh
-# wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
-# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 # std.db.kv：F-05 v2 纯 .x（F-ZC）；mmap 胶层在 runtime_kv_mmap_glue.o。
-../std/db/kv/kv.o: FORCE scripts/xlang_compile_std_x.sh
-# wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
-# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 # std.db.arrow：F-05 v1 纯 .x（F-ZC）；SIMD 胶层在 runtime_arrow_simd_glue.o。
-../std/db/arrow/arrow.o: FORCE scripts/xlang_compile_std_x.sh
-# wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
-# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 # std.sys.mmap：F-02 v1 Linux/macOS 纯 .x（已移除 mmap.inc.c）
 # std.sys.win32：F-02 v2 纯 .x kernel32 FFI（已移除 win32.inc.c / win32_net.inc.c）
@@ -432,10 +381,6 @@ endif
 endif
 
 # std.db.sqlite：F-05 v3 纯 .x（F-ZC）；sqlite3 胶层在 runtime_sqlite_glue.o。
-../std/db/sqlite/sqlite.o: FORCE scripts/xlang_compile_std_x.sh
-# wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
-# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@bash scripts/xlang_compile_std_x.sh ensure $@
 sqlite-o: ../std/db/sqlite/sqlite.o runtime_sqlite_glue.o
 # wave815: archaeology host-pick phony → shell catalog (G.7; not physical delete).
 # wave839: FORCE dep-thin — FORCE + archaeology_host_pick_phony only (G.7 有则补全).
@@ -446,38 +391,18 @@ sqlite-o-stub: FORCE scripts/archaeology_host_pick_phony.sh
 	@bash scripts/archaeology_host_pick_phony.sh ensure $@
 
 # std.elf：F-elf v2 + F-ZC 纯 elf.x → elf.o（无 glue；无 xlang 时 exit 0）。
-../std/elf/elf.o: FORCE scripts/xlang_compile_std_x.sh
-# wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
-# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 # P4 std 模块（按需链接）
 # std.json：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + json）。
-../std/regex/regex.o: FORCE scripts/xlang_compile_std_x.sh
-# wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
-# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@bash scripts/xlang_compile_std_x.sh ensure $@
 # F-04 v7：std.compress 全格式已迁 .x；compress.o 不再构建，保留 target 名兼容门禁。
 compress-o-zlib compress-o-zlib-zstd compress-o-brotli compress-o-zlib-zstd-brotli:
 	@true
 # std.unicode：F-unicode v2 纯 .x → unicode.o（同 hash/schema）。
-../std/unicode/unicode.o: FORCE scripts/xlang_compile_std_x.sh
-# wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
-# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@bash scripts/xlang_compile_std_x.sh ensure $@
 # std.dynlib：F 闭合 — mod.x（用户 API）+ dynlib.x（impl 裸符号）用 -E-extern 编译；
 # dlopen 胶层在 runtime_dynlib_os.o，最终 exe 链接时按需推入。
 # std.socketio：F-socketio v2 纯 socketio.x；ld -r 合并为 socketio.o（P3 可选）。
-../std/socketio/socketio.o: FORCE scripts/xlang_compile_std_x.sh
-# wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
-# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@bash scripts/xlang_compile_std_x.sh ensure $@
 # std.tar：F-tar v2 纯 tar.x；import binding 别名桩 tar_import_alias.c。
 # std.tar：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + tar）。
-../std/simd/simd.o: FORCE scripts/xlang_compile_std_x.sh
-# wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
-# wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 
 # 测试与 xlang 链接 std 时依赖的 .o：所有 std 模块 + runtime_panic.o；Linux 另预编 freestanding 链入桩
