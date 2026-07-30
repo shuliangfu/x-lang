@@ -869,16 +869,18 @@ $(DRIVER_SEED_CRT0_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 # runtime.c 链 freestanding 用户程序时在 compiler/ 下查找 crt0_user.o / freestanding_io.o
 # wave836: FORCE dep-thin — shell owns SRC mtime + try-heat (ensure_cp_alias_o; not physical delete).
 # PLATFORM: x86_64 freestanding link names (block gated by UNAME); FORCE always invokes script.
-# NL-07 v2 bootstrap_nostdlib_stubs: cc_inc_tu residual — not R2 try-r2 multi (wave831/889).
+# wave918 B7B: bootstrap_nostdlib_stubs migrated to multi-target
+# $(CC_INC_TU_LINUX_X86_64_OBJS) FORCE thin --auto (list in mk/driver_seed_r_lists.mk).
+# Body = @bash scripts/cc_inc_tu.sh --auto $@ (seed-map in cc_inc_tu.sh).
+# PLATFORM: LINUX|UBUNTU x86_64 only — ifeq guard preserved.
 ifeq ($(UNAME_S),Linux)
 ifeq ($(UNAME_M),x86_64)
 crt0_user.o: FORCE scripts/ensure_cp_alias_o.sh
 	@bash scripts/ensure_cp_alias_o.sh ensure $@
 freestanding_io.o: FORCE scripts/ensure_cp_alias_o.sh
 	@bash scripts/ensure_cp_alias_o.sh ensure $@
-src/asm/bootstrap_nostdlib_stubs.o: FORCE scripts/cc_inc_tu.sh
-	# wave889 B7B residual: bare sh → pure @bash thin-call form (wave888 incomplete).
-	@bash scripts/cc_inc_tu.sh seeds/bootstrap_nostdlib_stubs.from_x.c $@
+$(CC_INC_TU_LINUX_X86_64_OBJS): FORCE scripts/cc_inc_tu.sh
+	@bash scripts/cc_inc_tu.sh --auto $@
 endif
 endif
 

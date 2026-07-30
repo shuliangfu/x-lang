@@ -974,8 +974,8 @@ PHYS_DEL_SRC_EDGE_FORCE_THIN_WAVE=wave831
 PHYS_DEL_SRC_EDGE_FORCE_THIN_COUNT=7
 PHYS_DEL_SRC_EDGE_FORCE_THIN_VIA=parser_asm_try_heat+cc_inc_tu_mtime
 PHYS_DEL_SRC_EDGE_FORCE_THIN_NOTE=force_prereq_shell_owns_src_mtime_edges_remain
-PHYS_DEL_SRC_EDGE_FORCE_THIN_CC_INC=1
-PHYS_DEL_SRC_EDGE_FORCE_THIN_CC_INC_MULTITARGET=5
+PHYS_DEL_SRC_EDGE_FORCE_THIN_CC_INC=0
+PHYS_DEL_SRC_EDGE_FORCE_THIN_CC_INC_MULTITARGET=6
 PHYS_DEL_SRC_EDGE_FORCE_THIN_PARSER_ASM=1
 SWALLOWED_SRC_EDGE_FORCE_THIN=1
 SRC_EDGE_FORCE_THIN_SWALLOWED=1
@@ -7762,19 +7762,26 @@ elif grep -qE '\$\(R1_SEED_MAP_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null \
 else
   bad "Makefile parser_asm thin_glue must FORCE dep-thin via try-heat (no seed/inc prereq; wave831/905)"
 fi
-# Count FORCE+cc_inc_tu per-leaf target lines (exactly 1 residual: bootstrap_nostdlib_stubs.o).
-# wave917: 5 SHARED cc_inc_tu leaves migrated to multi-target $(CC_INC_TU_OBJS).
+# Count FORCE+cc_inc_tu per-leaf target lines (0 residual after wave918).
+# wave917: 5 SHARED cc_inc_tu leaves → multi-target $(CC_INC_TU_OBJS).
+# wave918: Linux x86_64 guard leaf → multi-target $(CC_INC_TU_LINUX_X86_64_OBJS).
 _cc_inc_force=$(grep -cE '^[a-zA-Z0-9_./-]+: FORCE scripts/cc_inc_tu\.sh[[:space:]]*$' "$MF" 2>/dev/null || true)
-if [ "${_cc_inc_force:-0}" -eq 1 ]; then
-  note "Makefile cc_inc_tu residual 1 per-leaf FORCE dep-thin (bootstrap_nostdlib_stubs.o; wave831; not physical delete)"
+if [ "${_cc_inc_force:-0}" -eq 0 ]; then
+  note "Makefile cc_inc_tu residual 0 per-leaf FORCE (all migrated to multi-target; wave917/918)"
 else
-  bad "Makefile expected 1 FORCE+cc_inc_tu per-leaf residual (bootstrap_nostdlib_stubs.o), got ${_cc_inc_force:-0} (wave831/917)"
+  bad "Makefile expected 0 FORCE+cc_inc_tu per-leaf residual, got ${_cc_inc_force:-0} (wave831/917/918)"
 fi
 # wave917: 5 SHARED cc_inc_tu leaves migrated to multi-target $(CC_INC_TU_OBJS).
 if grep -qE '\$\(CC_INC_TU_OBJS\):[[:space:]]*FORCE scripts/cc_inc_tu\.sh' "$MF" 2>/dev/null; then
   note "Makefile cc_inc_tu SHARED family multi-target FORCE thin --auto (wave917; 5 leaves)"
 else
   bad "Makefile missing \$(CC_INC_TU_OBJS): FORCE multi-target for cc_inc_tu SHARED family (wave917)"
+fi
+# wave918: Linux x86_64 guard leaf migrated to multi-target inside ifeq block.
+if grep -qE '\$\(CC_INC_TU_LINUX_X86_64_OBJS\):[[:space:]]*FORCE scripts/cc_inc_tu\.sh' "$MF" 2>/dev/null; then
+  note "Makefile cc_inc_tu Linux x86_64 guard multi-target FORCE thin --auto (wave918; 1 leaf)"
+else
+  bad "Makefile missing \$(CC_INC_TU_LINUX_X86_64_OBJS): FORCE multi-target for cc_inc_tu Linux x86_64 guard (wave918)"
 fi
 # No seed/.from_x.c make-graph prereqs remaining on FORCE+cc_inc_tu leaves.
 if grep -nE '^[a-zA-Z0-9_./-]+:.*seeds/.*cc_inc_tu' "$MF" 2>/dev/null | grep -q .; then

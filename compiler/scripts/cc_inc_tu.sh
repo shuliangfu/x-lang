@@ -34,6 +34,7 @@ cc_inc_tu_seed_for_out() {
     cfg_eval_bootstrap_stub.o) printf '%s\n' seeds/cfg_eval_bootstrap_stub.from_x.c ;;
     typeck_lsp_io_stub.o) printf '%s\n' seeds/typeck_lsp_io_stub.from_x.c ;;
     build_tool_main.o) printf '%s\n' seeds/build_tool_main.from_x.c ;;
+    bootstrap_nostdlib_stubs.o) printf '%s\n' seeds/bootstrap_nostdlib_stubs.from_x.c ;;
     *) return 1 ;;
   esac
 }

@@ -175,7 +175,7 @@ DRIVER_SEED_CFG_EVAL_OBJS = src/lexer/cfg_eval.o
 #         src/lsp/typeck_lsp_io_stub.o
 #         src/build_tool_main.o
 # Not in list: src/asm/bootstrap_nostdlib_stubs.o (ifeq Linux x86_64 guard;
-# wave831; different platform scope — deferred to future wave).
+# wave831/918; different platform scope — see CC_INC_TU_LINUX_X86_64_OBJS).
 # Do not re-list in Makefile or residual shells (G.7).
 CC_INC_TU_OBJS = \
 	src/asm/asm_experimental_symbol_bridge.o \
@@ -183,6 +183,16 @@ CC_INC_TU_OBJS = \
 	src/lexer/cfg_eval_bootstrap_stub.o \
 	src/lsp/typeck_lsp_io_stub.o \
 	src/build_tool_main.o
+
+# wave831/918 B7B cc_inc_tu Linux x86_64 guard family (N=1 leaf).
+# List authority for multi-target FORCE thin cc_inc_tu --auto inside
+# ifeq ($(UNAME_S),Linux) ifeq ($(UNAME_M),x86_64) guard block (wave918).
+# Body = @bash scripts/cc_inc_tu.sh --auto $@ (same as SHARED family;
+# seed-map in cc_inc_tu.sh cc_inc_tu_seed_for_out).
+# PLATFORM: LINUX|UBUNTU x86_64 only — Makefile ifeq guard preserved.
+# Leaf: src/asm/bootstrap_nostdlib_stubs.o (freestanding nostdlib stubs).
+# Do not re-list in Makefile or residual shells (G.7).
+CC_INC_TU_LINUX_X86_64_OBJS = src/asm/bootstrap_nostdlib_stubs.o
 
 # pipeline_glue_standalone product leaf (also referenced by composites / export lists).
 ASM_GLUE_STANDALONE_O = build_asm/pipeline_glue_standalone.o
