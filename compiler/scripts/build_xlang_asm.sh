@@ -4642,29 +4642,51 @@ asm_bootstrap_support_extra_link() {
   echo "src/async/async_asm_pool.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o $BUILD_DIR/typeck_c_module_stubs.o src/runtime_driver_strict_glue_stubs.o runtime_process_argv.o src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o src/runtime/rt_parse_diag.o"
 }
 
-# 确保 typeck_f64_bits.o 存在（pipeline_x / parser 浮点字面量位拆分）。
+# Ensure typeck_f64_bits.o (pipeline_x / parser f64 literal bit-split).
 # wave762 G.7: body = ensure_host_cc_seed_o.sh try-r2 (catalog DRIVER_SEED_TYPECK_F64_OBJS).
+# PLATFORM: WINDOWS | MINGW | MSYS — try-r2 re-parses catalog via
+#   driver_seed_obj_catalog.sh --shell without XLANG_CATALOG_CACHE_FILE → known stall
+#   (ensure_host header documents this). If seed .o already present, reuse it.
+#   Cold miss: compile mingw .s directly (no ensure script / no catalog).
+# PLATFORM: SHARED Linux/Darwin — try-r2 remains authority when ensure script exists.
 ensure_typeck_f64_bits_obj() {
+  local _f64o="src/typeck/typeck_f64_bits.o"
+  local _f64s=""
+  if build_xlang_asm_is_msys; then
+    if [ -f "$_f64o" ]; then
+      echo " win: reuse $_f64o (skip try-r2 catalog stall)"
+      return 0
+    fi
+    if [ -f src/typeck/typeck_f64_bits_x86_64_mingw.s ]; then
+      _f64s=src/typeck/typeck_f64_bits_x86_64_mingw.s
+      echo " win: cc -c $_f64s → $_f64o (no try-r2)"
+      "$CC" -c -o "$_f64o" "$_f64s" \
+        || { echo "ensure_typeck_f64_bits_obj: win cc failed" >&2; return 1; }
+      return 0
+    fi
+    echo "ensure_typeck_f64_bits_obj: win missing $_f64o and mingw .s" >&2
+    return 1
+  fi
   if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
-  echo " ensure try-r2 src/typeck/typeck_f64_bits.o (wave762 R2 typeck_f64)"
-  CC="$CC" CFLAGS="$CFLAGS" bash scripts/ensure_host_cc_seed_o.sh try-r2 src/typeck/typeck_f64_bits.o \
-  || { echo "ensure_typeck_f64_bits_obj: try-r2 failed" >&2; return 1; }
-  return 0
+    echo " ensure try-r2 $_f64o (wave762 R2 typeck_f64)"
+    CC="$CC" CFLAGS="$CFLAGS" bash scripts/ensure_host_cc_seed_o.sh try-r2 "$_f64o" \
+      || { echo "ensure_typeck_f64_bits_obj: try-r2 failed" >&2; return 1; }
+    return 0
   fi
   # Fallback only if ensure script missing (should not happen on product tree).
   UNAME_S=$(uname -s 2>/dev/null || echo Unknown)
   UNAME_M=$(uname -m 2>/dev/null || echo Unknown)
   if [ "$UNAME_S" = "Linux" ] && [ "$UNAME_M" = "x86_64" ] && [ -f src/typeck/typeck_f64_bits_x86_64.s ]; then
-  "$CC" -c -o src/typeck/typeck_f64_bits.o src/typeck/typeck_f64_bits_x86_64.s
+    "$CC" -c -o "$_f64o" src/typeck/typeck_f64_bits_x86_64.s
   elif [ "$UNAME_S" = "Linux" ] && [ "$UNAME_M" = "aarch64" ] && [ -f src/typeck/typeck_f64_bits_aarch64_elf.s ]; then
-  "$CC" -c -o src/typeck/typeck_f64_bits.o src/typeck/typeck_f64_bits_aarch64_elf.s
+    "$CC" -c -o "$_f64o" src/typeck/typeck_f64_bits_aarch64_elf.s
   elif [ "$UNAME_S" = "Darwin" ] && [ "$UNAME_M" = "arm64" ] && [ -f src/typeck/typeck_f64_bits_arm64.s ]; then
-  "$CC" -c -o src/typeck/typeck_f64_bits.o src/typeck/typeck_f64_bits_arm64.s
+    "$CC" -c -o "$_f64o" src/typeck/typeck_f64_bits_arm64.s
   elif [ "$UNAME_S" = "Darwin" ] && [ "$UNAME_M" = "x86_64" ] && [ -f src/typeck/typeck_f64_bits_x86_64.s ]; then
-  "$CC" -c -o src/typeck/typeck_f64_bits.o src/typeck/typeck_f64_bits_x86_64.s
+    "$CC" -c -o "$_f64o" src/typeck/typeck_f64_bits_x86_64.s
   else
-  echo "ensure_typeck_f64_bits_obj: missing platform .s for $UNAME_S/$UNAME_M" >&2
-  return 1
+    echo "ensure_typeck_f64_bits_obj: missing platform .s for $UNAME_S/$UNAME_M" >&2
+    return 1
   fi
 }
 
@@ -4684,13 +4706,28 @@ ensure_typeck_asm_bare_link_alias_obj() {
   fi
 }
 
-# 确保 runtime_panic.o / crt0 / typeck_f64_bits 存在。
-# wave760/762 G.7: all three via ensure_host_cc_seed_o.sh try-r2 (catalog lists = mk).
+# Ensure runtime_panic.o / crt0 / typeck_f64_bits exist.
+# wave760/762 G.7: try-r2 body for panic/crt0; typeck_f64 via ensure_typeck_f64_bits_obj.
+# PLATFORM: WINDOWS | MINGW | MSYS — never call try-r2 here: catalog parse without
+#   XLANG_CATALOG_CACHE_FILE stalls / re-enters (observed stacked try-r2 bash).
+#   Reuse seed panic.o or compile portable seed C; crt0 is Linux/Darwin only.
+# PLATFORM: SHARED Linux/Darwin — try-r2 remains authority when ensure script exists.
 ensure_asm_link_objs() {
   UNAME_S=$(uname -s 2>/dev/null || echo Unknown)
   ALPINE=0
   test -f /etc/alpine-release && ALPINE=1
-  if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
+  if build_xlang_asm_is_msys; then
+    if [ -f runtime_panic.o ]; then
+      echo " win: reuse runtime_panic.o (skip try-r2 catalog stall)"
+    elif [ -f seeds/runtime_panic.from_x.c ]; then
+      echo " win: cc -c runtime_panic.o <- seeds/runtime_panic.from_x.c (no try-r2)"
+      $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_panic.from_x.c -o runtime_panic.o \
+        || { echo "ensure_asm_link_objs: win panic cc failed" >&2; return 1; }
+    else
+      echo "ensure_asm_link_objs: win missing runtime_panic.o and seed" >&2
+      return 1
+    fi
+  elif [ -f scripts/ensure_host_cc_seed_o.sh ]; then
     echo " ensure try-r2 runtime_panic.o (wave760 R2 cold body)"
     CC="$CC" CFLAGS="$CFLAGS" bash scripts/ensure_host_cc_seed_o.sh try-r2 runtime_panic.o \
       || { echo "ensure_asm_link_objs: try-r2 runtime_panic.o failed" >&2; return 1; }
