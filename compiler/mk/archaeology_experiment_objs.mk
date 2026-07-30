@@ -9,7 +9,8 @@
 #       $(MAIN_LINK_O) / $(PREPROCESS_LINK_O) / $(AST_LINK_O) + fixed runtime picks.
 #
 # Used by:
-#   - compiler/Makefile: bootstrap-driver-seed-x-frontend · xlang-no-c-frontend
+#   - compiler/Makefile thin-call → bootstrap_driver_seed_x_frontend.sh (wave848)
+#     · xlang_no_c_frontend.sh (wave847) — lists still expanded from this mk
 #   - driver_seed_obj_catalog.sh shell parse (0-make; G.7)
 #
 # G.7: Definitions live only here. Makefile must include, not re-assign the

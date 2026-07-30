@@ -1991,9 +1991,15 @@ include mk/archaeology_experiment_objs.mk
 # 阶段 10.4 实验：链 typeck_x.o/codegen_x.o 替代 C 前端（不含 pipeline_x.o，无 XLANG_USE_X_PIPELINE）。
 # 勿复用 DRIVER_SEED_X_FRONTEND_OBJS 名：bootstrap-driver-seed 链依赖 parser_x.o/lexer_x.o（见上 §1280）。
 # List authority: mk/archaeology_experiment_objs.mk (wave821).
-bootstrap-driver-seed-x-frontend: $(XLANG_C) migrate-x-objs driver_x.o preprocess_x.o $(DRIVER_SUBCMD_GEN) $(DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS) $(LSP_DIAG_LINK_O) $(DRIVER_SUBCMD_OBJS)
-	$(CC) $(CFLAGS) -DXLANG_USE_X_DRIVER -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN -o $(TARGET)_x_frontend $(DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS) driver_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) $(PIPELINE_LIBS)
-	@echo "bootstrap-driver-seed-x-frontend OK ($(TARGET)_x_frontend: .x typeck/codegen, no pipeline_x.o)"
+# wave848: full body → scripts/bootstrap_driver_seed_x_frontend.sh (G.7 有则补全;
+#   shell owns host-cc link of $(TARGET)_x_frontend). Lists stay mk expansion.
+# NOT physical delete — prereq make-graph + thin edges + B2 + mk lists remain residual.
+# PLATFORM: SHARED — shell owns link orchestration.
+bootstrap-driver-seed-x-frontend: $(XLANG_C) migrate-x-objs driver_x.o preprocess_x.o $(DRIVER_SUBCMD_GEN) $(DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS) $(LSP_DIAG_LINK_O) $(DRIVER_SUBCMD_OBJS) scripts/bootstrap_driver_seed_x_frontend.sh
+	@CC="$(CC)" OUT="$(TARGET)_x_frontend" \
+	  BXF_LINK_CFLAGS="$(CFLAGS) -DXLANG_USE_X_DRIVER -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN" \
+	  BXF_LINK_OBJS="$(DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS) driver_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) $(PIPELINE_LIBS)" \
+	  bash scripts/bootstrap_driver_seed_x_frontend.sh
 
 # 6.3：.x 入口与 main.c 一一对应。bootstrap-driver-seed = 用 C 代码生成（生成 pipeline_gen.c / driver_gen.c）得到种子 xlang；仅首次或无 xlang 时需要。
 # bootstrap-driver-asm / bootstrap-driver-hybrid = B-hybrid（build_xlang_asm 无 SKIP_GEN），产出可覆盖 $(TARGET)。
