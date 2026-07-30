@@ -1745,7 +1745,8 @@ ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
     SWALLOWED_B7B_SEED_LINK_PICKS_LIST=1
     PHYS_DEL_PREFLIGHT_B7B_SEED_LINK_PICKS_LIST=1
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-  dual-end L2: (tip after commit)
+  dual-end L2 green tip: 02766b0b9 (Mac + Ubuntu leaf + catalog + phys-del
+    --check; MAIN_LINK Mac crt0_arm64 / Ubuntu crt0_x86_64; GLUE 2 expand OK)
   next: more shell-primary / lists residual or tip Windows re-proof
        → Mac+Ubuntu L4 → ship delete body
 ```
@@ -1759,6 +1760,7 @@ ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
 | `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
 | `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
 | `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+| dual-end L2 tip | `02766b0b9` |
 
 **Forbidden:** claim SEED_LINK_PICKS list→mk = physical delete; dual inline
 `MAIN_LINK_O` / `GLUE_SUFFIX` / `LSP_DIAG_LINK_O` inventory in Makefile or
