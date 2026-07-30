@@ -1832,21 +1832,13 @@ migrate-x-objs:
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" \
 	  sh scripts/migrate_x_objs.sh all
 
-# ast_gen2.c：fix_slim_arena_gen_c.pl 注入 ast_ast_* 原型（typeck/codegen 单文件编译依赖）
-ast_gen2.c: src/ast/ast.x
-	@if [ "$(XLANG_FORCE_REGEN_GEN)" = "1" ]; then \
-	  tmp="$@.tmp"; \
-	  $(MAKE) $(XLANG_C) && \
-	  ./$(XLANG_C) -L src/ast -E -E-extern src/ast/ast.x > "$$tmp" && mv -f "$$tmp" $@; \
-	  perl scripts/fix_slim_arena_gen_c.pl $@; \
-	elif [ -s ast_gen2.c ]; then \
-	  echo "ast_gen2.c: pinned ($$(wc -c < ast_gen2.c | tr -d ' ') bytes; XLANG_FORCE_REGEN_GEN=1 to regen)"; \
-	else \
-	  tmp="$@.tmp"; \
-	  $(MAKE) $(XLANG_C) && \
-	  ./$(XLANG_C) -L src/ast -E -E-extern src/ast/ast.x > "$$tmp" && mv -f "$$tmp" $@; \
-	  perl scripts/fix_slim_arena_gen_c.pl $@; \
-	fi
+# wave830: G.7 body → scripts/ensure_ast_gen2.sh (pin / FORCE_REGEN / -E + fix_slim)
+# FORCE dep-thin — shell owns pin policy (G.7; not physical delete).
+# PLATFORM: SHARED — FORCE always invokes ensure (cheap pin skip).
+ast_gen2.c: FORCE scripts/ensure_ast_gen2.sh
+	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
+	  XLANG_C="$(XLANG_C)" \
+	  bash scripts/ensure_ast_gen2.sh
 
 # wave782: B4 gen.c → .o bootstrap body → try-gen-c-to-o (thin-call only).
 # wave796 B7A: heat dep-edge thin gen_x residual — gen.c prereq → FORCE + ensure;

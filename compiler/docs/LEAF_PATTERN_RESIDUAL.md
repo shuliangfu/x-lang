@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · … · wave824 E_DIRS list→mk · wave825 std_x shell-primary catalog · wave826 formal_mod FORCE dep-thin · wave827 std_x FORCE dep-thin · wave828 driver_leaf FORCE dep-thin · wave829 gen.c FORCE dep-thin · wave747–825 prior swallows · wave799 execute-gate · … · not physical delete)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · … · wave824 E_DIRS list→mk · wave825 std_x shell-primary catalog · wave826 formal_mod FORCE dep-thin · wave827 std_x FORCE dep-thin · wave828 driver_leaf FORCE dep-thin · wave829 gen.c FORCE dep-thin · wave830 ast_gen2 FORCE dep-thin · wave747–825 prior swallows · wave799 execute-gate · … · not physical delete)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -1722,6 +1722,47 @@ Then (later waves, not this tip):
 **Forbidden:** claim endgame-preview = ENDGAME arm / physical delete; set
 ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
 
+## wave830 ast_gen2.c FORCE dep-thin (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **无才新增** on the last inline gen-C residual —
+> `ast_gen2.c` (mirror wave829 FORCE dep-thin) — Makefile drops `src/ast/ast.x`
+> make-graph prereq; target line is `FORCE scripts/ensure_ast_gen2.sh` only;
+> recipe thin-calls ensure (bash, dash-safe). Shell owns pin /
+> `XLANG_FORCE_REGEN_GEN` / `-E -E-extern` + `fix_slim_arena_gen_c.pl` policy.
+> Honesty COUNT = **1**. Distinct from product `*_gen.c` (no linux.x86_64 seed
+> pin; committed local pin authority). `.o` path remains try-heat /
+> ensure_gen_x_o. Residual: thin edges + B2 + mk lists remain.
+> Dual-end L2 required. Blockers **remain**.
+
+```text
+  leaf dump:
+    PHYS_DEL_AST_GEN2_FORCE_THIN=1
+    PHYS_DEL_AST_GEN2_FORCE_THIN_WAVE=wave830
+    PHYS_DEL_AST_GEN2_FORCE_THIN_COUNT=1
+    SWALLOWED_AST_GEN2_FORCE_THIN=1
+    PHYS_DEL_PREFLIGHT_AST_GEN2_FORCE_THIN=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  dual-end L2: (pending tip after implement)
+  next: more shell-primary / thin edges / B2 residual or tip Windows re-proof
+       → Mac+Ubuntu L4 → ship delete body
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_AST_GEN2_FORCE_THIN` | `1` |
+| `PHYS_DEL_AST_GEN2_FORCE_THIN_COUNT` | `1` |
+| `SWALLOWED_AST_GEN2_FORCE_THIN` | `1` |
+| `AST_GEN2_FORCE_THIN_HELPER` | `ensure_ast_gen2.sh` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+
+**Forbidden:** claim ast_gen2 FORCE thin = physical delete; re-list `src/ast/ast.x`
+on the Makefile gen prereq line; `rm compiler/Makefile`; ship delete body;
+mac-only wave green.
+
 ## wave829 gen.c FORCE dep-thin (2026-07-30)
 
 > **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
@@ -1732,9 +1773,9 @@ ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
 > `FORCE scripts/ensure_{migrate,driver,lsp_pipeline,archaeology}_gen.sh` only;
 > recipes remain thin-call ensure. Shell owns pin/seed/`XLANG_FORCE_REGEN_GEN`
 > policy (not make source-edge graph). Honesty COUNT = **17** (migrate 4 + lsp 3 +
-> archaeology 8 + driver/preprocess 2). Residual: `ast_gen2.c` still inline body;
-> `pipeline_gen.c` already prereq-free; thin edges + B2 + mk lists remain.
-> Dual-end L2 required. Blockers **remain**.
+> archaeology 8 + driver/preprocess 2). Residual after wave829: ~~`ast_gen2.c`
+> inline~~ (wave830); `pipeline_gen.c` already prereq-free; thin edges + B2 + mk
+> lists remain. Dual-end L2 required. Blockers **remain**.
 
 ```text
   leaf dump:
@@ -1746,7 +1787,7 @@ ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
   dual-end L2 green tip: bfa60f50b (Mac + Ubuntu leaf + phys-del --check;
     gen.c 17 FORCE; ensure recipes bash; sample pin/seed OK)
-  next: more shell-primary / thin edges / B2 residual or tip Windows re-proof
+  next: ~~ast_gen2 FORCE thin~~ (wave830) · thin edges / B2 or tip Windows re-proof
        → Mac+Ubuntu L4 → ship delete body
 ```
 

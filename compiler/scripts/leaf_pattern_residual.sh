@@ -29,6 +29,7 @@
 #            (mode|x_path table in shell; Makefile ensure only; NOT physical delete)
 #   wave828: driver_leaf FORCE dep-thin (8 leaves) → ensure owns source mtime
 #   wave829: product/archaeology *_gen.c FORCE dep-thin (17 leaves) → ensure pin policy
+#   wave830: ast_gen2.c FORCE dep-thin (1 leaf) → ensure_ast_gen2 pin policy
 #   wave812: formal_mod shell-primary catalog (38 leaves) → xlang_compile_std_module ensure
 #            (Makefile thin-call only; NOT physical delete; edges+lists+B2 remain)
 #   wave813: B7B STD_AND_PANIC_O list authority → mk/std_and_panic_objs.mk
@@ -490,7 +491,7 @@ DRIVER_LEAF_FORCE_THIN_HELPER=driver_leaf_x_to_o.sh
 DRIVER_LEAF_FORCE_THIN_WAVE=wave828
 # wave829: product/archaeology *_gen.c FORCE dep-thin — Makefile prereqs FORCE+script
 # only; shell owns pin/seed/FORCE_REGEN policy (ensure_*_gen). NOT physical delete —
-# thin edges + B2 try-heat + mk lists + ast_gen2 inline residual still form make graph.
+# thin edges + B2 try-heat + mk lists remain (ast_gen2 closed wave830).
 PHYS_DEL_GEN_C_FORCE_THIN=1
 PHYS_DEL_GEN_C_FORCE_THIN_WAVE=wave829
 PHYS_DEL_GEN_C_FORCE_THIN_COUNT=17
@@ -500,6 +501,18 @@ SWALLOWED_GEN_C_FORCE_THIN=1
 GEN_C_FORCE_THIN_SWALLOWED=1
 GEN_C_FORCE_THIN_HELPER=ensure_migrate_driver_lsp_archaeology_gen
 GEN_C_FORCE_THIN_WAVE=wave829
+# wave830: ast_gen2.c FORCE dep-thin — Makefile prereqs FORCE+script only; shell owns
+# pin/FORCE_REGEN/-E+fix_slim policy (ensure_ast_gen2). NOT physical delete —
+# thin edges + B2 try-heat + mk lists still form make graph.
+PHYS_DEL_AST_GEN2_FORCE_THIN=1
+PHYS_DEL_AST_GEN2_FORCE_THIN_WAVE=wave830
+PHYS_DEL_AST_GEN2_FORCE_THIN_COUNT=1
+PHYS_DEL_AST_GEN2_FORCE_THIN_VIA=ensure_ast_gen2_pin_policy
+PHYS_DEL_AST_GEN2_FORCE_THIN_NOTE=force_prereq_shell_owns_ast_gen2_pin_policy_edges_remain
+SWALLOWED_AST_GEN2_FORCE_THIN=1
+AST_GEN2_FORCE_THIN_SWALLOWED=1
+AST_GEN2_FORCE_THIN_HELPER=ensure_ast_gen2.sh
+AST_GEN2_FORCE_THIN_WAVE=wave830
 # wave815: archaeology host-pick phonies (TLS openssl/mbedtls + sqlite stub + net-o-stub)
 # live in archaeology_host_pick_phony.sh; Makefile thin-call ensure only.
 # NOT physical delete — thin edges + B2 ensure + B7B lists remain.
@@ -792,6 +805,7 @@ PHYS_DEL_PREFLIGHT_B7B_STD_AND_PANIC_LIST=1
 PHYS_DEL_PREFLIGHT_DRIVER_LEAF_SHELL_PRIMARY=1
 PHYS_DEL_PREFLIGHT_DRIVER_LEAF_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_GEN_C_FORCE_THIN=1
+PHYS_DEL_PREFLIGHT_AST_GEN2_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_ARCH_HOST_PICK_PHONY=1
 PHYS_DEL_PREFLIGHT_B7B_DRIVER_SUBCMD_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_PIPELINE_X_LIST=1
@@ -803,7 +817,7 @@ PHYS_DEL_PREFLIGHT_B7B_RELINK_LEGACY_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_SOURCE_DEPS_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_E_DIRS_LIST=1
 PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_std_x_catalog_is_physical_delete|claim_std_x_force_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_formal_mod_force_thin_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_driver_leaf_force_thin_is_physical_delete|claim_gen_c_force_thin_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|claim_e_dirs_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
+PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_std_x_catalog_is_physical_delete|claim_std_x_force_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_formal_mod_force_thin_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_driver_leaf_force_thin_is_physical_delete|claim_gen_c_force_thin_is_physical_delete|claim_ast_gen2_force_thin_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|claim_e_dirs_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_PREFLIGHT_WIN_GATE_HOST=MSYS2_windows-server_dual_boot_reboot_required
 PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
@@ -1410,6 +1424,9 @@ else
   if ! grep -qE 'wave829|gen.c FORCE|GEN_C_FORCE_THIN' "$DOC_REL"; then
     bad "$DOC_REL must document wave829 gen.c FORCE dep-thin"
   fi
+  if ! grep -qE 'wave830|ast_gen2 FORCE|AST_GEN2_FORCE_THIN|ensure_ast_gen2' "$DOC_REL"; then
+    bad "$DOC_REL must document wave830 ast_gen2 FORCE dep-thin"
+  fi
   if ! grep -qE 'wave812|formal_mod|FORMAL_MOD_SHELL|std_module ensure' "$DOC_REL"; then
     bad "$DOC_REL must document wave812 formal_mod shell-primary catalog"
   fi
@@ -2015,6 +2032,21 @@ if ! grep -q 'SWALLOWED_GEN_C_FORCE_THIN=1' <<<"$_out"; then
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_GEN_C_FORCE_THIN=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_GEN_C_FORCE_THIN=1 (wave829)"
+fi
+if ! grep -q 'PHYS_DEL_AST_GEN2_FORCE_THIN=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_AST_GEN2_FORCE_THIN=1 (wave830)"
+fi
+if ! grep -q 'PHYS_DEL_AST_GEN2_FORCE_THIN_WAVE=wave830' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_AST_GEN2_FORCE_THIN_WAVE=wave830"
+fi
+if ! grep -q 'PHYS_DEL_AST_GEN2_FORCE_THIN_COUNT=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_AST_GEN2_FORCE_THIN_COUNT=1 (wave830)"
+fi
+if ! grep -q 'SWALLOWED_AST_GEN2_FORCE_THIN=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_AST_GEN2_FORCE_THIN=1 (wave830)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_AST_GEN2_FORCE_THIN=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_AST_GEN2_FORCE_THIN=1 (wave830)"
 fi
 if ! grep -q 'PHYS_DEL_ARCH_HOST_PICK_PHONY=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_ARCH_HOST_PICK_PHONY=1 (wave815)"
@@ -2794,6 +2826,35 @@ if grep -nE $'^\tsh scripts/ensure_(migrate|driver|lsp_pipeline|archaeology)_gen
   bad "Makefile ensure_*_gen recipes must use bash (not sh/dash; wave829 Ubuntu)"
 else
   note "Makefile ensure_*_gen recipes use bash (wave829 dash-safe)"
+fi
+
+# wave830: ast_gen2.c FORCE dep-thin (1 leaf; no src/ast/ast.x make-graph prereq).
+if awk '
+  $0 ~ /^ast_gen2\.c:/ {
+    if ($0 ~ /FORCE/ && $0 ~ /ensure_ast_gen2/ && $0 !~ /src\/ast\/ast\.x/) { ok=1; exit 0 }
+    exit 1
+  }
+  END { exit ok ? 0 : 1 }
+' "$MF" 2>/dev/null; then
+  note "Makefile ast_gen2.c FORCE dep-thin (wave830; not physical delete)"
+else
+  bad "Makefile ast_gen2.c must FORCE dep-thin via ensure_ast_gen2 (no ast.x prereq; wave830)"
+fi
+_ag2_sh="$ROOT/compiler/scripts/ensure_ast_gen2.sh"
+[ -f "$_ag2_sh" ] || _ag2_sh="scripts/ensure_ast_gen2.sh"
+if [ ! -f "$_ag2_sh" ]; then
+  bad "missing ensure_ast_gen2.sh (wave830 ast_gen2 FORCE thin authority)"
+elif ! grep -qE 'XLANG_FORCE_REGEN_GEN|pinned' "$_ag2_sh"; then
+  bad "ensure_ast_gen2.sh must own pin/FORCE_REGEN policy (wave830)"
+elif ! bash "$_ag2_sh" --check >/dev/null 2>&1; then
+  bad "ensure_ast_gen2.sh --check failed (wave830)"
+else
+  note "ensure_ast_gen2.sh --check OK (wave830 FORCE thin; not physical delete)"
+fi
+if grep -nE $'^\tsh scripts/ensure_ast_gen2\.sh' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile ensure_ast_gen2 recipe must use bash (not sh/dash; wave830 Ubuntu)"
+else
+  note "Makefile ensure_ast_gen2 recipe uses bash (wave830 dash-safe)"
 fi
 
 # wave815: archaeology host-pick phonies — ensure thin on catalog keys + script --check.
@@ -4043,5 +4104,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747–829: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave825 std_x ensure catalog 22 + wave827 std_x FORCE dep-thin 22 + wave812 formal_mod ensure 38 + wave826 formal_mod FORCE dep-thin 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave828 driver_leaf FORCE dep-thin 8 + wave829 gen.c FORCE dep-thin 17 + wave815 archaeology host-pick phonies 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2 + wave820 OBJS_CORE list→mk 16 + wave821 ARCH_EXPERIMENT list→mk 7 + wave822 RELINK/LEGACY list→composites 14 + wave823 SOURCE_DEPS list→mk 19 + wave824 E_DIRS list→mk 26; Makefile still present; delete body deferred)"
+echo "leaf_pattern_residual: CHECK OK (wave747–830: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave825 std_x ensure catalog 22 + wave827 std_x FORCE dep-thin 22 + wave812 formal_mod ensure 38 + wave826 formal_mod FORCE dep-thin 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave828 driver_leaf FORCE dep-thin 8 + wave829 gen.c FORCE dep-thin 17 + wave830 ast_gen2 FORCE dep-thin 1 + wave815 archaeology host-pick phonies 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2 + wave820 OBJS_CORE list→mk 16 + wave821 ARCH_EXPERIMENT list→mk 7 + wave822 RELINK/LEGACY list→composites 14 + wave823 SOURCE_DEPS list→mk 19 + wave824 E_DIRS list→mk 26; Makefile still present; delete body deferred)"
 exit 0
