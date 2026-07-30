@@ -2998,9 +2998,14 @@ src/build_tool_main.o: FORCE scripts/cc_inc_tu.sh
 build-tool-x: build-tool
 
 # 运行 build_tool 产出 xlang（等价于 make bootstrap-driver，无需执行 Makefile bootstrap-driver 目标）
-build-via-tool: build-tool
-	./build_tool ./$(TARGET)
-	@echo "build-via-tool OK（xlang 已由 build_tool 产出）"
+# wave874: full body → scripts/build_via_tool.sh (G.7 有则补全; shell owns
+#   ./build_tool ./TARGET invoke + OK; also xlang-build run_build_tool authority).
+# Thin-call TARGET= only. build-tool prereq stays make graph.
+# NOT physical delete — thin edges + B2 + mk lists remain residual.
+# PLATFORM: SHARED — orchestration only; ABI stays in build_tool / g05.
+build-via-tool: build-tool scripts/build_via_tool.sh
+	@TARGET="$(TARGET)" bash scripts/build_via_tool.sh
+
 
 # 阶段 8.1/8.2：用 seed 产出 xlang₁（C 生成 pipeline_gen.c/driver_gen.c 再链接）；用 xlang₁ 再编得到 xlang₂。两代跑 run-all 一致即自举验证通过。
 # 注：asm 链接就绪（Goal 2）后可改为 bootstrap-driver，则 xlang₁ 为 asm 版，实现「无 C 生成」自举。

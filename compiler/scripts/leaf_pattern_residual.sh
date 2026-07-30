@@ -137,6 +137,9 @@
 #   wave873: B7C regen-lsp-gens-x shell-primary (1 phony) →
 #            regen_lsp_gens_x.sh (XLANG_X gate + rm four gens + make file targets;
 #            NOT physical delete — thin edges + B2 remain)
+#   wave874: B7C build-via-tool shell-primary (1 phony) →
+#            build_via_tool.sh (run host build_tool → TARGET + OK; xbuild dual retired;
+#            NOT physical delete — thin edges + B2 remain)
 #   wave856: B7B archaeology LINK_OBJS shell-load via make export leaves (5 bags /
 #            6 shells; nested expand; Makefile drops multi-token LINK_OBJS env;
 #            NOT physical delete — CFLAGS env + thin edges + B2 remain)
@@ -1266,6 +1269,18 @@ REGEN_LSP_SHELL_SWALLOWED=1
 REGEN_LSP_SHELL_WAVE=wave873
 REGEN_LSP_SHELL_COUNT=1
 REGEN_LSP_SHELL_HELPER=regen_lsp_gens_x.sh
+# wave874: build-via-tool shell-primary (G.7 有则补全).
+# COUNT = 1 phony; dual Makefile body + xlang-build run_build_tool → build_via_tool.sh.
+PHYS_DEL_BUILD_VIA_TOOL_SHELL=1
+PHYS_DEL_BUILD_VIA_TOOL_SHELL_WAVE=wave874
+PHYS_DEL_BUILD_VIA_TOOL_SHELL_COUNT=1
+PHYS_DEL_BUILD_VIA_TOOL_SHELL_VIA=build_via_tool_sh
+PHYS_DEL_BUILD_VIA_TOOL_SHELL_NOTE=shell_primary_run_build_tool_product_ok_thin_edges_remain
+SWALLOWED_BUILD_VIA_TOOL_SHELL=1
+BUILD_VIA_TOOL_SHELL_SWALLOWED=1
+BUILD_VIA_TOOL_SHELL_WAVE=wave874
+BUILD_VIA_TOOL_SHELL_COUNT=1
+BUILD_VIA_TOOL_SHELL_HELPER=build_via_tool.sh
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -1484,6 +1499,7 @@ PHYS_DEL_PREFLIGHT_CHECK_7_2_SHELL=1
 PHYS_DEL_PREFLIGHT_CHECK_6_4_SHELL=1
 PHYS_DEL_PREFLIGHT_HYBRID_SHELL=1
 PHYS_DEL_PREFLIGHT_REGEN_LSP_SHELL=1
+PHYS_DEL_PREFLIGHT_BUILD_VIA_TOOL_SHELL=1
 PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
 PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_std_x_catalog_is_physical_delete|claim_std_x_force_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_formal_mod_force_thin_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_driver_leaf_force_thin_is_physical_delete|claim_gen_c_force_thin_is_physical_delete|claim_ast_gen2_force_thin_is_physical_delete|claim_src_edge_force_thin_is_physical_delete|claim_migrate_x_force_thin_is_physical_delete|claim_glue_types_force_thin_is_physical_delete|claim_bootstrap_pipeline_force_thin_is_physical_delete|claim_filtered_o_force_thin_is_physical_delete|claim_cp_alias_force_thin_is_physical_delete|claim_pipeline_gen_force_thin_is_physical_delete|claim_bootstrap_xlangc_force_thin_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_arch_host_pick_force_thin_is_physical_delete|claim_bootstrap_typeck_codegen_shell_is_physical_delete|claim_bootstrap_x_compiler_shell_is_physical_delete|claim_bootstrap_self_shell_is_physical_delete|claim_bootstrap_parser_smoke_is_physical_delete|claim_xlang_x_pipeline_shell_is_physical_delete|claim_xlang_x_shell_is_physical_delete|claim_xlang_no_c_frontend_shell_is_physical_delete|claim_bootstrap_seed_x_frontend_shell_is_physical_delete|claim_relink_xlang_lexer_shell_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|claim_e_dirs_list_mk_is_physical_delete|claim_relink_product_link_mk_is_physical_delete|claim_xxl_bs_xnc_link_mk_is_physical_delete|claim_bxf_link_mk_is_physical_delete|claim_seed_phase_final_link_mk_is_physical_delete|claim_seed_gate_required_mk_is_physical_delete|claim_seed_gate_required_shell_load_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
@@ -2259,6 +2275,9 @@ else
   fi
   if ! grep -qE 'wave873|REGEN_LSP|regen-lsp-gens-x.*shell|regen_lsp_gens_x' "$DOC_REL"; then
     bad "$DOC_REL must document wave873 regen-lsp-gens-x shell-primary"
+  fi
+  if ! grep -qE 'wave874|BUILD_VIA_TOOL|build-via-tool.*shell|build_via_tool' "$DOC_REL"; then
+    bad "$DOC_REL must document wave874 build-via-tool shell-primary"
   fi
   note "doc $DOC_REL present"
 fi
@@ -3604,6 +3623,22 @@ if ! grep -q 'SWALLOWED_REGEN_LSP_SHELL=1' <<<"$_out"; then
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_REGEN_LSP_SHELL=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_REGEN_LSP_SHELL=1 (wave873)"
+fi
+# wave874: build-via-tool shell-primary
+if ! grep -q 'PHYS_DEL_BUILD_VIA_TOOL_SHELL=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_BUILD_VIA_TOOL_SHELL=1 (wave874)"
+fi
+if ! grep -q 'PHYS_DEL_BUILD_VIA_TOOL_SHELL_WAVE=wave874' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_BUILD_VIA_TOOL_SHELL_WAVE=wave874"
+fi
+if ! grep -q 'PHYS_DEL_BUILD_VIA_TOOL_SHELL_COUNT=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_BUILD_VIA_TOOL_SHELL_COUNT=1 (wave874)"
+fi
+if ! grep -q 'SWALLOWED_BUILD_VIA_TOOL_SHELL=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_BUILD_VIA_TOOL_SHELL=1 (wave874)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_BUILD_VIA_TOOL_SHELL=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_BUILD_VIA_TOOL_SHELL=1 (wave874)"
 fi
 if ! grep -q 'PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813"
@@ -6251,6 +6286,41 @@ if ! bash "$_rl_sh" --check >/dev/null 2>&1; then
   bad "regen_lsp_gens_x.sh --check failed (wave873)"
 fi
 note "B7C regen-lsp-gens-x shell-primary (COUNT=1; wave873; not physical delete)"
+# wave874: build-via-tool shell-primary (COUNT=1).
+# G.7: dual Makefile body + xlang-build run_build_tool retired; shell owns invoke + OK.
+_bvt_sh=compiler/scripts/build_via_tool.sh
+if [ ! -f "$_bvt_sh" ]; then
+  bad "missing $_bvt_sh (wave874)"
+fi
+if ! grep -q 'build_via_tool\.sh' "$MF" 2>/dev/null; then
+  bad "Makefile must thin-call build_via_tool.sh (wave874)"
+fi
+_bvt_hits=$(awk '
+  /^build-via-tool:/ {grab=1; next}
+  grab && /^[^#\t]/ && $0 !~ /^$/ {exit}
+  grab {print}
+' "$MF" 2>/dev/null || true)
+if grep -qE '\./build_tool|build_tool \./' <<<"${_bvt_hits:-}"; then
+  bad "Makefile build-via-tool still has dual ./build_tool body (wave874)"
+  echo "$_bvt_hits" | head -8 >&2
+fi
+if grep -qE 'build-via-tool OK' <<<"${_bvt_hits:-}"; then
+  bad "Makefile build-via-tool still has dual OK body (wave874)"
+  echo "$_bvt_hits" | head -8 >&2
+fi
+# xlang-build must not keep dual ./build_tool product invoke (shell owns).
+if [ -f xlang-build.sh ]; then
+  if grep -nE '^\s*\(cd compiler && \./build_tool' xlang-build.sh 2>/dev/null | grep -qv build_via_tool; then
+    bad "xlang-build.sh still has dual ./build_tool product invoke (wave874; use build_via_tool.sh)"
+  fi
+  if ! grep -q 'build_via_tool\.sh' xlang-build.sh 2>/dev/null; then
+    bad "xlang-build.sh must call build_via_tool.sh (wave874 G.7)"
+  fi
+fi
+if ! bash "$_bvt_sh" --check >/dev/null 2>&1; then
+  bad "build_via_tool.sh --check failed (wave874)"
+fi
+note "B7C build-via-tool shell-primary (COUNT=1; wave874; not physical delete)"
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
   PHYS_DEL_BUCKET_B1_BODY_SWALLOWED=1 \
@@ -7034,5 +7104,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747–839: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave825 std_x ensure catalog 22 + wave827 std_x FORCE dep-thin 22 + wave812 formal_mod ensure 38 + wave826 formal_mod FORCE dep-thin 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave828 driver_leaf FORCE dep-thin 8 + wave829 gen.c FORCE dep-thin 17 + wave830 ast_gen2 FORCE dep-thin 1 + wave831 src-edge FORCE dep-thin 7 + wave832 migrate companion FORCE dep-thin 3 + wave833 pipeline_glue_types FORCE dep-thin 1 + wave834 bootstrap-pipeline FORCE shell-primary 1 + wave835 class-G filter FORCE dep-thin 4 + wave836 cp-alias FORCE dep-thin 3 + wave837 pipeline_gen FORCE dep-thin 1 + wave838 bootstrap_xlangc FORCE dep-thin 1 + wave815 archaeology host-pick phonies 4 + wave839 archaeology host-pick FORCE dep-thin 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2 + wave820 OBJS_CORE list→mk 16 + wave821 ARCH_EXPERIMENT list→mk 7 + wave822 RELINK/LEGACY list→composites 14 + wave823 SOURCE_DEPS list→mk 19 + wave824 E_DIRS list→mk 26 + wave850 RELINK_PRODUCT_LINK bag→mk 8 + wave851 XXL/BS/XNC link bags→mk 3 + wave852 BXF link bag→mk 2 + wave853 seed phase1/final link bags→mk 2 + wave854 seed-gate REQUIRED bags→mk 3 + wave855 seed-gate REQUIRED shell-load 3 + wave856 LINK_OBJS shell-load export leaves 5 + wave857 LINK_CFLAGS shell-load export leaves 4 + wave858 LEGACY xlang-c shell-primary 1 + wave859 XXP/BXC bag shell-load 2 + wave860 driver_leaf BASE_CFLAGS shell-load 8 + wave861 rt_* -I CFLAGS hygiene 5 + wave862 try-heat CFLAGS bulk shell-load 114 + wave863 filter CFLAGS shell-load 4 + wave864 leaf-extra RUNTIME_*/PARSER_* CFLAGS hygiene 3 + wave865 migrate/bootstrap CFLAGS shell-load 8 + wave866 build-tool/WIN32 CFLAGS hygiene 2 + wave867 archaeology host-pick LD_R hygiene 4 + wave868 bstrict-relink shell-primary 1 + wave869 bootstrap-driver-crt0 shell-primary 1 + wave870 check-7.2 shell-primary 1 + wave871 check-6.4 shell-primary 1 + wave872 bootstrap-driver-hybrid shell-primary 1 + wave873 regen-lsp-gens-x shell-primary 1; Makefile still present; delete body deferred)"
+echo "leaf_pattern_residual: CHECK OK (wave747–839: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave825 std_x ensure catalog 22 + wave827 std_x FORCE dep-thin 22 + wave812 formal_mod ensure 38 + wave826 formal_mod FORCE dep-thin 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave828 driver_leaf FORCE dep-thin 8 + wave829 gen.c FORCE dep-thin 17 + wave830 ast_gen2 FORCE dep-thin 1 + wave831 src-edge FORCE dep-thin 7 + wave832 migrate companion FORCE dep-thin 3 + wave833 pipeline_glue_types FORCE dep-thin 1 + wave834 bootstrap-pipeline FORCE shell-primary 1 + wave835 class-G filter FORCE dep-thin 4 + wave836 cp-alias FORCE dep-thin 3 + wave837 pipeline_gen FORCE dep-thin 1 + wave838 bootstrap_xlangc FORCE dep-thin 1 + wave815 archaeology host-pick phonies 4 + wave839 archaeology host-pick FORCE dep-thin 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2 + wave820 OBJS_CORE list→mk 16 + wave821 ARCH_EXPERIMENT list→mk 7 + wave822 RELINK/LEGACY list→composites 14 + wave823 SOURCE_DEPS list→mk 19 + wave824 E_DIRS list→mk 26 + wave850 RELINK_PRODUCT_LINK bag→mk 8 + wave851 XXL/BS/XNC link bags→mk 3 + wave852 BXF link bag→mk 2 + wave853 seed phase1/final link bags→mk 2 + wave854 seed-gate REQUIRED bags→mk 3 + wave855 seed-gate REQUIRED shell-load 3 + wave856 LINK_OBJS shell-load export leaves 5 + wave857 LINK_CFLAGS shell-load export leaves 4 + wave858 LEGACY xlang-c shell-primary 1 + wave859 XXP/BXC bag shell-load 2 + wave860 driver_leaf BASE_CFLAGS shell-load 8 + wave861 rt_* -I CFLAGS hygiene 5 + wave862 try-heat CFLAGS bulk shell-load 114 + wave863 filter CFLAGS shell-load 4 + wave864 leaf-extra RUNTIME_*/PARSER_* CFLAGS hygiene 3 + wave865 migrate/bootstrap CFLAGS shell-load 8 + wave866 build-tool/WIN32 CFLAGS hygiene 2 + wave867 archaeology host-pick LD_R hygiene 4 + wave868 bstrict-relink shell-primary 1 + wave869 bootstrap-driver-crt0 shell-primary 1 + wave870 check-7.2 shell-primary 1 + wave871 check-6.4 shell-primary 1 + wave872 bootstrap-driver-hybrid shell-primary 1 + wave873 regen-lsp-gens-x shell-primary 1 + wave874 build-via-tool shell-primary 1; Makefile still present; delete body deferred)"
 exit 0

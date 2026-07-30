@@ -36,10 +36,11 @@ ensure_build_tool() {
   fi
 }
 
+# G.7: build_via_tool.sh is the only "run build_tool → product" body
+# (Makefile build-via-tool thin leaf; wave874). Optional subcmd: asm | legacy.
 run_build_tool() {
   ensure_build_tool
-  # shellcheck disable=SC2086
-  (cd compiler && ./build_tool ./xlang $1)
+  (cd compiler && TARGET=xlang bash scripts/build_via_tool.sh ${1:+"$1"})
 }
 
 # Residual make hub for CI / cold-start / leaf .o (wave730 · wave733 G.7).
