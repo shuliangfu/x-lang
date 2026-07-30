@@ -762,9 +762,13 @@ src/lsp/lsp_diag.o: FORCE scripts/ensure_host_cc_seed_o.sh
 
 # `xlang-c` 默认模式可能只是 bootstrap_xlangc 的同步副本；凡是依赖 `-E/-E-extern`
 # 生成当前源码对应 C 的目标，必须先强制刷新一次 legacy C frontend，避免继续吃旧语义。
+# wave889 B7B residual: drop nested $(MAKE) $(XLANG_C); thin ensure after
+# bootstrap_xlangc prereq (same product path as default $(XLANG_C); G.7 有则补全
+# ensure_xlang_c). NOT physical delete — thin edges + B2 + mk lists remain.
+# PLATFORM: SHARED — binary sync only; seed pick stays select_bootstrap_xlangc.
 .PHONY: legacy-xlang-c-ready
-legacy-xlang-c-ready:
-	@$(MAKE) $(XLANG_C)
+legacy-xlang-c-ready: bootstrap_xlangc scripts/ensure_xlang_c.sh
+	@bash scripts/ensure_xlang_c.sh ensure $(XLANG_C)
 
 LEGACY_XLANG_C_READY_TARGETS = build-tool
 
@@ -1051,14 +1055,13 @@ include mk/pipeline_x_objs.mk
 RUNTIME_PANIC_S := $(wildcard src/asm/runtime_panic_x86_64.s)
 # wave796 B7A: heat dep-edge thin panic stamp residual — UNAME prereqs → FORCE + ensure;
 # shell try-r2 / try-r2-prefer owns host source pick + platform stamp mtime.
-# NOT physical delete.
+# wave889 B7B residual: drop dual Makefile stamp body (mkdir+touch). Shell ensure
+# owns build_asm/runtime_panic.$(uname -s).$(uname -m).stamp under try-r2 /
+# try-r2-prefer. Stamp target no longer in make graph (was unused prereq).
+# NOT physical delete — thin edges + B2 + mk lists remain.
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 # PLATFORM: LINUX|x86_64 — cold .s when present; arm64 seed; else portable from_x
-# (shell r2_panic_host_pick_src; stamp build_asm/runtime_panic.$(UNAME).$(ARCH).stamp).
-RUNTIME_PANIC_PLATFORM_STAMP = build_asm/runtime_panic.$(UNAME_S).$(UNAME_M).stamp
-$(RUNTIME_PANIC_PLATFORM_STAMP):
-	@mkdir -p build_asm
-	@touch $@
+# (shell r2_panic_host_pick_src; stamp path under build_asm/).
 runtime_panic.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
@@ -1420,7 +1423,8 @@ freestanding_io.o: FORCE scripts/ensure_cp_alias_o.sh
 # wave831: FORCE dep-thin — shell owns seed mtime (cc_inc_tu; not physical delete).
 # PLATFORM: SHARED — FORCE always invokes script (cheap mtime skip).
 src/asm/bootstrap_nostdlib_stubs.o: FORCE scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh seeds/bootstrap_nostdlib_stubs.from_x.c $@
+	# wave889 B7B residual: bare sh → pure @bash thin-call form (wave888 incomplete).
+	@bash scripts/cc_inc_tu.sh seeds/bootstrap_nostdlib_stubs.from_x.c $@
 endif
 endif
 # E-04 v20：Darwin bootstrap 默认 crt0（arm64 / x86_64 Mach-O）
@@ -1765,7 +1769,8 @@ build_asm/bootstrap_seed_pipeline_filtered.o: FORCE scripts/filter_bootstrap_see
 # wave831: FORCE dep-thin — shell owns seed mtime (cc_inc_tu; not physical delete).
 # PLATFORM: SHARED — FORCE always invokes script (cheap mtime skip).
 src/asm/asm_experimental_symbol_bridge.o: FORCE scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh seeds/asm_experimental_symbol_bridge.from_x.c $@
+	# wave889 B7B residual: bare sh → pure @bash thin-call form.
+	@bash scripts/cc_inc_tu.sh seeds/asm_experimental_symbol_bridge.from_x.c $@
 
 # 迁移到 .x：parser/typeck/codegen 独立 -E-extern 产物；pipeline_x.o 仅编排（-E-extern），seed 链 typeck_x.o/codegen_x.o。
 # wave735/736: G.7 body → migrate_x_objs.sh (_x.o) + ensure_migrate_gen.sh (*_gen.c)
@@ -1960,7 +1965,8 @@ bootstrap-driver-seed-x-frontend: $(XLANG_C) migrate-x-objs driver_x.o preproces
 # wave831: FORCE dep-thin — shell owns seed mtime (cc_inc_tu; not physical delete).
 # PLATFORM: SHARED — FORCE always invokes script (cheap mtime skip).
 src/lsp/lsp_diag_pipeline_sizes.o: FORCE scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh seeds/lsp_diag_pipeline_sizes_weak.from_x.c $@ -I. -Iinclude -Isrc
+	# wave889 B7B residual: bare sh → pure @bash thin-call form.
+	@bash scripts/cc_inc_tu.sh seeds/lsp_diag_pipeline_sizes_weak.from_x.c $@ -I. -Iinclude -Isrc
 
 # G-02f-1 / Phase 4：产品 G05 nostub 真迁 .x（#[no_mangle] 三枚 sizeof）
 # 源：src/lsp/lsp_diag_pipeline_sizes.x
@@ -2058,7 +2064,8 @@ lsp_io_gen.c: FORCE scripts/ensure_lsp_pipeline_gen.sh
 # wave831: FORCE dep-thin — shell owns seed mtime (cc_inc_tu; not physical delete).
 # PLATFORM: SHARED — FORCE always invokes script (cheap mtime skip).
 src/lsp/typeck_lsp_io_stub.o: FORCE scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh seeds/typeck_lsp_io_stub.from_x.c $@
+	# wave889 B7B residual: bare sh → pure @bash thin-call form.
+	@bash scripts/cc_inc_tu.sh seeds/typeck_lsp_io_stub.from_x.c $@
 
 # G-02f-11 / G-02f-440：seed_link_compat 产品 seed（thin named-weak 6 stubs）
 # wave749 R1 cold: ensure_one · wave771 product PREFER thin+rest → try-other-l2-prefer.
@@ -2630,8 +2637,8 @@ pipeline_bootstrap_orchestration.o: FORCE scripts/ensure_host_cc_seed_o.sh
 $(ASM_GLUE_STANDALONE_O): FORCE scripts/ensure_host_cc_seed_o.sh
 # wave794 B7A: heat dep-edge thin multi-c residual — prereqs → FORCE + ensure;
 # try-heat/ensure_one owns glue.c/ast_pool/types.inc (wave759 twin) + seed mtime.
+# wave889 B7B residual: drop dual @mkdir -p build_asm (ensure_one owns dirname mkdir).
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-	@mkdir -p build_asm
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-11：pipeline_glue_strict_minimal 产品 seed
@@ -2640,7 +2647,7 @@ $(ASM_GLUE_STANDALONE_O): FORCE scripts/ensure_host_cc_seed_o.sh
 # shell owns seed/.x freshness (try-heat). NOT physical delete.
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 build_asm/pipeline_glue_strict_minimal.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@mkdir -p build_asm
+	# wave889 B7B residual: drop dual @mkdir -p build_asm (ensure_one owns dirname mkdir).
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # relink-xlang 与 bootstrap-driver-seed 链接同一组 .o；list authority =
@@ -2871,7 +2878,8 @@ build-tool:
 # wave831: FORCE dep-thin — shell owns seed mtime (cc_inc_tu; not physical delete).
 # PLATFORM: SHARED — FORCE always invokes script (cheap mtime skip).
 src/build_tool_main.o: FORCE scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh seeds/build_tool_main.from_x.c $@
+	# wave889 B7B residual: bare sh → pure @bash thin-call form.
+	@bash scripts/cc_inc_tu.sh seeds/build_tool_main.from_x.c $@
 
 # 别名：与 build-tool 相同（历史 target 名）
 build-tool-x: build-tool

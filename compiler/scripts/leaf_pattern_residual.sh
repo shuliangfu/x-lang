@@ -194,6 +194,12 @@
 #            drop dual chmod +x before invoke; unify @./scripts/ and sh ./…
 #            to @bash scripts/… (or @bash ./verify-…); pure thin-call form;
 #            NOT physical delete — thin edges + B2 + mk lists remain
+#   wave889: B7B residual non-thin recipe body / form hygiene (10 sites) →
+#            drop dual @mkdir -p build_asm (3) + panic stamp mkdir/touch body (1);
+#            bare `sh scripts/cc_inc_tu` → `@bash` (5); legacy-xlang-c-ready drop
+#            nested $(MAKE) → thin ensure after bootstrap_xlangc (1);
+#            shell owns mkdir/stamp/ensure; NOT physical delete — thin edges +
+#            B2 + mk lists remain
 #   wave856: B7B archaeology LINK_OBJS shell-load via make export leaves (5 bags /
 #            6 shells; nested expand; Makefile drops multi-token LINK_OBJS env;
 #            NOT physical delete — CFLAGS env + thin edges + B2 remain)
@@ -1538,6 +1544,23 @@ SWALLOWED_B7B_RECIPE_THIN_FORM_HYGIENE=1
 B7B_RECIPE_THIN_FORM_HYGIENE_SWALLOWED=1
 B7B_RECIPE_THIN_FORM_HYGIENE_WAVE=wave888
 B7B_RECIPE_THIN_FORM_HYGIENE_COUNT=22
+# wave889: B7B residual non-thin recipe body / form hygiene.
+# COUNT = 10 recipe sites closed:
+#   3 dual `@mkdir -p build_asm` before try-heat / stamp (shell ensure owns dirname)
+#   1 panic stamp Makefile body (mkdir+touch; unused make target removed)
+#   5 bare `sh scripts/cc_inc_tu.sh` → pure `@bash scripts/cc_inc_tu.sh`
+#   1 legacy-xlang-c-ready nested `$(MAKE) $(XLANG_C)` → thin ensure + bootstrap_xlangc
+# Authority: ensure_host_cc_seed_o / ensure_xlang_c / cc_inc_tu own bodies.
+# NOT physical delete — thin edges + B2 + mk lists remain.
+PHYS_DEL_B7B_NON_THIN_RECIPE_BODY_HYGIENE=1
+PHYS_DEL_B7B_NON_THIN_RECIPE_BODY_HYGIENE_WAVE=wave889
+PHYS_DEL_B7B_NON_THIN_RECIPE_BODY_HYGIENE_COUNT=10
+PHYS_DEL_B7B_NON_THIN_RECIPE_BODY_HYGIENE_VIA=drop_dual_mkdir_panic_stamp_body_bare_sh_cc_inc_tu_legacy_ready_thin_ensure
+PHYS_DEL_B7B_NON_THIN_RECIPE_BODY_HYGIENE_NOTE=makefile_no_dual_mkdir_no_stamp_body_no_bare_sh_no_nested_make_legacy_ready_thin_edges_remain
+SWALLOWED_B7B_NON_THIN_RECIPE_BODY_HYGIENE=1
+B7B_NON_THIN_RECIPE_BODY_HYGIENE_SWALLOWED=1
+B7B_NON_THIN_RECIPE_BODY_HYGIENE_WAVE=wave889
+B7B_NON_THIN_RECIPE_BODY_HYGIENE_COUNT=10
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -7140,6 +7163,48 @@ if ! grep -q 'PHYS_DEL_B7B_RECIPE_THIN_FORM_HYGIENE_COUNT=22' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_RECIPE_THIN_FORM_HYGIENE_COUNT=22 (wave888)"
 fi
 note "B7B residual recipe thin-call form hygiene (COUNT=22; wave888; not physical delete)"
+# wave889: dual mkdir / panic stamp body / bare sh cc_inc_tu / legacy-ready nested MAKE
+if grep -nE '^\t@mkdir -p build_asm' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile still has dual @mkdir -p build_asm recipe lines (wave889; shell owns)"
+  grep -nE '^\t@mkdir -p build_asm' "$MF" | head -5 >&2
+fi
+if grep -qE 'RUNTIME_PANIC_PLATFORM_STAMP' "$MF" 2>/dev/null; then
+  bad "Makefile still defines RUNTIME_PANIC_PLATFORM_STAMP (wave889; shell owns stamp)"
+fi
+if grep -nE '^\t@touch \$@' "$MF" 2>/dev/null | grep -q .; then
+  # stamp body was the only @touch $@ residual; flag any reintroduction
+  bad "Makefile still has @touch \$@ recipe lines (wave889; panic stamp shell-owned)"
+  grep -nE '^\t@touch \$@' "$MF" | head -5 >&2
+fi
+if grep -nE '^\tsh scripts/' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile still uses bare sh scripts/ recipe form (wave889; use @bash scripts/)"
+  grep -nE '^\tsh scripts/' "$MF" | head -5 >&2
+fi
+# legacy-xlang-c-ready: thin ensure, no nested $(MAKE)
+_lr_rec=$(awk '
+  /^legacy-xlang-c-ready:/ { hit=1; print; next }
+  hit && /^[^[:space:]#]/ { exit }
+  hit { print }
+' "$MF")
+if ! grep -q 'ensure_xlang_c\.sh' <<<"$_lr_rec"; then
+  bad "legacy-xlang-c-ready must thin-call ensure_xlang_c.sh (wave889)"
+fi
+if grep -qE '\$\(MAKE\)' <<<"$_lr_rec"; then
+  bad "legacy-xlang-c-ready must not nest \$(MAKE) (wave889; thin ensure)"
+fi
+if ! grep -q 'bootstrap_xlangc' <<<"$_lr_rec"; then
+  bad "legacy-xlang-c-ready must prereq bootstrap_xlangc (wave889)"
+fi
+if ! grep -q 'wave889' "$MF" 2>/dev/null; then
+  bad "Makefile must document wave889 non-thin recipe body hygiene"
+fi
+if ! grep -q 'PHYS_DEL_B7B_NON_THIN_RECIPE_BODY_HYGIENE=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_NON_THIN_RECIPE_BODY_HYGIENE=1 (wave889)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_NON_THIN_RECIPE_BODY_HYGIENE_COUNT=10' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_NON_THIN_RECIPE_BODY_HYGIENE_COUNT=10 (wave889)"
+fi
+note "B7B residual non-thin recipe body hygiene (COUNT=10; wave889; not physical delete)"
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
   PHYS_DEL_BUCKET_B1_BODY_SWALLOWED=1 \

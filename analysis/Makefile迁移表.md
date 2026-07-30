@@ -690,6 +690,10 @@
 
 - **wave886** · B7B residual LD + pipeline bag inject hygiene：2 叶（`cfg_eval.o` 去 `LD=`/`LD_RELFLAGS=`；`pipeline_x.o` 去 `PIPELINE_X_DEPS`/`PIPELINE_X_FORCE_COMPILE`/`XLANG_FORCE_REGEN_GEN`）。shell LD defaults + `ensure_gen_x_o` mk-load DEPS。**非**物理删。
 
+## wave889 residual note
+
+- **wave889** · B7B residual non-thin recipe body / form hygiene：10 sites（3 dual `@mkdir -p build_asm` 去掉；1 panic stamp Makefile body 去掉；5 bare `sh scripts/cc_inc_tu` → `@bash`；1 `legacy-xlang-c-ready` 嵌套 `$(MAKE)` → thin `ensure_xlang_c`）。**非**物理删。
+
 ## wave888 residual note
 
 - **wave888** · B7B residual recipe thin-call form hygiene：22 recipe sites（16 dual `chmod +x` 去掉；6 处 `@./scripts`/`sh ./`/bare → 纯 `@bash scripts/…`）。**非**物理删。
