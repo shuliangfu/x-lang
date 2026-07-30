@@ -2138,7 +2138,8 @@ lsp_gen.c: src/lsp/lsp.x
 # Track L：lsp_io_std_heap 叶子退役 — .x→.o（rename 与 prove_module_selfhost 一致）
 # 冷启动仅 seeds/lsp_io_std_heap_gen.linux.x86_64.c；工作区 lsp_io_std_heap_gen.c 仅考古/FORCE_REGEN
 # wave814: driver_leaf catalog → ensure (G.7; rename/dirs in script; not physical delete).
-lsp_io_std_heap_x.o: src/lsp/lsp_io_std_heap.x scripts/driver_leaf_x_to_o.sh
+# wave828: FORCE dep-thin — shell owns catalog .x mtime (skip up-to-date); not physical delete.
+lsp_io_std_heap_x.o: FORCE scripts/driver_leaf_x_to_o.sh
 	@BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
 	  bash scripts/driver_leaf_x_to_o.sh ensure $@
 # wave740: G.7 body → scripts/ensure_archaeology_gen.sh (Track L archaeology only)
@@ -2172,28 +2173,29 @@ include mk/driver_subcmd_objs.mk
 
 # Track L：叶子 .o 直接来自 .x（scripts/driver_leaf_x_to_o.sh）；rename 与 prove_module_selfhost / g05 一致
 # wave814: driver_leaf shell-primary catalog → ensure (G.7; not physical delete).
+# wave828: FORCE dep-thin — Makefile prereqs FORCE+script only; shell owns catalog .x mtime.
 # Makefile thin-call only; src/rename/cold-seed/-L live in script catalog.
-driver_fmt_x.o: src/driver/fmt.x scripts/driver_leaf_x_to_o.sh
+driver_fmt_x.o: FORCE scripts/driver_leaf_x_to_o.sh
 	@BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
 	  bash scripts/driver_leaf_x_to_o.sh ensure $@
-driver_check_x.o: src/driver/check.x scripts/driver_leaf_x_to_o.sh
+driver_check_x.o: FORCE scripts/driver_leaf_x_to_o.sh
 	@BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
 	  bash scripts/driver_leaf_x_to_o.sh ensure $@
-driver_test_x.o: src/driver/test.x scripts/driver_leaf_x_to_o.sh
+driver_test_x.o: FORCE scripts/driver_leaf_x_to_o.sh
 	@BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
 	  bash scripts/driver_leaf_x_to_o.sh ensure $@
-driver_build_x.o: src/driver/build.x scripts/driver_leaf_x_to_o.sh
+driver_build_x.o: FORCE scripts/driver_leaf_x_to_o.sh
 	@BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
 	  bash scripts/driver_leaf_x_to_o.sh ensure $@
-driver_run_x.o: src/driver/run.x scripts/driver_leaf_x_to_o.sh
+driver_run_x.o: FORCE scripts/driver_leaf_x_to_o.sh
 	@BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
 	  bash scripts/driver_leaf_x_to_o.sh ensure $@
 # Track L：compile / emit 叶子退役（prove IDENTICAL；emit 依赖 codegen 字段访问 . vs -> 根修）
 # wave814: rename maps moved into driver_leaf_x_to_o.sh catalog (G.7 single authority).
-driver_compile_x.o: src/driver/compile.x scripts/driver_leaf_x_to_o.sh
+driver_compile_x.o: FORCE scripts/driver_leaf_x_to_o.sh
 	@BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
 	  bash scripts/driver_leaf_x_to_o.sh ensure $@
-driver_emit_x.o: src/driver/emit.x scripts/driver_leaf_x_to_o.sh
+driver_emit_x.o: FORCE scripts/driver_leaf_x_to_o.sh
 	@BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
 	  bash scripts/driver_leaf_x_to_o.sh ensure $@
 

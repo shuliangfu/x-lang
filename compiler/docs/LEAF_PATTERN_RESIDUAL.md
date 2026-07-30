@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · … · wave824 E_DIRS list→mk · wave825 std_x shell-primary catalog · wave826 formal_mod FORCE dep-thin · wave827 std_x FORCE dep-thin · wave747–825 prior swallows · wave799 execute-gate · … · not physical delete)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · … · wave824 E_DIRS list→mk · wave825 std_x shell-primary catalog · wave826 formal_mod FORCE dep-thin · wave827 std_x FORCE dep-thin · wave828 driver_leaf FORCE dep-thin · wave747–825 prior swallows · wave799 execute-gate · … · not physical delete)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -1721,6 +1721,47 @@ Then (later waves, not this tip):
 
 **Forbidden:** claim endgame-preview = ENDGAME arm / physical delete; set
 ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
+
+## wave828 driver_leaf FORCE dep-thin (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **有则补全** on driver_leaf neighborhood residual
+> (mirror wave826 formal_mod / wave827 std_x) — Makefile **8** driver/lsp product
+> leaves drop dual catalog `.x` prereqs; target lines are
+> `FORCE scripts/driver_leaf_x_to_o.sh` only; recipe remains `ensure $@` with
+> `BASE_CFLAGS=…`. Shell owns catalog source mtime (skip up-to-date; `FORCE=1`
+> rebuilds). Honesty COUNT = **8**. Dual-end L2 required. Blockers **remain**
+> (`makefile_thin_call_edges|b7b_lists_in_mk|std_core_product_make_graph`) —
+> thin edges + B2 try-heat + mk lists still form the product make graph.
+
+```text
+  leaf dump:
+    PHYS_DEL_DRIVER_LEAF_FORCE_THIN=1
+    PHYS_DEL_DRIVER_LEAF_FORCE_THIN_WAVE=wave828
+    PHYS_DEL_DRIVER_LEAF_FORCE_THIN_COUNT=8
+    SWALLOWED_DRIVER_LEAF_FORCE_THIN=1
+    PHYS_DEL_PREFLIGHT_DRIVER_LEAF_FORCE_THIN=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  dual-end L2 green tip: (pending this wave commit)
+  next: more shell-primary / thin edges / B2 residual or tip Windows re-proof
+       → Mac+Ubuntu L4 → ship delete body
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_DRIVER_LEAF_FORCE_THIN` | `1` |
+| `PHYS_DEL_DRIVER_LEAF_FORCE_THIN_COUNT` | `8` |
+| `SWALLOWED_DRIVER_LEAF_FORCE_THIN` | `1` |
+| `DRIVER_LEAF_FORCE_THIN_HELPER` | `driver_leaf_x_to_o.sh` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+| dual-end L2 tip | pending |
+
+**Forbidden:** claim driver_leaf FORCE thin = physical delete; re-list catalog
+`.x` on Makefile driver_leaf prereq lines; `rm compiler/Makefile`; ship delete
+body; mac-only wave green.
 
 ## wave827 std_x FORCE dep-thin (2026-07-30)
 

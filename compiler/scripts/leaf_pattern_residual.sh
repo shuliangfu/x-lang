@@ -27,6 +27,7 @@
 #   wave826: formal_mod FORCE dep-thin (38 leaves) → ensure owns source mtime
 #   wave827: std_x FORCE dep-thin (22 leaves) → ensure owns source mtime
 #            (mode|x_path table in shell; Makefile ensure only; NOT physical delete)
+#   wave828: driver_leaf FORCE dep-thin (8 leaves) → ensure owns source mtime
 #   wave812: formal_mod shell-primary catalog (38 leaves) → xlang_compile_std_module ensure
 #            (Makefile thin-call only; NOT physical delete; edges+lists+B2 remain)
 #   wave813: B7B STD_AND_PANIC_O list authority → mk/std_and_panic_objs.mk
@@ -474,6 +475,18 @@ SWALLOWED_DRIVER_LEAF_CATALOG=1
 DRIVER_LEAF_CATALOG_SWALLOWED=1
 DRIVER_LEAF_CATALOG_HELPER=driver_leaf_x_to_o.sh
 DRIVER_LEAF_CATALOG_WAVE=wave814
+# wave828: driver_leaf FORCE dep-thin — Makefile prereqs FORCE+script only; shell
+# owns catalog source mtime (skip up-to-date). NOT physical delete — thin edges
+# + B2 try-heat + mk lists still form make graph residual.
+PHYS_DEL_DRIVER_LEAF_FORCE_THIN=1
+PHYS_DEL_DRIVER_LEAF_FORCE_THIN_WAVE=wave828
+PHYS_DEL_DRIVER_LEAF_FORCE_THIN_COUNT=8
+PHYS_DEL_DRIVER_LEAF_FORCE_THIN_VIA=driver_leaf_x_to_o_ensure_mtime
+PHYS_DEL_DRIVER_LEAF_FORCE_THIN_NOTE=force_prereq_shell_owns_source_mtime_edges_remain
+SWALLOWED_DRIVER_LEAF_FORCE_THIN=1
+DRIVER_LEAF_FORCE_THIN_SWALLOWED=1
+DRIVER_LEAF_FORCE_THIN_HELPER=driver_leaf_x_to_o.sh
+DRIVER_LEAF_FORCE_THIN_WAVE=wave828
 # wave815: archaeology host-pick phonies (TLS openssl/mbedtls + sqlite stub + net-o-stub)
 # live in archaeology_host_pick_phony.sh; Makefile thin-call ensure only.
 # NOT physical delete — thin edges + B2 ensure + B7B lists remain.
@@ -752,8 +765,8 @@ PHYS_DEL_PREFLIGHT_B7D_G05=1
 PHYS_DEL_PREFLIGHT_B7A_COLD_0MAKE=1
 PHYS_DEL_PREFLIGHT_B7B_SHELL_CATALOG=1
 PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113
-# wave811–827: std_x hybrid+catalog+FORCE / formal_mod / STD_AND_PANIC / driver_leaf /
-# archaeology / DRIVER_SUBCMD / PIPELINE_X / SEED_MODE / SEED_LINK_PICKS /
+# wave811–828: std_x hybrid+catalog+FORCE / formal_mod / STD_AND_PANIC / driver_leaf
+# catalog+FORCE / archaeology / DRIVER_SUBCMD / PIPELINE_X / SEED_MODE / SEED_LINK_PICKS /
 # OBJS_CORE / ARCH_EXPERIMENT / RELINK_LEGACY / SOURCE_DEPS / E_DIRS swallowed;
 # blocker name kept (thin edges + B2 ensure + remaining B7B mk lists still form make graph).
 PHYS_DEL_PREFLIGHT_BLOCKERS=makefile_thin_call_edges|b7b_lists_in_mk|std_core_product_make_graph
@@ -764,6 +777,7 @@ PHYS_DEL_PREFLIGHT_FORMAL_MOD_SHELL_PRIMARY=1
 PHYS_DEL_PREFLIGHT_FORMAL_MOD_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_B7B_STD_AND_PANIC_LIST=1
 PHYS_DEL_PREFLIGHT_DRIVER_LEAF_SHELL_PRIMARY=1
+PHYS_DEL_PREFLIGHT_DRIVER_LEAF_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_ARCH_HOST_PICK_PHONY=1
 PHYS_DEL_PREFLIGHT_B7B_DRIVER_SUBCMD_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_PIPELINE_X_LIST=1
@@ -775,7 +789,7 @@ PHYS_DEL_PREFLIGHT_B7B_RELINK_LEGACY_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_SOURCE_DEPS_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_E_DIRS_LIST=1
 PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_std_x_catalog_is_physical_delete|claim_std_x_force_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_formal_mod_force_thin_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|claim_e_dirs_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
+PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_std_x_catalog_is_physical_delete|claim_std_x_force_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_formal_mod_force_thin_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_driver_leaf_force_thin_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|claim_e_dirs_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_PREFLIGHT_WIN_GATE_HOST=MSYS2_windows-server_dual_boot_reboot_required
 PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
@@ -1376,6 +1390,9 @@ else
   if ! grep -qE 'wave827|std_x FORCE|STD_X_FORCE_THIN' "$DOC_REL"; then
     bad "$DOC_REL must document wave827 std_x FORCE dep-thin"
   fi
+  if ! grep -qE 'wave828|driver_leaf FORCE|DRIVER_LEAF_FORCE_THIN' "$DOC_REL"; then
+    bad "$DOC_REL must document wave828 driver_leaf FORCE dep-thin"
+  fi
   if ! grep -qE 'wave812|formal_mod|FORMAL_MOD_SHELL|std_module ensure' "$DOC_REL"; then
     bad "$DOC_REL must document wave812 formal_mod shell-primary catalog"
   fi
@@ -1951,6 +1968,21 @@ if ! grep -q 'SWALLOWED_DRIVER_LEAF_CATALOG=1' <<<"$_out"; then
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_DRIVER_LEAF_SHELL_PRIMARY=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_DRIVER_LEAF_SHELL_PRIMARY=1 (wave814)"
+fi
+if ! grep -q 'PHYS_DEL_DRIVER_LEAF_FORCE_THIN=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_DRIVER_LEAF_FORCE_THIN=1 (wave828)"
+fi
+if ! grep -q 'PHYS_DEL_DRIVER_LEAF_FORCE_THIN_WAVE=wave828' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_DRIVER_LEAF_FORCE_THIN_WAVE=wave828"
+fi
+if ! grep -q 'PHYS_DEL_DRIVER_LEAF_FORCE_THIN_COUNT=8' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_DRIVER_LEAF_FORCE_THIN_COUNT=8 (wave828)"
+fi
+if ! grep -q 'SWALLOWED_DRIVER_LEAF_FORCE_THIN=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_DRIVER_LEAF_FORCE_THIN=1 (wave828)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_DRIVER_LEAF_FORCE_THIN=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_DRIVER_LEAF_FORCE_THIN=1 (wave828)"
 fi
 if ! grep -q 'PHYS_DEL_ARCH_HOST_PICK_PHONY=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_ARCH_HOST_PICK_PHONY=1 (wave815)"
@@ -2625,6 +2657,31 @@ if [ "$_dl_thin" -ne 8 ]; then
   bad "wave814 expected 8 driver_leaf ensure leaves, got $_dl_thin"
 fi
 note "Makefile driver_leaf 8 leaves thin-call ensure (wave814; not physical delete)"
+# wave828: driver_leaf FORCE dep-thin — target line FORCE only (no dual .x prereqs).
+_dl_force=0
+while IFS= read -r _dl; do
+  [ -z "$_dl" ] && continue
+  if awk -v leaf="$_dl" '
+    $0 ~ ("^" leaf ":") {
+      if ($0 ~ /FORCE/ && $0 !~ /\.x([[:space:]]|$)/) { ok=1; exit 0 }
+      exit 1
+    }
+    END { exit ok ? 0 : 1 }
+  ' "$MF" 2>/dev/null; then
+    _dl_force=$((_dl_force + 1))
+  else
+    bad "Makefile $_dl must FORCE dep-thin (no .x prereqs; wave828)"
+  fi
+done < <(bash "$_dl_sh" list 2>/dev/null || true)
+if [ "$_dl_force" -ne 8 ]; then
+  bad "wave828 expected 8 driver_leaf FORCE thin leaves, got $_dl_force"
+fi
+note "Makefile driver_leaf 8 leaves FORCE dep-thin (wave828; not physical delete)"
+if ! grep -q 'FORCE-thin mtime\|skip up-to-date' "$_dl_sh"; then
+  bad "driver_leaf_x_to_o.sh must own FORCE-thin mtime skip (wave828)"
+else
+  note "driver_leaf ensure owns source mtime skip (wave828)"
+fi
 if grep -nE $'^\t.*driver_leaf_x_to_o\.sh (src/|seeds/)' "$MF" 2>/dev/null | head -1 | grep -q .; then
   bad "Makefile driver_leaf still has explicit-arg recipe calls (wave814 must ensure)"
 else
@@ -2641,6 +2698,12 @@ if grep -nE '^LSP_IO_STD_HEAP_RENAME[[:space:]]*=' "$MF" 2>/dev/null | grep -q '
   bad "Makefile must not keep LSP_IO_STD_HEAP_RENAME inline (wave814 dual authority)"
 fi
 note "Makefile free of driver_leaf rename dual lists (wave814)"
+# --check resolves catalog + Makefile FORCE greps (cwd=compiler/).
+if ! ( cd "$COMPILER_DIR" && bash scripts/driver_leaf_x_to_o.sh --check >/dev/null ); then
+  bad "driver_leaf_x_to_o.sh --check failed (wave814/wave828)"
+else
+  note "driver_leaf_x_to_o.sh --check OK (wave828 FORCE thin; not physical delete)"
+fi
 
 # wave815: archaeology host-pick phonies — ensure thin on catalog keys + script --check.
 if [ ! -f "$ROOT/compiler/scripts/archaeology_host_pick_phony.sh" ] && [ ! -f "scripts/archaeology_host_pick_phony.sh" ]; then
@@ -3881,5 +3944,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747–827: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave825 std_x ensure catalog 22 + wave827 std_x FORCE dep-thin 22 + wave812 formal_mod ensure 38 + wave826 formal_mod FORCE dep-thin 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave815 archaeology host-pick phonies 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2 + wave820 OBJS_CORE list→mk 16 + wave821 ARCH_EXPERIMENT list→mk 7 + wave822 RELINK/LEGACY list→composites 14 + wave823 SOURCE_DEPS list→mk 19 + wave824 E_DIRS list→mk 26; Makefile still present; delete body deferred)"
+echo "leaf_pattern_residual: CHECK OK (wave747–828: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave825 std_x ensure catalog 22 + wave827 std_x FORCE dep-thin 22 + wave812 formal_mod ensure 38 + wave826 formal_mod FORCE dep-thin 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave828 driver_leaf FORCE dep-thin 8 + wave815 archaeology host-pick phonies 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2 + wave820 OBJS_CORE list→mk 16 + wave821 ARCH_EXPERIMENT list→mk 7 + wave822 RELINK/LEGACY list→composites 14 + wave823 SOURCE_DEPS list→mk 19 + wave824 E_DIRS list→mk 26; Makefile still present; delete body deferred)"
 exit 0

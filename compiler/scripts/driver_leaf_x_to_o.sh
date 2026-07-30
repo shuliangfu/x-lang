@@ -14,8 +14,11 @@
 # Fallback: cold-seed.c (seeds/* only; never workspace pinned driver_*_gen.c)
 #
 # wave814 (G.7 有则补全): product leaf table lives here — src + rename + cold
-# seed + -L roots. Makefile thin-calls `ensure $@` only (source prereqs stay
-# for mtime). NOT physical delete; thin edges + B7B lists + B2 remain residual.
+# seed + -L roots. Makefile thin-calls `ensure $@` only. NOT physical delete;
+# thin edges + B7B lists + B2 remain residual.
+# wave828 (G.7 有则补全): FORCE dep-thin — Makefile prereqs are FORCE + script only;
+#   shell owns catalog source mtime (skip up-to-date). NOT physical delete; thin
+#   edges + B2 try-heat + mk lists still form make graph residual.
 #
 # Env: CC, BASE_CFLAGS, DRIVER_SUBCMD_DIRS (legacy override; ensure uses catalog)
 # PLATFORM: SHARED — catalog + compile body.
@@ -267,13 +270,19 @@ EOF
   if [ -f "$_mf" ]; then
     for _leaf in driver_fmt_x.o driver_check_x.o driver_test_x.o driver_build_x.o \
       driver_run_x.o driver_compile_x.o driver_emit_x.o lsp_io_std_heap_x.o; do
+      # wave828: FORCE required (dep-thin); ban dual catalog .x on prereq line.
       if ! awk -v leaf="$_leaf" '
-        $0 ~ ("^" leaf ":") { want=1; next }
+        $0 ~ ("^" leaf ":") {
+          line=$0
+          if (line !~ /FORCE/) { exit 1 }
+          if (line ~ /\.x([[:space:]]|$)/) { exit 1 }
+          want=1; next
+        }
         want && /^[^#[:space:]]/ { want=0 }
         want && /driver_leaf_x_to_o\.sh ensure/ { found=1 }
         END { exit found ? 0 : 1 }
       ' "$_mf"; then
-        echo "driver_leaf_x_to_o --check: Makefile $_leaf must thin-call ensure (wave814)" >&2
+        echo "driver_leaf_x_to_o --check: Makefile $_leaf must FORCE + ensure (wave828 FORCE thin)" >&2
         exit 1
       fi
     done
@@ -283,7 +292,7 @@ EOF
       exit 1
     fi
   fi
-  echo "driver_leaf_x_to_o --check: OK (8 catalog leaves; wave814)"
+  echo "driver_leaf_x_to_o --check: OK (8 catalog leaves; Makefile FORCE+ensure thin wave828; not physical delete)"
   exit 0
 }
 
@@ -436,6 +445,19 @@ driver_leaf_ensure() {
   else
     export DRIVER_SUBCMD_DIRS
     DRIVER_SUBCMD_DIRS="$(driver_leaf_dirs_for_kind "$_kind")"
+  fi
+  # wave828: FORCE-thin mtime — shell owns catalog source freshness (G.7).
+  # Makefile always invokes via FORCE; skip recompile when OUT is newer than the
+  # catalog .x source. FORCE=1 forces rebuild (tests / explicit). PLATFORM: SHARED.
+  if [ "${FORCE:-0}" != "1" ] && [ -f "$OUT_O" ]; then
+    _dl_stale=0
+    if [ -f "$_src" ] && [ "$_src" -nt "$OUT_O" ]; then
+      _dl_stale=1
+    fi
+    if [ "$_dl_stale" = "0" ]; then
+      echo "driver_leaf_x_to_o: skip up-to-date $OUT_O (driver_leaf/$_key)" >&2
+      return 0
+    fi
   fi
   driver_leaf_build "$_src" "$OUT_O" "$_rename" "$_seed"
 }
