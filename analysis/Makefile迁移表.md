@@ -97,9 +97,9 @@
 | `bootstrap-verify-bstrict` | 3407 | Makefile | `xbuild bootstrap-verify` | ⬜ Makefile |  |
 | `bootstrap-verify-stage2` | 3135 | Makefile | `xbuild stage2` | ⬜ Makefile |  |
 | `bootstrap-verify-stage2-bstrict` | 3142 | Makefile | `xbuild stage2` | ⬜ Makefile |  |
-| `check-7.2` | 3287 | Makefile | `xbuild check-7.2 或 tests/` | ⬜ Makefile | 历史 gate |
-| `check-7.2-bstrict` | 3393 | Makefile | `同上` | ⬜ Makefile |  |
-| `check-6.4` | 3225 | Makefile | `xbuild check-6.4 或 tests/` | ⬜ Makefile |  |
+| `check-7.2` | 3015 | shell `check_7_2.sh` | `xbuild check-7.2 或 tests/` | 🟢 wave870 体 shell；prereq bootstrap-self 图 | 历史 seed gate |
+| `check-7.2-bstrict` | 3393 | shell `bootstrap_verify_bstrict.sh` | `同上` | 🟢 wave720 shell |  |
+| `check-6.4` | 2959 | shell `check_6_4.sh` | `xbuild check-6.4 或 tests/` | 🟢 wave871 体 shell；prereq bootstrap-driver-seed 图 |  |
 | `check-asm-o-quality` | 3220 | scripts/check_asm_o_quality.sh | `xbuild check-asm` | ⬜ Makefile | 已有脚本 |
 | `check-pipeline-gen-expr-i64-abi` | 3340 | Makefile | `xbuild check-i64-abi` | ⬜ Makefile | P0-4 守卫 |
 | `build-seed-asm-host` | 1948 | Makefile | `xbuild seed-asm-host` | ⬜ Makefile | 冷补依赖 |
@@ -474,8 +474,8 @@
 | 3131 | `verify-selfhost-stage2` | ⬜ |
 | 3139 | `verify-selfhost-stage2-bstrict` | ⬜ 脚本仍内 make |
 | 3220 | `check-asm-o-quality` | ⬜ |
-| 3225 | `check-6.4` | ⬜ |
-| 3287 | `check-7.2` | ⬜ seed 路径 |
+| 2959 | `check-6.4` | 🟢 wave871 shell `check_6_4.sh` |
+| 3015 | `check-7.2` | 🟢 wave870 shell `check_7_2.sh` |
 | 3340 | `check-pipeline-gen-expr-i64-abi` | ⬜ |
 | ~3320 | `check-7.2-bstrict` / `bootstrap-verify` | 🟢 wave720 shell `bootstrap_verify_bstrict.sh` |
 | 3422 | `size-baseline` | ⬜ |
