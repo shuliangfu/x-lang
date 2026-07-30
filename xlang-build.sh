@@ -336,6 +336,8 @@ case "$TARGET" in
     # wave805: --endgame-preview STATUS-gated ENDGAME=1 plan only (NOT arm; NOT delete).
     # wave806: --endgame-arm-apply STATUS+confirm leaf ENDGAME edit (NOT delete; TREE_ARMED=0).
     # wave807: --endgame-arm-commit-honesty pre_arm/post_arm contract (NOT edit; NOT delete).
+    # wave808: TREE_ARMED arm on leaf (ENDGAME=1 TREE_ARMED=1; NOT physical delete).
+    # wave809: --delete-body-preview TREE_ARMED-gated plan only (NOT ship body; NOT rm).
     # Usage:
     #   ./xbuild phys-del-gate
     #   ./xbuild phys-del-gate --check
@@ -348,6 +350,7 @@ case "$TARGET" in
     #   ./xbuild phys-del-gate --endgame-preview           # ENDGAME arm plan (wave805)
     #   ./xbuild phys-del-gate --endgame-arm-apply         # confirm-gated ENDGAME arm (wave806)
     #   ./xbuild phys-del-gate --endgame-arm-commit-honesty # arm commit checklist (wave807)
+    #   ./xbuild phys-del-gate --delete-body-preview       # delete body plan (wave809; NOT rm)
     # PLATFORM: SHARED shell; Windows gate body only on MSYS2
     shift
     bash compiler/scripts/phys_del_makefile_gate.sh "$@"
@@ -666,8 +669,8 @@ g05 产品链（wave733–735 · 11.1.6；产品 link 零 make）:
                                        （G.7 禁双 .o；禁第二套链接实现）
   leaf-patterns / leaf-residual        叶 .o pattern residual 库存（11.3.1 路径）
   leaf-patterns --check                校验 doc + class dump + 接线
-  phys-del-gate / phys-del             物理删 Makefile 执行闸门（wave799–807；非物理删）
-  phys-del-gate --check                硬拒删 + preflight 诚实 + proof + flip + endgame-preview/arm/honesty
+  phys-del-gate / phys-del             物理删 Makefile 执行闸门（wave799–809；非物理删）
+  phys-del-gate --check                硬拒删 + preflight 诚实 + proof + flip + endgame + delete-body-preview
   phys-del-gate --dry-run-delete       仅列将删面
   phys-del-gate --run-windows-gate     MSYS2 上跑 hybrid min-gate 并写 proof stamp
   phys-del-gate --verify-windows-proof 校验 proof tip 与 HEAD（非 STATUS 翻转）
@@ -676,6 +679,7 @@ g05 产品链（wave733–735 · 11.1.6；产品 link 零 make）:
   phys-del-gate --endgame-preview      STATUS 绿后打印 ENDGAME=1 计划（wave805；不 arm）
   phys-del-gate --endgame-arm-apply    STATUS+confirm 改 leaf ENDGAME（wave806；非物理删）
   phys-del-gate --endgame-arm-commit-honesty  树 arm commit 清单/契约（wave807；不改 leaf）
+  phys-del-gate --delete-body-preview  TREE_ARMED 后删体计划（wave809；不 rm）
                                        体 = phys_del_makefile_gate.sh
   host-cc-seed / rt-seed-slice / core-seed / frontend-glue / main-runtime / alias-stubs / extra-cflags / misc-basename / seed-map / r3-cold-seed
                                        R1 host-cc 体（wave748–752 五族）

@@ -1012,6 +1012,7 @@ bash compiler/scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 - [x] **wave806:** ENDGAME arm **apply harness** (`--endgame-arm-apply`; STATUS+confirm; TREE_ARMED=0 on tree; NOT physical delete)
 - [x] **wave807:** ENDGAME arm **commit honesty** (`--endgame-arm-commit-honesty`; pre_arm/post_arm; TREE_ARMED=0 on tree; NOT tree arm; NOT delete)
 - [x] **wave808:** reviewed **TREE_ARMED arm** (`ENDGAME=1` + `TREE_ARMED=1`; honesty greps co-changed; Makefile still present; NOT physical delete)
+- [x] **wave809:** delete-body **prep/preview** (`--delete-body-preview`; TREE_ARMED plan only; BODY_SHIPPED=0; NOT ship body; NOT physical delete)
 - [ ] Physical delete of Makefile / all leaf pattern rules (11.3.1 endgame · **confirm delete body only**)
 - [ ] Leaf `.o` without host-cc residual (stages 8–9 / 12)
 - [ ] B7 residual endgame: Makefile heat **dep** edges gone / physical delete (try-heat ✅ wave789; thin-unify ✅ wave790; source-prereq closed wave797; thin-call edges remain until phys del)
@@ -1719,6 +1720,45 @@ Then (later waves, not this tip):
 **Forbidden:** claim endgame-preview = ENDGAME arm / physical delete; set
 ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
 
+## wave809 delete-body prep / preview (2026-07-30)
+
+> **Not this wave:** ship real `rm compiler/Makefile` body; physical delete.
+>
+> **What this wave is:** G.7 **有则补全** on `phys_del_makefile_gate.sh` —
+> `--delete-body-preview` after STATUS green + ENDGAME=1 + TREE_ARMED=1 prints
+> the *exact* delete-body plan (TARGET=`rm_compiler_Makefile`, confirm env,
+> co-change list). Preview never edits leaf. Preview ≠ ship body. Preview ≠
+> physical delete. Tree keeps ENDGAME=1 · TREE_ARMED=1 · Makefile present ·
+> `--delete` still never-rm. Dual-end L2 required.
+
+```text
+  ./xbuild phys-del-gate --delete-body-preview
+      # exit 0 + PHYS_DEL_DELETE_BODY_PREVIEW_READY=1 when TREE_ARMED green
+      # APPLIED=0 BODY_SHIPPED=0 DELETE_ALLOWED=0 always; no leaf mutation; no rm
+  leaf dump:
+    PHYS_DEL_DELETE_BODY_PREP=1
+    PHYS_DEL_DELETE_BODY_PREP_WAVE=wave809
+    PHYS_DEL_DELETE_BODY_PREP_MODE=--delete-body-preview
+    PHYS_DEL_DELETE_BODY_PREP_BODY_SHIPPED=0
+    PHYS_DEL_PREFLIGHT_NEXT=delete_body_commit_honesty_then_confirm_rm_separate
+  next: delete-body commit honesty → confirm ship --delete body (separate wave)
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_DELETE_BODY_PREP` | `1` |
+| `PHYS_DEL_DELETE_BODY_PREP_WAVE` | `wave809` |
+| `PHYS_DEL_DELETE_BODY_PREP_MODE` | `--delete-body-preview` |
+| `PHYS_DEL_DELETE_BODY_PREP_APPLIED` | `0` |
+| `PHYS_DEL_DELETE_BODY_PREP_BODY_SHIPPED` | `0` |
+| `PHYS_DEL_DELETE_BODY_PREP_TARGET_ACTION` | `rm_compiler_Makefile` |
+| `PHYS_DEL_DELETE_BODY_PREP_DELETE_ALLOWED` | `0` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `delete_body_commit_honesty_then_confirm_rm_separate` |
+
+**Forbidden:** claim delete-body-preview = ship body / physical delete; `rm
+compiler/Makefile` in this wave; mac-only wave green.
+
 ## wave808 reviewed TREE_ARMED arm (2026-07-30)
 
 > **Not this wave:** physical delete of `compiler/Makefile`.
@@ -1738,9 +1778,9 @@ ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
     PHYS_DEL_ENDGAME_TREE_ARMED=1
     PHYS_DEL_ENDGAME_TREE_ARMED_WAVE=wave808
     PHYS_DEL_ENDGAME_TREE_ARMED_DELETE_ALLOWED=0
-    PHYS_DEL_PREFLIGHT_NEXT=confirm_delete_body_separate_wave_after_tree_arm
+    PHYS_DEL_PREFLIGHT_NEXT=delete_body_commit_honesty_then_confirm_rm_separate
   # --delete (with or without confirm) still refuses; Makefile present
-  next: confirm --delete body (separate wave; still never-rm until body ships)
+  next: wave809 delete-body-preview → honesty → confirm ship body
 ```
 
 | Key | Value |
@@ -1750,7 +1790,7 @@ ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
 | `PHYS_DEL_ENDGAME_ARM_APPLY_TREE_ARMED` | `1` |
 | `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` |
 | `PHYS_DEL_ENDGAME_TREE_ARMED_DELETE_ALLOWED` | `0` |
-| `PHYS_DEL_PREFLIGHT_NEXT` | `confirm_delete_body_separate_wave_after_tree_arm` |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `delete_body_commit_honesty_then_confirm_rm_separate` |
 | `PHYS_DEL_WINDOWS_GATE_STATUS` | `reproven_green` |
 
 **Forbidden:** claim tree arm = physical delete; `rm compiler/Makefile` in this

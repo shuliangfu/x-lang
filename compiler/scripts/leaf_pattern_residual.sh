@@ -511,8 +511,8 @@ PHYS_DEL_PREFLIGHT_B7A_COLD_0MAKE=1
 PHYS_DEL_PREFLIGHT_B7B_SHELL_CATALOG=1
 PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113
 PHYS_DEL_PREFLIGHT_BLOCKERS=makefile_thin_call_edges|b7b_lists_in_mk|std_core_product_make_graph
-PHYS_DEL_PREFLIGHT_NEXT=confirm_delete_body_separate_wave_after_tree_arm
-PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|rm_makefile_without_confirm_delete_body
+PHYS_DEL_PREFLIGHT_NEXT=delete_body_commit_honesty_then_confirm_rm_separate
+PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_PREFLIGHT_WIN_GATE_HOST=MSYS2_windows-server_dual_boot_reboot_required
 PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
@@ -525,8 +525,8 @@ PHYS_DEL_EXECUTE_GATE_SCRIPT=compiler/scripts/phys_del_makefile_gate.sh
 PHYS_DEL_EXECUTE_GATE_REFUSES_DELETE=1
 PHYS_DEL_EXECUTE_GATE_DELETE_ALLOWED=0
 PHYS_DEL_EXECUTE_GATE_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
-PHYS_DEL_EXECUTE_GATE_NEXT=confirm_delete_body_separate_wave_after_tree_arm
-PHYS_DEL_EXECUTE_GATE_FORBIDDEN=claim_execute_gate_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|rm_makefile_without_confirm_delete_body|claim_proof_is_physical_delete|auto_flip_leaf_from_proof
+PHYS_DEL_EXECUTE_GATE_NEXT=delete_body_commit_honesty_then_confirm_rm_separate
+PHYS_DEL_EXECUTE_GATE_FORBIDDEN=claim_execute_gate_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|rm_makefile_without_confirm_delete_body|claim_proof_is_physical_delete|auto_flip_leaf_from_proof
 # wave800: Windows min-gate proof stamp harness (evidence only; NOT STATUS green; NOT delete).
 # Authority body: phys_del_makefile_gate.sh --run-windows-gate writes stamp; --verify-windows-proof.
 PHYS_DEL_WINDOWS_PROOF_HARNESS=1
@@ -626,8 +626,25 @@ PHYS_DEL_ENDGAME_TREE_ARMED_WAVE=wave808
 PHYS_DEL_ENDGAME_TREE_ARMED_NOTE=reviewed_tree_arm_ENDGAME_1_TREE_ARMED_1_delete_body_separate
 PHYS_DEL_ENDGAME_TREE_ARMED_DELETE_ALLOWED=0
 PHYS_DEL_ENDGAME_TREE_ARMED_DELETE_BODY=deferred_never_rm_in_execute_gate
-PHYS_DEL_ENDGAME_TREE_ARMED_NEXT=confirm_delete_body_separate_wave
+PHYS_DEL_ENDGAME_TREE_ARMED_NEXT=delete_body_preview_then_honesty_then_confirm_rm
 PHYS_DEL_ENDGAME_TREE_ARMED_FORBIDDEN=claim_tree_arm_is_physical_delete|rm_makefile_in_tree_arm_commit|skip_dual_end_L2|mac_only_claim_wave_green
+# wave809: delete-body *prep/preview* — TREE_ARMED-gated plan only (NOT ship body; NOT rm).
+# Body: phys_del_makefile_gate.sh --delete-body-preview. Ship body is a later confirm wave.
+PHYS_DEL_DELETE_BODY_PREP=1
+PHYS_DEL_DELETE_BODY_PREP_WAVE=wave809
+PHYS_DEL_DELETE_BODY_PREP_NOTE=preview_only_after_tree_armed_not_ship_body_not_rm
+PHYS_DEL_DELETE_BODY_PREP_SCRIPT=compiler/scripts/phys_del_makefile_gate.sh
+PHYS_DEL_DELETE_BODY_PREP_MODE=--delete-body-preview
+PHYS_DEL_DELETE_BODY_PREP_APPLIED=0
+PHYS_DEL_DELETE_BODY_PREP_BODY_SHIPPED=0
+PHYS_DEL_DELETE_BODY_PREP_REQUIRES_STATUS=reproven_green
+PHYS_DEL_DELETE_BODY_PREP_REQUIRES_ENDGAME=1
+PHYS_DEL_DELETE_BODY_PREP_REQUIRES_TREE_ARMED=1
+PHYS_DEL_DELETE_BODY_PREP_TARGET_ACTION=rm_compiler_Makefile
+PHYS_DEL_DELETE_BODY_PREP_CONFIRM_ENV=XLANG_PHYS_DEL_CONFIRM=DELETE_MAKEFILE_I_UNDERSTAND
+PHYS_DEL_DELETE_BODY_PREP_DELETE_ALLOWED=0
+PHYS_DEL_DELETE_BODY_PREP_NEXT=delete_body_commit_honesty_then_confirm_rm_separate
+PHYS_DEL_DELETE_BODY_PREP_FORBIDDEN=auto_rm_makefile|claim_preview_is_delete_body|claim_preview_is_physical_delete|rm_makefile_from_delete_body_preview|mac_only_claim_wave_green
 # wave778: every SHARED MG wave must green on mac + Ubuntu (Ubuntu = gold).
 # Mac-only residual/matrix green is NOT wave green. Push → Ubuntu pull → same check.
 MG_VERIFY_DUAL_END=mac_plus_ubuntu_required
@@ -1509,8 +1526,8 @@ fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113 (wave798)"
 fi
-if ! grep -q 'PHYS_DEL_PREFLIGHT_NEXT=confirm_delete_body_separate_wave_after_tree_arm' <<<"$_out"; then
-  bad "dump PHYS_DEL_PREFLIGHT_NEXT must be confirm_delete_body_separate_wave_after_tree_arm (wave808)"
+if ! grep -q 'PHYS_DEL_PREFLIGHT_NEXT=delete_body_commit_honesty_then_confirm_rm_separate' <<<"$_out"; then
+  bad "dump PHYS_DEL_PREFLIGHT_NEXT must be delete_body_commit_honesty_then_confirm_rm_separate (wave809)"
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh' <<<"$_out"; then
   bad "dump must name Windows min-gate command (wave798)"
@@ -1670,22 +1687,47 @@ fi
 if ! grep -q 'PHYS_DEL_ENDGAME_TREE_ARMED_DELETE_ALLOWED=0' <<<"$_out"; then
   bad "dump must keep PHYS_DEL_ENDGAME_TREE_ARMED_DELETE_ALLOWED=0 (wave808 ≠ physical delete)"
 fi
+# wave809: delete-body prep / preview (NOT ship body; NOT rm; TREE_ARMED already 1)
+if ! grep -q 'PHYS_DEL_DELETE_BODY_PREP=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_DELETE_BODY_PREP=1 (wave809)"
+fi
+if ! grep -q 'PHYS_DEL_DELETE_BODY_PREP_WAVE=wave809' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_DELETE_BODY_PREP_WAVE=wave809"
+fi
+if ! grep -q 'PHYS_DEL_DELETE_BODY_PREP_APPLIED=0' <<<"$_out"; then
+  bad "dump must keep PHYS_DEL_DELETE_BODY_PREP_APPLIED=0 (wave809)"
+fi
+if ! grep -q 'PHYS_DEL_DELETE_BODY_PREP_BODY_SHIPPED=0' <<<"$_out"; then
+  bad "dump must keep PHYS_DEL_DELETE_BODY_PREP_BODY_SHIPPED=0 (wave809)"
+fi
+if ! grep -q 'PHYS_DEL_DELETE_BODY_PREP_DELETE_ALLOWED=0' <<<"$_out"; then
+  bad "dump must keep PHYS_DEL_DELETE_BODY_PREP_DELETE_ALLOWED=0 (wave809)"
+fi
+if ! grep -q 'PHYS_DEL_DELETE_BODY_PREP_MODE=--delete-body-preview' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_DELETE_BODY_PREP_MODE=--delete-body-preview (wave809)"
+fi
+if ! grep -q 'PHYS_DEL_DELETE_BODY_PREP_TARGET_ACTION=rm_compiler_Makefile' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_DELETE_BODY_PREP_TARGET_ACTION=rm_compiler_Makefile (wave809)"
+fi
+if ! grep -q 'PHYS_DEL_DELETE_BODY_PREP_REQUIRES_TREE_ARMED=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_DELETE_BODY_PREP_REQUIRES_TREE_ARMED=1 (wave809)"
+fi
 if [ ! -f "$ROOT/compiler/scripts/phys_del_makefile_gate.sh" ]; then
-  bad "missing compiler/scripts/phys_del_makefile_gate.sh (wave799–808 execute-gate + tree arm; never-rm delete body)"
+  bad "missing compiler/scripts/phys_del_makefile_gate.sh (wave799–809 execute-gate + tree arm + delete-body-preview; never-rm delete body)"
 else
-  note "phys_del_makefile_gate.sh present (wave799–808; ENDGAME=1 TREE_ARMED=1; --delete still never-rm)"
-  # Self-check execute gate + proof + flip + honesty + endgame + tree arm contract.
+  note "phys_del_makefile_gate.sh present (wave799–809; ENDGAME=1 TREE_ARMED=1; delete-body-preview; --delete still never-rm)"
+  # Self-check execute gate + proof + flip + honesty + endgame + tree arm + delete-body-preview.
   if ! bash "$ROOT/compiler/scripts/phys_del_makefile_gate.sh" --check >/tmp/phys_del_gate_check.$$ 2>&1; then
     cat /tmp/phys_del_gate_check.$$ >&2 || true
-    bad "phys_del_makefile_gate.sh --check failed (wave799–808)"
+    bad "phys_del_makefile_gate.sh --check failed (wave799–809)"
   else
-    note "phys_del_makefile_gate.sh --check OK (wave799–808)"
+    note "phys_del_makefile_gate.sh --check OK (wave799–809)"
   fi
   rm -f /tmp/phys_del_gate_check.$$
 fi
 # Honesty: STATUS green + ENDGAME=1 + TREE_ARMED=1; physical delete still separate.
 if ! grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green' <<<"$_out"; then
-  bad "wave804–808 must keep PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green"
+  bad "wave804–809 must keep PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green"
 fi
 if ! grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=1' <<<"$_out"; then
   bad "wave808 must set ENDGAME_PHYSICAL_DELETE_MAKEFILE=1 (reviewed tree arm)"
@@ -1699,11 +1741,11 @@ fi
 if ! grep -q 'PHYS_DEL_ENDGAME_ARM_APPLY_TREE_ARMED=1' <<<"$_out"; then
   bad "wave808 must set PHYS_DEL_ENDGAME_ARM_APPLY_TREE_ARMED=1"
 fi
-# Makefile must still exist (tree arm ≠ physical delete).
+# Makefile must still exist (tree arm / delete-body-preview ≠ physical delete).
 if [ ! -f "$ROOT/compiler/Makefile" ]; then
-  bad "wave808 must keep compiler/Makefile present (delete body separate)"
+  bad "wave809 must keep compiler/Makefile present (delete body not shipped)"
 else
-  note "compiler/Makefile still present after tree arm (wave808; not physical delete)"
+  note "compiler/Makefile still present after delete-body-preview keys (wave809; not physical delete)"
 fi
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
@@ -2267,5 +2309,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747–808: leaf residual inventory + phys-del preflight/execute-gate/proof/flip/endgame harness + wave808 TREE_ARMED arm ENDGAME=1; Makefile still present; delete body deferred)"
+echo "leaf_pattern_residual: CHECK OK (wave747–809: leaf residual inventory + phys-del preflight/execute-gate/proof/flip/endgame harness + wave808 TREE_ARMED arm ENDGAME=1 + wave809 delete-body-preview; Makefile still present; delete body deferred)"
 exit 0
