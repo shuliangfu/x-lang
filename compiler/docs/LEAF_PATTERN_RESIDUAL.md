@@ -1722,6 +1722,44 @@ Then (later waves, not this tip):
 **Forbidden:** claim endgame-preview = ENDGAME arm / physical delete; set
 ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
 
+## wave814 driver_leaf shell-primary catalog (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **有则补全** on `driver_leaf_x_to_o.sh` — product
+> leaf table (src + rename + cold seed + `-L` roots) lives in the shell.
+> Modes: `ensure|auto <out.o>` · `list` · `--check`. Makefile **8** leaves
+> thin-call only: `ensure $@` (source prereqs stay for mtime):
+> `driver_{fmt,check,test,build,run,compile,emit}_x.o` + `lsp_io_std_heap_x.o`.
+> Removes inline `DRIVER_COMPILE_RENAME` / `DRIVER_EMIT_RENAME` /
+> `LSP_IO_STD_HEAP_RENAME` from Makefile (single catalog authority). Legacy
+> explicit-arg CLI remains for g05 / `build_xlang_asm`. Dual-end L2 required.
+> Blockers **remain** (`makefile_thin_call_edges|b7b_lists_in_mk|std_core_product_make_graph`).
+
+```text
+  leaf dump:
+    PHYS_DEL_DRIVER_LEAF_SHELL_PRIMARY=1
+    PHYS_DEL_DRIVER_LEAF_SHELL_PRIMARY_WAVE=wave814
+    PHYS_DEL_DRIVER_LEAF_SHELL_PRIMARY_COUNT=8
+    SWALLOWED_DRIVER_LEAF_CATALOG=1
+    PHYS_DEL_PREFLIGHT_DRIVER_LEAF_SHELL_PRIMARY=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  next: more shell-primary / lists residual or tip Windows re-proof
+       → Mac+Ubuntu L4 → ship delete body
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_DRIVER_LEAF_SHELL_PRIMARY` | `1` |
+| `PHYS_DEL_DRIVER_LEAF_SHELL_PRIMARY_COUNT` | `8` |
+| `SWALLOWED_DRIVER_LEAF_CATALOG` | `1` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+
+**Forbidden:** claim driver_leaf catalog = physical delete; dual rename maps in
+Makefile; `rm compiler/Makefile`; ship delete body; mac-only wave green.
+
 ## wave813 B7B STD_AND_PANIC_O list → mk (2026-07-30)
 
 > **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.

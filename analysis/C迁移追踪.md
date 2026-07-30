@@ -1521,12 +1521,13 @@
     ✅ **std_x product hybrid thin**（wave811 · 22 叶 → `xlang_compile_std_x` `auto|auto-soft|auto-soft-merge` · Makefile thin-call · **非**物理删 · formal_mod/B2 图仍 residual）；
     ✅ **formal_mod shell-primary catalog**（wave812 · 38 叶 → `xlang_compile_std_module ensure` · 表驱动 bare/sources/fs_formal · Makefile thin-call · **非**物理删 · thin edges + B2 + B7B lists 仍 residual）；
     ✅ **B7B STD_AND_PANIC_O list → mk**（wave813 · `mk/std_and_panic_objs.mk` · 65 base + Linux freestanding · Makefile include only · **非**物理删 · thin edges + B2 + 其它 mk lists 仍 residual）；
-    ⬜ B7 residual endgame · physical delete / 删 Makefile（**须** lists/thin 残项 + Windows tip 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体；heat closed · STATUS 绿 · TREE_ARMED arm ✅ · delete-body honesty ✅ · std_x thin ✅ · formal_mod catalog ✅ · STD_AND_PANIC list→mk ✅）
+    ✅ **driver_leaf shell-primary catalog**（wave814 · 8 leaves · `driver_leaf_x_to_o.sh ensure` · rename/dirs 进 catalog · **非**物理删 · thin edges + B7B lists 仍 residual）；
+    ⬜ B7 residual endgame · physical delete / 删 Makefile（**须** lists/thin 残项 + Windows tip 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体；heat closed · STATUS 绿 · TREE_ARMED arm ✅ · delete-body honesty ✅ · std_x thin ✅ · formal_mod catalog ✅ · STD_AND_PANIC list→mk ✅ · driver_leaf catalog ✅）
   - ⬜ 物理删 `compiler/Makefile` 仍 ⬜（下项）
 
 ⬜ **11.3.1 删除 `compiler/Makefile`**
 
-  - 前置：11.0 迁移表 100% 有主；8.3/7/8 白名单 residual 可被 xbuild 编完或已为 0；wave746 库存类 R1–R5 有主 shell；**wave777 prep 桶 B1–B7 有主**；**wave797 heat source-prereq closed**；**wave798 preflight**；**wave799 execute-gate 硬拒删**；**wave800 proof stamp harness**；**wave801–804 STATUS flip + Windows min-gate 绿**；**wave805 endgame-preview**；**wave806 endgame-arm-apply harness**；**wave807 endgame-arm-commit-honesty**；**wave808 TREE_ARMED arm ENDGAME=1**；**wave809 delete-body-preview**；**wave810 delete-body-commit-honesty**；**wave811 std_x hybrid thin**；**wave812 formal_mod shell-primary**；**wave813 STD_AND_PANIC list→mk**；**lists/thin 残项 + tip Windows 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体（终局波）** 后再删
+  - 前置：11.0 迁移表 100% 有主；8.3/7/8 白名单 residual 可被 xbuild 编完或已为 0；wave746 库存类 R1–R5 有主 shell；**wave777 prep 桶 B1–B7 有主**；**wave797 heat source-prereq closed**；**wave798 preflight**；**wave799 execute-gate 硬拒删**；**wave800 proof stamp harness**；**wave801–804 STATUS flip + Windows min-gate 绿**；**wave805 endgame-preview**；**wave806 endgame-arm-apply harness**；**wave807 endgame-arm-commit-honesty**；**wave808 TREE_ARMED arm ENDGAME=1**；**wave809 delete-body-preview**；**wave810 delete-body-commit-honesty**；**wave811 std_x hybrid thin**；**wave812 formal_mod shell-primary**；**wave813 STD_AND_PANIC list→mk**；**wave814 driver_leaf catalog**；**lists/thin 残项 + tip Windows 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体（终局波）** 后再删
   - 验收 grep（全仓 · 不止 tests/analysis/docs）：
     ```
     rg -n 'make -C compiler|compiler/Makefile|\bmake\s+-C|\$\(MAKE\)' \

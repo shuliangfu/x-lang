@@ -2260,10 +2260,10 @@ lsp_gen.c: src/lsp/lsp.x
 
 # Track L：lsp_io_std_heap 叶子退役 — .x→.o（rename 与 prove_module_selfhost 一致）
 # 冷启动仅 seeds/lsp_io_std_heap_gen.linux.x86_64.c；工作区 lsp_io_std_heap_gen.c 仅考古/FORCE_REGEN
-LSP_IO_STD_HEAP_RENAME = std_heap_alloc:lsp_io_std_heap_std_heap_alloc,std_heap_alloc_zeroed:lsp_io_std_heap_std_heap_alloc_zeroed,std_heap_free:lsp_io_std_heap_std_heap_free
+# wave814: driver_leaf catalog → ensure (G.7; rename/dirs in script; not physical delete).
 lsp_io_std_heap_x.o: src/lsp/lsp_io_std_heap.x scripts/driver_leaf_x_to_o.sh
-	@DRIVER_SUBCMD_DIRS="$(LSP_X_E_DIRS)" BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
-	  bash scripts/driver_leaf_x_to_o.sh src/lsp/lsp_io_std_heap.x $@ '$(LSP_IO_STD_HEAP_RENAME)' seeds/lsp_io_std_heap_gen.linux.x86_64.c
+	@BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
+	  bash scripts/driver_leaf_x_to_o.sh ensure $@
 # wave740: G.7 body → scripts/ensure_archaeology_gen.sh (Track L archaeology only)
 lsp_io_std_heap_gen.c: src/lsp/lsp_io_std_heap.x
 	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
@@ -2297,32 +2297,31 @@ DRIVER_SUBCMD_OBJS = driver_fmt_x.o driver_check_x.o driver_test_x.o driver_comp
 DRIVER_SUBCMD_DIRS = -L .. -L src -L src/lexer -L src/ast
 
 # Track L：叶子 .o 直接来自 .x（scripts/driver_leaf_x_to_o.sh）；rename 与 prove_module_selfhost / g05 一致
+# wave814: driver_leaf shell-primary catalog → ensure (G.7; not physical delete).
+# Makefile thin-call only; src/rename/cold-seed/-L live in script catalog.
 driver_fmt_x.o: src/driver/fmt.x scripts/driver_leaf_x_to_o.sh
-	@DRIVER_SUBCMD_DIRS="$(DRIVER_SUBCMD_DIRS)" BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
-	  bash scripts/driver_leaf_x_to_o.sh src/driver/fmt.x $@ 'cmd_fmt:driver_cmd_fmt' seeds/driver_fmt_gen.linux.x86_64.c
+	@BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
+	  bash scripts/driver_leaf_x_to_o.sh ensure $@
 driver_check_x.o: src/driver/check.x scripts/driver_leaf_x_to_o.sh
-	@DRIVER_SUBCMD_DIRS="$(DRIVER_SUBCMD_DIRS)" BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
-	  bash scripts/driver_leaf_x_to_o.sh src/driver/check.x $@ 'cmd_check:driver_cmd_check' seeds/driver_check_gen.linux.x86_64.c
+	@BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
+	  bash scripts/driver_leaf_x_to_o.sh ensure $@
 driver_test_x.o: src/driver/test.x scripts/driver_leaf_x_to_o.sh
-	@DRIVER_SUBCMD_DIRS="$(DRIVER_SUBCMD_DIRS)" BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
-	  bash scripts/driver_leaf_x_to_o.sh src/driver/test.x $@ 'cmd_test:driver_cmd_test' seeds/driver_test_gen.linux.x86_64.c
+	@BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
+	  bash scripts/driver_leaf_x_to_o.sh ensure $@
 driver_build_x.o: src/driver/build.x scripts/driver_leaf_x_to_o.sh
-	@DRIVER_SUBCMD_DIRS="$(DRIVER_SUBCMD_DIRS)" BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
-	  bash scripts/driver_leaf_x_to_o.sh src/driver/build.x $@ 'cmd_build:build_cmd_build' seeds/driver_build_gen.linux.x86_64.c
+	@BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
+	  bash scripts/driver_leaf_x_to_o.sh ensure $@
 driver_run_x.o: src/driver/run.x scripts/driver_leaf_x_to_o.sh
-	@DRIVER_SUBCMD_DIRS="$(DRIVER_SUBCMD_DIRS)" BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
-	  bash scripts/driver_leaf_x_to_o.sh src/driver/run.x $@ 'run_eq_word:driver_run_eq_word,cmd_run:driver_cmd_run' seeds/driver_run_gen.linux.x86_64.c
+	@BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
+	  bash scripts/driver_leaf_x_to_o.sh ensure $@
 # Track L：compile / emit 叶子退役（prove IDENTICAL；emit 依赖 codegen 字段访问 . vs -> 根修）
-DRIVER_COMPILE_RENAME = compile_dispatch_asm_backend:driver_compile_dispatch_asm_backend,compile_dispatch_emit_c_path:driver_compile_dispatch_emit_c_path,eq_minus_o:driver_eq_minus_o,eq_minus_L:driver_eq_minus_L,eq_minus_backend:driver_eq_minus_backend,eq_minus_target:driver_eq_minus_target,eq_minus_target_cpu:driver_eq_minus_target_cpu,eq_print_target_cpu:driver_eq_print_target_cpu,eq_minus_O:driver_eq_minus_O,eq_flto:driver_eq_flto,eq_minus_freestanding:driver_eq_minus_freestanding,eq_legacy_f32_abi:driver_eq_legacy_f32_abi,eq_fsanitize_address:driver_eq_fsanitize_address,eq_asm_word:driver_eq_asm_word,eq_c_word:driver_eq_c_word,path_ends_x:driver_path_ends_x,target_has_arm:driver_target_has_arm,run_compiler_full_x_post_parse:driver_run_compiler_full_x_post_parse,run_compiler_full_x:driver_run_compiler_full_x
-DRIVER_EMIT_RENAME = emit_copy_lib_roots_to_ctx:driver_emit_copy_lib_roots_to_ctx,run_x_emit_x:driver_run_x_emit_x,dispatch_x_emit_to_c:driver_dispatch_x_emit_to_c,emit_state_key:driver_emit_state_key,pipeline_dep_ctx_fill_for_emit:driver_pipeline_dep_ctx_fill_for_emit
+# wave814: rename maps moved into driver_leaf_x_to_o.sh catalog (G.7 single authority).
 driver_compile_x.o: src/driver/compile.x scripts/driver_leaf_x_to_o.sh
-	@DRIVER_SUBCMD_DIRS="$(DRIVER_SUBCMD_DIRS) -L src/parser -L src/typeck -L src/codegen -L src/lsp -L src/preprocess -L src/driver" \
-	  BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
-	  bash scripts/driver_leaf_x_to_o.sh src/driver/compile.x $@ '$(DRIVER_COMPILE_RENAME)' seeds/driver_compile_gen.linux.x86_64.c
+	@BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
+	  bash scripts/driver_leaf_x_to_o.sh ensure $@
 driver_emit_x.o: src/driver/emit.x scripts/driver_leaf_x_to_o.sh
-	@DRIVER_SUBCMD_DIRS="$(DRIVER_SUBCMD_DIRS) -L src/parser -L src/typeck -L src/codegen -L src/lsp -L src/preprocess -L src/driver" \
-	  BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
-	  bash scripts/driver_leaf_x_to_o.sh src/driver/emit.x $@ '$(DRIVER_EMIT_RENAME)' seeds/driver_emit_gen.linux.x86_64.c
+	@BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
+	  bash scripts/driver_leaf_x_to_o.sh ensure $@
 
 # wave740: G.7 body → scripts/ensure_archaeology_gen.sh
 # 考古：可选再生成工作区 *_gen.c（不进 DRIVER_SEED_PREREQS；叶子已退役；产品用 *_x.o）

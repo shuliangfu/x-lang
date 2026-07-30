@@ -27,6 +27,8 @@
 #            (Makefile thin-call only; NOT physical delete; edges+lists+B2 remain)
 #   wave813: B7B STD_AND_PANIC_O list authority → mk/std_and_panic_objs.mk
 #            (Makefile include only; NOT physical delete; thin edges + B2 remain)
+#   wave814: driver_leaf shell-primary catalog (8 leaves) → driver_leaf_x_to_o ensure
+#            (Makefile thin-call only; NOT physical delete; edges+lists remain)
 #   wave781: B3 LSP satellite hybrid body → try-lsp-sat-prefer
 #   wave782: B4 gen_c_to_o bootstrap → try-gen-c-to-o
 #   wave783: B5 cfg_eval multi-ladder → try-cfg-eval-ladder
@@ -404,6 +406,18 @@ SWALLOWED_B7B_STD_AND_PANIC_LIST=1
 B7B_STD_AND_PANIC_LIST_SWALLOWED=1
 B7B_STD_AND_PANIC_LIST_MK=mk/std_and_panic_objs.mk
 B7B_STD_AND_PANIC_LIST_WAVE=wave813
+# wave814: driver_leaf product table (src+rename+cold seed+-L) lives in
+# driver_leaf_x_to_o.sh; Makefile 8 leaves thin-call ensure only.
+# NOT physical delete — thin edges + B2 ensure + B7B lists remain.
+PHYS_DEL_DRIVER_LEAF_SHELL_PRIMARY=1
+PHYS_DEL_DRIVER_LEAF_SHELL_PRIMARY_WAVE=wave814
+PHYS_DEL_DRIVER_LEAF_SHELL_PRIMARY_COUNT=8
+PHYS_DEL_DRIVER_LEAF_SHELL_PRIMARY_VIA=driver_leaf_x_to_o_ensure
+PHYS_DEL_DRIVER_LEAF_SHELL_PRIMARY_NOTE=catalog_ensure_thin_call_edges_remain
+SWALLOWED_DRIVER_LEAF_CATALOG=1
+DRIVER_LEAF_CATALOG_SWALLOWED=1
+DRIVER_LEAF_CATALOG_HELPER=driver_leaf_x_to_o.sh
+DRIVER_LEAF_CATALOG_WAVE=wave814
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -553,14 +567,15 @@ PHYS_DEL_PREFLIGHT_B7D_G05=1
 PHYS_DEL_PREFLIGHT_B7A_COLD_0MAKE=1
 PHYS_DEL_PREFLIGHT_B7B_SHELL_CATALOG=1
 PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113
-# wave811–813: std_x / formal_mod / STD_AND_PANIC list swallowed; blocker name kept
-# (thin edges + B2 ensure + remaining B7B mk lists still form make graph residual).
+# wave811–814: std_x / formal_mod / STD_AND_PANIC list / driver_leaf catalog swallowed;
+# blocker name kept (thin edges + B2 ensure + remaining B7B mk lists still form make graph).
 PHYS_DEL_PREFLIGHT_BLOCKERS=makefile_thin_call_edges|b7b_lists_in_mk|std_core_product_make_graph
 PHYS_DEL_PREFLIGHT_STD_X_HYBRID_BODY_SWALLOWED=1
 PHYS_DEL_PREFLIGHT_FORMAL_MOD_SHELL_PRIMARY=1
 PHYS_DEL_PREFLIGHT_B7B_STD_AND_PANIC_LIST=1
+PHYS_DEL_PREFLIGHT_DRIVER_LEAF_SHELL_PRIMARY=1
 PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
+PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_PREFLIGHT_WIN_GATE_HOST=MSYS2_windows-server_dual_boot_reboot_required
 PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
@@ -1158,6 +1173,9 @@ else
   if ! grep -qE 'wave813|STD_AND_PANIC|std_and_panic_objs|B7B.*STD_AND_PANIC' "$DOC_REL"; then
     bad "$DOC_REL must document wave813 B7B STD_AND_PANIC list → mk"
   fi
+  if ! grep -qE 'wave814|driver_leaf|DRIVER_LEAF_SHELL' "$DOC_REL"; then
+    bad "$DOC_REL must document wave814 driver_leaf shell-primary catalog"
+  fi
   note "doc $DOC_REL present"
 fi
 
@@ -1635,6 +1653,21 @@ fi
 if ! grep -q 'PHYS_DEL_B7B_STD_AND_PANIC_LIST=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_STD_AND_PANIC_LIST=1 (wave813)"
 fi
+if ! grep -q 'PHYS_DEL_DRIVER_LEAF_SHELL_PRIMARY=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_DRIVER_LEAF_SHELL_PRIMARY=1 (wave814)"
+fi
+if ! grep -q 'PHYS_DEL_DRIVER_LEAF_SHELL_PRIMARY_WAVE=wave814' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_DRIVER_LEAF_SHELL_PRIMARY_WAVE=wave814"
+fi
+if ! grep -q 'PHYS_DEL_DRIVER_LEAF_SHELL_PRIMARY_COUNT=8' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_DRIVER_LEAF_SHELL_PRIMARY_COUNT=8 (wave814)"
+fi
+if ! grep -q 'SWALLOWED_DRIVER_LEAF_CATALOG=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_DRIVER_LEAF_CATALOG=1 (wave814)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_DRIVER_LEAF_SHELL_PRIMARY=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_DRIVER_LEAF_SHELL_PRIMARY=1 (wave814)"
+fi
 if ! grep -q 'PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813"
 fi
@@ -2035,6 +2068,56 @@ if ! grep -qE '^std-objs:.*\$\(STD_AND_PANIC_O\)' "$MF"; then
   bad "Makefile std-objs must still depend on \$(STD_AND_PANIC_O) (wave813 consumers)"
 fi
 note "B7B STD_AND_PANIC_O list authority in mk (65 base; wave813; not physical delete)"
+# wave814: driver_leaf shell-primary — ensure thin on 8 leaves + script catalog/--check.
+if [ ! -f "$ROOT/compiler/scripts/driver_leaf_x_to_o.sh" ] && [ ! -f "scripts/driver_leaf_x_to_o.sh" ]; then
+  bad "missing driver_leaf_x_to_o.sh (wave814 driver_leaf authority)"
+fi
+_dl_sh="$ROOT/compiler/scripts/driver_leaf_x_to_o.sh"
+[ -f "$_dl_sh" ] || _dl_sh="scripts/driver_leaf_x_to_o.sh"
+if ! grep -q 'driver_leaf_spec_for_key' "$_dl_sh"; then
+  bad "driver_leaf_x_to_o.sh must define driver_leaf_spec_for_key (wave814)"
+fi
+if ! grep -qE 'ensure\|auto\)' "$_dl_sh"; then
+  bad "driver_leaf_x_to_o.sh must support ensure|auto (wave814)"
+fi
+if ! grep -q 'driver_leaf_check' "$_dl_sh"; then
+  bad "driver_leaf_x_to_o.sh must support --check (wave814)"
+fi
+_dl_thin=0
+# Keys come from catalog `list` only (G.7: residual shell must not hardcode .o inventory).
+while IFS= read -r _dl; do
+  [ -z "$_dl" ] && continue
+  if awk -v leaf="$_dl" '
+    $0 ~ ("^" leaf ":") { want=1; next }
+    want && /^[^#[:space:]]/ { want=0 }
+    want && /driver_leaf_x_to_o\.sh ensure/ { found=1 }
+    END { exit found ? 0 : 1 }
+  ' "$MF"; then
+    _dl_thin=$((_dl_thin + 1))
+  else
+    bad "Makefile $_dl must thin-call driver_leaf_x_to_o ensure (wave814)"
+  fi
+done < <(bash "$_dl_sh" list 2>/dev/null || true)
+if [ "$_dl_thin" -ne 8 ]; then
+  bad "wave814 expected 8 driver_leaf ensure leaves, got $_dl_thin"
+fi
+note "Makefile driver_leaf 8 leaves thin-call ensure (wave814; not physical delete)"
+if grep -nE $'^\t.*driver_leaf_x_to_o\.sh (src/|seeds/)' "$MF" 2>/dev/null | head -1 | grep -q .; then
+  bad "Makefile driver_leaf still has explicit-arg recipe calls (wave814 must ensure)"
+else
+  note "Makefile driver_leaf free of explicit-arg recipe args (wave814)"
+fi
+# Dual authority: no long DRIVER_COMPILE_RENAME / DRIVER_EMIT_RENAME in Makefile.
+if grep -nE '^DRIVER_COMPILE_RENAME[[:space:]]*=' "$MF" 2>/dev/null | grep -q 'compile_dispatch'; then
+  bad "Makefile must not keep DRIVER_COMPILE_RENAME inline (wave814 dual authority)"
+fi
+if grep -nE '^DRIVER_EMIT_RENAME[[:space:]]*=' "$MF" 2>/dev/null | grep -q 'emit_copy_lib'; then
+  bad "Makefile must not keep DRIVER_EMIT_RENAME inline (wave814 dual authority)"
+fi
+if grep -nE '^LSP_IO_STD_HEAP_RENAME[[:space:]]*=' "$MF" 2>/dev/null | grep -q 'std_heap_alloc'; then
+  bad "Makefile must not keep LSP_IO_STD_HEAP_RENAME inline (wave814 dual authority)"
+fi
+note "Makefile free of driver_leaf rename dual lists (wave814)"
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
   PHYS_DEL_BUCKET_B1_BODY_SWALLOWED=1 \
@@ -2597,5 +2680,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747–813: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave812 formal_mod ensure 38 + wave813 STD_AND_PANIC list→mk; Makefile still present; delete body deferred)"
+echo "leaf_pattern_residual: CHECK OK (wave747–814: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave812 formal_mod ensure 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8; Makefile still present; delete body deferred)"
 exit 0
