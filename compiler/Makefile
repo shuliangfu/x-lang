@@ -2571,10 +2571,11 @@ endif
 # 与 bootstrap-driver-seed 相同；保留别名供脚本引用
 # bootstrap seed 链 需 glue 类型头（与 build_xlang_asm B-strict 同源）。
 # PLATFORM: SHARED — run i64 ABI guard before extract so glue never sees int32_t Expr.int_val.
-build_asm/pipeline_glue_types.inc: pipeline_gen.c scripts/extract_pipeline_glue_types.pl
-	@$(MAKE) check-pipeline-gen-expr-i64-abi
-	@mkdir -p build_asm
-	perl scripts/extract_pipeline_glue_types.pl pipeline_gen.c > $@
+# wave833: FORCE dep-thin — prereqs → FORCE + ensure; shell owns gen/extract mtime
+# + XLANG_GLUE_TYPES_FORCE + i64 ABI guard call (G.7). NOT physical delete.
+# Extract algorithm remains extract_pipeline_glue_types.pl (not reimplemented).
+build_asm/pipeline_glue_types.inc: FORCE scripts/ensure_pipeline_glue_types.sh
+	@bash scripts/ensure_pipeline_glue_types.sh
 
 # G-02f-17：pipeline_bootstrap_orchestration 产品 seed
 # wave755 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_SEED_MAP_OBJS).

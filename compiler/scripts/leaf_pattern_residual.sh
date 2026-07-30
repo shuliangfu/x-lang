@@ -32,6 +32,7 @@
 #   wave830: ast_gen2.c FORCE dep-thin (1 leaf) → ensure_ast_gen2 pin policy
 #   wave831: src-edge FORCE dep-thin (7 leaves) → parser_asm try-heat + cc_inc_tu mtime
 #   wave832: migrate companion FORCE dep-thin (3 leaves) → migrate_x_objs need_rebuild
+#   wave833: pipeline_glue_types.inc FORCE dep-thin (1 leaf) → ensure extract mtime
 #   wave812: formal_mod shell-primary catalog (38 leaves) → xlang_compile_std_module ensure
 #            (Makefile thin-call only; NOT physical delete; edges+lists+B2 remain)
 #   wave813: B7B STD_AND_PANIC_O list authority → mk/std_and_panic_objs.mk
@@ -532,7 +533,7 @@ SRC_EDGE_FORCE_THIN_HELPER=cc_inc_tu.sh+ensure_host_cc_seed_o_try-heat
 SRC_EDGE_FORCE_THIN_WAVE=wave831
 # wave832: migrate companion (parser/typeck/codegen) → FORCE + migrate_x_objs
 # (need_rebuild owns gen mtime; ensure_migrate_gen for missing/stale gen).
-# NOT physical delete — pipeline_glue_types.inc + thin edges + B2 + mk lists remain.
+# NOT physical delete — ~~pipeline_glue_types.inc~~ (wave833) + thin edges + B2 + mk lists remain.
 PHYS_DEL_MIGRATE_X_FORCE_THIN=1
 PHYS_DEL_MIGRATE_X_FORCE_THIN_WAVE=wave832
 PHYS_DEL_MIGRATE_X_FORCE_THIN_COUNT=3
@@ -542,6 +543,18 @@ SWALLOWED_MIGRATE_X_FORCE_THIN=1
 MIGRATE_X_FORCE_THIN_SWALLOWED=1
 MIGRATE_X_FORCE_THIN_HELPER=migrate_x_objs.sh
 MIGRATE_X_FORCE_THIN_WAVE=wave832
+# wave833: pipeline_glue_types.inc extract → FORCE + ensure_pipeline_glue_types
+# (need_rebuild owns gen/extract.pl mtime; ABI guard + extract.pl called by shell).
+# NOT physical delete — thin-call edges + B2 + mk lists + bootstrap-pipeline remain.
+PHYS_DEL_GLUE_TYPES_FORCE_THIN=1
+PHYS_DEL_GLUE_TYPES_FORCE_THIN_WAVE=wave833
+PHYS_DEL_GLUE_TYPES_FORCE_THIN_COUNT=1
+PHYS_DEL_GLUE_TYPES_FORCE_THIN_VIA=ensure_pipeline_glue_types_need_rebuild_mtime
+PHYS_DEL_GLUE_TYPES_FORCE_THIN_NOTE=force_prereq_shell_owns_extract_mtime_edges_remain
+SWALLOWED_GLUE_TYPES_FORCE_THIN=1
+GLUE_TYPES_FORCE_THIN_SWALLOWED=1
+GLUE_TYPES_FORCE_THIN_HELPER=ensure_pipeline_glue_types.sh
+GLUE_TYPES_FORCE_THIN_WAVE=wave833
 
 # wave815: archaeology host-pick phonies (TLS openssl/mbedtls + sqlite stub + net-o-stub)
 # live in archaeology_host_pick_phony.sh; Makefile thin-call ensure only.
@@ -838,6 +851,7 @@ PHYS_DEL_PREFLIGHT_GEN_C_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_AST_GEN2_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_SRC_EDGE_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_MIGRATE_X_FORCE_THIN=1
+PHYS_DEL_PREFLIGHT_GLUE_TYPES_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_ARCH_HOST_PICK_PHONY=1
 PHYS_DEL_PREFLIGHT_B7B_DRIVER_SUBCMD_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_PIPELINE_X_LIST=1
@@ -849,7 +863,7 @@ PHYS_DEL_PREFLIGHT_B7B_RELINK_LEGACY_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_SOURCE_DEPS_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_E_DIRS_LIST=1
 PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_std_x_catalog_is_physical_delete|claim_std_x_force_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_formal_mod_force_thin_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_driver_leaf_force_thin_is_physical_delete|claim_gen_c_force_thin_is_physical_delete|claim_ast_gen2_force_thin_is_physical_delete|claim_src_edge_force_thin_is_physical_delete|claim_migrate_x_force_thin_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|claim_e_dirs_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
+PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_std_x_catalog_is_physical_delete|claim_std_x_force_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_formal_mod_force_thin_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_driver_leaf_force_thin_is_physical_delete|claim_gen_c_force_thin_is_physical_delete|claim_ast_gen2_force_thin_is_physical_delete|claim_src_edge_force_thin_is_physical_delete|claim_migrate_x_force_thin_is_physical_delete|claim_glue_types_force_thin_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|claim_e_dirs_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_PREFLIGHT_WIN_GATE_HOST=MSYS2_windows-server_dual_boot_reboot_required
 PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
@@ -1464,6 +1478,9 @@ else
   fi
   if ! grep -qE 'wave832|migrate_x FORCE|MIGRATE_X_FORCE_THIN|migrate companion FORCE' "$DOC_REL"; then
     bad "$DOC_REL must document wave832 migrate companion FORCE dep-thin"
+  fi
+  if ! grep -qE 'wave833|glue_types FORCE|GLUE_TYPES_FORCE_THIN|pipeline_glue_types FORCE|ensure_pipeline_glue_types' "$DOC_REL"; then
+    bad "$DOC_REL must document wave833 pipeline_glue_types FORCE dep-thin"
   fi
   if ! grep -qE 'wave812|formal_mod|FORMAL_MOD_SHELL|std_module ensure' "$DOC_REL"; then
     bad "$DOC_REL must document wave812 formal_mod shell-primary catalog"
@@ -2115,6 +2132,21 @@ if ! grep -q 'SWALLOWED_MIGRATE_X_FORCE_THIN=1' <<<"$_out"; then
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_MIGRATE_X_FORCE_THIN=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_MIGRATE_X_FORCE_THIN=1 (wave832)"
+fi
+if ! grep -q 'PHYS_DEL_GLUE_TYPES_FORCE_THIN=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_GLUE_TYPES_FORCE_THIN=1 (wave833)"
+fi
+if ! grep -q 'PHYS_DEL_GLUE_TYPES_FORCE_THIN_WAVE=wave833' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_GLUE_TYPES_FORCE_THIN_WAVE=wave833"
+fi
+if ! grep -q 'PHYS_DEL_GLUE_TYPES_FORCE_THIN_COUNT=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_GLUE_TYPES_FORCE_THIN_COUNT=1 (wave833)"
+fi
+if ! grep -q 'SWALLOWED_GLUE_TYPES_FORCE_THIN=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_GLUE_TYPES_FORCE_THIN=1 (wave833)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_GLUE_TYPES_FORCE_THIN=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_GLUE_TYPES_FORCE_THIN=1 (wave833)"
 fi
 if ! grep -q 'PHYS_DEL_ARCH_HOST_PICK_PHONY=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_ARCH_HOST_PICK_PHONY=1 (wave815)"
@@ -2970,10 +3002,9 @@ else
   bad "Makefile expected 3 FORCE+migrate_x_objs companion leaves, got ${_migrate_x_force:-0} (wave832)"
 fi
 # Companion leaves that still list gen as make-graph prereq (pre-FORCE shape) must be 0.
-# Allow known non-migrate residuals: pipeline_glue_types extract + bootstrap-pipeline phony.
+# Allow known non-migrate residual: bootstrap-pipeline phony (still lists pipeline_gen.c).
 if grep -nE '^[a-zA-Z0-9_./-]+:.*_gen\.c' "$MF" 2>/dev/null \
   | grep -v FORCE \
-  | grep -v pipeline_glue_types \
   | grep -v bootstrap-pipeline \
   | grep -q .; then
   bad "Makefile still lists gen make-graph prereq on non-FORCE migrate-shaped leaves (wave832 must FORCE only)"
@@ -2988,6 +3019,36 @@ elif ! grep -qE 'need_rebuild|XLANG_MIGRATE_FORCE' "$_mig_sh"; then
   bad "migrate_x_objs.sh must own need_rebuild/MIGRATE_FORCE policy (wave832)"
 else
   note "migrate_x_objs.sh owns gen mtime policy (wave832 FORCE thin; not physical delete)"
+fi
+
+# wave833: pipeline_glue_types.inc FORCE dep-thin (COUNT=1). Pattern greps only —
+# no product object inventory hardcode (G.7 residual honesty). Shell owns extract mtime.
+if awk '
+  $0 ~ /pipeline_glue_types\.inc:/ {
+    if ($0 ~ /FORCE/ && $0 ~ /ensure_pipeline_glue_types/ && $0 !~ /pipeline_gen\.c/ && $0 !~ /extract_pipeline_glue_types\.pl/) { ok=1; exit 0 }
+    exit 1
+  }
+  END { exit ok ? 0 : 1 }
+' "$MF" 2>/dev/null; then
+  note "Makefile pipeline_glue_types.inc FORCE dep-thin (wave833; not physical delete)"
+else
+  bad "Makefile pipeline_glue_types.inc must FORCE dep-thin via ensure (no gen/extract.pl prereq; wave833)"
+fi
+_gt_sh="$ROOT/compiler/scripts/ensure_pipeline_glue_types.sh"
+[ -f "$_gt_sh" ] || _gt_sh="scripts/ensure_pipeline_glue_types.sh"
+if [ ! -f "$_gt_sh" ]; then
+  bad "missing ensure_pipeline_glue_types.sh (wave833 glue types FORCE thin authority)"
+elif ! grep -qE 'XLANG_GLUE_TYPES_FORCE|need_rebuild' "$_gt_sh"; then
+  bad "ensure_pipeline_glue_types.sh must own need_rebuild/GLUE_TYPES_FORCE policy (wave833)"
+elif ! bash "$_gt_sh" --check >/dev/null 2>&1; then
+  bad "ensure_pipeline_glue_types.sh --check failed (wave833)"
+else
+  note "ensure_pipeline_glue_types.sh --check OK (wave833 FORCE thin; not physical delete)"
+fi
+if grep -nE $'^\tsh scripts/ensure_pipeline_glue_types\.sh' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile ensure_pipeline_glue_types recipe must use bash (not sh/dash; wave833 Ubuntu)"
+else
+  note "Makefile ensure_pipeline_glue_types recipe uses bash (wave833 dash-safe)"
 fi
 
 
@@ -4238,5 +4299,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747–832: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave825 std_x ensure catalog 22 + wave827 std_x FORCE dep-thin 22 + wave812 formal_mod ensure 38 + wave826 formal_mod FORCE dep-thin 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave828 driver_leaf FORCE dep-thin 8 + wave829 gen.c FORCE dep-thin 17 + wave830 ast_gen2 FORCE dep-thin 1 + wave831 src-edge FORCE dep-thin 7 + wave832 migrate companion FORCE dep-thin 3 + wave815 archaeology host-pick phonies 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2 + wave820 OBJS_CORE list→mk 16 + wave821 ARCH_EXPERIMENT list→mk 7 + wave822 RELINK/LEGACY list→composites 14 + wave823 SOURCE_DEPS list→mk 19 + wave824 E_DIRS list→mk 26; Makefile still present; delete body deferred)"
+echo "leaf_pattern_residual: CHECK OK (wave747–833: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave825 std_x ensure catalog 22 + wave827 std_x FORCE dep-thin 22 + wave812 formal_mod ensure 38 + wave826 formal_mod FORCE dep-thin 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave828 driver_leaf FORCE dep-thin 8 + wave829 gen.c FORCE dep-thin 17 + wave830 ast_gen2 FORCE dep-thin 1 + wave831 src-edge FORCE dep-thin 7 + wave832 migrate companion FORCE dep-thin 3 + wave833 pipeline_glue_types FORCE dep-thin 1 + wave815 archaeology host-pick phonies 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2 + wave820 OBJS_CORE list→mk 16 + wave821 ARCH_EXPERIMENT list→mk 7 + wave822 RELINK/LEGACY list→composites 14 + wave823 SOURCE_DEPS list→mk 19 + wave824 E_DIRS list→mk 26; Makefile still present; delete body deferred)"
 exit 0

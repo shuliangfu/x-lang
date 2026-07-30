@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · … · wave824 E_DIRS list→mk · wave825 std_x shell-primary catalog · wave826 formal_mod FORCE dep-thin · wave827 std_x FORCE dep-thin · wave828 driver_leaf FORCE dep-thin · wave829 gen.c FORCE dep-thin · wave830 ast_gen2 FORCE dep-thin · wave831 src-edge FORCE dep-thin · wave832 migrate companion FORCE dep-thin · wave747–825 prior swallows · wave799 execute-gate · … · not physical delete)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · … · wave824 E_DIRS list→mk · wave825 std_x shell-primary catalog · wave826 formal_mod FORCE dep-thin · wave827 std_x FORCE dep-thin · wave828 driver_leaf FORCE dep-thin · wave829 gen.c FORCE dep-thin · wave830 ast_gen2 FORCE dep-thin · wave831 src-edge FORCE dep-thin · wave832 migrate companion FORCE dep-thin · wave833 pipeline_glue_types FORCE dep-thin · wave747–825 prior swallows · wave799 execute-gate · … · not physical delete)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -1737,7 +1737,7 @@ ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
 >    `XLANG_MIGRATE_FORCE`) and may call `ensure_migrate_gen` (wave736) —
 >    no second mtime body.
 >
-> Honesty COUNT = **3**. Residual after: `pipeline_glue_types.inc` ·
+> Honesty COUNT = **3**. Residual after: ~~`pipeline_glue_types.inc`~~ (wave833) ·
 > thin edges + B2 + mk lists. Dual-end L2 required. Blockers **remain**.
 
 ```text
@@ -1750,7 +1750,7 @@ ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
   dual-end L2 green tip: e04244dbf (Mac + Ubuntu leaf --check;
     migrate companion 3 FORCE; need_rebuild mtime; sample make OK)
-  next: pipeline_glue_types FORCE / thin edges / B2 or tip Windows re-proof
+  next: ~~pipeline_glue_types FORCE~~ (wave833) · thin edges / B2 or tip Windows re-proof
        → Mac+Ubuntu L4 → ship delete body
 ```
 
@@ -1767,6 +1767,52 @@ ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
 **Forbidden:** claim migrate FORCE thin = physical delete; re-list gen on
 Makefile prereq lines for these 3 companion leaves; `rm compiler/Makefile`;
 ship delete body; mac-only wave green.
+
+## wave833 pipeline_glue_types FORCE dep-thin (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **无才新增** shell body for the last extract make-graph
+> edge — `build_asm/pipeline_glue_types.inc` drops `pipeline_gen.c` +
+> `extract_pipeline_glue_types.pl` make prereqs; target is
+> `FORCE scripts/ensure_pipeline_glue_types.sh` only; recipe thin-calls ensure
+> (bash, dash-safe). Shell owns:
+>
+> - mtime skip (`pipeline_gen.c` / extract.pl vs types.inc; `-nt`)
+> - `XLANG_GLUE_TYPES_FORCE=1` always re-extract
+> - i64 ABI guard call (`check_pipeline_gen_expr_i64_abi.sh`) before extract
+> - extract algorithm remains `extract_pipeline_glue_types.pl` (not reimplemented)
+>
+> Honesty COUNT = **1**. Residual after: thin-call edges + B2 + mk lists +
+> `bootstrap-pipeline` phony. Dual-end L2 required. Blockers **remain**.
+
+```text
+  leaf dump:
+    PHYS_DEL_GLUE_TYPES_FORCE_THIN=1
+    PHYS_DEL_GLUE_TYPES_FORCE_THIN_WAVE=wave833
+    PHYS_DEL_GLUE_TYPES_FORCE_THIN_COUNT=1
+    SWALLOWED_GLUE_TYPES_FORCE_THIN=1
+    PHYS_DEL_PREFLIGHT_GLUE_TYPES_FORCE_THIN=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  dual-end L2 green tip: (this implement SHA; Mac + Ubuntu leaf --check;
+    glue_types FORCE; need_rebuild mtime; sample make OK)
+  next: thin edges / B2 / bootstrap-pipeline or tip Windows re-proof
+       → Mac+Ubuntu L4 → ship delete body
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_GLUE_TYPES_FORCE_THIN` | `1` |
+| `PHYS_DEL_GLUE_TYPES_FORCE_THIN_COUNT` | `1` |
+| `SWALLOWED_GLUE_TYPES_FORCE_THIN` | `1` |
+| `GLUE_TYPES_FORCE_THIN_HELPER` | `ensure_pipeline_glue_types.sh` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+
+**Forbidden:** claim glue-types FORCE thin = physical delete; re-list
+`pipeline_gen.c` / extract.pl on Makefile prereq for this leaf;
+`rm compiler/Makefile`; ship delete body; mac-only wave green.
 
 ## wave831 src-edge FORCE dep-thin (2026-07-30)
 
