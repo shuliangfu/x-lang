@@ -52,7 +52,8 @@
 > - **wave881** · B7B try-heat XLANG_G05_PREFER_X_O inject hygiene (31 recipes → CC-only thin-call; PREFER via make CLI/env + shell default; net XLANG= drop)
 > - **wave882** · B7B residual single-token TARGET= inject hygiene (10 recipes → drop TARGET= on token/lexer/parser/parse-file/hybrid/crt0/build-via-tool/check-7.2 + bstrict/refresh multi; shell TARGET:-xlang + CLI auto-export)
 > - **wave883** · B7B residual single-token MAKE= inject hygiene (24 recipes → drop MAKE= on archaeology 4 + driver_leaf 8 + rebuild_leaves 7 + host_stubs 2 + phase1-link 1 + bstrict/refresh multi; shell MAKE:-make + GNU make auto-export; keep ENSURE_SEED/NO_REPLACE)
-> - **open** · thin edges + B2 + mk lists (hybrid) · residual single-token injects (CC passthrough · G05_SYNC · LD · pipeline bags) · → tip Windows → dual L4 → explicit auth ship delete
+> - **wave884** · B7B residual single-token CC= inject hygiene (118 recipes → drop CC= on 116 pure try-heat/filter + strip CC= from cfg_eval LD bag + pipeline_x multi; shell `resolve_host_cc` + CLI/env; keep LD/pipeline bags)
+> - **open** · thin edges + B2 + mk lists (hybrid) · residual injects (G05_SYNC · LD · pipeline bags) · → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -4632,5 +4633,46 @@ PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_bo
 
 **Forbidden:** claim MAKE inject hygiene = physical delete; re-add `MAKE="$(MAKE)"`
 recipe inject on these leaves; claim residual single-token inject family exhausted
-while CC passthrough / G05_SYNC / LD / pipeline bags / thin edges remain.
+while CC passthrough / G05_SYNC / LD / pipeline bags / thin edges remain
+(CC closed in wave884).
+
+## wave884 B7B residual single-token CC= inject hygiene (2026-07-30)
+
+> **Why (G.7 有则补全 on wave883 MAKE inject hygiene):** After MAKE= pure/multi
+> hygiene, residual single-token `CC="$(CC)"` recipe injects remained on the full
+> try-heat / filter-bootstrap family (~118). Shells already source
+> `scripts/resolve_host_cc.sh` (honor env → `cc` → `gcc`). Make **CLI** `CC=…`
+> auto-exports into recipe env; parent `export CC` is honored. Dual recipe inject
+> = second default-CC path (Makefile `CC ?=` is not auto-exported — shell resolve
+> is the unset authority).
+
+**This wave:** drop `CC="$(CC)"` on **118** recipes:
+- **116 pure** thin-calls: `ensure_host_cc_seed_o.sh try-heat` (112 multi-line +
+  10 single-line family; net 112 unique try-heat leaves) +
+  `filter_bootstrap_seed_against_partial_o` (3) +
+  `filter_bootstrap_seed_pipeline_o` (1)
+- **2 multi-token** bags: `src/lexer/cfg_eval.o` keeps `LD`/`LD_RELFLAGS`;
+  `pipeline_x.o` keeps `PIPELINE_X_DEPS` / `PIPELINE_X_FORCE_COMPILE` /
+  `XLANG_FORCE_REGEN_GEN` — strip CC= only
+
+Shell `resolve_host_cc` + CLI/env remain authority. **NOT** physical delete — thin
+edges + B2 + mk lists + residual G05_SYNC / LD / pipeline bags remain.
+
+```text
+PHYS_DEL_B7B_CC_INJECT_HYGIENE=1
+PHYS_DEL_B7B_CC_INJECT_HYGIENE_WAVE=wave884
+PHYS_DEL_B7B_CC_INJECT_HYGIENE_COUNT=118
+PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_B7B_CC_INJECT_HYGIENE` | `1` |
+| `PHYS_DEL_B7B_CC_INJECT_HYGIENE_COUNT` | `118` |
+| `PHYS_DEL_B7B_CC_INJECT_HYGIENE_WAVE` | `wave884` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+
+**Forbidden:** claim CC inject hygiene = physical delete; re-add recipe-line
+`CC="$(CC)"` on these leaves; claim residual inject family exhausted while
+G05_SYNC / LD / pipeline bags / thin edges remain.
 

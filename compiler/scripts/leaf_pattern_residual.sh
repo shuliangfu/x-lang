@@ -172,6 +172,11 @@
 #            phase1-link 1 pure drop; bstrict+refresh drop MAKE from multi-token;
 #            shell MAKE:-make + GNU make auto-export; keep ENSURE_SEED/NO_REPLACE;
 #            NOT physical delete — CC passthrough + G05_SYNC + LD + thin edges remain
+#   wave884: B7B residual single-token CC= inject hygiene (118 recipes) →
+#            116 pure thin-calls (112 try-heat + 3 filter-partial + 1 filter-pipeline
+#            + single-line try-heat) drop CC=; 2 multi (cfg_eval LD bag + pipeline_x
+#            PIPELINE bags) strip CC= only; shell resolve_host_cc + CLI/env export;
+#            NOT physical delete — G05_SYNC + LD + pipeline bags + thin edges remain
 #   wave856: B7B archaeology LINK_OBJS shell-load via make export leaves (5 bags /
 #            6 shells; nested expand; Makefile drops multi-token LINK_OBJS env;
 #            NOT physical delete — CFLAGS env + thin edges + B2 remain)
@@ -1424,7 +1429,8 @@ B7B_TARGET_INJECT_HYGIENE_COUNT=10
 # driver_leaf 8 + rebuild_leaves 7 + host_stubs 2 + phase1-link 1) + 2 multi-token
 # (bstrict/refresh) drop MAKE=. Shell MAKE="${MAKE:-make}" + GNU make auto-exports
 # MAKE to recipe env (G.7). Keep ENSURE_SEED=0 / NO_REPLACE passthrough.
-# NOT physical delete — CC= passthrough + G05_SYNC + LD + thin edges + B2 remain.
+# NOT physical delete — residual CC/G05_SYNC/LD/pipeline + thin edges + B2 remain
+# (CC closed in wave884).
 PHYS_DEL_B7B_MAKE_INJECT_HYGIENE=1
 PHYS_DEL_B7B_MAKE_INJECT_HYGIENE_WAVE=wave883
 PHYS_DEL_B7B_MAKE_INJECT_HYGIENE_COUNT=24
@@ -1434,6 +1440,22 @@ SWALLOWED_B7B_MAKE_INJECT_HYGIENE=1
 B7B_MAKE_INJECT_HYGIENE_SWALLOWED=1
 B7B_MAKE_INJECT_HYGIENE_WAVE=wave883
 B7B_MAKE_INJECT_HYGIENE_COUNT=24
+# wave884: B7B residual single-token CC= inject hygiene.
+# COUNT = 118 recipes: 116 pure CC-only thin-calls (try-heat ensure_host family +
+# filter_bootstrap partial/pipeline) + 2 multi-token (cfg_eval LD/LD_RELFLAGS;
+# pipeline_x PIPELINE_X_*/XLANG_FORCE_REGEN_GEN) strip CC= only.
+# Authority: scripts/resolve_host_cc.sh when CC unset; make CLI CC= auto-exports;
+# parent env CC honored (G.7). Keep LD/pipeline multi bags intentional.
+# NOT physical delete — G05_SYNC + LD + pipeline bags + thin edges + B2 remain.
+PHYS_DEL_B7B_CC_INJECT_HYGIENE=1
+PHYS_DEL_B7B_CC_INJECT_HYGIENE_WAVE=wave884
+PHYS_DEL_B7B_CC_INJECT_HYGIENE_COUNT=118
+PHYS_DEL_B7B_CC_INJECT_HYGIENE_VIA=shell_resolve_host_cc_cli_env_no_recipe_inject
+PHYS_DEL_B7B_CC_INJECT_HYGIENE_NOTE=makefile_no_cc_inject_on_try_heat_filter_partial_pipeline_cfg_eval_pipeline_x_shell_resolve_thin_edges_remain
+SWALLOWED_B7B_CC_INJECT_HYGIENE=1
+B7B_CC_INJECT_HYGIENE_SWALLOWED=1
+B7B_CC_INJECT_HYGIENE_WAVE=wave884
+B7B_CC_INJECT_HYGIENE_COUNT=118
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -2464,6 +2486,9 @@ else
   fi
   if ! grep -qE 'wave883|MAKE_INJECT|MAKE=.*inject|single-token MAKE' "$DOC_REL"; then
     bad "$DOC_REL must document wave883 MAKE inject hygiene"
+  fi
+  if ! grep -qE 'wave884|CC_INJECT|CC=.*inject|single-token CC|resolve_host_cc' "$DOC_REL"; then
+    bad "$DOC_REL must document wave884 CC inject hygiene"
   fi
   note "doc $DOC_REL present"
 fi
@@ -6875,6 +6900,25 @@ if ! grep -q 'PHYS_DEL_B7B_MAKE_INJECT_HYGIENE_COUNT=24' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_MAKE_INJECT_HYGIENE_COUNT=24 (wave883)"
 fi
 note "B7B residual MAKE= inject hygiene (COUNT=24; wave883; not physical delete)"
+# wave884: residual single-token CC= inject hygiene.
+# COUNT=118: drop CC= recipe inject; shell resolve_host_cc + CLI/env export.
+# G.7: no dual default-CC authority — resolve_host_cc.sh owns unset CC.
+# Non-comment recipe form only (comments may mention the old inject in prose).
+if grep -nE '^\t@CC="\$\(CC\)"' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile still injects CC=\$(CC) on recipes (wave884)"
+  grep -nE '^\t@CC="\$\(CC\)"' "$MF" | head -15 >&2
+fi
+if ! grep -q 'wave884' "$MF" 2>/dev/null; then
+  bad "Makefile must document wave884 CC inject hygiene"
+fi
+# dump honesty
+if ! grep -q 'PHYS_DEL_B7B_CC_INJECT_HYGIENE=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_CC_INJECT_HYGIENE=1 (wave884)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_CC_INJECT_HYGIENE_COUNT=118' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_CC_INJECT_HYGIENE_COUNT=118 (wave884)"
+fi
+note "B7B residual CC= inject hygiene (COUNT=118; wave884; not physical delete)"
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
   PHYS_DEL_BUCKET_B1_BODY_SWALLOWED=1 \

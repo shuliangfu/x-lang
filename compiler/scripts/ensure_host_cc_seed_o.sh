@@ -295,10 +295,13 @@ FORCE="${XLANG_HOST_CC_SEED_FORCE:-0}"
 # silence ifeq). Makefile try-heat recipes drop multi-token CFLAGS= env; shell
 # loads export-try-heat-cflags when either var is unset. Fallback matches
 # historic shell defaults when make export is unavailable.
-# wave881 · B7B try-heat PREFER inject hygiene: product try-heat is CC= only
-# (no XLANG_G05_PREFER_X_O= / XLANG= recipe inject). Prefer policy is env/CLI
-# + shell defaults (G.7 single body). Residual: CC passthrough · thin edges ·
-# cfg_eval LD bags · pipeline_x multi-token · physical delete.
+# wave881 · B7B try-heat PREFER inject hygiene: product try-heat drops PREFER
+# inject (no XLANG_G05_PREFER_X_O= / XLANG= recipe inject). Prefer policy is
+# env/CLI + shell defaults (G.7 single body).
+# wave884 · B7B residual CC= inject hygiene: product try-heat is env-free thin
+# @bash only — CC from resolve_host_cc when unset; make CLI/env auto-export.
+# Residual: G05_SYNC · thin edges · cfg_eval LD bags · pipeline_x multi-token ·
+# physical delete.
 # PLATFORM: SHARED — KEY=value from export target; no compile side effects.
 _load_try_heat_cflags_via_make() {
   local raw line
