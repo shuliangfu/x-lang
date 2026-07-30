@@ -14,6 +14,7 @@
 > - **wave762–839** · R2/R3 prefer · phys-del prep · B7A–D · list→mk · FORCE dep-thin (see § wave rows)
 > - **wave841–845** · B7C shell-primary (typeck/codegen · x-compiler · self · parser smoke · xlang-x-pipeline)
 > - **wave846** · B7C xlang-x shell-primary (host-cc product link)
+> - **wave847** · B7C xlang-no-c-frontend shell-primary (host-cc product link)
 > - **wave799** · execute-gate (hard refuse delete)
 > - **open** · thin edges + B2 + mk lists → tip Windows → dual L4 → explicit auth ship delete
 
@@ -1202,7 +1203,7 @@ After (wave785):
 | Swallowed this wave | Still residual |
 |---------------------|----------------|
 | **B7 inventory** (named B7A–B7D + dump/`--check`) | Physical delete (Windows gate) |
-| **B7c partial** (archaeology dual `-c` → migrate / thin leaves) | ~~B7c typeck/codegen~~ (wave841) · ~~x-compiler~~ (wave842) · ~~bootstrap-self~~ (wave843) · ~~bootstrap-parser smoke~~ (wave844) · ~~xlang-x-pipeline~~ (wave845) · ~~xlang-x~~ (wave846) · B7A edges · B7B lists · ~~**B7D host-cc xlang link**~~ (wave786) |
+| **B7c partial** (archaeology dual `-c` → migrate / thin leaves) | ~~B7c typeck/codegen~~ (wave841) · ~~x-compiler~~ (wave842) · ~~bootstrap-self~~ (wave843) · ~~bootstrap-parser smoke~~ (wave844) · ~~xlang-x-pipeline~~ (wave845) · ~~xlang-x~~ (wave846) · ~~xlang-no-c-frontend~~ (wave847) · B7A edges · B7B lists · ~~**B7D host-cc xlang link**~~ (wave786) |
 
 **Forbidden:** physical delete Makefile; claim B7 inventory = physical delete; re-open dual `$(CC) -c` on typeck/codegen/bootstrap-self lsp; mac-only wave green; treat B7D UNDEF as product g05 failure.
 
@@ -2059,6 +2060,60 @@ ship delete body; mac-only wave green.
 `bootstrap_xlangc_create.sh` on Makefile prereq; dual host-pick outside select;
 `rm compiler/Makefile`; ship delete body; mac-only wave green.
 
+## wave847 xlang-no-c-frontend shell-primary (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **有则补全** on B7C archaeology residual —
+> `xlang-no-c-frontend` still owned a multi-step Makefile body
+> (short `test -f` seed gate + fat `$(CC)` link of archaeology
+> `./xlang-no-c-frontend`). wave846 shelled `xlang-x` (full-driver product);
+> this wave shells the sibling no-C-frontend experiment binary link path.
+>
+> New authority: `scripts/xlang_no_c_frontend.sh`
+>   - seed gate via Makefile-exported `XNC_REQUIRED_OBJS`
+>   - host-cc link with Makefile-exported `XNC_LINK_CFLAGS` / `XNC_LINK_OBJS`
+>     (lists stay mk expansion; no second inventory in shell)
+>
+> Makefile thin-call only (keeps `DRIVER_NO_C_FRONTEND_OBJS` /
+> `lsp_diag_stubs_no_c.o` make-graph prereqs). Honesty COUNT = **1**. Residual after:
+> thin edges + B2 + mk lists (+ hybrid residual). Dual-end
+> L2 required. Blockers **remain**.
+
+```text
+  leaf dump:
+    PHYS_DEL_XLANG_NO_C_FRONTEND_SHELL=1
+    PHYS_DEL_XLANG_NO_C_FRONTEND_SHELL_WAVE=wave847
+    PHYS_DEL_XLANG_NO_C_FRONTEND_SHELL_COUNT=1
+    SWALLOWED_XLANG_NO_C_FRONTEND_SHELL=1
+    PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY=1
+    PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT=9
+    PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_WAVE=wave847
+    PHYS_DEL_PREFLIGHT_XLANG_NO_C_FRONTEND_SHELL=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  dual-end L2: Mac structural green; live make reaches shell link then
+    pre-existing UNDEF (archaeology bag vs current pipeline_x; bag unchanged
+    from pre-wave847 recipe — not dual authority / not shell regression);
+    product rv42 green. Ubuntu structural after product tip.
+  next: residual thin/B2/lists (hybrid / lists) or tip
+    Windows re-proof → ship delete body (explicit auth only; tip L4 wave840)
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_XLANG_NO_C_FRONTEND_SHELL` | `1` |
+| `PHYS_DEL_XLANG_NO_C_FRONTEND_SHELL_COUNT` | `1` |
+| `SWALLOWED_XLANG_NO_C_FRONTEND_SHELL` | `1` |
+| `XLANG_NO_C_FRONTEND_SHELL_HELPER` | `xlang_no_c_frontend.sh` |
+| `PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT` | `9` (wave841–846 + wave847 xlang-no-c-frontend) |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+
+**Forbidden:** claim xlang-no-c-frontend shell-primary = physical delete; dual `$(CC)` link /
+`test -f` seed gate body in Makefile recipe; dual full link inventory in shell;
+mac-only wave green; `rm compiler/Makefile`; ship delete body without explicit auth.
+
 ## wave846 xlang-x shell-primary (2026-07-30)
 
 > **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
@@ -2076,7 +2131,7 @@ ship delete body; mac-only wave green.
 >
 > Makefile thin-call only (keeps `build-seed-asm-host` / `DRIVER_SEED_OBJS` /
 > pipeline+user-asm make-graph prereqs). Honesty COUNT = **1**. Residual after:
-> thin edges + B2 + mk lists (+ `xlang-no-c-frontend` / hybrid residual). Dual-end
+> thin edges + B2 + mk lists (+ ~~`xlang-no-c-frontend`~~ wave847 / hybrid residual). Dual-end
 > L2 required. Blockers **remain**.
 
 ```text

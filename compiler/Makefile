@@ -2674,10 +2674,17 @@ bootstrap-driver-seed-user-asm: bootstrap-driver-seed
 
 # 实验：不链 C lexer/parser/typeck/codegen；依赖已成功的 bootstrap-driver-seed 产物。(-E-extern / 泛型单态 C 路径不可用)
 # List authority: mk/archaeology_experiment_objs.mk (wave821).
-xlang-no-c-frontend: $(DRIVER_NO_C_FRONTEND_OBJS) src/lsp/lsp_diag_stubs_no_c.o
-	@test -f driver_x.o && test -f pipeline_x.o && test -f preprocess_x.o || (echo "请先 make bootstrap-driver-seed" && exit 1)
-	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(MAIN_LINK_FLAGS) -o $@ $(DRIVER_NO_C_FRONTEND_OBJS) driver_x.o pipeline_x.o lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) src/lsp/lsp_diag_pipeline_sizes.o src/lsp/lsp_diag_stubs_no_c.o lsp_io_std_heap_x.o $(PIPELINE_LIBS)
-	@echo "xlang-no-c-frontend OK (try: ./xlang-no-c-frontend -E examples/hello.x)"
+# wave847: full body → scripts/xlang_no_c_frontend.sh (G.7 有则补全; shell owns seed
+#   gate + host-cc link). Lists stay mk expansion (DRIVER_NO_C_FRONTEND_OBJS /
+#   DRIVER_SUBCMD / PIPELINE_LIBS). NOT physical delete — prereq make-graph +
+#   thin edges + B2 + mk lists remain residual.
+# PLATFORM: SHARED — shell owns preflight + link orchestration.
+xlang-no-c-frontend: $(DRIVER_NO_C_FRONTEND_OBJS) src/lsp/lsp_diag_stubs_no_c.o scripts/xlang_no_c_frontend.sh
+	@CC="$(CC)" OUT="$@" \
+	  XNC_LINK_CFLAGS="$(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(MAIN_LINK_FLAGS)" \
+	  XNC_LINK_OBJS="$(DRIVER_NO_C_FRONTEND_OBJS) driver_x.o pipeline_x.o lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) src/lsp/lsp_diag_pipeline_sizes.o src/lsp/lsp_diag_stubs_no_c.o lsp_io_std_heap_x.o $(PIPELINE_LIBS)" \
+	  XNC_REQUIRED_OBJS="driver_x.o pipeline_x.o preprocess_x.o" \
+	  bash scripts/xlang_no_c_frontend.sh
 
 # 注意：Makefile 中存在同名规则 `xlang-x:`，不能把 `xlang-x` 列为本目标 prerequisite，否则会先执行重链接口而非仅检测文件是否存在。
 regen-lsp-gens-x:
