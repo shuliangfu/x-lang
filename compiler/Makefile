@@ -297,16 +297,20 @@ XLANG_X = xlang-x
 # wave815: archaeology host-pick phonies → scripts/archaeology_host_pick_phony.sh
 # (G.7; not physical delete). Makefile thin-call ensure only; host pick + TLS/sqlite
 # merge body live in the shell catalog. Nested product .o still via make try-heat.
-net-o-stub: scripts/archaeology_host_pick_phony.sh
+# wave839: FORCE dep-thin — drop script-only prereq residual; FORCE + script only
+# (G.7 有则补全). Shell owns host pick / TLS-sqlite merge; FORCE always re-enters
+# (matches product leaf pattern; never make-skipped by stale script mtimes alone).
+# PLATFORM: SHARED — FORCE always invokes ensure; bash for Ubuntu dash.
+net-o-stub: FORCE scripts/archaeology_host_pick_phony.sh
 	@MAKE="$(MAKE)" LD_R_MULTIDEF_FLAGS="$(LD_R_MULTIDEF_FLAGS)" \
 	  bash scripts/archaeology_host_pick_phony.sh ensure $@
 
 # TLS：F-04 v8 net-o-openssl 编译 std/net/tls_openssl.x（不再 #include tls_openssl.inc.c）。
-net-o-openssl: scripts/archaeology_host_pick_phony.sh
+net-o-openssl: FORCE scripts/archaeology_host_pick_phony.sh
 	@MAKE="$(MAKE)" LD_R_MULTIDEF_FLAGS="$(LD_R_MULTIDEF_FLAGS)" \
 	  bash scripts/archaeology_host_pick_phony.sh ensure $@
 
-net-o-mbedtls: scripts/archaeology_host_pick_phony.sh
+net-o-mbedtls: FORCE scripts/archaeology_host_pick_phony.sh
 	@MAKE="$(MAKE)" LD_R_MULTIDEF_FLAGS="$(LD_R_MULTIDEF_FLAGS)" \
 	  bash scripts/archaeology_host_pick_phony.sh ensure $@
 
@@ -576,7 +580,9 @@ endif
 	@sh scripts/xlang_compile_std_x.sh ensure $@
 sqlite-o: ../std/db/sqlite/sqlite.o runtime_sqlite_glue.o
 # wave815: archaeology host-pick phony → shell catalog (G.7; not physical delete).
-sqlite-o-stub: scripts/archaeology_host_pick_phony.sh
+# wave839: FORCE dep-thin — FORCE + archaeology_host_pick_phony only (G.7 有则补全).
+# PLATFORM: SHARED — FORCE always invokes ensure; bash for Ubuntu dash.
+sqlite-o-stub: FORCE scripts/archaeology_host_pick_phony.sh
 	@MAKE="$(MAKE)" LD_R_MULTIDEF_FLAGS="$(LD_R_MULTIDEF_FLAGS)" \
 	  bash scripts/archaeology_host_pick_phony.sh ensure $@
 

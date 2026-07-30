@@ -13,6 +13,10 @@
 # (wave811) / formal_mod ensure (wave812); this catalog is **off product default
 # link** (opt-in TLS/sqlite stub merge paths).
 #
+# wave839 (G.7 有则补全): Makefile prereqs → FORCE + this script only (dep-thin).
+# FORCE always re-enters ensure; shell owns host pick / TLS-sqlite merge body.
+# NOT physical delete — thin-call edges + B2 + mk lists remain residual.
+#
 # Catalog keys:
 #   net-o-stub       — ensure ../std/net/net.o (net.o product leaf is try-heat)
 #   net-o-openssl    — compile tls_openssl.x → tls_openssl.o + net-o-stub
