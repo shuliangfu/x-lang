@@ -2910,15 +2910,14 @@ xlang-x-pipeline: bootstrap-pipeline migrate-x-objs $(PIPELINE_X_BASE_OBJS) pipe
 
 # 4.5（.x 流水线编译 compiler 自身）：用 xlang_x 的 -x -E 生成 typeck.x / codegen.x 对应的 C，再由 cc 链接得到新的 xlang_x_stage2。
 # 这一目标的目的，是验证「完整前端（parse_into + typeck_x_ast + codegen_x_ast）」全部跑在 .x 上时，仍能产出能工作的编译器。
-# wave785 B7c residual: typeck_x_x / codegen_x_x are *not* migrate_x_objs (different TU names);
-#   still archaeology $(CC) -c (B7C residual heat; not product path). NOT physical delete.
-bootstrap-x-compiler: xlang-x-pipeline
-	./$(TARGET)_x -x -E src/typeck/typeck.x > typeck_x_x.c
-	./$(TARGET)_x -x -E src/codegen/codegen.x > codegen_x_x.c
-	$(CC) $(CFLAGS) -c typeck_x_x.c -o typeck_x_x.o
-	$(CC) $(CFLAGS) -c codegen_x_x.c -o codegen_x_x.o
-	$(CC) $(CFLAGS) -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN -o $(TARGET)_x_stage2 $(OBJS) typeck_x_x.o codegen_x_x.o
-	@echo "bootstrap-x-compiler OK (.x 流水线生成 typeck/codegen C 并链接 xlang_x_stage2)"
+# wave785 B7c: typeck_x_x / codegen_x_x are *not* migrate_x_objs (different TU names; archaeology).
+# wave842: full body → scripts/bootstrap_x_compiler.sh (G.7 有则补全; shell owns -x -E + host-cc -c + link).
+# NOT physical delete — prereq make-graph (xlang-x-pipeline) + thin edges + mk lists remain residual.
+# PLATFORM: SHARED — shell owns stage2 emit/compile/link orchestration.
+bootstrap-x-compiler: xlang-x-pipeline scripts/bootstrap_x_compiler.sh
+	@TARGET="$(TARGET)" CC="$(CC)" CFLAGS="$(CFLAGS)" \
+	  BXC_LINK_OBJS="$(OBJS)" \
+	  bash scripts/bootstrap_x_compiler.sh
 
 # 自举测试（不含 run-all）：seed 构建 xlang，再用 xlang 自编得到 xlang_stage2，stage2 跑 return-value 返回 42 即通过。用于快速验证「xlang 能编译自己」。
 bootstrap-test: bootstrap-self

@@ -672,6 +672,20 @@ SWALLOWED_BOOTSTRAP_TYPECK_CODEGEN_SHELL=1
 BOOTSTRAP_TYPECK_CODEGEN_SHELL_SWALLOWED=1
 BOOTSTRAP_TYPECK_CODEGEN_SHELL_HELPER=bootstrap_typeck_codegen.sh
 BOOTSTRAP_TYPECK_CODEGEN_SHELL_WAVE=wave841
+# wave842: bootstrap-x-compiler full body → shell (G.7 有则补全).
+# Emit = TARGET_x -x -E; host-cc -c typeck_x_x/codegen_x_x (not migrate_x_objs;
+# different archaeology TU names); link bag = BXC_LINK_OBJS from Makefile $(OBJS).
+# NOT physical delete — prereq xlang-x-pipeline + thin edges + B2 + mk lists remain.
+# Honesty COUNT = 1 phony.
+PHYS_DEL_BOOTSTRAP_X_COMPILER_SHELL=1
+PHYS_DEL_BOOTSTRAP_X_COMPILER_SHELL_WAVE=wave842
+PHYS_DEL_BOOTSTRAP_X_COMPILER_SHELL_COUNT=1
+PHYS_DEL_BOOTSTRAP_X_COMPILER_SHELL_VIA=bootstrap_x_compiler_sh_x_e_host_cc_link
+PHYS_DEL_BOOTSTRAP_X_COMPILER_SHELL_NOTE=shell_primary_stage2_emit_cc_link_prereq_graph_remain
+SWALLOWED_BOOTSTRAP_X_COMPILER_SHELL=1
+BOOTSTRAP_X_COMPILER_SHELL_SWALLOWED=1
+BOOTSTRAP_X_COMPILER_SHELL_HELPER=bootstrap_x_compiler.sh
+BOOTSTRAP_X_COMPILER_SHELL_WAVE=wave842
 # wave816: B7B DRIVER_SUBCMD_* inventory → mk/driver_subcmd_objs.mk (G.7).
 # Makefile includes mk only; no dual inline re-list. Catalog parses mk (no
 # hardcode). NOT physical delete — thin-call edges + B2 ensure + other mk lists
@@ -908,11 +922,11 @@ B7B_SHELL_CATALOG_NOTE=default_0make_mk_parse_make_export_escape_LEGACY
 PHYS_DEL_BUCKET_B7C=archaeology_phony_cc
 PHYS_DEL_BUCKET_B7C_SCOPE=bootstrap_typeck_codegen_self_x_compiler
 PHYS_DEL_BUCKET_B7C_ARCHAEOLOGY_CC_THINNED=1
-PHYS_DEL_BUCKET_B7C_THINNED_VIA=bootstrap_typeck_codegen_sh+migrate_x_objs+ensure_gen_x_o_driver_leaf
-PHYS_DEL_BUCKET_B7C_THINNED_NOTE=typeck_codegen_shell_primary_wave841_self_lsp_thin_x_x_residual
+PHYS_DEL_BUCKET_B7C_THINNED_VIA=bootstrap_typeck_codegen_sh+bootstrap_x_compiler_sh+migrate_x_objs+ensure_gen_x_o_driver_leaf
+PHYS_DEL_BUCKET_B7C_THINNED_NOTE=typeck_codegen_shell_wave841_x_compiler_shell_wave842_self_lsp_thin
 PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY=1
-PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_WAVE=wave841
-PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT=2
+PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_WAVE=wave842
+PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT=3
 PHYS_DEL_BUCKET_B7D=host_cc_product_link_xlang
 PHYS_DEL_BUCKET_B7D_SCOPE=TARGET_default_g05_prepare_and_relink
 PHYS_DEL_BUCKET_B7D_BODY_SWALLOWED=1
@@ -967,6 +981,7 @@ PHYS_DEL_PREFLIGHT_BOOTSTRAP_XLANGC_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_ARCH_HOST_PICK_PHONY=1
 PHYS_DEL_PREFLIGHT_ARCH_HOST_PICK_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_BOOTSTRAP_TYPECK_CODEGEN_SHELL=1
+PHYS_DEL_PREFLIGHT_BOOTSTRAP_X_COMPILER_SHELL=1
 PHYS_DEL_PREFLIGHT_B7B_DRIVER_SUBCMD_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_PIPELINE_X_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_SEED_MODE_LIST=1
@@ -1616,6 +1631,9 @@ else
   fi
   if ! grep -qE 'wave841|BOOTSTRAP_TYPECK_CODEGEN_SHELL|bootstrap-typeck.*shell|typeck.codegen shell-primary' "$DOC_REL"; then
     bad "$DOC_REL must document wave841 bootstrap-typeck/codegen shell-primary"
+  fi
+  if ! grep -qE 'wave842|BOOTSTRAP_X_COMPILER_SHELL|bootstrap-x-compiler.*shell|x.compiler shell-primary' "$DOC_REL"; then
+    bad "$DOC_REL must document wave842 bootstrap-x-compiler shell-primary"
   fi
   if ! grep -qE 'wave812|formal_mod|FORMAL_MOD_SHELL|std_module ensure' "$DOC_REL"; then
     bad "$DOC_REL must document wave812 formal_mod shell-primary catalog"
@@ -2403,8 +2421,23 @@ fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_BOOTSTRAP_TYPECK_CODEGEN_SHELL=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_BOOTSTRAP_TYPECK_CODEGEN_SHELL=1 (wave841)"
 fi
+if ! grep -q 'PHYS_DEL_BOOTSTRAP_X_COMPILER_SHELL=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_BOOTSTRAP_X_COMPILER_SHELL=1 (wave842)"
+fi
+if ! grep -q 'PHYS_DEL_BOOTSTRAP_X_COMPILER_SHELL_WAVE=wave842' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_BOOTSTRAP_X_COMPILER_SHELL_WAVE=wave842"
+fi
+if ! grep -q 'PHYS_DEL_BOOTSTRAP_X_COMPILER_SHELL_COUNT=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_BOOTSTRAP_X_COMPILER_SHELL_COUNT=1 (wave842)"
+fi
+if ! grep -q 'SWALLOWED_BOOTSTRAP_X_COMPILER_SHELL=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_BOOTSTRAP_X_COMPILER_SHELL=1 (wave842)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_BOOTSTRAP_X_COMPILER_SHELL=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_BOOTSTRAP_X_COMPILER_SHELL=1 (wave842)"
+fi
 if ! grep -q 'PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY=1' <<<"$_out"; then
-  bad "dump must set PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY=1 (wave841)"
+  bad "dump must set PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY=1 (wave841/wave842)"
 fi
 if ! grep -q 'PHYS_DEL_B7B_DRIVER_SUBCMD_LIST=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_DRIVER_SUBCMD_LIST=1 (wave816)"
@@ -4438,11 +4471,30 @@ if [ -f "$MF" ]; then
   else
     note "driver_seed_obj_catalog.sh --check OK (wave788 shell==make)"
   fi
-  # residual honesty: bootstrap-x-compiler still has archaeology stage2 $(CC) -c
-  if ! grep -A8 '^bootstrap-x-compiler:' "$MF" | grep -qE '\$\(CC\).*-c typeck_x_x'; then
-    note "bootstrap-x-compiler archaeology -c residual cleared (unexpected early)"
+  # wave842 B7c: bootstrap-x-compiler shell-primary via bootstrap_x_compiler.sh
+  # (emit=-x -E; host-cc -c typeck_x_x inside shell; no dual Makefile body)
+  if ! grep -A8 '^bootstrap-x-compiler:' "$MF" | grep -q 'bootstrap_x_compiler\.sh'; then
+    bad "bootstrap-x-compiler must thin-call bootstrap_x_compiler.sh (wave842 B7c shell-primary)"
   else
-    note "bootstrap-x-compiler archaeology \$(CC) -c residual kept (B7C honesty)"
+    note "bootstrap-x-compiler → bootstrap_x_compiler.sh (wave842)"
+  fi
+  _bxc_rec=$(awk '/^bootstrap-x-compiler:/{h=1;next} h&&/^[^[:space:]#]/{exit} h&&/^\t/{print}' "$MF")
+  if grep -qE '\$\(CC\).*-c .*typeck_x_x|\$\(CC\).*-c .*codegen_x_x' <<<"$_bxc_rec"; then
+    bad "bootstrap-x-compiler must not keep dual \$(CC) -c typeck_x_x body (wave842)"
+  fi
+  if grep -qE 'TARGET\)_x.*-x|-x -E src/typeck' <<<"$_bxc_rec"; then
+    bad "bootstrap-x-compiler must not keep dual -x -E emit body (wave842)"
+  fi
+  _bxc_sh="$SCRIPT_DIR/bootstrap_x_compiler.sh"
+  if [ -f "$_bxc_sh" ]; then
+    if ! bash "$_bxc_sh" --check >/tmp/bxc_shell_check.log 2>/tmp/bxc_shell_check_err.log; then
+      bad "bootstrap_x_compiler.sh --check failed (wave842)"
+      head -20 /tmp/bxc_shell_check_err.log >&2 || true
+    else
+      note "bootstrap_x_compiler.sh --check OK (wave842)"
+    fi
+  else
+    bad "missing bootstrap_x_compiler.sh (wave842)"
   fi
 fi
 
