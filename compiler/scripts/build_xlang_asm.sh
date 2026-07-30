@@ -4714,6 +4714,9 @@ fi
 
 # crt0 链尾参数（无 PIPELINE_LIBS）。
 # PLATFORM: LINUX — nostdlib tail is Linux x86_64 bootstrap only.
+# PLATFORM: WINDOWS | MINGW | MSYS — never emit bare -lc/-lm: MinGW has no
+#   free-standing lib "c" for ld (msvcrt is pulled by the gcc driver). Explicit
+#   `-lc` fails with `cannot find -lc` and aborts hybrid after multidef noise.
 # Callers capture stdout: BOOT_CRT0_TAIL=$(bootstrap_link_tail_crt0).
 # ensure_* may print " cc -c ..." progress; must go to stderr or $(...) pollutes the
 # link line with a bare -c and fails: cannot specify '-o' with '-c' with multiple files.
@@ -4722,6 +4725,8 @@ bootstrap_link_tail_crt0() {
   ensure_freestanding_io_x86_64_obj
   ensure_bootstrap_nostdlib_stubs_obj
   echo "-nostdlib -static -Wl,--gc-sections src/asm/freestanding_io_x86_64.o src/asm/bootstrap_nostdlib_stubs.o"
+  elif build_xlang_asm_is_msys; then
+  echo ""
   else
   echo "-lc -lm"
   fi
@@ -4729,11 +4734,14 @@ bootstrap_link_tail_crt0() {
 
 # driver / experimental / strict 链尾（保留 PIPELINE_LIBS，仅去 -lc/-lm）。
 # PLATFORM: LINUX — same stdout purity rule as bootstrap_link_tail_crt0 (NL-07).
+# PLATFORM: WINDOWS | MINGW | MSYS — no -lc/-lm; keep PIPELINE_LIBS only (usually empty).
 bootstrap_link_tail_driver() {
   if bootstrap_wants_nostdlib; then
   ensure_freestanding_io_x86_64_obj
   ensure_bootstrap_nostdlib_stubs_obj
   echo "-nostdlib -static -Wl,--gc-sections src/asm/freestanding_io_x86_64.o src/asm/bootstrap_nostdlib_stubs.o ${PIPELINE_LIBS}"
+  elif build_xlang_asm_is_msys; then
+  echo "${PIPELINE_LIBS}"
   else
   echo "-lm -lc ${PIPELINE_LIBS}"
   fi
