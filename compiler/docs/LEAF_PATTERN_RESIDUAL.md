@@ -2090,7 +2090,8 @@ ship delete body; mac-only wave green.
     PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_WAVE=wave846
     PHYS_DEL_PREFLIGHT_XLANG_X_SHELL=1
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-  dual-end L2: Mac + Ubuntu leaf --check + xlang_x.sh --check + phys-del --check
+  dual-end L2 green tip: 9784e345a (Mac + Ubuntu leaf --check +
+    xlang_x.sh --check + phys-del --check + Mac live make xlang-x + rv42)
   next: residual thin/B2/lists (xlang-no-c-frontend / hybrid / lists) or tip
     Windows re-proof → ship delete body (explicit auth only; tip L4 wave840)
 ```
