@@ -93,7 +93,7 @@
 | `compile_commands.json` | 3418 | Makefile | `xbuild compile-commands 或删` | ⬜ Makefile | IDE 辅助 |
 | `size-baseline` | 3422 | **shell** `stage8_baseline.sh size` | `xbuild size-baseline 或 tests/` | 🟢 wave875 体 shell；测量权威仍 `tests/run-size-baseline.sh` | 可选 stage-8 |
 | `perf-baseline` | 3426 | **shell** `stage8_baseline.sh perf` | `xbuild perf-baseline 或 tests/` | 🟢 wave875 体 shell；测量权威仍 `tests/run-perf-baseline.sh` | 可选 stage-8 |
-| `verify-selfhost-stage2` | ~2783 | **shell** `scripts/verify-selfhost-stage2.sh` | `xbuild stage2` / make thin | 🟢 wave902 ALIAS_STUBS multi; wave901 MAIN_RUNTIME multi; wave900 FRONTEND_GLUE multi; wave899 R1_CORE; wave898 RT_SEED; wave897 B2; wave896 driver_leaf; wave895 std_x; wave894 formal_mod; wave893 body under scripts；root shim CI | Stage2 X dogfood |
+| `verify-selfhost-stage2` | ~2783 | **shell** `scripts/verify-selfhost-stage2.sh` | `xbuild stage2` / make thin | 🟢 wave903 EXTRA_CFLAGS multi; wave902 ALIAS_STUBS multi; wave901 MAIN_RUNTIME multi; wave900 FRONTEND_GLUE multi; wave899 R1_CORE; wave898 RT_SEED; wave897 B2; wave896 driver_leaf; wave895 std_x; wave894 formal_mod; wave893 body under scripts；root shim CI | Stage2 X dogfood |
 | `bootstrap-verify` | 3414 | Makefile | `xbuild bootstrap-verify` | ⬜ Makefile |  |
 | `bootstrap-verify-seed` | 3410 | Makefile | `xbuild bootstrap-verify` | ⬜ Makefile |  |
 | `bootstrap-verify-bstrict` | 3407 | Makefile | `xbuild bootstrap-verify` | ⬜ Makefile |  |
@@ -700,6 +700,7 @@
 - **wave900** · B7B R1_FRONTEND_GLUE multi-target FORCE thin try-heat：3 leaves → `$(R1_FRONTEND_GLUE_OBJS)`（`mk/driver_seed_r_lists.mk` 既有 · G.7 有则补全）+ Makefile multi-target FORCE try-heat（收 lexer/ast/lsp_diag）。**非**物理删。
 - **wave901** · B7B R1_MAIN_RUNTIME multi-target FORCE thin try-heat：7 leaves → `$(R1_MAIN_RUNTIME_OBJS)`（`mk/driver_seed_r_lists.mk` 既有 · G.7 有则补全）+ Makefile multi-target FORCE try-heat（收 main/main_x/main_driver/runtime/runtime_x/runtime_driver/runtime_driver_no_c）。**非**物理删。
 - **wave902** · B7B R1_ALIAS_STUBS multi-target FORCE thin try-heat：8 leaves → `$(R1_ALIAS_STUBS_OBJS)`（`mk/driver_seed_r_lists.mk` 既有 · G.7 有则补全）+ Makefile multi-target FORCE try-heat（收 link alias / bare / typeck stubs / user_asm_seed_bridge / asm_backend_compat_stubs / runtime_driver_strict_glue_stubs）。**非**物理删。
+- **wave903** · B7B R1_EXTRA_CFLAGS multi-target FORCE thin try-heat：5 leaves → `$(R1_EXTRA_CFLAGS_OBJS)`（`mk/driver_seed_r_lists.mk` 既有 · G.7 有则补全）+ Makefile multi-target FORCE try-heat（收 pipeline_abi / asm_io_stubs / sqlite glue+stub / parser_asm_parse_expr_link）。**非**物理删。
 - **wave899** · B7B R1_CORE_SEED multi-target FORCE thin try-heat：5 leaves → `$(R1_CORE_SEED_OBJS)`（`mk/driver_seed_r_lists.mk` 既有 · G.7 有则补全）+ Makefile multi-target FORCE try-heat（收 diag/link_abi/c_import/bridge/compat）。**非**物理删。
 - **wave898** · B7B RT_SEED_SLICE multi-target FORCE thin try-heat：5 leaves → `$(RT_SEED_SLICE_OBJS)`（`mk/driver_seed_r_lists.mk` 既有 · G.7 有则补全）+ Makefile multi-target FORCE try-heat（收 5 per-leaf）。**非**物理删。
 - **wave897** · B7B B2 std_core hybrid product edges list→mk multi-target thin：5 leaves → `mk/std_core_hybrid_product_objs.mk` + Makefile `$(STD_CORE_HYBRID_PRODUCT_OBJS)` multi-target FORCE try-heat（收 process/path/runtime/net/slice）。**非**物理删。
