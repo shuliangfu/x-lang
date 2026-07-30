@@ -1570,24 +1570,29 @@ test: test_c test_x
 	@echo "Test all OK"
 
 # wave719: bootstrap-token/lexer body → scripts/bootstrap_token_lexer_smoke.sh (G.7)
+# wave882 B7B: drop single-token TARGET= inject (G.7 hygiene).
+# Shell TARGET="${TARGET:-xlang}" + GNU make CLI auto-export; default product path
+# needs no recipe inject. $(TARGET) prereq stays make graph.
 # 依赖 $(STD_AND_PANIC_O)：-o 链 std/io 等 .o，clean 后仅 make $(TARGET) 会缺这些文件导致 cc 失败。
 bootstrap-token: $(TARGET) $(STD_AND_PANIC_O)
-	@TARGET='$(TARGET)' sh scripts/bootstrap_token_lexer_smoke.sh token
+	@sh scripts/bootstrap_token_lexer_smoke.sh token
 
 bootstrap-lexer: $(TARGET) $(STD_AND_PANIC_O)
-	@TARGET='$(TARGET)' sh scripts/bootstrap_token_lexer_smoke.sh lexer
+	@sh scripts/bootstrap_token_lexer_smoke.sh lexer
 
 # wave844: full body → scripts/bootstrap_parser_smoke.sh (G.7 有则补全; shell owns
 #   parser.x -o smoke + parse-file dual-path fixtures). NOT physical delete —
 #   prereq graph (relink-xlang / STD_AND_PANIC_O / bootstrap-parser) residual.
+# wave882 B7B: drop single-token TARGET= inject (shell TARGET default + CLI auto-export).
 # 自举 9.1：用 xlang 编译 parser.x（import lexer + token + ast + std.fs），解析 function main(): i32 { return 0; } 并验证；-L .. 供 std.fs，-L src/lexer 供 token，-L src/ast 供 ast
 bootstrap-parser: relink-xlang $(STD_AND_PANIC_O) scripts/bootstrap_parser_smoke.sh
-	@TARGET='$(TARGET)' bash scripts/bootstrap_parser_smoke.sh parser
+	@bash scripts/bootstrap_parser_smoke.sh parser
 
 # 9.1 联调：.x `parse()` 支持 return 字面量或 `parse_expr_into`（堆上大块 Arena，栈安全）；宿主 xlang 走完整流水线。
 # 第二段：`return (1 + 2) * 3 + -1`，.x standalone 走 parse()→堆上 Arena→parse_expr_into；宿主 xlang 走完整流水线。
+# wave882 B7B: drop single-token TARGET= inject (same as bootstrap-parser).
 bootstrap-parse-file: $(TARGET) $(STD_AND_PANIC_O) bootstrap-parser scripts/bootstrap_parser_smoke.sh
-	@TARGET='$(TARGET)' bash scripts/bootstrap_parser_smoke.sh parse-file
+	@bash scripts/bootstrap_parser_smoke.sh parse-file
 
 # 迁移到 .x：parser.x -E-extern + ast 池 getter 补丁 → parser_x.o（提供 parser_parse_into_buf；与瘦 pipeline_x.o 分 TU）。
 # 须 xlang-x -x -E 全量 TU；xlang-c 瘦 gen 缺 copy_module_import_path64 / parse_expr_into 等。
@@ -2853,11 +2858,13 @@ bootstrap-verify-stage2-bstrict: verify-selfhost-stage2-bstrict
 # B-hybrid：asm 构建（无 SKIP_GEN），成功则 xlang_asm 覆盖 $(TARGET)；失败保留 seed。
 # wave872: full body → scripts/bootstrap_driver_hybrid.sh (G.7 有则补全).
 # Shell owns build_xlang_asm (no SKIP_GEN) + xlang_asm→TARGET replace / soft-skip.
-# Thin-call TARGET= only. $(TARGET) prereq stays make graph.
+# wave882 B7B: drop single-token TARGET= inject (G.7 hygiene).
+# Shell TARGET="${TARGET:-xlang}" + CLI auto-export; thin @bash only.
+# $(TARGET) prereq stays make graph.
 # NOT physical delete — thin edges + B2 + mk lists remain residual.
 # PLATFORM: SHARED — orchestration only; ABI stays in build_xlang_asm.
 bootstrap-driver-hybrid bootstrap-driver-asm: $(TARGET) scripts/bootstrap_driver_hybrid.sh
-	@TARGET="$(TARGET)" bash scripts/bootstrap_driver_hybrid.sh
+	@bash scripts/bootstrap_driver_hybrid.sh
 
 # 仅 asm、不生成 C（B-hybrid 别名，保留历史目标名）
 bootstrap-driver-asm-only: bootstrap-driver-hybrid
@@ -2865,15 +2872,19 @@ bootstrap-driver-asm-only: bootstrap-driver-hybrid
 # M7 默认自举：B-strict（SKIP_GEN，链接审计无 cc -c pipeline_gen.c）；xlang_asm 默认覆盖 $(TARGET)。
 # wave719: body → scripts/bootstrap_driver_bstrict.sh (G.7); prereq seed 仍 make 图。
 # 仅保留 xlang_asm、不覆盖 seed：XLANG_BSTRICT_NO_REPLACE=1 make bootstrap-driver-bstrict
+# wave882 B7B: drop TARGET= from multi-token inject (shell TARGET default + CLI).
+# Keep MAKE= (nested rebuild) + ENSURE_SEED=0 (override shell default 1).
 bootstrap-driver-bstrict: bootstrap-driver-seed
-	@MAKE="$(MAKE)" TARGET="$(TARGET)" XLANG_BSTRICT_ENSURE_SEED=0 \
+	@MAKE="$(MAKE)" XLANG_BSTRICT_ENSURE_SEED=0 \
 	  sh scripts/bootstrap_driver_bstrict.sh
 
 # P0 asm 门禁：strict xlang_asm 与 seed+migrate-x-objs 对齐（M-3 含 typeck/codegen/ast）；xlang_asm2 仍保留 gen2。
 # wave734: body → scripts/refresh_xlang_asm_gate.sh (G.7)
 # wave735: migrate → scripts/migrate_x_objs.sh (no make migrate-x-objs inside refresh).
+# wave882 B7B: drop TARGET= from multi-token inject (shell TARGET default + CLI).
+# Keep MAKE= + NO_REPLACE passthrough (makefile var may be unset; env/CLI still honored).
 refresh-xlang-asm-gate:
-	@MAKE="$(MAKE)" TARGET="$(TARGET)" \
+	@MAKE="$(MAKE)" \
 	  XLANG_BSTRICT_NO_REPLACE="$(XLANG_BSTRICT_NO_REPLACE)" \
 	  sh scripts/refresh_xlang_asm_gate.sh
 
@@ -2895,11 +2906,12 @@ bootstrap-driver-bstrict-windows: bootstrap-driver-bstrict
 # M4 Linux：crt0 + full_asm .o 链（B-partial，无 runtime_driver）；与 bootstrap-driver-bstrict（asm_only_strict）分轨验收。
 # wave869: full body → scripts/bootstrap_driver_crt0.sh (G.7 有则补全).
 # Shell owns build_xlang_asm invoke + crt0 log gates + xlang_asm post-check.
-# Thin-call TARGET= only (single-token). Seed prereq stays make graph.
+# wave882 B7B: drop single-token TARGET= inject (shell TARGET default + CLI auto-export).
+# Seed prereq stays make graph. Thin @bash only.
 # NOT physical delete — thin edges + B2 + mk lists remain residual.
 # PLATFORM: SHARED — orchestration only; ABI stays in build_xlang_asm.
 bootstrap-driver-crt0: bootstrap-driver-seed scripts/bootstrap_driver_crt0.sh
-	@TARGET="$(TARGET)" bash scripts/bootstrap_driver_crt0.sh
+	@bash scripts/bootstrap_driver_crt0.sh
 
 # build-user-asm-backend：自 xlang 编 build_asm/*.o（完整 asm 自举）；seed 默认用 build-seed-asm-host（xlang-c -E）。
 build-user-asm-backend:
@@ -2958,11 +2970,12 @@ build-tool-x: build-tool
 # 运行 build_tool 产出 xlang（等价于 make bootstrap-driver，无需执行 Makefile bootstrap-driver 目标）
 # wave874: full body → scripts/build_via_tool.sh (G.7 有则补全; shell owns
 #   ./build_tool ./TARGET invoke + OK; also xlang-build run_build_tool authority).
-# Thin-call TARGET= only. build-tool prereq stays make graph.
+# wave882 B7B: drop single-token TARGET= inject (shell TARGET default + CLI auto-export).
+# build-tool prereq stays make graph. Thin @bash only.
 # NOT physical delete — thin edges + B2 + mk lists remain residual.
 # PLATFORM: SHARED — orchestration only; ABI stays in build_tool / g05.
 build-via-tool: build-tool scripts/build_via_tool.sh
-	@TARGET="$(TARGET)" bash scripts/build_via_tool.sh
+	@bash scripts/build_via_tool.sh
 
 
 # 阶段 8.1/8.2：用 seed 产出 xlang₁（C 生成 pipeline_gen.c/driver_gen.c 再链接）；用 xlang₁ 再编得到 xlang₂。两代跑 run-all 一致即自举验证通过。
@@ -2985,10 +2998,12 @@ bootstrap-self: bootstrap-driver-seed scripts/bootstrap_self.sh
 
 # 阶段 8.3 seed：两代 xlang（xlang_stage1/xlang_stage2）烟测；B-strict 主路径见 check-7.2-bstrict。
 # wave870: full body → scripts/check_7_2.sh (G.7 有则补全; shell owns stage loop + smoke suite).
+# wave882 B7B: drop single-token TARGET= inject (shell TARGET default + CLI auto-export).
+# Thin @bash only.
 # NOT physical delete — prereq bootstrap-self + thin edges + B2 + mk lists remain residual.
 # PLATFORM: SHARED — shell owns seed-path two-stage smoke orchestration.
 check-7.2: bootstrap-self scripts/check_7_2.sh
-	@TARGET="$(TARGET)" bash scripts/check_7_2.sh
+	@bash scripts/check_7_2.sh
 
 # 9.1 自举：纯 .x 流水线（parse_into → typeck_x_ast → codegen_x_ast）；生成 pipeline_gen.c 便于联调；-L 与 pipeline 依赖一致。
 # 【Why 根源】必须用 $(XLANG_C) 做 -E：G-02a 后 parser.c 已物理删除，$(XLANG_C) 即 bootstrap_xlangc seed（.x pipeline）。

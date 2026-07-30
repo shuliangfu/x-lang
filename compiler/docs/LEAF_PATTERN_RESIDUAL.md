@@ -50,7 +50,8 @@
 > - **wave879** · B7B stage/bootstrap multi-token TARGET/CC/MAKE inject hygiene (13 recipes → thin `@sh`/`@bash` clean/typeck/codegen/seed/relink/xlang-x/check-6.4/build-tool/self/pipeline/x-compiler; shell defaults own env)
 > - **wave880** · B7B ENSURE=0 / OUT=$@ / all OPT inject hygiene (7 recipes → thin `@bash`/`@sh` all/test_c/test_x/seed-x-frontend/legacy-xlang-c/xnc/check-7.2-bstrict; MAKELEVEL shell defaults)
 > - **wave881** · B7B try-heat XLANG_G05_PREFER_X_O inject hygiene (31 recipes → CC-only thin-call; PREFER via make CLI/env + shell default; net XLANG= drop)
-> - **open** · thin edges + B2 + mk lists (hybrid) · residual single-token injects (TARGET/MAKE/CC passthrough · G05_SYNC · LD · pipeline bags) · → tip Windows → dual L4 → explicit auth ship delete
+> - **wave882** · B7B residual single-token TARGET= inject hygiene (10 recipes → drop TARGET= on token/lexer/parser/parse-file/hybrid/crt0/build-via-tool/check-7.2 + bstrict/refresh multi; shell TARGET:-xlang + CLI auto-export)
+> - **open** · thin edges + B2 + mk lists (hybrid) · residual single-token injects (MAKE/CC passthrough · G05_SYNC · LD · pipeline bags) · → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete

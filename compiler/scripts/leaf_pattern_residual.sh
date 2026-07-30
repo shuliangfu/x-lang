@@ -160,6 +160,13 @@
 #            all / test_c / test_x / seed-x-frontend / legacy xlang-c /
 #            xlang-no-c-frontend / check-7.2-bstrict; MAKELEVEL shell defaults;
 #            NOT physical delete — thin edges + B2 remain
+#   wave881: B7B try-heat XLANG_G05_PREFER_X_O inject hygiene (31 recipes) →
+#            CC-only thin-call; PREFER via make CLI/env + shell default;
+#            NOT physical delete — thin edges + B2 remain
+#   wave882: B7B residual single-token TARGET= inject hygiene (10 recipes) →
+#            token/lexer/parser/parse-file / hybrid / crt0 / build-via-tool /
+#            check-7.2 pure drop; bstrict+refresh drop TARGET from multi-token;
+#            shell TARGET:-xlang + CLI auto-export; NOT physical delete
 #   wave856: B7B archaeology LINK_OBJS shell-load via make export leaves (5 bags /
 #            6 shells; nested expand; Makefile drops multi-token LINK_OBJS env;
 #            NOT physical delete — CFLAGS env + thin edges + B2 remain)
@@ -1392,6 +1399,21 @@ SWALLOWED_B7B_PREFER_INJECT_HYGIENE=1
 B7B_PREFER_INJECT_HYGIENE_SWALLOWED=1
 B7B_PREFER_INJECT_HYGIENE_WAVE=wave881
 B7B_PREFER_INJECT_HYGIENE_COUNT=31
+# wave882: B7B residual single-token TARGET= inject hygiene.
+# COUNT = 10 recipes: 8 pure TARGET-only thin-calls (token/lexer/parser/parse-file /
+# hybrid/crt0/build-via-tool/check-7.2) + 2 multi-token (bstrict/refresh) drop TARGET=.
+# Shell TARGET="${TARGET:-xlang}" + GNU make CLI auto-export own authority (G.7).
+# Keep MAKE= / ENSURE_SEED=0 / NO_REPLACE passthrough where still required.
+# NOT physical delete — MAKE residual + CC= passthrough + thin edges + B2 remain.
+PHYS_DEL_B7B_TARGET_INJECT_HYGIENE=1
+PHYS_DEL_B7B_TARGET_INJECT_HYGIENE_WAVE=wave882
+PHYS_DEL_B7B_TARGET_INJECT_HYGIENE_COUNT=10
+PHYS_DEL_B7B_TARGET_INJECT_HYGIENE_VIA=shell_target_default_cli_autoexport_no_recipe_inject
+PHYS_DEL_B7B_TARGET_INJECT_HYGIENE_NOTE=makefile_no_target_inject_on_smoke_hybrid_crt0_tool_check72_bstrict_refresh_shell_defaults_thin_edges_remain
+SWALLOWED_B7B_TARGET_INJECT_HYGIENE=1
+B7B_TARGET_INJECT_HYGIENE_SWALLOWED=1
+B7B_TARGET_INJECT_HYGIENE_WAVE=wave882
+B7B_TARGET_INJECT_HYGIENE_COUNT=10
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -2413,6 +2435,12 @@ else
   fi
   if ! grep -qE 'wave880|ENSURE_OUT_OPT|ENSURE=0|all OPT.*hygiene|MAKELEVEL.*ENSURE|OUT=.*hygiene' "$DOC_REL"; then
     bad "$DOC_REL must document wave880 ENSURE=0 / OUT / all OPT inject hygiene"
+  fi
+  if ! grep -qE 'wave881|PREFER_INJECT|PREFER_X_O.*inject|try-heat.*PREFER' "$DOC_REL"; then
+    bad "$DOC_REL must document wave881 try-heat PREFER inject hygiene"
+  fi
+  if ! grep -qE 'wave882|TARGET_INJECT|TARGET=.*inject|single-token TARGET' "$DOC_REL"; then
+    bad "$DOC_REL must document wave882 TARGET inject hygiene"
   fi
   note "doc $DOC_REL present"
 fi
@@ -6787,6 +6815,24 @@ if ! grep -q 'PHYS_DEL_B7B_PREFER_INJECT_HYGIENE_COUNT=31' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_PREFER_INJECT_HYGIENE_COUNT=31 (wave881)"
 fi
 note "B7B try-heat PREFER_X_O inject hygiene (COUNT=31; wave881; not physical delete)"
+# wave882: residual single-token TARGET= inject hygiene.
+# COUNT=10: drop TARGET= recipe inject; shell TARGET:-xlang + make CLI auto-export.
+# G.7: no dual TARGET authority — shell defaults own product path.
+if grep -qE '@TARGET=|TARGET="\$\(TARGET\)"|TARGET='\''\$\(TARGET\)'\' "$MF" 2>/dev/null; then
+  bad "Makefile still injects TARGET= on recipes (wave882)"
+  grep -nE '@TARGET=|TARGET="\$\(TARGET\)"|TARGET='\''\$\(TARGET\)'\' "$MF" | head -15 >&2
+fi
+if ! grep -q 'wave882' "$MF" 2>/dev/null; then
+  bad "Makefile must document wave882 TARGET inject hygiene"
+fi
+# dump honesty
+if ! grep -q 'PHYS_DEL_B7B_TARGET_INJECT_HYGIENE=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_TARGET_INJECT_HYGIENE=1 (wave882)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_TARGET_INJECT_HYGIENE_COUNT=10' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_TARGET_INJECT_HYGIENE_COUNT=10 (wave882)"
+fi
+note "B7B residual TARGET= inject hygiene (COUNT=10; wave882; not physical delete)"
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
   PHYS_DEL_BUCKET_B1_BODY_SWALLOWED=1 \
