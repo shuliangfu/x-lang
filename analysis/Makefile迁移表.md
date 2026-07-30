@@ -690,6 +690,10 @@
 
 - **wave886** · B7B residual LD + pipeline bag inject hygiene：2 叶（`cfg_eval.o` 去 `LD=`/`LD_RELFLAGS=`；`pipeline_x.o` 去 `PIPELINE_X_DEPS`/`PIPELINE_X_FORCE_COMPILE`/`XLANG_FORCE_REGEN_GEN`）。shell LD defaults + `ensure_gen_x_o` mk-load DEPS。**非**物理删。
 
+## wave887 residual note
+
+- **wave887** · B7B residual terminal env inject hygiene：6 叶（`$(XLANG_C)` ensure `$@`；`cfg_eval_bootstrap_stub.o` PEERS seed-map；`bootstrap-driver-bstrict` 去 ENSURE_SEED=0；`refresh-xlang-asm-gate` 去 NO_REPLACE passthrough；`bootstrap-asm-full` / `check-asm-o-quality` 去 XLANG=）。shell 默认 + CLI/env。**非**物理删。
+
 ## wave883 residual note
 
 - **wave883** · B7B residual single-token `MAKE=` inject hygiene：24 叶（archaeology 4 + driver_leaf 8 + rebuild_leaves 7 + host_stubs 2 + phase1-link 1 pure drop；bstrict/refresh multi 去 MAKE=）。shell `MAKE:-make` + GNU make auto-export；keep ENSURE_SEED/NO_REPLACE。**非**物理删。
