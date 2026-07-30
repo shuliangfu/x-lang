@@ -149,6 +149,9 @@
 #   wave877: B7B gen/lsp/archaeology ensure multi-token env inject hygiene (20 recipes) →
 #            drop MAKE/XLANG_*/FORCE/TIMEOUT inject; shell defaults own env;
 #            NOT physical delete — thin edges + B2 remain
+#   wave878: B7B migrate_x_objs multi-token CC/PYTHON/MAKE inject hygiene (4 recipes) →
+#            drop CC/PYTHON/MAKE inject; shell defaults own env; thin @sh only;
+#            NOT physical delete — thin edges + B2 remain
 #   wave856: B7B archaeology LINK_OBJS shell-load via make export leaves (5 bags /
 #            6 shells; nested expand; Makefile drops multi-token LINK_OBJS env;
 #            NOT physical delete — CFLAGS env + thin edges + B2 remain)
@@ -1328,6 +1331,18 @@ SWALLOWED_B7B_GEN_ENSURE_ENV_HYGIENE=1
 B7B_GEN_ENSURE_ENV_HYGIENE_SWALLOWED=1
 B7B_GEN_ENSURE_ENV_HYGIENE_WAVE=wave877
 B7B_GEN_ENSURE_ENV_HYGIENE_COUNT=20
+# wave878: B7B migrate_x_objs multi-token CC/PYTHON/MAKE inject hygiene.
+# COUNT = 4 recipes (parser/typeck/codegen migrate leaves + migrate-x-objs phony);
+# shell defaults own CC/PYTHON/MAKE; thin @sh only.
+PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE=1
+PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE_WAVE=wave878
+PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE_COUNT=4
+PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE_VIA=migrate_shell_defaults_no_recipe_inject
+PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE_NOTE=makefile_no_cc_python_make_inject_on_migrate_x_objs_shell_defaults_thin_edges_remain
+SWALLOWED_B7B_MIGRATE_ENV_HYGIENE=1
+B7B_MIGRATE_ENV_HYGIENE_SWALLOWED=1
+B7B_MIGRATE_ENV_HYGIENE_WAVE=wave878
+B7B_MIGRATE_ENV_HYGIENE_COUNT=4
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -1550,6 +1565,7 @@ PHYS_DEL_PREFLIGHT_BUILD_VIA_TOOL_SHELL=1
 PHYS_DEL_PREFLIGHT_STAGE8_BASELINE_SHELL=1
 PHYS_DEL_PREFLIGHT_XLANG_C_ALIAS_SHELL=1
 PHYS_DEL_PREFLIGHT_B7B_GEN_ENSURE_ENV_HYGIENE=1
+PHYS_DEL_PREFLIGHT_B7B_MIGRATE_ENV_HYGIENE=1
 PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
 PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_std_x_catalog_is_physical_delete|claim_std_x_force_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_formal_mod_force_thin_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_driver_leaf_force_thin_is_physical_delete|claim_gen_c_force_thin_is_physical_delete|claim_ast_gen2_force_thin_is_physical_delete|claim_src_edge_force_thin_is_physical_delete|claim_migrate_x_force_thin_is_physical_delete|claim_glue_types_force_thin_is_physical_delete|claim_bootstrap_pipeline_force_thin_is_physical_delete|claim_filtered_o_force_thin_is_physical_delete|claim_cp_alias_force_thin_is_physical_delete|claim_pipeline_gen_force_thin_is_physical_delete|claim_bootstrap_xlangc_force_thin_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_arch_host_pick_force_thin_is_physical_delete|claim_bootstrap_typeck_codegen_shell_is_physical_delete|claim_bootstrap_x_compiler_shell_is_physical_delete|claim_bootstrap_self_shell_is_physical_delete|claim_bootstrap_parser_smoke_is_physical_delete|claim_xlang_x_pipeline_shell_is_physical_delete|claim_xlang_x_shell_is_physical_delete|claim_xlang_no_c_frontend_shell_is_physical_delete|claim_bootstrap_seed_x_frontend_shell_is_physical_delete|claim_relink_xlang_lexer_shell_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|claim_e_dirs_list_mk_is_physical_delete|claim_relink_product_link_mk_is_physical_delete|claim_xxl_bs_xnc_link_mk_is_physical_delete|claim_bxf_link_mk_is_physical_delete|claim_seed_phase_final_link_mk_is_physical_delete|claim_seed_gate_required_mk_is_physical_delete|claim_seed_gate_required_shell_load_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
@@ -2337,6 +2353,9 @@ else
   fi
   if ! grep -qE 'wave877|GEN_ENSURE_ENV|gen.*ensure.*env.*hygiene|ensure_.*_gen.*inject|multi-token.*ensure' "$DOC_REL"; then
     bad "$DOC_REL must document wave877 gen ensure multi-token env inject hygiene"
+  fi
+  if ! grep -qE 'wave878|MIGRATE_ENV_HYGIENE|migrate.*CC.*PYTHON.*MAKE|migrate_x_objs.*inject|multi-token.*migrate' "$DOC_REL"; then
+    bad "$DOC_REL must document wave878 migrate multi-token CC/PYTHON/MAKE inject hygiene"
   fi
   note "doc $DOC_REL present"
 fi
@@ -3746,6 +3765,22 @@ if ! grep -q 'SWALLOWED_B7B_GEN_ENSURE_ENV_HYGIENE=1' <<<"$_out"; then
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_B7B_GEN_ENSURE_ENV_HYGIENE=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_B7B_GEN_ENSURE_ENV_HYGIENE=1 (wave877)"
+fi
+# wave878: migrate_x_objs multi-token CC/PYTHON/MAKE inject hygiene
+if ! grep -q 'PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE=1 (wave878)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE_WAVE=wave878' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE_WAVE=wave878"
+fi
+if ! grep -q 'PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE_COUNT=4' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE_COUNT=4 (wave878)"
+fi
+if ! grep -q 'SWALLOWED_B7B_MIGRATE_ENV_HYGIENE=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_B7B_MIGRATE_ENV_HYGIENE=1 (wave878)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_B7B_MIGRATE_ENV_HYGIENE=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_B7B_MIGRATE_ENV_HYGIENE=1 (wave878)"
 fi
 if ! grep -q 'PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813"
@@ -6513,6 +6548,33 @@ if ! grep -q 'wave877' "$MF" 2>/dev/null; then
   bad "Makefile must document wave877 gen ensure env hygiene"
 fi
 note "B7B gen ensure multi-token env inject hygiene (COUNT=20; wave877; not physical delete)"
+# wave878: migrate_x_objs multi-token CC/PYTHON/MAKE inject hygiene.
+# COUNT=4 thin-call recipes; shell defaults own CC/PYTHON/MAKE (migrate_x_objs).
+# G.7: grep multi-token inject on migrate_x_objs recipe lines only — not comments.
+_mig_env_hits=$(awk '
+  /scripts\/migrate_x_objs\.sh/ {grab=1}
+  grab && /^\t/ {
+    if ($0 ~ /CC="\$\(CC\)"|PYTHON="\$\(PYTHON\)"|MAKE="\$\(MAKE\)"/) print
+    if ($0 !~ /\\$/) grab=0
+    next
+  }
+  grab && /^[^#\t]/ && $0 !~ /^$/ {grab=0}
+' "$MF" 2>/dev/null || true)
+if [ -n "${_mig_env_hits:-}" ]; then
+  bad "Makefile migrate_x_objs recipes still multi-token inject CC/PYTHON/MAKE (wave878)"
+  echo "$_mig_env_hits" | head -10 >&2
+fi
+_mig_thin_n=$(grep -cE $'^\t@sh scripts/migrate_x_objs\\.sh' "$MF" 2>/dev/null || echo 0)
+if [ "${_mig_thin_n:-0}" -lt 4 ]; then
+  bad "Makefile migrate_x_objs thin @sh count expected >=4 got ${_mig_thin_n} (wave878)"
+fi
+if ! grep -q 'wave878' "$MF" 2>/dev/null; then
+  bad "Makefile must document wave878 migrate env hygiene"
+fi
+if ! grep -q 'wave878' "$COMPILER_DIR/scripts/migrate_x_objs.sh" 2>/dev/null; then
+  bad "migrate_x_objs.sh must document wave878 CC/PYTHON/MAKE defaults hygiene"
+fi
+note "B7B migrate multi-token env inject hygiene (COUNT=4; wave878; not physical delete)"
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
   PHYS_DEL_BUCKET_B1_BODY_SWALLOWED=1 \
@@ -7296,5 +7358,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747–839: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave825 std_x ensure catalog 22 + wave827 std_x FORCE dep-thin 22 + wave812 formal_mod ensure 38 + wave826 formal_mod FORCE dep-thin 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave828 driver_leaf FORCE dep-thin 8 + wave829 gen.c FORCE dep-thin 17 + wave830 ast_gen2 FORCE dep-thin 1 + wave831 src-edge FORCE dep-thin 7 + wave832 migrate companion FORCE dep-thin 3 + wave833 pipeline_glue_types FORCE dep-thin 1 + wave834 bootstrap-pipeline FORCE shell-primary 1 + wave835 class-G filter FORCE dep-thin 4 + wave836 cp-alias FORCE dep-thin 3 + wave837 pipeline_gen FORCE dep-thin 1 + wave838 bootstrap_xlangc FORCE dep-thin 1 + wave815 archaeology host-pick phonies 4 + wave839 archaeology host-pick FORCE dep-thin 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2 + wave820 OBJS_CORE list→mk 16 + wave821 ARCH_EXPERIMENT list→mk 7 + wave822 RELINK/LEGACY list→composites 14 + wave823 SOURCE_DEPS list→mk 19 + wave824 E_DIRS list→mk 26 + wave850 RELINK_PRODUCT_LINK bag→mk 8 + wave851 XXL/BS/XNC link bags→mk 3 + wave852 BXF link bag→mk 2 + wave853 seed phase1/final link bags→mk 2 + wave854 seed-gate REQUIRED bags→mk 3 + wave855 seed-gate REQUIRED shell-load 3 + wave856 LINK_OBJS shell-load export leaves 5 + wave857 LINK_CFLAGS shell-load export leaves 4 + wave858 LEGACY xlang-c shell-primary 1 + wave859 XXP/BXC bag shell-load 2 + wave860 driver_leaf BASE_CFLAGS shell-load 8 + wave861 rt_* -I CFLAGS hygiene 5 + wave862 try-heat CFLAGS bulk shell-load 114 + wave863 filter CFLAGS shell-load 4 + wave864 leaf-extra RUNTIME_*/PARSER_* CFLAGS hygiene 3 + wave865 migrate/bootstrap CFLAGS shell-load 8 + wave866 build-tool/WIN32 CFLAGS hygiene 2 + wave867 archaeology host-pick LD_R hygiene 4 + wave868 bstrict-relink shell-primary 1 + wave869 bootstrap-driver-crt0 shell-primary 1 + wave870 check-7.2 shell-primary 1 + wave871 check-6.4 shell-primary 1 + wave872 bootstrap-driver-hybrid shell-primary 1 + wave873 regen-lsp-gens-x shell-primary 1 + wave874 build-via-tool shell-primary 1 + wave875 size/perf-baseline shell-primary 2 + wave876 default xlang-c alias shell-primary 1 + wave877 gen ensure env hygiene 20; Makefile still present; delete body deferred)"
+echo "leaf_pattern_residual: CHECK OK (wave747–839: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave825 std_x ensure catalog 22 + wave827 std_x FORCE dep-thin 22 + wave812 formal_mod ensure 38 + wave826 formal_mod FORCE dep-thin 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave828 driver_leaf FORCE dep-thin 8 + wave829 gen.c FORCE dep-thin 17 + wave830 ast_gen2 FORCE dep-thin 1 + wave831 src-edge FORCE dep-thin 7 + wave832 migrate companion FORCE dep-thin 3 + wave833 pipeline_glue_types FORCE dep-thin 1 + wave834 bootstrap-pipeline FORCE shell-primary 1 + wave835 class-G filter FORCE dep-thin 4 + wave836 cp-alias FORCE dep-thin 3 + wave837 pipeline_gen FORCE dep-thin 1 + wave838 bootstrap_xlangc FORCE dep-thin 1 + wave815 archaeology host-pick phonies 4 + wave839 archaeology host-pick FORCE dep-thin 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2 + wave820 OBJS_CORE list→mk 16 + wave821 ARCH_EXPERIMENT list→mk 7 + wave822 RELINK/LEGACY list→composites 14 + wave823 SOURCE_DEPS list→mk 19 + wave824 E_DIRS list→mk 26 + wave850 RELINK_PRODUCT_LINK bag→mk 8 + wave851 XXL/BS/XNC link bags→mk 3 + wave852 BXF link bag→mk 2 + wave853 seed phase1/final link bags→mk 2 + wave854 seed-gate REQUIRED bags→mk 3 + wave855 seed-gate REQUIRED shell-load 3 + wave856 LINK_OBJS shell-load export leaves 5 + wave857 LINK_CFLAGS shell-load export leaves 4 + wave858 LEGACY xlang-c shell-primary 1 + wave859 XXP/BXC bag shell-load 2 + wave860 driver_leaf BASE_CFLAGS shell-load 8 + wave861 rt_* -I CFLAGS hygiene 5 + wave862 try-heat CFLAGS bulk shell-load 114 + wave863 filter CFLAGS shell-load 4 + wave864 leaf-extra RUNTIME_*/PARSER_* CFLAGS hygiene 3 + wave865 migrate/bootstrap CFLAGS shell-load 8 + wave866 build-tool/WIN32 CFLAGS hygiene 2 + wave867 archaeology host-pick LD_R hygiene 4 + wave868 bstrict-relink shell-primary 1 + wave869 bootstrap-driver-crt0 shell-primary 1 + wave870 check-7.2 shell-primary 1 + wave871 check-6.4 shell-primary 1 + wave872 bootstrap-driver-hybrid shell-primary 1 + wave873 regen-lsp-gens-x shell-primary 1 + wave874 build-via-tool shell-primary 1 + wave875 size/perf-baseline shell-primary 2 + wave876 default xlang-c alias shell-primary 1 + wave877 gen ensure env hygiene 20 + wave878 migrate env hygiene 4; Makefile still present; delete body deferred)"
 exit 0

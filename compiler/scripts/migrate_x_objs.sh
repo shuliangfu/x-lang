@@ -33,6 +33,8 @@
 #   (need_rebuild + XLANG_MIGRATE_FORCE). NOT physical delete.
 # wave865: Makefile drops multi-token CFLAGS="$(CFLAGS)" inject; shell loads
 #   export-try-heat-cflags when unset (same authority as try-heat / wave862).
+# wave878: Makefile drops multi-token CC/PYTHON/MAKE inject; shell defaults own
+#   CC="${CC:-cc}" / PYTHON auto / MAKE="${MAKE:-make}" (G.7 有则补全 wave877-style).
 
 # Makefile thin leaves invoke this script with `sh` (Ubuntu dash; macOS often bash).
 # Avoid bash-only set options so both hosts parse (G.8 PLATFORM: SHARED).

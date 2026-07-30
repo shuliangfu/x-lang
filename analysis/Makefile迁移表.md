@@ -108,7 +108,7 @@
 | `build-user-asm-backend` | 3209 | Makefile | `xbuild user-asm` | ⬜ Makefile |  |
 | `bootstrap-driver-seed-user-asm` | 3107 | Makefile | `xbuild bootstrap-user-asm` | ⬜ Makefile |  |
 | `regen-lsp-gens-x` | ~2860 | **shell** `regen_lsp_gens_x.sh` | `xbuild regen-lsp-gens-x` | 🟢 wave873 体 shell；gen 叶仍 make 图 |  | pin 面 |
-| `migrate-x-objs` | 2145 | shell `migrate_x_objs.sh` | `xbuild migrate` | 🟢 wave735 体 shell；gen→wave736 | 11.1.6 |
+| `migrate-x-objs` | 2145 | shell `migrate_x_objs.sh` | `xbuild migrate` | 🟢 wave735 体 shell；gen→wave736 · wave878 thin `@sh` only（无 multi-token CC/PYTHON/MAKE） | 11.1.6 |
 | `parser_gen.c` / `typeck_gen.c` / `codegen_gen.c` / `lexer_gen.c` | ~1723 | shell `ensure_migrate_gen.sh` | `xbuild migrate-gen` / `lexer-gen` | 🟢 wave736/737 体 shell · wave877 thin `@bash` only（无 multi-token env） | 11.1.6 |
 | `driver_gen.c` / `preprocess_gen.c` | ~2626 | shell `ensure_driver_gen.sh` | `xbuild driver-gen` / `preprocess-gen` | 🟢 wave738 体 shell · wave877 thin `@bash` only | 11.1.6 |
 | `lsp_diag_gen.c` / `lsp_io_gen.c` / `lsp_gen.c` / `pipeline_gen.c` | ~2332 | shell `ensure_lsp_pipeline_gen.sh` | `xbuild lsp-gen` / `pipeline-gen` | 🟢 wave739 体 shell · wave877 thin `@bash` only | 11.1.6 |
@@ -250,10 +250,10 @@
 |----|---------------|----------|
 | 986 | `src/runtime_x.o` | ⬜ |
 | 1129 | `src/main_x.o` | ⬜ |
-| 1819 | `parser_x.o` | 🟡 g05 / Makefile pin |
+| 1819 | `parser_x.o` | 🟡 wave735 migrate · wave878 thin `@sh` only |
 | 1888 | `lexer_x.o` | 🟡 wave782 try-gen-c-to-o thin |
-| 2185 | `typeck_x.o` | 🟡 pin seed |
-| 2210 | `codegen_x.o` | 🟡 pin seed |
+| 2185 | `typeck_x.o` | 🟡 wave735 migrate · wave878 thin `@sh` only |
+| 2210 | `codegen_x.o` | 🟡 wave735 migrate · wave878 thin `@sh` only |
 | 2529 | `ast_x.o` | ⬜ |
 | 2568 | `lsp_diag_x.o` | ⬜ |
 | 2644 | `lsp_io_std_heap_x.o` | ⬜ |
@@ -492,7 +492,7 @@
 | 行 | Makefile 目标 | 迁移状态 |
 |----|---------------|----------|
 | 1948 | `build-seed-asm-host` | ⬜ |
-| 2145 | `migrate-x-objs` | 🟢 shell + **xbuild migrate**（wave735；gen shell wave736） |
+| 2145 | `migrate-x-objs` | 🟢 shell + **xbuild migrate**（wave735；gen shell wave736；wave878 thin `@sh` only） |
 | ~2860 | `regen-lsp-gens-x` | 🟢 wave873 shell `regen_lsp_gens_x.sh` |
 
 ### 类 L — std 变体（sqlite/net/compress stub）

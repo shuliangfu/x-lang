@@ -46,6 +46,7 @@
 > - **wave875** · B7C size/perf-baseline shell-primary (2 phonies → stage8_baseline.sh; dispatch tests/run-{size,perf}-baseline; soft-skip)
 > - **wave876** · B7C default `$(XLANG_C)` product alias shell-primary (1 target → ensure_xlang_c.sh; SKIP_SUBSCRIPT soft-skip + cp bootstrap_xlangc; LEGACY stays wave858)
 > - **wave877** · B7B gen/lsp/archaeology ensure multi-token env inject hygiene (20 recipes → thin `@bash ensure_*_gen`; shell defaults own MAKE/XLANG_*/FORCE/TIMEOUT)
+> - **wave878** · B7B migrate_x_objs multi-token CC/PYTHON/MAKE inject hygiene (4 recipes → thin `@sh migrate_x_objs`; shell defaults own CC/PYTHON/MAKE)
 > - **open** · thin edges + B2 + mk lists (hybrid) · other fat phonies · → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
@@ -4515,4 +4516,25 @@ Shell defaults remain authority. Command-line overrides still flow via make reci
 | `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
 
 **Forbidden:** claim gen env hygiene = physical delete; re-add multi-token MAKE/XLANG inject on ensure gen leaves.
+
+## wave878 B7B migrate_x_objs multi-token env inject hygiene (2026-07-30)
+
+> **Why (G.7 有则补全 on wave865 CFLAGS shell-load + wave877 inject hygiene):**
+> Companion migrate leaves (`parser_x.o` / `typeck_x.o` / `codegen_x.o` /
+> `migrate-x-objs`) already shell-primary via `migrate_x_objs.sh`. Recipes still
+> re-injected multi-token `CC=/PYTHON=/MAKE=` although the script already defaults
+> `CC=cc` / auto-PYTHON / `MAKE=make`. Dual inject = second authority path.
+
+**This wave:** drop multi-token env inject on **4** recipes; thin `@sh scripts/migrate_x_objs.sh …` only.
+Shell defaults remain authority. Command-line overrides still flow via make recipe env.
+Keep `sh` (not bash) for Ubuntu dash-safe leaves (G.8 PLATFORM: SHARED). **NOT** physical delete.
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE` | `1` |
+| `PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE_COUNT` | `4` |
+| `PHYS_DEL_B7B_MIGRATE_ENV_HYGIENE_WAVE` | `wave878` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+
+**Forbidden:** claim migrate env hygiene = physical delete; re-add multi-token CC/PYTHON/MAKE inject on migrate leaves.
 
