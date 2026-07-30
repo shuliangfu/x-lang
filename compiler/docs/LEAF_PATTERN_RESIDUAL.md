@@ -2020,7 +2020,8 @@ ship delete body; mac-only wave green.
     SWALLOWED_BOOTSTRAP_XLANGC_FORCE_THIN=1
     PHYS_DEL_PREFLIGHT_BOOTSTRAP_XLANGC_FORCE_THIN=1
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-  dual-end L2: (this tip; Mac + Ubuntu leaf --check + make bootstrap_xlangc)
+  dual-end L2 green tip: 6de346cf5 (Mac + Ubuntu leaf --check;
+    make bootstrap_xlangc host seed pick OK)
   next: thin edges / B2 or tip Windows re-proof
        → Mac+Ubuntu L4 → ship delete body (explicit auth only)
 ```
