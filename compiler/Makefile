@@ -867,17 +867,19 @@ $(DRIVER_SEED_CRT0_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # runtime.c 链 freestanding 用户程序时在 compiler/ 下查找 crt0_user.o / freestanding_io.o
-# wave836: FORCE dep-thin — shell owns SRC mtime + try-heat (ensure_cp_alias_o; not physical delete).
+# wave836/920: FORCE dep-thin — shell owns SRC mtime + try-heat (ensure_cp_alias_o; not physical delete).
 # PLATFORM: x86_64 freestanding link names (block gated by UNAME); FORCE always invokes script.
 # wave918 B7B: bootstrap_nostdlib_stubs migrated to multi-target
 # $(CC_INC_TU_LINUX_X86_64_OBJS) FORCE thin --auto (list in mk/driver_seed_r_lists.mk).
 # Body = @bash scripts/cc_inc_tu.sh --auto $@ (seed-map in cc_inc_tu.sh).
+# wave920 B7B: 2 cp-alias per-leaf recipes (crt0_user.o / freestanding_io.o) →
+# 1 multi-target $(CP_ALIAS_LINUX_X86_64_OBJS) (list in mk/driver_seed_r_lists.mk;
+# G.7 single authority; export_lists never re-assigns). Body = @bash ensure_cp_alias_o
+# ensure $@ — script CATALOG owns OUT|SRC map; $@ passes leaf name directly.
 # PLATFORM: LINUX|UBUNTU x86_64 only — ifeq guard preserved.
 ifeq ($(UNAME_S),Linux)
 ifeq ($(UNAME_M),x86_64)
-crt0_user.o: FORCE scripts/ensure_cp_alias_o.sh
-	@bash scripts/ensure_cp_alias_o.sh ensure $@
-freestanding_io.o: FORCE scripts/ensure_cp_alias_o.sh
+$(CP_ALIAS_LINUX_X86_64_OBJS): FORCE scripts/ensure_cp_alias_o.sh
 	@bash scripts/ensure_cp_alias_o.sh ensure $@
 $(CC_INC_TU_LINUX_X86_64_OBJS): FORCE scripts/cc_inc_tu.sh
 	@bash scripts/cc_inc_tu.sh --auto $@
@@ -1259,9 +1261,12 @@ bootstrap-driver-seed-x-frontend: $(XLANG_C) migrate-x-objs driver_x.o preproces
 # (ast_module_free/ast_expr_free/… 8 内存管理；no_c 下 ast_expr_init_match_enum 由 x_seed_bridge).
 
 # G-02a: ast_x.o alias — ast_seed.o 提供 C ABI 内存管理实现。
-# wave836: FORCE dep-thin — shell owns SRC mtime + try-heat (ensure_cp_alias_o; not physical delete).
-# PLATFORM: SHARED — FORCE always invokes script (cheap mtime skip).
-ast_x.o: FORCE scripts/ensure_cp_alias_o.sh
+# wave836/920: FORCE dep-thin — shell owns SRC mtime + try-heat (ensure_cp_alias_o; not physical delete).
+# wave920 B7B: 1 per-leaf recipe (ast_x.o) → 1 multi-target $(CP_ALIAS_SHARED_OBJS)
+# (list in mk/driver_seed_r_lists.mk; G.7 single authority; export_lists never re-assigns).
+# Body = @bash scripts/ensure_cp_alias_o.sh ensure $@ — script CATALOG owns OUT|SRC map.
+# PLATFORM: SHARED — Mac arm64 still has leaf; FORCE always invokes script (cheap mtime skip).
+$(CP_ALIAS_SHARED_OBJS): FORCE scripts/ensure_cp_alias_o.sh
 	@bash scripts/ensure_cp_alias_o.sh ensure $@
 
 # G-02a: preprocess.c 已物理删除；preprocess.o 不再编译（preprocess_x.o 由 .x 生成）。

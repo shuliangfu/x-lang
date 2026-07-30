@@ -29,6 +29,9 @@
 # has the shared ast_x.o alias leaf.
 #
 # Wave: 836 Track MG · pairs with Makefile FORCE leaves.
+# wave920: 3 per-leaf recipes → 2 multi-target rules (1 SHARED + 1 Linux x86_64 guard).
+#   Lists: CP_ALIAS_SHARED_OBJS (ast_x.o) + CP_ALIAS_LINUX_X86_64_OBJS (crt0_user.o
+#   freestanding_io.o) in mk/driver_seed_r_lists.mk. Body = @bash ensure $@.
 
 set -euo pipefail
 
@@ -201,7 +204,7 @@ EOF
   if [ "$fail" -ne 0 ]; then
     return 1
   fi
-  log "CHECK OK (catalog n=$n; wave836 FORCE thin; not physical delete)"
+  log "CHECK OK (catalog n=$n; wave836/920 FORCE thin multi-target; not physical delete)"
   return 0
 }
 

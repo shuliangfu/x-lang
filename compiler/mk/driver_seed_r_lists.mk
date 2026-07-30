@@ -206,5 +206,28 @@ CC_INC_TU_LINUX_X86_64_OBJS = src/asm/bootstrap_nostdlib_stubs.o
 # Do not re-list in Makefile or residual shells (G.7).
 MIGRATE_X_OBJS = parser_x.o typeck_x.o codegen_x.o
 
+# wave836/920 B7B cp-alias SHARED family (N=1 leaf; ast_x.o alias of ast_seed.o).
+# List authority for multi-target FORCE thin ensure_cp_alias_o (wave920).
+# Body = @bash scripts/ensure_cp_alias_o.sh ensure $@ (G.7 single body; script's
+# CATALOG single authority for OUT|SRC map; $@ passes ast_x.o directly).
+# Migrated from 1 per-leaf Makefile recipe (ast_x.o; SHARED scope).
+# Leaf: ast_x.o (G-02a C ABI alias; PLATFORM: SHARED — Mac arm64 still has leaf).
+# Not in list: crt0_user.o / freestanding_io.o (see CP_ALIAS_LINUX_X86_64_OBJS;
+# x86_64 freestanding wrappers under ifeq Linux x86_64 guard).
+# Do not re-list in Makefile or residual shells (G.7).
+CP_ALIAS_SHARED_OBJS = ast_x.o
+
+# wave836/920 B7B cp-alias Linux x86_64 guard family (N=2 leaves; freestanding
+# link-name wrappers). List authority for multi-target FORCE thin ensure_cp_alias_o
+# inside ifeq ($(UNAME_S),Linux) ifeq ($(UNAME_M),x86_64) guard block (wave920).
+# Body = @bash scripts/ensure_cp_alias_o.sh ensure $@ (same as SHARED family;
+# script CATALOG owns OUT|SRC map).
+# PLATFORM: LINUX|UBUNTU x86_64 only — Makefile ifeq guard preserved.
+# Leaves: crt0_user.o (← src/asm/crt0_user_x86_64.o) ·
+#         freestanding_io.o (← src/asm/freestanding_io_x86_64.o).
+# Not in list: ast_x.o (see CP_ALIAS_SHARED_OBJS; SHARED scope).
+# Do not re-list in Makefile or residual shells (G.7).
+CP_ALIAS_LINUX_X86_64_OBJS = crt0_user.o freestanding_io.o
+
 # pipeline_glue_standalone product leaf (also referenced by composites / export lists).
 ASM_GLUE_STANDALONE_O = build_asm/pipeline_glue_standalone.o

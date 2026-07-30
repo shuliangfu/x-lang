@@ -1032,22 +1032,23 @@ SWALLOWED_FILTERED_O_FORCE_THIN=1
 FILTERED_O_FORCE_THIN_SWALLOWED=1
 FILTERED_O_FORCE_THIN_HELPER=filter_bootstrap_seed_against_partial_o+filter_bootstrap_seed_pipeline_o
 FILTERED_O_FORCE_THIN_WAVE=wave835
-# wave836: product object-path cp-alias → FORCE + ensure_cp_alias_o (G.7 无才新增).
+# wave836/920: product object-path cp-alias → FORCE + ensure_cp_alias_o (G.7 无才新增).
 # 3 leaves: shared ast alias + 2× x86_64 freestanding link-name wrappers.
+# wave920: 3 per-leaf recipes → 2 multi-target rules (1 SHARED + 1 Linux x86_64 guard).
 # Shell owns SRC mtime + try-heat when SRC missing.
-# NOT physical delete — thin-call edges + B2 + mk lists remain.
+# NOT physical delete — thin-call edges + B2 + mk lists remain (multi-target hybrid).
 # (KEY name CP_ALIAS avoids bare product path tokens; honesty greps use patterns.)
 PHYS_DEL_CP_ALIAS_FORCE_THIN=1
-PHYS_DEL_CP_ALIAS_FORCE_THIN_WAVE=wave836
+PHYS_DEL_CP_ALIAS_FORCE_THIN_WAVE=wave836/920
 PHYS_DEL_CP_ALIAS_FORCE_THIN_COUNT=3
-PHYS_DEL_CP_ALIAS_FORCE_THIN_VIA=ensure_cp_alias_o_mtime
-PHYS_DEL_CP_ALIAS_FORCE_THIN_NOTE=force_prereq_shell_owns_src_cp_mtime_edges_remain
+PHYS_DEL_CP_ALIAS_FORCE_THIN_VIA=ensure_cp_alias_o_mtime_multi_target
+PHYS_DEL_CP_ALIAS_FORCE_THIN_NOTE=force_prereq_shell_owns_src_cp_mtime_multi_target_edges_remain
 PHYS_DEL_CP_ALIAS_FORCE_THIN_SHARED=1
 PHYS_DEL_CP_ALIAS_FORCE_THIN_X86_64=2
 SWALLOWED_CP_ALIAS_FORCE_THIN=1
 CP_ALIAS_FORCE_THIN_SWALLOWED=1
 CP_ALIAS_FORCE_THIN_HELPER=ensure_cp_alias_o.sh
-CP_ALIAS_FORCE_THIN_WAVE=wave836
+CP_ALIAS_FORCE_THIN_WAVE=wave836/920
 # wave837: pipeline_gen.c file target → FORCE + ensure_lsp_pipeline_gen pipeline
 # (G.7 有则补全 wave739 body; was empty-prereq residual after wave829/834).
 # Shell owns pin/seed/FORCE_REGEN + always-run i64 ABI. NOT physical delete —
@@ -4030,19 +4031,19 @@ if ! grep -q 'PHYS_DEL_PREFLIGHT_FILTERED_O_FORCE_THIN=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_FILTERED_O_FORCE_THIN=1 (wave835)"
 fi
 if ! grep -q 'PHYS_DEL_CP_ALIAS_FORCE_THIN=1' <<<"$_out"; then
-  bad "dump must set PHYS_DEL_CP_ALIAS_FORCE_THIN=1 (wave836)"
+  bad "dump must set PHYS_DEL_CP_ALIAS_FORCE_THIN=1 (wave836/920)"
 fi
-if ! grep -q 'PHYS_DEL_CP_ALIAS_FORCE_THIN_WAVE=wave836' <<<"$_out"; then
-  bad "dump must set PHYS_DEL_CP_ALIAS_FORCE_THIN_WAVE=wave836"
+if ! grep -q 'PHYS_DEL_CP_ALIAS_FORCE_THIN_WAVE=wave836/920' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_CP_ALIAS_FORCE_THIN_WAVE=wave836/920"
 fi
 if ! grep -q 'PHYS_DEL_CP_ALIAS_FORCE_THIN_COUNT=3' <<<"$_out"; then
-  bad "dump must set PHYS_DEL_CP_ALIAS_FORCE_THIN_COUNT=3 (wave836)"
+  bad "dump must set PHYS_DEL_CP_ALIAS_FORCE_THIN_COUNT=3 (wave836/920)"
 fi
 if ! grep -q 'SWALLOWED_CP_ALIAS_FORCE_THIN=1' <<<"$_out"; then
-  bad "dump must set SWALLOWED_CP_ALIAS_FORCE_THIN=1 (wave836)"
+  bad "dump must set SWALLOWED_CP_ALIAS_FORCE_THIN=1 (wave836/920)"
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_CP_ALIAS_FORCE_THIN=1' <<<"$_out"; then
-  bad "dump must set PHYS_DEL_PREFLIGHT_CP_ALIAS_FORCE_THIN=1 (wave836)"
+  bad "dump must set PHYS_DEL_PREFLIGHT_CP_ALIAS_FORCE_THIN=1 (wave836/920)"
 fi
 if ! grep -q 'PHYS_DEL_PIPELINE_GEN_FORCE_THIN=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PIPELINE_GEN_FORCE_THIN=1 (wave837)"
@@ -7957,20 +7958,26 @@ else
   bad "Makefile class-G filter still lists SRC object make-graph prereq (wave835 must FORCE only)"
 fi
 
-# wave836: product object-path cp-alias FORCE dep-thin (COUNT=3).
+# wave836/920: product object-path cp-alias FORCE dep-thin (COUNT=3 catalog leaves).
+# wave920: 3 per-leaf recipes → 2 multi-target rules (1 SHARED + 1 Linux x86_64 guard).
 # Pattern greps only — no product object inventory hardcode (G.7 self-scan).
-_cp_n="$(
-  awk '
-    $0 ~ /ensure_cp_alias_o\.sh/ && $0 ~ /:/ {
-      if ($0 ~ /FORCE/) n++
-    }
-    END { print n+0 }
-  ' "$MF" 2>/dev/null
-)"
-if [ "${_cp_n:-0}" -eq 3 ]; then
-  note "Makefile cp-alias FORCE thin (n=3; wave836; not physical delete)"
+_cp_alias_force=$(grep -cE '^[a-zA-Z0-9_./-]+: FORCE scripts/ensure_cp_alias_o\.sh[[:space:]]*$' "$MF" 2>/dev/null || true)
+if [ "${_cp_alias_force:-0}" -eq 0 ]; then
+  note "Makefile cp-alias 0 per-leaf FORCE (all migrated to multi-target; wave920)"
 else
-  bad "Makefile cp-alias FORCE thin expected 3 got ${_cp_n:-0} (wave836)"
+  bad "Makefile expected 0 FORCE+ensure_cp_alias_o per-leaf residual, got ${_cp_alias_force:-0} (wave836/920)"
+fi
+# wave920: 1 SHARED cp-alias leaf (ast_x.o) → multi-target $(CP_ALIAS_SHARED_OBJS).
+if grep -qE '\$\(CP_ALIAS_SHARED_OBJS\):[[:space:]]*FORCE scripts/ensure_cp_alias_o\.sh' "$MF" 2>/dev/null; then
+  note "Makefile cp-alias SHARED family multi-target FORCE thin (wave920; 1 leaf ast_x.o)"
+else
+  bad "Makefile missing \$(CP_ALIAS_SHARED_OBJS): FORCE multi-target for cp-alias SHARED family (wave920)"
+fi
+# wave920: 2 Linux x86_64 guard cp-alias leaves → multi-target $(CP_ALIAS_LINUX_X86_64_OBJS).
+if grep -qE '\$\(CP_ALIAS_LINUX_X86_64_OBJS\):[[:space:]]*FORCE scripts/ensure_cp_alias_o\.sh' "$MF" 2>/dev/null; then
+  note "Makefile cp-alias Linux x86_64 guard multi-target FORCE thin (wave920; 2 leaves)"
+else
+  bad "Makefile missing \$(CP_ALIAS_LINUX_X86_64_OBJS): FORCE multi-target for cp-alias Linux x86_64 guard (wave920)"
 fi
 _cp_sh="$ROOT/compiler/scripts/ensure_cp_alias_o.sh"
 [ -f "$_cp_sh" ] || _cp_sh="scripts/ensure_cp_alias_o.sh"
@@ -10396,6 +10403,11 @@ fi
 # wave919: 3 migrate_x per-leaf → 1 multi-target $(MIGRATE_X_OBJS); logical expand +2.
 if grep -qE '\$\(MIGRATE_X_OBJS\):[[:space:]]*FORCE scripts/migrate_x_objs\.sh' "$MF" 2>/dev/null; then
   _bash_thin_n=$((_bash_thin_n + 2))
+fi
+# wave920: 3 cp-alias per-leaf → 2 multi-target (1 SHARED + 1 Linux x86_64 guard);
+# logical expand +1 (LINUX_X86_64 multi-target hides 1 leaf; SHARED 1:1 no expand).
+if grep -qE '\$\(CP_ALIAS_LINUX_X86_64_OBJS\):[[:space:]]*FORCE scripts/ensure_cp_alias_o\.sh' "$MF" 2>/dev/null; then
+  _bash_thin_n=$((_bash_thin_n + 1))
 fi
 if [ "$_bash_thin_n" -lt 200 ]; then
   bad "Makefile @bash scripts/ thin-call count expected >=200 got ${_bash_thin_n} (wave890; multi-target logical expand)"
