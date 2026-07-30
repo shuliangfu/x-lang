@@ -1560,8 +1560,10 @@ $(error typeck_f64_bits: unsupported OS $(UNAME_S); add .s)
 endif
 
 # wave718: clean body → scripts/clean_compiler.sh (G.7 single authority)
+# wave879 B7B: drop multi-token TARGET/XLANG_C inject (G.7 hygiene).
+# Shell defaults own TARGET/XLANG_C (clean_compiler). Thin @sh only.
 clean:
-	@TARGET='$(TARGET)' XLANG_C='$(XLANG_C)' sh scripts/clean_compiler.sh
+	@sh scripts/clean_compiler.sh
 
 # 阶段 1 词法 + 阶段 3 类型检查 + …；依赖 xlang 与全部 std .o、runtime_panic.o，clean 后 test 会先构建再跑脚本
 # test_c：与 ../tests/run-all-c.sh 等价（C 版 xlang-c 跑整份 run-all，不含自举专用脚本）
@@ -1911,12 +1913,12 @@ codegen_x.o: FORCE scripts/migrate_x_objs.sh
 # wave856: shell loads LINK_OBJS via export-relink-product-link-objs (no multi-token BTC_OBJS=).
 # wave857: shell loads LINK_CFLAGS via export leaves (no multi-token BTC_CFLAGS=).
 # wave865: shell/migrate loads product CFLAGS via export-try-heat-cflags (no multi-token CFLAGS=).
+# wave879 B7B: drop multi-token MAKE/TARGET/XLANG_C/CC/PYTHON inject (G.7 hygiene).
+# Shell defaults own env (bootstrap_typeck_codegen). Thin @bash only.
 # NOT physical delete — prereq make-graph + thin edges + mk lists remain residual.
 # PLATFORM: SHARED — shell owns gen/migrate/link orchestration.
 bootstrap-typeck: $(TARGET) $(XLANG_C) bootstrap_xlangc $(RELINK_XLANG_PREREQS) scripts/bootstrap_typeck_codegen.sh
-	@MAKE="$(MAKE)" TARGET="$(TARGET)" XLANG_C="$(XLANG_C)" CC="$(CC)" \
-	  PYTHON="$(PYTHON)" \
-	  bash scripts/bootstrap_typeck_codegen.sh typeck
+	@bash scripts/bootstrap_typeck_codegen.sh typeck
 
 # 6.2：.x codegen 入口与 C AST 对接；force-regen typeck+codegen gen → migrate both → relink TARGET。
 # wave785 B7c: typeck/codegen .o → migrate_x_objs (no dual $(CC) -c).
@@ -1925,12 +1927,12 @@ bootstrap-typeck: $(TARGET) $(XLANG_C) bootstrap_xlangc $(RELINK_XLANG_PREREQS) 
 # wave856: shell loads LINK_OBJS via export-relink-product-link-objs (no multi-token BTC_OBJS=).
 # wave857: shell loads LINK_CFLAGS via export leaves (no multi-token BTC_CFLAGS=).
 # wave865: shell/migrate loads product CFLAGS via export-try-heat-cflags (no multi-token CFLAGS=).
+# wave879 B7B: drop multi-token MAKE/TARGET/XLANG_C/CC/PYTHON inject (G.7 hygiene).
+# Shell defaults own env (bootstrap_typeck_codegen). Thin @bash only.
 # NOT physical delete — prereq make-graph + thin edges + mk lists remain residual.
 # PLATFORM: SHARED — shell owns gen/migrate/link orchestration.
 bootstrap-codegen: $(TARGET) $(XLANG_C) bootstrap_xlangc $(RELINK_XLANG_PREREQS) scripts/bootstrap_typeck_codegen.sh
-	@MAKE="$(MAKE)" TARGET="$(TARGET)" XLANG_C="$(XLANG_C)" CC="$(CC)" \
-	  PYTHON="$(PYTHON)" \
-	  bash scripts/bootstrap_typeck_codegen.sh codegen
+	@bash scripts/bootstrap_typeck_codegen.sh codegen
 
 # 6.3/6.4：入口在 main.x；链接时用 main_driver.o（带 XLANG_USE_X_DRIVER/PIPELINE 以启用 -backend asm）+ runtime_driver.o + ...
 # G-02f-16：main_driver 与 main 同源 seed
@@ -2703,20 +2705,22 @@ bootstrap-driver-seed-phase1-link:
 	@chmod +x scripts/bootstrap_driver_seed_link.sh 2>/dev/null || true
 	@MAKE="$(MAKE)" ./scripts/bootstrap_driver_seed_link.sh phase1
 
+# wave879 B7B: drop multi-token MAKE/TARGET inject (G.7 hygiene).
+# Shell defaults own MAKE/TARGET (bootstrap_driver_seed_link). Thin ./scripts only.
 bootstrap-driver-seed-final-link:
 	@chmod +x scripts/bootstrap_driver_seed_link.sh 2>/dev/null || true
-	@MAKE="$(MAKE)" TARGET="$(TARGET)" ./scripts/bootstrap_driver_seed_link.sh final
+	@./scripts/bootstrap_driver_seed_link.sh final
 
 # wave744 · 11.3 residual: prereq *edges* satisfied inside bootstrap_driver_seed.sh
 # via scripts/driver_seed_ensure_prereqs.sh (catalog DRIVER_SEED_PREREQS + glue
 # companion). Makefile no longer carries $(DRIVER_SEED_PREREQS) as make-graph
 # deps on this phony (G.7: list still mk only; shell owns edge walk).
+# wave879 B7B: drop multi-token MAKE/TARGET/XLANG_C/SKIP inject (G.7 hygiene).
+# Shell defaults own env; XLANG_SKIP_SEED_SMOKE still honored from process env.
 # PLATFORM: SHARED — thin phony leaf; leaf .o pattern rules remain residual.
 bootstrap-driver-seed:
 	@chmod +x scripts/bootstrap_driver_seed.sh 2>/dev/null || true
-	@MAKE="$(MAKE)" TARGET="$(TARGET)" XLANG_C="$(XLANG_C)" \
-		XLANG_SKIP_SEED_SMOKE="$(XLANG_SKIP_SEED_SMOKE)" \
-		./scripts/bootstrap_driver_seed.sh
+	@./scripts/bootstrap_driver_seed.sh
 endif
 
 # 与 bootstrap-driver-seed 相同；保留别名供脚本引用
@@ -2801,12 +2805,13 @@ xlang_asm:
 # wave854 B7B: RELINK_XLANG_REQUIRED_OBJS list authority → composites.mk.
 # wave855: shell loads REQUIRED from mk (no Makefile multi-token env export).
 # wave856: shell loads LINK_OBJS via export-relink-product-link-objs (no multi-token RXL_LINK_OBJS=).
+# wave879 B7B: drop multi-token MAKE/CC/TARGET/XLANG_C/BOOTSTRAP inject (G.7 hygiene).
+# Shell defaults own env (relink_xlang_lexer). Thin @bash only.
 # NOT physical delete — prereq make-graph (lexer_x.o / FILTERED / GLUE) + thin edges
 #   + B2 + mk lists remain residual.
 # PLATFORM: SHARED — shell owns preflight + link + product alias sync.
 relink-xlang-lexer: lexer_x.o $(RELINK_XLANG_FILTERED_OBJS) $(RELINK_XLANG_GLUE_SUFFIX) scripts/relink_xlang_lexer.sh
-	@MAKE="$(MAKE)" CC="$(CC)" TARGET="$(TARGET)" XLANG_C="$(XLANG_C)" BOOTSTRAP_XLANGC="bootstrap_xlangc" \
-	  bash scripts/relink_xlang_lexer.sh
+	@bash scripts/relink_xlang_lexer.sh
 
 bootstrap-driver-seed-user-asm: bootstrap-driver-seed
 	@echo "bootstrap-driver-seed-user-asm OK (= bootstrap-driver-seed + USER_ASM_LINK)"
@@ -2832,10 +2837,12 @@ xlang-no-c-frontend: $(DRIVER_NO_C_FRONTEND_OBJS) src/lsp/lsp_diag_stubs_no_c.o 
 # wave873: full body → scripts/regen_lsp_gens_x.sh (G.7 有则补全).
 # Shell owns XLANG_X gate + rm four gens + make file targets + OK line.
 # Gen *body* remains ensure_lsp_pipeline_gen / ensure_archaeology_gen (thin leaves).
-# Thin-call MAKE=/XLANG_X= only. NOT physical delete — thin edges + B2 + mk lists.
+# wave879 B7B: drop multi-token MAKE/XLANG_X inject (G.7 hygiene).
+# Shell defaults own MAKE/XLANG_X (regen_lsp_gens_x). Thin @bash only.
+# NOT physical delete — thin edges + B2 + mk lists.
 # PLATFORM: SHARED — orchestration only; gen pin/-E policy stays ensure shells.
 regen-lsp-gens-x: scripts/regen_lsp_gens_x.sh
-	@MAKE="$(MAKE)" XLANG_X="$(XLANG_X)" bash scripts/regen_lsp_gens_x.sh
+	@bash scripts/regen_lsp_gens_x.sh
 
 # 仅重链 ./xlang-x；pipeline/driver/preprocess 的 .x 变更会经对应 *_x.o 目标触发重编后再链接。
 # wave846: full body → scripts/xlang_x.sh (G.7 有则补全; shell owns seed gate + host-cc
@@ -2847,9 +2854,10 @@ regen-lsp-gens-x: scripts/regen_lsp_gens_x.sh
 # wave854 B7B: XLANG_X_REQUIRED_OBJS list authority → composites.mk.
 # wave855: shell loads REQUIRED from mk (no Makefile multi-token env export).
 # wave856: shell loads LINK_OBJS via export-xlang-x-link-objs (no multi-token XXL_LINK_OBJS=).
+# wave879 B7B: drop multi-token MAKE/CC/XLANG_X inject (G.7 hygiene).
+# Shell defaults own env (xlang_x). Thin @bash only.
 xlang-x: build-seed-asm-host $(DRIVER_SEED_OBJS) $(XLANG_X_PIPELINE_LINK_O) $(XLANG_X_USER_ASM_OBJS) driver_x.o preprocess_x.o $(RELINK_XLANG_GLUE_SUFFIX) scripts/xlang_x.sh
-	@MAKE="$(MAKE)" CC="$(CC)" XLANG_X="$(XLANG_X)" \
-	  bash scripts/xlang_x.sh
+	@bash scripts/xlang_x.sh
 
 # Stage2：xlang-x 用 -x -E-extern 生成 _gen2.c 并链出 xlang-x2，与 xlang-x 行为对比（脚本内会 make xlang-x / bootstrap-driver-seed）
 verify-selfhost-stage2:
@@ -2935,12 +2943,13 @@ check-asm-o-quality: $(TARGET)
 # 6.4 验收：宿主编译器能编译整机 .x（typeck+codegen+driver）并产出新 xlang，且新 xlang 能编译运行测试（return-value 返回 42 视为成功）。用 seed 构建 xlang 以保证通过（asm 路径修好后可改为 bootstrap-driver）。
 # seed 的 .x 单文件路径把 C 写到 -o；须 $(CC) 链成可执行再运行（与 xlang-c 直接出 Mach-O/ELF 不同）。
 # wave871: full body → scripts/check_6_4.sh (G.7 有则补全; shell owns emit-C + host-cc + exit 42).
-# Thin-call TARGET/CC only (CFLAGS optional env; no multi-token inject required).
+# wave879 B7B: drop multi-token TARGET/CC inject (G.7 hygiene).
+# Shell defaults own TARGET/CC (check_6_4). Thin @bash only.
 # Seed prereq stays make graph (bootstrap-driver-seed).
 # NOT physical delete — thin edges + B2 + mk lists remain residual.
 # PLATFORM: SHARED — shell owns seed-path 6.4 smoke orchestration.
 check-6.4: bootstrap-driver-seed scripts/check_6_4.sh
-	@TARGET="$(TARGET)" CC="$(CC)" bash scripts/check_6_4.sh
+	@bash scripts/check_6_4.sh
 
 # 首次/从零构建：一条命令得到 xlang-c + build_tool（build-tool 仅依赖 xlang-c，与 lsp_gen 生成物无环）。与 README「读者一次做对」一致。
 first-time: build-tool
@@ -2954,12 +2963,13 @@ first-time: build-tool
 # wave718: body → scripts/build_tool.sh (G.7; xlang-build calls shell directly)
 # wave866 B7B: drop multi-token CFLAGS='$(CFLAGS)' inject (G.7 hygiene).
 # Shell loads export-try-heat-cflags when CFLAGS unset (same authority as try-heat
-# / migrate wave862–865). Thin-call CC= + XLANG_BUILD_TOOL_REGEN only.
+# / migrate wave862–865).
+# wave879 B7B: drop multi-token CC/XLANG_BUILD_TOOL_REGEN inject (G.7 hygiene).
+# Shell defaults own CC/MAKE/REGEN (build_tool; REGEN still from process env).
 # PLATFORM: SHARED — host-cc residual for G-05 entry until BC retires build_tool C.
 # NOT physical delete — thin edges + B2 + mk lists remain residual.
 build-tool:
-	@CC='$(CC)' XLANG_BUILD_TOOL_REGEN="$${XLANG_BUILD_TOOL_REGEN:-0}" \
-	  bash scripts/build_tool.sh
+	@bash scripts/build_tool.sh
 
 # wave831: FORCE dep-thin — shell owns seed mtime (cc_inc_tu; not physical delete).
 # PLATFORM: SHARED — FORCE always invokes script (cheap mtime skip).
@@ -2990,11 +3000,12 @@ build-via-tool: build-tool scripts/build_via_tool.sh
 # wave851 B7B: BS_LINK_OBJS → $(BOOTSTRAP_SELF_LINK_OBJS) (composites.mk; no dual
 #   inline DRIVER_SEED_LINK_BASE re-list).
 # wave856: shell loads LINK_OBJS via export-bs-link-objs (no multi-token BS_LINK_OBJS=).
+# wave879 B7B: drop multi-token TARGET/CC/MAKE inject (G.7 hygiene).
+# Shell defaults own env (bootstrap_self). Thin @bash only.
 # NOT physical delete — prereq bootstrap-driver-seed + thin edges + mk lists remain residual.
 # PLATFORM: SHARED — shell owns stage2 link/smoke orchestration.
 bootstrap-self: bootstrap-driver-seed scripts/bootstrap_self.sh
-	@TARGET="$(TARGET)" CC="$(CC)" MAKE="$(MAKE)" \
-	  bash scripts/bootstrap_self.sh
+	@bash scripts/bootstrap_self.sh
 
 # 阶段 8.3 seed：两代 xlang（xlang_stage1/xlang_stage2）烟测；B-strict 主路径见 check-7.2-bstrict。
 # wave870: full body → scripts/check_7_2.sh (G.7 有则补全; shell owns stage loop + smoke suite).
@@ -3058,12 +3069,14 @@ gen-x-driver-objs: pipeline_x.o driver_x.o preprocess_x.o
 # wave859: shell loads XXP_* via export-xxp-link-bags when unset (no multi-token
 # XXP_* env export).
 # wave865: shell loads CFLAGS via export-try-heat-cflags when unset (no multi-token
-# CFLAGS= env). NOT physical delete — prereq make-graph + thin edges + B2
+# CFLAGS= env).
+# wave879 B7B: drop multi-token TARGET/CC/MAKE inject (G.7 hygiene).
+# Shell defaults own env (xlang_x_pipeline). Thin @bash only.
+# NOT physical delete — prereq make-graph + thin edges + B2
 # + mk lists remain residual.
 # PLATFORM: SHARED — shell owns force-rebuild + link orchestration.
 xlang-x-pipeline: bootstrap-pipeline migrate-x-objs $(PIPELINE_X_BASE_OBJS) pipeline_x.o $(PIPELINE_X_FRONTEND_OBJS) $(PIPELINE_X_SUPPORT_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes.o scripts/xlang_x_pipeline.sh
-	@TARGET="$(TARGET)" CC="$(CC)" MAKE="$(MAKE)" \
-	  bash scripts/xlang_x_pipeline.sh
+	@bash scripts/xlang_x_pipeline.sh
 
 # 4.5（.x 流水线编译 compiler 自身）：用 xlang_x 的 -x -E 生成 typeck.x / codegen.x 对应的 C，再由 cc 链接得到新的 xlang_x_stage2。
 # 这一目标的目的，是验证「完整前端（parse_into + typeck_x_ast + codegen_x_ast）」全部跑在 .x 上时，仍能产出能工作的编译器。
@@ -3072,12 +3085,14 @@ xlang-x-pipeline: bootstrap-pipeline migrate-x-objs $(PIPELINE_X_BASE_OBJS) pipe
 # wave859: shell loads BXC_LINK_OBJS via export-bxc-link-objs when unset (no multi-token
 # BXC_LINK_OBJS= env).
 # wave865: shell loads CFLAGS via export-try-heat-cflags when unset (no multi-token
-# CFLAGS= env). NOT physical delete — prereq make-graph (xlang-x-pipeline)
+# CFLAGS= env).
+# wave879 B7B: drop multi-token TARGET/CC/MAKE inject (G.7 hygiene).
+# Shell defaults own env (bootstrap_x_compiler). Thin @bash only.
+# NOT physical delete — prereq make-graph (xlang-x-pipeline)
 # + thin edges + mk lists remain residual.
 # PLATFORM: SHARED — shell owns stage2 emit/compile/link orchestration.
 bootstrap-x-compiler: xlang-x-pipeline scripts/bootstrap_x_compiler.sh
-	@TARGET="$(TARGET)" CC="$(CC)" MAKE="$(MAKE)" \
-	  bash scripts/bootstrap_x_compiler.sh
+	@bash scripts/bootstrap_x_compiler.sh
 
 # 自举测试（不含 run-all）：seed 构建 xlang，再用 xlang 自编得到 xlang_stage2，stage2 跑 return-value 返回 42 即通过。用于快速验证「xlang 能编译自己」。
 bootstrap-test: bootstrap-self

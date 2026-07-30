@@ -1512,6 +1512,7 @@
 - **wave876** · B7C default xlang-c alias shell-primary（1 target → ensure_xlang_c.sh；LEGACY 仍 wave858）
 - **wave877** · B7B gen ensure multi-token env inject hygiene（20 recipes → thin `@bash ensure_*_gen`；shell 默认权威）
 - **wave878** · B7B migrate_x_objs multi-token CC/PYTHON/MAKE inject hygiene（4 recipes → thin `@sh migrate_x_objs`；shell 默认权威）
+- **wave879** · B7B stage/bootstrap multi-token TARGET/CC/MAKE inject hygiene（13 recipes → thin `@sh`/`@bash`；shell 默认权威；ENSURE=0 / OUT=$@ / all OPT 仍 residual）
 - **wave859** · B7B XXP/BXC multi-token bag shell-load（export-xxp-link-bags + export-bxc-link-objs；2 shells）
 - **wave857** · B7B archaeology LINK_CFLAGS shell-load via make export leaves（4 bags / 6 shells；配方去 multi-token CFLAGS/FLAGS env）
 - **wave856** · B7B archaeology LINK_OBJS shell-load via make export leaves（5 bags / 6 shells；nested expand；配方去 multi-token LINK_OBJS env；CFLAGS → wave857）

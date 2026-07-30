@@ -80,12 +80,12 @@
 | `bootstrap_xlangc` | 716 | **shell** `select_bootstrap_xlangc.sh` | `xbuild bootstrap_xlangc` | 🟢 wave838 FORCE + select shell | 冷启动种子机 |
 | `xlang-c` / `$(XLANG_C)`（默认） | ~731 | **shell** `ensure_xlang_c.sh` | `xbuild xlang-c` | 🟢 wave876 体 shell；SKIP_SUBSCRIPT soft-skip + cp seed；prereq `bootstrap_xlangc` 仍 make 图 | G-06 默认 alias |
 | `xlang-c`（LEGACY） | ~2396 | **shell** `legacy_xlang_c_link.sh` | `xbuild xlang-c` + `XLANG_LEGACY_C_FRONTEND=1` | 🟢 wave858 体 shell | 考古 C 前端 |
-| `build-tool` | ~3190 | **shell** `scripts/build_tool.sh` | `xbuild build-tool` | 🟢 wave718 shell | Makefile 薄转调；xlang-build 直调 |
+| `build-tool` | ~3190 | **shell** `scripts/build_tool.sh` | `xbuild build-tool` | 🟢 wave718 shell · wave879 thin `@bash` only（无 multi-token CC/REGEN） | Makefile 薄转调；xlang-build 直调 |
 | `first-time` | 3181 | shell build-tool + g05 | `xbuild first-time` | 🟡 wave718 build-tool shell；g05 日常 |  |
 | `build-via-tool` | ~3001 | **shell** `build_via_tool.sh` | `xbuild build` | 🟢 wave874 体 shell；`build-tool` prereq 仍 make 图 | 与 G-05 / xbuild run_build_tool 同权威 |
 | `xlang-x` | 3125 | Makefile 工程轨 | `xbuild xlang-x` | ⬜ Makefile | 非产品默认 |
 | `xlang-no-c-frontend` | 3112 | Makefile | `xbuild product-frontend` | ⬜ Makefile | G-06 |
-| `clean` | 1675 | **shell** `scripts/clean_compiler.sh` | `xbuild clean` | 🟢 wave718 shell | Makefile 薄转调；L4 全擦可直调脚本 |
+| `clean` | 1675 | **shell** `scripts/clean_compiler.sh` | `xbuild clean` | 🟢 wave718 shell · wave879 thin `@sh` only（无 multi-token TARGET/XLANG_C） | Makefile 薄转调；L4 全擦可直调脚本 |
 | `test` | 1707 | Makefile → run-all | `xbuild test` | ⬜ make → tests | 11.2.3 |
 | `test_c` | 1696 | Makefile | `xbuild test-c` | ⬜ Makefile | 考古 C 轨 |
 | `test_x` | 1701 | Makefile | `xbuild test-x` | ⬜ Makefile |  |
@@ -101,7 +101,7 @@
 | `bootstrap-verify-stage2-bstrict` | 3142 | Makefile | `xbuild stage2` | ⬜ Makefile |  |
 | `check-7.2` | 3015 | shell `check_7_2.sh` | `xbuild check-7.2 或 tests/` | 🟢 wave870 体 shell；prereq bootstrap-self 图 | 历史 seed gate |
 | `check-7.2-bstrict` | 3393 | shell `bootstrap_verify_bstrict.sh` | `同上` | 🟢 wave720 shell |  |
-| `check-6.4` | 2959 | shell `check_6_4.sh` | `xbuild check-6.4 或 tests/` | 🟢 wave871 体 shell；prereq bootstrap-driver-seed 图 |  |
+| `check-6.4` | 2959 | shell `check_6_4.sh` | `xbuild check-6.4 或 tests/` | 🟢 wave871 体 shell · wave879 thin `@bash` only；prereq bootstrap-driver-seed 图 |  |
 | `check-asm-o-quality` | 3220 | scripts/check_asm_o_quality.sh | `xbuild check-asm` | ⬜ Makefile | 已有脚本 |
 | `check-pipeline-gen-expr-i64-abi` | 3340 | Makefile | `xbuild check-i64-abi` | ⬜ Makefile | P0-4 守卫 |
 | `build-seed-asm-host` | 1948 | Makefile | `xbuild seed-asm-host` | ⬜ Makefile | 冷补依赖 |
@@ -412,7 +412,7 @@
 | 1703 | `bootstrap-lexer` | 🟢 wave719 shell |
 | 1720 | `bootstrap-parser` | 🟢 wave844 shell-primary：`bootstrap_parser_smoke.sh parser`；prereq graph residual |
 | 1725 | `bootstrap-parse-file` | 🟢 wave844 shell-primary：`bootstrap_parser_smoke.sh parse-file`；prereq graph residual |
-| 2215 | `bootstrap-typeck` | 🟡 wave785 B7c：.o→migrate_x_objs；link residual |
+| 2215 | `bootstrap-typeck` | 🟢 wave841 shell · wave879 thin `@bash` only（无 multi-token TARGET/CC/MAKE） |
 | 2224 | `bootstrap-codegen` | 🟡 wave785 B7c：.o→migrate_x_objs；link residual |
 | 2479 | `bootstrap-driver-seed-x-frontend` | ⬜ |
 | 2957 | `bootstrap-driver-seed` | ⬜ 冷启动 Makefile 权威 |
@@ -432,10 +432,10 @@
 | 3209 | `build-user-asm-backend` | ⬜ |
 | 3213 | `bootstrap-asm` | ⬜ |
 | 3216 | `bootstrap-asm-full` | ⬜ |
-| 3270 | `bootstrap-self` | 🟢 wave843 shell-primary：`bootstrap_self.sh`（stage1+stage2 link+smoke）；prereq graph residual |
+| 3270 | `bootstrap-self` | 🟢 wave843 shell · wave879 thin `@bash` only：`bootstrap_self.sh`；prereq graph residual |
 | 3359 | `bootstrap-pipeline` | ⬜ |
-| 3370 | `xlang-x-pipeline` | 🟢 wave845 shell-primary：`xlang_x_pipeline.sh`（force rebuild + host-cc link TARGET_x）；prereq graph residual |
-| 3380 | `bootstrap-x-compiler` | 🟢 wave842 shell-primary：`bootstrap_x_compiler.sh`；prereq graph residual |
+| 3370 | `xlang-x-pipeline` | 🟢 wave845 shell · wave879 thin `@bash` only：`xlang_x_pipeline.sh`；prereq graph residual |
+| 3380 | `bootstrap-x-compiler` | 🟢 wave842 shell · wave879 thin `@bash` only：`bootstrap_x_compiler.sh`；prereq graph residual |
 | 3389 | `bootstrap-test` | ⬜ |
 | 3407 | `bootstrap-verify-bstrict` | ⬜ |
 | 3410 | `bootstrap-verify-seed` | ⬜ |
@@ -453,7 +453,7 @@
 | 3081 | `g05-ensure-relink-prereqs` | 🟢 shell + **xbuild ensure**（wave733） |
 | 3085 | `g05-export-relink` | 🟢 shell + **xbuild link-env**（wave733） |
 | 3089 | `relink-xlang` | 🟢 shell + **xbuild link-product**（wave733） |
-| 3097 | `relink-xlang-lexer` | ⬜ |
+| 3097 | `relink-xlang-lexer` | 🟢 wave849 shell · wave879 thin `@bash` only |
 | 3172 | `refresh-xlang-asm-gate` | 🟢 shell + **xbuild refresh-gate**（wave734；migrate shell wave735/736） |
 | 3181 | `first-time` | 🟡 shell build-tool + g05（wave718） |
 | ~3190 | `build-tool` | 🟢 shell `build_tool.sh`（wave718） |

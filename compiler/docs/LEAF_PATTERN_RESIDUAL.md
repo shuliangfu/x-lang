@@ -47,7 +47,8 @@
 > - **wave876** · B7C default `$(XLANG_C)` product alias shell-primary (1 target → ensure_xlang_c.sh; SKIP_SUBSCRIPT soft-skip + cp bootstrap_xlangc; LEGACY stays wave858)
 > - **wave877** · B7B gen/lsp/archaeology ensure multi-token env inject hygiene (20 recipes → thin `@bash ensure_*_gen`; shell defaults own MAKE/XLANG_*/FORCE/TIMEOUT)
 > - **wave878** · B7B migrate_x_objs multi-token CC/PYTHON/MAKE inject hygiene (4 recipes → thin `@sh migrate_x_objs`; shell defaults own CC/PYTHON/MAKE)
-> - **open** · thin edges + B2 + mk lists (hybrid) · other fat phonies · → tip Windows → dual L4 → explicit auth ship delete
+> - **wave879** · B7B stage/bootstrap multi-token TARGET/CC/MAKE inject hygiene (13 recipes → thin `@sh`/`@bash` clean/typeck/codegen/seed/relink/xlang-x/check-6.4/build-tool/self/pipeline/x-compiler; shell defaults own env; intentional ENSURE=0 / OUT=$@ remain)
+> - **open** · thin edges + B2 + mk lists (hybrid) · other fat phonies (ENSURE=0 / OUT=$@ / all OPT) · → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
