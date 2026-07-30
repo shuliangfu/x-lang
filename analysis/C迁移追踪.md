@@ -1492,6 +1492,7 @@
 - **wave854** · B7B seed-gate REQUIRED_OBJS bags → composites + archaeology（RXL/XXL/XNC；3 bags）
 - **wave855** · B7B seed-gate REQUIRED shell-load from mk（RXL/XXL/XNC；Makefile 去 multi-token REQUIRED env）
 - **wave858** · B7B LEGACY xlang-c link shell-primary（export-legacy-xlang-c-link-objs + CFLAGS reuse product）
+- **wave859** · B7B XXP/BXC multi-token bag shell-load（export-xxp-link-bags + export-bxc-link-objs；2 shells）
 - **wave857** · B7B archaeology LINK_CFLAGS shell-load via make export leaves（4 bags / 6 shells；配方去 multi-token CFLAGS/FLAGS env）
 - **wave856** · B7B archaeology LINK_OBJS shell-load via make export leaves（5 bags / 6 shells；nested expand；配方去 multi-token LINK_OBJS env；CFLAGS → wave857）
 - **open** · thin edges + B2 + other mk lists（hybrid）→ tip Windows → 双端 L4 → explicit auth 真删

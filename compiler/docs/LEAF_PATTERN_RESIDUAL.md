@@ -27,6 +27,7 @@
 > - **wave799** · execute-gate (hard refuse delete)
 > - **wave857** · B7B archaeology LINK_CFLAGS shell-load via make export leaves (4 bags / 6 shells; drop multi-token CFLAGS env)
 > - **wave858** · B7B LEGACY xlang-c link shell-primary (export leaf + CFLAGS reuse product)
+> - **wave859** · B7B XXP/BXC multi-token bag shell-load via make export leaves (2 shells)
 - **open** · thin edges + B2 + other mk lists (hybrid) → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
@@ -2071,6 +2072,42 @@ ship delete body; mac-only wave green.
 `bootstrap_xlangc_create.sh` on Makefile prereq; dual host-pick outside select;
 `rm compiler/Makefile`; ship delete body; mac-only wave green.
 
+
+## wave859 B7B XXP/BXC multi-token bag shell-load (2026-07-30)
+
+> **Why (G.7 有则补全 on wave856 export-leaf pattern):**
+> wave845 `xlang-x-pipeline` / wave842 `bootstrap-x-compiler` already shell-primary
+> bodies, but Makefile still injected multi-token `XXP_*=` / `BXC_LINK_OBJS=` bags.
+> LINK needs make expansion (`$(USER_ASM_LINK)` nested + `PIPELINE_LIBS` platform
+> ifeq; `OBJS` platform ifeq) — not pure mk text.
+>
+> **Bags (2 shells):**
+>   - **XXP** — `export-xxp-link-bags` → BASE/FRONTEND/LINK/SATELLITE/LSP_DIAG/LIBS
+>   - **BXC** — `export-bxc-link-objs` → `LINK_OBJS=$(OBJS)`
+>
+> Shell loads when env unset; Makefile recipes drop multi-token XXP_*/BXC_ env.
+> **NOT physical delete** — thin edges + B2 + mk lists remain. Dual-end L2 required.
+>
+```text
+    PHYS_DEL_B7B_XXP_BXC_SHELL_LOAD=1
+    PHYS_DEL_B7B_XXP_BXC_SHELL_LOAD_WAVE=wave859
+    PHYS_DEL_B7B_XXP_BXC_SHELL_LOAD_COUNT=2
+    SWALLOWED_B7B_XXP_BXC_SHELL_LOAD=1
+    PHYS_DEL_PREFLIGHT_B7B_XXP_BXC_SHELL_LOAD=1
+```
+>
+> next: residual thin/B2/lists (hybrid) or tip Windows → dual L4 → explicit auth ship
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_B7B_XXP_BXC_SHELL_LOAD` | `1` |
+| `PHYS_DEL_B7B_XXP_BXC_SHELL_LOAD_COUNT` | `2` |
+| `SWALLOWED_B7B_XXP_BXC_SHELL_LOAD` | `1` |
+| `B7B_XXP_BXC_SHELL_LOAD_VIA` | `export_xxp_link_bags+export_bxc_link_objs` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+
+**Forbidden:** claim XXP/BXC shell-load = physical delete; dual multi-token
+`XXP_*=` / `BXC_LINK_OBJS=` recipe env; second PIPELINE_X inventory in shell.
 
 ## wave858 B7B LEGACY xlang-c link shell-primary (2026-07-30)
 

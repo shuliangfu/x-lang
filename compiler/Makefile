@@ -2403,6 +2403,8 @@ include mk/driver_seed_export_lists.mk
 	export-bxf-link-objs \
 	export-bs-link-objs \
 	export-legacy-xlang-c-link-objs \
+	export-xxp-link-bags \
+	export-bxc-link-objs \
 	export-relink-product-link-cflags \
 	export-btc-typeck-link-cflags \
 	export-xnc-link-cflags \
@@ -2630,6 +2632,24 @@ export-bs-link-objs:
 # NOT physical delete — thin edges + B2 + mk lists remain residual.
 export-legacy-xlang-c-link-objs:
 	@printf 'LINK_OBJS=%s\n' '$(LEGACY_XLANG_C_PREREQS)'
+
+# wave859 · B7B XXP/BXC multi-token bag shell-load via make export leaves (G.7).
+# xlang-x-pipeline (wave845 shell-primary) still required multi-token XXP_* env
+# from Makefile; LINK needs make expansion ($(USER_ASM_LINK) nested + PIPELINE_LIBS
+# platform ifeq). bootstrap-x-compiler still required BXC_LINK_OBJS=$(OBJS).
+# Shell loads when unset; Makefile recipes drop multi-token XXP_*/BXC_ env.
+# PLATFORM: SHARED — KEY=value; no compile/link side effects.
+# NOT physical delete — thin edges + B2 + mk lists remain residual.
+export-xxp-link-bags:
+	@printf 'XXP_BASE_OBJS=%s\n' '$(PIPELINE_X_BASE_OBJS)'
+	@printf 'XXP_FRONTEND_OBJS=%s\n' '$(PIPELINE_X_FRONTEND_OBJS)'
+	@printf 'XXP_LINK_OBJS=%s\n' '$(PIPELINE_X_LINK_OBJS)'
+	@printf 'XXP_SATELLITE_OBJS=%s\n' '$(PIPELINE_X_SATELLITE_OBJS)'
+	@printf 'XXP_LSP_DIAG=%s\n' '$(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes.o'
+	@printf 'XXP_LIBS=%s\n' '$(PIPELINE_LIBS)'
+
+export-bxc-link-objs:
+	@printf 'LINK_OBJS=%s\n' '$(OBJS)'
 
 # wave857 · B7B LINK CFLAGS shell-load via make export leaves (G.7 有则补全 on
 # wave856 LINK_OBJS export pattern). Flags need make expansion (DRIVER_SEED_LINK_FLAGS /
@@ -3005,27 +3025,24 @@ gen-x-driver-objs: pipeline_x.o driver_x.o preprocess_x.o
 # 提供 asm_driver_*（fmt/check/test 仅 bootstrap-driver-seed / xlang-x 全驱动链需要 DRIVER_SUBCMD_OBJS）
 # wave845: full body → scripts/xlang_x_pipeline.sh (G.7 有则补全; shell owns multi-make
 # ensure ladder + host-cc link). Lists stay mk expansion (pipeline_x_objs.mk).
-# NOT physical delete — prereq make-graph + thin edges + B2 + mk lists remain residual.
+# wave859: shell loads XXP_* via export-xxp-link-bags when unset (no multi-token
+# XXP_* env export). NOT physical delete — prereq make-graph + thin edges + B2
+# + mk lists remain residual.
 # PLATFORM: SHARED — shell owns force-rebuild + link orchestration.
 xlang-x-pipeline: bootstrap-pipeline migrate-x-objs $(PIPELINE_X_BASE_OBJS) pipeline_x.o $(PIPELINE_X_FRONTEND_OBJS) $(PIPELINE_X_SUPPORT_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes.o scripts/xlang_x_pipeline.sh
 	@TARGET="$(TARGET)" CC="$(CC)" CFLAGS="$(CFLAGS)" MAKE="$(MAKE)" \
-	  XXP_BASE_OBJS="$(PIPELINE_X_BASE_OBJS)" \
-	  XXP_FRONTEND_OBJS="$(PIPELINE_X_FRONTEND_OBJS)" \
-	  XXP_LINK_OBJS="$(PIPELINE_X_LINK_OBJS)" \
-	  XXP_SATELLITE_OBJS="$(PIPELINE_X_SATELLITE_OBJS)" \
-	  XXP_LSP_DIAG="$(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes.o" \
-	  XXP_LIBS="$(PIPELINE_LIBS)" \
 	  bash scripts/xlang_x_pipeline.sh
 
 # 4.5（.x 流水线编译 compiler 自身）：用 xlang_x 的 -x -E 生成 typeck.x / codegen.x 对应的 C，再由 cc 链接得到新的 xlang_x_stage2。
 # 这一目标的目的，是验证「完整前端（parse_into + typeck_x_ast + codegen_x_ast）」全部跑在 .x 上时，仍能产出能工作的编译器。
 # wave785 B7c: typeck_x_x / codegen_x_x are *not* migrate_x_objs (different TU names; archaeology).
 # wave842: full body → scripts/bootstrap_x_compiler.sh (G.7 有则补全; shell owns -x -E + host-cc -c + link).
-# NOT physical delete — prereq make-graph (xlang-x-pipeline) + thin edges + mk lists remain residual.
+# wave859: shell loads BXC_LINK_OBJS via export-bxc-link-objs when unset (no multi-token
+# BXC_LINK_OBJS= env). NOT physical delete — prereq make-graph (xlang-x-pipeline)
+# + thin edges + mk lists remain residual.
 # PLATFORM: SHARED — shell owns stage2 emit/compile/link orchestration.
 bootstrap-x-compiler: xlang-x-pipeline scripts/bootstrap_x_compiler.sh
-	@TARGET="$(TARGET)" CC="$(CC)" CFLAGS="$(CFLAGS)" \
-	  BXC_LINK_OBJS="$(OBJS)" \
+	@TARGET="$(TARGET)" CC="$(CC)" CFLAGS="$(CFLAGS)" MAKE="$(MAKE)" \
 	  bash scripts/bootstrap_x_compiler.sh
 
 # 自举测试（不含 run-all）：seed 构建 xlang，再用 xlang 自编得到 xlang_stage2，stage2 跑 return-value 返回 42 即通过。用于快速验证「xlang 能编译自己」。

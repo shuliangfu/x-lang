@@ -9,26 +9,29 @@
 #     4) host-cc link TARGET_x with USE_X_PIPELINE|TYPECK|CODEGEN
 #
 #   Object lists stay mk expansion (pipeline_x_objs.mk; wave817). Shell never
-#   hardcodes a second PIPELINE_X_* inventory — Makefile thin-call exports
-#   expanded bags as XXP_* env vars.
+#   hardcodes a second PIPELINE_X_* inventory —
+#   wave859: XXP_* bags via make export-xxp-link-bags when unset
+#   (LINK needs nested $(USER_ASM_LINK) + PIPELINE_LIBS platform ifeq).
 #
 # Usage (cwd = compiler/):
 #   bash scripts/xlang_x_pipeline.sh
 #   bash scripts/xlang_x_pipeline.sh --check
 #
-# Env (product path; Makefile thin-call exports these):
+# Env (product path):
 #   TARGET              — product binary basename (default: xlang)
 #   TARGET_X            — .x-pipeline binary (default: ${TARGET}_x)
 #   CC / CFLAGS         — host C compiler + flags
-#   MAKE                — make binary (for residual ensure edges)
-#   XXP_BASE_OBJS       — expanded $(PIPELINE_X_BASE_OBJS)
-#   XXP_FRONTEND_OBJS   — expanded $(PIPELINE_X_FRONTEND_OBJS)
-#   XXP_LINK_OBJS       — expanded $(PIPELINE_X_LINK_OBJS)
-#   XXP_SATELLITE_OBJS  — expanded $(PIPELINE_X_SATELLITE_OBJS)
-#   XXP_LSP_DIAG        — expanded $(LSP_DIAG_LINK_O) + sizes.o
-#   XXP_LIBS            — expanded $(PIPELINE_LIBS) (Linux -lpthread; else empty)
+#   MAKE                — make binary (for residual ensure edges + export leaf)
+#   XXP_BASE_OBJS       — optional; default loads via export-xxp-link-bags
+#   XXP_FRONTEND_OBJS   — optional; default loads via export-xxp-link-bags
+#   XXP_LINK_OBJS       — optional; default loads via export-xxp-link-bags
+#   XXP_SATELLITE_OBJS  — optional; default loads via export-xxp-link-bags
+#   XXP_LSP_DIAG        — optional; default loads via export-xxp-link-bags
+#   XXP_LIBS            — optional; default loads via export-xxp-link-bags
+#                          (may be empty on non-Linux)
 #
 # wave845 (G.7 有则补全): Makefile fat multi-make + $(CC) link → this script.
+# wave859: XXP_* shell-load via make export leaf (G.7; not physical delete).
 # NOT physical delete — prereq make-graph + thin edges + B2 + mk lists remain.
 # PLATFORM: SHARED — shell orchestration; product seed pins host-portable.
 set -euo pipefail
@@ -69,7 +72,14 @@ if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
   if grep -qE '\$\(CC\).*DXLANG_USE_X_PIPELINE|\$\(CC\).* -o \$\(TARGET\)_x|DXLANG_USE_X_PIPELINE.*-o \$\(TARGET\)_x' <<<"$_rec"; then
     fail "xlang-x-pipeline must not keep dual \$(CC) link body (wave845; shell owns link)"
   fi
-  log "CHECK OK (wave845 xlang-x-pipeline shell-primary; not physical delete)"
+  # wave859: Makefile must not re-export multi-token XXP bags (shell loads export leaf).
+  if grep -qE 'XXP_BASE_OBJS=|XXP_FRONTEND_OBJS=|XXP_LINK_OBJS=|XXP_SATELLITE_OBJS=|XXP_LSP_DIAG=|XXP_LIBS=' <<<"$_rec"; then
+    fail "xlang-x-pipeline must not export XXP_* bags (wave859; shell loads export-xxp-link-bags)"
+  fi
+  if ! grep -qE '^export-xxp-link-bags:' "$MF"; then
+    fail "Makefile must define export-xxp-link-bags (wave859)"
+  fi
+  log "CHECK OK (wave845+859 xlang-x-pipeline shell-primary; XXP bags export leaf; not physical delete)"
   exit 0
 fi
 
@@ -87,24 +97,50 @@ if [ "$MODE" != "run" ] && [ "$MODE" != "" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Preflight: link env from Makefile thin-call (G.7: bags stay mk expansion)
+# Preflight: XXP bags from make export leaf when unset (wave859; G.7)
+# PIPELINE_X_LINK_OBJS needs nested $(USER_ASM_LINK); PIPELINE_LIBS platform ifeq.
+# PLATFORM: SHARED — KEY=value from export target; no second .o inventory.
 # ---------------------------------------------------------------------------
+_load_xxp_bags_via_make() {
+  local raw line
+  raw=$(MAKEFLAGS= "${MAKE:-make}" -s export-xxp-link-bags) || return 1
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      XXP_BASE_OBJS=*) XXP_BASE_OBJS=${line#XXP_BASE_OBJS=} ;;
+      XXP_FRONTEND_OBJS=*) XXP_FRONTEND_OBJS=${line#XXP_FRONTEND_OBJS=} ;;
+      XXP_LINK_OBJS=*) XXP_LINK_OBJS=${line#XXP_LINK_OBJS=} ;;
+      XXP_SATELLITE_OBJS=*) XXP_SATELLITE_OBJS=${line#XXP_SATELLITE_OBJS=} ;;
+      XXP_LSP_DIAG=*) XXP_LSP_DIAG=${line#XXP_LSP_DIAG=} ;;
+      XXP_LIBS=*) XXP_LIBS=${line#XXP_LIBS=} ;;
+    esac
+  done <<<"$raw"
+  return 0
+}
+
+# Load when any required bag missing, or XXP_LIBS completely unset (empty OK on non-Linux).
+if [ -z "${XXP_BASE_OBJS:-}" ] || [ -z "${XXP_FRONTEND_OBJS:-}" ] || \
+   [ -z "${XXP_LINK_OBJS:-}" ] || [ -z "${XXP_SATELLITE_OBJS:-}" ] || \
+   [ -z "${XXP_LSP_DIAG:-}" ] || [ -z "${XXP_LIBS+x}" ]; then
+  _load_xxp_bags_via_make \
+    || fail "failed to expand export-xxp-link-bags (wave859 XXP shell-load)"
+fi
 if [ -z "${XXP_BASE_OBJS:-}" ]; then
-  fail "XXP_BASE_OBJS required (Makefile thin-call must export expanded \$(PIPELINE_X_BASE_OBJS))"
+  fail "empty XXP_BASE_OBJS from export-xxp-link-bags (wave859)"
 fi
 if [ -z "${XXP_FRONTEND_OBJS:-}" ]; then
-  fail "XXP_FRONTEND_OBJS required (Makefile thin-call must export expanded \$(PIPELINE_X_FRONTEND_OBJS))"
+  fail "empty XXP_FRONTEND_OBJS from export-xxp-link-bags (wave859)"
 fi
 if [ -z "${XXP_LINK_OBJS:-}" ]; then
-  fail "XXP_LINK_OBJS required (Makefile thin-call must export expanded \$(PIPELINE_X_LINK_OBJS))"
+  fail "empty XXP_LINK_OBJS from export-xxp-link-bags (wave859)"
 fi
 if [ -z "${XXP_SATELLITE_OBJS:-}" ]; then
-  fail "XXP_SATELLITE_OBJS required (Makefile thin-call must export expanded \$(PIPELINE_X_SATELLITE_OBJS))"
+  fail "empty XXP_SATELLITE_OBJS from export-xxp-link-bags (wave859)"
 fi
 if [ -z "${XXP_LSP_DIAG:-}" ]; then
-  fail "XXP_LSP_DIAG required (Makefile thin-call must export \$(LSP_DIAG_LINK_O) + sizes.o)"
+  fail "empty XXP_LSP_DIAG from export-xxp-link-bags (wave859)"
 fi
-# XXP_LIBS may be empty (non-Linux) — OK
+# XXP_LIBS may be empty (non-Linux) — OK; ensure variable is set for set -u
+: "${XXP_LIBS:=}"
 
 # ---------------------------------------------------------------------------
 # Ensure ladder (same order as pre-wave845 Makefile body)
