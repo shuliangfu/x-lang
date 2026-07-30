@@ -1516,10 +1516,11 @@
 - **wave880** · B7B ENSURE=0 / OUT=$@ / all OPT inject hygiene（7 recipes → thin `@bash`/`@sh`；MAKELEVEL shell 默认权威）
 - **wave881** · B7B try-heat XLANG_G05_PREFER_X_O inject hygiene（31 recipes → CC-only thin-call；PREFER 经 make CLI/env + shell 默认；net XLANG= 同删）
 - **wave882** · B7B residual single-token TARGET= inject hygiene（10 recipes → drop TARGET=；shell TARGET:-xlang + CLI auto-export）
+- **wave883** · B7B residual single-token MAKE= inject hygiene（24 recipes → drop MAKE=；shell MAKE:-make + GNU make auto-export；keep ENSURE_SEED/NO_REPLACE）
 - **wave859** · B7B XXP/BXC multi-token bag shell-load（export-xxp-link-bags + export-bxc-link-objs；2 shells）
 - **wave857** · B7B archaeology LINK_CFLAGS shell-load via make export leaves（4 bags / 6 shells；配方去 multi-token CFLAGS/FLAGS env）
 - **wave856** · B7B archaeology LINK_OBJS shell-load via make export leaves（5 bags / 6 shells；nested expand；配方去 multi-token LINK_OBJS env；CFLAGS → wave857）
-- **open** · thin edges + B2 + mk lists（hybrid）· residual single-token injects（MAKE/CC · G05_SYNC · LD · pipeline bags）· → tip Windows → 双端 L4 → explicit auth 真删
+- **open** · thin edges + B2 + mk lists（hybrid）· residual single-token injects（CC passthrough · G05_SYNC · LD · pipeline bags）· → tip Windows → 双端 L4 → explicit auth 真删
 
 **状态明细**（一行一项）：
 
@@ -1639,6 +1640,11 @@
 - ✅ **default xlang-c alias shell-primary**（wave876 · `$(XLANG_C)` → ensure_xlang_c.sh · SKIP_SUBSCRIPT soft-skip + cp · **非**物理删） · 双端 L2 tip **`15418b3ea`**
 - ✅ **gen ensure multi-token env inject hygiene**（wave877 · 20 recipes · ensure_*_gen/ast_gen2/bootstrap-pipeline 去 MAKE/XLANG_*/FORCE/TIMEOUT inject · shell 默认权威 · **非**物理删 · thin edges + B2 + mk lists）
 - ✅ **migrate multi-token env inject hygiene**（wave878 · 4 recipes · parser/typeck/codegen_x.o + migrate-x-objs 去 CC/PYTHON/MAKE inject · shell 默认权威 · **非**物理删 · thin edges + B2 + mk lists）
+- ✅ **stage/bootstrap multi-token env inject hygiene**（wave879 · 13 recipes · clean/typeck/codegen/seed/relink/… 去 multi-token TARGET/CC/MAKE inject · shell 默认权威 · **非**物理删 · thin edges + B2 + mk lists）
+- ✅ **ENSURE/OUT/OPT inject hygiene**（wave880 · 7 recipes · all/test_c/test_x/… 去 ENSURE/OUT/OPT multi inject · MAKELEVEL shell 默认 · **非**物理删 · thin edges + B2 + mk lists）
+- ✅ **try-heat PREFER_X_O inject hygiene**（wave881 · 31 recipes · try-heat 去 PREFER/XLANG inject · CC-only · **非**物理删 · thin edges + B2 + mk lists）
+- ✅ **residual single-token TARGET= inject hygiene**（wave882 · 10 recipes · smoke/hybrid/crt0/tool/check-7.2 + bstrict/refresh 去 TARGET= · shell TARGET 默认 · **非**物理删 · thin edges + B2 + mk lists）
+- ✅ **residual single-token MAKE= inject hygiene**（wave883 · 24 recipes · archaeology/driver_leaf/rebuild_leaves/host_stubs/phase1 + bstrict/refresh 去 MAKE= · shell MAKE 默认 + GNU make auto-export · **非**物理删 · thin edges + B2 + mk lists）
 - ⬜ **B7 residual endgame · physical delete / 删 Makefile**
   - **须** lists/thin 残项 + Windows tip 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体
   - 已闭（一行一项，摘要）：

@@ -678,6 +678,10 @@
 
 - **wave882** · B7B residual single-token `TARGET=` inject hygiene：10 叶（token/lexer/parser/parse-file/hybrid/crt0/build-via-tool/check-7.2 pure drop；bstrict/refresh multi 去 TARGET=）。shell `TARGET:-xlang` + make CLI auto-export。**非**物理删。
 
+## wave883 residual note
+
+- **wave883** · B7B residual single-token `MAKE=` inject hygiene：24 叶（archaeology 4 + driver_leaf 8 + rebuild_leaves 7 + host_stubs 2 + phase1-link 1 pure drop；bstrict/refresh multi 去 MAKE=）。shell `MAKE:-make` + GNU make auto-export；keep ENSURE_SEED/NO_REPLACE。**非**物理删。
+
 ## wave881 residual note
 
 - **wave881** · B7B try-heat `XLANG_G05_PREFER_X_O` inject hygiene：31 叶 try-heat 去 PREFER/XLANG inject，保留 `CC=` only（对齐 wave862/864）。冷链 `make XLANG_G05_PREFER_X_O=0` 仍靠 make CLI auto-export。**非**物理删。
