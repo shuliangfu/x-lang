@@ -109,7 +109,10 @@ else
   LD_FILTER_USE_VER = 1
 endif
 TARGET = xlang
-SRCS = seeds/main.from_x.c seeds/runtime.from_x.c seeds/async_liveness.from_x.c seeds/async_cps_codegen.from_x.c
+# wave823 B7B: SRCS / MAIN_X_DEPS / PREPROCESS_X_DEPS / PIPELINE_*_DEPS →
+# mk/x_source_deps.mk (G.7; not physical delete). Makefile include only.
+# Include early so $(PIPELINE_X_DEPS) is non-empty before pipeline_x.o rules.
+include mk/x_source_deps.mk
 # wave820 B7B: OBJS_CORE / OBJS archaeology list → mk/objs_core.mk (G.7; not physical delete).
 # Makefile include only; product make xlang is g05 (wave786); escape XLANG_HOST_CC_OBJS_CORE=1.
 include mk/objs_core.mk
@@ -124,10 +127,7 @@ XLANG_X = xlang-x
 # 与既有 xlang-c 命令行一致的 -L（lsp/*.x -E；-L src 仅限 main.x / driver_gen）
 LSP_X_E_DIRS = -L .. -L src/lsp -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess
 MAIN_X_E_DIRS = -L .. -L src -L src/lsp -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess
-# main.x -E-extern 直接 import 的模块；变更须重生成 driver_gen.c / driver_x.o
-MAIN_X_DEPS = src/main.x src/codegen/codegen.x src/ast/ast.x src/preprocess/preprocess.x
-# preprocess.x 独立 -E-extern 入口
-PREPROCESS_X_DEPS = src/preprocess/preprocess.x
+# MAIN_X_DEPS / PREPROCESS_X_DEPS: list authority mk/x_source_deps.mk (wave823).
 .PHONY: all std-objs clean test size-baseline perf-baseline bootstrap-token bootstrap-lexer bootstrap-parser bootstrap-parse-file bootstrap-typeck bootstrap-codegen bootstrap-driver bootstrap-driver-seed bootstrap-driver-bstrict bootstrap-driver-bstrict-relink bootstrap-driver-bstrict-windows bootstrap-driver-crt0 bootstrap-driver-asm bootstrap-driver-asm-only bootstrap-asm bootstrap_xlangc check-asm-o-quality check-6.4 bootstrap-self check-7.2 check-7.2-bstrict bootstrap-verify bootstrap-verify-seed bootstrap-verify-bstrict bootstrap-verify-stage2 bootstrap-verify-stage2-bstrict bootstrap-test build-tool build-tool-x build-via-tool first-time verify-selfhost-stage2 regen-lsp-gens-x xlang-no-c-frontend gen-x-driver-objs build-user-asm-backend build-seed-user-asm-partial bootstrap-driver-seed-user-asm compile_commands.json
 
 # std.process：F 闭合 — process.o 只提供 process_*_c（argv 薄封装 + OS glue）。
@@ -2180,11 +2180,8 @@ _x_stubs2.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
-# 须在 pipeline_x.o / bootstrap-pipeline 规则之前定义（Make 解析顺序；后置则 $(PIPELINE_X_DEPS) 为空）。
-# asm 子树经常新增 backend/platform/arch 级别实现；这里用 wildcard 覆盖整棵 .x 依赖，
-# 避免 backend.x 之类的活跃链改动未触发 pipeline_gen.c / pipeline_x.o 重生，继续吃旧快照。
-PIPELINE_ASM_X_DEPS = $(wildcard src/asm/*.x src/asm/platform/*.x src/asm/arch/*.x)
-PIPELINE_X_DEPS = src/pipeline/pipeline.x src/codegen/codegen.x src/typeck/typeck.x src/parser/parser.x src/ast/ast.x src/lexer/lexer.x src/preprocess/preprocess.x $(PIPELINE_ASM_X_DEPS) pipeline_glue.c ast_pool.c ast_pool_bootstrap_glue.c
+# PIPELINE_ASM_X_DEPS / PIPELINE_X_DEPS: list authority mk/x_source_deps.mk
+# (wave823; included early so $(PIPELINE_X_DEPS) is non-empty here).
 ifneq ($(filter 1,$(XLANG_FORCE_REGEN_GEN) $(PIPELINE_X_FORCE_COMPILE)),)
 PIPELINE_X_FORCE_PREREQ = FORCE
 endif

@@ -41,6 +41,7 @@
 #   wave821: B7B archaeology experiment lists → mk/archaeology_experiment_objs.mk
 #            (X_FRONTEND_EXPERIMENT 7 + NO_C_FRONTEND; Makefile include only; NOT physical delete)
 #   wave822: B7B RELINK_XLANG_PREREQS + LEGACY_XLANG_C_* → mk/driver_seed_composites.mk
+#   wave823: B7B SRCS/MAIN_X_DEPS/PIPELINE_X_DEPS → mk/x_source_deps.mk
 #            (G.7 有则补全 composites; fixed RELINK authority 14; NOT physical delete)
 #   wave781: B3 LSP satellite hybrid body → try-lsp-sat-prefer
 #   wave782: B4 gen_c_to_o bootstrap → try-gen-c-to-o
@@ -534,6 +535,19 @@ SWALLOWED_B7B_RELINK_LEGACY_LIST=1
 B7B_RELINK_LEGACY_LIST_SWALLOWED=1
 B7B_RELINK_LEGACY_LIST_MK=mk/driver_seed_composites.mk
 B7B_RELINK_LEGACY_LIST_WAVE=wave822
+# wave823: B7B source-path inventories → mk/x_source_deps.mk (G.7).
+# SRCS (4) + MAIN_X_DEPS (4) + PREPROCESS_X_DEPS (1) + PIPELINE_X_DEPS fixed
+# paths (10; excludes $(PIPELINE_ASM_X_DEPS) wildcard token) = COUNT=19.
+# NOT physical delete — thin edges + std_core product make graph remain.
+PHYS_DEL_B7B_SOURCE_DEPS_LIST=1
+PHYS_DEL_B7B_SOURCE_DEPS_LIST_WAVE=wave823
+PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=19
+PHYS_DEL_B7B_SOURCE_DEPS_LIST_VIA=mk_x_source_deps
+PHYS_DEL_B7B_SOURCE_DEPS_LIST_NOTE=list_authority_mk_include_only_thin_edges_remain
+SWALLOWED_B7B_SOURCE_DEPS_LIST=1
+B7B_SOURCE_DEPS_LIST_SWALLOWED=1
+B7B_SOURCE_DEPS_LIST_MK=mk/x_source_deps.mk
+B7B_SOURCE_DEPS_LIST_WAVE=wave823
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -683,9 +697,9 @@ PHYS_DEL_PREFLIGHT_B7D_G05=1
 PHYS_DEL_PREFLIGHT_B7A_COLD_0MAKE=1
 PHYS_DEL_PREFLIGHT_B7B_SHELL_CATALOG=1
 PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113
-# wave811–822: std_x / formal_mod / STD_AND_PANIC / driver_leaf / archaeology /
+# wave811–823: std_x / formal_mod / STD_AND_PANIC / driver_leaf / archaeology /
 # DRIVER_SUBCMD / PIPELINE_X / SEED_MODE / SEED_LINK_PICKS / OBJS_CORE /
-# ARCH_EXPERIMENT / RELINK_LEGACY list swallowed;
+# ARCH_EXPERIMENT / RELINK_LEGACY / SOURCE_DEPS list swallowed;
 # blocker name kept (thin edges + B2 ensure + remaining B7B mk lists still form make graph).
 PHYS_DEL_PREFLIGHT_BLOCKERS=makefile_thin_call_edges|b7b_lists_in_mk|std_core_product_make_graph
 PHYS_DEL_PREFLIGHT_STD_X_HYBRID_BODY_SWALLOWED=1
@@ -700,8 +714,9 @@ PHYS_DEL_PREFLIGHT_B7B_SEED_LINK_PICKS_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_OBJS_CORE_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_ARCH_EXPERIMENT_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_RELINK_LEGACY_LIST=1
+PHYS_DEL_PREFLIGHT_B7B_SOURCE_DEPS_LIST=1
 PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
+PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_PREFLIGHT_WIN_GATE_HOST=MSYS2_windows-server_dual_boot_reboot_required
 PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
@@ -1326,6 +1341,9 @@ else
   if ! grep -qE 'wave822|RELINK_LEGACY|RELINK_XLANG_PREREQS|LEGACY_XLANG_C' "$DOC_REL"; then
     bad "$DOC_REL must document wave822 B7B RELINK/LEGACY list → mk"
   fi
+  if ! grep -qE 'wave823|SOURCE_DEPS|x_source_deps|MAIN_X_DEPS|PIPELINE_X_DEPS' "$DOC_REL"; then
+    bad "$DOC_REL must document wave823 B7B SOURCE_DEPS list → mk"
+  fi
   note "doc $DOC_REL present"
 fi
 
@@ -1937,6 +1955,21 @@ if ! grep -q 'SWALLOWED_B7B_RELINK_LEGACY_LIST=1' <<<"$_out"; then
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_B7B_RELINK_LEGACY_LIST=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_B7B_RELINK_LEGACY_LIST=1 (wave822)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_SOURCE_DEPS_LIST=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_SOURCE_DEPS_LIST=1 (wave823)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_SOURCE_DEPS_LIST_WAVE=wave823' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_SOURCE_DEPS_LIST_WAVE=wave823"
+fi
+if ! grep -q 'PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=19' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=19 (wave823)"
+fi
+if ! grep -q 'SWALLOWED_B7B_SOURCE_DEPS_LIST=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_B7B_SOURCE_DEPS_LIST=1 (wave823)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_B7B_SOURCE_DEPS_LIST=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_B7B_SOURCE_DEPS_LIST=1 (wave823)"
 fi
 if ! grep -q 'PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813"
@@ -2878,6 +2911,102 @@ if grep -nE 'catalog_set LEGACY_XLANG_C_PREREQS "' "$_cat_sh" 2>/dev/null | grep
   bad "catalog must not hardcode LEGACY_XLANG_C_PREREQS (wave822 dual authority)"
 fi
 note "B7B RELINK/LEGACY list authority in composites.mk (RELINK fixed 14; wave822; not physical delete)"
+# wave823: B7B source-path deps list authority in x_source_deps.mk; Makefile include only.
+_XSD_MK="compiler/mk/x_source_deps.mk"
+if [ ! -f "$_XSD_MK" ]; then
+  bad "missing $_XSD_MK (wave823 B7B SOURCE_DEPS list authority)"
+fi
+if ! grep -qE '^SRCS\s*=' "$_XSD_MK"; then
+  bad "$_XSD_MK must define SRCS (wave823)"
+fi
+if ! grep -qE '^MAIN_X_DEPS\s*=' "$_XSD_MK"; then
+  bad "$_XSD_MK must define MAIN_X_DEPS (wave823)"
+fi
+if ! grep -qE '^PREPROCESS_X_DEPS\s*=' "$_XSD_MK"; then
+  bad "$_XSD_MK must define PREPROCESS_X_DEPS (wave823)"
+fi
+if ! grep -qE '^PIPELINE_ASM_X_DEPS\s*=' "$_XSD_MK"; then
+  bad "$_XSD_MK must define PIPELINE_ASM_X_DEPS (wave823)"
+fi
+if ! grep -qE '^PIPELINE_X_DEPS\s*=' "$_XSD_MK"; then
+  bad "$_XSD_MK must define PIPELINE_X_DEPS (wave823)"
+fi
+# Fixed multi-token authority COUNT=19:
+#   SRCS 4 + MAIN_X_DEPS 4 + PREPROCESS_X_DEPS 1 + PIPELINE_X_DEPS fixed paths 10
+#   (exclude $(PIPELINE_ASM_X_DEPS) expansion token).
+_xsd_n=$(awk '
+  function count_fixed(line,   n, a, i, c) {
+    sub(/^[^=]*=[[:space:]]*/, "", line)
+    gsub(/\\/, "", line)
+    c=0
+    n=split(line, a, /[[:space:]]+/)
+    for (i=1;i<=n;i++) {
+      if (a[i] == "") continue
+      if (a[i] ~ /^\$\(/) continue
+      c++
+    }
+    return c
+  }
+  /^SRCS[[:space:]]*=/ { t += count_fixed($0) }
+  /^MAIN_X_DEPS[[:space:]]*=/ { t += count_fixed($0) }
+  /^PREPROCESS_X_DEPS[[:space:]]*=/ { t += count_fixed($0) }
+  /^PIPELINE_X_DEPS[[:space:]]*=/ { t += count_fixed($0) }
+  END { print t+0 }
+' "$_XSD_MK")
+if [ "${_xsd_n:-0}" -ne 19 ]; then
+  bad "wave823 expected SOURCE_DEPS fixed multi-token count 19 in mk, got ${_xsd_n:-0}"
+fi
+if ! grep -qE 'include[[:space:]]+mk/x_source_deps\.mk' "$MF"; then
+  bad "Makefile must include mk/x_source_deps.mk (wave823)"
+fi
+# Forbid dual authority: inline re-list of source-path inventories.
+if grep -nE '^SRCS[[:space:]]*=' "$MF" 2>/dev/null | grep -qE 'main\.from_x\.c|async_cps_codegen\.from_x\.c'; then
+  bad "Makefile must not re-list SRCS inline (wave823 dual authority)"
+else
+  note "Makefile SRCS has no dual inline list (wave823)"
+fi
+if grep -nE '^MAIN_X_DEPS[[:space:]]*=' "$MF" 2>/dev/null | grep -qE 'src/main\.x|codegen\.x'; then
+  bad "Makefile must not re-list MAIN_X_DEPS inline (wave823 dual authority)"
+else
+  note "Makefile MAIN_X_DEPS has no dual inline list (wave823)"
+fi
+if grep -nE '^PIPELINE_X_DEPS[[:space:]]*=' "$MF" 2>/dev/null | grep -qE 'pipeline\.x|pipeline_glue\.c|ast_pool\.c'; then
+  bad "Makefile must not re-list PIPELINE_X_DEPS inline (wave823 dual authority)"
+else
+  note "Makefile PIPELINE_X_DEPS has no dual inline list (wave823)"
+fi
+# Consumers: driver_gen / preprocess_gen prereqs + pipeline_x export STALE.
+if ! grep -qE '\$\(MAIN_X_DEPS\)' "$MF"; then
+  bad "Makefile must still consume \$(MAIN_X_DEPS) (wave823 consumers)"
+fi
+if ! grep -qE '\$\(PREPROCESS_X_DEPS\)' "$MF"; then
+  bad "Makefile must still consume \$(PREPROCESS_X_DEPS) (wave823 consumers)"
+fi
+if ! grep -qE '\$\(PIPELINE_X_DEPS\)|PIPELINE_X_DEPS="' "$MF"; then
+  bad "Makefile must still consume PIPELINE_X_DEPS (wave823 consumers)"
+fi
+# Catalog must parse mk (no hardcode second inventory).
+_cat_sh="$ROOT/compiler/scripts/driver_seed_obj_catalog.sh"
+[ -f "$_cat_sh" ] || _cat_sh="scripts/driver_seed_obj_catalog.sh"
+if ! grep -q 'mk/x_source_deps.mk' "$_cat_sh"; then
+  bad "driver_seed_obj_catalog.sh must parse mk/x_source_deps.mk (wave823)"
+fi
+if grep -nE 'catalog_set MAIN_X_DEPS "' "$_cat_sh" 2>/dev/null | grep -qE 'src/main\.x|codegen\.x'; then
+  bad "catalog must not hardcode MAIN_X_DEPS (wave823 dual authority)"
+fi
+if grep -nE 'catalog_set PIPELINE_X_DEPS "' "$_cat_sh" 2>/dev/null | grep -qE 'pipeline\.x|pipeline_glue'; then
+  bad "catalog must not hardcode PIPELINE_X_DEPS (wave823 dual authority)"
+fi
+# ensure_driver_gen.sh must load from mk (not hardcode path inventory).
+_edg="$ROOT/compiler/scripts/ensure_driver_gen.sh"
+[ -f "$_edg" ] || _edg="scripts/ensure_driver_gen.sh"
+if ! grep -q 'mk/x_source_deps.mk' "$_edg"; then
+  bad "ensure_driver_gen.sh must load deps from mk/x_source_deps.mk (wave823)"
+fi
+if grep -nE 'MAIN_X_DEPS=\(src/main\.x' "$_edg" 2>/dev/null | grep -q 'codegen'; then
+  bad "ensure_driver_gen.sh must not hardcode MAIN_X_DEPS array (wave823 dual authority)"
+fi
+note "B7B SOURCE_DEPS list authority in mk (fixed 19; wave823; not physical delete)"
 
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
@@ -3441,5 +3570,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747–822: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave812 formal_mod ensure 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave815 archaeology host-pick phonies 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2 + wave820 OBJS_CORE list→mk 16 + wave821 ARCH_EXPERIMENT list→mk 7 + wave822 RELINK/LEGACY list→composites 14; Makefile still present; delete body deferred)"
+echo "leaf_pattern_residual: CHECK OK (wave747–823: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave812 formal_mod ensure 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave815 archaeology host-pick phonies 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2 + wave820 OBJS_CORE list→mk 16 + wave821 ARCH_EXPERIMENT list→mk 7 + wave822 RELINK/LEGACY list→composites 14 + wave823 SOURCE_DEPS list→mk 19; Makefile still present; delete body deferred)"
 exit 0

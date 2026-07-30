@@ -40,10 +40,32 @@ XLANG_FORCE_REGEN_GEN="${XLANG_FORCE_REGEN_GEN:-0}"
 XLANG_DRIVER_GEN_TIMEOUT="${XLANG_DRIVER_GEN_TIMEOUT:-120}"
 MODE="${1:-all}"
 
-# Parity with Makefile MAIN_X_E_DIRS / MAIN_X_DEPS / PREPROCESS_X_DEPS
+# MAIN_X_E_DIRS: -L flags for main.x -E (not a path inventory; stay local).
+# MAIN_X_DEPS / PREPROCESS_X_DEPS: G.7 single authority mk/x_source_deps.mk
+# (wave823). Do not hardcode a second path list here.
 MAIN_X_E_DIRS=(-L .. -L src -L src/lsp -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess)
-MAIN_X_DEPS=(src/main.x src/codegen/codegen.x src/ast/ast.x src/preprocess/preprocess.x)
-PREPROCESS_X_DEPS=(src/preprocess/preprocess.x)
+_X_SOURCE_DEPS_MK="mk/x_source_deps.mk"
+_mk_assign_val() {
+  # First KEY = value line from mk (strip comments / trailing space).
+  # PLATFORM: SHARED — pure text parse; no make.
+  local key="$1"
+  local line
+  line=$(grep -E "^${key}[[:space:]]*=" "$_X_SOURCE_DEPS_MK" 2>/dev/null | head -1 | sed "s/^${key}[[:space:]]*=[[:space:]]*//;s/#.*//;s/[[:space:]]*$//")
+  printf '%s' "$line"
+}
+# bash 3.2: read -a from mk-owned lists (wave823; not dual inventory).
+# shellcheck disable=SC2206
+MAIN_X_DEPS=($(_mk_assign_val MAIN_X_DEPS))
+# shellcheck disable=SC2206
+PREPROCESS_X_DEPS=($(_mk_assign_val PREPROCESS_X_DEPS))
+if [ "${#MAIN_X_DEPS[@]}" -lt 1 ] || [ -z "${MAIN_X_DEPS[0]:-}" ]; then
+  echo "ensure-driver-gen: failed to load MAIN_X_DEPS from $_X_SOURCE_DEPS_MK" >&2
+  exit 2
+fi
+if [ "${#PREPROCESS_X_DEPS[@]}" -lt 1 ] || [ -z "${PREPROCESS_X_DEPS[0]:-}" ]; then
+  echo "ensure-driver-gen: failed to load PREPROCESS_X_DEPS from $_X_SOURCE_DEPS_MK" >&2
+  exit 2
+fi
 
 log() { echo "ensure-driver-gen: $*" >&2; }
 

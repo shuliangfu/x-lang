@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · wave747 R4 mode · wave748–755 R1 families · wave756 R4 pure-R1 · wave757 R3 cold-else · wave758 thin_glue seed-map · wave759 glue-standalone seed-map · wave760 R2 panic cold try-r2 · wave761 gen try-gen-x · wave762 R2 typeck_f64/crt0 try-r2 · wave763 R3 PREFER thin try-r3-prefer · wave764 g05 R3_COLD r3-prefer-family · wave765 g05 labi try-labi-prefer · wave766 g05 rt try-rt-prefer · wave767 g05 pipeline_abi/ldpc try-*-prefer · wave768 g05 target_cpu try-target-cpu-prefer · wave769 g05 L2 asm try-l2-asm-prefer · wave770 g05 async try-async-prefer · wave771 g05 other L2 try-other-l2-prefer · wave772 11.1.4 pure-ld cold prefer · wave773 g05 pure-ld prefer · wave774 drop silent CC fallback · wave775 fmt_check_cmd.o dual · wave776 R2 panic PREFER try-r2-prefer · wave777 physical-delete prep inventory · wave778 Windows gate + dual-end verify · wave779 B1 runtime-os try-runtime-os-prefer · wave780 B2 std-core try-std-core-prefer · wave799 execute-gate · wave800 Windows proof harness · wave781 B3 lsp-sat try-lsp-sat-prefer · wave782 B4 gen-c-to-o · wave783 B5 cfg-eval-ladder · wave784 B6 R5 compiler_all_ci · wave785 B7 DAG inventory + archaeology CC thin · wave786 B7D host-cc product link g05 · wave787 B7A cold residual_make=0 + B7B list honesty · wave788 B7B shell-primary catalog · wave789 B7A heat try-heat shell dispatch · wave790 B7A heat thin-unify)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · … · wave822 RELINK/LEGACY list→composites · wave823 SOURCE_DEPS list→mk · wave747–821 prior swallows · wave799 execute-gate · … · not physical delete)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -1721,6 +1721,50 @@ Then (later waves, not this tip):
 
 **Forbidden:** claim endgame-preview = ENDGAME arm / physical delete; set
 ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
+
+## wave823 B7B SOURCE_DEPS lists → mk (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **有则补全** on B7B source-path list residual —
+> `SRCS` (fixed **4** from_x `.c`), `MAIN_X_DEPS` (**4** `.x`),
+> `PREPROCESS_X_DEPS` (**1**), `PIPELINE_ASM_X_DEPS` (wildcard), and
+> `PIPELINE_X_DEPS` (fixed **10** path tokens + `$(PIPELINE_ASM_X_DEPS)`)
+> move into `compiler/mk/x_source_deps.mk`. Makefile **include only** (early
+> so `$(PIPELINE_X_DEPS)` is non-empty before pipeline rules). Catalog
+> shell-parses the mk. `ensure_driver_gen.sh` loads `MAIN_X_DEPS` /
+> `PREPROCESS_X_DEPS` from the same mk (no dual bash array inventory).
+> Honesty COUNT = fixed multi-token authority **19** (4+4+1+10; excludes
+> wildcard expansion). Dual-end L2 required. Blockers **remain**
+> (`makefile_thin_call_edges|b7b_lists_in_mk|std_core_product_make_graph`).
+
+```text
+  leaf dump:
+    PHYS_DEL_B7B_SOURCE_DEPS_LIST=1
+    PHYS_DEL_B7B_SOURCE_DEPS_LIST_WAVE=wave823
+    PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT=19
+    SWALLOWED_B7B_SOURCE_DEPS_LIST=1
+    PHYS_DEL_PREFLIGHT_B7B_SOURCE_DEPS_LIST=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  dual-end L2 green tip: (this wave implement SHA)
+  next: more shell-primary / thin edges / std_core graph residual or tip
+       Windows re-proof → Mac+Ubuntu L4 → ship delete body
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_B7B_SOURCE_DEPS_LIST` | `1` |
+| `PHYS_DEL_B7B_SOURCE_DEPS_LIST_COUNT` | `19` (fixed multi-token authority) |
+| `SWALLOWED_B7B_SOURCE_DEPS_LIST` | `1` |
+| `B7B_SOURCE_DEPS_LIST_MK` | `mk/x_source_deps.mk` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+
+**Forbidden:** claim SOURCE_DEPS list→mk = physical delete; dual inline
+`SRCS` / `MAIN_X_DEPS` / `PIPELINE_X_DEPS` in Makefile or hardcode in
+`ensure_driver_gen.sh` / catalog; `rm compiler/Makefile`; ship delete body;
+mac-only wave green.
 
 ## wave822 B7B RELINK + LEGACY lists → composites.mk (2026-07-30)
 
