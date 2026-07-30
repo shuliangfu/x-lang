@@ -2255,13 +2255,12 @@ bootstrap-driver-seed:
 else
 # G-06 两阶段 seed：先无 USER_ASM 链 xlang-seed-phase1，再用其跑 asm.x -E 生成 partial，最后全量链 xlang。
 # wave728: composites (DRIVER_SEED_OBJS / LINK_BASE / PREREQS) → mk only (G.7).
+# wave822 B7B: LEGACY_XLANG_C_* + RELINK_XLANG_PREREQS also live in composites.mk
+# (G.7 有则补全; Makefile include only — no dual inline re-list).
 include mk/driver_seed_composites.mk
 
-# legacy xlang-c 复用 bootstrap-driver-seed 的现有权威闭包，避免手写对象清单与 pinned seed 漂移。
-LEGACY_XLANG_C_LINK_BASE := $(BOOTSTRAP_DRIVER_SEED_LINK_BASE)
-LEGACY_XLANG_C_USER_ASM_LINK := $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS)
-LEGACY_XLANG_C_PREREQS := $(LEGACY_XLANG_C_LINK_BASE) $(LEGACY_XLANG_C_USER_ASM_LINK) build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o ast_gen2.o
-
+# legacy xlang-c: list authority mk/driver_seed_composites.mk (wave822).
+# Recipe still consumes $(LEGACY_XLANG_C_*); archaeology XLANG_LEGACY_C_FRONTEND=1.
 ifeq ($(XLANG_LEGACY_C_FRONTEND),1)
 $(XLANG_C): DRIVER_SEED_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o
 $(XLANG_C): $(LEGACY_XLANG_C_PREREQS)
@@ -2553,14 +2552,12 @@ build_asm/pipeline_glue_strict_minimal.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
-# relink-xlang 与 bootstrap-driver-seed 链接同一组 .o；须声明为 prerequisite，否则冷启动仅 make all 后缺 main_driver.o 等。
-RELINK_XLANG_PREREQS = build-seed-asm-host $(RELINK_XLANG_FILTERED_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(DRIVER_SUBCMD_GEN) \
-  $(DRIVER_SEED_OBJS) driver_x.o pipeline_x.o $(RELINK_XLANG_PIPELINE_LINK_O) \
-  lsp_io_gen.c lsp_gen.c lsp_diag_gen.c lsp_io_std_heap_gen.c \
-  lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o \
-  $(DRIVER_SUBCMD_OBJS) \
-  $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o \
-  src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o \
+# relink-xlang 与 bootstrap-driver-seed 链接同一组 .o；list authority =
+# mk/driver_seed_composites.mk RELINK_XLANG_PREREQS (wave822 B7B; not physical delete).
+# Consumers: bootstrap-typeck / bootstrap-codegen expand $(RELINK_XLANG_PREREQS).
+# Note: those targets appear *before* this include in file order — GNU make
+# expands prereqs at parse time, so late consumers still see empty RELINK unless
+# the rule is moved after composites include (pre-existing; not this wave).
 # driver/fmt_check 变更后快速重链 xlang（不跑 asm.x -E；需已有 build_asm/seed_host/asm_backend_partial.o）
 # relink-xlang-lexer：仅重建 lexer_x.o 并重链，不触发 driver/typeck *_gen.c 再生（迭代 token enum 修复用）。
 # 提供真实 xlang_asm 目标，避免同名旧文件让 `make xlang_asm` 静默跳过重建。

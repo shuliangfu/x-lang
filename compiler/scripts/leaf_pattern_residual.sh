@@ -40,6 +40,8 @@
 #            (Makefile include only; NOT physical delete; thin edges + other lists remain)
 #   wave821: B7B archaeology experiment lists → mk/archaeology_experiment_objs.mk
 #            (X_FRONTEND_EXPERIMENT 7 + NO_C_FRONTEND; Makefile include only; NOT physical delete)
+#   wave822: B7B RELINK_XLANG_PREREQS + LEGACY_XLANG_C_* → mk/driver_seed_composites.mk
+#            (G.7 有则补全 composites; fixed RELINK authority 14; NOT physical delete)
 #   wave781: B3 LSP satellite hybrid body → try-lsp-sat-prefer
 #   wave782: B4 gen_c_to_o bootstrap → try-gen-c-to-o
 #   wave783: B5 cfg_eval multi-ladder → try-cfg-eval-ladder
@@ -519,6 +521,19 @@ SWALLOWED_B7B_ARCH_EXPERIMENT_LIST=1
 B7B_ARCH_EXPERIMENT_LIST_SWALLOWED=1
 B7B_ARCH_EXPERIMENT_LIST_MK=mk/archaeology_experiment_objs.mk
 B7B_ARCH_EXPERIMENT_LIST_WAVE=wave821
+# wave822: B7B RELINK + LEGACY_XLANG_C inventories → mk/driver_seed_composites.mk (G.7).
+# RELINK_XLANG_PREREQS fixed multi-token authority COUNT=14 (13 path .o/.c +
+# build-seed-asm-host phony) + LEGACY_XLANG_C_LINK_BASE/USER_ASM_LINK/PREREQS.
+# NOT physical delete — thin edges + other lists + std_core graph remain.
+PHYS_DEL_B7B_RELINK_LEGACY_LIST=1
+PHYS_DEL_B7B_RELINK_LEGACY_LIST_WAVE=wave822
+PHYS_DEL_B7B_RELINK_LEGACY_LIST_COUNT=14
+PHYS_DEL_B7B_RELINK_LEGACY_LIST_VIA=mk_driver_seed_composites
+PHYS_DEL_B7B_RELINK_LEGACY_LIST_NOTE=list_authority_mk_include_only_thin_edges_remain
+SWALLOWED_B7B_RELINK_LEGACY_LIST=1
+B7B_RELINK_LEGACY_LIST_SWALLOWED=1
+B7B_RELINK_LEGACY_LIST_MK=mk/driver_seed_composites.mk
+B7B_RELINK_LEGACY_LIST_WAVE=wave822
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -668,9 +683,9 @@ PHYS_DEL_PREFLIGHT_B7D_G05=1
 PHYS_DEL_PREFLIGHT_B7A_COLD_0MAKE=1
 PHYS_DEL_PREFLIGHT_B7B_SHELL_CATALOG=1
 PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113
-# wave811–820: std_x / formal_mod / STD_AND_PANIC / driver_leaf / archaeology /
+# wave811–822: std_x / formal_mod / STD_AND_PANIC / driver_leaf / archaeology /
 # DRIVER_SUBCMD / PIPELINE_X / SEED_MODE / SEED_LINK_PICKS / OBJS_CORE /
-# ARCH_EXPERIMENT list swallowed;
+# ARCH_EXPERIMENT / RELINK_LEGACY list swallowed;
 # blocker name kept (thin edges + B2 ensure + remaining B7B mk lists still form make graph).
 PHYS_DEL_PREFLIGHT_BLOCKERS=makefile_thin_call_edges|b7b_lists_in_mk|std_core_product_make_graph
 PHYS_DEL_PREFLIGHT_STD_X_HYBRID_BODY_SWALLOWED=1
@@ -684,8 +699,9 @@ PHYS_DEL_PREFLIGHT_B7B_SEED_MODE_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_SEED_LINK_PICKS_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_OBJS_CORE_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_ARCH_EXPERIMENT_LIST=1
+PHYS_DEL_PREFLIGHT_B7B_RELINK_LEGACY_LIST=1
 PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
+PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_PREFLIGHT_WIN_GATE_HOST=MSYS2_windows-server_dual_boot_reboot_required
 PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
@@ -1307,6 +1323,9 @@ else
   if ! grep -qE 'wave821|ARCH_EXPERIMENT|archaeology_experiment' "$DOC_REL"; then
     bad "$DOC_REL must document wave821 B7B archaeology experiment list → mk"
   fi
+  if ! grep -qE 'wave822|RELINK_LEGACY|RELINK_XLANG_PREREQS|LEGACY_XLANG_C' "$DOC_REL"; then
+    bad "$DOC_REL must document wave822 B7B RELINK/LEGACY list → mk"
+  fi
   note "doc $DOC_REL present"
 fi
 
@@ -1903,6 +1922,21 @@ if ! grep -q 'SWALLOWED_B7B_ARCH_EXPERIMENT_LIST=1' <<<"$_out"; then
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_B7B_ARCH_EXPERIMENT_LIST=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_B7B_ARCH_EXPERIMENT_LIST=1 (wave821)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_RELINK_LEGACY_LIST=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_RELINK_LEGACY_LIST=1 (wave822)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_RELINK_LEGACY_LIST_WAVE=wave822' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_RELINK_LEGACY_LIST_WAVE=wave822"
+fi
+if ! grep -q 'PHYS_DEL_B7B_RELINK_LEGACY_LIST_COUNT=14' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_RELINK_LEGACY_LIST_COUNT=14 (wave822)"
+fi
+if ! grep -q 'SWALLOWED_B7B_RELINK_LEGACY_LIST=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_B7B_RELINK_LEGACY_LIST=1 (wave822)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_B7B_RELINK_LEGACY_LIST=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_B7B_RELINK_LEGACY_LIST=1 (wave822)"
 fi
 if ! grep -q 'PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813"
@@ -2769,6 +2803,81 @@ if grep -nE 'catalog_set DRIVER_NO_C_FRONTEND_OBJS "' "$_cat_sh" 2>/dev/null | g
   bad "catalog must not hardcode DRIVER_NO_C_FRONTEND_OBJS (wave821 dual authority)"
 fi
 note "B7B archaeology experiment list authority in mk (EXPERIMENT 7; wave821; not physical delete)"
+# wave822: B7B RELINK + LEGACY list authority in composites.mk; Makefile include only.
+_COMP_MK="compiler/mk/driver_seed_composites.mk"
+if [ ! -f "$_COMP_MK" ]; then
+  bad "missing $_COMP_MK (wave822 B7B RELINK/LEGACY list authority)"
+fi
+if ! grep -qE '^RELINK_XLANG_PREREQS\s*=' "$_COMP_MK"; then
+  bad "$_COMP_MK must define RELINK_XLANG_PREREQS (wave822)"
+fi
+if ! grep -qE '^LEGACY_XLANG_C_PREREQS\s*:?=' "$_COMP_MK"; then
+  bad "$_COMP_MK must define LEGACY_XLANG_C_PREREQS (wave822)"
+fi
+if ! grep -qE '^LEGACY_XLANG_C_LINK_BASE\s*:?=' "$_COMP_MK"; then
+  bad "$_COMP_MK must define LEGACY_XLANG_C_LINK_BASE (wave822)"
+fi
+if ! grep -qE '^LEGACY_XLANG_C_USER_ASM_LINK\s*:?=' "$_COMP_MK"; then
+  bad "$_COMP_MK must define LEGACY_XLANG_C_USER_ASM_LINK (wave822)"
+fi
+# Fixed RELINK multi-token authority COUNT=14 (non-$(...) tokens on continued lines).
+_rl_n=$(awk '
+  /^RELINK_XLANG_PREREQS[[:space:]]*=/ { grab=1 }
+  grab {
+    line=$0
+    sub(/^[^=]*=[[:space:]]*/, "", line)
+    gsub(/\\/, "", line)
+    n=split(line, a, /[[:space:]]+/)
+    for (i=1;i<=n;i++) {
+      if (a[i] == "") continue
+      if (a[i] ~ /^\$\(/) continue
+      c++
+    }
+    if ($0 !~ /\\[[:space:]]*$/) { print c+0; exit }
+  }
+' "$_COMP_MK")
+if [ "${_rl_n:-0}" -ne 14 ]; then
+  bad "wave822 expected RELINK fixed multi-token count 14 in mk, got ${_rl_n:-0}"
+fi
+if ! grep -qE 'include[[:space:]]+mk/driver_seed_composites\.mk' "$MF"; then
+  bad "Makefile must include mk/driver_seed_composites.mk (wave822)"
+fi
+# Forbid dual authority: inline re-list of RELINK/LEGACY inventories.
+if grep -nE '^RELINK_XLANG_PREREQS[[:space:]]*=' "$MF" 2>/dev/null | grep -qE 'build-seed-asm-host|driver_x\.o|lsp_io_gen\.c'; then
+  bad "Makefile must not re-list RELINK_XLANG_PREREQS inline (wave822 dual authority)"
+else
+  note "Makefile RELINK_XLANG_PREREQS has no dual inline list (wave822)"
+fi
+if grep -nE '^LEGACY_XLANG_C_PREREQS[[:space:]]*:?=' "$MF" 2>/dev/null | grep -qE 'pipeline_glue_strict_minimal\.o|ast_gen2\.o'; then
+  bad "Makefile must not re-list LEGACY_XLANG_C_PREREQS inline (wave822 dual authority)"
+else
+  note "Makefile LEGACY_XLANG_C_PREREQS has no dual inline list (wave822)"
+fi
+if grep -nE '^LEGACY_XLANG_C_LINK_BASE[[:space:]]*:?=' "$MF" 2>/dev/null | grep -qE 'BOOTSTRAP_DRIVER_SEED_LINK_BASE'; then
+  bad "Makefile must not re-list LEGACY_XLANG_C_LINK_BASE inline (wave822 dual authority)"
+else
+  note "Makefile LEGACY_XLANG_C_LINK_BASE has no dual inline list (wave822)"
+fi
+# Consumers: typeck/codegen / LEGACY XLANG_C recipe still expand the vars.
+if ! grep -qE '\$\(RELINK_XLANG_PREREQS\)' "$MF"; then
+  bad "Makefile must still consume \$(RELINK_XLANG_PREREQS) (wave822 consumers)"
+fi
+if ! grep -qE '\$\(LEGACY_XLANG_C_PREREQS\)|\$\(LEGACY_XLANG_C_LINK_BASE\)' "$MF"; then
+  bad "Makefile must still consume \$(LEGACY_XLANG_C_*) (wave822 consumers)"
+fi
+# Catalog already parses composites.mk (wave728/788); must not hardcode RELINK/LEGACY.
+_cat_sh="$ROOT/compiler/scripts/driver_seed_obj_catalog.sh"
+[ -f "$_cat_sh" ] || _cat_sh="scripts/driver_seed_obj_catalog.sh"
+if ! grep -q 'mk/driver_seed_composites.mk' "$_cat_sh"; then
+  bad "driver_seed_obj_catalog.sh must parse mk/driver_seed_composites.mk (wave822)"
+fi
+if grep -nE 'catalog_set RELINK_XLANG_PREREQS "' "$_cat_sh" 2>/dev/null | grep -qE 'build-seed-asm-host|driver_x'; then
+  bad "catalog must not hardcode RELINK_XLANG_PREREQS (wave822 dual authority)"
+fi
+if grep -nE 'catalog_set LEGACY_XLANG_C_PREREQS "' "$_cat_sh" 2>/dev/null | grep -qE 'pipeline_glue|ast_gen2'; then
+  bad "catalog must not hardcode LEGACY_XLANG_C_PREREQS (wave822 dual authority)"
+fi
+note "B7B RELINK/LEGACY list authority in composites.mk (RELINK fixed 14; wave822; not physical delete)"
 
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
@@ -3332,5 +3441,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747–821: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave812 formal_mod ensure 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave815 archaeology host-pick phonies 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2 + wave820 OBJS_CORE list→mk 16 + wave821 ARCH_EXPERIMENT list→mk 7; Makefile still present; delete body deferred)"
+echo "leaf_pattern_residual: CHECK OK (wave747–822: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave812 formal_mod ensure 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave815 archaeology host-pick phonies 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2 + wave820 OBJS_CORE list→mk 16 + wave821 ARCH_EXPERIMENT list→mk 7 + wave822 RELINK/LEGACY list→composites 14; Makefile still present; delete body deferred)"
 exit 0

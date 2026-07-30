@@ -1,4 +1,4 @@
-# driver_seed_composites.mk — wave728 · 11.0.4
+# driver_seed_composites.mk — wave728 · 11.0.4 · wave822 B7B 有则补全
 #
 # Single-authority *composite* object lists for bootstrap-driver-seed /
 # phase1 / final / relink (not the §5b leaf rebuild lists — those live in
@@ -9,10 +9,16 @@
 #   PREPROCESS_LINK_O, LEXER_LINK_O, AST_LINK_O, DRIVER_SEED_FRONTEND_EXTRA,
 #   DRIVER_SEED_SUPPORT_EXTRA, DRIVER_SUBCMD_OBJS, DRIVER_SUBCMD_GEN,
 #   LSP_DIAG_LINK_O, PIPELINE_LIBS, BOOTSTRAP_DRIVER_SEED_PIPELINE_LINK_O,
-#   USER_ASM_SEED_OBJS, XLANG_C
+#   USER_ASM_SEED_OBJS, USER_ASM_SEED_HOST_OBJS, USER_ASM_SEED_HOST_STUBS,
+#   BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS, RELINK_XLANG_FILTERED_OBJS,
+#   RELINK_XLANG_PIPELINE_LINK_O, XLANG_C
 #
 # G.7: Definitions live only here. Makefile must include, not re-assign.
 # Shell / xbuild consume via driver_seed_obj_catalog.sh (wave788 shell primary).
+#
+# wave822: LEGACY_XLANG_C_* + RELINK_XLANG_PREREQS moved from Makefile inline
+# (list residual of b7b_lists_in_mk). NOT physical delete — thin edges + other
+# mk lists + std_core product make graph still residual.
 #
 # PLATFORM: SHARED — composite paths under compiler/; host-filtered pieces
 # come from already-resolved vars (Darwin filtered pipeline, etc.).
@@ -34,3 +40,23 @@ BOOTSTRAP_DRIVER_SEED_LINK_BASE = $(DRIVER_SEED_OBJS) driver_x.o $(BOOTSTRAP_DRI
 # Prerequisites for bootstrap-driver-seed orchestration (objs + gen sources).
 # lsp_io_std_heap: Track L retired — product chain only needs lsp_io_std_heap_x.o.
 DRIVER_SEED_PREREQS = $(XLANG_C) pipeline_x.o parser_x.o lexer_x.o typeck_x.o codegen_x.o x_frontend_link_alias.o driver_x.o preprocess_x.o lsp_io_gen.c lsp_gen.c lsp_diag_gen.c $(DRIVER_SUBCMD_GEN) $(MAIN_LINK_REBUILD) src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_O) $(RT_SEED_SLICE_OBJS) runtime_process_argv.o src/driver/fmt_check_cmd_driver.o $(PREPROCESS_LINK_O) $(LEXER_LINK_O) $(AST_LINK_O) $(DRIVER_SEED_FRONTEND_EXTRA) $(DRIVER_SEED_SUPPORT_EXTRA) src/x_seed_bridge.o src/seed_link_compat.o src/runtime_driver_strict_glue_stubs.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(DRIVER_SUBCMD_OBJS) $(USER_ASM_SEED_OBJS)
+
+# wave822 B7B: legacy xlang-c reuses bootstrap-driver-seed closure (no second hand
+# inventory). LINK_BASE / USER_ASM_LINK / PREREQS expand composites + fixed glue.
+# COUNT authority for residual honesty = RELINK_XLANG_PREREQS fixed multi-token
+# inventory (14 non-$(...) tokens; 13 path .o/.c + build-seed-asm-host phony).
+LEGACY_XLANG_C_LINK_BASE := $(BOOTSTRAP_DRIVER_SEED_LINK_BASE)
+LEGACY_XLANG_C_USER_ASM_LINK := $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS)
+LEGACY_XLANG_C_PREREQS := $(LEGACY_XLANG_C_LINK_BASE) $(LEGACY_XLANG_C_USER_ASM_LINK) build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o ast_gen2.o
+
+# Relink / archaeology bootstrap-typeck|codegen prereq closure — same object set
+# as bootstrap-driver-seed link (plus gen sources + asm-host). Product daily
+# relink-xlang is g05 (wave786); this list remains inventory + late consumers.
+# Fixed multi-token authority surface COUNT=14 (see residual wave822).
+RELINK_XLANG_PREREQS = build-seed-asm-host $(RELINK_XLANG_FILTERED_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(DRIVER_SUBCMD_GEN) \
+  $(DRIVER_SEED_OBJS) driver_x.o pipeline_x.o $(RELINK_XLANG_PIPELINE_LINK_O) \
+  lsp_io_gen.c lsp_gen.c lsp_diag_gen.c lsp_io_std_heap_gen.c \
+  lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o \
+  $(DRIVER_SUBCMD_OBJS) \
+  $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o \
+  src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o
