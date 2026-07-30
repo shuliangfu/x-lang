@@ -22,7 +22,8 @@
 #   export-try-heat-cflags when unset (same authority as try-heat / migrate).
 #
 # PLATFORM: SHARED — host-cc residual for G-05 entry until BC retires build_tool C.
-# Wave: 718 Track MG · wave866 B7B CFLAGS shell-load · pairs with Makefile thin leaf
+# Wave: 718 Track MG · wave866 B7B CFLAGS shell-load · wave866 fix: bash recipe +
+#   no bash <<< (Ubuntu dash if ever invoked via sh) · pairs with Makefile thin leaf
 #   + xlang-build direct call. NOT physical delete.
 
 set -euo pipefail
@@ -90,7 +91,7 @@ if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
     grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
     grab {print}
   ' "$MF")
-  if grep -qE 'WIN32_O_CFLAGS=' <<<"$_win"; then
+  if printf '%s\n' "$_win" | grep -qE 'WIN32_O_CFLAGS='; then
     fail "crt0_mingw must not inject WIN32_O_CFLAGS= (wave866; shell \${WIN32_O_CFLAGS:-})"
   fi
   echo "build_tool: CHECK OK (wave866 CFLAGS shell-load + WIN32_O drop; not physical delete)" >&2

@@ -2977,7 +2977,7 @@ first-time: build-tool
 # NOT physical delete — thin edges + B2 + mk lists remain residual.
 build-tool:
 	@CC='$(CC)' XLANG_BUILD_TOOL_REGEN="$${XLANG_BUILD_TOOL_REGEN:-0}" \
-	  sh scripts/build_tool.sh
+	  bash scripts/build_tool.sh
 
 # wave831: FORCE dep-thin — shell owns seed mtime (cc_inc_tu; not physical delete).
 # PLATFORM: SHARED — FORCE always invokes script (cheap mtime skip).

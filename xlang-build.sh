@@ -24,8 +24,9 @@ cd "$(dirname "$0")"
 TARGET="${1:-all}"
 
 # G.7: scripts/build_tool.sh is the only build_tool body (Makefile thin leaf).
+# wave866 fix: bash (not sh/dash) — script uses bash features + export-try-heat-cflags.
 run_build_tool_host() {
-  (cd compiler && sh scripts/build_tool.sh)
+  (cd compiler && bash scripts/build_tool.sh)
 }
 
 ensure_build_tool() {
