@@ -3810,14 +3810,22 @@ refresh_bstrict_link_variants() {
   fi
   fi
   BSTRICT_DISPATCH_OBJS="src/asm/backend_enc_dispatch.o $BSTRICT_BACKEND_X86_64_ENC_LINK src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o"
-  GEN_DRIVER_BSTRICT_COMPANIONS="src/runtime_io_abi.o $BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
+  # Keep full_link_stubs next to partial (same as module-level GEN_DRIVER_BSTRICT_COMPANIONS).
+  GEN_DRIVER_BSTRICT_COMPANIONS="src/runtime_io_abi.o $BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BUILD_DIR/seed_host/asm_full_link_stubs.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
 }
 
 # gen_driver 回退链须与 bootstrap-driver-seed 同款 companion：pipeline_x.o 引用 std_fs_shim / try_inline 分派等。
-GEN_DRIVER_BSTRICT_COMPANIONS="src/runtime_io_abi.o $BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
+# PLATFORM: SHARED — include asm_full_link_stubs after partial (g05 USER_ASM_LINK /
+#   Makefile USER_ASM_SEED_HOST_STUBS). PE hybrid needs strong platform_coff_* when
+#   partial is thin/stale; ELF uses them as U-fill too. Order: partial then stubs.
+GEN_DRIVER_BSTRICT_COMPANIONS="src/runtime_io_abi.o $BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BUILD_DIR/seed_host/asm_full_link_stubs.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
 
 # gen_driver 回退链：pipeline_x.o / runtime_driver 须 parser/lexer/codegen X + driver 子命令 + orchestration（Darwin 勿仅 SEED parser.o）。
-GEN_DRIVER_X_PIPELINE_COMPANIONS="parser_x.o lexer_x.o codegen_x.o x_frontend_link_alias.o driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o pipeline_bootstrap_orchestration.o src/runtime_driver_strict_glue_stubs.o"
+# PLATFORM: SHARED — do NOT put runtime_driver_strict_glue_stubs.o here. Stubs go at
+#   link END (GEN_DRIVER_GLUE_SUFFIX) so PE --allow-multiple-definition FIRST-wins
+#   keeps real pipeline_x / parser_x / typeck_x (Makefile DRIVER_SEED_GLUE_SUFFIX /
+#   g05 _GLUE_SUFFIX). Early stubs shadowed driver_get_module_num_funcs → num_funcs=0.
+GEN_DRIVER_X_PIPELINE_COMPANIONS="parser_x.o lexer_x.o codegen_x.o x_frontend_link_alias.o driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o pipeline_bootstrap_orchestration.o"
 
 # 与 Makefile bootstrap-driver-seed / relink-xlang 对齐：pipeline_x.o 经 glue 引用的 backend 桥与 check/fmt C 实现。
 ensure_bstrict_seed_support_objs() {
@@ -5851,9 +5859,15 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   ensure_asm_bootstrap_support_extra_objs
   ensure_asm_pipeline_glue_strict_minimal_obj
   BSTRICT_SEED_SUPPORT=$(asm_bootstrap_support_extra_link)
+  # PLATFORM: SHARED — strip early strict_glue from support bag; reals must link first
+  # so PE --allow-multiple-definition keeps pipeline_x/parser_x (Makefile L2008-2019).
+  BSTRICT_SEED_SUPPORT=$(echo "$BSTRICT_SEED_SUPPORT" | sed 's|[[:space:]]*src/runtime_driver_strict_glue_stubs\.o||g')
   BOOT_DRIVER_TAIL=$(bootstrap_link_tail_driver)
+  ASM_GLUE_DUP_LDFLAGS=$(asm_glue_duplicate_ldflags)
+  # Glue suffix at END only (once): mirrors DRIVER_SEED_GLUE_SUFFIX / g05 _GLUE_SUFFIX.
+  GEN_DRIVER_GLUE_SUFFIX="$BUILD_DIR/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o"
   # shellcheck disable=SC2086
-  "$CC" $CFLAGS $BOOT_ENTRY_LDFLAGS -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -o xlang_asm \
+  "$CC" $CFLAGS $BOOT_ENTRY_LDFLAGS $ASM_GLUE_DUP_LDFLAGS -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -o xlang_asm \
   $BOOT_ENTRY_OBJ \
   src/runtime_io_abi.o \
   src/runtime_link_abi.o \
@@ -5870,19 +5884,18 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   "$GEN_O/driver_check_x.o" \
   "$GEN_O/driver_test_x.o" \
   "$GEN_O/pipeline_x.o" \
-  "$BUILD_DIR/pipeline_glue_strict_minimal.o" \
   "$GEN_O/preprocess_x.o" \
   $GEN_DRIVER_TYPECK_COMPANIONS \
   $GEN_DRIVER_BSTRICT_COMPANIONS \
   $GEN_DRIVER_X_PIPELINE_COMPANIONS \
   "$GEN_O/lsp_x.o" \
-  "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" \
-  src/runtime_driver_strict_glue_stubs.o \
   "$GEN_O/lsp_io_x.o" \
   "$GEN_O/lsp_io_std_heap_x.o" \
   "$LSP_DIAG_SEED_O" \
   src/lsp/lsp_diag_pipeline_sizes.o \
   src/lsp/lsp_diag_pipeline_ctx.o \
+  "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" \
+  $GEN_DRIVER_GLUE_SUFFIX \
   $BOOT_DRIVER_TAIL
   FB_RC=$?
   set -e
@@ -5923,10 +5936,15 @@ else
   set +e
   ensure_runtime_driver_asm_strict_obj
   ensure_asm_bootstrap_support_extra_objs
+  ensure_asm_pipeline_glue_strict_minimal_obj
   BSTRICT_SEED_SUPPORT=$(asm_bootstrap_support_extra_link)
+  # PLATFORM: SHARED — same PE first-wins glue-end discipline as main gen_driver hybrid.
+  BSTRICT_SEED_SUPPORT=$(echo "$BSTRICT_SEED_SUPPORT" | sed 's|[[:space:]]*src/runtime_driver_strict_glue_stubs\.o||g')
   BOOT_DRIVER_TAIL=$(bootstrap_link_tail_driver)
+  ASM_GLUE_DUP_LDFLAGS=$(asm_glue_duplicate_ldflags)
+  GEN_DRIVER_GLUE_SUFFIX="$BUILD_DIR/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o"
   # shellcheck disable=SC2086
-  "$CC" $CFLAGS $BOOT_ENTRY_LDFLAGS -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -o xlang_asm \
+  "$CC" $CFLAGS $BOOT_ENTRY_LDFLAGS $ASM_GLUE_DUP_LDFLAGS -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -o xlang_asm \
   $BOOT_ENTRY_OBJ \
   src/runtime_io_abi.o \
   src/runtime_link_abi.o \
@@ -5948,14 +5966,14 @@ else
   $GEN_DRIVER_BSTRICT_COMPANIONS \
   $GEN_DRIVER_X_PIPELINE_COMPANIONS \
   "$GEN_O/lsp_x.o" \
-  "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" \
   "$BUILD_DIR/typeck_lsp_io_stub.o" \
-  src/runtime_driver_strict_glue_stubs.o \
   "$GEN_O/lsp_io_x.o" \
   "$GEN_O/lsp_io_std_heap_x.o" \
   "$LSP_DIAG_SEED_O" \
   src/lsp/lsp_diag_pipeline_sizes.o \
   src/lsp/lsp_diag_pipeline_ctx.o \
+  "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" \
+  $GEN_DRIVER_GLUE_SUFFIX \
   $BOOT_DRIVER_TAIL
   FB_RC=$?
   set -e
