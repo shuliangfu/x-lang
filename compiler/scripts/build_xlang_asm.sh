@@ -4246,7 +4246,12 @@ ensure_asm_gen_driver_x_objs() {
   echo " pinned driver_gen.c -> $GEN_DIR/driver_gen.c ($(wc -c <driver_gen.c | tr -d ' ') bytes)"
   cp -f driver_gen.c "$GEN_DIR/driver_gen.c"
   else
+  # PLATFORM: SHARED — parity with scripts/ensure_driver_gen.sh: try xlang-x / xlang-c -E,
+  # then seed fallback. Empty -E must not leave 0-byte driver_gen (Windows hybrid gate
+  # previously died here when workspace pin was older than MAIN_X_DEPS).
   driver_gen_tmp="$GEN_DIR/driver_gen.c.tmp"
+  driver_gen_seed="seeds/driver_gen.linux.x86_64.c"
+  driver_gen_ok=0
   rm -f "$driver_gen_tmp"
   if [ -x ./xlang-x ]; then
   echo " ./xlang-x -x -E main.x (-E-extern) -> $GEN_DIR/driver_gen.c ..."
@@ -4254,10 +4259,32 @@ ensure_asm_gen_driver_x_objs() {
   fi
   if [ -s "$driver_gen_tmp" ] && grep -q 'argc < 3' "$driver_gen_tmp" && grep -q 'main_eq_minus_E(arg_buf, len) != 0' "$driver_gen_tmp"; then
   mv -f "$driver_gen_tmp" "$GEN_DIR/driver_gen.c"
+  driver_gen_ok=1
   else
   rm -f "$driver_gen_tmp"
   echo " $XLANG_E -E main.x (-E-extern) -> $GEN_DIR/driver_gen.c ..."
-  "$XLANG_E" $LIB_E_MAIN src/main.x -E -E-extern >"$GEN_DIR/driver_gen.c"
+  "$XLANG_E" $LIB_E_MAIN src/main.x -E -E-extern >"$driver_gen_tmp" 2>/dev/null || true
+  if [ -s "$driver_gen_tmp" ] && grep -q 'argc < 3' "$driver_gen_tmp" && grep -q 'main_eq_minus_E(arg_buf, len) != 0' "$driver_gen_tmp"; then
+  mv -f "$driver_gen_tmp" "$GEN_DIR/driver_gen.c"
+  driver_gen_ok=1
+  else
+  rm -f "$driver_gen_tmp"
+  if [ -f "$driver_gen_seed" ] && [ -s "$driver_gen_seed" ]; then
+  echo " driver_gen: -E failed/empty; fallback seed $driver_gen_seed (ensure_driver_gen parity)"
+  cp -f "$driver_gen_seed" "$GEN_DIR/driver_gen.c"
+  # Keep workspace pin warm so a later pin-check can skip broken tip -E.
+  cp -f "$driver_gen_seed" driver_gen.c
+  touch driver_gen.c
+  driver_gen_ok=1
+  else
+  echo " driver_gen: FAIL (-E failed and no seed $driver_gen_seed)" >&2
+  : >"$GEN_DIR/driver_gen.c"
+  fi
+  fi
+  fi
+  if [ "$driver_gen_ok" != "1" ]; then
+  echo "ensure_asm_gen_driver_x_objs: driver_gen.c missing/empty after pin/-E/seed" >&2
+  return 1
   fi
   fi
   dedupe_xlang_slice_struct "$GEN_DIR/driver_gen.c"

@@ -2323,13 +2323,14 @@ function pipeline_typeck_field_reverse_infer_base_type_strict_minimal(module: *u
       if (fjl == fl) {
         let fjn: u8[128] = [];
         pipeline_module_struct_layout_field_name_into(module, k, j, &fjn[0]);
-        let match: i32 = 1;
+        /* name_eq: not `match` — `match` is a reserved keyword (match expr). */
+        let name_eq: i32 = 1;
         let bi: i32 = 0;
         while (bi < fl) {
-          if (fjn[bi] != fn_buf[bi]) { match = 0; }
+          if (fjn[bi] != fn_buf[bi]) { name_eq = 0; }
           bi = bi + 1;
         }
-        if (match != 0) {
+        if (name_eq != 0) {
           let lnl: i32 = pipeline_module_struct_layout_name_len(module, k);
           if (lnl > 0) {
             // wave587 Cap residual: layout name content ≤127 (lnm[128]).
@@ -2607,12 +2608,13 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
                   let snm: u8[128] = [];
                   pipeline_module_struct_layout_name_into(module, sk, &snm[0]);
                   let bi: i32 = 0;
-                  let match: i32 = 1;
+                  /* name_eq: not `match` — `match` is a reserved keyword (match expr). */
+                  let name_eq: i32 = 1;
                   while (bi < gnl) {
-                    if (snm[bi] != gnm[bi]) { match = 0; }
+                    if (snm[bi] != gnm[bi]) { name_eq = 0; }
                     bi = bi + 1;
                   }
-                  if (match != 0) { concrete = 1; }
+                  if (name_eq != 0) { concrete = 1; }
                 }
                 sk = sk + 1;
               }

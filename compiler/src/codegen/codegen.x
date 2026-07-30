@@ -5691,14 +5691,15 @@ function codegen_type_ref_is_host_concrete(module: *Module, arena: *ASTArena, ty
         let snm: u8[128] = [];
         pipeline_module_struct_layout_name_into(module, sk, &snm[0]);
         let bi: i32 = 0;
-        let match: i32 = 1;
+        /* name_eq: not `match` — `match` is a reserved keyword (match expr). */
+        let name_eq: i32 = 1;
         while (bi < nl) {
           if (snm[bi] != nm[bi]) {
-            match = 0;
+            name_eq = 0;
           }
           bi = bi + 1;
         }
-        if (match != 0) {
+        if (name_eq != 0) {
           let ntp: i32 = pipeline_module_struct_layout_num_type_params_at(module, sk);
           if (ntp <= 0) {
             return 1;
@@ -5775,14 +5776,15 @@ export function codegen_resolve_generic_struct_field_type(module: *Module, arena
         let snm: u8[128] = [];
         pipeline_module_struct_layout_name_into(module, sk, &snm[0]);
         let bi: i32 = 0;
-        let match: i32 = 1;
+        /* name_eq: not `match` — `match` is a reserved keyword (match expr). */
+        let name_eq: i32 = 1;
         while (bi < ftnl) {
           if (snm[bi] != ftn[bi]) {
-            match = 0;
+            name_eq = 0;
           }
           bi = bi + 1;
         }
-        if (match != 0) {
+        if (name_eq != 0) {
           return ftr;
         }
       }
@@ -7815,8 +7817,8 @@ export function codegen_emit_companion_named_slice_layout(out: *CodegenOutBuf, p
  * PLATFORM: SHARED host-C
  */
 export function codegen_emit_module_struct_definitions(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, struct_prefix: *u8, struct_prefix_len: i32, ctx: *PipelineDepCtx): i32 {
-  /**
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // (Do not leave a stray `/**` here: unclosed block comment → L001 swallows the rest of the file.)
   unsafe {
     let cur_di: i32 = -1;
     if (ctx != 0 as *PipelineDepCtx) {
