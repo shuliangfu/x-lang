@@ -200,6 +200,10 @@
 #            nested $(MAKE) → thin ensure after bootstrap_xlangc (1);
 #            shell owns mkdir/stamp/ensure; NOT physical delete — thin edges +
 #            B2 + mk lists remain
+#   wave890: B7B residual bulk @sh → @bash thin-call form hygiene (77 sites) →
+#            formal_mod 38 + std_x 22 + migrate 4 + eoo/tests/verify 3 + g05 4 +
+#            clean/token/refresh/cc_inc/driver_bstrict 6; pure `@bash scripts/…`;
+#            NOT physical delete — thin edges + B2 + mk lists remain
 #   wave856: B7B archaeology LINK_OBJS shell-load via make export leaves (5 bags /
 #            6 shells; nested expand; Makefile drops multi-token LINK_OBJS env;
 #            NOT physical delete — CFLAGS env + thin edges + B2 remain)
@@ -1561,6 +1565,26 @@ SWALLOWED_B7B_NON_THIN_RECIPE_BODY_HYGIENE=1
 B7B_NON_THIN_RECIPE_BODY_HYGIENE_SWALLOWED=1
 B7B_NON_THIN_RECIPE_BODY_HYGIENE_WAVE=wave889
 B7B_NON_THIN_RECIPE_BODY_HYGIENE_COUNT=10
+# wave890: B7B residual bulk @sh → @bash thin-call form hygiene.
+# COUNT = 77 recipe sites closed (all remaining `\t@sh scripts/` → `@bash scripts/`):
+#   38 formal_mod xlang_compile_std_module ensure
+#   22 std_x xlang_compile_std_x ensure
+#   4 migrate_x_objs
+#   2 run_compiler_tests + 1 bootstrap_verify_bstrict
+#   2 g05_prepare_and_relink + 1 g05_relink_env + 1 g05_ensure_relink_prereqs
+#   1 clean_compiler + 2 bootstrap_token_lexer_smoke + 1 refresh_xlang_asm_gate
+#   1 cc_inc_tu + 1 bootstrap_driver_bstrict
+# Authority: pure @bash thin-call form (G.7 有则补全 wave888/889 form).
+# NOT physical delete — thin edges + B2 + mk lists remain.
+PHYS_DEL_B7B_BULK_SH_TO_BASH_FORM_HYGIENE=1
+PHYS_DEL_B7B_BULK_SH_TO_BASH_FORM_HYGIENE_WAVE=wave890
+PHYS_DEL_B7B_BULK_SH_TO_BASH_FORM_HYGIENE_COUNT=77
+PHYS_DEL_B7B_BULK_SH_TO_BASH_FORM_HYGIENE_VIA=bulk_at_sh_scripts_to_at_bash_scripts_formal_mod_std_x_migrate_eoo_g05
+PHYS_DEL_B7B_BULK_SH_TO_BASH_FORM_HYGIENE_NOTE=makefile_no_at_sh_scripts_pure_bash_thin_call_form_thin_edges_remain
+SWALLOWED_B7B_BULK_SH_TO_BASH_FORM_HYGIENE=1
+B7B_BULK_SH_TO_BASH_FORM_HYGIENE_SWALLOWED=1
+B7B_BULK_SH_TO_BASH_FORM_HYGIENE_WAVE=wave890
+B7B_BULK_SH_TO_BASH_FORM_HYGIENE_COUNT=77
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -4342,8 +4366,8 @@ _stdx_thin=0
 for _leaf in "${_stdx_leaves[@]}"; do
   if awk -v leaf="../std/${_leaf}.o" '
     $0 ~ ("^" leaf ":") { want=1; next }
-    want && /^\t@sh scripts\/xlang_compile_std_x\.sh (ensure|auto) \$@/ { ok=1; exit }
-    want && /^\t@sh scripts\/xlang_compile_std_x\.sh (auto|auto-soft|auto-soft-merge) / { ok=1; exit }
+    want && /^\t@bash scripts\/xlang_compile_std_x\.sh (ensure|auto) \$@/ { ok=1; exit }
+    want && /^\t@bash scripts\/xlang_compile_std_x\.sh (auto|auto-soft|auto-soft-merge) / { ok=1; exit }
     want && /^\t/ { next }
     want && /^[^#\t]/ && $0 !~ /^$/ { exit }
     END { exit ok ? 0 : 1 }
@@ -4361,8 +4385,8 @@ fi
 # wave825: no explicit mode|path on recipe (catalog owns mode).
 _stdx_explicit=0
 if awk '
-  /^\t@sh scripts\/xlang_compile_std_x\.sh (auto-soft|auto-soft-merge|auto-merge) / { bad=1; exit }
-  /^\t@sh scripts\/xlang_compile_std_x\.sh auto \.\./ { bad=1; exit }
+  /^\t@(bash|sh) scripts\/xlang_compile_std_x\.sh (auto-soft|auto-soft-merge|auto-merge) / { bad=1; exit }
+  /^\t@(bash|sh) scripts\/xlang_compile_std_x\.sh auto \.\./ { bad=1; exit }
   END { exit bad ? 0 : 1 }
 ' "$MF"; then
   bad "Makefile still has explicit std_x mode+path recipes (wave825 must ensure only)"
@@ -4464,7 +4488,7 @@ if [ "$_fm_thin" -ne 38 ]; then
 fi
 note "Makefile formal_mod 38 leaves thin-call ensure (wave812; not physical delete)"
 # no residual explicit source lists after ensure in formal recipe bodies
-if grep -nE '^\t@?sh scripts/xlang_compile_std_module\.sh (--bare-impl )?[.]{0,2}/' "$MF" 2>/dev/null \
+if grep -nE '^\t@(bash|sh) scripts/xlang_compile_std_module\.sh (--bare-impl )?[.]{0,2}/' "$MF" 2>/dev/null \
   | grep -v ensure | grep -v auto | head -1 | grep -q .; then
   bad "Makefile formal_mod still has explicit-source std_module calls (wave812 must ensure)"
 else
@@ -6854,9 +6878,9 @@ if [ -n "${_mig_env_hits:-}" ]; then
   bad "Makefile migrate_x_objs recipes still multi-token inject CC/PYTHON/MAKE (wave878)"
   echo "$_mig_env_hits" | head -10 >&2
 fi
-_mig_thin_n=$(grep -cE $'^\t@sh scripts/migrate_x_objs\\.sh' "$MF" 2>/dev/null || echo 0)
+_mig_thin_n=$(grep -cE $'^\t@bash scripts/migrate_x_objs\\.sh' "$MF" 2>/dev/null || echo 0)
 if [ "${_mig_thin_n:-0}" -lt 4 ]; then
-  bad "Makefile migrate_x_objs thin @sh count expected >=4 got ${_mig_thin_n} (wave878)"
+  bad "Makefile migrate_x_objs thin @bash count expected >=4 got ${_mig_thin_n} (wave878/890)"
 fi
 if ! grep -q 'wave878' "$MF" 2>/dev/null; then
   bad "Makefile must document wave878 migrate env hygiene"
@@ -6925,17 +6949,12 @@ if [ -n "${_ensure_out_opt_hits:-}" ]; then
   bad "Makefile ENSURE/OUT/all OPT recipes still multi-token inject (wave880)"
   echo "$_ensure_out_opt_hits" | head -15 >&2
 fi
-# thin pure @bash/@sh for the 7 wave880 shells
-# all + seed-x-frontend + legacy + xnc = 4 bash; test_c + test_x + check-7.2-bstrict = 3 sh
-_eoo_bash_n=$(grep -cE $'^\t@bash scripts/(compiler_all_ci|bootstrap_driver_seed_x_frontend|legacy_xlang_c_link|xlang_no_c_frontend)\\.sh' "$MF" 2>/dev/null || echo 0)
-_eoo_sh_n=$(grep -cE $'^\t@sh scripts/(run_compiler_tests|bootstrap_verify_bstrict)\\.sh' "$MF" 2>/dev/null || echo 0)
-# run_compiler_tests appears twice (c + x) → sh count >= 3; bash >= 3 (legacy is under ifeq)
-# legacy may be present once under ifeq; count bash targets that always expand: all, seed-x-frontend, xnc = 3
-if [ "${_eoo_bash_n:-0}" -lt 3 ]; then
-  bad "Makefile wave880 thin @bash count expected >=3 got ${_eoo_bash_n} (wave880)"
-fi
-if [ "${_eoo_sh_n:-0}" -lt 3 ]; then
-  bad "Makefile wave880 thin @sh count expected >=3 got ${_eoo_sh_n} (wave880)"
+# thin pure @bash for the 7 wave880 shells (wave890 bulk @sh→@bash form)
+# all + seed-x-frontend + legacy + xnc + test_c + test_x + check-7.2-bstrict
+_eoo_bash_n=$(grep -cE $'^\t@bash scripts/(compiler_all_ci|bootstrap_driver_seed_x_frontend|legacy_xlang_c_link|xlang_no_c_frontend|run_compiler_tests|bootstrap_verify_bstrict)\\.sh' "$MF" 2>/dev/null || echo 0)
+# run_compiler_tests ×2 + verify + always-present bash targets ≥ 6 (legacy under ifeq optional)
+if [ "${_eoo_bash_n:-0}" -lt 6 ]; then
+  bad "Makefile wave880 thin @bash count expected >=6 got ${_eoo_bash_n} (wave880/890)"
 fi
 if ! grep -q 'wave880' "$MF" 2>/dev/null; then
   bad "Makefile must document wave880 ENSURE/OUT/OPT env hygiene"
@@ -7205,6 +7224,26 @@ if ! grep -q 'PHYS_DEL_B7B_NON_THIN_RECIPE_BODY_HYGIENE_COUNT=10' <<<"$_out"; th
   bad "dump must set PHYS_DEL_B7B_NON_THIN_RECIPE_BODY_HYGIENE_COUNT=10 (wave889)"
 fi
 note "B7B residual non-thin recipe body hygiene (COUNT=10; wave889; not physical delete)"
+# wave890: bulk residual @sh scripts/ → pure @bash scripts/ thin-call form
+if grep -nE $'^\t@sh scripts/' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile still uses @sh scripts/ recipe form (wave890; use @bash scripts/)"
+  grep -nE $'^\t@sh scripts/' "$MF" | head -10 >&2
+fi
+_bash_thin_n=$(grep -cE $'^\t@bash scripts/' "$MF" 2>/dev/null || true)
+_bash_thin_n=${_bash_thin_n:-0}
+if [ "$_bash_thin_n" -lt 200 ]; then
+  bad "Makefile @bash scripts/ thin-call count expected >=200 got ${_bash_thin_n} (wave890)"
+fi
+if ! grep -q 'wave890' "$MF" 2>/dev/null; then
+  bad "Makefile must document wave890 bulk @sh→@bash form hygiene"
+fi
+if ! grep -q 'PHYS_DEL_B7B_BULK_SH_TO_BASH_FORM_HYGIENE=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_BULK_SH_TO_BASH_FORM_HYGIENE=1 (wave890)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_BULK_SH_TO_BASH_FORM_HYGIENE_COUNT=77' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_BULK_SH_TO_BASH_FORM_HYGIENE_COUNT=77 (wave890)"
+fi
+note "B7B residual bulk @sh→@bash form hygiene (COUNT=77; wave890; not physical delete)"
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
   PHYS_DEL_BUCKET_B1_BODY_SWALLOWED=1 \

@@ -163,7 +163,8 @@ XLANG_X = xlang-x
 ../std/string/string.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+# wave890 B7B residual: bulk @sh → pure @bash thin-call form (formal_mod/std_x/migrate/eoo).
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # std.path：保留 mod.x 作为 F-path v1 源码锚点；path.o 由 C provider 产出，
 # 避免 bootstrap asm backend 在 dirname/last_slash 链上反复卡住。
@@ -186,59 +187,59 @@ XLANG_X = xlang-x
 ../std/heap/heap.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # std.heap.page_mmap：F-no-libc NL-03 freestanding mmap bump 堆（单文件 .x -E + cc）。
 # 路径前缀 std_heap_page_mmap_*；传递依赖 std.sys.linux + core.mem 由 freestanding on_demand 链入。
 ../std/heap/page_mmap.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # std.sys：OS 原语门面（mod.x -E + cc；#[cfg(target_os)] 分平台）。
 # 路径前缀 std_sys_*；Linux 编译激活 linux import，传递依赖 std/sys/linux.o + core/mem/mem.o。
 ../std/sys/sys.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # std.sys.linux：Linux syscall 号表 + freestanding invoke（linux.x -E + cc）。
 # 路径前缀 std_sys_linux_*；含 hosted libc 函数（open/mmap），靠 --gc-sections 移除未引用者。
 ../std/sys/linux.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # core.mem：内存操作原语（mod.x -E + cc）。
 # 路径前缀 core_mem_*；align_up/mem_copy/mem_set 等纯 .x 实现，无 libc 依赖。
 ../core/mem/mem.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # PLATFORM: SHARED — core.types/option/result formal .o for -backend asm on_demand.
 # Do not asm co-emit these (Ubuntu x86_64 hang on option/result); C -E + cc only.
 ../core/types/types.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 ../core/option/option.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 ../core/result/result.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # core.debug：兼容 alias of core.assert; formal .o for asm on_demand (no co-emit).
 # PLATFORM: SHARED — tests/sort etc. U core_debug_assert_eq_*; L4 wipe needs make ensure.
 ../core/debug/debug.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # core.slice formal API (mod.x → core_slice_len_*/get_*). Glue from_ptr/subslice stays
 # in core/slice/slice.o (runtime_slice_glue). PLATFORM: SHARED — Ubuntu -backend asm
@@ -246,26 +247,26 @@ XLANG_X = xlang-x
 ../core/slice/mod.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # std.map：F 闭合 — 纯 .x -E-extern + cc -c。
 ../std/map/map.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # std.set：F 闭合 — 纯 .x -E-extern + cc -c。
 ../std/set/set.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # std.vec：F 闭合 — 单 mod.x（import std.heap）；link_only 产品链按需 std/vec/vec.o。
 # PLATFORM: SHARED — L4 全擦后须 make 本目标或 link ensure（push_existing  alone 静默 skip）。
 ../std/vec/vec.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # std.runtime：保留 runtime.x 作为 F-runtime v1 源码锚点；runtime.o 仅提供
 # runtime_panic/runtime_abort/runtime_crash_evidence_collect_c 三个 extern provider。
@@ -327,33 +328,33 @@ net-o-mbedtls: FORCE scripts/archaeology_host_pick_phony.sh
 ../std/thread/thread.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # std.async：F-async v2 纯 .x（F-ZC）；调度胶层在 runtime_scheduler_glue.o；Unix 按需 -pthread。
 ../std/async/scheduler.o: FORCE scripts/xlang_compile_std_x.sh
 # wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@sh scripts/xlang_compile_std_x.sh ensure $@
+	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 # std.async：F-async-future v2 纯 .x → future.o（同 hash/cache）。
 ../std/async/future.o: FORCE scripts/xlang_compile_std_x.sh
 # wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@sh scripts/xlang_compile_std_x.sh ensure $@
+	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 # std.time：F 闭合 — mod.x 内联派生函数（now_monotonic_us/sleep_ms/duration_ns 等），
 # 仅 5 个基础 OS extern 由 runtime_time_os.o 提供。无需 time.x / time_import_alias.c。
 ../std/time/time.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # std.random：F 闭合 — mod.x（用户 API）+ random.x（impl 裸符号）用 -E-extern 编译；
 # CSPRNG OS 在 runtime_random_fill.o，最终 exe 链接时按需推入。
 ../std/random/random.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # std.env：product surface = mod.x (std_env_getenv/…); OS glue in runtime_env_os.o.
 # PLATFORM: SHARED — do NOT compile only env.x (std_env_env_* / missing std_env_*);
@@ -362,7 +363,7 @@ net-o-mbedtls: FORCE scripts/archaeology_host_pick_phony.sh
 ../std/env/env.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # std.fs：F-03 pure .x — formal .o for -backend asm (co-emit of std.fs is skipped).
 # PLATFORM: SHARED — product authority remains mod.x+posix via import; vehicle is
@@ -371,47 +372,47 @@ net-o-mbedtls: FORCE scripts/archaeology_host_pick_phony.sh
 ../std/fs/fs.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # std.sync：F 闭合 — mod.x（用户 API）+ sync.x（impl 裸符号）用 -E-extern 编译；
 # OS/TLS 胶层在 runtime_sync_*.o，最终 exe 链接时按需推入。
 ../std/sync/sync.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # std.queue：F 闭合 — mod.x 用户 API（Queue_i32/u8）；queue.x 为 F-queue marker。
 # pthread 胶层在 runtime_queue_contention.o（链接按需）。
 ../std/queue/queue.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # std.encoding：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + encoding）。
 ../std/encoding/encoding.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # std.base64：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + base64）。
 ../std/base64/base64.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # std.crypto：F-闭合 — mod.x + 5 .x 用 -E-extern 编译（裸符号）。
 # mod.x 提供 extern 声明 + 公共 API；core/aes_gcm/chacha20_*/ed25519.x 提供裸符号实现。
 ../std/crypto/crypto.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # std.log：F-闭合 — mod.x + log.x 用 -E-extern 编译（裸符号）。
 # mod.x 提供 extern 声明 + 公共 API；log.x 提供 log_write_c 等裸符号实现。
 ../std/log/log.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 
 # std.test：F 闭合 — mod.x（用户 API）+ test.x（impl 裸符号）用 -E-extern 编译；
@@ -419,32 +420,32 @@ net-o-mbedtls: FORCE scripts/archaeology_host_pick_phony.sh
 ../std/test/test.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # std.atomic：F 闭合 — mod.x（用户 API）+ atomic.x（impl 裸符号）用 -E-extern 编译；
 # 原子胶层在 runtime_atomic_glue.o，最终 exe 链接时按需推入。
 ../std/atomic/atomic.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # std.channel：F-channel v2 纯 .x（F-ZC）；channel 胶层在 runtime_channel_glue.o；Unix 需 -lpthread。
 ../std/channel/channel.o: FORCE scripts/xlang_compile_std_x.sh
 # wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@sh scripts/xlang_compile_std_x.sh ensure $@
+	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 # std.backtrace：F-backtrace v2 纯 .x（F-ZC）；平台胶层在 runtime_backtrace_platform.o。
 ../std/backtrace/backtrace.o: FORCE scripts/xlang_compile_std_x.sh
 # wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@sh scripts/xlang_compile_std_x.sh ensure $@
+	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 # std.hash：F 闭合 — mod.x（用户 API）+ hash.x（impl 裸符号）用 -E-extern 编译。
 ../std/hash/hash.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # std.math：F-math v2 纯 .x（F-ZC）；libm 胶层在 runtime_math_libm.o（链接 exe 仍须 -lm）。
 # PLATFORM: SHARED — 权威 = mod.x (std_math_* API) + math.x (bare math_*_c constants)
@@ -453,7 +454,7 @@ net-o-mbedtls: FORCE scripts/archaeology_host_pick_phony.sh
 ../std/math/math.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # std.sort：F-sort v1 — product surface = mod.x (std_sort_sort_*) + sort.x impl.
 # PLATFORM: SHARED — do NOT compile only sort.x (bare sort_* / missing std_sort_sort_*);
@@ -462,7 +463,7 @@ net-o-mbedtls: FORCE scripts/archaeology_host_pick_phony.sh
 ../std/sort/sort.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # G-01：core/ 零 C — 位运算/volatile/slice 已纯 .x（见 analysis/phase-g-full-selfhost-tasks-v1.md）
 
@@ -470,7 +471,7 @@ net-o-mbedtls: FORCE scripts/archaeology_host_pick_phony.sh
 ../std/ffi/ffi.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 
 # std.context：F-闭合 — mod.x + context.x 用 -E-extern 编译（裸符号）。
@@ -478,91 +479,91 @@ net-o-mbedtls: FORCE scripts/archaeology_host_pick_phony.sh
 ../std/context/context.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # std.error：F-闭合 — mod.x 用 -E-extern 编译。提供 http_err_cancelled/timeout 等错误码 API。
 ../std/error/error.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 
 # std.datetime：F-datetime v2 + F-ZC 纯 datetime.x → datetime.o（无 glue；无 xlang 时 exit 0）。
 ../std/datetime/datetime.o: FORCE scripts/xlang_compile_std_x.sh
 # wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@sh scripts/xlang_compile_std_x.sh ensure $@
+	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 # std.uuid：F-uuid v1 纯 .x（uuid.x）；依赖 random.o + time.o。
 ../std/uuid/uuid.o: FORCE scripts/xlang_compile_std_x.sh
 # wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@sh scripts/xlang_compile_std_x.sh ensure $@
+	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 # std.url：F-url v2 + F-ZC 纯 url.x → url.o（无 glue；无 xlang 时 exit 0）。
 ../std/url/url.o: FORCE scripts/xlang_compile_std_x.sh
 # wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@sh scripts/xlang_compile_std_x.sh ensure $@
+	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 # std.cli：命令行解析（std/cli/cli.c）。
 # std.cli：F-cli v1 纯 .x（cli.x）；零胶层 C。
 ../std/cli/cli.o: FORCE scripts/xlang_compile_std_x.sh
 # wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@sh scripts/xlang_compile_std_x.sh ensure $@
+	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 
 # std.security：F-security v1 + F-ZC 纯 security.x → security.o（无 glue；无 xlang 时 exit 0）。
 ../std/security/security.o: FORCE scripts/xlang_compile_std_x.sh
 # wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@sh scripts/xlang_compile_std_x.sh ensure $@
+	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 
 # std.config：F-config v2 + F-ZC 纯 config.x → config.o（无 glue；无 xlang 时 exit 0）。
 ../std/config/config.o: FORCE scripts/xlang_compile_std_x.sh
 # wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@sh scripts/xlang_compile_std_x.sh ensure $@
+	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 # std.cache：F-cache v2 纯 .x（cache.x）；零胶层 C。
 ../std/cache/cache.o: FORCE scripts/xlang_compile_std_x.sh
 # wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@sh scripts/xlang_compile_std_x.sh ensure $@
+	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 # std.trace：F-trace v2 纯 trace.x → trace.o（无 glue；无 xlang 时 exit 0）。
 ../std/trace/trace.o: FORCE scripts/xlang_compile_std_x.sh
 # wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@sh scripts/xlang_compile_std_x.sh ensure $@
+	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 
 # std.task：F-task v2 纯 .x → task.o（同 trace/cache v2）。
 ../std/task/task.o: FORCE scripts/xlang_compile_std_x.sh
 # wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@sh scripts/xlang_compile_std_x.sh ensure $@
+	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 
 # std.schema：F-schema v2 纯 .x → schema.o（同 cache/encoding）。
 ../std/schema/schema.o: FORCE scripts/xlang_compile_std_x.sh
 # wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@sh scripts/xlang_compile_std_x.sh ensure $@
+	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 # std.db.kv：F-05 v2 纯 .x（F-ZC）；mmap 胶层在 runtime_kv_mmap_glue.o。
 ../std/db/kv/kv.o: FORCE scripts/xlang_compile_std_x.sh
 # wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@sh scripts/xlang_compile_std_x.sh ensure $@
+	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 # std.db.arrow：F-05 v1 纯 .x（F-ZC）；SIMD 胶层在 runtime_arrow_simd_glue.o。
 ../std/db/arrow/arrow.o: FORCE scripts/xlang_compile_std_x.sh
 # wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@sh scripts/xlang_compile_std_x.sh ensure $@
+	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 # std.sys.mmap：F-02 v1 Linux/macOS 纯 .x（已移除 mmap.inc.c）
 # std.sys.win32：F-02 v2 纯 .x kernel32 FFI（已移除 win32.inc.c / win32_net.inc.c）
@@ -585,7 +586,7 @@ endif
 ../std/db/sqlite/sqlite.o: FORCE scripts/xlang_compile_std_x.sh
 # wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@sh scripts/xlang_compile_std_x.sh ensure $@
+	@bash scripts/xlang_compile_std_x.sh ensure $@
 sqlite-o: ../std/db/sqlite/sqlite.o runtime_sqlite_glue.o
 # wave815: archaeology host-pick phony → shell catalog (G.7; not physical delete).
 # wave839: FORCE dep-thin — FORCE + archaeology_host_pick_phony only (G.7 有则补全).
@@ -599,24 +600,24 @@ sqlite-o-stub: FORCE scripts/archaeology_host_pick_phony.sh
 ../std/elf/elf.o: FORCE scripts/xlang_compile_std_x.sh
 # wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@sh scripts/xlang_compile_std_x.sh ensure $@
+	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 # P4 std 模块（按需链接）
 # std.json：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + json）。
 ../std/json/json.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 # std.csv：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + csv）。
 ../std/csv/csv.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 # std.regex：F-regex v2 纯 .x → regex.o（同 hash/schema）。
 ../std/regex/regex.o: FORCE scripts/xlang_compile_std_x.sh
 # wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@sh scripts/xlang_compile_std_x.sh ensure $@
+	@bash scripts/xlang_compile_std_x.sh ensure $@
 # F-04 v7：std.compress 全格式已迁 .x；compress.o 不再构建，保留 target 名兼容门禁。
 compress-o-zlib compress-o-zlib-zstd compress-o-brotli compress-o-zlib-zstd-brotli:
 	@true
@@ -624,36 +625,36 @@ compress-o-zlib compress-o-zlib-zstd compress-o-brotli compress-o-zlib-zstd-brot
 ../std/unicode/unicode.o: FORCE scripts/xlang_compile_std_x.sh
 # wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@sh scripts/xlang_compile_std_x.sh ensure $@
+	@bash scripts/xlang_compile_std_x.sh ensure $@
 # std.dynlib：F 闭合 — mod.x（用户 API）+ dynlib.x（impl 裸符号）用 -E-extern 编译；
 # dlopen 胶层在 runtime_dynlib_os.o，最终 exe 链接时按需推入。
 ../std/dynlib/dynlib.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 # std.http：F 闭合 — mod.x（用户 API）+ http.x（impl 裸符号）用 -E-extern 编译；
 # HTTP 胶层在 runtime_http_glue.o，最终 exe 链接时按需推入。
 ../std/http/http.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 
 # std.socketio：F-socketio v2 纯 socketio.x；ld -r 合并为 socketio.o（P3 可选）。
 ../std/socketio/socketio.o: FORCE scripts/xlang_compile_std_x.sh
 # wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@sh scripts/xlang_compile_std_x.sh ensure $@
+	@bash scripts/xlang_compile_std_x.sh ensure $@
 # std.tar：F-tar v2 纯 tar.x；import binding 别名桩 tar_import_alias.c。
 # std.tar：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + tar）。
 ../std/tar/tar.o: FORCE scripts/xlang_compile_std_module.sh
 # wave826: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave812: formal_mod catalog → ensure (G.7; not physical delete).
-	@sh scripts/xlang_compile_std_module.sh ensure $@
+	@bash scripts/xlang_compile_std_module.sh ensure $@
 # std.simd：F-simd v1 + F-ZC 纯 simd.x → simd.o（无 glue；无 xlang 时 exit 0）。
 ../std/simd/simd.o: FORCE scripts/xlang_compile_std_x.sh
 # wave827: FORCE dep-thin — shell owns catalog source mtime (G.7; not physical delete).
 # wave825: std_x catalog → ensure (G.7; not physical delete; wave811 body).
-	@sh scripts/xlang_compile_std_x.sh ensure $@
+	@bash scripts/xlang_compile_std_x.sh ensure $@
 
 
 # 测试与 xlang 链接 std 时依赖的 .o：所有 std 模块 + runtime_panic.o；Linux 另预编 freestanding 链入桩
@@ -1500,9 +1501,9 @@ endif
 
 # wave718: clean body → scripts/clean_compiler.sh (G.7 single authority)
 # wave879 B7B: drop multi-token TARGET/XLANG_C inject (G.7 hygiene).
-# Shell defaults own TARGET/XLANG_C (clean_compiler). Thin @sh only.
+# Shell defaults own TARGET/XLANG_C (clean_compiler). Thin @bash only (wave890).
 clean:
-	@sh scripts/clean_compiler.sh
+	@bash scripts/clean_compiler.sh
 
 # 阶段 1 词法 + 阶段 3 类型检查 + …；依赖 xlang 与全部 std .o、runtime_panic.o，clean 后 test 会先构建再跑脚本
 # test_c：与 ../tests/run-all-c.sh 等价（C 版 xlang-c 跑整份 run-all，不含自举专用脚本）
@@ -1512,11 +1513,11 @@ clean:
 # Shell MAKELEVEL default ENSURE=0 on make-graph path; direct xbuild keeps ENSURE=1.
 # 依赖 $(XLANG_C) 以便 make clean && make test_c 时 xlang-c 存在
 test_c: $(TARGET) $(XLANG_C) $(STD_AND_PANIC_O)
-	@sh scripts/run_compiler_tests.sh c
+	@bash scripts/run_compiler_tests.sh c
 
 # x 自举：bootstrap-driver-seed + LSP + 全量自举（run-all-x：用 xlang_x 跑整份 run-all）
 test_x: bootstrap-driver-seed
-	@sh scripts/run_compiler_tests.sh x
+	@bash scripts/run_compiler_tests.sh x
 
 # 全量：先 C 再 x 自举（thin: reuses c/x shells via mode all)
 test: test_c test_x
@@ -1528,10 +1529,10 @@ test: test_c test_x
 # needs no recipe inject. $(TARGET) prereq stays make graph.
 # 依赖 $(STD_AND_PANIC_O)：-o 链 std/io 等 .o，clean 后仅 make $(TARGET) 会缺这些文件导致 cc 失败。
 bootstrap-token: $(TARGET) $(STD_AND_PANIC_O)
-	@sh scripts/bootstrap_token_lexer_smoke.sh token
+	@bash scripts/bootstrap_token_lexer_smoke.sh token
 
 bootstrap-lexer: $(TARGET) $(STD_AND_PANIC_O)
-	@sh scripts/bootstrap_token_lexer_smoke.sh lexer
+	@bash scripts/bootstrap_token_lexer_smoke.sh lexer
 
 # wave844: full body → scripts/bootstrap_parser_smoke.sh (G.7 有则补全; shell owns
 #   parser.x -o smoke + parse-file dual-path fixtures). NOT physical delete —
@@ -1563,9 +1564,9 @@ parser_gen.c: FORCE scripts/ensure_migrate_gen.sh
 # wave865 B7B: drop multi-token CFLAGS inject (G.7 hygiene).
 # migrate_x_objs shell-loads export-try-heat-cflags when CFLAGS/PIPELINE_GEN unset.
 # wave878 B7B: drop multi-token CC/PYTHON/MAKE inject (G.7 hygiene).
-# Shell defaults own CC/PYTHON/MAKE (migrate_x_objs). Thin @sh only.
+# Shell defaults own CC/PYTHON/MAKE (migrate_x_objs). Thin @bash only (wave890).
 parser_x.o: FORCE scripts/migrate_x_objs.sh
-	@sh scripts/migrate_x_objs.sh parser
+	@bash scripts/migrate_x_objs.sh parser
 
 # lexer.x：须 xlang-x -x -E 全量 TU；xlang-c 无 -x 时缺 advance_one/next_body。
 # wave737: G.7 body → scripts/ensure_migrate_gen.sh lexer (pin/seed/-E + slim + token enum)
@@ -1777,7 +1778,7 @@ src/asm/asm_experimental_symbol_bridge.o: FORCE scripts/cc_inc_tu.sh
 # wave865 B7B: drop multi-token CFLAGS inject (G.7 hygiene; same as parser/typeck/codegen).
 # wave878 B7B: drop multi-token CC/PYTHON/MAKE inject (G.7 hygiene; shell defaults).
 migrate-x-objs:
-	@sh scripts/migrate_x_objs.sh all
+	@bash scripts/migrate_x_objs.sh all
 
 # wave830: G.7 body → scripts/ensure_ast_gen2.sh (pin / FORCE_REGEN / -E + fix_slim)
 # FORCE dep-thin — shell owns pin policy (G.7; not physical delete).
@@ -1803,7 +1804,7 @@ typeck_gen.c: FORCE scripts/ensure_migrate_gen.sh
 # wave865 B7B: drop multi-token CFLAGS inject (G.7 hygiene).
 # wave878 B7B: drop multi-token CC/PYTHON/MAKE inject (G.7 hygiene; shell defaults).
 typeck_x.o: FORCE scripts/migrate_x_objs.sh
-	@sh scripts/migrate_x_objs.sh typeck
+	@bash scripts/migrate_x_objs.sh typeck
 
 # wave736: G.7 body → scripts/ensure_migrate_gen.sh (codegen_gen.c tip seed pin/-E)
 # wave829: FORCE dep-thin — shell owns pin/seed policy (G.7; not physical delete).
@@ -1816,7 +1817,7 @@ codegen_gen.c: FORCE scripts/ensure_migrate_gen.sh
 # wave865 B7B: drop multi-token CFLAGS inject (G.7 hygiene).
 # wave878 B7B: drop multi-token CC/PYTHON/MAKE inject (G.7 hygiene; shell defaults).
 codegen_x.o: FORCE scripts/migrate_x_objs.sh
-	@sh scripts/migrate_x_objs.sh codegen
+	@bash scripts/migrate_x_objs.sh codegen
 
 # 6.1：.x typeck 入口与 C AST 对接；force-regen typeck_gen → migrate typeck_x → relink TARGET。
 # wave785 B7c: typeck_x.o → migrate_x_objs (no dual $(CC) -c).
@@ -2031,7 +2032,7 @@ src/lexer/lexer.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # wave887 B7B: drop XLANG_CC_INC_TU_PEERS inject — shell seed-map owns peer .x when unset.
 # PLATFORM: SHARED — FORCE always invokes script (cheap mtime skip).
 src/lexer/cfg_eval_bootstrap_stub.o: FORCE scripts/cc_inc_tu.sh
-	@sh scripts/cc_inc_tu.sh seeds/cfg_eval_bootstrap_stub.from_x.c $@
+	@bash scripts/cc_inc_tu.sh seeds/cfg_eval_bootstrap_stub.from_x.c $@
 
 # G-02a: typeck.c 已物理删除；typeck_x.o 由 typeck.x 生成，typeck_c_module_stubs.o 提供 weak 桩。
 
@@ -2670,11 +2671,11 @@ build_asm/pipeline_glue_strict_minimal.o: FORCE scripts/ensure_host_cc_seed_o.sh
 
 # 兼容：委托 scripts/g05_ensure_relink_prereqs.sh（产品路径不再依赖本 recipe 图）
 g05-ensure-relink-prereqs:
-	@sh scripts/g05_ensure_relink_prereqs.sh
+	@bash scripts/g05_ensure_relink_prereqs.sh
 
 # 兼容：委托 scripts/g05_relink_env.sh（与 shell 清单单一真相）
 g05-export-relink:
-	@sh scripts/g05_relink_env.sh
+	@bash scripts/g05_relink_env.sh
 
 # 兼容入口：委托 G-05 shell 编排（无 recipe 内嵌 cc；产品路径零 make）
 # wave885 B7B residual: drop G05_SYNC_ASM=0/1 recipe inject (G.7 hygiene).
@@ -2683,11 +2684,11 @@ g05-export-relink:
 # NOT physical delete — thin edges + B2 + mk lists + LD/pipeline bags remain.
 # PLATFORM: SHARED — same g05 shell body on mac / Ubuntu / Windows host.
 relink-xlang:
-	@sh scripts/g05_prepare_and_relink.sh --no-sync
+	@bash scripts/g05_prepare_and_relink.sh --no-sync
 	@echo "relink-xlang OK (via g05_prepare_and_relink.sh)"
 
 xlang_asm:
-	@sh scripts/g05_prepare_and_relink.sh
+	@bash scripts/g05_prepare_and_relink.sh
 	@echo "xlang_asm OK (via g05_prepare_and_relink.sh)"
 
 # wave849: full body → scripts/relink_xlang_lexer.sh (G.7 有则补全; shell owns seed
@@ -2791,7 +2792,7 @@ bootstrap-driver-asm-only: bootstrap-driver-hybrid
 # wave887 B7B: drop ENSURE_SEED=0 inject — seed is make prereq; shell default 1 only
 #   fires when ./$TARGET missing (direct xlang-build / CLI override still ok).
 bootstrap-driver-bstrict: bootstrap-driver-seed
-	@sh scripts/bootstrap_driver_bstrict.sh
+	@bash scripts/bootstrap_driver_bstrict.sh
 
 # P0 asm 门禁：strict xlang_asm 与 seed+migrate-x-objs 对齐（M-3 含 typeck/codegen/ast）；xlang_asm2 仍保留 gen2。
 # wave734: body → scripts/refresh_xlang_asm_gate.sh (G.7)
@@ -2800,7 +2801,7 @@ bootstrap-driver-bstrict: bootstrap-driver-seed
 # wave883 B7B: drop MAKE= from multi-token inject (shell MAKE default + make auto-export).
 # wave887 B7B: drop NO_REPLACE passthrough inject — shell reads env/CLI; make CLI auto-export.
 refresh-xlang-asm-gate:
-	@sh scripts/refresh_xlang_asm_gate.sh
+	@bash scripts/refresh_xlang_asm_gate.sh
 
 # 日常快路径：仅 strict relink（前提 build_asm/*.o 已由 prior bootstrap 产出；改 glue/runtime/link 时用，~30s）。
 # wave868: full body → scripts/relink_xlang_asm_bstrict_runtime_objs.sh (G.7 有则补全;
@@ -3011,7 +3012,7 @@ bootstrap-test: bootstrap-self
 # wave880 B7B: drop multi-token MAKE/TARGET/ENSURE inject (G.7 hygiene).
 # Shell MAKELEVEL default ENSURE=0 on make-graph path; direct xbuild keeps ENSURE=1.
 check-7.2-bstrict: bootstrap-driver-bstrict
-	@sh scripts/bootstrap_verify_bstrict.sh
+	@bash scripts/bootstrap_verify_bstrict.sh
 
 bootstrap-verify-bstrict: check-7.2-bstrict
 	@true

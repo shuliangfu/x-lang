@@ -58,6 +58,7 @@
 > - **wave887** · B7B residual terminal env inject hygiene (6 recipes → `XLANG_C` ensure `$@`; cc_inc_tu PEERS seed-map; drop `ENSURE_SEED`/`NO_REPLACE`/`XLANG=` injects; shell defaults + CLI/env)
 > - **wave888** · B7B residual recipe thin-call form hygiene (22 recipe sites → drop dual `chmod +x`; unify `@./scripts/` / `sh ./…` → pure `@bash scripts/…`)
 > - **wave889** · B7B residual non-thin recipe body / form hygiene (10 sites → drop dual `@mkdir -p build_asm` + panic stamp body; bare `sh scripts/cc_inc_tu` → `@bash`; `legacy-xlang-c-ready` nested `$(MAKE)` → thin ensure)
+> - **wave890** · B7B residual bulk `@sh` → `@bash` thin-call form hygiene (77 sites → formal_mod 38 + std_x 22 + migrate/eoo/g05/clean/token/refresh; pure `@bash scripts/…`)
 > - **open** · thin edges + B2 + mk lists (hybrid) · → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
