@@ -306,7 +306,7 @@
 | 1605 | `src/asm/crt0_x86_64.o` | ⬜ |
 | 1608 | `src/asm/crt0_user_x86_64.o` | ⬜ |
 | 1611 | `src/asm/freestanding_io_x86_64.o` | ⬜ |
-| 1619 | `src/asm/bootstrap_nostdlib_stubs.o` | ⬜ |
+| 1619 | `src/asm/bootstrap_nostdlib_stubs.o` | 🟡 wave918 multi-target --auto (Linux x86_64 guard) |
 | 1626 | `src/asm/crt0_arm64.o` | ⬜ |
 | 1629 | `src/asm/crt0_darwin_x86_64.o` | ⬜ |
 | 1635 | `src/asm/crt0_mingw.o` | ⬜ |
@@ -723,6 +723,7 @@
 
 ## wave913 residual note
 
+- **wave918** · cc_inc_tu Linux x86_64 guard multi-target FORCE thin --auto（1 · `$(CC_INC_TU_LINUX_X86_64_OBJS)` = `src/asm/bootstrap_nostdlib_stubs.o` 新 list in r_lists · G.7 `@bash scripts/cc_inc_tu.sh --auto $@` · cc_inc_tu.sh seed-map 扩 · per-leaf recipe → multi-target FORCE inside `ifeq (Linux,x86_64)` guard · **cc_inc_tu multi-target family closed** · **非**物理删）
 - **wave917** · cc_inc_tu SHARED family multi-target FORCE thin --auto（5 · `$(CC_INC_TU_OBJS)` 迁 r_lists · G.7 `@bash scripts/cc_inc_tu.sh --auto $@` · cc_inc_tu.sh seed-map `cc_inc_tu_seed_for_out` · 5 per-leaf recipes → 1 multi-target · **非**物理删）
 - **wave916** · B5 CFG_EVAL multi-target FORCE thin try-heat（1 · `$(DRIVER_SEED_CFG_EVAL_OBJS)` = `src/lexer/cfg_eval.o` 迁 r_lists · G.7 try-heat→try-cfg-eval-ladder · per-leaf recipe → multi-target FORCE thin try-heat · **非**物理删）
 - **wave914** · R2 TYPECK_F64 multi-target FORCE thin try-heat（1 · `DRIVER_SEED_TYPECK_F64_OBJS` 迁 r_lists · UNAME ifeq hard-error 面收掉 · **非**物理删）
