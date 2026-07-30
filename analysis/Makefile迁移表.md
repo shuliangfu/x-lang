@@ -392,10 +392,10 @@
 
 | 行 | Makefile 目标 | 迁移状态 |
 |----|---------------|----------|
-| 2095 | `build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o` | 🟢 against_partial（wave716） |
-| 2105 | `build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o` | 🟢 against_partial（wave716） |
-| 2115 | `build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o` | 🟢 against_partial（wave716） |
-| 2125 | `build_asm/bootstrap_seed_pipeline_filtered.o` | 🟢 pipeline wrapper（wave715/716 转调核心） |
+| 2095 | `build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o` | 🟢 against_partial（wave716） · wave921 multi-target `$(FILTER_AGAINST_PARTIAL_OBJS)` |
+| 2105 | `build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o` | 🟢 against_partial（wave716） · wave921 multi-target `$(FILTER_AGAINST_PARTIAL_OBJS)` |
+| 2115 | `build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o` | 🟢 against_partial（wave716） · wave921 multi-target `$(FILTER_AGAINST_PARTIAL_OBJS)` |
+| 2125 | `build_asm/bootstrap_seed_pipeline_filtered.o` | 🟢 pipeline wrapper（wave715/716 转调核心） · wave921 multi-target `$(FILTER_PIPELINE_OBJS)` |
 
 ### 类 H — bootstrap / 产品二进制 phony
 
@@ -723,6 +723,7 @@
 
 ## wave913 residual note
 
+- **wave921** · class-G filter family multi-target FORCE thin（4 · `$(FILTER_AGAINST_PARTIAL_OBJS)` = 3 叶（backend_x86_64_enc_c / user_asm_seed_bridge / asm_backend_compat_stubs）+ `$(FILTER_PIPELINE_OBJS)` = 1 叶（bootstrap_seed_pipeline）— 2 新 lists in r_lists · G.7 `@bash scripts/filter_bootstrap_seed_{against_partial,pipeline}_o.sh ensure $@` · 脚本 CATALOG 拥有 OUT|SRC map · 4 per-leaf recipes → 2 multi-target（按脚本拆分）· **class-G filter family closed** · **非**物理删）
 - **wave920** · cp-alias family multi-target FORCE thin（3 · `$(CP_ALIAS_SHARED_OBJS)` = `ast_x.o`（1 · SHARED）+ `$(CP_ALIAS_LINUX_X86_64_OBJS)` = `crt0_user.o` + `freestanding_io.o`（2 · Linux x86_64 guard）— 2 新 lists in r_lists · G.7 `@bash scripts/ensure_cp_alias_o.sh ensure $@` · 脚本 CATALOG 拥有 OUT|SRC map · 3 per-leaf recipes → 2 multi-target（按平台作用域拆分）· **cp-alias family closed** · **非**物理删）
 - **wave919** · migrate_x family multi-target FORCE thin（3 · `$(MIGRATE_X_OBJS)` = `parser_x.o` + `typeck_x.o` + `codegen_x.o` 新 list in r_lists · G.7 `@bash scripts/migrate_x_objs.sh $@` · 脚本 case 已接受 `<name>_x.o` MODE 无需 --auto · 3 per-leaf recipes → 1 multi-target · **migrate_x family closed** · **非**物理删）
 - **wave918** · cc_inc_tu Linux x86_64 guard multi-target FORCE thin --auto（1 · `$(CC_INC_TU_LINUX_X86_64_OBJS)` = `src/asm/bootstrap_nostdlib_stubs.o` 新 list in r_lists · G.7 `@bash scripts/cc_inc_tu.sh --auto $@` · cc_inc_tu.sh seed-map 扩 · per-leaf recipe → multi-target FORCE inside `ifeq (Linux,x86_64)` guard · **cc_inc_tu multi-target family closed** · **非**物理删）
