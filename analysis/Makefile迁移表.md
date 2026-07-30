@@ -301,7 +301,7 @@
 | 979 | `src/runtime/rt_parse_diag.o` | ⬜ |
 | 993 | `src/driver/fmt_check_cmd.o` | ⬜ |
 | 1028 | `src/driver/fmt_check_cmd_driver.o` | ⬜ |
-| 1083 | `src/lexer/cfg_eval.o` | 🟡 wave783 try-cfg-eval-ladder thin |
+| 1083 | `src/lexer/cfg_eval.o` | 🟡 wave916 multi-target try-heat |
 | 1125 | `src/runtime_driver_no_c.o` | ⬜ |
 | 1605 | `src/asm/crt0_x86_64.o` | ⬜ |
 | 1608 | `src/asm/crt0_user_x86_64.o` | ⬜ |
@@ -723,6 +723,7 @@
 
 ## wave913 residual note
 
+- **wave916** · B5 CFG_EVAL multi-target FORCE thin try-heat（1 · `$(DRIVER_SEED_CFG_EVAL_OBJS)` = `src/lexer/cfg_eval.o` 迁 r_lists · G.7 try-heat→try-cfg-eval-ladder · per-leaf recipe → multi-target FORCE thin try-heat · **非**物理删）
 - **wave914** · R2 TYPECK_F64 multi-target FORCE thin try-heat（1 · `DRIVER_SEED_TYPECK_F64_OBJS` 迁 r_lists · UNAME ifeq hard-error 面收掉 · **非**物理删）
 - **wave913** · B7B R2 CRT0 multi-target FORCE thin try-heat：6 leaves → `$(DRIVER_SEED_CRT0_OBJS)`（`mk/driver_seed_r_lists.mk` · G.7 有则补全 try-r2；export_lists 不再复写）+ Makefile multi-target FORCE try-heat。**非**物理删。
 

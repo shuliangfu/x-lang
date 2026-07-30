@@ -1552,7 +1552,8 @@
 - ✅ **R2 CRT0 multi-target FORCE thin**（wave913 · 6 · `$(DRIVER_SEED_CRT0_OBJS)` 迁 r_lists · G.7 try-r2 · Makefile multi-target FORCE thin try-heat · **非**物理删 · thin edges + mk lists hybrid 仍 residual）
 - ✅ **R2 TYPECK_F64 multi-target FORCE thin**（wave914 · 1 · `$(DRIVER_SEED_TYPECK_F64_OBJS)` 迁 r_lists · G.7 try-r2 host pick · UNAME ifeq hard-error 面收掉 · Makefile multi-target FORCE thin try-heat · **非**物理删 · thin edges + mk lists hybrid 仍 residual）
 - ✅ **R2 PANIC multi-target FORCE thin**（wave915 · 1 · `$(DRIVER_SEED_PANIC_OBJS)` 迁 r_lists · G.7 try-heat→try-r2-prefer/try-r2 · Makefile multi-target FORCE thin try-heat · **非**物理删 · thin edges + mk lists hybrid 仍 residual）
-- **open** · thin edges + mk lists hybrid（cfg_eval single …）· → tip Windows → 双端 L4 → explicit auth 真删  # post-wave915 PANIC multi
+- ✅ **B5 CFG_EVAL multi-target FORCE thin**（wave916 · 1 · `$(DRIVER_SEED_CFG_EVAL_OBJS)` = `src/lexer/cfg_eval.o` 迁 r_lists · G.7 try-heat→try-cfg-eval-ladder · per-leaf recipe → multi-target FORCE thin try-heat · **非**物理删 · thin edges + mk lists hybrid 仍 residual）
+- **open** · thin edges + mk lists hybrid（cc_inc_tu / net_merge …）· → tip Windows → 双端 L4 → explicit auth 真删  # post-wave916 B5 CFG_EVAL multi
 
 **状态明细**（一行一项）：
 
