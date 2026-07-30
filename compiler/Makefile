@@ -3009,20 +3009,11 @@ bootstrap-self: bootstrap-driver-seed scripts/bootstrap_self.sh
 	  bash scripts/bootstrap_self.sh
 
 # 阶段 8.3 seed：两代 xlang（xlang_stage1/xlang_stage2）烟测；B-strict 主路径见 check-7.2-bstrict。
-check-7.2: bootstrap-self
-	@ROOT=$$(pwd)/..; CDIR=$$(pwd); \
-	for ST in $(TARGET)_stage1 $(TARGET)_stage2; do \
-	  cp "$$CDIR/$$ST" "$$CDIR/$(TARGET)" && \
-	  cd "$$ROOT" && \
-	  XLANG="$$CDIR/$$ST" ./tests/run-return-value.sh && \
-	  XLANG="$$CDIR/$$ST" ./tests/run-hello.sh && \
-	  XLANG="$$CDIR/$$ST" ./tests/run-lexer.sh && \
-	  XLANG="$$CDIR/$$ST" ./tests/run-typeck.sh && \
-	  XLANG="$$CDIR/$$ST" ./tests/run-bootstrap-semantic-smoke-vec-map-heap.sh && \
-	  XLANG="$$CDIR/$$ST" ./tests/run-bootstrap-stage2-dogfood-parser-typeck.sh || \
-	  (echo "check-7.2 FAIL: $$ST"; exit 1); \
-	done && \
-	echo "check-7.2 OK (both stages: return-value, hello, lexer, typeck, vec/map/heap + parser/typeck dogfood)"
+# wave870: full body → scripts/check_7_2.sh (G.7 有则补全; shell owns stage loop + smoke suite).
+# NOT physical delete — prereq bootstrap-self + thin edges + B2 + mk lists remain residual.
+# PLATFORM: SHARED — shell owns seed-path two-stage smoke orchestration.
+check-7.2: bootstrap-self scripts/check_7_2.sh
+	@TARGET="$(TARGET)" bash scripts/check_7_2.sh
 
 # 9.1 自举：纯 .x 流水线（parse_into → typeck_x_ast → codegen_x_ast）；生成 pipeline_gen.c 便于联调；-L 与 pipeline 依赖一致。
 # 【Why 根源】必须用 $(XLANG_C) 做 -E：G-02a 后 parser.c 已物理删除，$(XLANG_C) 即 bootstrap_xlangc seed（.x pipeline）。
