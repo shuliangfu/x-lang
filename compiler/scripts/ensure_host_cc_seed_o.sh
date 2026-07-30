@@ -5256,6 +5256,79 @@ run_check() {
   note() { echo "ensure_host_cc_seed_o: $*" >&2; }
   bad() { echo "ensure_host_cc_seed_o: FAIL: $*" >&2; fail=1; }
 
+  # wave907 G.7: multi-target FORCE try-heat covers many historical per-leaf prefer
+  # checks (R1/R3/ASYNC families). Accept per-leaf OR membership in a multi-target
+  # list whose recipe thin-calls ensure try-heat (prefer ladder lives in shell).
+  makefile_leaf_try_heat_ok() {
+    local leaf="$1"
+    local prefer_re="${2:-try-heat}"
+    if awk -v leaf="$leaf" -v pre="$prefer_re" '
+      $0 ~ ("^" leaf ":") {grab=1; next}
+      grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+      grab {body = body $0 "\n"}
+      END {
+        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ pre) exit 0
+        exit 1
+      }
+    ' Makefile; then
+      return 0
+    fi
+    local mk="mk/driver_seed_r_lists.mk"
+    local var
+    for var in \
+      RT_SEED_SLICE_OBJS R1_CORE_SEED_OBJS R1_FRONTEND_GLUE_OBJS R1_MAIN_RUNTIME_OBJS \
+      R1_ALIAS_STUBS_OBJS R1_EXTRA_CFLAGS_OBJS R1_MISC_BASENAME_OBJS R1_SEED_MAP_OBJS \
+      R3_COLD_SEED_OBJS ASYNC_THREE_SEED_OBJS; do
+      if [ ! -f "$mk" ]; then
+        continue
+      fi
+      if ! awk -v var="$var" -v leaf="$leaf" '
+        /^[[:space:]]*#/ { next }
+        $0 ~ ("^" var "[[:space:]]*=") {
+          line=$0
+          sub(/#.*/,"",line)
+          n=split(line, a, /[[:space:]\\]+/)
+          for (i=1;i<=n;i++) if (a[i]==leaf) { found=1; exit 0 }
+        }
+        END { exit found ? 0 : 1 }
+      ' "$mk"; then
+        continue
+      fi
+      if grep -qE "\\$\\(${var}\\):[[:space:]]*FORCE" Makefile 2>/dev/null \
+        && awk -v var="$var" '
+          $0 ~ ("\\$\\(" var "\\):") { hit=1; next }
+          hit && /^[^#[:space:]\t]/ { exit 1 }
+          hit && /ensure_host_cc_seed_o\.sh/ && /try-heat/ { found=1; exit 0 }
+          END { exit found ? 0 : 1 }
+        ' Makefile; then
+        return 0
+      fi
+    done
+    # B2 std_core hybrid multi-target (separate mk)
+    local b2mk="mk/std_core_hybrid_product_objs.mk"
+    if [ -f "$b2mk" ] \
+      && awk -v leaf="$leaf" '
+        /^[[:space:]]*#/ { next }
+        /STD_CORE_HYBRID_PRODUCT_OBJS/ {
+          line=$0
+          sub(/#.*/,"",line)
+          n=split(line, a, /[[:space:]\\]+/)
+          for (i=1;i<=n;i++) if (a[i]==leaf) { found=1; exit 0 }
+        }
+        END { exit found ? 0 : 1 }
+      ' "$b2mk" \
+      && grep -qE '\$\(STD_CORE_HYBRID_PRODUCT_OBJS\):[[:space:]]*FORCE' Makefile 2>/dev/null \
+      && awk '
+        /\$\(STD_CORE_HYBRID_PRODUCT_OBJS\):/ { hit=1; next }
+        hit && /^[^#[:space:]\t]/ { exit 1 }
+        hit && /ensure_host_cc_seed_o\.sh/ && /try-heat/ { found=1; exit 0 }
+        END { exit found ? 0 : 1 }
+      ' Makefile; then
+      return 0
+    fi
+    return 1
+  }
+
   if [ ! -f scripts/driver_seed_obj_catalog.sh ]; then
     bad "missing driver_seed_obj_catalog.sh"
   fi
@@ -5435,6 +5508,7 @@ run_check() {
   fi
   # wave759: glue standalone target is $(ASM_GLUE_STANDALONE_O) — recipe must call ensure,
   # not residual cc_inc_tu (G.7 single body via ensure_one).
+  # wave905: leaf joined multi-target $(R1_SEED_MAP_OBJS): FORCE try-heat (no per-leaf line).
   if awk '
     /^\$\(ASM_GLUE_STANDALONE_O\):|^build_asm\/pipeline_glue_standalone\.o:/ { in_t=1; next }
     in_t && /^[^[:space:]#]/ { in_t=0 }
@@ -5445,8 +5519,17 @@ run_check() {
     }
   ' Makefile; then
     note "Makefile glue standalone thin (ensure; no cc_inc_tu; wave759)"
+  elif grep -qE '\$\(R1_SEED_MAP_OBJS\):[[:space:]]*FORCE' Makefile 2>/dev/null \
+    && grep -qF 'build_asm/pipeline_glue_standalone.o' mk/driver_seed_r_lists.mk 2>/dev/null \
+    && awk '
+      /\$\(R1_SEED_MAP_OBJS\):/ { hit=1; next }
+      hit && /^[^#[:space:]\t]/ { exit 1 }
+      hit && /ensure_host_cc_seed_o\.sh/ && /try-heat/ { found=1; exit 0 }
+      END { exit found ? 0 : 1 }
+    ' Makefile; then
+    note "Makefile glue standalone via multi-target R1_SEED_MAP try-heat (wave905)"
   else
-    bad "Makefile ASM_GLUE_STANDALONE / pipeline_glue_standalone must thin-call ensure (wave759; no cc_inc_tu)"
+    bad "Makefile ASM_GLUE_STANDALONE / pipeline_glue_standalone must thin-call ensure (wave759/905; no cc_inc_tu)"
   fi
 
   # G.7: list authority is catalog only — no hardcoded assignment of product lists.
@@ -5689,18 +5772,10 @@ run_check() {
   else
     note "labi-prefer multi-slice body present (wave765)"
   fi
-  if awk '
-    $0 ~ /^src\/runtime_link_abi\.o:/ {grab=1; next}
-    grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
-    grab {body = body $0 "\n"}
-    END {
-      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-labi-prefer/) exit 0
-      exit 1
-    }
-  ' Makefile; then
-    note "Makefile src/runtime_link_abi.o thin-calls ensure try-labi-prefer (wave765)"
+  if makefile_leaf_try_heat_ok "src/runtime_link_abi.o" 'try-heat|try-labi-prefer'; then
+    note "Makefile src/runtime_link_abi.o thin-calls ensure try-labi-prefer (wave765/899 multi)"
   else
-    bad "Makefile src/runtime_link_abi.o must thin-call ensure try-heat|try-labi-prefer (wave765)"
+    bad "Makefile src/runtime_link_abi.o must thin-call ensure try-heat|try-labi-prefer (wave765/899)"
   fi
   if [ -f scripts/g05_ensure_relink_prereqs.sh ]; then
     if grep -q 'try-labi-prefer\|labi-prefer' scripts/g05_ensure_relink_prereqs.sh \
@@ -5729,18 +5804,10 @@ run_check() {
   else
     note "rt-prefer multi-slice body present (wave766)"
   fi
-  if awk '
-    $0 ~ /^src\/runtime_driver_no_c\.o:/ {grab=1; next}
-    grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
-    grab {body = body $0 "\n"}
-    END {
-      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-rt-prefer/) exit 0
-      exit 1
-    }
-  ' Makefile; then
-    note "Makefile src/runtime_driver_no_c.o thin-calls ensure try-rt-prefer (wave766)"
+  if makefile_leaf_try_heat_ok "src/runtime_driver_no_c.o" 'try-heat|try-rt-prefer'; then
+    note "Makefile src/runtime_driver_no_c.o thin-calls ensure try-rt-prefer (wave766/901 multi)"
   else
-    bad "Makefile src/runtime_driver_no_c.o must thin-call ensure try-heat|try-rt-prefer (wave766)"
+    bad "Makefile src/runtime_driver_no_c.o must thin-call ensure try-heat|try-rt-prefer (wave766/901)"
   fi
   if [ -f scripts/g05_ensure_relink_prereqs.sh ]; then
     if grep -q 'try-rt-prefer\|rt-prefer' scripts/g05_ensure_relink_prereqs.sh \
@@ -5780,31 +5847,15 @@ run_check() {
   else
     note "ldpc-prefer body present (wave767)"
   fi
-  if awk '
-    $0 ~ /^src\/runtime_pipeline_abi\.o:/ {grab=1; next}
-    grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
-    grab {body = body $0 "\n"}
-    END {
-      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-pipeline-abi-prefer/) exit 0
-      exit 1
-    }
-  ' Makefile; then
-    note "Makefile src/runtime_pipeline_abi.o thin-calls ensure try-pipeline-abi-prefer (wave767)"
+  if makefile_leaf_try_heat_ok "src/runtime_pipeline_abi.o" 'try-heat|try-pipeline-abi-prefer'; then
+    note "Makefile src/runtime_pipeline_abi.o thin-calls ensure try-pipeline-abi-prefer (wave767/903 multi)"
   else
-    bad "Makefile src/runtime_pipeline_abi.o must thin-call ensure try-heat|try-pipeline-abi-prefer (wave767)"
+    bad "Makefile src/runtime_pipeline_abi.o must thin-call ensure try-heat|try-pipeline-abi-prefer (wave767/903)"
   fi
-  if awk '
-    $0 ~ /^src\/lsp\/lsp_diag_pipeline_ctx\.o:/ {grab=1; next}
-    grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
-    grab {body = body $0 "\n"}
-    END {
-      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-ldpc-prefer/) exit 0
-      exit 1
-    }
-  ' Makefile; then
-    note "Makefile src/lsp/lsp_diag_pipeline_ctx.o thin-calls ensure try-ldpc-prefer (wave767)"
+  if makefile_leaf_try_heat_ok "src/lsp/lsp_diag_pipeline_ctx.o" 'try-heat|try-ldpc-prefer'; then
+    note "Makefile src/lsp/lsp_diag_pipeline_ctx.o thin-calls ensure try-ldpc-prefer (wave767/904 multi)"
   else
-    bad "Makefile src/lsp/lsp_diag_pipeline_ctx.o must thin-call ensure try-heat|try-ldpc-prefer (wave767)"
+    bad "Makefile src/lsp/lsp_diag_pipeline_ctx.o must thin-call ensure try-heat|try-ldpc-prefer (wave767/904)"
   fi
   if [ -f scripts/g05_ensure_relink_prereqs.sh ]; then
     if grep -q 'try-pipeline-abi-prefer\|pipeline-abi-prefer' scripts/g05_ensure_relink_prereqs.sh \
@@ -5835,18 +5886,10 @@ run_check() {
   else
     note "target-cpu-prefer body present (wave768)"
   fi
-  if awk '
-    $0 ~ /^src\/driver\/target_cpu\.o:/ {grab=1; next}
-    grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
-    grab {body = body $0 "\n"}
-    END {
-      if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-target-cpu-prefer/) exit 0
-      exit 1
-    }
-  ' Makefile; then
-    note "Makefile src/driver/target_cpu.o thin-calls ensure try-target-cpu-prefer (wave768)"
+  if makefile_leaf_try_heat_ok "src/driver/target_cpu.o" 'try-heat|try-target-cpu-prefer'; then
+    note "Makefile src/driver/target_cpu.o thin-calls ensure try-target-cpu-prefer (wave768/905 multi)"
   else
-    bad "Makefile src/driver/target_cpu.o must thin-call ensure try-heat|try-target-cpu-prefer (wave768)"
+    bad "Makefile src/driver/target_cpu.o must thin-call ensure try-heat|try-target-cpu-prefer (wave768/905)"
   fi
   if [ -f scripts/g05_ensure_relink_prereqs.sh ]; then
     if grep -q 'try-target-cpu-prefer\|target-cpu-prefer' scripts/g05_ensure_relink_prereqs.sh \
@@ -5880,18 +5923,10 @@ run_check() {
     src/asm/user_asm_seed_bridge.o \
     src/asm/backend_x86_64_enc_c.o \
     src/asm/asm_backend_compat_stubs.o; do
-    if awk -v leaf="$_l2_leaf" '
-      $0 ~ ("^" leaf ":") {grab=1; next}
-      grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
-      grab {body = body $0 "\n"}
-      END {
-        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-l2-asm-prefer/) exit 0
-        exit 1
-      }
-    ' Makefile; then
-      note "Makefile $_l2_leaf thin-calls ensure try-l2-asm-prefer (wave769)"
+    if makefile_leaf_try_heat_ok "$_l2_leaf" 'try-heat|try-l2-asm-prefer'; then
+      note "Makefile $_l2_leaf thin-calls ensure try-l2-asm-prefer (wave769/multi)"
     else
-      bad "Makefile $_l2_leaf must thin-call ensure try-heat|try-l2-asm-prefer (wave769)"
+      bad "Makefile $_l2_leaf must thin-call ensure try-heat|try-l2-asm-prefer (wave769/multi)"
     fi
   done
   if [ -f scripts/g05_ensure_relink_prereqs.sh ]; then
@@ -5926,18 +5961,10 @@ run_check() {
     src/async/async_liveness.o \
     src/async/async_cps_codegen.o \
     src/async/async_asm_pool.o; do
-    if awk -v leaf="$_async_leaf" '
-      $0 ~ ("^" leaf ":") {grab=1; next}
-      grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
-      grab {body = body $0 "\n"}
-      END {
-        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-async-prefer/) exit 0
-        exit 1
-      }
-    ' Makefile; then
-      note "Makefile $_async_leaf thin-calls ensure try-async-prefer (wave770)"
+    if makefile_leaf_try_heat_ok "$_async_leaf" 'try-heat|try-async-prefer'; then
+      note "Makefile $_async_leaf thin-calls ensure try-async-prefer (wave770/907 multi)"
     else
-      bad "Makefile $_async_leaf must thin-call ensure try-heat|try-async-prefer (wave770)"
+      bad "Makefile $_async_leaf must thin-call ensure try-heat|try-async-prefer (wave770/907)"
     fi
   done
   if [ -f scripts/g05_ensure_relink_prereqs.sh ]; then
@@ -5984,18 +6011,10 @@ run_check() {
     src/driver/fmt_check_cmd_driver.o \
     src/driver/fmt_check_cmd.o \
     src/lsp/lsp_diag.o; do
-    if awk -v leaf="$_ol2_leaf" '
-      $0 ~ ("^" leaf ":") {grab=1; next}
-      grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
-      grab {body = body $0 "\n"}
-      END {
-        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-other-l2-prefer/) exit 0
-        exit 1
-      }
-    ' Makefile; then
-      note "Makefile $_ol2_leaf thin-calls ensure try-other-l2-prefer (wave771/775)"
+    if makefile_leaf_try_heat_ok "$_ol2_leaf" 'try-heat|try-other-l2-prefer'; then
+      note "Makefile $_ol2_leaf thin-calls ensure try-other-l2-prefer (wave771/775/multi)"
     else
-      bad "Makefile $_ol2_leaf must thin-call ensure try-heat|try-other-l2-prefer (wave771/775)"
+      bad "Makefile $_ol2_leaf must thin-call ensure try-heat|try-other-l2-prefer (wave771/775/multi)"
     fi
   done
   # wave775: ban re-opened Makefile dual hybrid body for non-driver fmt.o

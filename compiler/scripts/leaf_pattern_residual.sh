@@ -234,6 +234,8 @@
 #            (G.7 有则补全: R1_SEED_MAP_OBJS in driver_seed_r_lists.mk; no second list)
 #   wave906: R3_COLD product edges multi-target FORCE thin try-heat (9)
 #            (G.7 有则补全: R3_COLD_SEED_OBJS in driver_seed_r_lists.mk; no second list)
+#   wave907: ASYNC_THREE product edges multi-target FORCE thin try-heat (3)
+#            (G.7 有则补全: ASYNC_THREE_SEED_OBJS in driver_seed_r_lists.mk; no second list)
 #            wave893: B7B residual verify-selfhost thin-call form hygiene (2 sites) →
 #            body → scripts/verify-selfhost-stage2{,-bstrict}.sh; Makefile pure
 #            @bash scripts/… (drop @bash ./); root shim for CI/tests path compat;
@@ -815,6 +817,18 @@ PHYS_DEL_R3_COLD_LIST_MK_NOTE=list_multi_target_force_thin_edges_remain
 SWALLOWED_R3_COLD_LIST_MK=1
 R3_COLD_LIST_MK_SWALLOWED=1
 R3_COLD_LIST_MK_WAVE=wave906
+# wave907: ASYNC_THREE product edges multi-target FORCE thin try-heat (make-graph only).
+# G.7 有则补全: list authority = ASYNC_THREE_SEED_OBJS in mk/driver_seed_r_lists.mk
+# (wave770 try-async-prefer; no second product mk). Body = ensure try-heat → try-async-prefer.
+# NOT physical delete.
+PHYS_DEL_ASYNC_THREE_LIST_MK=1
+PHYS_DEL_ASYNC_THREE_LIST_MK_WAVE=wave907
+PHYS_DEL_ASYNC_THREE_LIST_MK_COUNT=3
+PHYS_DEL_ASYNC_THREE_LIST_MK_VIA=mk_async_three_seed_objs_multi_target_thin
+PHYS_DEL_ASYNC_THREE_LIST_MK_NOTE=list_multi_target_force_thin_edges_remain
+SWALLOWED_ASYNC_THREE_LIST_MK=1
+ASYNC_THREE_LIST_MK_SWALLOWED=1
+ASYNC_THREE_LIST_MK_WAVE=wave907
 # wave829: product/archaeology *_gen.c FORCE dep-thin — Makefile prereqs FORCE+script
 # only; shell owns pin/seed/FORCE_REGEN policy (ensure_*_gen). NOT physical delete —
 # thin edges + B2 try-heat + mk lists remain (ast_gen2 closed wave830).
@@ -1985,6 +1999,7 @@ PHYS_DEL_PREFLIGHT_R1_EXTRA_CFLAGS_LIST_MK=1
 PHYS_DEL_PREFLIGHT_R1_MISC_BASENAME_LIST_MK=1
 PHYS_DEL_PREFLIGHT_R1_SEED_MAP_LIST_MK=1
 PHYS_DEL_PREFLIGHT_R3_COLD_LIST_MK=1
+PHYS_DEL_PREFLIGHT_ASYNC_THREE_LIST_MK=1
 PHYS_DEL_PREFLIGHT_GEN_C_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_AST_GEN2_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_SRC_EDGE_FORCE_THIN=1
@@ -2682,6 +2697,9 @@ else
   fi
   if ! grep -qE 'wave906|R3_COLD.*multi|R3_COLD_SEED_OBJS|r3_cold list|r3.cold multi' "$DOC_REL"; then
     bad "$DOC_REL must document wave906 R3_COLD multi-target FORCE thin"
+  fi
+  if ! grep -qE 'wave907|ASYNC_THREE.*multi|ASYNC_THREE_SEED_OBJS|async three multi|async.three multi' "$DOC_REL"; then
+    bad "$DOC_REL must document wave907 ASYNC_THREE multi-target FORCE thin"
   fi
   if ! grep -qE 'wave828|driver_leaf FORCE|DRIVER_LEAF_FORCE_THIN' "$DOC_REL"; then
     bad "$DOC_REL must document wave828 driver_leaf FORCE dep-thin"
@@ -3624,6 +3642,21 @@ if ! grep -q 'SWALLOWED_R3_COLD_LIST_MK=1' <<<"$_out"; then
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_R3_COLD_LIST_MK=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_R3_COLD_LIST_MK=1 (wave906)"
+fi
+if ! grep -q 'PHYS_DEL_ASYNC_THREE_LIST_MK=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_ASYNC_THREE_LIST_MK=1 (wave907)"
+fi
+if ! grep -q 'PHYS_DEL_ASYNC_THREE_LIST_MK_WAVE=wave907' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_ASYNC_THREE_LIST_MK_WAVE=wave907"
+fi
+if ! grep -q 'PHYS_DEL_ASYNC_THREE_LIST_MK_COUNT=3' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_ASYNC_THREE_LIST_MK_COUNT=3 (wave907)"
+fi
+if ! grep -q 'SWALLOWED_ASYNC_THREE_LIST_MK=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_ASYNC_THREE_LIST_MK=1 (wave907)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_ASYNC_THREE_LIST_MK=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_ASYNC_THREE_LIST_MK=1 (wave907)"
 fi
 if ! grep -q 'PHYS_DEL_GEN_C_FORCE_THIN=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_GEN_C_FORCE_THIN=1 (wave829)"
@@ -6384,7 +6417,130 @@ fi
 note "Makefile R3_COLD multi-target FORCE thin try-heat + mk list 9 (wave757/763/788/906; not physical delete)"
 
 
-# wave829: product/archaeology *_gen.c FORCE dep-thin (17 leaves; no dual .x / X_DEPS prereqs).
+# wave907: ASYNC_THREE product edges multi-target FORCE thin try-heat (G.7 list authority).
+_A3_MK="compiler/mk/driver_seed_r_lists.mk"
+[ -f "$_A3_MK" ] || _A3_MK="mk/driver_seed_r_lists.mk"
+if [ ! -f "$_A3_MK" ]; then
+  bad "missing $_A3_MK (wave907 ASYNC_THREE list authority)"
+fi
+if ! grep -qE '^ASYNC_THREE_SEED_OBJS\s*=' "$_A3_MK"; then
+  bad "$_A3_MK must define ASYNC_THREE_SEED_OBJS (wave770/907)"
+fi
+_a3_list_n=$(
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^ASYNC_THREE_SEED_OBJS[[:space:]]*=/ {
+      line=$0
+      sub(/#.*/,"",line)
+      n=split(line, a, /[[:space:]\\]+/)
+      for (i=1;i<=n;i++) if (a[i] ~ /\.o$/) c++
+      next
+    }
+    END { print c+0 }
+  ' "$_A3_MK"
+)
+if [ "${_a3_list_n:-0}" -ne 3 ]; then
+  bad "wave907 expected 3 ASYNC_THREE_SEED_OBJS members, got ${_a3_list_n:-0}"
+fi
+if ! grep -q 'include mk/driver_seed_r_lists.mk' "$MF"; then
+  bad "Makefile must include mk/driver_seed_r_lists.mk (wave788/907)"
+fi
+if ! grep -qE '\$\(ASYNC_THREE_SEED_OBJS\):[[:space:]]*FORCE' "$MF"; then
+  bad "Makefile must multi-target \$(ASYNC_THREE_SEED_OBJS): FORCE (wave907)"
+fi
+if ! awk '
+  /\$\(ASYNC_THREE_SEED_OBJS\):/ { hit=1; next }
+  hit && /^[^#[:space:]\t]/ { exit 1 }
+  hit && /ensure_host_cc_seed_o\.sh/ && /try-heat/ { found=1; exit 0 }
+  END { exit found ? 0 : 1 }
+' "$MF"; then
+  bad "Makefile ASYNC_THREE_SEED_OBJS multi-target must thin-call try-heat (wave907)"
+fi
+_a3_thin=0
+_a3_force=0
+while IFS= read -r _a3; do
+  [ -z "$_a3" ] && continue
+  case "$_a3" in
+    *.o) ;;
+    *) continue ;;
+  esac
+  _ok_t=0
+  _ok_f=0
+  if awk -v leaf="$_a3" '
+    $0 ~ ("^" leaf ":") { want=1; next }
+    want && /^[^#[:space:]]/ { want=0 }
+    want && /ensure_host_cc_seed_o\.sh/ && /try-heat/ { found=1 }
+    END { exit found ? 0 : 1 }
+  ' "$MF" 2>/dev/null; then
+    _ok_t=1
+  elif grep -qF "$_a3" "$_A3_MK" \
+    && grep -qE '\$\(ASYNC_THREE_SEED_OBJS\):[[:space:]]*FORCE' "$MF"; then
+    _ok_t=1
+  fi
+  if awk -v leaf="$_a3" '
+    $0 ~ ("^" leaf ":") {
+      if ($0 ~ /FORCE/ && $0 !~ /\.x([[:space:]]|$)/) { ok=1; exit 0 }
+      exit 1
+    }
+    END { exit ok ? 0 : 1 }
+  ' "$MF" 2>/dev/null; then
+    _ok_f=1
+  elif grep -qF "$_a3" "$_A3_MK" \
+    && grep -qE '\$\(ASYNC_THREE_SEED_OBJS\):[[:space:]]*FORCE' "$MF"; then
+    _ok_f=1
+  fi
+  if [ "$_ok_t" -eq 1 ]; then
+    _a3_thin=$((_a3_thin + 1))
+  else
+    bad "Makefile $_a3 must thin-call try-heat (wave770/907)"
+  fi
+  if [ "$_ok_f" -eq 1 ]; then
+    _a3_force=$((_a3_force + 1))
+  else
+    bad "Makefile $_a3 must FORCE dep-thin (wave907)"
+  fi
+done < <(
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^ASYNC_THREE_SEED_OBJS[[:space:]]*=/ {
+      line=$0
+      sub(/#.*/,"",line)
+      n=split(line, a, /[[:space:]\\]+/)
+      for (i=1;i<=n;i++) if (a[i] ~ /\.o$/) print a[i]
+    }
+  ' "$_A3_MK"
+)
+if [ "$_a3_thin" -ne 3 ]; then
+  bad "wave907 expected 3 ASYNC_THREE ensure leaves, got $_a3_thin"
+fi
+if [ "$_a3_force" -ne 3 ]; then
+  bad "wave907 expected 3 ASYNC_THREE FORCE thin leaves, got $_a3_force"
+fi
+_a3_indiv=0
+while IFS= read -r _a3; do
+  [ -z "$_a3" ] && continue
+  case "$_a3" in *.o) ;; *) continue ;; esac
+  if grep -qE "^${_a3}:" "$MF" 2>/dev/null; then
+    _a3_indiv=$((_a3_indiv + 1))
+  fi
+done < <(
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^ASYNC_THREE_SEED_OBJS[[:space:]]*=/ {
+      line=$0
+      sub(/#.*/,"",line)
+      n=split(line, a, /[[:space:]\\]+/)
+      for (i=1;i<=n;i++) if (a[i] ~ /\.o$/) print a[i]
+    }
+  ' "$_A3_MK"
+)
+if [ "$_a3_indiv" -ne 0 ]; then
+  bad "Makefile still has $_a3_indiv per-leaf ASYNC_THREE targets (wave907 multi-target only)"
+fi
+note "Makefile ASYNC_THREE multi-target FORCE thin try-heat + mk list 3 (wave770/788/907; not physical delete)"
+
+
+# wave829: product/archaeology *_gen.c FORCE dep-thin# wave829: product/archaeology *_gen.c FORCE dep-thin (17 leaves; no dual .x / X_DEPS prereqs).
 _gen_c_force_leaves="
 parser_gen.c
 lexer_gen.c
@@ -8233,6 +8389,10 @@ fi
 if grep -qE '\$\(R3_COLD_SEED_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null; then
   _th_recipe_n=$((_th_recipe_n + 8))
 fi
+# wave907: multi-target collapses 3 ASYNC_THREE leaves → 1 rule; logical expand +2.
+if grep -qE '\$\(ASYNC_THREE_SEED_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null; then
+  _th_recipe_n=$((_th_recipe_n + 2))
+fi
 if [ "${_th_recipe_n}" -lt 100 ]; then
   bad "Makefile expected >=100 try-heat thin-call recipes (wave862; got ${_th_recipe_n}; multi-target logical expand)"
 fi
@@ -9032,6 +9192,10 @@ fi
 if grep -qE '\$\(R3_COLD_SEED_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null; then
   _bash_thin_n=$((_bash_thin_n + 8))
 fi
+# wave907: multi-target collapses 3 ASYNC_THREE leaves → 1 @bash line; logical expand +2.
+if grep -qE '\$\(ASYNC_THREE_SEED_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null; then
+  _bash_thin_n=$((_bash_thin_n + 2))
+fi
 if [ "$_bash_thin_n" -lt 200 ]; then
   bad "Makefile @bash scripts/ thin-call count expected >=200 got ${_bash_thin_n} (wave890; multi-target logical expand)"
 fi
@@ -9258,10 +9422,14 @@ if [ -f "$MF" ]; then
   if grep -qE '\$\(R3_COLD_SEED_OBJS\):[[:space:]]*FORCE[[:space:]]+scripts/ensure_host_cc_seed_o\.sh' "$MF" 2>/dev/null; then
     _force_n=$((_force_n + 8))
   fi
+  # wave907: multi-target collapses 3 ASYNC_THREE leaves → 1 rule; logical expand +2.
+  if grep -qE '\$\(ASYNC_THREE_SEED_OBJS\):[[:space:]]*FORCE[[:space:]]+scripts/ensure_host_cc_seed_o\.sh' "$MF" 2>/dev/null; then
+    _force_n=$((_force_n + 2))
+  fi
   if [ "${_force_n}" -lt 113 ]; then
-    bad "Makefile wave797 FORCE dep-thin leaves expected >=113 (n=${_force_n}; wave897/898/899/900/901/902/903/904/905/906 multi-target logical expand)"
+    bad "Makefile wave797 FORCE dep-thin leaves expected >=113 (n=${_force_n}; wave897/898/899/900/901/902/903/904/905/906/907 multi-target logical expand)"
   else
-    note "Makefile heat dep-edge FORCE thin (n=${_force_n}; wave797; wave897/898/899/900/901/902/903/904/905/906 multi-target logical expand)"
+    note "Makefile heat dep-edge FORCE thin (n=${_force_n}; wave797; wave897/898/899/900/901/902/903/904/905/906/907 multi-target logical expand)"
   fi
   # wave797: orch last heat source-prereq leaf must be FORCE thin (no pipeline_gen prereq edge).
   # G.7: do not quote product *.o paths in residual body (self inventory ban).

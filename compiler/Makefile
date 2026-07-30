@@ -481,31 +481,20 @@ $(LEGACY_XLANG_C_READY_TARGETS): | legacy-xlang-c-ready
 
 # G-02f-22：runtime_c_import 产品 seed — joined wave899 multi-target $(R1_CORE_SEED_OBJS).
 
-# G-02f-18 / R2 product PREFER：async_liveness 独立 TU（非 glue #include）。
-# wave770: product PREFER → ensure try-async-prefer (full .x + rest FROM_X → $CC -r; cold seed).
-# PLATFORM: SHARED — product link via DRIVER_SEED_SUPPORT_EXTRA (legacy mode).
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
+# ---------------------------------------------------------------------------
+# wave907 · B7B async three product edges multi-target FORCE thin try-heat
+# G.7 有则补全: list authority = $(ASYNC_THREE_SEED_OBJS) in mk/driver_seed_r_lists.mk
+# (wave770 try-async-prefer table; wave788 list-in-mk family; no second .o list).
+# Body authority = scripts/ensure_host_cc_seed_o.sh try-heat
+# (wave770/790/792/793; PREFER full.x+rest ladder lives in try-heat → try-async-prefer).
+# Leaves: async_liveness · async_cps_codegen · async_asm_pool.
+# Archaeology: G-02f-18 independent TU · R2 unbundle async_asm_pool from glue ·
+# wave792/793 FORCE dep-thin — body in try-heat.
+# Makefile only FORCE + thin-call. NOT physical delete — thin edges + remaining
+# mk lists hybrid (B1 runtime OS / gen-x / …) + tip Windows → dual L4 → explicit auth.
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/async/async_liveness.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-
-# G-02f-18 / R2 product PREFER：async_cps_codegen 独立 TU（非 glue #include）。
-# wave770: product PREFER → ensure try-async-prefer (full .x + rest FROM_X → $CC -r; cold seed).
-# PLATFORM: SHARED — product link via DRIVER_SEED_SUPPORT_EXTRA (legacy mode).
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/async/async_cps_codegen.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-
-# R2 unbundle async_asm_pool from pipeline_glue #include (2026-07-21).
-# wave770: product PREFER → ensure try-async-prefer (full .x + rest FROM_X → $CC -r; cold seed).
-# PLATFORM: SHARED — product link via DRIVER_SEED_SUPPORT_EXTRA (all modes).
-# wave793 B7A: heat dep-edge thin pure seed+.x+.h residual — prereqs → FORCE + ensure;
-# try-heat owns seed/.x/project-hdr mtime (seed_project_hdrs_newer).
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/async/async_asm_pool.o: FORCE scripts/ensure_host_cc_seed_o.sh
+# ---------------------------------------------------------------------------
+$(ASYNC_THREE_SEED_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-12 / Phase 4：runtime_driver_diagnostic — joined wave906 multi-target $(R3_COLD_SEED_OBJS).
@@ -1859,6 +1848,7 @@ bootstrap-driver-seed-export-obj-catalog:
 	@printf 'R1_MISC_BASENAME_OBJS=%s\n' '$(R1_MISC_BASENAME_OBJS)'
 	@printf 'R1_SEED_MAP_OBJS=%s\n' '$(R1_SEED_MAP_OBJS)'
 	@printf 'R3_COLD_SEED_OBJS=%s\n' '$(R3_COLD_SEED_OBJS)'
+	@printf 'ASYNC_THREE_SEED_OBJS=%s\n' '$(ASYNC_THREE_SEED_OBJS)'
 
 # §5b #2 — pipeline_x.o FORCE recompile on cold start (PIPELINE_X_FORCE_COMPILE=1)
 # Body: bootstrap_driver_seed_rebuild_leaves.sh pipeline-x; list = DRIVER_SEED_PIPELINE_X_OBJS only.

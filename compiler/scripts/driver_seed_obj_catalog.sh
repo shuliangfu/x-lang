@@ -74,6 +74,7 @@ REQUIRED_KEYS=(
   R1_MISC_BASENAME_OBJS
   R1_SEED_MAP_OBJS
   R3_COLD_SEED_OBJS
+  ASYNC_THREE_SEED_OBJS
 )
 
 # ---------------------------------------------------------------------------

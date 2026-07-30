@@ -74,5 +74,11 @@ R1_SEED_MAP_OBJS = src/driver/target_cpu.o src/ast/ast_seed.o pipeline_bootstrap
 # Body = ensure try-heat → try-r3-prefer; do not re-list in Makefile or residual shells (G.7).
 R3_COLD_SEED_OBJS = src/runtime_io_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/asm/simd_enc.o src/asm/simd_loop.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o
 
+# wave770 async three: full.x+rest PREFER family (try-async-prefer table in ensure).
+# List authority for make-graph multi-target FORCE thin try-heat (wave907 COUNT=3).
+# Body = ensure try-heat → try-async-prefer; do not re-list in Makefile or residual shells (G.7).
+# Leaves: async_liveness · async_cps_codegen · async_asm_pool (paths under src/async/).
+ASYNC_THREE_SEED_OBJS = src/async/async_liveness.o src/async/async_cps_codegen.o src/async/async_asm_pool.o
+
 # pipeline_glue_standalone product leaf (also referenced by composites / export lists).
 ASM_GLUE_STANDALONE_O = build_asm/pipeline_glue_standalone.o
