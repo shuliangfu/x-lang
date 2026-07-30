@@ -76,6 +76,7 @@ REQUIRED_KEYS=(
   R3_COLD_SEED_OBJS
   ASYNC_THREE_SEED_OBJS
   B1_RUNTIME_OS_SEED_OBJS
+  GEN_X_SEED_OBJS
 )
 
 # ---------------------------------------------------------------------------

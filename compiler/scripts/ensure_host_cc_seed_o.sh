@@ -5256,9 +5256,9 @@ run_check() {
   note() { echo "ensure_host_cc_seed_o: $*" >&2; }
   bad() { echo "ensure_host_cc_seed_o: FAIL: $*" >&2; fail=1; }
 
-  # wave907–908 G.7: multi-target FORCE try-heat covers many historical per-leaf prefer
-  # checks (R1/R3/ASYNC/B1 runtime OS families). Accept per-leaf OR membership in a multi-target
-  # list whose recipe thin-calls ensure try-heat (prefer ladder lives in shell).
+  # wave907–909 G.7: multi-target FORCE try-heat covers many historical per-leaf prefer
+  # checks (R1/R3/ASYNC/B1 runtime OS / GEN_X families). Accept per-leaf OR membership in a multi-target
+  # list whose recipe thin-calls ensure try-heat (prefer / gen-x ladder lives in shell).
   makefile_leaf_try_heat_ok() {
     local leaf="$1"
     local prefer_re="${2:-try-heat}"
@@ -5278,7 +5278,7 @@ run_check() {
     for var in \
       RT_SEED_SLICE_OBJS R1_CORE_SEED_OBJS R1_FRONTEND_GLUE_OBJS R1_MAIN_RUNTIME_OBJS \
       R1_ALIAS_STUBS_OBJS R1_EXTRA_CFLAGS_OBJS R1_MISC_BASENAME_OBJS R1_SEED_MAP_OBJS \
-      R3_COLD_SEED_OBJS ASYNC_THREE_SEED_OBJS B1_RUNTIME_OS_SEED_OBJS; do
+      R3_COLD_SEED_OBJS ASYNC_THREE_SEED_OBJS B1_RUNTIME_OS_SEED_OBJS GEN_X_SEED_OBJS; do
       if [ ! -f "$mk" ]; then
         continue
       fi
@@ -6388,8 +6388,21 @@ run_check() {
   fi
   # Makefile gen residual: wave761 ensure_gen_x_o · wave796 FORCE + try-heat
   # (try-heat → try-gen-x → ensure_gen_x_o body; G.7 single body).
+  # wave909: multi-target $(GEN_X_SEED_OBJS): FORCE try-heat covers all four
+  # (no per-leaf dual). Accept multi-target OR historical per-leaf.
+  if grep -qE '\$\(GEN_X_SEED_OBJS\):[[:space:]]*FORCE' Makefile \
+    && awk '
+      /\$\(GEN_X_SEED_OBJS\):/ { hit=1; next }
+      hit && /^[^#[:space:]\t]/ { exit 1 }
+      hit && /ensure_host_cc_seed_o\.sh/ && /try-heat/ { found=1; exit 0 }
+      END { exit found ? 0 : 1 }
+    ' Makefile; then
+    note "Makefile GEN_X multi-target FORCE thin try-heat (wave909; covers four)"
+  fi
   for leaf in lsp_io_x.o lsp_x.o lsp_diag_x.o pipeline_x.o; do
-    if awk -v t="$leaf" '
+    if makefile_leaf_try_heat_ok "$leaf" 'try-heat|try-gen-x'; then
+      note "Makefile $leaf thin-calls try-heat|try-gen-x (wave761/796/909)"
+    elif awk -v t="$leaf" '
       $0 ~ "^" t ":" {grab=1; next}
       grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
       grab {body = body $0 "\n"}
@@ -6401,7 +6414,7 @@ run_check() {
     ' Makefile; then
       note "Makefile $leaf thin-calls try-heat|ensure_gen_x_o (wave761/796)"
     else
-      bad "Makefile $leaf must thin-call try-heat or ensure_gen_x_o.sh (wave761/796)"
+      bad "Makefile $leaf must thin-call try-heat or ensure_gen_x_o.sh (wave761/796/909)"
     fi
   done
 

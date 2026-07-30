@@ -789,6 +789,22 @@ runtime_panic.o: FORCE scripts/ensure_host_cc_seed_o.sh
 $(B1_RUNTIME_OS_SEED_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
+# ---------------------------------------------------------------------------
+# wave909 · B7B GEN_X product edges multi-target FORCE thin try-heat
+# G.7 有则补全: list authority = $(GEN_X_SEED_OBJS) in mk/driver_seed_r_lists.mk
+# (wave761 try-gen-x map = lsp_io_x · lsp_x · lsp_diag_x · pipeline_x; no second body).
+# Body authority = scripts/ensure_host_cc_seed_o.sh try-heat
+# (wave761/796/790; try-heat → try-gen-x → ensure_gen_x_o.sh owns gen.c / DEPS mtime).
+# rebuild_leaves membership stays catalog DRIVER_SEED_LSP_X_OBJS subset +
+# DRIVER_SEED_PIPELINE_X_OBJS (GEN_X_SEED_OBJS is make-graph inventory only).
+# Archaeology: wave761 swallow · wave796 FORCE dep-thin — body in try-heat.
+# Makefile only FORCE + thin-call. NOT physical delete — thin edges + remaining
+# mk lists hybrid (B4 gen-c-to-o / …) + tip Windows → dual L4 → explicit auth.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+# ---------------------------------------------------------------------------
+$(GEN_X_SEED_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
+	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+
 
 # 无 C 自举：crt0 提供 _start 与 driver_get_argv_i；链接 asm 版 xlang 时用本 .o 替代 main.o / runtime_asm_build.o
 # wave762 R2: body → ensure_host_cc_seed_o.sh try-r2 (list = DRIVER_SEED_CRT0_OBJS /
@@ -1300,12 +1316,8 @@ src/lexer/cfg_eval_bootstrap_stub.o: FORCE scripts/cc_inc_tu.sh
 lsp_diag_gen.c: FORCE scripts/ensure_lsp_pipeline_gen.sh
 	@bash scripts/ensure_lsp_pipeline_gen.sh lsp_diag
 
-# wave761: G.7 body → scripts/ensure_gen_x_o.sh (gen residual; try-gen-x)
-# wave796 B7A: heat dep-edge thin gen_x residual — gen.c prereq → FORCE + ensure;
-# try-heat → try-gen-x owns gen.c mtime. NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-lsp_diag_x.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# wave761/796/909: lsp_diag_x.o joined multi-target $(GEN_X_SEED_OBJS) FORCE try-heat
+# (try-heat → try-gen-x → ensure_gen_x_o; gen.c mtime in shell).
 
 # lsp_io.x：C-04 v0 要求 xlang-c 自动生成 import extern；xlang-x 仍走旧块时回退 xlang-c。
 # wave739: G.7 body → scripts/ensure_lsp_pipeline_gen.sh
@@ -1340,18 +1352,8 @@ lsp_io_std_heap_gen.c: FORCE scripts/ensure_archaeology_gen.sh
 	@bash scripts/ensure_archaeology_gen.sh lsp_io_std_heap
 
 # bootstrap-driver-seed / relink-xlang 共用：lsp_io / lsp 生成 C → .o
-# wave761: G.7 body → scripts/ensure_gen_x_o.sh (lsp_io -D renames)
-# wave796 B7A: heat dep-edge thin gen_x residual — gen.c/.x prereqs → FORCE + ensure;
-# try-heat → try-gen-x owns gen.c + lsp_io.x mtime. NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-lsp_io_x.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-
-# wave761: G.7 body → scripts/ensure_gen_x_o.sh
-# wave796 B7A: heat dep-edge thin gen_x residual — gen.c prereq → FORCE + ensure.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-lsp_x.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# wave761/796/909: lsp_io_x.o + lsp_x.o joined multi-target $(GEN_X_SEED_OBJS)
+# FORCE try-heat (try-heat → try-gen-x; gen.c / lsp_io.x mtime in shell).
 
 # Driver 子命令 .o（seed link / relink prereq names — not ensure recipe edges）：
 #   Track L 已退役叶子：fmt/check/test/build/run/compile/emit + lsp_io_std_heap → ensure catalog
@@ -1407,16 +1409,9 @@ endif
 # pipeline_x.o：与 pipeline_gen.c 及 PIPELINE_X_DEPS 绑定；parser/backend 等 .x 变更须重编，避免 seed 仍用旧 pipeline 逻辑（entry 消失等）。
 # 默认复用 build_asm/gen_driver/pipeline_x.o（fat 编排）；设 PIPELINE_X_FORCE_COMPILE=1 才从 pipeline_gen.c 重编。
 # pipeline_glue.c / ast_pool.c 由 pipeline_glue_standalone.o 覆盖，勿因二者 mtime 触发整 TU 重编（否则与 partial 并列链 parse 塌陷）。
-# wave761: G.7 body → scripts/ensure_gen_x_o.sh (gen_driver STALE + FORCE; DEPS from mk)
-# wave796 B7A: heat dep-edge thin gen_x residual — gen/DEPS prereqs → FORCE + ensure;
-# try-heat → try-gen-x. NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-# wave886 B7B residual: drop PIPELINE_X_DEPS / PIPELINE_X_FORCE_COMPILE /
-# XLANG_FORCE_REGEN_GEN recipe inject (G.7 hygiene). Authority: ensure_gen_x_o.sh
-# loads PIPELINE_X_DEPS from mk/x_source_deps.mk when unset; FORCE flags via
-# CLI/env + rebuild_leaves export. NOT physical delete.
-pipeline_x.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# wave761/796/886/909: joined multi-target $(GEN_X_SEED_OBJS) FORCE try-heat
+# (try-heat → try-gen-x; gen_driver STALE + PIPELINE_X_DEPS from mk via ensure_gen_x_o.sh;
+# FORCE flags via CLI/env + rebuild_leaves export). NOT physical delete.
 FORCE:
 
 # driver_gen.c / driver_x.o：main.x 驱动入口。
@@ -1584,6 +1579,7 @@ bootstrap-driver-seed-export-obj-catalog:
 	@printf 'R3_COLD_SEED_OBJS=%s\n' '$(R3_COLD_SEED_OBJS)'
 	@printf 'ASYNC_THREE_SEED_OBJS=%s\n' '$(ASYNC_THREE_SEED_OBJS)'
 	@printf 'B1_RUNTIME_OS_SEED_OBJS=%s\n' '$(B1_RUNTIME_OS_SEED_OBJS)'
+	@printf 'GEN_X_SEED_OBJS=%s\n' '$(GEN_X_SEED_OBJS)'
 
 # §5b #2 — pipeline_x.o FORCE recompile on cold start (PIPELINE_X_FORCE_COMPILE=1)
 # Body: bootstrap_driver_seed_rebuild_leaves.sh pipeline-x; list = DRIVER_SEED_PIPELINE_X_OBJS only.

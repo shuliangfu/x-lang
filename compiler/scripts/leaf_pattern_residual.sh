@@ -238,6 +238,8 @@
 #            (G.7 有则补全: ASYNC_THREE_SEED_OBJS in driver_seed_r_lists.mk; no second list)
 #   wave908: B1_RUNTIME_OS product edges multi-target FORCE thin try-heat (23)
 #            (G.7 有则补全: B1_RUNTIME_OS_SEED_OBJS in driver_seed_r_lists.mk; no second list)
+#   wave909: GEN_X product edges multi-target FORCE thin try-heat (4)
+#            (G.7 有则补全: GEN_X_SEED_OBJS in driver_seed_r_lists.mk; try-gen-x map; no second body)
 #            wave893: B7B residual verify-selfhost thin-call form hygiene (2 sites) →
 #            body → scripts/verify-selfhost-stage2{,-bstrict}.sh; Makefile pure
 #            @bash scripts/… (drop @bash ./); root shim for CI/tests path compat;
@@ -843,6 +845,18 @@ PHYS_DEL_B1_RUNTIME_OS_LIST_MK_NOTE=list_multi_target_force_thin_edges_remain
 SWALLOWED_B1_RUNTIME_OS_LIST_MK=1
 B1_RUNTIME_OS_LIST_MK_SWALLOWED=1
 B1_RUNTIME_OS_LIST_MK_WAVE=wave908
+# wave909: GEN_X product edges multi-target FORCE thin try-heat (make-graph only).
+# G.7 有则补全: list authority = GEN_X_SEED_OBJS in mk/driver_seed_r_lists.mk
+# (wave761 try-gen-x map lsp trio+pipeline_x; no second body). Body = ensure try-heat → try-gen-x.
+# NOT physical delete.
+PHYS_DEL_GEN_X_LIST_MK=1
+PHYS_DEL_GEN_X_LIST_MK_WAVE=wave909
+PHYS_DEL_GEN_X_LIST_MK_COUNT=4
+PHYS_DEL_GEN_X_LIST_MK_VIA=mk_gen_x_seed_objs_multi_target_thin
+PHYS_DEL_GEN_X_LIST_MK_NOTE=list_multi_target_force_thin_edges_remain
+SWALLOWED_GEN_X_LIST_MK=1
+GEN_X_LIST_MK_SWALLOWED=1
+GEN_X_LIST_MK_WAVE=wave909
 # wave829: product/archaeology *_gen.c FORCE dep-thin — Makefile prereqs FORCE+script
 # only; shell owns pin/seed/FORCE_REGEN policy (ensure_*_gen). NOT physical delete —
 # thin edges + B2 try-heat + mk lists remain (ast_gen2 closed wave830).
@@ -2015,6 +2029,7 @@ PHYS_DEL_PREFLIGHT_R1_SEED_MAP_LIST_MK=1
 PHYS_DEL_PREFLIGHT_R3_COLD_LIST_MK=1
 PHYS_DEL_PREFLIGHT_ASYNC_THREE_LIST_MK=1
 PHYS_DEL_PREFLIGHT_B1_RUNTIME_OS_LIST_MK=1
+PHYS_DEL_PREFLIGHT_GEN_X_LIST_MK=1
 PHYS_DEL_PREFLIGHT_GEN_C_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_AST_GEN2_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_SRC_EDGE_FORCE_THIN=1
@@ -2718,6 +2733,9 @@ else
   fi
   if ! grep -qE 'wave908|B1_RUNTIME_OS.*multi|B1_RUNTIME_OS_SEED_OBJS|b1 runtime os multi|runtime_os multi' "$DOC_REL"; then
     bad "$DOC_REL must document wave908 B1_RUNTIME_OS multi-target FORCE thin"
+  fi
+  if ! grep -qE 'wave909|GEN_X.*multi|GEN_X_SEED_OBJS|gen.x multi|gen_x multi' "$DOC_REL"; then
+    bad "$DOC_REL must document wave909 GEN_X multi-target FORCE thin"
   fi
   if ! grep -qE 'wave828|driver_leaf FORCE|DRIVER_LEAF_FORCE_THIN' "$DOC_REL"; then
     bad "$DOC_REL must document wave828 driver_leaf FORCE dep-thin"
@@ -3690,6 +3708,21 @@ if ! grep -q 'SWALLOWED_B1_RUNTIME_OS_LIST_MK=1' <<<"$_out"; then
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_B1_RUNTIME_OS_LIST_MK=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_B1_RUNTIME_OS_LIST_MK=1 (wave908)"
+fi
+if ! grep -q 'PHYS_DEL_GEN_X_LIST_MK=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_GEN_X_LIST_MK=1 (wave909)"
+fi
+if ! grep -q 'PHYS_DEL_GEN_X_LIST_MK_WAVE=wave909' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_GEN_X_LIST_MK_WAVE=wave909"
+fi
+if ! grep -q 'PHYS_DEL_GEN_X_LIST_MK_COUNT=4' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_GEN_X_LIST_MK_COUNT=4 (wave909)"
+fi
+if ! grep -q 'SWALLOWED_GEN_X_LIST_MK=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_GEN_X_LIST_MK=1 (wave909)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_GEN_X_LIST_MK=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_GEN_X_LIST_MK=1 (wave909)"
 fi
 if ! grep -q 'PHYS_DEL_GEN_C_FORCE_THIN=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_GEN_C_FORCE_THIN=1 (wave829)"
@@ -6694,6 +6727,128 @@ if [ "$_b1_indiv" -ne 0 ]; then
 fi
 note "Makefile B1_RUNTIME_OS multi-target FORCE thin try-heat + mk list 23 (wave779/788/908; not physical delete)"
 
+# wave909: GEN_X product edges multi-target FORCE thin try-heat (G.7 list authority).
+_GX_MK="compiler/mk/driver_seed_r_lists.mk"
+[ -f "$_GX_MK" ] || _GX_MK="mk/driver_seed_r_lists.mk"
+if [ ! -f "$_GX_MK" ]; then
+  bad "missing $_GX_MK (wave909 GEN_X list authority)"
+fi
+if ! grep -qE '^GEN_X_SEED_OBJS\s*=' "$_GX_MK"; then
+  bad "$_GX_MK must define GEN_X_SEED_OBJS (wave761/909)"
+fi
+_gx_list_n=$(
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^GEN_X_SEED_OBJS[[:space:]]*=/ {
+      line=$0
+      sub(/#.*/,"",line)
+      n=split(line, a, /[[:space:]\\]+/)
+      for (i=1;i<=n;i++) if (a[i] ~ /\.o$/) c++
+      next
+    }
+    END { print c+0 }
+  ' "$_GX_MK"
+)
+if [ "${_gx_list_n:-0}" -ne 4 ]; then
+  bad "wave909 expected 4 GEN_X_SEED_OBJS members, got ${_gx_list_n:-0}"
+fi
+if ! grep -q 'include mk/driver_seed_r_lists.mk' "$MF"; then
+  bad "Makefile must include mk/driver_seed_r_lists.mk (wave788/909)"
+fi
+if ! grep -qE '\$\(GEN_X_SEED_OBJS\):[[:space:]]*FORCE' "$MF"; then
+  bad "Makefile must multi-target \$(GEN_X_SEED_OBJS): FORCE (wave909)"
+fi
+if ! awk '
+  /\$\(GEN_X_SEED_OBJS\):/ { hit=1; next }
+  hit && /^[^#[:space:]\t]/ { exit 1 }
+  hit && /ensure_host_cc_seed_o\.sh/ && /try-heat/ { found=1; exit 0 }
+  END { exit found ? 0 : 1 }
+' "$MF"; then
+  bad "Makefile GEN_X_SEED_OBJS multi-target must thin-call try-heat (wave909)"
+fi
+_gx_thin=0
+_gx_force=0
+while IFS= read -r _gx; do
+  [ -z "$_gx" ] && continue
+  case "$_gx" in
+    *.o) ;;
+    *) continue ;;
+  esac
+  _ok_t=0
+  _ok_f=0
+  if awk -v leaf="$_gx" '
+    $0 ~ ("^" leaf ":") { want=1; next }
+    want && /^[^#[:space:]]/ { want=0 }
+    want && /ensure_host_cc_seed_o\.sh/ && /try-heat/ { found=1 }
+    END { exit found ? 0 : 1 }
+  ' "$MF" 2>/dev/null; then
+    _ok_t=1
+  elif grep -qF "$_gx" "$_GX_MK" \
+    && grep -qE '\$\(GEN_X_SEED_OBJS\):[[:space:]]*FORCE' "$MF"; then
+    _ok_t=1
+  fi
+  if awk -v leaf="$_gx" '
+    $0 ~ ("^" leaf ":") {
+      if ($0 ~ /FORCE/ && $0 !~ /\.x([[:space:]]|$)/) { ok=1; exit 0 }
+      exit 1
+    }
+    END { exit ok ? 0 : 1 }
+  ' "$MF" 2>/dev/null; then
+    _ok_f=1
+  elif grep -qF "$_gx" "$_GX_MK" \
+    && grep -qE '\$\(GEN_X_SEED_OBJS\):[[:space:]]*FORCE' "$MF"; then
+    _ok_f=1
+  fi
+  if [ "$_ok_t" -eq 1 ]; then
+    _gx_thin=$((_gx_thin + 1))
+  else
+    bad "Makefile $_gx must thin-call try-heat (wave761/909)"
+  fi
+  if [ "$_ok_f" -eq 1 ]; then
+    _gx_force=$((_gx_force + 1))
+  else
+    bad "Makefile $_gx must FORCE dep-thin (wave909)"
+  fi
+done < <(
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^GEN_X_SEED_OBJS[[:space:]]*=/ {
+      line=$0
+      sub(/#.*/,"",line)
+      n=split(line, a, /[[:space:]\\]+/)
+      for (i=1;i<=n;i++) if (a[i] ~ /\.o$/) print a[i]
+    }
+  ' "$_GX_MK"
+)
+if [ "$_gx_thin" -ne 4 ]; then
+  bad "wave909 expected 4 GEN_X ensure leaves, got $_gx_thin"
+fi
+if [ "$_gx_force" -ne 4 ]; then
+  bad "wave909 expected 4 GEN_X FORCE thin leaves, got $_gx_force"
+fi
+_gx_indiv=0
+while IFS= read -r _gx; do
+  [ -z "$_gx" ] && continue
+  case "$_gx" in *.o) ;; *) continue ;; esac
+  if grep -qE "^${_gx}:" "$MF" 2>/dev/null; then
+    _gx_indiv=$((_gx_indiv + 1))
+  fi
+done < <(
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^GEN_X_SEED_OBJS[[:space:]]*=/ {
+      line=$0
+      sub(/#.*/,"",line)
+      n=split(line, a, /[[:space:]\\]+/)
+      for (i=1;i<=n;i++) if (a[i] ~ /\.o$/) print a[i]
+    }
+  ' "$_GX_MK"
+)
+if [ "$_gx_indiv" -ne 0 ]; then
+  bad "Makefile still has $_gx_indiv per-leaf GEN_X targets (wave909 multi-target only)"
+fi
+note "Makefile GEN_X multi-target FORCE thin try-heat + mk list 4 (wave761/788/909; not physical delete)"
+
 
 
 # wave829: product/archaeology *_gen.c FORCE dep-thin# wave829: product/archaeology *_gen.c FORCE dep-thin (17 leaves; no dual .x / X_DEPS prereqs).
@@ -8553,6 +8708,10 @@ fi
 if grep -qE '\$\(B1_RUNTIME_OS_SEED_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null; then
   _th_recipe_n=$((_th_recipe_n + 22))
 fi
+# wave909: multi-target collapses 4 GEN_X leaves → 1 rule; logical expand +3.
+if grep -qE '\$\(GEN_X_SEED_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null; then
+  _th_recipe_n=$((_th_recipe_n + 3))
+fi
 if [ "${_th_recipe_n}" -lt 100 ]; then
   bad "Makefile expected >=100 try-heat thin-call recipes (wave862; got ${_th_recipe_n}; multi-target logical expand)"
 fi
@@ -9360,6 +9519,10 @@ fi
 if grep -qE '\$\(B1_RUNTIME_OS_SEED_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null; then
   _bash_thin_n=$((_bash_thin_n + 22))
 fi
+# wave909: multi-target collapses 4 GEN_X leaves → 1 @bash line; logical expand +3.
+if grep -qE '\$\(GEN_X_SEED_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null; then
+  _bash_thin_n=$((_bash_thin_n + 3))
+fi
 if [ "$_bash_thin_n" -lt 200 ]; then
   bad "Makefile @bash scripts/ thin-call count expected >=200 got ${_bash_thin_n} (wave890; multi-target logical expand)"
 fi
@@ -9567,6 +9730,10 @@ if [ -f "$MF" ]; then
   if grep -qE '\$\(B1_RUNTIME_OS_SEED_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null; then
     _heat_recipe_n=$((_heat_recipe_n + 22))
   fi
+  # wave909: multi-target collapses 4 GEN_X leaves → 1 rule; logical expand +3.
+  if grep -qE '\$\(GEN_X_SEED_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null; then
+    _heat_recipe_n=$((_heat_recipe_n + 3))
+  fi
   _heat_non_try=$(grep -E $'^\t.*ensure_host_cc_seed_o\.sh ' "$MF" 2>/dev/null | grep -vc 'try-heat' || true)
   _heat_non_try=${_heat_non_try:-0}
   if [ "${_heat_recipe_n}" -lt 50 ]; then
@@ -9633,10 +9800,14 @@ if [ -f "$MF" ]; then
   if grep -qE '\$\(B1_RUNTIME_OS_SEED_OBJS\):[[:space:]]*FORCE[[:space:]]+scripts/ensure_host_cc_seed_o\.sh' "$MF" 2>/dev/null; then
     _force_n=$((_force_n + 22))
   fi
+  # wave909: multi-target collapses 4 GEN_X leaves → 1 rule; logical expand +3.
+  if grep -qE '\$\(GEN_X_SEED_OBJS\):[[:space:]]*FORCE[[:space:]]+scripts/ensure_host_cc_seed_o\.sh' "$MF" 2>/dev/null; then
+    _force_n=$((_force_n + 3))
+  fi
   if [ "${_force_n}" -lt 113 ]; then
-    bad "Makefile wave797 FORCE dep-thin leaves expected >=113 (n=${_force_n}; wave897/898/899/900/901/902/903/904/905/906/907/908 multi-target logical expand)"
+    bad "Makefile wave797 FORCE dep-thin leaves expected >=113 (n=${_force_n}; wave897/898/899/900/901/902/903/904/905/906/907/908/909 multi-target logical expand)"
   else
-    note "Makefile heat dep-edge FORCE thin (n=${_force_n}; wave797; wave897/898/899/900/901/902/903/904/905/906/907/908 multi-target logical expand)"
+    note "Makefile heat dep-edge FORCE thin (n=${_force_n}; wave797; wave897/898/899/900/901/902/903/904/905/906/907/908/909 multi-target logical expand)"
   fi
   # wave797: orch last heat source-prereq leaf must be FORCE thin (no pipeline_gen prereq edge).
   # G.7: do not quote product *.o paths in residual body (self inventory ban).
