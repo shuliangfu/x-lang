@@ -4323,27 +4323,36 @@ ensure_asm_gen_driver_x_objs() {
   cp -f "$GEN_DIR/driver_test_x.o" driver_test_x.o 2>/dev/null || true
 
   # pipeline/driver/preprocess: same products as Makefile gen-x-driver-objs.
-  # G.7: try-heat in ensure_host_cc_seed_o.sh is the single body for pipeline_x.o /
-  # driver_x.o / preprocess_x.o (Makefile leaves only thin-call that script).
+  # G.7 on Linux/Darwin: `make gen-x-driver-objs` → FORCE leaves → ensure try-heat.
   #
-  # PLATFORM: WINDOWS | MINGW | MSYS — never nest MinGW `make gen-x-driver-objs`
-  # under Git Bash. Nested make hangs or dies with:
-  #   - sh.exe "error while loading shared libraries: C:" (PATH drive-letter split)
-  #   - empty UNAME_M → typeck_f64_bits "unsupported Windows arch"
-  #   - make.exe 0-CPU stall with no recipe progress
-  # Call ensure try-heat directly (same as Makefile recipes) then copy into GEN_DIR.
-  # PLATFORM: SHARED Linux/Darwin — keep `make gen-x-driver-objs` (seed graph authority).
+  # PLATFORM: WINDOWS | MINGW | MSYS — do NOT:
+  #   1) nest MinGW `make gen-x-driver-objs` (sh.dll "C:", empty UNAME_M, 0-CPU stall)
+  #   2) call `ensure try-heat pipeline_x.o` from this script on MinGW — observed
+  #      recursive re-entry (parent chain of ensure_host_cc_seed_o.sh try-heat
+  #      pipeline_x.o with no gcc, frozen hybrid log_bytes) until kill.
+  # Seed/g05 already owns pipeline_x.o / driver_x.o / preprocess_x.o on the
+  # hybrid host; reuse when present, else direct cc -c of pinned gen.c.
+  # PLATFORM: SHARED Linux/Darwin — keep `make gen-x-driver-objs`.
   if build_xlang_asm_is_msys; then
-    echo " win: ensure try-heat pipeline_x.o driver_x.o preprocess_x.o (skip nested MinGW make)"
-    CC="${CC}" CFLAGS="${CFLAGS}" PIPELINE_GEN_CFLAGS="${PIPELINE_GEN_CFLAGS}" \
-      bash scripts/ensure_host_cc_seed_o.sh try-heat pipeline_x.o
-    CC="${CC}" CFLAGS="${CFLAGS}" PIPELINE_GEN_CFLAGS="${PIPELINE_GEN_CFLAGS}" \
-      bash scripts/ensure_host_cc_seed_o.sh try-heat driver_x.o
-    CC="${CC}" CFLAGS="${CFLAGS}" PIPELINE_GEN_CFLAGS="${PIPELINE_GEN_CFLAGS}" \
-      bash scripts/ensure_host_cc_seed_o.sh try-heat preprocess_x.o
-    cp -f pipeline_x.o "$GEN_DIR/"
-    cp -f driver_x.o "$GEN_DIR/driver_x.o"
-    cp -f preprocess_x.o "$GEN_DIR/preprocess_x.o"
+    if [ -f pipeline_x.o ] && [ -f driver_x.o ] && [ -f preprocess_x.o ]; then
+      echo " win: reuse seed pipeline_x.o driver_x.o preprocess_x.o (skip nested make + try-heat)"
+      cp -f pipeline_x.o "$GEN_DIR/"
+      cp -f driver_x.o "$GEN_DIR/driver_x.o"
+      cp -f preprocess_x.o "$GEN_DIR/preprocess_x.o"
+    else
+      echo " win: cc -c gen_driver/*_x.o (missing seed objs; no nested make/try-heat)"
+      "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I.. \
+        -Dstd_io_driver_driver_read_ptr_len=xlang_io_read_ptr_len \
+        -Dstd_io_driver_driver_read_ptr=xlang_io_read_ptr \
+        -c "$GEN_DIR/pipeline_gen.c" -o "$GEN_DIR/pipeline_x.o"
+      "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -include src/x_stubs.h \
+        -Dstd_fs_fs_read=fs_posix_read_c -Dstd_fs_fs_write=fs_posix_write_c -Dstd_fs_fs_close=fs_posix_close_c \
+        -c "$GEN_DIR/driver_gen.c" -o "$GEN_DIR/driver_x.o"
+      "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -c "$GEN_DIR/preprocess_gen.c" -o "$GEN_DIR/preprocess_x.o"
+      cp -f "$GEN_DIR/pipeline_x.o" pipeline_x.o 2>/dev/null || true
+      cp -f "$GEN_DIR/driver_x.o" driver_x.o 2>/dev/null || true
+      cp -f "$GEN_DIR/preprocess_x.o" preprocess_x.o 2>/dev/null || true
+    fi
   elif [ -f Makefile ] && command -v make >/dev/null 2>&1; then
     echo " make gen-x-driver-objs -> copy pipeline_x.o driver_x.o preprocess_x.o to $GEN_DIR/"
     make gen-x-driver-objs
