@@ -496,37 +496,37 @@ PHYS_DEL_PREP_FORBIDDEN=claim_physical_delete|dual_o_list_as_authority|delete_ma
 # Makefile thin-call edges; it is NOT physical delete. Never rm Makefile casually.
 PHYS_DEL_WINDOWS_GATE=required_before_makefile_delete
 PHYS_DEL_WINDOWS_GATE_SCOPE=MSYS2_B_hybrid_min_gate_plus_PE_pure_ld_residual
-PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip
+PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green
 PHYS_DEL_WINDOWS_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
 PHYS_DEL_WINDOWS_GATE_FORBIDDEN=physical_delete_makefile_before_windows_green
 # wave798: preflight readiness only — heat/B1–B6/B7* prep closed; blockers named.
-# Does NOT flip WINDOWS_GATE_STATUS. Dual-boot currently Ubuntu → cannot re-prove.
+# wave804: Windows min-gate proof tip bb8f07263 + reviewed STATUS apply (ENDGAME stays 0).
 PHYS_DEL_PREFLIGHT=1
 PHYS_DEL_PREFLIGHT_WAVE=wave798
-PHYS_DEL_PREFLIGHT_NOTE=readiness_only_not_physical_delete_not_windows_green
+PHYS_DEL_PREFLIGHT_NOTE=readiness_only_windows_reproven_green_not_physical_delete
 PHYS_DEL_PREFLIGHT_HEAT_CLOSED=1
 PHYS_DEL_PREFLIGHT_B1_B6_BODY_SWALLOWED=1
 PHYS_DEL_PREFLIGHT_B7D_G05=1
 PHYS_DEL_PREFLIGHT_B7A_COLD_0MAKE=1
 PHYS_DEL_PREFLIGHT_B7B_SHELL_CATALOG=1
 PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113
-PHYS_DEL_PREFLIGHT_BLOCKERS=windows_min_gate_not_reproven|makefile_thin_call_edges|b7b_lists_in_mk|std_core_product_make_graph
-PHYS_DEL_PREFLIGHT_NEXT=windows_hybrid_min_gate_on_msys2_then_physical_delete
-PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_preflight_is_windows_green|delete_makefile_before_windows_green
+PHYS_DEL_PREFLIGHT_BLOCKERS=makefile_thin_call_edges|b7b_lists_in_mk|std_core_product_make_graph
+PHYS_DEL_PREFLIGHT_NEXT=physical_delete_makefile_separate_wave_after_status_flip
+PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_status_flip_is_physical_delete|delete_makefile_before_endgame_1
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_PREFLIGHT_WIN_GATE_HOST=MSYS2_windows-server_dual_boot_reboot_required
 PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
 # wave799: execute gate — hard-refuse rm Makefile; dry-run inventory; MSYS runbook.
-# Does NOT flip WINDOWS_GATE_STATUS; does NOT delete. Body: phys_del_makefile_gate.sh
+# STATUS may be reproven_green; ENDGAME still 0 → delete still refused.
 PHYS_DEL_EXECUTE_GATE=1
 PHYS_DEL_EXECUTE_GATE_WAVE=wave799
-PHYS_DEL_EXECUTE_GATE_NOTE=refuse_delete_without_windows_green_not_physical_delete
+PHYS_DEL_EXECUTE_GATE_NOTE=refuse_delete_while_endgame_0_not_physical_delete
 PHYS_DEL_EXECUTE_GATE_SCRIPT=compiler/scripts/phys_del_makefile_gate.sh
 PHYS_DEL_EXECUTE_GATE_REFUSES_DELETE=1
 PHYS_DEL_EXECUTE_GATE_DELETE_ALLOWED=0
 PHYS_DEL_EXECUTE_GATE_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
-PHYS_DEL_EXECUTE_GATE_NEXT=windows_hybrid_min_gate_on_msys2_then_physical_delete
-PHYS_DEL_EXECUTE_GATE_FORBIDDEN=claim_execute_gate_is_physical_delete|claim_execute_gate_is_windows_green|delete_makefile_before_windows_green|claim_proof_is_status_green|claim_proof_is_physical_delete|auto_flip_leaf_from_proof
+PHYS_DEL_EXECUTE_GATE_NEXT=physical_delete_makefile_separate_wave_endgame_1
+PHYS_DEL_EXECUTE_GATE_FORBIDDEN=claim_execute_gate_is_physical_delete|claim_status_flip_is_physical_delete|delete_makefile_before_endgame_1|claim_proof_is_physical_delete|auto_flip_leaf_from_proof
 # wave800: Windows min-gate proof stamp harness (evidence only; NOT STATUS green; NOT delete).
 # Authority body: phys_del_makefile_gate.sh --run-windows-gate writes stamp; --verify-windows-proof.
 PHYS_DEL_WINDOWS_PROOF_HARNESS=1
@@ -557,25 +557,25 @@ PHYS_DEL_STATUS_FLIP_APPLY_HARNESS=1
 PHYS_DEL_STATUS_FLIP_APPLY_HARNESS_WAVE=wave802
 PHYS_DEL_STATUS_FLIP_APPLY_HARNESS_NOTE=proof_and_confirm_gated_leaf_status_edit_not_delete
 PHYS_DEL_STATUS_FLIP_APPLY_HARNESS_SCRIPT=compiler/scripts/phys_del_makefile_gate.sh
-PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED=0
+PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED=1
 PHYS_DEL_STATUS_FLIP_APPLY_REQUIRES_PROOF=1
 PHYS_DEL_STATUS_FLIP_APPLY_REQUIRES_CONFIRM=1
 PHYS_DEL_STATUS_FLIP_APPLY_CONFIRM_ENV=XLANG_PHYS_DEL_STATUS_FLIP_APPLY=APPLY_STATUS_I_UNDERSTAND
 PHYS_DEL_STATUS_FLIP_APPLY_TARGET_STATUS=reproven_green
 PHYS_DEL_STATUS_FLIP_APPLY_ENDGAME_AFTER=0
 PHYS_DEL_STATUS_FLIP_APPLY_DELETE_ALLOWED=0
-PHYS_DEL_STATUS_FLIP_APPLY_NEXT=msys_proof_then_confirm_apply_commit_then_delete_wave
+PHYS_DEL_STATUS_FLIP_APPLY_NEXT=separate_physical_delete_wave_endgame_1
 PHYS_DEL_STATUS_FLIP_APPLY_FORBIDDEN=apply_without_proof|apply_without_confirm|set_endgame_1|delete_makefile_from_apply|claim_apply_is_physical_delete|auto_flip_from_proof_alone
 # wave803: STATUS flip *commit honesty* — inventory + post-apply contract (NOT edit; NOT delete).
-# Body: phys_del_makefile_gate.sh --status-flip-commit-honesty. Flip commit must co-change honesty greps.
+# Body: phys_del_makefile_gate.sh --status-flip-commit-honesty. Flip commit co-changes honesty greps.
 PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY=1
 PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_WAVE=wave803
-PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_NOTE=commit_checklist_and_post_apply_contract_not_delete
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_NOTE=post_flip_contract_STATUS_reproven_green_ENDGAME_0_not_delete
 PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_SCRIPT=compiler/scripts/phys_del_makefile_gate.sh
 PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_MODE=--status-flip-commit-honesty
 PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_ENDGAME_REQUIRED=0
 PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_DELETE_ALLOWED=0
-PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_NEXT=msys_proof_then_apply_then_honesty_then_commit_then_delete_wave
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_NEXT=separate_physical_delete_wave_endgame_1
 PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_FORBIDDEN=claim_honesty_is_flip|claim_honesty_is_delete|set_endgame_1_in_flip_commit|skip_co_change_honesty_greps|delete_makefile_in_flip_commit
 # wave778: every SHARED MG wave must green on mac + Ubuntu (Ubuntu = gold).
 # Mac-only residual/matrix green is NOT wave green. Push → Ubuntu pull → same check.
@@ -1455,21 +1455,24 @@ fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113 (wave798)"
 fi
-if ! grep -q 'PHYS_DEL_PREFLIGHT_NEXT=windows_hybrid_min_gate_on_msys2_then_physical_delete' <<<"$_out"; then
-  bad "dump PHYS_DEL_PREFLIGHT_NEXT must be windows_hybrid_min_gate_on_msys2_then_physical_delete"
+if ! grep -q 'PHYS_DEL_PREFLIGHT_NEXT=physical_delete_makefile_separate_wave_after_status_flip' <<<"$_out"; then
+  bad "dump PHYS_DEL_PREFLIGHT_NEXT must be physical_delete_makefile_separate_wave_after_status_flip (wave804)"
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh' <<<"$_out"; then
   bad "dump must name Windows min-gate command (wave798)"
 fi
-# Honesty: preflight must NOT claim Windows green or physical delete done.
-if ! grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip' <<<"$_out"; then
-  bad "wave798 preflight must keep PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip (no false Windows green)"
+# Honesty: wave804 STATUS flip — Windows min-gate reproven_green; ENDGAME still 0 (not delete).
+if ! grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green' <<<"$_out"; then
+  bad "wave804 must set PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green (MSYS proof + reviewed apply)"
 fi
 if ! grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0' <<<"$_out"; then
-  bad "wave798 preflight must keep ENDGAME_PHYSICAL_DELETE_MAKEFILE=0"
+  bad "wave804 must keep ENDGAME_PHYSICAL_DELETE_MAKEFILE=0 (STATUS flip ≠ physical delete)"
 fi
-if grep -qE 'PHYS_DEL_WINDOWS_GATE_STATUS=green|ENDGAME_PHYSICAL_DELETE_MAKEFILE=1' <<<"$_out"; then
-  bad "wave798 must not claim Windows green or physical delete complete"
+if grep -qE 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=1' <<<"$_out"; then
+  bad "wave804 must not set ENDGAME=1 (physical delete is a separate wave)"
+fi
+if grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip' <<<"$_out"; then
+  bad "wave804 must not keep STATUS=not_reproven_this_tip after reviewed apply"
 fi
 if [ ! -f "$ROOT/tests/run-bootstrap-bstrict-windows-gate.sh" ]; then
   bad "missing tests/run-bootstrap-bstrict-windows-gate.sh (wave798 preflight authority)"
@@ -1522,8 +1525,8 @@ fi
 if ! grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_HARNESS_WAVE=wave802' <<<"$_out"; then
   bad "dump must set PHYS_DEL_STATUS_FLIP_APPLY_HARNESS_WAVE=wave802"
 fi
-if ! grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED=0' <<<"$_out"; then
-  bad "dump must keep PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED=0 (wave802)"
+if ! grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED=1 (wave804 tree applied)"
 fi
 if ! grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_DELETE_ALLOWED=0' <<<"$_out"; then
   bad "dump must keep PHYS_DEL_STATUS_FLIP_APPLY_DELETE_ALLOWED=0 (wave802)"
@@ -1544,27 +1547,27 @@ if ! grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_ENDGAME_REQUIRED=0' <<<"$_out"
   bad "dump must keep PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_ENDGAME_REQUIRED=0 (wave803)"
 fi
 if [ ! -f "$ROOT/compiler/scripts/phys_del_makefile_gate.sh" ]; then
-  bad "missing compiler/scripts/phys_del_makefile_gate.sh (wave799–803 execute-gate + proof + flip + honesty body)"
+  bad "missing compiler/scripts/phys_del_makefile_gate.sh (wave799–804 execute-gate + proof + flip + honesty body)"
 else
-  note "phys_del_makefile_gate.sh present (wave799–803 refuse-delete + proof + flip-prep + flip-apply + commit-honesty harness; not Windows green)"
+  note "phys_del_makefile_gate.sh present (wave799–804 refuse-delete while ENDGAME=0; STATUS may be reproven_green)"
   # Self-check execute gate + proof + flip-prep + flip-apply + commit-honesty harness.
   if ! bash "$ROOT/compiler/scripts/phys_del_makefile_gate.sh" --check >/tmp/phys_del_gate_check.$$ 2>&1; then
     cat /tmp/phys_del_gate_check.$$ >&2 || true
-    bad "phys_del_makefile_gate.sh --check failed (wave799–803)"
+    bad "phys_del_makefile_gate.sh --check failed (wave799–804)"
   else
-    note "phys_del_makefile_gate.sh --check OK (wave799–803)"
+    note "phys_del_makefile_gate.sh --check OK (wave799–804)"
   fi
   rm -f /tmp/phys_del_gate_check.$$
 fi
-# Honesty: execute-gate / proof / flip / commit-honesty harness must not claim Windows green / delete done.
-if ! grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip' <<<"$_out"; then
-  bad "wave803 must keep PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip"
+# Honesty: STATUS flip applied; ENDGAME still 0 (physical delete separate wave).
+if ! grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green' <<<"$_out"; then
+  bad "wave804 must keep PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green"
 fi
 if ! grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0' <<<"$_out"; then
-  bad "wave803 must keep ENDGAME_PHYSICAL_DELETE_MAKEFILE=0"
+  bad "wave804 must keep ENDGAME_PHYSICAL_DELETE_MAKEFILE=0"
 fi
-if grep -qE 'PHYS_DEL_WINDOWS_GATE_STATUS=green|PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green|ENDGAME_PHYSICAL_DELETE_MAKEFILE=1' <<<"$_out"; then
-  bad "wave803 must not claim Windows green or physical delete complete"
+if grep -qE 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=1' <<<"$_out"; then
+  bad "wave804 must not set ENDGAME=1 (physical delete is a separate wave)"
 fi
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \

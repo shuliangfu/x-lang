@@ -1678,6 +1678,26 @@ After verified evidence + human review:
 matches (grep exits early). Checks use `grep … <<<"$_out"` instead.
 Same for `phys_del_makefile_gate.sh` status/leaf probes.
 
+## wave804 Windows min-gate proof + STATUS apply (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; set
+> `ENDGAME_PHYSICAL_DELETE_MAKEFILE=1`.  
+> **This wave:** MSYS2 B-hybrid min-gate green on tip `bb8f07263` (return-value 42
+> + win32 write/read) · proof stamp verified on Mac · reviewed confirm apply →
+> `PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green` · `TREE_APPLIED=1` · ENDGAME stays 0
+> · honesty `--check` expects green · `--delete` still refused.
+
+| Key | Value |
+|-----|--------|
+| `PHYS_DEL_WINDOWS_GATE_STATUS` | `reproven_green` |
+| `PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED` | `1` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `0` |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `physical_delete_makefile_separate_wave_after_status_flip` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` (after) | still `0` until delete wave |
+
+**Forbidden:** claim STATUS flip = physical delete; set ENDGAME=1 in this wave;
+`rm compiler/Makefile` in this commit; mac-only product L4 claim.
+
 ## wave802 STATUS flip apply harness (2026-07-30)
 
 > **Not this wave:** physical delete of `compiler/Makefile`; set

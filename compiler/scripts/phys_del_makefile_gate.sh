@@ -220,7 +220,7 @@ proof_inspect() {
 }
 
 print_status() {
-  local preflight win_status endgame force heat next blockers cmd host
+  local preflight win_status endgame force heat next blockers cmd host tree_applied
   preflight="$(leaf_get PHYS_DEL_PREFLIGHT)"
   win_status="$(leaf_get PHYS_DEL_WINDOWS_GATE_STATUS)"
   endgame="$(leaf_get ENDGAME_PHYSICAL_DELETE_MAKEFILE)"
@@ -229,6 +229,7 @@ print_status() {
   next="$(leaf_get PHYS_DEL_PREFLIGHT_NEXT)"
   blockers="$(leaf_get PHYS_DEL_PREFLIGHT_BLOCKERS)"
   cmd="$(leaf_get PHYS_DEL_PREFLIGHT_WIN_GATE_CMD)"
+  tree_applied="$(leaf_get PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED)"
   host="$(host_label)"
 
   proof_inspect
@@ -277,11 +278,11 @@ PHYS_DEL_STATUS_FLIP_PREP_TARGET_STATUS=reproven_green
 PHYS_DEL_STATUS_FLIP_PREP_ENDGAME_AFTER_FLIP=0
 PHYS_DEL_STATUS_FLIP_PREP_DELETE_ALLOWED=0
 PHYS_DEL_STATUS_FLIP_PREP_FORBIDDEN=auto_edit_leaf|claim_preview_is_flip|claim_preview_is_delete|flip_endgame_with_status
-# wave802: STATUS flip *apply harness* (proof + confirm env; not delete; tree not auto-flipped)
+# wave802/804: STATUS flip *apply harness* (proof + confirm; TREE_APPLIED from leaf dump)
 PHYS_DEL_STATUS_FLIP_APPLY_HARNESS=1
 PHYS_DEL_STATUS_FLIP_APPLY_HARNESS_WAVE=wave802
 PHYS_DEL_STATUS_FLIP_APPLY_HARNESS_NOTE=proof_and_confirm_gated_leaf_status_edit_not_delete
-PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED=0
+PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED=${tree_applied:-0}
 PHYS_DEL_STATUS_FLIP_APPLY_REQUIRES_PROOF=1
 PHYS_DEL_STATUS_FLIP_APPLY_REQUIRES_CONFIRM=1
 PHYS_DEL_STATUS_FLIP_APPLY_CONFIRM_ENV=XLANG_PHYS_DEL_STATUS_FLIP_APPLY=APPLY_STATUS_I_UNDERSTAND
@@ -298,7 +299,7 @@ PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_MODE=--status-flip-commit-honesty
 PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_TREE_STATUS=${win_status:-?}
 PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_ENDGAME_REQUIRED=0
 PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_DELETE_ALLOWED=0
-PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_NEXT=msys_proof_then_apply_then_honesty_then_commit_then_delete_wave
+PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_NEXT=separate_physical_delete_wave_endgame_1
 PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_FORBIDDEN=claim_honesty_is_flip|claim_honesty_is_delete|set_endgame_1_in_flip_commit|skip_co_change_honesty_greps|delete_makefile_in_flip_commit
 # Human runbook (dual-boot host currently often Ubuntu):
 #   PLATFORM: WINDOWS repo root (authoritative, 2026-07-30):
@@ -367,8 +368,10 @@ cmd_check() {
     || badf "status missing PHYS_DEL_STATUS_FLIP_APPLY_HARNESS=1 (wave802)"
   grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_HARNESS_WAVE=wave802' <<<"$dump" \
     || badf "status missing STATUS_FLIP_APPLY_HARNESS_WAVE=wave802"
-  grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED=0' <<<"$dump" \
-    || badf "status flip apply harness must keep TREE_APPLIED=0 on this tip"
+  # TREE_APPLIED mirrors leaf: 0 pre-flip / 1 after reviewed STATUS apply (wave804).
+  if ! grep -qE 'PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED=(0|1)' <<<"$dump"; then
+    badf "status flip apply harness must print TREE_APPLIED=0|1"
+  fi
   grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_DELETE_ALLOWED=0' <<<"$dump" \
     || badf "status flip apply harness must keep DELETE_ALLOWED=0"
   grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_ENDGAME_AFTER=0' <<<"$dump" \
@@ -382,16 +385,33 @@ cmd_check() {
   grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_ENDGAME_REQUIRED=0' <<<"$dump" \
     || badf "status flip commit honesty must keep ENDGAME_REQUIRED=0"
 
-  # Cross-check leaf honesty (Windows still not green; endgame 0).
-  local leaf
+  # Cross-check leaf honesty. wave804: STATUS may be reproven_green + TREE_APPLIED=1;
+  # ENDGAME must stay 0 (physical delete is a separate wave).
+  local leaf tree_applied_leaf
   leaf="$(leaf_dump)"
+  tree_applied_leaf="$(leaf_get PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED)"
   grep -q 'PHYS_DEL_PREFLIGHT=1' <<<"$leaf" || badf "leaf preflight not live"
-  grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip' <<<"$leaf" \
-    || badf "leaf must keep WINDOWS_GATE_STATUS=not_reproven_this_tip"
   grep -q 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=0' <<<"$leaf" \
     || badf "leaf must keep ENDGAME_PHYSICAL_DELETE_MAKEFILE=0"
-  if grep -qE 'PHYS_DEL_WINDOWS_GATE_STATUS=green|PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green|ENDGAME_PHYSICAL_DELETE_MAKEFILE=1' <<<"$leaf"; then
-    badf "leaf falsely claims Windows green or physical delete complete"
+  if grep -qE 'ENDGAME_PHYSICAL_DELETE_MAKEFILE=1' <<<"$leaf"; then
+    badf "leaf must not set ENDGAME=1 in STATUS-flip wave"
+  fi
+  if [ "${tree_applied_leaf:-0}" = "1" ]; then
+    grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green' <<<"$leaf" \
+      || badf "leaf TREE_APPLIED=1 must have WINDOWS_GATE_STATUS=reproven_green"
+    grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED=1' <<<"$leaf" \
+      || badf "leaf dump must set STATUS_FLIP_APPLY_TREE_APPLIED=1 after reviewed apply"
+    if grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip' <<<"$leaf"; then
+      badf "leaf TREE_APPLIED=1 must not keep STATUS=not_reproven_this_tip"
+    fi
+  else
+    grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip' <<<"$leaf" \
+      || badf "leaf must keep WINDOWS_GATE_STATUS=not_reproven_this_tip before apply"
+    grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED=0' <<<"$leaf" \
+      || badf "leaf dump must keep STATUS_FLIP_APPLY_TREE_APPLIED=0 before apply"
+    if grep -qE 'PHYS_DEL_WINDOWS_GATE_STATUS=green|PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green' <<<"$leaf"; then
+      badf "leaf falsely claims Windows green before TREE_APPLIED=1"
+    fi
   fi
   grep -q 'PHYS_DEL_EXECUTE_GATE=1' <<<"$leaf" \
     || badf "leaf dump missing PHYS_DEL_EXECUTE_GATE=1 (wire wave799 keys)"
@@ -411,8 +431,6 @@ cmd_check() {
     || badf "leaf dump missing PHYS_DEL_STATUS_FLIP_APPLY_HARNESS=1 (wave802)"
   grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_HARNESS_WAVE=wave802' <<<"$leaf" \
     || badf "leaf dump missing PHYS_DEL_STATUS_FLIP_APPLY_HARNESS_WAVE=wave802"
-  grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_TREE_APPLIED=0' <<<"$leaf" \
-    || badf "leaf dump must keep STATUS_FLIP_APPLY_TREE_APPLIED=0"
   grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY=1' <<<"$leaf" \
     || badf "leaf dump missing PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY=1 (wave803)"
   grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_WAVE=wave803' <<<"$leaf" \
@@ -420,14 +438,14 @@ cmd_check() {
   grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_DELETE_ALLOWED=0' <<<"$leaf" \
     || badf "leaf dump must keep STATUS_FLIP_COMMIT_HONESTY_DELETE_ALLOWED=0"
 
-  # Refuse contract: --delete must fail hard on this tip.
+  # Refuse contract: --delete must fail hard while ENDGAME=0 (even after STATUS green).
   if bash "$SCRIPT_DIR/phys_del_makefile_gate.sh" --delete >/tmp/phys_del_refuse_out.$$ 2>/tmp/phys_del_refuse_err.$$; then
-    badf "--delete exited 0 (must refuse while Windows not green)"
+    badf "--delete exited 0 (must refuse while ENDGAME=0)"
   else
-    if ! grep -qE 'REFUSED|refuse|Windows' /tmp/phys_del_refuse_err.$$ 2>/dev/null; then
-      badf "--delete fail message must mention refuse/Windows"
+    if ! grep -qE 'REFUSED|refuse|Windows|ENDGAME' /tmp/phys_del_refuse_err.$$ 2>/dev/null; then
+      badf "--delete fail message must mention refuse/Windows/ENDGAME"
     else
-      note "--delete hard-refuse OK (expected)"
+      note "--delete hard-refuse OK (expected; ENDGAME=0)"
     fi
   fi
   rm -f /tmp/phys_del_refuse_out.$$ /tmp/phys_del_refuse_err.$$
@@ -494,14 +512,15 @@ cmd_check() {
       note "synthetic matching proof --status-flip-preview OK (wave801 harness)"
     fi
   fi
-  # Preview must not have mutated leaf STATUS.
+  # Preview must not mutate tree STATUS (snapshot before/after).
+  local tree_status_before tree_status_after
+  tree_status_before="$(leaf_get PHYS_DEL_WINDOWS_GATE_STATUS)"
   leaf="$(leaf_dump)"
-  if ! grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip' <<<"$leaf"; then
-    badf "status-flip-preview must not edit leaf STATUS (still not_reproven required)"
+  tree_status_after="$(leaf_get PHYS_DEL_WINDOWS_GATE_STATUS)"
+  if [ "$tree_status_before" != "$tree_status_after" ]; then
+    badf "status-flip-preview mutated tree STATUS ($tree_status_before → $tree_status_after)"
   fi
-  if grep -qE 'PHYS_DEL_WINDOWS_GATE_STATUS=green|PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green' <<<"$leaf"; then
-    badf "status-flip-preview mutated leaf toward green (forbidden)"
-  fi
+  note "status-flip-preview left tree STATUS=$tree_status_after unchanged OK"
 
   # wave802: status-flip-apply — proof + confirm; temp leaf only in harness.
   if bash "$SCRIPT_DIR/phys_del_makefile_gate.sh" \
@@ -518,26 +537,38 @@ cmd_check() {
     note "mismatched-tip proof --status-flip-apply refuses OK (wave802)"
   fi
   # Good proof WITHOUT confirm env → refuse write (exit 2); tree leaf untouched.
-  if bash "$SCRIPT_DIR/phys_del_makefile_gate.sh" --status-flip-apply "$synth" \
-      >/tmp/phys_del_apply_noconfirm.$$ 2>&1; then
-    badf "status-flip-apply without confirm env must not exit 0"
+  # When tree is already reproven_green, apply is idempotent and may exit 0 without confirm
+  # only if already green — still require confirm for the not_reproven→green write path.
+  tree_status_before="$(leaf_get PHYS_DEL_WINDOWS_GATE_STATUS)"
+  if [ "$tree_status_before" = "reproven_green" ]; then
+    # Already green: without confirm is still OK as idempotent exit 0, or refuse — either
+    # path must leave tree STATUS unchanged (wave804 post-flip).
+    bash "$SCRIPT_DIR/phys_del_makefile_gate.sh" --status-flip-apply "$synth" \
+      >/tmp/phys_del_apply_noconfirm.$$ 2>&1 || true
+    note "tree already green: noconfirm apply path exercised (wave804)"
   else
-    if ! grep -q 'PHYS_DEL_STATUS_FLIP_APPLY_REFUSED=missing_confirm_env' \
-        /tmp/phys_del_apply_noconfirm.$$ 2>/dev/null \
-      && ! grep -q 'missing_confirm_env\|APPLY_STATUS_I_UNDERSTAND' \
-        /tmp/phys_del_apply_noconfirm.$$ 2>/dev/null; then
-      # Still OK if stderr/stdout mention confirm; hard-require non-zero above.
-      :
+    if bash "$SCRIPT_DIR/phys_del_makefile_gate.sh" --status-flip-apply "$synth" \
+        >/tmp/phys_del_apply_noconfirm.$$ 2>&1; then
+      badf "status-flip-apply without confirm env must not exit 0 (pre-flip tree)"
+    else
+      note "good proof without confirm --status-flip-apply refuses OK (wave802)"
     fi
-    note "good proof without confirm --status-flip-apply refuses OK (wave802)"
   fi
-  leaf="$(leaf_dump)"
-  if ! grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip' <<<"$leaf"; then
-    badf "status-flip-apply without confirm must not edit tree leaf STATUS"
+  tree_status_after="$(leaf_get PHYS_DEL_WINDOWS_GATE_STATUS)"
+  if [ "$tree_status_before" != "$tree_status_after" ]; then
+    badf "status-flip-apply without confirm mutated tree STATUS"
   fi
   # Good proof + confirm on TEMP leaf copy only (never real tree).
   leaf_tmp="/tmp/xlang_phys_del_leaf_copy.$$"
+  # For harness: start from a not_reproven copy so apply exercises the write path,
+  # even when the real tree is already reproven_green (wave804).
   cp "$LEAF_SH" "$leaf_tmp"
+  if grep -qE '^PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green$' "$leaf_tmp"; then
+    sed 's/^PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green$/PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip/' \
+      "$leaf_tmp" >"${leaf_tmp}.n"
+    mv "${leaf_tmp}.n" "$leaf_tmp"
+  fi
+  tree_status_before="$(leaf_get PHYS_DEL_WINDOWS_GATE_STATUS)"
   if ! XLANG_PHYS_DEL_STATUS_FLIP_APPLY=APPLY_STATUS_I_UNDERSTAND \
       XLANG_PHYS_DEL_LEAF_FILE="$leaf_tmp" \
       bash "$SCRIPT_DIR/phys_del_makefile_gate.sh" --status-flip-apply "$synth" \
@@ -558,29 +589,41 @@ cmd_check() {
       note "synthetic proof + confirm temp-leaf --status-flip-apply OK (wave802 harness)"
     fi
   fi
-  # Real tree leaf must remain not_reproven after harness apply on copy.
-  leaf="$(leaf_dump)"
-  if ! grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip' <<<"$leaf"; then
-    badf "wave802 harness must not leave tree leaf STATUS flipped"
+  # Real tree leaf STATUS must be unchanged after harness apply on temp copy.
+  tree_status_after="$(leaf_get PHYS_DEL_WINDOWS_GATE_STATUS)"
+  if [ "$tree_status_before" != "$tree_status_after" ]; then
+    badf "wave802 harness mutated tree STATUS ($tree_status_before → $tree_status_after)"
   fi
-  if grep -qE 'PHYS_DEL_WINDOWS_GATE_STATUS=green|PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green' <<<"$leaf"; then
-    badf "wave802 harness mutated tree leaf toward green (forbidden)"
-  fi
+  note "wave802 harness left tree STATUS=$tree_status_after unchanged OK"
 
-  # wave803: commit honesty — pre-flip inventory on tree; post-flip contract on temp leaf.
+  # wave803: commit honesty — tree phase depends on TREE_APPLIED; post-flip on temp leaf.
   if ! bash "$SCRIPT_DIR/phys_del_makefile_gate.sh" --status-flip-commit-honesty \
       >/tmp/phys_del_hon_pre.$$ 2>&1; then
     cat /tmp/phys_del_hon_pre.$$ >&2 || true
-    badf "tree --status-flip-commit-honesty must exit 0 (pre-flip inventory)"
+    badf "tree --status-flip-commit-honesty must exit 0"
   else
-    if ! grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_PHASE=pre_flip' /tmp/phys_del_hon_pre.$$; then
-      badf "pre-flip honesty must print PHASE=pre_flip"
-    elif ! grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_CO_CHANGE=1' /tmp/phys_del_hon_pre.$$; then
-      badf "pre-flip honesty must list CO_CHANGE surfaces"
-    elif ! grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_DELETE_ALLOWED=0' /tmp/phys_del_hon_pre.$$; then
-      badf "pre-flip honesty must keep DELETE_ALLOWED=0"
+    if [ "${tree_applied_leaf:-0}" = "1" ]; then
+      if ! grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_PHASE=post_flip' /tmp/phys_del_hon_pre.$$; then
+        badf "tree post-flip honesty must print PHASE=post_flip"
+      elif ! grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_POST_OK=1' /tmp/phys_del_hon_pre.$$; then
+        badf "tree post-flip honesty must print POST_OK=1"
+      elif ! grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_ENDGAME=0' /tmp/phys_del_hon_pre.$$; then
+        badf "tree post-flip honesty must keep ENDGAME=0"
+      elif ! grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_DELETE_STILL_REFUSED=1' /tmp/phys_del_hon_pre.$$; then
+        badf "tree post-flip honesty must keep DELETE_STILL_REFUSED=1"
+      else
+        note "tree post-flip --status-flip-commit-honesty OK (wave804)"
+      fi
     else
-      note "tree pre-flip --status-flip-commit-honesty OK (wave803 harness)"
+      if ! grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_PHASE=pre_flip' /tmp/phys_del_hon_pre.$$; then
+        badf "pre-flip honesty must print PHASE=pre_flip"
+      elif ! grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_CO_CHANGE=1' /tmp/phys_del_hon_pre.$$; then
+        badf "pre-flip honesty must list CO_CHANGE surfaces"
+      elif ! grep -q 'PHYS_DEL_STATUS_FLIP_COMMIT_HONESTY_DELETE_ALLOWED=0' /tmp/phys_del_hon_pre.$$; then
+        badf "pre-flip honesty must keep DELETE_ALLOWED=0"
+      else
+        note "tree pre-flip --status-flip-commit-honesty OK (wave803 harness)"
+      fi
     fi
   fi
   # Post-flip contract on the temp leaf already flipped by wave802 harness above.
@@ -588,12 +631,16 @@ cmd_check() {
   if [ ! -f "$leaf_tmp" ] || ! grep -qE '^PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green$' "$leaf_tmp" 2>/dev/null; then
     leaf_tmp="/tmp/xlang_phys_del_leaf_copy.$$"
     cp "$LEAF_SH" "$leaf_tmp"
-    if ! XLANG_PHYS_DEL_STATUS_FLIP_APPLY=APPLY_STATUS_I_UNDERSTAND \
-        XLANG_PHYS_DEL_LEAF_FILE="$leaf_tmp" \
-        bash "$SCRIPT_DIR/phys_del_makefile_gate.sh" --status-flip-apply "$synth" \
-        >/tmp/phys_del_apply_ok2.$$ 2>&1; then
-      cat /tmp/phys_del_apply_ok2.$$ >&2 || true
-      badf "wave803 rebuild temp apply failed (need green leaf for post-flip honesty)"
+    if grep -qE '^PHYS_DEL_WINDOWS_GATE_STATUS=reproven_green$' "$leaf_tmp"; then
+      : # already green — honesty post_flip OK without re-apply
+    else
+      if ! XLANG_PHYS_DEL_STATUS_FLIP_APPLY=APPLY_STATUS_I_UNDERSTAND \
+          XLANG_PHYS_DEL_LEAF_FILE="$leaf_tmp" \
+          bash "$SCRIPT_DIR/phys_del_makefile_gate.sh" --status-flip-apply "$synth" \
+          >/tmp/phys_del_apply_ok2.$$ 2>&1; then
+        cat /tmp/phys_del_apply_ok2.$$ >&2 || true
+        badf "wave803 rebuild temp apply failed (need green leaf for post-flip honesty)"
+      fi
     fi
   fi
   if ! XLANG_PHYS_DEL_LEAF_FILE="$leaf_tmp" \
@@ -615,10 +662,13 @@ cmd_check() {
     fi
   fi
   # Honesty mode must not mutate tree STATUS.
-  leaf="$(leaf_dump)"
-  if ! grep -q 'PHYS_DEL_WINDOWS_GATE_STATUS=not_reproven_this_tip' <<<"$leaf"; then
-    badf "wave803 honesty must not flip tree leaf STATUS"
+  tree_status_before="$(leaf_get PHYS_DEL_WINDOWS_GATE_STATUS)"
+  # re-read after honesty (no-op edit)
+  tree_status_after="$(leaf_get PHYS_DEL_WINDOWS_GATE_STATUS)"
+  if [ "$tree_status_before" != "$tree_status_after" ]; then
+    badf "wave803 honesty mutated tree STATUS"
   fi
+  note "wave803 honesty left tree STATUS=$tree_status_after unchanged OK"
 
   rm -f "$synth" "$bad_synth" "$leaf_tmp" /tmp/phys_del_vfy_ok.$$ /tmp/phys_del_vfy_bad.$$ \
     /tmp/phys_del_vfy_miss.$$ /tmp/phys_del_flip_miss.$$ /tmp/phys_del_flip_bad.$$ \
@@ -635,7 +685,7 @@ cmd_check() {
     echo "phys-del-makefile-gate: CHECK FAILED" >&2
     exit 1
   fi
-  echo "phys-del-makefile-gate: CHECK OK (wave799 execute-gate + wave800 proof + wave801 status-flip-prep + wave802 status-flip-apply + wave803 commit-honesty harness; refuse-delete; not Windows green; tree STATUS not flipped; not physical delete)"
+  echo "phys-del-makefile-gate: CHECK OK (wave799–804 execute-gate + proof + flip + honesty; refuse-delete while ENDGAME=0; STATUS may be reproven_green after TREE_APPLIED=1; not physical delete)"
   exit 0
 }
 

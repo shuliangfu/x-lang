@@ -1509,8 +1509,9 @@
     ✅ **phys-del execute-gate**（wave799 · `phys_del_makefile_gate.sh` / `./xbuild phys-del-gate` 硬拒删 · dry-run · MSYS runbook；**非**物理删 · **非** Windows 绿 · `DELETE_ALLOWED=0`）；
     ✅ **Windows proof stamp harness**（wave800 · `--run-windows-gate` 写 stamp · `--verify-windows-proof` tip 校验；**非** STATUS 翻转 · **非**物理删 · `PROOF_STATUS_FLIP=0`）；
     ✅ **STATUS flip prep / preview**（wave801 · `--status-flip-preview` 有 proof 后打印翻转计划；**非** STATUS 翻转 · **非**物理删 · `APPLIED=0` · TARGET=`reproven_green` · ENDGAME 保持 0）；
-    ✅ **STATUS flip apply harness**（wave802 · `--status-flip-apply` 需 proof + confirm env；`--check` 仅 temp leaf；**树 STATUS 仍 not_reproven** · **非**物理删 · `TREE_APPLIED=0` · ENDGAME 保持 0）；
-    ✅ **STATUS flip commit honesty**（wave803 · `--status-flip-commit-honesty` pre/post 契约 + co-change 清单；**树 STATUS 仍 not_reproven** · **非**物理删 · `DELETE_ALLOWED=0` · ENDGAME 保持 0）；
+    ✅ **STATUS flip apply harness**（wave802 · `--status-flip-apply` 需 proof + confirm env；`--check` 仅 temp leaf；ENDGAME 保持 0）；
+    ✅ **STATUS flip commit honesty**（wave803 · `--status-flip-commit-honesty` pre/post 契约 + co-change 清单；`DELETE_ALLOWED=0` · ENDGAME 保持 0）；
+    ✅ **Windows min-gate proof + STATUS apply**（wave804 · MSYS2 B-hybrid 绿 + proof tip `bb8f07263` + Mac verify · STATUS=`reproven_green` · `TREE_APPLIED=1` · **ENDGAME 仍 0** · **非**物理删）；
     ⬜ B7 residual endgame · physical delete / 删 Makefile（**仅**须 Windows hybrid min-gate 绿；heat source-prereq 已 closed）
   - ⬜ 物理删 `compiler/Makefile` 仍 ⬜（下项）
 
