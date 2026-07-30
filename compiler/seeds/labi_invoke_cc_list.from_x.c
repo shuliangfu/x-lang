@@ -1702,15 +1702,19 @@ void invoke_cc_append_minimal_cc_link_tail(char **argv, int *ia, int argv_cap) {
   }
 }
 
-/* wave205: invoke_cc_run_cc_argv pure orch (cold twin ≡ .x). */
+/* wave205: invoke_cc_run_cc_argv pure orch (cold twin ≡ .x).
+ * PLATFORM: WINDOWS — never clobber PATH with /usr/local/bin:/usr/bin:/bin before
+ * _spawnvp("gcc"); that Unix PATH hides MinGW and yields BLD001 exit 255.
+ * POSIX freestanding may still need the setenv when PATH is empty. */
 int invoke_cc_run_cc_argv(char **argv) {
   int is_win;
   int is_linux;
   int rc;
   if (!argv)
     return -1;
-  (void)setenv("PATH", "/usr/local/bin:/usr/bin:/bin", 1);
   is_win = link_abi_host_is_windows();
+  if (!is_win)
+    (void)setenv("PATH", "/usr/local/bin:/usr/bin:/bin", 1);
   if (is_win) {
     argv[0] = (char *)"gcc";
     rc = xlang_spawn_sync("gcc", (const char *const *)argv);

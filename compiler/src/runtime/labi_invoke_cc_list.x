@@ -3894,17 +3894,23 @@ export function invoke_cc_append_minimal_cc_link_tail(argv: **u8, ia: *i32, argv
  * @param argv **u8 — full cc argv ending with null; argv[0] rewritten per candidate; null → -1
  * @return i32 — 0 success (first candidate exit 0); -1 all candidates failed (diag emitted)
  * Pure orch: ≡ mega post-argv fork/exec/wait shell (wave205).
- * Cap residual: setenv(PATH) + host_is_* + xlang_spawn_sync (public pure thin wave219
- * → _impl mega) + link_diag_tool_status.
+ * Cap residual: setenv(PATH) on POSIX only + host_is_* + xlang_spawn_sync
+ * (public pure thin wave219 → _impl mega) + link_diag_tool_status.
  * Candidate order ≡ historical mega child exec chain:
- *   WINDOWS: gcc only (MinGW; no bare `cc`)
+ *   WINDOWS: gcc only (MinGW; no bare `cc`); **never** clobber PATH
  *   LINUX: gcc, cc, /usr/bin/gcc, /usr/bin/cc, /usr/local/bin/gcc, /usr/local/bin/cc
  *   APPLE / other POSIX: cc, gcc
  * Why: hybrid still had always-mega fork+exec+wait after argv pure (wave198–204).
  * G.7: single spawn authority = xlang_spawn_sync (no second fork path in pure).
- * PLATFORM: SHARED orch / POSIX setenv+PATH / WINDOWS spawn gcc only.
+ * PLATFORM: SHARED orch / POSIX setenv+PATH / WINDOWS spawn gcc only (keep host PATH).
  * Track-L: #[no_mangle] surface short name for mega call sites.
  * Note: export signature must stay single-line.
+ *
+ * PLATFORM: WINDOWS | MINGW | MSYS — do NOT setenv PATH to /usr/local/bin:/usr/bin:/bin.
+ *   That string is Linux freestanding isolation only. On PE, `_spawnvp("gcc")` searches
+ *   the Windows PATH; overwriting it with Unix dirs makes gcc unfindable → BLD001
+ *   exit 255 and "系统找不到指定的路径" from path probes that never reach real gcc.
+ *   MinGW gcc lives under e.g. C:\Users\...\mingw64\bin (user/shell PATH).
  */
 #[no_mangle]
 export function invoke_cc_run_cc_argv(argv: **u8): i32 {
@@ -3913,18 +3919,22 @@ export function invoke_cc_run_cc_argv(argv: **u8): i32 {
     return 0 - 1;
   }
 
-  // Freestanding xlang_asm child/parent may inherit empty PATH; fix tool lookup.
-  // PLATFORM: POSIX primarily; setenv on Windows is harmless when present.
-  unsafe {
-    let _p: i32 = setenv("PATH", "/usr/local/bin:/usr/bin:/bin", 1);
-  }
-
   let is_win: i32 = 0;
   unsafe {
     is_win = link_abi_host_is_windows();
   }
+
+  // Freestanding xlang_asm on POSIX may inherit empty PATH; fix tool lookup.
+  // PLATFORM: POSIX only — never on Windows (see docblock above).
+  if (is_win == 0) {
+    unsafe {
+      let _p: i32 = setenv("PATH", "/usr/local/bin:/usr/bin:/bin", 1);
+    }
+  }
+
   if (is_win != 0) {
     // PLATFORM: WINDOWS — no `cc`; MinGW gcc + _spawnvp via xlang_spawn_sync.
+    // Keep inherited PATH (Git Bash / MSYS / user MinGW) so gcc is findable.
     let gcc: *u8 = "gcc";
     argv[0] = gcc;
     let rc: i32 = 0;

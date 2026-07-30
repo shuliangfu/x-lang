@@ -1705,15 +1705,17 @@ void invoke_cc_append_minimal_cc_link_tail(uint8_t **argv, int32_t *ia, int32_t 
   }
 }
 
-/* wave205: invoke_cc_run_cc_argv pure orch (surface pin ≡ .x). */
+/* wave205: invoke_cc_run_cc_argv pure orch (surface pin ≡ .x).
+ * PLATFORM: WINDOWS — do not setenv PATH to Unix dirs (see .x / cold twin). */
 int32_t invoke_cc_run_cc_argv(uint8_t **argv) {
   int32_t is_win;
   int32_t is_linux;
   int32_t rc;
   if (!argv)
     return -1;
-  (void)setenv("PATH", "/usr/local/bin:/usr/bin:/bin", 1);
   is_win = link_abi_host_is_windows();
+  if (!is_win)
+    (void)setenv("PATH", "/usr/local/bin:/usr/bin:/bin", 1);
   if (is_win) {
     argv[0] = (uint8_t *)"gcc";
     rc = xlang_spawn_sync((uint8_t *)"gcc", argv);
