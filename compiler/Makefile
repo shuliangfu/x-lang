@@ -451,13 +451,7 @@ $(XLANG_C): bootstrap_xlangc scripts/ensure_xlang_c.sh
 	@bash scripts/ensure_xlang_c.sh ensure $@
 endif
 
-# G-02f-11：diag 产品 seed（全局规则，LEGACY 与默认共用）
-# wave749 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_CORE_SEED_OBJS).
-# wave793 B7A: heat dep-edge thin pure seed+.x+.h residual — prereqs → FORCE + ensure;
-# try-heat owns seed/.x/project-hdr mtime (seed_project_hdrs_newer).
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/diag.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02f-11：diag 产品 seed — joined wave899 multi-target $(R1_CORE_SEED_OBJS).
 
 # G-02a: lsp_diag.c 迁移到 runtime_lsp_glue.inc（24 个符号被 lsp_x.o/fmt_check_cmd*.o/runtime*.o 引用）
 # 全局规则，LEGACY 和默认模式共用。
@@ -505,14 +499,8 @@ src/runtime_io_abi.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 
-# G-02f-13：runtime_link_abi 产品 seed（G05 hot）
-# wave749 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_CORE_SEED_OBJS).
-# wave793 B7A: heat dep-edge thin pure seed+.x+.h residual — prereqs → FORCE + ensure;
-# try-heat owns seed/.x/project-hdr mtime (seed_project_hdrs_newer).
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/runtime_link_abi.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	# wave765: labi multi-slice PREFER → try-labi-prefer (cold full seed fallback).
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02f-13：runtime_link_abi 产品 seed — joined wave899 multi-target $(R1_CORE_SEED_OBJS).
+# wave765 archaeology: labi multi-slice PREFER → try-labi-prefer (cold full seed fallback; body in try-heat).
 
 # G-02f-12 / Phase 4：runtime_driver_abi thin+rest PREFER_X_O
 # PLATFORM: SHARED 冷链 — bootstrap-driver-seed 传 XLANG_G05_PREFER_X_O=0 必须走 seed。
@@ -541,13 +529,7 @@ src/runtime_pipeline_abi.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 
-# G-02f-22：runtime_c_import 产品 seed
-# wave749 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_CORE_SEED_OBJS).
-# wave793 B7A: heat dep-edge thin pure seed+.x+.h residual — prereqs → FORCE + ensure;
-# try-heat owns seed/.x/project-hdr mtime (seed_project_hdrs_newer).
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/runtime_c_import.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02f-22：runtime_c_import 产品 seed — joined wave899 multi-target $(R1_CORE_SEED_OBJS).
 
 # G-02f-18 / R2 product PREFER：async_liveness 独立 TU（非 glue #include）。
 # wave770: product PREFER → ensure try-async-prefer (full .x + rest FROM_X → $CC -r; cold seed).
@@ -654,6 +636,21 @@ include mk/driver_seed_r_lists.mk
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 # ---------------------------------------------------------------------------
 $(RT_SEED_SLICE_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
+	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+
+# ---------------------------------------------------------------------------
+# wave899 B7B: R1_CORE_SEED product edges multi-target FORCE thin try-heat
+# G.7 有则补全: list authority = R1_CORE_SEED_OBJS in mk/driver_seed_r_lists.mk
+# (wave749 family · wave788 list→mk · COUNT=5). Do NOT open a second .o list.
+# Body authority = scripts/ensure_host_cc_seed_o.sh try-heat (wave749/790/792/793).
+# Leaves: diag · runtime_link_abi · runtime_c_import · x_seed_bridge · seed_link_compat.
+# PREFER archaeology (wave765 try-labi-prefer · wave771 try-other-l2-prefer) lives in
+# try-heat body; Makefile only FORCE + thin-call. NOT physical delete — thin edges +
+# remaining R1 family multi-target / mk lists hybrid + tip Windows → dual L4 →
+# explicit auth ship delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+# ---------------------------------------------------------------------------
+$(R1_CORE_SEED_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（XLANG_LEGACY_PREPROCESS_C 路径已死）。
@@ -1273,13 +1270,7 @@ lexer_gen.c: FORCE scripts/ensure_migrate_gen.sh
 lexer_x.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
-# G-02f-11：x_seed_bridge 产品 seed
-# wave749 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_CORE_SEED_OBJS).
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/x_seed_bridge.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02f-11：x_seed_bridge 产品 seed — joined wave899 multi-target $(R1_CORE_SEED_OBJS).
 
 # pipeline_x.o 仍引用 typeck_typeck_* / codegen_codegen_* / lexer_lexer_*；*_x.o 导出无重复前缀名。
 # G-02f-16：x_frontend_link_alias 产品 seed（G-02e-8 三 alias 并入体）
@@ -1763,14 +1754,8 @@ src/lsp/typeck_lsp_io_stub.o: FORCE scripts/cc_inc_tu.sh
 	# wave889 B7B residual: bare sh → pure @bash thin-call form.
 	@bash scripts/cc_inc_tu.sh seeds/typeck_lsp_io_stub.from_x.c $@
 
-# G-02f-11 / G-02f-440：seed_link_compat 产品 seed（thin named-weak 6 stubs）
-# wave749 R1 cold: ensure_one · wave771 product PREFER thin+rest → try-other-l2-prefer.
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/seed_link_compat.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	# wave771: other L2 PREFER thin+rest → try-other-l2-prefer (cold plain seed fallback).
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02f-11 / G-02f-440：seed_link_compat 产品 seed — joined wave899 multi-target $(R1_CORE_SEED_OBJS).
+# wave771 archaeology: other L2 PREFER thin+rest → try-other-l2-prefer (cold plain seed fallback; body in try-heat).
 
 # wave739: G.7 body → scripts/ensure_lsp_pipeline_gen.sh (lsp_gen + g_lsp_state_buf post)
 # wave829: FORCE dep-thin — shell owns pin/seed policy (G.7; not physical delete).

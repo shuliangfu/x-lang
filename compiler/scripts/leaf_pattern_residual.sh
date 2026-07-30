@@ -218,6 +218,8 @@
 #   wave897: B2 std_core hybrid product edges list→mk + multi-target FORCE thin (5)
 #   wave898: RT_SEED_SLICE product edges multi-target FORCE thin try-heat (5)
 #            (G.7 有则补全: RT_SEED_SLICE_OBJS in driver_seed_r_lists.mk; no second list)
+#   wave899: R1_CORE_SEED product edges multi-target FORCE thin try-heat (5)
+#            (G.7 有则补全: R1_CORE_SEED_OBJS in driver_seed_r_lists.mk; no second list)
 #            wave893: B7B residual verify-selfhost thin-call form hygiene (2 sites) →
 #            body → scripts/verify-selfhost-stage2{,-bstrict}.sh; Makefile pure
 #            @bash scripts/… (drop @bash ./); root shim for CI/tests path compat;
@@ -711,6 +713,17 @@ PHYS_DEL_RT_SEED_SLICE_LIST_MK_NOTE=list_multi_target_force_thin_edges_remain
 SWALLOWED_RT_SEED_SLICE_LIST_MK=1
 RT_SEED_SLICE_LIST_MK_SWALLOWED=1
 RT_SEED_SLICE_LIST_MK_WAVE=wave898
+# wave899: R1_CORE_SEED product edges multi-target FORCE thin try-heat (make-graph only).
+# G.7 有则补全: list authority remains R1_CORE_SEED_OBJS in mk/driver_seed_r_lists.mk
+# (wave749/788; no second product mk). Body = ensure try-heat. NOT physical delete.
+PHYS_DEL_R1_CORE_SEED_LIST_MK=1
+PHYS_DEL_R1_CORE_SEED_LIST_MK_WAVE=wave899
+PHYS_DEL_R1_CORE_SEED_LIST_MK_COUNT=5
+PHYS_DEL_R1_CORE_SEED_LIST_MK_VIA=mk_r1_core_seed_objs_multi_target_thin
+PHYS_DEL_R1_CORE_SEED_LIST_MK_NOTE=list_multi_target_force_thin_edges_remain
+SWALLOWED_R1_CORE_SEED_LIST_MK=1
+R1_CORE_SEED_LIST_MK_SWALLOWED=1
+R1_CORE_SEED_LIST_MK_WAVE=wave899
 # wave829: product/archaeology *_gen.c FORCE dep-thin — Makefile prereqs FORCE+script
 # only; shell owns pin/seed/FORCE_REGEN policy (ensure_*_gen). NOT physical delete —
 # thin edges + B2 try-heat + mk lists remain (ast_gen2 closed wave830).
@@ -1873,6 +1886,7 @@ PHYS_DEL_PREFLIGHT_DRIVER_LEAF_SHELL_PRIMARY=1
 PHYS_DEL_PREFLIGHT_DRIVER_LEAF_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_B2_STD_CORE_LIST_MK=1
 PHYS_DEL_PREFLIGHT_RT_SEED_SLICE_LIST_MK=1
+PHYS_DEL_PREFLIGHT_R1_CORE_SEED_LIST_MK=1
 PHYS_DEL_PREFLIGHT_GEN_C_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_AST_GEN2_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_SRC_EDGE_FORCE_THIN=1
@@ -1934,7 +1948,7 @@ PHYS_DEL_PREFLIGHT_B7B_MIGRATE_ENV_HYGIENE=1
 PHYS_DEL_PREFLIGHT_B7B_STAGE_BOOTSTRAP_ENV_HYGIENE=1
 PHYS_DEL_PREFLIGHT_B7B_ENSURE_OUT_OPT_HYGIENE=1
 PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_std_x_catalog_is_physical_delete|claim_std_x_force_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_formal_mod_force_thin_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_driver_leaf_force_thin_is_physical_delete|claim_driver_leaf_list_mk_is_physical_delete|claim_b2_std_core_list_mk_is_physical_delete|claim_rt_seed_slice_list_mk_is_physical_delete|claim_gen_c_force_thin_is_physical_delete|claim_ast_gen2_force_thin_is_physical_delete|claim_src_edge_force_thin_is_physical_delete|claim_migrate_x_force_thin_is_physical_delete|claim_glue_types_force_thin_is_physical_delete|claim_bootstrap_pipeline_force_thin_is_physical_delete|claim_filtered_o_force_thin_is_physical_delete|claim_cp_alias_force_thin_is_physical_delete|claim_pipeline_gen_force_thin_is_physical_delete|claim_bootstrap_xlangc_force_thin_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_arch_host_pick_force_thin_is_physical_delete|claim_bootstrap_typeck_codegen_shell_is_physical_delete|claim_bootstrap_x_compiler_shell_is_physical_delete|claim_bootstrap_self_shell_is_physical_delete|claim_bootstrap_parser_smoke_is_physical_delete|claim_xlang_x_pipeline_shell_is_physical_delete|claim_xlang_x_shell_is_physical_delete|claim_xlang_no_c_frontend_shell_is_physical_delete|claim_bootstrap_seed_x_frontend_shell_is_physical_delete|claim_relink_xlang_lexer_shell_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|claim_e_dirs_list_mk_is_physical_delete|claim_relink_product_link_mk_is_physical_delete|claim_xxl_bs_xnc_link_mk_is_physical_delete|claim_bxf_link_mk_is_physical_delete|claim_seed_phase_final_link_mk_is_physical_delete|claim_seed_gate_required_mk_is_physical_delete|claim_seed_gate_required_shell_load_is_physical_delete|rm_makefile_without_confirm_delete_body
+PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_std_x_catalog_is_physical_delete|claim_std_x_force_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_formal_mod_force_thin_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_driver_leaf_force_thin_is_physical_delete|claim_driver_leaf_list_mk_is_physical_delete|claim_b2_std_core_list_mk_is_physical_delete|claim_rt_seed_slice_list_mk_is_physical_delete|claim_r1_core_seed_list_mk_is_physical_delete|claim_gen_c_force_thin_is_physical_delete|claim_ast_gen2_force_thin_is_physical_delete|claim_src_edge_force_thin_is_physical_delete|claim_migrate_x_force_thin_is_physical_delete|claim_glue_types_force_thin_is_physical_delete|claim_bootstrap_pipeline_force_thin_is_physical_delete|claim_filtered_o_force_thin_is_physical_delete|claim_cp_alias_force_thin_is_physical_delete|claim_pipeline_gen_force_thin_is_physical_delete|claim_bootstrap_xlangc_force_thin_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_arch_host_pick_force_thin_is_physical_delete|claim_bootstrap_typeck_codegen_shell_is_physical_delete|claim_bootstrap_x_compiler_shell_is_physical_delete|claim_bootstrap_self_shell_is_physical_delete|claim_bootstrap_parser_smoke_is_physical_delete|claim_xlang_x_pipeline_shell_is_physical_delete|claim_xlang_x_shell_is_physical_delete|claim_xlang_no_c_frontend_shell_is_physical_delete|claim_bootstrap_seed_x_frontend_shell_is_physical_delete|claim_relink_xlang_lexer_shell_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|claim_e_dirs_list_mk_is_physical_delete|claim_relink_product_link_mk_is_physical_delete|claim_xxl_bs_xnc_link_mk_is_physical_delete|claim_bxf_link_mk_is_physical_delete|claim_seed_phase_final_link_mk_is_physical_delete|claim_seed_gate_required_mk_is_physical_delete|claim_seed_gate_required_shell_load_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_PREFLIGHT_WIN_GATE_HOST=MSYS2_windows-server_dual_boot_reboot_required
 PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
@@ -2546,6 +2560,9 @@ else
   fi
   if ! grep -qE 'wave898|RT_SEED_SLICE.*multi|RT_SEED_SLICE_OBJS|rt_seed_slice list' "$DOC_REL"; then
     bad "$DOC_REL must document wave898 RT_SEED_SLICE multi-target FORCE thin"
+  fi
+  if ! grep -qE 'wave899|R1_CORE_SEED.*multi|R1_CORE_SEED_OBJS|r1_core_seed list|core.seed multi' "$DOC_REL"; then
+    bad "$DOC_REL must document wave899 R1_CORE_SEED multi-target FORCE thin"
   fi
   if ! grep -qE 'wave828|driver_leaf FORCE|DRIVER_LEAF_FORCE_THIN' "$DOC_REL"; then
     bad "$DOC_REL must document wave828 driver_leaf FORCE dep-thin"
@@ -3368,6 +3385,21 @@ if ! grep -q 'SWALLOWED_RT_SEED_SLICE_LIST_MK=1' <<<"$_out"; then
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_RT_SEED_SLICE_LIST_MK=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_RT_SEED_SLICE_LIST_MK=1 (wave898)"
+fi
+if ! grep -q 'PHYS_DEL_R1_CORE_SEED_LIST_MK=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_R1_CORE_SEED_LIST_MK=1 (wave899)"
+fi
+if ! grep -q 'PHYS_DEL_R1_CORE_SEED_LIST_MK_WAVE=wave899' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_R1_CORE_SEED_LIST_MK_WAVE=wave899"
+fi
+if ! grep -q 'PHYS_DEL_R1_CORE_SEED_LIST_MK_COUNT=5' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_R1_CORE_SEED_LIST_MK_COUNT=5 (wave899)"
+fi
+if ! grep -q 'SWALLOWED_R1_CORE_SEED_LIST_MK=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_R1_CORE_SEED_LIST_MK=1 (wave899)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_R1_CORE_SEED_LIST_MK=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_R1_CORE_SEED_LIST_MK=1 (wave899)"
 fi
 if ! grep -q 'PHYS_DEL_GEN_C_FORCE_THIN=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_GEN_C_FORCE_THIN=1 (wave829)"
@@ -5146,6 +5178,128 @@ if [ "$_rt_indiv" -ne 0 ]; then
   bad "Makefile still has $_rt_indiv per-leaf RT_SEED_SLICE targets (wave898 multi-target only)"
 fi
 note "Makefile RT_SEED_SLICE multi-target FORCE thin try-heat + mk list 5 (wave748/788/898; not physical delete)"
+
+# wave899: R1_CORE_SEED product edges multi-target FORCE thin try-heat (G.7 有则补全 list).
+_R1CS_MK="compiler/mk/driver_seed_r_lists.mk"
+[ -f "$_R1CS_MK" ] || _R1CS_MK="mk/driver_seed_r_lists.mk"
+if [ ! -f "$_R1CS_MK" ]; then
+  bad "missing $_R1CS_MK (wave899 R1_CORE_SEED list authority)"
+fi
+if ! grep -qE '^R1_CORE_SEED_OBJS\s*=' "$_R1CS_MK"; then
+  bad "$_R1CS_MK must define R1_CORE_SEED_OBJS (wave749/788/899)"
+fi
+_r1cs_list_n=$(
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^R1_CORE_SEED_OBJS[[:space:]]*=/ {
+      line=$0
+      sub(/#.*/,"",line)
+      n=split(line, a, /[[:space:]\\]+/)
+      for (i=1;i<=n;i++) if (a[i] ~ /\.o$/) c++
+      next
+    }
+    END { print c+0 }
+  ' "$_R1CS_MK"
+)
+if [ "${_r1cs_list_n:-0}" -ne 5 ]; then
+  bad "wave899 expected 5 R1_CORE_SEED_OBJS members, got ${_r1cs_list_n:-0}"
+fi
+if ! grep -q 'include mk/driver_seed_r_lists.mk' "$MF"; then
+  bad "Makefile must include mk/driver_seed_r_lists.mk (wave788/899)"
+fi
+if ! grep -qE '\$\(R1_CORE_SEED_OBJS\):[[:space:]]*FORCE' "$MF"; then
+  bad "Makefile must multi-target \$(R1_CORE_SEED_OBJS): FORCE (wave899)"
+fi
+if ! awk '
+  /\$\(R1_CORE_SEED_OBJS\):/ { hit=1; next }
+  hit && /^[^#[:space:]\t]/ { exit 1 }
+  hit && /ensure_host_cc_seed_o\.sh/ && /try-heat/ { found=1; exit 0 }
+  END { exit found ? 0 : 1 }
+' "$MF"; then
+  bad "Makefile R1_CORE_SEED_OBJS multi-target must thin-call try-heat (wave899)"
+fi
+_r1cs_thin=0
+_r1cs_force=0
+while IFS= read -r _r1cs; do
+  [ -z "$_r1cs" ] && continue
+  case "$_r1cs" in
+    *.o) ;;
+    *) continue ;;
+  esac
+  _ok_t=0
+  _ok_f=0
+  if awk -v leaf="$_r1cs" '
+    $0 ~ ("^" leaf ":") { want=1; next }
+    want && /^[^#[:space:]]/ { want=0 }
+    want && /ensure_host_cc_seed_o\.sh/ && /try-heat/ { found=1 }
+    END { exit found ? 0 : 1 }
+  ' "$MF" 2>/dev/null; then
+    _ok_t=1
+  elif grep -qF "$_r1cs" "$_R1CS_MK" \
+    && grep -qE '\$\(R1_CORE_SEED_OBJS\):[[:space:]]*FORCE' "$MF"; then
+    _ok_t=1
+  fi
+  if awk -v leaf="$_r1cs" '
+    $0 ~ ("^" leaf ":") {
+      if ($0 ~ /FORCE/ && $0 !~ /\.x([[:space:]]|$)/) { ok=1; exit 0 }
+      exit 1
+    }
+    END { exit ok ? 0 : 1 }
+  ' "$MF" 2>/dev/null; then
+    _ok_f=1
+  elif grep -qF "$_r1cs" "$_R1CS_MK" \
+    && grep -qE '\$\(R1_CORE_SEED_OBJS\):[[:space:]]*FORCE' "$MF"; then
+    _ok_f=1
+  fi
+  if [ "$_ok_t" -eq 1 ]; then
+    _r1cs_thin=$((_r1cs_thin + 1))
+  else
+    bad "Makefile $_r1cs must thin-call try-heat (wave749/899)"
+  fi
+  if [ "$_ok_f" -eq 1 ]; then
+    _r1cs_force=$((_r1cs_force + 1))
+  else
+    bad "Makefile $_r1cs must FORCE dep-thin (wave899)"
+  fi
+done < <(
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^R1_CORE_SEED_OBJS[[:space:]]*=/ {
+      line=$0
+      sub(/#.*/,"",line)
+      n=split(line, a, /[[:space:]\\]+/)
+      for (i=1;i<=n;i++) if (a[i] ~ /\.o$/) print a[i]
+    }
+  ' "$_R1CS_MK"
+)
+if [ "$_r1cs_thin" -ne 5 ]; then
+  bad "wave899 expected 5 R1_CORE_SEED ensure leaves, got $_r1cs_thin"
+fi
+if [ "$_r1cs_force" -ne 5 ]; then
+  bad "wave899 expected 5 R1_CORE_SEED FORCE thin leaves, got $_r1cs_force"
+fi
+_r1cs_indiv=0
+while IFS= read -r _r1cs; do
+  [ -z "$_r1cs" ] && continue
+  case "$_r1cs" in *.o) ;; *) continue ;; esac
+  if grep -qE "^${_r1cs}:" "$MF" 2>/dev/null; then
+    _r1cs_indiv=$((_r1cs_indiv + 1))
+  fi
+done < <(
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^R1_CORE_SEED_OBJS[[:space:]]*=/ {
+      line=$0
+      sub(/#.*/,"",line)
+      n=split(line, a, /[[:space:]\\]+/)
+      for (i=1;i<=n;i++) if (a[i] ~ /\.o$/) print a[i]
+    }
+  ' "$_R1CS_MK"
+)
+if [ "$_r1cs_indiv" -ne 0 ]; then
+  bad "Makefile still has $_r1cs_indiv per-leaf R1_CORE_SEED targets (wave899 multi-target only)"
+fi
+note "Makefile R1_CORE_SEED multi-target FORCE thin try-heat + mk list 5 (wave749/788/899; not physical delete)"
 
 
 # wave829: product/archaeology *_gen.c FORCE dep-thin (17 leaves; no dual .x / X_DEPS prereqs).
@@ -7912,6 +8066,8 @@ if [ -f "$MF" ]; then
   # logical leaves — expand rule-line count by +4 so honesty stays 113.
   # wave898: RT_SEED_SLICE multi-target $(RT_SEED_SLICE_OBJS) is 1 rule for 5
   # logical leaves — expand +4 likewise.
+  # wave899: R1_CORE_SEED multi-target $(R1_CORE_SEED_OBJS) is 1 rule for 5
+  # logical leaves — expand +4 likewise.
   _force_n=$(grep -cE '^[A-Za-z0-9_./$()].*: FORCE scripts/ensure_host_cc_seed_o\.sh' "$MF" 2>/dev/null || true)
   _force_n=${_force_n:-0}
   if grep -qE '\$\(STD_CORE_HYBRID_PRODUCT_OBJS\):[[:space:]]*FORCE[[:space:]]+scripts/ensure_host_cc_seed_o\.sh' "$MF" 2>/dev/null; then
@@ -7920,10 +8076,13 @@ if [ -f "$MF" ]; then
   if grep -qE '\$\(RT_SEED_SLICE_OBJS\):[[:space:]]*FORCE[[:space:]]+scripts/ensure_host_cc_seed_o\.sh' "$MF" 2>/dev/null; then
     _force_n=$((_force_n + 4))
   fi
+  if grep -qE '\$\(R1_CORE_SEED_OBJS\):[[:space:]]*FORCE[[:space:]]+scripts/ensure_host_cc_seed_o\.sh' "$MF" 2>/dev/null; then
+    _force_n=$((_force_n + 4))
+  fi
   if [ "${_force_n}" -lt 113 ]; then
-    bad "Makefile wave797 FORCE dep-thin leaves expected >=113 (n=${_force_n}; wave897/898 multi-target logical expand)"
+    bad "Makefile wave797 FORCE dep-thin leaves expected >=113 (n=${_force_n}; wave897/898/899 multi-target logical expand)"
   else
-    note "Makefile heat dep-edge FORCE thin (n=${_force_n}; wave797; wave897/898 multi-target logical expand)"
+    note "Makefile heat dep-edge FORCE thin (n=${_force_n}; wave797; wave897/898/899 multi-target logical expand)"
   fi
   # wave797: orch last heat source-prereq leaf must be FORCE thin (no pipeline_gen prereq edge).
   # G.7: do not quote product *.o paths in bad messages (self inventory ban).
