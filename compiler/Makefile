@@ -10,7 +10,21 @@
 # 【生成 C 后无补丁】-E 产出 pipeline_gen.c / driver_gen.c 后不再做 sed/awk/perl/echo 后处理。
 # pipeline_gen.c：包装/size/debug 由 runtime.c 在 -E 且入口为 pipeline.x 时追加 pipeline_glue.c 到 stdout。
 
+# Host C compiler default.
+# PLATFORM: SHARED — POSIX toolchains provide `cc`; MinGW-w64 on Windows often
+# ships only `gcc` (no `cc` alias). `CC ?= cc` alone breaks ensure/seed recipes
+# that invoke $(CC) / scripts defaulting to cc. Override still wins: make CC=clang.
+ifeq ($(OS),Windows_NT)
+CC ?= gcc
+else
+# MSYS/MinGW shells sometimes leave OS unset; detect via uname.
+_UNAME_S_CC := $(shell uname -s 2>/dev/null)
+ifneq (,$(filter MINGW% MSYS% CYGWIN%,$(_UNAME_S_CC)))
+CC ?= gcc
+else
 CC ?= cc
+endif
+endif
 CFLAGS ?= -Wall -Wextra -I. -Iinclude -Isrc
 # Windows/MinGW: __attribute__((weak)) 函数符号不被 PE 格式支持，
 # 所有 weak 函数在 stub 文件中变为正常定义；用 --allow-multiple-definition 解决重复定义冲突。

@@ -254,7 +254,8 @@
 #   ./xbuild host-cc-seed | … | misc-basename | seed-map | r2-panic
 #
 # Env:
-#   CC — host compiler (default: cc; honor caller CC)
+#   CC — host compiler (default: resolve_host_cc.sh — `cc` if present else `gcc`;
+#        PLATFORM: WINDOWS/MinGW often has only gcc, no `cc` binary name)
 #   CFLAGS — base flags (default: -Wall -Wextra -I. -Iinclude -Isrc)
 #   PIPELINE_GEN_CFLAGS — optional silence flags (Makefile exports when thin)
 #   RUNTIME_DRIVER_CFLAGS / RUNTIME_DRIVER_NO_C_CFLAGS — multi-flag variants
@@ -272,9 +273,13 @@
 #       R2 panic/typeck_f64/crt0 (not physical delete · not pure-ld).
 
 set -euo pipefail
-cd "$(dirname "$0")/.."
+_ENSURE_HOST_CC_DIR="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+cd "$_ENSURE_HOST_CC_DIR/.."
 
-CC="${CC:-cc}"
+# G.7: single default-CC policy (scripts/resolve_host_cc.sh). Do not hardcode
+# CC=cc — MinGW ships gcc without a `cc` alias (Windows hybrid min-gate).
+# shellcheck source=resolve_host_cc.sh
+. "$_ENSURE_HOST_CC_DIR/resolve_host_cc.sh"
 # Match g05 / Makefile product includes; PIPELINE_GEN_CFLAGS optional (Makefile thin).
 BASE_CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}"
 PIPELINE_GEN_CFLAGS="${PIPELINE_GEN_CFLAGS:-}"
