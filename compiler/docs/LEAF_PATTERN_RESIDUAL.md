@@ -1743,7 +1743,8 @@ ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
     SWALLOWED_B7B_OBJS_CORE_LIST=1
     PHYS_DEL_PREFLIGHT_B7B_OBJS_CORE_LIST=1
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-  dual-end L2 green tip: (fill after dual-end)
+  dual-end L2 green tip: b3651b5aa (Mac + Ubuntu leaf + catalog + phys-del
+    --check; product OBJS_CORE 16 expand OK; LEGACY main_driver layout OK)
   next: more shell-primary / lists residual or tip Windows re-proof
        → Mac+Ubuntu L4 → ship delete body
 ```
@@ -1757,7 +1758,7 @@ ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
 | `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
 | `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
 | `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
-| dual-end L2 tip | (fill after dual-end) |
+| dual-end L2 tip | `b3651b5aa` |
 
 **Forbidden:** claim OBJS_CORE list→mk = physical delete; dual inline
 `OBJS_CORE` inventory in Makefile or catalog hardcode; re-open incomplete
