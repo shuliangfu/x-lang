@@ -1869,32 +1869,30 @@ codegen_x.o: FORCE scripts/migrate_x_objs.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" \
 	  sh scripts/migrate_x_objs.sh codegen
 
-# 6.1：.x typeck 入口与 C AST 对接；用 C-only xlang 编译 typeck.x 生成 typeck_gen.c，再链接进 xlang，使 typeck 由 .x 入口转调 C
-# wave785 B7c: gen -E stays archaeology; typeck_x.o → migrate_x_objs (G.7 有则补全; no dual $(CC) -c)
-bootstrap-typeck: $(TARGET) $(XLANG_C) bootstrap_xlangc $(RELINK_XLANG_PREREQS)
-	@tmp=typeck_gen.c.tmp.$$$$; rm -f "$$tmp"; \
-	./$(XLANG_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -E -E-extern src/typeck/typeck.x > "$$tmp" || { rc=$$?; rm -f "$$tmp"; exit $$rc; }; \
-	mv "$$tmp" typeck_gen.c
-	@CC="$(CC)" CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" XLANG_MIGRATE_FORCE=1 \
-	  sh scripts/migrate_x_objs.sh typeck
-	$(CC) $(CFLAGS) -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_TYPECK $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_OBJS) driver_x.o $(RELINK_XLANG_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS) $(RELINK_XLANG_USER_ASM_LINK) $(RELINK_XLANG_GLUE_SUFFIX)
-	@echo "bootstrap-typeck OK"
+# 6.1：.x typeck 入口与 C AST 对接；force-regen typeck_gen → migrate typeck_x → relink TARGET。
+# wave785 B7c: typeck_x.o → migrate_x_objs (no dual $(CC) -c).
+# wave841: full body → scripts/bootstrap_typeck_codegen.sh (G.7 有则补全 ensure_migrate_gen
+#   FORCE_REGEN + migrate_x_objs; Makefile thin-call + expanded BTC_* link bag only).
+# NOT physical delete — prereq make-graph + thin edges + mk lists remain residual.
+# PLATFORM: SHARED — shell owns gen/migrate/link orchestration.
+bootstrap-typeck: $(TARGET) $(XLANG_C) bootstrap_xlangc $(RELINK_XLANG_PREREQS) scripts/bootstrap_typeck_codegen.sh
+	@MAKE="$(MAKE)" TARGET="$(TARGET)" XLANG_C="$(XLANG_C)" CC="$(CC)" \
+	  CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" \
+	  BTC_CFLAGS="$(CFLAGS) -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_TYPECK $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS)" \
+	  BTC_OBJS="$(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_OBJS) driver_x.o $(RELINK_XLANG_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS) $(RELINK_XLANG_USER_ASM_LINK) $(RELINK_XLANG_GLUE_SUFFIX)" \
+	  bash scripts/bootstrap_typeck_codegen.sh typeck
 
-# 6.2：.x codegen 入口与 C AST 对接；编译 typeck.x + codegen.x 生成 _gen.c，链接进 xlang，使 typeck 与 codegen 均由 .x 入口转调 C
-# wave785 B7c: typeck/codegen .o → migrate_x_objs (G.7; no dual $(CC) -c)
-bootstrap-codegen: $(TARGET) $(XLANG_C) bootstrap_xlangc $(RELINK_XLANG_PREREQS)
-	@tmp=typeck_gen.c.tmp.$$$$; rm -f "$$tmp"; \
-	./$(XLANG_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -E -E-extern src/typeck/typeck.x > "$$tmp" || { rc=$$?; rm -f "$$tmp"; exit $$rc; }; \
-	mv "$$tmp" typeck_gen.c
-	@tmp=codegen_gen.c.tmp.$$$$; rm -f "$$tmp"; \
-	./$(XLANG_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -E -E-extern src/codegen/codegen.x > "$$tmp" || { rc=$$?; rm -f "$$tmp"; exit $$rc; }; \
-	mv "$$tmp" codegen_gen.c
-	@CC="$(CC)" CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" XLANG_MIGRATE_FORCE=1 \
-	  sh scripts/migrate_x_objs.sh typeck
-	@CC="$(CC)" CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" XLANG_MIGRATE_FORCE=1 \
-	  sh scripts/migrate_x_objs.sh codegen
-	$(CC) $(CFLAGS) -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_OBJS) driver_x.o $(RELINK_XLANG_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS) $(RELINK_XLANG_USER_ASM_LINK) $(RELINK_XLANG_GLUE_SUFFIX)
-	@echo "bootstrap-codegen OK"
+# 6.2：.x codegen 入口与 C AST 对接；force-regen typeck+codegen gen → migrate both → relink TARGET。
+# wave785 B7c: typeck/codegen .o → migrate_x_objs (no dual $(CC) -c).
+# wave841: full body → scripts/bootstrap_typeck_codegen.sh (G.7 有则补全; same shell as typeck).
+# NOT physical delete — prereq make-graph + thin edges + mk lists remain residual.
+# PLATFORM: SHARED — shell owns gen/migrate/link orchestration.
+bootstrap-codegen: $(TARGET) $(XLANG_C) bootstrap_xlangc $(RELINK_XLANG_PREREQS) scripts/bootstrap_typeck_codegen.sh
+	@MAKE="$(MAKE)" TARGET="$(TARGET)" XLANG_C="$(XLANG_C)" CC="$(CC)" \
+	  CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" \
+	  BTC_CFLAGS="$(CFLAGS) -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS)" \
+	  BTC_OBJS="$(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_OBJS) driver_x.o $(RELINK_XLANG_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS) $(RELINK_XLANG_USER_ASM_LINK) $(RELINK_XLANG_GLUE_SUFFIX)" \
+	  bash scripts/bootstrap_typeck_codegen.sh codegen
 
 # 6.3/6.4：入口在 main.x；链接时用 main_driver.o（带 XLANG_USE_X_DRIVER/PIPELINE 以启用 -backend asm）+ runtime_driver.o + ...
 # G-02f-16：main_driver 与 main 同源 seed

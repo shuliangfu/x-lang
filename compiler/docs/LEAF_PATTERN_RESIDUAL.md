@@ -2040,6 +2040,55 @@ ship delete body; mac-only wave green.
 `bootstrap_xlangc_create.sh` on Makefile prereq; dual host-pick outside select;
 `rm compiler/Makefile`; ship delete body; mac-only wave green.
 
+## wave841 bootstrap-typeck/codegen shell-primary (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **有则补全** on B7C archaeology residual —
+> `bootstrap-typeck` / `bootstrap-codegen` still owned a multi-step Makefile body
+> (inline `xlang-c -E-extern` → `migrate_x_objs` → fat `$(CC)` link). wave785 only
+> thinned the migrate leaf; gen `-E` + link stayed dual.
+>
+> New authority: `scripts/bootstrap_typeck_codegen.sh`
+>   - gen = `ensure_migrate_gen.sh` with `XLANG_FORCE_REGEN_GEN=1` (no dual `-E`)
+>   - `.o` = `migrate_x_objs.sh` with `XLANG_MIGRATE_FORCE=1`
+>   - link bag = Makefile `BTC_CFLAGS` / `BTC_OBJS` (expands mk composites; no
+>     second `.o` inventory in shell)
+>
+> Makefile thin-call only (keeps `$(TARGET) $(XLANG_C) bootstrap_xlangc
+> $(RELINK_XLANG_PREREQS)` make-graph prereqs — wave719-style body shell-primary).
+> Honesty COUNT = **2**. Residual after: thin edges + B2 + mk lists +
+> `bootstrap-x-compiler` typeck_x_x archaeology `$(CC) -c`. Dual-end L2 required.
+> Blockers **remain**.
+
+```text
+  leaf dump:
+    PHYS_DEL_BOOTSTRAP_TYPECK_CODEGEN_SHELL=1
+    PHYS_DEL_BOOTSTRAP_TYPECK_CODEGEN_SHELL_WAVE=wave841
+    PHYS_DEL_BOOTSTRAP_TYPECK_CODEGEN_SHELL_COUNT=2
+    SWALLOWED_BOOTSTRAP_TYPECK_CODEGEN_SHELL=1
+    PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY=1
+    PHYS_DEL_PREFLIGHT_BOOTSTRAP_TYPECK_CODEGEN_SHELL=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  dual-end L2: leaf --check + bootstrap_typeck_codegen.sh --check + phys-del --check
+  next: more shell-primary (bootstrap-parser / self / x-compiler) or tip Windows
+       re-proof → ship delete body (explicit auth only; tip L4 already wave840)
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_BOOTSTRAP_TYPECK_CODEGEN_SHELL` | `1` |
+| `PHYS_DEL_BOOTSTRAP_TYPECK_CODEGEN_SHELL_COUNT` | `2` |
+| `SWALLOWED_BOOTSTRAP_TYPECK_CODEGEN_SHELL` | `1` |
+| `BOOTSTRAP_TYPECK_CODEGEN_SHELL_HELPER` | `bootstrap_typeck_codegen.sh` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+
+**Forbidden:** claim typeck/codegen shell-primary = physical delete; dual inline
+`xlang-c -E-extern` / `$(CC) -c typeck_gen` on these phonies; hardcode second
+link `.o` list in shell; `rm compiler/Makefile`; ship delete body; mac-only wave green.
+
 ## wave839 archaeology host-pick FORCE dep-thin (2026-07-30)
 
 > **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
