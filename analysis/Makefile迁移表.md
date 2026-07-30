@@ -408,8 +408,8 @@
 | 716 | `bootstrap_xlangc` | ⬜ |
 | 1699 | `bootstrap-token` | 🟢 wave719 shell |
 | 1703 | `bootstrap-lexer` | 🟢 wave719 shell |
-| 1720 | `bootstrap-parser` | ⬜ |
-| 1725 | `bootstrap-parse-file` | ⬜ |
+| 1720 | `bootstrap-parser` | 🟢 wave844 shell-primary：`bootstrap_parser_smoke.sh parser`；prereq graph residual |
+| 1725 | `bootstrap-parse-file` | 🟢 wave844 shell-primary：`bootstrap_parser_smoke.sh parse-file`；prereq graph residual |
 | 2215 | `bootstrap-typeck` | 🟡 wave785 B7c：.o→migrate_x_objs；link residual |
 | 2224 | `bootstrap-codegen` | 🟡 wave785 B7c：.o→migrate_x_objs；link residual |
 | 2479 | `bootstrap-driver-seed-x-frontend` | ⬜ |
