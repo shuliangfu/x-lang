@@ -22,7 +22,7 @@ DRIVER_SEED_PANIC_OBJS = runtime_panic.o
 DRIVER_SEED_TYPECK_F64_OBJS = src/typeck/typeck_f64_bits.o
 # crt0 / freestanding platform .s (and mingw seed) — fixed o→src map; host
 # only builds the leaves its MAIN_LINK / freestanding path needs.
-# Not in list: crt0_user.o / freestanding_io.o (cp wrappers) · bootstrap_nostdlib_stubs (cc_inc_tu residual).
+# Not in list: crt0_user.o / freestanding_io.o (cp-alias · wave836 ensure_cp_alias_o) · bootstrap_nostdlib_stubs (cc_inc_tu residual).
 DRIVER_SEED_CRT0_OBJS = src/asm/crt0_x86_64.o src/asm/crt0_arm64.o src/asm/crt0_darwin_x86_64.o src/asm/crt0_mingw.o src/asm/crt0_user_x86_64.o src/asm/freestanding_io_x86_64.o
 DRIVER_SEED_USER_ASM_SEED_OBJS = $(USER_ASM_SEED_OBJS)
 DRIVER_SEED_ASM_GLUE_OBJS = $(ASM_GLUE_STANDALONE_O)

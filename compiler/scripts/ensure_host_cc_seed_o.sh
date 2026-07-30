@@ -213,7 +213,8 @@
 #   - ~~B5 cfg_eval multi-ladder~~ wave783 → try-cfg-eval-ladder
 #   - R5 CI all · B6 · pure-ld residual
 #   - pure-ld (11.1.4) · physical Makefile delete (11.3.1)
-#   - bootstrap_nostdlib_stubs.o (cc_inc_tu residual) · crt0_user.o cp wrappers
+#   - bootstrap_nostdlib_stubs.o (cc_inc_tu residual)
+#   - ~~crt0_user.o / freestanding_io.o / ast_x.o cp wrappers~~ wave836 → ensure_cp_alias_o
 #
 # Usage (cwd = compiler/):
 #   bash scripts/ensure_host_cc_seed_o.sh one <out.o> <seed.from_x.c> [extra cflags...]

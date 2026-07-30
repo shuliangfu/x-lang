@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · … · wave824 E_DIRS list→mk · wave825 std_x shell-primary catalog · wave826 formal_mod FORCE dep-thin · wave827 std_x FORCE dep-thin · wave828 driver_leaf FORCE dep-thin · wave829 gen.c FORCE dep-thin · wave830 ast_gen2 FORCE dep-thin · wave831 src-edge FORCE dep-thin · wave832 migrate companion FORCE dep-thin · wave833 pipeline_glue_types FORCE dep-thin · wave834 bootstrap-pipeline FORCE shell-primary · wave835 filtered.o FORCE dep-thin · wave747–825 prior swallows · wave799 execute-gate · … · not physical delete)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · … · wave824 E_DIRS list→mk · wave825 std_x shell-primary catalog · wave826 formal_mod FORCE dep-thin · wave827 std_x FORCE dep-thin · wave828 driver_leaf FORCE dep-thin · wave829 gen.c FORCE dep-thin · wave830 ast_gen2 FORCE dep-thin · wave831 src-edge FORCE dep-thin · wave832 migrate companion FORCE dep-thin · wave833 pipeline_glue_types FORCE dep-thin · wave834 bootstrap-pipeline FORCE shell-primary · wave835 filtered.o FORCE dep-thin · wave836 cp-alias FORCE dep-thin · wave747–825 prior swallows · wave799 execute-gate · … · not physical delete)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -1886,7 +1886,7 @@ ship delete body; mac-only wave green.
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
   dual-end L2 green tip: cd314928a (Mac + Ubuntu leaf --check;
     filter --check; XLANG_FILTER_FORCE ensure partial+pipeline OK)
-  next: thin edges / B2 pressure or tip Windows re-proof
+  next: ~~cp-alias FORCE~~ (wave836) · thin edges / B2 or tip Windows re-proof
        → Mac+Ubuntu L4 → ship delete body (explicit auth only)
 ```
 
@@ -1903,6 +1903,52 @@ ship delete body; mac-only wave green.
 **Forbidden:** claim filtered.o FORCE thin = physical delete; re-list SRC
 `.o` / partial as make-graph prereq on filtered leaves; dual nm/ld filter body;
 `rm compiler/Makefile`; ship delete body; mac-only wave green.
+
+## wave836 product object-path cp-alias FORCE dep-thin (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **无才新增** — product object-path **cp-alias** leaves
+> that still listed SRC `.o` as make-graph prereqs after heat FORCE (wave791–797)
+> and freestanding heat thin:
+>
+> 1. `ast_x.o` ← `src/ast/ast_seed.o` (SHARED G-02a C ABI alias)
+> 2. `crt0_user.o` ← `src/asm/crt0_user_x86_64.o` (x86_64 freestanding link name)
+> 3. `freestanding_io.o` ← `src/asm/freestanding_io_x86_64.o`
+>
+> Target is `FORCE scripts/ensure_cp_alias_o.sh` only; recipe thin-calls
+> `bash … ensure $@`. Shell owns catalog, try-heat SRC when missing, mtime skip
+> (`SRC -nt OUT`; `XLANG_CP_ALIAS_FORCE=1` always recopy). Honesty COUNT = **3**.
+> Residual after: thin-call edges + B2 + mk lists. Dual-end L2 required.
+> Blockers **remain**.
+
+```text
+  leaf dump:
+    PHYS_DEL_CP_ALIAS_FORCE_THIN=1
+    PHYS_DEL_CP_ALIAS_FORCE_THIN_WAVE=wave836
+    PHYS_DEL_CP_ALIAS_FORCE_THIN_COUNT=3
+    SWALLOWED_CP_ALIAS_FORCE_THIN=1
+    PHYS_DEL_PREFLIGHT_CP_ALIAS_FORCE_THIN=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  dual-end L2 green tip: (pending)
+  next: thin edges / B2 or tip Windows re-proof
+       → Mac+Ubuntu L4 → ship delete body
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_CP_ALIAS_FORCE_THIN` | `1` |
+| `PHYS_DEL_CP_ALIAS_FORCE_THIN_COUNT` | `3` |
+| `SWALLOWED_CP_ALIAS_FORCE_THIN` | `1` |
+| `CP_ALIAS_FORCE_THIN_HELPER` | `ensure_cp_alias_o.sh` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+
+**Forbidden:** claim cp-alias FORCE thin = physical delete; re-list SRC `.o` on
+Makefile prereq lines for these 3 leaves; `rm compiler/Makefile`; ship delete
+body; mac-only wave green.
+
 
 ## wave831 src-edge FORCE dep-thin (2026-07-30)
 

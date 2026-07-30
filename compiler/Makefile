@@ -1437,10 +1437,12 @@ src/asm/crt0_user_x86_64.o: FORCE scripts/ensure_host_cc_seed_o.sh
 src/asm/freestanding_io_x86_64.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 # runtime.c 链 freestanding 用户程序时在 compiler/ 下查找 crt0_user.o / freestanding_io.o
-crt0_user.o: src/asm/crt0_user_x86_64.o
-	cp $< $@
-freestanding_io.o: src/asm/freestanding_io_x86_64.o
-	cp $< $@
+# wave836: FORCE dep-thin — shell owns SRC mtime + try-heat (ensure_cp_alias_o; not physical delete).
+# PLATFORM: x86_64 freestanding link names (block gated by UNAME_M); FORCE always invokes script.
+crt0_user.o: FORCE scripts/ensure_cp_alias_o.sh
+	@bash scripts/ensure_cp_alias_o.sh ensure $@
+freestanding_io.o: FORCE scripts/ensure_cp_alias_o.sh
+	@bash scripts/ensure_cp_alias_o.sh ensure $@
 # NL-07 v2：bootstrap crt0 nostdlib 最小 libc 桩（cc_inc_tu residual — not R2 try-r2)
 # wave831: FORCE dep-thin — shell owns seed mtime (cc_inc_tu; not physical delete).
 # PLATFORM: SHARED — FORCE always invokes script (cheap mtime skip).
@@ -2047,8 +2049,10 @@ src/ast/ast_seed.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02a: ast_x.o alias — ast_seed.o 提供 C ABI 内存管理实现。
-ast_x.o: src/ast/ast_seed.o
-	cp -f src/ast/ast_seed.o ast_x.o
+# wave836: FORCE dep-thin — shell owns SRC mtime + try-heat (ensure_cp_alias_o; not physical delete).
+# PLATFORM: SHARED — FORCE always invokes script (cheap mtime skip).
+ast_x.o: FORCE scripts/ensure_cp_alias_o.sh
+	@bash scripts/ensure_cp_alias_o.sh ensure $@
 
 # G-02a: preprocess.c 已物理删除；preprocess.o 不再编译（preprocess_x.o 由 .x 生成）。
 
