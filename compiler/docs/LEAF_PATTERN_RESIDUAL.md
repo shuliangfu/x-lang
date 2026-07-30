@@ -1744,7 +1744,8 @@ ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
     SWALLOWED_AST_GEN2_FORCE_THIN=1
     PHYS_DEL_PREFLIGHT_AST_GEN2_FORCE_THIN=1
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-  dual-end L2: (pending tip after implement)
+  dual-end L2 green tip: 3cd6c3f81 (Mac + Ubuntu leaf + phys-del --check;
+    ast_gen2 FORCE; ensure bash; sample pin OK)
   next: more shell-primary / thin edges / B2 residual or tip Windows re-proof
        → Mac+Ubuntu L4 → ship delete body
 ```
