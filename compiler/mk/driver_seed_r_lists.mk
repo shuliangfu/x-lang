@@ -9,7 +9,9 @@
 #
 # PLATFORM: SHARED — list paths under compiler/; host ABI stays elsewhere.
 
-# RT seed slice (wave748 R1 first family)
+# RT seed slice (wave748 R1 first family).
+# wave898: also make-graph multi-target FORCE thin try-heat inventory (COUNT=5).
+# Body = ensure try-heat; do not re-list in Makefile or residual shells (G.7).
 RT_SEED_SLICE_OBJS = src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o src/runtime/rt_parse_diag.o
 
 # wave749 R1 second family: pure host-cc core seeds (basename → seeds/<leaf>.from_x.c).

@@ -636,45 +636,25 @@ src/runtime_driver.o: FORCE scripts/ensure_host_cc_seed_o.sh
 
 # G-02f Cap residual slices：driver_abi 跨 TU 数据/thread_fn（arena BSS、emit 扫描槽、preamble 表、stack_esc）。
 # 与 g05_ensure 产品路径同源 seed；冷启动 phase1 必须进 DRIVER_SEED_OBJS。
-# wave748 R1: pure host-cc body → scripts/ensure_host_cc_seed_o.sh (G.7 single body).
-# List authority remains RT_SEED_SLICE_OBJS; thin leaves only.
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-# wave861 B7B: drop multi-token CFLAGS="$(CFLAGS) -I. -Iinclude -Isrc" (G.7 hygiene).
-# CFLAGS already carries product -I paths (Makefile ?= / shell BASE_CFLAGS default);
-# dual -I bag was residual make-escape noise vs sibling try-heat leaves (runtime_x.o).
-# NOT physical delete — thin edges + B2 try-heat + mk lists remain.
-src/runtime/rt_arena_buf.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-# wave861: plain CFLAGS= (no multi-token -I bag; product -I already in CFLAGS).
-src/runtime/rt_emit_state.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-# wave861: plain CFLAGS= (no multi-token -I bag; product -I already in CFLAGS).
-src/runtime/rt_preamble.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-# wave861: plain CFLAGS= (no multi-token -I bag; product -I already in CFLAGS).
-src/runtime/rt_stack.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-# multi-error recovery 诊断（G-02f-307）；勿仅靠 no_c 内嵌 merge——冷启动 phase1 须显式链入。
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-# wave861: plain CFLAGS= (no multi-token -I bag; product -I already in CFLAGS).
-src/runtime/rt_parse_diag.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# multi-error recovery 诊断（G-02f-307 / rt_parse_diag）；勿仅靠 no_c 内嵌 merge——冷启动 phase1 须显式链入。
 # wave788 B7B: RT / R1 / R3 pure-literal lists → mk/driver_seed_r_lists.mk
 # (G.7 single list authority; shell catalog parses the same mk; do not re-assign).
 include mk/driver_seed_r_lists.mk
+
+# ---------------------------------------------------------------------------
+# wave898 B7B: RT_SEED_SLICE product edges multi-target FORCE thin try-heat
+# G.7 有则补全: list authority = RT_SEED_SLICE_OBJS in mk/driver_seed_r_lists.mk
+# (wave748 family · wave788 list→mk · COUNT=5). Do NOT open a second .o list.
+# Body authority = scripts/ensure_host_cc_seed_o.sh try-heat (wave748/790/792).
+# Leaves: rt_arena_buf · rt_emit_state · rt_preamble · rt_stack · rt_parse_diag.
+# wave861 B7B: no multi-token CFLAGS -I bag (product -I already in CFLAGS/BASE).
+# Makefile only FORCE + thin-call try-heat. NOT physical delete — thin edges +
+# remaining R1 family multi-target / mk lists hybrid + tip Windows → dual L4 →
+# explicit auth ship delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+# ---------------------------------------------------------------------------
+$(RT_SEED_SLICE_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
+	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（XLANG_LEGACY_PREPROCESS_C 路径已死）。
 # xlang_x 用：仅 -DXLANG_USE_X_PIPELINE，提供 asm_codegen_ast、pipeline_parse_into_buf、main_entry（弱符号）等
