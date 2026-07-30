@@ -1746,7 +1746,9 @@ ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
     SWALLOWED_B7B_RELINK_LEGACY_LIST=1
     PHYS_DEL_PREFLIGHT_B7B_RELINK_LEGACY_LIST=1
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-  dual-end L2: (pending tip after implement commit)
+  dual-end L2 green tip: 7c522e9d6 (Mac + Ubuntu leaf + catalog + phys-del
+    --check; RELINK fixed 14; expand Mac 63 / Ubuntu 52 host-filtered OK;
+    LEGACY_PREREQ Mac 60 / Ubuntu 61)
   next: more shell-primary / lists residual (SRCS/X_DEPS) or tip Windows re-proof
        → Mac+Ubuntu L4 → ship delete body
 ```
@@ -1760,6 +1762,7 @@ ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
 | `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
 | `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
 | `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+| dual-end L2 tip | `7c522e9d6` |
 
 **Forbidden:** claim RELINK/LEGACY list→mk = physical delete; dual inline
 `RELINK_XLANG_PREREQS` / `LEGACY_XLANG_C_*` in Makefile or catalog hardcode;
