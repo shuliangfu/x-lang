@@ -20,14 +20,46 @@
 set -e
 cd "$(dirname "$0")/.."
 
-if [ "$#" -lt 2 ]; then
-  echo "usage: cc_inc_tu.sh <file.inc> <out.o> [extra cflags...]" >&2
-  exit 2
-fi
+# wave917: seed-map for multi-target recipe (--auto mode).
+# Why: Makefile multi-target $(CC_INC_TU_OBJS) needs single body; seed path
+#      varies per leaf (e.g. lsp_diag_pipeline_sizes → _weak suffix). Map here
+#      to keep G.7 single authority (no Makefile case dispatch).
+# Invariant: only used when first arg == "--auto"; explicit INC path still
+#            authoritative for all other callers (72+ call sites unchanged).
+# PLATFORM: SHARED.
+cc_inc_tu_seed_for_out() {
+  case "$(basename "$1")" in
+    asm_experimental_symbol_bridge.o) printf '%s\n' seeds/asm_experimental_symbol_bridge.from_x.c ;;
+    lsp_diag_pipeline_sizes.o) printf '%s\n' seeds/lsp_diag_pipeline_sizes_weak.from_x.c ;;
+    cfg_eval_bootstrap_stub.o) printf '%s\n' seeds/cfg_eval_bootstrap_stub.from_x.c ;;
+    typeck_lsp_io_stub.o) printf '%s\n' seeds/typeck_lsp_io_stub.from_x.c ;;
+    build_tool_main.o) printf '%s\n' seeds/build_tool_main.from_x.c ;;
+    *) return 1 ;;
+  esac
+}
 
-INC="$1"
-OUT="$2"
-shift 2
+# wave917: --auto mode for Makefile multi-target $(CC_INC_TU_OBJS).
+# Explicit seed path mode (72+ existing call sites) is unchanged.
+if [ "$1" = "--auto" ]; then
+  if [ "$#" -lt 2 ]; then
+    echo "usage: cc_inc_tu.sh --auto <out.o> [extra cflags...]" >&2
+    exit 2
+  fi
+  OUT="$2"
+  INC="$(cc_inc_tu_seed_for_out "$OUT")" || {
+    echo "cc_inc_tu --auto: unknown OUT '$OUT' (not in seed-map)" >&2
+    exit 1
+  }
+  shift 2
+else
+  if [ "$#" -lt 2 ]; then
+    echo "usage: cc_inc_tu.sh <file.inc> <out.o> [extra cflags...]" >&2
+    exit 2
+  fi
+  INC="$1"
+  OUT="$2"
+  shift 2
+fi
 
 case "$INC" in
   /*) INC_ABS="$INC" ;;

@@ -974,7 +974,8 @@ PHYS_DEL_SRC_EDGE_FORCE_THIN_WAVE=wave831
 PHYS_DEL_SRC_EDGE_FORCE_THIN_COUNT=7
 PHYS_DEL_SRC_EDGE_FORCE_THIN_VIA=parser_asm_try_heat+cc_inc_tu_mtime
 PHYS_DEL_SRC_EDGE_FORCE_THIN_NOTE=force_prereq_shell_owns_src_mtime_edges_remain
-PHYS_DEL_SRC_EDGE_FORCE_THIN_CC_INC=6
+PHYS_DEL_SRC_EDGE_FORCE_THIN_CC_INC=1
+PHYS_DEL_SRC_EDGE_FORCE_THIN_CC_INC_MULTITARGET=5
 PHYS_DEL_SRC_EDGE_FORCE_THIN_PARSER_ASM=1
 SWALLOWED_SRC_EDGE_FORCE_THIN=1
 SRC_EDGE_FORCE_THIN_SWALLOWED=1
@@ -7761,12 +7762,19 @@ elif grep -qE '\$\(R1_SEED_MAP_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null \
 else
   bad "Makefile parser_asm thin_glue must FORCE dep-thin via try-heat (no seed/inc prereq; wave831/905)"
 fi
-# Count FORCE+cc_inc_tu target lines (exactly 6 residual pure-seed leaves).
+# Count FORCE+cc_inc_tu per-leaf target lines (exactly 1 residual: bootstrap_nostdlib_stubs.o).
+# wave917: 5 SHARED cc_inc_tu leaves migrated to multi-target $(CC_INC_TU_OBJS).
 _cc_inc_force=$(grep -cE '^[a-zA-Z0-9_./-]+: FORCE scripts/cc_inc_tu\.sh[[:space:]]*$' "$MF" 2>/dev/null || true)
-if [ "${_cc_inc_force:-0}" -eq 6 ]; then
-  note "Makefile cc_inc_tu residual 6 leaves FORCE dep-thin (wave831; not physical delete)"
+if [ "${_cc_inc_force:-0}" -eq 1 ]; then
+  note "Makefile cc_inc_tu residual 1 per-leaf FORCE dep-thin (bootstrap_nostdlib_stubs.o; wave831; not physical delete)"
 else
-  bad "Makefile expected 6 FORCE+cc_inc_tu residual leaves, got ${_cc_inc_force:-0} (wave831)"
+  bad "Makefile expected 1 FORCE+cc_inc_tu per-leaf residual (bootstrap_nostdlib_stubs.o), got ${_cc_inc_force:-0} (wave831/917)"
+fi
+# wave917: 5 SHARED cc_inc_tu leaves migrated to multi-target $(CC_INC_TU_OBJS).
+if grep -qE '\$\(CC_INC_TU_OBJS\):[[:space:]]*FORCE scripts/cc_inc_tu\.sh' "$MF" 2>/dev/null; then
+  note "Makefile cc_inc_tu SHARED family multi-target FORCE thin --auto (wave917; 5 leaves)"
+else
+  bad "Makefile missing \$(CC_INC_TU_OBJS): FORCE multi-target for cc_inc_tu SHARED family (wave917)"
 fi
 # No seed/.from_x.c make-graph prereqs remaining on FORCE+cc_inc_tu leaves.
 if grep -nE '^[a-zA-Z0-9_./-]+:.*seeds/.*cc_inc_tu' "$MF" 2>/dev/null | grep -q .; then
@@ -10360,6 +10368,10 @@ if grep -qE '\$\(DRIVER_SEED_CRT0_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null; t
 fi
 # wave914: UNAME ifeq collapsed 5 text @bash try-heat → 1 multi-target; logical expand +4.
 if grep -qE '\$\(DRIVER_SEED_TYPECK_F64_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null; then
+  _bash_thin_n=$((_bash_thin_n + 4))
+fi
+# wave917: 5 SHARED cc_inc_tu per-leaf → 1 multi-target $(CC_INC_TU_OBJS); logical expand +4.
+if grep -qE '\$\(CC_INC_TU_OBJS\):[[:space:]]*FORCE scripts/cc_inc_tu\.sh' "$MF" 2>/dev/null; then
   _bash_thin_n=$((_bash_thin_n + 4))
 fi
 if [ "$_bash_thin_n" -lt 200 ]; then

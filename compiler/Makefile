@@ -1069,11 +1069,21 @@ build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o: FORCE scripts/filt
 build_asm/bootstrap_seed_pipeline_filtered.o: FORCE scripts/filter_bootstrap_seed_pipeline_o.sh
 	@bash scripts/filter_bootstrap_seed_pipeline_o.sh ensure $@
 
+# wave917 B7B: cc_inc_tu SHARED family multi-target FORCE thin --auto
+# G.7 有则补全: list authority = $(CC_INC_TU_OBJS) in mk/driver_seed_r_lists.mk
+# (N=5 leaves). Body = @bash scripts/cc_inc_tu.sh --auto $@ (G.7 single body;
+# seed-map in cc_inc_tu.sh cc_inc_tu_seed_for_out handles per-leaf seed path
+# variance such as lsp_diag_pipeline_sizes → _weak suffix).
 # wave831: FORCE dep-thin — shell owns seed mtime (cc_inc_tu; not physical delete).
+# wave887: drop XLANG_CC_INC_TU_PEERS inject — shell seed-map owns peer .x when unset.
+# wave889: bare sh → pure @bash thin-call form.
+# wave892: drop multi-token -I. -Iinclude -Isrc (G.7 hygiene; shell BASE_CFLAGS
+# default already has them).
 # PLATFORM: SHARED — FORCE always invokes script (cheap mtime skip).
-src/asm/asm_experimental_symbol_bridge.o: FORCE scripts/cc_inc_tu.sh
-	# wave889 B7B residual: bare sh → pure @bash thin-call form.
-	@bash scripts/cc_inc_tu.sh seeds/asm_experimental_symbol_bridge.from_x.c $@
+# Not in list: src/asm/bootstrap_nostdlib_stubs.o (ifeq Linux x86_64 guard;
+# wave831; different platform scope — deferred to future wave).
+$(CC_INC_TU_OBJS): FORCE scripts/cc_inc_tu.sh
+	@bash scripts/cc_inc_tu.sh --auto $@
 
 # 迁移到 .x：parser/typeck/codegen 独立 -E-extern 产物；pipeline_x.o 仅编排（-E-extern），seed 链 typeck_x.o/codegen_x.o。
 # wave735/736: G.7 body → migrate_x_objs.sh (_x.o) + ensure_migrate_gen.sh (*_gen.c)
@@ -1238,14 +1248,7 @@ bootstrap-driver-seed-x-frontend: $(XLANG_C) migrate-x-objs driver_x.o preproces
 # LSP 诊断：G-02a lsp_diag.c 已删；仅 lsp_diag_x.o + stubs。
 
 # 非产品 / xlang-c 弱占位链：仍用手写 .inc（含 weak fill_paths 等）
-# wave831: FORCE dep-thin — shell owns seed mtime (cc_inc_tu; not physical delete).
-# PLATFORM: SHARED — FORCE always invokes script (cheap mtime skip).
-src/lsp/lsp_diag_pipeline_sizes.o: FORCE scripts/cc_inc_tu.sh
-	# wave889 B7B residual: bare sh → pure @bash thin-call form.
-	# wave892 B7B residual: drop multi-token -I. -Iinclude -Isrc (G.7 hygiene).
-	# Shell BASE_CFLAGS default already has -I. -Iinclude -Isrc (cc_inc_tu.sh);
-	# same form as other cc_inc_tu leaves. NOT physical delete — thin edges remain.
-	@bash scripts/cc_inc_tu.sh seeds/lsp_diag_pipeline_sizes_weak.from_x.c $@
+# wave917: src/lsp/lsp_diag_pipeline_sizes.o migrated to $(CC_INC_TU_OBJS) multi-target.
 
 # G-02f-1 / Phase 4：产品 G05 nostub 真迁 .x（#[no_mangle] 三枚 sizeof）
 # 源：src/lsp/lsp_diag_pipeline_sizes.x
@@ -1277,11 +1280,7 @@ ast_x.o: FORCE scripts/ensure_cp_alias_o.sh
 # $(R1_FRONTEND_GLUE_OBJS). (Default product path twin of LEGACY ifeq block.)
 
 # G-02f-80：cfg_eval 冷启动 stub；legacy xlang-c 直链需要独立 .o 规则。
-# wave831: FORCE dep-thin — shell owns seed+.x mtime (cc_inc_tu PEERS; not physical delete).
-# wave887 B7B: drop XLANG_CC_INC_TU_PEERS inject — shell seed-map owns peer .x when unset.
-# PLATFORM: SHARED — FORCE always invokes script (cheap mtime skip).
-src/lexer/cfg_eval_bootstrap_stub.o: FORCE scripts/cc_inc_tu.sh
-	@bash scripts/cc_inc_tu.sh seeds/cfg_eval_bootstrap_stub.from_x.c $@
+# wave917: src/lexer/cfg_eval_bootstrap_stub.o migrated to $(CC_INC_TU_OBJS) multi-target.
 
 # G-02a: typeck.c 已物理删除；typeck_x.o 由 typeck.x 生成，typeck_c_module_stubs.o 提供 weak 桩。
 
@@ -1307,11 +1306,7 @@ lsp_io_gen.c: FORCE scripts/ensure_lsp_pipeline_gen.sh
 # LSP state 单独 .c，避免 lsp_main 内大数组导致 state 被覆盖
 
 # lsp_gen.c 期望 typeck_read_message 等；lsp_io -E-extern 未产出时由桩提供（G-02e-16 .inc）。
-# wave831: FORCE dep-thin — shell owns seed mtime (cc_inc_tu; not physical delete).
-# PLATFORM: SHARED — FORCE always invokes script (cheap mtime skip).
-src/lsp/typeck_lsp_io_stub.o: FORCE scripts/cc_inc_tu.sh
-	# wave889 B7B residual: bare sh → pure @bash thin-call form.
-	@bash scripts/cc_inc_tu.sh seeds/typeck_lsp_io_stub.from_x.c $@
+# wave917: src/lsp/typeck_lsp_io_stub.o migrated to $(CC_INC_TU_OBJS) multi-target.
 
 # G-02f-11 / G-02f-440：seed_link_compat 产品 seed — joined wave899 multi-target $(R1_CORE_SEED_OBJS).
 # wave771 archaeology: other L2 PREFER thin+rest → try-other-l2-prefer (cold plain seed fallback; body in try-heat).
@@ -2070,11 +2065,7 @@ first-time: build-tool
 build-tool:
 	@bash scripts/build_tool.sh
 
-# wave831: FORCE dep-thin — shell owns seed mtime (cc_inc_tu; not physical delete).
-# PLATFORM: SHARED — FORCE always invokes script (cheap mtime skip).
-src/build_tool_main.o: FORCE scripts/cc_inc_tu.sh
-	# wave889 B7B residual: bare sh → pure @bash thin-call form.
-	@bash scripts/cc_inc_tu.sh seeds/build_tool_main.from_x.c $@
+# wave917: src/build_tool_main.o migrated to $(CC_INC_TU_OBJS) multi-target.
 
 # 别名：与 build-tool 相同（历史 target 名）
 build-tool-x: build-tool

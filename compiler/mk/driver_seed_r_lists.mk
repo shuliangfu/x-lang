@@ -161,5 +161,28 @@ DRIVER_SEED_PANIC_OBJS = runtime_panic.o
 # Do not re-list in Makefile or residual shells (G.7).
 DRIVER_SEED_CFG_EVAL_OBJS = src/lexer/cfg_eval.o
 
+# wave831/917 B7B cc_inc_tu SHARED family (N=5 leaves; Linux x86_64 only
+# bootstrap_nostdlib_stubs.o excluded — different platform guard).
+# List authority for multi-target FORCE thin cc_inc_tu --auto (wave917).
+# Body = @bash scripts/cc_inc_tu.sh --auto $@ (G.7 single body; seed-map in
+# cc_inc_tu.sh cc_inc_tu_seed_for_out handles per-leaf seed path variance
+# such as lsp_diag_pipeline_sizes → _weak suffix).
+# Migrated from per-leaf Makefile recipes so multi-target binds before late
+# include (G.7 single literal authority; export_lists never re-assigns).
+# Leaves: src/asm/asm_experimental_symbol_bridge.o
+#         src/lsp/lsp_diag_pipeline_sizes.o (seed: _weak.from_x.c)
+#         src/lexer/cfg_eval_bootstrap_stub.o
+#         src/lsp/typeck_lsp_io_stub.o
+#         src/build_tool_main.o
+# Not in list: src/asm/bootstrap_nostdlib_stubs.o (ifeq Linux x86_64 guard;
+# wave831; different platform scope — deferred to future wave).
+# Do not re-list in Makefile or residual shells (G.7).
+CC_INC_TU_OBJS = \
+	src/asm/asm_experimental_symbol_bridge.o \
+	src/lsp/lsp_diag_pipeline_sizes.o \
+	src/lexer/cfg_eval_bootstrap_stub.o \
+	src/lsp/typeck_lsp_io_stub.o \
+	src/build_tool_main.o
+
 # pipeline_glue_standalone product leaf (also referenced by composites / export lists).
 ASM_GLUE_STANDALONE_O = build_asm/pipeline_glue_standalone.o
