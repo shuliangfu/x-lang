@@ -93,7 +93,7 @@
 | `compile_commands.json` | 3418 | Makefile | `xbuild compile-commands 或删` | ⬜ Makefile | IDE 辅助 |
 | `size-baseline` | 3422 | **shell** `stage8_baseline.sh size` | `xbuild size-baseline 或 tests/` | 🟢 wave875 体 shell；测量权威仍 `tests/run-size-baseline.sh` | 可选 stage-8 |
 | `perf-baseline` | 3426 | **shell** `stage8_baseline.sh perf` | `xbuild perf-baseline 或 tests/` | 🟢 wave875 体 shell；测量权威仍 `tests/run-perf-baseline.sh` | 可选 stage-8 |
-| `verify-selfhost-stage2` | ~2783 | **shell** `scripts/verify-selfhost-stage2.sh` | `xbuild stage2` / make thin | 🟢 wave894 formal_mod list→mk; wave893 body under scripts；root shim CI | Stage2 X dogfood |
+| `verify-selfhost-stage2` | ~2783 | **shell** `scripts/verify-selfhost-stage2.sh` | `xbuild stage2` / make thin | 🟢 wave895 std_x list→mk; wave894 formal_mod list→mk; wave893 body under scripts；root shim CI | Stage2 X dogfood |
 | `bootstrap-verify` | 3414 | Makefile | `xbuild bootstrap-verify` | ⬜ Makefile |  |
 | `bootstrap-verify-seed` | 3410 | Makefile | `xbuild bootstrap-verify` | ⬜ Makefile |  |
 | `bootstrap-verify-bstrict` | 3407 | Makefile | `xbuild bootstrap-verify` | ⬜ Makefile |  |
@@ -697,6 +697,8 @@
 
 ## wave892 residual note
 
+- **wave895** · B7B std_x product edges list→mk multi-target thin：22 leaves → `mk/std_x_product_objs.mk` + Makefile `$(STD_X_PRODUCT_OBJS)` multi-target FORCE ensure（收 22 per-leaf）。**非**物理删。
+- **wave894** · B7B formal_mod product edges list→mk multi-target thin：38 leaves → `mk/formal_mod_product_objs.mk` + multi-target FORCE ensure。**非**物理删。
 - **wave892** · B7B residual terminal `@echo` + last multi-token `-I` form hygiene：13 sites（dual `@echo` after thin-call drop 3：`relink-xlang`/`xlang_asm`/`bootstrap-pipeline`；pure `@echo` alias → `@true` 9；last `cc_inc_tu` multi-token `-I. -Iinclude -Isrc` drop 1：`lsp_diag_pipeline_sizes.o`，shell BASE_CFLAGS 默认已含）。**非**物理删。
 
 ## wave891 residual note
