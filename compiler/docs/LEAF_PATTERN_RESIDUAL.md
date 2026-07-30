@@ -1746,7 +1746,9 @@ ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
     SWALLOWED_B7B_SOURCE_DEPS_LIST=1
     PHYS_DEL_PREFLIGHT_B7B_SOURCE_DEPS_LIST=1
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-  dual-end L2 green tip: (this wave implement SHA)
+  dual-end L2 green tip: ff2ab3f61 (Mac + Ubuntu leaf + catalog + phys-del
+    --check; SOURCE_DEPS fixed 19; SRCS/MAIN/PREP expand 4/4/1; PIPE_N=116
+    with asm wildcard OK; ensure_driver_gen MAIN load 4 from mk)
   next: more shell-primary / thin edges / std_core graph residual or tip
        Windows re-proof → Mac+Ubuntu L4 → ship delete body
 ```
@@ -1760,6 +1762,7 @@ ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
 | `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
 | `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
 | `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+| dual-end L2 tip | `ff2ab3f61` |
 
 **Forbidden:** claim SOURCE_DEPS list→mk = physical delete; dual inline
 `SRCS` / `MAIN_X_DEPS` / `PIPELINE_X_DEPS` in Makefile or hardcode in
