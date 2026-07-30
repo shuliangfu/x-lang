@@ -4384,16 +4384,30 @@ ensure_asm_gen_driver_x_objs() {
   XLANG_ASM_GEN_DRIVER_X_READY=1
 }
 
-# gen_driver 回退链：pipeline_x.o 内 mega C 直接调用 typeck_check_*（typeck.x -E 导出），须链 typeck_x.o 与 alias。
+# gen_driver fallback: pipeline_x.o mega C calls typeck_check_* (from typeck.x -E);
+# must link typeck_x.o + x_frontend_link_alias.o.
+# PLATFORM: WINDOWS | MINGW | MSYS — never nest MinGW make for these leaves:
+#   make typeck_x.o / x_frontend_link_alias.o → FORCE try-heat re-entry hang
+#   (same class as pipeline_x.o ensure recursion). Reuse seed/g05 objs when present.
+# PLATFORM: SHARED Linux/Darwin — make remains the ensure graph authority.
 ensure_gen_driver_typeck_companion_objs() {
   if [ "${XLANG_ASM_GEN_DRIVER_TYPECK_READY:-0}" = "1" ] \
-  && [ -f typeck_x.o ] && [ -f x_frontend_link_alias.o ]; then
-  build_xlang_asm_info "reuse gen_driver typeck companions (already ensured in this run)"
-  return 0
+    && [ -f typeck_x.o ] && [ -f x_frontend_link_alias.o ]; then
+    build_xlang_asm_info "reuse gen_driver typeck companions (already ensured in this run)"
+    return 0
+  fi
+  if build_xlang_asm_is_msys; then
+    if [ -f typeck_x.o ] && [ -f x_frontend_link_alias.o ]; then
+      build_xlang_asm_info "win: reuse seed typeck_x.o + x_frontend_link_alias.o (skip nested make)"
+    else
+      build_xlang_asm_info "win: WARN missing typeck companions; hybrid link may fail (no nested make)"
+    fi
+    XLANG_ASM_GEN_DRIVER_TYPECK_READY=1
+    return 0
   fi
   if [ -f Makefile ] && command -v make >/dev/null 2>&1; then
-  build_xlang_asm_info "gen_driver typeck companions (typeck_x.o + link alias)"
-  make -s typeck_x.o x_frontend_link_alias.o
+    build_xlang_asm_info "gen_driver typeck companions (typeck_x.o + link alias)"
+    make typeck_x.o x_frontend_link_alias.o
   fi
   XLANG_ASM_GEN_DRIVER_TYPECK_READY=1
 }
