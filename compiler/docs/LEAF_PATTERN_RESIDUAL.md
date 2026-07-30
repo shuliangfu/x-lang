@@ -1930,7 +1930,8 @@ ship delete body; mac-only wave green.
     SWALLOWED_CP_ALIAS_FORCE_THIN=1
     PHYS_DEL_PREFLIGHT_CP_ALIAS_FORCE_THIN=1
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-  dual-end L2 green tip: (pending)
+  dual-end L2 green tip: bdeed8b98 (Mac + Ubuntu leaf --check;
+    ensure_cp_alias --check; FORCE ensure ast+x86_64 wrappers OK)
   next: thin edges / B2 or tip Windows re-proof
        → Mac+Ubuntu L4 → ship delete body
 ```
