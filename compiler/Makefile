@@ -1929,13 +1929,18 @@ endif
 # Why stubs at GLUE_SUFFIX link END: PE first-wins multidef; real impls before stubs.
 # PLATFORM: SHARED — Windows-critical; no-op on ELF/Darwin weak.
 include mk/driver_seed_link_picks.mk
+# wave821 B7B: archaeology experiment lists → mk/archaeology_experiment_objs.mk
+# (G.7; not physical delete). X_FRONTEND_EXPERIMENT (7) + NO_C_FRONTEND (expands
+# MAIN_LINK/PREPROCESS/AST). Include after link_picks; before experiment recipes.
+# Makefile include only — no dual inline re-list.
+include mk/archaeology_experiment_objs.mk
 # wave728 · 11.0.4: DRIVER_SEED_OBJS / X_FRONTEND / LINK_BASE / PREREQS composites
 # live in mk/driver_seed_composites.mk (include after DRIVER_SUBCMD_OBJS + USER_ASM).
 # Do not re-assign here (G.7). Recipes above expand vars at recipe time.
 
 # 阶段 10.4 实验：链 typeck_x.o/codegen_x.o 替代 C 前端（不含 pipeline_x.o，无 XLANG_USE_X_PIPELINE）。
 # 勿复用 DRIVER_SEED_X_FRONTEND_OBJS 名：bootstrap-driver-seed 链依赖 parser_x.o/lexer_x.o（见上 §1280）。
-DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS = src/main_driver.o src/runtime_driver.o src/diag.o src/lexer/lexer.o src/ast/ast_seed.o typeck_x.o codegen_x.o
+# List authority: mk/archaeology_experiment_objs.mk (wave821).
 bootstrap-driver-seed-x-frontend: $(XLANG_C) migrate-x-objs driver_x.o preprocess_x.o $(DRIVER_SUBCMD_GEN) $(DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS) $(LSP_DIAG_LINK_O) $(DRIVER_SUBCMD_OBJS)
 	$(CC) $(CFLAGS) -DXLANG_USE_X_DRIVER -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN -o $(TARGET)_x_frontend $(DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS) driver_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) $(PIPELINE_LIBS)
 	@echo "bootstrap-driver-seed-x-frontend OK ($(TARGET)_x_frontend: .x typeck/codegen, no pipeline_x.o)"
@@ -2599,7 +2604,7 @@ bootstrap-driver-seed-user-asm: bootstrap-driver-seed
 	@echo "bootstrap-driver-seed-user-asm OK (= bootstrap-driver-seed + USER_ASM_LINK)"
 
 # 实验：不链 C lexer/parser/typeck/codegen；依赖已成功的 bootstrap-driver-seed 产物。(-E-extern / 泛型单态 C 路径不可用)
-DRIVER_NO_C_FRONTEND_OBJS = $(MAIN_LINK_O) src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o src/runtime_driver_no_c.o $(PREPROCESS_LINK_O) $(AST_LINK_O) src/typeck/typeck_f64_bits.o
+# List authority: mk/archaeology_experiment_objs.mk (wave821).
 xlang-no-c-frontend: $(DRIVER_NO_C_FRONTEND_OBJS) src/lsp/lsp_diag_stubs_no_c.o
 	@test -f driver_x.o && test -f pipeline_x.o && test -f preprocess_x.o || (echo "请先 make bootstrap-driver-seed" && exit 1)
 	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(MAIN_LINK_FLAGS) -o $@ $(DRIVER_NO_C_FRONTEND_OBJS) driver_x.o pipeline_x.o lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) src/lsp/lsp_diag_pipeline_sizes.o src/lsp/lsp_diag_stubs_no_c.o lsp_io_std_heap_x.o $(PIPELINE_LIBS)

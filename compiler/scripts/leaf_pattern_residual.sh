@@ -38,6 +38,8 @@
 #   wave819: B7B seed link picks (MAIN_LINK/LEXER_AST/LSP_DIAG/GLUE/…) → mk/driver_seed_link_picks.mk
 #   wave820: B7B OBJS_CORE archaeology list → mk/objs_core.mk
 #            (Makefile include only; NOT physical delete; thin edges + other lists remain)
+#   wave821: B7B archaeology experiment lists → mk/archaeology_experiment_objs.mk
+#            (X_FRONTEND_EXPERIMENT 7 + NO_C_FRONTEND; Makefile include only; NOT physical delete)
 #   wave781: B3 LSP satellite hybrid body → try-lsp-sat-prefer
 #   wave782: B4 gen_c_to_o bootstrap → try-gen-c-to-o
 #   wave783: B5 cfg_eval multi-ladder → try-cfg-eval-ladder
@@ -504,6 +506,19 @@ SWALLOWED_B7B_OBJS_CORE_LIST=1
 B7B_OBJS_CORE_LIST_SWALLOWED=1
 B7B_OBJS_CORE_LIST_MK=mk/objs_core.mk
 B7B_OBJS_CORE_LIST_WAVE=wave820
+# wave821: B7B archaeology experiment inventories → mk/archaeology_experiment_objs.mk (G.7).
+# DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS (fixed 7) + DRIVER_NO_C_FRONTEND_OBJS
+# (expands MAIN_LINK/PREPROCESS/AST). NOT physical delete — thin edges + other lists remain.
+# COUNT = X_FRONTEND_EXPERIMENT multi-token inventory (7).
+PHYS_DEL_B7B_ARCH_EXPERIMENT_LIST=1
+PHYS_DEL_B7B_ARCH_EXPERIMENT_LIST_WAVE=wave821
+PHYS_DEL_B7B_ARCH_EXPERIMENT_LIST_COUNT=7
+PHYS_DEL_B7B_ARCH_EXPERIMENT_LIST_VIA=mk_archaeology_experiment_objs
+PHYS_DEL_B7B_ARCH_EXPERIMENT_LIST_NOTE=list_authority_mk_include_only_thin_edges_remain
+SWALLOWED_B7B_ARCH_EXPERIMENT_LIST=1
+B7B_ARCH_EXPERIMENT_LIST_SWALLOWED=1
+B7B_ARCH_EXPERIMENT_LIST_MK=mk/archaeology_experiment_objs.mk
+B7B_ARCH_EXPERIMENT_LIST_WAVE=wave821
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -654,7 +669,8 @@ PHYS_DEL_PREFLIGHT_B7A_COLD_0MAKE=1
 PHYS_DEL_PREFLIGHT_B7B_SHELL_CATALOG=1
 PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113
 # wave811–820: std_x / formal_mod / STD_AND_PANIC / driver_leaf / archaeology /
-# DRIVER_SUBCMD / PIPELINE_X / SEED_MODE / SEED_LINK_PICKS / OBJS_CORE list swallowed;
+# DRIVER_SUBCMD / PIPELINE_X / SEED_MODE / SEED_LINK_PICKS / OBJS_CORE /
+# ARCH_EXPERIMENT list swallowed;
 # blocker name kept (thin edges + B2 ensure + remaining B7B mk lists still form make graph).
 PHYS_DEL_PREFLIGHT_BLOCKERS=makefile_thin_call_edges|b7b_lists_in_mk|std_core_product_make_graph
 PHYS_DEL_PREFLIGHT_STD_X_HYBRID_BODY_SWALLOWED=1
@@ -667,8 +683,9 @@ PHYS_DEL_PREFLIGHT_B7B_PIPELINE_X_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_SEED_MODE_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_SEED_LINK_PICKS_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_OBJS_CORE_LIST=1
+PHYS_DEL_PREFLIGHT_B7B_ARCH_EXPERIMENT_LIST=1
 PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
+PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_PREFLIGHT_WIN_GATE_HOST=MSYS2_windows-server_dual_boot_reboot_required
 PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
@@ -1287,6 +1304,9 @@ else
   if ! grep -qE 'wave820|OBJS_CORE|objs_core' "$DOC_REL"; then
     bad "$DOC_REL must document wave820 B7B OBJS_CORE list → mk"
   fi
+  if ! grep -qE 'wave821|ARCH_EXPERIMENT|archaeology_experiment' "$DOC_REL"; then
+    bad "$DOC_REL must document wave821 B7B archaeology experiment list → mk"
+  fi
   note "doc $DOC_REL present"
 fi
 
@@ -1868,6 +1888,21 @@ if ! grep -q 'SWALLOWED_B7B_OBJS_CORE_LIST=1' <<<"$_out"; then
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_B7B_OBJS_CORE_LIST=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_B7B_OBJS_CORE_LIST=1 (wave820)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_ARCH_EXPERIMENT_LIST=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_ARCH_EXPERIMENT_LIST=1 (wave821)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_ARCH_EXPERIMENT_LIST_WAVE=wave821' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_ARCH_EXPERIMENT_LIST_WAVE=wave821"
+fi
+if ! grep -q 'PHYS_DEL_B7B_ARCH_EXPERIMENT_LIST_COUNT=7' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_ARCH_EXPERIMENT_LIST_COUNT=7 (wave821)"
+fi
+if ! grep -q 'SWALLOWED_B7B_ARCH_EXPERIMENT_LIST=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_B7B_ARCH_EXPERIMENT_LIST=1 (wave821)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_B7B_ARCH_EXPERIMENT_LIST=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_B7B_ARCH_EXPERIMENT_LIST=1 (wave821)"
 fi
 if ! grep -q 'PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813"
@@ -2670,6 +2705,70 @@ if grep -nE 'catalog_set OBJS_CORE "' "$_cat_sh" 2>/dev/null | grep -qE 'runtime
   bad "catalog must not hardcode OBJS_CORE (wave820 dual authority)"
 fi
 note "B7B OBJS_CORE list authority in mk (product 16; wave820; not physical delete)"
+# wave821: B7B archaeology experiment list authority in mk; Makefile include only.
+_AE_MK="compiler/mk/archaeology_experiment_objs.mk"
+if [ ! -f "$_AE_MK" ]; then
+  bad "missing $_AE_MK (wave821 B7B archaeology experiment list authority)"
+fi
+if ! grep -qE '^DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS\s*=' "$_AE_MK"; then
+  bad "$_AE_MK must define DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS (wave821)"
+fi
+if ! grep -qE '^DRIVER_NO_C_FRONTEND_OBJS\s*=' "$_AE_MK"; then
+  bad "$_AE_MK must define DRIVER_NO_C_FRONTEND_OBJS (wave821)"
+fi
+# Fixed X_FRONTEND_EXPERIMENT multi-token count (7 .o).
+_ae_n=$(awk '
+  /^DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS[[:space:]]*=/ {
+    line=$0
+    sub(/^[^=]*=[[:space:]]*/, "", line)
+    gsub(/\\/, "", line)
+    c=0
+    n=split(line, a, /[[:space:]]+/)
+    for (i=1;i<=n;i++) if (a[i] ~ /\.o$/) c++
+    print c+0
+    exit
+  }
+' "$_AE_MK")
+if [ "${_ae_n:-0}" -ne 7 ]; then
+  bad "wave821 expected X_FRONTEND_EXPERIMENT count 7 in mk, got ${_ae_n:-0}"
+fi
+if ! grep -qE 'include[[:space:]]+mk/archaeology_experiment_objs\.mk' "$MF"; then
+  bad "Makefile must include mk/archaeology_experiment_objs.mk (wave821)"
+fi
+# Forbid dual authority: inline re-list of experiment inventories.
+if grep -nE '^DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS[[:space:]]*=' "$MF" 2>/dev/null | grep -qE 'main_driver\.o|typeck_x\.o'; then
+  bad "Makefile must not re-list DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS inline (wave821 dual authority)"
+else
+  note "Makefile X_FRONTEND_EXPERIMENT has no dual inline list (wave821)"
+fi
+if grep -nE '^DRIVER_NO_C_FRONTEND_OBJS[[:space:]]*=' "$MF" 2>/dev/null | grep -qE 'runtime_driver_no_c\.o|typeck_f64_bits\.o'; then
+  bad "Makefile must not re-list DRIVER_NO_C_FRONTEND_OBJS inline (wave821 dual authority)"
+else
+  note "Makefile DRIVER_NO_C_FRONTEND_OBJS has no dual inline list (wave821)"
+fi
+# Consumers: experiment phonies still expand the vars.
+if ! grep -qE '\$\(DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS\)' "$MF"; then
+  bad "Makefile must still consume \$(DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS) (wave821 consumers)"
+fi
+if ! grep -qE '\$\(DRIVER_NO_C_FRONTEND_OBJS\)' "$MF"; then
+  bad "Makefile must still consume \$(DRIVER_NO_C_FRONTEND_OBJS) (wave821 consumers)"
+fi
+if ! grep -qE 'bootstrap-driver-seed-x-frontend|xlang-no-c-frontend' "$MF"; then
+  bad "Makefile must keep experiment phonies (wave821)"
+fi
+# Catalog must parse mk (no hardcode second inventory).
+_cat_sh="$ROOT/compiler/scripts/driver_seed_obj_catalog.sh"
+[ -f "$_cat_sh" ] || _cat_sh="scripts/driver_seed_obj_catalog.sh"
+if ! grep -q 'mk/archaeology_experiment_objs.mk' "$_cat_sh"; then
+  bad "driver_seed_obj_catalog.sh must parse mk/archaeology_experiment_objs.mk (wave821)"
+fi
+if grep -nE 'catalog_set DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS "' "$_cat_sh" 2>/dev/null | grep -qE 'main_driver|typeck_x'; then
+  bad "catalog must not hardcode DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS (wave821 dual authority)"
+fi
+if grep -nE 'catalog_set DRIVER_NO_C_FRONTEND_OBJS "' "$_cat_sh" 2>/dev/null | grep -qE 'runtime_driver_no_c|typeck_f64'; then
+  bad "catalog must not hardcode DRIVER_NO_C_FRONTEND_OBJS (wave821 dual authority)"
+fi
+note "B7B archaeology experiment list authority in mk (EXPERIMENT 7; wave821; not physical delete)"
 
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
@@ -3233,5 +3332,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747–820: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave812 formal_mod ensure 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave815 archaeology host-pick phonies 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2 + wave820 OBJS_CORE list→mk 16; Makefile still present; delete body deferred)"
+echo "leaf_pattern_residual: CHECK OK (wave747–821: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave812 formal_mod ensure 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave815 archaeology host-pick phonies 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2 + wave820 OBJS_CORE list→mk 16 + wave821 ARCH_EXPERIMENT list→mk 7; Makefile still present; delete body deferred)"
 exit 0

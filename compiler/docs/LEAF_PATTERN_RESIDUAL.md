@@ -1722,6 +1722,48 @@ Then (later waves, not this tip):
 **Forbidden:** claim endgame-preview = ENDGAME arm / physical delete; set
 ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
 
+## wave821 B7B archaeology experiment lists → mk (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **有则补全** on B7B archaeology list residual —
+> `DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS` (fixed **7** .o stage-10.4 experiment)
+> and `DRIVER_NO_C_FRONTEND_OBJS` (expands `MAIN_LINK`/`PREPROCESS`/`AST` +
+> runtime picks) move into `compiler/mk/archaeology_experiment_objs.mk`.
+> Makefile **include only** (no dual inline re-list). `driver_seed_obj_catalog.sh`
+> shell-parses the mk after link_picks. Experiment phonies
+> `bootstrap-driver-seed-x-frontend` / `xlang-no-c-frontend` still consume the
+> vars. Dual-end L2 required. Blockers **remain**
+> (`makefile_thin_call_edges|b7b_lists_in_mk|std_core_product_make_graph`).
+
+```text
+  leaf dump:
+    PHYS_DEL_B7B_ARCH_EXPERIMENT_LIST=1
+    PHYS_DEL_B7B_ARCH_EXPERIMENT_LIST_WAVE=wave821
+    PHYS_DEL_B7B_ARCH_EXPERIMENT_LIST_COUNT=7
+    SWALLOWED_B7B_ARCH_EXPERIMENT_LIST=1
+    PHYS_DEL_PREFLIGHT_B7B_ARCH_EXPERIMENT_LIST=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  dual-end L2 green tip: (pending)
+  next: more shell-primary / lists residual or tip Windows re-proof
+       → Mac+Ubuntu L4 → ship delete body
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_B7B_ARCH_EXPERIMENT_LIST` | `1` |
+| `PHYS_DEL_B7B_ARCH_EXPERIMENT_LIST_COUNT` | `7` (X_FRONTEND_EXPERIMENT fixed inventory) |
+| `SWALLOWED_B7B_ARCH_EXPERIMENT_LIST` | `1` |
+| `B7B_ARCH_EXPERIMENT_LIST_MK` | `mk/archaeology_experiment_objs.mk` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+
+**Forbidden:** claim archaeology experiment list→mk = physical delete; dual inline
+`DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS` / `DRIVER_NO_C_FRONTEND_OBJS` in
+Makefile or catalog hardcode; `rm compiler/Makefile`; ship delete body;
+mac-only wave green.
+
 ## wave820 B7B OBJS_CORE archaeology list → mk (2026-07-30)
 
 > **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
