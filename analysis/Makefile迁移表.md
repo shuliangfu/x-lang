@@ -109,10 +109,10 @@
 | `bootstrap-driver-seed-user-asm` | 3107 | Makefile | `xbuild bootstrap-user-asm` | ⬜ Makefile |  |
 | `regen-lsp-gens-x` | ~2860 | **shell** `regen_lsp_gens_x.sh` | `xbuild regen-lsp-gens-x` | 🟢 wave873 体 shell；gen 叶仍 make 图 |  | pin 面 |
 | `migrate-x-objs` | 2145 | shell `migrate_x_objs.sh` | `xbuild migrate` | 🟢 wave735 体 shell；gen→wave736 | 11.1.6 |
-| `parser_gen.c` / `typeck_gen.c` / `codegen_gen.c` / `lexer_gen.c` | ~1723 | shell `ensure_migrate_gen.sh` | `xbuild migrate-gen` / `lexer-gen` | 🟢 wave736/737 体 shell | 11.1.6 |
-| `driver_gen.c` / `preprocess_gen.c` | ~2626 | shell `ensure_driver_gen.sh` | `xbuild driver-gen` / `preprocess-gen` | 🟢 wave738 体 shell | 11.1.6 |
-| `lsp_diag_gen.c` / `lsp_io_gen.c` / `lsp_gen.c` / `pipeline_gen.c` | ~2332 | shell `ensure_lsp_pipeline_gen.sh` | `xbuild lsp-gen` / `pipeline-gen` | 🟢 wave739 体 shell | 11.1.6 |
-| `driver_*_gen.c` (fmt/check/test/compile/build/run/emit) / `lsp_io_std_heap_gen.c` | ~2366 | shell `ensure_archaeology_gen.sh` | `xbuild archaeology-gen` | 🟢 wave740 体 shell；产品不消费（Track L） | 11.1.6 |
+| `parser_gen.c` / `typeck_gen.c` / `codegen_gen.c` / `lexer_gen.c` | ~1723 | shell `ensure_migrate_gen.sh` | `xbuild migrate-gen` / `lexer-gen` | 🟢 wave736/737 体 shell · wave877 thin `@bash` only（无 multi-token env） | 11.1.6 |
+| `driver_gen.c` / `preprocess_gen.c` | ~2626 | shell `ensure_driver_gen.sh` | `xbuild driver-gen` / `preprocess-gen` | 🟢 wave738 体 shell · wave877 thin `@bash` only | 11.1.6 |
+| `lsp_diag_gen.c` / `lsp_io_gen.c` / `lsp_gen.c` / `pipeline_gen.c` | ~2332 | shell `ensure_lsp_pipeline_gen.sh` | `xbuild lsp-gen` / `pipeline-gen` | 🟢 wave739 体 shell · wave877 thin `@bash` only | 11.1.6 |
+| `driver_*_gen.c` (fmt/check/test/compile/build/run/emit) / `lsp_io_std_heap_gen.c` | ~2366 | shell `ensure_archaeology_gen.sh` | `xbuild archaeology-gen` | 🟢 wave740 体 shell · wave877 thin `@bash` only；产品不消费（Track L） | 11.1.6 |
 | `legacy-xlang-c-ready` | 757 | Makefile | `🗑` | ⬜ Makefile | LEGACY 考古 |
 | `FORCE` | 2841 | Makefile 强制重编 | `xbuild --force` | ⬜ Makefile | 机制非产品 |
 

@@ -45,6 +45,7 @@
 > - **wave874** · B7C build-via-tool shell-primary (1 phony → build_via_tool.sh; run host build_tool → TARGET + OK; xbuild dual retired)
 > - **wave875** · B7C size/perf-baseline shell-primary (2 phonies → stage8_baseline.sh; dispatch tests/run-{size,perf}-baseline; soft-skip)
 > - **wave876** · B7C default `$(XLANG_C)` product alias shell-primary (1 target → ensure_xlang_c.sh; SKIP_SUBSCRIPT soft-skip + cp bootstrap_xlangc; LEGACY stays wave858)
+> - **wave877** · B7B gen/lsp/archaeology ensure multi-token env inject hygiene (20 recipes → thin `@bash ensure_*_gen`; shell defaults own MAKE/XLANG_*/FORCE/TIMEOUT)
 > - **open** · thin edges + B2 + mk lists (hybrid) · other fat phonies · → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
@@ -4491,3 +4492,27 @@ After preview + human review:
 **Forbidden:** claim preview = STATUS flip / physical delete; auto-edit leaf from
 preview; set ENDGAME=1 in STATUS flip wave; delete Makefile from preview; mac-only
 wave green.
+
+## wave877 B7B gen ensure multi-token env inject hygiene (2026-07-30)
+
+> **Why (G.7 有则补全 on wave829 FORCE + wave862–864 multi-token hygiene):**
+> Product `*_gen.c` leaves already shell-primary (`ensure_migrate_gen` /
+> `ensure_lsp_pipeline_gen` / `ensure_archaeology_gen` / `ensure_driver_gen` /
+> `ensure_ast_gen2`). Recipes still re-injected multi-token
+> `MAKE=/XLANG_C=/XLANG_X=/XLANG_FORCE_REGEN_GEN=/TIMEOUT=` although every
+> ensure script already defaults those vars. Dual inject = second authority
+> path for the same env surface.
+
+**This wave:** drop multi-token env inject on **20** recipes; thin `@bash scripts/ensure_*_gen…` only.
+Shell defaults remain authority. Command-line overrides still flow via make recipe env.
+`bootstrap-pipeline` keeps post-echo OK. **NOT** physical delete.
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_B7B_GEN_ENSURE_ENV_HYGIENE` | `1` |
+| `PHYS_DEL_B7B_GEN_ENSURE_ENV_HYGIENE_COUNT` | `20` |
+| `PHYS_DEL_B7B_GEN_ENSURE_ENV_HYGIENE_WAVE` | `wave877` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+
+**Forbidden:** claim gen env hygiene = physical delete; re-add multi-token MAKE/XLANG inject on ensure gen leaves.
+

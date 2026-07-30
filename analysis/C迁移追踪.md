@@ -1508,6 +1508,9 @@
 - **wave872** · B7C bootstrap-driver-hybrid shell-primary（1 phony → bootstrap_driver_hybrid.sh；B-hybrid build_xlang_asm + replace/soft-skip；alias -asm）
 - **wave873** · B7C regen-lsp-gens-x shell-primary（1 phony → regen_lsp_gens_x.sh；XLANG_X gate + rm four gens + make file targets）
 - **wave874** · B7C build-via-tool shell-primary（1 phony → build_via_tool.sh；run host build_tool → TARGET + OK；xbuild dual retired）
+- **wave875** · B7C size/perf-baseline shell-primary（2 phonies → stage8_baseline.sh）
+- **wave876** · B7C default xlang-c alias shell-primary（1 target → ensure_xlang_c.sh；LEGACY 仍 wave858）
+- **wave877** · B7B gen ensure multi-token env inject hygiene（20 recipes → thin `@bash ensure_*_gen`；shell 默认权威）
 - **wave859** · B7B XXP/BXC multi-token bag shell-load（export-xxp-link-bags + export-bxc-link-objs；2 shells）
 - **wave857** · B7B archaeology LINK_CFLAGS shell-load via make export leaves（4 bags / 6 shells；配方去 multi-token CFLAGS/FLAGS env）
 - **wave856** · B7B archaeology LINK_OBJS shell-load via make export leaves（5 bags / 6 shells；nested expand；配方去 multi-token LINK_OBJS env；CFLAGS → wave857）
@@ -1627,6 +1630,9 @@
 - ✅ **bootstrap-driver-hybrid shell-primary**（wave872 · hybrid/-asm → bootstrap_driver_hybrid.sh · G.7 有则补全 dual body · B-hybrid no SKIP_GEN + replace/soft-skip · **非**物理删 · thin edges + B2 + mk lists） · 双端 L2 tip **`c784aa7d5`**
 - ✅ **regen-lsp-gens-x shell-primary**（wave873 · regen-lsp-gens-x → regen_lsp_gens_x.sh · G.7 有则补全 dual body · XLANG_X gate + rm four gens + make · **非**物理删 · thin edges + B2 + mk lists） · 双端 L2 tip **`e210fa41b`**
 - ✅ **build-via-tool shell-primary**（wave874 · build-via-tool → build_via_tool.sh · G.7 有则补全 dual body + xbuild run_build_tool · host build_tool → TARGET · **非**物理删 · thin edges + B2 + mk lists） · 双端 L2 tip **`42b11f0fc`**
+- ✅ **size/perf-baseline shell-primary**（wave875 · size/perf-baseline → stage8_baseline.sh · G.7 有则补全 · **非**物理删） · 双端 L2 tip **`9df290572`**
+- ✅ **default xlang-c alias shell-primary**（wave876 · `$(XLANG_C)` → ensure_xlang_c.sh · SKIP_SUBSCRIPT soft-skip + cp · **非**物理删） · 双端 L2 tip **`15418b3ea`**
+- ✅ **gen ensure multi-token env inject hygiene**（wave877 · 20 recipes · ensure_*_gen/ast_gen2/bootstrap-pipeline 去 MAKE/XLANG_*/FORCE/TIMEOUT inject · shell 默认权威 · **非**物理删 · thin edges + B2 + mk lists）
 - ⬜ **B7 residual endgame · physical delete / 删 Makefile**
   - **须** lists/thin 残项 + Windows tip 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体
   - 已闭（一行一项，摘要）：
