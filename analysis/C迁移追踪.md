@@ -1539,10 +1539,11 @@
 - **wave903** · B7B R1_EXTRA_CFLAGS multi-target FORCE thin try-heat（5 → `$(R1_EXTRA_CFLAGS_OBJS)` in `mk/driver_seed_r_lists.mk` · G.7 有则补全）
 - **wave904** · B7B R1_MISC_BASENAME multi-target FORCE thin try-heat（9 → `$(R1_MISC_BASENAME_OBJS)` in `mk/driver_seed_r_lists.mk` · G.7 有则补全）
 - **wave905** · B7B R1_SEED_MAP multi-target FORCE thin try-heat（5 → `$(R1_SEED_MAP_OBJS)` in `mk/driver_seed_r_lists.mk` · G.7 有则补全）
+- **wave906** · B7B R3_COLD multi-target FORCE thin try-heat（9 → `$(R3_COLD_SEED_OBJS)` in `mk/driver_seed_r_lists.mk` · G.7 有则补全）
 - **wave859** · B7B XXP/BXC multi-token bag shell-load（export-xxp-link-bags + export-bxc-link-objs；2 shells）
 - **wave857** · B7B archaeology LINK_CFLAGS shell-load via make export leaves（4 bags / 6 shells；配方去 multi-token CFLAGS/FLAGS env）
 - **wave856** · B7B archaeology LINK_OBJS shell-load via make export leaves（5 bags / 6 shells；nested expand；配方去 multi-token LINK_OBJS env；CFLAGS → wave857）
-- **open** · thin edges + mk lists hybrid · → tip Windows → 双端 L4 → explicit auth 真删  # post-wave905 SEED_MAP multi (R1 multi-target family closed)
+- **open** · thin edges + mk lists hybrid（async/B1/…）· → tip Windows → 双端 L4 → explicit auth 真删  # post-wave906 R3_COLD multi
 
 **状态明细**（一行一项）：
 
@@ -1630,6 +1631,7 @@
 - ✅ **R1_EXTRA_CFLAGS multi-target FORCE thin**（wave903 · 5 · `$(R1_EXTRA_CFLAGS_OBJS)` 既有 mk · G.7 有则补全 · Makefile multi-target FORCE thin try-heat · **非**物理删）
 - ✅ **R1_MISC_BASENAME multi-target FORCE thin**（wave904 · 9 · `$(R1_MISC_BASENAME_OBJS)` 既有 mk · G.7 有则补全 · Makefile multi-target FORCE thin try-heat · **非**物理删）
 - ✅ **R1_SEED_MAP multi-target FORCE thin**（wave905 · 5 · `$(R1_SEED_MAP_OBJS)` 既有 mk · G.7 有则补全 · Makefile multi-target FORCE thin try-heat · **非**物理删 · R1 multi-target family closed · thin edges + mk lists hybrid 仍 residual）
+- ✅ **R3_COLD multi-target FORCE thin**（wave906 · 9 · `$(R3_COLD_SEED_OBJS)` 既有 mk · G.7 有则补全 · Makefile multi-target FORCE thin try-heat · **非**物理删 · thin edges + mk lists hybrid 仍 residual）
 - ✅ **driver_leaf FORCE dep-thin**（wave828 · 8 叶 · Makefile FORCE+ensure only · shell 拥 source mtime · **非**物理删 · B2 try-heat + thin edges + mk lists 仍 residual）
 - ✅ **gen.c FORCE dep-thin**（wave829 · 17 叶 · Makefile FORCE+ensure_*_gen only · bash recipe · shell 拥 pin/FORCE_REGEN · **非**物理删 · B2 + thin edges + mk lists 仍 residual）
 - ✅ **ast_gen2 FORCE dep-thin**（wave830 · 1 叶 · Makefile FORCE+ensure_ast_gen2 only · bash recipe · shell 拥 pin/FORCE_REGEN/-E+fix_slim · **非**物理删 · B2 + thin edges + mk lists 仍 residual）

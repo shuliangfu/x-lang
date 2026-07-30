@@ -74,7 +74,8 @@
 > - **wave903** · B7B R1_EXTRA_CFLAGS product edges multi-target FORCE thin try-heat (5 leaves → `$(R1_EXTRA_CFLAGS_OBJS)` in `mk/driver_seed_r_lists.mk`; G.7 有则补全 no second list)
 > - **wave904** · B7B R1_MISC_BASENAME product edges multi-target FORCE thin try-heat (9 leaves → `$(R1_MISC_BASENAME_OBJS)` in `mk/driver_seed_r_lists.mk`; G.7 有则补全 no second list)
 > - **wave905** · B7B R1_SEED_MAP product edges multi-target FORCE thin try-heat (5 leaves → `$(R1_SEED_MAP_OBJS)` in `mk/driver_seed_r_lists.mk`; G.7 有则补全 no second list)
-> - **open** · thin edges + mk lists hybrid · → tip Windows → dual L4 → explicit auth ship delete
+> - **wave906** · B7B R3_COLD product edges multi-target FORCE thin try-heat (9 leaves → `$(R3_COLD_SEED_OBJS)` in `mk/driver_seed_r_lists.mk`; G.7 有则补全 no second list)
+> - **open** · thin edges + mk lists hybrid (async / B1 runtime OS / gen-x / …) · → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
