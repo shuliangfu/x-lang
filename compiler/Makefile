@@ -643,6 +643,23 @@ $(R1_FRONTEND_GLUE_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 $(R1_MAIN_RUNTIME_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
+# ---------------------------------------------------------------------------
+# wave902 B7B: R1_ALIAS_STUBS product edges multi-target FORCE thin try-heat
+# G.7 有则补全: list authority = R1_ALIAS_STUBS_OBJS in mk/driver_seed_r_lists.mk
+# (wave752 family · wave788 list→mk · COUNT=8). Do NOT open a second .o list.
+# Body authority = scripts/ensure_host_cc_seed_o.sh try-heat (wave752/790/792/793/794).
+# Leaves: x_frontend_link_alias · ast_asm_bare_link_alias · backend_asm_bare_link_alias ·
+# backend_asm_strict_fallback_alias · typeck_c_module_stubs · user_asm_seed_bridge ·
+# asm_backend_compat_stubs · runtime_driver_strict_glue_stubs (pure basename seeds).
+# PREFER archaeology (wave769 try-l2-asm-prefer · wave771 try-other-l2-prefer) lives
+# in try-heat body; Makefile only FORCE + thin-call. NOT physical delete — thin edges +
+# remaining R1 family multi-target / mk lists hybrid + tip Windows → dual L4 →
+# explicit auth ship delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+# ---------------------------------------------------------------------------
+$(R1_ALIAS_STUBS_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
+	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+
 # G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（XLANG_LEGACY_PREPROCESS_C 路径已死）。
 # xlang_x 用：仅 -DXLANG_USE_X_PIPELINE（runtime_x / main_x via wave901 multi-target).
 
@@ -1242,38 +1259,10 @@ lexer_x.o: FORCE scripts/ensure_host_cc_seed_o.sh
 
 # pipeline_x.o 仍引用 typeck_typeck_* / codegen_codegen_* / lexer_lexer_*；*_x.o 导出无重复前缀名。
 # G-02f-16：x_frontend_link_alias 产品 seed（G-02e-8 三 alias 并入体）
-# wave752 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_ALIAS_STUBS_OBJS).
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-x_frontend_link_alias.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-
+# — joined wave902 multi-target $(R1_ALIAS_STUBS_OBJS).
 # G-02f-17：strict/bootstrap bare alias + typeck stubs seeds
-# wave752 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_ALIAS_STUBS_OBJS).
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-ast_asm_bare_link_alias.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-backend_asm_bare_link_alias.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-backend_asm_strict_fallback_alias.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-typeck_c_module_stubs.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# (ast_asm_bare / backend_asm_bare / backend_asm_strict_fallback / typeck_c_module_stubs)
+# — joined wave902 multi-target $(R1_ALIAS_STUBS_OBJS).
 # wave727 · 11.0.4: USER_ASM / Darwin filtered / ASM_HOST_DISPATCH lists live in
 # mk/user_asm_seed_objs.mk (G.7 single authority; do not re-assign here).
 # Thin leaf bootstrap-driver-seed-asm-host is the cold-orch entry; build-seed-asm-host
@@ -1301,21 +1290,9 @@ $(USER_ASM_SEED_HOST_STUBS): pipeline_x.o $(ASM_GLUE_STANDALONE_O) $(USER_ASM_SE
 
 $(USER_ASM_SEED_HOST_OBJS): build-seed-asm-host
 
-# G-02f-15：user_asm_seed_bridge 产品 seed
-# wave752 R1 cold: ensure one · wave769 product PREFER → try-l2-asm-prefer.
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/asm/user_asm_seed_bridge.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-
-# G-02f-15：asm_backend_compat_stubs 产品 seed
-# wave752 R1 cold: ensure one · wave769 product PREFER → try-l2-asm-prefer.
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/asm/asm_backend_compat_stubs.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02f-15：user_asm_seed_bridge + asm_backend_compat_stubs 产品 seed
+# (wave752 R1 · wave769 try-l2-asm-prefer in try-heat) — joined wave902 multi-target
+# $(R1_ALIAS_STUBS_OBJS).
 
 # G-02f-9 / Phase 4：backend_*_dispatch thin+rest PREFER_X_O
 # wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer.
@@ -1639,13 +1616,8 @@ src/lsp/lsp_diag_pipeline_ctx.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-11：runtime_driver_strict_glue_stubs 产品 seed（内含 runtime_heap_user.inc）
-# wave752 R1 cold: ensure_one · wave771 product PREFER thin+rest → try-other-l2-prefer.
-src/runtime_driver_strict_glue_stubs.o: FORCE scripts/ensure_host_cc_seed_o.sh
-# wave794 B7A: heat dep-edge thin twin residual — prereqs → FORCE + ensure;
-# try-heat owns seed/stubs.x/thin.x + heap_user #include (seed_project_hdrs_newer).
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-	# wave771: other L2 PREFER thin+rest → try-other-l2-prefer (cold plain seed fallback).
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# (wave752 R1 · wave771 try-other-l2-prefer · wave794 twin) — joined wave902 multi-target
+# $(R1_ALIAS_STUBS_OBJS).
 
 # G-02a：ast_seed.o 从 runtime_ast_glue.inc 编译（从 src/ast/ast.c 迁移）。
 # 提供 ast_module_free/ast_expr_free/ast_block_free 等 8 个内存管理函数。

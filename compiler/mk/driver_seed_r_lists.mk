@@ -40,6 +40,8 @@ R1_MAIN_RUNTIME_OBJS = src/main.o src/main_x.o src/main_driver.o src/runtime.o s
 # (basename → seeds/<leaf>.from_x.c; no extra -D). List authority for
 # ensure_host_cc_seed_o.sh alias-stubs mode; body = same script as rt-slice.
 # Not dual of USER_ASM_SEED_* lists; this is pure R1 recipe family only.
+# wave902: also make-graph multi-target FORCE thin try-heat inventory (COUNT=8).
+# Body = ensure try-heat; do not re-list in Makefile or residual shells (G.7).
 R1_ALIAS_STUBS_OBJS = x_frontend_link_alias.o ast_asm_bare_link_alias.o backend_asm_bare_link_alias.o backend_asm_strict_fallback_alias.o typeck_c_module_stubs.o src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o src/runtime_driver_strict_glue_stubs.o
 
 # wave753 R1 sixth family: pure host-cc with extra flags / multi-out seeds
