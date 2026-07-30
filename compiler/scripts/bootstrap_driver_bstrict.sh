@@ -21,13 +21,14 @@
 #   MAKE   — make binary (default: make); residual seed + gen.c leaves
 #   TARGET — product binary name (default: xlang)
 #   XLANG_BSTRICT_NO_REPLACE — if set, refresh gate leaves $(TARGET) unchanged
-#     (passed through to refresh_xlang_asm_gate.sh)
+#     (passed through to refresh_xlang_asm_gate.sh; CLI/env only — no Makefile inject)
 #   XLANG_BSTRICT_ENSURE_SEED=1 — if ./$TARGET missing, run
 #     `make bootstrap-driver-seed` (default on for direct xlang-build calls;
-#     Makefile path already has seed as prereq so usually unused)
+#     Makefile path already has seed as prereq so recipe no longer injects =0;
+#     wave887: intentional override only via CLI/env)
 #
 # PLATFORM: SHARED shell orchestration; leaf recipes carry platform ABI.
-# Wave: 719 Track MG · wave734 refresh · wave735 migrate · wave736/737 gen.
+# Wave: 719 Track MG · wave734 refresh · wave735 migrate · wave736/737 gen · wave887 inject hygiene.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."

@@ -55,6 +55,7 @@
 > - **wave884** · B7B residual single-token CC= inject hygiene (118 recipes → drop CC= on 116 pure try-heat/filter + strip CC= from cfg_eval LD bag + pipeline_x multi; shell `resolve_host_cc` + CLI/env; keep LD/pipeline bags)
 > - **wave885** · B7B residual G05_SYNC inject hygiene (2 recipes → relink-xlang `--no-sync` + xlang_asm bare; drop `G05_SYNC_ASM=0/1` recipe inject; shell CLI/env default)
 > - **wave886** · B7B residual LD + pipeline bag inject hygiene (2 recipes → cfg_eval drop `LD=`/`LD_RELFLAGS=`; pipeline_x drop `PIPELINE_X_*`/`XLANG_FORCE_REGEN_GEN`; shell LD defaults + mk DEPS load)
+> - **wave887** · B7B residual terminal env inject hygiene (6 recipes → `XLANG_C` ensure `$@`; cc_inc_tu PEERS seed-map; drop `ENSURE_SEED`/`NO_REPLACE`/`XLANG=` injects; shell defaults + CLI/env)
 > - **open** · thin edges + B2 + mk lists (hybrid) · → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile

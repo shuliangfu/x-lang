@@ -729,10 +729,11 @@ else
 # wave876: full body → scripts/ensure_xlang_c.sh (G.7 无才新增; shell owns
 #   SKIP_SUBSCRIPT soft-skip + cp -f bootstrap_xlangc → XLANG_C).
 # LEGACY host-cc path stays wave858 legacy_xlang_c_link.sh (separate ifeq).
-# Thin-call XLANG_C= only. NOT physical delete — thin edges + B2 + mk lists remain.
+# wave887 B7B: drop XLANG_C= recipe inject — shell ensure OUT=$@ (or XLANG_C env/CLI).
+# Thin @bash only. NOT physical delete — thin edges + B2 + mk lists remain.
 # PLATFORM: SHARED — binary sync only; seed pick stays select_bootstrap_xlangc.
 $(XLANG_C): bootstrap_xlangc scripts/ensure_xlang_c.sh
-	@XLANG_C="$(XLANG_C)" bash scripts/ensure_xlang_c.sh ensure
+	@bash scripts/ensure_xlang_c.sh ensure $@
 endif
 
 # G-02f-11：diag 产品 seed（全局规则，LEGACY 与默认共用）
@@ -2019,10 +2020,10 @@ src/lexer/lexer.o: FORCE scripts/ensure_host_cc_seed_o.sh
 
 # G-02f-80：cfg_eval 冷启动 stub；legacy xlang-c 直链需要独立 .o 规则。
 # wave831: FORCE dep-thin — shell owns seed+.x mtime (cc_inc_tu PEERS; not physical delete).
+# wave887 B7B: drop XLANG_CC_INC_TU_PEERS inject — shell seed-map owns peer .x when unset.
 # PLATFORM: SHARED — FORCE always invokes script (cheap mtime skip).
 src/lexer/cfg_eval_bootstrap_stub.o: FORCE scripts/cc_inc_tu.sh
-	@XLANG_CC_INC_TU_PEERS='src/lexer/cfg_eval_bootstrap_stub.x' \
-	  sh scripts/cc_inc_tu.sh seeds/cfg_eval_bootstrap_stub.from_x.c $@
+	@sh scripts/cc_inc_tu.sh seeds/cfg_eval_bootstrap_stub.from_x.c $@
 
 # G-02a: typeck.c 已物理删除；typeck_x.o 由 typeck.x 生成，typeck_c_module_stubs.o 提供 weak 桩。
 
@@ -2786,20 +2787,19 @@ bootstrap-driver-asm-only: bootstrap-driver-hybrid
 # 仅保留 xlang_asm、不覆盖 seed：XLANG_BSTRICT_NO_REPLACE=1 make bootstrap-driver-bstrict
 # wave882 B7B: drop TARGET= from multi-token inject (shell TARGET default + CLI).
 # wave883 B7B: drop MAKE= from multi-token inject (shell MAKE default + make auto-export).
-# Keep ENSURE_SEED=0 (override shell default 1).
+# wave887 B7B: drop ENSURE_SEED=0 inject — seed is make prereq; shell default 1 only
+#   fires when ./$TARGET missing (direct xlang-build / CLI override still ok).
 bootstrap-driver-bstrict: bootstrap-driver-seed
-	@XLANG_BSTRICT_ENSURE_SEED=0 \
-	  sh scripts/bootstrap_driver_bstrict.sh
+	@sh scripts/bootstrap_driver_bstrict.sh
 
 # P0 asm 门禁：strict xlang_asm 与 seed+migrate-x-objs 对齐（M-3 含 typeck/codegen/ast）；xlang_asm2 仍保留 gen2。
 # wave734: body → scripts/refresh_xlang_asm_gate.sh (G.7)
 # wave735: migrate → scripts/migrate_x_objs.sh (no make migrate-x-objs inside refresh).
 # wave882 B7B: drop TARGET= from multi-token inject (shell TARGET default + CLI).
 # wave883 B7B: drop MAKE= from multi-token inject (shell MAKE default + make auto-export).
-# Keep NO_REPLACE passthrough (makefile var may be unset; env/CLI still honored).
+# wave887 B7B: drop NO_REPLACE passthrough inject — shell reads env/CLI; make CLI auto-export.
 refresh-xlang-asm-gate:
-	@XLANG_BSTRICT_NO_REPLACE="$(XLANG_BSTRICT_NO_REPLACE)" \
-	  sh scripts/refresh_xlang_asm_gate.sh
+	@sh scripts/refresh_xlang_asm_gate.sh
 
 # 日常快路径：仅 strict relink（前提 build_asm/*.o 已由 prior bootstrap 产出；改 glue/runtime/link 时用，~30s）。
 # wave868: full body → scripts/relink_xlang_asm_bstrict_runtime_objs.sh (G.7 有则补全;
@@ -2834,12 +2834,14 @@ build-user-asm-backend:
 bootstrap-asm: $(TARGET) src/asm/runtime_asm_build.o src/runtime_driver.o
 	@echo "bootstrap-asm: runtime_asm_build.o + runtime_driver.o ready."
 	@echo " Full asm build: XLANG=./$(TARGET) ./scripts/build_xlang_asm.sh (requires bootstrap-driver first)"
+# wave887 B7B: drop XLANG= inject — build_xlang_asm defaults XLANG=./$TARGET (or env/CLI).
 bootstrap-asm-full: bootstrap-driver bootstrap-asm
-	@XLANG=./$(TARGET) ./scripts/build_xlang_asm.sh
+	@./scripts/build_xlang_asm.sh
 
 # Goal 2 辅助：检查 build_asm/*.o 的 __text 段是否非空（需先有 build_asm，例如刚跑过 build_xlang_asm.sh）。严格失败：XLANG_ASM_QUALITY_STRICT=1 make check-asm-o-quality
+# wave887 B7B: drop dead XLANG= inject (quality scan does not use XLANG; thin @sh only).
 check-asm-o-quality: $(TARGET)
-	@XLANG=./$(TARGET) ./scripts/check_asm_o_quality.sh
+	@./scripts/check_asm_o_quality.sh
 
 # 6.4 验收：宿主编译器能编译整机 .x（typeck+codegen+driver）并产出新 xlang，且新 xlang 能编译运行测试（return-value 返回 42 视为成功）。用 seed 构建 xlang 以保证通过（asm 路径修好后可改为 bootstrap-driver）。
 # seed 的 .x 单文件路径把 C 写到 -o；须 $(CC) 链成可执行再运行（与 xlang-c 直接出 Mach-O/ELF 不同）。

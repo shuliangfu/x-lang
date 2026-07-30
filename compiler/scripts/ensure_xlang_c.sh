@@ -21,14 +21,16 @@
 # Usage (cwd = compiler/):
 #   bash scripts/ensure_xlang_c.sh ensure
 #   bash scripts/ensure_xlang_c.sh ensure xlang-c
+#   bash scripts/ensure_xlang_c.sh ensure $@   # Makefile thin-call (wave887)
 #   bash scripts/ensure_xlang_c.sh --check
 #
-# Env:
-#   XLANG_C — output binary name (default: xlang-c)
+# Env / args:
+#   OUT arg ($2) or XLANG_C — output binary name (default: xlang-c)
 #   SRC — source seed binary (default: bootstrap_xlangc)
 #   XLANG_SKIP_SUBSCRIPT_MAKE=1 — skip cp (historic run-all C frontend preserve)
 #
 # wave876 (G.7 无才新增): Makefile fat if/cp body → this script.
+# wave887 (G.7 有则补全): Makefile drops XLANG_C= inject; OUT from ensure $@.
 # NOT physical delete — thin edges + B2 + mk lists remain residual.
 # PLATFORM: SHARED — binary sync only; ABI / seed pick stays select_bootstrap_xlangc.
 
@@ -63,11 +65,15 @@ if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
   if grep -qE 'if \[ -z ' <<<"$_rec"; then
     fail '$(XLANG_C) must not keep dual if-body (wave876; shell owns)'
   fi
+  # wave887: no XLANG_C= recipe inject — OUT via ensure $@ (or env/CLI).
+  if grep -qE 'XLANG_C=' <<<"$_rec"; then
+    fail '$(XLANG_C) must not inject XLANG_C= (wave887; shell OUT=$@ / XLANG_C default)'
+  fi
   # LEGACY path must remain wave858 shell (do not re-open host-cc here).
   if ! grep -q 'legacy_xlang_c_link\.sh' "$MF"; then
     fail "Makefile must keep legacy_xlang_c_link.sh for LEGACY path (wave858)"
   fi
-  echo "ensure_xlang_c: --check OK (wave876; shell-primary default xlang-c alias; not physical delete)"
+  echo "ensure_xlang_c: --check OK (wave876/887; shell-primary default xlang-c alias; not physical delete)"
   exit 0
 fi
 

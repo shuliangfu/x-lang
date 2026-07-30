@@ -13,6 +13,9 @@
 #     - skip when OUT exists and is newer than INC and optional peers
 #     - XLANG_CC_INC_TU_PEERS: space-separated extra inputs (.x, twin .c, …)
 #     - XLANG_CC_INC_TU_FORCE=1: always recompile
+# wave887 (G.7 有则补全): when PEERS env is *unset*, apply seed-map defaults
+#   for known from_x ↔ product .x pairs (cfg_eval_bootstrap_stub). Explicit
+#   PEERS= (even empty) still wins — no dual authority with Makefile inject.
 #   PLATFORM: SHARED — cheap mtime skip on every FORCE recipe run.
 set -e
 cd "$(dirname "$0")/.."
@@ -45,6 +48,17 @@ fi
 if [ ! -f "$INC_ABS" ]; then
   echo "cc_inc_tu: missing $INC_ABS" >&2
   exit 1
+fi
+
+# wave887: seed-map peers when XLANG_CC_INC_TU_PEERS is unset (Makefile no longer
+# injects). Basename match keeps abs/rel INC paths working.
+# PLATFORM: SHARED.
+if [ -z "${XLANG_CC_INC_TU_PEERS+set}" ]; then
+  case "$(basename "$INC")" in
+    cfg_eval_bootstrap_stub.from_x.c)
+      XLANG_CC_INC_TU_PEERS='src/lexer/cfg_eval_bootstrap_stub.x'
+      ;;
+  esac
 fi
 
 # wave831: FORCE recipes always enter this script; skip rebuild when fresh.

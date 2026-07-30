@@ -89,7 +89,11 @@ build_xlang_asm_is_msys() {
   return 1
 }
 
-XLANG="${XLANG:-./xlang}"
+# wave887: when XLANG unset, default to ./$TARGET (TARGET default xlang).
+# Makefile bootstrap-asm-full no longer injects XLANG=./$(TARGET); CLI/env still win.
+# PLATFORM: SHARED.
+TARGET="${TARGET:-xlang}"
+XLANG="${XLANG:-./$TARGET}"
 BUILD_LIST_X="src/asm/asm_build_list.x"
 BUILD_DIR="build_asm"
 mkdir -p "$BUILD_DIR"

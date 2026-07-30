@@ -184,7 +184,12 @@
 #   wave886: B7B residual LD + pipeline bag inject hygiene (2 recipes) →
 #            cfg_eval drop LD=/LD_RELFLAGS=; pipeline_x drop PIPELINE_X_* /
 #            XLANG_FORCE_REGEN_GEN inject; shell LD defaults + mk DEPS load;
-#            NOT physical delete — thin edges + B2 + mk lists remain
+#            NOT physical delete — terminal env injects + thin edges remain
+#   wave887: B7B residual terminal env inject hygiene (6 recipes) →
+#            XLANG_C ensure $@; cc_inc_tu PEERS seed-map; ENSURE_SEED drop;
+#            NO_REPLACE passthrough drop; XLANG= on bootstrap-asm-full +
+#            check-asm-o-quality; shell defaults + CLI/env; NOT physical delete
+#            — thin edges + B2 + mk lists remain
 #   wave856: B7B archaeology LINK_OBJS shell-load via make export leaves (5 bags /
 #            6 shells; nested expand; Makefile drops multi-token LINK_OBJS env;
 #            NOT physical delete — CFLAGS env + thin edges + B2 remain)
@@ -1421,7 +1426,7 @@ B7B_PREFER_INJECT_HYGIENE_COUNT=31
 # COUNT = 10 recipes: 8 pure TARGET-only thin-calls (token/lexer/parser/parse-file /
 # hybrid/crt0/build-via-tool/check-7.2) + 2 multi-token (bstrict/refresh) drop TARGET=.
 # Shell TARGET="${TARGET:-xlang}" + GNU make CLI auto-export own authority (G.7).
-# Keep MAKE= / ENSURE_SEED=0 / NO_REPLACE passthrough where still required.
+# wave883 closed MAKE= inject; ENSURE_SEED/NO_REPLACE closed in wave887.
 # NOT physical delete — MAKE residual + CC= passthrough + thin edges + B2 remain.
 PHYS_DEL_B7B_TARGET_INJECT_HYGIENE=1
 PHYS_DEL_B7B_TARGET_INJECT_HYGIENE_WAVE=wave882
@@ -1436,7 +1441,7 @@ B7B_TARGET_INJECT_HYGIENE_COUNT=10
 # COUNT = 24 recipes: 22 pure MAKE-only thin-calls (archaeology host-pick 4 +
 # driver_leaf 8 + rebuild_leaves 7 + host_stubs 2 + phase1-link 1) + 2 multi-token
 # (bstrict/refresh) drop MAKE=. Shell MAKE="${MAKE:-make}" + GNU make auto-exports
-# MAKE to recipe env (G.7). Keep ENSURE_SEED=0 / NO_REPLACE passthrough.
+# MAKE to recipe env (G.7). ENSURE_SEED/NO_REPLACE closed later (wave887).
 # NOT physical delete — residual CC/G05_SYNC/LD/pipeline + thin edges + B2 remain
 # (CC closed in wave884).
 PHYS_DEL_B7B_MAKE_INJECT_HYGIENE=1
@@ -1485,7 +1490,7 @@ B7B_G05_SYNC_INJECT_HYGIENE_COUNT=2
 # PIPELINE_X_DEPS / PIPELINE_X_FORCE_COMPILE / XLANG_FORCE_REGEN_GEN).
 # Authority: ensure try-cfg-eval-ladder LD defaults + ensure_gen_x_o mk-load
 # PIPELINE_X_DEPS; FORCE flags via CLI/env + rebuild_leaves export.
-# NOT physical delete — thin edges + B2 + mk lists remain.
+# NOT physical delete — terminal env injects closed in wave887.
 PHYS_DEL_B7B_LD_PIPELINE_INJECT_HYGIENE=1
 PHYS_DEL_B7B_LD_PIPELINE_INJECT_HYGIENE_WAVE=wave886
 PHYS_DEL_B7B_LD_PIPELINE_INJECT_HYGIENE_COUNT=2
@@ -1495,6 +1500,25 @@ SWALLOWED_B7B_LD_PIPELINE_INJECT_HYGIENE=1
 B7B_LD_PIPELINE_INJECT_HYGIENE_SWALLOWED=1
 B7B_LD_PIPELINE_INJECT_HYGIENE_WAVE=wave886
 B7B_LD_PIPELINE_INJECT_HYGIENE_COUNT=2
+# wave887: B7B residual terminal env inject hygiene.
+# COUNT = 6 recipes closed:
+#   1) $(XLANG_C) — was XLANG_C="$(XLANG_C)"; now ensure $@ (OUT arg)
+#   2) cfg_eval bootstrap stub leaf — was XLANG_CC_INC_TU_PEERS=; shell seed-map
+#   3) bootstrap-driver-bstrict — was XLANG_BSTRICT_ENSURE_SEED=0; prereq seed
+#   4) refresh-xlang-asm-gate — was NO_REPLACE="$(NO_REPLACE)" passthrough
+#   5) bootstrap-asm-full — was XLANG=./$(TARGET); build_xlang_asm TARGET→XLANG
+#   6) check-asm-o-quality — was dead XLANG= inject (scan does not use XLANG)
+# Authority: shell defaults + CLI/env; intentional overrides never via recipe inject.
+# NOT physical delete — thin edges + B2 + mk lists remain.
+PHYS_DEL_B7B_TERMINAL_ENV_INJECT_HYGIENE=1
+PHYS_DEL_B7B_TERMINAL_ENV_INJECT_HYGIENE_WAVE=wave887
+PHYS_DEL_B7B_TERMINAL_ENV_INJECT_HYGIENE_COUNT=6
+PHYS_DEL_B7B_TERMINAL_ENV_INJECT_HYGIENE_VIA=shell_ensure_out_arg_peers_seed_map_xlang_from_target_no_recipe_inject
+PHYS_DEL_B7B_TERMINAL_ENV_INJECT_HYGIENE_NOTE=makefile_no_terminal_env_inject_shell_defaults_thin_edges_remain
+SWALLOWED_B7B_TERMINAL_ENV_INJECT_HYGIENE=1
+B7B_TERMINAL_ENV_INJECT_HYGIENE_SWALLOWED=1
+B7B_TERMINAL_ENV_INJECT_HYGIENE_WAVE=wave887
+B7B_TERMINAL_ENV_INJECT_HYGIENE_COUNT=6
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -2534,6 +2558,9 @@ else
   fi
   if ! grep -qE 'wave886|LD_PIPELINE|LD.*pipeline.*inject|LD_RELFLAGS|PIPELINE_X_DEPS.*mk-load|cfg_eval.*LD' "$DOC_REL"; then
     bad "$DOC_REL must document wave886 LD + pipeline bag inject hygiene"
+  fi
+  if ! grep -qE 'wave887|TERMINAL_ENV|terminal env inject|ensure \$@|PEERS seed-map|ENSURE_SEED.*drop|XLANG.*TARGET' "$DOC_REL"; then
+    bad "$DOC_REL must document wave887 terminal env inject hygiene"
   fi
   note "doc $DOC_REL present"
 fi
@@ -7026,6 +7053,46 @@ if ! grep -q 'PHYS_DEL_B7B_LD_PIPELINE_INJECT_HYGIENE_COUNT=2' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_LD_PIPELINE_INJECT_HYGIENE_COUNT=2 (wave886)"
 fi
 note "B7B residual LD+pipeline inject hygiene (COUNT=2; wave886; not physical delete)"
+# wave887: residual terminal env inject hygiene.
+# COUNT=6: XLANG_C ensure $@; PEERS seed-map; ENSURE_SEED; NO_REPLACE; XLANG×2.
+# G.7: shell defaults own unset env; intentional override via CLI/env only.
+if grep -nE '^\t@XLANG_C="\$\(XLANG_C\)"' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile still injects XLANG_C=\$(XLANG_C) on recipes (wave887)"
+  grep -nE '^\t@XLANG_C="\$\(XLANG_C\)"' "$MF" | head -5 >&2
+fi
+if grep -nE '^\t@?XLANG_CC_INC_TU_PEERS=' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile still injects XLANG_CC_INC_TU_PEERS= on recipes (wave887)"
+  grep -nE '^\t@?XLANG_CC_INC_TU_PEERS=' "$MF" | head -5 >&2
+fi
+if grep -nE '^\t@?XLANG_BSTRICT_ENSURE_SEED=' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile still injects XLANG_BSTRICT_ENSURE_SEED= on recipes (wave887)"
+  grep -nE '^\t@?XLANG_BSTRICT_ENSURE_SEED=' "$MF" | head -5 >&2
+fi
+if grep -nE 'XLANG_BSTRICT_NO_REPLACE="\$\(XLANG_BSTRICT_NO_REPLACE\)"' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile still injects XLANG_BSTRICT_NO_REPLACE= passthrough (wave887)"
+  grep -nE 'XLANG_BSTRICT_NO_REPLACE="\$\(XLANG_BSTRICT_NO_REPLACE\)"' "$MF" | head -5 >&2
+fi
+if grep -nE '^\t@XLANG=\./\$\(TARGET\)' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile still injects XLANG=./\$(TARGET) on recipes (wave887)"
+  grep -nE '^\t@XLANG=\./\$\(TARGET\)' "$MF" | head -5 >&2
+fi
+if ! grep -q 'wave887' "$MF" 2>/dev/null; then
+  bad "Makefile must document wave887 terminal env inject hygiene"
+fi
+if ! grep -q 'cfg_eval_bootstrap_stub.from_x.c' "$ROOT/compiler/scripts/cc_inc_tu.sh" 2>/dev/null; then
+  bad "cc_inc_tu.sh must seed-map cfg_eval_bootstrap_stub peers (wave887)"
+fi
+if ! grep -q 'XLANG=.*TARGET' "$ROOT/compiler/scripts/build_xlang_asm.sh" 2>/dev/null; then
+  bad "build_xlang_asm.sh must default XLANG from TARGET (wave887)"
+fi
+# dump honesty
+if ! grep -q 'PHYS_DEL_B7B_TERMINAL_ENV_INJECT_HYGIENE=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_TERMINAL_ENV_INJECT_HYGIENE=1 (wave887)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_TERMINAL_ENV_INJECT_HYGIENE_COUNT=6' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_TERMINAL_ENV_INJECT_HYGIENE_COUNT=6 (wave887)"
+fi
+note "B7B residual terminal env inject hygiene (COUNT=6; wave887; not physical delete)"
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
   PHYS_DEL_BUCKET_B1_BODY_SWALLOWED=1 \
