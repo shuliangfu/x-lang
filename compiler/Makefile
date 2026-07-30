@@ -2151,9 +2151,9 @@ lsp_gen.c: FORCE scripts/ensure_lsp_pipeline_gen.sh
 # 冷启动仅 seeds/lsp_io_std_heap_gen.linux.x86_64.c；工作区 lsp_io_std_heap_gen.c 仅考古/FORCE_REGEN
 # wave814: driver_leaf catalog → ensure (G.7; rename/dirs in script; not physical delete).
 # wave828: FORCE dep-thin — shell owns catalog .x mtime (skip up-to-date); not physical delete.
+# wave860: BASE_CFLAGS via export-driver-leaf-base-cflags when unset (no multi-token env).
 lsp_io_std_heap_x.o: FORCE scripts/driver_leaf_x_to_o.sh
-	@BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
-	  bash scripts/driver_leaf_x_to_o.sh ensure $@
+	@MAKE="$(MAKE)" bash scripts/driver_leaf_x_to_o.sh ensure $@
 # wave740: G.7 body → scripts/ensure_archaeology_gen.sh (Track L archaeology only)
 # wave829: FORCE dep-thin — shell owns pin/seed policy (G.7; not physical delete).
 lsp_io_std_heap_gen.c: FORCE scripts/ensure_archaeology_gen.sh
@@ -2187,30 +2187,24 @@ include mk/driver_subcmd_objs.mk
 # Track L：叶子 .o 直接来自 .x（scripts/driver_leaf_x_to_o.sh）；rename 与 prove_module_selfhost / g05 一致
 # wave814: driver_leaf shell-primary catalog → ensure (G.7; not physical delete).
 # wave828: FORCE dep-thin — Makefile prereqs FORCE+script only; shell owns catalog .x mtime.
-# Makefile thin-call only; src/rename/cold-seed/-L live in script catalog.
+# wave860: BASE_CFLAGS via export-driver-leaf-base-cflags when unset (no multi-token env).
+# Makefile thin-call only; src/rename/cold-seed/-L + BASE_CFLAGS live in script catalog/export.
 driver_fmt_x.o: FORCE scripts/driver_leaf_x_to_o.sh
-	@BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
-	  bash scripts/driver_leaf_x_to_o.sh ensure $@
+	@MAKE="$(MAKE)" bash scripts/driver_leaf_x_to_o.sh ensure $@
 driver_check_x.o: FORCE scripts/driver_leaf_x_to_o.sh
-	@BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
-	  bash scripts/driver_leaf_x_to_o.sh ensure $@
+	@MAKE="$(MAKE)" bash scripts/driver_leaf_x_to_o.sh ensure $@
 driver_test_x.o: FORCE scripts/driver_leaf_x_to_o.sh
-	@BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
-	  bash scripts/driver_leaf_x_to_o.sh ensure $@
+	@MAKE="$(MAKE)" bash scripts/driver_leaf_x_to_o.sh ensure $@
 driver_build_x.o: FORCE scripts/driver_leaf_x_to_o.sh
-	@BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
-	  bash scripts/driver_leaf_x_to_o.sh ensure $@
+	@MAKE="$(MAKE)" bash scripts/driver_leaf_x_to_o.sh ensure $@
 driver_run_x.o: FORCE scripts/driver_leaf_x_to_o.sh
-	@BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
-	  bash scripts/driver_leaf_x_to_o.sh ensure $@
+	@MAKE="$(MAKE)" bash scripts/driver_leaf_x_to_o.sh ensure $@
 # Track L：compile / emit 叶子退役（prove IDENTICAL；emit 依赖 codegen 字段访问 . vs -> 根修）
 # wave814: rename maps moved into driver_leaf_x_to_o.sh catalog (G.7 single authority).
 driver_compile_x.o: FORCE scripts/driver_leaf_x_to_o.sh
-	@BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
-	  bash scripts/driver_leaf_x_to_o.sh ensure $@
+	@MAKE="$(MAKE)" bash scripts/driver_leaf_x_to_o.sh ensure $@
 driver_emit_x.o: FORCE scripts/driver_leaf_x_to_o.sh
-	@BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
-	  bash scripts/driver_leaf_x_to_o.sh ensure $@
+	@MAKE="$(MAKE)" bash scripts/driver_leaf_x_to_o.sh ensure $@
 
 # wave740: G.7 body → scripts/ensure_archaeology_gen.sh
 # 考古：可选再生成工作区 *_gen.c（不进 DRIVER_SEED_PREREQS；叶子已退役；产品用 *_x.o）
@@ -2405,6 +2399,7 @@ include mk/driver_seed_export_lists.mk
 	export-legacy-xlang-c-link-objs \
 	export-xxp-link-bags \
 	export-bxc-link-objs \
+	export-driver-leaf-base-cflags \
 	export-relink-product-link-cflags \
 	export-btc-typeck-link-cflags \
 	export-xnc-link-cflags \
@@ -2650,6 +2645,16 @@ export-xxp-link-bags:
 
 export-bxc-link-objs:
 	@printf 'LINK_OBJS=%s\n' '$(OBJS)'
+
+# wave860 · B7B driver_leaf BASE_CFLAGS multi-token shell-load via make export leaf (G.7).
+# wave814/828 product leaves still required multi-token BASE_CFLAGS="$(CFLAGS)
+# $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" on thin-call recipes. Composition
+# needs make expansion (OPT CFLAGS += -O2; PIPELINE_GEN_CFLAGS CC_IS_CLANG ifeq).
+# Shell loads when unset; Makefile recipes drop multi-token BASE_CFLAGS= env.
+# PLATFORM: SHARED — KEY=value; no compile side effects.
+# NOT physical delete — thin edges + B2 + mk lists remain residual.
+export-driver-leaf-base-cflags:
+	@printf 'BASE_CFLAGS=%s\n' '$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc'
 
 # wave857 · B7B LINK CFLAGS shell-load via make export leaves (G.7 有则补全 on
 # wave856 LINK_OBJS export pattern). Flags need make expansion (DRIVER_SEED_LINK_FLAGS /

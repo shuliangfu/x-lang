@@ -28,6 +28,7 @@
 > - **wave857** · B7B archaeology LINK_CFLAGS shell-load via make export leaves (4 bags / 6 shells; drop multi-token CFLAGS env)
 > - **wave858** · B7B LEGACY xlang-c link shell-primary (export leaf + CFLAGS reuse product)
 > - **wave859** · B7B XXP/BXC multi-token bag shell-load via make export leaves (2 shells)
+> - **wave860** · B7B driver_leaf BASE_CFLAGS multi-token shell-load via make export leaf (8 leaves)
 - **open** · thin edges + B2 + other mk lists (hybrid) → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
@@ -2073,6 +2074,43 @@ ship delete body; mac-only wave green.
 `rm compiler/Makefile`; ship delete body; mac-only wave green.
 
 
+## wave860 B7B driver_leaf BASE_CFLAGS multi-token shell-load (2026-07-30)
+
+> **Why (G.7 有则补全 on wave857/859 export-leaf pattern):**
+> wave814/828 driver_leaf catalog already shell-primary (8 leaves FORCE+ensure),
+> but Makefile still injected multi-token
+> `BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc"`.
+> Composition needs make expansion (`OPT` → `CFLAGS += -O2`;
+> `PIPELINE_GEN_CFLAGS` CC_IS_CLANG ifeq) — not pure shell default.
+>
+> **Bags (1 export / 8 leaves):**
+>   - **export-driver-leaf-base-cflags** → `BASE_CFLAGS=$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc`
+>
+> Shell loads when env unset; Makefile recipes drop multi-token `BASE_CFLAGS=` env
+> (thin-call `MAKE= ensure` only). **NOT physical delete** — thin edges + B2 + mk
+> lists remain. Dual-end L2 required.
+>
+```text
+    PHYS_DEL_B7B_DRIVER_LEAF_BASE_CFLAGS_SHELL_LOAD=1
+    PHYS_DEL_B7B_DRIVER_LEAF_BASE_CFLAGS_SHELL_LOAD_WAVE=wave860
+    PHYS_DEL_B7B_DRIVER_LEAF_BASE_CFLAGS_SHELL_LOAD_COUNT=8
+    SWALLOWED_B7B_DRIVER_LEAF_BASE_CFLAGS_SHELL_LOAD=1
+    PHYS_DEL_PREFLIGHT_B7B_DRIVER_LEAF_BASE_CFLAGS_SHELL_LOAD=1
+```
+>
+> next: residual thin/B2/lists (hybrid) or tip Windows → dual L4 → explicit auth ship
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_B7B_DRIVER_LEAF_BASE_CFLAGS_SHELL_LOAD` | `1` |
+| `PHYS_DEL_B7B_DRIVER_LEAF_BASE_CFLAGS_SHELL_LOAD_COUNT` | `8` |
+| `SWALLOWED_B7B_DRIVER_LEAF_BASE_CFLAGS_SHELL_LOAD` | `1` |
+| `B7B_DRIVER_LEAF_BASE_CFLAGS_SHELL_LOAD_VIA` | `export_driver_leaf_base_cflags` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+
+**Forbidden:** claim BASE_CFLAGS shell-load = physical delete; dual multi-token
+`BASE_CFLAGS=` recipe env; second CFLAGS formula authority in shell (export leaf only).
+
 ## wave859 B7B XXP/BXC multi-token bag shell-load (2026-07-30)
 
 > **Why (G.7 有则补全 on wave856 export-leaf pattern):**
@@ -2096,7 +2134,7 @@ ship delete body; mac-only wave green.
     PHYS_DEL_PREFLIGHT_B7B_XXP_BXC_SHELL_LOAD=1
 ```
 >
-> next: residual thin/B2/lists (hybrid) or tip Windows → dual L4 → explicit auth ship
+> next: ~~driver_leaf BASE_CFLAGS~~ (wave860) · residual thin/B2/lists or tip Windows
 
 | Key | Value |
 |-----|-------|

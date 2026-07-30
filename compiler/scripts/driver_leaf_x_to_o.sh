@@ -19,8 +19,13 @@
 # wave828 (G.7 有则补全): FORCE dep-thin — Makefile prereqs are FORCE + script only;
 #   shell owns catalog source mtime (skip up-to-date). NOT physical delete; thin
 #   edges + B2 try-heat + mk lists still form make graph residual.
+# wave860 (G.7 有则补全 on wave857/859 export-leaf pattern): BASE_CFLAGS multi-token
+#   composition loads via make export-driver-leaf-base-cflags when unset
+#   ($(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc). Makefile recipes drop
+#   multi-token BASE_CFLAGS= env. NOT physical delete; thin edges + B2 + lists remain.
 #
-# Env: CC, BASE_CFLAGS, DRIVER_SUBCMD_DIRS (legacy override; ensure uses catalog)
+# Env: CC, BASE_CFLAGS (optional; shell-loads export leaf when unset), MAKE,
+#      DRIVER_SUBCMD_DIRS (legacy override; ensure uses catalog)
 # PLATFORM: SHARED — catalog + compile body.
 set -eu
 cd "$(dirname "$0")/.."
@@ -291,9 +296,32 @@ EOF
       echo "driver_leaf_x_to_o --check: Makefile still has explicit-arg driver_leaf recipes (wave814)" >&2
       exit 1
     fi
+    # wave860: Makefile must not re-export multi-token BASE_CFLAGS (shell loads export leaf).
+    if grep -nE $'^\tBASE_CFLAGS=' "$_mf" 2>/dev/null | head -1 | grep -q .; then
+      echo "driver_leaf_x_to_o --check: Makefile must not inject BASE_CFLAGS= (wave860; shell loads export-driver-leaf-base-cflags)" >&2
+      exit 1
+    fi
+    if ! grep -qE '^export-driver-leaf-base-cflags:' "$_mf"; then
+      echo "driver_leaf_x_to_o --check: Makefile must define export-driver-leaf-base-cflags (wave860)" >&2
+      exit 1
+    fi
   fi
-  echo "driver_leaf_x_to_o --check: OK (8 catalog leaves; Makefile FORCE+ensure thin wave828; not physical delete)"
+  echo "driver_leaf_x_to_o --check: OK (8 catalog leaves; FORCE+ensure wave828; BASE_CFLAGS export leaf wave860; not physical delete)"
   exit 0
+}
+
+# wave860: BASE_CFLAGS from make export leaf when unset (G.7; not physical delete).
+# Composition needs make expansion (OPT CFLAGS, PIPELINE_GEN_CFLAGS clang ifeq).
+# PLATFORM: SHARED — KEY=value from export target; fallback matches historic default.
+_load_driver_leaf_base_cflags_via_make() {
+  local raw line
+  raw=$(MAKEFLAGS= "${MAKE:-make}" -s export-driver-leaf-base-cflags) || return 1
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      BASE_CFLAGS=*) BASE_CFLAGS=${line#BASE_CFLAGS=} ;;
+    esac
+  done <<<"$raw"
+  [ -n "${BASE_CFLAGS:-}" ]
 }
 
 pick_xlang() {
@@ -338,7 +366,13 @@ driver_leaf_build() {
   fi
 
   CC="${CC:-cc}"
-  BASE_CFLAGS="${BASE_CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}"
+  # wave860: shell-load BASE_CFLAGS via export leaf when unset (G.7).
+  # Explicit BASE_CFLAGS= from env (tests / g05) still wins; never dual-compose in Makefile.
+  if [ -z "${BASE_CFLAGS:-}" ]; then
+    if ! _load_driver_leaf_base_cflags_via_make; then
+      BASE_CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
+    fi
+  fi
   DIRS="${DRIVER_SUBCMD_DIRS:--L .. -L src -L src/lexer -L src/ast}"
 
   if XLANG_BIN=$(pick_xlang); then
