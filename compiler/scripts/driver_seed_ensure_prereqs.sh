@@ -101,6 +101,55 @@ done
 
 echo "driver_seed_ensure_prereqs: mode=$MODE count=$n (catalog DRIVER_SEED_PREREQS + glue companion)" >&2
 
+# ---------------------------------------------------------------------------
+# Filter product PE / tip binaries out of make goals.
+#
+# DRIVER_SEED_PREREQS in mk/driver_seed_composites.mk still begins with
+# $(XLANG_C) (historical "compiler first" orchestration edge when the phony
+# carried the list as make-graph deps). Shell ensure (wave744) must *not*
+# pass PE names as goals:
+#   - Pulls the full product DAG (xlang-c → everything) instead of leaf .o/.c
+#   - On Windows hybrid min-gate, MAKE is wrapped with -o xlang-c … to avoid
+#     nested PE rebuild; goal+assume-old on the same PE yields
+#     "xlang-c is up to date" then multi-minute graph stalls with no gcc
+# G.7: list *definition* stays in the mk catalog; this script only owns
+# edge satisfaction for rebuildable leaves (objs + gen sources).
+# PLATFORM: SHARED — filter is host-independent; Windows hang was the symptom.
+# ---------------------------------------------------------------------------
+_is_product_pe_goal() {
+  case "$1" in
+    xlang|xlang-c|xlang-x|xlang_asm|bootstrap_xlangc|xlang-seed-phase1|\
+    xlang.exe|xlang-c.exe|xlang-x.exe|xlang_asm.exe|bootstrap_xlangc.exe|\
+    xlang-seed-phase1.exe|bootstrap_shuxc|bootstrap_shuxc.exe)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+_filt=
+_skipped=
+for _t in "$@"; do
+  if _is_product_pe_goal "$_t"; then
+    _skipped="${_skipped} ${_t}"
+    continue
+  fi
+  _filt="${_filt} ${_t}"
+done
+# shellcheck disable=SC2086
+set -- $_filt
+n=$#
+if [ -n "${_skipped// /}" ]; then
+  echo "driver_seed_ensure_prereqs: skip product PE goals:${_skipped}" >&2
+fi
+if [ "$n" -lt 8 ]; then
+  echo "driver_seed_ensure_prereqs: leaf goals too short after PE filter (n=$n)" >&2
+  exit 1
+fi
+echo "driver_seed_ensure_prereqs: leaf goals count=$n" >&2
+
 if [ "$MODE" = dry-run ] || [ "$MODE" = check ]; then
   i=0
   for t in "$@"; do
@@ -115,8 +164,8 @@ if [ "$MODE" = dry-run ] || [ "$MODE" = check ]; then
   exit 0
 fi
 
-# run: single make invocation for all edge targets (same as former make graph).
-echo "driver_seed_ensure_prereqs: make ($n targets) ..." >&2
+# run: single make invocation for leaf edge targets only.
+echo "driver_seed_ensure_prereqs: make ($n leaf targets) ..." >&2
 # shellcheck disable=SC2086
 "$MAKE" "$@"
 echo "driver_seed_ensure_prereqs: RUN OK count=$n" >&2
