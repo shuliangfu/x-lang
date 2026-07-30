@@ -1,10 +1,19 @@
 #!/bin/sh
-# cc_inc_tu.sh — 从 .inc 编译单一 TU（G-02e-15：薄 alias 去手写 .c）
+# cc_inc_tu.sh — compile one TU from .inc / seed .c (G-02e-15 thin alias)
 #
-# 用法（compiler/ 目录）：
-#   sh scripts/cc_inc_tu.sh <rel-or-abs.inc> <out.o> [extra cc flags...]
+# Usage (from compiler/):
+#   sh scripts/cc_inc_tu.sh <rel-or-abs.inc|.c> <out.o> [extra cc flags...]
 #
-# 写临时 wrap.c：#include "绝对路径.inc"，cc -c，再删除 wrap。
+# Writes a temporary wrap.c that #includes the absolute source path, runs
+# cc -c, then removes the wrap.
+#
+# wave831 (G.7 有则补全; not physical delete):
+#   Makefile residual leaves use FORCE + this script only (no seed make-graph
+#   prereq). Shell owns freshness:
+#     - skip when OUT exists and is newer than INC and optional peers
+#     - XLANG_CC_INC_TU_PEERS: space-separated extra inputs (.x, twin .c, …)
+#     - XLANG_CC_INC_TU_FORCE=1: always recompile
+#   PLATFORM: SHARED — cheap mtime skip on every FORCE recipe run.
 set -e
 cd "$(dirname "$0")/.."
 
@@ -36,6 +45,22 @@ fi
 if [ ! -f "$INC_ABS" ]; then
   echo "cc_inc_tu: missing $INC_ABS" >&2
   exit 1
+fi
+
+# wave831: FORCE recipes always enter this script; skip rebuild when fresh.
+# Peers (optional): e.g. matching .x beside a seed.from_x.c.
+# PLATFORM: SHARED.
+if [ -z "${XLANG_CC_INC_TU_FORCE:-}" ] && [ -f "$OUT" ] && [ "$OUT" -nt "$INC_ABS" ]; then
+  _fresh=1
+  for _peer in ${XLANG_CC_INC_TU_PEERS:-}; do
+    if [ -f "$_peer" ] && [ "$_peer" -nt "$OUT" ]; then
+      _fresh=0
+      break
+    fi
+  done
+  if [ "$_fresh" -eq 1 ]; then
+    exit 0
+  fi
 fi
 
 CC="${CC:-cc}"

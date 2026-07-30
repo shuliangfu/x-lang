@@ -1442,7 +1442,9 @@ crt0_user.o: src/asm/crt0_user_x86_64.o
 freestanding_io.o: src/asm/freestanding_io_x86_64.o
 	cp $< $@
 # NL-07 v2：bootstrap crt0 nostdlib 最小 libc 桩（cc_inc_tu residual — not R2 try-r2)
-src/asm/bootstrap_nostdlib_stubs.o: seeds/bootstrap_nostdlib_stubs.from_x.c scripts/cc_inc_tu.sh
+# wave831: FORCE dep-thin — shell owns seed mtime (cc_inc_tu; not physical delete).
+# PLATFORM: SHARED — FORCE always invokes script (cheap mtime skip).
+src/asm/bootstrap_nostdlib_stubs.o: FORCE scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh seeds/bootstrap_nostdlib_stubs.from_x.c $@
 endif
 endif
@@ -1754,42 +1756,10 @@ PARSER_ASM_LINK_ALIAS_CFLAGS = -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS
 # Ubuntu UNDEF parser_skip_one_top_level_let_into_glue after M2 re-pin).
 # wave758 R1 seed-map: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_SEED_MAP_OBJS).
 # Seed map: parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c (basename mismatch).
-# ensure_one also refreshes on seeds/parser_asm/*.inc (G.7 single body twin of prereqs).
-parser_asm_thin_glue.o: seeds/parser_asm_thin_c.from_x.c src/asm/parser_asm_thin_c.x \
- seeds/parser_asm/parser_asm_lex_skip_slice.inc \
- seeds/parser_asm/parser_asm_helpers_slice.inc \
- seeds/parser_asm/parser_asm_skip_if_slice.inc \
- seeds/parser_asm/parser_asm_foundation_slice.inc \
- seeds/parser_asm/parser_asm_type_ref_slice.inc \
- seeds/parser_asm/parser_asm_struct_layout_slice.inc \
- seeds/parser_asm/parser_asm_library_slice.inc \
- seeds/parser_asm/parser_asm_body_let_slice.inc \
- seeds/parser_asm/parser_asm_top_level_let_slice.inc \
- seeds/parser_asm/parser_asm_type_alias_slice.inc \
- seeds/parser_asm/parser_asm_one_function_buf_slice.inc \
- seeds/parser_asm/parser_asm_block_from_res_slice.inc \
- seeds/parser_asm/parser_asm_if_stmt_slice.inc \
- seeds/parser_asm/parser_asm_match_subject_slice.inc \
- seeds/parser_asm/parser_asm_simd_builtin_slice.inc \
- seeds/parser_asm/parser_asm_if_expr_slice.inc \
- seeds/parser_asm/parser_asm_finish_struct_lit_slice.inc \
- seeds/parser_asm/parser_asm_as_suffix_slice.inc \
- seeds/parser_asm/parser_asm_primary_slice.inc \
- seeds/parser_asm/parser_asm_unary_slice.inc \
- seeds/parser_asm/parser_asm_expr_binop_slice.inc \
- seeds/parser_asm/parser_asm_ternary_assign_slice.inc \
- seeds/parser_asm/parser_asm_emit_heavy_stretch_slice.inc \
- seeds/parser_asm/parser_asm_emit_heavy_stretch_suite_slice.inc \
- seeds/parser_asm/parser_asm_seed_parse_into_buf_slice.inc \
- seeds/parser_asm/parser_asm_body_tl_slice.inc \
- seeds/parser_asm/parser_asm_imports_slice.inc \
- seeds/parser_asm/parser_asm_diag_pipeline_slice.inc \
- seeds/parser_asm/parser_asm_skip_tl_slice.inc \
- seeds/parser_asm/parser_asm_diag_late_slice.inc \
- seeds/parser_asm/parser_asm_try_skip_allow_slice.inc \
- seeds/parser_asm/parser_asm_library_wrap_slice.inc \
- seeds/parser_asm/parser_asm_glue_tail_slice.inc \
- scripts/ensure_host_cc_seed_o.sh
+# ensure_one refreshes on seeds/parser_asm/*.inc (G.7 single body twin of former prereqs).
+# wave831: FORCE dep-thin — drop seed/.x/*.inc make-graph prereqs; try-heat owns mtime.
+# NOT physical delete. PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+parser_asm_thin_glue.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  PARSER_ASM_THIN_GLUE_CFLAGS="$(PARSER_ASM_THIN_GLUE_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
@@ -1823,7 +1793,9 @@ build_asm/bootstrap_seed_pipeline_filtered.o: pipeline_x.o build_asm/seed_host/a
 	@chmod +x scripts/filter_bootstrap_seed_pipeline_o.sh scripts/filter_o_export_against_deps.sh 2>/dev/null || true
 	@./scripts/filter_bootstrap_seed_pipeline_o.sh pipeline_x.o $@
 
-src/asm/asm_experimental_symbol_bridge.o: seeds/asm_experimental_symbol_bridge.from_x.c scripts/cc_inc_tu.sh
+# wave831: FORCE dep-thin — shell owns seed mtime (cc_inc_tu; not physical delete).
+# PLATFORM: SHARED — FORCE always invokes script (cheap mtime skip).
+src/asm/asm_experimental_symbol_bridge.o: FORCE scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh seeds/asm_experimental_symbol_bridge.from_x.c $@
 
 # 迁移到 .x：parser/typeck/codegen 独立 -E-extern 产物；pipeline_x.o 仅编排（-E-extern），seed 链 typeck_x.o/codegen_x.o。
@@ -2010,7 +1982,9 @@ bootstrap-driver-seed-x-frontend: $(XLANG_C) migrate-x-objs driver_x.o preproces
 # LSP 诊断：G-02a lsp_diag.c 已删；仅 lsp_diag_x.o + stubs。
 
 # 非产品 / xlang-c 弱占位链：仍用手写 .inc（含 weak fill_paths 等）
-src/lsp/lsp_diag_pipeline_sizes.o: seeds/lsp_diag_pipeline_sizes_weak.from_x.c scripts/cc_inc_tu.sh
+# wave831: FORCE dep-thin — shell owns seed mtime (cc_inc_tu; not physical delete).
+# PLATFORM: SHARED — FORCE always invokes script (cheap mtime skip).
+src/lsp/lsp_diag_pipeline_sizes.o: FORCE scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh seeds/lsp_diag_pipeline_sizes_weak.from_x.c $@ -I. -Iinclude -Isrc
 
 # G-02f-1 / Phase 4：产品 G05 nostub 真迁 .x（#[no_mangle] 三枚 sizeof）
@@ -2077,8 +2051,11 @@ src/lexer/lexer.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-80：cfg_eval 冷启动 stub；legacy xlang-c 直链需要独立 .o 规则。
-src/lexer/cfg_eval_bootstrap_stub.o: seeds/cfg_eval_bootstrap_stub.from_x.c src/lexer/cfg_eval_bootstrap_stub.x scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh seeds/cfg_eval_bootstrap_stub.from_x.c $@
+# wave831: FORCE dep-thin — shell owns seed+.x mtime (cc_inc_tu PEERS; not physical delete).
+# PLATFORM: SHARED — FORCE always invokes script (cheap mtime skip).
+src/lexer/cfg_eval_bootstrap_stub.o: FORCE scripts/cc_inc_tu.sh
+	@XLANG_CC_INC_TU_PEERS='src/lexer/cfg_eval_bootstrap_stub.x' \
+	  sh scripts/cc_inc_tu.sh seeds/cfg_eval_bootstrap_stub.from_x.c $@
 
 # G-02a: typeck.c 已物理删除；typeck_x.o 由 typeck.x 生成，typeck_c_module_stubs.o 提供 weak 桩。
 
@@ -2113,7 +2090,9 @@ lsp_io_gen.c: FORCE scripts/ensure_lsp_pipeline_gen.sh
 # LSP state 单独 .c，避免 lsp_main 内大数组导致 state 被覆盖
 
 # lsp_gen.c 期望 typeck_read_message 等；lsp_io -E-extern 未产出时由桩提供（G-02e-16 .inc）。
-src/lsp/typeck_lsp_io_stub.o: seeds/typeck_lsp_io_stub.from_x.c scripts/cc_inc_tu.sh
+# wave831: FORCE dep-thin — shell owns seed mtime (cc_inc_tu; not physical delete).
+# PLATFORM: SHARED — FORCE always invokes script (cheap mtime skip).
+src/lsp/typeck_lsp_io_stub.o: FORCE scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh seeds/typeck_lsp_io_stub.from_x.c $@
 
 # G-02f-11 / G-02f-440：seed_link_compat 产品 seed（thin named-weak 6 stubs）
@@ -2793,7 +2772,9 @@ build-tool:
 	@CC='$(CC)' CFLAGS='$(CFLAGS)' XLANG_BUILD_TOOL_REGEN="$${XLANG_BUILD_TOOL_REGEN:-0}" \
 	  sh scripts/build_tool.sh
 
-src/build_tool_main.o: seeds/build_tool_main.from_x.c scripts/cc_inc_tu.sh
+# wave831: FORCE dep-thin — shell owns seed mtime (cc_inc_tu; not physical delete).
+# PLATFORM: SHARED — FORCE always invokes script (cheap mtime skip).
+src/build_tool_main.o: FORCE scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh seeds/build_tool_main.from_x.c $@
 
 # 别名：与 build-tool 相同（历史 target 名）

@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · … · wave824 E_DIRS list→mk · wave825 std_x shell-primary catalog · wave826 formal_mod FORCE dep-thin · wave827 std_x FORCE dep-thin · wave828 driver_leaf FORCE dep-thin · wave829 gen.c FORCE dep-thin · wave830 ast_gen2 FORCE dep-thin · wave747–825 prior swallows · wave799 execute-gate · … · not physical delete)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · … · wave824 E_DIRS list→mk · wave825 std_x shell-primary catalog · wave826 formal_mod FORCE dep-thin · wave827 std_x FORCE dep-thin · wave828 driver_leaf FORCE dep-thin · wave829 gen.c FORCE dep-thin · wave830 ast_gen2 FORCE dep-thin · wave831 src-edge FORCE dep-thin · wave747–825 prior swallows · wave799 execute-gate · … · not physical delete)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -1722,6 +1722,57 @@ Then (later waves, not this tip):
 **Forbidden:** claim endgame-preview = ENDGAME arm / physical delete; set
 ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
 
+## wave831 src-edge FORCE dep-thin (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **有则补全** on leftover **source-prereq make-graph**
+> edges that still listed seed / `.x` / `*.inc` on thin-call leaves after heat
+> FORCE (wave791–797) and gen FORCE (wave829–830):
+>
+> 1. **`parser_asm_thin_glue.o`** (1) — drop 30+ seed/.x/*.inc prereqs; target is
+>    `FORCE scripts/ensure_host_cc_seed_o.sh` only; recipe stays try-heat
+>    (shell already owns slice mtime since wave758).
+> 2. **cc_inc_tu residual** (6) — `bootstrap_nostdlib_stubs` ·
+>    `asm_experimental_symbol_bridge` · `lsp_diag_pipeline_sizes` (weak) ·
+>    `cfg_eval_bootstrap_stub` · `typeck_lsp_io_stub` · `build_tool_main` —
+>    target `FORCE scripts/cc_inc_tu.sh`; recipe keeps seed path as script arg.
+>    **`cc_inc_tu.sh`** gains mtime skip + optional `XLANG_CC_INC_TU_PEERS`
+>    (cfg_eval `.x` peer) + `XLANG_CC_INC_TU_FORCE` (G.7 single body).
+>
+> Honesty COUNT = **7**. Residual after: migrate `*_x.o` gen.c prereqs ·
+> `pipeline_glue_types.inc` · thin edges + B2 + mk lists. Dual-end L2 required.
+> Blockers **remain**.
+
+```text
+  leaf dump:
+    PHYS_DEL_SRC_EDGE_FORCE_THIN=1
+    PHYS_DEL_SRC_EDGE_FORCE_THIN_WAVE=wave831
+    PHYS_DEL_SRC_EDGE_FORCE_THIN_COUNT=7
+    PHYS_DEL_SRC_EDGE_FORCE_THIN_CC_INC=6
+    PHYS_DEL_SRC_EDGE_FORCE_THIN_PARSER_ASM=1
+    SWALLOWED_SRC_EDGE_FORCE_THIN=1
+    PHYS_DEL_PREFLIGHT_SRC_EDGE_FORCE_THIN=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  dual-end L2: (this tip)
+  next: migrate *_x.o FORCE / pipeline_glue_types or tip Windows re-proof
+       → Mac+Ubuntu L4 → ship delete body
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_SRC_EDGE_FORCE_THIN` | `1` |
+| `PHYS_DEL_SRC_EDGE_FORCE_THIN_COUNT` | `7` |
+| `SWALLOWED_SRC_EDGE_FORCE_THIN` | `1` |
+| `SRC_EDGE_FORCE_THIN_HELPER` | `cc_inc_tu.sh+ensure_host_cc_seed_o_try-heat` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+
+**Forbidden:** claim src-edge FORCE thin = physical delete; re-list seed/.inc on
+Makefile prereq lines for these 7; `rm compiler/Makefile`; ship delete body;
+mac-only wave green.
+
 ## wave830 ast_gen2.c FORCE dep-thin (2026-07-30)
 
 > **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
@@ -1746,7 +1797,7 @@ ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
   dual-end L2 green tip: 3cd6c3f81 (Mac + Ubuntu leaf + phys-del --check;
     ast_gen2 FORCE; ensure bash; sample pin OK)
-  next: more shell-primary / thin edges / B2 residual or tip Windows re-proof
+  next: ~~src-edge FORCE thin~~ (wave831) · thin edges / B2 or tip Windows re-proof
        → Mac+Ubuntu L4 → ship delete body
 ```
 
