@@ -2855,7 +2855,11 @@ check-7.2: bootstrap-self
 # folds `0 - lit - 1` to 0 (silent wrong code, exit 1 ≠ 42). After every branch,
 # require `int64_t int_val` in struct ast_Expr or restore the linux.x86_64 seed.
 # wave739: G.7 body → scripts/ensure_lsp_pipeline_gen.sh (pin/seed/-E + i64 ABI check)
-pipeline_gen.c:
+# wave837: FORCE dep-thin — empty prereq was last gen.c file-target residual after
+# wave829 (17 *_gen.c FORCE) + wave834 (bootstrap-pipeline FORCE). Shell owns
+# pin/seed/FORCE_REGEN + always-run i64 ABI (make no longer skips when file exists).
+# PLATFORM: SHARED — FORCE always invokes ensure (cheap pin skip). NOT physical delete.
+pipeline_gen.c: FORCE scripts/ensure_lsp_pipeline_gen.sh
 	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
 	  XLANG_C="$(XLANG_C)" XLANG_X="$(XLANG_X)" \
 	  bash scripts/ensure_lsp_pipeline_gen.sh pipeline

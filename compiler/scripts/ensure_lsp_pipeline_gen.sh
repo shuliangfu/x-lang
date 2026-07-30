@@ -32,6 +32,8 @@
 # PLATFORM: SHARED shell orchestration; product seed pins are host-portable C.
 # wave829 (G.7 有则补全): FORCE dep-thin — Makefile prereqs FORCE+script only;
 #   shell owns pin/seed/FORCE_REGEN policy. NOT physical delete.
+# wave837 (G.7 有则补全): pipeline_gen.c file target also FORCE+script (was empty
+#   prereq; sibling of wave834 bootstrap-pipeline phony + wave829 17 gen leaves).
 # Wave: 739 Track MG · pairs with Makefile thin leaves + xbuild lsp/pipeline-gen.
 
 set -euo pipefail
