@@ -3843,11 +3843,15 @@ refresh_bstrict_link_variants() {
 #   partial is thin/stale; ELF uses them as U-fill too. Order: partial then stubs.
 GEN_DRIVER_BSTRICT_COMPANIONS="src/runtime_io_abi.o $BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BUILD_DIR/seed_host/asm_full_link_stubs.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
 
-# gen_driver 回退链：pipeline_x.o / runtime_driver 须 parser/lexer/codegen X + driver 子命令 + orchestration（Darwin 勿仅 SEED parser.o）。
+# gen_driver fallback: pipeline_x.o / runtime_driver need parser/lexer/codegen X + driver
+# subcmds + orchestration (Darwin: not seed parser.o alone).
 # PLATFORM: SHARED — do NOT put runtime_driver_strict_glue_stubs.o here. Stubs go at
 #   link END (GEN_DRIVER_GLUE_SUFFIX) so PE --allow-multiple-definition FIRST-wins
 #   keeps real pipeline_x / parser_x / typeck_x (Makefile DRIVER_SEED_GLUE_SUFFIX /
 #   g05 _GLUE_SUFFIX). Early stubs shadowed driver_get_module_num_funcs → num_funcs=0.
+# PLATFORM: WINDOWS | PE — also link GEN_DRIVER_X_PIPELINE_COMPANIONS (parser_x.o)
+#   BEFORE GEN_DRIVER_BSTRICT_COMPANIONS: parser_asm_parse_expr_link.o used to emit
+#   strong empty parser_parse_into* when XLANG_WEAK is empty; first-wins → XP003.
 GEN_DRIVER_X_PIPELINE_COMPANIONS="parser_x.o lexer_x.o codegen_x.o x_frontend_link_alias.o driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o pipeline_bootstrap_orchestration.o"
 
 # 与 Makefile bootstrap-driver-seed / relink-xlang 对齐：pipeline_x.o 经 glue 引用的 backend 桥与 check/fmt C 实现。
@@ -5990,8 +5994,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   "$GEN_O/pipeline_x.o" \
   "$GEN_O/preprocess_x.o" \
   $GEN_DRIVER_TYPECK_COMPANIONS \
-  $GEN_DRIVER_BSTRICT_COMPANIONS \
   $GEN_DRIVER_X_PIPELINE_COMPANIONS \
+  $GEN_DRIVER_BSTRICT_COMPANIONS \
   "$GEN_O/lsp_x.o" \
   "$GEN_O/lsp_io_x.o" \
   "$GEN_O/lsp_io_std_heap_x.o" \
@@ -6067,8 +6071,8 @@ else
   "$GEN_O/pipeline_x.o" \
   "$GEN_O/preprocess_x.o" \
   $GEN_DRIVER_TYPECK_COMPANIONS \
-  $GEN_DRIVER_BSTRICT_COMPANIONS \
   $GEN_DRIVER_X_PIPELINE_COMPANIONS \
+  $GEN_DRIVER_BSTRICT_COMPANIONS \
   "$GEN_O/lsp_x.o" \
   "$BUILD_DIR/typeck_lsp_io_stub.o" \
   "$GEN_O/lsp_io_x.o" \
