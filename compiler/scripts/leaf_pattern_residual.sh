@@ -35,6 +35,7 @@
 #            (Makefile include only; NOT physical delete; thin edges + other lists remain)
 #   wave817: B7B PIPELINE_X_* + PIPELINE_LIBS list authority → mk/pipeline_x_objs.mk
 #   wave818: B7B DRIVER_SEED mode picks (SUPPORT_EXTRA/RUNTIME_O/…) → mk/driver_seed_mode_objs.mk
+#   wave819: B7B seed link picks (MAIN_LINK/LEXER_AST/LSP_DIAG/GLUE/…) → mk/driver_seed_link_picks.mk
 #            (Makefile include only; NOT physical delete; thin edges + other lists remain)
 #   wave781: B3 LSP satellite hybrid body → try-lsp-sat-prefer
 #   wave782: B4 gen_c_to_o bootstrap → try-gen-c-to-o
@@ -476,6 +477,19 @@ SWALLOWED_B7B_SEED_MODE_LIST=1
 B7B_SEED_MODE_LIST_SWALLOWED=1
 B7B_SEED_MODE_LIST_MK=mk/driver_seed_mode_objs.mk
 B7B_SEED_MODE_LIST_WAVE=wave818
+# wave819: B7B seed link picks → mk/driver_seed_link_picks.mk (G.7).
+# MAIN_LINK_O/REBUILD/FLAGS + LEXER/AST + LSP_DIAG + PREPROCESS + GLUE_SUFFIX.
+# NOT physical delete — thin edges + OBJS_CORE / other B7B lists remain.
+# COUNT = product RELINK_XLANG_GLUE_SUFFIX multi-token inventory (2).
+PHYS_DEL_B7B_SEED_LINK_PICKS_LIST=1
+PHYS_DEL_B7B_SEED_LINK_PICKS_LIST_WAVE=wave819
+PHYS_DEL_B7B_SEED_LINK_PICKS_LIST_COUNT=2
+PHYS_DEL_B7B_SEED_LINK_PICKS_LIST_VIA=mk_driver_seed_link_picks
+PHYS_DEL_B7B_SEED_LINK_PICKS_LIST_NOTE=list_authority_mk_include_only_thin_edges_remain
+SWALLOWED_B7B_SEED_LINK_PICKS_LIST=1
+B7B_SEED_LINK_PICKS_LIST_SWALLOWED=1
+B7B_SEED_LINK_PICKS_LIST_MK=mk/driver_seed_link_picks.mk
+B7B_SEED_LINK_PICKS_LIST_WAVE=wave819
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -625,9 +639,9 @@ PHYS_DEL_PREFLIGHT_B7D_G05=1
 PHYS_DEL_PREFLIGHT_B7A_COLD_0MAKE=1
 PHYS_DEL_PREFLIGHT_B7B_SHELL_CATALOG=1
 PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113
-# wave811–817: std_x / formal_mod / STD_AND_PANIC / driver_leaf / archaeology /
-# DRIVER_SUBCMD / PIPELINE_X / SEED_MODE list swallowed; blocker name kept (thin edges +
-# B2 ensure + remaining B7B mk lists still form make graph).
+# wave811–819: std_x / formal_mod / STD_AND_PANIC / driver_leaf / archaeology /
+# DRIVER_SUBCMD / PIPELINE_X / SEED_MODE / SEED_LINK_PICKS list swallowed; blocker name kept
+# (thin edges + B2 ensure + remaining B7B mk lists still form make graph).
 PHYS_DEL_PREFLIGHT_BLOCKERS=makefile_thin_call_edges|b7b_lists_in_mk|std_core_product_make_graph
 PHYS_DEL_PREFLIGHT_STD_X_HYBRID_BODY_SWALLOWED=1
 PHYS_DEL_PREFLIGHT_FORMAL_MOD_SHELL_PRIMARY=1
@@ -637,8 +651,9 @@ PHYS_DEL_PREFLIGHT_ARCH_HOST_PICK_PHONY=1
 PHYS_DEL_PREFLIGHT_B7B_DRIVER_SUBCMD_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_PIPELINE_X_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_SEED_MODE_LIST=1
+PHYS_DEL_PREFLIGHT_B7B_SEED_LINK_PICKS_LIST=1
 PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
+PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_PREFLIGHT_WIN_GATE_HOST=MSYS2_windows-server_dual_boot_reboot_required
 PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
@@ -1251,6 +1266,9 @@ else
   if ! grep -qE 'wave818|SEED_MODE|driver_seed_mode_objs|SUPPORT_EXTRA' "$DOC_REL"; then
     bad "$DOC_REL must document wave818 B7B DRIVER_SEED mode list → mk"
   fi
+  if ! grep -qE 'wave819|SEED_LINK_PICKS|driver_seed_link_picks|MAIN_LINK' "$DOC_REL"; then
+    bad "$DOC_REL must document wave819 B7B seed link picks → mk"
+  fi
   note "doc $DOC_REL present"
 fi
 
@@ -1802,6 +1820,21 @@ if ! grep -q 'SWALLOWED_B7B_SEED_MODE_LIST=1' <<<"$_out"; then
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_B7B_SEED_MODE_LIST=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_B7B_SEED_MODE_LIST=1 (wave818)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_SEED_LINK_PICKS_LIST=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_SEED_LINK_PICKS_LIST=1 (wave819)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_SEED_LINK_PICKS_LIST_WAVE=wave819' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_SEED_LINK_PICKS_LIST_WAVE=wave819"
+fi
+if ! grep -q 'PHYS_DEL_B7B_SEED_LINK_PICKS_LIST_COUNT=2' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_SEED_LINK_PICKS_LIST_COUNT=2 (wave819)"
+fi
+if ! grep -q 'SWALLOWED_B7B_SEED_LINK_PICKS_LIST=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_B7B_SEED_LINK_PICKS_LIST=1 (wave819)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_B7B_SEED_LINK_PICKS_LIST=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_B7B_SEED_LINK_PICKS_LIST=1 (wave819)"
 fi
 if ! grep -q 'PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813"
@@ -2475,6 +2508,81 @@ if grep -nE 'catalog_set DRIVER_SEED_RUNTIME_O "' "$_cat_sh" 2>/dev/null | grep 
   bad "catalog must not hardcode DRIVER_SEED_RUNTIME_O (wave818 dual authority)"
 fi
 note "B7B DRIVER_SEED mode picks list authority in mk (SUPPORT_EXTRA 3; wave818; not physical delete)"
+# wave819: B7B seed link picks list authority in mk; Makefile include only.
+_LP_MK="compiler/mk/driver_seed_link_picks.mk"
+if [ ! -f "$_LP_MK" ]; then
+  bad "missing $_LP_MK (wave819 B7B SEED_LINK_PICKS list authority)"
+fi
+if ! grep -qE '^MAIN_LINK_O\s*=' "$_LP_MK"; then
+  bad "$_LP_MK must define MAIN_LINK_O (wave819)"
+fi
+if ! grep -qE '^LSP_DIAG_LINK_O\s*=' "$_LP_MK"; then
+  bad "$_LP_MK must define LSP_DIAG_LINK_O (wave819)"
+fi
+if ! grep -qE '^RELINK_XLANG_GLUE_SUFFIX\s*=' "$_LP_MK"; then
+  bad "$_LP_MK must define RELINK_XLANG_GLUE_SUFFIX (wave819)"
+fi
+# Product-default RELINK_XLANG_GLUE_SUFFIX multi-token count (fixed 2 .o).
+_lp_n=$(awk '
+  /^RELINK_XLANG_GLUE_SUFFIX[[:space:]]*=/ {
+    line=$0
+    sub(/^[^=]*=[[:space:]]*/, "", line)
+    gsub(/\\/, "", line)
+    c=0
+    n=split(line, a, /[[:space:]]+/)
+    for (i=1;i<=n;i++) if (a[i] ~ /\.o$/) c++
+    last=c
+  }
+  END { print last+0 }
+' "$_LP_MK")
+if [ "${_lp_n:-0}" -ne 2 ]; then
+  bad "wave819 expected product RELINK_XLANG_GLUE_SUFFIX count 2 in mk, got ${_lp_n:-0}"
+fi
+if ! grep -qE 'include[[:space:]]+mk/driver_seed_link_picks\.mk' "$MF"; then
+  bad "Makefile must include mk/driver_seed_link_picks.mk (wave819)"
+fi
+# Forbid dual authority: inline re-list of product MAIN_LINK / GLUE / LSP inventory.
+if grep -nE '^MAIN_LINK_O[[:space:]]*=' "$MF" 2>/dev/null | grep -qE 'crt0_|main_driver\.o'; then
+  bad "Makefile must not re-list MAIN_LINK_O inline (wave819 dual authority)"
+else
+  note "Makefile MAIN_LINK_O has no dual inline product list (wave819)"
+fi
+if grep -nE '^RELINK_XLANG_GLUE_SUFFIX[[:space:]]*=' "$MF" 2>/dev/null | grep -qE 'pipeline_glue_strict_minimal\.o'; then
+  bad "Makefile must not re-list RELINK_XLANG_GLUE_SUFFIX inline (wave819 dual authority)"
+fi
+if grep -nE '^LSP_DIAG_LINK_O[[:space:]]*=' "$MF" 2>/dev/null | grep -qE 'lsp_diag\.o'; then
+  bad "Makefile must not re-list LSP_DIAG_LINK_O inline (wave819 dual authority)"
+fi
+# Consumers: composites expand $(MAIN_LINK_O)/LEXER/AST; Makefile recipes use GLUE/MAIN_FLAGS.
+_COMP_MK="compiler/mk/driver_seed_composites.mk"
+if [ ! -f "$_COMP_MK" ]; then
+  bad "missing $_COMP_MK (wave819 composites consumer of link picks)"
+fi
+if ! grep -qE '\$\(MAIN_LINK_O\)' "$_COMP_MK"; then
+  bad "composites must still expand \$(MAIN_LINK_O) (wave819 consumers)"
+fi
+if ! grep -qE '\$\(LSP_DIAG_LINK_O\)' "$_COMP_MK"; then
+  bad "composites must still expand \$(LSP_DIAG_LINK_O) (wave819 consumers)"
+fi
+if ! grep -qE '\$\(MAIN_LINK_FLAGS\)' "$MF"; then
+  bad "Makefile must still consume \$(MAIN_LINK_FLAGS) (wave819 consumers)"
+fi
+if ! grep -qE '\$\(RELINK_XLANG_GLUE_SUFFIX\)|\$\(DRIVER_SEED_GLUE_SUFFIX\)' "$MF"; then
+  bad "Makefile must still consume \$(RELINK_XLANG_GLUE_SUFFIX) or \$(DRIVER_SEED_GLUE_SUFFIX) (wave819 consumers)"
+fi
+# Catalog must parse mk (no hardcode second inventory).
+_cat_sh="$ROOT/compiler/scripts/driver_seed_obj_catalog.sh"
+[ -f "$_cat_sh" ] || _cat_sh="scripts/driver_seed_obj_catalog.sh"
+if ! grep -q 'mk/driver_seed_link_picks.mk' "$_cat_sh"; then
+  bad "driver_seed_obj_catalog.sh must parse mk/driver_seed_link_picks.mk (wave819)"
+fi
+if grep -nE 'catalog_set MAIN_LINK_O "' "$_cat_sh" 2>/dev/null | grep -qE 'crt0_|main_driver'; then
+  bad "catalog must not hardcode MAIN_LINK_O (wave819 dual authority)"
+fi
+if grep -nE 'catalog_set LSP_DIAG_LINK_O "' "$_cat_sh" 2>/dev/null | grep -q 'lsp_diag'; then
+  bad "catalog must not hardcode LSP_DIAG_LINK_O (wave819 dual authority)"
+fi
+note "B7B seed link picks list authority in mk (GLUE_SUFFIX 2; wave819; not physical delete)"
 
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
@@ -3038,5 +3146,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747–818: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave812 formal_mod ensure 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave815 archaeology host-pick phonies 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3; Makefile still present; delete body deferred)"
+echo "leaf_pattern_residual: CHECK OK (wave747–819: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave812 formal_mod ensure 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave815 archaeology host-pick phonies 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2; Makefile still present; delete body deferred)"
 exit 0

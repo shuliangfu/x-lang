@@ -1722,6 +1722,48 @@ Then (later waves, not this tip):
 **Forbidden:** claim endgame-preview = ENDGAME arm / physical delete; set
 ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
 
+## wave819 B7B seed link picks → mk (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **有则补全** on B7B product list residual —
+> seed **link picks** `MAIN_LINK_O` / `MAIN_LINK_REBUILD` / `MAIN_LINK_FLAGS`,
+> `LEXER_LINK_O` / `AST_LINK_O`, `LSP_DIAG_LINK_O`, `PREPROCESS_LINK_O`,
+> `RELINK_XLANG_GLUE_SUFFIX` / `DRIVER_SEED_GLUE_SUFFIX` (product GLUE **2**)
+> move into `compiler/mk/driver_seed_link_picks.mk`. Makefile **include only**
+> (no dual inline re-list). `driver_seed_obj_catalog.sh` shell-parses the mk
+> (drops MAIN_LINK / LEXER / LSP hardcodes). Composites still expand
+> `$(MAIN_LINK_O)` / `$(LSP_DIAG_LINK_O)` into `DRIVER_SEED_OBJS` / `PREREQS`.
+> Dual-end L2 required. Blockers **remain**
+> (`makefile_thin_call_edges|b7b_lists_in_mk|std_core_product_make_graph`).
+
+```text
+  leaf dump:
+    PHYS_DEL_B7B_SEED_LINK_PICKS_LIST=1
+    PHYS_DEL_B7B_SEED_LINK_PICKS_LIST_WAVE=wave819
+    PHYS_DEL_B7B_SEED_LINK_PICKS_LIST_COUNT=2
+    SWALLOWED_B7B_SEED_LINK_PICKS_LIST=1
+    PHYS_DEL_PREFLIGHT_B7B_SEED_LINK_PICKS_LIST=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  dual-end L2: (tip after commit)
+  next: more shell-primary / lists residual or tip Windows re-proof
+       → Mac+Ubuntu L4 → ship delete body
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_B7B_SEED_LINK_PICKS_LIST` | `1` |
+| `PHYS_DEL_B7B_SEED_LINK_PICKS_LIST_COUNT` | `2` (product RELINK_XLANG_GLUE_SUFFIX) |
+| `SWALLOWED_B7B_SEED_LINK_PICKS_LIST` | `1` |
+| `B7B_SEED_LINK_PICKS_LIST_MK` | `mk/driver_seed_link_picks.mk` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+
+**Forbidden:** claim SEED_LINK_PICKS list→mk = physical delete; dual inline
+`MAIN_LINK_O` / `GLUE_SUFFIX` / `LSP_DIAG_LINK_O` inventory in Makefile or
+catalog hardcode; `rm compiler/Makefile`; ship delete body; mac-only wave green.
+
 ## wave818 B7B DRIVER_SEED mode list → mk (2026-07-30)
 
 > **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.

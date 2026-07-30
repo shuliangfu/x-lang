@@ -182,47 +182,21 @@ catalog_seed_host_defaults() {
   catalog_set UNAME_M "$uname_m"
   catalog_set XLANG_IS_WIN_HOST "$is_win"
 
-  # Product-default link picks that still live outside mode mk (wave818).
-  # PLATFORM: SHARED — must match make export under default flags; --check parity.
-  catalog_set PREPROCESS_LINK_O ""
-  catalog_set DRIVER_SEED_PREPROCESS_REBUILD ""
   # wave818: DRIVER_SEED_RUNTIME_O / SUPPORT_EXTRA / FRONTEND_EXTRA /
   # RUNTIME_REBUILD / LINK_FLAGS / C_FRONTEND_LEGACY → mk/driver_seed_mode_objs.mk.
+  # wave819: MAIN_LINK / LEXER_AST / LSP_DIAG / PREPROCESS / GLUE → mk/driver_seed_link_picks.mk.
   # Do not hardcode those lists here — catalog_parse_mk owns them (after env flags).
   catalog_set XLANG_LEGACY_C_FRONTEND "${XLANG_LEGACY_C_FRONTEND:-}"
   catalog_set XLANG_NO_C_SEED_LINK "${XLANG_NO_C_SEED_LINK:-}"
-  catalog_set LEXER_LINK_O ""
-  catalog_set AST_LINK_O ""
-  catalog_set LSP_DIAG_LINK_O "src/lsp/lsp_diag.o"
+  catalog_set XLANG_LEGACY_MAIN_C "${XLANG_LEGACY_MAIN_C:-}"
+  catalog_set XLANG_LEGACY_SEED_LEXER_AST "${XLANG_LEGACY_SEED_LEXER_AST:-}"
   catalog_set XLANG_C "xlang-c"
   # wave816: DRIVER_SUBCMD_* list authority → mk/driver_subcmd_objs.mk (G.7).
   # Do not hardcode DRIVER_SUBCMD_OBJS / GEN here — catalog_parse_mk owns them.
   # wave817: PIPELINE_X_* + PIPELINE_LIBS → mk/pipeline_x_objs.mk (G.7).
   # Do not hardcode PIPELINE_LIBS / PIPELINE_X_* here — catalog_parse_mk owns them.
   # wave818: DRIVER_SEED mode picks → mk/driver_seed_mode_objs.mk (G.7).
-
-  # MAIN_LINK_O / MAIN_LINK_REBUILD — mirror Makefile default crt0 pick.
-  # PLATFORM: LINUX x86_64 · MACOS arm64/x86_64 · WINDOWS mingw · else main_driver.
-  local main_o="src/main_driver.o"
-  if [ "$is_win" = "1" ]; then
-    main_o="src/asm/crt0_mingw.o"
-  else
-    case "$uname_s" in
-      Linux)
-        case "$uname_m" in
-          x86_64|amd64) main_o="src/asm/crt0_x86_64.o" ;;
-        esac
-        ;;
-      Darwin)
-        case "$uname_m" in
-          arm64|aarch64) main_o="src/asm/crt0_arm64.o" ;;
-          x86_64|amd64) main_o="src/asm/crt0_darwin_x86_64.o" ;;
-        esac
-        ;;
-    esac
-  fi
-  catalog_set MAIN_LINK_O "$main_o"
-  catalog_set MAIN_LINK_REBUILD "$main_o"
+  # wave819: seed link picks → mk/driver_seed_link_picks.mk (G.7).
 }
 
 # Parse a single .mk file: simple KEY = value and ifeq ($(VAR),VAL)/else/endif.
@@ -384,16 +358,19 @@ catalog_shell_dump() {
   catalog_store_init
   catalog_seed_host_defaults
   # Include order matches make dependency of lists
-  # (user_asm → pipeline_x → r_lists → subcmd → mode → export → composites).
+  # (user_asm → pipeline_x → r_lists → subcmd → mode → link_picks → export → composites).
   # wave816: driver_subcmd_objs.mk before composites (DRIVER_SUBCMD_OBJS/GEN).
   # wave817: pipeline_x_objs.mk after user_asm (USER_ASM_LINK for LINK_OBJS;
   #          PIPELINE_LIBS before composites that expand it).
   # wave818: driver_seed_mode_objs.mk before composites (SUPPORT_EXTRA / RUNTIME_O).
+  # wave819: driver_seed_link_picks.mk after r_lists (ASM_GLUE for GLUE_SUFFIX)
+  #          and before composites (MAIN_LINK / LEXER / AST expand).
   catalog_parse_mk "mk/user_asm_seed_objs.mk"
   catalog_parse_mk "mk/pipeline_x_objs.mk"
   catalog_parse_mk "mk/driver_seed_r_lists.mk"
   catalog_parse_mk "mk/driver_subcmd_objs.mk"
   catalog_parse_mk "mk/driver_seed_mode_objs.mk"
+  catalog_parse_mk "mk/driver_seed_link_picks.mk"
   catalog_parse_mk "mk/driver_seed_export_lists.mk"
   catalog_parse_mk "mk/driver_seed_composites.mk"
   catalog_expand_all_stored

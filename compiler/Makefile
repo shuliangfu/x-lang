@@ -1898,12 +1898,6 @@ src/asm/simd_loop.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # bootstrap-driver-seed：pipeline_x.o 为 -E-extern 编排；parser/lexer/typeck/codegen *_x.o 分 TU。
 # C-06 v1 默认：不链 C parser/typeck/codegen.o（XLANG_LEGACY_C_FRONTEND=1 恢复双轨）。
 # seed 链：lexer_x.o + x_frontend_link_alias.o（X 词法）；默认不链 C lexer.o（E-03 v2）。
-# G-02a: preprocess.c 已物理删除；XLANG_LEGACY_PREPROCESS_C 路径已死（preprocess_for_driver.o 无法编译）。
-# runtime preprocess() 走 preprocess.x（preprocess_x.o）；PREPROCESS_LINK_O 恒空。
-PREPROCESS_LINK_O =
-DRIVER_SEED_PREPROCESS_REBUILD =
-# parser labeled 名写入（parser_x.o / ast_pool_l5_bridge 依赖，不可缺链）。
-AST_POOL_L5_BRIDGE_O = src/runtime_driver_strict_glue_stubs.o
 # wave818 B7B: seed mode picks → mk/driver_seed_mode_objs.mk (G.7; not physical delete).
 # Makefile keeps include + consumers (composites / seed link / rebuild);
 # no dual DRIVER_SEED_SUPPORT_EXTRA / RUNTIME_O inventory.
@@ -1934,92 +1928,11 @@ else
 LD_R_MULTIDEF_FLAGS = --allow-multiple-definition
 ASM_GLUE_DUP_LDFLAGS = -Wl,--allow-multiple-definition
 endif
-RELINK_XLANG_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o
-DRIVER_SEED_GLUE_PREFIX =
-# Why: src/runtime_driver_strict_glue_stubs.o placed at link END (after glue) so
-#      real impls in pipeline_x.o / parser_x.o / typeck_x.o / codegen_x.o link
-#      FIRST and win on Windows PE (--allow-multiple-definition: FIRST wins).
-#      Stubs only fill in symbols with no real impl (parse, lexer_new,
-#      typeck_module for the deleted C frontend, referenced by lsp_diag.o).
-#      On ELF/Darwin XLANG_WEAK=weak so order is a no-op there.
-#      2026-07-20: RELINK_XLANG_GLUE_SUFFIX was missing stubs .o (only had
-#      pipeline_glue_strict_minimal.o) → `make xlang-x` failed with undefined
-#      _parse / _lexer_new / _typeck_module / _pipeline_block_labeled_set_names
-#      on macOS arm64. Fixed by adding src/runtime_driver_strict_glue_stubs.o
-#      to RELINK_XLANG_GLUE_SUFFIX (mirrors DRIVER_SEED_GLUE_SUFFIX).
-#      Safe: stubs weak defs (parse/lexer_new/typeck_module) are overridden by
-#      real impls; strong stub-only defs (pipeline_block_labeled_set_names)
-#      have no real impl so no duplicate. PLATFORM: SHARED.
-# PLATFORM: SHARED — Windows-critical; no-op on ELF/Darwin.
-DRIVER_SEED_GLUE_SUFFIX = $(ASM_GLUE_STANDALONE_O) src/runtime_driver_strict_glue_stubs.o
-# LSP_DIAG_LINK_O：fmt 命令依赖 xlang_format_x_document 的真实实现，必须链入 lsp_diag.o
-# 而非 lsp_diag_stubs_no_c.o（no-op stub 会让 fmt 静默无操作）。
-# 历史：E-02 v1 误注 "lsp_diag.c 已删" 但文件实存；链接 stub 导致 fmt 不生效。
-# 修复日期：2026-07-04。
-LSP_DIAG_LINK_O = src/lsp/lsp_diag.o
-# E-03 v2 lexer/ast：seed-compat / LEGACY 链 C lexer.o + ast_seed.o；XLANG_NO_C_SEED_LINK=1 时不链。
-ifeq ($(XLANG_LEGACY_C_FRONTEND),1)
-LEXER_LINK_O = src/lexer/lexer.o
-AST_LINK_O = src/ast/ast_seed.o
-else ifeq ($(XLANG_LEGACY_SEED_LEXER_AST),1)
-LEXER_LINK_O = src/lexer/lexer.o
-AST_LINK_O = src/ast/ast_seed.o
-else ifeq ($(XLANG_NO_C_SEED_LINK),1)
-LEXER_LINK_O =
-AST_LINK_O =
-else
-# G-02a：默认 no_c 模式；不链 C lexer/ast（X pipeline 自洽）。
-LEXER_LINK_O =
-AST_LINK_O =
-endif
-# E-04 v19/v20：Linux / Darwin bootstrap 默认 crt0 替代 main_driver.o（driver_x.o 导出 main_entry）。
-# XLANG_LEGACY_MAIN_C=1 或非 crt0 平台仍链 main_driver.o（main.c 薄桩 → xlang_forward_main_to_main_entry）。
-ifeq ($(XLANG_LEGACY_MAIN_C),1)
-MAIN_LINK_O = src/main_driver.o
-MAIN_LINK_REBUILD = src/main_driver.o
-MAIN_LINK_FLAGS =
-else ifeq ($(UNAME_S),Linux)
-ifeq ($(UNAME_M),x86_64)
-MAIN_LINK_O = src/asm/crt0_x86_64.o
-MAIN_LINK_REBUILD = src/asm/crt0_x86_64.o
-# 与 build_xlang_asm.sh bootstrap_entry_ldflags 一致：crt0 链须 -no-pie，否则 -o 链接偶发 SIGSEGV
-MAIN_LINK_FLAGS = -no-pie -e _start -nostartfiles
-else
-MAIN_LINK_O = src/main_driver.o
-MAIN_LINK_REBUILD = src/main_driver.o
-MAIN_LINK_FLAGS =
-endif
-else ifeq ($(UNAME_S),Darwin)
-ifneq (,$(filter arm64 aarch64,$(UNAME_M)))
-MAIN_LINK_O = src/asm/crt0_arm64.o
-MAIN_LINK_REBUILD = src/asm/crt0_arm64.o
-MAIN_LINK_FLAGS = -e _start -nostartfiles
-else ifneq (,$(filter x86_64 amd64,$(UNAME_M)))
-MAIN_LINK_O = src/asm/crt0_darwin_x86_64.o
-MAIN_LINK_REBUILD = src/asm/crt0_darwin_x86_64.o
-MAIN_LINK_FLAGS = -e _start -nostartfiles
-else
-MAIN_LINK_O = src/main_driver.o
-MAIN_LINK_REBUILD = src/main_driver.o
-MAIN_LINK_FLAGS =
-endif
-else ifeq ($(XLANG_IS_WIN_HOST),1)
-MAIN_LINK_O = src/asm/crt0_mingw.o
-MAIN_LINK_REBUILD = src/asm/crt0_mingw.o
-# PLATFORM: WINDOWS — PE stack reserve 256MiB (matches pthread path stack_sz).
-# winpthreads crash with 256MiB posix_memalign'd custom stack during
-# pthread_join cleanup; bootstrap_nostdlib_pthread_is_stub()=1 on Windows
-# bypasses pthread, running X pipeline on main thread. But MSYS default
-# main thread stack is ~2MiB (ulimit -s = 2032), causing intermittent
-# stack overflow (exit=1) during deep parse_into/typeck_x_ast/codegen_x_ast
-# recursion. driver_bump_stack_limit is a no-op on Windows (#ifndef _WIN32).
-# PE --stack sets virtual address space reserve; OS pager commits on demand.
-MAIN_LINK_FLAGS = -Wl,--stack,268435456
-else
-MAIN_LINK_O = src/main_driver.o
-MAIN_LINK_REBUILD = src/main_driver.o
-MAIN_LINK_FLAGS =
-endif
+# wave819 B7B: seed link picks → mk/driver_seed_link_picks.mk (G.7; not physical delete).
+# MAIN_LINK / LEXER_AST / LSP_DIAG / PREPROCESS / GLUE_SUFFIX authority in mk only.
+# Why stubs at GLUE_SUFFIX link END: PE first-wins multidef; real impls before stubs.
+# PLATFORM: SHARED — Windows-critical; no-op on ELF/Darwin weak.
+include mk/driver_seed_link_picks.mk
 # wave728 · 11.0.4: DRIVER_SEED_OBJS / X_FRONTEND / LINK_BASE / PREREQS composites
 # live in mk/driver_seed_composites.mk (include after DRIVER_SUBCMD_OBJS + USER_ASM).
 # Do not re-assign here (G.7). Recipes above expand vars at recipe time.
