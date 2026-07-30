@@ -69,7 +69,7 @@
 | `bootstrap-driver-seed` | ~2995 | **shell 编排** + shell ensure_prereqs（wave744）+ 薄叶子 | `xbuild bootstrap` | 🟡 wave717–803：… → **B7A heat dep-thin FORCE 113**（wave791–797 · orch closed · `HEAT_RESIDUAL=0`）· **preflight wave798** · **execute-gate wave799** · **proof harness wave800** · **status-flip-preview wave801** · **status-flip-apply harness wave802** · **commit-honesty wave803**；residual **物理删**（Windows 绿 + STATUS flip 后） | L4 必经；列表 mk catalog shell 主路径；冷 rebuild residual_make=0；heat shell 可 `xbuild heat-o`；`xbuild phys-del-gate` 硬拒删 + proof + flip-preview/apply/honesty；11.3.1 物理删仍 ⬜ |
 | `bootstrap-driver-bstrict` | ~3107 | **shell** `bootstrap_driver_bstrict.sh`；FULL=1 仍 make 入口 | `xbuild bstrict-build` | 🟡 wave719 体 shell；refresh 仍 make | 非日常 |
 | `test` / `test_c` / `test_x` | ~1685 | **shell** `run_compiler_tests.sh` | `xbuild test` | 🟢 wave720 体 shell；prereq 仍 make 图 | 嵌套 run-all 可 make |
-| `bootstrap-verify` / `check-7.2-bstrict` | ~3320 | **shell** `bootstrap_verify_bstrict.sh` | `xbuild verify` | 🟢 wave720 体 shell；prereq bstrict 图 | 阶段2 仍脚本内 make |
+| `bootstrap-verify` / `check-7.2-bstrict` | ~3320 | **shell** `bootstrap_verify_bstrict.sh` | `xbuild verify` | 🟢 wave720 体 shell · wave880 thin `@sh` only（MAKELEVEL ENSURE） | 阶段2 仍脚本内 make |
 | `bootstrap-driver-bstrict-relink` | 3179 | Makefile | `xbuild bstrict-relink` | ⬜ make |  |
 | `bootstrap-driver` | 3193 | Makefile 历史 | `xbuild bootstrap-driver` | ⬜ make | 考古/过渡 |
 | `bootstrap-driver-bstrict-windows` | 3196 | Makefile WINDOWS | `xbuild bootstrap-win` | ⬜ Makefile | PLATFORM: WINDOWS |
@@ -79,16 +79,16 @@
 | `bootstrap-pipeline` | 3359 | Makefile -E pipeline | `xbuild bootstrap-pipeline` | ⬜ Makefile | gen 路径 |
 | `bootstrap_xlangc` | 716 | **shell** `select_bootstrap_xlangc.sh` | `xbuild bootstrap_xlangc` | 🟢 wave838 FORCE + select shell | 冷启动种子机 |
 | `xlang-c` / `$(XLANG_C)`（默认） | ~731 | **shell** `ensure_xlang_c.sh` | `xbuild xlang-c` | 🟢 wave876 体 shell；SKIP_SUBSCRIPT soft-skip + cp seed；prereq `bootstrap_xlangc` 仍 make 图 | G-06 默认 alias |
-| `xlang-c`（LEGACY） | ~2396 | **shell** `legacy_xlang_c_link.sh` | `xbuild xlang-c` + `XLANG_LEGACY_C_FRONTEND=1` | 🟢 wave858 体 shell | 考古 C 前端 |
+| `xlang-c`（LEGACY） | ~2396 | **shell** `legacy_xlang_c_link.sh` | `xbuild xlang-c` + `XLANG_LEGACY_C_FRONTEND=1` | 🟢 wave858 体 shell · wave880 thin `@bash` only（无 MAKE/CC/OUT） | 考古 C 前端 |
 | `build-tool` | ~3190 | **shell** `scripts/build_tool.sh` | `xbuild build-tool` | 🟢 wave718 shell · wave879 thin `@bash` only（无 multi-token CC/REGEN） | Makefile 薄转调；xlang-build 直调 |
 | `first-time` | 3181 | shell build-tool + g05 | `xbuild first-time` | 🟡 wave718 build-tool shell；g05 日常 |  |
 | `build-via-tool` | ~3001 | **shell** `build_via_tool.sh` | `xbuild build` | 🟢 wave874 体 shell；`build-tool` prereq 仍 make 图 | 与 G-05 / xbuild run_build_tool 同权威 |
 | `xlang-x` | 3125 | Makefile 工程轨 | `xbuild xlang-x` | ⬜ Makefile | 非产品默认 |
-| `xlang-no-c-frontend` | 3112 | Makefile | `xbuild product-frontend` | ⬜ Makefile | G-06 |
+| `xlang-no-c-frontend` | 3112 | **shell** `xlang_no_c_frontend.sh` | `xbuild product-frontend` | 🟢 wave847 shell · wave880 thin `@bash` only（无 MAKE/CC/OUT） | G-06 |
 | `clean` | 1675 | **shell** `scripts/clean_compiler.sh` | `xbuild clean` | 🟢 wave718 shell · wave879 thin `@sh` only（无 multi-token TARGET/XLANG_C） | Makefile 薄转调；L4 全擦可直调脚本 |
-| `test` | 1707 | Makefile → run-all | `xbuild test` | ⬜ make → tests | 11.2.3 |
-| `test_c` | 1696 | Makefile | `xbuild test-c` | ⬜ Makefile | 考古 C 轨 |
-| `test_x` | 1701 | Makefile | `xbuild test-x` | ⬜ Makefile |  |
+| `test` | 1707 | Makefile → run-all | `xbuild test` | 🟢 wave720 shell · wave880 thin `@sh` only | 11.2.3 |
+| `test_c` | 1696 | shell `run_compiler_tests.sh c` | `xbuild test-c` | 🟢 wave720 shell · wave880 thin `@sh` only（MAKELEVEL ENSURE） | 考古 C 轨 |
+| `test_x` | 1701 | shell `run_compiler_tests.sh x` | `xbuild test-x` | 🟢 wave720 shell · wave880 thin `@sh` only（MAKELEVEL ENSURE） |  |
 | `std-objs` | 709 | Makefile 聚合 | `xbuild std` | ⬜ Makefile | g05 按需编 |
 | `compile_commands.json` | 3418 | Makefile | `xbuild compile-commands 或删` | ⬜ Makefile | IDE 辅助 |
 | `size-baseline` | 3422 | **shell** `stage8_baseline.sh size` | `xbuild size-baseline 或 tests/` | 🟢 wave875 体 shell；测量权威仍 `tests/run-size-baseline.sh` | 可选 stage-8 |
@@ -100,7 +100,7 @@
 | `bootstrap-verify-stage2` | 3135 | Makefile | `xbuild stage2` | ⬜ Makefile |  |
 | `bootstrap-verify-stage2-bstrict` | 3142 | Makefile | `xbuild stage2` | ⬜ Makefile |  |
 | `check-7.2` | 3015 | shell `check_7_2.sh` | `xbuild check-7.2 或 tests/` | 🟢 wave870 体 shell；prereq bootstrap-self 图 | 历史 seed gate |
-| `check-7.2-bstrict` | 3393 | shell `bootstrap_verify_bstrict.sh` | `同上` | 🟢 wave720 shell |  |
+| `check-7.2-bstrict` | 3393 | shell `bootstrap_verify_bstrict.sh` | `同上` | 🟢 wave720 shell · wave880 thin `@sh` only |  |
 | `check-6.4` | 2959 | shell `check_6_4.sh` | `xbuild check-6.4 或 tests/` | 🟢 wave871 体 shell · wave879 thin `@bash` only；prereq bootstrap-driver-seed 图 |  |
 | `check-asm-o-quality` | 3220 | scripts/check_asm_o_quality.sh | `xbuild check-asm` | ⬜ Makefile | 已有脚本 |
 | `check-pipeline-gen-expr-i64-abi` | 3340 | Makefile | `xbuild check-i64-abi` | ⬜ Makefile | P0-4 守卫 |
@@ -414,11 +414,11 @@
 | 1725 | `bootstrap-parse-file` | 🟢 wave844 shell-primary：`bootstrap_parser_smoke.sh parse-file`；prereq graph residual |
 | 2215 | `bootstrap-typeck` | 🟢 wave841 shell · wave879 thin `@bash` only（无 multi-token TARGET/CC/MAKE） |
 | 2224 | `bootstrap-codegen` | 🟡 wave785 B7c：.o→migrate_x_objs；link residual |
-| 2479 | `bootstrap-driver-seed-x-frontend` | ⬜ |
+| 2479 | `bootstrap-driver-seed-x-frontend` | 🟢 wave848 shell · wave880 thin `@bash` only（无 MAKE/CC/OUT） |
 | 2957 | `bootstrap-driver-seed` | ⬜ 冷启动 Makefile 权威 |
 | 3093 | `xlang_asm` | 🟢 g05 shell（日常） |
 | 3107 | `bootstrap-driver-seed-user-asm` | ⬜ |
-| 3112 | `xlang-no-c-frontend` | ⬜ |
+| 3112 | `xlang-no-c-frontend` | 🟢 wave847 shell · wave880 thin `@bash` only |
 | 3125 | `xlang-x` | ⬜ |
 | 3135 | `bootstrap-verify-stage2` | ⬜ |
 | 3142 | `bootstrap-verify-stage2-bstrict` | ⬜ |
@@ -478,7 +478,7 @@
 | 2959 | `check-6.4` | 🟢 wave871 shell `check_6_4.sh` |
 | 3015 | `check-7.2` | 🟢 wave870 shell `check_7_2.sh` |
 | 3340 | `check-pipeline-gen-expr-i64-abi` | ⬜ |
-| ~3320 | `check-7.2-bstrict` / `bootstrap-verify` | 🟢 wave720 shell `bootstrap_verify_bstrict.sh` |
+| ~3320 | `check-7.2-bstrict` / `bootstrap-verify` | 🟢 wave720 shell · wave880 thin `@sh` only |
 | 3422 | `size-baseline` | 🟢 wave875 shell `stage8_baseline.sh size` |
 | 3426 | `perf-baseline` | 🟢 wave875 shell `stage8_baseline.sh perf` |
 
@@ -579,7 +579,7 @@
 | `./xbuild test*` | `run_compiler_tests.sh` | 否 | `xbuild test` |
 | `./xbuild clean` | `clean_compiler.sh` | 否 | `xbuild clean` |
 | `./xbuild full` | FULL 可能仍 make bstrict | 非日常 | `xbuild cold-test` 子集 |
-| `./xbuild compiler-all` | `scripts/compiler_all_ci.sh`（wave784） | CI；`xlang`=g05（wave786 B7D）+ `xlang-c` seed；冷 residual_make=0（wave787）；catalog shell 0-make（wave788）；heat try-heat（wave789）· thin-unify（wave790）· dep-thin FORCE 113（wave791–797）；preflight wave798；execute-gate wave799；proof harness wave800；status-flip-preview wave801；status-flip-apply harness wave802；commit-honesty wave803；physical delete residual | 物理删后 0-make（Windows 绿后） |
+| `./xbuild compiler-all` | `scripts/compiler_all_ci.sh`（wave784 · wave880 thin all） | CI；`xlang`=g05（wave786 B7D）+ `xlang-c` seed；冷 residual_make=0（wave787）；catalog shell 0-make（wave788）；heat try-heat（wave789）· thin-unify（wave790）· dep-thin FORCE 113（wave791–797）；preflight wave798；execute-gate wave799；proof harness wave800；status-flip-preview wave801；status-flip-apply harness wave802；commit-honesty wave803；physical delete residual | 物理删后 0-make（Windows 绿后） |
 | `./xbuild heat-o OUT.o` | `ensure_host_cc_seed_o.sh try-heat`（wave789–803） | B7A heat shell 自动分发；recipes try-heat（wave790）；**113 FORCE** dep-thin（wave791–797 · orch closed · `HEAT_RESIDUAL=0`）；preflight/execute-gate/proof/flip-prep/apply/honesty wave798–803；非物理删 | 物理删 Makefile 后主热路径（Windows 绿后） |
 | `./xbuild phys-del-gate` | `phys_del_makefile_gate.sh`（wave799–810） | 硬拒删 Makefile（never-rm 体；wave808 后 ENDGAME=1 + TREE_ARMED=1 仍拒）；dry-run；MSYS min-gate + proof；STATUS flip（wave804）；tree arm（wave808）；delete-body-preview（wave809）；delete-body-commit-honesty（wave810）；**非**物理删 | explicit auth + ship 物理删体波才允许 `rm` |
 | `./xbuild bootstrap-driver-seed` | make 图 + shell 编排 | 冷启动 | 11.3 吞图 |

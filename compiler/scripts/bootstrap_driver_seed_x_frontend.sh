@@ -16,9 +16,10 @@
 #   bash scripts/bootstrap_driver_seed_x_frontend.sh
 #   bash scripts/bootstrap_driver_seed_x_frontend.sh --check
 #
-# Env (product path; Makefile thin-call exports these):
-#   CC                   — host C compiler
-#   OUT / TARGET_OUT     — output binary (default: xlang_x_frontend)
+# Env (product path; shell defaults own when Makefile thin-call drops inject):
+#   CC                   — host C compiler (default: cc)
+#   TARGET               — product name for OUT default (default: xlang)
+#   OUT / TARGET_OUT     — output binary (default: ${TARGET}_x_frontend)
 #   BXF_LINK_CFLAGS      — expanded CFLAGS + -DXLANG_USE_X_* experiment defines
 #   BXF_LINK_OBJS        — optional; default loads via export-bxf-link-objs
 #                          (wave856; mk bag needs make expansion)
@@ -27,13 +28,15 @@
 # wave848 (G.7 有则补全): Makefile fat $(CC) link → this script.
 # wave856: LINK_OBJS shell-load via make export leaf (G.7; not physical delete).
 # wave857: LINK_CFLAGS shell-load via make export leaf (G.7; not physical delete).
+# wave880: drop Makefile multi-token MAKE/CC/OUT inject; shell defaults own OUT.
 # NOT physical delete — prereq make-graph + thin edges + B2 + mk lists remain.
 # PLATFORM: SHARED — shell orchestration; product seed pins host-portable.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 MODE="${1:-run}"
-OUT="${OUT:-${TARGET_OUT:-xlang_x_frontend}}"
+TARGET="${TARGET:-xlang}"
+OUT="${OUT:-${TARGET_OUT:-${TARGET}_x_frontend}}"
 CC="${CC:-cc}"
 MAKE="${MAKE:-make}"
 

@@ -663,13 +663,13 @@ include mk/std_and_panic_objs.mk
 # 默认 all 不构建 STD_AND_PANIC_O（xlang-c 无 -backend 解析；按需 `make std-objs` 或单条 ../std/*/*.o）。
 # wave784: B6 R5 CI / compiler-all body → scripts/compiler_all_ci.sh (thin-call only).
 # Policy/sequence shell-owned; leaf .o + link still make graph (B7). NOT physical delete.
+# wave880 B7B: drop multi-token OPT/MAKE/TARGET/XLANG_*/SKIP inject (G.7 hygiene).
+# Shell owns OPT (MAKELEVEL bare make → empty; direct CI → 1) + MAKE/TARGET/XLANG_C.
+# Process env / make OPT=1 still honored (GNU make exports cmdline vars).
 # PLATFORM: SHARED — orchestration in shell; leaf recipes keep platform ABI.
 .PHONY: all
 all:
-	@OPT="$(OPT)" MAKE="$(MAKE)" TARGET="$(TARGET)" XLANG_C="$(XLANG_C)" \
-	  XLANG_RUN_ALL_BOOTSTRAP_XLANG="$(XLANG_RUN_ALL_BOOTSTRAP_XLANG)" \
-	  XLANG_SKIP_SUBSCRIPT_MAKE="$(XLANG_SKIP_SUBSCRIPT_MAKE)" \
-	  bash scripts/compiler_all_ci.sh
+	@bash scripts/compiler_all_ci.sh
 
 std-objs: $(STD_AND_PANIC_O)
 
@@ -1569,15 +1569,15 @@ clean:
 # test_c：与 ../tests/run-all-c.sh 等价（C 版 xlang-c 跑整份 run-all，不含自举专用脚本）
 # test_x：bootstrap-driver-seed + run-lsp + run-all-x（.x 流水线全量）
 # wave720: bodies → scripts/run_compiler_tests.sh (G.7); prereqs stay make graph.
+# wave880 B7B: drop multi-token TARGET/XLANG_C/ENSURE inject (G.7 hygiene).
+# Shell MAKELEVEL default ENSURE=0 on make-graph path; direct xbuild keeps ENSURE=1.
 # 依赖 $(XLANG_C) 以便 make clean && make test_c 时 xlang-c 存在
 test_c: $(TARGET) $(XLANG_C) $(STD_AND_PANIC_O)
-	@TARGET='$(TARGET)' XLANG_C='$(XLANG_C)' XLANG_TEST_ENSURE=0 \
-	  sh scripts/run_compiler_tests.sh c
+	@sh scripts/run_compiler_tests.sh c
 
 # x 自举：bootstrap-driver-seed + LSP + 全量自举（run-all-x：用 xlang_x 跑整份 run-all）
 test_x: bootstrap-driver-seed
-	@TARGET='$(TARGET)' XLANG_TEST_ENSURE=0 XLANG_TEST_ENSURE_SEED=0 \
-	  sh scripts/run_compiler_tests.sh x
+	@sh scripts/run_compiler_tests.sh x
 
 # 全量：先 C 再 x 自举（thin: reuses c/x shells via mode all)
 test: test_c test_x
@@ -2041,11 +2041,12 @@ include mk/archaeology_experiment_objs.mk
 # wave852 B7B: BXF_LINK_OBJS → $(DRIVER_SEED_X_FRONTEND_LINK_OBJS)
 #   (archaeology_experiment_objs.mk; no dual inline bag re-list).
 # wave856: shell loads LINK_OBJS via export-bxf-link-objs (no multi-token BXF_LINK_OBJS=).
+# wave880 B7B: drop multi-token MAKE/CC/OUT inject (G.7 hygiene).
+# Shell defaults OUT=${TARGET}_x_frontend (TARGET default xlang). Thin @bash only.
 # NOT physical delete — prereq make-graph + thin edges + B2 + mk lists remain residual.
 # PLATFORM: SHARED — shell owns link orchestration.
 bootstrap-driver-seed-x-frontend: $(XLANG_C) migrate-x-objs driver_x.o preprocess_x.o $(DRIVER_SUBCMD_GEN) $(DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS) $(LSP_DIAG_LINK_O) $(DRIVER_SUBCMD_OBJS) scripts/bootstrap_driver_seed_x_frontend.sh
-	@MAKE="$(MAKE)" CC="$(CC)" OUT="$(TARGET)_x_frontend" \
-	  bash scripts/bootstrap_driver_seed_x_frontend.sh
+	@bash scripts/bootstrap_driver_seed_x_frontend.sh
 
 # 6.3：.x 入口与 main.c 一一对应。bootstrap-driver-seed = 用 C 代码生成（生成 pipeline_gen.c / driver_gen.c）得到种子 xlang；仅首次或无 xlang 时需要。
 # bootstrap-driver-asm / bootstrap-driver-hybrid = B-hybrid（build_xlang_asm 无 SKIP_GEN），产出可覆盖 $(TARGET)。
@@ -2365,11 +2366,12 @@ include mk/driver_seed_composites.mk
 #   export-relink-product-link-cflags — same formula as product archaeology).
 # Archaeology XLANG_LEGACY_C_FRONTEND=1 only. NOT physical delete — prereq
 # make-graph + thin edges + B2 + mk lists remain residual.
+# wave880 B7B: drop multi-token MAKE/CC/OUT inject (G.7 hygiene).
+# Shell defaults OUT=${XLANG_C:-xlang-c}. Thin @bash only.
 # PLATFORM: SHARED — shell owns link; lists stay mk expansion.
 ifeq ($(XLANG_LEGACY_C_FRONTEND),1)
 $(XLANG_C): $(LEGACY_XLANG_C_PREREQS) scripts/legacy_xlang_c_link.sh
-	@MAKE="$(MAKE)" CC="$(CC)" OUT="$@" \
-	  bash scripts/legacy_xlang_c_link.sh
+	@bash scripts/legacy_xlang_c_link.sh
 endif
 
 # 11.0.3 wave717: orchestration authority → scripts/bootstrap_driver_seed.sh
@@ -2829,9 +2831,10 @@ bootstrap-driver-seed-user-asm: bootstrap-driver-seed
 #   archaeology_experiment_objs.mk.
 # wave855: shell loads REQUIRED from mk (no Makefile multi-token env export).
 # wave856: shell loads LINK_OBJS via export-xnc-link-objs (no multi-token XNC_LINK_OBJS=).
+# wave880 B7B: drop multi-token MAKE/CC/OUT inject (G.7 hygiene).
+# Shell defaults OUT=xlang-no-c-frontend. Thin @bash only.
 xlang-no-c-frontend: $(DRIVER_NO_C_FRONTEND_OBJS) src/lsp/lsp_diag_stubs_no_c.o scripts/xlang_no_c_frontend.sh
-	@MAKE="$(MAKE)" CC="$(CC)" OUT="$@" \
-	  bash scripts/xlang_no_c_frontend.sh
+	@bash scripts/xlang_no_c_frontend.sh
 
 # 注意：Makefile 中存在同名规则 `xlang-x:`，不能把 `xlang-x` 列为本目标 prerequisite，否则会先执行重链接口而非仅检测文件是否存在。
 # wave873: full body → scripts/regen_lsp_gens_x.sh (G.7 有则补全).
@@ -3100,10 +3103,11 @@ bootstrap-test: bootstrap-self
 
 # M9：B-strict 语义自举主路径（xlang_asm→xlang_asm2 + lexer/typeck 烟测）。
 # wave720: check-7.2-bstrict / bootstrap-verify body → scripts/bootstrap_verify_bstrict.sh
-# Prereq bootstrap-driver-bstrict keeps cold graph on make path (ENSURE=0).
+# Prereq bootstrap-driver-bstrict keeps cold graph on make path.
+# wave880 B7B: drop multi-token MAKE/TARGET/ENSURE inject (G.7 hygiene).
+# Shell MAKELEVEL default ENSURE=0 on make-graph path; direct xbuild keeps ENSURE=1.
 check-7.2-bstrict: bootstrap-driver-bstrict
-	@MAKE="$(MAKE)" TARGET="$(TARGET)" XLANG_VERIFY_ENSURE_BSTRICT=0 \
-	  sh scripts/bootstrap_verify_bstrict.sh
+	@sh scripts/bootstrap_verify_bstrict.sh
 
 bootstrap-verify-bstrict: check-7.2-bstrict
 	@true

@@ -47,8 +47,9 @@
 > - **wave876** · B7C default `$(XLANG_C)` product alias shell-primary (1 target → ensure_xlang_c.sh; SKIP_SUBSCRIPT soft-skip + cp bootstrap_xlangc; LEGACY stays wave858)
 > - **wave877** · B7B gen/lsp/archaeology ensure multi-token env inject hygiene (20 recipes → thin `@bash ensure_*_gen`; shell defaults own MAKE/XLANG_*/FORCE/TIMEOUT)
 > - **wave878** · B7B migrate_x_objs multi-token CC/PYTHON/MAKE inject hygiene (4 recipes → thin `@sh migrate_x_objs`; shell defaults own CC/PYTHON/MAKE)
-> - **wave879** · B7B stage/bootstrap multi-token TARGET/CC/MAKE inject hygiene (13 recipes → thin `@sh`/`@bash` clean/typeck/codegen/seed/relink/xlang-x/check-6.4/build-tool/self/pipeline/x-compiler; shell defaults own env; intentional ENSURE=0 / OUT=$@ remain)
-> - **open** · thin edges + B2 + mk lists (hybrid) · other fat phonies (ENSURE=0 / OUT=$@ / all OPT) · → tip Windows → dual L4 → explicit auth ship delete
+> - **wave879** · B7B stage/bootstrap multi-token TARGET/CC/MAKE inject hygiene (13 recipes → thin `@sh`/`@bash` clean/typeck/codegen/seed/relink/xlang-x/check-6.4/build-tool/self/pipeline/x-compiler; shell defaults own env)
+> - **wave880** · B7B ENSURE=0 / OUT=$@ / all OPT inject hygiene (7 recipes → thin `@bash`/`@sh` all/test_c/test_x/seed-x-frontend/legacy-xlang-c/xnc/check-7.2-bstrict; MAKELEVEL shell defaults)
+> - **open** · thin edges + B2 + mk lists (hybrid) · residual single-token injects · → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -4539,3 +4540,59 @@ Keep `sh` (not bash) for Ubuntu dash-safe leaves (G.8 PLATFORM: SHARED). **NOT**
 
 **Forbidden:** claim migrate env hygiene = physical delete; re-add multi-token CC/PYTHON/MAKE inject on migrate leaves.
 
+
+## wave879 B7B stage/bootstrap multi-token env inject hygiene (2026-07-30)
+
+> **Why (G.7 有则补全 on wave877/878 inject hygiene):** Stage/bootstrap thin leaves
+> still re-injected multi-token `TARGET=/CC=/MAKE=/XLANG_*/PYTHON=` although shells
+> already default those vars. Dual inject = second authority path.
+
+**This wave:** drop multi-token env inject on **13** recipes; thin `@sh`/`@bash`/`./scripts` only.
+Shell defaults remain authority. **NOT** physical delete.
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_B7B_STAGE_BOOTSTRAP_ENV_HYGIENE` | `1` |
+| `PHYS_DEL_B7B_STAGE_BOOTSTRAP_ENV_HYGIENE_COUNT` | `13` |
+| `PHYS_DEL_B7B_STAGE_BOOTSTRAP_ENV_HYGIENE_WAVE` | `wave879` |
+
+**Forbidden:** claim stage/bootstrap env hygiene = physical delete; re-add multi-token TARGET/CC/MAKE inject on those leaves.
+
+## wave880 B7B ENSURE=0 / OUT=$@ / all OPT inject hygiene (2026-07-30)
+
+> **Why (G.7 有则补全 on wave879 deferred intentional residual):** After stage/bootstrap
+> multi-token hygiene, residual multi-token injects remained on:
+> - `all` — `OPT=/MAKE=/TARGET=/XLANG_C=/XLANG_RUN_ALL_*=/XLANG_SKIP_*=`
+> - `test_c` / `test_x` — `TARGET=/XLANG_C=/XLANG_TEST_ENSURE=0`
+> - `check-7.2-bstrict` — `MAKE=/TARGET=/XLANG_VERIFY_ENSURE_BSTRICT=0`
+> - archaeology link phonies — `MAKE=/CC=/OUT=$@` (seed-x-frontend / legacy xlang-c / xnc)
+>
+> Shells already own product defaults; ENSURE/OPT need make-graph vs direct-call
+> distinction. **Root cause:** default policy lives in Makefile injects instead of
+> shell MAKELEVEL-aware defaults (second authority).
+
+**This wave:** drop multi-token inject on **7** recipes; thin `@bash`/`@sh` only.
+Shell authority:
+- `run_compiler_tests` / `bootstrap_verify_bstrict`: unset ENSURE + MAKELEVEL → 0; else → 1
+- `compiler_all_ci`: unset OPT + MAKELEVEL → empty (bare make all no -O2); else → 1 (CI)
+- archaeology OUT shells: default OUT from TARGET / product name
+Command-line `make OPT=1` / process env still honored (GNU make exports cmdline vars).
+**NOT** physical delete — thin edges + B2 + mk lists remain.
+
+```text
+PHYS_DEL_B7B_ENSURE_OUT_OPT_HYGIENE=1
+PHYS_DEL_B7B_ENSURE_OUT_OPT_HYGIENE_WAVE=wave880
+PHYS_DEL_B7B_ENSURE_OUT_OPT_HYGIENE_COUNT=7
+PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_B7B_ENSURE_OUT_OPT_HYGIENE` | `1` |
+| `PHYS_DEL_B7B_ENSURE_OUT_OPT_HYGIENE_COUNT` | `7` |
+| `PHYS_DEL_B7B_ENSURE_OUT_OPT_HYGIENE_WAVE` | `wave880` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+
+**Forbidden:** claim ENSURE/OUT/OPT hygiene = physical delete; re-add ENSURE=0 /
+OUT=$@ / multi-token OPT inject on these leaves; claim multi-token fat exhausted
+while thin edges / B2 / mk lists remain.

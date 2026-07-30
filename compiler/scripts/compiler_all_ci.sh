@@ -18,8 +18,11 @@
 #   bash compiler/scripts/compiler_all_ci.sh [--check]
 #
 # Env:
-#   OPT — when unset, defaults to 1 (historical CI). Empty OPT= (from bare
-#         `make all`) stays empty so Makefile does not force -O2.
+#   OPT — wave880 policy when unset:
+#         MAKELEVEL set (bare `make all`) → empty (do not force -O2);
+#         direct call (`xbuild compiler-all` / CI) → 1 (historical CI -O2).
+#         Explicit OPT=0|1|empty from process env / `make OPT=1 all` always wins
+#         (GNU make exports command-line vars into recipe env).
 #   MAKE — make binary (default: make)
 #   TARGET — product host-cc binary name (default: xlang)
 #   XLANG_C — C frontend name (default: xlang-c)
@@ -29,6 +32,7 @@
 #
 # PLATFORM: SHARED — orchestration identical; leaf recipes keep platform ABI.
 # Wave: 784 B6 R5 body swallow (Makefile thin-call only).
+# Wave: 880 B7B — drop Makefile multi-token OPT/MAKE/TARGET inject; shell owns defaults.
 
 set -euo pipefail
 
@@ -110,9 +114,16 @@ if [ "$MODE" = "check" ]; then
 fi
 
 # --- run mode ---
-# OPT: unset → default 1 (CI). Empty string preserved (bare make all).
+# OPT policy (wave880):
+#   unset + MAKELEVEL → empty (bare make all: no force -O2)
+#   unset + direct    → 1 (xbuild compiler-all / CI historical)
+#   set (incl. empty) → honor as-is (make OPT= / make OPT=1 / env)
 if [ -z "${OPT+set}" ]; then
-  OPT=1
+  if [ -n "${MAKELEVEL:-}" ]; then
+    OPT=
+  else
+    OPT=1
+  fi
 fi
 MAKE="${MAKE:-make}"
 TARGET="${TARGET:-xlang}"

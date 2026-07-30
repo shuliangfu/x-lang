@@ -17,14 +17,17 @@
 #   TARGET — product binary name (default: xlang)
 #   XLANG_C — C frontend binary (default: xlang-c)
 #   MAKE — make binary (default: make)
-#   XLANG_TEST_ENSURE=1 — if products missing, run make for them
-#     (default 1 for direct xlang-build; Makefile path uses ENSURE=0)
-#   XLANG_TEST_ENSURE_SEED=1 — test_x: if ./$TARGET missing, make
+#   XLANG_TEST_ENSURE — if products missing, run make for them
+#     wave880: when unset, MAKELEVEL set → 0 (make-graph prereqs already
+#     built); else → 1 (direct xlang-build / standalone call). Explicit
+#     XLANG_TEST_ENSURE=0|1 always wins.
+#   XLANG_TEST_ENSURE_SEED — test_x: if ./$TARGET missing, make
 #     bootstrap-driver-seed (default same as XLANG_TEST_ENSURE)
 #
 # PLATFORM: SHARED shell orchestration; nested tests/run-all-*.sh may still
 # call make for product rebuild (stage 11.2.3 inventory — not this wave).
 # Wave: 720 Track MG · pairs with Makefile thin leaves + xlang-build direct call.
+# Wave: 880 B7B — drop Makefile ENSURE=0 / TARGET inject; shell owns defaults.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -33,7 +36,16 @@ MODE="${1:-}"
 TARGET="${TARGET:-xlang}"
 XLANG_C="${XLANG_C:-xlang-c}"
 MAKE="${MAKE:-make}"
-XLANG_TEST_ENSURE="${XLANG_TEST_ENSURE:-1}"
+# wave880: make-graph path (MAKELEVEL set) already has product prereqs →
+# default ENSURE=0 so Makefile thin-call needs no XLANG_TEST_ENSURE=0 inject.
+# Direct xbuild / standalone keeps ENSURE=1 (auto-build missing products).
+if [ -z "${XLANG_TEST_ENSURE+set}" ]; then
+  if [ -n "${MAKELEVEL:-}" ]; then
+    XLANG_TEST_ENSURE=0
+  else
+    XLANG_TEST_ENSURE=1
+  fi
+fi
 XLANG_TEST_ENSURE_SEED="${XLANG_TEST_ENSURE_SEED:-$XLANG_TEST_ENSURE}"
 
 log() { echo "run_compiler_tests(${MODE}): $*" >&2; }

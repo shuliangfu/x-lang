@@ -18,20 +18,30 @@
 # Env:
 #   MAKE — make binary (default: make)
 #   TARGET — product binary name (default: xlang)
-#   XLANG_VERIFY_ENSURE_BSTRICT=1 — if stages missing, run
-#     bootstrap_driver_bstrict.sh first (default 1 for xlang-build;
-#     Makefile path already has bootstrap-driver-bstrict prereq → ENSURE=0)
+#   XLANG_VERIFY_ENSURE_BSTRICT — if stages missing, run
+#     bootstrap_driver_bstrict.sh first.
+#     wave880: when unset, MAKELEVEL set → 0 (make-graph already has
+#     bootstrap-driver-bstrict prereq); else → 1 (direct xlang-build).
+#     Explicit XLANG_VERIFY_ENSURE_BSTRICT=0|1 always wins.
 #   XLANG_STAGE2_* — forwarded to verify-selfhost-stage2-bstrict.sh
 #
 # PLATFORM: SHARED shell orchestration.
 # Wave: 720 Track MG · pairs with Makefile thin leaves + xlang-build direct call.
+# Wave: 880 B7B — drop Makefile ENSURE=0 / MAKE/TARGET inject; shell owns defaults.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 MAKE="${MAKE:-make}"
 TARGET="${TARGET:-xlang}"
-XLANG_VERIFY_ENSURE_BSTRICT="${XLANG_VERIFY_ENSURE_BSTRICT:-1}"
+# wave880: make-graph path → ENSURE=0; direct call → ENSURE=1.
+if [ -z "${XLANG_VERIFY_ENSURE_BSTRICT+set}" ]; then
+  if [ -n "${MAKELEVEL:-}" ]; then
+    XLANG_VERIFY_ENSURE_BSTRICT=0
+  else
+    XLANG_VERIFY_ENSURE_BSTRICT=1
+  fi
+fi
 
 log() { echo "bootstrap-verify-bstrict: $*" >&2; }
 

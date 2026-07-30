@@ -155,7 +155,11 @@
 #   wave879: B7B stage/bootstrap multi-token TARGET/CC/MAKE inject hygiene (13 recipes)
 #            → clean/typeck/codegen/seed/relink/xlang-x/check-6.4/build-tool/
 #            self/pipeline/x-compiler; shell defaults own env; thin @sh/@bash only;
-#            NOT physical delete — intentional ENSURE=0 / OUT=$@ edges remain
+#            NOT physical delete — thin edges + B2 remain
+#   wave880: B7B ENSURE=0 / OUT=$@ / all OPT inject hygiene (7 recipes) →
+#            all / test_c / test_x / seed-x-frontend / legacy xlang-c /
+#            xlang-no-c-frontend / check-7.2-bstrict; MAKELEVEL shell defaults;
+#            NOT physical delete — thin edges + B2 remain
 #   wave856: B7B archaeology LINK_OBJS shell-load via make export leaves (5 bags /
 #            6 shells; nested expand; Makefile drops multi-token LINK_OBJS env;
 #            NOT physical delete — CFLAGS env + thin edges + B2 remain)
@@ -1351,7 +1355,6 @@ B7B_MIGRATE_ENV_HYGIENE_COUNT=4
 # COUNT = 13 recipes (clean + typeck/codegen + seed final/seed + relink-lexer +
 # regen-lsp + xlang-x + check-6.4 + build-tool + self + pipeline + x-compiler);
 # shell defaults own TARGET/CC/MAKE/XLANG_*/PYTHON; thin @sh/@bash only.
-# Intentional ENSURE=0 / OUT=$@ / all OPT injects remain residual.
 PHYS_DEL_B7B_STAGE_BOOTSTRAP_ENV_HYGIENE=1
 PHYS_DEL_B7B_STAGE_BOOTSTRAP_ENV_HYGIENE_WAVE=wave879
 PHYS_DEL_B7B_STAGE_BOOTSTRAP_ENV_HYGIENE_COUNT=13
@@ -1361,6 +1364,19 @@ SWALLOWED_B7B_STAGE_BOOTSTRAP_ENV_HYGIENE=1
 B7B_STAGE_BOOTSTRAP_ENV_HYGIENE_SWALLOWED=1
 B7B_STAGE_BOOTSTRAP_ENV_HYGIENE_WAVE=wave879
 B7B_STAGE_BOOTSTRAP_ENV_HYGIENE_COUNT=13
+# wave880: B7B ENSURE=0 / OUT=$@ / all OPT multi-token inject hygiene.
+# COUNT = 7 recipes (all + test_c + test_x + seed-x-frontend + legacy xlang-c +
+# xlang-no-c-frontend + check-7.2-bstrict); MAKELEVEL shell defaults own
+# ENSURE/OPT; OUT defaults own archaeology link outs; thin @bash/@sh only.
+PHYS_DEL_B7B_ENSURE_OUT_OPT_HYGIENE=1
+PHYS_DEL_B7B_ENSURE_OUT_OPT_HYGIENE_WAVE=wave880
+PHYS_DEL_B7B_ENSURE_OUT_OPT_HYGIENE_COUNT=7
+PHYS_DEL_B7B_ENSURE_OUT_OPT_HYGIENE_VIA=makelevel_shell_defaults_no_recipe_inject
+PHYS_DEL_B7B_ENSURE_OUT_OPT_HYGIENE_NOTE=makefile_no_ensure0_out_all_opt_inject_shell_makelevel_defaults_thin_edges_remain
+SWALLOWED_B7B_ENSURE_OUT_OPT_HYGIENE=1
+B7B_ENSURE_OUT_OPT_HYGIENE_SWALLOWED=1
+B7B_ENSURE_OUT_OPT_HYGIENE_WAVE=wave880
+B7B_ENSURE_OUT_OPT_HYGIENE_COUNT=7
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -1585,6 +1601,7 @@ PHYS_DEL_PREFLIGHT_XLANG_C_ALIAS_SHELL=1
 PHYS_DEL_PREFLIGHT_B7B_GEN_ENSURE_ENV_HYGIENE=1
 PHYS_DEL_PREFLIGHT_B7B_MIGRATE_ENV_HYGIENE=1
 PHYS_DEL_PREFLIGHT_B7B_STAGE_BOOTSTRAP_ENV_HYGIENE=1
+PHYS_DEL_PREFLIGHT_B7B_ENSURE_OUT_OPT_HYGIENE=1
 PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
 PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_std_x_catalog_is_physical_delete|claim_std_x_force_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_formal_mod_force_thin_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_driver_leaf_force_thin_is_physical_delete|claim_gen_c_force_thin_is_physical_delete|claim_ast_gen2_force_thin_is_physical_delete|claim_src_edge_force_thin_is_physical_delete|claim_migrate_x_force_thin_is_physical_delete|claim_glue_types_force_thin_is_physical_delete|claim_bootstrap_pipeline_force_thin_is_physical_delete|claim_filtered_o_force_thin_is_physical_delete|claim_cp_alias_force_thin_is_physical_delete|claim_pipeline_gen_force_thin_is_physical_delete|claim_bootstrap_xlangc_force_thin_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_arch_host_pick_force_thin_is_physical_delete|claim_bootstrap_typeck_codegen_shell_is_physical_delete|claim_bootstrap_x_compiler_shell_is_physical_delete|claim_bootstrap_self_shell_is_physical_delete|claim_bootstrap_parser_smoke_is_physical_delete|claim_xlang_x_pipeline_shell_is_physical_delete|claim_xlang_x_shell_is_physical_delete|claim_xlang_no_c_frontend_shell_is_physical_delete|claim_bootstrap_seed_x_frontend_shell_is_physical_delete|claim_relink_xlang_lexer_shell_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|claim_e_dirs_list_mk_is_physical_delete|claim_relink_product_link_mk_is_physical_delete|claim_xxl_bs_xnc_link_mk_is_physical_delete|claim_bxf_link_mk_is_physical_delete|claim_seed_phase_final_link_mk_is_physical_delete|claim_seed_gate_required_mk_is_physical_delete|claim_seed_gate_required_shell_load_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
@@ -2378,6 +2395,9 @@ else
   fi
   if ! grep -qE 'wave879|STAGE_BOOTSTRAP_ENV|stage.*bootstrap.*env.*hygiene|multi-token.*TARGET.*CC.*MAKE|stage/bootstrap.*inject' "$DOC_REL"; then
     bad "$DOC_REL must document wave879 stage/bootstrap multi-token TARGET/CC/MAKE inject hygiene"
+  fi
+  if ! grep -qE 'wave880|ENSURE_OUT_OPT|ENSURE=0|all OPT.*hygiene|MAKELEVEL.*ENSURE|OUT=.*hygiene' "$DOC_REL"; then
+    bad "$DOC_REL must document wave880 ENSURE=0 / OUT / all OPT inject hygiene"
   fi
   note "doc $DOC_REL present"
 fi
@@ -3819,6 +3839,22 @@ if ! grep -q 'SWALLOWED_B7B_STAGE_BOOTSTRAP_ENV_HYGIENE=1' <<<"$_out"; then
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_B7B_STAGE_BOOTSTRAP_ENV_HYGIENE=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_B7B_STAGE_BOOTSTRAP_ENV_HYGIENE=1 (wave879)"
+fi
+# wave880: ENSURE=0 / OUT=$@ / all OPT multi-token inject hygiene
+if ! grep -q 'PHYS_DEL_B7B_ENSURE_OUT_OPT_HYGIENE=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_ENSURE_OUT_OPT_HYGIENE=1 (wave880)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_ENSURE_OUT_OPT_HYGIENE_WAVE=wave880' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_ENSURE_OUT_OPT_HYGIENE_WAVE=wave880"
+fi
+if ! grep -q 'PHYS_DEL_B7B_ENSURE_OUT_OPT_HYGIENE_COUNT=7' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_ENSURE_OUT_OPT_HYGIENE_COUNT=7 (wave880)"
+fi
+if ! grep -q 'SWALLOWED_B7B_ENSURE_OUT_OPT_HYGIENE=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_B7B_ENSURE_OUT_OPT_HYGIENE=1 (wave880)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_B7B_ENSURE_OUT_OPT_HYGIENE=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_B7B_ENSURE_OUT_OPT_HYGIENE=1 (wave880)"
 fi
 if ! grep -q 'PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813"
@@ -6654,6 +6690,53 @@ if ! grep -q 'wave879' "$MF" 2>/dev/null; then
   bad "Makefile must document wave879 stage/bootstrap env hygiene"
 fi
 note "B7B stage/bootstrap multi-token env inject hygiene (COUNT=13; wave879; not physical delete)"
+# wave880: ENSURE=0 / OUT=$@ / all OPT multi-token inject hygiene.
+# COUNT=7 thin-call recipes; MAKELEVEL shell defaults own ENSURE/OPT; OUT defaults.
+# G.7: grep multi-token inject on wave880 shell recipe lines only — not comments.
+# Scripts: compiler_all_ci, run_compiler_tests, bootstrap_driver_seed_x_frontend,
+# legacy_xlang_c_link, xlang_no_c_frontend, bootstrap_verify_bstrict.
+_ensure_out_opt_hits=$(awk '
+  /scripts\/(compiler_all_ci|run_compiler_tests|bootstrap_driver_seed_x_frontend|legacy_xlang_c_link|xlang_no_c_frontend|bootstrap_verify_bstrict)\.sh/ {grab=1}
+  grab && /^\t/ {
+    if ($0 ~ /OPT="\$\(OPT\)"|MAKE="\$\(MAKE\)"|TARGET="\$\(TARGET\)"|TARGET='\''\$\(TARGET\)'\''|XLANG_C="\$\(XLANG_C\)"|XLANG_C='\''\$\(XLANG_C\)'\''|CC="\$\(CC\)"|OUT="|XLANG_TEST_ENSURE=|XLANG_VERIFY_ENSURE_BSTRICT=|XLANG_RUN_ALL_BOOTSTRAP_XLANG=|XLANG_SKIP_SUBSCRIPT_MAKE=/) print
+    if ($0 !~ /\\$/) grab=0
+    next
+  }
+  grab && /^[^#\t]/ && $0 !~ /^$/ {grab=0}
+' "$MF" 2>/dev/null || true)
+if [ -n "${_ensure_out_opt_hits:-}" ]; then
+  bad "Makefile ENSURE/OUT/all OPT recipes still multi-token inject (wave880)"
+  echo "$_ensure_out_opt_hits" | head -15 >&2
+fi
+# thin pure @bash/@sh for the 7 wave880 shells
+# all + seed-x-frontend + legacy + xnc = 4 bash; test_c + test_x + check-7.2-bstrict = 3 sh
+_eoo_bash_n=$(grep -cE $'^\t@bash scripts/(compiler_all_ci|bootstrap_driver_seed_x_frontend|legacy_xlang_c_link|xlang_no_c_frontend)\\.sh' "$MF" 2>/dev/null || echo 0)
+_eoo_sh_n=$(grep -cE $'^\t@sh scripts/(run_compiler_tests|bootstrap_verify_bstrict)\\.sh' "$MF" 2>/dev/null || echo 0)
+# run_compiler_tests appears twice (c + x) → sh count >= 3; bash >= 3 (legacy is under ifeq)
+# legacy may be present once under ifeq; count bash targets that always expand: all, seed-x-frontend, xnc = 3
+if [ "${_eoo_bash_n:-0}" -lt 3 ]; then
+  bad "Makefile wave880 thin @bash count expected >=3 got ${_eoo_bash_n} (wave880)"
+fi
+if [ "${_eoo_sh_n:-0}" -lt 3 ]; then
+  bad "Makefile wave880 thin @sh count expected >=3 got ${_eoo_sh_n} (wave880)"
+fi
+if ! grep -q 'wave880' "$MF" 2>/dev/null; then
+  bad "Makefile must document wave880 ENSURE/OUT/OPT env hygiene"
+fi
+# Shell bodies must document MAKELEVEL default policy
+if ! grep -q 'MAKELEVEL' "$COMPILER_DIR/scripts/run_compiler_tests.sh" 2>/dev/null; then
+  bad "run_compiler_tests.sh must use MAKELEVEL for ENSURE default (wave880)"
+fi
+if ! grep -q 'MAKELEVEL' "$COMPILER_DIR/scripts/bootstrap_verify_bstrict.sh" 2>/dev/null; then
+  bad "bootstrap_verify_bstrict.sh must use MAKELEVEL for ENSURE default (wave880)"
+fi
+if ! grep -q 'MAKELEVEL' "$COMPILER_DIR/scripts/compiler_all_ci.sh" 2>/dev/null; then
+  bad "compiler_all_ci.sh must use MAKELEVEL for OPT default (wave880)"
+fi
+if ! grep -q 'wave880' "$COMPILER_DIR/scripts/run_compiler_tests.sh" 2>/dev/null; then
+  bad "run_compiler_tests.sh must document wave880"
+fi
+note "B7B ENSURE=0 / OUT=\$@ / all OPT inject hygiene (COUNT=7; wave880; not physical delete)"
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
   PHYS_DEL_BUCKET_B1_BODY_SWALLOWED=1 \

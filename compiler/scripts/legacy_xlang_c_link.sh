@@ -23,6 +23,7 @@
 #   MAKE            — residual make for export leaves
 #
 # wave858: Makefile multi-token $(CC) … LEGACY_XLANG_C_* body → this script.
+# wave880: drop Makefile multi-token MAKE/CC/OUT inject; shell defaults own OUT.
 # NOT physical delete — prereq make-graph + thin edges + B2 + mk lists remain.
 # PLATFORM: SHARED — shell orchestration; archaeology host-cc link only.
 set -euo pipefail

@@ -33,6 +33,7 @@
 # wave855: seed-gate REQUIRED loads from mk (G.7; not physical delete).
 # wave856: LINK_OBJS shell-load via make export leaf (G.7; not physical delete).
 # wave857: LINK_CFLAGS shell-load via make export leaf (G.7; not physical delete).
+# wave880: drop Makefile multi-token MAKE/CC/OUT inject; shell defaults own OUT.
 # NOT physical delete — prereq make-graph + thin edges + B2 + mk lists remain.
 # PLATFORM: SHARED — shell orchestration; product seed pins host-portable.
 set -euo pipefail
