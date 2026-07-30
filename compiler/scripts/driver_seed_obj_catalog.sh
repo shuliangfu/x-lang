@@ -200,8 +200,8 @@ catalog_seed_host_defaults() {
   else
     catalog_set PIPELINE_LIBS ""
   fi
-  catalog_set DRIVER_SUBCMD_GEN ""
-  catalog_set DRIVER_SUBCMD_OBJS "driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x.o driver_build_x.o driver_run_x.o driver_emit_x.o"
+  # wave816: DRIVER_SUBCMD_* list authority → mk/driver_subcmd_objs.mk (G.7).
+  # Do not hardcode DRIVER_SUBCMD_OBJS / GEN here — catalog_parse_mk owns them.
 
   # MAIN_LINK_O / MAIN_LINK_REBUILD — mirror Makefile default crt0 pick.
   # PLATFORM: LINUX x86_64 · MACOS arm64/x86_64 · WINDOWS mingw · else main_driver.
@@ -385,9 +385,12 @@ catalog_expand_all_stored() {
 catalog_shell_dump() {
   catalog_store_init
   catalog_seed_host_defaults
-  # Include order matches make dependency of lists (user_asm → r_lists → export → composites).
+  # Include order matches make dependency of lists
+  # (user_asm → r_lists → subcmd → export → composites).
+  # wave816: driver_subcmd_objs.mk before composites (DRIVER_SUBCMD_OBJS/GEN).
   catalog_parse_mk "mk/user_asm_seed_objs.mk"
   catalog_parse_mk "mk/driver_seed_r_lists.mk"
+  catalog_parse_mk "mk/driver_subcmd_objs.mk"
   catalog_parse_mk "mk/driver_seed_export_lists.mk"
   catalog_parse_mk "mk/driver_seed_composites.mk"
   catalog_expand_all_stored

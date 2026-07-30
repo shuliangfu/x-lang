@@ -31,6 +31,8 @@
 #            (Makefile thin-call only; NOT physical delete; edges+lists remain)
 #   wave815: archaeology host-pick phonies (4) → archaeology_host_pick_phony ensure
 #            (net-o-stub/openssl/mbedtls + sqlite-o-stub; NOT physical delete)
+#   wave816: B7B DRIVER_SUBCMD_* list authority → mk/driver_subcmd_objs.mk
+#            (Makefile include only; NOT physical delete; thin edges + other lists remain)
 #   wave781: B3 LSP satellite hybrid body → try-lsp-sat-prefer
 #   wave782: B4 gen_c_to_o bootstrap → try-gen-c-to-o
 #   wave783: B5 cfg_eval multi-ladder → try-cfg-eval-ladder
@@ -432,6 +434,19 @@ SWALLOWED_ARCH_HOST_PICK_PHONY=1
 ARCH_HOST_PICK_PHONY_SWALLOWED=1
 ARCH_HOST_PICK_PHONY_HELPER=archaeology_host_pick_phony.sh
 ARCH_HOST_PICK_PHONY_WAVE=wave815
+# wave816: B7B DRIVER_SUBCMD_* inventory → mk/driver_subcmd_objs.mk (G.7).
+# Makefile includes mk only; no dual inline re-list. Catalog parses mk (no
+# hardcode). NOT physical delete — thin-call edges + B2 ensure + other mk lists
+# remain residual.
+PHYS_DEL_B7B_DRIVER_SUBCMD_LIST=1
+PHYS_DEL_B7B_DRIVER_SUBCMD_LIST_WAVE=wave816
+PHYS_DEL_B7B_DRIVER_SUBCMD_LIST_COUNT=7
+PHYS_DEL_B7B_DRIVER_SUBCMD_LIST_VIA=mk_driver_subcmd_objs
+PHYS_DEL_B7B_DRIVER_SUBCMD_LIST_NOTE=list_authority_mk_include_only_thin_edges_remain
+SWALLOWED_B7B_DRIVER_SUBCMD_LIST=1
+B7B_DRIVER_SUBCMD_LIST_SWALLOWED=1
+B7B_DRIVER_SUBCMD_LIST_MK=mk/driver_subcmd_objs.mk
+B7B_DRIVER_SUBCMD_LIST_WAVE=wave816
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -581,16 +596,18 @@ PHYS_DEL_PREFLIGHT_B7D_G05=1
 PHYS_DEL_PREFLIGHT_B7A_COLD_0MAKE=1
 PHYS_DEL_PREFLIGHT_B7B_SHELL_CATALOG=1
 PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113
-# wave811–814: std_x / formal_mod / STD_AND_PANIC list / driver_leaf catalog swallowed;
-# blocker name kept (thin edges + B2 ensure + remaining B7B mk lists still form make graph).
+# wave811–816: std_x / formal_mod / STD_AND_PANIC / driver_leaf / archaeology /
+# DRIVER_SUBCMD list swallowed; blocker name kept (thin edges + B2 ensure +
+# remaining B7B mk lists still form make graph).
 PHYS_DEL_PREFLIGHT_BLOCKERS=makefile_thin_call_edges|b7b_lists_in_mk|std_core_product_make_graph
 PHYS_DEL_PREFLIGHT_STD_X_HYBRID_BODY_SWALLOWED=1
 PHYS_DEL_PREFLIGHT_FORMAL_MOD_SHELL_PRIMARY=1
 PHYS_DEL_PREFLIGHT_B7B_STD_AND_PANIC_LIST=1
 PHYS_DEL_PREFLIGHT_DRIVER_LEAF_SHELL_PRIMARY=1
 PHYS_DEL_PREFLIGHT_ARCH_HOST_PICK_PHONY=1
+PHYS_DEL_PREFLIGHT_B7B_DRIVER_SUBCMD_LIST=1
 PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|rm_makefile_without_confirm_delete_body
+PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_PREFLIGHT_WIN_GATE_HOST=MSYS2_windows-server_dual_boot_reboot_required
 PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
@@ -1194,6 +1211,9 @@ else
   if ! grep -qE 'wave815|archaeology_host_pick|ARCH_HOST_PICK' "$DOC_REL"; then
     bad "$DOC_REL must document wave815 archaeology host-pick phonies"
   fi
+  if ! grep -qE 'wave816|DRIVER_SUBCMD|driver_subcmd_objs' "$DOC_REL"; then
+    bad "$DOC_REL must document wave816 B7B DRIVER_SUBCMD list → mk"
+  fi
   note "doc $DOC_REL present"
 fi
 
@@ -1701,6 +1721,21 @@ fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_ARCH_HOST_PICK_PHONY=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_ARCH_HOST_PICK_PHONY=1 (wave815)"
 fi
+if ! grep -q 'PHYS_DEL_B7B_DRIVER_SUBCMD_LIST=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_DRIVER_SUBCMD_LIST=1 (wave816)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_DRIVER_SUBCMD_LIST_WAVE=wave816' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_DRIVER_SUBCMD_LIST_WAVE=wave816"
+fi
+if ! grep -q 'PHYS_DEL_B7B_DRIVER_SUBCMD_LIST_COUNT=7' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_DRIVER_SUBCMD_LIST_COUNT=7 (wave816)"
+fi
+if ! grep -q 'SWALLOWED_B7B_DRIVER_SUBCMD_LIST=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_B7B_DRIVER_SUBCMD_LIST=1 (wave816)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_B7B_DRIVER_SUBCMD_LIST=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_B7B_DRIVER_SUBCMD_LIST=1 (wave816)"
+fi
 if ! grep -q 'PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813"
 fi
@@ -2194,6 +2229,51 @@ if grep -nE '^\t@?if \[ -x \./xlang_asm \]' "$MF" 2>/dev/null | head -1 | grep -
 else
   note "Makefile free of archaeology host-pick if-ladder (wave815)"
 fi
+# wave816: B7B DRIVER_SUBCMD_* list authority in mk; Makefile include only.
+_DSC_MK="compiler/mk/driver_subcmd_objs.mk"
+if [ ! -f "$_DSC_MK" ]; then
+  bad "missing $_DSC_MK (wave816 B7B DRIVER_SUBCMD list authority)"
+fi
+if ! grep -qE '^DRIVER_SUBCMD_OBJS\s*=' "$_DSC_MK"; then
+  bad "$_DSC_MK must define DRIVER_SUBCMD_OBJS (wave816)"
+fi
+_dsc_n=$(awk '
+  /^DRIVER_SUBCMD_OBJS[[:space:]]*=/ {
+    line=$0
+    sub(/^[^=]*=[[:space:]]*/, "", line)
+    n=split(line, a, /[[:space:]]+/)
+    c=0
+    for (i=1;i<=n;i++) if (a[i] != "") c++
+    print c
+    exit
+  }
+' "$_DSC_MK")
+if [ "${_dsc_n:-0}" -ne 7 ]; then
+  bad "wave816 expected DRIVER_SUBCMD_OBJS count 7 in mk, got ${_dsc_n:-0}"
+fi
+if ! grep -qE 'include[[:space:]]+mk/driver_subcmd_objs\.mk' "$MF"; then
+  bad "Makefile must include mk/driver_subcmd_objs.mk (wave816)"
+fi
+# Forbid dual authority: inline re-list of the 7 product leaves.
+if grep -nE '^DRIVER_SUBCMD_OBJS[[:space:]]*=' "$MF" 2>/dev/null | grep -qE 'driver_fmt_x\.o'; then
+  bad "Makefile must not re-list DRIVER_SUBCMD_OBJS inline (wave816 dual authority)"
+else
+  note "Makefile DRIVER_SUBCMD_OBJS has no dual inline product list (wave816)"
+fi
+# Consumers must still expand $(DRIVER_SUBCMD_OBJS) (seed link / relink paths).
+if ! grep -qE '\$\(DRIVER_SUBCMD_OBJS\)' "$MF"; then
+  bad "Makefile must still consume \$(DRIVER_SUBCMD_OBJS) (wave816 consumers)"
+fi
+# Catalog must parse mk (no hardcode second inventory).
+_cat_sh="$ROOT/compiler/scripts/driver_seed_obj_catalog.sh"
+[ -f "$_cat_sh" ] || _cat_sh="scripts/driver_seed_obj_catalog.sh"
+if ! grep -q 'mk/driver_subcmd_objs.mk' "$_cat_sh"; then
+  bad "driver_seed_obj_catalog.sh must parse mk/driver_subcmd_objs.mk (wave816)"
+fi
+if grep -nE 'catalog_set DRIVER_SUBCMD_OBJS "' "$_cat_sh" 2>/dev/null | grep -q 'driver_fmt_x'; then
+  bad "catalog must not hardcode DRIVER_SUBCMD_OBJS list (wave816 dual authority)"
+fi
+note "B7B DRIVER_SUBCMD_OBJS list authority in mk (7; wave816; not physical delete)"
 
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
@@ -2757,5 +2837,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747–815: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave812 formal_mod ensure 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave815 archaeology host-pick phonies 4; Makefile still present; delete body deferred)"
+echo "leaf_pattern_residual: CHECK OK (wave747–816: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave812 formal_mod ensure 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave815 archaeology host-pick phonies 4 + wave816 DRIVER_SUBCMD list→mk 7; Makefile still present; delete body deferred)"
 exit 0

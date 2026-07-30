@@ -2258,12 +2258,9 @@ lsp_x.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # Driver 子命令 .o：
 #   Track L 已退役叶子：fmt/check/test/build/run/compile/emit + lsp_io_std_heap → PREFER_X_O（.x→.o）
 #   构建不读工作区 pinned *_gen.c；冷启动回退仅 seeds/*_gen.linux.x86_64.c
-DRIVER_LEAF_OBJS = driver_fmt_x.o driver_check_x.o driver_test_x.o driver_build_x.o driver_run_x.o
-DRIVER_SUBCMD_GEN =
-# 兼容旧引用名：全部叶子已退役；考古 gen 规则仍保留于 FORCE_REGEN
-DRIVER_SUBCMD_GEN_ALL = driver_fmt_gen.c driver_check_gen.c driver_test_gen.c driver_compile_gen.c driver_build_gen.c driver_run_gen.c driver_emit_gen.c
-DRIVER_SUBCMD_OBJS = driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x.o driver_build_x.o driver_run_x.o driver_emit_x.o
-DRIVER_SUBCMD_DIRS = -L .. -L src -L src/lexer -L src/ast
+# wave816 B7B: list authority → mk/driver_subcmd_objs.mk (G.7; not physical delete).
+# Makefile keeps include + consumers (seed link / relink / composites); no dual list.
+include mk/driver_subcmd_objs.mk
 
 # Track L：叶子 .o 直接来自 .x（scripts/driver_leaf_x_to_o.sh）；rename 与 prove_module_selfhost / g05 一致
 # wave814: driver_leaf shell-primary catalog → ensure (G.7; not physical delete).
