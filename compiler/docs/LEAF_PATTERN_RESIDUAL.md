@@ -1743,6 +1743,8 @@ ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
     SWALLOWED_ARCH_HOST_PICK_PHONY=1
     PHYS_DEL_PREFLIGHT_ARCH_HOST_PICK_PHONY=1
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  dual-end L2 green tip: 3d7a76306 (Mac + Ubuntu leaf + phys-del --check
+    + sample net-o-stub / sqlite-o-stub ensure)
   next: more shell-primary / lists residual or tip Windows re-proof
        → Mac+Ubuntu L4 → ship delete body
 ```
@@ -1756,6 +1758,7 @@ ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
 | `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
 | `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
 | `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+| dual-end L2 tip | `3d7a76306` |
 
 **Forbidden:** claim archaeology host-pick catalog = physical delete; dual
 host-pick if-ladder in Makefile; `rm compiler/Makefile`; ship delete body;
