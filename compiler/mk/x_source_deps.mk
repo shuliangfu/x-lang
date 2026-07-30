@@ -8,10 +8,9 @@
 #   PIPELINE_X_DEPS   — pipeline_gen / pipeline_x.o STALE + make prereqs
 #
 # Used by:
-#   - compiler/Makefile: driver_gen.c / preprocess_gen.c prereqs;
-#     pipeline_x.o recipe exports PIPELINE_X_DEPS to ensure try-heat/try-gen-x
+#   - compiler/Makefile: include only (wave823); no dual inventory
 #   - scripts/ensure_driver_gen.sh: freshness vs MAIN_X_DEPS / PREPROCESS_X_DEPS
-#   - scripts/ensure_gen_x_o.sh: PIPELINE_X_DEPS env from thin leaf
+#   - scripts/ensure_gen_x_o.sh: PIPELINE_X_DEPS mk-load when env unset (wave886)
 #   - driver_seed_obj_catalog.sh shell parse (0-make; G.7)
 #
 # G.7: Definitions live only here. Makefile must include, not re-assign the

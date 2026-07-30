@@ -181,6 +181,10 @@
 #            relink-xlang / xlang_asm drop G05_SYNC_ASM=0/1 inject; shell
 #            --no-sync + default sync; env G05_SYNC_ASM still for direct shell;
 #            NOT physical delete — LD + pipeline bags + thin edges remain
+#   wave886: B7B residual LD + pipeline bag inject hygiene (2 recipes) →
+#            cfg_eval drop LD=/LD_RELFLAGS=; pipeline_x drop PIPELINE_X_* /
+#            XLANG_FORCE_REGEN_GEN inject; shell LD defaults + mk DEPS load;
+#            NOT physical delete — thin edges + B2 + mk lists remain
 #   wave856: B7B archaeology LINK_OBJS shell-load via make export leaves (5 bags /
 #            6 shells; nested expand; Makefile drops multi-token LINK_OBJS env;
 #            NOT physical delete — CFLAGS env + thin edges + B2 remain)
@@ -1465,7 +1469,8 @@ B7B_CC_INJECT_HYGIENE_COUNT=118
 # COUNT = 2 recipes: relink-xlang (was G05_SYNC_ASM=0) + xlang_asm (was =1).
 # Authority: scripts/g05_prepare_and_relink.sh — default SYNC=1; CLI --no-sync for
 # relink-xlang; env G05_SYNC_ASM still for xbuild/refresh/probes (not recipe inject).
-# NOT physical delete — LD + pipeline bags + thin edges + B2 remain.
+# NOT physical delete — LD + pipeline bags + thin edges + B2 remain
+# (LD+pipeline closed in wave886).
 PHYS_DEL_B7B_G05_SYNC_INJECT_HYGIENE=1
 PHYS_DEL_B7B_G05_SYNC_INJECT_HYGIENE_WAVE=wave885
 PHYS_DEL_B7B_G05_SYNC_INJECT_HYGIENE_COUNT=2
@@ -1475,6 +1480,21 @@ SWALLOWED_B7B_G05_SYNC_INJECT_HYGIENE=1
 B7B_G05_SYNC_INJECT_HYGIENE_SWALLOWED=1
 B7B_G05_SYNC_INJECT_HYGIENE_WAVE=wave885
 B7B_G05_SYNC_INJECT_HYGIENE_COUNT=2
+# wave886: B7B residual LD + pipeline bag inject hygiene.
+# COUNT = 2 recipes: cfg_eval (was LD=/LD_RELFLAGS=) + pipeline_x (was
+# PIPELINE_X_DEPS / PIPELINE_X_FORCE_COMPILE / XLANG_FORCE_REGEN_GEN).
+# Authority: ensure try-cfg-eval-ladder LD defaults + ensure_gen_x_o mk-load
+# PIPELINE_X_DEPS; FORCE flags via CLI/env + rebuild_leaves export.
+# NOT physical delete — thin edges + B2 + mk lists remain.
+PHYS_DEL_B7B_LD_PIPELINE_INJECT_HYGIENE=1
+PHYS_DEL_B7B_LD_PIPELINE_INJECT_HYGIENE_WAVE=wave886
+PHYS_DEL_B7B_LD_PIPELINE_INJECT_HYGIENE_COUNT=2
+PHYS_DEL_B7B_LD_PIPELINE_INJECT_HYGIENE_VIA=shell_ld_defaults_pipeline_deps_mk_load_no_recipe_inject
+PHYS_DEL_B7B_LD_PIPELINE_INJECT_HYGIENE_NOTE=makefile_no_ld_or_pipeline_bag_inject_on_cfg_eval_pipeline_x_shell_defaults_thin_edges_remain
+SWALLOWED_B7B_LD_PIPELINE_INJECT_HYGIENE=1
+B7B_LD_PIPELINE_INJECT_HYGIENE_SWALLOWED=1
+B7B_LD_PIPELINE_INJECT_HYGIENE_WAVE=wave886
+B7B_LD_PIPELINE_INJECT_HYGIENE_COUNT=2
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -2511,6 +2531,9 @@ else
   fi
   if ! grep -qE 'wave885|G05_SYNC|G05_SYNC_ASM|no-sync|g05_prepare.*inject' "$DOC_REL"; then
     bad "$DOC_REL must document wave885 G05_SYNC inject hygiene"
+  fi
+  if ! grep -qE 'wave886|LD_PIPELINE|LD.*pipeline.*inject|LD_RELFLAGS|PIPELINE_X_DEPS.*mk-load|cfg_eval.*LD' "$DOC_REL"; then
+    bad "$DOC_REL must document wave886 LD + pipeline bag inject hygiene"
   fi
   note "doc $DOC_REL present"
 fi
@@ -5514,10 +5537,11 @@ if grep -nE '^PIPELINE_X_DEPS[[:space:]]*=' "$MF" 2>/dev/null | grep -qE 'pipeli
 else
   note "Makefile PIPELINE_X_DEPS has no dual inline list (wave823)"
 fi
-# Consumers (wave823 + wave829 honesty):
+# Consumers (wave823 + wave829 + wave886 honesty):
 #   MAIN_X_DEPS / PREPROCESS_X_DEPS — shell ensure_driver_gen.sh loads mk (wave829
 #     FORCE dep-thin dropped Makefile $(MAIN_X_DEPS)/$(PREPROCESS_X_DEPS) prereqs).
-#   PIPELINE_X_DEPS — Makefile still exports for try-heat STALE (pipeline_x).
+#   PIPELINE_X_DEPS — shell ensure_gen_x_o.sh mk-load when env unset (wave886;
+#     Makefile recipe no longer injects multi-token bag).
 # Catalog must parse mk (no hardcode second inventory).
 _cat_sh="$ROOT/compiler/scripts/driver_seed_obj_catalog.sh"
 [ -f "$_cat_sh" ] || _cat_sh="scripts/driver_seed_obj_catalog.sh"
@@ -5546,8 +5570,18 @@ fi
 if grep -nE 'MAIN_X_DEPS=\(src/main\.x' "$_edg" 2>/dev/null | grep -q 'codegen'; then
   bad "ensure_driver_gen.sh must not hardcode MAIN_X_DEPS array (wave823 dual authority)"
 fi
-if ! grep -qE '\$\(PIPELINE_X_DEPS\)|PIPELINE_X_DEPS="' "$MF"; then
-  bad "Makefile must still consume PIPELINE_X_DEPS (wave823 consumers)"
+# wave886: PIPELINE_X_DEPS consumer = ensure_gen_x_o.sh mk-load (not Makefile inject).
+_egx="$ROOT/compiler/scripts/ensure_gen_x_o.sh"
+[ -f "$_egx" ] || _egx="scripts/ensure_gen_x_o.sh"
+if ! grep -q 'mk/x_source_deps.mk' "$_egx"; then
+  bad "ensure_gen_x_o.sh must load PIPELINE_X_DEPS from mk/x_source_deps.mk (wave886)"
+fi
+if ! grep -qE '_load_pipeline_x_deps_from_mk|PIPELINE_X_DEPS=\$|PIPELINE_X_DEPS from mk' "$_egx"; then
+  bad "ensure_gen_x_o.sh must mk-load PIPELINE_X_DEPS when env unset (wave886)"
+fi
+if grep -nE '^\t@PIPELINE_X_DEPS="\$\(PIPELINE_X_DEPS\)"' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile still injects PIPELINE_X_DEPS= on recipes (wave886)"
+  grep -nE '^\t@PIPELINE_X_DEPS="\$\(PIPELINE_X_DEPS\)"' "$MF" | head -5 >&2
 fi
 # wave829: Makefile must NOT re-introduce make-graph dual prereqs for gen leaves.
 if grep -nE '^(driver_gen|preprocess_gen)\.c:.*\$\((MAIN|PREPROCESS)_X_DEPS\)' "$MF" 2>/dev/null | grep -q .; then
@@ -6963,6 +6997,35 @@ if ! grep -q 'PHYS_DEL_B7B_G05_SYNC_INJECT_HYGIENE_COUNT=2' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_G05_SYNC_INJECT_HYGIENE_COUNT=2 (wave885)"
 fi
 note "B7B residual G05_SYNC inject hygiene (COUNT=2; wave885; not physical delete)"
+# wave886: residual LD + pipeline bag inject hygiene.
+# COUNT=2: cfg_eval drop LD=/LD_RELFLAGS=; pipeline_x drop PIPELINE bags.
+# G.7: shell LD defaults + ensure_gen_x_o mk-load PIPELINE_X_DEPS.
+if grep -nE '^\t@LD="\$\(LD\)"' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile still injects LD=\$(LD) on recipes (wave886)"
+  grep -nE '^\t@LD="\$\(LD\)"' "$MF" | head -10 >&2
+fi
+if grep -nE 'LD_RELFLAGS="\$\(LD_RELFLAGS\)"' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile still injects LD_RELFLAGS=\$(LD_RELFLAGS) on recipes (wave886)"
+  grep -nE 'LD_RELFLAGS="\$\(LD_RELFLAGS\)"' "$MF" | head -10 >&2
+fi
+if grep -nE 'PIPELINE_X_FORCE_COMPILE="\$\(PIPELINE_X_FORCE_COMPILE\)"' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile still injects PIPELINE_X_FORCE_COMPILE= on recipes (wave886)"
+  grep -nE 'PIPELINE_X_FORCE_COMPILE="\$\(PIPELINE_X_FORCE_COMPILE\)"' "$MF" | head -5 >&2
+fi
+if ! grep -q 'wave886' "$MF" 2>/dev/null; then
+  bad "Makefile must document wave886 LD/pipeline inject hygiene"
+fi
+if ! grep -q '_cfg_eval_default_ld_relflags' "$ROOT/compiler/scripts/ensure_host_cc_seed_o.sh" 2>/dev/null; then
+  bad "ensure_host_cc_seed_o.sh must own _cfg_eval_default_ld_relflags (wave886)"
+fi
+# dump honesty
+if ! grep -q 'PHYS_DEL_B7B_LD_PIPELINE_INJECT_HYGIENE=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_LD_PIPELINE_INJECT_HYGIENE=1 (wave886)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_LD_PIPELINE_INJECT_HYGIENE_COUNT=2' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_LD_PIPELINE_INJECT_HYGIENE_COUNT=2 (wave886)"
+fi
+note "B7B residual LD+pipeline inject hygiene (COUNT=2; wave886; not physical delete)"
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
   PHYS_DEL_BUCKET_B1_BODY_SWALLOWED=1 \

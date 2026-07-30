@@ -302,7 +302,10 @@ FORCE="${XLANG_HOST_CC_SEED_FORCE:-0}"
 # @bash only — CC from resolve_host_cc when unset; make CLI/env auto-export.
 # wave885 · B7B residual G05_SYNC inject hygiene: relink-xlang / xlang_asm drop
 # G05_SYNC_ASM= recipe inject; shell --no-sync + default sync own policy.
-# Residual: thin edges · cfg_eval LD bags · pipeline_x multi-token · physical delete.
+# wave886 · B7B residual LD + pipeline bag inject hygiene: cfg_eval drops
+# LD=/LD_RELFLAGS=; pipeline_x drops PIPELINE_X_* / XLANG_FORCE_REGEN_GEN inject.
+# Shell owns LD defaults + PIPELINE_X_DEPS mk-load when unset.
+# Residual: thin edges · B2 · mk lists · physical delete.
 # PLATFORM: SHARED — KEY=value from export target; no compile side effects.
 _load_try_heat_cflags_via_make() {
   local raw line
@@ -4429,12 +4432,37 @@ cfg_eval_ladder_spec_for_out() {
   esac
 }
 
+# wave886: default LD_RELFLAGS when unset (mirror Makefile UNAME ifeq).
+# PLATFORM: MACOS — ld -r needs explicit -arch; LINUX/WINDOWS leave empty.
+# G.7 single body — CLI/env LD_RELFLAGS still wins when set.
+_cfg_eval_default_ld_relflags() {
+  local uname_s uname_m
+  uname_s=$(uname -s 2>/dev/null || echo unknown)
+  uname_m=$(uname -m 2>/dev/null || echo unknown)
+  case "$uname_s" in
+    Darwin)
+      case "$uname_m" in
+        arm64|aarch64) printf '%s' "-arch arm64" ;;
+        x86_64|amd64) printf '%s' "-arch x86_64" ;;
+        *) printf '%s' "" ;;
+      esac
+      ;;
+    *)
+      printf '%s' ""
+      ;;
+  esac
+}
+
 # Link cfg_eval_x.o + link_alias → OUT (historic Makefile $(LD) -r twin).
-# PLATFORM: SHARED — LD/LD_RELFLAGS from env (Makefile thin expands make vars).
+# PLATFORM: SHARED — LD/LD_RELFLAGS from env when set; shell defaults otherwise
+# (wave886: no Makefile recipe inject).
 _cfg_eval_link_x_plus_alias() {
   local out="$1" x_o="$2"
   local ld_bin="${LD:-ld}"
-  local ld_rel="${LD_RELFLAGS:-}"
+  local ld_rel="${LD_RELFLAGS-}"
+  if [ -z "${LD_RELFLAGS+x}" ]; then
+    ld_rel="$(_cfg_eval_default_ld_relflags)"
+  fi
   if [ ! -f scripts/cc_inc_tu.sh ]; then
     echo "ensure_host_cc_seed_o try-cfg-eval-ladder: missing scripts/cc_inc_tu.sh" >&2
     return 1

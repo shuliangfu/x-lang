@@ -1001,8 +1001,10 @@ src/lexer/cfg_eval.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # wave795 B7A: heat dep-edge thin cfg_eval multi residual — prereqs → FORCE + ensure;
 # try-heat owns multi-seed/.x + hdr mtime (try-cfg-eval-ladder). NOT physical delete.
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-	@LD="$(LD)" LD_RELFLAGS="$(LD_RELFLAGS)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# wave886 B7B residual: drop LD=/LD_RELFLAGS= recipe inject (G.7 hygiene).
+# Authority: ensure try-cfg-eval-ladder — LD:-ld + shell Darwin arch default;
+# CLI/env LD / LD_RELFLAGS still override. NOT physical delete.
+	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02a：preprocess 已迁 preprocess.x；不再编译 preprocess.c。
 
@@ -2174,14 +2176,14 @@ endif
 # pipeline_glue.c / ast_pool.c 由 pipeline_glue_standalone.o 覆盖，勿因二者 mtime 触发整 TU 重编（否则与 partial 并列链 parse 塌陷）。
 # wave761: G.7 body → scripts/ensure_gen_x_o.sh (gen_driver STALE + FORCE; DEPS from mk)
 # wave796 B7A: heat dep-edge thin gen_x residual — gen/DEPS prereqs → FORCE + ensure;
-# recipe still exports PIPELINE_X_DEPS for shell STALE; try-heat → try-gen-x.
-# NOT physical delete.
+# try-heat → try-gen-x. NOT physical delete.
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+# wave886 B7B residual: drop PIPELINE_X_DEPS / PIPELINE_X_FORCE_COMPILE /
+# XLANG_FORCE_REGEN_GEN recipe inject (G.7 hygiene). Authority: ensure_gen_x_o.sh
+# loads PIPELINE_X_DEPS from mk/x_source_deps.mk when unset; FORCE flags via
+# CLI/env + rebuild_leaves export. NOT physical delete.
 pipeline_x.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@PIPELINE_X_DEPS="$(PIPELINE_X_DEPS)" \
-	  PIPELINE_X_FORCE_COMPILE="$(PIPELINE_X_FORCE_COMPILE)" \
-	  XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
-	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 FORCE:
 
 # driver_gen.c / driver_x.o：main.x 驱动入口。

@@ -36,14 +36,17 @@
 #   CC / CFLAGS / PIPELINE_GEN_CFLAGS — host compile (match Makefile)
 #   XLANG_GEN_X_FORCE=1 | XLANG_HOST_CC_SEED_FORCE=1 — always recompile
 #   PIPELINE_X_FORCE_COMPILE=1 | XLANG_FORCE_REGEN_GEN=1 — force pipeline STALE
-#   PIPELINE_X_DEPS — space-separated dep paths for pipeline STALE (Makefile
-#     thin leaf expands; rebuild_leaves may leave empty → STALE uses gen only)
+#     (CLI/env / rebuild_leaves export; wave886: no Makefile recipe inject)
+#   PIPELINE_X_DEPS — space-separated dep paths for pipeline STALE. When unset,
+#     wave886 loads from mk/x_source_deps.mk (G.7; expands PIPELINE_ASM globs).
+#     Explicit empty env still means "gen-only STALE" for rebuild_leaves escape.
 #   MAKE — for ensure_lsp_pipeline_gen when gen missing
 #
 # PLATFORM: SHARED shell body; pipeline gen_driver cache is host-portable.
-# Wave: 761 + 782 + 796 Track MG · 11.3.1 path (not physical delete · not pure-ld).
+# Wave: 761 + 782 + 796 + 886 Track MG · 11.3.1 path (not physical delete · not pure-ld).
 # wave796: Makefile gen leaves FORCE-thin; this script owns gen.c / DEPS / .x
-# mtime skip (lsp_io.x included). PIPELINE_X_DEPS still exported by Makefile recipe.
+# mtime skip (lsp_io.x included).
+# wave886: drop multi-token PIPELINE bag recipe inject; shell mk-load + env defaults.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -63,6 +66,49 @@ if [ -z "${PIPELINE_GEN_CFLAGS:-}" ]; then
   if "$CC" -v 2>&1 | grep -qi clang; then
     PIPELINE_GEN_CFLAGS="$PIPELINE_GEN_CFLAGS_BASE $PIPELINE_GEN_CFLAGS_CLANG"
   fi
+fi
+
+# wave886: PIPELINE_X_DEPS authority = mk/x_source_deps.mk (G.7; not dual list).
+# When env unset, load fixed paths from mk + expand asm wildcards in shell
+# (mirror $(wildcard src/asm/*.x src/asm/platform/*.x src/asm/arch/*.x)).
+# PLATFORM: SHARED — source basenames portable; globs host-local.
+_X_SOURCE_DEPS_MK="mk/x_source_deps.mk"
+_mk_x_source_assign_val() {
+  local key="$1"
+  local line
+  line=$(grep -E "^${key}[[:space:]]*=" "$_X_SOURCE_DEPS_MK" 2>/dev/null | head -1 \
+    | sed "s/^${key}[[:space:]]*=[[:space:]]*//;s/#.*//;s/[[:space:]]*$//")
+  printf '%s' "$line"
+}
+_load_pipeline_x_deps_from_mk() {
+  local raw fixed asm_part f
+  local -a asm_files=()
+  if [ ! -f "$_X_SOURCE_DEPS_MK" ]; then
+    echo "ensure-gen-x-o: missing $_X_SOURCE_DEPS_MK (wave886 PIPELINE_X_DEPS)" >&2
+    return 1
+  fi
+  raw="$(_mk_x_source_assign_val PIPELINE_X_DEPS)"
+  if [ -z "$raw" ]; then
+    echo "ensure-gen-x-o: empty PIPELINE_X_DEPS in $_X_SOURCE_DEPS_MK" >&2
+    return 1
+  fi
+  # Drop make $(PIPELINE_ASM_X_DEPS) token; expand globs like Makefile wildcard.
+  fixed=$(printf '%s' "$raw" | sed 's/\$(PIPELINE_ASM_X_DEPS)//g')
+  # bash 3.2: nullglob via empty-check loop (mac default bash).
+  for f in src/asm/*.x src/asm/platform/*.x src/asm/arch/*.x; do
+    if [ -e "$f" ]; then
+      asm_files+=("$f")
+    fi
+  done
+  asm_part=""
+  if [ "${#asm_files[@]}" -gt 0 ]; then
+    asm_part="${asm_files[*]}"
+  fi
+  # shellcheck disable=SC2086
+  printf '%s' "$fixed $asm_part" | tr -s '[:space:]' ' ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+}
+if [ -z "${PIPELINE_X_DEPS+x}" ]; then
+  PIPELINE_X_DEPS="$(_load_pipeline_x_deps_from_mk)" || exit 2
 fi
 
 log() { echo "ensure-gen-x-o: $*" >&2; }
@@ -149,8 +195,8 @@ build_lsp_diag_x() {
 
 build_pipeline_x() {
   # Makefile parity: token enum sync + gen_driver cache + FORCE/STALE deps.
-  # PIPELINE_X_DEPS comes from Makefile thin leaf or rebuild_leaves env (list
-  # authority stays mk; empty → STALE only from gen + force flags).
+  # PIPELINE_X_DEPS: wave886 shell-loads mk when env unset; explicit empty →
+  # STALE only from gen + force flags (rebuild_leaves escape).
   ensure_gen_file pipeline
   if [ -f scripts/sync_lexer_gen_token_enum.pl ]; then
     perl scripts/sync_lexer_gen_token_enum.pl pipeline_gen.c
