@@ -18,6 +18,9 @@
 # Env:
 #   MAKE — make binary (default: make)
 #   XLANG_SKIP_DRIVER_SEED_PREREQS=1 — no-op (nested / agent escape hatch)
+#   XLANG_CATALOG_CACHE_FILE — when set and non-empty, reuse parent-warmed catalog
+#     blob (bootstrap_driver_seed warms once for the whole seed wave). This script
+#     only creates/deletes a cache file when it owns the warm.
 #
 # PLATFORM: SHARED — catalog expansion is host-specific (Darwin filtered lists);
 # leaf recipes carry platform ABI. Wave744 Track MG (not physical Makefile delete).
@@ -165,20 +168,31 @@ if [ "$MODE" = dry-run ] || [ "$MODE" = check ]; then
 fi
 
 # run: single make invocation for leaf edge targets only.
-# Warm shared catalog blob once — Makefile FORCE leaves each spawn a new
-# `try-heat` bash; without XLANG_CATALOG_CACHE_FILE that re-parses mk ~N times
-# (Windows MinGW multi-minute stall, no gcc). PLATFORM: SHARED.
-_cat_cache="${TMPDIR:-/tmp}/xlang_ensure_prereqs_cat_$$.txt"
-if bash scripts/driver_seed_obj_catalog.sh >"$_cat_cache" 2>/tmp/xlang_ensure_cat_err_$$.txt; then
-  export XLANG_CATALOG_CACHE_FILE="$_cat_cache"
-  echo "driver_seed_ensure_prereqs: catalog cache warm OK ($_cat_cache)" >&2
+# Shared catalog blob for try-heat children. Prefer parent session cache
+# (bootstrap_driver_seed); only warm+own a temp file when unset so EXIT does
+# not delete the bootstrap-wide cache (that regressed Windows after prereqs:
+# pipeline-x try-r1 ladder re-expanded catalog for minutes). PLATFORM: SHARED.
+_cat_owned=0
+_cat_cache=""
+if [ -n "${XLANG_CATALOG_CACHE_FILE:-}" ] && [ -s "${XLANG_CATALOG_CACHE_FILE}" ]; then
+  echo "driver_seed_ensure_prereqs: catalog cache reuse OK (${XLANG_CATALOG_CACHE_FILE})" >&2
 else
-  echo "driver_seed_ensure_prereqs: catalog warm failed (try-heat will re-expand)" >&2
-  cat /tmp/xlang_ensure_cat_err_$$.txt 2>/dev/null || true
-  rm -f "$_cat_cache" /tmp/xlang_ensure_cat_err_$$.txt
-  unset XLANG_CATALOG_CACHE_FILE || true
+  _cat_cache="${TMPDIR:-/tmp}/xlang_ensure_prereqs_cat_$$.txt"
+  if bash scripts/driver_seed_obj_catalog.sh --shell >"$_cat_cache" 2>/tmp/xlang_ensure_cat_err_$$.txt; then
+    export XLANG_CATALOG_CACHE_FILE="$_cat_cache"
+    _cat_owned=1
+    echo "driver_seed_ensure_prereqs: catalog cache warm OK ($_cat_cache)" >&2
+  else
+    echo "driver_seed_ensure_prereqs: catalog warm failed (try-heat will re-expand)" >&2
+    cat /tmp/xlang_ensure_cat_err_$$.txt 2>/dev/null || true
+    rm -f "$_cat_cache" /tmp/xlang_ensure_cat_err_$$.txt
+    unset XLANG_CATALOG_CACHE_FILE || true
+    _cat_cache=""
+    _cat_owned=0
+  fi
 fi
-trap 'rm -f "${_cat_cache:-}" /tmp/xlang_ensure_cat_err_$$.txt' EXIT HUP INT TERM
+# shellcheck disable=SC2064
+trap 'if [ "${_cat_owned:-0}" = "1" ]; then rm -f "${_cat_cache:-}" /tmp/xlang_ensure_cat_err_$$.txt; fi' EXIT HUP INT TERM
 
 echo "driver_seed_ensure_prereqs: make ($n leaf targets) ..." >&2
 # shellcheck disable=SC2086

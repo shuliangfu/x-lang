@@ -45,6 +45,9 @@
 #   XLANG_REBUILD_LEAVES_VIA_EXPORT=1 — legacy: eval Makefile export-* leaf
 #     instead of catalog (escape hatch / compare; not product default)
 #   CC / CFLAGS / PIPELINE_GEN_CFLAGS — forwarded to ensure try-r1 / try-r2
+#   XLANG_CATALOG_CACHE_FILE — shared KEY= blob; bootstrap_driver_seed warms
+#     once. When unset, this script warms for the ladder (try-r1→try-gen-x
+#     each spawn a new bash; without cache Windows re-parses mk per step).
 #
 # PLATFORM: SHARED — mode table + catalog expansion; Makefile expands
 #            host-specific runtime rebuild lists (no_c vs seed) and platform
@@ -154,9 +157,34 @@ else
     echo "bootstrap_driver_seed_rebuild_leaves: missing scripts/driver_seed_obj_catalog.sh" >&2
     exit 1
   fi
-  catalog_out="$(bash scripts/driver_seed_obj_catalog.sh)"
+  # Prefer session cache (bootstrap warm); else warm once here so try-r1 /
+  # try-r3-cold / try-r2 / try-gen-x children share one mk parse.
+  # PLATFORM: SHARED — Windows hybrid min-gate depends on this.
+  _rebuild_cat_owned=0
+  _rebuild_cat_cache=""
+  if [ -n "${XLANG_CATALOG_CACHE_FILE:-}" ] && [ -s "${XLANG_CATALOG_CACHE_FILE}" ]; then
+    catalog_out="$(cat "${XLANG_CATALOG_CACHE_FILE}")"
+    list_source="catalog-cache ${catalog_key}"
+  else
+    _rebuild_cat_cache="${TMPDIR:-/tmp}/xlang_rebuild_leaves_cat_$$.txt"
+    if bash scripts/driver_seed_obj_catalog.sh --shell >"${_rebuild_cat_cache}" \
+      2>/tmp/xlang_rebuild_cat_err_$$.txt; then
+      export XLANG_CATALOG_CACHE_FILE="${_rebuild_cat_cache}"
+      _rebuild_cat_owned=1
+      catalog_out="$(cat "${_rebuild_cat_cache}")"
+      list_source="catalog ${catalog_key}"
+      echo "bootstrap_driver_seed_rebuild_leaves: catalog cache warm OK (${_rebuild_cat_cache})" >&2
+    else
+      echo "bootstrap_driver_seed_rebuild_leaves: catalog expand failed" >&2
+      cat /tmp/xlang_rebuild_cat_err_$$.txt 2>/dev/null || true
+      rm -f "${_rebuild_cat_cache}" /tmp/xlang_rebuild_cat_err_$$.txt
+      exit 1
+    fi
+  fi
+  # shellcheck disable=SC2064
+  trap 'if [ "${_rebuild_cat_owned:-0}" = "1" ]; then rm -f "${_rebuild_cat_cache:-}" /tmp/xlang_rebuild_cat_err_$$.txt; fi' EXIT HUP INT TERM
   SEED_REBUILD_OBJS="$(printf '%s\n' "$catalog_out" | sed -n "s/^${catalog_key}=//p" | head -1)"
-  list_source="catalog ${catalog_key}"
+  # list_source set above
 fi
 
 if [ -z "${SEED_REBUILD_OBJS// /}" ]; then

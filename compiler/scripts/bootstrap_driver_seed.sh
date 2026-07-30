@@ -24,6 +24,10 @@
 #   XLANG_SKIP_SEED_SMOKE=1 — skip post-link smoke
 #   XLANG_SKIP_DRIVER_SEED_PREREQS=1 — skip ensure_prereqs (nested/agent hatch)
 #   TARGET — product binary name (default: xlang); must match Makefile TARGET
+#   XLANG_CATALOG_CACHE_FILE — optional pre-warmed catalog KEY= blob (parent may set);
+#     this script warms one session file when unset so ensure_prereqs + rebuild_leaves
+#     + every try-r1/try-heat share one mk parse (Windows MinGW: multi-minute stalls
+#     without it — ensure_prereqs alone is not enough; its EXIT deleted the cache).
 #
 # PLATFORM: SHARED — orchestration identical; leaf recipes carry platform ABI.
 # Wave: 717 orchestration · 721 phase1/final link · 722 sat/lsp · 723 host-stubs ·
@@ -38,6 +42,33 @@ TARGET="${TARGET:-xlang}"
 XLANG_C="${XLANG_C:-xlang-c}"
 
 log() { echo "bootstrap-driver-seed: $*" >&2; }
+
+# Session catalog cache: one shell mk parse for the whole cold seed wave.
+# PLATFORM: SHARED — required for Windows hybrid min-gate (Git Bash/MinGW);
+# macOS/Linux also benefit (avoids N× catalog in rebuild ladders).
+_bootstrap_cat_owned=0
+_bootstrap_cat_cache="${XLANG_CATALOG_CACHE_FILE:-}"
+if [ -n "${_bootstrap_cat_cache}" ] && [ -s "${_bootstrap_cat_cache}" ]; then
+  export XLANG_CATALOG_CACHE_FILE="${_bootstrap_cat_cache}"
+  log "catalog cache reuse OK (${XLANG_CATALOG_CACHE_FILE})"
+else
+  _bootstrap_cat_cache="${TMPDIR:-/tmp}/xlang_bootstrap_catalog_$$.txt"
+  if bash scripts/driver_seed_obj_catalog.sh --shell >"${_bootstrap_cat_cache}" \
+    2>/tmp/xlang_bootstrap_cat_err_$$.txt; then
+    export XLANG_CATALOG_CACHE_FILE="${_bootstrap_cat_cache}"
+    _bootstrap_cat_owned=1
+    log "catalog cache warm OK (${XLANG_CATALOG_CACHE_FILE})"
+  else
+    log "WARN catalog warm failed (ensure/rebuild will re-expand)"
+    cat /tmp/xlang_bootstrap_cat_err_$$.txt 2>/dev/null || true
+    rm -f "${_bootstrap_cat_cache}" /tmp/xlang_bootstrap_cat_err_$$.txt
+    unset XLANG_CATALOG_CACHE_FILE || true
+    _bootstrap_cat_cache=""
+    _bootstrap_cat_owned=0
+  fi
+fi
+# shellcheck disable=SC2064
+trap 'if [ "${_bootstrap_cat_owned:-0}" = "1" ]; then rm -f "${_bootstrap_cat_cache:-}" /tmp/xlang_bootstrap_cat_err_$$.txt; fi' EXIT HUP INT TERM
 
 # --- §5b whitelist make helper (only named leaves; no free-form recipes) ---
 mk() {

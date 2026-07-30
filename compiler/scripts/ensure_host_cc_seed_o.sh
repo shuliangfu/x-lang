@@ -514,7 +514,9 @@ ensure_one() {
 #   XLANG_CATALOG_CACHE_FILE so ensure_prereqs / rebuild can warm once.
 # PLATFORM: SHARED — cache is optional; unset = prior in-process-only behavior.
 catalog_blob() {
-  # Prefer shared file cache (cross-process for one ensure/make wave).
+  # Prefer shared file cache (cross-process for one ensure/make/bootstrap wave).
+  # Parent (bootstrap_driver_seed / ensure_prereqs / rebuild_leaves) should set
+  # XLANG_CATALOG_CACHE_FILE; without it each try-* re-parses mk (Windows stall).
   if [ -n "${XLANG_CATALOG_CACHE_FILE:-}" ] && [ -s "${XLANG_CATALOG_CACHE_FILE}" ]; then
     cat "${XLANG_CATALOG_CACHE_FILE}"
     return 0
@@ -524,7 +526,9 @@ catalog_blob() {
       echo "ensure_host_cc_seed_o: missing scripts/driver_seed_obj_catalog.sh" >&2
       exit 1
     fi
-    _catalog_blob_cache="$(MAKE="$MAKE" bash scripts/driver_seed_obj_catalog.sh)"
+    # --shell: never route catalog through MAKE wrap (Windows gate MAKE is a
+    # logging wrapper; export-via-make is LEGACY only). PLATFORM: SHARED.
+    _catalog_blob_cache="$(bash scripts/driver_seed_obj_catalog.sh --shell)"
     if [ -n "${XLANG_CATALOG_CACHE_FILE:-}" ]; then
       # Best-effort warm for sibling try-heat processes in the same ensure wave.
       printf '%s\n' "$_catalog_blob_cache" >"${XLANG_CATALOG_CACHE_FILE}" 2>/dev/null || true
