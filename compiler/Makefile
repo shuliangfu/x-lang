@@ -2931,13 +2931,13 @@ bootstrap-driver-bstrict-windows: bootstrap-driver-bstrict
 	@echo "bootstrap-driver-bstrict-windows OK (E-06 v5: SKIP_GEN B-strict; gate with XLANG_WIN_BSTRICT=1 on MSYS2)"
 
 # M4 Linux：crt0 + full_asm .o 链（B-partial，无 runtime_driver）；与 bootstrap-driver-bstrict（asm_only_strict）分轨验收。
-bootstrap-driver-crt0: bootstrap-driver-seed
-	@XLANG=./$(TARGET) ./scripts/build_xlang_asm.sh 2>&1 | tee /tmp/build_xlang_crt0.log; \
-	grep -qE 'Target-B-partial|LINK_MODE=crt0|no C runtime driver' /tmp/build_xlang_crt0.log || \
-	(echo "bootstrap-driver-crt0: expected crt0 link in log" >&2; exit 1); \
-	if grep -q 'cc -c pipeline_gen.c' /tmp/build_xlang_crt0.log; then \
-	  echo "bootstrap-driver-crt0: crt0 path must not cc -c pipeline_gen.c" >&2; exit 1; fi; \
-	test -f xlang_asm && echo "bootstrap-driver-crt0 OK (xlang_asm via crt0 + build_asm/*.o)"
+# wave869: full body → scripts/bootstrap_driver_crt0.sh (G.7 有则补全).
+# Shell owns build_xlang_asm invoke + crt0 log gates + xlang_asm post-check.
+# Thin-call TARGET= only (single-token). Seed prereq stays make graph.
+# NOT physical delete — thin edges + B2 + mk lists remain residual.
+# PLATFORM: SHARED — orchestration only; ABI stays in build_xlang_asm.
+bootstrap-driver-crt0: bootstrap-driver-seed scripts/bootstrap_driver_crt0.sh
+	@TARGET="$(TARGET)" bash scripts/bootstrap_driver_crt0.sh
 
 # build-user-asm-backend：自 xlang 编 build_asm/*.o（完整 asm 自举）；seed 默认用 build-seed-asm-host（xlang-c -E）。
 build-user-asm-backend:
