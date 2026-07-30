@@ -10,8 +10,8 @@
 | **Compiler** | `xlang` / `xlang_asm` (product binary after bootstrap) |
 | **Source extension** | `.x` |
 | **Build config** | `build.x` — project build strategy in X language (steps, targets, products); entry via `xlang build` / `build_tool` / `xlang-build.sh` |
-| **Status (2026-07-20)** | **Product L4 pin `deaf773b`** (dual-host true cold + bstrict **125/125** + Windows hybrid gate). Tip **`0c9458ed`**: CLI help beautify (Deno-style), dual L2 green (**≠** tip L4 re-pin). **Self-host not finished** (seed / hybrid C still required for cold start) |
-| **Live dashboard** | [`analysis/自举进度.md`](analysis/自举进度.md) · debt map [`analysis/C迁移追踪.md`](analysis/C迁移追踪.md) · Makefile map [`analysis/Makefile迁移表.md`](analysis/Makefile迁移表.md) |
+| **Status (2026-07-31)** | **Product L4 pin `53fd80927`** (dual-host true cold + bstrict **129/129**, wave710). Tip L4 safety net **`f8be401e9`** (wave840 · **not** a pin bump). Residual tip on `self-hosting` (MG **11.3.1** leaf-pattern residual · daily L2 · **≠** tip L4 re-pin). **Self-host not finished** (seed / host-cc still required for cold start; `compiler/Makefile` still present — physical delete needs Windows re-proof + dual L4 + **explicit auth**) |
+| **Live dashboard** | [`analysis/自举进度.md`](analysis/自举进度.md) · timeline [`analysis/自举时序.md`](analysis/自举时序.md) · debt [`analysis/C迁移追踪.md`](analysis/C迁移追踪.md) · Makefile map [`analysis/Makefile迁移表.md`](analysis/Makefile迁移表.md) · leaf residual [`compiler/docs/LEAF_PATTERN_RESIDUAL.md`](compiler/docs/LEAF_PATTERN_RESIDUAL.md) |
 | **中文** | [README_zh-CN.md](README_zh-CN.md) |
 
 ---
@@ -162,14 +162,14 @@ More samples: [`examples/`](examples/) (io, net, async, json, compress, …).
 ```bash
 export XLANG=./compiler/xlang_asm
 ./tests/run-all.sh                 # full regression (when appropriate)
-XLANG_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh   # product gate suite (~125 scripts)
+XLANG_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh   # product gate suite (~129 scripts)
 ./tests/run-linux-a09-a11-gate.sh  # Linux gold bootstrap subset (Docker OK)
 # Linux x86_64 freestanding S4 smoke (return42 / panic / hello):
 ./tests/run-freestanding-hello.sh
 ```
 
 For **self-host / product release claims**, the project requires **L4 true cold** (wipe all `.o` under `compiler`/`std`/`core`, rebuild binaries) **plus** dual-platform `run-all-bstrict` green. Details: skill / [`analysis/自举方法.md`](analysis/自举方法.md) · [`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md).  
-**Note:** daily L2 green on tip ≠ tip L4 pin. **Release pin is `deaf773b`** (125/125 dual true cold + Windows hybrid gate). Tip daily work (e.g. CLI help beautify) may be dual-L2 green without re-pinning L4 (see §8).
+**Note:** daily L2 green on tip ≠ tip L4 pin. **Release pin is `53fd80927`** (129/129 dual true cold). Tip L4 safety net `f8be401e9` is **not** a pin bump (see §8).
 
 ---
 
@@ -344,47 +344,47 @@ Link is **on demand** (unused modules stay out of the final link when possible).
 
 | Track | What it measures | Alone enough to claim “self-host done”? |
 |-------|------------------|----------------------------------------|
-| **Product** | L4 true cold + product matrix (rv / option / hello / …) + dual `run-all-bstrict` **125** | **Required**, not sufficient alone for “zero C forever” |
+| **Product** | L4 true cold + product matrix (rv / option / hello / …) + dual `run-all-bstrict` **129** | **Required**, not sufficient alone for “zero C forever” |
 | **Engineering** | prove T/N, Cap residual pure, Stage2, WPO chain/link/text gates | **No** |
 
 ---
 
-## 8. Self-host status (snapshot · 2026-07-20)
+## 8. Self-host status (snapshot · 2026-07-31)
 
-> **Authoritative live numbers**: [`analysis/自举进度.md`](analysis/自举进度.md) · debt [`analysis/C迁移追踪.md`](analysis/C迁移追踪.md).  
-> README only summarizes; **do not** treat Stage2 / prove / WPO / daily L2 green as a tip L4 re-pin or as “self-host done”.
+> **Authoritative live numbers**: [`analysis/自举进度.md`](analysis/自举进度.md) · debt [`analysis/C迁移追踪.md`](analysis/C迁移追踪.md) · leaf residual map [`compiler/docs/LEAF_PATTERN_RESIDUAL.md`](compiler/docs/LEAF_PATTERN_RESIDUAL.md).  
+> README only summarizes; **do not** treat Stage2 / prove / WPO / daily L2 green as a tip L4 re-pin or as “self-host done”.  
+> **Bare “continue next step” ≠ physical delete of `compiler/Makefile`** — endgame needs Windows re-proof + dual L4 + **explicit user auth**.
 
 ### Product track
 
 | Item | Status |
 |------|--------|
-| **L4 release pin** | **`deaf773b`** — dual-host **true cold** + `run-all-bstrict` **125/125** (Ubuntu + macOS) + Windows hybrid gate. Prior pins today: `305cfbe1` → `deaf773b`; earlier lineage includes `5cc73d54` / `a74e25a1` / `c51759eb` — **do not** re-cite those as the live pin |
-| Product bstrict suite size | **125** scripts (`tests/run-all-bstrict.sh`; must log `OK (125 scripts…)`) |
-| Ubuntu L4 + full bstrict (pin) | ✅ **125/125** @ **`deaf773b`** |
-| macOS L4 + full bstrict (pin) | ✅ **125/125** @ **`deaf773b`** |
-| Windows hybrid gate (pin) | ✅ warm green @ **`deaf773b`** |
+| **L4 release pin** | **`53fd80927`** (wave710, 2026-07-29) — dual-host **true cold** + `run-all-bstrict` **129/129** (Ubuntu + macOS). Prior pins in lineage (e.g. `4fa4f07e7`, `deaf773b`, …) are **not** the live pin |
+| Product bstrict suite size | **129** scripts (`tests/run-all-bstrict.sh`; must log `OK (129 scripts…)`) |
+| Ubuntu L4 + full bstrict (pin) | ✅ **129/129** @ **`53fd80927`** |
+| macOS L4 + full bstrict (pin) | ✅ **129/129** @ **`53fd80927`** |
+| tip L4 safety net (not a pin bump) | ✅ **`f8be401e9`** (wave840) — mid-endgame tip proved dual L4; **pin stays `53fd80927`** until explicit re-pin |
+| Windows hybrid / phys-del min-gate | ✅ STATUS=`reproven_green` on proof tip; **tip drift requires re-proof** before any physical Makefile delete |
 | Gold host | **Ubuntu x86_64** |
 | Product binary under test | This-wave `compiler/xlang_asm` (g05 / relink) — **never** leftover Stage2 `xlang_asm2` or old `stage1` |
-| Branch tip (not tip L4) | **`0c9458ed`** on `self-hosting` — CLI help beautify (Deno-style), dual L2 green. **Tip L4 re-pin only after dual true cold + bstrict 125**, not after every L2 green |
-| Latest tip daily L2 | ✅ mac + Ubuntu L2 matrices + bstrict **125/125** @ `0c9458ed` (**≠** tip L4 re-pin; CLI help beautify is not ABI/link) |
+| Branch residual tip (≠ tip L4) | Daily MG work on `self-hosting` (11.3.1 leaf residual · L2 dual residual/ensure checks). **See dashboard for exact SHA**; do not treat residual tip as the release pin |
+| Latest tip daily L2 | ✅ mac + Ubuntu residual / ensure / catalog checks on residual tip (**≠** tip L4 re-pin) |
 
-### Product surface closed on 2026-07-20
+### Product path (what “usable” means today)
 
-On the **user product path** (`xlang_asm` / freestanding / gates). Green L2 **does not** auto-raise the L4 pin:
+On the **user product path** (`xlang_asm` → `-o` / run / freestanding / gates), the pin already includes a large closed surface (net PRIMARY, bare struct lit, CTFE match fold, X ABI P0b waves, Windows hybrid gate, CLI help, `std.fmt` print ownership, freestanding S4 / NL-07, hosted asm matrix, …).  
+**Green L2 on residual tip does not auto-raise the L4 pin.**
 
-| Area | Status |
+### Track MG · endgame (Makefile / zero host-cc cold start)
+
+| Item | Status |
 |------|--------|
-| **C2 · `std.net` PRIMARY UNDEF** | ✅ `net.o` includes `mod.x`; `use_line` real-call detection; cookbook `net_listen_bind.x -o` green — in pin lineage |
-| **C3=C4 · bare `{…}` struct lit** | ✅ parser `LBRACE` let-init handler; bare struct-lit + `unsafe`/`while` no longer drops lets → P001 |
-| **C8 · vec/set/map/queue duplicate** | ✅ guard `mem.o`+`heap.o` push with `c_provides` (fk0 GAP) — in pin lineage |
-| **Backtrace C-backend heap chain** | ✅ push `page_mmap.o` + asm IO stubs — in pin lineage |
-| **C5 · `EXPR_MATCH` CTFE** | ✅ const subject + const arms fold to imm32 (`lang-const` 13/13); tip `229708f1`, dual L2, **not** L4 re-pin |
-| **C6 · X ABI P0b** | ✅ wave 1 unsafe wrapping (9 sites) + wave 2 ABI consistency (3 sites) — **raised L4 pin to `deaf773b`** |
-| **Driver · `xlang run` / bare `xlang file.x`** | ✅ in-memory compile-and-run |
-| **Windows hybrid gate** | ✅ MSYS2/MinGW bootstrap-driver-bstrict + return-value 42 + win32-write-gate + win32-read-file-gate + C-03 — **raised L4 pin to `deaf773b`** |
-| **CLI help beautify** | ✅ Deno-style green color scheme + per-subcommand sections + `xlang [COMMAND] [OPTIONS]` order |
-| **std.print architecture** | ✅ unified under `std.fmt` (stdout) + `std.debug` (stderr); `std.io` retains low-level write primitives only |
-| Freestanding S4 / NL-07 no-libc / hosted asm matrix | ✅ still hold on product pin |
+| Goal | Physical delete of `compiler/Makefile` + cold start without host-cc compiling business C (C migration stages 11–12) |
+| Path | **11.3.1 leaf-pattern residual** — swallow host-cc / multi-token / list inventory into shell + `compiler/mk/*.mk` (**not** physical delete yet) |
+| Tree flags | `TREE_ARMED=1` · `BODY_SHIPPED=0` · `DELETE_ALLOWED=0` · `--delete` never-rm until auth |
+| Preflight blockers (honest) | thin-call edges · B7B lists-in-mk · std/core product make graph (names evolve; see residual dump) |
+| Progress through 2026-07-31 | Hundreds of residual waves (list→mk, FORCE thin try-heat, shell-primary phonies, env inject hygiene, multi-target families R1/R2/R3/B1–B5/…) — **Makefile still present** |
+| Front residual examples | bootstrap_nostdlib_stubs (Linux guard) · net_merge · remaining thin edges — see open row in C迁移 / LEAF |
 
 ### Engineering track (subset)
 
@@ -392,8 +392,8 @@ On the **user product path** (`xlang_asm` / freestanding / gates). Green L2 **do
 |------------|--------|
 | **T** typeck surface | **18/18** |
 | **EMPTY** | **18/18** |
-| **N** prove IDENTICAL | **54/54** |
-| Cap residual pure | major waves closed on product pin lineage |
+| **N** prove IDENTICAL | **111/111** |
+| Cap residual pure | major waves closed on product pin lineage; open only when product red |
 | **D Stage2** | ✅ freestanding / parity (**≠** full product g05 chain) |
 | Stage2 **WPO** chain + strict-link + text-gate | ✅ engineering green (Ubuntu; some Darwin N/A) |
 
@@ -402,19 +402,18 @@ On the **user product path** (`xlang_asm` / freestanding / gates). Green L2 **do
 - **Not** “compiler is 100% `.x` with zero seed”
 - **Not** “Stage2 `xlang_asm2` is the product compiler”
 - **Not** “engineering WPO green = tip product L4”
-- **Not** “dual L2 bstrict on tip = tip L4” — pin is **`deaf773b`** until the next dual **true cold** re-pin
-- **Not** “Windows hybrid green = product L4 / self-host done” — Windows hybrid is probe-only
+- **Not** “dual L2 residual checks on tip = tip L4” — release pin is **`53fd80927`** until the next dual **true cold** re-pin
+- **Not** “Windows hybrid green = product L4 / self-host done” — Windows is probe / min-gate only
+- **Not** “11.3.1 residual closed = Makefile deleted” — physical delete is a later endgame wave with **explicit auth**
 - Final physical zero-C / full seed elimination (**G**) remains roadmap, not the weekly claim surface
 
-Methodology: Cap / R / L / M → [`analysis/自举方法.md`](analysis/自举方法.md). Ops: [`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md). Discipline: [`AGENTS.md`](AGENTS.md) + skill `xlang-selfhost-product-gate`.
+Methodology: Cap / R / L / M → [`analysis/自举方法.md`](analysis/自举方法.md). Timeline: [`analysis/自举时序.md`](analysis/自举时序.md). Ops: [`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md). Discipline: [`AGENTS.md`](AGENTS.md) + skill `xlang-selfhost-product-gate`.
 
 ### Near-term front row (high level)
 
-1. Next product Cap map only with explicit candidates (C5 guard / struct-lit / enum-variant fold; C6 X ABI P0b; C7 plan thin) — **no** unmapped tip L4  
-2. **Re-pin tip L4** only with dual true cold + bstrict 125 when ABI/link/seed surfaces move  
-3. Residuals that block a product surface only: **no** soft-skip typeck, **no** dual authority
-
----
+1. **11.3.1 residual (non-delete)** — finish remaining thin edges / mk-list hybrid; dual L2 on residual tip  
+2. **tip Windows re-proof** → **Mac/Ubuntu L4** on tip (when claiming endgame) → **explicit user auth** for true Makefile delete  
+3. Cap hard leaves only when product matrix is red — **no** soft-skip typeck, **no** dual authority, **no** unmapped tip L4 re-pin  
 
 ## 9. Milestones
 
@@ -425,8 +424,8 @@ Methodology: Cap / R / L / M → [`analysis/自举方法.md`](analysis/自举方
 | M2 | import, core/std subset, multi-target | ✅ |
 | M3 | Generics, trait, modules, std growth | ✅ |
 | M4 | DCE, -O2/-Os, size/perf baseline | ✅ partial |
-| M5 | Bootstrap (compiler can rebuild itself) | 🟡 **usable product path + advanced self-host**; **seed still required for cold start** |
-| **Now** | Product L4 dual pin @ **`deaf773b`** (125/125 + Windows hybrid gate); tip **`0c9458ed`** (CLI help beautify) — **not** tip L4 re-pin | See dashboard |
+| M5 | Bootstrap (compiler can rebuild itself) | 🟡 **usable product path + advanced self-host**; **seed still required for cold start**; Makefile residual path open |
+| **Now** | Product L4 dual pin @ **`53fd80927`** (129/129); tip L4 safety net **`f8be401e9`**; residual MG **11.3.1** (daily L2 · **not** tip L4 re-pin) | See dashboard |
 
 ---
 
@@ -496,7 +495,7 @@ Plugin install: [`editors/vscode/README.md`](editors/vscode/README.md).
 
 1. Clone → `make -C compiler build-tool && ./xlang-build.sh first-time` (or full bootstrap-driver path).  
 2. Daily edits → `./xlang-build.sh build`, set `XLANG=./compiler/xlang_asm`, run relevant tests/gates.  
-3. Product / link / SHARED changes → **Ubuntu gold** (and mac when SHARED); for release claims use **L4 true cold** + dual bstrict.  
+3. Product / link / SHARED changes → **Ubuntu gold** (and mac when SHARED); for release claims use **L4 true cold** + dual bstrict **129** (pin `53fd80927` until re-pin).  
 4. Commits: Conventional Commits (`feat:` / `fix:` / `docs:` …), English preferred for code comments in `.x` (see `AGENTS.md` / G.9).  
 5. **No dual authority**: seed and `.x` product surfaces move **same commit** when both exist.  
 6. **No false green**: do not claim self-host complete from prove/Stage2/WPO alone.
