@@ -820,6 +820,21 @@ $(GEN_X_SEED_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 $(GEN_C_TO_O_SEED_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
+# ---------------------------------------------------------------------------
+# wave911 · B7B B3 LSP_SAT product edges multi-target FORCE thin try-heat
+# G.7 有则补全: list authority = $(B3_LSP_SAT_SEED_OBJS) in mk/driver_seed_r_lists.mk
+# (wave781 try-lsp-sat-prefer table = sizes_nostub · stubs_no_c; no second body).
+# Body authority = scripts/ensure_host_cc_seed_o.sh try-heat
+# (wave781/792/793/790; try-heat → try-lsp-sat-prefer owns seed/.x/hdr mtime).
+# Leaves: lsp_diag_pipeline_sizes_nostub · lsp_diag_stubs_no_c.
+# Archaeology: wave781 swallow · wave792/793 FORCE dep-thin — body in try-heat.
+# Makefile only FORCE + thin-call. NOT physical delete — thin edges + remaining
+# mk lists hybrid (cfg_eval / fmt / R2 asm …) + tip Windows → dual L4 → explicit auth.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+# ---------------------------------------------------------------------------
+$(B3_LSP_SAT_SEED_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
+	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+
 
 # 无 C 自举：crt0 提供 _start 与 driver_get_argv_i；链接 asm 版 xlang 时用本 .o 替代 main.o / runtime_asm_build.o
 # wave762 R2: body → ensure_host_cc_seed_o.sh try-r2 (list = DRIVER_SEED_CRT0_OBJS /
@@ -1274,13 +1289,8 @@ src/lsp/lsp_diag_pipeline_sizes.o: FORCE scripts/cc_inc_tu.sh
 # G-02f-1 / Phase 4：产品 G05 nostub 真迁 .x（#[no_mangle] 三枚 sizeof）
 # 源：src/lsp/lsp_diag_pipeline_sizes.x
 # 冷启动产物：seeds/lsp_diag_pipeline_sizes.from_x.c（xlang-c 不存在时回退）
-# wave781: B3 product PREFER dual hybrid body → try-lsp-sat-prefer (thin-call only).
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/lsp/lsp_diag_pipeline_sizes_nostub.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	# wave781: B3 lsp-sat PREFER direct_e → try-lsp-sat-prefer (cold seed fallback).
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# wave781/792/911: joined multi-target $(B3_LSP_SAT_SEED_OBJS) FORCE try-heat
+# (try-heat → try-lsp-sat-prefer direct_e; body in ensure). NOT physical delete.
 
 # G-02e-8：lsp_diag_x_alias 已并入本 TU。
 # G-02f-12：lsp_diag_pipeline_ctx 产品 seed — joined wave904 multi-target $(R1_MISC_BASENAME_OBJS).
@@ -1439,13 +1449,8 @@ preprocess_gen.c: FORCE scripts/ensure_driver_gen.sh
 # XLANG_NO_C_FRONTEND 下 lsp_diag_x.o / lsp_x.o 需要的文档缓冲 + X 管道缓冲桩
 # G-02f-22：lsp_diag_stubs_no_c 产品 seed
 # G-02f-rest：rest→.x 迁移（lsp_diag_copy_text_impl + json_escape_str_impl 真迁 .x）
-# wave781: B3 product PREFER thin+rest dual hybrid body → try-lsp-sat-prefer (thin-call only).
-# wave793 B7A: heat dep-edge thin pure seed+.x+.h residual — prereqs → FORCE + ensure;
-# try-heat owns seed/.x/project-hdr mtime (seed_project_hdrs_newer).
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/lsp/lsp_diag_stubs_no_c.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	# wave781: B3 lsp-sat PREFER thin_rest_e → try-lsp-sat-prefer (cold seed fallback).
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# wave781/793/911: joined multi-target $(B3_LSP_SAT_SEED_OBJS) FORCE try-heat
+# (try-heat → try-lsp-sat-prefer thin_rest_e; body in ensure). NOT physical delete.
 
 # XLANG_SKIP_SUBSCRIPT_MAKE=1：run-all 入口已链 seed，子脚本 `make` 仅在校验 xlang 缺失时再完整 bootstrap。
 # wave891 B7B residual: nested `@test -x || $(MAKE) bootstrap-driver-seed …` body →
@@ -1577,6 +1582,7 @@ bootstrap-driver-seed-export-obj-catalog:
 	@printf 'B1_RUNTIME_OS_SEED_OBJS=%s\n' '$(B1_RUNTIME_OS_SEED_OBJS)'
 	@printf 'GEN_X_SEED_OBJS=%s\n' '$(GEN_X_SEED_OBJS)'
 	@printf 'GEN_C_TO_O_SEED_OBJS=%s\n' '$(GEN_C_TO_O_SEED_OBJS)'
+	@printf 'B3_LSP_SAT_SEED_OBJS=%s\n' '$(B3_LSP_SAT_SEED_OBJS)'
 
 # §5b #2 — pipeline_x.o FORCE recompile on cold start (PIPELINE_X_FORCE_COMPILE=1)
 # Body: bootstrap_driver_seed_rebuild_leaves.sh pipeline-x; list = DRIVER_SEED_PIPELINE_X_OBJS only.

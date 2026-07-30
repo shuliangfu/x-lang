@@ -78,6 +78,7 @@ REQUIRED_KEYS=(
   B1_RUNTIME_OS_SEED_OBJS
   GEN_X_SEED_OBJS
   GEN_C_TO_O_SEED_OBJS
+  B3_LSP_SAT_SEED_OBJS
 )
 
 # ---------------------------------------------------------------------------

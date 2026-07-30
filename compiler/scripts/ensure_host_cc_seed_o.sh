@@ -5256,10 +5256,10 @@ run_check() {
   note() { echo "ensure_host_cc_seed_o: $*" >&2; }
   bad() { echo "ensure_host_cc_seed_o: FAIL: $*" >&2; fail=1; }
 
-  # wave907–910 G.7: multi-target FORCE try-heat covers many historical per-leaf prefer
-  # checks (R1/R3/ASYNC/B1 runtime OS / GEN_X / GEN_C_TO_O families). Accept per-leaf OR
+  # wave907–911 G.7: multi-target FORCE try-heat covers many historical per-leaf prefer
+  # checks (R1/R3/ASYNC/B1 / GEN_X / GEN_C_TO_O / B3_LSP_SAT families). Accept per-leaf OR
   # membership in a multi-target list whose recipe thin-calls ensure try-heat
-  # (prefer / gen-x / gen-c-to-o ladder lives in shell).
+  # (prefer / gen-x / gen-c-to-o / lsp-sat ladder lives in shell).
   makefile_leaf_try_heat_ok() {
     local leaf="$1"
     local prefer_re="${2:-try-heat}"
@@ -5280,7 +5280,7 @@ run_check() {
       RT_SEED_SLICE_OBJS R1_CORE_SEED_OBJS R1_FRONTEND_GLUE_OBJS R1_MAIN_RUNTIME_OBJS \
       R1_ALIAS_STUBS_OBJS R1_EXTRA_CFLAGS_OBJS R1_MISC_BASENAME_OBJS R1_SEED_MAP_OBJS \
       R3_COLD_SEED_OBJS ASYNC_THREE_SEED_OBJS B1_RUNTIME_OS_SEED_OBJS GEN_X_SEED_OBJS \
-      GEN_C_TO_O_SEED_OBJS; do
+      GEN_C_TO_O_SEED_OBJS B3_LSP_SAT_SEED_OBJS; do
       if [ ! -f "$mk" ]; then
         continue
       fi
@@ -6213,6 +6213,17 @@ run_check() {
     note "lsp-sat-prefer table body present (wave781)"
   fi
   _ls_n=0
+  # wave911: multi-target $(B3_LSP_SAT_SEED_OBJS): FORCE try-heat covers both
+  # (no per-leaf dual). Accept multi-target OR historical per-leaf.
+  if grep -qE '\$\(B3_LSP_SAT_SEED_OBJS\):[[:space:]]*FORCE' Makefile \
+    && awk '
+      /\$\(B3_LSP_SAT_SEED_OBJS\):/ { hit=1; next }
+      hit && /^[^#[:space:]\t]/ { exit 1 }
+      hit && /ensure_host_cc_seed_o\.sh/ && /try-heat/ { found=1; exit 0 }
+      END { exit found ? 0 : 1 }
+    ' Makefile; then
+    note "Makefile B3_LSP_SAT multi-target FORCE thin try-heat (wave911; covers two)"
+  fi
   for _ls_leaf in \
     src/lsp/lsp_diag_pipeline_sizes_nostub.o \
     src/lsp/lsp_diag_stubs_no_c.o; do
@@ -6221,39 +6232,34 @@ run_check() {
     else
       bad "lsp_sat_prefer_spec_for_out missing $_ls_leaf (wave781)"
     fi
-    if awk -v leaf="$_ls_leaf" '
-      $0 ~ ("^" leaf ":") {grab=1; next}
-      grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
-      grab {body = body $0 "\n"}
-      END {
-        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-lsp-sat-prefer/) exit 0
-        exit 1
-      }
-    ' Makefile; then
-      note "Makefile $_ls_leaf thin-calls ensure try-lsp-sat-prefer (wave781)"
+    if makefile_leaf_try_heat_ok "$_ls_leaf" 'try-heat|try-lsp-sat-prefer'; then
+      note "Makefile $_ls_leaf thin-calls try-heat|try-lsp-sat-prefer (wave781/911)"
     else
-      bad "Makefile $_ls_leaf must thin-call ensure try-heat|try-lsp-sat-prefer (wave781)"
+      bad "Makefile $_ls_leaf must thin-call ensure try-heat|try-lsp-sat-prefer (wave781/911)"
     fi
     # Ban re-opened hybrid: only scan tab-prefixed recipe lines (not # comments).
-    if awk -v leaf="$_ls_leaf" '
-      $0 ~ ("^" leaf ":") {grab=1; next}
-      grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
-      grab && /^\t/ {body = body $0 "\n"}
-      END {
-        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-lsp-sat-prefer/ && body !~ /\$\(CC\)/ && body !~ /xlang-c/) exit 1
-        if (body ~ /xlang-c/ && body !~ /ensure_host_cc_seed_o/) exit 0
-        if (body ~ /\$\(CC\)/ && body ~ /-c seeds\//) exit 0
-        if (body ~ /mktemp/ && body ~ /(thin\.o|_thin\.o|rest\.o|_rest\.o)/) exit 0
-        exit 1
-      }
-    ' Makefile; then
-      bad "Makefile $_ls_leaf still has dual hybrid body (wave781)"
+    # Multi-target: no per-leaf body — skip dual-body scan when leaf only via list.
+    if grep -qE "^${_ls_leaf}:" Makefile 2>/dev/null; then
+      if awk -v leaf="$_ls_leaf" '
+        $0 ~ ("^" leaf ":") {grab=1; next}
+        grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
+        grab && /^\t/ {body = body $0 "\n"}
+        END {
+          if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-lsp-sat-prefer/ && body !~ /\$\(CC\)/ && body !~ /xlang-c/) exit 1
+          if (body ~ /xlang-c/ && body !~ /ensure_host_cc_seed_o/) exit 0
+          if (body ~ /\$\(CC\)/ && body ~ /-c seeds\//) exit 0
+          if (body ~ /mktemp/ && body ~ /(thin\.o|_thin\.o|rest\.o|_rest\.o)/) exit 0
+          exit 1
+        }
+      ' Makefile; then
+        bad "Makefile $_ls_leaf still has dual hybrid body (wave781)"
+      fi
     fi
   done
   if [ "$_ls_n" -ne 2 ]; then
     bad "lsp-sat prefer table size $_ls_n != 2 (wave781 B3 heat)"
   else
-    note "lsp-sat prefer table has 2 members (wave781 B3)"
+    note "lsp-sat prefer table has 2 members (wave781 B3; wave911 multi-target)"
   fi
   # wave782: try-gen-c-to-o B4 5 gen.c → .o bootstrap
   if ! grep -q 'try_ensure_gen_c_to_o_one\|try-gen-c-to-o' "$0"; then
