@@ -190,6 +190,10 @@
 #            NO_REPLACE passthrough drop; XLANG= on bootstrap-asm-full +
 #            check-asm-o-quality; shell defaults + CLI/env; NOT physical delete
 #            — thin edges + B2 + mk lists remain
+#   wave888: B7B residual recipe thin-call form hygiene (22 recipe sites) →
+#            drop dual chmod +x before invoke; unify @./scripts/ and sh ./…
+#            to @bash scripts/… (or @bash ./verify-…); pure thin-call form;
+#            NOT physical delete — thin edges + B2 + mk lists remain
 #   wave856: B7B archaeology LINK_OBJS shell-load via make export leaves (5 bags /
 #            6 shells; nested expand; Makefile drops multi-token LINK_OBJS env;
 #            NOT physical delete — CFLAGS env + thin edges + B2 remain)
@@ -1519,6 +1523,21 @@ SWALLOWED_B7B_TERMINAL_ENV_INJECT_HYGIENE=1
 B7B_TERMINAL_ENV_INJECT_HYGIENE_SWALLOWED=1
 B7B_TERMINAL_ENV_INJECT_HYGIENE_WAVE=wave887
 B7B_TERMINAL_ENV_INJECT_HYGIENE_COUNT=6
+# wave888: B7B residual recipe thin-call form hygiene.
+# COUNT = 22 recipe sites closed:
+#   16 dual `@chmod +x scripts/…` + invoke → pure `@bash scripts/…`
+#   6 form-only: @./scripts or sh ./ or bare ./scripts → `@bash …`
+# Authority: bash invokes script path (no recipe chmod dual body).
+# NOT physical delete — thin edges + B2 + mk lists remain.
+PHYS_DEL_B7B_RECIPE_THIN_FORM_HYGIENE=1
+PHYS_DEL_B7B_RECIPE_THIN_FORM_HYGIENE_WAVE=wave888
+PHYS_DEL_B7B_RECIPE_THIN_FORM_HYGIENE_COUNT=22
+PHYS_DEL_B7B_RECIPE_THIN_FORM_HYGIENE_VIA=pure_bash_thin_call_no_chmod_dual_no_dot_slash_script_form
+PHYS_DEL_B7B_RECIPE_THIN_FORM_HYGIENE_NOTE=makefile_pure_bash_thin_call_form_thin_edges_remain
+SWALLOWED_B7B_RECIPE_THIN_FORM_HYGIENE=1
+B7B_RECIPE_THIN_FORM_HYGIENE_SWALLOWED=1
+B7B_RECIPE_THIN_FORM_HYGIENE_WAVE=wave888
+B7B_RECIPE_THIN_FORM_HYGIENE_COUNT=22
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -6854,11 +6873,12 @@ _stage_thin_n=$(grep -cE $'^\t@(bash|sh) scripts/(clean_compiler|bootstrap_typec
 if [ "${_stage_thin_n:-0}" -lt 11 ]; then
   bad "Makefile stage/bootstrap thin @bash/@sh count expected >=11 got ${_stage_thin_n} (wave879)"
 fi
-if ! grep -qE $'^\t@\\./scripts/bootstrap_driver_seed_link\\.sh final' "$MF" 2>/dev/null; then
-  bad "Makefile bootstrap-driver-seed-final-link must thin-call ./scripts/... final (wave879)"
+# wave888: thin-call form is @bash scripts/… (legacy @./scripts/ retired).
+if ! grep -qE $'^\t@bash scripts/bootstrap_driver_seed_link\\.sh final' "$MF" 2>/dev/null; then
+  bad "Makefile bootstrap-driver-seed-final-link must thin-call @bash scripts/... final (wave879/888)"
 fi
-if ! grep -qE $'^\t@\\./scripts/bootstrap_driver_seed\\.sh' "$MF" 2>/dev/null; then
-  bad "Makefile bootstrap-driver-seed must thin-call ./scripts/bootstrap_driver_seed.sh (wave879)"
+if ! grep -qE $'^\t@bash scripts/bootstrap_driver_seed\\.sh' "$MF" 2>/dev/null; then
+  bad "Makefile bootstrap-driver-seed must thin-call @bash scripts/bootstrap_driver_seed.sh (wave879/888)"
 fi
 if ! grep -q 'wave879' "$MF" 2>/dev/null; then
   bad "Makefile must document wave879 stage/bootstrap env hygiene"
@@ -7093,6 +7113,33 @@ if ! grep -q 'PHYS_DEL_B7B_TERMINAL_ENV_INJECT_HYGIENE_COUNT=6' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_TERMINAL_ENV_INJECT_HYGIENE_COUNT=6 (wave887)"
 fi
 note "B7B residual terminal env inject hygiene (COUNT=6; wave887; not physical delete)"
+# wave888: pure @bash thin-call form (no dual chmod; no @./scripts/ or sh ./ form)
+if grep -nE '^\t@?chmod \+x scripts/' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile still has dual chmod +x scripts/ recipe lines (wave888)"
+  grep -nE '^\t@?chmod \+x scripts/' "$MF" | head -5 >&2
+fi
+if grep -nE '^\t@?\./scripts/' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile still uses @./scripts/ recipe form (wave888; use @bash scripts/)"
+  grep -nE '^\t@?\./scripts/' "$MF" | head -5 >&2
+fi
+if grep -nE '^\t\./scripts/' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile still uses bare ./scripts/ recipe form (wave888; use @bash scripts/)"
+  grep -nE '^\t\./scripts/' "$MF" | head -5 >&2
+fi
+if grep -nE '^\tsh \./' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile still uses sh ./… recipe form (wave888; use @bash)"
+  grep -nE '^\tsh \./' "$MF" | head -5 >&2
+fi
+if ! grep -q 'wave888' "$MF" 2>/dev/null; then
+  bad "Makefile must document wave888 recipe thin-call form hygiene"
+fi
+if ! grep -q 'PHYS_DEL_B7B_RECIPE_THIN_FORM_HYGIENE=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_RECIPE_THIN_FORM_HYGIENE=1 (wave888)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_RECIPE_THIN_FORM_HYGIENE_COUNT=22' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_RECIPE_THIN_FORM_HYGIENE_COUNT=22 (wave888)"
+fi
+note "B7B residual recipe thin-call form hygiene (COUNT=22; wave888; not physical delete)"
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
   PHYS_DEL_BUCKET_B1_BODY_SWALLOWED=1 \

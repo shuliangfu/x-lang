@@ -29,6 +29,10 @@ endif
 # wave884 B7B residual: drop single-token CC="$(CC)" recipe injects.
 # Authority: scripts/resolve_host_cc.sh when CC unset; make CLI CC= auto-exports;
 # parent env CC honored. NOT physical delete — thin edges + B2 remain.
+# wave888 B7B residual: pure @bash scripts/… thin-call form (drop dual chmod +x;
+# drop @./scripts/ and sh ./… recipe forms). COUNT=22 recipe sites. Authority:
+# bash invokes script path (no recipe chmod). NOT physical delete — thin edges
+# + B2 + mk lists remain.
 # PLATFORM: SHARED — mac/Linux cc default; Windows/MinGW gcc via resolve.
 CFLAGS ?= -Wall -Wextra -I. -Iinclude -Isrc
 # Windows/MinGW: __attribute__((weak)) 函数符号不被 PE 格式支持，
@@ -693,8 +697,9 @@ endif
 # seed pick / can_run skip / pin copy. Already .PHONY; FORCE matches product leaf
 # pattern so recipe is never make-skipped by stale script mtimes alone.
 # PLATFORM: SHARED — FORCE always invokes select (cheap can_run); bash for Ubuntu dash.
+# wave888 B7B residual: pure @bash thin-call (drop dual chmod +x; bash invokes script).
+# NOT physical delete — thin edges + B2 + mk lists remain.
 bootstrap_xlangc: FORCE scripts/select_bootstrap_xlangc.sh
-	@chmod +x scripts/select_bootstrap_xlangc.sh 2>/dev/null || true
 	@bash scripts/select_bootstrap_xlangc.sh
 
 ifeq ($(XLANG_LEGACY_C_FRONTEND),1)
@@ -1623,12 +1628,10 @@ include mk/user_asm_seed_objs.mk
 # partial export 须先 nm dispatch .o 剔除重复符号；冷启动时 dispatch 可能尚未编译。
 .PHONY: parser-legacy-text-o
 parser-legacy-text-o:
-	@chmod +x scripts/extract_parser_legacy_text.sh 2>/dev/null || true
-	@./scripts/extract_parser_legacy_text.sh
+	@bash scripts/extract_parser_legacy_text.sh
 
 bootstrap-driver-seed-asm-host: $(DRIVER_SEED_ASM_HOST_DISPATCH_OBJS)
-	@chmod +x scripts/build_seed_asm_host.sh 2>/dev/null || true
-	@./scripts/build_seed_asm_host.sh
+	@bash scripts/build_seed_asm_host.sh
 
 # Historical alias → thin leaf (G.7 single body; no second recipe).
 build-seed-asm-host: bootstrap-driver-seed-asm-host
@@ -1638,8 +1641,7 @@ build-seed-asm-host: bootstrap-driver-seed-asm-host
 # (asm_full.o, asm_backend_partial.o) remain fixed relative names in shell.
 # wave883 B7B: drop single-token MAKE= inject (shell MAKE default + make auto-export).
 $(USER_ASM_SEED_HOST_STUBS): pipeline_x.o $(ASM_GLUE_STANDALONE_O) $(USER_ASM_SEED_OBJS) scripts/gen_asm_full_link_stubs.pl scripts/bootstrap_driver_seed_host_stubs.sh
-	@chmod +x scripts/bootstrap_driver_seed_host_stubs.sh 2>/dev/null || true
-	@./scripts/bootstrap_driver_seed_host_stubs.sh
+	@bash scripts/bootstrap_driver_seed_host_stubs.sh
 
 $(USER_ASM_SEED_HOST_OBJS): build-seed-asm-host
 
@@ -2354,9 +2356,9 @@ bootstrap-driver-seed-export-pipeline-x:
 
 # wave883 B7B: drop single-token MAKE= inject on rebuild-leaves phonies (G.7 hygiene).
 # Shell MAKE="${MAKE:-make}" + GNU make auto-exports MAKE; nested make uses recipe env.
+# wave888 B7B: pure @bash thin-call (drop dual chmod + @./scripts form; family COUNT in tip).
 bootstrap-driver-seed-pipeline-x:
-	@chmod +x scripts/bootstrap_driver_seed_rebuild_leaves.sh 2>/dev/null || true
-	@./scripts/bootstrap_driver_seed_rebuild_leaves.sh pipeline-x
+	@bash scripts/bootstrap_driver_seed_rebuild_leaves.sh pipeline-x
 
 # §5b #3 — satellite runtime/diag/simd forced seed path (XLANG_G05_PREFER_X_O=0)
 # Body: bootstrap_driver_seed_rebuild_leaves.sh sat; list = DRIVER_SEED_SAT_REBUILD_OBJS only.
@@ -2366,8 +2368,7 @@ bootstrap-driver-seed-export-sat-rebuild:
 	@printf 'SEED_REBUILD_MAKE_VARS=%s\n' 'XLANG_G05_PREFER_X_O=0'
 
 bootstrap-driver-seed-sat-rebuild:
-	@chmod +x scripts/bootstrap_driver_seed_rebuild_leaves.sh 2>/dev/null || true
-	@./scripts/bootstrap_driver_seed_rebuild_leaves.sh sat
+	@bash scripts/bootstrap_driver_seed_rebuild_leaves.sh sat
 
 # §5b #4 — lsp / frontend alias objs (list = DRIVER_SEED_LSP_X_OBJS only)
 bootstrap-driver-seed-export-lsp-x-objs:
@@ -2376,8 +2377,7 @@ bootstrap-driver-seed-export-lsp-x-objs:
 	@printf 'SEED_REBUILD_MAKE_VARS=%s\n' ''
 
 bootstrap-driver-seed-lsp-x-objs:
-	@chmod +x scripts/bootstrap_driver_seed_rebuild_leaves.sh 2>/dev/null || true
-	@./scripts/bootstrap_driver_seed_rebuild_leaves.sh lsp
+	@bash scripts/bootstrap_driver_seed_rebuild_leaves.sh lsp
 
 # §5b #5 — x_seed_bridge.o (list = DRIVER_SEED_BRIDGE_OBJS only)
 bootstrap-driver-seed-export-bridge:
@@ -2386,8 +2386,7 @@ bootstrap-driver-seed-export-bridge:
 	@printf 'SEED_REBUILD_MAKE_VARS=%s\n' ''
 
 bootstrap-driver-seed-bridge:
-	@chmod +x scripts/bootstrap_driver_seed_rebuild_leaves.sh 2>/dev/null || true
-	@./scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
+	@bash scripts/bootstrap_driver_seed_rebuild_leaves.sh bridge
 
 # §5b #12 — runtime_panic.o (list = DRIVER_SEED_PANIC_OBJS only; platform recipe stays Makefile)
 bootstrap-driver-seed-export-panic:
@@ -2396,8 +2395,7 @@ bootstrap-driver-seed-export-panic:
 	@printf 'SEED_REBUILD_MAKE_VARS=%s\n' ''
 
 bootstrap-driver-seed-panic:
-	@chmod +x scripts/bootstrap_driver_seed_rebuild_leaves.sh 2>/dev/null || true
-	@./scripts/bootstrap_driver_seed_rebuild_leaves.sh panic
+	@bash scripts/bootstrap_driver_seed_rebuild_leaves.sh panic
 
 # §5b #6 — USER_ASM seed objs (list = DRIVER_SEED_USER_ASM_SEED_OBJS → USER_ASM_SEED_OBJS)
 bootstrap-driver-seed-export-user-asm:
@@ -2406,8 +2404,7 @@ bootstrap-driver-seed-export-user-asm:
 	@printf 'SEED_REBUILD_MAKE_VARS=%s\n' ''
 
 bootstrap-driver-seed-user-asm-seed-objs:
-	@chmod +x scripts/bootstrap_driver_seed_rebuild_leaves.sh 2>/dev/null || true
-	@./scripts/bootstrap_driver_seed_rebuild_leaves.sh user-asm
+	@bash scripts/bootstrap_driver_seed_rebuild_leaves.sh user-asm
 
 # §5b #7 — pipeline_glue_standalone.o (list = DRIVER_SEED_ASM_GLUE_OBJS)
 bootstrap-driver-seed-export-glue:
@@ -2416,8 +2413,7 @@ bootstrap-driver-seed-export-glue:
 	@printf 'SEED_REBUILD_MAKE_VARS=%s\n' ''
 
 bootstrap-driver-seed-asm-glue-standalone:
-	@chmod +x scripts/bootstrap_driver_seed_rebuild_leaves.sh 2>/dev/null || true
-	@./scripts/bootstrap_driver_seed_rebuild_leaves.sh glue
+	@bash scripts/bootstrap_driver_seed_rebuild_leaves.sh glue
 
 
 # §5b #10 — class-G filtered (Darwin); empty expansion on Linux
@@ -2437,8 +2433,7 @@ bootstrap-driver-seed-export-host-stubs:
 
 # wave883 B7B: drop single-token MAKE= inject (shell MAKE default + make auto-export).
 bootstrap-driver-seed-host-stubs:
-	@chmod +x scripts/bootstrap_driver_seed_host_stubs.sh 2>/dev/null || true
-	@./scripts/bootstrap_driver_seed_host_stubs.sh
+	@bash scripts/bootstrap_driver_seed_host_stubs.sh
 
 # §5b #11 — phase1 / final link
 # OBJS+CFLAGS: Makefile export only (G.7). Link body: bootstrap_driver_seed_link.sh.
@@ -2593,14 +2588,12 @@ export-bxf-link-cflags:
 
 # wave883 B7B: drop single-token MAKE= inject (align final-link wave879; shell MAKE default).
 bootstrap-driver-seed-phase1-link:
-	@chmod +x scripts/bootstrap_driver_seed_link.sh 2>/dev/null || true
-	@./scripts/bootstrap_driver_seed_link.sh phase1
+	@bash scripts/bootstrap_driver_seed_link.sh phase1
 
 # wave879 B7B: drop multi-token MAKE/TARGET inject (G.7 hygiene).
 # Shell defaults own MAKE/TARGET (bootstrap_driver_seed_link). Thin ./scripts only.
 bootstrap-driver-seed-final-link:
-	@chmod +x scripts/bootstrap_driver_seed_link.sh 2>/dev/null || true
-	@./scripts/bootstrap_driver_seed_link.sh final
+	@bash scripts/bootstrap_driver_seed_link.sh final
 
 # wave744 · 11.3 residual: prereq *edges* satisfied inside bootstrap_driver_seed.sh
 # via scripts/driver_seed_ensure_prereqs.sh (catalog DRIVER_SEED_PREREQS + glue
@@ -2610,8 +2603,7 @@ bootstrap-driver-seed-final-link:
 # Shell defaults own env; XLANG_SKIP_SEED_SMOKE still honored from process env.
 # PLATFORM: SHARED — thin phony leaf; leaf .o pattern rules remain residual.
 bootstrap-driver-seed:
-	@chmod +x scripts/bootstrap_driver_seed.sh 2>/dev/null || true
-	@./scripts/bootstrap_driver_seed.sh
+	@bash scripts/bootstrap_driver_seed.sh
 endif
 
 # 与 bootstrap-driver-seed 相同；保留别名供脚本引用
@@ -2754,16 +2746,18 @@ xlang-x: build-seed-asm-host $(DRIVER_SEED_OBJS) $(XLANG_X_PIPELINE_LINK_O) $(XL
 	@bash scripts/xlang_x.sh
 
 # Stage2：xlang-x 用 -x -E-extern 生成 _gen2.c 并链出 xlang-x2，与 xlang-x 行为对比（脚本内会 make xlang-x / bootstrap-driver-seed）
+# wave888 B7B: thin @bash form (drop sh ./…).
 verify-selfhost-stage2:
-	sh ./verify-selfhost-stage2.sh
+	@bash ./verify-selfhost-stage2.sh
 
 # 可选：在 bootstrap-verify 之外单独跑 Stage2（不阻塞 PR 默认 CI）
 bootstrap-verify-stage2: verify-selfhost-stage2
 	@echo "bootstrap-verify-stage2 OK"
 
 # M5：B-strict 二遍 build_xlang_asm（xlang_asm -> xlang_asm2），不依赖 xlang-x -x -E。
+# wave888 B7B: thin @bash form (drop sh ./…).
 verify-selfhost-stage2-bstrict:
-	sh ./verify-selfhost-stage2-bstrict.sh
+	@bash ./verify-selfhost-stage2-bstrict.sh
 
 bootstrap-verify-stage2-bstrict: verify-selfhost-stage2-bstrict
 	@echo "bootstrap-verify-stage2-bstrict OK"
@@ -2828,7 +2822,7 @@ bootstrap-driver-crt0: bootstrap-driver-seed scripts/bootstrap_driver_crt0.sh
 
 # build-user-asm-backend：自 xlang 编 build_asm/*.o（完整 asm 自举）；seed 默认用 build-seed-asm-host（xlang-c -E）。
 build-user-asm-backend:
-	@./scripts/build_user_asm_backend.sh
+	@bash scripts/build_user_asm_backend.sh
 
 # Goal 2（用 asm 后端构建 xlang）：构建最小 C 桩 + 可选执行 asm 自举脚本（需先 bootstrap-driver）
 bootstrap-asm: $(TARGET) src/asm/runtime_asm_build.o src/runtime_driver.o
@@ -2836,12 +2830,12 @@ bootstrap-asm: $(TARGET) src/asm/runtime_asm_build.o src/runtime_driver.o
 	@echo " Full asm build: XLANG=./$(TARGET) ./scripts/build_xlang_asm.sh (requires bootstrap-driver first)"
 # wave887 B7B: drop XLANG= inject — build_xlang_asm defaults XLANG=./$TARGET (or env/CLI).
 bootstrap-asm-full: bootstrap-driver bootstrap-asm
-	@./scripts/build_xlang_asm.sh
+	@bash scripts/build_xlang_asm.sh
 
 # Goal 2 辅助：检查 build_asm/*.o 的 __text 段是否非空（需先有 build_asm，例如刚跑过 build_xlang_asm.sh）。严格失败：XLANG_ASM_QUALITY_STRICT=1 make check-asm-o-quality
 # wave887 B7B: drop dead XLANG= inject (quality scan does not use XLANG; thin @sh only).
 check-asm-o-quality: $(TARGET)
-	@./scripts/check_asm_o_quality.sh
+	@bash scripts/check_asm_o_quality.sh
 
 # 6.4 验收：宿主编译器能编译整机 .x（typeck+codegen+driver）并产出新 xlang，且新 xlang 能编译运行测试（return-value 返回 42 视为成功）。用 seed 构建 xlang 以保证通过（asm 路径修好后可改为 bootstrap-driver）。
 # seed 的 .x 单文件路径把 C 写到 -o；须 $(CC) 链成可执行再运行（与 xlang-c 直接出 Mach-O/ELF 不同）。
@@ -2950,8 +2944,7 @@ pipeline_gen.c: FORCE scripts/ensure_lsp_pipeline_gen.sh
 # §5b #1 wave725: body → scripts/check_pipeline_gen_expr_i64_abi.sh (G.7 single authority).
 .PHONY: check-pipeline-gen-expr-i64-abi
 check-pipeline-gen-expr-i64-abi:
-	@chmod +x scripts/check_pipeline_gen_expr_i64_abi.sh 2>/dev/null || true
-	@./scripts/check_pipeline_gen_expr_i64_abi.sh
+	@bash scripts/check_pipeline_gen_expr_i64_abi.sh
 
 # wave834: FORCE shell-primary — drop make-graph edge on pipeline_gen.c file.
 # G.7 有则补全: body already ensure_lsp_pipeline_gen.sh pipeline (wave739); thin-call only.
@@ -3023,8 +3016,9 @@ bootstrap-verify: bootstrap-verify-bstrict
 	@true
 
 # clangd：生成 compile_commands.json + ide/pipeline_glue_types.inc（IDE 误报 glue 池时运行）
+# wave888 B7B: thin @bash scripts/ form (drop bare ./scripts/…).
 compile_commands.json:
-	./scripts/gen_compile_commands.sh
+	@bash scripts/gen_compile_commands.sh
 
 # 阶段 8 体积基线：编译固定用例并输出可执行文件大小
 # wave875: full body → scripts/stage8_baseline.sh size (G.7 有则补全;

@@ -690,6 +690,10 @@
 
 - **wave886** · B7B residual LD + pipeline bag inject hygiene：2 叶（`cfg_eval.o` 去 `LD=`/`LD_RELFLAGS=`；`pipeline_x.o` 去 `PIPELINE_X_DEPS`/`PIPELINE_X_FORCE_COMPILE`/`XLANG_FORCE_REGEN_GEN`）。shell LD defaults + `ensure_gen_x_o` mk-load DEPS。**非**物理删。
 
+## wave888 residual note
+
+- **wave888** · B7B residual recipe thin-call form hygiene：22 recipe sites（16 dual `chmod +x` 去掉；6 处 `@./scripts`/`sh ./`/bare → 纯 `@bash scripts/…`）。**非**物理删。
+
 ## wave887 residual note
 
 - **wave887** · B7B residual terminal env inject hygiene：6 叶（`$(XLANG_C)` ensure `$@`；`cfg_eval_bootstrap_stub.o` PEERS seed-map；`bootstrap-driver-bstrict` 去 ENSURE_SEED=0；`refresh-xlang-asm-gate` 去 NO_REPLACE passthrough；`bootstrap-asm-full` / `check-asm-o-quality` 去 XLANG=）。shell 默认 + CLI/env。**非**物理删。

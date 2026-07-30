@@ -1521,10 +1521,11 @@
 - **wave885** · B7B residual G05_SYNC inject hygiene（2 recipes → relink-xlang `--no-sync` + xlang_asm bare；drop G05_SYNC_ASM= recipe inject）
 - **wave886** · B7B residual LD + pipeline bag inject hygiene（2 recipes → cfg_eval drop LD/LD_RELFLAGS；pipeline_x drop PIPELINE bags；shell LD defaults + mk DEPS load）
 - **wave887** · B7B residual terminal env inject hygiene（6 recipes → XLANG_C ensure `$@`；cc_inc_tu PEERS seed-map；drop ENSURE_SEED/NO_REPLACE/XLANG=；shell 默认 + CLI/env）
+- **wave888** · B7B residual recipe thin-call form hygiene（22 recipe sites → drop dual chmod +x；@./scripts/ 与 sh ./… → 纯 `@bash scripts/…`）
 - **wave859** · B7B XXP/BXC multi-token bag shell-load（export-xxp-link-bags + export-bxc-link-objs；2 shells）
 - **wave857** · B7B archaeology LINK_CFLAGS shell-load via make export leaves（4 bags / 6 shells；配方去 multi-token CFLAGS/FLAGS env）
 - **wave856** · B7B archaeology LINK_OBJS shell-load via make export leaves（5 bags / 6 shells；nested expand；配方去 multi-token LINK_OBJS env；CFLAGS → wave857）
-- **open** · thin edges + B2 + mk lists（hybrid）· → tip Windows → 双端 L4 → explicit auth 真删
+- **open** · thin edges + B2 + mk lists（hybrid）· → tip Windows → 双端 L4 → explicit auth 真删  # post-wave888 thin-form closed
 
 **状态明细**（一行一项）：
 
