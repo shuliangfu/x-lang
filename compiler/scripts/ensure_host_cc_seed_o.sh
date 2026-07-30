@@ -321,7 +321,9 @@ PIPELINE_GEN_CFLAGS="${PIPELINE_GEN_CFLAGS:-}"
 
 # Default multi-flag mirrors for family mode when env empty.
 # PLATFORM: SHARED — must stay aligned with Makefile RUNTIME_DRIVER_*_CFLAGS
-# (without optional XLANG_LEGACY_PREPROCESS_C). Thin leaves pass make-expanded vars.
+# (without optional XLANG_LEGACY_PREPROCESS_C; LEGACY path dead after preprocess.c
+# physical delete). wave864: product thin leaves no longer inject make-expanded
+# RUNTIME_*/PARSER_* bags — shell defaults are the authority when env unset.
 _DEFAULT_RT_SLICE_CFLAGS="-DXLANG_RT_ARENA_BUF_FROM_X -DXLANG_RT_EMIT_STATE_FROM_X -DXLANG_RT_PREAMBLE_FROM_X -DXLANG_RT_STACK_FROM_X -DXLANG_RT_PARSE_DIAG_FROM_X"
 _DEFAULT_RUNTIME_DRIVER_CFLAGS="-DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_PREPROCESS -DXLANG_NO_C_FRONTEND -DXLANG_ASM_USE_COMPILER_IMPL_C ${_DEFAULT_RT_SLICE_CFLAGS}"
 _DEFAULT_RUNTIME_DRIVER_NO_C_CFLAGS="-DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_PREPROCESS -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN -DXLANG_NO_C_FRONTEND -DXLANG_ASM_USE_COMPILER_IMPL_C ${_DEFAULT_RT_SLICE_CFLAGS}"
@@ -629,7 +631,9 @@ seed_for_main_runtime() {
 }
 
 # Extra -D flags for main-runtime family (stdout, space-separated; may be empty).
-# Thin Makefile leaves pass make-expanded vars as extras to `one` (authority).
+# wave864: product try-heat thin-call is CC= only; env override still honored when
+# set; else shell defaults (authority). Makefile may still define flag bags for
+# force_thin_makefile_flags_newer / docs — not recipe inject.
 # Family mode: use env when set, else defaults aligned with Makefile base flags.
 extras_for_main_runtime() {
   local o="$1"
@@ -682,7 +686,8 @@ seed_for_extra_cflags() {
 }
 
 # Extra flags for extra-cflags family (stdout, space-separated; may be empty).
-# Thin Makefile leaves pass make-expanded vars as extras to `one` (authority).
+# wave864: pipeline_abi product thin-call is CC= only; env override still honored;
+# else _DEFAULT_RUNTIME_PIPELINE_ABI_CFLAGS. Other leaves use fixed -fPIE/-D bags.
 # Family mode: use env when set, else defaults aligned with Makefile base flags.
 extras_for_extra_cflags() {
   local o="$1"
@@ -748,7 +753,8 @@ seed_for_seed_map() {
 }
 
 # Extra flags for seed-map family (stdout, space-separated; may be empty).
-# Thin Makefile leaves pass make-expanded extras to `one` (authority).
+# wave864: parser_asm_thin_glue product thin-call is CC= only; env override still
+# honored; else _DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS (-D + monothin -I).
 # Family mode: orch needs -Ibuild_asm + -D; thin_glue needs NO_SEED_PARSE + -I;
 # glue standalone needs -Wno-error=return-type -Ibuild_asm; target_cpu/ast_seed pure.
 extras_for_seed_map() {

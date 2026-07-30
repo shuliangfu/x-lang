@@ -32,6 +32,7 @@
 > - **wave861** · B7B rt_* multi-token -I CFLAGS hygiene (5 RT_SEED_SLICE leaves; plain CFLAGS= try-heat)
 > - **wave862** · B7B try-heat CFLAGS/PIPELINE_GEN_CFLAGS bulk shell-load via export-try-heat-cflags (114 recipes)
 > - **wave863** · B7B class-G filter CFLAGS/PIPELINE_GEN shell-load hygiene (4 filter FORCE recipes; try-heat CC-only)
+> - **wave864** · B7B leaf-extra RUNTIME_*/PARSER_* multi-token CFLAGS inject hygiene (3 leaves; ensure shell defaults)
 > - **open** · thin edges + B2 + leaf-extra flags / other mk lists (hybrid) → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
@@ -2077,6 +2078,51 @@ ship delete body; mac-only wave green.
 `rm compiler/Makefile`; ship delete body; mac-only wave green.
 
 
+## wave864 B7B leaf-extra RUNTIME_*/PARSER_* CFLAGS hygiene (2026-07-30)
+
+> **Why (G.7 有则补全 on wave753/794/862 residual):**
+> Product try-heat thin-call still injected multi-token leaf-extra bags:
+> `RUNTIME_PIPELINE_ABI_CFLAGS="$(…)"`, `RUNTIME_DRIVER_NO_C_CFLAGS="$(…)"`,
+> `PARSER_ASM_THIN_GLUE_CFLAGS="$(…)"`. Shell already owns
+> `_DEFAULT_RUNTIME_PIPELINE_ABI_CFLAGS` / `_DEFAULT_RUNTIME_DRIVER_NO_C_CFLAGS` /
+> `_DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS` when env unset (same pattern as
+> `runtime_driver.o` / wave862 try-heat CFLAGS). Recipe inject was residual
+> make-escape noise + dual-authority with LEGACY ifeq bags (LEGACY preprocess path dead).
+>
+> **Leaves (COUNT=3):**
+>   - `src/runtime_pipeline_abi.o` (R1_EXTRA_CFLAGS)
+>   - `src/runtime_driver_no_c.o` (R1_MAIN_RUNTIME)
+>   - `parser_asm_thin_glue.o` (R1 seed-map)
+>
+> Makefile thin-call: `CC=` (+ optional PREFER) only; ensure shell defaults are authority.
+> Makefile may keep flag *variable definitions* for `force_thin_makefile_flags_newer` / docs.
+> **NOT physical delete** — thin edges + B2 + remaining mk lists remain.
+> Dual-end L2 required.
+>
+```text
+    PHYS_DEL_B7B_LEAF_EXTRA_CFLAGS_HYGIENE=1
+    PHYS_DEL_B7B_LEAF_EXTRA_CFLAGS_HYGIENE_WAVE=wave864
+    PHYS_DEL_B7B_LEAF_EXTRA_CFLAGS_HYGIENE_COUNT=3
+    SWALLOWED_B7B_LEAF_EXTRA_CFLAGS_HYGIENE=1
+    PHYS_DEL_PREFLIGHT_B7B_LEAF_EXTRA_CFLAGS_HYGIENE=1
+```
+>
+> next: residual thin/B2 / other multi-token env / mk lists hybrid
+> or tip Windows → dual L4 → explicit auth ship
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_B7B_LEAF_EXTRA_CFLAGS_HYGIENE` | `1` |
+| `PHYS_DEL_B7B_LEAF_EXTRA_CFLAGS_HYGIENE_COUNT` | `3` |
+| `SWALLOWED_B7B_LEAF_EXTRA_CFLAGS_HYGIENE` | `1` |
+| `B7B_LEAF_EXTRA_CFLAGS_HYGIENE_VIA` | `ensure_shell_defaults_no_recipe_inject` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+
+**Forbidden:** claim leaf-extra CFLAGS hygiene = physical delete; reintroduce multi-token
+`RUNTIME_PIPELINE_ABI_CFLAGS="$(…)"` / `RUNTIME_DRIVER_NO_C_CFLAGS="$(…)"` /
+`PARSER_ASM_THIN_GLUE_CFLAGS="$(…)"` on product try-heat recipes; drop shell `_DEFAULT_*`
+without a single replacement authority; mac-only wave green.
+
 ## wave863 B7B filter CFLAGS shell-load hygiene (2026-07-30)
 
 > **Why (G.7 有则补全 on wave835/862):**
@@ -2104,8 +2150,7 @@ ship delete body; mac-only wave green.
     PHYS_DEL_PREFLIGHT_B7B_FILTER_CFLAGS_SHELL_LOAD=1
 ```
 >
-> next: residual thin/B2/lists (hybrid; leaf-extra RUNTIME_*/PARSER_* flags)
-> or tip Windows → dual L4 → explicit auth ship
+> next: ~~leaf-extra RUNTIME_*/PARSER_*~~ wave864 · residual thin/B2/lists or tip Windows → dual L4 → explicit auth ship
 
 | Key | Value |
 |-----|-------|

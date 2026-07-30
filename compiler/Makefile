@@ -814,10 +814,13 @@ src/runtime_pipeline_abi.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # wave794 B7A: heat dep-edge thin Makefile-flags residual — prereqs → FORCE + ensure;
 # try-heat owns seed/.x/hdr + Makefile flag mtime (force_thin_makefile_flags_newer).
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+# wave864 B7B: drop multi-token RUNTIME_PIPELINE_ABI_CFLAGS inject (G.7 hygiene).
+# ensure extras_for_extra_cflags / _DEFAULT_RUNTIME_PIPELINE_ABI_CFLAGS own product
+# -DXLANG_USE_X_PIPELINE when env unset (same pattern as runtime_driver.o).
+# NOT physical delete — thin edges + B2 + remaining mk lists remain.
 	# wave767: pipeline_abi PREFER thin+rest → try-pipeline-abi-prefer (cold + USE_X_PIPELINE fallback).
 	@CC="$(CC)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
-	  RUNTIME_PIPELINE_ABI_CFLAGS="$(RUNTIME_PIPELINE_ABI_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 
@@ -1035,9 +1038,12 @@ src/runtime_driver_no_c.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # wave794 B7A: heat dep-edge thin Makefile-flags residual — prereqs → FORCE + ensure;
 # try-heat owns seed/.x + Makefile flag mtime (force_thin_makefile_flags_newer).
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+# wave864 B7B: drop multi-token RUNTIME_DRIVER_NO_C_CFLAGS inject (G.7 hygiene).
+# ensure extras_for_main_runtime / _DEFAULT_RUNTIME_DRIVER_NO_C_CFLAGS own product
+# multi-flag bag when env unset (aligned with runtime_driver.o shell defaults).
+# NOT physical delete — thin edges + B2 + remaining mk lists remain.
 	# wave766: rt multi-slice PREFER → try-rt-prefer (cold full seed + NO_C fallback).
 	@CC="$(CC)" \
-	  RUNTIME_DRIVER_NO_C_CFLAGS="$(RUNTIME_DRIVER_NO_C_CFLAGS)" \
 	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
@@ -1779,9 +1785,12 @@ PARSER_ASM_LINK_ALIAS_CFLAGS = -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS
 # ensure_one refreshes on seeds/parser_asm/*.inc (G.7 single body twin of former prereqs).
 # wave831: FORCE dep-thin — drop seed/.x/*.inc make-graph prereqs; try-heat owns mtime.
 # NOT physical delete. PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+# wave864 B7B: drop multi-token PARSER_ASM_THIN_GLUE_CFLAGS inject (G.7 hygiene).
+# ensure extras_for_seed_map / _DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS own -D + monothin
+# -I paths when env unset (Makefile var kept for force_thin_makefile_flags_newer).
+# NOT physical delete — thin edges + B2 + remaining mk lists remain.
 parser_asm_thin_glue.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" \
-	  PARSER_ASM_THIN_GLUE_CFLAGS="$(PARSER_ASM_THIN_GLUE_CFLAGS)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # wave753 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_EXTRA_CFLAGS_OBJS).
