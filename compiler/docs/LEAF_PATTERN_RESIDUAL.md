@@ -1722,6 +1722,40 @@ Then (later waves, not this tip):
 **Forbidden:** claim endgame-preview = ENDGAME arm / physical delete; set
 ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
 
+## wave812 formal_mod shell-primary catalog (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **有则补全** on `xlang_compile_std_module.sh` —
+> formal product table (bare flag + sources + `fs_formal` dispatch) lives in the
+> shell. Modes: `ensure|auto <out.o>` · `list` · `--check`. Makefile **38**
+> formal_mod leaves thin-call only: `ensure $@` (source prereqs stay for mtime).
+> Historic string.o host-pick ladder removed (script XLANG ladder covers it).
+> `std_core_product_make_graph` blocker **remains** (thin edges + B2 ensure +
+> B7B lists). Dual-end L2 required.
+
+```text
+  leaf dump:
+    PHYS_DEL_FORMAL_MOD_SHELL_PRIMARY=1
+    PHYS_DEL_FORMAL_MOD_SHELL_PRIMARY_WAVE=wave812
+    PHYS_DEL_FORMAL_MOD_SHELL_PRIMARY_COUNT=38
+    SWALLOWED_FORMAL_MOD_CATALOG=1
+    PHYS_DEL_PREFLIGHT_FORMAL_MOD_SHELL_PRIMARY=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  next: B7B lists residual / tip Windows re-proof → Mac+Ubuntu L4 → ship delete body
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_FORMAL_MOD_SHELL_PRIMARY` | `1` |
+| `PHYS_DEL_FORMAL_MOD_SHELL_PRIMARY_COUNT` | `38` |
+| `SWALLOWED_FORMAL_MOD_CATALOG` | `1` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+
+**Forbidden:** claim formal_mod catalog = physical delete; `rm compiler/Makefile`; ship delete body; mac-only wave green.
+
 ## wave811 std_x product hybrid thin (2026-07-30)
 
 > **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.

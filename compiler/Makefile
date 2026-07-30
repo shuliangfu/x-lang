@@ -153,8 +153,8 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 # std.string：F 闭合 — 产品 -o 完整 emit（-x -E 会截断函数体）。
 # 用 xlang_compile_std_module（与 crypto 等同路径）；优先 xlang_asm/xlang 产品宿主。
 ../std/string/string.o: ../std/string/mod.x ../std/string/string.x | scripts/xlang_compile_std_module.sh
-	@XLANG=$${XLANG:-./xlang_asm}; [ -x "$$XLANG" ] || XLANG=./xlang; \
-	XLANG=$$XLANG sh scripts/xlang_compile_std_module.sh --bare-impl $@ ../std/string/mod.x ../std/string/string.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # std.path：保留 mod.x 作为 F-path v1 源码锚点；path.o 由 C provider 产出，
 # 避免 bootstrap asm backend 在 dirname/last_slash 链上反复卡住。
@@ -177,62 +177,75 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 
 # std.heap：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + libc + ops）。
 ../std/heap/heap.o: ../std/heap/mod.x ../std/heap/libc.x ../std/heap/ops.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh $@ ../std/heap/mod.x ../std/heap/libc.x ../std/heap/ops.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # std.heap.page_mmap：F-no-libc NL-03 freestanding mmap bump 堆（单文件 .x -E + cc）。
 # 路径前缀 std_heap_page_mmap_*；传递依赖 std.sys.linux + core.mem 由 freestanding on_demand 链入。
 ../std/heap/page_mmap.o: ../std/heap/page_mmap.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh $@ ../std/heap/page_mmap.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # std.sys：OS 原语门面（mod.x -E + cc；#[cfg(target_os)] 分平台）。
 # 路径前缀 std_sys_*；Linux 编译激活 linux import，传递依赖 std/sys/linux.o + core/mem/mem.o。
 ../std/sys/sys.o: ../std/sys/mod.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh $@ ../std/sys/mod.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # std.sys.linux：Linux syscall 号表 + freestanding invoke（linux.x -E + cc）。
 # 路径前缀 std_sys_linux_*；含 hosted libc 函数（open/mmap），靠 --gc-sections 移除未引用者。
 ../std/sys/linux.o: ../std/sys/linux.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh $@ ../std/sys/linux.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # core.mem：内存操作原语（mod.x -E + cc）。
 # 路径前缀 core_mem_*；align_up/mem_copy/mem_set 等纯 .x 实现，无 libc 依赖。
 ../core/mem/mem.o: ../core/mem/mod.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh $@ ../core/mem/mod.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # PLATFORM: SHARED — core.types/option/result formal .o for -backend asm on_demand.
 # Do not asm co-emit these (Ubuntu x86_64 hang on option/result); C -E + cc only.
 ../core/types/types.o: ../core/types/mod.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh $@ ../core/types/mod.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 ../core/option/option.o: ../core/option/mod.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh $@ ../core/option/mod.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 ../core/result/result.o: ../core/result/mod.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh $@ ../core/result/mod.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # core.debug：兼容 alias of core.assert; formal .o for asm on_demand (no co-emit).
 # PLATFORM: SHARED — tests/sort etc. U core_debug_assert_eq_*; L4 wipe needs make ensure.
 ../core/debug/debug.o: ../core/debug/mod.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh $@ ../core/debug/mod.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # core.slice formal API (mod.x → core_slice_len_*/get_*). Glue from_ptr/subslice stays
 # in core/slice/slice.o (runtime_slice_glue). PLATFORM: SHARED — Ubuntu -backend asm
 # length.x BLD001 U core_slice_len_i32 when only glue .o existed; simple-group g9 + ensure.
 ../core/slice/mod.o: ../core/slice/mod.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh $@ ../core/slice/mod.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # std.map：F 闭合 — 纯 .x -E-extern + cc -c。
 ../std/map/map.o: ../std/map/mod.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh --bare-impl $@ ../std/map/mod.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # std.set：F 闭合 — 纯 .x -E-extern + cc -c。
 ../std/set/set.o: ../std/set/mod.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh --bare-impl $@ ../std/set/mod.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # std.vec：F 闭合 — 单 mod.x（import std.heap）；link_only 产品链按需 std/vec/vec.o。
 # PLATFORM: SHARED — L4 全擦后须 make 本目标或 link ensure（push_existing  alone 静默 skip）。
 ../std/vec/vec.o: ../std/vec/mod.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh $@ ../std/vec/mod.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # std.runtime：保留 runtime.x 作为 F-runtime v1 源码锚点；runtime.o 仅提供
 # runtime_panic/runtime_abort/runtime_crash_evidence_collect_c 三个 extern provider。
@@ -310,7 +323,8 @@ net-o-mbedtls:
 # std.thread：mod.x 提供 std_thread_* 包装；pthread 胶层在 runtime_thread_glue.o（thread_*_c）。
 # 【Why 勿只编 thread.x】thread.x 仅 marker，link_only 时缺 _std_thread_create 等。
 ../std/thread/thread.o: ../std/thread/mod.x ../std/thread/thread.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh $@ ../std/thread/mod.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # std.async：F-async v2 纯 .x（F-ZC）；调度胶层在 runtime_scheduler_glue.o；Unix 按需 -pthread。
 ../std/async/scheduler.o: ../std/async/scheduler.x | scripts/xlang_compile_std_x.sh
@@ -325,65 +339,77 @@ net-o-mbedtls:
 # std.time：F 闭合 — mod.x 内联派生函数（now_monotonic_us/sleep_ms/duration_ns 等），
 # 仅 5 个基础 OS extern 由 runtime_time_os.o 提供。无需 time.x / time_import_alias.c。
 ../std/time/time.o: ../std/time/mod.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh --bare-impl $@ ../std/time/mod.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # std.random：F 闭合 — mod.x（用户 API）+ random.x（impl 裸符号）用 -E-extern 编译；
 # CSPRNG OS 在 runtime_random_fill.o，最终 exe 链接时按需推入。
 ../std/random/random.o: ../std/random/mod.x ../std/random/random.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh --bare-impl $@ ../std/random/mod.x ../std/random/random.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # std.env：product surface = mod.x (std_env_getenv/…); OS glue in runtime_env_os.o.
 # PLATFORM: SHARED — do NOT compile only env.x (std_env_env_* / missing std_env_*);
 # asm fk0 pulls formal env.o; wrong authority → Ubuntu BLD001 (tests/env).
 # env.x is helpers (parse_kv / platform_encoding / no_mangle args_iter), not product API.
 ../std/env/env.o: ../std/env/mod.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh $@ ../std/env/mod.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # std.fs：F-03 pure .x — formal .o for -backend asm (co-emit of std.fs is skipped).
 # PLATFORM: SHARED — product authority remains mod.x+posix via import; vehicle is
 # compile driver only (user -o KEEP_C path). Do NOT compile mod.x as entry on Linux
 # (libc name collisions / posix_fadvise order). Wrong/missing → U std_fs_invalid.
-../std/fs/fs.o: ../std/fs/mod.x ../std/fs/posix.x | scripts/xlang_compile_std_fs_formal.sh
-	@sh scripts/xlang_compile_std_fs_formal.sh $@
+../std/fs/fs.o: ../std/fs/mod.x ../std/fs/posix.x | scripts/xlang_compile_std_module.sh
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # std.sync：F 闭合 — mod.x（用户 API）+ sync.x（impl 裸符号）用 -E-extern 编译；
 # OS/TLS 胶层在 runtime_sync_*.o，最终 exe 链接时按需推入。
 ../std/sync/sync.o: ../std/sync/mod.x ../std/sync/sync.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh --bare-impl $@ ../std/sync/mod.x ../std/sync/sync.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # std.queue：F 闭合 — mod.x 用户 API（Queue_i32/u8）；queue.x 为 F-queue marker。
 # pthread 胶层在 runtime_queue_contention.o（链接按需）。
 ../std/queue/queue.o: ../std/queue/mod.x ../std/queue/queue.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh --bare-impl $@ ../std/queue/mod.x ../std/queue/queue.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # std.encoding：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + encoding）。
 ../std/encoding/encoding.o: ../std/encoding/mod.x ../std/encoding/encoding.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh --bare-impl $@ ../std/encoding/mod.x ../std/encoding/encoding.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # std.base64：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + base64）。
 ../std/base64/base64.o: ../std/base64/mod.x ../std/base64/base64.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh --bare-impl $@ ../std/base64/mod.x ../std/base64/base64.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # std.crypto：F-闭合 — mod.x + 5 .x 用 -E-extern 编译（裸符号）。
 # mod.x 提供 extern 声明 + 公共 API；core/aes_gcm/chacha20_*/ed25519.x 提供裸符号实现。
 ../std/crypto/crypto.o: ../std/crypto/mod.x ../std/crypto/core.x ../std/crypto/aes_gcm.x ../std/crypto/chacha20_poly1305.x ../std/crypto/chacha20_aead.x ../std/crypto/ed25519.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh --bare-impl $@ ../std/crypto/mod.x ../std/crypto/core.x ../std/crypto/aes_gcm.x ../std/crypto/chacha20_poly1305.x ../std/crypto/chacha20_aead.x ../std/crypto/ed25519.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # std.log：F-闭合 — mod.x + log.x 用 -E-extern 编译（裸符号）。
 # mod.x 提供 extern 声明 + 公共 API；log.x 提供 log_write_c 等裸符号实现。
 ../std/log/log.o: ../std/log/mod.x ../std/log/log.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh --bare-impl $@ ../std/log/mod.x ../std/log/log.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 
 # std.test：F 闭合 — mod.x（用户 API）+ test.x（impl 裸符号）用 -E-extern 编译；
 # fn-ptr 在 runtime_test_fn_invoke.o，最终 exe 链接时按需推入。
 ../std/test/test.o: ../std/test/mod.x ../std/test/test.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh --bare-impl $@ ../std/test/mod.x ../std/test/test.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # std.atomic：F 闭合 — mod.x（用户 API）+ atomic.x（impl 裸符号）用 -E-extern 编译；
 # 原子胶层在 runtime_atomic_glue.o，最终 exe 链接时按需推入。
 ../std/atomic/atomic.o: ../std/atomic/mod.x ../std/atomic/atomic.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh --bare-impl $@ ../std/atomic/mod.x ../std/atomic/atomic.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # std.channel：F-channel v2 纯 .x（F-ZC）；channel 胶层在 runtime_channel_glue.o；Unix 需 -lpthread。
 ../std/channel/channel.o: ../std/channel/channel.x | scripts/xlang_compile_std_x.sh
@@ -397,37 +423,43 @@ net-o-mbedtls:
 
 # std.hash：F 闭合 — mod.x（用户 API）+ hash.x（impl 裸符号）用 -E-extern 编译。
 ../std/hash/hash.o: ../std/hash/mod.x ../std/hash/hash.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh --bare-impl $@ ../std/hash/mod.x ../std/hash/hash.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # std.math：F-math v2 纯 .x（F-ZC）；libm 胶层在 runtime_math_libm.o（链接 exe 仍须 -lm）。
 # PLATFORM: SHARED — 权威 = mod.x (std_math_* API) + math.x (bare math_*_c constants)
 # via xlang_compile_std_module --bare-impl. Do NOT compile only math.x (missing std_math_*).
 # Ban old xlang-c -E double-prefix stale path.
 ../std/math/math.o: ../std/math/mod.x ../std/math/math.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh --bare-impl $@ ../std/math/mod.x ../std/math/math.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # std.sort：F-sort v1 — product surface = mod.x (std_sort_sort_*) + sort.x impl.
 # PLATFORM: SHARED — do NOT compile only sort.x (bare sort_* / missing std_sort_sort_*);
 # asm fk0 pulls formal sort.o; wrong authority → Ubuntu BLD001 (tests/sort).
 # Import binding (not --bare-impl): sort.x path prefix → std_sort_sort_sort_qsort_*.
 ../std/sort/sort.o: ../std/sort/mod.x ../std/sort/sort.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh $@ ../std/sort/mod.x ../std/sort/sort.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # G-01：core/ 零 C — 位运算/volatile/slice 已纯 .x（见 analysis/phase-g-full-selfhost-tasks-v1.md）
 
 # std.ffi：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + ffi）。
 ../std/ffi/ffi.o: ../std/ffi/mod.x ../std/ffi/ffi.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh --bare-impl $@ ../std/ffi/mod.x ../std/ffi/ffi.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 
 # std.context：F-闭合 — mod.x + context.x 用 -E-extern 编译（裸符号）。
 # mod.x 提供 is_cancelled/deadline_ns/remaining_ns 等公共 API；context.x 提供 ctx_*_c 实现。
 ../std/context/context.o: ../std/context/mod.x ../std/context/context.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh --bare-impl $@ ../std/context/mod.x ../std/context/context.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # std.error：F-闭合 — mod.x 用 -E-extern 编译。提供 http_err_cancelled/timeout 等错误码 API。
 ../std/error/error.o: ../std/error/mod.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh $@ ../std/error/mod.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 
 # std.datetime：F-datetime v2 + F-ZC 纯 datetime.x → datetime.o（无 glue；无 xlang 时 exit 0）。
@@ -539,10 +571,12 @@ sqlite-o-stub:
 # P4 std 模块（按需链接）
 # std.json：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + json）。
 ../std/json/json.o: ../std/json/mod.x ../std/json/json.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh --bare-impl $@ ../std/json/mod.x ../std/json/json.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 # std.csv：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + csv）。
 ../std/csv/csv.o: ../std/csv/mod.x ../std/csv/csv.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh --bare-impl $@ ../std/csv/mod.x ../std/csv/csv.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 # std.regex：F-regex v2 纯 .x → regex.o（同 hash/schema）。
 ../std/regex/regex.o: ../std/regex/regex.x | scripts/xlang_compile_std_x.sh
 # wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
@@ -557,11 +591,13 @@ compress-o-zlib compress-o-zlib-zstd compress-o-brotli compress-o-zlib-zstd-brot
 # std.dynlib：F 闭合 — mod.x（用户 API）+ dynlib.x（impl 裸符号）用 -E-extern 编译；
 # dlopen 胶层在 runtime_dynlib_os.o，最终 exe 链接时按需推入。
 ../std/dynlib/dynlib.o: ../std/dynlib/mod.x ../std/dynlib/dynlib.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh --bare-impl $@ ../std/dynlib/mod.x ../std/dynlib/dynlib.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 # std.http：F 闭合 — mod.x（用户 API）+ http.x（impl 裸符号）用 -E-extern 编译；
 # HTTP 胶层在 runtime_http_glue.o，最终 exe 链接时按需推入。
 ../std/http/http.o: ../std/http/mod.x ../std/http/http.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh --bare-impl $@ ../std/http/mod.x ../std/http/http.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 
 # std.socketio：F-socketio v2 纯 socketio.x；ld -r 合并为 socketio.o（P3 可选）。
 ../std/socketio/socketio.o: ../std/socketio/socketio.x | scripts/xlang_compile_std_x.sh
@@ -570,7 +606,8 @@ compress-o-zlib compress-o-zlib-zstd compress-o-brotli compress-o-zlib-zstd-brot
 # std.tar：F-tar v2 纯 tar.x；import binding 别名桩 tar_import_alias.c。
 # std.tar：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + tar）。
 ../std/tar/tar.o: ../std/tar/mod.x ../std/tar/tar.x | scripts/xlang_compile_std_module.sh
-	@sh scripts/xlang_compile_std_module.sh --bare-impl $@ ../std/tar/mod.x ../std/tar/tar.x
+# wave812: formal_mod catalog → ensure (G.7; not physical delete).
+	@sh scripts/xlang_compile_std_module.sh ensure $@
 # std.simd：F-simd v1 + F-ZC 纯 simd.x → simd.o（无 glue；无 xlang 时 exit 0）。
 ../std/simd/simd.o: ../std/simd/simd.x | scripts/xlang_compile_std_x.sh
 # wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).

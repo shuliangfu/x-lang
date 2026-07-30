@@ -23,6 +23,8 @@
 #   wave780: B2 std/core product hybrid body → try-std-core-prefer (Makefile thin-call)
 #   wave811: std_x product hybrid body (22 leaves) → xlang_compile_std_x auto|auto-soft|auto-soft-merge
 #            (Makefile thin-call only; NOT physical delete; formal_mod graph remains)
+#   wave812: formal_mod shell-primary catalog (38 leaves) → xlang_compile_std_module ensure
+#            (Makefile thin-call only; NOT physical delete; edges+lists+B2 remain)
 #   wave781: B3 LSP satellite hybrid body → try-lsp-sat-prefer
 #   wave782: B4 gen_c_to_o bootstrap → try-gen-c-to-o
 #   wave783: B5 cfg_eval multi-ladder → try-cfg-eval-ladder
@@ -376,6 +378,18 @@ SWALLOWED_STD_X_HYBRID_BODY=1
 STD_X_HYBRID_BODY_SWALLOWED=1
 STD_X_HYBRID_BODY_HELPER=xlang_compile_std_x.sh
 STD_X_HYBRID_BODY_WAVE=wave811
+# wave812: formal_mod product table (bare + sources + fs_formal) lives in
+# xlang_compile_std_module.sh; Makefile 38 leaves thin-call ensure only.
+# NOT physical delete — thin edges + B2 try-std-core-prefer + B7B lists remain.
+PHYS_DEL_FORMAL_MOD_SHELL_PRIMARY=1
+PHYS_DEL_FORMAL_MOD_SHELL_PRIMARY_WAVE=wave812
+PHYS_DEL_FORMAL_MOD_SHELL_PRIMARY_COUNT=38
+PHYS_DEL_FORMAL_MOD_SHELL_PRIMARY_VIA=xlang_compile_std_module_ensure
+PHYS_DEL_FORMAL_MOD_SHELL_PRIMARY_NOTE=catalog_ensure_thin_call_edges_remain
+SWALLOWED_FORMAL_MOD_CATALOG=1
+FORMAL_MOD_CATALOG_SWALLOWED=1
+FORMAL_MOD_CATALOG_HELPER=xlang_compile_std_module.sh
+FORMAL_MOD_CATALOG_WAVE=wave812
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -525,11 +539,13 @@ PHYS_DEL_PREFLIGHT_B7D_G05=1
 PHYS_DEL_PREFLIGHT_B7A_COLD_0MAKE=1
 PHYS_DEL_PREFLIGHT_B7B_SHELL_CATALOG=1
 PHYS_DEL_PREFLIGHT_FORCE_DEP_THIN=113
-# wave811: std_x hybrid body swallowed; blocker name kept (formal_mod + B2 ensure + lists).
+# wave811/812: std_x hybrid + formal_mod catalog swallowed; blocker name kept
+# (thin edges + B2 ensure + B7B lists still form std_core_product_make_graph).
 PHYS_DEL_PREFLIGHT_BLOCKERS=makefile_thin_call_edges|b7b_lists_in_mk|std_core_product_make_graph
 PHYS_DEL_PREFLIGHT_STD_X_HYBRID_BODY_SWALLOWED=1
+PHYS_DEL_PREFLIGHT_FORMAL_MOD_SHELL_PRIMARY=1
 PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|rm_makefile_without_confirm_delete_body
+PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_PREFLIGHT_WIN_GATE_HOST=MSYS2_windows-server_dual_boot_reboot_required
 PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
@@ -1118,6 +1134,12 @@ else
   if ! grep -qE 'wave788|B7B.*shell|SHELL_CATALOG|shell.primary catalog|mk.parse' "$DOC_REL"; then
     bad "$DOC_REL must document wave788 B7B shell-primary catalog"
   fi
+  if ! grep -qE 'wave811|std_x hybrid|STD_X_HYBRID|auto-soft-merge' "$DOC_REL"; then
+    bad "$DOC_REL must document wave811 std_x product hybrid thin"
+  fi
+  if ! grep -qE 'wave812|formal_mod|FORMAL_MOD_SHELL|std_module ensure' "$DOC_REL"; then
+    bad "$DOC_REL must document wave812 formal_mod shell-primary catalog"
+  fi
   note "doc $DOC_REL present"
 fi
 
@@ -1577,6 +1599,21 @@ fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_STD_X_HYBRID_BODY_SWALLOWED=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_STD_X_HYBRID_BODY_SWALLOWED=1 (wave811)"
 fi
+if ! grep -q 'PHYS_DEL_FORMAL_MOD_SHELL_PRIMARY=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_FORMAL_MOD_SHELL_PRIMARY=1 (wave812)"
+fi
+if ! grep -q 'PHYS_DEL_FORMAL_MOD_SHELL_PRIMARY_WAVE=wave812' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_FORMAL_MOD_SHELL_PRIMARY_WAVE=wave812"
+fi
+if ! grep -q 'PHYS_DEL_FORMAL_MOD_SHELL_PRIMARY_COUNT=38' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_FORMAL_MOD_SHELL_PRIMARY_COUNT=38 (wave812)"
+fi
+if ! grep -q 'SWALLOWED_FORMAL_MOD_CATALOG=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_FORMAL_MOD_CATALOG=1 (wave812)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_FORMAL_MOD_SHELL_PRIMARY=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_FORMAL_MOD_SHELL_PRIMARY=1 (wave812)"
+fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh' <<<"$_out"; then
   bad "dump must name Windows min-gate command (wave798)"
 fi
@@ -1869,6 +1906,64 @@ if awk '
   bad "Makefile product std/*.o still has host-pick if-ladder (wave811 must thin)"
 else
   note "Makefile product std_x leaves free of host-pick if-ladder (wave811)"
+fi
+
+# wave812: formal_mod shell-primary — ensure thin on 38 leaves + script catalog/--check.
+if [ ! -f "$ROOT/compiler/scripts/xlang_compile_std_module.sh" ] && [ ! -f "scripts/xlang_compile_std_module.sh" ]; then
+  bad "missing xlang_compile_std_module.sh (wave812 formal_mod authority)"
+fi
+_fm_sh="$ROOT/compiler/scripts/xlang_compile_std_module.sh"
+[ -f "$_fm_sh" ] || _fm_sh="scripts/xlang_compile_std_module.sh"
+if ! grep -q 'formal_mod_spec_for_key' "$_fm_sh"; then
+  bad "xlang_compile_std_module.sh must define formal_mod_spec_for_key (wave812)"
+fi
+if ! grep -qE 'ensure\|auto\)' "$_fm_sh"; then
+  bad "xlang_compile_std_module.sh must support ensure|auto (wave812)"
+fi
+if ! grep -q 'formal_mod_check' "$_fm_sh"; then
+  bad "xlang_compile_std_module.sh must support --check (wave812)"
+fi
+_fm_thin=0
+for _fm in \
+  string/string heap/heap heap/page_mmap sys/sys sys/linux \
+  map/map set/set vec/vec thread/thread time/time random/random env/env \
+  fs/fs sync/sync queue/queue encoding/encoding base64/base64 crypto/crypto \
+  log/log test/test atomic/atomic hash/hash math/math sort/sort ffi/ffi \
+  context/context error/error json/json csv/csv dynlib/dynlib http/http tar/tar
+do
+  if awk -v tgt="../std/${_fm}.o" '
+    $0 ~ ("^" tgt ":") { hit=1; next }
+    hit && /^[^#[:space:]]/ { exit 1 }
+    hit && /xlang_compile_std_module\.sh/ && /ensure|auto/ { found=1; exit 0 }
+    END { exit found ? 0 : 1 }
+  ' "$MF" 2>/dev/null; then
+    _fm_thin=$((_fm_thin + 1))
+  else
+    bad "Makefile ../std/${_fm}.o must thin-call xlang_compile_std_module ensure|auto (wave812)"
+  fi
+done
+for _fm in mem/mem types/types option/option result/result debug/debug slice/mod; do
+  if awk -v tgt="../core/${_fm}.o" '
+    $0 ~ ("^" tgt ":") { hit=1; next }
+    hit && /^[^#[:space:]]/ { exit 1 }
+    hit && /xlang_compile_std_module\.sh/ && /ensure|auto/ { found=1; exit 0 }
+    END { exit found ? 0 : 1 }
+  ' "$MF" 2>/dev/null; then
+    _fm_thin=$((_fm_thin + 1))
+  else
+    bad "Makefile ../core/${_fm}.o must thin-call xlang_compile_std_module ensure|auto (wave812)"
+  fi
+done
+if [ "$_fm_thin" -ne 38 ]; then
+  bad "wave812 expected 38 formal_mod ensure leaves, got $_fm_thin"
+fi
+note "Makefile formal_mod 38 leaves thin-call ensure (wave812; not physical delete)"
+# no residual explicit source lists after ensure in formal recipe bodies
+if grep -nE '^\t@?sh scripts/xlang_compile_std_module\.sh (--bare-impl )?[.]{0,2}/' "$MF" 2>/dev/null \
+  | grep -v ensure | grep -v auto | head -1 | grep -q .; then
+  bad "Makefile formal_mod still has explicit-source std_module calls (wave812 must ensure)"
+else
+  note "Makefile formal_mod free of explicit-source std_module recipe args (wave812)"
 fi
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
@@ -2432,5 +2527,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747–811: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x hybrid thin 22; Makefile still present; delete body deferred)"
+echo "leaf_pattern_residual: CHECK OK (wave747–812: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave812 formal_mod ensure 38; Makefile still present; delete body deferred)"
 exit 0
