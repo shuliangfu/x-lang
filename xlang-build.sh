@@ -543,6 +543,13 @@ case "$TARGET" in
   bootstrap-token)
     (cd compiler && sh scripts/bootstrap_token_lexer_smoke.sh token)
     ;;
+  # wave844: parser smokes shell-primary (G.7; same family as token/lexer wave719)
+  bootstrap-parser)
+    (cd compiler && sh scripts/bootstrap_parser_smoke.sh parser)
+    ;;
+  bootstrap-parse-file)
+    (cd compiler && sh scripts/bootstrap_parser_smoke.sh parse-file)
+    ;;
   bootstrap-verify)
     (cd compiler && sh scripts/bootstrap_verify_bstrict.sh)
     ;;
@@ -702,6 +709,7 @@ CI / 冷启动（外层 0× make -C；叶 pattern residual 至 11.3）:
 测试 / 自举:
   test / test_c / test_x     scripts/run_compiler_tests.sh
   bootstrap-token / lexer    scripts/bootstrap_token_lexer_smoke.sh
+  bootstrap-parser / parse-file  scripts/bootstrap_parser_smoke.sh (wave844)
   bootstrap-driver-bstrict   scripts/bootstrap_driver_bstrict.sh
   bootstrap-verify           scripts/bootstrap_verify_bstrict.sh
 

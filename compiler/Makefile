@@ -1558,20 +1558,17 @@ bootstrap-token: $(TARGET) $(STD_AND_PANIC_O)
 bootstrap-lexer: $(TARGET) $(STD_AND_PANIC_O)
 	@TARGET='$(TARGET)' sh scripts/bootstrap_token_lexer_smoke.sh lexer
 
+# wave844: full body → scripts/bootstrap_parser_smoke.sh (G.7 有则补全; shell owns
+#   parser.x -o smoke + parse-file dual-path fixtures). NOT physical delete —
+#   prereq graph (relink-xlang / STD_AND_PANIC_O / bootstrap-parser) residual.
 # 自举 9.1：用 xlang 编译 parser.x（import lexer + token + ast + std.fs），解析 function main(): i32 { return 0; } 并验证；-L .. 供 std.fs，-L src/lexer 供 token，-L src/ast 供 ast
-bootstrap-parser: relink-xlang $(STD_AND_PANIC_O)
-	rm -f /tmp/xlang_parse_test.x && ./$(TARGET) -L .. -L src/lexer -L src/ast src/parser/parser.x -o /tmp/xlang_parser_test && /tmp/xlang_parser_test && echo "bootstrap-parser OK"
+bootstrap-parser: relink-xlang $(STD_AND_PANIC_O) scripts/bootstrap_parser_smoke.sh
+	@TARGET='$(TARGET)' bash scripts/bootstrap_parser_smoke.sh parser
 
 # 9.1 联调：.x `parse()` 支持 return 字面量或 `parse_expr_into`（堆上大块 Arena，栈安全）；宿主 xlang 走完整流水线。
 # 第二段：`return (1 + 2) * 3 + -1`，.x standalone 走 parse()→堆上 Arena→parse_expr_into；宿主 xlang 走完整流水线。
-bootstrap-parse-file: $(TARGET) $(STD_AND_PANIC_O) bootstrap-parser
-	@printf 'function main(): i32 { return 0; }\0' > /tmp/xlang_parse_test.x && \
-	/tmp/xlang_parser_test && echo "x parser: parse OK (minimal)" && \
-	(out=$$(./$(TARGET) -L .. /tmp/xlang_parse_test.x 2>&1); echo "$$out" | grep -q "parse OK") && echo "C parser: parse OK (minimal)" && \
-	printf 'function main(): i32 { return (1 + 2) * 3 + -1; }\0' > /tmp/xlang_parse_test.x && \
-	/tmp/xlang_parser_test && echo "x parser: parse OK (expr-chain)" && \
-	(out=$$(./$(TARGET) -L .. /tmp/xlang_parse_test.x 2>&1); echo "$$out" | grep -q "parse OK") && echo "C parser: parse OK (expr-chain)" && \
-	echo "bootstrap-parse-file OK"
+bootstrap-parse-file: $(TARGET) $(STD_AND_PANIC_O) bootstrap-parser scripts/bootstrap_parser_smoke.sh
+	@TARGET='$(TARGET)' bash scripts/bootstrap_parser_smoke.sh parse-file
 
 # 迁移到 .x：parser.x -E-extern + ast 池 getter 补丁 → parser_x.o（提供 parser_parse_into_buf；与瘦 pipeline_x.o 分 TU）。
 # 须 xlang-x -x -E 全量 TU；xlang-c 瘦 gen 缺 copy_module_import_path64 / parse_expr_into 等。

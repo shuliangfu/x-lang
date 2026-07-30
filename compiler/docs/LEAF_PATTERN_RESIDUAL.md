@@ -1185,7 +1185,7 @@ After (wave785):
 | Swallowed this wave | Still residual |
 |---------------------|----------------|
 | **B7 inventory** (named B7A–B7D + dump/`--check`) | Physical delete (Windows gate) |
-| **B7c partial** (archaeology dual `-c` → migrate / thin leaves) | ~~B7c typeck/codegen~~ (wave841) · ~~x-compiler~~ (wave842) · ~~bootstrap-self~~ (wave843) · B7A edges · B7B lists · ~~**B7D host-cc xlang link**~~ (wave786) · bootstrap-parser smoke |
+| **B7c partial** (archaeology dual `-c` → migrate / thin leaves) | ~~B7c typeck/codegen~~ (wave841) · ~~x-compiler~~ (wave842) · ~~bootstrap-self~~ (wave843) · ~~bootstrap-parser smoke~~ (wave844) · B7A edges · B7B lists · ~~**B7D host-cc xlang link**~~ (wave786) |
 
 **Forbidden:** physical delete Makefile; claim B7 inventory = physical delete; re-open dual `$(CC) -c` on typeck/codegen/bootstrap-self lsp; mac-only wave green; treat B7D UNDEF as product g05 failure.
 
@@ -2042,6 +2042,56 @@ ship delete body; mac-only wave green.
 `bootstrap_xlangc_create.sh` on Makefile prereq; dual host-pick outside select;
 `rm compiler/Makefile`; ship delete body; mac-only wave green.
 
+## wave844 bootstrap-parser/parse-file shell-primary (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **有则补全** on B7C archaeology residual —
+> `bootstrap-parser` / `bootstrap-parse-file` still owned multi-step Makefile
+> smoke bodies (parser.x product `-o` + dual-path fixture "parse OK" checks).
+> wave719 already shelled token/lexer smokes; parser smokes follow the same
+> authority pattern (shell body; make keeps prereq graph).
+>
+> New authority: `scripts/bootstrap_parser_smoke.sh`
+>   - `parser` — product host compiles `src/parser/parser.x` → run smoke
+>   - `parse-file` — minimal + expr-chain fixtures; .x parser + host xlang
+>     both emit "parse OK"
+>
+> Makefile thin-call only (keeps `relink-xlang` / `STD_AND_PANIC_O` /
+> `bootstrap-parser` make-graph prereqs). Honesty COUNT = **2**. Residual after:
+> thin edges + B2 + mk lists. Dual-end L2 required. Blockers **remain**.
+
+```text
+  leaf dump:
+    PHYS_DEL_BOOTSTRAP_PARSER_SMOKE=1
+    PHYS_DEL_BOOTSTRAP_PARSER_SMOKE_WAVE=wave844
+    PHYS_DEL_BOOTSTRAP_PARSER_SMOKE_COUNT=2
+    SWALLOWED_BOOTSTRAP_PARSER_SMOKE=1
+    PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY=1
+    PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT=6
+    PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_WAVE=wave844
+    PHYS_DEL_PREFLIGHT_BOOTSTRAP_PARSER_SMOKE=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  dual-end L2 green tip: (fill after Mac+Ubuntu verify)
+  next: residual thin/B2/lists or tip Windows re-proof → ship delete body
+       (explicit auth only; tip L4 already wave840)
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_BOOTSTRAP_PARSER_SMOKE` | `1` |
+| `PHYS_DEL_BOOTSTRAP_PARSER_SMOKE_COUNT` | `2` |
+| `SWALLOWED_BOOTSTRAP_PARSER_SMOKE` | `1` |
+| `BOOTSTRAP_PARSER_SMOKE_HELPER` | `bootstrap_parser_smoke.sh` |
+| `PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT` | `6` (wave841–843 + wave844 parser/parse-file) |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+
+**Forbidden:** claim bootstrap-parser smoke shell-primary = physical delete; dual
+inline parser.x / parse-file fixture body in Makefile recipe; mac-only wave green;
+`rm compiler/Makefile`; ship delete body without explicit auth.
+
 ## wave843 bootstrap-self shell-primary (2026-07-30)
 
 > **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
@@ -2060,7 +2110,7 @@ ship delete body; mac-only wave green.
 >
 > Makefile thin-call only (keeps `bootstrap-driver-seed` make-graph prereq).
 > Honesty COUNT = **1**. Residual after: thin edges + B2 + mk lists +
-> bootstrap-parser smoke body. Dual-end L2 required. Blockers **remain**.
+> bootstrap-parser smoke body (cleared wave844). Dual-end L2 required. Blockers **remain**.
 
 ```text
   leaf dump:
@@ -2085,7 +2135,7 @@ ship delete body; mac-only wave green.
 | `PHYS_DEL_BOOTSTRAP_SELF_SHELL_COUNT` | `1` |
 | `SWALLOWED_BOOTSTRAP_SELF_SHELL` | `1` |
 | `BOOTSTRAP_SELF_SHELL_HELPER` | `bootstrap_self.sh` |
-| `PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT` | `4` (wave841 typeck/codegen + wave842 x-compiler + wave843 self) |
+| `PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT` | `4` (wave841 typeck/codegen + wave842 x-compiler + wave843 self; later 6 @ wave844) |
 | `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
 | `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
 | `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
