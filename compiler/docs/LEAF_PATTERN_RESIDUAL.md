@@ -2091,10 +2091,10 @@ ship delete body; mac-only wave green.
     PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_WAVE=wave847
     PHYS_DEL_PREFLIGHT_XLANG_NO_C_FRONTEND_SHELL=1
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-  dual-end L2: Mac structural green; live make reaches shell link then
-    pre-existing UNDEF (archaeology bag vs current pipeline_x; bag unchanged
-    from pre-wave847 recipe — not dual authority / not shell regression);
-    product rv42 green. Ubuntu structural after product tip.
+  dual-end L2 green tip: 190d1a801 (Mac + Ubuntu leaf --check +
+    xlang_no_c_frontend.sh --check + phys-del --check + make -n thin-call;
+    Mac live make reaches shell link → pre-existing UNDEF archaeology bag
+    vs pipeline_x, bag shape unchanged; product rv42 green both ends)
   next: residual thin/B2/lists (hybrid / lists) or tip
     Windows re-proof → ship delete body (explicit auth only; tip L4 wave840)
 ```
