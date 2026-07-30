@@ -2339,6 +2339,9 @@ else
 # (G.7 有则补全; Makefile include only — no dual inline re-list).
 # wave850 B7B: RELINK_PRODUCT_LINK_BASE/OBJS (product archaeology full link bag)
 # also live here — BTC_OBJS / RXL_LINK_OBJS consumers expand the var only.
+# wave851 B7B: XLANG_X_LINK_* + BOOTSTRAP_SELF_LINK_OBJS (XXL/BS product-shaped
+# archaeology bags) also live here — Makefile expand only. XNC full bag is in
+# archaeology_experiment_objs.mk (same wave).
 include mk/driver_seed_composites.mk
 
 # legacy xlang-c: list authority mk/driver_seed_composites.mk (wave822).
@@ -2694,10 +2697,12 @@ bootstrap-driver-seed-user-asm: bootstrap-driver-seed
 #   DRIVER_SUBCMD / PIPELINE_LIBS). NOT physical delete — prereq make-graph +
 #   thin edges + B2 + mk lists remain residual.
 # PLATFORM: SHARED — shell owns preflight + link orchestration.
+# wave851 B7B: XNC_LINK_OBJS → $(XLANG_NO_C_FRONTEND_LINK_OBJS)
+#   (archaeology_experiment_objs.mk; no dual inline no-C full link inventory).
 xlang-no-c-frontend: $(DRIVER_NO_C_FRONTEND_OBJS) src/lsp/lsp_diag_stubs_no_c.o scripts/xlang_no_c_frontend.sh
 	@CC="$(CC)" OUT="$@" \
 	  XNC_LINK_CFLAGS="$(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(MAIN_LINK_FLAGS)" \
-	  XNC_LINK_OBJS="$(DRIVER_NO_C_FRONTEND_OBJS) driver_x.o pipeline_x.o lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) src/lsp/lsp_diag_pipeline_sizes.o src/lsp/lsp_diag_stubs_no_c.o lsp_io_std_heap_x.o $(PIPELINE_LIBS)" \
+	  XNC_LINK_OBJS="$(XLANG_NO_C_FRONTEND_LINK_OBJS)" \
 	  XNC_REQUIRED_OBJS="driver_x.o pipeline_x.o preprocess_x.o" \
 	  bash scripts/xlang_no_c_frontend.sh
 
@@ -2713,10 +2718,12 @@ regen-lsp-gens-x:
 #   link). Lists stay mk expansion (composites / user_asm / subcmd / link_picks).
 # NOT physical delete — prereq make-graph + thin edges + B2 + mk lists remain residual.
 # PLATFORM: SHARED — shell owns preflight + link orchestration.
+# wave851 B7B: XXL_LINK_OBJS → $(XLANG_X_LINK_OBJS)
+#   (composites.mk; no dual inline xlang-x product link inventory).
 xlang-x: build-seed-asm-host $(DRIVER_SEED_OBJS) $(XLANG_X_PIPELINE_LINK_O) $(XLANG_X_USER_ASM_OBJS) driver_x.o preprocess_x.o $(RELINK_XLANG_GLUE_SUFFIX) scripts/xlang_x.sh
 	@CC="$(CC)" XLANG_X="$(XLANG_X)" \
 	  XXL_LINK_CFLAGS="$(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS)" \
-	  XXL_LINK_OBJS="$(DRIVER_SEED_OBJS) driver_x.o $(XLANG_X_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(XLANG_X_USER_ASM_OBJS) $(RELINK_XLANG_GLUE_SUFFIX)" \
+	  XXL_LINK_OBJS="$(XLANG_X_LINK_OBJS)" \
 	  XXL_REQUIRED_OBJS="driver_x.o lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o lsp_io_std_heap_x.o driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x.o driver_build_x.o driver_run_x.o" \
 	  bash scripts/xlang_x.sh
 
@@ -2844,12 +2851,14 @@ build-via-tool: build-tool
 #   no dual archaeology $(CC) -c (G.7 有则补全). Link residual stays B7d.
 # wave843: full body → scripts/bootstrap_self.sh (G.7 有则补全; shell owns stage1 snapshot +
 #   satellite ensure + stage2 host-cc link + out_self smoke). BS_LINK_OBJS = mk expansion.
+# wave851 B7B: BS_LINK_OBJS → $(BOOTSTRAP_SELF_LINK_OBJS) (composites.mk; no dual
+#   inline DRIVER_SEED_LINK_BASE re-list).
 # NOT physical delete — prereq bootstrap-driver-seed + thin edges + mk lists remain residual.
 # PLATFORM: SHARED — shell owns stage2 link/smoke orchestration.
 bootstrap-self: bootstrap-driver-seed scripts/bootstrap_self.sh
 	@TARGET="$(TARGET)" CC="$(CC)" CFLAGS="$(CFLAGS)" MAKE="$(MAKE)" \
 	  BS_LINK_FLAGS="$(DRIVER_SEED_LINK_FLAGS) $(MAIN_LINK_FLAGS)" \
-	  BS_LINK_OBJS="$(DRIVER_SEED_OBJS) driver_x.o pipeline_x.o lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS) $(USER_ASM_LINK)" \
+	  BS_LINK_OBJS="$(BOOTSTRAP_SELF_LINK_OBJS)" \
 	  bash scripts/bootstrap_self.sh
 
 # 阶段 8.3 seed：两代 xlang（xlang_stage1/xlang_stage2）烟测；B-strict 主路径见 check-7.2-bstrict。

@@ -26,6 +26,12 @@
 # into this file; Makefile consumers expand $(RELINK_PRODUCT_LINK_OBJS) only.
 # NOT physical delete — thin edges + B2 + other mk lists remain residual.
 #
+# wave851: XLANG_X_LINK_BASE/OBJS + BOOTSTRAP_SELF_LINK_OBJS — remaining
+# product-shaped archaeology full link bags (xlang-x XXL + bootstrap-self BS
+# stage2). G.7 有则补全; Makefile expand $(XLANG_X_LINK_OBJS) /
+# $(BOOTSTRAP_SELF_LINK_OBJS) only. XNC full bag lives in
+# archaeology_experiment_objs.mk (same wave). NOT physical delete.
+#
 # PLATFORM: SHARED — composite paths under compiler/; host-filtered pieces
 # come from already-resolved vars (Darwin filtered pipeline, etc.).
 
@@ -78,3 +84,26 @@ RELINK_XLANG_PREREQS = build-seed-asm-host $(RELINK_XLANG_FILTERED_OBJS) $(USER_
 # PLATFORM: SHARED — pipeline pick from user_asm_seed_objs.mk (Darwin filtered).
 RELINK_PRODUCT_LINK_BASE = $(DRIVER_SEED_OBJS) driver_x.o $(RELINK_XLANG_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS)
 RELINK_PRODUCT_LINK_OBJS = $(DRIVER_SEED_GLUE_PREFIX) $(RELINK_PRODUCT_LINK_BASE) $(RELINK_XLANG_USER_ASM_LINK) $(RELINK_XLANG_GLUE_SUFFIX)
+
+# wave851 B7B: xlang-x product archaeology full host-cc link bag (G.7 有则补全).
+# Shape is DRIVER_SEED_LINK_BASE-like but uses XLANG_X_PIPELINE_LINK_O (Darwin
+# filtered) and does NOT include PIPELINE_LIBS (historic xlang-x link line).
+# User-asm = HOST_OBJS + HOST_STUBS + XLANG_X_USER_ASM_OBJS + RELINK glue suffix.
+# Fixed multi-token authority COUNT=8 on LINK_BASE (non-$(...) path tokens):
+#   driver_x.o lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o
+#   src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o
+#   lsp_io_std_heap_x.o
+# Consumer: XXL_LINK_OBJS (make xlang-x → xlang_x.sh).
+# PLATFORM: SHARED — XLANG_X picks from user_asm_seed_objs.mk (Darwin filtered).
+XLANG_X_LINK_BASE = $(DRIVER_SEED_OBJS) driver_x.o $(XLANG_X_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o
+XLANG_X_LINK_OBJS = $(XLANG_X_LINK_BASE) $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(XLANG_X_USER_ASM_OBJS) $(RELINK_XLANG_GLUE_SUFFIX)
+
+# wave851 B7B: bootstrap-self stage2 host-cc link bag (G.7 有则补全).
+# Product daily seed link base + USER_ASM_LINK — no dual re-list of the
+# DRIVER_SEED_LINK_BASE multi-token inventory in Makefile thin-call exports.
+# Honesty: expands DRIVER_SEED_LINK_BASE (fixed multi-token COUNT=9 on that var:
+#   driver_x.o pipeline_x.o lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o
+#   sizes_nostub.o ctx.o lsp_io_std_heap_x.o).
+# Consumer: BS_LINK_OBJS (make bootstrap-self → bootstrap_self.sh).
+# PLATFORM: SHARED — USER_ASM_LINK from user_asm_seed_objs.mk.
+BOOTSTRAP_SELF_LINK_OBJS = $(DRIVER_SEED_LINK_BASE) $(USER_ASM_LINK)

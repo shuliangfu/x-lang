@@ -18,8 +18,9 @@
 > - **wave848** · B7C bootstrap-driver-seed-x-frontend shell-primary (host-cc experiment link)
 > - **wave849** · B7C relink-xlang-lexer shell-primary (host-cc product link + XLANG_C sync)
 > - **wave850** · B7B RELINK_PRODUCT_LINK bag → composites.mk (BTC/RXL product link inventory)
+> - **wave851** · B7B XXL/BS/XNC full link bags → composites + archaeology_experiment (3 bags)
 > - **wave799** · execute-gate (hard refuse delete)
-> - **open** · thin edges + B2 + mk lists → tip Windows → dual L4 → explicit auth ship delete
+> - **open** · thin edges + B2 + mk lists (BXF / hybrid) → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -2063,6 +2064,62 @@ ship delete body; mac-only wave green.
 `bootstrap_xlangc_create.sh` on Makefile prereq; dual host-pick outside select;
 `rm compiler/Makefile`; ship delete body; mac-only wave green.
 
+## wave851 B7B XXL/BS/XNC full link bags → mk (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **有则补全** on remaining product-shaped archaeology
+> full host-cc link bags that were still **inlined** in Makefile thin-call
+> exports after wave850:
+>   - **XXL** (`xlang-x`) — `XXL_LINK_OBJS` re-listed DRIVER_SEED_LINK_BASE-like
+>     inventory with `XLANG_X_PIPELINE_LINK_O` (no `PIPELINE_LIBS`)
+>   - **BS** (`bootstrap-self` stage2) — re-listed full `DRIVER_SEED_LINK_BASE`
+>     + `USER_ASM_LINK`
+>   - **XNC** (`xlang-no-c-frontend`) — re-listed `DRIVER_NO_C_FRONTEND_OBJS`
+>     + weak sizes/stubs satellites
+>
+> New authority:
+>   - `mk/driver_seed_composites.mk`:
+>     - `XLANG_X_LINK_BASE` · fixed multi-token **COUNT=8**
+>     - `XLANG_X_LINK_OBJS` · BASE + HOST_OBJS/STUBS + XLANG_X_USER_ASM + GLUE_SUFFIX
+>     - `BOOTSTRAP_SELF_LINK_OBJS` · `$(DRIVER_SEED_LINK_BASE) $(USER_ASM_LINK)`
+>   - `mk/archaeology_experiment_objs.mk`:
+>     - `XLANG_NO_C_FRONTEND_LINK_OBJS` · fixed multi-token **COUNT=9**
+>
+> Makefile expands `$(XLANG_X_LINK_OBJS)` / `$(BOOTSTRAP_SELF_LINK_OBJS)` /
+> `$(XLANG_NO_C_FRONTEND_LINK_OBJS)` only (**COUNT=3 bags**). Residual after:
+> thin edges + B2 + other mk lists (e.g. BXF experiment bag). Dual-end L2
+> required. Blockers **remain**.
+
+```text
+  leaf dump:
+    PHYS_DEL_B7B_XXL_BS_XNC_LINK=1
+    PHYS_DEL_B7B_XXL_BS_XNC_LINK_WAVE=wave851
+    PHYS_DEL_B7B_XXL_BS_XNC_LINK_COUNT=3
+    SWALLOWED_B7B_XXL_BS_XNC_LINK=1
+    PHYS_DEL_PREFLIGHT_B7B_XXL_BS_XNC_LINK=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  dual-end L2 green tip: (pending Mac + Ubuntu leaf residual CHECK +
+    make -n XXL/BS/XNC expand + product rv42)
+  next: residual thin/B2/lists (BXF bag or hybrid) or tip Windows
+    re-proof → ship delete body (explicit auth only; tip L4 wave840)
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_B7B_XXL_BS_XNC_LINK` | `1` |
+| `PHYS_DEL_B7B_XXL_BS_XNC_LINK_COUNT` | `3` (XXL + BS + XNC bags) |
+| `SWALLOWED_B7B_XXL_BS_XNC_LINK` | `1` |
+| `B7B_XXL_BS_XNC_LINK_MK` | `mk/driver_seed_composites.mk+mk/archaeology_experiment_objs.mk` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | tree arm; delete deferred |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+
+**Forbidden:** claim XXL/BS/XNC bags → mk = physical delete; dual inline
+`XXL_LINK_OBJS`/`BS_LINK_OBJS`/`XNC_LINK_OBJS` bag re-list in Makefile;
+second inventory in shell; mac-only wave green; `rm compiler/Makefile`;
+ship delete without explicit auth.
+
 ## wave850 B7B RELINK_PRODUCT_LINK bag → composites.mk (2026-07-30)
 
 > **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
@@ -2095,7 +2152,7 @@ ship delete body; mac-only wave green.
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
   dual-end L2 green tip: 50666351a (Mac + Ubuntu leaf residual CHECK +
     make -n BTC/RXL expand bag + product relink-xlang-lexer + rv42)
-  next: residual thin/B2/lists (XXL/BS/XNC bags or hybrid) or tip Windows
+  next: residual thin/B2/lists (~~XXL/BS/XNC bags~~ wave851 or hybrid) or tip Windows
     re-proof → ship delete body (explicit auth only; tip L4 wave840)
 ```
 
