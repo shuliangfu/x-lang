@@ -1975,7 +1975,8 @@ body; mac-only wave green.
     SWALLOWED_PIPELINE_GEN_FORCE_THIN=1
     PHYS_DEL_PREFLIGHT_PIPELINE_GEN_FORCE_THIN=1
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-  dual-end L2 green tip: (fill after verify)
+  dual-end L2 green tip: 22fbf5b47 (Mac + Ubuntu leaf --check;
+    FORCE ensure pipeline pin + bootstrap-pipeline OK)
   next: thin edges / B2 or tip Windows re-proof
        → Mac+Ubuntu L4 → ship delete body (explicit auth only)
 ```
