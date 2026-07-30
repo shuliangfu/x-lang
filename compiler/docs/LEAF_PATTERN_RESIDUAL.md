@@ -84,7 +84,8 @@
 > - **wave913** · B7B R2 CRT0 product edges multi-target FORCE thin try-heat (6 leaves → `$(DRIVER_SEED_CRT0_OBJS)` in `mk/driver_seed_r_lists.mk`; G.7 try-r2; list migrated from export_lists; no second body)
 > - **wave914** · B7B R2 TYPECK_F64 product edge multi-target FORCE thin try-heat (1 leaf → `$(DRIVER_SEED_TYPECK_F64_OBJS)` in `mk/driver_seed_r_lists.mk`; G.7 try-r2 host pick; UNAME ifeq hard-error surface dropped; no second body)
 > - **wave915** · B7B R2 PANIC product edge multi-target FORCE thin try-heat (1 leaf → `$(DRIVER_SEED_PANIC_OBJS)` in `mk/driver_seed_r_lists.mk`; G.7 try-heat → try-r2-prefer / try-r2; list migrated from export_lists; no second body)
-> - **open** · thin edges + mk lists hybrid (cfg_eval single …) · → tip Windows → dual L4 → explicit auth ship delete
+> - **wave916** · B7B B5 CFG_EVAL product edge multi-target FORCE thin try-heat (1 leaf → `$(DRIVER_SEED_CFG_EVAL_OBJS)` = `src/lexer/cfg_eval.o` in `mk/driver_seed_r_lists.mk`; G.7 try-heat → try-cfg-eval-ladder; migrated from per-leaf recipe; no second body)
+> - **open** · thin edges + mk lists hybrid (cc_inc_tu / net_merge …) · → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
