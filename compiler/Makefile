@@ -726,10 +726,16 @@ src/ast/ast.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # G-02a: codegen.c 已物理删除；codegen_x.o 由 codegen.x 生成，codegen_pipeline_stubs.o 提供 weak 桩。
 
 else
-# XLANG_SKIP_SUBSCRIPT_MAKE=1 时跳过 cp：run-all 入口已构建真正 C 前端（XLANG_LEGACY_C_FRONTEND=1），
-# 此处 cp 会覆盖之导致回归全部失败。bootstrap_xlangc target 仍会跑 select_bootstrap_xlangc.sh 同步种子。
-$(XLANG_C): bootstrap_xlangc
-	@if [ -z "$${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then cp -f bootstrap_xlangc $@; else echo "xlang-c: XLANG_SKIP_SUBSCRIPT_MAKE=1, skip cp (preserve real C frontend)"; fi
+# Default product xlang-c = sync copy of bootstrap_xlangc (G-06 seed).
+# XLANG_SKIP_SUBSCRIPT_MAKE=1 skips cp: run-all may build real C frontend first;
+# overwriting would break that path. bootstrap_xlangc prereq still runs select.
+# wave876: full body → scripts/ensure_xlang_c.sh (G.7 无才新增; shell owns
+#   SKIP_SUBSCRIPT soft-skip + cp -f bootstrap_xlangc → XLANG_C).
+# LEGACY host-cc path stays wave858 legacy_xlang_c_link.sh (separate ifeq).
+# Thin-call XLANG_C= only. NOT physical delete — thin edges + B2 + mk lists remain.
+# PLATFORM: SHARED — binary sync only; seed pick stays select_bootstrap_xlangc.
+$(XLANG_C): bootstrap_xlangc scripts/ensure_xlang_c.sh
+	@XLANG_C="$(XLANG_C)" bash scripts/ensure_xlang_c.sh ensure
 endif
 
 # G-02f-11：diag 产品 seed（全局规则，LEGACY 与默认共用）

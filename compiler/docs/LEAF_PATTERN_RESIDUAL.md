@@ -44,6 +44,7 @@
 > - **wave873** · B7C regen-lsp-gens-x shell-primary (1 phony → regen_lsp_gens_x.sh; XLANG_X gate + rm four gens + make file targets)
 > - **wave874** · B7C build-via-tool shell-primary (1 phony → build_via_tool.sh; run host build_tool → TARGET + OK; xbuild dual retired)
 > - **wave875** · B7C size/perf-baseline shell-primary (2 phonies → stage8_baseline.sh; dispatch tests/run-{size,perf}-baseline; soft-skip)
+> - **wave876** · B7C default `$(XLANG_C)` product alias shell-primary (1 target → ensure_xlang_c.sh; SKIP_SUBSCRIPT soft-skip + cp bootstrap_xlangc; LEGACY stays wave858)
 > - **open** · thin edges + B2 + mk lists (hybrid) · other fat phonies · → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile

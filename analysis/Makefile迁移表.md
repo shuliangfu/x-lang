@@ -77,7 +77,9 @@
 | `bootstrap-driver-hybrid` / `-asm` | ~2901 | **shell** `bootstrap_driver_hybrid.sh` | `xbuild bootstrap-hybrid` | 🟢 wave872 体 shell；`$(TARGET)` prereq 仍 make 图 | B-hybrid 无 SKIP_GEN |
 | `bootstrap-driver-asm-only` | ~2905 | Makefile alias → hybrid | `xbuild bootstrap-asm-only` | 🟢 wave872 别名 |  |
 | `bootstrap-pipeline` | 3359 | Makefile -E pipeline | `xbuild bootstrap-pipeline` | ⬜ Makefile | gen 路径 |
-| `bootstrap_xlangc` | 716 | Makefile/预编译种子 | `xbuild bootstrap_xlangc` | ⬜ Makefile | 冷启动种子机 |
+| `bootstrap_xlangc` | 716 | **shell** `select_bootstrap_xlangc.sh` | `xbuild bootstrap_xlangc` | 🟢 wave838 FORCE + select shell | 冷启动种子机 |
+| `xlang-c` / `$(XLANG_C)`（默认） | ~731 | **shell** `ensure_xlang_c.sh` | `xbuild xlang-c` | 🟢 wave876 体 shell；SKIP_SUBSCRIPT soft-skip + cp seed；prereq `bootstrap_xlangc` 仍 make 图 | G-06 默认 alias |
+| `xlang-c`（LEGACY） | ~2396 | **shell** `legacy_xlang_c_link.sh` | `xbuild xlang-c` + `XLANG_LEGACY_C_FRONTEND=1` | 🟢 wave858 体 shell | 考古 C 前端 |
 | `build-tool` | ~3190 | **shell** `scripts/build_tool.sh` | `xbuild build-tool` | 🟢 wave718 shell | Makefile 薄转调；xlang-build 直调 |
 | `first-time` | 3181 | shell build-tool + g05 | `xbuild first-time` | 🟡 wave718 build-tool shell；g05 日常 |  |
 | `build-via-tool` | ~3001 | **shell** `build_via_tool.sh` | `xbuild build` | 🟢 wave874 体 shell；`build-tool` prereq 仍 make 图 | 与 G-05 / xbuild run_build_tool 同权威 |
