@@ -2072,7 +2072,8 @@ ship delete body; mac-only wave green.
     PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_WAVE=wave844
     PHYS_DEL_PREFLIGHT_BOOTSTRAP_PARSER_SMOKE=1
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-  dual-end L2 green tip: (fill after Mac+Ubuntu verify)
+  dual-end L2 green tip: a7b026d49 product / f78a6381d docs (Mac + Ubuntu leaf
+    --check + bootstrap_parser_smoke.sh --check + phys-del --check + rv42/hello)
   next: residual thin/B2/lists or tip Windows re-proof → ship delete body
        (explicit auth only; tip L4 already wave840)
 ```
@@ -2087,6 +2088,7 @@ ship delete body; mac-only wave green.
 | `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
 | `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
 | `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+| dual-end L2 tip | product `a7b026d49` · docs `f78a6381d` |
 
 **Forbidden:** claim bootstrap-parser smoke shell-primary = physical delete; dual
 inline parser.x / parse-file fixture body in Makefile recipe; mac-only wave green;
