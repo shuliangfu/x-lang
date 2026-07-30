@@ -3702,63 +3702,86 @@ ensure_pipeline_run_x_link_alias_obj() {
 # 瘦 pipeline_x.o 须链 parser_x/typeck_x/codegen_x/lexer_x、std_fs_shim、seed_host backend partial；
 # 首遍勿并 build_asm/*.o（各模块 __xlang_asm_mod_stub 重复 → Darwin ld 失败）。
 ensure_asm_bootstrap_x_companion_objs() {
+  # Presence of the full companion set (not only READY flag): seed/g05 leaves on disk.
+  _x_companions_present=0
+  if [ -f parser_x.o ] && [ -f lexer_x.o ] && [ -f typeck_x.o ] \
+    && [ -f codegen_x.o ] && [ -f preprocess_x.o ] \
+    && [ -f driver_x.o ] && [ -f driver_fmt_x.o ] && [ -f driver_check_x.o ] \
+    && [ -f driver_test_x.o ] && [ -f driver_build_x.o ] && [ -f driver_run_x.o ] \
+    && [ -f driver_compile_x.o ] && [ -f driver_emit_x.o ] \
+    && [ -f lsp_io_std_heap_x.o ] && [ -f x_frontend_link_alias.o ]; then
+    _x_companions_present=1
+  fi
   if [ "${XLANG_ASM_BOOTSTRAP_X_COMPANIONS_READY:-0}" = "1" ] \
-  && [ -f parser_x.o ] && [ -f lexer_x.o ] && [ -f typeck_x.o ] \
-  && [ -f codegen_x.o ] && [ -f preprocess_x.o ] \
-  && [ -f driver_x.o ] && [ -f driver_fmt_x.o ] && [ -f driver_check_x.o ] \
-  && [ -f driver_test_x.o ] && [ -f driver_build_x.o ] && [ -f driver_run_x.o ] \
-  && [ -f driver_compile_x.o ] && [ -f driver_emit_x.o ] \
-  && [ -f lsp_io_std_heap_x.o ]; then
-  build_xlang_asm_info "reuse X companion objs (already ensured in this run)"
-  return 0
+    && [ "$_x_companions_present" = "1" ]; then
+    build_xlang_asm_info "reuse X companion objs (already ensured in this run)"
+    return 0
   fi
   detect_pipeline_gen_cflags
   ensure_pipeline_x_o_fresh
   # runtime-only relink：X companion .o 已存在时勿 make typeck_x.o（stale typeck_gen 会阻断 relink）。
   if [ -n "${XLANG_ASM_BSTRICT_RELINK_ONLY:-}" ] \
-  && [ -f parser_x.o ] && [ -f lexer_x.o ] && [ -f typeck_x.o ] \
-  && [ -f codegen_x.o ] && [ -f preprocess_x.o ]; then
-  build_xlang_asm_info "BSTRICT_RELINK_ONLY - skip X companion make (reuse existing *_x.o)"
-  return 0
+    && [ -f parser_x.o ] && [ -f lexer_x.o ] && [ -f typeck_x.o ] \
+    && [ -f codegen_x.o ] && [ -f preprocess_x.o ]; then
+    build_xlang_asm_info "BSTRICT_RELINK_ONLY - skip X companion make (reuse existing *_x.o)"
+  elif [ "$_x_companions_present" = "1" ]; then
+    # G.7: when seed/g05 already produced the bag, never re-enter make (all platforms).
+    # PLATFORM: WINDOWS — nested MinGW make was the hang/fail (sh.dll "C:", typeck_f64_bits arch).
+    build_xlang_asm_info "reuse seed X companion bag (skip nested make)"
+  elif build_xlang_asm_is_msys; then
+    # PLATFORM: WINDOWS | MINGW | MSYS — never nest make for companions; hybrid continues with
+    # whatever seed objs exist + direct cc below. Missing leaves may fail at link (real signal).
+    build_xlang_asm_info "win: skip nested make for X companions (missing seed bag; link may fail)"
   elif [ -f Makefile ] && command -v make >/dev/null 2>&1; then
-  build_xlang_asm_info "ensure X companion objs (parser/lexer/typeck/codegen/preprocess/compile)"
-  # 瘦 pipeline_x.o 仍引用 codegen_codegen_* / typeck_typeck_* / lexer_lexer_init；须与 bootstrap-driver-seed 同款 link alias。
-  # x 命名 迁移：链接行仍引用 *_x.o，须 make 别名目标（cp *_x.o）。
-  make -s parser_x.o lexer_x.o typeck_x.o codegen_x.o preprocess_x.o \
-  lexer_x.o codegen_x.o typeck_x.o preprocess_x.o \
-  x_frontend_link_alias.o \
-  driver_x.o driver_fmt_x.o driver_check_x.o driver_test_x.o \
-  driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
-  driver_fmt_x.o driver_check_x.o driver_test_x.o \
-  driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
-  lsp_io_std_heap_x.o \
-  src/runtime_io_abi.o src/asm/parser_asm_parse_expr_link.o
+    build_xlang_asm_info "ensure X companion objs (parser/lexer/typeck/codegen/preprocess/compile)"
+    # 瘦 pipeline_x.o 仍引用 codegen_codegen_* / typeck_typeck_* / lexer_lexer_init；须与 bootstrap-driver-seed 同款 link alias。
+    # x 命名 迁移：链接行仍引用 *_x.o，须 make 别名目标（cp *_x.o）。
+    make parser_x.o lexer_x.o typeck_x.o codegen_x.o preprocess_x.o \
+      lexer_x.o codegen_x.o typeck_x.o preprocess_x.o \
+      x_frontend_link_alias.o \
+      driver_x.o driver_fmt_x.o driver_check_x.o driver_test_x.o \
+      driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
+      driver_fmt_x.o driver_check_x.o driver_test_x.o \
+      driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
+      lsp_io_std_heap_x.o \
+      src/runtime_io_abi.o src/asm/parser_asm_parse_expr_link.o
   fi
   # G-02e: fs/sys shim symbols live in runtime_io_abi.o
   if [ ! -f src/runtime_io_abi.o ] || [ seeds/runtime_io_abi.from_x.c -nt src/runtime_io_abi.o ]; then
-  echo " cc -c seeds/runtime_io_abi.from_x.c -> src/runtime_io_abi.o"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_io_abi.from_x.c -o src/runtime_io_abi.o
+    echo " cc -c seeds/runtime_io_abi.from_x.c -> src/runtime_io_abi.o"
+    $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_io_abi.from_x.c -o src/runtime_io_abi.o
   fi
   if [ ! -f "$BUILD_DIR/x_seed_bridge.o" ] || [ "seeds/x_seed_bridge.from_x.c" -nt "$BUILD_DIR/x_seed_bridge.o" ]; then
-  echo " cc -c seeds/x_seed_bridge.from_x.c -> $BUILD_DIR/x_seed_bridge.o (G-02f-11)"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/x_seed_bridge.from_x.c -o "$BUILD_DIR/x_seed_bridge.o"
+    echo " cc -c seeds/x_seed_bridge.from_x.c -> $BUILD_DIR/x_seed_bridge.o (G-02f-11)"
+    $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/x_seed_bridge.from_x.c -o "$BUILD_DIR/x_seed_bridge.o"
   fi
   if [ ! -f "$BUILD_DIR/seed_link_compat.o" ] || [ "seeds/seed_link_compat.from_x.c" -nt "$BUILD_DIR/seed_link_compat.o" ]; then
-  echo " cc -c seeds/seed_link_compat.from_x.c -> $BUILD_DIR/seed_link_compat.o (G-02f-11)"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/seed_link_compat.from_x.c -o "$BUILD_DIR/seed_link_compat.o"
+    echo " cc -c seeds/seed_link_compat.from_x.c -> $BUILD_DIR/seed_link_compat.o (G-02f-11)"
+    $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/seed_link_compat.from_x.c -o "$BUILD_DIR/seed_link_compat.o"
   fi
   # preprocess_if_stack_* 由 pipeline_x.o（ast_pool.c via pipeline_glue.c）提供，bridge 已删除。
   # dispatch TU 须先于 build_seed_asm_host（partial 导出须 nm 四份 dispatch .o）。
   ensure_bstrict_seed_support_objs
   if [ -n "${XLANG_ASM_BSTRICT_RELINK_ONLY:-}" ] && [ -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
-  :
+    :
   elif [ ! -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ] || [ "src/asm/backend.x" -nt "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
-  build_xlang_asm_info "build_seed_asm_host (backend_enc_* for pipeline_x.o)"
-  ./scripts/build_seed_asm_host.sh
+    build_xlang_asm_info "build_seed_asm_host (backend_enc_* for pipeline_x.o)"
+    ./scripts/build_seed_asm_host.sh
   fi
   ensure_ast_pool_l5_bridge_obj
   if [ ! -f pipeline_bootstrap_orchestration.o ] || [ seeds/pipeline_bootstrap_orchestration.from_x.c -nt pipeline_bootstrap_orchestration.o ]; then
-  make pipeline_bootstrap_orchestration.o
+    if build_xlang_asm_is_msys; then
+      # PLATFORM: WINDOWS — no nested make; compile seed C directly if present.
+      if [ -f seeds/pipeline_bootstrap_orchestration.from_x.c ]; then
+        echo " win: cc pipeline_bootstrap_orchestration.o <- seeds (skip make)"
+        $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/pipeline_bootstrap_orchestration.from_x.c \
+          -o pipeline_bootstrap_orchestration.o
+      else
+        build_xlang_asm_info "win: WARN missing pipeline_bootstrap_orchestration.o seed"
+      fi
+    else
+      make pipeline_bootstrap_orchestration.o
+    fi
   fi
   XLANG_ASM_BOOTSTRAP_X_COMPANIONS_READY=1
 }
