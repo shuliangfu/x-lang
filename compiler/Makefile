@@ -282,43 +282,21 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PIPELINE_GEN_CFLAGS="$(PIPELINE_GEN_CFLAGS)" \
 	  XLANG="$(XLANG)" XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-net-o-stub:
-	$(MAKE) ../std/net/net.o
+# wave815: archaeology host-pick phonies → scripts/archaeology_host_pick_phony.sh
+# (G.7; not physical delete). Makefile thin-call ensure only; host pick + TLS/sqlite
+# merge body live in the shell catalog. Nested product .o still via make try-heat.
+net-o-stub: scripts/archaeology_host_pick_phony.sh
+	@MAKE="$(MAKE)" LD_R_MULTIDEF_FLAGS="$(LD_R_MULTIDEF_FLAGS)" \
+	  bash scripts/archaeology_host_pick_phony.sh ensure $@
 
 # TLS：F-04 v8 net-o-openssl 编译 std/net/tls_openssl.x（不再 #include tls_openssl.inc.c）。
-net-o-openssl:
-	@if [ -x ./xlang_asm ]; then \
-	  ./xlang_asm -backend asm -L .. ../std/net/tls_openssl.x -o ../std/net/tls_openssl.o && \
-	  $(MAKE) net-o-stub; \
-	elif [ -x ./xlang ]; then \
-	  ./xlang build -backend asm -L .. ../std/net/tls_openssl.x -o ../std/net/tls_openssl.o && \
-	  $(MAKE) net-o-stub; \
-	elif [ -x ./xlang-c ]; then \
-	  ./xlang-c -L .. ../std/net/tls_openssl.x -o ../std/net/tls_openssl.o && \
-	  $(MAKE) net-o-stub; \
-	else \
-	  echo "net-o-openssl: need xlang_asm, xlang, or xlang-c"; exit 1; \
-	fi
+net-o-openssl: scripts/archaeology_host_pick_phony.sh
+	@MAKE="$(MAKE)" LD_R_MULTIDEF_FLAGS="$(LD_R_MULTIDEF_FLAGS)" \
+	  bash scripts/archaeology_host_pick_phony.sh ensure $@
 
-net-o-mbedtls:
-	@if [ -x ./xlang_asm ]; then \
-	  ./xlang_asm -backend asm -L .. ../std/net/tls_mbedtls.x -o ../std/net/tls_mbedtls_main.o && \
-	  $(MAKE) runtime_tls_mbedtls_bio.o && \
-	  ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/net/tls_mbedtls.o ../std/net/tls_mbedtls_main.o runtime_tls_mbedtls_bio.o && \
-	  $(MAKE) net-o-stub; \
-	elif [ -x ./xlang ]; then \
-	  ./xlang build -backend asm -L .. ../std/net/tls_mbedtls.x -o ../std/net/tls_mbedtls_main.o && \
-	  $(MAKE) runtime_tls_mbedtls_bio.o && \
-	  ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/net/tls_mbedtls.o ../std/net/tls_mbedtls_main.o runtime_tls_mbedtls_bio.o && \
-	  $(MAKE) net-o-stub; \
-	elif [ -x ./xlang-c ]; then \
-	  ./xlang-c -L .. ../std/net/tls_mbedtls.x -o ../std/net/tls_mbedtls_main.o && \
-	  $(MAKE) runtime_tls_mbedtls_bio.o && \
-	  ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/net/tls_mbedtls.o ../std/net/tls_mbedtls_main.o runtime_tls_mbedtls_bio.o && \
-	  $(MAKE) net-o-stub; \
-	else \
-	  echo "net-o-mbedtls: need xlang_asm, xlang, or xlang-c"; exit 1; \
-	fi
+net-o-mbedtls: scripts/archaeology_host_pick_phony.sh
+	@MAKE="$(MAKE)" LD_R_MULTIDEF_FLAGS="$(LD_R_MULTIDEF_FLAGS)" \
+	  bash scripts/archaeology_host_pick_phony.sh ensure $@
 
 # std.thread：mod.x 提供 std_thread_* 包装；pthread 胶层在 runtime_thread_glue.o（thread_*_c）。
 # 【Why 勿只编 thread.x】thread.x 仅 marker，link_only 时缺 _std_thread_create 等。
@@ -549,19 +527,10 @@ endif
 # wave811: std_x hybrid body → xlang_compile_std_x auto-soft (G.7; not physical delete).
 	@sh scripts/xlang_compile_std_x.sh auto-soft ../std/db/sqlite/sqlite.x $@
 sqlite-o: ../std/db/sqlite/sqlite.o runtime_sqlite_glue.o
-sqlite-o-stub:
-	$(MAKE) runtime_sqlite_glue_stub.o
-	@if [ -x ./xlang_asm ]; then xlang=./xlang_asm; \
-	elif [ -x ./xlang ]; then xlang=./xlang; \
-	elif [ -x ./xlang-c ]; then xlang=./xlang-c; \
-	else xlang=; fi; \
-	if [ -n "$$xlang" ]; then \
-	  sh scripts/xlang_compile_std_x.sh auto ../std/db/sqlite/sqlite.x ../std/db/sqlite/sqlite_main.o || exit 1; \
-	  ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/db/sqlite/sqlite.o ../std/db/sqlite/sqlite_main.o runtime_sqlite_glue_stub.o; \
-	else \
-	  ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/db/sqlite/sqlite.o runtime_sqlite_glue_stub.o; \
-	  echo "sqlite.o-stub: need xlang-c to merge sqlite.x"; \
-	fi
+# wave815: archaeology host-pick phony → shell catalog (G.7; not physical delete).
+sqlite-o-stub: scripts/archaeology_host_pick_phony.sh
+	@MAKE="$(MAKE)" LD_R_MULTIDEF_FLAGS="$(LD_R_MULTIDEF_FLAGS)" \
+	  bash scripts/archaeology_host_pick_phony.sh ensure $@
 
 # std.elf：F-elf v2 + F-ZC 纯 elf.x → elf.o（无 glue；无 xlang 时 exit 0）。
 ../std/elf/elf.o: ../std/elf/elf.x | scripts/xlang_compile_std_x.sh

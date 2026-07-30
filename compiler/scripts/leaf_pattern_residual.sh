@@ -29,6 +29,8 @@
 #            (Makefile include only; NOT physical delete; thin edges + B2 remain)
 #   wave814: driver_leaf shell-primary catalog (8 leaves) → driver_leaf_x_to_o ensure
 #            (Makefile thin-call only; NOT physical delete; edges+lists remain)
+#   wave815: archaeology host-pick phonies (4) → archaeology_host_pick_phony ensure
+#            (net-o-stub/openssl/mbedtls + sqlite-o-stub; NOT physical delete)
 #   wave781: B3 LSP satellite hybrid body → try-lsp-sat-prefer
 #   wave782: B4 gen_c_to_o bootstrap → try-gen-c-to-o
 #   wave783: B5 cfg_eval multi-ladder → try-cfg-eval-ladder
@@ -418,6 +420,18 @@ SWALLOWED_DRIVER_LEAF_CATALOG=1
 DRIVER_LEAF_CATALOG_SWALLOWED=1
 DRIVER_LEAF_CATALOG_HELPER=driver_leaf_x_to_o.sh
 DRIVER_LEAF_CATALOG_WAVE=wave814
+# wave815: archaeology host-pick phonies (TLS openssl/mbedtls + sqlite stub + net-o-stub)
+# live in archaeology_host_pick_phony.sh; Makefile thin-call ensure only.
+# NOT physical delete — thin edges + B2 ensure + B7B lists remain.
+PHYS_DEL_ARCH_HOST_PICK_PHONY=1
+PHYS_DEL_ARCH_HOST_PICK_PHONY_WAVE=wave815
+PHYS_DEL_ARCH_HOST_PICK_PHONY_COUNT=4
+PHYS_DEL_ARCH_HOST_PICK_PHONY_VIA=archaeology_host_pick_phony_ensure
+PHYS_DEL_ARCH_HOST_PICK_PHONY_NOTE=catalog_ensure_thin_call_edges_remain
+SWALLOWED_ARCH_HOST_PICK_PHONY=1
+ARCH_HOST_PICK_PHONY_SWALLOWED=1
+ARCH_HOST_PICK_PHONY_HELPER=archaeology_host_pick_phony.sh
+ARCH_HOST_PICK_PHONY_WAVE=wave815
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -574,8 +588,9 @@ PHYS_DEL_PREFLIGHT_STD_X_HYBRID_BODY_SWALLOWED=1
 PHYS_DEL_PREFLIGHT_FORMAL_MOD_SHELL_PRIMARY=1
 PHYS_DEL_PREFLIGHT_B7B_STD_AND_PANIC_LIST=1
 PHYS_DEL_PREFLIGHT_DRIVER_LEAF_SHELL_PRIMARY=1
+PHYS_DEL_PREFLIGHT_ARCH_HOST_PICK_PHONY=1
 PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|rm_makefile_without_confirm_delete_body
+PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_PREFLIGHT_WIN_GATE_HOST=MSYS2_windows-server_dual_boot_reboot_required
 PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
@@ -1176,6 +1191,9 @@ else
   if ! grep -qE 'wave814|driver_leaf|DRIVER_LEAF_SHELL' "$DOC_REL"; then
     bad "$DOC_REL must document wave814 driver_leaf shell-primary catalog"
   fi
+  if ! grep -qE 'wave815|archaeology_host_pick|ARCH_HOST_PICK' "$DOC_REL"; then
+    bad "$DOC_REL must document wave815 archaeology host-pick phonies"
+  fi
   note "doc $DOC_REL present"
 fi
 
@@ -1668,6 +1686,21 @@ fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_DRIVER_LEAF_SHELL_PRIMARY=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_DRIVER_LEAF_SHELL_PRIMARY=1 (wave814)"
 fi
+if ! grep -q 'PHYS_DEL_ARCH_HOST_PICK_PHONY=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_ARCH_HOST_PICK_PHONY=1 (wave815)"
+fi
+if ! grep -q 'PHYS_DEL_ARCH_HOST_PICK_PHONY_WAVE=wave815' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_ARCH_HOST_PICK_PHONY_WAVE=wave815"
+fi
+if ! grep -q 'PHYS_DEL_ARCH_HOST_PICK_PHONY_COUNT=4' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_ARCH_HOST_PICK_PHONY_COUNT=4 (wave815)"
+fi
+if ! grep -q 'SWALLOWED_ARCH_HOST_PICK_PHONY=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_ARCH_HOST_PICK_PHONY=1 (wave815)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_ARCH_HOST_PICK_PHONY=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_ARCH_HOST_PICK_PHONY=1 (wave815)"
+fi
 if ! grep -q 'PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813"
 fi
@@ -1958,12 +1991,9 @@ if [ "$_stdx_thin" -ne 22 ]; then
 else
   note "Makefile std_x 22 leaves thin-call xlang_compile_std_x (wave811; not physical delete)"
 fi
-# Product leaf recipes must not keep the historical multi-line host-pick ladder
-# (sqlite-o-stub archaeology may still pick host — exclude that phony).
+# Product leaf recipes must not keep the historical multi-line host-pick ladder.
+# wave815: archaeology phonies (sqlite-o-stub / net-o-*) also thin — no exclude.
 if awk '
-  /^sqlite-o-stub:/ { skip=1; next }
-  skip && /^[^[:space:]#]/ && $0 !~ /^sqlite/ { skip=0 }
-  skip { next }
   /^\.\.\/std\/.*\.o:/ { inleaf=1; next }
   inleaf && /elif \[ -x \.\/xlang \]; then xlang=/ { bad=1; exit }
   inleaf && /^[^[:space:]#]/ { inleaf=0 }
@@ -2118,6 +2148,53 @@ if grep -nE '^LSP_IO_STD_HEAP_RENAME[[:space:]]*=' "$MF" 2>/dev/null | grep -q '
   bad "Makefile must not keep LSP_IO_STD_HEAP_RENAME inline (wave814 dual authority)"
 fi
 note "Makefile free of driver_leaf rename dual lists (wave814)"
+
+# wave815: archaeology host-pick phonies — ensure thin on catalog keys + script --check.
+if [ ! -f "$ROOT/compiler/scripts/archaeology_host_pick_phony.sh" ] && [ ! -f "scripts/archaeology_host_pick_phony.sh" ]; then
+  bad "missing archaeology_host_pick_phony.sh (wave815 archaeology host-pick authority)"
+fi
+_ahp_sh="$ROOT/compiler/scripts/archaeology_host_pick_phony.sh"
+[ -f "$_ahp_sh" ] || _ahp_sh="scripts/archaeology_host_pick_phony.sh"
+if ! grep -q 'arch_phony_keys' "$_ahp_sh"; then
+  bad "archaeology_host_pick_phony.sh must define arch_phony_keys (wave815)"
+fi
+if ! grep -qE 'ensure\|auto\)' "$_ahp_sh"; then
+  bad "archaeology_host_pick_phony.sh must support ensure|auto (wave815)"
+fi
+if ! grep -q 'arch_check' "$_ahp_sh"; then
+  bad "archaeology_host_pick_phony.sh must support --check (wave815)"
+fi
+if ! bash "$_ahp_sh" --check >/dev/null 2>&1; then
+  bad "archaeology_host_pick_phony.sh --check failed (wave815)"
+fi
+note "archaeology_host_pick_phony.sh --check OK (wave815)"
+_ahp_thin=0
+# Keys from catalog `list` only (G.7: residual shell must not hardcode phony inventory).
+while IFS= read -r _ahp; do
+  [ -n "$_ahp" ] || continue
+  if awk -v phony="$_ahp" '
+    $0 ~ ("^" phony ":") { want=1; next }
+    want && /archaeology_host_pick_phony\.sh ensure/ { ok=1; exit }
+    want && /^\t/ { next }
+    want && /^[^#\t]/ && $0 !~ /^$/ { exit }
+    END { exit ok ? 0 : 1 }
+  ' "$MF"; then
+    _ahp_thin=$((_ahp_thin + 1))
+  else
+    bad "Makefile $_ahp must thin-call archaeology_host_pick_phony ensure (wave815)"
+  fi
+done < <(bash "$_ahp_sh" list 2>/dev/null || true)
+if [ "$_ahp_thin" -ne 4 ]; then
+  bad "wave815 expected 4 archaeology host-pick ensure phonies, got $_ahp_thin"
+fi
+note "Makefile archaeology 4 phonies thin-call ensure (wave815; not physical delete)"
+# No residual multi-line host-pick ladder on archaeology phonies.
+if grep -nE '^\t@?if \[ -x \./xlang_asm \]' "$MF" 2>/dev/null | head -1 | grep -q .; then
+  bad "Makefile still has host-pick if-ladder (wave815 archaeology must thin)"
+else
+  note "Makefile free of archaeology host-pick if-ladder (wave815)"
+fi
+
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
   PHYS_DEL_BUCKET_B1_BODY_SWALLOWED=1 \
@@ -2680,5 +2757,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747–814: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave812 formal_mod ensure 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8; Makefile still present; delete body deferred)"
+echo "leaf_pattern_residual: CHECK OK (wave747–815: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave812 formal_mod ensure 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave815 archaeology host-pick phonies 4; Makefile still present; delete body deferred)"
 exit 0

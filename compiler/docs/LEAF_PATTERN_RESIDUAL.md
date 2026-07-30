@@ -1722,6 +1722,45 @@ Then (later waves, not this tip):
 **Forbidden:** claim endgame-preview = ENDGAME arm / physical delete; set
 ENDGAME=1 in this wave; `rm compiler/Makefile`; mac-only wave green.
 
+## wave815 archaeology host-pick phonies shell-primary (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **有则补全** on archaeology host-pick phonies —
+> multi-line `xlang_asm → xlang → xlang-c` ladders for **4** opt-in phonies move
+> into `scripts/archaeology_host_pick_phony.sh`. Modes: `ensure|auto <phony>` ·
+> `list` · `--check`. Makefile thin-call only: `ensure $@`. Catalog keys:
+> `net-o-stub` · `net-o-openssl` · `net-o-mbedtls` · `sqlite-o-stub`. Host
+> compile reuses `xlang_compile_std_x.sh auto` (single host-pick authority);
+> nested product `.o` still via make try-heat. Dual-end L2 required. Blockers
+> **remain** (`makefile_thin_call_edges|b7b_lists_in_mk|std_core_product_make_graph`).
+
+```text
+  leaf dump:
+    PHYS_DEL_ARCH_HOST_PICK_PHONY=1
+    PHYS_DEL_ARCH_HOST_PICK_PHONY_WAVE=wave815
+    PHYS_DEL_ARCH_HOST_PICK_PHONY_COUNT=4
+    SWALLOWED_ARCH_HOST_PICK_PHONY=1
+    PHYS_DEL_PREFLIGHT_ARCH_HOST_PICK_PHONY=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  next: more shell-primary / lists residual or tip Windows re-proof
+       → Mac+Ubuntu L4 → ship delete body
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_ARCH_HOST_PICK_PHONY` | `1` |
+| `PHYS_DEL_ARCH_HOST_PICK_PHONY_COUNT` | `4` |
+| `SWALLOWED_ARCH_HOST_PICK_PHONY` | `1` |
+| `ARCH_HOST_PICK_PHONY_HELPER` | `archaeology_host_pick_phony.sh` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+
+**Forbidden:** claim archaeology host-pick catalog = physical delete; dual
+host-pick if-ladder in Makefile; `rm compiler/Makefile`; ship delete body;
+mac-only wave green.
+
 ## wave814 driver_leaf shell-primary catalog (2026-07-30)
 
 > **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
