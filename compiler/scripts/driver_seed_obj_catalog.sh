@@ -79,6 +79,7 @@ REQUIRED_KEYS=(
   GEN_X_SEED_OBJS
   GEN_C_TO_O_SEED_OBJS
   B3_LSP_SAT_SEED_OBJS
+  FMT_CHECK_SEED_OBJS
 )
 
 # ---------------------------------------------------------------------------

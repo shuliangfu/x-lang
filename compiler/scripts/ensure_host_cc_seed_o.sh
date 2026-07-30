@@ -5256,10 +5256,10 @@ run_check() {
   note() { echo "ensure_host_cc_seed_o: $*" >&2; }
   bad() { echo "ensure_host_cc_seed_o: FAIL: $*" >&2; fail=1; }
 
-  # wave907–911 G.7: multi-target FORCE try-heat covers many historical per-leaf prefer
-  # checks (R1/R3/ASYNC/B1 / GEN_X / GEN_C_TO_O / B3_LSP_SAT families). Accept per-leaf OR
-  # membership in a multi-target list whose recipe thin-calls ensure try-heat
-  # (prefer / gen-x / gen-c-to-o / lsp-sat ladder lives in shell).
+  # wave907–912 G.7: multi-target FORCE try-heat covers many historical per-leaf prefer
+  # checks (R1/R3/ASYNC/B1 / GEN_X / GEN_C_TO_O / B3_LSP_SAT / FMT_CHECK families).
+  # Accept per-leaf OR membership in a multi-target list whose recipe thin-calls ensure
+  # try-heat (prefer / gen-x / gen-c-to-o / lsp-sat / other-l2 ladder lives in shell).
   makefile_leaf_try_heat_ok() {
     local leaf="$1"
     local prefer_re="${2:-try-heat}"
@@ -5280,7 +5280,7 @@ run_check() {
       RT_SEED_SLICE_OBJS R1_CORE_SEED_OBJS R1_FRONTEND_GLUE_OBJS R1_MAIN_RUNTIME_OBJS \
       R1_ALIAS_STUBS_OBJS R1_EXTRA_CFLAGS_OBJS R1_MISC_BASENAME_OBJS R1_SEED_MAP_OBJS \
       R3_COLD_SEED_OBJS ASYNC_THREE_SEED_OBJS B1_RUNTIME_OS_SEED_OBJS GEN_X_SEED_OBJS \
-      GEN_C_TO_O_SEED_OBJS B3_LSP_SAT_SEED_OBJS; do
+      GEN_C_TO_O_SEED_OBJS B3_LSP_SAT_SEED_OBJS FMT_CHECK_SEED_OBJS; do
       if [ ! -f "$mk" ]; then
         continue
       fi

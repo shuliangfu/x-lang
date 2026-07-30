@@ -110,5 +110,13 @@ GEN_C_TO_O_SEED_OBJS = lexer_x.o ast_gen2.o driver_x.o preprocess_x.o _x_stubs2.
 # Do not re-list in Makefile or residual shells (G.7).
 B3_LSP_SAT_SEED_OBJS = src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_stubs_no_c.o
 
+# wave771/775 other-L2 fmt_check family (try-other-l2-prefer table in ensure).
+# List authority for multi-target FORCE thin try-heat (wave912 COUNT=2).
+# Body = ensure try-heat → try-other-l2-prefer (fmt_core / fmt leaf_kind; G.7 single body).
+# Leaves: fmt_check_cmd.o (OBJS_CORE/PIPELINE_X satellite, no USE_X_PIPELINE) ·
+#         fmt_check_cmd_driver.o (driver USE_X_PIPELINE).
+# Do not re-list in Makefile or residual shells (G.7).
+FMT_CHECK_SEED_OBJS = src/driver/fmt_check_cmd.o src/driver/fmt_check_cmd_driver.o
+
 # pipeline_glue_standalone product leaf (also referenced by composites / export lists).
 ASM_GLUE_STANDALONE_O = build_asm/pipeline_glue_standalone.o

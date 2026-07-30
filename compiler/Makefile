@@ -691,23 +691,8 @@ $(R3_COLD_SEED_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 # G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（XLANG_LEGACY_PREPROCESS_C 路径已死）。
 # xlang_x 用：仅 -DXLANG_USE_X_PIPELINE（runtime_x / main_x via wave901 multi-target).
 
-# wave775: non-driver fmt_check_cmd.o → ensure try-other-l2-prefer (fmt_core).
-# G.7 有则补全 — same body as driver leaf; leaf_kind=fmt_core omits USE_X_PIPELINE
-# (OBJS_CORE / PIPELINE_X satellite: runtime_x has no XLANG_USE_X_DRIVER).
-# PLATFORM: SHARED — PREFER=0 cold seed; PREFER=1 thin.x WEAK + rest FROM_X.
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/driver/fmt_check_cmd.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-
-# wave771: product PREFER → ensure try-other-l2-prefer (thin .x WEAK + rest FROM_X + USE_X_PIPELINE; cold seed).
-# PLATFORM: SHARED — product daily path; PREFER=0 cold keeps -DXLANG_USE_X_PIPELINE.
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/driver/fmt_check_cmd_driver.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# wave771/775/912: fmt_check pair joined multi-target $(FMT_CHECK_SEED_OBJS) FORCE try-heat
+# (try-heat → try-other-l2-prefer fmt_core / fmt; body in ensure). NOT physical delete.
 
 # G-02a：C 前端 lexer/ast/parser/typeck/codegen/preprocess/autovec/lsp_diag 已物理删除；见对应 .x。
 
@@ -833,6 +818,22 @@ $(GEN_C_TO_O_SEED_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 # ---------------------------------------------------------------------------
 $(B3_LSP_SAT_SEED_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
+	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+
+# ---------------------------------------------------------------------------
+# wave912 · B7B FMT_CHECK product edges multi-target FORCE thin try-heat
+# G.7 有则补全: list authority = $(FMT_CHECK_SEED_OBJS) in mk/driver_seed_r_lists.mk
+# (wave771/775 try-other-l2-prefer table = fmt_check_cmd · fmt_check_cmd_driver; no second body).
+# Body authority = scripts/ensure_host_cc_seed_o.sh try-heat
+# (wave771/775/792/790; try-heat → try-other-l2-prefer owns seed/.x mtime;
+#  leaf_kind=fmt_core vs fmt selects USE_X_PIPELINE).
+# Leaves: fmt_check_cmd.o · fmt_check_cmd_driver.o.
+# Archaeology: wave771/775 swallow · wave792 FORCE dep-thin — body in try-heat.
+# Makefile only FORCE + thin-call. NOT physical delete — thin edges + remaining
+# mk lists hybrid (cfg_eval / R2 asm …) + tip Windows → dual L4 → explicit auth.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+# ---------------------------------------------------------------------------
+$(FMT_CHECK_SEED_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 
@@ -1583,6 +1584,7 @@ bootstrap-driver-seed-export-obj-catalog:
 	@printf 'GEN_X_SEED_OBJS=%s\n' '$(GEN_X_SEED_OBJS)'
 	@printf 'GEN_C_TO_O_SEED_OBJS=%s\n' '$(GEN_C_TO_O_SEED_OBJS)'
 	@printf 'B3_LSP_SAT_SEED_OBJS=%s\n' '$(B3_LSP_SAT_SEED_OBJS)'
+	@printf 'FMT_CHECK_SEED_OBJS=%s\n' '$(FMT_CHECK_SEED_OBJS)'
 
 # §5b #2 — pipeline_x.o FORCE recompile on cold start (PIPELINE_X_FORCE_COMPILE=1)
 # Body: bootstrap_driver_seed_rebuild_leaves.sh pipeline-x; list = DRIVER_SEED_PIPELINE_X_OBJS only.
