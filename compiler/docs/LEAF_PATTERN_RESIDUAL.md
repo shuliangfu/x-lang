@@ -2071,7 +2071,8 @@ ship delete body; mac-only wave green.
     PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT=3
     PHYS_DEL_PREFLIGHT_BOOTSTRAP_X_COMPILER_SHELL=1
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-  dual-end L2: leaf --check + bootstrap_x_compiler.sh --check + phys-del --check
+  dual-end L2 green tip: 610b627ac (Mac + Ubuntu leaf --check +
+    bootstrap_x_compiler.sh --check + phys-del --check + rv42/hello)
   next: more shell-primary (bootstrap-self / parser smoke) or tip Windows
        re-proof → ship delete body (explicit auth only; tip L4 already wave840)
 ```
@@ -2086,6 +2087,7 @@ ship delete body; mac-only wave green.
 | `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
 | `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
 | `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+| dual-end L2 tip | `610b627ac` |
 
 **Forbidden:** claim x-compiler shell-primary = physical delete; dual inline
 `-x -E` / `$(CC) -c typeck_x_x` on this phony; hardcode second product `.o`
