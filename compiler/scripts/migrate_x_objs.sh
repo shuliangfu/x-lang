@@ -34,7 +34,12 @@
 # wave865: Makefile drops multi-token CFLAGS="$(CFLAGS)" inject; shell loads
 #   export-try-heat-cflags when unset (same authority as try-heat / wave862).
 
-set -euo pipefail
+# Makefile thin leaves invoke this script with `sh` (Ubuntu dash; macOS often bash).
+# Avoid bash-only set options so both hosts parse (G.8 PLATFORM: SHARED).
+# dash: `set -o pipefail` is illegal — use a subshell guard (special-builtin + set -e
+# does not honor `cmd || true` for failed `set` on some dash builds).
+set -eu
+(set -o pipefail) 2>/dev/null || true
 cd "$(dirname "$0")/.."
 
 CC="${CC:-cc}"
@@ -56,6 +61,9 @@ MODE="${1:-all}"
 # loads export-try-heat-cflags when either var is unset.
 # PLATFORM: SHARED — KEY=value from export target; no compile side effects.
 _load_try_heat_cflags_via_make() {
+  # PLATFORM: SHARED — invoked via `sh` on Makefile thin leaves (dash on Ubuntu);
+  # use heredoc not bash <<< so macOS bash + Ubuntu dash both parse.
+  # shellcheck disable=SC2039
   local raw line
   raw=$(MAKEFLAGS= "${MAKE:-make}" -s export-try-heat-cflags) || return 1
   while IFS= read -r line || [ -n "$line" ]; do
@@ -71,7 +79,9 @@ _load_try_heat_cflags_via_make() {
         fi
         ;;
     esac
-  done <<<"$raw"
+  done <<EOF
+$raw
+EOF
   return 0
 }
 
