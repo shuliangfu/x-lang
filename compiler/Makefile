@@ -2857,11 +2857,13 @@ xlang-no-c-frontend: $(DRIVER_NO_C_FRONTEND_OBJS) src/lsp/lsp_diag_stubs_no_c.o 
 	  bash scripts/xlang_no_c_frontend.sh
 
 # 注意：Makefile 中存在同名规则 `xlang-x:`，不能把 `xlang-x` 列为本目标 prerequisite，否则会先执行重链接口而非仅检测文件是否存在。
-regen-lsp-gens-x:
-	@if [ ! -f $(XLANG_X) ]; then echo "请先 make bootstrap-driver-seed（需要 ./$(XLANG_X)）。" >&2; exit 1; fi
-	rm -f lsp_io_gen.c lsp_gen.c lsp_diag_gen.c lsp_io_std_heap_gen.c
-	$(MAKE) lsp_io_gen.c lsp_gen.c lsp_diag_gen.c lsp_io_std_heap_gen.c
-	@echo "regen-lsp-gens-x OK"
+# wave873: full body → scripts/regen_lsp_gens_x.sh (G.7 有则补全).
+# Shell owns XLANG_X gate + rm four gens + make file targets + OK line.
+# Gen *body* remains ensure_lsp_pipeline_gen / ensure_archaeology_gen (thin leaves).
+# Thin-call MAKE=/XLANG_X= only. NOT physical delete — thin edges + B2 + mk lists.
+# PLATFORM: SHARED — orchestration only; gen pin/-E policy stays ensure shells.
+regen-lsp-gens-x: scripts/regen_lsp_gens_x.sh
+	@MAKE="$(MAKE)" XLANG_X="$(XLANG_X)" bash scripts/regen_lsp_gens_x.sh
 
 # 仅重链 ./xlang-x；pipeline/driver/preprocess 的 .x 变更会经对应 *_x.o 目标触发重编后再链接。
 # wave846: full body → scripts/xlang_x.sh (G.7 有则补全; shell owns seed gate + host-cc

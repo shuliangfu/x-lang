@@ -105,7 +105,7 @@
 | `build-seed-asm-host` | 1948 | Makefile | `xbuild seed-asm-host` | ⬜ Makefile | 冷补依赖 |
 | `build-user-asm-backend` | 3209 | Makefile | `xbuild user-asm` | ⬜ Makefile |  |
 | `bootstrap-driver-seed-user-asm` | 3107 | Makefile | `xbuild bootstrap-user-asm` | ⬜ Makefile |  |
-| `regen-lsp-gens-x` | 3118 | Makefile | `xbuild regen-lsp` | ⬜ Makefile | pin 面 |
+| `regen-lsp-gens-x` | ~2860 | **shell** `regen_lsp_gens_x.sh` | `xbuild regen-lsp-gens-x` | 🟢 wave873 体 shell；gen 叶仍 make 图 |  | pin 面 |
 | `migrate-x-objs` | 2145 | shell `migrate_x_objs.sh` | `xbuild migrate` | 🟢 wave735 体 shell；gen→wave736 | 11.1.6 |
 | `parser_gen.c` / `typeck_gen.c` / `codegen_gen.c` / `lexer_gen.c` | ~1723 | shell `ensure_migrate_gen.sh` | `xbuild migrate-gen` / `lexer-gen` | 🟢 wave736/737 体 shell | 11.1.6 |
 | `driver_gen.c` / `preprocess_gen.c` | ~2626 | shell `ensure_driver_gen.sh` | `xbuild driver-gen` / `preprocess-gen` | 🟢 wave738 体 shell | 11.1.6 |
@@ -491,7 +491,7 @@
 |----|---------------|----------|
 | 1948 | `build-seed-asm-host` | ⬜ |
 | 2145 | `migrate-x-objs` | 🟢 shell + **xbuild migrate**（wave735；gen shell wave736） |
-| 3118 | `regen-lsp-gens-x` | ⬜ |
+| ~2860 | `regen-lsp-gens-x` | 🟢 wave873 shell `regen_lsp_gens_x.sh` |
 
 ### 类 L — std 变体（sqlite/net/compress stub）
 

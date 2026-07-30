@@ -41,6 +41,7 @@
 > - **wave870** · B7C check-7.2 shell-primary (1 phony → check_7_2.sh; seed stage1/stage2 smoke)
 > - **wave871** · B7C check-6.4 shell-primary (1 phony → check_6_4.sh; seed emit-C + host-cc + exit 42)
 > - **wave872** · B7C bootstrap-driver-hybrid shell-primary (1 phony → bootstrap_driver_hybrid.sh; B-hybrid build_xlang_asm + replace/soft-skip; alias -asm)
+> - **wave873** · B7C regen-lsp-gens-x shell-primary (1 phony → regen_lsp_gens_x.sh; XLANG_X gate + rm four gens + make file targets)
 > - **open** · thin edges + B2 + mk lists (hybrid) · other fat phonies · → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
