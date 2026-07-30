@@ -2817,18 +2817,15 @@ build-via-tool: build-tool
 # bootstrap-self 末尾：stage2 对 return-value -o /tmp/out_self 可与 run-return-value.sh 一致产出 Mach-O/ELF；若为 C 源码则用 cc -x c 链出临时 bin（勿假定 -o *.c 必为 C）。
 # wave785 B7c: lsp_io_x/lsp_x/lsp_io_std_heap_x via existing thin leaves (ensure_gen_x_o / driver_leaf);
 #   no dual archaeology $(CC) -c (G.7 有则补全). Link residual stays B7d.
-bootstrap-self: bootstrap-driver-seed
-	@cp $(TARGET) $(TARGET)_stage1 && \
-	$(MAKE) -s pipeline_x.o driver_x.o preprocess_x.o lsp_io_x.o lsp_x.o lsp_io_std_heap_x.o 2>/dev/null || true && \
-	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET)_stage2 $(DRIVER_SEED_OBJS) driver_x.o pipeline_x.o lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS) $(USER_ASM_LINK) && \
-	rm -f /tmp/out_self /tmp/out_self.bin && \
-	./$(TARGET)_stage2 ../tests/return-value/main.x -o /tmp/out_self && \
-	ft=`file -b /tmp/out_self 2>/dev/null || true`; BIN=/tmp/out_self; \
-	case "$$ft" in \
-	  *Mach-O*|*ELF*|*PE32*) ;; \
-	  *) $(CC) $(CFLAGS) -x c -std=c11 -Wall -Wextra -o /tmp/out_self.bin /tmp/out_self && BIN=/tmp/out_self.bin ;; \
-	esac && \
-	$$BIN; EX=$$?; [ $$EX -eq 42 ] && echo "bootstrap-self OK (xlang1 -> xlang2)" || (echo "bootstrap-self FAIL: stage2 or out_self exit=$$EX"; exit 1)
+# wave843: full body → scripts/bootstrap_self.sh (G.7 有则补全; shell owns stage1 snapshot +
+#   satellite ensure + stage2 host-cc link + out_self smoke). BS_LINK_OBJS = mk expansion.
+# NOT physical delete — prereq bootstrap-driver-seed + thin edges + mk lists remain residual.
+# PLATFORM: SHARED — shell owns stage2 link/smoke orchestration.
+bootstrap-self: bootstrap-driver-seed scripts/bootstrap_self.sh
+	@TARGET="$(TARGET)" CC="$(CC)" CFLAGS="$(CFLAGS)" MAKE="$(MAKE)" \
+	  BS_LINK_FLAGS="$(DRIVER_SEED_LINK_FLAGS) $(MAIN_LINK_FLAGS)" \
+	  BS_LINK_OBJS="$(DRIVER_SEED_OBJS) driver_x.o pipeline_x.o lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS) $(USER_ASM_LINK)" \
+	  bash scripts/bootstrap_self.sh
 
 # 阶段 8.3 seed：两代 xlang（xlang_stage1/xlang_stage2）烟测；B-strict 主路径见 check-7.2-bstrict。
 check-7.2: bootstrap-self

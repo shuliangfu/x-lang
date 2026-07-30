@@ -41,6 +41,10 @@
 #   wave839: archaeology host-pick FORCE dep-thin (4 leaves) → FORCE + archaeology_host_pick_phony
 #   wave841: bootstrap-typeck/codegen shell-primary (2 phonies) → bootstrap_typeck_codegen.sh
 #            (ensure_migrate_gen FORCE_REGEN + migrate_x_objs + BTC_* link; NOT physical delete)
+#   wave842: bootstrap-x-compiler shell-primary (1 phony) → bootstrap_x_compiler.sh
+#            (TARGET_x -x -E + host-cc -c typeck_x_x + BXC_LINK_OBJS; NOT physical delete)
+#   wave843: bootstrap-self shell-primary (1 phony) → bootstrap_self.sh
+#            (stage1 snapshot + satellite ensure + stage2 host-cc link + out_self smoke; NOT physical delete)
 #   wave812: formal_mod shell-primary catalog (38 leaves) → xlang_compile_std_module ensure
 #            (Makefile thin-call only; NOT physical delete; edges+lists+B2 remain)
 #   wave813: B7B STD_AND_PANIC_O list authority → mk/std_and_panic_objs.mk
@@ -686,6 +690,20 @@ SWALLOWED_BOOTSTRAP_X_COMPILER_SHELL=1
 BOOTSTRAP_X_COMPILER_SHELL_SWALLOWED=1
 BOOTSTRAP_X_COMPILER_SHELL_HELPER=bootstrap_x_compiler.sh
 BOOTSTRAP_X_COMPILER_SHELL_WAVE=wave842
+# wave843: bootstrap-self full body → shell (G.7 有则补全).
+# Stage1 snapshot + best-effort satellite leaves + host-cc stage2 link (BS_LINK_OBJS
+# from Makefile mk expansion) + out_self return-value smoke (exit 42).
+# NOT physical delete — prereq bootstrap-driver-seed + thin edges + B2 + mk lists remain.
+# Honesty COUNT = 1 phony.
+PHYS_DEL_BOOTSTRAP_SELF_SHELL=1
+PHYS_DEL_BOOTSTRAP_SELF_SHELL_WAVE=wave843
+PHYS_DEL_BOOTSTRAP_SELF_SHELL_COUNT=1
+PHYS_DEL_BOOTSTRAP_SELF_SHELL_VIA=bootstrap_self_sh_stage2_link_out_self_smoke
+PHYS_DEL_BOOTSTRAP_SELF_SHELL_NOTE=shell_primary_stage2_link_smoke_prereq_graph_remain
+SWALLOWED_BOOTSTRAP_SELF_SHELL=1
+BOOTSTRAP_SELF_SHELL_SWALLOWED=1
+BOOTSTRAP_SELF_SHELL_HELPER=bootstrap_self.sh
+BOOTSTRAP_SELF_SHELL_WAVE=wave843
 # wave816: B7B DRIVER_SUBCMD_* inventory → mk/driver_subcmd_objs.mk (G.7).
 # Makefile includes mk only; no dual inline re-list. Catalog parses mk (no
 # hardcode). NOT physical delete — thin-call edges + B2 ensure + other mk lists
@@ -922,11 +940,11 @@ B7B_SHELL_CATALOG_NOTE=default_0make_mk_parse_make_export_escape_LEGACY
 PHYS_DEL_BUCKET_B7C=archaeology_phony_cc
 PHYS_DEL_BUCKET_B7C_SCOPE=bootstrap_typeck_codegen_self_x_compiler
 PHYS_DEL_BUCKET_B7C_ARCHAEOLOGY_CC_THINNED=1
-PHYS_DEL_BUCKET_B7C_THINNED_VIA=bootstrap_typeck_codegen_sh+bootstrap_x_compiler_sh+migrate_x_objs+ensure_gen_x_o_driver_leaf
-PHYS_DEL_BUCKET_B7C_THINNED_NOTE=typeck_codegen_shell_wave841_x_compiler_shell_wave842_self_lsp_thin
+PHYS_DEL_BUCKET_B7C_THINNED_VIA=bootstrap_typeck_codegen_sh+bootstrap_x_compiler_sh+bootstrap_self_sh+migrate_x_objs+ensure_gen_x_o_driver_leaf
+PHYS_DEL_BUCKET_B7C_THINNED_NOTE=typeck_codegen_shell_wave841_x_compiler_shell_wave842_self_shell_wave843
 PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY=1
-PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_WAVE=wave842
-PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT=3
+PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_WAVE=wave843
+PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT=4
 PHYS_DEL_BUCKET_B7D=host_cc_product_link_xlang
 PHYS_DEL_BUCKET_B7D_SCOPE=TARGET_default_g05_prepare_and_relink
 PHYS_DEL_BUCKET_B7D_BODY_SWALLOWED=1
@@ -982,6 +1000,7 @@ PHYS_DEL_PREFLIGHT_ARCH_HOST_PICK_PHONY=1
 PHYS_DEL_PREFLIGHT_ARCH_HOST_PICK_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_BOOTSTRAP_TYPECK_CODEGEN_SHELL=1
 PHYS_DEL_PREFLIGHT_BOOTSTRAP_X_COMPILER_SHELL=1
+PHYS_DEL_PREFLIGHT_BOOTSTRAP_SELF_SHELL=1
 PHYS_DEL_PREFLIGHT_B7B_DRIVER_SUBCMD_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_PIPELINE_X_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_SEED_MODE_LIST=1
@@ -992,7 +1011,7 @@ PHYS_DEL_PREFLIGHT_B7B_RELINK_LEGACY_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_SOURCE_DEPS_LIST=1
 PHYS_DEL_PREFLIGHT_B7B_E_DIRS_LIST=1
 PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_std_x_catalog_is_physical_delete|claim_std_x_force_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_formal_mod_force_thin_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_driver_leaf_force_thin_is_physical_delete|claim_gen_c_force_thin_is_physical_delete|claim_ast_gen2_force_thin_is_physical_delete|claim_src_edge_force_thin_is_physical_delete|claim_migrate_x_force_thin_is_physical_delete|claim_glue_types_force_thin_is_physical_delete|claim_bootstrap_pipeline_force_thin_is_physical_delete|claim_filtered_o_force_thin_is_physical_delete|claim_cp_alias_force_thin_is_physical_delete|claim_pipeline_gen_force_thin_is_physical_delete|claim_bootstrap_xlangc_force_thin_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_arch_host_pick_force_thin_is_physical_delete|claim_bootstrap_typeck_codegen_shell_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|claim_e_dirs_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
+PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_std_x_catalog_is_physical_delete|claim_std_x_force_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_formal_mod_force_thin_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_driver_leaf_force_thin_is_physical_delete|claim_gen_c_force_thin_is_physical_delete|claim_ast_gen2_force_thin_is_physical_delete|claim_src_edge_force_thin_is_physical_delete|claim_migrate_x_force_thin_is_physical_delete|claim_glue_types_force_thin_is_physical_delete|claim_bootstrap_pipeline_force_thin_is_physical_delete|claim_filtered_o_force_thin_is_physical_delete|claim_cp_alias_force_thin_is_physical_delete|claim_pipeline_gen_force_thin_is_physical_delete|claim_bootstrap_xlangc_force_thin_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_arch_host_pick_force_thin_is_physical_delete|claim_bootstrap_typeck_codegen_shell_is_physical_delete|claim_bootstrap_x_compiler_shell_is_physical_delete|claim_bootstrap_self_shell_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|claim_e_dirs_list_mk_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_PREFLIGHT_WIN_GATE_HOST=MSYS2_windows-server_dual_boot_reboot_required
 PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
@@ -1634,6 +1653,9 @@ else
   fi
   if ! grep -qE 'wave842|BOOTSTRAP_X_COMPILER_SHELL|bootstrap-x-compiler.*shell|x.compiler shell-primary' "$DOC_REL"; then
     bad "$DOC_REL must document wave842 bootstrap-x-compiler shell-primary"
+  fi
+  if ! grep -qE 'wave843|BOOTSTRAP_SELF_SHELL|bootstrap-self.*shell|bootstrap.self shell-primary' "$DOC_REL"; then
+    bad "$DOC_REL must document wave843 bootstrap-self shell-primary"
   fi
   if ! grep -qE 'wave812|formal_mod|FORMAL_MOD_SHELL|std_module ensure' "$DOC_REL"; then
     bad "$DOC_REL must document wave812 formal_mod shell-primary catalog"
@@ -2436,8 +2458,29 @@ fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_BOOTSTRAP_X_COMPILER_SHELL=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_BOOTSTRAP_X_COMPILER_SHELL=1 (wave842)"
 fi
+if ! grep -q 'PHYS_DEL_BOOTSTRAP_SELF_SHELL=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_BOOTSTRAP_SELF_SHELL=1 (wave843)"
+fi
+if ! grep -q 'PHYS_DEL_BOOTSTRAP_SELF_SHELL_WAVE=wave843' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_BOOTSTRAP_SELF_SHELL_WAVE=wave843"
+fi
+if ! grep -q 'PHYS_DEL_BOOTSTRAP_SELF_SHELL_COUNT=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_BOOTSTRAP_SELF_SHELL_COUNT=1 (wave843)"
+fi
+if ! grep -q 'SWALLOWED_BOOTSTRAP_SELF_SHELL=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_BOOTSTRAP_SELF_SHELL=1 (wave843)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_BOOTSTRAP_SELF_SHELL=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_BOOTSTRAP_SELF_SHELL=1 (wave843)"
+fi
 if ! grep -q 'PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY=1' <<<"$_out"; then
-  bad "dump must set PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY=1 (wave841/wave842)"
+  bad "dump must set PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY=1 (wave841/wave842/wave843)"
+fi
+if ! grep -q 'PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT=4' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_COUNT=4 (wave843)"
+fi
+if ! grep -q 'PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_WAVE=wave843' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_BUCKET_B7C_SHELL_PRIMARY_WAVE=wave843"
 fi
 if ! grep -q 'PHYS_DEL_B7B_DRIVER_SUBCMD_LIST=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_DRIVER_SUBCMD_LIST=1 (wave816)"
@@ -4417,6 +4460,31 @@ if [ -f "$MF" ]; then
     bad "bootstrap-self must not dual \$(CC) -c on lsp gens (wave785 B7c; use thin leaves)"
   else
     note "bootstrap-self uses thin lsp leaves (wave785 B7c)"
+  fi
+  # wave843 B7c: bootstrap-self shell-primary via bootstrap_self.sh
+  # (stage1 snapshot + stage2 host-cc link + out_self smoke; no dual Makefile body)
+  if ! grep -A8 '^bootstrap-self:' "$MF" | grep -q 'bootstrap_self\.sh'; then
+    bad "bootstrap-self must thin-call bootstrap_self.sh (wave843 B7c shell-primary)"
+  else
+    note "bootstrap-self → bootstrap_self.sh (wave843)"
+  fi
+  _bs_rec=$(awk '/^bootstrap-self:/{h=1;next} h&&/^[^[:space:]#]/{exit} h&&/^\t/{print}' "$MF")
+  if grep -qE '\$\(CC\).*_stage2|TARGET\)_stage2' <<<"$_bs_rec"; then
+    bad "bootstrap-self must not keep dual \$(CC) stage2 link body (wave843)"
+  fi
+  if grep -qE 'out_self|return-value/main\.x' <<<"$_bs_rec"; then
+    bad "bootstrap-self must not keep dual out_self smoke body (wave843)"
+  fi
+  _bs_sh="$SCRIPT_DIR/bootstrap_self.sh"
+  if [ -f "$_bs_sh" ]; then
+    if ! bash "$_bs_sh" --check >/tmp/bs_shell_check.log 2>/tmp/bs_shell_check_err.log; then
+      bad "bootstrap_self.sh --check failed (wave843)"
+      head -20 /tmp/bs_shell_check_err.log >&2 || true
+    else
+      note "bootstrap_self.sh --check OK (wave843)"
+    fi
+  else
+    bad "missing bootstrap_self.sh (wave843)"
   fi
   # wave786 B7D: default TARGET product link via g05 (not incomplete OBJS_CORE)
   if ! grep -q 'g05_prepare_and_relink\.sh' "$MF"; then
