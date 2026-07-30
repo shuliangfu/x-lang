@@ -143,9 +143,11 @@ XLANG_X = xlang-x
 ../std/process/process.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # wave795 B7A: heat dep-edge thin std merge process residual — prereqs → FORCE + ensure;
 # try-heat owns seed/peer .o mtime (process_merge). NOT physical delete.
+# wave881 B7B: drop XLANG_G05_PREFER_X_O recipe inject on try-heat (COUNT=31 family).
+# Prefer via make CLI/env (auto-export) or shell default; thin CC= only.
+# NOT physical delete — thin edges + B2 + mk lists remain residual.
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # std.string：F 闭合 — 产品 -o 完整 emit（-x -E 会截断函数体）。
@@ -171,7 +173,6 @@ XLANG_X = xlang-x
 # try-heat owns seed/.x mtime (std-core-prefer/direct). NOT physical delete.
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # std.heap：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + libc + ops）。
@@ -273,7 +274,6 @@ XLANG_X = xlang-x
 # try-heat owns seed/.x mtime (std-core-prefer/direct). NOT physical delete.
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # std.net：F-04 v10～v14 纯 .x（F-ZC）；OS glue 由 runtime_net_*_fast.inc 提供（G-02e-18）。
@@ -292,7 +292,6 @@ XLANG_X = xlang-x
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 ../std/net/net.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" \
-	  XLANG="$(XLANG)" XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 # wave815: archaeology host-pick phonies → scripts/archaeology_host_pick_phony.sh
 # (G.7; not physical delete). Makefile thin-call ensure only; host pick + TLS/sqlite
@@ -757,7 +756,6 @@ src/diag.o: FORCE scripts/ensure_host_cc_seed_o.sh
 src/lsp/lsp_diag.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	# wave771: other L2 PREFER thin+rest → try-other-l2-prefer (cold plain seed fallback).
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # `xlang-c` 默认模式可能只是 bootstrap_xlangc 的同步副本；凡是依赖 `-E/-E-extern`
@@ -790,7 +788,6 @@ src/main.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 src/runtime_io_abi.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 
@@ -802,7 +799,6 @@ src/runtime_io_abi.o: FORCE scripts/ensure_host_cc_seed_o.sh
 src/runtime_link_abi.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	# wave765: labi multi-slice PREFER → try-labi-prefer (cold full seed fallback).
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-12 / Phase 4：runtime_driver_abi thin+rest PREFER_X_O
@@ -817,7 +813,6 @@ src/runtime_link_abi.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 src/runtime_driver_abi.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-12：runtime_pipeline_abi 产品 seed（须 XLANG_USE_X_PIPELINE）
@@ -832,7 +827,6 @@ src/runtime_pipeline_abi.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # NOT physical delete — thin edges + B2 + remaining mk lists remain.
 	# wave767: pipeline_abi PREFER thin+rest → try-pipeline-abi-prefer (cold + USE_X_PIPELINE fallback).
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 
@@ -853,7 +847,6 @@ src/runtime_c_import.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 src/async/async_liveness.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-18 / R2 product PREFER：async_cps_codegen 独立 TU（非 glue #include）。
@@ -864,7 +857,6 @@ src/async/async_liveness.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 src/async/async_cps_codegen.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # R2 unbundle async_asm_pool from pipeline_glue #include (2026-07-21).
@@ -875,7 +867,6 @@ src/async/async_cps_codegen.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 src/async/async_asm_pool.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-12 / Phase 4：runtime_driver_diagnostic thin+rest PREFER_X_O
@@ -886,7 +877,6 @@ src/async/async_asm_pool.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 src/runtime_driver_diagnostic.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # 6.3：runtime.c 提供 run_compiler_c 与弱符号 main_entry；带 .x 入口时用 runtime_driver.o（含 driver_*/pipeline_*）
@@ -1006,7 +996,6 @@ src/runtime_x.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 src/driver/fmt_check_cmd.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # wave771: product PREFER → ensure try-other-l2-prefer (thin .x WEAK + rest FROM_X + USE_X_PIPELINE; cold seed).
@@ -1016,7 +1005,6 @@ src/driver/fmt_check_cmd.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 src/driver/fmt_check_cmd_driver.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02a：C 前端 lexer/ast/parser/typeck/codegen/preprocess/autovec/lsp_diag 已物理删除；见对应 .x。
@@ -1056,7 +1044,6 @@ src/runtime_driver_no_c.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # NOT physical delete — thin edges + B2 + remaining mk lists remain.
 	# wave766: rt multi-slice PREFER → try-rt-prefer (cold full seed + NO_C fallback).
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # xlang_x 使用带 -DXLANG_USE_X_PIPELINE 编译的 main，否则 #ifdef 块不会生效
@@ -1093,7 +1080,6 @@ $(RUNTIME_PANIC_PLATFORM_STAMP):
 	@touch $@
 runtime_panic.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # seed asm 用户程序：std.io 跳过 .x emit 时的 print/write/read_ptr 链接桩（G-02e-20 .inc）
@@ -1721,7 +1707,6 @@ $(USER_ASM_SEED_HOST_OBJS): build-seed-asm-host
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 src/asm/user_asm_seed_bridge.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-15：asm_backend_compat_stubs 产品 seed
@@ -1731,7 +1716,6 @@ src/asm/user_asm_seed_bridge.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 src/asm/asm_backend_compat_stubs.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-9 / Phase 4：backend_*_dispatch thin+rest PREFER_X_O
@@ -1742,7 +1726,6 @@ src/asm/asm_backend_compat_stubs.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 src/asm/backend_enc_dispatch.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-15：backend_x86_64_enc_c 产品 seed
@@ -1752,7 +1735,6 @@ src/asm/backend_enc_dispatch.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 src/asm/backend_x86_64_enc_c.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # CG002：backend_arm64_enc_c 产品 seed（强符号覆盖 seed_link_compat weak -1 桩）
@@ -1771,7 +1753,6 @@ src/asm/backend_arm64_enc_c.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 src/asm/backend_arch_emit_dispatch.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer.
@@ -1780,7 +1761,6 @@ src/asm/backend_arch_emit_dispatch.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 src/asm/backend_try_inline_dispatch.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer.
@@ -1789,7 +1769,6 @@ src/asm/backend_try_inline_dispatch.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 src/asm/backend_call_dispatch.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # parser EMIT_HEAVY thin delegate C 目标：bootstrap xlang 须链入，extern bl 白名单 emit 才不 segfault。
@@ -1954,7 +1933,6 @@ src/main_driver.o: FORCE scripts/ensure_host_cc_seed_o.sh
 src/driver/target_cpu.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	# wave768: target_cpu PREFER flags.x + rest → try-target-cpu-prefer (cold pure seed fallback).
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 # G-02f-7 / Phase 4：simd_enc thin+rest PREFER_X_O
 # 源：src/asm/simd_enc_thin.x（74 #[no_mangle] thin wrapper）+ seeds/simd_enc.from_x.c（_impl rest）
@@ -1969,7 +1947,6 @@ src/driver/target_cpu.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 src/asm/simd_enc.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 # G-02f-8 / Phase 4：simd_loop thin+rest PREFER_X_O
 # 源：src/asm/simd_loop_thin.x（22 #[no_mangle] thin wrapper）+ seeds/simd_loop.from_x.c（17 _impl rest）
@@ -1980,7 +1957,6 @@ src/asm/simd_enc.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 src/asm/simd_loop.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 # G-02a Step 1：默认构建切 no_c 模式；默认 bootstrap 不链 LEXER_LINK_O / AST_LINK_O。
 # C 前端 .c（ast/lexer/parser/typeck/codegen）仍保留，因 build_xlang_asm.sh + relink 脚本仍引用 ast_seed.o 等。
@@ -2081,7 +2057,6 @@ src/lsp/lsp_diag_pipeline_sizes_nostub.o: FORCE scripts/ensure_host_cc_seed_o.sh
 src/lsp/lsp_diag_pipeline_ctx.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	# wave767: ldpc PREFER thin+rest → try-ldpc-prefer (cold plain seed fallback).
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-11：runtime_driver_strict_glue_stubs 产品 seed（内含 runtime_heap_user.inc）
@@ -2092,7 +2067,6 @@ src/runtime_driver_strict_glue_stubs.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 	# wave771: other L2 PREFER thin+rest → try-other-l2-prefer (cold plain seed fallback).
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02a：ast_seed.o 从 runtime_ast_glue.inc 编译（从 src/ast/ast.c 迁移）。
@@ -2174,7 +2148,6 @@ src/lsp/typeck_lsp_io_stub.o: FORCE scripts/cc_inc_tu.sh
 src/seed_link_compat.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	# wave771: other L2 PREFER thin+rest → try-other-l2-prefer (cold plain seed fallback).
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # wave739: G.7 body → scripts/ensure_lsp_pipeline_gen.sh (lsp_gen + g_lsp_state_buf post)
@@ -3154,7 +3127,6 @@ perf-baseline: scripts/stage8_baseline.sh
 # try-heat owns seed/.x mtime (try-std-core-prefer).
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 	@CC="$(CC)" \
-	  XLANG_G05_PREFER_X_O="$(XLANG_G05_PREFER_X_O)" \
 	  bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02f-22：runtime_asm_build 产品 seed

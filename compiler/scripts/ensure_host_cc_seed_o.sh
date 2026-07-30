@@ -266,6 +266,10 @@
 #     (Makefile thin expands make vars; family mode uses env or defaults below)
 #   XLANG_HOST_CC_SEED_FORCE=1 — force recompile (same as --force)
 #   MAKE — catalog list expansion + wave862 CFLAGS export leaf (default: make)
+#   XLANG_G05_PREFER_X_O — prefer thin .x path when 1 (default per family helper
+#        :-0 or :-1). wave881: Makefile try-heat drops PREFER recipe inject;
+#        set via make CLI / env (GNU make auto-exports CLI+env vars). Cold seed:
+#        `make XLANG_G05_PREFER_X_O=0 …` still forces seed path without inject.
 #
 # PLATFORM: SHARED — shell orchestration; seed pins host-portable C.
 #   R2 panic body: PLATFORM LINUX|x86_64 (.s) / MACOS|arm64 + LINUX|aarch64
@@ -291,6 +295,10 @@ FORCE="${XLANG_HOST_CC_SEED_FORCE:-0}"
 # silence ifeq). Makefile try-heat recipes drop multi-token CFLAGS= env; shell
 # loads export-try-heat-cflags when either var is unset. Fallback matches
 # historic shell defaults when make export is unavailable.
+# wave881 · B7B try-heat PREFER inject hygiene: product try-heat is CC= only
+# (no XLANG_G05_PREFER_X_O= / XLANG= recipe inject). Prefer policy is env/CLI
+# + shell defaults (G.7 single body). Residual: CC passthrough · thin edges ·
+# cfg_eval LD bags · pipeline_x multi-token · physical delete.
 # PLATFORM: SHARED — KEY=value from export target; no compile side effects.
 _load_try_heat_cflags_via_make() {
   local raw line

@@ -1377,6 +1377,21 @@ SWALLOWED_B7B_ENSURE_OUT_OPT_HYGIENE=1
 B7B_ENSURE_OUT_OPT_HYGIENE_SWALLOWED=1
 B7B_ENSURE_OUT_OPT_HYGIENE_WAVE=wave880
 B7B_ENSURE_OUT_OPT_HYGIENE_COUNT=7
+# wave881: B7B try-heat XLANG_G05_PREFER_X_O (+ XLANG= on one net leaf) inject hygiene.
+# COUNT = 31 try-heat recipes that still injected PREFER (and 1× XLANG=) beside
+# CC=; drop to CC-only thin-call (wave862/864 intentional shape).
+# GNU make auto-exports CLI/env PREFER (cold rebuild: make XLANG_G05_PREFER_X_O=0);
+# shell prefer="${XLANG_G05_PREFER_X_O:-0|1}" owns defaults when unset.
+# NOT physical delete — CC= passthrough + thin edges + B2 + mk lists remain.
+PHYS_DEL_B7B_PREFER_INJECT_HYGIENE=1
+PHYS_DEL_B7B_PREFER_INJECT_HYGIENE_WAVE=wave881
+PHYS_DEL_B7B_PREFER_INJECT_HYGIENE_COUNT=31
+PHYS_DEL_B7B_PREFER_INJECT_HYGIENE_VIA=try_heat_cc_only_prefer_cli_env_shell_default
+PHYS_DEL_B7B_PREFER_INJECT_HYGIENE_NOTE=makefile_no_prefer_x_o_or_xlang_inject_on_try_heat_cc_only_thin_edges_remain
+SWALLOWED_B7B_PREFER_INJECT_HYGIENE=1
+B7B_PREFER_INJECT_HYGIENE_SWALLOWED=1
+B7B_PREFER_INJECT_HYGIENE_WAVE=wave881
+B7B_PREFER_INJECT_HYGIENE_COUNT=31
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -6737,6 +6752,41 @@ if ! grep -q 'wave880' "$COMPILER_DIR/scripts/run_compiler_tests.sh" 2>/dev/null
   bad "run_compiler_tests.sh must document wave880"
 fi
 note "B7B ENSURE=0 / OUT=\$@ / all OPT inject hygiene (COUNT=7; wave880; not physical delete)"
+# wave881: try-heat XLANG_G05_PREFER_X_O (+ net XLANG=) inject hygiene.
+# COUNT=31: drop PREFER/XLANG recipe inject; leave CC="$(CC)" only (wave862 shape).
+# G.7: no dual prefer authority — shell env/CLI + defaults; make CLI auto-exports.
+if grep -qE 'XLANG_G05_PREFER_X_O="\$\(XLANG_G05_PREFER_X_O\)"' "$MF" 2>/dev/null; then
+  bad "Makefile still injects XLANG_G05_PREFER_X_O on recipes (wave881)"
+  grep -nE 'XLANG_G05_PREFER_X_O="\$\(XLANG_G05_PREFER_X_O\)"' "$MF" | head -10 >&2
+fi
+# try-heat blocks must not inject XLANG= (net residual) alongside CC=
+_prefer_xlang_hits=$(awk '
+  /ensure_host_cc_seed_o\.sh try-heat/ {grab=1}
+  grab && /^\t/ {
+    if ($0 ~ /XLANG="\$\(XLANG\)"|XLANG_G05_PREFER_X_O=/) print
+    if ($0 !~ /\\$/) grab=0
+    next
+  }
+  grab && /^[^#\t]/ && $0 !~ /^$/ {grab=0}
+' "$MF" 2>/dev/null || true)
+if [ -n "${_prefer_xlang_hits:-}" ]; then
+  bad "Makefile try-heat still injects PREFER/XLANG (wave881)"
+  echo "$_prefer_xlang_hits" | head -15 >&2
+fi
+if ! grep -q 'wave881' "$MF" 2>/dev/null; then
+  bad "Makefile must document wave881 PREFER inject hygiene"
+fi
+if ! grep -q 'wave881' "$COMPILER_DIR/scripts/ensure_host_cc_seed_o.sh" 2>/dev/null; then
+  bad "ensure_host_cc_seed_o.sh must document wave881 PREFER inject hygiene"
+fi
+# dump honesty
+if ! grep -q 'PHYS_DEL_B7B_PREFER_INJECT_HYGIENE=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_PREFER_INJECT_HYGIENE=1 (wave881)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_PREFER_INJECT_HYGIENE_COUNT=31' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_PREFER_INJECT_HYGIENE_COUNT=31 (wave881)"
+fi
+note "B7B try-heat PREFER_X_O inject hygiene (COUNT=31; wave881; not physical delete)"
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
   PHYS_DEL_BUCKET_B1_BODY_SWALLOWED=1 \
