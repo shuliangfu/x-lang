@@ -92,6 +92,8 @@
 #            (Makefile drops multi-token REQUIRED env export; NOT physical delete)
 #   wave857: B7B archaeology LINK_CFLAGS shell-load via make export leaves (4 bags /
 #            6 shells; drop multi-token CFLAGS env)
+#   wave858: B7B LEGACY xlang-c link shell-primary (export-legacy-xlang-c-link-objs;
+#            CFLAGS reuses export-relink-product-link-cflags; NOT physical delete)
 #   wave856: B7B archaeology LINK_OBJS shell-load via make export leaves (5 bags /
 #            6 shells; nested expand; Makefile drops multi-token LINK_OBJS env;
 #            NOT physical delete — CFLAGS env + thin edges + B2 remain)
@@ -1037,6 +1039,17 @@ B7B_LINK_CFLAGS_SHELL_LOAD_SWALLOWED=1
 B7B_LINK_CFLAGS_SHELL_LOAD_WAVE=wave857
 B7B_LINK_CFLAGS_SHELL_LOAD_BAGS=4
 B7B_LINK_CFLAGS_SHELL_LOAD_SHELLS=6
+# wave858: LEGACY xlang-c archaeology host-cc link → shell-primary (G.7).
+# Lists stay mk (wave822); shell loads LINK_OBJS export leaf; CFLAGS reuses product.
+PHYS_DEL_B7B_LEGACY_XLANG_C_SHELL_PRIMARY=1
+PHYS_DEL_B7B_LEGACY_XLANG_C_SHELL_PRIMARY_WAVE=wave858
+PHYS_DEL_B7B_LEGACY_XLANG_C_SHELL_PRIMARY_COUNT=1
+PHYS_DEL_B7B_LEGACY_XLANG_C_SHELL_PRIMARY_VIA=legacy_xlang_c_link_sh+export_legacy_link_objs+reuse_relink_product_cflags
+PHYS_DEL_B7B_LEGACY_XLANG_C_SHELL_PRIMARY_NOTE=makefile_no_dual_cc_legacy_link_body_thin_edges_remain
+SWALLOWED_B7B_LEGACY_XLANG_C_SHELL_PRIMARY=1
+B7B_LEGACY_XLANG_C_SHELL_PRIMARY_SWALLOWED=1
+B7B_LEGACY_XLANG_C_SHELL_PRIMARY_WAVE=wave858
+B7B_LEGACY_XLANG_C_SHELL_PRIMARY_SCRIPT=compiler/scripts/legacy_xlang_c_link.sh
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -1240,6 +1253,7 @@ PHYS_DEL_PREFLIGHT_B7B_SEED_GATE_REQUIRED=1
 PHYS_DEL_PREFLIGHT_B7B_SEED_GATE_REQUIRED_SHELL_LOAD=1
 PHYS_DEL_PREFLIGHT_B7B_LINK_OBJS_SHELL_LOAD=1
 PHYS_DEL_PREFLIGHT_B7B_LINK_CFLAGS_SHELL_LOAD=1
+PHYS_DEL_PREFLIGHT_B7B_LEGACY_XLANG_C_SHELL_PRIMARY=1
 PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
 PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_std_x_catalog_is_physical_delete|claim_std_x_force_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_formal_mod_force_thin_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_driver_leaf_force_thin_is_physical_delete|claim_gen_c_force_thin_is_physical_delete|claim_ast_gen2_force_thin_is_physical_delete|claim_src_edge_force_thin_is_physical_delete|claim_migrate_x_force_thin_is_physical_delete|claim_glue_types_force_thin_is_physical_delete|claim_bootstrap_pipeline_force_thin_is_physical_delete|claim_filtered_o_force_thin_is_physical_delete|claim_cp_alias_force_thin_is_physical_delete|claim_pipeline_gen_force_thin_is_physical_delete|claim_bootstrap_xlangc_force_thin_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_arch_host_pick_force_thin_is_physical_delete|claim_bootstrap_typeck_codegen_shell_is_physical_delete|claim_bootstrap_x_compiler_shell_is_physical_delete|claim_bootstrap_self_shell_is_physical_delete|claim_bootstrap_parser_smoke_is_physical_delete|claim_xlang_x_pipeline_shell_is_physical_delete|claim_xlang_x_shell_is_physical_delete|claim_xlang_no_c_frontend_shell_is_physical_delete|claim_bootstrap_seed_x_frontend_shell_is_physical_delete|claim_relink_xlang_lexer_shell_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|claim_e_dirs_list_mk_is_physical_delete|claim_relink_product_link_mk_is_physical_delete|claim_xxl_bs_xnc_link_mk_is_physical_delete|claim_bxf_link_mk_is_physical_delete|claim_seed_phase_final_link_mk_is_physical_delete|claim_seed_gate_required_mk_is_physical_delete|claim_seed_gate_required_shell_load_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
@@ -1967,6 +1981,9 @@ else
   fi
   if ! grep -qE 'wave857|LINK_CFLAGS_SHELL_LOAD|LINK_CFLAGS.*shell.load|export-.*-link-cflags' "$DOC_REL"; then
     bad "$DOC_REL must document wave857 B7B LINK_CFLAGS shell-load via make export leaves"
+  fi
+  if ! grep -qE 'wave858|LEGACY_XLANG_C_SHELL|legacy_xlang_c_link|LEGACY.*shell.primary' "$DOC_REL"; then
+    bad "$DOC_REL must document wave858 B7B LEGACY xlang-c link shell-primary"
   fi
   note "doc $DOC_REL present"
 fi
@@ -3107,6 +3124,19 @@ if ! grep -q 'SWALLOWED_B7B_LINK_CFLAGS_SHELL_LOAD=1' <<<"$_out"; then
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_B7B_LINK_CFLAGS_SHELL_LOAD=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_B7B_LINK_CFLAGS_SHELL_LOAD=1 (wave857)"
+fi
+# wave858: LEGACY xlang-c shell-primary
+if ! grep -q 'PHYS_DEL_B7B_LEGACY_XLANG_C_SHELL_PRIMARY=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_LEGACY_XLANG_C_SHELL_PRIMARY=1 (wave858)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_LEGACY_XLANG_C_SHELL_PRIMARY_WAVE=wave858' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_LEGACY_XLANG_C_SHELL_PRIMARY_WAVE=wave858"
+fi
+if ! grep -q 'SWALLOWED_B7B_LEGACY_XLANG_C_SHELL_PRIMARY=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_B7B_LEGACY_XLANG_C_SHELL_PRIMARY=1 (wave858)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_B7B_LEGACY_XLANG_C_SHELL_PRIMARY=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_B7B_LEGACY_XLANG_C_SHELL_PRIMARY=1 (wave858)"
 fi
 if ! grep -q 'PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_STD_AND_PANIC_LIST_WAVE=wave813"
@@ -5314,6 +5344,31 @@ if ! grep -qE -- '-DXLANG_USE_X_DRIVER' <<<"$_ex"; then
 fi
 note "B7B LINK_CFLAGS shell-load via make export leaves (bags 4 / shells 6; wave857; not physical delete)"
 
+# wave858: LEGACY xlang-c shell-primary (no dual $(CC) LEGACY link body)
+_leg_sh="$COMPILER_DIR/scripts/legacy_xlang_c_link.sh"
+if [ ! -f "$_leg_sh" ]; then
+  bad "missing $_leg_sh (wave858)"
+fi
+if ! grep -q 'legacy_xlang_c_link\.sh' "$MF"; then
+  bad "Makefile must thin-call legacy_xlang_c_link.sh (wave858)"
+fi
+if grep -nE $'\t\$\(CC\).*LEGACY_XLANG_C_LINK' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile must not keep dual \$(CC) LEGACY_XLANG_C_LINK body (wave858)"
+fi
+if ! grep -qE '^export-legacy-xlang-c-link-objs:' "$MF"; then
+  bad "Makefile must define export-legacy-xlang-c-link-objs (wave858)"
+fi
+if ! bash "$_leg_sh" --check >/dev/null 2>&1; then
+  bad "legacy_xlang_c_link.sh --check failed (wave858)"
+fi
+_ex=$(cd "$COMPILER_DIR" && MAKEFLAGS= make -s export-legacy-xlang-c-link-objs 2>/dev/null | head -1 || true)
+if ! grep -qE '^LINK_OBJS=' <<<"$_ex"; then
+  bad "export-legacy-xlang-c-link-objs must print LINK_OBJS=... (wave858)"
+fi
+if ! grep -qE 'ast_gen2\.o|pipeline_glue_strict_minimal' <<<"$_ex"; then
+  bad "export-legacy-xlang-c-link-objs must expand LEGACY prereqs (wave858)"
+fi
+note "B7B LEGACY xlang-c link shell-primary (wave858; not physical delete)"
 
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
@@ -6098,5 +6153,5 @@ if [ "$fail" -ne 0 ]; then
   echo "leaf_pattern_residual: CHECK FAILED" >&2
   exit 1
 fi
-echo "leaf_pattern_residual: CHECK OK (wave747–839: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave825 std_x ensure catalog 22 + wave827 std_x FORCE dep-thin 22 + wave812 formal_mod ensure 38 + wave826 formal_mod FORCE dep-thin 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave828 driver_leaf FORCE dep-thin 8 + wave829 gen.c FORCE dep-thin 17 + wave830 ast_gen2 FORCE dep-thin 1 + wave831 src-edge FORCE dep-thin 7 + wave832 migrate companion FORCE dep-thin 3 + wave833 pipeline_glue_types FORCE dep-thin 1 + wave834 bootstrap-pipeline FORCE shell-primary 1 + wave835 class-G filter FORCE dep-thin 4 + wave836 cp-alias FORCE dep-thin 3 + wave837 pipeline_gen FORCE dep-thin 1 + wave838 bootstrap_xlangc FORCE dep-thin 1 + wave815 archaeology host-pick phonies 4 + wave839 archaeology host-pick FORCE dep-thin 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2 + wave820 OBJS_CORE list→mk 16 + wave821 ARCH_EXPERIMENT list→mk 7 + wave822 RELINK/LEGACY list→composites 14 + wave823 SOURCE_DEPS list→mk 19 + wave824 E_DIRS list→mk 26 + wave850 RELINK_PRODUCT_LINK bag→mk 8 + wave851 XXL/BS/XNC link bags→mk 3 + wave852 BXF link bag→mk 2 + wave853 seed phase1/final link bags→mk 2 + wave854 seed-gate REQUIRED bags→mk 3 + wave855 seed-gate REQUIRED shell-load 3 + wave856 LINK_OBJS shell-load export leaves 5 + wave857 LINK_CFLAGS shell-load export leaves 4; Makefile still present; delete body deferred)"
+echo "leaf_pattern_residual: CHECK OK (wave747–839: leaf residual + phys-del harness + TREE_ARMED + delete-body honesty + wave811 std_x thin 22 + wave825 std_x ensure catalog 22 + wave827 std_x FORCE dep-thin 22 + wave812 formal_mod ensure 38 + wave826 formal_mod FORCE dep-thin 38 + wave813 STD_AND_PANIC list→mk + wave814 driver_leaf ensure 8 + wave828 driver_leaf FORCE dep-thin 8 + wave829 gen.c FORCE dep-thin 17 + wave830 ast_gen2 FORCE dep-thin 1 + wave831 src-edge FORCE dep-thin 7 + wave832 migrate companion FORCE dep-thin 3 + wave833 pipeline_glue_types FORCE dep-thin 1 + wave834 bootstrap-pipeline FORCE shell-primary 1 + wave835 class-G filter FORCE dep-thin 4 + wave836 cp-alias FORCE dep-thin 3 + wave837 pipeline_gen FORCE dep-thin 1 + wave838 bootstrap_xlangc FORCE dep-thin 1 + wave815 archaeology host-pick phonies 4 + wave839 archaeology host-pick FORCE dep-thin 4 + wave816 DRIVER_SUBCMD list→mk 7 + wave817 PIPELINE_X list→mk satellite 9 + wave818 SEED_MODE list→mk SUPPORT_EXTRA 3 + wave819 SEED_LINK_PICKS list→mk GLUE 2 + wave820 OBJS_CORE list→mk 16 + wave821 ARCH_EXPERIMENT list→mk 7 + wave822 RELINK/LEGACY list→composites 14 + wave823 SOURCE_DEPS list→mk 19 + wave824 E_DIRS list→mk 26 + wave850 RELINK_PRODUCT_LINK bag→mk 8 + wave851 XXL/BS/XNC link bags→mk 3 + wave852 BXF link bag→mk 2 + wave853 seed phase1/final link bags→mk 2 + wave854 seed-gate REQUIRED bags→mk 3 + wave855 seed-gate REQUIRED shell-load 3 + wave856 LINK_OBJS shell-load export leaves 5 + wave857 LINK_CFLAGS shell-load export leaves 4 + wave858 LEGACY xlang-c shell-primary 1; Makefile still present; delete body deferred)"
 exit 0

@@ -26,6 +26,7 @@
 > - **wave856** · B7B archaeology LINK_OBJS shell-load via make export leaves (5 bags / 6 shells; nested expand)
 > - **wave799** · execute-gate (hard refuse delete)
 > - **wave857** · B7B archaeology LINK_CFLAGS shell-load via make export leaves (4 bags / 6 shells; drop multi-token CFLAGS env)
+> - **wave858** · B7B LEGACY xlang-c link shell-primary (export leaf + CFLAGS reuse product)
 - **open** · thin edges + B2 + other mk lists (hybrid) → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
@@ -2070,6 +2071,44 @@ ship delete body; mac-only wave green.
 `bootstrap_xlangc_create.sh` on Makefile prereq; dual host-pick outside select;
 `rm compiler/Makefile`; ship delete body; mac-only wave green.
 
+
+## wave858 B7B LEGACY xlang-c link shell-primary (2026-07-30)
+
+> **Why (G.7 有则补全 on wave822 list + wave849/856/857 shell-primary pattern):**
+> Archaeology `XLANG_LEGACY_C_FRONTEND=1` still had multi-token host-cc link body:
+> `$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) … $(LEGACY_XLANG_C_*)`.
+> Lists already in `mk/driver_seed_composites.mk` (wave822). Body → shell.
+>
+> **Authority:**
+>   - script: `scripts/legacy_xlang_c_link.sh`
+>   - LINK_OBJS: `export-legacy-xlang-c-link-objs` → `$(LEGACY_XLANG_C_PREREQS)`
+>   - LINK_CFLAGS: **reuse** `export-relink-product-link-cflags` (same formula;
+>     no second flag inventory)
+>
+> Makefile LEGACY `$(XLANG_C)` thin-calls shell only. Default non-LEGACY path
+> still `cp bootstrap_xlangc`. **NOT physical delete** — thin edges + B2 + mk
+> lists remain. Dual-end L2 required.
+>
+```text
+    PHYS_DEL_B7B_LEGACY_XLANG_C_SHELL_PRIMARY=1
+    PHYS_DEL_B7B_LEGACY_XLANG_C_SHELL_PRIMARY_WAVE=wave858
+    PHYS_DEL_B7B_LEGACY_XLANG_C_SHELL_PRIMARY_COUNT=1
+    SWALLOWED_B7B_LEGACY_XLANG_C_SHELL_PRIMARY=1
+    PHYS_DEL_PREFLIGHT_B7B_LEGACY_XLANG_C_SHELL_PRIMARY=1
+```
+>
+> next: residual thin/B2/lists (hybrid) or tip Windows → dual L4 → explicit auth ship
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_B7B_LEGACY_XLANG_C_SHELL_PRIMARY` | `1` |
+| `PHYS_DEL_B7B_LEGACY_XLANG_C_SHELL_PRIMARY_COUNT` | `1` |
+| `SWALLOWED_B7B_LEGACY_XLANG_C_SHELL_PRIMARY` | `1` |
+| `B7B_LEGACY_XLANG_C_SHELL_PRIMARY_VIA` | `legacy_xlang_c_link_sh+export_legacy_link_objs+reuse_relink_product_cflags` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+
+**Forbidden:** claim LEGACY shell-primary = physical delete; dual multi-token
+`$(CC) … LEGACY_XLANG_C_*` recipe body; second CFLAGS inventory for LEGACY.
 
 ## wave857 B7B LINK_CFLAGS shell-load via make export leaves (2026-07-30)
 

@@ -2353,11 +2353,16 @@ else
 include mk/driver_seed_composites.mk
 
 # legacy xlang-c: list authority mk/driver_seed_composites.mk (wave822).
-# Recipe still consumes $(LEGACY_XLANG_C_*); archaeology XLANG_LEGACY_C_FRONTEND=1.
+# wave858: host-cc link body → scripts/legacy_xlang_c_link.sh (G.7 有则补全;
+#   shell loads LINK_OBJS via export-legacy-xlang-c-link-objs; CFLAGS reuses
+#   export-relink-product-link-cflags — same formula as product archaeology).
+# Archaeology XLANG_LEGACY_C_FRONTEND=1 only. NOT physical delete — prereq
+# make-graph + thin edges + B2 + mk lists remain residual.
+# PLATFORM: SHARED — shell owns link; lists stay mk expansion.
 ifeq ($(XLANG_LEGACY_C_FRONTEND),1)
-$(XLANG_C): DRIVER_SEED_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o
-$(XLANG_C): $(LEGACY_XLANG_C_PREREQS)
-	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $@ $(LEGACY_XLANG_C_LINK_BASE) $(LEGACY_XLANG_C_USER_ASM_LINK) $(DRIVER_SEED_GLUE_SUFFIX) ast_gen2.o
+$(XLANG_C): $(LEGACY_XLANG_C_PREREQS) scripts/legacy_xlang_c_link.sh
+	@MAKE="$(MAKE)" CC="$(CC)" OUT="$@" \
+	  bash scripts/legacy_xlang_c_link.sh
 endif
 
 # 11.0.3 wave717: orchestration authority → scripts/bootstrap_driver_seed.sh
@@ -2397,6 +2402,7 @@ include mk/driver_seed_export_lists.mk
 	export-xnc-link-objs \
 	export-bxf-link-objs \
 	export-bs-link-objs \
+	export-legacy-xlang-c-link-objs \
 	export-relink-product-link-cflags \
 	export-btc-typeck-link-cflags \
 	export-xnc-link-cflags \
@@ -2616,6 +2622,14 @@ export-bxf-link-objs:
 
 export-bs-link-objs:
 	@printf 'LINK_OBJS=%s\n' '$(BOOTSTRAP_SELF_LINK_OBJS)'
+
+# wave858 · B7B LEGACY xlang-c LINK_OBJS shell-load via make export leaf (G.7).
+# Bag = $(LEGACY_XLANG_C_PREREQS) from composites.mk (wave822 list authority).
+# Consumers: scripts/legacy_xlang_c_link.sh when env unset.
+# PLATFORM: SHARED — KEY=value; no compile/link side effects.
+# NOT physical delete — thin edges + B2 + mk lists remain residual.
+export-legacy-xlang-c-link-objs:
+	@printf 'LINK_OBJS=%s\n' '$(LEGACY_XLANG_C_PREREQS)'
 
 # wave857 · B7B LINK CFLAGS shell-load via make export leaves (G.7 有则补全 on
 # wave856 LINK_OBJS export pattern). Flags need make expansion (DRIVER_SEED_LINK_FLAGS /
