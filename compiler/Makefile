@@ -677,11 +677,26 @@ $(R1_EXTRA_CFLAGS_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 # lsp_diag_pipeline_ctx · pipeline_glue_strict_minimal · runtime_asm_build
 # (pure basename host-cc; no special -D/-f extras beyond ensure defaults).
 # Seed maps / ldpc prefer / l2-asm prefer live in ensure try-heat ladder; Makefile only
-# FORCE + thin-call. NOT physical delete — thin edges + remaining R1 family multi-target
-# (SEED_MAP/…) / mk lists hybrid + tip Windows → dual L4 → explicit auth ship delete.
+# FORCE + thin-call. NOT physical delete — thin edges + ~~SEED_MAP multi~~ wave905 +
+# remaining mk lists hybrid + tip Windows → dual L4 → explicit auth ship delete.
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 # ---------------------------------------------------------------------------
 $(R1_MISC_BASENAME_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
+	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+
+# ---------------------------------------------------------------------------
+# wave905 B7B: R1_SEED_MAP product edges multi-target FORCE thin try-heat
+# G.7 有则补全: list authority = R1_SEED_MAP_OBJS in mk/driver_seed_r_lists.mk
+# (wave755 family · wave758 thin_glue · wave759 glue_standalone · wave788 list→mk · COUNT=5).
+# Do NOT open a second .o list. Body authority = scripts/ensure_host_cc_seed_o.sh try-heat
+# (wave755/758/759/768/793/794/797; seed/flag maps + target_cpu prefer in ensure ladder).
+# Leaves: target_cpu · ast_seed · pipeline_bootstrap_orchestration · parser_asm_thin_glue ·
+# pipeline_glue_standalone (basename-mismatch + orch -D + monothin extras; shell-owned).
+# Makefile only FORCE + thin-call. NOT physical delete — thin edges + remaining mk lists hybrid
+# + tip Windows → dual L4 → explicit auth ship delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+# ---------------------------------------------------------------------------
+$(R1_SEED_MAP_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（XLANG_LEGACY_PREPROCESS_C 路径已死）。
@@ -1319,23 +1334,10 @@ src/asm/backend_call_dispatch.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # 全量 parser_x.o 已含 parse_into_buf / get_module_* 等；禁 seed slice 与重复前缀符号。
 PARSER_ASM_THIN_GLUE_CFLAGS = -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE
 PARSER_ASM_LINK_ALIAS_CFLAGS = -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS
-# G-02f-10：thin glue / parse_expr_link 产品 seed
-# PLATFORM: SHARED — thin glue monothin includes many parser_asm/*.inc; list ALL
-# of them so make rebuilds when glue_tail/library_wrap/etc. change (stale .o caused
-# Ubuntu UNDEF parser_skip_one_top_level_let_into_glue after M2 re-pin).
-# wave758 R1 seed-map: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_SEED_MAP_OBJS).
-# Seed map: parser_asm_thin_glue.o ← seeds/parser_asm_thin_c.from_x.c (basename mismatch).
-# ensure_one refreshes on seeds/parser_asm/*.inc (G.7 single body twin of former prereqs).
-# wave831: FORCE dep-thin — drop seed/.x/*.inc make-graph prereqs; try-heat owns mtime.
-# NOT physical delete. PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-# wave864 B7B: drop multi-token PARSER_ASM_THIN_GLUE_CFLAGS inject (G.7 hygiene).
-# ensure extras_for_seed_map / _DEFAULT_PARSER_ASM_THIN_GLUE_CFLAGS own -D + monothin
-# -I paths when env unset (Makefile var kept for force_thin_makefile_flags_newer).
-# NOT physical delete — thin edges + B2 + remaining mk lists remain.
-parser_asm_thin_glue.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-
-# parser_asm_parse_expr_link — joined wave903 multi-target $(R1_EXTRA_CFLAGS_OBJS).
+# G-02f-10：thin glue 产品 seed — joined wave905 multi-target $(R1_SEED_MAP_OBJS).
+# Archaeology: wave758 R1 seed-map basename mismatch · wave831 FORCE drop seed/inc ·
+# wave864 drop multi-token CFLAGS inject · monothin -I/-D in ensure extras_for_seed_map.
+# parse_expr_link — joined wave903 multi-target $(R1_EXTRA_CFLAGS_OBJS).
 
 
 # Authority: scripts/filter_bootstrap_seed_against_partial_o.sh → filter_o_export_against_deps.sh
@@ -1449,16 +1451,9 @@ bootstrap-codegen: $(TARGET) $(XLANG_C) bootstrap_xlangc $(RELINK_XLANG_PREREQS)
 # 6.3/6.4：入口在 main.x；链接时用 main_driver.o（带 XLANG_USE_X_DRIVER/PIPELINE 以启用 -backend asm）+ runtime_driver.o + ...
 # G-02f-16：main_driver 与 main 同源 seed — joined wave901 multi-target $(R1_MAIN_RUNTIME_OBJS).
 # G-02a: preprocess.c 已物理删除；runtime preprocess() 走 preprocess.x（preprocess_x.o）。
-# G-02f-6：target_cpu.o 单 TU（pure seed 含 OS detect；无 ld -r cold）
-# wave755 R1: pure host-cc body → ensure (list = R1_SEED_MAP_OBJS).
-# wave768 product PREFER flags.x + rest → try-target-cpu-prefer (cold pure seed fallback).
-# Seed map: target_cpu.o ← seeds/target_cpu_pure.from_x.c (basename mismatch).
-# wave793 B7A: heat dep-edge thin pure seed+.x+.h residual — prereqs → FORCE + ensure;
-# try-heat owns seed/.x/project-hdr mtime (seed_project_hdrs_newer).
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/driver/target_cpu.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	# wave768: target_cpu PREFER flags.x + rest → try-target-cpu-prefer (cold pure seed fallback).
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02f-6：target_cpu.o 单 TU — joined wave905 multi-target $(R1_SEED_MAP_OBJS).
+# Archaeology: wave755 R1 · wave768 try-target-cpu-prefer · wave793 FORCE · seed map
+# target_cpu ← target_cpu_pure — body in try-heat.
 # G-02f-7 / Phase 4：simd_enc thin+rest PREFER_X_O
 # 源：src/asm/simd_enc_thin.x（74 #[no_mangle] thin wrapper）+ seeds/simd_enc.from_x.c（_impl rest）
 # 仅 XLANG_G05_PREFER_X_O=1 且 xlang-c 可用时走 thin；否则 seed 完整编译。
@@ -1582,16 +1577,9 @@ src/lsp/lsp_diag_pipeline_sizes_nostub.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # (wave752 R1 · wave771 try-other-l2-prefer · wave794 twin) — joined wave902 multi-target
 # $(R1_ALIAS_STUBS_OBJS).
 
-# G-02a：ast_seed.o 从 runtime_ast_glue.inc 编译（从 src/ast/ast.c 迁移）。
-# 提供 ast_module_free/ast_expr_free/ast_block_free 等 8 个内存管理函数。
-# 不含 ast_expr_init_match_enum（no_c 模式下由 x_seed_bridge.o 提供）。
-# wave755 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_SEED_MAP_OBJS).
-# Seed map: ast_seed.o ← seeds/runtime_ast_glue.from_x.c (basename mismatch).
-# wave793 B7A: heat dep-edge thin pure seed+.x+.h residual — prereqs → FORCE + ensure;
-# try-heat owns seed/.x/project-hdr mtime (seed_project_hdrs_newer).
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/ast/ast_seed.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02a：ast_seed.o — joined wave905 multi-target $(R1_SEED_MAP_OBJS).
+# Archaeology: wave755 R1 · seed map ast_seed ← runtime_ast_glue · wave793 FORCE — body in try-heat.
+# (ast_module_free/ast_expr_free/… 8 内存管理；no_c 下 ast_expr_init_match_enum 由 x_seed_bridge).
 
 # G-02a: ast_x.o alias — ast_seed.o 提供 C ABI 内存管理实现。
 # wave836: FORCE dep-thin — shell owns SRC mtime + try-heat (ensure_cp_alias_o; not physical delete).
@@ -2179,24 +2167,12 @@ endif
 build_asm/pipeline_glue_types.inc: FORCE scripts/ensure_pipeline_glue_types.sh
 	@bash scripts/ensure_pipeline_glue_types.sh
 
-# G-02f-17：pipeline_bootstrap_orchestration 产品 seed
-# wave755 R1: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_SEED_MAP_OBJS).
-# Extras: -Ibuild_asm -DPIPELINE_BOOTSTRAP_ORCH_NO_PIPELINE_RUN_WRAPPER.
-# wave797 B7A: heat dep-edge thin orch residual — prereqs → FORCE + ensure;
-# try-heat/ensure_one owns seed/.x + pipeline_gen.c + build_asm/pipeline_glue_types.inc mtime.
-# NOT physical delete. PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-pipeline_bootstrap_orchestration.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02f-17：pipeline_bootstrap_orchestration — joined wave905 multi-target $(R1_SEED_MAP_OBJS).
+# Archaeology: wave755 R1 · orch -Ibuild_asm -D…NO_PIPELINE_RUN_WRAPPER · wave797 FORCE thin
+# (try-heat owns seed/.x + pipeline_gen.c + pipeline_glue_types.inc) — body in try-heat.
 
-# wave759 R1 seed-map: pure host-cc body → ensure_host_cc_seed_o.sh (list = R1_SEED_MAP_OBJS).
-# Seed map: build_asm/pipeline_glue_standalone.o ← seeds/pipeline_glue_standalone.from_x.c
-# (path under build_asm/ + -Ibuild_asm; was cc_inc_tu residual; G.7 有则补全 seed-map).
-$(ASM_GLUE_STANDALONE_O): FORCE scripts/ensure_host_cc_seed_o.sh
-# wave794 B7A: heat dep-edge thin multi-c residual — prereqs → FORCE + ensure;
-# try-heat/ensure_one owns glue.c/ast_pool/types.inc (wave759 twin) + seed mtime.
-# wave889 B7B residual: drop dual @mkdir -p build_asm (ensure_one owns dirname mkdir).
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# $(ASM_GLUE_STANDALONE_O) / pipeline_glue_standalone — joined wave905 multi-target $(R1_SEED_MAP_OBJS).
+# Archaeology: wave759 R1 seed-map · wave794 multi-c mtime · wave889 ensure_one owns dirname mkdir.
 
 # G-02f-11：pipeline_glue_strict_minimal 产品 seed — joined wave904 multi-target $(R1_MISC_BASENAME_OBJS).
 # Archaeology: wave754 R1 · wave792 FORCE · wave889 ensure_one owns dirname mkdir — body in try-heat.

@@ -230,6 +230,8 @@
 #            (G.7 有则补全: R1_EXTRA_CFLAGS_OBJS in driver_seed_r_lists.mk; no second list)
 #   wave904: R1_MISC_BASENAME product edges multi-target FORCE thin try-heat (9)
 #            (G.7 有则补全: R1_MISC_BASENAME_OBJS in driver_seed_r_lists.mk; no second list)
+#   wave905: R1_SEED_MAP product edges multi-target FORCE thin try-heat (5)
+#            (G.7 有则补全: R1_SEED_MAP_OBJS in driver_seed_r_lists.mk; no second list)
 #            wave893: B7B residual verify-selfhost thin-call form hygiene (2 sites) →
 #            body → scripts/verify-selfhost-stage2{,-bstrict}.sh; Makefile pure
 #            @bash scripts/… (drop @bash ./); root shim for CI/tests path compat;
@@ -789,6 +791,17 @@ PHYS_DEL_R1_MISC_BASENAME_LIST_MK_NOTE=list_multi_target_force_thin_edges_remain
 SWALLOWED_R1_MISC_BASENAME_LIST_MK=1
 R1_MISC_BASENAME_LIST_MK_SWALLOWED=1
 R1_MISC_BASENAME_LIST_MK_WAVE=wave904
+# wave905: R1_SEED_MAP product edges multi-target FORCE thin try-heat (make-graph only).
+# G.7 有则补全: list authority remains R1_SEED_MAP_OBJS in mk/driver_seed_r_lists.mk
+# (wave755/758/759/788; no second product mk). Body = ensure try-heat. NOT physical delete.
+PHYS_DEL_R1_SEED_MAP_LIST_MK=1
+PHYS_DEL_R1_SEED_MAP_LIST_MK_WAVE=wave905
+PHYS_DEL_R1_SEED_MAP_LIST_MK_COUNT=5
+PHYS_DEL_R1_SEED_MAP_LIST_MK_VIA=mk_r1_seed_map_objs_multi_target_thin
+PHYS_DEL_R1_SEED_MAP_LIST_MK_NOTE=list_multi_target_force_thin_edges_remain
+SWALLOWED_R1_SEED_MAP_LIST_MK=1
+R1_SEED_MAP_LIST_MK_SWALLOWED=1
+R1_SEED_MAP_LIST_MK_WAVE=wave905
 # wave829: product/archaeology *_gen.c FORCE dep-thin — Makefile prereqs FORCE+script
 # only; shell owns pin/seed/FORCE_REGEN policy (ensure_*_gen). NOT physical delete —
 # thin edges + B2 try-heat + mk lists remain (ast_gen2 closed wave830).
@@ -1957,6 +1970,7 @@ PHYS_DEL_PREFLIGHT_R1_MAIN_RUNTIME_LIST_MK=1
 PHYS_DEL_PREFLIGHT_R1_ALIAS_STUBS_LIST_MK=1
 PHYS_DEL_PREFLIGHT_R1_EXTRA_CFLAGS_LIST_MK=1
 PHYS_DEL_PREFLIGHT_R1_MISC_BASENAME_LIST_MK=1
+PHYS_DEL_PREFLIGHT_R1_SEED_MAP_LIST_MK=1
 PHYS_DEL_PREFLIGHT_GEN_C_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_AST_GEN2_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_SRC_EDGE_FORCE_THIN=1
@@ -2018,7 +2032,7 @@ PHYS_DEL_PREFLIGHT_B7B_MIGRATE_ENV_HYGIENE=1
 PHYS_DEL_PREFLIGHT_B7B_STAGE_BOOTSTRAP_ENV_HYGIENE=1
 PHYS_DEL_PREFLIGHT_B7B_ENSURE_OUT_OPT_HYGIENE=1
 PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_std_x_catalog_is_physical_delete|claim_std_x_force_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_formal_mod_force_thin_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_driver_leaf_force_thin_is_physical_delete|claim_driver_leaf_list_mk_is_physical_delete|claim_b2_std_core_list_mk_is_physical_delete|claim_rt_seed_slice_list_mk_is_physical_delete|claim_r1_core_seed_list_mk_is_physical_delete|claim_r1_frontend_glue_list_mk_is_physical_delete|claim_r1_main_runtime_list_mk_is_physical_delete|claim_r1_alias_stubs_list_mk_is_physical_delete|claim_r1_extra_cflags_list_mk_is_physical_delete|claim_r1_misc_basename_list_mk_is_physical_delete|claim_gen_c_force_thin_is_physical_delete|claim_ast_gen2_force_thin_is_physical_delete|claim_src_edge_force_thin_is_physical_delete|claim_migrate_x_force_thin_is_physical_delete|claim_glue_types_force_thin_is_physical_delete|claim_bootstrap_pipeline_force_thin_is_physical_delete|claim_filtered_o_force_thin_is_physical_delete|claim_cp_alias_force_thin_is_physical_delete|claim_pipeline_gen_force_thin_is_physical_delete|claim_bootstrap_xlangc_force_thin_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_arch_host_pick_force_thin_is_physical_delete|claim_bootstrap_typeck_codegen_shell_is_physical_delete|claim_bootstrap_x_compiler_shell_is_physical_delete|claim_bootstrap_self_shell_is_physical_delete|claim_bootstrap_parser_smoke_is_physical_delete|claim_xlang_x_pipeline_shell_is_physical_delete|claim_xlang_x_shell_is_physical_delete|claim_xlang_no_c_frontend_shell_is_physical_delete|claim_bootstrap_seed_x_frontend_shell_is_physical_delete|claim_relink_xlang_lexer_shell_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|claim_e_dirs_list_mk_is_physical_delete|claim_relink_product_link_mk_is_physical_delete|claim_xxl_bs_xnc_link_mk_is_physical_delete|claim_bxf_link_mk_is_physical_delete|claim_seed_phase_final_link_mk_is_physical_delete|claim_seed_gate_required_mk_is_physical_delete|claim_seed_gate_required_shell_load_is_physical_delete|rm_makefile_without_confirm_delete_body
+PHYS_DEL_PREFLIGHT_FORBIDDEN=claim_preflight_is_physical_delete|claim_tree_arm_is_physical_delete|claim_endgame_1_is_delete|claim_delete_body_preview_is_delete|claim_delete_body_honesty_is_delete|claim_std_x_thin_is_physical_delete|claim_std_x_catalog_is_physical_delete|claim_std_x_force_thin_is_physical_delete|claim_formal_mod_catalog_is_physical_delete|claim_formal_mod_force_thin_is_physical_delete|claim_std_and_panic_list_mk_is_physical_delete|claim_driver_leaf_catalog_is_physical_delete|claim_driver_leaf_force_thin_is_physical_delete|claim_driver_leaf_list_mk_is_physical_delete|claim_b2_std_core_list_mk_is_physical_delete|claim_rt_seed_slice_list_mk_is_physical_delete|claim_r1_core_seed_list_mk_is_physical_delete|claim_r1_frontend_glue_list_mk_is_physical_delete|claim_r1_main_runtime_list_mk_is_physical_delete|claim_r1_alias_stubs_list_mk_is_physical_delete|claim_r1_extra_cflags_list_mk_is_physical_delete|claim_r1_misc_basename_list_mk_is_physical_delete|claim_r1_seed_map_list_mk_is_physical_delete|claim_gen_c_force_thin_is_physical_delete|claim_ast_gen2_force_thin_is_physical_delete|claim_src_edge_force_thin_is_physical_delete|claim_migrate_x_force_thin_is_physical_delete|claim_glue_types_force_thin_is_physical_delete|claim_bootstrap_pipeline_force_thin_is_physical_delete|claim_filtered_o_force_thin_is_physical_delete|claim_cp_alias_force_thin_is_physical_delete|claim_pipeline_gen_force_thin_is_physical_delete|claim_bootstrap_xlangc_force_thin_is_physical_delete|claim_arch_host_pick_phony_is_physical_delete|claim_arch_host_pick_force_thin_is_physical_delete|claim_bootstrap_typeck_codegen_shell_is_physical_delete|claim_bootstrap_x_compiler_shell_is_physical_delete|claim_bootstrap_self_shell_is_physical_delete|claim_bootstrap_parser_smoke_is_physical_delete|claim_xlang_x_pipeline_shell_is_physical_delete|claim_xlang_x_shell_is_physical_delete|claim_xlang_no_c_frontend_shell_is_physical_delete|claim_bootstrap_seed_x_frontend_shell_is_physical_delete|claim_relink_xlang_lexer_shell_is_physical_delete|claim_driver_subcmd_list_mk_is_physical_delete|claim_pipeline_x_list_mk_is_physical_delete|claim_seed_mode_list_mk_is_physical_delete|claim_seed_link_picks_list_mk_is_physical_delete|claim_objs_core_list_mk_is_physical_delete|claim_arch_experiment_list_mk_is_physical_delete|claim_relink_legacy_list_mk_is_physical_delete|claim_source_deps_list_mk_is_physical_delete|claim_e_dirs_list_mk_is_physical_delete|claim_relink_product_link_mk_is_physical_delete|claim_xxl_bs_xnc_link_mk_is_physical_delete|claim_bxf_link_mk_is_physical_delete|claim_seed_phase_final_link_mk_is_physical_delete|claim_seed_gate_required_mk_is_physical_delete|claim_seed_gate_required_shell_load_is_physical_delete|rm_makefile_without_confirm_delete_body
 PHYS_DEL_PREFLIGHT_WIN_GATE_CMD=tests/run-bootstrap-bstrict-windows-gate.sh
 PHYS_DEL_PREFLIGHT_WIN_GATE_HOST=MSYS2_windows-server_dual_boot_reboot_required
 PHYS_DEL_PREFLIGHT_WIN_GATE_DOC=analysis/Windows兼容时序-删种子前后.md
@@ -2648,6 +2662,9 @@ else
   fi
   if ! grep -qE 'wave904|R1_MISC_BASENAME.*multi|R1_MISC_BASENAME_OBJS|r1_misc_basename list|misc.basename multi' "$DOC_REL"; then
     bad "$DOC_REL must document wave904 R1_MISC_BASENAME multi-target FORCE thin"
+  fi
+  if ! grep -qE 'wave905|R1_SEED_MAP.*multi|R1_SEED_MAP_OBJS|r1_seed_map list|seed.map multi' "$DOC_REL"; then
+    bad "$DOC_REL must document wave905 R1_SEED_MAP multi-target FORCE thin"
   fi
   if ! grep -qE 'wave828|driver_leaf FORCE|DRIVER_LEAF_FORCE_THIN' "$DOC_REL"; then
     bad "$DOC_REL must document wave828 driver_leaf FORCE dep-thin"
@@ -3560,6 +3577,21 @@ if ! grep -q 'SWALLOWED_R1_MISC_BASENAME_LIST_MK=1' <<<"$_out"; then
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_R1_MISC_BASENAME_LIST_MK=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_R1_MISC_BASENAME_LIST_MK=1 (wave904)"
+fi
+if ! grep -q 'PHYS_DEL_R1_SEED_MAP_LIST_MK=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_R1_SEED_MAP_LIST_MK=1 (wave905)"
+fi
+if ! grep -q 'PHYS_DEL_R1_SEED_MAP_LIST_MK_WAVE=wave905' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_R1_SEED_MAP_LIST_MK_WAVE=wave905"
+fi
+if ! grep -q 'PHYS_DEL_R1_SEED_MAP_LIST_MK_COUNT=5' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_R1_SEED_MAP_LIST_MK_COUNT=5 (wave905)"
+fi
+if ! grep -q 'SWALLOWED_R1_SEED_MAP_LIST_MK=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_R1_SEED_MAP_LIST_MK=1 (wave905)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_R1_SEED_MAP_LIST_MK=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_R1_SEED_MAP_LIST_MK=1 (wave905)"
 fi
 if ! grep -q 'PHYS_DEL_GEN_C_FORCE_THIN=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_GEN_C_FORCE_THIN=1 (wave829)"
@@ -6071,6 +6103,132 @@ if [ "$_r1mb_indiv" -ne 0 ]; then
 fi
 note "Makefile R1_MISC_BASENAME multi-target FORCE thin try-heat + mk list 9 (wave754/788/904; not physical delete)"
 
+# wave905: R1_SEED_MAP product edges multi-target FORCE thin try-heat (G.7 有则补全 list).
+_R1SM_MK="compiler/mk/driver_seed_r_lists.mk"
+[ -f "$_R1SM_MK" ] || _R1SM_MK="mk/driver_seed_r_lists.mk"
+if [ ! -f "$_R1SM_MK" ]; then
+  bad "missing $_R1SM_MK (wave905 R1_SEED_MAP list authority)"
+fi
+if ! grep -qE '^R1_SEED_MAP_OBJS\s*=' "$_R1SM_MK"; then
+  bad "$_R1SM_MK must define R1_SEED_MAP_OBJS (wave755/788/905)"
+fi
+_r1sm_list_n=$(
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^R1_SEED_MAP_OBJS[[:space:]]*=/ {
+      line=$0
+      sub(/#.*/,"",line)
+      n=split(line, a, /[[:space:]\\]+/)
+      for (i=1;i<=n;i++) if (a[i] ~ /\.o$/) c++
+      next
+    }
+    END { print c+0 }
+  ' "$_R1SM_MK"
+)
+if [ "${_r1sm_list_n:-0}" -ne 5 ]; then
+  bad "wave905 expected 5 R1_SEED_MAP_OBJS members, got ${_r1sm_list_n:-0}"
+fi
+if ! grep -q 'include mk/driver_seed_r_lists.mk' "$MF"; then
+  bad "Makefile must include mk/driver_seed_r_lists.mk (wave788/905)"
+fi
+if ! grep -qE '\$\(R1_SEED_MAP_OBJS\):[[:space:]]*FORCE' "$MF"; then
+  bad "Makefile must multi-target \$(R1_SEED_MAP_OBJS): FORCE (wave905)"
+fi
+if ! awk '
+  /\$\(R1_SEED_MAP_OBJS\):/ { hit=1; next }
+  hit && /^[^#[:space:]\t]/ { exit 1 }
+  hit && /ensure_host_cc_seed_o\.sh/ && /try-heat/ { found=1; exit 0 }
+  END { exit found ? 0 : 1 }
+' "$MF"; then
+  bad "Makefile R1_SEED_MAP_OBJS multi-target must thin-call try-heat (wave905)"
+fi
+_r1sm_thin=0
+_r1sm_force=0
+while IFS= read -r _r1sm; do
+  [ -z "$_r1sm" ] && continue
+  case "$_r1sm" in
+    *.o) ;;
+    *) continue ;;
+  esac
+  _ok_t=0
+  _ok_f=0
+  if awk -v leaf="$_r1sm" '
+    $0 ~ ("^" leaf ":") { want=1; next }
+    want && /^[^#[:space:]]/ { want=0 }
+    want && /ensure_host_cc_seed_o\.sh/ && /try-heat/ { found=1 }
+    END { exit found ? 0 : 1 }
+  ' "$MF" 2>/dev/null; then
+    _ok_t=1
+  elif grep -qF "$_r1sm" "$_R1SM_MK" \
+    && grep -qE '\$\(R1_SEED_MAP_OBJS\):[[:space:]]*FORCE' "$MF"; then
+    _ok_t=1
+  fi
+  if awk -v leaf="$_r1sm" '
+    $0 ~ ("^" leaf ":") {
+      if ($0 ~ /FORCE/ && $0 !~ /\.x([[:space:]]|$)/) { ok=1; exit 0 }
+      exit 1
+    }
+    END { exit ok ? 0 : 1 }
+  ' "$MF" 2>/dev/null; then
+    _ok_f=1
+  elif grep -qF "$_r1sm" "$_R1SM_MK" \
+    && grep -qE '\$\(R1_SEED_MAP_OBJS\):[[:space:]]*FORCE' "$MF"; then
+    _ok_f=1
+  fi
+  if [ "$_ok_t" -eq 1 ]; then
+    _r1sm_thin=$((_r1sm_thin + 1))
+  else
+    bad "Makefile $_r1sm must thin-call try-heat (wave755/905)"
+  fi
+  if [ "$_ok_f" -eq 1 ]; then
+    _r1sm_force=$((_r1sm_force + 1))
+  else
+    bad "Makefile $_r1sm must FORCE dep-thin (wave905)"
+  fi
+done < <(
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^R1_SEED_MAP_OBJS[[:space:]]*=/ {
+      line=$0
+      sub(/#.*/,"",line)
+      n=split(line, a, /[[:space:]\\]+/)
+      for (i=1;i<=n;i++) if (a[i] ~ /\.o$/) print a[i]
+    }
+  ' "$_R1SM_MK"
+)
+if [ "$_r1sm_thin" -ne 5 ]; then
+  bad "wave905 expected 5 R1_SEED_MAP ensure leaves, got $_r1sm_thin"
+fi
+if [ "$_r1sm_force" -ne 5 ]; then
+  bad "wave905 expected 5 R1_SEED_MAP FORCE thin leaves, got $_r1sm_force"
+fi
+_r1sm_indiv=0
+while IFS= read -r _r1sm; do
+  [ -z "$_r1sm" ] && continue
+  case "$_r1sm" in *.o) ;; *) continue ;; esac
+  if grep -qE "^${_r1sm}:" "$MF" 2>/dev/null; then
+    _r1sm_indiv=$((_r1sm_indiv + 1))
+  fi
+done < <(
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^R1_SEED_MAP_OBJS[[:space:]]*=/ {
+      line=$0
+      sub(/#.*/,"",line)
+      n=split(line, a, /[[:space:]\\]+/)
+      for (i=1;i<=n;i++) if (a[i] ~ /\.o$/) print a[i]
+    }
+  ' "$_R1SM_MK"
+)
+# Also ban legacy $(ASM_GLUE_STANDALONE_O): per-leaf dual of pipeline_glue_standalone.
+if grep -qE '^\$\(ASM_GLUE_STANDALONE_O\):' "$MF" 2>/dev/null; then
+  _r1sm_indiv=$((_r1sm_indiv + 1))
+fi
+if [ "$_r1sm_indiv" -ne 0 ]; then
+  bad "Makefile still has $_r1sm_indiv per-leaf R1_SEED_MAP targets (wave905 multi-target only)"
+fi
+note "Makefile R1_SEED_MAP multi-target FORCE thin try-heat + mk list 5 (wave755/788/905; not physical delete)"
+
 
 # wave829: product/archaeology *_gen.c FORCE dep-thin (17 leaves; no dual .x / X_DEPS prereqs).
 _gen_c_force_leaves="
@@ -6162,16 +6320,26 @@ fi
 
 # wave831: src-edge FORCE dep-thin (COUNT=7). Pattern greps only — no product .o inventory
 # (G.7 residual script hardcode ban). Shell owns seed/slice mtime.
+# wave905: thin_glue lives under multi-target $(R1_SEED_MAP_OBJS): FORCE (member via mk list).
 if awk '
-  $0 ~ /^parser_asm_thin_glue\.o:/ {
+  /thin_glue/ && /:/ {
     if ($0 ~ /FORCE/ && $0 ~ /ensure_host_cc_seed_o/ && $0 !~ /seeds\// && $0 !~ /\.inc/) { ok=1; exit 0 }
     exit 1
   }
   END { exit ok ? 0 : 1 }
 ' "$MF" 2>/dev/null; then
   note "Makefile parser_asm thin_glue FORCE dep-thin (wave831; not physical delete)"
+elif grep -qE '\$\(R1_SEED_MAP_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null \
+  && awk '
+    /\$\(R1_SEED_MAP_OBJS\):/ {
+      if ($0 ~ /FORCE/ && $0 ~ /ensure_host_cc_seed_o/ && $0 !~ /seeds\// && $0 !~ /\.inc/) { ok=1; exit 0 }
+      exit 1
+    }
+    END { exit ok ? 0 : 1 }
+  ' "$MF"; then
+  note "Makefile parser_asm thin_glue via R1_SEED_MAP multi-target FORCE thin (wave831/905)"
 else
-  bad "Makefile parser_asm thin_glue must FORCE dep-thin via try-heat (no seed/inc prereq; wave831)"
+  bad "Makefile parser_asm thin_glue must FORCE dep-thin via try-heat (no seed/inc prereq; wave831/905)"
 fi
 # Count FORCE+cc_inc_tu target lines (exactly 6 residual pure-seed leaves).
 _cc_inc_force=$(grep -cE '^[a-zA-Z0-9_./-]+: FORCE scripts/cc_inc_tu\.sh[[:space:]]*$' "$MF" 2>/dev/null || true)
@@ -7903,6 +8071,10 @@ fi
 if grep -qE '\$\(R1_MISC_BASENAME_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null; then
   _th_recipe_n=$((_th_recipe_n + 8))
 fi
+# wave905: multi-target collapses 5 SEED_MAP leaves → 1 rule; logical expand +4.
+if grep -qE '\$\(R1_SEED_MAP_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null; then
+  _th_recipe_n=$((_th_recipe_n + 4))
+fi
 if [ "${_th_recipe_n}" -lt 100 ]; then
   bad "Makefile expected >=100 try-heat thin-call recipes (wave862; got ${_th_recipe_n}; multi-target logical expand)"
 fi
@@ -8694,6 +8866,10 @@ fi
 if grep -qE '\$\(R1_MISC_BASENAME_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null; then
   _bash_thin_n=$((_bash_thin_n + 8))
 fi
+# wave905: multi-target collapses 5 SEED_MAP leaves → 1 @bash line; logical expand +4.
+if grep -qE '\$\(R1_SEED_MAP_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null; then
+  _bash_thin_n=$((_bash_thin_n + 4))
+fi
 if [ "$_bash_thin_n" -lt 200 ]; then
   bad "Makefile @bash scripts/ thin-call count expected >=200 got ${_bash_thin_n} (wave890; multi-target logical expand)"
 fi
@@ -8912,24 +9088,40 @@ if [ -f "$MF" ]; then
   if grep -qE '\$\(R1_MISC_BASENAME_OBJS\):[[:space:]]*FORCE[[:space:]]+scripts/ensure_host_cc_seed_o\.sh' "$MF" 2>/dev/null; then
     _force_n=$((_force_n + 8))
   fi
+  # wave905: multi-target collapses 5 SEED_MAP leaves → 1 rule; logical expand +4.
+  if grep -qE '\$\(R1_SEED_MAP_OBJS\):[[:space:]]*FORCE[[:space:]]+scripts/ensure_host_cc_seed_o\.sh' "$MF" 2>/dev/null; then
+    _force_n=$((_force_n + 4))
+  fi
   if [ "${_force_n}" -lt 113 ]; then
-    bad "Makefile wave797 FORCE dep-thin leaves expected >=113 (n=${_force_n}; wave897/898/899/900/901/902/903/904 multi-target logical expand)"
+    bad "Makefile wave797 FORCE dep-thin leaves expected >=113 (n=${_force_n}; wave897/898/899/900/901/902/903/904/905 multi-target logical expand)"
   else
-    note "Makefile heat dep-edge FORCE thin (n=${_force_n}; wave797; wave897/898/899/900/901/902/903/904 multi-target logical expand)"
+    note "Makefile heat dep-edge FORCE thin (n=${_force_n}; wave797; wave897/898/899/900/901/902/903/904/905 multi-target logical expand)"
   fi
   # wave797: orch last heat source-prereq leaf must be FORCE thin (no pipeline_gen prereq edge).
-  # G.7: do not quote product *.o paths in bad messages (self inventory ban).
+  # G.7: do not quote product *.o paths in residual body (self inventory ban).
   # Note: awk exit in action still runs END — use a flag, not exit 0 + END exit 1.
-  if ! awk '
-    /^pipeline_bootstrap_orchestration\.o:/ {
+  # wave905: orch lives under multi-target $(R1_SEED_MAP_OBJS): FORCE (no per-leaf line).
+  # Accept either historical per-leaf FORCE header OR SEED_MAP multi-target FORCE thin
+  # (member inventory already proven in wave905 multi-target block via mk list).
+  if awk '
+    /bootstrap_orchestration/ && /:/ {
       line=$0
       if (line ~ /FORCE/ && line !~ /pipeline_gen\.c/) ok=1
     }
     END { exit(ok ? 0 : 1) }
   ' "$MF"; then
-    bad "Makefile orch residual must FORCE thin without pipeline_gen prereq (wave797)"
-  else
     note "Makefile orch leaf FORCE thin (wave797)"
+  elif grep -qE '\$\(R1_SEED_MAP_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null \
+    && awk '
+      /\$\(R1_SEED_MAP_OBJS\):/ {
+        if ($0 ~ /FORCE/ && $0 !~ /pipeline_gen\.c/) { ok=1; exit 0 }
+        exit 1
+      }
+      END { exit ok ? 0 : 1 }
+    ' "$MF"; then
+    note "Makefile orch via R1_SEED_MAP multi-target FORCE thin (wave797/905)"
+  else
+    bad "Makefile orch residual must FORCE thin without pipeline_gen prereq (wave797/905)"
   fi
   # archaeology: mode names still documented in comments for residual greps
   if ! grep -q 'try-labi-prefer' "$MF" || ! grep -q 'try-r3-prefer' "$MF"; then

@@ -64,6 +64,8 @@ R1_MISC_BASENAME_OBJS = runtime_link_abi_user_env.o runtime_channel_glue.o runti
 # Seed/flag maps live in ensure script (path convention); list stays here (G.7).
 # wave758: parser_asm_thin_glue monothin joined seed-map.
 # wave759: pipeline_glue_standalone joined seed-map.
+# wave905: also make-graph multi-target FORCE thin try-heat inventory (COUNT=5).
+# Body = ensure try-heat; do not re-list in Makefile or residual shells (G.7).
 R1_SEED_MAP_OBJS = src/driver/target_cpu.o src/ast/ast_seed.o pipeline_bootstrap_orchestration.o parser_asm_thin_glue.o build_asm/pipeline_glue_standalone.o
 
 # wave757 R3 cold-else family: thin+rest leaves whose cold path is pure host-cc.
