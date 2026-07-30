@@ -232,6 +232,8 @@
 #            (G.7 有则补全: R1_MISC_BASENAME_OBJS in driver_seed_r_lists.mk; no second list)
 #   wave905: R1_SEED_MAP product edges multi-target FORCE thin try-heat (5)
 #            (G.7 有则补全: R1_SEED_MAP_OBJS in driver_seed_r_lists.mk; no second list)
+#   wave906: R3_COLD product edges multi-target FORCE thin try-heat (9)
+#            (G.7 有则补全: R3_COLD_SEED_OBJS in driver_seed_r_lists.mk; no second list)
 #            wave893: B7B residual verify-selfhost thin-call form hygiene (2 sites) →
 #            body → scripts/verify-selfhost-stage2{,-bstrict}.sh; Makefile pure
 #            @bash scripts/… (drop @bash ./); root shim for CI/tests path compat;
@@ -802,6 +804,17 @@ PHYS_DEL_R1_SEED_MAP_LIST_MK_NOTE=list_multi_target_force_thin_edges_remain
 SWALLOWED_R1_SEED_MAP_LIST_MK=1
 R1_SEED_MAP_LIST_MK_SWALLOWED=1
 R1_SEED_MAP_LIST_MK_WAVE=wave905
+# wave906: R3_COLD product edges multi-target FORCE thin try-heat (make-graph only).
+# G.7 有则补全: list authority remains R3_COLD_SEED_OBJS in mk/driver_seed_r_lists.mk
+# (wave757/763/788; no second product mk). Body = ensure try-heat → try-r3-prefer. NOT physical delete.
+PHYS_DEL_R3_COLD_LIST_MK=1
+PHYS_DEL_R3_COLD_LIST_MK_WAVE=wave906
+PHYS_DEL_R3_COLD_LIST_MK_COUNT=9
+PHYS_DEL_R3_COLD_LIST_MK_VIA=mk_r3_cold_seed_objs_multi_target_thin
+PHYS_DEL_R3_COLD_LIST_MK_NOTE=list_multi_target_force_thin_edges_remain
+SWALLOWED_R3_COLD_LIST_MK=1
+R3_COLD_LIST_MK_SWALLOWED=1
+R3_COLD_LIST_MK_WAVE=wave906
 # wave829: product/archaeology *_gen.c FORCE dep-thin — Makefile prereqs FORCE+script
 # only; shell owns pin/seed/FORCE_REGEN policy (ensure_*_gen). NOT physical delete —
 # thin edges + B2 try-heat + mk lists remain (ast_gen2 closed wave830).
@@ -1971,6 +1984,7 @@ PHYS_DEL_PREFLIGHT_R1_ALIAS_STUBS_LIST_MK=1
 PHYS_DEL_PREFLIGHT_R1_EXTRA_CFLAGS_LIST_MK=1
 PHYS_DEL_PREFLIGHT_R1_MISC_BASENAME_LIST_MK=1
 PHYS_DEL_PREFLIGHT_R1_SEED_MAP_LIST_MK=1
+PHYS_DEL_PREFLIGHT_R3_COLD_LIST_MK=1
 PHYS_DEL_PREFLIGHT_GEN_C_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_AST_GEN2_FORCE_THIN=1
 PHYS_DEL_PREFLIGHT_SRC_EDGE_FORCE_THIN=1
@@ -2665,6 +2679,9 @@ else
   fi
   if ! grep -qE 'wave905|R1_SEED_MAP.*multi|R1_SEED_MAP_OBJS|r1_seed_map list|seed.map multi' "$DOC_REL"; then
     bad "$DOC_REL must document wave905 R1_SEED_MAP multi-target FORCE thin"
+  fi
+  if ! grep -qE 'wave906|R3_COLD.*multi|R3_COLD_SEED_OBJS|r3_cold list|r3.cold multi' "$DOC_REL"; then
+    bad "$DOC_REL must document wave906 R3_COLD multi-target FORCE thin"
   fi
   if ! grep -qE 'wave828|driver_leaf FORCE|DRIVER_LEAF_FORCE_THIN' "$DOC_REL"; then
     bad "$DOC_REL must document wave828 driver_leaf FORCE dep-thin"
@@ -3592,6 +3609,21 @@ if ! grep -q 'SWALLOWED_R1_SEED_MAP_LIST_MK=1' <<<"$_out"; then
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_R1_SEED_MAP_LIST_MK=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_PREFLIGHT_R1_SEED_MAP_LIST_MK=1 (wave905)"
+fi
+if ! grep -q 'PHYS_DEL_R3_COLD_LIST_MK=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_R3_COLD_LIST_MK=1 (wave906)"
+fi
+if ! grep -q 'PHYS_DEL_R3_COLD_LIST_MK_WAVE=wave906' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_R3_COLD_LIST_MK_WAVE=wave906"
+fi
+if ! grep -q 'PHYS_DEL_R3_COLD_LIST_MK_COUNT=9' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_R3_COLD_LIST_MK_COUNT=9 (wave906)"
+fi
+if ! grep -q 'SWALLOWED_R3_COLD_LIST_MK=1' <<<"$_out"; then
+  bad "dump must set SWALLOWED_R3_COLD_LIST_MK=1 (wave906)"
+fi
+if ! grep -q 'PHYS_DEL_PREFLIGHT_R3_COLD_LIST_MK=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_PREFLIGHT_R3_COLD_LIST_MK=1 (wave906)"
 fi
 if ! grep -q 'PHYS_DEL_GEN_C_FORCE_THIN=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_GEN_C_FORCE_THIN=1 (wave829)"
@@ -6229,6 +6261,128 @@ if [ "$_r1sm_indiv" -ne 0 ]; then
 fi
 note "Makefile R1_SEED_MAP multi-target FORCE thin try-heat + mk list 5 (wave755/788/905; not physical delete)"
 
+# wave906: R3_COLD product edges multi-target FORCE thin try-heat (G.7 有则补全 list).
+_R3C_MK="compiler/mk/driver_seed_r_lists.mk"
+[ -f "$_R3C_MK" ] || _R3C_MK="mk/driver_seed_r_lists.mk"
+if [ ! -f "$_R3C_MK" ]; then
+  bad "missing $_R3C_MK (wave906 R3_COLD list authority)"
+fi
+if ! grep -qE '^R3_COLD_SEED_OBJS\s*=' "$_R3C_MK"; then
+  bad "$_R3C_MK must define R3_COLD_SEED_OBJS (wave757/788/906)"
+fi
+_r3c_list_n=$(
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^R3_COLD_SEED_OBJS[[:space:]]*=/ {
+      line=$0
+      sub(/#.*/,"",line)
+      n=split(line, a, /[[:space:]\\]+/)
+      for (i=1;i<=n;i++) if (a[i] ~ /\.o$/) c++
+      next
+    }
+    END { print c+0 }
+  ' "$_R3C_MK"
+)
+if [ "${_r3c_list_n:-0}" -ne 9 ]; then
+  bad "wave906 expected 9 R3_COLD_SEED_OBJS members, got ${_r3c_list_n:-0}"
+fi
+if ! grep -q 'include mk/driver_seed_r_lists.mk' "$MF"; then
+  bad "Makefile must include mk/driver_seed_r_lists.mk (wave788/906)"
+fi
+if ! grep -qE '\$\(R3_COLD_SEED_OBJS\):[[:space:]]*FORCE' "$MF"; then
+  bad "Makefile must multi-target \$(R3_COLD_SEED_OBJS): FORCE (wave906)"
+fi
+if ! awk '
+  /\$\(R3_COLD_SEED_OBJS\):/ { hit=1; next }
+  hit && /^[^#[:space:]\t]/ { exit 1 }
+  hit && /ensure_host_cc_seed_o\.sh/ && /try-heat/ { found=1; exit 0 }
+  END { exit found ? 0 : 1 }
+' "$MF"; then
+  bad "Makefile R3_COLD_SEED_OBJS multi-target must thin-call try-heat (wave906)"
+fi
+_r3c_thin=0
+_r3c_force=0
+while IFS= read -r _r3c; do
+  [ -z "$_r3c" ] && continue
+  case "$_r3c" in
+    *.o) ;;
+    *) continue ;;
+  esac
+  _ok_t=0
+  _ok_f=0
+  if awk -v leaf="$_r3c" '
+    $0 ~ ("^" leaf ":") { want=1; next }
+    want && /^[^#[:space:]]/ { want=0 }
+    want && /ensure_host_cc_seed_o\.sh/ && /try-heat/ { found=1 }
+    END { exit found ? 0 : 1 }
+  ' "$MF" 2>/dev/null; then
+    _ok_t=1
+  elif grep -qF "$_r3c" "$_R3C_MK" \
+    && grep -qE '\$\(R3_COLD_SEED_OBJS\):[[:space:]]*FORCE' "$MF"; then
+    _ok_t=1
+  fi
+  if awk -v leaf="$_r3c" '
+    $0 ~ ("^" leaf ":") {
+      if ($0 ~ /FORCE/ && $0 !~ /\.x([[:space:]]|$)/) { ok=1; exit 0 }
+      exit 1
+    }
+    END { exit ok ? 0 : 1 }
+  ' "$MF" 2>/dev/null; then
+    _ok_f=1
+  elif grep -qF "$_r3c" "$_R3C_MK" \
+    && grep -qE '\$\(R3_COLD_SEED_OBJS\):[[:space:]]*FORCE' "$MF"; then
+    _ok_f=1
+  fi
+  if [ "$_ok_t" -eq 1 ]; then
+    _r3c_thin=$((_r3c_thin + 1))
+  else
+    bad "Makefile $_r3c must thin-call try-heat (wave757/906)"
+  fi
+  if [ "$_ok_f" -eq 1 ]; then
+    _r3c_force=$((_r3c_force + 1))
+  else
+    bad "Makefile $_r3c must FORCE dep-thin (wave906)"
+  fi
+done < <(
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^R3_COLD_SEED_OBJS[[:space:]]*=/ {
+      line=$0
+      sub(/#.*/,"",line)
+      n=split(line, a, /[[:space:]\\]+/)
+      for (i=1;i<=n;i++) if (a[i] ~ /\.o$/) print a[i]
+    }
+  ' "$_R3C_MK"
+)
+if [ "$_r3c_thin" -ne 9 ]; then
+  bad "wave906 expected 9 R3_COLD ensure leaves, got $_r3c_thin"
+fi
+if [ "$_r3c_force" -ne 9 ]; then
+  bad "wave906 expected 9 R3_COLD FORCE thin leaves, got $_r3c_force"
+fi
+_r3c_indiv=0
+while IFS= read -r _r3c; do
+  [ -z "$_r3c" ] && continue
+  case "$_r3c" in *.o) ;; *) continue ;; esac
+  if grep -qE "^${_r3c}:" "$MF" 2>/dev/null; then
+    _r3c_indiv=$((_r3c_indiv + 1))
+  fi
+done < <(
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^R3_COLD_SEED_OBJS[[:space:]]*=/ {
+      line=$0
+      sub(/#.*/,"",line)
+      n=split(line, a, /[[:space:]\\]+/)
+      for (i=1;i<=n;i++) if (a[i] ~ /\.o$/) print a[i]
+    }
+  ' "$_R3C_MK"
+)
+if [ "$_r3c_indiv" -ne 0 ]; then
+  bad "Makefile still has $_r3c_indiv per-leaf R3_COLD targets (wave906 multi-target only)"
+fi
+note "Makefile R3_COLD multi-target FORCE thin try-heat + mk list 9 (wave757/763/788/906; not physical delete)"
+
 
 # wave829: product/archaeology *_gen.c FORCE dep-thin (17 leaves; no dual .x / X_DEPS prereqs).
 _gen_c_force_leaves="
@@ -8075,6 +8229,10 @@ fi
 if grep -qE '\$\(R1_SEED_MAP_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null; then
   _th_recipe_n=$((_th_recipe_n + 4))
 fi
+# wave906: multi-target collapses 9 R3_COLD leaves → 1 rule; logical expand +8.
+if grep -qE '\$\(R3_COLD_SEED_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null; then
+  _th_recipe_n=$((_th_recipe_n + 8))
+fi
 if [ "${_th_recipe_n}" -lt 100 ]; then
   bad "Makefile expected >=100 try-heat thin-call recipes (wave862; got ${_th_recipe_n}; multi-target logical expand)"
 fi
@@ -8870,6 +9028,10 @@ fi
 if grep -qE '\$\(R1_SEED_MAP_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null; then
   _bash_thin_n=$((_bash_thin_n + 4))
 fi
+# wave906: multi-target collapses 9 R3_COLD leaves → 1 @bash line; logical expand +8.
+if grep -qE '\$\(R3_COLD_SEED_OBJS\):[[:space:]]*FORCE' "$MF" 2>/dev/null; then
+  _bash_thin_n=$((_bash_thin_n + 8))
+fi
 if [ "$_bash_thin_n" -lt 200 ]; then
   bad "Makefile @bash scripts/ thin-call count expected >=200 got ${_bash_thin_n} (wave890; multi-target logical expand)"
 fi
@@ -9092,10 +9254,14 @@ if [ -f "$MF" ]; then
   if grep -qE '\$\(R1_SEED_MAP_OBJS\):[[:space:]]*FORCE[[:space:]]+scripts/ensure_host_cc_seed_o\.sh' "$MF" 2>/dev/null; then
     _force_n=$((_force_n + 4))
   fi
+  # wave906: multi-target collapses 9 R3_COLD leaves → 1 rule; logical expand +8.
+  if grep -qE '\$\(R3_COLD_SEED_OBJS\):[[:space:]]*FORCE[[:space:]]+scripts/ensure_host_cc_seed_o\.sh' "$MF" 2>/dev/null; then
+    _force_n=$((_force_n + 8))
+  fi
   if [ "${_force_n}" -lt 113 ]; then
-    bad "Makefile wave797 FORCE dep-thin leaves expected >=113 (n=${_force_n}; wave897/898/899/900/901/902/903/904/905 multi-target logical expand)"
+    bad "Makefile wave797 FORCE dep-thin leaves expected >=113 (n=${_force_n}; wave897/898/899/900/901/902/903/904/905/906 multi-target logical expand)"
   else
-    note "Makefile heat dep-edge FORCE thin (n=${_force_n}; wave797; wave897/898/899/900/901/902/903/904/905 multi-target logical expand)"
+    note "Makefile heat dep-edge FORCE thin (n=${_force_n}; wave797; wave897/898/899/900/901/902/903/904/905/906 multi-target logical expand)"
   fi
   # wave797: orch last heat source-prereq leaf must be FORCE thin (no pipeline_gen prereq edge).
   # G.7: do not quote product *.o paths in residual body (self inventory ban).

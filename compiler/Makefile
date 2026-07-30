@@ -458,32 +458,21 @@ $(LEGACY_XLANG_C_READY_TARGETS): | legacy-xlang-c-ready
 
 # E-04 v2/v3：argv/target 与 POSIX I/O ABI 薄壳；默认 seed / B-strict 均链入。
 
-# G-02f-12 / Phase 4：runtime_io_abi PREFER_X_O（rest→.x 迁移）
+# G-02f-12 / Phase 4：runtime_io_abi PREFER_X_O — joined wave906 multi-target $(R3_COLD_SEED_OBJS).
 # 5 个 _impl 真迁 .x（read/malloc/memcpy）；4 个保留 seed（mmap/fstat/O_* flags/平台 #ifdef）
 # PLATFORM: SHARED 冷链纪律 — 仅 XLANG_G05_PREFER_X_O=1 才 thin（同 simd_enc；见下 runtime_driver_abi）。
-# wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer (list = R3_COLD_SEED_OBJS).
-# wave793 B7A: heat dep-edge thin pure seed+.x+.h residual — prereqs → FORCE + ensure;
-# try-heat owns seed/.x/project-hdr mtime (seed_project_hdrs_newer).
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/runtime_io_abi.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-
+# Archaeology: wave757 R3 cold-else + wave763 try-r3-prefer + wave793 FORCE — body in try-heat.
 
 # G-02f-13：runtime_link_abi 产品 seed — joined wave899 multi-target $(R1_CORE_SEED_OBJS).
 # wave765 archaeology: labi multi-slice PREFER → try-labi-prefer (cold full seed fallback; body in try-heat).
 
-# G-02f-12 / Phase 4：runtime_driver_abi thin+rest PREFER_X_O
+# G-02f-12 / Phase 4：runtime_driver_abi thin+rest PREFER_X_O — joined wave906 multi-target $(R3_COLD_SEED_OBJS).
 # PLATFORM: SHARED 冷链 — bootstrap-driver-seed 传 XLANG_G05_PREFER_X_O=0 必须走 seed。
 # 【Why 2026-07-16 铁证】Darwin 冷测：select_bootstrap 先恢复 xlang-c，若仅「有 xlang-c 就 thin」，
 # thin 会 emit process_args_count_c → U process_xlang_argc_get，而 phase1 未链 runtime_process_argv.o
 # → mac phase1 UNDEF；Ubuntu 上 thin -E/cc 常失败回退 seed 故假绿。须与 simd_enc 同源门控。
 # 链闭包：DRIVER_SEED_OBJS 含 runtime_process_argv.o（PREFER=1 时亦须能解析 process_xlang_*）。
-# wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer (list = R3_COLD_SEED_OBJS).
-# wave793 B7A: heat dep-edge thin pure seed+.x+.h residual — prereqs → FORCE + ensure;
-# try-heat owns seed/.x/project-hdr mtime (seed_project_hdrs_newer).
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/runtime_driver_abi.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# Archaeology: wave757/763 try-r3-prefer · wave793 FORCE — body in try-heat.
 
 # G-02f-12：runtime_pipeline_abi 产品 seed — joined wave903 multi-target $(R1_EXTRA_CFLAGS_OBJS).
 # Archaeology: wave753 R1 cold USE_X_PIPELINE · wave767 try-pipeline-abi-prefer · wave794 FORCE
@@ -519,14 +508,9 @@ src/async/async_cps_codegen.o: FORCE scripts/ensure_host_cc_seed_o.sh
 src/async/async_asm_pool.o: FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
-# G-02f-12 / Phase 4：runtime_driver_diagnostic thin+rest PREFER_X_O
+# G-02f-12 / Phase 4：runtime_driver_diagnostic — joined wave906 multi-target $(R3_COLD_SEED_OBJS).
 # PLATFORM: SHARED 冷链 — 仅 XLANG_G05_PREFER_X_O=1 才 thin（同 simd_enc / runtime_driver_abi）。
-# wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer (list = R3_COLD_SEED_OBJS).
-# wave793 B7A: heat dep-edge thin pure seed+.x+.h residual — prereqs → FORCE + ensure;
-# try-heat owns seed/.x/project-hdr mtime (seed_project_hdrs_newer).
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/runtime_driver_diagnostic.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# Archaeology: wave757/763 try-r3-prefer · wave793 FORCE — body in try-heat.
 
 # 6.3：runtime.c 提供 run_compiler_c 与弱符号 main_entry；带 .x 入口时用 runtime_driver.o（含 driver_*/pipeline_*）
 # G-02f-14：runtime 产品 seed（多变体）— joined wave901 multi-target $(R1_MAIN_RUNTIME_OBJS).
@@ -697,6 +681,22 @@ $(R1_MISC_BASENAME_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 # PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
 # ---------------------------------------------------------------------------
 $(R1_SEED_MAP_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
+	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+
+# ---------------------------------------------------------------------------
+# wave906 B7B: R3_COLD product edges multi-target FORCE thin try-heat
+# G.7 有则补全: list authority = R3_COLD_SEED_OBJS in mk/driver_seed_r_lists.mk
+# (wave757 family · wave763 try-r3-prefer · wave788 list→mk · COUNT=9).
+# Do NOT open a second .o list. Body authority = scripts/ensure_host_cc_seed_o.sh try-heat
+# (wave757/763/764/790/792/793; PREFER thin+rest ladder lives in try-heat → try-r3-prefer).
+# Leaves: runtime_io_abi · runtime_driver_abi · runtime_driver_diagnostic · simd_enc ·
+# simd_loop · backend_enc_dispatch · backend_arch_emit_dispatch · backend_try_inline_dispatch ·
+# backend_call_dispatch.
+# Makefile only FORCE + thin-call. NOT physical delete — thin edges + remaining mk lists hybrid
+# (async / B1 runtime OS / gen-x / …) + tip Windows → dual L4 → explicit auth ship delete.
+# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
+# ---------------------------------------------------------------------------
+$(R3_COLD_SEED_OBJS): FORCE scripts/ensure_host_cc_seed_o.sh
 	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
 
 # G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（XLANG_LEGACY_PREPROCESS_C 路径已死）。
@@ -1293,14 +1293,9 @@ $(USER_ASM_SEED_HOST_OBJS): build-seed-asm-host
 # (wave752 R1 · wave769 try-l2-asm-prefer in try-heat) — joined wave902 multi-target
 # $(R1_ALIAS_STUBS_OBJS).
 
-# G-02f-9 / Phase 4：backend_*_dispatch thin+rest PREFER_X_O
-# wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer.
-# wave763: PREFER gate unified (PREFER=1 only) for cold-chain safety (Darwin).
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/asm/backend_enc_dispatch.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# G-02f-9 / Phase 4：backend_*_dispatch thin+rest PREFER_X_O — joined wave906 multi-target
+# $(R3_COLD_SEED_OBJS). wave763 PREFER gate unified (PREFER=1 only) for cold-chain safety (Darwin).
+# Archaeology: wave757/763 try-r3-prefer · wave792 FORCE — body in try-heat.
 
 # G-02f-15：backend_x86_64_enc_c 产品 seed — joined wave904 multi-target $(R1_MISC_BASENAME_OBJS).
 # Archaeology: wave754 R1 cold · wave769 try-l2-asm-prefer · wave792 FORCE — body in try-heat.
@@ -1309,26 +1304,8 @@ src/asm/backend_enc_dispatch.o: FORCE scripts/ensure_host_cc_seed_o.sh
 # PLATFORM: MACOS arm64 pure-asm 必需；其它主机链接无害（ta!=1 不调）。
 # Archaeology: wave754 R1 · wave792 FORCE — body in try-heat.
 
-# wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer.
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/asm/backend_arch_emit_dispatch.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-
-# wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer.
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/asm/backend_try_inline_dispatch.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-
-# wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer.
-# wave792 B7A: heat dep-edge thin pure seed+.x residual — prereqs → FORCE + ensure;
-# shell owns seed/.x freshness (try-heat). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/asm/backend_call_dispatch.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# backend_arch_emit / try_inline / call_dispatch — joined wave906 multi-target $(R3_COLD_SEED_OBJS).
+# Archaeology: wave757/763 try-r3-prefer · wave792 FORCE — body in try-heat.
 
 # parser EMIT_HEAVY thin delegate C 目标：bootstrap xlang 须链入，extern bl 白名单 emit 才不 segfault。
 # 全量 parser_x.o 已含 parse_into_buf / get_module_* 等；禁 seed slice 与重复前缀符号。
@@ -1454,28 +1431,18 @@ bootstrap-codegen: $(TARGET) $(XLANG_C) bootstrap_xlangc $(RELINK_XLANG_PREREQS)
 # G-02f-6：target_cpu.o 单 TU — joined wave905 multi-target $(R1_SEED_MAP_OBJS).
 # Archaeology: wave755 R1 · wave768 try-target-cpu-prefer · wave793 FORCE · seed map
 # target_cpu ← target_cpu_pure — body in try-heat.
-# G-02f-7 / Phase 4：simd_enc thin+rest PREFER_X_O
+# G-02f-7 / Phase 4：simd_enc thin+rest PREFER_X_O — joined wave906 multi-target $(R3_COLD_SEED_OBJS).
 # 源：src/asm/simd_enc_thin.x（74 #[no_mangle] thin wrapper）+ seeds/simd_enc.from_x.c（_impl rest）
 # 仅 XLANG_G05_PREFER_X_O=1 且 xlang-c 可用时走 thin；否则 seed 完整编译。
 # 【Why 2026-07-16】Darwin 上 bootstrap_xlangc 常在：若仅按「有 xlang-c」走 thin，thin 可能
 # 假成功（能 cc/ld -r 但缺 simd_rbp_disp32 等强符号）→ seed phase1 链失败。
 # Ubuntu 上 thin 生成 C 常编译失败并回退 seed，故冷链绿；mac 须与冷链同源：默认 seed。
-# 验收：nm 须有 simd_rbp_disp32，否则丢弃 thin 回退 seed（body = try-r3-prefer）。
-# wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer.
-# wave793 B7A: heat dep-edge thin pure seed+.x+.h residual — prereqs → FORCE + ensure;
-# try-heat owns seed/.x/project-hdr mtime (seed_project_hdrs_newer).
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/asm/simd_enc.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
-# G-02f-8 / Phase 4：simd_loop thin+rest PREFER_X_O
+# 验收：nm 须有 simd_rbp_disp32，否则丢弃 thin 回退 seed（body = try-r3-prefer in try-heat）.
+# Archaeology: wave757/763 try-r3-prefer · wave793 FORCE — body in try-heat.
+# G-02f-8 / Phase 4：simd_loop thin+rest PREFER_X_O — joined wave906 multi-target $(R3_COLD_SEED_OBJS).
 # 源：src/asm/simd_loop_thin.x（22 #[no_mangle] thin wrapper）+ seeds/simd_loop.from_x.c（17 _impl rest）
 # 仅 XLANG_G05_PREFER_X_O=1 且 xlang-c 可用时走 thin；否则 seed 完整编译（同 simd_enc 冷链纪律）。
-# wave757 R3 cold-else + wave763 R3 PREFER thin → ensure try-r3-prefer.
-# wave793 B7A: heat dep-edge thin pure seed+.x+.h residual — prereqs → FORCE + ensure;
-# try-heat owns seed/.x/project-hdr mtime (seed_project_hdrs_newer).
-# PLATFORM: SHARED — FORCE always invokes try-heat (cheap mtime skip).
-src/asm/simd_loop.o: FORCE scripts/ensure_host_cc_seed_o.sh
-	@bash scripts/ensure_host_cc_seed_o.sh try-heat $@
+# Archaeology: wave757/763 try-r3-prefer · wave793 FORCE — body in try-heat.
 # G-02a Step 1：默认构建切 no_c 模式；默认 bootstrap 不链 LEXER_LINK_O / AST_LINK_O。
 # C 前端 .c（ast/lexer/parser/typeck/codegen）仍保留，因 build_xlang_asm.sh + relink 脚本仍引用 ast_seed.o 等。
 # bootstrap-driver-seed：pipeline_x.o 为 -E-extern 编排；parser/lexer/typeck/codegen *_x.o 分 TU。

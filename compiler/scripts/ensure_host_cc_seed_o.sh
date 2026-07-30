@@ -5592,7 +5592,20 @@ run_check() {
   else
     note "r3-prefer leaf map + body present (wave763)"
   fi
-  # Makefile R3_COLD nine must thin-call try-r3-prefer (no inline thin+rest).
+  # Makefile R3_COLD nine must thin-call try-heat|try-r3-prefer (no inline thin+rest).
+  # wave906: multi-target $(R3_COLD_SEED_OBJS): FORCE + try-heat covers all nine
+  # (G.7 有则补全 list; no per-leaf dual). Accept multi-target OR historical per-leaf.
+  _r3c_multi=0
+  if grep -qE '\$\(R3_COLD_SEED_OBJS\):[[:space:]]*FORCE' Makefile 2>/dev/null \
+    && awk '
+      /\$\(R3_COLD_SEED_OBJS\):/ { hit=1; next }
+      hit && /^[^#[:space:]\t]/ { exit 1 }
+      hit && /ensure_host_cc_seed_o\.sh/ && /try-heat|try-r3-prefer/ { found=1; exit 0 }
+      END { exit found ? 0 : 1 }
+    ' Makefile; then
+    _r3c_multi=1
+    note "Makefile R3_COLD multi-target FORCE thin try-heat (wave906; covers nine)"
+  fi
   for leaf in \
     src/runtime_io_abi.o \
     src/runtime_driver_abi.o \
@@ -5604,6 +5617,13 @@ run_check() {
     src/asm/backend_try_inline_dispatch.o \
     src/asm/backend_call_dispatch.o
   do
+    if [ "$_r3c_multi" -eq 1 ]; then
+      # Multi-target owns thin-call; still ban per-leaf dual recipe if present.
+      if grep -qE "^${leaf}:" Makefile 2>/dev/null; then
+        bad "Makefile $leaf still has per-leaf target under R3_COLD multi-target (wave906)"
+      fi
+      continue
+    fi
     if awk -v t="$leaf" '
       $0 ~ "^" t ":" {grab=1; next}
       grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
@@ -5615,7 +5635,7 @@ run_check() {
     ' Makefile; then
       note "Makefile $leaf thin-calls ensure try-r3-prefer (wave763)"
     else
-      bad "Makefile $leaf must thin-call ensure try-heat|try-r3-prefer (wave763)"
+      bad "Makefile $leaf must thin-call ensure try-heat|try-r3-prefer (wave763/906)"
     fi
     # No residual inline ld -r thin+rest in the leaf recipe body.
     if awk -v t="$leaf" '

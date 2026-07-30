@@ -70,6 +70,8 @@ R1_SEED_MAP_OBJS = src/driver/target_cpu.o src/ast/ast_seed.o pipeline_bootstrap
 
 # wave757 R3 cold-else family: thin+rest leaves whose cold path is pure host-cc.
 # List authority for ensure try-r3-cold / try-r3-prefer / r3-cold-seed (G.7).
+# wave906: also make-graph multi-target FORCE thin try-heat inventory (COUNT=9).
+# Body = ensure try-heat → try-r3-prefer; do not re-list in Makefile or residual shells (G.7).
 R3_COLD_SEED_OBJS = src/runtime_io_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/asm/simd_enc.o src/asm/simd_loop.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o
 
 # pipeline_glue_standalone product leaf (also referenced by composites / export lists).
