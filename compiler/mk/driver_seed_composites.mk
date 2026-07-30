@@ -32,6 +32,13 @@
 # $(BOOTSTRAP_SELF_LINK_OBJS) only. XNC full bag lives in
 # archaeology_experiment_objs.mk (same wave). NOT physical delete.
 #
+# wave853: BOOTSTRAP_DRIVER_SEED_PHASE1_LINK_OBJS + FINAL_LINK_OBJS — daily
+# product seed phase1/final full host-cc link bags (export SEED_LINK_OBJS).
+# G.7 有则补全; Makefile expand the two vars only (no dual re-list of
+# LINK_BASE + user-asm + glue). Glue suffix is RELINK_XLANG_GLUE_SUFFIX
+# (strict_minimal + stubs) — same as historic target-specific override on
+# phase1/final export leaves. NOT physical delete.
+#
 # PLATFORM: SHARED — composite paths under compiler/; host-filtered pieces
 # come from already-resolved vars (Darwin filtered pipeline, etc.).
 
@@ -107,3 +114,15 @@ XLANG_X_LINK_OBJS = $(XLANG_X_LINK_BASE) $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_S
 # Consumer: BS_LINK_OBJS (make bootstrap-self → bootstrap_self.sh).
 # PLATFORM: SHARED — USER_ASM_LINK from user_asm_seed_objs.mk.
 BOOTSTRAP_SELF_LINK_OBJS = $(DRIVER_SEED_LINK_BASE) $(USER_ASM_LINK)
+
+# wave853 B7B: daily product seed phase1 + final full host-cc link bags (G.7).
+# Both expand BOOTSTRAP_DRIVER_SEED_LINK_BASE (Darwin-filtered pipeline pick)
+# + glue prefix + RELINK_XLANG_GLUE_SUFFIX (strict_minimal + stubs at link END).
+# Phase1 uses HOST_STUBS + partial host asm (not full HOST_OBJS) + filtered
+# user-asm; final uses HOST_OBJS + HOST_STUBS + filtered user-asm.
+# Honesty COUNT=2 bags (phase1 + final). Phase1 alone has one fixed multi-token
+# path (seed_host partial); final is all $(...) expands.
+# Consumers: SEED_LINK_OBJS on bootstrap-driver-seed-export-{phase1,final}-link.
+# PLATFORM: SHARED — HOST/filtered picks from user_asm_seed_objs.mk.
+BOOTSTRAP_DRIVER_SEED_PHASE1_LINK_OBJS = $(DRIVER_SEED_GLUE_PREFIX) $(BOOTSTRAP_DRIVER_SEED_LINK_BASE) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS) $(USER_ASM_SEED_HOST_STUBS) build_asm/seed_host/asm_backend_partial.o $(RELINK_XLANG_GLUE_SUFFIX)
+BOOTSTRAP_DRIVER_SEED_FINAL_LINK_OBJS = $(DRIVER_SEED_GLUE_PREFIX) $(BOOTSTRAP_DRIVER_SEED_LINK_BASE) $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS) $(RELINK_XLANG_GLUE_SUFFIX)
