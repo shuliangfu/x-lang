@@ -1494,6 +1494,7 @@
 - **wave858** · B7B LEGACY xlang-c link shell-primary（export-legacy-xlang-c-link-objs + CFLAGS reuse product）
 - **wave860** · B7B driver_leaf BASE_CFLAGS multi-token shell-load（export-driver-leaf-base-cflags；8 leaves）
 - **wave861** · B7B rt_* multi-token -I CFLAGS hygiene（5 RT_SEED_SLICE leaves；plain CFLAGS= try-heat）
+- **wave862** · B7B try-heat CFLAGS/PIPELINE_GEN bulk shell-load（export-try-heat-cflags；114 recipes 去 multi-token CFLAGS inject）
 - **wave859** · B7B XXP/BXC multi-token bag shell-load（export-xxp-link-bags + export-bxc-link-objs；2 shells）
 - **wave857** · B7B archaeology LINK_CFLAGS shell-load via make export leaves（4 bags / 6 shells；配方去 multi-token CFLAGS/FLAGS env）
 - **wave856** · B7B archaeology LINK_OBJS shell-load via make export leaves（5 bags / 6 shells；nested expand；配方去 multi-token LINK_OBJS env；CFLAGS → wave857）
@@ -1600,6 +1601,7 @@
 - ✅ **seed phase1/final full link bags → mk**（wave853 · composites · `BOOTSTRAP_DRIVER_SEED_{PHASE1,FINAL}_LINK_OBJS` · bags **2** · SEED_LINK_OBJS expand only · **非**物理删 · thin edges + B2 + 其它 mk lists）
 - ✅ **seed-gate REQUIRED_OBJS bags → mk**（wave854 · composites + archaeology · `RELINK_XLANG_REQUIRED_OBJS`/`XLANG_X_REQUIRED_OBJS`/`XLANG_NO_C_FRONTEND_REQUIRED_OBJS` · bags **3** · fixed multi-token 6+12+3 · Makefile expand only · **非**物理删 · thin edges + B2 + 其它 mk lists） · 双端 L2 tip **`44f161811`**
 - ✅ **seed-gate REQUIRED shell-load from mk**（wave855 · RXL/XXL/XNC 3 shells · `_mk_assign_val` 自 mk 加载 · Makefile 去 multi-token REQUIRED env · **非**物理删 · LINK env + thin edges + B2 + mk lists）
+- ✅ **try-heat CFLAGS bulk shell-load**（wave862 · export-try-heat-cflags · 114 recipes 去 CFLAGS/PIPELINE_GEN inject · shell 未设时 make 展开 · **非**物理删 · thin edges + B2 + mk lists）
 - ⬜ **B7 residual endgame · physical delete / 删 Makefile**
   - **须** lists/thin 残项 + Windows tip 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体
   - 已闭（一行一项，摘要）：

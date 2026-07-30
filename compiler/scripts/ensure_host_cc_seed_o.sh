@@ -257,13 +257,15 @@
 # Env:
 #   CC — host compiler (default: resolve_host_cc.sh — `cc` if present else `gcc`;
 #        PLATFORM: WINDOWS/MinGW often has only gcc, no `cc` binary name)
-#   CFLAGS — base flags (default: -Wall -Wextra -I. -Iinclude -Isrc)
-#   PIPELINE_GEN_CFLAGS — optional silence flags (Makefile exports when thin)
+#   CFLAGS — base flags (default: load via make export-try-heat-cflags when unset
+#        — wave862; fallback -Wall -Wextra -I. -Iinclude -Isrc)
+#   PIPELINE_GEN_CFLAGS — silence flags (default: load via export-try-heat-cflags
+#        when unset — wave862; needs make ifeq for CC_IS_CLANG)
 #   RUNTIME_DRIVER_CFLAGS / RUNTIME_DRIVER_NO_C_CFLAGS — multi-flag variants
 #   RUNTIME_PIPELINE_ABI_CFLAGS / PARSER_ASM_LINK_ALIAS_CFLAGS — extra-cflags family
 #     (Makefile thin expands make vars; family mode uses env or defaults below)
 #   XLANG_HOST_CC_SEED_FORCE=1 — force recompile (same as --force)
-#   MAKE — only for catalog list expansion (default: make)
+#   MAKE — catalog list expansion + wave862 CFLAGS export leaf (default: make)
 #
 # PLATFORM: SHARED — shell orchestration; seed pins host-portable C.
 #   R2 panic body: PLATFORM LINUX|x86_64 (.s) / MACOS|arm64 + LINUX|aarch64
@@ -281,11 +283,41 @@ cd "$_ENSURE_HOST_CC_DIR/.."
 # CC=cc — MinGW ships gcc without a `cc` alias (Windows hybrid min-gate).
 # shellcheck source=resolve_host_cc.sh
 . "$_ENSURE_HOST_CC_DIR/resolve_host_cc.sh"
-# Match g05 / Makefile product includes; PIPELINE_GEN_CFLAGS optional (Makefile thin).
-BASE_CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}"
-PIPELINE_GEN_CFLAGS="${PIPELINE_GEN_CFLAGS:-}"
 MAKE="${MAKE:-make}"
 FORCE="${XLANG_HOST_CC_SEED_FORCE:-0}"
+
+# wave862 · B7B try-heat CFLAGS bulk shell-load (G.7 有则补全 on wave860 export-leaf).
+# Product CFLAGS / PIPELINE_GEN_CFLAGS need make expansion (OPT += -O2; clang
+# silence ifeq). Makefile try-heat recipes drop multi-token CFLAGS= env; shell
+# loads export-try-heat-cflags when either var is unset. Fallback matches
+# historic shell defaults when make export is unavailable.
+# PLATFORM: SHARED — KEY=value from export target; no compile side effects.
+_load_try_heat_cflags_via_make() {
+  local raw line
+  raw=$(MAKEFLAGS= "${MAKE:-make}" -s export-try-heat-cflags) || return 1
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      CFLAGS=*)
+        if [ -z "${CFLAGS+x}" ]; then
+          CFLAGS=${line#CFLAGS=}
+        fi
+        ;;
+      PIPELINE_GEN_CFLAGS=*)
+        if [ -z "${PIPELINE_GEN_CFLAGS+x}" ]; then
+          PIPELINE_GEN_CFLAGS=${line#PIPELINE_GEN_CFLAGS=}
+        fi
+        ;;
+    esac
+  done <<<"$raw"
+  return 0
+}
+
+if [ -z "${CFLAGS+x}" ] || [ -z "${PIPELINE_GEN_CFLAGS+x}" ]; then
+  _load_try_heat_cflags_via_make || true
+fi
+# Match g05 / Makefile product includes; PIPELINE_GEN_CFLAGS optional when empty.
+BASE_CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}"
+PIPELINE_GEN_CFLAGS="${PIPELINE_GEN_CFLAGS:-}"
 
 # Default multi-flag mirrors for family mode when env empty.
 # PLATFORM: SHARED — must stay aligned with Makefile RUNTIME_DRIVER_*_CFLAGS
@@ -6274,6 +6306,34 @@ run_check() {
   else
     note "try-heat B7A heat auto-dispatch present (wave789)"
   fi
+  # wave862: try-heat CFLAGS bulk shell-load via export-try-heat-cflags (G.7).
+  # Makefile try-heat recipes must not re-inject CFLAGS=/PIPELINE_GEN_CFLAGS=.
+  if ! grep -qE '^export-try-heat-cflags:' Makefile; then
+    bad "Makefile must define export-try-heat-cflags (wave862)"
+  else
+    note "Makefile export-try-heat-cflags present (wave862)"
+  fi
+  if ! grep -q '_load_try_heat_cflags_via_make\|export-try-heat-cflags' "$0"; then
+    bad "shell must load try-heat CFLAGS via export leaf (wave862)"
+  else
+    note "try-heat CFLAGS shell-load present (wave862)"
+  fi
+  _th_cflags_n=$(awk '
+    $0 ~ /ensure_host_cc_seed_o\.sh try-heat/ { grab=1 }
+    grab {
+      body = body $0 "\n"
+      if ($0 ~ /try-heat \$\@/) {
+        if (body ~ /CFLAGS="\$\(CFLAGS\)"/ || body ~ /PIPELINE_GEN_CFLAGS="\$\(PIPELINE_GEN_CFLAGS\)"/) n++
+        body=""; grab=0
+      }
+    }
+    END { print n+0 }
+  ' Makefile)
+  if [ "${_th_cflags_n:-0}" -ne 0 ]; then
+    bad "Makefile try-heat recipes still inject CFLAGS=/PIPELINE_GEN_CFLAGS= (wave862; got ${_th_cflags_n})"
+  else
+    note "Makefile try-heat recipes drop CFLAGS/PIPELINE_GEN inject (wave862)"
+  fi
   if ! grep -q 'seed_project_hdrs_newer' "$0"; then
     bad "seed_project_hdrs_newer missing (wave793 B7A hdr mtime for FORCE thin)"
   else
@@ -6302,7 +6362,7 @@ run_check() {
   else
     note "net_merge multi-source mtime present (wave796 FORCE thin)"
   fi
-  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else + R3 PREFER thin + R2 panic/typeck_f64/crt0 + gen-x residual + try-heat + hdr/Makefile-flags + net multi-merge mtime · wave748–796)" >&2
+  echo "ensure_host_cc_seed_o: CHECK OK (R1 families + try-r1 + R3 cold-else + R3 PREFER thin + R2 panic/typeck_f64/crt0 + gen-x residual + try-heat + CFLAGS shell-load wave862 + hdr/Makefile-flags + net multi-merge mtime · wave748–862)" >&2
 }
 
 # ---------------------------------------------------------------------------

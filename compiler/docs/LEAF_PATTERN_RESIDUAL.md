@@ -29,7 +29,9 @@
 > - **wave858** · B7B LEGACY xlang-c link shell-primary (export leaf + CFLAGS reuse product)
 > - **wave859** · B7B XXP/BXC multi-token bag shell-load via make export leaves (2 shells)
 > - **wave860** · B7B driver_leaf BASE_CFLAGS multi-token shell-load via make export leaf (8 leaves)
-- **open** · thin edges + B2 + other mk lists (hybrid) → tip Windows → dual L4 → explicit auth ship delete
+> - **wave861** · B7B rt_* multi-token -I CFLAGS hygiene (5 RT_SEED_SLICE leaves; plain CFLAGS= try-heat)
+> - **wave862** · B7B try-heat CFLAGS/PIPELINE_GEN_CFLAGS bulk shell-load via export-try-heat-cflags (114 recipes)
+> - **open** · thin edges + B2 + other mk lists (hybrid) → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
