@@ -1491,6 +1491,7 @@
 - **wave853** · B7B seed phase1/final full link bags → composites（SEED_LINK_OBJS；2 bags）
 - **wave854** · B7B seed-gate REQUIRED_OBJS bags → composites + archaeology（RXL/XXL/XNC；3 bags）
 - **wave855** · B7B seed-gate REQUIRED shell-load from mk（RXL/XXL/XNC；Makefile 去 multi-token REQUIRED env）
+- **wave856** · B7B archaeology LINK_OBJS shell-load via make export leaves（5 bags / 6 shells；nested expand；配方去 multi-token LINK_OBJS env；CFLAGS 仍 make export）
 - **open** · thin edges + B2 + other mk lists（hybrid）+ LINK env export residual → tip Windows → 双端 L4 → explicit auth 真删
 
 **状态明细**（一行一项）：

@@ -23,8 +23,9 @@
 > - **wave853** · B7B seed phase1/final full link bags → composites.mk (SEED_LINK_OBJS; 2 bags)
 > - **wave854** · B7B seed-gate REQUIRED_OBJS bags → composites + archaeology (RXL/XXL/XNC; 3 bags)
 > - **wave855** · B7B seed-gate REQUIRED shell-load from mk (RXL/XXL/XNC; Makefile drops multi-token env export)
+> - **wave856** · B7B archaeology LINK_OBJS shell-load via make export leaves (5 bags / 6 shells; nested expand)
 > - **wave799** · execute-gate (hard refuse delete)
-> - **open** · thin edges + B2 + other mk lists (hybrid) + LINK env export residual → tip Windows → dual L4 → explicit auth ship delete
+> - **open** · thin edges + B2 + other mk lists (hybrid) + LINK CFLAGS env residual → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -2067,6 +2068,58 @@ ship delete body; mac-only wave green.
 **Forbidden:** claim bootstrap_xlangc FORCE thin = physical delete; re-list
 `bootstrap_xlangc_create.sh` on Makefile prereq; dual host-pick outside select;
 `rm compiler/Makefile`; ship delete body; mac-only wave green.
+
+
+## wave856 B7B LINK_OBJS shell-load via make export leaves (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **有则补全** on product archaeology **full LINK bag**
+> multi-token env still exported on Makefile thin-call recipes after wave855
+> (REQUIRED already shell-loads mk text; LINK bags need **make expansion** of
+> nested `$(...)` / Darwin filtered pipeline picks — pure `_mk_assign_val` is
+> wrong):
+>   - **RXL / BTC** — `RELINK_PRODUCT_LINK_OBJS` via `export-relink-product-link-objs`
+>   - **XXL** — `XLANG_X_LINK_OBJS` via `export-xlang-x-link-objs`
+>   - **XNC** — `XLANG_NO_C_FRONTEND_LINK_OBJS` via `export-xnc-link-objs`
+>   - **BXF** — `DRIVER_SEED_X_FRONTEND_LINK_OBJS` via `export-bxf-link-objs`
+>   - **BS** — `BOOTSTRAP_SELF_LINK_OBJS` via `export-bs-link-objs`
+>
+> Authority pattern = same as `bootstrap_driver_seed_export-*-link` (wave721+):
+> shell loads `LINK_OBJS=` when env unset; Makefile recipes drop multi-token
+> `*_LINK_OBJS=` / `BTC_OBJS=` env. **CFLAGS / defines stay make thin-call env**
+> (composed flags). Bags **COUNT=5** (RXL+BTC share one bag); shells **COUNT=6**.
+>
+> Residual after: thin edges + B2 + mk lists + LINK **CFLAGS** env residual.
+> Dual-end L2 required. Blockers **remain**.
+
+```text
+  leaf dump:
+    PHYS_DEL_B7B_LINK_OBJS_SHELL_LOAD=1
+    PHYS_DEL_B7B_LINK_OBJS_SHELL_LOAD_WAVE=wave856
+    PHYS_DEL_B7B_LINK_OBJS_SHELL_LOAD_COUNT=5
+    SWALLOWED_B7B_LINK_OBJS_SHELL_LOAD=1
+    PHYS_DEL_PREFLIGHT_B7B_LINK_OBJS_SHELL_LOAD=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  dual-end L2 green tip: (pending this commit)
+  next: residual thin/B2/lists (hybrid) or LINK CFLAGS residual or tip Windows
+    re-proof → ship delete body (explicit auth only; tip L4 wave840)
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_B7B_LINK_OBJS_SHELL_LOAD` | `1` |
+| `PHYS_DEL_B7B_LINK_OBJS_SHELL_LOAD_COUNT` | `5` bags / `6` shells |
+| `SWALLOWED_B7B_LINK_OBJS_SHELL_LOAD` | `1` |
+| `B7B_LINK_OBJS_SHELL_LOAD_VIA` | `export_relink_product+xlang_x+xnc+bxf+bs_link_objs` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | tree arm; delete deferred |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+
+**Forbidden:** claim LINK_OBJS export leaves = physical delete; dual multi-token
+`*_LINK_OBJS="…"` recipe env re-list; second full .o inventory in shell; pure
+mk text-parse of nested LINK bags; mac-only wave green; `rm compiler/Makefile`;
+ship delete without explicit auth.
 
 ## wave854 B7B seed-gate REQUIRED_OBJS bags → mk (2026-07-30)
 

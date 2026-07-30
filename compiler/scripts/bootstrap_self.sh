@@ -25,12 +25,13 @@
 #   CC                  — host C compiler (default: cc)
 #   CFLAGS              — base host CFLAGS
 #   BS_LINK_FLAGS       — expanded DRIVER_SEED_LINK_FLAGS + MAIN_LINK_FLAGS
-#   BS_LINK_OBJS        — expanded stage2 link bag from Makefile (mk authority)
+#   BS_LINK_OBJS        — optional; default loads via export-bs-link-objs (wave856)
 #   MAKE                — residual make for best-effort satellite leaves
 #   BS_OUT_SELF         — stage2 -o path (default: /tmp/out_self)
 #   BS_RV_SRC           — return-value probe (default: ../tests/return-value/main.x)
 #
 # wave843 (G.7 有则补全): Makefile fat stage2 link + smoke → this script.
+# wave856: LINK_OBJS shell-load via make export leaf (G.7; not physical delete).
 # NOT physical delete — thin-call edges + B2 + mk lists remain residual.
 # PLATFORM: SHARED — shell orchestration; file(1) Mach-O/ELF/PE32* portable.
 set -euo pipefail
@@ -76,7 +77,14 @@ if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
   if grep -qE 'cp.*TARGET.*_stage1|TARGET\)_stage1' <<<"$_rec"; then
     fail "bootstrap-self must not keep dual stage1 cp body (wave843; shell owns snapshot)"
   fi
-  log "CHECK OK (wave843 bootstrap-self shell-primary; not physical delete)"
+  # wave856: Makefile must not re-export multi-token LINK bag (shell loads export leaf).
+  if grep -qE 'BS_LINK_OBJS=' <<<"$_rec"; then
+    fail "bootstrap-self must not export BS_LINK_OBJS (wave856; shell loads export leaf)"
+  fi
+  if ! grep -qE '^export-bs-link-objs:' "$MF"; then
+    fail "Makefile must define export-bs-link-objs (wave856)"
+  fi
+  log "CHECK OK (wave843+856 bootstrap-self shell-primary; LINK_OBJS export leaf; not physical delete)"
   exit 0
 fi
 
@@ -96,8 +104,30 @@ fi
 # ---------------------------------------------------------------------------
 # Preflight: link env from Makefile thin-call (G.7: bag stays mk expansion)
 # ---------------------------------------------------------------------------
+# wave856: full LINK bag needs make expansion (nested $(...) / Darwin filters).
+# G.7 有则补全 on bootstrap_driver_seed_export-*-link pattern — shell loads via
+# make export leaf when env unset; Makefile recipes drop multi-token BS_LINK_OBJS=.
+# PLATFORM: SHARED — KEY=value from export target; no second .o inventory.
+_load_link_objs_via_make() {
+  # $1 = make export target (export-*-link-objs)
+  local target="$1"
+  local raw line val
+  raw=$(MAKEFLAGS= "${MAKE:-make}" -s "$target") || return 1
+  val=
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      LINK_OBJS=*) val=${line#LINK_OBJS=} ;;
+    esac
+  done <<<"$raw"
+  printf '%s' "$val"
+}
+
 if [ -z "${BS_LINK_OBJS:-}" ]; then
-  fail "BS_LINK_OBJS required (Makefile thin-call must export expanded stage2 bag)"
+  BS_LINK_OBJS=$(_load_link_objs_via_make export-bs-link-objs) \
+    || fail "failed to expand export-bs-link-objs (wave856 LINK_OBJS shell-load)"
+fi
+if [ -z "${BS_LINK_OBJS:-}" ]; then
+  fail "empty LINK_OBJS from export-bs-link-objs (wave856)"
 fi
 if [ ! -x "./$TARGET" ] && [ ! -f "./$TARGET" ]; then
   fail "missing $TARGET (build prereq first: make bootstrap-driver-seed)"

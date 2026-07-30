@@ -9,7 +9,8 @@
 #   Object lists stay mk expansion (archaeology_experiment_objs.mk
 #   DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS + DRIVER_SUBCMD + PIPELINE_LIBS +
 #   driver_x/preprocess_x/LSP_DIAG). Shell never hardcodes a second full link
-#   inventory — Makefile thin-call exports expanded bags as BXF_* env vars.
+#   inventory — wave856: LINK_OBJS via make export-bxf-link-objs when unset;
+#   CFLAGS still Makefile thin-call env (composed flags + defines).
 #
 # Usage (cwd = compiler/):
 #   bash scripts/bootstrap_driver_seed_x_frontend.sh
@@ -19,9 +20,12 @@
 #   CC                   — host C compiler
 #   OUT / TARGET_OUT     — output binary (default: xlang_x_frontend)
 #   BXF_LINK_CFLAGS      — expanded CFLAGS + -DXLANG_USE_X_* experiment defines
-#   BXF_LINK_OBJS        — full expanded object bag for the link line
+#   BXF_LINK_OBJS        — optional; default loads via export-bxf-link-objs
+#                          (wave856; mk bag needs make expansion)
+#   MAKE                 — residual make for LINK_OBJS export leaf (wave856)
 #
 # wave848 (G.7 有则补全): Makefile fat $(CC) link → this script.
+# wave856: LINK_OBJS shell-load via make export leaf (G.7; not physical delete).
 # NOT physical delete — prereq make-graph + thin edges + B2 + mk lists remain.
 # PLATFORM: SHARED — shell orchestration; product seed pins host-portable.
 set -euo pipefail
@@ -30,6 +34,7 @@ cd "$(dirname "$0")/.."
 MODE="${1:-run}"
 OUT="${OUT:-${TARGET_OUT:-xlang_x_frontend}}"
 CC="${CC:-cc}"
+MAKE="${MAKE:-make}"
 
 log() { echo "bootstrap-driver-seed-x-frontend: $*" >&2; }
 fail() { echo "bootstrap-driver-seed-x-frontend: FAIL: $*" >&2; exit 1; }
@@ -55,7 +60,14 @@ if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
   if grep -qE '\$\(CC\).* -o |\$\(CC\).*DXLANG_USE_X_TYPECK|\$\(CC\).*DRIVER_SEED_X_FRONTEND' <<<"$_rec"; then
     fail "bootstrap-driver-seed-x-frontend must not keep dual \$(CC) link body (wave848; shell owns link)"
   fi
-  log "CHECK OK (wave848 bootstrap-driver-seed-x-frontend shell-primary; not physical delete)"
+  # wave856: Makefile must not re-export multi-token LINK bag (shell loads export leaf).
+  if grep -qE 'BXF_LINK_OBJS=' <<<"$_rec"; then
+    fail "bootstrap-driver-seed-x-frontend must not export BXF_LINK_OBJS (wave856; shell loads export leaf)"
+  fi
+  if ! grep -qE '^export-bxf-link-objs:' "$MF"; then
+    fail "Makefile must define export-bxf-link-objs (wave856)"
+  fi
+  log "CHECK OK (wave848+856 bootstrap-driver-seed-x-frontend shell-primary; LINK_OBJS export leaf; not physical delete)"
   exit 0
 fi
 
@@ -78,8 +90,30 @@ fi
 if [ -z "${BXF_LINK_CFLAGS:-}" ]; then
   fail "BXF_LINK_CFLAGS required (Makefile thin-call must export expanded link CFLAGS + defines)"
 fi
+# wave856: full LINK bag needs make expansion (nested $(...) / Darwin filters).
+# G.7 有则补全 on bootstrap_driver_seed_export-*-link pattern — shell loads via
+# make export leaf when env unset; Makefile recipes drop multi-token BXF_LINK_OBJS=.
+# PLATFORM: SHARED — KEY=value from export target; no second .o inventory.
+_load_link_objs_via_make() {
+  # $1 = make export target (export-*-link-objs)
+  local target="$1"
+  local raw line val
+  raw=$(MAKEFLAGS= "${MAKE:-make}" -s "$target") || return 1
+  val=
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      LINK_OBJS=*) val=${line#LINK_OBJS=} ;;
+    esac
+  done <<<"$raw"
+  printf '%s' "$val"
+}
+
 if [ -z "${BXF_LINK_OBJS:-}" ]; then
-  fail "BXF_LINK_OBJS required (Makefile thin-call must export expanded link bag)"
+  BXF_LINK_OBJS=$(_load_link_objs_via_make export-bxf-link-objs) \
+    || fail "failed to expand export-bxf-link-objs (wave856 LINK_OBJS shell-load)"
+fi
+if [ -z "${BXF_LINK_OBJS:-}" ]; then
+  fail "empty LINK_OBJS from export-bxf-link-objs (wave856)"
 fi
 
 # ---------------------------------------------------------------------------

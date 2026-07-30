@@ -7,7 +7,8 @@
 #     bootstrap-codegen  — force-regen typeck+codegen gen → migrate both → relink TARGET
 #   Gen body  = ensure_migrate_gen.sh (wave736 FORCE_REGEN; no dual xlang-c -E in Makefile)
 #   .o body   = migrate_x_objs.sh (wave735; XLANG_MIGRATE_FORCE=1)
-#   Link list = Makefile env BTC_CFLAGS / BTC_OBJS (expands mk composites; no second .o inventory)
+#   Link list = BTC_CFLAGS from Makefile thin-call; BTC_OBJS via export-relink-product-link-objs
+#               when unset (wave856; expands mk composites; no second .o inventory)
 #
 # Usage (cwd = compiler/):
 #   bash scripts/bootstrap_typeck_codegen.sh typeck
@@ -19,11 +20,12 @@
 #   XLANG_C      — C frontend binary name (default: xlang-c)
 #   CC           — host C compiler (default: cc)
 #   BTC_CFLAGS   — full CFLAGS + -DXLANG_USE_X_* + ASM_GLUE/MAIN_LINK flags (required for link)
-#   BTC_OBJS     — expanded link object bag (required for link; from mk composites)
-#   MAKE         — residual make for missing XLANG_C only (ensure_migrate_gen)
+#   BTC_OBJS     — optional; default loads via export-relink-product-link-objs (wave856)
+#   MAKE         — residual make for LINK_OBJS export leaf + ensure_migrate_gen
 #   PYTHON       — for migrate_x_objs patches
 #
 # wave841 (G.7 有则补全): Makefile fat dual -E + migrate + $(CC) link → this script.
+# wave856: LINK_OBJS shell-load via make export leaf (G.7; not physical delete).
 # NOT physical delete — thin-call edges + B2 + mk lists remain residual.
 # PLATFORM: SHARED — shell orchestration; product seed pins host-portable.
 set -euo pipefail
@@ -65,8 +67,15 @@ if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
     if grep -qE 'XLANG_C\).*-E-extern|xlang-c.*-E-extern' <<<"$_rec"; then
       fail "$ph must not keep dual host-cc -E-extern gen body (wave841; use ensure_migrate_gen)"
     fi
+    # wave856: no multi-token BTC_OBJS= on recipe (shell loads export leaf).
+    if grep -qE 'BTC_OBJS=' <<<"$_rec"; then
+      fail "$ph must not export BTC_OBJS (wave856; shell loads export leaf)"
+    fi
   done
-  log "CHECK OK (wave841 bootstrap-typeck/codegen shell-primary; not physical delete)"
+  if ! grep -qE '^export-relink-product-link-objs:' "$MF"; then
+    fail "Makefile must define export-relink-product-link-objs (wave856)"
+  fi
+  log "CHECK OK (wave841+856 bootstrap-typeck/codegen shell-primary; LINK_OBJS export leaf; not physical delete)"
   exit 0
 fi
 
@@ -81,8 +90,33 @@ esac
 # ---------------------------------------------------------------------------
 # Preflight: link env from Makefile thin-call (G.7: lists stay mk expansions)
 # ---------------------------------------------------------------------------
-if [ -z "${BTC_CFLAGS:-}" ] || [ -z "${BTC_OBJS:-}" ]; then
-  fail "BTC_CFLAGS and BTC_OBJS required (Makefile thin-call must export expanded link bag)"
+if [ -z "${BTC_CFLAGS:-}" ]; then
+  fail "BTC_CFLAGS required (Makefile thin-call must export expanded link CFLAGS)"
+fi
+# wave856: full LINK bag needs make expansion (nested $(...) / Darwin filters).
+# G.7 有则补全 on bootstrap_driver_seed_export-*-link pattern — shell loads via
+# make export leaf when env unset; Makefile recipes drop multi-token BTC_OBJS=.
+# PLATFORM: SHARED — KEY=value from export target; no second .o inventory.
+_load_link_objs_via_make() {
+  # $1 = make export target (export-*-link-objs)
+  local target="$1"
+  local raw line val
+  raw=$(MAKEFLAGS= "${MAKE:-make}" -s "$target") || return 1
+  val=
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      LINK_OBJS=*) val=${line#LINK_OBJS=} ;;
+    esac
+  done <<<"$raw"
+  printf '%s' "$val"
+}
+
+if [ -z "${BTC_OBJS:-}" ]; then
+  BTC_OBJS=$(_load_link_objs_via_make export-relink-product-link-objs) \
+    || fail "failed to expand export-relink-product-link-objs (wave856 LINK_OBJS shell-load)"
+fi
+if [ -z "${BTC_OBJS:-}" ]; then
+  fail "empty LINK_OBJS from export-relink-product-link-objs (wave856)"
 fi
 if [ ! -x "./$XLANG_C" ] && [ ! -f "./$XLANG_C" ]; then
   fail "missing $XLANG_C (build product first: make bootstrap_xlangc / bootstrap-driver-seed)"

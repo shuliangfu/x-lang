@@ -8,7 +8,8 @@
 #
 #   Object lists stay mk expansion (driver_seed_composites / user_asm /
 #   link_picks / subcmd). Shell never hardcodes a second full link inventory —
-#   Makefile thin-call exports expanded LINK bag as XXL_LINK_* env vars.
+#   wave856: LINK_OBJS via make export-xlang-x-link-objs when unset;
+#   CFLAGS still Makefile thin-call env (composed flags).
 #
 #   Seed-gate REQUIRED bag authority: mk/driver_seed_composites.mk
 #   XLANG_X_REQUIRED_OBJS (wave854 list → mk; wave855 shell loads mk —
@@ -23,12 +24,15 @@
 #   CC                   — host C compiler
 #   XXL_LINK_CFLAGS      — expanded CFLAGS + DRIVER_SEED_LINK_FLAGS +
 #                          ASM_GLUE_DUP_LDFLAGS + MAIN_LINK_FLAGS
-#   XXL_LINK_OBJS        — full expanded object bag for the link line
+#   XXL_LINK_OBJS        — optional; default loads via export-xlang-x-link-objs
+#                          (wave856; mk bag needs make expansion)
 #   XXL_REQUIRED_OBJS    — optional override; default loads XLANG_X_REQUIRED_OBJS
 #                          from mk (wave855; not a second list authority)
+#   MAKE                 — residual make for LINK_OBJS export leaf (wave856)
 #
 # wave846 (G.7 有则补全): Makefile fat test + $(CC) link → this script.
 # wave855: seed-gate REQUIRED loads from mk (G.7; not physical delete).
+# wave856: LINK_OBJS shell-load via make export leaf (G.7; not physical delete).
 # NOT physical delete — prereq make-graph + thin edges + B2 + mk lists remain.
 # PLATFORM: SHARED — shell orchestration; product seed pins host-portable.
 set -euo pipefail
@@ -37,6 +41,7 @@ cd "$(dirname "$0")/.."
 MODE="${1:-run}"
 OUT="${XLANG_X:-${TARGET_OUT:-xlang-x}}"
 CC="${CC:-cc}"
+MAKE="${MAKE:-make}"
 
 log() { echo "xlang-x: $*" >&2; }
 fail() { echo "xlang-x: FAIL: $*" >&2; exit 1; }
@@ -70,13 +75,20 @@ if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
   if grep -qE 'XXL_REQUIRED_OBJS=' <<<"$_rec"; then
     fail "xlang-x must not export XXL_REQUIRED_OBJS (wave855; shell loads mk)"
   fi
+  # wave856: Makefile must not re-export multi-token LINK bag (shell loads export leaf).
+  if grep -qE 'XXL_LINK_OBJS=' <<<"$_rec"; then
+    fail "xlang-x must not export XXL_LINK_OBJS (wave856; shell loads export leaf)"
+  fi
+  if ! grep -qE '^export-xlang-x-link-objs:' "$MF"; then
+    fail "Makefile must define export-xlang-x-link-objs (wave856)"
+  fi
   if [ ! -f mk/driver_seed_composites.mk ]; then
     fail "missing mk/driver_seed_composites.mk (wave855 REQUIRED authority)"
   fi
   if ! grep -qE '^XLANG_X_REQUIRED_OBJS[[:space:]]*=' mk/driver_seed_composites.mk; then
     fail "mk/driver_seed_composites.mk must define XLANG_X_REQUIRED_OBJS (wave855)"
   fi
-  log "CHECK OK (wave846+855 xlang-x shell-primary; REQUIRED from mk; not physical delete)"
+  log "CHECK OK (wave846+855+856 xlang-x shell-primary; REQUIRED from mk; LINK_OBJS export leaf; not physical delete)"
   exit 0
 fi
 
@@ -111,8 +123,30 @@ _mk_assign_val() {
 if [ -z "${XXL_LINK_CFLAGS:-}" ]; then
   fail "XXL_LINK_CFLAGS required (Makefile thin-call must export expanded link CFLAGS)"
 fi
+# wave856: full LINK bag needs make expansion (nested $(...) / Darwin filters).
+# G.7 有则补全 on bootstrap_driver_seed_export-*-link pattern — shell loads via
+# make export leaf when env unset; Makefile recipes drop multi-token XXL_LINK_OBJS=.
+# PLATFORM: SHARED — KEY=value from export target; no second .o inventory.
+_load_link_objs_via_make() {
+  # $1 = make export target (export-*-link-objs)
+  local target="$1"
+  local raw line val
+  raw=$(MAKEFLAGS= "${MAKE:-make}" -s "$target") || return 1
+  val=
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      LINK_OBJS=*) val=${line#LINK_OBJS=} ;;
+    esac
+  done <<<"$raw"
+  printf '%s' "$val"
+}
+
 if [ -z "${XXL_LINK_OBJS:-}" ]; then
-  fail "XXL_LINK_OBJS required (Makefile thin-call must export expanded link bag)"
+  XXL_LINK_OBJS=$(_load_link_objs_via_make export-xlang-x-link-objs) \
+    || fail "failed to expand export-xlang-x-link-objs (wave856 LINK_OBJS shell-load)"
+fi
+if [ -z "${XXL_LINK_OBJS:-}" ]; then
+  fail "empty LINK_OBJS from export-xlang-x-link-objs (wave856)"
 fi
 if [ -z "${XXL_REQUIRED_OBJS:-}" ]; then
   _COMP_MK=mk/driver_seed_composites.mk

@@ -9,7 +9,8 @@
 #
 #   Object lists stay mk expansion (composites / user_asm / link_picks /
 #   subcmd / PIPELINE_LIBS). Shell never hardcodes a second full link inventory —
-#   Makefile thin-call exports expanded LINK bag as RXL_LINK_* env vars.
+#   wave856: LINK_OBJS via make export-relink-product-link-objs when unset;
+#   CFLAGS still Makefile thin-call env (composed flags).
 #
 #   Seed-gate REQUIRED bag authority: mk/driver_seed_composites.mk
 #   RELINK_XLANG_REQUIRED_OBJS (wave854 list → mk; wave855 shell loads mk —
@@ -26,12 +27,15 @@
 #   CC                   — host C compiler
 #   RXL_LINK_CFLAGS      — expanded CFLAGS + DRIVER_SEED_LINK_FLAGS +
 #                          ASM_GLUE_DUP_LDFLAGS + MAIN_LINK_FLAGS
-#   RXL_LINK_OBJS        — full expanded object bag for the link line
+#   RXL_LINK_OBJS        — optional; default loads via export-relink-product-link-objs
+#                          (wave856; mk bag needs make expansion)
 #   RXL_REQUIRED_OBJS    — optional override; default loads RELINK_XLANG_REQUIRED_OBJS
 #                          from mk (wave855; not a second list authority)
+#   MAKE                 — residual make for LINK_OBJS export leaf (wave856)
 #
 # wave849 (G.7 有则补全): Makefile fat test + $(MAKE) glue + $(CC) link + cp → this script.
 # wave855: seed-gate REQUIRED loads from mk (G.7; not physical delete).
+# wave856: LINK_OBJS shell-load via make export leaf (G.7; not physical delete).
 # NOT physical delete — prereq make-graph (lexer_x.o / FILTERED / GLUE) + thin edges +
 # B2 + mk lists remain.
 # PLATFORM: SHARED — shell orchestration; product seed pins host-portable.
@@ -43,6 +47,7 @@ OUT="${TARGET:-${TARGET_OUT:-xlang}}"
 XLANG_C="${XLANG_C:-xlang-c}"
 BOOTSTRAP_XLANGC="${BOOTSTRAP_XLANGC:-bootstrap_xlangc}"
 CC="${CC:-cc}"
+MAKE="${MAKE:-make}"
 
 log() { echo "relink-xlang-lexer: $*" >&2; }
 fail() { echo "relink-xlang-lexer: FAIL: $*" >&2; exit 1; }
@@ -76,6 +81,13 @@ if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
   if grep -qE 'RXL_REQUIRED_OBJS=' <<<"$_rec"; then
     fail "relink-xlang-lexer must not export RXL_REQUIRED_OBJS (wave855; shell loads mk)"
   fi
+  # wave856: Makefile must not re-export multi-token LINK bag (shell loads export leaf).
+  if grep -qE 'RXL_LINK_OBJS=' <<<"$_rec"; then
+    fail "relink-xlang-lexer must not export RXL_LINK_OBJS (wave856; shell loads export leaf)"
+  fi
+  if ! grep -qE '^export-relink-product-link-objs:' "$MF"; then
+    fail "Makefile must define export-relink-product-link-objs (wave856)"
+  fi
   if [ ! -f mk/driver_seed_composites.mk ]; then
     fail "missing mk/driver_seed_composites.mk (wave855 REQUIRED authority)"
   fi
@@ -86,7 +98,7 @@ if [ "$MODE" = "--check" ] || [ "$MODE" = "check" ]; then
   if grep -qE 'cp -f \$\(TARGET\) \$\(XLANG_C\)|cp -f \$\(TARGET\) bootstrap_xlangc' <<<"$_rec"; then
     fail "relink-xlang-lexer must not keep dual cp sync body (wave849; shell owns sync)"
   fi
-  log "CHECK OK (wave849+855 relink-xlang-lexer shell-primary; REQUIRED from mk; not physical delete)"
+  log "CHECK OK (wave849+855+856 relink-xlang-lexer shell-primary; REQUIRED from mk; LINK_OBJS export leaf; not physical delete)"
   exit 0
 fi
 
@@ -121,8 +133,30 @@ _mk_assign_val() {
 if [ -z "${RXL_LINK_CFLAGS:-}" ]; then
   fail "RXL_LINK_CFLAGS required (Makefile thin-call must export expanded link CFLAGS)"
 fi
+# wave856: full LINK bag needs make expansion (nested $(...) / Darwin filters).
+# G.7 有则补全 on bootstrap_driver_seed_export-*-link pattern — shell loads via
+# make export leaf when env unset; Makefile recipes drop multi-token RXL_LINK_OBJS=.
+# PLATFORM: SHARED — KEY=value from export target; no second .o inventory.
+_load_link_objs_via_make() {
+  # $1 = make export target (export-*-link-objs)
+  local target="$1"
+  local raw line val
+  raw=$(MAKEFLAGS= "${MAKE:-make}" -s "$target") || return 1
+  val=
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      LINK_OBJS=*) val=${line#LINK_OBJS=} ;;
+    esac
+  done <<<"$raw"
+  printf '%s' "$val"
+}
+
 if [ -z "${RXL_LINK_OBJS:-}" ]; then
-  fail "RXL_LINK_OBJS required (Makefile thin-call must export expanded link bag)"
+  RXL_LINK_OBJS=$(_load_link_objs_via_make export-relink-product-link-objs) \
+    || fail "failed to expand export-relink-product-link-objs (wave856 LINK_OBJS shell-load)"
+fi
+if [ -z "${RXL_LINK_OBJS:-}" ]; then
+  fail "empty LINK_OBJS from export-relink-product-link-objs (wave856)"
 fi
 if [ -z "${RXL_REQUIRED_OBJS:-}" ]; then
   _COMP_MK=mk/driver_seed_composites.mk
