@@ -1571,7 +1571,9 @@ parser_gen.c: FORCE scripts/ensure_migrate_gen.sh
 	  XLANG_C="$(XLANG_C)" XLANG_X="$(XLANG_X)" \
 	  bash scripts/ensure_migrate_gen.sh parser
 # wave735: G.7 body → scripts/migrate_x_objs.sh (parser leaf)
-parser_x.o: parser_gen.c
+# wave832: FORCE dep-thin — shell owns gen.c mtime (migrate need_rebuild; not physical delete).
+# PLATFORM: SHARED — FORCE always invokes migrate (cheap mtime skip).
+parser_x.o: FORCE scripts/migrate_x_objs.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" \
 	  sh scripts/migrate_x_objs.sh parser
 
@@ -1828,7 +1830,9 @@ typeck_gen.c: FORCE scripts/ensure_migrate_gen.sh
 	  bash scripts/ensure_migrate_gen.sh typeck
 
 # wave735: G.7 body → scripts/migrate_x_objs.sh (typeck leaf)
-typeck_x.o: typeck_gen.c
+# wave832: FORCE dep-thin — shell owns gen.c mtime (migrate need_rebuild; not physical delete).
+# PLATFORM: SHARED — FORCE always invokes migrate (cheap mtime skip).
+typeck_x.o: FORCE scripts/migrate_x_objs.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" \
 	  sh scripts/migrate_x_objs.sh typeck
 
@@ -1840,7 +1844,9 @@ codegen_gen.c: FORCE scripts/ensure_migrate_gen.sh
 	  bash scripts/ensure_migrate_gen.sh codegen
 
 # wave735: G.7 body → scripts/migrate_x_objs.sh (codegen leaf)
-codegen_x.o: codegen_gen.c
+# wave832: FORCE dep-thin — shell owns gen.c mtime (migrate need_rebuild; not physical delete).
+# PLATFORM: SHARED — FORCE always invokes migrate (cheap mtime skip).
+codegen_x.o: FORCE scripts/migrate_x_objs.sh
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" PYTHON="$(PYTHON)" MAKE="$(MAKE)" \
 	  sh scripts/migrate_x_objs.sh codegen
 

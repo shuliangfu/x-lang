@@ -27,6 +27,8 @@
 #
 # PLATFORM: SHARED shell orchestration; seed pins are host-portable C.
 # Wave: 735/736 Track MG · pairs with ensure_migrate_gen.sh + Makefile thin leaves.
+# wave832: Makefile *_x.o leaves are FORCE dep-thin; this script owns gen.c mtime
+#   (need_rebuild + XLANG_MIGRATE_FORCE). NOT physical delete.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
