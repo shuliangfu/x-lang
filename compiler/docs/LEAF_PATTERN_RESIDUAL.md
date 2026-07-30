@@ -36,6 +36,7 @@
 > - **wave865** · B7B migrate/bootstrap multi-token CFLAGS shell-load via export-try-heat-cflags (8 recipes)
 > - **wave866** · B7B build-tool CFLAGS shell-load + WIN32_O_CFLAGS leaf drop (2 recipes)
 > - **wave867** · B7B archaeology host-pick LD_R_MULTIDEF_FLAGS leaf drop (4 recipes)
+> - **wave868** · B7C bootstrap-driver-bstrict-relink shell-primary (1 phony → relink_xlang_asm_bstrict_runtime_objs.sh)
 > - **open** · thin edges + B2 + mk lists (hybrid) → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile

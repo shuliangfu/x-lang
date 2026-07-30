@@ -2916,19 +2916,12 @@ refresh-xlang-asm-gate:
 	  sh scripts/refresh_xlang_asm_gate.sh
 
 # 日常快路径：仅 strict relink（前提 build_asm/*.o 已由 prior bootstrap 产出；改 glue/runtime/link 时用，~30s）。
-# 等价：./scripts/relink_xlang_asm_bstrict_runtime_objs.sh（附带 bridge/Docker skip 环境）。
-bootstrap-driver-bstrict-relink:
-	@if [ ! -d build_asm ] || [ ! -f build_asm/pipeline.o ]; then \
-	  echo "bootstrap-driver-bstrict-relink: need prior bootstrap (make bootstrap-driver-bstrict)" >&2; exit 1; fi
-	@XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1 \
-	 XLANG_ASM_SKIP_STRICT_SMOKE=1 \
-	 XLANG_ASM_SKIP_MAIN_O_REBUILD=1 \
-	 XLANG_ASM_SKIP_WPO_DOGFOOD=1 \
-	 XLANG_ASM_SKIP_ENTRY_SMOKE=1 \
-	 XLANG_ASM_BSTRICT_RELINK_ONLY=1 \
-	 XLANG=./xlang_asm ./scripts/build_xlang_asm.sh
-	@if [ ! -f xlang_asm ]; then echo "bootstrap-driver-bstrict-relink: xlang_asm relink failed" >&2; exit 1; fi
-	@echo "bootstrap-driver-bstrict-relink OK (strict relink only; xlang_asm updated)"
+# wave868: full body → scripts/relink_xlang_asm_bstrict_runtime_objs.sh (G.7 有则补全;
+#   historic dual body retired — script was already named equivalent). Thin-call only.
+# NOT physical delete — thin edges + B2 + mk lists remain residual.
+# PLATFORM: SHARED — shell owns prereq gate + XLANG_ASM_* + build_xlang_asm invoke.
+bootstrap-driver-bstrict-relink: scripts/relink_xlang_asm_bstrict_runtime_objs.sh
+	@bash scripts/relink_xlang_asm_bstrict_runtime_objs.sh
 
 # 日常/release 默认路径（M7）：等价 bootstrap-driver-bstrict；冷启动须先 bootstrap-driver-seed 或 make all。
 bootstrap-driver: bootstrap-driver-bstrict
