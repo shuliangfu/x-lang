@@ -165,6 +165,21 @@ if [ "$MODE" = dry-run ] || [ "$MODE" = check ]; then
 fi
 
 # run: single make invocation for leaf edge targets only.
+# Warm shared catalog blob once — Makefile FORCE leaves each spawn a new
+# `try-heat` bash; without XLANG_CATALOG_CACHE_FILE that re-parses mk ~N times
+# (Windows MinGW multi-minute stall, no gcc). PLATFORM: SHARED.
+_cat_cache="${TMPDIR:-/tmp}/xlang_ensure_prereqs_cat_$$.txt"
+if bash scripts/driver_seed_obj_catalog.sh >"$_cat_cache" 2>/tmp/xlang_ensure_cat_err_$$.txt; then
+  export XLANG_CATALOG_CACHE_FILE="$_cat_cache"
+  echo "driver_seed_ensure_prereqs: catalog cache warm OK ($_cat_cache)" >&2
+else
+  echo "driver_seed_ensure_prereqs: catalog warm failed (try-heat will re-expand)" >&2
+  cat /tmp/xlang_ensure_cat_err_$$.txt 2>/dev/null || true
+  rm -f "$_cat_cache" /tmp/xlang_ensure_cat_err_$$.txt
+  unset XLANG_CATALOG_CACHE_FILE || true
+fi
+trap 'rm -f "${_cat_cache:-}" /tmp/xlang_ensure_cat_err_$$.txt' EXIT HUP INT TERM
+
 echo "driver_seed_ensure_prereqs: make ($n leaf targets) ..." >&2
 # shellcheck disable=SC2086
 "$MAKE" "$@"

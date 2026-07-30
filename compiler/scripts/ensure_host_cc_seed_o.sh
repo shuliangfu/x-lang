@@ -506,20 +506,42 @@ ensure_one() {
 # ---------------------------------------------------------------------------
 # Catalog list expansion (G.7: KEY only; no hardcoded .o inventory in shell)
 # ---------------------------------------------------------------------------
+# Process + optional file cache (wave MG Windows):
+#   try-heat is invoked as a *new bash* per Makefile FORCE leaf. Without a
+#   shared cache, each of ~50 ensure goals re-runs driver_seed_obj_catalog.sh
+#   (full mk parse). On MinGW/Git Bash that multi-minute stalls look like a
+#   hung make with no gcc. catalog_blob already memoizes in-process; also honor
+#   XLANG_CATALOG_CACHE_FILE so ensure_prereqs / rebuild can warm once.
+# PLATFORM: SHARED — cache is optional; unset = prior in-process-only behavior.
+catalog_blob() {
+  # Prefer shared file cache (cross-process for one ensure/make wave).
+  if [ -n "${XLANG_CATALOG_CACHE_FILE:-}" ] && [ -s "${XLANG_CATALOG_CACHE_FILE}" ]; then
+    cat "${XLANG_CATALOG_CACHE_FILE}"
+    return 0
+  fi
+  if [ -z "${_catalog_blob_cache:-}" ]; then
+    if [ ! -f scripts/driver_seed_obj_catalog.sh ]; then
+      echo "ensure_host_cc_seed_o: missing scripts/driver_seed_obj_catalog.sh" >&2
+      exit 1
+    fi
+    _catalog_blob_cache="$(MAKE="$MAKE" bash scripts/driver_seed_obj_catalog.sh)"
+    if [ -n "${XLANG_CATALOG_CACHE_FILE:-}" ]; then
+      # Best-effort warm for sibling try-heat processes in the same ensure wave.
+      printf '%s\n' "$_catalog_blob_cache" >"${XLANG_CATALOG_CACHE_FILE}" 2>/dev/null || true
+    fi
+  fi
+  printf '%s\n' "$_catalog_blob_cache"
+}
+
 catalog_key_list() {
   # $1 = catalog KEY name (e.g. RT_SEED_SLICE_OBJS)
   local key="$1"
+  local key_line
   if [ -z "$key" ]; then
     echo "ensure_host_cc_seed_o: catalog_key_list needs KEY" >&2
     exit 2
   fi
-  if [ ! -f scripts/driver_seed_obj_catalog.sh ]; then
-    echo "ensure_host_cc_seed_o: missing scripts/driver_seed_obj_catalog.sh" >&2
-    exit 1
-  fi
-  local catalog_out key_line
-  catalog_out="$(MAKE="$MAKE" bash scripts/driver_seed_obj_catalog.sh)"
-  key_line="$(printf '%s\n' "$catalog_out" | sed -n "s/^${key}=//p" | head -1)"
+  key_line="$(catalog_blob | sed -n "s/^${key}=//p" | head -1)"
   if [ -z "${key_line// /}" ]; then
     echo "ensure_host_cc_seed_o: empty $key from catalog (export missing?)" >&2
     exit 1
@@ -816,19 +838,8 @@ ensure_all_swallowed() {
 #   3 — OUT not in any R1 catalog family (caller should use make residual)
 #   1 — membership found but ensure failed / catalog error
 # PLATFORM: SHARED — same host-cc body as family modes; no dual recipe.
+# Catalog expansion: catalog_blob / catalog_key_list (above; shared file cache).
 # ---------------------------------------------------------------------------
-_catalog_blob_cache=""
-catalog_blob() {
-  if [ -z "$_catalog_blob_cache" ]; then
-    if [ ! -f scripts/driver_seed_obj_catalog.sh ]; then
-      echo "ensure_host_cc_seed_o: missing scripts/driver_seed_obj_catalog.sh" >&2
-      exit 1
-    fi
-    _catalog_blob_cache="$(MAKE="$MAKE" bash scripts/driver_seed_obj_catalog.sh)"
-  fi
-  printf '%s\n' "$_catalog_blob_cache"
-}
-
 catalog_key_words() {
   # $1 = KEY — print space-separated words from cached catalog blob
   local key="$1"
