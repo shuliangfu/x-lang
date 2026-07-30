@@ -2101,7 +2101,7 @@ ship delete body; mac-only wave green.
     SWALLOWED_B7B_LINK_OBJS_SHELL_LOAD=1
     PHYS_DEL_PREFLIGHT_B7B_LINK_OBJS_SHELL_LOAD=1
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
-  dual-end L2 green tip: (pending this commit)
+  dual-end L2 green tip: 4f4e2cf9f (Mac + Ubuntu leaf residual CHECK + shell --check + export smoke + product rv42)
   next: residual thin/B2/lists (hybrid) or LINK CFLAGS residual or tip Windows
     re-proof → ship delete body (explicit auth only; tip L4 wave840)
 ```
