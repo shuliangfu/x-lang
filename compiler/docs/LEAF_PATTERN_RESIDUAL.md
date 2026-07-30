@@ -1,4 +1,20 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · … · wave824 E_DIRS list→mk · wave825 std_x shell-primary catalog · wave826 formal_mod FORCE dep-thin · wave827 std_x FORCE dep-thin · wave828 driver_leaf FORCE dep-thin · wave829 gen.c FORCE dep-thin · wave830 ast_gen2 FORCE dep-thin · wave831 src-edge FORCE dep-thin · wave832 migrate companion FORCE dep-thin · wave833 pipeline_glue_types FORCE dep-thin · wave834 bootstrap-pipeline FORCE shell-primary · wave835 filtered.o FORCE dep-thin · wave836 cp-alias FORCE dep-thin · wave837 pipeline_gen.c FORCE dep-thin · wave838 bootstrap_xlangc FORCE dep-thin · wave839 archaeology host-pick FORCE dep-thin · wave747–825 prior swallows · wave799 execute-gate · … · not physical delete)
+# Leaf pattern residual (11.3.1 path · not physical delete)
+
+> **Wave path (one line each · inventory → swallow · endgame still open):**
+>
+> - **wave746** · inventory (named classes R1–R6)
+> - **wave747** · R4 mode-policy
+> - **wave748–755** · R1 eight families
+> - **wave756** · pure-R1 try-r1
+> - **wave757** · R3 cold-else try-r3-cold
+> - **wave758** · thin_glue seed-map
+> - **wave759** · glue-standalone seed-map
+> - **wave760** · R2 panic cold try-r2
+> - **wave761** · gen/pipeline try-gen-x
+> - **wave762–839** · R2/R3 prefer · phys-del prep · B7A–D · list→mk · FORCE dep-thin (see § wave rows)
+> - **wave841–845** · B7C shell-primary (typeck/codegen · x-compiler · self · parser smoke · xlang-x-pipeline)
+> - **wave799** · execute-gate (hard refuse delete)
+> - **open** · thin edges + B2 + mk lists → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete

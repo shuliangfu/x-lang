@@ -30,7 +30,7 @@
 | **Cap residual 边界消灭** | ⬜ 0/~50 | 原「永久边界」降级为「必须消灭」；按路线 A 逐个消灭 |
 | **语言能力补齐（L2）** | ⬜ 0/~20 | syscall/FFI/inline asm/fnptr/va_list/线程原语 全部待补 |
 | **Makefile 退役 / xbuild** | 🟡 半路径 | **`./xbuild`→`xlang-build.sh`** 产品入口；根 Makefile **help-only**；叶/组合体→`compiler/mk/*.mk`；**`compiler/Makefile` 仍 ~3445 行权威图**（阶段 11） |
-| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 ✅** tests/** hub · **11.1.6 🟡** g05+…+archaeology-gen → xbuild · **11.1.5 🟡** build.x · **11.1.1 🟡** BUILD_DAG 库存 · **11.1.2 🟡** schedule dry-run/run · **11.1.3/4 🟡** 平台+链接策略（wave745）· **11.3 🟡** prereq 边 shell（wave744）· **11.3.1 路径 🟡** 叶 pattern 库存（wave746）+ **R4 mode（wave747）** + **R1 八族（wave748–755）** + **R4 pure-R1 try-r1（wave756）** + **R3 cold-else try-r3-cold（wave757）** + **thin_glue seed-map（wave758）** + **glue-standalone seed-map（wave759）** + **R2 panic cold try-r2（wave760）** + **gen/pipeline try-gen-x（wave761）** + **R2 typeck_f64/crt0 try-r2（wave762）** + **R3 PREFER thin try-r3-prefer（wave763）** + **g05 r3-prefer-family（wave764）** + **labi try-labi-prefer（wave765）** · **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
+| **根脚本 / tools / docker / CI 去 make+cc** | 🟡 部分 | **11.2.5/11.4.3 ✅** · **11.2.3 ✅** tests/** hub · **11.1.6 🟡** g05+…+archaeology-gen → xbuild · **11.1.5 🟡** build.x · **11.1.1 🟡** BUILD_DAG 库存 · **11.1.2 🟡** schedule dry-run/run · **11.1.3/4 🟡** 平台+链接策略（wave745）· **11.3 🟡** prereq 边 shell（wave744）· **11.3.1 路径 🟡** 叶 pattern residual（wave746–845 · **非**物理删；**逐行清单见下 §11.3.1**） · **11.4.1 ✅** `build.sh`→xbuild · **11.4.6 ✅** delete-one→xbuild · **11.4.5 🟡** Docker 入口文档（包 residual 至 12）；零 cc 仍 ⬜ |
 | **tests/ 对照 C 处理策略** | 🟡 4/4 策略 | 11.5.1–4 **策略已裁定**（wave734/741 · `tests/HOST_CC_POLICY.md`）；改写 .x / 卸 cc 属阶段 12 |
 | **冷启动零 cc 链** | ⬜ 0/4 | 最小 seed + 零 cc 验证 + 双端冷启动 |
 | **终局：无 Makefile + 零 cc + v2==v3** | ⬜ 未达 | 见 §0.1 三义；阶段 13 |
@@ -1466,97 +1466,181 @@
   - ✅ wave773：**11.1.4 g05 pure-ld** — `pure_ld_shared` + g05_relink
   - ✅ wave774：**11.1.4 drop silent CC fallback** — cold+g05 pure-ld required；FORCE_CC/ineligible named residual only
 
-🟡 **11.3.1 路径 · 叶 pattern residual（wave746 库存 · wave747 R4 mode · wave748–755 R1 · wave756 pure-R1 · wave757 R3 cold · wave758 thin_glue · wave759 glue-standalone · wave760 R2 panic cold · wave761 gen/pipeline try-gen-x · 非物理删）**
+🟡 **11.3.1 路径 · 叶 pattern residual**（**非**物理删）
 
-  - ✅ 权威图：`compiler/docs/LEAF_PATTERN_RESIDUAL.md`
-  - ✅ 机检：`leaf_pattern_residual.sh` dump/classes/`--check`；`./xbuild leaf-patterns`
-  - ✅ R1 host-cc seed · R2 UNAME stamp · R3 thin+rest · R4 rebuild pattern bodies · R5 CI all · R6→11.1.4
-  - ✅ R4 mode+list shell（wave747）；✅ R4 pure-R1 body shell（wave756 try-r1）；
-    ✅ R3 cold-else body shell（wave757 try-r3-cold）；
-    ✅ thin_glue seed-map（wave758）；✅ glue-standalone seed-map（wave759）；
-    ✅ R2 panic cold try-r2（wave760）；
-    ✅ gen/pipeline try-gen-x（wave761）；
-    ⬜ R4 remaining residual 离 make 图（gen/pipeline-x）
-  - ✅ R1 八族 body（wave748–755）+ thin_glue/glue-standalone 并入 seed-map；
-    ✅ panic cold try-r2；✅ gen/pipeline try-gen-x；✅ R2 typeck_f64/crt0 try-r2（wave762）；
-    ✅ R3 PREFER thin R3_COLD nine try-r3-prefer（wave763）；
-    ✅ g05 R3_COLD r3-prefer-family（wave764）；✅ g05 labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer（wave765–771）；
-    ✅ R6 pure-ld（wave772）；✅ g05 pure-ld（wave773）；
-    ✅ drop silent CC fallback（wave774）；✅ fmt dual（wave775 try-other-l2-prefer fmt_core）；
-    ✅ panic PREFER try-r2-prefer（wave776）；
-    ✅ **phys-del prep inventory**（wave777：B1–B7 命名桶 · 非删 Makefile · 非吞体）；
-    ✅ **Windows gate + dual-end verify**（wave778：`PHYS_DEL_WINDOWS_GATE` · `MG_VERIFY_DUAL_END=mac_plus_ubuntu_required` · 金标 Ubuntu；**禁** mac 单端宣称波绿；**禁** Windows 未绿就物理删 Makefile）；
-    ✅ **B1** try-runtime-os-prefer（wave779 · 23 thin-call）；
-    ✅ **B2** try-std-core-prefer（wave780 · 5 thin-call）；
-    ✅ **B3** try-lsp-sat-prefer（wave781 · 2 thin-call）；
-    ✅ **B4** try-gen-c-to-o（wave782 · 5 thin-call；body=`ensure_gen_x_o.sh` 扩展；**非** try-gen-x catalog）；
-    ✅ **B5** try-cfg-eval-ladder（wave783 · 1 thin-call；cfg_eval multi-ladder）；
-    ✅ **B6** R5 CI `compiler_all_ci.sh`（wave784 · xbuild/Makefile thin-call；叶图仍 B7）；
-    ✅ **B7 DAG inventory**（wave785 · 子桶 B7A–D · 考古 `$(CC) -c` thin → migrate/ensure；**非**物理删 · `BODY_SWALLOWED=0`）；
-    ✅ **B7D host-cc product link**（wave786 · 默认 `make xlang` → g05_prepare_and_relink；禁 OBJS_CORE UNDEF；**非**物理删）；
-    ✅ **B7A cold residual_make=0 + B7B list honesty**（wave787 · 冷七模式 shell only；heat thin-edge residual；列表仍 mk+catalog；**非**物理删）；
-    ✅ **B7B shell-primary catalog**（wave788 · mk 解析 0-make；make export 逃生；R1/R3/RT → `mk/driver_seed_r_lists.mk`；**非**物理删）；
-    ✅ **B7A heat try-heat**（wave789 · shell auto-dispatch prefer→R1→R2→gen；`./xbuild heat-o`；Makefile thin-call 边仍 residual；**非**物理删）；
-    ✅ **B7A heat thin-unify**（wave790 · Makefile 115 ensure recipes → `try-heat` only；mode 名注释考古；dep 边 residual；**非**物理删）；
-    ✅ **B7A heat dep-edge thin**（wave791 · 28 pure `runtime_*` prereq → FORCE+ensure；shell mtime；**非**物理删）；
-    ✅ **B7A heat dep-edge thin pure seed+.x residual**（wave792 · +31 → **59 FORCE**；排除 hdr/twin/cfg_eval/asm/gen；**非**物理删）；
-    ✅ **B7A heat dep-edge thin pure seed+.x+.h residual**（wave793 · +19 → **78 FORCE**；`seed_project_hdrs_newer`；**非**物理删）；
-    ✅ **B7A heat dep-edge thin twin·mkflags·leftover**（wave794 · +8 → **86 FORCE**；twin hdr + `force_thin_makefile_flags_newer`；**非**物理删）；
-    ✅ **B7A heat dep-edge thin cfg_eval·asm·std**（wave795 · +15 → **101 FORCE**；cfg_eval multi · crt0/typeck_f64 · path/runtime/process；**非**物理删；residual net·stamp·gen_x）；
-    ✅ **B7A heat dep-edge thin net·panic·gen_x**（wave796 · +11 → **112 FORCE**；net multi-merge mtime · panic stamp · gen_x/B4 try-heat；**非**物理删；residual orch / 物理删）；
-    ✅ **B7A heat dep-edge thin orch**（wave797 · +1 → **113 FORCE**；orch seed/.x + `pipeline_gen.c` + types.inc mtime；**HEAT_RESIDUAL=0**；**非**物理删；residual 物理删 only）；
-    ✅ **phys-del preflight**（wave798 · readiness 机检 · blockers 命名 · Windows min-gate 命令权威；**非**物理删 · **非** Windows 绿 · `WINDOWS_GATE_STATUS=not_reproven_this_tip`）；
-    ✅ **phys-del execute-gate**（wave799 · `phys_del_makefile_gate.sh` / `./xbuild phys-del-gate` 硬拒删 · dry-run · MSYS runbook；**非**物理删 · **非** Windows 绿 · `DELETE_ALLOWED=0`）；
-    ✅ **Windows proof stamp harness**（wave800 · `--run-windows-gate` 写 stamp · `--verify-windows-proof` tip 校验；**非** STATUS 翻转 · **非**物理删 · `PROOF_STATUS_FLIP=0`）；
-    ✅ **STATUS flip prep / preview**（wave801 · `--status-flip-preview` 有 proof 后打印翻转计划；**非** STATUS 翻转 · **非**物理删 · `APPLIED=0` · TARGET=`reproven_green` · ENDGAME 保持 0）；
-    ✅ **STATUS flip apply harness**（wave802 · `--status-flip-apply` 需 proof + confirm env；`--check` 仅 temp leaf；ENDGAME 保持 0）；
-    ✅ **STATUS flip commit honesty**（wave803 · `--status-flip-commit-honesty` pre/post 契约 + co-change 清单；`DELETE_ALLOWED=0` · ENDGAME 保持 0）；
-    ✅ **Windows min-gate proof + STATUS apply**（wave804 · MSYS2 B-hybrid 绿 + proof tip `bb8f07263` + Mac verify · STATUS=`reproven_green` · `TREE_APPLIED=1` · **ENDGAME 仍 0** · **非**物理删）；
-    ✅ **ENDGAME arm prep/preview**（wave805 · `--endgame-preview` · TREE_ARMED=0 · ENDGAME 仍 0 · **非** arm · **非**物理删）；
-    ✅ **ENDGAME arm apply harness**（wave806 · `--endgame-arm-apply` · confirm 闸门 · TREE_ARMED=0 · 树 ENDGAME 仍 0 · **非**树 arm · **非**物理删）；
-    ✅ **ENDGAME arm commit honesty**（wave807 · `--endgame-arm-commit-honesty` · pre_arm/post_arm · TREE_ARMED=0 · 树 ENDGAME 仍 0 · **非**树 arm · **非**物理删）；
-    ✅ **TREE_ARMED arm**（wave808 · `ENDGAME=1` · `TREE_ARMED=1` · Makefile 仍在 · `--delete` 仍 never-rm · **非**物理删）；
-    ✅ **delete-body prep/preview**（wave809 · `--delete-body-preview` · BODY_SHIPPED=0 · Makefile 仍在 · **非**物理删）；
-    ✅ **delete-body commit honesty**（wave810 · `--delete-body-commit-honesty` · pre_ship 清单 · BODY_SHIPPED=0 · Makefile 仍在 · **非**物理删）；
-    ✅ **std_x product hybrid thin**（wave811 · 22 叶 → `xlang_compile_std_x` `auto|auto-soft|auto-soft-merge` · Makefile thin-call · **非**物理删 · formal_mod/B2 图仍 residual）；
-    ✅ **formal_mod shell-primary catalog**（wave812 · 38 叶 → `xlang_compile_std_module ensure` · 表驱动 bare/sources/fs_formal · Makefile thin-call · **非**物理删 · thin edges + B2 + B7B lists 仍 residual）；
-    ✅ **B7B STD_AND_PANIC_O list → mk**（wave813 · `mk/std_and_panic_objs.mk` · 65 base + Linux freestanding · Makefile include only · **非**物理删 · thin edges + B2 + 其它 mk lists 仍 residual）；
-    ✅ **driver_leaf shell-primary catalog**（wave814 · 8 leaves · `driver_leaf_x_to_o.sh ensure` · rename/dirs 进 catalog · **非**物理删 · thin edges + B7B lists 仍 residual）；
-    ✅ **archaeology host-pick phonies**（wave815 · 4 phonies · `archaeology_host_pick_phony.sh ensure` · net-o-stub/openssl/mbedtls + sqlite-o-stub · host via `xlang_compile_std_x` · **非**物理删 · thin edges + B7B lists 仍 residual）；
-    ✅ **DRIVER_SUBCMD list→mk**（wave816 · 7 · `mk/driver_subcmd_objs.mk` · Makefile include only · catalog parse mk · **非**物理删 · thin edges + 其它 B7B lists 仍 residual）；
-    ✅ **PIPELINE_X list→mk**（wave817 · satellite 9 · `mk/pipeline_x_objs.mk` · BASE/FRONTEND/SATELLITE/LINK/SUPPORT + PIPELINE_LIBS · Makefile include only · catalog parse mk · **非**物理删 · thin edges + 其它 B7B lists 仍 residual）；
-    ✅ **SEED_MODE list→mk**（wave818 · product SUPPORT_EXTRA 3 · `mk/driver_seed_mode_objs.mk` · RUNTIME_O/FRONTEND_EXTRA/SUPPORT_EXTRA/LINK_FLAGS/RUNTIME_REBUILD · Makefile include only · catalog parse mk · **非**物理删 · thin edges + 其它 B7B lists 仍 residual）；
-    ✅ **SEED_LINK_PICKS list→mk**（wave819 · product GLUE 2 · `mk/driver_seed_link_picks.mk` · MAIN_LINK/LEXER_AST/LSP_DIAG/PREPROCESS/GLUE · Makefile include only · catalog parse mk · **非**物理删 · thin edges + OBJS_CORE/其它 lists 仍 residual）；
-    ✅ **OBJS_CORE list→mk**（wave820 · product 16 · `mk/objs_core.mk` · archaeology incomplete + LEGACY layout · Makefile include only · catalog parse mk · **非**物理删 · thin edges + 其它 B7B lists 仍 residual）；
-    ✅ **ARCH_EXPERIMENT list→mk**（wave821 · EXPERIMENT 7 · `mk/archaeology_experiment_objs.mk` · X_FRONTEND_EXPERIMENT + NO_C_FRONTEND · Makefile include only · catalog parse mk · **非**物理删 · thin edges + 其它 B7B lists 仍 residual）；
-    ✅ **RELINK_LEGACY list→mk**（wave822 · RELINK fixed 14 · `mk/driver_seed_composites.mk` · RELINK_XLANG_PREREQS + LEGACY_XLANG_C_* · Makefile include only · catalog parse composites · **非**物理删 · thin edges + SOURCE_DEPS/std_core graph 仍 residual）；
-    ✅ **SOURCE_DEPS list→mk**（wave823 · fixed 19 · `mk/x_source_deps.mk` · SRCS/MAIN_X_DEPS/PREPROCESS_X_DEPS/PIPELINE_*_DEPS · Makefile include only · catalog parse mk · ensure_driver_gen 自 mk 加载 · **非**物理删 · thin edges + E_DIRS/std_core graph 仍 residual）；
-    ✅ **E_DIRS list→mk**（wave824 · dir-roots 26 · `mk/x_e_dirs.mk` · MAIN_X_E_DIRS/LSP_X_E_DIRS/PIPELINE_X_E_DIRS · Makefile include only · catalog parse mk · ensure_driver_gen/lsp_pipeline/archaeology + driver_leaf kind=lsp 自 mk 加载 · **非**物理删 · thin edges + std_core product make graph 仍 residual）；
-    ✅ **std_x shell-primary catalog**（wave825 · 22 叶 · `xlang_compile_std_x ensure` · mode|x_path 表进 shell · Makefile thin-call ensure only · **非**物理删 · formal_mod + B2 + thin edges + mk lists 仍 residual）；
-    ✅ **formal_mod FORCE dep-thin**（wave826 · 38 叶 · Makefile FORCE+ensure only · shell 拥 source mtime · **非**物理删 · B2 try-heat + thin edges + mk lists 仍 residual）；
-    ✅ **std_x FORCE dep-thin**（wave827 · 22 叶 · Makefile FORCE+ensure only · shell 拥 source mtime · **非**物理删 · formal_mod FORCE + B2 try-heat + thin edges + mk lists 仍 residual）；
-    ✅ **driver_leaf FORCE dep-thin**（wave828 · 8 叶 · Makefile FORCE+ensure only · shell 拥 source mtime · **非**物理删 · B2 try-heat + thin edges + mk lists 仍 residual）；
-    ✅ **gen.c FORCE dep-thin**（wave829 · 17 叶 · Makefile FORCE+ensure_*_gen only · bash recipe · shell 拥 pin/FORCE_REGEN · **非**物理删 · B2 + thin edges + mk lists 仍 residual）；
-    ✅ **ast_gen2 FORCE dep-thin**（wave830 · 1 叶 · Makefile FORCE+ensure_ast_gen2 only · bash recipe · shell 拥 pin/FORCE_REGEN/-E+fix_slim · **非**物理删 · B2 + thin edges + mk lists 仍 residual）；
-    ✅ **src-edge FORCE dep-thin**（wave831 · 7 叶 · parser_asm_thin_glue FORCE+try-heat + 6× cc_inc_tu FORCE · shell 拥 seed/slice mtime · **非**物理删 · migrate *_x.o gen.c 边 + thin edges + B2 + mk lists 仍 residual）；
-    ✅ **migrate *_x FORCE dep-thin**（wave832 · 3 叶 · parser_x/typeck_x/codegen_x FORCE+migrate_x_objs · shell 拥 gen.c mtime · **非**物理删 · ~~pipeline_glue_types.inc~~（wave833）+ thin edges + B2 + mk lists 仍 residual）；
-    ✅ **pipeline_glue_types FORCE dep-thin**（wave833 · 1 叶 · FORCE+ensure_pipeline_glue_types · shell 拥 gen/extract mtime + ABI guard · **非**物理删 · ~~bootstrap-pipeline~~（wave834）+ thin edges + B2 + mk lists 仍 residual）；
-    ✅ **bootstrap-pipeline FORCE shell-primary**（wave834 · 1 叶 · FORCE+ensure_lsp_pipeline_gen pipeline · G.7 有则补全 wave739 body · **非**物理删 · ~~filtered.o~~（wave835）+ thin edges + B2 + mk lists 仍 residual）；
-    ✅ **bootstrap_seed filtered.o FORCE dep-thin**（wave835 · 4 叶 · FORCE+filter_* ensure · shell mtime + try-heat SRC · g05 同 path · **非**物理删 · thin edges + B2 + mk lists 仍 residual）；
-    ✅ **product object-path cp-alias FORCE dep-thin**（wave836 · 3 叶 · FORCE+ensure_cp_alias_o · shell mtime + try-heat SRC · **非**物理删 · thin edges + B2 + mk lists 仍 residual）；
-    ✅ **pipeline_gen.c FORCE dep-thin**（wave837 · 1 叶 · FORCE+ensure_lsp_pipeline_gen pipeline · G.7 有则补全 wave739 body · 收 empty-prereq 残 · **非**物理删 · thin edges + B2 + mk lists 仍 residual）；
-    ✅ **bootstrap_xlangc FORCE dep-thin**（wave838 · 1 叶 · FORCE+select_bootstrap_xlangc · G.7 有则补全 · 收 create.sh make-graph 残 · **非**物理删 · thin edges + B2 + mk lists 仍 residual）；
-    ✅ **archaeology host-pick FORCE dep-thin**（wave839 · 4 叶 · FORCE+archaeology_host_pick_phony · G.7 有则补全 · 收 script-only prereq 残 · **非**物理删 · thin edges + B2 + mk lists 仍 residual）；
-    ✅ **bootstrap-typeck/codegen shell-primary**（wave841 · 2 叶 · bootstrap_typeck_codegen.sh · ensure_migrate_gen FORCE_REGEN + migrate_x_objs + BTC_* link · **非**物理删 · thin edges + B2 + mk lists）；
-    ✅ **bootstrap-x-compiler shell-primary**（wave842 · 1 叶 · bootstrap_x_compiler.sh · TARGET_x -x -E + host-cc -c typeck_x_x + BXC_LINK_OBJS · **非** migrate · **非**物理删 · thin edges + B2 + mk lists）；
-    ✅ **bootstrap-self shell-primary**（wave843 · 1 叶 · bootstrap_self.sh · stage1 snapshot + satellite ensure + stage2 host-cc link + out_self smoke · BS_LINK_OBJS from mk · **非**物理删 · thin edges + B2 + mk lists）；
-    ✅ **bootstrap-parser/parse-file shell-primary**（wave844+wave845 · 2 叶 · bootstrap_parser_smoke.sh · parser.x -o smoke + dual-path parse fixtures · **非**物理删 · thin edges + B2 + mk lists）；
-    ⬜ B7 residual endgame · physical delete / 删 Makefile（**须** lists/thin 残项 + Windows tip 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体；heat closed · STATUS 绿 · TREE_ARMED arm ✅ · delete-body honesty ✅ · std_x thin ✅ · std_x catalog ✅ · std_x FORCE thin ✅ · formal_mod FORCE thin ✅ · formal_mod catalog ✅ · STD_AND_PANIC list→mk ✅ · driver_leaf catalog ✅ · driver_leaf FORCE thin ✅ · gen.c FORCE thin ✅ · ast_gen2 FORCE thin ✅ · src-edge FORCE thin ✅ · migrate *_x FORCE thin ✅ · pipeline_glue_types FORCE thin ✅ · bootstrap-pipeline FORCE thin ✅ · pipeline_gen FORCE thin ✅ · bootstrap_xlangc FORCE thin ✅ · archaeology host-pick ✅ · archaeology FORCE thin ✅ · bootstrap-typeck/codegen shell ✅ · bootstrap-x-compiler shell ✅ · bootstrap-self shell ✅ · bootstrap-parser smoke shell ✅ · DRIVER_SUBCMD list→mk ✅ · PIPELINE_X list→mk ✅ · SEED_MODE list→mk ✅ · SEED_LINK_PICKS list→mk ✅ · OBJS_CORE list→mk ✅ · ARCH_EXPERIMENT list→mk ✅ · RELINK_LEGACY list→mk ✅ · SOURCE_DEPS list→mk ✅ · E_DIRS list→mk ✅）
-  - ⬜ 物理删 `compiler/Makefile` 仍 ⬜（下项）
+路径波次（一行一项 · 库存 → 吞体；完整流水见 `LEAF_PATTERN_RESIDUAL.md` / `自举进度.md` §6）：
+
+- **wave746** · 库存（命名 R1–R6）
+- **wave747** · R4 mode
+- **wave748–755** · R1 八族
+- **wave756** · pure-R1 try-r1
+- **wave757** · R3 cold-else try-r3-cold
+- **wave758** · thin_glue seed-map
+- **wave759** · glue-standalone seed-map
+- **wave760** · R2 panic cold try-r2
+- **wave761** · gen/pipeline try-gen-x
+- **wave762–839** · R2/R3 prefer · phys-del prep · B7A–D · list→mk · FORCE dep-thin（见下 bullet）
+- **wave841–845** · B7C shell-primary（typeck/codegen · x-compiler · self · parser smoke · xlang-x-pipeline）
+- **open** · thin edges + B2 + mk lists → tip Windows → 双端 L4 → explicit auth 真删
+
+**状态明细**（一行一项）：
+
+- ✅ 权威图：`compiler/docs/LEAF_PATTERN_RESIDUAL.md`
+- ✅ 机检：`leaf_pattern_residual.sh` dump/classes/`--check`；`./xbuild leaf-patterns`
+- ✅ R1 host-cc seed · R2 UNAME stamp · R3 thin+rest · R4 rebuild pattern bodies · R5 CI all · R6→11.1.4
+- ✅ R4 mode+list shell（wave747）
+- ✅ R4 pure-R1 body shell（wave756 try-r1）
+- ✅ R3 cold-else body shell（wave757 try-r3-cold）
+- ✅ thin_glue seed-map（wave758）
+- ✅ glue-standalone seed-map（wave759）
+- ✅ R2 panic cold try-r2（wave760）
+- ✅ gen/pipeline try-gen-x（wave761）
+- ⬜ R4 remaining residual 离 make 图（gen/pipeline-x 等，后序 B 桶吞）
+- ✅ R1 八族 body（wave748–755）+ thin_glue/glue-standalone 并入 seed-map
+- ✅ R2 typeck_f64/crt0 try-r2（wave762）
+- ✅ R3 PREFER thin R3_COLD nine try-r3-prefer（wave763）
+- ✅ g05 R3_COLD r3-prefer-family（wave764）
+- ✅ g05 labi/rt/pipeline_abi/ldpc/target_cpu/l2-asm/async/other-l2 try-*-prefer（wave765–771）
+- ✅ R6 pure-ld（wave772）
+- ✅ g05 pure-ld（wave773）
+- ✅ drop silent CC fallback（wave774）
+- ✅ fmt dual（wave775 try-other-l2-prefer fmt_core）
+- ✅ panic PREFER try-r2-prefer（wave776）
+- ✅ **phys-del prep inventory**（wave777：B1–B7 命名桶 · 非删 Makefile · 非吞体）
+- ✅ **Windows gate + dual-end verify**（wave778：`PHYS_DEL_WINDOWS_GATE` · `MG_VERIFY_DUAL_END=mac_plus_ubuntu_required` · 金标 Ubuntu；**禁** mac 单端宣称波绿；**禁** Windows 未绿就物理删 Makefile）
+- ✅ **B1** try-runtime-os-prefer（wave779 · 23 thin-call）
+- ✅ **B2** try-std-core-prefer（wave780 · 5 thin-call）
+- ✅ **B3** try-lsp-sat-prefer（wave781 · 2 thin-call）
+- ✅ **B4** try-gen-c-to-o（wave782 · 5 thin-call；body=`ensure_gen_x_o.sh` 扩展；**非** try-gen-x catalog）
+- ✅ **B5** try-cfg-eval-ladder（wave783 · 1 thin-call；cfg_eval multi-ladder）
+- ✅ **B6** R5 CI `compiler_all_ci.sh`（wave784 · xbuild/Makefile thin-call；叶图仍 B7）
+- ✅ **B7 DAG inventory**（wave785 · 子桶 B7A–D · 考古 `$(CC) -c` thin → migrate/ensure；**非**物理删 · `BODY_SWALLOWED=0`）
+- ✅ **B7D host-cc product link**（wave786 · 默认 `make xlang` → g05_prepare_and_relink；禁 OBJS_CORE UNDEF；**非**物理删）
+- ✅ **B7A cold residual_make=0 + B7B list honesty**（wave787 · 冷七模式 shell only；heat thin-edge residual；列表仍 mk+catalog；**非**物理删）
+- ✅ **B7B shell-primary catalog**（wave788 · mk 解析 0-make；make export 逃生；R1/R3/RT → `mk/driver_seed_r_lists.mk`；**非**物理删）
+- ✅ **B7A heat try-heat**（wave789 · shell auto-dispatch prefer→R1→R2→gen；`./xbuild heat-o`；Makefile thin-call 边仍 residual；**非**物理删）
+- ✅ **B7A heat thin-unify**（wave790 · Makefile 115 ensure recipes → `try-heat` only；mode 名注释考古；dep 边 residual；**非**物理删）
+- ✅ **B7A heat dep-edge thin**（wave791 · 28 pure `runtime_*` prereq → FORCE+ensure；shell mtime；**非**物理删）
+- ✅ **B7A heat dep-edge thin pure seed+.x residual**（wave792 · +31 → **59 FORCE**；排除 hdr/twin/cfg_eval/asm/gen；**非**物理删）
+- ✅ **B7A heat dep-edge thin pure seed+.x+.h residual**（wave793 · +19 → **78 FORCE**；`seed_project_hdrs_newer`；**非**物理删）
+- ✅ **B7A heat dep-edge thin twin·mkflags·leftover**（wave794 · +8 → **86 FORCE**；twin hdr + `force_thin_makefile_flags_newer`；**非**物理删）
+- ✅ **B7A heat dep-edge thin cfg_eval·asm·std**（wave795 · +15 → **101 FORCE**；cfg_eval multi · crt0/typeck_f64 · path/runtime/process；**非**物理删；residual net·stamp·gen_x）
+- ✅ **B7A heat dep-edge thin net·panic·gen_x**（wave796 · +11 → **112 FORCE**；net multi-merge mtime · panic stamp · gen_x/B4 try-heat；**非**物理删；residual orch / 物理删）
+- ✅ **B7A heat dep-edge thin orch**（wave797 · +1 → **113 FORCE**；orch seed/.x + `pipeline_gen.c` + types.inc mtime；**HEAT_RESIDUAL=0**；**非**物理删；residual 物理删 only）
+- ✅ **phys-del preflight**（wave798 · readiness 机检 · blockers 命名 · Windows min-gate 命令权威；**非**物理删 · **非** Windows 绿 · `WINDOWS_GATE_STATUS=not_reproven_this_tip`）
+- ✅ **phys-del execute-gate**（wave799 · `phys_del_makefile_gate.sh` / `./xbuild phys-del-gate` 硬拒删 · dry-run · MSYS runbook；**非**物理删 · **非** Windows 绿 · `DELETE_ALLOWED=0`）
+- ✅ **Windows proof stamp harness**（wave800 · `--run-windows-gate` 写 stamp · `--verify-windows-proof` tip 校验；**非** STATUS 翻转 · **非**物理删 · `PROOF_STATUS_FLIP=0`）
+- ✅ **STATUS flip prep / preview**（wave801 · `--status-flip-preview` 有 proof 后打印翻转计划；**非** STATUS 翻转 · **非**物理删 · `APPLIED=0` · TARGET=`reproven_green` · ENDGAME 保持 0）
+- ✅ **STATUS flip apply harness**（wave802 · `--status-flip-apply` 需 proof + confirm env；`--check` 仅 temp leaf；ENDGAME 保持 0）
+- ✅ **STATUS flip commit honesty**（wave803 · `--status-flip-commit-honesty` pre/post 契约 + co-change 清单；`DELETE_ALLOWED=0` · ENDGAME 保持 0）
+- ✅ **Windows min-gate proof + STATUS apply**（wave804 · MSYS2 B-hybrid 绿 + proof tip `bb8f07263` + Mac verify · STATUS=`reproven_green` · `TREE_APPLIED=1` · **ENDGAME 仍 0** · **非**物理删）
+- ✅ **ENDGAME arm prep/preview**（wave805 · `--endgame-preview` · TREE_ARMED=0 · ENDGAME 仍 0 · **非** arm · **非**物理删）
+- ✅ **ENDGAME arm apply harness**（wave806 · `--endgame-arm-apply` · confirm 闸门 · TREE_ARMED=0 · 树 ENDGAME 仍 0 · **非**树 arm · **非**物理删）
+- ✅ **ENDGAME arm commit honesty**（wave807 · `--endgame-arm-commit-honesty` · pre_arm/post_arm · TREE_ARMED=0 · 树 ENDGAME 仍 0 · **非**树 arm · **非**物理删）
+- ✅ **TREE_ARMED arm**（wave808 · `ENDGAME=1` · `TREE_ARMED=1` · Makefile 仍在 · `--delete` 仍 never-rm · **非**物理删）
+- ✅ **delete-body prep/preview**（wave809 · `--delete-body-preview` · BODY_SHIPPED=0 · Makefile 仍在 · **非**物理删）
+- ✅ **delete-body commit honesty**（wave810 · `--delete-body-commit-honesty` · pre_ship 清单 · BODY_SHIPPED=0 · Makefile 仍在 · **非**物理删）
+- ✅ **std_x product hybrid thin**（wave811 · 22 叶 → `xlang_compile_std_x` `auto|auto-soft|auto-soft-merge` · Makefile thin-call · **非**物理删 · formal_mod/B2 图仍 residual）
+- ✅ **formal_mod shell-primary catalog**（wave812 · 38 叶 → `xlang_compile_std_module ensure` · 表驱动 bare/sources/fs_formal · Makefile thin-call · **非**物理删 · thin edges + B2 + B7B lists 仍 residual）
+- ✅ **B7B STD_AND_PANIC_O list → mk**（wave813 · `mk/std_and_panic_objs.mk` · 65 base + Linux freestanding · Makefile include only · **非**物理删 · thin edges + B2 + 其它 mk lists 仍 residual）
+- ✅ **driver_leaf shell-primary catalog**（wave814 · 8 leaves · `driver_leaf_x_to_o.sh ensure` · rename/dirs 进 catalog · **非**物理删 · thin edges + B7B lists 仍 residual）
+- ✅ **archaeology host-pick phonies**（wave815 · 4 phonies · `archaeology_host_pick_phony.sh ensure` · net-o-stub/openssl/mbedtls + sqlite-o-stub · host via `xlang_compile_std_x` · **非**物理删 · thin edges + B7B lists 仍 residual）
+- ✅ **DRIVER_SUBCMD list→mk**（wave816 · 7 · `mk/driver_subcmd_objs.mk` · Makefile include only · catalog parse mk · **非**物理删 · thin edges + 其它 B7B lists 仍 residual）
+- ✅ **PIPELINE_X list→mk**（wave817 · satellite 9 · `mk/pipeline_x_objs.mk` · BASE/FRONTEND/SATELLITE/LINK/SUPPORT + PIPELINE_LIBS · Makefile include only · catalog parse mk · **非**物理删 · thin edges + 其它 B7B lists 仍 residual）
+- ✅ **SEED_MODE list→mk**（wave818 · product SUPPORT_EXTRA 3 · `mk/driver_seed_mode_objs.mk` · RUNTIME_O/FRONTEND_EXTRA/SUPPORT_EXTRA/LINK_FLAGS/RUNTIME_REBUILD · Makefile include only · catalog parse mk · **非**物理删 · thin edges + 其它 B7B lists 仍 residual）
+- ✅ **SEED_LINK_PICKS list→mk**（wave819 · product GLUE 2 · `mk/driver_seed_link_picks.mk` · MAIN_LINK/LEXER_AST/LSP_DIAG/PREPROCESS/GLUE · Makefile include only · catalog parse mk · **非**物理删 · thin edges + OBJS_CORE/其它 lists 仍 residual）
+- ✅ **OBJS_CORE list→mk**（wave820 · product 16 · `mk/objs_core.mk` · archaeology incomplete + LEGACY layout · Makefile include only · catalog parse mk · **非**物理删 · thin edges + 其它 B7B lists 仍 residual）
+- ✅ **ARCH_EXPERIMENT list→mk**（wave821 · EXPERIMENT 7 · `mk/archaeology_experiment_objs.mk` · X_FRONTEND_EXPERIMENT + NO_C_FRONTEND · Makefile include only · catalog parse mk · **非**物理删 · thin edges + 其它 B7B lists 仍 residual）
+- ✅ **RELINK_LEGACY list→mk**（wave822 · RELINK fixed 14 · `mk/driver_seed_composites.mk` · RELINK_XLANG_PREREQS + LEGACY_XLANG_C_* · Makefile include only · catalog parse composites · **非**物理删 · thin edges + SOURCE_DEPS/std_core graph 仍 residual）
+- ✅ **SOURCE_DEPS list→mk**（wave823 · fixed 19 · `mk/x_source_deps.mk` · SRCS/MAIN_X_DEPS/PREPROCESS_X_DEPS/PIPELINE_*_DEPS · Makefile include only · catalog parse mk · ensure_driver_gen 自 mk 加载 · **非**物理删 · thin edges + E_DIRS/std_core graph 仍 residual）
+- ✅ **E_DIRS list→mk**（wave824 · dir-roots 26 · `mk/x_e_dirs.mk` · MAIN_X_E_DIRS/LSP_X_E_DIRS/PIPELINE_X_E_DIRS · Makefile include only · catalog parse mk · ensure_driver_gen/lsp_pipeline/archaeology + driver_leaf kind=lsp 自 mk 加载 · **非**物理删 · thin edges + std_core product make graph 仍 residual）
+- ✅ **std_x shell-primary catalog**（wave825 · 22 叶 · `xlang_compile_std_x ensure` · mode|x_path 表进 shell · Makefile thin-call ensure only · **非**物理删 · formal_mod + B2 + thin edges + mk lists 仍 residual）
+- ✅ **formal_mod FORCE dep-thin**（wave826 · 38 叶 · Makefile FORCE+ensure only · shell 拥 source mtime · **非**物理删 · B2 try-heat + thin edges + mk lists 仍 residual）
+- ✅ **std_x FORCE dep-thin**（wave827 · 22 叶 · Makefile FORCE+ensure only · shell 拥 source mtime · **非**物理删 · formal_mod FORCE + B2 try-heat + thin edges + mk lists 仍 residual）
+- ✅ **driver_leaf FORCE dep-thin**（wave828 · 8 叶 · Makefile FORCE+ensure only · shell 拥 source mtime · **非**物理删 · B2 try-heat + thin edges + mk lists 仍 residual）
+- ✅ **gen.c FORCE dep-thin**（wave829 · 17 叶 · Makefile FORCE+ensure_*_gen only · bash recipe · shell 拥 pin/FORCE_REGEN · **非**物理删 · B2 + thin edges + mk lists 仍 residual）
+- ✅ **ast_gen2 FORCE dep-thin**（wave830 · 1 叶 · Makefile FORCE+ensure_ast_gen2 only · bash recipe · shell 拥 pin/FORCE_REGEN/-E+fix_slim · **非**物理删 · B2 + thin edges + mk lists 仍 residual）
+- ✅ **src-edge FORCE dep-thin**（wave831 · 7 叶 · parser_asm_thin_glue FORCE+try-heat + 6× cc_inc_tu FORCE · shell 拥 seed/slice mtime · **非**物理删 · migrate *_x.o gen.c 边 + thin edges + B2 + mk lists 仍 residual）
+- ✅ **migrate *_x FORCE dep-thin**（wave832 · 3 叶 · parser_x/typeck_x/codegen_x FORCE+migrate_x_objs · shell 拥 gen.c mtime · **非**物理删 · ~~pipeline_glue_types.inc~~（wave833）+ thin edges + B2 + mk lists 仍 residual）
+- ✅ **pipeline_glue_types FORCE dep-thin**（wave833 · 1 叶 · FORCE+ensure_pipeline_glue_types · shell 拥 gen/extract mtime + ABI guard · **非**物理删 · ~~bootstrap-pipeline~~（wave834）+ thin edges + B2 + mk lists 仍 residual）
+- ✅ **bootstrap-pipeline FORCE shell-primary**（wave834 · 1 叶 · FORCE+ensure_lsp_pipeline_gen pipeline · G.7 有则补全 wave739 body · **非**物理删 · ~~filtered.o~~（wave835）+ thin edges + B2 + mk lists 仍 residual）
+- ✅ **bootstrap_seed filtered.o FORCE dep-thin**（wave835 · 4 叶 · FORCE+filter_* ensure · shell mtime + try-heat SRC · g05 同 path · **非**物理删 · thin edges + B2 + mk lists 仍 residual）
+- ✅ **product object-path cp-alias FORCE dep-thin**（wave836 · 3 叶 · FORCE+ensure_cp_alias_o · shell mtime + try-heat SRC · **非**物理删 · thin edges + B2 + mk lists 仍 residual）
+- ✅ **pipeline_gen.c FORCE dep-thin**（wave837 · 1 叶 · FORCE+ensure_lsp_pipeline_gen pipeline · G.7 有则补全 wave739 body · 收 empty-prereq 残 · **非**物理删 · thin edges + B2 + mk lists 仍 residual）
+- ✅ **bootstrap_xlangc FORCE dep-thin**（wave838 · 1 叶 · FORCE+select_bootstrap_xlangc · G.7 有则补全 · 收 create.sh make-graph 残 · **非**物理删 · thin edges + B2 + mk lists 仍 residual）
+- ✅ **archaeology host-pick FORCE dep-thin**（wave839 · 4 叶 · FORCE+archaeology_host_pick_phony · G.7 有则补全 · 收 script-only prereq 残 · **非**物理删 · thin edges + B2 + mk lists 仍 residual）
+- ✅ **bootstrap-typeck/codegen shell-primary**（wave841 · 2 叶 · bootstrap_typeck_codegen.sh · ensure_migrate_gen FORCE_REGEN + migrate_x_objs + BTC_* link · **非**物理删 · thin edges + B2 + mk lists）
+- ✅ **bootstrap-x-compiler shell-primary**（wave842 · 1 叶 · bootstrap_x_compiler.sh · TARGET_x -x -E + host-cc -c typeck_x_x + BXC_LINK_OBJS · **非** migrate · **非**物理删 · thin edges + B2 + mk lists）
+- ✅ **bootstrap-self shell-primary**（wave843 · 1 叶 · bootstrap_self.sh · stage1 snapshot + satellite ensure + stage2 host-cc link + out_self smoke · BS_LINK_OBJS from mk · **非**物理删 · thin edges + B2 + mk lists）
+- ✅ **bootstrap-parser/parse-file shell-primary**（wave844 · 2 叶 · bootstrap_parser_smoke.sh · parser.x -o smoke + dual-path parse fixtures · **非**物理删 · thin edges + B2 + mk lists）
+- ✅ **xlang-x-pipeline shell-primary**（wave845 · 1 叶 · xlang_x_pipeline.sh · force pipeline_x.o + migrate/satellites + host-cc link TARGET_x · **非**物理删 · thin edges + B2 + mk lists）
+- ⬜ **B7 residual endgame · physical delete / 删 Makefile**
+  - **须** lists/thin 残项 + Windows tip 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体
+  - 已闭（一行一项，摘要）：
+    - heat closed · STATUS 绿 · TREE_ARMED arm ✅
+    - delete-body honesty ✅
+    - std_x thin / catalog / FORCE thin ✅
+    - formal_mod catalog / FORCE thin ✅
+    - STD_AND_PANIC · DRIVER_SUBCMD · PIPELINE_X · SEED_MODE · SEED_LINK_PICKS · OBJS_CORE · ARCH_EXPERIMENT · RELINK_LEGACY · SOURCE_DEPS · E_DIRS list→mk ✅
+    - driver_leaf catalog / FORCE thin ✅
+    - gen.c / ast_gen2 / src-edge / migrate *_x / pipeline_glue_types FORCE thin ✅
+    - bootstrap-pipeline / pipeline_gen / bootstrap_xlangc / archaeology FORCE thin ✅
+    - bootstrap-typeck/codegen · x-compiler · self · parser smoke · xlang-x-pipeline shell ✅
+- ⬜ 物理删 `compiler/Makefile` 仍 ⬜（下项）
 
 ⬜ **11.3.1 删除 `compiler/Makefile`**
 
-  - 前置：11.0 迁移表 100% 有主；8.3/7/8 白名单 residual 可被 xbuild 编完或已为 0；wave746 库存类 R1–R5 有主 shell；**wave777 prep 桶 B1–B7 有主**；**wave797 heat source-prereq closed**；**wave798 preflight**；**wave799 execute-gate 硬拒删**；**wave800 proof stamp harness**；**wave801–804 STATUS flip + Windows min-gate 绿**；**wave805 endgame-preview**；**wave806 endgame-arm-apply harness**；**wave807 endgame-arm-commit-honesty**；**wave808 TREE_ARMED arm ENDGAME=1**；**wave809 delete-body-preview**；**wave810 delete-body-commit-honesty**；**wave811 std_x hybrid thin**；**wave812 formal_mod shell-primary**；**wave813 STD_AND_PANIC list→mk**；**wave814 driver_leaf catalog**；**wave815 archaeology host-pick**；**wave816 DRIVER_SUBCMD list→mk**；**wave817 PIPELINE_X list→mk**；**wave818 SEED_MODE list→mk**；**wave819 SEED_LINK_PICKS list→mk**；**wave820 OBJS_CORE list→mk**；**wave821 ARCH_EXPERIMENT list→mk**；**wave822 RELINK_LEGACY list→mk**；**wave823 SOURCE_DEPS list→mk**；**wave824 E_DIRS list→mk**；**wave826 formal_mod FORCE dep-thin**；**wave825 std_x shell-primary catalog**；**wave827 std_x FORCE dep-thin**；**wave828 driver_leaf FORCE dep-thin**；**wave829 gen.c FORCE dep-thin**；**wave830 ast_gen2 FORCE dep-thin**；**wave831 src-edge FORCE dep-thin**；**wave832 migrate *_x FORCE dep-thin**；**wave833 pipeline_glue_types FORCE dep-thin**；**wave834 bootstrap-pipeline FORCE shell-primary**；**wave835 filtered.o FORCE dep-thin**；**wave836 cp-alias FORCE dep-thin**；**wave837 pipeline_gen.c FORCE dep-thin**；**wave838 bootstrap_xlangc FORCE dep-thin**；**wave839 archaeology host-pick FORCE dep-thin**；**wave841 bootstrap-typeck/codegen shell-primary**；**wave842 bootstrap-x-compiler shell-primary**；**wave843 bootstrap-self shell-primary**；**wave844 bootstrap-parser/parse-file shell-primary**；**lists/thin 残项 + tip Windows 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体（终局波）** 后再删
+  - 前置（一行一项；**仍**须 lists/thin + tip Windows + 双端 L4 + explicit auth 后才可 ship 真删）：
+    - 11.0 迁移表 100% 有主
+    - 8.3/7/8 白名单 residual 可被 xbuild 编完或已为 0
+    - wave746 库存类 R1–R5 有主 shell
+    - wave777 prep 桶 B1–B7 有主
+    - wave797 heat source-prereq closed
+    - wave798 preflight
+    - wave799 execute-gate 硬拒删
+    - wave800 proof stamp harness
+    - wave801–804 STATUS flip + Windows min-gate 绿
+    - wave805 endgame-preview
+    - wave806 endgame-arm-apply harness
+    - wave807 endgame-arm-commit-honesty
+    - wave808 TREE_ARMED arm ENDGAME=1
+    - wave809 delete-body-preview
+    - wave810 delete-body-commit-honesty
+    - wave811 std_x hybrid thin
+    - wave812 formal_mod shell-primary
+    - wave813 STD_AND_PANIC list→mk
+    - wave814 driver_leaf catalog
+    - wave815 archaeology host-pick
+    - wave816 DRIVER_SUBCMD list→mk
+    - wave817 PIPELINE_X list→mk
+    - wave818 SEED_MODE list→mk
+    - wave819 SEED_LINK_PICKS list→mk
+    - wave820 OBJS_CORE list→mk
+    - wave821 ARCH_EXPERIMENT list→mk
+    - wave822 RELINK_LEGACY list→mk
+    - wave823 SOURCE_DEPS list→mk
+    - wave824 E_DIRS list→mk
+    - wave825 std_x shell-primary catalog
+    - wave826 formal_mod FORCE dep-thin
+    - wave827 std_x FORCE dep-thin
+    - wave828 driver_leaf FORCE dep-thin
+    - wave829 gen.c FORCE dep-thin
+    - wave830 ast_gen2 FORCE dep-thin
+    - wave831 src-edge FORCE dep-thin
+    - wave832 migrate *_x FORCE dep-thin
+    - wave833 pipeline_glue_types FORCE dep-thin
+    - wave834 bootstrap-pipeline FORCE shell-primary
+    - wave835 filtered.o FORCE dep-thin
+    - wave836 cp-alias FORCE dep-thin
+    - wave837 pipeline_gen.c FORCE dep-thin
+    - wave838 bootstrap_xlangc FORCE dep-thin
+    - wave839 archaeology host-pick FORCE dep-thin
+    - wave841 bootstrap-typeck/codegen shell-primary
+    - wave842 bootstrap-x-compiler shell-primary
+    - wave843 bootstrap-self shell-primary
+    - wave844 bootstrap-parser/parse-file shell-primary
+    - wave845 xlang-x-pipeline shell-primary
+    - **open** · lists/thin 残项 + tip Windows 复证 + Mac/Ubuntu L4 + explicit auth → ship 物理删体（终局波）
   - 验收 grep（全仓 · 不止 tests/analysis/docs）：
     ```
     rg -n 'make -C compiler|compiler/Makefile|\bmake\s+-C|\$\(MAKE\)' \
