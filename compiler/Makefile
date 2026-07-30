@@ -1055,17 +1055,13 @@ PARSER_ASM_LINK_ALIAS_CFLAGS = -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS
 # (G.7 single path; g05_ensure same). PLATFORM: SHARED — Darwin product USER_ASM_LINK.
 # wave835: FORCE dep-thin — drop SRC/partial make-graph prereqs; shell owns mtime +
 # try-heat SRC then filter (parallel-safe). NOT physical delete.
-# PLATFORM: SHARED — FORCE always invokes ensure (cheap mtime skip).
 # wave863 B7B: drop multi-token CFLAGS/PIPELINE_GEN inject (G.7 hygiene).
-# try-heat (wave862) shell-loads export-try-heat-cflags when unset; filter scripts
-# must not pass empty CFLAGS= (would block shell-load). Shell resolve_host_cc (wave884; no CC= inject).
-build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o: FORCE scripts/filter_bootstrap_seed_against_partial_o.sh
-	@bash scripts/filter_bootstrap_seed_against_partial_o.sh ensure $@
-
-build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o: FORCE scripts/filter_bootstrap_seed_against_partial_o.sh
-	@bash scripts/filter_bootstrap_seed_against_partial_o.sh ensure $@
-
-build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o: FORCE scripts/filter_bootstrap_seed_against_partial_o.sh
+# wave921 B7B: 3 per-leaf recipes → 1 multi-target $(FILTER_AGAINST_PARTIAL_OBJS)
+# (list in mk/driver_seed_r_lists.mk; G.7 single authority; export_lists never re-assigns).
+# Body = @bash scripts/filter_bootstrap_seed_against_partial_o.sh ensure $@ —
+# script CATALOG owns OUT|SRC map; $@ passes leaf path directly.
+# PLATFORM: SHARED — FORCE always invokes ensure (cheap mtime skip).
+$(FILTER_AGAINST_PARTIAL_OBJS): FORCE scripts/filter_bootstrap_seed_against_partial_o.sh
 	@bash scripts/filter_bootstrap_seed_against_partial_o.sh ensure $@
 
 # Authority: scripts/filter_bootstrap_seed_pipeline_o.sh → filter_o_export_against_deps.sh
@@ -1073,8 +1069,11 @@ build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o: FORCE scripts/filt
 # wave835: FORCE dep-thin — drop pipeline_x/partial/strict_minimal make-graph prereqs;
 # shell owns mtime + try-heat SRC. NOT physical delete.
 # wave863 B7B: drop multi-token CFLAGS/PIPELINE_GEN inject (same as partial trio).
+# wave921 B7B: 1 per-leaf recipe → 1 multi-target $(FILTER_PIPELINE_OBJS)
+# (list in mk/driver_seed_r_lists.mk; G.7 single authority).
+# Body = @bash scripts/filter_bootstrap_seed_pipeline_o.sh ensure $@.
 # PLATFORM: SHARED — FORCE always invokes ensure (cheap mtime skip).
-build_asm/bootstrap_seed_pipeline_filtered.o: FORCE scripts/filter_bootstrap_seed_pipeline_o.sh
+$(FILTER_PIPELINE_OBJS): FORCE scripts/filter_bootstrap_seed_pipeline_o.sh
 	@bash scripts/filter_bootstrap_seed_pipeline_o.sh ensure $@
 
 # wave917 B7B: cc_inc_tu SHARED family multi-target FORCE thin --auto

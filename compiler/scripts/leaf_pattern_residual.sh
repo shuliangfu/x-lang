@@ -1017,21 +1017,22 @@ SWALLOWED_BOOTSTRAP_PIPELINE_FORCE_THIN=1
 BOOTSTRAP_PIPELINE_FORCE_THIN_SWALLOWED=1
 BOOTSTRAP_PIPELINE_FORCE_THIN_HELPER=ensure_lsp_pipeline_gen.sh
 BOOTSTRAP_PIPELINE_FORCE_THIN_WAVE=wave834
-# wave835: class-G bootstrap_seed_*_filtered → FORCE + filter_* ensure (G.7).
+# wave835/921: class-G bootstrap_seed_*_filtered → FORCE + filter_* ensure (G.7).
 # 3× against partial + 1× pipeline; shell owns mtime + try-heat SRC.
-# NOT physical delete — thin-call edges + B2 + mk lists remain.
+# wave921: 4 per-leaf recipes → 2 multi-target rules (3 against_partial + 1 pipeline).
+# NOT physical delete — thin-call edges + B2 + mk lists remain (multi-target hybrid).
 # (KEY name FILTERED_O avoids bare product path tokens; honesty greps use patterns.)
 PHYS_DEL_FILTERED_O_FORCE_THIN=1
-PHYS_DEL_FILTERED_O_FORCE_THIN_WAVE=wave835
+PHYS_DEL_FILTERED_O_FORCE_THIN_WAVE=wave835/921
 PHYS_DEL_FILTERED_O_FORCE_THIN_COUNT=4
-PHYS_DEL_FILTERED_O_FORCE_THIN_VIA=filter_bootstrap_seed_ensure_mtime
-PHYS_DEL_FILTERED_O_FORCE_THIN_NOTE=force_prereq_shell_owns_src_partial_mtime_edges_remain
+PHYS_DEL_FILTERED_O_FORCE_THIN_VIA=filter_bootstrap_seed_ensure_mtime_multi_target
+PHYS_DEL_FILTERED_O_FORCE_THIN_NOTE=force_prereq_shell_owns_src_partial_mtime_multi_target_edges_remain
 PHYS_DEL_FILTERED_O_FORCE_THIN_PARTIAL=3
 PHYS_DEL_FILTERED_O_FORCE_THIN_PIPELINE=1
 SWALLOWED_FILTERED_O_FORCE_THIN=1
 FILTERED_O_FORCE_THIN_SWALLOWED=1
 FILTERED_O_FORCE_THIN_HELPER=filter_bootstrap_seed_against_partial_o+filter_bootstrap_seed_pipeline_o
-FILTERED_O_FORCE_THIN_WAVE=wave835
+FILTERED_O_FORCE_THIN_WAVE=wave835/921
 # wave836/920: product object-path cp-alias → FORCE + ensure_cp_alias_o (G.7 无才新增).
 # 3 leaves: shared ast alias + 2× x86_64 freestanding link-name wrappers.
 # wave920: 3 per-leaf recipes → 2 multi-target rules (1 SHARED + 1 Linux x86_64 guard).
@@ -4016,19 +4017,19 @@ if ! grep -q 'PHYS_DEL_PREFLIGHT_BOOTSTRAP_PIPELINE_FORCE_THIN=1' <<<"$_out"; th
   bad "dump must set PHYS_DEL_PREFLIGHT_BOOTSTRAP_PIPELINE_FORCE_THIN=1 (wave834)"
 fi
 if ! grep -q 'PHYS_DEL_FILTERED_O_FORCE_THIN=1' <<<"$_out"; then
-  bad "dump must set PHYS_DEL_FILTERED_O_FORCE_THIN=1 (wave835)"
+  bad "dump must set PHYS_DEL_FILTERED_O_FORCE_THIN=1 (wave835/921)"
 fi
-if ! grep -q 'PHYS_DEL_FILTERED_O_FORCE_THIN_WAVE=wave835' <<<"$_out"; then
-  bad "dump must set PHYS_DEL_FILTERED_O_FORCE_THIN_WAVE=wave835"
+if ! grep -q 'PHYS_DEL_FILTERED_O_FORCE_THIN_WAVE=wave835/921' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_FILTERED_O_FORCE_THIN_WAVE=wave835/921"
 fi
 if ! grep -q 'PHYS_DEL_FILTERED_O_FORCE_THIN_COUNT=4' <<<"$_out"; then
-  bad "dump must set PHYS_DEL_FILTERED_O_FORCE_THIN_COUNT=4 (wave835)"
+  bad "dump must set PHYS_DEL_FILTERED_O_FORCE_THIN_COUNT=4 (wave835/921)"
 fi
 if ! grep -q 'SWALLOWED_FILTERED_O_FORCE_THIN=1' <<<"$_out"; then
-  bad "dump must set SWALLOWED_FILTERED_O_FORCE_THIN=1 (wave835)"
+  bad "dump must set SWALLOWED_FILTERED_O_FORCE_THIN=1 (wave835/921)"
 fi
 if ! grep -q 'PHYS_DEL_PREFLIGHT_FILTERED_O_FORCE_THIN=1' <<<"$_out"; then
-  bad "dump must set PHYS_DEL_PREFLIGHT_FILTERED_O_FORCE_THIN=1 (wave835)"
+  bad "dump must set PHYS_DEL_PREFLIGHT_FILTERED_O_FORCE_THIN=1 (wave835/921)"
 fi
 if ! grep -q 'PHYS_DEL_CP_ALIAS_FORCE_THIN=1' <<<"$_out"; then
   bad "dump must set PHYS_DEL_CP_ALIAS_FORCE_THIN=1 (wave836/920)"
@@ -7903,21 +7904,26 @@ else
   note "Makefile bootstrap-pipeline free of pipeline_gen.c prereq edge (wave834)"
 fi
 
-# wave835: class-G bootstrap_seed_*_filtered FORCE dep-thin (COUNT=4).
+# wave835/921: class-G bootstrap_seed_*_filtered FORCE dep-thin (COUNT=4 catalog leaves).
+# wave921: 4 per-leaf recipes → 2 multi-target rules (3 against_partial + 1 pipeline).
 # Pattern greps only — no product object inventory hardcode (G.7 self-scan).
-# Match target lines by class-G stem; avoid writing product object paths in this script.
-_filt_n="$(
-  awk '
-    $0 ~ /^build_asm\/bootstrap_seed_.*_filtered/ && $0 ~ /:/ {
-      if ($0 ~ /FORCE/ && ($0 ~ /filter_bootstrap_seed_against_partial/ || $0 ~ /filter_bootstrap_seed_pipeline/)) n++
-    }
-    END { print n+0 }
-  ' "$MF" 2>/dev/null
-)"
-if [ "${_filt_n:-0}" -eq 4 ]; then
-  note "Makefile bootstrap_seed class-G filter FORCE thin (n=4; wave835; not physical delete)"
+_filt_alias_force=$(grep -cE '^build_asm/bootstrap_seed_.*_filtered\.o: FORCE scripts/filter_bootstrap_seed_(against_partial|pipeline)_o\.sh[[:space:]]*$' "$MF" 2>/dev/null || true)
+if [ "${_filt_alias_force:-0}" -eq 0 ]; then
+  note "Makefile class-G filter 0 per-leaf FORCE (all migrated to multi-target; wave921)"
 else
-  bad "Makefile bootstrap_seed class-G filter FORCE thin expected 4 got ${_filt_n:-0} (wave835)"
+  bad "Makefile expected 0 FORCE+filter_bootstrap_seed per-leaf residual, got ${_filt_alias_force:-0} (wave835/921)"
+fi
+# wave921: 3 against_partial leaves → multi-target $(FILTER_AGAINST_PARTIAL_OBJS).
+if grep -qE '\$\(FILTER_AGAINST_PARTIAL_OBJS\):[[:space:]]*FORCE scripts/filter_bootstrap_seed_against_partial_o\.sh' "$MF" 2>/dev/null; then
+  note "Makefile class-G filter against_partial multi-target FORCE thin (wave921; 3 leaves)"
+else
+  bad "Makefile missing \$(FILTER_AGAINST_PARTIAL_OBJS): FORCE multi-target for class-G filter against_partial (wave921)"
+fi
+# wave921: 1 pipeline leaf → multi-target $(FILTER_PIPELINE_OBJS).
+if grep -qE '\$\(FILTER_PIPELINE_OBJS\):[[:space:]]*FORCE scripts/filter_bootstrap_seed_pipeline_o\.sh' "$MF" 2>/dev/null; then
+  note "Makefile class-G filter pipeline multi-target FORCE thin (wave921; 1 leaf)"
+else
+  bad "Makefile missing \$(FILTER_PIPELINE_OBJS): FORCE multi-target for class-G filter pipeline (wave921)"
 fi
 _fp_sh="$ROOT/compiler/scripts/filter_bootstrap_seed_against_partial_o.sh"
 [ -f "$_fp_sh" ] || _fp_sh="scripts/filter_bootstrap_seed_against_partial_o.sh"
@@ -10408,6 +10414,11 @@ fi
 # logical expand +1 (LINUX_X86_64 multi-target hides 1 leaf; SHARED 1:1 no expand).
 if grep -qE '\$\(CP_ALIAS_LINUX_X86_64_OBJS\):[[:space:]]*FORCE scripts/ensure_cp_alias_o\.sh' "$MF" 2>/dev/null; then
   _bash_thin_n=$((_bash_thin_n + 1))
+fi
+# wave921: 4 class-G filter per-leaf → 2 multi-target (3 against_partial + 1 pipeline);
+# logical expand +2 (against_partial hides 2 leaves; pipeline 1:1 no expand).
+if grep -qE '\$\(FILTER_AGAINST_PARTIAL_OBJS\):[[:space:]]*FORCE scripts/filter_bootstrap_seed_against_partial_o\.sh' "$MF" 2>/dev/null; then
+  _bash_thin_n=$((_bash_thin_n + 2))
 fi
 if [ "$_bash_thin_n" -lt 200 ]; then
   bad "Makefile @bash scripts/ thin-call count expected >=200 got ${_bash_thin_n} (wave890; multi-target logical expand)"

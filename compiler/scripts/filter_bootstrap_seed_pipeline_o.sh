@@ -5,9 +5,10 @@
 # Thin wrapper over filter_o_export_against_deps.sh (G.7 single implementation).
 # Historical omit set: typeck_x / codegen_x / seed_host partial / strict_minimal.
 #
-# wave835 (G.7 有则补全; not physical delete):
+# wave835/921 (G.7 有则补全; not physical delete):
 #   Makefile residual leaf uses FORCE + this script only (no pipeline_x /
-#   partial / strict_minimal make-graph prereq). Shell owns freshness:
+#   partial / strict_minimal make-graph prereq). wave921: 1 per-leaf recipe →
+#   1 multi-target $(FILTER_PIPELINE_OBJS) in mk/driver_seed_r_lists.mk.
 #     - ensure OUT → try-heat pipeline_x + strict_minimal, mtime skip, filter
 #     - positional [pipeline_x.o] [out.o] still works (g05)
 #     - XLANG_FILTER_FORCE=1 always refilters
@@ -165,7 +166,7 @@ do_check() {
     echo "$TAG --check: pipeline filter must require-keep" >&2
     exit 1
   fi
-  echo "$TAG --check OK (COUNT=1 wave835 FORCE thin; not physical delete)"
+  echo "$TAG --check OK (COUNT=1 wave835/921 FORCE thin multi-target; not physical delete)"
 }
 
 if [ "$#" -ge 1 ]; then

@@ -229,5 +229,31 @@ CP_ALIAS_SHARED_OBJS = ast_x.o
 # Do not re-list in Makefile or residual shells (G.7).
 CP_ALIAS_LINUX_X86_64_OBJS = crt0_user.o freestanding_io.o
 
+# wave835/921 B7B class-G filter against_partial family (N=3 leaves; SHARED).
+# List authority for multi-target FORCE thin filter_bootstrap_seed_against_partial_o
+# (wave921). Body = @bash scripts/filter_bootstrap_seed_against_partial_o.sh ensure $@
+# (G.7 single body; script CATALOG owns OUT|SRC map; $@ passes leaf path directly).
+# Migrated from 3 per-leaf Makefile recipes.
+# Leaves: build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o ·
+#         build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o ·
+#         build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o.
+# Not dual of BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS (mk/user_asm_seed_objs.mk) —
+# that composite mixes filtered + non-filtered for link graph; this list is the
+# pure recipe-family authority for FORCE thin multi-target only.
+# Do not re-list in Makefile or residual shells (G.7).
+FILTER_AGAINST_PARTIAL_OBJS = \
+	build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o \
+	build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o \
+	build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o
+
+# wave835/921 B7B class-G filter pipeline family (N=1 leaf; SHARED).
+# List authority for multi-target FORCE thin filter_bootstrap_seed_pipeline_o
+# (wave921). Body = @bash scripts/filter_bootstrap_seed_pipeline_o.sh ensure $@
+# (G.7 single body; script owns DEFAULT_OUT + ensure path).
+# Migrated from 1 per-leaf Makefile recipe.
+# Leaf: build_asm/bootstrap_seed_pipeline_filtered.o (Darwin product link primary).
+# Do not re-list in Makefile or residual shells (G.7).
+FILTER_PIPELINE_OBJS = build_asm/bootstrap_seed_pipeline_filtered.o
+
 # pipeline_glue_standalone product leaf (also referenced by composites / export lists).
 ASM_GLUE_STANDALONE_O = build_asm/pipeline_glue_standalone.o

@@ -8,9 +8,10 @@
 # Thin wrapper over filter_o_export_against_deps.sh (G.7). Makefile recipes and
 # g05_ensure Darwin product path both invoke this script — no third nm/ld copy.
 #
-# wave835 (G.7 有则补全; not physical delete):
+# wave835/921 (G.7 有则补全; not physical delete):
 #   Makefile residual leaves use FORCE + this script only (no SRC/partial
-#   make-graph prereq). Shell owns freshness + optional SRC ensure:
+#   make-graph prereq). wave921: 3 per-leaf recipes → 1 multi-target
+#   $(FILTER_AGAINST_PARTIAL_OBJS) in mk/driver_seed_r_lists.mk. + optional SRC ensure:
 #     - ensure OUT  → catalog lookup, try-heat SRC, mtime skip, then filter
 #     - positional SRC OUT STEM [PARTIAL] still works (g05 / archaeology)
 #     - XLANG_FILTER_FORCE=1 always refilters
@@ -206,7 +207,7 @@ EOF
   if [ "$bad" -ne 0 ]; then
     exit 1
   fi
-  echo "$TAG --check OK (COUNT=$n wave835 FORCE thin; not physical delete)"
+  echo "$TAG --check OK (COUNT=$n wave835/921 FORCE thin multi-target; not physical delete)"
 }
 
 do_list() {
