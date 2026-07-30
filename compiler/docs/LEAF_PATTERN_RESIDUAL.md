@@ -53,7 +53,8 @@
 > - **wave882** · B7B residual single-token TARGET= inject hygiene (10 recipes → drop TARGET= on token/lexer/parser/parse-file/hybrid/crt0/build-via-tool/check-7.2 + bstrict/refresh multi; shell TARGET:-xlang + CLI auto-export)
 > - **wave883** · B7B residual single-token MAKE= inject hygiene (24 recipes → drop MAKE= on archaeology 4 + driver_leaf 8 + rebuild_leaves 7 + host_stubs 2 + phase1-link 1 + bstrict/refresh multi; shell MAKE:-make + GNU make auto-export; keep ENSURE_SEED/NO_REPLACE)
 > - **wave884** · B7B residual single-token CC= inject hygiene (118 recipes → drop CC= on 116 pure try-heat/filter + strip CC= from cfg_eval LD bag + pipeline_x multi; shell `resolve_host_cc` + CLI/env; keep LD/pipeline bags)
-> - **open** · thin edges + B2 + mk lists (hybrid) · residual injects (G05_SYNC · LD · pipeline bags) · → tip Windows → dual L4 → explicit auth ship delete
+> - **wave885** · B7B residual G05_SYNC inject hygiene (2 recipes → relink-xlang `--no-sync` + xlang_asm bare; drop `G05_SYNC_ASM=0/1` recipe inject; shell CLI/env default)
+> - **open** · thin edges + B2 + mk lists (hybrid) · residual injects (LD · pipeline bags) · → tip Windows → dual L4 → explicit auth ship delete
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -4674,5 +4675,41 @@ PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_bo
 
 **Forbidden:** claim CC inject hygiene = physical delete; re-add recipe-line
 `CC="$(CC)"` on these leaves; claim residual inject family exhausted while
-G05_SYNC / LD / pipeline bags / thin edges remain.
+G05_SYNC / LD / pipeline bags / thin edges remain
+(G05_SYNC closed in wave885).
+
+## wave885 B7B residual G05_SYNC inject hygiene (2026-07-30)
+
+> **Why (G.7 有则补全 on wave884 CC inject hygiene):** After CC= pure/multi
+> hygiene, residual `G05_SYNC_ASM=0/1` recipe injects remained on the two g05
+> compatibility phonies (`relink-xlang` / `xlang_asm`). Shell already defaults
+> `SYNC_ASM="${G05_SYNC_ASM:-1}"`. Dual recipe inject = second sync-policy path.
+
+**This wave:** drop `G05_SYNC_ASM=` on **2** recipes:
+- **relink-xlang** → thin `@sh scripts/g05_prepare_and_relink.sh --no-sync`
+  (intentional no-sync; was `G05_SYNC_ASM=0`)
+- **xlang_asm** → thin `@sh scripts/g05_prepare_and_relink.sh` (default sync;
+  was `G05_SYNC_ASM=1` redundant with shell default)
+
+Shell CLI (`--no-sync` / `--sync`) + env `G05_SYNC_ASM` (xbuild / refresh /
+probes) remain authority. **NOT** physical delete — thin edges + B2 + mk lists +
+residual LD / pipeline bags remain.
+
+```text
+PHYS_DEL_B7B_G05_SYNC_INJECT_HYGIENE=1
+PHYS_DEL_B7B_G05_SYNC_INJECT_HYGIENE_WAVE=wave885
+PHYS_DEL_B7B_G05_SYNC_INJECT_HYGIENE_COUNT=2
+PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_B7B_G05_SYNC_INJECT_HYGIENE` | `1` |
+| `PHYS_DEL_B7B_G05_SYNC_INJECT_HYGIENE_COUNT` | `2` |
+| `PHYS_DEL_B7B_G05_SYNC_INJECT_HYGIENE_WAVE` | `wave885` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+
+**Forbidden:** claim G05_SYNC inject hygiene = physical delete; re-add recipe-line
+`G05_SYNC_ASM=` on these phonies; claim residual inject family exhausted while
+LD / pipeline bags / thin edges remain.
 

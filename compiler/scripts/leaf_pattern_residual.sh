@@ -177,6 +177,10 @@
 #            + single-line try-heat) drop CC=; 2 multi (cfg_eval LD bag + pipeline_x
 #            PIPELINE bags) strip CC= only; shell resolve_host_cc + CLI/env export;
 #            NOT physical delete — G05_SYNC + LD + pipeline bags + thin edges remain
+#   wave885: B7B residual G05_SYNC inject hygiene (2 recipes) →
+#            relink-xlang / xlang_asm drop G05_SYNC_ASM=0/1 inject; shell
+#            --no-sync + default sync; env G05_SYNC_ASM still for direct shell;
+#            NOT physical delete — LD + pipeline bags + thin edges remain
 #   wave856: B7B archaeology LINK_OBJS shell-load via make export leaves (5 bags /
 #            6 shells; nested expand; Makefile drops multi-token LINK_OBJS env;
 #            NOT physical delete — CFLAGS env + thin edges + B2 remain)
@@ -1446,7 +1450,8 @@ B7B_MAKE_INJECT_HYGIENE_COUNT=24
 # pipeline_x PIPELINE_X_*/XLANG_FORCE_REGEN_GEN) strip CC= only.
 # Authority: scripts/resolve_host_cc.sh when CC unset; make CLI CC= auto-exports;
 # parent env CC honored (G.7). Keep LD/pipeline multi bags intentional.
-# NOT physical delete — G05_SYNC + LD + pipeline bags + thin edges + B2 remain.
+# NOT physical delete — G05_SYNC + LD + pipeline bags + thin edges + B2 remain
+# (G05_SYNC closed in wave885).
 PHYS_DEL_B7B_CC_INJECT_HYGIENE=1
 PHYS_DEL_B7B_CC_INJECT_HYGIENE_WAVE=wave884
 PHYS_DEL_B7B_CC_INJECT_HYGIENE_COUNT=118
@@ -1456,6 +1461,20 @@ SWALLOWED_B7B_CC_INJECT_HYGIENE=1
 B7B_CC_INJECT_HYGIENE_SWALLOWED=1
 B7B_CC_INJECT_HYGIENE_WAVE=wave884
 B7B_CC_INJECT_HYGIENE_COUNT=118
+# wave885: B7B residual G05_SYNC inject hygiene.
+# COUNT = 2 recipes: relink-xlang (was G05_SYNC_ASM=0) + xlang_asm (was =1).
+# Authority: scripts/g05_prepare_and_relink.sh — default SYNC=1; CLI --no-sync for
+# relink-xlang; env G05_SYNC_ASM still for xbuild/refresh/probes (not recipe inject).
+# NOT physical delete — LD + pipeline bags + thin edges + B2 remain.
+PHYS_DEL_B7B_G05_SYNC_INJECT_HYGIENE=1
+PHYS_DEL_B7B_G05_SYNC_INJECT_HYGIENE_WAVE=wave885
+PHYS_DEL_B7B_G05_SYNC_INJECT_HYGIENE_COUNT=2
+PHYS_DEL_B7B_G05_SYNC_INJECT_HYGIENE_VIA=shell_g05_prepare_cli_no_sync_default_sync_no_recipe_inject
+PHYS_DEL_B7B_G05_SYNC_INJECT_HYGIENE_NOTE=makefile_no_g05_sync_asm_inject_on_relink_xlang_xlang_asm_shell_cli_thin_edges_remain
+SWALLOWED_B7B_G05_SYNC_INJECT_HYGIENE=1
+B7B_G05_SYNC_INJECT_HYGIENE_SWALLOWED=1
+B7B_G05_SYNC_INJECT_HYGIENE_WAVE=wave885
+B7B_G05_SYNC_INJECT_HYGIENE_COUNT=2
 # B3: ~~LSP satellite hybrid body~~ wave781 → try-lsp-sat-prefer
 #     (Makefile thin-call edges remain; NOT physical delete)
 PHYS_DEL_BUCKET_B3=lsp_satellite_hybrid
@@ -2489,6 +2508,9 @@ else
   fi
   if ! grep -qE 'wave884|CC_INJECT|CC=.*inject|single-token CC|resolve_host_cc' "$DOC_REL"; then
     bad "$DOC_REL must document wave884 CC inject hygiene"
+  fi
+  if ! grep -qE 'wave885|G05_SYNC|G05_SYNC_ASM|no-sync|g05_prepare.*inject' "$DOC_REL"; then
+    bad "$DOC_REL must document wave885 G05_SYNC inject hygiene"
   fi
   note "doc $DOC_REL present"
 fi
@@ -6919,6 +6941,28 @@ if ! grep -q 'PHYS_DEL_B7B_CC_INJECT_HYGIENE_COUNT=118' <<<"$_out"; then
   bad "dump must set PHYS_DEL_B7B_CC_INJECT_HYGIENE_COUNT=118 (wave884)"
 fi
 note "B7B residual CC= inject hygiene (COUNT=118; wave884; not physical delete)"
+# wave885: residual G05_SYNC inject hygiene.
+# COUNT=2: drop G05_SYNC_ASM=0/1 recipe inject; shell --no-sync + default sync.
+# G.7: no dual sync policy — g05_prepare_and_relink owns CLI/env default.
+# Ban recipe-line G05_SYNC_ASM= inject (comments may mention the old form in prose).
+if grep -nE '^\t@G05_SYNC_ASM=' "$MF" 2>/dev/null | grep -q .; then
+  bad "Makefile still injects G05_SYNC_ASM= on recipes (wave885)"
+  grep -nE '^\t@G05_SYNC_ASM=' "$MF" | head -15 >&2
+fi
+if ! grep -q 'wave885' "$MF" 2>/dev/null; then
+  bad "Makefile must document wave885 G05_SYNC inject hygiene"
+fi
+if ! grep -qE 'g05_prepare_and_relink\.sh --no-sync' "$MF" 2>/dev/null; then
+  bad "Makefile relink-xlang must thin-call g05_prepare_and_relink.sh --no-sync (wave885)"
+fi
+# dump honesty
+if ! grep -q 'PHYS_DEL_B7B_G05_SYNC_INJECT_HYGIENE=1' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_G05_SYNC_INJECT_HYGIENE=1 (wave885)"
+fi
+if ! grep -q 'PHYS_DEL_B7B_G05_SYNC_INJECT_HYGIENE_COUNT=2' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_B7B_G05_SYNC_INJECT_HYGIENE_COUNT=2 (wave885)"
+fi
+note "B7B residual G05_SYNC inject hygiene (COUNT=2; wave885; not physical delete)"
 # Cross-check swallowed bodies still true for preflight readiness.
 for _k in \
   PHYS_DEL_BUCKET_B1_BODY_SWALLOWED=1 \

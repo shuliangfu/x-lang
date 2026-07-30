@@ -2675,12 +2675,17 @@ g05-export-relink:
 	@sh scripts/g05_relink_env.sh
 
 # 兼容入口：委托 G-05 shell 编排（无 recipe 内嵌 cc；产品路径零 make）
+# wave885 B7B residual: drop G05_SYNC_ASM=0/1 recipe inject (G.7 hygiene).
+# Authority: scripts/g05_prepare_and_relink.sh — default sync xlang→xlang_asm;
+# --no-sync for relink-xlang only. Env G05_SYNC_ASM still works for direct shell.
+# NOT physical delete — thin edges + B2 + mk lists + LD/pipeline bags remain.
+# PLATFORM: SHARED — same g05 shell body on mac / Ubuntu / Windows host.
 relink-xlang:
-	@G05_SYNC_ASM=0 sh scripts/g05_prepare_and_relink.sh
+	@sh scripts/g05_prepare_and_relink.sh --no-sync
 	@echo "relink-xlang OK (via g05_prepare_and_relink.sh)"
 
 xlang_asm:
-	@G05_SYNC_ASM=1 sh scripts/g05_prepare_and_relink.sh
+	@sh scripts/g05_prepare_and_relink.sh
 	@echo "xlang_asm OK (via g05_prepare_and_relink.sh)"
 
 # wave849: full body → scripts/relink_xlang_lexer.sh (G.7 有则补全; shell owns seed

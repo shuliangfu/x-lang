@@ -300,8 +300,9 @@ FORCE="${XLANG_HOST_CC_SEED_FORCE:-0}"
 # env/CLI + shell defaults (G.7 single body).
 # wave884 · B7B residual CC= inject hygiene: product try-heat is env-free thin
 # @bash only — CC from resolve_host_cc when unset; make CLI/env auto-export.
-# Residual: G05_SYNC · thin edges · cfg_eval LD bags · pipeline_x multi-token ·
-# physical delete.
+# wave885 · B7B residual G05_SYNC inject hygiene: relink-xlang / xlang_asm drop
+# G05_SYNC_ASM= recipe inject; shell --no-sync + default sync own policy.
+# Residual: thin edges · cfg_eval LD bags · pipeline_x multi-token · physical delete.
 # PLATFORM: SHARED — KEY=value from export target; no compile side effects.
 _load_try_heat_cflags_via_make() {
   local raw line
