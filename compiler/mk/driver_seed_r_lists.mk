@@ -80,5 +80,11 @@ R3_COLD_SEED_OBJS = src/runtime_io_abi.o src/runtime_driver_abi.o src/runtime_dr
 # Leaves: async_liveness · async_cps_codegen · async_asm_pool (paths under src/async/).
 ASYNC_THREE_SEED_OBJS = src/async/async_liveness.o src/async/async_cps_codegen.o src/async/async_asm_pool.o
 
+# wave779 B1 runtime_* OS/glue dual hybrid family (try-runtime-os-prefer table in ensure).
+# List authority for make-graph multi-target FORCE thin try-heat (wave908 COUNT=23).
+# Body = ensure try-heat → try-runtime-os-prefer; do not re-list in Makefile or residual shells (G.7).
+# Leaves: runtime_test_fn_invoke … runtime_process_os_glue (top-level product .o names).
+B1_RUNTIME_OS_SEED_OBJS = runtime_test_fn_invoke.o runtime_random_fill.o runtime_compress_zlib_glue.o runtime_time_os.o runtime_queue_contention.o runtime_dynlib_os.o runtime_env_os.o runtime_backtrace_platform.o runtime_log_os.o runtime_math_libm.o runtime_atomic_glue.o runtime_net_udp_batch.o runtime_net_workers.o runtime_sync_os.o runtime_sync_lock_diag_tls.o runtime_thread_glue.o runtime_http_glue.o runtime_tls_mbedtls_bio.o runtime_arrow_simd_glue.o runtime_crypto_inc_glue.o runtime_ed25519_ref10_glue.o runtime_process_argv.o runtime_process_os_glue.o
+
 # pipeline_glue_standalone product leaf (also referenced by composites / export lists).
 ASM_GLUE_STANDALONE_O = build_asm/pipeline_glue_standalone.o

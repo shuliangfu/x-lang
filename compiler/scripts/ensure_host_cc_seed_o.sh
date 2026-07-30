@@ -5256,8 +5256,8 @@ run_check() {
   note() { echo "ensure_host_cc_seed_o: $*" >&2; }
   bad() { echo "ensure_host_cc_seed_o: FAIL: $*" >&2; fail=1; }
 
-  # wave907 G.7: multi-target FORCE try-heat covers many historical per-leaf prefer
-  # checks (R1/R3/ASYNC families). Accept per-leaf OR membership in a multi-target
+  # wave907–908 G.7: multi-target FORCE try-heat covers many historical per-leaf prefer
+  # checks (R1/R3/ASYNC/B1 runtime OS families). Accept per-leaf OR membership in a multi-target
   # list whose recipe thin-calls ensure try-heat (prefer ladder lives in shell).
   makefile_leaf_try_heat_ok() {
     local leaf="$1"
@@ -5278,7 +5278,7 @@ run_check() {
     for var in \
       RT_SEED_SLICE_OBJS R1_CORE_SEED_OBJS R1_FRONTEND_GLUE_OBJS R1_MAIN_RUNTIME_OBJS \
       R1_ALIAS_STUBS_OBJS R1_EXTRA_CFLAGS_OBJS R1_MISC_BASENAME_OBJS R1_SEED_MAP_OBJS \
-      R3_COLD_SEED_OBJS ASYNC_THREE_SEED_OBJS; do
+      R3_COLD_SEED_OBJS ASYNC_THREE_SEED_OBJS B1_RUNTIME_OS_SEED_OBJS; do
       if [ ! -f "$mk" ]; then
         continue
       fi
@@ -6090,18 +6090,11 @@ run_check() {
     else
       bad "runtime_os_prefer_spec_for_out missing $_rtos_leaf (wave779)"
     fi
-    if awk -v leaf="$_rtos_leaf" '
-      $0 ~ ("^" leaf ":") {grab=1; next}
-      grab && /^[^\t#]/ && $0 !~ /^$/ {exit}
-      grab {body = body $0 "\n"}
-      END {
-        if (body ~ /ensure_host_cc_seed_o\.sh/ && body ~ /try-heat|try-runtime-os-prefer/) exit 0
-        exit 1
-      }
-    ' Makefile; then
-      note "Makefile $_rtos_leaf thin-calls ensure try-runtime-os-prefer (wave779)"
+    # wave908: multi-target $(B1_RUNTIME_OS_SEED_OBJS): FORCE try-heat OR per-leaf
+    if makefile_leaf_try_heat_ok "$_rtos_leaf" 'try-heat|try-runtime-os-prefer'; then
+      note "Makefile $_rtos_leaf thin-calls ensure try-heat|try-runtime-os-prefer (wave779/908)"
     else
-      bad "Makefile $_rtos_leaf must thin-call ensure try-heat|try-runtime-os-prefer (wave779)"
+      bad "Makefile $_rtos_leaf must thin-call ensure try-heat|try-runtime-os-prefer (wave779/908)"
     fi
     # Ban re-opened dual hybrid body (mktemp + thin.o / rest.o inline).
     if awk -v leaf="$_rtos_leaf" '
