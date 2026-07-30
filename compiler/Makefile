@@ -2858,8 +2858,15 @@ check-pipeline-gen-expr-i64-abi:
 	@chmod +x scripts/check_pipeline_gen_expr_i64_abi.sh 2>/dev/null || true
 	@./scripts/check_pipeline_gen_expr_i64_abi.sh
 
+# wave834: FORCE shell-primary — drop make-graph edge on pipeline_gen.c file.
+# G.7 有则补全: body already ensure_lsp_pipeline_gen.sh pipeline (wave739); thin-call only.
+# Shell always runs pin/seed/force -E + i64 ABI (make file-prereq skipped when pin exists).
+# PLATFORM: SHARED — same ensure on Darwin/Linux/Windows MSYS2. NOT physical delete.
 .PHONY: bootstrap-pipeline
-bootstrap-pipeline: pipeline_gen.c
+bootstrap-pipeline: FORCE scripts/ensure_lsp_pipeline_gen.sh
+	@MAKE="$(MAKE)" XLANG_FORCE_REGEN_GEN="$(XLANG_FORCE_REGEN_GEN)" \
+	  XLANG_C="$(XLANG_C)" XLANG_X="$(XLANG_X)" \
+	  bash scripts/ensure_lsp_pipeline_gen.sh pipeline
 	@echo "bootstrap-pipeline OK"
 # 仅重生成并编译 pipeline/driver/preprocess 三个 X 对象（供调试或 build_xlang_asm 对齐）
 gen-x-driver-objs: pipeline_x.o driver_x.o preprocess_x.o

@@ -1,4 +1,4 @@
-# Leaf pattern residual (11.3.1 path · wave746 inventory · … · wave824 E_DIRS list→mk · wave825 std_x shell-primary catalog · wave826 formal_mod FORCE dep-thin · wave827 std_x FORCE dep-thin · wave828 driver_leaf FORCE dep-thin · wave829 gen.c FORCE dep-thin · wave830 ast_gen2 FORCE dep-thin · wave831 src-edge FORCE dep-thin · wave832 migrate companion FORCE dep-thin · wave833 pipeline_glue_types FORCE dep-thin · wave747–825 prior swallows · wave799 execute-gate · … · not physical delete)
+# Leaf pattern residual (11.3.1 path · wave746 inventory · … · wave824 E_DIRS list→mk · wave825 std_x shell-primary catalog · wave826 formal_mod FORCE dep-thin · wave827 std_x FORCE dep-thin · wave828 driver_leaf FORCE dep-thin · wave829 gen.c FORCE dep-thin · wave830 ast_gen2 FORCE dep-thin · wave831 src-edge FORCE dep-thin · wave832 migrate companion FORCE dep-thin · wave833 pipeline_glue_types FORCE dep-thin · wave834 bootstrap-pipeline FORCE shell-primary · wave747–825 prior swallows · wave799 execute-gate · … · not physical delete)
 
 > **Authority (G.7):** this document is the **human map** for residual Makefile
 > **leaf `.o` pattern / host-cc compile** rules that still block physical delete
@@ -1783,8 +1783,8 @@ ship delete body; mac-only wave green.
 > - i64 ABI guard call (`check_pipeline_gen_expr_i64_abi.sh`) before extract
 > - extract algorithm remains `extract_pipeline_glue_types.pl` (not reimplemented)
 >
-> Honesty COUNT = **1**. Residual after: thin-call edges + B2 + mk lists +
-> `bootstrap-pipeline` phony. Dual-end L2 required. Blockers **remain**.
+> Honesty COUNT = **1**. Residual after: ~~bootstrap-pipeline~~ (wave834) +
+> thin-call edges + B2 + mk lists. Dual-end L2 required. Blockers **remain**.
 
 ```text
   leaf dump:
@@ -1796,8 +1796,7 @@ ship delete body; mac-only wave green.
     PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
   dual-end L2 green tip: 6d08997ad (Mac + Ubuntu leaf --check;
     glue_types FORCE; need_rebuild mtime; sample make OK)
-  next: thin edges / B2 / bootstrap-pipeline or tip Windows re-proof
-       → Mac+Ubuntu L4 → ship delete body
+  next: ~~bootstrap-pipeline~~ (wave834)
 ```
 
 | Key | Value |
@@ -1812,6 +1811,49 @@ ship delete body; mac-only wave green.
 
 **Forbidden:** claim glue-types FORCE thin = physical delete; re-list
 `pipeline_gen.c` / extract.pl on Makefile prereq for this leaf;
+`rm compiler/Makefile`; ship delete body; mac-only wave green.
+
+## wave834 bootstrap-pipeline FORCE shell-primary (2026-07-30)
+
+> **Not this wave:** physical delete of `compiler/Makefile`; ship delete body.
+>
+> **What this wave is:** G.7 **有则补全** — `bootstrap-pipeline` phony drops
+> make-graph prereq on `pipeline_gen.c` file; target is
+> `FORCE scripts/ensure_lsp_pipeline_gen.sh` only; recipe thin-calls
+> `bash scripts/ensure_lsp_pipeline_gen.sh pipeline` (dash-safe bash).
+> Body authority remains wave739 `ensure_pipeline_gen` (pin / seed / force -E
+> + i64 ABI). Always-run when the phony is requested (make file-prereq used to
+> skip ensure when pin existed).
+>
+> Honesty COUNT = **1**. Residual after: thin-call edges + B2 + mk lists
+> (std_core_product_make_graph). Dual-end L2 required. Blockers **remain**.
+
+```text
+  leaf dump:
+    PHYS_DEL_BOOTSTRAP_PIPELINE_FORCE_THIN=1
+    PHYS_DEL_BOOTSTRAP_PIPELINE_FORCE_THIN_WAVE=wave834
+    PHYS_DEL_BOOTSTRAP_PIPELINE_FORCE_THIN_COUNT=1
+    SWALLOWED_BOOTSTRAP_PIPELINE_FORCE_THIN=1
+    PHYS_DEL_PREFLIGHT_BOOTSTRAP_PIPELINE_FORCE_THIN=1
+    PHYS_DEL_PREFLIGHT_NEXT=continue_shell_primary_then_explicit_auth_ship_delete_body
+  dual-end L2 green tip: (implement tip; Mac + Ubuntu leaf --check;
+    bootstrap-pipeline FORCE; sample make bootstrap-pipeline OK)
+  next: thin edges / B2 pressure or tip Windows re-proof
+       → Mac+Ubuntu L4 → ship delete body (explicit auth only)
+```
+
+| Key | Value |
+|-----|-------|
+| `PHYS_DEL_BOOTSTRAP_PIPELINE_FORCE_THIN` | `1` |
+| `PHYS_DEL_BOOTSTRAP_PIPELINE_FORCE_THIN_COUNT` | `1` |
+| `SWALLOWED_BOOTSTRAP_PIPELINE_FORCE_THIN` | `1` |
+| `BOOTSTRAP_PIPELINE_FORCE_THIN_HELPER` | `ensure_lsp_pipeline_gen.sh` |
+| `PHYS_DEL_PREFLIGHT_BLOCKERS` | still `makefile_thin_call_edges\|b7b_lists_in_mk\|std_core_product_make_graph` |
+| `ENDGAME_PHYSICAL_DELETE_MAKEFILE` | `1` (tree; arm already done; delete deferred) |
+| `PHYS_DEL_PREFLIGHT_NEXT` | `continue_shell_primary_then_explicit_auth_ship_delete_body` |
+
+**Forbidden:** claim bootstrap-pipeline FORCE thin = physical delete; re-list
+`pipeline_gen.c` as make-graph prereq on `bootstrap-pipeline`;
 `rm compiler/Makefile`; ship delete body; mac-only wave green.
 
 ## wave831 src-edge FORCE dep-thin (2026-07-30)
